@@ -214,7 +214,17 @@
     "stackNamePlaceholder": "Stack name",
     "selectRoutines": "Select routines (order matters)",
     "startTimer": "Start timer",
-    "startNext": "Start next"
+    "startNext": "Start next",
+    "timeSlotSettings": "Time slot settings",
+    "createSet": "New Routine Set",
+    "setNamePlaceholder": "Set name",
+    "selectRoutinesForSet": "Select routines (click in order)",
+    "setOrderHint": "The selected order becomes the execution flow.",
+    "standalone": "Individual Routines",
+    "noRoutinesInSlot": "No routines in this time slot.",
+    "routineSetOptional": "Routine Set (optional)",
+    "noSet": "None",
+    "startRoutine": "Start {{title}}"
   },
   "analytics": {
     "title": "Analytics",

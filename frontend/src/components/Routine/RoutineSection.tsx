@@ -1,14 +1,20 @@
 import { useState, useMemo, useCallback } from "react";
-import { Plus, BarChart3 } from "lucide-react";
+import { Plus, BarChart3, Settings } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useRoutineContext } from "../../hooks/useRoutineContext";
 import { useTimerContext } from "../../hooks/useTimerContext";
 import { RoutineItemCard } from "./RoutineItemCard";
 import { RoutineCreateDialog } from "./RoutineCreateDialog";
 import { RoutineStatsPanel } from "./RoutineStatsPanel";
-import { RoutineStackCard } from "./RoutineStackCard";
+import { RoutineSetStepper } from "./RoutineSetStepper";
 import { RoutineStackDialog } from "./RoutineStackDialog";
+import { TimeSlotSettingsDialog } from "./TimeSlotSettingsDialog";
 import { MilestoneToast } from "./MilestoneToast";
+import {
+  loadTimeSlotConfig,
+  saveTimeSlotConfig,
+} from "./routineTimeSlotConfig";
+import type { TimeSlotConfig } from "./routineTimeSlotConfig";
 import type { RoutineNode, TimeSlot } from "../../types/routine";
 
 function getTodayKey(): string {
@@ -16,12 +22,19 @@ function getTodayKey(): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
-const TIME_SLOT_ORDER: TimeSlot[] = [
-  "morning",
-  "afternoon",
-  "evening",
-  "anytime",
-];
+type TabSlot = "morning" | "afternoon" | "evening";
+const TAB_SLOTS: TabSlot[] = ["morning", "afternoon", "evening"];
+
+const TAB_EMOJI: Record<TabSlot, string> = {
+  morning: "\u{1F305}",
+  afternoon: "\u2600\uFE0F",
+  evening: "\u{1F319}",
+};
+
+function normalizeTimeSlot(slot: TimeSlot): TabSlot {
+  if (slot === "anytime") return "morning";
+  return slot;
+}
 
 function isDayApplicable(routine: RoutineNode, date: Date): boolean {
   if (routine.frequencyType === "daily") return true;
@@ -39,6 +52,10 @@ export function RoutineSection() {
   const [editTarget, setEditTarget] = useState<RoutineNode | null>(null);
   const [showStats, setShowStats] = useState(false);
   const [showStackDialog, setShowStackDialog] = useState(false);
+  const [showTimeSlotSettings, setShowTimeSlotSettings] = useState(false);
+  const [timeSlotConfig, setTimeSlotConfig] =
+    useState<TimeSlotConfig>(loadTimeSlotConfig);
+  const [activeTab, setActiveTab] = useState<TabSlot>("morning");
   const [milestoneInfo, setMilestoneInfo] = useState<{
     title: string;
     days: number;
@@ -47,20 +64,40 @@ export function RoutineSection() {
   const todayKey = getTodayKey();
   const today = new Date(todayKey + "T00:00:00");
 
-  // Group routines by timeSlot
-  const groupedRoutines = useMemo(() => {
-    const groups = new Map<TimeSlot, RoutineNode[]>();
-    for (const slot of TIME_SLOT_ORDER) {
-      groups.set(slot, []);
+  // Set of routine IDs that belong to a stack
+  const stackRoutineIds = useMemo(() => {
+    const ids = new Set<string>();
+    for (const stack of ctx.stacks) {
+      for (const item of stack.items) {
+        ids.add(item.routineId);
+      }
     }
-    for (const r of ctx.routines) {
-      const slot = r.timeSlot || "anytime";
-      groups.get(slot)!.push(r);
-    }
-    return groups;
-  }, [ctx.routines]);
+    return ids;
+  }, [ctx.stacks]);
 
-  // Today's progress
+  // Filter routines by active tab (with anytime -> morning fallback)
+  const tabRoutines = useMemo(() => {
+    return ctx.routines.filter(
+      (r) => normalizeTimeSlot(r.timeSlot) === activeTab,
+    );
+  }, [ctx.routines, activeTab]);
+
+  // Stacks that have at least one routine in the active tab
+  const tabStacks = useMemo(() => {
+    return ctx.stacks.filter((stack) =>
+      stack.items.some((item) => {
+        const routine = ctx.routines.find((r) => r.id === item.routineId);
+        return routine && normalizeTimeSlot(routine.timeSlot) === activeTab;
+      }),
+    );
+  }, [ctx.stacks, ctx.routines, activeTab]);
+
+  // Standalone routines (not in any stack) in the active tab
+  const standaloneRoutines = useMemo(() => {
+    return tabRoutines.filter((r) => !stackRoutineIds.has(r.id));
+  }, [tabRoutines, stackRoutineIds]);
+
+  // Today's progress (all routines)
   const todayProgress = useMemo(() => {
     let completed = 0;
     let total = 0;
@@ -131,10 +168,27 @@ export function RoutineSection() {
     return map;
   }, [ctx.logs]);
 
+  // Streak map for stepper display
+  const statsMap = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const r of ctx.routines) {
+      const stats = ctx.getStatsForRoutine(r);
+      map.set(r.id, stats.currentStreak);
+    }
+    return map;
+  }, [ctx.routines, ctx]);
+
+  const handleSaveTimeSlotConfig = useCallback((config: TimeSlotConfig) => {
+    saveTimeSlotConfig(config);
+    setTimeSlotConfig(config);
+  }, []);
+
   const hasRoutines = ctx.routines.length > 0;
-  const nonEmptySlots = TIME_SLOT_ORDER.filter(
-    (slot) => (groupedRoutines.get(slot)?.length ?? 0) > 0,
-  );
+
+  const formatTimeRange = (slot: TabSlot): string => {
+    const cfg = timeSlotConfig[slot];
+    return `${cfg.start}\u2013${cfg.end}`;
+  };
 
   return (
     <div className="h-full flex flex-col overflow-hidden">
@@ -152,17 +206,26 @@ export function RoutineSection() {
         </div>
         <div className="flex items-center gap-2">
           {hasRoutines && (
-            <button
-              onClick={() => setShowStats(!showStats)}
-              className={`p-1.5 rounded-md transition-colors ${
-                showStats
-                  ? "bg-notion-accent/10 text-notion-accent"
-                  : "text-notion-text-secondary hover:bg-notion-hover hover:text-notion-text"
-              }`}
-              title={t("routine.stats")}
-            >
-              <BarChart3 size={16} />
-            </button>
+            <>
+              <button
+                onClick={() => setShowStats(!showStats)}
+                className={`p-1.5 rounded-md transition-colors ${
+                  showStats
+                    ? "bg-notion-accent/10 text-notion-accent"
+                    : "text-notion-text-secondary hover:bg-notion-hover hover:text-notion-text"
+                }`}
+                title={t("routine.stats")}
+              >
+                <BarChart3 size={16} />
+              </button>
+              <button
+                onClick={() => setShowTimeSlotSettings(true)}
+                className="p-1.5 rounded-md text-notion-text-secondary hover:bg-notion-hover hover:text-notion-text transition-colors"
+                title={t("routine.timeSlotSettings")}
+              >
+                <Settings size={16} />
+              </button>
+            </>
           )}
           <button
             onClick={() => setShowCreateDialog(true)}
@@ -174,6 +237,34 @@ export function RoutineSection() {
         </div>
       </div>
 
+      {/* Tab Bar */}
+      {hasRoutines && !showStats && (
+        <div className="flex border-b border-notion-border shrink-0">
+          {TAB_SLOTS.map((slot) => (
+            <button
+              key={slot}
+              onClick={() => setActiveTab(slot)}
+              className={`flex-1 px-4 py-2.5 text-xs font-medium transition-colors relative ${
+                activeTab === slot
+                  ? "text-notion-accent"
+                  : "text-notion-text-secondary hover:text-notion-text"
+              }`}
+            >
+              <span className="flex items-center justify-center gap-1.5">
+                <span>{TAB_EMOJI[slot]}</span>
+                <span>{t(`routine.timeSlot.${slot}`)}</span>
+                <span className="text-notion-text-secondary/60">
+                  {formatTimeRange(slot)}
+                </span>
+              </span>
+              {activeTab === slot && (
+                <div className="absolute bottom-0 left-2 right-2 h-0.5 bg-notion-accent rounded-full" />
+              )}
+            </button>
+          ))}
+        </div>
+      )}
+
       {/* Content */}
       <div className="flex-1 overflow-y-auto">
         {showStats && hasRoutines ? (
@@ -183,80 +274,70 @@ export function RoutineSection() {
             {t("routine.noRoutines")}
           </div>
         ) : (
-          <div className="px-4 py-3 space-y-5">
-            {/* Today's routines grouped by time slot */}
-            {nonEmptySlots.map((slot) => {
-              const items = groupedRoutines.get(slot)!;
-              return (
-                <div key={slot}>
-                  <h3 className="text-xs font-medium text-notion-text-secondary uppercase tracking-wider mb-2 px-1">
-                    {t(`routine.timeSlot.${slot}`)}
-                  </h3>
-                  <div className="space-y-1">
-                    {items.map((routine) => {
-                      const stats = ctx.getStatsForRoutine(routine);
-                      const todayCompleted =
-                        logSet.get(routine.id)?.has(todayKey) ?? false;
-                      const todayApplicable = isDayApplicable(routine, today);
-                      return (
-                        <RoutineItemCard
-                          key={routine.id}
-                          routine={routine}
-                          stats={stats}
-                          todayCompleted={todayCompleted}
-                          todayApplicable={todayApplicable}
-                          onToggleToday={() => handleToggleToday(routine.id)}
-                          onEdit={() => setEditTarget(routine)}
-                          onDelete={() => ctx.deleteRoutine(routine.id)}
-                          onStartTimer={() =>
-                            handleStartTimer(routine.id, routine.title)
-                          }
-                        />
-                      );
-                    })}
-                  </div>
-                </div>
-              );
-            })}
+          <div className="px-4 py-3 space-y-4">
+            {/* Routine Sets (Steppers) */}
+            {tabStacks.map((stack) => (
+              <RoutineSetStepper
+                key={stack.id}
+                stack={stack}
+                routines={ctx.routines}
+                todayKey={todayKey}
+                logSet={logSet}
+                statsMap={statsMap}
+                onToggle={handleToggleToday}
+                onDelete={() => ctx.deleteStack(stack.id)}
+                onStartTimer={handleStartTimer}
+              />
+            ))}
 
-            {/* Habit Stacks */}
-            {ctx.stacks.length > 0 && (
+            {/* Standalone Routines */}
+            {standaloneRoutines.length > 0 && (
               <div>
-                <div className="flex items-center justify-between mb-2 px-1">
-                  <h3 className="text-xs font-medium text-notion-text-secondary uppercase tracking-wider">
-                    {t("routine.habitStacks")}
+                {tabStacks.length > 0 && (
+                  <h3 className="text-xs font-medium text-notion-text-secondary uppercase tracking-wider mb-2 px-1">
+                    {t("routine.standalone")}
                   </h3>
-                  <button
-                    onClick={() => setShowStackDialog(true)}
-                    className="text-xs text-notion-text-secondary hover:text-notion-text transition-colors"
-                  >
-                    <Plus size={14} />
-                  </button>
-                </div>
-                <div className="space-y-2">
-                  {ctx.stacks.map((stack) => (
-                    <RoutineStackCard
-                      key={stack.id}
-                      stack={stack}
-                      routines={ctx.routines}
-                      todayKey={todayKey}
-                      logSet={logSet}
-                      onToggle={handleToggleToday}
-                      onDelete={() => ctx.deleteStack(stack.id)}
-                      onStartTimer={handleStartTimer}
-                    />
-                  ))}
+                )}
+                <div className="space-y-1">
+                  {standaloneRoutines.map((routine) => {
+                    const stats = ctx.getStatsForRoutine(routine);
+                    const todayCompleted =
+                      logSet.get(routine.id)?.has(todayKey) ?? false;
+                    const todayApplicable = isDayApplicable(routine, today);
+                    return (
+                      <RoutineItemCard
+                        key={routine.id}
+                        routine={routine}
+                        stats={stats}
+                        todayCompleted={todayCompleted}
+                        todayApplicable={todayApplicable}
+                        onToggleToday={() => handleToggleToday(routine.id)}
+                        onEdit={() => setEditTarget(routine)}
+                        onDelete={() => ctx.deleteRoutine(routine.id)}
+                        onStartTimer={() =>
+                          handleStartTimer(routine.id, routine.title)
+                        }
+                      />
+                    );
+                  })}
                 </div>
               </div>
             )}
 
-            {/* Add Stack button (when no stacks exist) */}
-            {ctx.stacks.length === 0 && ctx.routines.length >= 2 && (
+            {/* Empty tab state */}
+            {tabStacks.length === 0 && standaloneRoutines.length === 0 && (
+              <div className="flex items-center justify-center h-24 text-xs text-notion-text-secondary">
+                {t("routine.noRoutinesInSlot")}
+              </div>
+            )}
+
+            {/* Create Stack button */}
+            {ctx.routines.length >= 2 && (
               <button
                 onClick={() => setShowStackDialog(true)}
                 className="w-full py-2 text-xs text-notion-text-secondary hover:text-notion-text border border-dashed border-notion-border rounded-lg hover:bg-notion-hover/50 transition-colors"
               >
-                + {t("routine.createStack")}
+                + {t("routine.createSet")}
               </button>
             )}
           </div>
@@ -266,8 +347,9 @@ export function RoutineSection() {
       {/* Dialogs */}
       {showCreateDialog && (
         <RoutineCreateDialog
+          stacks={ctx.stacks}
           onSubmit={(data) => {
-            ctx.createRoutine(
+            const id = ctx.createRoutine(
               data.title,
               data.frequencyType,
               data.frequencyDays,
@@ -275,6 +357,9 @@ export function RoutineSection() {
               data.timeSlot,
               data.soundPresetId,
             );
+            if (data.stackId && id) {
+              ctx.addStackItem(data.stackId, id);
+            }
             setShowCreateDialog(false);
           }}
           onClose={() => setShowCreateDialog(false)}
@@ -282,6 +367,7 @@ export function RoutineSection() {
       )}
       {editTarget && (
         <RoutineCreateDialog
+          stacks={ctx.stacks}
           onSubmit={handleEditSubmit}
           onClose={() => setEditTarget(null)}
           initial={{
@@ -305,6 +391,13 @@ export function RoutineSection() {
             setShowStackDialog(false);
           }}
           onClose={() => setShowStackDialog(false)}
+        />
+      )}
+      {showTimeSlotSettings && (
+        <TimeSlotSettingsDialog
+          config={timeSlotConfig}
+          onSave={handleSaveTimeSlotConfig}
+          onClose={() => setShowTimeSlotSettings(false)}
         />
       )}
       {milestoneInfo && (

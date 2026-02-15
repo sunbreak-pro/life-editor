@@ -4,6 +4,17 @@
 
 ---
 
+## ルーティンUI/UXリデザイン (2026-02-15)
+
+- **時間帯タブバー**: 朝/昼/夜の3タブによるフィルタリング表示、カスタム時間帯設定（localStorage）
+- **ルーティンセット（横方向ステッパー）**: 旧Habit StackカードをステッパーUIに置換、完了/次/未着手の3状態、矢印コネクター、「次を開始」ボタン
+- **単体ルーティン表示**: セット未所属ルーティンのコンパクトリスト表示
+- **ルーティン作成ダイアログ改修**: セット選択ドロップダウン追加、anytime除去
+- **anytimeマイグレーション**: フロントエンドで`anytime`→`morning`フォールバック（DB変更なし）
+- **新規コンポーネント**: `TimeSlotSettingsDialog.tsx`, `RoutineSetStepper.tsx`, `routineTimeSlotConfig.ts`
+- **削除**: `RoutineStackCard.tsx`
+- **i18n**: en/jaに10+新規翻訳キー追加
+
 ## ルーティンUXUX大幅強化 (2026-02-15)
 
 - **独立セクション昇格**: Routine をMemoViewタブからSidebar独立セクションに移行

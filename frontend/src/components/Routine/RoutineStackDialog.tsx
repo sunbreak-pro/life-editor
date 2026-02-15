@@ -38,22 +38,22 @@ export function RoutineStackDialog({
         onClick={(e) => e.stopPropagation()}
       >
         <h3 className="text-sm font-semibold text-notion-text mb-4">
-          {t("routine.createStack")}
+          {t("routine.createSet")}
         </h3>
 
         <input
           type="text"
           value={name}
           onChange={(e) => setName(e.target.value)}
-          placeholder={t("routine.stackNamePlaceholder")}
+          placeholder={t("routine.setNamePlaceholder")}
           className="w-full px-3 py-2 text-sm bg-transparent border border-notion-border rounded-lg outline-none focus:border-notion-accent text-notion-text placeholder:text-notion-text-secondary mb-3"
           autoFocus
         />
 
         <label className="text-xs text-notion-text-secondary mb-1.5 block">
-          {t("routine.selectRoutines")}
+          {t("routine.selectRoutinesForSet")}
         </label>
-        <div className="flex-1 overflow-y-auto space-y-1 mb-3">
+        <div className="flex-1 overflow-y-auto space-y-1 mb-2">
           {routines.map((r) => {
             const selected = selectedIds.includes(r.id);
             const order = selected ? selectedIds.indexOf(r.id) + 1 : null;
@@ -77,6 +77,10 @@ export function RoutineStackDialog({
             );
           })}
         </div>
+
+        <p className="text-[10px] text-notion-text-secondary mb-3">
+          {t("routine.setOrderHint")}
+        </p>
 
         <div className="flex justify-end gap-2">
           <button

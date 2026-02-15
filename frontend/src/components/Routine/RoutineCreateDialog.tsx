@@ -1,8 +1,16 @@
 import { useState } from "react";
+import { ChevronDown } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import type { FrequencyType, TimeSlot } from "../../types/routine";
+import type {
+  FrequencyType,
+  TimeSlot,
+  RoutineStack,
+} from "../../types/routine";
+
+type TabSlot = "morning" | "afternoon" | "evening";
 
 interface RoutineCreateDialogProps {
+  stacks: RoutineStack[];
   onSubmit: (data: {
     title: string;
     frequencyType: FrequencyType;
@@ -10,6 +18,7 @@ interface RoutineCreateDialogProps {
     timesPerWeek?: number;
     timeSlot: TimeSlot;
     soundPresetId?: string;
+    stackId?: string;
   }) => void;
   onClose: () => void;
   initial?: {
@@ -23,9 +32,10 @@ interface RoutineCreateDialogProps {
 }
 
 const DAY_KEYS = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"] as const;
-const TIME_SLOTS: TimeSlot[] = ["morning", "afternoon", "evening", "anytime"];
+const TIME_SLOTS: TabSlot[] = ["morning", "afternoon", "evening"];
 
 export function RoutineCreateDialog({
+  stacks,
   onSubmit,
   onClose,
   initial,
@@ -41,9 +51,13 @@ export function RoutineCreateDialog({
   const [timesPerWeek, setTimesPerWeek] = useState<number>(
     initial?.timesPerWeek ?? 3,
   );
-  const [timeSlot, setTimeSlot] = useState<TimeSlot>(
-    initial?.timeSlot ?? "anytime",
-  );
+  const defaultSlot: TabSlot =
+    initial?.timeSlot === "anytime" || !initial?.timeSlot
+      ? "morning"
+      : (initial.timeSlot as TabSlot);
+  const [timeSlot, setTimeSlot] = useState<TabSlot>(defaultSlot);
+  const [stackId, setStackId] = useState<string>("");
+  const [showStackDropdown, setShowStackDropdown] = useState(false);
 
   const toggleDay = (day: number) => {
     setFrequencyDays((prev) =>
@@ -61,8 +75,11 @@ export function RoutineCreateDialog({
       frequencyDays: frequencyType === "custom" ? frequencyDays : [],
       timesPerWeek: frequencyType === "timesPerWeek" ? timesPerWeek : undefined,
       timeSlot,
+      stackId: stackId || undefined,
     });
   };
+
+  const selectedStack = stacks.find((s) => s.id === stackId);
 
   return (
     <div
@@ -186,6 +203,67 @@ export function RoutineCreateDialog({
               <span className="text-xs text-notion-text-secondary">
                 {t("routine.timesPerWeekLabel")}
               </span>
+            </div>
+          </div>
+        )}
+
+        {/* Routine Set (optional, create mode only) */}
+        {!initial && stacks.length > 0 && (
+          <div className="mb-3">
+            <label className="text-xs text-notion-text-secondary mb-1 block">
+              {t("routine.routineSetOptional")}
+            </label>
+            <div className="relative">
+              <button
+                onClick={() => setShowStackDropdown(!showStackDropdown)}
+                className="w-full flex items-center justify-between px-3 py-2 text-xs border border-notion-border rounded-lg hover:bg-notion-hover transition-colors text-notion-text"
+              >
+                <span
+                  className={selectedStack ? "" : "text-notion-text-secondary"}
+                >
+                  {selectedStack ? selectedStack.name : t("routine.noSet")}
+                </span>
+                <ChevronDown size={14} className="text-notion-text-secondary" />
+              </button>
+              {showStackDropdown && (
+                <>
+                  <div
+                    className="fixed inset-0 z-40"
+                    onClick={() => setShowStackDropdown(false)}
+                  />
+                  <div className="absolute left-0 right-0 top-full mt-1 z-50 bg-notion-bg border border-notion-border rounded-lg shadow-lg py-1 max-h-40 overflow-y-auto">
+                    <button
+                      onClick={() => {
+                        setStackId("");
+                        setShowStackDropdown(false);
+                      }}
+                      className={`w-full px-3 py-1.5 text-left text-xs hover:bg-notion-hover transition-colors ${
+                        !stackId
+                          ? "text-notion-accent"
+                          : "text-notion-text-secondary"
+                      }`}
+                    >
+                      {t("routine.noSet")}
+                    </button>
+                    {stacks.map((s) => (
+                      <button
+                        key={s.id}
+                        onClick={() => {
+                          setStackId(s.id);
+                          setShowStackDropdown(false);
+                        }}
+                        className={`w-full px-3 py-1.5 text-left text-xs hover:bg-notion-hover transition-colors ${
+                          stackId === s.id
+                            ? "text-notion-accent"
+                            : "text-notion-text"
+                        }`}
+                      >
+                        {s.name}
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
             </div>
           </div>
         )}

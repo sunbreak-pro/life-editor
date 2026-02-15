@@ -214,7 +214,17 @@
     "stackNamePlaceholder": "スタック名",
     "selectRoutines": "ルーティンを選択（順番が重要）",
     "startTimer": "タイマー開始",
-    "startNext": "次を開始"
+    "startNext": "次を開始",
+    "timeSlotSettings": "時間帯の設定",
+    "createSet": "ルーティンセットを作成",
+    "setNamePlaceholder": "セット名",
+    "selectRoutinesForSet": "ルーティンを選択（順番にクリック）",
+    "setOrderHint": "選択した順番がフローの実行順になります。",
+    "standalone": "単体ルーティン",
+    "noRoutinesInSlot": "この時間帯にルーティンはありません。",
+    "routineSetOptional": "ルーティンセット（任意）",
+    "noSet": "なし",
+    "startRoutine": "{{title}}を開始"
   },
   "analytics": {
     "title": "分析",
