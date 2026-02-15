@@ -18,9 +18,9 @@ export function useCalendar(
 
     for (const task of filtered) {
       if (!task.scheduledAt) continue;
-      const startKey = task.scheduledAt.substring(0, 10);
+      const startKey = formatDateKey(new Date(task.scheduledAt));
       const endKey = task.scheduledEndAt
-        ? task.scheduledEndAt.substring(0, 10)
+        ? formatDateKey(new Date(task.scheduledEndAt))
         : startKey;
 
       if (startKey === endKey) {

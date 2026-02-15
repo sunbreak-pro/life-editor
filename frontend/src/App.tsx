@@ -1,7 +1,9 @@
 import { useState, useRef, useCallback } from "react";
 import { Layout } from "./components/Layout";
 import type { LayoutHandle } from "./components/Layout";
-import { TaskDetail } from "./components/TaskDetail";
+import { TaskTree } from "./components/TaskTree";
+import { TaskTreeHeader } from "./components/TaskTree/TaskTreeHeader";
+import { useLocalStorage } from "./hooks/useLocalStorage";
 import { WorkScreen } from "./components/WorkScreen";
 import { SessionCompletionModal } from "./components/WorkScreen/SessionCompletionModal";
 import { Settings } from "./components/Settings";
@@ -41,6 +43,11 @@ function App() {
   const [selectedPlaylistId, setSelectedPlaylistId] = useState<string | null>(
     null,
   );
+  const [filterFolderId, setFilterFolderId] = useLocalStorage<string | null>(
+    STORAGE_KEYS.TASK_TREE_FOLDER_FILTER,
+    null,
+    { serialize: (v) => v ?? "", deserialize: (v) => v || null },
+  );
   const layoutRef = useRef<LayoutHandle | null>(null);
   const timer = useTimerContext();
   const {
@@ -49,8 +56,6 @@ function App() {
     updateNode,
     softDelete,
     toggleTaskStatus,
-    getTaskColor,
-    getFolderTagForTask,
     persistError,
   } = useTaskTreeContext();
   const { setSelectedDate: setMemoDate } = useMemoContext();
@@ -108,25 +113,21 @@ function App() {
     switch (activeSection) {
       case "tasks":
         return (
-          <TaskDetail
-            task={selectedTask}
-            allNodes={nodes}
-            globalWorkDuration={timer.workDurationMinutes}
-            onPlay={handlers.handlePlaySelectedTask}
-            onDelete={handlers.handleDeleteSelectedTask}
-            onUpdateContent={handlers.handleUpdateContent}
-            onDurationChange={handlers.handleDurationChange}
-            onScheduledAtChange={handlers.handleScheduledAtChange}
-            onFolderColorChange={handlers.handleFolderColorChange}
-            onTitleChange={handlers.handleTitleChange}
-            onScheduledEndAtChange={handlers.handleScheduledEndAtChange}
-            onIsAllDayChange={handlers.handleIsAllDayChange}
-            onNavigateToSettings={() => setActiveSection("settings")}
-            folderTag={
-              selectedTask ? getFolderTagForTask(selectedTask.id) : undefined
-            }
-            taskColor={selectedTask ? getTaskColor(selectedTask.id) : undefined}
-          />
+          <div className="h-full flex flex-col">
+            <TaskTreeHeader
+              filterFolderId={filterFolderId}
+              onFilterChange={setFilterFolderId}
+            />
+            <div className="flex-1 overflow-y-auto">
+              <TaskTree
+                onPlayTask={handlers.handlePlayTask}
+                onSelectTask={setSelectedTaskId}
+                selectedTaskId={selectedTaskId}
+                filterFolderId={filterFolderId}
+                onFilterChange={setFilterFolderId}
+              />
+            </div>
+          </div>
         );
       case "memo":
         return <MemoView activeTab={memoTab} />;
@@ -173,9 +174,6 @@ function App() {
       <Layout
         activeSection={activeSection}
         onSectionChange={setActiveSection}
-        onCreateFolder={handlers.handleCreateFolder}
-        onCreateTask={handlers.handleCreateTask}
-        onSelectTask={setSelectedTaskId}
         onPlayTask={handlers.handlePlayTask}
         selectedTaskId={selectedTaskId}
         handleRef={layoutRef}

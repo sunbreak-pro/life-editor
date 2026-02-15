@@ -476,7 +476,13 @@
     "selectFolder": "フォルダ",
     "routineIndicator": "{{completed}}/{{total}}",
     "noteItem": "ノート",
-    "memoPreviewEmpty": "内容なし"
+    "memoPreviewEmpty": "内容なし",
+    "allDay": "終日",
+    "startLabel": "開始",
+    "endLabel": "終了",
+    "clearSchedule": "スケジュールをクリア",
+    "deleteTaskTitle": "タスクを削除",
+    "deleteTaskMessage": "このタスクを削除しますか？"
   },
   "common": {
     "cancel": "キャンセル",
@@ -638,6 +644,20 @@
     "showEndTime": "終了時刻",
     "clearSchedule": "スケジュールをクリア",
     "emptyState": "タスクを選択して詳細を表示"
+  },
+  "taskDetailSidebar": {
+    "memo": "メモ",
+    "memoPlaceholder": "メモを追加...",
+    "folderColor": "フォルダカラー",
+    "schedule": "スケジュール",
+    "duration": "作業時間",
+    "noSelection": "タスクまたはフォルダを選択して詳細を表示",
+    "moveFolderConfirm": "このアイテムを「{{folder}}」に移動しますか？",
+    "dontShowAgain": "今後表示しない"
+  },
+  "taskTreeHeader": {
+    "allTasks": "すべてのタスク",
+    "navigateToFolder": "フォルダへ移動"
   },
   "music.saved": "保存しました！",
   "music.save": "保存",

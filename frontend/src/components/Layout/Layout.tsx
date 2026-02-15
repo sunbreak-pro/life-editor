@@ -4,7 +4,7 @@ import { PanelLeft, PanelRight } from "lucide-react";
 import type { SectionId } from "../../types/taskTree";
 import type { TaskNode } from "../../types/taskTree";
 import { LeftSidebar } from "./LeftSidebar";
-import { RightSidebar } from "./RightSidebar";
+import { TaskDetailSidebar } from "../TaskDetail/TaskDetailSidebar";
 import { CalendarSidebar } from "../Calendar/CalendarSidebar";
 import { MemoSidebar } from "../Memo/MemoSidebar";
 import { MusicSidebar } from "../Music/MusicSidebar";
@@ -13,11 +13,11 @@ import { MainContent } from "./MainContent";
 import { STORAGE_KEYS } from "../../constants/storageKeys";
 import { useLocalStorage } from "../../hooks/useLocalStorage";
 
-const RIGHT_MIN_WIDTH = 200;
+const RIGHT_MIN_WIDTH = 270;
 const RIGHT_MAX_WIDTH = 400;
 const RIGHT_DEFAULT_WIDTH = 280;
 
-const LEFT_MIN_WIDTH = 160;
+const LEFT_MIN_WIDTH = 165;
 const LEFT_MAX_WIDTH = 320;
 const LEFT_DEFAULT_WIDTH = 240;
 
@@ -41,9 +41,6 @@ interface LayoutProps {
   children: ReactNode;
   activeSection: SectionId;
   onSectionChange: (section: SectionId) => void;
-  onCreateFolder: (title: string) => void;
-  onCreateTask?: (title: string) => void;
-  onSelectTask?: (id: string) => void;
   onPlayTask?: (node: TaskNode) => void;
   selectedTaskId?: string | null;
   handleRef?: React.MutableRefObject<LayoutHandle | null>;
@@ -61,9 +58,6 @@ export function Layout({
   children,
   activeSection,
   onSectionChange,
-  onCreateFolder,
-  onCreateTask,
-  onSelectTask,
   onPlayTask,
   selectedTaskId,
   handleRef,
@@ -253,14 +247,11 @@ export function Layout({
               className="absolute top-0 left-0 w-1.5 h-full cursor-col-resize hover:bg-notion-accent/30 transition-colors z-10"
             />
             {activeSection === "tasks" && (
-              <RightSidebar
+              <TaskDetailSidebar
                 width={dragRightWidth ?? rightSidebarWidth}
-                onCreateFolder={onCreateFolder}
-                onCreateTask={onCreateTask}
-                onSelectTask={onSelectTask}
-                onPlayTask={onPlayTask}
-                selectedTaskId={selectedTaskId}
                 onToggle={() => setRightSidebarOpen(false)}
+                selectedNodeId={selectedTaskId ?? null}
+                onPlayTask={onPlayTask}
               />
             )}
             {activeSection === "calendar" && (

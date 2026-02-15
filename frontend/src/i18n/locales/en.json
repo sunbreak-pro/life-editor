@@ -476,7 +476,13 @@
     "selectFolder": "Folder",
     "routineIndicator": "{{completed}}/{{total}}",
     "noteItem": "Note",
-    "memoPreviewEmpty": "No content"
+    "memoPreviewEmpty": "No content",
+    "allDay": "All day",
+    "startLabel": "Start",
+    "endLabel": "End",
+    "clearSchedule": "Clear schedule",
+    "deleteTaskTitle": "Delete Task",
+    "deleteTaskMessage": "Are you sure you want to delete this task?"
   },
   "common": {
     "cancel": "Cancel",
@@ -638,6 +644,20 @@
     "showEndTime": "End time",
     "clearSchedule": "Clear schedule",
     "emptyState": "Select a task to view details"
+  },
+  "taskDetailSidebar": {
+    "memo": "Memo",
+    "memoPlaceholder": "Add a memo...",
+    "folderColor": "Folder Color",
+    "schedule": "Schedule",
+    "duration": "Duration",
+    "noSelection": "Select a task or folder to view details",
+    "moveFolderConfirm": "Move this item to \"{{folder}}\"?",
+    "dontShowAgain": "Don't show again"
+  },
+  "taskTreeHeader": {
+    "allTasks": "All Tasks",
+    "navigateToFolder": "Navigate to folder"
   },
   "music.saved": "Saved!",
   "music.save": "Save",

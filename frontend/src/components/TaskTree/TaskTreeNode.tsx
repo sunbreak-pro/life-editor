@@ -86,7 +86,7 @@ export function TaskTreeNode({
   const isDone = node.type === "task" && node.status === "DONE";
   const isFolderDone = isFolder && node.status === "DONE";
   const isTimerActive = timer.activeTask?.id === node.id && timer.isRunning;
-  const isSelected = node.type === "task" && selectedTaskId === node.id;
+  const isSelected = selectedTaskId === node.id;
 
   const progress = useMemo(
     () => (isFolder ? computeFolderProgress(node.id, nodes) : undefined),

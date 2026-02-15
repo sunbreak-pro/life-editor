@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useMemo } from "react";
-import { ChevronDown, ChevronRight, Plus, Inbox, Folder, X } from "lucide-react";
+import { ChevronDown, ChevronRight, Plus, Inbox, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useTaskTreeContext } from "../../hooks/useTaskTreeContext";
 import { useTimerContext } from "../../hooks/useTimerContext";
@@ -10,12 +10,11 @@ interface TaskSelectorProps {
   currentTitle: string;
 }
 
-interface SectionItem {
-  type: "header" | "task";
+interface TreeItem {
+  type: "inbox-header" | "folder" | "task";
   node?: TaskNode;
-  label: string;
   depth: number;
-  folderId?: string;
+  isExpanded?: boolean;
   taskCount?: number;
 }
 
@@ -23,7 +22,9 @@ export function TaskSelector({ currentTitle }: TaskSelectorProps) {
   const { t } = useTranslation();
   const [isOpen, setIsOpen] = useState(false);
   const [newTaskValue, setNewTaskValue] = useState("");
-  const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set());
+  const [expandedFolders, setExpandedFolders] = useState<Set<string>>(
+    new Set(),
+  );
   const dropdownRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -33,14 +34,17 @@ export function TaskSelector({ currentTitle }: TaskSelectorProps) {
 
   // Inline editing state for Untitled tasks
   const [isEditingTitle, setIsEditingTitle] = useState(false);
-  const [editTitleValue, setEditTitleValue] = useState('');
+  const [editTitleValue, setEditTitleValue] = useState("");
   const editTitleRef = useRef<HTMLInputElement>(null);
 
   // Close on outside click
   useEffect(() => {
     if (!isOpen) return;
     const handleMouseDown = (e: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+      if (
+        dropdownRef.current &&
+        !dropdownRef.current.contains(e.target as Node)
+      ) {
         setIsOpen(false);
       }
     };
@@ -57,9 +61,9 @@ export function TaskSelector({ currentTitle }: TaskSelectorProps) {
 
   // Detect Untitled task and enter editing mode
   useEffect(() => {
-    if (timer.activeTask?.title === 'Untitled') {
+    if (timer.activeTask?.title === "Untitled") {
       setIsEditingTitle(true);
-      setEditTitleValue('');
+      setEditTitleValue("");
     }
   }, [timer.activeTask?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -81,83 +85,142 @@ export function TaskSelector({ currentTitle }: TaskSelectorProps) {
 
   // Parse "FolderName/taskName" input pattern (debounced for filtering)
   const parsedInput = useMemo(() => {
-    const idx = debouncedSearch.indexOf('/');
-    if (idx < 0) return { folderName: '', taskName: debouncedSearch, folder: null as TaskNode | null };
+    const idx = debouncedSearch.indexOf("/");
+    if (idx < 0)
+      return {
+        folderName: "",
+        taskName: debouncedSearch,
+        folder: null as TaskNode | null,
+      };
     const folderName = debouncedSearch.substring(0, idx).trim();
     const taskName = debouncedSearch.substring(idx + 1).trim();
     const rootChildren = getChildren(null);
-    const folder = rootChildren.find(
-      n => n.type === 'folder' && n.title.toLowerCase() === folderName.toLowerCase()
-    ) ?? null;
+    const folder =
+      rootChildren.find(
+        (n) =>
+          n.type === "folder" &&
+          n.title.toLowerCase() === folderName.toLowerCase(),
+      ) ?? null;
     return { folderName, taskName, folder };
   }, [debouncedSearch, getChildren]);
 
-  // Build hierarchical list of TODO tasks
+  // Build hierarchical tree of TODO tasks
   const items = useMemo(() => {
-    const result: SectionItem[] = [];
-    const rootChildren = getChildren(null);
+    const result: TreeItem[] = [];
     const filterText = debouncedSearch.trim().toLowerCase();
 
-    const collectTasks = (parentId: string): TaskNode[] => {
-      const children = getChildren(parentId);
-      const tasks: TaskNode[] = [];
-      children.forEach((child) => {
-        if (child.type === "task" && child.status === "TODO") {
-          tasks.push(child);
-        } else if (child.type === "folder") {
-          tasks.push(...collectTasks(child.id));
-        }
+    const countTodoTasks = (parentId: string): number => {
+      return getChildren(parentId).reduce((acc, child) => {
+        if (child.type === "task" && child.status === "TODO") return acc + 1;
+        if (child.type === "folder") return acc + countTodoTasks(child.id);
+        return acc;
+      }, 0);
+    };
+
+    const hasMatchingTask = (parentId: string, text: string): boolean => {
+      return getChildren(parentId).some((child) => {
+        if (child.type === "task" && child.status === "TODO")
+          return child.title.toLowerCase().includes(text);
+        if (child.type === "folder") return hasMatchingTask(child.id, text);
+        return false;
       });
-      return tasks;
+    };
+
+    const buildTree = (parentId: string | null, depth: number) => {
+      const children = getChildren(parentId);
+      // Tasks at this level
+      const tasks = children.filter(
+        (c) => c.type === "task" && c.status === "TODO",
+      );
+      const filtered = filterText
+        ? tasks.filter((t) => t.title.toLowerCase().includes(filterText))
+        : tasks;
+      filtered.forEach((t) => result.push({ type: "task", node: t, depth }));
+      // Sub-folders
+      const folders = children.filter((c) => c.type === "folder");
+      folders.forEach((folder) => {
+        const tc = countTodoTasks(folder.id);
+        const hasMatching = filterText
+          ? hasMatchingTask(folder.id, filterText)
+          : tc > 0;
+        if (!hasMatching) return;
+        const expanded = expandedFolders.has(folder.id) || !!filterText;
+        result.push({
+          type: "folder",
+          node: folder,
+          depth,
+          isExpanded: expanded,
+          taskCount: tc,
+        });
+        if (expanded) buildTree(folder.id, depth + 1);
+      });
     };
 
     // If a folder is matched via "FolderName/" input, show only that folder
     if (parsedInput.folder) {
-      const folderTasks = collectTasks(parsedInput.folder.id);
-      const searchText = parsedInput.taskName.toLowerCase();
-      const filtered = searchText
-        ? folderTasks.filter(t => t.title.toLowerCase().includes(searchText))
-        : folderTasks;
-
-      if (filtered.length > 0) {
-        result.push({ type: "header", label: parsedInput.folder.title, depth: 0, folderId: parsedInput.folder.id, taskCount: filtered.length });
-        filtered.forEach((t) =>
-          result.push({ type: "task", node: t, label: t.title, depth: 1 })
+      const folder = parsedInput.folder;
+      const tc = countTodoTasks(folder.id);
+      result.push({
+        type: "folder",
+        node: folder,
+        depth: 0,
+        isExpanded: true,
+        taskCount: tc,
+      });
+      // Collect all tasks recursively for "FolderName/" mode
+      const collectAll = (pid: string, d: number) => {
+        const ch = getChildren(pid);
+        const searchText = parsedInput.taskName.toLowerCase();
+        const tasks = ch.filter(
+          (c) => c.type === "task" && c.status === "TODO",
         );
-      }
+        const matched = searchText
+          ? tasks.filter((t) => t.title.toLowerCase().includes(searchText))
+          : tasks;
+        matched.forEach((t) =>
+          result.push({ type: "task", node: t, depth: d }),
+        );
+        ch.filter((c) => c.type === "folder").forEach((f) =>
+          collectAll(f.id, d),
+        );
+      };
+      collectAll(folder.id, 1);
       return result;
     }
 
-    // Inbox tasks
+    // Inbox (root tasks)
+    const rootChildren = getChildren(null);
     const inboxTasks = rootChildren.filter(
-      (n) => n.type === "task" && n.status === "TODO"
+      (n) => n.type === "task" && n.status === "TODO",
     );
     const filteredInbox = filterText
-      ? inboxTasks.filter(t => t.title.toLowerCase().includes(filterText))
+      ? inboxTasks.filter((t) => t.title.toLowerCase().includes(filterText))
       : inboxTasks;
     if (filteredInbox.length > 0) {
-      result.push({ type: "header", label: "Inbox", depth: 0 });
+      result.push({ type: "inbox-header", depth: 0 });
       filteredInbox.forEach((t) =>
-        result.push({ type: "task", node: t, label: t.title, depth: 1 })
+        result.push({ type: "task", node: t, depth: 1 }),
       );
     }
 
-    // Folders with their tasks
-    const folders = rootChildren.filter((n) => n.type === "folder");
-    folders.forEach((folder) => {
-      const folderTasks = collectTasks(folder.id);
-      const filtered = filterText
-        ? folderTasks.filter(t => t.title.toLowerCase().includes(filterText))
-        : folderTasks;
-      if (filtered.length > 0) {
-        result.push({ type: "header", label: folder.title, depth: 0, folderId: folder.id, taskCount: filtered.length });
-        // Show tasks if expanded OR if user is searching
-        if (expandedFolders.has(folder.id) || filterText) {
-          filtered.forEach((t) =>
-            result.push({ type: "task", node: t, label: t.title, depth: 1 })
-          );
-        }
-      }
+    // Root folders (recursive tree)
+    const rootFolders = rootChildren.filter((n) => n.type === "folder");
+    rootFolders.forEach((folder) => {
+      const tc = countTodoTasks(folder.id);
+      const hasMatching = filterText
+        ? hasMatchingTask(folder.id, filterText)
+        : tc > 0;
+      if (!hasMatching && !filterText) return;
+      if (!hasMatching) return;
+      const expanded = expandedFolders.has(folder.id) || !!filterText;
+      result.push({
+        type: "folder",
+        node: folder,
+        depth: 0,
+        isExpanded: expanded,
+        taskCount: tc,
+      });
+      if (expanded) buildTree(folder.id, 1);
     });
 
     return result;
@@ -171,14 +234,16 @@ export function TaskSelector({ currentTitle }: TaskSelectorProps) {
 
   const handleCreateTask = () => {
     // Use live input (not debounced) for task creation
-    const slashIdx = newTaskValue.indexOf('/');
+    const slashIdx = newTaskValue.indexOf("/");
     if (slashIdx >= 0) {
       const folderName = newTaskValue.substring(0, slashIdx).trim();
       const taskName = newTaskValue.substring(slashIdx + 1).trim();
       if (!taskName) return;
       const rootChildren = getChildren(null);
       const folder = rootChildren.find(
-        n => n.type === 'folder' && n.title.toLowerCase() === folderName.toLowerCase()
+        (n) =>
+          n.type === "folder" &&
+          n.title.toLowerCase() === folderName.toLowerCase(),
       );
       if (folder) {
         const newNode = addNode("task", folder.id, taskName);
@@ -201,7 +266,7 @@ export function TaskSelector({ currentTitle }: TaskSelectorProps) {
   };
 
   const handleHeaderClick = (folderId: string) => {
-    setExpandedFolders(prev => {
+    setExpandedFolders((prev) => {
       const next = new Set(prev);
       if (next.has(folderId)) next.delete(folderId);
       else next.add(folderId);
@@ -215,8 +280,8 @@ export function TaskSelector({ currentTitle }: TaskSelectorProps) {
   };
 
   const placeholder = parsedInput.folder
-    ? t('taskSelector.newTaskIn', { folder: parsedInput.folder.title })
-    : t('taskSelector.createNewTask');
+    ? t("taskSelector.newTaskIn", { folder: parsedInput.folder.title })
+    : t("taskSelector.createNewTask");
 
   return (
     <div className="relative" ref={dropdownRef}>
@@ -227,11 +292,11 @@ export function TaskSelector({ currentTitle }: TaskSelectorProps) {
           value={editTitleValue}
           onChange={(e) => setEditTitleValue(e.target.value)}
           onKeyDown={(e) => {
-            if (e.key === 'Enter') commitRename();
-            if (e.key === 'Escape') setIsEditingTitle(false);
+            if (e.key === "Enter") commitRename();
+            if (e.key === "Escape") setIsEditingTitle(false);
           }}
           onBlur={commitRename}
-          placeholder={t('taskSelector.taskName')}
+          placeholder={t("taskSelector.taskName")}
           className="text-lg font-semibold text-notion-text bg-transparent outline-none border-b border-notion-accent max-w-full"
         />
       ) : (
@@ -269,31 +334,50 @@ export function TaskSelector({ currentTitle }: TaskSelectorProps) {
           {/* Task list */}
           <div className="max-h-64 overflow-y-auto py-1">
             {items.map((item, idx) => {
-              if (item.type === "header") {
-                const isFolder = !!item.folderId;
-                const isExpanded = item.folderId ? expandedFolders.has(item.folderId) : true;
+              if (item.type === "inbox-header") {
+                return (
+                  <div
+                    key="inbox-header"
+                    className="w-full flex items-center gap-1.5 py-1.5 text-xs text-notion-text-secondary"
+                    style={{ paddingLeft: 12, paddingRight: 12 }}
+                  >
+                    <Inbox size={12} />
+                    <span>Inbox</span>
+                  </div>
+                );
+              }
+
+              if (item.type === "folder") {
                 return (
                   <button
-                    key={`header-${idx}`}
-                    onClick={() => isFolder && item.folderId && handleHeaderClick(item.folderId)}
-                    className={`w-full flex items-center gap-2 px-3 py-1.5 text-xs font-semibold uppercase tracking-wider text-notion-text-secondary ${
-                      isFolder ? 'hover:bg-notion-hover cursor-pointer' : ''
-                    }`}
+                    key={`folder-${item.node!.id}-${idx}`}
+                    onClick={() => handleHeaderClick(item.node!.id)}
+                    className="w-full flex items-center py-1.5 text-xs hover:bg-notion-hover cursor-pointer transition-colors text-notion-text"
+                    style={{
+                      paddingLeft: `${12 + item.depth * 14}px`,
+                      paddingRight: 12,
+                    }}
                   >
-                    {item.label === "Inbox" ? (
-                      <Inbox size={12} />
+                    {item.isExpanded ? (
+                      <ChevronDown
+                        size={10}
+                        className="mr-1 text-notion-text-secondary/50"
+                      />
                     ) : (
-                      <>
-                        {isExpanded
-                          ? <ChevronDown size={12} />
-                          : <ChevronRight size={12} />
-                        }
-                        <Folder size={12} />
-                      </>
+                      <ChevronRight
+                        size={10}
+                        className="mr-1 text-notion-text-secondary/50"
+                      />
                     )}
-                    <span>{item.label}</span>
-                    {isFolder && item.taskCount != null && (
-                      <span className="ml-auto text-[10px] text-notion-text-secondary font-normal">
+                    {item.node!.color && (
+                      <span
+                        className="w-2 h-2 rounded-full mr-1.5 shrink-0"
+                        style={{ backgroundColor: item.node!.color }}
+                      />
+                    )}
+                    <span className="truncate">{item.node!.title}</span>
+                    {item.taskCount != null && (
+                      <span className="ml-auto text-[10px] text-notion-text-secondary">
                         {item.taskCount}
                       </span>
                     )}
@@ -306,21 +390,21 @@ export function TaskSelector({ currentTitle }: TaskSelectorProps) {
                 <button
                   key={item.node!.id}
                   onClick={() => handleSelectTask(item.node!)}
-                  className={`w-full text-left px-3 py-1.5 text-sm hover:bg-notion-hover transition-colors truncate ${
+                  className={`w-full text-left py-1.5 text-xs hover:bg-notion-hover transition-colors truncate ${
                     isActive
                       ? "text-notion-accent bg-notion-accent/5 font-medium"
                       : "text-notion-text"
                   }`}
-                  style={{ paddingLeft: `${item.depth * 12 + 12}px` }}
+                  style={{ paddingLeft: `${12 + item.depth * 14}px` }}
                 >
-                  {item.label}
+                  {item.node!.title}
                 </button>
               );
             })}
 
             {items.length === 0 && (
               <div className="px-3 py-4 text-sm text-notion-text-secondary text-center">
-                {t('taskSelector.noTasks')}
+                {t("taskSelector.noTasks")}
               </div>
             )}
           </div>
@@ -333,7 +417,7 @@ export function TaskSelector({ currentTitle }: TaskSelectorProps) {
                 className="w-full flex items-center gap-2 px-3 py-2 text-sm text-notion-text-secondary hover:bg-notion-hover transition-colors"
               >
                 <X size={14} />
-                <span>{t('work.freeSession')}</span>
+                <span>{t("work.freeSession")}</span>
               </button>
             </div>
           )}

@@ -1,4 +1,3 @@
-export { useAICoach } from "./useAICoach";
 export { useAppKeyboardShortcuts } from "./useAppKeyboardShortcuts";
 export { useAudioContext } from "./useAudioContext";
 export { useAudioControl } from "./useAudioControl";

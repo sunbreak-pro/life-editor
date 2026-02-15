@@ -1,10 +1,11 @@
-import type { TaskNode } from '../types/taskTree';
+import type { TaskNode } from "../types/taskTree";
 
 export interface FlatFolder {
   id: string;
   title: string;
   path: string;
   depth: number;
+  color?: string;
 }
 
 /**
@@ -12,7 +13,7 @@ export interface FlatFolder {
  * Useful for folder selection dropdowns.
  */
 export function flattenFolders(nodes: TaskNode[]): FlatFolder[] {
-  const folders = nodes.filter(n => n.type === 'folder' && !n.isDeleted);
+  const folders = nodes.filter((n) => n.type === "folder" && !n.isDeleted);
   const childrenMap = new Map<string | null, TaskNode[]>();
   for (const folder of folders) {
     const pid = folder.parentId;
@@ -26,7 +27,11 @@ export function flattenFolders(nodes: TaskNode[]): FlatFolder[] {
 
   const result: FlatFolder[] = [];
 
-  function traverse(parentId: string | null, pathParts: string[], depth: number) {
+  function traverse(
+    parentId: string | null,
+    pathParts: string[],
+    depth: number,
+  ) {
     const children = childrenMap.get(parentId);
     if (!children) return;
     const sorted = [...children].sort((a, b) => a.order - b.order);
@@ -35,8 +40,9 @@ export function flattenFolders(nodes: TaskNode[]): FlatFolder[] {
       result.push({
         id: folder.id,
         title: folder.title,
-        path: currentPath.join(' / '),
+        path: currentPath.join(" / "),
         depth,
+        color: folder.color,
       });
       traverse(folder.id, currentPath, depth + 1);
     }

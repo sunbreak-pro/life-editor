@@ -1,18 +1,22 @@
 import { useState, useMemo, useEffect } from "react";
+import { Filter, ChevronDown } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useTaskTreeContext } from "../../hooks/useTaskTreeContext";
 import { useMemoContext } from "../../hooks/useMemoContext";
 import { useCalendarContext } from "../../hooks/useCalendarContext";
 import { useCalendar } from "../../hooks/useCalendar";
 import { useRoutineContext } from "../../hooks/useRoutineContext";
-import { getDescendantTasks } from "../../utils/getDescendantTasks";
+import {
+  getDescendantTasks,
+  collectDescendantIds,
+} from "../../utils/getDescendantTasks";
 import { CalendarHeader } from "./CalendarHeader";
-import { CalendarTagFilter } from "./CalendarTagFilter";
 import { TaskCreatePopover } from "./TaskCreatePopover";
 import { TaskPreviewPopup } from "./TaskPreviewPopup";
 import { MemoPreviewPopup } from "./MemoPreviewPopup";
 import { MonthlyView } from "./MonthlyView";
 import { WeeklyTimeGrid } from "./WeeklyTimeGrid";
+import { FolderDropdown } from "../shared/FolderDropdown";
 import { useNoteContext } from "../../hooks/useNoteContext";
 import type { MemoNode } from "../../types/memo";
 import type { NoteNode } from "../../types/note";
@@ -20,7 +24,15 @@ import type { NoteNode } from "../../types/note";
 interface CalendarViewProps {
   calendarMode?: "tasks" | "memo";
   onSelectTask: (taskId: string) => void;
-  onCreateTask?: (date: Date, title?: string, parentId?: string | null) => void;
+  onCreateTask?: (
+    title: string,
+    parentId: string | null,
+    schedule: {
+      scheduledAt: string;
+      scheduledEndAt?: string;
+      isAllDay?: boolean;
+    },
+  ) => void;
   onCreateNote?: (title: string) => void;
   onSelectMemo?: (date: string) => void;
   onSelectNote?: (noteId: string) => void;
@@ -44,7 +56,8 @@ export function CalendarView({
   onStartTimer,
 }: CalendarViewProps) {
   const { t } = useTranslation();
-  const { nodes, getTaskColor, getFolderTagForTask } = useTaskTreeContext();
+  const { nodes, getTaskColor, getFolderTagForTask, softDelete, updateNode } =
+    useTaskTreeContext();
   const { memos } = useMemoContext();
   const { activeCalendar } = useCalendarContext();
   const { getRoutineCompletionForDate } = useRoutineContext();
@@ -69,7 +82,12 @@ export function CalendarView({
     "incomplete",
   );
   const [weekStartDate, setWeekStartDate] = useState<Date>(getInitialWeekStart);
-  const [tagFilter, setTagFilter] = useState<string>("");
+  const [filterFolderId, setFilterFolderId] = useState<string | null>(null);
+
+  const selectedFolderName = useMemo(() => {
+    if (!filterFolderId) return null;
+    return nodes.find((n) => n.id === filterFolderId)?.title ?? null;
+  }, [filterFolderId, nodes]);
   const [createPopover, setCreatePopover] = useState<{
     date: Date;
     position: { x: number; y: number };
@@ -173,20 +191,6 @@ export function CalendarView({
     }
   };
 
-  // Collect available tags from visible tasks
-  const availableTags = useMemo(() => {
-    const tagSet = new Set<string>();
-    for (const [, tasks] of tasksByDate) {
-      for (const task of tasks) {
-        tagSet.add(getFolderTagForTask(task.id) || t("calendar.inbox"));
-      }
-    }
-    if (memosByDate.size > 0) {
-      tagSet.add(t("calendar.memo"));
-    }
-    return Array.from(tagSet).sort();
-  }, [tasksByDate, getFolderTagForTask, memosByDate, t]);
-
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       const el = e.target as Element | null;
@@ -224,27 +228,23 @@ export function CalendarView({
   }, [handleNext, handlePrev, handleToday]);
   /* eslint-enable react-hooks/exhaustive-deps */
 
-  // Filter tasksByDate by tag
+  // Filter tasksByDate by folder
   const filteredTasksByDate = useMemo(() => {
-    if (!tagFilter) return tasksByDate;
-    if (tagFilter === t("calendar.memo"))
-      return new Map<string, typeof nodes>();
+    if (!filterFolderId) return tasksByDate;
+    const descendantIds = collectDescendantIds(filterFolderId, nodes);
     const map = new Map<string, typeof nodes>();
     for (const [date, tasks] of tasksByDate) {
-      const matching = tasks.filter(
-        (task) =>
-          (getFolderTagForTask(task.id) || t("calendar.inbox")) === tagFilter,
-      );
+      const matching = tasks.filter((task) => descendantIds.has(task.id));
       if (matching.length > 0) map.set(date, matching);
     }
     return map;
-  }, [tasksByDate, tagFilter, getFolderTagForTask, t]);
+  }, [tasksByDate, filterFolderId, nodes]);
 
-  // Filter memosByDate by tag
+  // Filter memosByDate by folder
   const filteredMemosByDate = useMemo(() => {
-    if (!tagFilter || tagFilter === t("calendar.memo")) return memosByDate;
-    return new Map<string, MemoNode>();
-  }, [tagFilter, memosByDate, t]);
+    if (!filterFolderId) return memosByDate;
+    return new Map<string, MemoNode>(); // フォルダ選択時はメモ非表示
+  }, [filterFolderId, memosByDate]);
 
   const handleRequestCreate = (date: Date, e: React.MouseEvent) => {
     setPreviewPopup(null);
@@ -307,7 +307,7 @@ export function CalendarView({
 
   return (
     <div className="h-full flex flex-col overflow-auto">
-      <div className="max-w-5xl mx-auto w-full px-8 py-6 flex-1">
+      <div className="max-w-5xl mx-auto w-full pt-8 pb-4 py-4 flex-1">
         <CalendarHeader
           year={year}
           month={month}
@@ -343,16 +343,30 @@ export function CalendarView({
             >
               {t("calendar.completed")}
             </button>
-            {availableTags.length > 0 && (
-              <>
-                <div className="w-px h-4 bg-notion-border" />
-                <CalendarTagFilter
-                  tags={availableTags}
-                  value={tagFilter}
-                  onChange={setTagFilter}
-                />
-              </>
-            )}
+            <div className="w-px h-4 bg-notion-border" />
+            <FolderDropdown
+              selectedId={filterFolderId}
+              onSelect={setFilterFolderId}
+              rootLabel={t("calendar.all")}
+              panelMinWidth="min-w-44"
+              trigger={
+                <button
+                  className={`flex items-center gap-1.5 px-2.5 py-1 text-xs rounded-md transition-colors ${
+                    filterFolderId
+                      ? "bg-notion-accent/10 text-notion-accent"
+                      : "text-notion-text-secondary hover:bg-notion-hover"
+                  }`}
+                >
+                  <Filter size={13} />
+                  <span>
+                    {filterFolderId && selectedFolderName
+                      ? selectedFolderName
+                      : t("calendar.all")}
+                  </span>
+                  <ChevronDown size={12} />
+                </button>
+              }
+            />
           </div>
         )}
 
@@ -393,12 +407,13 @@ export function CalendarView({
       {createPopover && (
         <TaskCreatePopover
           position={createPopover.position}
-          onSubmitTask={(title, parentId) => {
-            onCreateTask?.(createPopover.date, title, parentId);
+          date={createPopover.date}
+          onSubmitTask={(title, parentId, schedule) => {
+            onCreateTask?.(title, parentId, schedule);
             setCreatePopover(null);
           }}
           onSubmitNote={
-            onCreateNote
+            calendarMode !== "tasks" && onCreateNote
               ? (title) => {
                   onCreateNote(title);
                   setCreatePopover(null);
@@ -422,6 +437,18 @@ export function CalendarView({
           }}
           onStartTimer={() => {
             onStartTimer?.(previewTask.id);
+            setPreviewPopup(null);
+          }}
+          onDelete={() => {
+            softDelete(previewTask.id);
+            setPreviewPopup(null);
+          }}
+          onClearSchedule={() => {
+            updateNode(previewTask.id, {
+              scheduledAt: undefined,
+              scheduledEndAt: undefined,
+              isAllDay: undefined,
+            });
             setPreviewPopup(null);
           }}
           onClose={() => setPreviewPopup(null)}

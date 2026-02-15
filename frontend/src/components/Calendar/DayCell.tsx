@@ -255,7 +255,7 @@ export function DayCell({
               e.stopPropagation();
               onCreateTask(date, e);
             }}
-            className="opacity-0 group-hover:opacity-100 w-5 h-5 flex items-center justify-center rounded hover:bg-notion-hover text-notion-text-secondary transition-opacity"
+            className="opacity-0 group-hover:opacity-100 w-5.5 h-5.5 flex items-center justify-center rounded hover:bg-notion-hover text-notion-text-secondary transition-opacity"
           >
             <Plus size={12} />
           </button>

@@ -26,7 +26,6 @@ export function TaskNodeContent({
       onClick={() => {
         if (isFolder) {
           onToggleExpand?.();
-          return;
         }
         if (onSelectTask) onSelectTask(nodeId);
       }}
@@ -34,9 +33,7 @@ export function TaskNodeContent({
         onStartEditing();
       }}
       className={`flex-1 text-[15px] cursor-pointer truncate ${
-        isDone
-          ? "line-through text-notion-text-secondary"
-          : "text-notion-text"
+        isDone ? "line-through text-notion-text-secondary" : "text-notion-text"
       } ${isFolder ? "font-medium" : ""}`}
     >
       {title}

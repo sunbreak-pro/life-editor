@@ -2,7 +2,6 @@ import { Suspense } from "react";
 import type { TaskNode } from "../../types/taskTree";
 import { TaskDetailHeader } from "./TaskDetailHeader";
 import { EmptyState } from "./EmptyState";
-import { AICoachPanel } from "../AICoach";
 import { LazyMemoEditor as MemoEditor } from "./LazyMemoEditor";
 
 interface TaskDetailProps {
@@ -18,7 +17,6 @@ interface TaskDetailProps {
   onIsAllDayChange?: (isAllDay: boolean) => void;
   onFolderColorChange?: (folderId: string, color: string) => void;
   onTitleChange?: (newTitle: string) => void;
-  onNavigateToSettings?: () => void;
   folderTag?: string;
   taskColor?: string;
 }
@@ -36,7 +34,6 @@ export function TaskDetail({
   onIsAllDayChange,
   onFolderColorChange,
   onTitleChange,
-  onNavigateToSettings,
   folderTag,
   taskColor,
 }: TaskDetailProps) {
@@ -72,12 +69,6 @@ export function TaskDetail({
             />
           </Suspense>
         </div>
-        <AICoachPanel
-          key={`ai-${task.id}`}
-          taskTitle={task.title}
-          taskContent={task.content}
-          onNavigateToSettings={onNavigateToSettings}
-        />
       </div>
     </div>
   );

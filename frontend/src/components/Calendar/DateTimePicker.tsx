@@ -5,7 +5,7 @@ import {
   ChevronLeft,
   ChevronRight,
 } from "lucide-react";
-import { formatDateKey } from "../../utils/dateKey";
+import { formatDateKey, toLocalISOString } from "../../utils/dateKey";
 import { useClickOutside } from "../../hooks/useClickOutside";
 
 interface DateTimePickerProps {
@@ -57,7 +57,7 @@ export function DateTimePicker({
 
   const handleSelectDate = (day: number) => {
     const dt = new Date(viewYear, viewMonth, day, hour, minute);
-    onChange(dt.toISOString());
+    onChange(toLocalISOString(dt));
   };
 
   const handleTimeChange = (h: number, m: number) => {
@@ -66,7 +66,7 @@ export function DateTimePicker({
     if (value) {
       const dt = new Date(value);
       dt.setHours(h, m);
-      onChange(dt.toISOString());
+      onChange(toLocalISOString(dt));
     }
   };
 

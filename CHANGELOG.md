@@ -4,6 +4,19 @@
 
 ---
 
+## Tasks セクション大規模リファクタリング (2026-02-15)
+
+- **レイアウト反転**: MainContent に TaskDetail → TaskTree、RightSidebar に TaskTree → TaskDetailSidebar
+- **新規コンポーネント**: TaskTreeHeader, FolderDirectoryDropdown, TaskDetailSidebar, MiniCalendarGrid, FolderMovePicker
+- **ConfirmDialog拡張**: "今後表示しない" チェックボックス（showDontShowAgain props）
+- **TaskTree改良**: 外部filterFolderId対応（Controlled/Uncontrolled）、ワイドレイアウト
+- **AIコーチ完全廃止**: AICoachPanel, AIAdviceDisplay, AIRequestButtons, useAICoach 削除
+- **RightSidebar削除**: TaskDetailSidebar に置き換え
+- **Props整理**: Layout から onCreateFolder/onCreateTask/onSelectTask 削除
+- **i18n**: taskDetailSidebar/taskTreeHeader 翻訳キー追加（en/ja）
+
+---
+
 ## コード重複排除リファクタリング (2026-02-15)
 
 - **Phase 1: 日付フォーマット統合**: `dateKey.ts` に `getTodayKey()` / `formatDisplayDate()` / `formatDateHeading()` を集約、5ファイルの重複を排除

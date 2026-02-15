@@ -16,6 +16,7 @@ import {
   Plus,
   LucideFolderPlus,
   FileDown,
+  Filter,
 } from "lucide-react";
 import { useTaskTreeContext } from "../../hooks/useTaskTreeContext";
 
@@ -26,9 +27,10 @@ import { TaskTreeNode } from "./TaskTreeNode";
 import { InlineCreateInput } from "./InlineCreateInput";
 
 import { TemplateDialog } from "../Templates/TemplateDialog";
-import { FolderFilterDropdown } from "./FolderFilterDropdown";
+import { FolderDropdown } from "../shared/FolderDropdown";
 import { SortDropdown } from "./SortDropdown";
 import { useLocalStorage } from "../../hooks/useLocalStorage";
+import { flattenFolders } from "../../utils/flattenFolders";
 import { getDescendantTasks } from "../../utils/getDescendantTasks";
 import { sortTaskNodes } from "../../utils/sortTaskNodes";
 import type { SortMode } from "../../utils/sortTaskNodes";
@@ -39,6 +41,8 @@ interface TaskTreeProps {
   onPlayTask?: (node: TaskNode) => void;
   onSelectTask?: (id: string) => void;
   selectedTaskId?: string | null;
+  filterFolderId?: string | null;
+  onFilterChange?: (id: string | null) => void;
 }
 
 function DroppableSection({
@@ -56,6 +60,8 @@ export function TaskTree({
   onPlayTask,
   onSelectTask,
   selectedTaskId,
+  filterFolderId: externalFilterFolderId,
+  onFilterChange: externalOnFilterChange,
 }: TaskTreeProps) {
   const {
     nodes,
@@ -74,11 +80,21 @@ export function TaskTree({
   const [isCreatingInboxTask, setIsCreatingInboxTask] = useState(false);
   const [isCreatingProjectFolder, setIsCreatingProjectFolder] = useState(false);
   const [isTemplateDialogOpen, setIsTemplateDialogOpen] = useState(false);
-  const [filterFolderId, setFilterFolderId] = useLocalStorage<string | null>(
-    STORAGE_KEYS.TASK_TREE_FOLDER_FILTER,
-    null,
-    { serialize: (v) => v ?? "", deserialize: (v) => v || null },
-  );
+  const [internalFilterFolderId, setInternalFilterFolderId] = useLocalStorage<
+    string | null
+  >(STORAGE_KEYS.TASK_TREE_FOLDER_FILTER, null, {
+    serialize: (v) => v ?? "",
+    deserialize: (v) => v || null,
+  });
+
+  // Controlled mode: use external props if provided
+  const isControlled = externalFilterFolderId !== undefined;
+  const filterFolderId = isControlled
+    ? externalFilterFolderId
+    : internalFilterFolderId;
+  const setFilterFolderId = isControlled
+    ? (externalOnFilterChange ?? (() => {}))
+    : setInternalFilterFolderId;
   const [sortMode, setSortMode] = useLocalStorage<SortMode>(
     STORAGE_KEYS.TASK_TREE_SORT_MODE,
     "manual",
@@ -166,6 +182,14 @@ export function TaskTree({
 
   const { t } = useTranslation();
 
+  const filterFolderLabel = useMemo(() => {
+    if (!filterFolderId) return t("folderFilter.all");
+    const flat = flattenFolders(nodes);
+    return (
+      flat.find((f) => f.id === filterFolderId)?.title ?? t("folderFilter.all")
+    );
+  }, [filterFolderId, nodes, t]);
+
   useTaskTreeKeyboard({
     selectedTaskId: selectedTaskId ?? null,
     visibleNodes,
@@ -180,7 +204,9 @@ export function TaskTree({
   });
 
   return (
-    <div className="space-y-1">
+    <div
+      className={`space-y-1 ${isControlled ? "max-w-3xl mx-auto px-4" : ""}`}
+    >
       <DndContext
         sensors={sensors}
         collisionDetection={pointerWithin}
@@ -267,9 +293,26 @@ export function TaskTree({
                 <div className="flex-row flex items-center justify-between w-full">
                   <div className="flex items-center gap-1.5">
                     {t("taskTree.projects")}
-                    <FolderFilterDropdown
-                      filterFolderId={filterFolderId}
-                      onFilterChange={setFilterFolderId}
+                    <FolderDropdown
+                      selectedId={filterFolderId}
+                      onSelect={setFilterFolderId}
+                      rootLabel={t("folderFilter.all")}
+                      trigger={
+                        <button
+                          className={`flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded transition-colors ${
+                            filterFolderId
+                              ? "bg-notion-accent/10 text-notion-accent"
+                              : "text-notion-text-secondary hover:text-notion-text"
+                          }`}
+                          title={t("folderFilter.filterByFolder")}
+                        >
+                          <Filter size={10} />
+                          <span className="max-w-20 truncate">
+                            {filterFolderLabel}
+                          </span>
+                          <ChevronDown size={10} />
+                        </button>
+                      }
                     />
                   </div>
                   <div className="flex items-center gap-1">

@@ -10,6 +10,8 @@ interface ConfirmDialogProps {
   confirmLabel?: string;
   cancelLabel?: string;
   variant?: "default" | "blue" | "green";
+  showDontShowAgain?: boolean;
+  onDontShowAgainChange?: (checked: boolean) => void;
 }
 
 const VARIANT_CLASSES: Record<string, string> = {
@@ -26,6 +28,8 @@ export function ConfirmDialog({
   confirmLabel,
   cancelLabel,
   variant = "default",
+  showDontShowAgain,
+  onDontShowAgainChange,
 }: ConfirmDialogProps) {
   const { t } = useTranslation();
 
@@ -51,6 +55,18 @@ export function ConfirmDialog({
           </h3>
         )}
         <p className="text-sm text-notion-text-secondary mb-6">{message}</p>
+        {showDontShowAgain && (
+          <label className="flex items-center gap-2 mb-4 cursor-pointer">
+            <input
+              type="checkbox"
+              onChange={(e) => onDontShowAgainChange?.(e.target.checked)}
+              className="w-3.5 h-3.5 rounded accent-notion-accent"
+            />
+            <span className="text-xs text-notion-text-secondary">
+              {t("taskDetailSidebar.dontShowAgain")}
+            </span>
+          </label>
+        )}
         <div className="flex items-center justify-end gap-2">
           <button
             onClick={onCancel}

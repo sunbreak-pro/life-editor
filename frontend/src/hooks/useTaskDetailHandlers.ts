@@ -151,11 +151,16 @@ export function useTaskDetailHandlers({
   );
 
   const handleCalendarCreateTask = useCallback(
-    (date: Date, title?: string, parentId?: string | null) => {
-      const startDate = new Date(date);
-      addNode("task", parentId ?? null, title || "Untitled", {
-        scheduledAt: startDate.toISOString(),
-      });
+    (
+      title: string,
+      parentId: string | null,
+      schedule: {
+        scheduledAt: string;
+        scheduledEndAt?: string;
+        isAllDay?: boolean;
+      },
+    ) => {
+      addNode("task", parentId, title || "Untitled", schedule);
     },
     [addNode],
   );

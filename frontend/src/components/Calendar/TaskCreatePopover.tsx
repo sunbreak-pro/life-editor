@@ -1,12 +1,24 @@
 import { useState, useRef, useEffect, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { useClickOutside } from "../../hooks/useClickOutside";
-import { ChevronRight } from "lucide-react";
+import { toLocalISOString } from "../../utils/dateKey";
+import { flattenFolders } from "../../utils/flattenFolders";
+import { FolderList } from "../shared/FolderList";
+import { MiniCalendarGrid } from "../shared/MiniCalendarGrid";
 import type { TaskNode } from "../../types/taskTree";
 
 interface TaskCreatePopoverProps {
   position: { x: number; y: number };
-  onSubmitTask: (title: string, parentId: string | null) => void;
+  date: Date;
+  onSubmitTask: (
+    title: string,
+    parentId: string | null,
+    schedule: {
+      scheduledAt: string;
+      scheduledEndAt?: string;
+      isAllDay?: boolean;
+    },
+  ) => void;
   onSubmitNote?: (title: string) => void;
   folders?: TaskNode[];
   onClose: () => void;
@@ -14,6 +26,7 @@ interface TaskCreatePopoverProps {
 
 export function TaskCreatePopover({
   position,
+  date,
   onSubmitTask,
   onSubmitNote,
   folders,
@@ -26,60 +39,83 @@ export function TaskCreatePopover({
   const ref = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
+  const hasTime = date.getHours() !== 0 || date.getMinutes() !== 0;
+
+  const initialStart = toLocalISOString(
+    (() => {
+      const dt = new Date(date);
+      if (!hasTime) dt.setHours(9, 0, 0, 0);
+      return dt;
+    })(),
+  );
+  const initialEnd = toLocalISOString(
+    (() => {
+      const dt = new Date(date);
+      if (!hasTime) {
+        dt.setHours(10, 0, 0, 0);
+      } else {
+        dt.setHours(dt.getHours() + 1, dt.getMinutes(), 0, 0);
+      }
+      return dt;
+    })(),
+  );
+
+  const [isAllDay, setIsAllDay] = useState(!hasTime);
+  const [startValue, setStartValue] = useState<string | undefined>(
+    initialStart,
+  );
+  const [endValue, setEndValue] = useState<string | undefined>(
+    hasTime ? initialEnd : undefined,
+  );
+
   useClickOutside(ref, onClose, true);
 
   useEffect(() => {
     inputRef.current?.focus();
   }, []);
 
-  // Build folder tree for display
-  const folderTree = useMemo(() => {
-    if (!folders) return [];
-    const roots = folders.filter(
-      (f) => f.parentId === null || !folders.some((p) => p.id === f.parentId),
-    );
-    const getChildren = (parentId: string): TaskNode[] =>
-      folders.filter((f) => f.parentId === parentId);
+  const flatFolders = useMemo(
+    () => (folders ? flattenFolders(folders) : []),
+    [folders],
+  );
 
-    const flatten = (
-      nodes: TaskNode[],
-      depth: number,
-    ): { node: TaskNode; depth: number }[] => {
-      const result: { node: TaskNode; depth: number }[] = [];
-      for (const node of nodes) {
-        result.push({ node, depth });
-        result.push(...flatten(getChildren(node.id), depth + 1));
-      }
-      return result;
-    };
-    return flatten(roots, 0);
-  }, [folders]);
+  const buildSchedule = () => ({
+    scheduledAt: startValue ?? toLocalISOString(date),
+    ...(endValue && !isAllDay ? { scheduledEndAt: endValue } : {}),
+    ...(isAllDay ? { isAllDay: true as const } : {}),
+  });
+
+  const handleSubmit = () => {
+    if (mode === "task") {
+      onSubmitTask(
+        title.trim() || "Untitled",
+        selectedFolderId,
+        buildSchedule(),
+      );
+    } else {
+      onSubmitNote?.(title.trim());
+    }
+    onClose();
+  };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter") {
       e.preventDefault();
-      if (title.trim()) {
-        if (mode === "task") {
-          onSubmitTask(title.trim(), selectedFolderId);
-        } else {
-          onSubmitNote?.(title.trim());
-        }
-      }
-      onClose();
+      handleSubmit();
     } else if (e.key === "Escape") {
       e.preventDefault();
       onClose();
     }
   };
 
-  const left = Math.min(position.x, window.innerWidth - 260 - 16);
-  const top = Math.min(position.y, window.innerHeight - 200 - 16);
+  const left = Math.min(position.x, window.innerWidth - 280 - 16);
+  const top = Math.min(position.y, window.innerHeight - 360 - 16);
 
   return (
     <div
       ref={ref}
-      className="fixed z-50 bg-notion-bg border border-notion-border rounded-lg shadow-xl p-2"
-      style={{ left, top, width: 260 }}
+      className="fixed z-50 bg-notion-bg border border-notion-border rounded-lg shadow-xl p-2 min-h-85"
+      style={{ left, top, width: 280 }}
     >
       {/* Mode toggle */}
       {onSubmitNote && (
@@ -121,50 +157,34 @@ export function TaskCreatePopover({
         className="w-full px-2 py-1.5 text-sm bg-transparent border border-notion-border rounded-md outline-none focus:border-notion-accent text-notion-text placeholder:text-notion-text-secondary"
       />
 
+      {/* Schedule settings (task mode only) */}
+      {mode === "task" && (
+        <div className="mt-2">
+          <MiniCalendarGrid
+            startValue={startValue}
+            endValue={endValue}
+            isAllDay={isAllDay}
+            onStartChange={setStartValue}
+            onEndChange={setEndValue}
+            onAllDayChange={setIsAllDay}
+            initialDate={date}
+          />
+        </div>
+      )}
+
       {/* Folder selector (task mode only) */}
-      {mode === "task" && folders && folders.length > 0 && (
+      {mode === "task" && flatFolders.length > 0 && (
         <div className="mt-2">
           <label className="text-[10px] text-notion-text-secondary uppercase tracking-wide mb-1 block">
             {t("calendar.selectFolder")}
           </label>
-          <div className="max-h-32 overflow-y-auto border border-notion-border rounded-md">
-            <button
-              onClick={() => setSelectedFolderId(null)}
-              className={`w-full px-2 py-1 text-left text-xs transition-colors ${
-                selectedFolderId === null
-                  ? "bg-notion-accent/10 text-notion-accent"
-                  : "text-notion-text hover:bg-notion-hover"
-              }`}
-            >
-              Inbox
-            </button>
-            {folderTree.map(({ node, depth }) => (
-              <button
-                key={node.id}
-                onClick={() => setSelectedFolderId(node.id)}
-                className={`w-full px-2 py-1 text-left text-xs transition-colors flex items-center ${
-                  selectedFolderId === node.id
-                    ? "bg-notion-accent/10 text-notion-accent"
-                    : "text-notion-text hover:bg-notion-hover"
-                }`}
-                style={{ paddingLeft: `${(depth + 1) * 12 + 8}px` }}
-              >
-                {depth > 0 && (
-                  <ChevronRight
-                    size={10}
-                    className="mr-1 text-notion-text-secondary/50"
-                  />
-                )}
-                {node.color && (
-                  <span
-                    className="w-2 h-2 rounded-full mr-1.5 shrink-0"
-                    style={{ backgroundColor: node.color }}
-                  />
-                )}
-                <span className="truncate">{node.title}</span>
-              </button>
-            ))}
-          </div>
+          <FolderList
+            folders={flatFolders}
+            selectedId={selectedFolderId}
+            onSelect={setSelectedFolderId}
+            rootLabel="Inbox"
+            bordered
+          />
         </div>
       )}
     </div>
