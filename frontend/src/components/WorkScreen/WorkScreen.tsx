@@ -4,16 +4,17 @@ import { useTranslation } from "react-i18next";
 import { useTimerContext } from "../../hooks/useTimerContext";
 import { useAudioContext } from "../../hooks/useAudioContext";
 import { useSoundTags } from "../../hooks/useSoundTags";
+import { useAudioFileUpload } from "../../hooks/useAudioFileUpload";
 import { getDataService } from "../../services";
 import { TimerDisplay } from "./TimerDisplay";
 import { TimerProgressBar } from "./TimerProgressBar";
-import { PomodoroSettings } from "./PomodoroSettings";
 import { SoundMixer } from "./SoundMixer";
 import { AudioModeSwitch } from "./AudioModeSwitch";
 import { PlaylistPlayerBar } from "./PlaylistPlayerBar";
 import { TaskSelector } from "./TaskSelector";
 import { TodaySessionSummary } from "./TodaySessionSummary";
 import { SoundPickerModal } from "../Music/SoundPickerModal";
+import { ConfirmDialog } from "../common/ConfirmDialog";
 
 interface WorkScreenProps {
   onCompleteTask?: () => void;
@@ -26,6 +27,9 @@ export function WorkScreen({ onCompleteTask }: WorkScreenProps) {
   const soundTagState = useSoundTags();
   const { getDisplayName } = soundTagState;
   const [pickerOpen, setPickerOpen] = useState(false);
+  const [confirmAction, setConfirmAction] = useState<"session" | "task" | null>(
+    null,
+  );
 
   const title = timer.activeTask?.title ?? t("work.freeSession");
 
@@ -65,22 +69,25 @@ export function WorkScreen({ onCompleteTask }: WorkScreenProps) {
   }, [timer.completedSessions]);
 
   const handleCompleteSession = useCallback(() => {
+    setConfirmAction("session");
+  }, []);
+
+  const handleConfirmSession = useCallback(() => {
     if (timer.isRunning) timer.pause();
     timer.startRest();
+    setConfirmAction(null);
   }, [timer]);
 
-  const handleAddCustomSound = async () => {
-    const input = document.createElement("input");
-    input.type = "file";
-    input.accept = "audio/mp3,audio/wav,audio/ogg,audio/mpeg,.mp3,.wav,.ogg";
-    input.onchange = async () => {
-      const file = input.files?.[0];
-      if (file) {
-        await audio.addSound(file);
-      }
-    };
-    input.click();
-  };
+  const handleCompleteTask = useCallback(() => {
+    setConfirmAction("task");
+  }, []);
+
+  const handleConfirmTask = useCallback(() => {
+    onCompleteTask?.();
+    setConfirmAction(null);
+  }, [onCompleteTask]);
+
+  const handleAddCustomSound = useAudioFileUpload(audio.addSound);
 
   return (
     <div className="h-full flex flex-col">
@@ -99,26 +106,13 @@ export function WorkScreen({ onCompleteTask }: WorkScreenProps) {
           )}
           {timer.activeTask && onCompleteTask && (
             <button
-              onClick={onCompleteTask}
+              onClick={handleCompleteTask}
               className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-green-600 hover:bg-green-50 dark:text-green-400 dark:hover:bg-green-950/30 rounded-lg transition-colors"
             >
               <CheckCircle2 size={14} />
               {t("work.taskComplete")}
             </button>
           )}
-          <PomodoroSettings
-            workDurationMinutes={timer.workDurationMinutes}
-            breakDurationMinutes={timer.breakDurationMinutes}
-            longBreakDurationMinutes={timer.longBreakDurationMinutes}
-            sessionsBeforeLongBreak={timer.sessionsBeforeLongBreak}
-            onChangeWorkDuration={timer.setWorkDurationMinutes}
-            onChangeBreakDuration={timer.setBreakDurationMinutes}
-            onChangeLongBreakDuration={timer.setLongBreakDurationMinutes}
-            onChangeSessionsBeforeLongBreak={timer.setSessionsBeforeLongBreak}
-            disabled={timer.isRunning}
-            autoStartBreaks={timer.autoStartBreaks}
-            onChangeAutoStartBreaks={timer.setAutoStartBreaks}
-          />
         </div>
       </div>
 
@@ -160,19 +154,17 @@ export function WorkScreen({ onCompleteTask }: WorkScreenProps) {
 
           {/* Mixer mode */}
           {audio.audioMode === "mixer" && (
-            <>
-              <SoundMixer
-                mixer={audio.mixer}
-                onToggleSound={audio.toggleSound}
-                onSetVolume={audio.setVolume}
-                customSounds={audio.customSounds}
-                channelPositions={audio.channelPositions}
-                onSeekSound={audio.seekSound}
-                workscreenSelections={audio.workscreenSelections}
-                getDisplayName={getDisplayName}
-                onOpenPicker={() => setPickerOpen(true)}
-              />
-            </>
+            <SoundMixer
+              mixer={audio.mixer}
+              onToggleSound={audio.toggleSound}
+              onSetVolume={audio.setVolume}
+              customSounds={audio.customSounds}
+              channelPositions={audio.channelPositions}
+              onSeekSound={audio.seekSound}
+              workscreenSelections={audio.workscreenSelections}
+              getDisplayName={getDisplayName}
+              onOpenPicker={() => setPickerOpen(true)}
+            />
           )}
 
           {/* Playlist mode */}
@@ -183,6 +175,7 @@ export function WorkScreen({ onCompleteTask }: WorkScreenProps) {
               customSounds={audio.customSounds}
               manualPlay={audio.manualPlay}
               onToggleManualPlay={audio.toggleManualPlay}
+              getDisplayName={getDisplayName}
             />
           )}
         </div>
@@ -201,6 +194,30 @@ export function WorkScreen({ onCompleteTask }: WorkScreenProps) {
           customSounds={audio.customSounds}
           onAddCustomSound={handleAddCustomSound}
           soundTagState={soundTagState}
+        />
+      )}
+
+      {/* Confirm overlays */}
+      {confirmAction === "session" && (
+        <ConfirmDialog
+          title={t("work.confirmSessionTitle")}
+          message={t("work.confirmSessionMessage")}
+          confirmLabel={t("work.sessionComplete")}
+          cancelLabel={t("common.cancel")}
+          onConfirm={handleConfirmSession}
+          onCancel={() => setConfirmAction(null)}
+          variant="blue"
+        />
+      )}
+      {confirmAction === "task" && (
+        <ConfirmDialog
+          title={t("work.confirmTaskTitle")}
+          message={t("work.confirmTaskMessage")}
+          confirmLabel={t("work.taskComplete")}
+          cancelLabel={t("common.cancel")}
+          onConfirm={handleConfirmTask}
+          onCancel={() => setConfirmAction(null)}
+          variant="green"
         />
       )}
     </div>

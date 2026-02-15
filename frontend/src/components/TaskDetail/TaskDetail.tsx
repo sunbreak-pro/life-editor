@@ -1,12 +1,9 @@
-import { lazy, Suspense } from "react";
+import { Suspense } from "react";
 import type { TaskNode } from "../../types/taskTree";
 import { TaskDetailHeader } from "./TaskDetailHeader";
 import { EmptyState } from "./EmptyState";
 import { AICoachPanel } from "../AICoach";
-
-const MemoEditor = lazy(() =>
-  import("./MemoEditor").then((m) => ({ default: m.MemoEditor })),
-);
+import { LazyMemoEditor as MemoEditor } from "./LazyMemoEditor";
 
 interface TaskDetailProps {
   task: TaskNode | null;

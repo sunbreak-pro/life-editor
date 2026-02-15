@@ -16,11 +16,7 @@ import {
 } from "./routineTimeSlotConfig";
 import type { TimeSlotConfig } from "./routineTimeSlotConfig";
 import type { RoutineNode, TimeSlot } from "../../types/routine";
-
-function getTodayKey(): string {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-}
+import { getTodayKey } from "../../utils/dateKey";
 
 type TabSlot = "morning" | "afternoon" | "evening";
 const TAB_SLOTS: TabSlot[] = ["morning", "afternoon", "evening"];

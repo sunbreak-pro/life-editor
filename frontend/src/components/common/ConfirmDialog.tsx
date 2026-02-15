@@ -1,43 +1,68 @@
-import { useEffect } from 'react';
-import { createPortal } from 'react-dom';
-import { useTranslation } from 'react-i18next';
+import { useEffect } from "react";
+import { createPortal } from "react-dom";
+import { useTranslation } from "react-i18next";
 
 interface ConfirmDialogProps {
   message: string;
   onConfirm: () => void;
   onCancel: () => void;
+  title?: string;
+  confirmLabel?: string;
+  cancelLabel?: string;
+  variant?: "default" | "blue" | "green";
 }
 
-export function ConfirmDialog({ message, onConfirm, onCancel }: ConfirmDialogProps) {
+const VARIANT_CLASSES: Record<string, string> = {
+  default: "text-white bg-notion-accent hover:bg-notion-accent/90",
+  blue: "bg-blue-600 hover:bg-blue-700 text-white",
+  green: "bg-green-600 hover:bg-green-700 text-white",
+};
+
+export function ConfirmDialog({
+  message,
+  onConfirm,
+  onCancel,
+  title,
+  confirmLabel,
+  cancelLabel,
+  variant = "default",
+}: ConfirmDialogProps) {
   const { t } = useTranslation();
 
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onCancel();
+      if (e.key === "Escape") onCancel();
     };
-    document.addEventListener('keydown', handleEscape);
-    return () => document.removeEventListener('keydown', handleEscape);
+    document.addEventListener("keydown", handleEscape);
+    return () => document.removeEventListener("keydown", handleEscape);
   }, [onCancel]);
 
   return createPortal(
     <div
       className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
-      onClick={(e) => { if (e.target === e.currentTarget) onCancel(); }}
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onCancel();
+      }}
     >
-      <div className="bg-notion-bg rounded-lg shadow-xl w-80 p-4">
-        <p className="text-sm text-notion-text mb-4">{message}</p>
-        <div className="flex justify-end gap-2">
+      <div className="bg-notion-bg rounded-xl border border-notion-border shadow-2xl p-6 max-w-sm w-full mx-4">
+        {title && (
+          <h3 className="text-lg font-semibold text-notion-text mb-2">
+            {title}
+          </h3>
+        )}
+        <p className="text-sm text-notion-text-secondary mb-6">{message}</p>
+        <div className="flex items-center justify-end gap-2">
           <button
             onClick={onCancel}
-            className="px-3 py-1.5 text-sm text-notion-text-secondary hover:text-notion-text rounded-md hover:bg-notion-hover transition-colors"
+            className="px-4 py-2 text-sm text-notion-text-secondary hover:text-notion-text rounded-lg hover:bg-notion-hover transition-colors"
           >
-            {t('common.cancel')}
+            {cancelLabel || t("common.cancel")}
           </button>
           <button
             onClick={onConfirm}
-            className="px-3 py-1.5 text-sm text-white bg-notion-accent hover:bg-notion-accent/90 rounded-md transition-colors"
+            className={`px-4 py-2 text-sm rounded-lg transition-colors ${VARIANT_CLASSES[variant]}`}
           >
-            {t('common.ok')}
+            {confirmLabel || t("common.ok")}
           </button>
         </div>
       </div>

@@ -1,10 +1,4 @@
-import { useContext } from 'react';
-import { MemoContext } from '../context/MemoContext';
+import { MemoContext } from "../context/MemoContext";
+import { createContextHook } from "./createContextHook";
 
-export function useMemoContext() {
-  const context = useContext(MemoContext);
-  if (!context) {
-    throw new Error('useMemoContext must be used within a MemoProvider');
-  }
-  return context;
-}
+export const useMemoContext = createContextHook(MemoContext, "useMemoContext");

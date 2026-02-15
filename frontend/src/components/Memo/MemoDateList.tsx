@@ -1,6 +1,7 @@
 import { BookOpen, Plus, Trash2 } from "lucide-react";
 import type { MemoNode } from "../../types/memo";
 import { formatTime } from "../../utils/formatRelativeDate";
+import { formatDisplayDate } from "../../utils/dateKey";
 
 interface MemoDateListProps {
   memos: MemoNode[];
@@ -9,18 +10,6 @@ interface MemoDateListProps {
   onSelectDate: (date: string) => void;
   onCreateToday: () => void;
   onDelete: (date: string) => void;
-}
-
-function formatDisplayDate(dateStr: string): string {
-  const date = new Date(dateStr + "T00:00:00");
-  const month = date.toLocaleString("en-US", { month: "short" });
-  const day = date.getDate();
-  const year = date.getFullYear();
-  const now = new Date();
-  if (year !== now.getFullYear()) {
-    return `${month} ${day}, ${year}`;
-  }
-  return `${month} ${day}`;
 }
 
 export function MemoDateList({

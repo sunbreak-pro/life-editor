@@ -4,6 +4,32 @@
 
 ---
 
+## コード重複排除リファクタリング (2026-02-15)
+
+- **Phase 1: 日付フォーマット統合**: `dateKey.ts` に `getTodayKey()` / `formatDisplayDate()` / `formatDateHeading()` を集約、5ファイルの重複を排除
+- **Phase 2: Context消費フック統合**: `createContextHook<T>()` ヘルパーで7つの同一構造フックを各2行に簡略化
+- **Phase 3: MemoEditor lazy import共通化**: `LazyMemoEditor.ts` で3箇所の同一 `lazy()` 宣言を1定数に統合
+- **Phase 7: ID生成統一**: `generateId(prefix)` ユーティリティで `crypto.randomUUID()` / `Date.now()` 混在を統一（5ファイル）
+- **Phase 6: オーディオファイルアップロード共通化**: `useAudioFileUpload` フックで2箇所の `createElement("input")` パターンを統合
+- **Phase 8: localStorage直接アクセス統一**: `useCalendars` / `usePlaylistPlayer` を `useLocalStorage` フックに置換
+- **Phase 4: ConfirmDialog/ConfirmOverlay統合**: `ConfirmDialog` に title/variant props 追加、`ConfirmOverlay.tsx` 削除
+- **Phase 5: 子孫ノード収集共通化**: `collectDescendantIds()` / `isDescendantOf()` で `useTaskTreeDeletion` / `useTaskTreeMovement` の重複を排除
+- **Phase 9: IPCハンドラtry/catch統一**: `loggedHandler()` ラッパーで17ハンドラファイル（60+ハンドラ）の重複パターンを統一
+- **新規ファイル**: `createContextHook.ts`, `LazyMemoEditor.ts`, `generateId.ts`, `useAudioFileUpload.ts`, `handlerUtil.ts`
+- **削除**: `ConfirmOverlay.tsx`
+- **削減**: 約470行、修正約45ファイル
+
+## Memo/Music/Work RightSidebar 追加 (2026-02-15)
+
+- **MemoSidebar**: Daily/Notesタブで日付リスト・ノートリストを表示、MemoViewからリスト部分を分離
+- **MusicSidebar**: Sounds/Playlistsタブでサウンド一覧（検索・タグフィルタ）・プレイリスト管理を表示
+- **WorkSidebar**: Pomodoro/Playlistタブでタイマー設定（プリセット含む）・プレイリスト全曲表示
+- **ConfirmOverlay**: セッション完了・タスク完了の確認ダイアログ（blue/greenバリアント）※後にConfirmDialogに統合・削除
+- **PlaylistPlayerBar改善**: getDisplayNameでカスタムサウンド名反映、プレイリスト全曲表示+曲ジャンプ
+- **Layout.tsx拡張**: showRightSidebarを5セクション（tasks/calendar/memo/music/work）対応
+- **新規ファイル**: `MemoSidebar.tsx`, `MusicSidebar.tsx`, `WorkSidebar.tsx`, `ConfirmOverlay.tsx`
+- **i18n**: 確認ダイアログ用翻訳キー追加（en/ja）
+
 ## ルーティンUI/UXリデザイン (2026-02-15)
 
 - **時間帯タブバー**: 朝/昼/夜の3タブによるフィルタリング表示、カスタム時間帯設定（localStorage）

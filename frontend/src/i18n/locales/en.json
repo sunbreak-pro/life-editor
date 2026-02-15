@@ -122,7 +122,11 @@
   "work": {
     "freeSession": "Free Session",
     "sessionComplete": "Session Complete",
-    "taskComplete": "Task Complete"
+    "taskComplete": "Task Complete",
+    "confirmSessionTitle": "End Session",
+    "confirmSessionMessage": "End this session and start a break?",
+    "confirmTaskTitle": "Complete Task",
+    "confirmTaskMessage": "Mark this task as complete?"
   },
   "pomodoro": {
     "title": "Pomodoro Settings",

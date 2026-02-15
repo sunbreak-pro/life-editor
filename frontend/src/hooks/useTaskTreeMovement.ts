@@ -1,6 +1,7 @@
 import { useCallback } from "react";
 import type { TaskNode } from "../types/taskTree";
 import { MAX_FOLDER_DEPTH } from "../types/taskTree";
+import { isDescendantOf } from "../utils/getDescendantTasks";
 
 function getSubtreeMaxDepth(nodes: TaskNode[], nodeId: string): number {
   const children = nodes.filter((n) => n.parentId === nodeId && !n.isDeleted);
@@ -34,13 +35,7 @@ export function useTaskTreeMovement(
 
       if (target.type === "task") return;
 
-      const isDescendant = (parentId: string, childId: string): boolean => {
-        const children = nodes.filter((n) => n.parentId === parentId);
-        return children.some(
-          (c) => c.id === childId || isDescendant(c.id, childId),
-        );
-      };
-      if (isDescendant(activeId, targetFolderId)) return;
+      if (isDescendantOf(activeId, targetFolderId, nodes)) return;
 
       const targetDepth = getNodeDepth(targetFolderId);
       if (!canMoveToDepth(activeId, targetDepth + 1)) return;
@@ -120,13 +115,7 @@ export function useTaskTreeMovement(
       const over = nodes.find((n) => n.id === overId);
       if (!active || !over) return;
 
-      const isDescendant = (parentId: string, childId: string): boolean => {
-        const children = nodes.filter((n) => n.parentId === parentId);
-        return children.some(
-          (c) => c.id === childId || isDescendant(c.id, childId),
-        );
-      };
-      if (isDescendant(activeId, overId)) return;
+      if (isDescendantOf(activeId, overId, nodes)) return;
 
       if (active.parentId === over.parentId) {
         // Block folder↔task reordering within the same parent

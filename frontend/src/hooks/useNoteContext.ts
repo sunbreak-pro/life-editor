@@ -1,10 +1,4 @@
-import { useContext } from 'react';
-import { NoteContext } from '../context/NoteContext';
+import { NoteContext } from "../context/NoteContext";
+import { createContextHook } from "./createContextHook";
 
-export function useNoteContext() {
-  const context = useContext(NoteContext);
-  if (!context) {
-    throw new Error('useNoteContext must be used within a NoteProvider');
-  }
-  return context;
-}
+export const useNoteContext = createContextHook(NoteContext, "useNoteContext");

@@ -1,46 +1,59 @@
-import { ipcMain } from 'electron';
-import log from '../logger';
-import type { TaskRepository } from '../database/taskRepository';
-import type { TaskNode } from '../types';
+import { ipcMain } from "electron";
+import { loggedHandler } from "./handlerUtil";
+import type { TaskRepository } from "../database/taskRepository";
+import type { TaskNode } from "../types";
 
 export function registerTaskHandlers(repo: TaskRepository): void {
-  ipcMain.handle('db:tasks:fetchTree', () => {
-    try { return repo.fetchTree(); }
-    catch (e) { log.error('[Tasks] fetchTree failed:', e); throw e; }
-  });
+  ipcMain.handle(
+    "db:tasks:fetchTree",
+    loggedHandler("Tasks", "fetchTree", () => repo.fetchTree()),
+  );
 
-  ipcMain.handle('db:tasks:fetchDeleted', () => {
-    try { return repo.fetchDeleted(); }
-    catch (e) { log.error('[Tasks] fetchDeleted failed:', e); throw e; }
-  });
+  ipcMain.handle(
+    "db:tasks:fetchDeleted",
+    loggedHandler("Tasks", "fetchDeleted", () => repo.fetchDeleted()),
+  );
 
-  ipcMain.handle('db:tasks:create', (_event, node: TaskNode) => {
-    try { return repo.create(node); }
-    catch (e) { log.error('[Tasks] create failed:', e); throw e; }
-  });
+  ipcMain.handle(
+    "db:tasks:create",
+    loggedHandler("Tasks", "create", (_event, node: TaskNode) =>
+      repo.create(node),
+    ),
+  );
 
-  ipcMain.handle('db:tasks:update', (_event, id: string, updates: Partial<TaskNode>) => {
-    try { return repo.update(id, updates); }
-    catch (e) { log.error('[Tasks] update failed:', e); throw e; }
-  });
+  ipcMain.handle(
+    "db:tasks:update",
+    loggedHandler(
+      "Tasks",
+      "update",
+      (_event, id: string, updates: Partial<TaskNode>) =>
+        repo.update(id, updates),
+    ),
+  );
 
-  ipcMain.handle('db:tasks:syncTree', (_event, nodes: TaskNode[]) => {
-    try { repo.syncTree(nodes); }
-    catch (e) { log.error('[Tasks] syncTree failed:', e); throw e; }
-  });
+  ipcMain.handle(
+    "db:tasks:syncTree",
+    loggedHandler("Tasks", "syncTree", (_event, nodes: TaskNode[]) =>
+      repo.syncTree(nodes),
+    ),
+  );
 
-  ipcMain.handle('db:tasks:softDelete', (_event, id: string) => {
-    try { repo.softDelete(id); }
-    catch (e) { log.error('[Tasks] softDelete failed:', e); throw e; }
-  });
+  ipcMain.handle(
+    "db:tasks:softDelete",
+    loggedHandler("Tasks", "softDelete", (_event, id: string) =>
+      repo.softDelete(id),
+    ),
+  );
 
-  ipcMain.handle('db:tasks:restore', (_event, id: string) => {
-    try { repo.restore(id); }
-    catch (e) { log.error('[Tasks] restore failed:', e); throw e; }
-  });
+  ipcMain.handle(
+    "db:tasks:restore",
+    loggedHandler("Tasks", "restore", (_event, id: string) => repo.restore(id)),
+  );
 
-  ipcMain.handle('db:tasks:permanentDelete', (_event, id: string) => {
-    try { repo.permanentDelete(id); }
-    catch (e) { log.error('[Tasks] permanentDelete failed:', e); throw e; }
-  });
+  ipcMain.handle(
+    "db:tasks:permanentDelete",
+    loggedHandler("Tasks", "permanentDelete", (_event, id: string) =>
+      repo.permanentDelete(id),
+    ),
+  );
 }

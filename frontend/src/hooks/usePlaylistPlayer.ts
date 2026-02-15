@@ -1,9 +1,10 @@
-import { useState, useCallback, useMemo } from "react";
+import { useCallback, useMemo } from "react";
 import { STORAGE_KEYS } from "../constants/storageKeys";
 import {
   usePlaylistEngine,
   type PlaylistEngineResult,
 } from "./usePlaylistEngine";
+import { useLocalStorage } from "./useLocalStorage";
 import type { PlaylistDataResult } from "./usePlaylistData";
 import type { PlaylistItem, RepeatMode } from "../types/playlist";
 
@@ -22,18 +23,12 @@ export function usePlaylistPlayer(
   soundSources: Record<string, string>,
   shouldPlay: boolean,
 ): PlaylistPlayerResult {
-  const [activePlaylistId, setActivePlaylistIdState] = useState<string | null>(
-    () => localStorage.getItem(STORAGE_KEYS.ACTIVE_PLAYLIST_ID),
-  );
-
-  const setActivePlaylistId = useCallback((id: string | null) => {
-    setActivePlaylistIdState(id);
-    if (id) {
-      localStorage.setItem(STORAGE_KEYS.ACTIVE_PLAYLIST_ID, id);
-    } else {
-      localStorage.removeItem(STORAGE_KEYS.ACTIVE_PLAYLIST_ID);
-    }
-  }, []);
+  const [activePlaylistId, setActivePlaylistId] = useLocalStorage<
+    string | null
+  >(STORAGE_KEYS.ACTIVE_PLAYLIST_ID, null, {
+    serialize: (v: string | null) => v ?? "",
+    deserialize: (raw: string) => raw || null,
+  });
 
   // Derive repeat/shuffle from the active playlist data (no setState in effect)
   const activePlaylist = useMemo(

@@ -1,104 +1,89 @@
 import { ipcMain } from "electron";
-import log from "../logger";
+import { loggedHandler } from "./handlerUtil";
 import type { PlaylistRepository } from "../database/playlistRepository";
 
 export function registerPlaylistHandlers(repo: PlaylistRepository): void {
-  ipcMain.handle("db:playlists:fetchAll", () => {
-    try {
+  ipcMain.handle(
+    "db:playlists:fetchAll",
+    loggedHandler("Playlists", "fetchAll", () => {
       return repo.fetchAll();
-    } catch (e) {
-      log.error("[Playlists] fetchAll failed:", e);
-      throw e;
-    }
-  });
+    }),
+  );
 
-  ipcMain.handle("db:playlists:create", (_event, id: string, name: string) => {
-    try {
+  ipcMain.handle(
+    "db:playlists:create",
+    loggedHandler("Playlists", "create", (_event, id: string, name: string) => {
       return repo.create(id, name);
-    } catch (e) {
-      log.error("[Playlists] create failed:", e);
-      throw e;
-    }
-  });
+    }),
+  );
 
   ipcMain.handle(
     "db:playlists:update",
-    (
-      _event,
-      id: string,
-      updates: {
-        name?: string;
-        sortOrder?: number;
-        repeatMode?: string;
-        isShuffle?: boolean;
-      },
-    ) => {
-      try {
+    loggedHandler(
+      "Playlists",
+      "update",
+      (
+        _event,
+        id: string,
+        updates: {
+          name?: string;
+          sortOrder?: number;
+          repeatMode?: string;
+          isShuffle?: boolean;
+        },
+      ) => {
         return repo.update(id, updates);
-      } catch (e) {
-        log.error("[Playlists] update failed:", e);
-        throw e;
-      }
-    },
+      },
+    ),
   );
 
-  ipcMain.handle("db:playlists:delete", (_event, id: string) => {
-    try {
+  ipcMain.handle(
+    "db:playlists:delete",
+    loggedHandler("Playlists", "delete", (_event, id: string) => {
       repo.delete(id);
-    } catch (e) {
-      log.error("[Playlists] delete failed:", e);
-      throw e;
-    }
-  });
+    }),
+  );
 
-  ipcMain.handle("db:playlists:fetchItems", (_event, playlistId: string) => {
-    try {
+  ipcMain.handle(
+    "db:playlists:fetchItems",
+    loggedHandler("Playlists", "fetchItems", (_event, playlistId: string) => {
       return repo.fetchItems(playlistId);
-    } catch (e) {
-      log.error("[Playlists] fetchItems failed:", e);
-      throw e;
-    }
-  });
+    }),
+  );
 
-  ipcMain.handle("db:playlists:fetchAllItems", () => {
-    try {
+  ipcMain.handle(
+    "db:playlists:fetchAllItems",
+    loggedHandler("Playlists", "fetchAllItems", () => {
       return repo.fetchAllItems();
-    } catch (e) {
-      log.error("[Playlists] fetchAllItems failed:", e);
-      throw e;
-    }
-  });
+    }),
+  );
 
   ipcMain.handle(
     "db:playlists:addItem",
-    (_event, id: string, playlistId: string, soundId: string) => {
-      try {
+    loggedHandler(
+      "Playlists",
+      "addItem",
+      (_event, id: string, playlistId: string, soundId: string) => {
         return repo.addItem(id, playlistId, soundId);
-      } catch (e) {
-        log.error("[Playlists] addItem failed:", e);
-        throw e;
-      }
-    },
+      },
+    ),
   );
 
-  ipcMain.handle("db:playlists:removeItem", (_event, itemId: string) => {
-    try {
+  ipcMain.handle(
+    "db:playlists:removeItem",
+    loggedHandler("Playlists", "removeItem", (_event, itemId: string) => {
       repo.removeItem(itemId);
-    } catch (e) {
-      log.error("[Playlists] removeItem failed:", e);
-      throw e;
-    }
-  });
+    }),
+  );
 
   ipcMain.handle(
     "db:playlists:reorderItems",
-    (_event, playlistId: string, itemIds: string[]) => {
-      try {
+    loggedHandler(
+      "Playlists",
+      "reorderItems",
+      (_event, playlistId: string, itemIds: string[]) => {
         repo.reorderItems(playlistId, itemIds);
-      } catch (e) {
-        log.error("[Playlists] reorderItems failed:", e);
-        throw e;
-      }
-    },
+      },
+    ),
   );
 }

@@ -122,7 +122,11 @@
   "work": {
     "freeSession": "フリーセッション",
     "sessionComplete": "セッション完了",
-    "taskComplete": "タスク完了"
+    "taskComplete": "タスク完了",
+    "confirmSessionTitle": "セッション終了",
+    "confirmSessionMessage": "セッションを終了して休憩に入りますか？",
+    "confirmTaskTitle": "タスク完了",
+    "confirmTaskMessage": "このタスクを完了しますか？"
   },
   "pomodoro": {
     "title": "ポモドーロ設定",

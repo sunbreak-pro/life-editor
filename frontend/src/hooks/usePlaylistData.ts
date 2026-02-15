@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect, useRef } from "react";
 import { getDataService } from "../services";
 import type { Playlist, PlaylistItem } from "../types/playlist";
+import { generateId } from "../utils/generateId";
 
 export interface PlaylistDataResult {
   playlists: Playlist[];
@@ -47,7 +48,7 @@ export function usePlaylistData(): PlaylistDataResult {
   }, []);
 
   const createPlaylist = useCallback(async (name: string) => {
-    const id = `playlist-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    const id = generateId("playlist");
     const pl = await getDataService().createPlaylist(id, name);
     setPlaylists((prev) => [...prev, pl]);
     return pl;
@@ -82,7 +83,7 @@ export function usePlaylistData(): PlaylistDataResult {
   }, []);
 
   const addItem = useCallback(async (playlistId: string, soundId: string) => {
-    const itemId = `pli-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    const itemId = generateId("pli");
     const item = await getDataService().addPlaylistItem(
       itemId,
       playlistId,

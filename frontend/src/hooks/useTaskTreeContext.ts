@@ -1,10 +1,7 @@
-import { useContext } from 'react';
-import { TaskTreeContext } from '../context/TaskTreeContextValue';
+import { TaskTreeContext } from "../context/TaskTreeContextValue";
+import { createContextHook } from "./createContextHook";
 
-export function useTaskTreeContext() {
-  const context = useContext(TaskTreeContext);
-  if (!context) {
-    throw new Error('useTaskTreeContext must be used within a TaskTreeProvider');
-  }
-  return context;
-}
+export const useTaskTreeContext = createContextHook(
+  TaskTreeContext,
+  "useTaskTreeContext",
+);

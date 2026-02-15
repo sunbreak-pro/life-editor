@@ -19,7 +19,11 @@ const SORT_LABEL_KEYS: Record<NoteSortMode, string> = {
   title: "notes.sortTitle",
 };
 
-export function NoteList() {
+interface NoteListProps {
+  embedded?: boolean;
+}
+
+export function NoteList({ embedded }: NoteListProps = {}) {
   const {
     sortedFilteredNotes,
     selectedNoteId,
@@ -48,7 +52,13 @@ export function NoteList() {
   }, [localSearch, setSearchQuery]);
 
   return (
-    <div className="w-64 shrink-0 border-r border-notion-border h-full flex flex-col">
+    <div
+      className={
+        embedded
+          ? "flex flex-col h-full"
+          : "w-64 shrink-0 border-r border-notion-border h-full flex flex-col"
+      }
+    >
       {/* Header */}
       <div className="p-3 border-b border-notion-border">
         <div className="flex items-center justify-between">

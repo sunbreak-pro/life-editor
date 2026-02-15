@@ -11,6 +11,7 @@ import type {
 } from "../types/routine";
 import { getDataService } from "../services";
 import { logServiceError } from "../utils/logError";
+import { generateId } from "../utils/generateId";
 
 function formatDateKey(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
@@ -94,7 +95,7 @@ export function useRoutines() {
       timeSlot?: TimeSlot,
       soundPresetId?: string,
     ) => {
-      const id = `routine-${crypto.randomUUID()}`;
+      const id = generateId("routine");
       const now = new Date().toISOString();
       const optimistic: RoutineNode = {
         id,
@@ -395,7 +396,7 @@ export function useRoutines() {
 
   // Stack CRUD
   const createStack = useCallback((name: string) => {
-    const id = `stack-${crypto.randomUUID()}`;
+    const id = generateId("stack");
     const now = new Date().toISOString();
     const optimistic: RoutineStack = {
       id,

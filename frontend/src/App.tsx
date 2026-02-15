@@ -33,6 +33,14 @@ function App() {
     const stored = localStorage.getItem(STORAGE_KEYS.CALENDAR_MODE);
     return stored === "memo" ? "memo" : "tasks";
   });
+  const [memoTab, setMemoTab] = useState<"daily" | "notes">(() => {
+    const saved = localStorage.getItem(STORAGE_KEYS.MEMO_TAB);
+    return saved === "notes" ? "notes" : "daily";
+  });
+  const [musicTab, setMusicTab] = useState<"sounds" | "playlists">("sounds");
+  const [selectedPlaylistId, setSelectedPlaylistId] = useState<string | null>(
+    null,
+  );
   const layoutRef = useRef<LayoutHandle | null>(null);
   const timer = useTimerContext();
   const {
@@ -121,7 +129,7 @@ function App() {
           />
         );
       case "memo":
-        return <MemoView />;
+        return <MemoView activeTab={memoTab} />;
       case "routine":
         return <RoutineSection />;
       case "music":
@@ -173,6 +181,12 @@ function App() {
         handleRef={layoutRef}
         calendarMode={calendarMode}
         onCalendarModeChange={handleCalendarModeChange}
+        memoTab={memoTab}
+        onMemoTabChange={setMemoTab}
+        musicTab={musicTab}
+        onMusicTabChange={setMusicTab}
+        selectedPlaylistId={selectedPlaylistId}
+        onSelectPlaylist={setSelectedPlaylistId}
       >
         {renderContent()}
       </Layout>

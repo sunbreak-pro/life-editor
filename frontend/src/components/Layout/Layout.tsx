@@ -6,6 +6,9 @@ import type { TaskNode } from "../../types/taskTree";
 import { LeftSidebar } from "./LeftSidebar";
 import { RightSidebar } from "./RightSidebar";
 import { CalendarSidebar } from "../Calendar/CalendarSidebar";
+import { MemoSidebar } from "../Memo/MemoSidebar";
+import { MusicSidebar } from "../Music/MusicSidebar";
+import { WorkSidebar } from "../WorkScreen/WorkSidebar";
 import { MainContent } from "./MainContent";
 import { STORAGE_KEYS } from "../../constants/storageKeys";
 import { useLocalStorage } from "../../hooks/useLocalStorage";
@@ -46,6 +49,12 @@ interface LayoutProps {
   handleRef?: React.MutableRefObject<LayoutHandle | null>;
   calendarMode?: "tasks" | "memo";
   onCalendarModeChange?: (mode: "tasks" | "memo") => void;
+  memoTab?: "daily" | "notes";
+  onMemoTabChange?: (tab: "daily" | "notes") => void;
+  musicTab?: "sounds" | "playlists";
+  onMusicTabChange?: (tab: "sounds" | "playlists") => void;
+  selectedPlaylistId?: string | null;
+  onSelectPlaylist?: (id: string) => void;
 }
 
 export function Layout({
@@ -60,6 +69,12 @@ export function Layout({
   handleRef,
   calendarMode,
   onCalendarModeChange,
+  memoTab,
+  onMemoTabChange,
+  musicTab,
+  onMusicTabChange,
+  selectedPlaylistId,
+  onSelectPlaylist,
 }: LayoutProps) {
   // Right sidebar
   const [rightSidebarWidth, setRightSidebarWidth] = useLocalStorage<number>(
@@ -191,9 +206,13 @@ export function Layout({
     };
   }, [setRightSidebarWidth, setLeftSidebarWidth]);
 
-  const showTasksSidebar = activeSection === "tasks";
-  const showCalendarSidebar = activeSection === "calendar";
-  const showRightSidebar = showTasksSidebar || showCalendarSidebar;
+  const showRightSidebar = [
+    "tasks",
+    "calendar",
+    "memo",
+    "music",
+    "work",
+  ].includes(activeSection);
 
   const currentLeftWidth = dragLeftWidth ?? leftSidebarWidth;
 
@@ -233,7 +252,7 @@ export function Layout({
               onMouseDown={handleRightMouseDown}
               className="absolute top-0 left-0 w-1.5 h-full cursor-col-resize hover:bg-notion-accent/30 transition-colors z-10"
             />
-            {showTasksSidebar ? (
+            {activeSection === "tasks" && (
               <RightSidebar
                 width={dragRightWidth ?? rightSidebarWidth}
                 onCreateFolder={onCreateFolder}
@@ -243,12 +262,37 @@ export function Layout({
                 selectedTaskId={selectedTaskId}
                 onToggle={() => setRightSidebarOpen(false)}
               />
-            ) : (
+            )}
+            {activeSection === "calendar" && (
               <CalendarSidebar
                 width={dragRightWidth ?? rightSidebarWidth}
                 onToggle={() => setRightSidebarOpen(false)}
                 calendarMode={calendarMode ?? "tasks"}
                 onCalendarModeChange={onCalendarModeChange}
+              />
+            )}
+            {activeSection === "memo" && (
+              <MemoSidebar
+                width={dragRightWidth ?? rightSidebarWidth}
+                onToggle={() => setRightSidebarOpen(false)}
+                activeTab={memoTab ?? "daily"}
+                onTabChange={onMemoTabChange ?? (() => {})}
+              />
+            )}
+            {activeSection === "music" && (
+              <MusicSidebar
+                width={dragRightWidth ?? rightSidebarWidth}
+                onToggle={() => setRightSidebarOpen(false)}
+                activeTab={musicTab ?? "sounds"}
+                onTabChange={onMusicTabChange ?? (() => {})}
+                selectedPlaylistId={selectedPlaylistId ?? null}
+                onSelectPlaylist={onSelectPlaylist ?? (() => {})}
+              />
+            )}
+            {activeSection === "work" && (
+              <WorkSidebar
+                width={dragRightWidth ?? rightSidebarWidth}
+                onToggle={() => setRightSidebarOpen(false)}
               />
             )}
           </div>

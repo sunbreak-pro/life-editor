@@ -1,10 +1,7 @@
-import { useContext } from 'react';
-import { TimerContext } from '../context/TimerContextValue';
+import { TimerContext } from "../context/TimerContextValue";
+import { createContextHook } from "./createContextHook";
 
-export function useTimerContext() {
-  const context = useContext(TimerContext);
-  if (!context) {
-    throw new Error('useTimerContext must be used within a TimerProvider');
-  }
-  return context;
-}
+export const useTimerContext = createContextHook(
+  TimerContext,
+  "useTimerContext",
+);

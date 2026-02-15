@@ -24,6 +24,7 @@ interface PlaylistPlayerBarProps {
   customSounds: CustomSoundMeta[];
   manualPlay: boolean;
   onToggleManualPlay: () => void;
+  getDisplayName?: (soundId: string) => string | undefined;
 }
 
 function formatTime(seconds: number): string {
@@ -43,6 +44,7 @@ export function PlaylistPlayerBar({
   customSounds,
   manualPlay,
   onToggleManualPlay,
+  getDisplayName,
 }: PlaylistPlayerBarProps) {
   const { t } = useTranslation();
 
@@ -51,15 +53,20 @@ export function PlaylistPlayerBar({
   );
   const currentTrack = player.activePlaylistItems[player.currentTrackIndex];
 
-  const trackName = useMemo(() => {
-    if (!currentTrack) return t("playlist.noTrack");
-    const soundId = currentTrack.soundId;
+  const resolveTrackName = (soundId: string): string => {
+    const displayName = getDisplayName?.(soundId);
+    if (displayName) return displayName;
     const builtIn = SOUND_TYPES.find((s) => s.id === soundId);
     if (builtIn) return builtIn.label;
     const custom = customSounds.find((s) => s.id === soundId);
     if (custom) return custom.label;
     return soundId;
-  }, [currentTrack, customSounds, t]);
+  };
+
+  const trackName = useMemo(() => {
+    if (!currentTrack) return t("playlist.noTrack");
+    return resolveTrackName(currentTrack.soundId);
+  }, [currentTrack, customSounds, t, getDisplayName]);
 
   const progress =
     player.duration > 0 ? (player.currentTime / player.duration) * 100 : 0;
@@ -212,11 +219,44 @@ export function PlaylistPlayerBar({
         </div>
       </div>
 
-      {/* Playlist name */}
-      {activePlaylist && (
-        <div className="text-[10px] text-notion-text-secondary text-center">
-          {activePlaylist.name} ({player.activePlaylistItems.length}{" "}
-          {t("playlist.tracks")})
+      {/* Full track list */}
+      {activePlaylist && player.activePlaylistItems.length > 0 && (
+        <div className="mt-2 pt-2 border-t border-notion-border">
+          <div className="flex items-center justify-between mb-1.5">
+            <span className="text-[10px] text-notion-text-secondary font-medium">
+              {activePlaylist.name}
+            </span>
+            <span className="text-[10px] text-notion-text-secondary">
+              {player.activePlaylistItems.length} {t("playlist.tracks")}
+            </span>
+          </div>
+          <div className="space-y-0.5 max-h-32 overflow-y-auto">
+            {player.activePlaylistItems.map((item, index) => {
+              const isCurrent = index === player.currentTrackIndex;
+              return (
+                <button
+                  key={item.id}
+                  onClick={() => player.jumpToTrack(index)}
+                  className={`w-full flex items-center gap-2 px-2 py-1 text-xs rounded transition-colors ${
+                    isCurrent
+                      ? "bg-notion-accent/10 text-notion-accent font-medium"
+                      : "text-notion-text-secondary hover:text-notion-text hover:bg-notion-hover"
+                  }`}
+                >
+                  {isCurrent ? (
+                    <Music size={10} className="shrink-0 text-notion-accent" />
+                  ) : (
+                    <span className="w-2.5 text-center text-[9px] shrink-0">
+                      {index + 1}
+                    </span>
+                  )}
+                  <span className="truncate text-left">
+                    {resolveTrackName(item.soundId)}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
         </div>
       )}
     </div>

@@ -1,5 +1,6 @@
 import { useCallback } from "react";
 import type { TaskNode } from "../types/taskTree";
+import { collectDescendantIds } from "../utils/getDescendantTasks";
 
 export function useTaskTreeDeletion(
   nodes: TaskNode[],
@@ -9,17 +10,7 @@ export function useTaskTreeDeletion(
 ) {
   const softDelete = useCallback(
     (id: string) => {
-      const descendantIds = new Set<string>();
-      const collectDescendants = (parentId: string) => {
-        nodes
-          .filter((n) => n.parentId === parentId)
-          .forEach((child) => {
-            descendantIds.add(child.id);
-            collectDescendants(child.id);
-          });
-      };
-      descendantIds.add(id);
-      collectDescendants(id);
+      const descendantIds = collectDescendantIds(id, nodes);
 
       persistWithHistory(
         nodes,
@@ -38,17 +29,7 @@ export function useTaskTreeDeletion(
       const node = nodes.find((n) => n.id === id);
       if (!node) return;
 
-      const idsToRestore = new Set<string>();
-      const collectDescendants = (parentId: string) => {
-        nodes
-          .filter((n) => n.parentId === parentId)
-          .forEach((child) => {
-            idsToRestore.add(child.id);
-            collectDescendants(child.id);
-          });
-      };
-      idsToRestore.add(id);
-      collectDescendants(id);
+      const idsToRestore = collectDescendantIds(id, nodes);
 
       // Also restore ancestors if they're deleted
       let current = node;
@@ -75,17 +56,7 @@ export function useTaskTreeDeletion(
 
   const permanentDelete = useCallback(
     (id: string) => {
-      const idsToDelete = new Set<string>();
-      const collectDescendants = (parentId: string) => {
-        nodes
-          .filter((n) => n.parentId === parentId)
-          .forEach((child) => {
-            idsToDelete.add(child.id);
-            collectDescendants(child.id);
-          });
-      };
-      idsToDelete.add(id);
-      collectDescendants(id);
+      const idsToDelete = collectDescendantIds(id, nodes);
       persistSilent(nodes.filter((n) => !idsToDelete.has(n.id)));
       clearHistory();
     },

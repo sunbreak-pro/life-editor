@@ -1,10 +1,7 @@
-import { useContext } from 'react';
-import { CalendarContext } from '../context/CalendarContext';
+import { CalendarContext } from "../context/CalendarContext";
+import { createContextHook } from "./createContextHook";
 
-export function useCalendarContext() {
-  const context = useContext(CalendarContext);
-  if (!context) {
-    throw new Error('useCalendarContext must be used within a CalendarProvider');
-  }
-  return context;
-}
+export const useCalendarContext = createContextHook(
+  CalendarContext,
+  "useCalendarContext",
+);

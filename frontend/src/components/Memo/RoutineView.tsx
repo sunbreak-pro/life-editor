@@ -5,11 +5,7 @@ import { useRoutineContext } from "../../hooks/useRoutineContext";
 import { RoutineList } from "./RoutineList";
 import { RoutineCreateDialog } from "./RoutineCreateDialog";
 import type { RoutineNode, FrequencyType } from "../../types/routine";
-
-function getTodayKey(): string {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-}
+import { getTodayKey } from "../../utils/dateKey";
 
 export function RoutineView() {
   const { t } = useTranslation();

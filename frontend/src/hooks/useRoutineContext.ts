@@ -1,10 +1,7 @@
-import { useContext } from "react";
 import { RoutineContext } from "../context/RoutineContext";
+import { createContextHook } from "./createContextHook";
 
-export function useRoutineContext() {
-  const context = useContext(RoutineContext);
-  if (!context) {
-    throw new Error("useRoutineContext must be used within a RoutineProvider");
-  }
-  return context;
-}
+export const useRoutineContext = createContextHook(
+  RoutineContext,
+  "useRoutineContext",
+);

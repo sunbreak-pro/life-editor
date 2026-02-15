@@ -1,90 +1,81 @@
 import { ipcMain } from "electron";
-import log from "../logger";
+import { loggedHandler } from "./handlerUtil";
 import type { RoutineStackRepository } from "../database/routineStackRepository";
 import type { RoutineStack } from "../types";
 
 export function registerRoutineStackHandlers(
   repo: RoutineStackRepository,
 ): void {
-  ipcMain.handle("db:routineStacks:fetchAll", () => {
-    try {
+  ipcMain.handle(
+    "db:routineStacks:fetchAll",
+    loggedHandler("RoutineStacks", "fetchAll", () => {
       return repo.fetchAll();
-    } catch (e) {
-      log.error("[RoutineStacks] fetchAll failed:", e);
-      throw e;
-    }
-  });
+    }),
+  );
 
   ipcMain.handle(
     "db:routineStacks:create",
-    (_event, id: string, name: string) => {
-      try {
+    loggedHandler(
+      "RoutineStacks",
+      "create",
+      (_event, id: string, name: string) => {
         return repo.create(id, name);
-      } catch (e) {
-        log.error("[RoutineStacks] create failed:", e);
-        throw e;
-      }
-    },
+      },
+    ),
   );
 
   ipcMain.handle(
     "db:routineStacks:update",
-    (
-      _event,
-      id: string,
-      updates: Partial<Pick<RoutineStack, "name" | "order">>,
-    ) => {
-      try {
+    loggedHandler(
+      "RoutineStacks",
+      "update",
+      (
+        _event,
+        id: string,
+        updates: Partial<Pick<RoutineStack, "name" | "order">>,
+      ) => {
         return repo.update(id, updates);
-      } catch (e) {
-        log.error("[RoutineStacks] update failed:", e);
-        throw e;
-      }
-    },
+      },
+    ),
   );
 
-  ipcMain.handle("db:routineStacks:delete", (_event, id: string) => {
-    try {
+  ipcMain.handle(
+    "db:routineStacks:delete",
+    loggedHandler("RoutineStacks", "delete", (_event, id: string) => {
       repo.delete(id);
-    } catch (e) {
-      log.error("[RoutineStacks] delete failed:", e);
-      throw e;
-    }
-  });
+    }),
+  );
 
   ipcMain.handle(
     "db:routineStacks:addItem",
-    (_event, stackId: string, routineId: string) => {
-      try {
+    loggedHandler(
+      "RoutineStacks",
+      "addItem",
+      (_event, stackId: string, routineId: string) => {
         repo.addItem(stackId, routineId);
-      } catch (e) {
-        log.error("[RoutineStacks] addItem failed:", e);
-        throw e;
-      }
-    },
+      },
+    ),
   );
 
   ipcMain.handle(
     "db:routineStacks:removeItem",
-    (_event, stackId: string, routineId: string) => {
-      try {
+    loggedHandler(
+      "RoutineStacks",
+      "removeItem",
+      (_event, stackId: string, routineId: string) => {
         repo.removeItem(stackId, routineId);
-      } catch (e) {
-        log.error("[RoutineStacks] removeItem failed:", e);
-        throw e;
-      }
-    },
+      },
+    ),
   );
 
   ipcMain.handle(
     "db:routineStacks:reorderItems",
-    (_event, stackId: string, routineIds: string[]) => {
-      try {
+    loggedHandler(
+      "RoutineStacks",
+      "reorderItems",
+      (_event, stackId: string, routineIds: string[]) => {
         repo.reorderItems(stackId, routineIds);
-      } catch (e) {
-        log.error("[RoutineStacks] reorderItems failed:", e);
-        throw e;
-      }
-    },
+      },
+    ),
   );
 }

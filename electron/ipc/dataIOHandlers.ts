@@ -3,6 +3,7 @@ import { ipcMain, dialog, BrowserWindow, app } from "electron";
 import * as fs from "fs";
 import * as path from "path";
 import type Database from "better-sqlite3";
+import { loggedHandler } from "./handlerUtil";
 
 function safeQuery(db: Database.Database, sql: string): unknown[] {
   try {
@@ -21,8 +22,9 @@ function safeQueryOne(db: Database.Database, sql: string): unknown | null {
 }
 
 export function registerDataIOHandlers(db: Database.Database): void {
-  ipcMain.handle("data:export", async () => {
-    try {
+  ipcMain.handle(
+    "data:export",
+    loggedHandler("DataIO", "export", async () => {
       const win = BrowserWindow.getFocusedWindow();
       if (!win) return false;
 
@@ -71,14 +73,12 @@ export function registerDataIOHandlers(db: Database.Database): void {
 
       fs.writeFileSync(result.filePath, JSON.stringify(data, null, 2), "utf-8");
       return true;
-    } catch (e) {
-      log.error("[DataIO] export failed:", e);
-      throw e;
-    }
-  });
+    }),
+  );
 
-  ipcMain.handle("data:import", async () => {
-    try {
+  ipcMain.handle(
+    "data:import",
+    loggedHandler("DataIO", "import", async () => {
       const win = BrowserWindow.getFocusedWindow();
       if (!win) return false;
 
@@ -321,20 +321,18 @@ export function registerDataIOHandlers(db: Database.Database): void {
         }
         throw e;
       }
-    } catch (e) {
-      log.error("[DataIO] import failed:", e);
-      throw e;
-    }
-  });
+    }),
+  );
 
-  ipcMain.handle("data:reset", async () => {
-    const dbPath = path.join(app.getPath("userData"), "sonic-flow.db");
-    const backupPath = path.join(
-      app.getPath("userData"),
-      `sonic-flow-backup-${formatTimestamp()}.db`,
-    );
+  ipcMain.handle(
+    "data:reset",
+    loggedHandler("DataIO", "reset", async () => {
+      const dbPath = path.join(app.getPath("userData"), "sonic-flow.db");
+      const backupPath = path.join(
+        app.getPath("userData"),
+        `sonic-flow-backup-${formatTimestamp()}.db`,
+      );
 
-    try {
       // Create backup before reset
       if (fs.existsSync(dbPath)) {
         fs.copyFileSync(dbPath, backupPath);
@@ -409,11 +407,8 @@ export function registerDataIOHandlers(db: Database.Database): void {
         }
         throw e;
       }
-    } catch (e) {
-      log.error("[DataIO] reset failed:", e);
-      throw e;
-    }
-  });
+    }),
+  );
 }
 
 function validateImportData(data: Record<string, unknown>): void {
