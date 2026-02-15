@@ -21,9 +21,20 @@ export function registerRoutineHandlers(repo: RoutineRepository): void {
       title: string,
       frequencyType: string,
       frequencyDays: number[],
+      timesPerWeek?: number,
+      timeSlot?: string,
+      soundPresetId?: string,
     ) => {
       try {
-        return repo.create(id, title, frequencyType, frequencyDays);
+        return repo.create(
+          id,
+          title,
+          frequencyType,
+          frequencyDays,
+          timesPerWeek,
+          timeSlot,
+          soundPresetId,
+        );
       } catch (e) {
         log.error("[Routines] create failed:", e);
         throw e;
@@ -39,7 +50,14 @@ export function registerRoutineHandlers(repo: RoutineRepository): void {
       updates: Partial<
         Pick<
           RoutineNode,
-          "title" | "frequencyType" | "frequencyDays" | "isArchived" | "order"
+          | "title"
+          | "frequencyType"
+          | "frequencyDays"
+          | "timesPerWeek"
+          | "timeSlot"
+          | "soundPresetId"
+          | "isArchived"
+          | "order"
         >
       >,
     ) => {

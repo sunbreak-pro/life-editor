@@ -2,6 +2,7 @@
   "sidebar": {
     "tasks": "Tasks",
     "memo": "Memo",
+    "routine": "Routine",
     "music": "Music",
     "work": "Work",
     "calendar": "Calendar",
@@ -174,6 +175,15 @@
     "frequency": "Frequency",
     "daily": "Daily",
     "custom": "Custom days",
+    "timesPerWeek": "X/week",
+    "timesPerWeekLabel": "times per week",
+    "timeSlotLabel": "Time of day",
+    "timeSlot": {
+      "morning": "Morning",
+      "afternoon": "Afternoon",
+      "evening": "Evening",
+      "anytime": "Anytime"
+    },
     "sun": "Sun",
     "mon": "Mon",
     "tue": "Tue",
@@ -188,7 +198,23 @@
     "deleteConfirm": "Delete \"{{name}}\"? All logs will be lost.",
     "create": "Create",
     "cancel": "Cancel",
-    "notApplicable": "-"
+    "notApplicable": "-",
+    "atRisk": "Complete today or streak will break!",
+    "stats": "Statistics",
+    "heatmap": "Activity (12 weeks)",
+    "less": "Less",
+    "more": "More",
+    "weeklyRate": "Weekly completion rate",
+    "streakRecords": "Streak records",
+    "milestones": "Milestones",
+    "noMilestones": "No milestones reached yet. Keep going!",
+    "milestoneReached": "{{days}} day streak!",
+    "habitStacks": "Habit Stacks",
+    "createStack": "New Stack",
+    "stackNamePlaceholder": "Stack name",
+    "selectRoutines": "Select routines (order matters)",
+    "startTimer": "Start timer",
+    "startNext": "Start next"
   },
   "analytics": {
     "title": "Analytics",

@@ -29,6 +29,8 @@ import { createPomodoroPresetRepository } from "../database/pomodoroPresetReposi
 import { registerPomodoroPresetHandlers } from "./pomodoroPresetHandlers";
 import { createRoutineRepository } from "../database/routineRepository";
 import { registerRoutineHandlers } from "./routineHandlers";
+import { createRoutineStackRepository } from "../database/routineStackRepository";
+import { registerRoutineStackHandlers } from "./routineStackHandlers";
 import { createPlaylistRepository } from "../database/playlistRepository";
 import { registerPlaylistHandlers } from "./playlistHandlers";
 import { wrapHandler } from "./ipcMetrics";
@@ -90,6 +92,10 @@ export function registerAllHandlers(db: Database.Database): void {
       () => registerPomodoroPresetHandlers(createPomodoroPresetRepository(db)),
     ],
     ["Routines", () => registerRoutineHandlers(createRoutineRepository(db))],
+    [
+      "RoutineStacks",
+      () => registerRoutineStackHandlers(createRoutineStackRepository(db)),
+    ],
     ["Playlists", () => registerPlaylistHandlers(createPlaylistRepository(db))],
   ];
 

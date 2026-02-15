@@ -34,7 +34,10 @@ interface PlaylistDetailProps {
 function getSoundLabel(
   soundId: string,
   customSounds: CustomSoundMeta[],
+  getDisplayName: (soundId: string) => string | undefined,
 ): string {
+  const displayName = getDisplayName(soundId);
+  if (displayName) return displayName;
   const builtIn = SOUND_TYPES.find((s) => s.id === soundId);
   if (builtIn) return builtIn.label;
   const custom = customSounds.find((s) => s.id === soundId);
@@ -199,7 +202,11 @@ export function PlaylistDetail({
                 <SortableItem
                   key={item.id}
                   item={item}
-                  label={getSoundLabel(item.soundId, customSounds)}
+                  label={getSoundLabel(
+                    item.soundId,
+                    customSounds,
+                    soundTagState.getDisplayName,
+                  )}
                   isCurrentTrack={currentTrackItem?.id === item.id}
                   onRemove={() => playlistData.removeItem(playlistId, item.id)}
                   onPlay={() => {

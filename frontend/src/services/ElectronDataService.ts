@@ -23,7 +23,7 @@ import type { NoteNode } from "../types/note";
 
 import type { TaskTemplate } from "../types/template";
 import type { CalendarNode } from "../types/calendar";
-import type { RoutineNode, RoutineLog } from "../types/routine";
+import type { RoutineNode, RoutineLog, RoutineStack } from "../types/routine";
 import type { Playlist, PlaylistItem } from "../types/playlist";
 import type {
   LogEntry,
@@ -312,6 +312,9 @@ export class ElectronDataService implements DataService {
     title: string,
     frequencyType: string,
     frequencyDays: number[],
+    timesPerWeek?: number,
+    timeSlot?: string,
+    soundPresetId?: string,
   ): Promise<RoutineNode> {
     return invoke(
       "db:routines:create",
@@ -319,6 +322,9 @@ export class ElectronDataService implements DataService {
       title,
       frequencyType,
       frequencyDays,
+      timesPerWeek,
+      timeSlot,
+      soundPresetId,
     );
   }
   updateRoutine(
@@ -326,7 +332,14 @@ export class ElectronDataService implements DataService {
     updates: Partial<
       Pick<
         RoutineNode,
-        "title" | "frequencyType" | "frequencyDays" | "isArchived" | "order"
+        | "title"
+        | "frequencyType"
+        | "frequencyDays"
+        | "timesPerWeek"
+        | "timeSlot"
+        | "soundPresetId"
+        | "isArchived"
+        | "order"
       >
     >,
   ): Promise<RoutineNode> {
@@ -346,6 +359,35 @@ export class ElectronDataService implements DataService {
     endDate: string,
   ): Promise<RoutineLog[]> {
     return invoke("db:routines:fetchLogsByDateRange", startDate, endDate);
+  }
+
+  // Routine Stacks
+  fetchRoutineStacks(): Promise<RoutineStack[]> {
+    return invoke("db:routineStacks:fetchAll");
+  }
+  createRoutineStack(id: string, name: string): Promise<RoutineStack> {
+    return invoke("db:routineStacks:create", id, name);
+  }
+  updateRoutineStack(
+    id: string,
+    updates: Partial<Pick<RoutineStack, "name" | "order">>,
+  ): Promise<RoutineStack> {
+    return invoke("db:routineStacks:update", id, updates);
+  }
+  deleteRoutineStack(id: string): Promise<void> {
+    return invoke("db:routineStacks:delete", id);
+  }
+  addRoutineStackItem(stackId: string, routineId: string): Promise<void> {
+    return invoke("db:routineStacks:addItem", stackId, routineId);
+  }
+  removeRoutineStackItem(stackId: string, routineId: string): Promise<void> {
+    return invoke("db:routineStacks:removeItem", stackId, routineId);
+  }
+  reorderRoutineStackItems(
+    stackId: string,
+    routineIds: string[],
+  ): Promise<void> {
+    return invoke("db:routineStacks:reorderItems", stackId, routineIds);
   }
 
   // Playlists

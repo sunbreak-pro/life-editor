@@ -1,5 +1,14 @@
 import { useState, useCallback, useEffect, useMemo } from "react";
-import type { RoutineNode, RoutineLog, RoutineStats } from "../types/routine";
+import type {
+  RoutineNode,
+  RoutineLog,
+  RoutineStats,
+  RoutineStack,
+  FrequencyType,
+  TimeSlot,
+  HeatmapDay,
+  WeeklyRate,
+} from "../types/routine";
 import { getDataService } from "../services";
 import { logServiceError } from "../utils/logError";
 
@@ -13,12 +22,19 @@ function isDayApplicable(routine: RoutineNode, date: Date): boolean {
   if (dateKey < createdDate) return false;
 
   if (routine.frequencyType === "daily") return true;
-  return routine.frequencyDays.includes(date.getDay());
+  if (routine.frequencyType === "custom") {
+    return routine.frequencyDays.includes(date.getDay());
+  }
+  // timesPerWeek: always applicable (any day of the week counts)
+  return true;
 }
+
+const MILESTONE_THRESHOLDS = [7, 30, 100, 365];
 
 export function useRoutines() {
   const [routines, setRoutines] = useState<RoutineNode[]>([]);
   const [logs, setLogs] = useState<RoutineLog[]>([]);
+  const [stacks, setStacks] = useState<RoutineStack[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   // Build a fast lookup: Map<routineId, Set<date>>
@@ -40,9 +56,8 @@ export function useRoutines() {
     let cancelled = false;
     (async () => {
       try {
-        const [routineData, logData] = await Promise.all([
+        const [routineData, logData, stackData] = await Promise.all([
           getDataService().fetchAllRoutines(),
-          // Fetch 6 months of logs
           (() => {
             const end = new Date();
             const start = new Date();
@@ -52,10 +67,12 @@ export function useRoutines() {
               formatDateKey(end),
             );
           })(),
+          getDataService().fetchRoutineStacks(),
         ]);
         if (!cancelled) {
           setRoutines(routineData);
           setLogs(logData);
+          setStacks(stackData);
           setIsLoading(false);
         }
       } catch (e) {
@@ -71,8 +88,11 @@ export function useRoutines() {
   const createRoutine = useCallback(
     (
       title: string,
-      frequencyType: "daily" | "custom",
+      frequencyType: FrequencyType,
       frequencyDays: number[],
+      timesPerWeek?: number,
+      timeSlot?: TimeSlot,
+      soundPresetId?: string,
     ) => {
       const id = `routine-${crypto.randomUUID()}`;
       const now = new Date().toISOString();
@@ -81,6 +101,9 @@ export function useRoutines() {
         title,
         frequencyType,
         frequencyDays,
+        timesPerWeek,
+        timeSlot: timeSlot ?? "anytime",
+        soundPresetId,
         isArchived: false,
         order: routines.length,
         createdAt: now,
@@ -88,7 +111,15 @@ export function useRoutines() {
       };
       setRoutines((prev) => [...prev, optimistic]);
       getDataService()
-        .createRoutine(id, title, frequencyType, frequencyDays)
+        .createRoutine(
+          id,
+          title,
+          frequencyType,
+          frequencyDays,
+          timesPerWeek,
+          timeSlot,
+          soundPresetId,
+        )
         .catch((e) => logServiceError("Routines", "create", e));
       return id;
     },
@@ -101,7 +132,14 @@ export function useRoutines() {
       updates: Partial<
         Pick<
           RoutineNode,
-          "title" | "frequencyType" | "frequencyDays" | "isArchived" | "order"
+          | "title"
+          | "frequencyType"
+          | "frequencyDays"
+          | "timesPerWeek"
+          | "timeSlot"
+          | "soundPresetId"
+          | "isArchived"
+          | "order"
         >
       >,
     ) => {
@@ -129,7 +167,6 @@ export function useRoutines() {
 
   const toggleLog = useCallback(
     (routineId: string, date: string) => {
-      // Optimistic update
       const existing = logsByRoutineId.get(routineId)?.has(date);
       if (existing) {
         setLogs((prev) =>
@@ -137,7 +174,7 @@ export function useRoutines() {
         );
       } else {
         const newLog: RoutineLog = {
-          id: -1, // temporary
+          id: -1,
           routineId,
           date,
           completed: true,
@@ -148,6 +185,9 @@ export function useRoutines() {
       getDataService()
         .toggleRoutineLog(routineId, date)
         .catch((e) => logServiceError("Routines", "toggleLog", e));
+
+      // Return whether it was toggled ON (for milestone detection)
+      return !existing;
     },
     [logsByRoutineId],
   );
@@ -167,28 +207,81 @@ export function useRoutines() {
         last7Days.push({ date: key, completed: dateSet.has(key), applicable });
       }
 
-      // Current streak
+      // Grace Period streak calculation (Don't Miss Twice)
       let currentStreak = 0;
+      let bestStreak = 0;
+      let isAtRisk = false;
       const checkDate = new Date(today);
-      // If today is not applicable, start from yesterday
       if (!isDayApplicable(routine, checkDate)) {
         checkDate.setDate(checkDate.getDate() - 1);
       }
-      while (true) {
-        const key = formatDateKey(checkDate);
+
+      // Calculate current streak with grace period
+      let consecutiveMisses = 0;
+      let tempStreak = 0;
+      const iterDate = new Date(today);
+      if (!isDayApplicable(routine, iterDate)) {
+        iterDate.setDate(iterDate.getDate() - 1);
+      }
+      for (let i = 0; i < 730; i++) {
+        const key = formatDateKey(iterDate);
         if (key < routine.createdAt.substring(0, 10)) break;
 
-        if (!isDayApplicable(routine, checkDate)) {
-          checkDate.setDate(checkDate.getDate() - 1);
+        if (!isDayApplicable(routine, iterDate)) {
+          iterDate.setDate(iterDate.getDate() - 1);
           continue;
         }
+
         if (dateSet.has(key)) {
-          currentStreak++;
-          checkDate.setDate(checkDate.getDate() - 1);
+          tempStreak++;
+          consecutiveMisses = 0;
         } else {
-          break;
+          consecutiveMisses++;
+          if (consecutiveMisses >= 2) {
+            // 2 consecutive misses = streak broken
+            break;
+          }
+          // 1 miss = at risk, but streak continues
+          if (tempStreak > 0 && consecutiveMisses === 1) {
+            isAtRisk = true;
+          }
         }
-        if (currentStreak > 365) break; // safety
+        iterDate.setDate(iterDate.getDate() - 1);
+      }
+      currentStreak = tempStreak;
+
+      // Calculate best streak (scan all logs)
+      let streak = 0;
+      let misses = 0;
+      const scanDate = new Date(
+        routine.createdAt.substring(0, 10) + "T00:00:00",
+      );
+      const endDate = new Date(today);
+      while (scanDate <= endDate) {
+        if (isDayApplicable(routine, scanDate)) {
+          const key = formatDateKey(scanDate);
+          if (dateSet.has(key)) {
+            streak++;
+            misses = 0;
+            bestStreak = Math.max(bestStreak, streak);
+          } else {
+            misses++;
+            if (misses >= 2) {
+              streak = 0;
+              misses = 0;
+            }
+          }
+        }
+        scanDate.setDate(scanDate.getDate() + 1);
+      }
+      bestStreak = Math.max(bestStreak, currentStreak);
+
+      // Milestones
+      const milestones: number[] = [];
+      for (const threshold of MILESTONE_THRESHOLDS) {
+        if (bestStreak >= threshold) {
+          milestones.push(threshold);
+        }
       }
 
       // Monthly summaries (last 3 months)
@@ -213,7 +306,14 @@ export function useRoutines() {
         monthlySummaries.push({ month: monthKey, completed, total });
       }
 
-      return { currentStreak, last7Days, monthlySummaries };
+      return {
+        currentStreak,
+        bestStreak,
+        isAtRisk,
+        last7Days,
+        monthlySummaries,
+        milestones,
+      };
     },
     [logsByRoutineId],
   );
@@ -233,10 +333,172 @@ export function useRoutines() {
     [routines, logsByRoutineId],
   );
 
+  // Heatmap data: daily completion rate for past 12 weeks
+  const getHeatmapData = useCallback((): HeatmapDay[] => {
+    const days: HeatmapDay[] = [];
+    const today = new Date();
+    for (let i = 83; i >= 0; i--) {
+      // 12 weeks = 84 days
+      const d = new Date(today);
+      d.setDate(d.getDate() - i);
+      const key = formatDateKey(d);
+      let completed = 0;
+      let total = 0;
+      for (const routine of routines) {
+        if (!isDayApplicable(routine, d)) continue;
+        total++;
+        if (logsByRoutineId.get(routine.id)?.has(key)) completed++;
+      }
+      days.push({
+        date: key,
+        completed,
+        total,
+        rate: total > 0 ? completed / total : 0,
+      });
+    }
+    return days;
+  }, [routines, logsByRoutineId]);
+
+  // Weekly rates for past 12 weeks
+  const getWeeklyRates = useCallback((): WeeklyRate[] => {
+    const rates: WeeklyRate[] = [];
+    const today = new Date();
+    // Find Monday of current week
+    const dayOfWeek = today.getDay();
+    const mondayOffset = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+    const currentMonday = new Date(today);
+    currentMonday.setDate(currentMonday.getDate() - mondayOffset);
+
+    for (let w = 11; w >= 0; w--) {
+      const weekStart = new Date(currentMonday);
+      weekStart.setDate(weekStart.getDate() - w * 7);
+      let completed = 0;
+      let total = 0;
+      for (let d = 0; d < 7; d++) {
+        const day = new Date(weekStart);
+        day.setDate(day.getDate() + d);
+        if (day > today) break;
+        const key = formatDateKey(day);
+        for (const routine of routines) {
+          if (!isDayApplicable(routine, day)) continue;
+          total++;
+          if (logsByRoutineId.get(routine.id)?.has(key)) completed++;
+        }
+      }
+      rates.push({
+        weekStart: formatDateKey(weekStart),
+        rate: total > 0 ? completed / total : 0,
+      });
+    }
+    return rates;
+  }, [routines, logsByRoutineId]);
+
+  // Stack CRUD
+  const createStack = useCallback((name: string) => {
+    const id = `stack-${crypto.randomUUID()}`;
+    const now = new Date().toISOString();
+    const optimistic: RoutineStack = {
+      id,
+      name,
+      order: 0,
+      items: [],
+      createdAt: now,
+      updatedAt: now,
+    };
+    setStacks((prev) => [...prev, optimistic]);
+    getDataService()
+      .createRoutineStack(id, name)
+      .then((stack) => {
+        setStacks((prev) => prev.map((s) => (s.id === id ? stack : s)));
+      })
+      .catch((e) => logServiceError("Routines", "createStack", e));
+    return id;
+  }, []);
+
+  const updateStack = useCallback(
+    (id: string, updates: Partial<Pick<RoutineStack, "name" | "order">>) => {
+      setStacks((prev) =>
+        prev.map((s) => (s.id === id ? { ...s, ...updates } : s)),
+      );
+      getDataService()
+        .updateRoutineStack(id, updates)
+        .catch((e) => logServiceError("Routines", "updateStack", e));
+    },
+    [],
+  );
+
+  const deleteStack = useCallback((id: string) => {
+    setStacks((prev) => prev.filter((s) => s.id !== id));
+    getDataService()
+      .deleteRoutineStack(id)
+      .catch((e) => logServiceError("Routines", "deleteStack", e));
+  }, []);
+
+  const addStackItem = useCallback((stackId: string, routineId: string) => {
+    setStacks((prev) =>
+      prev.map((s) => {
+        if (s.id !== stackId) return s;
+        if (s.items.some((i) => i.routineId === routineId)) return s;
+        return {
+          ...s,
+          items: [
+            ...s.items,
+            {
+              id: -1,
+              stackId,
+              routineId,
+              position: s.items.length,
+            },
+          ],
+        };
+      }),
+    );
+    getDataService()
+      .addRoutineStackItem(stackId, routineId)
+      .catch((e) => logServiceError("Routines", "addStackItem", e));
+  }, []);
+
+  const removeStackItem = useCallback((stackId: string, routineId: string) => {
+    setStacks((prev) =>
+      prev.map((s) => {
+        if (s.id !== stackId) return s;
+        return {
+          ...s,
+          items: s.items.filter((i) => i.routineId !== routineId),
+        };
+      }),
+    );
+    getDataService()
+      .removeRoutineStackItem(stackId, routineId)
+      .catch((e) => logServiceError("Routines", "removeStackItem", e));
+  }, []);
+
+  const reorderStackItems = useCallback(
+    (stackId: string, routineIds: string[]) => {
+      setStacks((prev) =>
+        prev.map((s) => {
+          if (s.id !== stackId) return s;
+          const newItems = routineIds.map((rid, i) => ({
+            id: s.items.find((it) => it.routineId === rid)?.id ?? -1,
+            stackId,
+            routineId: rid,
+            position: i,
+          }));
+          return { ...s, items: newItems };
+        }),
+      );
+      getDataService()
+        .reorderRoutineStackItems(stackId, routineIds)
+        .catch((e) => logServiceError("Routines", "reorderStackItems", e));
+    },
+    [],
+  );
+
   return useMemo(
     () => ({
       routines,
       logs,
+      stacks,
       isLoading,
       createRoutine,
       updateRoutine,
@@ -244,10 +506,19 @@ export function useRoutines() {
       toggleLog,
       getStatsForRoutine,
       getRoutineCompletionForDate,
+      getHeatmapData,
+      getWeeklyRates,
+      createStack,
+      updateStack,
+      deleteStack,
+      addStackItem,
+      removeStackItem,
+      reorderStackItems,
     }),
     [
       routines,
       logs,
+      stacks,
       isLoading,
       createRoutine,
       updateRoutine,
@@ -255,6 +526,14 @@ export function useRoutines() {
       toggleLog,
       getStatsForRoutine,
       getRoutineCompletionForDate,
+      getHeatmapData,
+      getWeeklyRates,
+      createStack,
+      updateStack,
+      deleteStack,
+      addStackItem,
+      removeStackItem,
+      reorderStackItems,
     ],
   );
 }

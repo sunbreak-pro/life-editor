@@ -9,6 +9,7 @@ import { Tips } from "./components/Tips";
 import { CalendarView } from "./components/Calendar/CalendarView";
 import { AnalyticsView } from "./components/Analytics/AnalyticsView";
 import { MemoView } from "./components/Memo";
+import { RoutineSection } from "./components/Routine/RoutineSection";
 import { MusicScreen } from "./components/Music/MusicScreen";
 import { CommandPalette } from "./components/CommandPalette/CommandPalette";
 import { UpdateNotification } from "./components/UpdateNotification";
@@ -121,6 +122,8 @@ function App() {
         );
       case "memo":
         return <MemoView />;
+      case "routine":
+        return <RoutineSection />;
       case "music":
         return <MusicScreen />;
       case "work":

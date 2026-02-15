@@ -16,6 +16,7 @@ asarUnpack:
   - "node_modules/better-sqlite3/**/*"
 
 mac:
+  identity: null
   target:
     - dmg
     - zip
@@ -42,8 +43,6 @@ dmg:
 win:
   target:
     - nsis
-  signingHashAlgorithms:
-    - sha256
 
 nsis:
   oneClick: false

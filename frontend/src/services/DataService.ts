@@ -22,7 +22,7 @@ import type { NoteNode } from "../types/note";
 
 import type { TaskTemplate } from "../types/template";
 import type { CalendarNode } from "../types/calendar";
-import type { RoutineNode, RoutineLog } from "../types/routine";
+import type { RoutineNode, RoutineLog, RoutineStack } from "../types/routine";
 import type { Playlist, PlaylistItem } from "../types/playlist";
 import type {
   LogEntry,
@@ -173,13 +173,23 @@ export interface DataService {
     title: string,
     frequencyType: string,
     frequencyDays: number[],
+    timesPerWeek?: number,
+    timeSlot?: string,
+    soundPresetId?: string,
   ): Promise<RoutineNode>;
   updateRoutine(
     id: string,
     updates: Partial<
       Pick<
         RoutineNode,
-        "title" | "frequencyType" | "frequencyDays" | "isArchived" | "order"
+        | "title"
+        | "frequencyType"
+        | "frequencyDays"
+        | "timesPerWeek"
+        | "timeSlot"
+        | "soundPresetId"
+        | "isArchived"
+        | "order"
       >
     >,
   ): Promise<RoutineNode>;
@@ -190,6 +200,21 @@ export interface DataService {
     startDate: string,
     endDate: string,
   ): Promise<RoutineLog[]>;
+
+  // Routine Stacks
+  fetchRoutineStacks(): Promise<RoutineStack[]>;
+  createRoutineStack(id: string, name: string): Promise<RoutineStack>;
+  updateRoutineStack(
+    id: string,
+    updates: Partial<Pick<RoutineStack, "name" | "order">>,
+  ): Promise<RoutineStack>;
+  deleteRoutineStack(id: string): Promise<void>;
+  addRoutineStackItem(stackId: string, routineId: string): Promise<void>;
+  removeRoutineStackItem(stackId: string, routineId: string): Promise<void>;
+  reorderRoutineStackItems(
+    stackId: string,
+    routineIds: string[],
+  ): Promise<void>;
 
   // Playlists
   fetchPlaylists(): Promise<Playlist[]>;

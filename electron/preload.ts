@@ -60,6 +60,14 @@ const ALLOWED_CHANNELS = new Set([
   "db:routines:fetchLogs",
   "db:routines:toggleLog",
   "db:routines:fetchLogsByDateRange",
+  // Routine Stacks
+  "db:routineStacks:fetchAll",
+  "db:routineStacks:create",
+  "db:routineStacks:update",
+  "db:routineStacks:delete",
+  "db:routineStacks:addItem",
+  "db:routineStacks:removeItem",
+  "db:routineStacks:reorderItems",
   // Playlists
   "db:playlists:fetchAll",
   "db:playlists:create",

@@ -1,5 +1,5 @@
-import { createContext } from 'react';
-import type { SessionType } from '../types/timer';
+import { createContext } from "react";
+import type { SessionType } from "../types/timer";
 
 export interface ActiveTask {
   id: string;
@@ -19,7 +19,7 @@ export interface TimerContextValue {
   longBreakDurationMinutes: number;
   activeTask: ActiveTask | null;
   showCompletionModal: boolean;
-  completedSessionType: 'WORK' | 'REST' | null;
+  completedSessionType: "WORK" | "REST" | null;
   start: () => void;
   pause: () => void;
   reset: () => void;
@@ -38,6 +38,12 @@ export interface TimerContextValue {
   autoStartBreaks: boolean;
   setAutoStartBreaks: (enabled: boolean) => void;
   adjustRemainingSeconds: (delta: number) => void;
+  activeRoutineId: string | null;
+  startRoutineTimer: (
+    routineId: string,
+    title: string,
+    durationMinutes?: number,
+  ) => void;
 }
 
 export const TimerContext = createContext<TimerContextValue | null>(null);

@@ -150,7 +150,10 @@ export function DayCell({
                 key="daily-extra"
                 onClick={(e) => {
                   e.stopPropagation();
-                  onMemoChipClick?.(hidden[0].date as string, e);
+                  onMemoChipClick?.(
+                    (hidden[0] as { kind: "daily"; date: string }).date,
+                    e,
+                  );
                 }}
                 className="w-full flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px] truncate transition-colors hover:opacity-80"
                 style={{ backgroundColor: "#FFF9C4", color: "#F59E0B" }}

@@ -4,7 +4,7 @@ import { useTranslation } from "react-i18next";
 import { useRoutineContext } from "../../hooks/useRoutineContext";
 import { RoutineList } from "./RoutineList";
 import { RoutineCreateDialog } from "./RoutineCreateDialog";
-import type { RoutineNode } from "../../types/routine";
+import type { RoutineNode, FrequencyType } from "../../types/routine";
 
 function getTodayKey(): string {
   const d = new Date();
@@ -21,7 +21,7 @@ export function RoutineView() {
 
   const handleCreate = (
     title: string,
-    frequencyType: "daily" | "custom",
+    frequencyType: FrequencyType,
     frequencyDays: number[],
   ) => {
     routineContext.createRoutine(title, frequencyType, frequencyDays);
@@ -34,7 +34,7 @@ export function RoutineView() {
 
   const handleEditSubmit = (
     title: string,
-    frequencyType: "daily" | "custom",
+    frequencyType: FrequencyType,
     frequencyDays: number[],
   ) => {
     if (!editTarget) return;

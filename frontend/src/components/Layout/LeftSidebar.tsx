@@ -1,6 +1,7 @@
 import {
   CheckSquare,
   BookOpen,
+  Repeat,
   Music,
   Play,
   Calendar,
@@ -22,17 +23,21 @@ interface SidebarProps {
   onToggle: () => void;
 }
 
-const menuItems: { id: SectionId; labelKey: string; icon: typeof CheckSquare }[] =
-  [
-    { id: "tasks", labelKey: "sidebar.tasks", icon: CheckSquare },
-    { id: "memo", labelKey: "sidebar.memo", icon: BookOpen },
-    { id: "music", labelKey: "sidebar.music", icon: Music },
-    { id: "work", labelKey: "sidebar.work", icon: Play },
-    { id: "calendar", labelKey: "sidebar.calendar", icon: Calendar },
-    { id: "analytics", labelKey: "sidebar.analytics", icon: BarChart3 },
-    { id: "settings", labelKey: "sidebar.settings", icon: Settings },
-    { id: "tips", labelKey: "sidebar.tips", icon: Lightbulb },
-  ];
+const menuItems: {
+  id: SectionId;
+  labelKey: string;
+  icon: typeof CheckSquare;
+}[] = [
+  { id: "tasks", labelKey: "sidebar.tasks", icon: CheckSquare },
+  { id: "memo", labelKey: "sidebar.memo", icon: BookOpen },
+  { id: "routine", labelKey: "sidebar.routine", icon: Repeat },
+  { id: "music", labelKey: "sidebar.music", icon: Music },
+  { id: "work", labelKey: "sidebar.work", icon: Play },
+  { id: "calendar", labelKey: "sidebar.calendar", icon: Calendar },
+  { id: "analytics", labelKey: "sidebar.analytics", icon: BarChart3 },
+  { id: "settings", labelKey: "sidebar.settings", icon: Settings },
+  { id: "tips", labelKey: "sidebar.tips", icon: Lightbulb },
+];
 
 export function LeftSidebar({
   width,
@@ -51,7 +56,7 @@ export function LeftSidebar({
     >
       <div
         className={`flex justify-between items-center p-4 border-b border-notion-border titlebar-drag${
-          isMac ? ' pt-10' : ''
+          isMac ? " pt-10" : ""
         }`}
       >
         <h1 className="text-2xl font-semibold text-notion-text">Sonic Flow</h1>
@@ -85,14 +90,14 @@ export function LeftSidebar({
                   <div className="flex items-center justify-between gap-2">
                     <div className="flex-1 min-w-0">
                       <p className="text-xs text-notion-text-secondary truncate">
-                        {timer.activeTask?.title ?? t('sidebar.freeSession')}
+                        {timer.activeTask?.title ?? t("sidebar.freeSession")}
                       </p>
                       <p className="text-sm font-mono tabular-nums text-notion-accent">
                         {timer.formatTime(timer.remainingSeconds)}
                       </p>
                     </div>
                     <button
-                      onClick={() => onSectionChange('work')}
+                      onClick={() => onSectionChange("work")}
                       className="p-1 text-notion-text-secondary hover:text-notion-text rounded transition-colors shrink-0 cursor-pointer"
                     >
                       <Pencil size={14} />

@@ -6,6 +6,9 @@ interface RoutineRow {
   title: string;
   frequency_type: string;
   frequency_days: string;
+  times_per_week: number | null;
+  time_slot: string;
+  sound_preset_id: string | null;
   is_archived: number;
   order: number;
   created_at: string;
@@ -24,8 +27,11 @@ function rowToNode(row: RoutineRow): RoutineNode {
   return {
     id: row.id,
     title: row.title,
-    frequencyType: row.frequency_type as "daily" | "custom",
+    frequencyType: row.frequency_type as RoutineNode["frequencyType"],
     frequencyDays: JSON.parse(row.frequency_days),
+    timesPerWeek: row.times_per_week ?? undefined,
+    timeSlot: (row.time_slot ?? "anytime") as RoutineNode["timeSlot"],
+    soundPresetId: row.sound_preset_id ?? undefined,
     isArchived: row.is_archived === 1,
     order: row.order,
     createdAt: row.created_at,
@@ -50,11 +56,12 @@ export function createRoutineRepository(db: Database.Database) {
     ),
     fetchById: db.prepare(`SELECT * FROM routines WHERE id = ?`),
     insert: db.prepare(`
-      INSERT INTO routines (id, title, frequency_type, frequency_days, is_archived, "order", created_at, updated_at)
-      VALUES (@id, @title, @frequency_type, @frequency_days, 0, @order, datetime('now'), datetime('now'))
+      INSERT INTO routines (id, title, frequency_type, frequency_days, times_per_week, time_slot, sound_preset_id, is_archived, "order", created_at, updated_at)
+      VALUES (@id, @title, @frequency_type, @frequency_days, @times_per_week, @time_slot, @sound_preset_id, 0, @order, datetime('now'), datetime('now'))
     `),
     update: db.prepare(`
       UPDATE routines SET title = @title, frequency_type = @frequency_type, frequency_days = @frequency_days,
+      times_per_week = @times_per_week, time_slot = @time_slot, sound_preset_id = @sound_preset_id,
       is_archived = @is_archived, "order" = @order, updated_at = datetime('now')
       WHERE id = @id
     `),
@@ -89,6 +96,9 @@ export function createRoutineRepository(db: Database.Database) {
       title: string,
       frequencyType: string,
       frequencyDays: number[],
+      timesPerWeek?: number,
+      timeSlot?: string,
+      soundPresetId?: string,
     ): RoutineNode {
       const maxOrder = (stmts.maxOrder.get() as { max_order: number })
         .max_order;
@@ -97,6 +107,9 @@ export function createRoutineRepository(db: Database.Database) {
         title,
         frequency_type: frequencyType,
         frequency_days: JSON.stringify(frequencyDays),
+        times_per_week: timesPerWeek ?? null,
+        time_slot: timeSlot ?? "anytime",
+        sound_preset_id: soundPresetId ?? null,
         order: maxOrder + 1,
       });
       const row = stmts.fetchById.get(id) as RoutineRow;
@@ -108,7 +121,14 @@ export function createRoutineRepository(db: Database.Database) {
       updates: Partial<
         Pick<
           RoutineNode,
-          "title" | "frequencyType" | "frequencyDays" | "isArchived" | "order"
+          | "title"
+          | "frequencyType"
+          | "frequencyDays"
+          | "timesPerWeek"
+          | "timeSlot"
+          | "soundPresetId"
+          | "isArchived"
+          | "order"
         >
       >,
     ): RoutineNode {
@@ -122,6 +142,9 @@ export function createRoutineRepository(db: Database.Database) {
         frequency_days: JSON.stringify(
           updates.frequencyDays ?? current.frequencyDays,
         ),
+        times_per_week: updates.timesPerWeek ?? current.timesPerWeek ?? null,
+        time_slot: updates.timeSlot ?? current.timeSlot,
+        sound_preset_id: updates.soundPresetId ?? current.soundPresetId ?? null,
         is_archived: (updates.isArchived ?? current.isArchived) ? 1 : 0,
         order: updates.order ?? current.order,
       });

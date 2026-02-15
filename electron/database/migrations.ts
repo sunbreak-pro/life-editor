@@ -65,6 +65,10 @@ export function runMigrations(db: Database.Database): void {
     log.info("[DB] Running migration V15");
     migrateV15(db);
   }
+  if (currentVersion < 16) {
+    log.info("[DB] Running migration V16");
+    migrateV16(db);
+  }
 
   const newVersion = db.pragma("user_version", { simple: true }) as number;
   if (newVersion !== currentVersion) {
@@ -577,5 +581,37 @@ function migrateV14(db: Database.Database): void {
     CREATE INDEX IF NOT EXISTS idx_routine_logs_routine_date ON routine_logs(routine_id, date);
 
     PRAGMA user_version = 14;
+  `);
+}
+
+function migrateV16(db: Database.Database): void {
+  db.exec(`
+    -- Add new columns to routines
+    ALTER TABLE routines ADD COLUMN time_slot TEXT NOT NULL DEFAULT 'anytime';
+    ALTER TABLE routines ADD COLUMN times_per_week INTEGER;
+    ALTER TABLE routines ADD COLUMN sound_preset_id TEXT;
+
+    -- Routine stacks (Habit Stacking)
+    CREATE TABLE IF NOT EXISTS routine_stacks (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      "order" INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS routine_stack_items (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      stack_id TEXT NOT NULL,
+      routine_id TEXT NOT NULL,
+      position INTEGER NOT NULL,
+      FOREIGN KEY (stack_id) REFERENCES routine_stacks(id) ON DELETE CASCADE,
+      FOREIGN KEY (routine_id) REFERENCES routines(id) ON DELETE CASCADE,
+      UNIQUE(stack_id, routine_id)
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_routine_stack_items_stack ON routine_stack_items(stack_id);
+
+    PRAGMA user_version = 16;
   `);
 }

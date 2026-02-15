@@ -4,6 +4,24 @@
 
 ---
 
+## ルーティンUXUX大幅強化 (2026-02-15)
+
+- **独立セクション昇格**: Routine をMemoViewタブからSidebar独立セクションに移行
+- **時間帯カテゴリ**: `timeSlot` (morning/afternoon/evening/anytime) によるグループ化表示
+- **週N回スケジューリング**: `frequencyType: "timesPerWeek"` + `timesPerWeek` フィールド追加
+- **Grace Period ストリーク**: Don't Miss Twice ルール（1日ミスは許容、2連続でストリーク切れ）
+- **At-Risk 警告**: ストリーク切れ寸前のルーティンに視覚的警告表示
+- **Habit Stacking**: routine_stacks / routine_stack_items テーブル新規追加、Stack CRUD全実装
+- **進捗ダッシュボード**: 12週GitHubスタイルヒートマップ、週次達成率バーチャート、ストリーク記録テーブル、マイルストーンバッジ
+- **マイクロインタラクション**: チェック完了リップルアニメーション(CSS)、マイルストーントースト通知(7/30/100/365日)
+- **タイマー連携**: RoutineItemCard に▶ボタン追加、RoutineStackCard に「次を開始」ボタン、TimerContext に `startRoutineTimer` / `activeRoutineId` 追加
+- **DB**: V16マイグレーション（3 ALTER TABLE + 2 CREATE TABLE）
+- **IPC**: 7 routineStack チャンネル追加（fetchAll/create/update/delete/addItem/removeItem/reorderItems）
+- **i18n**: en/ja に30+新規キー追加
+- **新規コンポーネント**: RoutineSection, RoutineItemCard, RoutineCreateDialog, RoutineHeatmap, RoutineStatsPanel, RoutineStackCard, RoutineStackDialog, MilestoneToast
+
+---
+
 ## Music Library (Playlist) 機能追加 (2026-02-14)
 
 - **プレイリスト管理**: Music画面にPlaylistsタブ追加、プレイリストの作成・名前変更・削除

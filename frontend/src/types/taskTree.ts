@@ -1,7 +1,16 @@
-export type SectionId = 'tasks' | 'memo' | 'music' | 'work' | 'calendar' | 'analytics' | 'settings' | 'tips';
+export type SectionId =
+  | "tasks"
+  | "memo"
+  | "routine"
+  | "music"
+  | "work"
+  | "calendar"
+  | "analytics"
+  | "settings"
+  | "tips";
 
-export type NodeType = 'folder' | 'task';
-export type TaskStatus = 'TODO' | 'DONE';
+export type NodeType = "folder" | "task";
+export type TaskStatus = "TODO" | "DONE";
 
 export const MAX_FOLDER_DEPTH = 5;
 export const FOLDER_PAD_TOP = 0; // px – visual separator above folders in Projects section

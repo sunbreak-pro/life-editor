@@ -25,7 +25,7 @@ export function useTaskTreeCRUD(
     ) => {
       if (type === "folder" && parentId !== null) {
         const parentDepth = getNodeDepth(parentId);
-        if (parentDepth + 1 >= MAX_FOLDER_DEPTH) return null;
+        if (parentDepth + 1 >= MAX_FOLDER_DEPTH) return undefined;
       }
 
       const siblings = nodes.filter(

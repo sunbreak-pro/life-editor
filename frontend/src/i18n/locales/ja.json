@@ -2,6 +2,7 @@
   "sidebar": {
     "tasks": "タスク",
     "memo": "メモ",
+    "routine": "ルーティン",
     "music": "ミュージック",
     "work": "ワーク",
     "calendar": "カレンダー",
@@ -174,6 +175,15 @@
     "frequency": "頻度",
     "daily": "毎日",
     "custom": "カスタム曜日",
+    "timesPerWeek": "週N回",
+    "timesPerWeekLabel": "回/週",
+    "timeSlotLabel": "時間帯",
+    "timeSlot": {
+      "morning": "朝",
+      "afternoon": "昼",
+      "evening": "夜",
+      "anytime": "いつでも"
+    },
     "sun": "日",
     "mon": "月",
     "tue": "火",
@@ -188,7 +198,23 @@
     "deleteConfirm": "「{{name}}」を削除しますか？すべてのログが失われます。",
     "create": "作成",
     "cancel": "キャンセル",
-    "notApplicable": "-"
+    "notApplicable": "-",
+    "atRisk": "今日やらないとストリークが切れます！",
+    "stats": "統計",
+    "heatmap": "アクティビティ（12週間）",
+    "less": "少",
+    "more": "多",
+    "weeklyRate": "週間達成率",
+    "streakRecords": "ストリーク記録",
+    "milestones": "マイルストーン",
+    "noMilestones": "まだマイルストーンに到達していません。続けましょう！",
+    "milestoneReached": "{{days}}日連続達成！",
+    "habitStacks": "ハビットスタック",
+    "createStack": "新規スタック",
+    "stackNamePlaceholder": "スタック名",
+    "selectRoutines": "ルーティンを選択（順番が重要）",
+    "startTimer": "タイマー開始",
+    "startNext": "次を開始"
   },
   "analytics": {
     "title": "分析",

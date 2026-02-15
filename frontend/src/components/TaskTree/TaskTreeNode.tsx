@@ -226,7 +226,7 @@ export function TaskTreeNode({
               addNode("task", node.id, t("taskTree.newTaskDefault"))
             }
             onPlayTask={onPlayTask}
-            onDelete={(id) => setShowDeleteConfirm(true)}
+            onDelete={() => setShowDeleteConfirm(true)}
             onCompleteFolder={isFolder ? handleCompleteFolder : undefined}
           />
         </div>
