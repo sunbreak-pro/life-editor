@@ -74,7 +74,8 @@
     "restore": "復元",
     "deletePermanently": "完全に削除",
     "task": "タスク",
-    "note": "ノート"
+    "note": "ノート",
+    "permanentDeleteConfirm": "「{{name}}」を完全に削除しますか？この操作は元に戻せません。"
   },
   "updates": {
     "title": "アップデート",
@@ -257,10 +258,8 @@
       "resetTimer": "タイマーをリセット（入力中以外）",
       "closeModal": "モーダル/ダイアログを閉じる",
       "goToTasks": "タスクへ移動",
-      "goToSession": "セッションへ移動",
-      "goToSchedule": "スケジュールへ移動",
+      "goToWork": "ワークへ移動",
       "goToAnalytics": "分析へ移動",
-      "goToSettings": "設定へ移動",
       "toggleLeftSidebar": "左サイドバーの切り替え",
       "moveBetweenTasks": "タスク間の移動",
       "expandFolder": "フォルダを展開",
@@ -268,15 +267,14 @@
       "toggleTaskCompletion": "タスク完了の切り替え",
       "indent": "インデント（前のフォルダに移動）",
       "outdent": "アウトデント（親レベルに移動）",
-      "deleteSelected": "選択したタスクを削除",
       "undoTaskTree": "タスクツリー操作を元に戻す",
       "redoTaskTree": "タスクツリー操作をやり直す",
       "dragDrop": "並べ替えまたはフォルダに移動",
       "togglePlayPause": "再生/一時停止の切り替え",
-      "nextMonthWeek": "次の月/週",
-      "prevMonthWeek": "前の月/週",
+      "nextMonthWeek": "次の期間（月/週/日）",
+      "prevMonthWeek": "前の期間（月/週/日）",
       "jumpToToday": "今日にジャンプ",
-      "toggleMonthWeek": "月/週表示の切り替え"
+      "toggleMonthWeek": "月/週/日表示を順に切り替え"
     },
     "tasksTab": {
       "creating": "タスクとフォルダの作成",
@@ -319,7 +317,7 @@
       "pomodoroList3": "<strong>設定</strong>で時間をカスタマイズできます。",
       "starting": "セッションの開始",
       "startingList1": "任意のタスクの<strong>再生ボタン</strong>をクリックして集中セッションを開始します。",
-      "startingList2": "または<strong>セッション</strong>画面でフリー（タスク未紐付け）タイマーを使用します。",
+      "startingList2": "または<strong>ワーク</strong>画面でフリー（タスク未紐付け）タイマーを使用します。",
       "startingList3": "<kbd>Space</kbd>キーで入力中以外に再生/一時停止を切り替えます。",
       "startingList4": "<kbd>r</kbd>キーで入力中以外にタイマーをリセットします。",
       "modal": "タイマーモーダルとバックグラウンド",
@@ -328,16 +326,16 @@
       "modalList3": "<kbd>{{mod}} + {{shift}} + T</kbd>でどの画面からでもタイマーモーダルを切り替えられます。",
       "modalList4": "アクティブ中は左サイドバーにミニタイマーウィジェットが表示されます。",
       "soundMixer": "サウンドミキサー",
-      "soundMixerList1": "セッション画面にはアンビエント<strong>サウンドミキサー</strong>が含まれています。",
+      "soundMixerList1": "ワーク画面にはアンビエント<strong>サウンドミキサー</strong>が含まれています。",
       "soundMixerList2": "複数のバックグラウンドサウンド（雨、カフェなど）を個別の音量コントロールでミックスできます。",
-      "soundMixerList3": "サウンド設定はlocalStorageを通じてセッション間で保持されます。",
+      "soundMixerList3": "サウンド設定はデータベースに保存され、セッション間で保持されます。",
       "notifications": "通知",
       "notificationsList1": "設定でブラウザ通知を有効にすると、セッション終了時にアラートを受け取れます。",
       "notificationsList2": "通知許可はトグル時に一度だけリクエストされます。"
     },
     "calendarTab": {
       "views": "カレンダービュー",
-      "viewsList1": "ヘッダーのトグルで<strong>月表示</strong>と<strong>週表示</strong>を切り替えます。",
+      "viewsList1": "ヘッダーのトグルで<strong>月表示</strong>、<strong>週表示</strong>、<strong>日表示</strong>を切り替えます。",
       "viewsList2": "矢印ボタンで月/週をナビゲートします。",
       "viewsList3": "<strong>今日</strong>をクリックして現在の日付に戻ります。",
       "creating": "カレンダーからタスクを作成",
@@ -354,11 +352,19 @@
       "filtering": "フィルタリング",
       "filteringList1": "フォルダタグと色を使用して、タスクカテゴリを視覚的に区別します。",
       "filteringList2": "削除されていないスケジュール済みタスクのみがカレンダーに表示されます。",
+      "dayView": "日表示（スケジュール）",
+      "dayViewList1": "日表示では左側に終日タイムグリッド（0:00〜24:00）、右側にタブパネルが表示されます。",
+      "dayViewList2": "<strong>Today Flow</strong>タブでは、スケジュール進行状況を縦型フローチャートで表示します。",
+      "dayViewList3": "<strong>ルーティン</strong>タブでは、テンプレートと達成統計を使って定期ルーティンを管理します。",
+      "routines": "ルーティン",
+      "routinesList1": "タイトルと時間範囲でルーティンを作成し、<strong>テンプレート</strong>（毎日またはカスタム曜日）にグループ化します。",
+      "routinesList2": "テンプレートは日付を表示すると自動的にルーティン項目をスケジュールに挿入します。",
+      "routinesList3": "統計カードで連続達成日数やルーティンごとの完了状況を確認できます。",
       "shortcuts": "キーボードショートカット",
-      "shortcutsList1": "<kbd>j</kbd> — 次の月/週にナビゲート。",
-      "shortcutsList2": "<kbd>k</kbd> — 前の月/週にナビゲート。",
+      "shortcutsList1": "<kbd>j</kbd> — 次の期間にナビゲート。",
+      "shortcutsList2": "<kbd>k</kbd> — 前の期間にナビゲート。",
       "shortcutsList3": "<kbd>t</kbd> — 今日にジャンプ。",
-      "shortcutsList4": "<kbd>m</kbd> — 月/週表示を切り替え。"
+      "shortcutsList4": "<kbd>m</kbd> — 月/週/日表示を順に切り替え。"
     },
     "memoTab": {
       "daily": "デイリーメモ",
@@ -379,7 +385,11 @@
       "calendarIntegrationList2": "カレンダーのメモインジケーターをクリックすると、そのメモに移動します。",
       "deleting": "メモの削除",
       "deletingList1": "メモ日付の横にある<strong>ゴミ箱アイコン</strong>をクリックして削除します。",
-      "deletingList2": "メモの削除は<strong>永久</strong>です — 削除されたメモは復元できません。"
+      "deletingList2": "メモの削除は<strong>永久</strong>です — 削除されたメモは復元できません。",
+      "notes": "ノート",
+      "notesList1": "<strong>ノート</strong>タブに切り替えて、デイリーメモとは別のフリーフォームノートを作成できます。",
+      "notesList2": "ノートは左パネルに一覧表示されます。クリックして表示・編集できます。",
+      "notesList3": "削除されたノートは<strong>設定 → ゴミ箱</strong>から復元できます。"
     },
     "analyticsTab": {
       "overview": "概要メトリクス",
@@ -390,8 +400,12 @@
       "completionList1": "<strong>全体の完了率</strong>をパーセンテージとプログレスバーで表示します。",
       "completionList2": "別の<strong>今日の完了率</strong>が日々の進捗を追跡します。",
       "completionList3": "これらのメトリクスを使用して、生産性の傾向を監視しましょう。",
+      "workTime": "作業時間",
+      "workTimeList1": "<strong>棒グラフ</strong>で日・週・月ごとの作業時間データを表示します。",
+      "workTimeList2": "別の<strong>タスク別棒グラフ</strong>でタスクごとの作業時間を確認できます。",
+      "workTimeList3": "サマリーカードで総作業時間、セッション数、日平均を表示します。",
       "accessing": "分析へのアクセス",
-      "accessingList1": "<kbd>{{mod}} + 4</kbd>を押すと、どの画面からでも分析にジャンプできます。",
+      "accessingList1": "<kbd>{{mod}} + 3</kbd>を押すと、どの画面からでも分析にジャンプできます。",
       "accessingList2": "または左サイドバーの<strong>分析</strong>をクリックします。",
       "accessingList3": "コマンドパレット（<kbd>{{mod}} + K</kbd> → 「分析」）からもアクセスできます。"
     },
@@ -436,8 +450,45 @@
       "strikethrough": "取り消し線",
       "horizontalRuleMd": "水平線",
       "blockquoteMd": "引用",
-      "codeBlockMd": "コードブロック"
-    }
+      "codeBlockMd": "コードブロック",
+      "sharedUsageNote": "このエディタはタスク詳細・メモ・ノートで共通です。"
+    },
+    "pomodoroTab": {
+      "settings": "ポモドーロ設定",
+      "settingsList1": "ワーク画面の<strong>ポモドーロ</strong>タブで時間を設定します。",
+      "settingsList2": "デフォルト：作業25分、休憩5分、ロング休憩15分、1サイクル4セッション。",
+      "settingsList3": "タイマー実行中は設定を変更できません。",
+      "settingsList4": "現在の設定サマリーが左パネルに表示されます。",
+      "presets": "プリセット",
+      "presetsList1": "現在の設定を名前付きプリセットとして保存し、すばやく切り替えられます。",
+      "presetsList2": "保存したプリセットを適用して、時間とセッション数を即座にロードします。",
+      "presetsList3": "不要になったプリセットはプリセット一覧から削除できます。",
+      "autoStart": "自動休憩開始",
+      "autoStartList1": "自動開始トグルを有効にすると、作業終了時に自動的に休憩が開始されます。",
+      "autoStartList2": "無効の場合、各休憩セッションを手動で開始する必要があります。"
+    },
+    "musicTab": {
+      "sounds": "サウンドライブラリ",
+      "soundsList1": "ミュージックタブで利用可能なすべてのアンビエントサウンドを閲覧できます。",
+      "soundsList2": "検索バーでサウンド名をフィルターできます。",
+      "soundsList3": "プレビューボタンをクリックして、プレイリストに追加する前に試聴できます。",
+      "soundsList4": "タグでサウンドをフィルターして、すばやく見つけられます。",
+      "playlists": "プレイリスト",
+      "playlistsList1": "お気に入りのアンビエントサウンドをプレイリストにまとめて管理できます。",
+      "playlistsList2": "サウンドブラウザからプレイリストにサウンドを追加します。",
+      "playlistsList3": "<strong>シャッフル</strong>と<strong>リピート</strong>コントロールで再生バリエーションを楽しめます。",
+      "playlistsList4": "トラックをドラッグしてプレイリスト内の順序を変更できます。",
+      "tags": "サウンドタグ",
+      "tagsList1": "<strong>設定 → タグマネージャー</strong>でタグを作成し、サウンドを分類します。",
+      "tagsList2": "タグでサウンドライブラリをフィルターして、必要なものをすばやく見つけられます。",
+      "customSounds": "カスタムサウンド",
+      "customSoundsList1": "独自のオーディオファイル（MP3、WAV、OGG）をカスタムサウンドとしてアップロードできます。",
+      "customSoundsList2": "サウンドブラウザのコンテキストメニューからカスタムサウンドの名前変更や削除ができます。",
+      "timerPlaylist": "タイマープレイリスト",
+      "timerPlaylistList1": "ワーク画面で<strong>バックグラウンドプレイリスト</strong>を選択し、タイマーセッション中に再生します。",
+      "timerPlaylistList2": "タイマー開始時に自動的に再生が始まり、停止時に一時停止します。"
+    },
+    "work": "ワーク"
   },
   "calendar": {
     "incomplete": "未完了",
@@ -471,7 +522,11 @@
     "close": "閉じる",
     "comingSoon": "Coming Soon"
   },
+  "tasks": {
+    "title": "Tasks"
+  },
   "tabs": {
+    "taskTree": "Tasktree",
     "tasks": "Tasks",
     "schedule": "Schedule",
     "incomplete": "Incomplete",

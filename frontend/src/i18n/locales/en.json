@@ -74,7 +74,8 @@
     "restore": "Restore",
     "deletePermanently": "Delete permanently",
     "task": "task",
-    "note": "note"
+    "note": "note",
+    "permanentDeleteConfirm": "Permanently delete \"{{name}}\"? This cannot be undone."
   },
   "updates": {
     "title": "Updates",
@@ -257,10 +258,8 @@
       "resetTimer": "Reset timer (when not typing)",
       "closeModal": "Close modal / dialog",
       "goToTasks": "Go to Tasks",
-      "goToSession": "Go to Session",
-      "goToSchedule": "Go to Schedule",
+      "goToWork": "Go to Work",
       "goToAnalytics": "Go to Analytics",
-      "goToSettings": "Go to Settings",
       "toggleLeftSidebar": "Toggle left sidebar",
       "moveBetweenTasks": "Move between tasks",
       "expandFolder": "Expand folder",
@@ -268,15 +267,14 @@
       "toggleTaskCompletion": "Toggle task completion",
       "indent": "Indent (move into previous folder)",
       "outdent": "Outdent (move to parent level)",
-      "deleteSelected": "Delete selected task",
       "undoTaskTree": "Undo task tree action",
       "redoTaskTree": "Redo task tree action",
       "dragDrop": "Reorder or move into folders",
       "togglePlayPause": "Toggle play / pause",
-      "nextMonthWeek": "Next month / week",
-      "prevMonthWeek": "Previous month / week",
+      "nextMonthWeek": "Next period (month / week / day)",
+      "prevMonthWeek": "Previous period (month / week / day)",
       "jumpToToday": "Jump to today",
-      "toggleMonthWeek": "Toggle month / week view"
+      "toggleMonthWeek": "Cycle through month / week / day views"
     },
     "tasksTab": {
       "creating": "Creating Tasks & Folders",
@@ -319,7 +317,7 @@
       "pomodoroList3": "Customize durations in <strong>Settings</strong>.",
       "starting": "Starting a Session",
       "startingList1": "Click the <strong>play button</strong> on any task to start a focused session.",
-      "startingList2": "Or go to the <strong>Session</strong> screen for a free (untied) timer.",
+      "startingList2": "Or go to the <strong>Work</strong> screen for a free (untied) timer.",
       "startingList3": "Press <kbd>Space</kbd> to toggle play/pause when not typing.",
       "startingList4": "Press <kbd>r</kbd> to reset the timer when not typing.",
       "modal": "Timer Modal & Background",
@@ -328,16 +326,16 @@
       "modalList3": "Press <kbd>{{mod}} + {{shift}} + T</kbd> to toggle the timer modal from any screen.",
       "modalList4": "A mini timer widget appears in the left sidebar while active.",
       "soundMixer": "Sound Mixer",
-      "soundMixerList1": "The Session screen includes an ambient <strong>Sound Mixer</strong>.",
+      "soundMixerList1": "The Work screen includes an ambient <strong>Sound Mixer</strong>.",
       "soundMixerList2": "Mix multiple background sounds (rain, cafe, etc.) with individual volume controls.",
-      "soundMixerList3": "Sound settings persist across sessions via localStorage.",
+      "soundMixerList3": "Sound settings are saved to the database and persist across sessions.",
       "notifications": "Notifications",
       "notificationsList1": "Enable browser notifications in Settings to get alerted when a session ends.",
       "notificationsList2": "Notification permission is requested once on toggle."
     },
     "calendarTab": {
       "views": "Calendar Views",
-      "viewsList1": "Switch between <strong>Month</strong> and <strong>Week</strong> views using the header toggle.",
+      "viewsList1": "Switch between <strong>Month</strong>, <strong>Week</strong>, and <strong>Day</strong> views using the header toggle.",
       "viewsList2": "Navigate months/weeks with the arrow buttons.",
       "viewsList3": "Click <strong>Today</strong> to jump back to the current date.",
       "creating": "Creating Tasks from Calendar",
@@ -354,11 +352,19 @@
       "filtering": "Filtering",
       "filteringList1": "Use folder tags and colors to visually distinguish task categories.",
       "filteringList2": "Only non-deleted tasks with scheduled dates appear on the calendar.",
+      "dayView": "Day View (Schedule)",
+      "dayViewList1": "The Day view shows a full-day time grid (0:00–24:00) on the left and a tab panel on the right.",
+      "dayViewList2": "The <strong>Today Flow</strong> tab displays a vertical flowchart of your schedule progress.",
+      "dayViewList3": "The <strong>Routines</strong> tab manages recurring routines with templates and achievement stats.",
+      "routines": "Routines",
+      "routinesList1": "Create routines with a title and time range, then group them into <strong>templates</strong> (daily or custom weekdays).",
+      "routinesList2": "Templates auto-insert routine items into the schedule when viewing a date.",
+      "routinesList3": "View your streak and per-routine completion stats in the stats card.",
       "shortcuts": "Keyboard Shortcuts",
-      "shortcutsList1": "<kbd>j</kbd> — Navigate to the next month or week.",
-      "shortcutsList2": "<kbd>k</kbd> — Navigate to the previous month or week.",
+      "shortcutsList1": "<kbd>j</kbd> — Navigate to the next period.",
+      "shortcutsList2": "<kbd>k</kbd> — Navigate to the previous period.",
       "shortcutsList3": "<kbd>t</kbd> — Jump to today.",
-      "shortcutsList4": "<kbd>m</kbd> — Toggle between month and week view."
+      "shortcutsList4": "<kbd>m</kbd> — Cycle through month / week / day views."
     },
     "memoTab": {
       "daily": "Daily Memo",
@@ -379,7 +385,11 @@
       "calendarIntegrationList2": "Click a memo indicator on the calendar to navigate to that memo.",
       "deleting": "Deleting Memos",
       "deletingList1": "Click the <strong>trash icon</strong> next to a memo date to delete it.",
-      "deletingList2": "Memo deletion is <strong>permanent</strong> — deleted memos cannot be restored."
+      "deletingList2": "Memo deletion is <strong>permanent</strong> — deleted memos cannot be restored.",
+      "notes": "Notes",
+      "notesList1": "Switch to the <strong>Notes</strong> tab to create free-form notes separate from daily memos.",
+      "notesList2": "Notes are listed in the left panel. Click to view or edit.",
+      "notesList3": "Deleted notes can be restored from <strong>Settings → Trash</strong>."
     },
     "analyticsTab": {
       "overview": "Overview Metrics",
@@ -390,8 +400,12 @@
       "completionList1": "View your <strong>overall completion rate</strong> as a percentage with a progress bar.",
       "completionList2": "A separate <strong>today's completion rate</strong> tracks daily progress.",
       "completionList3": "Use these metrics to monitor your productivity trends.",
+      "workTime": "Work Time",
+      "workTimeList1": "View your work time data in a <strong>bar chart</strong> broken down by day, week, or month.",
+      "workTimeList2": "A separate <strong>task bar chart</strong> shows work time per task.",
+      "workTimeList3": "Summary cards display total work time, session count, and daily average.",
       "accessing": "Accessing Analytics",
-      "accessingList1": "Press <kbd>{{mod}} + 4</kbd> to jump to Analytics from any screen.",
+      "accessingList1": "Press <kbd>{{mod}} + 3</kbd> to jump to Analytics from any screen.",
       "accessingList2": "Or click <strong>Analytics</strong> in the left sidebar.",
       "accessingList3": "Also available via the command palette (<kbd>{{mod}} + K</kbd> → \"Analytics\")."
     },
@@ -436,8 +450,45 @@
       "strikethrough": "Strikethrough",
       "horizontalRuleMd": "Horizontal rule",
       "blockquoteMd": "Blockquote",
-      "codeBlockMd": "Code block"
-    }
+      "codeBlockMd": "Code block",
+      "sharedUsageNote": "This editor is shared across Task Details, Memo, and Notes."
+    },
+    "pomodoroTab": {
+      "settings": "Pomodoro Settings",
+      "settingsList1": "Configure durations in the <strong>Pomodoro</strong> tab on the Work screen.",
+      "settingsList2": "Defaults: 25 min work, 5 min break, 15 min long break, 4 sessions per cycle.",
+      "settingsList3": "Settings cannot be changed while a timer is running.",
+      "settingsList4": "A summary of the current settings is displayed in the left panel.",
+      "presets": "Presets",
+      "presetsList1": "Save the current configuration as a named preset for quick switching.",
+      "presetsList2": "Apply a saved preset to instantly load its durations and session count.",
+      "presetsList3": "Delete presets you no longer need from the preset list.",
+      "autoStart": "Auto-Start Breaks",
+      "autoStartList1": "Enable the auto-start toggle to automatically begin breaks when work ends.",
+      "autoStartList2": "When disabled, you must manually start each break session."
+    },
+    "musicTab": {
+      "sounds": "Sounds Library",
+      "soundsList1": "Browse all available ambient sounds in the Music tab.",
+      "soundsList2": "Use the search bar to filter sounds by name.",
+      "soundsList3": "Click the preview button to listen before adding to a playlist.",
+      "soundsList4": "Sounds can be filtered by tags for quick discovery.",
+      "playlists": "Playlists",
+      "playlistsList1": "Create playlists to organize your favorite ambient sounds.",
+      "playlistsList2": "Add sounds to a playlist from the sound browser.",
+      "playlistsList3": "Use <strong>Shuffle</strong> and <strong>Repeat</strong> controls for playback variety.",
+      "playlistsList4": "Drag tracks to reorder them within a playlist.",
+      "tags": "Sound Tags",
+      "tagsList1": "Create tags in <strong>Settings → Tag Manager</strong> to categorize sounds.",
+      "tagsList2": "Filter the sound library by tags to quickly find what you need.",
+      "customSounds": "Custom Sounds",
+      "customSoundsList1": "Upload your own audio files (MP3, WAV, OGG) as custom sounds.",
+      "customSoundsList2": "Rename or delete custom sounds from the sound browser context menu.",
+      "timerPlaylist": "Timer Playlist",
+      "timerPlaylistList1": "Select a <strong>Background Playlist</strong> on the Work screen to play during timer sessions.",
+      "timerPlaylistList2": "Playback starts automatically when the timer begins and pauses when it stops."
+    },
+    "work": "Work"
   },
   "calendar": {
     "incomplete": "Incomplete",
@@ -471,7 +522,11 @@
     "close": "Close",
     "comingSoon": "Coming Soon"
   },
+  "tasks": {
+    "title": "Tasks"
+  },
   "tabs": {
+    "taskTree": "Tasktree",
     "tasks": "Tasks",
     "schedule": "Schedule",
     "incomplete": "Incomplete",

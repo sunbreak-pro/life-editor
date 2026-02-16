@@ -3,31 +3,25 @@ import { useTranslation } from "react-i18next";
 import {
   Keyboard,
   ListTodo,
-  Timer,
-  CalendarDays,
+  Briefcase,
   StickyNote,
   BarChart3,
-  Type,
 } from "lucide-react";
 import { SectionTabs, type TabItem } from "../shared/SectionTabs";
 import { LAYOUT } from "../../constants/layout";
 import { isMac } from "../../utils/platform";
 import { ShortcutsTab } from "./ShortcutsTab";
-import { TasksTab } from "./TasksTab";
-import { TimerTab } from "./TimerTab";
-import { CalendarTab } from "./CalendarTab";
-import { MemoTab } from "./MemoTab";
+import { TasksTipsTab } from "./TasksTipsTab";
+import { WorkTipsTab } from "./WorkTipsTab";
+import { MemoTipsTab } from "./MemoTipsTab";
 import { AnalyticsTab } from "./AnalyticsTab";
-import { EditorTab } from "./EditorTab";
 
 const TABS = [
   { id: "shortcuts", labelKey: "tips.shortcuts", icon: Keyboard },
   { id: "tasks", labelKey: "tips.tasks", icon: ListTodo },
-  { id: "timer", labelKey: "tips.timer", icon: Timer },
-  { id: "schedule", labelKey: "tips.schedule", icon: CalendarDays },
+  { id: "work", labelKey: "tips.work", icon: Briefcase },
   { id: "memo", labelKey: "tips.memo", icon: StickyNote },
   { id: "analytics", labelKey: "tips.analytics", icon: BarChart3 },
-  { id: "editor", labelKey: "tips.editor", icon: Type },
 ] as const satisfies readonly TabItem[];
 
 type TabId = (typeof TABS)[number]["id"];
@@ -42,17 +36,13 @@ export function Tips() {
       case "shortcuts":
         return <ShortcutsTab showMac={showMac} onToggleOS={setShowMac} />;
       case "tasks":
-        return <TasksTab showMac={showMac} />;
-      case "timer":
-        return <TimerTab showMac={showMac} />;
-      case "schedule":
-        return <CalendarTab />;
+        return <TasksTipsTab showMac={showMac} />;
+      case "work":
+        return <WorkTipsTab showMac={showMac} />;
       case "memo":
-        return <MemoTab />;
+        return <MemoTipsTab />;
       case "analytics":
         return <AnalyticsTab showMac={showMac} />;
-      case "editor":
-        return <EditorTab />;
     }
   };
 
