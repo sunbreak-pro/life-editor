@@ -1,17 +1,17 @@
 import { useState, useEffect, useRef } from "react";
-import {
-  StickyNote,
-  Plus,
-  Trash2,
-  Pin,
-  Search,
-  ArrowUpDown,
-} from "lucide-react";
+import { StickyNote, Plus, Trash2, Pin, Search } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useNoteContext } from "../../hooks/useNoteContext";
 import { formatRelativeDate } from "../../utils/formatRelativeDate";
 import { getContentPreview } from "../../utils/tiptapText";
+import { SortDropdown } from "../shared/SortDropdown";
 import type { NoteSortMode } from "../../types/note";
+
+const NOTE_SORT_OPTIONS: readonly NoteSortMode[] = [
+  "updatedAt",
+  "createdAt",
+  "title",
+];
 
 const SORT_LABEL_KEYS: Record<NoteSortMode, string> = {
   updatedAt: "notes.sortUpdated",
@@ -33,7 +33,13 @@ export function NoteList() {
   } = useNoteContext();
 
   const { t } = useTranslation();
-  const [showSortMenu, setShowSortMenu] = useState(false);
+
+  const noteLabelMap: Record<NoteSortMode, string> = {
+    updatedAt: t(SORT_LABEL_KEYS.updatedAt),
+    createdAt: t(SORT_LABEL_KEYS.createdAt),
+    title: t(SORT_LABEL_KEYS.title),
+  };
+
   const [localSearch, setLocalSearch] = useState(searchQuery);
   const debounceRef = useRef<number | null>(null);
 
@@ -85,35 +91,13 @@ export function NoteList() {
 
       {/* Sort row */}
       <div className="px-3 py-1 flex items-center gap-1">
-        <div className="relative">
-          <button
-            onClick={() => setShowSortMenu(!showSortMenu)}
-            className="flex items-center gap-1 px-2 py-1 text-xs text-notion-text-secondary hover:text-notion-text rounded transition-colors"
-          >
-            <ArrowUpDown size={12} />
-            {t(SORT_LABEL_KEYS[sortMode])}
-          </button>
-          {showSortMenu && (
-            <div className="absolute top-full left-0 mt-1 bg-notion-bg border border-notion-border rounded-md shadow-lg z-10 py-1">
-              {(Object.keys(SORT_LABEL_KEYS) as NoteSortMode[]).map((mode) => (
-                <button
-                  key={mode}
-                  onClick={() => {
-                    setSortMode(mode);
-                    setShowSortMenu(false);
-                  }}
-                  className={`w-full text-left px-3 py-1.5 text-xs hover:bg-notion-hover transition-colors ${
-                    sortMode === mode
-                      ? "text-notion-primary font-medium"
-                      : "text-notion-text"
-                  }`}
-                >
-                  {t(SORT_LABEL_KEYS[mode])}
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
+        <SortDropdown<NoteSortMode>
+          sortMode={sortMode}
+          onSortChange={setSortMode}
+          options={NOTE_SORT_OPTIONS}
+          labelMap={noteLabelMap}
+          defaultMode="updatedAt"
+        />
       </div>
 
       {/* Note items */}

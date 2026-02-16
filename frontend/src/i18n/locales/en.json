@@ -566,7 +566,15 @@
     "disable": "Disable",
     "enable": "Enable",
     "editName": "Edit Name",
-    "removeFromSlot": "Remove"
+    "removeFromSlot": "Remove",
+    "untaggedSounds": "Sounds",
+    "taggedSounds": "Tagged Sounds",
+    "searchByName": "Search by name...",
+    "searchByNameOrTag": "Search by name or tag...",
+    "noTaggedSounds": "No tagged sounds yet.",
+    "sortDefault": "Default",
+    "sortName": "Name",
+    "sortCustomFirst": "Custom First"
   },
   "playlist": {
     "tabSounds": "Sounds",
@@ -583,7 +591,8 @@
     "shuffle": "Shuffle",
     "repeat": "Repeat",
     "playManual": "Play",
-    "stopManual": "Stop"
+    "stopManual": "Stop",
+    "removeFromPlaylist": "Remove from playlist"
   },
   "notes": {
     "title": "Notes",
