@@ -25,16 +25,10 @@ const CALENDAR_TABS: readonly SidebarTabItem<CalendarMode>[] = [
 interface CalendarSidebarProps {
   width: number;
   onToggle: () => void;
-  calendarMode: "tasks" | "memo";
-  onCalendarModeChange?: (mode: "tasks" | "memo") => void;
 }
 
-export function CalendarSidebar({
-  width,
-  onToggle,
-  calendarMode,
-  onCalendarModeChange,
-}: CalendarSidebarProps) {
+export function CalendarSidebar({ width, onToggle }: CalendarSidebarProps) {
+  const [calendarMode, setCalendarMode] = useState<CalendarMode>("tasks");
   const {
     calendars,
     activeCalendarId,
@@ -129,7 +123,7 @@ export function CalendarSidebar({
       <SidebarTabs
         tabs={CALENDAR_TABS}
         activeTab={calendarMode}
-        onTabChange={(mode) => onCalendarModeChange?.(mode)}
+        onTabChange={setCalendarMode}
       />
 
       <div className="flex-1 overflow-y-auto px-1">

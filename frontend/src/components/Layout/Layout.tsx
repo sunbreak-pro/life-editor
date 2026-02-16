@@ -41,8 +41,6 @@ interface LayoutProps {
   onPlayTask?: (node: TaskNode) => void;
   selectedTaskId?: string | null;
   handleRef?: React.MutableRefObject<LayoutHandle | null>;
-  calendarMode?: "tasks" | "memo";
-  onCalendarModeChange?: (mode: "tasks" | "memo") => void;
 }
 
 export function Layout({
@@ -52,8 +50,6 @@ export function Layout({
   onPlayTask,
   selectedTaskId,
   handleRef,
-  calendarMode,
-  onCalendarModeChange,
 }: LayoutProps) {
   // Right sidebar
   const [rightSidebarWidth, setRightSidebarWidth] = useLocalStorage<number>(
@@ -237,8 +233,6 @@ export function Layout({
               <CalendarSidebar
                 width={dragRightWidth ?? rightSidebarWidth}
                 onToggle={() => setRightSidebarOpen(false)}
-                calendarMode={calendarMode ?? "tasks"}
-                onCalendarModeChange={onCalendarModeChange}
               />
             )}
           </div>

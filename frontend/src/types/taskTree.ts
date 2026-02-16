@@ -1,7 +1,6 @@
 export type SectionId =
   | "tasks"
   | "memo"
-  | "music"
   | "work"
   | "schedule"
   | "analytics"

@@ -6,11 +6,11 @@ import { useAudioContext } from "../../hooks/useAudioContext";
 import { useSoundTags } from "../../hooks/useSoundTags";
 import { useAudioFileUpload } from "../../hooks/useAudioFileUpload";
 import { SOUND_TYPES } from "../../constants/sounds";
-import { SoundTagManager } from "./SoundTagManager";
-import { SoundTagFilter } from "./SoundTagFilter";
-import { MusicSoundItem } from "./MusicSoundItem";
-import { PlaylistManager } from "./PlaylistManager";
-import { PlaylistDetail } from "./PlaylistDetail";
+import { SoundTagManager } from "../Music/SoundTagManager";
+import { SoundTagFilter } from "../Music/SoundTagFilter";
+import { MusicSoundItem } from "../Music/MusicSoundItem";
+import { PlaylistManager } from "../Music/PlaylistManager";
+import { PlaylistDetail } from "../Music/PlaylistDetail";
 
 type MusicTab = "sounds" | "playlists";
 
@@ -19,7 +19,7 @@ const MUSIC_TABS: readonly TabItem<MusicTab>[] = [
   { id: "playlists", labelKey: "playlist.tabPlaylists", icon: Headphones },
 ];
 
-export function MusicScreen() {
+export function WorkMusicContent() {
   const { t } = useTranslation();
   const audio = useAudioContext();
   const soundTagState = useSoundTags();
@@ -59,18 +59,13 @@ export function MusicScreen() {
   const handleAddCustomSound = useAudioFileUpload(audio.addSound);
 
   return (
-    <div className="h-full flex flex-col">
-      <h2 className="text-2xl font-bold text-notion-text mb-6 px-6 pt-4">
-        {t("music.title")}
-      </h2>
-      <div className="px-6">
-        <SectionTabs
-          tabs={MUSIC_TABS}
-          activeTab={activeTab}
-          onTabChange={setActiveTab}
-        />
-      </div>
-      <div className="flex-1 overflow-y-auto">
+    <>
+      <SectionTabs
+        tabs={MUSIC_TABS}
+        activeTab={activeTab}
+        onTabChange={setActiveTab}
+      />
+      <div className="flex-1 overflow-y-auto mt-6">
         {activeTab === "sounds" && (
           <div className="max-w-4xl mx-auto w-full p-6">
             {/* Sound Tag Manager */}
@@ -164,6 +159,6 @@ export function MusicScreen() {
           </div>
         )}
       </div>
-    </div>
+    </>
   );
 }

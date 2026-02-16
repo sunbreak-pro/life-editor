@@ -43,7 +43,7 @@ export function useAppKeyboardShortcuts({
   useEffect(() => {
     const sectionMap: Record<string, SectionId> = {
       "1": "tasks",
-      "2": "music",
+      "2": "work",
       "3": "schedule",
       "4": "analytics",
       "5": "settings",

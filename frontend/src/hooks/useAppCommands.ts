@@ -7,7 +7,6 @@ import { isMac } from "../utils/platform";
 import {
   ListTodo,
   StickyNote,
-  Timer,
   CalendarClock,
   BarChart3,
   Settings as SettingsIcon,
@@ -68,18 +67,10 @@ export function useAppCommands({
         action: () => setActiveSection("memo"),
       },
       {
-        id: "nav-music",
-        title: "Go to Music",
-        category: "Navigation",
-        shortcut: isMac ? "⌘2" : "Ctrl+2",
-        icon: Timer,
-        action: () => setActiveSection("music"),
-      },
-      {
         id: "nav-work",
         title: "Go to Work",
         category: "Navigation",
-        shortcut: isMac ? "⌘⇧T" : "Ctrl+Shift+T",
+        shortcut: isMac ? "⌘2" : "Ctrl+2",
         icon: Play,
         action: () => setActiveSection("work"),
       },

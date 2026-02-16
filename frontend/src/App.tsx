@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef } from "react";
 import { Layout } from "./components/Layout";
 import type { LayoutHandle } from "./components/Layout";
 import { TaskTree } from "./components/TaskTree";
@@ -11,7 +11,6 @@ import { Tips } from "./components/Tips";
 import { CalendarView } from "./components/Calendar/CalendarView";
 import { AnalyticsView } from "./components/Analytics/AnalyticsView";
 import { MemoView } from "./components/Memo";
-import { MusicScreen } from "./components/Music/MusicScreen";
 import { CommandPalette } from "./components/CommandPalette/CommandPalette";
 import { UpdateNotification } from "./components/UpdateNotification";
 import { useTimerContext } from "./hooks/useTimerContext";
@@ -30,10 +29,6 @@ function App() {
   const [activeSection, setActiveSection] = useState<SectionId>("tasks");
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
-  const [calendarMode, setCalendarMode] = useState<"tasks" | "memo">(() => {
-    const stored = localStorage.getItem(STORAGE_KEYS.CALENDAR_MODE);
-    return stored === "memo" ? "memo" : "tasks";
-  });
   const [filterFolderId, setFilterFolderId] = useLocalStorage<string | null>(
     STORAGE_KEYS.TASK_TREE_FOLDER_FILTER,
     null,
@@ -51,11 +46,6 @@ function App() {
   } = useTaskTreeContext();
   const { setSelectedDate: setMemoDate } = useMemoContext();
   const { createNote } = useNoteContext();
-
-  const handleCalendarModeChange = useCallback((mode: "tasks" | "memo") => {
-    setCalendarMode(mode);
-    localStorage.setItem(STORAGE_KEYS.CALENDAR_MODE, mode);
-  }, []);
 
   const selectedTask = selectedTaskId
     ? (nodes.find((n) => n.id === selectedTaskId && n.type === "task") ?? null)
@@ -122,14 +112,11 @@ function App() {
         );
       case "memo":
         return <MemoView />;
-      case "music":
-        return <MusicScreen />;
       case "work":
         return <WorkScreen onCompleteTask={handlers.handleCompleteTask} />;
       case "schedule":
         return (
           <CalendarView
-            calendarMode={calendarMode}
             onSelectTask={handlers.handleCalendarSelectTask}
             onCreateTask={handlers.handleCalendarCreateTask}
             onCreateNote={handlers.handleCalendarCreateNote}
@@ -166,8 +153,6 @@ function App() {
         onPlayTask={handlers.handlePlayTask}
         selectedTaskId={selectedTaskId}
         handleRef={layoutRef}
-        calendarMode={calendarMode}
-        onCalendarModeChange={handleCalendarModeChange}
       >
         {renderContent()}
       </Layout>

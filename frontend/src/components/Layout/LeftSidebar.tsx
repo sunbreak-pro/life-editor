@@ -1,7 +1,6 @@
 import {
   CheckSquare,
   BookOpen,
-  Music,
   Play,
   CalendarClock,
   BarChart3,
@@ -29,7 +28,6 @@ const menuItems: {
 }[] = [
   { id: "tasks", labelKey: "sidebar.tasks", icon: CheckSquare },
   { id: "memo", labelKey: "sidebar.memo", icon: BookOpen },
-  { id: "music", labelKey: "sidebar.music", icon: Music },
   { id: "work", labelKey: "sidebar.work", icon: Play },
   { id: "schedule", labelKey: "sidebar.schedule", icon: CalendarClock },
   { id: "analytics", labelKey: "sidebar.analytics", icon: BarChart3 },
