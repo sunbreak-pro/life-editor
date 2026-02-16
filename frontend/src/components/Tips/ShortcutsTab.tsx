@@ -41,7 +41,7 @@ function getShortcutGroups(mod: string, shift: string): ShortcutGroup[] {
         { keys: `${mod} + 2`, descriptionKey: "tips.shortcutsTab.goToSession" },
         {
           keys: `${mod} + 3`,
-          descriptionKey: "tips.shortcutsTab.goToCalendar",
+          descriptionKey: "tips.shortcutsTab.goToSchedule",
         },
         {
           keys: `${mod} + 4`,

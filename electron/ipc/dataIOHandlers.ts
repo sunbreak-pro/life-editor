@@ -63,7 +63,12 @@ export function registerDataIOHandlers(db: Database.Database): void {
           soundDisplayMeta: safeQuery(db, "SELECT * FROM sound_display_meta"),
           calendars: safeQuery(db, "SELECT * FROM calendars"),
           routines: safeQuery(db, "SELECT * FROM routines"),
-          routineLogs: safeQuery(db, "SELECT * FROM routine_logs"),
+          routineTemplates: safeQuery(db, "SELECT * FROM routine_templates"),
+          routineTemplateItems: safeQuery(
+            db,
+            "SELECT * FROM routine_template_items",
+          ),
+          scheduleItems: safeQuery(db, "SELECT * FROM schedule_items"),
           aiSettings: safeQueryOne(
             db,
             "SELECT * FROM ai_settings WHERE id = 1",
@@ -128,7 +133,9 @@ export function registerDataIOHandlers(db: Database.Database): void {
         const importAll = db.transaction(() => {
           // Clear all tables
           db.exec(`
-          DELETE FROM routine_logs;
+          DELETE FROM schedule_items;
+          DELETE FROM routine_template_items;
+          DELETE FROM routine_templates;
           DELETE FROM routines;
           DELETE FROM calendars;
           DELETE FROM notes;
@@ -281,22 +288,53 @@ export function registerDataIOHandlers(db: Database.Database): void {
           // Import routines
           if (Array.isArray(data.routines)) {
             const insertRoutine = db.prepare(`
-              INSERT INTO routines (id, title, frequency_type, frequency_days, is_archived, "order", created_at, updated_at)
-              VALUES (@id, @title, @frequency_type, @frequency_days, @is_archived, @order, @created_at, @updated_at)
+              INSERT INTO routines (id, title, start_time, end_time, is_archived, "order", created_at, updated_at)
+              VALUES (@id, @title, @start_time, @end_time, @is_archived, @order, @created_at, @updated_at)
             `);
             for (const r of data.routines) {
-              insertRoutine.run(r);
+              insertRoutine.run({
+                ...r,
+                start_time: r.start_time ?? null,
+                end_time: r.end_time ?? null,
+              });
             }
           }
 
-          // Import routine logs
-          if (Array.isArray(data.routineLogs)) {
-            const insertLog = db.prepare(`
-              INSERT INTO routine_logs (id, routine_id, date, completed, created_at)
-              VALUES (@id, @routine_id, @date, @completed, @created_at)
+          // Import routine templates
+          if (Array.isArray(data.routineTemplates)) {
+            const insertTemplate = db.prepare(`
+              INSERT INTO routine_templates (id, name, frequency_type, frequency_days, "order", created_at, updated_at)
+              VALUES (@id, @name, @frequency_type, @frequency_days, @order, @created_at, @updated_at)
             `);
-            for (const l of data.routineLogs) {
-              insertLog.run(l);
+            for (const t of data.routineTemplates) {
+              insertTemplate.run(t);
+            }
+          }
+
+          // Import routine template items
+          if (Array.isArray(data.routineTemplateItems)) {
+            const insertItem = db.prepare(`
+              INSERT INTO routine_template_items (template_id, routine_id, position)
+              VALUES (@template_id, @routine_id, @position)
+            `);
+            for (const i of data.routineTemplateItems) {
+              insertItem.run(i);
+            }
+          }
+
+          // Import schedule items
+          if (Array.isArray(data.scheduleItems)) {
+            const insertSI = db.prepare(`
+              INSERT INTO schedule_items (id, date, title, start_time, end_time, completed, completed_at, routine_id, template_id, created_at, updated_at)
+              VALUES (@id, @date, @title, @start_time, @end_time, @completed, @completed_at, @routine_id, @template_id, @created_at, @updated_at)
+            `);
+            for (const s of data.scheduleItems) {
+              insertSI.run({
+                ...s,
+                completed_at: s.completed_at ?? null,
+                routine_id: s.routine_id ?? null,
+                template_id: s.template_id ?? null,
+              });
             }
           }
 
@@ -343,7 +381,9 @@ export function registerDataIOHandlers(db: Database.Database): void {
           db.exec(`
             DELETE FROM playlist_items;
             DELETE FROM playlists;
-            DELETE FROM routine_logs;
+            DELETE FROM schedule_items;
+            DELETE FROM routine_template_items;
+            DELETE FROM routine_templates;
             DELETE FROM routines;
             DELETE FROM calendars;
             DELETE FROM notes;
@@ -425,7 +465,9 @@ function validateImportData(data: Record<string, unknown>): void {
     "soundDisplayMeta",
     "calendars",
     "routines",
-    "routineLogs",
+    "routineTemplates",
+    "routineTemplateItems",
+    "scheduleItems",
   ];
   for (const field of arrayFields) {
     if (data[field] !== undefined && !Array.isArray(data[field])) {

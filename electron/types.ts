@@ -145,45 +145,49 @@ export interface PomodoroPreset {
   createdAt: string;
 }
 
-export type TimeSlot = "morning" | "afternoon" | "evening" | "anytime";
-export type FrequencyType = "daily" | "custom" | "timesPerWeek";
-
 export interface RoutineNode {
   id: string;
   title: string;
-  frequencyType: FrequencyType;
-  frequencyDays: number[];
-  timesPerWeek?: number;
-  timeSlot: TimeSlot;
-  soundPresetId?: string;
+  startTime: string | null;
+  endTime: string | null;
   isArchived: boolean;
   order: number;
   createdAt: string;
   updatedAt: string;
 }
 
-export interface RoutineStack {
+export type TemplateFrequencyType = "daily" | "custom";
+
+export interface RoutineTemplate {
   id: string;
   name: string;
+  frequencyType: TemplateFrequencyType;
+  frequencyDays: number[];
   order: number;
-  items: RoutineStackItem[];
+  items: RoutineTemplateItem[];
   createdAt: string;
   updatedAt: string;
 }
 
-export interface RoutineStackItem {
+export interface RoutineTemplateItem {
   id: number;
-  stackId: string;
+  templateId: string;
   routineId: string;
   position: number;
 }
 
-export interface RoutineLog {
-  id: number;
-  routineId: string;
+export interface ScheduleItem {
+  id: string;
   date: string;
+  title: string;
+  startTime: string;
+  endTime: string;
   completed: boolean;
+  completedAt: string | null;
+  routineId: string | null;
+  templateId: string | null;
   createdAt: string;
+  updatedAt: string;
 }
 
 export interface MigrationPayload {

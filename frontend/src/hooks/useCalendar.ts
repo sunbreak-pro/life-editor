@@ -87,18 +87,14 @@ export function useCalendar(
     });
   }, [weekStartDate, month]);
 
-  const threeDays = useMemo(() => {
+  const singleDay = useMemo(() => {
     const anchor = weekStartDate ?? new Date();
     const start = new Date(anchor);
     start.setHours(0, 0, 0, 0);
-    return Array.from({ length: 3 }, (_, i) => {
-      const d = new Date(start);
-      d.setDate(d.getDate() + i);
-      return { date: d, isCurrentMonth: d.getMonth() === month };
-    });
+    return { date: start, isCurrentMonth: start.getMonth() === month };
   }, [weekStartDate, month]);
 
-  return { tasksByDate, calendarDays, weekDays, threeDays };
+  return { tasksByDate, calendarDays, weekDays, singleDay };
 }
 
 // Re-export from canonical location for backward compatibility

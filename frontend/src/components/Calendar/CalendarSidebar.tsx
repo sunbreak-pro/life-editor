@@ -3,15 +3,24 @@ import {
   PanelRight,
   Plus,
   Calendar,
+  StickyNote,
   List,
   MoreHorizontal,
   Pencil,
   Trash2,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { SidebarTabs, type SidebarTabItem } from "../shared/SidebarTabs";
 import { useCalendarContext } from "../../hooks/useCalendarContext";
 import { useTaskTreeContext } from "../../hooks/useTaskTreeContext";
 import { CalendarCreateDialog } from "./CalendarCreateDialog";
+
+type CalendarMode = "tasks" | "memo";
+
+const CALENDAR_TABS: readonly SidebarTabItem<CalendarMode>[] = [
+  { id: "tasks", labelKey: "calendarSidebar.tasksTab", icon: Calendar },
+  { id: "memo", labelKey: "calendarSidebar.memoTab", icon: StickyNote },
+];
 
 interface CalendarSidebarProps {
   width: number;
@@ -117,28 +126,11 @@ export function CalendarSidebar({
       </div>
 
       {/* Mode tabs */}
-      <div className="flex items-center gap-1 px-3 pb-2">
-        <button
-          onClick={() => onCalendarModeChange?.("tasks")}
-          className={`px-3 py-1 text-xs rounded-md transition-colors ${
-            calendarMode === "tasks"
-              ? "bg-notion-accent/10 text-notion-accent font-medium"
-              : "text-notion-text-secondary hover:bg-notion-hover"
-          }`}
-        >
-          {t("calendarSidebar.tasksTab")}
-        </button>
-        <button
-          onClick={() => onCalendarModeChange?.("memo")}
-          className={`px-3 py-1 text-xs rounded-md transition-colors ${
-            calendarMode === "memo"
-              ? "bg-notion-accent/10 text-notion-accent font-medium"
-              : "text-notion-text-secondary hover:bg-notion-hover"
-          }`}
-        >
-          {t("calendarSidebar.memoTab")}
-        </button>
-      </div>
+      <SidebarTabs
+        tabs={CALENDAR_TABS}
+        activeTab={calendarMode}
+        onTabChange={(mode) => onCalendarModeChange?.(mode)}
+      />
 
       <div className="flex-1 overflow-y-auto px-1">
         {calendarMode === "tasks" && (
@@ -207,7 +199,7 @@ export function CalendarSidebar({
                 {contextMenuCalendarId === cal.id && (
                   <div
                     ref={contextMenuRef}
-                    className="absolute right-2 top-8 z-20 bg-notion-bg border border-notion-border rounded-lg shadow-lg py-1 min-w-[120px]"
+                    className="absolute right-2 top-8 z-20 bg-notion-bg border border-notion-border rounded-lg shadow-lg py-1 min-w-30"
                   >
                     <button
                       onClick={() => {

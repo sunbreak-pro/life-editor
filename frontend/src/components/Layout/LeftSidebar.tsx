@@ -1,10 +1,9 @@
 import {
   CheckSquare,
   BookOpen,
-  Repeat,
   Music,
   Play,
-  Calendar,
+  CalendarClock,
   BarChart3,
   Settings,
   Pencil,
@@ -30,10 +29,9 @@ const menuItems: {
 }[] = [
   { id: "tasks", labelKey: "sidebar.tasks", icon: CheckSquare },
   { id: "memo", labelKey: "sidebar.memo", icon: BookOpen },
-  { id: "routine", labelKey: "sidebar.routine", icon: Repeat },
   { id: "music", labelKey: "sidebar.music", icon: Music },
   { id: "work", labelKey: "sidebar.work", icon: Play },
-  { id: "calendar", labelKey: "sidebar.calendar", icon: Calendar },
+  { id: "schedule", labelKey: "sidebar.schedule", icon: CalendarClock },
   { id: "analytics", labelKey: "sidebar.analytics", icon: BarChart3 },
   { id: "settings", labelKey: "sidebar.settings", icon: Settings },
   { id: "tips", labelKey: "sidebar.tips", icon: Lightbulb },

@@ -1,4 +1,4 @@
-import { BookOpen, Plus, Trash2 } from "lucide-react";
+import { Plus, Trash2 } from "lucide-react";
 import type { MemoNode } from "../../types/memo";
 import { formatTime } from "../../utils/formatRelativeDate";
 import { formatDisplayDate } from "../../utils/dateKey";
@@ -25,11 +25,7 @@ export function MemoDateList({
   return (
     <div className="w-60 shrink-0 border-r border-notion-border h-full flex flex-col">
       <div className="p-3 border-b border-notion-border">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2 text-notion-text">
-            <BookOpen size={16} />
-            <span className="text-sm font-medium">Memo</span>
-          </div>
+        <div className="flex items-center justify-end">
           {!hasTodayMemo && (
             <button
               onClick={onCreateToday}

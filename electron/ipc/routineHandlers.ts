@@ -20,21 +20,10 @@ export function registerRoutineHandlers(repo: RoutineRepository): void {
         _event,
         id: string,
         title: string,
-        frequencyType: string,
-        frequencyDays: number[],
-        timesPerWeek?: number,
-        timeSlot?: string,
-        soundPresetId?: string,
+        startTime?: string,
+        endTime?: string,
       ) => {
-        return repo.create(
-          id,
-          title,
-          frequencyType,
-          frequencyDays,
-          timesPerWeek,
-          timeSlot,
-          soundPresetId,
-        );
+        return repo.create(id, title, startTime, endTime);
       },
     ),
   );
@@ -50,14 +39,7 @@ export function registerRoutineHandlers(repo: RoutineRepository): void {
         updates: Partial<
           Pick<
             RoutineNode,
-            | "title"
-            | "frequencyType"
-            | "frequencyDays"
-            | "timesPerWeek"
-            | "timeSlot"
-            | "soundPresetId"
-            | "isArchived"
-            | "order"
+            "title" | "startTime" | "endTime" | "isArchived" | "order"
           >
         >,
       ) => {
@@ -71,34 +53,5 @@ export function registerRoutineHandlers(repo: RoutineRepository): void {
     loggedHandler("Routines", "delete", (_event, id: string) => {
       repo.delete(id);
     }),
-  );
-
-  ipcMain.handle(
-    "db:routines:fetchLogs",
-    loggedHandler("Routines", "fetchLogs", (_event, routineId: string) => {
-      return repo.fetchLogs(routineId);
-    }),
-  );
-
-  ipcMain.handle(
-    "db:routines:toggleLog",
-    loggedHandler(
-      "Routines",
-      "toggleLog",
-      (_event, routineId: string, date: string) => {
-        return repo.toggleLog(routineId, date);
-      },
-    ),
-  );
-
-  ipcMain.handle(
-    "db:routines:fetchLogsByDateRange",
-    loggedHandler(
-      "Routines",
-      "fetchLogsByDateRange",
-      (_event, startDate: string, endDate: string) => {
-        return repo.fetchLogsByDateRange(startDate, endDate);
-      },
-    ),
   );
 }

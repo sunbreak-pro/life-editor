@@ -1,14 +1,14 @@
-import { useMemo, type RefObject } from 'react';
-import type { Command } from '../components/CommandPalette/CommandPalette';
-import type { LayoutHandle } from '../components/Layout';
-import type { TaskNode } from '../types/taskTree';
-import type { SectionId } from '../types/taskTree';
-import { isMac } from '../utils/platform';
+import { useMemo, type RefObject } from "react";
+import type { Command } from "../components/CommandPalette/CommandPalette";
+import type { LayoutHandle } from "../components/Layout";
+import type { TaskNode } from "../types/taskTree";
+import type { SectionId } from "../types/taskTree";
+import { isMac } from "../utils/platform";
 import {
   ListTodo,
   StickyNote,
   Timer,
-  Calendar,
+  CalendarClock,
   BarChart3,
   Settings as SettingsIcon,
   Lightbulb,
@@ -20,11 +20,15 @@ import {
   RotateCcw,
   PanelLeft,
   PanelRight,
-} from 'lucide-react';
+} from "lucide-react";
 
 interface UseAppCommandsParams {
   setActiveSection: (section: SectionId) => void;
-  addNode: (type: 'task' | 'folder', parentId: string | null, title: string) => TaskNode | undefined;
+  addNode: (
+    type: "task" | "folder",
+    parentId: string | null,
+    title: string,
+  ) => TaskNode | undefined;
   selectedTask: TaskNode | null;
   softDelete: (id: string) => void;
   setSelectedTaskId: (id: string | null) => void;
@@ -49,87 +53,87 @@ export function useAppCommands({
   return useMemo(
     () => [
       {
-        id: 'nav-tasks',
-        title: 'Go to Tasks',
-        category: 'Navigation',
-        shortcut: isMac ? '⌘1' : 'Ctrl+1',
+        id: "nav-tasks",
+        title: "Go to Tasks",
+        category: "Navigation",
+        shortcut: isMac ? "⌘1" : "Ctrl+1",
         icon: ListTodo,
-        action: () => setActiveSection('tasks'),
+        action: () => setActiveSection("tasks"),
       },
       {
-        id: 'nav-memo',
-        title: 'Go to Memo',
-        category: 'Navigation',
+        id: "nav-memo",
+        title: "Go to Memo",
+        category: "Navigation",
         icon: StickyNote,
-        action: () => setActiveSection('memo'),
+        action: () => setActiveSection("memo"),
       },
       {
-        id: 'nav-music',
-        title: 'Go to Music',
-        category: 'Navigation',
-        shortcut: isMac ? '⌘2' : 'Ctrl+2',
+        id: "nav-music",
+        title: "Go to Music",
+        category: "Navigation",
+        shortcut: isMac ? "⌘2" : "Ctrl+2",
         icon: Timer,
-        action: () => setActiveSection('music'),
+        action: () => setActiveSection("music"),
       },
       {
-        id: 'nav-work',
-        title: 'Go to Work',
-        category: 'Navigation',
-        shortcut: isMac ? '⌘⇧T' : 'Ctrl+Shift+T',
+        id: "nav-work",
+        title: "Go to Work",
+        category: "Navigation",
+        shortcut: isMac ? "⌘⇧T" : "Ctrl+Shift+T",
         icon: Play,
-        action: () => setActiveSection('work'),
+        action: () => setActiveSection("work"),
       },
       {
-        id: 'nav-calendar',
-        title: 'Go to Calendar',
-        category: 'Navigation',
-        shortcut: isMac ? '⌘3' : 'Ctrl+3',
-        icon: Calendar,
-        action: () => setActiveSection('calendar'),
+        id: "nav-schedule",
+        title: "Go to Schedule",
+        category: "Navigation",
+        shortcut: isMac ? "⌘3" : "Ctrl+3",
+        icon: CalendarClock,
+        action: () => setActiveSection("schedule"),
       },
       {
-        id: 'nav-analytics',
-        title: 'Go to Analytics',
-        category: 'Navigation',
-        shortcut: isMac ? '⌘4' : 'Ctrl+4',
+        id: "nav-analytics",
+        title: "Go to Analytics",
+        category: "Navigation",
+        shortcut: isMac ? "⌘4" : "Ctrl+4",
         icon: BarChart3,
-        action: () => setActiveSection('analytics'),
+        action: () => setActiveSection("analytics"),
       },
       {
-        id: 'nav-settings',
-        title: 'Go to Settings',
-        category: 'Navigation',
-        shortcut: isMac ? '⌘,' : 'Ctrl+,',
+        id: "nav-settings",
+        title: "Go to Settings",
+        category: "Navigation",
+        shortcut: isMac ? "⌘," : "Ctrl+,",
         icon: SettingsIcon,
-        action: () => setActiveSection('settings'),
+        action: () => setActiveSection("settings"),
       },
       {
-        id: 'nav-tips',
-        title: 'Go to Tips',
-        category: 'Navigation',
+        id: "nav-tips",
+        title: "Go to Tips",
+        category: "Navigation",
         icon: Lightbulb,
-        action: () => setActiveSection('tips'),
+        action: () => setActiveSection("tips"),
       },
       {
-        id: 'task-create',
-        title: 'Create new task',
-        category: 'Task',
-        shortcut: 'n',
+        id: "task-create",
+        title: "Create new task",
+        category: "Task",
+        shortcut: "n",
         icon: Plus,
-        action: () => addNode('task', null, 'New Task'),
+        action: () => addNode("task", null, "New Task"),
       },
       {
-        id: 'task-create-folder',
-        title: 'Create new folder',
-        category: 'Task',
+        id: "task-create-folder",
+        title: "Create new folder",
+        category: "Task",
         icon: FolderPlus,
-        action: () => addNode('folder', null, 'New Folder'),
+        action: () => addNode("folder", null, "New Folder"),
       },
       {
-        id: 'task-delete',
-        title: 'Delete selected task',
-        category: 'Task',
-        shortcut: 'Del',
+        id: "task-delete",
+        title: "Delete selected task",
+        category: "Task",
+        shortcut: "Del",
         icon: Trash2,
         action: () => {
           if (selectedTask) {
@@ -139,10 +143,10 @@ export function useAppCommands({
         },
       },
       {
-        id: 'timer-toggle',
-        title: timer.isRunning ? 'Pause timer' : 'Start timer',
-        category: 'Timer',
-        shortcut: 'Space',
+        id: "timer-toggle",
+        title: timer.isRunning ? "Pause timer" : "Start timer",
+        category: "Timer",
+        shortcut: "Space",
         icon: timer.isRunning ? Pause : Play,
         action: () => {
           if (timer.isRunning) timer.pause();
@@ -150,30 +154,38 @@ export function useAppCommands({
         },
       },
       {
-        id: 'timer-reset',
-        title: 'Reset timer',
-        category: 'Timer',
-        shortcut: 'r',
+        id: "timer-reset",
+        title: "Reset timer",
+        category: "Timer",
+        shortcut: "r",
         icon: RotateCcw,
         action: () => timer.reset(),
       },
       {
-        id: 'view-left-sidebar',
-        title: 'Toggle left sidebar',
-        category: 'View',
-        shortcut: isMac ? '⌘.' : 'Ctrl+.',
+        id: "view-left-sidebar",
+        title: "Toggle left sidebar",
+        category: "View",
+        shortcut: isMac ? "⌘." : "Ctrl+.",
         icon: PanelLeft,
         action: () => layoutRef.current?.toggleLeftSidebar(),
       },
       {
-        id: 'view-right-sidebar',
-        title: 'Toggle right sidebar',
-        category: 'View',
-        shortcut: isMac ? '⌘⇧.' : 'Ctrl+Shift+.',
+        id: "view-right-sidebar",
+        title: "Toggle right sidebar",
+        category: "View",
+        shortcut: isMac ? "⌘⇧." : "Ctrl+Shift+.",
         icon: PanelRight,
         action: () => layoutRef.current?.toggleRightSidebar(),
       },
     ],
-    [addNode, selectedTask, softDelete, setSelectedTaskId, timer, setActiveSection, layoutRef],
+    [
+      addNode,
+      selectedTask,
+      softDelete,
+      setSelectedTaskId,
+      timer,
+      setActiveSection,
+      layoutRef,
+    ],
   );
 }

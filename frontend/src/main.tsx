@@ -10,7 +10,7 @@ import { MemoProvider } from "./context/MemoContext";
 import { TimerProvider } from "./context/TimerContext";
 import { AudioProvider } from "./context/AudioContext";
 import { NoteProvider } from "./context/NoteContext";
-import { RoutineProvider } from "./context/RoutineContext";
+import { ScheduleProvider } from "./context/ScheduleContext";
 import { CalendarProvider } from "./context/CalendarContext";
 
 createRoot(document.getElementById("root")!).render(
@@ -21,13 +21,13 @@ createRoot(document.getElementById("root")!).render(
           <CalendarProvider>
             <MemoProvider>
               <NoteProvider>
-                <RoutineProvider>
+                <ScheduleProvider>
                   <TimerProvider>
                     <AudioProvider>
                       <App />
                     </AudioProvider>
                   </TimerProvider>
-                </RoutineProvider>
+                </ScheduleProvider>
               </NoteProvider>
             </MemoProvider>
           </CalendarProvider>

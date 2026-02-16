@@ -1,7 +1,7 @@
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
-type ViewMode = "month" | "week" | "3day";
+type ViewMode = "month" | "week" | "day";
 
 interface CalendarHeaderProps {
   year: number;
@@ -80,8 +80,10 @@ export function CalendarHeader({
   const title = (() => {
     if (viewMode === "week" && weekStartDate)
       return formatDateRange(weekStartDate, 6);
-    if (viewMode === "3day" && weekStartDate)
-      return formatDateRange(weekStartDate, 2);
+    if (viewMode === "day" && weekStartDate) {
+      const d = weekStartDate;
+      return `${SHORT_MONTH_NAMES[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}`;
+    }
     return `${MONTH_NAMES[month]} ${year}`;
   })();
 
@@ -89,26 +91,30 @@ export function CalendarHeader({
     <div className="flex items-center justify-between mb-4">
       <div className="flex items-center gap-3">
         <h2 className="text-xl font-bold text-notion-text">{title}</h2>
-        <div className="flex items-center gap-1">
+        {viewMode !== "day" && (
+          <div className="flex items-center gap-1">
+            <button
+              onClick={onPrev}
+              className="p-1 rounded-md text-notion-text-secondary hover:bg-notion-hover hover:text-notion-text transition-colors"
+            >
+              <ChevronLeft size={18} />
+            </button>
+            <button
+              onClick={onNext}
+              className="p-1 rounded-md text-notion-text-secondary hover:bg-notion-hover hover:text-notion-text transition-colors"
+            >
+              <ChevronRight size={18} />
+            </button>
+          </div>
+        )}
+        {viewMode !== "day" && (
           <button
-            onClick={onPrev}
-            className="p-1 rounded-md text-notion-text-secondary hover:bg-notion-hover hover:text-notion-text transition-colors"
+            onClick={onToday}
+            className="px-2 py-1 text-xs rounded-md border border-notion-border text-notion-text-secondary hover:bg-notion-hover transition-colors"
           >
-            <ChevronLeft size={18} />
+            {t("calendarHeader.today")}
           </button>
-          <button
-            onClick={onNext}
-            className="p-1 rounded-md text-notion-text-secondary hover:bg-notion-hover hover:text-notion-text transition-colors"
-          >
-            <ChevronRight size={18} />
-          </button>
-        </div>
-        <button
-          onClick={onToday}
-          className="px-2 py-1 text-xs rounded-md border border-notion-border text-notion-text-secondary hover:bg-notion-hover transition-colors"
-        >
-          {t("calendarHeader.today")}
-        </button>
+        )}
       </div>
 
       {calendarMode !== "memo" && (
@@ -134,14 +140,14 @@ export function CalendarHeader({
             {t("calendarHeader.week")}
           </button>
           <button
-            onClick={() => onViewModeChange("3day")}
+            onClick={() => onViewModeChange("day")}
             className={`px-3 py-1 text-xs rounded-md transition-colors ${
-              viewMode === "3day"
+              viewMode === "day"
                 ? "bg-notion-bg text-notion-text shadow-sm"
                 : "text-notion-text-secondary hover:text-notion-text"
             }`}
           >
-            {t("calendarHeader.threeDay")}
+            {t("calendarHeader.day")}
           </button>
         </div>
       )}

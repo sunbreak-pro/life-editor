@@ -69,6 +69,10 @@ export function runMigrations(db: Database.Database): void {
     log.info("[DB] Running migration V16");
     migrateV16(db);
   }
+  if (currentVersion < 17) {
+    log.info("[DB] Running migration V17");
+    migrateV17(db);
+  }
 
   const newVersion = db.pragma("user_version", { simple: true }) as number;
   if (newVersion !== currentVersion) {
@@ -614,4 +618,81 @@ function migrateV16(db: Database.Database): void {
 
     PRAGMA user_version = 16;
   `);
+}
+
+function migrateV17(db: Database.Database): void {
+  const migrate = db.transaction(() => {
+    // Drop old routine tables
+    db.exec(`
+      DROP TABLE IF EXISTS routine_stack_items;
+      DROP TABLE IF EXISTS routine_stacks;
+      DROP TABLE IF EXISTS routine_logs;
+      DROP TABLE IF EXISTS routines;
+    `);
+
+    // New routines (simplified — startTime/endTime instead of timeSlot/frequency)
+    db.exec(`
+      CREATE TABLE routines (
+        id TEXT PRIMARY KEY,
+        title TEXT NOT NULL,
+        start_time TEXT,
+        end_time TEXT,
+        is_archived INTEGER NOT NULL DEFAULT 0,
+        "order" INTEGER NOT NULL DEFAULT 0,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      );
+    `);
+
+    // Routine templates (replaces routine_stacks)
+    db.exec(`
+      CREATE TABLE routine_templates (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        frequency_type TEXT NOT NULL DEFAULT 'daily',
+        frequency_days TEXT NOT NULL DEFAULT '[]',
+        "order" INTEGER NOT NULL DEFAULT 0,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      );
+    `);
+
+    // Template items
+    db.exec(`
+      CREATE TABLE routine_template_items (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        template_id TEXT NOT NULL,
+        routine_id TEXT NOT NULL,
+        position INTEGER NOT NULL,
+        FOREIGN KEY (template_id) REFERENCES routine_templates(id) ON DELETE CASCADE,
+        FOREIGN KEY (routine_id) REFERENCES routines(id) ON DELETE CASCADE,
+        UNIQUE(template_id, routine_id)
+      );
+      CREATE INDEX idx_rti_template ON routine_template_items(template_id);
+    `);
+
+    // Schedule items (new entity)
+    db.exec(`
+      CREATE TABLE schedule_items (
+        id TEXT PRIMARY KEY,
+        date TEXT NOT NULL,
+        title TEXT NOT NULL,
+        start_time TEXT NOT NULL,
+        end_time TEXT NOT NULL,
+        completed INTEGER NOT NULL DEFAULT 0,
+        completed_at TEXT,
+        routine_id TEXT,
+        template_id TEXT,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        FOREIGN KEY (routine_id) REFERENCES routines(id) ON DELETE SET NULL,
+        FOREIGN KEY (template_id) REFERENCES routine_templates(id) ON DELETE SET NULL
+      );
+      CREATE INDEX idx_si_date ON schedule_items(date);
+      CREATE INDEX idx_si_routine ON schedule_items(routine_id);
+    `);
+  });
+
+  migrate();
+  db.pragma("user_version = 17");
 }

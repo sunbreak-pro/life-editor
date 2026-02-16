@@ -6,9 +6,6 @@ import type { TaskNode } from "../../types/taskTree";
 import { LeftSidebar } from "./LeftSidebar";
 import { TaskDetailSidebar } from "../TaskDetail/TaskDetailSidebar";
 import { CalendarSidebar } from "../Calendar/CalendarSidebar";
-import { MemoSidebar } from "../Memo/MemoSidebar";
-import { MusicSidebar } from "../Music/MusicSidebar";
-import { WorkSidebar } from "../WorkScreen/WorkSidebar";
 import { MainContent } from "./MainContent";
 import { STORAGE_KEYS } from "../../constants/storageKeys";
 import { useLocalStorage } from "../../hooks/useLocalStorage";
@@ -18,8 +15,8 @@ const RIGHT_MAX_WIDTH = 400;
 const RIGHT_DEFAULT_WIDTH = 280;
 
 const LEFT_MIN_WIDTH = 165;
-const LEFT_MAX_WIDTH = 320;
-const LEFT_DEFAULT_WIDTH = 240;
+const LEFT_MAX_WIDTH = 200;
+const LEFT_DEFAULT_WIDTH = 190;
 
 function deserializeWidth(min: number, max: number, def: number) {
   return (raw: string): number => {
@@ -46,12 +43,6 @@ interface LayoutProps {
   handleRef?: React.MutableRefObject<LayoutHandle | null>;
   calendarMode?: "tasks" | "memo";
   onCalendarModeChange?: (mode: "tasks" | "memo") => void;
-  memoTab?: "daily" | "notes";
-  onMemoTabChange?: (tab: "daily" | "notes") => void;
-  musicTab?: "sounds" | "playlists";
-  onMusicTabChange?: (tab: "sounds" | "playlists") => void;
-  selectedPlaylistId?: string | null;
-  onSelectPlaylist?: (id: string) => void;
 }
 
 export function Layout({
@@ -63,12 +54,6 @@ export function Layout({
   handleRef,
   calendarMode,
   onCalendarModeChange,
-  memoTab,
-  onMemoTabChange,
-  musicTab,
-  onMusicTabChange,
-  selectedPlaylistId,
-  onSelectPlaylist,
 }: LayoutProps) {
   // Right sidebar
   const [rightSidebarWidth, setRightSidebarWidth] = useLocalStorage<number>(
@@ -200,13 +185,7 @@ export function Layout({
     };
   }, [setRightSidebarWidth, setLeftSidebarWidth]);
 
-  const showRightSidebar = [
-    "tasks",
-    "calendar",
-    "memo",
-    "music",
-    "work",
-  ].includes(activeSection);
+  const showRightSidebar = ["tasks", "schedule"].includes(activeSection);
 
   const currentLeftWidth = dragLeftWidth ?? leftSidebarWidth;
 
@@ -254,36 +233,12 @@ export function Layout({
                 onPlayTask={onPlayTask}
               />
             )}
-            {activeSection === "calendar" && (
+            {activeSection === "schedule" && (
               <CalendarSidebar
                 width={dragRightWidth ?? rightSidebarWidth}
                 onToggle={() => setRightSidebarOpen(false)}
                 calendarMode={calendarMode ?? "tasks"}
                 onCalendarModeChange={onCalendarModeChange}
-              />
-            )}
-            {activeSection === "memo" && (
-              <MemoSidebar
-                width={dragRightWidth ?? rightSidebarWidth}
-                onToggle={() => setRightSidebarOpen(false)}
-                activeTab={memoTab ?? "daily"}
-                onTabChange={onMemoTabChange ?? (() => {})}
-              />
-            )}
-            {activeSection === "music" && (
-              <MusicSidebar
-                width={dragRightWidth ?? rightSidebarWidth}
-                onToggle={() => setRightSidebarOpen(false)}
-                activeTab={musicTab ?? "sounds"}
-                onTabChange={onMusicTabChange ?? (() => {})}
-                selectedPlaylistId={selectedPlaylistId ?? null}
-                onSelectPlaylist={onSelectPlaylist ?? (() => {})}
-              />
-            )}
-            {activeSection === "work" && (
-              <WorkSidebar
-                width={dragRightWidth ?? rightSidebarWidth}
-                onToggle={() => setRightSidebarOpen(false)}
               />
             )}
           </div>

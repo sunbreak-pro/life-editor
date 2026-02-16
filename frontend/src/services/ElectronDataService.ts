@@ -23,7 +23,8 @@ import type { NoteNode } from "../types/note";
 
 import type { TaskTemplate } from "../types/template";
 import type { CalendarNode } from "../types/calendar";
-import type { RoutineNode, RoutineLog, RoutineStack } from "../types/routine";
+import type { RoutineNode } from "../types/routine";
+import type { ScheduleItem, RoutineTemplate } from "../types/schedule";
 import type { Playlist, PlaylistItem } from "../types/playlist";
 import type {
   LogEntry,
@@ -310,36 +311,17 @@ export class ElectronDataService implements DataService {
   createRoutine(
     id: string,
     title: string,
-    frequencyType: string,
-    frequencyDays: number[],
-    timesPerWeek?: number,
-    timeSlot?: string,
-    soundPresetId?: string,
+    startTime?: string,
+    endTime?: string,
   ): Promise<RoutineNode> {
-    return invoke(
-      "db:routines:create",
-      id,
-      title,
-      frequencyType,
-      frequencyDays,
-      timesPerWeek,
-      timeSlot,
-      soundPresetId,
-    );
+    return invoke("db:routines:create", id, title, startTime, endTime);
   }
   updateRoutine(
     id: string,
     updates: Partial<
       Pick<
         RoutineNode,
-        | "title"
-        | "frequencyType"
-        | "frequencyDays"
-        | "timesPerWeek"
-        | "timeSlot"
-        | "soundPresetId"
-        | "isArchived"
-        | "order"
+        "title" | "startTime" | "endTime" | "isArchived" | "order"
       >
     >,
   ): Promise<RoutineNode> {
@@ -348,46 +330,114 @@ export class ElectronDataService implements DataService {
   deleteRoutine(id: string): Promise<void> {
     return invoke("db:routines:delete", id);
   }
-  fetchRoutineLogs(routineId: string): Promise<RoutineLog[]> {
-    return invoke("db:routines:fetchLogs", routineId);
-  }
-  toggleRoutineLog(routineId: string, date: string): Promise<boolean> {
-    return invoke("db:routines:toggleLog", routineId, date);
-  }
-  fetchRoutineLogsByDateRange(
-    startDate: string,
-    endDate: string,
-  ): Promise<RoutineLog[]> {
-    return invoke("db:routines:fetchLogsByDateRange", startDate, endDate);
-  }
 
-  // Routine Stacks
-  fetchRoutineStacks(): Promise<RoutineStack[]> {
-    return invoke("db:routineStacks:fetchAll");
+  // Routine Templates
+  fetchRoutineTemplates(): Promise<RoutineTemplate[]> {
+    return invoke("db:routineTemplates:fetchAll");
   }
-  createRoutineStack(id: string, name: string): Promise<RoutineStack> {
-    return invoke("db:routineStacks:create", id, name);
-  }
-  updateRoutineStack(
+  createRoutineTemplate(
     id: string,
-    updates: Partial<Pick<RoutineStack, "name" | "order">>,
-  ): Promise<RoutineStack> {
-    return invoke("db:routineStacks:update", id, updates);
+    name: string,
+    frequencyType?: string,
+    frequencyDays?: number[],
+  ): Promise<RoutineTemplate> {
+    return invoke(
+      "db:routineTemplates:create",
+      id,
+      name,
+      frequencyType,
+      frequencyDays,
+    );
   }
-  deleteRoutineStack(id: string): Promise<void> {
-    return invoke("db:routineStacks:delete", id);
+  updateRoutineTemplate(
+    id: string,
+    updates: Partial<
+      Pick<
+        RoutineTemplate,
+        "name" | "frequencyType" | "frequencyDays" | "order"
+      >
+    >,
+  ): Promise<RoutineTemplate> {
+    return invoke("db:routineTemplates:update", id, updates);
   }
-  addRoutineStackItem(stackId: string, routineId: string): Promise<void> {
-    return invoke("db:routineStacks:addItem", stackId, routineId);
+  deleteRoutineTemplate(id: string): Promise<void> {
+    return invoke("db:routineTemplates:delete", id);
   }
-  removeRoutineStackItem(stackId: string, routineId: string): Promise<void> {
-    return invoke("db:routineStacks:removeItem", stackId, routineId);
+  addRoutineTemplateItem(templateId: string, routineId: string): Promise<void> {
+    return invoke("db:routineTemplates:addItem", templateId, routineId);
   }
-  reorderRoutineStackItems(
-    stackId: string,
+  removeRoutineTemplateItem(
+    templateId: string,
+    routineId: string,
+  ): Promise<void> {
+    return invoke("db:routineTemplates:removeItem", templateId, routineId);
+  }
+  reorderRoutineTemplateItems(
+    templateId: string,
     routineIds: string[],
   ): Promise<void> {
-    return invoke("db:routineStacks:reorderItems", stackId, routineIds);
+    return invoke("db:routineTemplates:reorderItems", templateId, routineIds);
+  }
+
+  // Schedule Items
+  fetchScheduleItemsByDate(date: string): Promise<ScheduleItem[]> {
+    return invoke("db:scheduleItems:fetchByDate", date);
+  }
+  fetchScheduleItemsByDateRange(
+    startDate: string,
+    endDate: string,
+  ): Promise<ScheduleItem[]> {
+    return invoke("db:scheduleItems:fetchByDateRange", startDate, endDate);
+  }
+  createScheduleItem(
+    id: string,
+    date: string,
+    title: string,
+    startTime: string,
+    endTime: string,
+    routineId?: string,
+    templateId?: string,
+  ): Promise<ScheduleItem> {
+    return invoke(
+      "db:scheduleItems:create",
+      id,
+      date,
+      title,
+      startTime,
+      endTime,
+      routineId,
+      templateId,
+    );
+  }
+  updateScheduleItem(
+    id: string,
+    updates: Partial<
+      Pick<
+        ScheduleItem,
+        "title" | "startTime" | "endTime" | "completed" | "completedAt"
+      >
+    >,
+  ): Promise<ScheduleItem> {
+    return invoke("db:scheduleItems:update", id, updates);
+  }
+  deleteScheduleItem(id: string): Promise<void> {
+    return invoke("db:scheduleItems:delete", id);
+  }
+  toggleScheduleItemComplete(id: string): Promise<ScheduleItem> {
+    return invoke("db:scheduleItems:toggleComplete", id);
+  }
+  bulkCreateScheduleItems(
+    items: Array<{
+      id: string;
+      date: string;
+      title: string;
+      startTime: string;
+      endTime: string;
+      routineId?: string;
+      templateId?: string;
+    }>,
+  ): Promise<ScheduleItem[]> {
+    return invoke("db:scheduleItems:bulkCreate", items);
   }
 
   // Playlists

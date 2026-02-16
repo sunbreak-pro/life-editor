@@ -4,6 +4,24 @@
 
 ---
 
+## Calendar + Routine → Schedule 統合 (2026-02-16)
+
+- **Schedule セクション統合**: Calendar と Routine を Schedule に統合、SectionId `"routine"` 削除 + `"calendar"` → `"schedule"`
+- **DB V17マイグレーション**: 旧ルーティン4テーブルDROP、新テーブル4つ作成（routines/routine_templates/routine_template_items/schedule_items）
+- **OneDaySchedule**: 3日ビュー→1日スケジュールビュー置換（左タイムグリッド + 右タブパネル）
+- **ScheduleTimeGrid**: 1日タイムグリッド（ScheduleItemBlock + TimeGridTaskBlock + 現在時刻インジケーター + クリック作成）
+- **TodayFlowTab**: 縦フローチャート進捗表示 + プログレスバー
+- **RoutinesTab**: ルーティンCRUD + アーカイブ + 完了率 + TemplateManager
+- **テンプレート自動挿入**: 日付表示時にテンプレートのルーティンをScheduleItemとして自動挿入
+- **ScheduleContext**: ScheduleItem + RoutineTemplate + Routine 統合Provider
+- **不要コード削除**: 17ファイル（Routine系10 + Memo内ルーティン4 + Context + hook + electron 2）
+- **データIO更新**: schedule_items/routine_templates/routine_template_items 追加、routine_logs 削除
+- **i18n**: schedule セクション新設（en/ja各17キー）、routine セクション簡略化
+- **新規コンポーネント**: OneDaySchedule, ScheduleTimeGrid, ScheduleItemBlock, ScheduleItemCreatePopover, TodayFlowTab, RoutinesTab, TemplateManager, RoutineEditDialog, TemplateEditDialog
+- **新規Backend**: scheduleItemRepository, routineTemplateRepository, scheduleItemHandlers, routineTemplateHandlers
+
+---
+
 ## Tasks セクション大規模リファクタリング (2026-02-15)
 
 - **レイアウト反転**: MainContent に TaskDetail → TaskTree、RightSidebar に TaskTree → TaskDetailSidebar

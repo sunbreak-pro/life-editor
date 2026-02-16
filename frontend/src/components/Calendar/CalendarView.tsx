@@ -5,7 +5,6 @@ import { useTaskTreeContext } from "../../hooks/useTaskTreeContext";
 import { useMemoContext } from "../../hooks/useMemoContext";
 import { useCalendarContext } from "../../hooks/useCalendarContext";
 import { useCalendar } from "../../hooks/useCalendar";
-import { useRoutineContext } from "../../hooks/useRoutineContext";
 import {
   getDescendantTasks,
   collectDescendantIds,
@@ -16,6 +15,7 @@ import { TaskPreviewPopup } from "./TaskPreviewPopup";
 import { MemoPreviewPopup } from "./MemoPreviewPopup";
 import { MonthlyView } from "./MonthlyView";
 import { WeeklyTimeGrid } from "./WeeklyTimeGrid";
+import { OneDaySchedule } from "../Schedule/OneDaySchedule";
 import { FolderDropdown } from "../shared/FolderDropdown";
 import { useNoteContext } from "../../hooks/useNoteContext";
 import type { MemoNode } from "../../types/memo";
@@ -60,7 +60,6 @@ export function CalendarView({
     useTaskTreeContext();
   const { memos } = useMemoContext();
   const { activeCalendar } = useCalendarContext();
-  const { getRoutineCompletionForDate } = useRoutineContext();
   const { notes } = useNoteContext();
 
   // Filter nodes by active calendar's folder subtree
@@ -77,7 +76,7 @@ export function CalendarView({
   const today = new Date();
   const [year, setYear] = useState(today.getFullYear());
   const [month, setMonth] = useState(today.getMonth());
-  const [viewMode, setViewMode] = useState<"month" | "week" | "3day">("month");
+  const [viewMode, setViewMode] = useState<"month" | "week" | "day">("month");
   const [filter, setFilter] = useState<"incomplete" | "completed">(
     "incomplete",
   );
@@ -102,7 +101,7 @@ export function CalendarView({
     | null
   >(null);
 
-  const { tasksByDate, calendarDays, weekDays, threeDays } = useCalendar(
+  const { tasksByDate, calendarDays, weekDays, singleDay } = useCalendar(
     filteredNodes,
     year,
     month,
@@ -143,10 +142,10 @@ export function CalendarView({
         d.setDate(d.getDate() - 7);
         return d;
       });
-    } else if (viewMode === "3day") {
+    } else if (viewMode === "day") {
       setWeekStartDate((prev) => {
         const d = new Date(prev);
-        d.setDate(d.getDate() - 3);
+        d.setDate(d.getDate() - 1);
         return d;
       });
     } else {
@@ -164,10 +163,10 @@ export function CalendarView({
         d.setDate(d.getDate() + 7);
         return d;
       });
-    } else if (viewMode === "3day") {
+    } else if (viewMode === "day") {
       setWeekStartDate((prev) => {
         const d = new Date(prev);
-        d.setDate(d.getDate() + 3);
+        d.setDate(d.getDate() + 1);
         return d;
       });
     } else {
@@ -182,7 +181,7 @@ export function CalendarView({
     const now = new Date();
     setYear(now.getFullYear());
     setMonth(now.getMonth());
-    if (viewMode === "3day") {
+    if (viewMode === "day") {
       const d = new Date();
       d.setHours(0, 0, 0, 0);
       setWeekStartDate(d);
@@ -217,7 +216,7 @@ export function CalendarView({
       if (e.key === "m" && calendarMode !== "memo") {
         e.preventDefault();
         setViewMode((v) =>
-          v === "month" ? "week" : v === "week" ? "3day" : "month",
+          v === "month" ? "week" : v === "week" ? "day" : "month",
         );
         return;
       }
@@ -383,15 +382,22 @@ export function CalendarView({
             getTaskColor={getTaskColor}
             getFolderTag={getFolderTagForTask}
             memosByDate={filteredMemosByDate}
-            getRoutineCompletion={getRoutineCompletionForDate}
             calendarMode={calendarMode}
             notesByDate={notesByDate}
             onMemoChipClick={handleMemoChipClick}
             onNoteChipClick={handleNoteChipClick}
           />
+        ) : effectiveViewMode === "day" ? (
+          <OneDaySchedule
+            date={singleDay.date}
+            tasksByDate={filteredTasksByDate}
+            onSelectTask={handleTaskClick}
+            getTaskColor={getTaskColor}
+            getFolderTag={getFolderTagForTask}
+          />
         ) : (
           <WeeklyTimeGrid
-            days={effectiveViewMode === "3day" ? threeDays : weekDays}
+            days={weekDays}
             tasksByDate={filteredTasksByDate}
             onSelectTask={handleTaskClick}
             onCreateTask={onCreateTask ? handleRequestCreate : undefined}
@@ -399,7 +405,6 @@ export function CalendarView({
             getFolderTag={getFolderTagForTask}
             memosByDate={filteredMemosByDate}
             onSelectMemo={onSelectMemo}
-            getRoutineCompletion={getRoutineCompletionForDate}
           />
         )}
       </div>

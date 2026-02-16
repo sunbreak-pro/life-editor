@@ -172,48 +172,135 @@ export function createMockDataService(): DataService & {
 
     // Templates
     fetchTemplates: vi.fn().mockResolvedValue([]),
-    createTemplate: vi
-      .fn()
-      .mockImplementation((name, nodesJson) =>
-        Promise.resolve({
-          id: 1,
-          name,
-          nodesJson,
-          createdAt: new Date().toISOString(),
-        }),
-      ),
+    createTemplate: vi.fn().mockImplementation((name, nodesJson) =>
+      Promise.resolve({
+        id: 1,
+        name,
+        nodesJson,
+        createdAt: new Date().toISOString(),
+      }),
+    ),
     getTemplate: vi.fn().mockResolvedValue(null),
     deleteTemplate: vi.fn().mockResolvedValue(undefined),
 
-    // Playlists
-    fetchPlaylists: vi.fn().mockResolvedValue([]),
-    createPlaylist: vi
-      .fn()
-      .mockImplementation((id, name) =>
-        Promise.resolve({
-          id,
-          name,
-          sortOrder: 0,
-          repeatMode: "all",
-          isShuffle: false,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-        }),
-      ),
-    updatePlaylist: vi
+    // Calendars
+    fetchCalendars: vi.fn().mockResolvedValue([]),
+    createCalendar: vi.fn().mockImplementation((id, title, folderId) =>
+      Promise.resolve({
+        id,
+        title,
+        folderId,
+        order: 0,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      }),
+    ),
+    updateCalendar: vi
       .fn()
       .mockImplementation((id, updates) =>
+        Promise.resolve({ id, title: "", folderId: "", order: 0, ...updates }),
+      ),
+    deleteCalendar: vi.fn().mockResolvedValue(undefined),
+
+    // Pomodoro Presets
+    fetchPomodoroPresets: vi.fn().mockResolvedValue([]),
+    createPomodoroPreset: vi.fn().mockImplementation((preset) =>
+      Promise.resolve({
+        id: 1,
+        createdAt: new Date().toISOString(),
+        ...preset,
+      }),
+    ),
+    updatePomodoroPreset: vi.fn().mockResolvedValue({}),
+    deletePomodoroPreset: vi.fn().mockResolvedValue(undefined),
+
+    // Routines
+    fetchAllRoutines: vi.fn().mockResolvedValue([]),
+    createRoutine: vi.fn().mockImplementation((id, title) =>
+      Promise.resolve({
+        id,
+        title,
+        startTime: null,
+        endTime: null,
+        isArchived: false,
+        order: 0,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      }),
+    ),
+    updateRoutine: vi.fn().mockResolvedValue({}),
+    deleteRoutine: vi.fn().mockResolvedValue(undefined),
+
+    // Routine Templates
+    fetchRoutineTemplates: vi.fn().mockResolvedValue([]),
+    createRoutineTemplate: vi.fn().mockImplementation((id, name) =>
+      Promise.resolve({
+        id,
+        name,
+        frequencyType: "daily",
+        frequencyDays: [],
+        order: 0,
+        items: [],
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      }),
+    ),
+    updateRoutineTemplate: vi.fn().mockResolvedValue({}),
+    deleteRoutineTemplate: vi.fn().mockResolvedValue(undefined),
+    addRoutineTemplateItem: vi.fn().mockResolvedValue(undefined),
+    removeRoutineTemplateItem: vi.fn().mockResolvedValue(undefined),
+    reorderRoutineTemplateItems: vi.fn().mockResolvedValue(undefined),
+
+    // Schedule Items
+    fetchScheduleItemsByDate: vi.fn().mockResolvedValue([]),
+    fetchScheduleItemsByDateRange: vi.fn().mockResolvedValue([]),
+    createScheduleItem: vi
+      .fn()
+      .mockImplementation((id, date, title, startTime, endTime) =>
         Promise.resolve({
           id,
-          name: "Updated",
-          sortOrder: 0,
-          repeatMode: "all",
-          isShuffle: false,
+          date,
+          title,
+          startTime,
+          endTime,
+          completed: false,
+          completedAt: null,
+          routineId: null,
+          templateId: null,
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
-          ...updates,
         }),
       ),
+    updateScheduleItem: vi.fn().mockResolvedValue({}),
+    deleteScheduleItem: vi.fn().mockResolvedValue(undefined),
+    toggleScheduleItemComplete: vi.fn().mockResolvedValue({}),
+    bulkCreateScheduleItems: vi.fn().mockResolvedValue([]),
+
+    // Playlists
+    fetchPlaylists: vi.fn().mockResolvedValue([]),
+    createPlaylist: vi.fn().mockImplementation((id, name) =>
+      Promise.resolve({
+        id,
+        name,
+        sortOrder: 0,
+        repeatMode: "all",
+        isShuffle: false,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      }),
+    ),
+    updatePlaylist: vi.fn().mockImplementation((id, updates) =>
+      Promise.resolve({
+        id,
+        name: "Updated",
+        sortOrder: 0,
+        repeatMode: "all",
+        isShuffle: false,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        ...updates,
+      }),
+    ),
     deletePlaylist: vi.fn().mockResolvedValue(undefined),
     fetchPlaylistItems: vi.fn().mockResolvedValue([]),
     fetchAllPlaylistItems: vi.fn().mockResolvedValue([]),
@@ -228,6 +315,7 @@ export function createMockDataService(): DataService & {
     // Data I/O
     exportData: vi.fn().mockResolvedValue(true),
     importData: vi.fn().mockResolvedValue(true),
+    resetData: vi.fn().mockResolvedValue(true),
 
     // Diagnostics
     fetchLogs: vi.fn().mockResolvedValue([]),

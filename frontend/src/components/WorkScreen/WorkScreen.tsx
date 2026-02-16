@@ -13,6 +13,7 @@ import { AudioModeSwitch } from "./AudioModeSwitch";
 import { PlaylistPlayerBar } from "./PlaylistPlayerBar";
 import { TaskSelector } from "./TaskSelector";
 import { TodaySessionSummary } from "./TodaySessionSummary";
+import { PomodoroSettings } from "./PomodoroSettings";
 import { SoundPickerModal } from "../Music/SoundPickerModal";
 import { ConfirmDialog } from "../common/ConfirmDialog";
 
@@ -91,10 +92,27 @@ export function WorkScreen({ onCompleteTask }: WorkScreenProps) {
 
   return (
     <div className="h-full flex flex-col">
+      <h2 className="text-2xl font-bold text-notion-text mb-6 px-6 pt-4">
+        {t("work.title")}
+      </h2>
+
       {/* Header with buttons */}
       <div className="flex items-center justify-between px-6 py-3 border-b border-notion-border">
         <TaskSelector currentTitle={title} />
         <div className="flex items-center gap-2">
+          <PomodoroSettings
+            workDurationMinutes={timer.workDurationMinutes}
+            breakDurationMinutes={timer.breakDurationMinutes}
+            longBreakDurationMinutes={timer.longBreakDurationMinutes}
+            sessionsBeforeLongBreak={timer.sessionsBeforeLongBreak}
+            onChangeWorkDuration={timer.setWorkDurationMinutes}
+            onChangeBreakDuration={timer.setBreakDurationMinutes}
+            onChangeLongBreakDuration={timer.setLongBreakDurationMinutes}
+            onChangeSessionsBeforeLongBreak={timer.setSessionsBeforeLongBreak}
+            disabled={timer.isRunning}
+            autoStartBreaks={timer.autoStartBreaks}
+            onChangeAutoStartBreaks={timer.setAutoStartBreaks}
+          />
           {timer.sessionType === "WORK" && (
             <button
               onClick={handleCompleteSession}

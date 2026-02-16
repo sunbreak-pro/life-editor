@@ -11,7 +11,6 @@ import { Tips } from "./components/Tips";
 import { CalendarView } from "./components/Calendar/CalendarView";
 import { AnalyticsView } from "./components/Analytics/AnalyticsView";
 import { MemoView } from "./components/Memo";
-import { RoutineSection } from "./components/Routine/RoutineSection";
 import { MusicScreen } from "./components/Music/MusicScreen";
 import { CommandPalette } from "./components/CommandPalette/CommandPalette";
 import { UpdateNotification } from "./components/UpdateNotification";
@@ -35,14 +34,6 @@ function App() {
     const stored = localStorage.getItem(STORAGE_KEYS.CALENDAR_MODE);
     return stored === "memo" ? "memo" : "tasks";
   });
-  const [memoTab, setMemoTab] = useState<"daily" | "notes">(() => {
-    const saved = localStorage.getItem(STORAGE_KEYS.MEMO_TAB);
-    return saved === "notes" ? "notes" : "daily";
-  });
-  const [musicTab, setMusicTab] = useState<"sounds" | "playlists">("sounds");
-  const [selectedPlaylistId, setSelectedPlaylistId] = useState<string | null>(
-    null,
-  );
   const [filterFolderId, setFilterFolderId] = useLocalStorage<string | null>(
     STORAGE_KEYS.TASK_TREE_FOLDER_FILTER,
     null,
@@ -130,14 +121,12 @@ function App() {
           </div>
         );
       case "memo":
-        return <MemoView activeTab={memoTab} />;
-      case "routine":
-        return <RoutineSection />;
+        return <MemoView />;
       case "music":
         return <MusicScreen />;
       case "work":
         return <WorkScreen onCompleteTask={handlers.handleCompleteTask} />;
-      case "calendar":
+      case "schedule":
         return (
           <CalendarView
             calendarMode={calendarMode}
@@ -179,12 +168,6 @@ function App() {
         handleRef={layoutRef}
         calendarMode={calendarMode}
         onCalendarModeChange={handleCalendarModeChange}
-        memoTab={memoTab}
-        onMemoTabChange={setMemoTab}
-        musicTab={musicTab}
-        onMusicTabChange={setMusicTab}
-        selectedPlaylistId={selectedPlaylistId}
-        onSelectPlaylist={setSelectedPlaylistId}
       >
         {renderContent()}
       </Layout>

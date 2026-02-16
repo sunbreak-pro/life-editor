@@ -29,8 +29,10 @@ import { createPomodoroPresetRepository } from "../database/pomodoroPresetReposi
 import { registerPomodoroPresetHandlers } from "./pomodoroPresetHandlers";
 import { createRoutineRepository } from "../database/routineRepository";
 import { registerRoutineHandlers } from "./routineHandlers";
-import { createRoutineStackRepository } from "../database/routineStackRepository";
-import { registerRoutineStackHandlers } from "./routineStackHandlers";
+import { createRoutineTemplateRepository } from "../database/routineTemplateRepository";
+import { registerRoutineTemplateHandlers } from "./routineTemplateHandlers";
+import { createScheduleItemRepository } from "../database/scheduleItemRepository";
+import { registerScheduleItemHandlers } from "./scheduleItemHandlers";
 import { createPlaylistRepository } from "../database/playlistRepository";
 import { registerPlaylistHandlers } from "./playlistHandlers";
 import { wrapHandler } from "./ipcMetrics";
@@ -93,8 +95,13 @@ export function registerAllHandlers(db: Database.Database): void {
     ],
     ["Routines", () => registerRoutineHandlers(createRoutineRepository(db))],
     [
-      "RoutineStacks",
-      () => registerRoutineStackHandlers(createRoutineStackRepository(db)),
+      "RoutineTemplates",
+      () =>
+        registerRoutineTemplateHandlers(createRoutineTemplateRepository(db)),
+    ],
+    [
+      "ScheduleItems",
+      () => registerScheduleItemHandlers(createScheduleItemRepository(db)),
     ],
     ["Playlists", () => registerPlaylistHandlers(createPlaylistRepository(db))],
   ];
