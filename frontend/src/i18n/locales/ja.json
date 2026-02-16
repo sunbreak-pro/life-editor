@@ -120,6 +120,12 @@
   },
   "work": {
     "title": "ワーク",
+    "tabTimer": "タイマー",
+    "tabPomodoro": "ポモドーロ",
+    "tabMusic": "ミュージック",
+    "setBackgroundSound": "バックグラウンドサウンドを設定する",
+    "soundsPlaying": "{{count}} サウンド再生中",
+    "playingPlaylist": "再生中: {{name}}",
     "freeSession": "フリーセッション",
     "sessionComplete": "セッション完了",
     "taskComplete": "タスク完了",
@@ -189,7 +195,17 @@
     "frequency": "頻度",
     "daily": "毎日",
     "custom": "カスタム",
-    "itemTitlePlaceholder": "スケジュール項目名"
+    "itemTitlePlaceholder": "スケジュール項目名",
+    "stats": {
+      "title": "統計",
+      "details": "詳細",
+      "dayStreak": "日連続",
+      "currentStreak": "現在",
+      "longestStreak": "最長",
+      "totalAchievedDays": "達成日数",
+      "perRoutine": "ルーティン別",
+      "monthlyHeatmap": "90日間ヒートマップ"
+    }
   },
   "analytics": {
     "title": "分析",

@@ -41,6 +41,8 @@ export function OneDaySchedule({
     removeTemplateItem,
     ensureTemplateItemsForDate,
     getRoutineCompletionRate,
+    routineStats,
+    refreshRoutineStats,
   } = useScheduleContext();
 
   const dateKey = formatDateKey(date);
@@ -62,6 +64,13 @@ export function OneDaySchedule({
       ensureTemplateItemsForDate(dateKey, templates, routines);
     }
   }, [dateKey, templates, routines, ensureTemplateItemsForDate]);
+
+  // Load routine stats on mount and when routines change
+  useEffect(() => {
+    if (routines.length > 0) {
+      refreshRoutineStats(routines);
+    }
+  }, [routines, refreshRoutineStats]);
 
   const dayTasks = useMemo(
     () => tasksByDate.get(dateKey) ?? [],
@@ -143,6 +152,7 @@ export function OneDaySchedule({
               onAddTemplateItem={addTemplateItem}
               onRemoveTemplateItem={removeTemplateItem}
               getCompletionRate={getRoutineCompletionRate}
+              routineStats={routineStats}
             />
           )}
         </div>

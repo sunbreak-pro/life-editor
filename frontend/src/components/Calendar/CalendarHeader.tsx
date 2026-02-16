@@ -91,30 +91,26 @@ export function CalendarHeader({
     <div className="flex items-center justify-between mb-4">
       <div className="flex items-center gap-3">
         <h2 className="text-xl font-bold text-notion-text">{title}</h2>
-        {viewMode !== "day" && (
-          <div className="flex items-center gap-1">
-            <button
-              onClick={onPrev}
-              className="p-1 rounded-md text-notion-text-secondary hover:bg-notion-hover hover:text-notion-text transition-colors"
-            >
-              <ChevronLeft size={18} />
-            </button>
-            <button
-              onClick={onNext}
-              className="p-1 rounded-md text-notion-text-secondary hover:bg-notion-hover hover:text-notion-text transition-colors"
-            >
-              <ChevronRight size={18} />
-            </button>
-          </div>
-        )}
-        {viewMode !== "day" && (
+        <div className="flex items-center gap-1">
           <button
-            onClick={onToday}
-            className="px-2 py-1 text-xs rounded-md border border-notion-border text-notion-text-secondary hover:bg-notion-hover transition-colors"
+            onClick={onPrev}
+            className="p-1 rounded-md text-notion-text-secondary hover:bg-notion-hover hover:text-notion-text transition-colors"
           >
-            {t("calendarHeader.today")}
+            <ChevronLeft size={18} />
           </button>
-        )}
+          <button
+            onClick={onNext}
+            className="p-1 rounded-md text-notion-text-secondary hover:bg-notion-hover hover:text-notion-text transition-colors"
+          >
+            <ChevronRight size={18} />
+          </button>
+        </div>
+        <button
+          onClick={onToday}
+          className="px-2 py-1 text-xs rounded-md border border-notion-border text-notion-text-secondary hover:bg-notion-hover transition-colors"
+        >
+          {t("calendarHeader.today")}
+        </button>
       </div>
 
       {calendarMode !== "memo" && (

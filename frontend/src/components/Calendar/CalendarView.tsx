@@ -132,6 +132,15 @@ export function CalendarView({
     return map;
   }, [notes, calendarMode]);
 
+  // When switching to day view, reset to today instead of week start (Sunday)
+  useEffect(() => {
+    if (viewMode === "day") {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      setWeekStartDate(today);
+    }
+  }, [viewMode]);
+
   const effectiveViewMode = calendarMode === "memo" ? "month" : viewMode;
 
   /* eslint-disable react-hooks/exhaustive-deps -- React Compiler auto-memoizes */

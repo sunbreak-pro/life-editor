@@ -120,6 +120,12 @@
   },
   "work": {
     "title": "Work",
+    "tabTimer": "Timer",
+    "tabPomodoro": "Pomodoro",
+    "tabMusic": "Music",
+    "setBackgroundSound": "Set Background Sound",
+    "soundsPlaying": "{{count}} sounds playing",
+    "playingPlaylist": "Playing: {{name}}",
     "freeSession": "Free Session",
     "sessionComplete": "Session Complete",
     "taskComplete": "Task Complete",
@@ -189,7 +195,17 @@
     "frequency": "Frequency",
     "daily": "Daily",
     "custom": "Custom",
-    "itemTitlePlaceholder": "Schedule item name"
+    "itemTitlePlaceholder": "Schedule item name",
+    "stats": {
+      "title": "Stats",
+      "details": "Details",
+      "dayStreak": "day streak",
+      "currentStreak": "Current",
+      "longestStreak": "Longest",
+      "totalAchievedDays": "Days",
+      "perRoutine": "Per Routine",
+      "monthlyHeatmap": "90-Day Heatmap"
+    }
   },
   "analytics": {
     "title": "Analytics",

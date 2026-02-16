@@ -1,9 +1,11 @@
 import { useState } from "react";
 import { Plus, Pencil, Trash2, Archive } from "lucide-react";
 import type { RoutineNode } from "../../types/routine";
-import type { RoutineTemplate } from "../../types/schedule";
+import type { RoutineTemplate, RoutineStats } from "../../types/schedule";
 import { RoutineEditDialog } from "./RoutineEditDialog";
 import { TemplateManager } from "./TemplateManager";
+import { RoutineStatsCard } from "./RoutineStatsCard";
+import { RoutineStatsOverlay } from "./RoutineStatsOverlay";
 
 interface RoutinesTabProps {
   routines: RoutineNode[];
@@ -38,6 +40,7 @@ interface RoutinesTabProps {
     completed: number;
     total: number;
   };
+  routineStats: RoutineStats | null;
 }
 
 export function RoutinesTab({
@@ -52,10 +55,12 @@ export function RoutinesTab({
   onAddTemplateItem,
   onRemoveTemplateItem,
   getCompletionRate,
+  routineStats,
 }: RoutinesTabProps) {
   const [editDialog, setEditDialog] = useState<RoutineNode | "new" | null>(
     null,
   );
+  const [showStatsOverlay, setShowStatsOverlay] = useState(false);
 
   const activeRoutines = routines
     .filter((r) => !r.isArchived)
@@ -180,6 +185,14 @@ export function RoutinesTab({
         onRemoveItem={onRemoveTemplateItem}
       />
 
+      {/* Stats card */}
+      {routineStats && (
+        <RoutineStatsCard
+          stats={routineStats}
+          onShowDetails={() => setShowStatsOverlay(true)}
+        />
+      )}
+
       {editDialog && (
         <RoutineEditDialog
           routine={editDialog === "new" ? undefined : editDialog}
@@ -191,6 +204,13 @@ export function RoutinesTab({
             }
           }}
           onClose={() => setEditDialog(null)}
+        />
+      )}
+
+      {showStatsOverlay && routineStats && (
+        <RoutineStatsOverlay
+          stats={routineStats}
+          onClose={() => setShowStatsOverlay(false)}
         />
       )}
     </div>
