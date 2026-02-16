@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import { useTimerContext } from "../../hooks/useTimerContext";
 import { useAudioContext } from "../../hooks/useAudioContext";
 import { getDataService } from "../../services";
+import { LAYOUT } from "../../constants/layout";
 import { SectionTabs, type TabItem } from "../shared/SectionTabs";
 import { TimerDisplay } from "./TimerDisplay";
 import { TimerProgressBar } from "./TimerProgressBar";
@@ -103,10 +104,12 @@ export function WorkScreen({ onCompleteTask }: WorkScreenProps) {
 
   return (
     <div className="h-full flex flex-col">
-      <h2 className="text-2xl font-bold text-notion-text mb-6 px-6 pt-4">
+      <h2
+        className={`text-2xl font-bold text-notion-text ${LAYOUT.TITLE_MB} ${LAYOUT.CONTENT_PX} ${LAYOUT.CONTENT_PT}`}
+      >
         {t("work.title")}
       </h2>
-      <div className="px-6">
+      <div className={LAYOUT.CONTENT_PX}>
         <SectionTabs
           tabs={WORK_TABS}
           activeTab={activeTab}

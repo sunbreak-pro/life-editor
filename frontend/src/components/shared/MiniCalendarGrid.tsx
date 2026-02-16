@@ -14,18 +14,18 @@ interface MiniCalendarGridProps {
 }
 
 const MONTH_NAMES = [
-  "Jan",
-  "Feb",
-  "Mar",
-  "Apr",
-  "May",
-  "Jun",
-  "Jul",
-  "Aug",
-  "Sep",
-  "Oct",
-  "Nov",
-  "Dec",
+  "1月",
+  "2月",
+  "3月",
+  "4月",
+  "5月",
+  "6月",
+  "7月",
+  "8月",
+  "9月",
+  "10月",
+  "11月",
+  "12月",
 ];
 
 const MINUTES = [0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55];
@@ -240,67 +240,75 @@ export function MiniCalendarGrid({
         )}
       </div>
 
-      {/* Month nav */}
-      <div className="flex items-center justify-between mb-1">
-        <button
-          onClick={prevMonth}
-          className="p-0.5 rounded hover:bg-notion-hover text-notion-text-secondary"
-        >
-          <ChevronLeft size={12} />
-        </button>
-        <span className="text-xs font-medium text-notion-text">
-          {MONTH_NAMES[viewMonth]} {viewYear}
-        </span>
-        <button
-          onClick={nextMonth}
-          className="p-0.5 rounded hover:bg-notion-hover text-notion-text-secondary"
-        >
-          <ChevronRight size={12} />
-        </button>
-      </div>
-
-      {/* Day headers */}
-      <div className="grid grid-cols-7 mb-0.5">
-        {["S", "M", "T", "W", "T", "F", "S"].map((d, i) => (
-          <div
-            key={i}
-            className="text-center text-[10px] text-notion-text-secondary aspect-square flex items-center justify-center"
-          >
-            {d}
-          </div>
-        ))}
-      </div>
-
-      {/* Days grid */}
-      <div className="grid grid-cols-7">
-        {Array.from({ length: firstDay }, (_, i) => (
-          <div key={`pad-${i}`} className="aspect-square" />
-        ))}
-        {Array.from({ length: daysInMonth }, (_, i) => {
-          const day = i + 1;
-          const key = `${viewYear}-${String(viewMonth + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
-          const isToday = key === today;
-          const isStart = key === startKey;
-          const isEnd = key === endKey;
-          const inRange = isInRange(key);
-          return (
+      {/* Calendar grid with border */}
+      <div className="p-1">
+        <div className="border border-notion-border rounded-lg overflow-hidden">
+          {/* Month nav */}
+          <div className="flex items-center justify-between px-2 py-1">
             <button
-              key={day}
-              onClick={() => handleSelectDate(day)}
-              className={`text-[10px] aspect-square flex items-center justify-center rounded transition-colors ${
-                isStart || isEnd
-                  ? "bg-notion-accent text-white"
-                  : inRange
-                    ? "bg-notion-accent/20 text-notion-accent"
-                    : isToday
-                      ? "bg-notion-accent/10 text-notion-accent font-bold"
-                      : "text-notion-text hover:bg-notion-hover"
-              }`}
+              onClick={prevMonth}
+              className="p-0.5 rounded hover:bg-notion-hover text-notion-text-secondary"
             >
-              {day}
+              <ChevronLeft size={12} />
             </button>
-          );
-        })}
+            <span className="text-xs font-medium text-notion-text">
+              {MONTH_NAMES[viewMonth]} {viewYear}
+            </span>
+            <button
+              onClick={nextMonth}
+              className="p-0.5 rounded hover:bg-notion-hover text-notion-text-secondary"
+            >
+              <ChevronRight size={12} />
+            </button>
+          </div>
+
+          {/* Day headers */}
+          <div className="grid grid-cols-7 bg-notion-calendar-header">
+            {["日", "月", "火", "水", "木", "金", "土"].map((d, i) => (
+              <div
+                key={i}
+                className="text-center text-[10px] text-notion-text-secondary aspect-square flex items-center justify-center"
+              >
+                {d}
+              </div>
+            ))}
+          </div>
+
+          {/* Days grid */}
+          <div className="grid grid-cols-7">
+            {Array.from({ length: firstDay }, (_, i) => (
+              <div
+                key={`pad-${i}`}
+                className="aspect-square border border-notion-border/30"
+              />
+            ))}
+            {Array.from({ length: daysInMonth }, (_, i) => {
+              const day = i + 1;
+              const key = `${viewYear}-${String(viewMonth + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+              const isToday = key === today;
+              const isStart = key === startKey;
+              const isEnd = key === endKey;
+              const inRange = isInRange(key);
+              return (
+                <button
+                  key={day}
+                  onClick={() => handleSelectDate(day)}
+                  className={`text-[10px] aspect-square flex items-center justify-center border border-notion-border/30 transition-colors ${
+                    isStart || isEnd
+                      ? "bg-notion-accent text-white"
+                      : inRange
+                        ? "bg-notion-accent/20 text-notion-accent"
+                        : isToday
+                          ? "bg-notion-accent/10 text-notion-accent font-bold"
+                          : "text-notion-text hover:bg-notion-hover"
+                  }`}
+                >
+                  {day}
+                </button>
+              );
+            })}
+          </div>
+        </div>
       </div>
 
       {/* Time selectors */}

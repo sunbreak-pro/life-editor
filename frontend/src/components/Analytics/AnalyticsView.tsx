@@ -9,6 +9,7 @@ import {
   TrendingUp,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { LAYOUT } from "../../constants/layout";
 import { useTaskTreeContext } from "../../hooks/useTaskTreeContext";
 import { getDataService } from "../../services";
 import type { TimerSession } from "../../types/timer";
@@ -78,8 +79,12 @@ export function AnalyticsView() {
 
   return (
     <div className="h-full flex flex-col overflow-auto">
-      <div className="max-w-3xl mx-auto w-full px-8 py-6">
-        <h2 className="text-2xl font-bold text-notion-text mb-6">
+      <div
+        className={`max-w-3xl mx-auto w-full ${LAYOUT.CONTENT_PX} ${LAYOUT.CONTENT_PT} ${LAYOUT.CONTENT_PB}`}
+      >
+        <h2
+          className={`text-2xl font-bold text-notion-text ${LAYOUT.TITLE_MB}`}
+        >
           {t("analytics.title")}
         </h2>
 

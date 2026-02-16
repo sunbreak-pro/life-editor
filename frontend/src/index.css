@@ -11,6 +11,7 @@
   --color-hover: #caecf1;
   --color-success: #0f7b6c;
   --color-danger: #e03e3e;
+  --color-calendar-header: #ffe4e6;
   --font-size-base: 16px;
 }
 
@@ -25,6 +26,7 @@
   --color-hover: #2f2f2f;
   --color-success: #4dab9a;
   --color-danger: #e06666;
+  --color-calendar-header: #3b1c1c;
 }
 
 @theme {
@@ -38,6 +40,7 @@
   --color-notion-hover: var(--color-hover);
   --color-notion-success: var(--color-success);
   --color-notion-danger: var(--color-danger);
+  --color-notion-calendar-header: var(--color-calendar-header);
   --font-sans:
     ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica,
     "Apple Color Emoji", Arial, sans-serif, "Segoe UI Emoji", "Segoe UI Symbol";

@@ -260,7 +260,6 @@
       "goToAnalytics": "分析へ移動",
       "goToSettings": "設定へ移動",
       "toggleLeftSidebar": "左サイドバーの切り替え",
-      "toggleRightSidebar": "右サイドバーの切り替え",
       "moveBetweenTasks": "タスク間の移動",
       "expandFolder": "フォルダを展開",
       "collapseFolder": "フォルダを折りたたむ",
@@ -621,6 +620,12 @@
     "showEndTime": "終了時刻",
     "clearSchedule": "スケジュールをクリア",
     "emptyState": "タスクを選択して詳細を表示"
+  },
+  "taskDetailPanel": {
+    "selectTask": "タスクを選択して詳細を表示",
+    "totalTasks": "合計: {{count}} タスク",
+    "incomplete": "未完了: {{count}}",
+    "completed": "完了: {{count}}"
   },
   "taskDetailSidebar": {
     "memo": "メモ",

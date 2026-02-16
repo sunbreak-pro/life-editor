@@ -10,6 +10,7 @@ import {
   Type,
 } from "lucide-react";
 import { SectionTabs, type TabItem } from "../shared/SectionTabs";
+import { LAYOUT } from "../../constants/layout";
 import { isMac } from "../../utils/platform";
 import { ShortcutsTab } from "./ShortcutsTab";
 import { TasksTab } from "./TasksTab";
@@ -56,8 +57,12 @@ export function Tips() {
   };
 
   return (
-    <div className="space-y-6">
-      <h2 className="text-2xl font-bold text-notion-text">{t("tips.title")}</h2>
+    <div
+      className={`h-full flex flex-col ${LAYOUT.CONTENT_PX} ${LAYOUT.CONTENT_PT} ${LAYOUT.CONTENT_PB}`}
+    >
+      <h2 className={`text-2xl font-bold text-notion-text ${LAYOUT.TITLE_MB}`}>
+        {t("tips.title")}
+      </h2>
 
       <SectionTabs
         tabs={TABS}
@@ -65,7 +70,9 @@ export function Tips() {
         onTabChange={setActiveTab}
       />
 
-      <div>{renderTab()}</div>
+      <div className={`flex-1 overflow-y-auto ${LAYOUT.TABS_MT}`}>
+        {renderTab()}
+      </div>
     </div>
   );
 }

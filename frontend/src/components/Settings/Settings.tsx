@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Settings2, Bell, Sparkles, Database, Wrench } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { SectionTabs, type TabItem } from "../shared/SectionTabs";
+import { LAYOUT } from "../../constants/layout";
 import { AppearanceSettings } from "./AppearanceSettings";
 import { LanguageSettings } from "./LanguageSettings";
 import { NotificationSettings } from "./NotificationSettings";
@@ -27,8 +28,10 @@ export function Settings() {
   const { t } = useTranslation();
 
   return (
-    <div className="h-full flex flex-col">
-      <h2 className="text-2xl font-bold text-notion-text mb-6">
+    <div
+      className={`h-full flex flex-col ${LAYOUT.CONTENT_PX} ${LAYOUT.CONTENT_PT} ${LAYOUT.CONTENT_PB}`}
+    >
+      <h2 className={`text-2xl font-bold text-notion-text ${LAYOUT.TITLE_MB}`}>
         {t("settings.title")}
       </h2>
 
@@ -38,7 +41,7 @@ export function Settings() {
         onTabChange={setActiveTab}
       />
 
-      <div className="flex-1 overflow-y-auto pr-2 mt-6">
+      <div className={`flex-1 overflow-y-auto ${LAYOUT.TABS_MT}`}>
         {activeTab === "general" && (
           <div className="space-y-8">
             <AppearanceSettings />

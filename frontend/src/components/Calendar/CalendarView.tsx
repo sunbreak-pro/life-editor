@@ -9,6 +9,7 @@ import {
   getDescendantTasks,
   collectDescendantIds,
 } from "../../utils/getDescendantTasks";
+import { LAYOUT } from "../../constants/layout";
 import { CalendarHeader } from "./CalendarHeader";
 import { TaskCreatePopover } from "./TaskCreatePopover";
 import { TaskPreviewPopup } from "./TaskPreviewPopup";
@@ -315,7 +316,9 @@ export function CalendarView({
 
   return (
     <div className="h-full flex flex-col overflow-auto">
-      <div className="max-w-5xl mx-auto w-full pt-8 pb-4 py-4 flex-1">
+      <div
+        className={`max-w-5xl mx-auto w-full ${LAYOUT.CONTENT_PX} ${LAYOUT.CONTENT_PT} ${LAYOUT.CONTENT_PB} flex-1`}
+      >
         <CalendarHeader
           year={year}
           month={month}

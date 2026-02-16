@@ -1,8 +1,7 @@
 import { useState, useRef } from "react";
 import { Layout } from "./components/Layout";
 import type { LayoutHandle } from "./components/Layout";
-import { TaskTree } from "./components/TaskTree";
-import { TaskTreeHeader } from "./components/TaskTree/TaskTreeHeader";
+import { TasksLayout } from "./components/Tasks/TasksLayout";
 import { useLocalStorage } from "./hooks/useLocalStorage";
 import { WorkScreen } from "./components/WorkScreen";
 import { SessionCompletionModal } from "./components/WorkScreen/SessionCompletionModal";
@@ -94,21 +93,13 @@ function App() {
     switch (activeSection) {
       case "tasks":
         return (
-          <div className="h-full flex flex-col">
-            <TaskTreeHeader
-              filterFolderId={filterFolderId}
-              onFilterChange={setFilterFolderId}
-            />
-            <div className="flex-1 overflow-y-auto">
-              <TaskTree
-                onPlayTask={handlers.handlePlayTask}
-                onSelectTask={setSelectedTaskId}
-                selectedTaskId={selectedTaskId}
-                filterFolderId={filterFolderId}
-                onFilterChange={setFilterFolderId}
-              />
-            </div>
-          </div>
+          <TasksLayout
+            selectedTaskId={selectedTaskId}
+            onSelectTask={setSelectedTaskId}
+            filterFolderId={filterFolderId}
+            onFilterChange={setFilterFolderId}
+            onPlayTask={handlers.handlePlayTask}
+          />
         );
       case "memo":
         return <MemoView />;
@@ -150,8 +141,6 @@ function App() {
       <Layout
         activeSection={activeSection}
         onSectionChange={setActiveSection}
-        onPlayTask={handlers.handlePlayTask}
-        selectedTaskId={selectedTaskId}
         handleRef={layoutRef}
       >
         {renderContent()}

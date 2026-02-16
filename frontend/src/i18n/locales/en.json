@@ -260,7 +260,6 @@
       "goToAnalytics": "Go to Analytics",
       "goToSettings": "Go to Settings",
       "toggleLeftSidebar": "Toggle left sidebar",
-      "toggleRightSidebar": "Toggle right sidebar",
       "moveBetweenTasks": "Move between tasks",
       "expandFolder": "Expand folder",
       "collapseFolder": "Collapse folder",
@@ -621,6 +620,12 @@
     "showEndTime": "End time",
     "clearSchedule": "Clear schedule",
     "emptyState": "Select a task to view details"
+  },
+  "taskDetailPanel": {
+    "selectTask": "Select a task to view details",
+    "totalTasks": "Total: {{count}} tasks",
+    "incomplete": "Incomplete: {{count}}",
+    "completed": "Completed: {{count}}"
   },
   "taskDetailSidebar": {
     "memo": "Memo",

@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import type { KeyboardEvent } from "react";
-import { PanelRight, Play, Clock, Calendar } from "lucide-react";
+import { Play, Clock, Calendar } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useTaskTreeContext } from "../../hooks/useTaskTreeContext";
 import { useTimerContext } from "../../hooks/useTimerContext";
@@ -11,21 +11,17 @@ import { ColorPicker } from "../shared/ColorPicker";
 import { DurationPicker } from "../shared/DurationPicker";
 import { MiniCalendarGrid } from "../shared/MiniCalendarGrid";
 import { formatDuration } from "../../utils/duration";
+import { TaskDetailEmpty } from "./TaskDetailEmpty";
 
-interface TaskDetailSidebarProps {
-  width: number;
-  onToggle: () => void;
+interface TaskDetailPanelProps {
   selectedNodeId: string | null;
   onPlayTask?: (node: TaskNode) => void;
 }
 
-export function TaskDetailSidebar({
-  width,
-  onToggle,
+export function TaskDetailPanel({
   selectedNodeId,
   onPlayTask,
-}: TaskDetailSidebarProps) {
-  const { t } = useTranslation();
+}: TaskDetailPanelProps) {
   const {
     nodes,
     updateNode,
@@ -41,27 +37,10 @@ export function TaskDetailSidebar({
     : null;
 
   return (
-    <div
-      className="h-screen bg-notion-bg-subsidebar border-l border-notion-border flex flex-col"
-      style={{ width }}
-    >
-      <div className="flex items-center justify-between px-3 py-3">
-        <span className="text-[20px] font-semibold uppercase tracking-wider text-notion-text-secondary">
-          Detail
-        </span>
-        <button
-          onClick={onToggle}
-          className="p-1 text-notion-text-secondary hover:text-notion-text rounded transition-colors"
-        >
-          <PanelRight size={18} />
-        </button>
-      </div>
-
-      <div className="flex-1 overflow-y-auto px-3 pb-4">
+    <div className="h-full flex flex-col bg-notion-bg">
+      <div className="flex-1 overflow-y-auto p-4">
         {!node ? (
-          <p className="text-sm text-notion-text-secondary mt-8 text-center">
-            {t("taskDetailSidebar.noSelection")}
-          </p>
+          <TaskDetailEmpty />
         ) : node.type === "task" ? (
           <TaskSidebarContent
             node={node}

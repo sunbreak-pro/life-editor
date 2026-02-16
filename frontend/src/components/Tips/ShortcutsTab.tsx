@@ -60,10 +60,6 @@ function getShortcutGroups(mod: string, shift: string): ShortcutGroup[] {
           keys: `${mod} + .`,
           descriptionKey: "tips.shortcutsTab.toggleLeftSidebar",
         },
-        {
-          keys: `${mod} + ${shift} + .`,
-          descriptionKey: "tips.shortcutsTab.toggleRightSidebar",
-        },
       ],
     },
     {

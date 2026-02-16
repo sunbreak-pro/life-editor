@@ -18,7 +18,6 @@ import {
   Pause,
   RotateCcw,
   PanelLeft,
-  PanelRight,
 } from "lucide-react";
 
 interface UseAppCommandsParams {
@@ -159,14 +158,6 @@ export function useAppCommands({
         shortcut: isMac ? "⌘." : "Ctrl+.",
         icon: PanelLeft,
         action: () => layoutRef.current?.toggleLeftSidebar(),
-      },
-      {
-        id: "view-right-sidebar",
-        title: "Toggle right sidebar",
-        category: "View",
-        shortcut: isMac ? "⌘⇧." : "Ctrl+Shift+.",
-        icon: PanelRight,
-        action: () => layoutRef.current?.toggleRightSidebar(),
       },
     ],
     [
