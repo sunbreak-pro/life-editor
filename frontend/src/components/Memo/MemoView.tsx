@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { BookOpen, StickyNote } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { LAYOUT } from "../../constants/layout";
 import { SectionTabs, type TabItem } from "../shared/SectionTabs";
 import { MemoDateList } from "./MemoDateList";
 import { DailyMemoView } from "./DailyMemoView";
@@ -52,18 +53,18 @@ export function MemoView() {
   );
 
   return (
-    <div className="h-full flex flex-col">
-      <h2 className="text-2xl font-bold text-notion-text mb-6 px-6 pt-4">
+    <div
+      className={`h-full flex flex-col ${LAYOUT.CONTENT_PX} ${LAYOUT.CONTENT_PT} ${LAYOUT.CONTENT_PB}`}
+    >
+      <h2 className={`text-2xl font-bold text-notion-text ${LAYOUT.TITLE_MB}`}>
         {t("memo.title")}
       </h2>
-      <div className="px-6">
-        <SectionTabs
-          tabs={MEMO_TABS}
-          activeTab={activeTab}
-          onTabChange={handleTabChange}
-        />
-      </div>
-      <div className="flex-1 overflow-hidden flex">
+      <SectionTabs
+        tabs={MEMO_TABS}
+        activeTab={activeTab}
+        onTabChange={handleTabChange}
+      />
+      <div className={`flex-1 overflow-hidden flex ${LAYOUT.TABS_MT}`}>
         {activeTab === "daily" && (
           <>
             <MemoDateList
