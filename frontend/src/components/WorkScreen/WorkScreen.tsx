@@ -1,21 +1,25 @@
 import { useCallback, useEffect, useState } from "react";
-import { CheckCircle2, SkipForward } from "lucide-react";
+import { CheckCircle2, Music, SkipForward, Timer, Clock } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useTimerContext } from "../../hooks/useTimerContext";
 import { useAudioContext } from "../../hooks/useAudioContext";
-import { useSoundTags } from "../../hooks/useSoundTags";
-import { useAudioFileUpload } from "../../hooks/useAudioFileUpload";
 import { getDataService } from "../../services";
+import { SectionTabs, type TabItem } from "../shared/SectionTabs";
 import { TimerDisplay } from "./TimerDisplay";
 import { TimerProgressBar } from "./TimerProgressBar";
-import { SoundMixer } from "./SoundMixer";
-import { AudioModeSwitch } from "./AudioModeSwitch";
-import { PlaylistPlayerBar } from "./PlaylistPlayerBar";
 import { TaskSelector } from "./TaskSelector";
 import { TodaySessionSummary } from "./TodaySessionSummary";
-import { PomodoroSettings } from "./PomodoroSettings";
-import { SoundPickerModal } from "../Music/SoundPickerModal";
+import { PomodoroSettingsPanel } from "./PomodoroSettingsPanel";
+import { WorkMusicContent } from "./WorkMusicContent";
 import { ConfirmDialog } from "../common/ConfirmDialog";
+
+type WorkTab = "timer" | "pomodoro" | "music";
+
+const WORK_TABS: readonly TabItem<WorkTab>[] = [
+  { id: "timer", labelKey: "work.tabTimer", icon: Timer },
+  { id: "pomodoro", labelKey: "work.tabPomodoro", icon: Clock },
+  { id: "music", labelKey: "work.tabMusic", icon: Music },
+];
 
 interface WorkScreenProps {
   onCompleteTask?: () => void;
@@ -25,9 +29,7 @@ export function WorkScreen({ onCompleteTask }: WorkScreenProps) {
   const { t } = useTranslation();
   const timer = useTimerContext();
   const audio = useAudioContext();
-  const soundTagState = useSoundTags();
-  const { getDisplayName } = soundTagState;
-  const [pickerOpen, setPickerOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState<WorkTab>("timer");
   const [confirmAction, setConfirmAction] = useState<"session" | "task" | null>(
     null,
   );
@@ -88,19 +90,104 @@ export function WorkScreen({ onCompleteTask }: WorkScreenProps) {
     setConfirmAction(null);
   }, [onCompleteTask]);
 
-  const handleAddCustomSound = useAudioFileUpload(audio.addSound);
+  // Compute audio status for the background sound button
+  const activeSoundCount = Object.values(audio.mixer).filter(
+    (ch) => ch.enabled,
+  ).length;
+  const activePlaylistName =
+    audio.audioMode === "playlist" && audio.playlistPlayer.activePlaylistId
+      ? audio.playlistData.playlists.find(
+          (p) => p.id === audio.playlistPlayer.activePlaylistId,
+        )?.title
+      : null;
 
   return (
     <div className="h-full flex flex-col">
       <h2 className="text-2xl font-bold text-notion-text mb-6 px-6 pt-4">
         {t("work.title")}
       </h2>
+      <div className="px-6">
+        <SectionTabs
+          tabs={WORK_TABS}
+          activeTab={activeTab}
+          onTabChange={setActiveTab}
+        />
+      </div>
 
-      {/* Header with buttons */}
-      <div className="flex items-center justify-between px-6 py-3 border-b border-notion-border">
-        <TaskSelector currentTitle={title} />
-        <div className="flex items-center gap-2">
-          <PomodoroSettings
+      <div className="flex-1 overflow-y-auto">
+        {activeTab === "timer" && (
+          <div className="h-full flex flex-col">
+            {/* Header with buttons */}
+            <div className="flex items-center justify-between px-6 py-3 border-b border-notion-border">
+              <TaskSelector currentTitle={title} />
+              <div className="flex items-center gap-2">
+                {timer.sessionType === "WORK" && (
+                  <button
+                    onClick={handleCompleteSession}
+                    className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-blue-600 hover:bg-blue-50 dark:text-blue-400 dark:hover:bg-blue-950/30 rounded-lg transition-colors"
+                  >
+                    <SkipForward size={14} />
+                    {t("work.sessionComplete")}
+                  </button>
+                )}
+                {timer.activeTask && onCompleteTask && (
+                  <button
+                    onClick={handleCompleteTask}
+                    className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-green-600 hover:bg-green-50 dark:text-green-400 dark:hover:bg-green-950/30 rounded-lg transition-colors"
+                  >
+                    <CheckCircle2 size={14} />
+                    {t("work.taskComplete")}
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Timer center */}
+            <div className="flex-1 flex flex-col items-center justify-center gap-8 px-6 py-8">
+              <TimerDisplay
+                sessionType={timer.sessionType}
+                remainingSeconds={timer.remainingSeconds}
+                isRunning={timer.isRunning}
+                completedSessions={timer.completedSessions}
+                sessionsBeforeLongBreak={timer.sessionsBeforeLongBreak}
+                formatTime={timer.formatTime}
+                onStart={timer.start}
+                onPause={timer.pause}
+                onReset={timer.reset}
+                onAdjustTime={timer.adjustRemainingSeconds}
+              />
+
+              <div className="w-full max-w-xl">
+                <TimerProgressBar progress={timer.progress} />
+              </div>
+
+              <TodaySessionSummary
+                sessions={todaySummary.sessions}
+                totalMinutes={todaySummary.totalMinutes}
+              />
+            </div>
+
+            {/* Background sound button */}
+            <div className="px-6 pb-6">
+              <div className="max-w-xl mx-auto">
+                <button
+                  onClick={() => setActiveTab("music")}
+                  className="w-full border border-dashed border-notion-border rounded-lg px-4 py-3 text-sm text-notion-text-secondary hover:border-notion-accent/50 hover:text-notion-text transition-colors flex items-center justify-center gap-2"
+                >
+                  <Music size={14} />
+                  {activePlaylistName
+                    ? t("work.playingPlaylist", { name: activePlaylistName })
+                    : activeSoundCount > 0
+                      ? t("work.soundsPlaying", { count: activeSoundCount })
+                      : t("work.setBackgroundSound")}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {activeTab === "pomodoro" && (
+          <PomodoroSettingsPanel
             workDurationMinutes={timer.workDurationMinutes}
             breakDurationMinutes={timer.breakDurationMinutes}
             longBreakDurationMinutes={timer.longBreakDurationMinutes}
@@ -113,107 +200,10 @@ export function WorkScreen({ onCompleteTask }: WorkScreenProps) {
             autoStartBreaks={timer.autoStartBreaks}
             onChangeAutoStartBreaks={timer.setAutoStartBreaks}
           />
-          {timer.sessionType === "WORK" && (
-            <button
-              onClick={handleCompleteSession}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-blue-600 hover:bg-blue-50 dark:text-blue-400 dark:hover:bg-blue-950/30 rounded-lg transition-colors"
-            >
-              <SkipForward size={14} />
-              {t("work.sessionComplete")}
-            </button>
-          )}
-          {timer.activeTask && onCompleteTask && (
-            <button
-              onClick={handleCompleteTask}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-green-600 hover:bg-green-50 dark:text-green-400 dark:hover:bg-green-950/30 rounded-lg transition-colors"
-            >
-              <CheckCircle2 size={14} />
-              {t("work.taskComplete")}
-            </button>
-          )}
-        </div>
+        )}
+
+        {activeTab === "music" && <WorkMusicContent />}
       </div>
-
-      {/* Timer center */}
-      <div className="flex-1 flex flex-col items-center justify-center gap-8 px-6 py-8">
-        <TimerDisplay
-          sessionType={timer.sessionType}
-          remainingSeconds={timer.remainingSeconds}
-          isRunning={timer.isRunning}
-          completedSessions={timer.completedSessions}
-          sessionsBeforeLongBreak={timer.sessionsBeforeLongBreak}
-          formatTime={timer.formatTime}
-          onStart={timer.start}
-          onPause={timer.pause}
-          onReset={timer.reset}
-          onAdjustTime={timer.adjustRemainingSeconds}
-        />
-
-        <div className="w-full max-w-xl">
-          <TimerProgressBar progress={timer.progress} />
-        </div>
-
-        <TodaySessionSummary
-          sessions={todaySummary.sessions}
-          totalMinutes={todaySummary.totalMinutes}
-        />
-      </div>
-
-      {/* Audio footer */}
-      <div className="px-6 pb-6">
-        <div className="max-w-xl mx-auto">
-          {/* Mode switch */}
-          <div className="flex justify-center mb-3">
-            <AudioModeSwitch
-              audioMode={audio.audioMode}
-              onSwitch={audio.switchAudioMode}
-            />
-          </div>
-
-          {/* Mixer mode */}
-          {audio.audioMode === "mixer" && (
-            <SoundMixer
-              mixer={audio.mixer}
-              onToggleSound={audio.toggleSound}
-              onSetVolume={audio.setVolume}
-              customSounds={audio.customSounds}
-              channelPositions={audio.channelPositions}
-              onSeekSound={audio.seekSound}
-              workscreenSelections={audio.workscreenSelections}
-              getDisplayName={getDisplayName}
-              onOpenPicker={() => setPickerOpen(true)}
-            />
-          )}
-
-          {/* Playlist mode */}
-          {audio.audioMode === "playlist" && (
-            <PlaylistPlayerBar
-              player={audio.playlistPlayer}
-              playlistData={audio.playlistData}
-              customSounds={audio.customSounds}
-              manualPlay={audio.manualPlay}
-              onToggleManualPlay={audio.toggleManualPlay}
-              getDisplayName={getDisplayName}
-            />
-          )}
-        </div>
-      </div>
-
-      {/* Sound Picker Modal (only for mixer mode) */}
-      {audio.audioMode === "mixer" && (
-        <SoundPickerModal
-          isOpen={pickerOpen}
-          onClose={() => setPickerOpen(false)}
-          onSelectSound={(soundId) => {
-            audio.toggleWorkscreenSelection(soundId);
-            setPickerOpen(false);
-          }}
-          excludeSoundIds={audio.workscreenSelections}
-          customSounds={audio.customSounds}
-          onAddCustomSound={handleAddCustomSound}
-          soundTagState={soundTagState}
-        />
-      )}
 
       {/* Confirm overlays */}
       {confirmAction === "session" && (
