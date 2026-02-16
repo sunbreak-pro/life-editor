@@ -1,16 +1,11 @@
 export { useAppKeyboardShortcuts } from "./useAppKeyboardShortcuts";
 export { useAudioContext } from "./useAudioContext";
-export { useAudioControl } from "./useAudioControl";
-export { useAudioEngine } from "./useAudioEngine";
-export { useAudioState } from "./useAudioState";
 export { useCalendar } from "./useCalendar";
 export { useCalendarContext } from "./useCalendarContext";
 export { useCalendars } from "./useCalendars";
 export { useClickOutside } from "./useClickOutside";
 export { useCustomSounds } from "./useCustomSounds";
 export { useDebounce } from "./useDebounce";
-export { useLocalSoundMixer } from "./useLocalSoundMixer";
-export type { SoundState, SoundMixerState } from "./useLocalSoundMixer";
 export { useLocalStorage } from "./useLocalStorage";
 export { useMemoContext } from "./useMemoContext";
 export { useMemos } from "./useMemos";
@@ -31,7 +26,6 @@ export { useTaskTreeMovement } from "./useTaskTreeMovement";
 export { useTemplates } from "./useTemplates";
 export { useTheme } from "./useTheme";
 export { useTimerContext } from "./useTimerContext";
-export { useWorkscreenSelections } from "./useWorkscreenSelections";
 
 // Re-export formatDateKey from its canonical location
 export { formatDateKey } from "../utils/dateKey";

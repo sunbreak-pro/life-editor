@@ -29,7 +29,7 @@ export function ColorPicker({
           onSelect(color);
           onClose();
         }}
-        className="w-7 h-7 rounded-full flex items-center justify-center transition-transform hover:scale-110"
+        className="w-7 h-7 rounded-full flex items-center justify-center transition-shadow hover:ring-2 hover:ring-notion-text/30"
         style={{
           backgroundColor: color,
           boxShadow: isSelected

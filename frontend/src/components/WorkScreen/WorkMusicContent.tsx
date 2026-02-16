@@ -5,6 +5,7 @@ import { SectionTabs, type TabItem } from "../shared/SectionTabs";
 import { useAudioContext } from "../../hooks/useAudioContext";
 import { useSoundTags } from "../../hooks/useSoundTags";
 import { useAudioFileUpload } from "../../hooks/useAudioFileUpload";
+import { usePreviewAudio } from "../../hooks/usePreviewAudio";
 import { SOUND_TYPES } from "../../constants/sounds";
 import { SoundTagManager } from "../Music/SoundTagManager";
 import { SoundTagFilter } from "../Music/SoundTagFilter";
@@ -23,6 +24,7 @@ export function WorkMusicContent() {
   const { t } = useTranslation();
   const audio = useAudioContext();
   const soundTagState = useSoundTags();
+  const preview = usePreviewAudio();
   const [activeTab, setActiveTab] = useState<MusicTab>("sounds");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedPlaylistId, setSelectedPlaylistId] = useState<string | null>(
@@ -110,8 +112,8 @@ export function WorkMusicContent() {
                   defaultLabel={s.label}
                   isCustom={s.isCustom}
                   soundTagState={soundTagState}
-                  toggleWorkscreenSelection={audio.toggleWorkscreenSelection}
-                  isWorkscreenSelected={audio.isWorkscreenSelected}
+                  previewingId={preview.previewingId}
+                  onTogglePreview={preview.togglePreview}
                 />
               ))}
             </div>
@@ -130,6 +132,48 @@ export function WorkMusicContent() {
               <Plus size={14} />
               {t("music.addCustomSound")}
             </button>
+
+            {/* Shared preview control */}
+            {preview.previewingId && (
+              <div className="sticky bottom-0 bg-notion-bg border-t border-notion-border p-3 mt-4 rounded-b-lg">
+                <div className="flex items-center gap-3">
+                  <span className="text-sm text-notion-text truncate flex-1">
+                    {soundTagState.getDisplayName(preview.previewingId) ||
+                      SOUND_TYPES.find((s) => s.id === preview.previewingId)
+                        ?.label ||
+                      audio.customSounds.find(
+                        (s) => s.id === preview.previewingId,
+                      )?.label ||
+                      preview.previewingId}
+                  </span>
+                  <Volume2
+                    size={14}
+                    className="text-notion-text-secondary shrink-0"
+                  />
+                  <input
+                    type="range"
+                    min={0}
+                    max={100}
+                    value={preview.volume}
+                    onChange={(e) => preview.setVolume(Number(e.target.value))}
+                    className="w-24 h-1 accent-[--color-accent] cursor-pointer"
+                  />
+                  <input
+                    type="range"
+                    min={0}
+                    max={preview.duration}
+                    step={0.1}
+                    value={preview.currentTime}
+                    onChange={(e) => preview.seekTo(Number(e.target.value))}
+                    className="w-32 h-1 accent-[--color-text-secondary] cursor-pointer"
+                  />
+                  <span className="text-[10px] text-notion-text-secondary tabular-nums shrink-0">
+                    {formatSeekTime(preview.currentTime)} /{" "}
+                    {formatSeekTime(preview.duration)}
+                  </span>
+                </div>
+              </div>
+            )}
           </div>
         )}
 
@@ -161,4 +205,10 @@ export function WorkMusicContent() {
       </div>
     </>
   );
+}
+
+function formatSeekTime(seconds: number): string {
+  const m = Math.floor(seconds / 60);
+  const s = Math.floor(seconds % 60);
+  return `${m}:${s.toString().padStart(2, "0")}`;
 }

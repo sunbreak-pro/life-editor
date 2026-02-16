@@ -12,6 +12,7 @@ import { TaskSelector } from "./TaskSelector";
 import { TodaySessionSummary } from "./TodaySessionSummary";
 import { PomodoroSettingsPanel } from "./PomodoroSettingsPanel";
 import { WorkMusicContent } from "./WorkMusicContent";
+import { PlaylistPlayerBar } from "./PlaylistPlayerBar";
 import { ConfirmDialog } from "../common/ConfirmDialog";
 
 type WorkTab = "timer" | "pomodoro" | "music";
@@ -91,17 +92,6 @@ export function WorkScreen({ onCompleteTask }: WorkScreenProps) {
     setConfirmAction(null);
   }, [onCompleteTask]);
 
-  // Compute audio status for the background sound button
-  const activeSoundCount = Object.values(audio.mixer).filter(
-    (ch) => ch.enabled,
-  ).length;
-  const activePlaylistName =
-    audio.audioMode === "playlist" && audio.playlistPlayer.activePlaylistId
-      ? audio.playlistData.playlists.find(
-          (p) => p.id === audio.playlistPlayer.activePlaylistId,
-        )?.title
-      : null;
-
   return (
     <div className="h-full flex flex-col">
       <h2
@@ -170,22 +160,38 @@ export function WorkScreen({ onCompleteTask }: WorkScreenProps) {
               />
             </div>
 
-            {/* Background sound button */}
-            <div className="px-6 pb-6">
+            {/* Playlist selector for timer */}
+            <div className="px-6 pb-4">
               <div className="max-w-xl mx-auto">
-                <button
-                  onClick={() => setActiveTab("music")}
-                  className="w-full border border-dashed border-notion-border rounded-lg px-4 py-3 text-sm text-notion-text-secondary hover:border-notion-accent/50 hover:text-notion-text transition-colors flex items-center justify-center gap-2"
+                <select
+                  value={audio.timerPlaylistId ?? ""}
+                  onChange={(e) =>
+                    audio.setTimerPlaylistId(e.target.value || null)
+                  }
+                  className="w-full px-3 py-2 text-sm rounded-lg border border-notion-border bg-notion-bg text-notion-text focus:outline-none focus:border-notion-accent"
                 >
-                  <Music size={14} />
-                  {activePlaylistName
-                    ? t("work.playingPlaylist", { name: activePlaylistName })
-                    : activeSoundCount > 0
-                      ? t("work.soundsPlaying", { count: activeSoundCount })
-                      : t("work.setBackgroundSound")}
-                </button>
+                  <option value="">{t("work.noPlaylist")}</option>
+                  {audio.playlistData.playlists.map((pl) => (
+                    <option key={pl.id} value={pl.id}>
+                      {pl.name}
+                    </option>
+                  ))}
+                </select>
               </div>
             </div>
+
+            {/* Player bar when playlist is selected */}
+            {audio.timerPlaylistId && (
+              <div className="px-6 pb-6">
+                <div className="max-w-xl mx-auto">
+                  <PlaylistPlayerBar
+                    player={audio.playlistPlayer}
+                    playlistData={audio.playlistData}
+                    customSounds={audio.customSounds}
+                  />
+                </div>
+              </div>
+            )}
           </div>
         )}
 

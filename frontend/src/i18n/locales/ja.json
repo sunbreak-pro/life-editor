@@ -124,7 +124,8 @@
     "tabPomodoro": "ポモドーロ",
     "tabMusic": "ミュージック",
     "setBackgroundSound": "バックグラウンドサウンドを設定する",
-    "soundsPlaying": "{{count}} サウンド再生中",
+    "noPlaylist": "プレイリスト未選択（無音）",
+    "backgroundPlaylist": "バックグラウンドプレイリスト",
     "playingPlaylist": "再生中: {{name}}",
     "freeSession": "フリーセッション",
     "sessionComplete": "セッション完了",
@@ -144,6 +145,7 @@
     "saveAsPreset": "現在の設定をプリセットとして保存",
     "presetName": "プリセット名",
     "deletePreset": "プリセット削除",
+    "currentConfig": "現在の設定",
     "autoStartBreaks": "休憩を自動開始",
     "todaySessions": "今日のセッション",
     "todayWorkTime": "今日の作業時間",
@@ -466,7 +468,19 @@
     "delete": "削除",
     "confirm": "確認",
     "save": "保存",
-    "close": "閉じる"
+    "close": "閉じる",
+    "comingSoon": "Coming Soon"
+  },
+  "tabs": {
+    "tasks": "Tasks",
+    "schedule": "Schedule",
+    "incomplete": "Incomplete",
+    "complete": "Complete",
+    "calendar": "Calendar",
+    "dayflow": "Dayflow",
+    "routine": "Routine",
+    "overview": "概要",
+    "detail": "詳細"
   },
   "commandPalette": {
     "placeholder": "コマンドを入力...",
@@ -479,7 +493,6 @@
     "manageTags": "タグ管理",
     "work": "ワーク",
     "rest": "レスト",
-    "noSoundsWork": "サウンドが選択されていません。追加して始めましょう。",
     "noSoundsRest": "サウンドが選択されていません。",
     "addSoundHint": "「サウンドを追加」をクリックして始めましょう。",
     "addSound": "サウンドを追加",
@@ -490,8 +503,6 @@
     "custom": "カスタム",
     "allSounds": "すべてのサウンド",
     "noSoundsAll": "検索に一致するサウンドがありません。",
-    "addToWorkscreen": "タイマーに追加",
-    "removeFromWorkscreen": "解除",
     "preview": "プレビュー",
     "stopPreview": "プレビュー停止",
     "save": "保存",
@@ -503,8 +514,6 @@
     "removeFromSlot": "削除"
   },
   "playlist": {
-    "modeMixer": "ミキサー",
-    "modePlaylist": "プレイリスト",
     "tabSounds": "サウンド",
     "tabPlaylists": "プレイリスト",
     "playlists": "プレイリスト",

@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useCallback, useMemo } from "react";
 import {
   Play,
   Pause,
@@ -22,8 +22,6 @@ interface PlaylistPlayerBarProps {
   player: PlaylistPlayerResult;
   playlistData: PlaylistDataResult;
   customSounds: CustomSoundMeta[];
-  manualPlay: boolean;
-  onToggleManualPlay: () => void;
   getDisplayName?: (soundId: string) => string | undefined;
 }
 
@@ -42,8 +40,6 @@ export function PlaylistPlayerBar({
   player,
   playlistData,
   customSounds,
-  manualPlay,
-  onToggleManualPlay,
   getDisplayName,
 }: PlaylistPlayerBarProps) {
   const { t } = useTranslation();
@@ -53,20 +49,23 @@ export function PlaylistPlayerBar({
   );
   const currentTrack = player.activePlaylistItems[player.currentTrackIndex];
 
-  const resolveTrackName = (soundId: string): string => {
-    const displayName = getDisplayName?.(soundId);
-    if (displayName) return displayName;
-    const builtIn = SOUND_TYPES.find((s) => s.id === soundId);
-    if (builtIn) return builtIn.label;
-    const custom = customSounds.find((s) => s.id === soundId);
-    if (custom) return custom.label;
-    return soundId;
-  };
+  const resolveTrackName = useCallback(
+    (soundId: string): string => {
+      const displayName = getDisplayName?.(soundId);
+      if (displayName) return displayName;
+      const builtIn = SOUND_TYPES.find((s) => s.id === soundId);
+      if (builtIn) return builtIn.label;
+      const custom = customSounds.find((s) => s.id === soundId);
+      if (custom) return custom.label;
+      return soundId;
+    },
+    [getDisplayName, customSounds],
+  );
 
   const trackName = useMemo(() => {
     if (!currentTrack) return t("playlist.noTrack");
     return resolveTrackName(currentTrack.soundId);
-  }, [currentTrack, customSounds, t, getDisplayName]);
+  }, [currentTrack, t, resolveTrackName]);
 
   const progress =
     player.duration > 0 ? (player.currentTime / player.duration) * 100 : 0;
@@ -117,21 +116,6 @@ export function PlaylistPlayerBar({
       {/* Controls */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-1">
-          {/* Manual play toggle */}
-          <button
-            onClick={onToggleManualPlay}
-            className={`p-1.5 rounded-md transition-colors ${
-              manualPlay
-                ? "text-notion-accent bg-notion-accent/10"
-                : "text-notion-text-secondary hover:text-notion-text"
-            }`}
-            title={
-              manualPlay ? t("playlist.stopManual") : t("playlist.playManual")
-            }
-          >
-            {manualPlay ? <Pause size={14} /> : <Play size={14} />}
-          </button>
-
           <button
             onClick={player.prev}
             className="p-1.5 text-notion-text-secondary hover:text-notion-text rounded-md transition-colors"

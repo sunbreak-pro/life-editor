@@ -81,163 +81,244 @@ export function PomodoroSettingsPanel({
       .catch((err) => console.warn("[Pomodoro] delete preset:", err.message));
   };
 
+  const sessionDots = Array.from(
+    { length: sessionsBeforeLongBreak },
+    (_, i) => i,
+  );
+
   return (
     <div
-      className={`max-w-md mx-auto w-full space-y-6 py-4 ${disabled ? "opacity-50 pointer-events-none" : ""}`}
+      className={`max-w-3xl mx-auto w-full grid grid-cols-1 md:grid-cols-2 gap-8 py-4 px-6 ${disabled ? "opacity-50 pointer-events-none" : ""}`}
     >
-      {/* Presets */}
-      {presets.length > 0 && (
-        <div>
-          <label className="block text-sm font-medium text-notion-text-secondary mb-1.5">
-            {t("pomodoro.presets")}
-          </label>
-          <div className="flex flex-wrap gap-1.5">
-            {presets.map((preset) => (
-              <button
-                key={preset.id}
-                onClick={() => handleApplyPreset(preset)}
-                className="group relative flex items-center gap-1 px-2.5 py-1 text-xs rounded-full bg-notion-hover text-notion-text hover:bg-notion-accent/10 hover:text-notion-accent transition-colors"
-              >
-                <span>{preset.name}</span>
-                <button
-                  onClick={(e) => handleDeletePreset(preset.id, e)}
-                  className="opacity-0 group-hover:opacity-100 ml-0.5 text-notion-text-secondary hover:text-notion-danger transition-all"
-                >
-                  <X size={10} />
-                </button>
-              </button>
-            ))}
+      {/* Left column: Current config summary */}
+      <div className="space-y-4">
+        <h3 className="text-sm font-medium text-notion-text-secondary uppercase tracking-wider">
+          {t("pomodoro.currentConfig")}
+        </h3>
+
+        <div className="space-y-3">
+          <div className="flex items-baseline justify-between">
+            <span className="text-sm text-notion-text-secondary">
+              {t("timer.work")}
+            </span>
+            <span className="text-2xl font-bold tabular-nums text-notion-text">
+              {workDurationMinutes}
+              <span className="text-sm font-normal text-notion-text-secondary ml-1">
+                min
+              </span>
+            </span>
+          </div>
+
+          <div className="flex items-baseline justify-between">
+            <span className="text-sm text-notion-text-secondary">
+              {t("timer.rest")}
+            </span>
+            <span className="text-lg font-semibold tabular-nums text-notion-text">
+              {breakDurationMinutes}
+              <span className="text-sm font-normal text-notion-text-secondary ml-1">
+                min
+              </span>
+            </span>
+          </div>
+
+          <div className="flex items-baseline justify-between">
+            <span className="text-sm text-notion-text-secondary">
+              {t("timer.longRest")}
+            </span>
+            <span className="text-lg font-semibold tabular-nums text-notion-text">
+              {longBreakDurationMinutes}
+              <span className="text-sm font-normal text-notion-text-secondary ml-1">
+                min
+              </span>
+            </span>
+          </div>
+
+          <div className="flex items-center justify-between">
+            <span className="text-sm text-notion-text-secondary">
+              {t("pomodoro.sessionsPerSet")}
+            </span>
+            <div className="flex items-center gap-1">
+              {sessionDots.map((i) => (
+                <span
+                  key={i}
+                  className="w-2.5 h-2.5 rounded-full bg-notion-accent"
+                />
+              ))}
+              <span className="text-sm text-notion-text-secondary ml-1.5">
+                {sessionsBeforeLongBreak}
+              </span>
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between">
+            <span className="text-sm text-notion-text-secondary">
+              {t("pomodoro.autoStartBreaks")}
+            </span>
+            <span
+              className={`text-sm font-medium ${autoStartBreaks ? "text-notion-accent" : "text-notion-text-secondary"}`}
+            >
+              {autoStartBreaks ? "ON" : "OFF"}
+            </span>
           </div>
         </div>
-      )}
-
-      <div>
-        <label className="block text-sm font-medium text-notion-text-secondary mb-1">
-          {t("pomodoro.workDuration")}
-        </label>
-        <DurationPicker
-          value={workDurationMinutes}
-          onChange={onChangeWorkDuration}
-          disabled={disabled}
-          presets={[25, 30, 45, 55, 60]}
-          min={5}
-          max={240}
-        />
       </div>
 
-      <div>
-        <label className="block text-sm font-medium text-notion-text-secondary mb-1">
-          {t("pomodoro.breakDuration")}
-        </label>
-        <DurationPicker
-          value={breakDurationMinutes}
-          onChange={onChangeBreakDuration}
-          disabled={disabled}
-          presets={[5, 10, 15, 20, 30]}
-          min={5}
-          max={60}
-        />
-      </div>
+      {/* Right column: Settings controls */}
+      <div className="space-y-5">
+        {/* Presets */}
+        {presets.length > 0 && (
+          <div>
+            <label className="block text-sm font-medium text-notion-text-secondary mb-1.5">
+              {t("pomodoro.presets")}
+            </label>
+            <div className="flex flex-wrap gap-1.5">
+              {presets.map((preset) => (
+                <button
+                  key={preset.id}
+                  onClick={() => handleApplyPreset(preset)}
+                  className="group relative flex items-center gap-1 px-2.5 py-1 text-xs rounded-full bg-notion-hover text-notion-text hover:bg-notion-accent/10 hover:text-notion-accent transition-colors"
+                >
+                  <span>{preset.name}</span>
+                  <button
+                    onClick={(e) => handleDeletePreset(preset.id, e)}
+                    className="opacity-0 group-hover:opacity-100 ml-0.5 text-notion-text-secondary hover:text-notion-danger transition-all"
+                  >
+                    <X size={10} />
+                  </button>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
 
-      <div>
-        <label className="block text-sm font-medium text-notion-text-secondary mb-1">
-          {t("pomodoro.longBreakDuration")}
-        </label>
-        <DurationPicker
-          value={longBreakDurationMinutes}
-          onChange={onChangeLongBreakDuration}
-          disabled={disabled}
-          presets={[10, 30, 60, 90, 120]}
-          min={5}
-          max={120}
-        />
-      </div>
-
-      <div>
-        <label className="block text-sm font-medium text-notion-text-secondary mb-1">
-          {t("pomodoro.sessionsPerSet")}
-        </label>
-        <div className="flex items-center justify-center gap-3">
-          <button
-            onClick={() =>
-              onChangeSessionsBeforeLongBreak(sessionsBeforeLongBreak - 1)
-            }
-            disabled={disabled || sessionsBeforeLongBreak <= 1}
-            className="p-1 rounded-md text-notion-text-secondary hover:text-notion-text hover:bg-notion-hover transition-colors disabled:opacity-30"
-          >
-            <Minus size={14} />
-          </button>
-          <span className="text-sm font-mono tabular-nums text-notion-text w-6 text-center">
-            {sessionsBeforeLongBreak}
-          </span>
-          <button
-            onClick={() =>
-              onChangeSessionsBeforeLongBreak(sessionsBeforeLongBreak + 1)
-            }
-            disabled={disabled || sessionsBeforeLongBreak >= 20}
-            className="p-1 rounded-md text-notion-text-secondary hover:text-notion-text hover:bg-notion-hover transition-colors disabled:opacity-30"
-          >
-            <Plus size={14} />
-          </button>
+        <div>
+          <label className="block text-sm font-medium text-notion-text-secondary mb-1">
+            {t("pomodoro.workDuration")}
+          </label>
+          <DurationPicker
+            value={workDurationMinutes}
+            onChange={onChangeWorkDuration}
+            disabled={disabled}
+            presets={[25, 30, 45, 55, 60]}
+            min={5}
+            max={240}
+          />
         </div>
-      </div>
 
-      {/* Auto-start breaks toggle */}
-      <div className="flex items-center justify-between">
-        <label className="text-sm text-notion-text-secondary">
-          {t("pomodoro.autoStartBreaks")}
-        </label>
-        <button
-          onClick={() => onChangeAutoStartBreaks(!autoStartBreaks)}
-          className={`relative w-9 h-5 rounded-full transition-colors ${
-            autoStartBreaks ? "bg-notion-accent" : "bg-notion-border"
-          }`}
-        >
-          <span
-            className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full transition-transform ${
-              autoStartBreaks ? "translate-x-4" : ""
+        <div>
+          <label className="block text-sm font-medium text-notion-text-secondary mb-1">
+            {t("pomodoro.breakDuration")}
+          </label>
+          <DurationPicker
+            value={breakDurationMinutes}
+            onChange={onChangeBreakDuration}
+            disabled={disabled}
+            presets={[5, 10, 15, 20, 30]}
+            min={5}
+            max={60}
+          />
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-notion-text-secondary mb-1">
+            {t("pomodoro.longBreakDuration")}
+          </label>
+          <DurationPicker
+            value={longBreakDurationMinutes}
+            onChange={onChangeLongBreakDuration}
+            disabled={disabled}
+            presets={[10, 30, 60, 90, 120]}
+            min={5}
+            max={120}
+          />
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-notion-text-secondary mb-1">
+            {t("pomodoro.sessionsPerSet")}
+          </label>
+          <div className="flex items-center justify-center gap-3">
+            <button
+              onClick={() =>
+                onChangeSessionsBeforeLongBreak(sessionsBeforeLongBreak - 1)
+              }
+              disabled={disabled || sessionsBeforeLongBreak <= 1}
+              className="p-1 rounded-md text-notion-text-secondary hover:text-notion-text hover:bg-notion-hover transition-colors disabled:opacity-30"
+            >
+              <Minus size={14} />
+            </button>
+            <span className="text-sm font-mono tabular-nums text-notion-text w-6 text-center">
+              {sessionsBeforeLongBreak}
+            </span>
+            <button
+              onClick={() =>
+                onChangeSessionsBeforeLongBreak(sessionsBeforeLongBreak + 1)
+              }
+              disabled={disabled || sessionsBeforeLongBreak >= 20}
+              className="p-1 rounded-md text-notion-text-secondary hover:text-notion-text hover:bg-notion-hover transition-colors disabled:opacity-30"
+            >
+              <Plus size={14} />
+            </button>
+          </div>
+        </div>
+
+        {/* Auto-start breaks toggle */}
+        <div className="flex items-center justify-between">
+          <label className="text-sm text-notion-text-secondary">
+            {t("pomodoro.autoStartBreaks")}
+          </label>
+          <button
+            onClick={() => onChangeAutoStartBreaks(!autoStartBreaks)}
+            className={`relative w-9 h-5 rounded-full transition-colors ${
+              autoStartBreaks ? "bg-notion-accent" : "bg-notion-border"
             }`}
-          />
-        </button>
-      </div>
-
-      {/* Save as preset */}
-      {showSaveInput ? (
-        <div className="flex items-center gap-1.5">
-          <input
-            type="text"
-            value={presetName}
-            onChange={(e) => setPresetName(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") handleSavePreset();
-              if (e.key === "Escape") setShowSaveInput(false);
-            }}
-            placeholder={t("pomodoro.presetName")}
-            className="flex-1 text-xs px-2 py-1.5 rounded bg-notion-bg border border-notion-border text-notion-text placeholder-notion-text-secondary"
-            autoFocus
-          />
-          <button
-            onClick={handleSavePreset}
-            className="p-1.5 rounded text-notion-accent hover:bg-notion-accent/10"
           >
-            <Save size={14} />
-          </button>
-          <button
-            onClick={() => setShowSaveInput(false)}
-            className="p-1.5 rounded text-notion-text-secondary hover:bg-notion-hover"
-          >
-            <X size={14} />
+            <span
+              className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full transition-transform ${
+                autoStartBreaks ? "translate-x-4" : ""
+              }`}
+            />
           </button>
         </div>
-      ) : (
-        <button
-          onClick={() => setShowSaveInput(true)}
-          className="flex items-center gap-1.5 text-xs text-notion-text-secondary hover:text-notion-accent transition-colors"
-        >
-          <Save size={12} />
-          {t("pomodoro.saveAsPreset")}
-        </button>
-      )}
+
+        {/* Save as preset */}
+        {showSaveInput ? (
+          <div className="flex items-center gap-1.5">
+            <input
+              type="text"
+              value={presetName}
+              onChange={(e) => setPresetName(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") handleSavePreset();
+                if (e.key === "Escape") setShowSaveInput(false);
+              }}
+              placeholder={t("pomodoro.presetName")}
+              className="flex-1 text-xs px-2 py-1.5 rounded bg-notion-bg border border-notion-border text-notion-text placeholder-notion-text-secondary"
+              autoFocus
+            />
+            <button
+              onClick={handleSavePreset}
+              className="p-1.5 rounded text-notion-accent hover:bg-notion-accent/10"
+            >
+              <Save size={14} />
+            </button>
+            <button
+              onClick={() => setShowSaveInput(false)}
+              className="p-1.5 rounded text-notion-text-secondary hover:bg-notion-hover"
+            >
+              <X size={14} />
+            </button>
+          </div>
+        ) : (
+          <button
+            onClick={() => setShowSaveInput(true)}
+            className="flex items-center gap-1.5 text-xs text-notion-text-secondary hover:text-notion-accent transition-colors"
+          >
+            <Save size={12} />
+            {t("pomodoro.saveAsPreset")}
+          </button>
+        )}
+      </div>
     </div>
   );
 }

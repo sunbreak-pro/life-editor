@@ -16,4 +16,3 @@ export interface PlaylistItem {
 }
 
 export type RepeatMode = "off" | "one" | "all";
-export type AudioMode = "mixer" | "playlist";

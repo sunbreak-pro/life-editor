@@ -124,7 +124,8 @@
     "tabPomodoro": "Pomodoro",
     "tabMusic": "Music",
     "setBackgroundSound": "Set Background Sound",
-    "soundsPlaying": "{{count}} sounds playing",
+    "noPlaylist": "No playlist (silent)",
+    "backgroundPlaylist": "Background Playlist",
     "playingPlaylist": "Playing: {{name}}",
     "freeSession": "Free Session",
     "sessionComplete": "Session Complete",
@@ -144,6 +145,7 @@
     "saveAsPreset": "Save current as preset",
     "presetName": "Preset name",
     "deletePreset": "Delete preset",
+    "currentConfig": "Current Config",
     "autoStartBreaks": "Auto-start breaks",
     "todaySessions": "Today's sessions",
     "todayWorkTime": "Today's work time",
@@ -466,7 +468,19 @@
     "delete": "Delete",
     "confirm": "Confirm",
     "save": "Save",
-    "close": "Close"
+    "close": "Close",
+    "comingSoon": "Coming Soon"
+  },
+  "tabs": {
+    "tasks": "Tasks",
+    "schedule": "Schedule",
+    "incomplete": "Incomplete",
+    "complete": "Complete",
+    "calendar": "Calendar",
+    "dayflow": "Dayflow",
+    "routine": "Routine",
+    "overview": "Overview",
+    "detail": "Detail"
   },
   "commandPalette": {
     "placeholder": "Type a command...",
@@ -479,7 +493,6 @@
     "manageTags": "Manage tags",
     "work": "Work",
     "rest": "Rest",
-    "noSoundsWork": "No sounds selected. Add sounds to get started.",
     "noSoundsRest": "No sounds selected.",
     "addSoundHint": "Click \"Add Sound\" to get started.",
     "addSound": "Add Sound",
@@ -490,8 +503,6 @@
     "custom": "Custom",
     "allSounds": "All Sounds",
     "noSoundsAll": "No sounds match your search.",
-    "addToWorkscreen": "Add to Timer",
-    "removeFromWorkscreen": "Remove",
     "preview": "Preview",
     "stopPreview": "Stop Preview",
     "save": "Save",
@@ -503,8 +514,6 @@
     "removeFromSlot": "Remove"
   },
   "playlist": {
-    "modeMixer": "Mixer",
-    "modePlaylist": "Playlist",
     "tabSounds": "Sounds",
     "tabPlaylists": "Playlists",
     "playlists": "Playlists",
