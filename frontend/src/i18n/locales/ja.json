@@ -526,14 +526,14 @@
     "title": "Tasks"
   },
   "tabs": {
-    "taskTree": "Tasktree",
-    "tasks": "Tasks",
-    "schedule": "Schedule",
-    "incomplete": "Incomplete",
-    "complete": "Complete",
-    "calendar": "Calendar",
-    "dayflow": "Dayflow",
-    "routine": "Routine",
+    "taskTree": "タスクツリー",
+    "tasks": "タスク",
+    "schedule": "スケジュール",
+    "incomplete": "未完了",
+    "complete": "完了",
+    "calendar": "カレンダー",
+    "dayflow": "デイフロー",
+    "routine": "ルーティン",
     "overview": "概要",
     "detail": "詳細"
   },
@@ -566,10 +566,18 @@
     "disable": "無効化",
     "enable": "有効化",
     "editName": "名前を編集",
-    "removeFromSlot": "削除"
+    "removeFromSlot": "削除",
+    "untaggedSounds": "サウンド",
+    "taggedSounds": "タグ付きサウンド",
+    "searchByName": "名前で検索...",
+    "searchByNameOrTag": "名前/タグで検索...",
+    "noTaggedSounds": "タグ付きサウンドはまだありません。",
+    "sortDefault": "デフォルト",
+    "sortName": "名前順",
+    "sortCustomFirst": "カスタム優先"
   },
   "playlist": {
-    "tabSounds": "サウンド",
+    "tabSounds": "サウンド管理",
     "tabPlaylists": "プレイリスト",
     "playlists": "プレイリスト",
     "create": "新規",
@@ -583,7 +591,8 @@
     "shuffle": "シャッフル",
     "repeat": "リピート",
     "playManual": "再生",
-    "stopManual": "停止"
+    "stopManual": "停止",
+    "removeFromPlaylist": "プレイリストから除去"
   },
   "notes": {
     "title": "ノート",
