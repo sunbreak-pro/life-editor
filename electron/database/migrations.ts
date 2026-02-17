@@ -713,27 +713,44 @@ function migrateV18(db: Database.Database): void {
   `);
 }
 
+function hasColumn(
+  db: Database.Database,
+  table: string,
+  column: string,
+): boolean {
+  const cols = db.pragma(`table_info(${table})`) as { name: string }[];
+  return cols.some((c) => c.name === column);
+}
+
 function migrateV19(db: Database.Database): void {
   const migrate = db.transaction(() => {
     db.exec(`
-      CREATE TABLE routine_tag_definitions (
+      CREATE TABLE IF NOT EXISTS routine_tag_definitions (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         name TEXT NOT NULL UNIQUE,
         color TEXT NOT NULL DEFAULT '#808080',
         "order" INTEGER NOT NULL DEFAULT 0
       );
 
-      INSERT INTO routine_tag_definitions (name, color, "order") VALUES
+      INSERT OR IGNORE INTO routine_tag_definitions (name, color, "order") VALUES
         ('Morning', '#D9730D', 0),
         ('Afternoon', '#2EAADC', 1),
         ('Night', '#6940A5', 2);
-
-      ALTER TABLE routines ADD COLUMN tag_id INTEGER
-        REFERENCES routine_tag_definitions(id) ON DELETE SET NULL;
-
-      ALTER TABLE routine_templates ADD COLUMN tag_id INTEGER
-        REFERENCES routine_tag_definitions(id) ON DELETE SET NULL;
     `);
+
+    if (!hasColumn(db, "routines", "tag_id")) {
+      db.exec(`
+        ALTER TABLE routines ADD COLUMN tag_id INTEGER
+          REFERENCES routine_tag_definitions(id) ON DELETE SET NULL;
+      `);
+    }
+
+    if (!hasColumn(db, "routine_templates", "tag_id")) {
+      db.exec(`
+        ALTER TABLE routine_templates ADD COLUMN tag_id INTEGER
+          REFERENCES routine_tag_definitions(id) ON DELETE SET NULL;
+      `);
+    }
   });
   migrate();
   db.pragma("user_version = 19");

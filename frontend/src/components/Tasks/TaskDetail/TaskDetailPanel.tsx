@@ -240,6 +240,7 @@ function TaskSidebarContent({
             startValue={node.scheduledAt}
             endValue={node.scheduledEndAt}
             isAllDay={node.isAllDay}
+            controlsPosition="right"
             onStartChange={(val) => {
               if (val === undefined) {
                 updateNode(node.id, {
@@ -354,6 +355,7 @@ function FolderSidebarContent({ node, updateNode }: FolderSidebarContentProps) {
             startValue={node.scheduledAt}
             endValue={node.scheduledEndAt}
             isAllDay={node.isAllDay}
+            controlsPosition="right"
             onStartChange={(val) => {
               if (val === undefined) {
                 updateNode(node.id, {

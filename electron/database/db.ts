@@ -59,6 +59,54 @@ export function getDatabase(): Database.Database {
     `);
   }
 
+  // Verify V19 migration tables exist (routine_tag_definitions)
+  const routineTagTableExists = db
+    .prepare(
+      `SELECT 1 FROM sqlite_master WHERE type='table' AND name='routine_tag_definitions'`,
+    )
+    .get();
+  if (!routineTagTableExists) {
+    log.error(
+      "[DB] routine_tag_definitions table not found after migration — attempting V19 re-run",
+    );
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS routine_tag_definitions (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL UNIQUE,
+        color TEXT NOT NULL DEFAULT '#808080',
+        "order" INTEGER NOT NULL DEFAULT 0
+      );
+
+      INSERT OR IGNORE INTO routine_tag_definitions (name, color, "order") VALUES
+        ('Morning', '#D9730D', 0),
+        ('Afternoon', '#2EAADC', 1),
+        ('Night', '#6940A5', 2);
+    `);
+
+    // Add tag_id columns if missing
+    const routineCols = db.pragma("table_info(routines)") as {
+      name: string;
+    }[];
+    if (!routineCols.some((c) => c.name === "tag_id")) {
+      db.exec(`
+        ALTER TABLE routines ADD COLUMN tag_id INTEGER
+          REFERENCES routine_tag_definitions(id) ON DELETE SET NULL;
+      `);
+    }
+
+    const templateCols = db.pragma("table_info(routine_templates)") as {
+      name: string;
+    }[];
+    if (!templateCols.some((c) => c.name === "tag_id")) {
+      db.exec(`
+        ALTER TABLE routine_templates ADD COLUMN tag_id INTEGER
+          REFERENCES routine_tag_definitions(id) ON DELETE SET NULL;
+      `);
+    }
+
+    db.pragma("user_version = 19");
+  }
+
   log.info("[DB] Database initialized successfully");
 
   return db;

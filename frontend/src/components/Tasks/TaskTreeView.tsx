@@ -20,7 +20,7 @@ export function TaskTreeView({
 }: TaskTreeViewProps) {
   return (
     <div className="h-full flex min-h-0">
-      <div className="w-1/2 min-w-[300px] flex flex-col border-r border-notion-border">
+      <div className="w-1/2 min-w-75 flex flex-col border-r border-notion-border">
         <TaskTreeHeader
           filterFolderId={filterFolderId}
           onFilterChange={onFilterChange}
@@ -35,7 +35,7 @@ export function TaskTreeView({
           />
         </div>
       </div>
-      <div className="flex-1 min-w-[280px] overflow-y-auto">
+      <div className="flex-1 min-w-100 overflow-y-auto">
         <TaskDetailPanel
           selectedNodeId={selectedTaskId}
           onPlayTask={onPlayTask}

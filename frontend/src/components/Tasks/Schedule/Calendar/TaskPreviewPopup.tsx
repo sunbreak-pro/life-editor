@@ -43,7 +43,7 @@ export function TaskPreviewPopup({
     <>
       <div
         ref={ref}
-        className="fixed z-50 w-[260px] bg-notion-bg border border-notion-border rounded-lg shadow-xl"
+        className="fixed z-50 w-64 bg-notion-bg border border-notion-border rounded-lg shadow-xl"
         style={{ left, top }}
       >
         <div className="p-3 space-y-2">

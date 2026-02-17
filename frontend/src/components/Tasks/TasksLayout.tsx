@@ -74,6 +74,7 @@ export function TasksLayout({
     createRoutineTag,
     updateRoutineTag,
     deleteRoutineTag,
+    refreshRoutineStats,
   } = useScheduleContext();
 
   return (
@@ -124,6 +125,7 @@ export function TasksLayout({
             onCreateRoutineTag={createRoutineTag}
             onUpdateRoutineTag={updateRoutineTag}
             onDeleteRoutineTag={deleteRoutineTag}
+            refreshRoutineStats={refreshRoutineStats}
           />
         )}
       </div>

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Plus, Pencil, Trash2, Archive, Tag } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import type { RoutineNode } from "../../../../types/routine";
@@ -76,6 +76,7 @@ interface RoutinesTabProps {
     updates: Partial<Pick<RoutineTag, "name" | "color">>,
   ) => void;
   onDeleteRoutineTag: (id: number) => void;
+  refreshRoutineStats: (routines: RoutineNode[]) => void;
 }
 
 export function RoutinesTab({
@@ -98,6 +99,7 @@ export function RoutinesTab({
   onCreateRoutineTag,
   onUpdateRoutineTag,
   onDeleteRoutineTag,
+  refreshRoutineStats,
 }: RoutinesTabProps) {
   const { t } = useTranslation();
   const [editDialog, setEditDialog] = useState<RoutineNode | "new" | null>(
@@ -105,6 +107,12 @@ export function RoutinesTab({
   );
   const [showDetails, setShowDetails] = useState(false);
   const [showTagManager, setShowTagManager] = useState(false);
+
+  useEffect(() => {
+    if (routines.length > 0) {
+      refreshRoutineStats(routines);
+    }
+  }, [routines, refreshRoutineStats]);
 
   const activeRoutines = routines
     .filter((r) => !r.isArchived)
