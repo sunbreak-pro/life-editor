@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import { useMemoContext } from "../../hooks/useMemoContext";
 import { formatDateTime } from "../../utils/formatRelativeDate";
 import { formatDateHeading } from "../../utils/dateKey";
-import { LazyMemoEditor as MemoEditor } from "../TaskDetail/LazyMemoEditor";
+import { LazyMemoEditor as MemoEditor } from "../Tasks/TaskDetail/LazyMemoEditor";
 
 export function DailyMemoView() {
   const { selectedDate, selectedMemo, upsertMemo } = useMemoContext();

@@ -1,7 +1,7 @@
 import type { TaskNode } from "../../types/taskTree";
-import { TaskTree } from "../TaskTree";
-import { TaskTreeHeader } from "../TaskTree/TaskTreeHeader";
-import { TaskDetailPanel } from "../TaskDetail/TaskDetailPanel";
+import { TaskTree } from "./TaskTree";
+import { TaskTreeHeader } from "./TaskTree/TaskTreeHeader";
+import { TaskDetailPanel } from "./TaskDetail/TaskDetailPanel";
 
 interface TaskTreeViewProps {
   selectedTaskId: string | null;

@@ -1,9 +1,9 @@
 import { useState } from "react";
 import type { TabItem } from "../shared/SectionTabs";
 import { SectionTabs } from "../shared/SectionTabs";
-import { CalendarView } from "../Calendar/CalendarView";
-import { OneDaySchedule } from "../Schedule/OneDaySchedule";
-import { RoutinesTab } from "../Schedule/RoutinesTab";
+import { CalendarView } from "./Schedule/Calendar/CalendarView";
+import { OneDaySchedule } from "./Schedule/DayFlow/OneDaySchedule";
+import { RoutinesTab } from "./Schedule/Routine/RoutinesTab";
 import { useScheduleContext } from "../../hooks/useScheduleContext";
 import { useTaskTreeContext } from "../../hooks/useTaskTreeContext";
 import { useCalendar } from "../../hooks/useCalendar";

@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Download, Upload, Trash2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { getDataService } from "../../services";
-import { ConfirmDialog } from "../common/ConfirmDialog";
+import { ConfirmDialog } from "../shared/ConfirmDialog";
 
 export function DataManagement() {
   const { t } = useTranslation();

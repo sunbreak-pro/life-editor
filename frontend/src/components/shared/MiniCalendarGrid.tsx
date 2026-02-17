@@ -176,47 +176,9 @@ export function MiniCalendarGrid({
   };
 
   return (
-    <div>
-      {/* Controls */}
-      <div className="flex items-center justify-between mb-2">
-        <div className="flex items-center gap-3">
-          <label className="flex items-center gap-1.5 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={hasEndDate}
-              onChange={(e) => handleToggleEndDate(e.target.checked)}
-              disabled={!!isAllDay}
-              className="w-3 h-3 rounded accent-notion-accent"
-            />
-            <span className="text-[10px] text-notion-text-secondary">
-              {t("taskDetail.showEndTime")}
-            </span>
-          </label>
-          <label className="flex items-center gap-1.5 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={!!isAllDay}
-              onChange={(e) => onAllDayChange(e.target.checked)}
-              className="w-3 h-3 rounded accent-notion-accent"
-            />
-            <span className="text-[10px] text-notion-text-secondary">
-              {t("taskDetail.allDay")}
-            </span>
-          </label>
-        </div>
-        {startValue && (
-          <button
-            onClick={handleClear}
-            className="flex items-center gap-0.5 text-[10px] text-notion-text-secondary hover:text-notion-danger transition-colors"
-          >
-            <X size={10} />
-            <span>{t("taskDetail.clearSchedule")}</span>
-          </button>
-        )}
-      </div>
-
+    <div className="flex flex-row px-4 py-2 items-center justify-around">
       {/* Calendar grid with border */}
-      <div className="p-1">
+      <div className="p-0 w-55">
         <div className="border border-notion-border rounded-lg overflow-hidden">
           {/* Month nav */}
           <div className="flex items-center justify-between px-2 py-1 bg-notion-text-secondary/20">
@@ -242,7 +204,7 @@ export function MiniCalendarGrid({
             {["日", "月", "火", "水", "木", "金", "土"].map((d, i) => (
               <div
                 key={i}
-                className="text-center text-[10px] text-notion-text font-bold aspect-square flex items-center justify-center"
+                className="text-center text-[10px] text-notion-text font-bold  flex items-center justify-center"
               >
                 {d}
               </div>
@@ -275,7 +237,7 @@ export function MiniCalendarGrid({
                         ? "bg-notion-accent/20 text-notion-accent"
                         : isToday
                           ? "bg-notion-accent/10 text-notion-accent font-bold"
-                          : "text-notion-text hover:bg-notion-hover"
+                          : "text-notion-text hover:bg-notion-hover "
                   }`}
                 >
                   {day}
@@ -287,45 +249,83 @@ export function MiniCalendarGrid({
       </div>
 
       {/* Time selectors */}
-      {!isAllDay && (
-        <div className="flex flex-row justify-between mt-2 pt-2 border-t border-notion-border space-y-1.5">
+      <div className="flex flex-col">
+        {/* Controls */}
+        <div className="flex items-center justify-between gap-2 mb-2">
           <div className="flex items-center gap-3">
-            <span className="text-xs mx-0.5 font-bold">開始： </span>
-            <DateInput
-              year={startDate.getFullYear()}
-              month={startDate.getMonth() + 1}
-              day={startDate.getDate()}
-              onChange={handleStartDateInput}
-              size="sm"
-            />
-
-            <TimeInput
-              hour={startHour}
-              minute={startMinute}
-              onChange={handleStartTimeChange}
-              size="sm"
-            />
+            <label className="flex items-center gap-1.5 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={hasEndDate}
+                onChange={(e) => handleToggleEndDate(e.target.checked)}
+                disabled={!!isAllDay}
+                className="w-3 h-3 rounded accent-notion-accent"
+              />
+              <span className="text-[10px] text-notion-text-secondary">
+                {t("taskDetail.showEndTime")}
+              </span>
+            </label>
+            <label className="flex items-center gap-1.5 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={!!isAllDay}
+                onChange={(e) => onAllDayChange(e.target.checked)}
+                className="w-3 h-3 rounded accent-notion-accent"
+              />
+              <span className="text-[10px] text-notion-text-secondary">
+                {t("taskDetail.allDay")}
+              </span>
+            </label>
           </div>
-          {hasEndDate && endDate && (
-            <div className="flex items-center gap-3">
-              <span className="text-xs font-bold">終了：</span>
+          {startValue && (
+            <button
+              onClick={handleClear}
+              className="flex items-center gap-0.5 text-[10px] text-notion-text-secondary hover:text-notion-danger transition-colors"
+            >
+              <X size={10} />
+              <span>{t("taskDetail.clearSchedule")}</span>
+            </button>
+          )}
+        </div>
+        {!isAllDay && (
+          <div className="flex flex-col items-center mt-2 pt-2 border-b border-notion-border space-y-1.5">
+            <div className="flex items-center gap-3 mb-2">
+              <span className="text-xs mx-0.5 font-bold">開始： </span>
               <DateInput
-                year={endDate.getFullYear()}
-                month={endDate.getMonth() + 1}
-                day={endDate.getDate()}
-                onChange={handleEndDateInput}
+                year={startDate.getFullYear()}
+                month={startDate.getMonth() + 1}
+                day={startDate.getDate()}
+                onChange={handleStartDateInput}
                 size="sm"
               />
               <TimeInput
-                hour={endHour}
-                minute={endMinute}
-                onChange={handleEndTimeChange}
+                hour={startHour}
+                minute={startMinute}
+                onChange={handleStartTimeChange}
                 size="sm"
               />
             </div>
-          )}
-        </div>
-      )}
+            {hasEndDate && endDate && (
+              <div className="flex items-center gap-3 mb-2">
+                <span className="text-xs font-bold">終了：</span>
+                <DateInput
+                  year={endDate.getFullYear()}
+                  month={endDate.getMonth() + 1}
+                  day={endDate.getDate()}
+                  onChange={handleEndDateInput}
+                  size="sm"
+                />
+                <TimeInput
+                  hour={endHour}
+                  minute={endMinute}
+                  onChange={handleEndTimeChange}
+                  size="sm"
+                />
+              </div>
+            )}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

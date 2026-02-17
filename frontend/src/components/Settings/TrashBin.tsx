@@ -3,7 +3,7 @@ import { RotateCcw, Trash2, Folder, FileText, StickyNote } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useTaskTreeContext } from "../../hooks/useTaskTreeContext";
 import { useNoteContext } from "../../hooks/useNoteContext";
-import { ConfirmDialog } from "../common/ConfirmDialog";
+import { ConfirmDialog } from "../shared/ConfirmDialog";
 
 export function TrashBin() {
   const { t } = useTranslation();

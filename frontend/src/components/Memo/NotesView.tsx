@@ -3,7 +3,7 @@ import { Pin, PinOff, StickyNote } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useNoteContext } from "../../hooks/useNoteContext";
 import { formatDateTime } from "../../utils/formatRelativeDate";
-import { LazyMemoEditor as MemoEditor } from "../TaskDetail/LazyMemoEditor";
+import { LazyMemoEditor as MemoEditor } from "../Tasks/TaskDetail/LazyMemoEditor";
 
 export function NotesView() {
   const { t } = useTranslation();
