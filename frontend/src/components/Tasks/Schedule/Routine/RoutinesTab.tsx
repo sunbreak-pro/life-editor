@@ -171,7 +171,7 @@ export function RoutinesTab({
           {/* Routines CRUD */}
           <div className="min-w-0">
             <div className="flex items-center justify-between mb-2">
-              <span className="text-[10px] text-notion-text-secondary uppercase tracking-wide font-medium">
+              <span className="text-[11px] text-notion-text-secondary uppercase tracking-wide font-medium">
                 Routines
               </span>
               <div className="flex items-center gap-1">
@@ -196,7 +196,7 @@ export function RoutinesTab({
               <div className="flex items-center gap-1 flex-wrap mb-2">
                 <button
                   onClick={() => setSelectedFilterTagId(null)}
-                  className={`text-[10px] px-1.5 py-0.5 rounded-full transition-colors ${
+                  className={`text-[11px] px-1.5 py-0.5 rounded-full transition-colors ${
                     selectedFilterTagId === null
                       ? "bg-notion-text text-notion-bg"
                       : "bg-notion-hover text-notion-text-secondary hover:text-notion-text"
@@ -212,7 +212,7 @@ export function RoutinesTab({
                         selectedFilterTagId === tag.id ? null : tag.id,
                       )
                     }
-                    className={`flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-full transition-colors ${
+                    className={`flex items-center gap-1 text-[11px] px-1.5 py-0.5 rounded-full transition-colors ${
                       selectedFilterTagId === tag.id
                         ? "ring-1 ring-notion-text"
                         : "hover:opacity-80"
@@ -233,7 +233,7 @@ export function RoutinesTab({
             )}
 
             {filteredRoutines.length === 0 && (
-              <p className="text-[10px] text-notion-text-secondary py-2">
+              <p className="text-[11px] text-notion-text-secondary py-2">
                 {selectedFilterTagId != null
                   ? "No routines with this tag."
                   : "No routines yet. Create one to get started."}
@@ -250,7 +250,7 @@ export function RoutinesTab({
                   >
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-1.5">
-                        <span className="text-xs text-notion-text truncate">
+                        <span className="text-sm text-notion-text truncate">
                           {routine.title}
                         </span>
                         {routine.tagId != null &&
@@ -260,7 +260,7 @@ export function RoutinesTab({
                             );
                             return tag ? (
                               <span
-                                className="inline-flex items-center px-1.5 py-0 text-[9px] rounded-full text-white shrink-0"
+                                className="inline-flex items-center px-1.5 py-0 text-[10px] rounded-full text-white shrink-0"
                                 style={{ backgroundColor: tag.color }}
                               >
                                 {tag.name}
@@ -268,7 +268,7 @@ export function RoutinesTab({
                             ) : null;
                           })()}
                       </div>
-                      <div className="text-[10px] text-notion-text-secondary">
+                      <div className="text-[11px] text-notion-text-secondary">
                         {routine.startTime && routine.endTime
                           ? `${routine.startTime} - ${routine.endTime}`
                           : routine.startTime
@@ -312,7 +312,7 @@ export function RoutinesTab({
             {/* Archived */}
             {archivedRoutines.length > 0 && (
               <details className="mt-2">
-                <summary className="text-[10px] text-notion-text-secondary cursor-pointer hover:text-notion-text transition-colors">
+                <summary className="text-[11px] text-notion-text-secondary cursor-pointer hover:text-notion-text transition-colors">
                   Archived ({archivedRoutines.length})
                 </summary>
                 <div className="mt-1 space-y-0.5">
@@ -321,14 +321,14 @@ export function RoutinesTab({
                       key={routine.id}
                       className="flex items-center gap-1.5 px-2 py-1 rounded-md hover:bg-notion-hover group opacity-50"
                     >
-                      <span className="flex-1 text-xs text-notion-text-secondary truncate">
+                      <span className="flex-1 text-sm text-notion-text-secondary truncate">
                         {routine.title}
                       </span>
                       <button
                         onClick={() =>
                           onUpdateRoutine(routine.id, { isArchived: false })
                         }
-                        className="opacity-0 group-hover:opacity-100 text-[10px] text-notion-text-secondary hover:text-notion-text transition-all"
+                        className="opacity-0 group-hover:opacity-100 text-[11px] text-notion-text-secondary hover:text-notion-text transition-all"
                       >
                         Restore
                       </button>

@@ -81,7 +81,7 @@ export function TemplateEditDialog({
 
         <div className="space-y-3">
           <div>
-            <label className="text-[10px] text-notion-text-secondary uppercase tracking-wide mb-1 block">
+            <label className="text-[11px] text-notion-text-secondary uppercase tracking-wide mb-1 block">
               {t("schedule.templateName", "Name")}
             </label>
             <input
@@ -101,7 +101,7 @@ export function TemplateEditDialog({
           </div>
 
           <div>
-            <label className="text-[10px] text-notion-text-secondary uppercase tracking-wide mb-1 block">
+            <label className="text-[11px] text-notion-text-secondary uppercase tracking-wide mb-1 block">
               {t("schedule.frequency", "Frequency")}
             </label>
             <div className="flex gap-1">
@@ -134,7 +134,7 @@ export function TemplateEditDialog({
                 <button
                   key={i}
                   onClick={() => toggleDay(i)}
-                  className={`w-8 h-8 text-[10px] rounded-full transition-colors ${
+                  className={`w-8 h-8 text-[11px] rounded-full transition-colors ${
                     frequencyDays.includes(i)
                       ? "bg-notion-accent text-white"
                       : "text-notion-text-secondary hover:bg-notion-hover"
@@ -147,7 +147,7 @@ export function TemplateEditDialog({
           )}
 
           <div>
-            <label className="text-[10px] text-notion-text-secondary uppercase tracking-wide mb-1 block">
+            <label className="text-[11px] text-notion-text-secondary uppercase tracking-wide mb-1 block">
               {t("schedule.routineTag", "Tag")}
             </label>
             <RoutineTagSelector

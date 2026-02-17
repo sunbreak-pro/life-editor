@@ -80,7 +80,7 @@ function ItemTimeDisplay({
   const endDisplay = item.endTime ?? routineEndTime ?? "--:--";
 
   return (
-    <span className="flex items-center gap-0.5 text-[10px] text-notion-text-secondary shrink-0">
+    <span className="flex items-center gap-0.5 text-[11px] text-notion-text-secondary shrink-0">
       {editingField === "start" ? (
         <input
           type="time"
@@ -90,7 +90,7 @@ function ItemTimeDisplay({
           onKeyDown={(e) => {
             if (e.key === "Enter") (e.target as HTMLInputElement).blur();
           }}
-          className="w-16.5 px-0.5 py-0 text-[10px] bg-notion-bg border border-accent-primary rounded"
+          className="w-16.5 px-0.5 py-0 text-[11px] bg-notion-bg border border-accent-primary rounded"
         />
       ) : (
         <button
@@ -114,7 +114,7 @@ function ItemTimeDisplay({
           onKeyDown={(e) => {
             if (e.key === "Enter") (e.target as HTMLInputElement).blur();
           }}
-          className="w-16.5 px-0.5 py-0 text-[10px] bg-notion-bg border border-accent-primary rounded"
+          className="w-16.5 px-0.5 py-0 text-[11px] bg-notion-bg border border-accent-primary rounded"
         />
       ) : (
         <button
@@ -170,7 +170,7 @@ export function TemplateManager({
   return (
     <div>
       <div className="flex items-center justify-between mb-2">
-        <span className="text-[10px] text-notion-text-secondary uppercase tracking-wide font-medium">
+        <span className="text-[11px] text-notion-text-secondary uppercase tracking-wide font-medium">
           Templates
         </span>
         <button
@@ -182,7 +182,7 @@ export function TemplateManager({
       </div>
 
       {templates.length === 0 && (
-        <p className="text-[10px] text-notion-text-secondary py-2">
+        <p className="text-[11px] text-notion-text-secondary py-2">
           No templates yet
         </p>
       )}
@@ -228,7 +228,7 @@ export function TemplateManager({
                       className="text-notion-text-secondary"
                     />
                   )}
-                  <span className="flex-1 text-xs font-medium text-notion-text truncate">
+                  <span className="flex-1 text-sm font-medium text-notion-text truncate">
                     {tmpl.name}
                   </span>
                   {tmpl.tagId != null &&
@@ -236,7 +236,7 @@ export function TemplateManager({
                       const tag = routineTags.find((t) => t.id === tmpl.tagId);
                       return tag ? (
                         <span
-                          className="inline-flex items-center px-1.5 py-0 text-[9px] rounded-full text-white shrink-0"
+                          className="inline-flex items-center px-1.5 py-0 text-[10px] rounded-full text-white shrink-0"
                           style={{ backgroundColor: tag.color }}
                         >
                           {tag.name}
@@ -244,12 +244,12 @@ export function TemplateManager({
                       ) : null;
                     })()}
                   {timeRange.earliest && (
-                    <span className="text-[10px] text-notion-text-secondary">
+                    <span className="text-[11px] text-notion-text-secondary">
                       {timeRange.earliest} -{" "}
                       {timeRange.latest ?? timeRange.earliest}
                     </span>
                   )}
-                  <span className="text-[10px] text-notion-text-secondary">
+                  <span className="text-[11px] text-notion-text-secondary">
                     {FREQ_LABELS[tmpl.frequencyType] ?? tmpl.frequencyType}
                     {tmpl.frequencyType === "custom" &&
                       tmpl.frequencyDays.length > 0 && (
@@ -288,7 +288,7 @@ export function TemplateManager({
                                   routineStartTime={routine?.startTime}
                                   routineEndTime={routine?.endTime}
                                 />
-                                <span className="flex-1 text-[11px] text-notion-text truncate">
+                                <span className="flex-1 text-xs text-notion-text truncate">
                                   {routine?.title ?? "Unknown"}
                                 </span>
                                 <button
@@ -316,7 +316,7 @@ export function TemplateManager({
                             }
                           }}
                           defaultValue=""
-                          className="w-full px-1.5 py-1 text-[11px] bg-transparent border border-notion-border rounded text-notion-text-secondary"
+                          className="w-full px-1.5 py-1 text-xs bg-transparent border border-notion-border rounded text-notion-text-secondary"
                         >
                           <option value="">+ Add routine...</option>
                           {availableRoutines.map((r) => (

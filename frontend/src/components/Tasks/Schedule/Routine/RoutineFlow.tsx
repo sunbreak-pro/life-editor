@@ -111,13 +111,13 @@ export function RoutineFlow({
 
   return (
     <div className="border border-notion-border rounded-lg p-3 h-full flex flex-col">
-      <div className="text-xs font-medium text-notion-text mb-3">
+      <div className="text-sm font-medium text-notion-text mb-3">
         {t("schedule.routineFlow", "Routine Flow")}
       </div>
 
       <div className="flex-1 min-h-0 overflow-y-auto">
         {flowGroups.length === 0 ? (
-          <p className="text-[10px] text-notion-text-secondary py-2">
+          <p className="text-[11px] text-notion-text-secondary py-2">
             {t("schedule.noActiveTemplates", "No active templates for today.")}
           </p>
         ) : (
@@ -127,7 +127,7 @@ export function RoutineFlow({
                 {/* Template header */}
                 <div className="flex items-center gap-2 mb-2">
                   <div className="w-2.5 h-2.5 rounded-full bg-accent-primary" />
-                  <span className="text-[11px] font-medium text-notion-text">
+                  <span className="text-xs font-medium text-notion-text">
                     {group.templateName}
                   </span>
                 </div>
@@ -173,14 +173,14 @@ export function RoutineFlow({
                       {/* Step content */}
                       <div className="pb-4 min-w-0">
                         <div
-                          className={`text-xs truncate ${
+                          className={`text-sm truncate ${
                             step.completed
                               ? "text-notion-text-secondary line-through"
                               : "text-notion-text"
                           }`}
                         >
                           {step.startTime && (
-                            <span className="text-[11px] text-notion-text-secondary mr-1.5">
+                            <span className="text-xs text-notion-text-secondary mr-1.5">
                               {step.startTime}
                             </span>
                           )}
@@ -200,10 +200,10 @@ export function RoutineFlow({
       {totalSteps > 0 && (
         <div className="mt-3 pt-3 border-t border-notion-border">
           <div className="flex items-center justify-between mb-1.5">
-            <span className="text-[10px] text-notion-text-secondary">
+            <span className="text-[11px] text-notion-text-secondary">
               Progress: {completedSteps}/{totalSteps}
             </span>
-            <span className="text-[10px] text-notion-text-secondary">
+            <span className="text-[11px] text-notion-text-secondary">
               {progressPercent}%
             </span>
           </div>

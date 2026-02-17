@@ -99,7 +99,7 @@ export function RoutineTagSelector({
                 />
                 <span className="text-notion-text truncate">{tag.name}</span>
                 {selectedTagId === tag.id && (
-                  <span className="ml-auto text-notion-accent text-[10px]">
+                  <span className="ml-auto text-notion-accent text-[11px]">
                     &#10003;
                   </span>
                 )}
@@ -135,7 +135,7 @@ export function RoutineTagSelector({
                     <button
                       onClick={handleCreate}
                       disabled={!newTagName.trim()}
-                      className="text-[10px] px-1.5 py-0.5 rounded bg-notion-accent text-white disabled:opacity-40"
+                      className="text-[11px] px-1.5 py-0.5 rounded bg-notion-accent text-white disabled:opacity-40"
                     >
                       Add
                     </button>

@@ -65,7 +65,7 @@ export function RoutineEditDialog({
 
         <div className="space-y-3">
           <div>
-            <label className="text-[10px] text-notion-text-secondary uppercase tracking-wide mb-1 block">
+            <label className="text-[11px] text-notion-text-secondary uppercase tracking-wide mb-1 block">
               {t("schedule.routineTitle", "Title")}
             </label>
             <input
@@ -86,7 +86,7 @@ export function RoutineEditDialog({
 
           <div className="flex gap-2">
             <div className="flex-1">
-              <label className="text-[10px] text-notion-text-secondary uppercase tracking-wide mb-1 block">
+              <label className="text-[11px] text-notion-text-secondary uppercase tracking-wide mb-1 block">
                 {t("schedule.start", "Start")}
               </label>
               <TimeInput
@@ -101,7 +101,7 @@ export function RoutineEditDialog({
               />
             </div>
             <div className="flex-1">
-              <label className="text-[10px] text-notion-text-secondary uppercase tracking-wide mb-1 block">
+              <label className="text-[11px] text-notion-text-secondary uppercase tracking-wide mb-1 block">
                 {t("schedule.end", "End")}
               </label>
               <TimeInput
@@ -118,7 +118,7 @@ export function RoutineEditDialog({
           </div>
 
           <div>
-            <label className="text-[10px] text-notion-text-secondary uppercase tracking-wide mb-1 block">
+            <label className="text-[11px] text-notion-text-secondary uppercase tracking-wide mb-1 block">
               {t("schedule.routineTag", "Tag")}
             </label>
             <RoutineTagSelector

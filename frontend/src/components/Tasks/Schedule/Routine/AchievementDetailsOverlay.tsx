@@ -185,7 +185,7 @@ export function AchievementDetailsOverlay({
                 >
                   <ChevronLeft size={16} />
                 </button>
-                <span className="text-xs font-medium text-notion-text">
+                <span className="text-sm font-medium text-notion-text">
                   {monthLabel}
                 </span>
                 <button
@@ -201,7 +201,7 @@ export function AchievementDetailsOverlay({
                 {weekdayLabels.map((label) => (
                   <div
                     key={label}
-                    className="text-center text-[9px] text-notion-text-secondary"
+                    className="text-center text-[10px] text-notion-text-secondary"
                   >
                     {label}
                   </div>
@@ -223,7 +223,7 @@ export function AchievementDetailsOverlay({
                     <button
                       key={key}
                       onClick={() => setSelectedDate(key)}
-                      className={`aspect-square rounded-md flex items-center justify-center text-[10px] transition-all ${getHeatmapColor(
+                      className={`aspect-square rounded-md flex items-center justify-center text-[11px] transition-all ${getHeatmapColor(
                         heatRate,
                       )} ${isSelected ? "ring-1.5 ring-accent-primary" : ""} ${
                         isToday
@@ -240,12 +240,12 @@ export function AchievementDetailsOverlay({
 
             {/* Right: Selected day details */}
             <div className="w-1/2">
-              <div className="text-xs font-medium text-notion-text mb-3">
+              <div className="text-sm font-medium text-notion-text mb-3">
                 {formatDayFlowDate(selectedDateObj, locale)}
               </div>
 
               {totalItems === 0 ? (
-                <p className="text-[10px] text-notion-text-secondary">
+                <p className="text-[11px] text-notion-text-secondary">
                   {t(
                     "schedule.noRoutineItems",
                     "No routine items for this day.",
@@ -256,7 +256,7 @@ export function AchievementDetailsOverlay({
                   {/* Completed items */}
                   {completedItems.length > 0 && (
                     <div className="mb-3">
-                      <div className="text-[10px] text-notion-text-secondary uppercase tracking-wide mb-1">
+                      <div className="text-[11px] text-notion-text-secondary uppercase tracking-wide mb-1">
                         {t("schedule.achieved", "Achieved")}
                       </div>
                       <div className="space-y-1">
@@ -265,13 +265,13 @@ export function AchievementDetailsOverlay({
                             key={item.id}
                             className="flex items-center gap-2 px-2 py-1 rounded-md bg-green-500/10"
                           >
-                            <span className="text-green-500 text-xs">
+                            <span className="text-green-500 text-sm">
                               &#10003;
                             </span>
-                            <span className="flex-1 text-[11px] text-notion-text-secondary truncate">
+                            <span className="flex-1 text-xs text-notion-text-secondary truncate">
                               {item.title}
                             </span>
-                            <span className="text-[10px] text-notion-text-secondary">
+                            <span className="text-[11px] text-notion-text-secondary">
                               {item.startTime}
                             </span>
                           </div>
@@ -283,7 +283,7 @@ export function AchievementDetailsOverlay({
                   {/* Incomplete items */}
                   {incompleteItems.length > 0 && (
                     <div className="mb-3">
-                      <div className="text-[10px] text-notion-text-secondary uppercase tracking-wide mb-1">
+                      <div className="text-[11px] text-notion-text-secondary uppercase tracking-wide mb-1">
                         {t("schedule.notAchieved", "Not Achieved")}
                       </div>
                       <div className="space-y-1">
@@ -292,13 +292,13 @@ export function AchievementDetailsOverlay({
                             key={item.id}
                             className="flex items-center gap-2 px-2 py-1 rounded-md"
                           >
-                            <span className="text-notion-text-secondary text-xs">
+                            <span className="text-notion-text-secondary text-sm">
                               &#10007;
                             </span>
-                            <span className="flex-1 text-[11px] text-notion-text truncate">
+                            <span className="flex-1 text-xs text-notion-text truncate">
                               {item.title}
                             </span>
-                            <span className="text-[10px] text-notion-text-secondary">
+                            <span className="text-[11px] text-notion-text-secondary">
                               {item.startTime}
                             </span>
                           </div>
@@ -308,7 +308,7 @@ export function AchievementDetailsOverlay({
                   )}
 
                   {/* Summary */}
-                  <div className="text-[11px] text-notion-text-secondary mt-2">
+                  <div className="text-xs text-notion-text-secondary mt-2">
                     {t(
                       "schedule.achievementRate",
                       "Achieved: {{completed}}/{{total}} ({{rate}}%)",
@@ -327,17 +327,17 @@ export function AchievementDetailsOverlay({
           {/* Per-routine rates */}
           {stats.perRoutineRates.length > 0 && (
             <div className="mt-4 pt-3 border-t border-notion-border">
-              <div className="text-[10px] text-notion-text-secondary uppercase tracking-wide mb-2">
+              <div className="text-[11px] text-notion-text-secondary uppercase tracking-wide mb-2">
                 {t("schedule.stats.perRoutine", "Per Routine")}
               </div>
               <div className="space-y-2">
                 {stats.perRoutineRates.map((r) => (
                   <div key={r.routineId}>
                     <div className="flex items-center justify-between mb-0.5">
-                      <span className="text-[11px] text-notion-text truncate">
+                      <span className="text-xs text-notion-text truncate">
                         {r.routineTitle}
                       </span>
-                      <span className="text-[10px] text-notion-text-secondary">
+                      <span className="text-[11px] text-notion-text-secondary">
                         {r.completionRate}%
                       </span>
                     </div>

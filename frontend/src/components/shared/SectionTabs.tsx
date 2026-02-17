@@ -12,6 +12,7 @@ interface SectionTabsProps<T extends string> {
   activeTab: T;
   onTabChange: (tab: T) => void;
   size?: "default" | "sm";
+  noBorder?: boolean;
 }
 
 export function SectionTabs<T extends string>({
@@ -19,13 +20,16 @@ export function SectionTabs<T extends string>({
   activeTab,
   onTabChange,
   size = "default",
+  noBorder = false,
 }: SectionTabsProps<T>) {
   const { t } = useTranslation();
   const isSmall = size === "sm";
   const btnClass = isSmall ? "px-3 py-1.5 text-xs" : "px-4 py-2 text-sm";
   const iconSize = isSmall ? 12 : 14;
   return (
-    <div className="flex gap-1 border-b border-notion-border">
+    <div
+      className={`flex gap-1 ${noBorder ? "" : "border-b border-notion-border"}`}
+    >
       {tabs.map((tab) => {
         const Icon = tab.icon;
         const isActive = activeTab === tab.id;

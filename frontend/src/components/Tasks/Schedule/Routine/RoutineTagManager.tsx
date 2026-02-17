@@ -106,7 +106,7 @@ export function RoutineTagManager({
                 </>
               ) : deleteConfirmId === tag.id ? (
                 <div className="flex items-center gap-2 w-full">
-                  <span className="text-[10px] text-notion-text-secondary flex-1">
+                  <span className="text-[11px] text-notion-text-secondary flex-1">
                     {t("schedule.deleteTagConfirm", 'Delete "{{name}}"?', {
                       name: tag.name,
                     })}
@@ -116,13 +116,13 @@ export function RoutineTagManager({
                       onDeleteTag(tag.id);
                       setDeleteConfirmId(null);
                     }}
-                    className="text-[10px] px-1.5 py-0.5 rounded bg-red-500 text-white"
+                    className="text-[11px] px-1.5 py-0.5 rounded bg-red-500 text-white"
                   >
                     {t("common.delete", "Delete")}
                   </button>
                   <button
                     onClick={() => setDeleteConfirmId(null)}
-                    className="text-[10px] text-notion-text-secondary"
+                    className="text-[11px] text-notion-text-secondary"
                   >
                     {t("common.cancel", "Cancel")}
                   </button>
@@ -153,7 +153,7 @@ export function RoutineTagManager({
             </div>
           ))}
           {tags.length === 0 && (
-            <p className="text-[10px] text-notion-text-secondary px-2 py-1">
+            <p className="text-[11px] text-notion-text-secondary px-2 py-1">
               No tags yet.
             </p>
           )}

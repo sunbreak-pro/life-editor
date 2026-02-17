@@ -75,11 +75,18 @@ export function TasksLayout({
     <div
       className={`h-full flex flex-col ${LAYOUT.CONTENT_PX} ${LAYOUT.CONTENT_PT} ${LAYOUT.CONTENT_PB}`}
     >
-      <h2 className={`text-2xl font-bold text-notion-text ${LAYOUT.TITLE_MB}`}>
-        {t("tasks.title")}
-      </h2>
-      <SectionTabs tabs={TOP_TABS} activeTab={topTab} onTabChange={setTopTab} />
-      <div className={`flex-1 min-h-0 ${LAYOUT.TABS_MT}`}>
+      <div className="flex items-baseline gap-4 border-b border-notion-border mb-5">
+        <h2 className="text-2xl font-bold text-notion-text">
+          {t("tasks.title")}
+        </h2>
+        <SectionTabs
+          tabs={TOP_TABS}
+          activeTab={topTab}
+          onTabChange={setTopTab}
+          noBorder
+        />
+      </div>
+      <div className="flex-1 min-h-0">
         {topTab === "tasks" ? (
           <TaskTreeView
             selectedTaskId={selectedTaskId}

@@ -16,12 +16,12 @@ export function AchievementPanel({
   return (
     <div className="border border-notion-border rounded-lg p-3">
       <div className="flex items-center justify-between mb-2">
-        <span className="text-xs font-medium text-notion-text">
+        <span className="text-sm font-medium text-notion-text">
           {t("schedule.achievement", "Achievement")}
         </span>
         <button
           onClick={onShowDetails}
-          className="flex items-center gap-0.5 text-[10px] text-notion-text-secondary hover:text-notion-text transition-colors"
+          className="flex items-center gap-0.5 text-[11px] text-notion-text-secondary hover:text-notion-text transition-colors"
         >
           {t("schedule.stats.details", "Details")}
           <ChevronRight size={12} />
@@ -33,7 +33,7 @@ export function AchievementPanel({
           <span className="text-base font-bold text-notion-text">
             {stats.totalCompletedDays}
           </span>
-          <span className="text-[10px] text-notion-text-secondary">
+          <span className="text-[11px] text-notion-text-secondary">
             {t("schedule.stats.totalAchievedDays", "Days")}
           </span>
         </div>
@@ -42,7 +42,7 @@ export function AchievementPanel({
           <span className="text-base font-bold text-notion-text">
             {stats.currentStreak}
           </span>
-          <span className="text-[10px] text-notion-text-secondary">
+          <span className="text-[11px] text-notion-text-secondary">
             {t("schedule.stats.currentStreak", "Current")}
           </span>
         </div>
@@ -51,7 +51,7 @@ export function AchievementPanel({
           <span className="text-base font-bold text-notion-text">
             {stats.longestStreak}
           </span>
-          <span className="text-[10px] text-notion-text-secondary">
+          <span className="text-[11px] text-notion-text-secondary">
             {t("schedule.stats.longestStreak", "Longest")}
           </span>
         </div>
