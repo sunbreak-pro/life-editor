@@ -151,7 +151,7 @@ export function OneDaySchedule({
         >
           <ChevronLeft size={16} />
         </button>
-        <span className="text-sm font-medium text-notion-text min-w-[80px] text-center">
+        <span className="text-sm font-medium text-notion-text min-w-20 text-center">
           {formatDayFlowDate(date, i18n.language)}
         </span>
         <button

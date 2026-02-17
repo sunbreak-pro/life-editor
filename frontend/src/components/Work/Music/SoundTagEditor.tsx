@@ -3,17 +3,8 @@ import { Plus, X } from "lucide-react";
 import type { useSoundTags } from "../../../hooks/useSoundTags";
 import { useClickOutside } from "../../../hooks/useClickOutside";
 import { useConfirmableSubmit } from "../../../hooks/useConfirmableSubmit";
-
-const DEFAULT_COLORS = [
-  "#808080",
-  "#E03E3E",
-  "#D9730D",
-  "#DFAB01",
-  "#0F7B6C",
-  "#2EAADC",
-  "#6940A5",
-  "#AD1457",
-];
+import { InlineColorPicker } from "../../shared/ColorPicker";
+import { TAG_COLORS } from "../../../constants/tagColors";
 
 interface SoundTagEditorProps {
   soundId: string;
@@ -30,7 +21,7 @@ export function SoundTagEditor({
     soundTagState;
   const [isOpen, setIsOpen] = useState(false);
   const [newTagName, setNewTagName] = useState("");
-  const [newTagColor, setNewTagColor] = useState(DEFAULT_COLORS[0]);
+  const [newTagColor, setNewTagColor] = useState<string>(TAG_COLORS[0]);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   const currentTags = getTagsForSound(soundId);
@@ -122,19 +113,12 @@ export function SoundTagEditor({
             })}
           </div>
           <div className="border-t border-notion-border p-1.5">
-            <div className="flex gap-0.5 mb-1">
-              {DEFAULT_COLORS.map((color) => (
-                <button
-                  key={color}
-                  onClick={() => setNewTagColor(color)}
-                  className={`w-3.5 h-3.5 rounded-full transition-transform ${
-                    newTagColor === color
-                      ? "scale-125 ring-1 ring-notion-text"
-                      : ""
-                  }`}
-                  style={{ backgroundColor: color }}
-                />
-              ))}
+            <div className="mb-1">
+              <InlineColorPicker
+                colors={TAG_COLORS}
+                selectedColor={newTagColor}
+                onSelect={setNewTagColor}
+              />
             </div>
             <div className="flex items-center gap-1">
               <input

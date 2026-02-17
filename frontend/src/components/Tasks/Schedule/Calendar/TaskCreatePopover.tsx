@@ -101,8 +101,8 @@ export function TaskCreatePopover({
   return (
     <div
       ref={ref}
-      className="fixed z-50 bg-notion-bg border border-notion-border rounded-lg shadow-xl p-2 min-h-85"
-      style={{ left, top, width: 300 }}
+      className="fixed z-50 bg-notion-bg border border-notion-border rounded-lg shadow-xl p-2 w-fit min-h-85"
+      style={{ left, top }}
     >
       <input
         ref={confirmInputRef}

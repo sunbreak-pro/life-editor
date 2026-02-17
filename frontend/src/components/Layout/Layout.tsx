@@ -8,7 +8,7 @@ import { STORAGE_KEYS } from "../../constants/storageKeys";
 import { useLocalStorage } from "../../hooks/useLocalStorage";
 
 const LEFT_MIN_WIDTH = 165;
-const LEFT_MAX_WIDTH = 200;
+const LEFT_MAX_WIDTH = 250;
 const LEFT_DEFAULT_WIDTH = 190;
 
 function deserializeWidth(min: number, max: number, def: number) {

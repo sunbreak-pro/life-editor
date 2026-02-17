@@ -126,7 +126,7 @@ export function SoundTagManager({ soundTagState }: SoundTagManagerProps) {
             ) : (
               <>
                 <span
-                  className="w-3 h-3 rounded-full flex-shrink-0"
+                  className="w-3 h-3 rounded-full shrink-0"
                   style={{ backgroundColor: tag.color }}
                 />
                 <span className="flex-1 text-sm text-notion-text">

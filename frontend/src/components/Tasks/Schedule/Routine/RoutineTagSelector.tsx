@@ -2,6 +2,8 @@ import { useState, useRef, useCallback } from "react";
 import { ChevronDown, Plus } from "lucide-react";
 import { useClickOutside } from "../../../../hooks/useClickOutside";
 import type { RoutineTag } from "../../../../types/routineTag";
+import { InlineColorPicker } from "../../../shared/ColorPicker";
+import { TAG_COLORS } from "../../../../constants/tagColors";
 
 interface RoutineTagSelectorProps {
   tags: RoutineTag[];
@@ -9,17 +11,6 @@ interface RoutineTagSelectorProps {
   onSelect: (tagId: number | null) => void;
   onCreateTag?: (name: string, color: string) => Promise<RoutineTag>;
 }
-
-const DEFAULT_COLORS = [
-  "#D9730D",
-  "#2EAADC",
-  "#6940A5",
-  "#E03E3E",
-  "#0F7B6C",
-  "#DFAB01",
-  "#AD1457",
-  "#808080",
-];
 
 export function RoutineTagSelector({
   tags,
@@ -29,7 +20,7 @@ export function RoutineTagSelector({
 }: RoutineTagSelectorProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [newTagName, setNewTagName] = useState("");
-  const [newTagColor, setNewTagColor] = useState(DEFAULT_COLORS[0]);
+  const [newTagColor, setNewTagColor] = useState<string>(TAG_COLORS[0]);
   const [showCreate, setShowCreate] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -120,19 +111,12 @@ export function RoutineTagSelector({
             <div className="border-t border-notion-border p-1.5">
               {showCreate ? (
                 <div>
-                  <div className="flex gap-0.5 mb-1">
-                    {DEFAULT_COLORS.map((color) => (
-                      <button
-                        key={color}
-                        onClick={() => setNewTagColor(color)}
-                        className={`w-3.5 h-3.5 rounded-full transition-transform ${
-                          newTagColor === color
-                            ? "scale-125 ring-1 ring-notion-text"
-                            : ""
-                        }`}
-                        style={{ backgroundColor: color }}
-                      />
-                    ))}
+                  <div className="mb-1">
+                    <InlineColorPicker
+                      colors={TAG_COLORS}
+                      selectedColor={newTagColor}
+                      onSelect={setNewTagColor}
+                    />
                   </div>
                   <div className="flex items-center gap-1">
                     <input

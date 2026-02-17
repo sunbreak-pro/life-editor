@@ -80,7 +80,7 @@ function ItemTimeDisplay({
   const endDisplay = item.endTime ?? routineEndTime ?? "--:--";
 
   return (
-    <span className="flex items-center gap-0.5 text-[10px] text-notion-text-secondary flex-shrink-0">
+    <span className="flex items-center gap-0.5 text-[10px] text-notion-text-secondary shrink-0">
       {editingField === "start" ? (
         <input
           type="time"
@@ -90,7 +90,7 @@ function ItemTimeDisplay({
           onKeyDown={(e) => {
             if (e.key === "Enter") (e.target as HTMLInputElement).blur();
           }}
-          className="w-[70px] px-0.5 py-0 text-[10px] bg-notion-bg border border-accent-primary rounded"
+          className="w-16.5 px-0.5 py-0 text-[10px] bg-notion-bg border border-accent-primary rounded"
         />
       ) : (
         <button
@@ -114,7 +114,7 @@ function ItemTimeDisplay({
           onKeyDown={(e) => {
             if (e.key === "Enter") (e.target as HTMLInputElement).blur();
           }}
-          className="w-[70px] px-0.5 py-0 text-[10px] bg-notion-bg border border-accent-primary rounded"
+          className="w-16.5 px-0.5 py-0 text-[10px] bg-notion-bg border border-accent-primary rounded"
         />
       ) : (
         <button

@@ -327,7 +327,7 @@ export function MiniCalendarGrid({
   if (controlsPosition === "right") {
     return (
       <div className="flex gap-3">
-        <div className="w-[284px] shrink-0">
+        <div className="w-70 shrink-0">
           <div className="flex flex-col px-4 py-2 gap-2">
             {calendarSection}
             {dateTimeInputs}
@@ -341,7 +341,7 @@ export function MiniCalendarGrid({
   }
 
   return (
-    <div className="w-[284px]">
+    <div className="w-70">
       <div className="flex flex-col px-4 py-2 gap-2">
         {calendarSection}
         {/* Controls row */}

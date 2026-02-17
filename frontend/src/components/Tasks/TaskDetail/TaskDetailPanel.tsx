@@ -458,7 +458,7 @@ function EditableTitle({
 
   return (
     <h2
-      className="text-lg font-bold text-notion-text cursor-pointer hover:bg-notion-hover/50 rounded px-1 -mx-1 transition-colors break-words"
+      className="text-lg font-bold text-notion-text cursor-pointer hover:bg-notion-hover/50 rounded px-1 -mx-1 transition-colors wrap-break-words"
       onClick={() => setIsEditing(true)}
     >
       {value}

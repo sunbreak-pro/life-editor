@@ -2,17 +2,8 @@ import { useState } from "react";
 import { Pencil, Trash2, Check, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import type { RoutineTag } from "../../../../types/routineTag";
-
-const DEFAULT_COLORS = [
-  "#D9730D",
-  "#2EAADC",
-  "#6940A5",
-  "#E03E3E",
-  "#0F7B6C",
-  "#DFAB01",
-  "#AD1457",
-  "#808080",
-];
+import { InlineColorPicker } from "../../../shared/ColorPicker";
+import { TAG_COLORS } from "../../../../constants/tagColors";
 
 interface RoutineTagManagerProps {
   tags: RoutineTag[];
@@ -38,7 +29,7 @@ export function RoutineTagManager({
   const [editColor, setEditColor] = useState("");
   const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null);
   const [newName, setNewName] = useState("");
-  const [newColor, setNewColor] = useState(DEFAULT_COLORS[0]);
+  const [newColor, setNewColor] = useState<string>(TAG_COLORS[0]);
 
   const startEdit = (tag: RoutineTag) => {
     setEditingId(tag.id);
@@ -86,20 +77,12 @@ export function RoutineTagManager({
             >
               {editingId === tag.id ? (
                 <>
-                  <div className="flex gap-0.5">
-                    {DEFAULT_COLORS.map((c) => (
-                      <button
-                        key={c}
-                        onClick={() => setEditColor(c)}
-                        className={`w-3 h-3 rounded-full ${
-                          editColor === c
-                            ? "ring-1 ring-notion-text scale-125"
-                            : ""
-                        }`}
-                        style={{ backgroundColor: c }}
-                      />
-                    ))}
-                  </div>
+                  <InlineColorPicker
+                    colors={TAG_COLORS}
+                    selectedColor={editColor}
+                    onSelect={setEditColor}
+                    size="sm"
+                  />
                   <input
                     value={editName}
                     onChange={(e) => setEditName(e.target.value)}
@@ -178,17 +161,12 @@ export function RoutineTagManager({
 
         {/* Create new */}
         <div className="border-t border-notion-border pt-2">
-          <div className="flex gap-0.5 mb-1">
-            {DEFAULT_COLORS.map((c) => (
-              <button
-                key={c}
-                onClick={() => setNewColor(c)}
-                className={`w-3.5 h-3.5 rounded-full ${
-                  newColor === c ? "ring-1 ring-notion-text scale-125" : ""
-                }`}
-                style={{ backgroundColor: c }}
-              />
-            ))}
+          <div className="mb-1">
+            <InlineColorPicker
+              colors={TAG_COLORS}
+              selectedColor={newColor}
+              onSelect={setNewColor}
+            />
           </div>
           <div className="flex items-center gap-1">
             <input

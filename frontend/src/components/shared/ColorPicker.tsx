@@ -3,6 +3,37 @@ import { FOLDER_COLORS, getTextColorForBg } from "../../constants/folderColors";
 import { Check } from "lucide-react";
 import { useClickOutside } from "../../hooks/useClickOutside";
 
+interface InlineColorPickerProps {
+  colors: readonly string[];
+  selectedColor: string;
+  onSelect: (color: string) => void;
+  size?: "sm" | "md";
+}
+
+export function InlineColorPicker({
+  colors,
+  selectedColor,
+  onSelect,
+  size = "md",
+}: InlineColorPickerProps) {
+  const sizeClass = size === "sm" ? "w-3 h-3" : "w-3.5 h-3.5";
+  return (
+    <div className="flex gap-1">
+      {colors.map((color) => (
+        <button
+          key={color}
+          type="button"
+          onClick={() => onSelect(color)}
+          className={`${sizeClass} rounded-full transition-transform ${
+            selectedColor === color ? "ring-1 ring-notion-text" : ""
+          }`}
+          style={{ backgroundColor: color }}
+        />
+      ))}
+    </div>
+  );
+}
+
 interface ColorPickerProps {
   currentColor?: string;
   onSelect: (color: string) => void;
@@ -33,7 +64,7 @@ export function ColorPicker({
         style={{
           backgroundColor: color,
           boxShadow: isSelected
-            ? `0 0 0 2px ${getTextColorForBg(color)}`
+            ? `0 0 0 5px ${getTextColorForBg(color)}`
             : undefined,
         }}
       >
