@@ -5,23 +5,30 @@ import type {
   RoutineTemplateItem,
 } from "../../../../types/schedule";
 import type { RoutineNode } from "../../../../types/routine";
+import type { RoutineTag } from "../../../../types/routineTag";
 import { TemplateEditDialog } from "./TemplateEditDialog";
 
 interface TemplateManagerProps {
   templates: RoutineTemplate[];
   routines: RoutineNode[];
+  routineTags: RoutineTag[];
   onCreateTemplate: (
     name: string,
     frequencyType: string,
     frequencyDays: number[],
+    tagId?: number | null,
   ) => void;
   onUpdateTemplate: (
     id: string,
     updates: Partial<
-      Pick<RoutineTemplate, "name" | "frequencyType" | "frequencyDays">
+      Pick<
+        RoutineTemplate,
+        "name" | "frequencyType" | "frequencyDays" | "tagId"
+      >
     >,
   ) => void;
   onDeleteTemplate: (id: string) => void;
+  onCreateTag?: (name: string, color: string) => Promise<RoutineTag>;
   onAddItem: (
     templateId: string,
     routineId: string,
@@ -124,12 +131,14 @@ function ItemTimeDisplay({
 export function TemplateManager({
   templates,
   routines,
+  routineTags,
   onCreateTemplate,
   onUpdateTemplate,
   onDeleteTemplate,
   onAddItem,
   onUpdateItem,
   onRemoveItem,
+  onCreateTag,
 }: TemplateManagerProps) {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [editDialog, setEditDialog] = useState<RoutineTemplate | "new" | null>(
@@ -298,17 +307,20 @@ export function TemplateManager({
       {editDialog && (
         <TemplateEditDialog
           template={editDialog === "new" ? undefined : editDialog}
-          onSubmit={(name, frequencyType, frequencyDays) => {
+          tags={routineTags}
+          onSubmit={(name, frequencyType, frequencyDays, tagId) => {
             if (editDialog === "new") {
-              onCreateTemplate(name, frequencyType, frequencyDays);
+              onCreateTemplate(name, frequencyType, frequencyDays, tagId);
             } else {
               onUpdateTemplate(editDialog.id, {
                 name,
                 frequencyType,
                 frequencyDays,
+                tagId,
               });
             }
           }}
+          onCreateTag={onCreateTag}
           onClose={() => setEditDialog(null)}
         />
       )}

@@ -29,6 +29,8 @@ import { createRoutineRepository } from "../database/routineRepository";
 import { registerRoutineHandlers } from "./routineHandlers";
 import { createRoutineTemplateRepository } from "../database/routineTemplateRepository";
 import { registerRoutineTemplateHandlers } from "./routineTemplateHandlers";
+import { createRoutineTagRepository } from "../database/routineTagRepository";
+import { registerRoutineTagHandlers } from "./routineTagHandlers";
 import { createScheduleItemRepository } from "../database/scheduleItemRepository";
 import { registerScheduleItemHandlers } from "./scheduleItemHandlers";
 import { createPlaylistRepository } from "../database/playlistRepository";
@@ -89,6 +91,10 @@ export function registerAllHandlers(db: Database.Database): void {
       () => registerPomodoroPresetHandlers(createPomodoroPresetRepository(db)),
     ],
     ["Routines", () => registerRoutineHandlers(createRoutineRepository(db))],
+    [
+      "RoutineTags",
+      () => registerRoutineTagHandlers(createRoutineTagRepository(db)),
+    ],
     [
       "RoutineTemplates",
       () =>

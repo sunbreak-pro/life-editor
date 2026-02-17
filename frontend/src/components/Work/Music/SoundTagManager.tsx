@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Pencil, Trash2, Check, X } from "lucide-react";
 import { ColorPicker } from "../../shared/ColorPicker";
 import type { useSoundTags } from "../../../hooks/useSoundTags";
+import { useConfirmableSubmit } from "../../../hooks/useConfirmableSubmit";
 
 interface SoundTagManagerProps {
   soundTagState: ReturnType<typeof useSoundTags>;
@@ -44,6 +45,13 @@ export function SoundTagManager({ soundTagState }: SoundTagManagerProps) {
     await deleteTag(id);
     setDeleteConfirmId(null);
   };
+
+  const {
+    inputRef: newTagInputRef,
+    handleKeyDown: newTagHandleKeyDown,
+    handleBlur: newTagHandleBlur,
+    handleFocus: newTagHandleFocus,
+  } = useConfirmableSubmit(handleCreate);
 
   return (
     <div className="bg-notion-bg-secondary border border-notion-border rounded-lg p-3 mb-4">
@@ -164,12 +172,13 @@ export function SoundTagManager({ soundTagState }: SoundTagManagerProps) {
           )}
         </div>
         <input
+          ref={newTagInputRef}
           type="text"
           value={newName}
           onChange={(e) => setNewName(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") handleCreate();
-          }}
+          onKeyDown={newTagHandleKeyDown}
+          onBlur={newTagHandleBlur}
+          onFocus={newTagHandleFocus}
           placeholder="New tag name..."
           className="flex-1 text-sm px-2 py-1 rounded bg-notion-hover text-notion-text border-none outline-none"
         />

@@ -24,8 +24,9 @@ export function registerRoutineTemplateHandlers(
         name: string,
         frequencyType?: string,
         frequencyDays?: number[],
+        tagId?: number | null,
       ) => {
-        return repo.create(id, name, frequencyType, frequencyDays);
+        return repo.create(id, name, frequencyType, frequencyDays, tagId);
       },
     ),
   );
@@ -41,7 +42,7 @@ export function registerRoutineTemplateHandlers(
         updates: Partial<
           Pick<
             RoutineTemplate,
-            "name" | "frequencyType" | "frequencyDays" | "order"
+            "name" | "frequencyType" | "frequencyDays" | "order" | "tagId"
           >
         >,
       ) => {

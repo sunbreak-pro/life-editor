@@ -22,6 +22,7 @@ import type { NoteNode } from "../types/note";
 
 import type { CalendarNode } from "../types/calendar";
 import type { RoutineNode } from "../types/routine";
+import type { RoutineTag } from "../types/routineTag";
 import type { ScheduleItem, RoutineTemplate } from "../types/schedule";
 import type { Playlist, PlaylistItem } from "../types/playlist";
 import type {
@@ -160,6 +161,15 @@ export interface DataService {
   ): Promise<CalendarNode>;
   deleteCalendar(id: string): Promise<void>;
 
+  // Routine Tags
+  fetchRoutineTags(): Promise<RoutineTag[]>;
+  createRoutineTag(name: string, color: string): Promise<RoutineTag>;
+  updateRoutineTag(
+    id: number,
+    updates: Partial<Pick<RoutineTag, "name" | "color" | "order">>,
+  ): Promise<RoutineTag>;
+  deleteRoutineTag(id: number): Promise<void>;
+
   // Routines
   fetchAllRoutines(): Promise<RoutineNode[]>;
   createRoutine(
@@ -167,13 +177,14 @@ export interface DataService {
     title: string,
     startTime?: string,
     endTime?: string,
+    tagId?: number | null,
   ): Promise<RoutineNode>;
   updateRoutine(
     id: string,
     updates: Partial<
       Pick<
         RoutineNode,
-        "title" | "startTime" | "endTime" | "isArchived" | "order"
+        "title" | "startTime" | "endTime" | "isArchived" | "order" | "tagId"
       >
     >,
   ): Promise<RoutineNode>;
@@ -186,13 +197,14 @@ export interface DataService {
     name: string,
     frequencyType?: string,
     frequencyDays?: number[],
+    tagId?: number | null,
   ): Promise<RoutineTemplate>;
   updateRoutineTemplate(
     id: string,
     updates: Partial<
       Pick<
         RoutineTemplate,
-        "name" | "frequencyType" | "frequencyDays" | "order"
+        "name" | "frequencyType" | "frequencyDays" | "order" | "tagId"
       >
     >,
   ): Promise<RoutineTemplate>;

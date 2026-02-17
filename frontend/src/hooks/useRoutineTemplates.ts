@@ -32,6 +32,7 @@ export function useRoutineTemplates() {
       name: string,
       frequencyType: string = "daily",
       frequencyDays: number[] = [],
+      tagId?: number | null,
     ) => {
       const id = generateId("tmpl");
       const now = new Date().toISOString();
@@ -41,13 +42,14 @@ export function useRoutineTemplates() {
         frequencyType: frequencyType as RoutineTemplate["frequencyType"],
         frequencyDays,
         order: templates.length,
+        tagId: tagId ?? null,
         items: [],
         createdAt: now,
         updatedAt: now,
       };
       setTemplates((prev) => [...prev, optimistic]);
       getDataService()
-        .createRoutineTemplate(id, name, frequencyType, frequencyDays)
+        .createRoutineTemplate(id, name, frequencyType, frequencyDays, tagId)
         .then((t) => {
           setTemplates((prev) => prev.map((p) => (p.id === id ? t : p)));
         })
@@ -63,7 +65,7 @@ export function useRoutineTemplates() {
       updates: Partial<
         Pick<
           RoutineTemplate,
-          "name" | "frequencyType" | "frequencyDays" | "order"
+          "name" | "frequencyType" | "frequencyDays" | "order" | "tagId"
         >
       >,
     ) => {

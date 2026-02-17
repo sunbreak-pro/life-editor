@@ -6,12 +6,15 @@ import { SectionTabs } from "../shared/SectionTabs";
 import { LAYOUT } from "../../constants/layout";
 import { TaskTreeView } from "./TaskTreeView";
 import { ScheduleTabView } from "./ScheduleTabView";
+import { RoutinesTab } from "./Schedule/Routine/RoutinesTab";
+import { useScheduleContext } from "../../hooks/useScheduleContext";
 
-type TopTab = "tasks" | "schedule";
+type TopTab = "tasks" | "schedule" | "routine";
 
 const TOP_TABS: readonly TabItem<TopTab>[] = [
   { id: "tasks", labelKey: "tabs.taskTree" },
   { id: "schedule", labelKey: "tabs.schedule" },
+  { id: "routine", labelKey: "tabs.routine" },
 ];
 
 interface TasksLayoutProps {
@@ -51,6 +54,27 @@ export function TasksLayout({
 }: TasksLayoutProps) {
   const { t } = useTranslation();
   const [topTab, setTopTab] = useState<TopTab>("tasks");
+  const {
+    routines,
+    templates,
+    createRoutine,
+    updateRoutine,
+    deleteRoutine,
+    createTemplate,
+    updateTemplate,
+    deleteTemplate,
+    addTemplateItem,
+    updateTemplateItem,
+    removeTemplateItem,
+    getRoutineCompletionRate,
+    routineStats,
+    scheduleItems,
+    toggleComplete,
+    routineTags,
+    createRoutineTag,
+    updateRoutineTag,
+    deleteRoutineTag,
+  } = useScheduleContext();
 
   return (
     <div
@@ -69,7 +93,7 @@ export function TasksLayout({
             onFilterChange={onFilterChange}
             onPlayTask={onPlayTask}
           />
-        ) : (
+        ) : topTab === "schedule" ? (
           <ScheduleTabView
             onCalendarSelectTask={onCalendarSelectTask}
             onCreateTask={onCreateTask}
@@ -78,6 +102,28 @@ export function TasksLayout({
             onSelectNote={onSelectNote}
             onStartTimer={onStartTimer}
             onSelectTask={onSelectTask}
+          />
+        ) : (
+          <RoutinesTab
+            routines={routines}
+            templates={templates}
+            routineTags={routineTags}
+            onCreateRoutine={createRoutine}
+            onUpdateRoutine={updateRoutine}
+            onDeleteRoutine={deleteRoutine}
+            onCreateTemplate={createTemplate}
+            onUpdateTemplate={updateTemplate}
+            onDeleteTemplate={deleteTemplate}
+            onAddTemplateItem={addTemplateItem}
+            onUpdateTemplateItem={updateTemplateItem}
+            onRemoveTemplateItem={removeTemplateItem}
+            getCompletionRate={getRoutineCompletionRate}
+            routineStats={routineStats}
+            scheduleItems={scheduleItems}
+            onToggleComplete={toggleComplete}
+            onCreateRoutineTag={createRoutineTag}
+            onUpdateRoutineTag={updateRoutineTag}
+            onDeleteRoutineTag={deleteRoutineTag}
           />
         )}
       </div>

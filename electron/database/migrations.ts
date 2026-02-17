@@ -77,6 +77,10 @@ export function runMigrations(db: Database.Database): void {
     log.info("[DB] Running migration V18");
     migrateV18(db);
   }
+  if (currentVersion < 19) {
+    log.info("[DB] Running migration V19");
+    migrateV19(db);
+  }
 
   const newVersion = db.pragma("user_version", { simple: true }) as number;
   if (newVersion !== currentVersion) {
@@ -707,4 +711,30 @@ function migrateV18(db: Database.Database): void {
     ALTER TABLE routine_template_items ADD COLUMN end_time TEXT;
     PRAGMA user_version = 18;
   `);
+}
+
+function migrateV19(db: Database.Database): void {
+  const migrate = db.transaction(() => {
+    db.exec(`
+      CREATE TABLE routine_tag_definitions (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL UNIQUE,
+        color TEXT NOT NULL DEFAULT '#808080',
+        "order" INTEGER NOT NULL DEFAULT 0
+      );
+
+      INSERT INTO routine_tag_definitions (name, color, "order") VALUES
+        ('Morning', '#D9730D', 0),
+        ('Afternoon', '#2EAADC', 1),
+        ('Night', '#6940A5', 2);
+
+      ALTER TABLE routines ADD COLUMN tag_id INTEGER
+        REFERENCES routine_tag_definitions(id) ON DELETE SET NULL;
+
+      ALTER TABLE routine_templates ADD COLUMN tag_id INTEGER
+        REFERENCES routine_tag_definitions(id) ON DELETE SET NULL;
+    `);
+  });
+  migrate();
+  db.pragma("user_version = 19");
 }

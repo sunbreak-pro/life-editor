@@ -152,8 +152,16 @@ export interface RoutineNode {
   endTime: string | null;
   isArchived: boolean;
   order: number;
+  tagId: number | null;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface RoutineTag {
+  id: number;
+  name: string;
+  color: string;
+  order: number;
 }
 
 export type TemplateFrequencyType = "daily" | "custom";
@@ -164,6 +172,7 @@ export interface RoutineTemplate {
   frequencyType: TemplateFrequencyType;
   frequencyDays: number[];
   order: number;
+  tagId: number | null;
   items: RoutineTemplateItem[];
   createdAt: string;
   updatedAt: string;

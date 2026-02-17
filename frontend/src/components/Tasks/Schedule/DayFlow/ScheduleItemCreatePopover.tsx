@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { useClickOutside } from "../../../../hooks/useClickOutside";
+import { useConfirmableSubmit } from "../../../../hooks/useConfirmableSubmit";
 import { TimeInput } from "../../../shared/TimeInput";
 
 interface ScheduleItemCreatePopoverProps {
@@ -23,28 +24,24 @@ export function ScheduleItemCreatePopover({
   const [startTime, setStartTime] = useState(defaultStartTime);
   const [endTime, setEndTime] = useState(defaultEndTime);
   const ref = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
 
   useClickOutside(ref, onClose, true);
-
-  useEffect(() => {
-    inputRef.current?.focus();
-  }, []);
 
   const handleSubmit = () => {
     onSubmit(title.trim() || "Untitled", startTime, endTime);
     onClose();
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter") {
-      e.preventDefault();
-      handleSubmit();
-    } else if (e.key === "Escape") {
-      e.preventDefault();
-      onClose();
-    }
-  };
+  const {
+    inputRef: confirmInputRef,
+    handleKeyDown,
+    handleBlur,
+    handleFocus,
+  } = useConfirmableSubmit(handleSubmit, onClose);
+
+  useEffect(() => {
+    confirmInputRef.current?.focus();
+  }, [confirmInputRef]);
 
   const left = Math.min(position.x, window.innerWidth - 240 - 16);
   const top = Math.min(position.y, window.innerHeight - 200 - 16);
@@ -56,11 +53,13 @@ export function ScheduleItemCreatePopover({
       style={{ left, top, width: 240 }}
     >
       <input
-        ref={inputRef}
+        ref={confirmInputRef}
         type="text"
         value={title}
         onChange={(e) => setTitle(e.target.value)}
         onKeyDown={handleKeyDown}
+        onBlur={handleBlur}
+        onFocus={handleFocus}
         placeholder={t("schedule.itemTitlePlaceholder", "Schedule item name")}
         className="w-full px-2 py-1.5 text-sm bg-transparent border border-notion-border rounded-md outline-none focus:border-notion-accent text-notion-text placeholder:text-notion-text-secondary"
       />

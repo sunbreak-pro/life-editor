@@ -3,18 +3,15 @@ import type { TabItem } from "../shared/SectionTabs";
 import { SectionTabs } from "../shared/SectionTabs";
 import { CalendarView } from "./Schedule/Calendar/CalendarView";
 import { OneDaySchedule } from "./Schedule/DayFlow/OneDaySchedule";
-import { RoutinesTab } from "./Schedule/Routine/RoutinesTab";
-import { useScheduleContext } from "../../hooks/useScheduleContext";
 import { useTaskTreeContext } from "../../hooks/useTaskTreeContext";
 import { useCalendar } from "../../hooks/useCalendar";
 import { formatDateKey } from "../../utils/dateKey";
 
-type ScheduleSubTab = "calendar" | "dayflow" | "routine";
+type ScheduleSubTab = "calendar" | "dayflow";
 
 const SCHEDULE_TABS: readonly TabItem<ScheduleSubTab>[] = [
   { id: "calendar", labelKey: "tabs.calendar" },
   { id: "dayflow", labelKey: "tabs.dayflow" },
-  { id: "routine", labelKey: "tabs.routine" },
 ];
 
 interface ScheduleTabViewProps {
@@ -48,23 +45,6 @@ export function ScheduleTabView({
   const [dayFlowDate, setDayFlowDate] = useState<Date>(() => new Date());
 
   const { nodes, getTaskColor, getFolderTagForTask } = useTaskTreeContext();
-  const {
-    routines,
-    templates,
-    createRoutine,
-    updateRoutine,
-    deleteRoutine,
-    createTemplate,
-    updateTemplate,
-    deleteTemplate,
-    addTemplateItem,
-    updateTemplateItem,
-    removeTemplateItem,
-    getRoutineCompletionRate,
-    routineStats,
-    scheduleItems,
-    toggleComplete,
-  } = useScheduleContext();
 
   const { tasksByDate } = useCalendar(
     nodes,
@@ -125,7 +105,7 @@ export function ScheduleTabView({
             onSelectNote={onSelectNote}
             onStartTimer={onStartTimer}
           />
-        ) : subTab === "dayflow" ? (
+        ) : (
           <OneDaySchedule
             date={dayFlowDate}
             tasksByDate={tasksByDate}
@@ -136,24 +116,6 @@ export function ScheduleTabView({
             onPrevDate={goToPrev}
             onNextDate={goToNext}
             onToday={goToToday}
-          />
-        ) : (
-          <RoutinesTab
-            routines={routines}
-            templates={templates}
-            onCreateRoutine={createRoutine}
-            onUpdateRoutine={updateRoutine}
-            onDeleteRoutine={deleteRoutine}
-            onCreateTemplate={createTemplate}
-            onUpdateTemplate={updateTemplate}
-            onDeleteTemplate={deleteTemplate}
-            onAddTemplateItem={addTemplateItem}
-            onUpdateTemplateItem={updateTemplateItem}
-            onRemoveTemplateItem={removeTemplateItem}
-            getCompletionRate={getRoutineCompletionRate}
-            routineStats={routineStats}
-            scheduleItems={scheduleItems}
-            onToggleComplete={toggleComplete}
           />
         )}
       </div>

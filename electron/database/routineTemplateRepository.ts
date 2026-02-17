@@ -7,6 +7,7 @@ interface TemplateRow {
   frequency_type: string;
   frequency_days: string;
   order: number;
+  tag_id: number | null;
   created_at: string;
   updated_at: string;
 }
@@ -27,6 +28,7 @@ function rowToTemplate(row: TemplateRow): RoutineTemplate {
     frequencyType: row.frequency_type as RoutineTemplate["frequencyType"],
     frequencyDays: JSON.parse(row.frequency_days),
     order: row.order,
+    tagId: row.tag_id,
     items: [],
     createdAt: row.created_at,
     updatedAt: row.updated_at,
@@ -51,12 +53,12 @@ export function createRoutineTemplateRepository(db: Database.Database) {
     ),
     fetchById: db.prepare(`SELECT * FROM routine_templates WHERE id = ?`),
     insert: db.prepare(`
-      INSERT INTO routine_templates (id, name, frequency_type, frequency_days, "order", created_at, updated_at)
-      VALUES (@id, @name, @frequency_type, @frequency_days, @order, datetime('now'), datetime('now'))
+      INSERT INTO routine_templates (id, name, frequency_type, frequency_days, "order", tag_id, created_at, updated_at)
+      VALUES (@id, @name, @frequency_type, @frequency_days, @order, @tag_id, datetime('now'), datetime('now'))
     `),
     update: db.prepare(`
       UPDATE routine_templates SET name = @name, frequency_type = @frequency_type,
-      frequency_days = @frequency_days, "order" = @order, updated_at = datetime('now')
+      frequency_days = @frequency_days, "order" = @order, tag_id = @tag_id, updated_at = datetime('now')
       WHERE id = @id
     `),
     delete: db.prepare(`DELETE FROM routine_templates WHERE id = ?`),
@@ -111,6 +113,7 @@ export function createRoutineTemplateRepository(db: Database.Database) {
       name: string,
       frequencyType: string = "daily",
       frequencyDays: number[] = [],
+      tagId?: number | null,
     ): RoutineTemplate {
       const maxOrder = (stmts.maxOrder.get() as { max_order: number })
         .max_order;
@@ -120,6 +123,7 @@ export function createRoutineTemplateRepository(db: Database.Database) {
         frequency_type: frequencyType,
         frequency_days: JSON.stringify(frequencyDays),
         order: maxOrder + 1,
+        tag_id: tagId ?? null,
       });
       const row = stmts.fetchById.get(id) as TemplateRow;
       return rowToTemplate(row);
@@ -130,7 +134,7 @@ export function createRoutineTemplateRepository(db: Database.Database) {
       updates: Partial<
         Pick<
           RoutineTemplate,
-          "name" | "frequencyType" | "frequencyDays" | "order"
+          "name" | "frequencyType" | "frequencyDays" | "order" | "tagId"
         >
       >,
     ): RoutineTemplate {
@@ -145,6 +149,7 @@ export function createRoutineTemplateRepository(db: Database.Database) {
           updates.frequencyDays ?? current.frequencyDays,
         ),
         order: updates.order ?? current.order,
+        tag_id: updates.tagId !== undefined ? updates.tagId : current.tagId,
       });
       const row = stmts.fetchById.get(id) as TemplateRow;
       const template = rowToTemplate(row);

@@ -2,6 +2,7 @@ import { useState, useRef, useCallback } from "react";
 import { Plus, X } from "lucide-react";
 import type { useSoundTags } from "../../../hooks/useSoundTags";
 import { useClickOutside } from "../../../hooks/useClickOutside";
+import { useConfirmableSubmit } from "../../../hooks/useConfirmableSubmit";
 
 const DEFAULT_COLORS = [
   "#808080",
@@ -52,6 +53,13 @@ export function SoundTagEditor({
     setTagsForSound(soundId, [...currentTagIds, tag.id]);
     setNewTagName("");
   };
+
+  const {
+    inputRef: newTagInputRef,
+    handleKeyDown: newTagHandleKeyDown,
+    handleBlur: newTagHandleBlur,
+    handleFocus: newTagHandleFocus,
+  } = useConfirmableSubmit(handleCreate);
 
   return (
     <div
@@ -130,12 +138,13 @@ export function SoundTagEditor({
             </div>
             <div className="flex items-center gap-1">
               <input
+                ref={newTagInputRef}
                 type="text"
                 value={newTagName}
                 onChange={(e) => setNewTagName(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") handleCreate();
-                }}
+                onKeyDown={newTagHandleKeyDown}
+                onBlur={newTagHandleBlur}
+                onFocus={newTagHandleFocus}
                 placeholder="New tag..."
                 className="flex-1 text-xs px-1.5 py-0.5 rounded bg-notion-hover text-notion-text border-none outline-none"
               />

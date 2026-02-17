@@ -23,6 +23,7 @@ import type { NoteNode } from "../types/note";
 
 import type { CalendarNode } from "../types/calendar";
 import type { RoutineNode } from "../types/routine";
+import type { RoutineTag } from "../types/routineTag";
 import type { ScheduleItem, RoutineTemplate } from "../types/schedule";
 import type { Playlist, PlaylistItem } from "../types/playlist";
 import type {
@@ -289,6 +290,23 @@ export class ElectronDataService implements DataService {
     return invoke("db:calendars:delete", id);
   }
 
+  // Routine Tags
+  fetchRoutineTags(): Promise<RoutineTag[]> {
+    return invoke("db:routineTags:fetchAll");
+  }
+  createRoutineTag(name: string, color: string): Promise<RoutineTag> {
+    return invoke("db:routineTags:create", name, color);
+  }
+  updateRoutineTag(
+    id: number,
+    updates: Partial<Pick<RoutineTag, "name" | "color" | "order">>,
+  ): Promise<RoutineTag> {
+    return invoke("db:routineTags:update", id, updates);
+  }
+  deleteRoutineTag(id: number): Promise<void> {
+    return invoke("db:routineTags:delete", id);
+  }
+
   // Routines
   fetchAllRoutines(): Promise<RoutineNode[]> {
     return invoke("db:routines:fetchAll");
@@ -298,15 +316,16 @@ export class ElectronDataService implements DataService {
     title: string,
     startTime?: string,
     endTime?: string,
+    tagId?: number | null,
   ): Promise<RoutineNode> {
-    return invoke("db:routines:create", id, title, startTime, endTime);
+    return invoke("db:routines:create", id, title, startTime, endTime, tagId);
   }
   updateRoutine(
     id: string,
     updates: Partial<
       Pick<
         RoutineNode,
-        "title" | "startTime" | "endTime" | "isArchived" | "order"
+        "title" | "startTime" | "endTime" | "isArchived" | "order" | "tagId"
       >
     >,
   ): Promise<RoutineNode> {
@@ -325,6 +344,7 @@ export class ElectronDataService implements DataService {
     name: string,
     frequencyType?: string,
     frequencyDays?: number[],
+    tagId?: number | null,
   ): Promise<RoutineTemplate> {
     return invoke(
       "db:routineTemplates:create",
@@ -332,6 +352,7 @@ export class ElectronDataService implements DataService {
       name,
       frequencyType,
       frequencyDays,
+      tagId,
     );
   }
   updateRoutineTemplate(
@@ -339,7 +360,7 @@ export class ElectronDataService implements DataService {
     updates: Partial<
       Pick<
         RoutineTemplate,
-        "name" | "frequencyType" | "frequencyDays" | "order"
+        "name" | "frequencyType" | "frequencyDays" | "order" | "tagId"
       >
     >,
   ): Promise<RoutineTemplate> {

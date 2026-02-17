@@ -1,26 +1,34 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import type {
   RoutineTemplate,
   TemplateFrequencyType,
 } from "../../../../types/schedule";
+import type { RoutineTag } from "../../../../types/routineTag";
+import { useConfirmableSubmit } from "../../../../hooks/useConfirmableSubmit";
+import { RoutineTagSelector } from "./RoutineTagSelector";
 
 const DAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
 interface TemplateEditDialogProps {
   template?: RoutineTemplate;
+  tags: RoutineTag[];
   onSubmit: (
     name: string,
     frequencyType: TemplateFrequencyType,
     frequencyDays: number[],
+    tagId?: number | null,
   ) => void;
+  onCreateTag?: (name: string, color: string) => Promise<RoutineTag>;
   onClose: () => void;
 }
 
 export function TemplateEditDialog({
   template,
+  tags,
   onSubmit,
+  onCreateTag,
   onClose,
 }: TemplateEditDialogProps) {
   const { t } = useTranslation();
@@ -31,17 +39,20 @@ export function TemplateEditDialog({
   const [frequencyDays, setFrequencyDays] = useState<number[]>(
     template?.frequencyDays ?? [],
   );
-  const inputRef = useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-    inputRef.current?.focus();
-  }, []);
+  const [tagId, setTagId] = useState<number | null>(template?.tagId ?? null);
 
   const handleSubmit = () => {
     if (!name.trim()) return;
-    onSubmit(name.trim(), frequencyType, frequencyDays);
+    onSubmit(name.trim(), frequencyType, frequencyDays, tagId);
     onClose();
   };
+
+  const { inputRef, handleKeyDown, handleBlur, handleFocus, readyToSubmit } =
+    useConfirmableSubmit(handleSubmit, onClose);
+
+  useEffect(() => {
+    inputRef.current?.focus();
+  }, [inputRef]);
 
   const toggleDay = (day: number) => {
     setFrequencyDays((prev) =>
@@ -78,10 +89,9 @@ export function TemplateEditDialog({
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") handleSubmit();
-                if (e.key === "Escape") onClose();
-              }}
+              onKeyDown={handleKeyDown}
+              onBlur={handleBlur}
+              onFocus={handleFocus}
               placeholder={t(
                 "schedule.templateNamePlaceholder",
                 "Template name",
@@ -135,6 +145,18 @@ export function TemplateEditDialog({
               ))}
             </div>
           )}
+
+          <div>
+            <label className="text-[10px] text-notion-text-secondary uppercase tracking-wide mb-1 block">
+              {t("schedule.routineTag", "Tag")}
+            </label>
+            <RoutineTagSelector
+              tags={tags}
+              selectedTagId={tagId}
+              onSelect={setTagId}
+              onCreateTag={onCreateTag}
+            />
+          </div>
         </div>
 
         <div className="flex justify-end gap-2 mt-4">
@@ -147,7 +169,7 @@ export function TemplateEditDialog({
           <button
             onClick={handleSubmit}
             disabled={!name.trim()}
-            className="px-3 py-1.5 text-xs bg-notion-accent text-white rounded-md hover:bg-notion-accent/90 transition-colors disabled:opacity-50"
+            className={`px-3 py-1.5 text-xs bg-notion-accent text-white rounded-md hover:bg-notion-accent/90 transition-colors disabled:opacity-50 ${readyToSubmit ? "ring-2 ring-notion-accent/50 animate-pulse" : ""}`}
           >
             {template
               ? t("common.save", "Save")

@@ -20,6 +20,7 @@ export interface RoutineTemplate {
   frequencyType: TemplateFrequencyType;
   frequencyDays: number[]; // 0=Sun, 1=Mon, ..., 6=Sat
   order: number;
+  tagId: number | null;
   items: RoutineTemplateItem[];
   createdAt: string;
   updatedAt: string;

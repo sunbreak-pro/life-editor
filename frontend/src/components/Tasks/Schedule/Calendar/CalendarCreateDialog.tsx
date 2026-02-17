@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useTaskTreeContext } from "../../../../hooks/useTaskTreeContext";
+import { useConfirmableSubmit } from "../../../../hooks/useConfirmableSubmit";
 import { flattenFolders } from "../../../../utils/flattenFolders";
 
 interface CalendarCreateDialogProps {
@@ -19,10 +20,21 @@ export function CalendarCreateDialog({
   const [title, setTitle] = useState("");
   const [folderId, setFolderId] = useState(folders[0]?.id ?? "");
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleFormSubmit = () => {
     if (!title.trim() || !folderId) return;
     onSubmit(title.trim(), folderId);
+  };
+
+  const { inputRef, handleKeyDown, handleBlur, handleFocus, readyToSubmit } =
+    useConfirmableSubmit(handleFormSubmit, onClose);
+
+  useEffect(() => {
+    inputRef.current?.focus();
+  }, [inputRef]);
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    handleFormSubmit();
   };
 
   return (
@@ -49,9 +61,12 @@ export function CalendarCreateDialog({
           {t("calendarCreate.titleLabel")}
         </label>
         <input
-          autoFocus
+          ref={inputRef}
           value={title}
           onChange={(e) => setTitle(e.target.value)}
+          onKeyDown={handleKeyDown}
+          onBlur={handleBlur}
+          onFocus={handleFocus}
           placeholder={t("calendarCreate.placeholder")}
           className="w-full px-2 py-1.5 mb-3 text-sm bg-notion-bg-secondary border border-notion-border rounded text-notion-text placeholder:text-notion-text-secondary/50 focus:outline-none focus:ring-1 focus:ring-notion-accent"
         />
@@ -88,7 +103,7 @@ export function CalendarCreateDialog({
           <button
             type="submit"
             disabled={!title.trim() || !folderId}
-            className="px-3 py-1.5 text-xs bg-notion-accent text-white rounded hover:bg-notion-accent/90 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            className={`px-3 py-1.5 text-xs bg-notion-accent text-white rounded hover:bg-notion-accent/90 disabled:opacity-40 disabled:cursor-not-allowed transition-colors ${readyToSubmit ? "ring-2 ring-notion-accent/50 animate-pulse" : ""}`}
           >
             {t("calendarCreate.create")}
           </button>

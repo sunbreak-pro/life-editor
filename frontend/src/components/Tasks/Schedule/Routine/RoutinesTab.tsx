@@ -1,12 +1,15 @@
 import { useState } from "react";
-import { Plus, Pencil, Trash2, Archive } from "lucide-react";
+import { Plus, Pencil, Trash2, Archive, Tag } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import type { RoutineNode } from "../../../../types/routine";
+import type { RoutineTag } from "../../../../types/routineTag";
 import type {
   RoutineTemplate,
   RoutineStats,
   ScheduleItem,
 } from "../../../../types/schedule";
 import { RoutineEditDialog } from "./RoutineEditDialog";
+import { RoutineTagManager } from "./RoutineTagManager";
 import { TemplateManager } from "./TemplateManager";
 import { AchievementPanel } from "./AchievementPanel";
 import { AchievementDetailsOverlay } from "./AchievementDetailsOverlay";
@@ -15,15 +18,20 @@ import { RoutineFlow } from "./RoutineFlow";
 interface RoutinesTabProps {
   routines: RoutineNode[];
   templates: RoutineTemplate[];
+  routineTags: RoutineTag[];
   onCreateRoutine: (
     title: string,
     startTime?: string,
     endTime?: string,
+    tagId?: number | null,
   ) => void;
   onUpdateRoutine: (
     id: string,
     updates: Partial<
-      Pick<RoutineNode, "title" | "startTime" | "endTime" | "isArchived">
+      Pick<
+        RoutineNode,
+        "title" | "startTime" | "endTime" | "isArchived" | "tagId"
+      >
     >,
   ) => void;
   onDeleteRoutine: (id: string) => void;
@@ -31,11 +39,15 @@ interface RoutinesTabProps {
     name: string,
     frequencyType: string,
     frequencyDays: number[],
+    tagId?: number | null,
   ) => void;
   onUpdateTemplate: (
     id: string,
     updates: Partial<
-      Pick<RoutineTemplate, "name" | "frequencyType" | "frequencyDays">
+      Pick<
+        RoutineTemplate,
+        "name" | "frequencyType" | "frequencyDays" | "tagId"
+      >
     >,
   ) => void;
   onDeleteTemplate: (id: string) => void;
@@ -58,11 +70,18 @@ interface RoutinesTabProps {
   routineStats: RoutineStats | null;
   scheduleItems: ScheduleItem[];
   onToggleComplete: (id: string) => void;
+  onCreateRoutineTag: (name: string, color: string) => Promise<RoutineTag>;
+  onUpdateRoutineTag: (
+    id: number,
+    updates: Partial<Pick<RoutineTag, "name" | "color">>,
+  ) => void;
+  onDeleteRoutineTag: (id: number) => void;
 }
 
 export function RoutinesTab({
   routines,
   templates,
+  routineTags,
   onCreateRoutine,
   onUpdateRoutine,
   onDeleteRoutine,
@@ -76,11 +95,16 @@ export function RoutinesTab({
   routineStats,
   scheduleItems,
   onToggleComplete,
+  onCreateRoutineTag,
+  onUpdateRoutineTag,
+  onDeleteRoutineTag,
 }: RoutinesTabProps) {
+  const { t } = useTranslation();
   const [editDialog, setEditDialog] = useState<RoutineNode | "new" | null>(
     null,
   );
   const [showDetails, setShowDetails] = useState(false);
+  const [showTagManager, setShowTagManager] = useState(false);
 
   const activeRoutines = routines
     .filter((r) => !r.isArchived)
@@ -118,12 +142,21 @@ export function RoutinesTab({
               <span className="text-[10px] text-notion-text-secondary uppercase tracking-wide font-medium">
                 Routines
               </span>
-              <button
-                onClick={() => setEditDialog("new")}
-                className="p-0.5 text-notion-text-secondary hover:text-notion-text rounded transition-colors"
-              >
-                <Plus size={14} />
-              </button>
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={() => setShowTagManager(true)}
+                  className="p-0.5 text-notion-text-secondary hover:text-notion-text rounded transition-colors"
+                  title={t("schedule.manageTags", "Manage Tags")}
+                >
+                  <Tag size={14} />
+                </button>
+                <button
+                  onClick={() => setEditDialog("new")}
+                  className="p-0.5 text-notion-text-secondary hover:text-notion-text rounded transition-colors"
+                >
+                  <Plus size={14} />
+                </button>
+              </div>
             </div>
 
             {activeRoutines.length === 0 && (
@@ -141,8 +174,24 @@ export function RoutinesTab({
                     className="flex items-center gap-1.5 px-2 py-1.5 rounded-md border border-notion-border hover:bg-notion-hover group transition-colors"
                   >
                     <div className="flex-1 min-w-0">
-                      <div className="text-xs text-notion-text truncate">
-                        {routine.title}
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-xs text-notion-text truncate">
+                          {routine.title}
+                        </span>
+                        {routine.tagId != null &&
+                          (() => {
+                            const tag = routineTags.find(
+                              (t) => t.id === routine.tagId,
+                            );
+                            return tag ? (
+                              <span
+                                className="inline-flex items-center px-1.5 py-0 text-[9px] rounded-full text-white shrink-0"
+                                style={{ backgroundColor: tag.color }}
+                              >
+                                {tag.name}
+                              </span>
+                            ) : null;
+                          })()}
                       </div>
                       <div className="text-[10px] text-notion-text-secondary">
                         {routine.startTime && routine.endTime
@@ -220,12 +269,14 @@ export function RoutinesTab({
             <TemplateManager
               templates={templates}
               routines={routines}
+              routineTags={routineTags}
               onCreateTemplate={onCreateTemplate}
               onUpdateTemplate={onUpdateTemplate}
               onDeleteTemplate={onDeleteTemplate}
               onAddItem={onAddTemplateItem}
               onUpdateItem={onUpdateTemplateItem}
               onRemoveItem={onRemoveTemplateItem}
+              onCreateTag={onCreateRoutineTag}
             />
           </div>
         </div>
@@ -234,14 +285,31 @@ export function RoutinesTab({
       {editDialog && (
         <RoutineEditDialog
           routine={editDialog === "new" ? undefined : editDialog}
-          onSubmit={(title, startTime, endTime) => {
+          tags={routineTags}
+          onSubmit={(title, startTime, endTime, tagId) => {
             if (editDialog === "new") {
-              onCreateRoutine(title, startTime, endTime);
+              onCreateRoutine(title, startTime, endTime, tagId);
             } else {
-              onUpdateRoutine(editDialog.id, { title, startTime, endTime });
+              onUpdateRoutine(editDialog.id, {
+                title,
+                startTime,
+                endTime,
+                tagId,
+              });
             }
           }}
+          onCreateTag={onCreateRoutineTag}
           onClose={() => setEditDialog(null)}
+        />
+      )}
+
+      {showTagManager && (
+        <RoutineTagManager
+          tags={routineTags}
+          onCreateTag={onCreateRoutineTag}
+          onUpdateTag={onUpdateRoutineTag}
+          onDeleteTag={onDeleteRoutineTag}
+          onClose={() => setShowTagManager(false)}
         />
       )}
 
