@@ -40,8 +40,14 @@ export function ScheduleItemBlock({
           ? "var(--color-notion-hover)"
           : item.routineId
             ? "var(--color-notion-accent-muted, rgba(37, 99, 235, 0.08))"
-            : "var(--color-notion-accent-muted, rgba(37, 99, 235, 0.08))",
-        borderLeft: `3px solid ${item.completed ? "var(--color-notion-text-secondary)" : "var(--color-notion-accent)"}`,
+            : "rgba(156, 163, 175, 0.08)",
+        borderLeft: `3px solid ${
+          item.completed
+            ? "var(--color-notion-text-secondary)"
+            : item.routineId
+              ? "var(--color-notion-accent)"
+              : "var(--color-notion-text-secondary)"
+        }`,
         zIndex: isNext ? 15 : 10,
       }}
       onClick={(e) => {

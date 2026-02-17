@@ -248,7 +248,7 @@ export function ScheduleTimeGrid({
             )}
 
             {/* Task blocks (dim appearance) */}
-            <div className="opacity-30">
+            <div className="opacity-70">
               {positionedTasks.map((p) => (
                 <TimeGridTaskBlock
                   key={p.task.id}

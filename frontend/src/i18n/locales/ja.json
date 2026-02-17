@@ -722,6 +722,15 @@
   "music.deleteConfirm": "「{{name}}」を削除しますか？",
   "music.preview": "プレビュー",
   "music.stopPreview": "プレビュー停止",
+  "dayFlow": {
+    "filterAll": "すべて",
+    "filterRoutine": "ルーティン",
+    "filterTasks": "タスク",
+    "filterOthers": "その他",
+    "addTask": "タスクを追加",
+    "selectTime": "時間を設定",
+    "noItems": "項目なし"
+  },
   "dateTime": {
     "justNow": "たった今",
     "minutesAgo": "{{count}}分前",

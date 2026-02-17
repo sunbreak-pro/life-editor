@@ -1,12 +1,24 @@
 import { useState, useEffect, useMemo } from "react";
 import { useTranslation } from "react-i18next";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
 import type { TaskNode } from "../../../../types/taskTree";
 import { useScheduleContext } from "../../../../hooks/useScheduleContext";
 import { formatDateKey, formatDayFlowDate } from "../../../../utils/dateKey";
 import { ScheduleTimeGrid } from "./ScheduleTimeGrid";
 import { ScheduleItemCreatePopover } from "./ScheduleItemCreatePopover";
 import { TodayFlowTab } from "./TodayFlowTab";
+import { DayFlowTaskPicker } from "./DayFlowTaskPicker";
+import { SectionTabs } from "../../../shared/SectionTabs";
+import type { TabItem } from "../../../shared/SectionTabs";
+
+type DayFlowFilterTab = "all" | "routine" | "tasks" | "others";
+
+const DAY_FLOW_FILTER_TABS: readonly TabItem<DayFlowFilterTab>[] = [
+  { id: "all", labelKey: "dayFlow.filterAll" },
+  { id: "routine", labelKey: "dayFlow.filterRoutine" },
+  { id: "tasks", labelKey: "dayFlow.filterTasks" },
+  { id: "others", labelKey: "dayFlow.filterOthers" },
+];
 
 interface OneDayScheduleProps {
   date: Date;
@@ -42,9 +54,10 @@ export function OneDaySchedule({
     ensureTemplateItemsForDate,
     refreshRoutineStats,
   } = useScheduleContext();
-
   const dateKey = formatDateKey(date);
   const isToday = dateKey === formatDateKey(new Date());
+  const [filterTab, setFilterTab] = useState<DayFlowFilterTab>("all");
+  const [showTaskPicker, setShowTaskPicker] = useState(false);
   const [createPopover, setCreatePopover] = useState<{
     startTime: string;
     endTime: string;
@@ -79,6 +92,42 @@ export function OneDaySchedule({
     () => allTasksByDate.get(dateKey) ?? [],
     [allTasksByDate, dateKey],
   );
+
+  // Filtered data based on active filter tab
+  const filteredScheduleItems = useMemo(() => {
+    switch (filterTab) {
+      case "routine":
+        return scheduleItems.filter((i) => i.routineId !== null);
+      case "others":
+        return scheduleItems.filter((i) => i.routineId === null);
+      case "tasks":
+        return [];
+      default:
+        return scheduleItems;
+    }
+  }, [scheduleItems, filterTab]);
+
+  const filteredDayTasks = useMemo(() => {
+    if (filterTab === "routine" || filterTab === "others") return [];
+    return dayTasks;
+  }, [dayTasks, filterTab]);
+
+  const filteredAllDayTasks = useMemo(() => {
+    if (filterTab === "routine" || filterTab === "others") return [];
+    return allDayTasks;
+  }, [allDayTasks, filterTab]);
+
+  // Task IDs already scheduled for this date (for task picker exclusion)
+  const existingTaskIds = useMemo(() => {
+    const ids = new Set<string>();
+    for (const task of dayTasks) {
+      ids.add(task.id);
+    }
+    for (const task of allDayTasks) {
+      ids.add(task.id);
+    }
+    return ids;
+  }, [dayTasks, allDayTasks]);
 
   const handleCreateItem = (
     startTime: string,
@@ -119,6 +168,22 @@ export function OneDaySchedule({
             {t("calendarHeader.today", "Today")}
           </button>
         )}
+        <div className="ml-auto relative">
+          <button
+            onClick={() => setShowTaskPicker(!showTaskPicker)}
+            className="p-1 text-notion-text-secondary hover:text-notion-text hover:bg-notion-hover rounded transition-colors"
+            title={t("dayFlow.addTask")}
+          >
+            <Plus size={16} />
+          </button>
+          {showTaskPicker && (
+            <DayFlowTaskPicker
+              date={date}
+              onClose={() => setShowTaskPicker(false)}
+              existingTaskIds={existingTaskIds}
+            />
+          )}
+        </div>
       </div>
 
       {/* Main content */}
@@ -127,8 +192,8 @@ export function OneDaySchedule({
         <div className="flex-1 min-w-75 h-full">
           <ScheduleTimeGrid
             date={date}
-            scheduleItems={scheduleItems}
-            tasks={dayTasks}
+            scheduleItems={filteredScheduleItems}
+            tasks={filteredDayTasks}
             onToggleComplete={toggleComplete}
             onClickItem={() => {}}
             onClickTask={onSelectTask}
@@ -140,16 +205,17 @@ export function OneDaySchedule({
 
         {/* Right: Day Flow */}
         <div className="flex-1 min-w-75 h-full border border-notion-border rounded-lg bg-notion-bg overflow-y-auto flex flex-col">
-          <div className="px-3 py-2 border-b border-notion-border">
-            <span className="text-xs font-medium text-notion-text">
-              {t("schedule.dayFlow", "Day Flow")}
-            </span>
-          </div>
+          <SectionTabs
+            tabs={DAY_FLOW_FILTER_TABS}
+            activeTab={filterTab}
+            onTabChange={setFilterTab}
+            size="sm"
+          />
           <div className="flex-1 overflow-y-auto">
             <TodayFlowTab
-              items={scheduleItems}
+              items={filteredScheduleItems}
               onToggleComplete={toggleComplete}
-              tasks={allDayTasks}
+              tasks={filteredAllDayTasks}
               onSelectTask={onSelectTask}
               getTaskColor={getTaskColor}
             />

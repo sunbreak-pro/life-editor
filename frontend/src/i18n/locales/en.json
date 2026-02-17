@@ -722,6 +722,15 @@
   "music.deleteConfirm": "Delete \"{{name}}\"?",
   "music.preview": "Preview",
   "music.stopPreview": "Stop preview",
+  "dayFlow": {
+    "filterAll": "All",
+    "filterRoutine": "Routine",
+    "filterTasks": "Tasks",
+    "filterOthers": "Others",
+    "addTask": "Add task",
+    "selectTime": "Set time",
+    "noItems": "No items"
+  },
   "dateTime": {
     "justNow": "just now",
     "minutesAgo": "{{count}}m ago",
