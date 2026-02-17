@@ -20,6 +20,7 @@ import { ConfirmDialog } from "../../shared/ConfirmDialog";
 import { CompletionToast } from "../../shared/CompletionToast";
 import { computeFolderProgress } from "../../../utils/folderProgress";
 import { fireTaskCompleteConfetti } from "../../../utils/confetti";
+import { playEffectSound } from "../../../utils/playEffectSound";
 import { sortTaskNodes } from "../../../utils/sortTaskNodes";
 import type { SortMode } from "../../../utils/sortTaskNodes";
 
@@ -127,6 +128,7 @@ export function TaskTreeNode({
   const handleToggleStatus = useCallback(() => {
     if (node.status !== "DONE") {
       fireTaskCompleteConfetti();
+      playEffectSound("/sounds/task_complete_sound.mp3");
       setCompletionToast(t("taskTree.taskComplete", { name: node.title }));
     }
     toggleTaskStatus(node.id);

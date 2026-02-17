@@ -90,13 +90,26 @@ export function TimerProvider({ children }: { children: ReactNode }) {
     dispatch({ type: "ADVANCE_SESSION" });
 
     if (state.sessionType === "WORK") {
+      const nextCompleted = state.completedSessions + 1;
+      const willBeLongBreak =
+        nextCompleted % state.config.sessionsBeforeLongBreak === 0;
       sendNotification("WORK完了！");
-      playEffectSound("/sounds/session_complete_sound.mp3");
+      if (willBeLongBreak) {
+        playEffectSound("/sounds/pomodoro_complete_sound.mp3");
+      } else {
+        playEffectSound("/sounds/session_complete_sound.mp3");
+      }
     } else {
       sendNotification("休憩終了！作業を再開しましょう");
       playEffectSound("/sounds/session_complete_sound.mp3");
     }
-  }, [clearTimer, endCurrentSession, state.sessionType, state.config]);
+  }, [
+    clearTimer,
+    endCurrentSession,
+    state.sessionType,
+    state.config,
+    state.completedSessions,
+  ]);
 
   // Timer interval effect
   useEffect(() => {
@@ -120,6 +133,9 @@ export function TimerProvider({ children }: { children: ReactNode }) {
   }, [state.remainingSeconds, state.isRunning, advanceSession]);
 
   const start = useCallback(() => {
+    if (state.sessionType === "WORK") {
+      playEffectSound("/sounds/session_start_sound.mp3");
+    }
     dispatch({ type: "START" });
     getDataService()
       .startTimerSession(state.sessionType, state.activeTask?.id)
@@ -156,6 +172,7 @@ export function TimerProvider({ children }: { children: ReactNode }) {
     (id: string, title: string) => {
       clearTimer();
       endCurrentSession(0, false);
+      playEffectSound("/sounds/session_start_sound.mp3");
       const durationSeconds = state.config.workDuration;
       dispatch({
         type: "START_FOR_TASK",
@@ -328,6 +345,7 @@ export function TimerProvider({ children }: { children: ReactNode }) {
     (routineId: string, title: string, durationMinutes?: number) => {
       clearTimer();
       endCurrentSession(0, false);
+      playEffectSound("/sounds/session_start_sound.mp3");
       setActiveRoutineId(routineId);
       const dur = durationMinutes ?? state.config.workDuration / 60;
       dispatch({
