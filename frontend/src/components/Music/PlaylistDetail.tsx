@@ -8,6 +8,7 @@ import {
   Play,
   Pencil,
   Check,
+  ChevronLeft,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import {
@@ -26,11 +27,8 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { SOUND_TYPES } from "../../constants/sounds";
-import { SoundPickerModal } from "./SoundPickerModal";
 import { SoundTagEditor } from "./SoundTagEditor";
 import { useSoundTags } from "../../hooks/useSoundTags";
-import { useAudioContext } from "../../hooks/useAudioContext";
-import { useAudioFileUpload } from "../../hooks/useAudioFileUpload";
 import type { PlaylistDataResult } from "../../hooks/usePlaylistData";
 import type { PlaylistPlayerResult } from "../../hooks/usePlaylistPlayer";
 import type { PlaylistItem } from "../../types/playlist";
@@ -41,6 +39,8 @@ interface PlaylistDetailProps {
   playlistData: PlaylistDataResult;
   player: PlaylistPlayerResult;
   customSounds: CustomSoundMeta[];
+  onBack: () => void;
+  onRequestAddMode: () => void;
 }
 
 function getSoundLabel(
@@ -243,11 +243,11 @@ export function PlaylistDetail({
   playlistData,
   player,
   customSounds,
+  onBack,
+  onRequestAddMode,
 }: PlaylistDetailProps) {
   const { t } = useTranslation();
-  const audio = useAudioContext();
   const soundTagState = useSoundTags();
-  const [pickerOpen, setPickerOpen] = useState(false);
 
   const items = useMemo(
     () => playlistData.itemsByPlaylist[playlistId] || [],
@@ -257,8 +257,6 @@ export function PlaylistDetail({
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
   );
-
-  const existingSoundIds = useMemo(() => items.map((i) => i.soundId), [items]);
 
   const currentTrackItem =
     player.activePlaylistId === playlistId
@@ -280,30 +278,25 @@ export function PlaylistDetail({
     );
   };
 
-  const handleAddSound = (soundId: string) => {
-    playlistData.addItem(playlistId, soundId);
-  };
-
-  const onUploadSuccess = useCallback(
-    (id: string) => {
-      playlistData.addItem(playlistId, id);
-    },
-    [playlistData, playlistId],
-  );
-
-  const handleAddCustomSound = useAudioFileUpload(
-    audio.addSound,
-    onUploadSuccess,
-  );
+  const playlist = playlistData.playlists.find((p) => p.id === playlistId);
 
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between">
-        <h3 className="text-sm font-medium text-notion-text">
-          {t("playlist.tracks")}
-        </h3>
+        <div className="flex items-center gap-1.5">
+          <button
+            onClick={onBack}
+            className="p-1 text-notion-text-secondary hover:text-notion-text rounded-md hover:bg-notion-hover transition-colors"
+            title={t("playlist.back")}
+          >
+            <ChevronLeft size={16} />
+          </button>
+          <h3 className="text-sm font-medium text-notion-text">
+            {playlist?.name || t("playlist.tracks")}
+          </h3>
+        </div>
         <button
-          onClick={() => setPickerOpen(true)}
+          onClick={onRequestAddMode}
           className="flex items-center gap-1 px-2 py-1 text-xs text-notion-text-secondary hover:text-notion-accent rounded-md hover:bg-notion-hover transition-colors"
         >
           <Plus size={12} />
@@ -351,16 +344,6 @@ export function PlaylistDetail({
           {t("playlist.noTracks")}
         </div>
       )}
-
-      <SoundPickerModal
-        isOpen={pickerOpen}
-        onClose={() => setPickerOpen(false)}
-        onSelectSound={handleAddSound}
-        excludeSoundIds={existingSoundIds}
-        customSounds={customSounds}
-        onAddCustomSound={handleAddCustomSound}
-        soundTagState={soundTagState}
-      />
     </div>
   );
 }

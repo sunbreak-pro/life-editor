@@ -31,6 +31,7 @@ export function DateInput({
 }: DateInputProps) {
   const [activeField, setActiveField] = useState<Field | null>(null);
   const [editBuffer, setEditBuffer] = useState("");
+  const editBufferRef = useRef("");
   const containerRef = useRef<HTMLDivElement>(null);
   const monthRef = useRef<HTMLSpanElement>(null);
   const dayRef = useRef<HTMLSpanElement>(null);
@@ -56,26 +57,28 @@ export function DateInput({
   const activateField = useCallback(
     (field: Field) => {
       if (activeField === field) return;
-      if (activeField && editBuffer) {
-        commitBuffer(activeField, editBuffer);
+      if (activeField && editBufferRef.current) {
+        commitBuffer(activeField, editBufferRef.current);
       }
       setActiveField(field);
+      editBufferRef.current = "";
       setEditBuffer("");
     },
-    [activeField, editBuffer, commitBuffer],
+    [activeField, commitBuffer],
   );
 
   const handleBlur = useCallback(
     (e: React.FocusEvent) => {
       const related = e.relatedTarget as Node | null;
       if (containerRef.current?.contains(related)) return;
-      if (activeField && editBuffer) {
-        commitBuffer(activeField, editBuffer);
+      if (activeField && editBufferRef.current) {
+        commitBuffer(activeField, editBufferRef.current);
       }
       setActiveField(null);
+      editBufferRef.current = "";
       setEditBuffer("");
     },
-    [activeField, editBuffer, commitBuffer],
+    [activeField, commitBuffer],
   );
 
   const handleKeyDown = useCallback(
@@ -83,29 +86,35 @@ export function DateInput({
       if (!activeField) return;
 
       if (e.key === "Tab") {
-        if (editBuffer) {
-          commitBuffer(activeField, editBuffer);
+        if (editBufferRef.current) {
+          commitBuffer(activeField, editBufferRef.current);
         }
         if (activeField === "month" && !e.shiftKey) {
           e.preventDefault();
+          editBufferRef.current = "";
+          setEditBuffer("");
           activateField("day");
           dayRef.current?.focus();
         } else if (activeField === "day" && e.shiftKey) {
           e.preventDefault();
+          editBufferRef.current = "";
+          setEditBuffer("");
           activateField("month");
           monthRef.current?.focus();
         } else {
           setActiveField(null);
+          editBufferRef.current = "";
           setEditBuffer("");
         }
         return;
       }
 
       if (e.key === "Enter" || e.key === "Escape") {
-        if (editBuffer) {
-          commitBuffer(activeField, editBuffer);
+        if (editBufferRef.current) {
+          commitBuffer(activeField, editBufferRef.current);
         }
         setActiveField(null);
+        editBufferRef.current = "";
         setEditBuffer("");
         containerRef.current?.blur();
         return;
@@ -121,13 +130,15 @@ export function DateInput({
         } else {
           onChange(year, month, clampDay(day + delta, year, month));
         }
+        editBufferRef.current = "";
         setEditBuffer("");
         return;
       }
 
       if (/^[0-9]$/.test(e.key)) {
         e.preventDefault();
-        const next = editBuffer + e.key;
+        const next = editBufferRef.current + e.key;
+        editBufferRef.current = next;
         setEditBuffer(next);
 
         if (activeField === "month") {
@@ -136,6 +147,7 @@ export function DateInput({
             const m = clampMonth(num);
             const d = clampDay(day, year, m);
             onChange(year, m, d);
+            editBufferRef.current = "";
             setEditBuffer("");
             setActiveField("day");
             dayRef.current?.focus();
@@ -144,6 +156,7 @@ export function DateInput({
           if (next.length >= 2) {
             const num = parseInt(next, 10);
             onChange(year, month, clampDay(num, year, month));
+            editBufferRef.current = "";
             setEditBuffer("");
             setActiveField(null);
           }
@@ -151,16 +164,7 @@ export function DateInput({
         return;
       }
     },
-    [
-      activeField,
-      editBuffer,
-      year,
-      month,
-      day,
-      onChange,
-      commitBuffer,
-      activateField,
-    ],
+    [activeField, year, month, day, onChange, commitBuffer, activateField],
   );
 
   const displayMonth =
@@ -178,7 +182,7 @@ export function DateInput({
   return (
     <div
       ref={containerRef}
-      className={`inline-flex items-center ${textClass} text-notion-text font-mono select-none`}
+      className={`inline-flex items-center border border-notion-border rounded-md px-1.5 py-1 ${textClass} text-notion-text font-mono select-none`}
       onBlur={handleBlur}
     >
       <span

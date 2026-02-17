@@ -24,12 +24,13 @@ export function TimeInput({
   hour,
   minute,
   onChange,
-  minuteStep = 5,
+  minuteStep = 1,
   className = "",
   size = "default",
 }: TimeInputProps) {
   const [activeField, setActiveField] = useState<Field | null>(null);
   const [editBuffer, setEditBuffer] = useState("");
+  const editBufferRef = useRef("");
   const containerRef = useRef<HTMLDivElement>(null);
   const hourRef = useRef<HTMLSpanElement>(null);
   const minuteRef = useRef<HTMLSpanElement>(null);
@@ -53,26 +54,28 @@ export function TimeInput({
   const activateField = useCallback(
     (field: Field) => {
       if (activeField === field) return;
-      if (activeField && editBuffer) {
-        commitBuffer(activeField, editBuffer);
+      if (activeField && editBufferRef.current) {
+        commitBuffer(activeField, editBufferRef.current);
       }
       setActiveField(field);
+      editBufferRef.current = "";
       setEditBuffer("");
     },
-    [activeField, editBuffer, commitBuffer],
+    [activeField, commitBuffer],
   );
 
   const handleBlur = useCallback(
     (e: React.FocusEvent) => {
       const related = e.relatedTarget as Node | null;
       if (containerRef.current?.contains(related)) return;
-      if (activeField && editBuffer) {
-        commitBuffer(activeField, editBuffer);
+      if (activeField && editBufferRef.current) {
+        commitBuffer(activeField, editBufferRef.current);
       }
       setActiveField(null);
+      editBufferRef.current = "";
       setEditBuffer("");
     },
-    [activeField, editBuffer, commitBuffer],
+    [activeField, commitBuffer],
   );
 
   const handleKeyDown = useCallback(
@@ -80,29 +83,35 @@ export function TimeInput({
       if (!activeField) return;
 
       if (e.key === "Tab") {
-        if (editBuffer) {
-          commitBuffer(activeField, editBuffer);
+        if (editBufferRef.current) {
+          commitBuffer(activeField, editBufferRef.current);
         }
         if (activeField === "hour" && !e.shiftKey) {
           e.preventDefault();
+          editBufferRef.current = "";
+          setEditBuffer("");
           activateField("minute");
           minuteRef.current?.focus();
         } else if (activeField === "minute" && e.shiftKey) {
           e.preventDefault();
+          editBufferRef.current = "";
+          setEditBuffer("");
           activateField("hour");
           hourRef.current?.focus();
         } else {
           setActiveField(null);
+          editBufferRef.current = "";
           setEditBuffer("");
         }
         return;
       }
 
       if (e.key === "Enter" || e.key === "Escape") {
-        if (editBuffer) {
-          commitBuffer(activeField, editBuffer);
+        if (editBufferRef.current) {
+          commitBuffer(activeField, editBufferRef.current);
         }
         setActiveField(null);
+        editBufferRef.current = "";
         setEditBuffer("");
         containerRef.current?.blur();
         return;
@@ -116,19 +125,22 @@ export function TimeInput({
         } else {
           onChange(hour, clampMinute(minute + delta * minuteStep, minuteStep));
         }
+        editBufferRef.current = "";
         setEditBuffer("");
         return;
       }
 
       if (/^[0-9]$/.test(e.key)) {
         e.preventDefault();
-        const next = editBuffer + e.key;
+        const next = editBufferRef.current + e.key;
+        editBufferRef.current = next;
         setEditBuffer(next);
 
         if (activeField === "hour") {
           if (next.length >= 2) {
             const num = parseInt(next, 10);
             onChange(clampHour(num), minute);
+            editBufferRef.current = "";
             setEditBuffer("");
             setActiveField("minute");
             minuteRef.current?.focus();
@@ -137,6 +149,7 @@ export function TimeInput({
           if (next.length >= 2) {
             const num = parseInt(next, 10);
             onChange(hour, clampMinute(num, minuteStep));
+            editBufferRef.current = "";
             setEditBuffer("");
             setActiveField(null);
           }
@@ -146,7 +159,6 @@ export function TimeInput({
     },
     [
       activeField,
-      editBuffer,
       hour,
       minute,
       minuteStep,
@@ -176,7 +188,7 @@ export function TimeInput({
   return (
     <div
       ref={containerRef}
-      className={`inline-flex items-center ${textClass} text-notion-text font-mono select-none ${className}`}
+      className={`inline-flex border border-notion-border rounded-md items-center px-1.5 py-1 ${textClass} text-notion-text font-mono select-none ${className}`}
       onBlur={handleBlur}
     >
       <span

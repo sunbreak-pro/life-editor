@@ -23,7 +23,6 @@ export { useTaskTreeDeletion } from "./useTaskTreeDeletion";
 export { useTaskTreeDnd } from "./useTaskTreeDnd";
 export { useTaskTreeKeyboard } from "./useTaskTreeKeyboard";
 export { useTaskTreeMovement } from "./useTaskTreeMovement";
-export { useTemplates } from "./useTemplates";
 export { useTheme } from "./useTheme";
 export { useTimerContext } from "./useTimerContext";
 

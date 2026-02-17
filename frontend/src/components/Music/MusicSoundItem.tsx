@@ -14,6 +14,10 @@ interface MusicSoundItemProps {
   soundTagState: ReturnType<typeof useSoundTags>;
   previewingId: string | null;
   onTogglePreview: (soundId: string, url: string) => void;
+  isAddMode?: boolean;
+  isChecked?: boolean;
+  isAlreadyInPlaylist?: boolean;
+  onToggleCheck?: (soundId: string) => void;
 }
 
 export function MusicSoundItem({
@@ -23,6 +27,10 @@ export function MusicSoundItem({
   soundTagState,
   previewingId,
   onTogglePreview,
+  isAddMode = false,
+  isChecked = false,
+  isAlreadyInPlaylist = false,
+  onToggleCheck,
 }: MusicSoundItemProps) {
   const { t } = useTranslation();
   const audio = useAudioContext();
@@ -69,10 +77,34 @@ export function MusicSoundItem({
     "";
 
   return (
-    <div className="flex items-center gap-2 px-3 py-1.5 rounded-md hover:bg-notion-hover group">
+    <div
+      className={`flex items-center gap-2 px-3 py-1.5 rounded-md hover:bg-notion-hover group ${
+        isAddMode && isAlreadyInPlaylist ? "opacity-50" : ""
+      }`}
+      onClick={
+        isAddMode && !isAlreadyInPlaylist
+          ? () => onToggleCheck?.(soundId)
+          : undefined
+      }
+    >
+      {/* Add mode checkbox */}
+      {isAddMode && (
+        <input
+          type="checkbox"
+          checked={isChecked}
+          disabled={isAlreadyInPlaylist}
+          onChange={() => onToggleCheck?.(soundId)}
+          onClick={(e) => e.stopPropagation()}
+          className="w-4 h-4 shrink-0 accent-[--color-accent] cursor-pointer disabled:cursor-not-allowed"
+        />
+      )}
+
       {/* Play/Preview button */}
       <button
-        onClick={() => onTogglePreview(soundId, soundUrl)}
+        onClick={(e) => {
+          e.stopPropagation();
+          onTogglePreview(soundId, soundUrl);
+        }}
         className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 transition-colors ${
           isPreviewing
             ? "bg-notion-accent text-white"

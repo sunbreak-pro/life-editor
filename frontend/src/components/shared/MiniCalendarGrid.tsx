@@ -288,9 +288,9 @@ export function MiniCalendarGrid({
 
       {/* Time selectors */}
       {!isAllDay && (
-        <div className="mt-2 pt-2 border-t border-notion-border space-y-1.5">
-          <div className="flex items-center gap-1.5">
-            <span className="text-xs mx-0.5 font-bold">開始 : </span>
+        <div className="flex flex-row justify-between mt-2 pt-2 border-t border-notion-border space-y-1.5">
+          <div className="flex items-center gap-3">
+            <span className="text-xs mx-0.5 font-bold">開始： </span>
             <DateInput
               year={startDate.getFullYear()}
               month={startDate.getMonth() + 1}
@@ -298,7 +298,7 @@ export function MiniCalendarGrid({
               onChange={handleStartDateInput}
               size="sm"
             />
-            <span className="text-notion-text-secondary mx-0.5">-</span>
+
             <TimeInput
               hour={startHour}
               minute={startMinute}
@@ -307,8 +307,8 @@ export function MiniCalendarGrid({
             />
           </div>
           {hasEndDate && endDate && (
-            <div className="flex items-center gap-1.5">
-              <span className="text-xs mx-0.5 font-bold">終了 : </span>
+            <div className="flex items-center gap-3">
+              <span className="text-xs font-bold">終了：</span>
               <DateInput
                 year={endDate.getFullYear()}
                 month={endDate.getMonth() + 1}
@@ -316,7 +316,6 @@ export function MiniCalendarGrid({
                 onChange={handleEndDateInput}
                 size="sm"
               />
-              <span className="text-notion-text-secondary mx-0.5">-</span>
               <TimeInput
                 hour={endHour}
                 minute={endMinute}
