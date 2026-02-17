@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { useClickOutside } from "../../../../hooks/useClickOutside";
+import { useConfirmableSubmit } from "../../../../hooks/useConfirmableSubmit";
 import { toLocalISOString } from "../../../../utils/dateKey";
 import { flattenFolders } from "../../../../utils/flattenFolders";
 import { FolderList } from "../../Folder/FolderList";
@@ -37,7 +38,6 @@ export function TaskCreatePopover({
   const [mode, setMode] = useState<"task" | "note">("task");
   const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null);
   const ref = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
 
   const hasTime = date.getHours() !== 0 || date.getMinutes() !== 0;
 
@@ -70,10 +70,6 @@ export function TaskCreatePopover({
 
   useClickOutside(ref, onClose, true);
 
-  useEffect(() => {
-    inputRef.current?.focus();
-  }, []);
-
   const flatFolders = useMemo(
     () => (folders ? flattenFolders(folders) : []),
     [folders],
@@ -98,15 +94,16 @@ export function TaskCreatePopover({
     onClose();
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter") {
-      e.preventDefault();
-      handleSubmit();
-    } else if (e.key === "Escape") {
-      e.preventDefault();
-      onClose();
-    }
-  };
+  const {
+    inputRef: confirmInputRef,
+    handleKeyDown,
+    handleBlur,
+    handleFocus,
+  } = useConfirmableSubmit(handleSubmit, onClose);
+
+  useEffect(() => {
+    confirmInputRef.current?.focus();
+  }, [confirmInputRef]);
 
   const left = Math.min(position.x, window.innerWidth - 280 - 16);
   const top = Math.min(position.y, window.innerHeight - 360 - 16);
@@ -144,11 +141,13 @@ export function TaskCreatePopover({
       )}
 
       <input
-        ref={inputRef}
+        ref={confirmInputRef}
         type="text"
         value={title}
         onChange={(e) => setTitle(e.target.value)}
         onKeyDown={handleKeyDown}
+        onBlur={handleBlur}
+        onFocus={handleFocus}
         placeholder={
           mode === "task"
             ? t("calendar.taskNamePlaceholder")
