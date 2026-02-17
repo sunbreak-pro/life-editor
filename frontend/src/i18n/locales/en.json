@@ -182,6 +182,7 @@
   },
   "schedule": {
     "todayFlow": "Today Flow",
+    "dayFlow": "Day Flow",
     "routines": "Routines",
     "newRoutine": "New Routine",
     "editRoutine": "Edit Routine",

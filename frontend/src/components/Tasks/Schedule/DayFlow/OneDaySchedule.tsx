@@ -1,8 +1,9 @@
 import { useState, useEffect, useMemo } from "react";
 import { useTranslation } from "react-i18next";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import type { TaskNode } from "../../../../types/taskTree";
 import { useScheduleContext } from "../../../../hooks/useScheduleContext";
-import { formatDateKey } from "../../../../utils/dateKey";
+import { formatDateKey, formatDayFlowDate } from "../../../../utils/dateKey";
 import { ScheduleTimeGrid } from "./ScheduleTimeGrid";
 import { ScheduleItemCreatePopover } from "./ScheduleItemCreatePopover";
 import { TodayFlowTab } from "./TodayFlowTab";
@@ -10,19 +11,27 @@ import { TodayFlowTab } from "./TodayFlowTab";
 interface OneDayScheduleProps {
   date: Date;
   tasksByDate: Map<string, TaskNode[]>;
+  allTasksByDate: Map<string, TaskNode[]>;
   onSelectTask: (taskId: string, e: React.MouseEvent) => void;
   getTaskColor?: (taskId: string) => string | undefined;
   getFolderTag?: (taskId: string) => string;
+  onPrevDate: () => void;
+  onNextDate: () => void;
+  onToday: () => void;
 }
 
 export function OneDaySchedule({
   date,
   tasksByDate,
+  allTasksByDate,
   onSelectTask,
   getTaskColor,
   getFolderTag,
+  onPrevDate,
+  onNextDate,
+  onToday,
 }: OneDayScheduleProps) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const {
     scheduleItems,
     loadItemsForDate,
@@ -35,6 +44,7 @@ export function OneDaySchedule({
   } = useScheduleContext();
 
   const dateKey = formatDateKey(date);
+  const isToday = dateKey === formatDateKey(new Date());
   const [createPopover, setCreatePopover] = useState<{
     startTime: string;
     endTime: string;
@@ -65,6 +75,11 @@ export function OneDaySchedule({
     [tasksByDate, dateKey],
   );
 
+  const allDayTasks = useMemo(
+    () => allTasksByDate.get(dateKey) ?? [],
+    [allTasksByDate, dateKey],
+  );
+
   const handleCreateItem = (
     startTime: string,
     endTime: string,
@@ -78,49 +93,82 @@ export function OneDaySchedule({
   };
 
   return (
-    <div className="flex gap-4 h-full p-3">
-      {/* Left: Time Grid */}
-      <div className="flex-1 min-w-75 h-full">
-        <ScheduleTimeGrid
-          date={date}
-          scheduleItems={scheduleItems}
-          tasks={dayTasks}
-          onToggleComplete={toggleComplete}
-          onClickItem={() => {}}
-          onClickTask={onSelectTask}
-          onCreateItem={handleCreateItem}
-          getTaskColor={getTaskColor}
-          getFolderTag={getFolderTag}
-        />
+    <div className="flex flex-col h-full">
+      {/* Date navigation header */}
+      <div className="flex items-center gap-2 px-3 py-2 border-b border-notion-border">
+        <button
+          onClick={onPrevDate}
+          className="p-1 text-notion-text-secondary hover:text-notion-text hover:bg-notion-hover rounded transition-colors"
+        >
+          <ChevronLeft size={16} />
+        </button>
+        <span className="text-sm font-medium text-notion-text min-w-[80px] text-center">
+          {formatDayFlowDate(date, i18n.language)}
+        </span>
+        <button
+          onClick={onNextDate}
+          className="p-1 text-notion-text-secondary hover:text-notion-text hover:bg-notion-hover rounded transition-colors"
+        >
+          <ChevronRight size={16} />
+        </button>
+        {!isToday && (
+          <button
+            onClick={onToday}
+            className="ml-1 px-2 py-0.5 text-[10px] font-medium text-notion-accent border border-notion-accent/30 rounded hover:bg-notion-accent/10 transition-colors"
+          >
+            {t("calendarHeader.today", "Today")}
+          </button>
+        )}
       </div>
 
-      {/* Right: Today Flow */}
-      <div className="flex-1 min-w-75 h-full border border-notion-border rounded-lg bg-notion-bg overflow-y-auto flex flex-col">
-        <div className="px-3 py-2 border-b border-notion-border">
-          <span className="text-xs font-medium text-notion-text">
-            {t("schedule.todayFlow", "Today Flow")}
-          </span>
-        </div>
-        <div className="flex-1 overflow-y-auto">
-          <TodayFlowTab
-            items={scheduleItems}
+      {/* Main content */}
+      <div className="flex gap-4 flex-1 min-h-0 p-3">
+        {/* Left: Time Grid */}
+        <div className="flex-1 min-w-75 h-full">
+          <ScheduleTimeGrid
+            date={date}
+            scheduleItems={scheduleItems}
+            tasks={dayTasks}
             onToggleComplete={toggleComplete}
+            onClickItem={() => {}}
+            onClickTask={onSelectTask}
+            onCreateItem={handleCreateItem}
+            getTaskColor={getTaskColor}
+            getFolderTag={getFolderTag}
           />
         </div>
-      </div>
 
-      {/* Create popover */}
-      {createPopover && (
-        <ScheduleItemCreatePopover
-          position={createPopover.position}
-          defaultStartTime={createPopover.startTime}
-          defaultEndTime={createPopover.endTime}
-          onSubmit={(title, startTime, endTime) => {
-            createScheduleItem(dateKey, title, startTime, endTime);
-          }}
-          onClose={() => setCreatePopover(null)}
-        />
-      )}
+        {/* Right: Day Flow */}
+        <div className="flex-1 min-w-75 h-full border border-notion-border rounded-lg bg-notion-bg overflow-y-auto flex flex-col">
+          <div className="px-3 py-2 border-b border-notion-border">
+            <span className="text-xs font-medium text-notion-text">
+              {t("schedule.dayFlow", "Day Flow")}
+            </span>
+          </div>
+          <div className="flex-1 overflow-y-auto">
+            <TodayFlowTab
+              items={scheduleItems}
+              onToggleComplete={toggleComplete}
+              tasks={allDayTasks}
+              onSelectTask={onSelectTask}
+              getTaskColor={getTaskColor}
+            />
+          </div>
+        </div>
+
+        {/* Create popover */}
+        {createPopover && (
+          <ScheduleItemCreatePopover
+            position={createPopover.position}
+            defaultStartTime={createPopover.startTime}
+            defaultEndTime={createPopover.endTime}
+            onSubmit={(title, startTime, endTime) => {
+              createScheduleItem(dateKey, title, startTime, endTime);
+            }}
+            onClose={() => setCreatePopover(null)}
+          />
+        )}
+      </div>
     </div>
   );
 }

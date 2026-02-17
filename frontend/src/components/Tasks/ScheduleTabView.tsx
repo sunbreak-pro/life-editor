@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useCallback, useMemo } from "react";
 import type { TabItem } from "../shared/SectionTabs";
 import { SectionTabs } from "../shared/SectionTabs";
 import { CalendarView } from "./Schedule/Calendar/CalendarView";
@@ -7,6 +7,7 @@ import { RoutinesTab } from "./Schedule/Routine/RoutinesTab";
 import { useScheduleContext } from "../../hooks/useScheduleContext";
 import { useTaskTreeContext } from "../../hooks/useTaskTreeContext";
 import { useCalendar } from "../../hooks/useCalendar";
+import { formatDateKey } from "../../utils/dateKey";
 
 type ScheduleSubTab = "calendar" | "dayflow" | "routine";
 
@@ -44,6 +45,7 @@ export function ScheduleTabView({
   onSelectTask,
 }: ScheduleTabViewProps) {
   const [subTab, setSubTab] = useState<ScheduleSubTab>("calendar");
+  const [dayFlowDate, setDayFlowDate] = useState<Date>(() => new Date());
 
   const { nodes, getTaskColor, getFolderTagForTask } = useTaskTreeContext();
   const {
@@ -61,14 +63,46 @@ export function ScheduleTabView({
     routineStats,
   } = useScheduleContext();
 
-  const today = new Date();
   const { tasksByDate } = useCalendar(
     nodes,
-    today.getFullYear(),
-    today.getMonth(),
+    dayFlowDate.getFullYear(),
+    dayFlowDate.getMonth(),
     "incomplete",
-    today,
+    dayFlowDate,
   );
+
+  // All tasks by date (including DONE) for DayFlow right panel
+  const allTasksByDate = useMemo(() => {
+    const map = new Map<string, typeof nodes>();
+    for (const task of nodes) {
+      if (task.type !== "task" || !task.scheduledAt || task.isDeleted) continue;
+      const key = formatDateKey(new Date(task.scheduledAt));
+      const existing = map.get(key);
+      if (existing) existing.push(task);
+      else map.set(key, [task]);
+    }
+    return map;
+  }, [nodes]);
+
+  const goToPrev = useCallback(() => {
+    setDayFlowDate((prev) => {
+      const d = new Date(prev);
+      d.setDate(d.getDate() - 1);
+      return d;
+    });
+  }, []);
+
+  const goToNext = useCallback(() => {
+    setDayFlowDate((prev) => {
+      const d = new Date(prev);
+      d.setDate(d.getDate() + 1);
+      return d;
+    });
+  }, []);
+
+  const goToToday = useCallback(() => {
+    setDayFlowDate(new Date());
+  }, []);
 
   return (
     <div className="h-full flex flex-col">
@@ -90,11 +124,15 @@ export function ScheduleTabView({
           />
         ) : subTab === "dayflow" ? (
           <OneDaySchedule
-            date={today}
+            date={dayFlowDate}
             tasksByDate={tasksByDate}
+            allTasksByDate={allTasksByDate}
             onSelectTask={onCalendarSelectTask}
             getTaskColor={getTaskColor}
             getFolderTag={getFolderTagForTask}
+            onPrevDate={goToPrev}
+            onNextDate={goToNext}
+            onToday={goToToday}
           />
         ) : (
           <div className="py-4">

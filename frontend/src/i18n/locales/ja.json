@@ -182,6 +182,7 @@
   },
   "schedule": {
     "todayFlow": "Today Flow",
+    "dayFlow": "Day Flow",
     "routines": "ルーティン",
     "newRoutine": "ルーティンを追加",
     "editRoutine": "ルーティンを編集",

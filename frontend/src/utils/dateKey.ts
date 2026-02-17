@@ -40,3 +40,14 @@ export function formatDateHeading(dateStr: string): string {
     day: "numeric",
   });
 }
+
+const JA_WEEKDAYS = ["日", "月", "火", "水", "木", "金", "土"];
+const EN_WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
+export function formatDayFlowDate(date: Date, locale: string): string {
+  const m = date.getMonth() + 1;
+  const d = date.getDate();
+  const dow = date.getDay();
+  const weekday = locale.startsWith("ja") ? JA_WEEKDAYS[dow] : EN_WEEKDAYS[dow];
+  return `${m}/${d}(${weekday})`;
+}
