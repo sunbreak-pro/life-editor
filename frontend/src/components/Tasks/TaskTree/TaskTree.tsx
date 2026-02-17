@@ -89,9 +89,12 @@ export function TaskTree({
   const filterFolderId = isControlled
     ? externalFilterFolderId
     : internalFilterFolderId;
-  const setFilterFolderId = isControlled
-    ? (externalOnFilterChange ?? (() => {}))
-    : setInternalFilterFolderId;
+  const setFilterFolderId = useMemo(() => {
+    if (isControlled && externalOnFilterChange) {
+      return externalOnFilterChange;
+    }
+    return setInternalFilterFolderId;
+  }, [isControlled, externalOnFilterChange, setInternalFilterFolderId]);
   const [sortMode, setSortMode] = useLocalStorage<SortMode>(
     STORAGE_KEYS.TASK_TREE_SORT_MODE,
     "manual",

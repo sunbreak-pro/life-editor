@@ -66,7 +66,7 @@ export function TemplateEditDialog({
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30">
       <div className="bg-notion-bg border border-notion-border rounded-lg shadow-xl p-4 w-80">
         <div className="flex items-center justify-between mb-3">
-          <h3 className="text-sm font-semibold text-notion-text">
+          <h3 className="text-base font-semibold text-notion-text">
             {template
               ? t("schedule.editTemplate", "Edit Template")
               : t("schedule.newTemplate", "New Template")}
@@ -96,7 +96,7 @@ export function TemplateEditDialog({
                 "schedule.templateNamePlaceholder",
                 "Template name",
               )}
-              className="w-full px-2 py-1.5 text-sm bg-transparent border border-notion-border rounded-md outline-none focus:border-notion-accent text-notion-text placeholder:text-notion-text-secondary"
+              className="w-full px-2 py-1.5 text-base bg-transparent border border-notion-border rounded-md outline-none focus:border-notion-accent text-notion-text placeholder:text-notion-text-secondary"
             />
           </div>
 
@@ -107,7 +107,7 @@ export function TemplateEditDialog({
             <div className="flex gap-1">
               <button
                 onClick={() => setFrequencyType("daily")}
-                className={`px-3 py-1 text-xs rounded-md transition-colors ${
+                className={`px-3 py-1 text-sm rounded-md transition-colors ${
                   frequencyType === "daily"
                     ? "bg-notion-accent/10 text-notion-accent"
                     : "text-notion-text-secondary hover:bg-notion-hover"
@@ -117,7 +117,7 @@ export function TemplateEditDialog({
               </button>
               <button
                 onClick={() => setFrequencyType("custom")}
-                className={`px-3 py-1 text-xs rounded-md transition-colors ${
+                className={`px-3 py-1 text-sm rounded-md transition-colors ${
                   frequencyType === "custom"
                     ? "bg-notion-accent/10 text-notion-accent"
                     : "text-notion-text-secondary hover:bg-notion-hover"
@@ -162,14 +162,14 @@ export function TemplateEditDialog({
         <div className="flex justify-end gap-2 mt-4">
           <button
             onClick={onClose}
-            className="px-3 py-1.5 text-xs text-notion-text-secondary hover:bg-notion-hover rounded-md transition-colors"
+            className="px-3 py-1.5 text-sm text-notion-text-secondary hover:bg-notion-hover rounded-md transition-colors"
           >
             {t("common.cancel", "Cancel")}
           </button>
           <button
             onClick={handleSubmit}
             disabled={!name.trim()}
-            className={`px-3 py-1.5 text-xs bg-notion-accent text-white rounded-md hover:bg-notion-accent/90 transition-colors disabled:opacity-50 ${readyToSubmit ? "ring-2 ring-notion-accent/50 animate-pulse" : ""}`}
+            className={`px-3 py-1.5 text-sm bg-notion-accent text-white rounded-md hover:bg-notion-accent/90 transition-colors disabled:opacity-50 ${readyToSubmit ? "ring-2 ring-notion-accent/50 animate-pulse" : ""}`}
           >
             {template
               ? t("common.save", "Save")

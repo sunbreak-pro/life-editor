@@ -47,7 +47,7 @@ export function RoutineTagSelector({
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className="w-full flex items-center gap-2 px-2 py-1.5 text-sm bg-transparent border border-notion-border rounded-md hover:bg-notion-hover transition-colors text-notion-text"
+        className="w-full flex items-center gap-2 px-2 py-1.5 text-base bg-transparent border border-notion-border rounded-md hover:bg-notion-hover transition-colors text-notion-text"
       >
         {selectedTag ? (
           <>
@@ -71,7 +71,7 @@ export function RoutineTagSelector({
                 onSelect(null);
                 setIsOpen(false);
               }}
-              className={`w-full flex items-center gap-2 px-3 py-1.5 text-xs rounded-md transition-colors ${
+              className={`w-full flex items-center gap-2 px-3 py-1.5 text-sm rounded-md transition-colors ${
                 selectedTagId === null
                   ? "bg-notion-accent/10"
                   : "hover:bg-notion-hover"
@@ -87,7 +87,7 @@ export function RoutineTagSelector({
                   onSelect(tag.id);
                   setIsOpen(false);
                 }}
-                className={`w-full flex items-center gap-2 px-3 py-1.5 text-xs rounded-md transition-colors ${
+                className={`w-full flex items-center gap-2 px-3 py-1.5 text-sm rounded-md transition-colors ${
                   selectedTagId === tag.id
                     ? "bg-notion-accent/10"
                     : "hover:bg-notion-hover"
@@ -129,7 +129,7 @@ export function RoutineTagSelector({
                         if (e.key === "Escape") setShowCreate(false);
                       }}
                       placeholder="Tag name..."
-                      className="flex-1 text-xs px-1.5 py-0.5 rounded bg-notion-hover text-notion-text border-none outline-none"
+                      className="flex-1 text-sm px-1.5 py-0.5 rounded bg-notion-hover text-notion-text border-none outline-none"
                       autoFocus
                     />
                     <button
@@ -144,7 +144,7 @@ export function RoutineTagSelector({
               ) : (
                 <button
                   onClick={() => setShowCreate(true)}
-                  className="w-full flex items-center gap-1 px-2 py-1 text-xs text-notion-text-secondary hover:text-notion-text rounded transition-colors"
+                  className="w-full flex items-center gap-1 px-2 py-1 text-sm text-notion-text-secondary hover:text-notion-text rounded transition-colors"
                 >
                   <Plus size={12} />
                   Create tag

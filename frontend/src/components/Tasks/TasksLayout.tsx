@@ -33,9 +33,6 @@ interface TasksLayoutProps {
       isAllDay?: boolean;
     },
   ) => void;
-  onCreateNote?: (title: string) => void;
-  onSelectMemo?: (date: string) => void;
-  onSelectNote?: (noteId: string) => void;
   onStartTimer?: (taskId: string) => void;
 }
 
@@ -47,9 +44,6 @@ export function TasksLayout({
   onPlayTask,
   onCalendarSelectTask,
   onCreateTask,
-  onCreateNote,
-  onSelectMemo,
-  onSelectNote,
   onStartTimer,
 }: TasksLayoutProps) {
   const { t } = useTranslation();
@@ -98,9 +92,6 @@ export function TasksLayout({
           <ScheduleTabView
             onCalendarSelectTask={onCalendarSelectTask}
             onCreateTask={onCreateTask}
-            onCreateNote={onCreateNote}
-            onSelectMemo={onSelectMemo}
-            onSelectNote={onSelectNote}
             onStartTimer={onStartTimer}
             onSelectTask={onSelectTask}
           />

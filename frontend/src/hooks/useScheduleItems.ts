@@ -373,6 +373,39 @@ export function useScheduleItems() {
     [scheduleItems],
   );
 
+  const [monthlyRoutineItems, setMonthlyRoutineItems] = useState<
+    ScheduleItem[]
+  >([]);
+
+  const loadRoutineItemsForMonth = useCallback(
+    async (year: number, month: number) => {
+      const startDate = `${year}-${String(month + 1).padStart(2, "0")}-01`;
+      const lastDay = new Date(year, month + 1, 0).getDate();
+      const endDate = `${year}-${String(month + 1).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`;
+      try {
+        const items = await getDataService().fetchScheduleItemsByDateRange(
+          startDate,
+          endDate,
+        );
+        setMonthlyRoutineItems(items.filter((i) => i.routineId));
+      } catch (e) {
+        logServiceError("ScheduleItems", "loadRoutineItemsForMonth", e);
+      }
+    },
+    [],
+  );
+
+  const getRoutineCompletionByDate = useCallback(
+    (date: string) => {
+      const items = monthlyRoutineItems.filter((i) => i.date === date);
+      return {
+        completed: items.filter((i) => i.completed).length,
+        total: items.length,
+      };
+    },
+    [monthlyRoutineItems],
+  );
+
   const [routineStats, setRoutineStats] = useState<RoutineStats | null>(null);
 
   const refreshRoutineStats = useCallback(async (routines: RoutineNode[]) => {
@@ -404,6 +437,8 @@ export function useScheduleItems() {
       getRoutineCompletionRate,
       routineStats,
       refreshRoutineStats,
+      loadRoutineItemsForMonth,
+      getRoutineCompletionByDate,
     }),
     [
       scheduleItems,
@@ -417,6 +452,8 @@ export function useScheduleItems() {
       getRoutineCompletionRate,
       routineStats,
       refreshRoutineStats,
+      loadRoutineItemsForMonth,
+      getRoutineCompletionByDate,
     ],
   );
 }

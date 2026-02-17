@@ -25,9 +25,6 @@ interface ScheduleTabViewProps {
       isAllDay?: boolean;
     },
   ) => void;
-  onCreateNote?: (title: string) => void;
-  onSelectMemo?: (date: string) => void;
-  onSelectNote?: (noteId: string) => void;
   onStartTimer?: (taskId: string) => void;
   onSelectTask: (taskId: string) => void;
 }
@@ -35,9 +32,6 @@ interface ScheduleTabViewProps {
 export function ScheduleTabView({
   onCalendarSelectTask,
   onCreateTask,
-  onCreateNote,
-  onSelectMemo,
-  onSelectNote,
   onStartTimer,
   onSelectTask,
 }: ScheduleTabViewProps) {
@@ -100,9 +94,6 @@ export function ScheduleTabView({
           <CalendarView
             onSelectTask={onSelectTask}
             onCreateTask={onCreateTask}
-            onCreateNote={onCreateNote}
-            onSelectMemo={onSelectMemo}
-            onSelectNote={onSelectNote}
             onStartTimer={onStartTimer}
           />
         ) : (

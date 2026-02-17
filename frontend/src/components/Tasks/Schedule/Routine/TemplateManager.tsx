@@ -132,6 +132,22 @@ function ItemTimeDisplay({
   );
 }
 
+function getTemplateTimeRange(
+  tmpl: RoutineTemplate,
+  routineMap: Map<string, RoutineNode>,
+): { earliest: string | null; latest: string | null } {
+  let earliest: string | null = null;
+  let latest: string | null = null;
+  for (const item of tmpl.items) {
+    const routine = routineMap.get(item.routineId);
+    const start = item.startTime ?? routine?.startTime ?? null;
+    const end = item.endTime ?? routine?.endTime ?? null;
+    if (start && (!earliest || start < earliest)) earliest = start;
+    if (end && (!latest || end > latest)) latest = end;
+  }
+  return { earliest, latest };
+}
+
 export function TemplateManager({
   templates,
   routines,
@@ -172,136 +188,166 @@ export function TemplateManager({
       )}
 
       <div className="space-y-1">
-        {templates.map((tmpl) => {
-          const isExpanded = expandedId === tmpl.id;
-          const assignedRoutineIds = new Set(
-            tmpl.items.map((i) => i.routineId),
-          );
-          const availableRoutines = routines.filter(
-            (r) => !r.isArchived && !assignedRoutineIds.has(r.id),
-          );
+        {[...templates]
+          .map((tmpl) => ({
+            tmpl,
+            timeRange: getTemplateTimeRange(tmpl, routineMap),
+          }))
+          .sort((a, b) =>
+            (a.timeRange.earliest ?? "99:99").localeCompare(
+              b.timeRange.earliest ?? "99:99",
+            ),
+          )
+          .map(({ tmpl, timeRange }) => {
+            const isExpanded = expandedId === tmpl.id;
+            const assignedRoutineIds = new Set(
+              tmpl.items.map((i) => i.routineId),
+            );
+            const availableRoutines = routines.filter(
+              (r) => !r.isArchived && !assignedRoutineIds.has(r.id),
+            );
 
-          return (
-            <div
-              key={tmpl.id}
-              className="border border-notion-border rounded-md overflow-hidden"
-            >
-              {/* Header */}
-              <button
-                onClick={() => setExpandedId(isExpanded ? null : tmpl.id)}
-                className="w-full flex items-center gap-1.5 px-2 py-1.5 text-left hover:bg-notion-hover transition-colors"
+            return (
+              <div
+                key={tmpl.id}
+                className="border border-notion-border rounded-md overflow-hidden"
               >
-                {isExpanded ? (
-                  <ChevronDown
-                    size={12}
-                    className="text-notion-text-secondary"
-                  />
-                ) : (
-                  <ChevronRight
-                    size={12}
-                    className="text-notion-text-secondary"
-                  />
-                )}
-                <span className="flex-1 text-xs font-medium text-notion-text truncate">
-                  {tmpl.name}
-                </span>
-                <span className="text-[10px] text-notion-text-secondary">
-                  {FREQ_LABELS[tmpl.frequencyType] ?? tmpl.frequencyType}
-                  {tmpl.frequencyType === "custom" &&
-                    tmpl.frequencyDays.length > 0 && (
-                      <span className="ml-1">
-                        ({tmpl.frequencyDays.map((d) => DAY_SHORT[d]).join("")})
-                      </span>
-                    )}
-                </span>
-              </button>
+                {/* Header */}
+                <button
+                  onClick={() => setExpandedId(isExpanded ? null : tmpl.id)}
+                  className="w-full flex items-center gap-1.5 px-2 py-1.5 text-left hover:bg-notion-hover transition-colors"
+                >
+                  {isExpanded ? (
+                    <ChevronDown
+                      size={12}
+                      className="text-notion-text-secondary"
+                    />
+                  ) : (
+                    <ChevronRight
+                      size={12}
+                      className="text-notion-text-secondary"
+                    />
+                  )}
+                  <span className="flex-1 text-xs font-medium text-notion-text truncate">
+                    {tmpl.name}
+                  </span>
+                  {tmpl.tagId != null &&
+                    (() => {
+                      const tag = routineTags.find((t) => t.id === tmpl.tagId);
+                      return tag ? (
+                        <span
+                          className="inline-flex items-center px-1.5 py-0 text-[9px] rounded-full text-white shrink-0"
+                          style={{ backgroundColor: tag.color }}
+                        >
+                          {tag.name}
+                        </span>
+                      ) : null;
+                    })()}
+                  {timeRange.earliest && (
+                    <span className="text-[10px] text-notion-text-secondary">
+                      {timeRange.earliest} -{" "}
+                      {timeRange.latest ?? timeRange.earliest}
+                    </span>
+                  )}
+                  <span className="text-[10px] text-notion-text-secondary">
+                    {FREQ_LABELS[tmpl.frequencyType] ?? tmpl.frequencyType}
+                    {tmpl.frequencyType === "custom" &&
+                      tmpl.frequencyDays.length > 0 && (
+                        <span className="ml-1">
+                          (
+                          {tmpl.frequencyDays.map((d) => DAY_SHORT[d]).join("")}
+                          )
+                        </span>
+                      )}
+                  </span>
+                </button>
 
-              {/* Expanded content */}
-              {isExpanded && (
-                <div className="border-t border-notion-border px-2 py-1.5">
-                  {/* Assigned routines */}
-                  {tmpl.items.length > 0 && (
-                    <div className="space-y-0.5 mb-1.5">
-                      {[...tmpl.items]
-                        .sort((a, b) =>
-                          (a.startTime ?? "99:99").localeCompare(
-                            b.startTime ?? "99:99",
-                          ),
-                        )
-                        .map((item) => {
-                          const routine = routineMap.get(item.routineId);
-                          return (
-                            <div
-                              key={item.routineId}
-                              className="flex items-center gap-1.5 px-1.5 py-1 rounded border border-notion-border/60 hover:bg-notion-hover group"
-                            >
-                              <ItemTimeDisplay
-                                item={item}
-                                templateId={tmpl.id}
-                                onUpdateItem={onUpdateItem}
-                                routineStartTime={routine?.startTime}
-                                routineEndTime={routine?.endTime}
-                              />
-                              <span className="flex-1 text-[11px] text-notion-text truncate">
-                                {routine?.title ?? "Unknown"}
-                              </span>
-                              <button
-                                onClick={() =>
-                                  onRemoveItem(tmpl.id, item.routineId)
-                                }
-                                className="opacity-0 group-hover:opacity-100 p-0.5 text-notion-text-secondary hover:text-red-500 rounded transition-all"
+                {/* Expanded content */}
+                {isExpanded && (
+                  <div className="border-t border-notion-border px-2 py-1.5">
+                    {/* Assigned routines */}
+                    {tmpl.items.length > 0 && (
+                      <div className="space-y-0.5 mb-1.5">
+                        {[...tmpl.items]
+                          .sort((a, b) =>
+                            (a.startTime ?? "99:99").localeCompare(
+                              b.startTime ?? "99:99",
+                            ),
+                          )
+                          .map((item) => {
+                            const routine = routineMap.get(item.routineId);
+                            return (
+                              <div
+                                key={item.routineId}
+                                className="flex items-center gap-1.5 px-1.5 py-1 rounded border border-notion-border/60 hover:bg-notion-hover group"
                               >
-                                <Trash2 size={11} />
-                              </button>
-                            </div>
-                          );
-                        })}
-                    </div>
-                  )}
+                                <ItemTimeDisplay
+                                  item={item}
+                                  templateId={tmpl.id}
+                                  onUpdateItem={onUpdateItem}
+                                  routineStartTime={routine?.startTime}
+                                  routineEndTime={routine?.endTime}
+                                />
+                                <span className="flex-1 text-[11px] text-notion-text truncate">
+                                  {routine?.title ?? "Unknown"}
+                                </span>
+                                <button
+                                  onClick={() =>
+                                    onRemoveItem(tmpl.id, item.routineId)
+                                  }
+                                  className="opacity-0 group-hover:opacity-100 p-0.5 text-notion-text-secondary hover:text-red-500 rounded transition-all"
+                                >
+                                  <Trash2 size={11} />
+                                </button>
+                              </div>
+                            );
+                          })}
+                      </div>
+                    )}
 
-                  {/* Add routine dropdown */}
-                  {availableRoutines.length > 0 && (
-                    <div className="border-t border-notion-border/50 pt-1.5">
-                      <select
-                        onChange={(e) => {
-                          if (e.target.value) {
-                            onAddItem(tmpl.id, e.target.value, null, null);
-                            e.target.value = "";
-                          }
-                        }}
-                        defaultValue=""
-                        className="w-full px-1.5 py-1 text-[11px] bg-transparent border border-notion-border rounded text-notion-text-secondary"
+                    {/* Add routine dropdown */}
+                    {availableRoutines.length > 0 && (
+                      <div className="border-t border-notion-border/50 pt-1.5">
+                        <select
+                          onChange={(e) => {
+                            if (e.target.value) {
+                              onAddItem(tmpl.id, e.target.value, null, null);
+                              e.target.value = "";
+                            }
+                          }}
+                          defaultValue=""
+                          className="w-full px-1.5 py-1 text-[11px] bg-transparent border border-notion-border rounded text-notion-text-secondary"
+                        >
+                          <option value="">+ Add routine...</option>
+                          {availableRoutines.map((r) => (
+                            <option key={r.id} value={r.id}>
+                              {r.title}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    )}
+
+                    {/* Actions */}
+                    <div className="flex items-center gap-1 mt-1.5 pt-1 border-t border-notion-border/50">
+                      <button
+                        onClick={() => setEditDialog(tmpl)}
+                        className="p-1 text-notion-text-secondary hover:text-notion-text rounded transition-colors"
                       >
-                        <option value="">+ Add routine...</option>
-                        {availableRoutines.map((r) => (
-                          <option key={r.id} value={r.id}>
-                            {r.title}
-                          </option>
-                        ))}
-                      </select>
+                        <Pencil size={12} />
+                      </button>
+                      <button
+                        onClick={() => onDeleteTemplate(tmpl.id)}
+                        className="p-1 text-notion-text-secondary hover:text-red-500 rounded transition-colors"
+                      >
+                        <Trash2 size={12} />
+                      </button>
                     </div>
-                  )}
-
-                  {/* Actions */}
-                  <div className="flex items-center gap-1 mt-1.5 pt-1 border-t border-notion-border/50">
-                    <button
-                      onClick={() => setEditDialog(tmpl)}
-                      className="p-1 text-notion-text-secondary hover:text-notion-text rounded transition-colors"
-                    >
-                      <Pencil size={12} />
-                    </button>
-                    <button
-                      onClick={() => onDeleteTemplate(tmpl.id)}
-                      className="p-1 text-notion-text-secondary hover:text-red-500 rounded transition-colors"
-                    >
-                      <Trash2 size={12} />
-                    </button>
                   </div>
-                </div>
-              )}
-            </div>
-          );
-        })}
+                )}
+              </div>
+            );
+          })}
       </div>
 
       {editDialog && (

@@ -160,7 +160,7 @@ export function AchievementDetailsOverlay({
       <div className="bg-notion-bg border border-notion-border rounded-xl shadow-xl w-[640px] max-h-[80vh] flex flex-col">
         {/* Header */}
         <div className="flex items-center justify-between px-4 py-3 border-b border-notion-border">
-          <span className="text-sm font-medium text-notion-text">
+          <span className="text-base font-medium text-notion-text">
             {t("schedule.achievementDetails", "Achievement Details")}
           </span>
           <button

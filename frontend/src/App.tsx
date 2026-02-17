@@ -100,9 +100,6 @@ function App() {
               handlers.handleCalendarSelectTask(taskId)
             }
             onCreateTask={handlers.handleCalendarCreateTask}
-            onCreateNote={handlers.handleCalendarCreateNote}
-            onSelectMemo={handlers.handleCalendarSelectMemo}
-            onSelectNote={handlers.handleCalendarSelectNote}
             onStartTimer={(taskId) => {
               const task = nodes.find((n) => n.id === taskId);
               if (task) handlers.handlePlayTask(task);

@@ -2,7 +2,6 @@ import { useState, useMemo, useEffect } from "react";
 import { Filter, ChevronDown } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useTaskTreeContext } from "../../../../hooks/useTaskTreeContext";
-import { useMemoContext } from "../../../../hooks/useMemoContext";
 import { useCalendarContext } from "../../../../hooks/useCalendarContext";
 import { useCalendar } from "../../../../hooks/useCalendar";
 import {
@@ -12,16 +11,12 @@ import {
 import { CalendarHeader } from "./CalendarHeader";
 import { TaskCreatePopover } from "./TaskCreatePopover";
 import { TaskPreviewPopup } from "./TaskPreviewPopup";
-import { MemoPreviewPopup } from "./MemoPreviewPopup";
 import { MonthlyView } from "./MonthlyView";
 import { WeeklyTimeGrid } from "./WeeklyTimeGrid";
 import { FolderDropdown } from "../../Folder/FolderDropdown";
-import { useNoteContext } from "../../../../hooks/useNoteContext";
-import type { MemoNode } from "../../../../types/memo";
-import type { NoteNode } from "../../../../types/note";
+import { useScheduleContext } from "../../../../hooks/useScheduleContext";
 
 interface CalendarViewProps {
-  calendarMode?: "tasks" | "memo";
   onSelectTask: (taskId: string) => void;
   onCreateTask?: (
     title: string,
@@ -32,9 +27,6 @@ interface CalendarViewProps {
       isAllDay?: boolean;
     },
   ) => void;
-  onCreateNote?: (title: string) => void;
-  onSelectMemo?: (date: string) => void;
-  onSelectNote?: (noteId: string) => void;
   onStartTimer?: (taskId: string) => void;
 }
 
@@ -46,20 +38,16 @@ function getInitialWeekStart(): Date {
 }
 
 export function CalendarView({
-  calendarMode,
   onSelectTask,
   onCreateTask,
-  onCreateNote,
-  onSelectMemo,
-  onSelectNote,
   onStartTimer,
 }: CalendarViewProps) {
   const { t } = useTranslation();
   const { nodes, getTaskColor, getFolderTagForTask, softDelete, updateNode } =
     useTaskTreeContext();
-  const { memos } = useMemoContext();
   const { activeCalendar } = useCalendarContext();
-  const { notes } = useNoteContext();
+  const { loadRoutineItemsForMonth, getRoutineCompletionByDate } =
+    useScheduleContext();
 
   // Filter nodes by active calendar's folder subtree
   const filteredNodes = useMemo(() => {
@@ -94,11 +82,11 @@ export function CalendarView({
     taskId: string;
     position: { x: number; y: number };
   } | null>(null);
-  const [memoPreview, setMemoPreview] = useState<
-    | { kind: "daily"; date: string; position: { x: number; y: number } }
-    | { kind: "note"; noteId: string; position: { x: number; y: number } }
-    | null
-  >(null);
+
+  // Load routine items for the current month
+  useEffect(() => {
+    loadRoutineItemsForMonth(year, month);
+  }, [year, month, loadRoutineItemsForMonth]);
 
   const { tasksByDate, calendarDays, weekDays } = useCalendar(
     filteredNodes,
@@ -107,31 +95,6 @@ export function CalendarView({
     filter,
     weekStartDate,
   );
-
-  // Build memos lookup by date
-  const memosByDate = useMemo(() => {
-    const map = new Map<string, MemoNode>();
-    for (const memo of memos) {
-      map.set(memo.date, memo);
-    }
-    return map;
-  }, [memos]);
-
-  // Build notes lookup by date (for memo mode)
-  const notesByDate = useMemo(() => {
-    if (calendarMode !== "memo") return new Map<string, NoteNode[]>();
-    const map = new Map<string, NoteNode[]>();
-    for (const note of notes) {
-      if (note.isDeleted) continue;
-      const dateKey = note.createdAt.substring(0, 10);
-      const existing = map.get(dateKey);
-      if (existing) existing.push(note);
-      else map.set(dateKey, [note]);
-    }
-    return map;
-  }, [notes, calendarMode]);
-
-  const effectiveViewMode = calendarMode === "memo" ? "month" : viewMode;
 
   /* eslint-disable react-hooks/exhaustive-deps -- React Compiler auto-memoizes */
   const handlePrev = () => {
@@ -194,7 +157,7 @@ export function CalendarView({
         handleToday();
         return;
       }
-      if (e.key === "m" && calendarMode !== "memo") {
+      if (e.key === "m") {
         e.preventDefault();
         setViewMode((v) => (v === "month" ? "week" : "month"));
         return;
@@ -218,42 +181,14 @@ export function CalendarView({
     return map;
   }, [tasksByDate, filterFolderId, nodes]);
 
-  // Filter memosByDate by folder
-  const filteredMemosByDate = useMemo(() => {
-    if (!filterFolderId) return memosByDate;
-    return new Map<string, MemoNode>(); // フォルダ選択時はメモ非表示
-  }, [filterFolderId, memosByDate]);
-
   const handleRequestCreate = (date: Date, e: React.MouseEvent) => {
     setPreviewPopup(null);
-    setMemoPreview(null);
     setCreatePopover({ date, position: { x: e.clientX, y: e.clientY } });
   };
 
   const handleTaskClick = (taskId: string, e: React.MouseEvent) => {
     setCreatePopover(null);
-    setMemoPreview(null);
     setPreviewPopup({ taskId, position: { x: e.clientX, y: e.clientY } });
-  };
-
-  const handleMemoChipClick = (date: string, e: React.MouseEvent) => {
-    setCreatePopover(null);
-    setPreviewPopup(null);
-    setMemoPreview({
-      kind: "daily",
-      date,
-      position: { x: e.clientX, y: e.clientY },
-    });
-  };
-
-  const handleNoteChipClick = (noteId: string, e: React.MouseEvent) => {
-    setCreatePopover(null);
-    setPreviewPopup(null);
-    setMemoPreview({
-      kind: "note",
-      noteId,
-      position: { x: e.clientX, y: e.clientY },
-    });
   };
 
   const previewTask = previewPopup
@@ -261,110 +196,77 @@ export function CalendarView({
       nodes.find((n) => n.id === previewPopup.taskId))
     : null;
 
-  const memoPreviewData = useMemo(() => {
-    if (!memoPreview) return null;
-    if (memoPreview.kind === "daily") {
-      const memo = memosByDate.get(memoPreview.date);
-      if (!memo) return null;
-      return {
-        kind: "daily" as const,
-        title: "Daily",
-        content: memo.content || "",
-        position: memoPreview.position,
-      };
-    }
-    const note = notes.find((n) => n.id === memoPreview.noteId);
-    if (!note) return null;
-    return {
-      kind: "note" as const,
-      title: note.title || "Untitled",
-      content: note.content || "",
-      position: memoPreview.position,
-    };
-  }, [memoPreview, memosByDate, notes]);
-
   return (
     <div className="h-full flex flex-col overflow-auto">
       <div className="max-w-5xl mx-auto w-full flex-1">
         <CalendarHeader
           year={year}
           month={month}
-          viewMode={effectiveViewMode}
+          viewMode={viewMode}
           weekStartDate={weekStartDate}
           onPrev={handlePrev}
           onNext={handleNext}
           onToday={handleToday}
           onViewModeChange={setViewMode}
-          calendarMode={calendarMode}
         />
 
-        {/* Filter tabs + tag filter (tasks mode only) */}
-        {calendarMode !== "memo" && (
-          <div className="flex items-center gap-2 mb-4">
-            <button
-              onClick={() => setFilter("incomplete")}
-              className={`px-3 py-1 text-xs rounded-md transition-colors ${
-                filter === "incomplete"
-                  ? "bg-notion-accent/10 text-notion-accent"
-                  : "text-notion-text-secondary hover:bg-notion-hover"
-              }`}
-            >
-              {t("calendar.incomplete")}
-            </button>
-            <button
-              onClick={() => setFilter("completed")}
-              className={`px-3 py-1 text-xs rounded-md transition-colors ${
-                filter === "completed"
-                  ? "bg-notion-accent/10 text-notion-accent"
-                  : "text-notion-text-secondary hover:bg-notion-hover"
-              }`}
-            >
-              {t("calendar.completed")}
-            </button>
-            <div className="w-px h-4 bg-notion-border" />
-            <FolderDropdown
-              selectedId={filterFolderId}
-              onSelect={setFilterFolderId}
-              rootLabel={t("calendar.all")}
-              panelMinWidth="min-w-44"
-              trigger={
-                <button
-                  className={`flex items-center gap-1.5 px-2.5 py-1 text-xs rounded-md transition-colors ${
-                    filterFolderId
-                      ? "bg-notion-accent/10 text-notion-accent"
-                      : "text-notion-text-secondary hover:bg-notion-hover"
-                  }`}
-                >
-                  <Filter size={13} />
-                  <span>
-                    {filterFolderId && selectedFolderName
-                      ? selectedFolderName
-                      : t("calendar.all")}
-                  </span>
-                  <ChevronDown size={12} />
-                </button>
-              }
-            />
-          </div>
-        )}
+        {/* Filter tabs + folder filter */}
+        <div className="flex items-center gap-2 mb-4">
+          <button
+            onClick={() => setFilter("incomplete")}
+            className={`px-3 py-1 text-xs rounded-md transition-colors ${
+              filter === "incomplete"
+                ? "bg-notion-accent/10 text-notion-accent"
+                : "text-notion-text-secondary hover:bg-notion-hover"
+            }`}
+          >
+            {t("calendar.incomplete")}
+          </button>
+          <button
+            onClick={() => setFilter("completed")}
+            className={`px-3 py-1 text-xs rounded-md transition-colors ${
+              filter === "completed"
+                ? "bg-notion-accent/10 text-notion-accent"
+                : "text-notion-text-secondary hover:bg-notion-hover"
+            }`}
+          >
+            {t("calendar.completed")}
+          </button>
+          <div className="w-px h-4 bg-notion-border" />
+          <FolderDropdown
+            selectedId={filterFolderId}
+            onSelect={setFilterFolderId}
+            rootLabel={t("calendar.all")}
+            panelMinWidth="min-w-44"
+            trigger={
+              <button
+                className={`flex items-center gap-1.5 px-2.5 py-1 text-xs rounded-md transition-colors ${
+                  filterFolderId
+                    ? "bg-notion-accent/10 text-notion-accent"
+                    : "text-notion-text-secondary hover:bg-notion-hover"
+                }`}
+              >
+                <Filter size={13} />
+                <span>
+                  {filterFolderId && selectedFolderName
+                    ? selectedFolderName
+                    : t("calendar.all")}
+                </span>
+                <ChevronDown size={12} />
+              </button>
+            }
+          />
+        </div>
 
-        {effectiveViewMode === "month" ? (
+        {viewMode === "month" ? (
           <MonthlyView
             days={calendarDays}
             tasksByDate={filteredTasksByDate}
             onSelectTask={handleTaskClick}
-            onCreateTask={
-              calendarMode !== "memo" && onCreateTask
-                ? handleRequestCreate
-                : undefined
-            }
+            onCreateTask={onCreateTask ? handleRequestCreate : undefined}
             getTaskColor={getTaskColor}
             getFolderTag={getFolderTagForTask}
-            memosByDate={filteredMemosByDate}
-            calendarMode={calendarMode}
-            notesByDate={notesByDate}
-            onMemoChipClick={handleMemoChipClick}
-            onNoteChipClick={handleNoteChipClick}
+            getRoutineCompletion={getRoutineCompletionByDate}
           />
         ) : (
           <WeeklyTimeGrid
@@ -374,8 +276,6 @@ export function CalendarView({
             onCreateTask={onCreateTask ? handleRequestCreate : undefined}
             getTaskColor={getTaskColor}
             getFolderTag={getFolderTagForTask}
-            memosByDate={filteredMemosByDate}
-            onSelectMemo={onSelectMemo}
           />
         )}
       </div>
@@ -388,14 +288,6 @@ export function CalendarView({
             onCreateTask?.(title, parentId, schedule);
             setCreatePopover(null);
           }}
-          onSubmitNote={
-            calendarMode !== "tasks" && onCreateNote
-              ? (title) => {
-                  onCreateNote(title);
-                  setCreatePopover(null);
-                }
-              : undefined
-          }
           folders={folders}
           onClose={() => setCreatePopover(null)}
         />
@@ -428,24 +320,6 @@ export function CalendarView({
             setPreviewPopup(null);
           }}
           onClose={() => setPreviewPopup(null)}
-        />
-      )}
-
-      {memoPreview && memoPreviewData && (
-        <MemoPreviewPopup
-          kind={memoPreviewData.kind}
-          title={memoPreviewData.title}
-          content={memoPreviewData.content}
-          position={memoPreviewData.position}
-          onOpenDetail={() => {
-            if (memoPreview.kind === "daily") {
-              onSelectMemo?.(memoPreview.date);
-            } else {
-              onSelectNote?.(memoPreview.noteId);
-            }
-            setMemoPreview(null);
-          }}
-          onClose={() => setMemoPreview(null)}
         />
       )}
     </div>

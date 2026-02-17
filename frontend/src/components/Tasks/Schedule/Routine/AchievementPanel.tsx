@@ -30,7 +30,7 @@ export function AchievementPanel({
       <div className="flex items-center gap-4">
         <div className="flex items-center gap-1.5">
           <Calendar size={14} className="text-blue-400" />
-          <span className="text-sm font-bold text-notion-text">
+          <span className="text-base font-bold text-notion-text">
             {stats.totalCompletedDays}
           </span>
           <span className="text-[10px] text-notion-text-secondary">
@@ -39,7 +39,7 @@ export function AchievementPanel({
         </div>
         <div className="flex items-center gap-1.5">
           <Flame size={14} className="text-orange-400" />
-          <span className="text-sm font-bold text-notion-text">
+          <span className="text-base font-bold text-notion-text">
             {stats.currentStreak}
           </span>
           <span className="text-[10px] text-notion-text-secondary">
@@ -48,7 +48,7 @@ export function AchievementPanel({
         </div>
         <div className="flex items-center gap-1.5">
           <Trophy size={14} className="text-yellow-500" />
-          <span className="text-sm font-bold text-notion-text">
+          <span className="text-base font-bold text-notion-text">
             {stats.longestStreak}
           </span>
           <span className="text-[10px] text-notion-text-secondary">

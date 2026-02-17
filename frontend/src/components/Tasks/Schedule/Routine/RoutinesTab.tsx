@@ -14,6 +14,8 @@ import { TemplateManager } from "./TemplateManager";
 import { AchievementPanel } from "./AchievementPanel";
 import { AchievementDetailsOverlay } from "./AchievementDetailsOverlay";
 import { RoutineFlow } from "./RoutineFlow";
+import { useScheduleContext } from "../../../../hooks/useScheduleContext";
+import { formatDateKey } from "../../../../utils/dateKey";
 
 interface RoutinesTabProps {
   routines: RoutineNode[];
@@ -102,6 +104,7 @@ export function RoutinesTab({
   refreshRoutineStats,
 }: RoutinesTabProps) {
   const { t } = useTranslation();
+  const { ensureTemplateItemsForDate, loadItemsForDate } = useScheduleContext();
   const [editDialog, setEditDialog] = useState<RoutineNode | "new" | null>(
     null,
   );
@@ -110,6 +113,19 @@ export function RoutinesTab({
   const [selectedFilterTagId, setSelectedFilterTagId] = useState<number | null>(
     null,
   );
+
+  // Ensure schedule items exist for today when RoutinesTab is opened directly
+  useEffect(() => {
+    const today = formatDateKey(new Date());
+    loadItemsForDate(today);
+  }, [loadItemsForDate]);
+
+  useEffect(() => {
+    if (templates.length > 0 && routines.length > 0) {
+      const today = formatDateKey(new Date());
+      ensureTemplateItemsForDate(today, templates, routines);
+    }
+  }, [templates, routines, ensureTemplateItemsForDate]);
 
   useEffect(() => {
     if (routines.length > 0) {

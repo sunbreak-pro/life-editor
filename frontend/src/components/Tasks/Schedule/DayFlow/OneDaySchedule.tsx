@@ -50,6 +50,7 @@ export function OneDaySchedule({
     createScheduleItem,
     toggleComplete,
     routines,
+    routineTags,
     templates,
     ensureTemplateItemsForDate,
     refreshRoutineStats,
@@ -57,7 +58,16 @@ export function OneDaySchedule({
   const dateKey = formatDateKey(date);
   const isToday = dateKey === formatDateKey(new Date());
   const [filterTab, setFilterTab] = useState<DayFlowFilterTab>("all");
+  const [selectedFilterTagId, setSelectedFilterTagId] = useState<number | null>(
+    null,
+  );
   const [showTaskPicker, setShowTaskPicker] = useState(false);
+
+  const routineTagMap = useMemo(() => {
+    const map = new Map<string, number | null>();
+    for (const r of routines) map.set(r.id, r.tagId);
+    return map;
+  }, [routines]);
   const [createPopover, setCreatePopover] = useState<{
     startTime: string;
     endTime: string;
@@ -95,17 +105,25 @@ export function OneDaySchedule({
 
   // Filtered data based on active filter tab
   const filteredScheduleItems = useMemo(() => {
+    let items = scheduleItems;
     switch (filterTab) {
       case "routine":
-        return scheduleItems.filter((i) => i.routineId !== null);
+        items = items.filter((i) => i.routineId !== null);
+        break;
       case "others":
-        return scheduleItems.filter((i) => i.routineId === null);
+        items = items.filter((i) => i.routineId === null);
+        break;
       case "tasks":
         return [];
-      default:
-        return scheduleItems;
     }
-  }, [scheduleItems, filterTab]);
+    if (selectedFilterTagId != null) {
+      items = items.filter(
+        (i) =>
+          i.routineId && routineTagMap.get(i.routineId) === selectedFilterTagId,
+      );
+    }
+    return items;
+  }, [scheduleItems, filterTab, selectedFilterTagId, routineTagMap]);
 
   const filteredDayTasks = useMemo(() => {
     if (filterTab === "routine" || filterTab === "others") return [];
@@ -211,6 +229,46 @@ export function OneDaySchedule({
             onTabChange={setFilterTab}
             size="sm"
           />
+          {(filterTab === "all" || filterTab === "routine") &&
+            routineTags.length > 0 && (
+              <div className="flex items-center gap-1 flex-wrap px-3 pb-1.5">
+                <button
+                  onClick={() => setSelectedFilterTagId(null)}
+                  className={`text-[10px] px-1.5 py-0.5 rounded-full transition-colors ${
+                    selectedFilterTagId === null
+                      ? "bg-notion-text text-notion-bg"
+                      : "bg-notion-hover text-notion-text-secondary hover:text-notion-text"
+                  }`}
+                >
+                  All
+                </button>
+                {routineTags.map((tag) => (
+                  <button
+                    key={tag.id}
+                    onClick={() =>
+                      setSelectedFilterTagId(
+                        selectedFilterTagId === tag.id ? null : tag.id,
+                      )
+                    }
+                    className={`flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-full transition-colors ${
+                      selectedFilterTagId === tag.id
+                        ? "ring-1 ring-notion-text"
+                        : "hover:opacity-80"
+                    }`}
+                    style={{
+                      backgroundColor: tag.color + "20",
+                      color: tag.color,
+                    }}
+                  >
+                    <span
+                      className="w-2 h-2 rounded-full"
+                      style={{ backgroundColor: tag.color }}
+                    />
+                    {tag.name}
+                  </button>
+                ))}
+              </div>
+            )}
           <div className="flex-1 overflow-y-auto">
             <TodayFlowTab
               items={filteredScheduleItems}

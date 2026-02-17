@@ -58,7 +58,7 @@ export function RoutineTagManager({
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30">
       <div className="bg-notion-bg border border-notion-border rounded-lg shadow-xl p-4 w-80">
         <div className="flex items-center justify-between mb-3">
-          <h3 className="text-sm font-semibold text-notion-text">
+          <h3 className="text-base font-semibold text-notion-text">
             {t("schedule.manageTags", "Manage Tags")}
           </h3>
           <button
@@ -91,7 +91,7 @@ export function RoutineTagManager({
                       if (e.key === "Enter") saveEdit();
                       if (e.key === "Escape") setEditingId(null);
                     }}
-                    className="flex-1 text-xs px-1.5 py-0.5 rounded bg-notion-hover text-notion-text outline-none"
+                    className="flex-1 text-sm px-1.5 py-0.5 rounded bg-notion-hover text-notion-text outline-none"
                     autoFocus
                   />
                   <button onClick={saveEdit} className="p-0.5 text-green-500">
@@ -133,7 +133,7 @@ export function RoutineTagManager({
                     className="w-3 h-3 rounded-full shrink-0"
                     style={{ backgroundColor: tag.color }}
                   />
-                  <span className="flex-1 text-xs text-notion-text">
+                  <span className="flex-1 text-sm text-notion-text">
                     {tag.name}
                   </span>
                   <button
@@ -177,12 +177,12 @@ export function RoutineTagManager({
                 if (e.key === "Enter") handleCreate();
               }}
               placeholder={t("schedule.tagName", "Tag name...")}
-              className="flex-1 text-xs px-2 py-1 rounded bg-notion-hover text-notion-text outline-none"
+              className="flex-1 text-sm px-2 py-1 rounded bg-notion-hover text-notion-text outline-none"
             />
             <button
               onClick={handleCreate}
               disabled={!newName.trim()}
-              className="text-xs px-2 py-1 rounded bg-notion-accent text-white disabled:opacity-40"
+              className="text-sm px-2 py-1 rounded bg-notion-accent text-white disabled:opacity-40"
             >
               {t("schedule.createTag", "Create")}
             </button>
