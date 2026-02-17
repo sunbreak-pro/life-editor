@@ -140,6 +140,7 @@ export function RoutineTagSelector({
                       value={newTagName}
                       onChange={(e) => setNewTagName(e.target.value)}
                       onKeyDown={(e) => {
+                        if (e.nativeEvent.isComposing) return;
                         if (e.key === "Enter") handleCreate();
                         if (e.key === "Escape") setShowCreate(false);
                       }}

@@ -55,8 +55,12 @@ export function RoutineTagManager({
   const handleCreate = async () => {
     const trimmed = newName.trim();
     if (!trimmed) return;
-    await onCreateTag(trimmed, newColor);
-    setNewName("");
+    try {
+      await onCreateTag(trimmed, newColor);
+      setNewName("");
+    } catch (err) {
+      console.error("Failed to create tag:", err);
+    }
   };
 
   return (
@@ -100,6 +104,7 @@ export function RoutineTagManager({
                     value={editName}
                     onChange={(e) => setEditName(e.target.value)}
                     onKeyDown={(e) => {
+                      if (e.nativeEvent.isComposing) return;
                       if (e.key === "Enter") saveEdit();
                       if (e.key === "Escape") setEditingId(null);
                     }}
@@ -190,6 +195,7 @@ export function RoutineTagManager({
               value={newName}
               onChange={(e) => setNewName(e.target.value)}
               onKeyDown={(e) => {
+                if (e.nativeEvent.isComposing) return;
                 if (e.key === "Enter") handleCreate();
               }}
               placeholder={t("schedule.tagName", "Tag name...")}

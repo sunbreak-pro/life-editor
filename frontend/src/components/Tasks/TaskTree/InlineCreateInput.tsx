@@ -14,12 +14,17 @@ export function InlineCreateInput({
 }: InlineCreateInputProps) {
   const [value, setValue] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
+  const submittedRef = useRef(false);
 
   useEffect(() => {
     inputRef.current?.focus();
   }, []);
 
   const handleBlurSubmit = () => {
+    if (submittedRef.current) {
+      onCancel();
+      return;
+    }
     const trimmed = value.trim();
     if (trimmed) {
       onSubmit(trimmed);
@@ -28,9 +33,11 @@ export function InlineCreateInput({
   };
 
   const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
+    if (e.nativeEvent.isComposing) return;
     if (e.key === "Enter") {
       const trimmed = value.trim();
       if (trimmed) {
+        submittedRef.current = true;
         onSubmit(trimmed);
         setValue("");
       } else {

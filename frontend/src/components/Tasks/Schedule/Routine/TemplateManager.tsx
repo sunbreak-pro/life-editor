@@ -54,10 +54,14 @@ function ItemTimeDisplay({
   item,
   templateId,
   onUpdateItem,
+  routineStartTime,
+  routineEndTime,
 }: {
   item: RoutineTemplateItem;
   templateId: string;
   onUpdateItem: TemplateManagerProps["onUpdateItem"];
+  routineStartTime?: string | null;
+  routineEndTime?: string | null;
 }) {
   const [editingField, setEditingField] = useState<"start" | "end" | null>(
     null,
@@ -72,8 +76,8 @@ function ItemTimeDisplay({
     onUpdateItem(templateId, item.routineId, updates);
   };
 
-  const startDisplay = item.startTime ?? "--:--";
-  const endDisplay = item.endTime ?? "--:--";
+  const startDisplay = item.startTime ?? routineStartTime ?? "--:--";
+  const endDisplay = item.endTime ?? routineEndTime ?? "--:--";
 
   return (
     <span className="flex items-center gap-0.5 text-[10px] text-notion-text-secondary flex-shrink-0">
@@ -235,6 +239,8 @@ export function TemplateManager({
                                 item={item}
                                 templateId={tmpl.id}
                                 onUpdateItem={onUpdateItem}
+                                routineStartTime={routine?.startTime}
+                                routineEndTime={routine?.endTime}
                               />
                               <span className="flex-1 text-[11px] text-notion-text truncate">
                                 {routine?.title ?? "Unknown"}
@@ -259,13 +265,7 @@ export function TemplateManager({
                       <select
                         onChange={(e) => {
                           if (e.target.value) {
-                            const routine = routineMap.get(e.target.value);
-                            onAddItem(
-                              tmpl.id,
-                              e.target.value,
-                              routine?.startTime,
-                              routine?.endTime,
-                            );
+                            onAddItem(tmpl.id, e.target.value, null, null);
                             e.target.value = "";
                           }
                         }}

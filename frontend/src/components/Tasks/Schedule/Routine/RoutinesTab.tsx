@@ -107,6 +107,9 @@ export function RoutinesTab({
   );
   const [showDetails, setShowDetails] = useState(false);
   const [showTagManager, setShowTagManager] = useState(false);
+  const [selectedFilterTagId, setSelectedFilterTagId] = useState<number | null>(
+    null,
+  );
 
   useEffect(() => {
     if (routines.length > 0) {
@@ -119,6 +122,10 @@ export function RoutinesTab({
     .sort((a, b) =>
       (a.startTime ?? "99:99").localeCompare(b.startTime ?? "99:99"),
     );
+  const filteredRoutines =
+    selectedFilterTagId != null
+      ? activeRoutines.filter((r) => r.tagId === selectedFilterTagId)
+      : activeRoutines;
   const archivedRoutines = routines.filter((r) => r.isArchived);
 
   return (
@@ -130,6 +137,7 @@ export function RoutinesTab({
           routines={routines}
           scheduleItems={scheduleItems}
           onToggleComplete={onToggleComplete}
+          filterTagId={selectedFilterTagId}
         />
       </div>
 
@@ -167,14 +175,57 @@ export function RoutinesTab({
               </div>
             </div>
 
-            {activeRoutines.length === 0 && (
+            {/* Tag filter chips */}
+            {routineTags.length > 0 && (
+              <div className="flex items-center gap-1 flex-wrap mb-2">
+                <button
+                  onClick={() => setSelectedFilterTagId(null)}
+                  className={`text-[10px] px-1.5 py-0.5 rounded-full transition-colors ${
+                    selectedFilterTagId === null
+                      ? "bg-notion-text text-notion-bg"
+                      : "bg-notion-hover text-notion-text-secondary hover:text-notion-text"
+                  }`}
+                >
+                  All
+                </button>
+                {routineTags.map((tag) => (
+                  <button
+                    key={tag.id}
+                    onClick={() =>
+                      setSelectedFilterTagId(
+                        selectedFilterTagId === tag.id ? null : tag.id,
+                      )
+                    }
+                    className={`flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-full transition-colors ${
+                      selectedFilterTagId === tag.id
+                        ? "ring-1 ring-notion-text"
+                        : "hover:opacity-80"
+                    }`}
+                    style={{
+                      backgroundColor: tag.color + "20",
+                      color: tag.color,
+                    }}
+                  >
+                    <span
+                      className="w-2 h-2 rounded-full"
+                      style={{ backgroundColor: tag.color }}
+                    />
+                    {tag.name}
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {filteredRoutines.length === 0 && (
               <p className="text-[10px] text-notion-text-secondary py-2">
-                No routines yet. Create one to get started.
+                {selectedFilterTagId != null
+                  ? "No routines with this tag."
+                  : "No routines yet. Create one to get started."}
               </p>
             )}
 
             <div className="space-y-0.5">
-              {activeRoutines.map((routine) => {
+              {filteredRoutines.map((routine) => {
                 const rate = getCompletionRate(routine.id);
                 return (
                   <div

@@ -9,6 +9,7 @@ interface RoutineFlowProps {
   routines: RoutineNode[];
   scheduleItems: ScheduleItem[];
   onToggleComplete: (id: string) => void;
+  filterTagId?: number | null;
 }
 
 interface FlowStep {
@@ -18,6 +19,7 @@ interface FlowStep {
   startTime: string | null;
   endTime: string | null;
   completed: boolean;
+  tagId: number | null;
 }
 
 interface FlowGroup {
@@ -30,6 +32,7 @@ export function RoutineFlow({
   routines,
   scheduleItems,
   onToggleComplete,
+  filterTagId,
 }: RoutineFlowProps) {
   const { t } = useTranslation();
 
@@ -54,27 +57,33 @@ export function RoutineFlow({
       (t) => t.frequencyType === "daily" || t.frequencyDays.includes(today),
     );
 
-    const groups = activeTemplates.map((template) => {
-      const steps: FlowStep[] = template.items
-        .sort((a, b) => a.position - b.position)
-        .map((item) => {
-          const routine = routineMap.get(item.routineId);
-          const scheduleItem = scheduleItemByRoutineId.get(item.routineId);
-          return {
-            routineId: item.routineId,
-            scheduleItemId: scheduleItem?.id ?? null,
-            title: routine?.title ?? "Unknown",
-            startTime: item.startTime ?? routine?.startTime ?? null,
-            endTime: item.endTime ?? routine?.endTime ?? null,
-            completed: scheduleItem?.completed ?? false,
-          };
-        });
+    const groups = activeTemplates
+      .map((template) => {
+        const steps: FlowStep[] = template.items
+          .map((item) => {
+            const routine = routineMap.get(item.routineId);
+            const scheduleItem = scheduleItemByRoutineId.get(item.routineId);
+            return {
+              routineId: item.routineId,
+              scheduleItemId: scheduleItem?.id ?? null,
+              title: routine?.title ?? "Unknown",
+              startTime: item.startTime ?? routine?.startTime ?? null,
+              endTime: item.endTime ?? routine?.endTime ?? null,
+              completed: scheduleItem?.completed ?? false,
+              tagId: routine?.tagId ?? null,
+            };
+          })
+          .filter((step) => filterTagId == null || step.tagId === filterTagId)
+          .sort((a, b) =>
+            (a.startTime ?? "99:99").localeCompare(b.startTime ?? "99:99"),
+          );
 
-      return {
-        templateName: template.name,
-        steps,
-      };
-    });
+        return {
+          templateName: template.name,
+          steps,
+        };
+      })
+      .filter((g) => g.steps.length > 0);
 
     // Sort groups by earliest startTime of their steps
     groups.sort((a, b) => {
@@ -90,7 +99,7 @@ export function RoutineFlow({
     });
 
     return groups;
-  }, [templates, routineMap, scheduleItemByRoutineId]);
+  }, [templates, routineMap, scheduleItemByRoutineId, filterTagId]);
 
   const totalSteps = flowGroups.reduce((sum, g) => sum + g.steps.length, 0);
   const completedSteps = flowGroups.reduce(
@@ -126,58 +135,59 @@ export function RoutineFlow({
                 {/* Steps */}
                 <div className="ml-[5px]">
                   {group.steps.map((step, i) => (
-                    <div key={step.routineId} className="flex">
+                    <button
+                      key={step.routineId}
+                      onClick={() => {
+                        if (step.scheduleItemId) {
+                          onToggleComplete(step.scheduleItemId);
+                        }
+                      }}
+                      disabled={!step.scheduleItemId}
+                      className={`flex text-left w-full ${
+                        step.scheduleItemId
+                          ? "cursor-pointer"
+                          : "cursor-default"
+                      }`}
+                    >
                       {/* Vertical line + icon */}
                       <div className="flex flex-col items-center mr-2.5">
-                        <button
-                          onClick={() => {
-                            if (step.scheduleItemId) {
-                              onToggleComplete(step.scheduleItemId);
-                            }
-                          }}
-                          className={`flex-shrink-0 transition-colors ${
-                            step.scheduleItemId
-                              ? "cursor-pointer"
-                              : "cursor-default"
-                          }`}
-                          disabled={!step.scheduleItemId}
-                        >
+                        <div className="flex-shrink-0 transition-colors">
                           {step.completed ? (
                             <CheckCircle2
-                              size={16}
+                              size={18}
                               className="text-green-500"
                             />
                           ) : (
                             <Circle
-                              size={16}
+                              size={18}
                               className="text-notion-text-secondary"
                             />
                           )}
-                        </button>
+                        </div>
                         {/* Connector line */}
                         {i < group.steps.length - 1 && (
-                          <div className="w-px flex-1 min-h-[16px] bg-notion-border" />
+                          <div className="w-px flex-1 min-h-[20px] bg-notion-border" />
                         )}
                       </div>
 
                       {/* Step content */}
-                      <div className="pb-3 min-w-0">
+                      <div className="pb-4 min-w-0">
                         <div
-                          className={`text-[11px] truncate ${
+                          className={`text-xs truncate ${
                             step.completed
                               ? "text-notion-text-secondary line-through"
                               : "text-notion-text"
                           }`}
                         >
                           {step.startTime && (
-                            <span className="text-notion-text-secondary mr-1.5">
+                            <span className="text-[11px] text-notion-text-secondary mr-1.5">
                               {step.startTime}
                             </span>
                           )}
                           {step.title}
                         </div>
                       </div>
-                    </div>
+                    </button>
                   ))}
                 </div>
               </div>
