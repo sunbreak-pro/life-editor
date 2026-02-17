@@ -62,8 +62,30 @@ export function registerRoutineTemplateHandlers(
     loggedHandler(
       "RoutineTemplates",
       "addItem",
-      (_event, templateId: string, routineId: string) => {
-        repo.addItem(templateId, routineId);
+      (
+        _event,
+        templateId: string,
+        routineId: string,
+        startTime?: string | null,
+        endTime?: string | null,
+      ) => {
+        repo.addItem(templateId, routineId, startTime, endTime);
+      },
+    ),
+  );
+
+  ipcMain.handle(
+    "db:routineTemplates:updateItem",
+    loggedHandler(
+      "RoutineTemplates",
+      "updateItem",
+      (
+        _event,
+        templateId: string,
+        routineId: string,
+        updates: { startTime?: string | null; endTime?: string | null },
+      ) => {
+        repo.updateItem(templateId, routineId, updates);
       },
     ),
   );

@@ -85,7 +85,12 @@ export function useRoutineTemplates() {
   }, []);
 
   const addTemplateItem = useCallback(
-    (templateId: string, routineId: string) => {
+    (
+      templateId: string,
+      routineId: string,
+      startTime?: string | null,
+      endTime?: string | null,
+    ) => {
       setTemplates((prev) =>
         prev.map((t) => {
           if (t.id !== templateId) return t;
@@ -99,14 +104,40 @@ export function useRoutineTemplates() {
                 templateId,
                 routineId,
                 position: t.items.length,
+                startTime: startTime ?? null,
+                endTime: endTime ?? null,
               },
             ],
           };
         }),
       );
       getDataService()
-        .addRoutineTemplateItem(templateId, routineId)
+        .addRoutineTemplateItem(templateId, routineId, startTime, endTime)
         .catch((e) => logServiceError("RoutineTemplates", "addItem", e));
+    },
+    [],
+  );
+
+  const updateTemplateItem = useCallback(
+    (
+      templateId: string,
+      routineId: string,
+      updates: { startTime?: string | null; endTime?: string | null },
+    ) => {
+      setTemplates((prev) =>
+        prev.map((t) => {
+          if (t.id !== templateId) return t;
+          return {
+            ...t,
+            items: t.items.map((i) =>
+              i.routineId === routineId ? { ...i, ...updates } : i,
+            ),
+          };
+        }),
+      );
+      getDataService()
+        .updateRoutineTemplateItem(templateId, routineId, updates)
+        .catch((e) => logServiceError("RoutineTemplates", "updateItem", e));
     },
     [],
   );
@@ -134,12 +165,17 @@ export function useRoutineTemplates() {
       setTemplates((prev) =>
         prev.map((t) => {
           if (t.id !== templateId) return t;
-          const newItems = routineIds.map((rid, i) => ({
-            id: t.items.find((it) => it.routineId === rid)?.id ?? -1,
-            templateId,
-            routineId: rid,
-            position: i,
-          }));
+          const newItems = routineIds.map((rid, i) => {
+            const existing = t.items.find((it) => it.routineId === rid);
+            return {
+              id: existing?.id ?? -1,
+              templateId,
+              routineId: rid,
+              position: i,
+              startTime: existing?.startTime ?? null,
+              endTime: existing?.endTime ?? null,
+            };
+          });
           return { ...t, items: newItems };
         }),
       );
@@ -150,6 +186,15 @@ export function useRoutineTemplates() {
     [],
   );
 
+  const removeRoutineFromAllTemplates = useCallback((routineId: string) => {
+    setTemplates((prev) =>
+      prev.map((t) => ({
+        ...t,
+        items: t.items.filter((i) => i.routineId !== routineId),
+      })),
+    );
+  }, []);
+
   return useMemo(
     () => ({
       templates,
@@ -158,8 +203,10 @@ export function useRoutineTemplates() {
       updateTemplate,
       deleteTemplate,
       addTemplateItem,
+      updateTemplateItem,
       removeTemplateItem,
       reorderTemplateItems,
+      removeRoutineFromAllTemplates,
     }),
     [
       templates,
@@ -168,8 +215,10 @@ export function useRoutineTemplates() {
       updateTemplate,
       deleteTemplate,
       addTemplateItem,
+      updateTemplateItem,
       removeTemplateItem,
       reorderTemplateItems,
+      removeRoutineFromAllTemplates,
     ],
   );
 }

@@ -58,9 +58,12 @@ export function ScheduleTabView({
     updateTemplate,
     deleteTemplate,
     addTemplateItem,
+    updateTemplateItem,
     removeTemplateItem,
     getRoutineCompletionRate,
     routineStats,
+    scheduleItems,
+    toggleComplete,
   } = useScheduleContext();
 
   const { tasksByDate } = useCalendar(
@@ -135,22 +138,23 @@ export function ScheduleTabView({
             onToday={goToToday}
           />
         ) : (
-          <div className="py-4">
-            <RoutinesTab
-              routines={routines}
-              templates={templates}
-              onCreateRoutine={createRoutine}
-              onUpdateRoutine={updateRoutine}
-              onDeleteRoutine={deleteRoutine}
-              onCreateTemplate={createTemplate}
-              onUpdateTemplate={updateTemplate}
-              onDeleteTemplate={deleteTemplate}
-              onAddTemplateItem={addTemplateItem}
-              onRemoveTemplateItem={removeTemplateItem}
-              getCompletionRate={getRoutineCompletionRate}
-              routineStats={routineStats}
-            />
-          </div>
+          <RoutinesTab
+            routines={routines}
+            templates={templates}
+            onCreateRoutine={createRoutine}
+            onUpdateRoutine={updateRoutine}
+            onDeleteRoutine={deleteRoutine}
+            onCreateTemplate={createTemplate}
+            onUpdateTemplate={updateTemplate}
+            onDeleteTemplate={deleteTemplate}
+            onAddTemplateItem={addTemplateItem}
+            onUpdateTemplateItem={updateTemplateItem}
+            onRemoveTemplateItem={removeTemplateItem}
+            getCompletionRate={getRoutineCompletionRate}
+            routineStats={routineStats}
+            scheduleItems={scheduleItems}
+            onToggleComplete={toggleComplete}
+          />
         )}
       </div>
     </div>

@@ -1,6 +1,9 @@
 import { useState } from "react";
 import { Plus, Trash2, Pencil, ChevronDown, ChevronRight } from "lucide-react";
-import type { RoutineTemplate } from "../../../../types/schedule";
+import type {
+  RoutineTemplate,
+  RoutineTemplateItem,
+} from "../../../../types/schedule";
 import type { RoutineNode } from "../../../../types/routine";
 import { TemplateEditDialog } from "./TemplateEditDialog";
 
@@ -19,7 +22,17 @@ interface TemplateManagerProps {
     >,
   ) => void;
   onDeleteTemplate: (id: string) => void;
-  onAddItem: (templateId: string, routineId: string) => void;
+  onAddItem: (
+    templateId: string,
+    routineId: string,
+    startTime?: string | null,
+    endTime?: string | null,
+  ) => void;
+  onUpdateItem: (
+    templateId: string,
+    routineId: string,
+    updates: { startTime?: string | null; endTime?: string | null },
+  ) => void;
   onRemoveItem: (templateId: string, routineId: string) => void;
 }
 
@@ -30,6 +43,84 @@ const FREQ_LABELS: Record<string, string> = {
 
 const DAY_SHORT = ["S", "M", "T", "W", "T", "F", "S"];
 
+function ItemTimeDisplay({
+  item,
+  templateId,
+  onUpdateItem,
+}: {
+  item: RoutineTemplateItem;
+  templateId: string;
+  onUpdateItem: TemplateManagerProps["onUpdateItem"];
+}) {
+  const [editingField, setEditingField] = useState<"start" | "end" | null>(
+    null,
+  );
+
+  const handleBlur = (field: "start" | "end", value: string) => {
+    setEditingField(null);
+    const updates =
+      field === "start"
+        ? { startTime: value || null }
+        : { endTime: value || null };
+    onUpdateItem(templateId, item.routineId, updates);
+  };
+
+  const startDisplay = item.startTime ?? "--:--";
+  const endDisplay = item.endTime ?? "--:--";
+
+  return (
+    <span className="flex items-center gap-0.5 text-[10px] text-notion-text-secondary flex-shrink-0">
+      {editingField === "start" ? (
+        <input
+          type="time"
+          defaultValue={item.startTime ?? ""}
+          autoFocus
+          onBlur={(e) => handleBlur("start", e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+          }}
+          className="w-[70px] px-0.5 py-0 text-[10px] bg-notion-bg border border-accent-primary rounded"
+        />
+      ) : (
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            setEditingField("start");
+          }}
+          className="hover:text-notion-text transition-colors"
+          title="Edit start time"
+        >
+          {startDisplay}
+        </button>
+      )}
+      <span>-</span>
+      {editingField === "end" ? (
+        <input
+          type="time"
+          defaultValue={item.endTime ?? ""}
+          autoFocus
+          onBlur={(e) => handleBlur("end", e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+          }}
+          className="w-[70px] px-0.5 py-0 text-[10px] bg-notion-bg border border-accent-primary rounded"
+        />
+      ) : (
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            setEditingField("end");
+          }}
+          className="hover:text-notion-text transition-colors"
+          title="Edit end time"
+        >
+          {endDisplay}
+        </button>
+      )}
+    </span>
+  );
+}
+
 export function TemplateManager({
   templates,
   routines,
@@ -37,6 +128,7 @@ export function TemplateManager({
   onUpdateTemplate,
   onDeleteTemplate,
   onAddItem,
+  onUpdateItem,
   onRemoveItem,
 }: TemplateManagerProps) {
   const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -117,14 +209,12 @@ export function TemplateManager({
                   {/* Assigned routines */}
                   {tmpl.items.length > 0 && (
                     <div className="space-y-0.5 mb-1.5">
-                      {tmpl.items
-                        .sort((a, b) => {
-                          const ra = routineMap.get(a.routineId);
-                          const rb = routineMap.get(b.routineId);
-                          return (ra?.startTime ?? "99:99").localeCompare(
-                            rb?.startTime ?? "99:99",
-                          );
-                        })
+                      {[...tmpl.items]
+                        .sort((a, b) =>
+                          (a.startTime ?? "99:99").localeCompare(
+                            b.startTime ?? "99:99",
+                          ),
+                        )
                         .map((item) => {
                           const routine = routineMap.get(item.routineId);
                           return (
@@ -132,14 +222,14 @@ export function TemplateManager({
                               key={item.routineId}
                               className="flex items-center gap-1.5 px-1.5 py-1 rounded border border-notion-border/60 hover:bg-notion-hover group"
                             >
+                              <ItemTimeDisplay
+                                item={item}
+                                templateId={tmpl.id}
+                                onUpdateItem={onUpdateItem}
+                              />
                               <span className="flex-1 text-[11px] text-notion-text truncate">
                                 {routine?.title ?? "Unknown"}
                               </span>
-                              {routine?.startTime && (
-                                <span className="text-[10px] text-notion-text-secondary">
-                                  {routine.startTime}
-                                </span>
-                              )}
                               <button
                                 onClick={() =>
                                   onRemoveItem(tmpl.id, item.routineId)
@@ -160,7 +250,13 @@ export function TemplateManager({
                       <select
                         onChange={(e) => {
                           if (e.target.value) {
-                            onAddItem(tmpl.id, e.target.value);
+                            const routine = routineMap.get(e.target.value);
+                            onAddItem(
+                              tmpl.id,
+                              e.target.value,
+                              routine?.startTime,
+                              routine?.endTime,
+                            );
                             e.target.value = "";
                           }
                         }}

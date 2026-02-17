@@ -16,6 +16,8 @@ interface TemplateItemRow {
   template_id: string;
   routine_id: string;
   position: number;
+  start_time: string | null;
+  end_time: string | null;
 }
 
 function rowToTemplate(row: TemplateRow): RoutineTemplate {
@@ -37,6 +39,8 @@ function rowToItem(row: TemplateItemRow): RoutineTemplateItem {
     templateId: row.template_id,
     routineId: row.routine_id,
     position: row.position,
+    startTime: row.start_time,
+    endTime: row.end_time,
   };
 }
 
@@ -66,8 +70,12 @@ export function createRoutineTemplateRepository(db: Database.Database) {
       `SELECT * FROM routine_template_items ORDER BY template_id, position ASC`,
     ),
     addItem: db.prepare(`
-      INSERT OR IGNORE INTO routine_template_items (template_id, routine_id, position)
-      VALUES (@template_id, @routine_id, @position)
+      INSERT OR IGNORE INTO routine_template_items (template_id, routine_id, position, start_time, end_time)
+      VALUES (@template_id, @routine_id, @position, @start_time, @end_time)
+    `),
+    updateItem: db.prepare(`
+      UPDATE routine_template_items SET start_time = @start_time, end_time = @end_time
+      WHERE template_id = @template_id AND routine_id = @routine_id
     `),
     removeItem: db.prepare(
       `DELETE FROM routine_template_items WHERE template_id = ? AND routine_id = ?`,
@@ -150,13 +158,33 @@ export function createRoutineTemplateRepository(db: Database.Database) {
       stmts.delete.run(id);
     },
 
-    addItem(templateId: string, routineId: string): void {
+    addItem(
+      templateId: string,
+      routineId: string,
+      startTime?: string | null,
+      endTime?: string | null,
+    ): void {
       const maxPos = (stmts.maxPosition.get(templateId) as { max_pos: number })
         .max_pos;
       stmts.addItem.run({
         template_id: templateId,
         routine_id: routineId,
         position: maxPos + 1,
+        start_time: startTime ?? null,
+        end_time: endTime ?? null,
+      });
+    },
+
+    updateItem(
+      templateId: string,
+      routineId: string,
+      updates: { startTime?: string | null; endTime?: string | null },
+    ): void {
+      stmts.updateItem.run({
+        template_id: templateId,
+        routine_id: routineId,
+        start_time: updates.startTime ?? null,
+        end_time: updates.endTime ?? null,
       });
     },
 
@@ -166,12 +194,23 @@ export function createRoutineTemplateRepository(db: Database.Database) {
 
     reorderItems(templateId: string, routineIds: string[]): void {
       const reorder = db.transaction(() => {
+        // Preserve existing time data before clearing
+        const existing = stmts.fetchItems.all(templateId) as TemplateItemRow[];
+        const timeMap = new Map(
+          existing.map((r) => [
+            r.routine_id,
+            { start_time: r.start_time, end_time: r.end_time },
+          ]),
+        );
         stmts.clearItems.run(templateId);
         for (let i = 0; i < routineIds.length; i++) {
+          const times = timeMap.get(routineIds[i]);
           stmts.addItem.run({
             template_id: templateId,
             routine_id: routineIds[i],
             position: i,
+            start_time: times?.start_time ?? null,
+            end_time: times?.end_time ?? null,
           });
         }
       });

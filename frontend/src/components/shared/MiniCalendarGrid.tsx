@@ -179,32 +179,32 @@ export function MiniCalendarGrid({
     <div className="flex flex-row px-4 py-2 items-center justify-around">
       {/* Calendar grid with border */}
       <div className="p-0 w-55">
-        <div className="border border-notion-border rounded-lg overflow-hidden">
+        <div>
           {/* Month nav */}
-          <div className="flex items-center justify-between px-2 py-1 bg-notion-text-secondary/20">
+          <div className="flex items-center justify-between px-2 py-1 mb-2">
             <button
               onClick={prevMonth}
-              className="p-0.5 rounded hover:bg-notion-hover text-notion-text-secondary"
+              className="p-0.5 rounded-full hover:bg-notion-hover text-notion-text-secondary"
             >
               <ChevronLeft size={12} />
             </button>
-            <span className="text-xs font-medium text-notion-text ">
+            <span className="text-xs font-medium text-notion-text">
               {MONTH_NAMES[viewMonth]} {viewYear}
             </span>
             <button
               onClick={nextMonth}
-              className="p-0.5 rounded hover:bg-notion-hover text-notion-text-secondary"
+              className="p-0.5 rounded-full hover:bg-notion-hover text-notion-text-secondary"
             >
               <ChevronRight size={12} />
             </button>
           </div>
 
           {/* Day headers */}
-          <div className="grid grid-cols-7 h-10 bg-notion-calendar-header items-center justify-items-center">
+          <div className="grid grid-cols-7 gap-1 mb-1 items-center justify-items-center">
             {["日", "月", "火", "水", "木", "金", "土"].map((d, i) => (
               <div
                 key={i}
-                className="text-center text-[10px] text-notion-text font-bold  flex items-center justify-center"
+                className="text-center text-[9px] text-notion-text-secondary flex items-center justify-center"
               >
                 {d}
               </div>
@@ -212,12 +212,9 @@ export function MiniCalendarGrid({
           </div>
 
           {/* Days grid */}
-          <div className="grid grid-cols-7">
+          <div className="grid grid-cols-7 gap-1">
             {Array.from({ length: firstDay }, (_, i) => (
-              <div
-                key={`pad-${i}`}
-                className="aspect-square border border-notion-border/30"
-              />
+              <div key={`pad-${i}`} className="aspect-square" />
             ))}
             {Array.from({ length: daysInMonth }, (_, i) => {
               const day = i + 1;
@@ -230,14 +227,14 @@ export function MiniCalendarGrid({
                 <button
                   key={day}
                   onClick={() => handleSelectDate(day)}
-                  className={`text-[10px] aspect-square flex items-center justify-center border border-notion-border/30 transition-colors ${
+                  className={`text-[10px] aspect-square flex items-center justify-center rounded-full transition-colors ${
                     isStart || isEnd
                       ? "bg-notion-accent text-white"
                       : inRange
-                        ? "bg-notion-accent/20 text-notion-accent"
+                        ? "bg-notion-accent/15 text-notion-accent"
                         : isToday
-                          ? "bg-notion-accent/10 text-notion-accent font-bold"
-                          : "text-notion-text hover:bg-notion-hover "
+                          ? "ring-1.5 ring-notion-accent text-notion-accent font-semibold"
+                          : "text-notion-text hover:bg-notion-hover"
                   }`}
                 >
                   {day}

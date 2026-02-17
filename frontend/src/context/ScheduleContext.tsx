@@ -1,4 +1,4 @@
-import { createContext, useMemo } from "react";
+import { createContext, useCallback, useMemo } from "react";
 import type { ReactNode } from "react";
 import { useRoutines } from "../hooks/useRoutines";
 import { useRoutineTemplates } from "../hooks/useRoutineTemplates";
@@ -19,13 +19,23 @@ export function ScheduleProvider({ children }: { children: ReactNode }) {
   const templatesState = useRoutineTemplates();
   const scheduleItemsState = useScheduleItems();
 
+  // Wrap deleteRoutine to also remove routine from all templates (Improvement 4)
+  const deleteRoutine = useCallback(
+    (id: string) => {
+      routinesState.deleteRoutine(id);
+      templatesState.removeRoutineFromAllTemplates(id);
+    },
+    [routinesState.deleteRoutine, templatesState.removeRoutineFromAllTemplates],
+  );
+
   const value = useMemo<ScheduleContextValue>(
     () => ({
       ...routinesState,
       ...templatesState,
       ...scheduleItemsState,
+      deleteRoutine,
     }),
-    [routinesState, templatesState, scheduleItemsState],
+    [routinesState, templatesState, scheduleItemsState, deleteRoutine],
   );
 
   return (

@@ -197,7 +197,17 @@ export interface DataService {
     >,
   ): Promise<RoutineTemplate>;
   deleteRoutineTemplate(id: string): Promise<void>;
-  addRoutineTemplateItem(templateId: string, routineId: string): Promise<void>;
+  addRoutineTemplateItem(
+    templateId: string,
+    routineId: string,
+    startTime?: string | null,
+    endTime?: string | null,
+  ): Promise<void>;
+  updateRoutineTemplateItem(
+    templateId: string,
+    routineId: string,
+    updates: { startTime?: string | null; endTime?: string | null },
+  ): Promise<void>;
   removeRoutineTemplateItem(
     templateId: string,
     routineId: string,

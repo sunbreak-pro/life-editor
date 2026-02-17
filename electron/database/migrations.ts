@@ -73,6 +73,10 @@ export function runMigrations(db: Database.Database): void {
     log.info("[DB] Running migration V17");
     migrateV17(db);
   }
+  if (currentVersion < 18) {
+    log.info("[DB] Running migration V18");
+    migrateV18(db);
+  }
 
   const newVersion = db.pragma("user_version", { simple: true }) as number;
   if (newVersion !== currentVersion) {
@@ -695,4 +699,12 @@ function migrateV17(db: Database.Database): void {
 
   migrate();
   db.pragma("user_version = 17");
+}
+
+function migrateV18(db: Database.Database): void {
+  db.exec(`
+    ALTER TABLE routine_template_items ADD COLUMN start_time TEXT;
+    ALTER TABLE routine_template_items ADD COLUMN end_time TEXT;
+    PRAGMA user_version = 18;
+  `);
 }

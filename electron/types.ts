@@ -174,6 +174,8 @@ export interface RoutineTemplateItem {
   templateId: string;
   routineId: string;
   position: number;
+  startTime: string | null;
+  endTime: string | null;
 }
 
 export interface ScheduleItem {

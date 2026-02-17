@@ -63,6 +63,7 @@ const ALLOWED_CHANNELS = new Set([
   "db:routineTemplates:update",
   "db:routineTemplates:delete",
   "db:routineTemplates:addItem",
+  "db:routineTemplates:updateItem",
   "db:routineTemplates:removeItem",
   "db:routineTemplates:reorderItems",
   // Schedule Items

@@ -348,8 +348,31 @@ export class ElectronDataService implements DataService {
   deleteRoutineTemplate(id: string): Promise<void> {
     return invoke("db:routineTemplates:delete", id);
   }
-  addRoutineTemplateItem(templateId: string, routineId: string): Promise<void> {
-    return invoke("db:routineTemplates:addItem", templateId, routineId);
+  addRoutineTemplateItem(
+    templateId: string,
+    routineId: string,
+    startTime?: string | null,
+    endTime?: string | null,
+  ): Promise<void> {
+    return invoke(
+      "db:routineTemplates:addItem",
+      templateId,
+      routineId,
+      startTime,
+      endTime,
+    );
+  }
+  updateRoutineTemplateItem(
+    templateId: string,
+    routineId: string,
+    updates: { startTime?: string | null; endTime?: string | null },
+  ): Promise<void> {
+    return invoke(
+      "db:routineTemplates:updateItem",
+      templateId,
+      routineId,
+      updates,
+    );
   }
   removeRoutineTemplateItem(
     templateId: string,
