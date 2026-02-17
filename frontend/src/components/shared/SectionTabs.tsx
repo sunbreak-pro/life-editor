@@ -11,14 +11,19 @@ interface SectionTabsProps<T extends string> {
   tabs: readonly TabItem<T>[];
   activeTab: T;
   onTabChange: (tab: T) => void;
+  size?: "default" | "sm";
 }
 
 export function SectionTabs<T extends string>({
   tabs,
   activeTab,
   onTabChange,
+  size = "default",
 }: SectionTabsProps<T>) {
   const { t } = useTranslation();
+  const isSmall = size === "sm";
+  const btnClass = isSmall ? "px-3 py-1.5 text-xs" : "px-4 py-2 text-sm";
+  const iconSize = isSmall ? 12 : 14;
   return (
     <div className="flex gap-1 border-b border-notion-border">
       {tabs.map((tab) => {
@@ -28,13 +33,13 @@ export function SectionTabs<T extends string>({
           <button
             key={tab.id}
             onClick={() => onTabChange(tab.id)}
-            className={`flex items-center gap-1.5 px-4 py-2 text-sm font-medium rounded-t-md transition-colors ${
+            className={`flex items-center gap-1.5 ${btnClass} font-medium rounded-t-md transition-colors ${
               isActive
                 ? "text-notion-text border-b-2 border-notion-accent"
                 : "text-notion-text-secondary hover:text-notion-text hover:bg-notion-hover"
             }`}
           >
-            {Icon && <Icon size={14} />}
+            {Icon && <Icon size={iconSize} />}
             {t(tab.labelKey)}
           </button>
         );

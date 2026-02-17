@@ -95,7 +95,7 @@ export function useCustomSounds() {
   }, []);
 
   const addSound = useCallback(
-    async (file: File): Promise<{ error?: string }> => {
+    async (file: File): Promise<{ error?: string; id?: string }> => {
       if (file.size > MAX_FILE_SIZE) {
         return {
           error: `ファイルサイズが20MBを超えています (${(file.size / 1024 / 1024).toFixed(1)}MB)`,
@@ -135,7 +135,7 @@ export function useCustomSounds() {
         return next;
       });
 
-      return {};
+      return { id };
     },
     [],
   );

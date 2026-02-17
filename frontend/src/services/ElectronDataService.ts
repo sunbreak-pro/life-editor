@@ -21,7 +21,6 @@ import type {
 import type { CustomSoundMeta } from "../types/customSound";
 import type { NoteNode } from "../types/note";
 
-import type { TaskTemplate } from "../types/template";
 import type { CalendarNode } from "../types/calendar";
 import type { RoutineNode } from "../types/routine";
 import type { ScheduleItem, RoutineTemplate } from "../types/schedule";
@@ -267,20 +266,6 @@ export class ElectronDataService implements DataService {
     model?: string;
   }): Promise<AISettingsResponse> {
     return invoke("ai:updateSettings", settings);
-  }
-
-  // Templates
-  fetchTemplates(): Promise<TaskTemplate[]> {
-    return invoke("db:templates:fetchAll");
-  }
-  createTemplate(name: string, nodesJson: string): Promise<TaskTemplate> {
-    return invoke("db:templates:create", name, nodesJson);
-  }
-  getTemplate(id: number): Promise<TaskTemplate | null> {
-    return invoke("db:templates:getById", id);
-  }
-  deleteTemplate(id: number): Promise<void> {
-    return invoke("db:templates:delete", id);
   }
 
   // Calendars

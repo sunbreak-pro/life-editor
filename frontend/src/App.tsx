@@ -7,7 +7,6 @@ import { WorkScreen } from "./components/WorkScreen";
 import { SessionCompletionModal } from "./components/WorkScreen/SessionCompletionModal";
 import { Settings } from "./components/Settings";
 import { Tips } from "./components/Tips";
-import { CalendarView } from "./components/Calendar/CalendarView";
 import { AnalyticsView } from "./components/Analytics/AnalyticsView";
 import { MemoView } from "./components/Memo";
 import { CommandPalette } from "./components/CommandPalette/CommandPalette";
@@ -76,11 +75,9 @@ function App() {
 
   useAppKeyboardShortcuts({
     timer,
-    selectedTask,
     addNode,
     setActiveSection,
     setIsCommandPaletteOpen,
-    handleDeleteSelectedTask: handlers.handleDeleteSelectedTask,
   });
 
   useElectronMenuActions({
@@ -99,16 +96,9 @@ function App() {
             filterFolderId={filterFolderId}
             onFilterChange={setFilterFolderId}
             onPlayTask={handlers.handlePlayTask}
-          />
-        );
-      case "memo":
-        return <MemoView />;
-      case "work":
-        return <WorkScreen onCompleteTask={handlers.handleCompleteTask} />;
-      case "schedule":
-        return (
-          <CalendarView
-            onSelectTask={handlers.handleCalendarSelectTask}
+            onCalendarSelectTask={(taskId) =>
+              handlers.handleCalendarSelectTask(taskId)
+            }
             onCreateTask={handlers.handleCalendarCreateTask}
             onCreateNote={handlers.handleCalendarCreateNote}
             onSelectMemo={handlers.handleCalendarSelectMemo}
@@ -119,6 +109,10 @@ function App() {
             }}
           />
         );
+      case "memo":
+        return <MemoView />;
+      case "work":
+        return <WorkScreen onCompleteTask={handlers.handleCompleteTask} />;
       case "analytics":
         return <AnalyticsView />;
       case "settings":

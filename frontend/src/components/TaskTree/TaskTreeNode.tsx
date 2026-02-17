@@ -16,7 +16,6 @@ import { TaskNodeActions } from "./TaskNodeActions";
 import { TaskNodeTimer, TaskNodeTimerBar } from "./TaskNodeTimer";
 import { TaskNodeContextMenu } from "./TaskNodeContextMenu";
 
-import { useTemplates } from "../../hooks/useTemplates";
 import { ConfirmDialog } from "../common/ConfirmDialog";
 import { CompletionToast } from "../common/CompletionToast";
 import { computeFolderProgress } from "../../utils/folderProgress";
@@ -61,15 +60,12 @@ export function TaskTreeNode({
   const timer = useTimerContext();
   const { t } = useTranslation();
 
-  const { createTemplate } = useTemplates();
-
   const [isEditing, setIsEditing] = useState(false);
   const [contextMenu, setContextMenu] = useState<{
     x: number;
     y: number;
   } | null>(null);
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [completionToast, setCompletionToast] = useState<string | null>(null);
 
   const { attributes, listeners, setNodeRef, isDragging } = useSortable({
@@ -114,21 +110,6 @@ export function TaskTreeNode({
     e.preventDefault();
     setContextMenu({ x: e.clientX, y: e.clientY });
   }, []);
-
-  const handleSaveAsTemplate = useCallback(() => {
-    // Collect folder + all descendants
-    const collected: TaskNode[] = [];
-    const collect = (parentId: string) => {
-      const kids = getChildren(parentId);
-      for (const child of kids) {
-        collected.push(child);
-        if (child.type === "folder") collect(child.id);
-      }
-    };
-    collected.push(node);
-    collect(node.id);
-    createTemplate(node.title, JSON.stringify(collected));
-  }, [node, getChildren, createTemplate]);
 
   const handleCompleteFolder = useCallback(() => {
     if (isFolderDone) {
@@ -226,7 +207,7 @@ export function TaskTreeNode({
               addNode("task", node.id, t("taskTree.newTaskDefault"))
             }
             onPlayTask={onPlayTask}
-            onDelete={() => setShowDeleteConfirm(true)}
+            onDelete={() => softDelete(node.id)}
             onCompleteFolder={isFolder ? handleCompleteFolder : undefined}
           />
         </div>
@@ -255,9 +236,8 @@ export function TaskTreeNode({
           }
           onStartTimer={() => onPlayTask?.(node)}
           onMoveToRoot={() => moveToRoot(node.id)}
-          onSaveAsTemplate={isFolder ? handleSaveAsTemplate : undefined}
           onCompleteFolder={isFolder ? handleCompleteFolder : undefined}
-          onDelete={() => setShowDeleteConfirm(true)}
+          onDelete={() => softDelete(node.id)}
           onClose={() => setContextMenu(null)}
         />
       )}
@@ -267,17 +247,6 @@ export function TaskTreeNode({
           message={t("taskTree.folderCompleteConfirm")}
           onConfirm={handleConfirmComplete}
           onCancel={() => setShowConfirmDialog(false)}
-        />
-      )}
-
-      {showDeleteConfirm && (
-        <ConfirmDialog
-          message={t("taskTree.deleteConfirm", { name: node.title })}
-          onConfirm={() => {
-            softDelete(node.id);
-            setShowDeleteConfirm(false);
-          }}
-          onCancel={() => setShowDeleteConfirm(false)}
         />
       )}
 

@@ -161,7 +161,6 @@
     "inbox": "Inbox",
     "newTask": "New task...",
     "projects": "Projects",
-    "fromTemplate": "From template",
     "newFolder": "New folder...",
     "completed": "Completed",
     "newFolderDefault": "New Folder",
@@ -300,15 +299,10 @@
       "contextMenu": "Context Menu",
       "contextMenuList1": "Right-click a task or folder in the tree to open the context menu.",
       "contextMenuList2": "Available actions: <strong>Rename</strong>, <strong>Add Task</strong>, <strong>Add Folder</strong>, <strong>Start Timer</strong>, <strong>Move to Root</strong>, <strong>Delete</strong>.",
-      "contextMenuList3": "Folders also have a <strong>Save as Template</strong> option to save the entire structure.",
       "tags": "Tags",
       "tagsList1": "Create and manage tags in <strong>Settings → Tag Manager</strong> (name + color).",
       "tagsList2": "Assign tags to tasks from the task detail panel.",
-      "tagsList3": "Use the tag filter at the top of the task tree to show only matching tasks.",
-      "templates": "Templates",
-      "templatesList1": "Right-click a folder → <strong>Save as Template</strong> to save its full structure.",
-      "templatesList2": "Click the template icon in the Projects header to apply a saved template.",
-      "templatesList3": "Templates duplicate the hierarchy, titles, memos, and work durations."
+      "tagsList3": "Use the tag filter at the top of the task tree to show only matching tasks."
     },
     "timerTab": {
       "pomodoro": "Pomodoro Sessions",
@@ -591,6 +585,7 @@
     "shuffle": "Shuffle",
     "repeat": "Repeat",
     "playManual": "Play",
+    "stop": "Stop",
     "stopManual": "Stop",
     "removeFromPlaylist": "Remove from playlist"
   },
@@ -609,7 +604,6 @@
     "rename": "Rename",
     "addTask": "Add Task",
     "addFolder": "Add Folder",
-    "saveAsTemplate": "Save as Template",
     "completeFolder": "Complete Folder",
     "markIncomplete": "Mark Incomplete",
     "startTimer": "Start Timer",
@@ -675,13 +669,6 @@
   "folderFilter": {
     "all": "All",
     "filterByFolder": "Filter by folder"
-  },
-  "templates": {
-    "title": "Templates",
-    "empty": "No templates yet.",
-    "hint": "Right-click a folder to save it as a template.",
-    "apply": "Apply template",
-    "deleteTemplate": "Delete template"
   },
   "taskDetail": {
     "start": "Start",

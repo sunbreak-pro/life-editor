@@ -9,7 +9,6 @@ interface UseAppKeyboardShortcutsParams {
     start: () => void;
     reset: () => void;
   };
-  selectedTask: TaskNode | null;
   addNode: (
     type: "task" | "folder",
     parentId: string | null,
@@ -19,16 +18,13 @@ interface UseAppKeyboardShortcutsParams {
   setIsCommandPaletteOpen: (
     open: boolean | ((prev: boolean) => boolean),
   ) => void;
-  handleDeleteSelectedTask: () => void;
 }
 
 export function useAppKeyboardShortcuts({
   timer,
-  selectedTask,
   addNode,
   setActiveSection,
   setIsCommandPaletteOpen,
-  handleDeleteSelectedTask,
 }: UseAppKeyboardShortcutsParams) {
   const isInputFocused = useCallback((e: KeyboardEvent) => {
     const el = e.target as Element | null;
@@ -44,9 +40,8 @@ export function useAppKeyboardShortcuts({
     const sectionMap: Record<string, SectionId> = {
       "1": "tasks",
       "2": "work",
-      "3": "schedule",
-      "4": "analytics",
-      "5": "settings",
+      "3": "analytics",
+      "4": "settings",
     };
 
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -99,21 +94,14 @@ export function useAppKeyboardShortcuts({
         e.preventDefault();
         timer.reset();
       }
-
-      if ((e.key === "Delete" || e.key === "Backspace") && selectedTask) {
-        e.preventDefault();
-        handleDeleteSelectedTask();
-      }
     };
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [
     timer,
-    selectedTask,
     addNode,
     isInputFocused,
-    handleDeleteSelectedTask,
     setActiveSection,
     setIsCommandPaletteOpen,
   ]);

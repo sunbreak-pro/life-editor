@@ -5,12 +5,14 @@ import { useTimerContext } from "../hooks/useTimerContext";
 import { useCustomSounds } from "../hooks/useCustomSounds";
 import { usePlaylistData } from "../hooks/usePlaylistData";
 import { usePlaylistPlayer } from "../hooks/usePlaylistPlayer";
+import { useSoundTags } from "../hooks/useSoundTags";
 import { useLocalStorage } from "../hooks/useLocalStorage";
 import { AudioContext, type AudioContextValue } from "./AudioContextValue";
 
 export function AudioProvider({ children }: { children: ReactNode }) {
   const timer = useTimerContext();
   const { customSounds, blobUrls, addSound, removeSound } = useCustomSounds();
+  const { getDisplayName } = useSoundTags();
 
   const [timerPlaylistId, setTimerPlaylistId] = useLocalStorage<string | null>(
     STORAGE_KEYS.TIMER_PLAYLIST_ID,
@@ -57,6 +59,7 @@ export function AudioProvider({ children }: { children: ReactNode }) {
       setTimerPlaylistId,
       playlistPlayer,
       playlistData,
+      getDisplayName,
     }),
     [
       customSounds,
@@ -67,6 +70,7 @@ export function AudioProvider({ children }: { children: ReactNode }) {
       setTimerPlaylistId,
       playlistPlayer,
       playlistData,
+      getDisplayName,
     ],
   );
 

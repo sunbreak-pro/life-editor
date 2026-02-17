@@ -1,7 +1,9 @@
-import { useState, useMemo } from "react";
+import { useState } from "react";
 import { ChevronLeft, ChevronRight, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { formatDateKey, toLocalISOString } from "../../utils/dateKey";
+import { TimeInput } from "./TimeInput";
+import { DateInput } from "./DateInput";
 
 interface MiniCalendarGridProps {
   startValue?: string;
@@ -27,26 +29,6 @@ const MONTH_NAMES = [
   "11月",
   "12月",
 ];
-
-const MINUTES = [0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55];
-
-function generateDateOptions(
-  viewYear: number,
-  viewMonth: number,
-): { value: string; label: string }[] {
-  const options: { value: string; label: string }[] = [];
-  for (let offset = -1; offset <= 1; offset++) {
-    const m = viewMonth + offset;
-    const y = viewYear + Math.floor(m / 12);
-    const nm = ((m % 12) + 12) % 12;
-    const days = new Date(y, nm + 1, 0).getDate();
-    for (let d = 1; d <= days; d++) {
-      const key = `${y}-${String(nm + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
-      options.push({ value: key, label: `${nm + 1}/${d}` });
-    }
-  }
-  return options;
-}
 
 export function MiniCalendarGrid({
   startValue,
@@ -85,11 +67,6 @@ export function MiniCalendarGrid({
   const startKey = startValue ? formatDateKey(new Date(startValue)) : null;
   const endKey = endValue ? formatDateKey(new Date(endValue)) : null;
   const hasEndDate = !!endValue;
-
-  const dateOptions = useMemo(
-    () => generateDateOptions(viewYear, viewMonth),
-    [viewYear, viewMonth],
-  );
 
   const handleSelectDate = (day: number) => {
     if (!hasEndDate) {
@@ -169,15 +146,13 @@ export function MiniCalendarGrid({
     }
   };
 
-  const handleStartDateSelect = (dateKey: string) => {
-    const [y, mo, d] = dateKey.split("-").map(Number);
-    const dt = new Date(y, mo - 1, d, startHour, startMinute);
+  const handleStartDateInput = (y: number, m: number, d: number) => {
+    const dt = new Date(y, m - 1, d, startHour, startMinute);
     onStartChange(toLocalISOString(dt));
   };
 
-  const handleEndDateSelect = (dateKey: string) => {
-    const [y, mo, d] = dateKey.split("-").map(Number);
-    const dt = new Date(y, mo - 1, d, endHour, endMinute);
+  const handleEndDateInput = (y: number, m: number, d: number) => {
+    const dt = new Date(y, m - 1, d, endHour, endMinute);
     onEndChange(toLocalISOString(dt));
   };
 
@@ -244,14 +219,14 @@ export function MiniCalendarGrid({
       <div className="p-1">
         <div className="border border-notion-border rounded-lg overflow-hidden">
           {/* Month nav */}
-          <div className="flex items-center justify-between px-2 py-1">
+          <div className="flex items-center justify-between px-2 py-1 bg-notion-text-secondary/20">
             <button
               onClick={prevMonth}
               className="p-0.5 rounded hover:bg-notion-hover text-notion-text-secondary"
             >
               <ChevronLeft size={12} />
             </button>
-            <span className="text-xs font-medium text-notion-text">
+            <span className="text-xs font-medium text-notion-text ">
               {MONTH_NAMES[viewMonth]} {viewYear}
             </span>
             <button
@@ -263,11 +238,11 @@ export function MiniCalendarGrid({
           </div>
 
           {/* Day headers */}
-          <div className="grid grid-cols-7 bg-notion-calendar-header">
+          <div className="grid grid-cols-7 h-10 bg-notion-calendar-header items-center justify-items-center">
             {["日", "月", "火", "水", "木", "金", "土"].map((d, i) => (
               <div
                 key={i}
-                className="text-center text-[10px] text-notion-text-secondary aspect-square flex items-center justify-center"
+                className="text-center text-[10px] text-notion-text font-bold aspect-square flex items-center justify-center"
               >
                 {d}
               </div>
@@ -316,86 +291,38 @@ export function MiniCalendarGrid({
         <div className="mt-2 pt-2 border-t border-notion-border space-y-1.5">
           <div className="flex items-center gap-1.5">
             <span className="text-xs mx-0.5 font-bold">開始 : </span>
-            <select
-              value={startValue ? formatDateKey(new Date(startValue)) : ""}
-              onChange={(e) => handleStartDateSelect(e.target.value)}
-              className="text-[10px] bg-notion-bg-secondary border border-notion-border rounded px-0.5 py-0.5 mr-2 text-notion-text w-16 "
-            >
-              {dateOptions.map((opt) => (
-                <option key={opt.value} value={opt.value}>
-                  {opt.label}
-                </option>
-              ))}
-            </select>
-            <select
-              value={startHour}
-              onChange={(e) =>
-                handleStartTimeChange(Number(e.target.value), startMinute)
-              }
-              className="flex-1 text-xs bg-notion-bg-secondary border border-notion-border rounded px-1 py-0.5 text-notion-text"
-            >
-              {Array.from({ length: 24 }, (_, i) => (
-                <option key={i} value={i}>
-                  {String(i).padStart(2, "0")}
-                </option>
-              ))}
-            </select>
-            <span className="text-[10px] text-notion-text-secondary">:</span>
-            <select
-              value={startMinute}
-              onChange={(e) =>
-                handleStartTimeChange(startHour, Number(e.target.value))
-              }
-              className="flex-1 text-xs bg-notion-bg-secondary border border-notion-border rounded px-1 py-0.5 text-notion-text"
-            >
-              {MINUTES.map((m) => (
-                <option key={m} value={m}>
-                  {String(m).padStart(2, "0")}
-                </option>
-              ))}
-            </select>
+            <DateInput
+              year={startDate.getFullYear()}
+              month={startDate.getMonth() + 1}
+              day={startDate.getDate()}
+              onChange={handleStartDateInput}
+              size="sm"
+            />
+            <span className="text-notion-text-secondary mx-0.5">-</span>
+            <TimeInput
+              hour={startHour}
+              minute={startMinute}
+              onChange={handleStartTimeChange}
+              size="sm"
+            />
           </div>
-          {hasEndDate && (
+          {hasEndDate && endDate && (
             <div className="flex items-center gap-1.5">
               <span className="text-xs mx-0.5 font-bold">終了 : </span>
-              <select
-                value={endValue ? formatDateKey(new Date(endValue)) : ""}
-                onChange={(e) => handleEndDateSelect(e.target.value)}
-                className="text-[10px] bg-notion-bg-secondary border border-notion-border rounded px-0.5 py-0.5 mr-2 text-notion-text w-16"
-              >
-                {dateOptions.map((opt) => (
-                  <option key={opt.value} value={opt.value}>
-                    {opt.label}
-                  </option>
-                ))}
-              </select>
-              <select
-                value={endHour}
-                onChange={(e) =>
-                  handleEndTimeChange(Number(e.target.value), endMinute)
-                }
-                className="flex-1 text-xs bg-notion-bg-secondary border border-notion-border rounded px-1 py-0.5 text-notion-text w-5"
-              >
-                {Array.from({ length: 24 }, (_, i) => (
-                  <option key={i} value={i}>
-                    {String(i).padStart(2, "0")}
-                  </option>
-                ))}
-              </select>
-              <span className="text-[10px] text-notion-text-secondary">:</span>
-              <select
-                value={endMinute}
-                onChange={(e) =>
-                  handleEndTimeChange(endHour, Number(e.target.value))
-                }
-                className="flex-1 text-xs bg-notion-bg-secondary border border-notion-border rounded px-1 py-0.5 text-notion-text"
-              >
-                {MINUTES.map((m) => (
-                  <option key={m} value={m}>
-                    {String(m).padStart(2, "0")}
-                  </option>
-                ))}
-              </select>
+              <DateInput
+                year={endDate.getFullYear()}
+                month={endDate.getMonth() + 1}
+                day={endDate.getDate()}
+                onChange={handleEndDateInput}
+                size="sm"
+              />
+              <span className="text-notion-text-secondary mx-0.5">-</span>
+              <TimeInput
+                hour={endHour}
+                minute={endMinute}
+                onChange={handleEndTimeChange}
+                size="sm"
+              />
             </div>
           )}
         </div>

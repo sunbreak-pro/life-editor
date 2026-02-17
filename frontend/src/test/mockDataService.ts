@@ -170,19 +170,6 @@ export function createMockDataService(): DataService & {
       .fn()
       .mockResolvedValue({ apiKey: "", model: "", hasApiKey: false }),
 
-    // Templates
-    fetchTemplates: vi.fn().mockResolvedValue([]),
-    createTemplate: vi.fn().mockImplementation((name, nodesJson) =>
-      Promise.resolve({
-        id: 1,
-        name,
-        nodesJson,
-        createdAt: new Date().toISOString(),
-      }),
-    ),
-    getTemplate: vi.fn().mockResolvedValue(null),
-    deleteTemplate: vi.fn().mockResolvedValue(undefined),
-
     // Calendars
     fetchCalendars: vi.fn().mockResolvedValue([]),
     createCalendar: vi.fn().mockImplementation((id, title, folderId) =>

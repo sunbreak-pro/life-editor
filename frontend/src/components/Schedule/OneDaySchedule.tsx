@@ -6,7 +6,6 @@ import { formatDateKey } from "../../utils/dateKey";
 import { ScheduleTimeGrid } from "./ScheduleTimeGrid";
 import { ScheduleItemCreatePopover } from "./ScheduleItemCreatePopover";
 import { TodayFlowTab } from "./TodayFlowTab";
-import { RoutinesTab } from "./RoutinesTab";
 
 interface OneDayScheduleProps {
   date: Date;
@@ -31,22 +30,11 @@ export function OneDaySchedule({
     toggleComplete,
     routines,
     templates,
-    createRoutine,
-    updateRoutine,
-    deleteRoutine,
-    createTemplate,
-    updateTemplate,
-    deleteTemplate,
-    addTemplateItem,
-    removeTemplateItem,
     ensureTemplateItemsForDate,
-    getRoutineCompletionRate,
-    routineStats,
     refreshRoutineStats,
   } = useScheduleContext();
 
   const dateKey = formatDateKey(date);
-  const [rightTab, setRightTab] = useState<"flow" | "routines">("flow");
   const [createPopover, setCreatePopover] = useState<{
     startTime: string;
     endTime: string;
@@ -90,9 +78,9 @@ export function OneDaySchedule({
   };
 
   return (
-    <div className="flex gap-4 h-full">
+    <div className="flex gap-4 h-full p-3">
       {/* Left: Time Grid */}
-      <div className="flex-1 min-w-[300px]">
+      <div className="flex-1 min-w-75 h-full">
         <ScheduleTimeGrid
           date={date}
           scheduleItems={scheduleItems}
@@ -106,55 +94,18 @@ export function OneDaySchedule({
         />
       </div>
 
-      {/* Right: Tab panel */}
-      <div className="flex-1 min-w-[300px] border border-notion-border rounded-lg bg-notion-bg overflow-hidden flex flex-col">
-        {/* Tab header */}
-        <div className="flex border-b border-notion-border">
-          <button
-            onClick={() => setRightTab("flow")}
-            className={`flex-1 px-3 py-2 text-xs transition-colors ${
-              rightTab === "flow"
-                ? "text-notion-accent border-b-2 border-notion-accent font-medium"
-                : "text-notion-text-secondary hover:text-notion-text"
-            }`}
-          >
+      {/* Right: Today Flow */}
+      <div className="flex-1 min-w-75 h-full border border-notion-border rounded-lg bg-notion-bg overflow-y-auto flex flex-col">
+        <div className="px-3 py-2 border-b border-notion-border">
+          <span className="text-xs font-medium text-notion-text">
             {t("schedule.todayFlow", "Today Flow")}
-          </button>
-          <button
-            onClick={() => setRightTab("routines")}
-            className={`flex-1 px-3 py-2 text-xs transition-colors ${
-              rightTab === "routines"
-                ? "text-notion-accent border-b-2 border-notion-accent font-medium"
-                : "text-notion-text-secondary hover:text-notion-text"
-            }`}
-          >
-            {t("schedule.routines", "Routines")}
-          </button>
+          </span>
         </div>
-
-        {/* Tab content */}
         <div className="flex-1 overflow-y-auto">
-          {rightTab === "flow" ? (
-            <TodayFlowTab
-              items={scheduleItems}
-              onToggleComplete={toggleComplete}
-            />
-          ) : (
-            <RoutinesTab
-              routines={routines}
-              templates={templates}
-              onCreateRoutine={createRoutine}
-              onUpdateRoutine={updateRoutine}
-              onDeleteRoutine={deleteRoutine}
-              onCreateTemplate={createTemplate}
-              onUpdateTemplate={updateTemplate}
-              onDeleteTemplate={deleteTemplate}
-              onAddTemplateItem={addTemplateItem}
-              onRemoveTemplateItem={removeTemplateItem}
-              getCompletionRate={getRoutineCompletionRate}
-              routineStats={routineStats}
-            />
-          )}
+          <TodayFlowTab
+            items={scheduleItems}
+            onToggleComplete={toggleComplete}
+          />
         </div>
       </div>
 

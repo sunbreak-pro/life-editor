@@ -1,5 +1,14 @@
-import { useState, useMemo } from "react";
-import { Plus, GripVertical, Trash2, Music, Play } from "lucide-react";
+import { useState, useMemo, useCallback, useRef, useEffect } from "react";
+import type { KeyboardEvent } from "react";
+import {
+  Plus,
+  GripVertical,
+  X,
+  Music,
+  Play,
+  Pencil,
+  Check,
+} from "lucide-react";
 import { useTranslation } from "react-i18next";
 import {
   DndContext,
@@ -18,7 +27,10 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 import { SOUND_TYPES } from "../../constants/sounds";
 import { SoundPickerModal } from "./SoundPickerModal";
+import { SoundTagEditor } from "./SoundTagEditor";
 import { useSoundTags } from "../../hooks/useSoundTags";
+import { useAudioContext } from "../../hooks/useAudioContext";
+import { useAudioFileUpload } from "../../hooks/useAudioFileUpload";
 import type { PlaylistDataResult } from "../../hooks/usePlaylistData";
 import type { PlaylistPlayerResult } from "../../hooks/usePlaylistPlayer";
 import type { PlaylistItem } from "../../types/playlist";
@@ -48,7 +60,9 @@ function getSoundLabel(
 interface SortableItemProps {
   item: PlaylistItem;
   label: string;
+  soundId: string;
   isCurrentTrack: boolean;
+  soundTagState: ReturnType<typeof useSoundTags>;
   onRemove: () => void;
   onPlay: () => void;
 }
@@ -56,10 +70,13 @@ interface SortableItemProps {
 function SortableItem({
   item,
   label,
+  soundId,
   isCurrentTrack,
+  soundTagState,
   onRemove,
   onPlay,
 }: SortableItemProps) {
+  const { t } = useTranslation();
   const {
     attributes,
     listeners,
@@ -68,6 +85,36 @@ function SortableItem({
     transition,
     isDragging,
   } = useSortable({ id: item.id });
+
+  const [isEditing, setIsEditing] = useState(false);
+  const [editValue, setEditValue] = useState(label);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (isEditing && inputRef.current) {
+      inputRef.current.focus();
+      inputRef.current.select();
+    }
+  }, [isEditing]);
+
+  const handleSave = useCallback(() => {
+    const trimmed = editValue.trim();
+    if (trimmed) {
+      soundTagState.updateDisplayName(soundId, trimmed);
+    }
+    setIsEditing(false);
+  }, [editValue, soundId, soundTagState]);
+
+  const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
+    e.stopPropagation();
+    if (e.key === "Enter") handleSave();
+    if (e.key === "Escape") {
+      setEditValue(label);
+      setIsEditing(false);
+    }
+  };
+
+  const currentTags = soundTagState.getTagsForSound(soundId);
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -102,20 +149,91 @@ function SortableItem({
         )}
       </button>
 
-      <span
-        className={`text-sm truncate flex-1 ${
-          isCurrentTrack ? "text-notion-accent font-medium" : "text-notion-text"
-        }`}
-      >
-        {label}
-      </span>
+      {isEditing ? (
+        <div className="flex items-center gap-1 min-w-0 flex-1">
+          <input
+            ref={inputRef}
+            type="text"
+            value={editValue}
+            onChange={(e) => setEditValue(e.target.value)}
+            onBlur={handleSave}
+            onKeyDown={handleKeyDown}
+            className="text-sm bg-transparent outline-none border-b border-notion-accent text-notion-text flex-1 min-w-0"
+          />
+          <button
+            onMouseDown={(e) => {
+              e.preventDefault();
+              handleSave();
+            }}
+            className="p-0.5 text-notion-accent hover:text-green-500 transition-colors shrink-0"
+          >
+            <Check size={12} />
+          </button>
+        </div>
+      ) : (
+        <div className="flex items-center gap-1.5 min-w-0 flex-1">
+          <span
+            onClick={() => {
+              setEditValue(label);
+              setIsEditing(true);
+            }}
+            className={`text-sm truncate cursor-text ${
+              isCurrentTrack
+                ? "text-notion-accent font-medium"
+                : "text-notion-text"
+            }`}
+            title={label}
+          >
+            {label}
+          </span>
+          {currentTags.length > 0 && (
+            <div className="flex items-center gap-0.5 shrink-0">
+              {currentTags.slice(0, 3).map((tag) => (
+                <span
+                  key={tag.id}
+                  className="w-2 h-2 rounded-full shrink-0"
+                  style={{ backgroundColor: tag.color }}
+                  title={tag.name}
+                />
+              ))}
+              {currentTags.length > 3 && (
+                <span className="text-[9px] text-notion-text-secondary">
+                  +{currentTags.length - 3}
+                </span>
+              )}
+            </div>
+          )}
+        </div>
+      )}
 
-      <button
-        onClick={onRemove}
-        className="p-0.5 text-notion-text-secondary hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
-      >
-        <Trash2 size={12} />
-      </button>
+      <div className="flex items-center gap-0.5 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
+        {!isEditing && (
+          <button
+            onClick={() => {
+              setEditValue(label);
+              setIsEditing(true);
+            }}
+            className="p-0.5 text-notion-text-secondary hover:text-notion-text transition-colors"
+            title={t("music.editName")}
+          >
+            <Pencil size={11} />
+          </button>
+        )}
+        <div className="relative shrink-0">
+          <SoundTagEditor
+            soundId={soundId}
+            soundTagState={soundTagState}
+            hidePills
+          />
+        </div>
+        <button
+          onClick={onRemove}
+          className="p-0.5 text-notion-text-secondary hover:text-red-500 transition-opacity"
+          title={t("playlist.removeFromPlaylist")}
+        >
+          <X size={12} />
+        </button>
+      </div>
     </div>
   );
 }
@@ -127,6 +245,7 @@ export function PlaylistDetail({
   customSounds,
 }: PlaylistDetailProps) {
   const { t } = useTranslation();
+  const audio = useAudioContext();
   const soundTagState = useSoundTags();
   const [pickerOpen, setPickerOpen] = useState(false);
 
@@ -165,12 +284,17 @@ export function PlaylistDetail({
     playlistData.addItem(playlistId, soundId);
   };
 
-  const handleAddCustomSound = async () => {
-    const input = document.createElement("input");
-    input.type = "file";
-    input.accept = "audio/mp3,audio/wav,audio/ogg,audio/mpeg,.mp3,.wav,.ogg";
-    input.click();
-  };
+  const onUploadSuccess = useCallback(
+    (id: string) => {
+      playlistData.addItem(playlistId, id);
+    },
+    [playlistData, playlistId],
+  );
+
+  const handleAddCustomSound = useAudioFileUpload(
+    audio.addSound,
+    onUploadSuccess,
+  );
 
   return (
     <div className="space-y-2">
@@ -202,12 +326,14 @@ export function PlaylistDetail({
                 <SortableItem
                   key={item.id}
                   item={item}
+                  soundId={item.soundId}
                   label={getSoundLabel(
                     item.soundId,
                     customSounds,
                     soundTagState.getDisplayName,
                   )}
                   isCurrentTrack={currentTrackItem?.id === item.id}
+                  soundTagState={soundTagState}
                   onRemove={() => playlistData.removeItem(playlistId, item.id)}
                   onPlay={() => {
                     if (player.activePlaylistId !== playlistId) {

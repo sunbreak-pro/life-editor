@@ -161,7 +161,6 @@
     "inbox": "インボックス",
     "newTask": "新しいタスク...",
     "projects": "プロジェクト",
-    "fromTemplate": "テンプレートから",
     "newFolder": "新しいフォルダ...",
     "completed": "完了済み",
     "newFolderDefault": "新しいフォルダ",
@@ -300,15 +299,10 @@
       "contextMenu": "コンテキストメニュー",
       "contextMenuList1": "タスクツリーでタスクまたはフォルダを右クリックしてコンテキストメニューを開きます。",
       "contextMenuList2": "利用可能なアクション：<strong>名前変更</strong>、<strong>タスク追加</strong>、<strong>フォルダ追加</strong>、<strong>タイマー開始</strong>、<strong>ルートに移動</strong>、<strong>削除</strong>。",
-      "contextMenuList3": "フォルダには構造全体を保存する<strong>テンプレートとして保存</strong>オプションもあります。",
       "tags": "タグ",
       "tagsList1": "<strong>設定 → タグマネージャー</strong>でタグを作成・管理できます（名前＋色）。",
       "tagsList2": "タスクの詳細パネルからタスクにタグを割り当てます。",
-      "tagsList3": "タスクツリー上部のタグフィルターを使用して、一致するタスクのみを表示できます。",
-      "templates": "テンプレート",
-      "templatesList1": "フォルダを右クリック → <strong>テンプレートとして保存</strong>で構造全体を保存できます。",
-      "templatesList2": "プロジェクトヘッダーのテンプレートアイコンをクリックして、保存したテンプレートを適用します。",
-      "templatesList3": "テンプレートは階層構造、タイトル、メモ、作業時間を複製します。"
+      "tagsList3": "タスクツリー上部のタグフィルターを使用して、一致するタスクのみを表示できます。"
     },
     "timerTab": {
       "pomodoro": "ポモドーロセッション",
@@ -591,6 +585,7 @@
     "shuffle": "シャッフル",
     "repeat": "リピート",
     "playManual": "再生",
+    "stop": "停止",
     "stopManual": "停止",
     "removeFromPlaylist": "プレイリストから除去"
   },
@@ -609,7 +604,6 @@
     "rename": "名前を変更",
     "addTask": "タスクを追加",
     "addFolder": "フォルダを追加",
-    "saveAsTemplate": "テンプレートとして保存",
     "completeFolder": "フォルダを完了",
     "markIncomplete": "未完了に戻す",
     "startTimer": "タイマーを開始",
@@ -675,13 +669,6 @@
   "folderFilter": {
     "all": "すべて",
     "filterByFolder": "フォルダでフィルター"
-  },
-  "templates": {
-    "title": "テンプレート",
-    "empty": "テンプレートはまだありません。",
-    "hint": "フォルダを右クリックしてテンプレートとして保存できます。",
-    "apply": "テンプレートを適用",
-    "deleteTemplate": "テンプレートを削除"
   },
   "taskDetail": {
     "start": "開始",

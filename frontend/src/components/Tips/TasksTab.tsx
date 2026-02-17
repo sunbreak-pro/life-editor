@@ -103,12 +103,6 @@ export function TasksTab({ showMac }: TasksTabProps) {
               components={{ strong: <Strong /> }}
             />
           </li>
-          <li>
-            <Trans
-              i18nKey="tips.tasksTab.contextMenuList3"
-              components={{ strong: <Strong /> }}
-            />
-          </li>
         </ul>
       </Section>
 
@@ -122,19 +116,6 @@ export function TasksTab({ showMac }: TasksTabProps) {
           </li>
           <li>{t("tips.tasksTab.tagsList2")}</li>
           <li>{t("tips.tasksTab.tagsList3")}</li>
-        </ul>
-      </Section>
-
-      <Section title={t("tips.tasksTab.templates")}>
-        <ul className="list-disc pl-5 space-y-1.5">
-          <li>
-            <Trans
-              i18nKey="tips.tasksTab.templatesList1"
-              components={{ strong: <Strong /> }}
-            />
-          </li>
-          <li>{t("tips.tasksTab.templatesList2")}</li>
-          <li>{t("tips.tasksTab.templatesList3")}</li>
         </ul>
       </Section>
     </div>

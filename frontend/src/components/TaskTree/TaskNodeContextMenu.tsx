@@ -7,7 +7,6 @@ import {
   Play,
   ArrowUp,
   Trash2,
-  Save,
   CheckCircle2,
   RotateCcw,
 } from "lucide-react";
@@ -32,7 +31,6 @@ interface TaskNodeContextMenuProps {
   onAddFolder: () => void;
   onStartTimer: () => void;
   onMoveToRoot: () => void;
-  onSaveAsTemplate?: () => void;
   onCompleteFolder?: () => void;
   onDelete: () => void;
   onClose: () => void;
@@ -50,7 +48,6 @@ export function TaskNodeContextMenu({
   onAddFolder,
   onStartTimer,
   onMoveToRoot,
-  onSaveAsTemplate,
   onCompleteFolder,
   onDelete,
   onClose,
@@ -92,7 +89,7 @@ export function TaskNodeContextMenu({
 
   const actions: (MenuAction | "separator")[] = [
     {
-      label: t('contextMenu.rename'),
+      label: t("contextMenu.rename"),
       icon: <Pencil size={14} />,
       onClick: onRename,
     },
@@ -101,27 +98,26 @@ export function TaskNodeContextMenu({
   if (isFolder) {
     actions.push(
       {
-        label: t('contextMenu.addTask'),
+        label: t("contextMenu.addTask"),
         icon: <Plus size={14} />,
         onClick: onAddTask,
       },
       {
-        label: t('contextMenu.addFolder'),
+        label: t("contextMenu.addFolder"),
         icon: <LucideFolderPlus size={14} />,
         onClick: onAddFolder,
       },
     );
-    if (onSaveAsTemplate) {
-      actions.push({
-        label: t('contextMenu.saveAsTemplate'),
-        icon: <Save size={14} />,
-        onClick: onSaveAsTemplate,
-      });
-    }
     if (onCompleteFolder) {
       actions.push({
-        label: isFolderDone ? t('contextMenu.markIncomplete') : t('contextMenu.completeFolder'),
-        icon: isFolderDone ? <RotateCcw size={14} /> : <CheckCircle2 size={14} />,
+        label: isFolderDone
+          ? t("contextMenu.markIncomplete")
+          : t("contextMenu.completeFolder"),
+        icon: isFolderDone ? (
+          <RotateCcw size={14} />
+        ) : (
+          <CheckCircle2 size={14} />
+        ),
         onClick: onCompleteFolder,
       });
     }
@@ -129,7 +125,7 @@ export function TaskNodeContextMenu({
 
   if (!isFolder && !isDone) {
     actions.push({
-      label: t('contextMenu.startTimer'),
+      label: t("contextMenu.startTimer"),
       icon: <Play size={14} />,
       onClick: onStartTimer,
     });
@@ -137,14 +133,14 @@ export function TaskNodeContextMenu({
 
   if (hasParent) {
     actions.push("separator", {
-      label: t('contextMenu.moveToRoot'),
+      label: t("contextMenu.moveToRoot"),
       icon: <ArrowUp size={14} />,
       onClick: onMoveToRoot,
     });
   }
 
   actions.push("separator", {
-    label: t('contextMenu.delete'),
+    label: t("contextMenu.delete"),
     icon: <Trash2 size={14} />,
     onClick: onDelete,
     danger: true,

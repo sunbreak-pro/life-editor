@@ -72,7 +72,7 @@ export function PlaylistPlayerBar({
 
   if (!player.activePlaylistId) {
     return (
-      <div className="text-center py-4 text-sm text-notion-text-secondary">
+      <div className="text-center py-4 text-md text-notion-text-secondary">
         {t("playlist.selectPlaylist")}
       </div>
     );
@@ -83,7 +83,7 @@ export function PlaylistPlayerBar({
       {/* Track info */}
       <div className="flex items-center gap-2">
         <Music size={14} className="text-notion-text-secondary shrink-0" />
-        <span className="text-sm text-notion-text truncate flex-1">
+        <span className="text-md text-notion-text truncate flex-1">
           {trackName}
         </span>
         <span className="text-xs text-notion-text-secondary tabular-nums">
@@ -173,7 +173,7 @@ export function PlaylistPlayerBar({
                 onChange={(e) =>
                   player.setActivePlaylistId(e.target.value || null)
                 }
-                className="appearance-none pl-6 pr-2 py-1 text-xs bg-transparent text-notion-text-secondary hover:text-notion-text rounded-md cursor-pointer outline-none"
+                className="appearance-none pl-6 pr-2 py-1 text-md bg-transparent text-notion-text-secondary hover:text-notion-text rounded-md cursor-pointer outline-none"
               >
                 {playlistData.playlists.map((pl) => (
                   <option key={pl.id} value={pl.id}>
@@ -207,21 +207,21 @@ export function PlaylistPlayerBar({
       {activePlaylist && player.activePlaylistItems.length > 0 && (
         <div className="mt-2 pt-2 border-t border-notion-border">
           <div className="flex items-center justify-between mb-1.5">
-            <span className="text-[10px] text-notion-text-secondary font-medium">
+            <span className="text-[12px] text-notion-text-secondary font-medium">
               {activePlaylist.name}
             </span>
-            <span className="text-[10px] text-notion-text-secondary">
+            <span className="text-[12px] text-notion-text-secondary">
               {player.activePlaylistItems.length} {t("playlist.tracks")}
             </span>
           </div>
-          <div className="space-y-0.5 max-h-32 overflow-y-auto">
+          <div className="space-y-0.5 max-h-32 overflow-y-auto border border-notion-border px-2 py-1 rounded-md">
             {player.activePlaylistItems.map((item, index) => {
               const isCurrent = index === player.currentTrackIndex;
               return (
                 <button
                   key={item.id}
                   onClick={() => player.jumpToTrack(index)}
-                  className={`w-full flex items-center gap-2 px-2 py-1 text-xs rounded transition-colors ${
+                  className={`w-full flex items-center gap-3 px-2 py-1 text-xs rounded transition-colors ${
                     isCurrent
                       ? "bg-notion-accent/10 text-notion-accent font-medium"
                       : "text-notion-text-secondary hover:text-notion-text hover:bg-notion-hover"
@@ -230,7 +230,7 @@ export function PlaylistPlayerBar({
                   {isCurrent ? (
                     <Music size={10} className="shrink-0 text-notion-accent" />
                   ) : (
-                    <span className="w-2.5 text-center text-[9px] shrink-0">
+                    <span className="w-2.5 text-center text-[12px] shrink-0">
                       {index + 1}
                     </span>
                   )}

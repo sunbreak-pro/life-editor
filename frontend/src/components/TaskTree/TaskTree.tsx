@@ -15,7 +15,6 @@ import {
   CheckCircle2,
   Plus,
   LucideFolderPlus,
-  FileDown,
   Filter,
 } from "lucide-react";
 import { useTaskTreeContext } from "../../hooks/useTaskTreeContext";
@@ -26,7 +25,6 @@ import { useTaskTreeKeyboard } from "../../hooks/useTaskTreeKeyboard";
 import { TaskTreeNode } from "./TaskTreeNode";
 import { InlineCreateInput } from "./InlineCreateInput";
 
-import { TemplateDialog } from "../Templates/TemplateDialog";
 import { FolderDropdown } from "../shared/FolderDropdown";
 import { SortDropdown } from "./SortDropdown";
 import { useLocalStorage } from "../../hooks/useLocalStorage";
@@ -79,7 +77,6 @@ export function TaskTree({
   const [showCompleted, setShowCompleted] = useState(false);
   const [isCreatingInboxTask, setIsCreatingInboxTask] = useState(false);
   const [isCreatingProjectFolder, setIsCreatingProjectFolder] = useState(false);
-  const [isTemplateDialogOpen, setIsTemplateDialogOpen] = useState(false);
   const [internalFilterFolderId, setInternalFilterFolderId] = useLocalStorage<
     string | null
   >(STORAGE_KEYS.TASK_TREE_FOLDER_FILTER, null, {
@@ -315,27 +312,15 @@ export function TaskTree({
                       }
                     />
                   </div>
-                  <div className="flex items-center gap-1">
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setIsTemplateDialogOpen(true);
-                      }}
-                      className="hover:text-notion-text transition-colors"
-                      title={t("taskTree.fromTemplate")}
-                    >
-                      <FileDown size={14} />
-                    </button>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setIsCreatingProjectFolder(true);
-                      }}
-                      className="hover:text-notion-text transition-colors"
-                    >
-                      <LucideFolderPlus size={14} />
-                    </button>
-                  </div>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setIsCreatingProjectFolder(true);
+                    }}
+                    className="hover:text-notion-text transition-colors"
+                  >
+                    <LucideFolderPlus size={14} />
+                  </button>
                 </div>
               </div>
               <SortableContext items={folderIds}>
@@ -417,10 +402,6 @@ export function TaskTree({
             </div>
           )}
         </div>
-      )}
-
-      {isTemplateDialogOpen && (
-        <TemplateDialog onClose={() => setIsTemplateDialogOpen(false)} />
       )}
     </div>
   );

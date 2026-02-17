@@ -20,7 +20,6 @@ import type {
 import type { CustomSoundMeta } from "../types/customSound";
 import type { NoteNode } from "../types/note";
 
-import type { TaskTemplate } from "../types/template";
 import type { CalendarNode } from "../types/calendar";
 import type { RoutineNode } from "../types/routine";
 import type { ScheduleItem, RoutineTemplate } from "../types/schedule";
@@ -147,12 +146,6 @@ export interface DataService {
     apiKey?: string;
     model?: string;
   }): Promise<AISettingsResponse>;
-
-  // Templates
-  fetchTemplates(): Promise<TaskTemplate[]>;
-  createTemplate(name: string, nodesJson: string): Promise<TaskTemplate>;
-  getTemplate(id: number): Promise<TaskTemplate | null>;
-  deleteTemplate(id: number): Promise<void>;
 
   // Calendars
   fetchCalendars(): Promise<CalendarNode[]>;

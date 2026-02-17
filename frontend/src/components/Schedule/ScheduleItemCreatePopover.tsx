@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { useClickOutside } from "../../hooks/useClickOutside";
+import { TimeInput } from "../shared/TimeInput";
 
 interface ScheduleItemCreatePopoverProps {
   position: { x: number; y: number };
@@ -69,22 +70,32 @@ export function ScheduleItemCreatePopover({
           <label className="text-[10px] text-notion-text-secondary mb-0.5 block">
             {t("schedule.start", "Start")}
           </label>
-          <input
-            type="time"
-            value={startTime}
-            onChange={(e) => setStartTime(e.target.value)}
-            className="w-full px-1.5 py-1 text-xs bg-transparent border border-notion-border rounded text-notion-text"
+          <TimeInput
+            hour={parseInt(startTime.split(":")[0] || "0", 10)}
+            minute={parseInt(startTime.split(":")[1] || "0", 10)}
+            onChange={(h, m) =>
+              setStartTime(
+                `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`,
+              )
+            }
+            minuteStep={1}
+            size="sm"
           />
         </div>
         <div className="flex-1">
           <label className="text-[10px] text-notion-text-secondary mb-0.5 block">
             {t("schedule.end", "End")}
           </label>
-          <input
-            type="time"
-            value={endTime}
-            onChange={(e) => setEndTime(e.target.value)}
-            className="w-full px-1.5 py-1 text-xs bg-transparent border border-notion-border rounded text-notion-text"
+          <TimeInput
+            hour={parseInt(endTime.split(":")[0] || "0", 10)}
+            minute={parseInt(endTime.split(":")[1] || "0", 10)}
+            onChange={(h, m) =>
+              setEndTime(
+                `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`,
+              )
+            }
+            minuteStep={1}
+            size="sm"
           />
         </div>
       </div>

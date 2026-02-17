@@ -200,12 +200,8 @@ export function ScheduleTimeGrid({
   };
 
   return (
-    <div className="border border-notion-border rounded-lg overflow-hidden bg-notion-bg flex-1">
-      <div
-        ref={scrollRef}
-        className="overflow-y-auto"
-        style={{ maxHeight: "calc(100vh - 200px)" }}
-      >
+    <div className="border h-full border-notion-border rounded-lg overflow-hidden bg-notion-bg flex-1">
+      <div ref={scrollRef} className="overflow-y-auto h-full relative">
         <div className="flex relative" style={{ height: totalHeight }}>
           {/* Time gutter */}
           <div style={{ width: GUTTER_WIDTH }} className="shrink-0 relative">

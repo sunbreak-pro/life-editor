@@ -7,6 +7,7 @@ import {
 } from "lucide-react";
 import { formatDateKey, toLocalISOString } from "../../utils/dateKey";
 import { useClickOutside } from "../../hooks/useClickOutside";
+import { TimeInput } from "../shared/TimeInput";
 
 interface DateTimePickerProps {
   value?: string;
@@ -170,29 +171,11 @@ export function DateTimePicker({
 
           {/* Time selector */}
           <div className="flex items-center gap-2 mt-3 pt-3 border-t border-notion-border">
-            <select
-              value={hour}
-              onChange={(e) => handleTimeChange(Number(e.target.value), minute)}
-              className="flex-1 text-sm bg-notion-bg-secondary border border-notion-border rounded px-2 py-1 text-notion-text"
-            >
-              {Array.from({ length: 24 }, (_, i) => (
-                <option key={i} value={i}>
-                  {String(i).padStart(2, "0")}
-                </option>
-              ))}
-            </select>
-            <span className="text-notion-text-secondary">:</span>
-            <select
-              value={minute}
-              onChange={(e) => handleTimeChange(hour, Number(e.target.value))}
-              className="flex-1 text-sm bg-notion-bg-secondary border border-notion-border rounded px-2 py-1 text-notion-text"
-            >
-              {[0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55].map((m) => (
-                <option key={m} value={m}>
-                  {String(m).padStart(2, "0")}
-                </option>
-              ))}
-            </select>
+            <TimeInput
+              hour={hour}
+              minute={minute}
+              onChange={handleTimeChange}
+            />
           </div>
 
           {/* Clear button */}

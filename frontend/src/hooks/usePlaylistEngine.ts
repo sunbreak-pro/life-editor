@@ -10,6 +10,7 @@ export interface PlaylistEngineResult {
   isPlaying: boolean;
   play: () => void;
   pause: () => void;
+  stop: () => void;
   seekTo: (time: number) => void;
   next: () => void;
   prev: () => void;
@@ -46,6 +47,7 @@ export function usePlaylistEngine(
   const ctxRef = useRef<AudioContext | null>(null);
   const gainRef = useRef<GainNode | null>(null);
   const sourceNodeRef = useRef<MediaElementAudioSourceNode | null>(null);
+  const fadeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const playOrderRef = useRef<number[]>([]);
   const trackIndexRef = useRef(0);
   const repeatModeRef = useRef(repeatMode);
@@ -100,6 +102,7 @@ export function usePlaylistEngine(
     gain.connect(ctx.destination);
 
     return () => {
+      if (fadeTimerRef.current) clearTimeout(fadeTimerRef.current);
       audio.pause();
       audio.src = "";
       ctx.close();
@@ -158,12 +161,19 @@ export function usePlaylistEngine(
     const src = soundSourcesRef.current[track.soundId];
     if (!src) return;
 
+    // Cancel previous fade timer
+    if (fadeTimerRef.current) {
+      clearTimeout(fadeTimerRef.current);
+      fadeTimerRef.current = null;
+    }
+
     // Fade out current
     gain.gain.cancelScheduledValues(ctx.currentTime);
     gain.gain.setValueAtTime(gain.gain.value, ctx.currentTime);
     gain.gain.linearRampToValueAtTime(0, ctx.currentTime + FADE_DURATION);
 
-    setTimeout(() => {
+    fadeTimerRef.current = setTimeout(() => {
+      fadeTimerRef.current = null;
       audio.src = src;
       audio.currentTime = 0;
 
@@ -306,6 +316,34 @@ export function usePlaylistEngine(
     return () => clearInterval(id);
   }, [shouldPlay]);
 
+  // Reset when tracks change (playlist switch)
+  const prevTracksRef = useRef(tracks);
+  useEffect(() => {
+    const prevTracks = prevTracksRef.current;
+    prevTracksRef.current = tracks;
+    if (prevTracks !== tracks) {
+      if (fadeTimerRef.current) {
+        clearTimeout(fadeTimerRef.current);
+        fadeTimerRef.current = null;
+      }
+      const audio = audioRef.current;
+      if (audio && audio.src) {
+        audio.pause();
+        audio.src = "";
+        audio.currentTime = 0;
+        setIsPlaying(false);
+        setCurrentTrackIndex(0);
+        trackIndexRef.current = 0;
+        setCurrentTime(0);
+        setDuration(0);
+      }
+      if (shouldPlayRef.current && tracks.length > 0) {
+        const first = findNextPlayableIndex(0, 1);
+        if (first !== null) loadAndPlay(first);
+      }
+    }
+  }, [tracks, findNextPlayableIndex, loadAndPlay]);
+
   const play = useCallback(() => {
     const audio = audioRef.current;
     const ctx = ctxRef.current;
@@ -342,6 +380,35 @@ export function usePlaylistEngine(
       () => {
         audio.pause();
         setIsPlaying(false);
+      },
+      FADE_DURATION * 1000 + 50,
+    );
+  }, []);
+
+  const stop = useCallback(() => {
+    const audio = audioRef.current;
+    const ctx = ctxRef.current;
+    const gain = gainRef.current;
+    if (!audio || !ctx || !gain) return;
+
+    if (fadeTimerRef.current) {
+      clearTimeout(fadeTimerRef.current);
+      fadeTimerRef.current = null;
+    }
+
+    gain.gain.cancelScheduledValues(ctx.currentTime);
+    gain.gain.setValueAtTime(gain.gain.value, ctx.currentTime);
+    gain.gain.linearRampToValueAtTime(0, ctx.currentTime + FADE_DURATION);
+    setTimeout(
+      () => {
+        audio.pause();
+        audio.src = "";
+        audio.currentTime = 0;
+        setIsPlaying(false);
+        setCurrentTrackIndex(0);
+        setCurrentTime(0);
+        setDuration(0);
+        trackIndexRef.current = 0;
       },
       FADE_DURATION * 1000 + 50,
     );
@@ -395,6 +462,7 @@ export function usePlaylistEngine(
     isPlaying,
     play,
     pause,
+    stop,
     seekTo,
     next,
     prev,

@@ -88,11 +88,11 @@ export function PomodoroSettingsPanel({
 
   return (
     <div
-      className={`max-w-3xl mx-auto w-full grid grid-cols-1 md:grid-cols-2 gap-8 py-4 px-6 ${disabled ? "opacity-50 pointer-events-none" : ""}`}
+      className={`max-w-4xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-20 py-4 ${disabled ? "opacity-50 pointer-events-none" : ""}`}
     >
       {/* Left column: Current config summary */}
       <div className="space-y-4">
-        <h3 className="text-sm font-medium text-notion-text-secondary uppercase tracking-wider">
+        <h3 className="text-lg font-bold text-notion-text-secondary uppercase tracking-wider">
           {t("pomodoro.currentConfig")}
         </h3>
 
@@ -101,7 +101,7 @@ export function PomodoroSettingsPanel({
             <span className="text-sm text-notion-text-secondary">
               {t("timer.work")}
             </span>
-            <span className="text-2xl font-bold tabular-nums text-notion-text">
+            <span className="text-lg font-bold tabular-nums text-notion-text">
               {workDurationMinutes}
               <span className="text-sm font-normal text-notion-text-secondary ml-1">
                 min
@@ -168,10 +168,10 @@ export function PomodoroSettingsPanel({
         {/* Presets */}
         {presets.length > 0 && (
           <div>
-            <label className="block text-sm font-medium text-notion-text-secondary mb-1.5">
+            <label className="block text-lg font-bold text-notion-text-secondary mb-1.5">
               {t("pomodoro.presets")}
             </label>
-            <div className="flex flex-wrap gap-1.5">
+            <div className="flex flex-wrap gap-2">
               {presets.map((preset) => (
                 <button
                   key={preset.id}
@@ -179,12 +179,23 @@ export function PomodoroSettingsPanel({
                   className="group relative flex items-center gap-1 px-2.5 py-1 text-xs rounded-full bg-notion-hover text-notion-text hover:bg-notion-accent/10 hover:text-notion-accent transition-colors"
                 >
                   <span>{preset.name}</span>
-                  <button
+                  <span
+                    role="button"
+                    tabIndex={0}
                     onClick={(e) => handleDeletePreset(preset.id, e)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        handleDeletePreset(
+                          preset.id,
+                          e as unknown as React.MouseEvent,
+                        );
+                      }
+                    }}
                     className="opacity-0 group-hover:opacity-100 ml-0.5 text-notion-text-secondary hover:text-notion-danger transition-all"
                   >
                     <X size={10} />
-                  </button>
+                  </span>
                 </button>
               ))}
             </div>

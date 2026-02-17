@@ -7,7 +7,6 @@ import { createSoundRepository } from "../database/soundRepository";
 import { createMemoRepository } from "../database/memoRepository";
 import { createAIRepository } from "../database/aiRepository";
 
-import { createTemplateRepository } from "../database/templateRepository";
 import { registerTaskHandlers } from "./taskHandlers";
 import { registerTimerHandlers } from "./timerHandlers";
 import { registerSoundHandlers } from "./soundHandlers";
@@ -19,7 +18,6 @@ import { createCustomSoundRepository } from "../database/customSoundRepository";
 import { registerCustomSoundHandlers } from "./customSoundHandlers";
 import { registerNoteHandlers } from "./noteHandlers";
 
-import { registerTemplateHandlers } from "./templateHandlers";
 import { createCalendarRepository } from "../database/calendarRepository";
 import { registerCalendarHandlers } from "./calendarHandlers";
 import { registerDataIOHandlers } from "./dataIOHandlers";
@@ -44,8 +42,6 @@ export function registerAllHandlers(db: Database.Database): void {
   const memo = createMemoRepository(db);
   const ai = createAIRepository(db);
   const notes = createNoteRepository(db);
-  const templates = createTemplateRepository(db);
-
   try {
     ai.migrateDeprecatedModel();
   } catch (e) {
@@ -80,7 +76,6 @@ export function registerAllHandlers(db: Database.Database): void {
       () => registerCustomSoundHandlers(createCustomSoundRepository()),
     ],
 
-    ["Templates", () => registerTemplateHandlers(templates)],
     ["Calendars", () => registerCalendarHandlers(createCalendarRepository(db))],
     [
       "App",

@@ -2,7 +2,6 @@ export type SectionId =
   | "tasks"
   | "memo"
   | "work"
-  | "schedule"
   | "analytics"
   | "settings"
   | "tips";

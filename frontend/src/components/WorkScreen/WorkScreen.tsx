@@ -93,125 +93,127 @@ export function WorkScreen({ onCompleteTask }: WorkScreenProps) {
   }, [onCompleteTask]);
 
   return (
-    <div className="h-full flex flex-col">
-      <h2
-        className={`text-2xl font-bold text-notion-text ${LAYOUT.TITLE_MB} ${LAYOUT.CONTENT_PX} ${LAYOUT.CONTENT_PT}`}
+    <>
+      <div
+        className={`h-full flex flex-col ${LAYOUT.CONTENT_PX} ${LAYOUT.CONTENT_PT} ${LAYOUT.CONTENT_PB}`}
       >
-        {t("work.title")}
-      </h2>
-      <div className={LAYOUT.CONTENT_PX}>
+        <h2
+          className={`text-2xl font-bold text-notion-text ${LAYOUT.TITLE_MB}`}
+        >
+          {t("work.title")}
+        </h2>
         <SectionTabs
           tabs={WORK_TABS}
           activeTab={activeTab}
           onTabChange={setActiveTab}
         />
-      </div>
 
-      <div className="flex-1 overflow-y-auto">
-        {activeTab === "timer" && (
-          <div className="h-full flex flex-col">
-            {/* Header with buttons */}
-            <div className="flex items-center justify-between px-6 py-3 border-b border-notion-border">
-              <TaskSelector currentTitle={title} />
-              <div className="flex items-center gap-2">
-                {timer.sessionType === "WORK" && (
-                  <button
-                    onClick={handleCompleteSession}
-                    className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-blue-600 hover:bg-blue-50 dark:text-blue-400 dark:hover:bg-blue-950/30 rounded-lg transition-colors"
-                  >
-                    <SkipForward size={14} />
-                    {t("work.sessionComplete")}
-                  </button>
-                )}
-                {timer.activeTask && onCompleteTask && (
-                  <button
-                    onClick={handleCompleteTask}
-                    className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-green-600 hover:bg-green-50 dark:text-green-400 dark:hover:bg-green-950/30 rounded-lg transition-colors"
-                  >
-                    <CheckCircle2 size={14} />
-                    {t("work.taskComplete")}
-                  </button>
-                )}
-              </div>
-            </div>
-
-            {/* Timer center */}
-            <div className="flex-1 flex flex-col items-center justify-center gap-8 px-6 py-8">
-              <TimerDisplay
-                sessionType={timer.sessionType}
-                remainingSeconds={timer.remainingSeconds}
-                isRunning={timer.isRunning}
-                completedSessions={timer.completedSessions}
-                sessionsBeforeLongBreak={timer.sessionsBeforeLongBreak}
-                formatTime={timer.formatTime}
-                onStart={timer.start}
-                onPause={timer.pause}
-                onReset={timer.reset}
-                onAdjustTime={timer.adjustRemainingSeconds}
-              />
-
-              <div className="w-full max-w-xl">
-                <TimerProgressBar progress={timer.progress} />
-              </div>
-
-              <TodaySessionSummary
-                sessions={todaySummary.sessions}
-                totalMinutes={todaySummary.totalMinutes}
-              />
-            </div>
-
-            {/* Playlist selector for timer */}
-            <div className="px-6 pb-4">
-              <div className="max-w-xl mx-auto">
-                <select
-                  value={audio.timerPlaylistId ?? ""}
-                  onChange={(e) =>
-                    audio.setTimerPlaylistId(e.target.value || null)
-                  }
-                  className="w-full px-3 py-2 text-sm rounded-lg border border-notion-border bg-notion-bg text-notion-text focus:outline-none focus:border-notion-accent"
-                >
-                  <option value="">{t("work.noPlaylist")}</option>
-                  {audio.playlistData.playlists.map((pl) => (
-                    <option key={pl.id} value={pl.id}>
-                      {pl.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-
-            {/* Player bar when playlist is selected */}
-            {audio.timerPlaylistId && (
-              <div className="px-6 pb-6">
-                <div className="max-w-xl mx-auto">
-                  <PlaylistPlayerBar
-                    player={audio.playlistPlayer}
-                    playlistData={audio.playlistData}
-                    customSounds={audio.customSounds}
-                  />
+        <div className={`flex-1 overflow-y-auto ${LAYOUT.TABS_MT}`}>
+          {activeTab === "timer" && (
+            <div className="h-full flex flex-col">
+              {/* Header with buttons */}
+              <div className="flex items-center justify-between py-3 border-b border-notion-border">
+                <TaskSelector currentTitle={title} />
+                <div className="flex items-center gap-2">
+                  {timer.sessionType === "WORK" && (
+                    <button
+                      onClick={handleCompleteSession}
+                      className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-blue-600 hover:bg-blue-50 dark:text-blue-400 dark:hover:bg-blue-950/30 rounded-lg transition-colors"
+                    >
+                      <SkipForward size={14} />
+                      {t("work.sessionComplete")}
+                    </button>
+                  )}
+                  {timer.activeTask && onCompleteTask && (
+                    <button
+                      onClick={handleCompleteTask}
+                      className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-green-600 hover:bg-green-50 dark:text-green-400 dark:hover:bg-green-950/30 rounded-lg transition-colors"
+                    >
+                      <CheckCircle2 size={14} />
+                      {t("work.taskComplete")}
+                    </button>
+                  )}
                 </div>
               </div>
-            )}
-          </div>
-        )}
 
-        {activeTab === "pomodoro" && (
-          <PomodoroSettingsPanel
-            workDurationMinutes={timer.workDurationMinutes}
-            breakDurationMinutes={timer.breakDurationMinutes}
-            longBreakDurationMinutes={timer.longBreakDurationMinutes}
-            sessionsBeforeLongBreak={timer.sessionsBeforeLongBreak}
-            onChangeWorkDuration={timer.setWorkDurationMinutes}
-            onChangeBreakDuration={timer.setBreakDurationMinutes}
-            onChangeLongBreakDuration={timer.setLongBreakDurationMinutes}
-            onChangeSessionsBeforeLongBreak={timer.setSessionsBeforeLongBreak}
-            disabled={timer.isRunning}
-            autoStartBreaks={timer.autoStartBreaks}
-            onChangeAutoStartBreaks={timer.setAutoStartBreaks}
-          />
-        )}
+              {/* Timer center */}
+              <div className="flex-1 flex flex-col items-center justify-center gap-8 py-0">
+                <TimerDisplay
+                  sessionType={timer.sessionType}
+                  remainingSeconds={timer.remainingSeconds}
+                  isRunning={timer.isRunning}
+                  completedSessions={timer.completedSessions}
+                  sessionsBeforeLongBreak={timer.sessionsBeforeLongBreak}
+                  formatTime={timer.formatTime}
+                  onStart={timer.start}
+                  onPause={timer.pause}
+                  onReset={timer.reset}
+                  onAdjustTime={timer.adjustRemainingSeconds}
+                />
+                <div className="w-full max-w-xl">
+                  <TimerProgressBar progress={timer.progress} />
+                </div>
+                <TodaySessionSummary
+                  sessions={todaySummary.sessions}
+                  totalMinutes={todaySummary.totalMinutes}
+                />
 
-        {activeTab === "music" && <WorkMusicContent />}
+                {/* Playlist selector for timer — only visible while timer is running */}
+                {timer.isRunning && (
+                  <div className="pb-5 w-2xl">
+                    <div className="px-10">
+                      <select
+                        value={audio.timerPlaylistId ?? ""}
+                        onChange={(e) =>
+                          audio.setTimerPlaylistId(e.target.value || null)
+                        }
+                        className="w-full px-3 py-2 text-sm rounded-lg border border-notion-border bg-notion-bg text-notion-text focus:outline-none focus:border-notion-accent"
+                      >
+                        <option value="">{t("work.noPlaylist")}</option>
+                        {audio.playlistData.playlists.map((pl) => (
+                          <option key={pl.id} value={pl.id}>
+                            {pl.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    {/* Player bar when playlist is selected */}
+                    {audio.timerPlaylistId && (
+                      <div className="pt-5">
+                        <div className="max-w-xl mx-auto">
+                          <PlaylistPlayerBar
+                            player={audio.playlistPlayer}
+                            playlistData={audio.playlistData}
+                            customSounds={audio.customSounds}
+                            getDisplayName={audio.getDisplayName}
+                          />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {activeTab === "pomodoro" && (
+            <PomodoroSettingsPanel
+              workDurationMinutes={timer.workDurationMinutes}
+              breakDurationMinutes={timer.breakDurationMinutes}
+              longBreakDurationMinutes={timer.longBreakDurationMinutes}
+              sessionsBeforeLongBreak={timer.sessionsBeforeLongBreak}
+              onChangeWorkDuration={timer.setWorkDurationMinutes}
+              onChangeBreakDuration={timer.setBreakDurationMinutes}
+              onChangeLongBreakDuration={timer.setLongBreakDurationMinutes}
+              onChangeSessionsBeforeLongBreak={timer.setSessionsBeforeLongBreak}
+              disabled={timer.isRunning}
+              autoStartBreaks={timer.autoStartBreaks}
+              onChangeAutoStartBreaks={timer.setAutoStartBreaks}
+            />
+          )}
+
+          {activeTab === "music" && <WorkMusicContent />}
+        </div>
       </div>
 
       {/* Confirm overlays */}
@@ -237,6 +239,6 @@ export function WorkScreen({ onCompleteTask }: WorkScreenProps) {
           variant="green"
         />
       )}
-    </div>
+    </>
   );
 }

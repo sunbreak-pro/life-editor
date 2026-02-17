@@ -1,7 +1,7 @@
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
-type ViewMode = "month" | "week" | "day";
+type ViewMode = "month" | "week";
 
 interface CalendarHeaderProps {
   year: number;
@@ -80,15 +80,11 @@ export function CalendarHeader({
   const title = (() => {
     if (viewMode === "week" && weekStartDate)
       return formatDateRange(weekStartDate, 6);
-    if (viewMode === "day" && weekStartDate) {
-      const d = weekStartDate;
-      return `${SHORT_MONTH_NAMES[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}`;
-    }
     return `${MONTH_NAMES[month]} ${year}`;
   })();
 
   return (
-    <div className="flex items-center justify-between mb-4">
+    <div className="flex items-center justify-between mb-4 pt-5">
       <div className="flex items-center gap-3">
         <h2 className="text-xl font-bold text-notion-text">{title}</h2>
         <div className="flex items-center gap-1">
@@ -134,16 +130,6 @@ export function CalendarHeader({
             }`}
           >
             {t("calendarHeader.week")}
-          </button>
-          <button
-            onClick={() => onViewModeChange("day")}
-            className={`px-3 py-1 text-xs rounded-md transition-colors ${
-              viewMode === "day"
-                ? "bg-notion-bg text-notion-text shadow-sm"
-                : "text-notion-text-secondary hover:text-notion-text"
-            }`}
-          >
-            {t("calendarHeader.day")}
           </button>
         </div>
       )}

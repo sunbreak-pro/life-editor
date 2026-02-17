@@ -38,18 +38,10 @@ function getShortcutGroups(mod: string, shift: string): ShortcutGroup[] {
       categoryKey: "tips.shortcutsTab.navigation",
       shortcuts: [
         { keys: `${mod} + 1`, descriptionKey: "tips.shortcutsTab.goToTasks" },
-        { keys: `${mod} + 2`, descriptionKey: "tips.shortcutsTab.goToSession" },
+        { keys: `${mod} + 2`, descriptionKey: "tips.shortcutsTab.goToWork" },
         {
           keys: `${mod} + 3`,
-          descriptionKey: "tips.shortcutsTab.goToSchedule",
-        },
-        {
-          keys: `${mod} + 4`,
           descriptionKey: "tips.shortcutsTab.goToAnalytics",
-        },
-        {
-          keys: `${mod} + 5`,
-          descriptionKey: "tips.shortcutsTab.goToSettings",
         },
       ],
     },
@@ -81,10 +73,6 @@ function getShortcutGroups(mod: string, shift: string): ShortcutGroup[] {
         {
           keys: `${mod} + ${shift} + Z`,
           descriptionKey: "tips.shortcutsTab.redoTaskTree",
-        },
-        {
-          keys: "Delete / Backspace",
-          descriptionKey: "tips.shortcutsTab.deleteSelected",
         },
         { keys: "Drag & Drop", descriptionKey: "tips.shortcutsTab.dragDrop" },
       ],

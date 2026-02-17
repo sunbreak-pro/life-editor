@@ -1,5 +1,6 @@
 import { timerReducer, createInitialState, getDuration, DEFAULT_CONFIG } from './timerReducer';
-import type { TimerState, TimerAction } from './timerReducer';
+import type { TimerState, } from './timerReducer';
+import { describe, it, expect } from 'vitest';
 
 function makeState(overrides: Partial<TimerState> = {}): TimerState {
   return { ...createInitialState(), ...overrides };

@@ -9,14 +9,12 @@ import {
   getDescendantTasks,
   collectDescendantIds,
 } from "../../utils/getDescendantTasks";
-import { LAYOUT } from "../../constants/layout";
 import { CalendarHeader } from "./CalendarHeader";
 import { TaskCreatePopover } from "./TaskCreatePopover";
 import { TaskPreviewPopup } from "./TaskPreviewPopup";
 import { MemoPreviewPopup } from "./MemoPreviewPopup";
 import { MonthlyView } from "./MonthlyView";
 import { WeeklyTimeGrid } from "./WeeklyTimeGrid";
-import { OneDaySchedule } from "../Schedule/OneDaySchedule";
 import { FolderDropdown } from "../shared/FolderDropdown";
 import { useNoteContext } from "../../hooks/useNoteContext";
 import type { MemoNode } from "../../types/memo";
@@ -77,7 +75,7 @@ export function CalendarView({
   const today = new Date();
   const [year, setYear] = useState(today.getFullYear());
   const [month, setMonth] = useState(today.getMonth());
-  const [viewMode, setViewMode] = useState<"month" | "week" | "day">("month");
+  const [viewMode, setViewMode] = useState<"month" | "week">("month");
   const [filter, setFilter] = useState<"incomplete" | "completed">(
     "incomplete",
   );
@@ -102,7 +100,7 @@ export function CalendarView({
     | null
   >(null);
 
-  const { tasksByDate, calendarDays, weekDays, singleDay } = useCalendar(
+  const { tasksByDate, calendarDays, weekDays } = useCalendar(
     filteredNodes,
     year,
     month,
@@ -133,15 +131,6 @@ export function CalendarView({
     return map;
   }, [notes, calendarMode]);
 
-  // When switching to day view, reset to today instead of week start (Sunday)
-  useEffect(() => {
-    if (viewMode === "day") {
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      setWeekStartDate(today);
-    }
-  }, [viewMode]);
-
   const effectiveViewMode = calendarMode === "memo" ? "month" : viewMode;
 
   /* eslint-disable react-hooks/exhaustive-deps -- React Compiler auto-memoizes */
@@ -150,12 +139,6 @@ export function CalendarView({
       setWeekStartDate((prev) => {
         const d = new Date(prev);
         d.setDate(d.getDate() - 7);
-        return d;
-      });
-    } else if (viewMode === "day") {
-      setWeekStartDate((prev) => {
-        const d = new Date(prev);
-        d.setDate(d.getDate() - 1);
         return d;
       });
     } else {
@@ -173,12 +156,6 @@ export function CalendarView({
         d.setDate(d.getDate() + 7);
         return d;
       });
-    } else if (viewMode === "day") {
-      setWeekStartDate((prev) => {
-        const d = new Date(prev);
-        d.setDate(d.getDate() + 1);
-        return d;
-      });
     } else {
       if (month === 11) {
         setMonth(0);
@@ -191,13 +168,7 @@ export function CalendarView({
     const now = new Date();
     setYear(now.getFullYear());
     setMonth(now.getMonth());
-    if (viewMode === "day") {
-      const d = new Date();
-      d.setHours(0, 0, 0, 0);
-      setWeekStartDate(d);
-    } else {
-      setWeekStartDate(getInitialWeekStart());
-    }
+    setWeekStartDate(getInitialWeekStart());
   };
 
   useEffect(() => {
@@ -225,9 +196,7 @@ export function CalendarView({
       }
       if (e.key === "m" && calendarMode !== "memo") {
         e.preventDefault();
-        setViewMode((v) =>
-          v === "month" ? "week" : v === "week" ? "day" : "month",
-        );
+        setViewMode((v) => (v === "month" ? "week" : "month"));
         return;
       }
     };
@@ -316,9 +285,7 @@ export function CalendarView({
 
   return (
     <div className="h-full flex flex-col overflow-auto">
-      <div
-        className={`max-w-5xl mx-auto w-full ${LAYOUT.CONTENT_PX} ${LAYOUT.CONTENT_PT} ${LAYOUT.CONTENT_PB} flex-1`}
-      >
+      <div className="max-w-5xl mx-auto w-full flex-1">
         <CalendarHeader
           year={year}
           month={month}
@@ -398,14 +365,6 @@ export function CalendarView({
             notesByDate={notesByDate}
             onMemoChipClick={handleMemoChipClick}
             onNoteChipClick={handleNoteChipClick}
-          />
-        ) : effectiveViewMode === "day" ? (
-          <OneDaySchedule
-            date={singleDay.date}
-            tasksByDate={filteredTasksByDate}
-            onSelectTask={handleTaskClick}
-            getTaskColor={getTaskColor}
-            getFolderTag={getFolderTagForTask}
           />
         ) : (
           <WeeklyTimeGrid

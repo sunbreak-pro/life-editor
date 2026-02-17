@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import type { RoutineNode } from "../../types/routine";
+import { TimeInput } from "../shared/TimeInput";
 
 interface RoutineEditDialogProps {
   routine?: RoutineNode;
@@ -74,22 +75,30 @@ export function RoutineEditDialog({
               <label className="text-[10px] text-notion-text-secondary uppercase tracking-wide mb-1 block">
                 {t("schedule.start", "Start")}
               </label>
-              <input
-                type="time"
-                value={startTime}
-                onChange={(e) => setStartTime(e.target.value)}
-                className="w-full px-2 py-1.5 text-sm bg-transparent border border-notion-border rounded-md text-notion-text"
+              <TimeInput
+                hour={parseInt(startTime.split(":")[0] || "0", 10)}
+                minute={parseInt(startTime.split(":")[1] || "0", 10)}
+                onChange={(h, m) =>
+                  setStartTime(
+                    `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`,
+                  )
+                }
+                minuteStep={1}
               />
             </div>
             <div className="flex-1">
               <label className="text-[10px] text-notion-text-secondary uppercase tracking-wide mb-1 block">
                 {t("schedule.end", "End")}
               </label>
-              <input
-                type="time"
-                value={endTime}
-                onChange={(e) => setEndTime(e.target.value)}
-                className="w-full px-2 py-1.5 text-sm bg-transparent border border-notion-border rounded-md text-notion-text"
+              <TimeInput
+                hour={parseInt(endTime.split(":")[0] || "0", 10)}
+                minute={parseInt(endTime.split(":")[1] || "0", 10)}
+                onChange={(h, m) =>
+                  setEndTime(
+                    `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`,
+                  )
+                }
+                minuteStep={1}
               />
             </div>
           </div>

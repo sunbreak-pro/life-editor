@@ -7,7 +7,6 @@ import { isMac } from "../utils/platform";
 import {
   ListTodo,
   StickyNote,
-  CalendarClock,
   BarChart3,
   Settings as SettingsIcon,
   Lightbulb,
@@ -74,18 +73,10 @@ export function useAppCommands({
         action: () => setActiveSection("work"),
       },
       {
-        id: "nav-schedule",
-        title: "Go to Schedule",
-        category: "Navigation",
-        shortcut: isMac ? "⌘3" : "Ctrl+3",
-        icon: CalendarClock,
-        action: () => setActiveSection("schedule"),
-      },
-      {
         id: "nav-analytics",
         title: "Go to Analytics",
         category: "Navigation",
-        shortcut: isMac ? "⌘4" : "Ctrl+4",
+        shortcut: isMac ? "⌘3" : "Ctrl+3",
         icon: BarChart3,
         action: () => setActiveSection("analytics"),
       },
@@ -123,7 +114,6 @@ export function useAppCommands({
         id: "task-delete",
         title: "Delete selected task",
         category: "Task",
-        shortcut: "Del",
         icon: Trash2,
         action: () => {
           if (selectedTask) {

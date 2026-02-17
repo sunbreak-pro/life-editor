@@ -51,7 +51,6 @@ export function registerDataIOHandlers(db: Database.Database): void {
           soundPresets: safeQuery(db, "SELECT * FROM sound_presets"),
           memos: safeQuery(db, "SELECT * FROM memos"),
           notes: safeQuery(db, "SELECT * FROM notes"),
-          templates: safeQuery(db, "SELECT * FROM task_templates"),
           soundTagDefinitions: safeQuery(
             db,
             "SELECT * FROM sound_tag_definitions",
@@ -142,7 +141,6 @@ export function registerDataIOHandlers(db: Database.Database): void {
           DELETE FROM sound_tag_assignments;
           DELETE FROM sound_tag_definitions;
           DELETE FROM sound_display_meta;
-          DELETE FROM task_templates;
           DELETE FROM timer_sessions;
           DELETE FROM sound_settings;
           DELETE FROM sound_presets;
@@ -219,17 +217,6 @@ export function registerDataIOHandlers(db: Database.Database): void {
           `);
             for (const m of data.memos) {
               insertMemo.run(m);
-            }
-          }
-
-          // Import templates
-          if (Array.isArray(data.templates)) {
-            const insertTemplate = db.prepare(`
-            INSERT INTO task_templates (id, name, nodes_json, created_at)
-            VALUES (@id, @name, @nodes_json, @created_at)
-          `);
-            for (const t of data.templates) {
-              insertTemplate.run(t);
             }
           }
 
@@ -392,7 +379,6 @@ export function registerDataIOHandlers(db: Database.Database): void {
             DELETE FROM sound_tag_definitions;
             DELETE FROM sound_display_meta;
             DELETE FROM sound_workscreen_selections;
-            DELETE FROM task_templates;
             DELETE FROM timer_sessions;
             DELETE FROM pomodoro_presets;
             DELETE FROM sound_settings;
@@ -459,7 +445,6 @@ function validateImportData(data: Record<string, unknown>): void {
     "soundPresets",
     "memos",
     "notes",
-    "templates",
     "soundTagDefinitions",
     "soundTagAssignments",
     "soundDisplayMeta",

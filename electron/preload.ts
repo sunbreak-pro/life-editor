@@ -93,11 +93,6 @@ const ALLOWED_CHANNELS = new Set([
   "ai:fetchSettings",
   "ai:updateSettings",
 
-  // Templates
-  "db:templates:fetchAll",
-  "db:templates:create",
-  "db:templates:getById",
-  "db:templates:delete",
   // Calendars
   "db:calendars:fetchAll",
   "db:calendars:create",

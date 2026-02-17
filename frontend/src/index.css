@@ -11,7 +11,7 @@
   --color-hover: #caecf1;
   --color-success: #0f7b6c;
   --color-danger: #e03e3e;
-  --color-calendar-header: #ffe4e6;
+  --color-calendar-header: #ff8a92;
   --font-size-base: 16px;
 }
 
@@ -26,7 +26,7 @@
   --color-hover: #2f2f2f;
   --color-success: #4dab9a;
   --color-danger: #e06666;
-  --color-calendar-header: #3b1c1c;
+  --color-calendar-header: #841414;
 }
 
 @theme {

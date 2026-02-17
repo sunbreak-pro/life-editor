@@ -3,7 +3,8 @@ import { useCallback } from "react";
 const AUDIO_ACCEPT = "audio/mp3,audio/wav,audio/ogg,audio/mpeg,.mp3,.wav,.ogg";
 
 export function useAudioFileUpload(
-  addSound: (file: File) => Promise<unknown>,
+  addSound: (file: File) => Promise<{ error?: string; id?: string }>,
+  onSuccess?: (id: string) => void,
 ): () => void {
   return useCallback(() => {
     const input = document.createElement("input");
@@ -12,9 +13,12 @@ export function useAudioFileUpload(
     input.onchange = async () => {
       const file = input.files?.[0];
       if (file) {
-        await addSound(file);
+        const result = await addSound(file);
+        if (!result.error && result.id && onSuccess) {
+          onSuccess(result.id);
+        }
       }
     };
     input.click();
-  }, [addSound]);
+  }, [addSound, onSuccess]);
 }

@@ -1,24 +1,24 @@
-import { ElectronDataService } from './ElectronDataService';
-import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest'
+import { ElectronDataService } from "./ElectronDataService";
+import { vi, describe, it, expect, beforeEach, afterEach } from "vitest";
 
 const mockInvoke = vi.fn();
 
 beforeEach(() => {
   mockInvoke.mockReset();
-  Object.defineProperty(window, 'electronAPI', {
+  Object.defineProperty(window, "electronAPI", {
     value: { invoke: mockInvoke },
     writable: true,
   });
 });
 
 afterEach(() => {
-  Object.defineProperty(window, 'electronAPI', {
+  Object.defineProperty(window, "electronAPI", {
     value: undefined,
     writable: true,
   });
 });
 
-describe('ElectronDataService', () => {
+describe("ElectronDataService", () => {
   let service: ElectronDataService;
 
   beforeEach(() => {
@@ -26,88 +26,109 @@ describe('ElectronDataService', () => {
   });
 
   // Tasks
-  it('fetchTaskTree calls correct channel', async () => {
+  it("fetchTaskTree calls correct channel", async () => {
     mockInvoke.mockResolvedValue([]);
     await service.fetchTaskTree();
-    expect(mockInvoke).toHaveBeenCalledWith('db:tasks:fetchTree');
+    expect(mockInvoke).toHaveBeenCalledWith("db:tasks:fetchTree");
   });
 
-  it('createTask calls correct channel', async () => {
-    const node = { id: 'task-1', type: 'task', title: 'Test', parentId: null, order: 0, createdAt: '' };
+  it("createTask calls correct channel", async () => {
+    const node = {
+      id: "task-1",
+      type: "task",
+      title: "Test",
+      parentId: null,
+      order: 0,
+      createdAt: "",
+    };
     mockInvoke.mockResolvedValue(node);
     await service.createTask(node as never);
-    expect(mockInvoke).toHaveBeenCalledWith('db:tasks:create', node);
+    expect(mockInvoke).toHaveBeenCalledWith("db:tasks:create", node);
   });
 
-  it('updateTask calls correct channel with id and updates', async () => {
+  it("updateTask calls correct channel with id and updates", async () => {
     mockInvoke.mockResolvedValue({});
-    await service.updateTask('task-1', { title: 'Updated' });
-    expect(mockInvoke).toHaveBeenCalledWith('db:tasks:update', 'task-1', { title: 'Updated' });
+    await service.updateTask("task-1", { title: "Updated" });
+    expect(mockInvoke).toHaveBeenCalledWith("db:tasks:update", "task-1", {
+      title: "Updated",
+    });
   });
 
-  it('softDeleteTask calls correct channel', async () => {
+  it("softDeleteTask calls correct channel", async () => {
     mockInvoke.mockResolvedValue(undefined);
-    await service.softDeleteTask('task-1');
-    expect(mockInvoke).toHaveBeenCalledWith('db:tasks:softDelete', 'task-1');
+    await service.softDeleteTask("task-1");
+    expect(mockInvoke).toHaveBeenCalledWith("db:tasks:softDelete", "task-1");
   });
 
   // Timer
-  it('fetchTimerSettings calls correct channel', async () => {
+  it("fetchTimerSettings calls correct channel", async () => {
     mockInvoke.mockResolvedValue({});
     await service.fetchTimerSettings();
-    expect(mockInvoke).toHaveBeenCalledWith('db:timer:fetchSettings');
+    expect(mockInvoke).toHaveBeenCalledWith("db:timer:fetchSettings");
   });
 
-  it('startTimerSession passes sessionType and taskId', async () => {
+  it("startTimerSession passes sessionType and taskId", async () => {
     mockInvoke.mockResolvedValue({ id: 1 });
-    await service.startTimerSession('WORK', 'task-1');
-    expect(mockInvoke).toHaveBeenCalledWith('db:timer:startSession', 'WORK', 'task-1');
+    await service.startTimerSession("WORK", "task-1");
+    expect(mockInvoke).toHaveBeenCalledWith(
+      "db:timer:startSession",
+      "WORK",
+      "task-1",
+    );
   });
 
-  it('startTimerSession passes null when no taskId', async () => {
+  it("startTimerSession passes null when no taskId", async () => {
     mockInvoke.mockResolvedValue({ id: 1 });
-    await service.startTimerSession('BREAK');
-    expect(mockInvoke).toHaveBeenCalledWith('db:timer:startSession', 'BREAK', null);
+    await service.startTimerSession("BREAK");
+    expect(mockInvoke).toHaveBeenCalledWith(
+      "db:timer:startSession",
+      "BREAK",
+      null,
+    );
   });
 
   // Sound
-  it('fetchSoundSettings calls correct channel', async () => {
+  it("fetchSoundSettings calls correct channel", async () => {
     mockInvoke.mockResolvedValue([]);
     await service.fetchSoundSettings();
-    expect(mockInvoke).toHaveBeenCalledWith('db:sound:fetchSettings');
+    expect(mockInvoke).toHaveBeenCalledWith("db:sound:fetchSettings");
   });
 
   // Notes
-  it('createNote calls correct channel', async () => {
+  it("createNote calls correct channel", async () => {
     mockInvoke.mockResolvedValue({});
-    await service.createNote('note-1', 'Title');
-    expect(mockInvoke).toHaveBeenCalledWith('db:notes:create', 'note-1', 'Title');
-  });
-
-  // Templates
-  it('fetchTemplates calls correct channel', async () => {
-    mockInvoke.mockResolvedValue([]);
-    await service.fetchTemplates();
-    expect(mockInvoke).toHaveBeenCalledWith('db:templates:fetchAll');
+    await service.createNote("note-1", "Title");
+    expect(mockInvoke).toHaveBeenCalledWith(
+      "db:notes:create",
+      "note-1",
+      "Title",
+    );
   });
 
   // Data I/O
-  it('exportData calls correct channel', async () => {
+  it("exportData calls correct channel", async () => {
     mockInvoke.mockResolvedValue(true);
     await service.exportData();
-    expect(mockInvoke).toHaveBeenCalledWith('data:export');
+    expect(mockInvoke).toHaveBeenCalledWith("data:export");
   });
 
   // AI
-  it('fetchAIAdvice throws on error response', async () => {
-    mockInvoke.mockResolvedValue({ error: 'No API key', errorCode: 'NO_KEY' });
-    await expect(service.fetchAIAdvice({ taskTitle: 'Test', requestType: 'breakdown' }))
-      .rejects.toThrow('No API key');
+  it("fetchAIAdvice throws on error response", async () => {
+    mockInvoke.mockResolvedValue({ error: "No API key", errorCode: "NO_KEY" });
+    await expect(
+      service.fetchAIAdvice({ taskTitle: "Test", requestType: "breakdown" }),
+    ).rejects.toThrow("No API key");
   });
 
-  it('fetchAIAdvice returns advice on success', async () => {
-    mockInvoke.mockResolvedValue({ advice: 'Do this', requestType: 'breakdown' });
-    const result = await service.fetchAIAdvice({ taskTitle: 'Test', requestType: 'breakdown' });
-    expect(result.advice).toBe('Do this');
+  it("fetchAIAdvice returns advice on success", async () => {
+    mockInvoke.mockResolvedValue({
+      advice: "Do this",
+      requestType: "breakdown",
+    });
+    const result = await service.fetchAIAdvice({
+      taskTitle: "Test",
+      requestType: "breakdown",
+    });
+    expect(result.advice).toBe("Do this");
   });
 });

@@ -34,7 +34,7 @@ export function TaskPreviewPopup({
   const ref = useRef<HTMLDivElement>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
-  useClickOutside(ref, onClose, true);
+  useClickOutside(ref, onClose, !showDeleteConfirm);
 
   const left = Math.min(position.x, window.innerWidth - 260 - 16);
   const top = Math.min(position.y, window.innerHeight - 240 - 16);
