@@ -158,6 +158,9 @@ export function createMockDataService(): DataService & {
     loadCustomSound: vi.fn().mockResolvedValue(null),
     deleteCustomSound: vi.fn().mockResolvedValue(undefined),
     fetchCustomSoundMetas: vi.fn().mockResolvedValue([]),
+    fetchDeletedCustomSounds: vi.fn().mockResolvedValue([]),
+    restoreCustomSound: vi.fn().mockResolvedValue(undefined),
+    permanentDeleteCustomSound: vi.fn().mockResolvedValue(undefined),
 
     // AI
     fetchAIAdvice: vi

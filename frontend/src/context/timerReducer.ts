@@ -1,5 +1,5 @@
-import type { SessionType } from '../types/timer';
-import type { ActiveTask } from './TimerContextValue';
+import type { SessionType } from "../types/timer";
+import type { ActiveTask } from "./TimerContextValue";
 
 export interface TimerConfig {
   workDuration: number;
@@ -15,31 +15,37 @@ export interface TimerState {
   completedSessions: number;
   activeTask: ActiveTask | null;
   showCompletionModal: boolean;
-  completedSessionType: 'WORK' | 'REST' | null;
+  completedSessionType: "WORK" | "REST" | null;
   config: TimerConfig;
 }
 
 export type TimerAction =
-  | { type: 'TICK' }
-  | { type: 'START' }
-  | { type: 'PAUSE' }
-  | { type: 'RESET' }
-  | { type: 'ADVANCE_SESSION' }
-  | { type: 'START_REST' }
-  | { type: 'EXTEND_WORK'; minutes: number }
-  | { type: 'DISMISS_COMPLETION_MODAL' }
-  | { type: 'SET_ACTIVE_TASK'; task: ActiveTask | null }
-  | { type: 'UPDATE_ACTIVE_TASK_TITLE'; title: string }
-  | { type: 'SET_CONFIG'; config: Partial<TimerConfig> }
-  | { type: 'OPEN_FOR_TASK'; task: ActiveTask; durationSeconds: number }
-  | { type: 'START_FOR_TASK'; task: ActiveTask; durationSeconds: number }
-  | { type: 'SET_REMAINING'; seconds: number };
+  | { type: "TICK" }
+  | { type: "START" }
+  | { type: "PAUSE" }
+  | { type: "RESET" }
+  | { type: "ADVANCE_SESSION" }
+  | { type: "START_REST" }
+  | { type: "EXTEND_WORK"; minutes: number }
+  | { type: "DISMISS_COMPLETION_MODAL" }
+  | { type: "SET_ACTIVE_TASK"; task: ActiveTask | null }
+  | { type: "UPDATE_ACTIVE_TASK_TITLE"; title: string }
+  | { type: "SET_CONFIG"; config: Partial<TimerConfig> }
+  | { type: "OPEN_FOR_TASK"; task: ActiveTask; durationSeconds: number }
+  | { type: "START_FOR_TASK"; task: ActiveTask; durationSeconds: number }
+  | { type: "SET_REMAINING"; seconds: number };
 
-export function getDuration(sessionType: SessionType, config: TimerConfig): number {
+export function getDuration(
+  sessionType: SessionType,
+  config: TimerConfig,
+): number {
   switch (sessionType) {
-    case 'WORK': return config.workDuration;
-    case 'BREAK': return config.breakDuration;
-    case 'LONG_BREAK': return config.longBreakDuration;
+    case "WORK":
+      return config.workDuration;
+    case "BREAK":
+      return config.breakDuration;
+    case "LONG_BREAK":
+      return config.longBreakDuration;
   }
 }
 
@@ -53,7 +59,7 @@ export const DEFAULT_CONFIG: TimerConfig = {
 export function createInitialState(config?: Partial<TimerConfig>): TimerState {
   const cfg = { ...DEFAULT_CONFIG, ...config };
   return {
-    sessionType: 'WORK',
+    sessionType: "WORK",
     remainingSeconds: cfg.workDuration,
     isRunning: false,
     completedSessions: 0,
@@ -64,9 +70,12 @@ export function createInitialState(config?: Partial<TimerConfig>): TimerState {
   };
 }
 
-export function timerReducer(state: TimerState, action: TimerAction): TimerState {
+export function timerReducer(
+  state: TimerState,
+  action: TimerAction,
+): TimerState {
   switch (action.type) {
-    case 'TICK': {
+    case "TICK": {
       if (state.remainingSeconds <= 1) {
         // Timer reached zero — handled externally via ADVANCE_SESSION
         return { ...state, remainingSeconds: 0 };
@@ -74,58 +83,58 @@ export function timerReducer(state: TimerState, action: TimerAction): TimerState
       return { ...state, remainingSeconds: state.remainingSeconds - 1 };
     }
 
-    case 'START':
+    case "START":
       return { ...state, isRunning: true };
 
-    case 'PAUSE':
+    case "PAUSE":
       return { ...state, isRunning: false };
 
-    case 'RESET':
+    case "RESET":
       return {
         ...state,
         isRunning: false,
         remainingSeconds: getDuration(state.sessionType, state.config),
       };
 
-    case 'ADVANCE_SESSION': {
-      if (state.sessionType === 'WORK') {
-        // Work completed → show completion modal
+    case "ADVANCE_SESSION": {
+      if (state.sessionType === "WORK") {
+        // Work completed → increment completedSessions and show modal
         return {
           ...state,
           isRunning: false,
+          completedSessions: state.completedSessions + 1,
           showCompletionModal: true,
-          completedSessionType: 'WORK',
+          completedSessionType: "WORK",
         };
       }
-      // Rest completed → show completion modal
-      const newCompleted = state.completedSessions + 1;
+      // Rest completed → transition to WORK, show modal (no increment here)
       return {
         ...state,
         isRunning: false,
-        sessionType: 'WORK',
+        sessionType: "WORK",
         remainingSeconds: state.config.workDuration,
-        completedSessions: newCompleted,
         showCompletionModal: true,
-        completedSessionType: 'REST',
+        completedSessionType: "REST",
       };
     }
 
-    case 'START_REST': {
-      const newCompleted = state.completedSessions + 1;
-      const isLongBreak = newCompleted % state.config.sessionsBeforeLongBreak === 0;
-      const nextType: SessionType = isLongBreak ? 'LONG_BREAK' : 'BREAK';
+    case "START_REST": {
+      const isLongBreak =
+        state.completedSessions % state.config.sessionsBeforeLongBreak === 0;
+      const nextType: SessionType = isLongBreak ? "LONG_BREAK" : "BREAK";
       return {
         ...state,
         showCompletionModal: false,
         completedSessionType: null,
         isRunning: true,
-        completedSessions: newCompleted,
         sessionType: nextType,
-        remainingSeconds: isLongBreak ? state.config.longBreakDuration : state.config.breakDuration,
+        remainingSeconds: isLongBreak
+          ? state.config.longBreakDuration
+          : state.config.breakDuration,
       };
     }
 
-    case 'EXTEND_WORK':
+    case "EXTEND_WORK":
       return {
         ...state,
         showCompletionModal: false,
@@ -133,19 +142,25 @@ export function timerReducer(state: TimerState, action: TimerAction): TimerState
         remainingSeconds: action.minutes * 60,
       };
 
-    case 'DISMISS_COMPLETION_MODAL':
-      return { ...state, showCompletionModal: false, completedSessionType: null };
-
-    case 'SET_ACTIVE_TASK':
-      return { ...state, activeTask: action.task };
-
-    case 'UPDATE_ACTIVE_TASK_TITLE':
+    case "DISMISS_COMPLETION_MODAL":
       return {
         ...state,
-        activeTask: state.activeTask ? { ...state.activeTask, title: action.title } : null,
+        showCompletionModal: false,
+        completedSessionType: null,
       };
 
-    case 'SET_CONFIG': {
+    case "SET_ACTIVE_TASK":
+      return { ...state, activeTask: action.task };
+
+    case "UPDATE_ACTIVE_TASK_TITLE":
+      return {
+        ...state,
+        activeTask: state.activeTask
+          ? { ...state.activeTask, title: action.title }
+          : null,
+      };
+
+    case "SET_CONFIG": {
       const newConfig = { ...state.config, ...action.config };
       // If not running, update remaining seconds to match new duration for current session type
       const newRemaining = !state.isRunning
@@ -158,25 +173,25 @@ export function timerReducer(state: TimerState, action: TimerAction): TimerState
       };
     }
 
-    case 'OPEN_FOR_TASK':
+    case "OPEN_FOR_TASK":
       return {
         ...state,
         isRunning: false,
         activeTask: action.task,
-        sessionType: 'WORK',
+        sessionType: "WORK",
         remainingSeconds: action.durationSeconds,
       };
 
-    case 'START_FOR_TASK':
+    case "START_FOR_TASK":
       return {
         ...state,
         isRunning: true,
         activeTask: action.task,
-        sessionType: 'WORK',
+        sessionType: "WORK",
         remainingSeconds: action.durationSeconds,
       };
 
-    case 'SET_REMAINING':
+    case "SET_REMAINING":
       return { ...state, remainingSeconds: action.seconds };
 
     default:

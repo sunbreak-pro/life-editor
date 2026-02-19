@@ -246,6 +246,15 @@ export class ElectronDataService implements DataService {
   fetchCustomSoundMetas(): Promise<CustomSoundMeta[]> {
     return invoke("db:customSound:fetchMetas");
   }
+  fetchDeletedCustomSounds(): Promise<CustomSoundMeta[]> {
+    return invoke("db:customSound:fetchDeleted");
+  }
+  restoreCustomSound(id: string): Promise<void> {
+    return invoke("db:customSound:restore", id);
+  }
+  permanentDeleteCustomSound(id: string): Promise<void> {
+    return invoke("db:customSound:permanentDelete", id);
+  }
 
   // AI
   async fetchAIAdvice(request: AIAdviceRequest): Promise<AIAdviceResponse> {

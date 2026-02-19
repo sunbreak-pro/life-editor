@@ -8,6 +8,7 @@
     "analytics": "Analytics",
     "settings": "Settings",
     "tips": "Tips",
+    "trash": "Trash",
     "freeSession": "Free Session"
   },
   "settings": {
@@ -75,6 +76,8 @@
     "deletePermanently": "Delete permanently",
     "task": "task",
     "note": "note",
+    "sounds": "Custom Sounds",
+    "sound": "sound",
     "permanentDeleteConfirm": "Permanently delete \"{{name}}\"? This cannot be undone."
   },
   "updates": {

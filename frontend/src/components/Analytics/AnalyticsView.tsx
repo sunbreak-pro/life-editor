@@ -90,15 +90,18 @@ export function AnalyticsView() {
     <div
       className={`h-full flex flex-col ${LAYOUT.CONTENT_PX} ${LAYOUT.CONTENT_PT} ${LAYOUT.CONTENT_PB}`}
     >
-      <h2 className={`text-2xl font-bold text-notion-text ${LAYOUT.TITLE_MB}`}>
-        {t("analytics.title")}
-      </h2>
-      <SectionTabs
-        tabs={ANALYTICS_TABS}
-        activeTab={activeTab}
-        onTabChange={setActiveTab}
-      />
-      <div className={`flex-1 overflow-y-auto ${LAYOUT.TABS_MT}`}>
+      <div className="flex items-baseline gap-4 border-b border-notion-border mb-5">
+        <h2 className="text-2xl font-bold text-notion-text">
+          {t("analytics.title")}
+        </h2>
+        <SectionTabs
+          tabs={ANALYTICS_TABS}
+          activeTab={activeTab}
+          onTabChange={setActiveTab}
+          noBorder
+        />
+      </div>
+      <div className="flex-1 overflow-y-auto">
         {activeTab === "overview" ? (
           <div className="max-w-3xl mx-auto w-full">
             <div className="grid grid-cols-2 gap-4 mb-8">

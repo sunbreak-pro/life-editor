@@ -56,15 +56,18 @@ export function MemoView() {
     <div
       className={`h-full flex flex-col ${LAYOUT.CONTENT_PX} ${LAYOUT.CONTENT_PT} ${LAYOUT.CONTENT_PB}`}
     >
-      <h2 className={`text-2xl font-bold text-notion-text ${LAYOUT.TITLE_MB}`}>
-        {t("memo.title")}
-      </h2>
-      <SectionTabs
-        tabs={MEMO_TABS}
-        activeTab={activeTab}
-        onTabChange={handleTabChange}
-      />
-      <div className={`flex-1 overflow-hidden flex ${LAYOUT.TABS_MT}`}>
+      <div className="flex items-baseline gap-4 border-b border-notion-border mb-5">
+        <h2 className="text-2xl font-bold text-notion-text">
+          {t("memo.title")}
+        </h2>
+        <SectionTabs
+          tabs={MEMO_TABS}
+          activeTab={activeTab}
+          onTabChange={handleTabChange}
+          noBorder
+        />
+      </div>
+      <div className="flex-1 overflow-hidden flex">
         {activeTab === "daily" && (
           <>
             <MemoDateList

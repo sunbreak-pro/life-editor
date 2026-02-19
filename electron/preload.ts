@@ -94,6 +94,9 @@ const ALLOWED_CHANNELS = new Set([
   "db:customSound:save",
   "db:customSound:load",
   "db:customSound:delete",
+  "db:customSound:fetchDeleted",
+  "db:customSound:restore",
+  "db:customSound:permanentDelete",
   // AI
   "ai:advice",
   "ai:fetchSettings",

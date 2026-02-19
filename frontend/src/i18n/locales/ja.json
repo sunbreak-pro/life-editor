@@ -8,6 +8,7 @@
     "analytics": "分析",
     "settings": "設定",
     "tips": "ヒント",
+    "trash": "ゴミ箱",
     "freeSession": "フリーセッション"
   },
   "settings": {
@@ -75,6 +76,8 @@
     "deletePermanently": "完全に削除",
     "task": "タスク",
     "note": "ノート",
+    "sounds": "カスタムサウンド",
+    "sound": "サウンド",
     "permanentDeleteConfirm": "「{{name}}」を完全に削除しますか？この操作は元に戻せません。"
   },
   "updates": {

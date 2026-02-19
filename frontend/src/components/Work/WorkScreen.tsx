@@ -97,18 +97,19 @@ export function WorkScreen({ onCompleteTask }: WorkScreenProps) {
       <div
         className={`h-full flex flex-col ${LAYOUT.CONTENT_PX} ${LAYOUT.CONTENT_PT} ${LAYOUT.CONTENT_PB}`}
       >
-        <h2
-          className={`text-2xl font-bold text-notion-text ${LAYOUT.TITLE_MB}`}
-        >
-          {t("work.title")}
-        </h2>
-        <SectionTabs
-          tabs={WORK_TABS}
-          activeTab={activeTab}
-          onTabChange={setActiveTab}
-        />
+        <div className="flex items-baseline gap-4 border-b border-notion-border mb-5">
+          <h2 className="text-2xl font-bold text-notion-text">
+            {t("work.title")}
+          </h2>
+          <SectionTabs
+            tabs={WORK_TABS}
+            activeTab={activeTab}
+            onTabChange={setActiveTab}
+            noBorder
+          />
+        </div>
 
-        <div className={`flex-1 overflow-y-auto ${LAYOUT.TABS_MT}`}>
+        <div className="flex-1 overflow-y-auto">
           {activeTab === "timer" && (
             <div className="h-full flex flex-col">
               {/* Header with buttons */}

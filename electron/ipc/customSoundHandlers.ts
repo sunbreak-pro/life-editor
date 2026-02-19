@@ -35,8 +35,28 @@ export function registerCustomSoundHandlers(repo: CustomSoundRepository): void {
   ipcMain.handle(
     "db:customSound:delete",
     loggedHandler("CustomSound", "delete", (_event, id: string) => {
-      repo.deleteMeta(id);
-      repo.deleteBlob(id);
+      repo.softDeleteMeta(id);
+    }),
+  );
+
+  ipcMain.handle(
+    "db:customSound:fetchDeleted",
+    loggedHandler("CustomSound", "fetchDeleted", () => {
+      return repo.fetchDeletedMetas();
+    }),
+  );
+
+  ipcMain.handle(
+    "db:customSound:restore",
+    loggedHandler("CustomSound", "restore", (_event, id: string) => {
+      repo.restoreMeta(id);
+    }),
+  );
+
+  ipcMain.handle(
+    "db:customSound:permanentDelete",
+    loggedHandler("CustomSound", "permanentDelete", (_event, id: string) => {
+      repo.permanentDelete(id);
     }),
   );
 }

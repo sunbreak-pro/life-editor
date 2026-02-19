@@ -305,9 +305,8 @@ export function TimerProvider({ children }: { children: ReactNode }) {
   );
 
   const startRest = useCallback(() => {
-    const newCompleted = state.completedSessions + 1;
     const isLongBreak =
-      newCompleted % state.config.sessionsBeforeLongBreak === 0;
+      state.completedSessions % state.config.sessionsBeforeLongBreak === 0;
     dispatch({ type: "START_REST" });
     const st = isLongBreak ? "LONG_BREAK" : "BREAK";
     getDataService()

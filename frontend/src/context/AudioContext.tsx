@@ -11,7 +11,8 @@ import { AudioContext, type AudioContextValue } from "./AudioContextValue";
 
 export function AudioProvider({ children }: { children: ReactNode }) {
   const timer = useTimerContext();
-  const { customSounds, blobUrls, addSound, removeSound } = useCustomSounds();
+  const { customSounds, blobUrls, addSound, removeSound, reloadSounds } =
+    useCustomSounds();
   const { getDisplayName } = useSoundTags();
 
   const [timerPlaylistId, setTimerPlaylistId] = useLocalStorage<string | null>(
@@ -54,6 +55,7 @@ export function AudioProvider({ children }: { children: ReactNode }) {
       customSounds,
       addSound,
       removeSound,
+      reloadCustomSounds: reloadSounds,
       soundSources,
       timerPlaylistId,
       setTimerPlaylistId,
@@ -65,6 +67,7 @@ export function AudioProvider({ children }: { children: ReactNode }) {
       customSounds,
       addSound,
       removeSound,
+      reloadSounds,
       soundSources,
       timerPlaylistId,
       setTimerPlaylistId,

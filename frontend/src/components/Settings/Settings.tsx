@@ -7,7 +7,6 @@ import { AppearanceSettings } from "./AppearanceSettings";
 import { LanguageSettings } from "./LanguageSettings";
 import { NotificationSettings } from "./NotificationSettings";
 import { AISettings } from "./AISettings";
-import { TrashBin } from "./TrashBin";
 import { DataManagement } from "./DataManagement";
 import { UpdateSettings } from "./UpdateSettings";
 import { PerformanceMonitor } from "./PerformanceMonitor";
@@ -31,17 +30,19 @@ export function Settings() {
     <div
       className={`h-full flex flex-col ${LAYOUT.CONTENT_PX} ${LAYOUT.CONTENT_PT} ${LAYOUT.CONTENT_PB}`}
     >
-      <h2 className={`text-2xl font-bold text-notion-text ${LAYOUT.TITLE_MB}`}>
-        {t("settings.title")}
-      </h2>
+      <div className="flex items-baseline gap-4 border-b border-notion-border mb-5">
+        <h2 className="text-2xl font-bold text-notion-text">
+          {t("settings.title")}
+        </h2>
+        <SectionTabs
+          tabs={TABS}
+          activeTab={activeTab}
+          onTabChange={setActiveTab}
+          noBorder
+        />
+      </div>
 
-      <SectionTabs
-        tabs={TABS}
-        activeTab={activeTab}
-        onTabChange={setActiveTab}
-      />
-
-      <div className={`flex-1 overflow-y-auto ${LAYOUT.TABS_MT}`}>
+      <div className="flex-1 overflow-y-auto">
         {activeTab === "general" && (
           <div className="space-y-8">
             <AppearanceSettings />
@@ -51,13 +52,7 @@ export function Settings() {
         )}
         {activeTab === "notifications" && <NotificationSettings />}
         {activeTab === "ai" && <AISettings />}
-        {activeTab === "data" && (
-          <div className="space-y-8">
-            <DataManagement />
-            <div className="border-t border-notion-border" />
-            <TrashBin />
-          </div>
-        )}
+        {activeTab === "data" && <DataManagement />}
         {activeTab === "advanced" && (
           <div className="space-y-8">
             <UpdateSettings />

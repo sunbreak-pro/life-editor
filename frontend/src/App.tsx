@@ -6,6 +6,7 @@ import { useLocalStorage } from "./hooks/useLocalStorage";
 import { WorkScreen } from "./components/Work";
 import { SessionCompletionModal } from "./components/Work/SessionCompletionModal";
 import { Settings } from "./components/Settings";
+import { TrashView } from "./components/Trash/TrashView";
 import { Tips } from "./components/Tips";
 import { AnalyticsView } from "./components/Analytics/AnalyticsView";
 import { MemoView } from "./components/Memo";
@@ -112,6 +113,8 @@ function App() {
         return <WorkScreen onCompleteTask={handlers.handleCompleteTask} />;
       case "analytics":
         return <AnalyticsView />;
+      case "trash":
+        return <TrashView />;
       case "settings":
         return <Settings />;
       case "tips":

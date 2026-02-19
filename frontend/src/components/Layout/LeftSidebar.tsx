@@ -7,6 +7,7 @@ import {
   Pencil,
   PanelLeft,
   Lightbulb,
+  Trash2,
 } from "lucide-react";
 import type { SectionId } from "../../types/taskTree";
 import { useTimerContext } from "../../hooks/useTimerContext";
@@ -29,6 +30,7 @@ const menuItems: {
   { id: "memo", labelKey: "sidebar.memo", icon: BookOpen },
   { id: "work", labelKey: "sidebar.work", icon: Play },
   { id: "analytics", labelKey: "sidebar.analytics", icon: BarChart3 },
+  { id: "trash", labelKey: "sidebar.trash", icon: Trash2 },
   { id: "settings", labelKey: "sidebar.settings", icon: Settings },
   { id: "tips", labelKey: "sidebar.tips", icon: Lightbulb },
 ];

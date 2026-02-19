@@ -95,6 +95,8 @@ export interface CustomSoundMeta {
   mimeType: string;
   size: number;
   createdAt: number;
+  isDeleted?: boolean;
+  deletedAt?: number;
 }
 
 export interface TaskTemplate {

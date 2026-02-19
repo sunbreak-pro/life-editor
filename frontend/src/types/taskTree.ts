@@ -3,6 +3,7 @@ export type SectionId =
   | "memo"
   | "work"
   | "analytics"
+  | "trash"
   | "settings"
   | "tips";
 

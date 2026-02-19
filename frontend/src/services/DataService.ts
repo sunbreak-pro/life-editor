@@ -139,6 +139,9 @@ export interface DataService {
   loadCustomSound(id: string): Promise<ArrayBuffer | null>;
   deleteCustomSound(id: string): Promise<void>;
   fetchCustomSoundMetas(): Promise<CustomSoundMeta[]>;
+  fetchDeletedCustomSounds(): Promise<CustomSoundMeta[]>;
+  restoreCustomSound(id: string): Promise<void>;
+  permanentDeleteCustomSound(id: string): Promise<void>;
 
   // AI
   fetchAIAdvice(request: AIAdviceRequest): Promise<AIAdviceResponse>;

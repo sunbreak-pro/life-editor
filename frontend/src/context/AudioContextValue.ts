@@ -7,6 +7,7 @@ export interface AudioContextValue {
   customSounds: CustomSoundMeta[];
   addSound: (file: File) => Promise<{ error?: string; id?: string }>;
   removeSound: (id: string) => Promise<void>;
+  reloadCustomSounds: () => Promise<void>;
   soundSources: Record<string, string>;
   timerPlaylistId: string | null;
   setTimerPlaylistId: (id: string | null) => void;

@@ -156,5 +156,34 @@ export function useCustomSounds() {
     });
   }, []);
 
-  return { customSounds, blobUrls, isLoading, addSound, removeSound };
+  const reloadSounds = useCallback(async () => {
+    const ds = getDataService();
+    const metas = await ds.fetchCustomSoundMetas();
+
+    // Revoke old blob URLs
+    Object.values(blobUrlsRef.current).forEach(URL.revokeObjectURL);
+
+    const urls: Record<string, string> = {};
+    for (const meta of metas) {
+      const data = await ds.loadCustomSound(meta.id);
+      if (data) {
+        const blob = new Blob([data], { type: meta.mimeType });
+        urls[meta.id] = URL.createObjectURL(blob);
+      }
+    }
+
+    const validMetas = metas.filter((m) => urls[m.id]);
+    blobUrlsRef.current = urls;
+    setCustomSounds(validMetas);
+    setBlobUrls(urls);
+  }, []);
+
+  return {
+    customSounds,
+    blobUrls,
+    isLoading,
+    addSound,
+    removeSound,
+    reloadSounds,
+  };
 }
