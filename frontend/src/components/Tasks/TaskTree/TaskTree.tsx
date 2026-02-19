@@ -28,8 +28,10 @@ import { InlineCreateInput } from "./InlineCreateInput";
 import { FolderDropdown } from "../Folder/FolderDropdown";
 import { SortDropdown } from "./SortDropdown";
 import { useLocalStorage } from "../../../hooks/useLocalStorage";
+import { useDebounce } from "../../../hooks/useDebounce";
 import { flattenFolders } from "../../../utils/flattenFolders";
 import { getDescendantTasks } from "../../../utils/getDescendantTasks";
+import { getSearchMatchIds } from "../../../utils/filterTreeBySearch";
 import { sortTaskNodes } from "../../../utils/sortTaskNodes";
 import type { SortMode } from "../../../utils/sortTaskNodes";
 import { STORAGE_KEYS } from "../../../constants/storageKeys";
@@ -41,6 +43,7 @@ interface TaskTreeProps {
   selectedTaskId?: string | null;
   filterFolderId?: string | null;
   onFilterChange?: (id: string | null) => void;
+  searchQuery?: string;
 }
 
 function DroppableSection({
@@ -60,6 +63,7 @@ export function TaskTree({
   selectedTaskId,
   filterFolderId: externalFilterFolderId,
   onFilterChange: externalOnFilterChange,
+  searchQuery = "",
 }: TaskTreeProps) {
   const {
     nodes,
@@ -107,58 +111,89 @@ export function TaskTree({
     }
   }, [filterFolderId, nodes, setFilterFolderId]);
 
+  const debouncedQuery = useDebounce(searchQuery, 200);
+  const searchMatchIds = useMemo(
+    () => getSearchMatchIds(nodes, debouncedQuery),
+    [nodes, debouncedQuery],
+  );
+  const isSearching = debouncedQuery.trim().length > 0;
+
   const {
     sensors,
     activeNode,
     overInfo,
-    handleDragStart,
+    handleDragStart: rawHandleDragStart,
     handleDragOver,
     handleDragEnd,
     handleDragCancel,
   } = useTaskTreeDnd({ nodes, moveNode, moveNodeInto, moveToRoot });
 
+  const handleDragStart: typeof rawHandleDragStart = (event) => {
+    if (isSearching) return;
+    rawHandleDragStart(event);
+  };
+
   const rootChildren = useMemo(() => getChildren(null), [getChildren]);
-  const inboxTasks = useMemo(
-    () =>
-      sortTaskNodes(
-        rootChildren.filter((n) => n.type === "task" && n.status !== "DONE"),
-        sortMode,
-      ),
-    [rootChildren, sortMode],
-  );
-  const folders = useMemo(() => {
-    if (!filterFolderId) {
-      return rootChildren.filter(
-        (n) => n.type === "folder" && n.status !== "DONE",
-      );
+  const inboxTasks = useMemo(() => {
+    let tasks = rootChildren.filter(
+      (n) => n.type === "task" && n.status !== "DONE",
+    );
+    if (isSearching) {
+      tasks = tasks.filter((n) => searchMatchIds.has(n.id));
     }
-    const target = nodes.find((n) => n.id === filterFolderId);
-    if (!target)
-      return rootChildren.filter(
+    return sortTaskNodes(tasks, sortMode);
+  }, [rootChildren, sortMode, isSearching, searchMatchIds]);
+
+  const folders = useMemo(() => {
+    let result: TaskNode[];
+    if (!filterFolderId) {
+      result = rootChildren.filter(
         (n) => n.type === "folder" && n.status !== "DONE",
       );
-    return target.status !== "DONE" ? [target] : [];
-  }, [rootChildren, filterFolderId, nodes]);
+    } else {
+      const target = nodes.find((n) => n.id === filterFolderId);
+      if (!target) {
+        result = rootChildren.filter(
+          (n) => n.type === "folder" && n.status !== "DONE",
+        );
+      } else {
+        result = target.status !== "DONE" ? [target] : [];
+      }
+    }
+    if (isSearching) {
+      result = result.filter((n) => searchMatchIds.has(n.id));
+    }
+    return result;
+  }, [rootChildren, filterFolderId, nodes, isSearching, searchMatchIds]);
 
   const completedRootTasks = useMemo(() => {
+    let tasks: TaskNode[];
     if (!filterFolderId) {
-      return rootChildren.filter(
+      tasks = rootChildren.filter(
+        (n) => n.type === "task" && n.status === "DONE",
+      );
+    } else {
+      const descendants = getDescendantTasks(filterFolderId, nodes);
+      tasks = descendants.filter(
         (n) => n.type === "task" && n.status === "DONE",
       );
     }
-    // When filtered, show completed tasks from the filtered folder's subtree
-    const descendants = getDescendantTasks(filterFolderId, nodes);
-    return descendants.filter((n) => n.type === "task" && n.status === "DONE");
-  }, [rootChildren, filterFolderId, nodes]);
+    if (isSearching) {
+      tasks = tasks.filter((n) => searchMatchIds.has(n.id));
+    }
+    return tasks;
+  }, [rootChildren, filterFolderId, nodes, isSearching, searchMatchIds]);
 
   const completedFolders = useMemo(() => {
-    if (!filterFolderId) {
-      return rootChildren.filter(
-        (n) => n.type === "folder" && n.status === "DONE",
-      );
+    if (filterFolderId) return [];
+    let result = rootChildren.filter(
+      (n) => n.type === "folder" && n.status === "DONE",
+    );
+    if (isSearching) {
+      result = result.filter((n) => searchMatchIds.has(n.id));
     }
-    return []; // Don't show completed folders when filtering
-  }, [rootChildren, filterFolderId]);
+    return result;
+  }, [rootChildren, filterFolderId, isSearching, searchMatchIds]);
   const hasCompleted =
     completedRootTasks.length > 0 || completedFolders.length > 0;
 
@@ -170,15 +205,19 @@ export function TaskTree({
     const addVisible = (list: TaskNode[]) => {
       for (const node of list) {
         result.push(node);
-        if (node.type === "folder" && node.isExpanded) {
-          addVisible(getChildren(node.id));
+        if (node.type === "folder" && (node.isExpanded || isSearching)) {
+          const children = getChildren(node.id);
+          const filtered = isSearching
+            ? children.filter((c) => searchMatchIds.has(c.id))
+            : children;
+          addVisible(filtered);
         }
       }
     };
     addVisible(inboxTasks);
     addVisible(folders);
     return result;
-  }, [inboxTasks, folders, getChildren]);
+  }, [inboxTasks, folders, getChildren, isSearching, searchMatchIds]);
 
   const { t } = useTranslation();
 
@@ -261,6 +300,8 @@ export function TaskTree({
                       selectedTaskId={selectedTaskId}
                       sortMode={sortMode}
                       overInfo={overInfo}
+                      searchMatchIds={isSearching ? searchMatchIds : undefined}
+                      isSearching={isSearching}
                     />
                   ))}
                 </div>
@@ -338,6 +379,8 @@ export function TaskTree({
                       selectedTaskId={selectedTaskId}
                       sortMode={sortMode}
                       overInfo={overInfo}
+                      searchMatchIds={isSearching ? searchMatchIds : undefined}
+                      isSearching={isSearching}
                     />
                   ))}
                 </div>
@@ -363,13 +406,22 @@ export function TaskTree({
         </DragOverlay>
       </DndContext>
 
+      {isSearching &&
+        visibleNodes.length === 0 &&
+        completedRootTasks.length === 0 &&
+        completedFolders.length === 0 && (
+          <div className="px-4 py-8 text-center text-sm text-notion-text-secondary">
+            {t("search.noResults")}
+          </div>
+        )}
+
       {hasCompleted && (
         <div className="pt-2 border-t border-notion-border">
           <button
             onClick={() => setShowCompleted(!showCompleted)}
             className="flex items-center gap-2 text-xs text-notion-text-secondary hover:text-notion-text mb-1 px-2"
           >
-            {showCompleted ? (
+            {showCompleted || isSearching ? (
               <ChevronDown size={14} />
             ) : (
               <ChevronRight size={14} />
@@ -380,7 +432,7 @@ export function TaskTree({
               {completedRootTasks.length + completedFolders.length})
             </span>
           </button>
-          {showCompleted && (
+          {(showCompleted || isSearching) && (
             <div className="space-y-0.5">
               {completedRootTasks.map((task) => (
                 <TaskTreeNode
@@ -390,6 +442,8 @@ export function TaskTree({
                   onSelectTask={onSelectTask}
                   selectedTaskId={selectedTaskId}
                   sortMode={sortMode}
+                  searchMatchIds={isSearching ? searchMatchIds : undefined}
+                  isSearching={isSearching}
                 />
               ))}
               {completedFolders.map((folder) => (
@@ -400,6 +454,8 @@ export function TaskTree({
                   onSelectTask={onSelectTask}
                   selectedTaskId={selectedTaskId}
                   sortMode={sortMode}
+                  searchMatchIds={isSearching ? searchMatchIds : undefined}
+                  isSearching={isSearching}
                 />
               ))}
             </div>

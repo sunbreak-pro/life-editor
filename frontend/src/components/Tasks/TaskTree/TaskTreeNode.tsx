@@ -33,6 +33,8 @@ interface TaskTreeNodeProps {
   selectedTaskId?: string | null;
   sortMode?: SortMode;
   overInfo?: { overId: string; position: "above" | "below" | "inside" } | null;
+  searchMatchIds?: Set<string>;
+  isSearching?: boolean;
 }
 
 export function TaskTreeNode({
@@ -44,6 +46,8 @@ export function TaskTreeNode({
   selectedTaskId,
   sortMode = "manual",
   overInfo,
+  searchMatchIds,
+  isSearching,
 }: TaskTreeNodeProps) {
   const {
     nodes,
@@ -74,10 +78,13 @@ export function TaskTreeNode({
   });
 
   const rawChildren = getChildren(node.id);
-  const children = useMemo(
-    () => sortTaskNodes(rawChildren, sortMode),
-    [rawChildren, sortMode],
-  );
+  const children = useMemo(() => {
+    const sorted = sortTaskNodes(rawChildren, sortMode);
+    if (isSearching && searchMatchIds) {
+      return sorted.filter((c) => searchMatchIds.has(c.id));
+    }
+    return sorted;
+  }, [rawChildren, sortMode, isSearching, searchMatchIds]);
   const childIds = useMemo(() => children.map((c) => c.id), [children]);
   const isFolder = node.type === "folder";
   const isDone = node.type === "task" && node.status === "DONE";
@@ -265,7 +272,7 @@ export function TaskTreeNode({
         depth={depth}
       />
 
-      {isFolder && node.isExpanded && (
+      {isFolder && (node.isExpanded || isSearching) && (
         <SortableContext items={childIds}>
           <div>
             {children.map((child, index) => (
@@ -279,6 +286,8 @@ export function TaskTreeNode({
                 selectedTaskId={selectedTaskId}
                 sortMode={sortMode}
                 overInfo={overInfo}
+                searchMatchIds={searchMatchIds}
+                isSearching={isSearching}
               />
             ))}
           </div>

@@ -526,6 +526,11 @@
     "deleteTaskTitle": "Delete Task",
     "deleteTaskMessage": "Are you sure you want to delete this task?"
   },
+  "search": {
+    "placeholder": "Search tasks...",
+    "noResults": "No matching tasks",
+    "clear": "Clear search"
+  },
   "common": {
     "cancel": "Cancel",
     "ok": "OK",

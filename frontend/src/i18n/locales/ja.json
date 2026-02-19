@@ -526,6 +526,11 @@
     "deleteTaskTitle": "タスクを削除",
     "deleteTaskMessage": "このタスクを削除しますか？"
   },
+  "search": {
+    "placeholder": "タスクを検索...",
+    "noResults": "一致するタスクはありません",
+    "clear": "検索をクリア"
+  },
   "common": {
     "cancel": "キャンセル",
     "ok": "OK",

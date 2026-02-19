@@ -1,3 +1,4 @@
+import { useState, useCallback } from "react";
 import type { TaskNode } from "../../types/taskTree";
 import { TaskTree } from "./TaskTree";
 import { TaskTreeHeader } from "./TaskTree/TaskTreeHeader";
@@ -18,12 +19,29 @@ export function TaskTreeView({
   onFilterChange,
   onPlayTask,
 }: TaskTreeViewProps) {
+  const [searchQuery, setSearchQuery] = useState("");
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
+
+  const handleSearchOpen = useCallback(() => {
+    setIsSearchOpen(true);
+  }, []);
+
+  const handleSearchClose = useCallback(() => {
+    setSearchQuery("");
+    setIsSearchOpen(false);
+  }, []);
+
   return (
     <div className="h-full flex min-h-0">
       <div className="w-1/2 min-w-75 flex flex-col border-r border-notion-border">
         <TaskTreeHeader
           filterFolderId={filterFolderId}
           onFilterChange={onFilterChange}
+          searchQuery={searchQuery}
+          onSearchChange={setSearchQuery}
+          isSearchOpen={isSearchOpen}
+          onSearchOpen={handleSearchOpen}
+          onSearchClose={handleSearchClose}
         />
         <div className="flex-1 overflow-y-auto">
           <TaskTree
@@ -32,6 +50,7 @@ export function TaskTreeView({
             selectedTaskId={selectedTaskId}
             filterFolderId={filterFolderId}
             onFilterChange={onFilterChange}
+            searchQuery={searchQuery}
           />
         </div>
       </div>
