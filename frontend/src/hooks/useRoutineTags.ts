@@ -2,8 +2,10 @@ import { useState, useCallback, useEffect, useMemo } from "react";
 import type { RoutineTag } from "../types/routineTag";
 import { getDataService } from "../services";
 import { logServiceError } from "../utils/logError";
+import { useUndoRedo } from "../components/shared/UndoRedo";
 
 export function useRoutineTags() {
+  const { push } = useUndoRedo();
   const [routineTags, setRoutineTags] = useState<RoutineTag[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -40,6 +42,30 @@ export function useRoutineTags() {
         setRoutineTags((prev) =>
           prev.map((t) => (t.id === -1 && t.name === name ? tag : t)),
         );
+
+        push("routine", {
+          label: "createRoutineTag",
+          undo: async () => {
+            setRoutineTags((prev) => prev.filter((t) => t.id !== tag.id));
+            try {
+              await getDataService().deleteRoutineTag(tag.id);
+            } catch (e) {
+              logServiceError("RoutineTags", "undoCreate", e);
+            }
+          },
+          redo: async () => {
+            try {
+              const restored = await getDataService().createRoutineTag(
+                name,
+                color,
+              );
+              setRoutineTags((prev) => [...prev, restored]);
+            } catch (e) {
+              logServiceError("RoutineTags", "redoCreate", e);
+            }
+          },
+        });
+
         return tag;
       } catch (e) {
         logServiceError("RoutineTags", "create", e);
@@ -49,7 +75,7 @@ export function useRoutineTags() {
         throw e;
       }
     },
-    [routineTags.length],
+    [routineTags.length, push],
   );
 
   const updateRoutineTag = useCallback(
@@ -57,16 +83,48 @@ export function useRoutineTags() {
       id: number,
       updates: Partial<Pick<RoutineTag, "name" | "color" | "order">>,
     ) => {
-      setRoutineTags((prev) =>
-        prev.map((t) => (t.id === id ? { ...t, ...updates } : t)),
+      const prev = routineTags.find((t) => t.id === id);
+      setRoutineTags((p) =>
+        p.map((t) => (t.id === id ? { ...t, ...updates } : t)),
       );
       try {
         await getDataService().updateRoutineTag(id, updates);
       } catch (e) {
         logServiceError("RoutineTags", "update", e);
       }
+
+      if (prev) {
+        const prevValues: typeof updates = {};
+        if ("name" in updates) prevValues.name = prev.name;
+        if ("color" in updates) prevValues.color = prev.color;
+        if ("order" in updates) prevValues.order = prev.order;
+
+        push("routine", {
+          label: "updateRoutineTag",
+          undo: async () => {
+            setRoutineTags((p) =>
+              p.map((t) => (t.id === id ? { ...t, ...prevValues } : t)),
+            );
+            try {
+              await getDataService().updateRoutineTag(id, prevValues);
+            } catch (e) {
+              logServiceError("RoutineTags", "undoUpdate", e);
+            }
+          },
+          redo: async () => {
+            setRoutineTags((p) =>
+              p.map((t) => (t.id === id ? { ...t, ...updates } : t)),
+            );
+            try {
+              await getDataService().updateRoutineTag(id, updates);
+            } catch (e) {
+              logServiceError("RoutineTags", "redoUpdate", e);
+            }
+          },
+        });
+      }
     },
-    [],
+    [routineTags, push],
   );
 
   const deleteRoutineTag = useCallback(async (id: number) => {

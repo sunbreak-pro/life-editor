@@ -19,6 +19,7 @@ import { useAppCommands } from "./hooks/useAppCommands";
 import { useAppKeyboardShortcuts } from "./hooks/useAppKeyboardShortcuts";
 import { useElectronMenuActions } from "./hooks/useElectronMenuActions";
 import { useTaskDetailHandlers } from "./hooks/useTaskDetailHandlers";
+import { useUndoRedoKeyboard } from "./components/shared/UndoRedo";
 import { useNoteContext } from "./hooks/useNoteContext";
 
 import type { SectionId } from "./types/taskTree";
@@ -73,6 +74,8 @@ function App() {
     timer,
     layoutRef,
   });
+
+  useUndoRedoKeyboard();
 
   useAppKeyboardShortcuts({
     timer,

@@ -5,6 +5,7 @@ import "./i18n";
 import App from "./App.tsx";
 import { ErrorBoundary } from "./components/shared/ErrorBoundary";
 import { ThemeProvider } from "./context/ThemeContext";
+import { UndoRedoProvider } from "./components/shared/UndoRedo";
 import { TaskTreeProvider } from "./context/TaskTreeContext";
 import { MemoProvider } from "./context/MemoContext";
 import { TimerProvider } from "./context/TimerContext";
@@ -17,21 +18,23 @@ createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <ErrorBoundary>
       <ThemeProvider>
-        <TaskTreeProvider>
-          <CalendarProvider>
-            <MemoProvider>
-              <NoteProvider>
-                <ScheduleProvider>
-                  <TimerProvider>
-                    <AudioProvider>
-                      <App />
-                    </AudioProvider>
-                  </TimerProvider>
-                </ScheduleProvider>
-              </NoteProvider>
-            </MemoProvider>
-          </CalendarProvider>
-        </TaskTreeProvider>
+        <UndoRedoProvider>
+          <TaskTreeProvider>
+            <CalendarProvider>
+              <MemoProvider>
+                <NoteProvider>
+                  <ScheduleProvider>
+                    <TimerProvider>
+                      <AudioProvider>
+                        <App />
+                      </AudioProvider>
+                    </TimerProvider>
+                  </ScheduleProvider>
+                </NoteProvider>
+              </MemoProvider>
+            </CalendarProvider>
+          </TaskTreeProvider>
+        </UndoRedoProvider>
       </ThemeProvider>
     </ErrorBoundary>
   </StrictMode>,

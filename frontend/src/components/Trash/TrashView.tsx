@@ -16,7 +16,8 @@ import { useMemoContext } from "../../hooks/useMemoContext";
 import { useScheduleContext } from "../../hooks/useScheduleContext";
 import { getDataService } from "../../services";
 import { ConfirmDialog } from "../shared/ConfirmDialog";
-import { SectionTabs, type TabItem } from "../shared/SectionTabs";
+import type { TabItem } from "../shared/SectionTabs";
+import { SectionHeader } from "../shared/SectionHeader";
 import { LAYOUT } from "../../constants/layout";
 import type { CustomSoundMeta } from "../../types/customSound";
 import type { SoundDisplayMeta } from "../../types/sound";
@@ -318,18 +319,14 @@ export function TrashView() {
     <div
       className={`h-full flex flex-col ${LAYOUT.CONTENT_PX} ${LAYOUT.CONTENT_PT} ${LAYOUT.CONTENT_PB}`}
     >
-      <h2 className="text-2xl font-bold text-notion-text border-b border-notion-border mb-3 pb-3">
-        {t("trash.title")}
-      </h2>
-
-      <SectionTabs
+      <SectionHeader
+        title={t("trash.title")}
         tabs={TRASH_TABS}
         activeTab={activeTab}
         onTabChange={setActiveTab}
-        size="sm"
       />
 
-      <div className="flex-1 overflow-y-auto mt-3">
+      <div className="flex-1 overflow-y-auto">
         {activeTab === "tasks" && renderTasksTab()}
         {activeTab === "memo" && renderMemoTab()}
         {activeTab === "sounds" && renderSoundsTab()}

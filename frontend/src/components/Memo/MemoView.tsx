@@ -1,8 +1,9 @@
-import { useState } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { BookOpen, StickyNote } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { LAYOUT } from "../../constants/layout";
-import { SectionTabs, type TabItem } from "../shared/SectionTabs";
+import type { TabItem } from "../shared/SectionTabs";
+import { SectionHeader } from "../shared/SectionHeader";
 import { MemoDateList } from "./MemoDateList";
 import { DailyMemoView } from "./DailyMemoView";
 import { NoteList } from "./NoteList";
@@ -10,9 +11,15 @@ import { NotesView } from "./NotesView";
 import { useMemoContext } from "../../hooks/useMemoContext";
 import { getTodayKey } from "../../utils/dateKey";
 import { STORAGE_KEYS } from "../../constants/storageKeys";
-import { useCallback } from "react";
+import { UndoRedoButtons } from "../shared/UndoRedo";
+import type { UndoDomain } from "../shared/UndoRedo";
 
 type MemoTab = "daily" | "notes";
+
+const MEMO_TAB_DOMAIN_MAP: Record<MemoTab, UndoDomain> = {
+  daily: "memo",
+  notes: "note",
+};
 
 const MEMO_TABS: readonly TabItem<MemoTab>[] = [
   { id: "daily", labelKey: "memo.daily", icon: BookOpen },
@@ -52,21 +59,23 @@ export function MemoView() {
     [deleteMemo, selectedDate, setSelectedDate, todayKey],
   );
 
+  const currentDomain = MEMO_TAB_DOMAIN_MAP[activeTab];
+  const headerActions = useMemo(
+    () => <UndoRedoButtons domain={currentDomain} />,
+    [currentDomain],
+  );
+
   return (
     <div
       className={`h-full flex flex-col ${LAYOUT.CONTENT_PX} ${LAYOUT.CONTENT_PT} ${LAYOUT.CONTENT_PB}`}
     >
-      <div className="flex items-baseline gap-4 border-b border-notion-border mb-5">
-        <h2 className="text-2xl font-bold text-notion-text">
-          {t("memo.title")}
-        </h2>
-        <SectionTabs
-          tabs={MEMO_TABS}
-          activeTab={activeTab}
-          onTabChange={handleTabChange}
-          noBorder
-        />
-      </div>
+      <SectionHeader
+        title={t("memo.title")}
+        tabs={MEMO_TABS}
+        activeTab={activeTab}
+        onTabChange={handleTabChange}
+        actions={headerActions}
+      />
       <div className="flex-1 overflow-hidden flex">
         {activeTab === "daily" && (
           <>

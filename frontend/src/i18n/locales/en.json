@@ -542,7 +542,9 @@
     "confirm": "Confirm",
     "save": "Save",
     "close": "Close",
-    "comingSoon": "Coming Soon"
+    "comingSoon": "Coming Soon",
+    "undo": "Undo",
+    "redo": "Redo"
   },
   "tasks": {
     "title": "Tasks"

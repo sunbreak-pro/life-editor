@@ -4,6 +4,7 @@ import { getDataService } from "../services";
 import { STORAGE_KEYS } from "../constants/storageKeys";
 import { generateId } from "../utils/generateId";
 import { useLocalStorage } from "./useLocalStorage";
+import { useUndoRedo } from "../components/shared/UndoRedo";
 
 const nullableStringOptions = {
   serialize: (v: string | null) => v ?? "",
@@ -15,6 +16,7 @@ export function useCalendars() {
   const [activeCalendarId, setActiveCalendarId] = useLocalStorage<
     string | null
   >(STORAGE_KEYS.ACTIVE_CALENDAR_ID, null, nullableStringOptions);
+  const { push } = useUndoRedo();
 
   // Initial fetch
   useEffect(() => {
@@ -53,9 +55,26 @@ export function useCalendars() {
       const id = generateId("calendar");
       const cal = await getDataService().createCalendar(id, title, folderId);
       setCalendars((prev) => [...prev, cal]);
+
+      push("calendar", {
+        label: "createCalendar",
+        undo: async () => {
+          await getDataService().deleteCalendar(id);
+          setCalendars((prev) => prev.filter((c) => c.id !== id));
+        },
+        redo: async () => {
+          const restored = await getDataService().createCalendar(
+            id,
+            title,
+            folderId,
+          );
+          setCalendars((prev) => [...prev, restored]);
+        },
+      });
+
       return cal;
     },
-    [],
+    [push],
   );
 
   const updateCalendar = useCallback(
@@ -63,21 +82,66 @@ export function useCalendars() {
       id: string,
       updates: Partial<Pick<CalendarNode, "title" | "folderId" | "order">>,
     ) => {
+      const prev = calendars.find((c) => c.id === id);
       const updated = await getDataService().updateCalendar(id, updates);
-      setCalendars((prev) => prev.map((c) => (c.id === id ? updated : c)));
+      setCalendars((p) => p.map((c) => (c.id === id ? updated : c)));
+
+      if (prev) {
+        const prevValues: typeof updates = {};
+        if ("title" in updates) prevValues.title = prev.title;
+        if ("folderId" in updates) prevValues.folderId = prev.folderId;
+        if ("order" in updates) prevValues.order = prev.order;
+
+        push("calendar", {
+          label: "updateCalendar",
+          undo: async () => {
+            const restored = await getDataService().updateCalendar(
+              id,
+              prevValues,
+            );
+            setCalendars((p) => p.map((c) => (c.id === id ? restored : c)));
+          },
+          redo: async () => {
+            const reapplied = await getDataService().updateCalendar(
+              id,
+              updates,
+            );
+            setCalendars((p) => p.map((c) => (c.id === id ? reapplied : c)));
+          },
+        });
+      }
     },
-    [],
+    [calendars, push],
   );
 
   const deleteCalendar = useCallback(
     async (id: string) => {
+      const target = calendars.find((c) => c.id === id);
       await getDataService().deleteCalendar(id);
       setCalendars((prev) => prev.filter((c) => c.id !== id));
       if (activeCalendarId === id) {
         setActiveCalendarId(null);
       }
+
+      if (target) {
+        push("calendar", {
+          label: "deleteCalendar",
+          undo: async () => {
+            const restored = await getDataService().createCalendar(
+              target.id,
+              target.title,
+              target.folderId,
+            );
+            setCalendars((prev) => [...prev, restored]);
+          },
+          redo: async () => {
+            await getDataService().deleteCalendar(id);
+            setCalendars((prev) => prev.filter((c) => c.id !== id));
+          },
+        });
+      }
     },
-    [activeCalendarId, setActiveCalendarId],
+    [activeCalendarId, setActiveCalendarId, calendars, push],
   );
 
   const refreshCalendars = useCallback(async () => {

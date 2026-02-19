@@ -1,8 +1,10 @@
 import { useState, useCallback, useEffect, useMemo } from "react";
 import { getDataService } from "../services";
 import { logServiceError } from "../utils/logError";
+import { useUndoRedo } from "../components/shared/UndoRedo";
 
 export function useRoutineTagAssignments() {
+  const { push } = useUndoRedo();
   const [assignmentsMap, setAssignmentsMap] = useState<Map<string, number[]>>(
     new Map(),
   );
@@ -35,6 +37,8 @@ export function useRoutineTagAssignments() {
 
   const setTagsForRoutine = useCallback(
     (routineId: string, tagIds: number[]) => {
+      const prevTagIds = assignmentsMap.get(routineId) ?? [];
+
       // Optimistic update
       setAssignmentsMap((prev) => {
         const next = new Map(prev);
@@ -48,8 +52,44 @@ export function useRoutineTagAssignments() {
       getDataService()
         .setTagsForRoutine(routineId, tagIds)
         .catch((e) => logServiceError("RoutineTagAssignments", "setTags", e));
+
+      push("routine", {
+        label: "setTagsForRoutine",
+        undo: () => {
+          setAssignmentsMap((prev) => {
+            const next = new Map(prev);
+            if (prevTagIds.length === 0) {
+              next.delete(routineId);
+            } else {
+              next.set(routineId, prevTagIds);
+            }
+            return next;
+          });
+          getDataService()
+            .setTagsForRoutine(routineId, prevTagIds)
+            .catch((e) =>
+              logServiceError("RoutineTagAssignments", "undoSetTags", e),
+            );
+        },
+        redo: () => {
+          setAssignmentsMap((prev) => {
+            const next = new Map(prev);
+            if (tagIds.length === 0) {
+              next.delete(routineId);
+            } else {
+              next.set(routineId, tagIds);
+            }
+            return next;
+          });
+          getDataService()
+            .setTagsForRoutine(routineId, tagIds)
+            .catch((e) =>
+              logServiceError("RoutineTagAssignments", "redoSetTags", e),
+            );
+        },
+      });
     },
-    [],
+    [assignmentsMap, push],
   );
 
   const getTagIdsForRoutine = useCallback(

@@ -17,7 +17,8 @@ import { computeSummary } from "../../utils/analyticsAggregation";
 import { WorkTimeChart } from "./WorkTimeChart";
 import { TaskWorkTimeChart } from "./TaskWorkTimeChart";
 import { PeriodSelector, type Period } from "./PeriodSelector";
-import { SectionTabs, type TabItem } from "../shared/SectionTabs";
+import type { TabItem } from "../shared/SectionTabs";
+import { SectionHeader } from "../shared/SectionHeader";
 
 type AnalyticsTab = "overview" | "detail";
 
@@ -90,17 +91,12 @@ export function AnalyticsView() {
     <div
       className={`h-full flex flex-col ${LAYOUT.CONTENT_PX} ${LAYOUT.CONTENT_PT} ${LAYOUT.CONTENT_PB}`}
     >
-      <div className="flex items-baseline gap-4 border-b border-notion-border mb-5">
-        <h2 className="text-2xl font-bold text-notion-text">
-          {t("analytics.title")}
-        </h2>
-        <SectionTabs
-          tabs={ANALYTICS_TABS}
-          activeTab={activeTab}
-          onTabChange={setActiveTab}
-          noBorder
-        />
-      </div>
+      <SectionHeader
+        title={t("analytics.title")}
+        tabs={ANALYTICS_TABS}
+        activeTab={activeTab}
+        onTabChange={setActiveTab}
+      />
       <div className="flex-1 overflow-y-auto">
         {activeTab === "overview" ? (
           <div className="max-w-3xl mx-auto w-full">

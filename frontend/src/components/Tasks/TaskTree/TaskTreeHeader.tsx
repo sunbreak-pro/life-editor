@@ -1,10 +1,11 @@
 import { useEffect } from "react";
-import { Undo2, Redo2, ChevronDown, Search } from "lucide-react";
+import { ChevronDown, Search } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useTaskTreeContext } from "../../../hooks/useTaskTreeContext";
 import { flattenFolders } from "../../../utils/flattenFolders";
 import { FolderDropdown } from "../Folder/FolderDropdown";
 import { SearchInput } from "../../shared/SearchInput";
+import { UndoRedoButtons } from "../../shared/UndoRedo";
 
 interface TaskTreeHeaderProps {
   filterFolderId: string | null;
@@ -26,7 +27,7 @@ export function TaskTreeHeader({
   onSearchClose,
 }: TaskTreeHeaderProps) {
   const { t } = useTranslation();
-  const { nodes, undo, redo, canUndo, canRedo } = useTaskTreeContext();
+  const { nodes } = useTaskTreeContext();
 
   const folders = flattenFolders(nodes);
   const activeFolder = folders.find((f) => f.id === filterFolderId);
@@ -77,30 +78,7 @@ export function TaskTreeHeader({
           >
             <Search size={16} />
           </button>
-          <button
-            onClick={undo}
-            disabled={!canUndo}
-            className={`p-1.5 rounded transition-colors ${
-              canUndo
-                ? "text-notion-text-secondary hover:text-notion-text hover:bg-notion-hover"
-                : "opacity-30 cursor-default"
-            }`}
-            title={t("taskTree.undo")}
-          >
-            <Undo2 size={16} />
-          </button>
-          <button
-            onClick={redo}
-            disabled={!canRedo}
-            className={`p-1.5 rounded transition-colors ${
-              canRedo
-                ? "text-notion-text-secondary hover:text-notion-text hover:bg-notion-hover"
-                : "opacity-30 cursor-default"
-            }`}
-            title={t("taskTree.redo")}
-          >
-            <Redo2 size={16} />
-          </button>
+          <UndoRedoButtons domain="taskTree" />
         </div>
       </div>
 

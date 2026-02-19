@@ -3,8 +3,10 @@ import type { RoutineNode } from "../types/routine";
 import { getDataService } from "../services";
 import { logServiceError } from "../utils/logError";
 import { generateId } from "../utils/generateId";
+import { useUndoRedo } from "../components/shared/UndoRedo";
 
 export function useRoutines() {
+  const { push } = useUndoRedo();
   const [routines, setRoutines] = useState<RoutineNode[]>([]);
   const [deletedRoutines, setDeletedRoutines] = useState<RoutineNode[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -48,9 +50,26 @@ export function useRoutines() {
       getDataService()
         .createRoutine(id, title, startTime, endTime)
         .catch((e) => logServiceError("Routines", "create", e));
+
+      push("routine", {
+        label: "createRoutine",
+        undo: () => {
+          setRoutines((prev) => prev.filter((r) => r.id !== id));
+          getDataService()
+            .softDeleteRoutine(id)
+            .catch((e) => logServiceError("Routines", "undoCreate", e));
+        },
+        redo: () => {
+          setRoutines((prev) => [...prev, optimistic]);
+          getDataService()
+            .restoreRoutine(id)
+            .catch((e) => logServiceError("Routines", "redoCreate", e));
+        },
+      });
+
       return id;
     },
-    [routines.length],
+    [routines.length, push],
   );
 
   const updateRoutine = useCallback(
@@ -63,8 +82,9 @@ export function useRoutines() {
         >
       >,
     ) => {
-      setRoutines((prev) =>
-        prev.map((r) =>
+      const prev = routines.find((r) => r.id === id);
+      setRoutines((p) =>
+        p.map((r) =>
           r.id === id
             ? { ...r, ...updates, updatedAt: new Date().toISOString() }
             : r,
@@ -73,8 +93,42 @@ export function useRoutines() {
       getDataService()
         .updateRoutine(id, updates)
         .catch((e) => logServiceError("Routines", "update", e));
+
+      if (prev) {
+        const prevValues: typeof updates = {};
+        for (const key of Object.keys(updates) as Array<keyof typeof updates>) {
+          (prevValues as Record<string, unknown>)[key] = prev[key];
+        }
+        push("routine", {
+          label: "updateRoutine",
+          undo: () => {
+            setRoutines((p) =>
+              p.map((r) =>
+                r.id === id
+                  ? { ...r, ...prevValues, updatedAt: new Date().toISOString() }
+                  : r,
+              ),
+            );
+            getDataService()
+              .updateRoutine(id, prevValues)
+              .catch((e) => logServiceError("Routines", "undoUpdate", e));
+          },
+          redo: () => {
+            setRoutines((p) =>
+              p.map((r) =>
+                r.id === id
+                  ? { ...r, ...updates, updatedAt: new Date().toISOString() }
+                  : r,
+              ),
+            );
+            getDataService()
+              .updateRoutine(id, updates)
+              .catch((e) => logServiceError("Routines", "redoUpdate", e));
+          },
+        });
+      }
     },
-    [],
+    [routines, push],
   );
 
   const deleteRoutine = useCallback((id: string) => {

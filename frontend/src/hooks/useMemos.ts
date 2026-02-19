@@ -3,6 +3,7 @@ import type { MemoNode } from "../types/memo";
 import { getDataService } from "../services";
 import { logServiceError } from "../utils/logError";
 import { formatDateKey } from "../utils/dateKey";
+import { useUndoRedo } from "../components/shared/UndoRedo";
 
 export function useMemos() {
   const [memos, setMemos] = useState<MemoNode[]>([]);
@@ -10,6 +11,7 @@ export function useMemos() {
   const [selectedDate, setSelectedDate] = useState<string>(
     formatDateKey(new Date()),
   );
+  const { push } = useUndoRedo();
 
   // Load from DataService on mount
   useEffect(() => {
@@ -29,47 +31,89 @@ export function useMemos() {
     };
   }, []);
 
-  const upsertMemo = useCallback((date: string, content: string) => {
-    setMemos((prev) => {
-      const existing = prev.find((m) => m.date === date);
-      const now = new Date().toISOString();
-      if (existing) {
-        return prev.map((m) =>
-          m.date === date ? { ...m, content, updatedAt: now } : m,
-        );
-      } else {
-        const newMemo: MemoNode = {
-          id: `memo-${date}`,
-          date,
-          content,
-          createdAt: now,
-          updatedAt: now,
-        };
-        return [newMemo, ...prev];
-      }
-    });
-    getDataService()
-      .upsertMemo(date, content)
-      .catch((e) => logServiceError("Memo", "sync", e));
-  }, []);
+  const upsertMemo = useCallback(
+    (date: string, content: string) => {
+      setMemos((prev) => {
+        const existing = prev.find((m) => m.date === date);
+        const now = new Date().toISOString();
+        if (existing) {
+          // Content update — silent (TipTap handles undo)
+          return prev.map((m) =>
+            m.date === date ? { ...m, content, updatedAt: now } : m,
+          );
+        } else {
+          const newMemo: MemoNode = {
+            id: `memo-${date}`,
+            date,
+            content,
+            createdAt: now,
+            updatedAt: now,
+          };
+          // Push undo command for new memo creation
+          push("memo", {
+            label: "createMemo",
+            undo: () => {
+              setMemos((p) => p.filter((m) => m.date !== date));
+              getDataService()
+                .deleteMemo(date)
+                .catch((e) => logServiceError("Memo", "undoCreate", e));
+            },
+            redo: () => {
+              setMemos((p) => [newMemo, ...p]);
+              getDataService()
+                .upsertMemo(date, content)
+                .catch((e) => logServiceError("Memo", "redoCreate", e));
+            },
+          });
+          return [newMemo, ...prev];
+        }
+      });
+      getDataService()
+        .upsertMemo(date, content)
+        .catch((e) => logServiceError("Memo", "sync", e));
+    },
+    [push],
+  );
 
-  const deleteMemo = useCallback((date: string) => {
-    setMemos((prev) => {
-      const target = prev.find((m) => m.date === date);
-      if (target) {
-        const deleted: MemoNode = {
-          ...target,
-          isDeleted: true,
-          deletedAt: new Date().toISOString(),
-        };
-        setDeletedMemos((d) => [deleted, ...d]);
-      }
-      return prev.filter((m) => m.date !== date);
-    });
-    getDataService()
-      .deleteMemo(date)
-      .catch((e) => logServiceError("Memo", "delete", e));
-  }, []);
+  const deleteMemo = useCallback(
+    (date: string) => {
+      setMemos((prev) => {
+        const target = prev.find((m) => m.date === date);
+        if (target) {
+          const deleted: MemoNode = {
+            ...target,
+            isDeleted: true,
+            deletedAt: new Date().toISOString(),
+          };
+          setDeletedMemos((d) => [deleted, ...d]);
+
+          // Push undo command
+          push("memo", {
+            label: "deleteMemo",
+            undo: () => {
+              setMemos((p) => [target, ...p]);
+              setDeletedMemos((d) => d.filter((m) => m.date !== date));
+              getDataService()
+                .restoreMemo(date)
+                .catch((e) => logServiceError("Memo", "undoDelete", e));
+            },
+            redo: () => {
+              setMemos((p) => p.filter((m) => m.date !== date));
+              setDeletedMemos((d) => [deleted, ...d]);
+              getDataService()
+                .deleteMemo(date)
+                .catch((e) => logServiceError("Memo", "redoDelete", e));
+            },
+          });
+        }
+        return prev.filter((m) => m.date !== date);
+      });
+      getDataService()
+        .deleteMemo(date)
+        .catch((e) => logServiceError("Memo", "delete", e));
+    },
+    [push],
+  );
 
   const loadDeletedMemos = useCallback(async () => {
     try {

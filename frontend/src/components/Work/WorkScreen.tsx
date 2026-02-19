@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { CheckCircle2, Music, SkipForward, Timer, Clock } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useTimerContext } from "../../hooks/useTimerContext";
@@ -6,6 +6,7 @@ import { useAudioContext } from "../../hooks/useAudioContext";
 import { getDataService } from "../../services";
 import { LAYOUT } from "../../constants/layout";
 import { SectionTabs, type TabItem } from "../shared/SectionTabs";
+import { UndoRedoButtons } from "../shared/UndoRedo";
 import { TimerDisplay } from "./TimerDisplay";
 import { TimerProgressBar } from "./TimerProgressBar";
 import { TaskSelector } from "./TaskSelector";
@@ -107,6 +108,11 @@ export function WorkScreen({ onCompleteTask }: WorkScreenProps) {
             onTabChange={setActiveTab}
             noBorder
           />
+          {activeTab === "music" && (
+            <div className="ml-auto flex items-center">
+              <UndoRedoButtons domain="playlist" />
+            </div>
+          )}
         </div>
 
         <div className="flex-1 overflow-y-auto">

@@ -4,6 +4,15 @@
 
 ---
 
+## グローバル Undo/Redo システム (2026-02-19)
+
+- **コアインフラ**: `shared/UndoRedo/` に7ファイル新規作成（types, UndoRedoManager, UndoRedoContext, useUndoRedo, useUndoRedoKeyboard, UndoRedoButtons, index）
+- **8ドメイン対応**: taskTree / memo / note / calendar / routine / scheduleItem / playlist / sound
+- **変更ファイル**: ~20ファイル（hooks 10、コンポーネント 6、Context 2、i18n 2）
+- **テスト**: UndoRedoManager ユニットテスト9件追加
+
+---
+
 ## Calendar + Routine → Schedule 統合 (2026-02-16)
 
 - **Schedule セクション統合**: Calendar と Routine を Schedule に統合、SectionId `"routine"` 削除 + `"calendar"` → `"schedule"`

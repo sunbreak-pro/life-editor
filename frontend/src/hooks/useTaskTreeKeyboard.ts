@@ -10,8 +10,6 @@ interface UseTaskTreeKeyboardParams {
   toggleTaskStatus: (id: string) => void;
   moveNodeInto: (nodeId: string, targetId: string) => void;
   moveToRoot: (id: string) => void;
-  undo: () => void;
-  redo: () => void;
 }
 
 export function useTaskTreeKeyboard({
@@ -23,8 +21,6 @@ export function useTaskTreeKeyboard({
   toggleTaskStatus,
   moveNodeInto,
   moveToRoot,
-  undo,
-  redo,
 }: UseTaskTreeKeyboardParams) {
   const indentNode = useCallback(
     (nodeId: string) => {
@@ -66,16 +62,6 @@ export function useTaskTreeKeyboard({
       if (tag === "INPUT" || tag === "TEXTAREA") return;
       if (el?.getAttribute("contenteditable") === "true") return;
       if (el?.closest?.('[contenteditable="true"]')) return;
-
-      if ((e.metaKey || e.ctrlKey) && e.key === "z") {
-        e.preventDefault();
-        if (e.shiftKey) {
-          redo();
-        } else {
-          undo();
-        }
-        return;
-      }
 
       if (e.key === "ArrowDown") {
         e.preventDefault();
@@ -159,7 +145,5 @@ export function useTaskTreeKeyboard({
     toggleTaskStatus,
     indentNode,
     outdentNode,
-    undo,
-    redo,
   ]);
 }

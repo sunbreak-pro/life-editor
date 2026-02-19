@@ -1,15 +1,23 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import type { TaskNode } from "../../types/taskTree";
 import type { TabItem } from "../shared/SectionTabs";
-import { SectionTabs } from "../shared/SectionTabs";
+import { SectionHeader } from "../shared/SectionHeader";
 import { LAYOUT } from "../../constants/layout";
 import { TaskTreeView } from "./TaskTreeView";
 import { ScheduleTabView } from "./ScheduleTabView";
 import { RoutinesTab } from "./Schedule/Routine/RoutinesTab";
 import { useScheduleContext } from "../../hooks/useScheduleContext";
+import { UndoRedoButtons } from "../shared/UndoRedo";
+import type { UndoDomain } from "../shared/UndoRedo";
 
 type TopTab = "tasks" | "schedule" | "routine";
+
+const TAB_DOMAIN_MAP: Record<TopTab, UndoDomain | null> = {
+  tasks: "taskTree",
+  schedule: "scheduleItem",
+  routine: "routine",
+};
 
 const TOP_TABS: readonly TabItem<TopTab>[] = [
   { id: "tasks", labelKey: "tabs.taskTree" },
@@ -66,21 +74,23 @@ export function TasksLayout({
     refreshRoutineStats,
   } = useScheduleContext();
 
+  const currentDomain = TAB_DOMAIN_MAP[topTab];
+  const headerActions = useMemo(
+    () => (currentDomain ? <UndoRedoButtons domain={currentDomain} /> : null),
+    [currentDomain],
+  );
+
   return (
     <div
       className={`h-full flex flex-col ${LAYOUT.CONTENT_PX} ${LAYOUT.CONTENT_PT} ${LAYOUT.CONTENT_PB}`}
     >
-      <div className="flex items-baseline gap-4 border-b border-notion-border mb-5">
-        <h2 className="text-2xl font-bold text-notion-text">
-          {t("tasks.title")}
-        </h2>
-        <SectionTabs
-          tabs={TOP_TABS}
-          activeTab={topTab}
-          onTabChange={setTopTab}
-          noBorder
-        />
-      </div>
+      <SectionHeader
+        title={t("tasks.title")}
+        tabs={TOP_TABS}
+        activeTab={topTab}
+        onTabChange={setTopTab}
+        actions={headerActions}
+      />
       <div className="flex-1 min-h-0">
         {topTab === "tasks" ? (
           <TaskTreeView

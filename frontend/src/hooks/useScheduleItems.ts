@@ -4,6 +4,7 @@ import type { RoutineNode } from "../types/routine";
 import { getDataService } from "../services";
 import { logServiceError } from "../utils/logError";
 import { generateId } from "../utils/generateId";
+import { useUndoRedo } from "../components/shared/UndoRedo";
 
 function formatDate(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
@@ -156,6 +157,7 @@ export function useScheduleItems() {
     () =>
       `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, "0")}-${String(new Date().getDate()).padStart(2, "0")}`,
   );
+  const { push } = useUndoRedo();
 
   const loadItemsForDate = useCallback(async (date: string) => {
     try {
@@ -191,9 +193,30 @@ export function useScheduleItems() {
       getDataService()
         .createScheduleItem(id, date, title, startTime, endTime)
         .catch((e) => logServiceError("ScheduleItems", "create", e));
+
+      push("scheduleItem", {
+        label: "createScheduleItem",
+        undo: () => {
+          setScheduleItems((prev) => prev.filter((item) => item.id !== id));
+          getDataService()
+            .deleteScheduleItem(id)
+            .catch((e) => logServiceError("ScheduleItems", "undoCreate", e));
+        },
+        redo: () => {
+          setScheduleItems((prev) =>
+            [...prev, optimistic].sort((a, b) =>
+              a.startTime.localeCompare(b.startTime),
+            ),
+          );
+          getDataService()
+            .createScheduleItem(id, date, title, startTime, endTime)
+            .catch((e) => logServiceError("ScheduleItems", "redoCreate", e));
+        },
+      });
+
       return id;
     },
-    [],
+    [push],
   );
 
   const updateScheduleItem = useCallback(
@@ -206,8 +229,9 @@ export function useScheduleItems() {
         >
       >,
     ) => {
-      setScheduleItems((prev) =>
-        prev.map((item) =>
+      const prev = scheduleItems.find((item) => item.id === id);
+      setScheduleItems((p) =>
+        p.map((item) =>
           item.id === id
             ? { ...item, ...updates, updatedAt: new Date().toISOString() }
             : item,
@@ -216,33 +240,151 @@ export function useScheduleItems() {
       getDataService()
         .updateScheduleItem(id, updates)
         .catch((e) => logServiceError("ScheduleItems", "update", e));
+
+      if (prev) {
+        const prevValues: typeof updates = {};
+        for (const key of Object.keys(updates) as Array<keyof typeof updates>) {
+          (prevValues as Record<string, unknown>)[key] = prev[key];
+        }
+        push("scheduleItem", {
+          label: "updateScheduleItem",
+          undo: () => {
+            setScheduleItems((p) =>
+              p.map((item) =>
+                item.id === id
+                  ? {
+                      ...item,
+                      ...prevValues,
+                      updatedAt: new Date().toISOString(),
+                    }
+                  : item,
+              ),
+            );
+            getDataService()
+              .updateScheduleItem(id, prevValues)
+              .catch((e) => logServiceError("ScheduleItems", "undoUpdate", e));
+          },
+          redo: () => {
+            setScheduleItems((p) =>
+              p.map((item) =>
+                item.id === id
+                  ? {
+                      ...item,
+                      ...updates,
+                      updatedAt: new Date().toISOString(),
+                    }
+                  : item,
+              ),
+            );
+            getDataService()
+              .updateScheduleItem(id, updates)
+              .catch((e) => logServiceError("ScheduleItems", "redoUpdate", e));
+          },
+        });
+      }
     },
-    [],
+    [scheduleItems, push],
   );
 
-  const deleteScheduleItem = useCallback((id: string) => {
-    setScheduleItems((prev) => prev.filter((item) => item.id !== id));
-    getDataService()
-      .deleteScheduleItem(id)
-      .catch((e) => logServiceError("ScheduleItems", "delete", e));
-  }, []);
+  const deleteScheduleItem = useCallback(
+    (id: string) => {
+      const target = scheduleItems.find((item) => item.id === id);
+      setScheduleItems((prev) => prev.filter((item) => item.id !== id));
+      getDataService()
+        .deleteScheduleItem(id)
+        .catch((e) => logServiceError("ScheduleItems", "delete", e));
 
-  const toggleComplete = useCallback((id: string) => {
-    setScheduleItems((prev) =>
-      prev.map((item) =>
-        item.id === id
-          ? {
-              ...item,
-              completed: !item.completed,
-              completedAt: !item.completed ? new Date().toISOString() : null,
-            }
-          : item,
-      ),
-    );
-    getDataService()
-      .toggleScheduleItemComplete(id)
-      .catch((e) => logServiceError("ScheduleItems", "toggleComplete", e));
-  }, []);
+      if (target) {
+        push("scheduleItem", {
+          label: "deleteScheduleItem",
+          undo: () => {
+            setScheduleItems((prev) =>
+              [...prev, target].sort((a, b) =>
+                a.startTime.localeCompare(b.startTime),
+              ),
+            );
+            getDataService()
+              .createScheduleItem(
+                target.id,
+                target.date,
+                target.title,
+                target.startTime,
+                target.endTime,
+              )
+              .catch((e) => logServiceError("ScheduleItems", "undoDelete", e));
+          },
+          redo: () => {
+            setScheduleItems((prev) => prev.filter((item) => item.id !== id));
+            getDataService()
+              .deleteScheduleItem(id)
+              .catch((e) => logServiceError("ScheduleItems", "redoDelete", e));
+          },
+        });
+      }
+    },
+    [scheduleItems, push],
+  );
+
+  const toggleComplete = useCallback(
+    (id: string) => {
+      const item = scheduleItems.find((i) => i.id === id);
+      const wasCompleted = item?.completed ?? false;
+
+      setScheduleItems((prev) =>
+        prev.map((item) =>
+          item.id === id
+            ? {
+                ...item,
+                completed: !item.completed,
+                completedAt: !item.completed ? new Date().toISOString() : null,
+              }
+            : item,
+        ),
+      );
+      getDataService()
+        .toggleScheduleItemComplete(id)
+        .catch((e) => logServiceError("ScheduleItems", "toggleComplete", e));
+
+      push("scheduleItem", {
+        label: "toggleComplete",
+        undo: () => {
+          setScheduleItems((prev) =>
+            prev.map((i) =>
+              i.id === id
+                ? {
+                    ...i,
+                    completed: wasCompleted,
+                    completedAt: wasCompleted ? i.completedAt : null,
+                  }
+                : i,
+            ),
+          );
+          getDataService()
+            .toggleScheduleItemComplete(id)
+            .catch((e) => logServiceError("ScheduleItems", "undoToggle", e));
+        },
+        redo: () => {
+          setScheduleItems((prev) =>
+            prev.map((i) =>
+              i.id === id
+                ? {
+                    ...i,
+                    completed: !wasCompleted,
+                    completedAt: !wasCompleted
+                      ? new Date().toISOString()
+                      : null,
+                  }
+                : i,
+            ),
+          );
+          getDataService()
+            .toggleScheduleItemComplete(id)
+            .catch((e) => logServiceError("ScheduleItems", "redoToggle", e));
+        },
+      });
+    },
+    [scheduleItems, push],
+  );
 
   const ensureRoutineItemsForDate = useCallback(
     async (

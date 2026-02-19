@@ -74,8 +74,6 @@ export function TaskTree({
     moveToRoot,
     toggleExpanded,
     toggleTaskStatus,
-    undo,
-    redo,
   } = useTaskTreeContext();
 
   const [showCompleted, setShowCompleted] = useState(false);
@@ -238,8 +236,6 @@ export function TaskTree({
     toggleTaskStatus,
     moveNodeInto,
     moveToRoot,
-    undo,
-    redo,
   });
 
   return (

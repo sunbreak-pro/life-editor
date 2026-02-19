@@ -542,7 +542,9 @@
     "confirm": "確認",
     "save": "保存",
     "close": "閉じる",
-    "comingSoon": "Coming Soon"
+    "comingSoon": "Coming Soon",
+    "undo": "元に戻す",
+    "redo": "やり直す"
   },
   "tasks": {
     "title": "Tasks"
