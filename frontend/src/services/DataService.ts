@@ -116,6 +116,9 @@ export interface DataService {
   fetchMemoByDate(date: string): Promise<MemoNode | null>;
   upsertMemo(date: string, content: string): Promise<MemoNode>;
   deleteMemo(date: string): Promise<void>;
+  fetchDeletedMemos(): Promise<MemoNode[]>;
+  restoreMemo(date: string): Promise<void>;
+  permanentDeleteMemo(date: string): Promise<void>;
 
   // Notes
   fetchAllNotes(): Promise<NoteNode[]>;
@@ -195,6 +198,10 @@ export interface DataService {
     >,
   ): Promise<RoutineNode>;
   deleteRoutine(id: string): Promise<void>;
+  fetchDeletedRoutines(): Promise<RoutineNode[]>;
+  softDeleteRoutine(id: string): Promise<void>;
+  restoreRoutine(id: string): Promise<void>;
+  permanentDeleteRoutine(id: string): Promise<void>;
 
   // Schedule Items
   fetchScheduleItemsByDate(date: string): Promise<ScheduleItem[]>;

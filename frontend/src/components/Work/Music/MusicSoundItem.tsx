@@ -39,7 +39,6 @@ export function MusicSoundItem({
   const displayName = soundTagState.getDisplayName(soundId) || defaultLabel;
   const [isEditing, setIsEditing] = useState(false);
   const [editValue, setEditValue] = useState(displayName);
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -199,7 +198,7 @@ export function MusicSoundItem({
         {/* Delete (custom only) */}
         {isCustom && (
           <button
-            onClick={() => setShowDeleteConfirm(true)}
+            onClick={() => audio.removeSound(soundId)}
             className="p-1 rounded text-notion-text-secondary hover:text-notion-danger hover:bg-notion-hover transition-colors"
             title={t("common.delete")}
           >
@@ -207,41 +206,6 @@ export function MusicSoundItem({
           </button>
         )}
       </div>
-
-      {/* Delete confirmation dialog */}
-      {showDeleteConfirm && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center"
-          onClick={() => setShowDeleteConfirm(false)}
-        >
-          <div className="absolute inset-0 bg-black/40" />
-          <div
-            className="relative z-10 bg-notion-bg rounded-lg border border-notion-border shadow-xl p-5 max-w-sm mx-4"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <p className="text-sm text-notion-text mb-4">
-              {t("music.deleteConfirm", { name: displayName })}
-            </p>
-            <div className="flex justify-end gap-2">
-              <button
-                onClick={() => setShowDeleteConfirm(false)}
-                className="px-3 py-1.5 text-sm text-notion-text-secondary hover:text-notion-text rounded-md hover:bg-notion-hover transition-colors"
-              >
-                {t("common.cancel")}
-              </button>
-              <button
-                onClick={() => {
-                  audio.removeSound(soundId);
-                  setShowDeleteConfirm(false);
-                }}
-                className="px-3 py-1.5 text-sm text-white bg-red-500 hover:bg-red-600 rounded-md transition-colors"
-              >
-                {t("common.delete")}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

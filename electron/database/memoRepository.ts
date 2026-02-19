@@ -1,10 +1,12 @@
-import type Database from 'better-sqlite3';
-import type { MemoNode } from '../types';
+import type Database from "better-sqlite3";
+import type { MemoNode } from "../types";
 
 interface MemoRow {
   id: string;
   date: string;
   content: string;
+  is_deleted: number;
+  deleted_at: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -14,6 +16,8 @@ function rowToNode(row: MemoRow): MemoNode {
     id: row.id,
     date: row.date,
     content: row.content,
+    isDeleted: row.is_deleted === 1,
+    deletedAt: row.deleted_at,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -21,7 +25,9 @@ function rowToNode(row: MemoRow): MemoNode {
 
 export function createMemoRepository(db: Database.Database) {
   const stmts = {
-    fetchAll: db.prepare(`SELECT * FROM memos ORDER BY date DESC`),
+    fetchAll: db.prepare(
+      `SELECT * FROM memos WHERE is_deleted = 0 ORDER BY date DESC`,
+    ),
     fetchByDate: db.prepare(`SELECT * FROM memos WHERE date = ?`),
     upsert: db.prepare(`
       INSERT INTO memos (id, date, content, created_at, updated_at)
@@ -29,7 +35,18 @@ export function createMemoRepository(db: Database.Database) {
       ON CONFLICT(date) DO UPDATE SET
         content = @content, updated_at = datetime('now')
     `),
-    delete: db.prepare(`DELETE FROM memos WHERE date = ?`),
+    softDelete: db.prepare(
+      `UPDATE memos SET is_deleted = 1, deleted_at = datetime('now'), updated_at = datetime('now') WHERE date = ?`,
+    ),
+    fetchDeleted: db.prepare(
+      `SELECT * FROM memos WHERE is_deleted = 1 ORDER BY deleted_at DESC`,
+    ),
+    restore: db.prepare(
+      `UPDATE memos SET is_deleted = 0, deleted_at = NULL, updated_at = datetime('now') WHERE date = ?`,
+    ),
+    permanentDelete: db.prepare(
+      `DELETE FROM memos WHERE date = ? AND is_deleted = 1`,
+    ),
   };
 
   return {
@@ -50,7 +67,19 @@ export function createMemoRepository(db: Database.Database) {
     },
 
     delete(date: string): void {
-      stmts.delete.run(date);
+      stmts.softDelete.run(date);
+    },
+
+    fetchDeleted(): MemoNode[] {
+      return (stmts.fetchDeleted.all() as MemoRow[]).map(rowToNode);
+    },
+
+    restore(date: string): void {
+      stmts.restore.run(date);
+    },
+
+    permanentDelete(date: string): void {
+      stmts.permanentDelete.run(date);
     },
   };
 }

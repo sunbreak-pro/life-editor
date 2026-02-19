@@ -76,8 +76,16 @@
     "deletePermanently": "Delete permanently",
     "task": "task",
     "note": "note",
-    "sounds": "Custom Sounds",
+    "sounds": "Sounds",
     "sound": "sound",
+    "tabTasks": "Tasks",
+    "tabMemo": "Memo",
+    "tabSounds": "Sounds",
+    "folders": "Folders",
+    "routines": "Routines",
+    "routine": "routine",
+    "daily": "Daily",
+    "memo": "memo",
     "permanentDeleteConfirm": "Permanently delete \"{{name}}\"? This cannot be undone."
   },
   "updates": {

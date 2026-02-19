@@ -28,4 +28,23 @@ export function registerMemoHandlers(repo: MemoRepository): void {
       repo.delete(date),
     ),
   );
+
+  ipcMain.handle(
+    "db:memo:fetchDeleted",
+    loggedHandler("Memo", "fetchDeleted", () => repo.fetchDeleted()),
+  );
+
+  ipcMain.handle(
+    "db:memo:restore",
+    loggedHandler("Memo", "restore", (_event, date: string) =>
+      repo.restore(date),
+    ),
+  );
+
+  ipcMain.handle(
+    "db:memo:permanentDelete",
+    loggedHandler("Memo", "permanentDelete", (_event, date: string) =>
+      repo.permanentDelete(date),
+    ),
+  );
 }

@@ -6,6 +6,7 @@ import { generateId } from "../utils/generateId";
 
 export function useRoutines() {
   const [routines, setRoutines] = useState<RoutineNode[]>([]);
+  const [deletedRoutines, setDeletedRoutines] = useState<RoutineNode[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -37,6 +38,8 @@ export function useRoutines() {
         startTime: startTime ?? null,
         endTime: endTime ?? null,
         isArchived: false,
+        isDeleted: false,
+        deletedAt: null,
         order: routines.length,
         createdAt: now,
         updatedAt: now,
@@ -75,20 +78,79 @@ export function useRoutines() {
   );
 
   const deleteRoutine = useCallback((id: string) => {
-    setRoutines((prev) => prev.filter((r) => r.id !== id));
+    setRoutines((prev) => {
+      const target = prev.find((r) => r.id === id);
+      if (target) {
+        const deleted: RoutineNode = {
+          ...target,
+          isDeleted: true,
+          deletedAt: new Date().toISOString(),
+        };
+        setDeletedRoutines((d) => [deleted, ...d]);
+      }
+      return prev.filter((r) => r.id !== id);
+    });
     getDataService()
-      .deleteRoutine(id)
-      .catch((e) => logServiceError("Routines", "delete", e));
+      .softDeleteRoutine(id)
+      .catch((e) => logServiceError("Routines", "softDelete", e));
+  }, []);
+
+  const loadDeletedRoutines = useCallback(async () => {
+    try {
+      const data = await getDataService().fetchDeletedRoutines();
+      setDeletedRoutines(data);
+    } catch (e) {
+      logServiceError("Routines", "fetchDeleted", e);
+    }
+  }, []);
+
+  const restoreRoutine = useCallback((id: string) => {
+    setDeletedRoutines((prev) => {
+      const target = prev.find((r) => r.id === id);
+      if (target) {
+        const restored: RoutineNode = {
+          ...target,
+          isDeleted: false,
+          deletedAt: null,
+        };
+        setRoutines((r) => [...r, restored]);
+      }
+      return prev.filter((r) => r.id !== id);
+    });
+    getDataService()
+      .restoreRoutine(id)
+      .catch((e) => logServiceError("Routines", "restore", e));
+  }, []);
+
+  const permanentDeleteRoutine = useCallback((id: string) => {
+    setDeletedRoutines((prev) => prev.filter((r) => r.id !== id));
+    getDataService()
+      .permanentDeleteRoutine(id)
+      .catch((e) => logServiceError("Routines", "permanentDelete", e));
   }, []);
 
   return useMemo(
     () => ({
       routines,
+      deletedRoutines,
       isLoading,
       createRoutine,
       updateRoutine,
       deleteRoutine,
+      loadDeletedRoutines,
+      restoreRoutine,
+      permanentDeleteRoutine,
     }),
-    [routines, isLoading, createRoutine, updateRoutine, deleteRoutine],
+    [
+      routines,
+      deletedRoutines,
+      isLoading,
+      createRoutine,
+      updateRoutine,
+      deleteRoutine,
+      loadDeletedRoutines,
+      restoreRoutine,
+      permanentDeleteRoutine,
+    ],
   );
 }

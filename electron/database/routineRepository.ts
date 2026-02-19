@@ -7,6 +7,8 @@ interface RoutineRow {
   start_time: string | null;
   end_time: string | null;
   is_archived: number;
+  is_deleted: number;
+  deleted_at: string | null;
   order: number;
   created_at: string;
   updated_at: string;
@@ -19,6 +21,8 @@ function rowToNode(row: RoutineRow): RoutineNode {
     startTime: row.start_time,
     endTime: row.end_time,
     isArchived: row.is_archived === 1,
+    isDeleted: row.is_deleted === 1,
+    deletedAt: row.deleted_at,
     order: row.order,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
@@ -28,7 +32,19 @@ function rowToNode(row: RoutineRow): RoutineNode {
 export function createRoutineRepository(db: Database.Database) {
   const stmts = {
     fetchAll: db.prepare(
-      `SELECT * FROM routines WHERE is_archived = 0 ORDER BY "order" ASC, created_at ASC`,
+      `SELECT * FROM routines WHERE is_archived = 0 AND is_deleted = 0 ORDER BY "order" ASC, created_at ASC`,
+    ),
+    fetchDeleted: db.prepare(
+      `SELECT * FROM routines WHERE is_deleted = 1 ORDER BY deleted_at DESC`,
+    ),
+    softDelete: db.prepare(
+      `UPDATE routines SET is_deleted = 1, deleted_at = datetime('now'), updated_at = datetime('now') WHERE id = ?`,
+    ),
+    restore: db.prepare(
+      `UPDATE routines SET is_deleted = 0, deleted_at = NULL, updated_at = datetime('now') WHERE id = ?`,
+    ),
+    permanentDelete: db.prepare(
+      `DELETE FROM routines WHERE id = ? AND is_deleted = 1`,
     ),
     fetchById: db.prepare(`SELECT * FROM routines WHERE id = ?`),
     insert: db.prepare(`
@@ -100,6 +116,22 @@ export function createRoutineRepository(db: Database.Database) {
 
     delete(id: string): void {
       stmts.delete.run(id);
+    },
+
+    fetchDeleted(): RoutineNode[] {
+      return (stmts.fetchDeleted.all() as RoutineRow[]).map(rowToNode);
+    },
+
+    softDelete(id: string): void {
+      stmts.softDelete.run(id);
+    },
+
+    restore(id: string): void {
+      stmts.restore.run(id);
+    },
+
+    permanentDelete(id: string): void {
+      stmts.permanentDelete.run(id);
     },
   };
 }

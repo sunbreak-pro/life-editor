@@ -76,8 +76,16 @@
     "deletePermanently": "完全に削除",
     "task": "タスク",
     "note": "ノート",
-    "sounds": "カスタムサウンド",
+    "sounds": "サウンド",
     "sound": "サウンド",
+    "tabTasks": "タスク",
+    "tabMemo": "メモ",
+    "tabSounds": "サウンド",
+    "folders": "フォルダ",
+    "routines": "ルーティン",
+    "routine": "ルーティン",
+    "daily": "デイリー",
+    "memo": "メモ",
     "permanentDeleteConfirm": "「{{name}}」を完全に削除しますか？この操作は元に戻せません。"
   },
   "updates": {
@@ -639,11 +647,6 @@
     "newTaskIn": "{{folder}} に新しいタスク...",
     "taskName": "タスク名...",
     "noTasks": "タスクがありません"
-  },
-  "aiButtons": {
-    "breakdown": "ステップ分解",
-    "encouragement": "励まし",
-    "review": "レビュー"
   },
   "sessionModal": {
     "workComplete": "WORK完了！",

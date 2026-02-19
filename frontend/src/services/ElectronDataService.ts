@@ -199,6 +199,15 @@ export class ElectronDataService implements DataService {
   deleteMemo(date: string): Promise<void> {
     return invoke("db:memo:delete", date);
   }
+  fetchDeletedMemos(): Promise<MemoNode[]> {
+    return invoke("db:memo:fetchDeleted");
+  }
+  restoreMemo(date: string): Promise<void> {
+    return invoke("db:memo:restore", date);
+  }
+  permanentDeleteMemo(date: string): Promise<void> {
+    return invoke("db:memo:permanentDelete", date);
+  }
 
   // Notes
   fetchAllNotes(): Promise<NoteNode[]> {
@@ -349,6 +358,18 @@ export class ElectronDataService implements DataService {
   }
   deleteRoutine(id: string): Promise<void> {
     return invoke("db:routines:delete", id);
+  }
+  fetchDeletedRoutines(): Promise<RoutineNode[]> {
+    return invoke("db:routines:fetchDeleted");
+  }
+  softDeleteRoutine(id: string): Promise<void> {
+    return invoke("db:routines:softDelete", id);
+  }
+  restoreRoutine(id: string): Promise<void> {
+    return invoke("db:routines:restore", id);
+  }
+  permanentDeleteRoutine(id: string): Promise<void> {
+    return invoke("db:routines:permanentDelete", id);
   }
 
   // Schedule Items

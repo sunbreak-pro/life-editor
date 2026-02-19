@@ -43,6 +43,9 @@ const ALLOWED_CHANNELS = new Set([
   "db:memo:fetchByDate",
   "db:memo:upsert",
   "db:memo:delete",
+  "db:memo:fetchDeleted",
+  "db:memo:restore",
+  "db:memo:permanentDelete",
   // Notes
   "db:notes:fetchAll",
   "db:notes:fetchDeleted",
@@ -57,6 +60,10 @@ const ALLOWED_CHANNELS = new Set([
   "db:routines:create",
   "db:routines:update",
   "db:routines:delete",
+  "db:routines:fetchDeleted",
+  "db:routines:softDelete",
+  "db:routines:restore",
+  "db:routines:permanentDelete",
   // Routine Tags
   "db:routineTags:fetchAll",
   "db:routineTags:create",

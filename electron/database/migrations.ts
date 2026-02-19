@@ -85,6 +85,10 @@ export function runMigrations(db: Database.Database): void {
     log.info("[DB] Running migration V20");
     migrateV20(db);
   }
+  if (currentVersion < 21) {
+    log.info("[DB] Running migration V21");
+    migrateV21(db);
+  }
 
   const newVersion = db.pragma("user_version", { simple: true }) as number;
   if (newVersion !== currentVersion) {
@@ -809,4 +813,36 @@ function migrateV20(db: Database.Database): void {
   });
   migrate();
   db.pragma("user_version = 20");
+}
+
+function migrateV21(db: Database.Database): void {
+  const migrate = db.transaction(() => {
+    // Add soft-delete columns to routines
+    if (!hasColumn(db, "routines", "is_deleted")) {
+      db.exec(
+        `ALTER TABLE routines ADD COLUMN is_deleted INTEGER NOT NULL DEFAULT 0`,
+      );
+    }
+    if (!hasColumn(db, "routines", "deleted_at")) {
+      db.exec(`ALTER TABLE routines ADD COLUMN deleted_at TEXT`);
+    }
+    db.exec(
+      `CREATE INDEX IF NOT EXISTS idx_routines_deleted ON routines(is_deleted)`,
+    );
+
+    // Add soft-delete columns to memos
+    if (!hasColumn(db, "memos", "is_deleted")) {
+      db.exec(
+        `ALTER TABLE memos ADD COLUMN is_deleted INTEGER NOT NULL DEFAULT 0`,
+      );
+    }
+    if (!hasColumn(db, "memos", "deleted_at")) {
+      db.exec(`ALTER TABLE memos ADD COLUMN deleted_at TEXT`);
+    }
+    db.exec(
+      `CREATE INDEX IF NOT EXISTS idx_memos_deleted ON memos(is_deleted)`,
+    );
+  });
+  migrate();
+  db.pragma("user_version = 21");
 }

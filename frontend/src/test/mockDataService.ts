@@ -121,6 +121,9 @@ export function createMockDataService(): DataService & {
       }),
     ),
     deleteMemo: vi.fn().mockResolvedValue(undefined),
+    fetchDeletedMemos: vi.fn().mockResolvedValue([]),
+    restoreMemo: vi.fn().mockResolvedValue(undefined),
+    permanentDeleteMemo: vi.fn().mockResolvedValue(undefined),
 
     // Notes
     fetchAllNotes: vi.fn().mockResolvedValue([]),
@@ -220,6 +223,10 @@ export function createMockDataService(): DataService & {
     ),
     updateRoutine: vi.fn().mockResolvedValue({}),
     deleteRoutine: vi.fn().mockResolvedValue(undefined),
+    fetchDeletedRoutines: vi.fn().mockResolvedValue([]),
+    softDeleteRoutine: vi.fn().mockResolvedValue(undefined),
+    restoreRoutine: vi.fn().mockResolvedValue(undefined),
+    permanentDeleteRoutine: vi.fn().mockResolvedValue(undefined),
 
     // Routine Tags
     fetchAllRoutineTags: vi.fn().mockResolvedValue([]),

@@ -54,4 +54,32 @@ export function registerRoutineHandlers(repo: RoutineRepository): void {
       repo.delete(id);
     }),
   );
+
+  ipcMain.handle(
+    "db:routines:fetchDeleted",
+    loggedHandler("Routines", "fetchDeleted", () => {
+      return repo.fetchDeleted();
+    }),
+  );
+
+  ipcMain.handle(
+    "db:routines:softDelete",
+    loggedHandler("Routines", "softDelete", (_event, id: string) => {
+      repo.softDelete(id);
+    }),
+  );
+
+  ipcMain.handle(
+    "db:routines:restore",
+    loggedHandler("Routines", "restore", (_event, id: string) => {
+      repo.restore(id);
+    }),
+  );
+
+  ipcMain.handle(
+    "db:routines:permanentDelete",
+    loggedHandler("Routines", "permanentDelete", (_event, id: string) => {
+      repo.permanentDelete(id);
+    }),
+  );
 }

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import {
   RotateCcw,
   Trash2,
@@ -6,49 +6,82 @@ import {
   FileText,
   StickyNote,
   Volume2,
+  Calendar,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useTaskTreeContext } from "../../hooks/useTaskTreeContext";
 import { useNoteContext } from "../../hooks/useNoteContext";
 import { useAudioContext } from "../../hooks/useAudioContext";
+import { useMemoContext } from "../../hooks/useMemoContext";
+import { useScheduleContext } from "../../hooks/useScheduleContext";
 import { getDataService } from "../../services";
 import { ConfirmDialog } from "../shared/ConfirmDialog";
+import { SectionTabs, type TabItem } from "../shared/SectionTabs";
 import { LAYOUT } from "../../constants/layout";
 import type { CustomSoundMeta } from "../../types/customSound";
 import type { SoundDisplayMeta } from "../../types/sound";
+
+type TrashTab = "tasks" | "memo" | "sounds";
+
+const TRASH_TABS: readonly TabItem<TrashTab>[] = [
+  { id: "tasks", labelKey: "trash.tabTasks" },
+  { id: "memo", labelKey: "trash.tabMemo" },
+  { id: "sounds", labelKey: "trash.tabSounds" },
+] as const;
 
 export function TrashView() {
   const { t } = useTranslation();
   const { deletedNodes, restoreNode, permanentDelete } = useTaskTreeContext();
   const { deletedNotes, loadDeletedNotes, restoreNote, permanentDeleteNote } =
     useNoteContext();
+  const { deletedMemos, loadDeletedMemos, restoreMemo, permanentDeleteMemo } =
+    useMemoContext();
+  const {
+    deletedRoutines,
+    loadDeletedRoutines,
+    restoreRoutine,
+    permanentDeleteRoutine,
+  } = useScheduleContext();
   const audio = useAudioContext();
 
+  const [activeTab, setActiveTab] = useState<TrashTab>("tasks");
   const [deletedSounds, setDeletedSounds] = useState<CustomSoundMeta[]>([]);
   const [displayMetas, setDisplayMetas] = useState<SoundDisplayMeta[]>([]);
 
-  const loadDeletedSounds = useCallback(async () => {
-    const ds = getDataService();
-    const [sounds, metas] = await Promise.all([
-      ds.fetchDeletedCustomSounds(),
-      ds.fetchAllSoundDisplayMeta(),
-    ]);
-    setDeletedSounds(sounds);
-    setDisplayMetas(metas);
-  }, []);
-
   useEffect(() => {
     loadDeletedNotes();
-    loadDeletedSounds();
-  }, [loadDeletedNotes, loadDeletedSounds]);
+    loadDeletedMemos();
+    loadDeletedRoutines();
+  }, [loadDeletedNotes, loadDeletedMemos, loadDeletedRoutines]);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const ds = getDataService();
+      const [sounds, metas] = await Promise.all([
+        ds.fetchDeletedCustomSounds(),
+        ds.fetchAllSoundDisplayMeta(),
+      ]);
+      if (!cancelled) {
+        setDeletedSounds(sounds);
+        setDisplayMetas(metas);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const topLevelDeleted = deletedNodes.filter((n) => {
     if (!n.parentId) return true;
     return !deletedNodes.some((d) => d.id === n.parentId);
   });
 
+  const deletedFolders = topLevelDeleted.filter((n) => n.type === "folder");
+  const deletedTasks = topLevelDeleted.filter((n) => n.type === "task");
+
   const [deleteTarget, setDeleteTarget] = useState<{
-    type: "task" | "note" | "sound";
+    type: "task" | "note" | "sound" | "routine" | "memo";
     id: string;
     name: string;
   } | null>(null);
@@ -69,165 +102,237 @@ export function TrashView() {
     setDeletedSounds((prev) => prev.filter((s) => s.id !== id));
   };
 
-  const isEmpty =
-    topLevelDeleted.length === 0 &&
-    deletedNotes.length === 0 &&
-    deletedSounds.length === 0;
+  const renderItem = (
+    key: string,
+    icon: typeof FileText,
+    title: string,
+    typeLabel: string,
+    onRestore: () => void,
+    onDelete: () => void,
+  ) => {
+    const Icon = icon;
+    return (
+      <div
+        key={key}
+        className="flex items-center gap-3 px-3 py-2 rounded-md hover:bg-notion-hover group"
+      >
+        <Icon size={16} className="text-notion-text-secondary shrink-0" />
+        <span className="flex-1 text-sm text-notion-text truncate">
+          {title}
+        </span>
+        <span className="text-xs text-notion-text-secondary">{typeLabel}</span>
+        <button
+          onClick={onRestore}
+          className="opacity-0 group-hover:opacity-100 p-1 text-notion-text-secondary hover:text-notion-success transition-opacity"
+          title={t("trash.restore")}
+        >
+          <RotateCcw size={14} />
+        </button>
+        <button
+          onClick={onDelete}
+          className="opacity-0 group-hover:opacity-100 p-1 text-notion-text-secondary hover:text-notion-danger transition-opacity"
+          title={t("trash.deletePermanently")}
+        >
+          <Trash2 size={14} />
+        </button>
+      </div>
+    );
+  };
+
+  const renderTasksTab = () => {
+    const isEmpty =
+      deletedFolders.length === 0 &&
+      deletedTasks.length === 0 &&
+      deletedRoutines.length === 0;
+    if (isEmpty)
+      return (
+        <p className="text-sm text-notion-text-secondary py-4">
+          {t("trash.empty")}
+        </p>
+      );
+
+    return (
+      <div className="space-y-6">
+        {deletedFolders.length > 0 && (
+          <div className="space-y-1">
+            <h4 className="text-xs font-medium text-notion-text-secondary uppercase tracking-wide px-1">
+              {t("trash.folders")}
+            </h4>
+            {deletedFolders.map((node) =>
+              renderItem(
+                node.id,
+                Folder,
+                node.title,
+                t("trash.task"),
+                () => restoreNode(node.id),
+                () =>
+                  setDeleteTarget({
+                    type: "task",
+                    id: node.id,
+                    name: node.title,
+                  }),
+              ),
+            )}
+          </div>
+        )}
+
+        {deletedTasks.length > 0 && (
+          <div className="space-y-1">
+            <h4 className="text-xs font-medium text-notion-text-secondary uppercase tracking-wide px-1">
+              {t("trash.tasks")}
+            </h4>
+            {deletedTasks.map((node) =>
+              renderItem(
+                node.id,
+                FileText,
+                node.title,
+                t("trash.task"),
+                () => restoreNode(node.id),
+                () =>
+                  setDeleteTarget({
+                    type: "task",
+                    id: node.id,
+                    name: node.title,
+                  }),
+              ),
+            )}
+          </div>
+        )}
+
+        {deletedRoutines.length > 0 && (
+          <div className="space-y-1">
+            <h4 className="text-xs font-medium text-notion-text-secondary uppercase tracking-wide px-1">
+              {t("trash.routines")}
+            </h4>
+            {deletedRoutines.map((routine) =>
+              renderItem(
+                routine.id,
+                Calendar,
+                routine.title,
+                t("trash.routine"),
+                () => restoreRoutine(routine.id),
+                () =>
+                  setDeleteTarget({
+                    type: "routine",
+                    id: routine.id,
+                    name: routine.title,
+                  }),
+              ),
+            )}
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  const renderMemoTab = () => {
+    const isEmpty = deletedMemos.length === 0 && deletedNotes.length === 0;
+    if (isEmpty)
+      return (
+        <p className="text-sm text-notion-text-secondary py-4">
+          {t("trash.empty")}
+        </p>
+      );
+
+    return (
+      <div className="space-y-6">
+        {deletedMemos.length > 0 && (
+          <div className="space-y-1">
+            <h4 className="text-xs font-medium text-notion-text-secondary uppercase tracking-wide px-1">
+              {t("trash.daily")}
+            </h4>
+            {deletedMemos.map((memo) =>
+              renderItem(
+                memo.id,
+                FileText,
+                memo.date,
+                t("trash.memo"),
+                () => restoreMemo(memo.date),
+                () =>
+                  setDeleteTarget({
+                    type: "memo",
+                    id: memo.date,
+                    name: memo.date,
+                  }),
+              ),
+            )}
+          </div>
+        )}
+
+        {deletedNotes.length > 0 && (
+          <div className="space-y-1">
+            <h4 className="text-xs font-medium text-notion-text-secondary uppercase tracking-wide px-1">
+              {t("trash.notes")}
+            </h4>
+            {deletedNotes.map((note) =>
+              renderItem(
+                note.id,
+                StickyNote,
+                note.title,
+                t("trash.note"),
+                () => restoreNote(note.id),
+                () =>
+                  setDeleteTarget({
+                    type: "note",
+                    id: note.id,
+                    name: note.title,
+                  }),
+              ),
+            )}
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  const renderSoundsTab = () => {
+    if (deletedSounds.length === 0)
+      return (
+        <p className="text-sm text-notion-text-secondary py-4">
+          {t("trash.empty")}
+        </p>
+      );
+
+    return (
+      <div className="space-y-1">
+        {deletedSounds.map((sound) =>
+          renderItem(
+            sound.id,
+            Volume2,
+            getSoundDisplayName(sound),
+            t("trash.sound"),
+            () => handleRestoreSound(sound.id),
+            () =>
+              setDeleteTarget({
+                type: "sound",
+                id: sound.id,
+                name: getSoundDisplayName(sound),
+              }),
+          ),
+        )}
+      </div>
+    );
+  };
 
   return (
     <div
       className={`h-full flex flex-col ${LAYOUT.CONTENT_PX} ${LAYOUT.CONTENT_PT} ${LAYOUT.CONTENT_PB}`}
     >
-      <h2 className="text-2xl font-bold text-notion-text border-b border-notion-border mb-5 pb-3">
+      <h2 className="text-2xl font-bold text-notion-text border-b border-notion-border mb-3 pb-3">
         {t("trash.title")}
       </h2>
 
-      <div className="flex-1 overflow-y-auto">
-        {isEmpty ? (
-          <p className="text-sm text-notion-text-secondary py-4">
-            {t("trash.empty")}
-          </p>
-        ) : (
-          <div className="space-y-6">
-            {topLevelDeleted.length > 0 && (
-              <div className="space-y-1">
-                <h4 className="text-xs font-medium text-notion-text-secondary uppercase tracking-wide px-1">
-                  {t("trash.tasks")}
-                </h4>
-                {topLevelDeleted.map((node) => {
-                  const Icon = node.type === "task" ? FileText : Folder;
-                  return (
-                    <div
-                      key={node.id}
-                      className="flex items-center gap-3 px-3 py-2 rounded-md hover:bg-notion-hover group"
-                    >
-                      <Icon
-                        size={16}
-                        className="text-notion-text-secondary shrink-0"
-                      />
-                      <span className="flex-1 text-sm text-notion-text truncate">
-                        {node.title}
-                      </span>
-                      <span className="text-xs text-notion-text-secondary">
-                        {t(`trash.${node.type}`)}
-                      </span>
-                      <button
-                        onClick={() => restoreNode(node.id)}
-                        className="opacity-0 group-hover:opacity-100 p-1 text-notion-text-secondary hover:text-notion-success transition-opacity"
-                        title={t("trash.restore")}
-                      >
-                        <RotateCcw size={14} />
-                      </button>
-                      <button
-                        onClick={() =>
-                          setDeleteTarget({
-                            type: "task",
-                            id: node.id,
-                            name: node.title,
-                          })
-                        }
-                        className="opacity-0 group-hover:opacity-100 p-1 text-notion-text-secondary hover:text-notion-danger transition-opacity"
-                        title={t("trash.deletePermanently")}
-                      >
-                        <Trash2 size={14} />
-                      </button>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
+      <SectionTabs
+        tabs={TRASH_TABS}
+        activeTab={activeTab}
+        onTabChange={setActiveTab}
+        size="sm"
+      />
 
-            {deletedNotes.length > 0 && (
-              <div className="space-y-1">
-                <h4 className="text-xs font-medium text-notion-text-secondary uppercase tracking-wide px-1">
-                  {t("trash.notes")}
-                </h4>
-                {deletedNotes.map((note) => (
-                  <div
-                    key={note.id}
-                    className="flex items-center gap-3 px-3 py-2 rounded-md hover:bg-notion-hover group"
-                  >
-                    <StickyNote
-                      size={16}
-                      className="text-notion-text-secondary shrink-0"
-                    />
-                    <span className="flex-1 text-sm text-notion-text truncate">
-                      {note.title}
-                    </span>
-                    <span className="text-xs text-notion-text-secondary">
-                      {t("trash.note")}
-                    </span>
-                    <button
-                      onClick={() => restoreNote(note.id)}
-                      className="opacity-0 group-hover:opacity-100 p-1 text-notion-text-secondary hover:text-notion-success transition-opacity"
-                      title={t("trash.restore")}
-                    >
-                      <RotateCcw size={14} />
-                    </button>
-                    <button
-                      onClick={() =>
-                        setDeleteTarget({
-                          type: "note",
-                          id: note.id,
-                          name: note.title,
-                        })
-                      }
-                      className="opacity-0 group-hover:opacity-100 p-1 text-notion-text-secondary hover:text-notion-danger transition-opacity"
-                      title={t("trash.deletePermanently")}
-                    >
-                      <Trash2 size={14} />
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {deletedSounds.length > 0 && (
-              <div className="space-y-1">
-                <h4 className="text-xs font-medium text-notion-text-secondary uppercase tracking-wide px-1">
-                  {t("trash.sounds")}
-                </h4>
-                {deletedSounds.map((sound) => (
-                  <div
-                    key={sound.id}
-                    className="flex items-center gap-3 px-3 py-2 rounded-md hover:bg-notion-hover group"
-                  >
-                    <Volume2
-                      size={16}
-                      className="text-notion-text-secondary shrink-0"
-                    />
-                    <span className="flex-1 text-sm text-notion-text truncate">
-                      {getSoundDisplayName(sound)}
-                    </span>
-                    <span className="text-xs text-notion-text-secondary">
-                      {t("trash.sound")}
-                    </span>
-                    <button
-                      onClick={() => handleRestoreSound(sound.id)}
-                      className="opacity-0 group-hover:opacity-100 p-1 text-notion-text-secondary hover:text-notion-success transition-opacity"
-                      title={t("trash.restore")}
-                    >
-                      <RotateCcw size={14} />
-                    </button>
-                    <button
-                      onClick={() =>
-                        setDeleteTarget({
-                          type: "sound",
-                          id: sound.id,
-                          name: getSoundDisplayName(sound),
-                        })
-                      }
-                      className="opacity-0 group-hover:opacity-100 p-1 text-notion-text-secondary hover:text-notion-danger transition-opacity"
-                      title={t("trash.deletePermanently")}
-                    >
-                      <Trash2 size={14} />
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
+      <div className="flex-1 overflow-y-auto mt-3">
+        {activeTab === "tasks" && renderTasksTab()}
+        {activeTab === "memo" && renderMemoTab()}
+        {activeTab === "sounds" && renderSoundsTab()}
       </div>
 
       {deleteTarget && (
@@ -240,6 +345,10 @@ export function TrashView() {
               permanentDelete(deleteTarget.id);
             } else if (deleteTarget.type === "note") {
               permanentDeleteNote(deleteTarget.id);
+            } else if (deleteTarget.type === "routine") {
+              permanentDeleteRoutine(deleteTarget.id);
+            } else if (deleteTarget.type === "memo") {
+              permanentDeleteMemo(deleteTarget.id);
             } else {
               handlePermanentDeleteSound(deleteTarget.id);
             }

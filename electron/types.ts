@@ -65,6 +65,8 @@ export interface MemoNode {
   id: string;
   date: string;
   content: string;
+  isDeleted?: boolean;
+  deletedAt?: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -153,6 +155,8 @@ export interface RoutineNode {
   startTime: string | null;
   endTime: string | null;
   isArchived: boolean;
+  isDeleted: boolean;
+  deletedAt: string | null;
   order: number;
   createdAt: string;
   updatedAt: string;
