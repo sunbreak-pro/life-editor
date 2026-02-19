@@ -167,8 +167,9 @@ export function AnalyticsView() {
                 />
               </div>
             </div>
-
-            {/* Work time summary */}
+          </div>
+        ) : (
+          <div className="max-w-3xl mx-auto w-full">
             {sessions.length > 0 ? (
               <>
                 <div className="grid grid-cols-3 gap-4 mb-6">
@@ -212,12 +213,6 @@ export function AnalyticsView() {
                 {t("analytics.noSessions")}
               </p>
             )}
-          </div>
-        ) : (
-          <div className="flex-1 flex items-center justify-center">
-            <p className="text-notion-text-secondary text-sm">
-              {t("common.comingSoon")}
-            </p>
           </div>
         )}
       </div>
