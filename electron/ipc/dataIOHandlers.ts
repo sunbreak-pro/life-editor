@@ -62,10 +62,13 @@ export function registerDataIOHandlers(db: Database.Database): void {
           soundDisplayMeta: safeQuery(db, "SELECT * FROM sound_display_meta"),
           calendars: safeQuery(db, "SELECT * FROM calendars"),
           routines: safeQuery(db, "SELECT * FROM routines"),
-          routineTemplates: safeQuery(db, "SELECT * FROM routine_templates"),
-          routineTemplateItems: safeQuery(
+          routineTagAssignments: safeQuery(
             db,
-            "SELECT * FROM routine_template_items",
+            "SELECT * FROM routine_tag_assignments",
+          ),
+          routineTagDefinitions: safeQuery(
+            db,
+            "SELECT * FROM routine_tag_definitions",
           ),
           scheduleItems: safeQuery(db, "SELECT * FROM schedule_items"),
           aiSettings: safeQueryOne(
@@ -133,8 +136,7 @@ export function registerDataIOHandlers(db: Database.Database): void {
           // Clear all tables
           db.exec(`
           DELETE FROM schedule_items;
-          DELETE FROM routine_template_items;
-          DELETE FROM routine_templates;
+          DELETE FROM routine_tag_assignments;
           DELETE FROM routines;
           DELETE FROM calendars;
           DELETE FROM notes;
@@ -287,25 +289,23 @@ export function registerDataIOHandlers(db: Database.Database): void {
             }
           }
 
-          // Import routine templates
-          if (Array.isArray(data.routineTemplates)) {
-            const insertTemplate = db.prepare(`
-              INSERT INTO routine_templates (id, name, frequency_type, frequency_days, "order", created_at, updated_at)
-              VALUES (@id, @name, @frequency_type, @frequency_days, @order, @created_at, @updated_at)
-            `);
-            for (const t of data.routineTemplates) {
-              insertTemplate.run(t);
+          // Import routine tag assignments
+          if (Array.isArray(data.routineTagAssignments)) {
+            const insertAssignment = db.prepare(
+              `INSERT OR IGNORE INTO routine_tag_assignments (routine_id, tag_id) VALUES (@routine_id, @tag_id)`,
+            );
+            for (const a of data.routineTagAssignments) {
+              insertAssignment.run(a);
             }
           }
 
-          // Import routine template items
-          if (Array.isArray(data.routineTemplateItems)) {
-            const insertItem = db.prepare(`
-              INSERT INTO routine_template_items (template_id, routine_id, position)
-              VALUES (@template_id, @routine_id, @position)
-            `);
-            for (const i of data.routineTemplateItems) {
-              insertItem.run(i);
+          // Import routine tag definitions
+          if (Array.isArray(data.routineTagDefinitions)) {
+            const insertTag = db.prepare(
+              `INSERT OR IGNORE INTO routine_tag_definitions (id, name, color, "order") VALUES (@id, @name, @color, @order)`,
+            );
+            for (const t of data.routineTagDefinitions) {
+              insertTag.run(t);
             }
           }
 
@@ -369,8 +369,7 @@ export function registerDataIOHandlers(db: Database.Database): void {
             DELETE FROM playlist_items;
             DELETE FROM playlists;
             DELETE FROM schedule_items;
-            DELETE FROM routine_template_items;
-            DELETE FROM routine_templates;
+            DELETE FROM routine_tag_assignments;
             DELETE FROM routines;
             DELETE FROM calendars;
             DELETE FROM notes;
@@ -450,8 +449,8 @@ function validateImportData(data: Record<string, unknown>): void {
     "soundDisplayMeta",
     "calendars",
     "routines",
-    "routineTemplates",
-    "routineTemplateItems",
+    "routineTagAssignments",
+    "routineTagDefinitions",
     "scheduleItems",
   ];
   for (const field of arrayFields) {

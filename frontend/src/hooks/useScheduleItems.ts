@@ -1,6 +1,5 @@
 import { useState, useCallback, useMemo } from "react";
 import type { ScheduleItem, RoutineStats } from "../types/schedule";
-import type { RoutineTemplate } from "../types/schedule";
 import type { RoutineNode } from "../types/routine";
 import { getDataService } from "../services";
 import { logServiceError } from "../utils/logError";
@@ -151,11 +150,6 @@ function computeRoutineStats(
   };
 }
 
-function isTemplateApplicable(template: RoutineTemplate, date: Date): boolean {
-  if (template.frequencyType === "daily") return true;
-  return template.frequencyDays.includes(date.getDay());
-}
-
 export function useScheduleItems() {
   const [scheduleItems, setScheduleItems] = useState<ScheduleItem[]>([]);
   const [currentDate, setCurrentDate] = useState(
@@ -250,22 +244,19 @@ export function useScheduleItems() {
       .catch((e) => logServiceError("ScheduleItems", "toggleComplete", e));
   }, []);
 
-  const ensureTemplateItemsForDate = useCallback(
+  const ensureRoutineItemsForDate = useCallback(
     async (
       date: string,
-      templates: RoutineTemplate[],
       routines: RoutineNode[],
+      tagAssignments: Map<string, number[]>,
     ) => {
-      const dateObj = new Date(date + "T00:00:00");
       const existing = await getDataService().fetchScheduleItemsByDate(date);
       const existingByRoutineId = new Map(
         existing
           .filter((i) => i.routineId)
           .map((i) => [i.routineId, i] as const),
       );
-      const seenRoutineIds = new Set(existingByRoutineId.keys());
 
-      const routineMap = new Map(routines.map((r) => [r.id, r]));
       const toCreate: Array<{
         id: string;
         date: string;
@@ -273,7 +264,6 @@ export function useScheduleItems() {
         startTime: string;
         endTime: string;
         routineId: string;
-        templateId: string;
       }> = [];
       const toUpdate: Array<{
         id: string;
@@ -282,44 +272,40 @@ export function useScheduleItems() {
         endTime: string;
       }> = [];
 
-      for (const template of templates) {
-        if (!isTemplateApplicable(template, dateObj)) continue;
-        for (const item of template.items) {
-          const routine = routineMap.get(item.routineId);
-          if (!routine) continue;
+      for (const routine of routines) {
+        if (routine.isArchived) continue;
+        // Only include routines that have at least one tag
+        const routineTagIds = tagAssignments.get(routine.id);
+        if (!routineTagIds || routineTagIds.length === 0) continue;
 
-          const existingItem = existingByRoutineId.get(item.routineId);
-          if (existingItem) {
-            const newTitle = routine.title;
-            const newStart = routine.startTime ?? "09:00";
-            const newEnd = routine.endTime ?? "09:30";
-            if (
-              existingItem.title !== newTitle ||
-              existingItem.startTime !== newStart ||
-              existingItem.endTime !== newEnd
-            ) {
-              toUpdate.push({
-                id: existingItem.id,
-                title: newTitle,
-                startTime: newStart,
-                endTime: newEnd,
-              });
-            }
-            continue;
+        const existingItem = existingByRoutineId.get(routine.id);
+        if (existingItem) {
+          const newTitle = routine.title;
+          const newStart = routine.startTime ?? "09:00";
+          const newEnd = routine.endTime ?? "09:30";
+          if (
+            existingItem.title !== newTitle ||
+            existingItem.startTime !== newStart ||
+            existingItem.endTime !== newEnd
+          ) {
+            toUpdate.push({
+              id: existingItem.id,
+              title: newTitle,
+              startTime: newStart,
+              endTime: newEnd,
+            });
           }
-
-          if (seenRoutineIds.has(item.routineId)) continue;
-          toCreate.push({
-            id: generateId("si"),
-            date,
-            title: routine.title,
-            startTime: routine.startTime ?? "09:00",
-            endTime: routine.endTime ?? "09:30",
-            routineId: routine.id,
-            templateId: template.id,
-          });
-          seenRoutineIds.add(item.routineId);
+          continue;
         }
+
+        toCreate.push({
+          id: generateId("si"),
+          date,
+          title: routine.title,
+          startTime: routine.startTime ?? "09:00",
+          endTime: routine.endTime ?? "09:30",
+          routineId: routine.id,
+        });
       }
 
       // Update existing items whose routine info changed
@@ -433,7 +419,7 @@ export function useScheduleItems() {
       updateScheduleItem,
       deleteScheduleItem,
       toggleComplete,
-      ensureTemplateItemsForDate,
+      ensureRoutineItemsForDate,
       getRoutineCompletionRate,
       routineStats,
       refreshRoutineStats,
@@ -448,7 +434,7 @@ export function useScheduleItems() {
       updateScheduleItem,
       deleteScheduleItem,
       toggleComplete,
-      ensureTemplateItemsForDate,
+      ensureRoutineItemsForDate,
       getRoutineCompletionRate,
       routineStats,
       refreshRoutineStats,

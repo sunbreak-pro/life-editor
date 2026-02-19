@@ -5,7 +5,6 @@ export interface RoutineNode {
   endTime: string | null; // "HH:MM"
   isArchived: boolean;
   order: number;
-  tagId: number | null;
   createdAt: string;
   updatedAt: string;
 }

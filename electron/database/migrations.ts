@@ -81,6 +81,10 @@ export function runMigrations(db: Database.Database): void {
     log.info("[DB] Running migration V19");
     migrateV19(db);
   }
+  if (currentVersion < 20) {
+    log.info("[DB] Running migration V20");
+    migrateV20(db);
+  }
 
   const newVersion = db.pragma("user_version", { simple: true }) as number;
   if (newVersion !== currentVersion) {
@@ -754,4 +758,55 @@ function migrateV19(db: Database.Database): void {
   });
   migrate();
   db.pragma("user_version = 19");
+}
+
+function migrateV20(db: Database.Database): void {
+  const migrate = db.transaction(() => {
+    // 1. Create routine_tag_assignments junction table
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS routine_tag_assignments (
+        routine_id TEXT NOT NULL,
+        tag_id INTEGER NOT NULL,
+        PRIMARY KEY (routine_id, tag_id),
+        FOREIGN KEY (routine_id) REFERENCES routines(id) ON DELETE CASCADE,
+        FOREIGN KEY (tag_id) REFERENCES routine_tag_definitions(id) ON DELETE CASCADE
+      );
+      CREATE INDEX IF NOT EXISTS idx_rta_routine ON routine_tag_assignments(routine_id);
+      CREATE INDEX IF NOT EXISTS idx_rta_tag ON routine_tag_assignments(tag_id);
+    `);
+
+    // 2. Migrate existing routines.tag_id data to junction table
+    if (hasColumn(db, "routines", "tag_id")) {
+      db.exec(`
+        INSERT OR IGNORE INTO routine_tag_assignments (routine_id, tag_id)
+        SELECT id, tag_id FROM routines WHERE tag_id IS NOT NULL;
+      `);
+    }
+
+    // 3. Recreate routines table without tag_id column (SQLite limitation)
+    db.exec(`
+      CREATE TABLE routines_new (
+        id TEXT PRIMARY KEY,
+        title TEXT NOT NULL,
+        start_time TEXT,
+        end_time TEXT,
+        is_archived INTEGER NOT NULL DEFAULT 0,
+        "order" INTEGER NOT NULL DEFAULT 0,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      );
+      INSERT INTO routines_new (id, title, start_time, end_time, is_archived, "order", created_at, updated_at)
+        SELECT id, title, start_time, end_time, is_archived, "order", created_at, updated_at FROM routines;
+      DROP TABLE routines;
+      ALTER TABLE routines_new RENAME TO routines;
+    `);
+
+    // 4. Drop routine_templates and routine_template_items
+    db.exec(`
+      DROP TABLE IF EXISTS routine_template_items;
+      DROP TABLE IF EXISTS routine_templates;
+    `);
+  });
+  migrate();
+  db.pragma("user_version = 20");
 }

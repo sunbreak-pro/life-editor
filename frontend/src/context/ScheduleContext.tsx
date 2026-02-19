@@ -1,17 +1,17 @@
 import { createContext, useCallback, useMemo } from "react";
 import type { ReactNode } from "react";
 import { useRoutines } from "../hooks/useRoutines";
-import { useRoutineTemplates } from "../hooks/useRoutineTemplates";
+import { useRoutineTagAssignments } from "../hooks/useRoutineTagAssignments";
 import { useScheduleItems } from "../hooks/useScheduleItems";
 import { useRoutineTags } from "../hooks/useRoutineTags";
 
 type RoutinesState = ReturnType<typeof useRoutines>;
-type TemplatesState = ReturnType<typeof useRoutineTemplates>;
+type TagAssignmentsState = ReturnType<typeof useRoutineTagAssignments>;
 type ScheduleItemsState = ReturnType<typeof useScheduleItems>;
 type RoutineTagsState = ReturnType<typeof useRoutineTags>;
 
 export type ScheduleContextValue = RoutinesState &
-  TemplatesState &
+  TagAssignmentsState &
   ScheduleItemsState &
   RoutineTagsState;
 
@@ -19,64 +19,33 @@ export const ScheduleContext = createContext<ScheduleContextValue | null>(null);
 
 export function ScheduleProvider({ children }: { children: ReactNode }) {
   const routinesState = useRoutines();
-  const templatesState = useRoutineTemplates();
+  const tagAssignmentsState = useRoutineTagAssignments();
   const scheduleItemsState = useScheduleItems();
   const routineTagsState = useRoutineTags();
 
-  // Wrap deleteRoutine to also remove routine from all templates
+  // Wrap deleteRoutine to also remove tag assignments
   const deleteRoutine = useCallback(
     (id: string) => {
       routinesState.deleteRoutine(id);
-      templatesState.removeRoutineFromAllTemplates(id);
+      tagAssignmentsState.removeRoutineAssignments(id);
     },
-    [routinesState.deleteRoutine, templatesState.removeRoutineFromAllTemplates],
-  );
-
-  // Wrap updateRoutine: when tagId is set, auto-add routine to all templates with same tagId
-  const updateRoutine: RoutinesState["updateRoutine"] = useCallback(
-    (id, updates) => {
-      routinesState.updateRoutine(id, updates);
-      if (updates.tagId != null) {
-        const routine = routinesState.routines.find((r) => r.id === id);
-        for (const tmpl of templatesState.templates) {
-          if (tmpl.tagId === updates.tagId) {
-            const alreadyHas = tmpl.items.some((i) => i.routineId === id);
-            if (!alreadyHas) {
-              templatesState.addTemplateItem(
-                tmpl.id,
-                id,
-                routine?.startTime ?? null,
-                routine?.endTime ?? null,
-              );
-            }
-          }
-        }
-      }
-    },
-    [
-      routinesState.updateRoutine,
-      routinesState.routines,
-      templatesState.templates,
-      templatesState.addTemplateItem,
-    ],
+    [routinesState, tagAssignmentsState],
   );
 
   const value = useMemo<ScheduleContextValue>(
     () => ({
       ...routinesState,
-      ...templatesState,
+      ...tagAssignmentsState,
       ...scheduleItemsState,
       ...routineTagsState,
       deleteRoutine,
-      updateRoutine,
     }),
     [
       routinesState,
-      templatesState,
+      tagAssignmentsState,
       scheduleItemsState,
       routineTagsState,
       deleteRoutine,
-      updateRoutine,
     ],
   );
 

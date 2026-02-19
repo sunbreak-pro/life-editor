@@ -43,4 +43,33 @@ export function registerRoutineTagHandlers(repo: RoutineTagRepository): void {
       repo.delete(id);
     }),
   );
+
+  ipcMain.handle(
+    "db:routineTags:fetchTagsForRoutine",
+    loggedHandler(
+      "RoutineTags",
+      "fetchTagsForRoutine",
+      (_event, routineId: string) => {
+        return repo.fetchTagsForRoutine(routineId);
+      },
+    ),
+  );
+
+  ipcMain.handle(
+    "db:routineTags:setTagsForRoutine",
+    loggedHandler(
+      "RoutineTags",
+      "setTagsForRoutine",
+      (_event, routineId: string, tagIds: number[]) => {
+        repo.setTagsForRoutine(routineId, tagIds);
+      },
+    ),
+  );
+
+  ipcMain.handle(
+    "db:routineTags:fetchAllAssignments",
+    loggedHandler("RoutineTags", "fetchAllAssignments", () => {
+      return repo.fetchAllAssignments();
+    }),
+  );
 }

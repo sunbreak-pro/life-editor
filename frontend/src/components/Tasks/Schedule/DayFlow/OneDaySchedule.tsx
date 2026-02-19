@@ -51,8 +51,8 @@ export function OneDaySchedule({
     toggleComplete,
     routines,
     routineTags,
-    templates,
-    ensureTemplateItemsForDate,
+    tagAssignments,
+    ensureRoutineItemsForDate,
     refreshRoutineStats,
   } = useScheduleContext();
   const dateKey = formatDateKey(date);
@@ -64,10 +64,12 @@ export function OneDaySchedule({
   const [showTaskPicker, setShowTaskPicker] = useState(false);
 
   const routineTagMap = useMemo(() => {
-    const map = new Map<string, number | null>();
-    for (const r of routines) map.set(r.id, r.tagId);
+    const map = new Map<string, number[]>();
+    for (const [routineId, tagIds] of tagAssignments) {
+      map.set(routineId, tagIds);
+    }
     return map;
-  }, [routines]);
+  }, [tagAssignments]);
   const [createPopover, setCreatePopover] = useState<{
     startTime: string;
     endTime: string;
@@ -79,12 +81,12 @@ export function OneDaySchedule({
     loadItemsForDate(dateKey);
   }, [dateKey, loadItemsForDate]);
 
-  // Auto-insert template items when date/templates change
+  // Auto-insert routine items when date/routines/tags change
   useEffect(() => {
-    if (templates.length > 0 && routines.length > 0) {
-      ensureTemplateItemsForDate(dateKey, templates, routines);
+    if (routines.length > 0) {
+      ensureRoutineItemsForDate(dateKey, routines, tagAssignments);
     }
-  }, [dateKey, templates, routines, ensureTemplateItemsForDate]);
+  }, [dateKey, routines, tagAssignments, ensureRoutineItemsForDate]);
 
   // Load routine stats on mount and when routines change
   useEffect(() => {
@@ -117,10 +119,11 @@ export function OneDaySchedule({
         return [];
     }
     if (selectedFilterTagId != null) {
-      items = items.filter(
-        (i) =>
-          i.routineId && routineTagMap.get(i.routineId) === selectedFilterTagId,
-      );
+      items = items.filter((i) => {
+        if (!i.routineId) return false;
+        const rTagIds = routineTagMap.get(i.routineId) ?? [];
+        return rTagIds.includes(selectedFilterTagId);
+      });
     }
     return items;
   }, [scheduleItems, filterTab, selectedFilterTagId, routineTagMap]);

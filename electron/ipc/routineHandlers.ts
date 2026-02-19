@@ -22,9 +22,8 @@ export function registerRoutineHandlers(repo: RoutineRepository): void {
         title: string,
         startTime?: string,
         endTime?: string,
-        tagId?: number | null,
       ) => {
-        return repo.create(id, title, startTime, endTime, tagId);
+        return repo.create(id, title, startTime, endTime);
       },
     ),
   );
@@ -40,7 +39,7 @@ export function registerRoutineHandlers(repo: RoutineRepository): void {
         updates: Partial<
           Pick<
             RoutineNode,
-            "title" | "startTime" | "endTime" | "isArchived" | "order" | "tagId"
+            "title" | "startTime" | "endTime" | "isArchived" | "order"
           >
         >,
       ) => {

@@ -35,6 +35,22 @@ export function createRoutineTagRepository(db: Database.Database) {
     maxOrder: db.prepare(
       `SELECT COALESCE(MAX("order"), -1) as max_order FROM routine_tag_definitions`,
     ),
+    // Junction table statements
+    fetchTagsForRoutine: db.prepare(`
+      SELECT rtd.* FROM routine_tag_definitions rtd
+      INNER JOIN routine_tag_assignments rta ON rtd.id = rta.tag_id
+      WHERE rta.routine_id = ?
+      ORDER BY rtd."order" ASC, rtd.id ASC
+    `),
+    deleteAssignmentsForRoutine: db.prepare(
+      `DELETE FROM routine_tag_assignments WHERE routine_id = ?`,
+    ),
+    insertAssignment: db.prepare(
+      `INSERT OR IGNORE INTO routine_tag_assignments (routine_id, tag_id) VALUES (@routine_id, @tag_id)`,
+    ),
+    fetchAllAssignments: db.prepare(
+      `SELECT routine_id, tag_id FROM routine_tag_assignments`,
+    ),
   };
 
   return {
@@ -73,6 +89,32 @@ export function createRoutineTagRepository(db: Database.Database) {
 
     delete(id: number): void {
       stmts.delete.run(id);
+    },
+
+    fetchTagsForRoutine(routineId: string): RoutineTag[] {
+      return (stmts.fetchTagsForRoutine.all(routineId) as RoutineTagRow[]).map(
+        rowToTag,
+      );
+    },
+
+    setTagsForRoutine(routineId: string, tagIds: number[]): void {
+      const setTags = db.transaction(() => {
+        stmts.deleteAssignmentsForRoutine.run(routineId);
+        for (const tagId of tagIds) {
+          stmts.insertAssignment.run({
+            routine_id: routineId,
+            tag_id: tagId,
+          });
+        }
+      });
+      setTags();
+    },
+
+    fetchAllAssignments(): Array<{ routine_id: string; tag_id: number }> {
+      return stmts.fetchAllAssignments.all() as Array<{
+        routine_id: string;
+        tag_id: number;
+      }>;
     },
   };
 }

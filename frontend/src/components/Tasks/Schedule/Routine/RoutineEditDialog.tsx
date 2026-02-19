@@ -10,11 +10,12 @@ import { useConfirmableSubmit } from "../../../../hooks/useConfirmableSubmit";
 interface RoutineEditDialogProps {
   routine?: RoutineNode;
   tags: RoutineTag[];
+  initialTagIds?: number[];
   onSubmit: (
     title: string,
     startTime?: string,
     endTime?: string,
-    tagId?: number | null,
+    tagIds?: number[],
   ) => void;
   onCreateTag?: (name: string, color: string) => Promise<RoutineTag>;
   onClose: () => void;
@@ -23,6 +24,7 @@ interface RoutineEditDialogProps {
 export function RoutineEditDialog({
   routine,
   tags,
+  initialTagIds,
   onSubmit,
   onCreateTag,
   onClose,
@@ -31,11 +33,16 @@ export function RoutineEditDialog({
   const [title, setTitle] = useState(routine?.title ?? "");
   const [startTime, setStartTime] = useState(routine?.startTime ?? "");
   const [endTime, setEndTime] = useState(routine?.endTime ?? "");
-  const [tagId, setTagId] = useState<number | null>(routine?.tagId ?? null);
+  const [tagIds, setTagIds] = useState<number[]>(initialTagIds ?? []);
 
   const handleSubmit = () => {
     if (!title.trim()) return;
-    onSubmit(title.trim(), startTime || undefined, endTime || undefined, tagId);
+    onSubmit(
+      title.trim(),
+      startTime || undefined,
+      endTime || undefined,
+      tagIds,
+    );
     onClose();
   };
 
@@ -119,12 +126,12 @@ export function RoutineEditDialog({
 
           <div>
             <label className="text-[11px] text-notion-text-secondary uppercase tracking-wide mb-1 block">
-              {t("schedule.routineTag", "Tag")}
+              {t("schedule.routineTag", "Tags")}
             </label>
             <RoutineTagSelector
               tags={tags}
-              selectedTagId={tagId}
-              onSelect={setTagId}
+              selectedTagIds={tagIds}
+              onSelect={setTagIds}
               onCreateTag={onCreateTag}
             />
           </div>

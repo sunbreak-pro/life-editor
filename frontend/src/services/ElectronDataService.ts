@@ -24,7 +24,7 @@ import type { NoteNode } from "../types/note";
 import type { CalendarNode } from "../types/calendar";
 import type { RoutineNode } from "../types/routine";
 import type { RoutineTag } from "../types/routineTag";
-import type { ScheduleItem, RoutineTemplate } from "../types/schedule";
+import type { ScheduleItem } from "../types/schedule";
 import type { Playlist, PlaylistItem } from "../types/playlist";
 import type {
   LogEntry,
@@ -315,6 +315,14 @@ export class ElectronDataService implements DataService {
   deleteRoutineTag(id: number): Promise<void> {
     return invoke("db:routineTags:delete", id);
   }
+  fetchAllRoutineTagAssignments(): Promise<
+    Array<{ routine_id: string; tag_id: number }>
+  > {
+    return invoke("db:routineTags:fetchAllAssignments");
+  }
+  setTagsForRoutine(routineId: string, tagIds: number[]): Promise<void> {
+    return invoke("db:routineTags:setTagsForRoutine", routineId, tagIds);
+  }
 
   // Routines
   fetchAllRoutines(): Promise<RoutineNode[]> {
@@ -325,16 +333,15 @@ export class ElectronDataService implements DataService {
     title: string,
     startTime?: string,
     endTime?: string,
-    tagId?: number | null,
   ): Promise<RoutineNode> {
-    return invoke("db:routines:create", id, title, startTime, endTime, tagId);
+    return invoke("db:routines:create", id, title, startTime, endTime);
   }
   updateRoutine(
     id: string,
     updates: Partial<
       Pick<
         RoutineNode,
-        "title" | "startTime" | "endTime" | "isArchived" | "order" | "tagId"
+        "title" | "startTime" | "endTime" | "isArchived" | "order"
       >
     >,
   ): Promise<RoutineNode> {
@@ -342,79 +349,6 @@ export class ElectronDataService implements DataService {
   }
   deleteRoutine(id: string): Promise<void> {
     return invoke("db:routines:delete", id);
-  }
-
-  // Routine Templates
-  fetchRoutineTemplates(): Promise<RoutineTemplate[]> {
-    return invoke("db:routineTemplates:fetchAll");
-  }
-  createRoutineTemplate(
-    id: string,
-    name: string,
-    frequencyType?: string,
-    frequencyDays?: number[],
-    tagId?: number | null,
-  ): Promise<RoutineTemplate> {
-    return invoke(
-      "db:routineTemplates:create",
-      id,
-      name,
-      frequencyType,
-      frequencyDays,
-      tagId,
-    );
-  }
-  updateRoutineTemplate(
-    id: string,
-    updates: Partial<
-      Pick<
-        RoutineTemplate,
-        "name" | "frequencyType" | "frequencyDays" | "order" | "tagId"
-      >
-    >,
-  ): Promise<RoutineTemplate> {
-    return invoke("db:routineTemplates:update", id, updates);
-  }
-  deleteRoutineTemplate(id: string): Promise<void> {
-    return invoke("db:routineTemplates:delete", id);
-  }
-  addRoutineTemplateItem(
-    templateId: string,
-    routineId: string,
-    startTime?: string | null,
-    endTime?: string | null,
-  ): Promise<void> {
-    return invoke(
-      "db:routineTemplates:addItem",
-      templateId,
-      routineId,
-      startTime,
-      endTime,
-    );
-  }
-  updateRoutineTemplateItem(
-    templateId: string,
-    routineId: string,
-    updates: { startTime?: string | null; endTime?: string | null },
-  ): Promise<void> {
-    return invoke(
-      "db:routineTemplates:updateItem",
-      templateId,
-      routineId,
-      updates,
-    );
-  }
-  removeRoutineTemplateItem(
-    templateId: string,
-    routineId: string,
-  ): Promise<void> {
-    return invoke("db:routineTemplates:removeItem", templateId, routineId);
-  }
-  reorderRoutineTemplateItems(
-    templateId: string,
-    routineIds: string[],
-  ): Promise<void> {
-    return invoke("db:routineTemplates:reorderItems", templateId, routineIds);
   }
 
   // Schedule Items

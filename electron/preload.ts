@@ -62,15 +62,9 @@ const ALLOWED_CHANNELS = new Set([
   "db:routineTags:create",
   "db:routineTags:update",
   "db:routineTags:delete",
-  // Routine Templates
-  "db:routineTemplates:fetchAll",
-  "db:routineTemplates:create",
-  "db:routineTemplates:update",
-  "db:routineTemplates:delete",
-  "db:routineTemplates:addItem",
-  "db:routineTemplates:updateItem",
-  "db:routineTemplates:removeItem",
-  "db:routineTemplates:reorderItems",
+  "db:routineTags:fetchTagsForRoutine",
+  "db:routineTags:setTagsForRoutine",
+  "db:routineTags:fetchAllAssignments",
   // Schedule Items
   "db:scheduleItems:fetchByDate",
   "db:scheduleItems:fetchByDateRange",

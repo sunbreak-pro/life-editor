@@ -28,12 +28,7 @@ export function useRoutines() {
   }, []);
 
   const createRoutine = useCallback(
-    (
-      title: string,
-      startTime?: string,
-      endTime?: string,
-      tagId?: number | null,
-    ) => {
+    (title: string, startTime?: string, endTime?: string) => {
       const id = generateId("routine");
       const now = new Date().toISOString();
       const optimistic: RoutineNode = {
@@ -43,13 +38,12 @@ export function useRoutines() {
         endTime: endTime ?? null,
         isArchived: false,
         order: routines.length,
-        tagId: tagId ?? null,
         createdAt: now,
         updatedAt: now,
       };
       setRoutines((prev) => [...prev, optimistic]);
       getDataService()
-        .createRoutine(id, title, startTime, endTime, tagId)
+        .createRoutine(id, title, startTime, endTime)
         .catch((e) => logServiceError("Routines", "create", e));
       return id;
     },
@@ -62,7 +56,7 @@ export function useRoutines() {
       updates: Partial<
         Pick<
           RoutineNode,
-          "title" | "startTime" | "endTime" | "isArchived" | "order" | "tagId"
+          "title" | "startTime" | "endTime" | "isArchived" | "order"
         >
       >,
     ) => {

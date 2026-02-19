@@ -8,7 +8,6 @@ interface RoutineRow {
   end_time: string | null;
   is_archived: number;
   order: number;
-  tag_id: number | null;
   created_at: string;
   updated_at: string;
 }
@@ -21,7 +20,6 @@ function rowToNode(row: RoutineRow): RoutineNode {
     endTime: row.end_time,
     isArchived: row.is_archived === 1,
     order: row.order,
-    tagId: row.tag_id,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -34,12 +32,12 @@ export function createRoutineRepository(db: Database.Database) {
     ),
     fetchById: db.prepare(`SELECT * FROM routines WHERE id = ?`),
     insert: db.prepare(`
-      INSERT INTO routines (id, title, start_time, end_time, is_archived, "order", tag_id, created_at, updated_at)
-      VALUES (@id, @title, @start_time, @end_time, 0, @order, @tag_id, datetime('now'), datetime('now'))
+      INSERT INTO routines (id, title, start_time, end_time, is_archived, "order", created_at, updated_at)
+      VALUES (@id, @title, @start_time, @end_time, 0, @order, datetime('now'), datetime('now'))
     `),
     update: db.prepare(`
       UPDATE routines SET title = @title, start_time = @start_time, end_time = @end_time,
-      is_archived = @is_archived, "order" = @order, tag_id = @tag_id, updated_at = datetime('now')
+      is_archived = @is_archived, "order" = @order, updated_at = datetime('now')
       WHERE id = @id
     `),
     delete: db.prepare(`DELETE FROM routines WHERE id = ?`),
@@ -58,7 +56,6 @@ export function createRoutineRepository(db: Database.Database) {
       title: string,
       startTime?: string,
       endTime?: string,
-      tagId?: number | null,
     ): RoutineNode {
       const maxOrder = (stmts.maxOrder.get() as { max_order: number })
         .max_order;
@@ -68,7 +65,6 @@ export function createRoutineRepository(db: Database.Database) {
         start_time: startTime ?? null,
         end_time: endTime ?? null,
         order: maxOrder + 1,
-        tag_id: tagId ?? null,
       });
       const row = stmts.fetchById.get(id) as RoutineRow;
       return rowToNode(row);
@@ -79,7 +75,7 @@ export function createRoutineRepository(db: Database.Database) {
       updates: Partial<
         Pick<
           RoutineNode,
-          "title" | "startTime" | "endTime" | "isArchived" | "order" | "tagId"
+          "title" | "startTime" | "endTime" | "isArchived" | "order"
         >
       >,
     ): RoutineNode {
@@ -97,7 +93,6 @@ export function createRoutineRepository(db: Database.Database) {
           updates.endTime !== undefined ? updates.endTime : current.endTime,
         is_archived: (updates.isArchived ?? current.isArchived) ? 1 : 0,
         order: updates.order ?? current.order,
-        tag_id: updates.tagId !== undefined ? updates.tagId : current.tagId,
       });
       const row = stmts.fetchById.get(id) as RoutineRow;
       return rowToNode(row);

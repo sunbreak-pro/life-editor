@@ -23,7 +23,7 @@ import type { NoteNode } from "../types/note";
 import type { CalendarNode } from "../types/calendar";
 import type { RoutineNode } from "../types/routine";
 import type { RoutineTag } from "../types/routineTag";
-import type { ScheduleItem, RoutineTemplate } from "../types/schedule";
+import type { ScheduleItem } from "../types/schedule";
 import type { Playlist, PlaylistItem } from "../types/playlist";
 import type {
   LogEntry,
@@ -172,6 +172,10 @@ export interface DataService {
     updates: Partial<Pick<RoutineTag, "name" | "color" | "order">>,
   ): Promise<RoutineTag>;
   deleteRoutineTag(id: number): Promise<void>;
+  fetchAllRoutineTagAssignments(): Promise<
+    Array<{ routine_id: string; tag_id: number }>
+  >;
+  setTagsForRoutine(routineId: string, tagIds: number[]): Promise<void>;
 
   // Routines
   fetchAllRoutines(): Promise<RoutineNode[]>;
@@ -180,57 +184,17 @@ export interface DataService {
     title: string,
     startTime?: string,
     endTime?: string,
-    tagId?: number | null,
   ): Promise<RoutineNode>;
   updateRoutine(
     id: string,
     updates: Partial<
       Pick<
         RoutineNode,
-        "title" | "startTime" | "endTime" | "isArchived" | "order" | "tagId"
+        "title" | "startTime" | "endTime" | "isArchived" | "order"
       >
     >,
   ): Promise<RoutineNode>;
   deleteRoutine(id: string): Promise<void>;
-
-  // Routine Templates
-  fetchRoutineTemplates(): Promise<RoutineTemplate[]>;
-  createRoutineTemplate(
-    id: string,
-    name: string,
-    frequencyType?: string,
-    frequencyDays?: number[],
-    tagId?: number | null,
-  ): Promise<RoutineTemplate>;
-  updateRoutineTemplate(
-    id: string,
-    updates: Partial<
-      Pick<
-        RoutineTemplate,
-        "name" | "frequencyType" | "frequencyDays" | "order" | "tagId"
-      >
-    >,
-  ): Promise<RoutineTemplate>;
-  deleteRoutineTemplate(id: string): Promise<void>;
-  addRoutineTemplateItem(
-    templateId: string,
-    routineId: string,
-    startTime?: string | null,
-    endTime?: string | null,
-  ): Promise<void>;
-  updateRoutineTemplateItem(
-    templateId: string,
-    routineId: string,
-    updates: { startTime?: string | null; endTime?: string | null },
-  ): Promise<void>;
-  removeRoutineTemplateItem(
-    templateId: string,
-    routineId: string,
-  ): Promise<void>;
-  reorderRoutineTemplateItems(
-    templateId: string,
-    routineIds: string[],
-  ): Promise<void>;
 
   // Schedule Items
   fetchScheduleItemsByDate(date: string): Promise<ScheduleItem[]>;

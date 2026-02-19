@@ -221,25 +221,21 @@ export function createMockDataService(): DataService & {
     updateRoutine: vi.fn().mockResolvedValue({}),
     deleteRoutine: vi.fn().mockResolvedValue(undefined),
 
-    // Routine Templates
-    fetchRoutineTemplates: vi.fn().mockResolvedValue([]),
-    createRoutineTemplate: vi.fn().mockImplementation((id, name) =>
-      Promise.resolve({
-        id,
-        name,
-        frequencyType: "daily",
-        frequencyDays: [],
-        order: 0,
-        items: [],
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      }),
-    ),
-    updateRoutineTemplate: vi.fn().mockResolvedValue({}),
-    deleteRoutineTemplate: vi.fn().mockResolvedValue(undefined),
-    addRoutineTemplateItem: vi.fn().mockResolvedValue(undefined),
-    removeRoutineTemplateItem: vi.fn().mockResolvedValue(undefined),
-    reorderRoutineTemplateItems: vi.fn().mockResolvedValue(undefined),
+    // Routine Tags
+    fetchAllRoutineTags: vi.fn().mockResolvedValue([]),
+    createRoutineTag: vi
+      .fn()
+      .mockImplementation((name, color) =>
+        Promise.resolve({ id: 1, name, color }),
+      ),
+    updateRoutineTag: vi
+      .fn()
+      .mockImplementation((id, updates) =>
+        Promise.resolve({ id, name: "", color: "", ...updates }),
+      ),
+    deleteRoutineTag: vi.fn().mockResolvedValue(undefined),
+    fetchAllRoutineTagAssignments: vi.fn().mockResolvedValue([]),
+    setTagsForRoutine: vi.fn().mockResolvedValue(undefined),
 
     // Schedule Items
     fetchScheduleItemsByDate: vi.fn().mockResolvedValue([]),

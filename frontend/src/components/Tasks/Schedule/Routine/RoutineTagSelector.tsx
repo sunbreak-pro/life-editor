@@ -7,14 +7,14 @@ import { TAG_COLORS } from "../../../../constants/tagColors";
 
 interface RoutineTagSelectorProps {
   tags: RoutineTag[];
-  selectedTagId: number | null;
-  onSelect: (tagId: number | null) => void;
+  selectedTagIds: number[];
+  onSelect: (tagIds: number[]) => void;
   onCreateTag?: (name: string, color: string) => Promise<RoutineTag>;
 }
 
 export function RoutineTagSelector({
   tags,
-  selectedTagId,
+  selectedTagIds,
   onSelect,
   onCreateTag,
 }: RoutineTagSelectorProps) {
@@ -24,7 +24,7 @@ export function RoutineTagSelector({
   const [showCreate, setShowCreate] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  const selectedTag = tags.find((t) => t.id === selectedTagId);
+  const selectedTags = tags.filter((t) => selectedTagIds.includes(t.id));
 
   const closeDropdown = useCallback(() => {
     setIsOpen(false);
@@ -32,14 +32,21 @@ export function RoutineTagSelector({
   }, []);
   useClickOutside(dropdownRef, closeDropdown, isOpen);
 
+  const toggleTag = (tagId: number) => {
+    if (selectedTagIds.includes(tagId)) {
+      onSelect(selectedTagIds.filter((id) => id !== tagId));
+    } else {
+      onSelect([...selectedTagIds, tagId]);
+    }
+  };
+
   const handleCreate = async () => {
     const trimmed = newTagName.trim();
     if (!trimmed || !onCreateTag) return;
     const tag = await onCreateTag(trimmed, newTagColor);
-    onSelect(tag.id);
+    onSelect([...selectedTagIds, tag.id]);
     setNewTagName("");
     setShowCreate(false);
-    setIsOpen(false);
   };
 
   return (
@@ -49,62 +56,53 @@ export function RoutineTagSelector({
         onClick={() => setIsOpen(!isOpen)}
         className="w-full flex items-center gap-2 px-2 py-1.5 text-base bg-transparent border border-notion-border rounded-md hover:bg-notion-hover transition-colors text-notion-text"
       >
-        {selectedTag ? (
-          <>
-            <span
-              className="w-2.5 h-2.5 rounded-full shrink-0"
-              style={{ backgroundColor: selectedTag.color }}
-            />
-            <span className="truncate">{selectedTag.name}</span>
-          </>
+        {selectedTags.length > 0 ? (
+          <div className="flex items-center gap-1 flex-wrap min-w-0">
+            {selectedTags.map((tag) => (
+              <span
+                key={tag.id}
+                className="inline-flex items-center gap-1 px-1.5 py-0 text-[11px] rounded-full text-white shrink-0"
+                style={{ backgroundColor: tag.color }}
+              >
+                {tag.name}
+              </span>
+            ))}
+          </div>
         ) : (
-          <span className="text-notion-text-secondary">No tag</span>
+          <span className="text-notion-text-secondary">No tags</span>
         )}
-        <ChevronDown size={14} className="ml-auto text-notion-text-secondary" />
+        <ChevronDown
+          size={14}
+          className="ml-auto text-notion-text-secondary shrink-0"
+        />
       </button>
 
       {isOpen && (
         <div className="absolute z-50 mt-1 w-full bg-notion-bg border border-notion-border rounded-lg shadow-lg max-h-52 overflow-auto">
           <div className="p-1">
-            <button
-              onClick={() => {
-                onSelect(null);
-                setIsOpen(false);
-              }}
-              className={`w-full flex items-center gap-2 px-3 py-1.5 text-sm rounded-md transition-colors ${
-                selectedTagId === null
-                  ? "bg-notion-accent/10"
-                  : "hover:bg-notion-hover"
-              }`}
-            >
-              <span className="text-notion-text-secondary">No tag</span>
-            </button>
-
-            {tags.map((tag) => (
-              <button
-                key={tag.id}
-                onClick={() => {
-                  onSelect(tag.id);
-                  setIsOpen(false);
-                }}
-                className={`w-full flex items-center gap-2 px-3 py-1.5 text-sm rounded-md transition-colors ${
-                  selectedTagId === tag.id
-                    ? "bg-notion-accent/10"
-                    : "hover:bg-notion-hover"
-                }`}
-              >
-                <span
-                  className="w-2.5 h-2.5 rounded-full shrink-0"
-                  style={{ backgroundColor: tag.color }}
-                />
-                <span className="text-notion-text truncate">{tag.name}</span>
-                {selectedTagId === tag.id && (
-                  <span className="ml-auto text-notion-accent text-[11px]">
-                    &#10003;
-                  </span>
-                )}
-              </button>
-            ))}
+            {tags.map((tag) => {
+              const isSelected = selectedTagIds.includes(tag.id);
+              return (
+                <button
+                  key={tag.id}
+                  onClick={() => toggleTag(tag.id)}
+                  className={`w-full flex items-center gap-2 px-3 py-1.5 text-sm rounded-md transition-colors ${
+                    isSelected ? "bg-notion-accent/10" : "hover:bg-notion-hover"
+                  }`}
+                >
+                  <span
+                    className="w-2.5 h-2.5 rounded-full shrink-0"
+                    style={{ backgroundColor: tag.color }}
+                  />
+                  <span className="text-notion-text truncate">{tag.name}</span>
+                  {isSelected && (
+                    <span className="ml-auto text-notion-accent text-[11px]">
+                      &#10003;
+                    </span>
+                  )}
+                </button>
+              );
+            })}
           </div>
 
           {onCreateTag && (

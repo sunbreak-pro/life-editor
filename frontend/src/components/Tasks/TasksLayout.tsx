@@ -50,16 +50,11 @@ export function TasksLayout({
   const [topTab, setTopTab] = useState<TopTab>("tasks");
   const {
     routines,
-    templates,
     createRoutine,
     updateRoutine,
     deleteRoutine,
-    createTemplate,
-    updateTemplate,
-    deleteTemplate,
-    addTemplateItem,
-    updateTemplateItem,
-    removeTemplateItem,
+    tagAssignments,
+    setTagsForRoutine,
     getRoutineCompletionRate,
     routineStats,
     scheduleItems,
@@ -105,17 +100,12 @@ export function TasksLayout({
         ) : (
           <RoutinesTab
             routines={routines}
-            templates={templates}
             routineTags={routineTags}
+            tagAssignments={tagAssignments}
             onCreateRoutine={createRoutine}
             onUpdateRoutine={updateRoutine}
             onDeleteRoutine={deleteRoutine}
-            onCreateTemplate={createTemplate}
-            onUpdateTemplate={updateTemplate}
-            onDeleteTemplate={deleteTemplate}
-            onAddTemplateItem={addTemplateItem}
-            onUpdateTemplateItem={updateTemplateItem}
-            onRemoveTemplateItem={removeTemplateItem}
+            setTagsForRoutine={setTagsForRoutine}
             getCompletionRate={getRoutineCompletionRate}
             routineStats={routineStats}
             scheduleItems={scheduleItems}
