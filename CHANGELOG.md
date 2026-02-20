@@ -4,6 +4,14 @@
 
 ---
 
+## AI機能廃止 + Daily未記入日メモ作成 + 時間表示削除 (2026-02-20)
+
+- **aiService完全廃止**: AI関連6ファイル削除、参照元11ファイルからAIコード除去、SettingsのAIタブ・i18nキー削除
+- **Daily未記入日メモ作成**: Plusボタンにドロップダウン追加、過去30日間の未記入日を選択してメモ作成可能に
+- **時間表示削除**: Dailyリスト項目のupdatedAt時間表示削除
+
+---
+
 ## グローバル Undo/Redo システム (2026-02-19)
 
 - **コアインフラ**: `shared/UndoRedo/` に7ファイル新規作成（types, UndoRedoManager, UndoRedoContext, useUndoRedo, useUndoRedoKeyboard, UndoRedoButtons, index）

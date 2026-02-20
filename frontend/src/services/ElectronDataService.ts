@@ -13,11 +13,6 @@ import type {
   SoundDisplayMeta,
 } from "../types/sound";
 import type { MemoNode } from "../types/memo";
-import type {
-  AIAdviceRequest,
-  AIAdviceResponse,
-  AISettingsResponse,
-} from "../types/ai";
 import type { CustomSoundMeta } from "../types/customSound";
 import type { NoteNode } from "../types/note";
 
@@ -263,28 +258,6 @@ export class ElectronDataService implements DataService {
   }
   permanentDeleteCustomSound(id: string): Promise<void> {
     return invoke("db:customSound:permanentDelete", id);
-  }
-
-  // AI
-  async fetchAIAdvice(request: AIAdviceRequest): Promise<AIAdviceResponse> {
-    const result = await invoke<
-      AIAdviceResponse & { error?: string; errorCode?: string }
-    >("ai:advice", request);
-    if (result.error) {
-      const err = new Error(result.error) as Error & { errorCode?: string };
-      err.errorCode = result.errorCode;
-      throw err;
-    }
-    return result;
-  }
-  fetchAISettings(): Promise<AISettingsResponse> {
-    return invoke("ai:fetchSettings");
-  }
-  updateAISettings(settings: {
-    apiKey?: string;
-    model?: string;
-  }): Promise<AISettingsResponse> {
-    return invoke("ai:updateSettings", settings);
   }
 
   // Calendars

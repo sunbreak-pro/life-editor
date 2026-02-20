@@ -5,13 +5,10 @@ import { createTaskRepository } from "../database/taskRepository";
 import { createTimerRepository } from "../database/timerRepository";
 import { createSoundRepository } from "../database/soundRepository";
 import { createMemoRepository } from "../database/memoRepository";
-import { createAIRepository } from "../database/aiRepository";
-
 import { registerTaskHandlers } from "./taskHandlers";
 import { registerTimerHandlers } from "./timerHandlers";
 import { registerSoundHandlers } from "./soundHandlers";
 import { registerMemoHandlers } from "./memoHandlers";
-import { registerAIHandlers } from "./aiHandlers";
 import { registerAppHandlers } from "./appHandlers";
 import { createNoteRepository } from "../database/noteRepository";
 import { createCustomSoundRepository } from "../database/customSoundRepository";
@@ -40,13 +37,7 @@ export function registerAllHandlers(db: Database.Database): void {
   const tasks = createTaskRepository(db);
   const timer = createTimerRepository(db);
   const memo = createMemoRepository(db);
-  const ai = createAIRepository(db);
   const notes = createNoteRepository(db);
-  try {
-    ai.migrateDeprecatedModel();
-  } catch (e) {
-    log.error("[IPC] AI migration failed:", e);
-  }
 
   // Wrap ipcMain.handle to auto-instrument all handlers with metrics
   const originalHandle = ipcMain.handle.bind(ipcMain);
@@ -70,7 +61,6 @@ export function registerAllHandlers(db: Database.Database): void {
     ["Sound", () => registerSoundHandlers(getSoundRepo())],
     ["Memo", () => registerMemoHandlers(memo)],
     ["Notes", () => registerNoteHandlers(notes)],
-    ["AI", () => registerAIHandlers(ai)],
     [
       "CustomSound",
       () => registerCustomSoundHandlers(createCustomSoundRepository()),

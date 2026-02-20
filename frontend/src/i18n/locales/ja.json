@@ -15,7 +15,6 @@
     "title": "設定",
     "general": "一般",
     "notificationsTab": "通知",
-    "aiTab": "AI",
     "dataTab": "データ",
     "advancedTab": "詳細",
     "appearance": "外観",
@@ -36,21 +35,6 @@
     "description": "作業/休憩セッション終了時に通知を受け取る",
     "completionSound": "セッション完了サウンド",
     "preview": "プレビュー"
-  },
-  "ai": {
-    "title": "AIコーチ",
-    "apiKey": "Gemini APIキー",
-    "alreadySet": "設定済み:",
-    "overwritePlaceholder": "新しいキーを入力して上書き...",
-    "keyPlaceholder": "APIキーを入力...",
-    "getKey": "Google AI StudioでAPIキーを取得",
-    "model": "モデル",
-    "saving": "保存中...",
-    "save": "保存",
-    "saved": "保存しました",
-    "saveFailed": "保存に失敗しました。バックエンドが起動しているか確認してください。",
-    "configureKey": "SettingsでAPIキーを設定する",
-    "thinking": "考え中..."
   },
   "data": {
     "title": "データ管理",

@@ -165,17 +165,6 @@ export function createMockDataService(): DataService & {
     restoreCustomSound: vi.fn().mockResolvedValue(undefined),
     permanentDeleteCustomSound: vi.fn().mockResolvedValue(undefined),
 
-    // AI
-    fetchAIAdvice: vi
-      .fn()
-      .mockResolvedValue({ advice: "", requestType: "breakdown" }),
-    fetchAISettings: vi
-      .fn()
-      .mockResolvedValue({ apiKey: "", model: "", hasApiKey: false }),
-    updateAISettings: vi
-      .fn()
-      .mockResolvedValue({ apiKey: "", model: "", hasApiKey: false }),
-
     // Calendars
     fetchCalendars: vi.fn().mockResolvedValue([]),
     createCalendar: vi.fn().mockImplementation((id, title, folderId) =>

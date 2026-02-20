@@ -42,12 +42,15 @@ export function MemoView() {
     localStorage.setItem(STORAGE_KEYS.MEMO_TAB, tab);
   };
 
-  const handleCreateToday = useCallback(() => {
-    setSelectedDate(todayKey);
-    if (!memos.some((m) => m.date === todayKey)) {
-      upsertMemo(todayKey, "");
-    }
-  }, [todayKey, setSelectedDate, memos, upsertMemo]);
+  const handleCreateForDate = useCallback(
+    (date: string) => {
+      setSelectedDate(date);
+      if (!memos.some((m) => m.date === date)) {
+        upsertMemo(date, "");
+      }
+    },
+    [setSelectedDate, memos, upsertMemo],
+  );
 
   const handleDelete = useCallback(
     (date: string) => {
@@ -84,7 +87,7 @@ export function MemoView() {
               selectedDate={selectedDate}
               todayKey={todayKey}
               onSelectDate={setSelectedDate}
-              onCreateToday={handleCreateToday}
+              onCreateForDate={handleCreateForDate}
               onDelete={handleDelete}
             />
             <div className="flex-1 min-w-0">

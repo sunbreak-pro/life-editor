@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## プロジェクト概要
 
-Notionライクなタスク管理 + 環境音ミキサー + ポモドーロタイマーを組み合わせた没入型個人タスク管理デスクトップアプリ（Sonic Flow）。Electron + SQLite でスタンドアロン動作（バックエンドサーバー不要）。
+Notionライクなタスク管理 + 環境音ミキサー + プレイリスト + ポモドーロタイマーを組み合わせた没入型個人タスク管理デスクトップアプリ（Sonic Flow）。Electron + SQLite でスタンドアロン動作（バックエンドサーバー不要）。
 
 ---
 
@@ -70,11 +70,11 @@ Repository層 (better-sqlite3 → userData/sonic-flow.db)
 
 ### データ永続化
 
-**SQLite (better-sqlite3)** でローカルファイルに永続化。DBファイル: `userData/sonic-flow.db`（WALモード）。
+**SQLite (better-sqlite3)** でローカルファイルに永続化。DBファイル: `userData/sonic-flow.db`（WALモード）。スキーマバージョン: V21。
 
-テーブル: tasks, timer_settings, timer_sessions, sound_settings, sound_presets, memos, ai_settings, task_templates, notes, calendars, pomodoro_presets, sound_tag_definitions, sound_tag_assignments, sound_display_meta, sound_workscreen_selections, routines, routine_templates, routine_template_items, schedule_items
+テーブル: tasks, timer_settings, timer_sessions, sound_settings, sound_presets, memos, ai_settings, task_templates, notes, calendars, pomodoro_presets, sound_tag_definitions, sound_tag_assignments, sound_display_meta, sound_workscreen_selections, routines, routine_tag_definitions, routine_tag_assignments, schedule_items, playlists, playlist_items
 
-**localStorage は UI状態のみ**（12キー、`constants/storageKeys.ts`）: theme, font-size, language, sidebar幅(左右), サイドバー開閉(左右), 通知ON/OFF, メモタブ, エフェクト音量, アクティブカレンダーID, フォルダフィルタ。
+**localStorage は UI状態のみ**（16キー、`constants/storageKeys.ts`）: theme, font-size, language, sidebar開閉/幅, 通知ON/OFF, メモタブ, エフェクト音量, アクティブカレンダーID, フォルダフィルタ, ソートモード, カレンダーモード, タイマープレイリストID, アクティブプレイリストID, ルーティンタイムスロット, フォルダ移動確認スキップ。
 
 ### DataService 抽象化レイヤー（重要）
 
@@ -95,10 +95,13 @@ frontend/src/services/
 `preload.ts` の `ALLOWED_CHANNELS` で許可制御。プレフィックス規則:
 
 - `db:tasks:*` / `db:timer:*` / `db:sound:*` / `db:memo:*` — DB CRUD
-- `db:customSound:*` / `db:tags:*` / `db:templates:*` — DB CRUD
-- `db:routines:*` / `db:routineTemplates:*` / `db:scheduleItems:*` — Schedule系 CRUD
-- `ai:*` — Gemini API呼び出し（メインプロセス経由）
-- `data:export` / `data:import` — JSON一括入出力
+- `db:notes:*` / `db:calendars:*` — DB CRUD
+- `db:customSound:*` — カスタムサウンド管理（blob含む）
+- `db:routines:*` / `db:routineTags:*` / `db:scheduleItems:*` — Schedule系 CRUD
+- `db:playlists:*` — プレイリスト・楽曲管理
+- `data:export` / `data:import` / `data:reset` — JSON一括入出力・リセット
+- `diagnostics:*` — ログ閲覧・メトリクス・システム情報
+- `updater:*` — 自動更新（チェック・ダウンロード・インストール）
 - `app:migrateFromLocalStorage` — 初回マイグレーション
 
 ### Electron メインプロセス構成
@@ -107,16 +110,20 @@ frontend/src/services/
 electron/
 ├── main.ts              # エントリポイント（BrowserWindow作成、dev/prod分岐）
 ├── preload.ts           # contextBridge + チャンネルホワイトリスト
+├── logger.ts            # electron-log ラッパー
+├── menu.ts              # アプリケーションメニュー定義
+├── updater.ts           # electron-updater 自動更新処理
+├── windowState.ts       # ウィンドウ状態永続化
+├── types.ts             # メインプロセス型定義
 ├── database/
 │   ├── db.ts            # better-sqlite3 シングルトン初期化
-│   ├── migrations.ts    # テーブルスキーマ定義
-│   └── *Repository.ts   # 12リポジトリ（task/timer/sound/memo/ai/template/customSound/note/calendar/pomodoroPreset/routine/routineTemplate/scheduleItem）
+│   ├── migrations.ts    # テーブルスキーマ定義（V21）
+│   └── *Repository.ts   # 12リポジトリ（task/timer/sound/memo/customSound/note/calendar/pomodoroPreset/routine/routineTag/scheduleItem/playlist）
 ├── ipc/
 │   ├── registerAll.ts   # 全ハンドラ一括登録（個別try/catch付き）
-│   └── *Handlers.ts     # ドメイン別IPCハンドラ（14ファイル、全ハンドラtry-catch付き）
-└── services/
-    ├── aiService.ts         # Gemini API呼び出し
-    └── safeStorageService.ts  # APIキー安全保存
+│   ├── handlerUtil.ts   # エラーハンドリング共通化
+│   ├── ipcMetrics.ts    # IPC応答時間自動計測
+│   └── *Handlers.ts     # ドメイン別IPCハンドラ（16ファイル: task/timer/sound/memo/customSound/note/calendar/pomodoroPreset/routine/routineTag/scheduleItem/playlist/app/dataIO/diagnostics/updater）
 ```
 
 ### フロントエンド構成
@@ -124,10 +131,10 @@ electron/
 **Context Provider スタック** (`main.tsx`):
 
 ```
-StrictMode → ErrorBoundary → ThemeProvider → TaskTreeProvider → CalendarProvider → MemoProvider → NoteProvider → ScheduleProvider → TimerProvider → AudioProvider → App
+StrictMode → ErrorBoundary → ThemeProvider → UndoRedoProvider → TaskTreeProvider → CalendarProvider → MemoProvider → NoteProvider → ScheduleProvider → TimerProvider → AudioProvider → App
 ```
 
-**ルーティング**: React Routerなし。`App.tsx`が`activeSection`状態で8セクション（tasks/memo/music/work/schedule/analytics/settings/tips）を切り替え。
+**ルーティング**: React Routerなし。`App.tsx`が`activeSection`状態でセクション（tasks/memo/music/work/schedule/analytics/trash/settings/tips）を切り替え。
 
 **レイアウト構成** (3カラム):
 
@@ -137,7 +144,7 @@ App (状態オーケストレーター)
 ├── SubSidebar (リサイズ可能160-400px)
 │   └── TaskTree (Inbox + Projects + Completed)
 └── MainContent (flex-1)
-    └── TaskDetail | MemoView | WorkScreen | CalendarView | AnalyticsView | Settings | Tips
+    └── TaskDetail | MemoView | WorkScreen | CalendarView | AnalyticsView | TrashView | Settings | Tips
 ```
 
 WorkScreenはモーダルオーバーレイとしても表示可能（`isTimerModalOpen`）。
@@ -147,14 +154,26 @@ WorkScreenはモーダルオーバーレイとしても表示可能（`isTimerMo
 - フラット配列 + `parentId`参照で階層を表現（ネストツリーではない）
 - `type`: `'folder' | 'task'` — typeが振る舞いを決定
 - フォルダは5階層までネスト可能（`MAX_FOLDER_DEPTH = 5`）、タスクはどこにでも配置可能
-- ソフトデリート: `isDeleted`フラグ → Settings画面のゴミ箱から復元可能
+- ソフトデリート: `isDeleted`フラグ → TrashViewから復元可能（Tasks/Notes/Memos/Routines/CustomSounds が対応）
+
+**グローバル Undo/Redo システム** (`components/shared/UndoRedo/`):
+
+- コマンドパターン + ドメイン別スタック（taskTree/memo/note/calendar/routine/scheduleItem/playlist/sound）
+- `UndoRedoManager` がドメインごとの undo/redo スタックを管理
+- Cmd+Z / Cmd+Shift+Z でアクティブドメインの操作を元に戻す/やり直し
+- INPUT/TEXTAREA/contenteditable 内ではスキップ（TipTap内蔵undoと競合しない）
+- 除外: Timer操作、TipTap content更新、customSound add/remove（blob不可逆）
 
 **主要フック**:
 
 - `useTaskTreeAPI` — タスクツリーCRUD（IPC経由SQLite永続化）、内部で分割: `useTaskTreeCRUD` / `useTaskTreeDeletion` / `useTaskTreeMovement`
+- `useTaskTreeHistory` / `useTaskTreeKeyboard` — Undo/Redo履歴管理・キーボード操作
 - `useLocalSoundMixer` — サウンドミキサー状態管理（ボリューム、有効/無効）
 - `useAudioEngine` — Web Audio APIによるリアルタイム再生・フェードイン/アウト
 - `useCustomSounds` — カスタムサウンドメタデータ + IPC blob管理
+- `usePlaylistPlayer` / `usePlaylistEngine` / `usePlaylistData` — プレイリスト再生制御・データ管理
+- `useRoutines` / `useRoutineTags` / `useRoutineTagAssignments` — ルーティンCRUD・タグ管理
+- `useAppCommands` / `useAppKeyboardShortcuts` — グローバルコマンド・ショートカット
 - `useTimerContext` / `useTaskTreeContext` / `useAudioContext` / `useMemoContext` / `useNoteContext` / `useCalendarContext` / `useScheduleContext` — Context消費用ラッパー
 
 **タイマーシステム**:
@@ -164,9 +183,13 @@ WorkScreenはモーダルオーバーレイとしても表示可能（`isTimerMo
 - WORK → BREAK → LONG_BREAK を自動遷移
 - モーダルを閉じてもバックグラウンドで継続
 
+**プレイリスト**: タイマー実行時に選択プレイリストを自動再生。楽曲をシーケンシャル再生（1曲ずつ順番→ループ）。DnD並び替え、シャッフル/リピート（off/one/all）、シークバー、ボリュームコントロール。
+
+**ルーティンタグシステム**: ルーティンに多対多のカラータグ（Morning/Afternoon/Night等）を付与。`routine_tag_definitions` + `routine_tag_assignments` テーブルで管理。
+
 **ドラッグ&ドロップ**: `@dnd-kit`使用。`moveNode`（並び替え）と`moveNodeInto`（階層移動）は別操作。循環参照防止あり。
 
-**リッチテキスト**: TipTap (`@tiptap/react`) でタスクメモ編集（MemoEditor）。`React.lazy`で遅延ロード。
+**リッチテキスト**: TipTap (`@tiptap/react`) でタスクメモ編集（MemoEditor）。`React.lazy`で遅延ロード。スラッシュコマンド対応。
 
 **IDはString型**: `"task-xxx"`/`"folder-xxx"`形式。
 
@@ -174,7 +197,8 @@ WorkScreenはモーダルオーバーレイとしても表示可能（`isTimerMo
 
 ### テスト構成
 
-テストファイルはソースと同じディレクトリに配置（`*.test.ts` / `*.spec.tsx`）。
+テストファイルはソースと同じディレクトリに配置（`*.test.ts` / `*.test.tsx`）。Vitest + Testing Library + jsdom。
+
 テストユーティリティ（`frontend/src/test/`）:
 
 - `setup.ts` — localStorage/Notification/electronAPIのモック
@@ -215,7 +239,6 @@ type: `feat` / `fix` / `docs` / `style` / `refactor` / `test` / `chore`
   2. 機能追加・削除時は「主な機能」セクションも更新
   3. アーキテクチャ変更時は「技術スタック」「セットアップ」セクションも更新
 - **音源ファイル**: リポジトリにコミット禁止（`public/sounds/`は`.gitignore`対象）
-- **AIキー**: フロントエンドに直接記載禁止、Electronメインプロセス経由のみ（`safeStorageService`使用）
 - **IPC追加時**: `preload.ts`の`ALLOWED_CHANNELS`、`electron/ipc/`のハンドラ、`ElectronDataService.ts`の3箇所を更新
 
 ---

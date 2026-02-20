@@ -111,24 +111,4 @@ describe("ElectronDataService", () => {
     await service.exportData();
     expect(mockInvoke).toHaveBeenCalledWith("data:export");
   });
-
-  // AI
-  it("fetchAIAdvice throws on error response", async () => {
-    mockInvoke.mockResolvedValue({ error: "No API key", errorCode: "NO_KEY" });
-    await expect(
-      service.fetchAIAdvice({ taskTitle: "Test", requestType: "breakdown" }),
-    ).rejects.toThrow("No API key");
-  });
-
-  it("fetchAIAdvice returns advice on success", async () => {
-    mockInvoke.mockResolvedValue({
-      advice: "Do this",
-      requestType: "breakdown",
-    });
-    const result = await service.fetchAIAdvice({
-      taskTitle: "Test",
-      requestType: "breakdown",
-    });
-    expect(result.advice).toBe("Do this");
-  });
 });

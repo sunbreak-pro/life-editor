@@ -15,7 +15,6 @@
     "title": "Settings",
     "general": "General",
     "notificationsTab": "Notifications",
-    "aiTab": "AI",
     "dataTab": "Data",
     "advancedTab": "Advanced",
     "appearance": "Appearance",
@@ -36,21 +35,6 @@
     "description": "Get notified when work/break sessions end",
     "completionSound": "Session Complete Sound",
     "preview": "Preview"
-  },
-  "ai": {
-    "title": "AI Coach",
-    "apiKey": "Gemini API Key",
-    "alreadySet": "Already set:",
-    "overwritePlaceholder": "Enter new key to overwrite...",
-    "keyPlaceholder": "Enter API key...",
-    "getKey": "Get API key from Google AI Studio",
-    "model": "Model",
-    "saving": "Saving...",
-    "save": "Save",
-    "saved": "Saved",
-    "saveFailed": "Save failed. Please check if backend is running.",
-    "configureKey": "Configure API key in Settings",
-    "thinking": "Thinking..."
   },
   "data": {
     "title": "Data Management",
@@ -649,11 +633,6 @@
     "newTaskIn": "New task in {{folder}}...",
     "taskName": "Task name...",
     "noTasks": "No tasks available"
-  },
-  "aiButtons": {
-    "breakdown": "Step Breakdown",
-    "encouragement": "Encouragement",
-    "review": "Review"
   },
   "sessionModal": {
     "workComplete": "WORK Complete!",

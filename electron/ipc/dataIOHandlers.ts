@@ -71,10 +71,6 @@ export function registerDataIOHandlers(db: Database.Database): void {
             "SELECT * FROM routine_tag_definitions",
           ),
           scheduleItems: safeQuery(db, "SELECT * FROM schedule_items"),
-          aiSettings: safeQueryOne(
-            db,
-            "SELECT * FROM ai_settings WHERE id = 1",
-          ),
         },
       };
 
@@ -324,16 +320,6 @@ export function registerDataIOHandlers(db: Database.Database): void {
               });
             }
           }
-
-          // Import AI settings
-          if (data.aiSettings) {
-            const ai = data.aiSettings;
-            db.prepare(
-              `
-            UPDATE ai_settings SET api_key=@api_key, model=@model, updated_at=@updated_at WHERE id=1
-          `,
-            ).run(ai);
-          }
         });
 
         importAll();
@@ -394,16 +380,6 @@ export function registerDataIOHandlers(db: Database.Database): void {
             UPDATE timer_settings
             SET work_duration = 25, break_duration = 5,
                 long_break_duration = 15, sessions_before_long_break = 4,
-                updated_at = datetime('now')
-            WHERE id = 1
-          `,
-          ).run();
-
-          // Clear AI settings
-          db.prepare(
-            `
-            UPDATE ai_settings
-            SET api_key = '', model = 'gemini-2.0-flash',
                 updated_at = datetime('now')
             WHERE id = 1
           `,

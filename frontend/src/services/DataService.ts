@@ -12,11 +12,6 @@ import type {
   SoundDisplayMeta,
 } from "../types/sound";
 import type { MemoNode } from "../types/memo";
-import type {
-  AIAdviceRequest,
-  AIAdviceResponse,
-  AISettingsResponse,
-} from "../types/ai";
 import type { CustomSoundMeta } from "../types/customSound";
 import type { NoteNode } from "../types/note";
 
@@ -145,14 +140,6 @@ export interface DataService {
   fetchDeletedCustomSounds(): Promise<CustomSoundMeta[]>;
   restoreCustomSound(id: string): Promise<void>;
   permanentDeleteCustomSound(id: string): Promise<void>;
-
-  // AI
-  fetchAIAdvice(request: AIAdviceRequest): Promise<AIAdviceResponse>;
-  fetchAISettings(): Promise<AISettingsResponse>;
-  updateAISettings(settings: {
-    apiKey?: string;
-    model?: string;
-  }): Promise<AISettingsResponse>;
 
   // Calendars
   fetchCalendars(): Promise<CalendarNode[]>;

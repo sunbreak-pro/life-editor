@@ -1,23 +1,21 @@
 import { useState } from "react";
-import { Settings2, Bell, Sparkles, Database, Wrench } from "lucide-react";
+import { Settings2, Bell, Database, Wrench } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { SectionTabs, type TabItem } from "../shared/SectionTabs";
 import { LAYOUT } from "../../constants/layout";
 import { AppearanceSettings } from "./AppearanceSettings";
 import { LanguageSettings } from "./LanguageSettings";
 import { NotificationSettings } from "./NotificationSettings";
-import { AISettings } from "./AISettings";
 import { DataManagement } from "./DataManagement";
 import { UpdateSettings } from "./UpdateSettings";
 import { PerformanceMonitor } from "./PerformanceMonitor";
 import { LogViewer } from "./LogViewer";
 
-type SettingsTab = "general" | "notifications" | "ai" | "data" | "advanced";
+type SettingsTab = "general" | "notifications" | "data" | "advanced";
 
 const TABS = [
   { id: "general", labelKey: "settings.general", icon: Settings2 },
   { id: "notifications", labelKey: "settings.notificationsTab", icon: Bell },
-  { id: "ai", labelKey: "settings.aiTab", icon: Sparkles },
   { id: "data", labelKey: "settings.dataTab", icon: Database },
   { id: "advanced", labelKey: "settings.advancedTab", icon: Wrench },
 ] as const satisfies readonly TabItem<SettingsTab>[];
@@ -51,7 +49,6 @@ export function Settings() {
           </div>
         )}
         {activeTab === "notifications" && <NotificationSettings />}
-        {activeTab === "ai" && <AISettings />}
         {activeTab === "data" && <DataManagement />}
         {activeTab === "advanced" && (
           <div className="space-y-8">

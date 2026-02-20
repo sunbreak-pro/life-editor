@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { CheckCircle2, Music, SkipForward, Timer, Clock } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useTimerContext } from "../../hooks/useTimerContext";

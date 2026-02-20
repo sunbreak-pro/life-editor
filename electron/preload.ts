@@ -98,11 +98,6 @@ const ALLOWED_CHANNELS = new Set([
   "db:customSound:fetchDeleted",
   "db:customSound:restore",
   "db:customSound:permanentDelete",
-  // AI
-  "ai:advice",
-  "ai:fetchSettings",
-  "ai:updateSettings",
-
   // Calendars
   "db:calendars:fetchAll",
   "db:calendars:create",
