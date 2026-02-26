@@ -4,6 +4,9 @@
 .vscode/
 .DS_Store
 
+# Claude Code worktrees
+.claude/worktrees/
+
 # Logs
 *.log
 
