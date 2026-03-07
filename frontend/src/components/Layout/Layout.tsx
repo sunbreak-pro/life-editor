@@ -1,8 +1,10 @@
 import { useRef, useState, useCallback, useEffect } from "react";
 import type { ReactNode } from "react";
-import { PanelLeft } from "lucide-react";
 import type { SectionId } from "../../types/taskTree";
 import { LeftSidebar } from "./LeftSidebar";
+import { CollapsedSidebar } from "./CollapsedSidebar";
+import { TitleBar } from "./TitleBar";
+import { HeaderPortalContext } from "./HeaderPortalContext";
 import { MainContent } from "./MainContent";
 import { TerminalPanel } from "../Terminal/TerminalPanel";
 import { StatusBar } from "../StatusBar/StatusBar";
@@ -156,48 +158,56 @@ export function Layout({
 
   const currentLeftWidth = dragLeftWidth ?? leftSidebarWidth;
 
+  const [portalTarget, setPortalTarget] = useState<HTMLDivElement | null>(null);
+
+  const handleToggleSidebar = useCallback(() => {
+    setLeftSidebarOpen((prev) => !prev);
+  }, [setLeftSidebarOpen]);
+
   return (
-    <div className="flex flex-col h-screen">
-      <div className="flex flex-1 min-h-0">
-        {leftSidebarOpen ? (
-          <div
-            className="relative shrink-0"
-            style={{ width: currentLeftWidth }}
-          >
-            <LeftSidebar
-              width={currentLeftWidth}
+    <HeaderPortalContext.Provider value={portalTarget}>
+      <div className="flex flex-col h-screen">
+        <TitleBar
+          sidebarOpen={leftSidebarOpen}
+          onToggleSidebar={handleToggleSidebar}
+          onPortalTarget={setPortalTarget}
+        />
+        <div className="flex flex-1 min-h-0">
+          {leftSidebarOpen ? (
+            <div
+              className="relative shrink-0"
+              style={{ width: currentLeftWidth }}
+            >
+              <LeftSidebar
+                width={currentLeftWidth}
+                activeSection={activeSection}
+                onSectionChange={onSectionChange}
+              />
+              <div
+                onMouseDown={handleLeftMouseDown}
+                className="absolute top-0 right-0 w-1.5 h-full cursor-col-resize hover:bg-notion-accent/30 transition-colors z-10"
+              />
+            </div>
+          ) : (
+            <CollapsedSidebar
               activeSection={activeSection}
               onSectionChange={onSectionChange}
-              onToggle={() => setLeftSidebarOpen(false)}
             />
-            <div
-              onMouseDown={handleLeftMouseDown}
-              className="absolute top-0 right-0 w-1.5 h-full cursor-col-resize hover:bg-notion-accent/30 transition-colors z-10"
-            />
-          </div>
-        ) : (
-          <div className="h-full bg-notion-bg-secondary border-r border-notion-border flex flex-col items-center pt-4 shrink-0 w-12">
-            <button
-              onClick={() => setLeftSidebarOpen(true)}
-              className="p-1.5 text-notion-text-secondary hover:text-notion-text rounded transition-colors"
-            >
-              <PanelLeft size={18} />
-            </button>
-          </div>
-        )}
-        <MainContent>{children}</MainContent>
+          )}
+          <MainContent>{children}</MainContent>
+        </div>
+        <TerminalPanel
+          isOpen={terminalOpen}
+          height={terminalHeight}
+          onHeightChange={setTerminalHeight}
+          onClose={() => setTerminalOpen(false)}
+        />
+        <StatusBar
+          isTerminalOpen={terminalOpen}
+          onToggleTerminal={() => setTerminalOpen((prev) => !prev)}
+          claudeState={claudeState}
+        />
       </div>
-      <TerminalPanel
-        isOpen={terminalOpen}
-        height={terminalHeight}
-        onHeightChange={setTerminalHeight}
-        onClose={() => setTerminalOpen(false)}
-      />
-      <StatusBar
-        isTerminalOpen={terminalOpen}
-        onToggleTerminal={() => setTerminalOpen((prev) => !prev)}
-        claudeState={claudeState}
-      />
-    </div>
+    </HeaderPortalContext.Provider>
   );
 }

@@ -1,5 +1,26 @@
 # HISTORY.md - 変更履歴
 
+### 2026-03-08 - Unified Header Bar 実装
+
+#### 概要
+
+ウィンドウ最上部に統合ヘッダーバー（TitleBar）を新設。ドラッグ操作・サイドバートグル・セクションタブを一箇所に集約。サイドバー閉じ時もアイコンナビゲーションでセクション切替可能に。
+
+#### 変更点
+
+- **新規**: `HeaderPortalContext.ts` — SectionHeader → TitleBar へのポータル Context
+- **新規**: `TitleBar.tsx` — 統合ヘッダーバー（ドラッグ領域 + life-editor ラベル + PanelLeft トグル + ポータルターゲット）
+- **新規**: `CollapsedSidebar.tsx` — サイドバー折りたたみ時のアイコンナビ（全セクション対応）
+- **修正**: `Layout.tsx` — TitleBar 追加、HeaderPortalContext.Provider でラップ、CollapsedSidebar 使用
+- **修正**: `LeftSidebar.tsx` — ヘッダー部分（Life Editor + PanelLeft + titlebar-drag）削除、onToggle prop 削除
+- **修正**: `SectionHeader.tsx` — Portal 対応（portalTarget があれば createPortal で TitleBar に注入）、rightTabs prop 追加
+- **修正**: `WorkScreen.tsx` / `Settings.tsx` / `Tips.tsx` — インラインヘッダーを SectionHeader コンポーネントに置換
+- **修正**: `TrashView.tsx` — Settings 内のサブコンポーネントのため SectionTabs を直接使用（二重ポータル回避）
+- **修正**: `electron/main.ts` — trafficLightPosition.y: 16 → 14（TitleBar 48px に合わせて中央配置）
+- **計画書**: `docs/archive/unified-header-bar.md`
+
+---
+
 ### 2026-03-08 - Life Editor v2: Step 3 (Claude Code 設定自動化 + 検知) + Step 4 (UI 調整)
 
 #### 概要

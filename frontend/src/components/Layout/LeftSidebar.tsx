@@ -5,19 +5,16 @@ import {
   BarChart3,
   Settings,
   Pencil,
-  PanelLeft,
   Lightbulb,
 } from "lucide-react";
 import type { SectionId } from "../../types/taskTree";
 import { useTimerContext } from "../../hooks/useTimerContext";
-import { isMac } from "../../utils/platform";
 import { useTranslation } from "react-i18next";
 
 interface SidebarProps {
   width: number;
   activeSection: SectionId;
   onSectionChange: (section: SectionId) => void;
-  onToggle: () => void;
 }
 
 const mainMenuItems: {
@@ -35,7 +32,6 @@ export function LeftSidebar({
   width,
   activeSection,
   onSectionChange,
-  onToggle,
 }: SidebarProps) {
   const timer = useTimerContext();
   const { t } = useTranslation();
@@ -46,20 +42,7 @@ export function LeftSidebar({
       className="h-full bg-notion-bg-secondary border-r border-notion-border flex flex-col"
       style={{ width }}
     >
-      <div
-        className={`flex justify-between items-center p-4 border-b border-notion-border titlebar-drag${
-          isMac ? " pt-10" : ""
-        }`}
-      >
-        <h1 className="text-2xl font-semibold text-notion-text">Life Editor</h1>
-        <button
-          onClick={onToggle}
-          className="p-1 text-notion-text-secondary hover:text-notion-text rounded transition-colors titlebar-nodrag"
-        >
-          <PanelLeft size={18} />
-        </button>
-      </div>
-      <nav className="flex-1 p-2 space-y-2.5">
+      <nav className="flex-1 p-2 pt-3 space-y-2.5">
         {mainMenuItems.map((item) => {
           const Icon = item.icon;
           const isActive = activeSection === item.id;

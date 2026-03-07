@@ -5,7 +5,8 @@ import { useTimerContext } from "../../hooks/useTimerContext";
 import { useAudioContext } from "../../hooks/useAudioContext";
 import { getDataService } from "../../services";
 import { LAYOUT } from "../../constants/layout";
-import { SectionTabs, type TabItem } from "../shared/SectionTabs";
+import type { TabItem } from "../shared/SectionTabs";
+import { SectionHeader } from "../shared/SectionHeader";
 import { UndoRedoButtons } from "../shared/UndoRedo";
 import { TimerDisplay } from "./TimerDisplay";
 import { TimerProgressBar } from "./TimerProgressBar";
@@ -98,22 +99,15 @@ export function WorkScreen({ onCompleteTask }: WorkScreenProps) {
       <div
         className={`h-full flex flex-col ${LAYOUT.CONTENT_PX} ${LAYOUT.CONTENT_PT} ${LAYOUT.CONTENT_PB}`}
       >
-        <div className="flex items-baseline gap-4 border-b border-notion-border mb-5">
-          <h2 className="text-2xl font-bold text-notion-text">
-            {t("work.title")}
-          </h2>
-          <SectionTabs
-            tabs={WORK_TABS}
-            activeTab={activeTab}
-            onTabChange={setActiveTab}
-            noBorder
-          />
-          {activeTab === "music" && (
-            <div className="ml-auto flex items-center">
-              <UndoRedoButtons domain="playlist" />
-            </div>
-          )}
-        </div>
+        <SectionHeader
+          title={t("work.title")}
+          tabs={WORK_TABS}
+          activeTab={activeTab}
+          onTabChange={setActiveTab}
+          actions={
+            activeTab === "music" ? <UndoRedoButtons domain="playlist" /> : null
+          }
+        />
 
         <div className="flex-1 overflow-y-auto">
           {activeTab === "timer" && (

@@ -8,7 +8,8 @@ import {
   Trash2,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { SectionTabs, type TabItem } from "../shared/SectionTabs";
+import type { TabItem } from "../shared/SectionTabs";
+import { SectionHeader } from "../shared/SectionHeader";
 import { LAYOUT } from "../../constants/layout";
 import { AppearanceSettings } from "./AppearanceSettings";
 import { LanguageSettings } from "./LanguageSettings";
@@ -59,18 +60,13 @@ export function Settings({ initialTab }: SettingsProps) {
     <div
       className={`h-full flex flex-col ${LAYOUT.CONTENT_PX} ${LAYOUT.CONTENT_PT} ${LAYOUT.CONTENT_PB}`}
     >
-      <div className="flex items-baseline gap-4 border-b border-notion-border mb-5">
-        <h2 className="text-2xl font-bold text-notion-text">
-          {t("settings.title")}
-        </h2>
-        <SectionTabs
-          tabs={TABS}
-          rightTabs={RIGHT_TABS}
-          activeTab={activeTab}
-          onTabChange={setActiveTab}
-          noBorder
-        />
-      </div>
+      <SectionHeader
+        title={t("settings.title")}
+        tabs={TABS}
+        rightTabs={RIGHT_TABS}
+        activeTab={activeTab}
+        onTabChange={setActiveTab}
+      />
 
       <div className="flex-1 overflow-y-auto">
         {activeTab === "general" && (

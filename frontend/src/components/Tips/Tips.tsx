@@ -7,7 +7,8 @@ import {
   StickyNote,
   BarChart3,
 } from "lucide-react";
-import { SectionTabs, type TabItem } from "../shared/SectionTabs";
+import type { TabItem } from "../shared/SectionTabs";
+import { SectionHeader } from "../shared/SectionHeader";
 import { LAYOUT } from "../../constants/layout";
 import { isMac } from "../../utils/platform";
 import { ShortcutsTab } from "./ShortcutsTab";
@@ -50,17 +51,12 @@ export function Tips() {
     <div
       className={`h-full flex flex-col ${LAYOUT.CONTENT_PX} ${LAYOUT.CONTENT_PT} ${LAYOUT.CONTENT_PB}`}
     >
-      <div className="flex items-baseline gap-4 border-b border-notion-border mb-5">
-        <h2 className="text-2xl font-bold text-notion-text">
-          {t("tips.title")}
-        </h2>
-        <SectionTabs
-          tabs={TABS}
-          activeTab={activeTab}
-          onTabChange={setActiveTab}
-          noBorder
-        />
-      </div>
+      <SectionHeader
+        title={t("tips.title")}
+        tabs={TABS}
+        activeTab={activeTab}
+        onTabChange={setActiveTab}
+      />
 
       <div className="flex-1 overflow-y-auto">{renderTab()}</div>
     </div>
