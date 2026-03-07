@@ -1,4 +1,6 @@
+import * as fs from "fs";
 import * as os from "os";
+import * as path from "path";
 import * as pty from "node-pty";
 import type { BrowserWindow } from "electron";
 import log from "../logger";
@@ -25,11 +27,14 @@ export class TerminalManager {
     const sessionId = `terminal-${Date.now()}`;
     const shell = process.env.SHELL || "/bin/zsh";
 
+    const lifeEditorDir = path.join(os.homedir(), "life-editor");
+    const cwd = fs.existsSync(lifeEditorDir) ? lifeEditorDir : os.homedir();
+
     const ptyProcess = pty.spawn(shell, ["--login"], {
       name: "xterm-256color",
       cols: 80,
       rows: 24,
-      cwd: os.homedir(),
+      cwd,
       env: {
         ...process.env,
         TERM: "xterm-256color",

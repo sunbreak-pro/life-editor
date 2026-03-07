@@ -9,7 +9,7 @@ import {
 import { initDb, closeDb } from "./db.js";
 import { TOOLS, callTool } from "./tools.js";
 
-const dbPath = process.argv[2];
+const dbPath = process.argv[2] || process.env.DB_PATH;
 if (!dbPath) {
   console.error("Usage: life-editor-mcp <path-to-sonic-flow.db>");
   process.exit(1);

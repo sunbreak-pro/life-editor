@@ -9,6 +9,7 @@ import {
 import { getMemo, upsertMemo } from "./handlers/memoHandlers.js";
 import { listNotes, createNote, updateNote } from "./handlers/noteHandlers.js";
 import { listSchedule } from "./handlers/scheduleHandlers.js";
+import { searchAll } from "./handlers/searchHandlers.js";
 
 export const TOOLS: Tool[] = [
   {
@@ -207,6 +208,34 @@ export const TOOLS: Tool[] = [
       required: ["date"],
     },
   },
+  {
+    name: "search_all",
+    description:
+      "Search across tasks, memos, and notes. Use this to find information across all domains.",
+    inputSchema: {
+      type: "object" as const,
+      properties: {
+        query: {
+          type: "string",
+          description: "Search keyword (matches title and content via LIKE)",
+        },
+        domains: {
+          type: "array",
+          items: {
+            type: "string",
+            enum: ["tasks", "memos", "notes"],
+          },
+          description:
+            "Domains to search (default: all). Example: ['tasks', 'notes']",
+        },
+        limit: {
+          type: "number",
+          description: "Max results per domain (default: 10)",
+        },
+      },
+      required: ["query"],
+    },
+  },
 ];
 
 type ToolArgs = Record<string, unknown>;
@@ -250,6 +279,9 @@ export function callTool(
       break;
     case "list_schedule":
       result = listSchedule(args as Parameters<typeof listSchedule>[0]);
+      break;
+    case "search_all":
+      result = searchAll(args as Parameters<typeof searchAll>[0]);
       break;
     default:
       throw new Error(`Unknown tool: ${name}`);
