@@ -30,9 +30,11 @@ const CATPPUCCIN_MOCHA = {
 
 interface TerminalPaneProps {
   sessionId: string;
+  onFocus?: () => void;
+  isActive?: boolean;
 }
 
-export function TerminalPane({ sessionId }: TerminalPaneProps) {
+export function TerminalPane({ sessionId, onFocus }: TerminalPaneProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const termRef = useRef<Terminal | null>(null);
   const fitAddonRef = useRef<FitAddon | null>(null);
@@ -68,6 +70,32 @@ export function TerminalPane({ sessionId }: TerminalPaneProps) {
 
     termRef.current = term;
     fitAddonRef.current = fitAddon;
+
+    // Custom key event handler for macOS shortcuts
+    term.attachCustomKeyEventHandler((e: KeyboardEvent) => {
+      if (e.type !== "keydown") return true;
+
+      // cmd+backspace → line clear (\x15 = Ctrl+U)
+      if (e.metaKey && e.code === "Backspace") {
+        window.electronAPI?.invoke("terminal:write", sessionId, "\x15");
+        return false;
+      }
+      // cmd+→ → End key (xterm-256color)
+      if (e.metaKey && e.code === "ArrowRight") {
+        window.electronAPI?.invoke("terminal:write", sessionId, "\x1b[F");
+        return false;
+      }
+      // cmd+← → Home key (xterm-256color)
+      if (e.metaKey && e.code === "ArrowLeft") {
+        window.electronAPI?.invoke("terminal:write", sessionId, "\x1b[H");
+        return false;
+      }
+      // cmd+j/w/t/d → let DOM handle these (panel-level shortcuts)
+      if (e.metaKey && ["KeyJ", "KeyW", "KeyT", "KeyD"].includes(e.code)) {
+        return false;
+      }
+      return true;
+    });
 
     // Handle user input → IPC write
     const onDataDispose = term.onData((data) => {
@@ -112,6 +140,8 @@ export function TerminalPane({ sessionId }: TerminalPaneProps) {
       ref={containerRef}
       className="h-full w-full"
       style={{ backgroundColor: CATPPUCCIN_MOCHA.background }}
+      onFocus={onFocus}
+      onClick={onFocus}
     />
   );
 }

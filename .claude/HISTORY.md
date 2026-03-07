@@ -1,5 +1,16 @@
 # HISTORY.md - 変更履歴
 
+### 2026-03-08 - cmd+arrow 修正 + cmux 機能プラン作成
+
+#### 概要
+
+TerminalPane.tsx の cmd+arrow ショートカットを readline 制御文字から xterm-256color 準拠の Home/End エスケープシーケンスに変更。cmux インスパイアのターミナル機能強化プランを作成。
+
+#### 変更点
+
+- **修正**: `TerminalPane.tsx` — cmd+→ を `\x05`(Ctrl+E) → `\x1b[F`(End key)、cmd+← を `\x01`(Ctrl+A) → `\x1b[H`(Home key) に変更。Claude Code 等 readline 非対応プログラムでの `^A`/`^E` リテラル表示を解消
+- **新規**: `.claude/feature_plans/023-cmux-terminal-features.md` — Socket API / 通知システム / マルチエージェント / ブラウザペインの4フェーズ計画
+
 ### 2026-03-08 - Unified Header Bar 実装
 
 #### 概要
