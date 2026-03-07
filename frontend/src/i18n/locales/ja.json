@@ -17,6 +17,23 @@
     "notificationsTab": "通知",
     "dataTab": "データ",
     "advancedTab": "詳細",
+    "shortcutsTab": "ショートカット",
+    "claude": {
+      "title": "Claude Code 連携",
+      "description": "MCP Server を登録すると、Claude Code から自然言語でタスク・スケジュール・メモを操作できます。",
+      "register": "MCP Server を登録",
+      "registering": "登録中...",
+      "success": "MCP Server の登録に成功しました。",
+      "failed": "登録に失敗しました: {{error}}",
+      "notInstalled": "Claude Code がインストールされていません。先にインストールしてから再試行してください。"
+    },
+    "shortcuts": {
+      "resetAll": "すべてリセット",
+      "reset": "リセット",
+      "change": "変更",
+      "pressKey": "キーの組み合わせを入力...",
+      "conflict": "「{{action}}」に割り当て済み"
+    },
     "appearance": "外観",
     "darkMode": "ダークモード",
     "darkModeDesc": "ライトテーマとダークテーマを切り替え",
@@ -264,8 +281,10 @@
       "resetTimer": "タイマーをリセット（入力中以外）",
       "closeModal": "モーダル/ダイアログを閉じる",
       "goToTasks": "タスクへ移動",
+      "goToMemo": "メモへ移動",
       "goToWork": "ワークへ移動",
       "goToAnalytics": "分析へ移動",
+      "toggleTerminal": "ターミナル切り替え",
       "toggleLeftSidebar": "左サイドバーの切り替え",
       "moveBetweenTasks": "タスク間の移動",
       "expandFolder": "フォルダを展開",
@@ -723,6 +742,18 @@
     "addTask": "タスクを追加",
     "selectTime": "時間を設定",
     "noItems": "項目なし"
+  },
+  "statusBar": {
+    "terminal": "ターミナル",
+    "open": "開",
+    "mcpServer": "MCP Server",
+    "claude": {
+      "idle": "Claude: 待機中",
+      "thinking": "Claude: 思考中",
+      "generating": "Claude: 生成中",
+      "tool_use": "Claude: ツール使用中",
+      "error": "Claude: エラー"
+    }
   },
   "dateTime": {
     "justNow": "たった今",

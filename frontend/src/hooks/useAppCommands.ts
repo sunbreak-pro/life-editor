@@ -3,7 +3,7 @@ import type { Command } from "../components/CommandPalette/CommandPalette";
 import type { LayoutHandle } from "../components/Layout";
 import type { TaskNode } from "../types/taskTree";
 import type { SectionId } from "../types/taskTree";
-import { isMac } from "../utils/platform";
+import { useShortcutConfig } from "./useShortcutConfig";
 import {
   ListTodo,
   StickyNote,
@@ -47,13 +47,15 @@ export function useAppCommands({
   timer,
   layoutRef,
 }: UseAppCommandsParams): Command[] {
+  const { getDisplayString } = useShortcutConfig();
+
   return useMemo(
     () => [
       {
         id: "nav-tasks",
         title: "Go to Tasks",
         category: "Navigation",
-        shortcut: isMac ? "⌘1" : "Ctrl+1",
+        shortcut: getDisplayString("nav:tasks"),
         icon: ListTodo,
         action: () => setActiveSection("tasks"),
       },
@@ -61,6 +63,7 @@ export function useAppCommands({
         id: "nav-memo",
         title: "Go to Memo",
         category: "Navigation",
+        shortcut: getDisplayString("nav:memo"),
         icon: StickyNote,
         action: () => setActiveSection("memo"),
       },
@@ -68,7 +71,7 @@ export function useAppCommands({
         id: "nav-work",
         title: "Go to Work",
         category: "Navigation",
-        shortcut: isMac ? "⌘2" : "Ctrl+2",
+        shortcut: getDisplayString("nav:work"),
         icon: Play,
         action: () => setActiveSection("work"),
       },
@@ -76,7 +79,7 @@ export function useAppCommands({
         id: "nav-analytics",
         title: "Go to Analytics",
         category: "Navigation",
-        shortcut: isMac ? "⌘3" : "Ctrl+3",
+        shortcut: getDisplayString("nav:analytics"),
         icon: BarChart3,
         action: () => setActiveSection("analytics"),
       },
@@ -84,7 +87,7 @@ export function useAppCommands({
         id: "nav-settings",
         title: "Go to Settings",
         category: "Navigation",
-        shortcut: isMac ? "⌘," : "Ctrl+,",
+        shortcut: getDisplayString("global:settings"),
         icon: SettingsIcon,
         action: () => setActiveSection("settings"),
       },
@@ -96,10 +99,17 @@ export function useAppCommands({
         action: () => setActiveSection("tips"),
       },
       {
+        id: "nav-trash",
+        title: "Go to Trash",
+        category: "Navigation",
+        icon: Trash2,
+        action: () => setActiveSection("trash"),
+      },
+      {
         id: "task-create",
         title: "Create new task",
         category: "Task",
-        shortcut: "n",
+        shortcut: getDisplayString("global:new-task"),
         icon: Plus,
         action: () => addNode("task", null, "New Task"),
       },
@@ -126,7 +136,7 @@ export function useAppCommands({
         id: "timer-toggle",
         title: timer.isRunning ? "Pause timer" : "Start timer",
         category: "Timer",
-        shortcut: "Space",
+        shortcut: getDisplayString("global:play-pause"),
         icon: timer.isRunning ? Pause : Play,
         action: () => {
           if (timer.isRunning) timer.pause();
@@ -137,7 +147,7 @@ export function useAppCommands({
         id: "timer-reset",
         title: "Reset timer",
         category: "Timer",
-        shortcut: "r",
+        shortcut: getDisplayString("global:reset-timer"),
         icon: RotateCcw,
         action: () => timer.reset(),
       },
@@ -145,7 +155,7 @@ export function useAppCommands({
         id: "view-left-sidebar",
         title: "Toggle left sidebar",
         category: "View",
-        shortcut: isMac ? "⌘." : "Ctrl+.",
+        shortcut: getDisplayString("view:toggle-sidebar"),
         icon: PanelLeft,
         action: () => layoutRef.current?.toggleLeftSidebar(),
       },
@@ -158,6 +168,7 @@ export function useAppCommands({
       timer,
       setActiveSection,
       layoutRef,
+      getDisplayString,
     ],
   );
 }

@@ -17,6 +17,23 @@
     "notificationsTab": "Notifications",
     "dataTab": "Data",
     "advancedTab": "Advanced",
+    "shortcutsTab": "Shortcuts",
+    "claude": {
+      "title": "Claude Code Integration",
+      "description": "Register the MCP Server so Claude Code can access your tasks, schedules, and memos via natural language.",
+      "register": "Register MCP Server",
+      "registering": "Registering...",
+      "success": "MCP Server registered successfully.",
+      "failed": "Registration failed: {{error}}",
+      "notInstalled": "Claude Code is not installed. Install it first, then try again."
+    },
+    "shortcuts": {
+      "resetAll": "Reset all shortcuts",
+      "reset": "Reset",
+      "change": "Change",
+      "pressKey": "Press a key combination...",
+      "conflict": "Already assigned to \"{{action}}\""
+    },
     "appearance": "Appearance",
     "darkMode": "Dark Mode",
     "darkModeDesc": "Switch between light and dark themes",
@@ -264,8 +281,10 @@
       "resetTimer": "Reset timer (when not typing)",
       "closeModal": "Close modal / dialog",
       "goToTasks": "Go to Tasks",
+      "goToMemo": "Go to Memo",
       "goToWork": "Go to Work",
       "goToAnalytics": "Go to Analytics",
+      "toggleTerminal": "Toggle terminal",
       "toggleLeftSidebar": "Toggle left sidebar",
       "moveBetweenTasks": "Move between tasks",
       "expandFolder": "Expand folder",
@@ -723,6 +742,18 @@
     "addTask": "Add task",
     "selectTime": "Set time",
     "noItems": "No items"
+  },
+  "statusBar": {
+    "terminal": "Terminal",
+    "open": "open",
+    "mcpServer": "MCP Server",
+    "claude": {
+      "idle": "Claude: Idle",
+      "thinking": "Claude: Thinking",
+      "generating": "Claude: Generating",
+      "tool_use": "Claude: Tool Use",
+      "error": "Claude: Error"
+    }
   },
   "dateTime": {
     "justNow": "just now",

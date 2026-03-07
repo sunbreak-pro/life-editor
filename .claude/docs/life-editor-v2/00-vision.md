@@ -52,17 +52,20 @@ Wails（Go + React）で life-editor v1 を開発した。得られた教訓:
 ### コアシナリオ
 
 **朝の計画**:
+
 1. アプリ起動 → カレンダーに今日の予定が表示
 2. ターミナルで「今日のタスクの優先順位を整理して」と Claude に指示
 3. Claude が MCP ツールでタスクを取得・再配置
 4. カレンダーが即座に更新される
 
 **予定の追加**:
+
 1. カレンダーの日付クリック → ポップオーバーで予定作成
 2. タスク詳細パネルでメモを記入
 3. SQLite に即座に保存
 
 **Claude による整理**:
+
 1. 「今週の未完了タスクを来週に移動して」と指示
 2. Claude が MCP ツールで一括更新
 3. カレンダーに即座に反映
@@ -115,16 +118,17 @@ Wails（Go + React）で life-editor v1 を開発した。得られた教訓:
 
 既存の Sonic Flow に以下を追加し、日常使用を開始する:
 
-| Step | 内容 | 計画書 |
-|------|------|--------|
-| Step 1 | ターミナルの追加（node-pty + xterm.js） | `01-terminal.md` |
-| Step 2 | MCP Server の構築 | `02-mcp-server.md` |
-| Step 3 | Claude Code 設定の自動化 + Claude 検知 | `03-claude-setup.md` |
+| Step   | 内容                                          | 計画書                |
+| ------ | --------------------------------------------- | --------------------- |
+| Step 1 | ターミナルの追加（node-pty + xterm.js）       | `01-terminal.md`      |
+| Step 2 | MCP Server の構築                             | `02-mcp-server.md`    |
+| Step 3 | Claude Code 設定の自動化 + Claude 検知        | `03-claude-setup.md`  |
 | Step 4 | UI 調整（デフォルト画面、Sidebar、StatusBar） | `04-ui-adjustment.md` |
 
 ### Phase B（Phase A 完了後に検討）
 
 日常使用からのフィードバックで決定。候補:
+
 - MCP ツールの拡充（分析系、提案系）
 - Markdown エクスポート
 - ルーティン/テンプレート連携強化
@@ -136,28 +140,28 @@ Wails（Go + React）で life-editor v1 を開発した。得られた教訓:
 
 ### リポジトリ
 
-| リポジトリ | パス | 用途 |
-|-----------|------|------|
-| **notion-timer（ベース）** | `~/dev/archive/notion-timer/` | 実装対象。ここに機能を追加する |
+| リポジトリ                   | パス                        | 用途                                              |
+| ---------------------------- | --------------------------- | ------------------------------------------------- |
+| **notion-timer（ベース）**   | `~/dev/apps/notion-timer/`  | 実装対象。ここに機能を追加する                    |
 | **life-editor v1（参照元）** | `~/dev/Claude/life-editor/` | ターミナル実装、Claude 検知ロジックの移植時に参照 |
 
 ### life-editor v1 のターミナル関連コード（移植元）
 
-| ファイル | 内容 |
-|---------|------|
-| `internal/terminal/session_manager.go` | セッション管理、PTY 起動、イベント発行 |
-| `internal/terminal/pane.go` | PTY ラッパー、リサイズ、OutputBuffer |
-| `internal/terminal/output_buffer.go` | 512KB リングバッファ |
-| `internal/terminal/claude_detector.go` | Claude Code 実行状態検知（正規表現ベース） |
-| `internal/terminal/layout.go` | 分割ペインのツリー構造 |
-| `internal/terminal/osc_parser.go` | OSC エスケープシーケンス解析 |
-| `internal/terminal/port_detector.go` | TCP LISTEN ポート検出 |
-| `frontend/src/components/terminal/TerminalPanel.tsx` | セッションタブ、レイアウト管理 |
-| `frontend/src/components/terminal/TerminalPane.tsx` | xterm.js インスタンス、I/O 処理 |
-| `frontend/src/components/terminal/SplitLayout.tsx` | 再帰的分割レイアウト |
-| `frontend/src/store/sessionStore.ts` | Zustand ストア（セッション、メタデータ） |
-| `frontend/src/hooks/terminal/useSessionList.ts` | セッション一覧の初期化・同期 |
-| `frontend/src/hooks/terminal/useTerminalMetadata.ts` | イベントリスナー + ポーリング |
+| ファイル                                             | 内容                                       |
+| ---------------------------------------------------- | ------------------------------------------ |
+| `internal/terminal/session_manager.go`               | セッション管理、PTY 起動、イベント発行     |
+| `internal/terminal/pane.go`                          | PTY ラッパー、リサイズ、OutputBuffer       |
+| `internal/terminal/output_buffer.go`                 | 512KB リングバッファ                       |
+| `internal/terminal/claude_detector.go`               | Claude Code 実行状態検知（正規表現ベース） |
+| `internal/terminal/layout.go`                        | 分割ペインのツリー構造                     |
+| `internal/terminal/osc_parser.go`                    | OSC エスケープシーケンス解析               |
+| `internal/terminal/port_detector.go`                 | TCP LISTEN ポート検出                      |
+| `frontend/src/components/terminal/TerminalPanel.tsx` | セッションタブ、レイアウト管理             |
+| `frontend/src/components/terminal/TerminalPane.tsx`  | xterm.js インスタンス、I/O 処理            |
+| `frontend/src/components/terminal/SplitLayout.tsx`   | 再帰的分割レイアウト                       |
+| `frontend/src/store/sessionStore.ts`                 | Zustand ストア（セッション、メタデータ）   |
+| `frontend/src/hooks/terminal/useSessionList.ts`      | セッション一覧の初期化・同期               |
+| `frontend/src/hooks/terminal/useTerminalMetadata.ts` | イベントリスナー + ポーリング              |
 
 ### MCP 公式リファレンス
 
@@ -169,14 +173,14 @@ Wails（Go + React）で life-editor v1 を開発した。得られた教訓:
 
 life-editor v1 のコードを notion-timer に移植する際の対応表:
 
-| life-editor (Go + Wails) | notion-timer (Electron) |
-|--------------------------|------------------------|
-| `creack/pty` | `node-pty` |
-| `runtime.EventsEmit(ctx, "event", data)` | `mainWindow.webContents.send("event", data)` |
-| `EventsOn("event", callback)` | `window.electronAPI.on("event", callback)` |
-| Go Binding `import { Method } from '../wailsjs/go/...'` | `window.electronAPI.invoke("channel", ...)` |
-| `sync.Mutex` | `better-sqlite3` の同期 API（排他制御不要） |
-| zustand ストア | React Context（notion-timer の既存パターンに従う） |
+| life-editor (Go + Wails)                                | notion-timer (Electron)                            |
+| ------------------------------------------------------- | -------------------------------------------------- |
+| `creack/pty`                                            | `node-pty`                                         |
+| `runtime.EventsEmit(ctx, "event", data)`                | `mainWindow.webContents.send("event", data)`       |
+| `EventsOn("event", callback)`                           | `window.electronAPI.on("event", callback)`         |
+| Go Binding `import { Method } from '../wailsjs/go/...'` | `window.electronAPI.invoke("channel", ...)`        |
+| `sync.Mutex`                                            | `better-sqlite3` の同期 API（排他制御不要）        |
+| zustand ストア                                          | React Context（notion-timer の既存パターンに従う） |
 
 ---
 
@@ -216,8 +220,16 @@ npx electron-rebuild -f -w better-sqlite3 -w node-pty
 ### SectionId について
 
 `frontend/src/types/taskTree.ts` で定義されている `SectionId` 型は現在:
+
 ```typescript
-type SectionId = "tasks" | "memo" | "work" | "analytics" | "trash" | "settings" | "tips";
+type SectionId =
+  | "tasks"
+  | "memo"
+  | "work"
+  | "analytics"
+  | "trash"
+  | "settings"
+  | "tips";
 ```
 
 **TerminalPanel は SectionId に追加しない。** ターミナルは独立した「セクション」ではなく、全セクション共通の下部パネルとして表示する（VSCode のターミナルと同じ位置づけ）。SectionId の変更は不要。

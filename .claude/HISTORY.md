@@ -1,5 +1,22 @@
 # HISTORY.md - 変更履歴
 
+### 2026-03-08 - Life Editor v2: Step 3 (Claude Code 設定自動化 + 検知) + Step 4 (UI 調整)
+
+#### 概要
+
+Claude Code 状態検知・MCP Server 自動登録・ブランディング変更・ステータスバー追加・ターミナルショートカット変更を実装。Life Editor v2 の全 Step が完了。
+
+#### 変更点
+
+- **ClaudeDetector (Step 3-A/B)**: PTY 出力から Claude Code の状態 (inactive/idle/thinking/generating/tool_use/error) を検知。TerminalManager に統合し `terminal:claudeStatus` IPC で Renderer へ通知
+- **MCP Server 自動登録 (Step 3-D/E)**: アプリ起動時に `~/.claude/settings.json` へ `life-editor` MCP Server を自動登録。Settings > Advanced に手動登録ボタンも追加
+- **Claude 連携 UI (Step 3-F)**: ClaudeSetupSection コンポーネントを Settings Advanced タブに追加。i18n 対応 (en/ja)
+- **ブランディング (Step 4-A)**: LeftSidebar タイトル・メニュー名・BrowserWindow title・エラーダイアログを「Life Editor」に変更
+- **ショートカット (Step 4-B)**: ターミナルトグルを Cmd+T → Ctrl+`に変更。KeyBinding に`ctrl` プロパティ追加
+- **StatusBar (Step 4-C/D/E)**: 画面最下部 22px のステータスバー新設。ターミナルトグル・Claude 状態 (色付きドット)・MCP Server 状態を表示
+- **ビルド設定**: electron-builder.yml に `mcp-server/dist/**/*` 追加
+- 新規ファイル 6 件、変更ファイル 13 件
+
 ### 2026-03-07 - Life Editor v2: ターミナル統合 + MCP Server
 
 #### 概要

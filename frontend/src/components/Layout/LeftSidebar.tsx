@@ -7,7 +7,6 @@ import {
   Pencil,
   PanelLeft,
   Lightbulb,
-  Trash2,
 } from "lucide-react";
 import type { SectionId } from "../../types/taskTree";
 import { useTimerContext } from "../../hooks/useTimerContext";
@@ -21,7 +20,7 @@ interface SidebarProps {
   onToggle: () => void;
 }
 
-const menuItems: {
+const mainMenuItems: {
   id: SectionId;
   labelKey: string;
   icon: typeof CheckSquare;
@@ -30,9 +29,6 @@ const menuItems: {
   { id: "memo", labelKey: "sidebar.memo", icon: BookOpen },
   { id: "work", labelKey: "sidebar.work", icon: Play },
   { id: "analytics", labelKey: "sidebar.analytics", icon: BarChart3 },
-  { id: "trash", labelKey: "sidebar.trash", icon: Trash2 },
-  { id: "settings", labelKey: "sidebar.settings", icon: Settings },
-  { id: "tips", labelKey: "sidebar.tips", icon: Lightbulb },
 ];
 
 export function LeftSidebar({
@@ -47,7 +43,7 @@ export function LeftSidebar({
 
   return (
     <aside
-      className="h-screen bg-notion-bg-secondary border-r border-notion-border flex flex-col"
+      className="h-full bg-notion-bg-secondary border-r border-notion-border flex flex-col"
       style={{ width }}
     >
       <div
@@ -55,7 +51,7 @@ export function LeftSidebar({
           isMac ? " pt-10" : ""
         }`}
       >
-        <h1 className="text-2xl font-semibold text-notion-text">Sonic Flow</h1>
+        <h1 className="text-2xl font-semibold text-notion-text">Life Editor</h1>
         <button
           onClick={onToggle}
           className="p-1 text-notion-text-secondary hover:text-notion-text rounded transition-colors titlebar-nodrag"
@@ -64,7 +60,7 @@ export function LeftSidebar({
         </button>
       </div>
       <nav className="flex-1 p-2 space-y-2.5">
-        {menuItems.map((item) => {
+        {mainMenuItems.map((item) => {
           const Icon = item.icon;
           const isActive = activeSection === item.id;
           return (
@@ -105,6 +101,30 @@ export function LeftSidebar({
           );
         })}
       </nav>
+      <div className="p-2 border-t border-notion-border flex gap-1 justify-center">
+        <button
+          title={t("sidebar.settings")}
+          onClick={() => onSectionChange("settings")}
+          className={`p-2 rounded-md transition-colors ${
+            activeSection === "settings"
+              ? "text-notion-text"
+              : "text-notion-text-secondary hover:text-notion-text hover:bg-notion-hover"
+          }`}
+        >
+          <Settings size={18} />
+        </button>
+        <button
+          title={t("sidebar.tips")}
+          onClick={() => onSectionChange("tips")}
+          className={`p-2 rounded-md transition-colors ${
+            activeSection === "tips"
+              ? "text-notion-text"
+              : "text-notion-text-secondary hover:text-notion-text hover:bg-notion-hover"
+          }`}
+        >
+          <Lightbulb size={18} />
+        </button>
+      </div>
     </aside>
   );
 }

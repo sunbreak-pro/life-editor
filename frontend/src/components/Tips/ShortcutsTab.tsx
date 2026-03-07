@@ -1,100 +1,37 @@
 import { useTranslation } from "react-i18next";
 import { Monitor, Apple } from "lucide-react";
+import { DEFAULT_SHORTCUTS } from "../../constants/defaultShortcuts";
+import { useShortcutConfig } from "../../hooks/useShortcutConfig";
+import type { ShortcutCategory } from "../../types/shortcut";
 
-interface ShortcutEntry {
-  keys: string;
-  descriptionKey: string;
-}
+const CATEGORY_ORDER: ShortcutCategory[] = [
+  "global",
+  "navigation",
+  "view",
+  "taskTree",
+  "edit",
+  "calendar",
+];
 
-interface ShortcutGroup {
-  categoryKey: string;
-  shortcuts: ShortcutEntry[];
-}
+const CATEGORY_LABEL_KEYS: Record<ShortcutCategory, string> = {
+  global: "tips.shortcutsTab.global",
+  navigation: "tips.shortcutsTab.navigation",
+  view: "tips.shortcutsTab.view",
+  taskTree: "tips.shortcutsTab.taskTree",
+  edit: "tips.shortcutsTab.taskTree",
+  calendar: "tips.shortcutsTab.calendar",
+};
 
-function getShortcutGroups(mod: string, shift: string): ShortcutGroup[] {
-  return [
-    {
-      categoryKey: "tips.shortcutsTab.global",
-      shortcuts: [
-        {
-          keys: `${mod} + K`,
-          descriptionKey: "tips.shortcutsTab.openCommandPalette",
-        },
-        {
-          keys: `${mod} + ,`,
-          descriptionKey: "tips.shortcutsTab.openSettings",
-        },
-        {
-          keys: `${mod} + ${shift} + T`,
-          descriptionKey: "tips.shortcutsTab.toggleTimerModal",
-        },
-        { keys: "Space", descriptionKey: "tips.shortcutsTab.playPauseTimer" },
-        { keys: "n", descriptionKey: "tips.shortcutsTab.createNewTask" },
-        { keys: "r", descriptionKey: "tips.shortcutsTab.resetTimer" },
-        { keys: "Escape", descriptionKey: "tips.shortcutsTab.closeModal" },
-      ],
-    },
-    {
-      categoryKey: "tips.shortcutsTab.navigation",
-      shortcuts: [
-        { keys: `${mod} + 1`, descriptionKey: "tips.shortcutsTab.goToTasks" },
-        { keys: `${mod} + 2`, descriptionKey: "tips.shortcutsTab.goToWork" },
-        {
-          keys: `${mod} + 3`,
-          descriptionKey: "tips.shortcutsTab.goToAnalytics",
-        },
-      ],
-    },
-    {
-      categoryKey: "tips.shortcutsTab.view",
-      shortcuts: [
-        {
-          keys: `${mod} + .`,
-          descriptionKey: "tips.shortcutsTab.toggleLeftSidebar",
-        },
-      ],
-    },
-    {
-      categoryKey: "tips.shortcutsTab.taskTree",
-      shortcuts: [
-        { keys: "↑ / ↓", descriptionKey: "tips.shortcutsTab.moveBetweenTasks" },
-        { keys: "→", descriptionKey: "tips.shortcutsTab.expandFolder" },
-        { keys: "←", descriptionKey: "tips.shortcutsTab.collapseFolder" },
-        {
-          keys: `${mod} + Enter`,
-          descriptionKey: "tips.shortcutsTab.toggleTaskCompletion",
-        },
-        { keys: "Tab", descriptionKey: "tips.shortcutsTab.indent" },
-        { keys: `${shift} + Tab`, descriptionKey: "tips.shortcutsTab.outdent" },
-        {
-          keys: `${mod} + Z`,
-          descriptionKey: "tips.shortcutsTab.undoTaskTree",
-        },
-        {
-          keys: `${mod} + ${shift} + Z`,
-          descriptionKey: "tips.shortcutsTab.redoTaskTree",
-        },
-        { keys: "Drag & Drop", descriptionKey: "tips.shortcutsTab.dragDrop" },
-      ],
-    },
-    {
-      categoryKey: "tips.shortcutsTab.timer",
-      shortcuts: [
-        { keys: "Space", descriptionKey: "tips.shortcutsTab.togglePlayPause" },
-        { keys: "r", descriptionKey: "tips.shortcutsTab.resetTimer" },
-        { keys: "Escape", descriptionKey: "tips.shortcutsTab.closeModal" },
-      ],
-    },
-    {
-      categoryKey: "tips.shortcutsTab.calendar",
-      shortcuts: [
-        { keys: "j", descriptionKey: "tips.shortcutsTab.nextMonthWeek" },
-        { keys: "k", descriptionKey: "tips.shortcutsTab.prevMonthWeek" },
-        { keys: "t", descriptionKey: "tips.shortcutsTab.jumpToToday" },
-        { keys: "m", descriptionKey: "tips.shortcutsTab.toggleMonthWeek" },
-      ],
-    },
-  ];
+// Deduplicate entries with same descriptionKey within a category
+function dedupeByDescription<T extends { descriptionKey: string }>(
+  items: T[],
+): T[] {
+  const seen = new Set<string>();
+  return items.filter((item) => {
+    if (seen.has(item.descriptionKey)) return false;
+    seen.add(item.descriptionKey);
+    return true;
+  });
 }
 
 function Kbd({ children }: { children: string }) {
@@ -112,9 +49,7 @@ interface ShortcutsTabProps {
 
 export function ShortcutsTab({ showMac, onToggleOS }: ShortcutsTabProps) {
   const { t } = useTranslation();
-  const mod = showMac ? "⌘" : "Ctrl";
-  const shift = showMac ? "⇧" : "Shift";
-  const groups = getShortcutGroups(mod, shift);
+  const { getDisplayString } = useShortcutConfig();
 
   return (
     <div className="space-y-6">
@@ -144,27 +79,33 @@ export function ShortcutsTab({ showMac, onToggleOS }: ShortcutsTabProps) {
         </button>
       </div>
 
-      {groups.map((group) => (
-        <div key={group.categoryKey}>
-          <h3 className="text-lg font-semibold text-notion-text mb-3">
-            {t(group.categoryKey)}
-          </h3>
-          <table className="w-full text-sm">
-            <tbody>
-              {group.shortcuts.map((s, i) => (
-                <tr key={i} className="border-b border-notion-border/50">
-                  <td className="py-2 pr-4 w-48">
-                    <Kbd>{s.keys}</Kbd>
-                  </td>
-                  <td className="py-2 text-notion-text-secondary">
-                    {t(s.descriptionKey)}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      ))}
+      {CATEGORY_ORDER.map((category) => {
+        const items = dedupeByDescription(
+          DEFAULT_SHORTCUTS.filter((s) => s.category === category),
+        );
+        if (items.length === 0) return null;
+        return (
+          <div key={category}>
+            <h3 className="text-lg font-semibold text-notion-text mb-3">
+              {t(CATEGORY_LABEL_KEYS[category])}
+            </h3>
+            <table className="w-full text-sm">
+              <tbody>
+                {items.map((s) => (
+                  <tr key={s.id} className="border-b border-notion-border/50">
+                    <td className="py-2 pr-4 w-48">
+                      <Kbd>{getDisplayString(s.id, showMac)}</Kbd>
+                    </td>
+                    <td className="py-2 text-notion-text-secondary">
+                      {t(s.descriptionKey)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        );
+      })}
     </div>
   );
 }

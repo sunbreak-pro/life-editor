@@ -48,6 +48,19 @@ export function useTaskTreeAPI() {
     };
   }, []);
 
+  const refetch = useCallback(async () => {
+    try {
+      const ds = getDataService();
+      const [active, deleted] = await Promise.all([
+        ds.fetchTaskTree(),
+        ds.fetchDeletedTasks(),
+      ]);
+      setNodes([...active, ...deleted]);
+    } catch (e) {
+      logServiceError("TaskTree", "refetch", e);
+    }
+  }, []);
+
   const syncToDb = useCallback((updated: TaskNode[]) => {
     setPersistError(null);
     getDataService()
@@ -152,6 +165,7 @@ export function useTaskTreeAPI() {
     persistError,
     getTaskColor,
     getFolderTagForTask,
+    refetch,
     undo,
     redo,
     canUndo,

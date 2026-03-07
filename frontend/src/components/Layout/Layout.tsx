@@ -4,8 +4,16 @@ import { PanelLeft } from "lucide-react";
 import type { SectionId } from "../../types/taskTree";
 import { LeftSidebar } from "./LeftSidebar";
 import { MainContent } from "./MainContent";
+import { TerminalPanel } from "../Terminal/TerminalPanel";
+import { StatusBar } from "../StatusBar/StatusBar";
 import { STORAGE_KEYS } from "../../constants/storageKeys";
 import { useLocalStorage } from "../../hooks/useLocalStorage";
+import { useTaskTreeContext } from "../../hooks/useTaskTreeContext";
+import { useExternalDataSync } from "../../hooks/useExternalDataSync";
+import { useShortcutConfig } from "../../hooks/useShortcutConfig";
+import { useClaudeStatus } from "../../hooks/useClaudeStatus";
+
+const TERMINAL_DEFAULT_HEIGHT = 300;
 
 const LEFT_MIN_WIDTH = 165;
 const LEFT_MAX_WIDTH = 250;
@@ -24,6 +32,7 @@ function deserializeBool(raw: string): boolean {
 
 export interface LayoutHandle {
   toggleLeftSidebar: () => void;
+  toggleTerminal: () => void;
 }
 
 interface LayoutProps {
@@ -61,24 +70,50 @@ export function Layout({
   const isResizingLeft = useRef(false);
   const [dragLeftWidth, setDragLeftWidth] = useState<number | null>(null);
 
+  // Terminal state
+  const [terminalOpen, setTerminalOpen] = useLocalStorage<boolean>(
+    STORAGE_KEYS.TERMINAL_OPEN,
+    false,
+    { serialize: String, deserialize: deserializeBool },
+  );
+  const [terminalHeight, setTerminalHeight] = useLocalStorage<number>(
+    STORAGE_KEYS.TERMINAL_HEIGHT,
+    TERMINAL_DEFAULT_HEIGHT,
+    {
+      serialize: String,
+      deserialize: deserializeWidth(150, 2000, TERMINAL_DEFAULT_HEIGHT),
+    },
+  );
+
+  // Poll for external DB changes when terminal is open
+  const { refetch } = useTaskTreeContext();
+  useExternalDataSync(terminalOpen, refetch);
+  const { matchEvent } = useShortcutConfig();
+  const claudeState = useClaudeStatus();
+
   useEffect(() => {
     if (handleRef) {
       handleRef.current = {
         toggleLeftSidebar: () => setLeftSidebarOpen((prev) => !prev),
+        toggleTerminal: () => setTerminalOpen((prev) => !prev),
       };
     }
-  }, [handleRef, setLeftSidebarOpen]);
+  }, [handleRef, setLeftSidebarOpen, setTerminalOpen]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && !e.shiftKey && e.code === "Period") {
+      if (matchEvent(e, "view:toggle-sidebar")) {
         e.preventDefault();
         setLeftSidebarOpen((prev) => !prev);
+      }
+      if (matchEvent(e, "view:toggle-terminal")) {
+        e.preventDefault();
+        setTerminalOpen((prev) => !prev);
       }
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [setLeftSidebarOpen]);
+  }, [setLeftSidebarOpen, setTerminalOpen, matchEvent]);
 
   // Left sidebar resize
   const handleLeftMouseDown = useCallback((e: React.MouseEvent) => {
@@ -122,31 +157,47 @@ export function Layout({
   const currentLeftWidth = dragLeftWidth ?? leftSidebarWidth;
 
   return (
-    <div className="flex min-h-screen">
-      {leftSidebarOpen ? (
-        <div className="relative shrink-0" style={{ width: currentLeftWidth }}>
-          <LeftSidebar
-            width={currentLeftWidth}
-            activeSection={activeSection}
-            onSectionChange={onSectionChange}
-            onToggle={() => setLeftSidebarOpen(false)}
-          />
+    <div className="flex flex-col h-screen">
+      <div className="flex flex-1 min-h-0">
+        {leftSidebarOpen ? (
           <div
-            onMouseDown={handleLeftMouseDown}
-            className="absolute top-0 right-0 w-1.5 h-full cursor-col-resize hover:bg-notion-accent/30 transition-colors z-10"
-          />
-        </div>
-      ) : (
-        <div className="w-12 h-screen bg-notion-bg-secondary border-r border-notion-border flex flex-col items-center pt-4 shrink-0">
-          <button
-            onClick={() => setLeftSidebarOpen(true)}
-            className="p-1.5 text-notion-text-secondary hover:text-notion-text rounded transition-colors"
+            className="relative shrink-0"
+            style={{ width: currentLeftWidth }}
           >
-            <PanelLeft size={18} />
-          </button>
-        </div>
-      )}
-      <MainContent>{children}</MainContent>
+            <LeftSidebar
+              width={currentLeftWidth}
+              activeSection={activeSection}
+              onSectionChange={onSectionChange}
+              onToggle={() => setLeftSidebarOpen(false)}
+            />
+            <div
+              onMouseDown={handleLeftMouseDown}
+              className="absolute top-0 right-0 w-1.5 h-full cursor-col-resize hover:bg-notion-accent/30 transition-colors z-10"
+            />
+          </div>
+        ) : (
+          <div className="h-full bg-notion-bg-secondary border-r border-notion-border flex flex-col items-center pt-4 shrink-0 w-12">
+            <button
+              onClick={() => setLeftSidebarOpen(true)}
+              className="p-1.5 text-notion-text-secondary hover:text-notion-text rounded transition-colors"
+            >
+              <PanelLeft size={18} />
+            </button>
+          </div>
+        )}
+        <MainContent>{children}</MainContent>
+      </div>
+      <TerminalPanel
+        isOpen={terminalOpen}
+        height={terminalHeight}
+        onHeightChange={setTerminalHeight}
+        onClose={() => setTerminalOpen(false)}
+      />
+      <StatusBar
+        isTerminalOpen={terminalOpen}
+        onToggleTerminal={() => setTerminalOpen((prev) => !prev)}
+        claudeState={claudeState}
+      />
     </div>
   );
 }

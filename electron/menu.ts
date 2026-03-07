@@ -14,7 +14,7 @@ export function createMenu(win: BrowserWindow): void {
     ...(isMac
       ? [
           {
-            label: "Sonic Flow",
+            label: "Life Editor",
             submenu: [
               { role: "about" as const },
               { type: "separator" as const },

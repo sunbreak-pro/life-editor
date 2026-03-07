@@ -1,5 +1,12 @@
-import { useState } from "react";
-import { Settings2, Bell, Database, Wrench } from "lucide-react";
+import { useState, useEffect } from "react";
+import {
+  Settings2,
+  Bell,
+  Database,
+  Wrench,
+  Keyboard,
+  Trash2,
+} from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { SectionTabs, type TabItem } from "../shared/SectionTabs";
 import { LAYOUT } from "../../constants/layout";
@@ -10,19 +17,43 @@ import { DataManagement } from "./DataManagement";
 import { UpdateSettings } from "./UpdateSettings";
 import { PerformanceMonitor } from "./PerformanceMonitor";
 import { LogViewer } from "./LogViewer";
+import { KeyboardShortcuts } from "./KeyboardShortcuts";
+import { TrashView } from "../Trash/TrashView";
+import { ClaudeSetupSection } from "./ClaudeSetupSection";
 
-type SettingsTab = "general" | "notifications" | "data" | "advanced";
+type SettingsTab =
+  | "general"
+  | "notifications"
+  | "data"
+  | "advanced"
+  | "shortcuts"
+  | "trash";
 
 const TABS = [
   { id: "general", labelKey: "settings.general", icon: Settings2 },
   { id: "notifications", labelKey: "settings.notificationsTab", icon: Bell },
   { id: "data", labelKey: "settings.dataTab", icon: Database },
   { id: "advanced", labelKey: "settings.advancedTab", icon: Wrench },
+  { id: "shortcuts", labelKey: "settings.shortcutsTab", icon: Keyboard },
 ] as const satisfies readonly TabItem<SettingsTab>[];
 
-export function Settings() {
-  const [activeTab, setActiveTab] = useState<SettingsTab>("general");
+const RIGHT_TABS = [
+  { id: "trash", labelKey: "sidebar.trash", icon: Trash2 },
+] as const satisfies readonly TabItem<SettingsTab>[];
+
+interface SettingsProps {
+  initialTab?: SettingsTab;
+}
+
+export function Settings({ initialTab }: SettingsProps) {
+  const [activeTab, setActiveTab] = useState<SettingsTab>(
+    initialTab ?? "general",
+  );
   const { t } = useTranslation();
+
+  useEffect(() => {
+    if (initialTab) setActiveTab(initialTab);
+  }, [initialTab]);
 
   return (
     <div
@@ -34,6 +65,7 @@ export function Settings() {
         </h2>
         <SectionTabs
           tabs={TABS}
+          rightTabs={RIGHT_TABS}
           activeTab={activeTab}
           onTabChange={setActiveTab}
           noBorder
@@ -52,6 +84,8 @@ export function Settings() {
         {activeTab === "data" && <DataManagement />}
         {activeTab === "advanced" && (
           <div className="space-y-8">
+            <ClaudeSetupSection />
+            <div className="border-t border-notion-border" />
             <UpdateSettings />
             <div className="border-t border-notion-border" />
             <PerformanceMonitor />
@@ -59,6 +93,8 @@ export function Settings() {
             <LogViewer />
           </div>
         )}
+        {activeTab === "shortcuts" && <KeyboardShortcuts />}
+        {activeTab === "trash" && <TrashView />}
       </div>
     </div>
   );

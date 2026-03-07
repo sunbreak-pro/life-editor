@@ -120,6 +120,13 @@ const ALLOWED_CHANNELS = new Set([
   "updater:checkForUpdates",
   "updater:downloadUpdate",
   "updater:installUpdate",
+  // Terminal
+  "terminal:create",
+  "terminal:write",
+  "terminal:resize",
+  "terminal:destroy",
+  // Claude
+  "claude:registerMcp",
 ]);
 
 contextBridge.exposeInMainWorld("electronAPI", {
@@ -148,6 +155,32 @@ contextBridge.exposeInMainWorld("electronAPI", {
     ipcRenderer.on("updater:status", handler);
     return () => {
       ipcRenderer.removeListener("updater:status", handler);
+    };
+  },
+  onTerminalData(
+    callback: (sessionId: string, data: string) => void,
+  ): () => void {
+    const handler = (
+      _event: IpcRendererEvent,
+      sessionId: string,
+      data: string,
+    ) => callback(sessionId, data);
+    ipcRenderer.on("terminal:data", handler);
+    return () => {
+      ipcRenderer.removeListener("terminal:data", handler);
+    };
+  },
+  onClaudeStatus(
+    callback: (sessionId: string, state: string) => void,
+  ): () => void {
+    const handler = (
+      _event: IpcRendererEvent,
+      sessionId: string,
+      state: string,
+    ) => callback(sessionId, state);
+    ipcRenderer.on("terminal:claudeStatus", handler);
+    return () => {
+      ipcRenderer.removeListener("terminal:claudeStatus", handler);
     };
   },
 });

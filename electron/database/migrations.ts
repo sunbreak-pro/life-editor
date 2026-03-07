@@ -90,6 +90,11 @@ export function runMigrations(db: Database.Database): void {
     migrateV21(db);
   }
 
+  if (currentVersion < 22) {
+    log.info("[DB] Running migration V22");
+    migrateV22(db);
+  }
+
   const newVersion = db.pragma("user_version", { simple: true }) as number;
   if (newVersion !== currentVersion) {
     log.info(`[DB] Schema migrated: ${currentVersion} → ${newVersion}`);
@@ -813,6 +818,35 @@ function migrateV20(db: Database.Database): void {
   });
   migrate();
   db.pragma("user_version = 20");
+}
+
+function migrateV22(db: Database.Database): void {
+  // Recreate schedule_items without FK to dropped routine_templates table
+  const migrate = db.transaction(() => {
+    db.exec(`
+      CREATE TABLE schedule_items_new (
+        id TEXT PRIMARY KEY,
+        date TEXT NOT NULL,
+        title TEXT NOT NULL,
+        start_time TEXT NOT NULL,
+        end_time TEXT NOT NULL,
+        completed INTEGER NOT NULL DEFAULT 0,
+        completed_at TEXT,
+        routine_id TEXT,
+        template_id TEXT,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        FOREIGN KEY (routine_id) REFERENCES routines(id) ON DELETE SET NULL
+      );
+      INSERT INTO schedule_items_new SELECT * FROM schedule_items;
+      DROP TABLE schedule_items;
+      ALTER TABLE schedule_items_new RENAME TO schedule_items;
+      CREATE INDEX idx_si_date ON schedule_items(date);
+      CREATE INDEX idx_si_routine ON schedule_items(routine_id);
+    `);
+  });
+  migrate();
+  db.pragma("user_version = 22");
 }
 
 function migrateV21(db: Database.Database): void {

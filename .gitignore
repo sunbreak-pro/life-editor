@@ -16,3 +16,7 @@ release/
 
 # Node (root)
 /node_modules/
+
+# MCP Server
+mcp-server/dist/
+mcp-server/node_modules/

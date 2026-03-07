@@ -13,6 +13,7 @@ import { AudioProvider } from "./context/AudioContext";
 import { NoteProvider } from "./context/NoteContext";
 import { ScheduleProvider } from "./context/ScheduleContext";
 import { CalendarProvider } from "./context/CalendarContext";
+import { ShortcutConfigProvider } from "./hooks/useShortcutConfig";
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
@@ -26,7 +27,9 @@ createRoot(document.getElementById("root")!).render(
                   <ScheduleProvider>
                     <TimerProvider>
                       <AudioProvider>
-                        <App />
+                        <ShortcutConfigProvider>
+                          <App />
+                        </ShortcutConfigProvider>
                       </AudioProvider>
                     </TimerProvider>
                   </ScheduleProvider>

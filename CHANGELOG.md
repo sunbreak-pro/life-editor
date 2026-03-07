@@ -4,6 +4,15 @@
 
 ---
 
+## Life Editor v2: ターミナル統合 + MCP Server (2026-03-07)
+
+- **Step 1: アプリ内ターミナル**: node-pty (Electron Main) + xterm.js (Renderer) による統合ターミナル。PTY セッション管理、16ms バッチング、Catppuccin Mocha テーマ、Ctrl+`` ` ``開閉、ドラッグリサイズ
+- **Step 2: MCP Server**: `mcp-server/` に Claude Code 用 MCP Server 構築。@modelcontextprotocol/sdk、11ツール（list_tasks/get_task/create_task/update_task/delete_task/get_memo/upsert_memo/list_notes/create_note/update_note/list_schedule）
+- **外部データ同期ポーリング**: ターミナル開放時に2秒間隔で DB 変更検知 → タスクツリー自動リフレッシュ
+- **レイアウト変更**: h-screen → flex column 構造に変更、TerminalPanel を全セクション共通の下部パネルに配置
+
+---
+
 ## AI機能廃止 + Daily未記入日メモ作成 + 時間表示削除 (2026-02-20)
 
 - **aiService完全廃止**: AI関連6ファイル削除、参照元11ファイルからAIコード除去、SettingsのAIタブ・i18nキー削除

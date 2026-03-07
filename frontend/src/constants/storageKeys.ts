@@ -15,4 +15,7 @@ export const STORAGE_KEYS = {
   ACTIVE_PLAYLIST_ID: "sonic-flow-active-playlist-id",
   ROUTINE_TIME_SLOTS: "sonic-flow-routine-time-slots",
   FOLDER_MOVE_CONFIRM_SKIP: "sonic-flow-folder-move-confirm-skip",
+  TERMINAL_OPEN: "sonic-flow-terminal-open",
+  TERMINAL_HEIGHT: "sonic-flow-terminal-height",
+  SHORTCUT_CONFIG: "sonic-flow-shortcut-config",
 } as const;

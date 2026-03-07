@@ -11,12 +11,13 @@
     "dist": "rm -rf release && npm run build && electron-builder",
     "dist:mac": "rm -rf release && npm run build && electron-builder --mac",
     "dist:win": "rm -rf release && npm run build && electron-builder --win",
-    "postinstall": "cd frontend && npm install && npx electron-rebuild -f -w better-sqlite3"
+    "postinstall": "cd frontend && npm install && npx electron-rebuild -f -w better-sqlite3,node-pty"
   },
   "dependencies": {
     "better-sqlite3": "^11.0.0",
     "electron-log": "~5.3",
-    "electron-updater": "~6.3"
+    "electron-updater": "~6.3",
+    "node-pty": "^1.1.0"
   },
   "devDependencies": {
     "@electron/notarize": "^2.5.0",

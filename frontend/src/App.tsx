@@ -6,7 +6,6 @@ import { useLocalStorage } from "./hooks/useLocalStorage";
 import { WorkScreen } from "./components/Work";
 import { SessionCompletionModal } from "./components/Work/SessionCompletionModal";
 import { Settings } from "./components/Settings";
-import { TrashView } from "./components/Trash/TrashView";
 import { Tips } from "./components/Tips";
 import { AnalyticsView } from "./components/Analytics/AnalyticsView";
 import { MemoView } from "./components/Memo";
@@ -21,7 +20,6 @@ import { useElectronMenuActions } from "./hooks/useElectronMenuActions";
 import { useTaskDetailHandlers } from "./hooks/useTaskDetailHandlers";
 import { useUndoRedoKeyboard } from "./components/shared/UndoRedo";
 import { useNoteContext } from "./hooks/useNoteContext";
-
 import type { SectionId } from "./types/taskTree";
 import { STORAGE_KEYS } from "./constants/storageKeys";
 
@@ -117,7 +115,7 @@ function App() {
       case "analytics":
         return <AnalyticsView />;
       case "trash":
-        return <TrashView />;
+        return <Settings initialTab="trash" />;
       case "settings":
         return <Settings />;
       case "tips":

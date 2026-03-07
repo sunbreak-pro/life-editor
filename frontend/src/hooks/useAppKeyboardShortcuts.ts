@@ -1,6 +1,7 @@
 import { useEffect, useCallback } from "react";
 import type { SectionId } from "../types/taskTree";
 import type { TaskNode } from "../types/taskTree";
+import { useShortcutConfig } from "./useShortcutConfig";
 
 interface UseAppKeyboardShortcutsParams {
   timer: {
@@ -26,6 +27,8 @@ export function useAppKeyboardShortcuts({
   setActiveSection,
   setIsCommandPaletteOpen,
 }: UseAppKeyboardShortcutsParams) {
+  const { matchEvent } = useShortcutConfig();
+
   const isInputFocused = useCallback((e: KeyboardEvent) => {
     const el = e.target as Element | null;
     if (!el) return false;
@@ -37,17 +40,9 @@ export function useAppKeyboardShortcuts({
   }, []);
 
   useEffect(() => {
-    const sectionMap: Record<string, SectionId> = {
-      "1": "tasks",
-      "2": "work",
-      "3": "analytics",
-      "4": "settings",
-    };
-
     const handleKeyDown = (e: KeyboardEvent) => {
-      const mod = e.metaKey || e.ctrlKey;
-
-      if (mod && !e.shiftKey && e.code === "KeyK") {
+      // Command palette (Cmd+K) — skip if editor text is selected
+      if (matchEvent(e, "global:command-palette")) {
         const el = document.activeElement;
         const isEditorWithSelection =
           el?.getAttribute("contenteditable") === "true" &&
@@ -59,19 +54,34 @@ export function useAppKeyboardShortcuts({
         }
       }
 
-      if (mod && e.code === "Comma") {
+      if (matchEvent(e, "global:settings")) {
         e.preventDefault();
         setActiveSection("settings");
         return;
       }
 
-      if (mod && !e.shiftKey && sectionMap[e.key]) {
+      if (matchEvent(e, "nav:tasks")) {
         e.preventDefault();
-        setActiveSection(sectionMap[e.key]);
+        setActiveSection("tasks");
+        return;
+      }
+      if (matchEvent(e, "nav:memo")) {
+        e.preventDefault();
+        setActiveSection("memo");
+        return;
+      }
+      if (matchEvent(e, "nav:work")) {
+        e.preventDefault();
+        setActiveSection("work");
+        return;
+      }
+      if (matchEvent(e, "nav:analytics")) {
+        e.preventDefault();
+        setActiveSection("analytics");
         return;
       }
 
-      if (mod && e.shiftKey && e.code === "KeyT") {
+      if (matchEvent(e, "global:work-timer")) {
         e.preventDefault();
         setActiveSection("work");
         return;
@@ -79,18 +89,18 @@ export function useAppKeyboardShortcuts({
 
       if (isInputFocused(e)) return;
 
-      if (e.key === " ") {
+      if (matchEvent(e, "global:play-pause")) {
         e.preventDefault();
         if (timer.isRunning) timer.pause();
         else timer.start();
       }
 
-      if (e.key === "n") {
+      if (matchEvent(e, "global:new-task")) {
         e.preventDefault();
         addNode("task", null, "New Task");
       }
 
-      if (e.key === "r") {
+      if (matchEvent(e, "global:reset-timer")) {
         e.preventDefault();
         timer.reset();
       }
@@ -104,5 +114,6 @@ export function useAppKeyboardShortcuts({
     isInputFocused,
     setActiveSection,
     setIsCommandPaletteOpen,
+    matchEvent,
   ]);
 }
