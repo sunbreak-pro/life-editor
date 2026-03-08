@@ -6,9 +6,9 @@
 
 ## 直近の完了
 
+- MCP Server 接続問題の修正（書き込み先を ~/.claude.json に変更） ✅（2026-03-08）
 - shift+Enter 改行後の Backspace 修正 ✅（2026-03-08）
 - サイドバーアニメーション + RightSidebar コンテンツ連携 ✅（2026-03-08）
-- ターミナルトグル TitleBar 移動 & StatusBar 削除 ✅（2026-03-08）
 
 ## 予定
 

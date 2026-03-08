@@ -1281,3 +1281,15 @@ MCP Server の DB パス不一致バグ修正、横断検索ツール `search_al
 - **修正**: `frontend/src/components/Memo/MemoView.tsx` — MemoDateList/NoteList を createPortal で RightSidebar へ（フォールバック付き）
 - **修正**: `frontend/src/components/Memo/MemoDateList.tsx` — 固定幅 (w-60 shrink-0 border-r) 削除
 - **修正**: `frontend/src/components/Memo/NoteList.tsx` — 固定幅 (w-64 shrink-0 border-r) 削除
+
+---
+
+### 2026-03-08: MCP Server 接続問題の修正
+
+#### 概要
+
+`claudeSetup.ts` が MCP 設定を `~/.claude/settings.json` に書き込んでいたが、Claude Code は `~/.claude.json` から MCP 設定を読み取るため、life-editor が `/mcp` に表示されなかった。書き込み先を正しいファイルに変更。
+
+#### 変更点
+
+- **修正**: `electron/services/claudeSetup.ts` — グローバル MCP 登録先を `~/.claude/settings.json` → `~/.claude.json` に変更、プロジェクト MCP 登録を `~/life-editor/.claude/settings.json` → `~/life-editor/.mcp.json` に変更、旧データクリーンアップ追加、`type: "stdio"` フィールド追加
