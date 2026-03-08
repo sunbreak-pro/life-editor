@@ -153,7 +153,7 @@ export function TaskTreeNode({
 
         {/* Content row */}
         <div
-          className={`group flex items-center gap-0.5 py-1 rounded-md hover:bg-notion-hover transition-colors border-l-2 ${isSelected ? "bg-notion-hover border-l-notion-accent" : "border-l-transparent"} ${isFolder && overInfo?.overId === node.id && overInfo.position === "inside" && !isDragging ? "ring-2 ring-notion-accent/50" : ""} ${isDone || isFolderDone ? "opacity-60 hover:opacity-90" : ""}`}
+          className={`group flex items-center gap-0.5 py-1 rounded-md hover:bg-notion-hover transition-colors border-l-2 ${isSelected ? "bg-notion-hover border-l-notion-accent" : "border-l-transparent"} ${isFolder && overInfo?.overId === node.id && overInfo.position === "inside" && !isDragging ? "ring-2 ring-notion-accent bg-notion-accent/5" : ""} ${isDone || isFolderDone ? "opacity-60 hover:opacity-90" : ""}`}
           style={bgStyle}
           onContextMenu={handleContextMenu}
         >

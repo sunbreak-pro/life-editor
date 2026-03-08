@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useMemo, useCallback } from "react";
-import { ChevronDown, ChevronRight, Inbox, Search, Clock } from "lucide-react";
+import { ChevronDown, ChevronRight, Search, Clock } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useTaskTreeContext } from "../../../../hooks/useTaskTreeContext";
 import { useDebounce } from "../../../../hooks/useDebounce";
@@ -12,7 +12,7 @@ interface DayFlowTaskPickerProps {
 }
 
 interface TreeItem {
-  type: "inbox-header" | "folder" | "task";
+  type: "folder" | "task";
   node?: TaskNode;
   depth: number;
   isExpanded?: boolean;
@@ -111,20 +111,17 @@ export function DayFlowTaskPicker({
       });
     };
 
-    // Inbox (root tasks)
+    // Root tasks
     const rootChildren = getChildren(null);
-    const inboxTasks = rootChildren.filter(
+    const rootTasks = rootChildren.filter(
       (n) => n.type === "task" && n.status === "TODO",
     );
-    const filteredInbox = filterText
-      ? inboxTasks.filter((tt) => tt.title.toLowerCase().includes(filterText))
-      : inboxTasks;
-    if (filteredInbox.length > 0) {
-      result.push({ type: "inbox-header", depth: 0 });
-      filteredInbox.forEach((tt) =>
-        result.push({ type: "task", node: tt, depth: 1 }),
-      );
-    }
+    const filteredRootTasks = filterText
+      ? rootTasks.filter((tt) => tt.title.toLowerCase().includes(filterText))
+      : rootTasks;
+    filteredRootTasks.forEach((tt) =>
+      result.push({ type: "task", node: tt, depth: 0 }),
+    );
 
     // Root folders
     const rootFolders = rootChildren.filter((n) => n.type === "folder");
@@ -284,19 +281,6 @@ export function DayFlowTaskPicker({
       {/* Task list */}
       <div className="max-h-64 overflow-y-auto py-1">
         {items.map((item, idx) => {
-          if (item.type === "inbox-header") {
-            return (
-              <div
-                key="inbox-header"
-                className="w-full flex items-center gap-1.5 py-1.5 text-xs text-notion-text-secondary"
-                style={{ paddingLeft: 12, paddingRight: 12 }}
-              >
-                <Inbox size={12} />
-                <span>{t("taskTree.inbox")}</span>
-              </div>
-            );
-          }
-
           if (item.type === "folder") {
             return (
               <button

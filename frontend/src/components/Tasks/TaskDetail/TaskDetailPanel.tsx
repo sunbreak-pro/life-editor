@@ -134,7 +134,7 @@ function TaskSidebarContent({
           onMove={handleMove}
           trigger={
             <span className="text-xs text-notion-text-secondary hover:text-notion-text cursor-pointer">
-              {t("taskTree.inbox")}
+              {t("folderFilter.all")}
             </span>
           }
         />

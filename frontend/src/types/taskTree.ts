@@ -1,5 +1,6 @@
 export type SectionId =
   | "tasks"
+  | "schedule"
   | "memo"
   | "work"
   | "analytics"

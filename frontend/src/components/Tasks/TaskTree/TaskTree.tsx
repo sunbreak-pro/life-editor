@@ -10,11 +10,9 @@ import {
   ChevronDown,
   ChevronRight,
   GripVertical,
-  Inbox,
-  FolderOpen,
+  ListTree,
   CheckCircle2,
   Plus,
-  LucideFolderPlus,
   Filter,
 } from "lucide-react";
 import { useTaskTreeContext } from "../../../hooks/useTaskTreeContext";
@@ -77,8 +75,9 @@ export function TaskTree({
   } = useTaskTreeContext();
 
   const [showCompleted, setShowCompleted] = useState(false);
-  const [isCreatingInboxTask, setIsCreatingInboxTask] = useState(false);
-  const [isCreatingProjectFolder, setIsCreatingProjectFolder] = useState(false);
+  const [isCreatingRootItem, setIsCreatingRootItem] = useState<
+    "task" | "folder" | null
+  >(null);
   const [internalFilterFolderId, setInternalFilterFolderId] = useLocalStorage<
     string | null
   >(STORAGE_KEYS.TASK_TREE_FOLDER_FILTER, null, {
@@ -132,37 +131,30 @@ export function TaskTree({
   };
 
   const rootChildren = useMemo(() => getChildren(null), [getChildren]);
-  const inboxTasks = useMemo(() => {
-    let tasks = rootChildren.filter(
-      (n) => n.type === "task" && n.status !== "DONE",
-    );
-    if (isSearching) {
-      tasks = tasks.filter((n) => searchMatchIds.has(n.id));
-    }
-    return sortTaskNodes(tasks, sortMode);
-  }, [rootChildren, sortMode, isSearching, searchMatchIds]);
-
-  const folders = useMemo(() => {
-    let result: TaskNode[];
+  const rootItems = useMemo(() => {
+    let items: TaskNode[];
     if (!filterFolderId) {
-      result = rootChildren.filter(
-        (n) => n.type === "folder" && n.status !== "DONE",
-      );
+      items = rootChildren.filter((n) => n.status !== "DONE");
     } else {
       const target = nodes.find((n) => n.id === filterFolderId);
       if (!target) {
-        result = rootChildren.filter(
-          (n) => n.type === "folder" && n.status !== "DONE",
-        );
+        items = rootChildren.filter((n) => n.status !== "DONE");
       } else {
-        result = target.status !== "DONE" ? [target] : [];
+        items = target.status !== "DONE" ? [target] : [];
       }
     }
     if (isSearching) {
-      result = result.filter((n) => searchMatchIds.has(n.id));
+      items = items.filter((n) => searchMatchIds.has(n.id));
     }
-    return result;
-  }, [rootChildren, filterFolderId, nodes, isSearching, searchMatchIds]);
+    return sortTaskNodes(items, sortMode);
+  }, [
+    rootChildren,
+    filterFolderId,
+    nodes,
+    sortMode,
+    isSearching,
+    searchMatchIds,
+  ]);
 
   const completedRootTasks = useMemo(() => {
     let tasks: TaskNode[];
@@ -195,8 +187,7 @@ export function TaskTree({
   const hasCompleted =
     completedRootTasks.length > 0 || completedFolders.length > 0;
 
-  const inboxIds = useMemo(() => inboxTasks.map((n) => n.id), [inboxTasks]);
-  const folderIds = useMemo(() => folders.map((n) => n.id), [folders]);
+  const rootItemIds = useMemo(() => rootItems.map((n) => n.id), [rootItems]);
 
   const visibleNodes = useMemo(() => {
     const result: TaskNode[] = [];
@@ -212,10 +203,9 @@ export function TaskTree({
         }
       }
     };
-    addVisible(inboxTasks);
-    addVisible(folders);
+    addVisible(rootItems);
     return result;
-  }, [inboxTasks, folders, getChildren, isSearching, searchMatchIds]);
+  }, [rootItems, getChildren, isSearching, searchMatchIds]);
 
   const { t } = useTranslation();
 
@@ -250,8 +240,8 @@ export function TaskTree({
         onDragEnd={handleDragEnd}
         onDragCancel={handleDragCancel}
       >
-        {/* Inbox Section */}
-        <DroppableSection id="droppable-inbox-section">
+        {/* Root Section */}
+        <DroppableSection id="droppable-root-section">
           {(isOver) => (
             <div>
               <div
@@ -261,75 +251,10 @@ export function TaskTree({
                     : ""
                 }`}
               >
-                <Inbox size={14} />
-                <div className="flex items-center justify-between w-full">
-                  <div className="flex items-center gap-1.5">
-                    {t("taskTree.inbox")}{" "}
-                    {inboxTasks.length > 0 && (
-                      <div className="font-normal">({inboxTasks.length})</div>
-                    )}
-                    <SortDropdown
-                      sortMode={sortMode}
-                      onSortChange={setSortMode}
-                    />
-                  </div>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setIsCreatingInboxTask(true);
-                    }}
-                    className="hover:text-notion-text transition-colors"
-                  >
-                    <Plus size={14} />
-                  </button>
-                </div>
-              </div>
-              <SortableContext items={inboxIds}>
-                <div className="space-y-0.5">
-                  {inboxTasks.map((node) => (
-                    <TaskTreeNode
-                      key={node.id}
-                      node={node}
-                      depth={0}
-                      onPlayTask={onPlayTask}
-                      onSelectTask={onSelectTask}
-                      selectedTaskId={selectedTaskId}
-                      sortMode={sortMode}
-                      overInfo={overInfo}
-                      searchMatchIds={isSearching ? searchMatchIds : undefined}
-                      isSearching={isSearching}
-                    />
-                  ))}
-                </div>
-              </SortableContext>
-              {isCreatingInboxTask && (
-                <InlineCreateInput
-                  placeholder={t("taskTree.newTask")}
-                  onSubmit={(title) => addNode("task", null, title)}
-                  onCancel={() => setIsCreatingInboxTask(false)}
-                />
-              )}
-            </div>
-          )}
-        </DroppableSection>
-
-        <div className="border-t border-notion-border my-1" />
-
-        {/* Projects Section */}
-        <DroppableSection id="droppable-projects-section">
-          {(isOver) => (
-            <div>
-              <div
-                className={`flex items-center gap-2 px-2 py-1.5 text-xs font-semibold uppercase tracking-wider text-notion-text-secondary rounded-md transition-colors ${
-                  isOver
-                    ? "bg-notion-accent/10 ring-1 ring-notion-accent/30"
-                    : ""
-                }`}
-              >
-                <FolderOpen size={14} />
+                <ListTree size={14} />
                 <div className="flex-row flex items-center justify-between w-full">
                   <div className="flex items-center gap-1.5">
-                    {t("taskTree.projects")}
+                    {t("taskTree.title")}
                     <FolderDropdown
                       selectedId={filterFolderId}
                       onSelect={setFilterFolderId}
@@ -351,21 +276,28 @@ export function TaskTree({
                         </button>
                       }
                     />
+                    <SortDropdown
+                      sortMode={sortMode}
+                      onSortChange={setSortMode}
+                    />
                   </div>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setIsCreatingProjectFolder(true);
-                    }}
-                    className="hover:text-notion-text transition-colors"
-                  >
-                    <LucideFolderPlus size={14} />
-                  </button>
+                  <div className="flex items-center gap-1">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setIsCreatingRootItem("task");
+                      }}
+                      className="hover:text-notion-text transition-colors"
+                      title={t("taskTree.newTask")}
+                    >
+                      <Plus size={14} />
+                    </button>
+                  </div>
                 </div>
               </div>
-              <SortableContext items={folderIds}>
-                <div>
-                  {folders.map((node) => (
+              <SortableContext items={rootItemIds}>
+                <div className="space-y-0.5">
+                  {rootItems.map((node) => (
                     <TaskTreeNode
                       key={node.id}
                       node={node}
@@ -381,11 +313,15 @@ export function TaskTree({
                   ))}
                 </div>
               </SortableContext>
-              {isCreatingProjectFolder && (
+              {isCreatingRootItem && (
                 <InlineCreateInput
-                  placeholder={t("taskTree.newFolder")}
-                  onSubmit={(title) => addNode("folder", null, title)}
-                  onCancel={() => setIsCreatingProjectFolder(false)}
+                  placeholder={
+                    isCreatingRootItem === "task"
+                      ? t("taskTree.newTask")
+                      : t("taskTree.newFolder")
+                  }
+                  onSubmit={(title) => addNode(isCreatingRootItem, null, title)}
+                  onCancel={() => setIsCreatingRootItem(null)}
                 />
               )}
             </div>

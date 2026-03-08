@@ -1,5 +1,6 @@
 import {
   CheckSquare,
+  Calendar,
   BookOpen,
   Play,
   BarChart3,
@@ -22,6 +23,7 @@ const mainMenuItems: {
   icon: typeof CheckSquare;
 }[] = [
   { id: "tasks", labelKey: "sidebar.tasks", icon: CheckSquare },
+  { id: "schedule", labelKey: "sidebar.schedule", icon: Calendar },
   { id: "memo", labelKey: "sidebar.memo", icon: BookOpen },
   { id: "work", labelKey: "sidebar.work", icon: Play },
   { id: "analytics", labelKey: "sidebar.analytics", icon: BarChart3 },
@@ -41,7 +43,7 @@ export function LeftSidebar({
       className="h-full bg-notion-bg-secondary border-r border-notion-border flex flex-col"
       style={{ width }}
     >
-      <nav className="flex-1 p-2 pt-3 space-y-2.5">
+      <nav className="flex-1 p-2 pt-3 space-y-2.5 overflow-y-auto">
         {mainMenuItems.map((item) => {
           const Icon = item.icon;
           const isActive = activeSection === item.id;
@@ -82,7 +84,8 @@ export function LeftSidebar({
             </div>
           );
         })}
-        <div className="mx-2 my-1 border-t border-notion-border" />
+      </nav>
+      <div className="p-2 border-t border-notion-border">
         <button
           onClick={() => onSectionChange("settings")}
           className={`w-full flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-colors ${
@@ -94,7 +97,7 @@ export function LeftSidebar({
           <Settings size={18} />
           <span>{t("sidebar.settings")}</span>
         </button>
-      </nav>
+      </div>
     </aside>
   );
 }

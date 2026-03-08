@@ -8,6 +8,7 @@ export type ShortcutId =
   | "global:reset-timer"
   // Navigation
   | "nav:tasks"
+  | "nav:schedule"
   | "nav:memo"
   | "nav:work"
   | "nav:analytics"

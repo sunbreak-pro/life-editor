@@ -52,7 +52,7 @@ export function FolderMovePicker({
 
   const pendingFolderName = pendingFolderId
     ? (folders.find((f) => f.id === pendingFolderId)?.title ?? "Root")
-    : t("taskTree.inbox");
+    : t("folderFilter.all");
 
   return (
     <>
@@ -60,7 +60,7 @@ export function FolderMovePicker({
         selectedId={currentFolderId}
         onSelect={handleSelect}
         trigger={trigger}
-        rootLabel={t("taskTree.inbox")}
+        rootLabel={t("folderFilter.all")}
       />
 
       {showConfirm && (

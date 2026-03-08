@@ -1,4 +1,11 @@
-import { CheckSquare, BookOpen, Play, BarChart3, Settings } from "lucide-react";
+import {
+  CheckSquare,
+  Calendar,
+  BookOpen,
+  Play,
+  BarChart3,
+  Settings,
+} from "lucide-react";
 import type { SectionId } from "../../types/taskTree";
 import { useTranslation } from "react-i18next";
 
@@ -13,6 +20,7 @@ const mainItems: {
   icon: typeof CheckSquare;
 }[] = [
   { id: "tasks", labelKey: "sidebar.tasks", icon: CheckSquare },
+  { id: "schedule", labelKey: "sidebar.schedule", icon: Calendar },
   { id: "memo", labelKey: "sidebar.memo", icon: BookOpen },
   { id: "work", labelKey: "sidebar.work", icon: Play },
   { id: "analytics", labelKey: "sidebar.analytics", icon: BarChart3 },

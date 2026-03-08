@@ -54,8 +54,8 @@ export function TitleBar({
         onClick={onToggleSidebar}
         className={`titlebar-nodrag p-1.5 rounded transition-colors ${
           sidebarOpen
-            ? "text-notion-text-secondary hover:text-notion-text"
-            : "text-notion-accent hover:text-notion-text"
+            ? "text-notion-accent hover:text-notion-text"
+            : "text-notion-text-secondary hover:text-notion-text"
         }`}
         title="Toggle sidebar"
       >

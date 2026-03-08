@@ -1,5 +1,26 @@
 # HISTORY.md - 変更履歴
 
+### 2026-03-09 - Schedule セクション昇格 + UI リファクタリング
+
+#### 概要
+
+Tasks セクション内のサブタブだった Schedule を独立セクションに昇格させ、Left Sidebar に Calendar アイコンで表示。Routine を Schedule のサブタブに移動し、Tasks の Right Sidebar から MemoTree を除去してシンプル化。Settings ボタンを Left Sidebar の bottom に固定配置。
+
+#### 変更点
+
+- **types/taskTree.ts**: SectionId に `"schedule"` 追加
+- **types/shortcut.ts**: ShortcutId に `"nav:schedule"` 追加
+- **defaultShortcuts.ts**: `nav:schedule` = Cmd+2 追加、既存 Cmd+2〜4 を Cmd+3〜5 にシフト
+- **i18n (en/ja)**: `tips.shortcutsTab.goToSchedule` 追加
+- **LeftSidebar.tsx**: Calendar アイコンで schedule を tasks の直後に追加。Settings ボタンを nav 外に移動し border-t 付き bottom 固定化
+- **CollapsedSidebar.tsx**: mainItems に schedule 追加
+- **Schedule/ScheduleSection.tsx**: 新規コンポーネント。Calendar/DayFlow/Routine の3タブ構成。ScheduleTabView + TasksLayout のロジックを移植
+- **App.tsx**: `case "schedule"` 追加、ScheduleSection をインポート
+- **TasksLayout.tsx**: タブ UI 削除、SectionHeader をタブなしヘッダーに簡素化。TaskTreeView のみ描画
+- **TaskTreeView.tsx**: RightSubTab 型、MemoTree/DailyMemoView/NotesView のインポート・state・ロジック・サブタブ切り替え UI をすべて削除。Right Sidebar は TaskTree のみ直接描画
+- **useAppKeyboardShortcuts.ts**: `nav:schedule` ハンドラ追加
+- **useAppCommands.ts**: コマンドパレットに "Go to Schedule" (Calendar アイコン) 追加
+
 ### 2026-03-08 - RightSidebarアイコン + ターミナルタブ + ショートカット設定 + Undo/Redo
 
 #### 概要

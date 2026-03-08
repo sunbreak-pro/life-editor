@@ -310,6 +310,7 @@
       "goToTasks": "Go to Tasks",
       "goToMemo": "Go to Memo",
       "goToWork": "Go to Work",
+      "goToSchedule": "Go to Schedule",
       "goToAnalytics": "Go to Analytics",
       "toggleTerminal": "Toggle terminal",
       "toggleLeftSidebar": "Toggle left sidebar",

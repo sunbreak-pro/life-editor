@@ -6,6 +6,7 @@ import type { SectionId } from "../types/taskTree";
 import { useShortcutConfig } from "./useShortcutConfig";
 import {
   ListTodo,
+  Calendar,
   StickyNote,
   BarChart3,
   Settings as SettingsIcon,
@@ -57,6 +58,14 @@ export function useAppCommands({
         shortcut: getDisplayString("nav:tasks"),
         icon: ListTodo,
         action: () => setActiveSection("tasks"),
+      },
+      {
+        id: "nav-schedule",
+        title: "Go to Schedule",
+        category: "Navigation",
+        shortcut: getDisplayString("nav:schedule"),
+        icon: Calendar,
+        action: () => setActiveSection("schedule"),
       },
       {
         id: "nav-memo",

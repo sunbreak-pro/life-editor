@@ -310,6 +310,7 @@
       "goToTasks": "タスクへ移動",
       "goToMemo": "メモへ移動",
       "goToWork": "ワークへ移動",
+      "goToSchedule": "スケジュールへ移動",
       "goToAnalytics": "分析へ移動",
       "toggleTerminal": "ターミナル切り替え",
       "toggleLeftSidebar": "左サイドバーの切り替え",

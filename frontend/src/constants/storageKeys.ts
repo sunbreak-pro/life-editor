@@ -22,4 +22,6 @@ export const STORAGE_KEYS = {
   RIGHT_SIDEBAR_WIDTH: "sonic-flow-right-sidebar-width",
   TERMINAL_DOCK: "sonic-flow-terminal-dock",
   TERMINAL_WIDTH: "sonic-flow-terminal-width",
+  RIGHT_SUB_TAB: "sonic-flow-right-sub-tab",
+  MEMO_TREE_EXPANDED: "sonic-flow-memo-tree-expanded",
 } as const;

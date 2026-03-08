@@ -118,10 +118,6 @@ export function useTaskTreeMovement(
       if (isDescendantOf(activeId, overId, nodes)) return;
 
       if (active.parentId === over.parentId) {
-        // Block folder↔task reordering within the same parent
-        if (active.type === "folder" && over.type !== "folder") return;
-        if (active.type !== "folder" && over.type === "folder") return;
-
         const siblings = nodes
           .filter((n) => !n.isDeleted && n.parentId === active.parentId)
           .sort((a, b) => a.order - b.order);
@@ -158,26 +154,12 @@ export function useTaskTreeMovement(
           )
           .sort((a, b) => a.order - b.order);
         const overIndex = newSiblings.findIndex((n) => n.id === overId);
-        let insertIndex =
+        const insertIndex =
           overIndex === -1
             ? newSiblings.length
             : position === "below"
               ? overIndex + 1
               : overIndex;
-
-        // Clamp insertion index to folder/task zone boundaries
-        const firstTaskIdx = newSiblings.findIndex((n) => n.type !== "folder");
-        if (active.type === "task") {
-          insertIndex = Math.max(
-            insertIndex,
-            firstTaskIdx === -1 ? newSiblings.length : firstTaskIdx,
-          );
-        } else if (active.type === "folder") {
-          insertIndex = Math.min(
-            insertIndex,
-            firstTaskIdx === -1 ? newSiblings.length : firstTaskIdx,
-          );
-        }
 
         newSiblings.splice(insertIndex, 0, active);
 

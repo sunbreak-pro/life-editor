@@ -2,6 +2,7 @@ import { useState, useRef } from "react";
 import { Layout } from "./components/Layout";
 import type { LayoutHandle } from "./components/Layout";
 import { TasksLayout } from "./components/Tasks/TasksLayout";
+import { ScheduleSection } from "./components/Schedule/ScheduleSection";
 import { useLocalStorage } from "./hooks/useLocalStorage";
 import { WorkScreen } from "./components/Work";
 import { SessionCompletionModal } from "./components/Work/SessionCompletionModal";
@@ -97,6 +98,11 @@ function App() {
             filterFolderId={filterFolderId}
             onFilterChange={setFilterFolderId}
             onPlayTask={handlers.handlePlayTask}
+          />
+        );
+      case "schedule":
+        return (
+          <ScheduleSection
             onCalendarSelectTask={(taskId) =>
               handlers.handleCalendarSelectTask(taskId)
             }
@@ -105,6 +111,7 @@ function App() {
               const task = nodes.find((n) => n.id === taskId);
               if (task) handlers.handlePlayTask(task);
             }}
+            onSelectTask={setSelectedTaskId}
           />
         );
       case "memo":

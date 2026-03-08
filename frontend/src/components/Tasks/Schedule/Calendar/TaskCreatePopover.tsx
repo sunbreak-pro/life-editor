@@ -140,7 +140,7 @@ export function TaskCreatePopover({
             folders={flatFolders}
             selectedId={selectedFolderId}
             onSelect={setSelectedFolderId}
-            rootLabel="Inbox"
+            rootLabel="Root"
             bordered
           />
         </div>
