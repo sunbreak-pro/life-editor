@@ -1,5 +1,16 @@
 # HISTORY.md - 変更履歴
 
+### 2026-03-08 - cursor:pointer グローバル修正
+
+#### 概要
+
+アプリ全体の `<button>` 要素に `cursor: pointer` がデフォルト適用されていなかった問題を、`index.css` にグローバル CSS ルールを1つ追加して一括解決。
+
+#### 変更点
+
+- **グローバル CSS**: `frontend/src/index.css` に `@layer base` ルールを追加。`button:not(:disabled)` に `cursor: pointer`、`button:disabled` に `cursor: not-allowed` を適用
+- **影響範囲**: 40箇所以上のボタンが修正対象。Tailwind ユーティリティクラスによる個別オーバーライドは引き続き正常動作
+
 ### 2026-03-08 - Terminal Panel 最小化復元 + 終了ボタン追加
 
 #### 概要
