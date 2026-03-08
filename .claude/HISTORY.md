@@ -1,5 +1,15 @@
 # HISTORY.md - 変更履歴
 
+### 2026-03-08 - カスタム Backspace ハンドラ削除
+
+#### 概要
+
+shift+Enter の送信方式を bracketed paste に変更済みのため、不要になったカスタム Backspace ハンドラを削除。xterm.js のデフォルト処理に委譲することで、改行後の Backspace が正しく動作するようにした。
+
+#### 変更点
+
+- **TerminalPane.tsx**: `customKeyEventHandler` からカスタム Backspace インターセプト（修飾キーなし Backspace で `\x7f` を直接送信 + `return false`）を削除。xterm.js のデフォルトキー処理 → `onData` 経由の PTY 送信に戻した
+
 ### 2026-03-08 - shift+Enter 改行後の Backspace 修正
 
 #### 概要

@@ -77,16 +77,10 @@ export function TerminalPane({ sessionId, onFocus }: TerminalPaneProps) {
       // to prevent xterm from also sending a normal Enter (\r)
       if (e.shiftKey && !e.metaKey && e.code === "Enter") {
         if (e.type === "keydown") {
-          window.electronAPI?.invoke("terminal:write", sessionId, "\x16\n");
-        }
-        return false;
-      }
-
-      // Backspace → send \x7f directly to PTY (bypass xterm internal handling)
-      // Ensures correct behavior after shift+Enter newline insertion
-      if (!e.metaKey && !e.ctrlKey && !e.altKey && e.code === "Backspace") {
-        if (e.type === "keydown") {
-          window.electronAPI?.invoke("terminal:write", sessionId, "\x7f");
+          const seq = term.modes.bracketedPasteMode
+            ? "\x1b[200~\n\x1b[201~"
+            : "\x16\n";
+          window.electronAPI?.invoke("terminal:write", sessionId, seq);
         }
         return false;
       }
