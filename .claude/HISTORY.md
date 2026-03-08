@@ -1,5 +1,23 @@
 # HISTORY.md - 変更履歴
 
+### 2026-03-08 - RightSidebar 縦型リストナビゲーション強化
+
+#### 概要
+
+全セクションのサブナビゲーションを RightSidebar の縦型リストに統一し、Work セクションには補助情報（プレイリスト・ポモドーロ・統計）を表示するよう RightSidebar の活用を強化。
+
+#### 変更点
+
+- **新規コンポーネント**: `VerticalNavList.tsx` — `TabItem<T>` を再利用する汎用縦型ナビリスト
+- **新規コンポーネント**: `WorkSidebarInfo.tsx` — 再生中プレイリスト・ポモドーロ設定サマリー・今日のセッション統計
+- **Settings.tsx**: General/Advanced/Shortcuts/Notifications/Data のサブナビゲーションを RightSidebar にポータル。サイドバーあり時は選択サブ項目のみ表示
+- **KeyboardShortcuts.tsx**: `activeCategory` prop 追加。`edit` カテゴリを `global` にマージ表示
+- **TrashView.tsx**: ポータル内を `SectionTabs` → `VerticalNavList` に変更
+- **ScheduleTabView.tsx**: ポータル内を `SectionTabs` → `VerticalNavList` に変更。`requestOpen()` でサイドバー自動オープン
+- **WorkScreen.tsx**: `WorkSidebarInfo` を `createPortal` でサイドバーに描画
+- **Layout.tsx**: `settings` と `work` セクションでも RightSidebar を自動オープン
+- **i18n**: `tips.shortcutsTab.view` を "View"→"Layout" / "表示"→"レイアウト" に変更。`calendar` キー追加。`work.sidebar.*` キー追加
+
 ### 2026-03-08 - カスタム Backspace ハンドラ削除
 
 #### 概要
