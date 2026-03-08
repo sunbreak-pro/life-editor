@@ -25,6 +25,11 @@ export type ShortcutId =
   // Edit (readonly)
   | "edit:undo"
   | "edit:redo"
+  // Terminal (readonly)
+  | "terminal:new-pane"
+  | "terminal:close-pane"
+  | "terminal:split-vertical"
+  | "terminal:split-horizontal"
   // Calendar
   | "cal:next"
   | "cal:prev"
@@ -37,6 +42,7 @@ export type ShortcutCategory =
   | "view"
   | "taskTree"
   | "edit"
+  | "terminal"
   | "calendar";
 
 export interface KeyBinding {

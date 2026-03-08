@@ -286,6 +286,7 @@
       "goToAnalytics": "Go to Analytics",
       "toggleTerminal": "Toggle terminal",
       "toggleLeftSidebar": "Toggle left sidebar",
+      "toggleRightSidebar": "Toggle right sidebar",
       "moveBetweenTasks": "Move between tasks",
       "expandFolder": "Expand folder",
       "collapseFolder": "Collapse folder",
@@ -299,7 +300,12 @@
       "nextMonthWeek": "Next period (month / week / day)",
       "prevMonthWeek": "Previous period (month / week / day)",
       "jumpToToday": "Jump to today",
-      "toggleMonthWeek": "Cycle through month / week / day views"
+      "toggleMonthWeek": "Cycle through month / week / day views",
+      "terminal": "Terminal",
+      "terminalNewPane": "New terminal pane (in terminal)",
+      "terminalClosePane": "Close terminal pane (in terminal)",
+      "terminalSplitVertical": "Split vertically (in terminal)",
+      "terminalSplitHorizontal": "Split horizontally (in terminal)"
     },
     "tasksTab": {
       "creating": "Creating Tasks & Folders",

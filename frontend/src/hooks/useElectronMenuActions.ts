@@ -39,6 +39,9 @@ export function useElectronMenuActions({
         case "toggle-left-sidebar":
           layoutRef.current?.toggleLeftSidebar();
           break;
+        case "toggle-terminal":
+          layoutRef.current?.toggleTerminal();
+          break;
         case "export-data":
           getDataService().exportData().catch(console.warn);
           break;

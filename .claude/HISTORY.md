@@ -1,5 +1,18 @@
 # HISTORY.md - 変更履歴
 
+### 2026-03-08 - ターミナルトグル TitleBar 移動 & StatusBar 削除
+
+#### 概要
+
+ターミナルトグルを StatusBar から TitleBar 右上に移動し、cmd+j / アイコンクリックで表示/非表示のみ切替（PTY セッション維持）に変更。StatusBar コンポーネントを完全削除。
+
+#### 変更点
+
+- **TerminalPanel.tsx**: `return null` → `display: none` に変更、`closePanel()` 呼び出し除去、再表示時の xterm.js リサイズ Effect 追加
+- **TitleBar.tsx**: Terminal アイコンボタン追加（UndoRedo の右、PanelRight の左）、`terminalOpen` / `onToggleTerminal` props 追加
+- **Layout.tsx**: TitleBar にターミナル props 追加、StatusBar の import・呼び出し・`useClaudeStatus` を削除
+- **StatusBar 削除**: `frontend/src/components/StatusBar/` ディレクトリごと完全削除
+
 ### 2026-03-08 - cmd+arrow 修正 + cmux 機能プラン作成
 
 #### 概要
@@ -1241,3 +1254,20 @@ MCP Server の DB パス不一致バグ修正、横断検索ツール `search_al
 - **追加**: `mcp-server/src/tools.ts` — `search_all` ツール定義 + callTool switch case
 - **拡張**: `electron/services/claudeSetup.ts` — `~/life-editor/` ディレクトリ自動生成（CLAUDE.md + .claude/settings.json）
 - **修正**: `electron/terminal/TerminalManager.ts` — CWD を `~/life-editor/` に変更（存在時）
+
+### 2026-03-08 - サイドバーアニメーション + RightSidebar コンテンツ連携
+
+#### 概要
+
+左右サイドバーの開閉にスライドアニメーションを追加。RightSidebar をポータルターゲット化し、Schedule/Trash のサブタブと Memo のリストを RightSidebar に表示するようにした。
+
+#### 変更点
+
+- **新規**: `frontend/src/context/RightSidebarContext.ts` — ポータルターゲット + requestOpen の Context
+- **修正**: `frontend/src/components/Layout/Layout.tsx` — 左右サイドバーに transition-[width] アニメーションラッパー追加、RightSidebarContext Provider、Memo セクション自動オープン
+- **修正**: `frontend/src/components/Layout/RightSidebar.tsx` — 常時レンダリング化、isOpen prop 削除、ポータルターゲット div のみ残す
+- **修正**: `frontend/src/components/Tasks/ScheduleTabView.tsx` — calendar/dayflow タブを createPortal で RightSidebar へ
+- **修正**: `frontend/src/components/Trash/TrashView.tsx` — tasks/memo/sounds タブを createPortal で RightSidebar へ
+- **修正**: `frontend/src/components/Memo/MemoView.tsx` — MemoDateList/NoteList を createPortal で RightSidebar へ（フォールバック付き）
+- **修正**: `frontend/src/components/Memo/MemoDateList.tsx` — 固定幅 (w-60 shrink-0 border-r) 削除
+- **修正**: `frontend/src/components/Memo/NoteList.tsx` — 固定幅 (w-64 shrink-0 border-r) 削除

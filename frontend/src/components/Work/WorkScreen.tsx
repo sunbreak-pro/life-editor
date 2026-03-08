@@ -7,7 +7,6 @@ import { getDataService } from "../../services";
 import { LAYOUT } from "../../constants/layout";
 import type { TabItem } from "../shared/SectionTabs";
 import { SectionHeader } from "../shared/SectionHeader";
-import { UndoRedoButtons } from "../shared/UndoRedo";
 import { TimerDisplay } from "./TimerDisplay";
 import { TimerProgressBar } from "./TimerProgressBar";
 import { TaskSelector } from "./TaskSelector";
@@ -104,9 +103,6 @@ export function WorkScreen({ onCompleteTask }: WorkScreenProps) {
           tabs={WORK_TABS}
           activeTab={activeTab}
           onTabChange={setActiveTab}
-          actions={
-            activeTab === "music" ? <UndoRedoButtons domain="playlist" /> : null
-          }
         />
 
         <div className="flex-1 overflow-y-auto">

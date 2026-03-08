@@ -286,6 +286,7 @@
       "goToAnalytics": "分析へ移動",
       "toggleTerminal": "ターミナル切り替え",
       "toggleLeftSidebar": "左サイドバーの切り替え",
+      "toggleRightSidebar": "右サイドバーの切り替え",
       "moveBetweenTasks": "タスク間の移動",
       "expandFolder": "フォルダを展開",
       "collapseFolder": "フォルダを折りたたむ",
@@ -299,7 +300,12 @@
       "nextMonthWeek": "次の期間（月/週/日）",
       "prevMonthWeek": "前の期間（月/週/日）",
       "jumpToToday": "今日にジャンプ",
-      "toggleMonthWeek": "月/週/日表示を順に切り替え"
+      "toggleMonthWeek": "月/週/日表示を順に切り替え",
+      "terminal": "ターミナル",
+      "terminalNewPane": "新しいターミナルペイン（ターミナル内）",
+      "terminalClosePane": "ターミナルペインを閉じる（ターミナル内）",
+      "terminalSplitVertical": "垂直分割（ターミナル内）",
+      "terminalSplitHorizontal": "水平分割（ターミナル内）"
     },
     "tasksTab": {
       "creating": "タスクとフォルダの作成",

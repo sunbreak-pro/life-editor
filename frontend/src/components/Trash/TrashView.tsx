@@ -1,4 +1,5 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useContext } from "react";
+import { createPortal } from "react-dom";
 import {
   RotateCcw,
   Trash2,
@@ -19,6 +20,7 @@ import { ConfirmDialog } from "../shared/ConfirmDialog";
 import { SectionTabs, type TabItem } from "../shared/SectionTabs";
 import type { CustomSoundMeta } from "../../types/customSound";
 import type { SoundDisplayMeta } from "../../types/sound";
+import { RightSidebarContext } from "../../context/RightSidebarContext";
 
 type TrashTab = "tasks" | "memo" | "sounds";
 
@@ -313,15 +315,28 @@ export function TrashView() {
     );
   };
 
+  const { portalTarget: rightSidebarTarget } = useContext(RightSidebarContext);
+
+  const tabsElement = (
+    <SectionTabs
+      tabs={TRASH_TABS}
+      activeTab={activeTab}
+      onTabChange={setActiveTab}
+    />
+  );
+
   return (
     <div className="h-full flex flex-col">
-      <div className="mb-4">
-        <SectionTabs
-          tabs={TRASH_TABS}
-          activeTab={activeTab}
-          onTabChange={setActiveTab}
-        />
-      </div>
+      {rightSidebarTarget ? (
+        createPortal(
+          <div className="p-3 border-b border-notion-border">
+            {tabsElement}
+          </div>,
+          rightSidebarTarget,
+        )
+      ) : (
+        <div className="mb-4">{tabsElement}</div>
+      )}
 
       <div className="flex-1 overflow-y-auto">
         {activeTab === "tasks" && renderTasksTab()}

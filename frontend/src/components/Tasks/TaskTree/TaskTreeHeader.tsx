@@ -5,7 +5,6 @@ import { useTaskTreeContext } from "../../../hooks/useTaskTreeContext";
 import { flattenFolders } from "../../../utils/flattenFolders";
 import { FolderDropdown } from "../Folder/FolderDropdown";
 import { SearchInput } from "../../shared/SearchInput";
-import { UndoRedoButtons } from "../../shared/UndoRedo";
 
 interface TaskTreeHeaderProps {
   filterFolderId: string | null;
@@ -66,20 +65,17 @@ export function TaskTreeHeader({
           }
         />
 
-        <div className="flex items-center gap-1">
-          <button
-            onClick={onSearchOpen}
-            className={`p-1.5 rounded transition-colors ${
-              isSearchOpen
-                ? "text-notion-accent bg-notion-accent/10"
-                : "text-notion-text-secondary hover:text-notion-text hover:bg-notion-hover"
-            }`}
-            title={t("search.placeholder")}
-          >
-            <Search size={16} />
-          </button>
-          <UndoRedoButtons domain="taskTree" />
-        </div>
+        <button
+          onClick={onSearchOpen}
+          className={`p-1.5 rounded transition-colors ${
+            isSearchOpen
+              ? "text-notion-accent bg-notion-accent/10"
+              : "text-notion-text-secondary hover:text-notion-text hover:bg-notion-hover"
+          }`}
+          title={t("search.placeholder")}
+        >
+          <Search size={16} />
+        </button>
       </div>
 
       {isSearchOpen && (

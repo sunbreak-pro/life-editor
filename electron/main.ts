@@ -1,5 +1,5 @@
 import log from "./logger";
-import { app, BrowserWindow, dialog, session } from "electron";
+import { app, BrowserWindow, dialog, ipcMain, session } from "electron";
 import * as path from "path";
 import { getDatabase, closeDatabase } from "./database/db";
 import { registerAllHandlers } from "./ipc/registerAll";
@@ -90,6 +90,10 @@ app
 
     registerTerminalHandlers(terminalManager);
     registerClaudeSetupHandlers();
+
+    ipcMain.handle("window:close", () => {
+      BrowserWindow.getFocusedWindow()?.close();
+    });
 
     // Auto-register MCP Server (fire and forget)
     registerMcpServer().catch((e) =>

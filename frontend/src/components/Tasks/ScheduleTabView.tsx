@@ -1,4 +1,5 @@
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo, useContext } from "react";
+import { createPortal } from "react-dom";
 import type { TabItem } from "../shared/SectionTabs";
 import { SectionTabs } from "../shared/SectionTabs";
 import { CalendarView } from "./Schedule/Calendar/CalendarView";
@@ -6,6 +7,7 @@ import { OneDaySchedule } from "./Schedule/DayFlow/OneDaySchedule";
 import { useTaskTreeContext } from "../../hooks/useTaskTreeContext";
 import { useCalendar } from "../../hooks/useCalendar";
 import { formatDateKey } from "../../utils/dateKey";
+import { RightSidebarContext } from "../../context/RightSidebarContext";
 
 type ScheduleSubTab = "calendar" | "dayflow";
 
@@ -81,14 +83,27 @@ export function ScheduleTabView({
     setDayFlowDate(new Date());
   }, []);
 
+  const { portalTarget: rightSidebarTarget } = useContext(RightSidebarContext);
+
+  const tabsElement = (
+    <SectionTabs
+      tabs={SCHEDULE_TABS}
+      activeTab={subTab}
+      onTabChange={setSubTab}
+      size="sm"
+    />
+  );
+
   return (
     <div className="h-full flex flex-col">
-      <SectionTabs
-        tabs={SCHEDULE_TABS}
-        activeTab={subTab}
-        onTabChange={setSubTab}
-        size="sm"
-      />
+      {rightSidebarTarget
+        ? createPortal(
+            <div className="p-3 border-b border-notion-border">
+              {tabsElement}
+            </div>,
+            rightSidebarTarget,
+          )
+        : tabsElement}
       <div className="flex-1 min-h-0 overflow-auto">
         {subTab === "calendar" ? (
           <CalendarView

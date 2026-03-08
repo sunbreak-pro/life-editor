@@ -1,4 +1,4 @@
-import { useRef, useState, useCallback, useEffect } from "react";
+import { useRef, useState, useCallback, useEffect, useMemo } from "react";
 import type { ReactNode } from "react";
 import type { SectionId } from "../../types/taskTree";
 import { LeftSidebar } from "./LeftSidebar";
@@ -6,20 +6,31 @@ import { CollapsedSidebar } from "./CollapsedSidebar";
 import { TitleBar } from "./TitleBar";
 import { HeaderPortalContext } from "./HeaderPortalContext";
 import { MainContent } from "./MainContent";
+import { RightSidebar } from "./RightSidebar";
 import { TerminalPanel } from "../Terminal/TerminalPanel";
-import { StatusBar } from "../StatusBar/StatusBar";
+
 import { STORAGE_KEYS } from "../../constants/storageKeys";
 import { useLocalStorage } from "../../hooks/useLocalStorage";
 import { useTaskTreeContext } from "../../hooks/useTaskTreeContext";
 import { useExternalDataSync } from "../../hooks/useExternalDataSync";
 import { useShortcutConfig } from "../../hooks/useShortcutConfig";
-import { useClaudeStatus } from "../../hooks/useClaudeStatus";
+
+import {
+  RightSidebarContext,
+  type RightSidebarContextValue,
+} from "../../context/RightSidebarContext";
 
 const TERMINAL_DEFAULT_HEIGHT = 300;
+const TERMINAL_DEFAULT_WIDTH = 400;
+const TERMINAL_MIN_WIDTH = 250;
 
 const LEFT_MIN_WIDTH = 165;
 const LEFT_MAX_WIDTH = 250;
 const LEFT_DEFAULT_WIDTH = 190;
+
+const RIGHT_MIN_WIDTH = 200;
+const RIGHT_MAX_WIDTH = 500;
+const RIGHT_DEFAULT_WIDTH = 280;
 
 function deserializeWidth(min: number, max: number, def: number) {
   return (raw: string): number => {
@@ -32,9 +43,14 @@ function deserializeBool(raw: string): boolean {
   return raw !== "false";
 }
 
+function deserializeDock(raw: string): "bottom" | "right" {
+  return raw === "right" ? "right" : "bottom";
+}
+
 export interface LayoutHandle {
   toggleLeftSidebar: () => void;
   toggleTerminal: () => void;
+  toggleRightSidebar: () => void;
 }
 
 interface LayoutProps {
@@ -72,6 +88,27 @@ export function Layout({
   const isResizingLeft = useRef(false);
   const [dragLeftWidth, setDragLeftWidth] = useState<number | null>(null);
 
+  // Right sidebar
+  const [rightSidebarOpen, setRightSidebarOpen] = useLocalStorage<boolean>(
+    STORAGE_KEYS.RIGHT_SIDEBAR_OPEN,
+    false,
+    { serialize: String, deserialize: deserializeBool },
+  );
+  const [rightSidebarWidth, setRightSidebarWidth] = useLocalStorage<number>(
+    STORAGE_KEYS.RIGHT_SIDEBAR_WIDTH,
+    RIGHT_DEFAULT_WIDTH,
+    {
+      serialize: String,
+      deserialize: deserializeWidth(
+        RIGHT_MIN_WIDTH,
+        RIGHT_MAX_WIDTH,
+        RIGHT_DEFAULT_WIDTH,
+      ),
+    },
+  );
+  const isResizingRight = useRef(false);
+  const [dragRightWidth, setDragRightWidth] = useState<number | null>(null);
+
   // Terminal state
   const [terminalOpen, setTerminalOpen] = useLocalStorage<boolean>(
     STORAGE_KEYS.TERMINAL_OPEN,
@@ -86,21 +123,38 @@ export function Layout({
       deserialize: deserializeWidth(150, 2000, TERMINAL_DEFAULT_HEIGHT),
     },
   );
+  const [terminalDock, setTerminalDock] = useLocalStorage<"bottom" | "right">(
+    STORAGE_KEYS.TERMINAL_DOCK,
+    "bottom",
+    { serialize: String, deserialize: deserializeDock },
+  );
+  const [terminalWidth, setTerminalWidth] = useLocalStorage<number>(
+    STORAGE_KEYS.TERMINAL_WIDTH,
+    TERMINAL_DEFAULT_WIDTH,
+    {
+      serialize: String,
+      deserialize: deserializeWidth(
+        TERMINAL_MIN_WIDTH,
+        2000,
+        TERMINAL_DEFAULT_WIDTH,
+      ),
+    },
+  );
 
   // Poll for external DB changes when terminal is open
   const { refetch } = useTaskTreeContext();
   useExternalDataSync(terminalOpen, refetch);
   const { matchEvent } = useShortcutConfig();
-  const claudeState = useClaudeStatus();
 
   useEffect(() => {
     if (handleRef) {
       handleRef.current = {
         toggleLeftSidebar: () => setLeftSidebarOpen((prev) => !prev),
         toggleTerminal: () => setTerminalOpen((prev) => !prev),
+        toggleRightSidebar: () => setRightSidebarOpen((prev) => !prev),
       };
     }
-  }, [handleRef, setLeftSidebarOpen, setTerminalOpen]);
+  }, [handleRef, setLeftSidebarOpen, setTerminalOpen, setRightSidebarOpen]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -112,15 +166,27 @@ export function Layout({
         e.preventDefault();
         setTerminalOpen((prev) => !prev);
       }
+      if (matchEvent(e, "view:toggle-right-sidebar")) {
+        e.preventDefault();
+        setRightSidebarOpen((prev) => !prev);
+      }
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [setLeftSidebarOpen, setTerminalOpen, matchEvent]);
+  }, [setLeftSidebarOpen, setTerminalOpen, setRightSidebarOpen, matchEvent]);
 
   // Left sidebar resize
   const handleLeftMouseDown = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
     isResizingLeft.current = true;
+    document.body.style.cursor = "col-resize";
+    document.body.style.userSelect = "none";
+  }, []);
+
+  // Right sidebar resize
+  const handleRightMouseDown = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    isResizingRight.current = true;
     document.body.style.cursor = "col-resize";
     document.body.style.userSelect = "none";
   }, []);
@@ -134,6 +200,14 @@ export function Layout({
         );
         setDragLeftWidth(clamped);
       }
+      if (isResizingRight.current) {
+        const fromRight = window.innerWidth - e.clientX;
+        const clamped = Math.max(
+          RIGHT_MIN_WIDTH,
+          Math.min(RIGHT_MAX_WIDTH, fromRight),
+        );
+        setDragRightWidth(clamped);
+      }
     };
 
     const handleMouseUp = () => {
@@ -146,6 +220,15 @@ export function Layout({
           return null;
         });
       }
+      if (isResizingRight.current) {
+        isResizingRight.current = false;
+        document.body.style.cursor = "";
+        document.body.style.userSelect = "";
+        setDragRightWidth((prev) => {
+          if (prev !== null) setRightSidebarWidth(prev);
+          return null;
+        });
+      }
     };
 
     window.addEventListener("mousemove", handleMouseMove);
@@ -154,60 +237,124 @@ export function Layout({
       window.removeEventListener("mousemove", handleMouseMove);
       window.removeEventListener("mouseup", handleMouseUp);
     };
-  }, [setLeftSidebarWidth]);
+  }, [setLeftSidebarWidth, setRightSidebarWidth]);
 
   const currentLeftWidth = dragLeftWidth ?? leftSidebarWidth;
+  const currentRightWidth = dragRightWidth ?? rightSidebarWidth;
 
   const [portalTarget, setPortalTarget] = useState<HTMLDivElement | null>(null);
+  const [rightPortalTarget, setRightPortalTarget] =
+    useState<HTMLDivElement | null>(null);
+
+  const rightSidebarContextValue = useMemo<RightSidebarContextValue>(
+    () => ({
+      portalTarget: rightPortalTarget,
+      requestOpen: () => setRightSidebarOpen(true),
+    }),
+    [rightPortalTarget, setRightSidebarOpen],
+  );
+
+  // Auto-open right sidebar for memo section
+  useEffect(() => {
+    if (activeSection === "memo") {
+      setRightSidebarOpen(true);
+    }
+  }, [activeSection, setRightSidebarOpen]);
 
   const handleToggleSidebar = useCallback(() => {
     setLeftSidebarOpen((prev) => !prev);
   }, [setLeftSidebarOpen]);
 
+  const handleToggleRightSidebar = useCallback(() => {
+    setRightSidebarOpen((prev) => !prev);
+  }, [setRightSidebarOpen]);
+
+  const handleDockChange = useCallback(
+    (dock: "bottom" | "right") => {
+      setTerminalDock(dock);
+    },
+    [setTerminalDock],
+  );
+
   return (
-    <HeaderPortalContext.Provider value={portalTarget}>
-      <div className="flex flex-col h-screen">
-        <TitleBar
-          sidebarOpen={leftSidebarOpen}
-          onToggleSidebar={handleToggleSidebar}
-          onPortalTarget={setPortalTarget}
-        />
-        <div className="flex flex-1 min-h-0">
-          {leftSidebarOpen ? (
+    <RightSidebarContext.Provider value={rightSidebarContextValue}>
+      <HeaderPortalContext.Provider value={portalTarget}>
+        <div className="flex flex-col h-screen">
+          <TitleBar
+            sidebarOpen={leftSidebarOpen}
+            onToggleSidebar={handleToggleSidebar}
+            onPortalTarget={setPortalTarget}
+            activeSection={activeSection}
+            terminalOpen={terminalOpen}
+            onToggleTerminal={() => setTerminalOpen((prev) => !prev)}
+            rightSidebarOpen={rightSidebarOpen}
+            onToggleRightSidebar={handleToggleRightSidebar}
+          />
+          <div className="flex flex-1 min-h-0">
             <div
-              className="relative shrink-0"
-              style={{ width: currentLeftWidth }}
+              className={`relative shrink-0 overflow-hidden ${
+                dragLeftWidth === null
+                  ? "transition-[width] duration-200 ease-out"
+                  : ""
+              }`}
+              style={{ width: leftSidebarOpen ? currentLeftWidth : 48 }}
             >
-              <LeftSidebar
-                width={currentLeftWidth}
-                activeSection={activeSection}
-                onSectionChange={onSectionChange}
-              />
-              <div
-                onMouseDown={handleLeftMouseDown}
-                className="absolute top-0 right-0 w-1.5 h-full cursor-col-resize hover:bg-notion-accent/30 transition-colors z-10"
+              {leftSidebarOpen ? (
+                <>
+                  <LeftSidebar
+                    width={currentLeftWidth}
+                    activeSection={activeSection}
+                    onSectionChange={onSectionChange}
+                  />
+                  <div
+                    onMouseDown={handleLeftMouseDown}
+                    className="absolute top-0 right-0 w-1.5 h-full cursor-col-resize hover:bg-notion-accent/30 transition-colors z-10"
+                  />
+                </>
+              ) : (
+                <CollapsedSidebar
+                  activeSection={activeSection}
+                  onSectionChange={onSectionChange}
+                />
+              )}
+            </div>
+            {/* Center area */}
+            <div
+              className={`flex flex-1 min-w-0 ${
+                terminalDock === "right" ? "flex-row" : "flex-col"
+              }`}
+            >
+              <div className="flex flex-col flex-1 min-w-0 min-h-0">
+                <MainContent>{children}</MainContent>
+              </div>
+              <TerminalPanel
+                isOpen={terminalOpen}
+                dock={terminalDock}
+                height={terminalHeight}
+                width={terminalWidth}
+                onHeightChange={setTerminalHeight}
+                onWidthChange={setTerminalWidth}
+                onClose={() => setTerminalOpen(false)}
+                onDockChange={handleDockChange}
               />
             </div>
-          ) : (
-            <CollapsedSidebar
-              activeSection={activeSection}
-              onSectionChange={onSectionChange}
-            />
-          )}
-          <MainContent>{children}</MainContent>
+            <div
+              className={`shrink-0 overflow-hidden ${
+                dragRightWidth === null
+                  ? "transition-[width] duration-200 ease-out"
+                  : ""
+              }`}
+              style={{ width: rightSidebarOpen ? currentRightWidth : 0 }}
+            >
+              <RightSidebar
+                width={currentRightWidth}
+                onMouseDown={handleRightMouseDown}
+                onPortalTarget={setRightPortalTarget}
+              />
+            </div>
+          </div>
         </div>
-        <TerminalPanel
-          isOpen={terminalOpen}
-          height={terminalHeight}
-          onHeightChange={setTerminalHeight}
-          onClose={() => setTerminalOpen(false)}
-        />
-        <StatusBar
-          isTerminalOpen={terminalOpen}
-          onToggleTerminal={() => setTerminalOpen((prev) => !prev)}
-          claudeState={claudeState}
-        />
-      </div>
-    </HeaderPortalContext.Provider>
+      </HeaderPortalContext.Provider>
+    </RightSidebarContext.Provider>
   );
 }

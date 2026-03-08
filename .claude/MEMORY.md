@@ -6,9 +6,9 @@
 
 ## 直近の完了
 
+- サイドバーアニメーション + RightSidebar コンテンツ連携 ✅（2026-03-08）
+- ターミナルトグル TitleBar 移動 & StatusBar 削除 ✅（2026-03-08）
 - cmd+arrow 修正 + cmux 機能プラン作成 ✅（2026-03-08）
-- Claude Code 自動タスク管理: Finder連携 + 専用作業Dir ✅（2026-03-08）
-- Unified Header Bar 実装 ✅（2026-03-08）
 
 ## 予定
 

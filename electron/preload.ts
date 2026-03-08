@@ -125,6 +125,8 @@ const ALLOWED_CHANNELS = new Set([
   "terminal:write",
   "terminal:resize",
   "terminal:destroy",
+  // Window
+  "window:close",
   // Claude
   "claude:registerMcp",
 ]);

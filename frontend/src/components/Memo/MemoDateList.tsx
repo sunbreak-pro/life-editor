@@ -69,7 +69,7 @@ export function MemoDateList({
   }, [memos]);
 
   return (
-    <div className="w-60 shrink-0 border-r border-notion-border h-full flex flex-col">
+    <div className="h-full flex flex-col">
       <div className="p-3 border-b border-notion-border">
         <div
           className="flex items-center justify-end relative"

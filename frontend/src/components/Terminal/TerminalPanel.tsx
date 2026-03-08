@@ -1,73 +1,163 @@
 import { useEffect, useRef, useState, useCallback } from "react";
-import { ChevronDown, Minus, X } from "lucide-react";
-import { TerminalPane } from "./TerminalPane";
+import {
+  ChevronDown,
+  Minus,
+  X,
+  Plus,
+  Columns2,
+  Rows2,
+  PanelBottom,
+  PanelRight,
+} from "lucide-react";
+import { SplitLayout } from "./SplitLayout";
+import { useTerminalLayout } from "../../hooks/useTerminalLayout";
+import { countLeaves } from "../../utils/terminalLayout";
 
 const MIN_HEIGHT = 150;
 const MAX_HEIGHT_RATIO = 0.8;
+const MIN_WIDTH = 250;
+const MAX_WIDTH_RATIO = 0.6;
+const MAX_PANES = 4;
 
 interface TerminalPanelProps {
   isOpen: boolean;
+  dock: "bottom" | "right";
   height: number;
+  width: number;
   onHeightChange: (h: number) => void;
+  onWidthChange: (w: number) => void;
   onClose: () => void;
+  onDockChange: (dock: "bottom" | "right") => void;
 }
 
 export function TerminalPanel({
   isOpen,
+  dock,
   height,
+  width,
   onHeightChange,
+  onWidthChange,
   onClose,
+  onDockChange,
 }: TerminalPanelProps) {
-  const [sessionId, setSessionId] = useState<string | null>(null);
+  const layout = useTerminalLayout();
   const [isMinimized, setIsMinimized] = useState(false);
   const isResizing = useRef(false);
-  const startY = useRef(0);
-  const startHeight = useRef(0);
+  const startPos = useRef(0);
+  const startSize = useRef(0);
+  const panelRef = useRef<HTMLDivElement>(null);
 
-  // Create session when panel opens
+  const prevLayoutStateRef = useRef(layout.state);
+
+  // Open panel when first shown (don't close on hide — keep PTY session alive)
+  useEffect(() => {
+    if (isOpen && !layout.state) {
+      layout.openPanel();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen]);
+
+  // When layout state transitions from non-null to null (all panes closed), close the panel
+  useEffect(() => {
+    const prev = prevLayoutStateRef.current;
+    prevLayoutStateRef.current = layout.state;
+
+    // Only close if state went from non-null → null (all panes were closed by user)
+    if (prev !== null && layout.state === null && isOpen) {
+      onClose();
+    }
+  }, [layout.state, isOpen, onClose]);
+
+  // Panel-level keyboard shortcuts (capture phase)
   useEffect(() => {
     if (!isOpen) return;
 
-    let id: string | null = null;
-    window.electronAPI
-      ?.invoke<string>("terminal:create")
-      .then((sid) => {
-        id = sid;
-        setSessionId(sid);
-      })
-      .catch(console.error);
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (!e.metaKey) return;
 
-    return () => {
-      if (id) {
-        window.electronAPI?.invoke("terminal:destroy", id).catch(() => {});
+      // Only handle these when terminal panel has focus
+      const panel = panelRef.current;
+      if (!panel || !panel.contains(document.activeElement)) {
+        // cmd+w outside terminal → close window
+        if (e.code === "KeyW" && !e.shiftKey) {
+          window.electronAPI?.invoke("window:close");
+          return;
+        }
+        return;
       }
-      setSessionId(null);
+
+      if (e.code === "KeyW" && !e.shiftKey) {
+        e.preventDefault();
+        e.stopPropagation();
+        layout.closeActivePane();
+        return;
+      }
+
+      if (e.code === "KeyT" && !e.shiftKey) {
+        e.preventDefault();
+        e.stopPropagation();
+        layout.addPane();
+        return;
+      }
+
+      if (e.code === "KeyD" && !e.shiftKey) {
+        e.preventDefault();
+        e.stopPropagation();
+        layout.splitVertical();
+        return;
+      }
+
+      if (e.code === "KeyD" && e.shiftKey) {
+        e.preventDefault();
+        e.stopPropagation();
+        layout.splitHorizontal();
+        return;
+      }
     };
-  }, [isOpen]);
+
+    window.addEventListener("keydown", handleKeyDown, true);
+    return () => window.removeEventListener("keydown", handleKeyDown, true);
+  }, [isOpen, layout]);
 
   // Drag resize
   const handleMouseDown = useCallback(
     (e: React.MouseEvent) => {
       e.preventDefault();
       isResizing.current = true;
-      startY.current = e.clientY;
-      startHeight.current = height;
-      document.body.style.cursor = "row-resize";
+      if (dock === "bottom") {
+        startPos.current = e.clientY;
+        startSize.current = height;
+        document.body.style.cursor = "row-resize";
+      } else {
+        startPos.current = e.clientX;
+        startSize.current = width;
+        document.body.style.cursor = "col-resize";
+      }
       document.body.style.userSelect = "none";
     },
-    [height],
+    [dock, height, width],
   );
 
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
       if (!isResizing.current) return;
-      const delta = startY.current - e.clientY;
-      const maxHeight = window.innerHeight * MAX_HEIGHT_RATIO;
-      const newHeight = Math.max(
-        MIN_HEIGHT,
-        Math.min(maxHeight, startHeight.current + delta),
-      );
-      onHeightChange(newHeight);
+      if (dock === "bottom") {
+        const delta = startPos.current - e.clientY;
+        const maxHeight = window.innerHeight * MAX_HEIGHT_RATIO;
+        const newHeight = Math.max(
+          MIN_HEIGHT,
+          Math.min(maxHeight, startSize.current + delta),
+        );
+        onHeightChange(newHeight);
+      } else {
+        const delta = startPos.current - e.clientX;
+        const maxWidth = window.innerWidth * MAX_WIDTH_RATIO;
+        const newWidth = Math.max(
+          MIN_WIDTH,
+          Math.min(maxWidth, startSize.current + delta),
+        );
+        onWidthChange(newWidth);
+      }
     };
 
     const handleMouseUp = () => {
@@ -84,27 +174,113 @@ export function TerminalPanel({
       window.removeEventListener("mousemove", handleMouseMove);
       window.removeEventListener("mouseup", handleMouseUp);
     };
-  }, [onHeightChange]);
+  }, [dock, onHeightChange, onWidthChange]);
 
-  if (!isOpen) return null;
+  // Trigger xterm.js resize when toggling back from display:none
+  useEffect(() => {
+    if (isOpen && layout.state) {
+      requestAnimationFrame(() => {
+        window.dispatchEvent(new Event("resize"));
+      });
+    }
+  }, [isOpen, layout.state]);
+
+  const paneCount = layout.state ? countLeaves(layout.state.root) : 0;
+  const canAddPane = paneCount < MAX_PANES;
+
+  const isBottom = dock === "bottom";
+
+  const panelStyle: React.CSSProperties = isBottom
+    ? { height: isMinimized ? 36 : height }
+    : { width: isMinimized ? 36 : width };
+
+  const panelClassName = isBottom
+    ? "flex flex-col border-t border-notion-border bg-[#11111b] shrink-0"
+    : "relative flex flex-col border-l border-notion-border bg-[#11111b] shrink-0";
 
   return (
     <div
-      className="flex flex-col border-t border-notion-border bg-[#11111b] shrink-0"
-      style={{ height: isMinimized ? 36 : height }}
+      ref={panelRef}
+      className={panelClassName}
+      style={{
+        ...panelStyle,
+        ...(isOpen ? {} : { display: "none" }),
+      }}
     >
       {/* Drag handle */}
-      {!isMinimized && (
-        <div
-          onMouseDown={handleMouseDown}
-          className="h-1 cursor-row-resize hover:bg-notion-accent/30 transition-colors shrink-0"
-        />
-      )}
+      {!isMinimized &&
+        (isBottom ? (
+          <div
+            onMouseDown={handleMouseDown}
+            className="h-1 cursor-row-resize hover:bg-notion-accent/30 transition-colors shrink-0"
+          />
+        ) : (
+          <div
+            onMouseDown={handleMouseDown}
+            className="absolute left-0 top-0 w-1.5 h-full cursor-col-resize hover:bg-notion-accent/30 transition-colors z-10"
+          />
+        ))}
 
       {/* Header bar */}
       <div className="flex items-center justify-between px-3 h-8 shrink-0 bg-[#181825] border-b border-[#313244]">
-        <span className="text-xs font-medium text-[#cdd6f4]">Terminal</span>
+        <div className="flex items-center gap-2">
+          <span className="text-xs font-medium text-[#cdd6f4]">Terminal</span>
+          {paneCount > 1 && (
+            <span className="text-[10px] text-[#6c7086]">
+              {paneCount}/{MAX_PANES}
+            </span>
+          )}
+        </div>
         <div className="flex items-center gap-1">
+          <button
+            onClick={() => layout.addPane()}
+            disabled={!canAddPane}
+            className="p-0.5 text-[#6c7086] hover:text-[#cdd6f4] transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+            title="New pane (⌘T)"
+          >
+            <Plus size={14} />
+          </button>
+          <button
+            onClick={() => layout.splitVertical()}
+            disabled={!canAddPane}
+            className="p-0.5 text-[#6c7086] hover:text-[#cdd6f4] transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+            title="Split vertical (⌘D)"
+          >
+            <Columns2 size={14} />
+          </button>
+          <button
+            onClick={() => layout.splitHorizontal()}
+            disabled={!canAddPane}
+            className="p-0.5 text-[#6c7086] hover:text-[#cdd6f4] transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+            title="Split horizontal (⌘⇧D)"
+          >
+            <Rows2 size={14} />
+          </button>
+          <div className="w-px h-3 bg-[#313244] mx-0.5" />
+          {/* Dock position buttons */}
+          <button
+            onClick={() => onDockChange("bottom")}
+            className={`p-0.5 transition-colors ${
+              isBottom
+                ? "text-[#cdd6f4]"
+                : "text-[#6c7086] hover:text-[#cdd6f4]"
+            }`}
+            title="Dock to bottom"
+          >
+            <PanelBottom size={14} />
+          </button>
+          <button
+            onClick={() => onDockChange("right")}
+            className={`p-0.5 transition-colors ${
+              !isBottom
+                ? "text-[#cdd6f4]"
+                : "text-[#6c7086] hover:text-[#cdd6f4]"
+            }`}
+            title="Dock to right"
+          >
+            <PanelRight size={14} />
+          </button>
+          <div className="w-px h-3 bg-[#313244] mx-0.5" />
           <button
             onClick={() => setIsMinimized((v) => !v)}
             className="p-0.5 text-[#6c7086] hover:text-[#cdd6f4] transition-colors"
@@ -121,9 +297,14 @@ export function TerminalPanel({
       </div>
 
       {/* Terminal content */}
-      {!isMinimized && (
+      {!isMinimized && layout.state && (
         <div className="flex-1 min-h-0">
-          {sessionId && <TerminalPane sessionId={sessionId} />}
+          <SplitLayout
+            node={layout.state.root}
+            activePaneId={layout.state.activePaneId}
+            onPaneFocus={layout.setActivePaneId}
+            onSizesChange={layout.updateSizes}
+          />
         </div>
       )}
     </div>

@@ -18,4 +18,8 @@ export const STORAGE_KEYS = {
   TERMINAL_OPEN: "sonic-flow-terminal-open",
   TERMINAL_HEIGHT: "sonic-flow-terminal-height",
   SHORTCUT_CONFIG: "sonic-flow-shortcut-config",
+  RIGHT_SIDEBAR_OPEN: "sonic-flow-right-sidebar-open",
+  RIGHT_SIDEBAR_WIDTH: "sonic-flow-right-sidebar-width",
+  TERMINAL_DOCK: "sonic-flow-terminal-dock",
+  TERMINAL_WIDTH: "sonic-flow-terminal-width",
 } as const;

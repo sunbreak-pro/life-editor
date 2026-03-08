@@ -52,7 +52,14 @@ export function createMenu(win: BrowserWindow): void {
         { label: "Export Data…", click: () => send("export-data") },
         { label: "Import Data…", click: () => send("import-data") },
         { type: "separator" },
-        isMac ? { role: "close" } : { role: "quit" },
+        isMac
+          ? {
+              label: "Close Window",
+              click: () => {
+                BrowserWindow.getFocusedWindow()?.close();
+              },
+            }
+          : { role: "quit" },
       ],
     },
 
@@ -84,6 +91,12 @@ export function createMenu(win: BrowserWindow): void {
           label: "Timer Modal",
           accelerator: "CmdOrCtrl+Shift+T",
           click: () => send("toggle-timer-modal"),
+        },
+        { type: "separator" },
+        {
+          label: "Toggle Terminal",
+          accelerator: "CmdOrCtrl+J",
+          click: () => send("toggle-terminal"),
         },
         { type: "separator" },
         { role: "zoomIn" },

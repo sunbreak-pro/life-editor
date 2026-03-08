@@ -1,4 +1,5 @@
-import { useState, useMemo, useCallback } from "react";
+import { useState, useCallback, useContext } from "react";
+import { createPortal } from "react-dom";
 import { BookOpen, StickyNote } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { LAYOUT } from "../../constants/layout";
@@ -11,15 +12,9 @@ import { NotesView } from "./NotesView";
 import { useMemoContext } from "../../hooks/useMemoContext";
 import { getTodayKey } from "../../utils/dateKey";
 import { STORAGE_KEYS } from "../../constants/storageKeys";
-import { UndoRedoButtons } from "../shared/UndoRedo";
-import type { UndoDomain } from "../shared/UndoRedo";
+import { RightSidebarContext } from "../../context/RightSidebarContext";
 
 type MemoTab = "daily" | "notes";
-
-const MEMO_TAB_DOMAIN_MAP: Record<MemoTab, UndoDomain> = {
-  daily: "memo",
-  notes: "note",
-};
 
 const MEMO_TABS: readonly TabItem<MemoTab>[] = [
   { id: "daily", labelKey: "memo.daily", icon: BookOpen },
@@ -62,11 +57,21 @@ export function MemoView() {
     [deleteMemo, selectedDate, setSelectedDate, todayKey],
   );
 
-  const currentDomain = MEMO_TAB_DOMAIN_MAP[activeTab];
-  const headerActions = useMemo(
-    () => <UndoRedoButtons domain={currentDomain} />,
-    [currentDomain],
-  );
+  const { portalTarget: rightSidebarTarget } = useContext(RightSidebarContext);
+
+  const listElement =
+    activeTab === "daily" ? (
+      <MemoDateList
+        memos={memos}
+        selectedDate={selectedDate}
+        todayKey={todayKey}
+        onSelectDate={setSelectedDate}
+        onCreateForDate={handleCreateForDate}
+        onDelete={handleDelete}
+      />
+    ) : (
+      <NoteList />
+    );
 
   return (
     <div
@@ -77,32 +82,19 @@ export function MemoView() {
         tabs={MEMO_TABS}
         activeTab={activeTab}
         onTabChange={handleTabChange}
-        actions={headerActions}
       />
+      {rightSidebarTarget && createPortal(listElement, rightSidebarTarget)}
       <div className="flex-1 overflow-hidden flex">
-        {activeTab === "daily" && (
-          <>
-            <MemoDateList
-              memos={memos}
-              selectedDate={selectedDate}
-              todayKey={todayKey}
-              onSelectDate={setSelectedDate}
-              onCreateForDate={handleCreateForDate}
-              onDelete={handleDelete}
-            />
-            <div className="flex-1 min-w-0">
-              <DailyMemoView />
-            </div>
-          </>
+        {!rightSidebarTarget && (
+          <div
+            className={`${activeTab === "daily" ? "w-60" : "w-64"} shrink-0 border-r border-notion-border`}
+          >
+            {listElement}
+          </div>
         )}
-        {activeTab === "notes" && (
-          <>
-            <NoteList />
-            <div className="flex-1 min-w-0">
-              <NotesView />
-            </div>
-          </>
-        )}
+        <div className="flex-1 min-w-0">
+          {activeTab === "daily" ? <DailyMemoView /> : <NotesView />}
+        </div>
       </div>
     </div>
   );

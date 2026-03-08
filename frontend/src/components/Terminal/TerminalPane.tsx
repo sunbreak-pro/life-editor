@@ -82,12 +82,32 @@ export function TerminalPane({ sessionId, onFocus }: TerminalPaneProps) {
       }
       // cmd+→ → End key (xterm-256color)
       if (e.metaKey && e.code === "ArrowRight") {
-        window.electronAPI?.invoke("terminal:write", sessionId, "\x1b[F");
+        window.electronAPI?.invoke("terminal:write", sessionId, "\x1bOF");
         return false;
       }
       // cmd+← → Home key (xterm-256color)
       if (e.metaKey && e.code === "ArrowLeft") {
-        window.electronAPI?.invoke("terminal:write", sessionId, "\x1b[H");
+        window.electronAPI?.invoke("terminal:write", sessionId, "\x1bOH");
+        return false;
+      }
+      // cmd+z → Undo (readline/zsh Ctrl+_)
+      if (e.metaKey && !e.shiftKey && e.code === "KeyZ") {
+        window.electronAPI?.invoke("terminal:write", sessionId, "\x1f");
+        return false;
+      }
+      // shift+Enter → insert newline (quoted insert: Ctrl+V + newline)
+      if (e.shiftKey && !e.metaKey && e.code === "Enter") {
+        window.electronAPI?.invoke("terminal:write", sessionId, "\x16\n");
+        return false;
+      }
+      // cmd+↑ → beginning-of-buffer-or-history (ESC-<)
+      if (e.metaKey && e.code === "ArrowUp") {
+        window.electronAPI?.invoke("terminal:write", sessionId, "\x1b<");
+        return false;
+      }
+      // cmd+↓ → end-of-buffer-or-history (ESC->)
+      if (e.metaKey && e.code === "ArrowDown") {
+        window.electronAPI?.invoke("terminal:write", sessionId, "\x1b>");
         return false;
       }
       // cmd+j/w/t/d → let DOM handle these (panel-level shortcuts)

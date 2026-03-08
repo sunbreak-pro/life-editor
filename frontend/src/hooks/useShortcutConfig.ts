@@ -61,8 +61,11 @@ function bindingToDisplayString(binding: KeyBinding, mac: boolean): string {
 
   if (binding.code) {
     const codeMap: Record<string, string> = {
+      KeyD: "D",
+      KeyJ: "J",
       KeyK: "K",
       KeyT: "T",
+      KeyW: "W",
       KeyZ: "Z",
       Comma: ",",
       Period: ".",
