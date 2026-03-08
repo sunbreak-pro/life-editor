@@ -1,5 +1,16 @@
 # HISTORY.md - 変更履歴
 
+### 2026-03-08 - Terminal Panel 最小化復元 + 終了ボタン追加
+
+#### 概要
+
+右ドック最小化時に復元不能だった問題を修正し、縦ストリップUIを実装。全PTYセッション終了ボタンと⌘+J最小化復元を追加。
+
+#### 変更点
+
+- **TerminalPanel.tsx**: 右ドック最小化時に縦ストリップ（ChevronLeft復元、Terminal アイコン＋縦書きラベル、Power終了ボタン）を描画。下ドック最小化のアイコンをChevronUpに修正。Powerアイコンの Kill Terminal ボタンをヘッダーに追加。isMinimized を親コンポーネントにリフトアップ
+- **Layout.tsx**: terminalMinimized state を追加。⌘+J で最小化中なら復元（閉じない）するロジックに拡張。handleRef の toggleTerminal も同様に対応
+
 ### 2026-03-08 - Settings 統合: Tips移動 + Claudeタブ昇格 + Sidebar変更
 
 #### 概要
