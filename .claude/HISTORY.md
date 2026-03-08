@@ -1,5 +1,48 @@
 # HISTORY.md - 変更履歴
 
+### 2026-03-09 - BubbleToolbar CommandPanel統合 + Heading Font Size永続化
+
+#### 概要
+
+BubbleToolbar（テキスト選択時フォーマットツールバー）と SlashCommandMenu（`/`コマンドパネル）を統合してデュアルモードUIを実現。同時にHeadingのフォントサイズをlocalStorageでグローバル永続化。
+
+#### 変更点
+
+**Feature 1: BubbleToolbar + CommandPanel 統合**
+
+- **修正**: `frontend/src/components/Tasks/TaskDetail/editorCommands.ts` — `PanelCommand.check` プロパティ追加、`getCurrentBlockLabel()` エクスポート、`applyHeadingWithStoredSize()` で保存済みサイズ自動適用
+- **新規**: `frontend/src/components/Tasks/TaskDetail/CommandPanel.tsx` — 再利用可能コマンドパネル（selection/slashデュアルモード、サブメニュー、Image URL入力、カスタムフォントサイズ入力）
+- **修正**: `frontend/src/hooks/useSlashCommand.ts` — 第3引数 `onExecuteOverride` 追加
+- **修正**: `frontend/src/components/Tasks/TaskDetail/BubbleToolbar.tsx` — デュアルモード化（Turn Intoドロップダウン + フォーマットボタン + CommandPanel統合、SlashモードはcreatePortal）
+- **修正**: `frontend/src/index.css` — `.bubble-toolbar-unified`, `.bubble-toolbar-turninto-*`, `.bubble-toolbar-slash-wrapper`, `.command-panel-inline`, `.command-panel-item.active`, `.command-panel-filter` 追加
+- **修正**: `frontend/src/components/Tasks/TaskDetail/MemoEditor.tsx` — SlashCommandMenu削除、heading fontSize変更トランザクション監視追加
+- **削除**: `frontend/src/components/Tasks/TaskDetail/SlashCommandMenu.tsx`
+
+**Feature 2: Heading Font Size グローバル永続化**
+
+- **修正**: `frontend/src/constants/storageKeys.ts` — `HEADING_FONT_SIZES` キー追加
+- **新規**: `frontend/src/utils/headingFontSize.ts` — `getStoredHeadingFontSize` / `setStoredHeadingFontSize` ユーティリティ
+- **修正**: `editorCommands.ts` — `headingSubActions` プリセット選択時に永続化、Headingメインアクションで保存済みサイズ自動適用
+
+### 2026-03-09 - "Sonic Flow" → "Life Editor" 完全リネーム
+
+#### 概要
+
+アプリ名を "Sonic Flow" から "Life Editor" に完全変更。userData ディレクトリ・DB ファイル・localStorage キーのマイグレーション付き。既存データの引き継ぎと後方互換性（旧エクスポートファイル読み込み）を確保。
+
+#### 変更点
+
+- **userData マイグレーション**: `electron/migration/renameMigration.ts` 新規作成。旧 userData から新 userData へ DB ファイルをリネームコピー（冪等・旧ディレクトリ保持）
+- **localStorage マイグレーション**: `frontend/src/utils/migrateStorageKeys.ts` 新規作成。`sonic-flow-*` → `life-editor-*` キー移行（副作用 import で i18n 前に実行）
+- **DB 名変更**: `db.ts`, `claudeSetup.ts`, `dataIOHandlers.ts`, `diagnosticsHandlers.ts` で `sonic-flow.db` → `life-editor.db`
+- **エクスポート/インポート**: ファイル名・app フィールド・バックアップ名を `life-editor-*` に変更。インポートは旧 `"Sonic Flow"` と新 `"Life Editor"` 両方受け入れ
+- **通知**: TimerContext の通知タイトル `"Sonic Flow"` → `"Life Editor"`
+- **localStorage キー**: 全25キー `sonic-flow-` → `life-editor-` プレフィックス変更。i18n のハードコードキーを `STORAGE_KEYS.LANGUAGE` 定数参照に変更
+- **設定ファイル**: `package.json` name、`electron-builder.yml` appId/productName/dmg title、`mcp-server/package.json` description 更新
+- **HTML**: `<title>Life Editor</title>`
+- **MCP Server**: エラーメッセージの DB パス名更新
+- **ドキュメント**: README.md, TODO.md, code-review-report.md, .claude/CLAUDE.md の名称更新
+
 ### 2026-03-09 - [[]] Wiki Tag 基盤構築 (Phase 0)
 
 #### 概要
