@@ -1,5 +1,15 @@
 # HISTORY.md - 変更履歴
 
+### 2026-03-08 - shift+Enter 改行後の Backspace 修正
+
+#### 概要
+
+shift+Enter で改行挿入後に Backspace で改行を削除できない問題を修正。xterm.js の内部処理をバイパスして `\x7f` を直接 PTY に送信するようにした。
+
+#### 変更点
+
+- **TerminalPane.tsx**: `customKeyEventHandler` に修飾キーなし Backspace のインターセプトを追加。keydown/keypress 両方をブロックし、`\x7f` を直接 PTY に送信することで xterm 内部状態のズレを回避
+
 ### 2026-03-08 - ターミナルトグル TitleBar 移動 & StatusBar 削除
 
 #### 概要

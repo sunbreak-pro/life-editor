@@ -73,6 +73,24 @@ export function TerminalPane({ sessionId, onFocus }: TerminalPaneProps) {
 
     // Custom key event handler for macOS shortcuts
     term.attachCustomKeyEventHandler((e: KeyboardEvent) => {
+      // shift+Enter must be blocked for all event types (keydown + keypress)
+      // to prevent xterm from also sending a normal Enter (\r)
+      if (e.shiftKey && !e.metaKey && e.code === "Enter") {
+        if (e.type === "keydown") {
+          window.electronAPI?.invoke("terminal:write", sessionId, "\x16\n");
+        }
+        return false;
+      }
+
+      // Backspace → send \x7f directly to PTY (bypass xterm internal handling)
+      // Ensures correct behavior after shift+Enter newline insertion
+      if (!e.metaKey && !e.ctrlKey && !e.altKey && e.code === "Backspace") {
+        if (e.type === "keydown") {
+          window.electronAPI?.invoke("terminal:write", sessionId, "\x7f");
+        }
+        return false;
+      }
+
       if (e.type !== "keydown") return true;
 
       // cmd+backspace → line clear (\x15 = Ctrl+U)
@@ -93,11 +111,6 @@ export function TerminalPane({ sessionId, onFocus }: TerminalPaneProps) {
       // cmd+z → Undo (readline/zsh Ctrl+_)
       if (e.metaKey && !e.shiftKey && e.code === "KeyZ") {
         window.electronAPI?.invoke("terminal:write", sessionId, "\x1f");
-        return false;
-      }
-      // shift+Enter → insert newline (quoted insert: Ctrl+V + newline)
-      if (e.shiftKey && !e.metaKey && e.code === "Enter") {
-        window.electronAPI?.invoke("terminal:write", sessionId, "\x16\n");
         return false;
       }
       // cmd+↑ → beginning-of-buffer-or-history (ESC-<)
