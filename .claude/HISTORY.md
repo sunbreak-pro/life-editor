@@ -1321,3 +1321,44 @@ MCP Server の DB パス不一致バグ修正、横断検索ツール `search_al
 #### 変更点
 
 - **修正**: `electron/services/claudeSetup.ts` — グローバル MCP 登録先を `~/.claude/settings.json` → `~/.claude.json` に変更、プロジェクト MCP 登録を `~/life-editor/.claude/settings.json` → `~/life-editor/.mcp.json` に変更、旧データクリーンアップ追加、`type: "stdio"` フィールド追加
+
+---
+
+### 2026-03-08: Rich Text Editor 強化 + MCP コンテンツ生成ツール
+
+#### 概要
+
+TipTap エディタを5フェーズで強化。Callout を block+ 対応に刷新、Slash コマンドをグループ化 UI に進化、CustomHeading で fontSize カスタマイズ、OL ネスト時に番号スタイル変更、Input Rules で ToggleList/TaskList/Blockquote のショートカット追加、MCP に generate_content / format_content ツールを追加。
+
+#### 変更点
+
+**Phase 1: Callout 強化**
+
+- **書き直し**: `frontend/src/extensions/Callout.ts` — `inline*` → `block+`、iconName/color/emoji 属性、ReactNodeViewRenderer、Enter/Backspace キーボードショートカット
+- **新規**: `frontend/src/extensions/CalloutView.tsx` — NodeViewWrapper + NodeViewContent、アイコンピッカー、色ドットバー
+- **新規**: `frontend/src/components/common/IconPicker.tsx` — Lucide アイコン検索・選択ポップオーバー
+- **新規**: `frontend/src/utils/iconRenderer.ts` — サブセット30個 + dynamic import で全量遅延ロード
+- **修正**: `frontend/src/index.css` — Callout スタイル刷新（border-left + CSS変数色、6色バリエーション）
+
+**Phase 2: Slash Command 強化**
+
+- **新規**: `frontend/src/components/Tasks/TaskDetail/editorCommands.ts` — PanelCommand/SubAction 型、GROUP_ORDER、headingSubActions()、unwrap ロジック
+- **大幅改修**: `frontend/src/components/Tasks/TaskDetail/SlashCommandMenu.tsx` — グループ化 UI、description 表示、サブメニュー、カスタムフォントサイズ入力
+- **強化**: `frontend/src/hooks/useSlashCommand.ts` — viewport-aware 位置計算、description フィルタリング
+
+**Phase 3: CustomHeading + OL ネスティング**
+
+- **新規**: `frontend/src/extensions/CustomHeading.ts` — Heading.extend() で fontSize 属性追加
+- **修正**: `frontend/src/index.css` — OL ネスト CSS（decimal → lower-alpha → lower-roman → decimal）
+- **修正**: `frontend/src/components/Tasks/TaskDetail/MemoEditor.tsx` — StarterKit heading: false + CustomHeading 個別登録
+
+**Phase 4: Input Rules**
+
+- **新規**: `frontend/src/extensions/InputRules.ts` — `[] ` → TaskList、`> ` → ToggleList、`| ` → Blockquote
+- **修正**: `MemoEditor.tsx` — StarterKit blockquote: false + BlockquoteNoInputRules で > input rule 無効化
+
+**Phase 5: MCP コンテンツ生成ツール**
+
+- **新規**: `mcp-server/src/utils/tiptapJsonBuilder.ts` — TipTap JSON ビルダーファクトリ関数群（heading, paragraph, bulletList, orderedList, taskList, toggleList, callout, codeBlock, blockquote, table, horizontalRule）
+- **新規**: `mcp-server/src/handlers/contentHandlers.ts` — generateContent / formatContent ハンドラ
+- **修正**: `mcp-server/src/tools.ts` — generate_content / format_content ツール定義 + callTool switch 追加

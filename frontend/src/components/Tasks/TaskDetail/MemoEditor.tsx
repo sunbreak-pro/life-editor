@@ -5,6 +5,7 @@ import Bold from "@tiptap/extension-bold";
 import Italic from "@tiptap/extension-italic";
 import Strike from "@tiptap/extension-strike";
 import Code from "@tiptap/extension-code";
+import Blockquote from "@tiptap/extension-blockquote";
 import Link from "@tiptap/extension-link";
 import { TextStyle } from "@tiptap/extension-text-style";
 import { Color } from "@tiptap/extension-color";
@@ -20,6 +21,8 @@ import {
   ToggleContent,
 } from "../../../extensions/ToggleList";
 import { Callout } from "../../../extensions/Callout";
+import { CustomHeading } from "../../../extensions/CustomHeading";
+import { CustomInputRules } from "../../../extensions/InputRules";
 import { SlashCommandMenu } from "./SlashCommandMenu";
 import { BubbleToolbar } from "./BubbleToolbar";
 
@@ -40,6 +43,12 @@ const StrikeNoInputRules = Strike.extend({
   },
 });
 const CodeNoInputRules = Code.extend({
+  addInputRules() {
+    return [];
+  },
+});
+// Disable blockquote's > input rule (replaced by CustomInputRules → ToggleList)
+const BlockquoteNoInputRules = Blockquote.extend({
   addInputRules() {
     return [];
   },
@@ -96,16 +105,19 @@ export function MemoEditor({
     {
       extensions: [
         StarterKit.configure({
-          heading: { levels: [1, 2, 3] },
+          heading: false,
           bold: false,
           italic: false,
           strike: false,
           code: false,
+          blockquote: false,
         }),
+        CustomHeading.configure({ levels: [1, 2, 3] }),
         BoldNoInputRules,
         ItalicNoInputRules,
         StrikeNoInputRules,
         CodeNoInputRules,
+        BlockquoteNoInputRules,
         Link.configure({ openOnClick: false }),
         TextStyle,
         Color,
@@ -121,6 +133,7 @@ export function MemoEditor({
         ToggleSummary,
         ToggleContent,
         Callout,
+        CustomInputRules,
       ],
       content: initialContent ? tryParseJSON(initialContent) : undefined,
       onUpdate: ({ editor }) => {

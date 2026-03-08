@@ -221,22 +221,89 @@ body {
   display: flex;
   align-items: flex-start;
   gap: 0.5rem;
-  background-color: var(--color-hover);
+  background-color: var(--callout-bg, var(--color-hover));
+  border-left: 3px solid var(--callout-border, var(--color-accent));
   border-radius: 0.375rem;
   padding: 0.75rem 1rem;
   margin-bottom: 0.75rem;
+  position: relative;
+}
+
+.memo-editor .callout .callout-icon-btn {
+  all: unset;
+  cursor: pointer;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 4px;
+  color: var(--color-text-secondary);
+  transition: background-color 0.15s;
+  margin-top: 1px;
+}
+
+.memo-editor .callout .callout-icon-btn:hover {
+  background-color: var(--color-hover);
 }
 
 .memo-editor .callout .callout-emoji {
-  font-size: 1.25rem;
-  line-height: 1.5;
-  user-select: none;
-  flex-shrink: 0;
+  font-size: 1.1rem;
+  line-height: 1;
 }
 
-.memo-editor .callout .callout-text {
+.memo-editor .callout .callout-body {
+  position: absolute;
+  top: 4px;
+  right: 8px;
+  display: flex;
+  gap: 2px;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+
+.memo-editor .callout:hover .callout-body {
+  opacity: 1;
+}
+
+.memo-editor .callout .callout-color-bar {
+  display: flex;
+  gap: 3px;
+}
+
+.memo-editor .callout .callout-color-dot {
+  all: unset;
+  cursor: pointer;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  transition: border-color 0.15s;
+}
+
+.memo-editor .callout .callout-color-dot:hover {
+  border-color: var(--color-text-secondary);
+}
+
+.memo-editor .callout .callout-color-dot.active {
+  border-color: var(--color-text);
+}
+
+.memo-editor .callout .callout-content {
   flex: 1;
   min-width: 0;
+}
+
+/* Ordered List nesting */
+.memo-editor ol ol {
+  list-style-type: lower-alpha;
+}
+.memo-editor ol ol ol {
+  list-style-type: lower-roman;
+}
+.memo-editor ol ol ol ol {
+  list-style-type: decimal;
 }
 
 /* Table */
@@ -456,4 +523,234 @@ body {
 .bubble-toolbar-color-swatch:hover {
   transform: scale(1.2);
   border-color: var(--color-border);
+}
+
+/* Command Panel (Slash Command Menu) */
+.command-panel {
+  position: absolute;
+  z-index: 50;
+  background-color: var(--color-bg-primary);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+  padding: 4px;
+  width: 320px;
+  max-height: 380px;
+  overflow-y: auto;
+}
+
+.command-panel-group {
+  padding: 2px 0;
+}
+
+.command-panel-group-label {
+  padding: 6px 10px 4px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.command-panel-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 6px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background-color 0.1s;
+  color: var(--color-text-primary);
+}
+
+.command-panel-item:hover,
+.command-panel-item.selected {
+  background-color: var(--color-hover);
+}
+
+.command-panel-item-icon {
+  flex-shrink: 0;
+  width: 18px;
+  height: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-text-secondary);
+}
+
+.command-panel-item-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.command-panel-item-title {
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.3;
+}
+
+.command-panel-item-desc {
+  font-size: 11px;
+  color: var(--color-text-secondary);
+  line-height: 1.3;
+}
+
+.command-panel-item-more {
+  all: unset;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 4px;
+  color: var(--color-text-secondary);
+  opacity: 0;
+  transition:
+    opacity 0.1s,
+    background-color 0.1s;
+}
+
+.command-panel-item:hover .command-panel-item-more {
+  opacity: 1;
+}
+
+.command-panel-item-more:hover {
+  background-color: var(--color-border);
+}
+
+/* Command Panel Submenu */
+.command-panel-submenu {
+  position: fixed;
+  z-index: 60;
+  background-color: var(--color-bg-primary);
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+  padding: 4px;
+  min-width: 100px;
+}
+
+.command-panel-submenu-item {
+  all: unset;
+  display: block;
+  width: 100%;
+  padding: 4px 10px;
+  font-size: 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  color: var(--color-text-primary);
+  box-sizing: border-box;
+  transition: background-color 0.1s;
+}
+
+.command-panel-submenu-item:hover {
+  background-color: var(--color-hover);
+}
+
+/* Command Panel Font Size Input */
+.command-panel-fontsize-input {
+  width: 200px;
+  max-height: unset;
+}
+
+.command-panel-input-label {
+  padding: 6px 10px 4px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+}
+
+.command-panel-number-input {
+  width: calc(100% - 20px);
+  margin: 4px 10px 8px;
+  padding: 4px 8px;
+  font-size: 13px;
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  background-color: var(--color-bg-primary);
+  color: var(--color-text-primary);
+  outline: none;
+}
+
+.command-panel-number-input:focus {
+  border-color: var(--color-accent);
+}
+
+/* Icon Picker */
+.icon-picker-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 70;
+}
+
+.icon-picker {
+  position: fixed;
+  z-index: 71;
+  background-color: var(--color-bg-primary);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+  padding: 8px;
+  width: 280px;
+  max-height: 320px;
+  overflow-y: auto;
+}
+
+.icon-picker-search {
+  width: 100%;
+  padding: 6px 8px;
+  font-size: 13px;
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  background-color: var(--color-bg-primary);
+  color: var(--color-text-primary);
+  outline: none;
+  margin-bottom: 8px;
+  box-sizing: border-box;
+}
+
+.icon-picker-search:focus {
+  border-color: var(--color-accent);
+}
+
+.icon-picker-grid {
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  gap: 2px;
+}
+
+.icon-picker-item {
+  all: unset;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 4px;
+  color: var(--color-text-primary);
+  transition: background-color 0.1s;
+}
+
+.icon-picker-item:hover {
+  background-color: var(--color-hover);
+}
+
+.icon-picker-item.selected {
+  background-color: color-mix(in srgb, var(--color-accent) 15%, transparent);
+  color: var(--color-accent);
+}
+
+.icon-picker-empty {
+  padding: 16px;
+  text-align: center;
+  font-size: 12px;
+  color: var(--color-text-secondary);
 }
