@@ -126,6 +126,115 @@ You are a life management assistant with access to the user's tasks, memos, note
   );
 }
 
+export interface SkillInfo {
+  name: string;
+  description: string;
+  sourcePath: string;
+  scope: "global" | "project";
+}
+
+export function readClaudeMd(): string {
+  const claudeMdPath = path.join(getLifeEditorDir(), "CLAUDE.md");
+  if (!fs.existsSync(claudeMdPath)) {
+    // Ensure directory + file exist
+    setupLifeEditorDir();
+  }
+  return fs.readFileSync(claudeMdPath, "utf-8");
+}
+
+export function writeClaudeMd(content: string): void {
+  const lifeEditorDir = getLifeEditorDir();
+  if (!fs.existsSync(lifeEditorDir)) {
+    fs.mkdirSync(lifeEditorDir, { recursive: true });
+  }
+  fs.writeFileSync(path.join(lifeEditorDir, "CLAUDE.md"), content, "utf-8");
+  log.info("[ClaudeSetup] Updated ~/life-editor/CLAUDE.md");
+}
+
+function readDescriptionFromDir(dirPath: string): string {
+  for (const filename of ["instructions.md", "README.md"]) {
+    const filePath = path.join(dirPath, filename);
+    if (fs.existsSync(filePath)) {
+      const content = fs.readFileSync(filePath, "utf-8");
+      // First non-empty, non-heading line as description
+      const lines = content.split("\n");
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (trimmed && !trimmed.startsWith("#")) {
+          return trimmed.slice(0, 120);
+        }
+      }
+    }
+  }
+  return "";
+}
+
+export function listAvailableSkills(): SkillInfo[] {
+  const skills: SkillInfo[] = [];
+  const globalDir = path.join(
+    os.homedir(),
+    "dev/Claude/original-skills-storage/skills/custom/global",
+  );
+  const projectDir = path.join(
+    os.homedir(),
+    "dev/Claude/original-skills-storage/skills/custom/projects/notion-timer",
+  );
+
+  for (const [dir, scope] of [
+    [globalDir, "global"],
+    [projectDir, "project"],
+  ] as const) {
+    if (!fs.existsSync(dir)) continue;
+    const entries = fs.readdirSync(dir, { withFileTypes: true });
+    for (const entry of entries) {
+      if (!entry.isDirectory()) continue;
+      const skillPath = path.join(dir, entry.name);
+      skills.push({
+        name: entry.name,
+        description: readDescriptionFromDir(skillPath),
+        sourcePath: skillPath,
+        scope,
+      });
+    }
+  }
+  return skills;
+}
+
+export function listInstalledSkills(): string[] {
+  const skillsDir = path.join(getLifeEditorDir(), ".claude", "skills");
+  if (!fs.existsSync(skillsDir)) return [];
+  const entries = fs.readdirSync(skillsDir, { withFileTypes: true });
+  return entries
+    .filter((e) => e.isSymbolicLink() || e.isDirectory())
+    .map((e) => e.name);
+}
+
+export function installSkill(sourcePath: string, name: string): void {
+  const skillsDir = path.join(getLifeEditorDir(), ".claude", "skills");
+  if (!fs.existsSync(skillsDir)) {
+    fs.mkdirSync(skillsDir, { recursive: true });
+  }
+  const targetPath = path.join(skillsDir, name);
+  if (fs.existsSync(targetPath)) {
+    throw new Error(`Skill "${name}" is already installed`);
+  }
+  fs.symlinkSync(sourcePath, targetPath);
+  log.info(`[ClaudeSetup] Installed skill: ${name}`);
+}
+
+export function uninstallSkill(name: string): void {
+  const targetPath = path.join(getLifeEditorDir(), ".claude", "skills", name);
+  if (!fs.existsSync(targetPath)) {
+    throw new Error(`Skill "${name}" is not installed`);
+  }
+  const stat = fs.lstatSync(targetPath);
+  if (!stat.isSymbolicLink()) {
+    throw new Error(`Skill "${name}" is not a symlink — refusing to delete`);
+  }
+  fs.unlinkSync(targetPath);
+  log.info(`[ClaudeSetup] Uninstalled skill: ${name}`);
+}
+
 export async function registerMcpServer(): Promise<ClaudeSetupResult> {
   const claudeDir = getClaudeDir();
 

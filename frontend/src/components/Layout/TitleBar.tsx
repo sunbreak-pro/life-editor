@@ -64,7 +64,7 @@ export function TitleBar({
       <div className="mx-3 h-5 w-px bg-notion-border shrink-0" />
       <div
         ref={portalRef}
-        className="titlebar-nodrag flex items-center flex-1 min-w-0 overflow-x-auto"
+        className="flex items-center flex-1 min-w-0 overflow-x-auto"
       />
       {/* Fixed right area */}
       <div className="titlebar-nodrag flex items-center gap-1 px-2 shrink-0">

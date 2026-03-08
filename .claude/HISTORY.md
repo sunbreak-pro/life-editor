@@ -1,5 +1,21 @@
 # HISTORY.md - 変更履歴
 
+### 2026-03-08 - Settings 統合: Tips移動 + Claudeタブ昇格 + Sidebar変更
+
+#### 概要
+
+Tips セクションを独立画面から Settings 内のタブに統合し、Claude 関連機能を Advanced からトップレベルタブに昇格。MCP ツール一覧・CLAUDE.md 編集・Skills 管理の UI を新設し、サイドバーを簡素化。
+
+#### 変更点
+
+- **IPC バックエンド**: `electron/preload.ts` に6チャネル追加、`electron/services/claudeSetup.ts` に `readClaudeMd`/`writeClaudeMd`/`listAvailableSkills`/`listInstalledSkills`/`installSkill`/`uninstallSkill` + `SkillInfo` 型を追加、`claudeSetupHandlers.ts` に6ハンドラ追加
+- **新規コンポーネント**: `McpToolsList.tsx`（14 MCP ツールのカード表示）、`ClaudeMdEditor.tsx`（~/life-editor/CLAUDE.md 編集 + Cmd+S 保存）、`SkillsManager.tsx`（スキル Install/Uninstall 管理）
+- **Settings.tsx**: `SettingsTab` に `claude`/`tips` 追加、Claude タブ（Setup/MCP Tools/CLAUDE.md/Skills サブナビ）、Tips タブ（Tasks/Work/Memo/Analytics サブナビ）、Advanced から Claude を除去
+- **SectionId**: `"tips"` を削除、`App.tsx` から Tips import/case を削除
+- **Sidebar**: LeftSidebar — Tips ボタン削除、Settings をディバイダー付きラベルボタンに変更。CollapsedSidebar — Tips 削除、Settings のみ残す
+- **ナビゲーション**: `useElectronMenuActions`/`useAppCommands` で tips → settings にリダイレクト
+- **i18n**: en.json/ja.json に Claude サブナビ・スキル管理・MCP ツール関連キー追加
+
 ### 2026-03-08 - RightSidebar 縦型リストナビゲーション強化
 
 #### 概要

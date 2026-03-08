@@ -5,7 +5,6 @@ import {
   BarChart3,
   Settings,
   Pencil,
-  Lightbulb,
 } from "lucide-react";
 import type { SectionId } from "../../types/taskTree";
 import { useTimerContext } from "../../hooks/useTimerContext";
@@ -83,31 +82,19 @@ export function LeftSidebar({
             </div>
           );
         })}
-      </nav>
-      <div className="p-2 border-t border-notion-border flex gap-1 justify-center">
+        <div className="mx-2 my-1 border-t border-notion-border" />
         <button
-          title={t("sidebar.settings")}
           onClick={() => onSectionChange("settings")}
-          className={`p-2 rounded-md transition-colors ${
+          className={`w-full flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-colors ${
             activeSection === "settings"
-              ? "text-notion-text"
-              : "text-notion-text-secondary hover:text-notion-text hover:bg-notion-hover"
+              ? "bg-notion-hover text-notion-text"
+              : "text-notion-text-secondary hover:bg-notion-hover hover:text-notion-text"
           }`}
         >
           <Settings size={18} />
+          <span>{t("sidebar.settings")}</span>
         </button>
-        <button
-          title={t("sidebar.tips")}
-          onClick={() => onSectionChange("tips")}
-          className={`p-2 rounded-md transition-colors ${
-            activeSection === "tips"
-              ? "text-notion-text"
-              : "text-notion-text-secondary hover:text-notion-text hover:bg-notion-hover"
-          }`}
-        >
-          <Lightbulb size={18} />
-        </button>
-      </div>
+      </nav>
     </aside>
   );
 }

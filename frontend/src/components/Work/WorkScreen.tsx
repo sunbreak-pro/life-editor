@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, useContext } from "react";
+import { createPortal } from "react-dom";
 import { CheckCircle2, Music, SkipForward, Timer, Clock } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useTimerContext } from "../../hooks/useTimerContext";
@@ -15,6 +16,8 @@ import { PomodoroSettingsPanel } from "./PomodoroSettingsPanel";
 import { WorkMusicContent } from "./WorkMusicContent";
 import { PlaylistPlayerBar } from "./PlaylistPlayerBar";
 import { ConfirmDialog } from "../shared/ConfirmDialog";
+import { WorkSidebarInfo } from "./WorkSidebarInfo";
+import { RightSidebarContext } from "../../context/RightSidebarContext";
 
 type WorkTab = "timer" | "pomodoro" | "music";
 
@@ -32,6 +35,7 @@ export function WorkScreen({ onCompleteTask }: WorkScreenProps) {
   const { t } = useTranslation();
   const timer = useTimerContext();
   const audio = useAudioContext();
+  const { portalTarget: rightSidebarTarget } = useContext(RightSidebarContext);
   const [activeTab, setActiveTab] = useState<WorkTab>("timer");
   const [confirmAction, setConfirmAction] = useState<"session" | "task" | null>(
     null,
@@ -95,6 +99,8 @@ export function WorkScreen({ onCompleteTask }: WorkScreenProps) {
 
   return (
     <>
+      {rightSidebarTarget &&
+        createPortal(<WorkSidebarInfo />, rightSidebarTarget)}
       <div
         className={`h-full flex flex-col ${LAYOUT.CONTENT_PX} ${LAYOUT.CONTENT_PT} ${LAYOUT.CONTENT_PB}`}
       >

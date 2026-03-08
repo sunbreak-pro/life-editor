@@ -9,7 +9,6 @@ import {
   StickyNote,
   BarChart3,
   Settings as SettingsIcon,
-  Lightbulb,
   Plus,
   FolderPlus,
   Trash2,
@@ -95,8 +94,8 @@ export function useAppCommands({
         id: "nav-tips",
         title: "Go to Tips",
         category: "Navigation",
-        icon: Lightbulb,
-        action: () => setActiveSection("tips"),
+        icon: SettingsIcon,
+        action: () => setActiveSection("settings"),
       },
       {
         id: "nav-trash",

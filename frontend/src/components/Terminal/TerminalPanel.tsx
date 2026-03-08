@@ -1,6 +1,7 @@
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useEffect, useRef, useCallback } from "react";
 import {
-  ChevronDown,
+  ChevronLeft,
+  ChevronUp,
   Minus,
   X,
   Plus,
@@ -8,6 +9,8 @@ import {
   Rows2,
   PanelBottom,
   PanelRight,
+  Power,
+  Terminal,
 } from "lucide-react";
 import { SplitLayout } from "./SplitLayout";
 import { useTerminalLayout } from "../../hooks/useTerminalLayout";
@@ -28,6 +31,8 @@ interface TerminalPanelProps {
   onWidthChange: (w: number) => void;
   onClose: () => void;
   onDockChange: (dock: "bottom" | "right") => void;
+  isMinimized: boolean;
+  onMinimizedChange: (minimized: boolean) => void;
 }
 
 export function TerminalPanel({
@@ -39,9 +44,10 @@ export function TerminalPanel({
   onWidthChange,
   onClose,
   onDockChange,
+  isMinimized,
+  onMinimizedChange,
 }: TerminalPanelProps) {
   const layout = useTerminalLayout();
-  const [isMinimized, setIsMinimized] = useState(false);
   const isResizing = useRef(false);
   const startPos = useRef(0);
   const startSize = useRef(0);
@@ -190,6 +196,11 @@ export function TerminalPanel({
 
   const isBottom = dock === "bottom";
 
+  const handleTerminate = useCallback(() => {
+    layout.closePanel();
+    onClose();
+  }, [layout, onClose]);
+
   const panelStyle: React.CSSProperties = isBottom
     ? { height: isMinimized ? 36 : height }
     : { width: isMinimized ? 36 : width };
@@ -207,105 +218,156 @@ export function TerminalPanel({
         ...(isOpen ? {} : { display: "none" }),
       }}
     >
-      {/* Drag handle */}
-      {!isMinimized &&
-        (isBottom ? (
-          <div
-            onMouseDown={handleMouseDown}
-            className="h-1 cursor-row-resize hover:bg-notion-accent/30 transition-colors shrink-0"
-          />
-        ) : (
-          <div
-            onMouseDown={handleMouseDown}
-            className="absolute left-0 top-0 w-1.5 h-full cursor-col-resize hover:bg-notion-accent/30 transition-colors z-10"
-          />
-        ))}
+      {/* Right dock minimized: vertical strip */}
+      {isMinimized && !isBottom ? (
+        <div
+          className="flex flex-col items-center h-full py-2 gap-2 cursor-pointer"
+          onClick={() => onMinimizedChange(false)}
+        >
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onMinimizedChange(false);
+            }}
+            className="p-0.5 text-[#6c7086] hover:text-[#cdd6f4] transition-colors"
+            title="Restore terminal"
+          >
+            <ChevronLeft size={14} />
+          </button>
+          <Terminal size={14} className="text-[#6c7086] shrink-0" />
+          <span
+            className="text-xs text-[#6c7086] select-none"
+            style={{ writingMode: "vertical-rl", transform: "rotate(180deg)" }}
+          >
+            Terminal
+          </span>
+          <div className="flex-1" />
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              handleTerminate();
+            }}
+            className="p-0.5 text-[#6c7086] hover:text-red-400 transition-colors"
+            title="Kill terminal"
+          >
+            <Power size={14} />
+          </button>
+        </div>
+      ) : (
+        <>
+          {/* Drag handle */}
+          {!isMinimized &&
+            (isBottom ? (
+              <div
+                onMouseDown={handleMouseDown}
+                className="h-1 cursor-row-resize hover:bg-notion-accent/30 transition-colors shrink-0"
+              />
+            ) : (
+              <div
+                onMouseDown={handleMouseDown}
+                className="absolute left-0 top-0 w-1.5 h-full cursor-col-resize hover:bg-notion-accent/30 transition-colors z-10"
+              />
+            ))}
 
-      {/* Header bar */}
-      <div className="flex items-center justify-between px-3 h-8 shrink-0 bg-[#181825] border-b border-[#313244]">
-        <div className="flex items-center gap-2">
-          <span className="text-xs font-medium text-[#cdd6f4]">Terminal</span>
-          {paneCount > 1 && (
-            <span className="text-[10px] text-[#6c7086]">
-              {paneCount}/{MAX_PANES}
-            </span>
+          {/* Header bar */}
+          <div className="flex items-center justify-between px-3 h-8 shrink-0 bg-[#181825] border-b border-[#313244]">
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-medium text-[#cdd6f4]">
+                Terminal
+              </span>
+              {paneCount > 1 && (
+                <span className="text-[10px] text-[#6c7086]">
+                  {paneCount}/{MAX_PANES}
+                </span>
+              )}
+            </div>
+            <div className="flex items-center gap-1">
+              <button
+                onClick={() => layout.addPane()}
+                disabled={!canAddPane}
+                className="p-0.5 text-[#6c7086] hover:text-[#cdd6f4] transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                title="New pane (⌘T)"
+              >
+                <Plus size={14} />
+              </button>
+              <button
+                onClick={() => layout.splitVertical()}
+                disabled={!canAddPane}
+                className="p-0.5 text-[#6c7086] hover:text-[#cdd6f4] transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                title="Split vertical (⌘D)"
+              >
+                <Columns2 size={14} />
+              </button>
+              <button
+                onClick={() => layout.splitHorizontal()}
+                disabled={!canAddPane}
+                className="p-0.5 text-[#6c7086] hover:text-[#cdd6f4] transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                title="Split horizontal (⌘⇧D)"
+              >
+                <Rows2 size={14} />
+              </button>
+              <div className="w-px h-3 bg-[#313244] mx-0.5" />
+              {/* Dock position buttons */}
+              <button
+                onClick={() => onDockChange("bottom")}
+                className={`p-0.5 transition-colors ${
+                  isBottom
+                    ? "text-[#cdd6f4]"
+                    : "text-[#6c7086] hover:text-[#cdd6f4]"
+                }`}
+                title="Dock to bottom"
+              >
+                <PanelBottom size={14} />
+              </button>
+              <button
+                onClick={() => onDockChange("right")}
+                className={`p-0.5 transition-colors ${
+                  !isBottom
+                    ? "text-[#cdd6f4]"
+                    : "text-[#6c7086] hover:text-[#cdd6f4]"
+                }`}
+                title="Dock to right"
+              >
+                <PanelRight size={14} />
+              </button>
+              <div className="w-px h-3 bg-[#313244] mx-0.5" />
+              <button
+                onClick={handleTerminate}
+                className="p-0.5 text-[#6c7086] hover:text-red-400 transition-colors"
+                title="Kill terminal"
+              >
+                <Power size={14} />
+              </button>
+              <div className="w-px h-3 bg-[#313244] mx-0.5" />
+              <button
+                onClick={() => onMinimizedChange(!isMinimized)}
+                className="p-0.5 text-[#6c7086] hover:text-[#cdd6f4] transition-colors"
+                title={isMinimized ? "Restore" : "Minimize"}
+              >
+                {isMinimized ? <ChevronUp size={14} /> : <Minus size={14} />}
+              </button>
+              <button
+                onClick={onClose}
+                className="p-0.5 text-[#6c7086] hover:text-[#cdd6f4] transition-colors"
+                title="Hide terminal"
+              >
+                <X size={14} />
+              </button>
+            </div>
+          </div>
+
+          {/* Terminal content */}
+          {!isMinimized && layout.state && (
+            <div className="flex-1 min-h-0">
+              <SplitLayout
+                node={layout.state.root}
+                activePaneId={layout.state.activePaneId}
+                onPaneFocus={layout.setActivePaneId}
+                onSizesChange={layout.updateSizes}
+              />
+            </div>
           )}
-        </div>
-        <div className="flex items-center gap-1">
-          <button
-            onClick={() => layout.addPane()}
-            disabled={!canAddPane}
-            className="p-0.5 text-[#6c7086] hover:text-[#cdd6f4] transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-            title="New pane (⌘T)"
-          >
-            <Plus size={14} />
-          </button>
-          <button
-            onClick={() => layout.splitVertical()}
-            disabled={!canAddPane}
-            className="p-0.5 text-[#6c7086] hover:text-[#cdd6f4] transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-            title="Split vertical (⌘D)"
-          >
-            <Columns2 size={14} />
-          </button>
-          <button
-            onClick={() => layout.splitHorizontal()}
-            disabled={!canAddPane}
-            className="p-0.5 text-[#6c7086] hover:text-[#cdd6f4] transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-            title="Split horizontal (⌘⇧D)"
-          >
-            <Rows2 size={14} />
-          </button>
-          <div className="w-px h-3 bg-[#313244] mx-0.5" />
-          {/* Dock position buttons */}
-          <button
-            onClick={() => onDockChange("bottom")}
-            className={`p-0.5 transition-colors ${
-              isBottom
-                ? "text-[#cdd6f4]"
-                : "text-[#6c7086] hover:text-[#cdd6f4]"
-            }`}
-            title="Dock to bottom"
-          >
-            <PanelBottom size={14} />
-          </button>
-          <button
-            onClick={() => onDockChange("right")}
-            className={`p-0.5 transition-colors ${
-              !isBottom
-                ? "text-[#cdd6f4]"
-                : "text-[#6c7086] hover:text-[#cdd6f4]"
-            }`}
-            title="Dock to right"
-          >
-            <PanelRight size={14} />
-          </button>
-          <div className="w-px h-3 bg-[#313244] mx-0.5" />
-          <button
-            onClick={() => setIsMinimized((v) => !v)}
-            className="p-0.5 text-[#6c7086] hover:text-[#cdd6f4] transition-colors"
-          >
-            {isMinimized ? <ChevronDown size={14} /> : <Minus size={14} />}
-          </button>
-          <button
-            onClick={onClose}
-            className="p-0.5 text-[#6c7086] hover:text-[#cdd6f4] transition-colors"
-          >
-            <X size={14} />
-          </button>
-        </div>
-      </div>
-
-      {/* Terminal content */}
-      {!isMinimized && layout.state && (
-        <div className="flex-1 min-h-0">
-          <SplitLayout
-            node={layout.state.root}
-            activePaneId={layout.state.activePaneId}
-            onPaneFocus={layout.setActivePaneId}
-            onSizesChange={layout.updateSizes}
-          />
-        </div>
+        </>
       )}
     </div>
   );

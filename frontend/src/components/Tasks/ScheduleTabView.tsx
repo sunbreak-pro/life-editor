@@ -1,7 +1,7 @@
-import { useState, useCallback, useMemo, useContext } from "react";
+import { useState, useCallback, useMemo, useContext, useEffect } from "react";
 import { createPortal } from "react-dom";
 import type { TabItem } from "../shared/SectionTabs";
-import { SectionTabs } from "../shared/SectionTabs";
+import { VerticalNavList } from "../shared/VerticalNavList";
 import { CalendarView } from "./Schedule/Calendar/CalendarView";
 import { OneDaySchedule } from "./Schedule/DayFlow/OneDaySchedule";
 import { useTaskTreeContext } from "../../hooks/useTaskTreeContext";
@@ -83,27 +83,24 @@ export function ScheduleTabView({
     setDayFlowDate(new Date());
   }, []);
 
-  const { portalTarget: rightSidebarTarget } = useContext(RightSidebarContext);
+  const { portalTarget: rightSidebarTarget, requestOpen } =
+    useContext(RightSidebarContext);
 
-  const tabsElement = (
-    <SectionTabs
-      tabs={SCHEDULE_TABS}
-      activeTab={subTab}
-      onTabChange={setSubTab}
-      size="sm"
-    />
-  );
+  useEffect(() => {
+    requestOpen();
+  }, [requestOpen]);
 
   return (
     <div className="h-full flex flex-col">
-      {rightSidebarTarget
-        ? createPortal(
-            <div className="p-3 border-b border-notion-border">
-              {tabsElement}
-            </div>,
-            rightSidebarTarget,
-          )
-        : tabsElement}
+      {rightSidebarTarget &&
+        createPortal(
+          <VerticalNavList
+            items={SCHEDULE_TABS}
+            activeItem={subTab}
+            onItemChange={setSubTab}
+          />,
+          rightSidebarTarget,
+        )}
       <div className="flex-1 min-h-0 overflow-auto">
         {subTab === "calendar" ? (
           <CalendarView

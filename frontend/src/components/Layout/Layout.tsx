@@ -141,6 +141,8 @@ export function Layout({
     },
   );
 
+  const [terminalMinimized, setTerminalMinimized] = useState(false);
+
   // Poll for external DB changes when terminal is open
   const { refetch } = useTaskTreeContext();
   useExternalDataSync(terminalOpen, refetch);
@@ -150,11 +152,24 @@ export function Layout({
     if (handleRef) {
       handleRef.current = {
         toggleLeftSidebar: () => setLeftSidebarOpen((prev) => !prev),
-        toggleTerminal: () => setTerminalOpen((prev) => !prev),
+        toggleTerminal: () => {
+          if (terminalOpen && terminalMinimized) {
+            setTerminalMinimized(false);
+          } else {
+            setTerminalOpen((prev) => !prev);
+          }
+        },
         toggleRightSidebar: () => setRightSidebarOpen((prev) => !prev),
       };
     }
-  }, [handleRef, setLeftSidebarOpen, setTerminalOpen, setRightSidebarOpen]);
+  }, [
+    handleRef,
+    setLeftSidebarOpen,
+    setTerminalOpen,
+    setRightSidebarOpen,
+    terminalOpen,
+    terminalMinimized,
+  ]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -164,7 +179,11 @@ export function Layout({
       }
       if (matchEvent(e, "view:toggle-terminal")) {
         e.preventDefault();
-        setTerminalOpen((prev) => !prev);
+        if (terminalOpen && terminalMinimized) {
+          setTerminalMinimized(false);
+        } else {
+          setTerminalOpen((prev) => !prev);
+        }
       }
       if (matchEvent(e, "view:toggle-right-sidebar")) {
         e.preventDefault();
@@ -173,7 +192,14 @@ export function Layout({
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [setLeftSidebarOpen, setTerminalOpen, setRightSidebarOpen, matchEvent]);
+  }, [
+    setLeftSidebarOpen,
+    setTerminalOpen,
+    setRightSidebarOpen,
+    matchEvent,
+    terminalOpen,
+    terminalMinimized,
+  ]);
 
   // Left sidebar resize
   const handleLeftMouseDown = useCallback((e: React.MouseEvent) => {
@@ -254,9 +280,13 @@ export function Layout({
     [rightPortalTarget, setRightSidebarOpen],
   );
 
-  // Auto-open right sidebar for memo section
+  // Auto-open right sidebar for sections that use it
   useEffect(() => {
-    if (activeSection === "memo") {
+    if (
+      activeSection === "memo" ||
+      activeSection === "settings" ||
+      activeSection === "work"
+    ) {
       setRightSidebarOpen(true);
     }
   }, [activeSection, setRightSidebarOpen]);
@@ -336,6 +366,8 @@ export function Layout({
                 onWidthChange={setTerminalWidth}
                 onClose={() => setTerminalOpen(false)}
                 onDockChange={handleDockChange}
+                isMinimized={terminalMinimized}
+                onMinimizedChange={setTerminalMinimized}
               />
             </div>
             <div

@@ -17,7 +17,6 @@ const CATEGORY_ORDER: ShortcutCategory[] = [
   "view",
   "terminal",
   "taskTree",
-  "edit",
   "calendar",
 ];
 
@@ -27,7 +26,7 @@ const CATEGORY_LABEL_KEYS: Record<ShortcutCategory, string> = {
   view: "tips.shortcutsTab.view",
   terminal: "tips.shortcutsTab.terminal",
   taskTree: "tips.shortcutsTab.taskTree",
-  edit: "tips.shortcutsTab.taskTree",
+  edit: "tips.shortcutsTab.global",
   calendar: "tips.shortcutsTab.calendar",
 };
 
@@ -132,7 +131,11 @@ function ShortcutRow({
   );
 }
 
-export function KeyboardShortcuts() {
+interface KeyboardShortcutsProps {
+  activeCategory?: ShortcutCategory | null;
+}
+
+export function KeyboardShortcuts({ activeCategory }: KeyboardShortcutsProps) {
   const { t } = useTranslation();
   const { setBinding, resetBinding, resetAll, findConflict, config } =
     useShortcutConfig();
@@ -220,7 +223,19 @@ export function KeyboardShortcuts() {
       </div>
 
       {CATEGORY_ORDER.map((category) => {
-        const items = DEFAULT_SHORTCUTS.filter((s) => s.category === category);
+        // When filtering by activeCategory, only show the matching category
+        if (activeCategory) {
+          // Map "view" category label to "layout" sidebar item
+          const mapped = activeCategory === "view" ? "view" : activeCategory;
+          if (category !== mapped) return null;
+        }
+        // Merge "edit" shortcuts into "global"
+        const items =
+          category === "global"
+            ? DEFAULT_SHORTCUTS.filter(
+                (s) => s.category === "global" || s.category === "edit",
+              )
+            : DEFAULT_SHORTCUTS.filter((s) => s.category === category);
         if (items.length === 0) return null;
         return (
           <div key={category}>

@@ -1,11 +1,4 @@
-import {
-  CheckSquare,
-  BookOpen,
-  Play,
-  BarChart3,
-  Settings,
-  Lightbulb,
-} from "lucide-react";
+import { CheckSquare, BookOpen, Play, BarChart3, Settings } from "lucide-react";
 import type { SectionId } from "../../types/taskTree";
 import { useTranslation } from "react-i18next";
 
@@ -23,15 +16,6 @@ const mainItems: {
   { id: "memo", labelKey: "sidebar.memo", icon: BookOpen },
   { id: "work", labelKey: "sidebar.work", icon: Play },
   { id: "analytics", labelKey: "sidebar.analytics", icon: BarChart3 },
-];
-
-const bottomItems: {
-  id: SectionId;
-  labelKey: string;
-  icon: typeof Settings;
-}[] = [
-  { id: "settings", labelKey: "sidebar.settings", icon: Settings },
-  { id: "tips", labelKey: "sidebar.tips", icon: Lightbulb },
 ];
 
 export function CollapsedSidebar({
@@ -63,24 +47,17 @@ export function CollapsedSidebar({
         })}
       </nav>
       <div className="flex flex-col items-center gap-1 border-t border-notion-border pt-2">
-        {bottomItems.map((item) => {
-          const Icon = item.icon;
-          const isActive = activeSection === item.id;
-          return (
-            <button
-              key={item.id}
-              title={t(item.labelKey)}
-              onClick={() => onSectionChange(item.id)}
-              className={`p-2 rounded-md transition-colors ${
-                isActive
-                  ? "text-notion-text"
-                  : "text-notion-text-secondary hover:text-notion-text hover:bg-notion-hover"
-              }`}
-            >
-              <Icon size={18} />
-            </button>
-          );
-        })}
+        <button
+          title={t("sidebar.settings")}
+          onClick={() => onSectionChange("settings")}
+          className={`p-2 rounded-md transition-colors ${
+            activeSection === "settings"
+              ? "text-notion-text"
+              : "text-notion-text-secondary hover:text-notion-text hover:bg-notion-hover"
+          }`}
+        >
+          <Settings size={18} />
+        </button>
       </div>
     </div>
   );

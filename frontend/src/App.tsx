@@ -6,7 +6,6 @@ import { useLocalStorage } from "./hooks/useLocalStorage";
 import { WorkScreen } from "./components/Work";
 import { SessionCompletionModal } from "./components/Work/SessionCompletionModal";
 import { Settings } from "./components/Settings";
-import { Tips } from "./components/Tips";
 import { AnalyticsView } from "./components/Analytics/AnalyticsView";
 import { MemoView } from "./components/Memo";
 import { CommandPalette } from "./components/CommandPalette/CommandPalette";
@@ -118,8 +117,6 @@ function App() {
         return <Settings initialTab="trash" />;
       case "settings":
         return <Settings />;
-      case "tips":
-        return <Tips />;
       default:
         return null;
     }

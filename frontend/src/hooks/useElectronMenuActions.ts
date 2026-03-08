@@ -31,7 +31,7 @@ export function useElectronMenuActions({
           setActiveSection("settings");
           break;
         case "navigate:tips":
-          setActiveSection("tips");
+          setActiveSection("settings");
           break;
         case "toggle-timer-modal":
           setActiveSection("work");

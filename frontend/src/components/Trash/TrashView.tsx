@@ -17,7 +17,8 @@ import { useMemoContext } from "../../hooks/useMemoContext";
 import { useScheduleContext } from "../../hooks/useScheduleContext";
 import { getDataService } from "../../services";
 import { ConfirmDialog } from "../shared/ConfirmDialog";
-import { SectionTabs, type TabItem } from "../shared/SectionTabs";
+import { type TabItem } from "../shared/SectionTabs";
+import { VerticalNavList } from "../shared/VerticalNavList";
 import type { CustomSoundMeta } from "../../types/customSound";
 import type { SoundDisplayMeta } from "../../types/sound";
 import { RightSidebarContext } from "../../context/RightSidebarContext";
@@ -317,26 +318,17 @@ export function TrashView() {
 
   const { portalTarget: rightSidebarTarget } = useContext(RightSidebarContext);
 
-  const tabsElement = (
-    <SectionTabs
-      tabs={TRASH_TABS}
-      activeTab={activeTab}
-      onTabChange={setActiveTab}
-    />
-  );
-
   return (
     <div className="h-full flex flex-col">
-      {rightSidebarTarget ? (
+      {rightSidebarTarget &&
         createPortal(
-          <div className="p-3 border-b border-notion-border">
-            {tabsElement}
-          </div>,
+          <VerticalNavList
+            items={TRASH_TABS}
+            activeItem={activeTab}
+            onItemChange={setActiveTab}
+          />,
           rightSidebarTarget,
-        )
-      ) : (
-        <div className="mb-4">{tabsElement}</div>
-      )}
+        )}
 
       <div className="flex-1 overflow-y-auto">
         {activeTab === "tasks" && renderTasksTab()}

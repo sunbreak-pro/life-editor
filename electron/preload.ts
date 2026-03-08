@@ -129,6 +129,12 @@ const ALLOWED_CHANNELS = new Set([
   "window:close",
   // Claude
   "claude:registerMcp",
+  "claude:readClaudeMd",
+  "claude:writeClaudeMd",
+  "claude:listAvailableSkills",
+  "claude:listInstalledSkills",
+  "claude:installSkill",
+  "claude:uninstallSkill",
 ]);
 
 contextBridge.exposeInMainWorld("electronAPI", {

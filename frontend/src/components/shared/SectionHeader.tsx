@@ -45,7 +45,9 @@ export function SectionHeader<T extends string>({
 
   if (portalTarget) {
     return createPortal(
-      <div className="flex items-center gap-3 h-full">{content}</div>,
+      <div className="titlebar-nodrag flex items-center gap-3 h-full">
+        {content}
+      </div>,
       portalTarget,
     );
   }

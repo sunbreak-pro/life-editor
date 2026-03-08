@@ -4,8 +4,7 @@ export type SectionId =
   | "work"
   | "analytics"
   | "trash"
-  | "settings"
-  | "tips";
+  | "settings";
 
 export type NodeType = "folder" | "task";
 export type TaskStatus = "TODO" | "DONE";
