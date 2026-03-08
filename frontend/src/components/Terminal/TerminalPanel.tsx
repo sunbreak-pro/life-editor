@@ -13,6 +13,7 @@ import {
   Terminal,
 } from "lucide-react";
 import { SplitLayout } from "./SplitLayout";
+import { TerminalTabBar } from "./TerminalTabBar";
 import { useTerminalLayout } from "../../hooks/useTerminalLayout";
 import { countLeaves } from "../../utils/terminalLayout";
 
@@ -21,6 +22,7 @@ const MAX_HEIGHT_RATIO = 0.8;
 const MIN_WIDTH = 250;
 const MAX_WIDTH_RATIO = 0.6;
 const MAX_PANES = 4;
+const MAX_TABS = 4;
 
 interface TerminalPanelProps {
   isOpen: boolean;
@@ -63,12 +65,11 @@ export function TerminalPanel({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen]);
 
-  // When layout state transitions from non-null to null (all panes closed), close the panel
+  // When layout state transitions from non-null to null (all tabs closed), close the panel
   useEffect(() => {
     const prev = prevLayoutStateRef.current;
     prevLayoutStateRef.current = layout.state;
 
-    // Only close if state went from non-null → null (all panes were closed by user)
     if (prev !== null && layout.state === null && isOpen) {
       onClose();
     }
@@ -81,10 +82,8 @@ export function TerminalPanel({
     const handleKeyDown = (e: KeyboardEvent) => {
       if (!e.metaKey) return;
 
-      // Only handle these when terminal panel has focus
       const panel = panelRef.current;
       if (!panel || !panel.contains(document.activeElement)) {
-        // cmd+w outside terminal → close window
         if (e.code === "KeyW" && !e.shiftKey) {
           window.electronAPI?.invoke("window:close");
           return;
@@ -102,7 +101,7 @@ export function TerminalPanel({
       if (e.code === "KeyT" && !e.shiftKey) {
         e.preventDefault();
         e.stopPropagation();
-        layout.addPane();
+        layout.addTab();
         return;
       }
 
@@ -182,17 +181,19 @@ export function TerminalPanel({
     };
   }, [dock, onHeightChange, onWidthChange]);
 
-  // Trigger xterm.js resize when toggling back from display:none
+  // Trigger xterm.js resize when tab switches or toggling back from display:none
   useEffect(() => {
     if (isOpen && layout.state) {
       requestAnimationFrame(() => {
         window.dispatchEvent(new Event("resize"));
       });
     }
-  }, [isOpen, layout.state]);
+  }, [isOpen, layout.state, layout.state?.activeTabId]);
 
-  const paneCount = layout.state ? countLeaves(layout.state.root) : 0;
+  const activeTab = layout.activeTab;
+  const paneCount = activeTab ? countLeaves(activeTab.root) : 0;
   const canAddPane = paneCount < MAX_PANES;
+  const canAddTab = (layout.state?.tabs.length ?? 0) < MAX_TABS;
 
   const isBottom = dock === "bottom";
 
@@ -283,10 +284,10 @@ export function TerminalPanel({
             </div>
             <div className="flex items-center gap-1">
               <button
-                onClick={() => layout.addPane()}
-                disabled={!canAddPane}
+                onClick={() => layout.addTab()}
+                disabled={!canAddTab}
                 className="p-0.5 text-[#6c7086] hover:text-[#cdd6f4] transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-                title="New pane (⌘T)"
+                title="New tab (⌘T)"
               >
                 <Plus size={14} />
               </button>
@@ -356,17 +357,39 @@ export function TerminalPanel({
             </div>
           </div>
 
-          {/* Terminal content */}
+          {/* Tab bar */}
           {!isMinimized && layout.state && (
-            <div className="flex-1 min-h-0">
-              <SplitLayout
-                node={layout.state.root}
-                activePaneId={layout.state.activePaneId}
-                onPaneFocus={layout.setActivePaneId}
-                onSizesChange={layout.updateSizes}
-              />
-            </div>
+            <TerminalTabBar
+              tabs={layout.state.tabs}
+              activeTabId={layout.state.activeTabId}
+              onSwitchTab={layout.switchTab}
+              onCloseTab={layout.closeTab}
+              onAddTab={() => layout.addTab()}
+              canAddTab={canAddTab}
+            />
           )}
+
+          {/* Terminal content — render all tabs, hide non-active with display:none */}
+          {!isMinimized &&
+            layout.state &&
+            layout.state.tabs.map((tab) => (
+              <div
+                key={tab.id}
+                className="flex-1 min-h-0"
+                style={{
+                  display:
+                    tab.id === layout.state!.activeTabId ? "flex" : "none",
+                  flexDirection: "column",
+                }}
+              >
+                <SplitLayout
+                  node={tab.root}
+                  activePaneId={tab.activePaneId}
+                  onPaneFocus={layout.setActivePaneId}
+                  onSizesChange={layout.updateSizes}
+                />
+              </div>
+            ))}
         </>
       )}
     </div>

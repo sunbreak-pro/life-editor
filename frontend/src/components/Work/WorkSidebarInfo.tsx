@@ -1,5 +1,12 @@
 import { useEffect, useState } from "react";
-import { Play, Pause, SkipForward } from "lucide-react";
+import {
+  Play,
+  Pause,
+  SkipForward,
+  Music,
+  Timer,
+  BarChart3,
+} from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useTimerContext } from "../../hooks/useTimerContext";
 import { useAudioContext } from "../../hooks/useAudioContext";
@@ -59,7 +66,8 @@ export function WorkSidebarInfo() {
     <div className="p-3 space-y-4">
       {/* Now Playing */}
       <div className="space-y-2">
-        <h4 className="text-[10px] font-semibold text-notion-text-secondary uppercase tracking-wider px-1">
+        <h4 className="flex items-center gap-1.5 text-[10px] font-semibold text-notion-text-secondary uppercase tracking-wider px-1">
+          <Music size={14} />
           {t("work.sidebar.nowPlaying")}
         </h4>
         {activePlaylist ? (
@@ -106,7 +114,8 @@ export function WorkSidebarInfo() {
 
       {/* Pomodoro Settings Summary */}
       <div className="space-y-2">
-        <h4 className="text-[10px] font-semibold text-notion-text-secondary uppercase tracking-wider px-1">
+        <h4 className="flex items-center gap-1.5 text-[10px] font-semibold text-notion-text-secondary uppercase tracking-wider px-1">
+          <Timer size={14} />
           {t("work.sidebar.pomodoroSettings")}
         </h4>
         <div className="space-y-1 px-1">
@@ -141,7 +150,8 @@ export function WorkSidebarInfo() {
 
       {/* Today's Stats */}
       <div className="space-y-2">
-        <h4 className="text-[10px] font-semibold text-notion-text-secondary uppercase tracking-wider px-1">
+        <h4 className="flex items-center gap-1.5 text-[10px] font-semibold text-notion-text-secondary uppercase tracking-wider px-1">
+          <BarChart3 size={14} />
           {t("work.sidebar.todayStats")}
         </h4>
         <div className="space-y-1 px-1">

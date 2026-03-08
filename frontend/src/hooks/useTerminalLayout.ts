@@ -1,5 +1,5 @@
 import { useState, useCallback } from "react";
-import type { TerminalPanelState } from "../types/terminalLayout";
+import type { TerminalPanelState, TerminalTab } from "../types/terminalLayout";
 import {
   createLeaf,
   createInitialLayout,
@@ -11,12 +11,44 @@ import {
 } from "../utils/terminalLayout";
 
 const MAX_PANES = 4;
+const MAX_TABS = 4;
+
+let tabCounter = 0;
+
+function createTab(sessionId: string): TerminalTab {
+  const leaf = createInitialLayout(sessionId);
+  tabCounter++;
+  return {
+    id: `tab-${Date.now()}-${tabCounter}`,
+    label: `Tab ${tabCounter}`,
+    root: leaf,
+    activePaneId: leaf.type === "leaf" ? leaf.id : "",
+  };
+}
+
+function getActiveTab(state: TerminalPanelState): TerminalTab | undefined {
+  return state.tabs.find((t) => t.id === state.activeTabId);
+}
+
+function updateActiveTab(
+  state: TerminalPanelState,
+  updater: (tab: TerminalTab) => TerminalTab,
+): TerminalPanelState {
+  return {
+    ...state,
+    tabs: state.tabs.map((t) => (t.id === state.activeTabId ? updater(t) : t)),
+  };
+}
 
 export interface UseTerminalLayoutReturn {
   state: TerminalPanelState | null;
   activePaneId: string | null;
+  activeTab: TerminalTab | undefined;
   openPanel: () => Promise<void>;
   closePanel: () => void;
+  addTab: () => Promise<void>;
+  closeTab: (tabId: string) => void;
+  switchTab: (tabId: string) => void;
   addPane: () => Promise<void>;
   splitVertical: () => Promise<void>;
   splitHorizontal: () => Promise<void>;
@@ -28,47 +60,113 @@ export interface UseTerminalLayoutReturn {
 export function useTerminalLayout(): UseTerminalLayoutReturn {
   const [state, setState] = useState<TerminalPanelState | null>(null);
 
-  const activePaneId = state?.activePaneId ?? null;
+  const activeTabData = state ? getActiveTab(state) : undefined;
+  const activePaneId = activeTabData?.activePaneId ?? null;
 
   const openPanel = useCallback(async () => {
     const sessionId =
       await window.electronAPI?.invoke<string>("terminal:create");
     if (!sessionId) return;
-    const leaf = createInitialLayout(sessionId);
+    tabCounter = 0;
+    const tab = createTab(sessionId);
     setState({
-      root: leaf,
-      activePaneId: leaf.type === "leaf" ? leaf.id : "",
+      tabs: [tab],
+      activeTabId: tab.id,
     });
   }, []);
 
   const closePanel = useCallback(() => {
     if (!state) return;
-    const leaves = collectLeaves(state.root);
-    for (const leaf of leaves) {
-      window.electronAPI
-        ?.invoke("terminal:destroy", leaf.sessionId)
-        .catch(() => {});
+    for (const tab of state.tabs) {
+      const leaves = collectLeaves(tab.root);
+      for (const leaf of leaves) {
+        window.electronAPI
+          ?.invoke("terminal:destroy", leaf.sessionId)
+          .catch(() => {});
+      }
     }
     setState(null);
   }, [state]);
 
+  const addTab = useCallback(async () => {
+    if (!state) return;
+    if (state.tabs.length >= MAX_TABS) return;
+
+    const sessionId =
+      await window.electronAPI?.invoke<string>("terminal:create");
+    if (!sessionId) return;
+
+    const tab = createTab(sessionId);
+    setState({
+      tabs: [...state.tabs, tab],
+      activeTabId: tab.id,
+    });
+  }, [state]);
+
+  const closeTab = useCallback(
+    (tabId: string) => {
+      if (!state) return;
+      const tab = state.tabs.find((t) => t.id === tabId);
+      if (!tab) return;
+
+      // Destroy all PTY sessions in this tab
+      const leaves = collectLeaves(tab.root);
+      for (const leaf of leaves) {
+        window.electronAPI
+          ?.invoke("terminal:destroy", leaf.sessionId)
+          .catch(() => {});
+      }
+
+      const remaining = state.tabs.filter((t) => t.id !== tabId);
+      if (remaining.length === 0) {
+        setState(null);
+        return;
+      }
+
+      // If closing the active tab, switch to adjacent
+      let newActiveTabId = state.activeTabId;
+      if (state.activeTabId === tabId) {
+        const closedIndex = state.tabs.findIndex((t) => t.id === tabId);
+        const nextIndex = Math.min(closedIndex, remaining.length - 1);
+        newActiveTabId = remaining[nextIndex].id;
+      }
+
+      setState({
+        tabs: remaining,
+        activeTabId: newActiveTabId,
+      });
+    },
+    [state],
+  );
+
+  const switchTab = useCallback(
+    (tabId: string) => {
+      if (!state) return;
+      setState({ ...state, activeTabId: tabId });
+    },
+    [state],
+  );
+
   const doSplit = useCallback(
     async (direction: "horizontal" | "vertical") => {
       if (!state) return;
-      if (countLeaves(state.root) >= MAX_PANES) return;
+      const tab = getActiveTab(state);
+      if (!tab) return;
+      if (countLeaves(tab.root) >= MAX_PANES) return;
 
       const sessionId =
         await window.electronAPI?.invoke<string>("terminal:create");
       if (!sessionId) return;
 
       const newLeaf = createLeaf(sessionId);
-      const newRoot = splitPane(
-        state.root,
-        state.activePaneId,
-        newLeaf,
-        direction,
+      const newRoot = splitPane(tab.root, tab.activePaneId, newLeaf, direction);
+      setState(
+        updateActiveTab(state, (t) => ({
+          ...t,
+          root: newRoot,
+          activePaneId: newLeaf.id,
+        })),
       );
-      setState({ root: newRoot, activePaneId: newLeaf.id });
     },
     [state],
   );
@@ -81,41 +179,58 @@ export function useTerminalLayout(): UseTerminalLayoutReturn {
 
   const closeActivePane = useCallback(() => {
     if (!state) return;
+    const tab = getActiveTab(state);
+    if (!tab) return;
 
-    const leaf = collectLeaves(state.root).find(
-      (l) => l.id === state.activePaneId,
-    );
+    const leaf = collectLeaves(tab.root).find((l) => l.id === tab.activePaneId);
     if (leaf) {
       window.electronAPI
         ?.invoke("terminal:destroy", leaf.sessionId)
         .catch(() => {});
     }
 
-    const newRoot = removePane(state.root, state.activePaneId);
+    const newRoot = removePane(tab.root, tab.activePaneId);
     if (!newRoot) {
-      setState(null);
+      // Last pane in tab — close the tab
+      const remaining = state.tabs.filter((t) => t.id !== tab.id);
+      if (remaining.length === 0) {
+        setState(null);
+        return;
+      }
+      const closedIndex = state.tabs.findIndex((t) => t.id === tab.id);
+      const nextIndex = Math.min(closedIndex, remaining.length - 1);
+      setState({
+        tabs: remaining,
+        activeTabId: remaining[nextIndex].id,
+      });
       return;
     }
 
-    const remaining = collectLeaves(newRoot);
-    setState({
-      root: newRoot,
-      activePaneId: remaining[0]?.id ?? "",
-    });
+    const remainingLeaves = collectLeaves(newRoot);
+    setState(
+      updateActiveTab(state, (t) => ({
+        ...t,
+        root: newRoot,
+        activePaneId: remainingLeaves[0]?.id ?? "",
+      })),
+    );
   }, [state]);
 
   const setActivePaneId = useCallback((id: string) => {
-    setState((prev) => (prev ? { ...prev, activePaneId: id } : prev));
+    setState((prev) => {
+      if (!prev) return prev;
+      return updateActiveTab(prev, (t) => ({ ...t, activePaneId: id }));
+    });
   }, []);
 
   const updateSizesCallback = useCallback(
     (splitId: string, sizes: number[]) => {
       setState((prev) => {
         if (!prev) return prev;
-        return {
-          ...prev,
-          root: updateSplitSizes(prev.root, splitId, sizes),
-        };
+        return updateActiveTab(prev, (t) => ({
+          ...t,
+          root: updateSplitSizes(t.root, splitId, sizes),
+        }));
       });
     },
     [],
@@ -124,8 +239,12 @@ export function useTerminalLayout(): UseTerminalLayoutReturn {
   return {
     state,
     activePaneId,
+    activeTab: activeTabData,
     openPanel,
     closePanel,
+    addTab,
+    closeTab,
+    switchTab,
     addPane,
     splitVertical,
     splitHorizontal,

@@ -14,7 +14,14 @@ export interface SplitNode {
 
 export type TerminalLayoutNode = TerminalLeaf | SplitNode;
 
-export interface TerminalPanelState {
+export interface TerminalTab {
+  id: string;
+  label: string;
   root: TerminalLayoutNode;
   activePaneId: string;
+}
+
+export interface TerminalPanelState {
+  tabs: TerminalTab[];
+  activeTabId: string;
 }

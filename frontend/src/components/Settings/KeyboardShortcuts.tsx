@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import { Apple, Monitor, RotateCcw } from "lucide-react";
+import { Apple, Monitor, Save } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { DEFAULT_SHORTCUTS } from "../../constants/defaultShortcuts";
 import { useShortcutConfig } from "../../hooks/useShortcutConfig";
@@ -9,6 +9,7 @@ import type {
   ShortcutCategory,
   ShortcutDefinition,
   KeyBinding,
+  ShortcutConfig,
 } from "../../types/shortcut";
 
 const CATEGORY_ORDER: ShortcutCategory[] = [
@@ -29,6 +30,54 @@ const CATEGORY_LABEL_KEYS: Record<ShortcutCategory, string> = {
   edit: "tips.shortcutsTab.global",
   calendar: "tips.shortcutsTab.calendar",
 };
+
+function bindingsEqual(a: KeyBinding, b: KeyBinding): boolean {
+  return (
+    (a.key ?? "") === (b.key ?? "") &&
+    (a.code ?? "") === (b.code ?? "") &&
+    !!a.meta === !!b.meta &&
+    !!a.ctrl === !!b.ctrl &&
+    !!a.shift === !!b.shift &&
+    !!a.alt === !!b.alt
+  );
+}
+
+function bindingToDisplayString(binding: KeyBinding, mac: boolean): string {
+  const parts: string[] = [];
+  if (binding.ctrl) parts.push("Ctrl");
+  if (binding.meta) parts.push(mac ? "⌘" : "Ctrl");
+  if (binding.shift) parts.push(mac ? "⇧" : "Shift");
+  if (binding.alt) parts.push(mac ? "⌥" : "Alt");
+
+  if (binding.code) {
+    const codeMap: Record<string, string> = {
+      KeyD: "D",
+      KeyJ: "J",
+      KeyK: "K",
+      KeyT: "T",
+      KeyW: "W",
+      KeyZ: "Z",
+      Comma: ",",
+      Period: ".",
+      Enter: "Enter",
+      Backquote: "`",
+    };
+    parts.push(codeMap[binding.code] ?? binding.code.replace(/^Key/, ""));
+  } else if (binding.key) {
+    const keyMap: Record<string, string> = {
+      " ": "Space",
+      ArrowUp: "↑",
+      ArrowDown: "↓",
+      ArrowLeft: "←",
+      ArrowRight: "→",
+      Tab: "Tab",
+      Enter: "Enter",
+    };
+    parts.push(keyMap[binding.key] ?? binding.key.toUpperCase());
+  }
+
+  return parts.join(" + ");
+}
 
 function eventToBinding(e: KeyboardEvent): KeyBinding | null {
   if (["Shift", "Control", "Alt", "Meta", "CapsLock"].includes(e.key))
@@ -53,6 +102,32 @@ function eventToBinding(e: KeyboardEvent): KeyBinding | null {
   return binding;
 }
 
+function findDraftConflict(
+  draftConfig: ShortcutConfig,
+  binding: KeyBinding,
+  excludeId?: ShortcutId,
+): ShortcutDefinition | undefined {
+  for (const def of DEFAULT_SHORTCUTS) {
+    if (def.id === excludeId) continue;
+    const existing = draftConfig[def.id] ?? def.defaultBinding;
+    if (bindingsEqual(binding, existing)) {
+      return def;
+    }
+  }
+  return undefined;
+}
+
+function getDraftDisplayString(
+  draftConfig: ShortcutConfig,
+  id: ShortcutId,
+  showMac: boolean,
+): string {
+  const def = DEFAULT_SHORTCUTS.find((s) => s.id === id);
+  const binding = draftConfig[id] ?? def?.defaultBinding;
+  if (!binding) return "";
+  return bindingToDisplayString(binding, showMac);
+}
+
 function Kbd({ children }: { children: string }) {
   return (
     <kbd className="inline-block px-2 py-1 text-xs font-mono bg-notion-hover border border-notion-border rounded text-notion-text">
@@ -66,22 +141,19 @@ interface ShortcutRowProps {
   showMac: boolean;
   isCapturing: boolean;
   onStartCapture: () => void;
-  onReset: () => void;
+  displayString: string;
   conflictLabel?: string;
-  isCustomized: boolean;
 }
 
 function ShortcutRow({
   def,
-  showMac,
+  showMac: _showMac,
   isCapturing,
   onStartCapture,
-  onReset,
+  displayString,
   conflictLabel,
-  isCustomized,
 }: ShortcutRowProps) {
   const { t } = useTranslation();
-  const { getDisplayString } = useShortcutConfig();
 
   return (
     <tr className="border-b border-notion-border/50">
@@ -94,12 +166,7 @@ function ShortcutRow({
             {t("settings.shortcuts.pressKey")}
           </span>
         ) : (
-          <span className="inline-flex items-center gap-1">
-            <Kbd>{getDisplayString(def.id, showMac)}</Kbd>
-            {isCustomized && (
-              <span className="w-1.5 h-1.5 rounded-full bg-notion-accent" />
-            )}
-          </span>
+          <Kbd>{displayString}</Kbd>
         )}
         {conflictLabel && (
           <p className="text-xs text-red-500 mt-1">
@@ -108,24 +175,12 @@ function ShortcutRow({
         )}
       </td>
       <td className="py-2.5 w-24">
-        {!def.readonly && (
-          <div className="flex gap-1">
-            <button
-              onClick={onStartCapture}
-              className="px-2 py-1 text-xs text-notion-text-secondary hover:text-notion-text hover:bg-notion-hover rounded transition-colors"
-            >
-              {t("settings.shortcuts.change")}
-            </button>
-            {isCustomized && (
-              <button
-                onClick={onReset}
-                className="px-2 py-1 text-xs text-notion-text-secondary hover:text-notion-text hover:bg-notion-hover rounded transition-colors"
-              >
-                {t("settings.shortcuts.reset")}
-              </button>
-            )}
-          </div>
-        )}
+        <button
+          onClick={onStartCapture}
+          className="px-2 py-1 text-xs text-notion-text-secondary hover:text-notion-text hover:bg-notion-hover rounded transition-colors"
+        >
+          {t("settings.shortcuts.change")}
+        </button>
       </td>
     </tr>
   );
@@ -133,13 +188,19 @@ function ShortcutRow({
 
 interface KeyboardShortcutsProps {
   activeCategory?: ShortcutCategory | null;
+  onBeforeChange?: () => void;
 }
 
-export function KeyboardShortcuts({ activeCategory }: KeyboardShortcutsProps) {
+export function KeyboardShortcuts({
+  activeCategory,
+  onBeforeChange,
+}: KeyboardShortcutsProps) {
   const { t } = useTranslation();
-  const { setBinding, resetBinding, resetAll, findConflict, config } =
-    useShortcutConfig();
+  const { saveAllBindings, config } = useShortcutConfig();
   const [showMac, setShowMac] = useState(isMac);
+  const [draftConfig, setDraftConfig] = useState<ShortcutConfig>(() => ({
+    ...config,
+  }));
   const [capturingId, setCapturingId] = useState<ShortcutId | null>(null);
   const [conflictInfo, setConflictInfo] = useState<{
     id: ShortcutId;
@@ -147,6 +208,15 @@ export function KeyboardShortcuts({ activeCategory }: KeyboardShortcutsProps) {
   } | null>(null);
   const capturingRef = useRef(capturingId);
   capturingRef.current = capturingId;
+  const draftRef = useRef(draftConfig);
+  draftRef.current = draftConfig;
+
+  // Sync draft when config changes externally (e.g. undo/redo)
+  useEffect(() => {
+    setDraftConfig({ ...config });
+  }, [config]);
+
+  const isDirty = JSON.stringify(draftConfig) !== JSON.stringify(config);
 
   const handleCapture = useCallback(
     (e: KeyboardEvent) => {
@@ -163,7 +233,11 @@ export function KeyboardShortcuts({ activeCategory }: KeyboardShortcutsProps) {
       const binding = eventToBinding(e);
       if (!binding) return;
 
-      const conflict = findConflict(binding, capturingRef.current);
+      const conflict = findDraftConflict(
+        draftRef.current,
+        binding,
+        capturingRef.current,
+      );
       if (conflict) {
         setConflictInfo({
           id: capturingRef.current,
@@ -172,11 +246,11 @@ export function KeyboardShortcuts({ activeCategory }: KeyboardShortcutsProps) {
         return;
       }
 
-      setBinding(capturingRef.current, binding);
+      setDraftConfig((prev) => ({ ...prev, [capturingRef.current!]: binding }));
       setCapturingId(null);
       setConflictInfo(null);
     },
-    [findConflict, setBinding, t],
+    [t],
   );
 
   useEffect(() => {
@@ -184,6 +258,11 @@ export function KeyboardShortcuts({ activeCategory }: KeyboardShortcutsProps) {
     window.addEventListener("keydown", handleCapture, true);
     return () => window.removeEventListener("keydown", handleCapture, true);
   }, [capturingId, handleCapture]);
+
+  const handleSave = useCallback(() => {
+    onBeforeChange?.();
+    saveAllBindings(draftConfig);
+  }, [draftConfig, saveAllBindings, onBeforeChange]);
 
   return (
     <div className="space-y-6">
@@ -214,22 +293,20 @@ export function KeyboardShortcuts({ activeCategory }: KeyboardShortcutsProps) {
         </div>
 
         <button
-          onClick={resetAll}
-          className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-notion-text-secondary hover:text-notion-text hover:bg-notion-hover rounded-md transition-colors"
+          onClick={handleSave}
+          disabled={!isDirty}
+          className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-notion-text-secondary hover:text-notion-text hover:bg-notion-hover rounded-md transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
         >
-          <RotateCcw size={14} />
-          {t("settings.shortcuts.resetAll")}
+          <Save size={14} />
+          {t("settings.shortcuts.save")}
         </button>
       </div>
 
       {CATEGORY_ORDER.map((category) => {
-        // When filtering by activeCategory, only show the matching category
         if (activeCategory) {
-          // Map "view" category label to "layout" sidebar item
           const mapped = activeCategory === "view" ? "view" : activeCategory;
           if (category !== mapped) return null;
         }
-        // Merge "edit" shortcuts into "global"
         const items =
           category === "global"
             ? DEFAULT_SHORTCUTS.filter(
@@ -254,16 +331,16 @@ export function KeyboardShortcuts({ activeCategory }: KeyboardShortcutsProps) {
                       setCapturingId(def.id);
                       setConflictInfo(null);
                     }}
-                    onReset={() => {
-                      resetBinding(def.id);
-                      setConflictInfo(null);
-                    }}
+                    displayString={getDraftDisplayString(
+                      draftConfig,
+                      def.id,
+                      showMac,
+                    )}
                     conflictLabel={
                       conflictInfo?.id === def.id
                         ? conflictInfo.label
                         : undefined
                     }
-                    isCustomized={def.id in config}
                   />
                 ))}
               </tbody>

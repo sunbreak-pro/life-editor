@@ -1,4 +1,4 @@
-import { useState, useEffect, useContext } from "react";
+import { useState, useEffect, useContext, useCallback } from "react";
 import { createPortal } from "react-dom";
 import {
   Settings2,
@@ -9,6 +9,26 @@ import {
   Trash2,
   Bot,
   Lightbulb,
+  Palette,
+  Languages,
+  Download,
+  Gauge,
+  FileText,
+  Cog,
+  FileCode,
+  Puzzle,
+  CheckSquare,
+  Timer,
+  BookOpen,
+  BarChart3,
+  Globe,
+  Compass,
+  LayoutGrid,
+  TerminalSquare,
+  FolderTree,
+  CalendarDays,
+  Undo2,
+  Redo2,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import type { TabItem } from "../shared/SectionTabs";
@@ -35,6 +55,7 @@ import { AnalyticsTab } from "../Tips/AnalyticsTab";
 import { isMac } from "../../utils/platform";
 import { RightSidebarContext } from "../../context/RightSidebarContext";
 import type { ShortcutCategory } from "../../types/shortcut";
+import { useSettingsHistory } from "../../hooks/useSettingsHistory";
 
 type SettingsTab =
   | "general"
@@ -74,39 +95,47 @@ type ShortcutsSub =
   | "calendar";
 
 const GENERAL_SUBS: readonly TabItem<GeneralSub>[] = [
-  { id: "appearance", labelKey: "settings.appearance" },
-  { id: "language", labelKey: "settings.language" },
+  { id: "appearance", labelKey: "settings.appearance", icon: Palette },
+  { id: "language", labelKey: "settings.language", icon: Languages },
 ];
 const ADVANCED_SUBS: readonly TabItem<AdvancedSub>[] = [
-  { id: "updates", labelKey: "updates.title" },
-  { id: "performance", labelKey: "performance.title" },
-  { id: "logs", labelKey: "logs.title" },
+  { id: "updates", labelKey: "updates.title", icon: Download },
+  { id: "performance", labelKey: "performance.title", icon: Gauge },
+  { id: "logs", labelKey: "logs.title", icon: FileText },
 ];
 const CLAUDE_SUBS: readonly TabItem<ClaudeSub>[] = [
-  { id: "setup", labelKey: "settings.claude.setup" },
-  { id: "mcpTools", labelKey: "settings.claude.mcpTools" },
-  { id: "claudeMd", labelKey: "settings.claude.claudeMd" },
-  { id: "skills", labelKey: "settings.claude.skills" },
+  { id: "setup", labelKey: "settings.claude.setup", icon: Cog },
+  { id: "mcpTools", labelKey: "settings.claude.mcpTools", icon: Wrench },
+  { id: "claudeMd", labelKey: "settings.claude.claudeMd", icon: FileCode },
+  { id: "skills", labelKey: "settings.claude.skills", icon: Puzzle },
 ];
 const TIPS_SUBS: readonly TabItem<TipsSub>[] = [
-  { id: "tasks", labelKey: "tips.tasks" },
-  { id: "work", labelKey: "tips.work" },
-  { id: "memo", labelKey: "tips.memo" },
-  { id: "analytics", labelKey: "tips.analytics" },
+  { id: "tasks", labelKey: "tips.tasks", icon: CheckSquare },
+  { id: "work", labelKey: "tips.work", icon: Timer },
+  { id: "memo", labelKey: "tips.memo", icon: BookOpen },
+  { id: "analytics", labelKey: "tips.analytics", icon: BarChart3 },
 ];
 const SHORTCUTS_SUBS: readonly TabItem<ShortcutsSub>[] = [
-  { id: "global", labelKey: "tips.shortcutsTab.global" },
-  { id: "navigation", labelKey: "tips.shortcutsTab.navigation" },
-  { id: "layout", labelKey: "tips.shortcutsTab.view" },
-  { id: "terminal", labelKey: "tips.shortcutsTab.terminal" },
-  { id: "taskTree", labelKey: "tips.shortcutsTab.taskTree" },
-  { id: "calendar", labelKey: "tips.shortcutsTab.calendar" },
+  { id: "global", labelKey: "tips.shortcutsTab.global", icon: Globe },
+  { id: "navigation", labelKey: "tips.shortcutsTab.navigation", icon: Compass },
+  { id: "layout", labelKey: "tips.shortcutsTab.view", icon: LayoutGrid },
+  {
+    id: "terminal",
+    labelKey: "tips.shortcutsTab.terminal",
+    icon: TerminalSquare,
+  },
+  { id: "taskTree", labelKey: "tips.shortcutsTab.taskTree", icon: FolderTree },
+  {
+    id: "calendar",
+    labelKey: "tips.shortcutsTab.calendar",
+    icon: CalendarDays,
+  },
 ];
 const NOTIFICATION_SUBS: readonly TabItem<"notifications">[] = [
-  { id: "notifications", labelKey: "notifications.title" },
+  { id: "notifications", labelKey: "notifications.title", icon: Bell },
 ];
 const DATA_SUBS: readonly TabItem<"data">[] = [
-  { id: "data", labelKey: "data.title" },
+  { id: "data", labelKey: "data.title", icon: Database },
 ];
 
 // Map sidebar shortcutsSub id to ShortcutCategory for filtering
@@ -139,6 +168,14 @@ export function Settings({ initialTab }: SettingsProps) {
   const [, setNotificationSub] = useState<"notifications">("notifications");
   const [, setDataSub] = useState<"data">("data");
   const [showMac] = useState(isMac);
+  const [settingsKey, setSettingsKey] = useState(0);
+
+  const handleHistoryApply = useCallback(() => {
+    setSettingsKey((k) => k + 1);
+  }, []);
+
+  const { canUndo, canRedo, undo, redo, pushSnapshot } =
+    useSettingsHistory(handleHistoryApply);
 
   useEffect(() => {
     if (initialTab) setActiveTab(initialTab);
@@ -316,6 +353,7 @@ export function Settings({ initialTab }: SettingsProps) {
           activeCategory={
             rightSidebarTarget ? SHORTCUTS_SUB_TO_CATEGORY[shortcutsSub] : null
           }
+          onBeforeChange={pushSnapshot}
         />
       );
     }
@@ -341,9 +379,31 @@ export function Settings({ initialTab }: SettingsProps) {
         rightTabs={RIGHT_TABS}
         activeTab={activeTab}
         onTabChange={setActiveTab}
+        actions={
+          <>
+            <button
+              onClick={undo}
+              disabled={!canUndo}
+              className="p-1 text-notion-text-secondary hover:text-notion-text transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+              title={t("common.undo")}
+            >
+              <Undo2 size={14} />
+            </button>
+            <button
+              onClick={redo}
+              disabled={!canRedo}
+              className="p-1 text-notion-text-secondary hover:text-notion-text transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+              title={t("common.redo")}
+            >
+              <Redo2 size={14} />
+            </button>
+          </>
+        }
       />
 
-      <div className="flex-1 overflow-y-auto">{renderContent()}</div>
+      <div key={settingsKey} className="flex-1 overflow-y-auto">
+        {renderContent()}
+      </div>
     </div>
   );
 }

@@ -1,5 +1,26 @@
 # HISTORY.md - 変更履歴
 
+### 2026-03-08 - RightSidebarアイコン + ターミナルタブ + ショートカット設定 + Undo/Redo
+
+#### 概要
+
+RightSidebarの全サブナビにアイコンを追加し、ターミナルにVSCode式タブシステムを導入。ショートカット設定画面をdraft+明示保存モデルに改修し、Settings全体にUndo/Redo機能を実装。
+
+#### 変更点
+
+- **Settings.tsx**: 全`_SUBS`定義にlucide-reactアイコン追加（Palette, Languages, Download, Gauge, FileText, Cog, FileCode, Puzzle等）。Undo2/Redo2ボタンをSectionHeaderのactionsに配置。useSettingsHistoryフック統合
+- **WorkSidebarInfo.tsx**: 3つのh4ヘッダーにMusic, Timer, BarChart3アイコン追加（flex+gap-1.5レイアウト）
+- **terminalLayout.ts**: `TerminalTab`型追加、`TerminalPanelState`をタブベース（tabs配列+activeTabId）に変更
+- **useTerminalLayout.ts**: `addTab()`, `closeTab()`, `switchTab()`追加。MAX_TABS=4。既存split系はアクティブタブスコープ内で動作。最後のペイン閉じでタブ閉じ
+- **TerminalTabBar.tsx**: 新規コンポーネント。複数タブ時のみ表示、×ボタン+Plusボタン付き
+- **TerminalPanel.tsx**: Plus→addTab、⌘T→addTab。非アクティブタブはdisplay:noneでxterm.jsバッファ保持。タブバーをヘッダー下に配置
+- **defaultShortcuts.ts**: 全`readonly: true`削除。`terminal:new-pane`→`terminal:new-tab`にリネーム
+- **shortcut.ts**: `readonly?`プロパティ削除。`terminal:new-tab`追加、`view:toggle-right-sidebar`追加
+- **useShortcutConfig.ts**: `saveAllBindings(newConfig)`メソッド追加（一括保存用）
+- **KeyboardShortcuts.tsx**: draftConfig方式に全面改修。青ドット・個別リセットボタン削除。保存ボタン（Save）追加。findDraftConflictでdraft内衝突検知
+- **useSettingsHistory.ts**: 新規フック。localStorage snapshot方式でUndo/Redo。対象キー6種。undo/redo時にShortcutConfig Contextも同期
+- **i18n**: en/ja両方に`settings.shortcuts.save`キー追加、`terminalNewPane`→`terminalNewTab`リネーム
+
 ### 2026-03-08 - cursor:pointer グローバル修正
 
 #### 概要

@@ -51,7 +51,8 @@
       "reset": "リセット",
       "change": "変更",
       "pressKey": "キーの組み合わせを入力...",
-      "conflict": "「{{action}}」に割り当て済み"
+      "conflict": "「{{action}}」に割り当て済み",
+      "save": "保存"
     },
     "appearance": "外観",
     "darkMode": "ダークモード",
@@ -197,10 +198,9 @@
     "longRest": "ロングレスト"
   },
   "taskTree": {
-    "inbox": "インボックス",
+    "title": "タスクツリー",
     "newTask": "新しいタスク...",
-    "projects": "プロジェクト",
-    "newFolder": "新しいフォルダ...",
+    "newFolder": "新しいプロジェクト...",
     "completed": "完了済み",
     "newFolderDefault": "新しいフォルダ",
     "newTaskDefault": "新しいタスク",
@@ -330,7 +330,7 @@
       "toggleMonthWeek": "月/週/日表示を順に切り替え",
       "calendar": "カレンダー",
       "terminal": "ターミナル",
-      "terminalNewPane": "新しいターミナルペイン（ターミナル内）",
+      "terminalNewTab": "新しいターミナルタブ（ターミナル内）",
       "terminalClosePane": "ターミナルペインを閉じる（ターミナル内）",
       "terminalSplitVertical": "垂直分割（ターミナル内）",
       "terminalSplitHorizontal": "水平分割（ターミナル内）"
@@ -586,8 +586,14 @@
   "tasks": {
     "title": "Tasks"
   },
+  "memoTree": {
+    "title": "メモツリー",
+    "daily": "デイリー",
+    "notes": "ノート"
+  },
   "tabs": {
     "taskTree": "タスクツリー",
+    "memoTree": "メモツリー",
     "tasks": "タスク",
     "schedule": "スケジュール",
     "incomplete": "未完了",
@@ -670,7 +676,7 @@
   "contextMenu": {
     "rename": "名前を変更",
     "addTask": "タスクを追加",
-    "addFolder": "フォルダを追加",
+    "addFolder": "プロジェクトを追加",
     "completeFolder": "フォルダを完了",
     "markIncomplete": "未完了に戻す",
     "startTimer": "タイマーを開始",

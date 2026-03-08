@@ -14,7 +14,8 @@ export type ShortcutId =
   // View
   | "view:toggle-sidebar"
   | "view:toggle-terminal"
-  // Task Tree (readonly)
+  | "view:toggle-right-sidebar"
+  // Task Tree
   | "tree:move-up"
   | "tree:move-down"
   | "tree:expand"
@@ -22,11 +23,11 @@ export type ShortcutId =
   | "tree:toggle-complete"
   | "tree:indent"
   | "tree:outdent"
-  // Edit (readonly)
+  // Edit
   | "edit:undo"
   | "edit:redo"
-  // Terminal (readonly)
-  | "terminal:new-pane"
+  // Terminal
+  | "terminal:new-tab"
   | "terminal:close-pane"
   | "terminal:split-vertical"
   | "terminal:split-horizontal"
@@ -60,7 +61,6 @@ export interface ShortcutDefinition {
   descriptionKey: string;
   defaultBinding: KeyBinding;
   activeInInput: boolean;
-  readonly?: boolean;
 }
 
 export type ShortcutConfig = Partial<Record<ShortcutId, KeyBinding>>;

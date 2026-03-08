@@ -51,7 +51,8 @@
       "reset": "Reset",
       "change": "Change",
       "pressKey": "Press a key combination...",
-      "conflict": "Already assigned to \"{{action}}\""
+      "conflict": "Already assigned to \"{{action}}\"",
+      "save": "Save"
     },
     "appearance": "Appearance",
     "darkMode": "Dark Mode",
@@ -197,10 +198,9 @@
     "longRest": "LONG REST"
   },
   "taskTree": {
-    "inbox": "Inbox",
+    "title": "Task Tree",
     "newTask": "New task...",
-    "projects": "Projects",
-    "newFolder": "New folder...",
+    "newFolder": "New project...",
     "completed": "Completed",
     "newFolderDefault": "New Folder",
     "newTaskDefault": "New Task",
@@ -330,7 +330,7 @@
       "toggleMonthWeek": "Cycle through month / week / day views",
       "calendar": "Calendar",
       "terminal": "Terminal",
-      "terminalNewPane": "New terminal pane (in terminal)",
+      "terminalNewTab": "New terminal tab (in terminal)",
       "terminalClosePane": "Close terminal pane (in terminal)",
       "terminalSplitVertical": "Split vertically (in terminal)",
       "terminalSplitHorizontal": "Split horizontally (in terminal)"
@@ -586,8 +586,14 @@
   "tasks": {
     "title": "Tasks"
   },
+  "memoTree": {
+    "title": "Memo Tree",
+    "daily": "Daily",
+    "notes": "Notes"
+  },
   "tabs": {
-    "taskTree": "Tasktree",
+    "taskTree": "Task Tree",
+    "memoTree": "Memo Tree",
     "tasks": "Tasks",
     "schedule": "Schedule",
     "incomplete": "Incomplete",
@@ -670,7 +676,7 @@
   "contextMenu": {
     "rename": "Rename",
     "addTask": "Add Task",
-    "addFolder": "Add Folder",
+    "addFolder": "Add Project",
     "completeFolder": "Complete Folder",
     "markIncomplete": "Mark Incomplete",
     "startTimer": "Start Timer",

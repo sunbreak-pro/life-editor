@@ -22,6 +22,7 @@ interface ShortcutConfigContextValue {
   setBinding: (id: ShortcutId, binding: KeyBinding) => void;
   resetBinding: (id: ShortcutId) => void;
   resetAll: () => void;
+  saveAllBindings: (newConfig: ShortcutConfig) => void;
   matchEvent: (e: KeyboardEvent, id: ShortcutId) => boolean;
   getDisplayString: (id: ShortcutId, showMac?: boolean) => string;
   findConflict: (
@@ -154,6 +155,11 @@ export function ShortcutConfigProvider({ children }: { children: ReactNode }) {
     saveConfig({});
   }, []);
 
+  const saveAllBindings = useCallback((newConfig: ShortcutConfig) => {
+    setConfig(newConfig);
+    saveConfig(newConfig);
+  }, []);
+
   const matchEvent = useCallback(
     (e: KeyboardEvent, id: ShortcutId): boolean => {
       const binding = config[id] ?? getDefinition(id)?.defaultBinding;
@@ -195,6 +201,7 @@ export function ShortcutConfigProvider({ children }: { children: ReactNode }) {
       setBinding,
       resetBinding,
       resetAll,
+      saveAllBindings,
       matchEvent,
       getDisplayString,
       findConflict,
@@ -205,6 +212,7 @@ export function ShortcutConfigProvider({ children }: { children: ReactNode }) {
       setBinding,
       resetBinding,
       resetAll,
+      saveAllBindings,
       matchEvent,
       getDisplayString,
       findConflict,

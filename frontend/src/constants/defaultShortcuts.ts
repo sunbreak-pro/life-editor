@@ -95,14 +95,13 @@ export const DEFAULT_SHORTCUTS: ShortcutDefinition[] = [
     defaultBinding: { code: "Period", meta: true, shift: true },
     activeInInput: true,
   },
-  // Terminal (readonly)
+  // Terminal
   {
-    id: "terminal:new-pane",
+    id: "terminal:new-tab",
     category: "terminal",
-    descriptionKey: "tips.shortcutsTab.terminalNewPane",
+    descriptionKey: "tips.shortcutsTab.terminalNewTab",
     defaultBinding: { code: "KeyT", meta: true },
     activeInInput: true,
-    readonly: true,
   },
   {
     id: "terminal:close-pane",
@@ -110,7 +109,6 @@ export const DEFAULT_SHORTCUTS: ShortcutDefinition[] = [
     descriptionKey: "tips.shortcutsTab.terminalClosePane",
     defaultBinding: { code: "KeyW", meta: true },
     activeInInput: true,
-    readonly: true,
   },
   {
     id: "terminal:split-vertical",
@@ -118,7 +116,6 @@ export const DEFAULT_SHORTCUTS: ShortcutDefinition[] = [
     descriptionKey: "tips.shortcutsTab.terminalSplitVertical",
     defaultBinding: { code: "KeyD", meta: true },
     activeInInput: true,
-    readonly: true,
   },
   {
     id: "terminal:split-horizontal",
@@ -126,16 +123,14 @@ export const DEFAULT_SHORTCUTS: ShortcutDefinition[] = [
     descriptionKey: "tips.shortcutsTab.terminalSplitHorizontal",
     defaultBinding: { code: "KeyD", meta: true, shift: true },
     activeInInput: true,
-    readonly: true,
   },
-  // Task Tree (readonly)
+  // Task Tree
   {
     id: "tree:move-up",
     category: "taskTree",
     descriptionKey: "tips.shortcutsTab.moveBetweenTasks",
     defaultBinding: { key: "ArrowUp" },
     activeInInput: false,
-    readonly: true,
   },
   {
     id: "tree:move-down",
@@ -143,7 +138,6 @@ export const DEFAULT_SHORTCUTS: ShortcutDefinition[] = [
     descriptionKey: "tips.shortcutsTab.moveBetweenTasks",
     defaultBinding: { key: "ArrowDown" },
     activeInInput: false,
-    readonly: true,
   },
   {
     id: "tree:expand",
@@ -151,7 +145,6 @@ export const DEFAULT_SHORTCUTS: ShortcutDefinition[] = [
     descriptionKey: "tips.shortcutsTab.expandFolder",
     defaultBinding: { key: "ArrowRight" },
     activeInInput: false,
-    readonly: true,
   },
   {
     id: "tree:collapse",
@@ -159,7 +152,6 @@ export const DEFAULT_SHORTCUTS: ShortcutDefinition[] = [
     descriptionKey: "tips.shortcutsTab.collapseFolder",
     defaultBinding: { key: "ArrowLeft" },
     activeInInput: false,
-    readonly: true,
   },
   {
     id: "tree:toggle-complete",
@@ -167,7 +159,6 @@ export const DEFAULT_SHORTCUTS: ShortcutDefinition[] = [
     descriptionKey: "tips.shortcutsTab.toggleTaskCompletion",
     defaultBinding: { key: "Enter", meta: true },
     activeInInput: false,
-    readonly: true,
   },
   {
     id: "tree:indent",
@@ -175,7 +166,6 @@ export const DEFAULT_SHORTCUTS: ShortcutDefinition[] = [
     descriptionKey: "tips.shortcutsTab.indent",
     defaultBinding: { key: "Tab" },
     activeInInput: false,
-    readonly: true,
   },
   {
     id: "tree:outdent",
@@ -183,16 +173,14 @@ export const DEFAULT_SHORTCUTS: ShortcutDefinition[] = [
     descriptionKey: "tips.shortcutsTab.outdent",
     defaultBinding: { key: "Tab", shift: true },
     activeInInput: false,
-    readonly: true,
   },
-  // Edit (readonly)
+  // Edit
   {
     id: "edit:undo",
     category: "edit",
     descriptionKey: "tips.shortcutsTab.undoTaskTree",
     defaultBinding: { code: "KeyZ", meta: true },
     activeInInput: false,
-    readonly: true,
   },
   {
     id: "edit:redo",
@@ -200,7 +188,6 @@ export const DEFAULT_SHORTCUTS: ShortcutDefinition[] = [
     descriptionKey: "tips.shortcutsTab.redoTaskTree",
     defaultBinding: { code: "KeyZ", meta: true, shift: true },
     activeInInput: false,
-    readonly: true,
   },
   // Calendar
   {
