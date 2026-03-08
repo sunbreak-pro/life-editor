@@ -1,4 +1,4 @@
-# Sonic Flow
+# Life Editor
 
 ## 概要
 

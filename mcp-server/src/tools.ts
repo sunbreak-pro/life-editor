@@ -11,6 +11,11 @@ import { listNotes, createNote, updateNote } from "./handlers/noteHandlers.js";
 import { listSchedule } from "./handlers/scheduleHandlers.js";
 import { searchAll } from "./handlers/searchHandlers.js";
 import { generateContent, formatContent } from "./handlers/contentHandlers.js";
+import {
+  listWikiTags,
+  tagEntity,
+  searchByTag,
+} from "./handlers/wikiTagHandlers.js";
 
 export const TOOLS: Tool[] = [
   {
@@ -361,6 +366,54 @@ export const TOOLS: Tool[] = [
     },
   },
   {
+    name: "list_wiki_tags",
+    description:
+      "List all wiki tags. Tags are cross-domain labels that connect tasks, memos, and notes.",
+    inputSchema: {
+      type: "object" as const,
+      properties: {
+        query: {
+          type: "string",
+          description: "Filter by tag name (optional)",
+        },
+      },
+    },
+  },
+  {
+    name: "tag_entity",
+    description:
+      "Assign a wiki tag to a task, memo, or note. Creates the tag if it doesn't exist.",
+    inputSchema: {
+      type: "object" as const,
+      properties: {
+        tag_name: { type: "string", description: "Tag name" },
+        entity_id: { type: "string", description: "Entity ID" },
+        entity_type: {
+          type: "string",
+          enum: ["task", "memo", "note"],
+          description: "Entity type",
+        },
+      },
+      required: ["tag_name", "entity_id", "entity_type"],
+    },
+  },
+  {
+    name: "search_by_tag",
+    description: "Search for tasks, memos, and notes by wiki tag name.",
+    inputSchema: {
+      type: "object" as const,
+      properties: {
+        tag_name: { type: "string", description: "Tag name to search" },
+        entity_type: {
+          type: "string",
+          enum: ["task", "memo", "note"],
+          description: "Filter by entity type (optional)",
+        },
+      },
+      required: ["tag_name"],
+    },
+  },
+  {
     name: "format_content",
     description:
       "Read and restructure existing note/memo content. Supports wrapping in callout/toggle, adding headings, inserting blocks, or replacing all content.",
@@ -478,6 +531,15 @@ export function callTool(
       result = generateContent(
         args as unknown as Parameters<typeof generateContent>[0],
       );
+      break;
+    case "list_wiki_tags":
+      result = listWikiTags(args as Parameters<typeof listWikiTags>[0]);
+      break;
+    case "tag_entity":
+      result = tagEntity(args as Parameters<typeof tagEntity>[0]);
+      break;
+    case "search_by_tag":
+      result = searchByTag(args as Parameters<typeof searchByTag>[0]);
       break;
     case "format_content":
       result = formatContent(

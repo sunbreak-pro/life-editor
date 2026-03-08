@@ -9,7 +9,7 @@ let db: Database.Database | null = null;
 export function getDatabase(): Database.Database {
   if (db) return db;
 
-  const dbPath = path.join(app.getPath("userData"), "sonic-flow.db");
+  const dbPath = path.join(app.getPath("userData"), "life-editor.db");
   log.info(`[DB] Opening database at: ${dbPath}`);
 
   try {

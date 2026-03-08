@@ -1,5 +1,28 @@
 # HISTORY.md - 変更履歴
 
+### 2026-03-09 - [[]] Wiki Tag 基盤構築 (Phase 0)
+
+#### 概要
+
+Obsidian の `[[]]` 記法を導入し、Task/Note/Memo を横断的に繋ぐ Wiki Tag システムを構築。DB（V23マイグレーション）、IPC、DataService、Context/Hook、TipTap Extension、サジェストUI、Settings タグ管理、MCP Server 3ツール、Calendar ディレクトリタグ削除まで全14ステップを一括実装。（計画書: docs/archive/025-memo-task-tag.md）
+
+#### 変更点
+
+- **DB (V23)**: `wiki_tags` + `wiki_tag_assignments` テーブル作成。V9 backup テーブルからの条件付きデータ移行
+- **Repository**: `wikiTagRepository.ts` — CRUD, merge, syncInlineTags（トランザクション内差分同期）
+- **IPC**: 10チャネル追加（fetchAll, search, create, update, delete, merge, fetchForEntity, setForEntity, syncInline, fetchAllAssignments）
+- **DataService**: インターフェース10メソッド + ElectronDataService IPC実装
+- **Context/Hook**: WikiTagProvider, useWikiTagAPI, useWikiTags, useWikiTagSync
+- **TipTap Extension**: WikiTag（inline atom ノード）+ WikiTagView（ReactNodeViewRenderer）
+- **サジェスト**: useWikiTagSuggestion（`[[` 検出、`]]` 自動確定、キーボードナビ）+ WikiTagSuggestionMenu
+- **MemoEditor統合**: WikiTag extension追加、entityType prop追加、全3呼び出し元（Task/Memo/Note）に反映
+- **Settings**: 「Tags」タブ追加。WikiTagManager（CRUD + merge UI）
+- **ヘッダータグ表示**: WikiTagList + WikiTagChip を TaskDetailPanel, DailyMemoView, NotesView に配置
+- **Calendar**: TimeGridTaskBlock, TaskPreviewPopup から folderTag 表示を削除
+- **MCP Server**: list_wiki_tags, tag_entity, search_by_tag の3ツール追加
+- **CSS**: `.wiki-tag` インラインスタイル（hover でアクセントカラー反転）
+- **i18n**: en.json/ja.json に `wikiTags` セクション追加
+
 ### 2026-03-09 - Schedule セクション昇格 + UI リファクタリング
 
 #### 概要

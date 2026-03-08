@@ -12,6 +12,7 @@ import { DurationPicker } from "../../shared/DurationPicker";
 import { MiniCalendarGrid } from "../../shared/MiniCalendarGrid";
 import { formatDuration } from "../../../utils/duration";
 import { TaskDetailEmpty } from "./TaskDetailEmpty";
+import { WikiTagList } from "../../WikiTags/WikiTagList";
 
 interface TaskDetailPanelProps {
   selectedNodeId: string | null;
@@ -139,6 +140,9 @@ function TaskSidebarContent({
           }
         />
       )}
+
+      {/* Wiki Tags */}
+      <WikiTagList entityId={node.id} entityType="task" />
 
       {/* Folder color picker */}
       {node.parentId && (

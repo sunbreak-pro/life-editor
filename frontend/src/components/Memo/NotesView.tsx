@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import { useNoteContext } from "../../hooks/useNoteContext";
 import { formatDateTime } from "../../utils/formatRelativeDate";
 import { LazyMemoEditor as MemoEditor } from "../Tasks/TaskDetail/LazyMemoEditor";
+import { WikiTagList } from "../WikiTags/WikiTagList";
 
 export function NotesView() {
   const { t } = useTranslation();
@@ -57,6 +58,11 @@ export function NotesView() {
             </button>
           </div>
 
+          {/* Wiki Tags */}
+          <div className="mb-2">
+            <WikiTagList entityId={selectedNote.id} entityType="note" />
+          </div>
+
           {/* Date info */}
           <div className="flex items-center gap-3 text-[11px] text-notion-text-secondary/60 mb-3">
             {selectedNote.createdAt && (
@@ -86,6 +92,7 @@ export function NotesView() {
               taskId={selectedNote.id}
               initialContent={selectedNote.content}
               onUpdate={handleContentUpdate}
+              entityType="note"
             />
           </Suspense>
         </div>

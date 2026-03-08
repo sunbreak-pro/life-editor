@@ -16,6 +16,10 @@ import {
   Table2,
   ImageIcon,
 } from "lucide-react";
+import {
+  getStoredHeadingFontSize,
+  setStoredHeadingFontSize,
+} from "../../../utils/headingFontSize";
 
 export interface SubAction {
   label: string;
@@ -28,6 +32,7 @@ export interface PanelCommand {
   description: string;
   group: string;
   action: (editor: Editor) => void;
+  check?: (editor: Editor) => boolean;
   subActions?: SubAction[];
 }
 
@@ -36,13 +41,14 @@ export function headingSubActions(level: 1 | 2 | 3): SubAction[] {
   return [
     ...presets.map((size) => ({
       label: size,
-      action: (ed: Editor) =>
-        ed
-          .chain()
+      action: (ed: Editor) => {
+        setStoredHeadingFontSize(level, size);
+        ed.chain()
           .focus()
           .setHeading({ level })
           .updateAttributes("heading", { fontSize: size })
-          .run(),
+          .run();
+      },
     })),
     {
       label: "Custom...",

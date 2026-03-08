@@ -25,6 +25,7 @@ import type {
   IpcChannelMetrics,
   SystemInfo,
 } from "../types/diagnostics";
+import type { WikiTag, WikiTagAssignment } from "../types/wikiTag";
 
 export interface DataService {
   // Tasks
@@ -247,6 +248,29 @@ export interface DataService {
   ): Promise<PlaylistItem>;
   removePlaylistItem(itemId: string): Promise<void>;
   reorderPlaylistItems(playlistId: string, itemIds: string[]): Promise<void>;
+
+  // Wiki Tags
+  fetchWikiTags(): Promise<WikiTag[]>;
+  searchWikiTags(query: string): Promise<WikiTag[]>;
+  createWikiTag(name: string, color: string): Promise<WikiTag>;
+  updateWikiTag(
+    id: string,
+    updates: Partial<Pick<WikiTag, "name" | "color">>,
+  ): Promise<WikiTag>;
+  deleteWikiTag(id: string): Promise<void>;
+  mergeWikiTags(sourceId: string, targetId: string): Promise<WikiTag>;
+  fetchWikiTagsForEntity(entityId: string): Promise<WikiTag[]>;
+  setWikiTagsForEntity(
+    entityId: string,
+    entityType: string,
+    tagIds: string[],
+  ): Promise<void>;
+  syncInlineWikiTags(
+    entityId: string,
+    entityType: string,
+    tagNames: string[],
+  ): Promise<void>;
+  fetchAllWikiTagAssignments(): Promise<WikiTagAssignment[]>;
 
   // Data I/O
   exportData(): Promise<boolean>;

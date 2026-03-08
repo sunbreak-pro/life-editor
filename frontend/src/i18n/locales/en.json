@@ -805,5 +805,21 @@
     "created": "Created",
     "updated": "Updated",
     "loadingEditor": "Loading editor..."
+  },
+  "wikiTags": {
+    "title": "Tags",
+    "description": "Manage wiki tags used across tasks, memos, and notes. Type [[tag name]] in any editor to create inline tags.",
+    "selectOrCreate": "Select or create a tag",
+    "createNew": "Create",
+    "create": "Create",
+    "addTag": "Add tag",
+    "searchPlaceholder": "Search tags...",
+    "tagNamePlaceholder": "Tag name...",
+    "noResults": "No tags found",
+    "empty": "No tags yet. Type [[tag name]] in an editor to create one.",
+    "deleteConfirm": "Delete \"{{name}}\"?",
+    "merge": "Merge",
+    "mergeSelectTarget": "Click another tag to merge into",
+    "mergeInto": "Merge here"
   }
 }

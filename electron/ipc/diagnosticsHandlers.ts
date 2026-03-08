@@ -74,7 +74,7 @@ export function registerDiagnosticsHandlers(db: Database.Database): void {
 
       const result = await dialog.showSaveDialog(win, {
         title: "Export Logs",
-        defaultPath: `sonic-flow-logs-${new Date().toISOString().slice(0, 10)}.log`,
+        defaultPath: `life-editor-logs-${new Date().toISOString().slice(0, 10)}.log`,
         filters: [{ name: "Log Files", extensions: ["log", "txt"] }],
       });
 
@@ -103,7 +103,7 @@ export function registerDiagnosticsHandlers(db: Database.Database): void {
   ipcMain.handle(
     "diagnostics:fetchSystemInfo",
     loggedHandler("Diagnostics", "fetchSystemInfo", () => {
-      const dbPath = path.join(app.getPath("userData"), "sonic-flow.db");
+      const dbPath = path.join(app.getPath("userData"), "life-editor.db");
       let dbSizeBytes = 0;
       if (fs.existsSync(dbPath)) {
         dbSizeBytes = fs.statSync(dbPath).size;

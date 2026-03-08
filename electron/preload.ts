@@ -98,6 +98,17 @@ const ALLOWED_CHANNELS = new Set([
   "db:customSound:fetchDeleted",
   "db:customSound:restore",
   "db:customSound:permanentDelete",
+  // Wiki Tags
+  "db:wikiTags:fetchAll",
+  "db:wikiTags:search",
+  "db:wikiTags:create",
+  "db:wikiTags:update",
+  "db:wikiTags:delete",
+  "db:wikiTags:merge",
+  "db:wikiTags:fetchForEntity",
+  "db:wikiTags:setForEntity",
+  "db:wikiTags:syncInline",
+  "db:wikiTags:fetchAllAssignments",
   // Calendars
   "db:calendars:fetchAll",
   "db:calendars:create",

@@ -1,5 +1,5 @@
-appId: com.sonicflow.app
-productName: Sonic Flow
+appId: com.lifeeditor.app
+productName: Life Editor
 directories:
   output: release
   buildResources: resources
@@ -40,7 +40,7 @@ dmg:
   window:
     width: 540
     height: 380
-  title: "Sonic Flow ${version}"
+  title: "Life Editor ${version}"
 
 win:
   target:

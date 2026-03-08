@@ -4,6 +4,7 @@ import { useMemoContext } from "../../hooks/useMemoContext";
 import { formatDateTime } from "../../utils/formatRelativeDate";
 import { formatDateHeading } from "../../utils/dateKey";
 import { LazyMemoEditor as MemoEditor } from "../Tasks/TaskDetail/LazyMemoEditor";
+import { WikiTagList } from "../WikiTags/WikiTagList";
 
 export function DailyMemoView() {
   const { selectedDate, selectedMemo, upsertMemo } = useMemoContext();
@@ -28,6 +29,11 @@ export function DailyMemoView() {
           </p>
         )}
         {!selectedMemo?.updatedAt && <div className="mb-4" />}
+        {selectedMemo && (
+          <div className="mb-3">
+            <WikiTagList entityId={selectedMemo.id} entityType="memo" />
+          </div>
+        )}
         <Suspense
           fallback={
             <div className="text-notion-text-secondary text-sm">
@@ -39,6 +45,7 @@ export function DailyMemoView() {
             taskId={selectedDate}
             initialContent={selectedMemo?.content}
             onUpdate={handleUpdate}
+            entityType="memo"
           />
         </Suspense>
       </div>

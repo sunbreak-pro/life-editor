@@ -23,8 +23,12 @@ import {
 import { Callout } from "../../../extensions/Callout";
 import { CustomHeading } from "../../../extensions/CustomHeading";
 import { CustomInputRules } from "../../../extensions/InputRules";
+import { WikiTag } from "../../../extensions/WikiTag";
 import { SlashCommandMenu } from "./SlashCommandMenu";
 import { BubbleToolbar } from "./BubbleToolbar";
+import { WikiTagSuggestionMenu } from "../../WikiTags/WikiTagSuggestionMenu";
+import { useWikiTagSync } from "../../../hooks/useWikiTagSync";
+import type { WikiTagEntityType } from "../../../types/wikiTag";
 
 // Disable markdown input rules so ** / * / ~~ / ` don't auto-convert
 const BoldNoInputRules = Bold.extend({
@@ -58,12 +62,14 @@ interface MemoEditorProps {
   taskId: string;
   initialContent?: string;
   onUpdate: (content: string) => void;
+  entityType?: WikiTagEntityType;
 }
 
 export function MemoEditor({
   taskId,
   initialContent,
   onUpdate,
+  entityType = "task",
 }: MemoEditorProps) {
   const debounceRef = useRef<number | null>(null);
   const onUpdateRef = useRef(onUpdate);
@@ -133,6 +139,7 @@ export function MemoEditor({
         ToggleSummary,
         ToggleContent,
         Callout,
+        WikiTag,
         CustomInputRules,
       ],
       content: initialContent ? tryParseJSON(initialContent) : undefined,
@@ -156,11 +163,14 @@ export function MemoEditor({
     [taskId],
   );
 
+  useWikiTagSync(editor, taskId, entityType);
+
   return (
     <div className="relative">
       <EditorContent editor={editor} />
       {editor && <BubbleToolbar editor={editor} />}
       {editor && <SlashCommandMenu editor={editor} />}
+      {editor && <WikiTagSuggestionMenu editor={editor} />}
     </div>
   );
 }

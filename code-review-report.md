@@ -1,4 +1,4 @@
-# Sonic Flow コードレビューレポート
+# Life Editor コードレビューレポート
 
 **調査日:** 2026-02-22
 **対象:** Electron メインプロセス / IPC / データベース / フロントエンド全体
@@ -7,7 +7,7 @@
 
 ## 概要
 
-Sonic Flow のコードベース全体を調査し、設計上の問題点・コード重複・セキュリティ脆弱性を洗い出しました。全体的なセキュリティ基盤（contextIsolation, sandbox, CSP, パラメタライズドクエリ）は良好ですが、いくつかの重要な問題が見つかりました。
+Life Editor のコードベース全体を調査し、設計上の問題点・コード重複・セキュリティ脆弱性を洗い出しました。全体的なセキュリティ基盤（contextIsolation, sandbox, CSP, パラメタライズドクエリ）は良好ですが、いくつかの重要な問題が見つかりました。
 
 ---
 
@@ -80,6 +80,7 @@ V17 で `schedule_items.template_id` に `routine_templates` への FK を設定
 ### 2-5. インデックス不足（MEDIUM）
 
 以下のカラムにインデックスがない:
+
 - `tasks.status`（フィルタリングで頻用）
 - `tasks.scheduled_at`（カレンダー表示で頻用）
 - `tasks.due_date`（V5 追加だがインデックスなし）
@@ -175,37 +176,41 @@ Tasks/Notes/Memos/Routines は `is_deleted` + `deleted_at` を使用。Playlists
 ## 5. 対応優先度
 
 ### Phase 1: 即時対応（セキュリティ）
-| # | 問題 | 深刻度 |
-|---|------|--------|
-| 1-1 | パストラバーサル修正 | HIGH |
+
+| #   | 問題                         | 深刻度   |
+| --- | ---------------------------- | -------- |
+| 1-1 | パストラバーサル修正         | HIGH     |
 | 2-3 | schedule_items FK 参照先修正 | CRITICAL |
-| 3-2 | 楽観的更新のロールバック | CRITICAL |
-| 3-4 | サイレントエラーの修正 | CRITICAL |
+| 3-2 | 楽観的更新のロールバック     | CRITICAL |
+| 3-4 | サイレントエラーの修正       | CRITICAL |
 
 ### Phase 2: 次スプリント（データ整合性）
-| # | 問題 | 深刻度 |
-|---|------|--------|
-| 1-2 | インポートデータ検証強化 | HIGH |
-| 2-1 | tasks.parent_id FK 追加 | HIGH |
-| 2-2 | マイグレーション全体のトランザクション化 | HIGH |
-| 2-4 | memos UNIQUE 制約の修正 | HIGH |
-| 3-3 | TimerContext 分割 | HIGH |
+
+| #   | 問題                                     | 深刻度 |
+| --- | ---------------------------------------- | ------ |
+| 1-2 | インポートデータ検証強化                 | HIGH   |
+| 2-1 | tasks.parent_id FK 追加                  | HIGH   |
+| 2-2 | マイグレーション全体のトランザクション化 | HIGH   |
+| 2-4 | memos UNIQUE 制約の修正                  | HIGH   |
+| 3-3 | TimerContext 分割                        | HIGH   |
 
 ### Phase 3: 中期（設計改善）
-| # | 問題 | 深刻度 |
-|---|------|--------|
+
+| #   | 問題                       | 深刻度 |
+| --- | -------------------------- | ------ |
 | 1-4 | エラーメッセージサニタイズ | MEDIUM |
-| 2-5 | インデックス追加 | MEDIUM |
-| 3-1 | Context Provider 再構成 | HIGH |
-| 4-1 | リポジトリ層の共通化 | MEDIUM |
-| 4-2 | Undo/Redo 共通化 | MEDIUM |
+| 2-5 | インデックス追加           | MEDIUM |
+| 3-1 | Context Provider 再構成    | HIGH   |
+| 4-1 | リポジトリ層の共通化       | MEDIUM |
+| 4-2 | Undo/Redo 共通化           | MEDIUM |
 
 ### Phase 4: 長期（品質向上）
-| # | 問題 | 深刻度 |
-|---|------|--------|
-| 2-6 | クエリのページネーション | MEDIUM |
-| 2-7 | customSound の SQLite 移行 | MEDIUM |
-| 4-4 | N+1 クエリ解消 | MEDIUM |
+
+| #   | 問題                         | 深刻度 |
+| --- | ---------------------------- | ------ |
+| 2-6 | クエリのページネーション     | MEDIUM |
+| 2-7 | customSound の SQLite 移行   | MEDIUM |
+| 4-4 | N+1 クエリ解消               | MEDIUM |
 | 4-5 | DataService キャッシュ層追加 | MEDIUM |
 
 ---

@@ -1,7 +1,6 @@
 import type { TaskNode } from "../../../../types/taskTree";
 import { getTextColorForBg } from "../../../../constants/folderColors";
 import { formatTimeRangeCompact } from "../../../../utils/formatSchedule";
-import { truncateFolderTag } from "../../../../utils/folderTag";
 
 interface TimeGridTaskBlockProps {
   task: TaskNode;
@@ -21,7 +20,6 @@ export function TimeGridTaskBlock({
   left,
   width,
   color,
-  tag,
   onClick,
 }: TimeGridTaskBlockProps) {
   const bgColor = color ?? "#E0E7FF";
@@ -54,11 +52,6 @@ export function TimeGridTaskBlock({
         {!isCompact && task.scheduledAt && (
           <div className="text-[10px] truncate opacity-70">
             {formatTimeRangeCompact(task.scheduledAt, task.scheduledEndAt)}
-          </div>
-        )}
-        {!isCompact && tag && (
-          <div className="text-[10px] truncate opacity-70">
-            {truncateFolderTag(tag)}
           </div>
         )}
       </div>

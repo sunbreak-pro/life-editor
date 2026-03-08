@@ -10,6 +10,7 @@ import { TerminalManager } from "./terminal/TerminalManager";
 import { registerTerminalHandlers } from "./ipc/terminalHandlers";
 import { registerClaudeSetupHandlers } from "./ipc/claudeSetupHandlers";
 import { registerMcpServer } from "./services/claudeSetup";
+import { migrateUserData } from "./migration/renameMigration";
 
 const isDev = !app.isPackaged;
 const terminalManager = new TerminalManager();
@@ -74,6 +75,7 @@ app
   .whenReady()
   .then(() => {
     setupCSP();
+    migrateUserData();
 
     try {
       const db = getDatabase();

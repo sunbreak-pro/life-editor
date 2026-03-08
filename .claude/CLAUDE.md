@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## プロジェクト概要
 
-Notionライクなタスク管理 + 環境音ミキサー + プレイリスト + ポモドーロタイマーを組み合わせた没入型個人タスク管理デスクトップアプリ（Sonic Flow）。Electron + SQLite でスタンドアロン動作（バックエンドサーバー不要）。
+Notionライクなタスク管理 + 環境音ミキサー + プレイリスト + ポモドーロタイマーを組み合わせた没入型個人タスク管理デスクトップアプリ（Life Editor）。Electron + SQLite でスタンドアロン動作（バックエンドサーバー不要）。
 
 **Life Editor v2 テーマ: 「AIと一緒に生活を設計する」** — アプリ内ターミナルから Claude Code を起動し、MCP Server 経由で自然言語でタスク・スケジュール・メモを操作可能。
 
@@ -26,7 +26,7 @@ cd mcp-server && npm run build       # MCP Server ビルド
 
 ### 全体構成
 
-Renderer (React 19 + Vite) → Preload (contextBridge) → Main Process (Electron 35) → Repository層 (better-sqlite3 → `userData/sonic-flow.db`)
+Renderer (React 19 + Vite) → Preload (contextBridge) → Main Process (Electron 35) → Repository層 (better-sqlite3 → `userData/life-editor.db`)
 
 #### Terminal Manager (node-pty)
 

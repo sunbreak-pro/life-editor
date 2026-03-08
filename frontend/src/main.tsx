@@ -1,6 +1,7 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import "./index.css";
+import "./utils/migrateStorageKeys";
 import "./i18n";
 import App from "./App.tsx";
 import { ErrorBoundary } from "./components/shared/ErrorBoundary";
@@ -14,6 +15,7 @@ import { NoteProvider } from "./context/NoteContext";
 import { ScheduleProvider } from "./context/ScheduleContext";
 import { CalendarProvider } from "./context/CalendarContext";
 import { ShortcutConfigProvider } from "./hooks/useShortcutConfig";
+import { WikiTagProvider } from "./context/WikiTagContext";
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
@@ -27,9 +29,11 @@ createRoot(document.getElementById("root")!).render(
                   <ScheduleProvider>
                     <TimerProvider>
                       <AudioProvider>
-                        <ShortcutConfigProvider>
-                          <App />
-                        </ShortcutConfigProvider>
+                        <WikiTagProvider>
+                          <ShortcutConfigProvider>
+                            <App />
+                          </ShortcutConfigProvider>
+                        </WikiTagProvider>
                       </AudioProvider>
                     </TimerProvider>
                   </ScheduleProvider>

@@ -225,6 +225,25 @@ body {
   margin-top: 0.5rem;
 }
 
+/* Wiki Tag */
+.memo-editor .wiki-tag {
+  display: inline;
+  padding: 0.1rem 0.35rem;
+  border-radius: 0.25rem;
+  background-color: var(--color-hover);
+  color: var(--color-accent);
+  font-weight: 500;
+  font-size: 0.9em;
+  cursor: pointer;
+  transition: background-color 0.15s;
+  white-space: nowrap;
+}
+
+.memo-editor .wiki-tag:hover {
+  background-color: var(--color-accent);
+  color: #fff;
+}
+
 /* Callout */
 .memo-editor .callout {
   display: flex;

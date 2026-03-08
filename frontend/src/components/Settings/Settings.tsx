@@ -29,6 +29,7 @@ import {
   CalendarDays,
   Undo2,
   Redo2,
+  Tags,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import type { TabItem } from "../shared/SectionTabs";
@@ -56,6 +57,7 @@ import { isMac } from "../../utils/platform";
 import { RightSidebarContext } from "../../context/RightSidebarContext";
 import type { ShortcutCategory } from "../../types/shortcut";
 import { useSettingsHistory } from "../../hooks/useSettingsHistory";
+import { WikiTagManager } from "../WikiTags/WikiTagManager";
 
 type SettingsTab =
   | "general"
@@ -65,6 +67,7 @@ type SettingsTab =
   | "claude"
   | "shortcuts"
   | "tips"
+  | "tags"
   | "trash";
 
 const TABS = [
@@ -75,6 +78,7 @@ const TABS = [
   { id: "claude", labelKey: "settings.claude.title", icon: Bot },
   { id: "shortcuts", labelKey: "settings.shortcutsTab", icon: Keyboard },
   { id: "tips", labelKey: "tips.title", icon: Lightbulb },
+  { id: "tags", labelKey: "wikiTags.title", icon: Tags },
 ] as const satisfies readonly TabItem<SettingsTab>[];
 
 const RIGHT_TABS = [
@@ -358,6 +362,7 @@ export function Settings({ initialTab }: SettingsProps) {
       );
     }
 
+    if (activeTab === "tags") return <WikiTagManager />;
     if (activeTab === "trash") return <TrashView />;
 
     return null;

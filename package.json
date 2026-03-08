@@ -1,5 +1,5 @@
 {
-  "name": "sonic-flow",
+  "name": "life-editor",
   "version": "1.0.0",
   "description": "Immersive task management app with ambient sounds and pomodoro timer",
   "main": "electron/dist/main.js",

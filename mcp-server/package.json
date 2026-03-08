@@ -1,7 +1,7 @@
 {
   "name": "life-editor-mcp-server",
   "version": "1.0.0",
-  "description": "MCP Server for Life Editor (Sonic Flow)",
+  "description": "MCP Server for Life Editor",
   "type": "module",
   "main": "dist/index.js",
   "scripts": {

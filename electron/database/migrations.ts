@@ -95,6 +95,11 @@ export function runMigrations(db: Database.Database): void {
     migrateV22(db);
   }
 
+  if (currentVersion < 23) {
+    log.info("[DB] Running migration V23");
+    migrateV23(db);
+  }
+
   const newVersion = db.pragma("user_version", { simple: true }) as number;
   if (newVersion !== currentVersion) {
     log.info(`[DB] Schema migrated: ${currentVersion} → ${newVersion}`);
@@ -879,4 +884,119 @@ function migrateV21(db: Database.Database): void {
   });
   migrate();
   db.pragma("user_version = 21");
+}
+
+function migrateV23(db: Database.Database): void {
+  const migrate = db.transaction(() => {
+    // Wiki Tags — unified tag system for tasks, memos, notes
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS wiki_tags (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL UNIQUE,
+        color TEXT NOT NULL DEFAULT '#808080',
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      );
+
+      CREATE TABLE IF NOT EXISTS wiki_tag_assignments (
+        tag_id TEXT NOT NULL,
+        entity_id TEXT NOT NULL,
+        entity_type TEXT NOT NULL,
+        source TEXT NOT NULL DEFAULT 'inline',
+        created_at TEXT NOT NULL,
+        PRIMARY KEY (tag_id, entity_id),
+        FOREIGN KEY (tag_id) REFERENCES wiki_tags(id) ON DELETE CASCADE
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_wta_entity ON wiki_tag_assignments(entity_id);
+      CREATE INDEX IF NOT EXISTS idx_wta_tag ON wiki_tag_assignments(tag_id);
+      CREATE INDEX IF NOT EXISTS idx_wta_type ON wiki_tag_assignments(entity_type);
+    `);
+
+    // Migrate from V9 backup tables if they exist and have data
+    const hasTaskTagDefs = !!db
+      .prepare(
+        `SELECT 1 FROM sqlite_master WHERE type='table' AND name='task_tag_definitions_backup_v9'`,
+      )
+      .get();
+    const hasNoteTagDefs = !!db
+      .prepare(
+        `SELECT 1 FROM sqlite_master WHERE type='table' AND name='note_tag_definitions_backup_v9'`,
+      )
+      .get();
+
+    if (hasTaskTagDefs) {
+      const now = new Date().toISOString();
+      // Migrate task tag definitions
+      const taskTags = db
+        .prepare(`SELECT name, color FROM task_tag_definitions_backup_v9`)
+        .all() as Array<{ name: string; color: string }>;
+      const insertTag = db.prepare(`
+        INSERT OR IGNORE INTO wiki_tags (id, name, color, created_at, updated_at)
+        VALUES (@id, @name, @color, @now, @now)
+      `);
+      for (const tag of taskTags) {
+        insertTag.run({
+          id: `tag-${crypto.randomUUID()}`,
+          name: tag.name,
+          color: tag.color,
+          now,
+        });
+      }
+
+      // Migrate task tag assignments
+      const hasTaskTagAssignments = !!db
+        .prepare(
+          `SELECT 1 FROM sqlite_master WHERE type='table' AND name='task_tags_backup_v9'`,
+        )
+        .get();
+      if (hasTaskTagAssignments) {
+        db.exec(`
+          INSERT OR IGNORE INTO wiki_tag_assignments (tag_id, entity_id, entity_type, source, created_at)
+          SELECT wt.id, tt.task_id, 'task', 'manual', '${now}'
+          FROM task_tags_backup_v9 tt
+          JOIN task_tag_definitions_backup_v9 ttd ON tt.tag_id = ttd.id
+          JOIN wiki_tags wt ON wt.name = ttd.name
+        `);
+      }
+    }
+
+    if (hasNoteTagDefs) {
+      const now = new Date().toISOString();
+      // Migrate note tag definitions (merge by name)
+      const noteTags = db
+        .prepare(`SELECT name, color FROM note_tag_definitions_backup_v9`)
+        .all() as Array<{ name: string; color: string }>;
+      const insertTag = db.prepare(`
+        INSERT OR IGNORE INTO wiki_tags (id, name, color, created_at, updated_at)
+        VALUES (@id, @name, @color, @now, @now)
+      `);
+      for (const tag of noteTags) {
+        insertTag.run({
+          id: `tag-${crypto.randomUUID()}`,
+          name: tag.name,
+          color: tag.color,
+          now,
+        });
+      }
+
+      // Migrate note tag assignments
+      const hasNoteTagAssignments = !!db
+        .prepare(
+          `SELECT 1 FROM sqlite_master WHERE type='table' AND name='note_tags_backup_v9'`,
+        )
+        .get();
+      if (hasNoteTagAssignments) {
+        db.exec(`
+          INSERT OR IGNORE INTO wiki_tag_assignments (tag_id, entity_id, entity_type, source, created_at)
+          SELECT wt.id, nt.note_id, 'note', 'manual', '${now}'
+          FROM note_tags_backup_v9 nt
+          JOIN note_tag_definitions_backup_v9 ntd ON nt.tag_id = ntd.id
+          JOIN wiki_tags wt ON wt.name = ntd.name
+        `);
+      }
+    }
+  });
+  migrate();
+  db.pragma("user_version = 23");
 }

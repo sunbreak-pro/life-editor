@@ -4,7 +4,6 @@ import { useTranslation } from "react-i18next";
 import type { TaskNode } from "../../../../types/taskTree";
 import { useClickOutside } from "../../../../hooks/useClickOutside";
 import { formatScheduleRange } from "../../../../utils/formatSchedule";
-import { truncateFolderTag } from "../../../../utils/folderTag";
 import { ConfirmDialog } from "../../../shared/ConfirmDialog";
 
 interface TaskPreviewPopupProps {
@@ -23,7 +22,6 @@ export function TaskPreviewPopup({
   task,
   position,
   color,
-  folderTag,
   onOpenDetail,
   onStartTimer,
   onDelete,
@@ -75,11 +73,6 @@ export function TaskPreviewPopup({
             >
               {task.status === "DONE" ? "DONE" : "TODO"}
             </span>
-            {folderTag && (
-              <span className="text-[10px] text-notion-text-secondary truncate">
-                {truncateFolderTag(folderTag)}
-              </span>
-            )}
           </div>
         </div>
         <div className="border-t border-notion-border flex">

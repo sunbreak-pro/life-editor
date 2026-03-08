@@ -30,7 +30,7 @@ export function registerDataIOHandlers(db: Database.Database): void {
 
       const result = await dialog.showSaveDialog(win, {
         title: "Export Data",
-        defaultPath: `sonic-flow-export-${formatTimestamp()}.json`,
+        defaultPath: `life-editor-export-${formatTimestamp()}.json`,
         filters: [{ name: "JSON", extensions: ["json"] }],
       });
 
@@ -39,7 +39,7 @@ export function registerDataIOHandlers(db: Database.Database): void {
       const data = {
         version: 1,
         exportedAt: new Date().toISOString(),
-        app: "Sonic Flow",
+        app: "Life Editor",
         data: {
           tasks: safeQuery(db, "SELECT * FROM tasks"),
           timerSettings: safeQueryOne(
@@ -97,8 +97,13 @@ export function registerDataIOHandlers(db: Database.Database): void {
       const imported = JSON.parse(raw);
 
       // Basic validation
-      if (!imported.app || imported.app !== "Sonic Flow" || !imported.data) {
-        throw new Error("Invalid Sonic Flow export file");
+      const validApps = ["Sonic Flow", "Life Editor"];
+      if (
+        !imported.app ||
+        !validApps.includes(imported.app) ||
+        !imported.data
+      ) {
+        throw new Error("Invalid Life Editor export file");
       }
 
       // Version check
@@ -116,10 +121,10 @@ export function registerDataIOHandlers(db: Database.Database): void {
       validateImportData(imported.data);
 
       // Create backup before import
-      const dbPath = path.join(app.getPath("userData"), "sonic-flow.db");
+      const dbPath = path.join(app.getPath("userData"), "life-editor.db");
       const backupPath = path.join(
         app.getPath("userData"),
-        `sonic-flow-backup-${formatTimestamp()}.db`,
+        `life-editor-backup-${formatTimestamp()}.db`,
       );
       if (fs.existsSync(dbPath)) {
         fs.copyFileSync(dbPath, backupPath);
@@ -338,10 +343,10 @@ export function registerDataIOHandlers(db: Database.Database): void {
   ipcMain.handle(
     "data:reset",
     loggedHandler("DataIO", "reset", async () => {
-      const dbPath = path.join(app.getPath("userData"), "sonic-flow.db");
+      const dbPath = path.join(app.getPath("userData"), "life-editor.db");
       const backupPath = path.join(
         app.getPath("userData"),
-        `sonic-flow-backup-${formatTimestamp()}.db`,
+        `life-editor-backup-${formatTimestamp()}.db`,
       );
 
       // Create backup before reset

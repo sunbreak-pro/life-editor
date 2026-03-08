@@ -26,6 +26,7 @@ import type {
   IpcChannelMetrics,
   SystemInfo,
 } from "../types/diagnostics";
+import type { WikiTag, WikiTagAssignment } from "../types/wikiTag";
 
 function invoke<T>(channel: string, ...args: unknown[]): Promise<T> {
   return window.electronAPI!.invoke<T>(channel, ...args);
@@ -442,6 +443,49 @@ export class ElectronDataService implements DataService {
   }
   reorderPlaylistItems(playlistId: string, itemIds: string[]): Promise<void> {
     return invoke("db:playlists:reorderItems", playlistId, itemIds);
+  }
+
+  // Wiki Tags
+  fetchWikiTags(): Promise<WikiTag[]> {
+    return invoke("db:wikiTags:fetchAll");
+  }
+  searchWikiTags(query: string): Promise<WikiTag[]> {
+    return invoke("db:wikiTags:search", query);
+  }
+  createWikiTag(name: string, color: string): Promise<WikiTag> {
+    return invoke("db:wikiTags:create", name, color);
+  }
+  updateWikiTag(
+    id: string,
+    updates: Partial<Pick<WikiTag, "name" | "color">>,
+  ): Promise<WikiTag> {
+    return invoke("db:wikiTags:update", id, updates);
+  }
+  deleteWikiTag(id: string): Promise<void> {
+    return invoke("db:wikiTags:delete", id);
+  }
+  mergeWikiTags(sourceId: string, targetId: string): Promise<WikiTag> {
+    return invoke("db:wikiTags:merge", sourceId, targetId);
+  }
+  fetchWikiTagsForEntity(entityId: string): Promise<WikiTag[]> {
+    return invoke("db:wikiTags:fetchForEntity", entityId);
+  }
+  setWikiTagsForEntity(
+    entityId: string,
+    entityType: string,
+    tagIds: string[],
+  ): Promise<void> {
+    return invoke("db:wikiTags:setForEntity", entityId, entityType, tagIds);
+  }
+  syncInlineWikiTags(
+    entityId: string,
+    entityType: string,
+    tagNames: string[],
+  ): Promise<void> {
+    return invoke("db:wikiTags:syncInline", entityId, entityType, tagNames);
+  }
+  fetchAllWikiTagAssignments(): Promise<WikiTagAssignment[]> {
+    return invoke("db:wikiTags:fetchAllAssignments");
   }
 
   // Data I/O

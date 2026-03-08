@@ -33,7 +33,7 @@ function getMcpServerPath(): string {
 }
 
 function getDbPath(): string {
-  return path.join(app.getPath("userData"), "sonic-flow.db");
+  return path.join(app.getPath("userData"), "life-editor.db");
 }
 
 function getLifeEditorDir(): string {

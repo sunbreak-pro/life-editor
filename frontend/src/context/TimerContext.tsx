@@ -20,7 +20,7 @@ function sendNotification(body: string) {
   ) {
     const enabled = localStorage.getItem(STORAGE_KEYS.NOTIFICATIONS_ENABLED);
     if (enabled === "true") {
-      new Notification("Sonic Flow", { body });
+      new Notification("Life Editor", { body });
     }
   }
 }

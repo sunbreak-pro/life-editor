@@ -66,6 +66,7 @@ export function TaskDetail({
               taskId={task.id}
               initialContent={task.content}
               onUpdate={(content) => onUpdateContent?.(content)}
+              entityType="task"
             />
           </Suspense>
         </div>

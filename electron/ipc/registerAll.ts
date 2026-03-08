@@ -30,6 +30,8 @@ import { createScheduleItemRepository } from "../database/scheduleItemRepository
 import { registerScheduleItemHandlers } from "./scheduleItemHandlers";
 import { createPlaylistRepository } from "../database/playlistRepository";
 import { registerPlaylistHandlers } from "./playlistHandlers";
+import { createWikiTagRepository } from "../database/wikiTagRepository";
+import { registerWikiTagHandlers } from "./wikiTagHandlers";
 import { wrapHandler } from "./ipcMetrics";
 
 export function registerAllHandlers(db: Database.Database): void {
@@ -88,6 +90,7 @@ export function registerAllHandlers(db: Database.Database): void {
       () => registerScheduleItemHandlers(createScheduleItemRepository(db)),
     ],
     ["Playlists", () => registerPlaylistHandlers(createPlaylistRepository(db))],
+    ["WikiTags", () => registerWikiTagHandlers(createWikiTagRepository(db))],
   ];
 
   for (const [name, register] of registrations) {
