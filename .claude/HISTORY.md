@@ -1,5 +1,22 @@
 # HISTORY.md - 変更履歴
 
+### 2026-03-09 - 未コミット変更の一括コミット（v2 機能群）
+
+#### 概要
+
+feature/life-editor-v2 ブランチに蓄積していた未コミット変更（66ファイル、+3918/-431行）を調査・分類し、一括コミット＋プッシュを実施。
+
+#### 変更点
+
+- **WikiTag Connections**: タグ間接続の CRUD + ReactFlow グラフ可視化（Connect タブ）、DB マイグレーション V25
+- **Ideas セクション再構成**: 4タブ（Daily/Notes/Search/Tags）→ 2タブ（Materials/Connect）に統合、MaterialsSidebar 新設
+- **タグテキストカラー**: WikiTag/RoutineTag/SoundTag に textColor フィールド追加、DB マイグレーション V24
+- **メモピン機能**: Daily Memo のピン留め/解除 + Undo/Redo 対応、DB マイグレーション V26
+- **UnifiedColorPicker**: 背景色+テキスト色の共通カラーピッカーコンポーネント抽出
+- **エディタカスタマイズ**: フォントサイズ・ファミリー・行間・パディングの設定 UI + ThemeContext 拡張
+- **Undo/Redo 改善**: タグ CRUD・ルーティン削除の Undo 対応、useSettingsHistory の統合
+- **IPC 拡張**: wikiTagConnections / memo:togglePin / wikiTags:createWithId / wikiTags:restoreAssignment
+
 ### 2026-03-09 - code-refactoring スキル改善（frontend-refactoring 分離）
 
 #### 概要
