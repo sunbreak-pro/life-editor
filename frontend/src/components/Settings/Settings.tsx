@@ -29,7 +29,6 @@ import {
   CalendarDays,
   Undo2,
   Redo2,
-  Tags,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import type { TabItem } from "../shared/SectionTabs";
@@ -57,37 +56,23 @@ import { isMac } from "../../utils/platform";
 import { RightSidebarContext } from "../../context/RightSidebarContext";
 import type { ShortcutCategory } from "../../types/shortcut";
 import { useSettingsHistory } from "../../hooks/useSettingsHistory";
-import { WikiTagManager } from "../WikiTags/WikiTagManager";
+// メインタブ（5つ）
+type SettingsTab = "general" | "advanced" | "claude" | "shortcuts" | "tips";
 
-type SettingsTab =
-  | "general"
-  | "notifications"
-  | "data"
-  | "advanced"
-  | "claude"
-  | "shortcuts"
-  | "tips"
-  | "tags"
-  | "trash";
+// initialTab prop 用（レガシー値の受け入れ）
+type SettingsInitialTab = SettingsTab | "trash" | "data" | "notifications";
 
 const TABS = [
   { id: "general", labelKey: "settings.general", icon: Settings2 },
-  { id: "notifications", labelKey: "settings.notificationsTab", icon: Bell },
-  { id: "data", labelKey: "settings.dataTab", icon: Database },
   { id: "advanced", labelKey: "settings.advancedTab", icon: Wrench },
   { id: "claude", labelKey: "settings.claude.title", icon: Bot },
   { id: "shortcuts", labelKey: "settings.shortcutsTab", icon: Keyboard },
   { id: "tips", labelKey: "tips.title", icon: Lightbulb },
-  { id: "tags", labelKey: "wikiTags.title", icon: Tags },
-] as const satisfies readonly TabItem<SettingsTab>[];
-
-const RIGHT_TABS = [
-  { id: "trash", labelKey: "sidebar.trash", icon: Trash2 },
 ] as const satisfies readonly TabItem<SettingsTab>[];
 
 // Sub-navigation items for each settings tab
-type GeneralSub = "appearance" | "language";
-type AdvancedSub = "updates" | "performance" | "logs";
+type GeneralSub = "appearance" | "language" | "notifications";
+type AdvancedSub = "data" | "updates" | "performance" | "logs" | "trash";
 type ClaudeSub = "setup" | "mcpTools" | "claudeMd" | "skills";
 type TipsSub = "tasks" | "work" | "memo" | "analytics";
 type ShortcutsSub =
@@ -101,11 +86,14 @@ type ShortcutsSub =
 const GENERAL_SUBS: readonly TabItem<GeneralSub>[] = [
   { id: "appearance", labelKey: "settings.appearance", icon: Palette },
   { id: "language", labelKey: "settings.language", icon: Languages },
+  { id: "notifications", labelKey: "notifications.title", icon: Bell },
 ];
 const ADVANCED_SUBS: readonly TabItem<AdvancedSub>[] = [
+  { id: "data", labelKey: "data.title", icon: Database },
   { id: "updates", labelKey: "updates.title", icon: Download },
   { id: "performance", labelKey: "performance.title", icon: Gauge },
   { id: "logs", labelKey: "logs.title", icon: FileText },
+  { id: "trash", labelKey: "sidebar.trash", icon: Trash2 },
 ];
 const CLAUDE_SUBS: readonly TabItem<ClaudeSub>[] = [
   { id: "setup", labelKey: "settings.claude.setup", icon: Cog },
@@ -135,12 +123,6 @@ const SHORTCUTS_SUBS: readonly TabItem<ShortcutsSub>[] = [
     icon: CalendarDays,
   },
 ];
-const NOTIFICATION_SUBS: readonly TabItem<"notifications">[] = [
-  { id: "notifications", labelKey: "notifications.title", icon: Bell },
-];
-const DATA_SUBS: readonly TabItem<"data">[] = [
-  { id: "data", labelKey: "data.title", icon: Database },
-];
 
 // Map sidebar shortcutsSub id to ShortcutCategory for filtering
 const SHORTCUTS_SUB_TO_CATEGORY: Record<ShortcutsSub, ShortcutCategory> = {
@@ -152,25 +134,45 @@ const SHORTCUTS_SUB_TO_CATEGORY: Record<ShortcutsSub, ShortcutCategory> = {
   calendar: "calendar",
 };
 
+function resolveInitialTab(initialTab: SettingsInitialTab | undefined): {
+  tab: SettingsTab;
+  generalSub?: GeneralSub;
+  advancedSub?: AdvancedSub;
+} {
+  switch (initialTab) {
+    case "trash":
+      return { tab: "advanced", advancedSub: "trash" };
+    case "data":
+      return { tab: "advanced", advancedSub: "data" };
+    case "notifications":
+      return { tab: "general", generalSub: "notifications" };
+    case undefined:
+      return { tab: "general" };
+    default:
+      return { tab: initialTab };
+  }
+}
+
 interface SettingsProps {
-  initialTab?: SettingsTab;
+  initialTab?: SettingsInitialTab;
 }
 
 export function Settings({ initialTab }: SettingsProps) {
-  const [activeTab, setActiveTab] = useState<SettingsTab>(
-    initialTab ?? "general",
-  );
+  const resolved = resolveInitialTab(initialTab);
+  const [activeTab, setActiveTab] = useState<SettingsTab>(resolved.tab);
   const { t } = useTranslation();
   const { portalTarget: rightSidebarTarget } = useContext(RightSidebarContext);
 
   // Sub-navigation states
-  const [generalSub, setGeneralSub] = useState<GeneralSub>("appearance");
-  const [advancedSub, setAdvancedSub] = useState<AdvancedSub>("updates");
+  const [generalSub, setGeneralSub] = useState<GeneralSub>(
+    resolved.generalSub ?? "appearance",
+  );
+  const [advancedSub, setAdvancedSub] = useState<AdvancedSub>(
+    resolved.advancedSub ?? "data",
+  );
   const [claudeSub, setClaudeSub] = useState<ClaudeSub>("setup");
   const [tipsSub, setTipsSub] = useState<TipsSub>("tasks");
   const [shortcutsSub, setShortcutsSub] = useState<ShortcutsSub>("global");
-  const [, setNotificationSub] = useState<"notifications">("notifications");
-  const [, setDataSub] = useState<"data">("data");
   const [showMac] = useState(isMac);
   const [settingsKey, setSettingsKey] = useState(0);
 
@@ -182,14 +184,16 @@ export function Settings({ initialTab }: SettingsProps) {
     useSettingsHistory(handleHistoryApply);
 
   useEffect(() => {
-    if (initialTab) setActiveTab(initialTab);
+    if (initialTab) {
+      const r = resolveInitialTab(initialTab);
+      setActiveTab(r.tab);
+      if (r.generalSub) setGeneralSub(r.generalSub);
+      if (r.advancedSub) setAdvancedSub(r.advancedSub);
+    }
   }, [initialTab]);
 
   // Render sidebar content based on active tab
   const renderSidebarContent = () => {
-    // TrashView handles its own portal
-    if (activeTab === "trash") return null;
-
     switch (activeTab) {
       case "general":
         return (
@@ -231,22 +235,6 @@ export function Settings({ initialTab }: SettingsProps) {
             onItemChange={setShortcutsSub}
           />
         );
-      case "notifications":
-        return (
-          <VerticalNavList
-            items={NOTIFICATION_SUBS}
-            activeItem={"notifications"}
-            onItemChange={setNotificationSub}
-          />
-        );
-      case "data":
-        return (
-          <VerticalNavList
-            items={DATA_SUBS}
-            activeItem={"data"}
-            onItemChange={setDataSub}
-          />
-        );
       default:
         return null;
     }
@@ -256,45 +244,52 @@ export function Settings({ initialTab }: SettingsProps) {
   const renderContent = () => {
     if (activeTab === "general") {
       if (rightSidebarTarget) {
-        // Show only selected sub-section
         switch (generalSub) {
           case "appearance":
             return <AppearanceSettings />;
           case "language":
             return <LanguageSettings />;
+          case "notifications":
+            return <NotificationSettings />;
         }
       }
-      // Fallback: show all
       return (
         <div className="space-y-8">
           <AppearanceSettings />
           <div className="border-t border-notion-border" />
           <LanguageSettings />
+          <div className="border-t border-notion-border" />
+          <NotificationSettings />
         </div>
       );
     }
 
-    if (activeTab === "notifications") return <NotificationSettings />;
-    if (activeTab === "data") return <DataManagement />;
-
     if (activeTab === "advanced") {
       if (rightSidebarTarget) {
         switch (advancedSub) {
+          case "data":
+            return <DataManagement />;
           case "updates":
             return <UpdateSettings />;
           case "performance":
             return <PerformanceMonitor />;
           case "logs":
             return <LogViewer />;
+          case "trash":
+            return <TrashView />;
         }
       }
       return (
         <div className="space-y-8">
+          <DataManagement />
+          <div className="border-t border-notion-border" />
           <UpdateSettings />
           <div className="border-t border-notion-border" />
           <PerformanceMonitor />
           <div className="border-t border-notion-border" />
           <LogViewer />
+          <div className="border-t border-notion-border" />
+          <TrashView />
         </div>
       );
     }
@@ -362,9 +357,6 @@ export function Settings({ initialTab }: SettingsProps) {
       );
     }
 
-    if (activeTab === "tags") return <WikiTagManager />;
-    if (activeTab === "trash") return <TrashView />;
-
     return null;
   };
 
@@ -381,7 +373,6 @@ export function Settings({ initialTab }: SettingsProps) {
       <SectionHeader
         title={t("settings.title")}
         tabs={TABS}
-        rightTabs={RIGHT_TABS}
         activeTab={activeTab}
         onTabChange={setActiveTab}
         actions={

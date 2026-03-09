@@ -1,5 +1,20 @@
 # HISTORY.md - 変更履歴
 
+### 2026-03-09 - Settings タブ統合リファクタリング（9→5タブ）
+
+#### 概要
+
+Settings のヘッダータブを9個から5個に削減。Notifications→General、Data+Trash→Advancedに統合し、Tagsタブを削除して認知負荷を低減。
+
+#### 変更点
+
+- **リファクタリング**: `frontend/src/components/Settings/Settings.tsx` — メインタブを General/Advanced/Claude/Shortcuts/Tips の5つに統合
+- **General タブ**: Appearance/Language に加え Notifications をサブナビ項目として吸収
+- **Advanced タブ**: Updates/Performance/Logs に加え Data/Trash をサブナビ項目として吸収
+- **削除**: Notifications/Data/Tags/Trash（右寄せ）の独立タブ、`RIGHT_TABS`、`NOTIFICATION_SUBS`、`DATA_SUBS`、`WikiTagManager` import
+- **追加**: `resolveInitialTab` ヘルパー — レガシー `initialTab` 値（"trash"/"data"/"notifications"）を新タブ構成にマッピング
+- **型定義**: `SettingsInitialTab` 型を追加し後方互換性を維持
+
 ### 2026-03-09 - BubbleToolbar CommandPanel統合 + Heading Font Size永続化
 
 #### 概要
