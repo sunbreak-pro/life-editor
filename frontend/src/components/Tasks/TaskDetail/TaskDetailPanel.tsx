@@ -67,23 +67,25 @@ export function TaskDetailPanel({
 
   return (
     <div className="h-full flex flex-col bg-notion-bg">
-      <div className="flex-1 overflow-y-auto p-4">
-        {!node ? (
-          <TaskDetailEmpty />
-        ) : node.type === "task" ? (
-          <TaskSidebarContent
-            node={node}
-            nodes={nodes}
-            updateNode={updateNode}
-            moveNodeInto={moveNodeInto}
-            moveToRoot={moveToRoot}
-            softDelete={softDelete}
-            onPlayTask={onPlayTask}
-            globalWorkDuration={timer.workDurationMinutes}
-          />
-        ) : (
-          <FolderSidebarContent node={node} updateNode={updateNode} />
-        )}
+      <div className="flex-1 overflow-y-auto">
+        <div className="max-w-3xl mx-auto px-8 py-6">
+          {!node ? (
+            <TaskDetailEmpty />
+          ) : node.type === "task" ? (
+            <TaskSidebarContent
+              node={node}
+              nodes={nodes}
+              updateNode={updateNode}
+              moveNodeInto={moveNodeInto}
+              moveToRoot={moveToRoot}
+              softDelete={softDelete}
+              onPlayTask={onPlayTask}
+              globalWorkDuration={timer.workDurationMinutes}
+            />
+          ) : (
+            <FolderSidebarContent node={node} updateNode={updateNode} />
+          )}
+        </div>
       </div>
     </div>
   );
@@ -152,7 +154,16 @@ function TaskSidebarContent({
       {/* Header section */}
       <div className="space-y-3 pb-4 border-b border-notion-border mb-4">
         {/* Row 1: Breadcrumb */}
-        <div className="flex items-center gap-1.5 min-h-[24px]">
+        <div className="flex items-center gap-1.5 min-h-6">
+          <FolderMovePicker
+            currentFolderId={node.parentId}
+            onMove={handleMove}
+            trigger={
+              <span className="p-1 text-notion-text-secondary hover:text-notion-text hover:bg-notion-hover rounded transition-colors cursor-pointer">
+                <FolderOpen size={14} />
+              </span>
+            }
+          />
           <div className="flex items-center gap-1 text-xs text-notion-text-secondary flex-1 min-w-0">
             {ancestors.length > 0 ? (
               ancestors.map((ancestor, i) => (
@@ -202,15 +213,6 @@ function TaskSidebarContent({
               </span>
             )}
           </div>
-          <FolderMovePicker
-            currentFolderId={node.parentId}
-            onMove={handleMove}
-            trigger={
-              <span className="p-1 text-notion-text-secondary hover:text-notion-text hover:bg-notion-hover rounded transition-colors cursor-pointer">
-                <FolderOpen size={14} />
-              </span>
-            }
-          />
         </div>
 
         {/* Row 2: Title */}

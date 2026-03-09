@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { Plus } from "lucide-react";
+import { Plus, Tag } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useWikiTags } from "../../hooks/useWikiTags";
 import { WikiTagChip } from "./WikiTagChip";
@@ -104,20 +104,23 @@ export function WikiTagList({ entityId, entityType }: WikiTagListProps) {
   );
   const showCreateOption = search.length > 0 && !hasExactMatch;
 
-  if (entityTags.length === 0 && !showPicker) {
-    return (
-      <button
-        onClick={() => setShowPicker(true)}
-        className="text-[11px] text-notion-text-secondary hover:text-notion-text flex items-center gap-0.5 transition-colors"
-      >
-        <Plus size={11} />
-        {t("wikiTags.addTag")}
-      </button>
-    );
-  }
-
   return (
     <div className="flex items-center gap-1 flex-wrap relative">
+      <button
+        onClick={() => setShowPicker(!showPicker)}
+        className="p-0.5 text-notion-text-secondary hover:text-notion-text transition-colors shrink-0"
+        title={t("wikiTags.addTag")}
+      >
+        <Tag size={12} />
+      </button>
+      {entityTags.length === 0 && !showPicker && (
+        <button
+          onClick={() => setShowPicker(true)}
+          className="text-[11px] text-notion-text-secondary hover:text-notion-text transition-colors"
+        >
+          {t("wikiTags.addTag")}
+        </button>
+      )}
       {entityTags.map((tag) => (
         <div key={tag.id} className="relative">
           <WikiTagChip
@@ -142,7 +145,11 @@ export function WikiTagList({ entityId, entityType }: WikiTagListProps) {
                     if (e.key === "Enter") handleEditSave();
                     if (e.key === "Escape") setEditingTag(null);
                   }}
-                  onBlur={handleEditSave}
+                  onBlur={(e) => {
+                    if (editRef.current?.contains(e.relatedTarget as Node))
+                      return;
+                    handleEditSave();
+                  }}
                   className="w-full text-xs px-2 py-1 rounded bg-notion-hover text-notion-text outline-none"
                   autoFocus
                 />
@@ -157,12 +164,14 @@ export function WikiTagList({ entityId, entityType }: WikiTagListProps) {
           )}
         </div>
       ))}
-      <button
-        onClick={() => setShowPicker(!showPicker)}
-        className="p-0.5 text-notion-text-secondary hover:text-notion-text transition-colors"
-      >
-        <Plus size={12} />
-      </button>
+      {entityTags.length > 0 && (
+        <button
+          onClick={() => setShowPicker(!showPicker)}
+          className="p-0.5 text-notion-text-secondary hover:text-notion-text transition-colors"
+        >
+          <Plus size={12} />
+        </button>
+      )}
 
       {showPicker && (
         <div

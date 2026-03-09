@@ -2,13 +2,13 @@
 
 :root {
   --color-bg-primary: #ffffff;
-  --color-bg-secondary: #f4f4f5;
-  --color-bg-subsidebar: #fafafa;
+  --color-bg-secondary: #eef2f7;
+  --color-bg-subsidebar: #f5f7fa;
   --color-text-primary: #18181b;
   --color-text-secondary: #71717a;
-  --color-border: #e4e4e7;
+  --color-border: #dbe1ea;
   --color-accent: #2eaadc;
-  --color-hover: #f4f4f5;
+  --color-hover: #e8edf4;
   --color-success: #0f7b6c;
   --color-danger: #e03e3e;
   --color-calendar-header: #f87171;
@@ -289,27 +289,37 @@ body {
   font-weight: 500;
   font-size: 0.85em;
   cursor: pointer;
-  transition: all 0.1s ease;
+  transition:
+    filter 0.1s ease,
+    opacity 0.1s ease;
   white-space: nowrap;
   vertical-align: middle;
   border: 1px solid transparent;
+  position: relative;
 }
 
 .memo-editor .wiki-tag-modern:hover {
-  background-color: color-mix(in srgb, var(--color-accent) 10%, transparent);
-  color: var(--color-accent);
-  border-color: color-mix(in srgb, var(--color-accent) 20%, transparent);
+  filter: brightness(0.92);
+  opacity: 0.85;
 }
 
 .memo-editor .wiki-tag-symbol {
-  color: var(--color-text-secondary);
   font-size: 0.9em;
   font-weight: 600;
-  opacity: 0.7;
 }
 
-.memo-editor .wiki-tag-modern:hover .wiki-tag-symbol {
-  color: var(--color-accent);
+.memo-editor .wiki-tag-edit-popup {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  margin-top: 4px;
+  z-index: 50;
+  background: var(--color-bg-primary);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  width: 13rem;
+  overflow: hidden;
 }
 
 /* Callout */

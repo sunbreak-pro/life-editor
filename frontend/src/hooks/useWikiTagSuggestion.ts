@@ -98,6 +98,8 @@ export function useWikiTagSuggestion(
         return;
       }
 
+      if (editor.view.composing) return;
+
       const { state } = editor;
       const { $head } = state.selection;
       const textBefore = $head.parent.textContent.slice(0, $head.parentOffset);
@@ -156,6 +158,7 @@ export function useWikiTagSuggestion(
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (!isOpen) return;
+      if (e.isComposing || e.keyCode === 229) return;
 
       if (e.key === "ArrowDown") {
         e.preventDefault();

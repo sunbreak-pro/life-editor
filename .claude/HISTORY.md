@@ -1,5 +1,19 @@
 # HISTORY.md - 変更履歴
 
+### 2026-03-09 - WikiTag色反映・IMEバグ修正・Tagアイコン・ライトテーマ改善
+
+#### 概要
+
+RichEditor内WikiTagへの色反映と編集ポップアップ追加、日本語IMEでのテキスト重複バグ修正、Tagアイコン常時表示、ライトモードの青灰色テーマ改善の4点を実施。
+
+#### 変更点
+
+- **WikiTagView**: `useWikiTags()` でタグ色をリアルタイム取得しinline style適用。クリックで名前・色の編集ポップアップ表示
+- **IMEバグ修正**: `useWikiTagSuggestion.ts` — `handleTransaction` に `editor.view.composing` ガード、`handleKeyDown` に `e.isComposing || e.keyCode === 229` ガード追加
+- **Tagアイコン**: `WikiTagList.tsx` — `Tag` アイコンを先頭に常時表示。タグなし時は `[Tag] +Add tag`、タグあり時は `[Tag] [chips] [+]`
+- **ライトテーマ**: `:root` の `--color-bg-secondary`, `--color-bg-subsidebar`, `--color-border`, `--color-hover` に淡い青灰色を適用
+- **CSS**: `.wiki-tag-modern` の hover を `filter: brightness(0.92) + opacity: 0.85` に汎用化、`.wiki-tag-edit-popup` スタイル追加
+
 ### 2026-03-09 - Settings タブ統合リファクタリング（9→5タブ）
 
 #### 概要
