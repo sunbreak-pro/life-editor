@@ -1,5 +1,40 @@
 # HISTORY.md - 変更履歴
 
+### 2026-03-09 - Connect タブ実装 + 不要ファイル削除
+
+#### 概要
+
+Ideas セクションに Connect タブを実装し、WikiTag 間の共起関係を可視化・管理する機能を追加。旧 SearchTabView.tsx / TagsTabView.tsx を削除。
+
+#### 変更点
+
+- **ConnectTabView.tsx**: WikiTag 間の共起関係を表示する新タブコンポーネント
+- **Connect/**: ConnectGraph, ConnectList, ConnectDetail 等のサブコンポーネント群
+- **useWikiTagConnections.ts**: WikiTag 接続データの取得・管理フック
+- **useTagCooccurrence.ts**: タグ共起分析フック
+- **useConnectSearch.ts**: Connect タブ内検索フック
+- **wikiTagConnectionRepository.ts**: WikiTag 接続の DB リポジトリ
+- **wikiTagConnectionHandlers.ts**: IPC ハンドラ
+- **不要ファイル削除**: SearchTabView.tsx, TagsTabView.tsx を削除（機能は ConnectTabView に統合）
+
+### 2026-03-09 - Undo/Redo システム統一化
+
+#### 概要
+
+2つの独立したUndo/Redoシステム（共通UndoRedoManager + Settings独自スナップショット）を共通UndoRedoManagerに統一。WikiTag全操作とRoutine/RoutineTag削除にUndo/Redoを追加。
+
+#### 変更点
+
+- **Phase 1 - types.ts**: UndoDomain に `"settings"` と `"wikiTag"` を追加
+- **Phase 3 - useRoutines.ts**: `deleteRoutine` に undo/redo 追加（soft delete → restore パターン）
+- **Phase 3 - useRoutineTags.ts**: `deleteRoutineTag` に undo/redo 追加（mutable currentId で autoincrement ID 追跡）
+- **Phase 2 - useSettingsHistory.ts**: 独自スタックを削除、共通 UndoRedoManager に委譲（queueMicrotask で after snapshot 取得）
+- **Phase 2 - Settings.tsx**: 独自 Undo/Redo ボタンを削除（TitleBar の共通ボタンに統合）
+- **Phase 2 - TitleBar.tsx**: SECTION_UNDO_DOMAIN に `schedule` と `settings` を追加
+- **Phase 4a - Backend**: `wikiTagRepository.ts` に `createWithId` と `restoreAssignment` を追加、IPC ハンドラ・preload・DataService・ElectronDataService に対応メソッド追加
+- **Phase 4b - useWikiTagAPI.ts**: createTag/updateTag/deleteTag/mergeTags/setTagsForEntity の5操作に undo/redo 追加
+- **Phase 5 - TagsTabView.tsx**: `setActiveDomain("wikiTag")` でタグタブ表示時の Cmd+Z ルーティング対応
+
 ### 2026-03-09 - タグが edit-popup の上に表示される問題の修正
 
 #### 概要
