@@ -8,6 +8,7 @@
     "analytics": "分析",
     "settings": "設定",
     "tips": "ヒント",
+    "ideas": "アイデア",
     "trash": "ゴミ箱",
     "freeSession": "フリーセッション"
   },
@@ -219,6 +220,16 @@
     "daily": "日記",
     "notes": "ノート"
   },
+  "ideas": {
+    "title": "アイデア",
+    "daily": "日記",
+    "notes": "ノート",
+    "search": "検索",
+    "tags": "タグ",
+    "searchPlaceholder": "タグ名で検索...",
+    "noSearchResults": "結果が見つかりません",
+    "selectTagToSearch": "タグを選択して検索"
+  },
   "schedule": {
     "todayFlow": "Today Flow",
     "dayFlow": "Day Flow",
@@ -289,6 +300,7 @@
     "timer": "タイマー",
     "schedule": "スケジュール",
     "memo": "メモ",
+    "ideas": "アイデア",
     "analytics": "分析",
     "editor": "エディタ",
     "showMac": "macOS",
@@ -309,6 +321,7 @@
       "closeModal": "モーダル/ダイアログを閉じる",
       "goToTasks": "タスクへ移動",
       "goToMemo": "メモへ移動",
+      "goToIdeas": "アイデアへ移動",
       "goToWork": "ワークへ移動",
       "goToSchedule": "スケジュールへ移動",
       "goToAnalytics": "分析へ移動",
@@ -603,7 +616,8 @@
     "dayflow": "デイフロー",
     "routine": "ルーティン",
     "overview": "概要",
-    "detail": "詳細"
+    "detail": "詳細",
+    "tree": "ツリー"
   },
   "commandPalette": {
     "placeholder": "コマンドを入力...",

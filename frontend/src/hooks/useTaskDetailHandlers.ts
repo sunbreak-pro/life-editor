@@ -175,7 +175,7 @@ export function useTaskDetailHandlers({
   const handleCalendarSelectMemo = useCallback(
     (date: string) => {
       setMemoDate(date);
-      setActiveSection("memo");
+      setActiveSection("ideas");
     },
     [setMemoDate, setActiveSection],
   );
@@ -183,8 +183,8 @@ export function useTaskDetailHandlers({
   const handleCalendarSelectNote = useCallback(
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     (_noteId: string) => {
-      localStorage.setItem(STORAGE_KEYS.MEMO_TAB, "notes");
-      setActiveSection("memo");
+      localStorage.setItem(STORAGE_KEYS.IDEAS_TAB, "notes");
+      setActiveSection("ideas");
     },
     [setActiveSection],
   );

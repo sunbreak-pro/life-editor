@@ -7,7 +7,7 @@ import type { UndoDomain } from "../shared/UndoRedo";
 
 const SECTION_UNDO_DOMAIN: Partial<Record<SectionId, UndoDomain>> = {
   tasks: "taskTree",
-  memo: "memo",
+  ideas: "memo",
   work: "playlist",
 };
 

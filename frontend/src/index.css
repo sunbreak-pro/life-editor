@@ -300,7 +300,6 @@ body {
 
 .memo-editor .wiki-tag-modern:hover {
   filter: brightness(0.92);
-  opacity: 0.85;
 }
 
 .memo-editor .wiki-tag-symbol {
@@ -320,6 +319,9 @@ body {
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
   width: 13rem;
   overflow: hidden;
+  opacity: 1;
+  pointer-events: auto;
+  filter: none;
 }
 
 /* Callout */

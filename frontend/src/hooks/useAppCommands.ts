@@ -7,7 +7,7 @@ import { useShortcutConfig } from "./useShortcutConfig";
 import {
   ListTodo,
   Calendar,
-  StickyNote,
+  Lightbulb,
   BarChart3,
   Settings as SettingsIcon,
   Plus,
@@ -68,12 +68,12 @@ export function useAppCommands({
         action: () => setActiveSection("schedule"),
       },
       {
-        id: "nav-memo",
-        title: "Go to Memo",
+        id: "nav-ideas",
+        title: "Go to Ideas",
         category: "Navigation",
-        shortcut: getDisplayString("nav:memo"),
-        icon: StickyNote,
-        action: () => setActiveSection("memo"),
+        shortcut: getDisplayString("nav:ideas"),
+        icon: Lightbulb,
+        action: () => setActiveSection("ideas"),
       },
       {
         id: "nav-work",
@@ -111,7 +111,7 @@ export function useAppCommands({
         title: "Go to Trash",
         category: "Navigation",
         icon: Trash2,
-        action: () => setActiveSection("trash"),
+        action: () => setActiveSection("settings"),
       },
       {
         id: "task-create",

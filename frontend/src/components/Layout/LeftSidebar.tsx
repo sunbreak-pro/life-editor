@@ -1,7 +1,7 @@
 import {
   CheckSquare,
   Calendar,
-  BookOpen,
+  Lightbulb,
   Play,
   BarChart3,
   Settings,
@@ -24,7 +24,7 @@ const mainMenuItems: {
 }[] = [
   { id: "tasks", labelKey: "sidebar.tasks", icon: CheckSquare },
   { id: "schedule", labelKey: "sidebar.schedule", icon: Calendar },
-  { id: "memo", labelKey: "sidebar.memo", icon: BookOpen },
+  { id: "ideas", labelKey: "sidebar.ideas", icon: Lightbulb },
   { id: "work", labelKey: "sidebar.work", icon: Play },
   { id: "analytics", labelKey: "sidebar.analytics", icon: BarChart3 },
 ];
@@ -57,7 +57,10 @@ export function LeftSidebar({
                     : "text-notion-text-secondary hover:bg-notion-hover/80 hover:text-notion-text"
                 }`}
               >
-                <Icon size={18} className={`transition-colors ${isActive ? "text-notion-accent" : ""}`} />
+                <Icon
+                  size={18}
+                  className={`transition-colors ${isActive ? "text-notion-accent" : ""}`}
+                />
                 <span>{t(item.labelKey)}</span>
               </button>
 

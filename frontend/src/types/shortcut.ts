@@ -9,7 +9,7 @@ export type ShortcutId =
   // Navigation
   | "nav:tasks"
   | "nav:schedule"
-  | "nav:memo"
+  | "nav:ideas"
   | "nav:work"
   | "nav:analytics"
   // View

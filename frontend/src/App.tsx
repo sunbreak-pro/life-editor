@@ -8,7 +8,7 @@ import { WorkScreen } from "./components/Work";
 import { SessionCompletionModal } from "./components/Work/SessionCompletionModal";
 import { Settings } from "./components/Settings";
 import { AnalyticsView } from "./components/Analytics/AnalyticsView";
-import { MemoView } from "./components/Memo";
+import { IdeasView } from "./components/Ideas";
 import { CommandPalette } from "./components/CommandPalette/CommandPalette";
 import { UpdateNotification } from "./components/UpdateNotification";
 import { useTimerContext } from "./hooks/useTimerContext";
@@ -114,14 +114,27 @@ function App() {
             onSelectTask={setSelectedTaskId}
           />
         );
-      case "memo":
-        return <MemoView />;
+      case "ideas":
+        return (
+          <IdeasView
+            onNavigateToTask={(taskId) => {
+              setSelectedTaskId(taskId);
+              setActiveSection("tasks");
+            }}
+            onNavigateToMemo={(date) => {
+              setMemoDate(date);
+              setActiveSection("ideas");
+              localStorage.setItem(STORAGE_KEYS.IDEAS_TAB, "daily");
+            }}
+            onNavigateToNote={() => {
+              localStorage.setItem(STORAGE_KEYS.IDEAS_TAB, "notes");
+            }}
+          />
+        );
       case "work":
         return <WorkScreen onCompleteTask={handlers.handleCompleteTask} />;
       case "analytics":
         return <AnalyticsView />;
-      case "trash":
-        return <Settings initialTab="trash" />;
       case "settings":
         return <Settings />;
       default:

@@ -19,7 +19,6 @@ import {
   Puzzle,
   CheckSquare,
   Timer,
-  BookOpen,
   BarChart3,
   Globe,
   Compass,
@@ -74,7 +73,7 @@ const TABS = [
 type GeneralSub = "appearance" | "language" | "notifications";
 type AdvancedSub = "data" | "updates" | "performance" | "logs" | "trash";
 type ClaudeSub = "setup" | "mcpTools" | "claudeMd" | "skills";
-type TipsSub = "tasks" | "work" | "memo" | "analytics";
+type TipsSub = "tasks" | "work" | "ideas" | "analytics";
 type ShortcutsSub =
   | "global"
   | "navigation"
@@ -104,7 +103,7 @@ const CLAUDE_SUBS: readonly TabItem<ClaudeSub>[] = [
 const TIPS_SUBS: readonly TabItem<TipsSub>[] = [
   { id: "tasks", labelKey: "tips.tasks", icon: CheckSquare },
   { id: "work", labelKey: "tips.work", icon: Timer },
-  { id: "memo", labelKey: "tips.memo", icon: BookOpen },
+  { id: "ideas", labelKey: "tips.ideas", icon: Lightbulb },
   { id: "analytics", labelKey: "tips.analytics", icon: BarChart3 },
 ];
 const SHORTCUTS_SUBS: readonly TabItem<ShortcutsSub>[] = [
@@ -327,7 +326,7 @@ export function Settings({ initialTab }: SettingsProps) {
             return <TasksTipsTab showMac={showMac} />;
           case "work":
             return <WorkTipsTab showMac={showMac} />;
-          case "memo":
+          case "ideas":
             return <MemoTipsTab />;
           case "analytics":
             return <AnalyticsTab showMac={showMac} />;
@@ -340,6 +339,7 @@ export function Settings({ initialTab }: SettingsProps) {
           <WorkTipsTab showMac={showMac} />
           <div className="border-t border-notion-border" />
           <MemoTipsTab />
+          {/* Ideas tips reuse MemoTipsTab */}
           <div className="border-t border-notion-border" />
           <AnalyticsTab showMac={showMac} />
         </div>

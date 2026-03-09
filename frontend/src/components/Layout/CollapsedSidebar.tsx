@@ -1,7 +1,7 @@
 import {
   CheckSquare,
   Calendar,
-  BookOpen,
+  Lightbulb,
   Play,
   BarChart3,
   Settings,
@@ -21,7 +21,7 @@ const mainItems: {
 }[] = [
   { id: "tasks", labelKey: "sidebar.tasks", icon: CheckSquare },
   { id: "schedule", labelKey: "sidebar.schedule", icon: Calendar },
-  { id: "memo", labelKey: "sidebar.memo", icon: BookOpen },
+  { id: "ideas", labelKey: "sidebar.ideas", icon: Lightbulb },
   { id: "work", labelKey: "sidebar.work", icon: Play },
   { id: "analytics", labelKey: "sidebar.analytics", icon: BarChart3 },
 ];

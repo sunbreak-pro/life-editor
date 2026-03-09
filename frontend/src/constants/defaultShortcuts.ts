@@ -60,9 +60,9 @@ export const DEFAULT_SHORTCUTS: ShortcutDefinition[] = [
     activeInInput: true,
   },
   {
-    id: "nav:memo",
+    id: "nav:ideas",
     category: "navigation",
-    descriptionKey: "tips.shortcutsTab.goToMemo",
+    descriptionKey: "tips.shortcutsTab.goToIdeas",
     defaultBinding: { key: "3", meta: true },
     activeInInput: true,
   },

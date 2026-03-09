@@ -4,7 +4,7 @@ import {
   Keyboard,
   ListTodo,
   Briefcase,
-  StickyNote,
+  Lightbulb,
   BarChart3,
 } from "lucide-react";
 import type { TabItem } from "../shared/SectionTabs";
@@ -21,7 +21,7 @@ const TABS = [
   { id: "shortcuts", labelKey: "tips.shortcuts", icon: Keyboard },
   { id: "tasks", labelKey: "tips.tasks", icon: ListTodo },
   { id: "work", labelKey: "tips.work", icon: Briefcase },
-  { id: "memo", labelKey: "tips.memo", icon: StickyNote },
+  { id: "ideas", labelKey: "tips.ideas", icon: Lightbulb },
   { id: "analytics", labelKey: "tips.analytics", icon: BarChart3 },
 ] as const satisfies readonly TabItem[];
 
@@ -40,7 +40,7 @@ export function Tips() {
         return <TasksTipsTab showMac={showMac} />;
       case "work":
         return <WorkTipsTab showMac={showMac} />;
-      case "memo":
+      case "ideas":
         return <MemoTipsTab />;
       case "analytics":
         return <AnalyticsTab showMac={showMac} />;

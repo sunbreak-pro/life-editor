@@ -70,9 +70,9 @@ export function useAppKeyboardShortcuts({
         setActiveSection("schedule");
         return;
       }
-      if (matchEvent(e, "nav:memo")) {
+      if (matchEvent(e, "nav:ideas")) {
         e.preventDefault();
-        setActiveSection("memo");
+        setActiveSection("ideas");
         return;
       }
       if (matchEvent(e, "nav:work")) {

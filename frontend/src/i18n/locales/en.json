@@ -8,6 +8,7 @@
     "analytics": "Analytics",
     "settings": "Settings",
     "tips": "Tips",
+    "ideas": "Ideas",
     "trash": "Trash",
     "freeSession": "Free Session"
   },
@@ -219,6 +220,16 @@
     "daily": "Daily",
     "notes": "Notes"
   },
+  "ideas": {
+    "title": "Ideas",
+    "daily": "Daily",
+    "notes": "Notes",
+    "search": "Search",
+    "tags": "Tags",
+    "searchPlaceholder": "Search by tag name...",
+    "noSearchResults": "No results found",
+    "selectTagToSearch": "Select a tag to search"
+  },
   "schedule": {
     "todayFlow": "Today Flow",
     "dayFlow": "Day Flow",
@@ -289,6 +300,7 @@
     "timer": "Timer",
     "schedule": "Schedule",
     "memo": "Memo",
+    "ideas": "Ideas",
     "analytics": "Analytics",
     "editor": "Editor",
     "showMac": "macOS",
@@ -309,6 +321,7 @@
       "closeModal": "Close modal / dialog",
       "goToTasks": "Go to Tasks",
       "goToMemo": "Go to Memo",
+      "goToIdeas": "Go to Ideas",
       "goToWork": "Go to Work",
       "goToSchedule": "Go to Schedule",
       "goToAnalytics": "Go to Analytics",
@@ -603,7 +616,8 @@
     "dayflow": "Dayflow",
     "routine": "Routine",
     "overview": "Overview",
-    "detail": "Detail"
+    "detail": "Detail",
+    "tree": "Tree"
   },
   "commandPalette": {
     "placeholder": "Type a command...",

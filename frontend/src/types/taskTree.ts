@@ -1,10 +1,9 @@
 export type SectionId =
   | "tasks"
   | "schedule"
-  | "memo"
+  | "ideas"
   | "work"
   | "analytics"
-  | "trash"
   | "settings";
 
 export type NodeType = "folder" | "task";

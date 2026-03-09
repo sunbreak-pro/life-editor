@@ -1,5 +1,26 @@
 # HISTORY.md - 変更履歴
 
+### 2026-03-09 - Left Sidebar UI/UX再編（Memo→Ideas、Search/Tagsタブ新規）
+
+#### 概要
+
+Memoセクションを Ideas に改名しLightbulbアイコンに変更。Daily/Notesに加えSearch/Tagsの2タブを新規追加。SectionIdから trash を削除、Tasksに[Tree]タブヘッダーを追加。（計画書: docs/archive/027-leftSidebar-uiux-implementaition.md）
+
+#### 変更点
+
+- **SectionId型**: `"memo"` → `"ideas"`, `"trash"` を削除。ShortcutId `"nav:memo"` → `"nav:ideas"`
+- **i18n**: `sidebar.ideas`, `ideas.*`, `tabs.tree`, `tips.ideas`, `tips.shortcutsTab.goToIdeas` キーを en/ja に追加
+- **LeftSidebar/CollapsedSidebar**: BookOpen → Lightbulb、メニューID を `"ideas"` に変更
+- **コンポーネント移動**: `components/Memo/` → `components/Ideas/`、`MemoView` → `IdeasView` リネーム
+- **IdeasView**: 4タブ構成（Daily/Notes/Search/Tags）、navigation callbacks を props で受け取り
+- **SearchTabView（新規）**: タグ名インクリメンタル検索 → タグ選択 → 関連エンティティ（task/memo/note）一覧 → クリックでナビゲーション
+- **TagsTabView（新規）**: タグCRUD・色変更・マージ・削除をフルサイズレイアウトで提供
+- **TasksLayout**: [Tree] タブをSectionHeaderに追加
+- **App.tsx**: `case "ideas"` ルーティング追加、`case "trash"` 削除、ナビゲーションコールバック注入
+- **フック更新**: useAppCommands（Go to Ideas/Lightbulb）、useAppKeyboardShortcuts（nav:ideas）、useTaskDetailHandlers（memo→ideas遷移）
+- **Settings/Tips**: TipsSub `"memo"` → `"ideas"`（Lightbulbアイコン）
+- **storageKeys**: `MEMO_TAB` → `IDEAS_TAB`（値は後方互換維持）
+
 ### 2026-03-09 - タグ色・アライメント・フォルダ操作 UI/UX改善
 
 #### 概要

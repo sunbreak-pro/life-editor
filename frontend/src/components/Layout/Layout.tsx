@@ -284,7 +284,7 @@ export function Layout({
   useEffect(() => {
     if (
       activeSection === "tasks" ||
-      activeSection === "memo" ||
+      activeSection === "ideas" ||
       activeSection === "settings" ||
       activeSection === "work"
     ) {
