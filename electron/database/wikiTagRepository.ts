@@ -5,6 +5,7 @@ interface WikiTagRow {
   id: string;
   name: string;
   color: string;
+  text_color: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -22,6 +23,7 @@ function rowToTag(row: WikiTagRow): WikiTag {
     id: row.id,
     name: row.name,
     color: row.color,
+    textColor: row.text_color ?? undefined,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -49,8 +51,12 @@ export function createWikiTagRepository(db: Database.Database) {
       INSERT INTO wiki_tags (id, name, color, created_at, updated_at)
       VALUES (@id, @name, @color, @created_at, @updated_at)
     `),
+    insertOrReplace: db.prepare(`
+      INSERT OR REPLACE INTO wiki_tags (id, name, color, created_at, updated_at)
+      VALUES (@id, @name, @color, @created_at, @updated_at)
+    `),
     update: db.prepare(`
-      UPDATE wiki_tags SET name = @name, color = @color, updated_at = @updated_at
+      UPDATE wiki_tags SET name = @name, color = @color, text_color = @text_color, updated_at = @updated_at
       WHERE id = @id
     `),
     delete: db.prepare(`DELETE FROM wiki_tags WHERE id = ?`),
@@ -93,6 +99,19 @@ export function createWikiTagRepository(db: Database.Database) {
       return (stmts.search.all(query) as WikiTagRow[]).map(rowToTag);
     },
 
+    createWithId(id: string, name: string, color: string): WikiTag {
+      const now = new Date().toISOString();
+      stmts.insertOrReplace.run({
+        id,
+        name,
+        color,
+        created_at: now,
+        updated_at: now,
+      });
+      const row = stmts.fetchById.get(id) as WikiTagRow;
+      return rowToTag(row);
+    },
+
     create(name: string, color: string): WikiTag {
       const now = new Date().toISOString();
       const id = `tag-${crypto.randomUUID()}`;
@@ -109,7 +128,7 @@ export function createWikiTagRepository(db: Database.Database) {
 
     update(
       id: string,
-      updates: Partial<Pick<WikiTag, "name" | "color">>,
+      updates: Partial<Pick<WikiTag, "name" | "color" | "textColor">>,
     ): WikiTag {
       const existing = stmts.fetchById.get(id) as WikiTagRow | undefined;
       if (!existing) throw new Error(`WikiTag not found: ${id}`);
@@ -118,6 +137,10 @@ export function createWikiTagRepository(db: Database.Database) {
         id,
         name: updates.name ?? existing.name,
         color: updates.color ?? existing.color,
+        text_color:
+          "textColor" in updates
+            ? (updates.textColor ?? null)
+            : existing.text_color,
         updated_at: now,
       });
       const row = stmts.fetchById.get(id) as WikiTagRow;
@@ -216,6 +239,22 @@ export function createWikiTagRepository(db: Database.Database) {
       return (stmts.fetchAllAssignments.all() as WikiTagAssignmentRow[]).map(
         rowToAssignment,
       );
+    },
+
+    restoreAssignment(
+      tagId: string,
+      entityId: string,
+      entityType: string,
+      source: string,
+    ): void {
+      const now = new Date().toISOString();
+      stmts.insertAssignment.run({
+        tag_id: tagId,
+        entity_id: entityId,
+        entity_type: entityType,
+        source,
+        created_at: now,
+      });
     },
   };
 }

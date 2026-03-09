@@ -47,4 +47,11 @@ export function registerMemoHandlers(repo: MemoRepository): void {
       repo.permanentDelete(date),
     ),
   );
+
+  ipcMain.handle(
+    "db:memo:togglePin",
+    loggedHandler("Memo", "togglePin", (_event, date: string) =>
+      repo.togglePin(date),
+    ),
+  );
 }

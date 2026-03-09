@@ -60,8 +60,13 @@ export function registerSoundHandlers(repo: SoundRepository): void {
     loggedHandler(
       "Sound",
       "updateSoundTag",
-      (_event, id: number, name?: string, color?: string) =>
-        repo.updateSoundTag(id, name, color),
+      (
+        _event,
+        id: number,
+        name?: string,
+        color?: string,
+        textColor?: string | null,
+      ) => repo.updateSoundTag(id, name, color, textColor),
     ),
   );
 

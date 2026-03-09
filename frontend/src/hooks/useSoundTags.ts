@@ -85,12 +85,16 @@ export function useSoundTags() {
   );
 
   const updateTag = useCallback(
-    async (id: number, updates: { name?: string; color?: string }) => {
+    async (
+      id: number,
+      updates: { name?: string; color?: string; textColor?: string | null },
+    ) => {
       const prev = soundTags.find((t) => t.id === id);
       const prevValues: typeof updates = {};
       if (prev) {
         if ("name" in updates) prevValues.name = prev.name;
         if ("color" in updates) prevValues.color = prev.color;
+        if ("textColor" in updates) prevValues.textColor = prev.textColor;
       }
 
       const updated = await getDataService().updateSoundTag(id, updates);

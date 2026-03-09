@@ -25,7 +25,11 @@ import type {
   IpcChannelMetrics,
   SystemInfo,
 } from "../types/diagnostics";
-import type { WikiTag, WikiTagAssignment } from "../types/wikiTag";
+import type {
+  WikiTag,
+  WikiTagAssignment,
+  WikiTagConnection,
+} from "../types/wikiTag";
 
 export interface DataService {
   // Tasks
@@ -92,7 +96,7 @@ export interface DataService {
   createSoundTag(name: string, color: string): Promise<SoundTag>;
   updateSoundTag(
     id: number,
-    updates: { name?: string; color?: string },
+    updates: { name?: string; color?: string; textColor?: string | null },
   ): Promise<SoundTag>;
   deleteSoundTag(id: number): Promise<void>;
   fetchTagsForSound(soundId: string): Promise<SoundTag[]>;
@@ -115,6 +119,7 @@ export interface DataService {
   fetchDeletedMemos(): Promise<MemoNode[]>;
   restoreMemo(date: string): Promise<void>;
   permanentDeleteMemo(date: string): Promise<void>;
+  toggleMemoPin(date: string): Promise<MemoNode>;
 
   // Notes
   fetchAllNotes(): Promise<NoteNode[]>;
@@ -160,7 +165,9 @@ export interface DataService {
   createRoutineTag(name: string, color: string): Promise<RoutineTag>;
   updateRoutineTag(
     id: number,
-    updates: Partial<Pick<RoutineTag, "name" | "color" | "order">>,
+    updates: Partial<
+      Pick<RoutineTag, "name" | "color" | "textColor" | "order">
+    >,
   ): Promise<RoutineTag>;
   deleteRoutineTag(id: number): Promise<void>;
   fetchAllRoutineTagAssignments(): Promise<
@@ -253,9 +260,14 @@ export interface DataService {
   fetchWikiTags(): Promise<WikiTag[]>;
   searchWikiTags(query: string): Promise<WikiTag[]>;
   createWikiTag(name: string, color: string): Promise<WikiTag>;
+  createWikiTagWithId(
+    id: string,
+    name: string,
+    color: string,
+  ): Promise<WikiTag>;
   updateWikiTag(
     id: string,
-    updates: Partial<Pick<WikiTag, "name" | "color">>,
+    updates: Partial<Pick<WikiTag, "name" | "color" | "textColor">>,
   ): Promise<WikiTag>;
   deleteWikiTag(id: string): Promise<void>;
   mergeWikiTags(sourceId: string, targetId: string): Promise<WikiTag>;
@@ -271,6 +283,24 @@ export interface DataService {
     tagNames: string[],
   ): Promise<void>;
   fetchAllWikiTagAssignments(): Promise<WikiTagAssignment[]>;
+  restoreWikiTagAssignment(
+    tagId: string,
+    entityId: string,
+    entityType: string,
+    source: string,
+  ): Promise<void>;
+
+  // Wiki Tag Connections
+  fetchWikiTagConnections(): Promise<WikiTagConnection[]>;
+  createWikiTagConnection(
+    sourceTagId: string,
+    targetTagId: string,
+  ): Promise<WikiTagConnection>;
+  deleteWikiTagConnection(id: string): Promise<void>;
+  deleteWikiTagConnectionByPair(
+    sourceTagId: string,
+    targetTagId: string,
+  ): Promise<void>;
 
   // Data I/O
   exportData(): Promise<boolean>;

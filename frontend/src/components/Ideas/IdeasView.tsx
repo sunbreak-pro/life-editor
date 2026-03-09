@@ -1,110 +1,129 @@
 import { useState, useCallback, useContext } from "react";
 import { createPortal } from "react-dom";
-import { BookOpen, StickyNote, Search, Tag } from "lucide-react";
+import { Package, Network } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { LAYOUT } from "../../constants/layout";
 import type { TabItem } from "../shared/SectionTabs";
 import { SectionHeader } from "../shared/SectionHeader";
-import { MemoDateList } from "./MemoDateList";
 import { DailyMemoView } from "./DailyMemoView";
-import { NoteList } from "./NoteList";
 import { NotesView } from "./NotesView";
-import { SearchTabView } from "./SearchTabView";
-import { TagsTabView } from "./TagsTabView";
+import { ConnectTabView } from "./ConnectTabView";
+import { MaterialsSidebar } from "./MaterialsSidebar";
 import { useMemoContext } from "../../hooks/useMemoContext";
-import { getTodayKey } from "../../utils/dateKey";
+import { useNoteContext } from "../../hooks/useNoteContext";
+import { useWikiTags } from "../../hooks/useWikiTags";
 import { STORAGE_KEYS } from "../../constants/storageKeys";
 import { RightSidebarContext } from "../../context/RightSidebarContext";
 
-type IdeasTab = "daily" | "notes" | "search" | "tags";
+type IdeasTab = "materials" | "connect";
+
+type MaterialsView =
+  | { type: "note"; noteId: string }
+  | { type: "daily"; date: string };
 
 const IDEAS_TABS: readonly TabItem<IdeasTab>[] = [
-  { id: "daily", labelKey: "ideas.daily", icon: BookOpen },
-  { id: "notes", labelKey: "ideas.notes", icon: StickyNote },
-  { id: "search", labelKey: "ideas.search", icon: Search },
-  { id: "tags", labelKey: "ideas.tags", icon: Tag },
+  { id: "materials", labelKey: "ideas.materials", icon: Package },
+  { id: "connect", labelKey: "ideas.connect", icon: Network },
 ];
 
 interface IdeasViewProps {
-  onNavigateToTask?: (taskId: string) => void;
-  onNavigateToMemo?: (date: string) => void;
   onNavigateToNote?: (noteId: string) => void;
 }
 
-export function IdeasView({
-  onNavigateToTask,
-  onNavigateToMemo,
-  onNavigateToNote,
-}: IdeasViewProps) {
+export function IdeasView({ onNavigateToNote }: IdeasViewProps) {
   const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState<IdeasTab>(() => {
     const saved = localStorage.getItem(STORAGE_KEYS.IDEAS_TAB);
-    if (saved === "notes" || saved === "search" || saved === "tags")
-      return saved;
-    return "daily";
+    if (saved === "connect") return "connect";
+    // Migrate old tab values
+    if (
+      saved === "daily" ||
+      saved === "notes" ||
+      saved === "search" ||
+      saved === "tags"
+    )
+      return "materials";
+    return "materials";
   });
 
-  const { memos, selectedDate, setSelectedDate, upsertMemo, deleteMemo } =
-    useMemoContext();
-  const todayKey = getTodayKey();
+  const { memos, selectedDate, setSelectedDate, upsertMemo } = useMemoContext();
+  const { notes, selectedNoteId, setSelectedNoteId, createNote } =
+    useNoteContext();
+  const { assignments, tags } = useWikiTags();
+
+  // Materials view state
+  const [materialsView, setMaterialsView] = useState<MaterialsView>(() => {
+    const savedType = localStorage.getItem(STORAGE_KEYS.MATERIALS_CONTENT_TYPE);
+    if (savedType === "note" && selectedNoteId) {
+      return { type: "note", noteId: selectedNoteId };
+    }
+    return { type: "daily", date: selectedDate };
+  });
 
   const handleTabChange = (tab: IdeasTab) => {
     setActiveTab(tab);
     localStorage.setItem(STORAGE_KEYS.IDEAS_TAB, tab);
   };
 
-  const handleCreateForDate = useCallback(
-    (date: string) => {
-      setSelectedDate(date);
-      if (!memos.some((m) => m.date === date)) {
-        upsertMemo(date, "");
+  const handleSelectMaterialsView = useCallback(
+    (view: MaterialsView) => {
+      setMaterialsView(view);
+      localStorage.setItem(STORAGE_KEYS.MATERIALS_CONTENT_TYPE, view.type);
+      if (view.type === "note") {
+        setSelectedNoteId(view.noteId);
+      } else {
+        setSelectedDate(view.date);
+        if (!memos.some((m) => m.date === view.date)) {
+          upsertMemo(view.date, "");
+        }
       }
     },
-    [setSelectedDate, memos, upsertMemo],
+    [setSelectedNoteId, setSelectedDate, memos, upsertMemo],
   );
 
-  const handleDelete = useCallback(
-    (date: string) => {
-      deleteMemo(date);
-      if (selectedDate === date) {
-        setSelectedDate(todayKey);
-      }
+  const handleCreateNote = useCallback(() => {
+    const noteId = createNote();
+    setMaterialsView({ type: "note", noteId });
+    localStorage.setItem(STORAGE_KEYS.MATERIALS_CONTENT_TYPE, "note");
+  }, [createNote]);
+
+  // Navigate to note from Connect tab
+  const handleNavigateToNote = useCallback(
+    (noteId: string) => {
+      setActiveTab("materials");
+      localStorage.setItem(STORAGE_KEYS.IDEAS_TAB, "materials");
+      setMaterialsView({ type: "note", noteId });
+      setSelectedNoteId(noteId);
+      localStorage.setItem(STORAGE_KEYS.MATERIALS_CONTENT_TYPE, "note");
+      onNavigateToNote?.(noteId);
     },
-    [deleteMemo, selectedDate, setSelectedDate, todayKey],
+    [setSelectedNoteId, onNavigateToNote],
   );
 
   const { portalTarget: rightSidebarTarget } = useContext(RightSidebarContext);
 
   const listElement =
-    activeTab === "daily" ? (
-      <MemoDateList
+    activeTab === "materials" ? (
+      <MaterialsSidebar
         memos={memos}
-        selectedDate={selectedDate}
-        todayKey={todayKey}
-        onSelectDate={setSelectedDate}
-        onCreateForDate={handleCreateForDate}
-        onDelete={handleDelete}
+        notes={notes}
+        assignments={assignments}
+        tags={tags}
+        selectedView={materialsView}
+        onSelectView={handleSelectMaterialsView}
+        onCreateNote={handleCreateNote}
       />
-    ) : activeTab === "notes" ? (
-      <NoteList />
     ) : null;
 
   const renderContent = () => {
     switch (activeTab) {
-      case "daily":
+      case "materials":
+        if (materialsView.type === "note") {
+          return <NotesView />;
+        }
         return <DailyMemoView />;
-      case "notes":
-        return <NotesView />;
-      case "search":
-        return (
-          <SearchTabView
-            onNavigateToTask={onNavigateToTask}
-            onNavigateToMemo={onNavigateToMemo}
-            onNavigateToNote={onNavigateToNote}
-          />
-        );
-      case "tags":
-        return <TagsTabView />;
+      case "connect":
+        return <ConnectTabView onNavigateToNote={handleNavigateToNote} />;
     }
   };
 
@@ -123,9 +142,7 @@ export function IdeasView({
         createPortal(listElement, rightSidebarTarget)}
       <div className="flex-1 overflow-hidden flex">
         {!rightSidebarTarget && listElement && (
-          <div
-            className={`${activeTab === "daily" ? "w-60" : "w-64"} shrink-0 border-r border-notion-border`}
-          >
+          <div className="w-64 shrink-0 border-r border-notion-border">
             {listElement}
           </div>
         )}

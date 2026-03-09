@@ -26,7 +26,11 @@ import type {
   IpcChannelMetrics,
   SystemInfo,
 } from "../types/diagnostics";
-import type { WikiTag, WikiTagAssignment } from "../types/wikiTag";
+import type {
+  WikiTag,
+  WikiTagAssignment,
+  WikiTagConnection,
+} from "../types/wikiTag";
 
 function invoke<T>(channel: string, ...args: unknown[]): Promise<T> {
   return window.electronAPI!.invoke<T>(channel, ...args);
@@ -149,9 +153,15 @@ export class ElectronDataService implements DataService {
   }
   updateSoundTag(
     id: number,
-    updates: { name?: string; color?: string },
+    updates: { name?: string; color?: string; textColor?: string | null },
   ): Promise<SoundTag> {
-    return invoke("db:sound:updateSoundTag", id, updates.name, updates.color);
+    return invoke(
+      "db:sound:updateSoundTag",
+      id,
+      updates.name,
+      updates.color,
+      updates.textColor,
+    );
   }
   deleteSoundTag(id: number): Promise<void> {
     return invoke("db:sound:deleteSoundTag", id);
@@ -203,6 +213,9 @@ export class ElectronDataService implements DataService {
   }
   permanentDeleteMemo(date: string): Promise<void> {
     return invoke("db:memo:permanentDelete", date);
+  }
+  toggleMemoPin(date: string): Promise<MemoNode> {
+    return invoke("db:memo:togglePin", date);
   }
 
   // Notes
@@ -291,7 +304,9 @@ export class ElectronDataService implements DataService {
   }
   updateRoutineTag(
     id: number,
-    updates: Partial<Pick<RoutineTag, "name" | "color" | "order">>,
+    updates: Partial<
+      Pick<RoutineTag, "name" | "color" | "textColor" | "order">
+    >,
   ): Promise<RoutineTag> {
     return invoke("db:routineTags:update", id, updates);
   }
@@ -455,9 +470,16 @@ export class ElectronDataService implements DataService {
   createWikiTag(name: string, color: string): Promise<WikiTag> {
     return invoke("db:wikiTags:create", name, color);
   }
+  createWikiTagWithId(
+    id: string,
+    name: string,
+    color: string,
+  ): Promise<WikiTag> {
+    return invoke("db:wikiTags:createWithId", id, name, color);
+  }
   updateWikiTag(
     id: string,
-    updates: Partial<Pick<WikiTag, "name" | "color">>,
+    updates: Partial<Pick<WikiTag, "name" | "color" | "textColor">>,
   ): Promise<WikiTag> {
     return invoke("db:wikiTags:update", id, updates);
   }
@@ -486,6 +508,44 @@ export class ElectronDataService implements DataService {
   }
   fetchAllWikiTagAssignments(): Promise<WikiTagAssignment[]> {
     return invoke("db:wikiTags:fetchAllAssignments");
+  }
+  restoreWikiTagAssignment(
+    tagId: string,
+    entityId: string,
+    entityType: string,
+    source: string,
+  ): Promise<void> {
+    return invoke(
+      "db:wikiTags:restoreAssignment",
+      tagId,
+      entityId,
+      entityType,
+      source,
+    );
+  }
+
+  // Wiki Tag Connections
+  fetchWikiTagConnections(): Promise<WikiTagConnection[]> {
+    return invoke("db:wikiTagConnections:fetchAll");
+  }
+  createWikiTagConnection(
+    sourceTagId: string,
+    targetTagId: string,
+  ): Promise<WikiTagConnection> {
+    return invoke("db:wikiTagConnections:create", sourceTagId, targetTagId);
+  }
+  deleteWikiTagConnection(id: string): Promise<void> {
+    return invoke("db:wikiTagConnections:delete", id);
+  }
+  deleteWikiTagConnectionByPair(
+    sourceTagId: string,
+    targetTagId: string,
+  ): Promise<void> {
+    return invoke(
+      "db:wikiTagConnections:deleteByTagPair",
+      sourceTagId,
+      targetTagId,
+    );
   }
 
   // Data I/O

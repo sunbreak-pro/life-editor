@@ -3,8 +3,11 @@ import { Plus, X } from "lucide-react";
 import type { useSoundTags } from "../../../hooks/useSoundTags";
 import { useClickOutside } from "../../../hooks/useClickOutside";
 import { useConfirmableSubmit } from "../../../hooks/useConfirmableSubmit";
-import { InlineColorPicker } from "../../shared/ColorPicker";
-import { TAG_COLORS } from "../../../constants/tagColors";
+import { UnifiedColorPicker } from "../../shared/UnifiedColorPicker";
+import {
+  DEFAULT_PRESET_COLORS,
+  getTextColorForBg,
+} from "../../../constants/folderColors";
 
 interface SoundTagEditorProps {
   soundId: string;
@@ -21,7 +24,9 @@ export function SoundTagEditor({
     soundTagState;
   const [isOpen, setIsOpen] = useState(false);
   const [newTagName, setNewTagName] = useState("");
-  const [newTagColor, setNewTagColor] = useState<string>(TAG_COLORS[0]);
+  const [newTagColor, setNewTagColor] = useState<string>(
+    DEFAULT_PRESET_COLORS[0],
+  );
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   const currentTags = getTagsForSound(soundId);
@@ -61,8 +66,11 @@ export function SoundTagEditor({
         currentTags.map((tag) => (
           <span
             key={tag.id}
-            className="inline-flex items-center gap-0.5 px-1.5 py-0 text-[10px] rounded-full text-white"
-            style={{ backgroundColor: tag.color }}
+            className="inline-flex items-center gap-0.5 px-1.5 py-0 text-[10px] rounded-full"
+            style={{
+              backgroundColor: tag.color,
+              color: tag.textColor ?? getTextColorForBg(tag.color),
+            }}
           >
             {tag.name}
             <button
@@ -114,10 +122,10 @@ export function SoundTagEditor({
           </div>
           <div className="border-t border-notion-border p-1.5">
             <div className="mb-1">
-              <InlineColorPicker
-                colors={TAG_COLORS}
-                selectedColor={newTagColor}
-                onSelect={setNewTagColor}
+              <UnifiedColorPicker
+                color={newTagColor}
+                onChange={setNewTagColor}
+                mode="preset-only"
               />
             </div>
             <div className="flex items-center gap-1">

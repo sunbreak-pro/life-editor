@@ -5,6 +5,7 @@ interface MemoRow {
   id: string;
   date: string;
   content: string;
+  is_pinned: number;
   is_deleted: number;
   deleted_at: string | null;
   created_at: string;
@@ -16,6 +17,7 @@ function rowToNode(row: MemoRow): MemoNode {
     id: row.id,
     date: row.date,
     content: row.content,
+    isPinned: row.is_pinned === 1,
     isDeleted: row.is_deleted === 1,
     deletedAt: row.deleted_at,
     createdAt: row.created_at,
@@ -46,6 +48,9 @@ export function createMemoRepository(db: Database.Database) {
     ),
     permanentDelete: db.prepare(
       `DELETE FROM memos WHERE date = ? AND is_deleted = 1`,
+    ),
+    togglePin: db.prepare(
+      `UPDATE memos SET is_pinned = CASE WHEN is_pinned = 1 THEN 0 ELSE 1 END, updated_at = datetime('now') WHERE date = ?`,
     ),
   };
 
@@ -80,6 +85,12 @@ export function createMemoRepository(db: Database.Database) {
 
     permanentDelete(date: string): void {
       stmts.permanentDelete.run(date);
+    },
+
+    togglePin(date: string): MemoNode {
+      stmts.togglePin.run(date);
+      const row = stmts.fetchByDate.get(date) as MemoRow;
+      return rowToNode(row);
     },
   };
 }

@@ -2,6 +2,7 @@ export interface WikiTag {
   id: string;
   name: string;
   color: string;
+  textColor?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -15,3 +16,10 @@ export interface WikiTagAssignment {
 }
 
 export type WikiTagEntityType = "task" | "memo" | "note";
+
+export interface WikiTagConnection {
+  id: string;
+  sourceTagId: string;
+  targetTagId: string;
+  createdAt: string;
+}

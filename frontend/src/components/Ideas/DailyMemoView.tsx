@@ -1,4 +1,5 @@
 import { Suspense, useCallback } from "react";
+import { Pin, PinOff } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useMemoContext } from "../../hooks/useMemoContext";
 import { formatDateTime } from "../../utils/formatRelativeDate";
@@ -7,7 +8,8 @@ import { LazyMemoEditor as MemoEditor } from "../Tasks/TaskDetail/LazyMemoEditor
 import { WikiTagList } from "../WikiTags/WikiTagList";
 
 export function DailyMemoView() {
-  const { selectedDate, selectedMemo, upsertMemo } = useMemoContext();
+  const { selectedDate, selectedMemo, upsertMemo, togglePin } =
+    useMemoContext();
   const { t } = useTranslation();
 
   const handleUpdate = useCallback(
@@ -20,9 +22,28 @@ export function DailyMemoView() {
   return (
     <div className="h-full overflow-y-auto">
       <div className="max-w-3xl mx-auto px-8 py-6">
-        <h2 className="text-lg font-semibold text-notion-text mb-1">
-          {formatDateHeading(selectedDate)}
-        </h2>
+        <div className="flex items-center gap-2 mb-1">
+          <h2 className="text-lg font-semibold text-notion-text flex-1">
+            {formatDateHeading(selectedDate)}
+          </h2>
+          {selectedMemo && (
+            <button
+              onClick={() => togglePin(selectedDate)}
+              className={`p-1.5 rounded transition-colors ${
+                selectedMemo.isPinned
+                  ? "text-notion-primary hover:text-notion-primary/70"
+                  : "text-notion-text-secondary hover:text-notion-text"
+              }`}
+              title={
+                selectedMemo.isPinned
+                  ? t("notesView.unpin")
+                  : t("notesView.pin")
+              }
+            >
+              {selectedMemo.isPinned ? <PinOff size={16} /> : <Pin size={16} />}
+            </button>
+          )}
+        </div>
         {selectedMemo?.updatedAt && (
           <p className="text-[11px] text-notion-text-secondary/60 mb-4">
             {t("dateTime.updated")}: {formatDateTime(selectedMemo.updatedAt)}

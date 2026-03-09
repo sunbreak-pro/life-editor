@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Pencil, Trash2, Check, X } from "lucide-react";
-import { ColorPicker } from "../../shared/ColorPicker";
+import { UnifiedColorPicker } from "../../shared/UnifiedColorPicker";
 import type { useSoundTags } from "../../../hooks/useSoundTags";
 import { useConfirmableSubmit } from "../../../hooks/useConfirmableSubmit";
 
@@ -74,9 +74,9 @@ export function SoundTagManager({ soundTagState }: SoundTagManagerProps) {
                     style={{ backgroundColor: editColor }}
                   />
                   {showEditColorPicker && (
-                    <ColorPicker
-                      currentColor={editColor}
-                      onSelect={setEditColor}
+                    <UnifiedColorPicker
+                      color={editColor}
+                      onChange={setEditColor}
                       onClose={() => setShowEditColorPicker(false)}
                     />
                   )}
@@ -164,9 +164,9 @@ export function SoundTagManager({ soundTagState }: SoundTagManagerProps) {
             style={{ backgroundColor: newColor }}
           />
           {showNewColorPicker && (
-            <ColorPicker
-              currentColor={newColor}
-              onSelect={setNewColor}
+            <UnifiedColorPicker
+              color={newColor}
+              onChange={setNewColor}
               onClose={() => setShowNewColorPicker(false)}
             />
           )}

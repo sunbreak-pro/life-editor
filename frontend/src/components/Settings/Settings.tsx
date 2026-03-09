@@ -26,8 +26,6 @@ import {
   TerminalSquare,
   FolderTree,
   CalendarDays,
-  Undo2,
-  Redo2,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import type { TabItem } from "../shared/SectionTabs";
@@ -179,8 +177,7 @@ export function Settings({ initialTab }: SettingsProps) {
     setSettingsKey((k) => k + 1);
   }, []);
 
-  const { canUndo, canRedo, undo, redo, pushSnapshot } =
-    useSettingsHistory(handleHistoryApply);
+  const { pushSnapshot } = useSettingsHistory(handleHistoryApply);
 
   useEffect(() => {
     if (initialTab) {
@@ -375,26 +372,6 @@ export function Settings({ initialTab }: SettingsProps) {
         tabs={TABS}
         activeTab={activeTab}
         onTabChange={setActiveTab}
-        actions={
-          <>
-            <button
-              onClick={undo}
-              disabled={!canUndo}
-              className="p-1 text-notion-text-secondary hover:text-notion-text transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-              title={t("common.undo")}
-            >
-              <Undo2 size={14} />
-            </button>
-            <button
-              onClick={redo}
-              disabled={!canRedo}
-              className="p-1 text-notion-text-secondary hover:text-notion-text transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-              title={t("common.redo")}
-            >
-              <Redo2 size={14} />
-            </button>
-          </>
-        }
       />
 
       <div key={settingsKey} className="flex-1 overflow-y-auto">

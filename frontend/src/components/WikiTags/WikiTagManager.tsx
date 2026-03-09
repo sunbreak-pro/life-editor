@@ -2,8 +2,8 @@ import { useState } from "react";
 import { Pencil, Trash2, Check, X, Merge } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useWikiTags } from "../../hooks/useWikiTags";
-import { InlineColorPicker } from "../shared/ColorPicker";
-import { TAG_COLORS } from "../../constants/tagColors";
+import { UnifiedColorPicker } from "../shared/UnifiedColorPicker";
+import { DEFAULT_PRESET_COLORS } from "../../constants/folderColors";
 
 export function WikiTagManager() {
   const { t } = useTranslation();
@@ -15,7 +15,7 @@ export function WikiTagManager() {
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [mergeSourceId, setMergeSourceId] = useState<string | null>(null);
   const [newName, setNewName] = useState("");
-  const [newColor, setNewColor] = useState<string>(TAG_COLORS[0]);
+  const [newColor, setNewColor] = useState<string>(DEFAULT_PRESET_COLORS[0]);
 
   const startEdit = (tag: { id: string; name: string; color: string }) => {
     setEditingId(tag.id);
@@ -62,11 +62,10 @@ export function WikiTagManager() {
           >
             {editingId === tag.id ? (
               <>
-                <InlineColorPicker
-                  colors={TAG_COLORS}
-                  selectedColor={editColor}
-                  onSelect={setEditColor}
-                  size="sm"
+                <UnifiedColorPicker
+                  color={editColor}
+                  onChange={setEditColor}
+                  mode="preset-only"
                 />
                 <input
                   value={editName}
@@ -178,10 +177,10 @@ export function WikiTagManager() {
       {/* Create new */}
       <div className="border-t border-notion-border pt-3">
         <div className="mb-1.5">
-          <InlineColorPicker
-            colors={TAG_COLORS}
-            selectedColor={newColor}
-            onSelect={setNewColor}
+          <UnifiedColorPicker
+            color={newColor}
+            onChange={setNewColor}
+            mode="preset-only"
           />
         </div>
         <div className="flex items-center gap-1">

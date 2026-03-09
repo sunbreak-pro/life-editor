@@ -1,6 +1,7 @@
-import { useState, useCallback, useRef } from "react";
+import { useCallback } from "react";
 import { STORAGE_KEYS } from "../constants/storageKeys";
 import { useShortcutConfig } from "./useShortcutConfig";
+import { useUndoRedo } from "../components/shared/UndoRedo";
 import type { ShortcutConfig } from "../types/shortcut";
 
 const SETTINGS_STORAGE_KEYS = [
@@ -32,22 +33,14 @@ function applySnapshot(snap: Snapshot) {
   }
 }
 
-const MAX_HISTORY = 50;
-
 export interface UseSettingsHistoryReturn {
-  canUndo: boolean;
-  canRedo: boolean;
-  undo: () => void;
-  redo: () => void;
   pushSnapshot: () => void;
 }
 
 export function useSettingsHistory(
   onApply: () => void,
 ): UseSettingsHistoryReturn {
-  const pastRef = useRef<Snapshot[]>([]);
-  const futureRef = useRef<Snapshot[]>([]);
-  const [version, setVersion] = useState(0);
+  const { push } = useUndoRedo();
   const { saveAllBindings } = useShortcutConfig();
 
   const syncShortcutContext = useCallback(() => {
@@ -61,42 +54,24 @@ export function useSettingsHistory(
   }, [saveAllBindings]);
 
   const pushSnapshot = useCallback(() => {
-    const snap = takeSnapshot();
-    pastRef.current = [...pastRef.current.slice(-MAX_HISTORY + 1), snap];
-    futureRef.current = [];
-    setVersion((v) => v + 1);
-  }, []);
+    const before = takeSnapshot();
+    queueMicrotask(() => {
+      const after = takeSnapshot();
+      push("settings", {
+        label: "settings",
+        undo: () => {
+          applySnapshot(before);
+          syncShortcutContext();
+          onApply();
+        },
+        redo: () => {
+          applySnapshot(after);
+          syncShortcutContext();
+          onApply();
+        },
+      });
+    });
+  }, [push, onApply, syncShortcutContext]);
 
-  const undo = useCallback(() => {
-    if (pastRef.current.length === 0) return;
-    const current = takeSnapshot();
-    futureRef.current = [current, ...futureRef.current];
-    const prev = pastRef.current.pop()!;
-    applySnapshot(prev);
-    syncShortcutContext();
-    setVersion((v) => v + 1);
-    onApply();
-  }, [onApply, syncShortcutContext]);
-
-  const redo = useCallback(() => {
-    if (futureRef.current.length === 0) return;
-    const current = takeSnapshot();
-    pastRef.current = [...pastRef.current, current];
-    const next = futureRef.current.shift()!;
-    applySnapshot(next);
-    syncShortcutContext();
-    setVersion((v) => v + 1);
-    onApply();
-  }, [onApply, syncShortcutContext]);
-
-  // version is used to trigger re-renders
-  void version;
-
-  return {
-    canUndo: pastRef.current.length > 0,
-    canRedo: futureRef.current.length > 0,
-    undo,
-    redo,
-    pushSnapshot,
-  };
+  return { pushSnapshot };
 }

@@ -7,7 +7,7 @@ import { useTimerContext } from "../../../hooks/useTimerContext";
 import type { TaskNode } from "../../../types/taskTree";
 import { FolderTag } from "../Folder/FolderTag";
 import { FolderMovePicker } from "../Folder/FolderMovePicker";
-import { ColorPicker } from "../../shared/ColorPicker";
+import { UnifiedColorPicker } from "../../shared/UnifiedColorPicker";
 import { DurationPicker } from "../../shared/DurationPicker";
 import { MiniCalendarGrid } from "../../shared/MiniCalendarGrid";
 import { formatDuration } from "../../../utils/duration";
@@ -193,9 +193,9 @@ function TaskSidebarContent({
                         />
                       </button>
                       {colorPickerAncestorId === ancestor.id && (
-                        <ColorPicker
-                          currentColor={ancestor.color}
-                          onSelect={(color) =>
+                        <UnifiedColorPicker
+                          color={ancestor.color ?? ""}
+                          onChange={(color) =>
                             updateNode(ancestor.id, { color })
                           }
                           onClose={() => setColorPickerAncestorId(null)}
@@ -404,9 +404,9 @@ function FolderSidebarContent({ node, updateNode }: FolderSidebarContentProps) {
           </span>
         </button>
         {showColorPicker && (
-          <ColorPicker
-            currentColor={node.color}
-            onSelect={(color) => updateNode(node.id, { color })}
+          <UnifiedColorPicker
+            color={node.color ?? ""}
+            onChange={(color) => updateNode(node.id, { color })}
             onClose={() => setShowColorPicker(false)}
           />
         )}

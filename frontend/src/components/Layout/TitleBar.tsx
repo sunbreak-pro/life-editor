@@ -9,6 +9,8 @@ const SECTION_UNDO_DOMAIN: Partial<Record<SectionId, UndoDomain>> = {
   tasks: "taskTree",
   ideas: "memo",
   work: "playlist",
+  schedule: "scheduleItem",
+  settings: "settings",
 };
 
 interface TitleBarProps {

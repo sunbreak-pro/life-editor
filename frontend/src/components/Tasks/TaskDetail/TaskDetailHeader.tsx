@@ -8,7 +8,7 @@ import { DurationPicker } from "../../shared/DurationPicker";
 import { formatDuration } from "../../../utils/duration";
 import { DateTimeRangePicker } from "../Schedule/Calendar/DateTimeRangePicker";
 import { FolderTag } from "../Folder/FolderTag";
-import { ColorPicker } from "../../shared/ColorPicker";
+import { UnifiedColorPicker } from "../../shared/UnifiedColorPicker";
 
 interface TaskDetailHeaderProps {
   task: TaskNode;
@@ -117,9 +117,9 @@ export function TaskDetailHeader({
                       <FolderTag tag={ancestor.title} color={ancestor.color} />
                     </button>
                     {colorPickerAncestorId === ancestor.id && (
-                      <ColorPicker
-                        currentColor={ancestor.color}
-                        onSelect={(color) =>
+                      <UnifiedColorPicker
+                        color={ancestor.color ?? ""}
+                        onChange={(color) =>
                           onFolderColorChange(ancestor.id, color)
                         }
                         onClose={() => setColorPickerAncestorId(null)}

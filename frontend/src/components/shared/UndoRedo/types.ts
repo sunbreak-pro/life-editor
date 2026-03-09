@@ -6,7 +6,9 @@ export type UndoDomain =
   | "routine"
   | "scheduleItem"
   | "playlist"
-  | "sound";
+  | "sound"
+  | "settings"
+  | "wikiTag";
 
 export interface UndoCommand {
   label: string;

@@ -4,6 +4,7 @@ interface WikiTagRow {
   id: string;
   name: string;
   color: string;
+  text_color: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -21,6 +22,7 @@ function formatTag(row: WikiTagRow) {
     id: row.id,
     name: row.name,
     color: row.color,
+    textColor: row.text_color ?? undefined,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };

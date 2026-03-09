@@ -30,6 +30,17 @@ export function registerWikiTagHandlers(repo: WikiTagRepository): void {
   );
 
   ipcMain.handle(
+    "db:wikiTags:createWithId",
+    loggedHandler(
+      "WikiTags",
+      "createWithId",
+      (_event, id: string, name: string, color: string) => {
+        return repo.createWithId(id, name, color);
+      },
+    ),
+  );
+
+  ipcMain.handle(
     "db:wikiTags:update",
     loggedHandler(
       "WikiTags",
@@ -37,7 +48,7 @@ export function registerWikiTagHandlers(repo: WikiTagRepository): void {
       (
         _event,
         id: string,
-        updates: Partial<Pick<WikiTag, "name" | "color">>,
+        updates: Partial<Pick<WikiTag, "name" | "color" | "textColor">>,
       ) => {
         return repo.update(id, updates);
       },
@@ -96,5 +107,22 @@ export function registerWikiTagHandlers(repo: WikiTagRepository): void {
     loggedHandler("WikiTags", "fetchAllAssignments", () => {
       return repo.fetchAllAssignments();
     }),
+  );
+
+  ipcMain.handle(
+    "db:wikiTags:restoreAssignment",
+    loggedHandler(
+      "WikiTags",
+      "restoreAssignment",
+      (
+        _event,
+        tagId: string,
+        entityId: string,
+        entityType: string,
+        source: string,
+      ) => {
+        repo.restoreAssignment(tagId, entityId, entityType, source);
+      },
+    ),
   );
 }

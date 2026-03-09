@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { NodeViewWrapper } from "@tiptap/react";
 import type { NodeViewProps } from "@tiptap/react";
 import { useWikiTags } from "../hooks/useWikiTags";
-import { ColorPicker } from "../components/shared/ColorPicker";
+import { UnifiedColorPicker } from "../components/shared/UnifiedColorPicker";
 import { useTranslation } from "react-i18next";
 import { getTextColorForBg } from "../constants/folderColors";
 
@@ -50,7 +50,14 @@ export function WikiTagView({ node }: NodeViewProps) {
     await updateTag(tag.id, { color: newColor });
   };
 
-  const textColor = color ? getTextColorForBg(color) : undefined;
+  const handleTextColorChange = async (newTextColor: string | undefined) => {
+    if (!tag) return;
+    await updateTag(tag.id, { textColor: newTextColor ?? null });
+  };
+
+  const textColor = color
+    ? (tag?.textColor ?? getTextColorForBg(color))
+    : undefined;
   const style = color
     ? {
         backgroundColor: `${color}E6`,
@@ -67,7 +74,7 @@ export function WikiTagView({ node }: NodeViewProps) {
       data-wiki-tag=""
       data-tag-id={tagId}
       data-tag-name={tagName}
-      style={style}
+      style={{ ...style, ...(editing ? { zIndex: 100 } : {}) }}
       onClick={handleClick}
     >
       <span
@@ -104,10 +111,14 @@ export function WikiTagView({ node }: NodeViewProps) {
               className="w-full text-xs px-2 py-1 rounded bg-notion-hover text-notion-text outline-none"
               autoFocus
             />
-            <ColorPicker
-              currentColor={tag?.color || "#2eaadc"}
-              onSelect={handleColorChange}
-              onClose={() => setEditing(false)}
+            <UnifiedColorPicker
+              color={tag?.color || "#2eaadc"}
+              onChange={handleColorChange}
+              mode="preset-full"
+              showTextColor
+              textColor={tag?.textColor}
+              effectiveTextColor={color ? getTextColorForBg(color) : undefined}
+              onTextColorChange={handleTextColorChange}
               inline
             />
           </div>

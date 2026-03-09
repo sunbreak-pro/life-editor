@@ -30,7 +30,9 @@ export function registerRoutineTagHandlers(repo: RoutineTagRepository): void {
       (
         _event,
         id: number,
-        updates: Partial<Pick<RoutineTag, "name" | "color" | "order">>,
+        updates: Partial<
+          Pick<RoutineTag, "name" | "color" | "textColor" | "order">
+        >,
       ) => {
         return repo.update(id, updates);
       },

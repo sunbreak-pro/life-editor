@@ -1,5 +1,10 @@
 import { useEffect, type ReactNode } from "react";
-import { ThemeContext, type Theme, type FontSize, type Language } from "./ThemeContextValue";
+import {
+  ThemeContext,
+  type Theme,
+  type FontSize,
+  type Language,
+} from "./ThemeContextValue";
 import { STORAGE_KEYS } from "../constants/storageKeys";
 import { useLocalStorage } from "../hooks/useLocalStorage";
 import i18n from "../i18n";
@@ -19,7 +24,12 @@ const FONT_SIZE_PX: Record<number, number> = {
   10: 25,
 };
 
-const VALID_THEMES: readonly string[] = ["light", "dark", "monochrome", "monochrome-dark"];
+const VALID_THEMES: readonly string[] = [
+  "light",
+  "dark",
+  "monochrome",
+  "monochrome-dark",
+];
 const VALID_LANGUAGES: readonly string[] = ["en", "ja"];
 
 // Migrate legacy "small"/"medium"/"large" to numeric 1-10
@@ -67,6 +77,52 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     },
   );
 
+  const [editorFontSize, setEditorFontSize] = useLocalStorage<number>(
+    STORAGE_KEYS.EDITOR_FONT_SIZE,
+    1.0625,
+    {
+      serialize: String,
+      deserialize: (raw) => {
+        const n = parseFloat(raw);
+        return n > 0 ? n : 1.0625;
+      },
+    },
+  );
+
+  const [editorFontFamily, setEditorFontFamily] = useLocalStorage<string>(
+    STORAGE_KEYS.EDITOR_FONT_FAMILY,
+    "system",
+    {
+      serialize: (v) => v,
+      deserialize: (raw) =>
+        ["system", "serif", "mono"].includes(raw) ? raw : "system",
+    },
+  );
+
+  const [editorLineHeight, setEditorLineHeight] = useLocalStorage<number>(
+    STORAGE_KEYS.EDITOR_LINE_HEIGHT,
+    1.7,
+    {
+      serialize: String,
+      deserialize: (raw) => {
+        const n = parseFloat(raw);
+        return n >= 1.0 && n <= 3.0 ? n : 1.7;
+      },
+    },
+  );
+
+  const [editorPaddingInline, setEditorPaddingInline] = useLocalStorage<number>(
+    STORAGE_KEYS.EDITOR_PADDING_INLINE,
+    0,
+    {
+      serialize: String,
+      deserialize: (raw) => {
+        const n = parseInt(raw, 10);
+        return n >= 0 ? n : 0;
+      },
+    },
+  );
+
   useEffect(() => {
     document.documentElement.setAttribute("data-theme", theme);
   }, [theme]);
@@ -75,6 +131,22 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     const px = FONT_SIZE_PX[fontSize] ?? 18;
     document.documentElement.style.fontSize = `${px}px`;
   }, [fontSize]);
+
+  useEffect(() => {
+    const el = document.documentElement;
+    el.style.setProperty("--editor-font-size", `${editorFontSize}rem`);
+    const familyMap: Record<string, string> = {
+      system: "var(--font-sans)",
+      serif: 'Georgia, "Times New Roman", "Hiragino Mincho ProN", serif',
+      mono: 'ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace',
+    };
+    el.style.setProperty(
+      "--editor-font-family",
+      familyMap[editorFontFamily] ?? "var(--font-sans)",
+    );
+    el.style.setProperty("--editor-line-height", String(editorLineHeight));
+    el.style.setProperty("--editor-padding-inline", `${editorPaddingInline}px`);
+  }, [editorFontSize, editorFontFamily, editorLineHeight, editorPaddingInline]);
 
   const toggleTheme = () => setTheme(theme === "light" ? "dark" : "light");
 
@@ -85,7 +157,23 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 
   return (
     <ThemeContext.Provider
-      value={{ theme, fontSize, toggleTheme, setTheme, setFontSize, language, setLanguage }}
+      value={{
+        theme,
+        fontSize,
+        toggleTheme,
+        setTheme,
+        setFontSize,
+        language,
+        setLanguage,
+        editorFontSize,
+        editorFontFamily,
+        editorLineHeight,
+        editorPaddingInline,
+        setEditorFontSize,
+        setEditorFontFamily,
+        setEditorLineHeight,
+        setEditorPaddingInline,
+      }}
     >
       {children}
     </ThemeContext.Provider>

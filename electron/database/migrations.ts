@@ -100,6 +100,21 @@ export function runMigrations(db: Database.Database): void {
     migrateV23(db);
   }
 
+  if (currentVersion < 24) {
+    log.info("[DB] Running migration V24");
+    migrateV24(db);
+  }
+
+  if (currentVersion < 25) {
+    log.info("[DB] Running migration V25");
+    migrateV25(db);
+  }
+
+  if (currentVersion < 26) {
+    log.info("[DB] Running migration V26");
+    migrateV26(db);
+  }
+
   const newVersion = db.pragma("user_version", { simple: true }) as number;
   if (newVersion !== currentVersion) {
     log.info(`[DB] Schema migrated: ${currentVersion} → ${newVersion}`);
@@ -999,4 +1014,43 @@ function migrateV23(db: Database.Database): void {
   });
   migrate();
   db.pragma("user_version = 23");
+}
+
+function migrateV24(db: Database.Database): void {
+  const addColumnIfMissing = (table: string, column: string) => {
+    if (!hasColumn(db, table, column)) {
+      db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} TEXT DEFAULT NULL`);
+    }
+  };
+  addColumnIfMissing("wiki_tags", "text_color");
+  addColumnIfMissing("routine_tag_definitions", "text_color");
+  addColumnIfMissing("sound_tag_definitions", "text_color");
+  db.pragma("user_version = 24");
+}
+
+function migrateV25(db: Database.Database): void {
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS wiki_tag_connections (
+      id TEXT PRIMARY KEY,
+      source_tag_id TEXT NOT NULL,
+      target_tag_id TEXT NOT NULL,
+      created_at TEXT NOT NULL,
+      FOREIGN KEY (source_tag_id) REFERENCES wiki_tags(id) ON DELETE CASCADE,
+      FOREIGN KEY (target_tag_id) REFERENCES wiki_tags(id) ON DELETE CASCADE,
+      UNIQUE(source_tag_id, target_tag_id)
+    );
+    CREATE INDEX IF NOT EXISTS idx_wtc_source ON wiki_tag_connections(source_tag_id);
+    CREATE INDEX IF NOT EXISTS idx_wtc_target ON wiki_tag_connections(target_tag_id);
+
+    PRAGMA user_version = 25;
+  `);
+}
+
+function migrateV26(db: Database.Database): void {
+  if (!hasColumn(db, "memos", "is_pinned")) {
+    db.exec(
+      `ALTER TABLE memos ADD COLUMN is_pinned INTEGER NOT NULL DEFAULT 0`,
+    );
+  }
+  db.pragma("user_version = 26");
 }

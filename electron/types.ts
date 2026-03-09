@@ -65,6 +65,7 @@ export interface MemoNode {
   id: string;
   date: string;
   content: string;
+  isPinned?: boolean;
   isDeleted?: boolean;
   deletedAt?: string | null;
   createdAt: string;
@@ -104,6 +105,7 @@ export interface SoundTag {
   id: number;
   name: string;
   color: string;
+  textColor?: string;
 }
 
 export interface SoundDisplayMeta {
@@ -147,6 +149,7 @@ export interface RoutineTag {
   id: number;
   name: string;
   color: string;
+  textColor?: string;
   order: number;
 }
 
@@ -168,6 +171,7 @@ export interface WikiTag {
   id: string;
   name: string;
   color: string;
+  textColor?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -177,6 +181,13 @@ export interface WikiTagAssignment {
   entityId: string;
   entityType: "task" | "memo" | "note";
   source: "inline" | "manual";
+  createdAt: string;
+}
+
+export interface WikiTagConnection {
+  id: string;
+  sourceTagId: string;
+  targetTagId: string;
   createdAt: string;
 }
 

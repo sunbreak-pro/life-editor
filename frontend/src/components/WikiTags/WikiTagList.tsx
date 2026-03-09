@@ -3,9 +3,9 @@ import { Plus, Tag } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useWikiTags } from "../../hooks/useWikiTags";
 import { WikiTagChip } from "./WikiTagChip";
-import { ColorPicker } from "../shared/ColorPicker";
+import { UnifiedColorPicker } from "../shared/UnifiedColorPicker";
 import type { WikiTagEntityType, WikiTag } from "../../types/wikiTag";
-import { FOLDER_COLORS } from "../../constants/folderColors";
+import { FOLDER_COLORS, getTextColorForBg } from "../../constants/folderColors";
 
 interface WikiTagListProps {
   entityId: string;
@@ -93,6 +93,12 @@ export function WikiTagList({ entityId, entityType }: WikiTagListProps) {
     setEditingTag((prev) => (prev ? { ...prev, color } : null));
   };
 
+  const handleEditTextColorChange = async (textColor: string | undefined) => {
+    if (!editingTag) return;
+    await updateTag(editingTag.id, { textColor: textColor ?? null });
+    setEditingTag((prev) => (prev ? { ...prev, textColor } : null));
+  };
+
   const availableTags = allTags.filter(
     (t) =>
       !entityTags.some((et) => et.id === t.id) &&
@@ -153,10 +159,18 @@ export function WikiTagList({ entityId, entityType }: WikiTagListProps) {
                   className="w-full text-xs px-2 py-1 rounded bg-notion-hover text-notion-text outline-none"
                   autoFocus
                 />
-                <ColorPicker
-                  currentColor={editingTag.color}
-                  onSelect={handleEditColorChange}
-                  onClose={() => setEditingTag(null)}
+                <UnifiedColorPicker
+                  color={editingTag.color}
+                  onChange={handleEditColorChange}
+                  mode="preset-full"
+                  showTextColor
+                  textColor={editingTag.textColor}
+                  effectiveTextColor={
+                    editingTag.color
+                      ? getTextColorForBg(editingTag.color)
+                      : undefined
+                  }
+                  onTextColorChange={handleEditTextColorChange}
                   inline
                 />
               </div>

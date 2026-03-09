@@ -46,6 +46,7 @@ const ALLOWED_CHANNELS = new Set([
   "db:memo:fetchDeleted",
   "db:memo:restore",
   "db:memo:permanentDelete",
+  "db:memo:togglePin",
   // Notes
   "db:notes:fetchAll",
   "db:notes:fetchDeleted",
@@ -109,6 +110,13 @@ const ALLOWED_CHANNELS = new Set([
   "db:wikiTags:setForEntity",
   "db:wikiTags:syncInline",
   "db:wikiTags:fetchAllAssignments",
+  "db:wikiTags:createWithId",
+  "db:wikiTags:restoreAssignment",
+  // Wiki Tag Connections
+  "db:wikiTagConnections:fetchAll",
+  "db:wikiTagConnections:create",
+  "db:wikiTagConnections:delete",
+  "db:wikiTagConnections:deleteByTagPair",
   // Calendars
   "db:calendars:fetchAll",
   "db:calendars:create",

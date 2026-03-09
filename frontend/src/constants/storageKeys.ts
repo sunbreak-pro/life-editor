@@ -26,4 +26,12 @@ export const STORAGE_KEYS = {
   MEMO_TREE_EXPANDED: "life-editor-memo-tree-expanded",
   HEADING_FONT_SIZES: "life-editor-heading-font-sizes",
   TASK_MEMO_MODE: "life-editor-task-memo-mode",
+  EDITOR_FONT_SIZE: "life-editor-editor-font-size",
+  EDITOR_FONT_FAMILY: "life-editor-editor-font-family",
+  EDITOR_LINE_HEIGHT: "life-editor-editor-line-height",
+  EDITOR_PADDING_INLINE: "life-editor-editor-padding-inline",
+  TAG_GRAPH_POSITIONS: "life-editor-tag-graph-positions",
+  TAG_GRAPH_VIEWPORT: "life-editor-tag-graph-viewport",
+  MATERIALS_SECTIONS_STATE: "life-editor-materials-sections-state",
+  MATERIALS_CONTENT_TYPE: "life-editor-materials-content-type",
 } as const;

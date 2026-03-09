@@ -2,8 +2,11 @@ import { useState, useRef, useCallback } from "react";
 import { ChevronDown, Plus } from "lucide-react";
 import { useClickOutside } from "../../../../hooks/useClickOutside";
 import type { RoutineTag } from "../../../../types/routineTag";
-import { InlineColorPicker } from "../../../shared/ColorPicker";
-import { TAG_COLORS } from "../../../../constants/tagColors";
+import { UnifiedColorPicker } from "../../../shared/UnifiedColorPicker";
+import {
+  DEFAULT_PRESET_COLORS,
+  getTextColorForBg,
+} from "../../../../constants/folderColors";
 
 interface RoutineTagSelectorProps {
   tags: RoutineTag[];
@@ -20,7 +23,9 @@ export function RoutineTagSelector({
 }: RoutineTagSelectorProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [newTagName, setNewTagName] = useState("");
-  const [newTagColor, setNewTagColor] = useState<string>(TAG_COLORS[0]);
+  const [newTagColor, setNewTagColor] = useState<string>(
+    DEFAULT_PRESET_COLORS[0],
+  );
   const [showCreate, setShowCreate] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -61,8 +66,11 @@ export function RoutineTagSelector({
             {selectedTags.map((tag) => (
               <span
                 key={tag.id}
-                className="inline-flex items-center gap-1 px-1.5 py-0 text-[11px] rounded-full text-white shrink-0"
-                style={{ backgroundColor: tag.color }}
+                className="inline-flex items-center gap-1 px-1.5 py-0 text-[11px] rounded-full shrink-0"
+                style={{
+                  backgroundColor: tag.color,
+                  color: tag.textColor ?? getTextColorForBg(tag.color),
+                }}
               >
                 {tag.name}
               </span>
@@ -110,10 +118,10 @@ export function RoutineTagSelector({
               {showCreate ? (
                 <div>
                   <div className="mb-1">
-                    <InlineColorPicker
-                      colors={TAG_COLORS}
-                      selectedColor={newTagColor}
-                      onSelect={setNewTagColor}
+                    <UnifiedColorPicker
+                      color={newTagColor}
+                      onChange={setNewTagColor}
+                      mode="preset-only"
                     />
                   </div>
                   <div className="flex items-center gap-1">

@@ -21,7 +21,7 @@ export function WikiTagChip({
       } ${onClick ? "cursor-pointer hover:opacity-80 transition-opacity" : ""}`}
       style={{
         backgroundColor: `${tag.color}E6`,
-        color: getTextColorForBg(tag.color),
+        color: tag.textColor ?? getTextColorForBg(tag.color),
         border: `1px solid ${tag.color}CC`,
       }}
       onClick={onClick}

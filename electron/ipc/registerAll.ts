@@ -32,6 +32,8 @@ import { createPlaylistRepository } from "../database/playlistRepository";
 import { registerPlaylistHandlers } from "./playlistHandlers";
 import { createWikiTagRepository } from "../database/wikiTagRepository";
 import { registerWikiTagHandlers } from "./wikiTagHandlers";
+import { createWikiTagConnectionRepository } from "../database/wikiTagConnectionRepository";
+import { registerWikiTagConnectionHandlers } from "./wikiTagConnectionHandlers";
 import { wrapHandler } from "./ipcMetrics";
 
 export function registerAllHandlers(db: Database.Database): void {
@@ -91,6 +93,13 @@ export function registerAllHandlers(db: Database.Database): void {
     ],
     ["Playlists", () => registerPlaylistHandlers(createPlaylistRepository(db))],
     ["WikiTags", () => registerWikiTagHandlers(createWikiTagRepository(db))],
+    [
+      "WikiTagConnections",
+      () =>
+        registerWikiTagConnectionHandlers(
+          createWikiTagConnectionRepository(db),
+        ),
+    ],
   ];
 
   for (const [name, register] of registrations) {

@@ -50,7 +50,7 @@ export function DateTimeRangePicker({
       </button>
 
       {open && (
-        <div className="absolute top-full left-0 mt-1 z-50 bg-notion-bg border border-notion-border rounded-lg shadow-lg p-2 w-[300px]">
+        <div className="absolute top-full left-0 mt-1 z-50 bg-notion-bg border border-notion-border rounded-lg shadow-lg p-2 w-fit">
           <MiniCalendarGrid
             startValue={startValue}
             endValue={endValue}

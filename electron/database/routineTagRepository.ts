@@ -5,6 +5,7 @@ interface RoutineTagRow {
   id: number;
   name: string;
   color: string;
+  text_color: string | null;
   order: number;
 }
 
@@ -13,6 +14,7 @@ function rowToTag(row: RoutineTagRow): RoutineTag {
     id: row.id,
     name: row.name,
     color: row.color,
+    textColor: row.text_color ?? undefined,
     order: row.order,
   };
 }
@@ -28,7 +30,7 @@ export function createRoutineTagRepository(db: Database.Database) {
       VALUES (@name, @color, @order)
     `),
     update: db.prepare(`
-      UPDATE routine_tag_definitions SET name = @name, color = @color, "order" = @order
+      UPDATE routine_tag_definitions SET name = @name, color = @color, text_color = @text_color, "order" = @order
       WHERE id = @id
     `),
     delete: db.prepare(`DELETE FROM routine_tag_definitions WHERE id = ?`),
@@ -72,7 +74,9 @@ export function createRoutineTagRepository(db: Database.Database) {
 
     update(
       id: number,
-      updates: Partial<Pick<RoutineTag, "name" | "color" | "order">>,
+      updates: Partial<
+        Pick<RoutineTag, "name" | "color" | "textColor" | "order">
+      >,
     ): RoutineTag {
       const existing = stmts.fetchById.get(id) as RoutineTagRow | undefined;
       if (!existing) throw new Error(`RoutineTag not found: ${id}`);
@@ -81,6 +85,10 @@ export function createRoutineTagRepository(db: Database.Database) {
         id,
         name: updates.name ?? current.name,
         color: updates.color ?? current.color,
+        text_color:
+          "textColor" in updates
+            ? (updates.textColor ?? null)
+            : existing.text_color,
         order: updates.order ?? current.order,
       });
       const row = stmts.fetchById.get(id) as RoutineTagRow;

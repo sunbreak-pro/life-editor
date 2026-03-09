@@ -64,7 +64,12 @@
     "language": "Language",
     "languageDesc": "Choose interface language",
     "english": "English",
-    "japanese": "Japanese"
+    "japanese": "Japanese",
+    "editorSettings": "Editor",
+    "editorFontSize": "Editor Font Size",
+    "editorFontFamily": "Font Family",
+    "editorLineHeight": "Line Height",
+    "editorPaddingInline": "Content Padding"
   },
   "notifications": {
     "title": "Notifications",
@@ -224,11 +229,21 @@
     "title": "Ideas",
     "daily": "Daily",
     "notes": "Notes",
-    "search": "Search",
-    "tags": "Tags",
-    "searchPlaceholder": "Search by tag name...",
+    "connect": "Connect",
+    "materials": "Materials",
+    "favorites": "Favorites",
+    "searchMaterials": "Search notes and memos...",
+    "searchTagsAndNotes": "Search tags and notes...",
+    "createNoteWithTag": "New note with tag",
     "noSearchResults": "No results found",
-    "selectTagToSearch": "Select a tag to search"
+    "selectTagToSearch": "Select a tag to search",
+    "cooccurrence": "co-occurrence",
+    "manualConnection": "manual connection",
+    "graphEmpty": "No tags yet. Create tags to see the graph.",
+    "deleteConnection": "Delete connection?",
+    "newNoteButton": "+ New Note",
+    "relations": "Relations",
+    "linkTags": "Link tags"
   },
   "schedule": {
     "todayFlow": "Today Flow",
@@ -837,6 +852,14 @@
     "mergeInto": "Merge here",
     "createTag": "Create \"{{name}}\"",
     "editTag": "Edit tag"
+  },
+  "colorPicker": {
+    "presets": "Presets",
+    "custom": "Custom",
+    "hexLabel": "HEX",
+    "backgroundColor": "Background",
+    "textColor": "Text",
+    "default": "Default"
   },
   "taskDetail.quickMemo": "Quick Memo",
   "taskDetail.richEditor": "Rich Editor"

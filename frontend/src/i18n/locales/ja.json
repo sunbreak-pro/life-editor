@@ -64,7 +64,12 @@
     "language": "言語",
     "languageDesc": "インターフェース言語を選択",
     "english": "English",
-    "japanese": "日本語"
+    "japanese": "日本語",
+    "editorSettings": "エディタ",
+    "editorFontSize": "エディタのフォントサイズ",
+    "editorFontFamily": "フォントファミリー",
+    "editorLineHeight": "行間",
+    "editorPaddingInline": "コンテンツの余白"
   },
   "notifications": {
     "title": "通知",
@@ -224,11 +229,21 @@
     "title": "アイデア",
     "daily": "日記",
     "notes": "ノート",
-    "search": "検索",
-    "tags": "タグ",
-    "searchPlaceholder": "タグ名で検索...",
+    "connect": "コネクト",
+    "materials": "マテリアル",
+    "favorites": "お気に入り",
+    "searchMaterials": "ノートやメモを検索...",
+    "searchTagsAndNotes": "タグやノートを検索...",
+    "createNoteWithTag": "タグ付きノート作成",
     "noSearchResults": "結果が見つかりません",
-    "selectTagToSearch": "タグを選択して検索"
+    "selectTagToSearch": "タグを選択して検索",
+    "cooccurrence": "共起",
+    "manualConnection": "手動接続",
+    "graphEmpty": "タグがありません。タグを作成するとグラフが表示されます。",
+    "deleteConnection": "接続を削除しますか？",
+    "newNoteButton": "+ ノート作成",
+    "relations": "関連",
+    "linkTags": "タグを関連付け"
   },
   "schedule": {
     "todayFlow": "Today Flow",
@@ -837,6 +852,14 @@
     "mergeInto": "ここに統合",
     "createTag": "「{{name}}」を作成",
     "editTag": "タグを編集"
+  },
+  "colorPicker": {
+    "presets": "プリセット",
+    "custom": "カスタム",
+    "hexLabel": "HEX",
+    "backgroundColor": "背景色",
+    "textColor": "文字色",
+    "default": "デフォルト"
   },
   "taskDetail.quickMemo": "クイックメモ",
   "taskDetail.richEditor": "リッチエディタ"

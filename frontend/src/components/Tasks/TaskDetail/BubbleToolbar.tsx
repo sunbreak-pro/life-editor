@@ -18,19 +18,7 @@ import { isValidUrl } from "../../../utils/urlValidation";
 import { useSlashCommand } from "../../../hooks/useSlashCommand";
 import { PANEL_COMMANDS, getCurrentBlockLabel } from "./editorCommands";
 import { CommandPanel } from "./CommandPanel";
-
-const TEXT_COLORS = [
-  { label: "Default", value: null },
-  { label: "Gray", value: "#9B9A97" },
-  { label: "Brown", value: "#96694C" },
-  { label: "Orange", value: "#D9730D" },
-  { label: "Yellow", value: "#DFAB01" },
-  { label: "Green", value: "#0F7B6C" },
-  { label: "Blue", value: "#2EAADC" },
-  { label: "Purple", value: "#9065D0" },
-  { label: "Pink", value: "#D44C8F" },
-  { label: "Red", value: "#E03E3E" },
-];
+import { UnifiedColorPicker } from "../../shared/UnifiedColorPicker";
 
 interface BubbleToolbarProps {
   editor: Editor;
@@ -151,7 +139,7 @@ export function BubbleToolbar({ editor }: BubbleToolbarProps) {
     }
   };
 
-  const handleColorSelect = (color: string | null) => {
+  const handleColorSelect = (color: string) => {
     if (color) {
       editor.chain().focus().setColor(color).run();
     } else {
@@ -353,20 +341,11 @@ export function BubbleToolbar({ editor }: BubbleToolbarProps) {
             </button>
             {showColorPicker && (
               <div className="bubble-toolbar-color-picker">
-                {TEXT_COLORS.map((c) => (
-                  <button
-                    key={c.label}
-                    className="bubble-toolbar-color-swatch"
-                    style={{
-                      backgroundColor: c.value ?? "var(--color-text-primary)",
-                    }}
-                    onMouseDown={(e) => {
-                      e.preventDefault();
-                      handleColorSelect(c.value);
-                    }}
-                    title={c.label}
-                  />
-                ))}
+                <UnifiedColorPicker
+                  color=""
+                  onChange={handleColorSelect}
+                  mode="preset-only"
+                />
               </div>
             )}
           </div>

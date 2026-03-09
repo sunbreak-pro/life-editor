@@ -127,14 +127,45 @@ export function useRoutineTags() {
     [routineTags, push],
   );
 
-  const deleteRoutineTag = useCallback(async (id: number) => {
-    setRoutineTags((prev) => prev.filter((t) => t.id !== id));
-    try {
-      await getDataService().deleteRoutineTag(id);
-    } catch (e) {
-      logServiceError("RoutineTags", "delete", e);
-    }
-  }, []);
+  const deleteRoutineTag = useCallback(
+    async (id: number) => {
+      const target = routineTags.find((t) => t.id === id);
+      setRoutineTags((prev) => prev.filter((t) => t.id !== id));
+      try {
+        await getDataService().deleteRoutineTag(id);
+      } catch (e) {
+        logServiceError("RoutineTags", "delete", e);
+      }
+
+      if (target) {
+        let currentId = id;
+        push("routine", {
+          label: "deleteRoutineTag",
+          undo: async () => {
+            try {
+              const restored = await getDataService().createRoutineTag(
+                target.name,
+                target.color,
+              );
+              currentId = restored.id;
+              setRoutineTags((prev) => [...prev, restored]);
+            } catch (e) {
+              logServiceError("RoutineTags", "undoDelete", e);
+            }
+          },
+          redo: async () => {
+            setRoutineTags((prev) => prev.filter((t) => t.id !== currentId));
+            try {
+              await getDataService().deleteRoutineTag(currentId);
+            } catch (e) {
+              logServiceError("RoutineTags", "redoDelete", e);
+            }
+          },
+        });
+      }
+    },
+    [routineTags, push],
+  );
 
   return useMemo(
     () => ({

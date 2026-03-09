@@ -24,6 +24,7 @@ export interface SoundTag {
   id: number;
   name: string;
   color: string;
+  textColor?: string;
 }
 
 export interface SoundDisplayMeta {

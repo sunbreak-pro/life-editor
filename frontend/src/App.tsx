@@ -117,17 +117,8 @@ function App() {
       case "ideas":
         return (
           <IdeasView
-            onNavigateToTask={(taskId) => {
-              setSelectedTaskId(taskId);
-              setActiveSection("tasks");
-            }}
-            onNavigateToMemo={(date) => {
-              setMemoDate(date);
-              setActiveSection("ideas");
-              localStorage.setItem(STORAGE_KEYS.IDEAS_TAB, "daily");
-            }}
             onNavigateToNote={() => {
-              localStorage.setItem(STORAGE_KEYS.IDEAS_TAB, "notes");
+              localStorage.setItem(STORAGE_KEYS.IDEAS_TAB, "materials");
             }}
           />
         );
