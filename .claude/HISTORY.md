@@ -1,5 +1,17 @@
 # HISTORY.md - 変更履歴
 
+### 2026-03-09 - WikiTag テキストカラー変更が機能しない問題の修正
+
+#### 概要
+
+WikiTag 編集ポップアップでテキスト色を変更しても反映されない問題を修正。タブ配置の改善と初期色の正しい計算を実装。
+
+#### 変更点
+
+- **UnifiedColorPicker**: `effectiveTextColor` prop を追加し、テキストタブの初期色が自動コントラスト計算値を表示するよう修正。Background/Text タブを色コントロールの上に移動
+- **WikiTagView**: `effectiveTextColor` に `getTextColorForBg(color)` の結果を渡すよう修正
+- **WikiTagList**: `getTextColorForBg` を import し、`effectiveTextColor` prop を追加
+
 ### 2026-03-09 - Connect タブ実装 + 不要ファイル削除
 
 #### 概要
