@@ -2,31 +2,59 @@
 
 :root {
   --color-bg-primary: #ffffff;
-  --color-bg-secondary: #99cbf9;
-  --color-bg-subsidebar: #dfefff;
-  --color-text-primary: #37352f;
-  --color-text-secondary: #6e797e;
-  --color-border: #c1c1c1;
+  --color-bg-secondary: #f4f4f5;
+  --color-bg-subsidebar: #fafafa;
+  --color-text-primary: #18181b;
+  --color-text-secondary: #71717a;
+  --color-border: #e4e4e7;
   --color-accent: #2eaadc;
-  --color-hover: #caecf1;
+  --color-hover: #f4f4f5;
   --color-success: #0f7b6c;
   --color-danger: #e03e3e;
-  --color-calendar-header: #ff8a92;
+  --color-calendar-header: #f87171;
   --font-size-base: 16px;
 }
 
 [data-theme="dark"] {
-  --color-bg-primary: #191919;
-  --color-bg-secondary: #202020;
-  --color-bg-subsidebar: #282727;
-  --color-text-primary: #e8e8e3;
-  --color-text-secondary: #b3b2af;
-  --color-border: #2f2f2f;
+  --color-bg-primary: #18181b;
+  --color-bg-secondary: #27272a;
+  --color-bg-subsidebar: #27272a;
+  --color-text-primary: #f4f4f5;
+  --color-text-secondary: #a1a1aa;
+  --color-border: #3f3f46;
   --color-accent: #529cca;
-  --color-hover: #2f2f2f;
+  --color-hover: #3f3f46;
   --color-success: #4dab9a;
-  --color-danger: #e06666;
-  --color-calendar-header: #841414;
+  --color-danger: #ef4444;
+  --color-calendar-header: #991b1b;
+}
+
+[data-theme="monochrome"] {
+  --color-bg-primary: #ffffff;
+  --color-bg-secondary: #f4f4f5;
+  --color-bg-subsidebar: #fafafa;
+  --color-text-primary: #18181b;
+  --color-text-secondary: #71717a;
+  --color-border: #e4e4e7;
+  --color-accent: #18181b;
+  --color-hover: #f4f4f5;
+  --color-success: #18181b;
+  --color-danger: #71717a;
+  --color-calendar-header: #e4e4e7;
+}
+
+[data-theme="monochrome-dark"] {
+  --color-bg-primary: #121212;
+  --color-bg-secondary: #1e1e1e;
+  --color-bg-subsidebar: #18181b;
+  --color-text-primary: #f4f4f5;
+  --color-text-secondary: #a1a1aa;
+  --color-border: #27272a;
+  --color-accent: #f4f4f5;
+  --color-hover: #27272a;
+  --color-success: #f4f4f5;
+  --color-danger: #a1a1aa;
+  --color-calendar-header: #27272a;
 }
 
 @theme {
@@ -68,6 +96,29 @@ body {
   }
   button:disabled {
     cursor: not-allowed;
+  }
+}
+
+@layer utilities {
+  .text-scaling-xs {
+    font-size: 0.75em;
+    line-height: 1.125em;
+  }
+  .text-scaling-sm {
+    font-size: 0.875em;
+    line-height: 1.25em;
+  }
+  .text-scaling-base {
+    font-size: 1em;
+    line-height: 1.5em;
+  }
+  .text-scaling-lg {
+    font-size: 1.125em;
+    line-height: 1.75em;
+  }
+  .text-scaling-xl {
+    font-size: 1.25em;
+    line-height: 1.75em;
   }
 }
 
@@ -225,23 +276,40 @@ body {
   margin-top: 0.5rem;
 }
 
-/* Wiki Tag */
-.memo-editor .wiki-tag {
-  display: inline;
-  padding: 0.1rem 0.35rem;
-  border-radius: 0.25rem;
+/* Wiki Tag Modern (Badge Style) */
+.memo-editor .wiki-tag-modern {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 0.15rem 0.4rem;
+  margin: 0 0.15rem;
+  border-radius: 4px;
   background-color: var(--color-hover);
-  color: var(--color-accent);
+  color: var(--color-text-primary);
   font-weight: 500;
-  font-size: 0.9em;
+  font-size: 0.85em;
   cursor: pointer;
-  transition: background-color 0.15s;
+  transition: all 0.1s ease;
   white-space: nowrap;
+  vertical-align: middle;
+  border: 1px solid transparent;
 }
 
-.memo-editor .wiki-tag:hover {
-  background-color: var(--color-accent);
-  color: #fff;
+.memo-editor .wiki-tag-modern:hover {
+  background-color: color-mix(in srgb, var(--color-accent) 10%, transparent);
+  color: var(--color-accent);
+  border-color: color-mix(in srgb, var(--color-accent) 20%, transparent);
+}
+
+.memo-editor .wiki-tag-symbol {
+  color: var(--color-text-secondary);
+  font-size: 0.9em;
+  font-weight: 600;
+  opacity: 0.7;
+}
+
+.memo-editor .wiki-tag-modern:hover .wiki-tag-symbol {
+  color: var(--color-accent);
 }
 
 /* Callout */
@@ -465,16 +533,21 @@ body {
   animation: fade-out-toast 300ms ease-in forwards;
 }
 
+/* Bubble Toolbar Unified Wrapper */
+.bubble-toolbar-unified {
+  background-color: var(--color-bg-primary);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+  overflow: hidden;
+}
+
 /* Bubble Toolbar */
 .bubble-toolbar {
   display: flex;
   align-items: center;
   gap: 2px;
-  background-color: var(--color-bg-primary);
-  border: 1px solid var(--color-border);
-  border-radius: 8px;
   padding: 4px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
 }
 
 .bubble-toolbar-btn {
@@ -553,7 +626,39 @@ body {
   border-color: var(--color-border);
 }
 
-/* Command Panel (Slash Command Menu) */
+/* Bubble Toolbar Turn Into */
+.bubble-toolbar-turninto-wrapper {
+  position: relative;
+}
+
+.bubble-toolbar-turninto-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  height: 28px;
+  padding: 0 8px;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--color-text-primary);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background-color 0.1s;
+}
+
+.bubble-toolbar-turninto-btn:hover {
+  background-color: var(--color-hover);
+}
+
+/* Bubble Toolbar Slash Mode Wrapper */
+.bubble-toolbar-slash-wrapper {
+  position: absolute;
+  z-index: 50;
+}
+
+/* Command Panel (Slash Command Menu) - standalone */
 .command-panel {
   position: absolute;
   z-index: 50;
@@ -595,6 +700,14 @@ body {
 .command-panel-item:hover,
 .command-panel-item.selected {
   background-color: var(--color-hover);
+}
+
+.command-panel-item.active {
+  color: var(--color-accent);
+}
+
+.command-panel-item.active .command-panel-item-icon {
+  color: var(--color-accent);
 }
 
 .command-panel-item-icon {
@@ -706,6 +819,28 @@ body {
 
 .command-panel-number-input:focus {
   border-color: var(--color-accent);
+}
+
+/* Command Panel Inline (inside unified toolbar) */
+.command-panel-inline {
+  padding: 4px;
+  width: 320px;
+  max-height: 380px;
+  overflow-y: auto;
+  border-top: 1px solid var(--color-border);
+}
+
+/* Command Panel Filter */
+.command-panel-filter {
+  padding: 4px 10px 6px;
+  font-size: 12px;
+  color: var(--color-text-secondary);
+}
+
+.command-panel-filter-slash {
+  color: var(--color-accent);
+  font-weight: 600;
+  margin-right: 2px;
 }
 
 /* Icon Picker */

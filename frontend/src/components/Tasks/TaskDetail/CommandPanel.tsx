@@ -1,24 +1,38 @@
 import { useState, useRef, useCallback } from "react";
 import { createPortal } from "react-dom";
-import { Extension } from "@tiptap/core";
 import type { Editor } from "@tiptap/react";
 import { MoreVertical } from "lucide-react";
-import { useSlashCommand } from "../../../hooks/useSlashCommand";
 import { isValidUrl } from "../../../utils/urlValidation";
+import { setStoredHeadingFontSize } from "../../../utils/headingFontSize";
 import {
   type PanelCommand,
   type SubAction,
-  PANEL_COMMANDS,
   GROUP_ORDER,
 } from "./editorCommands";
 
 const IMAGE_COMMAND_ID = "Image";
 
-interface SlashCommandMenuProps {
+interface CommandPanelProps {
   editor: Editor;
+  commands: PanelCommand[];
+  mode: "selection" | "slash";
+  selectedIndex: number;
+  filterQuery: string;
+  onExecute: (index: number) => void;
+  onClose: () => void;
+  deleteSlashText?: () => void;
 }
 
-export function SlashCommandMenu({ editor }: SlashCommandMenuProps) {
+export function CommandPanel({
+  editor,
+  commands,
+  mode,
+  selectedIndex,
+  filterQuery,
+  onExecute,
+  onClose,
+  deleteSlashText,
+}: CommandPanelProps) {
   const menuRef = useRef<HTMLDivElement>(null);
   const [imageUrlInput, setImageUrlInput] = useState(false);
   const [imageUrl, setImageUrl] = useState("");
@@ -32,28 +46,19 @@ export function SlashCommandMenu({ editor }: SlashCommandMenuProps) {
   const [customFontSize, setCustomFontSize] = useState("");
   const [customFontSizeLevel, setCustomFontSizeLevel] = useState<1 | 2 | 3>(1);
 
-  const {
-    isOpen,
-    position,
-    selectedIndex,
-    filteredCommands,
-    executeCommand,
-    deleteSlashText,
-  } = useSlashCommand(editor, PANEL_COMMANDS);
-
   const handleExecute = useCallback(
     (index: number) => {
-      const cmd = filteredCommands[index];
+      const cmd = commands[index];
       if (cmd?.title === IMAGE_COMMAND_ID) {
-        deleteSlashText();
+        deleteSlashText?.();
         setImageUrlInput(true);
         setImageUrl("");
         setImageUrlError("");
       } else {
-        executeCommand(index);
+        onExecute(index);
       }
     },
-    [filteredCommands, executeCommand, deleteSlashText],
+    [commands, onExecute, deleteSlashText],
   );
 
   const handleImageUrlApply = useCallback(() => {
@@ -63,10 +68,11 @@ export function SlashCommandMenu({ editor }: SlashCommandMenuProps) {
       setImageUrlInput(false);
       setImageUrl("");
       setImageUrlError("");
+      onClose();
     } else {
       setImageUrlError("有効なURLを入力してください（http/https）");
     }
-  }, [editor, imageUrl]);
+  }, [editor, imageUrl, onClose]);
 
   const handleImageUrlCancel = useCallback(() => {
     setImageUrlInput(false);
@@ -81,34 +87,30 @@ export function SlashCommandMenu({ editor }: SlashCommandMenuProps) {
         const level = headingMatch
           ? (parseInt(headingMatch[1]) as 1 | 2 | 3)
           : 1;
-        deleteSlashText();
+        deleteSlashText?.();
         setCustomFontSizeLevel(level);
         setCustomFontSizeInput(true);
         setCustomFontSize("");
         setActiveSubMenu(null);
         setSubMenuPos(null);
       } else {
-        deleteSlashText();
+        deleteSlashText?.();
         sub.action(editor);
         setActiveSubMenu(null);
         setSubMenuPos(null);
+        onClose();
       }
     },
-    [editor, deleteSlashText],
+    [editor, deleteSlashText, onClose],
   );
-
-  if (!isOpen && !imageUrlInput && !customFontSizeInput) return null;
 
   // Image URL input view
   if (imageUrlInput) {
     return (
-      <div
-        className="absolute z-50 bg-notion-bg border border-notion-border rounded-lg shadow-lg p-3 w-72"
-        style={{ top: position.top, left: position.left }}
-      >
-        <div className="text-xs text-notion-text-secondary mb-2">画像URL</div>
+      <div className="command-panel-inline">
+        <div className="command-panel-input-label">画像URL</div>
         <input
-          className={`w-full px-2 py-1 text-sm bg-notion-bg border rounded outline-none focus:border-blue-500 ${imageUrlError ? "border-red-500" : "border-notion-border"}`}
+          className={`command-panel-number-input ${imageUrlError ? "border-red-500" : ""}`}
           type="url"
           placeholder="https://example.com/image.png"
           value={imageUrl}
@@ -129,7 +131,9 @@ export function SlashCommandMenu({ editor }: SlashCommandMenuProps) {
           autoFocus
         />
         {imageUrlError && (
-          <div className="text-xs text-red-500 mt-1">{imageUrlError}</div>
+          <div className="text-xs text-red-500 mt-1 px-2.5">
+            {imageUrlError}
+          </div>
         )}
       </div>
     );
@@ -138,10 +142,7 @@ export function SlashCommandMenu({ editor }: SlashCommandMenuProps) {
   // Custom font size input view
   if (customFontSizeInput) {
     return (
-      <div
-        className="command-panel command-panel-fontsize-input"
-        style={{ top: position.top, left: position.left }}
-      >
+      <div className="command-panel-inline command-panel-fontsize-input">
         <div className="command-panel-input-label">Font Size (px)</div>
         <input
           className="command-panel-number-input"
@@ -156,6 +157,7 @@ export function SlashCommandMenu({ editor }: SlashCommandMenuProps) {
               e.preventDefault();
               const size = parseInt(customFontSize);
               if (size >= 8 && size <= 200) {
+                setStoredHeadingFontSize(customFontSizeLevel, `${size}px`);
                 editor
                   .chain()
                   .focus()
@@ -165,6 +167,7 @@ export function SlashCommandMenu({ editor }: SlashCommandMenuProps) {
               }
               setCustomFontSizeInput(false);
               setCustomFontSize("");
+              onClose();
             }
             if (e.key === "Escape") {
               e.preventDefault();
@@ -178,7 +181,7 @@ export function SlashCommandMenu({ editor }: SlashCommandMenuProps) {
     );
   }
 
-  if (filteredCommands.length === 0) return null;
+  if (commands.length === 0) return null;
 
   // Group commands
   const grouped: {
@@ -190,7 +193,7 @@ export function SlashCommandMenu({ editor }: SlashCommandMenuProps) {
     { cmd: PanelCommand; globalIndex: number }[]
   >();
 
-  filteredCommands.forEach((cmd, i) => {
+  commands.forEach((cmd, i) => {
     if (!groupMap.has(cmd.group)) {
       groupMap.set(cmd.group, []);
     }
@@ -205,17 +208,22 @@ export function SlashCommandMenu({ editor }: SlashCommandMenuProps) {
   }
 
   return (
-    <div
-      ref={menuRef}
-      className="command-panel"
-      style={{ top: position.top, left: position.left }}
-    >
+    <div ref={menuRef} className="command-panel-inline">
+      {mode === "slash" && filterQuery && (
+        <div className="command-panel-filter">
+          <span className="command-panel-filter-slash">/</span>
+          {filterQuery}
+        </div>
+      )}
       {grouped.map((g) => (
         <div key={g.group} className="command-panel-group">
           <div className="command-panel-group-label">{g.group}</div>
           {g.items.map(({ cmd, globalIndex }) => {
             const Icon = cmd.icon;
-            const isSelected = globalIndex === selectedIndex;
+            const isSelected =
+              mode === "slash" && globalIndex === selectedIndex;
+            const isActive =
+              mode === "selection" && cmd.check?.(editor) === true;
             return (
               <div key={cmd.title} style={{ position: "relative" }}>
                 <div
@@ -225,7 +233,7 @@ export function SlashCommandMenu({ editor }: SlashCommandMenuProps) {
                     e.preventDefault();
                     handleExecute(globalIndex);
                   }}
-                  className={`command-panel-item${isSelected ? " selected" : ""}`}
+                  className={`command-panel-item${isSelected ? " selected" : ""}${isActive ? " active" : ""}`}
                 >
                   <div className="command-panel-item-icon">
                     <Icon size={18} />
@@ -304,7 +312,3 @@ export function SlashCommandMenu({ editor }: SlashCommandMenuProps) {
     </div>
   );
 }
-
-export const SlashCommandExtension = Extension.create({
-  name: "slashCommand",
-});

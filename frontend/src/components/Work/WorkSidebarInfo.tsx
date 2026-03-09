@@ -66,17 +66,17 @@ export function WorkSidebarInfo() {
     <div className="p-3 space-y-4">
       {/* Now Playing */}
       <div className="space-y-2">
-        <h4 className="flex items-center gap-1.5 text-[10px] font-semibold text-notion-text-secondary uppercase tracking-wider px-1">
-          <Music size={14} />
+        <h4 className="flex items-center gap-1.5 font-semibold text-notion-text-secondary text-scaling-xs uppercase tracking-wider px-1 opacity-80">
+          <Music size={14} className="opacity-70" />
           {t("work.sidebar.nowPlaying")}
         </h4>
         {activePlaylist ? (
-          <div className="space-y-1.5">
-            <p className="text-xs text-notion-text px-1 truncate">
+          <div className="space-y-1.5 bg-notion-hover/30 rounded-lg p-2.5">
+            <p className="font-medium text-notion-text text-scaling-sm px-1 truncate">
               {activePlaylist.name}
             </p>
             {currentTrackName && (
-              <p className="text-[11px] text-notion-text-secondary px-1 truncate">
+              <p className="text-notion-text-secondary text-scaling-xs px-1 truncate opacity-75">
                 {currentTrackName}
               </p>
             )}
@@ -104,7 +104,7 @@ export function WorkSidebarInfo() {
             </div>
           </div>
         ) : (
-          <p className="text-xs text-notion-text-secondary px-1">
+          <p className="text-notion-text-secondary text-scaling-xs px-2 py-1.5 bg-notion-hover/30 rounded-lg opacity-75">
             {t("work.sidebar.noPlaylist")}
           </p>
         )}
@@ -114,32 +114,32 @@ export function WorkSidebarInfo() {
 
       {/* Pomodoro Settings Summary */}
       <div className="space-y-2">
-        <h4 className="flex items-center gap-1.5 text-[10px] font-semibold text-notion-text-secondary uppercase tracking-wider px-1">
-          <Timer size={14} />
+        <h4 className="flex items-center gap-1.5 font-semibold text-notion-text-secondary text-scaling-xs uppercase tracking-wider px-1 opacity-80">
+          <Timer size={14} className="opacity-70" />
           {t("work.sidebar.pomodoroSettings")}
         </h4>
-        <div className="space-y-1 px-1">
-          <div className="flex justify-between text-xs">
+        <div className="space-y-1.5 bg-notion-hover/30 rounded-lg p-2.5">
+          <div className="flex justify-between items-center text-scaling-sm px-1">
             <span className="text-notion-text-secondary">Work</span>
-            <span className="text-notion-text">
+            <span className="text-notion-text font-medium bg-notion-hover px-2 py-0.5 rounded">
               {timer.workDurationMinutes}m
             </span>
           </div>
-          <div className="flex justify-between text-xs">
+          <div className="flex justify-between items-center text-scaling-sm px-1">
             <span className="text-notion-text-secondary">Break</span>
-            <span className="text-notion-text">
+            <span className="text-notion-text font-medium bg-notion-hover px-2 py-0.5 rounded">
               {timer.breakDurationMinutes}m
             </span>
           </div>
-          <div className="flex justify-between text-xs">
+          <div className="flex justify-between items-center text-scaling-sm px-1">
             <span className="text-notion-text-secondary">Long Break</span>
-            <span className="text-notion-text">
+            <span className="text-notion-text font-medium bg-notion-hover px-2 py-0.5 rounded">
               {timer.longBreakDurationMinutes}m
             </span>
           </div>
-          <div className="flex justify-between text-xs">
+          <div className="flex justify-between items-center text-scaling-sm px-1">
             <span className="text-notion-text-secondary">Sessions</span>
-            <span className="text-notion-text">
+            <span className="text-notion-text font-medium bg-notion-hover px-2 py-0.5 rounded">
               {timer.sessionsBeforeLongBreak}
             </span>
           </div>
@@ -150,15 +150,15 @@ export function WorkSidebarInfo() {
 
       {/* Today's Stats */}
       <div className="space-y-2">
-        <h4 className="flex items-center gap-1.5 text-[10px] font-semibold text-notion-text-secondary uppercase tracking-wider px-1">
-          <BarChart3 size={14} />
+        <h4 className="flex items-center gap-1.5 font-semibold text-notion-text-secondary text-scaling-xs uppercase tracking-wider px-1 opacity-80">
+          <BarChart3 size={14} className="opacity-70" />
           {t("work.sidebar.todayStats")}
         </h4>
-        <div className="space-y-1 px-1">
-          <p className="text-xs text-notion-text">
+        <div className="space-y-1 bg-notion-hover/30 rounded-lg p-2.5 px-3">
+          <p className="font-medium text-notion-text text-scaling-sm">
             {t("work.sidebar.sessions", { count: todaySummary.sessions })}
           </p>
-          <p className="text-xs text-notion-text-secondary">
+          <p className="text-notion-text-secondary text-scaling-xs opacity-75">
             {t("work.sidebar.totalTime", {
               minutes: todaySummary.totalMinutes,
             })}

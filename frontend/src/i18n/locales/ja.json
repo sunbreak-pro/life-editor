@@ -820,6 +820,10 @@
     "deleteConfirm": "「{{name}}」を削除しますか？",
     "merge": "統合",
     "mergeSelectTarget": "統合先のタグをクリックしてください",
-    "mergeInto": "ここに統合"
-  }
+    "mergeInto": "ここに統合",
+    "createTag": "「{{name}}」を作成",
+    "editTag": "タグを編集"
+  },
+  "taskDetail.quickMemo": "クイックメモ",
+  "taskDetail.richEditor": "リッチエディタ"
 }

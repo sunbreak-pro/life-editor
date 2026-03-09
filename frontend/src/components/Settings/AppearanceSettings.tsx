@@ -1,4 +1,3 @@
-import { Moon, Sun } from 'lucide-react';
 import { useTheme } from '../../hooks/useTheme';
 import { useTranslation } from 'react-i18next';
 
@@ -8,7 +7,7 @@ const FONT_SIZE_PX: Record<number, number> = {
 };
 
 export function AppearanceSettings() {
-  const { theme, fontSize, toggleTheme, setFontSize } = useTheme();
+  const { theme, fontSize, setTheme, setFontSize } = useTheme();
   const { t } = useTranslation();
 
   return (
@@ -20,20 +19,40 @@ export function AppearanceSettings() {
           <p className="text-sm font-medium text-notion-text">{t('settings.darkMode')}</p>
           <p className="text-xs text-notion-text-secondary">{t('settings.darkModeDesc')}</p>
         </div>
-        <button
-          onClick={toggleTheme}
-          className={`relative w-12 h-6 rounded-full transition-colors ${
-            theme === 'dark' ? 'bg-notion-accent' : 'bg-notion-border'
-          }`}
-        >
-          <div
-            className={`absolute top-0.5 w-5 h-5 rounded-full bg-white flex items-center justify-center transition-transform ${
-              theme === 'dark' ? 'translate-x-6' : 'translate-x-0.5'
+        <div className="flex gap-2">
+          <button
+            onClick={() => setTheme('light')}
+            className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
+              theme === 'light' ? 'bg-notion-accent text-white' : 'bg-notion-hover text-notion-text'
             }`}
           >
-            {theme === 'dark' ? <Moon size={12} className="text-notion-accent" /> : <Sun size={12} className="text-yellow-500" />}
-          </div>
-        </button>
+            Light
+          </button>
+          <button
+            onClick={() => setTheme('dark')}
+            className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
+              theme === 'dark' ? 'bg-notion-accent text-white' : 'bg-notion-hover text-notion-text'
+            }`}
+          >
+            Dark
+          </button>
+          <button
+            onClick={() => setTheme('monochrome')}
+            className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
+              theme === 'monochrome' ? 'bg-notion-accent text-white' : 'bg-notion-hover text-notion-text'
+            }`}
+          >
+            Noir (Light)
+          </button>
+          <button
+            onClick={() => setTheme('monochrome-dark')}
+            className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
+              theme === 'monochrome-dark' ? 'bg-notion-accent text-white' : 'bg-notion-hover text-notion-text'
+            }`}
+          >
+            Noir (Dark)
+          </button>
+        </div>
       </div>
 
       <div className="py-3">

@@ -820,6 +820,10 @@
     "deleteConfirm": "Delete \"{{name}}\"?",
     "merge": "Merge",
     "mergeSelectTarget": "Click another tag to merge into",
-    "mergeInto": "Merge here"
-  }
+    "mergeInto": "Merge here",
+    "createTag": "Create \"{{name}}\"",
+    "editTag": "Edit tag"
+  },
+  "taskDetail.quickMemo": "Quick Memo",
+  "taskDetail.richEditor": "Rich Editor"
 }

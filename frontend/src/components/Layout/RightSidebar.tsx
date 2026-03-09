@@ -20,7 +20,7 @@ export function RightSidebar({
 
   return (
     <aside
-      className="relative h-full bg-notion-bg-secondary border-l border-notion-border flex flex-col"
+      className="relative h-full bg-notion-bg-subsidebar border-l border-notion-border flex flex-col transition-colors"
       style={{ minWidth: width }}
     >
       {/* Resize handle */}

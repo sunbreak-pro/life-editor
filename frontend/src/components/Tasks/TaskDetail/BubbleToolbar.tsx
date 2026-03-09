@@ -1,4 +1,5 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef } from "react";
+import { createPortal } from "react-dom";
 import { BubbleMenu } from "@tiptap/react/menus";
 import type { Editor } from "@tiptap/react";
 import {
@@ -10,9 +11,13 @@ import {
   Palette,
   X,
   Check,
+  ChevronDown,
 } from "lucide-react";
 import { isMac } from "../../../utils/platform";
 import { isValidUrl } from "../../../utils/urlValidation";
+import { useSlashCommand } from "../../../hooks/useSlashCommand";
+import { PANEL_COMMANDS, getCurrentBlockLabel } from "./editorCommands";
+import { CommandPanel } from "./CommandPanel";
 
 const TEXT_COLORS = [
   { label: "Default", value: null },
@@ -36,6 +41,37 @@ export function BubbleToolbar({ editor }: BubbleToolbarProps) {
   const [linkUrl, setLinkUrl] = useState("");
   const [linkError, setLinkError] = useState("");
   const [showColorPicker, setShowColorPicker] = useState(false);
+  const [showTurnInto, setShowTurnInto] = useState(false);
+
+  // Use a ref-based override so we can set it after useSlashCommand initializes
+  const executeOverrideRef = useRef<((index: number) => void) | null>(null);
+
+  const slash = useSlashCommand(editor, PANEL_COMMANDS, (index: number) => {
+    executeOverrideRef.current?.(index);
+  });
+
+  // Set the actual override implementation
+  executeOverrideRef.current = (index: number) => {
+    const cmd = slash.filteredCommands[index];
+    if (!cmd) return;
+    // Image is handled inside CommandPanel's own state
+    // For other commands, just use the default execute
+    slash.executeCommand(index);
+  };
+
+  const handleSlashExecute = useCallback(
+    (index: number) => {
+      const cmd = slash.filteredCommands[index];
+      if (!cmd) return;
+      if (cmd.title === "Image") {
+        slash.deleteSlashText();
+        // Image URL input handled inside CommandPanel
+        return;
+      }
+      slash.executeCommand(index);
+    },
+    [slash],
+  );
 
   const shouldShow = useCallback(
     ({
@@ -47,6 +83,7 @@ export function BubbleToolbar({ editor }: BubbleToolbarProps) {
       from: number;
       to: number;
     }) => {
+      if (slash.isOpen) return false;
       if (from === to) return false;
       if (ed.isActive("codeBlock")) return false;
       const sel = ed.state.selection;
@@ -61,7 +98,7 @@ export function BubbleToolbar({ editor }: BubbleToolbarProps) {
       }
       return true;
     },
-    [],
+    [slash.isOpen],
   );
 
   const handleLinkOpen = () => {
@@ -123,63 +160,99 @@ export function BubbleToolbar({ editor }: BubbleToolbarProps) {
     setShowColorPicker(false);
   };
 
-  // Reset sub-states when bubble menu re-appears
   const handleHide = () => {
     setLinkMode(false);
     setLinkUrl("");
     setLinkError("");
     setShowColorPicker(false);
+    setShowTurnInto(false);
   };
 
+  const handleTurnIntoExecute = useCallback(
+    (index: number) => {
+      PANEL_COMMANDS[index]?.action(editor);
+      setShowTurnInto(false);
+    },
+    [editor],
+  );
+
+  // --- Slash mode: portal-based CommandPanel ---
+  if (slash.isOpen) {
+    const portalTarget = editor.view.dom.parentElement;
+    if (!portalTarget) return null;
+
+    return createPortal(
+      <div
+        className="bubble-toolbar-slash-wrapper"
+        style={{ top: slash.position.top, left: slash.position.left }}
+      >
+        <CommandPanel
+          editor={editor}
+          commands={slash.filteredCommands}
+          mode="slash"
+          selectedIndex={slash.selectedIndex}
+          filterQuery={slash.query}
+          onExecute={handleSlashExecute}
+          onClose={slash.close}
+          deleteSlashText={slash.deleteSlashText}
+        />
+      </div>,
+      portalTarget,
+    );
+  }
+
+  // --- Selection mode: BubbleMenu with unified UI ---
   if (linkMode) {
     return (
       <BubbleMenu editor={editor} shouldShow={shouldShow} updateDelay={100}>
-        <div className="bubble-toolbar" onMouseLeave={handleHide}>
-          <input
-            className={`bubble-toolbar-link-input${linkError ? " border-red-500" : ""}`}
-            type="url"
-            placeholder="Paste URL..."
-            value={linkUrl}
-            onChange={(e) => {
-              setLinkUrl(e.target.value);
-              setLinkError("");
-            }}
-            onKeyDown={handleLinkKeyDown}
-            title={linkError || undefined}
-            autoFocus
-          />
-          <button
-            className="bubble-toolbar-btn"
-            onMouseDown={(e) => {
-              e.preventDefault();
-              handleLinkApply();
-            }}
-            title="Apply"
-          >
-            <Check size={14} />
-          </button>
-          {editor.isActive("link") && (
+        <div className="bubble-toolbar-unified">
+          <div className="bubble-toolbar" onMouseLeave={handleHide}>
+            <input
+              className={`bubble-toolbar-link-input${linkError ? " border-red-500" : ""}`}
+              type="url"
+              placeholder="Paste URL..."
+              value={linkUrl}
+              onChange={(e) => {
+                setLinkUrl(e.target.value);
+                setLinkError("");
+              }}
+              onKeyDown={handleLinkKeyDown}
+              title={linkError || undefined}
+              autoFocus
+            />
             <button
               className="bubble-toolbar-btn"
               onMouseDown={(e) => {
                 e.preventDefault();
-                handleLinkRemove();
+                handleLinkApply();
               }}
-              title="Remove link"
+              title="Apply"
+            >
+              <Check size={14} />
+            </button>
+            {editor.isActive("link") && (
+              <button
+                className="bubble-toolbar-btn"
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  handleLinkRemove();
+                }}
+                title="Remove link"
+              >
+                <X size={14} />
+              </button>
+            )}
+            <button
+              className="bubble-toolbar-btn"
+              onMouseDown={(e) => {
+                e.preventDefault();
+                handleLinkCancel();
+              }}
+              title="Cancel (Esc)"
             >
               <X size={14} />
             </button>
-          )}
-          <button
-            className="bubble-toolbar-btn"
-            onMouseDown={(e) => {
-              e.preventDefault();
-              handleLinkCancel();
-            }}
-            title="Cancel (Esc)"
-          >
-            <X size={14} />
-          </button>
+          </div>
         </div>
       </BubbleMenu>
     );
@@ -187,96 +260,130 @@ export function BubbleToolbar({ editor }: BubbleToolbarProps) {
 
   return (
     <BubbleMenu editor={editor} shouldShow={shouldShow} updateDelay={100}>
-      <div
-        className="bubble-toolbar"
-        onMouseLeave={() => setShowColorPicker(false)}
-      >
-        <button
-          className={`bubble-toolbar-btn ${editor.isActive("bold") ? "is-active" : ""}`}
-          onMouseDown={(e) => {
-            e.preventDefault();
-            editor.chain().focus().toggleBold().run();
-          }}
-          title={isMac ? "Bold (⌘B)" : "Bold (Ctrl+B)"}
+      <div className="bubble-toolbar-unified">
+        <div
+          className="bubble-toolbar"
+          onMouseLeave={() => setShowColorPicker(false)}
         >
-          <Bold size={14} />
-        </button>
-        <button
-          className={`bubble-toolbar-btn ${editor.isActive("italic") ? "is-active" : ""}`}
-          onMouseDown={(e) => {
-            e.preventDefault();
-            editor.chain().focus().toggleItalic().run();
-          }}
-          title={isMac ? "Italic (⌘I)" : "Italic (Ctrl+I)"}
-        >
-          <Italic size={14} />
-        </button>
-        <button
-          className={`bubble-toolbar-btn ${editor.isActive("strike") ? "is-active" : ""}`}
-          onMouseDown={(e) => {
-            e.preventDefault();
-            editor.chain().focus().toggleStrike().run();
-          }}
-          title={isMac ? "Strikethrough (⌘⇧S)" : "Strikethrough (Ctrl+Shift+S)"}
-        >
-          <Strikethrough size={14} />
-        </button>
-        <button
-          className={`bubble-toolbar-btn ${editor.isActive("code") ? "is-active" : ""}`}
-          onMouseDown={(e) => {
-            e.preventDefault();
-            editor.chain().focus().toggleCode().run();
-          }}
-          title={isMac ? "Code (⌘E)" : "Code (Ctrl+E)"}
-        >
-          <Code size={14} />
-        </button>
+          {/* Turn Into dropdown */}
+          <div className="bubble-toolbar-turninto-wrapper">
+            <button
+              className="bubble-toolbar-turninto-btn"
+              onMouseDown={(e) => {
+                e.preventDefault();
+                setShowTurnInto(!showTurnInto);
+              }}
+              title="Turn into..."
+            >
+              <span>{getCurrentBlockLabel(editor)}</span>
+              <ChevronDown size={12} />
+            </button>
+          </div>
 
-        <div className="bubble-toolbar-divider" />
+          <div className="bubble-toolbar-divider" />
 
-        <button
-          className={`bubble-toolbar-btn ${editor.isActive("link") ? "is-active" : ""}`}
-          onMouseDown={(e) => {
-            e.preventDefault();
-            handleLinkOpen();
-          }}
-          title={isMac ? "Link (⌘K)" : "Link (Ctrl+K)"}
-        >
-          <LinkIcon size={14} />
-        </button>
-
-        <div className="bubble-toolbar-divider" />
-
-        <div className="relative">
           <button
-            className="bubble-toolbar-btn"
+            className={`bubble-toolbar-btn ${editor.isActive("bold") ? "is-active" : ""}`}
             onMouseDown={(e) => {
               e.preventDefault();
-              setShowColorPicker(!showColorPicker);
+              editor.chain().focus().toggleBold().run();
             }}
-            title="Text color"
+            title={isMac ? "Bold (⌘B)" : "Bold (Ctrl+B)"}
           >
-            <Palette size={14} />
+            <Bold size={14} />
           </button>
-          {showColorPicker && (
-            <div className="bubble-toolbar-color-picker">
-              {TEXT_COLORS.map((c) => (
-                <button
-                  key={c.label}
-                  className="bubble-toolbar-color-swatch"
-                  style={{
-                    backgroundColor: c.value ?? "var(--color-text-primary)",
-                  }}
-                  onMouseDown={(e) => {
-                    e.preventDefault();
-                    handleColorSelect(c.value);
-                  }}
-                  title={c.label}
-                />
-              ))}
-            </div>
-          )}
+          <button
+            className={`bubble-toolbar-btn ${editor.isActive("italic") ? "is-active" : ""}`}
+            onMouseDown={(e) => {
+              e.preventDefault();
+              editor.chain().focus().toggleItalic().run();
+            }}
+            title={isMac ? "Italic (⌘I)" : "Italic (Ctrl+I)"}
+          >
+            <Italic size={14} />
+          </button>
+          <button
+            className={`bubble-toolbar-btn ${editor.isActive("strike") ? "is-active" : ""}`}
+            onMouseDown={(e) => {
+              e.preventDefault();
+              editor.chain().focus().toggleStrike().run();
+            }}
+            title={
+              isMac ? "Strikethrough (⌘⇧S)" : "Strikethrough (Ctrl+Shift+S)"
+            }
+          >
+            <Strikethrough size={14} />
+          </button>
+          <button
+            className={`bubble-toolbar-btn ${editor.isActive("code") ? "is-active" : ""}`}
+            onMouseDown={(e) => {
+              e.preventDefault();
+              editor.chain().focus().toggleCode().run();
+            }}
+            title={isMac ? "Code (⌘E)" : "Code (Ctrl+E)"}
+          >
+            <Code size={14} />
+          </button>
+
+          <div className="bubble-toolbar-divider" />
+
+          <button
+            className={`bubble-toolbar-btn ${editor.isActive("link") ? "is-active" : ""}`}
+            onMouseDown={(e) => {
+              e.preventDefault();
+              handleLinkOpen();
+            }}
+            title={isMac ? "Link (⌘K)" : "Link (Ctrl+K)"}
+          >
+            <LinkIcon size={14} />
+          </button>
+
+          <div className="bubble-toolbar-divider" />
+
+          <div className="relative">
+            <button
+              className="bubble-toolbar-btn"
+              onMouseDown={(e) => {
+                e.preventDefault();
+                setShowColorPicker(!showColorPicker);
+              }}
+              title="Text color"
+            >
+              <Palette size={14} />
+            </button>
+            {showColorPicker && (
+              <div className="bubble-toolbar-color-picker">
+                {TEXT_COLORS.map((c) => (
+                  <button
+                    key={c.label}
+                    className="bubble-toolbar-color-swatch"
+                    style={{
+                      backgroundColor: c.value ?? "var(--color-text-primary)",
+                    }}
+                    onMouseDown={(e) => {
+                      e.preventDefault();
+                      handleColorSelect(c.value);
+                    }}
+                    title={c.label}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
         </div>
+
+        {/* Turn Into CommandPanel dropdown */}
+        {showTurnInto && (
+          <CommandPanel
+            editor={editor}
+            commands={PANEL_COMMANDS}
+            mode="selection"
+            selectedIndex={-1}
+            filterQuery=""
+            onExecute={handleTurnIntoExecute}
+            onClose={() => setShowTurnInto(false)}
+          />
+        )}
       </div>
     </BubbleMenu>
   );

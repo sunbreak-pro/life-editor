@@ -25,4 +25,5 @@ export const STORAGE_KEYS = {
   RIGHT_SUB_TAB: "life-editor-right-sub-tab",
   MEMO_TREE_EXPANDED: "life-editor-memo-tree-expanded",
   HEADING_FONT_SIZES: "life-editor-heading-font-sizes",
+  TASK_MEMO_MODE: "life-editor-task-memo-mode",
 } as const;

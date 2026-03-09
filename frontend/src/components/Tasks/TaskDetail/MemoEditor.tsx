@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useCallback } from "react";
 import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Bold from "@tiptap/extension-bold";
@@ -24,10 +24,10 @@ import { Callout } from "../../../extensions/Callout";
 import { CustomHeading } from "../../../extensions/CustomHeading";
 import { CustomInputRules } from "../../../extensions/InputRules";
 import { WikiTag } from "../../../extensions/WikiTag";
-import { SlashCommandMenu } from "./SlashCommandMenu";
 import { BubbleToolbar } from "./BubbleToolbar";
 import { WikiTagSuggestionMenu } from "../../WikiTags/WikiTagSuggestionMenu";
 import { useWikiTagSync } from "../../../hooks/useWikiTagSync";
+import { setStoredHeadingFontSize } from "../../../utils/headingFontSize";
 import type { WikiTagEntityType } from "../../../types/wikiTag";
 
 // Disable markdown input rules so ** / * / ~~ / ` don't auto-convert
@@ -165,11 +165,32 @@ export function MemoEditor({
 
   useWikiTagSync(editor, taskId, entityType);
 
+  // Monitor heading fontSize changes and persist to localStorage
+  const handleHeadingFontSizeChange = useCallback(() => {
+    if (!editor) return;
+    const { $from } = editor.state.selection;
+    const node = $from.parent;
+    if (node.type.name === "heading") {
+      const level = node.attrs.level as 1 | 2 | 3;
+      const fontSize = node.attrs.fontSize as string | undefined;
+      if (fontSize) {
+        setStoredHeadingFontSize(level, fontSize);
+      }
+    }
+  }, [editor]);
+
+  useEffect(() => {
+    if (!editor) return;
+    editor.on("transaction", handleHeadingFontSizeChange);
+    return () => {
+      editor.off("transaction", handleHeadingFontSizeChange);
+    };
+  }, [editor, handleHeadingFontSizeChange]);
+
   return (
     <div className="relative">
       <EditorContent editor={editor} />
       {editor && <BubbleToolbar editor={editor} />}
-      {editor && <SlashCommandMenu editor={editor} />}
       {editor && <WikiTagSuggestionMenu editor={editor} />}
     </div>
   );

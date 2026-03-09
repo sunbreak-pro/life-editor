@@ -38,42 +38,63 @@ interface ColorPickerProps {
   currentColor?: string;
   onSelect: (color: string) => void;
   onClose: () => void;
+  inline?: boolean;
 }
 
 export function ColorPicker({
   currentColor,
   onSelect,
   onClose,
+  inline,
 }: ColorPickerProps) {
   const ref = useRef<HTMLDivElement>(null);
-  useClickOutside(ref, onClose);
+  useClickOutside(ref, onClose, !inline);
 
   const pastelColors = FOLDER_COLORS.slice(0, 10);
   const vividColors = FOLDER_COLORS.slice(10);
 
   const renderSwatch = (color: string) => {
     const isSelected = currentColor === color;
+    const swatchSize = inline ? "w-5 h-5" : "w-7 h-7";
     return (
       <button
         key={color}
         onClick={() => {
           onSelect(color);
-          onClose();
+          if (!inline) onClose();
         }}
-        className="w-7 h-7 rounded-full flex items-center justify-center transition-shadow hover:ring-2 hover:ring-notion-text/30"
+        className={`${swatchSize} rounded-full flex items-center justify-center transition-shadow hover:ring-2 hover:ring-notion-text/30`}
         style={{
           backgroundColor: color,
           boxShadow: isSelected
-            ? `0 0 0 5px ${getTextColorForBg(color)}`
+            ? `0 0 0 ${inline ? "3" : "5"}px ${getTextColorForBg(color)}`
             : undefined,
         }}
       >
         {isSelected && (
-          <Check size={12} style={{ color: getTextColorForBg(color) }} />
+          <Check
+            size={inline ? 10 : 12}
+            style={{ color: getTextColorForBg(color) }}
+          />
         )}
       </button>
     );
   };
+
+  if (inline) {
+    return (
+      <div>
+        <p className="text-[10px] text-notion-text-secondary mb-1">Pastel</p>
+        <div className="grid grid-cols-5 gap-1 mb-1.5">
+          {pastelColors.map(renderSwatch)}
+        </div>
+        <p className="text-[10px] text-notion-text-secondary mb-1">Vivid</p>
+        <div className="grid grid-cols-5 gap-1">
+          {vividColors.map(renderSwatch)}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div

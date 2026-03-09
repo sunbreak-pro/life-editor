@@ -125,22 +125,15 @@ export function CommandPalette({
 
       {/* Panel */}
       <div
-        className="relative w-full max-w-[520px] rounded-xl border shadow-2xl overflow-hidden"
-        style={{
-          backgroundColor: "var(--color-bg-primary)",
-          borderColor: "var(--color-border)",
-        }}
+        className="relative w-full max-w-[520px] rounded-xl border border-notion-border bg-notion-bg overflow-hidden shadow-2xl"
         onMouseDown={(e) => e.stopPropagation()}
         onKeyDown={handleKeyDown}
       >
         {/* Search input */}
-        <div
-          className="flex items-center gap-3 px-4 py-3 border-b"
-          style={{ borderColor: "var(--color-border)" }}
-        >
+        <div className="flex items-center gap-3 px-4 py-3 border-b border-notion-border">
           <Search
             size={16}
-            style={{ color: "var(--color-text-secondary)", flexShrink: 0 }}
+            className="text-notion-text-secondary shrink-0"
           />
           <input
             ref={inputRef}
@@ -151,27 +144,20 @@ export function CommandPalette({
               setQuery(e.target.value);
               setSelectedIndex(0);
             }}
-            className="flex-1 bg-transparent border-none outline-none text-sm"
-            style={{ color: "var(--color-text-primary)" }}
+            className="flex-1 bg-transparent border-none outline-none text-sm text-notion-text"
           />
         </div>
 
         {/* Command list */}
         <div ref={listRef} className="max-h-[320px] overflow-y-auto py-2">
           {filtered.length === 0 && (
-            <div
-              className="px-4 py-6 text-center text-sm"
-              style={{ color: "var(--color-text-secondary)" }}
-            >
+            <div className="px-4 py-6 text-center text-sm text-notion-text-secondary">
               {t("commandPalette.noResults")}
             </div>
           )}
           {groups.map((group) => (
             <div key={group.category}>
-              <div
-                className="px-4 py-1 text-xs font-medium uppercase tracking-wider"
-                style={{ color: "var(--color-text-secondary)" }}
-              >
+              <div className="px-4 py-1 text-xs font-medium uppercase tracking-wider text-notion-text-secondary">
                 {group.category}
               </div>
               {group.items.map((cmd) => {
@@ -182,14 +168,9 @@ export function CommandPalette({
                   <button
                     key={cmd.id}
                     data-command-index={idx}
-                    className="w-full flex items-center gap-3 px-4 py-2 text-sm transition-colors"
-                    style={{
-                      color: "var(--color-text-primary)",
-                      backgroundColor:
-                        idx === selectedIndex
-                          ? "var(--color-hover)"
-                          : "transparent",
-                    }}
+                    className={`w-full flex items-center gap-3 px-4 py-2 text-sm transition-colors text-notion-text ${
+                      idx === selectedIndex ? "bg-notion-hover" : "bg-transparent"
+                    }`}
                     onMouseEnter={() => setSelectedIndex(idx)}
                     onMouseDown={(e) => {
                       e.preventDefault();
@@ -199,14 +180,7 @@ export function CommandPalette({
                     <Icon size={16} />
                     <span className="flex-1 text-left">{cmd.title}</span>
                     {cmd.shortcut && (
-                      <kbd
-                        className="text-xs px-1.5 py-0.5 rounded border"
-                        style={{
-                          color: "var(--color-text-secondary)",
-                          borderColor: "var(--color-border)",
-                          backgroundColor: "var(--color-hover)",
-                        }}
-                      >
+                      <kbd className="text-xs px-1.5 py-0.5 rounded border border-notion-border bg-notion-hover text-notion-text-secondary">
                         {cmd.shortcut}
                       </kbd>
                     )}

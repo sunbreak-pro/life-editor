@@ -131,6 +131,15 @@ function unwrapToggleList(editor: Editor): void {
 
 export const GROUP_ORDER = ["Basic Blocks", "Lists", "Advanced"] as const;
 
+function applyHeadingWithStoredSize(editor: Editor, level: 1 | 2 | 3): void {
+  const chain = editor.chain().focus().setHeading({ level });
+  const stored = getStoredHeadingFontSize(level);
+  if (stored) {
+    chain.updateAttributes("heading", { fontSize: stored });
+  }
+  chain.run();
+}
+
 export const PANEL_COMMANDS: PanelCommand[] = [
   // Basic Blocks
   {
@@ -138,6 +147,11 @@ export const PANEL_COMMANDS: PanelCommand[] = [
     icon: Type,
     description: "Plain text block",
     group: "Basic Blocks",
+    check: (editor) =>
+      editor.isActive("paragraph") &&
+      !editor.isActive("blockquote") &&
+      !isInsideCallout(editor) &&
+      !isInsideToggleList(editor),
     action: (editor) => {
       if (isInsideCallout(editor)) {
         unwrapCallout(editor);
@@ -155,7 +169,8 @@ export const PANEL_COMMANDS: PanelCommand[] = [
     icon: Heading1,
     description: "Large section heading",
     group: "Basic Blocks",
-    action: (editor) => editor.chain().focus().setHeading({ level: 1 }).run(),
+    check: (editor) => editor.isActive("heading", { level: 1 }),
+    action: (editor) => applyHeadingWithStoredSize(editor, 1),
     subActions: headingSubActions(1),
   },
   {
@@ -163,7 +178,8 @@ export const PANEL_COMMANDS: PanelCommand[] = [
     icon: Heading2,
     description: "Medium section heading",
     group: "Basic Blocks",
-    action: (editor) => editor.chain().focus().setHeading({ level: 2 }).run(),
+    check: (editor) => editor.isActive("heading", { level: 2 }),
+    action: (editor) => applyHeadingWithStoredSize(editor, 2),
     subActions: headingSubActions(2),
   },
   {
@@ -171,7 +187,8 @@ export const PANEL_COMMANDS: PanelCommand[] = [
     icon: Heading3,
     description: "Small section heading",
     group: "Basic Blocks",
-    action: (editor) => editor.chain().focus().setHeading({ level: 3 }).run(),
+    check: (editor) => editor.isActive("heading", { level: 3 }),
+    action: (editor) => applyHeadingWithStoredSize(editor, 3),
     subActions: headingSubActions(3),
   },
   {
@@ -179,6 +196,7 @@ export const PANEL_COMMANDS: PanelCommand[] = [
     icon: Quote,
     description: "Capture a quote",
     group: "Basic Blocks",
+    check: (editor) => editor.isActive("blockquote"),
     action: (editor) => editor.chain().focus().toggleBlockquote().run(),
   },
   {
@@ -186,6 +204,7 @@ export const PANEL_COMMANDS: PanelCommand[] = [
     icon: Code2,
     description: "Code with syntax highlighting",
     group: "Basic Blocks",
+    check: (editor) => editor.isActive("codeBlock"),
     action: (editor) => editor.chain().focus().toggleCodeBlock().run(),
   },
   {
@@ -202,6 +221,7 @@ export const PANEL_COMMANDS: PanelCommand[] = [
     icon: List,
     description: "Unordered list",
     group: "Lists",
+    check: (editor) => editor.isActive("bulletList"),
     action: (editor) => editor.chain().focus().toggleBulletList().run(),
   },
   {
@@ -209,6 +229,7 @@ export const PANEL_COMMANDS: PanelCommand[] = [
     icon: ListOrdered,
     description: "Numbered list",
     group: "Lists",
+    check: (editor) => editor.isActive("orderedList"),
     action: (editor) => editor.chain().focus().toggleOrderedList().run(),
   },
   {
@@ -216,6 +237,7 @@ export const PANEL_COMMANDS: PanelCommand[] = [
     icon: CheckSquare,
     description: "List with checkboxes",
     group: "Lists",
+    check: (editor) => editor.isActive("taskList"),
     action: (editor) => editor.chain().focus().toggleTaskList().run(),
   },
 
@@ -225,6 +247,7 @@ export const PANEL_COMMANDS: PanelCommand[] = [
     icon: Lightbulb,
     description: "Highlighted information block",
     group: "Advanced",
+    check: (editor) => isInsideCallout(editor),
     action: (editor) => {
       const { state } = editor;
       const { $from } = state.selection;
@@ -257,6 +280,7 @@ export const PANEL_COMMANDS: PanelCommand[] = [
     icon: ChevronRight,
     description: "Collapsible content block",
     group: "Advanced",
+    check: (editor) => isInsideToggleList(editor),
     action: (editor) => {
       const { state } = editor;
       const { $from } = state.selection;
@@ -303,7 +327,14 @@ export const PANEL_COMMANDS: PanelCommand[] = [
     description: "Embed an image from URL",
     group: "Advanced",
     action: () => {
-      // Handled via IMAGE_COMMAND_ID in SlashCommandMenu
+      // Handled via IMAGE_COMMAND_ID in CommandPanel
     },
   },
 ];
+
+export function getCurrentBlockLabel(editor: Editor): string {
+  for (const cmd of PANEL_COMMANDS) {
+    if (cmd.check?.(editor)) return cmd.title;
+  }
+  return "Paragraph";
+}

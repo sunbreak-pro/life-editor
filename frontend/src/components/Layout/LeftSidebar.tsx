@@ -40,10 +40,10 @@ export function LeftSidebar({
 
   return (
     <aside
-      className="h-full bg-notion-bg-secondary border-r border-notion-border flex flex-col"
+      className="h-full bg-notion-bg-subsidebar border-r border-notion-border flex flex-col transition-colors"
       style={{ width }}
     >
-      <nav className="flex-1 p-2 pt-3 space-y-2.5 overflow-y-auto">
+      <nav className="flex-1 p-3 pt-5 space-y-2 overflow-y-auto">
         {mainMenuItems.map((item) => {
           const Icon = item.icon;
           const isActive = activeSection === item.id;
@@ -51,24 +51,24 @@ export function LeftSidebar({
             <div key={item.id}>
               <button
                 onClick={() => onSectionChange(item.id)}
-                className={`w-full flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-colors ${
+                className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-scaling-sm transition-all duration-200 ${
                   isActive
-                    ? "bg-notion-hover text-notion-text"
-                    : "text-notion-text-secondary hover:bg-notion-hover hover:text-notion-text"
+                    ? "bg-notion-hover text-notion-text font-medium"
+                    : "text-notion-text-secondary hover:bg-notion-hover/80 hover:text-notion-text"
                 }`}
               >
-                <Icon size={18} />
+                <Icon size={18} className={`transition-colors ${isActive ? "text-notion-accent" : ""}`} />
                 <span>{t(item.labelKey)}</span>
               </button>
 
               {item.id === "work" && showTimer && (
-                <div className="ml-3 mr-2 mb-1 px-3 py-2 rounded-md bg-notion-hover/50">
+                <div className="ml-3 mr-2 mb-2 mt-1 px-3 py-2.5 rounded-lg bg-notion-hover/50">
                   <div className="flex items-center justify-between gap-2">
                     <div className="flex-1 min-w-0">
-                      <p className="text-xs text-notion-text-secondary truncate">
+                      <p className="text-scaling-xs text-notion-text-secondary truncate">
                         {timer.activeTask?.title ?? t("sidebar.freeSession")}
                       </p>
-                      <p className="text-sm font-mono tabular-nums text-notion-accent">
+                      <p className="text-scaling-sm font-mono font-medium tabular-nums text-notion-accent mt-0.5">
                         {timer.formatTime(timer.remainingSeconds)}
                       </p>
                     </div>
@@ -85,13 +85,13 @@ export function LeftSidebar({
           );
         })}
       </nav>
-      <div className="p-2 border-t border-notion-border">
+      <div className="p-3 border-t border-notion-border">
         <button
           onClick={() => onSectionChange("settings")}
-          className={`w-full flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-colors ${
+          className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-scaling-sm transition-all duration-200 ${
             activeSection === "settings"
-              ? "bg-notion-hover text-notion-text"
-              : "text-notion-text-secondary hover:bg-notion-hover hover:text-notion-text"
+              ? "bg-notion-hover text-notion-text font-medium"
+              : "text-notion-text-secondary hover:bg-notion-hover/80 hover:text-notion-text"
           }`}
         >
           <Settings size={18} />

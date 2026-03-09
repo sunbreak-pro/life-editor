@@ -19,7 +19,7 @@ const FONT_SIZE_PX: Record<number, number> = {
   10: 25,
 };
 
-const VALID_THEMES: readonly string[] = ["light", "dark"];
+const VALID_THEMES: readonly string[] = ["light", "dark", "monochrome", "monochrome-dark"];
 const VALID_LANGUAGES: readonly string[] = ["en", "ja"];
 
 // Migrate legacy "small"/"medium"/"large" to numeric 1-10
@@ -85,7 +85,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 
   return (
     <ThemeContext.Provider
-      value={{ theme, fontSize, toggleTheme, setFontSize, language, setLanguage }}
+      value={{ theme, fontSize, toggleTheme, setTheme, setFontSize, language, setLanguage }}
     >
       {children}
     </ThemeContext.Provider>

@@ -7,13 +7,14 @@ export function WikiTagView({ node }: NodeViewProps) {
   return (
     <NodeViewWrapper
       as="span"
-      className="wiki-tag"
+      className="wiki-tag-modern"
       contentEditable={false}
       data-wiki-tag=""
       data-tag-id={node.attrs.tagId}
       data-tag-name={tagName}
     >
-      [[{tagName}]]
+      <span className="wiki-tag-symbol">#</span>
+      <span className="wiki-tag-text">{tagName}</span>
     </NodeViewWrapper>
   );
 }

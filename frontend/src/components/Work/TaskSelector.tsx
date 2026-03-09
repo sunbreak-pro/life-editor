@@ -302,7 +302,7 @@ export function TaskSelector({ currentTitle }: TaskSelectorProps) {
       ) : (
         <button
           onClick={() => setIsOpen(!isOpen)}
-          className="flex items-center gap-2 text-lg font-semibold text-notion-text hover:text-notion-accent transition-colors max-w-full"
+          className="flex items-center gap-2 font-semibold text-notion-text hover:text-notion-accent transition-colors max-w-full text-lg"
         >
           <span className="truncate">{currentTitle}</span>
           <ChevronDown
@@ -327,7 +327,7 @@ export function TaskSelector({ currentTitle }: TaskSelectorProps) {
                 if (e.key === "Escape") setIsOpen(false);
               }}
               placeholder={placeholder}
-              className="flex-1 bg-transparent outline-none text-sm text-notion-text placeholder:text-notion-text-secondary"
+              className="flex-1 bg-transparent outline-none text-notion-text placeholder:text-notion-text-secondary"
             />
           </div>
 
@@ -338,7 +338,7 @@ export function TaskSelector({ currentTitle }: TaskSelectorProps) {
                 return (
                   <div
                     key="inbox-header"
-                    className="w-full flex items-center gap-1.5 py-1.5 text-xs text-notion-text-secondary"
+                    className="w-full flex items-center gap-1.5 py-1.5 text-sm text-notion-text-secondary"
                     style={{ paddingLeft: 12, paddingRight: 12 }}
                   >
                     <Inbox size={12} />
@@ -352,7 +352,7 @@ export function TaskSelector({ currentTitle }: TaskSelectorProps) {
                   <button
                     key={`folder-${item.node!.id}-${idx}`}
                     onClick={() => handleHeaderClick(item.node!.id)}
-                    className="w-full flex items-center py-1.5 text-xs hover:bg-notion-hover cursor-pointer transition-colors text-notion-text"
+                    className="w-full flex items-center py-1.5 hover:bg-notion-hover cursor-pointer transition-colors text-notion-text text-sm"
                     style={{
                       paddingLeft: `${12 + item.depth * 14}px`,
                       paddingRight: 12,
@@ -377,7 +377,7 @@ export function TaskSelector({ currentTitle }: TaskSelectorProps) {
                     )}
                     <span className="truncate">{item.node!.title}</span>
                     {item.taskCount != null && (
-                      <span className="ml-auto text-[10px] text-notion-text-secondary">
+                      <span className="ml-auto text-xs text-notion-text-secondary opacity-75">
                         {item.taskCount}
                       </span>
                     )}
@@ -390,7 +390,7 @@ export function TaskSelector({ currentTitle }: TaskSelectorProps) {
                 <button
                   key={item.node!.id}
                   onClick={() => handleSelectTask(item.node!)}
-                  className={`w-full text-left py-1.5 text-xs hover:bg-notion-hover transition-colors truncate ${
+                  className={`w-full text-left py-1.5 hover:bg-notion-hover transition-colors truncate text-sm ${
                     isActive
                       ? "text-notion-accent bg-notion-accent/5 font-medium"
                       : "text-notion-text"
@@ -403,7 +403,7 @@ export function TaskSelector({ currentTitle }: TaskSelectorProps) {
             })}
 
             {items.length === 0 && (
-              <div className="px-3 py-4 text-sm text-notion-text-secondary text-center">
+              <div className="px-3 py-4 text-notion-text-secondary text-center">
                 {t("taskSelector.noTasks")}
               </div>
             )}
@@ -414,7 +414,7 @@ export function TaskSelector({ currentTitle }: TaskSelectorProps) {
             <div className="border-t border-notion-border">
               <button
                 onClick={handleClearTask}
-                className="w-full flex items-center gap-2 px-3 py-2 text-sm text-notion-text-secondary hover:bg-notion-hover transition-colors"
+                className="w-full flex items-center gap-2 px-3 py-2 text-notion-text-secondary hover:bg-notion-hover transition-colors"
               >
                 <X size={14} />
                 <span>{t("work.freeSession")}</span>

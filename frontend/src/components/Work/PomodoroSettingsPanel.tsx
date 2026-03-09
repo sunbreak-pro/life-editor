@@ -98,10 +98,10 @@ export function PomodoroSettingsPanel({
 
         <div className="space-y-3">
           <div className="flex items-baseline justify-between">
-            <span className="text-sm text-notion-text-secondary">
+            <span className="text-notion-text-secondary font-medium">
               {t("timer.work")}
             </span>
-            <span className="text-lg font-bold tabular-nums text-notion-text">
+            <span className="text-xl font-bold tabular-nums text-notion-text">
               {workDurationMinutes}
               <span className="text-sm font-normal text-notion-text-secondary ml-1">
                 min
@@ -110,10 +110,10 @@ export function PomodoroSettingsPanel({
           </div>
 
           <div className="flex items-baseline justify-between">
-            <span className="text-sm text-notion-text-secondary">
+            <span className="text-notion-text-secondary font-medium">
               {t("timer.rest")}
             </span>
-            <span className="text-lg font-semibold tabular-nums text-notion-text">
+            <span className="text-xl font-semibold tabular-nums text-notion-text">
               {breakDurationMinutes}
               <span className="text-sm font-normal text-notion-text-secondary ml-1">
                 min
@@ -122,10 +122,10 @@ export function PomodoroSettingsPanel({
           </div>
 
           <div className="flex items-baseline justify-between">
-            <span className="text-sm text-notion-text-secondary">
+            <span className="text-notion-text-secondary font-medium">
               {t("timer.longRest")}
             </span>
-            <span className="text-lg font-semibold tabular-nums text-notion-text">
+            <span className="text-xl font-semibold tabular-nums text-notion-text">
               {longBreakDurationMinutes}
               <span className="text-sm font-normal text-notion-text-secondary ml-1">
                 min
@@ -134,7 +134,7 @@ export function PomodoroSettingsPanel({
           </div>
 
           <div className="flex items-center justify-between">
-            <span className="text-sm text-notion-text-secondary">
+            <span className="text-notion-text-secondary font-medium">
               {t("pomodoro.sessionsPerSet")}
             </span>
             <div className="flex items-center gap-1">
@@ -144,18 +144,18 @@ export function PomodoroSettingsPanel({
                   className="w-2.5 h-2.5 rounded-full bg-notion-accent"
                 />
               ))}
-              <span className="text-sm text-notion-text-secondary ml-1.5">
+              <span className="text-notion-text-secondary ml-1.5 font-medium">
                 {sessionsBeforeLongBreak}
               </span>
             </div>
           </div>
 
           <div className="flex items-center justify-between">
-            <span className="text-sm text-notion-text-secondary">
+            <span className="text-notion-text-secondary font-medium">
               {t("pomodoro.autoStartBreaks")}
             </span>
             <span
-              className={`text-sm font-medium ${autoStartBreaks ? "text-notion-accent" : "text-notion-text-secondary"}`}
+              className={`font-medium ${autoStartBreaks ? "text-notion-accent" : "text-notion-text-secondary"}`}
             >
               {autoStartBreaks ? "ON" : "OFF"}
             </span>
@@ -176,7 +176,7 @@ export function PomodoroSettingsPanel({
                 <button
                   key={preset.id}
                   onClick={() => handleApplyPreset(preset)}
-                  className="group relative flex items-center gap-1 px-2.5 py-1 text-xs rounded-full bg-notion-hover text-notion-text hover:bg-notion-accent/10 hover:text-notion-accent transition-colors"
+                  className="group relative flex items-center gap-1 px-3 py-1.5 text-sm rounded-full bg-notion-hover text-notion-text hover:bg-notion-accent/10 hover:text-notion-accent transition-colors"
                 >
                   <span>{preset.name}</span>
                   <span
@@ -258,7 +258,7 @@ export function PomodoroSettingsPanel({
             >
               <Minus size={14} />
             </button>
-            <span className="text-sm font-mono tabular-nums text-notion-text w-6 text-center">
+            <span className="font-mono tabular-nums text-notion-text w-6 text-center text-lg">
               {sessionsBeforeLongBreak}
             </span>
             <button
@@ -273,9 +273,8 @@ export function PomodoroSettingsPanel({
           </div>
         </div>
 
-        {/* Auto-start breaks toggle */}
         <div className="flex items-center justify-between">
-          <label className="text-sm text-notion-text-secondary">
+          <label className="text-notion-text-secondary font-medium">
             {t("pomodoro.autoStartBreaks")}
           </label>
           <button
@@ -304,7 +303,7 @@ export function PomodoroSettingsPanel({
                 if (e.key === "Escape") setShowSaveInput(false);
               }}
               placeholder={t("pomodoro.presetName")}
-              className="flex-1 text-xs px-2 py-1.5 rounded bg-notion-bg border border-notion-border text-notion-text placeholder-notion-text-secondary"
+              className="flex-1 px-3 py-1.5 rounded bg-notion-bg border border-notion-border text-notion-text placeholder-notion-text-secondary"
               autoFocus
             />
             <button
@@ -323,9 +322,9 @@ export function PomodoroSettingsPanel({
         ) : (
           <button
             onClick={() => setShowSaveInput(true)}
-            className="flex items-center gap-1.5 text-xs text-notion-text-secondary hover:text-notion-accent transition-colors"
+            className="flex items-center gap-1.5 text-notion-text-secondary hover:text-notion-accent transition-colors font-medium"
           >
-            <Save size={12} />
+            <Save size={14} />
             {t("pomodoro.saveAsPreset")}
           </button>
         )}

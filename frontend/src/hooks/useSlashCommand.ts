@@ -22,7 +22,11 @@ function calcMenuPosition(
   return { top, left };
 }
 
-export function useSlashCommand(editor: Editor, commands: PanelCommand[]) {
+export function useSlashCommand(
+  editor: Editor,
+  commands: PanelCommand[],
+  onExecuteOverride?: (index: number) => void,
+) {
   const [isOpen, setIsOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [position, setPosition] = useState({ top: 0, left: 0 });
@@ -82,7 +86,11 @@ export function useSlashCommand(editor: Editor, commands: PanelCommand[]) {
         );
       } else if (e.key === "Enter") {
         e.preventDefault();
-        executeCommand(selectedIndex);
+        if (onExecuteOverride) {
+          onExecuteOverride(selectedIndex);
+        } else {
+          executeCommand(selectedIndex);
+        }
       } else if (e.key === "Escape") {
         e.preventDefault();
         close();
@@ -91,7 +99,14 @@ export function useSlashCommand(editor: Editor, commands: PanelCommand[]) {
 
     document.addEventListener("keydown", handleKeyDown, true);
     return () => document.removeEventListener("keydown", handleKeyDown, true);
-  }, [isOpen, selectedIndex, filteredCommands.length, executeCommand, close]);
+  }, [
+    isOpen,
+    selectedIndex,
+    filteredCommands.length,
+    executeCommand,
+    close,
+    onExecuteOverride,
+  ]);
 
   useEffect(() => {
     const handleTransaction = () => {
