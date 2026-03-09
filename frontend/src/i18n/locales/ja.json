@@ -811,7 +811,9 @@
     "filterOthers": "その他",
     "addTask": "タスクを追加",
     "selectTime": "時間を設定",
-    "noItems": "項目なし"
+    "noItems": "項目なし",
+    "sidebarProgress": "進捗",
+    "routineManagement": "ルーティン管理"
   },
   "statusBar": {
     "terminal": "ターミナル",

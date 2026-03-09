@@ -1,22 +1,25 @@
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo, useContext, useEffect } from "react";
 import { useTranslation } from "react-i18next";
+import { createPortal } from "react-dom";
 import type { TabItem } from "../shared/SectionTabs";
 import { SectionHeader } from "../shared/SectionHeader";
 import { LAYOUT } from "../../constants/layout";
 import { CalendarView } from "../Tasks/Schedule/Calendar/CalendarView";
 import { OneDaySchedule } from "../Tasks/Schedule/DayFlow/OneDaySchedule";
-import { RoutinesTab } from "../Tasks/Schedule/Routine/RoutinesTab";
+import type { DayFlowFilterTab } from "../Tasks/Schedule/DayFlow/OneDaySchedule";
+import { DayFlowSidebarContent } from "../Tasks/Schedule/DayFlow/DayFlowSidebarContent";
+import type { CategoryProgress } from "../Tasks/Schedule/DayFlow/DayFlowSidebarContent";
 import { useTaskTreeContext } from "../../hooks/useTaskTreeContext";
 import { useCalendar } from "../../hooks/useCalendar";
 import { useScheduleContext } from "../../hooks/useScheduleContext";
 import { formatDateKey } from "../../utils/dateKey";
+import { RightSidebarContext } from "../../context/RightSidebarContext";
 
-type ScheduleTab = "calendar" | "dayflow" | "routine";
+type ScheduleTab = "calendar" | "dayflow";
 
 const SCHEDULE_TABS: readonly TabItem<ScheduleTab>[] = [
   { id: "calendar", labelKey: "tabs.calendar" },
   { id: "dayflow", labelKey: "tabs.dayflow" },
-  { id: "routine", labelKey: "tabs.routine" },
 ];
 
 interface ScheduleSectionProps {
@@ -43,6 +46,8 @@ export function ScheduleSection({
   const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState<ScheduleTab>("calendar");
   const [dayFlowDate, setDayFlowDate] = useState<Date>(() => new Date());
+  const [dayFlowFilterTab, setDayFlowFilterTab] =
+    useState<DayFlowFilterTab>("all");
 
   const { nodes, getTaskColor, getFolderTagForTask } = useTaskTreeContext();
 
@@ -96,13 +101,77 @@ export function ScheduleSection({
     getRoutineCompletionRate,
     routineStats,
     scheduleItems,
-    toggleComplete,
     routineTags,
     createRoutineTag,
     updateRoutineTag,
     deleteRoutineTag,
     refreshRoutineStats,
   } = useScheduleContext();
+
+  const { portalTarget: rightSidebarTarget, requestOpen } =
+    useContext(RightSidebarContext);
+
+  useEffect(() => {
+    if (activeTab === "dayflow") {
+      requestOpen();
+    }
+  }, [activeTab, requestOpen]);
+
+  // Category progress calculation
+  const dateKey = formatDateKey(dayFlowDate);
+  const categoryProgress = useMemo((): Record<
+    DayFlowFilterTab,
+    CategoryProgress
+  > => {
+    const routineItems = scheduleItems.filter((i) => i.routineId !== null);
+    const otherItems = scheduleItems.filter((i) => i.routineId === null);
+    const dayTasks = tasksByDate.get(dateKey) ?? [];
+    const allDayTasks = allTasksByDate.get(dateKey) ?? [];
+    const taskItems = [...dayTasks, ...allDayTasks];
+    const completedTasks = taskItems.filter((t) => t.status === "DONE").length;
+
+    const routineCompleted = routineItems.filter((i) => i.completed).length;
+    const otherCompleted = otherItems.filter((i) => i.completed).length;
+
+    const allTotal = routineItems.length + otherItems.length + taskItems.length;
+    const allCompleted = routineCompleted + otherCompleted + completedTasks;
+
+    return {
+      all: { completed: allCompleted, total: allTotal },
+      tasks: { completed: completedTasks, total: taskItems.length },
+      routine: { completed: routineCompleted, total: routineItems.length },
+      others: { completed: otherCompleted, total: otherItems.length },
+    };
+  }, [scheduleItems, tasksByDate, allTasksByDate, dateKey]);
+
+  const routineManagement = useMemo(
+    () => ({
+      routines,
+      routineTags,
+      tagAssignments,
+      onCreateRoutine: createRoutine,
+      onUpdateRoutine: updateRoutine,
+      onDeleteRoutine: deleteRoutine,
+      setTagsForRoutine,
+      getCompletionRate: getRoutineCompletionRate,
+      onCreateRoutineTag: createRoutineTag,
+      onUpdateRoutineTag: updateRoutineTag,
+      onDeleteRoutineTag: deleteRoutineTag,
+    }),
+    [
+      routines,
+      routineTags,
+      tagAssignments,
+      createRoutine,
+      updateRoutine,
+      deleteRoutine,
+      setTagsForRoutine,
+      getRoutineCompletionRate,
+      createRoutineTag,
+      updateRoutineTag,
+      deleteRoutineTag,
+    ],
+  );
 
   return (
     <div
@@ -114,6 +183,19 @@ export function ScheduleSection({
         activeTab={activeTab}
         onTabChange={setActiveTab}
       />
+
+      {activeTab === "dayflow" &&
+        rightSidebarTarget &&
+        createPortal(
+          <DayFlowSidebarContent
+            activeFilter={dayFlowFilterTab}
+            onFilterChange={setDayFlowFilterTab}
+            categoryProgress={categoryProgress}
+            routineStats={routineStats}
+          />,
+          rightSidebarTarget,
+        )}
+
       <div className="flex-1 min-h-0">
         {activeTab === "calendar" ? (
           <CalendarView
@@ -121,7 +203,7 @@ export function ScheduleSection({
             onCreateTask={onCreateTask}
             onStartTimer={onStartTimer}
           />
-        ) : activeTab === "dayflow" ? (
+        ) : (
           <OneDaySchedule
             date={dayFlowDate}
             tasksByDate={tasksByDate}
@@ -132,24 +214,9 @@ export function ScheduleSection({
             onPrevDate={goToPrev}
             onNextDate={goToNext}
             onToday={goToToday}
-          />
-        ) : (
-          <RoutinesTab
-            routines={routines}
-            routineTags={routineTags}
-            tagAssignments={tagAssignments}
-            onCreateRoutine={createRoutine}
-            onUpdateRoutine={updateRoutine}
-            onDeleteRoutine={deleteRoutine}
-            setTagsForRoutine={setTagsForRoutine}
-            getCompletionRate={getRoutineCompletionRate}
-            routineStats={routineStats}
-            scheduleItems={scheduleItems}
-            onToggleComplete={toggleComplete}
-            onCreateRoutineTag={createRoutineTag}
-            onUpdateRoutineTag={updateRoutineTag}
-            onDeleteRoutineTag={deleteRoutineTag}
-            refreshRoutineStats={refreshRoutineStats}
+            filterTab={dayFlowFilterTab}
+            onFilterTabChange={setDayFlowFilterTab}
+            routineManagement={routineManagement}
           />
         )}
       </div>

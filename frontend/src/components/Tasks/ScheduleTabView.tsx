@@ -4,8 +4,12 @@ import type { TabItem } from "../shared/SectionTabs";
 import { VerticalNavList } from "../shared/VerticalNavList";
 import { CalendarView } from "./Schedule/Calendar/CalendarView";
 import { OneDaySchedule } from "./Schedule/DayFlow/OneDaySchedule";
+import type { DayFlowFilterTab } from "./Schedule/DayFlow/OneDaySchedule";
+import { DayFlowSidebarContent } from "./Schedule/DayFlow/DayFlowSidebarContent";
+import type { CategoryProgress } from "./Schedule/DayFlow/DayFlowSidebarContent";
 import { useTaskTreeContext } from "../../hooks/useTaskTreeContext";
 import { useCalendar } from "../../hooks/useCalendar";
+import { useScheduleContext } from "../../hooks/useScheduleContext";
 import { formatDateKey } from "../../utils/dateKey";
 import { RightSidebarContext } from "../../context/RightSidebarContext";
 
@@ -39,6 +43,8 @@ export function ScheduleTabView({
 }: ScheduleTabViewProps) {
   const [subTab, setSubTab] = useState<ScheduleSubTab>("calendar");
   const [dayFlowDate, setDayFlowDate] = useState<Date>(() => new Date());
+  const [dayFlowFilterTab, setDayFlowFilterTab] =
+    useState<DayFlowFilterTab>("all");
 
   const { nodes, getTaskColor, getFolderTagForTask } = useTaskTreeContext();
 
@@ -50,7 +56,7 @@ export function ScheduleTabView({
     dayFlowDate,
   );
 
-  // All tasks by date (including DONE) for DayFlow right panel
+  // All tasks by date (including DONE) for DayFlow
   const allTasksByDate = useMemo(() => {
     const map = new Map<string, typeof nodes>();
     for (const task of nodes) {
@@ -83,6 +89,23 @@ export function ScheduleTabView({
     setDayFlowDate(new Date());
   }, []);
 
+  const {
+    routines,
+    createRoutine,
+    updateRoutine,
+    deleteRoutine,
+    tagAssignments,
+    setTagsForRoutine,
+    getRoutineCompletionRate,
+    routineStats,
+    scheduleItems,
+    routineTags,
+    createRoutineTag,
+    updateRoutineTag,
+    deleteRoutineTag,
+    refreshRoutineStats,
+  } = useScheduleContext();
+
   const { portalTarget: rightSidebarTarget, requestOpen } =
     useContext(RightSidebarContext);
 
@@ -90,15 +113,81 @@ export function ScheduleTabView({
     requestOpen();
   }, [requestOpen]);
 
+  // Category progress calculation
+  const dateKey = formatDateKey(dayFlowDate);
+  const categoryProgress = useMemo((): Record<
+    DayFlowFilterTab,
+    CategoryProgress
+  > => {
+    const routineItems = scheduleItems.filter((i) => i.routineId !== null);
+    const otherItems = scheduleItems.filter((i) => i.routineId === null);
+    const dayTasks = tasksByDate.get(dateKey) ?? [];
+    const allDayTasks = allTasksByDate.get(dateKey) ?? [];
+    const taskItems = [...dayTasks, ...allDayTasks];
+    const completedTasks = taskItems.filter((t) => t.status === "DONE").length;
+
+    const routineCompleted = routineItems.filter((i) => i.completed).length;
+    const otherCompleted = otherItems.filter((i) => i.completed).length;
+
+    const allTotal = routineItems.length + otherItems.length + taskItems.length;
+    const allCompleted = routineCompleted + otherCompleted + completedTasks;
+
+    return {
+      all: { completed: allCompleted, total: allTotal },
+      tasks: { completed: completedTasks, total: taskItems.length },
+      routine: { completed: routineCompleted, total: routineItems.length },
+      others: { completed: otherCompleted, total: otherItems.length },
+    };
+  }, [scheduleItems, tasksByDate, allTasksByDate, dateKey]);
+
+  const routineManagement = useMemo(
+    () => ({
+      routines,
+      routineTags,
+      tagAssignments,
+      onCreateRoutine: createRoutine,
+      onUpdateRoutine: updateRoutine,
+      onDeleteRoutine: deleteRoutine,
+      setTagsForRoutine,
+      getCompletionRate: getRoutineCompletionRate,
+      onCreateRoutineTag: createRoutineTag,
+      onUpdateRoutineTag: updateRoutineTag,
+      onDeleteRoutineTag: deleteRoutineTag,
+    }),
+    [
+      routines,
+      routineTags,
+      tagAssignments,
+      createRoutine,
+      updateRoutine,
+      deleteRoutine,
+      setTagsForRoutine,
+      getRoutineCompletionRate,
+      createRoutineTag,
+      updateRoutineTag,
+      deleteRoutineTag,
+    ],
+  );
+
   return (
     <div className="h-full flex flex-col">
       {rightSidebarTarget &&
         createPortal(
-          <VerticalNavList
-            items={SCHEDULE_TABS}
-            activeItem={subTab}
-            onItemChange={setSubTab}
-          />,
+          <>
+            <VerticalNavList
+              items={SCHEDULE_TABS}
+              activeItem={subTab}
+              onItemChange={setSubTab}
+            />
+            {subTab === "dayflow" && (
+              <DayFlowSidebarContent
+                activeFilter={dayFlowFilterTab}
+                onFilterChange={setDayFlowFilterTab}
+                categoryProgress={categoryProgress}
+                routineStats={routineStats}
+              />
+            )}
+          </>,
           rightSidebarTarget,
         )}
       <div className="flex-1 min-h-0 overflow-auto">
@@ -119,6 +208,9 @@ export function ScheduleTabView({
             onPrevDate={goToPrev}
             onNextDate={goToNext}
             onToday={goToToday}
+            filterTab={dayFlowFilterTab}
+            onFilterTabChange={setDayFlowFilterTab}
+            routineManagement={routineManagement}
           />
         )}
       </div>

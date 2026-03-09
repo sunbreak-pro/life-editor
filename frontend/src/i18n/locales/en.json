@@ -811,7 +811,9 @@
     "filterOthers": "Others",
     "addTask": "Add task",
     "selectTime": "Set time",
-    "noItems": "No items"
+    "noItems": "No items",
+    "sidebarProgress": "Progress",
+    "routineManagement": "Routine Management"
   },
   "statusBar": {
     "terminal": "Terminal",

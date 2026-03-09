@@ -1,5 +1,20 @@
 # HISTORY.md - 変更履歴
 
+### 2026-03-09 - Schedule Dayflow リストラクチャリング
+
+#### 概要
+
+Dayflow ビューの右パネル（TodayFlowTab）を削除し、TimeGrid をフルワイド化。カテゴリプログレス + AchievementPanel を右サイドバーにポータル描画。Routine タブを ScheduleSection ヘッダーから削除し、Routine フィルタ選択時のみ管理パネルをインライン表示するレイアウトに統合。
+
+#### 変更点
+
+- **OneDaySchedule.tsx**: 右パネル削除、SectionTabs を日付ヘッダー下に移動、TimeGrid フルワイド化、filterTab を props リフトアップ、Routine フィルタ時のみ RoutineManagementPanel 表示
+- **DayFlowSidebarContent.tsx（新規）**: カテゴリ別プログレスリスト（ミニプログレスバー付き）+ AchievementPanel を右サイドバーに表示
+- **RoutineManagementPanel.tsx（新規）**: RoutinesTab のルーティンリスト部分を独立コンポーネントに抽出（タグフィルタ、CRUD、タグ管理）
+- **ScheduleSection.tsx**: Routine タブ削除（calendar/dayflow のみ）、フィルタ state リフトアップ、カテゴリプログレス計算、RightSidebarContext ポータル追加
+- **ScheduleTabView.tsx**: フィルタ state リフトアップ、VerticalNavList + DayFlowSidebarContent を右サイドバーにポータル描画
+- **i18n**: `dayFlow.sidebarProgress` / `dayFlow.routineManagement` キー追加（en/ja）
+
 ### 2026-03-09 - 未コミット変更の一括コミット（v2 機能群）
 
 #### 概要

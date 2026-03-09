@@ -6,15 +6,18 @@ import { useScheduleContext } from "../../../../hooks/useScheduleContext";
 import { formatDateKey, formatDayFlowDate } from "../../../../utils/dateKey";
 import { ScheduleTimeGrid } from "./ScheduleTimeGrid";
 import { ScheduleItemCreatePopover } from "./ScheduleItemCreatePopover";
-import { TodayFlowTab } from "./TodayFlowTab";
 import { DayFlowTaskPicker } from "./DayFlowTaskPicker";
 import { SectionTabs } from "../../../shared/SectionTabs";
 import type { TabItem } from "../../../shared/SectionTabs";
 import { getTextColorForBg } from "../../../../constants/folderColors";
+import {
+  RoutineManagementPanel,
+  type RoutineManagementProps,
+} from "./RoutineManagementPanel";
 
-type DayFlowFilterTab = "all" | "routine" | "tasks" | "others";
+export type DayFlowFilterTab = "all" | "routine" | "tasks" | "others";
 
-const DAY_FLOW_FILTER_TABS: readonly TabItem<DayFlowFilterTab>[] = [
+export const DAY_FLOW_FILTER_TABS: readonly TabItem<DayFlowFilterTab>[] = [
   { id: "all", labelKey: "dayFlow.filterAll" },
   { id: "routine", labelKey: "dayFlow.filterRoutine" },
   { id: "tasks", labelKey: "dayFlow.filterTasks" },
@@ -31,6 +34,9 @@ interface OneDayScheduleProps {
   onPrevDate: () => void;
   onNextDate: () => void;
   onToday: () => void;
+  filterTab: DayFlowFilterTab;
+  onFilterTabChange: (tab: DayFlowFilterTab) => void;
+  routineManagement: RoutineManagementProps;
 }
 
 export function OneDaySchedule({
@@ -43,6 +49,9 @@ export function OneDaySchedule({
   onPrevDate,
   onNextDate,
   onToday,
+  filterTab,
+  onFilterTabChange,
+  routineManagement,
 }: OneDayScheduleProps) {
   const { t, i18n } = useTranslation();
   const {
@@ -58,7 +67,6 @@ export function OneDaySchedule({
   } = useScheduleContext();
   const dateKey = formatDateKey(date);
   const isToday = dateKey === formatDateKey(new Date());
-  const [filterTab, setFilterTab] = useState<DayFlowFilterTab>("all");
   const [selectedFilterTagId, setSelectedFilterTagId] = useState<number | null>(
     null,
   );
@@ -134,11 +142,6 @@ export function OneDaySchedule({
     return dayTasks;
   }, [dayTasks, filterTab]);
 
-  const filteredAllDayTasks = useMemo(() => {
-    if (filterTab === "routine" || filterTab === "others") return [];
-    return allDayTasks;
-  }, [allDayTasks, filterTab]);
-
   // Task IDs already scheduled for this date (for task picker exclusion)
   const existingTaskIds = useMemo(() => {
     const ids = new Set<string>();
@@ -208,10 +211,65 @@ export function OneDaySchedule({
         </div>
       </div>
 
+      {/* Filter tabs */}
+      <SectionTabs
+        tabs={DAY_FLOW_FILTER_TABS}
+        activeTab={filterTab}
+        onTabChange={onFilterTabChange}
+        size="sm"
+      />
+
+      {/* Tag filter chips (all/routine only) */}
+      {(filterTab === "all" || filterTab === "routine") &&
+        routineTags.length > 0 && (
+          <div className="flex items-center gap-1 flex-wrap px-3 pb-1.5">
+            <button
+              onClick={() => setSelectedFilterTagId(null)}
+              className={`text-[10px] px-1.5 py-0.5 rounded-full transition-colors ${
+                selectedFilterTagId === null
+                  ? "bg-notion-text text-notion-bg"
+                  : "bg-notion-hover text-notion-text-secondary hover:text-notion-text"
+              }`}
+            >
+              All
+            </button>
+            {routineTags.map((tag) => (
+              <button
+                key={tag.id}
+                onClick={() =>
+                  setSelectedFilterTagId(
+                    selectedFilterTagId === tag.id ? null : tag.id,
+                  )
+                }
+                className={`flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-full transition-colors ${
+                  selectedFilterTagId === tag.id
+                    ? "ring-1 ring-notion-text"
+                    : "hover:opacity-80"
+                }`}
+                style={{
+                  backgroundColor: tag.color + "E6",
+                  color: getTextColorForBg(tag.color),
+                  fontWeight: "bold",
+                }}
+              >
+                <span
+                  className="w-2 h-2 rounded-full"
+                  style={{ backgroundColor: tag.color }}
+                />
+                {tag.name}
+              </button>
+            ))}
+          </div>
+        )}
+
       {/* Main content */}
       <div className="flex gap-4 flex-1 min-h-0 p-3">
-        {/* Left: Time Grid */}
-        <div className="flex-1 min-w-75 h-full">
+        {/* Time Grid (full-width or flex-1 when routine management visible) */}
+        <div
+          className={
+            filterTab === "routine" ? "flex-1 h-full" : "w-full h-full"
+          }
+        >
           <ScheduleTimeGrid
             date={date}
             scheduleItems={filteredScheduleItems}
@@ -225,65 +283,12 @@ export function OneDaySchedule({
           />
         </div>
 
-        {/* Right: Day Flow */}
-        <div className="flex-1 min-w-75 h-full border border-notion-border rounded-lg bg-notion-bg overflow-y-auto flex flex-col">
-          <SectionTabs
-            tabs={DAY_FLOW_FILTER_TABS}
-            activeTab={filterTab}
-            onTabChange={setFilterTab}
-            size="sm"
-          />
-          {(filterTab === "all" || filterTab === "routine") &&
-            routineTags.length > 0 && (
-              <div className="flex items-center gap-1 flex-wrap px-3 pb-1.5">
-                <button
-                  onClick={() => setSelectedFilterTagId(null)}
-                  className={`text-[10px] px-1.5 py-0.5 rounded-full transition-colors ${
-                    selectedFilterTagId === null
-                      ? "bg-notion-text text-notion-bg"
-                      : "bg-notion-hover text-notion-text-secondary hover:text-notion-text"
-                  }`}
-                >
-                  All
-                </button>
-                {routineTags.map((tag) => (
-                  <button
-                    key={tag.id}
-                    onClick={() =>
-                      setSelectedFilterTagId(
-                        selectedFilterTagId === tag.id ? null : tag.id,
-                      )
-                    }
-                    className={`flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-full transition-colors ${
-                      selectedFilterTagId === tag.id
-                        ? "ring-1 ring-notion-text"
-                        : "hover:opacity-80"
-                    }`}
-                    style={{
-                      backgroundColor: tag.color + "E6",
-                      color: getTextColorForBg(tag.color),
-                      fontWeight: "bold",
-                    }}
-                  >
-                    <span
-                      className="w-2 h-2 rounded-full"
-                      style={{ backgroundColor: tag.color }}
-                    />
-                    {tag.name}
-                  </button>
-                ))}
-              </div>
-            )}
-          <div className="flex-1 overflow-y-auto">
-            <TodayFlowTab
-              items={filteredScheduleItems}
-              onToggleComplete={toggleComplete}
-              tasks={filteredAllDayTasks}
-              onSelectTask={onSelectTask}
-              getTaskColor={getTaskColor}
-            />
+        {/* Routine management panel (routine filter only) */}
+        {filterTab === "routine" && (
+          <div className="w-80 h-full shrink-0">
+            <RoutineManagementPanel {...routineManagement} />
           </div>
-        </div>
+        )}
 
         {/* Create popover */}
         {createPopover && (
