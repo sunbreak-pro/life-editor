@@ -10,6 +10,7 @@ import { TodayFlowTab } from "./TodayFlowTab";
 import { DayFlowTaskPicker } from "./DayFlowTaskPicker";
 import { SectionTabs } from "../../../shared/SectionTabs";
 import type { TabItem } from "../../../shared/SectionTabs";
+import { getTextColorForBg } from "../../../../constants/folderColors";
 
 type DayFlowFilterTab = "all" | "routine" | "tasks" | "others";
 
@@ -259,8 +260,9 @@ export function OneDaySchedule({
                         : "hover:opacity-80"
                     }`}
                     style={{
-                      backgroundColor: tag.color + "20",
-                      color: tag.color,
+                      backgroundColor: tag.color + "E6",
+                      color: getTextColorForBg(tag.color),
+                      fontWeight: "bold",
                     }}
                   >
                     <span

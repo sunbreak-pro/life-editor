@@ -108,10 +108,10 @@ export function WikiTagList({ entityId, entityType }: WikiTagListProps) {
     <div className="flex items-center gap-1 flex-wrap relative">
       <button
         onClick={() => setShowPicker(!showPicker)}
-        className="p-0.5 text-notion-text-secondary hover:text-notion-text transition-colors shrink-0"
+        className="p-1 text-notion-text-secondary hover:text-notion-text hover:bg-notion-hover rounded-md transition-colors shrink-0"
         title={t("wikiTags.addTag")}
       >
-        <Tag size={12} />
+        <Tag size={14} />
       </button>
       {entityTags.length === 0 && !showPicker && (
         <button
@@ -167,9 +167,9 @@ export function WikiTagList({ entityId, entityType }: WikiTagListProps) {
       {entityTags.length > 0 && (
         <button
           onClick={() => setShowPicker(!showPicker)}
-          className="p-0.5 text-notion-text-secondary hover:text-notion-text transition-colors"
+          className="p-1 text-notion-text-secondary hover:text-notion-text hover:bg-notion-hover rounded-md transition-colors"
         >
-          <Plus size={12} />
+          <Plus size={16} />
         </button>
       )}
 

@@ -11,6 +11,7 @@ import { AchievementDetailsOverlay } from "./AchievementDetailsOverlay";
 import { RoutineFlow } from "./RoutineFlow";
 import { useScheduleContext } from "../../../../hooks/useScheduleContext";
 import { formatDateKey } from "../../../../utils/dateKey";
+import { getTextColorForBg } from "../../../../constants/folderColors";
 
 interface RoutinesTabProps {
   routines: RoutineNode[];
@@ -204,8 +205,9 @@ export function RoutinesTab({
                       : "hover:opacity-80"
                   }`}
                   style={{
-                    backgroundColor: tag.color + "20",
-                    color: tag.color,
+                    backgroundColor: tag.color + "E6",
+                    color: getTextColorForBg(tag.color),
+                    fontWeight: "bold",
                   }}
                 >
                   <span

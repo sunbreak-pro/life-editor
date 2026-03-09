@@ -154,17 +154,17 @@ function TaskSidebarContent({
       {/* Header section */}
       <div className="space-y-3 pb-4 border-b border-notion-border mb-4">
         {/* Row 1: Breadcrumb */}
-        <div className="flex items-center gap-1.5 min-h-6">
+        <div className="flex items-center gap-2 min-h-8">
           <FolderMovePicker
             currentFolderId={node.parentId}
             onMove={handleMove}
             trigger={
-              <span className="p-1 text-notion-text-secondary hover:text-notion-text hover:bg-notion-hover rounded transition-colors cursor-pointer">
-                <FolderOpen size={14} />
+              <span className="w-8 h-8 flex items-center justify-center text-notion-text-secondary hover:text-notion-text hover:bg-notion-hover rounded-lg transition-colors cursor-pointer bg-notion-bg">
+                <FolderOpen size={18} />
               </span>
             }
           />
-          <div className="flex items-center gap-1 text-xs text-notion-text-secondary flex-1 min-w-0">
+          <div className="flex items-center gap-1.5 text-sm text-notion-text-secondary flex-1 min-w-0">
             {ancestors.length > 0 ? (
               ancestors.map((ancestor, i) => (
                 <span

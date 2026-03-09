@@ -1,5 +1,19 @@
 # HISTORY.md - 変更履歴
 
+### 2026-03-09 - タグ色・アライメント・フォルダ操作 UI/UX改善
+
+#### 概要
+
+全タグ系コンポーネントの色不透明度を90%に引き上げ視認性を向上、WikiTagListのアイコンアライメント修正、TaskDetailPanelのフォルダパスボタン拡大、TaskTree内の重複フォルダフィルター削除、FolderPlusボタン追加の5点を実施。
+
+#### 変更点
+
+- **タグ色（5ファイル横断）**: 背景`E6`(90%)、ボーダー`CC`(80%)、テキスト`getTextColorForBg()`+bold — WikiTagChip, WikiTagView, SoundTagFilter, OneDaySchedule, RoutinesTab
+- **WikiTagList**: Tagアイコンを`p-1 hover:bg-notion-hover rounded-md`, `size={14}`に拡大しチップとアライメント統一
+- **TaskDetailPanel**: FolderOpenボタンを`w-8 h-8`角丸正方形(`rounded-lg`)、アイコン`size={18}`に拡大
+- **TaskTree（フィルター削除）**: 重複FolderDropdownフィルターを削除、`Filter`/`FolderDropdown`/`flattenFolders`/`filterFolderLabel`の不要コード除去
+- **TaskTree（FolderPlus）**: FolderPlusボタン追加（Plusの左）、folder作成時は`filterFolderId`の子に作成
+
 ### 2026-03-09 - WikiTag色反映・IMEバグ修正・Tagアイコン・ライトテーマ改善
 
 #### 概要

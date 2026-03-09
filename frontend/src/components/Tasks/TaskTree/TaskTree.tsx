@@ -13,7 +13,7 @@ import {
   ListTree,
   CheckCircle2,
   Plus,
-  Filter,
+  FolderPlus,
 } from "lucide-react";
 import { useTaskTreeContext } from "../../../hooks/useTaskTreeContext";
 
@@ -23,11 +23,9 @@ import { useTaskTreeKeyboard } from "../../../hooks/useTaskTreeKeyboard";
 import { TaskTreeNode } from "./TaskTreeNode";
 import { InlineCreateInput } from "./InlineCreateInput";
 
-import { FolderDropdown } from "../Folder/FolderDropdown";
 import { SortDropdown } from "./SortDropdown";
 import { useLocalStorage } from "../../../hooks/useLocalStorage";
 import { useDebounce } from "../../../hooks/useDebounce";
-import { flattenFolders } from "../../../utils/flattenFolders";
 import { getDescendantTasks } from "../../../utils/getDescendantTasks";
 import { getSearchMatchIds } from "../../../utils/filterTreeBySearch";
 import { sortTaskNodes } from "../../../utils/sortTaskNodes";
@@ -209,14 +207,6 @@ export function TaskTree({
 
   const { t } = useTranslation();
 
-  const filterFolderLabel = useMemo(() => {
-    if (!filterFolderId) return t("folderFilter.all");
-    const flat = flattenFolders(nodes);
-    return (
-      flat.find((f) => f.id === filterFolderId)?.title ?? t("folderFilter.all")
-    );
-  }, [filterFolderId, nodes, t]);
-
   useTaskTreeKeyboard({
     selectedTaskId: selectedTaskId ?? null,
     visibleNodes,
@@ -255,33 +245,22 @@ export function TaskTree({
                 <div className="flex-row flex items-center justify-between w-full">
                   <div className="flex items-center gap-1.5">
                     {t("taskTree.title")}
-                    <FolderDropdown
-                      selectedId={filterFolderId}
-                      onSelect={setFilterFolderId}
-                      rootLabel={t("folderFilter.all")}
-                      trigger={
-                        <button
-                          className={`flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded transition-colors ${
-                            filterFolderId
-                              ? "bg-notion-accent/10 text-notion-accent"
-                              : "text-notion-text-secondary hover:text-notion-text"
-                          }`}
-                          title={t("folderFilter.filterByFolder")}
-                        >
-                          <Filter size={10} />
-                          <span className="max-w-20 truncate">
-                            {filterFolderLabel}
-                          </span>
-                          <ChevronDown size={10} />
-                        </button>
-                      }
-                    />
                     <SortDropdown
                       sortMode={sortMode}
                       onSortChange={setSortMode}
                     />
                   </div>
                   <div className="flex items-center gap-1">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setIsCreatingRootItem("folder");
+                      }}
+                      className="hover:text-notion-text transition-colors"
+                      title={t("taskTree.newFolder")}
+                    >
+                      <FolderPlus size={14} />
+                    </button>
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
@@ -320,7 +299,15 @@ export function TaskTree({
                       ? t("taskTree.newTask")
                       : t("taskTree.newFolder")
                   }
-                  onSubmit={(title) => addNode(isCreatingRootItem, null, title)}
+                  onSubmit={(title) =>
+                    addNode(
+                      isCreatingRootItem!,
+                      isCreatingRootItem === "folder"
+                        ? (filterFolderId ?? null)
+                        : null,
+                      title,
+                    )
+                  }
                   onCancel={() => setIsCreatingRootItem(null)}
                 />
               )}

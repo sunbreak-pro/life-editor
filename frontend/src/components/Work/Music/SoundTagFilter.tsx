@@ -1,5 +1,6 @@
 import { X } from "lucide-react";
 import type { useSoundTags } from "../../../hooks/useSoundTags";
+import { getTextColorForBg } from "../../../constants/folderColors";
 
 interface SoundTagFilterProps {
   soundTagState: ReturnType<typeof useSoundTags>;
@@ -22,7 +23,11 @@ export function SoundTagFilter({ soundTagState }: SoundTagFilterProps) {
             className={`inline-flex items-center text-xs px-2 py-0.5 rounded-full font-medium transition-opacity ${
               isActive ? "opacity-100" : "opacity-40 hover:opacity-70"
             }`}
-            style={{ backgroundColor: `${tag.color}25`, color: tag.color }}
+            style={{
+              backgroundColor: `${tag.color}E6`,
+              color: getTextColorForBg(tag.color),
+              fontWeight: "bold",
+            }}
           >
             {tag.name}
           </button>

@@ -4,6 +4,7 @@ import type { NodeViewProps } from "@tiptap/react";
 import { useWikiTags } from "../hooks/useWikiTags";
 import { ColorPicker } from "../components/shared/ColorPicker";
 import { useTranslation } from "react-i18next";
+import { getTextColorForBg } from "../constants/folderColors";
 
 export function WikiTagView({ node }: NodeViewProps) {
   const { t } = useTranslation();
@@ -49,11 +50,12 @@ export function WikiTagView({ node }: NodeViewProps) {
     await updateTag(tag.id, { color: newColor });
   };
 
+  const textColor = color ? getTextColorForBg(color) : undefined;
   const style = color
     ? {
-        backgroundColor: `${color}18`,
-        color: color,
-        border: `1px solid ${color}40`,
+        backgroundColor: `${color}E6`,
+        color: textColor,
+        border: `1px solid ${color}CC`,
       }
     : undefined;
 
@@ -70,7 +72,7 @@ export function WikiTagView({ node }: NodeViewProps) {
     >
       <span
         className="wiki-tag-symbol"
-        style={color ? { color, opacity: 0.7 } : undefined}
+        style={color ? { color: textColor, opacity: 0.8 } : undefined}
       >
         #
       </span>
