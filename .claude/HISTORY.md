@@ -1,5 +1,18 @@
 # HISTORY.md - 変更履歴
 
+### 2026-03-09 - code-refactoring スキル改善（frontend-refactoring 分離）
+
+#### 概要
+
+code-refactoring グローバルスキルから React/フロントエンド固有セクションを分離し、新規 frontend-refactoring スキルとして独立化。DRY ワークフローに優先度付け・判断基準テーブル・移行リスク評価を追加し、リファクタリングプラン出力フォーマットを新設。
+
+#### 変更点
+
+- **新規スキル**: `frontend-refactoring/SKILL.md` 作成（UIコンポーネント抽出、フック汎用化、Context/Provider ファクトリ、判断基準テーブル）
+- **code-refactoring 改修**: React セクション（l.61-139）を参照に置換、DRY ワークフローに優先度付け・判断基準・移行リスク追加、プラン出力フォーマット追加
+- **SKILL_INDEX.md**: frontend-refactoring エントリ追加（10→11個）
+- **シンボリックリンク**: `~/.claude/skills/frontend-refactoring` → 実体ディレクトリ
+
 ### 2026-03-09 - WikiTag テキストカラー変更が機能しない問題の修正
 
 #### 概要
