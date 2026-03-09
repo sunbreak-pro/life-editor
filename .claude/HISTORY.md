@@ -1,5 +1,15 @@
 # HISTORY.md - 変更履歴
 
+### 2026-03-09 - タグが edit-popup の上に表示される問題の修正
+
+#### 概要
+
+wiki-tag-edit-popup を開いた際、DOM 後方の兄弟タグが popup の上に重なる z-index 問題を修正。
+
+#### 変更点
+
+- **WikiTagView.tsx**: `editing` が true のとき、親の `.wiki-tag-modern` に `zIndex: 100` を inline style で追加し、popup が兄弟タグより上にスタックされるようにした
+
 ### 2026-03-09 - Left Sidebar UI/UX再編（Memo→Ideas、Search/Tagsタブ新規）
 
 #### 概要
