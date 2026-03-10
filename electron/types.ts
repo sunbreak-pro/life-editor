@@ -191,6 +191,18 @@ export interface WikiTagConnection {
   createdAt: string;
 }
 
+export interface WikiTagGroup {
+  id: string;
+  name: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface WikiTagGroupMember {
+  groupId: string;
+  tagId: string;
+}
+
 export interface MigrationPayload {
   tasks?: TaskNode[];
   timerSettings?: Partial<TimerSettings>;

@@ -3,10 +3,10 @@ import {
   Search,
   ChevronRight,
   ChevronDown,
-  Star,
+  Heart,
   StickyNote,
   BookOpen,
-  Pin,
+  Trash2,
   Plus,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
@@ -36,6 +36,8 @@ interface MaterialsSidebarProps {
   selectedView: MaterialsView | null;
   onSelectView: (view: MaterialsView) => void;
   onCreateNote: () => void;
+  onDeleteNote?: (noteId: string) => void;
+  onDeleteMemo?: (date: string) => void;
 }
 
 function loadSectionsState(): SectionsState {
@@ -63,6 +65,8 @@ export function MaterialsSidebar({
   selectedView,
   onSelectView,
   onCreateNote,
+  onDeleteNote,
+  onDeleteMemo,
 }: MaterialsSidebarProps) {
   const { t } = useTranslation();
   const [sections, setSections] = useState<SectionsState>(loadSectionsState);
@@ -151,41 +155,77 @@ export function MaterialsSidebar({
   };
 
   const renderNoteItem = (note: NoteNode) => (
-    <button
+    <div
       key={note.id}
-      onClick={() => onSelectView({ type: "note", noteId: note.id })}
-      className={`w-full flex items-center gap-2 px-2 py-1.5 rounded text-left transition-colors ${
+      className={`group flex items-center gap-2 px-2 py-1.5 rounded text-left transition-colors ${
         isNoteSelected(note.id) ? "bg-notion-hover" : "hover:bg-notion-hover"
       }`}
     >
-      <StickyNote size={12} className="text-notion-text-secondary shrink-0" />
-      <span className="flex-1 text-xs text-notion-text truncate">
-        {note.title || t("notes.untitled")}
-      </span>
-      {renderTagDots(note.id)}
-      {note.isPinned && (
-        <Pin size={10} className="text-notion-primary shrink-0" />
+      <button
+        onClick={() => onSelectView({ type: "note", noteId: note.id })}
+        className="flex-1 flex items-center gap-2 min-w-0"
+      >
+        <StickyNote size={15} className="text-notion-text-secondary shrink-0" />
+        <span className="flex-1 text-sm text-notion-text truncate">
+          {note.title || t("notes.untitled")}
+        </span>
+        {renderTagDots(note.id)}
+        {note.isPinned && (
+          <Heart
+            size={12}
+            className="text-notion-primary fill-current shrink-0"
+          />
+        )}
+      </button>
+      {onDeleteNote && (
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            onDeleteNote(note.id);
+          }}
+          className="p-0.5 opacity-0 group-hover:opacity-100 text-notion-text-secondary hover:text-red-500 transition-opacity shrink-0"
+        >
+          <Trash2 size={12} />
+        </button>
       )}
-    </button>
+    </div>
   );
 
   const renderMemoItem = (memo: MemoNode) => (
-    <button
+    <div
       key={memo.id}
-      onClick={() => onSelectView({ type: "daily", date: memo.date })}
-      className={`w-full flex items-center gap-2 px-2 py-1.5 rounded text-left transition-colors ${
+      className={`group flex items-center gap-2 px-2 py-1.5 rounded text-left transition-colors ${
         isDailySelected(memo.date) ? "bg-notion-hover" : "hover:bg-notion-hover"
       }`}
     >
-      <BookOpen size={12} className="text-notion-text-secondary shrink-0" />
-      <span className="flex-1 text-xs text-notion-text truncate">
-        {formatDisplayDate(memo.date)}
-      </span>
-      {renderTagDots(memo.id)}
-      {memo.isPinned && (
-        <Pin size={10} className="text-notion-primary shrink-0" />
+      <button
+        onClick={() => onSelectView({ type: "daily", date: memo.date })}
+        className="flex-1 flex items-center gap-2 min-w-0"
+      >
+        <BookOpen size={15} className="text-notion-text-secondary shrink-0" />
+        <span className="flex-1 text-sm text-notion-text truncate">
+          {formatDisplayDate(memo.date)}
+        </span>
+        {renderTagDots(memo.id)}
+        {memo.isPinned && (
+          <Heart
+            size={12}
+            className="text-notion-primary fill-current shrink-0"
+          />
+        )}
+      </button>
+      {onDeleteMemo && (
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            onDeleteMemo(memo.date);
+          }}
+          className="p-0.5 opacity-0 group-hover:opacity-100 text-notion-text-secondary hover:text-red-500 transition-opacity shrink-0"
+        >
+          <Trash2 size={12} />
+        </button>
       )}
-    </button>
+    </div>
   );
 
   // Search results: flat list
@@ -199,7 +239,7 @@ export function MaterialsSidebar({
         />
         <div className="flex-1 overflow-y-auto p-1">
           {filteredNotes.length === 0 && filteredMemos.length === 0 && (
-            <p className="text-[10px] text-notion-text-secondary text-center py-4">
+            <p className="text-xs text-notion-text-secondary text-center py-4">
               {t("ideas.noSearchResults")}
             </p>
           )}
@@ -232,7 +272,7 @@ export function MaterialsSidebar({
         {hasFavorites && (
           <CollapsibleSection
             label={t("ideas.favorites")}
-            icon={<Star size={12} />}
+            icon={<Heart size={15} />}
             isOpen={sections.favorites}
             onToggle={() => toggleSection("favorites")}
           >
@@ -244,12 +284,12 @@ export function MaterialsSidebar({
         {/* Notes */}
         <CollapsibleSection
           label={t("ideas.notes")}
-          icon={<StickyNote size={12} />}
+          icon={<StickyNote size={15} />}
           isOpen={sections.notes}
           onToggle={() => toggleSection("notes")}
         >
           {notes.length === 0 ? (
-            <p className="text-[10px] text-notion-text-secondary px-2 py-2">
+            <p className="text-xs text-notion-text-secondary px-2 py-2">
               {t("notes.noNotes")}
             </p>
           ) : (
@@ -260,12 +300,12 @@ export function MaterialsSidebar({
         {/* Daily */}
         <CollapsibleSection
           label={t("ideas.daily")}
-          icon={<BookOpen size={12} />}
+          icon={<BookOpen size={15} />}
           isOpen={sections.daily}
           onToggle={() => toggleSection("daily")}
         >
           {memos.length === 0 ? (
-            <p className="text-[10px] text-notion-text-secondary px-2 py-2">
+            <p className="text-xs text-notion-text-secondary px-2 py-2">
               No memos yet
             </p>
           ) : (
@@ -326,9 +366,9 @@ function CollapsibleSection({
     <div className="border-b border-notion-border last:border-b-0">
       <button
         onClick={onToggle}
-        className="w-full flex items-center gap-1.5 px-3 py-2 text-[10px] font-semibold text-notion-text-secondary uppercase tracking-wider hover:bg-notion-hover transition-colors"
+        className="w-full flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-notion-text-secondary uppercase tracking-wider hover:bg-notion-hover transition-colors"
       >
-        {isOpen ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
+        {isOpen ? <ChevronDown size={15} /> : <ChevronRight size={15} />}
         {icon}
         <span>{label}</span>
       </button>

@@ -1,5 +1,24 @@
 # HISTORY.md - 変更履歴
 
+### 2026-03-10 - Ideas UI/UX 改善プラン
+
+#### 概要
+
+Ideas セクションの UI/UX を包括的に改善。Merge 機能削除、フォントサイズ 1.25x 拡大、Pin→Heart アイコン変更、カラーピッカー強化、MaterialsSidebar 削除ボタン追加、WikiTag Group バックエンド+フロントエンド（サイドバー・キャンバス Group フレーム）、Notes on Canvas（ノートノード・タグ間エッジ）、フィルターモード（All/Grouped/特定 Group）を実装。
+
+#### 変更点
+
+- **Phase 0 - Merge 削除**: ConnectSidebar.tsx から Merge UI・state・ハンドラを除去、ConnectTabView.tsx から mergeTags 関連を除去
+- **Phase 1A - フォントサイズ**: MaterialsSidebar/ConnectSidebar のテキスト・アイコンサイズを 1.25x に拡大（text-[10px]→text-xs、text-xs→text-sm、アイコン 12→15、11→14）
+- **Phase 1B - Heart アイコン**: Star/Pin → Heart に変更（MaterialsSidebar、NotesView、DailyMemoView）、i18n キー favorite/unfavorite 追加
+- **Phase 1C - カラーピッカー**: preset-only → preset-full に変更（HexColorPicker + hex 入力対応）
+- **Phase 2 - 削除ボタン**: MaterialsSidebar のノート・メモアイテムに hover 時 Trash2 ボタン追加、IdeasView から softDeleteNote/deleteMemo を接続
+- **Phase 3 - Tag Group バックエンド**: WikiTagGroup/WikiTagGroupMember 型定義、DB マイグレーション V27（wiki_tag_groups/wiki_tag_group_members）、リポジトリ、IPC ハンドラ 8ch、DataService/ElectronDataService 実装
+- **Phase 4 - Tag Group フロントエンド**: useWikiTagGroups フック（CRUD + UndoRedo）、useWikiTagAPI に統合、ConnectSidebar に Groups セクション（作成フォーム・展開リスト・フィルターボタン）、GroupFrameNode.tsx（React Flow カスタムノード、破線フレーム + 名前ラベル）、TagGraphView にグループフレーム描画（バウンディングボックス計算、localStorage 保存）
+- **Phase 5 - Notes on Canvas**: NoteNodeComponent.tsx（付箋紙風ノード）、TagGraphView にノートノード + ノート-タグ点線エッジ追加、フィルターモード（all/grouped/{groupId}）で表示切替、ConnectTabView に filterMode state 管理
+- **i18n**: en.json/ja.json に groups/newGroup/groupName/createGroup/filterAll/filterGrouped/filterByGroup/deleteNote/deleteMemo キー追加
+- **storageKeys**: TAG_GRAPH_GROUP_POSITIONS 追加
+
 ### 2026-03-10 - TaskTree DnD パフォーマンス最適化
 
 #### 概要

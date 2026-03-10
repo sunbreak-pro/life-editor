@@ -115,6 +115,11 @@ export function runMigrations(db: Database.Database): void {
     migrateV26(db);
   }
 
+  if (currentVersion < 27) {
+    log.info("[DB] Running migration V27");
+    migrateV27(db);
+  }
+
   const newVersion = db.pragma("user_version", { simple: true }) as number;
   if (newVersion !== currentVersion) {
     log.info(`[DB] Schema migrated: ${currentVersion} → ${newVersion}`);
@@ -1043,6 +1048,30 @@ function migrateV25(db: Database.Database): void {
     CREATE INDEX IF NOT EXISTS idx_wtc_target ON wiki_tag_connections(target_tag_id);
 
     PRAGMA user_version = 25;
+  `);
+}
+
+function migrateV27(db: Database.Database): void {
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS wiki_tag_groups (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS wiki_tag_group_members (
+      group_id TEXT NOT NULL,
+      tag_id TEXT NOT NULL,
+      PRIMARY KEY (group_id, tag_id),
+      FOREIGN KEY (group_id) REFERENCES wiki_tag_groups(id) ON DELETE CASCADE,
+      FOREIGN KEY (tag_id) REFERENCES wiki_tags(id) ON DELETE CASCADE
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_wtgm_group ON wiki_tag_group_members(group_id);
+    CREATE INDEX IF NOT EXISTS idx_wtgm_tag ON wiki_tag_group_members(tag_id);
+
+    PRAGMA user_version = 27;
   `);
 }
 

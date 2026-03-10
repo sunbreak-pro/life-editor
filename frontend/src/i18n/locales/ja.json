@@ -243,7 +243,16 @@
     "deleteConnection": "接続を削除しますか？",
     "newNoteButton": "+ ノート作成",
     "relations": "関連",
-    "linkTags": "タグを関連付け"
+    "linkTags": "タグを関連付け",
+    "groups": "グループ",
+    "newGroup": "新規グループ",
+    "groupName": "グループ名...",
+    "createGroup": "グループ作成",
+    "filterAll": "すべて",
+    "filterGrouped": "グループ済み",
+    "filterByGroup": "グループでフィルター",
+    "deleteNote": "ノートを削除",
+    "deleteMemo": "メモを削除"
   },
   "schedule": {
     "todayFlow": "Today Flow",
@@ -761,6 +770,8 @@
     "untitled": "無題",
     "unpin": "ピン解除",
     "pin": "ピン留め",
+    "favorite": "お気に入りに追加",
+    "unfavorite": "お気に入りから削除",
     "loadingEditor": "エディタを読み込み中...",
     "emptyState": "ノートを選択するか、新しく作成してください"
   },

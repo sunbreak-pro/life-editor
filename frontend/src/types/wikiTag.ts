@@ -23,3 +23,15 @@ export interface WikiTagConnection {
   targetTagId: string;
   createdAt: string;
 }
+
+export interface WikiTagGroup {
+  id: string;
+  name: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface WikiTagGroupMember {
+  groupId: string;
+  tagId: string;
+}

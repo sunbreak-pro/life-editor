@@ -29,6 +29,8 @@ import type {
   WikiTag,
   WikiTagAssignment,
   WikiTagConnection,
+  WikiTagGroup,
+  WikiTagGroupMember,
 } from "../types/wikiTag";
 
 export interface DataService {
@@ -289,6 +291,19 @@ export interface DataService {
     entityType: string,
     source: string,
   ): Promise<void>;
+
+  // Wiki Tag Groups
+  fetchWikiTagGroups(): Promise<WikiTagGroup[]>;
+  createWikiTagGroup(name: string, tagIds: string[]): Promise<WikiTagGroup>;
+  updateWikiTagGroup(
+    id: string,
+    updates: { name: string },
+  ): Promise<WikiTagGroup>;
+  deleteWikiTagGroup(id: string): Promise<void>;
+  fetchAllWikiTagGroupMembers(): Promise<WikiTagGroupMember[]>;
+  setWikiTagGroupMembers(groupId: string, tagIds: string[]): Promise<void>;
+  addWikiTagGroupMember(groupId: string, tagId: string): Promise<void>;
+  removeWikiTagGroupMember(groupId: string, tagId: string): Promise<void>;
 
   // Wiki Tag Connections
   fetchWikiTagConnections(): Promise<WikiTagConnection[]>;

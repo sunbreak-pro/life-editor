@@ -18,7 +18,10 @@ import {
 import { useTaskTreeContext } from "../../../hooks/useTaskTreeContext";
 
 import { useTranslation } from "react-i18next";
-import { useTaskTreeDnd } from "../../../hooks/useTaskTreeDnd";
+import {
+  useTaskTreeDnd,
+  DragOverStoreContext,
+} from "../../../hooks/useTaskTreeDnd";
 import { useTaskTreeKeyboard } from "../../../hooks/useTaskTreeKeyboard";
 import { TaskTreeNode } from "./TaskTreeNode";
 import { InlineCreateInput } from "./InlineCreateInput";
@@ -116,7 +119,7 @@ export function TaskTree({
   const {
     sensors,
     activeNode,
-    overInfo,
+    dragOverStore,
     handleDragStart: rawHandleDragStart,
     handleDragOver,
     handleDragEnd,
@@ -222,108 +225,114 @@ export function TaskTree({
     <div
       className={`space-y-1 ${isControlled ? "max-w-3xl mx-auto px-4" : ""}`}
     >
-      <DndContext
-        sensors={sensors}
-        collisionDetection={pointerWithin}
-        onDragStart={handleDragStart}
-        onDragOver={handleDragOver}
-        onDragEnd={handleDragEnd}
-        onDragCancel={handleDragCancel}
-      >
-        {/* Root Section */}
-        <DroppableSection id="droppable-root-section">
-          {(isOver) => (
-            <div>
-              <div
-                className={`flex items-center gap-2 px-2 py-1.5 text-xs font-semibold uppercase tracking-wider text-notion-text-secondary rounded-md transition-colors ${
-                  isOver
-                    ? "bg-notion-accent/10 ring-1 ring-notion-accent/30"
-                    : ""
-                }`}
-              >
-                <ListTree size={14} />
-                <div className="flex-row flex items-center justify-between w-full">
-                  <div className="flex items-center gap-1.5">
-                    {t("taskTree.title")}
-                    <SortDropdown
-                      sortMode={sortMode}
-                      onSortChange={setSortMode}
-                    />
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setIsCreatingRootItem("folder");
-                      }}
-                      className="hover:text-notion-text transition-colors"
-                      title={t("taskTree.newFolder")}
-                    >
-                      <FolderPlus size={14} />
-                    </button>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setIsCreatingRootItem("task");
-                      }}
-                      className="hover:text-notion-text transition-colors"
-                      title={t("taskTree.newTask")}
-                    >
-                      <Plus size={14} />
-                    </button>
+      <DragOverStoreContext.Provider value={dragOverStore}>
+        <DndContext
+          sensors={sensors}
+          collisionDetection={pointerWithin}
+          onDragStart={handleDragStart}
+          onDragOver={handleDragOver}
+          onDragEnd={handleDragEnd}
+          onDragCancel={handleDragCancel}
+        >
+          {/* Root Section */}
+          <DroppableSection id="droppable-root-section">
+            {(isOver) => (
+              <div>
+                <div
+                  className={`flex items-center gap-2 px-2 py-1.5 text-xs font-semibold uppercase tracking-wider text-notion-text-secondary rounded-md transition-colors ${
+                    isOver
+                      ? "bg-notion-accent/10 ring-1 ring-notion-accent/30"
+                      : ""
+                  }`}
+                >
+                  <ListTree size={14} />
+                  <div className="flex-row flex items-center justify-between w-full">
+                    <div className="flex items-center gap-1.5">
+                      {t("taskTree.title")}
+                      <SortDropdown
+                        sortMode={sortMode}
+                        onSortChange={setSortMode}
+                      />
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setIsCreatingRootItem("folder");
+                        }}
+                        className="hover:text-notion-text transition-colors"
+                        title={t("taskTree.newFolder")}
+                      >
+                        <FolderPlus size={14} />
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setIsCreatingRootItem("task");
+                        }}
+                        className="hover:text-notion-text transition-colors"
+                        title={t("taskTree.newTask")}
+                      >
+                        <Plus size={14} />
+                      </button>
+                    </div>
                   </div>
                 </div>
+                <SortableContext items={rootItemIds}>
+                  <div className="space-y-0.5">
+                    {rootItems.map((node) => (
+                      <TaskTreeNode
+                        key={node.id}
+                        node={node}
+                        depth={0}
+                        onPlayTask={onPlayTask}
+                        onSelectTask={onSelectTask}
+                        selectedTaskId={selectedTaskId}
+                        sortMode={sortMode}
+                        searchMatchIds={
+                          isSearching ? searchMatchIds : undefined
+                        }
+                        isSearching={isSearching}
+                      />
+                    ))}
+                  </div>
+                </SortableContext>
+                {isCreatingRootItem && (
+                  <InlineCreateInput
+                    placeholder={
+                      isCreatingRootItem === "task"
+                        ? t("taskTree.newTask")
+                        : t("taskTree.newFolder")
+                    }
+                    onSubmit={(title) =>
+                      addNode(
+                        isCreatingRootItem!,
+                        isCreatingRootItem === "folder"
+                          ? (filterFolderId ?? null)
+                          : null,
+                        title,
+                      )
+                    }
+                    onCancel={() => setIsCreatingRootItem(null)}
+                  />
+                )}
               </div>
-              <SortableContext items={rootItemIds}>
-                <div className="space-y-0.5">
-                  {rootItems.map((node) => (
-                    <TaskTreeNode
-                      key={node.id}
-                      node={node}
-                      depth={0}
-                      onPlayTask={onPlayTask}
-                      onSelectTask={onSelectTask}
-                      selectedTaskId={selectedTaskId}
-                      sortMode={sortMode}
-                      overInfo={overInfo}
-                      searchMatchIds={isSearching ? searchMatchIds : undefined}
-                      isSearching={isSearching}
-                    />
-                  ))}
-                </div>
-              </SortableContext>
-              {isCreatingRootItem && (
-                <InlineCreateInput
-                  placeholder={
-                    isCreatingRootItem === "task"
-                      ? t("taskTree.newTask")
-                      : t("taskTree.newFolder")
-                  }
-                  onSubmit={(title) =>
-                    addNode(
-                      isCreatingRootItem!,
-                      isCreatingRootItem === "folder"
-                        ? (filterFolderId ?? null)
-                        : null,
-                      title,
-                    )
-                  }
-                  onCancel={() => setIsCreatingRootItem(null)}
-                />
-              )}
-            </div>
-          )}
-        </DroppableSection>
+            )}
+          </DroppableSection>
 
-        <DragOverlay>
-          {activeNode ? (
-            <div className="flex items-center gap-1 px-2 py-1 rounded-md bg-notion-bg border border-notion-border shadow-lg text-[15px] text-notion-text opacity-50">
-              <GripVertical size={14} className="text-notion-text-secondary" />
-              <span>{activeNode.title}</span>
-            </div>
-          ) : null}
-        </DragOverlay>
-      </DndContext>
+          <DragOverlay>
+            {activeNode ? (
+              <div className="flex items-center gap-1 px-2 py-1 rounded-md bg-notion-bg border border-notion-border shadow-lg text-[15px] text-notion-text opacity-50">
+                <GripVertical
+                  size={14}
+                  className="text-notion-text-secondary"
+                />
+                <span>{activeNode.title}</span>
+              </div>
+            ) : null}
+          </DragOverlay>
+        </DndContext>
+      </DragOverStoreContext.Provider>
 
       {isSearching &&
         visibleNodes.length === 0 &&

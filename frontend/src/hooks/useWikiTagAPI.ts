@@ -2,12 +2,14 @@ import { useState, useEffect, useCallback } from "react";
 import type { WikiTag, WikiTagAssignment } from "../types/wikiTag";
 import { getDataService } from "../services";
 import { useUndoRedo } from "../components/shared/UndoRedo";
+import { useWikiTagGroups } from "./useWikiTagGroups";
 
 export function useWikiTagAPI() {
   const { push } = useUndoRedo();
   const [tags, setTags] = useState<WikiTag[]>([]);
   const [assignments, setAssignments] = useState<WikiTagAssignment[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const groupsAPI = useWikiTagGroups();
 
   const reload = useCallback(async () => {
     const ds = getDataService();
@@ -268,5 +270,6 @@ export function useWikiTagAPI() {
     getTagsForEntity,
     setTagsForEntity,
     syncInlineTags,
+    ...groupsAPI,
   };
 }

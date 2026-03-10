@@ -46,9 +46,15 @@ export function IdeasView({ onNavigateToNote }: IdeasViewProps) {
     return "materials";
   });
 
-  const { memos, selectedDate, setSelectedDate, upsertMemo } = useMemoContext();
-  const { notes, selectedNoteId, setSelectedNoteId, createNote } =
-    useNoteContext();
+  const { memos, selectedDate, setSelectedDate, upsertMemo, deleteMemo } =
+    useMemoContext();
+  const {
+    notes,
+    selectedNoteId,
+    setSelectedNoteId,
+    createNote,
+    softDeleteNote,
+  } = useNoteContext();
   const { assignments, tags } = useWikiTags();
 
   // Materials view state
@@ -112,6 +118,8 @@ export function IdeasView({ onNavigateToNote }: IdeasViewProps) {
         selectedView={materialsView}
         onSelectView={handleSelectMaterialsView}
         onCreateNote={handleCreateNote}
+        onDeleteNote={softDeleteNote}
+        onDeleteMemo={deleteMemo}
       />
     ) : null;
 

@@ -30,6 +30,8 @@ import type {
   WikiTag,
   WikiTagAssignment,
   WikiTagConnection,
+  WikiTagGroup,
+  WikiTagGroupMember,
 } from "../types/wikiTag";
 
 function invoke<T>(channel: string, ...args: unknown[]): Promise<T> {
@@ -522,6 +524,35 @@ export class ElectronDataService implements DataService {
       entityType,
       source,
     );
+  }
+
+  // Wiki Tag Groups
+  fetchWikiTagGroups(): Promise<WikiTagGroup[]> {
+    return invoke("db:wikiTagGroups:fetchAll");
+  }
+  createWikiTagGroup(name: string, tagIds: string[]): Promise<WikiTagGroup> {
+    return invoke("db:wikiTagGroups:create", name, tagIds);
+  }
+  updateWikiTagGroup(
+    id: string,
+    updates: { name: string },
+  ): Promise<WikiTagGroup> {
+    return invoke("db:wikiTagGroups:update", id, updates);
+  }
+  deleteWikiTagGroup(id: string): Promise<void> {
+    return invoke("db:wikiTagGroups:delete", id);
+  }
+  fetchAllWikiTagGroupMembers(): Promise<WikiTagGroupMember[]> {
+    return invoke("db:wikiTagGroups:fetchAllMembers");
+  }
+  setWikiTagGroupMembers(groupId: string, tagIds: string[]): Promise<void> {
+    return invoke("db:wikiTagGroups:setMembers", groupId, tagIds);
+  }
+  addWikiTagGroupMember(groupId: string, tagId: string): Promise<void> {
+    return invoke("db:wikiTagGroups:addMember", groupId, tagId);
+  }
+  removeWikiTagGroupMember(groupId: string, tagId: string): Promise<void> {
+    return invoke("db:wikiTagGroups:removeMember", groupId, tagId);
   }
 
   // Wiki Tag Connections

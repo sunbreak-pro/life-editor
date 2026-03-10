@@ -29,8 +29,12 @@ export function ConnectTabView({ onNavigateToNote }: ConnectTabViewProps) {
     createTag,
     updateTag,
     deleteTag,
-    mergeTags,
     setTagsForEntity,
+    groups,
+    groupMembers,
+    createGroup,
+    updateGroup,
+    deleteGroup,
   } = useWikiTags();
 
   const { connections, createConnection, deleteConnectionByPair } =
@@ -40,6 +44,9 @@ export function ConnectTabView({ onNavigateToNote }: ConnectTabViewProps) {
 
   const [query, setQuery] = useState("");
   const [selectedTagId, setSelectedTagId] = useState<string | null>(null);
+  const [filterMode, setFilterMode] = useState<
+    "all" | "grouped" | { groupId: string }
+  >("all");
 
   const { matchingTags, matchingNotes } = useConnectSearch({
     query,
@@ -90,14 +97,6 @@ export function ConnectTabView({ onNavigateToNote }: ConnectTabViewProps) {
     [deleteTag, selectedTagId],
   );
 
-  const handleMergeTags = useCallback(
-    async (sourceId: string, targetId: string) => {
-      await mergeTags(sourceId, targetId);
-      if (selectedTagId === sourceId) setSelectedTagId(targetId);
-    },
-    [mergeTags, selectedTagId],
-  );
-
   const { portalTarget: rightSidebarTarget } = useContext(RightSidebarContext);
 
   const sidebar = (
@@ -117,9 +116,15 @@ export function ConnectTabView({ onNavigateToNote }: ConnectTabViewProps) {
       onCreateTag={createTag}
       onUpdateTag={handleUpdateTag}
       onDeleteTag={handleDeleteTag}
-      onMergeTags={handleMergeTags}
       onCreateConnection={handleCreateConnection}
       onDeleteConnection={handleDeleteConnection}
+      groups={groups}
+      groupMembers={groupMembers}
+      filterMode={filterMode}
+      onFilterModeChange={setFilterMode}
+      onCreateGroup={createGroup}
+      onUpdateGroup={updateGroup}
+      onDeleteGroup={deleteGroup}
     />
   );
 
@@ -139,6 +144,11 @@ export function ConnectTabView({ onNavigateToNote }: ConnectTabViewProps) {
                 onSelectTag={setSelectedTagId}
                 onCreateConnection={handleCreateConnection}
                 onDeleteConnection={handleDeleteConnection}
+                groups={groups}
+                groupMembers={groupMembers}
+                notes={notes}
+                filterMode={filterMode}
+                onNavigateToNote={onNavigateToNote}
               />
             </ReactFlowProvider>
           </div>
@@ -156,6 +166,11 @@ export function ConnectTabView({ onNavigateToNote }: ConnectTabViewProps) {
                 onSelectTag={setSelectedTagId}
                 onCreateConnection={handleCreateConnection}
                 onDeleteConnection={handleDeleteConnection}
+                groups={groups}
+                groupMembers={groupMembers}
+                notes={notes}
+                filterMode={filterMode}
+                onNavigateToNote={onNavigateToNote}
               />
             </ReactFlowProvider>
           </div>

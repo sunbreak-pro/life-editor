@@ -34,6 +34,8 @@ import { createWikiTagRepository } from "../database/wikiTagRepository";
 import { registerWikiTagHandlers } from "./wikiTagHandlers";
 import { createWikiTagConnectionRepository } from "../database/wikiTagConnectionRepository";
 import { registerWikiTagConnectionHandlers } from "./wikiTagConnectionHandlers";
+import { createWikiTagGroupRepository } from "../database/wikiTagGroupRepository";
+import { registerWikiTagGroupHandlers } from "./wikiTagGroupHandlers";
 import { wrapHandler } from "./ipcMetrics";
 
 export function registerAllHandlers(db: Database.Database): void {
@@ -99,6 +101,10 @@ export function registerAllHandlers(db: Database.Database): void {
         registerWikiTagConnectionHandlers(
           createWikiTagConnectionRepository(db),
         ),
+    ],
+    [
+      "WikiTagGroups",
+      () => registerWikiTagGroupHandlers(createWikiTagGroupRepository(db)),
     ],
   ];
 

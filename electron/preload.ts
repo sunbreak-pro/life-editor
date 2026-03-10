@@ -112,6 +112,15 @@ const ALLOWED_CHANNELS = new Set([
   "db:wikiTags:fetchAllAssignments",
   "db:wikiTags:createWithId",
   "db:wikiTags:restoreAssignment",
+  // Wiki Tag Groups
+  "db:wikiTagGroups:fetchAll",
+  "db:wikiTagGroups:create",
+  "db:wikiTagGroups:update",
+  "db:wikiTagGroups:delete",
+  "db:wikiTagGroups:fetchAllMembers",
+  "db:wikiTagGroups:setMembers",
+  "db:wikiTagGroups:addMember",
+  "db:wikiTagGroups:removeMember",
   // Wiki Tag Connections
   "db:wikiTagConnections:fetchAll",
   "db:wikiTagConnections:create",

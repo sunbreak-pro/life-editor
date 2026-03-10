@@ -1,5 +1,5 @@
 import { Suspense, useCallback } from "react";
-import { Pin, PinOff } from "lucide-react";
+import { Heart } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useMemoContext } from "../../hooks/useMemoContext";
 import { formatDateTime } from "../../utils/formatRelativeDate";
@@ -36,11 +36,15 @@ export function DailyMemoView() {
               }`}
               title={
                 selectedMemo.isPinned
-                  ? t("notesView.unpin")
-                  : t("notesView.pin")
+                  ? t("notesView.unfavorite")
+                  : t("notesView.favorite")
               }
             >
-              {selectedMemo.isPinned ? <PinOff size={16} /> : <Pin size={16} />}
+              {selectedMemo.isPinned ? (
+                <Heart size={16} className="fill-current" />
+              ) : (
+                <Heart size={16} />
+              )}
             </button>
           )}
         </div>

@@ -1,3 +1,4 @@
+import { memo } from "react";
 import type { FolderProgress } from "../../../utils/folderProgress";
 
 interface TaskNodeContentProps {
@@ -11,7 +12,7 @@ interface TaskNodeContentProps {
   nodeId: string;
 }
 
-export function TaskNodeContent({
+export const TaskNodeContent = memo(function TaskNodeContent({
   title,
   isDone,
   isFolder,
@@ -44,4 +45,4 @@ export function TaskNodeContent({
       )}
     </span>
   );
-}
+});

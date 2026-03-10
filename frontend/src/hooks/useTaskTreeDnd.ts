@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef, createContext, useMemo } from "react";
 import {
   KeyboardSensor,
   PointerSensor,
@@ -14,6 +14,13 @@ export interface OverInfo {
   overId: string;
   position: "above" | "below" | "inside";
 }
+
+export interface DragOverStore {
+  subscribe: (listener: () => void) => () => void;
+  getSnapshot: () => OverInfo | null;
+}
+
+export const DragOverStoreContext = createContext<DragOverStore | null>(null);
 
 interface UseTaskTreeDndParams {
   nodes: TaskNode[];
@@ -51,7 +58,29 @@ export function useTaskTreeDnd({
   moveToRoot,
 }: UseTaskTreeDndParams) {
   const [activeId, setActiveId] = useState<string | null>(null);
-  const [overInfo, setOverInfo] = useState<OverInfo | null>(null);
+
+  // overInfo: useRef + subscriber pattern (instead of useState)
+  // Only nodes whose drop indicator changes will re-render
+  const overInfoRef = useRef<OverInfo | null>(null);
+  const listenersRef = useRef<Set<() => void>>(new Set());
+
+  const subscribe = useCallback((listener: () => void) => {
+    listenersRef.current.add(listener);
+    return () => {
+      listenersRef.current.delete(listener);
+    };
+  }, []);
+
+  const getSnapshot = useCallback(() => overInfoRef.current, []);
+
+  const notify = useCallback(() => {
+    listenersRef.current.forEach((l) => l());
+  }, []);
+
+  const dragOverStore = useMemo<DragOverStore>(
+    () => ({ subscribe, getSnapshot }),
+    [subscribe, getSnapshot],
+  );
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -66,7 +95,10 @@ export function useTaskTreeDnd({
     (event: DragOverEvent) => {
       const { over } = event;
       if (!over) {
-        setOverInfo(null);
+        if (overInfoRef.current !== null) {
+          overInfoRef.current = null;
+          notify();
+        }
         return;
       }
 
@@ -74,41 +106,43 @@ export function useTaskTreeDnd({
       const overNode = nodes.find((n) => n.id === overId);
 
       if (!overNode) {
-        setOverInfo(null);
+        if (overInfoRef.current !== null) {
+          overInfoRef.current = null;
+          notify();
+        }
         return;
       }
 
+      let newPosition: "above" | "below" | "inside";
       const pointerY = getPointerY(event);
-      if (!pointerY || !over.rect) {
-        setOverInfo({
-          overId,
-          position: overNode.type === "folder" ? "inside" : "below",
-        });
-        return;
-      }
 
-      if (overNode.type === "folder") {
-        setOverInfo({
-          overId,
-          position: computeFolderPosition(pointerY, over.rect),
-        });
+      if (!pointerY || !over.rect) {
+        newPosition = overNode.type === "folder" ? "inside" : "below";
+      } else if (overNode.type === "folder") {
+        newPosition = computeFolderPosition(pointerY, over.rect);
       } else {
-        // 2-zone: top 50% = above, bottom 50% = below
         const { top, height } = over.rect;
         const relY = pointerY - top;
-        setOverInfo({
-          overId,
-          position: relY < height / 2 ? "above" : "below",
-        });
+        newPosition = relY < height / 2 ? "above" : "below";
       }
+
+      // Skip notification if nothing changed
+      const prev = overInfoRef.current;
+      if (prev?.overId === overId && prev?.position === newPosition) {
+        return;
+      }
+
+      overInfoRef.current = { overId, position: newPosition };
+      notify();
     },
-    [nodes],
+    [nodes, notify],
   );
 
   const handleDragEnd = useCallback(
     (event: DragEndEvent) => {
       setActiveId(null);
-      setOverInfo(null);
+      overInfoRef.current = null;
+      notify();
       const { active, over } = event;
       if (!over || active.id === over.id) return;
 
@@ -156,13 +190,14 @@ export function useTaskTreeDnd({
         moveNode(active.id as string, over.id as string, position);
       }
     },
-    [nodes, moveNode, moveNodeInto, moveToRoot],
+    [nodes, moveNode, moveNodeInto, moveToRoot, notify],
   );
 
   const handleDragCancel = useCallback(() => {
     setActiveId(null);
-    setOverInfo(null);
-  }, []);
+    overInfoRef.current = null;
+    notify();
+  }, [notify]);
 
   const activeNode = activeId ? nodes.find((n) => n.id === activeId) : null;
 
@@ -170,7 +205,7 @@ export function useTaskTreeDnd({
     sensors,
     activeId,
     activeNode,
-    overInfo,
+    dragOverStore,
     handleDragStart,
     handleDragOver,
     handleDragEnd,

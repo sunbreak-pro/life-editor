@@ -1,3 +1,4 @@
+import { memo } from "react";
 import {
   ChevronRight,
   ChevronDown,
@@ -16,7 +17,7 @@ interface TaskNodeCheckboxProps {
   onToggleStatus: () => void;
 }
 
-export function TaskNodeCheckbox({
+export const TaskNodeCheckbox = memo(function TaskNodeCheckbox({
   isFolder,
   isDone,
   isExpanded,
@@ -55,4 +56,4 @@ export function TaskNodeCheckbox({
       {isDone && <Check size={10} className="check-animate" />}
     </button>
   );
-}
+});

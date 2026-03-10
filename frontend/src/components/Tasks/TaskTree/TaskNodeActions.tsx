@@ -1,3 +1,4 @@
+import { memo } from "react";
 import {
   Play,
   Pause,
@@ -21,7 +22,7 @@ interface TaskNodeActionsProps {
   onCompleteFolder?: () => void;
 }
 
-export function TaskNodeActions({
+export const TaskNodeActions = memo(function TaskNodeActions({
   node,
   isDone,
   isTimerActive,
@@ -84,4 +85,4 @@ export function TaskNodeActions({
       </button>
     </div>
   );
-}
+});

@@ -1,9 +1,14 @@
+import { memo } from "react";
+
 interface TaskNodeIndentProps {
   depth: number;
   isLastChild?: boolean;
 }
 
-export function TaskNodeIndent({ depth, isLastChild }: TaskNodeIndentProps) {
+export const TaskNodeIndent = memo(function TaskNodeIndent({
+  depth,
+  isLastChild,
+}: TaskNodeIndentProps) {
   if (depth <= 0) return null;
 
   return (
@@ -22,4 +27,4 @@ export function TaskNodeIndent({ depth, isLastChild }: TaskNodeIndentProps) {
       ))}
     </div>
   );
-}
+});

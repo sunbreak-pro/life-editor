@@ -243,7 +243,16 @@
     "deleteConnection": "Delete connection?",
     "newNoteButton": "+ New Note",
     "relations": "Relations",
-    "linkTags": "Link tags"
+    "linkTags": "Link tags",
+    "groups": "Groups",
+    "newGroup": "New Group",
+    "groupName": "Group name...",
+    "createGroup": "Create Group",
+    "filterAll": "All",
+    "filterGrouped": "Grouped",
+    "filterByGroup": "Filter by group",
+    "deleteNote": "Delete note",
+    "deleteMemo": "Delete memo"
   },
   "schedule": {
     "todayFlow": "Today Flow",
@@ -761,6 +770,8 @@
     "untitled": "Untitled",
     "unpin": "Unpin",
     "pin": "Pin",
+    "favorite": "Favorite",
+    "unfavorite": "Unfavorite",
     "loadingEditor": "Loading editor...",
     "emptyState": "Select a note or create a new one"
   },

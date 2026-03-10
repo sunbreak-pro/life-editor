@@ -1,5 +1,5 @@
 import { Suspense, useCallback } from "react";
-import { Pin, PinOff, StickyNote } from "lucide-react";
+import { Heart, StickyNote } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useNoteContext } from "../../hooks/useNoteContext";
 import { formatDateTime } from "../../utils/formatRelativeDate";
@@ -50,11 +50,15 @@ export function NotesView() {
               }`}
               title={
                 selectedNote.isPinned
-                  ? t("notesView.unpin")
-                  : t("notesView.pin")
+                  ? t("notesView.unfavorite")
+                  : t("notesView.favorite")
               }
             >
-              {selectedNote.isPinned ? <PinOff size={16} /> : <Pin size={16} />}
+              {selectedNote.isPinned ? (
+                <Heart size={16} className="fill-current" />
+              ) : (
+                <Heart size={16} />
+              )}
             </button>
           </div>
 

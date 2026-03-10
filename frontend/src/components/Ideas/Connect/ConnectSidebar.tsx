@@ -7,7 +7,6 @@ import {
   Trash2,
   Check,
   X,
-  Merge,
   ChevronRight,
   ChevronDown,
   Link2,
@@ -17,6 +16,8 @@ import type {
   WikiTag,
   WikiTagAssignment,
   WikiTagConnection,
+  WikiTagGroup,
+  WikiTagGroupMember,
 } from "../../../types/wikiTag";
 import type { NoteNode } from "../../../types/note";
 import { WikiTagChip } from "../../WikiTags/WikiTagChip";
@@ -42,7 +43,6 @@ interface ConnectSidebarProps {
     updates: Partial<Pick<WikiTag, "name" | "color">>,
   ) => Promise<void>;
   onDeleteTag: (id: string) => Promise<void>;
-  onMergeTags: (sourceId: string, targetId: string) => Promise<void>;
   onCreateConnection: (
     sourceTagId: string,
     targetTagId: string,
@@ -51,6 +51,16 @@ interface ConnectSidebarProps {
     sourceTagId: string,
     targetTagId: string,
   ) => Promise<void>;
+  groups: WikiTagGroup[];
+  groupMembers: WikiTagGroupMember[];
+  filterMode: "all" | "grouped" | { groupId: string };
+  onFilterModeChange: (mode: "all" | "grouped" | { groupId: string }) => void;
+  onCreateGroup: (name: string, tagIds: string[]) => Promise<WikiTagGroup>;
+  onUpdateGroup: (
+    id: string,
+    updates: { name: string },
+  ) => Promise<WikiTagGroup>;
+  onDeleteGroup: (id: string) => Promise<void>;
 }
 
 export function ConnectSidebar({
@@ -69,21 +79,36 @@ export function ConnectSidebar({
   onCreateTag,
   onUpdateTag,
   onDeleteTag,
-  onMergeTags,
   onCreateConnection,
   onDeleteConnection,
+  groups,
+  groupMembers,
+  filterMode,
+  onFilterModeChange,
+  onCreateGroup,
+  onUpdateGroup,
+  onDeleteGroup,
 }: ConnectSidebarProps) {
   const { t } = useTranslation();
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
   const [editColor, setEditColor] = useState("");
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
-  const [mergeSourceId, setMergeSourceId] = useState<string | null>(null);
   const [showCreate, setShowCreate] = useState(false);
   const [newName, setNewName] = useState("");
   const [newColor, setNewColor] = useState<string>(DEFAULT_PRESET_COLORS[0]);
   const [expandedTagIds, setExpandedTagIds] = useState<Set<string>>(new Set());
   const [relationSourceId, setRelationSourceId] = useState<string | null>(null);
+  const [showGroupCreate, setShowGroupCreate] = useState(false);
+  const [newGroupName, setNewGroupName] = useState("");
+  const [selectedGroupTagIds, setSelectedGroupTagIds] = useState<Set<string>>(
+    new Set(),
+  );
+  const [editingGroupId, setEditingGroupId] = useState<string | null>(null);
+  const [editGroupName, setEditGroupName] = useState("");
+  const [expandedGroupIds, setExpandedGroupIds] = useState<Set<string>>(
+    new Set(),
+  );
 
   const startEdit = (tag: WikiTag) => {
     setEditingId(tag.id);
@@ -103,12 +128,6 @@ export function ConnectSidebar({
     await onCreateTag(trimmed, newColor);
     setNewName("");
     setShowCreate(false);
-  };
-
-  const handleMerge = async (targetId: string) => {
-    if (!mergeSourceId || mergeSourceId === targetId) return;
-    await onMergeTags(mergeSourceId, targetId);
-    setMergeSourceId(null);
   };
 
   const toggleExpanded = (tagId: string) => {
@@ -170,6 +189,44 @@ export function ConnectSidebar({
     }
   };
 
+  const handleCreateGroup = async () => {
+    const trimmed = newGroupName.trim();
+    if (!trimmed || selectedGroupTagIds.size < 2) return;
+    await onCreateGroup(trimmed, Array.from(selectedGroupTagIds));
+    setNewGroupName("");
+    setSelectedGroupTagIds(new Set());
+    setShowGroupCreate(false);
+  };
+
+  const startGroupEdit = (group: WikiTagGroup) => {
+    setEditingGroupId(group.id);
+    setEditGroupName(group.name);
+  };
+
+  const saveGroupEdit = async () => {
+    if (!editingGroupId || !editGroupName.trim()) return;
+    await onUpdateGroup(editingGroupId, { name: editGroupName.trim() });
+    setEditingGroupId(null);
+  };
+
+  const toggleGroupExpanded = (groupId: string) => {
+    setExpandedGroupIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(groupId)) next.delete(groupId);
+      else next.add(groupId);
+      return next;
+    });
+  };
+
+  const toggleGroupTagSelection = (tagId: string) => {
+    setSelectedGroupTagIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(tagId)) next.delete(tagId);
+      else next.add(tagId);
+      return next;
+    });
+  };
+
   const handleCreateNote = useCallback(() => {
     const selectedTag = tags.find((t) => t.id === selectedTagId);
     const title = selectedTag ? selectedTag.name : "Untitled";
@@ -229,7 +286,7 @@ export function ConnectSidebar({
             {/* Relations section */}
             {connectedTags.length > 0 && (
               <div className="mt-2">
-                <h4 className="text-[10px] font-semibold text-notion-text-secondary uppercase tracking-wider mb-1">
+                <h4 className="text-xs font-semibold text-notion-text-secondary uppercase tracking-wider mb-1">
                   {t("ideas.relations")}
                 </h4>
                 <div className="space-y-0.5">
@@ -267,7 +324,7 @@ export function ConnectSidebar({
         {/* Note search results */}
         {(query.trim() || selectedTag) && tagNotes.length > 0 && (
           <div className="p-3 border-b border-notion-border">
-            <h4 className="text-[10px] font-semibold text-notion-text-secondary uppercase tracking-wider mb-2">
+            <h4 className="text-xs font-semibold text-notion-text-secondary uppercase tracking-wider mb-2">
               {t("ideas.notes")}
             </h4>
             <div className="space-y-1">
@@ -293,7 +350,7 @@ export function ConnectSidebar({
         {/* Tag management section */}
         <div className="p-3">
           <div className="flex items-center justify-between mb-2">
-            <h4 className="text-[10px] font-semibold text-notion-text-secondary uppercase tracking-wider">
+            <h4 className="text-xs font-semibold text-notion-text-secondary uppercase tracking-wider">
               {t("wikiTags.title")}
             </h4>
             <div className="flex items-center gap-0.5">
@@ -313,7 +370,7 @@ export function ConnectSidebar({
                 <UnifiedColorPicker
                   color={newColor}
                   onChange={setNewColor}
-                  mode="preset-only"
+                  mode="preset-full"
                 />
               </div>
               <div className="flex items-center gap-1">
@@ -377,7 +434,7 @@ export function ConnectSidebar({
                         <UnifiedColorPicker
                           color={editColor}
                           onChange={setEditColor}
-                          mode="preset-only"
+                          mode="preset-full"
                         />
                         <input
                           value={editName}
@@ -434,21 +491,6 @@ export function ConnectSidebar({
                           {t("common.cancel")}
                         </button>
                       </div>
-                    ) : mergeSourceId === tag.id ? (
-                      <div
-                        className="flex items-center gap-1.5 w-full"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        <span className="text-[10px] text-notion-text-secondary flex-1">
-                          {t("wikiTags.mergeSelectTarget")}
-                        </span>
-                        <button
-                          onClick={() => setMergeSourceId(null)}
-                          className="text-[10px] text-notion-text-secondary"
-                        >
-                          {t("common.cancel")}
-                        </button>
-                      </div>
                     ) : (
                       <>
                         {/* Expand/collapse toggle */}
@@ -460,9 +502,9 @@ export function ConnectSidebar({
                           className="p-0.5 text-notion-text-secondary hover:text-notion-text shrink-0"
                         >
                           {isExpanded ? (
-                            <ChevronDown size={12} />
+                            <ChevronDown size={15} />
                           ) : (
-                            <ChevronRight size={12} />
+                            <ChevronRight size={15} />
                           )}
                         </button>
 
@@ -490,23 +532,13 @@ export function ConnectSidebar({
                           />
                         )}
 
-                        <span className="flex-1 text-xs text-notion-text truncate">
+                        <span className="flex-1 text-sm text-notion-text truncate">
                           {tag.name}
                         </span>
-                        <span className="text-[10px] text-notion-text-secondary tabular-nums">
+                        <span className="text-xs text-notion-text-secondary tabular-nums">
                           {getUsageCount(tag.id)}
                         </span>
-                        {mergeSourceId && mergeSourceId !== tag.id ? (
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleMerge(tag.id);
-                            }}
-                            className="text-[10px] px-1.5 py-0.5 rounded bg-notion-accent text-white"
-                          >
-                            {t("wikiTags.mergeInto")}
-                          </button>
-                        ) : !relationSourceId ? (
+                        {!relationSourceId ? (
                           <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
                             <button
                               onClick={(e) => {
@@ -516,7 +548,7 @@ export function ConnectSidebar({
                               className="p-0.5 text-notion-text-secondary hover:text-notion-text"
                               title={t("wikiTags.editTag")}
                             >
-                              <Pencil size={11} />
+                              <Pencil size={14} />
                             </button>
                             <button
                               onClick={(e) => {
@@ -526,17 +558,7 @@ export function ConnectSidebar({
                               className="p-0.5 text-notion-text-secondary hover:text-notion-accent"
                               title={t("ideas.linkTags")}
                             >
-                              <Link2 size={11} />
-                            </button>
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setMergeSourceId(tag.id);
-                              }}
-                              className="p-0.5 text-notion-text-secondary hover:text-notion-accent"
-                              title={t("wikiTags.merge")}
-                            >
-                              <Merge size={11} />
+                              <Link2 size={14} />
                             </button>
                             <button
                               onClick={(e) => {
@@ -545,7 +567,7 @@ export function ConnectSidebar({
                               }}
                               className="p-0.5 text-notion-text-secondary hover:text-red-500"
                             >
-                              <Trash2 size={11} />
+                              <Trash2 size={14} />
                             </button>
                           </div>
                         ) : null}
@@ -563,10 +585,10 @@ export function ConnectSidebar({
                           className="w-full flex items-center gap-2 px-2 py-1 rounded hover:bg-notion-hover text-left transition-colors"
                         >
                           <StickyNote
-                            size={10}
+                            size={12}
                             className="text-notion-text-secondary shrink-0"
                           />
-                          <span className="text-[11px] text-notion-text truncate">
+                          <span className="text-xs text-notion-text truncate">
                             {note.title || "Untitled"}
                           </span>
                         </button>
@@ -588,6 +610,220 @@ export function ConnectSidebar({
                 {t("wikiTags.empty")}
               </p>
             )}
+          </div>
+        </div>
+
+        {/* Groups section */}
+        <div className="p-3 border-t border-notion-border">
+          <div className="flex items-center justify-between mb-2">
+            <h4 className="text-xs font-semibold text-notion-text-secondary uppercase tracking-wider">
+              {t("ideas.groups")}
+            </h4>
+            <button
+              onClick={() => setShowGroupCreate(!showGroupCreate)}
+              className="p-1 rounded text-notion-text-secondary hover:text-notion-text hover:bg-notion-hover transition-colors"
+            >
+              <Plus size={14} />
+            </button>
+          </div>
+
+          {/* Filter buttons */}
+          <div className="flex items-center gap-1 mb-2">
+            <button
+              onClick={() => onFilterModeChange("all")}
+              className={`text-xs px-2 py-0.5 rounded transition-colors ${
+                filterMode === "all"
+                  ? "bg-notion-accent text-white"
+                  : "text-notion-text-secondary hover:bg-notion-hover"
+              }`}
+            >
+              {t("ideas.filterAll")}
+            </button>
+            <button
+              onClick={() => onFilterModeChange("grouped")}
+              className={`text-xs px-2 py-0.5 rounded transition-colors ${
+                filterMode === "grouped"
+                  ? "bg-notion-accent text-white"
+                  : "text-notion-text-secondary hover:bg-notion-hover"
+              }`}
+            >
+              {t("ideas.filterGrouped")}
+            </button>
+          </div>
+
+          {/* Create new group form */}
+          {showGroupCreate && (
+            <div className="mb-3 p-2 rounded-md bg-notion-hover/50 border border-notion-border">
+              <input
+                value={newGroupName}
+                onChange={(e) => setNewGroupName(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.nativeEvent.isComposing) return;
+                  if (e.key === "Enter") handleCreateGroup();
+                  if (e.key === "Escape") setShowGroupCreate(false);
+                }}
+                placeholder={t("ideas.groupName")}
+                className="w-full text-xs px-2 py-1 rounded bg-notion-bg text-notion-text outline-none border border-notion-border focus:border-notion-accent/50 mb-2"
+                autoFocus
+              />
+              <div className="max-h-32 overflow-y-auto space-y-0.5 mb-2">
+                {tags.map((tag) => (
+                  <label
+                    key={tag.id}
+                    className="flex items-center gap-2 px-1 py-0.5 rounded hover:bg-notion-hover cursor-pointer"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={selectedGroupTagIds.has(tag.id)}
+                      onChange={() => toggleGroupTagSelection(tag.id)}
+                      className="rounded"
+                    />
+                    <span
+                      className="w-2 h-2 rounded-full shrink-0"
+                      style={{ backgroundColor: tag.color }}
+                    />
+                    <span className="text-xs text-notion-text truncate">
+                      {tag.name}
+                    </span>
+                  </label>
+                ))}
+              </div>
+              <button
+                onClick={handleCreateGroup}
+                disabled={!newGroupName.trim() || selectedGroupTagIds.size < 2}
+                className="w-full text-xs px-2 py-1 rounded bg-notion-accent text-white disabled:opacity-40"
+              >
+                {t("ideas.createGroup")} ({selectedGroupTagIds.size})
+              </button>
+            </div>
+          )}
+
+          {/* Groups list */}
+          <div className="space-y-0.5">
+            {groups.map((group) => {
+              const isGroupExpanded = expandedGroupIds.has(group.id);
+              const memberTagIds = groupMembers
+                .filter((m) => m.groupId === group.id)
+                .map((m) => m.tagId);
+              const memberTags = tags.filter((t) =>
+                memberTagIds.includes(t.id),
+              );
+
+              return (
+                <div key={group.id}>
+                  <div className="flex items-center gap-1.5 px-2 py-1.5 rounded hover:bg-notion-hover group transition-colors">
+                    <button
+                      onClick={() => toggleGroupExpanded(group.id)}
+                      className="p-0.5 text-notion-text-secondary hover:text-notion-text shrink-0"
+                    >
+                      {isGroupExpanded ? (
+                        <ChevronDown size={15} />
+                      ) : (
+                        <ChevronRight size={15} />
+                      )}
+                    </button>
+
+                    {editingGroupId === group.id ? (
+                      <>
+                        <input
+                          value={editGroupName}
+                          onChange={(e) => setEditGroupName(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.nativeEvent.isComposing) return;
+                            if (e.key === "Enter") saveGroupEdit();
+                            if (e.key === "Escape") setEditingGroupId(null);
+                          }}
+                          className="flex-1 text-xs px-1.5 py-0.5 rounded bg-notion-hover text-notion-text outline-none border border-notion-border"
+                          autoFocus
+                          onClick={(e) => e.stopPropagation()}
+                        />
+                        <button
+                          onClick={saveGroupEdit}
+                          className="p-0.5 text-green-500 hover:text-green-400"
+                        >
+                          <Check size={12} />
+                        </button>
+                        <button
+                          onClick={() => setEditingGroupId(null)}
+                          className="p-0.5 text-notion-text-secondary hover:text-notion-text"
+                        >
+                          <X size={12} />
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <span className="flex-1 text-sm text-notion-text truncate">
+                          {group.name}
+                        </span>
+                        <span className="text-xs text-notion-text-secondary tabular-nums">
+                          {memberTags.length}
+                        </span>
+                        <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onFilterModeChange({ groupId: group.id });
+                            }}
+                            className="p-0.5 text-notion-text-secondary hover:text-notion-accent"
+                            title={t("ideas.filterByGroup")}
+                          >
+                            <Search size={14} />
+                          </button>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              startGroupEdit(group);
+                            }}
+                            className="p-0.5 text-notion-text-secondary hover:text-notion-text"
+                          >
+                            <Pencil size={14} />
+                          </button>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onDeleteGroup(group.id);
+                            }}
+                            className="p-0.5 text-notion-text-secondary hover:text-red-500"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
+                      </>
+                    )}
+                  </div>
+
+                  {/* Expanded: member tags */}
+                  {isGroupExpanded && (
+                    <div className="pl-6 space-y-0.5">
+                      {memberTags.map((tag) => (
+                        <div
+                          key={tag.id}
+                          className="flex items-center gap-2 px-2 py-1 rounded hover:bg-notion-hover cursor-pointer"
+                          onClick={() =>
+                            onSelectTag(
+                              tag.id === selectedTagId ? null : tag.id,
+                            )
+                          }
+                        >
+                          <span
+                            className="w-2 h-2 rounded-full shrink-0"
+                            style={{ backgroundColor: tag.color }}
+                          />
+                          <span className="text-xs text-notion-text truncate">
+                            {tag.name}
+                          </span>
+                        </div>
+                      ))}
+                      {memberTags.length === 0 && (
+                        <span className="text-xs text-notion-text-secondary px-2 py-1">
+                          {t("ideas.noSearchResults")}
+                        </span>
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
         </div>
       </div>

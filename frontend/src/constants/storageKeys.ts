@@ -32,6 +32,7 @@ export const STORAGE_KEYS = {
   EDITOR_PADDING_INLINE: "life-editor-editor-padding-inline",
   TAG_GRAPH_POSITIONS: "life-editor-tag-graph-positions",
   TAG_GRAPH_VIEWPORT: "life-editor-tag-graph-viewport",
+  TAG_GRAPH_GROUP_POSITIONS: "life-editor-tag-graph-group-positions",
   MATERIALS_SECTIONS_STATE: "life-editor-materials-sections-state",
   MATERIALS_CONTENT_TYPE: "life-editor-materials-content-type",
 } as const;

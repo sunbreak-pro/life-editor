@@ -1,10 +1,12 @@
+import { memo } from "react";
+
 interface TaskNodeTimerProps {
   isActive: boolean;
   remainingSeconds: number;
   formatTime: (seconds: number) => string;
 }
 
-export function TaskNodeTimer({
+export const TaskNodeTimer = memo(function TaskNodeTimer({
   isActive,
   remainingSeconds,
   formatTime,
@@ -16,7 +18,7 @@ export function TaskNodeTimer({
       {formatTime(remainingSeconds)}
     </span>
   );
-}
+});
 
 interface TaskNodeTimerBarProps {
   isActive: boolean;
@@ -24,7 +26,7 @@ interface TaskNodeTimerBarProps {
   depth: number;
 }
 
-export function TaskNodeTimerBar({
+export const TaskNodeTimerBar = memo(function TaskNodeTimerBar({
   isActive,
   progress,
   depth,
@@ -42,4 +44,4 @@ export function TaskNodeTimerBar({
       />
     </div>
   );
-}
+});
