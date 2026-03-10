@@ -6,9 +6,9 @@
 
 ## 直近の完了
 
+- Ideas UI/UX 改善プラン ✅（2026-03-10）
+- TaskTree DnD パフォーマンス最適化 ✅（2026-03-10）
 - Schedule Dayflow リストラクチャリング ✅（2026-03-09）
-- 未コミット変更の一括コミット（v2 機能群） ✅（2026-03-09）
-- code-refactoring スキル改善（frontend-refactoring 分離） ✅（2026-03-09）
 
 ## 予定
 

@@ -1,5 +1,18 @@
 # HISTORY.md - 変更履歴
 
+### 2026-03-10 - TaskTree DnD パフォーマンス最適化
+
+#### 概要
+
+ドラッグ中の全ノード再レンダリングを解消し、ターゲット変更時のみ2ノードだけ再レンダリングするよう最適化。
+
+#### 変更点
+
+- **overInfo 分離（Step 1）**: `useTaskTreeDnd` の `overInfo` を `useState` → `useRef` + subscriber パターンに変更。新規 `useDragOverIndicator` フックで `useSyncExternalStore` を使用し、各ノードが自分のIDに一致する場合のみ再レンダリング
+- **React.memo 追加（Step 2）**: `TaskTreeNode`, `TaskNodeContent`, `TaskNodeCheckbox`, `TaskNodeActions`, `TaskNodeTimer`, `TaskNodeTimerBar`, `TaskNodeIndent` の全7コンポーネント
+- **useCallback 安定化（Step 3）**: `handleToggleExpand`, `handleSave`, `handleCancelEdit`, `handleStartEditing`, `handleMakeFolder`, `handleMakeTask`, `handleDelete` をインラインから `useCallback` に変更
+- **useMemo 化（Step 4）**: `transformStyle`, `bgStyle`, `inheritedColor`（resolveTaskColor）をメモ化
+
 ### 2026-03-09 - Schedule Dayflow リストラクチャリング
 
 #### 概要
