@@ -1,5 +1,16 @@
 # HISTORY.md - 変更履歴
 
+### 2026-03-11 - TaskTree DnD インジケーター不一致修正
+
+#### 概要
+
+フォルダへのドラッグ時にドロップインジケーター（inside/above/below）がポインタ位置に追従しない問題を修正。`onDragOver` → `onDragMove` への変更により、ポインタ移動のたびにインジケーターが正しく更新されるようにした。
+
+#### 変更点
+
+- **useTaskTreeDnd.ts**: `DragOverEvent` → `DragMoveEvent` に変更、`handleDragOver` → `handleDragMove` にリネーム
+- **TaskTree.tsx**: `onDragOver` → `onDragMove` に変更
+
 ### 2026-03-11 - Schedule UI/UX リストラクチャ
 
 #### 概要
