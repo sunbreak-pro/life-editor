@@ -1,6 +1,4 @@
 import { useState, useMemo, useEffect } from "react";
-import { Filter, ChevronDown } from "lucide-react";
-import { useTranslation } from "react-i18next";
 import { useTaskTreeContext } from "../../../../hooks/useTaskTreeContext";
 import { useCalendarContext } from "../../../../hooks/useCalendarContext";
 import { useCalendar } from "../../../../hooks/useCalendar";
@@ -13,7 +11,6 @@ import { TaskCreatePopover } from "./TaskCreatePopover";
 import { TaskPreviewPopup } from "./TaskPreviewPopup";
 import { MonthlyView } from "./MonthlyView";
 import { WeeklyTimeGrid } from "./WeeklyTimeGrid";
-import { FolderDropdown } from "../../Folder/FolderDropdown";
 import { useScheduleContext } from "../../../../hooks/useScheduleContext";
 
 interface CalendarViewProps {
@@ -28,6 +25,8 @@ interface CalendarViewProps {
     },
   ) => void;
   onStartTimer?: (taskId: string) => void;
+  filter: "incomplete" | "completed";
+  filterFolderId: string | null;
 }
 
 function getInitialWeekStart(): Date {
@@ -41,8 +40,9 @@ export function CalendarView({
   onSelectTask,
   onCreateTask,
   onStartTimer,
+  filter,
+  filterFolderId,
 }: CalendarViewProps) {
-  const { t } = useTranslation();
   const { nodes, getTaskColor, getFolderTagForTask, softDelete, updateNode } =
     useTaskTreeContext();
   const { activeCalendar } = useCalendarContext();
@@ -64,16 +64,7 @@ export function CalendarView({
   const [year, setYear] = useState(today.getFullYear());
   const [month, setMonth] = useState(today.getMonth());
   const [viewMode, setViewMode] = useState<"month" | "week">("month");
-  const [filter, setFilter] = useState<"incomplete" | "completed">(
-    "incomplete",
-  );
   const [weekStartDate, setWeekStartDate] = useState<Date>(getInitialWeekStart);
-  const [filterFolderId, setFilterFolderId] = useState<string | null>(null);
-
-  const selectedFolderName = useMemo(() => {
-    if (!filterFolderId) return null;
-    return nodes.find((n) => n.id === filterFolderId)?.title ?? null;
-  }, [filterFolderId, nodes]);
   const [createPopover, setCreatePopover] = useState<{
     date: Date;
     position: { x: number; y: number };
@@ -209,54 +200,6 @@ export function CalendarView({
           onToday={handleToday}
           onViewModeChange={setViewMode}
         />
-
-        {/* Filter tabs + folder filter */}
-        <div className="flex items-center gap-2 mb-4">
-          <button
-            onClick={() => setFilter("incomplete")}
-            className={`px-3 py-1 text-xs rounded-md transition-colors ${
-              filter === "incomplete"
-                ? "bg-notion-accent/10 text-notion-accent"
-                : "text-notion-text-secondary hover:bg-notion-hover"
-            }`}
-          >
-            {t("calendar.incomplete")}
-          </button>
-          <button
-            onClick={() => setFilter("completed")}
-            className={`px-3 py-1 text-xs rounded-md transition-colors ${
-              filter === "completed"
-                ? "bg-notion-accent/10 text-notion-accent"
-                : "text-notion-text-secondary hover:bg-notion-hover"
-            }`}
-          >
-            {t("calendar.completed")}
-          </button>
-          <div className="w-px h-4 bg-notion-border" />
-          <FolderDropdown
-            selectedId={filterFolderId}
-            onSelect={setFilterFolderId}
-            rootLabel={t("calendar.all")}
-            panelMinWidth="min-w-44"
-            trigger={
-              <button
-                className={`flex items-center gap-1.5 px-2.5 py-1 text-xs rounded-md transition-colors ${
-                  filterFolderId
-                    ? "bg-notion-accent/10 text-notion-accent"
-                    : "text-notion-text-secondary hover:bg-notion-hover"
-                }`}
-              >
-                <Filter size={13} />
-                <span>
-                  {filterFolderId && selectedFolderName
-                    ? selectedFolderName
-                    : t("calendar.all")}
-                </span>
-                <ChevronDown size={12} />
-              </button>
-            }
-          />
-        </div>
 
         {viewMode === "month" ? (
           <MonthlyView

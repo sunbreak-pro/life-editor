@@ -12,6 +12,7 @@ interface TaskNodeCheckboxProps {
   isFolder: boolean;
   isDone: boolean;
   isExpanded?: boolean;
+  isDragging?: boolean;
   color?: string;
   onToggleExpand: () => void;
   onToggleStatus: () => void;
@@ -21,6 +22,7 @@ export const TaskNodeCheckbox = memo(function TaskNodeCheckbox({
   isFolder,
   isDone,
   isExpanded,
+  isDragging,
   color,
   onToggleExpand,
   onToggleStatus,
@@ -32,13 +34,21 @@ export const TaskNodeCheckbox = memo(function TaskNodeCheckbox({
           onClick={onToggleExpand}
           className="text-notion-text-secondary hover:text-notion-text"
         >
-          {isExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+          {isExpanded && !isDragging ? (
+            <ChevronDown size={14} />
+          ) : (
+            <ChevronRight size={14} />
+          )}
         </button>
         <span
           className="text-notion-text-secondary"
           style={color ? { color: getTextColorForBg(color) } : undefined}
         >
-          {isExpanded ? <FolderOpen size={14} /> : <Folder size={14} />}
+          {isExpanded && !isDragging ? (
+            <FolderOpen size={14} />
+          ) : (
+            <Folder size={14} />
+          )}
         </span>
       </>
     );

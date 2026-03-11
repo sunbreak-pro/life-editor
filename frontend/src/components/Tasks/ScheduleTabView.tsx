@@ -7,6 +7,8 @@ import { OneDaySchedule } from "./Schedule/DayFlow/OneDaySchedule";
 import type { DayFlowFilterTab } from "./Schedule/DayFlow/OneDaySchedule";
 import { DayFlowSidebarContent } from "./Schedule/DayFlow/DayFlowSidebarContent";
 import type { CategoryProgress } from "./Schedule/DayFlow/DayFlowSidebarContent";
+import { CalendarSidebarContent } from "./Schedule/Calendar/CalendarSidebarContent";
+import { ScheduleSidebarContent } from "../Schedule/ScheduleSidebarContent";
 import { useTaskTreeContext } from "../../hooks/useTaskTreeContext";
 import { useCalendar } from "../../hooks/useCalendar";
 import { useScheduleContext } from "../../hooks/useScheduleContext";
@@ -46,6 +48,14 @@ export function ScheduleTabView({
   const [dayFlowFilterTab, setDayFlowFilterTab] =
     useState<DayFlowFilterTab>("all");
 
+  // Calendar filter state
+  const [calendarFilter, setCalendarFilter] = useState<
+    "incomplete" | "completed"
+  >("incomplete");
+  const [calendarFilterFolderId, setCalendarFilterFolderId] = useState<
+    string | null
+  >(null);
+
   const { nodes, getTaskColor, getFolderTagForTask } = useTaskTreeContext();
 
   const { tasksByDate } = useCalendar(
@@ -56,7 +66,6 @@ export function ScheduleTabView({
     dayFlowDate,
   );
 
-  // All tasks by date (including DONE) for DayFlow
   const allTasksByDate = useMemo(() => {
     const map = new Map<string, typeof nodes>();
     for (const task of nodes) {
@@ -103,7 +112,7 @@ export function ScheduleTabView({
     createRoutineTag,
     updateRoutineTag,
     deleteRoutineTag,
-    refreshRoutineStats,
+    toggleComplete,
   } = useScheduleContext();
 
   const { portalTarget: rightSidebarTarget, requestOpen } =
@@ -140,40 +149,11 @@ export function ScheduleTabView({
     };
   }, [scheduleItems, tasksByDate, allTasksByDate, dateKey]);
 
-  const routineManagement = useMemo(
-    () => ({
-      routines,
-      routineTags,
-      tagAssignments,
-      onCreateRoutine: createRoutine,
-      onUpdateRoutine: updateRoutine,
-      onDeleteRoutine: deleteRoutine,
-      setTagsForRoutine,
-      getCompletionRate: getRoutineCompletionRate,
-      onCreateRoutineTag: createRoutineTag,
-      onUpdateRoutineTag: updateRoutineTag,
-      onDeleteRoutineTag: deleteRoutineTag,
-    }),
-    [
-      routines,
-      routineTags,
-      tagAssignments,
-      createRoutine,
-      updateRoutine,
-      deleteRoutine,
-      setTagsForRoutine,
-      getRoutineCompletionRate,
-      createRoutineTag,
-      updateRoutineTag,
-      deleteRoutineTag,
-    ],
-  );
-
   return (
     <div className="h-full flex flex-col">
       {rightSidebarTarget &&
         createPortal(
-          <>
+          <ScheduleSidebarContent routineStats={routineStats}>
             <VerticalNavList
               items={SCHEDULE_TABS}
               activeItem={subTab}
@@ -184,10 +164,34 @@ export function ScheduleTabView({
                 activeFilter={dayFlowFilterTab}
                 onFilterChange={setDayFlowFilterTab}
                 categoryProgress={categoryProgress}
-                routineStats={routineStats}
+                routines={routines}
+                routineTags={routineTags}
+                tagAssignments={tagAssignments}
+                onCreateRoutine={createRoutine}
+                onUpdateRoutine={updateRoutine}
+                onDeleteRoutine={deleteRoutine}
+                setTagsForRoutine={setTagsForRoutine}
+                getCompletionRate={getRoutineCompletionRate}
+                onCreateRoutineTag={createRoutineTag}
+                onUpdateRoutineTag={updateRoutineTag}
+                onDeleteRoutineTag={deleteRoutineTag}
+                scheduleItems={scheduleItems}
+                onToggleComplete={toggleComplete}
               />
             )}
-          </>,
+            {subTab === "calendar" && (
+              <CalendarSidebarContent
+                filter={calendarFilter}
+                onFilterChange={setCalendarFilter}
+                filterFolderId={calendarFilterFolderId}
+                onFilterFolderChange={setCalendarFilterFolderId}
+                routines={routines}
+                scheduleItems={scheduleItems}
+                tagAssignments={tagAssignments}
+                onToggleComplete={toggleComplete}
+              />
+            )}
+          </ScheduleSidebarContent>,
           rightSidebarTarget,
         )}
       <div className="flex-1 min-h-0 overflow-auto">
@@ -196,6 +200,8 @@ export function ScheduleTabView({
             onSelectTask={onSelectTask}
             onCreateTask={onCreateTask}
             onStartTimer={onStartTimer}
+            filter={calendarFilter}
+            filterFolderId={calendarFilterFolderId}
           />
         ) : (
           <OneDaySchedule
@@ -210,7 +216,6 @@ export function ScheduleTabView({
             onToday={goToToday}
             filterTab={dayFlowFilterTab}
             onFilterTabChange={setDayFlowFilterTab}
-            routineManagement={routineManagement}
           />
         )}
       </div>

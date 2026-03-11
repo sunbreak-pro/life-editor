@@ -9,6 +9,8 @@ import { OneDaySchedule } from "../Tasks/Schedule/DayFlow/OneDaySchedule";
 import type { DayFlowFilterTab } from "../Tasks/Schedule/DayFlow/OneDaySchedule";
 import { DayFlowSidebarContent } from "../Tasks/Schedule/DayFlow/DayFlowSidebarContent";
 import type { CategoryProgress } from "../Tasks/Schedule/DayFlow/DayFlowSidebarContent";
+import { ScheduleSidebarContent } from "./ScheduleSidebarContent";
+import { CalendarSidebarContent } from "../Tasks/Schedule/Calendar/CalendarSidebarContent";
 import { useTaskTreeContext } from "../../hooks/useTaskTreeContext";
 import { useCalendar } from "../../hooks/useCalendar";
 import { useScheduleContext } from "../../hooks/useScheduleContext";
@@ -48,6 +50,14 @@ export function ScheduleSection({
   const [dayFlowDate, setDayFlowDate] = useState<Date>(() => new Date());
   const [dayFlowFilterTab, setDayFlowFilterTab] =
     useState<DayFlowFilterTab>("all");
+
+  // Calendar filter state (managed here for sidebar)
+  const [calendarFilter, setCalendarFilter] = useState<
+    "incomplete" | "completed"
+  >("incomplete");
+  const [calendarFilterFolderId, setCalendarFilterFolderId] = useState<
+    string | null
+  >(null);
 
   const { nodes, getTaskColor, getFolderTagForTask } = useTaskTreeContext();
 
@@ -105,16 +115,15 @@ export function ScheduleSection({
     createRoutineTag,
     updateRoutineTag,
     deleteRoutineTag,
-    refreshRoutineStats,
+    toggleComplete,
   } = useScheduleContext();
 
   const { portalTarget: rightSidebarTarget, requestOpen } =
     useContext(RightSidebarContext);
 
+  // Always open right sidebar for both tabs
   useEffect(() => {
-    if (activeTab === "dayflow") {
-      requestOpen();
-    }
+    requestOpen();
   }, [activeTab, requestOpen]);
 
   // Category progress calculation
@@ -144,35 +153,6 @@ export function ScheduleSection({
     };
   }, [scheduleItems, tasksByDate, allTasksByDate, dateKey]);
 
-  const routineManagement = useMemo(
-    () => ({
-      routines,
-      routineTags,
-      tagAssignments,
-      onCreateRoutine: createRoutine,
-      onUpdateRoutine: updateRoutine,
-      onDeleteRoutine: deleteRoutine,
-      setTagsForRoutine,
-      getCompletionRate: getRoutineCompletionRate,
-      onCreateRoutineTag: createRoutineTag,
-      onUpdateRoutineTag: updateRoutineTag,
-      onDeleteRoutineTag: deleteRoutineTag,
-    }),
-    [
-      routines,
-      routineTags,
-      tagAssignments,
-      createRoutine,
-      updateRoutine,
-      deleteRoutine,
-      setTagsForRoutine,
-      getRoutineCompletionRate,
-      createRoutineTag,
-      updateRoutineTag,
-      deleteRoutineTag,
-    ],
-  );
-
   return (
     <div
       className={`h-full flex flex-col ${LAYOUT.CONTENT_PX} ${LAYOUT.CONTENT_PT} ${LAYOUT.CONTENT_PB}`}
@@ -184,15 +164,42 @@ export function ScheduleSection({
         onTabChange={setActiveTab}
       />
 
-      {activeTab === "dayflow" &&
-        rightSidebarTarget &&
+      {rightSidebarTarget &&
         createPortal(
-          <DayFlowSidebarContent
-            activeFilter={dayFlowFilterTab}
-            onFilterChange={setDayFlowFilterTab}
-            categoryProgress={categoryProgress}
-            routineStats={routineStats}
-          />,
+          <ScheduleSidebarContent routineStats={routineStats}>
+            {activeTab === "dayflow" && (
+              <DayFlowSidebarContent
+                activeFilter={dayFlowFilterTab}
+                onFilterChange={setDayFlowFilterTab}
+                categoryProgress={categoryProgress}
+                routines={routines}
+                routineTags={routineTags}
+                tagAssignments={tagAssignments}
+                onCreateRoutine={createRoutine}
+                onUpdateRoutine={updateRoutine}
+                onDeleteRoutine={deleteRoutine}
+                setTagsForRoutine={setTagsForRoutine}
+                getCompletionRate={getRoutineCompletionRate}
+                onCreateRoutineTag={createRoutineTag}
+                onUpdateRoutineTag={updateRoutineTag}
+                onDeleteRoutineTag={deleteRoutineTag}
+                scheduleItems={scheduleItems}
+                onToggleComplete={toggleComplete}
+              />
+            )}
+            {activeTab === "calendar" && (
+              <CalendarSidebarContent
+                filter={calendarFilter}
+                onFilterChange={setCalendarFilter}
+                filterFolderId={calendarFilterFolderId}
+                onFilterFolderChange={setCalendarFilterFolderId}
+                routines={routines}
+                scheduleItems={scheduleItems}
+                tagAssignments={tagAssignments}
+                onToggleComplete={toggleComplete}
+              />
+            )}
+          </ScheduleSidebarContent>,
           rightSidebarTarget,
         )}
 
@@ -202,6 +209,8 @@ export function ScheduleSection({
             onSelectTask={onSelectTask}
             onCreateTask={onCreateTask}
             onStartTimer={onStartTimer}
+            filter={calendarFilter}
+            filterFolderId={calendarFilterFolderId}
           />
         ) : (
           <OneDaySchedule
@@ -216,7 +225,6 @@ export function ScheduleSection({
             onToday={goToToday}
             filterTab={dayFlowFilterTab}
             onFilterTabChange={setDayFlowFilterTab}
-            routineManagement={routineManagement}
           />
         )}
       </div>

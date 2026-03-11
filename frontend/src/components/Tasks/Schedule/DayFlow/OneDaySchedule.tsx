@@ -1,19 +1,18 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
 import type { TaskNode } from "../../../../types/taskTree";
 import { useScheduleContext } from "../../../../hooks/useScheduleContext";
+import { useTimeMemos } from "../../../../hooks/useTimeMemos";
 import { formatDateKey, formatDayFlowDate } from "../../../../utils/dateKey";
 import { ScheduleTimeGrid } from "./ScheduleTimeGrid";
+import { TimeGridMemoColumn } from "./TimeGridMemoColumn";
 import { ScheduleItemCreatePopover } from "./ScheduleItemCreatePopover";
 import { DayFlowTaskPicker } from "./DayFlowTaskPicker";
 import { SectionTabs } from "../../../shared/SectionTabs";
 import type { TabItem } from "../../../shared/SectionTabs";
 import { getTextColorForBg } from "../../../../constants/folderColors";
-import {
-  RoutineManagementPanel,
-  type RoutineManagementProps,
-} from "./RoutineManagementPanel";
+import { TIME_GRID } from "../../../../constants/timeGrid";
 
 export type DayFlowFilterTab = "all" | "routine" | "tasks" | "others";
 
@@ -36,7 +35,6 @@ interface OneDayScheduleProps {
   onToday: () => void;
   filterTab: DayFlowFilterTab;
   onFilterTabChange: (tab: DayFlowFilterTab) => void;
-  routineManagement: RoutineManagementProps;
 }
 
 export function OneDaySchedule({
@@ -51,7 +49,6 @@ export function OneDaySchedule({
   onToday,
   filterTab,
   onFilterTabChange,
-  routineManagement,
 }: OneDayScheduleProps) {
   const { t, i18n } = useTranslation();
   const {
@@ -65,12 +62,14 @@ export function OneDaySchedule({
     ensureRoutineItemsForDate,
     refreshRoutineStats,
   } = useScheduleContext();
+  const { timeMemos, loadMemosForDate, upsertMemo } = useTimeMemos();
   const dateKey = formatDateKey(date);
   const isToday = dateKey === formatDateKey(new Date());
   const [selectedFilterTagId, setSelectedFilterTagId] = useState<number | null>(
     null,
   );
   const [showTaskPicker, setShowTaskPicker] = useState(false);
+  const scrollRef = useRef<HTMLDivElement>(null);
 
   const routineTagMap = useMemo(() => {
     const map = new Map<string, number[]>();
@@ -85,10 +84,11 @@ export function OneDaySchedule({
     position: { x: number; y: number };
   } | null>(null);
 
-  // Load schedule items when date changes
+  // Load schedule items and time memos when date changes
   useEffect(() => {
     loadItemsForDate(dateKey);
-  }, [dateKey, loadItemsForDate]);
+    loadMemosForDate(dateKey);
+  }, [dateKey, loadItemsForDate, loadMemosForDate]);
 
   // Auto-insert routine items when date/routines/tags change
   useEffect(() => {
@@ -103,6 +103,18 @@ export function OneDaySchedule({
       refreshRoutineStats(routines);
     }
   }, [routines, refreshRoutineStats]);
+
+  // Scroll to current time on mount
+  useEffect(() => {
+    if (scrollRef.current) {
+      const now = new Date();
+      const scrollTo = Math.max(
+        0,
+        (now.getHours() - 1) * TIME_GRID.SLOT_HEIGHT,
+      );
+      scrollRef.current.scrollTop = scrollTo;
+    }
+  }, []);
 
   const dayTasks = useMemo(
     () => tasksByDate.get(dateKey) ?? [],
@@ -165,6 +177,9 @@ export function OneDaySchedule({
       position: { x: e.clientX, y: e.clientY },
     });
   };
+
+  const totalHeight =
+    (TIME_GRID.END_HOUR - TIME_GRID.START_HOUR) * TIME_GRID.SLOT_HEIGHT;
 
   return (
     <div className="flex flex-col h-full">
@@ -262,33 +277,35 @@ export function OneDaySchedule({
           </div>
         )}
 
-      {/* Main content */}
-      <div className="flex gap-4 flex-1 min-h-0 p-3">
-        {/* Time Grid (full-width or flex-1 when routine management visible) */}
-        <div
-          className={
-            filterTab === "routine" ? "flex-1 h-full" : "w-full h-full"
-          }
-        >
-          <ScheduleTimeGrid
-            date={date}
-            scheduleItems={filteredScheduleItems}
-            tasks={filteredDayTasks}
-            onToggleComplete={toggleComplete}
-            onClickItem={() => {}}
-            onClickTask={onSelectTask}
-            onCreateItem={handleCreateItem}
-            getTaskColor={getTaskColor}
-            getFolderTag={getFolderTag}
-          />
-        </div>
-
-        {/* Routine management panel (routine filter only) */}
-        {filterTab === "routine" && (
-          <div className="w-80 h-full shrink-0">
-            <RoutineManagementPanel {...routineManagement} />
+      {/* Main content - TimeGrid + MemoColumn in shared scroll container */}
+      <div className="flex-1 min-h-0 p-3">
+        <div className="border border-notion-border rounded-lg overflow-hidden bg-notion-bg h-full">
+          <div ref={scrollRef} className="overflow-y-auto h-full">
+            <div className="flex" style={{ minHeight: totalHeight }}>
+              <div className="flex-1 min-w-0">
+                <ScheduleTimeGrid
+                  date={date}
+                  scheduleItems={filteredScheduleItems}
+                  tasks={filteredDayTasks}
+                  onToggleComplete={toggleComplete}
+                  onClickItem={() => {}}
+                  onClickTask={onSelectTask}
+                  onCreateItem={handleCreateItem}
+                  getTaskColor={getTaskColor}
+                  getFolderTag={getFolderTag}
+                  externalScroll
+                />
+              </div>
+              <div className="w-[200px] shrink-0">
+                <TimeGridMemoColumn
+                  date={dateKey}
+                  timeMemos={timeMemos}
+                  onUpsertMemo={upsertMemo}
+                />
+              </div>
+            </div>
           </div>
-        )}
+        </div>
 
         {/* Create popover */}
         {createPopover && (

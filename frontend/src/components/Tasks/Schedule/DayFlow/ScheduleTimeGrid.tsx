@@ -125,6 +125,7 @@ interface ScheduleTimeGridProps {
   ) => void;
   getTaskColor?: (taskId: string) => string | undefined;
   getFolderTag?: (taskId: string) => string;
+  externalScroll?: boolean;
 }
 
 export function ScheduleTimeGrid({
@@ -137,6 +138,7 @@ export function ScheduleTimeGrid({
   onCreateItem,
   getTaskColor,
   getFolderTag,
+  externalScroll,
 }: ScheduleTimeGridProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [currentTime, setCurrentTime] = useState(new Date());
@@ -151,8 +153,9 @@ export function ScheduleTimeGrid({
     return () => clearInterval(interval);
   }, []);
 
+  // Only scroll to current time when managing own scroll
   useEffect(() => {
-    if (scrollRef.current) {
+    if (!externalScroll && scrollRef.current) {
       const now = new Date();
       const scrollTo = Math.max(
         0,
@@ -160,7 +163,7 @@ export function ScheduleTimeGrid({
       );
       scrollRef.current.scrollTop = scrollTo;
     }
-  }, []);
+  }, [externalScroll]);
 
   const positionedTasks = useMemo(() => {
     const timeTasks = tasks.filter((t) => t.scheduledAt && !t.isAllDay);
@@ -199,85 +202,93 @@ export function ScheduleTimeGrid({
     onCreateItem(startTime, endTime, e);
   };
 
+  const gridContent = (
+    <div className="flex relative" style={{ height: totalHeight }}>
+      {/* Time gutter */}
+      <div style={{ width: GUTTER_WIDTH }} className="shrink-0 relative">
+        {HOURS.map((hour) => (
+          <div
+            key={hour}
+            className="absolute right-2 text-[10px] text-notion-text-secondary -translate-y-1/2"
+            style={{
+              top: (hour - TIME_GRID.START_HOUR) * TIME_GRID.SLOT_HEIGHT,
+            }}
+          >
+            {hour > 0 && formatHour(hour)}
+          </div>
+        ))}
+      </div>
+
+      {/* Main column */}
+      <div
+        className="flex-1 relative border-l border-notion-border cursor-pointer"
+        onClick={handleColumnClick}
+      >
+        {/* Hour grid lines */}
+        {HOURS.map((hour) => (
+          <div
+            key={hour}
+            className="absolute w-full border-t border-notion-border/50"
+            style={{
+              top: (hour - TIME_GRID.START_HOUR) * TIME_GRID.SLOT_HEIGHT,
+            }}
+          />
+        ))}
+
+        {/* Current time indicator */}
+        {isToday && (
+          <div
+            className="absolute w-full z-30 pointer-events-none"
+            style={{ top: currentTimeTop }}
+          >
+            <div className="flex items-center">
+              <div className="w-2 h-2 rounded-full bg-red-500 -ml-1" />
+              <div className="flex-1 h-0.5 bg-red-500" />
+            </div>
+          </div>
+        )}
+
+        {/* Task blocks (dim appearance) */}
+        <div className="opacity-70">
+          {positionedTasks.map((p) => (
+            <TimeGridTaskBlock
+              key={p.task.id}
+              task={p.task}
+              top={p.top}
+              height={p.height}
+              left={`${60 + (p.column / p.totalColumns) * 40}%`}
+              width={`${(1 / p.totalColumns) * 40}%`}
+              color={getTaskColor?.(p.task.id)}
+              tag={getFolderTag?.(p.task.id)}
+              onClick={(e) => onClickTask(p.task.id, e)}
+            />
+          ))}
+        </div>
+
+        {/* Schedule item blocks */}
+        {positionedItems.map((p) => (
+          <ScheduleItemBlock
+            key={p.item.id}
+            item={p.item}
+            top={p.top}
+            height={p.height}
+            isNext={p.item.id === nextItemId}
+            onToggleComplete={onToggleComplete}
+            onClick={onClickItem}
+          />
+        ))}
+      </div>
+    </div>
+  );
+
+  if (externalScroll) {
+    return gridContent;
+  }
+
   return (
     <div className="border h-full border-notion-border rounded-lg overflow-hidden bg-notion-bg flex-1">
       <div ref={scrollRef} className="overflow-y-auto h-full relative">
-        <div className="flex relative" style={{ height: totalHeight }}>
-          {/* Time gutter */}
-          <div style={{ width: GUTTER_WIDTH }} className="shrink-0 relative">
-            {HOURS.map((hour) => (
-              <div
-                key={hour}
-                className="absolute right-2 text-[10px] text-notion-text-secondary -translate-y-1/2"
-                style={{
-                  top: (hour - TIME_GRID.START_HOUR) * TIME_GRID.SLOT_HEIGHT,
-                }}
-              >
-                {hour > 0 && formatHour(hour)}
-              </div>
-            ))}
-          </div>
-
-          {/* Main column */}
-          <div
-            className="flex-1 relative border-l border-notion-border cursor-pointer"
-            onClick={handleColumnClick}
-          >
-            {/* Hour grid lines */}
-            {HOURS.map((hour) => (
-              <div
-                key={hour}
-                className="absolute w-full border-t border-notion-border/50"
-                style={{
-                  top: (hour - TIME_GRID.START_HOUR) * TIME_GRID.SLOT_HEIGHT,
-                }}
-              />
-            ))}
-
-            {/* Current time indicator */}
-            {isToday && (
-              <div
-                className="absolute w-full z-30 pointer-events-none"
-                style={{ top: currentTimeTop }}
-              >
-                <div className="flex items-center">
-                  <div className="w-2 h-2 rounded-full bg-red-500 -ml-1" />
-                  <div className="flex-1 h-0.5 bg-red-500" />
-                </div>
-              </div>
-            )}
-
-            {/* Task blocks (dim appearance) */}
-            <div className="opacity-70">
-              {positionedTasks.map((p) => (
-                <TimeGridTaskBlock
-                  key={p.task.id}
-                  task={p.task}
-                  top={p.top}
-                  height={p.height}
-                  left={`${60 + (p.column / p.totalColumns) * 40}%`}
-                  width={`${(1 / p.totalColumns) * 40}%`}
-                  color={getTaskColor?.(p.task.id)}
-                  tag={getFolderTag?.(p.task.id)}
-                  onClick={(e) => onClickTask(p.task.id, e)}
-                />
-              ))}
-            </div>
-
-            {/* Schedule item blocks */}
-            {positionedItems.map((p) => (
-              <ScheduleItemBlock
-                key={p.item.id}
-                item={p.item}
-                top={p.top}
-                height={p.height}
-                isNext={p.item.id === nextItemId}
-                onToggleComplete={onToggleComplete}
-                onClick={onClickItem}
-              />
-            ))}
-          </div>
-        </div>
+        {gridContent}
       </div>
     </div>
   );

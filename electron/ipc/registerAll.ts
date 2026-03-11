@@ -36,6 +36,8 @@ import { createWikiTagConnectionRepository } from "../database/wikiTagConnection
 import { registerWikiTagConnectionHandlers } from "./wikiTagConnectionHandlers";
 import { createWikiTagGroupRepository } from "../database/wikiTagGroupRepository";
 import { registerWikiTagGroupHandlers } from "./wikiTagGroupHandlers";
+import { createTimeMemoRepository } from "../database/timeMemoRepository";
+import { registerTimeMemoHandlers } from "./timeMemoHandlers";
 import { wrapHandler } from "./ipcMetrics";
 
 export function registerAllHandlers(db: Database.Database): void {
@@ -106,6 +108,7 @@ export function registerAllHandlers(db: Database.Database): void {
       "WikiTagGroups",
       () => registerWikiTagGroupHandlers(createWikiTagGroupRepository(db)),
     ],
+    ["TimeMemos", () => registerTimeMemoHandlers(createTimeMemoRepository(db))],
   ];
 
   for (const [name, register] of registrations) {

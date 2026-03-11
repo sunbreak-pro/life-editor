@@ -33,6 +33,7 @@ import type {
   WikiTagGroup,
   WikiTagGroupMember,
 } from "../types/wikiTag";
+import type { TimeMemo } from "../types/timeMemo";
 
 function invoke<T>(channel: string, ...args: unknown[]): Promise<T> {
   return window.electronAPI!.invoke<T>(channel, ...args);
@@ -577,6 +578,22 @@ export class ElectronDataService implements DataService {
       sourceTagId,
       targetTagId,
     );
+  }
+
+  // Time Memos
+  fetchTimeMemosByDate(date: string): Promise<TimeMemo[]> {
+    return invoke("db:timeMemos:fetchByDate", date);
+  }
+  upsertTimeMemo(
+    id: string,
+    date: string,
+    hour: number,
+    content: string,
+  ): Promise<TimeMemo> {
+    return invoke("db:timeMemos:upsert", id, date, hour, content);
+  }
+  deleteTimeMemo(id: string): Promise<void> {
+    return invoke("db:timeMemos:delete", id);
   }
 
   // Data I/O

@@ -167,6 +167,15 @@ export interface ScheduleItem {
   updatedAt: string;
 }
 
+export interface TimeMemo {
+  id: string;
+  date: string;
+  hour: number;
+  content: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface WikiTag {
   id: string;
   name: string;

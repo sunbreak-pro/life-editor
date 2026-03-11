@@ -32,6 +32,7 @@ import type {
   WikiTagGroup,
   WikiTagGroupMember,
 } from "../types/wikiTag";
+import type { TimeMemo } from "../types/timeMemo";
 
 export interface DataService {
   // Tasks
@@ -316,6 +317,16 @@ export interface DataService {
     sourceTagId: string,
     targetTagId: string,
   ): Promise<void>;
+
+  // Time Memos
+  fetchTimeMemosByDate(date: string): Promise<TimeMemo[]>;
+  upsertTimeMemo(
+    id: string,
+    date: string,
+    hour: number,
+    content: string,
+  ): Promise<TimeMemo>;
+  deleteTimeMemo(id: string): Promise<void>;
 
   // Data I/O
   exportData(): Promise<boolean>;

@@ -120,6 +120,11 @@ export function runMigrations(db: Database.Database): void {
     migrateV27(db);
   }
 
+  if (currentVersion < 28) {
+    log.info("[DB] Running migration V28");
+    migrateV28(db);
+  }
+
   const newVersion = db.pragma("user_version", { simple: true }) as number;
   if (newVersion !== currentVersion) {
     log.info(`[DB] Schema migrated: ${currentVersion} → ${newVersion}`);
@@ -1082,4 +1087,21 @@ function migrateV26(db: Database.Database): void {
     );
   }
   db.pragma("user_version = 26");
+}
+
+function migrateV28(db: Database.Database): void {
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS time_memos (
+      id TEXT PRIMARY KEY,
+      date TEXT NOT NULL,
+      hour INTEGER NOT NULL,
+      content TEXT NOT NULL DEFAULT '',
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL,
+      UNIQUE(date, hour)
+    );
+    CREATE INDEX IF NOT EXISTS idx_time_memos_date ON time_memos(date);
+
+    PRAGMA user_version = 28;
+  `);
 }

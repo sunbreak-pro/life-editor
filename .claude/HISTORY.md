@@ -1,5 +1,21 @@
 # HISTORY.md - 変更履歴
 
+### 2026-03-11 - Schedule UI/UX リストラクチャ
+
+#### 概要
+
+Schedule セクション（Calendar / DayFlow タブ）の UI/UX を包括的に改善。AchievementPanel の全タブ共通化、RoutineManagementPanel のダイアログ化、TimeGrid Memo カラム追加（フルスタック）、MiniRoutineFlow コンポーネント追加、Calendar サイドバー（フィルタ + RoutineFlow）を実装。
+
+#### 変更点
+
+- **Phase 1 - AchievementPanel 共通化**: `ScheduleSidebarContent.tsx` を新規作成し、AchievementPanel を rightSidebar 最下部に全タブ共通表示。`ScheduleSection.tsx` のポータル構造を変更し常に `requestOpen()` を呼び出し。`DayFlowSidebarContent.tsx` から AchievementPanel を削除
+- **Phase 2 - RoutineManagementPanel ダイアログ化**: `DayFlowSidebarContent.tsx` にルーティン一覧セクション追加（ホバー時 Pencil/Archive/Trash アイコン、クリックで RoutineEditDialog、RoutineTagManager 統合）。`RoutineManagementPanel.tsx` 削除。`OneDaySchedule.tsx` から routineManagement prop と分岐レイアウトを削除
+- **Phase 3 - TimeGrid Memo カラム**: migrateV28 で `time_memos` テーブル追加、`timeMemoRepository.ts`（fetchByDate/upsert/delete）、`timeMemoHandlers.ts`（3 IPC チャネル）、`registerAll.ts` / `preload.ts` に登録。フロントエンドは `TimeMemo` 型、`useTimeMemos` フック、`TimeGridMemoColumn.tsx`（時間帯別インライン編集テキストエリア）を新規作成。`OneDaySchedule.tsx` で共通スクロールコンテナ方式に変更（TimeGrid + MemoColumn）、`ScheduleTimeGrid.tsx` に `externalScroll` prop 追加
+- **Phase 4 - MiniRoutineFlow**: `MiniRoutineFlow.tsx` を新規作成（全ルーティン時間順チェックリスト、CheckCircle2/Circle トグル、プログレスバー付き）。`DayFlowSidebarContent.tsx` に配置
+- **Phase 5 - Calendar rightSidebar**: `CalendarSidebarContent.tsx` を新規作成（Status フィルタ、FolderDropdown フィルタ、MiniRoutineFlow）。`CalendarView.tsx` からインラインフィルタ UI を削除しフィルタ state を props で受け取り。`ScheduleSection.tsx` で Calendar フィルタ state を管理
+- **DataService/ElectronDataService**: `fetchTimeMemosByDate` / `upsertTimeMemo` / `deleteTimeMemo` の3メソッド追加
+- **electron/types.ts**: `TimeMemo` 型追加
+
 ### 2026-03-10 - Ideas UI/UX 改善プラン
 
 #### 概要

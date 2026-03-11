@@ -209,6 +209,7 @@ export const TaskTreeNode = memo(function TaskTreeNode({
             isFolder={isFolder}
             isDone={isDone}
             isExpanded={node.isExpanded}
+            isDragging={isDragging}
             color={node.color}
             onToggleExpand={handleToggleExpand}
             onToggleStatus={handleToggleStatus}
@@ -301,7 +302,7 @@ export const TaskTreeNode = memo(function TaskTreeNode({
         depth={depth}
       />
 
-      {isFolder && (node.isExpanded || isSearching) && (
+      {isFolder && !isDragging && (node.isExpanded || isSearching) && (
         <SortableContext items={childIds}>
           <div>
             {children.map((child, index) => (
