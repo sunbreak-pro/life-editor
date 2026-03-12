@@ -17,8 +17,8 @@ export function registerWikiTagGroupHandlers(
     loggedHandler(
       "WikiTagGroups",
       "create",
-      (_event, name: string, tagIds: string[]) => {
-        return repo.create(name, tagIds);
+      (_event, name: string, noteIds: string[], filterTags?: string[]) => {
+        return repo.create(name, noteIds, filterTags);
       },
     ),
   );
@@ -28,7 +28,11 @@ export function registerWikiTagGroupHandlers(
     loggedHandler(
       "WikiTagGroups",
       "update",
-      (_event, id: string, updates: { name: string }) => {
+      (
+        _event,
+        id: string,
+        updates: { name?: string; filterTags?: string[] },
+      ) => {
         return repo.update(id, updates);
       },
     ),
@@ -53,8 +57,8 @@ export function registerWikiTagGroupHandlers(
     loggedHandler(
       "WikiTagGroups",
       "setMembers",
-      (_event, groupId: string, tagIds: string[]) => {
-        repo.setMembers(groupId, tagIds);
+      (_event, groupId: string, noteIds: string[]) => {
+        repo.setMembers(groupId, noteIds);
       },
     ),
   );
@@ -64,8 +68,8 @@ export function registerWikiTagGroupHandlers(
     loggedHandler(
       "WikiTagGroups",
       "addMember",
-      (_event, groupId: string, tagId: string) => {
-        repo.addMember(groupId, tagId);
+      (_event, groupId: string, noteId: string) => {
+        repo.addMember(groupId, noteId);
       },
     ),
   );
@@ -75,8 +79,8 @@ export function registerWikiTagGroupHandlers(
     loggedHandler(
       "WikiTagGroups",
       "removeMember",
-      (_event, groupId: string, tagId: string) => {
-        repo.removeMember(groupId, tagId);
+      (_event, groupId: string, noteId: string) => {
+        repo.removeMember(groupId, noteId);
       },
     ),
   );

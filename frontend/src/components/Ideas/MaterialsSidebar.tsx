@@ -1,22 +1,31 @@
 import { useState, useMemo, useRef, useEffect } from "react";
 import {
-  Search,
-  ChevronRight,
-  ChevronDown,
   Heart,
   StickyNote,
   BookOpen,
   Trash2,
   Plus,
+  Layers,
+  ChevronRight,
+  ChevronDown,
+  Pencil,
+  Check,
+  X,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import type { MemoNode } from "../../types/memo";
 import type { NoteNode } from "../../types/note";
-import type { WikiTagAssignment } from "../../types/wikiTag";
-import type { WikiTag } from "../../types/wikiTag";
+import type {
+  WikiTagAssignment,
+  WikiTag,
+  WikiTagGroup,
+  WikiTagGroupMember,
+} from "../../types/wikiTag";
 import { formatDisplayDate } from "../../utils/dateKey";
 import { getContentPreview } from "../../utils/tiptapText";
 import { STORAGE_KEYS } from "../../constants/storageKeys";
+import { SearchBar } from "../shared/SearchBar";
+import { CollapsibleSection } from "../shared/CollapsibleSection";
 
 type MaterialsView =
   | { type: "note"; noteId: string }
@@ -26,6 +35,7 @@ interface SectionsState {
   favorites: boolean;
   notes: boolean;
   daily: boolean;
+  groups: boolean;
 }
 
 interface MaterialsSidebarProps {
@@ -38,6 +48,18 @@ interface MaterialsSidebarProps {
   onCreateNote: () => void;
   onDeleteNote?: (noteId: string) => void;
   onDeleteMemo?: (date: string) => void;
+  groups: WikiTagGroup[];
+  groupMembers: WikiTagGroupMember[];
+  onCreateGroup: (
+    name: string,
+    noteIds: string[],
+    filterTags?: string[],
+  ) => Promise<WikiTagGroup>;
+  onUpdateGroup: (
+    id: string,
+    updates: { name?: string; filterTags?: string[] },
+  ) => Promise<WikiTagGroup>;
+  onDeleteGroup: (id: string) => Promise<void>;
 }
 
 function loadSectionsState(): SectionsState {
@@ -47,7 +69,7 @@ function loadSectionsState(): SectionsState {
   } catch {
     // ignore
   }
-  return { favorites: true, notes: true, daily: true };
+  return { favorites: true, notes: true, daily: true, groups: true };
 }
 
 function saveSectionsState(state: SectionsState): void {
@@ -67,12 +89,29 @@ export function MaterialsSidebar({
   onCreateNote,
   onDeleteNote,
   onDeleteMemo,
+  groups,
+  groupMembers,
+  onCreateGroup,
+  onUpdateGroup,
+  onDeleteGroup,
 }: MaterialsSidebarProps) {
   const { t } = useTranslation();
   const [sections, setSections] = useState<SectionsState>(loadSectionsState);
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedQuery, setDebouncedQuery] = useState("");
   const debounceRef = useRef<number | null>(null);
+
+  // Group UI state
+  const [showGroupCreate, setShowGroupCreate] = useState(false);
+  const [newGroupName, setNewGroupName] = useState("");
+  const [selectedGroupNoteIds, setSelectedGroupNoteIds] = useState<Set<string>>(
+    new Set(),
+  );
+  const [editingGroupId, setEditingGroupId] = useState<string | null>(null);
+  const [editGroupName, setEditGroupName] = useState("");
+  const [expandedGroupIds, setExpandedGroupIds] = useState<Set<string>>(
+    new Set(),
+  );
 
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
@@ -228,6 +267,40 @@ export function MaterialsSidebar({
     </div>
   );
 
+  // Group handlers
+  const handleCreateGroup = async () => {
+    const trimmed = newGroupName.trim();
+    if (!trimmed || selectedGroupNoteIds.size === 0) return;
+    await onCreateGroup(trimmed, Array.from(selectedGroupNoteIds));
+    setNewGroupName("");
+    setSelectedGroupNoteIds(new Set());
+    setShowGroupCreate(false);
+  };
+
+  const saveGroupEdit = async () => {
+    if (!editingGroupId || !editGroupName.trim()) return;
+    await onUpdateGroup(editingGroupId, { name: editGroupName.trim() });
+    setEditingGroupId(null);
+  };
+
+  const toggleGroupExpanded = (groupId: string) => {
+    setExpandedGroupIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(groupId)) next.delete(groupId);
+      else next.add(groupId);
+      return next;
+    });
+  };
+
+  const toggleGroupNoteSelection = (noteId: string) => {
+    setSelectedGroupNoteIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(noteId)) next.delete(noteId);
+      else next.add(noteId);
+      return next;
+    });
+  };
+
   // Search results: flat list
   if (isSearching) {
     return (
@@ -256,15 +329,6 @@ export function MaterialsSidebar({
         value={searchQuery}
         onChange={setSearchQuery}
         placeholder={t("ideas.searchMaterials")}
-        rightAction={
-          <button
-            onClick={onCreateNote}
-            className="p-1 text-notion-text-secondary hover:text-notion-text rounded transition-colors"
-            title={t("notes.newNote")}
-          >
-            <Plus size={14} />
-          </button>
-        }
       />
 
       <div className="flex-1 overflow-y-auto">
@@ -287,6 +351,15 @@ export function MaterialsSidebar({
           icon={<StickyNote size={15} />}
           isOpen={sections.notes}
           onToggle={() => toggleSection("notes")}
+          rightAction={
+            <button
+              onClick={onCreateNote}
+              className="p-1 text-notion-text-secondary hover:text-notion-text rounded transition-colors"
+              title={t("notes.newNote")}
+            >
+              <Plus size={14} />
+            </button>
+          }
         >
           {notes.length === 0 ? (
             <p className="text-xs text-notion-text-secondary px-2 py-2">
@@ -312,67 +385,194 @@ export function MaterialsSidebar({
             memos.map(renderMemoItem)
           )}
         </CollapsibleSection>
-      </div>
-    </div>
-  );
-}
 
-function SearchBar({
-  value,
-  onChange,
-  placeholder,
-  rightAction,
-}: {
-  value: string;
-  onChange: (v: string) => void;
-  placeholder: string;
-  rightAction?: React.ReactNode;
-}) {
-  return (
-    <div className="p-3 border-b border-notion-border">
-      <div className="flex items-center gap-1.5">
-        <div className="relative flex-1">
-          <Search
-            size={14}
-            className="absolute left-2.5 top-1/2 -translate-y-1/2 text-notion-text-secondary"
-          />
-          <input
-            value={value}
-            onChange={(e) => onChange(e.target.value)}
-            placeholder={placeholder}
-            className="w-full pl-8 pr-3 py-1.5 text-xs rounded-md bg-notion-hover text-notion-text outline-none border border-transparent focus:border-notion-accent/50"
-          />
-        </div>
-        {rightAction}
-      </div>
-    </div>
-  );
-}
+        {/* Groups */}
+        <CollapsibleSection
+          label={t("ideas.groups")}
+          icon={<Layers size={15} />}
+          isOpen={sections.groups}
+          onToggle={() => toggleSection("groups")}
+          rightAction={
+            <button
+              onClick={() => setShowGroupCreate(!showGroupCreate)}
+              className="p-1 text-notion-text-secondary hover:text-notion-text rounded transition-colors"
+            >
+              <Plus size={14} />
+            </button>
+          }
+        >
+          {/* Create new group form */}
+          {showGroupCreate && (
+            <div className="mx-1 mb-2 p-2 rounded-md bg-notion-hover/50 border border-notion-border">
+              <input
+                value={newGroupName}
+                onChange={(e) => setNewGroupName(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.nativeEvent.isComposing) return;
+                  if (e.key === "Enter") handleCreateGroup();
+                  if (e.key === "Escape") setShowGroupCreate(false);
+                }}
+                placeholder={t("ideas.groupName")}
+                className="w-full text-xs px-2 py-1 rounded bg-notion-bg text-notion-text outline-none border border-notion-border focus:border-notion-accent/50 mb-2"
+                autoFocus
+              />
+              <div className="max-h-32 overflow-y-auto space-y-0.5 mb-2">
+                {notes.map((note) => (
+                  <label
+                    key={note.id}
+                    className="flex items-center gap-2 px-1 py-0.5 rounded hover:bg-notion-hover cursor-pointer"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={selectedGroupNoteIds.has(note.id)}
+                      onChange={() => toggleGroupNoteSelection(note.id)}
+                      className="rounded"
+                    />
+                    <StickyNote
+                      size={12}
+                      className="text-notion-text-secondary shrink-0"
+                    />
+                    <span className="text-xs text-notion-text truncate">
+                      {note.title || t("notes.untitled")}
+                    </span>
+                  </label>
+                ))}
+              </div>
+              <button
+                onClick={handleCreateGroup}
+                disabled={
+                  !newGroupName.trim() || selectedGroupNoteIds.size === 0
+                }
+                className="w-full text-xs px-2 py-1 rounded bg-notion-accent text-white disabled:opacity-40"
+              >
+                {t("ideas.createGroup")} ({selectedGroupNoteIds.size})
+              </button>
+            </div>
+          )}
 
-function CollapsibleSection({
-  label,
-  icon,
-  isOpen,
-  onToggle,
-  children,
-}: {
-  label: string;
-  icon: React.ReactNode;
-  isOpen: boolean;
-  onToggle: () => void;
-  children: React.ReactNode;
-}) {
-  return (
-    <div className="border-b border-notion-border last:border-b-0">
-      <button
-        onClick={onToggle}
-        className="w-full flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-notion-text-secondary uppercase tracking-wider hover:bg-notion-hover transition-colors"
-      >
-        {isOpen ? <ChevronDown size={15} /> : <ChevronRight size={15} />}
-        {icon}
-        <span>{label}</span>
-      </button>
-      {isOpen && <div className="px-1 pb-1">{children}</div>}
+          {/* Groups list */}
+          <div className="space-y-0.5">
+            {groups.map((group) => {
+              const isGroupExpanded = expandedGroupIds.has(group.id);
+              const memberNoteIds = groupMembers
+                .filter((m) => m.groupId === group.id)
+                .map((m) => m.noteId);
+              const memberNotes = notes.filter((n) =>
+                memberNoteIds.includes(n.id),
+              );
+
+              return (
+                <div key={group.id}>
+                  <div className="flex items-center gap-1.5 px-2 py-1.5 rounded hover:bg-notion-hover group transition-colors">
+                    <button
+                      onClick={() => toggleGroupExpanded(group.id)}
+                      className="p-0.5 text-notion-text-secondary hover:text-notion-text shrink-0"
+                    >
+                      {isGroupExpanded ? (
+                        <ChevronDown size={15} />
+                      ) : (
+                        <ChevronRight size={15} />
+                      )}
+                    </button>
+
+                    {editingGroupId === group.id ? (
+                      <>
+                        <input
+                          value={editGroupName}
+                          onChange={(e) => setEditGroupName(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.nativeEvent.isComposing) return;
+                            if (e.key === "Enter") saveGroupEdit();
+                            if (e.key === "Escape") setEditingGroupId(null);
+                          }}
+                          className="flex-1 text-xs px-1.5 py-0.5 rounded bg-notion-hover text-notion-text outline-none border border-notion-border"
+                          autoFocus
+                          onClick={(e) => e.stopPropagation()}
+                        />
+                        <button
+                          onClick={saveGroupEdit}
+                          className="p-0.5 text-green-500 hover:text-green-400"
+                        >
+                          <Check size={12} />
+                        </button>
+                        <button
+                          onClick={() => setEditingGroupId(null)}
+                          className="p-0.5 text-notion-text-secondary hover:text-notion-text"
+                        >
+                          <X size={12} />
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <span className="flex-1 text-sm text-notion-text truncate">
+                          {group.name}
+                        </span>
+                        <span className="text-xs text-notion-text-secondary tabular-nums">
+                          {memberNotes.length}
+                        </span>
+                        <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setEditingGroupId(group.id);
+                              setEditGroupName(group.name);
+                            }}
+                            className="p-0.5 text-notion-text-secondary hover:text-notion-text"
+                          >
+                            <Pencil size={14} />
+                          </button>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onDeleteGroup(group.id);
+                            }}
+                            className="p-0.5 text-notion-text-secondary hover:text-red-500"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
+                      </>
+                    )}
+                  </div>
+
+                  {/* Expanded: member notes */}
+                  {isGroupExpanded && (
+                    <div className="pl-6 space-y-0.5">
+                      {memberNotes.map((note) => (
+                        <button
+                          key={note.id}
+                          onClick={() =>
+                            onSelectView({ type: "note", noteId: note.id })
+                          }
+                          className="w-full flex items-center gap-2 px-2 py-1 rounded hover:bg-notion-hover text-left transition-colors"
+                        >
+                          <StickyNote
+                            size={12}
+                            className="text-notion-text-secondary shrink-0"
+                          />
+                          <span className="text-xs text-notion-text truncate">
+                            {note.title || t("notes.untitled")}
+                          </span>
+                        </button>
+                      ))}
+                      {memberNotes.length === 0 && (
+                        <span className="text-xs text-notion-text-secondary px-2 py-1">
+                          {t("ideas.noSearchResults")}
+                        </span>
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+            {groups.length === 0 && !showGroupCreate && (
+              <p className="text-[10px] text-notion-text-secondary px-2 py-2 text-center">
+                {t("ideas.noSearchResults")}
+              </p>
+            )}
+          </div>
+        </CollapsibleSection>
+      </div>
     </div>
   );
 }

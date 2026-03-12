@@ -4,10 +4,11 @@ import { ReactFlowProvider } from "@xyflow/react";
 import { TagGraphView } from "./Connect/TagGraphView";
 import { ConnectSidebar } from "./Connect/ConnectSidebar";
 import { useWikiTags } from "../../hooks/useWikiTags";
-import { useWikiTagConnections } from "../../hooks/useWikiTagConnections";
-import { useTagCooccurrence } from "../../hooks/useTagCooccurrence";
+import { useNoteConnections } from "../../hooks/useNoteConnections";
+import { useNoteCooccurrence } from "../../hooks/useNoteCooccurrence";
 import { useConnectSearch } from "../../hooks/useConnectSearch";
 import { useNoteContext } from "../../hooks/useNoteContext";
+import { useMemoContext } from "../../hooks/useMemoContext";
 import { useUndoRedo } from "../shared/UndoRedo";
 import { RightSidebarContext } from "../../context/RightSidebarContext";
 
@@ -37,14 +38,15 @@ export function ConnectTabView({ onNavigateToNote }: ConnectTabViewProps) {
     deleteGroup,
   } = useWikiTags();
 
-  const { connections, createConnection, deleteConnectionByPair } =
-    useWikiTagConnections();
-  const cooccurrences = useTagCooccurrence(assignments);
+  const { noteConnections, createNoteConnection, deleteNoteConnectionByPair } =
+    useNoteConnections();
+  const noteCooccurrences = useNoteCooccurrence(assignments);
   const { notes, createNote, updateNote } = useNoteContext();
+  const { memos } = useMemoContext();
 
   const [query, setQuery] = useState("");
   const [selectedTagId, setSelectedTagId] = useState<string | null>(null);
-  const [filterMode, setFilterMode] = useState<
+  const [filterMode, _setFilterMode] = useState<
     "all" | "grouped" | { groupId: string }
   >("all");
 
@@ -54,18 +56,33 @@ export function ConnectTabView({ onNavigateToNote }: ConnectTabViewProps) {
     notes,
   });
 
-  const handleCreateConnection = useCallback(
-    async (sourceTagId: string, targetTagId: string) => {
-      await createConnection(sourceTagId, targetTagId);
+  const handleCreateNoteConnection = useCallback(
+    async (sourceNoteId: string, targetNoteId: string) => {
+      await createNoteConnection(sourceNoteId, targetNoteId);
+      // Auto-add tags from each note to the other
+      const sourceTagIds = assignments
+        .filter((a) => a.entityId === sourceNoteId && a.entityType === "note")
+        .map((a) => a.tagId);
+      const targetTagIds = assignments
+        .filter((a) => a.entityId === targetNoteId && a.entityType === "note")
+        .map((a) => a.tagId);
+      const mergedForSource = [...new Set([...sourceTagIds, ...targetTagIds])];
+      const mergedForTarget = [...new Set([...targetTagIds, ...sourceTagIds])];
+      if (mergedForSource.length > sourceTagIds.length) {
+        await setTagsForEntity(sourceNoteId, "note", mergedForSource);
+      }
+      if (mergedForTarget.length > targetTagIds.length) {
+        await setTagsForEntity(targetNoteId, "note", mergedForTarget);
+      }
     },
-    [createConnection],
+    [createNoteConnection, assignments, setTagsForEntity],
   );
 
-  const handleDeleteConnection = useCallback(
-    async (sourceTagId: string, targetTagId: string) => {
-      await deleteConnectionByPair(sourceTagId, targetTagId);
+  const handleDeleteNoteConnection = useCallback(
+    async (sourceNoteId: string, targetNoteId: string) => {
+      await deleteNoteConnectionByPair(sourceNoteId, targetNoteId);
     },
-    [deleteConnectionByPair],
+    [deleteNoteConnectionByPair],
   );
 
   const handleCreateNote = useCallback(
@@ -116,19 +133,15 @@ export function ConnectTabView({ onNavigateToNote }: ConnectTabViewProps) {
       tags={tags}
       assignments={assignments}
       notes={notes}
-      connections={connections}
+      memos={memos}
       onSelectTag={setSelectedTagId}
       onNavigateToNote={onNavigateToNote}
       onCreateNote={handleCreateNote}
       onCreateTag={createTag}
       onUpdateTag={handleUpdateTag}
       onDeleteTag={handleDeleteTag}
-      onCreateConnection={handleCreateConnection}
-      onDeleteConnection={handleDeleteConnection}
       groups={groups}
       groupMembers={groupMembers}
-      filterMode={filterMode}
-      onFilterModeChange={setFilterMode}
       onCreateGroup={createGroup}
       onUpdateGroup={updateGroup}
       onDeleteGroup={deleteGroup}
@@ -145,12 +158,12 @@ export function ConnectTabView({ onNavigateToNote }: ConnectTabViewProps) {
               <TagGraphView
                 tags={tags}
                 assignments={assignments}
-                connections={connections}
-                cooccurrences={cooccurrences}
+                noteConnections={noteConnections}
+                noteCooccurrences={noteCooccurrences}
                 selectedTagId={selectedTagId}
                 onSelectTag={setSelectedTagId}
-                onCreateConnection={handleCreateConnection}
-                onDeleteConnection={handleDeleteConnection}
+                onCreateNoteConnection={handleCreateNoteConnection}
+                onDeleteNoteConnection={handleDeleteNoteConnection}
                 groups={groups}
                 groupMembers={groupMembers}
                 notes={notes}
@@ -168,12 +181,12 @@ export function ConnectTabView({ onNavigateToNote }: ConnectTabViewProps) {
               <TagGraphView
                 tags={tags}
                 assignments={assignments}
-                connections={connections}
-                cooccurrences={cooccurrences}
+                noteConnections={noteConnections}
+                noteCooccurrences={noteCooccurrences}
                 selectedTagId={selectedTagId}
                 onSelectTag={setSelectedTagId}
-                onCreateConnection={handleCreateConnection}
-                onDeleteConnection={handleDeleteConnection}
+                onCreateNoteConnection={handleCreateNoteConnection}
+                onDeleteNoteConnection={handleDeleteNoteConnection}
                 groups={groups}
                 groupMembers={groupMembers}
                 notes={notes}

@@ -27,11 +27,19 @@ export interface WikiTagConnection {
 export interface WikiTagGroup {
   id: string;
   name: string;
+  filterTags?: string[];
   createdAt: string;
   updatedAt: string;
 }
 
 export interface WikiTagGroupMember {
   groupId: string;
-  tagId: string;
+  noteId: string;
+}
+
+export interface NoteConnection {
+  id: string;
+  sourceNoteId: string;
+  targetNoteId: string;
+  createdAt: string;
 }

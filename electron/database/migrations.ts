@@ -130,6 +130,11 @@ export function runMigrations(db: Database.Database): void {
     migrateV29(db);
   }
 
+  if (currentVersion < 30) {
+    log.info("[DB] Running migration V30");
+    migrateV30(db);
+  }
+
   const newVersion = db.pragma("user_version", { simple: true }) as number;
   if (newVersion !== currentVersion) {
     log.info(`[DB] Schema migrated: ${currentVersion} → ${newVersion}`);
@@ -1116,4 +1121,54 @@ function migrateV29(db: Database.Database): void {
     ALTER TABLE notes ADD COLUMN color TEXT;
     PRAGMA user_version = 29;
   `);
+}
+
+function migrateV30(db: Database.Database): void {
+  const migrate = db.transaction(() => {
+    // 1. Recreate wiki_tag_group_members: tagId → noteId
+    db.exec(`
+      CREATE TABLE wiki_tag_group_members_new (
+        group_id TEXT NOT NULL,
+        note_id TEXT NOT NULL,
+        PRIMARY KEY (group_id, note_id),
+        FOREIGN KEY (group_id) REFERENCES wiki_tag_groups(id) ON DELETE CASCADE,
+        FOREIGN KEY (note_id) REFERENCES notes(id) ON DELETE CASCADE
+      );
+    `);
+    // Migrate existing data: tag → notes that have that tag
+    db.exec(`
+      INSERT OR IGNORE INTO wiki_tag_group_members_new (group_id, note_id)
+        SELECT m.group_id, a.entity_id
+        FROM wiki_tag_group_members m
+        JOIN wiki_tag_assignments a ON a.tag_id = m.tag_id AND a.entity_type = 'note';
+    `);
+    db.exec(`
+      DROP TABLE wiki_tag_group_members;
+      ALTER TABLE wiki_tag_group_members_new RENAME TO wiki_tag_group_members;
+      CREATE INDEX IF NOT EXISTS idx_wtgm_group ON wiki_tag_group_members(group_id);
+      CREATE INDEX IF NOT EXISTS idx_wtgm_note ON wiki_tag_group_members(note_id);
+    `);
+
+    // 2. Add filter_tags column to wiki_tag_groups
+    db.exec(
+      `ALTER TABLE wiki_tag_groups ADD COLUMN filter_tags TEXT DEFAULT '[]'`,
+    );
+
+    // 3. Create note_connections table
+    db.exec(`
+      CREATE TABLE note_connections (
+        id TEXT PRIMARY KEY,
+        source_note_id TEXT NOT NULL,
+        target_note_id TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        FOREIGN KEY (source_note_id) REFERENCES notes(id) ON DELETE CASCADE,
+        FOREIGN KEY (target_note_id) REFERENCES notes(id) ON DELETE CASCADE,
+        UNIQUE(source_note_id, target_note_id)
+      );
+      CREATE INDEX IF NOT EXISTS idx_nc_source ON note_connections(source_note_id);
+      CREATE INDEX IF NOT EXISTS idx_nc_target ON note_connections(target_note_id);
+    `);
+  });
+  migrate();
+  db.pragma("user_version = 30");
 }

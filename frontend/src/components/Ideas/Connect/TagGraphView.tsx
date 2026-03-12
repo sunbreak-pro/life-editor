@@ -3,7 +3,7 @@ import { createPortal } from "react-dom";
 import {
   ReactFlow,
   Background,
-  Controls,
+  Panel,
   useNodesState,
   useEdgesState,
   type Node,
@@ -11,27 +11,26 @@ import {
   type Connection,
   type OnNodesChange,
   type OnEdgesChange,
-  MarkerType,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import { useTranslation } from "react-i18next";
+import { ZoomIn, ZoomOut, Maximize2 } from "lucide-react";
+import { useReactFlow } from "@xyflow/react";
 import { ColorPicker } from "../../shared/ColorPicker";
-import { TagNode } from "./TagNode";
 import { GroupFrameNode } from "./GroupFrameNode";
 import { NoteNodeComponent } from "./NoteNodeComponent";
 import type {
   WikiTag,
-  WikiTagConnection,
   WikiTagAssignment,
   WikiTagGroup,
   WikiTagGroupMember,
+  NoteConnection,
 } from "../../../types/wikiTag";
 import type { NoteNode } from "../../../types/note";
-import type { CooccurrenceEntry } from "../../../hooks/useTagCooccurrence";
+import type { NoteCooccurrenceEntry } from "../../../hooks/useNoteCooccurrence";
 import { STORAGE_KEYS } from "../../../constants/storageKeys";
 
 const nodeTypes = {
-  tagNode: TagNode,
   groupFrame: GroupFrameNode,
   noteNode: NoteNodeComponent,
 };
@@ -39,12 +38,12 @@ const nodeTypes = {
 interface TagGraphViewProps {
   tags: WikiTag[];
   assignments: WikiTagAssignment[];
-  connections: WikiTagConnection[];
-  cooccurrences: CooccurrenceEntry[];
+  noteConnections: NoteConnection[];
+  noteCooccurrences: NoteCooccurrenceEntry[];
   selectedTagId: string | null;
   onSelectTag: (tagId: string | null) => void;
-  onCreateConnection: (sourceTagId: string, targetTagId: string) => void;
-  onDeleteConnection: (sourceTagId: string, targetTagId: string) => void;
+  onCreateNoteConnection: (sourceNoteId: string, targetNoteId: string) => void;
+  onDeleteNoteConnection: (sourceNoteId: string, targetNoteId: string) => void;
   groups: WikiTagGroup[];
   groupMembers: WikiTagGroupMember[];
   notes: NoteNode[];
@@ -103,13 +102,6 @@ function saveViewport(viewport: { x: number; y: number; zoom: number }) {
   );
 }
 
-function getUsageCount(
-  tagId: string,
-  assignments: WikiTagAssignment[],
-): number {
-  return assignments.filter((a) => a.tagId === tagId).length;
-}
-
 function extractContentPreview(content: string): string {
   try {
     const doc = JSON.parse(content);
@@ -127,15 +119,42 @@ function extractContentPreview(content: string): string {
 
 const GROUP_FRAME_PADDING = 40;
 
+function CanvasControls() {
+  const { zoomIn, zoomOut, fitView } = useReactFlow();
+
+  return (
+    <div className="flex flex-col gap-1">
+      <button
+        onClick={() => zoomIn()}
+        className="p-1.5 rounded bg-notion-bg border border-notion-border text-notion-text-secondary hover:bg-notion-hover"
+      >
+        <ZoomIn size={14} />
+      </button>
+      <button
+        onClick={() => zoomOut()}
+        className="p-1.5 rounded bg-notion-bg border border-notion-border text-notion-text-secondary hover:bg-notion-hover"
+      >
+        <ZoomOut size={14} />
+      </button>
+      <button
+        onClick={() => fitView({ padding: 0.3 })}
+        className="p-1.5 rounded bg-notion-bg border border-notion-border text-notion-text-secondary hover:bg-notion-hover"
+      >
+        <Maximize2 size={14} />
+      </button>
+    </div>
+  );
+}
+
 export function TagGraphView({
   tags,
   assignments,
-  connections,
-  cooccurrences,
+  noteConnections,
+  noteCooccurrences,
   selectedTagId,
   onSelectTag,
-  onCreateConnection,
-  onDeleteConnection,
+  onCreateNoteConnection,
+  onDeleteNoteConnection,
   groups,
   groupMembers,
   notes,
@@ -153,31 +172,43 @@ export function TagGraphView({
     color?: string;
   } | null>(null);
 
-  // Determine which tag IDs are visible based on filterMode
-  const visibleTagIds = useMemo(() => {
-    if (filterMode === "all") return new Set(tags.map((t) => t.id));
+  // Build tag dots data for notes
+  const noteTagDots = useMemo(() => {
+    const map = new Map<
+      string,
+      Array<{ id: string; name: string; color: string }>
+    >();
+    for (const a of assignments) {
+      if (a.entityType !== "note") continue;
+      const tag = tags.find((t) => t.id === a.tagId);
+      if (!tag) continue;
+      const existing = map.get(a.entityId) || [];
+      existing.push({ id: tag.id, name: tag.name, color: tag.color });
+      map.set(a.entityId, existing);
+    }
+    return map;
+  }, [assignments, tags]);
+
+  // Determine visible note IDs
+  const visibleNoteIds = useMemo(() => {
+    if (filterMode === "all") {
+      // Show all notes that have at least one tag assignment
+      const noteIds = new Set(
+        assignments
+          .filter((a) => a.entityType === "note")
+          .map((a) => a.entityId),
+      );
+      return noteIds;
+    }
     if (filterMode === "grouped") {
-      return new Set(groupMembers.map((m) => m.tagId));
+      return new Set(groupMembers.map((m) => m.noteId));
     }
     return new Set(
       groupMembers
         .filter((m) => m.groupId === filterMode.groupId)
-        .map((m) => m.tagId),
+        .map((m) => m.noteId),
     );
-  }, [tags, groupMembers, filterMode]);
-
-  // Determine which note IDs are visible (notes that have at least one visible tag)
-  const visibleNoteIds = useMemo(() => {
-    const noteAssignments = assignments.filter(
-      (a) => a.entityType === "note" && visibleTagIds.has(a.tagId),
-    );
-    return new Set(noteAssignments.map((a) => a.entityId));
-  }, [assignments, visibleTagIds]);
-
-  const filteredTags = useMemo(
-    () => tags.filter((t) => visibleTagIds.has(t.id)),
-    [tags, visibleTagIds],
-  );
+  }, [assignments, groupMembers, filterMode]);
 
   const filteredNotes = useMemo(
     () => notes.filter((n) => !n.isDeleted && visibleNoteIds.has(n.id)),
@@ -186,34 +217,17 @@ export function TagGraphView({
 
   const initialNodes = useMemo<Node[]>(() => {
     const saved = positionsRef.current;
-    const cols = Math.max(Math.ceil(Math.sqrt(filteredTags.length)), 1);
-
-    // Tag nodes
-    const tagNodes: Node[] = filteredTags.map((tag, i) => {
-      const pos = saved[tag.id] ?? {
-        x: (i % cols) * 180,
-        y: Math.floor(i / cols) * 100,
-      };
-      return {
-        id: tag.id,
-        type: "tagNode",
-        position: pos,
-        data: {
-          label: tag.name,
-          color: tag.color,
-          textColor: tag.textColor,
-          usageCount: getUsageCount(tag.id, assignments),
-          selected: tag.id === selectedTagId,
-        },
-      };
-    });
+    const cols = Math.max(Math.ceil(Math.sqrt(filteredNotes.length)), 1);
 
     // Note nodes
     const noteNodes: Node[] = filteredNotes.map((note, i) => {
       const pos = saved[note.id] ?? {
-        x: cols * 180 + 50,
-        y: i * 80,
+        x: (i % cols) * 200,
+        y: Math.floor(i / cols) * 100,
       };
+      const dots = noteTagDots.get(note.id) || [];
+      const highlighted =
+        !!selectedTagId && dots.some((d) => d.id === selectedTagId);
       return {
         id: note.id,
         type: "noteNode",
@@ -223,30 +237,32 @@ export function TagGraphView({
           contentPreview: extractContentPreview(note.content),
           noteId: note.id,
           color: note.color,
+          tagDots: dots,
+          highlighted,
         },
       };
     });
 
-    // Group frame nodes
-    const tagNodeMap = new Map<string, { x: number; y: number }>();
-    for (const tn of tagNodes) {
-      tagNodeMap.set(tn.id, tn.position);
+    // Group frame nodes (note-based)
+    const noteNodeMap = new Map<string, { x: number; y: number }>();
+    for (const nn of noteNodes) {
+      noteNodeMap.set(nn.id, nn.position);
     }
 
     const savedGroupPos = groupPositionsRef.current;
     const groupFrameNodes: Node[] = groups
       .filter((g) => {
-        const memberTagIds = groupMembers
+        const memberNoteIds = groupMembers
           .filter((m) => m.groupId === g.id)
-          .map((m) => m.tagId);
-        return memberTagIds.some((tid) => tagNodeMap.has(tid));
+          .map((m) => m.noteId);
+        return memberNoteIds.some((nid) => noteNodeMap.has(nid));
       })
       .map((group) => {
-        const memberTagIds = groupMembers
+        const memberNoteIds = groupMembers
           .filter((m) => m.groupId === group.id)
-          .map((m) => m.tagId);
-        const memberPositions = memberTagIds
-          .map((tid) => tagNodeMap.get(tid))
+          .map((m) => m.noteId);
+        const memberPositions = memberNoteIds
+          .map((nid) => noteNodeMap.get(nid))
           .filter(Boolean) as { x: number; y: number }[];
 
         const minX = Math.min(...memberPositions.map((p) => p.x));
@@ -254,8 +270,8 @@ export function TagGraphView({
         const minY = Math.min(...memberPositions.map((p) => p.y));
         const maxY = Math.max(...memberPositions.map((p) => p.y));
 
-        const width = maxX - minX + 140 + GROUP_FRAME_PADDING * 2;
-        const height = maxY - minY + 50 + GROUP_FRAME_PADDING * 2;
+        const width = maxX - minX + 180 + GROUP_FRAME_PADDING * 2;
+        const height = maxY - minY + 80 + GROUP_FRAME_PADDING * 2;
 
         const pos = savedGroupPos[group.id] ?? {
           x: minX - GROUP_FRAME_PADDING,
@@ -278,53 +294,47 @@ export function TagGraphView({
         };
       });
 
-    return [...groupFrameNodes, ...tagNodes, ...noteNodes];
-  }, [
-    filteredTags,
-    filteredNotes,
-    assignments,
-    selectedTagId,
-    groups,
-    groupMembers,
-  ]);
+    return [...groupFrameNodes, ...noteNodes];
+  }, [filteredNotes, noteTagDots, groups, groupMembers, selectedTagId]);
 
   const initialEdges = useMemo<Edge[]>(() => {
-    // Filter connections to only include visible tags
-    const filteredConnections = connections.filter(
+    // Manual note-to-note connections
+    const filteredManual = noteConnections.filter(
       (c) =>
-        visibleTagIds.has(c.sourceTagId) && visibleTagIds.has(c.targetTagId),
+        visibleNoteIds.has(c.sourceNoteId) &&
+        visibleNoteIds.has(c.targetNoteId),
     );
 
-    const manualEdges: Edge[] = filteredConnections.map((conn) => ({
+    const manualEdges: Edge[] = filteredManual.map((conn) => ({
       id: `manual-${conn.id}`,
-      source: conn.sourceTagId,
-      target: conn.targetTagId,
+      source: conn.sourceNoteId,
+      target: conn.targetNoteId,
       type: "default",
       style: { stroke: "#6366f1", strokeWidth: 2 },
-      markerEnd: { type: MarkerType.ArrowClosed, color: "#6366f1" },
       data: { connectionType: "manual", connectionId: conn.id },
     }));
 
     const manualPairs = new Set(
-      filteredConnections.map((c) => {
+      filteredManual.map((c) => {
         const [a, b] =
-          c.sourceTagId < c.targetTagId
-            ? [c.sourceTagId, c.targetTagId]
-            : [c.targetTagId, c.sourceTagId];
+          c.sourceNoteId < c.targetNoteId
+            ? [c.sourceNoteId, c.targetNoteId]
+            : [c.targetNoteId, c.sourceNoteId];
         return `${a}---${b}`;
       }),
     );
 
-    const filteredCooccurrences = cooccurrences.filter(
-      (co) => visibleTagIds.has(co.tagId1) && visibleTagIds.has(co.tagId2),
+    // Auto note-to-note connections (shared tag co-occurrence)
+    const filteredCooccurrences = noteCooccurrences.filter(
+      (co) => visibleNoteIds.has(co.noteId1) && visibleNoteIds.has(co.noteId2),
     );
 
     const coEdges: Edge[] = filteredCooccurrences
       .filter((co) => !manualPairs.has(co.key))
       .map((co) => ({
         id: `co-${co.key}`,
-        source: co.tagId1,
-        target: co.tagId2,
+        source: co.noteId1,
+        target: co.noteId2,
         type: "default",
         style: {
           stroke: "#9ca3af",
@@ -336,42 +346,8 @@ export function TagGraphView({
         data: { connectionType: "cooccurrence" },
       }));
 
-    // Note-tag edges (dotted, tag-colored)
-    const noteTagEdges: Edge[] = [];
-    for (const note of filteredNotes) {
-      const noteAssigns = assignments.filter(
-        (a) =>
-          a.entityId === note.id &&
-          a.entityType === "note" &&
-          visibleTagIds.has(a.tagId),
-      );
-      for (const a of noteAssigns) {
-        const tag = tags.find((t) => t.id === a.tagId);
-        noteTagEdges.push({
-          id: `note-tag-${note.id}-${a.tagId}`,
-          source: a.tagId,
-          target: note.id,
-          type: "default",
-          style: {
-            stroke: tag?.color ?? "#9ca3af",
-            strokeWidth: 1,
-            strokeDasharray: "4 4",
-            opacity: 0.5,
-          },
-          data: { connectionType: "noteTag" },
-        });
-      }
-    }
-
-    return [...manualEdges, ...coEdges, ...noteTagEdges];
-  }, [
-    connections,
-    cooccurrences,
-    visibleTagIds,
-    filteredNotes,
-    assignments,
-    tags,
-  ]);
+    return [...manualEdges, ...coEdges];
+  }, [noteConnections, noteCooccurrences, visibleNoteIds]);
 
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
@@ -422,19 +398,24 @@ export function TagGraphView({
         connection.target &&
         connection.source !== connection.target
       ) {
-        onCreateConnection(connection.source, connection.target);
+        // Only connect note nodes
+        const sourceIsNote = !connection.source.startsWith("group-");
+        const targetIsNote = !connection.target.startsWith("group-");
+        if (sourceIsNote && targetIsNote) {
+          onCreateNoteConnection(connection.source, connection.target);
+        }
       }
     },
-    [onCreateConnection],
+    [onCreateNoteConnection],
   );
 
   const handleEdgeClick = useCallback(
     (_event: React.MouseEvent, edge: Edge) => {
       if (edge.data?.connectionType === "manual") {
-        onDeleteConnection(edge.source, edge.target);
+        onDeleteNoteConnection(edge.source, edge.target);
       }
     },
-    [onDeleteConnection],
+    [onDeleteNoteConnection],
   );
 
   const handleNodeClick = useCallback(
@@ -443,11 +424,8 @@ export function TagGraphView({
         onNavigateToNote(node.data.noteId as string);
         return;
       }
-      if (node.type === "tagNode") {
-        onSelectTag(node.id === selectedTagId ? null : node.id);
-      }
     },
-    [onSelectTag, selectedTagId, onNavigateToNote],
+    [onNavigateToNote],
   );
 
   const handlePaneClick = useCallback(() => {
@@ -472,7 +450,7 @@ export function TagGraphView({
 
   const savedViewport = useMemo(() => loadViewport(), []);
 
-  if (tags.length === 0) {
+  if (filteredNotes.length === 0) {
     return (
       <div className="h-full flex items-center justify-center text-sm text-notion-text-secondary">
         {t("ideas.graphEmpty")}
@@ -503,10 +481,9 @@ export function TagGraphView({
         className="bg-notion-bg"
       >
         <Background gap={20} size={1} color="var(--notion-border)" />
-        <Controls
-          showInteractive={false}
-          className="!bg-notion-bg !border-notion-border !shadow-sm [&>button]:!bg-notion-bg [&>button]:!border-notion-border [&>button]:!text-notion-text-secondary [&>button:hover]:!bg-notion-hover"
-        />
+        <Panel position="top-right">
+          <CanvasControls />
+        </Panel>
       </ReactFlow>
       {noteContextMenu &&
         createPortal(

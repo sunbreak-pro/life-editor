@@ -31,6 +31,7 @@ import type {
   WikiTagConnection,
   WikiTagGroup,
   WikiTagGroupMember,
+  NoteConnection,
 } from "../types/wikiTag";
 import type { TimeMemo } from "../types/timeMemo";
 
@@ -297,16 +298,20 @@ export interface DataService {
 
   // Wiki Tag Groups
   fetchWikiTagGroups(): Promise<WikiTagGroup[]>;
-  createWikiTagGroup(name: string, tagIds: string[]): Promise<WikiTagGroup>;
+  createWikiTagGroup(
+    name: string,
+    noteIds: string[],
+    filterTags?: string[],
+  ): Promise<WikiTagGroup>;
   updateWikiTagGroup(
     id: string,
-    updates: { name: string },
+    updates: { name?: string; filterTags?: string[] },
   ): Promise<WikiTagGroup>;
   deleteWikiTagGroup(id: string): Promise<void>;
   fetchAllWikiTagGroupMembers(): Promise<WikiTagGroupMember[]>;
-  setWikiTagGroupMembers(groupId: string, tagIds: string[]): Promise<void>;
-  addWikiTagGroupMember(groupId: string, tagId: string): Promise<void>;
-  removeWikiTagGroupMember(groupId: string, tagId: string): Promise<void>;
+  setWikiTagGroupMembers(groupId: string, noteIds: string[]): Promise<void>;
+  addWikiTagGroupMember(groupId: string, noteId: string): Promise<void>;
+  removeWikiTagGroupMember(groupId: string, noteId: string): Promise<void>;
 
   // Wiki Tag Connections
   fetchWikiTagConnections(): Promise<WikiTagConnection[]>;
@@ -318,6 +323,18 @@ export interface DataService {
   deleteWikiTagConnectionByPair(
     sourceTagId: string,
     targetTagId: string,
+  ): Promise<void>;
+
+  // Note Connections
+  fetchNoteConnections(): Promise<NoteConnection[]>;
+  createNoteConnection(
+    sourceNoteId: string,
+    targetNoteId: string,
+  ): Promise<NoteConnection>;
+  deleteNoteConnection(id: string): Promise<void>;
+  deleteNoteConnectionByPair(
+    sourceNoteId: string,
+    targetNoteId: string,
   ): Promise<void>;
 
   // Time Memos

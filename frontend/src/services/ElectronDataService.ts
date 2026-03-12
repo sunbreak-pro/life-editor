@@ -32,6 +32,7 @@ import type {
   WikiTagConnection,
   WikiTagGroup,
   WikiTagGroupMember,
+  NoteConnection,
 } from "../types/wikiTag";
 import type { TimeMemo } from "../types/timeMemo";
 
@@ -533,12 +534,16 @@ export class ElectronDataService implements DataService {
   fetchWikiTagGroups(): Promise<WikiTagGroup[]> {
     return invoke("db:wikiTagGroups:fetchAll");
   }
-  createWikiTagGroup(name: string, tagIds: string[]): Promise<WikiTagGroup> {
-    return invoke("db:wikiTagGroups:create", name, tagIds);
+  createWikiTagGroup(
+    name: string,
+    noteIds: string[],
+    filterTags?: string[],
+  ): Promise<WikiTagGroup> {
+    return invoke("db:wikiTagGroups:create", name, noteIds, filterTags);
   }
   updateWikiTagGroup(
     id: string,
-    updates: { name: string },
+    updates: { name?: string; filterTags?: string[] },
   ): Promise<WikiTagGroup> {
     return invoke("db:wikiTagGroups:update", id, updates);
   }
@@ -548,14 +553,14 @@ export class ElectronDataService implements DataService {
   fetchAllWikiTagGroupMembers(): Promise<WikiTagGroupMember[]> {
     return invoke("db:wikiTagGroups:fetchAllMembers");
   }
-  setWikiTagGroupMembers(groupId: string, tagIds: string[]): Promise<void> {
-    return invoke("db:wikiTagGroups:setMembers", groupId, tagIds);
+  setWikiTagGroupMembers(groupId: string, noteIds: string[]): Promise<void> {
+    return invoke("db:wikiTagGroups:setMembers", groupId, noteIds);
   }
-  addWikiTagGroupMember(groupId: string, tagId: string): Promise<void> {
-    return invoke("db:wikiTagGroups:addMember", groupId, tagId);
+  addWikiTagGroupMember(groupId: string, noteId: string): Promise<void> {
+    return invoke("db:wikiTagGroups:addMember", groupId, noteId);
   }
-  removeWikiTagGroupMember(groupId: string, tagId: string): Promise<void> {
-    return invoke("db:wikiTagGroups:removeMember", groupId, tagId);
+  removeWikiTagGroupMember(groupId: string, noteId: string): Promise<void> {
+    return invoke("db:wikiTagGroups:removeMember", groupId, noteId);
   }
 
   // Wiki Tag Connections
@@ -579,6 +584,30 @@ export class ElectronDataService implements DataService {
       "db:wikiTagConnections:deleteByTagPair",
       sourceTagId,
       targetTagId,
+    );
+  }
+
+  // Note Connections
+  fetchNoteConnections(): Promise<NoteConnection[]> {
+    return invoke("db:noteConnections:fetchAll");
+  }
+  createNoteConnection(
+    sourceNoteId: string,
+    targetNoteId: string,
+  ): Promise<NoteConnection> {
+    return invoke("db:noteConnections:create", sourceNoteId, targetNoteId);
+  }
+  deleteNoteConnection(id: string): Promise<void> {
+    return invoke("db:noteConnections:delete", id);
+  }
+  deleteNoteConnectionByPair(
+    sourceNoteId: string,
+    targetNoteId: string,
+  ): Promise<void> {
+    return invoke(
+      "db:noteConnections:deleteByNotePair",
+      sourceNoteId,
+      targetNoteId,
     );
   }
 

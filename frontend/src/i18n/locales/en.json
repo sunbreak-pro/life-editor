@@ -239,7 +239,7 @@
     "selectTagToSearch": "Select a tag to search",
     "cooccurrence": "co-occurrence",
     "manualConnection": "manual connection",
-    "graphEmpty": "No tags yet. Create tags to see the graph.",
+    "graphEmpty": "No notes with tags yet. Add tags to notes to see the graph.",
     "deleteConnection": "Delete connection?",
     "newNoteButton": "+ New Note",
     "openNote": "Open note",
@@ -254,7 +254,11 @@
     "filterGrouped": "Grouped",
     "filterByGroup": "Filter by group",
     "deleteNote": "Delete note",
-    "deleteMemo": "Delete memo"
+    "deleteMemo": "Delete memo",
+    "canvasFilter": "Filter",
+    "tagDots": "Tags",
+    "noteConnection": "Note connection",
+    "sharedTags": "shared tags"
   },
   "schedule": {
     "todayFlow": "Today Flow",

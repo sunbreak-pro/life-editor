@@ -23,13 +23,13 @@ export function useWikiTagGroups() {
   }, [reload]);
 
   const createGroup = useCallback(
-    async (name: string, tagIds: string[]) => {
+    async (name: string, noteIds: string[], filterTags?: string[]) => {
       const ds = getDataService();
-      const group = await ds.createWikiTagGroup(name, tagIds);
+      const group = await ds.createWikiTagGroup(name, noteIds, filterTags);
       setGroups((prev) => [...prev, group]);
       setMembers((prev) => [
         ...prev,
-        ...tagIds.map((tagId) => ({ groupId: group.id, tagId })),
+        ...noteIds.map((noteId) => ({ groupId: group.id, noteId })),
       ]);
 
       push("wikiTag", {
@@ -50,7 +50,7 @@ export function useWikiTagGroups() {
   );
 
   const updateGroup = useCallback(
-    async (id: string, updates: { name: string }) => {
+    async (id: string, updates: { name?: string; filterTags?: string[] }) => {
       const ds = getDataService();
       const prev = groups.find((g) => g.id === id);
       const updated = await ds.updateWikiTagGroup(id, updates);
@@ -62,6 +62,7 @@ export function useWikiTagGroups() {
           undo: async () => {
             const reverted = await ds.updateWikiTagGroup(id, {
               name: prev.name,
+              filterTags: prev.filterTags,
             });
             setGroups((p) => p.map((g) => (g.id === id ? reverted : g)));
           },
@@ -81,8 +82,6 @@ export function useWikiTagGroups() {
     async (id: string) => {
       const ds = getDataService();
       const group = groups.find((g) => g.id === id);
-      const groupMembers = members.filter((m) => m.groupId === id);
-
       await ds.deleteWikiTagGroup(id);
       setGroups((prev) => prev.filter((g) => g.id !== id));
       setMembers((prev) => prev.filter((m) => m.groupId !== id));
@@ -105,14 +104,14 @@ export function useWikiTagGroups() {
   );
 
   const setGroupMembers = useCallback(
-    async (groupId: string, tagIds: string[]) => {
+    async (groupId: string, noteIds: string[]) => {
       const ds = getDataService();
       const prevMembers = members.filter((m) => m.groupId === groupId);
 
-      await ds.setWikiTagGroupMembers(groupId, tagIds);
+      await ds.setWikiTagGroupMembers(groupId, noteIds);
       setMembers((prev) => {
         const filtered = prev.filter((m) => m.groupId !== groupId);
-        return [...filtered, ...tagIds.map((tagId) => ({ groupId, tagId }))];
+        return [...filtered, ...noteIds.map((noteId) => ({ groupId, noteId }))];
       });
 
       push("wikiTag", {
@@ -120,7 +119,7 @@ export function useWikiTagGroups() {
         undo: async () => {
           await ds.setWikiTagGroupMembers(
             groupId,
-            prevMembers.map((m) => m.tagId),
+            prevMembers.map((m) => m.noteId),
           );
           setMembers((prev) => {
             const filtered = prev.filter((m) => m.groupId !== groupId);
@@ -128,12 +127,12 @@ export function useWikiTagGroups() {
           });
         },
         redo: async () => {
-          await ds.setWikiTagGroupMembers(groupId, tagIds);
+          await ds.setWikiTagGroupMembers(groupId, noteIds);
           setMembers((prev) => {
             const filtered = prev.filter((m) => m.groupId !== groupId);
             return [
               ...filtered,
-              ...tagIds.map((tagId) => ({ groupId, tagId })),
+              ...noteIds.map((noteId) => ({ groupId, noteId })),
             ];
           });
         },
@@ -142,18 +141,21 @@ export function useWikiTagGroups() {
     [members, push],
   );
 
-  const addGroupMember = useCallback(async (groupId: string, tagId: string) => {
-    const ds = getDataService();
-    await ds.addWikiTagGroupMember(groupId, tagId);
-    setMembers((prev) => [...prev, { groupId, tagId }]);
-  }, []);
+  const addGroupMember = useCallback(
+    async (groupId: string, noteId: string) => {
+      const ds = getDataService();
+      await ds.addWikiTagGroupMember(groupId, noteId);
+      setMembers((prev) => [...prev, { groupId, noteId }]);
+    },
+    [],
+  );
 
   const removeGroupMember = useCallback(
-    async (groupId: string, tagId: string) => {
+    async (groupId: string, noteId: string) => {
       const ds = getDataService();
-      await ds.removeWikiTagGroupMember(groupId, tagId);
+      await ds.removeWikiTagGroupMember(groupId, noteId);
       setMembers((prev) =>
-        prev.filter((m) => !(m.groupId === groupId && m.tagId === tagId)),
+        prev.filter((m) => !(m.groupId === groupId && m.noteId === noteId)),
       );
     },
     [],

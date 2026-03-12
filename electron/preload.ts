@@ -126,6 +126,11 @@ const ALLOWED_CHANNELS = new Set([
   "db:wikiTagConnections:create",
   "db:wikiTagConnections:delete",
   "db:wikiTagConnections:deleteByTagPair",
+  // Note Connections
+  "db:noteConnections:fetchAll",
+  "db:noteConnections:create",
+  "db:noteConnections:delete",
+  "db:noteConnections:deleteByNotePair",
   // Time Memos
   "db:timeMemos:fetchByDate",
   "db:timeMemos:upsert",

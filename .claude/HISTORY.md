@@ -1,5 +1,25 @@
 # HISTORY.md - 変更履歴
 
+### 2026-03-12 - Ideas UI/UX 大改修: Connect Canvas + Sidebar 統一 + Note-based Group
+
+#### 概要
+
+Connect タブのキャンバスを Tag ノード中心から Note ノード中心に全面改修。Group メンバーシップを Tag ベースから Note ベースに変更し、Sidebar を Materials/Connect で統一。Note 間の手動接続・共起接続を新規実装。
+
+#### 変更点
+
+- **DB マイグレーション V30**: `wiki_tag_group_members` を `tagId` → `noteId` に変更、`filter_tags` カラム追加、`note_connections` テーブル新規作成
+- **リポジトリ層**: `wikiTagGroupRepository` を noteId ベースに変更、`noteConnectionRepository` 新規作成
+- **IPC**: `db:noteConnections:*` 4チャネル追加、wikiTagGroup ハンドラ引数変更
+- **DataService**: NoteConnection CRUD 4メソッド追加、Group メソッド引数変更
+- **フック**: `useWikiTagGroups` を noteId ベースに変更、`useNoteConnections`・`useNoteCooccurrence` 新規作成
+- **共有コンポーネント**: `SearchBar`・`CollapsibleSection`・`TagFilterOverlay` を MaterialsSidebar から抽出・新規作成
+- **Sidebar 統一**: MaterialsSidebar に Groups セクション追加、ConnectSidebar を共通セクション + Tag 管理に再構築
+- **Canvas 全面改修**: TagNode 削除、NoteNode に Tag dots（カラードット + ホバーツールチップ + ハイライト）追加、Note-to-Note エッジ（手動 + 共起）、GroupFrame を Note 包含に変更、カスタム Controls（右上配置）
+- **ConnectTabView**: noteConnections/noteCooccurrences に切替、手動接続時のタグ自動マージ実装
+- **CanvasFilter**: Group/Tag フィルタコンポーネント作成（将来統合用）
+- **i18n**: en/ja に canvasFilter、tagDots、noteConnection、sharedTags 等のキー追加
+
 ### 2026-03-12 - Note カラー機能追加
 
 #### 概要
