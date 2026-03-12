@@ -89,19 +89,29 @@ export function TaskCreatePopover({
     handleKeyDown,
     handleBlur,
     handleFocus,
-  } = useConfirmableSubmit(handleSubmit, onClose);
+  } = useConfirmableSubmit(handleSubmit, onClose, { singleEnter: true });
 
   useEffect(() => {
     confirmInputRef.current?.focus();
   }, [confirmInputRef]);
 
-  const left = Math.min(position.x, window.innerWidth - 400 - 16);
-  const top = Math.min(position.y, window.innerHeight - 680 - 16);
+  const popoverWidth = 400;
+  const popoverHeight = 500;
+  const margin = 16;
+  const left = Math.min(position.x, window.innerWidth - popoverWidth - margin);
+  const spaceBelow = window.innerHeight - position.y - margin;
+  const spaceAbove = position.y - margin;
+  const top =
+    spaceBelow >= popoverHeight
+      ? position.y
+      : spaceAbove >= popoverHeight
+        ? position.y - popoverHeight
+        : margin;
 
   return (
     <div
       ref={ref}
-      className="fixed z-50 bg-notion-bg border border-notion-border rounded-lg shadow-xl p-2 w-fit min-h-85"
+      className="fixed z-50 bg-notion-bg border border-notion-border rounded-lg shadow-xl p-2 w-fit min-h-85 max-h-[calc(100vh-32px)] overflow-y-auto"
       style={{ left, top }}
     >
       <input

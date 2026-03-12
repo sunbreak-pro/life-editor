@@ -603,7 +603,17 @@
     "endLabel": "終了",
     "clearSchedule": "スケジュールをクリア",
     "deleteTaskTitle": "タスクを削除",
-    "deleteTaskMessage": "このタスクを削除しますか？"
+    "deleteTaskMessage": "このタスクを削除しますか？",
+    "contentType": "コンテンツ",
+    "filterAll": "すべて",
+    "filterDaily": "デイリー",
+    "filterNotes": "ノート",
+    "filterTasks": "タスク",
+    "daily": "デイリー",
+    "dailyExists": "この日付のデイリーは既に存在します",
+    "filters": "フィルター",
+    "status": "ステータス",
+    "folder": "フォルダ"
   },
   "search": {
     "placeholder": "タスクを検索...",

@@ -112,6 +112,9 @@ function App() {
               if (task) handlers.handlePlayTask(task);
             }}
             onSelectTask={setSelectedTaskId}
+            onSelectMemo={handlers.handleCalendarSelectMemo}
+            onSelectNote={handlers.handleCalendarSelectNote}
+            onCreateNote={handlers.handleCalendarCreateNote}
           />
         );
       case "ideas":

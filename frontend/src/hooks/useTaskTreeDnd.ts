@@ -6,7 +6,7 @@ import {
   useSensors,
   type DragStartEvent,
   type DragEndEvent,
-  type DragOverEvent,
+  type DragMoveEvent,
 } from "@dnd-kit/core";
 import type { TaskNode } from "../types/taskTree";
 
@@ -36,7 +36,7 @@ interface UseTaskTreeDndParams {
 const FOLDER_ZONE_ABOVE = 0.25;
 const FOLDER_ZONE_BELOW = 0.75;
 
-const getPointerY = (event: DragOverEvent | DragEndEvent): number | null => {
+const getPointerY = (event: DragMoveEvent | DragEndEvent): number | null => {
   if (!(event.activatorEvent instanceof PointerEvent)) return null;
   return event.activatorEvent.clientY + event.delta.y;
 };
@@ -91,8 +91,8 @@ export function useTaskTreeDnd({
     setActiveId(event.active.id as string);
   }, []);
 
-  const handleDragOver = useCallback(
-    (event: DragOverEvent) => {
+  const handleDragMove = useCallback(
+    (event: DragMoveEvent) => {
       const { over } = event;
       if (!over) {
         if (overInfoRef.current !== null) {
@@ -207,7 +207,7 @@ export function useTaskTreeDnd({
     activeNode,
     dragOverStore,
     handleDragStart,
-    handleDragOver,
+    handleDragMove,
     handleDragEnd,
     handleDragCancel,
   };

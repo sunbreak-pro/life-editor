@@ -2,6 +2,7 @@ import { useTranslation } from "react-i18next";
 import { Filter, ChevronDown } from "lucide-react";
 import type { RoutineNode } from "../../../../types/routine";
 import type { ScheduleItem } from "../../../../types/schedule";
+import type { CalendarContentFilter } from "../../../../types/calendarItem";
 import { FolderDropdown } from "../../Folder/FolderDropdown";
 import { MiniRoutineFlow } from "../Routine/MiniRoutineFlow";
 import { useTaskTreeContext } from "../../../../hooks/useTaskTreeContext";
@@ -12,17 +13,28 @@ interface CalendarSidebarContentProps {
   onFilterChange: (filter: "incomplete" | "completed") => void;
   filterFolderId: string | null;
   onFilterFolderChange: (folderId: string | null) => void;
+  contentFilter: CalendarContentFilter;
+  onContentFilterChange: (filter: CalendarContentFilter) => void;
   routines: RoutineNode[];
   scheduleItems: ScheduleItem[];
   tagAssignments: Map<string, number[]>;
   onToggleComplete: (id: string) => void;
 }
 
+const CONTENT_FILTERS: { id: CalendarContentFilter; labelKey: string }[] = [
+  { id: "all", labelKey: "calendar.filterAll" },
+  { id: "daily", labelKey: "calendar.filterDaily" },
+  { id: "notes", labelKey: "calendar.filterNotes" },
+  { id: "tasks", labelKey: "calendar.filterTasks" },
+];
+
 export function CalendarSidebarContent({
   filter,
   onFilterChange,
   filterFolderId,
   onFilterFolderChange,
+  contentFilter,
+  onContentFilterChange,
   routines,
   scheduleItems,
   tagAssignments,
@@ -43,6 +55,28 @@ export function CalendarSidebarContent({
         <span className="text-[10px] text-notion-text-secondary uppercase tracking-wide font-medium px-3 py-1.5">
           {t("calendar.filters", "Filters")}
         </span>
+
+        {/* Content Type filter */}
+        <div className="px-3 mb-2">
+          <div className="text-[10px] text-notion-text-secondary mb-1">
+            {t("calendar.contentType", "Content")}
+          </div>
+          <div className="flex gap-1 flex-wrap">
+            {CONTENT_FILTERS.map((cf) => (
+              <button
+                key={cf.id}
+                onClick={() => onContentFilterChange(cf.id)}
+                className={`px-2 py-1 text-[11px] rounded-md transition-colors ${
+                  contentFilter === cf.id
+                    ? "bg-notion-accent/10 text-notion-accent"
+                    : "text-notion-text-secondary hover:bg-notion-hover"
+                }`}
+              >
+                {t(cf.labelKey)}
+              </button>
+            ))}
+          </div>
+        </div>
 
         {/* Status filter */}
         <div className="px-3 mb-2">

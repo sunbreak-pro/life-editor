@@ -1,5 +1,27 @@
 # HISTORY.md - 変更履歴
 
+### 2026-03-12 - Schedule Calendar UI/UX 改善
+
+#### 概要
+
+カレンダービューに Daily（MemoNode）と Notes（NoteNode）の表示・作成機能を追加。Content Type フィルター（All/Daily/Notes/Tasks）を実装。IME二重入力バグ、Enter送信バグ、ポップオーバーはみ出しバグを修正。
+
+#### 変更点
+
+- **useConfirmableSubmit.ts**: IME変換確定時の二重入力防止（`isComposing`チェック）、`singleEnter`オプション追加
+- **TaskCreatePopover.tsx**: `singleEnter: true`で1回Enter即submit、ポップオーバー位置を動的計算（上下スペース判定）、`max-h` + `overflow-y-auto`追加
+- **calendarItem.ts** (新規): `CalendarItem`, `CalendarContentFilter`, `CALENDAR_ITEM_COLORS`型定義
+- **useCalendar.ts**: `memos`, `notes`, `contentFilter`引数追加、`itemsByDate` Map返却
+- **CalendarItemChip.tsx** (新規): task/daily/note色分け表示チップコンポーネント
+- **DayCell.tsx**: `tasks`→`items: CalendarItem[]`統合、+ボタンを`ListTodo`+`FileText`の2アイコンに分割
+- **MonthlyView.tsx**: `tasksByDate`→`itemsByDate`対応
+- **CalendarSidebarContent.tsx**: Content Typeフィルター（All/Daily/Notes/Tasks）追加
+- **ScheduleSection.tsx**: `calendarContentFilter` state追加、新props伝搬
+- **CalendarView.tsx**: memo/noteコンテキスト統合、MemoPreviewPopup表示、NoteCreatePopover統合
+- **NoteCreatePopover.tsx** (新規): Note/Daily排他ラジオボタン+タイトル入力+作成ポップオーバー
+- **App.tsx**: `onSelectMemo`, `onSelectNote`, `onCreateNote`ハンドラ伝搬
+- **i18n (en/ja)**: `calendar.contentType`, `filterAll/Daily/Notes/Tasks`, `daily`, `dailyExists`, `filters`, `status`, `folder`キー追加
+
 ### 2026-03-11 - TaskTree DnD インジケーター不一致修正
 
 #### 概要

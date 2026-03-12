@@ -1,4 +1,4 @@
-import type { TaskNode } from "../../../../types/taskTree";
+import type { CalendarItem } from "../../../../types/calendarItem";
 import { DayCell } from "./DayCell";
 import { formatDateKey } from "../../../../hooks/useCalendar";
 
@@ -6,21 +6,21 @@ const DAY_NAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
 interface MonthlyViewProps {
   days: { date: Date; isCurrentMonth: boolean }[];
-  tasksByDate: Map<string, TaskNode[]>;
-  onSelectTask: (taskId: string, event: React.MouseEvent) => void;
+  itemsByDate: Map<string, CalendarItem[]>;
+  onSelectItem: (item: CalendarItem, event: React.MouseEvent) => void;
   onCreateTask?: (date: Date, event: React.MouseEvent) => void;
+  onCreateNote?: (date: Date, event: React.MouseEvent) => void;
   getTaskColor?: (taskId: string) => string | undefined;
-  getFolderTag?: (taskId: string) => string;
   getRoutineCompletion?: (date: string) => { completed: number; total: number };
 }
 
 export function MonthlyView({
   days,
-  tasksByDate,
-  onSelectTask,
+  itemsByDate,
+  onSelectItem,
   onCreateTask,
+  onCreateNote,
   getTaskColor,
-  getFolderTag,
   getRoutineCompletion,
 }: MonthlyViewProps) {
   const today = new Date();
@@ -47,11 +47,11 @@ export function MonthlyView({
               date={day.date}
               isCurrentMonth={day.isCurrentMonth}
               isToday={key === todayKey}
-              tasks={tasksByDate.get(key) ?? []}
-              onSelectTask={onSelectTask}
+              items={itemsByDate.get(key) ?? []}
+              onSelectItem={onSelectItem}
               onCreateTask={onCreateTask}
+              onCreateNote={onCreateNote}
               getTaskColor={getTaskColor}
-              getFolderTag={getFolderTag}
               routineCompletion={getRoutineCompletion?.(key)}
             />
           );

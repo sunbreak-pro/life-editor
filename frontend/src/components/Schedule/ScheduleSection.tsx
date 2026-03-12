@@ -11,6 +11,7 @@ import { DayFlowSidebarContent } from "../Tasks/Schedule/DayFlow/DayFlowSidebarC
 import type { CategoryProgress } from "../Tasks/Schedule/DayFlow/DayFlowSidebarContent";
 import { ScheduleSidebarContent } from "./ScheduleSidebarContent";
 import { CalendarSidebarContent } from "../Tasks/Schedule/Calendar/CalendarSidebarContent";
+import type { CalendarContentFilter } from "../../types/calendarItem";
 import { useTaskTreeContext } from "../../hooks/useTaskTreeContext";
 import { useCalendar } from "../../hooks/useCalendar";
 import { useScheduleContext } from "../../hooks/useScheduleContext";
@@ -37,6 +38,9 @@ interface ScheduleSectionProps {
   ) => void;
   onStartTimer?: (taskId: string) => void;
   onSelectTask: (taskId: string) => void;
+  onSelectMemo?: (date: string) => void;
+  onSelectNote?: (noteId: string) => void;
+  onCreateNote?: (title: string) => void;
 }
 
 export function ScheduleSection({
@@ -44,6 +48,9 @@ export function ScheduleSection({
   onCreateTask,
   onStartTimer,
   onSelectTask,
+  onSelectMemo,
+  onSelectNote,
+  onCreateNote,
 }: ScheduleSectionProps) {
   const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState<ScheduleTab>("calendar");
@@ -58,6 +65,8 @@ export function ScheduleSection({
   const [calendarFilterFolderId, setCalendarFilterFolderId] = useState<
     string | null
   >(null);
+  const [calendarContentFilter, setCalendarContentFilter] =
+    useState<CalendarContentFilter>("all");
 
   const { nodes, getTaskColor, getFolderTagForTask } = useTaskTreeContext();
 
@@ -193,6 +202,8 @@ export function ScheduleSection({
                 onFilterChange={setCalendarFilter}
                 filterFolderId={calendarFilterFolderId}
                 onFilterFolderChange={setCalendarFilterFolderId}
+                contentFilter={calendarContentFilter}
+                onContentFilterChange={setCalendarContentFilter}
                 routines={routines}
                 scheduleItems={scheduleItems}
                 tagAssignments={tagAssignments}
@@ -209,8 +220,12 @@ export function ScheduleSection({
             onSelectTask={onSelectTask}
             onCreateTask={onCreateTask}
             onStartTimer={onStartTimer}
+            onSelectMemo={onSelectMemo}
+            onSelectNote={onSelectNote}
+            onCreateNote={onCreateNote}
             filter={calendarFilter}
             filterFolderId={calendarFilterFolderId}
+            contentFilter={calendarContentFilter}
           />
         ) : (
           <OneDaySchedule

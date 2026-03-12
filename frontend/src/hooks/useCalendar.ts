@@ -1,5 +1,12 @@
 import { useMemo } from "react";
 import type { TaskNode } from "../types/taskTree";
+import type { MemoNode } from "../types/memo";
+import type { NoteNode } from "../types/note";
+import type {
+  CalendarItem,
+  CalendarContentFilter,
+} from "../types/calendarItem";
+import { CALENDAR_ITEM_COLORS } from "../types/calendarItem";
 import { formatDateKey } from "../utils/dateKey";
 
 export function useCalendar(
@@ -8,6 +15,9 @@ export function useCalendar(
   month: number,
   filter: "incomplete" | "completed",
   weekStartDate?: Date,
+  memos?: MemoNode[],
+  notes?: NoteNode[],
+  contentFilter?: CalendarContentFilter,
 ) {
   const tasksByDate = useMemo(() => {
     const map = new Map<string, TaskNode[]>();
@@ -42,6 +52,63 @@ export function useCalendar(
     }
     return map;
   }, [nodes, filter]);
+
+  const itemsByDate = useMemo(() => {
+    const map = new Map<string, CalendarItem[]>();
+    const cf = contentFilter ?? "all";
+
+    // Tasks
+    if (cf === "all" || cf === "tasks") {
+      for (const [dateKey, tasks] of tasksByDate) {
+        const items: CalendarItem[] = tasks.map((task) => ({
+          id: task.id,
+          type: "task" as const,
+          title: task.title,
+          color: "",
+          task,
+        }));
+        map.set(dateKey, items);
+      }
+    }
+
+    // Dailies (MemoNode)
+    if ((cf === "all" || cf === "daily") && memos) {
+      for (const memo of memos) {
+        if (memo.isDeleted) continue;
+        const dateKey = memo.date;
+        const item: CalendarItem = {
+          id: memo.id,
+          type: "daily",
+          title: memo.date,
+          color: CALENDAR_ITEM_COLORS.daily,
+          memo,
+        };
+        const existing = map.get(dateKey);
+        if (existing) existing.push(item);
+        else map.set(dateKey, [item]);
+      }
+    }
+
+    // Notes (NoteNode)
+    if ((cf === "all" || cf === "notes") && notes) {
+      for (const note of notes) {
+        if (note.isDeleted) continue;
+        const dateKey = formatDateKey(new Date(note.createdAt));
+        const item: CalendarItem = {
+          id: note.id,
+          type: "note",
+          title: note.title || "Untitled",
+          color: CALENDAR_ITEM_COLORS.note,
+          note,
+        };
+        const existing = map.get(dateKey);
+        if (existing) existing.push(item);
+        else map.set(dateKey, [item]);
+      }
+    }
+
+    return map;
+  }, [tasksByDate, memos, notes, contentFilter]);
 
   const calendarDays = useMemo(() => {
     const firstDay = new Date(year, month, 1);
@@ -94,7 +161,7 @@ export function useCalendar(
     return { date: start, isCurrentMonth: start.getMonth() === month };
   }, [weekStartDate, month]);
 
-  return { tasksByDate, calendarDays, weekDays, singleDay };
+  return { tasksByDate, itemsByDate, calendarDays, weekDays, singleDay };
 }
 
 // Re-export from canonical location for backward compatibility

@@ -603,7 +603,17 @@
     "endLabel": "End",
     "clearSchedule": "Clear schedule",
     "deleteTaskTitle": "Delete Task",
-    "deleteTaskMessage": "Are you sure you want to delete this task?"
+    "deleteTaskMessage": "Are you sure you want to delete this task?",
+    "contentType": "Content",
+    "filterAll": "All",
+    "filterDaily": "Daily",
+    "filterNotes": "Notes",
+    "filterTasks": "Tasks",
+    "daily": "Daily",
+    "dailyExists": "Daily already exists for this date",
+    "filters": "Filters",
+    "status": "Status",
+    "folder": "Folder"
   },
   "search": {
     "placeholder": "Search tasks...",

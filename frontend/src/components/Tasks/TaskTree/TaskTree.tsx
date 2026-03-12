@@ -121,7 +121,7 @@ export function TaskTree({
     activeNode,
     dragOverStore,
     handleDragStart: rawHandleDragStart,
-    handleDragOver,
+    handleDragMove,
     handleDragEnd,
     handleDragCancel,
   } = useTaskTreeDnd({ nodes, moveNode, moveNodeInto, moveToRoot });
@@ -230,7 +230,7 @@ export function TaskTree({
           sensors={sensors}
           collisionDetection={pointerWithin}
           onDragStart={handleDragStart}
-          onDragOver={handleDragOver}
+          onDragMove={handleDragMove}
           onDragEnd={handleDragEnd}
           onDragCancel={handleDragCancel}
         >
