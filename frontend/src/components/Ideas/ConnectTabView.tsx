@@ -40,7 +40,7 @@ export function ConnectTabView({ onNavigateToNote }: ConnectTabViewProps) {
   const { connections, createConnection, deleteConnectionByPair } =
     useWikiTagConnections();
   const cooccurrences = useTagCooccurrence(assignments);
-  const { notes, createNote } = useNoteContext();
+  const { notes, createNote, updateNote } = useNoteContext();
 
   const [query, setQuery] = useState("");
   const [selectedTagId, setSelectedTagId] = useState<string | null>(null);
@@ -77,6 +77,13 @@ export function ConnectTabView({ onNavigateToNote }: ConnectTabViewProps) {
       onNavigateToNote?.(noteId);
     },
     [createNote, setTagsForEntity, onNavigateToNote],
+  );
+
+  const handleUpdateNoteColor = useCallback(
+    (noteId: string, color: string) => {
+      updateNote(noteId, { color });
+    },
+    [updateNote],
   );
 
   const handleUpdateTag = useCallback(
@@ -149,6 +156,7 @@ export function ConnectTabView({ onNavigateToNote }: ConnectTabViewProps) {
                 notes={notes}
                 filterMode={filterMode}
                 onNavigateToNote={onNavigateToNote}
+                onUpdateNoteColor={handleUpdateNoteColor}
               />
             </ReactFlowProvider>
           </div>
@@ -171,6 +179,7 @@ export function ConnectTabView({ onNavigateToNote }: ConnectTabViewProps) {
                 notes={notes}
                 filterMode={filterMode}
                 onNavigateToNote={onNavigateToNote}
+                onUpdateNoteColor={handleUpdateNoteColor}
               />
             </ReactFlowProvider>
           </div>

@@ -1,4 +1,5 @@
-import { useCallback, useMemo, useEffect, useRef } from "react";
+import { useCallback, useMemo, useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import {
   ReactFlow,
   Background,
@@ -14,6 +15,7 @@ import {
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import { useTranslation } from "react-i18next";
+import { ColorPicker } from "../../shared/ColorPicker";
 import { TagNode } from "./TagNode";
 import { GroupFrameNode } from "./GroupFrameNode";
 import { NoteNodeComponent } from "./NoteNodeComponent";
@@ -48,6 +50,7 @@ interface TagGraphViewProps {
   notes: NoteNode[];
   filterMode: "all" | "grouped" | { groupId: string };
   onNavigateToNote?: (noteId: string) => void;
+  onUpdateNoteColor?: (noteId: string, color: string) => void;
 }
 
 function loadPositions(): Record<string, { x: number; y: number }> {
@@ -138,10 +141,17 @@ export function TagGraphView({
   notes,
   filterMode,
   onNavigateToNote,
+  onUpdateNoteColor,
 }: TagGraphViewProps) {
   const { t } = useTranslation();
   const positionsRef = useRef(loadPositions());
   const groupPositionsRef = useRef(loadGroupPositions());
+  const [noteContextMenu, setNoteContextMenu] = useState<{
+    x: number;
+    y: number;
+    noteId: string;
+    color?: string;
+  } | null>(null);
 
   // Determine which tag IDs are visible based on filterMode
   const visibleTagIds = useMemo(() => {
@@ -212,6 +222,7 @@ export function TagGraphView({
           title: note.title || "Untitled",
           contentPreview: extractContentPreview(note.content),
           noteId: note.id,
+          color: note.color,
         },
       };
     });
@@ -441,7 +452,23 @@ export function TagGraphView({
 
   const handlePaneClick = useCallback(() => {
     onSelectTag(null);
+    setNoteContextMenu(null);
   }, [onSelectTag]);
+
+  const handleNodeContextMenu = useCallback(
+    (event: React.MouseEvent, node: Node) => {
+      if (node.type === "noteNode") {
+        event.preventDefault();
+        setNoteContextMenu({
+          x: event.clientX,
+          y: event.clientY,
+          noteId: node.data.noteId as string,
+          color: node.data.color as string | undefined,
+        });
+      }
+    },
+    [],
+  );
 
   const savedViewport = useMemo(() => loadViewport(), []);
 
@@ -463,6 +490,7 @@ export function TagGraphView({
         onConnect={handleConnect}
         onEdgeClick={handleEdgeClick}
         onNodeClick={handleNodeClick}
+        onNodeContextMenu={handleNodeContextMenu}
         onPaneClick={handlePaneClick}
         onMoveEnd={(_event, viewport) => saveViewport(viewport)}
         nodeTypes={nodeTypes}
@@ -480,6 +508,49 @@ export function TagGraphView({
           className="!bg-notion-bg !border-notion-border !shadow-sm [&>button]:!bg-notion-bg [&>button]:!border-notion-border [&>button]:!text-notion-text-secondary [&>button:hover]:!bg-notion-hover"
         />
       </ReactFlow>
+      {noteContextMenu &&
+        createPortal(
+          <div
+            className="fixed inset-0 z-[9999]"
+            onClick={() => setNoteContextMenu(null)}
+            onContextMenu={(e) => {
+              e.preventDefault();
+              setNoteContextMenu(null);
+            }}
+          >
+            <div
+              className="absolute bg-notion-bg border border-notion-border rounded-lg shadow-lg p-2 w-48"
+              style={{ left: noteContextMenu.x, top: noteContextMenu.y }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <button
+                className="w-full text-left px-2 py-1.5 text-xs rounded hover:bg-notion-hover text-notion-text"
+                onClick={() => {
+                  onNavigateToNote?.(noteContextMenu.noteId);
+                  setNoteContextMenu(null);
+                }}
+              >
+                {t("ideas.openNote")}
+              </button>
+              <div className="border-t border-notion-border my-1" />
+              <div className="px-2 py-1">
+                <p className="text-[10px] text-notion-text-secondary mb-1.5">
+                  {t("ideas.noteColor")}
+                </p>
+                <ColorPicker
+                  currentColor={noteContextMenu.color}
+                  onSelect={(color) => {
+                    onUpdateNoteColor?.(noteContextMenu.noteId, color);
+                    setNoteContextMenu(null);
+                  }}
+                  onClose={() => setNoteContextMenu(null)}
+                  inline
+                />
+              </div>
+            </div>
+          </div>,
+          document.body,
+        )}
     </div>
   );
 }

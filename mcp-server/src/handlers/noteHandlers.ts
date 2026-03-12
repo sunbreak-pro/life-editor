@@ -6,6 +6,7 @@ interface NoteRow {
   content: string;
   is_pinned: number;
   is_deleted: number;
+  color: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -16,6 +17,7 @@ function formatNote(row: NoteRow) {
     title: row.title,
     content: row.content,
     isPinned: row.is_pinned === 1,
+    color: row.color ?? undefined,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -70,6 +72,7 @@ export function updateNote(args: {
   id: string;
   title?: string;
   content?: string;
+  color?: string;
 }) {
   const db = getDb();
   const existing = db
@@ -94,6 +97,11 @@ export function updateNote(args: {
     };
     updates.push("content = @content");
     params.content = JSON.stringify(tiptapDoc);
+  }
+
+  if (args.color !== undefined) {
+    updates.push("color = @color");
+    params.color = args.color;
   }
 
   if (updates.length === 0) return formatNote(existing);

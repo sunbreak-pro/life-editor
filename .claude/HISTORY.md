@@ -1,5 +1,26 @@
 # HISTORY.md - 変更履歴
 
+### 2026-03-12 - Note カラー機能追加
+
+#### 概要
+
+Ideas Connect 画面のノートにカラー機能を追加。StickyNoteアイコンの色を変更可能にし、右クリックメニューとエディタ画面の両方から操作できるようにした。ダークモードの背景も不透明化。
+
+#### 変更点
+
+- **DB Migration V29**: `notes`テーブルに`color TEXT`カラム追加
+- **noteRepository.ts**: `NoteRow.color`, `rowToNode`, `update` SQL/型にcolor対応
+- **noteHandlers.ts (IPC)**: `db:notes:update`の型に`color`追加
+- **note.ts**: `NoteNode`に`color?: string`追加
+- **DataService/ElectronDataService**: `updateNote`のPick型に`"color"`追加
+- **useNotes.ts**: `updateNote`型拡張、undo用`prevValues`にcolor追加
+- **NoteNodeComponent.tsx**: 背景不透明化(`dark:bg-yellow-900`)、StickyNoteアイコン色の動的化
+- **TagGraphView.tsx**: noteデータに`color`渡し、右クリックコンテキストメニュー（ColorPicker inline）追加
+- **ConnectTabView.tsx**: `handleUpdateNoteColor`ハンドラ追加
+- **NotesView.tsx**: タイトル左にStickyNoteアイコンボタン+ColorPicker追加
+- **MCP Server (noteHandlers/tools)**: `NoteRow.color`, `formatNote`, `updateNote`にcolor対応、`update_note`スキーマ拡張
+- **i18n**: `ideas.openNote`, `ideas.noteColor`キー追加（en/ja）
+
 ### 2026-03-12 - Schedule Calendar UI/UX 改善
 
 #### 概要

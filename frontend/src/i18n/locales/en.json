@@ -242,6 +242,8 @@
     "graphEmpty": "No tags yet. Create tags to see the graph.",
     "deleteConnection": "Delete connection?",
     "newNoteButton": "+ New Note",
+    "openNote": "Open note",
+    "noteColor": "Note color",
     "relations": "Relations",
     "linkTags": "Link tags",
     "groups": "Groups",

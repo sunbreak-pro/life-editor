@@ -130,7 +130,9 @@ export interface DataService {
   createNote(id: string, title: string): Promise<NoteNode>;
   updateNote(
     id: string,
-    updates: Partial<Pick<NoteNode, "title" | "content" | "isPinned">>,
+    updates: Partial<
+      Pick<NoteNode, "title" | "content" | "isPinned" | "color">
+    >,
   ): Promise<NoteNode>;
   softDeleteNote(id: string): Promise<void>;
   restoreNote(id: string): Promise<void>;

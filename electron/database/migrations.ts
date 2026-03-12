@@ -125,6 +125,11 @@ export function runMigrations(db: Database.Database): void {
     migrateV28(db);
   }
 
+  if (currentVersion < 29) {
+    log.info("[DB] Running migration V29");
+    migrateV29(db);
+  }
+
   const newVersion = db.pragma("user_version", { simple: true }) as number;
   if (newVersion !== currentVersion) {
     log.info(`[DB] Schema migrated: ${currentVersion} → ${newVersion}`);
@@ -1103,5 +1108,12 @@ function migrateV28(db: Database.Database): void {
     CREATE INDEX IF NOT EXISTS idx_time_memos_date ON time_memos(date);
 
     PRAGMA user_version = 28;
+  `);
+}
+
+function migrateV29(db: Database.Database): void {
+  db.exec(`
+    ALTER TABLE notes ADD COLUMN color TEXT;
+    PRAGMA user_version = 29;
   `);
 }

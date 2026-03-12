@@ -196,6 +196,10 @@ export const TOOLS: Tool[] = [
           description:
             "New content (plain text, will be converted to TipTap JSON)",
         },
+        color: {
+          type: "string",
+          description: "Note icon color (hex, e.g. #E8D5F5)",
+        },
       },
       required: ["id"],
     },

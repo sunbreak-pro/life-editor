@@ -233,7 +233,9 @@ export class ElectronDataService implements DataService {
   }
   updateNote(
     id: string,
-    updates: Partial<Pick<NoteNode, "title" | "content" | "isPinned">>,
+    updates: Partial<
+      Pick<NoteNode, "title" | "content" | "isPinned" | "color">
+    >,
   ): Promise<NoteNode> {
     return invoke("db:notes:update", id, updates);
   }

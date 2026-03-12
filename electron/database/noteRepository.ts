@@ -1,5 +1,5 @@
-import type Database from 'better-sqlite3';
-import type { NoteNode } from '../types';
+import type Database from "better-sqlite3";
+import type { NoteNode } from "../types";
 
 interface NoteRow {
   id: string;
@@ -8,6 +8,7 @@ interface NoteRow {
   is_pinned: number;
   is_deleted: number;
   deleted_at: string | null;
+  color: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -20,6 +21,7 @@ function rowToNode(row: NoteRow): NoteNode {
     isPinned: row.is_pinned === 1,
     isDeleted: row.is_deleted === 1,
     deletedAt: row.deleted_at ?? undefined,
+    color: row.color ?? undefined,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -27,19 +29,27 @@ function rowToNode(row: NoteRow): NoteNode {
 
 export function createNoteRepository(db: Database.Database) {
   const stmts = {
-    fetchAll: db.prepare(`SELECT * FROM notes WHERE is_deleted = 0 ORDER BY updated_at DESC`),
-    fetchDeleted: db.prepare(`SELECT * FROM notes WHERE is_deleted = 1 ORDER BY deleted_at DESC`),
+    fetchAll: db.prepare(
+      `SELECT * FROM notes WHERE is_deleted = 0 ORDER BY updated_at DESC`,
+    ),
+    fetchDeleted: db.prepare(
+      `SELECT * FROM notes WHERE is_deleted = 1 ORDER BY deleted_at DESC`,
+    ),
     fetchById: db.prepare(`SELECT * FROM notes WHERE id = ?`),
     insert: db.prepare(`
       INSERT INTO notes (id, title, content, is_pinned, is_deleted, created_at, updated_at)
       VALUES (@id, @title, '', 0, 0, datetime('now'), datetime('now'))
     `),
     update: db.prepare(`
-      UPDATE notes SET title = @title, content = @content, is_pinned = @isPinned, updated_at = datetime('now')
+      UPDATE notes SET title = @title, content = @content, is_pinned = @isPinned, color = @color, updated_at = datetime('now')
       WHERE id = @id
     `),
-    softDelete: db.prepare(`UPDATE notes SET is_deleted = 1, deleted_at = datetime('now') WHERE id = ?`),
-    restore: db.prepare(`UPDATE notes SET is_deleted = 0, deleted_at = NULL WHERE id = ?`),
+    softDelete: db.prepare(
+      `UPDATE notes SET is_deleted = 1, deleted_at = datetime('now') WHERE id = ?`,
+    ),
+    restore: db.prepare(
+      `UPDATE notes SET is_deleted = 0, deleted_at = NULL WHERE id = ?`,
+    ),
     permanentDelete: db.prepare(`DELETE FROM notes WHERE id = ?`),
     search: db.prepare(`
       SELECT * FROM notes WHERE is_deleted = 0
@@ -63,7 +73,12 @@ export function createNoteRepository(db: Database.Database) {
       return rowToNode(row);
     },
 
-    update(id: string, updates: Partial<Pick<NoteNode, 'title' | 'content' | 'isPinned'>>): NoteNode {
+    update(
+      id: string,
+      updates: Partial<
+        Pick<NoteNode, "title" | "content" | "isPinned" | "color">
+      >,
+    ): NoteNode {
       const existing = stmts.fetchById.get(id) as NoteRow | undefined;
       if (!existing) throw new Error(`Note not found: ${id}`);
       const current = rowToNode(existing);
@@ -72,6 +87,10 @@ export function createNoteRepository(db: Database.Database) {
         title: updates.title ?? current.title,
         content: updates.content ?? current.content,
         isPinned: (updates.isPinned ?? current.isPinned) ? 1 : 0,
+        color:
+          updates.color !== undefined
+            ? updates.color
+            : (existing.color ?? null),
       });
       const row = stmts.fetchById.get(id) as NoteRow;
       return rowToNode(row);
@@ -90,9 +109,10 @@ export function createNoteRepository(db: Database.Database) {
     },
 
     search(query: string): NoteNode[] {
-      return (stmts.search.all({ query: `%${query}%` }) as NoteRow[]).map(rowToNode);
+      return (stmts.search.all({ query: `%${query}%` }) as NoteRow[]).map(
+        rowToNode,
+      );
     },
-
   };
 }
 

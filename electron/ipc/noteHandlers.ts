@@ -28,7 +28,12 @@ export function registerNoteHandlers(repo: NoteRepository): void {
       (
         _event,
         id: string,
-        updates: { title?: string; content?: string; isPinned?: boolean },
+        updates: {
+          title?: string;
+          content?: string;
+          isPinned?: boolean;
+          color?: string;
+        },
       ) => repo.update(id, updates),
     ),
   );

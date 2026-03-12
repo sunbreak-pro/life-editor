@@ -1,14 +1,17 @@
-import { Suspense, useCallback } from "react";
+import { Suspense, useCallback, useState } from "react";
 import { Heart, StickyNote } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useNoteContext } from "../../hooks/useNoteContext";
 import { formatDateTime } from "../../utils/formatRelativeDate";
 import { LazyMemoEditor as MemoEditor } from "../Tasks/TaskDetail/LazyMemoEditor";
 import { WikiTagList } from "../WikiTags/WikiTagList";
+import { ColorPicker } from "../shared/ColorPicker";
 
 export function NotesView() {
   const { t } = useTranslation();
   const { selectedNote, updateNote, togglePin } = useNoteContext();
+
+  const [showColorPicker, setShowColorPicker] = useState(false);
 
   const handleTitleChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -34,6 +37,36 @@ export function NotesView() {
         <div className="max-w-3xl mx-auto px-8 py-6">
           {/* Title + Pin */}
           <div className="flex items-center gap-2 mb-4">
+            <div className="relative">
+              <button
+                onClick={() => setShowColorPicker(!showColorPicker)}
+                className="p-1 rounded hover:bg-notion-hover"
+              >
+                <StickyNote
+                  size={16}
+                  style={
+                    selectedNote.color
+                      ? { color: selectedNote.color }
+                      : undefined
+                  }
+                  className={
+                    selectedNote.color
+                      ? ""
+                      : "text-yellow-600 dark:text-yellow-400"
+                  }
+                />
+              </button>
+              {showColorPicker && (
+                <ColorPicker
+                  currentColor={selectedNote.color}
+                  onSelect={(color) => {
+                    updateNote(selectedNote.id, { color });
+                    setShowColorPicker(false);
+                  }}
+                  onClose={() => setShowColorPicker(false)}
+                />
+              )}
+            </div>
             <input
               type="text"
               value={selectedNote.title}
