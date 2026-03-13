@@ -1,14 +1,13 @@
 import { useState, useEffect, useMemo, useRef } from "react";
 import { useTranslation } from "react-i18next";
-import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import type { TaskNode } from "../../../../types/taskTree";
 import { useScheduleContext } from "../../../../hooks/useScheduleContext";
 import { useTimeMemos } from "../../../../hooks/useTimeMemos";
 import { formatDateKey, formatDayFlowDate } from "../../../../utils/dateKey";
 import { ScheduleTimeGrid } from "./ScheduleTimeGrid";
 import { TimeGridMemoColumn } from "./TimeGridMemoColumn";
-import { ScheduleItemCreatePopover } from "./ScheduleItemCreatePopover";
-import { DayFlowTaskPicker } from "./DayFlowTaskPicker";
+import { TimeGridClickPanel } from "./TimeGridClickPanel";
 import { SectionTabs } from "../../../shared/SectionTabs";
 import type { TabItem } from "../../../shared/SectionTabs";
 import { getTextColorForBg } from "../../../../constants/folderColors";
@@ -68,7 +67,6 @@ export function OneDaySchedule({
   const [selectedFilterTagId, setSelectedFilterTagId] = useState<number | null>(
     null,
   );
-  const [showTaskPicker, setShowTaskPicker] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const routineTagMap = useMemo(() => {
@@ -208,22 +206,6 @@ export function OneDaySchedule({
             {t("calendarHeader.today", "Today")}
           </button>
         )}
-        <div className="ml-auto relative">
-          <button
-            onClick={() => setShowTaskPicker(!showTaskPicker)}
-            className="p-1 text-notion-text-secondary hover:text-notion-text hover:bg-notion-hover rounded transition-colors"
-            title={t("dayFlow.addTask")}
-          >
-            <Plus size={16} />
-          </button>
-          {showTaskPicker && (
-            <DayFlowTaskPicker
-              date={date}
-              onClose={() => setShowTaskPicker(false)}
-              existingTaskIds={existingTaskIds}
-            />
-          )}
-        </div>
       </div>
 
       {/* Filter tabs */}
@@ -307,13 +289,15 @@ export function OneDaySchedule({
           </div>
         </div>
 
-        {/* Create popover */}
+        {/* Create panel */}
         {createPopover && (
-          <ScheduleItemCreatePopover
+          <TimeGridClickPanel
             position={createPopover.position}
             defaultStartTime={createPopover.startTime}
             defaultEndTime={createPopover.endTime}
-            onSubmit={(title, startTime, endTime) => {
+            date={date}
+            existingTaskIds={existingTaskIds}
+            onCreateScheduleItem={(title, startTime, endTime) => {
               createScheduleItem(dateKey, title, startTime, endTime);
             }}
             onClose={() => setCreatePopover(null)}

@@ -14,6 +14,7 @@ interface DayCellProps {
   onCreateNote?: (date: Date, event: React.MouseEvent) => void;
   getTaskColor?: (taskId: string) => string | undefined;
   routineCompletion?: { completed: number; total: number };
+  onDateSelect?: (date: Date) => void;
 }
 
 const MAX_VISIBLE_ITEMS = 2;
@@ -28,6 +29,7 @@ export function DayCell({
   onCreateNote,
   getTaskColor,
   routineCompletion,
+  onDateSelect,
 }: DayCellProps) {
   const visibleItems = items.slice(0, MAX_VISIBLE_ITEMS);
   const hiddenItems = items.slice(MAX_VISIBLE_ITEMS);
@@ -51,7 +53,12 @@ export function DayCell({
       className={`group min-h-30 border border-notion-border p-1.5 ${cellBg}`}
     >
       <div className="flex items-center justify-between mb-1">
-        <div className={`text-xs ${dateColor}`}>{date.getDate()}</div>
+        <button
+          onClick={() => onDateSelect?.(date)}
+          className={`text-xs ${dateColor} hover:opacity-80 transition-opacity`}
+        >
+          {date.getDate()}
+        </button>
         <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
           {onCreateTask && (
             <button

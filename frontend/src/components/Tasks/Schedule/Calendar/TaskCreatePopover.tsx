@@ -95,8 +95,8 @@ export function TaskCreatePopover({
     confirmInputRef.current?.focus();
   }, [confirmInputRef]);
 
-  const popoverWidth = 400;
-  const popoverHeight = 500;
+  const popoverWidth = 600;
+  const popoverHeight = 400;
   const margin = 16;
   const left = Math.min(position.x, window.innerWidth - popoverWidth - margin);
   const spaceBelow = window.innerHeight - position.y - margin;
@@ -111,50 +111,55 @@ export function TaskCreatePopover({
   return (
     <div
       ref={ref}
-      className="fixed z-50 bg-notion-bg border border-notion-border rounded-lg shadow-xl p-2 w-fit min-h-85 max-h-[calc(100vh-32px)] overflow-y-auto"
-      style={{ left, top }}
+      className="fixed z-50 bg-notion-bg border border-notion-border rounded-lg shadow-xl p-2 max-h-[calc(100vh-32px)] overflow-y-auto"
+      style={{ left, top, width: popoverWidth }}
     >
-      <input
-        ref={confirmInputRef}
-        type="text"
-        value={title}
-        onChange={(e) => setTitle(e.target.value)}
-        onKeyDown={handleKeyDown}
-        onBlur={handleBlur}
-        onFocus={handleFocus}
-        placeholder={t("calendar.taskNamePlaceholder")}
-        className="w-full px-2 py-1.5 text-sm bg-transparent border border-notion-border rounded-md outline-none focus:border-notion-accent text-notion-text placeholder:text-notion-text-secondary"
-      />
+      <div className="flex gap-3">
+        {/* Left column: Title + Folder */}
+        <div className="flex-1 min-w-0 flex flex-col">
+          <input
+            ref={confirmInputRef}
+            type="text"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            onKeyDown={handleKeyDown}
+            onBlur={handleBlur}
+            onFocus={handleFocus}
+            placeholder={t("calendar.taskNamePlaceholder")}
+            className="w-full px-2 py-1.5 text-sm bg-transparent border border-notion-border rounded-md outline-none focus:border-notion-accent text-notion-text placeholder:text-notion-text-secondary"
+          />
 
-      {/* Schedule settings (task mode only) */}
+          {/* Folder selector */}
+          {flatFolders.length > 0 && (
+            <div className="mt-2 flex-1 min-h-0">
+              <label className="text-[10px] text-notion-text-secondary uppercase tracking-wide mb-1 block">
+                {t("calendar.selectFolder")}
+              </label>
+              <FolderList
+                folders={flatFolders}
+                selectedId={selectedFolderId}
+                onSelect={setSelectedFolderId}
+                rootLabel="Root"
+                bordered
+                maxHeightClass="max-h-48"
+              />
+            </div>
+          )}
+        </div>
 
-      <div className="mt-2">
-        <MiniCalendarGrid
-          startValue={startValue}
-          endValue={endValue}
-          isAllDay={isAllDay}
-          onStartChange={setStartValue}
-          onEndChange={setEndValue}
-          onAllDayChange={setIsAllDay}
-          initialDate={date}
-        />
-      </div>
-
-      {/* Folder selector (task mode only) */}
-      {flatFolders.length > 0 && (
-        <div className="mt-2">
-          <label className="text-[10px] text-notion-text-secondary uppercase tracking-wide mb-1 block">
-            {t("calendar.selectFolder")}
-          </label>
-          <FolderList
-            folders={flatFolders}
-            selectedId={selectedFolderId}
-            onSelect={setSelectedFolderId}
-            rootLabel="Root"
-            bordered
+        {/* Right column: MiniCalendarGrid */}
+        <div className="w-[280px] shrink-0">
+          <MiniCalendarGrid
+            startValue={startValue}
+            endValue={endValue}
+            isAllDay={isAllDay}
+            onStartChange={setStartValue}
+            onEndChange={setEndValue}
+            onAllDayChange={setIsAllDay}
+            initialDate={date}
           />
         </div>
-      )}
+      </div>
     </div>
   );
 }

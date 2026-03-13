@@ -3,14 +3,19 @@ import { Filter, ChevronDown } from "lucide-react";
 import type { RoutineNode } from "../../../../types/routine";
 import type { ScheduleItem } from "../../../../types/schedule";
 import type { CalendarContentFilter } from "../../../../types/calendarItem";
+import type { DayFlowFilterTab } from "../DayFlow/OneDaySchedule";
+import type { CategoryProgress } from "../DayFlow/DayFlowSidebarContent";
 import { FolderDropdown } from "../../Folder/FolderDropdown";
 import { MiniRoutineFlow } from "../Routine/MiniRoutineFlow";
+import { ProgressSection } from "../shared/ProgressSection";
 import { useTaskTreeContext } from "../../../../hooks/useTaskTreeContext";
 import { useMemo } from "react";
 
 interface CalendarSidebarContentProps {
-  filter: "incomplete" | "completed";
-  onFilterChange: (filter: "incomplete" | "completed") => void;
+  progressDate: Date;
+  categoryProgress: Record<DayFlowFilterTab, CategoryProgress>;
+  activeProgressFilter: DayFlowFilterTab;
+  onProgressFilterChange: (tab: DayFlowFilterTab) => void;
   filterFolderId: string | null;
   onFilterFolderChange: (folderId: string | null) => void;
   contentFilter: CalendarContentFilter;
@@ -29,8 +34,10 @@ const CONTENT_FILTERS: { id: CalendarContentFilter; labelKey: string }[] = [
 ];
 
 export function CalendarSidebarContent({
-  filter,
-  onFilterChange,
+  progressDate,
+  categoryProgress,
+  activeProgressFilter,
+  onProgressFilterChange,
   filterFolderId,
   onFilterFolderChange,
   contentFilter,
@@ -50,6 +57,14 @@ export function CalendarSidebarContent({
 
   return (
     <div className="flex flex-col gap-3">
+      {/* Progress Section */}
+      <ProgressSection
+        date={progressDate}
+        categoryProgress={categoryProgress}
+        activeFilter={activeProgressFilter}
+        onFilterChange={onProgressFilterChange}
+      />
+
       {/* Filter section */}
       <div className="flex flex-col">
         <span className="text-[10px] text-notion-text-secondary uppercase tracking-wide font-medium px-3 py-1.5">
@@ -75,35 +90,6 @@ export function CalendarSidebarContent({
                 {t(cf.labelKey)}
               </button>
             ))}
-          </div>
-        </div>
-
-        {/* Status filter */}
-        <div className="px-3 mb-2">
-          <div className="text-[10px] text-notion-text-secondary mb-1">
-            {t("calendar.status", "Status")}
-          </div>
-          <div className="flex gap-1">
-            <button
-              onClick={() => onFilterChange("incomplete")}
-              className={`flex-1 px-2 py-1 text-[11px] rounded-md transition-colors ${
-                filter === "incomplete"
-                  ? "bg-notion-accent/10 text-notion-accent"
-                  : "text-notion-text-secondary hover:bg-notion-hover"
-              }`}
-            >
-              {t("calendar.incomplete")}
-            </button>
-            <button
-              onClick={() => onFilterChange("completed")}
-              className={`flex-1 px-2 py-1 text-[11px] rounded-md transition-colors ${
-                filter === "completed"
-                  ? "bg-notion-accent/10 text-notion-accent"
-                  : "text-notion-text-secondary hover:bg-notion-hover"
-              }`}
-            >
-              {t("calendar.completed")}
-            </button>
           </div>
         </div>
 

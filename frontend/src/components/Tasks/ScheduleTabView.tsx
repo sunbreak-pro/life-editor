@@ -8,6 +8,7 @@ import type { DayFlowFilterTab } from "./Schedule/DayFlow/OneDaySchedule";
 import { DayFlowSidebarContent } from "./Schedule/DayFlow/DayFlowSidebarContent";
 import type { CategoryProgress } from "./Schedule/DayFlow/DayFlowSidebarContent";
 import { CalendarSidebarContent } from "./Schedule/Calendar/CalendarSidebarContent";
+import type { CalendarContentFilter } from "../../types/calendarItem";
 import { ScheduleSidebarContent } from "../Schedule/ScheduleSidebarContent";
 import { useTaskTreeContext } from "../../hooks/useTaskTreeContext";
 import { useCalendar } from "../../hooks/useCalendar";
@@ -49,12 +50,17 @@ export function ScheduleTabView({
     useState<DayFlowFilterTab>("all");
 
   // Calendar filter state
-  const [calendarFilter, setCalendarFilter] = useState<
-    "incomplete" | "completed"
-  >("incomplete");
+  const [calendarFilter] = useState<"incomplete" | "completed">("incomplete");
   const [calendarFilterFolderId, setCalendarFilterFolderId] = useState<
     string | null
   >(null);
+  const [calendarContentFilter, setCalendarContentFilter] =
+    useState<CalendarContentFilter>("all");
+  const [calendarProgressDate, setCalendarProgressDate] = useState<Date>(
+    () => new Date(),
+  );
+  const [calendarProgressFilter, setCalendarProgressFilter] =
+    useState<DayFlowFilterTab>("all");
 
   const { nodes, getTaskColor, getFolderTagForTask } = useTaskTreeContext();
 
@@ -100,19 +106,11 @@ export function ScheduleTabView({
 
   const {
     routines,
-    createRoutine,
-    updateRoutine,
-    deleteRoutine,
     tagAssignments,
-    setTagsForRoutine,
-    getRoutineCompletionRate,
     routineStats,
     scheduleItems,
-    routineTags,
-    createRoutineTag,
-    updateRoutineTag,
-    deleteRoutineTag,
     toggleComplete,
+    loadItemsForDate,
   } = useScheduleContext();
 
   const { portalTarget: rightSidebarTarget, requestOpen } =
@@ -149,6 +147,54 @@ export function ScheduleTabView({
     };
   }, [scheduleItems, tasksByDate, allTasksByDate, dateKey]);
 
+  // Calendar progress
+  const calendarProgressDateKey = formatDateKey(calendarProgressDate);
+  const { tasksByDate: calendarTasksByDate } = useCalendar(
+    nodes,
+    calendarProgressDate.getFullYear(),
+    calendarProgressDate.getMonth(),
+    "incomplete",
+    calendarProgressDate,
+  );
+
+  useEffect(() => {
+    loadItemsForDate(calendarProgressDateKey);
+  }, [calendarProgressDateKey, loadItemsForDate]);
+
+  const calendarCategoryProgress = useMemo((): Record<
+    DayFlowFilterTab,
+    CategoryProgress
+  > => {
+    const routineItems = scheduleItems.filter((i) => i.routineId !== null);
+    const otherItems = scheduleItems.filter((i) => i.routineId === null);
+    const dayTasks = calendarTasksByDate.get(calendarProgressDateKey) ?? [];
+    const allDayTasks = allTasksByDate.get(calendarProgressDateKey) ?? [];
+    const taskItems = [...dayTasks, ...allDayTasks];
+    const completedTasks = taskItems.filter((t) => t.status === "DONE").length;
+
+    const routineCompleted = routineItems.filter((i) => i.completed).length;
+    const otherCompleted = otherItems.filter((i) => i.completed).length;
+
+    const allTotal = routineItems.length + otherItems.length + taskItems.length;
+    const allCompleted = routineCompleted + otherCompleted + completedTasks;
+
+    return {
+      all: { completed: allCompleted, total: allTotal },
+      tasks: { completed: completedTasks, total: taskItems.length },
+      routine: { completed: routineCompleted, total: routineItems.length },
+      others: { completed: otherCompleted, total: otherItems.length },
+    };
+  }, [
+    scheduleItems,
+    calendarTasksByDate,
+    allTasksByDate,
+    calendarProgressDateKey,
+  ]);
+
+  const handleCalendarDateSelect = useCallback((date: Date) => {
+    setCalendarProgressDate(date);
+  }, []);
+
   return (
     <div className="h-full flex flex-col">
       {rightSidebarTarget &&
@@ -161,30 +207,26 @@ export function ScheduleTabView({
             />
             {subTab === "dayflow" && (
               <DayFlowSidebarContent
+                date={dayFlowDate}
                 activeFilter={dayFlowFilterTab}
                 onFilterChange={setDayFlowFilterTab}
                 categoryProgress={categoryProgress}
                 routines={routines}
-                routineTags={routineTags}
                 tagAssignments={tagAssignments}
-                onCreateRoutine={createRoutine}
-                onUpdateRoutine={updateRoutine}
-                onDeleteRoutine={deleteRoutine}
-                setTagsForRoutine={setTagsForRoutine}
-                getCompletionRate={getRoutineCompletionRate}
-                onCreateRoutineTag={createRoutineTag}
-                onUpdateRoutineTag={updateRoutineTag}
-                onDeleteRoutineTag={deleteRoutineTag}
                 scheduleItems={scheduleItems}
                 onToggleComplete={toggleComplete}
               />
             )}
             {subTab === "calendar" && (
               <CalendarSidebarContent
-                filter={calendarFilter}
-                onFilterChange={setCalendarFilter}
+                progressDate={calendarProgressDate}
+                categoryProgress={calendarCategoryProgress}
+                activeProgressFilter={calendarProgressFilter}
+                onProgressFilterChange={setCalendarProgressFilter}
                 filterFolderId={calendarFilterFolderId}
                 onFilterFolderChange={setCalendarFilterFolderId}
+                contentFilter={calendarContentFilter}
+                onContentFilterChange={setCalendarContentFilter}
                 routines={routines}
                 scheduleItems={scheduleItems}
                 tagAssignments={tagAssignments}
@@ -202,6 +244,8 @@ export function ScheduleTabView({
             onStartTimer={onStartTimer}
             filter={calendarFilter}
             filterFolderId={calendarFilterFolderId}
+            contentFilter={calendarContentFilter}
+            onDateSelect={handleCalendarDateSelect}
           />
         ) : (
           <OneDaySchedule

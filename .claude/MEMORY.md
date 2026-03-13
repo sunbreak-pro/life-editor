@@ -6,9 +6,9 @@
 
 ## 直近の完了
 
+- Ideas セクション UI/UX 改善: Materials/Connect サイドバー一貫性・タグ管理・クロスナビゲーション ✅（2026-03-13）
+- Schedule UI/UX 改善: サイドバー統一、RoutineManagementOverlay、TimeGridClickPanel、TaskCreatePopover 2カラム化 ✅（2026-03-13）
 - CLAUDE.md vs コードベース差分修正 ✅（2026-03-13）
-- Ideas UI/UX 大改修: Connect Canvas + Sidebar 統一 + Note-based Group ✅（2026-03-12）
-- Note カラー機能追加 ✅（2026-03-12）
 
 ## 予定
 

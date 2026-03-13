@@ -37,6 +37,7 @@ interface CalendarViewProps {
   filter: "incomplete" | "completed";
   filterFolderId: string | null;
   contentFilter?: CalendarContentFilter;
+  onDateSelect?: (date: Date) => void;
 }
 
 function getInitialWeekStart(): Date {
@@ -56,6 +57,7 @@ export function CalendarView({
   filter,
   filterFolderId,
   contentFilter,
+  onDateSelect,
 }: CalendarViewProps) {
   const { nodes, getTaskColor, getFolderTagForTask, softDelete, updateNode } =
     useTaskTreeContext();
@@ -305,6 +307,7 @@ export function CalendarView({
             onCreateNote={handleRequestCreateNote}
             getTaskColor={getTaskColor}
             getRoutineCompletion={getRoutineCompletionByDate}
+            onDateSelect={onDateSelect}
           />
         ) : (
           <WeeklyTimeGrid

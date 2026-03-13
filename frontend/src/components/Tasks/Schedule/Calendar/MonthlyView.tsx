@@ -12,6 +12,7 @@ interface MonthlyViewProps {
   onCreateNote?: (date: Date, event: React.MouseEvent) => void;
   getTaskColor?: (taskId: string) => string | undefined;
   getRoutineCompletion?: (date: string) => { completed: number; total: number };
+  onDateSelect?: (date: Date) => void;
 }
 
 export function MonthlyView({
@@ -22,6 +23,7 @@ export function MonthlyView({
   onCreateNote,
   getTaskColor,
   getRoutineCompletion,
+  onDateSelect,
 }: MonthlyViewProps) {
   const today = new Date();
   const todayKey = formatDateKey(today);
@@ -53,6 +55,7 @@ export function MonthlyView({
               onCreateNote={onCreateNote}
               getTaskColor={getTaskColor}
               routineCompletion={getRoutineCompletion?.(key)}
+              onDateSelect={onDateSelect}
             />
           );
         })}

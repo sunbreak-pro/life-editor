@@ -5,6 +5,7 @@ import {
   Filter,
   Maximize2,
   Minimize2,
+  Settings,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useClickOutside } from "../../../../hooks/useClickOutside";
@@ -22,6 +23,7 @@ interface RoutineFlowProps {
   isFullscreen: boolean;
   onToggleFullscreen: () => void;
   onToggleComplete: (id: string) => void;
+  onOpenManagement?: () => void;
 }
 
 interface FlowStep {
@@ -43,6 +45,7 @@ export function RoutineFlow({
   isFullscreen,
   onToggleFullscreen,
   onToggleComplete,
+  onOpenManagement,
 }: RoutineFlowProps) {
   const { t } = useTranslation();
   const [showFilterDropdown, setShowFilterDropdown] = useState(false);
@@ -288,7 +291,16 @@ export function RoutineFlow({
           </div>
         )}
 
-        <div className="ml-auto">
+        <div className="ml-auto flex items-center gap-0.5">
+          {onOpenManagement && (
+            <button
+              onClick={onOpenManagement}
+              className="p-1 text-notion-text-secondary hover:text-notion-text rounded transition-colors"
+              title={t("dayFlow.routineManagement", "Routine Management")}
+            >
+              <Settings size={14} />
+            </button>
+          )}
           <button
             onClick={onToggleFullscreen}
             className="p-1 text-notion-text-secondary hover:text-notion-text rounded transition-colors"

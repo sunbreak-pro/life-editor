@@ -1,5 +1,21 @@
 # HISTORY.md - 変更履歴
 
+### 2026-03-13 - Schedule UI/UX 改善
+
+#### 概要
+
+Schedule セクション（Calendar / Dayflow）の UI/UX を改善。サイドバーの共通化、RoutineManagement のオーバーレイ化、Timegrid クリックパネル導入、TaskCreatePopover の2カラム化を実施。
+
+#### 変更点
+
+- **ProgressSection 共通化**: `shared/ProgressSection.tsx` 新規作成。DayFlow/Calendar 両サイドバーで日付付き Progress 表示を共有
+- **Calendar サイドバー改修**: Status Filter（incomplete/completed）削除、ProgressSection 追加、日付クリックで Progress 日付連動
+- **RoutineManagementOverlay**: `RoutineManagementOverlay.tsx` 新規作成（2カラム: ルーティン管理 + タグ管理）。DayFlowSidebarContent から Routine 管理セクション全削除、RoutineFlow に Settings アイコン追加、RoutinesTab でオーバーレイ統合
+- **TimeGridClickPanel**: `TimeGridClickPanel.tsx` 新規作成（Tasks/Schedule Item タブ切替）。OneDaySchedule の Plus ボタン + DayFlowTaskPicker を削除し、Timegrid クリックで統合パネル表示
+- **TaskCreatePopover 2カラム化**: 400px→600px、左カラム（タイトル+フォルダ）右カラム（MiniCalendarGrid）
+- **DayCell onDateSelect**: CalendarView→MonthlyView→DayCell に `onDateSelect` prop 伝搬、日付番号クリックで Calendar Progress 日付を更新
+- **ScheduleTabView 同期**: ScheduleSection と同様の prop 調整を ScheduleTabView にも適用
+
 ### 2026-03-13 - CLAUDE.md vs コードベース差分修正
 
 #### 概要
