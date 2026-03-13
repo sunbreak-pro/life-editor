@@ -1,5 +1,18 @@
 # HISTORY.md - 変更履歴
 
+### 2026-03-13 - CLAUDE.md vs コードベース差分修正
+
+#### 概要
+
+CLAUDE.md に記載された内容と実際のコードベースの差分を調査し、不一致6件のうち4件を修正。ドキュメントの正確性を向上。
+
+#### 変更点
+
+- **リッチテキスト**: TipTap の `React.lazy で遅延ロード` 記述を削除（実態: 直接 import）
+- **ID形式**: `"task-xxx"` / `"folder-xxx"` → TaskNode は `<type>-<timestamp+counter>` 形式、他エンティティは `<prefix>-<uuid>` 形式に修正
+- **ソフトデリート**: CustomSounds をソフトデリート対象から除外、カラム名を `is_deleted` + `deleted_at` に修正
+- **ドキュメント体系**: 存在しない `CHANGELOG.md` 行とプラン完了手順の CHANGELOG 追記ステップを削除
+
 ### 2026-03-12 - Ideas UI/UX 大改修: Connect Canvas + Sidebar 統一 + Note-based Group
 
 #### 概要

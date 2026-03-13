@@ -50,11 +50,11 @@ Main Process 内の `TerminalManager` が PTY セッションを管理。Rendere
 
 - **ルーティング**: React Router なし。`App.tsx` の `activeSection` で画面切替
 - **TaskNode**: フラット配列 + `parentId` で階層表現。`type: 'folder' | 'task'`。フォルダは最大5階層
-- **ソフトデリート**: `isDeleted` フラグ → TrashView から復元可能（Tasks/Notes/Memos/Routines/CustomSounds）
+- **ソフトデリート**: `is_deleted` + `deleted_at` カラム → TrashView から復元可能（Tasks/Notes/Memos/Routines）。CustomSounds はソフトデリート非対応
 - **DnD**: `@dnd-kit` 使用。`moveNode`（並び替え）と `moveNodeInto`（階層移動）は別操作
-- **リッチテキスト**: TipTap (`@tiptap/react`)。`React.lazy` で遅延ロード
+- **リッチテキスト**: TipTap (`@tiptap/react`)
 - **i18n**: `react-i18next`。対応: en/ja。ロケール: `frontend/src/i18n/locales/`
-- **ID**: String型。`"task-xxx"` / `"folder-xxx"` 形式
+- **ID**: String型。TaskNode は `"<type>-<timestamp+counter>"` 形式（例: `task-1710201234566`）、他エンティティは `"<prefix>-<uuid>"` 形式（例: `note-xxxxxxxx-...`）
 - **TerminalPanel**: SectionId に含めず全画面共通の下部パネル（VSCode のターミナルと同じ位置づけ）
 
 ---
@@ -106,7 +106,6 @@ type: `feat` / `fix` / `docs` / `style` / `refactor` / `test` / `chore`
 | `.claude/docs/Application_Overview.md` | 仕様書                                     |
 | `.claude/docs/adr/`                    | アーキテクチャ決定記録                     |
 | `TODO.md`                              | ロードマップ                               |
-| `CHANGELOG.md`                         | 完了タスク履歴（フェーズ単位）             |
 
 ライフサイクル: `feature_plans/` → `archive/`
 
@@ -114,4 +113,3 @@ type: `feat` / `fix` / `docs` / `style` / `refactor` / `test` / `chore`
 
 1. プランファイル内の Status を `COMPLETED` に更新
 2. `feature_plans/` から `archive/` へファイルを移動
-3. `CHANGELOG.md` に完了内容を追記
