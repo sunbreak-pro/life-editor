@@ -14,9 +14,15 @@ import { RightSidebarContext } from "../../context/RightSidebarContext";
 
 interface ConnectTabViewProps {
   onNavigateToNote?: (noteId: string) => void;
+  initialFocusNoteId?: string | null;
+  onFocusConsumed?: () => void;
 }
 
-export function ConnectTabView({ onNavigateToNote }: ConnectTabViewProps) {
+export function ConnectTabView({
+  onNavigateToNote,
+  initialFocusNoteId,
+  onFocusConsumed,
+}: ConnectTabViewProps) {
   const { setActiveDomain } = useUndoRedo();
 
   useEffect(() => {
@@ -49,6 +55,23 @@ export function ConnectTabView({ onNavigateToNote }: ConnectTabViewProps) {
   const [filterMode, _setFilterMode] = useState<
     "all" | "grouped" | { groupId: string }
   >("all");
+  const [focusedNoteId, setFocusedNoteId] = useState<string | null>(null);
+
+  const handleFocusNote = useCallback((noteId: string) => {
+    setFocusedNoteId(noteId);
+  }, []);
+
+  const handleFocusComplete = useCallback(() => {
+    setFocusedNoteId(null);
+  }, []);
+
+  // Receive focus request from cross-navigation
+  useEffect(() => {
+    if (initialFocusNoteId) {
+      setFocusedNoteId(initialFocusNoteId);
+      onFocusConsumed?.();
+    }
+  }, [initialFocusNoteId, onFocusConsumed]);
 
   const { matchingTags, matchingNotes } = useConnectSearch({
     query,
@@ -136,6 +159,7 @@ export function ConnectTabView({ onNavigateToNote }: ConnectTabViewProps) {
       memos={memos}
       onSelectTag={setSelectedTagId}
       onNavigateToNote={onNavigateToNote}
+      onFocusNote={handleFocusNote}
       onCreateNote={handleCreateNote}
       onCreateTag={createTag}
       onUpdateTag={handleUpdateTag}
@@ -170,6 +194,8 @@ export function ConnectTabView({ onNavigateToNote }: ConnectTabViewProps) {
                 filterMode={filterMode}
                 onNavigateToNote={onNavigateToNote}
                 onUpdateNoteColor={handleUpdateNoteColor}
+                focusedNoteId={focusedNoteId}
+                onFocusComplete={handleFocusComplete}
               />
             </ReactFlowProvider>
           </div>
@@ -193,6 +219,8 @@ export function ConnectTabView({ onNavigateToNote }: ConnectTabViewProps) {
                 filterMode={filterMode}
                 onNavigateToNote={onNavigateToNote}
                 onUpdateNoteColor={handleUpdateNoteColor}
+                focusedNoteId={focusedNoteId}
+                onFocusComplete={handleFocusComplete}
               />
             </ReactFlowProvider>
           </div>

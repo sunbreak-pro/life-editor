@@ -9,6 +9,7 @@ type NoteNodeType = {
   color?: string;
   tagDots?: Array<{ id: string; name: string; color: string }>;
   highlighted?: boolean;
+  focused?: boolean;
 };
 
 function NoteNodeInner({ data }: NodeProps & { data: NoteNodeType }) {
@@ -23,7 +24,7 @@ function NoteNodeInner({ data }: NodeProps & { data: NoteNodeType }) {
         className="!w-2 !h-2 !bg-notion-text-secondary !border-notion-border"
       />
       <div
-        className={`px-3 py-2 rounded-lg border shadow-sm cursor-grab active:cursor-grabbing bg-yellow-50 dark:bg-yellow-900 max-w-[180px] ${data.highlighted ? "border-notion-accent ring-2 ring-notion-accent/30" : "border-yellow-300 dark:border-yellow-700"}`}
+        className={`px-3 py-2 rounded-lg border shadow-sm cursor-grab active:cursor-grabbing bg-yellow-50 dark:bg-yellow-900 max-w-[180px] ${data.focused ? "ring-2 ring-blue-400/50 border-blue-500 shadow-md" : data.highlighted ? "border-notion-accent ring-2 ring-notion-accent/30" : "border-yellow-300 dark:border-yellow-700"}`}
       >
         <div className="flex items-center gap-1.5">
           <StickyNote

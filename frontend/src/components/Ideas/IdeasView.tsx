@@ -63,6 +63,9 @@ export function IdeasView({ onNavigateToNote }: IdeasViewProps) {
     createGroup,
     updateGroup,
     deleteGroup,
+    createTag,
+    updateTag,
+    deleteTag,
   } = useWikiTags();
 
   // Materials view state
@@ -101,6 +104,21 @@ export function IdeasView({ onNavigateToNote }: IdeasViewProps) {
     localStorage.setItem(STORAGE_KEYS.MATERIALS_CONTENT_TYPE, "note");
   }, [createNote]);
 
+  // Cross-navigation: Materials → Connect with focus
+  const [pendingFocusNoteId, setPendingFocusNoteId] = useState<string | null>(
+    null,
+  );
+
+  const handleNavigateToConnect = useCallback((noteId: string) => {
+    setActiveTab("connect");
+    localStorage.setItem(STORAGE_KEYS.IDEAS_TAB, "connect");
+    setPendingFocusNoteId(noteId);
+  }, []);
+
+  const handleFocusConsumed = useCallback(() => {
+    setPendingFocusNoteId(null);
+  }, []);
+
   // Navigate to note from Connect tab
   const handleNavigateToNote = useCallback(
     (noteId: string) => {
@@ -133,6 +151,10 @@ export function IdeasView({ onNavigateToNote }: IdeasViewProps) {
         onCreateGroup={createGroup}
         onUpdateGroup={updateGroup}
         onDeleteGroup={deleteGroup}
+        onNavigateToConnect={handleNavigateToConnect}
+        onCreateTag={createTag}
+        onUpdateTag={updateTag}
+        onDeleteTag={deleteTag}
       />
     ) : null;
 
@@ -144,13 +166,19 @@ export function IdeasView({ onNavigateToNote }: IdeasViewProps) {
         }
         return <DailyMemoView />;
       case "connect":
-        return <ConnectTabView onNavigateToNote={handleNavigateToNote} />;
+        return (
+          <ConnectTabView
+            onNavigateToNote={handleNavigateToNote}
+            initialFocusNoteId={pendingFocusNoteId}
+            onFocusConsumed={handleFocusConsumed}
+          />
+        );
     }
   };
 
   return (
     <div
-      className={`h-full flex flex-col ${LAYOUT.CONTENT_PX} ${LAYOUT.CONTENT_PT} ${LAYOUT.CONTENT_PB}`}
+      className={`h-full flex flex-col ${activeTab === "connect" ? "" : `${LAYOUT.CONTENT_PX} ${LAYOUT.CONTENT_PT} ${LAYOUT.CONTENT_PB}`}`}
     >
       <SectionHeader
         title={t("ideas.title")}

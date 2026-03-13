@@ -12,6 +12,7 @@ import {
   Tag,
   Heart,
   BookOpen,
+  Package,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import type {
@@ -50,6 +51,7 @@ interface ConnectSidebarProps {
   memos: MemoNode[];
   onSelectTag: (tagId: string | null) => void;
   onNavigateToNote?: (noteId: string) => void;
+  onFocusNote?: (noteId: string) => void;
   onCreateNote: (title: string, tagId?: string) => void;
   onCreateTag: (name: string, color: string) => Promise<WikiTag>;
   onUpdateTag: (
@@ -108,6 +110,7 @@ export function ConnectSidebar({
   memos,
   onSelectTag,
   onNavigateToNote,
+  onFocusNote,
   onCreateNote,
   onCreateTag,
   onUpdateTag,
@@ -230,19 +233,32 @@ export function ConnectSidebar({
                 </h4>
                 <div className="space-y-0.5">
                   {matchingNotes.map((note) => (
-                    <button
+                    <div
                       key={note.id}
-                      onClick={() => onNavigateToNote?.(note.id)}
-                      className="w-full flex items-center gap-2 px-2 py-1.5 rounded hover:bg-notion-hover text-left transition-colors"
+                      className="group flex items-center gap-1.5 px-2 py-1.5 rounded hover:bg-notion-hover transition-colors"
                     >
-                      <StickyNote
-                        size={12}
-                        className="text-notion-text-secondary shrink-0"
-                      />
-                      <span className="text-xs text-notion-text truncate">
-                        {note.title || t("notes.untitled")}
-                      </span>
-                    </button>
+                      <button
+                        onClick={() => onFocusNote?.(note.id)}
+                        className="flex-1 flex items-center gap-1.5 min-w-0 text-left"
+                      >
+                        <StickyNote
+                          size={12}
+                          className="text-notion-text-secondary shrink-0"
+                        />
+                        <span className="text-xs text-notion-text truncate">
+                          {note.title || t("notes.untitled")}
+                        </span>
+                      </button>
+                      {onNavigateToNote && (
+                        <button
+                          onClick={() => onNavigateToNote(note.id)}
+                          className="p-0.5 opacity-0 group-hover:opacity-100 text-notion-text-secondary hover:text-notion-text transition-opacity shrink-0"
+                          title={t("ideas.materials")}
+                        >
+                          <Package size={12} />
+                        </button>
+                      )}
+                    </div>
                   ))}
                 </div>
               </div>
@@ -315,23 +331,36 @@ export function ConnectSidebar({
             onToggle={() => toggleSection("favorites")}
           >
             {pinnedNotes.map((note) => (
-              <button
+              <div
                 key={note.id}
-                onClick={() => onNavigateToNote?.(note.id)}
-                className="w-full flex items-center gap-2 px-2 py-1.5 rounded hover:bg-notion-hover text-left transition-colors"
+                className="group flex items-center gap-1.5 px-2 py-1.5 rounded hover:bg-notion-hover transition-colors"
               >
-                <StickyNote
-                  size={15}
-                  className="text-notion-text-secondary shrink-0"
-                />
-                <span className="flex-1 text-sm text-notion-text truncate">
-                  {note.title || t("notes.untitled")}
-                </span>
-                <Heart
-                  size={12}
-                  className="text-notion-primary fill-current shrink-0"
-                />
-              </button>
+                <button
+                  onClick={() => onFocusNote?.(note.id)}
+                  className="flex-1 flex items-center gap-1.5 min-w-0 text-left"
+                >
+                  <StickyNote
+                    size={15}
+                    className="text-notion-text-secondary shrink-0"
+                  />
+                  <span className="flex-1 text-sm text-notion-text truncate">
+                    {note.title || t("notes.untitled")}
+                  </span>
+                  <Heart
+                    size={12}
+                    className="text-notion-primary fill-current shrink-0"
+                  />
+                </button>
+                {onNavigateToNote && (
+                  <button
+                    onClick={() => onNavigateToNote(note.id)}
+                    className="p-0.5 opacity-0 group-hover:opacity-100 text-notion-text-secondary hover:text-notion-text transition-opacity shrink-0"
+                    title={t("ideas.materials")}
+                  >
+                    <Package size={12} />
+                  </button>
+                )}
+              </div>
             ))}
             {pinnedMemos.map((memo) => (
               <div
@@ -373,19 +402,32 @@ export function ConnectSidebar({
               </p>
             ) : (
               notes.map((note) => (
-                <button
+                <div
                   key={note.id}
-                  onClick={() => onNavigateToNote?.(note.id)}
-                  className="w-full flex items-center gap-2 px-2 py-1.5 rounded hover:bg-notion-hover text-left transition-colors"
+                  className="group flex items-center gap-1.5 px-2 py-1.5 rounded hover:bg-notion-hover transition-colors"
                 >
-                  <StickyNote
-                    size={15}
-                    className="text-notion-text-secondary shrink-0"
-                  />
-                  <span className="flex-1 text-sm text-notion-text truncate">
-                    {note.title || t("notes.untitled")}
-                  </span>
-                </button>
+                  <button
+                    onClick={() => onFocusNote?.(note.id)}
+                    className="flex-1 flex items-center gap-1.5 min-w-0 text-left"
+                  >
+                    <StickyNote
+                      size={15}
+                      className="text-notion-text-secondary shrink-0"
+                    />
+                    <span className="flex-1 text-sm text-notion-text truncate">
+                      {note.title || t("notes.untitled")}
+                    </span>
+                  </button>
+                  {onNavigateToNote && (
+                    <button
+                      onClick={() => onNavigateToNote(note.id)}
+                      className="p-0.5 opacity-0 group-hover:opacity-100 text-notion-text-secondary hover:text-notion-text transition-opacity shrink-0"
+                      title={t("ideas.materials")}
+                    >
+                      <Package size={12} />
+                    </button>
+                  )}
+                </div>
               ))
             )}
           </CollapsibleSection>
@@ -580,19 +622,32 @@ export function ConnectSidebar({
                     {isGroupExpanded && (
                       <div className="pl-6 space-y-0.5">
                         {memberNotes.map((note) => (
-                          <button
+                          <div
                             key={note.id}
-                            onClick={() => onNavigateToNote?.(note.id)}
-                            className="w-full flex items-center gap-2 px-2 py-1 rounded hover:bg-notion-hover text-left transition-colors"
+                            className="group/member flex items-center gap-1.5 px-2 py-1 rounded hover:bg-notion-hover transition-colors"
                           >
-                            <StickyNote
-                              size={12}
-                              className="text-notion-text-secondary shrink-0"
-                            />
-                            <span className="text-xs text-notion-text truncate">
-                              {note.title || t("notes.untitled")}
-                            </span>
-                          </button>
+                            <button
+                              onClick={() => onFocusNote?.(note.id)}
+                              className="flex-1 flex items-center gap-1.5 min-w-0 text-left"
+                            >
+                              <StickyNote
+                                size={12}
+                                className="text-notion-text-secondary shrink-0"
+                              />
+                              <span className="text-xs text-notion-text truncate">
+                                {note.title || t("notes.untitled")}
+                              </span>
+                            </button>
+                            {onNavigateToNote && (
+                              <button
+                                onClick={() => onNavigateToNote(note.id)}
+                                className="p-0.5 opacity-0 group-hover/member:opacity-100 text-notion-text-secondary hover:text-notion-text transition-opacity shrink-0"
+                                title={t("ideas.materials")}
+                              >
+                                <Package size={12} />
+                              </button>
+                            )}
+                          </div>
                         ))}
                         {memberNotes.length === 0 && (
                           <span className="text-xs text-notion-text-secondary px-2 py-1">

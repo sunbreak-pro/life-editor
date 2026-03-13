@@ -1,5 +1,20 @@
 # HISTORY.md - 変更履歴
 
+### 2026-03-13 - Ideas セクション UI/UX 改善
+
+#### 概要
+
+Materials と Connect のサイドバー間の UI 一貫性・相互連携を改善。タグ管理を Materials 側にも追加し、クロスナビゲーション機能を実装。
+
+#### 変更点
+
+- **MaterialsSidebar アイテム配置**: renderNoteItem / renderMemoItem の gap-2 → gap-1.5 に統一（Group items と同じ）
+- **Connect パディング除去**: activeTab === "connect" のとき LAYOUT.CONTENT_PX/PT/PB を適用しない（グラフがフルブリード）
+- **ノードフォーカス機能**: ConnectSidebar のノートクリックでグラフ上のノードにズーム＋ハイライト（3秒後に自動解除）
+- **クロスナビゲーション**: Materials の各ノートに Network アイコン → Connect 遷移しノードフォーカス、Connect の各ノートに Package アイコン → Materials 遷移しノート選択
+- **Materials Tags セクション**: CollapsibleSection でタグ一覧・作成・編集・削除を追加。タグクリックでフィルタトグル → Notes/Daily/Favorites がフィルタされる
+- **対象ファイル**: MaterialsSidebar.tsx, IdeasView.tsx, TagGraphView.tsx, ConnectTabView.tsx, ConnectSidebar.tsx, NoteNodeComponent.tsx
+
 ### 2026-03-13 - Schedule UI/UX 改善
 
 #### 概要

@@ -50,6 +50,8 @@ interface TagGraphViewProps {
   filterMode: "all" | "grouped" | { groupId: string };
   onNavigateToNote?: (noteId: string) => void;
   onUpdateNoteColor?: (noteId: string, color: string) => void;
+  focusedNoteId?: string | null;
+  onFocusComplete?: () => void;
 }
 
 function loadPositions(): Record<string, { x: number; y: number }> {
@@ -161,6 +163,8 @@ export function TagGraphView({
   filterMode,
   onNavigateToNote,
   onUpdateNoteColor,
+  focusedNoteId,
+  onFocusComplete,
 }: TagGraphViewProps) {
   const { t } = useTranslation();
   const positionsRef = useRef(loadPositions());
@@ -351,6 +355,9 @@ export function TagGraphView({
 
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
+  const nodesRef = useRef(nodes);
+  nodesRef.current = nodes;
+  const { setCenter } = useReactFlow();
 
   // Sync nodes/edges when data changes
   useEffect(() => {
@@ -360,6 +367,41 @@ export function TagGraphView({
   useEffect(() => {
     setEdges(initialEdges);
   }, [initialEdges, setEdges]);
+
+  // Focus on a specific note node
+  useEffect(() => {
+    if (!focusedNoteId) return;
+    const targetNode = nodesRef.current.find((n) => n.id === focusedNoteId);
+    if (!targetNode) {
+      onFocusComplete?.();
+      return;
+    }
+    // Set focused flag on the node
+    setNodes((nds) =>
+      nds.map((n) =>
+        n.id === focusedNoteId
+          ? { ...n, data: { ...n.data, focused: true } }
+          : n,
+      ),
+    );
+    // Zoom to the node
+    setCenter(targetNode.position.x + 90, targetNode.position.y + 40, {
+      duration: 500,
+      zoom: 1.5,
+    });
+    // Clear focused flag after 3 seconds
+    const timer = setTimeout(() => {
+      setNodes((nds) =>
+        nds.map((n) =>
+          n.id === focusedNoteId
+            ? { ...n, data: { ...n.data, focused: false } }
+            : n,
+        ),
+      );
+      onFocusComplete?.();
+    }, 3000);
+    return () => clearTimeout(timer);
+  }, [focusedNoteId, setNodes, setCenter, onFocusComplete]);
 
   const handleNodesChange: OnNodesChange = useCallback(
     (changes) => {

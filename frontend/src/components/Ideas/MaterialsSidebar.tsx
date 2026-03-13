@@ -11,6 +11,8 @@ import {
   Pencil,
   Check,
   X,
+  Network,
+  Tag,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import type { MemoNode } from "../../types/memo";
@@ -26,6 +28,8 @@ import { getContentPreview } from "../../utils/tiptapText";
 import { STORAGE_KEYS } from "../../constants/storageKeys";
 import { SearchBar } from "../shared/SearchBar";
 import { CollapsibleSection } from "../shared/CollapsibleSection";
+import { UnifiedColorPicker } from "../shared/UnifiedColorPicker";
+import { DEFAULT_PRESET_COLORS } from "../../constants/folderColors";
 
 type MaterialsView =
   | { type: "note"; noteId: string }
@@ -36,6 +40,7 @@ interface SectionsState {
   notes: boolean;
   daily: boolean;
   groups: boolean;
+  tags: boolean;
 }
 
 interface MaterialsSidebarProps {
@@ -60,6 +65,13 @@ interface MaterialsSidebarProps {
     updates: { name?: string; filterTags?: string[] },
   ) => Promise<WikiTagGroup>;
   onDeleteGroup: (id: string) => Promise<void>;
+  onNavigateToConnect?: (noteId: string) => void;
+  onCreateTag?: (name: string, color: string) => Promise<WikiTag>;
+  onUpdateTag?: (
+    id: string,
+    updates: Partial<Pick<WikiTag, "name" | "color">>,
+  ) => Promise<void>;
+  onDeleteTag?: (id: string) => Promise<void>;
 }
 
 function loadSectionsState(): SectionsState {
@@ -69,7 +81,13 @@ function loadSectionsState(): SectionsState {
   } catch {
     // ignore
   }
-  return { favorites: true, notes: true, daily: true, groups: true };
+  return {
+    favorites: true,
+    notes: true,
+    daily: true,
+    groups: true,
+    tags: true,
+  };
 }
 
 function saveSectionsState(state: SectionsState): void {
@@ -94,6 +112,10 @@ export function MaterialsSidebar({
   onCreateGroup,
   onUpdateGroup,
   onDeleteGroup,
+  onNavigateToConnect,
+  onCreateTag,
+  onUpdateTag,
+  onDeleteTag,
 }: MaterialsSidebarProps) {
   const { t } = useTranslation();
   const [sections, setSections] = useState<SectionsState>(loadSectionsState);
@@ -112,6 +134,22 @@ export function MaterialsSidebar({
   const [expandedGroupIds, setExpandedGroupIds] = useState<Set<string>>(
     new Set(),
   );
+
+  // Tag management state
+  const [editingTagId, setEditingTagId] = useState<string | null>(null);
+  const [editTagName, setEditTagName] = useState("");
+  const [editTagColor, setEditTagColor] = useState("");
+  const [deleteConfirmTagId, setDeleteConfirmTagId] = useState<string | null>(
+    null,
+  );
+  const [showTagCreate, setShowTagCreate] = useState(false);
+  const [newTagName, setNewTagName] = useState("");
+  const [newTagColor, setNewTagColor] = useState<string>(
+    DEFAULT_PRESET_COLORS[0],
+  );
+
+  // Tag filter state
+  const [filterTagIds, setFilterTagIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
@@ -196,13 +234,13 @@ export function MaterialsSidebar({
   const renderNoteItem = (note: NoteNode) => (
     <div
       key={note.id}
-      className={`group flex items-center gap-2 px-2 py-1.5 rounded text-left transition-colors ${
+      className={`group flex items-center gap-1.5 px-2 py-1.5 rounded text-left transition-colors ${
         isNoteSelected(note.id) ? "bg-notion-hover" : "hover:bg-notion-hover"
       }`}
     >
       <button
         onClick={() => onSelectView({ type: "note", noteId: note.id })}
-        className="flex-1 flex items-center gap-2 min-w-0"
+        className="flex-1 flex items-center gap-1.5 min-w-0"
       >
         <StickyNote size={15} className="text-notion-text-secondary shrink-0" />
         <span className="flex-1 text-sm text-notion-text truncate">
@@ -216,6 +254,18 @@ export function MaterialsSidebar({
           />
         )}
       </button>
+      {onNavigateToConnect && (
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            onNavigateToConnect(note.id);
+          }}
+          className="p-0.5 opacity-0 group-hover:opacity-100 text-notion-text-secondary hover:text-notion-text transition-opacity shrink-0"
+          title={t("ideas.connect")}
+        >
+          <Network size={12} />
+        </button>
+      )}
       {onDeleteNote && (
         <button
           onClick={(e) => {
@@ -233,13 +283,13 @@ export function MaterialsSidebar({
   const renderMemoItem = (memo: MemoNode) => (
     <div
       key={memo.id}
-      className={`group flex items-center gap-2 px-2 py-1.5 rounded text-left transition-colors ${
+      className={`group flex items-center gap-1.5 px-2 py-1.5 rounded text-left transition-colors ${
         isDailySelected(memo.date) ? "bg-notion-hover" : "hover:bg-notion-hover"
       }`}
     >
       <button
         onClick={() => onSelectView({ type: "daily", date: memo.date })}
-        className="flex-1 flex items-center gap-2 min-w-0"
+        className="flex-1 flex items-center gap-1.5 min-w-0"
       >
         <BookOpen size={15} className="text-notion-text-secondary shrink-0" />
         <span className="flex-1 text-sm text-notion-text truncate">
@@ -301,6 +351,85 @@ export function MaterialsSidebar({
     });
   };
 
+  // Tag handlers
+  const startTagEdit = (tag: WikiTag) => {
+    setEditingTagId(tag.id);
+    setEditTagName(tag.name);
+    setEditTagColor(tag.color);
+  };
+
+  const saveTagEdit = async () => {
+    if (!editingTagId || !editTagName.trim() || !onUpdateTag) return;
+    await onUpdateTag(editingTagId, {
+      name: editTagName.trim(),
+      color: editTagColor,
+    });
+    setEditingTagId(null);
+  };
+
+  const handleCreateTag = async () => {
+    const trimmed = newTagName.trim();
+    if (!trimmed || !onCreateTag) return;
+    await onCreateTag(trimmed, newTagColor);
+    setNewTagName("");
+    setShowTagCreate(false);
+  };
+
+  const getTagUsageCount = (tagId: string) =>
+    assignments.filter((a) => a.tagId === tagId).length;
+
+  const toggleTagFilter = (tagId: string) => {
+    setFilterTagIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(tagId)) next.delete(tagId);
+      else next.add(tagId);
+      return next;
+    });
+  };
+
+  // Tag-filtered notes and memos
+  const hasTagFilter = filterTagIds.size > 0;
+
+  const entityTagIds = useMemo(() => {
+    const map = new Map<string, Set<string>>();
+    for (const a of assignments) {
+      const existing = map.get(a.entityId) || new Set();
+      existing.add(a.tagId);
+      map.set(a.entityId, existing);
+    }
+    return map;
+  }, [assignments]);
+
+  const tagFilteredNotes = useMemo(() => {
+    if (!hasTagFilter) return notes;
+    return notes.filter((n) => {
+      const noteTagSet = entityTagIds.get(n.id);
+      if (!noteTagSet) return false;
+      return [...filterTagIds].some((tid) => noteTagSet.has(tid));
+    });
+  }, [notes, hasTagFilter, filterTagIds, entityTagIds]);
+
+  const tagFilteredMemos = useMemo(() => {
+    if (!hasTagFilter) return memos;
+    return memos.filter((m) => {
+      const memoTagSet = entityTagIds.get(m.id);
+      if (!memoTagSet) return false;
+      return [...filterTagIds].some((tid) => memoTagSet.has(tid));
+    });
+  }, [memos, hasTagFilter, filterTagIds, entityTagIds]);
+
+  // Apply tag filter to display lists
+  const displayNotes = hasTagFilter ? tagFilteredNotes : notes;
+  const displayMemos = hasTagFilter ? tagFilteredMemos : memos;
+  const displayPinnedNotes = hasTagFilter
+    ? tagFilteredNotes.filter((n) => n.isPinned)
+    : pinnedNotes;
+  const displayPinnedMemos = hasTagFilter
+    ? tagFilteredMemos.filter((m) => m.isPinned)
+    : pinnedMemos;
+  const displayHasFavorites =
+    displayPinnedNotes.length > 0 || displayPinnedMemos.length > 0;
+
   // Search results: flat list
   if (isSearching) {
     return (
@@ -333,15 +462,15 @@ export function MaterialsSidebar({
 
       <div className="flex-1 overflow-y-auto">
         {/* Favorites */}
-        {hasFavorites && (
+        {displayHasFavorites && (
           <CollapsibleSection
             label={t("ideas.favorites")}
             icon={<Heart size={15} />}
             isOpen={sections.favorites}
             onToggle={() => toggleSection("favorites")}
           >
-            {pinnedNotes.map(renderNoteItem)}
-            {pinnedMemos.map(renderMemoItem)}
+            {displayPinnedNotes.map(renderNoteItem)}
+            {displayPinnedMemos.map(renderMemoItem)}
           </CollapsibleSection>
         )}
 
@@ -361,12 +490,12 @@ export function MaterialsSidebar({
             </button>
           }
         >
-          {notes.length === 0 ? (
+          {displayNotes.length === 0 ? (
             <p className="text-xs text-notion-text-secondary px-2 py-2">
-              {t("notes.noNotes")}
+              {hasTagFilter ? t("ideas.noSearchResults") : t("notes.noNotes")}
             </p>
           ) : (
-            notes.map(renderNoteItem)
+            displayNotes.map(renderNoteItem)
           )}
         </CollapsibleSection>
 
@@ -377,12 +506,12 @@ export function MaterialsSidebar({
           isOpen={sections.daily}
           onToggle={() => toggleSection("daily")}
         >
-          {memos.length === 0 ? (
+          {displayMemos.length === 0 ? (
             <p className="text-xs text-notion-text-secondary px-2 py-2">
-              No memos yet
+              {hasTagFilter ? t("ideas.noSearchResults") : "No memos yet"}
             </p>
           ) : (
-            memos.map(renderMemoItem)
+            displayMemos.map(renderMemoItem)
           )}
         </CollapsibleSection>
 
@@ -572,6 +701,181 @@ export function MaterialsSidebar({
             )}
           </div>
         </CollapsibleSection>
+
+        {/* Tags */}
+        {(onCreateTag || onUpdateTag || onDeleteTag) && (
+          <CollapsibleSection
+            label={t("wikiTags.title")}
+            icon={<Tag size={15} />}
+            isOpen={sections.tags}
+            onToggle={() => toggleSection("tags")}
+            rightAction={
+              onCreateTag ? (
+                <button
+                  onClick={() => setShowTagCreate(!showTagCreate)}
+                  className="p-1 text-notion-text-secondary hover:text-notion-text rounded transition-colors"
+                >
+                  <Plus size={14} />
+                </button>
+              ) : undefined
+            }
+          >
+            {/* Create new tag */}
+            {showTagCreate && onCreateTag && (
+              <div className="mx-1 mb-2 p-2 rounded-md bg-notion-hover/50 border border-notion-border">
+                <div className="mb-1.5">
+                  <UnifiedColorPicker
+                    color={newTagColor}
+                    onChange={setNewTagColor}
+                    mode="preset-full"
+                  />
+                </div>
+                <div className="flex items-center gap-1">
+                  <input
+                    value={newTagName}
+                    onChange={(e) => setNewTagName(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.nativeEvent.isComposing) return;
+                      if (e.key === "Enter") handleCreateTag();
+                      if (e.key === "Escape") setShowTagCreate(false);
+                    }}
+                    placeholder={t("wikiTags.tagNamePlaceholder")}
+                    className="flex-1 text-xs px-2 py-1 rounded bg-notion-bg text-notion-text outline-none border border-notion-border focus:border-notion-accent/50"
+                    autoFocus
+                  />
+                  <button
+                    onClick={handleCreateTag}
+                    disabled={!newTagName.trim()}
+                    className="text-xs px-2 py-1 rounded bg-notion-accent text-white disabled:opacity-40"
+                  >
+                    {t("wikiTags.create")}
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Tags list */}
+            <div className="space-y-0.5">
+              {tags.map((tag) => (
+                <div key={tag.id}>
+                  <div
+                    className={`flex items-center gap-1.5 px-2 py-1.5 rounded hover:bg-notion-hover group transition-colors cursor-pointer ${
+                      filterTagIds.has(tag.id) ? "bg-notion-hover" : ""
+                    }`}
+                    onClick={() => toggleTagFilter(tag.id)}
+                  >
+                    {editingTagId === tag.id ? (
+                      <>
+                        <UnifiedColorPicker
+                          color={editTagColor}
+                          onChange={setEditTagColor}
+                          mode="preset-full"
+                        />
+                        <input
+                          value={editTagName}
+                          onChange={(e) => setEditTagName(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.nativeEvent.isComposing) return;
+                            if (e.key === "Enter") saveTagEdit();
+                            if (e.key === "Escape") setEditingTagId(null);
+                          }}
+                          className="flex-1 text-xs px-1.5 py-0.5 rounded bg-notion-hover text-notion-text outline-none border border-notion-border"
+                          autoFocus
+                          onClick={(e) => e.stopPropagation()}
+                        />
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            saveTagEdit();
+                          }}
+                          className="p-0.5 text-green-500 hover:text-green-400"
+                        >
+                          <Check size={12} />
+                        </button>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setEditingTagId(null);
+                          }}
+                          className="p-0.5 text-notion-text-secondary hover:text-notion-text"
+                        >
+                          <X size={12} />
+                        </button>
+                      </>
+                    ) : deleteConfirmTagId === tag.id ? (
+                      <div
+                        className="flex items-center gap-1.5 w-full"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <span className="text-[10px] text-notion-text-secondary flex-1">
+                          {t("wikiTags.deleteConfirm", { name: tag.name })}
+                        </span>
+                        <button
+                          onClick={() => {
+                            onDeleteTag?.(tag.id);
+                            setDeleteConfirmTagId(null);
+                          }}
+                          className="text-[10px] px-1.5 py-0.5 rounded bg-red-500 text-white"
+                        >
+                          {t("common.delete")}
+                        </button>
+                        <button
+                          onClick={() => setDeleteConfirmTagId(null)}
+                          className="text-[10px] text-notion-text-secondary"
+                        >
+                          {t("common.cancel")}
+                        </button>
+                      </div>
+                    ) : (
+                      <>
+                        <span
+                          className="w-2.5 h-2.5 rounded-full shrink-0"
+                          style={{ backgroundColor: tag.color }}
+                        />
+                        <span className="flex-1 text-sm text-notion-text truncate">
+                          {tag.name}
+                        </span>
+                        <span className="text-xs text-notion-text-secondary tabular-nums">
+                          {getTagUsageCount(tag.id)}
+                        </span>
+                        <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                          {onUpdateTag && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                startTagEdit(tag);
+                              }}
+                              className="p-0.5 text-notion-text-secondary hover:text-notion-text"
+                              title={t("wikiTags.editTag")}
+                            >
+                              <Pencil size={14} />
+                            </button>
+                          )}
+                          {onDeleteTag && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setDeleteConfirmTagId(tag.id);
+                              }}
+                              className="p-0.5 text-notion-text-secondary hover:text-red-500"
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          )}
+                        </div>
+                      </>
+                    )}
+                  </div>
+                </div>
+              ))}
+              {tags.length === 0 && (
+                <p className="text-[10px] text-notion-text-secondary px-2 py-4 text-center">
+                  {t("wikiTags.empty")}
+                </p>
+              )}
+            </div>
+          </CollapsibleSection>
+        )}
       </div>
     </div>
   );
