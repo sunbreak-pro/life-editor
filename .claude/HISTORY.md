@@ -1,5 +1,20 @@
 # HISTORY.md - 変更履歴
 
+### 2026-03-14 - フォルダ深さ制限の撤廃
+
+#### 概要
+
+`MAX_FOLDER_DEPTH = 5` の制限を完全に撤廃し、フォルダを任意の深さにネスト可能にした。
+
+#### 変更点
+
+- **型定義**: `MAX_FOLDER_DEPTH` 定数削除、`MoveRejectionReason` から `depth_limit_exceeded` 削除
+- **移動ロジック**: `canMoveToDepth()`, `getSubtreeMaxDepth()`, `getNodeDepth()` 関数を削除
+- **CRUD**: `useTaskTreeCRUD` のフォルダ作成深さチェック削除
+- **UI**: `depth_limit_exceeded` トーストハンドリング削除（TaskTree, TaskDetailPanel）
+- **i18n**: `depthLimitExceeded` キー削除、Tips の「最大5階層」→「制限なし」に更新（en/ja）
+- **ドキュメント**: CLAUDE.md, Application_Overview.md を整合性更新
+
 ### 2026-03-14 - Codebase Debug Audit: 13件のバグ・パフォーマンス問題修正
 
 #### 概要

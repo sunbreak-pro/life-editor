@@ -49,7 +49,7 @@ Main Process 内の `TerminalManager` が PTY セッションを管理。Rendere
 ### 重要パターン
 
 - **ルーティング**: React Router なし。`App.tsx` の `activeSection` で画面切替
-- **TaskNode**: フラット配列 + `parentId` で階層表現。`type: 'folder' | 'task'`。フォルダは最大5階層
+- **TaskNode**: フラット配列 + `parentId` で階層表現。`type: 'folder' | 'task'`。フォルダの階層制限なし
 - **ソフトデリート**: `is_deleted` + `deleted_at` カラム → TrashView から復元可能（Tasks/Notes/Memos/Routines）。CustomSounds はソフトデリート非対応
 - **DnD**: `@dnd-kit` 使用。`moveNode`（並び替え）と `moveNodeInto`（階層移動）は別操作
 - **リッチテキスト**: TipTap (`@tiptap/react`)
