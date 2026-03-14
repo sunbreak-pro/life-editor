@@ -14,7 +14,15 @@ import {
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import { useTranslation } from "react-i18next";
-import { ZoomIn, ZoomOut, Maximize2, Filter } from "lucide-react";
+import {
+  ZoomIn,
+  ZoomOut,
+  Maximize2,
+  Filter,
+  Hexagon,
+  AlignHorizontalSpaceBetween,
+} from "lucide-react";
+import { applyPolygonLayout, applyLineLayout } from "./layoutTemplates";
 import { useReactFlow } from "@xyflow/react";
 import { ColorPicker } from "../../shared/ColorPicker";
 import { CanvasFilter } from "./CanvasFilter";
@@ -30,7 +38,6 @@ import type {
   NoteConnection,
 } from "../../../types/wikiTag";
 import type { NoteNode } from "../../../types/note";
-import type { NoteCooccurrenceEntry } from "../../../hooks/useNoteCooccurrence";
 import { STORAGE_KEYS } from "../../../constants/storageKeys";
 
 const nodeTypes = {
@@ -43,7 +50,6 @@ interface TagGraphViewProps {
   tags: WikiTag[];
   assignments: WikiTagAssignment[];
   noteConnections: NoteConnection[];
-  noteCooccurrences: NoteCooccurrenceEntry[];
   selectedTagId: string | null;
   onSelectTag: (tagId: string | null) => void;
   onCreateNoteConnection: (sourceNoteId: string, targetNoteId: string) => void;
@@ -98,6 +104,24 @@ function saveGroupPositions(
   );
 }
 
+function loadGroupSizes(): Record<string, { width: number; height: number }> {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEYS.TAG_GRAPH_GROUP_SIZES);
+    return raw ? JSON.parse(raw) : {};
+  } catch {
+    return {};
+  }
+}
+
+function saveGroupSizes(
+  sizes: Record<string, { width: number; height: number }>,
+) {
+  localStorage.setItem(
+    STORAGE_KEYS.TAG_GRAPH_GROUP_SIZES,
+    JSON.stringify(sizes),
+  );
+}
+
 function loadViewport(): { x: number; y: number; zoom: number } | null {
   try {
     const raw = localStorage.getItem(STORAGE_KEYS.TAG_GRAPH_VIEWPORT);
@@ -131,6 +155,52 @@ function extractContentPreview(content: string): string {
 
 const GROUP_FRAME_PADDING = 40;
 
+/** Select optimal source/target handles based on relative position of two nodes */
+function getOptimalHandles(
+  sourcePos: { x: number; y: number },
+  targetPos: { x: number; y: number },
+  handleIndex = 0,
+): { sourceHandle: string; targetHandle: string } {
+  const dx = targetPos.x - sourcePos.x;
+  const dy = targetPos.y - sourcePos.y;
+  // Determine primary direction
+  const directions: Array<{ source: string; target: string }> = [];
+  if (Math.abs(dx) > Math.abs(dy)) {
+    if (dx > 0) {
+      directions.push(
+        { source: "s-Right", target: "t-Left" },
+        { source: "s-Bottom", target: "t-Top" },
+        { source: "s-Top", target: "t-Bottom" },
+      );
+    } else {
+      directions.push(
+        { source: "s-Left", target: "t-Right" },
+        { source: "s-Bottom", target: "t-Top" },
+        { source: "s-Top", target: "t-Bottom" },
+      );
+    }
+  } else {
+    if (dy > 0) {
+      directions.push(
+        { source: "s-Bottom", target: "t-Top" },
+        { source: "s-Right", target: "t-Left" },
+        { source: "s-Left", target: "t-Right" },
+      );
+    } else {
+      directions.push(
+        { source: "s-Top", target: "t-Bottom" },
+        { source: "s-Right", target: "t-Left" },
+        { source: "s-Left", target: "t-Right" },
+      );
+    }
+  }
+  const idx = handleIndex % directions.length;
+  return {
+    sourceHandle: directions[idx].source,
+    targetHandle: directions[idx].target,
+  };
+}
+
 function CanvasControls() {
   const { zoomIn, zoomOut, fitView } = useReactFlow();
 
@@ -162,7 +232,6 @@ export function TagGraphView({
   tags,
   assignments,
   noteConnections,
-  noteCooccurrences,
   selectedTagId,
   onSelectTag,
   onCreateNoteConnection,
@@ -185,6 +254,7 @@ export function TagGraphView({
   const { t } = useTranslation();
   const positionsRef = useRef(loadPositions());
   const groupPositionsRef = useRef(loadGroupPositions());
+  const groupSizesRef = useRef(loadGroupSizes());
   const [noteContextMenu, setNoteContextMenu] = useState<{
     x: number;
     y: number;
@@ -192,6 +262,7 @@ export function TagGraphView({
     color?: string;
   } | null>(null);
   const [showFilter, setShowFilter] = useState(false);
+  const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
 
   // Build tag dots data for notes
   const noteTagDots = useMemo(() => {
@@ -298,6 +369,22 @@ export function TagGraphView({
     [memos, visibleMemoIds],
   );
 
+  // Compute related node IDs for selection-based dimming
+  const relatedNodeIds = useMemo(() => {
+    if (!selectedNodeId) return null;
+    const selectedTags =
+      noteTagDots.get(selectedNodeId) || memoTagDots.get(selectedNodeId) || [];
+    if (selectedTags.length === 0) return new Set([selectedNodeId]);
+    const selectedTagIds = new Set(selectedTags.map((t) => t.id));
+    const related = new Set<string>([selectedNodeId]);
+    for (const a of assignments) {
+      if (selectedTagIds.has(a.tagId)) {
+        related.add(a.entityId);
+      }
+    }
+    return related;
+  }, [selectedNodeId, noteTagDots, memoTagDots, assignments]);
+
   const initialNodes = useMemo<Node[]>(() => {
     const saved = positionsRef.current;
     const totalItems = filteredNotes.length + filteredMemos.length;
@@ -312,6 +399,7 @@ export function TagGraphView({
       const dots = noteTagDots.get(note.id) || [];
       const highlighted =
         !!selectedTagId && dots.some((d) => d.id === selectedTagId);
+      const dimmed = relatedNodeIds ? !relatedNodeIds.has(note.id) : false;
       return {
         id: note.id,
         type: "noteNode",
@@ -323,6 +411,7 @@ export function TagGraphView({
           color: note.color,
           tagDots: dots,
           highlighted,
+          dimmed,
         },
       };
     });
@@ -354,8 +443,15 @@ export function TagGraphView({
         const minY = Math.min(...memberPositions.map((p) => p.y));
         const maxY = Math.max(...memberPositions.map((p) => p.y));
 
-        const width = maxX - minX + 80 + GROUP_FRAME_PADDING * 2;
-        const height = maxY - minY + 40 + GROUP_FRAME_PADDING * 2;
+        const calcWidth = maxX - minX + 80 + GROUP_FRAME_PADDING * 2;
+        const calcHeight = maxY - minY + 40 + GROUP_FRAME_PADDING * 2;
+        const savedSize = groupSizesRef.current[group.id];
+        const width = savedSize
+          ? Math.max(savedSize.width, calcWidth)
+          : calcWidth;
+        const height = savedSize
+          ? Math.max(savedSize.height, calcHeight)
+          : calcHeight;
 
         const pos = savedGroupPos[group.id] ?? {
           x: minX - GROUP_FRAME_PADDING,
@@ -382,7 +478,7 @@ export function TagGraphView({
           position: pos,
           zIndex: -1,
           draggable: true,
-          selectable: false,
+          selectable: true,
           connectable: false,
           data: {
             name: group.name,
@@ -403,6 +499,7 @@ export function TagGraphView({
       const dots = memoTagDots.get(memo.id) || [];
       const highlighted =
         !!selectedTagId && dots.some((d) => d.id === selectedTagId);
+      const dimmed = relatedNodeIds ? !relatedNodeIds.has(memo.id) : false;
       return {
         id: memo.id,
         type: "memoNode",
@@ -413,6 +510,7 @@ export function TagGraphView({
           memoId: memo.id,
           tagDots: dots,
           highlighted,
+          dimmed,
         },
       };
     });
@@ -426,7 +524,17 @@ export function TagGraphView({
     groups,
     groupMembers,
     selectedTagId,
+    relatedNodeIds,
   ]);
+
+  // Build a position lookup from initialNodes for edge handle calculation
+  const nodePositionMap = useMemo(() => {
+    const map = new Map<string, { x: number; y: number }>();
+    for (const node of initialNodes) {
+      map.set(node.id, node.position);
+    }
+    return map;
+  }, [initialNodes]);
 
   const initialEdges = useMemo<Edge[]>(() => {
     // Manual note-to-note connections
@@ -436,49 +544,71 @@ export function TagGraphView({
         visibleNoteIds.has(c.targetNoteId),
     );
 
-    const manualEdges: Edge[] = filteredManual.map((conn) => ({
-      id: `manual-${conn.id}`,
-      source: conn.sourceNoteId,
-      target: conn.targetNoteId,
-      type: "default",
-      style: { stroke: "#6366f1", strokeWidth: 2 },
-      data: { connectionType: "manual", connectionId: conn.id },
-    }));
+    const manualEdges: Edge[] = filteredManual.map((conn) => {
+      const sPos = nodePositionMap.get(conn.sourceNoteId);
+      const tPos = nodePositionMap.get(conn.targetNoteId);
+      const handles =
+        sPos && tPos
+          ? getOptimalHandles(sPos, tPos)
+          : { sourceHandle: undefined, targetHandle: undefined };
+      return {
+        id: `manual-${conn.id}`,
+        source: conn.sourceNoteId,
+        target: conn.targetNoteId,
+        sourceHandle: handles.sourceHandle,
+        targetHandle: handles.targetHandle,
+        type: "straight",
+        style: { stroke: "#6366f1", strokeWidth: 2 },
+        data: { connectionType: "manual", connectionId: conn.id },
+      };
+    });
 
-    const manualPairs = new Set(
-      filteredManual.map((c) => {
-        const [a, b] =
-          c.sourceNoteId < c.targetNoteId
-            ? [c.sourceNoteId, c.targetNoteId]
-            : [c.targetNoteId, c.sourceNoteId];
-        return `${a}---${b}`;
-      }),
-    );
+    // Tag-based colored straight edges
+    const tagEdges: Edge[] = [];
+    // Track per-pair handle index to distribute multiple tag edges
+    const pairHandleIndex = new Map<string, number>();
+    const seenPairs = new Set<string>();
+    for (const tag of tags) {
+      const noteIdsForTag = assignments
+        .filter((a) => a.tagId === tag.id && a.entityType === "note")
+        .map((a) => a.entityId)
+        .filter((id) => visibleNoteIds.has(id));
 
-    // Auto note-to-note connections (shared tag co-occurrence)
-    const filteredCooccurrences = noteCooccurrences.filter(
-      (co) => visibleNoteIds.has(co.noteId1) && visibleNoteIds.has(co.noteId2),
-    );
+      for (let i = 0; i < noteIdsForTag.length; i++) {
+        for (let j = i + 1; j < noteIdsForTag.length; j++) {
+          const n1 = noteIdsForTag[i];
+          const n2 = noteIdsForTag[j];
+          const pairKey = `tag-${tag.id}-${n1 < n2 ? n1 : n2}---${n1 < n2 ? n2 : n1}`;
+          if (seenPairs.has(pairKey)) continue;
+          seenPairs.add(pairKey);
 
-    const coEdges: Edge[] = filteredCooccurrences
-      .filter((co) => !manualPairs.has(co.key))
-      .map((co) => ({
-        id: `co-${co.key}`,
-        source: co.noteId1,
-        target: co.noteId2,
-        type: "default",
-        style: {
-          stroke: "#9ca3af",
-          strokeWidth: 1,
-          strokeDasharray: "5 5",
-        },
-        label: String(co.count),
-        labelStyle: { fontSize: 10, fill: "#9ca3af" },
-        data: { connectionType: "cooccurrence" },
-      }));
+          const basePairKey = `${n1 < n2 ? n1 : n2}---${n1 < n2 ? n2 : n1}`;
+          const hIdx = pairHandleIndex.get(basePairKey) ?? 0;
+          pairHandleIndex.set(basePairKey, hIdx + 1);
 
-    return [...manualEdges, ...coEdges];
-  }, [noteConnections, noteCooccurrences, visibleNoteIds]);
+          const sPos = nodePositionMap.get(n1);
+          const tPos = nodePositionMap.get(n2);
+          const handles =
+            sPos && tPos
+              ? getOptimalHandles(sPos, tPos, hIdx)
+              : { sourceHandle: undefined, targetHandle: undefined };
+
+          tagEdges.push({
+            id: pairKey,
+            source: n1,
+            target: n2,
+            sourceHandle: handles.sourceHandle,
+            targetHandle: handles.targetHandle,
+            type: "straight",
+            style: { stroke: tag.color, strokeWidth: 1.5, opacity: 0.6 },
+            data: { connectionType: "tag", tagId: tag.id },
+          });
+        }
+      }
+    }
+
+    return [...manualEdges, ...tagEdges];
+  }, [noteConnections, tags, assignments, visibleNoteIds, nodePositionMap]);
 
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
@@ -605,6 +735,20 @@ export function TagGraphView({
             savePositions(positionsRef.current);
           }
         }
+
+        // Save group sizes on resize
+        if (
+          change.type === "dimensions" &&
+          change.id.startsWith("group-") &&
+          change.dimensions
+        ) {
+          const groupId = change.id.replace("group-", "");
+          groupSizesRef.current[groupId] = {
+            width: change.dimensions.width,
+            height: change.dimensions.height,
+          };
+          saveGroupSizes(groupSizesRef.current);
+        }
       }
     },
     [onNodesChange, groupMembers],
@@ -646,9 +790,17 @@ export function TagGraphView({
 
   const handleNodeClick = useCallback(
     (_event: React.MouseEvent, node: Node) => {
+      if (node.type === "groupFrame") return;
+      const nodeId = node.id;
+      setSelectedNodeId((prev) => (prev === nodeId ? null : nodeId));
+    },
+    [],
+  );
+
+  const handleNodeDoubleClick = useCallback(
+    (_event: React.MouseEvent, node: Node) => {
       if (node.type === "noteNode" && onNavigateToNote) {
         onNavigateToNote(node.data.noteId as string);
-        return;
       }
     },
     [onNavigateToNote],
@@ -657,6 +809,7 @@ export function TagGraphView({
   const handlePaneClick = useCallback(() => {
     onSelectTag(null);
     setNoteContextMenu(null);
+    setSelectedNodeId(null);
   }, [onSelectTag]);
 
   const handleNodeContextMenu = useCallback(
@@ -672,6 +825,51 @@ export function TagGraphView({
       }
     },
     [],
+  );
+
+  const { fitView } = useReactFlow();
+
+  const applyLayout = useCallback(
+    (type: "polygon" | "line") => {
+      const visibleNodes = nodesRef.current.filter(
+        (n) => n.type === "noteNode" || n.type === "memoNode",
+      );
+      if (visibleNodes.length === 0) return;
+      const ids = visibleNodes.map((n) => n.id);
+      // Compute center from current positions
+      const avgX =
+        visibleNodes.reduce((s, n) => s + n.position.x, 0) /
+        visibleNodes.length;
+      const avgY =
+        visibleNodes.reduce((s, n) => s + n.position.y, 0) /
+        visibleNodes.length;
+      const center = { x: avgX, y: avgY };
+
+      let newPositions: Record<string, { x: number; y: number }>;
+      if (type === "polygon") {
+        const radius = Math.max(100, ids.length * 30);
+        newPositions = applyPolygonLayout(ids, center, radius);
+      } else {
+        newPositions = applyLineLayout(
+          ids,
+          { x: center.x - ((ids.length - 1) * 120) / 2, y: center.y },
+          120,
+        );
+      }
+
+      setNodes((nds) =>
+        nds.map((n) =>
+          newPositions[n.id] ? { ...n, position: newPositions[n.id] } : n,
+        ),
+      );
+      // Persist
+      for (const [id, pos] of Object.entries(newPositions)) {
+        positionsRef.current[id] = pos;
+      }
+      savePositions(positionsRef.current);
+      setTimeout(() => fitView({ padding: 0.3, duration: 300 }), 50);
+    },
+    [setNodes, fitView],
   );
 
   const savedViewport = useMemo(() => loadViewport(), []);
@@ -698,6 +896,7 @@ export function TagGraphView({
         onConnect={handleConnect}
         onEdgeClick={handleEdgeClick}
         onNodeClick={handleNodeClick}
+        onNodeDoubleClick={handleNodeDoubleClick}
         onNodeContextMenu={handleNodeContextMenu}
         onPaneClick={handlePaneClick}
         onMoveEnd={(_event, viewport) => saveViewport(viewport)}
@@ -711,6 +910,24 @@ export function TagGraphView({
         className="bg-notion-bg"
       >
         <Background gap={20} size={1} color="var(--notion-border)" />
+        <Panel position="top-left">
+          <div className="flex gap-1">
+            <button
+              onClick={() => applyLayout("polygon")}
+              className="p-1.5 rounded bg-notion-bg border border-notion-border text-notion-text-secondary hover:bg-notion-hover"
+              title={t("ideas.layoutPolygon")}
+            >
+              <Hexagon size={14} />
+            </button>
+            <button
+              onClick={() => applyLayout("line")}
+              className="p-1.5 rounded bg-notion-bg border border-notion-border text-notion-text-secondary hover:bg-notion-hover"
+              title={t("ideas.layoutLine")}
+            >
+              <AlignHorizontalSpaceBetween size={14} />
+            </button>
+          </div>
+        </Panel>
         <Panel position="top-right">
           <div className="flex flex-col gap-1 items-end">
             <CanvasControls />

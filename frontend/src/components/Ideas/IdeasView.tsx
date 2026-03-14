@@ -63,9 +63,7 @@ export function IdeasView({ onNavigateToNote }: IdeasViewProps) {
     createGroup,
     updateGroup,
     deleteGroup,
-    createTag,
-    updateTag,
-    deleteTag,
+    setGroupMembers,
   } = useWikiTags();
 
   // Materials view state
@@ -152,9 +150,7 @@ export function IdeasView({ onNavigateToNote }: IdeasViewProps) {
         onUpdateGroup={updateGroup}
         onDeleteGroup={deleteGroup}
         onNavigateToConnect={handleNavigateToConnect}
-        onCreateTag={createTag}
-        onUpdateTag={updateTag}
-        onDeleteTag={deleteTag}
+        onSetGroupMembers={setGroupMembers}
       />
     ) : null;
 

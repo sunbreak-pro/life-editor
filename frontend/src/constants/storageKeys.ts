@@ -35,4 +35,6 @@ export const STORAGE_KEYS = {
   TAG_GRAPH_GROUP_POSITIONS: "life-editor-tag-graph-group-positions",
   MATERIALS_SECTIONS_STATE: "life-editor-materials-sections-state",
   MATERIALS_CONTENT_TYPE: "life-editor-materials-content-type",
+  TAG_GRAPH_GROUP_SIZES: "life-editor-tag-graph-group-sizes",
+  TASK_TREE_TAB: "life-editor-task-tree-tab",
 } as const;

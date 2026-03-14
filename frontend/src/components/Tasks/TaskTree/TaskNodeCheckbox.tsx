@@ -5,6 +5,7 @@ import {
   Folder,
   FolderOpen,
   Check,
+  CheckCircle2,
 } from "lucide-react";
 import { getTextColorForBg } from "../../../constants/folderColors";
 
@@ -14,6 +15,7 @@ interface TaskNodeCheckboxProps {
   isExpanded?: boolean;
   isDragging?: boolean;
   color?: string;
+  isCompletedItem?: boolean;
   onToggleExpand: () => void;
   onToggleStatus: () => void;
 }
@@ -24,9 +26,21 @@ export const TaskNodeCheckbox = memo(function TaskNodeCheckbox({
   isExpanded,
   isDragging,
   color,
+  isCompletedItem,
   onToggleExpand,
   onToggleStatus,
 }: TaskNodeCheckboxProps) {
+  if (isCompletedItem) {
+    return (
+      <button
+        onClick={onToggleStatus}
+        className="text-notion-accent hover:text-notion-text-secondary"
+      >
+        <CheckCircle2 size={14} />
+      </button>
+    );
+  }
+
   if (isFolder) {
     return (
       <>

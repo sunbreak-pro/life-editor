@@ -5,7 +5,6 @@ import { TagGraphView } from "./Connect/TagGraphView";
 import { ConnectSidebar } from "./Connect/ConnectSidebar";
 import { useWikiTags } from "../../hooks/useWikiTags";
 import { useNoteConnections } from "../../hooks/useNoteConnections";
-import { useNoteCooccurrence } from "../../hooks/useNoteCooccurrence";
 import { useConnectSearch } from "../../hooks/useConnectSearch";
 import { useNoteContext } from "../../hooks/useNoteContext";
 import { useMemoContext } from "../../hooks/useMemoContext";
@@ -33,20 +32,17 @@ export function ConnectTabView({
   const {
     tags,
     assignments,
-    createTag,
-    updateTag,
-    deleteTag,
     setTagsForEntity,
     groups,
     groupMembers,
     createGroup,
     updateGroup,
     deleteGroup,
+    setGroupMembers,
   } = useWikiTags();
 
   const { noteConnections, createNoteConnection, deleteNoteConnectionByPair } =
     useNoteConnections();
-  const noteCooccurrences = useNoteCooccurrence(assignments);
   const { notes, createNote, updateNote } = useNoteContext();
   const { memos } = useMemoContext();
 
@@ -153,24 +149,6 @@ export function ConnectTabView({
     [updateNote],
   );
 
-  const handleUpdateTag = useCallback(
-    async (
-      id: string,
-      updates: Partial<Pick<(typeof tags)[0], "name" | "color">>,
-    ) => {
-      await updateTag(id, updates);
-    },
-    [updateTag],
-  );
-
-  const handleDeleteTag = useCallback(
-    async (id: string) => {
-      await deleteTag(id);
-      if (selectedTagId === id) setSelectedTagId(null);
-    },
-    [deleteTag, selectedTagId],
-  );
-
   const { portalTarget: rightSidebarTarget } = useContext(RightSidebarContext);
 
   const sidebar = (
@@ -188,14 +166,12 @@ export function ConnectTabView({
       onNavigateToNote={onNavigateToNote}
       onFocusNote={handleFocusNote}
       onCreateNote={handleCreateNote}
-      onCreateTag={createTag}
-      onUpdateTag={handleUpdateTag}
-      onDeleteTag={handleDeleteTag}
       groups={groups}
       groupMembers={groupMembers}
       onCreateGroup={createGroup}
       onUpdateGroup={updateGroup}
       onDeleteGroup={deleteGroup}
+      onSetGroupMembers={setGroupMembers}
     />
   );
 
@@ -210,7 +186,6 @@ export function ConnectTabView({
                 tags={tags}
                 assignments={assignments}
                 noteConnections={noteConnections}
-                noteCooccurrences={noteCooccurrences}
                 selectedTagId={selectedTagId}
                 onSelectTag={setSelectedTagId}
                 onCreateNoteConnection={handleCreateNoteConnection}
@@ -241,7 +216,6 @@ export function ConnectTabView({
                 tags={tags}
                 assignments={assignments}
                 noteConnections={noteConnections}
-                noteCooccurrences={noteCooccurrences}
                 selectedTagId={selectedTagId}
                 onSelectTag={setSelectedTagId}
                 onCreateNoteConnection={handleCreateNoteConnection}

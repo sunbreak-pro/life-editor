@@ -830,6 +830,12 @@
     "moveFolderConfirm": "このアイテムを「{{folder}}」に移動しますか？",
     "dontShowAgain": "今後表示しない"
   },
+  "folderContents": {
+    "title": "コンテンツ",
+    "folders": "フォルダ",
+    "tasks": "タスク",
+    "empty": "空"
+  },
   "taskTreeHeader": {
     "allTasks": "すべてのタスク",
     "navigateToFolder": "フォルダへ移動"

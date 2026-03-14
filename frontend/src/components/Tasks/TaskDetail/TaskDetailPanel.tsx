@@ -1,6 +1,23 @@
-import { useState, useEffect, useRef, useCallback, Suspense } from "react";
+import {
+  useState,
+  useEffect,
+  useRef,
+  useCallback,
+  useMemo,
+  Suspense,
+} from "react";
 import type { KeyboardEvent } from "react";
-import { Play, Clock, Calendar, Trash2, FolderOpen } from "lucide-react";
+import {
+  Play,
+  Clock,
+  Calendar,
+  Trash2,
+  FolderOpen,
+  Folder,
+  ChevronRight,
+  ChevronDown,
+  Square,
+} from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useTaskTreeContext } from "../../../hooks/useTaskTreeContext";
 import { useTimerContext } from "../../../hooks/useTimerContext";
@@ -56,11 +73,13 @@ function extractPlainText(json: string): string {
 interface TaskDetailPanelProps {
   selectedNodeId: string | null;
   onPlayTask?: (node: TaskNode) => void;
+  onSelectTask?: (id: string) => void;
 }
 
 export function TaskDetailPanel({
   selectedNodeId,
   onPlayTask,
+  onSelectTask,
 }: TaskDetailPanelProps) {
   const { nodes, updateNode, moveNodeInto, moveToRoot, softDelete } =
     useTaskTreeContext();
@@ -95,7 +114,12 @@ export function TaskDetailPanel({
               }}
             />
           ) : (
-            <FolderSidebarContent node={node} updateNode={updateNode} />
+            <FolderSidebarContent
+              node={node}
+              nodes={nodes}
+              updateNode={updateNode}
+              onSelectTask={onSelectTask}
+            />
           )}
         </div>
       </div>
@@ -382,22 +406,131 @@ function TaskSidebarContent({
 
 interface FolderSidebarContentProps {
   node: TaskNode;
+  nodes: TaskNode[];
   updateNode: (id: string, updates: Partial<TaskNode>) => void;
+  onSelectTask?: (id: string) => void;
 }
 
-function FolderSidebarContent({ node, updateNode }: FolderSidebarContentProps) {
+function FolderSidebarContent({
+  node,
+  nodes,
+  updateNode,
+  onSelectTask,
+}: FolderSidebarContentProps) {
   const { t } = useTranslation();
   const [showColorPicker, setShowColorPicker] = useState(false);
   const [showSchedule, setShowSchedule] = useState(node.scheduledAt != null);
   const [prevNodeId, setPrevNodeId] = useState(node.id);
+  const [colorPickerAncestorId, setColorPickerAncestorId] = useState<
+    string | null
+  >(null);
+  const [expandedFolders, setExpandedFolders] = useState<Set<string>>(
+    new Set(),
+  );
 
   if (prevNodeId !== node.id) {
     setPrevNodeId(node.id);
     setShowSchedule(node.scheduledAt != null);
+    setExpandedFolders(new Set());
   }
+
+  const ancestors = getAncestors(node.id, nodes);
+
+  const children = useMemo(
+    () =>
+      nodes.filter(
+        (n) => n.parentId === node.id && !n.isDeleted && n.status !== "DONE",
+      ),
+    [nodes, node.id],
+  );
+  const childFolders = useMemo(
+    () => children.filter((n) => n.type === "folder"),
+    [children],
+  );
+  const childTasks = useMemo(
+    () => children.filter((n) => n.type === "task"),
+    [children],
+  );
+
+  const getGrandchildren = useCallback(
+    (folderId: string) =>
+      nodes.filter(
+        (n) => n.parentId === folderId && !n.isDeleted && n.status !== "DONE",
+      ),
+    [nodes],
+  );
+
+  const getChildCount = useCallback(
+    (folderId: string) =>
+      nodes.filter(
+        (n) => n.parentId === folderId && !n.isDeleted && n.status !== "DONE",
+      ).length,
+    [nodes],
+  );
+
+  const toggleFolder = (folderId: string) => {
+    setExpandedFolders((prev) => {
+      const next = new Set(prev);
+      if (next.has(folderId)) {
+        next.delete(folderId);
+      } else {
+        next.add(folderId);
+      }
+      return next;
+    });
+  };
 
   return (
     <div className="space-y-4">
+      {/* Breadcrumb path */}
+      <div className="flex items-center gap-1.5 text-sm text-notion-text-secondary min-h-6">
+        {ancestors.length > 0 ? (
+          ancestors.map((ancestor, i) => (
+            <span
+              key={ancestor.id}
+              className="flex items-center gap-1 relative shrink-0"
+            >
+              {i > 0 && (
+                <span className="text-notion-text-secondary/50">/</span>
+              )}
+              {ancestor.type === "folder" ? (
+                <>
+                  <button
+                    onClick={() =>
+                      setColorPickerAncestorId(
+                        colorPickerAncestorId === ancestor.id
+                          ? null
+                          : ancestor.id,
+                      )
+                    }
+                    className="hover:text-notion-text transition-colors cursor-pointer"
+                  >
+                    <FolderTag
+                      tag={ancestor.title}
+                      color={ancestor.color}
+                      compact
+                    />
+                  </button>
+                  {colorPickerAncestorId === ancestor.id && (
+                    <UnifiedColorPicker
+                      color={ancestor.color ?? ""}
+                      onChange={(color) => updateNode(ancestor.id, { color })}
+                      onClose={() => setColorPickerAncestorId(null)}
+                    />
+                  )}
+                </>
+              ) : (
+                <span>{ancestor.title}</span>
+              )}
+            </span>
+          ))
+        ) : (
+          <span className="text-notion-text-secondary/50">
+            {t("folderFilter.all")}
+          </span>
+        )}
+      </div>
+
       {/* Title */}
       <EditableTitle
         key={node.id}
@@ -489,6 +622,125 @@ function FolderSidebarContent({ node, updateNode }: FolderSidebarContentProps) {
           placeholder={t("taskDetailSidebar.memoPlaceholder")}
         />
       </div>
+
+      {/* Folder contents */}
+      {(childFolders.length > 0 || childTasks.length > 0) && (
+        <div className="pt-2 border-t border-notion-border">
+          <p className="text-xs font-medium text-notion-text-secondary mb-2">
+            {t("folderContents.title")}
+          </p>
+
+          {/* Child folders */}
+          {childFolders.length > 0 && (
+            <div className="mb-2">
+              <p className="text-[10px] uppercase tracking-wider text-notion-text-secondary/60 mb-1">
+                {t("folderContents.folders")}
+              </p>
+              <div className="space-y-0.5">
+                {childFolders.map((folder) => {
+                  const isExpanded = expandedFolders.has(folder.id);
+                  const count = getChildCount(folder.id);
+                  return (
+                    <div key={folder.id}>
+                      <button
+                        onClick={() => toggleFolder(folder.id)}
+                        className="w-full flex items-center gap-1.5 px-2 py-1 rounded-md text-sm text-notion-text hover:bg-notion-hover transition-colors text-left"
+                      >
+                        {isExpanded ? (
+                          <ChevronDown
+                            size={14}
+                            className="shrink-0 text-notion-text-secondary"
+                          />
+                        ) : (
+                          <ChevronRight
+                            size={14}
+                            className="shrink-0 text-notion-text-secondary"
+                          />
+                        )}
+                        <Folder
+                          size={14}
+                          className="shrink-0"
+                          style={{ color: folder.color ?? "#9CA3AF" }}
+                        />
+                        <span className="truncate flex-1">{folder.title}</span>
+                        <span className="text-[10px] text-notion-text-secondary/60 shrink-0">
+                          {count} {count === 1 ? "item" : "items"}
+                        </span>
+                      </button>
+
+                      {/* Grandchildren (2nd level) */}
+                      {isExpanded && (
+                        <div className="ml-5 space-y-0.5 mt-0.5">
+                          {getGrandchildren(folder.id).map((grandchild) => (
+                            <button
+                              key={grandchild.id}
+                              onClick={() => {
+                                if (grandchild.type === "folder") {
+                                  onSelectTask?.(grandchild.id);
+                                } else {
+                                  onSelectTask?.(grandchild.id);
+                                }
+                              }}
+                              className="w-full flex items-center gap-1.5 px-2 py-1 rounded-md text-sm text-notion-text hover:bg-notion-hover transition-colors text-left"
+                            >
+                              {grandchild.type === "folder" ? (
+                                <Folder
+                                  size={13}
+                                  className="shrink-0"
+                                  style={{
+                                    color: grandchild.color ?? "#9CA3AF",
+                                  }}
+                                />
+                              ) : (
+                                <Square
+                                  size={13}
+                                  className="shrink-0 text-notion-text-secondary"
+                                />
+                              )}
+                              <span className="truncate">
+                                {grandchild.title}
+                              </span>
+                            </button>
+                          ))}
+                          {getGrandchildren(folder.id).length === 0 && (
+                            <p className="text-xs text-notion-text-secondary/50 px-2 py-1">
+                              {t("folderContents.empty")}
+                            </p>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Child tasks */}
+          {childTasks.length > 0 && (
+            <div>
+              <p className="text-[10px] uppercase tracking-wider text-notion-text-secondary/60 mb-1">
+                {t("folderContents.tasks")}
+              </p>
+              <div className="space-y-0.5">
+                {childTasks.map((task) => (
+                  <button
+                    key={task.id}
+                    onClick={() => onSelectTask?.(task.id)}
+                    className="w-full flex items-center gap-1.5 px-2 py-1 rounded-md text-sm text-notion-text hover:bg-notion-hover transition-colors text-left"
+                  >
+                    <Square
+                      size={13}
+                      className="shrink-0 text-notion-text-secondary"
+                    />
+                    <span className="truncate">{task.title}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }

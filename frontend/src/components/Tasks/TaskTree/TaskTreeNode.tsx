@@ -1,12 +1,7 @@
 import { useState, useCallback, useMemo, memo } from "react";
 import { useSortable } from "@dnd-kit/sortable";
 import { SortableContext } from "@dnd-kit/sortable";
-import {
-  GripVertical,
-  ChevronDown,
-  ChevronRight,
-  CheckCircle2,
-} from "lucide-react";
+import { GripVertical } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import type { TaskNode } from "../../../types/taskTree";
 import { useTaskTreeContext } from "../../../hooks/useTaskTreeContext";
@@ -43,6 +38,8 @@ interface TaskTreeNodeProps {
   activeTargetFolderId?: string | null;
   isCompletedItem?: boolean;
   completedFolderColor?: string;
+  isStructureContainer?: boolean;
+  completedTreeContainerIds?: Set<string>;
 }
 
 export const TaskTreeNode = memo(function TaskTreeNode({
@@ -58,6 +55,8 @@ export const TaskTreeNode = memo(function TaskTreeNode({
   activeTargetFolderId,
   isCompletedItem,
   completedFolderColor,
+  isStructureContainer,
+  completedTreeContainerIds,
 }: TaskTreeNodeProps) {
   const {
     nodes,
@@ -83,32 +82,40 @@ export const TaskTreeNode = memo(function TaskTreeNode({
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const [completionToast, setCompletionToast] = useState<string | null>(null);
 
-  // Step 1: Subscribe to drag-over store — only re-renders when this node's indicator changes
+  // Subscribe to drag-over store — only re-renders when this node's indicator changes
   const dropPosition = useDragOverIndicator(node.id);
 
   const { attributes, listeners, setNodeRef, isDragging } = useSortable({
     id: node.id,
+    disabled: isCompletedItem || isStructureContainer,
   });
 
-  const [showFolderCompleted, setShowFolderCompleted] = useState(false);
+  const isInCompletedTree = isCompletedItem || isStructureContainer;
 
   const rawChildren = getChildren(node.id);
   const activeChildren = useMemo(() => {
+    if (isInCompletedTree) {
+      // In completed tree: show children that are part of the tree
+      if (!completedTreeContainerIds) return [];
+      const children = rawChildren.filter(
+        (c) => c.status === "DONE" || completedTreeContainerIds.has(c.id),
+      );
+      return sortTaskNodes(children, sortMode);
+    }
     const active = rawChildren.filter((c) => c.status !== "DONE");
     const sorted = sortTaskNodes(active, sortMode);
     if (isSearching && searchMatchIds) {
       return sorted.filter((c) => searchMatchIds.has(c.id));
     }
     return sorted;
-  }, [rawChildren, sortMode, isSearching, searchMatchIds]);
-
-  const completedChildren = useMemo(() => {
-    const done = rawChildren.filter((c) => c.status === "DONE");
-    if (isSearching && searchMatchIds) {
-      return done.filter((c) => searchMatchIds.has(c.id));
-    }
-    return done;
-  }, [rawChildren, isSearching, searchMatchIds]);
+  }, [
+    rawChildren,
+    sortMode,
+    isSearching,
+    searchMatchIds,
+    isInCompletedTree,
+    completedTreeContainerIds,
+  ]);
 
   const childIds = useMemo(
     () => activeChildren.map((c) => c.id),
@@ -126,13 +133,11 @@ export const TaskTreeNode = memo(function TaskTreeNode({
     [isFolder, node.id, nodes],
   );
 
-  // Step 4: Memoize resolveTaskColor
   const inheritedColor = useMemo(
     () => (!isFolder ? resolveTaskColor(node.id, nodes) : undefined),
     [isFolder, node.id, nodes],
   );
 
-  // Step 4: Memoize style objects
   const transformStyle = useMemo(
     () => ({ opacity: isDragging ? 0 : 1 }),
     [isDragging],
@@ -187,7 +192,6 @@ export const TaskTreeNode = memo(function TaskTreeNode({
     toggleTaskStatus(node.id);
   }, [node.id, node.status, node.title, toggleTaskStatus, t]);
 
-  // Step 3: Stabilize inline callbacks with useCallback
   const handleToggleExpand = useCallback(
     () => toggleExpanded(node.id),
     [toggleExpanded, node.id],
@@ -217,24 +221,29 @@ export const TaskTreeNode = memo(function TaskTreeNode({
     [softDelete, node.id],
   );
 
+  // For structure containers: show as normal folder (not completed icon)
+  const showAsCompleted = isCompletedItem && !isStructureContainer;
+
   return (
     <div>
       <div ref={setNodeRef} style={transformStyle} {...attributes}>
         {/* "above" drop indicator */}
-        {dropPosition === "above" && !isDragging && (
+        {dropPosition === "above" && !isDragging && !isInCompletedTree && (
           <div className="h-0.5 bg-notion-accent rounded-full mx-2" />
         )}
 
         {/* Content row */}
         <div
-          className={`group flex items-center gap-0.5 py-1 rounded-md hover:bg-notion-hover transition-colors border-l-2 ${isSelected ? "bg-notion-hover border-l-notion-accent" : "border-l-transparent"} ${isFolder && dropPosition === "inside" && !isDragging ? "ring-2 ring-notion-accent bg-notion-accent/5" : ""} ${isDone || isFolderDone ? "opacity-60 hover:opacity-90" : ""} ${isCreateTarget && !isSelected ? "ring-1 ring-notion-accent/30" : ""}`}
+          className={`group flex items-center gap-0.5 py-1 rounded-md hover:bg-notion-hover transition-colors border-l-2 ${isSelected ? "bg-notion-hover border-l-notion-accent" : "border-l-transparent"} ${isFolder && dropPosition === "inside" && !isDragging && !isInCompletedTree ? "ring-2 ring-notion-accent bg-notion-accent/5" : ""} ${isDone || isFolderDone ? "opacity-60 hover:opacity-90" : ""} ${isCreateTarget && !isSelected ? "ring-1 ring-notion-accent/30" : ""}`}
           style={bgStyle}
-          onContextMenu={handleContextMenu}
+          onContextMenu={isStructureContainer ? undefined : handleContextMenu}
         >
-          {sortMode === "manual" ? (
+          {sortMode === "manual" &&
+          !showAsCompleted &&
+          !isStructureContainer ? (
             <button
               {...listeners}
-              className="opacity-0 group-hover:opacity-100 p-0.5 cursor-grab text-notion-text-secondary"
+              className="w-5.5 shrink-0 opacity-0 group-hover:opacity-100 p-0.5 cursor-grab text-notion-text-secondary"
             >
               <GripVertical size={18} />
             </button>
@@ -248,11 +257,16 @@ export const TaskTreeNode = memo(function TaskTreeNode({
             isExpanded={node.isExpanded}
             isDragging={isDragging}
             color={node.color}
+            isCompletedItem={showAsCompleted}
             onToggleExpand={handleToggleExpand}
-            onToggleStatus={handleToggleStatus}
+            onToggleStatus={
+              showAsCompleted && isFolder
+                ? handleCompleteFolder
+                : handleToggleStatus
+            }
           />
 
-          {isEditing ? (
+          {isEditing && !isStructureContainer ? (
             <TaskNodeEditor
               initialValue={node.title}
               onSave={handleSave}
@@ -264,8 +278,10 @@ export const TaskTreeNode = memo(function TaskTreeNode({
               isDone={isDone || isFolderDone}
               isFolder={isFolder}
               progress={progress}
-              onSelectTask={onSelectTask}
-              onStartEditing={handleStartEditing}
+              onSelectTask={isStructureContainer ? undefined : onSelectTask}
+              onStartEditing={
+                isStructureContainer ? undefined : handleStartEditing
+              }
               onToggleExpand={handleToggleExpand}
               nodeId={node.id}
             />
@@ -277,25 +293,27 @@ export const TaskTreeNode = memo(function TaskTreeNode({
             formatTime={timer.formatTime}
           />
 
-          <TaskNodeActions
-            node={node}
-            isDone={isDone}
-            isTimerActive={isTimerActive}
-            isFolderDone={isFolderDone}
-            makeFolder={handleMakeFolder}
-            makeTask={handleMakeTask}
-            onPlayTask={onPlayTask}
-            onDelete={handleDelete}
-            onCompleteFolder={isFolder ? handleCompleteFolder : undefined}
-          />
+          {!showAsCompleted && !isStructureContainer && (
+            <TaskNodeActions
+              node={node}
+              isDone={isDone}
+              isTimerActive={isTimerActive}
+              isFolderDone={isFolderDone}
+              makeFolder={handleMakeFolder}
+              makeTask={handleMakeTask}
+              onPlayTask={onPlayTask}
+              onDelete={handleDelete}
+              onCompleteFolder={isFolder ? handleCompleteFolder : undefined}
+            />
+          )}
         </div>
       </div>
 
-      {dropPosition === "below" && !isDragging && (
+      {dropPosition === "below" && !isDragging && !isInCompletedTree && (
         <div className="h-0.5 bg-notion-accent rounded-full mx-2" />
       )}
 
-      {contextMenu && (
+      {contextMenu && !isStructureContainer && (
         <TaskNodeContextMenu
           x={contextMenu.x}
           y={contextMenu.y}
@@ -341,71 +359,50 @@ export const TaskTreeNode = memo(function TaskTreeNode({
 
       {isFolder &&
         !isDragging &&
-        !isCompletedItem &&
-        (node.isExpanded || isSearching) && (
-          <>
-            <SortableContext items={childIds}>
-              <div>
-                {activeChildren.map((child, index) => (
-                  <TaskTreeNode
-                    key={child.id}
-                    node={child}
-                    depth={depth + 1}
-                    isLastChild={
-                      index === activeChildren.length - 1 &&
-                      completedChildren.length === 0
-                    }
-                    onPlayTask={onPlayTask}
-                    onSelectTask={onSelectTask}
-                    selectedTaskId={selectedTaskId}
-                    sortMode={sortMode}
-                    searchMatchIds={searchMatchIds}
-                    isSearching={isSearching}
-                    activeTargetFolderId={activeTargetFolderId}
-                  />
-                ))}
-              </div>
-            </SortableContext>
-            {completedChildren.length > 0 && (
-              <div style={{ paddingLeft: `${(depth + 1) * 16 + 24}px` }}>
-                <button
-                  onClick={() => setShowFolderCompleted(!showFolderCompleted)}
-                  className="flex items-center gap-1.5 text-xs text-notion-text-secondary hover:text-notion-text py-0.5"
-                >
-                  {showFolderCompleted || isSearching ? (
-                    <ChevronDown size={12} />
-                  ) : (
-                    <ChevronRight size={12} />
-                  )}
-                  <CheckCircle2 size={12} />
-                  <span>
-                    {t("taskTree.completed")} ({completedChildren.length})
-                  </span>
-                </button>
-                {(showFolderCompleted || isSearching) && (
-                  <div>
-                    {completedChildren.map((child, index) => (
-                      <TaskTreeNode
-                        key={child.id}
-                        node={child}
-                        depth={0}
-                        isLastChild={index === completedChildren.length - 1}
-                        onSelectTask={onSelectTask}
-                        selectedTaskId={selectedTaskId}
-                        sortMode={sortMode}
-                        searchMatchIds={searchMatchIds}
-                        isSearching={isSearching}
-                        activeTargetFolderId={activeTargetFolderId}
-                        isCompletedItem={true}
-                        completedFolderColor={node.color || inheritedColor}
-                      />
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
-          </>
-        )}
+        (node.isExpanded || isSearching) &&
+        (isInCompletedTree ? (
+          // Completed tree: render children from the completed tree
+          <div>
+            {activeChildren.map((child, index) => (
+              <TaskTreeNode
+                key={child.id}
+                node={child}
+                depth={depth + 1}
+                isLastChild={index === activeChildren.length - 1}
+                onSelectTask={onSelectTask}
+                selectedTaskId={selectedTaskId}
+                sortMode={sortMode}
+                isCompletedItem={!completedTreeContainerIds?.has(child.id)}
+                isStructureContainer={
+                  completedTreeContainerIds?.has(child.id) ?? false
+                }
+                completedTreeContainerIds={completedTreeContainerIds}
+                completedFolderColor={node.color || inheritedColor}
+              />
+            ))}
+          </div>
+        ) : (
+          // Incomplete tree: existing logic (no completed sub-section)
+          <SortableContext items={childIds}>
+            <div>
+              {activeChildren.map((child, index) => (
+                <TaskTreeNode
+                  key={child.id}
+                  node={child}
+                  depth={depth + 1}
+                  isLastChild={index === activeChildren.length - 1}
+                  onPlayTask={onPlayTask}
+                  onSelectTask={onSelectTask}
+                  selectedTaskId={selectedTaskId}
+                  sortMode={sortMode}
+                  searchMatchIds={searchMatchIds}
+                  isSearching={isSearching}
+                  activeTargetFolderId={activeTargetFolderId}
+                />
+              ))}
+            </div>
+          </SortableContext>
+        ))}
     </div>
   );
 });

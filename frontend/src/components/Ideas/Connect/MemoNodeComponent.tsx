@@ -10,6 +10,7 @@ type MemoNodeType = {
   tagDots?: Array<{ id: string; name: string; color: string }>;
   highlighted?: boolean;
   focused?: boolean;
+  dimmed?: boolean;
 };
 
 function MemoNodeInner({ data }: NodeProps & { data: MemoNodeType }) {
@@ -18,15 +19,26 @@ function MemoNodeInner({ data }: NodeProps & { data: MemoNodeType }) {
 
   return (
     <div
-      className="relative"
+      className={`relative transition-opacity ${data.dimmed ? "opacity-10" : ""}`}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
     >
-      <Handle
-        type="target"
-        position={Position.Top}
-        className="!opacity-0 !w-3 !h-3"
-      />
+      {(["Top", "Right", "Bottom", "Left"] as const).map((pos) => (
+        <span key={pos}>
+          <Handle
+            type="source"
+            position={Position[pos]}
+            id={`s-${pos}`}
+            className="!opacity-0 !w-2 !h-2"
+          />
+          <Handle
+            type="target"
+            position={Position[pos]}
+            id={`t-${pos}`}
+            className="!opacity-0 !w-2 !h-2"
+          />
+        </span>
+      ))}
       {/* Dot + date */}
       <div className="flex flex-col items-center w-[80px] cursor-grab active:cursor-grabbing">
         <span
@@ -80,11 +92,6 @@ function MemoNodeInner({ data }: NodeProps & { data: MemoNodeType }) {
           </div>
         </div>
       )}
-      <Handle
-        type="source"
-        position={Position.Bottom}
-        className="!opacity-0 !w-3 !h-3"
-      />
     </div>
   );
 }

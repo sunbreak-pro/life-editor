@@ -6,15 +6,7 @@ import {
   useDroppable,
 } from "@dnd-kit/core";
 import { SortableContext } from "@dnd-kit/sortable";
-import {
-  ChevronDown,
-  ChevronRight,
-  GripVertical,
-  ListTree,
-  CheckCircle2,
-  Plus,
-  FolderPlus,
-} from "lucide-react";
+import { GripVertical, ListTree, Plus, FolderPlus } from "lucide-react";
 import { useTaskTreeContext } from "../../../hooks/useTaskTreeContext";
 
 import { useTranslation } from "react-i18next";
@@ -41,6 +33,8 @@ import { sortTaskNodes } from "../../../utils/sortTaskNodes";
 import type { SortMode } from "../../../utils/sortTaskNodes";
 import { STORAGE_KEYS } from "../../../constants/storageKeys";
 import type { TaskNode } from "../../../types/taskTree";
+import { buildCompletedTree } from "../../../utils/buildCompletedTree";
+import type { TaskTreeTab } from "../TaskTreeView";
 
 interface TaskTreeProps {
   onPlayTask?: (node: TaskNode) => void;
@@ -49,6 +43,7 @@ interface TaskTreeProps {
   filterFolderId?: string | null;
   onFilterChange?: (id: string | null) => void;
   searchQuery?: string;
+  activeTab?: TaskTreeTab;
 }
 
 function DroppableSection({
@@ -69,6 +64,7 @@ export function TaskTree({
   filterFolderId: externalFilterFolderId,
   onFilterChange: externalOnFilterChange,
   searchQuery = "",
+  activeTab = "incomplete",
 }: TaskTreeProps) {
   const {
     nodes,
@@ -81,7 +77,8 @@ export function TaskTree({
     toggleTaskStatus,
   } = useTaskTreeContext();
 
-  const [showCompleted, setShowCompleted] = useState(false);
+  const isCompleted = activeTab === "completed";
+
   const [isCreatingRootItem, setIsCreatingRootItem] = useState<
     "task" | "folder" | null
   >(null);
@@ -122,10 +119,14 @@ export function TaskTree({
   );
   const isSearching = debouncedQuery.trim().length > 0;
 
-  const directMatches = useMemo(
-    () => getDirectSearchMatches(nodes, debouncedQuery),
-    [nodes, debouncedQuery],
-  );
+  const directMatches = useMemo(() => {
+    const matches = getDirectSearchMatches(nodes, debouncedQuery);
+    if (!isSearching) return matches;
+    // Filter by tab
+    return matches.filter((n) =>
+      isCompleted ? n.status === "DONE" : n.status !== "DONE",
+    );
+  }, [nodes, debouncedQuery, isSearching, isCompleted]);
 
   const { t } = useTranslation();
   const { showToast } = useToast();
@@ -159,12 +160,21 @@ export function TaskTree({
   });
 
   const handleDragStart: typeof rawHandleDragStart = (event) => {
-    if (isSearching) return;
+    if (isSearching || isCompleted) return;
     rawHandleDragStart(event);
   };
 
   const rootChildren = useMemo(() => getChildren(null), [getChildren]);
+
+  // --- Completed tab: build completed tree ---
+  const completedTree = useMemo(() => {
+    if (!isCompleted) return { roots: [], containerIds: new Set<string>() };
+    return buildCompletedTree(nodes, filterFolderId ?? null);
+  }, [isCompleted, nodes, filterFolderId]);
+
+  // --- Incomplete tab: existing logic ---
   const rootItems = useMemo(() => {
+    if (isCompleted) return completedTree.roots;
     let items: TaskNode[];
     if (!filterFolderId) {
       items = rootChildren.filter((n) => n.status !== "DONE");
@@ -187,30 +197,9 @@ export function TaskTree({
     sortMode,
     isSearching,
     searchMatchIds,
+    isCompleted,
+    completedTree.roots,
   ]);
-
-  const completedRootTasks = useMemo(() => {
-    let tasks = rootChildren.filter(
-      (n) => n.type === "task" && n.status === "DONE",
-    );
-    if (isSearching) {
-      tasks = tasks.filter((n) => searchMatchIds.has(n.id));
-    }
-    return tasks;
-  }, [rootChildren, isSearching, searchMatchIds]);
-
-  const completedFolders = useMemo(() => {
-    if (filterFolderId) return [];
-    let result = rootChildren.filter(
-      (n) => n.type === "folder" && n.status === "DONE",
-    );
-    if (isSearching) {
-      result = result.filter((n) => searchMatchIds.has(n.id));
-    }
-    return result;
-  }, [rootChildren, filterFolderId, isSearching, searchMatchIds]);
-  const hasCompleted =
-    completedRootTasks.length > 0 || completedFolders.length > 0;
 
   const activeTargetFolderId = useMemo(() => {
     if (!selectedTaskId) return null;
@@ -273,7 +262,7 @@ export function TaskTree({
         <>
           <DragOverStoreContext.Provider value={dragOverStore}>
             <DndContext
-              sensors={sensors}
+              sensors={isCompleted ? [] : sensors}
               collisionDetection={pointerWithin}
               onDragStart={handleDragStart}
               onDragMove={handleDragMove}
@@ -286,7 +275,7 @@ export function TaskTree({
                   <div>
                     <div
                       className={`flex items-center gap-2 px-2 py-1.5 text-xs font-semibold uppercase tracking-wider text-notion-text-secondary rounded-md transition-colors ${
-                        isOver
+                        isOver && !isCompleted
                           ? "bg-notion-accent/10 ring-1 ring-notion-accent/30"
                           : ""
                       }`}
@@ -295,33 +284,37 @@ export function TaskTree({
                       <div className="flex-row flex items-center justify-between w-full">
                         <div className="flex items-center gap-1.5">
                           {t("taskTree.title")}
-                          <SortDropdown
-                            sortMode={sortMode}
-                            onSortChange={setSortMode}
-                          />
+                          {!isCompleted && (
+                            <SortDropdown
+                              sortMode={sortMode}
+                              onSortChange={setSortMode}
+                            />
+                          )}
                         </div>
-                        <div className="flex items-center gap-1">
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setIsCreatingRootItem("folder");
-                            }}
-                            className="hover:text-notion-text transition-colors"
-                            title={t("taskTree.newFolder")}
-                          >
-                            <FolderPlus size={14} />
-                          </button>
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setIsCreatingRootItem("task");
-                            }}
-                            className="hover:text-notion-text transition-colors"
-                            title={t("taskTree.newTask")}
-                          >
-                            <Plus size={14} />
-                          </button>
-                        </div>
+                        {!isCompleted && (
+                          <div className="flex items-center gap-1">
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setIsCreatingRootItem("folder");
+                              }}
+                              className="hover:text-notion-text transition-colors"
+                              title={t("taskTree.newFolder")}
+                            >
+                              <FolderPlus size={14} />
+                            </button>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setIsCreatingRootItem("task");
+                              }}
+                              className="hover:text-notion-text transition-colors"
+                              title={t("taskTree.newTask")}
+                            >
+                              <Plus size={14} />
+                            </button>
+                          </div>
+                        )}
                       </div>
                     </div>
                     <SortableContext items={rootItemIds}>
@@ -331,16 +324,28 @@ export function TaskTree({
                             key={node.id}
                             node={node}
                             depth={0}
-                            onPlayTask={onPlayTask}
+                            onPlayTask={isCompleted ? undefined : onPlayTask}
                             onSelectTask={onSelectTask}
                             selectedTaskId={selectedTaskId}
                             sortMode={sortMode}
                             activeTargetFolderId={activeTargetFolderId}
+                            isCompletedItem={
+                              isCompleted &&
+                              !completedTree.containerIds.has(node.id)
+                            }
+                            isStructureContainer={completedTree.containerIds.has(
+                              node.id,
+                            )}
+                            completedTreeContainerIds={
+                              isCompleted
+                                ? completedTree.containerIds
+                                : undefined
+                            }
                           />
                         ))}
                       </div>
                     </SortableContext>
-                    {isCreatingRootItem && (
+                    {!isCompleted && isCreatingRootItem && (
                       <InlineCreateInput
                         placeholder={
                           isCreatingRootItem === "task"
@@ -377,47 +382,9 @@ export function TaskTree({
             </DndContext>
           </DragOverStoreContext.Provider>
 
-          {hasCompleted && (
-            <div className="pt-2 border-t border-notion-border">
-              <button
-                onClick={() => setShowCompleted(!showCompleted)}
-                className="flex items-center gap-2 text-xs text-notion-text-secondary hover:text-notion-text mb-1 px-2"
-              >
-                {showCompleted ? (
-                  <ChevronDown size={14} />
-                ) : (
-                  <ChevronRight size={14} />
-                )}
-                <CheckCircle2 size={14} />
-                <span>
-                  {t("taskTree.completed")} (
-                  {completedRootTasks.length + completedFolders.length})
-                </span>
-              </button>
-              {showCompleted && (
-                <div className="space-y-0.5">
-                  {completedRootTasks.map((task) => (
-                    <TaskTreeNode
-                      key={task.id}
-                      node={task}
-                      depth={0}
-                      onSelectTask={onSelectTask}
-                      selectedTaskId={selectedTaskId}
-                      sortMode={sortMode}
-                    />
-                  ))}
-                  {completedFolders.map((folder) => (
-                    <TaskTreeNode
-                      key={folder.id}
-                      node={folder}
-                      depth={0}
-                      onSelectTask={onSelectTask}
-                      selectedTaskId={selectedTaskId}
-                      sortMode={sortMode}
-                    />
-                  ))}
-                </div>
-              )}
+          {isCompleted && rootItems.length === 0 && (
+            <div className="px-4 py-8 text-center text-sm text-notion-text-secondary">
+              {t("taskTree.completed")} — 0
             </div>
           )}
         </>

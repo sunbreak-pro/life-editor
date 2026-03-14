@@ -830,6 +830,12 @@
     "moveFolderConfirm": "Move this item to \"{{folder}}\"?",
     "dontShowAgain": "Don't show again"
   },
+  "folderContents": {
+    "title": "Contents",
+    "folders": "Folders",
+    "tasks": "Tasks",
+    "empty": "Empty"
+  },
   "taskTreeHeader": {
     "allTasks": "All Tasks",
     "navigateToFolder": "Navigate to folder"
