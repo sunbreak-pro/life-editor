@@ -41,6 +41,8 @@ interface TaskTreeNodeProps {
   searchMatchIds?: Set<string>;
   isSearching?: boolean;
   activeTargetFolderId?: string | null;
+  isCompletedItem?: boolean;
+  completedFolderColor?: string;
 }
 
 export const TaskTreeNode = memo(function TaskTreeNode({
@@ -54,6 +56,8 @@ export const TaskTreeNode = memo(function TaskTreeNode({
   searchMatchIds,
   isSearching,
   activeTargetFolderId,
+  isCompletedItem,
+  completedFolderColor,
 }: TaskTreeNodeProps) {
   const {
     nodes,
@@ -142,8 +146,18 @@ export const TaskTreeNode = memo(function TaskTreeNode({
       ...(!isFolder && inheritedColor && !isSelected
         ? { backgroundColor: `${inheritedColor}18` }
         : {}),
+      ...(isCompletedItem && completedFolderColor && !isSelected
+        ? { backgroundColor: `${completedFolderColor}30` }
+        : {}),
     }),
-    [isFolder, node.color, isSelected, inheritedColor],
+    [
+      isFolder,
+      node.color,
+      isSelected,
+      inheritedColor,
+      isCompletedItem,
+      completedFolderColor,
+    ],
   );
 
   const handleContextMenu = useCallback((e: React.MouseEvent) => {
@@ -325,68 +339,73 @@ export const TaskTreeNode = memo(function TaskTreeNode({
         depth={depth}
       />
 
-      {isFolder && !isDragging && (node.isExpanded || isSearching) && (
-        <>
-          <SortableContext items={childIds}>
-            <div>
-              {activeChildren.map((child, index) => (
-                <TaskTreeNode
-                  key={child.id}
-                  node={child}
-                  depth={depth + 1}
-                  isLastChild={
-                    index === activeChildren.length - 1 &&
-                    completedChildren.length === 0
-                  }
-                  onPlayTask={onPlayTask}
-                  onSelectTask={onSelectTask}
-                  selectedTaskId={selectedTaskId}
-                  sortMode={sortMode}
-                  searchMatchIds={searchMatchIds}
-                  isSearching={isSearching}
-                  activeTargetFolderId={activeTargetFolderId}
-                />
-              ))}
-            </div>
-          </SortableContext>
-          {completedChildren.length > 0 && (
-            <div style={{ paddingLeft: `${(depth + 1) * 16 + 24}px` }}>
-              <button
-                onClick={() => setShowFolderCompleted(!showFolderCompleted)}
-                className="flex items-center gap-1.5 text-xs text-notion-text-secondary hover:text-notion-text py-0.5"
-              >
-                {showFolderCompleted || isSearching ? (
-                  <ChevronDown size={12} />
-                ) : (
-                  <ChevronRight size={12} />
+      {isFolder &&
+        !isDragging &&
+        !isCompletedItem &&
+        (node.isExpanded || isSearching) && (
+          <>
+            <SortableContext items={childIds}>
+              <div>
+                {activeChildren.map((child, index) => (
+                  <TaskTreeNode
+                    key={child.id}
+                    node={child}
+                    depth={depth + 1}
+                    isLastChild={
+                      index === activeChildren.length - 1 &&
+                      completedChildren.length === 0
+                    }
+                    onPlayTask={onPlayTask}
+                    onSelectTask={onSelectTask}
+                    selectedTaskId={selectedTaskId}
+                    sortMode={sortMode}
+                    searchMatchIds={searchMatchIds}
+                    isSearching={isSearching}
+                    activeTargetFolderId={activeTargetFolderId}
+                  />
+                ))}
+              </div>
+            </SortableContext>
+            {completedChildren.length > 0 && (
+              <div style={{ paddingLeft: `${(depth + 1) * 16 + 24}px` }}>
+                <button
+                  onClick={() => setShowFolderCompleted(!showFolderCompleted)}
+                  className="flex items-center gap-1.5 text-xs text-notion-text-secondary hover:text-notion-text py-0.5"
+                >
+                  {showFolderCompleted || isSearching ? (
+                    <ChevronDown size={12} />
+                  ) : (
+                    <ChevronRight size={12} />
+                  )}
+                  <CheckCircle2 size={12} />
+                  <span>
+                    {t("taskTree.completed")} ({completedChildren.length})
+                  </span>
+                </button>
+                {(showFolderCompleted || isSearching) && (
+                  <div>
+                    {completedChildren.map((child, index) => (
+                      <TaskTreeNode
+                        key={child.id}
+                        node={child}
+                        depth={0}
+                        isLastChild={index === completedChildren.length - 1}
+                        onSelectTask={onSelectTask}
+                        selectedTaskId={selectedTaskId}
+                        sortMode={sortMode}
+                        searchMatchIds={searchMatchIds}
+                        isSearching={isSearching}
+                        activeTargetFolderId={activeTargetFolderId}
+                        isCompletedItem={true}
+                        completedFolderColor={node.color || inheritedColor}
+                      />
+                    ))}
+                  </div>
                 )}
-                <CheckCircle2 size={12} />
-                <span>
-                  {t("taskTree.completed")} ({completedChildren.length})
-                </span>
-              </button>
-              {(showFolderCompleted || isSearching) && (
-                <div>
-                  {completedChildren.map((child, index) => (
-                    <TaskTreeNode
-                      key={child.id}
-                      node={child}
-                      depth={depth + 1}
-                      isLastChild={index === completedChildren.length - 1}
-                      onSelectTask={onSelectTask}
-                      selectedTaskId={selectedTaskId}
-                      sortMode={sortMode}
-                      searchMatchIds={searchMatchIds}
-                      isSearching={isSearching}
-                      activeTargetFolderId={activeTargetFolderId}
-                    />
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
-        </>
-      )}
+              </div>
+            )}
+          </>
+        )}
     </div>
   );
 });

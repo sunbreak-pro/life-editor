@@ -242,7 +242,7 @@
     "selectTagToSearch": "タグを選択して検索",
     "cooccurrence": "共起",
     "manualConnection": "手動接続",
-    "graphEmpty": "タグ付きのノートがありません。ノートにタグを追加するとグラフが表示されます。",
+    "graphEmpty": "ノートやメモがまだありません。ノートを作成するとキャンバスに表示されます。",
     "deleteConnection": "接続を削除しますか？",
     "newNoteButton": "+ ノート作成",
     "openNote": "ノートを開く",
@@ -261,7 +261,9 @@
     "canvasFilter": "フィルター",
     "tagDots": "タグ",
     "noteConnection": "ノート接続",
-    "sharedTags": "共通タグ"
+    "sharedTags": "共通タグ",
+    "clearFilter": "クリア",
+    "noFilterResults": "選択したタグに一致するアイテムがありません"
   },
   "schedule": {
     "todayFlow": "Today Flow",

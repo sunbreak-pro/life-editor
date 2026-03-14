@@ -64,8 +64,8 @@ export function OneDaySchedule({
   const { timeMemos, loadMemosForDate, upsertMemo } = useTimeMemos();
   const dateKey = formatDateKey(date);
   const isToday = dateKey === formatDateKey(new Date());
-  const [selectedFilterTagId, setSelectedFilterTagId] = useState<number | null>(
-    null,
+  const [selectedFilterTagIds, setSelectedFilterTagIds] = useState<number[]>(
+    [],
   );
   const scrollRef = useRef<HTMLDivElement>(null);
   const [showFilterDropdown, setShowFilterDropdown] = useState(false);
@@ -144,15 +144,15 @@ export function OneDaySchedule({
       case "tasks":
         return [];
     }
-    if (selectedFilterTagId != null) {
+    if (selectedFilterTagIds.length > 0) {
       items = items.filter((i) => {
         if (!i.routineId) return false;
         const rTagIds = routineTagMap.get(i.routineId) ?? [];
-        return rTagIds.includes(selectedFilterTagId);
+        return selectedFilterTagIds.some((id) => rTagIds.includes(id));
       });
     }
     return items;
-  }, [scheduleItems, filterTab, selectedFilterTagId, routineTagMap]);
+  }, [scheduleItems, filterTab, selectedFilterTagIds, routineTagMap]);
 
   const filteredDayTasks = useMemo(() => {
     if (filterTab === "routine" || filterTab === "others") return [];
@@ -232,7 +232,7 @@ export function OneDaySchedule({
                   onClick={() => {
                     onFilterTabChange(tab.id);
                     if (tab.id !== "all" && tab.id !== "routine") {
-                      setSelectedFilterTagId(null);
+                      setSelectedFilterTagIds([]);
                     }
                   }}
                   className={`w-full flex items-center gap-2 px-3 py-1.5 text-xs text-left transition-colors ${
@@ -257,9 +257,9 @@ export function OneDaySchedule({
                     <div className="border-t border-notion-border my-1" />
                     <div className="flex items-center gap-1 flex-wrap px-3 py-1.5">
                       <button
-                        onClick={() => setSelectedFilterTagId(null)}
+                        onClick={() => setSelectedFilterTagIds([])}
                         className={`text-[10px] px-1.5 py-0.5 rounded-full transition-colors ${
-                          selectedFilterTagId === null
+                          selectedFilterTagIds.length === 0
                             ? "bg-notion-text text-notion-bg"
                             : "bg-notion-hover text-notion-text-secondary hover:text-notion-text"
                         }`}
@@ -270,12 +270,14 @@ export function OneDaySchedule({
                         <button
                           key={tag.id}
                           onClick={() =>
-                            setSelectedFilterTagId(
-                              selectedFilterTagId === tag.id ? null : tag.id,
+                            setSelectedFilterTagIds((prev) =>
+                              prev.includes(tag.id)
+                                ? prev.filter((id) => id !== tag.id)
+                                : [...prev, tag.id],
                             )
                           }
                           className={`flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-full transition-colors ${
-                            selectedFilterTagId === tag.id
+                            selectedFilterTagIds.includes(tag.id)
                               ? "ring-1 ring-notion-text"
                               : "hover:opacity-80"
                           }`}

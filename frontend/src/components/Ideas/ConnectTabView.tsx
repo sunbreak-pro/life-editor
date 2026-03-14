@@ -56,6 +56,33 @@ export function ConnectTabView({
     "all" | "grouped" | { groupId: string }
   >("all");
   const [focusedNoteId, setFocusedNoteId] = useState<string | null>(null);
+  const [selectedFilterTagIds, setSelectedFilterTagIds] = useState<string[]>(
+    [],
+  );
+  const [selectedFilterGroupIds, setSelectedFilterGroupIds] = useState<
+    string[]
+  >([]);
+
+  const handleToggleFilterTag = useCallback((tagId: string) => {
+    setSelectedFilterTagIds((prev) =>
+      prev.includes(tagId)
+        ? prev.filter((id) => id !== tagId)
+        : [...prev, tagId],
+    );
+  }, []);
+
+  const handleToggleFilterGroup = useCallback((groupId: string) => {
+    setSelectedFilterGroupIds((prev) =>
+      prev.includes(groupId)
+        ? prev.filter((id) => id !== groupId)
+        : [...prev, groupId],
+    );
+  }, []);
+
+  const handleClearFilter = useCallback(() => {
+    setSelectedFilterTagIds([]);
+    setSelectedFilterGroupIds([]);
+  }, []);
 
   const handleFocusNote = useCallback((noteId: string) => {
     setFocusedNoteId(noteId);
@@ -191,11 +218,17 @@ export function ConnectTabView({
                 groups={groups}
                 groupMembers={groupMembers}
                 notes={notes}
+                memos={memos}
                 filterMode={filterMode}
                 onNavigateToNote={onNavigateToNote}
                 onUpdateNoteColor={handleUpdateNoteColor}
                 focusedNoteId={focusedNoteId}
                 onFocusComplete={handleFocusComplete}
+                selectedFilterTagIds={selectedFilterTagIds}
+                selectedFilterGroupIds={selectedFilterGroupIds}
+                onToggleFilterTag={handleToggleFilterTag}
+                onToggleFilterGroup={handleToggleFilterGroup}
+                onClearFilter={handleClearFilter}
               />
             </ReactFlowProvider>
           </div>
@@ -216,11 +249,17 @@ export function ConnectTabView({
                 groups={groups}
                 groupMembers={groupMembers}
                 notes={notes}
+                memos={memos}
                 filterMode={filterMode}
                 onNavigateToNote={onNavigateToNote}
                 onUpdateNoteColor={handleUpdateNoteColor}
                 focusedNoteId={focusedNoteId}
                 onFocusComplete={handleFocusComplete}
+                selectedFilterTagIds={selectedFilterTagIds}
+                selectedFilterGroupIds={selectedFilterGroupIds}
+                onToggleFilterTag={handleToggleFilterTag}
+                onToggleFilterGroup={handleToggleFilterGroup}
+                onClearFilter={handleClearFilter}
               />
             </ReactFlowProvider>
           </div>

@@ -1,5 +1,20 @@
 # HISTORY.md - 変更履歴
 
+### 2026-03-14 - Connect UI/UX 6点改善
+
+#### 概要
+
+Connect画面グラフビューのUI/UXを6点改善。ノードをObsidian風のドット+タイトル形式に刷新し、グループフレームへのタグピル表示、サイドバーのNoteタグフィルター、ハートアイコンの色修正を実装。
+
+#### 変更点
+
+- **ドット形式ノード (NoteNodeComponent)**: カード形式からドット（黄）+タイトル10px+ホバーポップアップに全面書き換え。`pointer-events-none` でドラッグを妨げない
+- **ドット形式ノード (MemoNodeComponent)**: 同様の構造でドット（青）+日付表示に書き換え
+- **TagGraphView 調整**: グリッド間隔 200/100 → 120/60、グループフレームサイズ 180/80 → 80/40、フォーカスセンター x+40/y+20 に変更
+- **グループタグピル (GroupFrameNode)**: グループのメンバーノートに付与されたタグを集約し、タイトル横にカラーピル（最大5個+overflow）表示
+- **サイドバーNoteフィルター (ConnectSidebar)**: FilterアイコンボタンとTagFilterOverlayを追加。OR条件でノートをフィルタリング、アクティブ時バッジ表示
+- **ハート色修正**: `text-notion-primary` → `text-red-500` に変更（ConnectSidebar・MaterialsSidebar 計3箇所）
+
 ### 2026-03-14 - Schedule画面 UI/UX改善: 6要件
 
 #### 概要

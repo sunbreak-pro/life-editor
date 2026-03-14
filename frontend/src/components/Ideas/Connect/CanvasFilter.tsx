@@ -11,6 +11,7 @@ interface CanvasFilterProps {
   onToggleGroup: (groupId: string) => void;
   onToggleTag: (tagId: string) => void;
   onClose: () => void;
+  onClearAll?: () => void;
 }
 
 export function CanvasFilter({
@@ -21,6 +22,7 @@ export function CanvasFilter({
   onToggleGroup,
   onToggleTag,
   onClose,
+  onClearAll,
 }: CanvasFilterProps) {
   const { t } = useTranslation();
   const [search, setSearch] = useState("");
@@ -40,12 +42,23 @@ export function CanvasFilter({
           <Filter size={12} className="inline mr-1" />
           {t("ideas.canvasFilter")}
         </span>
-        <button
-          onClick={onClose}
-          className="p-0.5 text-notion-text-secondary hover:text-notion-text"
-        >
-          <X size={14} />
-        </button>
+        <div className="flex items-center gap-1">
+          {onClearAll &&
+            (selectedGroupIds.length > 0 || selectedTagIds.length > 0) && (
+              <button
+                onClick={onClearAll}
+                className="text-[10px] text-notion-accent hover:text-notion-accent/80"
+              >
+                {t("ideas.clearFilter")}
+              </button>
+            )}
+          <button
+            onClick={onClose}
+            className="p-0.5 text-notion-text-secondary hover:text-notion-text"
+          >
+            <X size={14} />
+          </button>
+        </div>
       </div>
 
       <input

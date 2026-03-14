@@ -14,11 +14,14 @@ import {
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import { useTranslation } from "react-i18next";
-import { ZoomIn, ZoomOut, Maximize2 } from "lucide-react";
+import { ZoomIn, ZoomOut, Maximize2, Filter } from "lucide-react";
 import { useReactFlow } from "@xyflow/react";
 import { ColorPicker } from "../../shared/ColorPicker";
+import { CanvasFilter } from "./CanvasFilter";
 import { GroupFrameNode } from "./GroupFrameNode";
 import { NoteNodeComponent } from "./NoteNodeComponent";
+import { MemoNodeComponent } from "./MemoNodeComponent";
+import type { MemoNode } from "../../../types/memo";
 import type {
   WikiTag,
   WikiTagAssignment,
@@ -33,6 +36,7 @@ import { STORAGE_KEYS } from "../../../constants/storageKeys";
 const nodeTypes = {
   groupFrame: GroupFrameNode,
   noteNode: NoteNodeComponent,
+  memoNode: MemoNodeComponent,
 };
 
 interface TagGraphViewProps {
@@ -47,11 +51,17 @@ interface TagGraphViewProps {
   groups: WikiTagGroup[];
   groupMembers: WikiTagGroupMember[];
   notes: NoteNode[];
+  memos: MemoNode[];
   filterMode: "all" | "grouped" | { groupId: string };
   onNavigateToNote?: (noteId: string) => void;
   onUpdateNoteColor?: (noteId: string, color: string) => void;
   focusedNoteId?: string | null;
   onFocusComplete?: () => void;
+  selectedFilterTagIds: string[];
+  selectedFilterGroupIds: string[];
+  onToggleFilterTag: (tagId: string) => void;
+  onToggleFilterGroup: (groupId: string) => void;
+  onClearFilter: () => void;
 }
 
 function loadPositions(): Record<string, { x: number; y: number }> {
@@ -160,11 +170,17 @@ export function TagGraphView({
   groups,
   groupMembers,
   notes,
+  memos,
   filterMode,
   onNavigateToNote,
   onUpdateNoteColor,
   focusedNoteId,
   onFocusComplete,
+  selectedFilterTagIds,
+  selectedFilterGroupIds,
+  onToggleFilterTag,
+  onToggleFilterGroup,
+  onClearFilter,
 }: TagGraphViewProps) {
   const { t } = useTranslation();
   const positionsRef = useRef(loadPositions());
@@ -175,6 +191,7 @@ export function TagGraphView({
     noteId: string;
     color?: string;
   } | null>(null);
+  const [showFilter, setShowFilter] = useState(false);
 
   // Build tag dots data for notes
   const noteTagDots = useMemo(() => {
@@ -193,41 +210,104 @@ export function TagGraphView({
     return map;
   }, [assignments, tags]);
 
+  // Build tag dots data for memos
+  const memoTagDots = useMemo(() => {
+    const map = new Map<
+      string,
+      Array<{ id: string; name: string; color: string }>
+    >();
+    for (const a of assignments) {
+      if (a.entityType !== "memo") continue;
+      const tag = tags.find((t) => t.id === a.tagId);
+      if (!tag) continue;
+      const existing = map.get(a.entityId) || [];
+      existing.push({ id: tag.id, name: tag.name, color: tag.color });
+      map.set(a.entityId, existing);
+    }
+    return map;
+  }, [assignments, tags]);
+
   // Determine visible note IDs
   const visibleNoteIds = useMemo(() => {
-    if (filterMode === "all") {
-      // Show all notes that have at least one tag assignment
-      const noteIds = new Set(
-        assignments
-          .filter((a) => a.entityType === "note")
-          .map((a) => a.entityId),
-      );
-      return noteIds;
+    const hasTagFilter = selectedFilterTagIds.length > 0;
+    const hasGroupFilter = selectedFilterGroupIds.length > 0;
+
+    if (!hasTagFilter && !hasGroupFilter) {
+      // All: show all non-deleted notes
+      return new Set(notes.filter((n) => !n.isDeleted).map((n) => n.id));
     }
-    if (filterMode === "grouped") {
-      return new Set(groupMembers.map((m) => m.noteId));
+
+    const ids = new Set<string>();
+
+    // Tag filter (OR)
+    if (hasTagFilter) {
+      for (const a of assignments) {
+        if (a.entityType === "note" && selectedFilterTagIds.includes(a.tagId)) {
+          ids.add(a.entityId);
+        }
+      }
+    }
+
+    // Group filter (OR)
+    if (hasGroupFilter) {
+      for (const m of groupMembers) {
+        if (selectedFilterGroupIds.includes(m.groupId)) {
+          ids.add(m.noteId);
+        }
+      }
+    }
+
+    return ids;
+  }, [
+    notes,
+    assignments,
+    groupMembers,
+    selectedFilterTagIds,
+    selectedFilterGroupIds,
+  ]);
+
+  // Determine visible memo IDs
+  const visibleMemoIds = useMemo(() => {
+    if (
+      selectedFilterTagIds.length === 0 &&
+      selectedFilterGroupIds.length === 0
+    ) {
+      return new Set(memos.filter((m) => !m.isDeleted).map((m) => m.id));
+    }
+    if (selectedFilterTagIds.length === 0) {
+      // Only group filter active — memos don't belong to groups
+      return new Set<string>();
     }
     return new Set(
-      groupMembers
-        .filter((m) => m.groupId === filterMode.groupId)
-        .map((m) => m.noteId),
+      assignments
+        .filter(
+          (a) =>
+            a.entityType === "memo" && selectedFilterTagIds.includes(a.tagId),
+        )
+        .map((a) => a.entityId),
     );
-  }, [assignments, groupMembers, filterMode]);
+  }, [memos, assignments, selectedFilterTagIds, selectedFilterGroupIds]);
 
   const filteredNotes = useMemo(
     () => notes.filter((n) => !n.isDeleted && visibleNoteIds.has(n.id)),
     [notes, visibleNoteIds],
   );
 
+  const filteredMemos = useMemo(
+    () => memos.filter((m) => !m.isDeleted && visibleMemoIds.has(m.id)),
+    [memos, visibleMemoIds],
+  );
+
   const initialNodes = useMemo<Node[]>(() => {
     const saved = positionsRef.current;
-    const cols = Math.max(Math.ceil(Math.sqrt(filteredNotes.length)), 1);
+    const totalItems = filteredNotes.length + filteredMemos.length;
+    const cols = Math.max(Math.ceil(Math.sqrt(totalItems)), 1);
 
     // Note nodes
     const noteNodes: Node[] = filteredNotes.map((note, i) => {
       const pos = saved[note.id] ?? {
-        x: (i % cols) * 200,
-        y: Math.floor(i / cols) * 100,
+        x: (i % cols) * 120,
+        y: Math.floor(i / cols) * 60,
       };
       const dots = noteTagDots.get(note.id) || [];
       const highlighted =
@@ -274,13 +354,27 @@ export function TagGraphView({
         const minY = Math.min(...memberPositions.map((p) => p.y));
         const maxY = Math.max(...memberPositions.map((p) => p.y));
 
-        const width = maxX - minX + 180 + GROUP_FRAME_PADDING * 2;
-        const height = maxY - minY + 80 + GROUP_FRAME_PADDING * 2;
+        const width = maxX - minX + 80 + GROUP_FRAME_PADDING * 2;
+        const height = maxY - minY + 40 + GROUP_FRAME_PADDING * 2;
 
         const pos = savedGroupPos[group.id] ?? {
           x: minX - GROUP_FRAME_PADDING,
           y: minY - GROUP_FRAME_PADDING - 10,
         };
+
+        // Collect tags from member notes
+        const groupTags = new Map<
+          string,
+          { id: string; name: string; color: string }
+        >();
+        for (const nid of memberNoteIds) {
+          const noteTags = noteTagDots.get(nid);
+          if (noteTags) {
+            for (const t of noteTags) {
+              if (!groupTags.has(t.id)) groupTags.set(t.id, t);
+            }
+          }
+        }
 
         return {
           id: `group-${group.id}`,
@@ -294,12 +388,45 @@ export function TagGraphView({
             name: group.name,
             width,
             height,
+            tags: Array.from(groupTags.values()),
           },
         };
       });
 
-    return [...groupFrameNodes, ...noteNodes];
-  }, [filteredNotes, noteTagDots, groups, groupMembers, selectedTagId]);
+    // Memo nodes
+    const memoNodes: Node[] = filteredMemos.map((memo, i) => {
+      const idx = filteredNotes.length + i;
+      const pos = saved[memo.id] ?? {
+        x: (idx % cols) * 120,
+        y: Math.floor(idx / cols) * 60,
+      };
+      const dots = memoTagDots.get(memo.id) || [];
+      const highlighted =
+        !!selectedTagId && dots.some((d) => d.id === selectedTagId);
+      return {
+        id: memo.id,
+        type: "memoNode",
+        position: pos,
+        data: {
+          date: memo.date,
+          contentPreview: extractContentPreview(memo.content),
+          memoId: memo.id,
+          tagDots: dots,
+          highlighted,
+        },
+      };
+    });
+
+    return [...groupFrameNodes, ...noteNodes, ...memoNodes];
+  }, [
+    filteredNotes,
+    filteredMemos,
+    noteTagDots,
+    memoTagDots,
+    groups,
+    groupMembers,
+    selectedTagId,
+  ]);
 
   const initialEdges = useMemo<Edge[]>(() => {
     // Manual note-to-note connections
@@ -385,7 +512,7 @@ export function TagGraphView({
       ),
     );
     // Zoom to the node
-    setCenter(targetNode.position.x + 90, targetNode.position.y + 40, {
+    setCenter(targetNode.position.x + 40, targetNode.position.y + 20, {
       duration: 500,
       zoom: 1.5,
     });
@@ -405,7 +532,53 @@ export function TagGraphView({
 
   const handleNodesChange: OnNodesChange = useCallback(
     (changes) => {
-      onNodesChange(changes);
+      // Detect group frame drags and move member notes along
+      const groupDrags = changes.filter(
+        (c) => c.type === "position" && c.dragging && c.id.startsWith("group-"),
+      );
+
+      if (groupDrags.length > 0) {
+        const additionalChanges: Array<{
+          type: "position";
+          id: string;
+          position: { x: number; y: number };
+          dragging: boolean;
+        }> = [];
+        for (const gd of groupDrags) {
+          if (gd.type !== "position" || !gd.position) continue;
+          const groupId = gd.id.replace("group-", "");
+          const prevNode = nodesRef.current.find((n) => n.id === gd.id);
+          if (!prevNode) continue;
+          const dx = gd.position.x - prevNode.position.x;
+          const dy = gd.position.y - prevNode.position.y;
+          if (dx === 0 && dy === 0) continue;
+
+          const memberNoteIds = groupMembers
+            .filter((m) => m.groupId === groupId)
+            .map((m) => m.noteId);
+
+          for (const noteId of memberNoteIds) {
+            // Skip if this node is already in the changes (being dragged independently)
+            if (changes.some((c) => c.id === noteId)) continue;
+            const noteNode = nodesRef.current.find((n) => n.id === noteId);
+            if (!noteNode) continue;
+            additionalChanges.push({
+              type: "position",
+              id: noteId,
+              position: {
+                x: noteNode.position.x + dx,
+                y: noteNode.position.y + dy,
+              },
+              dragging: true,
+            });
+          }
+        }
+        onNodesChange([...changes, ...additionalChanges]);
+      } else {
+        onNodesChange(changes);
+      }
+
+      // Save positions on drag end
       for (const change of changes) {
         if (
           change.type === "position" &&
@@ -416,6 +589,17 @@ export function TagGraphView({
             const groupId = change.id.replace("group-", "");
             groupPositionsRef.current[groupId] = change.position;
             saveGroupPositions(groupPositionsRef.current);
+            // Also save member note final positions
+            const memberNoteIds = groupMembers
+              .filter((m) => m.groupId === groupId)
+              .map((m) => m.noteId);
+            for (const noteId of memberNoteIds) {
+              const noteNode = nodesRef.current.find((n) => n.id === noteId);
+              if (noteNode) {
+                positionsRef.current[noteId] = noteNode.position;
+              }
+            }
+            savePositions(positionsRef.current);
           } else {
             positionsRef.current[change.id] = change.position;
             savePositions(positionsRef.current);
@@ -423,7 +607,7 @@ export function TagGraphView({
         }
       }
     },
-    [onNodesChange],
+    [onNodesChange, groupMembers],
   );
 
   const handleEdgesChange: OnEdgesChange = useCallback(
@@ -491,11 +675,15 @@ export function TagGraphView({
   );
 
   const savedViewport = useMemo(() => loadViewport(), []);
+  const activeFilterCount =
+    selectedFilterTagIds.length + selectedFilterGroupIds.length;
 
-  if (filteredNotes.length === 0) {
+  if (filteredNotes.length === 0 && filteredMemos.length === 0) {
     return (
       <div className="h-full flex items-center justify-center text-sm text-notion-text-secondary">
-        {t("ideas.graphEmpty")}
+        {activeFilterCount > 0
+          ? t("ideas.noFilterResults")
+          : t("ideas.graphEmpty")}
       </div>
     );
   }
@@ -524,7 +712,40 @@ export function TagGraphView({
       >
         <Background gap={20} size={1} color="var(--notion-border)" />
         <Panel position="top-right">
-          <CanvasControls />
+          <div className="flex flex-col gap-1 items-end">
+            <CanvasControls />
+            <div className="relative">
+              <button
+                onClick={() => setShowFilter((v) => !v)}
+                className={`p-1.5 rounded border shadow-sm transition-colors ${
+                  activeFilterCount > 0
+                    ? "bg-notion-accent/10 border-notion-accent text-notion-accent"
+                    : "bg-notion-bg border-notion-border text-notion-text-secondary hover:bg-notion-hover"
+                }`}
+              >
+                <Filter size={14} />
+                {activeFilterCount > 0 && (
+                  <span className="absolute -top-1 -right-1 w-4 h-4 flex items-center justify-center rounded-full bg-notion-accent text-white text-[9px] font-bold">
+                    {activeFilterCount}
+                  </span>
+                )}
+              </button>
+              {showFilter && (
+                <div className="absolute right-0 top-full mt-1 z-10">
+                  <CanvasFilter
+                    tags={tags}
+                    groups={groups}
+                    selectedGroupIds={selectedFilterGroupIds}
+                    selectedTagIds={selectedFilterTagIds}
+                    onToggleGroup={onToggleFilterGroup}
+                    onToggleTag={onToggleFilterTag}
+                    onClose={() => setShowFilter(false)}
+                    onClearAll={onClearFilter}
+                  />
+                </div>
+              )}
+            </div>
+          </div>
         </Panel>
       </ReactFlow>
       {noteContextMenu &&

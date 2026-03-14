@@ -13,6 +13,7 @@ import {
   Heart,
   BookOpen,
   Package,
+  Filter,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import type {
@@ -28,6 +29,7 @@ import { UnifiedColorPicker } from "../../shared/UnifiedColorPicker";
 import { DEFAULT_PRESET_COLORS } from "../../../constants/folderColors";
 import { SearchBar } from "../../shared/SearchBar";
 import { CollapsibleSection } from "../../shared/CollapsibleSection";
+import { TagFilterOverlay } from "../../shared/TagFilterOverlay";
 import { STORAGE_KEYS } from "../../../constants/storageKeys";
 import { formatDisplayDate } from "../../../utils/dateKey";
 
@@ -145,6 +147,10 @@ export function ConnectSidebar({
     new Set(),
   );
 
+  // Note filter state
+  const [sidebarFilterTagIds, setSidebarFilterTagIds] = useState<string[]>([]);
+  const [showNoteFilter, setShowNoteFilter] = useState(false);
+
   const toggleSection = (key: keyof SectionsState) => {
     setSections((prev) => {
       const next = { ...prev, [key]: !prev[key] };
@@ -182,8 +188,40 @@ export function ConnectSidebar({
     onCreateNote(title, selectedTagId ?? undefined);
   }, [tags, selectedTagId, onCreateNote]);
 
+  // Note tag filter
+  const noteTagMap = useMemo(() => {
+    const map = new Map<string, Set<string>>();
+    for (const a of assignments) {
+      if (a.entityType !== "note") continue;
+      const existing = map.get(a.entityId) || new Set();
+      existing.add(a.tagId);
+      map.set(a.entityId, existing);
+    }
+    return map;
+  }, [assignments]);
+
+  const filteredNotes = useMemo(() => {
+    if (sidebarFilterTagIds.length === 0) return notes;
+    return notes.filter((n) => {
+      const tagSet = noteTagMap.get(n.id);
+      if (!tagSet) return false;
+      return sidebarFilterTagIds.some((tid) => tagSet.has(tid));
+    });
+  }, [notes, sidebarFilterTagIds, noteTagMap]);
+
+  const toggleSidebarFilterTag = useCallback((tagId: string) => {
+    setSidebarFilterTagIds((prev) =>
+      prev.includes(tagId)
+        ? prev.filter((id) => id !== tagId)
+        : [...prev, tagId],
+    );
+  }, []);
+
   // Pinned items
-  const pinnedNotes = useMemo(() => notes.filter((n) => n.isPinned), [notes]);
+  const pinnedNotes = useMemo(
+    () => filteredNotes.filter((n) => n.isPinned),
+    [filteredNotes],
+  );
   const pinnedMemos = useMemo(() => memos.filter((m) => m.isPinned), [memos]);
   const hasFavorites = pinnedNotes.length > 0 || pinnedMemos.length > 0;
 
@@ -348,7 +386,7 @@ export function ConnectSidebar({
                   </span>
                   <Heart
                     size={12}
-                    className="text-notion-primary fill-current shrink-0"
+                    className="text-red-500 fill-current shrink-0"
                   />
                 </button>
                 {onNavigateToNote && (
@@ -387,21 +425,53 @@ export function ConnectSidebar({
             isOpen={sections.notes}
             onToggle={() => toggleSection("notes")}
             rightAction={
-              <button
-                onClick={handleCreateNote}
-                className="p-1 text-notion-text-secondary hover:text-notion-text rounded transition-colors"
-                title={t("notes.newNote")}
-              >
-                <Plus size={14} />
-              </button>
+              <div className="flex items-center gap-0.5">
+                <div className="relative">
+                  <button
+                    onClick={() => setShowNoteFilter((v) => !v)}
+                    className={`p-1 rounded transition-colors ${
+                      sidebarFilterTagIds.length > 0
+                        ? "text-notion-accent"
+                        : "text-notion-text-secondary hover:text-notion-text"
+                    }`}
+                    title="Filter by tag"
+                  >
+                    <Filter size={14} />
+                    {sidebarFilterTagIds.length > 0 && (
+                      <span className="absolute -top-0.5 -right-0.5 w-3.5 h-3.5 flex items-center justify-center rounded-full bg-notion-accent text-white text-[8px] font-bold">
+                        {sidebarFilterTagIds.length}
+                      </span>
+                    )}
+                  </button>
+                  {showNoteFilter && (
+                    <div className="absolute right-0 top-full mt-1 z-20">
+                      <TagFilterOverlay
+                        tags={tags}
+                        selectedTagIds={sidebarFilterTagIds}
+                        onToggle={toggleSidebarFilterTag}
+                        onClose={() => setShowNoteFilter(false)}
+                      />
+                    </div>
+                  )}
+                </div>
+                <button
+                  onClick={handleCreateNote}
+                  className="p-1 text-notion-text-secondary hover:text-notion-text rounded transition-colors"
+                  title={t("notes.newNote")}
+                >
+                  <Plus size={14} />
+                </button>
+              </div>
             }
           >
-            {notes.length === 0 ? (
+            {filteredNotes.length === 0 ? (
               <p className="text-xs text-notion-text-secondary px-2 py-2">
-                {t("notes.noNotes")}
+                {sidebarFilterTagIds.length > 0
+                  ? t("ideas.noSearchResults")
+                  : t("notes.noNotes")}
               </p>
             ) : (
-              notes.map((note) => (
+              filteredNotes.map((note) => (
                 <div
                   key={note.id}
                   className="group flex items-center gap-1.5 px-2 py-1.5 rounded hover:bg-notion-hover transition-colors"

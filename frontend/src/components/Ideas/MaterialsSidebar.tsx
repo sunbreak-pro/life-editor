@@ -248,10 +248,7 @@ export function MaterialsSidebar({
         </span>
         {renderTagDots(note.id)}
         {note.isPinned && (
-          <Heart
-            size={12}
-            className="text-notion-primary fill-current shrink-0"
-          />
+          <Heart size={12} className="text-red-500 fill-current shrink-0" />
         )}
       </button>
       {onNavigateToConnect && (
@@ -297,10 +294,7 @@ export function MaterialsSidebar({
         </span>
         {renderTagDots(memo.id)}
         {memo.isPinned && (
-          <Heart
-            size={12}
-            className="text-notion-primary fill-current shrink-0"
-          />
+          <Heart size={12} className="text-red-500 fill-current shrink-0" />
         )}
       </button>
       {onDeleteMemo && (
