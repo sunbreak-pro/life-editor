@@ -12,7 +12,7 @@ import {
   Check,
   X,
   Network,
-  Tag,
+  Filter,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import type { MemoNode } from "../../types/memo";
@@ -28,8 +28,7 @@ import { getContentPreview } from "../../utils/tiptapText";
 import { STORAGE_KEYS } from "../../constants/storageKeys";
 import { SearchBar } from "../shared/SearchBar";
 import { CollapsibleSection } from "../shared/CollapsibleSection";
-import { UnifiedColorPicker } from "../shared/UnifiedColorPicker";
-import { DEFAULT_PRESET_COLORS } from "../../constants/folderColors";
+import { TagFilterOverlay } from "../shared/TagFilterOverlay";
 
 type MaterialsView =
   | { type: "note"; noteId: string }
@@ -40,7 +39,6 @@ interface SectionsState {
   notes: boolean;
   daily: boolean;
   groups: boolean;
-  tags: boolean;
 }
 
 interface MaterialsSidebarProps {
@@ -66,12 +64,7 @@ interface MaterialsSidebarProps {
   ) => Promise<WikiTagGroup>;
   onDeleteGroup: (id: string) => Promise<void>;
   onNavigateToConnect?: (noteId: string) => void;
-  onCreateTag?: (name: string, color: string) => Promise<WikiTag>;
-  onUpdateTag?: (
-    id: string,
-    updates: Partial<Pick<WikiTag, "name" | "color">>,
-  ) => Promise<void>;
-  onDeleteTag?: (id: string) => Promise<void>;
+  onSetGroupMembers?: (groupId: string, noteIds: string[]) => Promise<void>;
 }
 
 function loadSectionsState(): SectionsState {
@@ -86,7 +79,6 @@ function loadSectionsState(): SectionsState {
     notes: true,
     daily: true,
     groups: true,
-    tags: true,
   };
 }
 
@@ -113,9 +105,7 @@ export function MaterialsSidebar({
   onUpdateGroup,
   onDeleteGroup,
   onNavigateToConnect,
-  onCreateTag,
-  onUpdateTag,
-  onDeleteTag,
+  onSetGroupMembers,
 }: MaterialsSidebarProps) {
   const { t } = useTranslation();
   const [sections, setSections] = useState<SectionsState>(loadSectionsState);
@@ -135,21 +125,17 @@ export function MaterialsSidebar({
     new Set(),
   );
 
-  // Tag management state
-  const [editingTagId, setEditingTagId] = useState<string | null>(null);
-  const [editTagName, setEditTagName] = useState("");
-  const [editTagColor, setEditTagColor] = useState("");
-  const [deleteConfirmTagId, setDeleteConfirmTagId] = useState<string | null>(
-    null,
-  );
-  const [showTagCreate, setShowTagCreate] = useState(false);
-  const [newTagName, setNewTagName] = useState("");
-  const [newTagColor, setNewTagColor] = useState<string>(
-    DEFAULT_PRESET_COLORS[0],
+  // Group editing state
+  const [editingGroupMemberIds, setEditingGroupMemberIds] =
+    useState<Set<string> | null>(null);
+  // Tag selection for group creation
+  const [selectedGroupTagIds, setSelectedGroupTagIds] = useState<Set<string>>(
+    new Set(),
   );
 
   // Tag filter state
   const [filterTagIds, setFilterTagIds] = useState<Set<string>>(new Set());
+  const [showNoteFilter, setShowNoteFilter] = useState(false);
 
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
@@ -315,16 +301,30 @@ export function MaterialsSidebar({
   const handleCreateGroup = async () => {
     const trimmed = newGroupName.trim();
     if (!trimmed || selectedGroupNoteIds.size === 0) return;
-    await onCreateGroup(trimmed, Array.from(selectedGroupNoteIds));
+    await onCreateGroup(
+      trimmed,
+      Array.from(selectedGroupNoteIds),
+      selectedGroupTagIds.size > 0
+        ? Array.from(selectedGroupTagIds)
+        : undefined,
+    );
     setNewGroupName("");
     setSelectedGroupNoteIds(new Set());
+    setSelectedGroupTagIds(new Set());
     setShowGroupCreate(false);
   };
 
   const saveGroupEdit = async () => {
     if (!editingGroupId || !editGroupName.trim()) return;
     await onUpdateGroup(editingGroupId, { name: editGroupName.trim() });
+    if (editingGroupMemberIds && onSetGroupMembers) {
+      await onSetGroupMembers(
+        editingGroupId,
+        Array.from(editingGroupMemberIds),
+      );
+    }
     setEditingGroupId(null);
+    setEditingGroupMemberIds(null);
   };
 
   const toggleGroupExpanded = (groupId: string) => {
@@ -345,32 +345,31 @@ export function MaterialsSidebar({
     });
   };
 
-  // Tag handlers
-  const startTagEdit = (tag: WikiTag) => {
-    setEditingTagId(tag.id);
-    setEditTagName(tag.name);
-    setEditTagColor(tag.color);
-  };
-
-  const saveTagEdit = async () => {
-    if (!editingTagId || !editTagName.trim() || !onUpdateTag) return;
-    await onUpdateTag(editingTagId, {
-      name: editTagName.trim(),
-      color: editTagColor,
+  const handleToggleGroupTag = (tagId: string) => {
+    setSelectedGroupTagIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(tagId)) {
+        next.delete(tagId);
+      } else {
+        next.add(tagId);
+      }
+      // Auto-select notes with any of the selected tags
+      const noteIds = new Set<string>();
+      for (const tid of next) {
+        for (const a of assignments) {
+          if (a.tagId === tid && a.entityType === "note") {
+            noteIds.add(a.entityId);
+          }
+        }
+      }
+      setSelectedGroupNoteIds((prevNotes) => {
+        const merged = new Set(prevNotes);
+        for (const id of noteIds) merged.add(id);
+        return merged;
+      });
+      return next;
     });
-    setEditingTagId(null);
   };
-
-  const handleCreateTag = async () => {
-    const trimmed = newTagName.trim();
-    if (!trimmed || !onCreateTag) return;
-    await onCreateTag(trimmed, newTagColor);
-    setNewTagName("");
-    setShowTagCreate(false);
-  };
-
-  const getTagUsageCount = (tagId: string) =>
-    assignments.filter((a) => a.tagId === tagId).length;
 
   const toggleTagFilter = (tagId: string) => {
     setFilterTagIds((prev) => {
@@ -475,13 +474,43 @@ export function MaterialsSidebar({
           isOpen={sections.notes}
           onToggle={() => toggleSection("notes")}
           rightAction={
-            <button
-              onClick={onCreateNote}
-              className="p-1 text-notion-text-secondary hover:text-notion-text rounded transition-colors"
-              title={t("notes.newNote")}
-            >
-              <Plus size={14} />
-            </button>
+            <div className="flex items-center gap-0.5">
+              <div className="relative">
+                <button
+                  onClick={() => setShowNoteFilter((v) => !v)}
+                  className={`p-1 rounded transition-colors ${
+                    filterTagIds.size > 0
+                      ? "text-notion-accent"
+                      : "text-notion-text-secondary hover:text-notion-text"
+                  }`}
+                  title="Filter by tag"
+                >
+                  <Filter size={14} />
+                  {filterTagIds.size > 0 && (
+                    <span className="absolute -top-0.5 -right-0.5 w-3.5 h-3.5 flex items-center justify-center rounded-full bg-notion-accent text-white text-[8px] font-bold">
+                      {filterTagIds.size}
+                    </span>
+                  )}
+                </button>
+                {showNoteFilter && (
+                  <div className="absolute right-0 top-full mt-1 z-20">
+                    <TagFilterOverlay
+                      tags={tags}
+                      selectedTagIds={Array.from(filterTagIds)}
+                      onToggle={toggleTagFilter}
+                      onClose={() => setShowNoteFilter(false)}
+                    />
+                  </div>
+                )}
+              </div>
+              <button
+                onClick={onCreateNote}
+                className="p-1 text-notion-text-secondary hover:text-notion-text rounded transition-colors"
+                title={t("notes.newNote")}
+              >
+                <Plus size={14} />
+              </button>
+            </div>
           }
         >
           {displayNotes.length === 0 ? (
@@ -533,12 +562,37 @@ export function MaterialsSidebar({
                 onKeyDown={(e) => {
                   if (e.nativeEvent.isComposing) return;
                   if (e.key === "Enter") handleCreateGroup();
-                  if (e.key === "Escape") setShowGroupCreate(false);
+                  if (e.key === "Escape") {
+                    setShowGroupCreate(false);
+                    setSelectedGroupTagIds(new Set());
+                  }
                 }}
                 placeholder={t("ideas.groupName")}
                 className="w-full text-xs px-2 py-1 rounded bg-notion-bg text-notion-text outline-none border border-notion-border focus:border-notion-accent/50 mb-2"
                 autoFocus
               />
+              {tags.length > 0 && (
+                <div className="flex flex-wrap gap-1 mb-2">
+                  {tags.map((tag) => (
+                    <button
+                      key={tag.id}
+                      onClick={() => handleToggleGroupTag(tag.id)}
+                      className={`text-[10px] px-1.5 py-0.5 rounded-full border transition-colors ${
+                        selectedGroupTagIds.has(tag.id)
+                          ? "text-white border-transparent"
+                          : "text-notion-text-secondary border-notion-border hover:border-notion-text-secondary"
+                      }`}
+                      style={
+                        selectedGroupTagIds.has(tag.id)
+                          ? { backgroundColor: tag.color }
+                          : undefined
+                      }
+                    >
+                      {tag.name}
+                    </button>
+                  ))}
+                </div>
+              )}
               <div className="max-h-32 overflow-y-auto space-y-0.5 mb-2">
                 {notes.map((note) => (
                   <label
@@ -606,7 +660,10 @@ export function MaterialsSidebar({
                           onKeyDown={(e) => {
                             if (e.nativeEvent.isComposing) return;
                             if (e.key === "Enter") saveGroupEdit();
-                            if (e.key === "Escape") setEditingGroupId(null);
+                            if (e.key === "Escape") {
+                              setEditingGroupId(null);
+                              setEditingGroupMemberIds(null);
+                            }
                           }}
                           className="flex-1 text-xs px-1.5 py-0.5 rounded bg-notion-hover text-notion-text outline-none border border-notion-border"
                           autoFocus
@@ -619,7 +676,10 @@ export function MaterialsSidebar({
                           <Check size={12} />
                         </button>
                         <button
-                          onClick={() => setEditingGroupId(null)}
+                          onClick={() => {
+                            setEditingGroupId(null);
+                            setEditingGroupMemberIds(null);
+                          }}
                           className="p-0.5 text-notion-text-secondary hover:text-notion-text"
                         >
                           <X size={12} />
@@ -639,6 +699,7 @@ export function MaterialsSidebar({
                               e.stopPropagation();
                               setEditingGroupId(group.id);
                               setEditGroupName(group.name);
+                              setEditingGroupMemberIds(new Set(memberNoteIds));
                             }}
                             className="p-0.5 text-notion-text-secondary hover:text-notion-text"
                           >
@@ -658,17 +719,28 @@ export function MaterialsSidebar({
                     )}
                   </div>
 
-                  {/* Expanded: member notes */}
-                  {isGroupExpanded && (
-                    <div className="pl-6 space-y-0.5">
-                      {memberNotes.map((note) => (
-                        <button
+                  {/* Member editing or viewing */}
+                  {editingGroupId === group.id && editingGroupMemberIds ? (
+                    <div className="pl-6 max-h-32 overflow-y-auto space-y-0.5">
+                      {notes.map((note) => (
+                        <label
                           key={note.id}
-                          onClick={() =>
-                            onSelectView({ type: "note", noteId: note.id })
-                          }
-                          className="w-full flex items-center gap-2 px-2 py-1 rounded hover:bg-notion-hover text-left transition-colors"
+                          className="flex items-center gap-2 px-1 py-0.5 rounded hover:bg-notion-hover cursor-pointer"
                         >
+                          <input
+                            type="checkbox"
+                            checked={editingGroupMemberIds.has(note.id)}
+                            onChange={() => {
+                              setEditingGroupMemberIds((prev) => {
+                                if (!prev) return prev;
+                                const next = new Set(prev);
+                                if (next.has(note.id)) next.delete(note.id);
+                                else next.add(note.id);
+                                return next;
+                              });
+                            }}
+                            className="rounded"
+                          />
                           <StickyNote
                             size={12}
                             className="text-notion-text-secondary shrink-0"
@@ -676,14 +748,36 @@ export function MaterialsSidebar({
                           <span className="text-xs text-notion-text truncate">
                             {note.title || t("notes.untitled")}
                           </span>
-                        </button>
+                        </label>
                       ))}
-                      {memberNotes.length === 0 && (
-                        <span className="text-xs text-notion-text-secondary px-2 py-1">
-                          {t("ideas.noSearchResults")}
-                        </span>
-                      )}
                     </div>
+                  ) : (
+                    isGroupExpanded && (
+                      <div className="pl-6 space-y-0.5">
+                        {memberNotes.map((note) => (
+                          <button
+                            key={note.id}
+                            onClick={() =>
+                              onSelectView({ type: "note", noteId: note.id })
+                            }
+                            className="w-full flex items-center gap-2 px-2 py-1 rounded hover:bg-notion-hover text-left transition-colors"
+                          >
+                            <StickyNote
+                              size={12}
+                              className="text-notion-text-secondary shrink-0"
+                            />
+                            <span className="text-xs text-notion-text truncate">
+                              {note.title || t("notes.untitled")}
+                            </span>
+                          </button>
+                        ))}
+                        {memberNotes.length === 0 && (
+                          <span className="text-xs text-notion-text-secondary px-2 py-1">
+                            {t("ideas.noSearchResults")}
+                          </span>
+                        )}
+                      </div>
+                    )
                   )}
                 </div>
               );
@@ -695,181 +789,6 @@ export function MaterialsSidebar({
             )}
           </div>
         </CollapsibleSection>
-
-        {/* Tags */}
-        {(onCreateTag || onUpdateTag || onDeleteTag) && (
-          <CollapsibleSection
-            label={t("wikiTags.title")}
-            icon={<Tag size={15} />}
-            isOpen={sections.tags}
-            onToggle={() => toggleSection("tags")}
-            rightAction={
-              onCreateTag ? (
-                <button
-                  onClick={() => setShowTagCreate(!showTagCreate)}
-                  className="p-1 text-notion-text-secondary hover:text-notion-text rounded transition-colors"
-                >
-                  <Plus size={14} />
-                </button>
-              ) : undefined
-            }
-          >
-            {/* Create new tag */}
-            {showTagCreate && onCreateTag && (
-              <div className="mx-1 mb-2 p-2 rounded-md bg-notion-hover/50 border border-notion-border">
-                <div className="mb-1.5">
-                  <UnifiedColorPicker
-                    color={newTagColor}
-                    onChange={setNewTagColor}
-                    mode="preset-full"
-                  />
-                </div>
-                <div className="flex items-center gap-1">
-                  <input
-                    value={newTagName}
-                    onChange={(e) => setNewTagName(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.nativeEvent.isComposing) return;
-                      if (e.key === "Enter") handleCreateTag();
-                      if (e.key === "Escape") setShowTagCreate(false);
-                    }}
-                    placeholder={t("wikiTags.tagNamePlaceholder")}
-                    className="flex-1 text-xs px-2 py-1 rounded bg-notion-bg text-notion-text outline-none border border-notion-border focus:border-notion-accent/50"
-                    autoFocus
-                  />
-                  <button
-                    onClick={handleCreateTag}
-                    disabled={!newTagName.trim()}
-                    className="text-xs px-2 py-1 rounded bg-notion-accent text-white disabled:opacity-40"
-                  >
-                    {t("wikiTags.create")}
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {/* Tags list */}
-            <div className="space-y-0.5">
-              {tags.map((tag) => (
-                <div key={tag.id}>
-                  <div
-                    className={`flex items-center gap-1.5 px-2 py-1.5 rounded hover:bg-notion-hover group transition-colors cursor-pointer ${
-                      filterTagIds.has(tag.id) ? "bg-notion-hover" : ""
-                    }`}
-                    onClick={() => toggleTagFilter(tag.id)}
-                  >
-                    {editingTagId === tag.id ? (
-                      <>
-                        <UnifiedColorPicker
-                          color={editTagColor}
-                          onChange={setEditTagColor}
-                          mode="preset-full"
-                        />
-                        <input
-                          value={editTagName}
-                          onChange={(e) => setEditTagName(e.target.value)}
-                          onKeyDown={(e) => {
-                            if (e.nativeEvent.isComposing) return;
-                            if (e.key === "Enter") saveTagEdit();
-                            if (e.key === "Escape") setEditingTagId(null);
-                          }}
-                          className="flex-1 text-xs px-1.5 py-0.5 rounded bg-notion-hover text-notion-text outline-none border border-notion-border"
-                          autoFocus
-                          onClick={(e) => e.stopPropagation()}
-                        />
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            saveTagEdit();
-                          }}
-                          className="p-0.5 text-green-500 hover:text-green-400"
-                        >
-                          <Check size={12} />
-                        </button>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setEditingTagId(null);
-                          }}
-                          className="p-0.5 text-notion-text-secondary hover:text-notion-text"
-                        >
-                          <X size={12} />
-                        </button>
-                      </>
-                    ) : deleteConfirmTagId === tag.id ? (
-                      <div
-                        className="flex items-center gap-1.5 w-full"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        <span className="text-[10px] text-notion-text-secondary flex-1">
-                          {t("wikiTags.deleteConfirm", { name: tag.name })}
-                        </span>
-                        <button
-                          onClick={() => {
-                            onDeleteTag?.(tag.id);
-                            setDeleteConfirmTagId(null);
-                          }}
-                          className="text-[10px] px-1.5 py-0.5 rounded bg-red-500 text-white"
-                        >
-                          {t("common.delete")}
-                        </button>
-                        <button
-                          onClick={() => setDeleteConfirmTagId(null)}
-                          className="text-[10px] text-notion-text-secondary"
-                        >
-                          {t("common.cancel")}
-                        </button>
-                      </div>
-                    ) : (
-                      <>
-                        <span
-                          className="w-2.5 h-2.5 rounded-full shrink-0"
-                          style={{ backgroundColor: tag.color }}
-                        />
-                        <span className="flex flex-1 text-sm text-notion-text justify-start truncate">
-                          {tag.name}
-                        </span>
-                        <span className="text-xs text-notion-text-secondary tabular-nums">
-                          {getTagUsageCount(tag.id)}
-                        </span>
-                        <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                          {onUpdateTag && (
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                startTagEdit(tag);
-                              }}
-                              className="p-0.5 text-notion-text-secondary hover:text-notion-text"
-                              title={t("wikiTags.editTag")}
-                            >
-                              <Pencil size={14} />
-                            </button>
-                          )}
-                          {onDeleteTag && (
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setDeleteConfirmTagId(tag.id);
-                              }}
-                              className="p-0.5 text-notion-text-secondary hover:text-red-500"
-                            >
-                              <Trash2 size={14} />
-                            </button>
-                          )}
-                        </div>
-                      </>
-                    )}
-                  </div>
-                </div>
-              ))}
-              {tags.length === 0 && (
-                <p className="text-[10px] text-notion-text-secondary px-2 py-4 text-center">
-                  {t("wikiTags.empty")}
-                </p>
-              )}
-            </div>
-          </CollapsibleSection>
-        )}
       </div>
     </div>
   );

@@ -1,5 +1,34 @@
 # HISTORY.md - 変更履歴
 
+### 2026-03-14 - Connect エッジシステム刷新 + サイドバー改善（5フェーズ）
+
+#### 概要
+
+Connect画面の全面改善。Tag-basedエッジ、360度ハンドル、テンプレートレイアウト、サイドバーUX改善、Group枠リサイズを実装。前回セッションで実装済みだったコードのJSX構文エラー2箇所を修正。
+
+#### 変更点
+
+- **JSX修正**: ConnectSidebar.tsx L837 / MaterialsSidebar.tsx L783 の閉じ `}` 欠落を修正（Vite `Unterminated regular expression` エラー解消）
+- **Phase 1 (実装済み確認)**: Tag-based colored straight edges、選択ベースdimming、co-occurrence廃止
+- **Phase 2 (実装済み確認)**: NoteNode/MemoNode 4方向ハンドル（Top/Right/Bottom/Left × source/target）、最適ハンドル自動選択
+- **Phase 3 (実装済み確認)**: Polygon/Line テンプレートレイアウト（layoutTemplates.ts 新規）、Panel UI
+- **Phase 4 (実装済み確認)**: サイドバーNotesにタグドット、Group作成Tag連携、Group編集メンバー管理、Tagsセクション削除
+- **Phase 5 (実装済み確認)**: GroupFrameNode NodeResizerリサイズ、タイトル省略表示、タグドット化
+
+### 2026-03-14 - TaskTree に Incomplete/Completed タブ追加
+
+#### 概要
+
+TaskTree の完了済みタスクを折りたたみ式セクションからタブ切り替え方式に変更。SectionTabs コンポーネントを再利用し、Incomplete/Completed の2タブで未完了・完了ツリーを分離表示する。
+
+#### 変更点
+
+- **storageKeys.ts**: `TASK_TREE_TAB` キーを追加（タブ選択の永続化用）
+- **TaskTreeView.tsx**: `TaskTreeTab` 型定義、`SectionTabs` をヘッダー下に配置、`activeTab` を TaskTree に伝播
+- **TaskTree.tsx**: `activeTab` prop 追加。Completed タブで `buildCompletedTree` によるツリー構築、DnD 無効化、新規作成ボタン・ソート非表示。旧折りたたみ式完了セクションを完全削除
+- **buildCompletedTree.ts（新規）**: DONE アイテム収集 + 祖先 TODO フォルダを構造コンテナとして追加するユーティリティ。`containerIds` で構造コンテナを識別
+- **TaskTreeNode.tsx**: `isStructureContainer` / `completedTreeContainerIds` prop 追加。構造コンテナは展開/折りたたみのみ（DnD・アクション・コンテキストメニュー無効）。フォルダ内完了サブセクションを完全削除
+
 ### 2026-03-14 - フォルダメインコンテンツ拡張: パス表示 + 構造一覧
 
 #### 概要
