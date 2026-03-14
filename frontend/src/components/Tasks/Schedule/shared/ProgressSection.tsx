@@ -1,4 +1,5 @@
 import { useTranslation } from "react-i18next";
+import type { TabItem } from "../../../shared/SectionTabs";
 import type { DayFlowFilterTab } from "../DayFlow/OneDaySchedule";
 import { DAY_FLOW_FILTER_TABS } from "../DayFlow/OneDaySchedule";
 import type { CategoryProgress } from "../DayFlow/DayFlowSidebarContent";
@@ -8,6 +9,7 @@ interface ProgressSectionProps {
   categoryProgress: Record<DayFlowFilterTab, CategoryProgress>;
   activeFilter: DayFlowFilterTab;
   onFilterChange: (tab: DayFlowFilterTab) => void;
+  tabs?: readonly TabItem<DayFlowFilterTab>[];
 }
 
 export function ProgressSection({
@@ -15,6 +17,7 @@ export function ProgressSection({
   categoryProgress,
   activeFilter,
   onFilterChange,
+  tabs,
 }: ProgressSectionProps) {
   const { t } = useTranslation();
 
@@ -26,7 +29,7 @@ export function ProgressSection({
         {t("dayFlow.sidebarProgress", "Progress")}{" "}
         <span className="normal-case">({dateLabel})</span>
       </span>
-      {DAY_FLOW_FILTER_TABS.map((tab) => {
+      {(tabs ?? DAY_FLOW_FILTER_TABS).map((tab) => {
         const progress = categoryProgress[tab.id];
         const isActive = activeFilter === tab.id;
         const pct =

@@ -1,7 +1,12 @@
 import { useState, useCallback, useMemo, memo } from "react";
 import { useSortable } from "@dnd-kit/sortable";
 import { SortableContext } from "@dnd-kit/sortable";
-import { GripVertical } from "lucide-react";
+import {
+  GripVertical,
+  ChevronDown,
+  ChevronRight,
+  CheckCircle2,
+} from "lucide-react";
 import { useTranslation } from "react-i18next";
 import type { TaskNode } from "../../../types/taskTree";
 import { useTaskTreeContext } from "../../../hooks/useTaskTreeContext";
@@ -35,6 +40,7 @@ interface TaskTreeNodeProps {
   sortMode?: SortMode;
   searchMatchIds?: Set<string>;
   isSearching?: boolean;
+  activeTargetFolderId?: string | null;
 }
 
 export const TaskTreeNode = memo(function TaskTreeNode({
@@ -47,6 +53,7 @@ export const TaskTreeNode = memo(function TaskTreeNode({
   sortMode = "manual",
   searchMatchIds,
   isSearching,
+  activeTargetFolderId,
 }: TaskTreeNodeProps) {
   const {
     nodes,
@@ -79,20 +86,36 @@ export const TaskTreeNode = memo(function TaskTreeNode({
     id: node.id,
   });
 
+  const [showFolderCompleted, setShowFolderCompleted] = useState(false);
+
   const rawChildren = getChildren(node.id);
-  const children = useMemo(() => {
-    const sorted = sortTaskNodes(rawChildren, sortMode);
+  const activeChildren = useMemo(() => {
+    const active = rawChildren.filter((c) => c.status !== "DONE");
+    const sorted = sortTaskNodes(active, sortMode);
     if (isSearching && searchMatchIds) {
       return sorted.filter((c) => searchMatchIds.has(c.id));
     }
     return sorted;
   }, [rawChildren, sortMode, isSearching, searchMatchIds]);
-  const childIds = useMemo(() => children.map((c) => c.id), [children]);
+
+  const completedChildren = useMemo(() => {
+    const done = rawChildren.filter((c) => c.status === "DONE");
+    if (isSearching && searchMatchIds) {
+      return done.filter((c) => searchMatchIds.has(c.id));
+    }
+    return done;
+  }, [rawChildren, isSearching, searchMatchIds]);
+
+  const childIds = useMemo(
+    () => activeChildren.map((c) => c.id),
+    [activeChildren],
+  );
   const isFolder = node.type === "folder";
   const isDone = node.type === "task" && node.status === "DONE";
   const isFolderDone = isFolder && node.status === "DONE";
   const isTimerActive = timer.activeTask?.id === node.id && timer.isRunning;
   const isSelected = selectedTaskId === node.id;
+  const isCreateTarget = isFolder && activeTargetFolderId === node.id;
 
   const progress = useMemo(
     () => (isFolder ? computeFolderProgress(node.id, nodes) : undefined),
@@ -190,7 +213,7 @@ export const TaskTreeNode = memo(function TaskTreeNode({
 
         {/* Content row */}
         <div
-          className={`group flex items-center gap-0.5 py-1 rounded-md hover:bg-notion-hover transition-colors border-l-2 ${isSelected ? "bg-notion-hover border-l-notion-accent" : "border-l-transparent"} ${isFolder && dropPosition === "inside" && !isDragging ? "ring-2 ring-notion-accent bg-notion-accent/5" : ""} ${isDone || isFolderDone ? "opacity-60 hover:opacity-90" : ""}`}
+          className={`group flex items-center gap-0.5 py-1 rounded-md hover:bg-notion-hover transition-colors border-l-2 ${isSelected ? "bg-notion-hover border-l-notion-accent" : "border-l-transparent"} ${isFolder && dropPosition === "inside" && !isDragging ? "ring-2 ring-notion-accent bg-notion-accent/5" : ""} ${isDone || isFolderDone ? "opacity-60 hover:opacity-90" : ""} ${isCreateTarget && !isSelected ? "ring-1 ring-notion-accent/30" : ""}`}
           style={bgStyle}
           onContextMenu={handleContextMenu}
         >
@@ -303,24 +326,66 @@ export const TaskTreeNode = memo(function TaskTreeNode({
       />
 
       {isFolder && !isDragging && (node.isExpanded || isSearching) && (
-        <SortableContext items={childIds}>
-          <div>
-            {children.map((child, index) => (
-              <TaskTreeNode
-                key={child.id}
-                node={child}
-                depth={depth + 1}
-                isLastChild={index === children.length - 1}
-                onPlayTask={onPlayTask}
-                onSelectTask={onSelectTask}
-                selectedTaskId={selectedTaskId}
-                sortMode={sortMode}
-                searchMatchIds={searchMatchIds}
-                isSearching={isSearching}
-              />
-            ))}
-          </div>
-        </SortableContext>
+        <>
+          <SortableContext items={childIds}>
+            <div>
+              {activeChildren.map((child, index) => (
+                <TaskTreeNode
+                  key={child.id}
+                  node={child}
+                  depth={depth + 1}
+                  isLastChild={
+                    index === activeChildren.length - 1 &&
+                    completedChildren.length === 0
+                  }
+                  onPlayTask={onPlayTask}
+                  onSelectTask={onSelectTask}
+                  selectedTaskId={selectedTaskId}
+                  sortMode={sortMode}
+                  searchMatchIds={searchMatchIds}
+                  isSearching={isSearching}
+                  activeTargetFolderId={activeTargetFolderId}
+                />
+              ))}
+            </div>
+          </SortableContext>
+          {completedChildren.length > 0 && (
+            <div style={{ paddingLeft: `${(depth + 1) * 16 + 24}px` }}>
+              <button
+                onClick={() => setShowFolderCompleted(!showFolderCompleted)}
+                className="flex items-center gap-1.5 text-xs text-notion-text-secondary hover:text-notion-text py-0.5"
+              >
+                {showFolderCompleted || isSearching ? (
+                  <ChevronDown size={12} />
+                ) : (
+                  <ChevronRight size={12} />
+                )}
+                <CheckCircle2 size={12} />
+                <span>
+                  {t("taskTree.completed")} ({completedChildren.length})
+                </span>
+              </button>
+              {(showFolderCompleted || isSearching) && (
+                <div>
+                  {completedChildren.map((child, index) => (
+                    <TaskTreeNode
+                      key={child.id}
+                      node={child}
+                      depth={depth + 1}
+                      isLastChild={index === completedChildren.length - 1}
+                      onSelectTask={onSelectTask}
+                      selectedTaskId={selectedTaskId}
+                      sortMode={sortMode}
+                      searchMatchIds={searchMatchIds}
+                      isSearching={isSearching}
+                      activeTargetFolderId={activeTargetFolderId}
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </>
       )}
     </div>
   );

@@ -223,10 +223,6 @@ export function ScheduleTabView({
                 categoryProgress={calendarCategoryProgress}
                 activeProgressFilter={calendarProgressFilter}
                 onProgressFilterChange={setCalendarProgressFilter}
-                filterFolderId={calendarFilterFolderId}
-                onFilterFolderChange={setCalendarFilterFolderId}
-                contentFilter={calendarContentFilter}
-                onContentFilterChange={setCalendarContentFilter}
                 routines={routines}
                 scheduleItems={scheduleItems}
                 tagAssignments={tagAssignments}
@@ -241,7 +237,6 @@ export function ScheduleTabView({
           <CalendarView
             onSelectTask={onSelectTask}
             onCreateTask={onCreateTask}
-            onStartTimer={onStartTimer}
             filter={calendarFilter}
             filterFolderId={calendarFilterFolderId}
             contentFilter={calendarContentFilter}

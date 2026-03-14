@@ -9,7 +9,6 @@ export type SectionId =
 export type NodeType = "folder" | "task";
 export type TaskStatus = "TODO" | "DONE";
 
-export const MAX_FOLDER_DEPTH = 5;
 export const FOLDER_PAD_TOP = 0; // px – visual separator above folders in Projects section
 
 export interface TaskNode {

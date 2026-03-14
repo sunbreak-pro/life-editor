@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useRef } from "react";
 import { useTranslation } from "react-i18next";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, Filter } from "lucide-react";
 import type { TaskNode } from "../../../../types/taskTree";
 import { useScheduleContext } from "../../../../hooks/useScheduleContext";
 import { useTimeMemos } from "../../../../hooks/useTimeMemos";
@@ -8,8 +8,8 @@ import { formatDateKey, formatDayFlowDate } from "../../../../utils/dateKey";
 import { ScheduleTimeGrid } from "./ScheduleTimeGrid";
 import { TimeGridMemoColumn } from "./TimeGridMemoColumn";
 import { TimeGridClickPanel } from "./TimeGridClickPanel";
-import { SectionTabs } from "../../../shared/SectionTabs";
 import type { TabItem } from "../../../shared/SectionTabs";
+import { useClickOutside } from "../../../../hooks/useClickOutside";
 import { getTextColorForBg } from "../../../../constants/folderColors";
 import { TIME_GRID } from "../../../../constants/timeGrid";
 
@@ -68,6 +68,13 @@ export function OneDaySchedule({
     null,
   );
   const scrollRef = useRef<HTMLDivElement>(null);
+  const [showFilterDropdown, setShowFilterDropdown] = useState(false);
+  const filterDropdownRef = useRef<HTMLDivElement>(null);
+  useClickOutside(
+    filterDropdownRef,
+    () => setShowFilterDropdown(false),
+    showFilterDropdown,
+  );
 
   const routineTagMap = useMemo(() => {
     const map = new Map<string, number[]>();
@@ -206,58 +213,92 @@ export function OneDaySchedule({
             {t("calendarHeader.today", "Today")}
           </button>
         )}
+        <div className="relative ml-auto" ref={filterDropdownRef}>
+          <button
+            onClick={() => setShowFilterDropdown((v) => !v)}
+            className={`p-1.5 rounded-md transition-colors ${
+              filterTab !== "all"
+                ? "text-notion-accent bg-notion-accent/10"
+                : "text-notion-text-secondary hover:text-notion-text hover:bg-notion-hover"
+            }`}
+          >
+            <Filter size={14} />
+          </button>
+          {showFilterDropdown && (
+            <div className="absolute right-0 top-full mt-1 z-50 w-48 bg-notion-bg border border-notion-border rounded-lg shadow-xl py-1">
+              {DAY_FLOW_FILTER_TABS.map((tab) => (
+                <button
+                  key={tab.id}
+                  onClick={() => {
+                    onFilterTabChange(tab.id);
+                    if (tab.id !== "all" && tab.id !== "routine") {
+                      setSelectedFilterTagId(null);
+                    }
+                  }}
+                  className={`w-full flex items-center gap-2 px-3 py-1.5 text-xs text-left transition-colors ${
+                    filterTab === tab.id
+                      ? "text-notion-accent bg-notion-accent/5"
+                      : "text-notion-text-secondary hover:bg-notion-hover hover:text-notion-text"
+                  }`}
+                >
+                  <span
+                    className={`w-1.5 h-1.5 rounded-full ${
+                      filterTab === tab.id
+                        ? "bg-notion-accent"
+                        : "bg-transparent"
+                    }`}
+                  />
+                  {t(tab.labelKey)}
+                </button>
+              ))}
+              {(filterTab === "all" || filterTab === "routine") &&
+                routineTags.length > 0 && (
+                  <>
+                    <div className="border-t border-notion-border my-1" />
+                    <div className="flex items-center gap-1 flex-wrap px-3 py-1.5">
+                      <button
+                        onClick={() => setSelectedFilterTagId(null)}
+                        className={`text-[10px] px-1.5 py-0.5 rounded-full transition-colors ${
+                          selectedFilterTagId === null
+                            ? "bg-notion-text text-notion-bg"
+                            : "bg-notion-hover text-notion-text-secondary hover:text-notion-text"
+                        }`}
+                      >
+                        All
+                      </button>
+                      {routineTags.map((tag) => (
+                        <button
+                          key={tag.id}
+                          onClick={() =>
+                            setSelectedFilterTagId(
+                              selectedFilterTagId === tag.id ? null : tag.id,
+                            )
+                          }
+                          className={`flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-full transition-colors ${
+                            selectedFilterTagId === tag.id
+                              ? "ring-1 ring-notion-text"
+                              : "hover:opacity-80"
+                          }`}
+                          style={{
+                            backgroundColor: tag.color + "E6",
+                            color: getTextColorForBg(tag.color),
+                            fontWeight: "bold",
+                          }}
+                        >
+                          <span
+                            className="w-2 h-2 rounded-full"
+                            style={{ backgroundColor: tag.color }}
+                          />
+                          {tag.name}
+                        </button>
+                      ))}
+                    </div>
+                  </>
+                )}
+            </div>
+          )}
+        </div>
       </div>
-
-      {/* Filter tabs */}
-      <SectionTabs
-        tabs={DAY_FLOW_FILTER_TABS}
-        activeTab={filterTab}
-        onTabChange={onFilterTabChange}
-        size="sm"
-      />
-
-      {/* Tag filter chips (all/routine only) */}
-      {(filterTab === "all" || filterTab === "routine") &&
-        routineTags.length > 0 && (
-          <div className="flex items-center gap-1 flex-wrap px-3 pb-1.5">
-            <button
-              onClick={() => setSelectedFilterTagId(null)}
-              className={`text-[10px] px-1.5 py-0.5 rounded-full transition-colors ${
-                selectedFilterTagId === null
-                  ? "bg-notion-text text-notion-bg"
-                  : "bg-notion-hover text-notion-text-secondary hover:text-notion-text"
-              }`}
-            >
-              All
-            </button>
-            {routineTags.map((tag) => (
-              <button
-                key={tag.id}
-                onClick={() =>
-                  setSelectedFilterTagId(
-                    selectedFilterTagId === tag.id ? null : tag.id,
-                  )
-                }
-                className={`flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-full transition-colors ${
-                  selectedFilterTagId === tag.id
-                    ? "ring-1 ring-notion-text"
-                    : "hover:opacity-80"
-                }`}
-                style={{
-                  backgroundColor: tag.color + "E6",
-                  color: getTextColorForBg(tag.color),
-                  fontWeight: "bold",
-                }}
-              >
-                <span
-                  className="w-2 h-2 rounded-full"
-                  style={{ backgroundColor: tag.color }}
-                />
-                {tag.name}
-              </button>
-            ))}
-          </div>
-        )}
 
       {/* Main content - TimeGrid + MemoColumn in shared scroll container */}
       <div className="flex-1 min-h-0 p-3">

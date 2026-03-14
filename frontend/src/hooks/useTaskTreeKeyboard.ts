@@ -1,5 +1,6 @@
 import { useEffect, useCallback } from "react";
 import type { TaskNode } from "../types/taskTree";
+import type { MoveResult, MoveRejectionReason } from "../types/moveResult";
 
 interface UseTaskTreeKeyboardParams {
   selectedTaskId: string | null | undefined;
@@ -8,8 +9,9 @@ interface UseTaskTreeKeyboardParams {
   onSelectTask?: (id: string) => void;
   toggleExpanded: (id: string) => void;
   toggleTaskStatus: (id: string) => void;
-  moveNodeInto: (nodeId: string, targetId: string) => void;
-  moveToRoot: (id: string) => void;
+  moveNodeInto: (nodeId: string, targetId: string) => MoveResult;
+  moveToRoot: (id: string) => MoveResult;
+  onMoveRejected?: (reason: MoveRejectionReason) => void;
 }
 
 export function useTaskTreeKeyboard({
@@ -21,6 +23,7 @@ export function useTaskTreeKeyboard({
   toggleTaskStatus,
   moveNodeInto,
   moveToRoot,
+  onMoveRejected,
 }: UseTaskTreeKeyboardParams) {
   const indentNode = useCallback(
     (nodeId: string) => {
@@ -32,12 +35,15 @@ export function useTaskTreeKeyboard({
       const idx = siblings.findIndex((n) => n.id === nodeId);
       for (let i = idx - 1; i >= 0; i--) {
         if (siblings[i].type === "folder") {
-          moveNodeInto(nodeId, siblings[i].id);
+          const result = moveNodeInto(nodeId, siblings[i].id);
+          if (!result.success && onMoveRejected) {
+            onMoveRejected(result.reason);
+          }
           return;
         }
       }
     },
-    [nodes, moveNodeInto],
+    [nodes, moveNodeInto, onMoveRejected],
   );
 
   const outdentNode = useCallback(
@@ -47,12 +53,18 @@ export function useTaskTreeKeyboard({
       const parent = nodes.find((n) => n.id === node.parentId);
       if (!parent) return;
       if (parent.parentId === null) {
-        moveToRoot(nodeId);
+        const result = moveToRoot(nodeId);
+        if (!result.success && onMoveRejected) {
+          onMoveRejected(result.reason);
+        }
       } else {
-        moveNodeInto(nodeId, parent.parentId);
+        const result = moveNodeInto(nodeId, parent.parentId);
+        if (!result.success && onMoveRejected) {
+          onMoveRejected(result.reason);
+        }
       }
     },
-    [nodes, moveNodeInto, moveToRoot],
+    [nodes, moveNodeInto, moveToRoot, onMoveRejected],
   );
 
   useEffect(() => {

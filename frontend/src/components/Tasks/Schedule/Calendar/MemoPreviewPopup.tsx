@@ -1,8 +1,9 @@
-import { useRef } from "react";
-import { ExternalLink } from "lucide-react";
+import { useRef, useState } from "react";
+import { ExternalLink, Trash2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useClickOutside } from "../../../../hooks/useClickOutside";
 import { getContentPreview } from "../../../../utils/tiptapText";
+import { ConfirmDialog } from "../../../shared/ConfirmDialog";
 
 interface MemoPreviewPopupProps {
   kind: "daily" | "note";
@@ -11,6 +12,8 @@ interface MemoPreviewPopupProps {
   position: { x: number; y: number };
   onOpenDetail: () => void;
   onClose: () => void;
+  onUpdateTitle?: (title: string) => void;
+  onDelete?: () => void;
 }
 
 const ACCENT: Record<
@@ -36,11 +39,24 @@ export function MemoPreviewPopup({
   position,
   onOpenDetail,
   onClose,
+  onUpdateTitle,
+  onDelete,
 }: MemoPreviewPopupProps) {
   const { t } = useTranslation();
   const ref = useRef<HTMLDivElement>(null);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editValue, setEditValue] = useState(title);
 
-  useClickOutside(ref, onClose, true);
+  useClickOutside(ref, onClose, !showDeleteConfirm && !isEditing);
+
+  const commitEdit = () => {
+    const trimmed = editValue.trim();
+    if (trimmed && trimmed !== title) {
+      onUpdateTitle?.(trimmed);
+    }
+    setIsEditing(false);
+  };
 
   const left = Math.min(position.x, window.innerWidth - 260 - 16);
   const top = Math.min(position.y, window.innerHeight - 200 - 16);
@@ -48,37 +64,89 @@ export function MemoPreviewPopup({
   const preview = getContentPreview(content);
 
   return (
-    <div
-      ref={ref}
-      className="fixed z-50 w-65 bg-notion-bg border border-notion-border rounded-lg shadow-xl"
-      style={{ left, top }}
-    >
-      <div className="p-3 space-y-2">
-        <div
-          className="w-full h-1 rounded-full"
-          style={{ backgroundColor: accent.bar }}
-        />
-        <div className="font-medium text-sm text-notion-text truncate">
-          {title}
+    <>
+      <div
+        ref={ref}
+        className="fixed z-50 w-65 bg-notion-bg border border-notion-border rounded-lg shadow-xl"
+        style={{ left, top }}
+      >
+        <div className="p-3 space-y-2">
+          <div
+            className="w-full h-1 rounded-full"
+            style={{ backgroundColor: accent.bar }}
+          />
+          {isEditing ? (
+            <input
+              autoFocus
+              value={editValue}
+              onChange={(e) => setEditValue(e.target.value)}
+              onBlur={commitEdit}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") commitEdit();
+                if (e.key === "Escape") {
+                  setEditValue(title);
+                  setIsEditing(false);
+                }
+              }}
+              className="font-medium text-sm text-notion-text w-full bg-transparent border-b border-notion-accent outline-none"
+            />
+          ) : (
+            <div
+              className={`font-medium text-sm text-notion-text truncate ${
+                kind === "note" && onUpdateTitle
+                  ? "cursor-text hover:bg-notion-hover/50 rounded px-0.5 -mx-0.5"
+                  : ""
+              }`}
+              onClick={() => {
+                if (kind === "note" && onUpdateTitle) {
+                  setEditValue(title);
+                  setIsEditing(true);
+                }
+              }}
+            >
+              {title}
+            </div>
+          )}
+          <p className="text-xs text-notion-text-secondary line-clamp-3">
+            {preview || t("calendar.memoPreviewEmpty")}
+          </p>
+          <span
+            className={`inline-block px-1.5 py-0.5 text-[10px] rounded-full font-medium ${accent.badge}`}
+          >
+            {accent.badgeText}
+          </span>
         </div>
-        <p className="text-xs text-notion-text-secondary line-clamp-3">
-          {preview || t("calendar.memoPreviewEmpty")}
-        </p>
-        <span
-          className={`inline-block px-1.5 py-0.5 text-[10px] rounded-full font-medium ${accent.badge}`}
-        >
-          {accent.badgeText}
-        </span>
+        <div className="border-t border-notion-border flex">
+          <button
+            onClick={onOpenDetail}
+            className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-xs text-notion-text-secondary hover:bg-notion-hover hover:text-notion-text transition-colors"
+          >
+            <ExternalLink size={12} />
+            {t("calendar.openDetail")}
+          </button>
+          {kind === "note" && onDelete && (
+            <>
+              <div className="w-px bg-notion-border" />
+              <button
+                onClick={() => setShowDeleteConfirm(true)}
+                className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-xs text-red-500 hover:bg-red-500/5 transition-colors"
+              >
+                <Trash2 size={12} />
+                {t("common.delete")}
+              </button>
+            </>
+          )}
+        </div>
       </div>
-      <div className="border-t border-notion-border">
-        <button
-          onClick={onOpenDetail}
-          className="w-full flex items-center justify-center gap-1.5 px-3 py-2 text-xs text-notion-text-secondary hover:bg-notion-hover hover:text-notion-text transition-colors"
-        >
-          <ExternalLink size={12} />
-          {t("calendar.openDetail")}
-        </button>
-      </div>
-    </div>
+
+      {showDeleteConfirm && (
+        <ConfirmDialog
+          title={t("calendar.deleteNoteTitle")}
+          message={t("calendar.deleteNoteMessage")}
+          onConfirm={() => onDelete?.()}
+          onCancel={() => setShowDeleteConfirm(false)}
+        />
+      )}
+    </>
   );
 }

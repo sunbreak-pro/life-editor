@@ -36,8 +36,6 @@ interface ScheduleSectionProps {
       isAllDay?: boolean;
     },
   ) => void;
-  onStartTimer?: (taskId: string) => void;
-  onSelectTask: (taskId: string) => void;
   onSelectMemo?: (date: string) => void;
   onSelectNote?: (noteId: string) => void;
   onCreateNote?: (title: string) => void;
@@ -46,8 +44,6 @@ interface ScheduleSectionProps {
 export function ScheduleSection({
   onCalendarSelectTask,
   onCreateTask,
-  onStartTimer,
-  onSelectTask,
   onSelectMemo,
   onSelectNote,
   onCreateNote,
@@ -242,11 +238,19 @@ export function ScheduleSection({
                 progressDate={calendarProgressDate}
                 categoryProgress={calendarCategoryProgress}
                 activeProgressFilter={calendarProgressFilter}
-                onProgressFilterChange={setCalendarProgressFilter}
-                filterFolderId={calendarFilterFolderId}
-                onFilterFolderChange={setCalendarFilterFolderId}
-                contentFilter={calendarContentFilter}
-                onContentFilterChange={setCalendarContentFilter}
+                onProgressFilterChange={(tab) => {
+                  setCalendarProgressFilter(tab);
+                  const mapping: Record<
+                    DayFlowFilterTab,
+                    CalendarContentFilter
+                  > = {
+                    all: "all",
+                    tasks: "tasks",
+                    routine: "all",
+                    others: "all",
+                  };
+                  setCalendarContentFilter(mapping[tab]);
+                }}
                 routines={routines}
                 scheduleItems={scheduleItems}
                 tagAssignments={tagAssignments}
@@ -260,14 +264,16 @@ export function ScheduleSection({
       <div className="flex-1 min-h-0">
         {activeTab === "calendar" ? (
           <CalendarView
-            onSelectTask={onSelectTask}
+            onSelectTask={(taskId) =>
+              onCalendarSelectTask(taskId, {} as React.MouseEvent)
+            }
             onCreateTask={onCreateTask}
-            onStartTimer={onStartTimer}
             onSelectMemo={onSelectMemo}
             onSelectNote={onSelectNote}
             onCreateNote={onCreateNote}
             filter={calendarFilter}
             filterFolderId={calendarFilterFolderId}
+            onFilterFolderChange={setCalendarFilterFolderId}
             contentFilter={calendarContentFilter}
             onDateSelect={handleCalendarDateSelect}
           />

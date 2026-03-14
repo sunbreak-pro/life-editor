@@ -19,6 +19,9 @@ interface UseAppKeyboardShortcutsParams {
   setIsCommandPaletteOpen: (
     open: boolean | ((prev: boolean) => boolean),
   ) => void;
+  selectedTaskId?: string | null;
+  nodes: TaskNode[];
+  activeSection: SectionId;
 }
 
 export function useAppKeyboardShortcuts({
@@ -26,6 +29,9 @@ export function useAppKeyboardShortcuts({
   addNode,
   setActiveSection,
   setIsCommandPaletteOpen,
+  selectedTaskId,
+  nodes,
+  activeSection,
 }: UseAppKeyboardShortcutsParams) {
   const { matchEvent } = useShortcutConfig();
 
@@ -102,7 +108,17 @@ export function useAppKeyboardShortcuts({
 
       if (matchEvent(e, "global:new-task")) {
         e.preventDefault();
-        addNode("task", null, "New Task");
+        let parentId: string | null = null;
+        if (activeSection === "tasks" && selectedTaskId) {
+          const selected = nodes.find((n) => n.id === selectedTaskId);
+          if (selected) {
+            parentId =
+              selected.type === "folder"
+                ? selected.id
+                : (selected.parentId ?? null);
+          }
+        }
+        addNode("task", parentId, "New Task");
       }
 
       if (matchEvent(e, "global:reset-timer")) {
@@ -120,5 +136,8 @@ export function useAppKeyboardShortcuts({
     setActiveSection,
     setIsCommandPaletteOpen,
     matchEvent,
+    selectedTaskId,
+    nodes,
+    activeSection,
   ]);
 }

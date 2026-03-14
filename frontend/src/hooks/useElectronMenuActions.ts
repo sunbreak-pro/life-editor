@@ -11,19 +11,32 @@ interface UseElectronMenuActionsParams {
   ) => TaskNode | undefined;
   setActiveSection: (section: SectionId) => void;
   layoutRef: RefObject<LayoutHandle | null>;
+  selectedTaskId?: string | null;
+  nodes?: TaskNode[];
 }
 
 export function useElectronMenuActions({
   addNode,
   setActiveSection,
   layoutRef,
+  selectedTaskId,
+  nodes,
 }: UseElectronMenuActionsParams) {
   useEffect(() => {
     const cleanup = window.electronAPI?.onMenuAction((action: string) => {
       switch (action) {
-        case "new-task":
-          addNode("task", null, "New Task");
+        case "new-task": {
+          let parentId: string | null = null;
+          if (selectedTaskId && nodes) {
+            const sel = nodes.find((n) => n.id === selectedTaskId);
+            if (sel) {
+              parentId =
+                sel.type === "folder" ? sel.id : (sel.parentId ?? null);
+            }
+          }
+          addNode("task", parentId, "New Task");
           break;
+        }
         case "new-folder":
           addNode("folder", null, "New Folder");
           break;
@@ -58,5 +71,5 @@ export function useElectronMenuActions({
     return () => {
       cleanup?.();
     };
-  }, [addNode, setActiveSection, layoutRef]);
+  }, [addNode, setActiveSection, layoutRef, selectedTaskId, nodes]);
 }

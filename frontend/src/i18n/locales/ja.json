@@ -218,7 +218,10 @@
     "sortStatus": "ステータス",
     "sortSchedule": "スケジュール日",
     "undo": "元に戻す",
-    "redo": "やり直す"
+    "redo": "やり直す",
+    "move": {
+      "circularReference": "フォルダを自身のサブフォルダに移動できません"
+    }
   },
   "memo": {
     "title": "メモ",
@@ -383,7 +386,7 @@
       "creating": "タスクとフォルダの作成",
       "creatingList1": "サブサイドバー上部の<strong>+アイコン</strong>をクリックして、新しいタスクまたはフォルダを作成します。",
       "creatingList2": "<kbd>n</kbd>キー（入力中以外）を押すと、インボックスに新しいタスクをすばやく追加できます。",
-      "creatingList3": "フォルダは最大5階層までネストできます。タスクはどこにでも配置できます。",
+      "creatingList3": "フォルダは制限なくネストできます。タスクはどこにでも配置できます。",
       "organizing": "ドラッグ＆ドロップで整理",
       "organizingList1": "<strong>並べ替え</strong>：タスク/フォルダをドラッグして兄弟間の位置を変更します。",
       "organizingList2": "<strong>フォルダに移動</strong>：タスクをフォルダにドラッグしてネストします。",
@@ -610,6 +613,8 @@
     "clearSchedule": "スケジュールをクリア",
     "deleteTaskTitle": "タスクを削除",
     "deleteTaskMessage": "このタスクを削除しますか？",
+    "deleteNoteTitle": "ノートを削除",
+    "deleteNoteMessage": "このノートを削除しますか？",
     "contentType": "コンテンツ",
     "filterAll": "すべて",
     "filterDaily": "デイリー",
@@ -624,7 +629,8 @@
   "search": {
     "placeholder": "タスクを検索...",
     "noResults": "一致するタスクはありません",
-    "clear": "検索をクリア"
+    "clear": "検索をクリア",
+    "rootLevel": "ルート直下"
   },
   "common": {
     "cancel": "キャンセル",

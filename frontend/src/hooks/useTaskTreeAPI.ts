@@ -115,24 +115,10 @@ export function useTaskTreeAPI() {
     [activeNodes],
   );
 
-  const getNodeDepth = useCallback(
-    (nodeId: string): number => {
-      let depth = 0;
-      let current = nodes.find((n) => n.id === nodeId);
-      while (current?.parentId) {
-        depth++;
-        current = nodes.find((n) => n.id === current!.parentId);
-      }
-      return depth;
-    },
-    [nodes],
-  );
-
   const crud = useTaskTreeCRUD(
     nodes,
     guardedPersistWithHistory,
     guardedPersistSilent,
-    getNodeDepth,
     generateId,
   );
   const deletion = useTaskTreeDeletion(
@@ -141,11 +127,7 @@ export function useTaskTreeAPI() {
     guardedPersistSilent,
     clearHistory,
   );
-  const movement = useTaskTreeMovement(
-    nodes,
-    guardedPersistWithHistory,
-    getNodeDepth,
-  );
+  const movement = useTaskTreeMovement(nodes, guardedPersistWithHistory);
 
   const getTaskColor = useCallback(
     (taskId: string) => resolveTaskColor(taskId, nodes),

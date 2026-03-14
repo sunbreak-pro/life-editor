@@ -1,5 +1,8 @@
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { useMemo } from "react";
+import { ChevronLeft, ChevronRight, Filter, ChevronDown } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { FolderDropdown } from "../../Folder/FolderDropdown";
+import { useTaskTreeContext } from "../../../../hooks/useTaskTreeContext";
 
 type ViewMode = "month" | "week";
 
@@ -12,6 +15,8 @@ interface CalendarHeaderProps {
   onNext: () => void;
   onToday: () => void;
   onViewModeChange: (mode: ViewMode) => void;
+  filterFolderId?: string | null;
+  onFilterFolderChange?: (folderId: string | null) => void;
 }
 
 const MONTH_NAMES = [
@@ -73,8 +78,17 @@ export function CalendarHeader({
   onNext,
   onToday,
   onViewModeChange,
+  filterFolderId,
+  onFilterFolderChange,
 }: CalendarHeaderProps) {
   const { t } = useTranslation();
+  const { nodes } = useTaskTreeContext();
+
+  const selectedFolderName = useMemo(() => {
+    if (!filterFolderId) return null;
+    return nodes.find((n) => n.id === filterFolderId)?.title ?? null;
+  }, [filterFolderId, nodes]);
+
   const title = (() => {
     if (viewMode === "week" && weekStartDate)
       return formatDateRange(weekStartDate, 6);
@@ -105,6 +119,31 @@ export function CalendarHeader({
         >
           {t("calendarHeader.today")}
         </button>
+        {onFilterFolderChange && (
+          <FolderDropdown
+            selectedId={filterFolderId ?? null}
+            onSelect={onFilterFolderChange}
+            rootLabel={t("calendar.all")}
+            panelMinWidth="min-w-44"
+            trigger={
+              <button
+                className={`flex items-center gap-1.5 px-2 py-1 text-xs rounded-md border transition-colors ${
+                  filterFolderId
+                    ? "border-notion-accent/30 bg-notion-accent/10 text-notion-accent"
+                    : "border-notion-border text-notion-text-secondary hover:bg-notion-hover"
+                }`}
+              >
+                <Filter size={12} />
+                <span className="truncate max-w-24">
+                  {filterFolderId && selectedFolderName
+                    ? selectedFolderName
+                    : t("calendar.folder")}
+                </span>
+                <ChevronDown size={11} />
+              </button>
+            }
+          />
+        )}
       </div>
 
       <div className="flex items-center gap-1 bg-notion-bg-secondary rounded-md p-0.5">

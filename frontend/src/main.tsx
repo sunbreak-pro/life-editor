@@ -16,32 +16,35 @@ import { ScheduleProvider } from "./context/ScheduleContext";
 import { CalendarProvider } from "./context/CalendarContext";
 import { ShortcutConfigProvider } from "./hooks/useShortcutConfig";
 import { WikiTagProvider } from "./context/WikiTagContext";
+import { ToastProvider } from "./context/ToastContext";
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <ErrorBoundary>
       <ThemeProvider>
-        <UndoRedoProvider>
-          <TaskTreeProvider>
-            <CalendarProvider>
-              <MemoProvider>
-                <NoteProvider>
-                  <ScheduleProvider>
-                    <TimerProvider>
-                      <AudioProvider>
-                        <WikiTagProvider>
-                          <ShortcutConfigProvider>
-                            <App />
-                          </ShortcutConfigProvider>
-                        </WikiTagProvider>
-                      </AudioProvider>
-                    </TimerProvider>
-                  </ScheduleProvider>
-                </NoteProvider>
-              </MemoProvider>
-            </CalendarProvider>
-          </TaskTreeProvider>
-        </UndoRedoProvider>
+        <ToastProvider>
+          <UndoRedoProvider>
+            <TaskTreeProvider>
+              <CalendarProvider>
+                <MemoProvider>
+                  <NoteProvider>
+                    <ScheduleProvider>
+                      <TimerProvider>
+                        <AudioProvider>
+                          <WikiTagProvider>
+                            <ShortcutConfigProvider>
+                              <App />
+                            </ShortcutConfigProvider>
+                          </WikiTagProvider>
+                        </AudioProvider>
+                      </TimerProvider>
+                    </ScheduleProvider>
+                  </NoteProvider>
+                </MemoProvider>
+              </CalendarProvider>
+            </TaskTreeProvider>
+          </UndoRedoProvider>
+        </ToastProvider>
       </ThemeProvider>
     </ErrorBoundary>
   </StrictMode>,

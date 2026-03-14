@@ -218,7 +218,10 @@
     "sortStatus": "Status",
     "sortSchedule": "Scheduled date",
     "undo": "Undo",
-    "redo": "Redo"
+    "redo": "Redo",
+    "move": {
+      "circularReference": "Cannot move a folder into its own subfolder"
+    }
   },
   "memo": {
     "title": "Memo",
@@ -383,7 +386,7 @@
       "creating": "Creating Tasks & Folders",
       "creatingList1": "Click the <strong>+ icons</strong> at the top of the sub-sidebar to create a new task or folder.",
       "creatingList2": "Press <kbd>n</kbd> (when not typing) to quickly add a new task to the Inbox.",
-      "creatingList3": "Folders can be nested up to 5 levels deep. Tasks can be placed anywhere.",
+      "creatingList3": "Folders can be nested without depth limits. Tasks can be placed anywhere.",
       "organizing": "Organizing with Drag & Drop",
       "organizingList1": "<strong>Reorder</strong>: Drag a task/folder to change its position among siblings.",
       "organizingList2": "<strong>Move into folder</strong>: Drag a task onto a folder to nest it inside.",
@@ -610,6 +613,8 @@
     "clearSchedule": "Clear schedule",
     "deleteTaskTitle": "Delete Task",
     "deleteTaskMessage": "Are you sure you want to delete this task?",
+    "deleteNoteTitle": "Delete Note",
+    "deleteNoteMessage": "Are you sure you want to delete this note?",
     "contentType": "Content",
     "filterAll": "All",
     "filterDaily": "Daily",
@@ -624,7 +629,8 @@
   "search": {
     "placeholder": "Search tasks...",
     "noResults": "No matching tasks",
-    "clear": "Clear search"
+    "clear": "Clear search",
+    "rootLevel": "Root level"
   },
   "common": {
     "cancel": "Cancel",

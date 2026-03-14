@@ -23,14 +23,20 @@ import {
   DragOverStoreContext,
 } from "../../../hooks/useTaskTreeDnd";
 import { useTaskTreeKeyboard } from "../../../hooks/useTaskTreeKeyboard";
+import { useToast } from "../../../context/ToastContext";
+import type { MoveRejectionReason } from "../../../types/moveResult";
 import { TaskTreeNode } from "./TaskTreeNode";
+import { SearchResultList } from "./SearchResultList";
 import { InlineCreateInput } from "./InlineCreateInput";
 
 import { SortDropdown } from "./SortDropdown";
 import { useLocalStorage } from "../../../hooks/useLocalStorage";
 import { useDebounce } from "../../../hooks/useDebounce";
-import { getDescendantTasks } from "../../../utils/getDescendantTasks";
-import { getSearchMatchIds } from "../../../utils/filterTreeBySearch";
+
+import {
+  getSearchMatchIds,
+  getDirectSearchMatches,
+} from "../../../utils/filterTreeBySearch";
 import { sortTaskNodes } from "../../../utils/sortTaskNodes";
 import type { SortMode } from "../../../utils/sortTaskNodes";
 import { STORAGE_KEYS } from "../../../constants/storageKeys";
@@ -116,6 +122,26 @@ export function TaskTree({
   );
   const isSearching = debouncedQuery.trim().length > 0;
 
+  const directMatches = useMemo(
+    () => getDirectSearchMatches(nodes, debouncedQuery),
+    [nodes, debouncedQuery],
+  );
+
+  const { t } = useTranslation();
+  const { showToast } = useToast();
+
+  const handleMoveRejected = useMemo(() => {
+    const reasonToMessageKey: Partial<Record<MoveRejectionReason, string>> = {
+      circular_reference: "taskTree.move.circularReference",
+    };
+    return (reason: MoveRejectionReason) => {
+      const key = reasonToMessageKey[reason];
+      if (key) {
+        showToast("warning", t(key));
+      }
+    };
+  }, [showToast, t]);
+
   const {
     sensors,
     activeNode,
@@ -124,7 +150,13 @@ export function TaskTree({
     handleDragMove,
     handleDragEnd,
     handleDragCancel,
-  } = useTaskTreeDnd({ nodes, moveNode, moveNodeInto, moveToRoot });
+  } = useTaskTreeDnd({
+    nodes,
+    moveNode,
+    moveNodeInto,
+    moveToRoot,
+    onMoveRejected: handleMoveRejected,
+  });
 
   const handleDragStart: typeof rawHandleDragStart = (event) => {
     if (isSearching) return;
@@ -158,22 +190,14 @@ export function TaskTree({
   ]);
 
   const completedRootTasks = useMemo(() => {
-    let tasks: TaskNode[];
-    if (!filterFolderId) {
-      tasks = rootChildren.filter(
-        (n) => n.type === "task" && n.status === "DONE",
-      );
-    } else {
-      const descendants = getDescendantTasks(filterFolderId, nodes);
-      tasks = descendants.filter(
-        (n) => n.type === "task" && n.status === "DONE",
-      );
-    }
+    let tasks = rootChildren.filter(
+      (n) => n.type === "task" && n.status === "DONE",
+    );
     if (isSearching) {
       tasks = tasks.filter((n) => searchMatchIds.has(n.id));
     }
     return tasks;
-  }, [rootChildren, filterFolderId, nodes, isSearching, searchMatchIds]);
+  }, [rootChildren, isSearching, searchMatchIds]);
 
   const completedFolders = useMemo(() => {
     if (filterFolderId) return [];
@@ -188,27 +212,32 @@ export function TaskTree({
   const hasCompleted =
     completedRootTasks.length > 0 || completedFolders.length > 0;
 
+  const activeTargetFolderId = useMemo(() => {
+    if (!selectedTaskId) return null;
+    const selected = nodes.find((n) => n.id === selectedTaskId);
+    if (!selected) return null;
+    return selected.type === "folder"
+      ? selected.id
+      : (selected.parentId ?? null);
+  }, [selectedTaskId, nodes]);
+
   const rootItemIds = useMemo(() => rootItems.map((n) => n.id), [rootItems]);
 
   const visibleNodes = useMemo(() => {
+    if (isSearching) return directMatches;
     const result: TaskNode[] = [];
     const addVisible = (list: TaskNode[]) => {
       for (const node of list) {
         result.push(node);
-        if (node.type === "folder" && (node.isExpanded || isSearching)) {
+        if (node.type === "folder" && node.isExpanded) {
           const children = getChildren(node.id);
-          const filtered = isSearching
-            ? children.filter((c) => searchMatchIds.has(c.id))
-            : children;
-          addVisible(filtered);
+          addVisible(children);
         }
       }
     };
     addVisible(rootItems);
     return result;
-  }, [rootItems, getChildren, isSearching, searchMatchIds]);
-
-  const { t } = useTranslation();
+  }, [rootItems, getChildren, isSearching, directMatches]);
 
   useTaskTreeKeyboard({
     selectedTaskId: selectedTaskId ?? null,
@@ -219,176 +248,179 @@ export function TaskTree({
     toggleTaskStatus,
     moveNodeInto,
     moveToRoot,
+    onMoveRejected: handleMoveRejected,
   });
 
   return (
     <div
       className={`space-y-1 ${isControlled ? "max-w-3xl mx-auto px-4" : ""}`}
     >
-      <DragOverStoreContext.Provider value={dragOverStore}>
-        <DndContext
-          sensors={sensors}
-          collisionDetection={pointerWithin}
-          onDragStart={handleDragStart}
-          onDragMove={handleDragMove}
-          onDragEnd={handleDragEnd}
-          onDragCancel={handleDragCancel}
-        >
-          {/* Root Section */}
-          <DroppableSection id="droppable-root-section">
-            {(isOver) => (
-              <div>
-                <div
-                  className={`flex items-center gap-2 px-2 py-1.5 text-xs font-semibold uppercase tracking-wider text-notion-text-secondary rounded-md transition-colors ${
-                    isOver
-                      ? "bg-notion-accent/10 ring-1 ring-notion-accent/30"
-                      : ""
-                  }`}
-                >
-                  <ListTree size={14} />
-                  <div className="flex-row flex items-center justify-between w-full">
-                    <div className="flex items-center gap-1.5">
-                      {t("taskTree.title")}
-                      <SortDropdown
-                        sortMode={sortMode}
-                        onSortChange={setSortMode}
-                      />
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setIsCreatingRootItem("folder");
-                        }}
-                        className="hover:text-notion-text transition-colors"
-                        title={t("taskTree.newFolder")}
-                      >
-                        <FolderPlus size={14} />
-                      </button>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setIsCreatingRootItem("task");
-                        }}
-                        className="hover:text-notion-text transition-colors"
-                        title={t("taskTree.newTask")}
-                      >
-                        <Plus size={14} />
-                      </button>
-                    </div>
-                  </div>
-                </div>
-                <SortableContext items={rootItemIds}>
-                  <div className="space-y-0.5">
-                    {rootItems.map((node) => (
-                      <TaskTreeNode
-                        key={node.id}
-                        node={node}
-                        depth={0}
-                        onPlayTask={onPlayTask}
-                        onSelectTask={onSelectTask}
-                        selectedTaskId={selectedTaskId}
-                        sortMode={sortMode}
-                        searchMatchIds={
-                          isSearching ? searchMatchIds : undefined
-                        }
-                        isSearching={isSearching}
-                      />
-                    ))}
-                  </div>
-                </SortableContext>
-                {isCreatingRootItem && (
-                  <InlineCreateInput
-                    placeholder={
-                      isCreatingRootItem === "task"
-                        ? t("taskTree.newTask")
-                        : t("taskTree.newFolder")
-                    }
-                    onSubmit={(title) =>
-                      addNode(
-                        isCreatingRootItem!,
-                        isCreatingRootItem === "folder"
-                          ? (filterFolderId ?? null)
-                          : null,
-                        title,
-                      )
-                    }
-                    onCancel={() => setIsCreatingRootItem(null)}
-                  />
-                )}
-              </div>
-            )}
-          </DroppableSection>
-
-          <DragOverlay>
-            {activeNode ? (
-              <div className="flex items-center gap-1 px-2 py-1 rounded-md bg-notion-bg border border-notion-border shadow-lg text-[15px] text-notion-text opacity-50">
-                <GripVertical
-                  size={14}
-                  className="text-notion-text-secondary"
-                />
-                <span>{activeNode.title}</span>
-              </div>
-            ) : null}
-          </DragOverlay>
-        </DndContext>
-      </DragOverStoreContext.Provider>
-
-      {isSearching &&
-        visibleNodes.length === 0 &&
-        completedRootTasks.length === 0 &&
-        completedFolders.length === 0 && (
+      {isSearching ? (
+        directMatches.length > 0 ? (
+          <SearchResultList
+            matchedNodes={directMatches}
+            allNodes={nodes}
+            onSelectTask={onSelectTask}
+            selectedTaskId={selectedTaskId}
+            onPlayTask={onPlayTask}
+          />
+        ) : (
           <div className="px-4 py-8 text-center text-sm text-notion-text-secondary">
             {t("search.noResults")}
           </div>
-        )}
+        )
+      ) : (
+        <>
+          <DragOverStoreContext.Provider value={dragOverStore}>
+            <DndContext
+              sensors={sensors}
+              collisionDetection={pointerWithin}
+              onDragStart={handleDragStart}
+              onDragMove={handleDragMove}
+              onDragEnd={handleDragEnd}
+              onDragCancel={handleDragCancel}
+            >
+              {/* Root Section */}
+              <DroppableSection id="droppable-root-section">
+                {(isOver) => (
+                  <div>
+                    <div
+                      className={`flex items-center gap-2 px-2 py-1.5 text-xs font-semibold uppercase tracking-wider text-notion-text-secondary rounded-md transition-colors ${
+                        isOver
+                          ? "bg-notion-accent/10 ring-1 ring-notion-accent/30"
+                          : ""
+                      }`}
+                    >
+                      <ListTree size={14} />
+                      <div className="flex-row flex items-center justify-between w-full">
+                        <div className="flex items-center gap-1.5">
+                          {t("taskTree.title")}
+                          <SortDropdown
+                            sortMode={sortMode}
+                            onSortChange={setSortMode}
+                          />
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setIsCreatingRootItem("folder");
+                            }}
+                            className="hover:text-notion-text transition-colors"
+                            title={t("taskTree.newFolder")}
+                          >
+                            <FolderPlus size={14} />
+                          </button>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setIsCreatingRootItem("task");
+                            }}
+                            className="hover:text-notion-text transition-colors"
+                            title={t("taskTree.newTask")}
+                          >
+                            <Plus size={14} />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                    <SortableContext items={rootItemIds}>
+                      <div className="space-y-0.5">
+                        {rootItems.map((node) => (
+                          <TaskTreeNode
+                            key={node.id}
+                            node={node}
+                            depth={0}
+                            onPlayTask={onPlayTask}
+                            onSelectTask={onSelectTask}
+                            selectedTaskId={selectedTaskId}
+                            sortMode={sortMode}
+                            activeTargetFolderId={activeTargetFolderId}
+                          />
+                        ))}
+                      </div>
+                    </SortableContext>
+                    {isCreatingRootItem && (
+                      <InlineCreateInput
+                        placeholder={
+                          isCreatingRootItem === "task"
+                            ? t("taskTree.newTask")
+                            : t("taskTree.newFolder")
+                        }
+                        onSubmit={(title) =>
+                          addNode(
+                            isCreatingRootItem!,
+                            isCreatingRootItem === "folder"
+                              ? (filterFolderId ?? null)
+                              : null,
+                            title,
+                          )
+                        }
+                        onCancel={() => setIsCreatingRootItem(null)}
+                      />
+                    )}
+                  </div>
+                )}
+              </DroppableSection>
 
-      {hasCompleted && (
-        <div className="pt-2 border-t border-notion-border">
-          <button
-            onClick={() => setShowCompleted(!showCompleted)}
-            className="flex items-center gap-2 text-xs text-notion-text-secondary hover:text-notion-text mb-1 px-2"
-          >
-            {showCompleted || isSearching ? (
-              <ChevronDown size={14} />
-            ) : (
-              <ChevronRight size={14} />
-            )}
-            <CheckCircle2 size={14} />
-            <span>
-              {t("taskTree.completed")} (
-              {completedRootTasks.length + completedFolders.length})
-            </span>
-          </button>
-          {(showCompleted || isSearching) && (
-            <div className="space-y-0.5">
-              {completedRootTasks.map((task) => (
-                <TaskTreeNode
-                  key={task.id}
-                  node={task}
-                  depth={0}
-                  onSelectTask={onSelectTask}
-                  selectedTaskId={selectedTaskId}
-                  sortMode={sortMode}
-                  searchMatchIds={isSearching ? searchMatchIds : undefined}
-                  isSearching={isSearching}
-                />
-              ))}
-              {completedFolders.map((folder) => (
-                <TaskTreeNode
-                  key={folder.id}
-                  node={folder}
-                  depth={0}
-                  onSelectTask={onSelectTask}
-                  selectedTaskId={selectedTaskId}
-                  sortMode={sortMode}
-                  searchMatchIds={isSearching ? searchMatchIds : undefined}
-                  isSearching={isSearching}
-                />
-              ))}
+              <DragOverlay>
+                {activeNode ? (
+                  <div className="flex items-center gap-1 px-2 py-1 rounded-md bg-notion-bg border border-notion-border shadow-lg text-[15px] text-notion-text opacity-50">
+                    <GripVertical
+                      size={14}
+                      className="text-notion-text-secondary"
+                    />
+                    <span>{activeNode.title}</span>
+                  </div>
+                ) : null}
+              </DragOverlay>
+            </DndContext>
+          </DragOverStoreContext.Provider>
+
+          {hasCompleted && (
+            <div className="pt-2 border-t border-notion-border">
+              <button
+                onClick={() => setShowCompleted(!showCompleted)}
+                className="flex items-center gap-2 text-xs text-notion-text-secondary hover:text-notion-text mb-1 px-2"
+              >
+                {showCompleted ? (
+                  <ChevronDown size={14} />
+                ) : (
+                  <ChevronRight size={14} />
+                )}
+                <CheckCircle2 size={14} />
+                <span>
+                  {t("taskTree.completed")} (
+                  {completedRootTasks.length + completedFolders.length})
+                </span>
+              </button>
+              {showCompleted && (
+                <div className="space-y-0.5">
+                  {completedRootTasks.map((task) => (
+                    <TaskTreeNode
+                      key={task.id}
+                      node={task}
+                      depth={0}
+                      onSelectTask={onSelectTask}
+                      selectedTaskId={selectedTaskId}
+                      sortMode={sortMode}
+                    />
+                  ))}
+                  {completedFolders.map((folder) => (
+                    <TaskTreeNode
+                      key={folder.id}
+                      node={folder}
+                      depth={0}
+                      onSelectTask={onSelectTask}
+                      selectedTaskId={selectedTaskId}
+                      sortMode={sortMode}
+                    />
+                  ))}
+                </div>
+              )}
             </div>
           )}
-        </div>
+        </>
       )}
     </div>
   );

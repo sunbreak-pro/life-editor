@@ -12,10 +12,11 @@ interface TaskPreviewPopupProps {
   color?: string;
   folderTag?: string;
   onOpenDetail: () => void;
-  onStartTimer: () => void;
+  onStartTimer?: () => void;
   onDelete: () => void;
   onClearSchedule: () => void;
   onClose: () => void;
+  onUpdateTitle?: (title: string) => void;
 }
 
 export function TaskPreviewPopup({
@@ -27,12 +28,23 @@ export function TaskPreviewPopup({
   onDelete,
   onClearSchedule,
   onClose,
+  onUpdateTitle,
 }: TaskPreviewPopupProps) {
   const { t } = useTranslation();
   const ref = useRef<HTMLDivElement>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editValue, setEditValue] = useState(task.title);
 
-  useClickOutside(ref, onClose, !showDeleteConfirm);
+  useClickOutside(ref, onClose, !showDeleteConfirm && !isEditing);
+
+  const commitEdit = () => {
+    const trimmed = editValue.trim();
+    if (trimmed && trimmed !== task.title) {
+      onUpdateTitle?.(trimmed);
+    }
+    setIsEditing(false);
+  };
 
   const left = Math.min(position.x, window.innerWidth - 260 - 16);
   const top = Math.min(position.y, window.innerHeight - 240 - 16);
@@ -51,9 +63,34 @@ export function TaskPreviewPopup({
               style={{ backgroundColor: color }}
             />
           )}
-          <div className="font-medium text-sm text-notion-text truncate">
-            {task.title}
-          </div>
+          {isEditing ? (
+            <input
+              autoFocus
+              value={editValue}
+              onChange={(e) => setEditValue(e.target.value)}
+              onBlur={commitEdit}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") commitEdit();
+                if (e.key === "Escape") {
+                  setEditValue(task.title);
+                  setIsEditing(false);
+                }
+              }}
+              className="font-medium text-sm text-notion-text w-full bg-transparent border-b border-notion-accent outline-none"
+            />
+          ) : (
+            <div
+              className="font-medium text-sm text-notion-text truncate cursor-text hover:bg-notion-hover/50 rounded px-0.5 -mx-0.5"
+              onClick={() => {
+                if (onUpdateTitle) {
+                  setEditValue(task.title);
+                  setIsEditing(true);
+                }
+              }}
+            >
+              {task.title}
+            </div>
+          )}
           {task.scheduledAt && (
             <div className="text-xs text-notion-text-secondary">
               {formatScheduleRange(
@@ -83,14 +120,18 @@ export function TaskPreviewPopup({
             <ExternalLink size={12} />
             {t("calendar.openDetail")}
           </button>
-          <div className="w-px bg-notion-border" />
-          <button
-            onClick={onStartTimer}
-            className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-xs text-notion-accent hover:bg-notion-accent/5 transition-colors"
-          >
-            <Play size={12} />
-            {t("calendar.startTimer")}
-          </button>
+          {onStartTimer && (
+            <>
+              <div className="w-px bg-notion-border" />
+              <button
+                onClick={onStartTimer}
+                className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-xs text-notion-accent hover:bg-notion-accent/5 transition-colors"
+              >
+                <Play size={12} />
+                {t("calendar.startTimer")}
+              </button>
+            </>
+          )}
         </div>
         <div className="border-t border-notion-border flex">
           <button

@@ -5,6 +5,11 @@ import { useTranslation } from "react-i18next";
 import { useTaskTreeContext } from "../../../hooks/useTaskTreeContext";
 import { useTimerContext } from "../../../hooks/useTimerContext";
 import type { TaskNode } from "../../../types/taskTree";
+import type {
+  MoveResult,
+  MoveRejectionReason,
+} from "../../../types/moveResult";
+import { useToast } from "../../../context/ToastContext";
 import { FolderTag } from "../Folder/FolderTag";
 import { FolderMovePicker } from "../Folder/FolderMovePicker";
 import { UnifiedColorPicker } from "../../shared/UnifiedColorPicker";
@@ -60,6 +65,8 @@ export function TaskDetailPanel({
   const { nodes, updateNode, moveNodeInto, moveToRoot, softDelete } =
     useTaskTreeContext();
   const timer = useTimerContext();
+  const { t } = useTranslation();
+  const { showToast } = useToast();
 
   const node = selectedNodeId
     ? (nodes.find((n) => n.id === selectedNodeId) ?? null)
@@ -81,6 +88,11 @@ export function TaskDetailPanel({
               softDelete={softDelete}
               onPlayTask={onPlayTask}
               globalWorkDuration={timer.workDurationMinutes}
+              onMoveRejected={(reason) => {
+                if (reason === "circular_reference") {
+                  showToast("warning", t("taskTree.move.circularReference"));
+                }
+              }}
             />
           ) : (
             <FolderSidebarContent node={node} updateNode={updateNode} />
@@ -97,11 +109,12 @@ interface TaskSidebarContentProps {
   node: TaskNode;
   nodes: TaskNode[];
   updateNode: (id: string, updates: Partial<TaskNode>) => void;
-  moveNodeInto: (activeId: string, targetFolderId: string) => void;
-  moveToRoot: (id: string) => void;
+  moveNodeInto: (activeId: string, targetFolderId: string) => MoveResult;
+  moveToRoot: (id: string) => MoveResult;
   softDelete: (id: string) => void;
   onPlayTask?: (node: TaskNode) => void;
   globalWorkDuration: number;
+  onMoveRejected?: (reason: MoveRejectionReason) => void;
 }
 
 function TaskSidebarContent({
@@ -113,6 +126,7 @@ function TaskSidebarContent({
   softDelete,
   onPlayTask,
   globalWorkDuration,
+  onMoveRejected,
 }: TaskSidebarContentProps) {
   const { t } = useTranslation();
   const duration = node.workDurationMinutes ?? globalWorkDuration;
@@ -130,13 +144,15 @@ function TaskSidebarContent({
 
   const handleMove = useCallback(
     (newFolderId: string | null) => {
-      if (newFolderId === null) {
-        moveToRoot(node.id);
-      } else {
-        moveNodeInto(node.id, newFolderId);
+      const result =
+        newFolderId === null
+          ? moveToRoot(node.id)
+          : moveNodeInto(node.id, newFolderId);
+      if (!result.success && onMoveRejected) {
+        onMoveRejected(result.reason);
       }
     },
-    [node.id, moveNodeInto, moveToRoot],
+    [node.id, moveNodeInto, moveToRoot, onMoveRejected],
   );
 
   const handleMemoModeChange = (mode: MemoMode) => {

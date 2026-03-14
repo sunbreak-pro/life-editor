@@ -1,6 +1,5 @@
 import { useCallback } from "react";
 import type { TaskNode, NodeType, TaskStatus } from "../types/taskTree";
-import { MAX_FOLDER_DEPTH } from "../types/taskTree";
 import { getColorByIndex } from "../constants/folderColors";
 
 interface AddNodeOptions {
@@ -13,7 +12,6 @@ export function useTaskTreeCRUD(
   nodes: TaskNode[],
   persistWithHistory: (currentNodes: TaskNode[], updated: TaskNode[]) => void,
   persistSilent: (updated: TaskNode[]) => void,
-  getNodeDepth: (nodeId: string) => number,
   generateId: (type: NodeType) => string,
 ) {
   const addNode = useCallback(
@@ -23,11 +21,6 @@ export function useTaskTreeCRUD(
       title: string,
       options?: AddNodeOptions,
     ) => {
-      if (type === "folder" && parentId !== null) {
-        const parentDepth = getNodeDepth(parentId);
-        if (parentDepth + 1 >= MAX_FOLDER_DEPTH) return undefined;
-      }
-
       const siblings = nodes.filter(
         (n) => !n.isDeleted && n.parentId === parentId,
       );
@@ -38,12 +31,29 @@ export function useTaskTreeCRUD(
             )
           : undefined;
 
+      let newOrder: number;
+      let updatedNodes = nodes;
+
+      if (type === "task") {
+        // Insert new task at the top of the task group (order: 0)
+        const taskSiblings = siblings.filter(
+          (n) => n.type === "task" && n.status !== "DONE",
+        );
+        newOrder = 0;
+        const shiftIds = new Set(taskSiblings.map((n) => n.id));
+        updatedNodes = nodes.map((n) =>
+          shiftIds.has(n.id) ? { ...n, order: n.order + 1 } : n,
+        );
+      } else {
+        newOrder = siblings.filter((n) => n.type === "folder").length;
+      }
+
       const newNode: TaskNode = {
         id: generateId(type),
         type,
         title,
         parentId,
-        order: siblings.length,
+        order: newOrder,
         status: "TODO",
         isExpanded: type !== "task" ? true : undefined,
         createdAt: new Date().toISOString(),
@@ -52,10 +62,10 @@ export function useTaskTreeCRUD(
         isAllDay: type === "task" ? options?.isAllDay : undefined,
         color: folderColor,
       };
-      persistWithHistory(nodes, [...nodes, newNode]);
+      persistWithHistory(nodes, [...updatedNodes, newNode]);
       return newNode;
     },
-    [nodes, persistWithHistory, getNodeDepth, generateId],
+    [nodes, persistWithHistory, generateId],
   );
 
   const updateNode = useCallback(

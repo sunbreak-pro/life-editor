@@ -1,5 +1,36 @@
 # HISTORY.md - 変更履歴
 
+### 2026-03-14 - Schedule画面 UI/UX改善: 6要件
+
+#### 概要
+
+Schedule画面の6つのUI/UX問題を修正。OpenDetailナビゲーションバグ、プレビューパネルでのタイトル編集、ノート削除、ルーティン完了状態の同期、CalendarサイドバーフィルタのProgress置換、DayFlowタブのドロップダウン化を実装。
+
+#### 変更点
+
+- **要件1 OpenDetail修正**: CalendarViewの`onSelectTask`を`onCalendarSelectTask`経由に変更し画面遷移を修正。Calendar内のStartTimerボタンを非表示化
+- **要件2 タイトル編集**: TaskPreviewPopup/MemoPreviewPopupにインライン編集機能追加（Enter/Blur確定、Escキャンセル）
+- **要件3 ノート削除**: MemoPreviewPopupに削除ボタン追加（ConfirmDialog付き、softDeleteNote経由）
+- **要件4 ルーティン同期**: `useScheduleItems.ts`の`toggleComplete`で`setMonthlyRoutineItems`も同期更新（undo/redo含む）
+- **要件5 Progress置換**: CalendarSidebarContentからFiltersセクション削除、All/Tasksの2タブのみ。FolderDropdownをCalendarHeaderに移動
+- **要件6 DayFlowドロップダウン**: SectionTabsをFilterアイコン+ドロップダウンに置換
+
+### 2026-03-14 - Tasks画面 4点修正
+
+#### 概要
+
+TaskTreeの4つのUX改善を実装。完了タスクをフォルダ内に表示、新規タスク先頭挿入、フラット検索+パンくず、nキーのフォルダコンテキスト対応。
+
+#### 変更点
+
+- **新規タスク先頭挿入**: `useTaskTreeCRUD.ts` — タスク作成時に既存アクティブタスクのorderを+1シフトし、新規タスクをorder:0で先頭挿入
+- **nキーコンテキスト対応**: `useAppKeyboardShortcuts.ts`, `useAppCommands.ts`, `useElectronMenuActions.ts`, `App.tsx` — Tasks画面でフォルダ/タスク選択中はそのフォルダ内にタスク作成
+- **ターゲットフォルダハイライト**: `TaskTreeNode.tsx`, `TaskTree.tsx` — 作成先フォルダにring-1のアクセントハイライト表示
+- **フォルダ内完了セクション**: `TaskTreeNode.tsx` — childrenをactiveChildren/completedChildrenに分離、折りたたみ可能な「Completed (N)」セクション追加
+- **ルート完了セクション簡素化**: `TaskTree.tsx` — completedRootTasksをルート直下のみに変更
+- **フラット検索**: `SearchResultList.tsx`（新規）, `filterTreeBySearch.ts` — 検索時にツリーを非表示にしフラットリスト+パンくずパス表示に切替
+- **i18n**: `search.rootLevel` キー追加（en: "Root level", ja: "ルート直下"）
+
 ### 2026-03-14 - フォルダ深さ制限の撤廃
 
 #### 概要

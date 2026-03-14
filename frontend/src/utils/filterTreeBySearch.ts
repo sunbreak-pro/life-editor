@@ -1,5 +1,16 @@
 import type { TaskNode } from "../types/taskTree";
 
+export function getDirectSearchMatches(
+  nodes: TaskNode[],
+  query: string,
+): TaskNode[] {
+  if (!query.trim()) return [];
+  const lowerQuery = query.toLowerCase();
+  return nodes.filter(
+    (n) => !n.isDeleted && n.title.toLowerCase().includes(lowerQuery),
+  );
+}
+
 export function getSearchMatchIds(
   nodes: TaskNode[],
   query: string,

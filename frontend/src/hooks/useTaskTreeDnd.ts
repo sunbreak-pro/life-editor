@@ -9,6 +9,7 @@ import {
   type DragMoveEvent,
 } from "@dnd-kit/core";
 import type { TaskNode } from "../types/taskTree";
+import type { MoveResult, MoveRejectionReason } from "../types/moveResult";
 
 export interface OverInfo {
   overId: string;
@@ -28,9 +29,10 @@ interface UseTaskTreeDndParams {
     activeId: string,
     overId: string,
     position?: "above" | "below",
-  ) => void;
-  moveNodeInto: (activeId: string, overId: string) => void;
-  moveToRoot: (id: string) => void;
+  ) => MoveResult;
+  moveNodeInto: (activeId: string, overId: string) => MoveResult;
+  moveToRoot: (id: string) => MoveResult;
+  onMoveRejected?: (reason: MoveRejectionReason) => void;
 }
 
 const FOLDER_ZONE_ABOVE = 0.25;
@@ -51,11 +53,21 @@ function computeFolderPosition(
   return "inside";
 }
 
+function handleResult(
+  result: MoveResult,
+  onMoveRejected?: (reason: MoveRejectionReason) => void,
+): void {
+  if (!result.success && onMoveRejected) {
+    onMoveRejected(result.reason);
+  }
+}
+
 export function useTaskTreeDnd({
   nodes,
   moveNode,
   moveNodeInto,
   moveToRoot,
+  onMoveRejected,
 }: UseTaskTreeDndParams) {
   const [activeId, setActiveId] = useState<string | null>(null);
 
@@ -151,7 +163,9 @@ export function useTaskTreeDnd({
       const overId = over.id as string;
 
       if (overId === "droppable-root-section") {
-        if (activeNode.parentId !== null) moveToRoot(active.id as string);
+        if (activeNode.parentId !== null) {
+          handleResult(moveToRoot(active.id as string), onMoveRejected);
+        }
         return;
       }
 
@@ -163,7 +177,10 @@ export function useTaskTreeDnd({
         if (!pointerY || !over.rect) {
           // Fallback: drop inside
           if (activeNode.parentId !== overNode.id) {
-            moveNodeInto(active.id as string, over.id as string);
+            handleResult(
+              moveNodeInto(active.id as string, over.id as string),
+              onMoveRejected,
+            );
           }
           return;
         }
@@ -171,26 +188,41 @@ export function useTaskTreeDnd({
         const position = computeFolderPosition(pointerY, over.rect);
 
         if (position === "above") {
-          moveNode(active.id as string, over.id as string, "above");
+          handleResult(
+            moveNode(active.id as string, over.id as string, "above"),
+            onMoveRejected,
+          );
         } else if (position === "below") {
-          moveNode(active.id as string, over.id as string, "below");
+          handleResult(
+            moveNode(active.id as string, over.id as string, "below"),
+            onMoveRejected,
+          );
         } else {
           if (activeNode.parentId !== overNode.id) {
-            moveNodeInto(active.id as string, over.id as string);
+            handleResult(
+              moveNodeInto(active.id as string, over.id as string),
+              onMoveRejected,
+            );
           }
         }
       } else {
         const pointerY = getPointerY(event);
         if (!pointerY || !over.rect) {
-          moveNode(active.id as string, over.id as string, "below");
+          handleResult(
+            moveNode(active.id as string, over.id as string, "below"),
+            onMoveRejected,
+          );
           return;
         }
         const { top, height } = over.rect;
         const position = pointerY - top < height / 2 ? "above" : "below";
-        moveNode(active.id as string, over.id as string, position);
+        handleResult(
+          moveNode(active.id as string, over.id as string, position),
+          onMoveRejected,
+        );
       }
     },
-    [nodes, moveNode, moveNodeInto, moveToRoot, notify],
+    [nodes, moveNode, moveNodeInto, moveToRoot, notify, onMoveRejected],
   );
 
   const handleDragCancel = useCallback(() => {

@@ -36,6 +36,8 @@ interface UseAppCommandsParams {
     reset: () => void;
   };
   layoutRef: RefObject<LayoutHandle | null>;
+  nodes?: TaskNode[];
+  selectedTaskId?: string | null;
 }
 
 export function useAppCommands({
@@ -46,6 +48,8 @@ export function useAppCommands({
   setSelectedTaskId,
   timer,
   layoutRef,
+  nodes,
+  selectedTaskId,
 }: UseAppCommandsParams): Command[] {
   const { getDisplayString } = useShortcutConfig();
 
@@ -119,7 +123,17 @@ export function useAppCommands({
         category: "Task",
         shortcut: getDisplayString("global:new-task"),
         icon: Plus,
-        action: () => addNode("task", null, "New Task"),
+        action: () => {
+          let parentId: string | null = null;
+          if (selectedTaskId && nodes) {
+            const sel = nodes.find((n) => n.id === selectedTaskId);
+            if (sel) {
+              parentId =
+                sel.type === "folder" ? sel.id : (sel.parentId ?? null);
+            }
+          }
+          addNode("task", parentId, "New Task");
+        },
       },
       {
         id: "task-create-folder",
@@ -177,6 +191,8 @@ export function useAppCommands({
       setActiveSection,
       layoutRef,
       getDisplayString,
+      nodes,
+      selectedTaskId,
     ],
   );
 }

@@ -71,6 +71,8 @@ function App() {
     setSelectedTaskId,
     timer,
     layoutRef,
+    nodes,
+    selectedTaskId,
   });
 
   useUndoRedoKeyboard();
@@ -80,12 +82,17 @@ function App() {
     addNode,
     setActiveSection,
     setIsCommandPaletteOpen,
+    selectedTaskId,
+    nodes,
+    activeSection,
   });
 
   useElectronMenuActions({
     addNode,
     setActiveSection,
     layoutRef,
+    selectedTaskId,
+    nodes,
   });
 
   const renderContent = () => {
@@ -107,11 +114,6 @@ function App() {
               handlers.handleCalendarSelectTask(taskId)
             }
             onCreateTask={handlers.handleCalendarCreateTask}
-            onStartTimer={(taskId) => {
-              const task = nodes.find((n) => n.id === taskId);
-              if (task) handlers.handlePlayTask(task);
-            }}
-            onSelectTask={setSelectedTaskId}
             onSelectMemo={handlers.handleCalendarSelectMemo}
             onSelectNote={handlers.handleCalendarSelectNote}
             onCreateNote={handlers.handleCalendarCreateNote}

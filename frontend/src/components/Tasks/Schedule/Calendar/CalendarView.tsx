@@ -30,12 +30,12 @@ interface CalendarViewProps {
       isAllDay?: boolean;
     },
   ) => void;
-  onStartTimer?: (taskId: string) => void;
   onSelectMemo?: (date: string) => void;
   onSelectNote?: (noteId: string) => void;
   onCreateNote?: (title: string) => void;
   filter: "incomplete" | "completed";
   filterFolderId: string | null;
+  onFilterFolderChange?: (folderId: string | null) => void;
   contentFilter?: CalendarContentFilter;
   onDateSelect?: (date: Date) => void;
 }
@@ -50,12 +50,12 @@ function getInitialWeekStart(): Date {
 export function CalendarView({
   onSelectTask,
   onCreateTask,
-  onStartTimer,
   onSelectMemo,
   onSelectNote,
   onCreateNote,
   filter,
   filterFolderId,
+  onFilterFolderChange,
   contentFilter,
   onDateSelect,
 }: CalendarViewProps) {
@@ -63,7 +63,12 @@ export function CalendarView({
     useTaskTreeContext();
   const { activeCalendar } = useCalendarContext();
   const { memos, upsertMemo } = useMemoContext();
-  const { notes, createNote: createNoteFromContext } = useNoteContext();
+  const {
+    notes,
+    createNote: createNoteFromContext,
+    updateNote,
+    softDeleteNote,
+  } = useNoteContext();
   const { loadRoutineItemsForMonth, getRoutineCompletionByDate } =
     useScheduleContext();
 
@@ -101,6 +106,7 @@ export function CalendarView({
     content: string;
     position: { x: number; y: number };
     onOpenDetail: () => void;
+    noteId?: string;
   } | null>(null);
 
   // Load routine items for the current month
@@ -267,6 +273,7 @@ export function CalendarView({
           onSelectNote?.(note.id);
           setMemoPreview(null);
         },
+        noteId: note.id,
       });
     }
   };
@@ -296,6 +303,8 @@ export function CalendarView({
           onNext={handleNext}
           onToday={handleToday}
           onViewModeChange={setViewMode}
+          filterFolderId={filterFolderId}
+          onFilterFolderChange={onFilterFolderChange}
         />
 
         {viewMode === "month" ? (
@@ -381,10 +390,7 @@ export function CalendarView({
             onSelectTask(previewTask.id);
             setPreviewPopup(null);
           }}
-          onStartTimer={() => {
-            onStartTimer?.(previewTask.id);
-            setPreviewPopup(null);
-          }}
+          onUpdateTitle={(title) => updateNode(previewTask.id, { title })}
           onDelete={() => {
             softDelete(previewTask.id);
             setPreviewPopup(null);
@@ -409,6 +415,19 @@ export function CalendarView({
           position={memoPreview.position}
           onOpenDetail={memoPreview.onOpenDetail}
           onClose={() => setMemoPreview(null)}
+          onUpdateTitle={
+            memoPreview.noteId
+              ? (title) => updateNote(memoPreview.noteId!, { title })
+              : undefined
+          }
+          onDelete={
+            memoPreview.noteId
+              ? () => {
+                  softDeleteNote(memoPreview.noteId!);
+                  setMemoPreview(null);
+                }
+              : undefined
+          }
         />
       )}
     </div>
