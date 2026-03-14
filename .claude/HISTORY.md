@@ -1,5 +1,20 @@
 # HISTORY.md - 変更履歴
 
+### 2026-03-14 - フォルダメインコンテンツ拡張: パス表示 + 構造一覧
+
+#### 概要
+
+フォルダ詳細パネル（FolderSidebarContent）にブレッドクラムパス表示と構造一覧（Contents）セクションを追加。フォルダの全体像を把握しやすくした。
+
+#### 変更点
+
+- **ブレッドクラム**: FolderSidebarContent に祖先パスを FolderTag ピルで表示。各ピルクリックでカラーピッカーを開きリアルタイム更新
+- **構造一覧**: メモの下に Folders / Tasks セクション分けのフラットリスト。2階層（子+孫）表示、フォルダは展開/折畳み対応
+- **フィルタ**: 完了タスク（DONE）とソフトデリート済みは非表示
+- **Props拡張**: FolderSidebarContent に nodes, onSelectTask を追加。TaskDetailPanelProps に onSelectTask を追加
+- **TaskTreeView**: 両方の TaskDetailPanel 使用箇所に onSelectTask を伝播
+- **i18n**: folderContents キー（title, folders, tasks, empty）を en/ja に追加
+
 ### 2026-03-14 - タスクフォルダ Completedセクション: ネスト除去 + フォルダ色適用
 
 #### 概要
