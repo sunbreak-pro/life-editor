@@ -55,16 +55,7 @@ export function IdeasView({ onNavigateToNote }: IdeasViewProps) {
     createNote,
     softDeleteNote,
   } = useNoteContext();
-  const {
-    assignments,
-    tags,
-    groups,
-    groupMembers,
-    createGroup,
-    updateGroup,
-    deleteGroup,
-    setGroupMembers,
-  } = useWikiTags();
+  const { assignments, tags } = useWikiTags();
 
   // Materials view state
   const [materialsView, setMaterialsView] = useState<MaterialsView>(() => {
@@ -144,13 +135,7 @@ export function IdeasView({ onNavigateToNote }: IdeasViewProps) {
         onCreateNote={handleCreateNote}
         onDeleteNote={softDeleteNote}
         onDeleteMemo={deleteMemo}
-        groups={groups}
-        groupMembers={groupMembers}
-        onCreateGroup={createGroup}
-        onUpdateGroup={updateGroup}
-        onDeleteGroup={deleteGroup}
         onNavigateToConnect={handleNavigateToConnect}
-        onSetGroupMembers={setGroupMembers}
       />
     ) : null;
 

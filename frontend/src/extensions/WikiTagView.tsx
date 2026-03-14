@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { NodeViewWrapper } from "@tiptap/react";
 import type { NodeViewProps } from "@tiptap/react";
 import { useWikiTags } from "../hooks/useWikiTags";
@@ -45,15 +45,21 @@ export function WikiTagView({ node }: NodeViewProps) {
     setEditing(false);
   };
 
-  const handleColorChange = async (newColor: string) => {
-    if (!tag) return;
-    await updateTag(tag.id, { color: newColor });
-  };
+  const handleColorChange = useCallback(
+    async (newColor: string) => {
+      if (!tagId) return;
+      await updateTag(tagId, { color: newColor });
+    },
+    [tagId, updateTag],
+  );
 
-  const handleTextColorChange = async (newTextColor: string | undefined) => {
-    if (!tag) return;
-    await updateTag(tag.id, { textColor: newTextColor ?? null });
-  };
+  const handleTextColorChange = useCallback(
+    async (newTextColor: string | undefined) => {
+      if (!tagId) return;
+      await updateTag(tagId, { textColor: newTextColor ?? null });
+    },
+    [tagId, updateTag],
+  );
 
   const textColor = color
     ? (tag?.textColor ?? getTextColorForBg(color))

@@ -1,32 +1,22 @@
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo, useRef } from "react";
 import {
   StickyNote,
   Plus,
-  Pencil,
-  Trash2,
-  Check,
-  X,
-  ChevronRight,
-  ChevronDown,
-  Layers,
   Heart,
   BookOpen,
   Package,
   Filter,
+  Pencil,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import type {
-  WikiTag,
-  WikiTagAssignment,
-  WikiTagGroup,
-  WikiTagGroupMember,
-} from "../../../types/wikiTag";
+import type { WikiTag, WikiTagAssignment } from "../../../types/wikiTag";
 import type { NoteNode } from "../../../types/note";
 import type { MemoNode } from "../../../types/memo";
 import { WikiTagChip } from "../../WikiTags/WikiTagChip";
-import { SearchBar } from "../../shared/SearchBar";
+import { SearchBar, type SearchSuggestion } from "../../shared/SearchBar";
 import { CollapsibleSection } from "../../shared/CollapsibleSection";
 import { TagFilterOverlay } from "../../shared/TagFilterOverlay";
+import { ItemEditPopover } from "./ItemEditPopover";
 import { STORAGE_KEYS } from "../../../constants/storageKeys";
 import { formatDisplayDate } from "../../../utils/dateKey";
 
@@ -34,7 +24,6 @@ interface SectionsState {
   favorites: boolean;
   notes: boolean;
   daily: boolean;
-  groups: boolean;
 }
 
 interface ConnectSidebarProps {
@@ -49,21 +38,10 @@ interface ConnectSidebarProps {
   memos: MemoNode[];
   onSelectTag: (tagId: string | null) => void;
   onNavigateToNote?: (noteId: string) => void;
-  onFocusNote?: (noteId: string) => void;
   onCreateNote: (title: string, tagId?: string) => void;
-  groups: WikiTagGroup[];
-  groupMembers: WikiTagGroupMember[];
-  onCreateGroup: (
-    name: string,
-    noteIds: string[],
-    filterTags?: string[],
-  ) => Promise<WikiTagGroup>;
-  onUpdateGroup: (
-    id: string,
-    updates: { name?: string; filterTags?: string[] },
-  ) => Promise<WikiTagGroup>;
-  onDeleteGroup: (id: string) => Promise<void>;
-  onSetGroupMembers?: (groupId: string, noteIds: string[]) => Promise<void>;
+  sidebarSelectedItemId: string | null;
+  onSidebarSelect: (id: string | null) => void;
+  onUpdateNoteTitle?: (noteId: string, title: string) => void;
 }
 
 function loadSectionsState(): SectionsState {
@@ -71,7 +49,14 @@ function loadSectionsState(): SectionsState {
     const saved = localStorage.getItem(
       STORAGE_KEYS.MATERIALS_SECTIONS_STATE + "-connect",
     );
-    if (saved) return JSON.parse(saved);
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      return {
+        favorites: parsed.favorites ?? true,
+        notes: parsed.notes ?? true,
+        daily: parsed.daily ?? true,
+      };
+    }
   } catch {
     // ignore
   }
@@ -79,7 +64,6 @@ function loadSectionsState(): SectionsState {
     favorites: true,
     notes: true,
     daily: true,
-    groups: true,
   };
 }
 
@@ -102,41 +86,21 @@ export function ConnectSidebar({
   memos,
   onSelectTag,
   onNavigateToNote,
-  onFocusNote,
   onCreateNote,
-  groups,
-  groupMembers,
-  onCreateGroup,
-  onUpdateGroup,
-  onDeleteGroup,
-  onSetGroupMembers,
+  sidebarSelectedItemId,
+  onSidebarSelect,
+  onUpdateNoteTitle,
 }: ConnectSidebarProps) {
   const { t } = useTranslation();
   const [sections, setSections] = useState<SectionsState>(loadSectionsState);
 
-  // Group state
-  const [showGroupCreate, setShowGroupCreate] = useState(false);
-  const [newGroupName, setNewGroupName] = useState("");
-  const [selectedGroupNoteIds, setSelectedGroupNoteIds] = useState<Set<string>>(
-    new Set(),
-  );
-  const [editingGroupId, setEditingGroupId] = useState<string | null>(null);
-  const [editGroupName, setEditGroupName] = useState("");
-  const [expandedGroupIds, setExpandedGroupIds] = useState<Set<string>>(
-    new Set(),
-  );
-
-  // Group editing state
-  const [editingGroupMemberIds, setEditingGroupMemberIds] =
-    useState<Set<string> | null>(null);
-  // Tag selection for group creation
-  const [selectedGroupTagIds, setSelectedGroupTagIds] = useState<Set<string>>(
-    new Set(),
-  );
-
   // Note filter state
   const [sidebarFilterTagIds, setSidebarFilterTagIds] = useState<string[]>([]);
   const [showNoteFilter, setShowNoteFilter] = useState(false);
+
+  // Entity editing state (name + tags)
+  const [editingEntityId, setEditingEntityId] = useState<string | null>(null);
+  const editButtonRefs = useRef<Map<string, HTMLButtonElement>>(new Map());
 
   const toggleSection = (key: keyof SectionsState) => {
     setSections((prev) => {
@@ -164,11 +128,10 @@ export function ConnectSidebar({
     return map;
   }, [assignments]);
 
-  // Build tag color dots lookup
+  // Build tag color dots lookup (include both notes and memos)
   const entityTagColors = useMemo(() => {
     const map = new Map<string, string[]>();
     for (const a of assignments) {
-      if (a.entityType !== "note") continue;
       const tag = tags.find((t) => t.id === a.tagId);
       if (tag) {
         const existing = map.get(a.entityId) || [];
@@ -212,6 +175,12 @@ export function ConnectSidebar({
     );
   }, []);
 
+  // Tag usage counts for search results
+  const getUsageCount = useCallback(
+    (tagId: string) => assignments.filter((a) => a.tagId === tagId).length,
+    [assignments],
+  );
+
   // Pinned items
   const pinnedNotes = useMemo(
     () => filteredNotes.filter((n) => n.isPinned),
@@ -220,77 +189,66 @@ export function ConnectSidebar({
   const pinnedMemos = useMemo(() => memos.filter((m) => m.isPinned), [memos]);
   const hasFavorites = pinnedNotes.length > 0 || pinnedMemos.length > 0;
 
-  // Group handlers
-  const handleToggleGroupTag = useCallback(
-    (tagId: string) => {
-      setSelectedGroupTagIds((prev) => {
-        const next = new Set(prev);
-        if (next.has(tagId)) {
-          next.delete(tagId);
-        } else {
-          next.add(tagId);
-        }
-        // Auto-select notes with any of the selected tags
-        const noteIds = new Set<string>();
-        for (const tid of next) {
-          for (const a of assignments) {
-            if (a.tagId === tid && a.entityType === "note") {
-              noteIds.add(a.entityId);
-            }
-          }
-        }
-        // Merge with existing manual selections (keep previously selected)
-        setSelectedGroupNoteIds((prevNotes) => {
-          const merged = new Set(prevNotes);
-          for (const id of noteIds) merged.add(id);
-          return merged;
-        });
-        return next;
-      });
+  const handleItemClick = useCallback(
+    (itemId: string) => {
+      onSidebarSelect(sidebarSelectedItemId === itemId ? null : itemId);
     },
-    [assignments],
+    [sidebarSelectedItemId, onSidebarSelect],
   );
 
-  const handleCreateGroup = async () => {
-    const trimmed = newGroupName.trim();
-    if (!trimmed || selectedGroupNoteIds.size === 0) return;
-    await onCreateGroup(
-      trimmed,
-      Array.from(selectedGroupNoteIds),
-      selectedGroupTagIds.size > 0
-        ? Array.from(selectedGroupTagIds)
-        : undefined,
-    );
-    setNewGroupName("");
-    setSelectedGroupNoteIds(new Set());
-    setSelectedGroupTagIds(new Set());
-    setShowGroupCreate(false);
-  };
-
-  const saveGroupEdit = async () => {
-    if (!editingGroupId || !editGroupName.trim()) return;
-    await onUpdateGroup(editingGroupId, { name: editGroupName.trim() });
-    // Save member changes if editing members
-    if (editingGroupMemberIds && onSetGroupMembers) {
-      await onSetGroupMembers(
-        editingGroupId,
-        Array.from(editingGroupMemberIds),
-      );
-    }
-    setEditingGroupId(null);
-    setEditingGroupMemberIds(null);
-  };
-
-  const toggleGroupExpanded = (groupId: string) => {
-    setExpandedGroupIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(groupId)) next.delete(groupId);
-      else next.add(groupId);
-      return next;
-    });
-  };
-
   const isSearching = query.trim().length > 0;
+
+  // Search suggestions: recent notes + memos (up to 10)
+  const suggestions = useMemo<SearchSuggestion[]>(() => {
+    const items: SearchSuggestion[] = [];
+    const sortedNotes = [...notes]
+      .sort(
+        (a, b) =>
+          new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
+      )
+      .slice(0, 6);
+    for (const n of sortedNotes) {
+      items.push({
+        id: n.id,
+        label: n.title || t("notes.untitled"),
+        icon: "note",
+      });
+    }
+    const sortedMemos = [...memos]
+      .sort((a, b) => b.date.localeCompare(a.date))
+      .slice(0, 4);
+    for (const m of sortedMemos) {
+      items.push({
+        id: m.id,
+        label: formatDisplayDate(m.date),
+        icon: "memo",
+      });
+    }
+    // If searching, filter
+    if (isSearching) {
+      const q = query.toLowerCase();
+      return items.filter((i) => i.label.toLowerCase().includes(q));
+    }
+    return items;
+  }, [notes, memos, query, isSearching, t]);
+
+  const handleSuggestionSelect = useCallback(
+    (id: string) => {
+      handleItemClick(id);
+    },
+    [handleItemClick],
+  );
+
+  // Determine entity type for editing
+  const getEntityType = (id: string): "note" | "memo" => {
+    if (notes.some((n) => n.id === id)) return "note";
+    return "memo";
+  };
+
+  const getEntityTitle = (id: string): string | undefined => {
+    const note = notes.find((n) => n.id === id);
+    return note?.title;
+  };
 
   return (
     <div className="h-full flex flex-col">
@@ -298,6 +256,8 @@ export function ConnectSidebar({
         value={query}
         onChange={onQueryChange}
         placeholder={t("ideas.searchTagsAndNotes")}
+        suggestions={suggestions}
+        onSuggestionSelect={handleSuggestionSelect}
       />
 
       <div className="flex-1 overflow-y-auto">
@@ -313,10 +273,14 @@ export function ConnectSidebar({
                   {matchingNotes.map((note) => (
                     <div
                       key={note.id}
-                      className="group flex items-center gap-1.5 px-2 py-1.5 rounded hover:bg-notion-hover transition-colors"
+                      className={`group flex items-center gap-1.5 px-2 py-1.5 rounded transition-colors ${
+                        sidebarSelectedItemId === note.id
+                          ? "bg-notion-accent/10"
+                          : "hover:bg-notion-hover"
+                      }`}
                     >
                       <button
-                        onClick={() => onFocusNote?.(note.id)}
+                        onClick={() => handleItemClick(note.id)}
                         className="flex-1 flex items-center gap-1.5 min-w-0 text-left"
                       >
                         <StickyNote
@@ -411,10 +375,14 @@ export function ConnectSidebar({
             {pinnedNotes.map((note) => (
               <div
                 key={note.id}
-                className="group flex items-center gap-1.5 px-2 py-1.5 rounded hover:bg-notion-hover transition-colors"
+                className={`group flex items-center gap-1.5 px-2 py-1.5 rounded transition-colors ${
+                  sidebarSelectedItemId === note.id
+                    ? "bg-notion-accent/10"
+                    : "hover:bg-notion-hover"
+                }`}
               >
                 <button
-                  onClick={() => onFocusNote?.(note.id)}
+                  onClick={() => handleItemClick(note.id)}
                   className="flex-1 flex items-center gap-1.5 min-w-0 text-left"
                 >
                   <StickyNote
@@ -443,15 +411,25 @@ export function ConnectSidebar({
             {pinnedMemos.map((memo) => (
               <div
                 key={memo.id}
-                className="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-notion-hover text-left transition-colors"
+                className={`group flex items-center gap-2 px-2 py-1.5 rounded text-left transition-colors ${
+                  sidebarSelectedItemId === memo.id
+                    ? "bg-notion-accent/10"
+                    : "hover:bg-notion-hover"
+                }`}
               >
-                <BookOpen
-                  size={15}
-                  className="text-notion-text-secondary shrink-0"
-                />
-                <span className="flex-1 text-sm text-notion-text truncate">
-                  {formatDisplayDate(memo.date)}
-                </span>
+                <button
+                  onClick={() => handleItemClick(memo.id)}
+                  className="flex-1 flex items-center gap-1.5 min-w-0 text-left"
+                >
+                  <BookOpen
+                    size={15}
+                    className="text-notion-text-secondary shrink-0"
+                  />
+                  <span className="flex-1 text-sm text-notion-text truncate">
+                    {formatDisplayDate(memo.date)}
+                  </span>
+                  {renderTagDots(memo.id)}
+                </button>
               </div>
             ))}
           </CollapsibleSection>
@@ -514,10 +492,14 @@ export function ConnectSidebar({
               filteredNotes.map((note) => (
                 <div
                   key={note.id}
-                  className="group flex items-center gap-1.5 px-2 py-1.5 rounded hover:bg-notion-hover transition-colors"
+                  className={`group flex items-center gap-1.5 px-2 py-1.5 rounded transition-colors ${
+                    sidebarSelectedItemId === note.id
+                      ? "bg-notion-accent/10"
+                      : "hover:bg-notion-hover"
+                  }`}
                 >
                   <button
-                    onClick={() => onFocusNote?.(note.id)}
+                    onClick={() => handleItemClick(note.id)}
                     className="flex-1 flex items-center gap-1.5 min-w-0 text-left"
                   >
                     <StickyNote
@@ -528,6 +510,21 @@ export function ConnectSidebar({
                       {note.title || t("notes.untitled")}
                     </span>
                     {renderTagDots(note.id)}
+                  </button>
+                  <button
+                    ref={(el) => {
+                      if (el) editButtonRefs.current.set(note.id, el);
+                    }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setEditingEntityId(
+                        editingEntityId === note.id ? null : note.id,
+                      );
+                    }}
+                    className="p-0.5 opacity-0 group-hover:opacity-100 text-notion-text-secondary hover:text-notion-text transition-opacity shrink-0"
+                    title={t("ideas.editItem")}
+                  >
+                    <Pencil size={12} />
                   </button>
                   {onNavigateToNote && (
                     <button
@@ -560,288 +557,61 @@ export function ConnectSidebar({
               memos.map((memo) => (
                 <div
                   key={memo.id}
-                  className="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-notion-hover text-left transition-colors"
+                  className={`group flex items-center gap-2 px-2 py-1.5 rounded text-left transition-colors ${
+                    sidebarSelectedItemId === memo.id
+                      ? "bg-notion-accent/10"
+                      : "hover:bg-notion-hover"
+                  }`}
                 >
-                  <BookOpen
-                    size={15}
-                    className="text-notion-text-secondary shrink-0"
-                  />
-                  <span className="flex-1 text-sm text-notion-text truncate">
-                    {formatDisplayDate(memo.date)}
-                  </span>
+                  <button
+                    onClick={() => handleItemClick(memo.id)}
+                    className="flex-1 flex items-center gap-1.5 min-w-0 text-left"
+                  >
+                    <BookOpen
+                      size={15}
+                      className="text-notion-text-secondary shrink-0"
+                    />
+                    <span className="flex-1 text-sm text-notion-text truncate">
+                      {formatDisplayDate(memo.date)}
+                    </span>
+                    {renderTagDots(memo.id)}
+                  </button>
+                  <button
+                    ref={(el) => {
+                      if (el) editButtonRefs.current.set(memo.id, el);
+                    }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setEditingEntityId(
+                        editingEntityId === memo.id ? null : memo.id,
+                      );
+                    }}
+                    className="p-0.5 opacity-0 group-hover:opacity-100 text-notion-text-secondary hover:text-notion-text transition-opacity shrink-0"
+                    title={t("ideas.editItem")}
+                  >
+                    <Pencil size={12} />
+                  </button>
                 </div>
               ))
             )}
           </CollapsibleSection>
         )}
-
-        {/* Groups */}
-        {!isSearching && (
-          <CollapsibleSection
-            label={t("ideas.groups")}
-            icon={<Layers size={15} />}
-            isOpen={sections.groups}
-            onToggle={() => toggleSection("groups")}
-            rightAction={
-              <button
-                onClick={() => setShowGroupCreate(!showGroupCreate)}
-                className="p-1 text-notion-text-secondary hover:text-notion-text rounded transition-colors"
-              >
-                <Plus size={14} />
-              </button>
-            }
-          >
-            {showGroupCreate && (
-              <div className="mx-1 mb-2 p-2 rounded-md bg-notion-hover/50 border border-notion-border">
-                <input
-                  value={newGroupName}
-                  onChange={(e) => setNewGroupName(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.nativeEvent.isComposing) return;
-                    if (e.key === "Enter") handleCreateGroup();
-                    if (e.key === "Escape") {
-                      setShowGroupCreate(false);
-                      setSelectedGroupTagIds(new Set());
-                    }
-                  }}
-                  placeholder={t("ideas.groupName")}
-                  className="w-full text-xs px-2 py-1 rounded bg-notion-bg text-notion-text outline-none border border-notion-border focus:border-notion-accent/50 mb-2"
-                  autoFocus
-                />
-                {tags.length > 0 && (
-                  <div className="flex flex-wrap gap-1 mb-2">
-                    {tags.map((tag) => (
-                      <button
-                        key={tag.id}
-                        onClick={() => handleToggleGroupTag(tag.id)}
-                        className={`text-[10px] px-1.5 py-0.5 rounded-full border transition-colors ${
-                          selectedGroupTagIds.has(tag.id)
-                            ? "text-white border-transparent"
-                            : "text-notion-text-secondary border-notion-border hover:border-notion-text-secondary"
-                        }`}
-                        style={
-                          selectedGroupTagIds.has(tag.id)
-                            ? { backgroundColor: tag.color }
-                            : undefined
-                        }
-                      >
-                        {tag.name}
-                      </button>
-                    ))}
-                  </div>
-                )}
-                <div className="max-h-32 overflow-y-auto space-y-0.5 mb-2">
-                  {notes.map((note) => (
-                    <label
-                      key={note.id}
-                      className="flex items-center gap-2 px-1 py-0.5 rounded hover:bg-notion-hover cursor-pointer"
-                    >
-                      <input
-                        type="checkbox"
-                        checked={selectedGroupNoteIds.has(note.id)}
-                        onChange={() => {
-                          setSelectedGroupNoteIds((prev) => {
-                            const next = new Set(prev);
-                            if (next.has(note.id)) next.delete(note.id);
-                            else next.add(note.id);
-                            return next;
-                          });
-                        }}
-                        className="rounded"
-                      />
-                      <StickyNote
-                        size={12}
-                        className="text-notion-text-secondary shrink-0"
-                      />
-                      <span className="text-xs text-notion-text truncate">
-                        {note.title || t("notes.untitled")}
-                      </span>
-                    </label>
-                  ))}
-                </div>
-                <button
-                  onClick={handleCreateGroup}
-                  disabled={
-                    !newGroupName.trim() || selectedGroupNoteIds.size === 0
-                  }
-                  className="w-full text-xs px-2 py-1 rounded bg-notion-accent text-white disabled:opacity-40"
-                >
-                  {t("ideas.createGroup")} ({selectedGroupNoteIds.size})
-                </button>
-              </div>
-            )}
-
-            <div className="space-y-0.5">
-              {groups.map((group) => {
-                const isGroupExpanded = expandedGroupIds.has(group.id);
-                const memberNoteIds = groupMembers
-                  .filter((m) => m.groupId === group.id)
-                  .map((m) => m.noteId);
-                const memberNotes = notes.filter((n) =>
-                  memberNoteIds.includes(n.id),
-                );
-
-                return (
-                  <div key={group.id}>
-                    <div className="flex items-center gap-1.5 px-2 py-1.5 rounded hover:bg-notion-hover group transition-colors">
-                      <button
-                        onClick={() => toggleGroupExpanded(group.id)}
-                        className="p-0.5 text-notion-text-secondary hover:text-notion-text shrink-0"
-                      >
-                        {isGroupExpanded ? (
-                          <ChevronDown size={15} />
-                        ) : (
-                          <ChevronRight size={15} />
-                        )}
-                      </button>
-
-                      {editingGroupId === group.id ? (
-                        <>
-                          <input
-                            value={editGroupName}
-                            onChange={(e) => setEditGroupName(e.target.value)}
-                            onKeyDown={(e) => {
-                              if (e.nativeEvent.isComposing) return;
-                              if (e.key === "Enter") saveGroupEdit();
-                              if (e.key === "Escape") {
-                                setEditingGroupId(null);
-                                setEditingGroupMemberIds(null);
-                              }
-                            }}
-                            className="flex-1 text-xs px-1.5 py-0.5 rounded bg-notion-hover text-notion-text outline-none border border-notion-border"
-                            autoFocus
-                            onClick={(e) => e.stopPropagation()}
-                          />
-                          <button
-                            onClick={saveGroupEdit}
-                            className="p-0.5 text-green-500 hover:text-green-400"
-                          >
-                            <Check size={12} />
-                          </button>
-                          <button
-                            onClick={() => {
-                              setEditingGroupId(null);
-                              setEditingGroupMemberIds(null);
-                            }}
-                            className="p-0.5 text-notion-text-secondary hover:text-notion-text"
-                          >
-                            <X size={12} />
-                          </button>
-                        </>
-                      ) : (
-                        <>
-                          <span className="flex-1 text-sm text-notion-text truncate">
-                            {group.name}
-                          </span>
-                          <span className="text-xs text-notion-text-secondary tabular-nums">
-                            {memberNotes.length}
-                          </span>
-                          <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setEditingGroupId(group.id);
-                                setEditGroupName(group.name);
-                                setEditingGroupMemberIds(
-                                  new Set(memberNoteIds),
-                                );
-                              }}
-                              className="p-0.5 text-notion-text-secondary hover:text-notion-text"
-                            >
-                              <Pencil size={14} />
-                            </button>
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                onDeleteGroup(group.id);
-                              }}
-                              className="p-0.5 text-notion-text-secondary hover:text-red-500"
-                            >
-                              <Trash2 size={14} />
-                            </button>
-                          </div>
-                        </>
-                      )}
-                    </div>
-
-                    {/* Member editing or viewing */}
-                    {editingGroupId === group.id && editingGroupMemberIds ? (
-                      <div className="pl-6 max-h-32 overflow-y-auto space-y-0.5">
-                        {notes.map((note) => (
-                          <label
-                            key={note.id}
-                            className="flex items-center gap-2 px-1 py-0.5 rounded hover:bg-notion-hover cursor-pointer"
-                          >
-                            <input
-                              type="checkbox"
-                              checked={editingGroupMemberIds.has(note.id)}
-                              onChange={() => {
-                                setEditingGroupMemberIds((prev) => {
-                                  if (!prev) return prev;
-                                  const next = new Set(prev);
-                                  if (next.has(note.id)) next.delete(note.id);
-                                  else next.add(note.id);
-                                  return next;
-                                });
-                              }}
-                              className="rounded"
-                            />
-                            <StickyNote
-                              size={12}
-                              className="text-notion-text-secondary shrink-0"
-                            />
-                            <span className="text-xs text-notion-text truncate">
-                              {note.title || t("notes.untitled")}
-                            </span>
-                          </label>
-                        ))}
-                      </div>
-                    ) : (
-                      isGroupExpanded && (
-                        <div className="pl-6 space-y-0.5">
-                          {memberNotes.map((note) => (
-                            <div
-                              key={note.id}
-                              className="group/member flex items-center gap-1.5 px-2 py-1 rounded hover:bg-notion-hover transition-colors"
-                            >
-                              <button
-                                onClick={() => onFocusNote?.(note.id)}
-                                className="flex-1 flex items-center gap-1.5 min-w-0 text-left"
-                              >
-                                <StickyNote
-                                  size={12}
-                                  className="text-notion-text-secondary shrink-0"
-                                />
-                                <span className="text-xs text-notion-text truncate">
-                                  {note.title || t("notes.untitled")}
-                                </span>
-                              </button>
-                              {onNavigateToNote && (
-                                <button
-                                  onClick={() => onNavigateToNote(note.id)}
-                                  className="p-0.5 opacity-0 group-hover/member:opacity-100 text-notion-text-secondary hover:text-notion-text transition-opacity shrink-0"
-                                  title={t("ideas.materials")}
-                                >
-                                  <Package size={12} />
-                                </button>
-                              )}
-                            </div>
-                          ))}
-                          {memberNotes.length === 0 && (
-                            <span className="text-xs text-notion-text-secondary px-2 py-1">
-                              {t("ideas.noSearchResults")}
-                            </span>
-                          )}
-                        </div>
-                      )
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          </CollapsibleSection>
-        )}
       </div>
+
+      {editingEntityId && editButtonRefs.current.get(editingEntityId) && (
+        <ItemEditPopover
+          entityId={editingEntityId}
+          entityType={getEntityType(editingEntityId)}
+          title={getEntityTitle(editingEntityId)}
+          onTitleChange={
+            getEntityType(editingEntityId) === "note" && onUpdateNoteTitle
+              ? (title) => onUpdateNoteTitle(editingEntityId, title)
+              : undefined
+          }
+          onClose={() => setEditingEntityId(null)}
+          anchorEl={editButtonRefs.current.get(editingEntityId)!}
+        />
+      )}
     </div>
   );
 }

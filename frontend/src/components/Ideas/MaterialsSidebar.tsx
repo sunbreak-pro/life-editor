@@ -1,34 +1,25 @@
-import { useState, useMemo, useRef, useEffect } from "react";
+import { useState, useMemo, useRef, useEffect, useCallback } from "react";
 import {
   Heart,
   StickyNote,
   BookOpen,
   Trash2,
   Plus,
-  Layers,
-  ChevronRight,
-  ChevronDown,
-  Pencil,
-  Check,
-  X,
   Network,
   Filter,
+  Tag,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import type { MemoNode } from "../../types/memo";
 import type { NoteNode } from "../../types/note";
-import type {
-  WikiTagAssignment,
-  WikiTag,
-  WikiTagGroup,
-  WikiTagGroupMember,
-} from "../../types/wikiTag";
+import type { WikiTagAssignment, WikiTag } from "../../types/wikiTag";
 import { formatDisplayDate } from "../../utils/dateKey";
 import { getContentPreview } from "../../utils/tiptapText";
 import { STORAGE_KEYS } from "../../constants/storageKeys";
-import { SearchBar } from "../shared/SearchBar";
+import { SearchBar, type SearchSuggestion } from "../shared/SearchBar";
 import { CollapsibleSection } from "../shared/CollapsibleSection";
 import { TagFilterOverlay } from "../shared/TagFilterOverlay";
+import { InlineTagEditor } from "../WikiTags/InlineTagEditor";
 
 type MaterialsView =
   | { type: "note"; noteId: string }
@@ -38,7 +29,6 @@ interface SectionsState {
   favorites: boolean;
   notes: boolean;
   daily: boolean;
-  groups: boolean;
 }
 
 interface MaterialsSidebarProps {
@@ -51,26 +41,20 @@ interface MaterialsSidebarProps {
   onCreateNote: () => void;
   onDeleteNote?: (noteId: string) => void;
   onDeleteMemo?: (date: string) => void;
-  groups: WikiTagGroup[];
-  groupMembers: WikiTagGroupMember[];
-  onCreateGroup: (
-    name: string,
-    noteIds: string[],
-    filterTags?: string[],
-  ) => Promise<WikiTagGroup>;
-  onUpdateGroup: (
-    id: string,
-    updates: { name?: string; filterTags?: string[] },
-  ) => Promise<WikiTagGroup>;
-  onDeleteGroup: (id: string) => Promise<void>;
   onNavigateToConnect?: (noteId: string) => void;
-  onSetGroupMembers?: (groupId: string, noteIds: string[]) => Promise<void>;
 }
 
 function loadSectionsState(): SectionsState {
   try {
     const saved = localStorage.getItem(STORAGE_KEYS.MATERIALS_SECTIONS_STATE);
-    if (saved) return JSON.parse(saved);
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      return {
+        favorites: parsed.favorites ?? true,
+        notes: parsed.notes ?? true,
+        daily: parsed.daily ?? true,
+      };
+    }
   } catch {
     // ignore
   }
@@ -78,7 +62,6 @@ function loadSectionsState(): SectionsState {
     favorites: true,
     notes: true,
     daily: true,
-    groups: true,
   };
 }
 
@@ -99,13 +82,7 @@ export function MaterialsSidebar({
   onCreateNote,
   onDeleteNote,
   onDeleteMemo,
-  groups,
-  groupMembers,
-  onCreateGroup,
-  onUpdateGroup,
-  onDeleteGroup,
   onNavigateToConnect,
-  onSetGroupMembers,
 }: MaterialsSidebarProps) {
   const { t } = useTranslation();
   const [sections, setSections] = useState<SectionsState>(loadSectionsState);
@@ -113,29 +90,15 @@ export function MaterialsSidebar({
   const [debouncedQuery, setDebouncedQuery] = useState("");
   const debounceRef = useRef<number | null>(null);
 
-  // Group UI state
-  const [showGroupCreate, setShowGroupCreate] = useState(false);
-  const [newGroupName, setNewGroupName] = useState("");
-  const [selectedGroupNoteIds, setSelectedGroupNoteIds] = useState<Set<string>>(
-    new Set(),
-  );
-  const [editingGroupId, setEditingGroupId] = useState<string | null>(null);
-  const [editGroupName, setEditGroupName] = useState("");
-  const [expandedGroupIds, setExpandedGroupIds] = useState<Set<string>>(
-    new Set(),
-  );
-
-  // Group editing state
-  const [editingGroupMemberIds, setEditingGroupMemberIds] =
-    useState<Set<string> | null>(null);
-  // Tag selection for group creation
-  const [selectedGroupTagIds, setSelectedGroupTagIds] = useState<Set<string>>(
-    new Set(),
-  );
-
   // Tag filter state
   const [filterTagIds, setFilterTagIds] = useState<Set<string>>(new Set());
   const [showNoteFilter, setShowNoteFilter] = useState(false);
+
+  // Tag editing state for memos
+  const [editingTagEntityId, setEditingTagEntityId] = useState<string | null>(
+    null,
+  );
+  const tagButtonRefs = useRef<Map<string, HTMLButtonElement>>(new Map());
 
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
@@ -155,6 +118,57 @@ export function MaterialsSidebar({
     });
   };
 
+  // Search state (moved up for use in suggestions)
+  const isSearching = debouncedQuery.trim().length > 0;
+  const lowerQuery = debouncedQuery.toLowerCase();
+
+  // Search suggestions: recent notes + memos (up to 10)
+  const suggestions = useMemo<SearchSuggestion[]>(() => {
+    const items: SearchSuggestion[] = [];
+    const sortedNotes = [...notes]
+      .sort(
+        (a, b) =>
+          new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
+      )
+      .slice(0, 6);
+    for (const n of sortedNotes) {
+      items.push({
+        id: n.id,
+        label: n.title || t("notes.untitled"),
+        icon: "note",
+      });
+    }
+    const sortedMemos = [...memos]
+      .sort((a, b) => b.date.localeCompare(a.date))
+      .slice(0, 4);
+    for (const m of sortedMemos) {
+      items.push({
+        id: m.id,
+        label: formatDisplayDate(m.date),
+        icon: "memo",
+      });
+    }
+    if (isSearching) {
+      return items.filter((i) => i.label.toLowerCase().includes(lowerQuery));
+    }
+    return items;
+  }, [notes, memos, isSearching, lowerQuery, t]);
+
+  const handleSuggestionSelect = useCallback(
+    (id: string) => {
+      const note = notes.find((n) => n.id === id);
+      if (note) {
+        onSelectView({ type: "note", noteId: note.id });
+        return;
+      }
+      const memo = memos.find((m) => m.id === id);
+      if (memo) {
+        onSelectView({ type: "daily", date: memo.date });
+      }
+    },
+    [notes, memos, onSelectView],
+  );
+
   // Build tag dot lookup: entityId -> tag colors
   const entityTagColors = useMemo(() => {
     const map = new Map<string, string[]>();
@@ -173,10 +187,6 @@ export function MaterialsSidebar({
   const pinnedNotes = useMemo(() => notes.filter((n) => n.isPinned), [notes]);
   const pinnedMemos = useMemo(() => memos.filter((m) => m.isPinned), [memos]);
   const hasFavorites = pinnedNotes.length > 0 || pinnedMemos.length > 0;
-
-  // Search filtering
-  const isSearching = debouncedQuery.trim().length > 0;
-  const lowerQuery = debouncedQuery.toLowerCase();
 
   const filteredNotes = useMemo(() => {
     if (!isSearching) return notes;
@@ -283,6 +293,21 @@ export function MaterialsSidebar({
           <Heart size={12} className="text-red-500 fill-current shrink-0" />
         )}
       </button>
+      <button
+        ref={(el) => {
+          if (el) tagButtonRefs.current.set(memo.id, el);
+        }}
+        onClick={(e) => {
+          e.stopPropagation();
+          setEditingTagEntityId(
+            editingTagEntityId === memo.id ? null : memo.id,
+          );
+        }}
+        className="p-0.5 opacity-0 group-hover:opacity-100 text-notion-text-secondary hover:text-notion-text transition-opacity shrink-0"
+        title="Edit tags"
+      >
+        <Tag size={12} />
+      </button>
       {onDeleteMemo && (
         <button
           onClick={(e) => {
@@ -296,80 +321,6 @@ export function MaterialsSidebar({
       )}
     </div>
   );
-
-  // Group handlers
-  const handleCreateGroup = async () => {
-    const trimmed = newGroupName.trim();
-    if (!trimmed || selectedGroupNoteIds.size === 0) return;
-    await onCreateGroup(
-      trimmed,
-      Array.from(selectedGroupNoteIds),
-      selectedGroupTagIds.size > 0
-        ? Array.from(selectedGroupTagIds)
-        : undefined,
-    );
-    setNewGroupName("");
-    setSelectedGroupNoteIds(new Set());
-    setSelectedGroupTagIds(new Set());
-    setShowGroupCreate(false);
-  };
-
-  const saveGroupEdit = async () => {
-    if (!editingGroupId || !editGroupName.trim()) return;
-    await onUpdateGroup(editingGroupId, { name: editGroupName.trim() });
-    if (editingGroupMemberIds && onSetGroupMembers) {
-      await onSetGroupMembers(
-        editingGroupId,
-        Array.from(editingGroupMemberIds),
-      );
-    }
-    setEditingGroupId(null);
-    setEditingGroupMemberIds(null);
-  };
-
-  const toggleGroupExpanded = (groupId: string) => {
-    setExpandedGroupIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(groupId)) next.delete(groupId);
-      else next.add(groupId);
-      return next;
-    });
-  };
-
-  const toggleGroupNoteSelection = (noteId: string) => {
-    setSelectedGroupNoteIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(noteId)) next.delete(noteId);
-      else next.add(noteId);
-      return next;
-    });
-  };
-
-  const handleToggleGroupTag = (tagId: string) => {
-    setSelectedGroupTagIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(tagId)) {
-        next.delete(tagId);
-      } else {
-        next.add(tagId);
-      }
-      // Auto-select notes with any of the selected tags
-      const noteIds = new Set<string>();
-      for (const tid of next) {
-        for (const a of assignments) {
-          if (a.tagId === tid && a.entityType === "note") {
-            noteIds.add(a.entityId);
-          }
-        }
-      }
-      setSelectedGroupNoteIds((prevNotes) => {
-        const merged = new Set(prevNotes);
-        for (const id of noteIds) merged.add(id);
-        return merged;
-      });
-      return next;
-    });
-  };
 
   const toggleTagFilter = (tagId: string) => {
     setFilterTagIds((prev) => {
@@ -431,6 +382,8 @@ export function MaterialsSidebar({
           value={searchQuery}
           onChange={setSearchQuery}
           placeholder={t("ideas.searchMaterials")}
+          suggestions={suggestions}
+          onSuggestionSelect={handleSuggestionSelect}
         />
         <div className="flex-1 overflow-y-auto p-1">
           {filteredNotes.length === 0 && filteredMemos.length === 0 && (
@@ -441,6 +394,15 @@ export function MaterialsSidebar({
           {filteredNotes.map(renderNoteItem)}
           {filteredMemos.map(renderMemoItem)}
         </div>
+        {editingTagEntityId &&
+          tagButtonRefs.current.get(editingTagEntityId) && (
+            <InlineTagEditor
+              entityId={editingTagEntityId}
+              entityType="memo"
+              onClose={() => setEditingTagEntityId(null)}
+              anchorEl={tagButtonRefs.current.get(editingTagEntityId)!}
+            />
+          )}
       </div>
     );
   }
@@ -537,259 +499,16 @@ export function MaterialsSidebar({
             displayMemos.map(renderMemoItem)
           )}
         </CollapsibleSection>
-
-        {/* Groups */}
-        <CollapsibleSection
-          label={t("ideas.groups")}
-          icon={<Layers size={15} />}
-          isOpen={sections.groups}
-          onToggle={() => toggleSection("groups")}
-          rightAction={
-            <button
-              onClick={() => setShowGroupCreate(!showGroupCreate)}
-              className="p-1 text-notion-text-secondary hover:text-notion-text rounded transition-colors"
-            >
-              <Plus size={14} />
-            </button>
-          }
-        >
-          {/* Create new group form */}
-          {showGroupCreate && (
-            <div className="mx-1 mb-2 p-2 rounded-md bg-notion-hover/50 border border-notion-border">
-              <input
-                value={newGroupName}
-                onChange={(e) => setNewGroupName(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.nativeEvent.isComposing) return;
-                  if (e.key === "Enter") handleCreateGroup();
-                  if (e.key === "Escape") {
-                    setShowGroupCreate(false);
-                    setSelectedGroupTagIds(new Set());
-                  }
-                }}
-                placeholder={t("ideas.groupName")}
-                className="w-full text-xs px-2 py-1 rounded bg-notion-bg text-notion-text outline-none border border-notion-border focus:border-notion-accent/50 mb-2"
-                autoFocus
-              />
-              {tags.length > 0 && (
-                <div className="flex flex-wrap gap-1 mb-2">
-                  {tags.map((tag) => (
-                    <button
-                      key={tag.id}
-                      onClick={() => handleToggleGroupTag(tag.id)}
-                      className={`text-[10px] px-1.5 py-0.5 rounded-full border transition-colors ${
-                        selectedGroupTagIds.has(tag.id)
-                          ? "text-white border-transparent"
-                          : "text-notion-text-secondary border-notion-border hover:border-notion-text-secondary"
-                      }`}
-                      style={
-                        selectedGroupTagIds.has(tag.id)
-                          ? { backgroundColor: tag.color }
-                          : undefined
-                      }
-                    >
-                      {tag.name}
-                    </button>
-                  ))}
-                </div>
-              )}
-              <div className="max-h-32 overflow-y-auto space-y-0.5 mb-2">
-                {notes.map((note) => (
-                  <label
-                    key={note.id}
-                    className="flex items-center gap-2 px-1 py-0.5 rounded hover:bg-notion-hover cursor-pointer"
-                  >
-                    <input
-                      type="checkbox"
-                      checked={selectedGroupNoteIds.has(note.id)}
-                      onChange={() => toggleGroupNoteSelection(note.id)}
-                      className="rounded"
-                    />
-                    <StickyNote
-                      size={12}
-                      className="text-notion-text-secondary shrink-0"
-                    />
-                    <span className="text-xs text-notion-text truncate">
-                      {note.title || t("notes.untitled")}
-                    </span>
-                  </label>
-                ))}
-              </div>
-              <button
-                onClick={handleCreateGroup}
-                disabled={
-                  !newGroupName.trim() || selectedGroupNoteIds.size === 0
-                }
-                className="w-full text-xs px-2 py-1 rounded bg-notion-accent text-white disabled:opacity-40"
-              >
-                {t("ideas.createGroup")} ({selectedGroupNoteIds.size})
-              </button>
-            </div>
-          )}
-
-          {/* Groups list */}
-          <div className="space-y-0.5">
-            {groups.map((group) => {
-              const isGroupExpanded = expandedGroupIds.has(group.id);
-              const memberNoteIds = groupMembers
-                .filter((m) => m.groupId === group.id)
-                .map((m) => m.noteId);
-              const memberNotes = notes.filter((n) =>
-                memberNoteIds.includes(n.id),
-              );
-
-              return (
-                <div key={group.id}>
-                  <div className="flex items-center gap-1.5 px-2 py-1.5 rounded hover:bg-notion-hover group transition-colors">
-                    <button
-                      onClick={() => toggleGroupExpanded(group.id)}
-                      className="p-0.5 text-notion-text-secondary hover:text-notion-text shrink-0"
-                    >
-                      {isGroupExpanded ? (
-                        <ChevronDown size={15} />
-                      ) : (
-                        <ChevronRight size={15} />
-                      )}
-                    </button>
-
-                    {editingGroupId === group.id ? (
-                      <>
-                        <input
-                          value={editGroupName}
-                          onChange={(e) => setEditGroupName(e.target.value)}
-                          onKeyDown={(e) => {
-                            if (e.nativeEvent.isComposing) return;
-                            if (e.key === "Enter") saveGroupEdit();
-                            if (e.key === "Escape") {
-                              setEditingGroupId(null);
-                              setEditingGroupMemberIds(null);
-                            }
-                          }}
-                          className="flex-1 text-xs px-1.5 py-0.5 rounded bg-notion-hover text-notion-text outline-none border border-notion-border"
-                          autoFocus
-                          onClick={(e) => e.stopPropagation()}
-                        />
-                        <button
-                          onClick={saveGroupEdit}
-                          className="p-0.5 text-green-500 hover:text-green-400"
-                        >
-                          <Check size={12} />
-                        </button>
-                        <button
-                          onClick={() => {
-                            setEditingGroupId(null);
-                            setEditingGroupMemberIds(null);
-                          }}
-                          className="p-0.5 text-notion-text-secondary hover:text-notion-text"
-                        >
-                          <X size={12} />
-                        </button>
-                      </>
-                    ) : (
-                      <>
-                        <span className="flex flex-1 text-sm text-notion-text justify-start truncate">
-                          {group.name}
-                        </span>
-                        <span className="text-xs text-notion-text-secondary tabular-nums">
-                          {memberNotes.length}
-                        </span>
-                        <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setEditingGroupId(group.id);
-                              setEditGroupName(group.name);
-                              setEditingGroupMemberIds(new Set(memberNoteIds));
-                            }}
-                            className="p-0.5 text-notion-text-secondary hover:text-notion-text"
-                          >
-                            <Pencil size={14} />
-                          </button>
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              onDeleteGroup(group.id);
-                            }}
-                            className="p-0.5 text-notion-text-secondary hover:text-red-500"
-                          >
-                            <Trash2 size={14} />
-                          </button>
-                        </div>
-                      </>
-                    )}
-                  </div>
-
-                  {/* Member editing or viewing */}
-                  {editingGroupId === group.id && editingGroupMemberIds ? (
-                    <div className="pl-6 max-h-32 overflow-y-auto space-y-0.5">
-                      {notes.map((note) => (
-                        <label
-                          key={note.id}
-                          className="flex items-center gap-2 px-1 py-0.5 rounded hover:bg-notion-hover cursor-pointer"
-                        >
-                          <input
-                            type="checkbox"
-                            checked={editingGroupMemberIds.has(note.id)}
-                            onChange={() => {
-                              setEditingGroupMemberIds((prev) => {
-                                if (!prev) return prev;
-                                const next = new Set(prev);
-                                if (next.has(note.id)) next.delete(note.id);
-                                else next.add(note.id);
-                                return next;
-                              });
-                            }}
-                            className="rounded"
-                          />
-                          <StickyNote
-                            size={12}
-                            className="text-notion-text-secondary shrink-0"
-                          />
-                          <span className="text-xs text-notion-text truncate">
-                            {note.title || t("notes.untitled")}
-                          </span>
-                        </label>
-                      ))}
-                    </div>
-                  ) : (
-                    isGroupExpanded && (
-                      <div className="pl-6 space-y-0.5">
-                        {memberNotes.map((note) => (
-                          <button
-                            key={note.id}
-                            onClick={() =>
-                              onSelectView({ type: "note", noteId: note.id })
-                            }
-                            className="w-full flex items-center gap-2 px-2 py-1 rounded hover:bg-notion-hover text-left transition-colors"
-                          >
-                            <StickyNote
-                              size={12}
-                              className="text-notion-text-secondary shrink-0"
-                            />
-                            <span className="text-xs text-notion-text truncate">
-                              {note.title || t("notes.untitled")}
-                            </span>
-                          </button>
-                        ))}
-                        {memberNotes.length === 0 && (
-                          <span className="text-xs text-notion-text-secondary px-2 py-1">
-                            {t("ideas.noSearchResults")}
-                          </span>
-                        )}
-                      </div>
-                    )
-                  )}
-                </div>
-              );
-            })}
-            {groups.length === 0 && !showGroupCreate && (
-              <p className="text-[10px] text-notion-text-secondary px-2 py-2 text-center">
-                {t("ideas.noSearchResults")}
-              </p>
-            )}
-          </div>
-        </CollapsibleSection>
       </div>
+
+      {editingTagEntityId && tagButtonRefs.current.get(editingTagEntityId) && (
+        <InlineTagEditor
+          entityId={editingTagEntityId}
+          entityType="memo"
+          onClose={() => setEditingTagEntityId(null)}
+          anchorEl={tagButtonRefs.current.get(editingTagEntityId)!}
+        />
+      )}
     </div>
   );
 }

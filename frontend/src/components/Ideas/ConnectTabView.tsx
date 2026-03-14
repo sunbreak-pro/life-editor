@@ -29,17 +29,7 @@ export function ConnectTabView({
     return () => setActiveDomain(null);
   }, [setActiveDomain]);
 
-  const {
-    tags,
-    assignments,
-    setTagsForEntity,
-    groups,
-    groupMembers,
-    createGroup,
-    updateGroup,
-    deleteGroup,
-    setGroupMembers,
-  } = useWikiTags();
+  const { tags, assignments, setTagsForEntity } = useWikiTags();
 
   const { noteConnections, createNoteConnection, deleteNoteConnectionByPair } =
     useNoteConnections();
@@ -48,40 +38,13 @@ export function ConnectTabView({
 
   const [query, setQuery] = useState("");
   const [selectedTagId, setSelectedTagId] = useState<string | null>(null);
-  const [filterMode, _setFilterMode] = useState<
-    "all" | "grouped" | { groupId: string }
-  >("all");
   const [focusedNoteId, setFocusedNoteId] = useState<string | null>(null);
-  const [selectedFilterTagIds, setSelectedFilterTagIds] = useState<string[]>(
-    [],
-  );
-  const [selectedFilterGroupIds, setSelectedFilterGroupIds] = useState<
-    string[]
-  >([]);
+  const [sidebarSelectedItemId, setSidebarSelectedItemId] = useState<
+    string | null
+  >(null);
 
-  const handleToggleFilterTag = useCallback((tagId: string) => {
-    setSelectedFilterTagIds((prev) =>
-      prev.includes(tagId)
-        ? prev.filter((id) => id !== tagId)
-        : [...prev, tagId],
-    );
-  }, []);
-
-  const handleToggleFilterGroup = useCallback((groupId: string) => {
-    setSelectedFilterGroupIds((prev) =>
-      prev.includes(groupId)
-        ? prev.filter((id) => id !== groupId)
-        : [...prev, groupId],
-    );
-  }, []);
-
-  const handleClearFilter = useCallback(() => {
-    setSelectedFilterTagIds([]);
-    setSelectedFilterGroupIds([]);
-  }, []);
-
-  const handleFocusNote = useCallback((noteId: string) => {
-    setFocusedNoteId(noteId);
+  const handleSidebarSelect = useCallback((id: string | null) => {
+    setSidebarSelectedItemId(id);
   }, []);
 
   const handleFocusComplete = useCallback(() => {
@@ -149,6 +112,13 @@ export function ConnectTabView({
     [updateNote],
   );
 
+  const handleUpdateNoteTitle = useCallback(
+    (noteId: string, title: string) => {
+      updateNote(noteId, { title });
+    },
+    [updateNote],
+  );
+
   const { portalTarget: rightSidebarTarget } = useContext(RightSidebarContext);
 
   const sidebar = (
@@ -164,15 +134,32 @@ export function ConnectTabView({
       memos={memos}
       onSelectTag={setSelectedTagId}
       onNavigateToNote={onNavigateToNote}
-      onFocusNote={handleFocusNote}
       onCreateNote={handleCreateNote}
-      groups={groups}
-      groupMembers={groupMembers}
-      onCreateGroup={createGroup}
-      onUpdateGroup={updateGroup}
-      onDeleteGroup={deleteGroup}
-      onSetGroupMembers={setGroupMembers}
+      sidebarSelectedItemId={sidebarSelectedItemId}
+      onSidebarSelect={handleSidebarSelect}
+      onUpdateNoteTitle={handleUpdateNoteTitle}
     />
+  );
+
+  const graphView = (
+    <ReactFlowProvider>
+      <TagGraphView
+        tags={tags}
+        assignments={assignments}
+        noteConnections={noteConnections}
+        selectedTagId={selectedTagId}
+        onSelectTag={setSelectedTagId}
+        onCreateNoteConnection={handleCreateNoteConnection}
+        onDeleteNoteConnection={handleDeleteNoteConnection}
+        notes={notes}
+        memos={memos}
+        onNavigateToNote={onNavigateToNote}
+        onUpdateNoteColor={handleUpdateNoteColor}
+        focusedNoteId={focusedNoteId}
+        onFocusComplete={handleFocusComplete}
+        sidebarSelectedItemId={sidebarSelectedItemId}
+      />
+    </ReactFlowProvider>
   );
 
   return (
@@ -180,63 +167,11 @@ export function ConnectTabView({
       {rightSidebarTarget ? (
         <>
           {createPortal(sidebar, rightSidebarTarget)}
-          <div className="flex-1 min-w-0">
-            <ReactFlowProvider>
-              <TagGraphView
-                tags={tags}
-                assignments={assignments}
-                noteConnections={noteConnections}
-                selectedTagId={selectedTagId}
-                onSelectTag={setSelectedTagId}
-                onCreateNoteConnection={handleCreateNoteConnection}
-                onDeleteNoteConnection={handleDeleteNoteConnection}
-                groups={groups}
-                groupMembers={groupMembers}
-                notes={notes}
-                memos={memos}
-                filterMode={filterMode}
-                onNavigateToNote={onNavigateToNote}
-                onUpdateNoteColor={handleUpdateNoteColor}
-                focusedNoteId={focusedNoteId}
-                onFocusComplete={handleFocusComplete}
-                selectedFilterTagIds={selectedFilterTagIds}
-                selectedFilterGroupIds={selectedFilterGroupIds}
-                onToggleFilterTag={handleToggleFilterTag}
-                onToggleFilterGroup={handleToggleFilterGroup}
-                onClearFilter={handleClearFilter}
-              />
-            </ReactFlowProvider>
-          </div>
+          <div className="flex-1 min-w-0">{graphView}</div>
         </>
       ) : (
         <>
-          <div className="flex-1 min-w-0">
-            <ReactFlowProvider>
-              <TagGraphView
-                tags={tags}
-                assignments={assignments}
-                noteConnections={noteConnections}
-                selectedTagId={selectedTagId}
-                onSelectTag={setSelectedTagId}
-                onCreateNoteConnection={handleCreateNoteConnection}
-                onDeleteNoteConnection={handleDeleteNoteConnection}
-                groups={groups}
-                groupMembers={groupMembers}
-                notes={notes}
-                memos={memos}
-                filterMode={filterMode}
-                onNavigateToNote={onNavigateToNote}
-                onUpdateNoteColor={handleUpdateNoteColor}
-                focusedNoteId={focusedNoteId}
-                onFocusComplete={handleFocusComplete}
-                selectedFilterTagIds={selectedFilterTagIds}
-                selectedFilterGroupIds={selectedFilterGroupIds}
-                onToggleFilterTag={handleToggleFilterTag}
-                onToggleFilterGroup={handleToggleFilterGroup}
-                onClearFilter={handleClearFilter}
-              />
-            </ReactFlowProvider>
-          </div>
+          <div className="flex-1 min-w-0">{graphView}</div>
           <div className="w-64 shrink-0 border-l border-notion-border overflow-hidden">
             {sidebar}
           </div>

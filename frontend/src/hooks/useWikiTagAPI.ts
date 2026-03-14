@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import type { WikiTag, WikiTagAssignment } from "../types/wikiTag";
 import { getDataService } from "../services";
 import { useUndoRedo } from "../components/shared/UndoRedo";
@@ -10,6 +10,15 @@ export function useWikiTagAPI() {
   const [assignments, setAssignments] = useState<WikiTagAssignment[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const groupsAPI = useWikiTagGroups();
+
+  const tagsRef = useRef(tags);
+  useEffect(() => {
+    tagsRef.current = tags;
+  }, [tags]);
+  const assignmentsRef = useRef(assignments);
+  useEffect(() => {
+    assignmentsRef.current = assignments;
+  }, [assignments]);
 
   const reload = useCallback(async () => {
     const ds = getDataService();
@@ -60,7 +69,7 @@ export function useWikiTagAPI() {
       updates: Partial<Pick<WikiTag, "name" | "color" | "textColor">>,
     ) => {
       const ds = getDataService();
-      const prev = tags.find((t) => t.id === id);
+      const prev = tagsRef.current.find((t) => t.id === id);
       const updated = await ds.updateWikiTag(id, updates);
       setTags((p) =>
         p
@@ -99,14 +108,16 @@ export function useWikiTagAPI() {
 
       return updated;
     },
-    [tags, push],
+    [push],
   );
 
   const deleteTag = useCallback(
     async (id: string) => {
       const ds = getDataService();
-      const tag = tags.find((t) => t.id === id);
-      const tagAssignments = assignments.filter((a) => a.tagId === id);
+      const tag = tagsRef.current.find((t) => t.id === id);
+      const tagAssignments = assignmentsRef.current.filter(
+        (a) => a.tagId === id,
+      );
 
       await ds.deleteWikiTag(id);
       setTags((prev) => prev.filter((t) => t.id !== id));
@@ -138,14 +149,16 @@ export function useWikiTagAPI() {
         });
       }
     },
-    [tags, assignments, push],
+    [push],
   );
 
   const mergeTags = useCallback(
     async (sourceId: string, targetId: string) => {
       const ds = getDataService();
-      const sourceTag = tags.find((t) => t.id === sourceId);
-      const sourceAssignments = assignments.filter((a) => a.tagId === sourceId);
+      const sourceTag = tagsRef.current.find((t) => t.id === sourceId);
+      const sourceAssignments = assignmentsRef.current.filter(
+        (a) => a.tagId === sourceId,
+      );
 
       const merged = await ds.mergeWikiTags(sourceId, targetId);
       await reload();
@@ -178,7 +191,7 @@ export function useWikiTagAPI() {
 
       return merged;
     },
-    [tags, assignments, reload, push],
+    [reload, push],
   );
 
   const getTagsForEntity = useCallback(
@@ -258,18 +271,42 @@ export function useWikiTagAPI() {
     [reload],
   );
 
-  return {
-    tags,
-    assignments,
-    isLoading,
-    reload,
-    createTag,
-    updateTag,
-    deleteTag,
-    mergeTags,
-    getTagsForEntity,
-    setTagsForEntity,
-    syncInlineTags,
-    ...groupsAPI,
-  };
+  return useMemo(
+    () => ({
+      tags,
+      assignments,
+      isLoading,
+      reload,
+      createTag,
+      updateTag,
+      deleteTag,
+      mergeTags,
+      getTagsForEntity,
+      setTagsForEntity,
+      syncInlineTags,
+      ...groupsAPI,
+    }),
+    [
+      tags,
+      assignments,
+      isLoading,
+      reload,
+      createTag,
+      updateTag,
+      deleteTag,
+      mergeTags,
+      getTagsForEntity,
+      setTagsForEntity,
+      syncInlineTags,
+      groupsAPI.groups,
+      groupsAPI.groupMembers,
+      groupsAPI.createGroup,
+      groupsAPI.updateGroup,
+      groupsAPI.deleteGroup,
+      groupsAPI.setGroupMembers,
+      groupsAPI.addGroupMember,
+      groupsAPI.removeGroupMember,
+      groupsAPI.reloadGroups,
+    ],
+  );
 }

@@ -1,5 +1,21 @@
 # HISTORY.md - 変更履歴
 
+### 2026-03-14 - Connect画面 3つの改善
+
+#### 概要
+
+Connect画面のタグフィルター常時表示バグ修正、サイドバーアイテム編集ポップオーバー追加、検索バーの候補ドロップダウン共通化の3点を実装。
+
+#### 変更点
+
+- **TagGraphView.tsx**: `!sidebarMode` 条件を削除し、サイドバーでアイテム選択中もタグフィルターピルを常時表示
+- **ItemEditPopover.tsx（新規）**: Note用の名前編集 + タグ付け外し、Memo用のタグ編集のみのポータルベースポップオーバー（w-72）
+- **ConnectSidebar.tsx**: Notes/DailyにPencilアイコン（hover表示）追加、ItemEditPopover統合、InlineTagEditor廃止、検索サジェスション対応
+- **ConnectTabView.tsx**: `onUpdateNoteTitle` コールバック追加
+- **SearchBar.tsx**: `suggestions`, `onSuggestionSelect`, `showSuggestionsOnFocus` props追加、フォーカス時ドロップダウン表示
+- **MaterialsSidebar.tsx**: 検索サジェスション対応（最近のnotes 6件 + memos 4件）
+- **i18n**: `editItem`, `editName` キーを en.json / ja.json に追加
+
 ### 2026-03-14 - Connect エッジシステム刷新 + サイドバー改善（5フェーズ）
 
 #### 概要

@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import { HexColorPicker, HexColorInput } from "react-colorful";
 import { DEFAULT_PRESET_COLORS } from "../../constants/folderColors";
 import { useClickOutside } from "../../hooks/useClickOutside";
@@ -37,6 +37,15 @@ export function UnifiedColorPicker({
 
   useClickOutside(ref, () => onClose?.(), !inline && !!onClose);
 
+  const onChangeRef = useRef(onChange);
+  useEffect(() => {
+    onChangeRef.current = onChange;
+  }, [onChange]);
+  const onTextColorChangeRef = useRef(onTextColorChange);
+  useEffect(() => {
+    onTextColorChangeRef.current = onTextColorChange;
+  }, [onTextColorChange]);
+
   const activeColor =
     activeTab === "background"
       ? color
@@ -44,12 +53,12 @@ export function UnifiedColorPicker({
   const handleColorChange = useCallback(
     (newColor: string) => {
       if (activeTab === "background") {
-        onChange(newColor);
+        onChangeRef.current(newColor);
       } else {
-        onTextColorChange?.(newColor);
+        onTextColorChangeRef.current?.(newColor);
       }
     },
-    [activeTab, onChange, onTextColorChange],
+    [activeTab],
   );
 
   if (mode === "preset-only") {

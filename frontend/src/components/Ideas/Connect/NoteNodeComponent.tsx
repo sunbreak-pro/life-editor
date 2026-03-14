@@ -11,6 +11,7 @@ type NoteNodeType = {
   highlighted?: boolean;
   focused?: boolean;
   dimmed?: boolean;
+  splitTag?: { id: string; name: string; color: string };
 };
 
 function NoteNodeInner({ data }: NodeProps & { data: NoteNodeType }) {
@@ -40,7 +41,7 @@ function NoteNodeInner({ data }: NodeProps & { data: NoteNodeType }) {
         </span>
       ))}
       {/* Dot + title */}
-      <div className="flex flex-col items-center w-[80px] cursor-grab active:cursor-grabbing">
+      <div className="relative flex flex-col items-center w-5 cursor-grab active:cursor-grabbing">
         <span
           className={`w-3.5 h-3.5 rounded-full bg-yellow-400 dark:bg-yellow-500 ${
             data.focused
@@ -51,9 +52,17 @@ function NoteNodeInner({ data }: NodeProps & { data: NoteNodeType }) {
           }`}
           style={data.color ? { backgroundColor: data.color } : undefined}
         />
-        <span className="text-[10px] text-notion-text truncate max-w-[80px] mt-0.5 text-center leading-tight">
+        <span className="absolute top-full left-1/2 -translate-x-1/2 text-[10px] text-notion-text truncate max-w-[80px] mt-0.5 text-center leading-tight whitespace-nowrap pointer-events-none">
           {data.title}
         </span>
+        {data.splitTag && (
+          <span
+            className="absolute top-full left-1/2 -translate-x-1/2 mt-4 text-[8px] px-1 rounded-full text-white whitespace-nowrap pointer-events-none"
+            style={{ backgroundColor: data.splitTag.color }}
+          >
+            {data.splitTag.name}
+          </span>
+        )}
       </div>
 
       {/* Hover popup */}
