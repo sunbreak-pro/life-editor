@@ -97,6 +97,7 @@ export interface NoteNode {
   isPinned: boolean;
   isDeleted: boolean;
   deletedAt?: string;
+  color?: string;
   createdAt: string;
   updatedAt: string;
 }

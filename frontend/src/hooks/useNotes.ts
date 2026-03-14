@@ -194,59 +194,60 @@ export function useNotes() {
 
   const togglePin = useCallback(
     (id: string) => {
-      setNotes((prev) => {
-        const note = prev.find((n) => n.id === id);
-        if (!note) return prev;
-        const newPinned = !note.isPinned;
-        const prevPinned = note.isPinned;
-        getDataService()
-          .updateNote(id, { isPinned: newPinned })
-          .catch((e) => logServiceError("Notes", "pin", e));
+      const note = notes.find((n) => n.id === id);
+      if (!note) return;
+      const newPinned = !note.isPinned;
+      const prevPinned = note.isPinned;
 
-        push("note", {
-          label: "togglePin",
-          undo: () => {
-            setNotes((p) =>
-              p.map((n) =>
-                n.id === id
-                  ? {
-                      ...n,
-                      isPinned: prevPinned,
-                      updatedAt: new Date().toISOString(),
-                    }
-                  : n,
-              ),
-            );
-            getDataService()
-              .updateNote(id, { isPinned: prevPinned })
-              .catch((e) => logServiceError("Notes", "undoPin", e));
-          },
-          redo: () => {
-            setNotes((p) =>
-              p.map((n) =>
-                n.id === id
-                  ? {
-                      ...n,
-                      isPinned: newPinned,
-                      updatedAt: new Date().toISOString(),
-                    }
-                  : n,
-              ),
-            );
-            getDataService()
-              .updateNote(id, { isPinned: newPinned })
-              .catch((e) => logServiceError("Notes", "redoPin", e));
-          },
-        });
-
-        return prev.map((n) =>
+      setNotes((prev) =>
+        prev.map((n) =>
           n.id === id
             ? { ...n, isPinned: newPinned, updatedAt: new Date().toISOString() }
             : n,
-        );
+        ),
+      );
+
+      getDataService()
+        .updateNote(id, { isPinned: newPinned })
+        .catch((e) => logServiceError("Notes", "pin", e));
+
+      push("note", {
+        label: "togglePin",
+        undo: () => {
+          setNotes((p) =>
+            p.map((n) =>
+              n.id === id
+                ? {
+                    ...n,
+                    isPinned: prevPinned,
+                    updatedAt: new Date().toISOString(),
+                  }
+                : n,
+            ),
+          );
+          getDataService()
+            .updateNote(id, { isPinned: prevPinned })
+            .catch((e) => logServiceError("Notes", "undoPin", e));
+        },
+        redo: () => {
+          setNotes((p) =>
+            p.map((n) =>
+              n.id === id
+                ? {
+                    ...n,
+                    isPinned: newPinned,
+                    updatedAt: new Date().toISOString(),
+                  }
+                : n,
+            ),
+          );
+          getDataService()
+            .updateNote(id, { isPinned: newPinned })
+            .catch((e) => logServiceError("Notes", "redoPin", e));
+        },
       });
     },
-    [push],
+    [notes, push],
   );
 
   const loadDeletedNotes = useCallback(async () => {

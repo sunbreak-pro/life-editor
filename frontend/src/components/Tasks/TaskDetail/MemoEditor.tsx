@@ -117,6 +117,7 @@ export function MemoEditor({
           strike: false,
           code: false,
           blockquote: false,
+          link: false,
         }),
         CustomHeading.configure({ levels: [1, 2, 3] }),
         BoldNoInputRules,

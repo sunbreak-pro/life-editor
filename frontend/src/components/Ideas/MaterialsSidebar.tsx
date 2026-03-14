@@ -243,7 +243,7 @@ export function MaterialsSidebar({
         className="flex-1 flex items-center gap-1.5 min-w-0"
       >
         <StickyNote size={15} className="text-notion-text-secondary shrink-0" />
-        <span className="flex-1 text-sm text-notion-text truncate">
+        <span className="flex flex-1 text-sm text-notion-text justify-start truncate">
           {note.title || t("notes.untitled")}
         </span>
         {renderTagDots(note.id)}
@@ -292,7 +292,7 @@ export function MaterialsSidebar({
         className="flex-1 flex items-center gap-1.5 min-w-0"
       >
         <BookOpen size={15} className="text-notion-text-secondary shrink-0" />
-        <span className="flex-1 text-sm text-notion-text truncate">
+        <span className="flex flex-1 text-sm text-notion-text justify-start truncate">
           {formatDisplayDate(memo.date)}
         </span>
         {renderTagDots(memo.id)}
@@ -633,7 +633,7 @@ export function MaterialsSidebar({
                       </>
                     ) : (
                       <>
-                        <span className="flex-1 text-sm text-notion-text truncate">
+                        <span className="flex flex-1 text-sm text-notion-text justify-start truncate">
                           {group.name}
                         </span>
                         <span className="text-xs text-notion-text-secondary tabular-nums">
@@ -832,7 +832,7 @@ export function MaterialsSidebar({
                           className="w-2.5 h-2.5 rounded-full shrink-0"
                           style={{ backgroundColor: tag.color }}
                         />
-                        <span className="flex-1 text-sm text-notion-text truncate">
+                        <span className="flex flex-1 text-sm text-notion-text justify-start truncate">
                           {tag.name}
                         </span>
                         <span className="text-xs text-notion-text-secondary tabular-nums">
