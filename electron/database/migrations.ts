@@ -135,6 +135,11 @@ export function runMigrations(db: Database.Database): void {
     migrateV30(db);
   }
 
+  if (currentVersion < 31) {
+    log.info("[DB] Running migration V31");
+    migrateV31(db);
+  }
+
   const newVersion = db.pragma("user_version", { simple: true }) as number;
   if (newVersion !== currentVersion) {
     log.info(`[DB] Schema migrated: ${currentVersion} → ${newVersion}`);
@@ -1171,4 +1176,15 @@ function migrateV30(db: Database.Database): void {
   });
   migrate();
   db.pragma("user_version = 30");
+}
+
+function migrateV31(db: Database.Database): void {
+  const migrate = db.transaction(() => {
+    db.exec(`
+      CREATE INDEX IF NOT EXISTS idx_wta_source_entity ON wiki_tag_assignments(source, entity_id);
+      CREATE INDEX IF NOT EXISTS idx_sta_tag ON sound_tag_assignments(tag_id);
+    `);
+  });
+  migrate();
+  db.pragma("user_version = 31");
 }

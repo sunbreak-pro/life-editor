@@ -1,5 +1,25 @@
 # HISTORY.md - 変更履歴
 
+### 2026-03-14 - Codebase Debug Audit: 13件のバグ・パフォーマンス問題修正
+
+#### 概要
+
+コードベース全体の調査で発見した隠れバグ・レースコンディション・サイレント失敗・パフォーマンス問題を4フェーズで13件修正。
+
+#### 変更点
+
+- **DB**: Main Process に `busy_timeout = 5000` 追加、V31 マイグレーション（wiki_tag_assignments/sound_tag_assignments インデックス追加）
+- **React setState ネスト解消**: useRoutines（deleteRoutine/restoreRoutine）、useMemos（deleteMemo/restoreMemo/togglePin）のネストした setState を分離
+- **useCallback 過剰再生成修正**: useNotes（notesRef/selectedNoteIdRef）、useRoutines（routinesRef）、useScheduleItems（scheduleItemsRef）に useRef 追加し依存配列から state 配列を除去
+- **サイレント失敗修正**: usePlaylistPlayer/usePlaylistEngine の空 catch に logServiceError/console.debug 追加
+- **NaN ガード**: playEffectSound の localStorage 読み取りに NaN チェック追加
+- **AudioContext ガード**: usePlaylistEngine の loadAndPlay に closed 状態チェック追加
+- **ポーリング改善**: useExternalDataSync にエラーログ + 指数バックオフ（最大30秒）追加
+- **パフォーマンス**: computeRoutineStats の dayStats.find() O(n²) を Map O(1) に改善
+- **Terminal**: TerminalManager.destroy() で sessions.delete → kill() の順序修正
+- **型統一**: CustomSoundMeta.deletedAt を number → string | null に統一、レガシー値変換追加
+- **JSDoc**: isDescendantOf にパラメータ説明追加
+
 ### 2026-03-14 - MCP Server: タスクツリー・タグ読み取りツール追加
 
 #### 概要

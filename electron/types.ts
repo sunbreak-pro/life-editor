@@ -80,7 +80,7 @@ export interface CustomSoundMeta {
   size: number;
   createdAt: number;
   isDeleted?: boolean;
-  deletedAt?: number;
+  deletedAt?: string | null;
 }
 
 export interface TaskTemplate {

@@ -77,42 +77,39 @@ export function useMemos() {
 
   const deleteMemo = useCallback(
     (date: string) => {
-      setMemos((prev) => {
-        const target = prev.find((m) => m.date === date);
-        if (target) {
-          const deleted: MemoNode = {
-            ...target,
-            isDeleted: true,
-            deletedAt: new Date().toISOString(),
-          };
-          setDeletedMemos((d) => [deleted, ...d]);
+      const target = memos.find((m) => m.date === date);
+      if (target) {
+        const deleted: MemoNode = {
+          ...target,
+          isDeleted: true,
+          deletedAt: new Date().toISOString(),
+        };
+        setDeletedMemos((d) => [deleted, ...d]);
 
-          // Push undo command
-          push("memo", {
-            label: "deleteMemo",
-            undo: () => {
-              setMemos((p) => [target, ...p]);
-              setDeletedMemos((d) => d.filter((m) => m.date !== date));
-              getDataService()
-                .restoreMemo(date)
-                .catch((e) => logServiceError("Memo", "undoDelete", e));
-            },
-            redo: () => {
-              setMemos((p) => p.filter((m) => m.date !== date));
-              setDeletedMemos((d) => [deleted, ...d]);
-              getDataService()
-                .deleteMemo(date)
-                .catch((e) => logServiceError("Memo", "redoDelete", e));
-            },
-          });
-        }
-        return prev.filter((m) => m.date !== date);
-      });
+        push("memo", {
+          label: "deleteMemo",
+          undo: () => {
+            setMemos((p) => [target, ...p]);
+            setDeletedMemos((d) => d.filter((m) => m.date !== date));
+            getDataService()
+              .restoreMemo(date)
+              .catch((e) => logServiceError("Memo", "undoDelete", e));
+          },
+          redo: () => {
+            setMemos((p) => p.filter((m) => m.date !== date));
+            setDeletedMemos((d) => [deleted, ...d]);
+            getDataService()
+              .deleteMemo(date)
+              .catch((e) => logServiceError("Memo", "redoDelete", e));
+          },
+        });
+      }
+      setMemos((prev) => prev.filter((m) => m.date !== date));
       getDataService()
         .deleteMemo(date)
         .catch((e) => logServiceError("Memo", "delete", e));
     },
-    [push],
+    [memos, push],
   );
 
   const loadDeletedMemos = useCallback(async () => {
@@ -124,9 +121,9 @@ export function useMemos() {
     }
   }, []);
 
-  const restoreMemo = useCallback((date: string) => {
-    setDeletedMemos((prev) => {
-      const target = prev.find((m) => m.date === date);
+  const restoreMemo = useCallback(
+    (date: string) => {
+      const target = deletedMemos.find((m) => m.date === date);
       if (target) {
         const restored: MemoNode = {
           ...target,
@@ -135,12 +132,13 @@ export function useMemos() {
         };
         setMemos((m) => [restored, ...m]);
       }
-      return prev.filter((m) => m.date !== date);
-    });
-    getDataService()
-      .restoreMemo(date)
-      .catch((e) => logServiceError("Memo", "restore", e));
-  }, []);
+      setDeletedMemos((prev) => prev.filter((m) => m.date !== date));
+      getDataService()
+        .restoreMemo(date)
+        .catch((e) => logServiceError("Memo", "restore", e));
+    },
+    [deletedMemos],
+  );
 
   const permanentDeleteMemo = useCallback((date: string) => {
     setDeletedMemos((prev) => prev.filter((m) => m.date !== date));
@@ -151,45 +149,41 @@ export function useMemos() {
 
   const togglePin = useCallback(
     (date: string) => {
-      setMemos((prev) => {
-        const memo = prev.find((m) => m.date === date);
-        if (!memo) return prev;
+      const memo = memos.find((m) => m.date === date);
+      if (!memo) return;
 
-        const newPinned = !memo.isPinned;
-        getDataService()
-          .toggleMemoPin(date)
-          .catch((e) => logServiceError("Memo", "pin", e));
+      const newPinned = !memo.isPinned;
 
-        push("memo", {
-          label: "togglePin",
-          undo: () => {
-            setMemos((p) =>
-              p.map((m) =>
-                m.date === date ? { ...m, isPinned: !newPinned } : m,
-              ),
-            );
-            getDataService()
-              .toggleMemoPin(date)
-              .catch((e) => logServiceError("Memo", "undoPin", e));
-          },
-          redo: () => {
-            setMemos((p) =>
-              p.map((m) =>
-                m.date === date ? { ...m, isPinned: newPinned } : m,
-              ),
-            );
-            getDataService()
-              .toggleMemoPin(date)
-              .catch((e) => logServiceError("Memo", "redoPin", e));
-          },
-        });
+      setMemos((prev) =>
+        prev.map((m) => (m.date === date ? { ...m, isPinned: newPinned } : m)),
+      );
+      getDataService()
+        .toggleMemoPin(date)
+        .catch((e) => logServiceError("Memo", "pin", e));
 
-        return prev.map((m) =>
-          m.date === date ? { ...m, isPinned: newPinned } : m,
-        );
+      push("memo", {
+        label: "togglePin",
+        undo: () => {
+          setMemos((p) =>
+            p.map((m) =>
+              m.date === date ? { ...m, isPinned: !newPinned } : m,
+            ),
+          );
+          getDataService()
+            .toggleMemoPin(date)
+            .catch((e) => logServiceError("Memo", "undoPin", e));
+        },
+        redo: () => {
+          setMemos((p) =>
+            p.map((m) => (m.date === date ? { ...m, isPinned: newPinned } : m)),
+          );
+          getDataService()
+            .toggleMemoPin(date)
+            .catch((e) => logServiceError("Memo", "redoPin", e));
+        },
       });
     },
-    [push],
+    [memos, push],
   );
 
   const getMemoForDate = useCallback(

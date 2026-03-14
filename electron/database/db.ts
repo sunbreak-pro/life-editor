@@ -22,6 +22,7 @@ export function getDatabase(): Database.Database {
   // WAL mode for better concurrent read/write performance
   db.pragma("journal_mode = WAL");
   db.pragma("foreign_keys = ON");
+  db.pragma("busy_timeout = 5000");
 
   runMigrations(db);
 

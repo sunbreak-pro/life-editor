@@ -59,6 +59,10 @@ export function collectDescendantIds(
 
 /**
  * Checks if `childId` is a descendant of `parentId`.
+ * @param parentId - The ancestor node to search from (root of the subtree)
+ * @param childId - The node to find within the subtree
+ * @param nodes - Flat array of all task nodes
+ * @returns true if childId exists anywhere under parentId's subtree
  */
 export function isDescendantOf(
   parentId: string,

@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useMemo } from "react";
+import { useState, useCallback, useEffect, useMemo, useRef } from "react";
 import type { NoteNode, NoteSortMode } from "../types/note";
 import { getDataService } from "../services";
 import { logServiceError } from "../utils/logError";
@@ -12,6 +12,14 @@ export function useNotes() {
   const [searchQuery, setSearchQuery] = useState("");
   const [sortMode, setSortMode] = useState<NoteSortMode>("updatedAt");
   const { push } = useUndoRedo();
+  const notesRef = useRef(notes);
+  const selectedNoteIdRef = useRef(selectedNoteId);
+  useEffect(() => {
+    notesRef.current = notes;
+  }, [notes]);
+  useEffect(() => {
+    selectedNoteIdRef.current = selectedNoteId;
+  }, [selectedNoteId]);
 
   useEffect(() => {
     let cancelled = false;
@@ -80,7 +88,7 @@ export function useNotes() {
         label: "createNote",
         undo: () => {
           setNotes((p) => p.filter((n) => n.id !== id));
-          if (selectedNoteId === id) setSelectedNoteId(null);
+          if (selectedNoteIdRef.current === id) setSelectedNoteId(null);
           getDataService()
             .permanentDeleteNote(id)
             .catch((e) => logServiceError("Notes", "undoCreate", e));
@@ -96,7 +104,7 @@ export function useNotes() {
 
       return id;
     },
-    [push, selectedNoteId],
+    [push],
   );
 
   const updateNote = useCallback(
@@ -112,7 +120,7 @@ export function useNotes() {
 
       if (!isContentOnly) {
         // Capture previous values for undo
-        const prev = notes.find((n) => n.id === id);
+        const prev = notesRef.current.find((n) => n.id === id);
         if (prev) {
           const prevValues: Partial<
             Pick<NoteNode, "title" | "isPinned" | "color">
@@ -159,14 +167,14 @@ export function useNotes() {
         .updateNote(id, updates)
         .catch((e) => logServiceError("Notes", "update", e));
     },
-    [notes, push],
+    [push],
   );
 
   const softDeleteNote = useCallback(
     (id: string) => {
-      const target = notes.find((n) => n.id === id);
+      const target = notesRef.current.find((n) => n.id === id);
       setNotes((prev) => prev.filter((n) => n.id !== id));
-      if (selectedNoteId === id) setSelectedNoteId(null);
+      if (selectedNoteIdRef.current === id) setSelectedNoteId(null);
       getDataService()
         .softDeleteNote(id)
         .catch((e) => logServiceError("Notes", "delete", e));
@@ -189,12 +197,12 @@ export function useNotes() {
         });
       }
     },
-    [selectedNoteId, notes, push],
+    [push],
   );
 
   const togglePin = useCallback(
     (id: string) => {
-      const note = notes.find((n) => n.id === id);
+      const note = notesRef.current.find((n) => n.id === id);
       if (!note) return;
       const newPinned = !note.isPinned;
       const prevPinned = note.isPinned;
@@ -247,7 +255,7 @@ export function useNotes() {
         },
       });
     },
-    [notes, push],
+    [push],
   );
 
   const loadDeletedNotes = useCallback(async () => {

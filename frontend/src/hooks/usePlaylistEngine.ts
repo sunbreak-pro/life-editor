@@ -153,7 +153,7 @@ export function usePlaylistEngine(
     const audio = audioRef.current;
     const ctx = ctxRef.current;
     const gain = gainRef.current;
-    if (!audio || !ctx || !gain) return;
+    if (!audio || !ctx || !gain || ctx.state === "closed") return;
 
     const track = tracksRef.current[trackIndex];
     if (!track) return;
@@ -207,7 +207,9 @@ export function usePlaylistEngine(
 
       if (rm === "one") {
         audio.currentTime = 0;
-        audio.play().catch(() => {});
+        audio.play().catch((e) => {
+          console.debug("[PlaylistEngine] repeat-one play blocked:", e.message);
+        });
         return;
       }
 
@@ -265,7 +267,9 @@ export function usePlaylistEngine(
           targetVol,
           ctx.currentTime + FADE_DURATION,
         );
-        audio.play().catch(() => {});
+        audio.play().catch((e) => {
+          console.debug("[PlaylistEngine] resume play blocked:", e.message);
+        });
         setIsPlaying(true);
       } else if (!audio.src && tracksRef.current.length > 0) {
         const first = findNextPlayableIndex(0, 1);
@@ -363,7 +367,9 @@ export function usePlaylistEngine(
       targetVol,
       ctx.currentTime + FADE_DURATION,
     );
-    audio.play().catch(() => {});
+    audio.play().catch((e) => {
+      console.debug("[PlaylistEngine] play blocked:", e.message);
+    });
     setIsPlaying(true);
   }, [findNextPlayableIndex, loadAndPlay]);
 

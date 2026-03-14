@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo, useRef, useEffect } from "react";
 import type { ScheduleItem, RoutineStats } from "../types/schedule";
 import type { RoutineNode } from "../types/routine";
 import { getDataService } from "../services";
@@ -79,6 +79,9 @@ function computeRoutineStats(
     }
   }
 
+  // Build a lookup map for dayStats
+  const dayStatsMap = new Map(dayStats.map((ds) => [ds.date, ds]));
+
   // Recent 7 days
   const recent7: RoutineStats["recentDays"] = [];
   const recentCursor = new Date();
@@ -87,7 +90,7 @@ function computeRoutineStats(
     const d = new Date(recentCursor);
     d.setDate(d.getDate() - i);
     const key = formatDate(d);
-    const found = dayStats.find((ds) => ds.date === key);
+    const found = dayStatsMap.get(key);
     recent7.push(
       found ?? { date: key, completed: 0, total: 0, completionRate: 0 },
     );
@@ -127,7 +130,7 @@ function computeRoutineStats(
     const d = new Date(heatCursor);
     d.setDate(d.getDate() - i);
     const key = formatDate(d);
-    const found = dayStats.find((ds) => ds.date === key);
+    const found = dayStatsMap.get(key);
     monthlyHeatmap.push({
       date: key,
       completionRate: found?.completionRate ?? 0,
@@ -158,6 +161,10 @@ export function useScheduleItems() {
       `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, "0")}-${String(new Date().getDate()).padStart(2, "0")}`,
   );
   const { push } = useUndoRedo();
+  const scheduleItemsRef = useRef(scheduleItems);
+  useEffect(() => {
+    scheduleItemsRef.current = scheduleItems;
+  }, [scheduleItems]);
 
   const loadItemsForDate = useCallback(async (date: string) => {
     try {
@@ -229,7 +236,7 @@ export function useScheduleItems() {
         >
       >,
     ) => {
-      const prev = scheduleItems.find((item) => item.id === id);
+      const prev = scheduleItemsRef.current.find((item) => item.id === id);
       setScheduleItems((p) =>
         p.map((item) =>
           item.id === id
@@ -283,12 +290,12 @@ export function useScheduleItems() {
         });
       }
     },
-    [scheduleItems, push],
+    [push],
   );
 
   const deleteScheduleItem = useCallback(
     (id: string) => {
-      const target = scheduleItems.find((item) => item.id === id);
+      const target = scheduleItemsRef.current.find((item) => item.id === id);
       setScheduleItems((prev) => prev.filter((item) => item.id !== id));
       getDataService()
         .deleteScheduleItem(id)
@@ -322,12 +329,12 @@ export function useScheduleItems() {
         });
       }
     },
-    [scheduleItems, push],
+    [push],
   );
 
   const toggleComplete = useCallback(
     (id: string) => {
-      const item = scheduleItems.find((i) => i.id === id);
+      const item = scheduleItemsRef.current.find((i) => i.id === id);
       const wasCompleted = item?.completed ?? false;
 
       setScheduleItems((prev) =>
@@ -383,7 +390,7 @@ export function useScheduleItems() {
         },
       });
     },
-    [scheduleItems, push],
+    [push],
   );
 
   const ensureRoutineItemsForDate = useCallback(

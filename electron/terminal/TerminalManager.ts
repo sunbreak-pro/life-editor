@@ -99,8 +99,9 @@ export class TerminalManager {
     const session = this.sessions.get(sessionId);
     if (session) {
       if (session.timer) clearTimeout(session.timer);
-      session.pty.kill();
+      this.flush(sessionId);
       this.sessions.delete(sessionId);
+      session.pty.kill();
       log.info(`[Terminal] Destroyed session ${sessionId}`);
     }
   }

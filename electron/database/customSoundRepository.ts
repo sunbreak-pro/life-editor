@@ -16,7 +16,16 @@ function loadMetas(): CustomSoundMeta[] {
   ensureDir();
   if (!fs.existsSync(META_FILE)) return [];
   try {
-    return JSON.parse(fs.readFileSync(META_FILE, "utf-8"));
+    const raw: CustomSoundMeta[] = JSON.parse(
+      fs.readFileSync(META_FILE, "utf-8"),
+    );
+    // Normalize legacy numeric deletedAt to ISO string
+    return raw.map((m) => {
+      if (typeof m.deletedAt === "number") {
+        return { ...m, deletedAt: new Date(m.deletedAt).toISOString() };
+      }
+      return m;
+    });
   } catch {
     return [];
   }
@@ -72,7 +81,7 @@ export function createCustomSoundRepository() {
           metas[idx] = {
             ...metas[idx],
             isDeleted: true,
-            deletedAt: Date.now(),
+            deletedAt: new Date().toISOString(),
           };
           writeMetas(metas);
         }

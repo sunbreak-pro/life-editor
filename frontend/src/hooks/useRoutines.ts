@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useMemo } from "react";
+import { useState, useCallback, useEffect, useMemo, useRef } from "react";
 import type { RoutineNode } from "../types/routine";
 import { getDataService } from "../services";
 import { logServiceError } from "../utils/logError";
@@ -10,6 +10,10 @@ export function useRoutines() {
   const [routines, setRoutines] = useState<RoutineNode[]>([]);
   const [deletedRoutines, setDeletedRoutines] = useState<RoutineNode[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const routinesRef = useRef(routines);
+  useEffect(() => {
+    routinesRef.current = routines;
+  }, [routines]);
 
   useEffect(() => {
     let cancelled = false;
@@ -82,7 +86,7 @@ export function useRoutines() {
         >
       >,
     ) => {
-      const prev = routines.find((r) => r.id === id);
+      const prev = routinesRef.current.find((r) => r.id === id);
       setRoutines((p) =>
         p.map((r) =>
           r.id === id
@@ -128,24 +132,21 @@ export function useRoutines() {
         });
       }
     },
-    [routines, push],
+    [push],
   );
 
   const deleteRoutine = useCallback(
     (id: string) => {
-      const target = routines.find((r) => r.id === id);
-      setRoutines((prev) => {
-        const found = prev.find((r) => r.id === id);
-        if (found) {
-          const deleted: RoutineNode = {
-            ...found,
-            isDeleted: true,
-            deletedAt: new Date().toISOString(),
-          };
-          setDeletedRoutines((d) => [deleted, ...d]);
-        }
-        return prev.filter((r) => r.id !== id);
-      });
+      const target = routinesRef.current.find((r) => r.id === id);
+      if (target) {
+        const deleted: RoutineNode = {
+          ...target,
+          isDeleted: true,
+          deletedAt: new Date().toISOString(),
+        };
+        setDeletedRoutines((d) => [deleted, ...d]);
+      }
+      setRoutines((prev) => prev.filter((r) => r.id !== id));
       getDataService()
         .softDeleteRoutine(id)
         .catch((e) => logServiceError("Routines", "softDelete", e));
@@ -162,6 +163,14 @@ export function useRoutines() {
           },
           redo: () => {
             setRoutines((prev) => prev.filter((r) => r.id !== id));
+            setDeletedRoutines((prev) => {
+              const redoDeleted: RoutineNode = {
+                ...target,
+                isDeleted: true,
+                deletedAt: new Date().toISOString(),
+              };
+              return [redoDeleted, ...prev];
+            });
             getDataService()
               .softDeleteRoutine(id)
               .catch((e) => logServiceError("Routines", "redoDelete", e));
@@ -169,7 +178,7 @@ export function useRoutines() {
         });
       }
     },
-    [routines, push],
+    [push],
   );
 
   const loadDeletedRoutines = useCallback(async () => {
@@ -181,9 +190,9 @@ export function useRoutines() {
     }
   }, []);
 
-  const restoreRoutine = useCallback((id: string) => {
-    setDeletedRoutines((prev) => {
-      const target = prev.find((r) => r.id === id);
+  const restoreRoutine = useCallback(
+    (id: string) => {
+      const target = deletedRoutines.find((r) => r.id === id);
       if (target) {
         const restored: RoutineNode = {
           ...target,
@@ -192,12 +201,13 @@ export function useRoutines() {
         };
         setRoutines((r) => [...r, restored]);
       }
-      return prev.filter((r) => r.id !== id);
-    });
-    getDataService()
-      .restoreRoutine(id)
-      .catch((e) => logServiceError("Routines", "restore", e));
-  }, []);
+      setDeletedRoutines((prev) => prev.filter((r) => r.id !== id));
+      getDataService()
+        .restoreRoutine(id)
+        .catch((e) => logServiceError("Routines", "restore", e));
+    },
+    [deletedRoutines],
+  );
 
   const permanentDeleteRoutine = useCallback((id: string) => {
     setDeletedRoutines((prev) => prev.filter((r) => r.id !== id));

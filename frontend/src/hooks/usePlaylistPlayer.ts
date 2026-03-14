@@ -5,6 +5,7 @@ import {
   type PlaylistEngineResult,
 } from "./usePlaylistEngine";
 import { useLocalStorage } from "./useLocalStorage";
+import { logServiceError } from "../utils/logError";
 import type { PlaylistDataResult } from "./usePlaylistData";
 import type { PlaylistItem, RepeatMode } from "../types/playlist";
 
@@ -60,14 +61,14 @@ export function usePlaylistPlayer(
       repeatMode === "all" ? "one" : repeatMode === "one" ? "off" : "all";
     playlistData
       .updatePlaylist(activePlaylistId, { repeatMode: next })
-      .catch(() => {});
+      .catch((e) => logServiceError("Playlist", "toggleRepeatMode", e));
   }, [activePlaylistId, repeatMode, playlistData]);
 
   const toggleShuffle = useCallback(() => {
     if (!activePlaylistId) return;
     playlistData
       .updatePlaylist(activePlaylistId, { isShuffle: !isShuffle })
-      .catch(() => {});
+      .catch((e) => logServiceError("Playlist", "toggleShuffle", e));
   }, [activePlaylistId, isShuffle, playlistData]);
 
   return {

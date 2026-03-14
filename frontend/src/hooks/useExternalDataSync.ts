@@ -1,16 +1,28 @@
 import { useEffect, useRef } from "react";
 import { getDataService } from "../services";
 
-const POLL_INTERVAL_MS = 2000;
+const BASE_INTERVAL_MS = 2000;
+const MAX_INTERVAL_MS = 30000;
 
 export function useExternalDataSync(
   isTerminalOpen: boolean,
   refetchTasks: () => Promise<void>,
 ) {
   const lastSnapshotRef = useRef<string>("");
+  const errorCountRef = useRef(0);
 
   useEffect(() => {
     if (!isTerminalOpen) return;
+
+    let timerId: ReturnType<typeof setTimeout> | null = null;
+
+    const scheduleNext = () => {
+      const delay = Math.min(
+        BASE_INTERVAL_MS * Math.pow(2, errorCountRef.current),
+        MAX_INTERVAL_MS,
+      );
+      timerId = setTimeout(checkForChanges, delay);
+    };
 
     const checkForChanges = async () => {
       try {
@@ -25,15 +37,22 @@ export function useExternalDataSync(
           await refetchTasks();
         }
         lastSnapshotRef.current = snapshot;
-      } catch {
-        // Ignore polling errors
+        errorCountRef.current = 0;
+      } catch (e) {
+        errorCountRef.current = Math.min(errorCountRef.current + 1, 4);
+        console.debug(
+          `[ExternalDataSync] polling error (retry #${errorCountRef.current}):`,
+          e,
+        );
       }
+      scheduleNext();
     };
 
-    // Initial snapshot
+    // Initial check
     checkForChanges();
 
-    const interval = setInterval(checkForChanges, POLL_INTERVAL_MS);
-    return () => clearInterval(interval);
+    return () => {
+      if (timerId) clearTimeout(timerId);
+    };
   }, [isTerminalOpen, refetchTasks]);
 }
