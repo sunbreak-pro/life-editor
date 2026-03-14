@@ -2,6 +2,7 @@ import type { Tool } from "@modelcontextprotocol/sdk/types.js";
 import {
   listTasks,
   getTask,
+  getTaskTree,
   createTask,
   updateTask,
   deleteTask,
@@ -15,6 +16,7 @@ import {
   listWikiTags,
   tagEntity,
   searchByTag,
+  getEntityTags,
 } from "./handlers/wikiTagHandlers.js";
 
 export const TOOLS: Tool[] = [
@@ -418,6 +420,46 @@ export const TOOLS: Tool[] = [
     },
   },
   {
+    name: "get_task_tree",
+    description:
+      "Get tasks as a hierarchical tree structure. Returns folders and tasks with their children, tags, and metadata (excludes content — use get_task for full content).",
+    inputSchema: {
+      type: "object" as const,
+      properties: {
+        root_id: {
+          type: "string",
+          description:
+            "Folder/task ID to use as root (returns subtree). Omit for full tree.",
+        },
+        include_done: {
+          type: "boolean",
+          description:
+            "Include completed tasks (default: true). Folders are always included.",
+        },
+        max_depth: {
+          type: "number",
+          description:
+            "Maximum tree depth (default: unlimited). 0 = root only, 1 = root + direct children, etc.",
+        },
+      },
+    },
+  },
+  {
+    name: "get_entity_tags",
+    description:
+      "Get all wiki tags assigned to a specific entity (task, memo, or note).",
+    inputSchema: {
+      type: "object" as const,
+      properties: {
+        entity_id: {
+          type: "string",
+          description: "Entity ID (task, memo, or note)",
+        },
+      },
+      required: ["entity_id"],
+    },
+  },
+  {
     name: "format_content",
     description:
       "Read and restructure existing note/memo content. Supports wrapping in callout/toggle, adding headings, inserting blocks, or replacing all content.",
@@ -544,6 +586,12 @@ export function callTool(
       break;
     case "search_by_tag":
       result = searchByTag(args as Parameters<typeof searchByTag>[0]);
+      break;
+    case "get_task_tree":
+      result = getTaskTree(args as Parameters<typeof getTaskTree>[0]);
+      break;
+    case "get_entity_tags":
+      result = getEntityTags(args as Parameters<typeof getEntityTags>[0]);
       break;
     case "format_content":
       result = formatContent(

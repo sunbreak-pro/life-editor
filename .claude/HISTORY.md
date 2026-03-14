@@ -1,5 +1,17 @@
 # HISTORY.md - 変更履歴
 
+### 2026-03-14 - MCP Server: タスクツリー・タグ読み取りツール追加
+
+#### 概要
+
+MCP Server にタスクのツリー構造取得（get_task_tree）とエンティティのタグ一覧取得（get_entity_tags）ツールを追加。既存の get_task にもタグ情報を付加。
+
+#### 変更点
+
+- **wikiTagHandlers.ts**: 共有ヘルパー `getTagsForEntity`（単一エンティティ）・`getTagMapByEntityType`（バッチ取得）追加、`getEntityTags` ハンドラ追加
+- **taskHandlers.ts**: `getTask` の返却値に `tags` フィールド追加、`getTaskTree` ハンドラ追加（root_id/include_done/max_depth パラメータ対応）
+- **tools.ts**: `get_task_tree`・`get_entity_tags` のツール定義と callTool switch ケース追加
+
 ### 2026-03-13 - Ideas セクション UI/UX 改善
 
 #### 概要

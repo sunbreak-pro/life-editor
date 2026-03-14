@@ -17,6 +17,25 @@ interface AssignmentRow {
   created_at: string;
 }
 
+export interface TagInfo {
+  id: string;
+  name: string;
+  color: string;
+  textColor?: string;
+  source: string;
+  assignedAt: string;
+}
+
+interface TagJoinRow {
+  tag_id: string;
+  tag_name: string;
+  tag_color: string;
+  tag_text_color: string | null;
+  entity_id: string;
+  source: string;
+  created_at: string;
+}
+
 function formatTag(row: WikiTagRow) {
   return {
     id: row.id,
@@ -26,6 +45,64 @@ function formatTag(row: WikiTagRow) {
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
+}
+
+export function getTagsForEntity(entityId: string): TagInfo[] {
+  const db = getDb();
+  const rows = db
+    .prepare(
+      `SELECT t.id AS tag_id, t.name AS tag_name, t.color AS tag_color, t.text_color AS tag_text_color,
+              a.entity_id, a.source, a.created_at
+       FROM wiki_tag_assignments a
+       JOIN wiki_tags t ON a.tag_id = t.id
+       WHERE a.entity_id = ?
+       ORDER BY a.created_at ASC`,
+    )
+    .all(entityId) as TagJoinRow[];
+
+  return rows.map((r) => ({
+    id: r.tag_id,
+    name: r.tag_name,
+    color: r.tag_color,
+    textColor: r.tag_text_color ?? undefined,
+    source: r.source,
+    assignedAt: r.created_at,
+  }));
+}
+
+export function getTagMapByEntityType(
+  entityType: string,
+): Map<string, TagInfo[]> {
+  const db = getDb();
+  const rows = db
+    .prepare(
+      `SELECT a.entity_id, t.id AS tag_id, t.name AS tag_name, t.color AS tag_color,
+              t.text_color AS tag_text_color, a.source, a.created_at
+       FROM wiki_tag_assignments a
+       JOIN wiki_tags t ON a.tag_id = t.id
+       WHERE a.entity_type = ?`,
+    )
+    .all(entityType) as TagJoinRow[];
+
+  const map = new Map<string, TagInfo[]>();
+  for (const r of rows) {
+    const tags = map.get(r.entity_id) ?? [];
+    tags.push({
+      id: r.tag_id,
+      name: r.tag_name,
+      color: r.tag_color,
+      textColor: r.tag_text_color ?? undefined,
+      source: r.source,
+      assignedAt: r.created_at,
+    });
+    map.set(r.entity_id, tags);
+  }
+  return map;
+}
+
+export function getEntityTags(args: { entity_id: string }) {
+  const tags = getTagsForEntity(args.entity_id);
+  return { entityId: args.entity_id, tags };
 }
 
 export function listWikiTags(args: { query?: string }) {

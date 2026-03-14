@@ -1,4 +1,9 @@
 import { getDb } from "../db.js";
+import {
+  getTagsForEntity,
+  getTagMapByEntityType,
+  type TagInfo,
+} from "./wikiTagHandlers.js";
 
 interface TaskRow {
   id: string;
@@ -67,7 +72,99 @@ export function getTask(args: { id: string }) {
     | TaskRow
     | undefined;
   if (!row) throw new Error(`Task not found: ${args.id}`);
-  return formatTask(row);
+  return { ...formatTask(row), tags: getTagsForEntity(args.id) };
+}
+
+interface TreeNode {
+  id: string;
+  type: string;
+  title: string;
+  status: string | null;
+  order: number;
+  createdAt: string;
+  completedAt: string | null;
+  scheduledAt: string | null;
+  scheduledEndAt: string | null;
+  isAllDay: boolean;
+  tags: TagInfo[];
+  children: TreeNode[];
+}
+
+export function getTaskTree(args: {
+  root_id?: string;
+  include_done?: boolean;
+  max_depth?: number;
+}) {
+  const db = getDb();
+  const includeDone = args.include_done !== false;
+
+  const rows = db
+    .prepare(`SELECT * FROM tasks WHERE is_deleted = 0 ORDER BY "order" ASC`)
+    .all() as TaskRow[];
+
+  const tagMap = getTagMapByEntityType("task");
+
+  const childrenMap = new Map<string | null, TaskRow[]>();
+  for (const row of rows) {
+    const key = row.parent_id;
+    const list = childrenMap.get(key) ?? [];
+    list.push(row);
+    childrenMap.set(key, list);
+  }
+
+  function buildTree(parentId: string | null, depth: number): TreeNode[] {
+    if (args.max_depth !== undefined && depth > args.max_depth) return [];
+
+    const children = childrenMap.get(parentId) ?? [];
+    const result: TreeNode[] = [];
+
+    for (const row of children) {
+      if (!includeDone && row.status === "done" && row.type !== "folder") {
+        continue;
+      }
+
+      const node: TreeNode = {
+        id: row.id,
+        type: row.type,
+        title: row.title,
+        status: row.status,
+        order: row.order,
+        createdAt: row.created_at,
+        completedAt: row.completed_at,
+        scheduledAt: row.scheduled_at,
+        scheduledEndAt: row.scheduled_end_at,
+        isAllDay: row.is_all_day === 1,
+        tags: tagMap.get(row.id) ?? [],
+        children: buildTree(row.id, depth + 1),
+      };
+      result.push(node);
+    }
+
+    return result;
+  }
+
+  if (args.root_id) {
+    const rootRow = rows.find((r) => r.id === args.root_id);
+    if (!rootRow) throw new Error(`Task not found: ${args.root_id}`);
+
+    const rootNode: TreeNode = {
+      id: rootRow.id,
+      type: rootRow.type,
+      title: rootRow.title,
+      status: rootRow.status,
+      order: rootRow.order,
+      createdAt: rootRow.created_at,
+      completedAt: rootRow.completed_at,
+      scheduledAt: rootRow.scheduled_at,
+      scheduledEndAt: rootRow.scheduled_end_at,
+      isAllDay: rootRow.is_all_day === 1,
+      tags: tagMap.get(rootRow.id) ?? [],
+      children: buildTree(rootRow.id, 1),
+    };
+    return rootNode;
+  }
+
+  return buildTree(null, 0);
 }
 
 export function createTask(args: {
