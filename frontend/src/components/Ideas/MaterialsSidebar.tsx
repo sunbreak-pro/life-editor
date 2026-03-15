@@ -215,7 +215,7 @@ export function MaterialsSidebar({
     const colors = entityTagColors.get(entityId);
     if (!colors || colors.length === 0) return null;
     return (
-      <div className="flex items-center gap-0.5 shrink-0">
+      <div className="flex items-center gap-0.5 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
         {colors.slice(0, 3).map((color, i) => (
           <span
             key={i}
@@ -238,14 +238,18 @@ export function MaterialsSidebar({
         onClick={() => onSelectView({ type: "note", noteId: note.id })}
         className="flex-1 flex items-center gap-1.5 min-w-0"
       >
-        <StickyNote size={15} className="text-notion-text-secondary shrink-0" />
+        {note.isPinned ? (
+          <Heart size={15} className="text-red-500 fill-current shrink-0" />
+        ) : (
+          <StickyNote
+            size={15}
+            className="text-notion-text-secondary shrink-0"
+          />
+        )}
         <span className="flex flex-1 text-sm text-notion-text justify-start truncate">
           {note.title || t("notes.untitled")}
         </span>
         {renderTagDots(note.id)}
-        {note.isPinned && (
-          <Heart size={12} className="text-red-500 fill-current shrink-0" />
-        )}
       </button>
       {onNavigateToConnect && (
         <button
@@ -284,14 +288,15 @@ export function MaterialsSidebar({
         onClick={() => onSelectView({ type: "daily", date: memo.date })}
         className="flex-1 flex items-center gap-1.5 min-w-0"
       >
-        <BookOpen size={15} className="text-notion-text-secondary shrink-0" />
+        {memo.isPinned ? (
+          <Heart size={15} className="text-red-500 fill-current shrink-0" />
+        ) : (
+          <BookOpen size={15} className="text-notion-text-secondary shrink-0" />
+        )}
         <span className="flex flex-1 text-sm text-notion-text justify-start truncate">
           {formatDisplayDate(memo.date)}
         </span>
         {renderTagDots(memo.id)}
-        {memo.isPinned && (
-          <Heart size={12} className="text-red-500 fill-current shrink-0" />
-        )}
       </button>
       <button
         ref={(el) => {

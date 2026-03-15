@@ -498,10 +498,17 @@ export function ConnectSidebar({
                     onClick={() => handleItemClick(note.id)}
                     className="flex-1 flex items-center gap-1.5 min-w-0 text-left"
                   >
-                    <StickyNote
-                      size={15}
-                      className="text-notion-text-secondary shrink-0"
-                    />
+                    {note.isPinned ? (
+                      <Heart
+                        size={15}
+                        className="text-red-500 fill-current shrink-0"
+                      />
+                    ) : (
+                      <StickyNote
+                        size={15}
+                        className="text-notion-text-secondary shrink-0"
+                      />
+                    )}
                     <span className="flex-1 text-sm text-notion-text truncate">
                       {note.title || t("notes.untitled")}
                     </span>
@@ -563,10 +570,17 @@ export function ConnectSidebar({
                     onClick={() => handleItemClick(memo.id)}
                     className="flex-1 flex items-center gap-1.5 min-w-0 text-left"
                   >
-                    <BookOpen
-                      size={15}
-                      className="text-notion-text-secondary shrink-0"
-                    />
+                    {memo.isPinned ? (
+                      <Heart
+                        size={15}
+                        className="text-red-500 fill-current shrink-0"
+                      />
+                    ) : (
+                      <BookOpen
+                        size={15}
+                        className="text-notion-text-secondary shrink-0"
+                      />
+                    )}
                     <span className="flex-1 text-sm text-notion-text truncate">
                       {formatDisplayDate(memo.date)}
                     </span>

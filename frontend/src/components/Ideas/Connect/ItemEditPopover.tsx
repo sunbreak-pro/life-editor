@@ -39,11 +39,16 @@ export function ItemEditPopover({
   useEffect(() => {
     const rect = anchorEl.getBoundingClientRect();
     const popupWidth = 288; // w-72
-    const left = rect.right - popupWidth;
-    setPosition({
-      top: rect.bottom + 4,
-      left: Math.max(8, left),
-    });
+    const left = Math.max(
+      8,
+      Math.min(rect.left - popupWidth - 4, window.innerWidth - popupWidth - 8),
+    );
+    const popupHeight = popupRef.current?.offsetHeight ?? 300;
+    const top =
+      rect.bottom + popupHeight > window.innerHeight
+        ? rect.top - popupHeight - 4
+        : rect.bottom + 4;
+    setPosition({ top, left });
   }, [anchorEl]);
 
   useEffect(() => {

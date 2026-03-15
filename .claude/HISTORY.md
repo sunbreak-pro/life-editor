@@ -1,5 +1,18 @@
 # HISTORY.md - 変更履歴
 
+### 2026-03-16 - Connect Edit Popover位置改善 & Heart/TagDotアイコン統一
+
+#### 概要
+
+Connect rightSidebar の ItemEditPopover がアンカー左側に表示されるよう位置計算を改善し、Materials/Connect 両方で isPinned アイテムのアイコン表示とタグドット挙動を統一。
+
+#### 変更点
+
+- **ItemEditPopover 位置改善**: ポップオーバーをアンカー要素の左側に表示するよう計算ロジック変更。画面下端ではアンカー上方に表示。`popupRef.offsetHeight` を使用して高さを考慮
+- **Connect Notes/Daily アイコン統一**: isPinned の note は StickyNote → Heart、isPinned の memo は BookOpen → Heart に条件分岐で表示切替
+- **Materials Notes/Memos アイコン統一**: 同様にアイコンを統合し、既存の別置き Heart アイコンを削除（アイコン位置に統合されたため不要）
+- **Materials タグドット ホバー表示**: `opacity-0 group-hover:opacity-100 transition-opacity` を追加して Connect と同じホバー時のみ表示パターンに統一
+
 ### 2026-03-16 - Connect canvas filter を sidebarMode でも機能させる
 
 #### 概要
