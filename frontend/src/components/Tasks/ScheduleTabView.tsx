@@ -62,7 +62,8 @@ export function ScheduleTabView({
   const [calendarProgressFilter, setCalendarProgressFilter] =
     useState<DayFlowFilterTab>("all");
 
-  const { nodes, getTaskColor, getFolderTagForTask } = useTaskTreeContext();
+  const { nodes, getTaskColor, getFolderTagForTask, updateNode } =
+    useTaskTreeContext();
 
   const { tasksByDate } = useCalendar(
     nodes,
@@ -195,6 +196,13 @@ export function ScheduleTabView({
     setCalendarProgressDate(date);
   }, []);
 
+  const handleUpdateTaskTime = useCallback(
+    (taskId: string, scheduledAt: string, scheduledEndAt: string) => {
+      updateNode(taskId, { scheduledAt, scheduledEndAt });
+    },
+    [updateNode],
+  );
+
   return (
     <div className="h-full flex flex-col">
       {rightSidebarTarget &&
@@ -250,6 +258,7 @@ export function ScheduleTabView({
             onSelectTask={onCalendarSelectTask}
             getTaskColor={getTaskColor}
             getFolderTag={getFolderTagForTask}
+            onUpdateTaskTime={handleUpdateTaskTime}
             onPrevDate={goToPrev}
             onNextDate={goToNext}
             onToday={goToToday}

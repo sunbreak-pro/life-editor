@@ -11,6 +11,7 @@ interface ScheduleItemRow {
   completed_at: string | null;
   routine_id: string | null;
   template_id: string | null;
+  memo: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -26,6 +27,7 @@ function rowToItem(row: ScheduleItemRow): ScheduleItem {
     completedAt: row.completed_at,
     routineId: row.routine_id,
     templateId: row.template_id,
+    memo: row.memo ?? null,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -46,7 +48,7 @@ export function createScheduleItemRepository(db: Database.Database) {
     `),
     update: db.prepare(`
       UPDATE schedule_items SET title = @title, start_time = @start_time, end_time = @end_time,
-      completed = @completed, completed_at = @completed_at, updated_at = datetime('now')
+      completed = @completed, completed_at = @completed_at, memo = @memo, updated_at = datetime('now')
       WHERE id = @id
     `),
     delete: db.prepare(`DELETE FROM schedule_items WHERE id = ?`),
@@ -93,7 +95,12 @@ export function createScheduleItemRepository(db: Database.Database) {
       updates: Partial<
         Pick<
           ScheduleItem,
-          "title" | "startTime" | "endTime" | "completed" | "completedAt"
+          | "title"
+          | "startTime"
+          | "endTime"
+          | "completed"
+          | "completedAt"
+          | "memo"
         >
       >,
     ): ScheduleItem {
@@ -110,6 +117,7 @@ export function createScheduleItemRepository(db: Database.Database) {
           updates.completedAt !== undefined
             ? updates.completedAt
             : current.completedAt,
+        memo: updates.memo !== undefined ? updates.memo : current.memo,
       });
       const row = stmts.fetchById.get(id) as ScheduleItemRow;
       return rowToItem(row);
@@ -130,6 +138,7 @@ export function createScheduleItemRepository(db: Database.Database) {
         end_time: existing.end_time,
         completed: nowCompleted ? 1 : 0,
         completed_at: nowCompleted ? new Date().toISOString() : null,
+        memo: existing.memo,
       });
       const row = stmts.fetchById.get(id) as ScheduleItemRow;
       return rowToItem(row);

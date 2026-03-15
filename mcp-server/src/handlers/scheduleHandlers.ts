@@ -9,6 +9,7 @@ interface ScheduleItemRow {
   completed: number;
   completed_at: string | null;
   routine_id: string | null;
+  memo: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -23,6 +24,7 @@ function formatItem(row: ScheduleItemRow) {
     completed: row.completed === 1,
     completedAt: row.completed_at,
     routineId: row.routine_id,
+    memo: row.memo ?? null,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };

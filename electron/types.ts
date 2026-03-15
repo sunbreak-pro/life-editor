@@ -164,6 +164,7 @@ export interface ScheduleItem {
   completedAt: string | null;
   routineId: string | null;
   templateId: string | null;
+  memo: string | null;
   createdAt: string;
   updatedAt: string;
 }

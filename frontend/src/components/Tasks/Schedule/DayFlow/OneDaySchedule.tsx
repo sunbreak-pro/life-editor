@@ -3,10 +3,8 @@ import { useTranslation } from "react-i18next";
 import { ChevronLeft, ChevronRight, Filter } from "lucide-react";
 import type { TaskNode } from "../../../../types/taskTree";
 import { useScheduleContext } from "../../../../hooks/useScheduleContext";
-import { useTimeMemos } from "../../../../hooks/useTimeMemos";
 import { formatDateKey, formatDayFlowDate } from "../../../../utils/dateKey";
 import { ScheduleTimeGrid } from "./ScheduleTimeGrid";
-import { TimeGridMemoColumn } from "./TimeGridMemoColumn";
 import { TimeGridClickPanel } from "./TimeGridClickPanel";
 import type { TabItem } from "../../../shared/SectionTabs";
 import { useClickOutside } from "../../../../hooks/useClickOutside";
@@ -29,6 +27,11 @@ interface OneDayScheduleProps {
   onSelectTask: (taskId: string, e: React.MouseEvent) => void;
   getTaskColor?: (taskId: string) => string | undefined;
   getFolderTag?: (taskId: string) => string;
+  onUpdateTaskTime?: (
+    taskId: string,
+    scheduledAt: string,
+    scheduledEndAt: string,
+  ) => void;
   onPrevDate: () => void;
   onNextDate: () => void;
   onToday: () => void;
@@ -43,6 +46,7 @@ export function OneDaySchedule({
   onSelectTask,
   getTaskColor,
   getFolderTag,
+  onUpdateTaskTime,
   onPrevDate,
   onNextDate,
   onToday,
@@ -59,9 +63,9 @@ export function OneDaySchedule({
     routineTags,
     tagAssignments,
     ensureRoutineItemsForDate,
+    updateScheduleItem,
     refreshRoutineStats,
   } = useScheduleContext();
-  const { timeMemos, loadMemosForDate, upsertMemo } = useTimeMemos();
   const dateKey = formatDateKey(date);
   const isToday = dateKey === formatDateKey(new Date());
   const [selectedFilterTagIds, setSelectedFilterTagIds] = useState<number[]>(
@@ -89,11 +93,10 @@ export function OneDaySchedule({
     position: { x: number; y: number };
   } | null>(null);
 
-  // Load schedule items and time memos when date changes
+  // Load schedule items when date changes
   useEffect(() => {
     loadItemsForDate(dateKey);
-    loadMemosForDate(dateKey);
-  }, [dateKey, loadItemsForDate, loadMemosForDate]);
+  }, [dateKey, loadItemsForDate]);
 
   // Auto-insert routine items when date/routines/tags change
   useEffect(() => {
@@ -181,6 +184,33 @@ export function OneDaySchedule({
       endTime,
       position: { x: e.clientX, y: e.clientY },
     });
+  };
+
+  const handleUpdateMemo = (id: string, memo: string | null) => {
+    updateScheduleItem(id, { memo });
+  };
+
+  const handleUpdateScheduleItemTime = (
+    id: string,
+    startTime: string,
+    endTime: string,
+  ) => {
+    updateScheduleItem(id, { startTime, endTime });
+  };
+
+  const handleUpdateTaskTime = (
+    taskId: string,
+    startTime: string,
+    endTime: string,
+  ) => {
+    // Convert HH:MM to ISO date time strings for the current date
+    const [sh, sm] = startTime.split(":").map(Number);
+    const [eh, em] = endTime.split(":").map(Number);
+    const startDate = new Date(date);
+    startDate.setHours(sh, sm, 0, 0);
+    const endDate = new Date(date);
+    endDate.setHours(eh, em, 0, 0);
+    onUpdateTaskTime?.(taskId, startDate.toISOString(), endDate.toISOString());
   };
 
   const totalHeight =
@@ -306,29 +336,21 @@ export function OneDaySchedule({
       <div className="flex-1 min-h-0 p-3">
         <div className="border border-notion-border rounded-lg overflow-hidden bg-notion-bg h-full">
           <div ref={scrollRef} className="overflow-y-auto h-full">
-            <div className="flex" style={{ minHeight: totalHeight }}>
-              <div className="flex-1 min-w-0">
-                <ScheduleTimeGrid
-                  date={date}
-                  scheduleItems={filteredScheduleItems}
-                  tasks={filteredDayTasks}
-                  onToggleComplete={toggleComplete}
-                  onClickItem={() => {}}
-                  onClickTask={onSelectTask}
-                  onCreateItem={handleCreateItem}
-                  getTaskColor={getTaskColor}
-                  getFolderTag={getFolderTag}
-                  externalScroll
-                />
-              </div>
-              <div className="w-[200px] shrink-0">
-                <TimeGridMemoColumn
-                  date={dateKey}
-                  timeMemos={timeMemos}
-                  onUpsertMemo={upsertMemo}
-                />
-              </div>
-            </div>
+            <ScheduleTimeGrid
+              date={date}
+              scheduleItems={filteredScheduleItems}
+              tasks={filteredDayTasks}
+              onToggleComplete={toggleComplete}
+              onClickItem={() => {}}
+              onClickTask={onSelectTask}
+              onCreateItem={handleCreateItem}
+              getTaskColor={getTaskColor}
+              getFolderTag={getFolderTag}
+              onUpdateMemo={handleUpdateMemo}
+              onUpdateScheduleItemTime={handleUpdateScheduleItemTime}
+              onUpdateTaskTime={handleUpdateTaskTime}
+              externalScroll
+            />
           </div>
         </div>
 

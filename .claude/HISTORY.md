@@ -1,5 +1,25 @@
 # HISTORY.md - 変更履歴
 
+### 2026-03-16 - Dayflow Timegrid — メモ個別化 + ドラッグ時間調整 + 完了色変更
+
+#### 概要
+
+Dayflow Timegrid に3つの改善を実装。完了時の色を緑系に統一、時間メモカラムを廃止してスケジュールアイテム個別メモに置換、長押し＋ドラッグによる時間調整機能を追加。
+
+#### 変更点
+
+- **完了色変更（Feature 3）**: ScheduleItemBlock の完了スタイルを灰色→薄い緑（背景 `rgba(34,197,94,0.08)`、ボーダー `#22c55e`、チェック `bg-green-500`）に変更。TaskNodeCheckbox も `bg-notion-accent` → `bg-green-500` に統一
+- **DB マイグレーション V32**: `schedule_items` テーブルに `memo TEXT` カラムを追加
+- **型・Repository・DataService 更新**: ScheduleItem 型に `memo: string | null` を追加、scheduleItemRepository の insert/update/toggleComplete に memo を通す、DataService/ElectronDataService/useScheduleItems の Pick 型に `"memo"` 追加
+- **TimeGridMemoColumn 廃止**: OneDaySchedule から時間メモカラム（1時間ごと）を削除。レイアウトを単一カラムに簡素化
+- **ScheduleItemMemoPopover（新規）**: fixed 位置の小パネル（textarea + 保存/キャンセルボタン）。Escape/外部クリックで閉じ、Cmd+Enter で保存
+- **ScheduleItemBlock メモアイコン**: StickyNote アイコン追加。メモ存在時は accent 色常時表示＋X 削除ボタン、非存在時は hover のみ表示。クリックで popover 表示
+- **TimeGridTaskBlock メモアイコン**: タスクの content 有無に応じた StickyNote アイコン表示（クリックで既存の onClick = タスク詳細遷移）
+- **useTimeGridDrag（新規フック）**: 300ms 長押し検出、move/resize-top/resize-bottom の3モード、5分スナップ、ゴーストプレビュー表示
+- **ScheduleTimeGrid ドラッグ統合**: useTimeGridDrag 呼び出し、各ブロックに dragHandlers/isDragging props 伝搬、ドラッグ中のクリック抑制、半透明プレビュー表示
+- **時間更新コールバック配線**: OneDaySchedule → ScheduleTimeGrid に `onUpdateScheduleItemTime`/`onUpdateTaskTime` を伝搬。ScheduleSection/ScheduleTabView で `updateNode` を使用して task の scheduledAt/scheduledEndAt を更新
+- **MCP Server**: scheduleHandlers の ScheduleItemRow/formatItem に memo 追加
+
 ### 2026-03-16 - Connect rightSidebar UI/UX 3点改善
 
 #### 概要

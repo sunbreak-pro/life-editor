@@ -1,10 +1,11 @@
-import { useEffect, useRef, useState, useMemo } from "react";
+import { useEffect, useRef, useState, useMemo, useCallback } from "react";
 import type { TaskNode } from "../../../../types/taskTree";
 import type { ScheduleItem } from "../../../../types/schedule";
 import { TIME_GRID } from "../../../../constants/timeGrid";
 import { TimeGridTaskBlock } from "../Calendar/TimeGridTaskBlock";
 import { ScheduleItemBlock } from "./ScheduleItemBlock";
 import { formatDateKey } from "../../../../utils/dateKey";
+import { useTimeGridDrag } from "../../../../hooks/useTimeGridDrag";
 
 const HOURS = Array.from(
   { length: TIME_GRID.END_HOUR - TIME_GRID.START_HOUR },
@@ -36,6 +37,17 @@ function formatHour(hour: number): string {
 function timeToMinutes(time: string): number {
   const [h, m] = time.split(":").map(Number);
   return h * 60 + m;
+}
+
+function minutesToTimeString(totalMinutes: number): string {
+  const clamped = Math.max(0, Math.min(totalMinutes, 24 * 60));
+  const h = Math.floor(clamped / 60);
+  const m = clamped % 60;
+  return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+}
+
+function topToMinutes(top: number): number {
+  return (top / TIME_GRID.SLOT_HEIGHT) * 60 + TIME_GRID.START_HOUR * 60;
 }
 
 function layoutTasks(tasks: TaskNode[], dayDate: Date): PositionedTask[] {
@@ -125,6 +137,17 @@ interface ScheduleTimeGridProps {
   ) => void;
   getTaskColor?: (taskId: string) => string | undefined;
   getFolderTag?: (taskId: string) => string;
+  onUpdateMemo?: (id: string, memo: string | null) => void;
+  onUpdateScheduleItemTime?: (
+    id: string,
+    startTime: string,
+    endTime: string,
+  ) => void;
+  onUpdateTaskTime?: (
+    taskId: string,
+    scheduledAt: string,
+    scheduledEndAt: string,
+  ) => void;
   externalScroll?: boolean;
 }
 
@@ -138,15 +161,48 @@ export function ScheduleTimeGrid({
   onCreateItem,
   getTaskColor,
   getFolderTag,
+  onUpdateMemo,
+  onUpdateScheduleItemTime,
+  onUpdateTaskTime,
   externalScroll,
 }: ScheduleTimeGridProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
+  const mainColumnRef = useRef<HTMLDivElement>(null);
   const [currentTime, setCurrentTime] = useState(new Date());
   const todayKey = formatDateKey(new Date());
   const dateKey = formatDateKey(date);
   const isToday = dateKey === todayKey;
   const totalHeight =
     (TIME_GRID.END_HOUR - TIME_GRID.START_HOUR) * TIME_GRID.SLOT_HEIGHT;
+
+  const handleDragEnd = useCallback(
+    (payload: {
+      itemId: string;
+      itemType: "schedule" | "task";
+      newStartTime: string;
+      newEndTime: string;
+    }) => {
+      if (payload.itemType === "schedule") {
+        onUpdateScheduleItemTime?.(
+          payload.itemId,
+          payload.newStartTime,
+          payload.newEndTime,
+        );
+      } else {
+        onUpdateTaskTime?.(
+          payload.itemId,
+          payload.newStartTime,
+          payload.newEndTime,
+        );
+      }
+    },
+    [onUpdateScheduleItemTime, onUpdateTaskTime],
+  );
+
+  const { dragState, getDragHandlers } = useTimeGridDrag({
+    containerRef: mainColumnRef,
+    onDragEnd: handleDragEnd,
+  });
 
   useEffect(() => {
     const interval = setInterval(() => setCurrentTime(new Date()), 60000);
@@ -187,6 +243,8 @@ export function ScheduleTimeGrid({
     (currentTime.getMinutes() / 60) * TIME_GRID.SLOT_HEIGHT;
 
   const handleColumnClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (dragState.isDragging) return;
+
     const rect = e.currentTarget.getBoundingClientRect();
     const y = e.clientY - rect.top;
     const rawHour = y / TIME_GRID.SLOT_HEIGHT + TIME_GRID.START_HOUR;
@@ -201,6 +259,16 @@ export function ScheduleTimeGrid({
 
     onCreateItem(startTime, endTime, e);
   };
+
+  // Preview time labels
+  const previewStartTime = dragState.isDragging
+    ? minutesToTimeString(topToMinutes(dragState.previewTop))
+    : "";
+  const previewEndTime = dragState.isDragging
+    ? minutesToTimeString(
+        topToMinutes(dragState.previewTop + dragState.previewHeight),
+      )
+    : "";
 
   const gridContent = (
     <div className="flex relative" style={{ height: totalHeight }}>
@@ -221,6 +289,7 @@ export function ScheduleTimeGrid({
 
       {/* Main column */}
       <div
+        ref={mainColumnRef}
         className="flex-1 relative border-l border-notion-border cursor-pointer"
         onClick={handleColumnClick}
       >
@@ -261,6 +330,10 @@ export function ScheduleTimeGrid({
               color={getTaskColor?.(p.task.id)}
               tag={getFolderTag?.(p.task.id)}
               onClick={(e) => onClickTask(p.task.id, e)}
+              dragHandlers={getDragHandlers(p.task.id, "task", p.top, p.height)}
+              isDragging={
+                dragState.isDragging && dragState.itemId === p.task.id
+              }
             />
           ))}
         </div>
@@ -275,8 +348,31 @@ export function ScheduleTimeGrid({
             isNext={p.item.id === nextItemId}
             onToggleComplete={onToggleComplete}
             onClick={onClickItem}
+            onUpdateMemo={onUpdateMemo}
+            dragHandlers={getDragHandlers(
+              p.item.id,
+              "schedule",
+              p.top,
+              p.height,
+            )}
+            isDragging={dragState.isDragging && dragState.itemId === p.item.id}
           />
         ))}
+
+        {/* Drag ghost preview */}
+        {dragState.isDragging && (
+          <div
+            className="absolute left-1 right-1 rounded-md border-2 border-dashed border-notion-accent/50 bg-notion-accent/10 z-50 pointer-events-none"
+            style={{
+              top: dragState.previewTop,
+              height: dragState.previewHeight,
+            }}
+          >
+            <span className="text-[10px] text-notion-accent px-1">
+              {previewStartTime} - {previewEndTime}
+            </span>
+          </div>
+        )}
       </div>
     </div>
   );

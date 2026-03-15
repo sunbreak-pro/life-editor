@@ -63,7 +63,12 @@ export function registerScheduleItemHandlers(
         updates: Partial<
           Pick<
             ScheduleItem,
-            "title" | "startTime" | "endTime" | "completed" | "completedAt"
+            | "title"
+            | "startTime"
+            | "endTime"
+            | "completed"
+            | "completedAt"
+            | "memo"
           >
         >,
       ) => {

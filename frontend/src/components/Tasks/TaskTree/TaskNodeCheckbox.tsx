@@ -34,7 +34,7 @@ export const TaskNodeCheckbox = memo(function TaskNodeCheckbox({
     return (
       <button
         onClick={onToggleStatus}
-        className="text-notion-accent hover:text-notion-text-secondary"
+        className="text-green-500 hover:text-notion-text-secondary"
       >
         <CheckCircle2 size={14} />
       </button>
@@ -73,7 +73,7 @@ export const TaskNodeCheckbox = memo(function TaskNodeCheckbox({
       onClick={onToggleStatus}
       className={`w-3.5 h-3.5 rounded border flex items-center justify-center shrink-0 transition-all ${
         isDone
-          ? "bg-notion-accent border-notion-accent text-gray-900 hover:bg-notion-accent/70 hover:border-notion-accent/70"
+          ? "bg-green-500 border-green-500 text-gray-900 hover:bg-green-500/70 hover:border-green-500/70"
           : "border-notion-border hover:border-notion-accent"
       }`}
     >
