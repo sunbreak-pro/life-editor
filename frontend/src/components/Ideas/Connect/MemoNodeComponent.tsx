@@ -28,20 +28,20 @@ function MemoNodeInner({ data }: NodeProps & { data: MemoNodeType }) {
         type="source"
         position={Position.Top}
         id="center-source"
-        className="!opacity-0 !w-3.5 !h-3.5"
-        style={{ left: "50%", top: "7px", transform: "translate(-50%, -50%)" }}
+        className="!opacity-0 !w-0 !h-0 !min-w-0 !min-h-0 !border-0 !p-0"
+        style={{ left: "50%", top: "5px" }}
       />
       <Handle
         type="target"
         position={Position.Top}
         id="center-target"
-        className="!opacity-0 !w-3.5 !h-3.5"
-        style={{ left: "50%", top: "7px", transform: "translate(-50%, -50%)" }}
+        className="!opacity-0 !w-0 !h-0 !min-w-0 !min-h-0 !border-0 !p-0"
+        style={{ left: "50%", top: "5px" }}
       />
-      {/* Dot + date */}
-      <div className="relative flex flex-col items-center w-5 cursor-grab active:cursor-grabbing">
+      {/* Dot */}
+      <div className="relative flex flex-col items-center w-2.5 cursor-grab active:cursor-grabbing">
         <span
-          className={`w-3.5 h-3.5 rounded-full bg-blue-400 dark:bg-blue-500 ${
+          className={`w-2.5 h-2.5 rounded-full bg-blue-400 dark:bg-blue-500 ${
             data.focused
               ? "ring-2 ring-blue-400/50"
               : data.highlighted
@@ -49,12 +49,9 @@ function MemoNodeInner({ data }: NodeProps & { data: MemoNodeType }) {
                 : ""
           }`}
         />
-        <span className="absolute top-full left-1/2 -translate-x-1/2 text-[10px] text-notion-text truncate max-w-[80px] mt-0.5 text-center leading-tight whitespace-nowrap pointer-events-none">
-          {formatDisplayDate(data.date)}
-        </span>
         {data.splitTag && (
           <span
-            className="absolute top-full left-1/2 -translate-x-1/2 mt-4 text-[8px] px-1 rounded-full text-white whitespace-nowrap pointer-events-none"
+            className="absolute top-full left-1/2 -translate-x-1/2 mt-3 text-[8px] px-1 rounded-full text-white whitespace-nowrap pointer-events-none"
             style={{ backgroundColor: data.splitTag.color }}
           >
             {data.splitTag.name}

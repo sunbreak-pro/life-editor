@@ -1,5 +1,16 @@
 # HISTORY.md - 変更履歴
 
+### 2026-03-16 - Connect グラフビュー: フィルタバグ修正 + エッジ-ノード間ギャップ修正
+
+#### 概要
+
+タグフィルタがエッジに反映されないバグと、ノードドットとエッジ線の間にギャップが生じるバグを修正。
+
+#### 変更点
+
+- **TagGraphView.tsx**: タグエッジ生成時のフィルタを `visibleNoteIds`（全ノート）から `visibleNodeIds`（フィルタ反映済み）に変更し、タグフィルタがエッジにも正しく適用されるように修正
+- **NoteNodeComponent.tsx / MemoNodeComponent.tsx**: Handle を 0サイズ (`!w-0 !h-0 !min-w-0 !min-h-0 !border-0 !p-0`) にし `transform` を除去。xyflow 内部スタイルとの競合を回避し、Handle 座標がドット中心に正確に一致するように修正
+
 ### 2026-03-15 - MiniRoutineFlow ヘッダーに編集アイコン追加
 
 #### 概要

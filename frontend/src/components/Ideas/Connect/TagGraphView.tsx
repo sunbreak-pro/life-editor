@@ -20,6 +20,8 @@ import {
   Maximize2,
   Hexagon,
   AlignHorizontalSpaceBetween,
+  GitBranch,
+  Filter,
 } from "lucide-react";
 import { applyPolygonLayout, applyLineLayout } from "./layoutTemplates";
 import { useReactFlow } from "@xyflow/react";
@@ -35,6 +37,8 @@ import type {
 } from "../../../types/wikiTag";
 import type { NoteNode } from "../../../types/note";
 import { STORAGE_KEYS } from "../../../constants/storageKeys";
+import { TagFilterOverlay } from "../../shared/TagFilterOverlay";
+import { computeForceLayout } from "./forceLayout";
 
 const nodeTypes = {
   noteNode: NoteNodeComponent,
@@ -164,27 +168,62 @@ export function TagGraphView({
 
   const sidebarMode = sidebarSelectedItemId != null;
 
-  // Edge tag filter (normal mode only)
-  const [activeEdgeTagId, setActiveEdgeTagId] = useState<string | null>(null);
+  // Edge tag filter (normal mode only) — multi-select
+  const [activeEdgeTagIds, setActiveEdgeTagIds] = useState<Set<string>>(
+    new Set(),
+  );
+  const [showCanvasFilter, setShowCanvasFilter] = useState(false);
 
-  useEffect(() => {
-    if (tags.length > 0) {
-      if (!activeEdgeTagId || !tags.some((t) => t.id === activeEdgeTagId)) {
-        setActiveEdgeTagId(tags[0].id);
-      }
-    } else {
-      setActiveEdgeTagId(null);
+  // R1: Combine canvas and sidebar selection
+  const focusedItemId = sidebarSelectedItemId ?? selectedNodeId;
+
+  const focusedItemTagIds = useMemo(() => {
+    if (!focusedItemId) return null;
+    const tagIds = new Set<string>();
+    for (const a of assignments) {
+      if (a.entityId === focusedItemId) tagIds.add(a.tagId);
     }
-  }, [tags]); // eslint-disable-line react-hooks/exhaustive-deps
+    return tagIds;
+  }, [focusedItemId, assignments]);
+
+  // Remove activeEdgeTagIds that are no longer in the displayed tag list
+  useEffect(() => {
+    const validTagIds = new Set(tags.map((t) => t.id));
+    setActiveEdgeTagIds((prev) => {
+      const filtered = new Set([...prev].filter((id) => validTagIds.has(id)));
+      if (filtered.size === prev.size) return prev;
+      return filtered;
+    });
+  }, [tags]);
+
+  // R1: Reset activeEdgeTagIds when focused item changes
+  useEffect(() => {
+    if (!focusedItemTagIds) return;
+    setActiveEdgeTagIds((prev) => {
+      const filtered = new Set(
+        [...prev].filter((id) => focusedItemTagIds.has(id)),
+      );
+      if (filtered.size === prev.size) return prev;
+      return filtered;
+    });
+  }, [focusedItemTagIds]);
 
   const activeTagEntityIds = useMemo(() => {
-    if (!activeEdgeTagId) return null;
+    if (activeEdgeTagIds.size === 0) return null;
     return new Set(
       assignments
-        .filter((a) => a.tagId === activeEdgeTagId)
+        .filter((a) => activeEdgeTagIds.has(a.tagId))
         .map((a) => a.entityId),
     );
-  }, [activeEdgeTagId, assignments]);
+  }, [activeEdgeTagIds, assignments]);
+
+  const displayTags = useMemo(
+    () =>
+      focusedItemTagIds
+        ? tags.filter((t) => focusedItemTagIds.has(t.id))
+        : tags,
+    [focusedItemTagIds, tags],
+  );
 
   // Build tag dots data for notes
   const noteTagDots = useMemo(() => {
@@ -257,6 +296,46 @@ export function TagGraphView({
     return related;
   }, [selectedNodeId, sidebarMode, noteTagDots, memoTagDots, assignments]);
 
+  function buildLinksFromTagsAndConnections(
+    nodeIds: string[],
+    allTags: WikiTag[],
+    allAssignments: WikiTagAssignment[],
+    allConnections: NoteConnection[],
+  ): Array<{ source: string; target: string }> {
+    const idSet = new Set(nodeIds);
+    const links: Array<{ source: string; target: string }> = [];
+    const seen = new Set<string>();
+
+    // Tag-based links
+    for (const tag of allTags) {
+      const tagged = allAssignments
+        .filter((a) => a.tagId === tag.id && idSet.has(a.entityId))
+        .map((a) => a.entityId);
+      for (let i = 0; i < tagged.length; i++) {
+        for (let j = i + 1; j < tagged.length; j++) {
+          const key = `${tagged[i]}---${tagged[j]}`;
+          if (!seen.has(key)) {
+            seen.add(key);
+            links.push({ source: tagged[i], target: tagged[j] });
+          }
+        }
+      }
+    }
+
+    // Manual connections
+    for (const conn of allConnections) {
+      if (idSet.has(conn.sourceNoteId) && idSet.has(conn.targetNoteId)) {
+        const key = `${conn.sourceNoteId}---${conn.targetNoteId}`;
+        if (!seen.has(key)) {
+          seen.add(key);
+          links.push({ source: conn.sourceNoteId, target: conn.targetNoteId });
+        }
+      }
+    }
+
+    return links;
+  }
+
   const initialNodes = useMemo<Node[]>(() => {
     if (sidebarMode) {
       return buildSplitViewNodes();
@@ -286,14 +365,29 @@ export function TagGraphView({
     const visibleMemosList = activeTagEntityIds
       ? filteredMemos.filter((m) => activeTagEntityIds.has(m.id))
       : filteredMemos;
-    const totalItems = visibleNotes.length + visibleMemosList.length;
-    const cols = Math.max(Math.ceil(Math.sqrt(totalItems)), 1);
 
-    const noteNodes: Node[] = visibleNotes.map((note, i) => {
-      const pos = saved[note.id] ?? {
-        x: (i % cols) * 120,
-        y: Math.floor(i / cols) * 60,
-      };
+    // Compute force layout for nodes without saved positions
+    const allVisibleItems = [
+      ...visibleNotes.map((n) => n.id),
+      ...visibleMemosList.map((m) => m.id),
+    ];
+    const unsavedIds = allVisibleItems.filter((id) => !saved[id]);
+    let forcePositions: Record<string, { x: number; y: number }> = {};
+
+    if (unsavedIds.length > 0) {
+      const links = buildLinksFromTagsAndConnections(
+        unsavedIds,
+        tags,
+        assignments,
+        noteConnections,
+      );
+      forcePositions = computeForceLayout(unsavedIds, links);
+      Object.assign(positionsRef.current, forcePositions);
+      savePositions(positionsRef.current);
+    }
+
+    const noteNodes: Node[] = visibleNotes.map((note) => {
+      const pos = saved[note.id] ?? forcePositions[note.id] ?? { x: 0, y: 0 };
       const dots = noteTagDots.get(note.id) || [];
       const highlighted =
         !!selectedTagId && dots.some((d) => d.id === selectedTagId);
@@ -314,12 +408,8 @@ export function TagGraphView({
       };
     });
 
-    const memoNodes: Node[] = visibleMemosList.map((memo, i) => {
-      const idx = visibleNotes.length + i;
-      const pos = saved[memo.id] ?? {
-        x: (idx % cols) * 120,
-        y: Math.floor(idx / cols) * 60,
-      };
+    const memoNodes: Node[] = visibleMemosList.map((memo) => {
+      const pos = saved[memo.id] ?? forcePositions[memo.id] ?? { x: 0, y: 0 };
       const dots = memoTagDots.get(memo.id) || [];
       const highlighted =
         !!selectedTagId && dots.some((d) => d.id === selectedTagId);
@@ -543,7 +633,7 @@ export function TagGraphView({
     nodePositionMap,
     noteTagDots,
     memoTagDots,
-    activeEdgeTagId,
+    activeEdgeTagIds,
   ]);
 
   function buildNormalEdges(): Edge[] {
@@ -571,11 +661,11 @@ export function TagGraphView({
     const pairEdgeCount = new Map<string, number>();
     const seenPairs = new Set<string>();
     for (const tag of tags) {
-      if (activeEdgeTagId && tag.id !== activeEdgeTagId) continue;
+      if (activeEdgeTagIds.size > 0 && !activeEdgeTagIds.has(tag.id)) continue;
       const noteIdsForTag = assignments
         .filter((a) => a.tagId === tag.id && a.entityType === "note")
         .map((a) => a.entityId)
-        .filter((id) => visibleNoteIds.has(id));
+        .filter((id) => visibleNodeIds.has(id));
 
       for (let i = 0; i < noteIdsForTag.length; i++) {
         for (let j = i + 1; j < noteIdsForTag.length; j++) {
@@ -673,7 +763,7 @@ export function TagGraphView({
           : n,
       ),
     );
-    setCenter(targetNode.position.x + 40, targetNode.position.y + 20, {
+    setCenter(targetNode.position.x + 5, targetNode.position.y + 5, {
       duration: 500,
       zoom: 1.5,
     });
@@ -769,6 +859,7 @@ export function TagGraphView({
     onSelectTag(null);
     setNoteContextMenu(null);
     setSelectedNodeId(null);
+    setShowCanvasFilter(false);
   }, [onSelectTag]);
 
   const handleNodeContextMenu = useCallback(
@@ -787,7 +878,7 @@ export function TagGraphView({
   );
 
   const applyLayout = useCallback(
-    (type: "polygon" | "line") => {
+    (type: "polygon" | "line" | "force") => {
       const visibleNodes = nodesRef.current.filter(
         (n) => n.type === "noteNode" || n.type === "memoNode",
       );
@@ -802,7 +893,22 @@ export function TagGraphView({
       const center = { x: avgX, y: avgY };
 
       let newPositions: Record<string, { x: number; y: number }>;
-      if (type === "polygon") {
+      if (type === "force") {
+        const links = buildLinksFromTagsAndConnections(
+          ids,
+          tags,
+          assignments,
+          noteConnections,
+        );
+        newPositions = computeForceLayout(ids, links);
+        // Offset to center around current average
+        for (const id of ids) {
+          if (newPositions[id]) {
+            newPositions[id].x += center.x;
+            newPositions[id].y += center.y;
+          }
+        }
+      } else if (type === "polygon") {
         const radius = Math.max(100, ids.length * 30);
         newPositions = applyPolygonLayout(ids, center, radius);
       } else {
@@ -827,7 +933,7 @@ export function TagGraphView({
       savePositions(positionsRef.current);
       setTimeout(() => fitView({ padding: 0.3, duration: 300 }), 50);
     },
-    [setNodes, fitView],
+    [setNodes, fitView, tags, assignments, noteConnections],
   );
 
   const savedViewport = useMemo(() => loadViewport(), []);
@@ -887,39 +993,49 @@ export function TagGraphView({
             >
               <AlignHorizontalSpaceBetween size={14} />
             </button>
+            <button
+              onClick={() => applyLayout("force")}
+              className="p-1.5 rounded bg-notion-bg border border-notion-border text-notion-text-secondary hover:bg-notion-hover"
+              title={t("ideas.layoutForce")}
+            >
+              <GitBranch size={14} />
+            </button>
           </div>
         </Panel>
         <Panel position="top-right">
           <div className="flex flex-col gap-1 items-end">
             <CanvasControls />
-            <div className="flex flex-wrap gap-1 max-w-[200px] justify-end">
-              {tags.length === 0 ? (
-                <span className="px-2 py-0.5 rounded-full text-[10px] border border-notion-border bg-notion-hover text-notion-text-secondary">
-                  {t("ideas.untagged")}
-                </span>
-              ) : (
-                tags.map((tag) => (
-                  <button
-                    key={tag.id}
-                    onClick={() => setActiveEdgeTagId(tag.id)}
-                    className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] border transition-colors ${
-                      activeEdgeTagId === tag.id
-                        ? "text-white border-transparent"
-                        : "text-notion-text-secondary border-notion-border bg-notion-bg"
-                    }`}
-                    style={
-                      activeEdgeTagId === tag.id
-                        ? { backgroundColor: tag.color }
-                        : undefined
+            <div className="relative">
+              <button
+                onClick={() => setShowCanvasFilter((v) => !v)}
+                className="p-1.5 rounded bg-notion-bg border border-notion-border text-notion-text-secondary hover:bg-notion-hover flex items-center gap-1"
+              >
+                <Filter size={14} />
+                {activeEdgeTagIds.size > 0 && (
+                  <span className="text-[10px] font-medium text-notion-accent">
+                    {activeEdgeTagIds.size}
+                  </span>
+                )}
+              </button>
+              {showCanvasFilter && (
+                <div className="absolute right-0 top-full mt-1 z-20">
+                  <TagFilterOverlay
+                    tags={displayTags}
+                    selectedTagIds={[...activeEdgeTagIds]}
+                    onToggle={(tagId) =>
+                      setActiveEdgeTagIds((prev) => {
+                        const next = new Set(prev);
+                        if (next.has(tagId)) {
+                          next.delete(tagId);
+                        } else {
+                          next.add(tagId);
+                        }
+                        return next;
+                      })
                     }
-                  >
-                    <span
-                      className="w-1.5 h-1.5 rounded-full"
-                      style={{ backgroundColor: tag.color }}
-                    />
-                    {tag.name}
-                  </button>
-                ))
+                    onClose={() => setShowCanvasFilter(false)}
+                  />
+                </div>
               )}
             </div>
           </div>
