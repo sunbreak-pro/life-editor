@@ -14,8 +14,9 @@ export function useNoteConnections() {
   }, []);
 
   useEffect(() => {
-    reload();
-  }, [reload]);
+    const ds = getDataService();
+    ds.fetchNoteConnections().then((fetched) => setConnections(fetched));
+  }, []);
 
   const createConnection = useCallback(
     async (sourceNoteId: string, targetNoteId: string) => {

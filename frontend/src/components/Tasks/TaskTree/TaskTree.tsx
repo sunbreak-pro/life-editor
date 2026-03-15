@@ -262,7 +262,7 @@ export function TaskTree({
         <>
           <DragOverStoreContext.Provider value={dragOverStore}>
             <DndContext
-              sensors={isCompleted ? [] : sensors}
+              sensors={sensors}
               collisionDetection={pointerWithin}
               onDragStart={handleDragStart}
               onDragMove={handleDragMove}

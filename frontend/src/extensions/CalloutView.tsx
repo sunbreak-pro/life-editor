@@ -1,7 +1,7 @@
 import { useState, useCallback } from "react";
 import { NodeViewWrapper, NodeViewContent } from "@tiptap/react";
 import type { NodeViewProps } from "@tiptap/react";
-import { getDynamicIcon } from "../utils/iconRenderer";
+import { renderIcon } from "../utils/iconRenderer";
 import { IconPicker } from "../components/common/IconPicker";
 import { CALLOUT_COLORS } from "./Callout";
 
@@ -38,8 +38,6 @@ export function CalloutView({ node, updateAttributes }: NodeViewProps) {
     [updateAttributes],
   );
 
-  const Icon = getDynamicIcon(iconName);
-
   return (
     <NodeViewWrapper
       className={`callout callout-color-${color}`}
@@ -61,12 +59,12 @@ export function CalloutView({ node, updateAttributes }: NodeViewProps) {
         tabIndex={-1}
         type="button"
       >
-        {emoji && !Icon ? (
+        {emoji ? (
           <span className="callout-emoji">{emoji}</span>
-        ) : Icon ? (
-          <Icon size={18} />
         ) : (
-          <span className="callout-emoji">{"\u{1F4A1}"}</span>
+          (renderIcon(iconName, { size: 18 }) ?? (
+            <span className="callout-emoji">{"\u{1F4A1}"}</span>
+          ))
         )}
       </button>
       <div className="callout-body" contentEditable={false}>

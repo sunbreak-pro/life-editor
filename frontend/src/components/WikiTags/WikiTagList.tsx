@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { Plus, Tag } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useWikiTags } from "../../hooks/useWikiTags";
@@ -87,17 +87,30 @@ export function WikiTagList({ entityId, entityType }: WikiTagListProps) {
     setEditingTag(null);
   };
 
-  const handleEditColorChange = async (color: string) => {
-    if (!editingTag) return;
-    await updateTag(editingTag.id, { color });
-    setEditingTag((prev) => (prev ? { ...prev, color } : null));
-  };
+  const editingTagRef = useRef(editingTag);
+  useEffect(() => {
+    editingTagRef.current = editingTag;
+  }, [editingTag]);
 
-  const handleEditTextColorChange = async (textColor: string | undefined) => {
-    if (!editingTag) return;
-    await updateTag(editingTag.id, { textColor: textColor ?? null });
-    setEditingTag((prev) => (prev ? { ...prev, textColor } : null));
-  };
+  const handleEditColorChange = useCallback(
+    async (color: string) => {
+      const tag = editingTagRef.current;
+      if (!tag) return;
+      await updateTag(tag.id, { color });
+      setEditingTag((prev) => (prev ? { ...prev, color } : null));
+    },
+    [updateTag],
+  );
+
+  const handleEditTextColorChange = useCallback(
+    async (textColor: string | undefined) => {
+      const tag = editingTagRef.current;
+      if (!tag) return;
+      await updateTag(tag.id, { textColor: textColor ?? null });
+      setEditingTag((prev) => (prev ? { ...prev, textColor } : null));
+    },
+    [updateTag],
+  );
 
   const availableTags = allTags.filter(
     (t) =>

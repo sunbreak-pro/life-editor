@@ -2,6 +2,7 @@ import { useState, useRef, useCallback, useEffect } from "react";
 import { HexColorPicker, HexColorInput } from "react-colorful";
 import { DEFAULT_PRESET_COLORS } from "../../constants/folderColors";
 import { useClickOutside } from "../../hooks/useClickOutside";
+import { useDebouncedCallback } from "../../hooks/useDebouncedCallback";
 import { useTranslation } from "react-i18next";
 
 interface UnifiedColorPickerProps {
@@ -35,30 +36,90 @@ export function UnifiedColorPicker({
   const ref = useRef<HTMLDivElement>(null);
   const [activeTab, setActiveTab] = useState<ColorTab>("background");
 
-  useClickOutside(ref, () => onClose?.(), !inline && !!onClose);
+  // Local state for responsive UI during drag
+  const [localBgColor, setLocalBgColor] = useState(color);
+  const [localTextColor, setLocalTextColor] = useState(textColor);
 
-  const onChangeRef = useRef(onChange);
+  // Track user interaction to prevent prop→state sync feedback loop
+  const isInteractingRef = useRef(false);
+
+  // Sync from external props (skip during user interaction)
   useEffect(() => {
-    onChangeRef.current = onChange;
-  }, [onChange]);
-  const onTextColorChangeRef = useRef(onTextColorChange);
+    if (!isInteractingRef.current) {
+      setLocalBgColor(color);
+    }
+  }, [color]);
   useEffect(() => {
-    onTextColorChangeRef.current = onTextColorChange;
-  }, [onTextColorChange]);
+    if (!isInteractingRef.current) {
+      setLocalTextColor(textColor);
+    }
+  }, [textColor]);
+
+  // Debounced external callbacks (500ms delay for drag operations)
+  const debouncedOnChange = useDebouncedCallback((c: string) => {
+    onChange(c);
+    requestAnimationFrame(() => {
+      isInteractingRef.current = false;
+    });
+  }, 500);
+  const debouncedOnTextColorChange = useDebouncedCallback((c: string) => {
+    onTextColorChange?.(c);
+    requestAnimationFrame(() => {
+      isInteractingRef.current = false;
+    });
+  }, 500);
+
+  useClickOutside(
+    ref,
+    () => {
+      // Flush pending changes before closing
+      debouncedOnChange.flush();
+      debouncedOnTextColorChange.flush();
+      onClose?.();
+    },
+    !inline && !!onClose,
+  );
 
   const activeColor =
     activeTab === "background"
-      ? color
-      : (textColor ?? effectiveTextColor ?? "");
+      ? localBgColor
+      : (localTextColor ?? effectiveTextColor ?? "");
+
+  // Drag handler: update local state immediately, debounce external callback
   const handleColorChange = useCallback(
     (newColor: string) => {
+      isInteractingRef.current = true;
       if (activeTab === "background") {
-        onChangeRef.current(newColor);
+        setLocalBgColor(newColor);
+        debouncedOnChange(newColor);
       } else {
-        onTextColorChangeRef.current?.(newColor);
+        setLocalTextColor(newColor);
+        debouncedOnTextColorChange(newColor);
       }
     },
-    [activeTab],
+    [activeTab, debouncedOnChange, debouncedOnTextColorChange],
+  );
+
+  // Preset click: update immediately (flush debounce)
+  const handlePresetClick = useCallback(
+    (preset: string) => {
+      if (activeTab === "background") {
+        setLocalBgColor(preset);
+        debouncedOnChange.cancel();
+        onChange(preset);
+      } else {
+        setLocalTextColor(preset);
+        debouncedOnTextColorChange.cancel();
+        onTextColorChange?.(preset);
+      }
+    },
+    [
+      activeTab,
+      onChange,
+      onTextColorChange,
+      debouncedOnChange,
+      debouncedOnTextColorChange,
+    ],
   );
 
   if (mode === "preset-only") {
@@ -125,7 +186,7 @@ export function UnifiedColorPicker({
           <button
             key={preset}
             type="button"
-            onClick={() => handleColorChange(preset)}
+            onClick={() => handlePresetClick(preset)}
             className={`w-5 h-5 rounded-full transition-transform hover:scale-110 ${
               activeColor === preset
                 ? "ring-2 ring-notion-text ring-offset-1 ring-offset-notion-bg"
@@ -161,11 +222,15 @@ export function UnifiedColorPicker({
         </div>
       </div>
 
-      {showTextColor && activeTab === "text" && textColor && (
+      {showTextColor && activeTab === "text" && localTextColor && (
         <div className="px-2 pb-2">
           <button
             type="button"
-            onClick={() => onTextColorChange?.(undefined)}
+            onClick={() => {
+              debouncedOnTextColorChange.cancel();
+              setLocalTextColor(undefined);
+              onTextColorChange?.(undefined);
+            }}
             className="text-[10px] text-notion-text-secondary hover:text-notion-text"
           >
             {t("colorPicker.default")}

@@ -1,4 +1,5 @@
-import type { LucideIcon } from "lucide-react";
+import { createElement } from "react";
+import type { LucideIcon, LucideProps } from "lucide-react";
 import {
   Lightbulb,
   Info,
@@ -72,6 +73,15 @@ export function getDynamicIcon(name: string): LucideIcon | null {
   if (ICON_SUBSET[name]) return ICON_SUBSET[name];
   if (fullIconMap) return fullIconMap[name] ?? null;
   return ICON_SUBSET.Lightbulb;
+}
+
+export function renderIcon(
+  name: string,
+  props?: LucideProps,
+): React.ReactElement | null {
+  const icon = getDynamicIcon(name);
+  if (!icon) return null;
+  return createElement(icon, props);
 }
 
 export function getIconNames(): string[] {

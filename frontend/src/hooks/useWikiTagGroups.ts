@@ -28,8 +28,15 @@ export function useWikiTagGroups() {
   }, []);
 
   useEffect(() => {
-    reload();
-  }, [reload]);
+    const ds = getDataService();
+    Promise.all([
+      ds.fetchWikiTagGroups(),
+      ds.fetchAllWikiTagGroupMembers(),
+    ]).then(([fetchedGroups, fetchedMembers]) => {
+      setGroups(fetchedGroups);
+      setMembers(fetchedMembers);
+    });
+  }, []);
 
   const createGroup = useCallback(
     async (name: string, noteIds: string[], filterTags?: string[]) => {

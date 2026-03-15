@@ -45,20 +45,25 @@ export function WikiTagView({ node }: NodeViewProps) {
     setEditing(false);
   };
 
+  const updateTagRef = useRef(updateTag);
+  useEffect(() => {
+    updateTagRef.current = updateTag;
+  }, [updateTag]);
+
   const handleColorChange = useCallback(
     async (newColor: string) => {
       if (!tagId) return;
-      await updateTag(tagId, { color: newColor });
+      await updateTagRef.current(tagId, { color: newColor });
     },
-    [tagId, updateTag],
+    [tagId],
   );
 
   const handleTextColorChange = useCallback(
     async (newTextColor: string | undefined) => {
       if (!tagId) return;
-      await updateTag(tagId, { textColor: newTextColor ?? null });
+      await updateTagRef.current(tagId, { textColor: newTextColor });
     },
-    [tagId, updateTag],
+    [tagId],
   );
 
   const textColor = color

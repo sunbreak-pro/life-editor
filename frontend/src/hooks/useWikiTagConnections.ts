@@ -14,8 +14,9 @@ export function useWikiTagConnections() {
   }, []);
 
   useEffect(() => {
-    reload();
-  }, [reload]);
+    const ds = getDataService();
+    ds.fetchWikiTagConnections().then((fetched) => setConnections(fetched));
+  }, []);
 
   const createConnection = useCallback(
     async (sourceTagId: string, targetTagId: string) => {

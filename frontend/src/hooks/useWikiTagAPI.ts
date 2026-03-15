@@ -32,8 +32,15 @@ export function useWikiTagAPI() {
   }, []);
 
   useEffect(() => {
-    reload();
-  }, [reload]);
+    const ds = getDataService();
+    Promise.all([ds.fetchWikiTags(), ds.fetchAllWikiTagAssignments()]).then(
+      ([fetchedTags, fetchedAssignments]) => {
+        setTags(fetchedTags);
+        setAssignments(fetchedAssignments);
+        setIsLoading(false);
+      },
+    );
+  }, []);
 
   const createTag = useCallback(
     async (name: string, color: string = "#808080") => {
@@ -298,15 +305,7 @@ export function useWikiTagAPI() {
       getTagsForEntity,
       setTagsForEntity,
       syncInlineTags,
-      groupsAPI.groups,
-      groupsAPI.groupMembers,
-      groupsAPI.createGroup,
-      groupsAPI.updateGroup,
-      groupsAPI.deleteGroup,
-      groupsAPI.setGroupMembers,
-      groupsAPI.addGroupMember,
-      groupsAPI.removeGroupMember,
-      groupsAPI.reloadGroups,
+      groupsAPI,
     ],
   );
 }
