@@ -26,6 +26,7 @@ import { useReactFlow } from "@xyflow/react";
 import { ColorPicker } from "../../shared/ColorPicker";
 import { NoteNodeComponent } from "./NoteNodeComponent";
 import { MemoNodeComponent } from "./MemoNodeComponent";
+import { CurvedEdge } from "./CurvedEdge";
 import type { MemoNode } from "../../../types/memo";
 import type {
   WikiTag,
@@ -38,6 +39,10 @@ import { STORAGE_KEYS } from "../../../constants/storageKeys";
 const nodeTypes = {
   noteNode: NoteNodeComponent,
   memoNode: MemoNodeComponent,
+};
+
+const edgeTypes = {
+  curved: CurvedEdge,
 };
 
 interface TagGraphViewProps {
@@ -102,51 +107,6 @@ function extractContentPreview(content: string): string {
   } catch {
     return "";
   }
-}
-
-/** Select optimal source/target handles based on relative position of two nodes */
-function getOptimalHandles(
-  sourcePos: { x: number; y: number },
-  targetPos: { x: number; y: number },
-  handleIndex = 0,
-): { sourceHandle: string; targetHandle: string } {
-  const dx = targetPos.x - sourcePos.x;
-  const dy = targetPos.y - sourcePos.y;
-  const directions: Array<{ source: string; target: string }> = [];
-  if (Math.abs(dx) > Math.abs(dy)) {
-    if (dx > 0) {
-      directions.push(
-        { source: "s-Right", target: "t-Left" },
-        { source: "s-Bottom", target: "t-Top" },
-        { source: "s-Top", target: "t-Bottom" },
-      );
-    } else {
-      directions.push(
-        { source: "s-Left", target: "t-Right" },
-        { source: "s-Bottom", target: "t-Top" },
-        { source: "s-Top", target: "t-Bottom" },
-      );
-    }
-  } else {
-    if (dy > 0) {
-      directions.push(
-        { source: "s-Bottom", target: "t-Top" },
-        { source: "s-Right", target: "t-Left" },
-        { source: "s-Left", target: "t-Right" },
-      );
-    } else {
-      directions.push(
-        { source: "s-Top", target: "t-Bottom" },
-        { source: "s-Right", target: "t-Left" },
-        { source: "s-Left", target: "t-Right" },
-      );
-    }
-  }
-  const idx = handleIndex % directions.length;
-  return {
-    sourceHandle: directions[idx].source,
-    targetHandle: directions[idx].target,
-  };
 }
 
 function CanvasControls() {
@@ -595,28 +555,20 @@ export function TagGraphView({
         visibleNodeIds.has(c.targetNoteId),
     );
 
-    const manualEdges: Edge[] = filteredManual.map((conn) => {
-      const sPos = nodePositionMap.get(conn.sourceNoteId);
-      const tPos = nodePositionMap.get(conn.targetNoteId);
-      const handles =
-        sPos && tPos
-          ? getOptimalHandles(sPos, tPos)
-          : { sourceHandle: undefined, targetHandle: undefined };
-      return {
-        id: `manual-${conn.id}`,
-        source: conn.sourceNoteId,
-        target: conn.targetNoteId,
-        sourceHandle: handles.sourceHandle,
-        targetHandle: handles.targetHandle,
-        type: "straight",
-        style: { stroke: "#6366f1", strokeWidth: 2 },
-        data: { connectionType: "manual", connectionId: conn.id },
-      };
-    });
+    const manualEdges: Edge[] = filteredManual.map((conn) => ({
+      id: `manual-${conn.id}`,
+      source: conn.sourceNoteId,
+      target: conn.targetNoteId,
+      sourceHandle: "center-source",
+      targetHandle: "center-target",
+      type: "curved",
+      style: { stroke: "#6366f1", strokeWidth: 2 },
+      data: { connectionType: "manual", connectionId: conn.id, curveOffset: 0 },
+    }));
 
-    // Tag-based colored straight edges
+    // Tag-based edges with curve offset for duplicate pairs
     const tagEdges: Edge[] = [];
-    const pairHandleIndex = new Map<string, number>();
+    const pairEdgeCount = new Map<string, number>();
     const seenPairs = new Set<string>();
     for (const tag of tags) {
       if (activeEdgeTagId && tag.id !== activeEdgeTagId) continue;
@@ -634,25 +586,22 @@ export function TagGraphView({
           seenPairs.add(pairKey);
 
           const basePairKey = `${n1 < n2 ? n1 : n2}---${n1 < n2 ? n2 : n1}`;
-          const hIdx = pairHandleIndex.get(basePairKey) ?? 0;
-          pairHandleIndex.set(basePairKey, hIdx + 1);
+          const idx = pairEdgeCount.get(basePairKey) ?? 0;
+          pairEdgeCount.set(basePairKey, idx + 1);
 
-          const sPos = nodePositionMap.get(n1);
-          const tPos = nodePositionMap.get(n2);
-          const handles =
-            sPos && tPos
-              ? getOptimalHandles(sPos, tPos, hIdx)
-              : { sourceHandle: undefined, targetHandle: undefined };
+          // idx 0 → 0, idx 1 → +20, idx 2 → -20, idx 3 → +40, ...
+          const curveOffset =
+            idx === 0 ? 0 : (idx % 2 === 1 ? 1 : -1) * Math.ceil(idx / 2) * 20;
 
           tagEdges.push({
             id: pairKey,
             source: n1,
             target: n2,
-            sourceHandle: handles.sourceHandle,
-            targetHandle: handles.targetHandle,
-            type: "straight",
+            sourceHandle: "center-source",
+            targetHandle: "center-target",
+            type: "curved",
             style: { stroke: tag.color, strokeWidth: 1.5, opacity: 0.6 },
-            data: { connectionType: "tag", tagId: tag.id },
+            data: { connectionType: "tag", tagId: tag.id, curveOffset },
           });
         }
       }
@@ -677,22 +626,15 @@ export function TagGraphView({
           if (seenEdges.has(edgeKey)) continue;
           seenEdges.add(edgeKey);
 
-          const sPos = nodePositionMap.get(splitId);
-          const tPos = nodePositionMap.get(a.entityId);
-          const handles =
-            sPos && tPos
-              ? getOptimalHandles(sPos, tPos)
-              : { sourceHandle: undefined, targetHandle: undefined };
-
           edges.push({
             id: edgeKey,
             source: splitId,
             target: a.entityId,
-            sourceHandle: handles.sourceHandle,
-            targetHandle: handles.targetHandle,
-            type: "straight",
+            sourceHandle: "center-source",
+            targetHandle: "center-target",
+            type: "curved",
             style: { stroke: tag.color, strokeWidth: 1.5, opacity: 0.7 },
-            data: { connectionType: "split", tagId: tag.id },
+            data: { connectionType: "split", tagId: tag.id, curveOffset: 0 },
           });
         }
       }
@@ -917,6 +859,9 @@ export function TagGraphView({
         onPaneClick={handlePaneClick}
         onMoveEnd={(_event, viewport) => saveViewport(viewport)}
         nodeTypes={nodeTypes}
+        edgeTypes={edgeTypes}
+        connectionMode="loose"
+        elevateNodesOnSelect
         defaultViewport={savedViewport ?? { x: 50, y: 50, zoom: 1 }}
         fitView={!savedViewport}
         fitViewOptions={{ padding: 0.3 }}

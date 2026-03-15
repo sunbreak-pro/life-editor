@@ -1,5 +1,18 @@
 # HISTORY.md - 変更履歴
 
+### 2026-03-15 - Connect グラフビュー: ノード中心接続 + Obsidianライク改善
+
+#### 概要
+
+React Flowのグラフビューで、エッジがノードの辺(Top/Right/Bottom/Left Handle)から出ていた問題を修正。ドットの中心から直線接続する方式に変更し、同一ノードペア間の複数エッジを曲線で扇状展開する仕組みを導入。
+
+#### 変更点
+
+- **NoteNodeComponent.tsx**: 4方向×2の8 Handleを、ドット中心に配置した2 Handle（center-source, center-target）に簡素化
+- **MemoNodeComponent.tsx**: 同上
+- **CurvedEdge.tsx（新規）**: カスタムエッジコンポーネント。curveOffset=0で直線、≠0でquadratic bezierカーブ（同一ペア間複数エッジの扇状展開）
+- **TagGraphView.tsx**: getOptimalHandles()を完全削除、buildNormalEdges/buildSplitViewEdgesを固定center handle + type "curved"に変更、pairHandleIndex→curveOffset算出に置換、ReactFlowにedgeTypes/connectionMode="loose"/elevateNodesOnSelectを追加
+
 ### 2026-03-15 - カラーピッカー「Maximum update depth exceeded」の根本修正
 
 #### 概要

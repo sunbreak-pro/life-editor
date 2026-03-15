@@ -24,22 +24,20 @@ function MemoNodeInner({ data }: NodeProps & { data: MemoNodeType }) {
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
     >
-      {(["Top", "Right", "Bottom", "Left"] as const).map((pos) => (
-        <span key={pos}>
-          <Handle
-            type="source"
-            position={Position[pos]}
-            id={`s-${pos}`}
-            className="!opacity-0 !w-2 !h-2"
-          />
-          <Handle
-            type="target"
-            position={Position[pos]}
-            id={`t-${pos}`}
-            className="!opacity-0 !w-2 !h-2"
-          />
-        </span>
-      ))}
+      <Handle
+        type="source"
+        position={Position.Top}
+        id="center-source"
+        className="!opacity-0 !w-3.5 !h-3.5"
+        style={{ left: "50%", top: "7px", transform: "translate(-50%, -50%)" }}
+      />
+      <Handle
+        type="target"
+        position={Position.Top}
+        id="center-target"
+        className="!opacity-0 !w-3.5 !h-3.5"
+        style={{ left: "50%", top: "7px", transform: "translate(-50%, -50%)" }}
+      />
       {/* Dot + date */}
       <div className="relative flex flex-col items-center w-5 cursor-grab active:cursor-grabbing">
         <span
