@@ -146,7 +146,7 @@ export function ConnectSidebar({
     const colors = entityTagColors.get(entityId);
     if (!colors || colors.length === 0) return null;
     return (
-      <div className="flex items-center gap-0.5 shrink-0">
+      <div className="flex items-center gap-0.5 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
         {colors.slice(0, 3).map((color, i) => (
           <span
             key={i}
@@ -385,17 +385,13 @@ export function ConnectSidebar({
                   onClick={() => handleItemClick(note.id)}
                   className="flex-1 flex items-center gap-1.5 min-w-0 text-left"
                 >
-                  <StickyNote
+                  <Heart
                     size={15}
-                    className="text-notion-text-secondary shrink-0"
+                    className="text-red-500 fill-current shrink-0"
                   />
                   <span className="flex-1 text-sm text-notion-text truncate">
                     {note.title || t("notes.untitled")}
                   </span>
-                  <Heart
-                    size={12}
-                    className="text-red-500 fill-current shrink-0"
-                  />
                 </button>
                 {onNavigateToNote && (
                   <button

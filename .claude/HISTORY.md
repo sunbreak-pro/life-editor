@@ -1,5 +1,17 @@
 # HISTORY.md - 変更履歴
 
+### 2026-03-16 - Connect rightSidebar UI/UX 3点改善
+
+#### 概要
+
+Connect 右サイドバーのタグカラードットをホバー時のみ表示、Favorites のノートアイコンをハートに変更、ItemEditPopover の配置をサイドバー左側に修正。
+
+#### 変更点
+
+- **ConnectSidebar.tsx**: `renderTagDots()` の wrapper div に `opacity-0 group-hover:opacity-100 transition-opacity` を追加し、タグカラードットをホバー時のみ表示
+- **ConnectSidebar.tsx**: Favorites セクションの `pinnedNotes` アイコンを `StickyNote` から赤い塗りつぶし `Heart` に変更し、右端の重複 Heart マーカーを削除
+- **ItemEditPopover.tsx**: ポジション計算を `rect.right - popupWidth` に変更し、ポップオーバーがアンカーの左側（メインコンテンツ上）に展開されるように修正
+
 ### 2026-03-16 - Connect グラフビュー: フィルタバグ修正 + エッジ-ノード間ギャップ修正
 
 #### 概要

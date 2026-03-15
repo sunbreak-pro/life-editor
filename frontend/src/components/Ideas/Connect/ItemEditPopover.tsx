@@ -39,7 +39,7 @@ export function ItemEditPopover({
   useEffect(() => {
     const rect = anchorEl.getBoundingClientRect();
     const popupWidth = 288; // w-72
-    const left = Math.min(rect.left, window.innerWidth - popupWidth - 8);
+    const left = rect.right - popupWidth;
     setPosition({
       top: rect.bottom + 4,
       left: Math.max(8, left),
