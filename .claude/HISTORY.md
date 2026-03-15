@@ -1,5 +1,17 @@
 # HISTORY.md - 変更履歴
 
+### 2026-03-15 - カラーピッカー「Maximum update depth exceeded」の根本修正
+
+#### 概要
+
+WikiTagのカラーピッカーでドラッグ操作時に発生するReact無限ループ（Maximum update depth exceeded）を、prop→state同期のフィードバックループ遮断とコールバック参照安定化の3点で根本修正。
+
+#### 変更点
+
+- **UnifiedColorPicker.tsx**: `isInteractingRef` を導入し、ユーザー操作中は外部prop→localState同期をスキップ。debounce delay を300ms→500msに変更。debounce発火後に `requestAnimationFrame` でフラグリセット
+- **WikiTagList.tsx**: `handleEditColorChange` / `handleEditTextColorChange` を `useCallback` + `editingTagRef` パターンで安定化し、毎レンダーの関数再生成を防止
+- **WikiTagView.tsx**: `updateTag` を `updateTagRef` に格納し、`handleColorChange` / `handleTextColorChange` の依存配列から除去してコールバック参照を安定化
+
 ### 2026-03-14 - Connect画面 3つの改善
 
 #### 概要
