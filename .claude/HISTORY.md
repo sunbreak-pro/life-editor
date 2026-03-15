@@ -1,5 +1,16 @@
 # HISTORY.md - 変更履歴
 
+### 2026-03-16 - Connect canvas filter を sidebarMode でも機能させる
+
+#### 概要
+
+Connect グラフビューのタグフィルタが、サイドバーでノート/メモを選択した split view モードでは機能しないバグを修正。
+
+#### 変更点
+
+- **buildSplitViewNodes()**: `selectedTags` 算出時に `activeEdgeTagIds` でフィルタを適用。フィルタ選択時は該当タグの split ノードと関連ノードのみ表示
+- **buildSplitViewEdges()**: 同様に `activeEdgeTagIds` フィルタを追加。エッジもフィルタされたタグに限定
+
 ### 2026-03-16 - Dayflow Timegrid — メモ個別化 + ドラッグ時間調整 + 完了色変更
 
 #### 概要

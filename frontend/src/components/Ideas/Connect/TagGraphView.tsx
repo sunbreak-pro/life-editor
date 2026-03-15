@@ -438,9 +438,13 @@ export function TagGraphView({
     const selectedMemo = memos.find((m) => m.id === selectedId && !m.isDeleted);
     if (!selectedNote && !selectedMemo) return [];
 
-    const selectedTags = selectedNote
+    const allTags = selectedNote
       ? noteTagDots.get(selectedId) || []
       : memoTagDots.get(selectedId) || [];
+    const selectedTags =
+      activeEdgeTagIds.size > 0
+        ? allTags.filter((t) => activeEdgeTagIds.has(t.id))
+        : allTags;
 
     // No tags → single node only
     if (selectedTags.length === 0) {
@@ -702,8 +706,12 @@ export function TagGraphView({
 
   function buildSplitViewEdges(): Edge[] {
     const selectedId = sidebarSelectedItemId!;
-    const selectedTags =
+    const allTags =
       noteTagDots.get(selectedId) || memoTagDots.get(selectedId) || [];
+    const selectedTags =
+      activeEdgeTagIds.size > 0
+        ? allTags.filter((t) => activeEdgeTagIds.has(t.id))
+        : allTags;
     const edges: Edge[] = [];
     const seenEdges = new Set<string>();
 
