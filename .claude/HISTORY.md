@@ -1,5 +1,17 @@
 # HISTORY.md - 変更履歴
 
+### 2026-03-15 - MiniRoutineFlow ヘッダーに編集アイコン追加
+
+#### 概要
+
+DayFlow/Calendar タブのサイドバーにある MiniRoutineFlow から RoutineManagementOverlay を開けるように、ヘッダーに Settings アイコンを追加した。
+
+#### 変更点
+
+- **MiniRoutineFlow**: `onOpenManagement` optional prop を追加、ヘッダーに Settings アイコン（lucide-react）を配置
+- **DayFlowSidebarContent**: `useScheduleContext()` からルーティン管理関数群を取得し、`showManagement` state + `RoutineManagementOverlay` レンダリングを追加
+- **CalendarSidebarContent**: DayFlowSidebarContent と同様の変更を適用
+
 ### 2026-03-15 - Connect グラフビュー: ノード中心接続 + Obsidianライク改善
 
 #### 概要

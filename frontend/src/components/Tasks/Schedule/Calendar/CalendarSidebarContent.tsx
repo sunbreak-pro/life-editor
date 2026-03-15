@@ -1,10 +1,13 @@
+import { useState } from "react";
 import type { RoutineNode } from "../../../../types/routine";
 import type { ScheduleItem } from "../../../../types/schedule";
 import type { DayFlowFilterTab } from "../DayFlow/OneDaySchedule";
 import type { CategoryProgress } from "../DayFlow/DayFlowSidebarContent";
 import type { TabItem } from "../../../shared/SectionTabs";
 import { MiniRoutineFlow } from "../Routine/MiniRoutineFlow";
+import { RoutineManagementOverlay } from "../Routine/RoutineManagementOverlay";
 import { ProgressSection } from "../shared/ProgressSection";
+import { useScheduleContext } from "../../../../hooks/useScheduleContext";
 
 const CALENDAR_PROGRESS_TABS: readonly TabItem<DayFlowFilterTab>[] = [
   { id: "all", labelKey: "dayFlow.filterAll" },
@@ -32,6 +35,19 @@ export function CalendarSidebarContent({
   tagAssignments,
   onToggleComplete,
 }: CalendarSidebarContentProps) {
+  const [showManagement, setShowManagement] = useState(false);
+  const {
+    routineTags,
+    createRoutine,
+    updateRoutine,
+    deleteRoutine,
+    setTagsForRoutine,
+    getRoutineCompletionRate,
+    createRoutineTag,
+    updateRoutineTag,
+    deleteRoutineTag,
+  } = useScheduleContext();
+
   return (
     <div className="flex flex-col gap-3">
       {/* Progress Section */}
@@ -50,8 +66,26 @@ export function CalendarSidebarContent({
           scheduleItems={scheduleItems}
           tagAssignments={tagAssignments}
           onToggleComplete={onToggleComplete}
+          onOpenManagement={() => setShowManagement(true)}
         />
       </div>
+
+      {showManagement && (
+        <RoutineManagementOverlay
+          routines={routines}
+          routineTags={routineTags}
+          tagAssignments={tagAssignments}
+          onCreateRoutine={createRoutine}
+          onUpdateRoutine={updateRoutine}
+          onDeleteRoutine={deleteRoutine}
+          setTagsForRoutine={setTagsForRoutine}
+          getCompletionRate={getRoutineCompletionRate}
+          onCreateRoutineTag={createRoutineTag}
+          onUpdateRoutineTag={updateRoutineTag}
+          onDeleteRoutineTag={deleteRoutineTag}
+          onClose={() => setShowManagement(false)}
+        />
+      )}
     </div>
   );
 }

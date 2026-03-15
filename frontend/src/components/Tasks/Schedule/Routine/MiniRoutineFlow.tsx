@@ -1,5 +1,5 @@
 import { useMemo, useCallback } from "react";
-import { CheckCircle2, Circle } from "lucide-react";
+import { CheckCircle2, Circle, Settings } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import type { RoutineNode } from "../../../../types/routine";
 import type { ScheduleItem } from "../../../../types/schedule";
@@ -9,6 +9,7 @@ interface MiniRoutineFlowProps {
   scheduleItems: ScheduleItem[];
   tagAssignments?: Map<string, number[]>;
   onToggleComplete: (id: string) => void;
+  onOpenManagement?: () => void;
 }
 
 interface FlowStep {
@@ -23,6 +24,7 @@ export function MiniRoutineFlow({
   routines,
   scheduleItems,
   onToggleComplete,
+  onOpenManagement,
 }: MiniRoutineFlowProps) {
   const { t } = useTranslation();
 
@@ -72,9 +74,19 @@ export function MiniRoutineFlow({
 
   return (
     <div className="border border-notion-border rounded-lg p-2">
-      <span className="text-[10px] text-notion-text-secondary uppercase tracking-wide font-medium">
-        {t("schedule.routineFlow", "Routine Flow")}
-      </span>
+      <div className="flex items-center justify-between">
+        <span className="text-[10px] text-notion-text-secondary uppercase tracking-wide font-medium">
+          {t("schedule.routineFlow", "Routine Flow")}
+        </span>
+        {onOpenManagement && (
+          <button
+            onClick={onOpenManagement}
+            className="p-0.5 rounded hover:bg-notion-hover text-notion-text-secondary hover:text-notion-text transition-colors"
+          >
+            <Settings size={12} />
+          </button>
+        )}
+      </div>
 
       <div className="mt-1.5 ml-[3px]">
         {steps.map((step, i) => (
