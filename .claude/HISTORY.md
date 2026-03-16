@@ -1,5 +1,16 @@
 # HISTORY.md - 変更履歴
 
+### 2026-03-16 - ポモドーロ ±ステッパーUI + メインコンテンツのプレイリスト削除
+
+#### 概要
+
+ポモドーロ設定のUI統一（InlineDurationEditor → ±5分刻みステッパー）と、WorkScreenタイマータブ内のプレイリスト選択・PlayerBarを削除しサイドバーNow Playingに集約。
+
+#### 変更点
+
+- **WorkSidebarInfo.tsx**: セクション2のポモドーロ設定をInlineDurationEditorからMinus/Plusボタン+値表示のステッパーUIに置換（5分刻み、Work:5-240, Break:5-60, Long Break:5-120）。タイマー実行中は全ボタンdisabled。InlineDurationEditor importを削除
+- **WorkScreen.tsx**: タイマータブ内のプレイリスト選択select + PlaylistPlayerBarブロック（旧L162-195）を削除。不要になったuseAudioContext, PlaylistPlayerBar import、audio変数を整理
+
 ### 2026-03-16 - Connect Canvas & Sidebar Filter — Entity-Type + Virtual Untagged Tag
 
 #### 概要
