@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import type Database from "better-sqlite3";
 import { createScheduleItemRepository } from "../../database/scheduleItemRepository";
 import type { ScheduleItem } from "../../types";
+import { broadcastChange } from "../broadcast";
 
 export function createScheduleItemRoutes(db: Database.Database): Hono {
   const app = new Hono();
@@ -29,10 +30,17 @@ export function createScheduleItemRoutes(db: Database.Database): Hono {
         routineId?: string;
         templateId?: string;
       }>();
-    return c.json(
-      repo.create(id, date, title, startTime, endTime, routineId, templateId),
-      201,
+    const result = repo.create(
+      id,
+      date,
+      title,
+      startTime,
+      endTime,
+      routineId,
+      templateId,
     );
+    broadcastChange("scheduleItem", "create", id);
+    return c.json(result, 201);
   });
 
   app.patch("/:id", async (c) => {
@@ -51,18 +59,23 @@ export function createScheduleItemRoutes(db: Database.Database): Hono {
           >
         >
       >();
-    return c.json(repo.update(id, updates));
+    const result = repo.update(id, updates);
+    broadcastChange("scheduleItem", "update", id);
+    return c.json(result);
   });
 
   app.delete("/:id", (c) => {
     const id = c.req.param("id");
     repo.delete(id);
+    broadcastChange("scheduleItem", "delete", id);
     return c.json({ ok: true });
   });
 
   app.post("/:id/toggle-complete", (c) => {
     const id = c.req.param("id");
-    return c.json(repo.toggleComplete(id));
+    const result = repo.toggleComplete(id);
+    broadcastChange("scheduleItem", "update", id);
+    return c.json(result);
   });
 
   app.post("/bulk", async (c) => {
@@ -77,7 +90,9 @@ export function createScheduleItemRoutes(db: Database.Database): Hono {
         templateId?: string;
       }>
     >();
-    return c.json(repo.bulkCreate(items), 201);
+    const result = repo.bulkCreate(items);
+    broadcastChange("scheduleItem", "bulk");
+    return c.json(result, 201);
   });
 
   return app;

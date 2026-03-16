@@ -1,6 +1,7 @@
-import { type ReactNode, useState } from "react";
+import { type ReactNode } from "react";
 import type { SectionId } from "../../types/taskTree";
 import { useTranslation } from "react-i18next";
+import type { ConnectionState } from "../../hooks/useRealtimeSync";
 
 type MobileTab = "memos" | "notes" | "tasks" | "schedule";
 
@@ -8,6 +9,7 @@ interface MobileLayoutProps {
   children: ReactNode;
   activeTab: MobileTab;
   onTabChange: (tab: MobileTab) => void;
+  connectionState?: ConnectionState;
 }
 
 const TAB_TO_SECTION: Record<MobileTab, SectionId> = {
@@ -17,10 +19,17 @@ const TAB_TO_SECTION: Record<MobileTab, SectionId> = {
   schedule: "schedule",
 };
 
+const CONNECTION_COLORS: Record<ConnectionState, string> = {
+  connected: "bg-green-500",
+  connecting: "bg-yellow-500",
+  disconnected: "bg-red-500",
+};
+
 export function MobileLayout({
   children,
   activeTab,
   onTabChange,
+  connectionState = "disconnected",
 }: MobileLayoutProps) {
   const { t } = useTranslation();
 
@@ -42,6 +51,18 @@ export function MobileLayout({
         <h1 className="text-lg font-semibold text-notion-text-primary">
           Life Editor
         </h1>
+        <div className="ml-auto flex items-center gap-1.5">
+          <span
+            className={`inline-block h-2 w-2 rounded-full ${CONNECTION_COLORS[connectionState]}`}
+          />
+          <span className="text-xs text-notion-text-secondary">
+            {connectionState === "connected"
+              ? "Live"
+              : connectionState === "connecting"
+                ? "..."
+                : "Offline"}
+          </span>
+        </div>
       </header>
 
       {/* Main content */}

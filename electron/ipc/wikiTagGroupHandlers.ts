@@ -1,5 +1,6 @@
 import { ipcMain } from "electron";
 import { loggedHandler } from "./handlerUtil";
+import { broadcastChange } from "../server/broadcast";
 import type { WikiTagGroupRepository } from "../database/wikiTagGroupRepository";
 
 export function registerWikiTagGroupHandlers(
@@ -18,7 +19,9 @@ export function registerWikiTagGroupHandlers(
       "WikiTagGroups",
       "create",
       (_event, name: string, noteIds: string[], filterTags?: string[]) => {
-        return repo.create(name, noteIds, filterTags);
+        const result = repo.create(name, noteIds, filterTags);
+        broadcastChange("wikiTagGroup", "create", result?.id);
+        return result;
       },
     ),
   );
@@ -33,7 +36,9 @@ export function registerWikiTagGroupHandlers(
         id: string,
         updates: { name?: string; filterTags?: string[] },
       ) => {
-        return repo.update(id, updates);
+        const result = repo.update(id, updates);
+        broadcastChange("wikiTagGroup", "update", id);
+        return result;
       },
     ),
   );
@@ -42,6 +47,7 @@ export function registerWikiTagGroupHandlers(
     "db:wikiTagGroups:delete",
     loggedHandler("WikiTagGroups", "delete", (_event, id: string) => {
       repo.delete(id);
+      broadcastChange("wikiTagGroup", "delete", id);
     }),
   );
 
@@ -59,6 +65,7 @@ export function registerWikiTagGroupHandlers(
       "setMembers",
       (_event, groupId: string, noteIds: string[]) => {
         repo.setMembers(groupId, noteIds);
+        broadcastChange("wikiTagGroup", "update", groupId);
       },
     ),
   );
@@ -70,6 +77,7 @@ export function registerWikiTagGroupHandlers(
       "addMember",
       (_event, groupId: string, noteId: string) => {
         repo.addMember(groupId, noteId);
+        broadcastChange("wikiTagGroup", "update", groupId);
       },
     ),
   );
@@ -81,6 +89,7 @@ export function registerWikiTagGroupHandlers(
       "removeMember",
       (_event, groupId: string, noteId: string) => {
         repo.removeMember(groupId, noteId);
+        broadcastChange("wikiTagGroup", "update", groupId);
       },
     ),
   );

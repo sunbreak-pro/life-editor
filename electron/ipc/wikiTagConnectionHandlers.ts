@@ -1,5 +1,6 @@
 import { ipcMain } from "electron";
 import { loggedHandler } from "./handlerUtil";
+import { broadcastChange } from "../server/broadcast";
 import type { WikiTagConnectionRepository } from "../database/wikiTagConnectionRepository";
 
 export function registerWikiTagConnectionHandlers(
@@ -18,7 +19,9 @@ export function registerWikiTagConnectionHandlers(
       "WikiTagConnections",
       "create",
       (_event, sourceTagId: string, targetTagId: string) => {
-        return repo.create(sourceTagId, targetTagId);
+        const result = repo.create(sourceTagId, targetTagId);
+        broadcastChange("wikiTagConnection", "create", result?.id);
+        return result;
       },
     ),
   );
@@ -27,6 +30,7 @@ export function registerWikiTagConnectionHandlers(
     "db:wikiTagConnections:delete",
     loggedHandler("WikiTagConnections", "delete", (_event, id: string) => {
       repo.delete(id);
+      broadcastChange("wikiTagConnection", "delete", id);
     }),
   );
 
@@ -37,6 +41,7 @@ export function registerWikiTagConnectionHandlers(
       "deleteByTagPair",
       (_event, sourceTagId: string, targetTagId: string) => {
         repo.deleteByTagPair(sourceTagId, targetTagId);
+        broadcastChange("wikiTagConnection", "delete");
       },
     ),
   );

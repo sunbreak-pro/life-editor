@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import type Database from "better-sqlite3";
 import { createMemoRepository } from "../../database/memoRepository";
+import { broadcastChange } from "../broadcast";
 
 export function createMemoRoutes(db: Database.Database): Hono {
   const app = new Hono();
@@ -24,30 +25,37 @@ export function createMemoRoutes(db: Database.Database): Hono {
   app.put("/:date", async (c) => {
     const date = c.req.param("date");
     const { content } = await c.req.json<{ content: string }>();
-    return c.json(repo.upsert(date, content));
+    const result = repo.upsert(date, content);
+    broadcastChange("memo", "update", date);
+    return c.json(result);
   });
 
   app.delete("/:date", (c) => {
     const date = c.req.param("date");
     repo.delete(date);
+    broadcastChange("memo", "delete", date);
     return c.json({ ok: true });
   });
 
   app.post("/:date/restore", (c) => {
     const date = c.req.param("date");
     repo.restore(date);
+    broadcastChange("memo", "update", date);
     return c.json({ ok: true });
   });
 
   app.delete("/:date/permanent", (c) => {
     const date = c.req.param("date");
     repo.permanentDelete(date);
+    broadcastChange("memo", "delete", date);
     return c.json({ ok: true });
   });
 
   app.post("/:date/toggle-pin", (c) => {
     const date = c.req.param("date");
-    return c.json(repo.togglePin(date));
+    const result = repo.togglePin(date);
+    broadcastChange("memo", "update", date);
+    return c.json(result);
   });
 
   return app;

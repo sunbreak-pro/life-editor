@@ -1,5 +1,25 @@
 # HISTORY.md - 変更履歴
 
+### 2026-03-16 - モバイル連携 Phase 2 — REST API 拡充 + WebSocket リアルタイム同期
+
+#### 概要
+
+Phase 1 で未対応だった 8 エンティティ（Timer/Presets/Calendar/RoutineTags/TimeMemos/WikiTagGroups/WikiTagConnections/NoteConnections/Playlists）の REST API を追加し、WebSocket によるリアルタイム同期を実装。デスクトップ↔モバイル間で変更が即座に反映される。
+
+#### 変更点
+
+- **REST API (8 ルート新規)**: `electron/server/routes/` に timer.ts, calendars.ts, routineTags.ts, timeMemos.ts, wikiTagGroups.ts, wikiTagConnections.ts, noteConnections.ts, playlists.ts を作成（計47エンドポイント）
+- **サーバー登録**: `electron/server/index.ts` に 8 ルート + WebSocket 統合
+- **RestDataService 更新**: `frontend/src/services/RestDataService.ts` の ~40 の notSupported() を実際の API 呼び出しに置換
+- **Broadcast レイヤー**: `electron/server/broadcast.ts` — EventEmitter ベースの changeBus + broadcastChange()
+- **WebSocket サーバー**: `electron/server/ws.ts` — HTTP upgrade ハンドシェイク、token 認証、ping/pong 切断検知
+- **全ルート broadcast**: 既存 6 + 新規 8 = 14 ルートファイルの書き込みエンドポイントに broadcastChange() 挿入
+- **IPC ハンドラ broadcast**: 13 ファイル 63 箇所に broadcastChange() 挿入（デスクトップ変更→モバイル通知）
+- **WS クライアント**: `frontend/src/hooks/useRealtimeSync.ts` — 自動再接続 + exponential backoff
+- **ポーリング統合**: `frontend/src/hooks/useExternalDataSync.ts` — WS 優先 + ポーリングフォールバック
+- **接続状態 UI**: MobileLayout ヘッダーに接続インジケーター（緑/黄/赤）
+- **依存追加**: ws + @types/ws
+
 ### 2026-03-16 - Daily アイテムの月フォルダグルーピング
 
 #### 概要

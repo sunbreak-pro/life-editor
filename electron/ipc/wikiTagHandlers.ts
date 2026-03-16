@@ -1,5 +1,6 @@
 import { ipcMain } from "electron";
 import { loggedHandler } from "./handlerUtil";
+import { broadcastChange } from "../server/broadcast";
 import type { WikiTagRepository } from "../database/wikiTagRepository";
 import type { WikiTag } from "../types";
 
@@ -24,7 +25,9 @@ export function registerWikiTagHandlers(repo: WikiTagRepository): void {
       "WikiTags",
       "create",
       (_event, name: string, color: string) => {
-        return repo.create(name, color);
+        const result = repo.create(name, color);
+        broadcastChange("wikiTag", "create", result?.id);
+        return result;
       },
     ),
   );
@@ -35,7 +38,9 @@ export function registerWikiTagHandlers(repo: WikiTagRepository): void {
       "WikiTags",
       "createWithId",
       (_event, id: string, name: string, color: string) => {
-        return repo.createWithId(id, name, color);
+        const result = repo.createWithId(id, name, color);
+        broadcastChange("wikiTag", "create", id);
+        return result;
       },
     ),
   );
@@ -50,7 +55,9 @@ export function registerWikiTagHandlers(repo: WikiTagRepository): void {
         id: string,
         updates: Partial<Pick<WikiTag, "name" | "color" | "textColor">>,
       ) => {
-        return repo.update(id, updates);
+        const result = repo.update(id, updates);
+        broadcastChange("wikiTag", "update", id);
+        return result;
       },
     ),
   );
@@ -59,6 +66,7 @@ export function registerWikiTagHandlers(repo: WikiTagRepository): void {
     "db:wikiTags:delete",
     loggedHandler("WikiTags", "delete", (_event, id: string) => {
       repo.delete(id);
+      broadcastChange("wikiTag", "delete", id);
     }),
   );
 
@@ -68,7 +76,9 @@ export function registerWikiTagHandlers(repo: WikiTagRepository): void {
       "WikiTags",
       "merge",
       (_event, sourceId: string, targetId: string) => {
-        return repo.merge(sourceId, targetId);
+        const result = repo.merge(sourceId, targetId);
+        broadcastChange("wikiTag", "bulk");
+        return result;
       },
     ),
   );
@@ -87,6 +97,7 @@ export function registerWikiTagHandlers(repo: WikiTagRepository): void {
       "setForEntity",
       (_event, entityId: string, entityType: string, tagIds: string[]) => {
         repo.setTagsForEntity(entityId, entityType, tagIds);
+        broadcastChange("wikiTagAssignment", "bulk", entityId);
       },
     ),
   );
@@ -98,6 +109,7 @@ export function registerWikiTagHandlers(repo: WikiTagRepository): void {
       "syncInline",
       (_event, entityId: string, entityType: string, tagNames: string[]) => {
         repo.syncInlineTags(entityId, entityType, tagNames);
+        broadcastChange("wikiTagAssignment", "bulk", entityId);
       },
     ),
   );
@@ -122,6 +134,7 @@ export function registerWikiTagHandlers(repo: WikiTagRepository): void {
         source: string,
       ) => {
         repo.restoreAssignment(tagId, entityId, entityType, source);
+        broadcastChange("wikiTagAssignment", "create", entityId);
       },
     ),
   );

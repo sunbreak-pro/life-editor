@@ -12,6 +12,15 @@ import { createWikiTagRoutes } from "./routes/wikiTags";
 import { createTaskRoutes } from "./routes/tasks";
 import { createScheduleItemRoutes } from "./routes/scheduleItems";
 import { createRoutineRoutes } from "./routes/routines";
+import { createTimerRoutes } from "./routes/timer";
+import { createCalendarRoutes } from "./routes/calendars";
+import { createRoutineTagRoutes } from "./routes/routineTags";
+import { createTimeMemoRoutes } from "./routes/timeMemos";
+import { createWikiTagGroupRoutes } from "./routes/wikiTagGroups";
+import { createWikiTagConnectionRoutes } from "./routes/wikiTagConnections";
+import { createNoteConnectionRoutes } from "./routes/noteConnections";
+import { createPlaylistRoutes } from "./routes/playlists";
+import { setupWebSocket } from "./ws";
 
 const SERVER_PORT = 13456;
 
@@ -54,6 +63,14 @@ export function createApiApp(db: Database.Database): Hono {
   app.route("/api/tasks", createTaskRoutes(db));
   app.route("/api/schedule-items", createScheduleItemRoutes(db));
   app.route("/api/routines", createRoutineRoutes(db));
+  app.route("/api/timer", createTimerRoutes(db));
+  app.route("/api/calendars", createCalendarRoutes(db));
+  app.route("/api/routine-tags", createRoutineTagRoutes(db));
+  app.route("/api/time-memos", createTimeMemoRoutes(db));
+  app.route("/api/wiki-tag-groups", createWikiTagGroupRoutes(db));
+  app.route("/api/wiki-tag-connections", createWikiTagConnectionRoutes(db));
+  app.route("/api/note-connections", createNoteConnectionRoutes(db));
+  app.route("/api/playlists", createPlaylistRoutes(db));
 
   return app;
 }
@@ -165,6 +182,8 @@ export function startServer(db: Database.Database): Promise<Server> {
         res.end("Not Found");
       }
     });
+
+    setupWebSocket(server);
 
     server.listen(SERVER_PORT, "0.0.0.0", () => {
       log.info(

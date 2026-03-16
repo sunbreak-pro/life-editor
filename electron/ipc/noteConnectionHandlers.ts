@@ -1,5 +1,6 @@
 import { ipcMain } from "electron";
 import { loggedHandler } from "./handlerUtil";
+import { broadcastChange } from "../server/broadcast";
 import type { NoteConnectionRepository } from "../database/noteConnectionRepository";
 
 export function registerNoteConnectionHandlers(
@@ -18,7 +19,9 @@ export function registerNoteConnectionHandlers(
       "NoteConnections",
       "create",
       (_event, sourceNoteId: string, targetNoteId: string) => {
-        return repo.create(sourceNoteId, targetNoteId);
+        const result = repo.create(sourceNoteId, targetNoteId);
+        broadcastChange("noteConnection", "create", result?.id);
+        return result;
       },
     ),
   );
@@ -27,6 +30,7 @@ export function registerNoteConnectionHandlers(
     "db:noteConnections:delete",
     loggedHandler("NoteConnections", "delete", (_event, id: string) => {
       repo.delete(id);
+      broadcastChange("noteConnection", "delete", id);
     }),
   );
 
@@ -37,6 +41,7 @@ export function registerNoteConnectionHandlers(
       "deleteByNotePair",
       (_event, sourceNoteId: string, targetNoteId: string) => {
         repo.deleteByNotePair(sourceNoteId, targetNoteId);
+        broadcastChange("noteConnection", "delete");
       },
     ),
   );

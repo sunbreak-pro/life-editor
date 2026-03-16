@@ -1,5 +1,6 @@
 import { ipcMain } from "electron";
 import { loggedHandler } from "./handlerUtil";
+import { broadcastChange } from "../server/broadcast";
 import type { MemoRepository } from "../database/memoRepository";
 
 export function registerMemoHandlers(repo: MemoRepository): void {
@@ -17,16 +18,20 @@ export function registerMemoHandlers(repo: MemoRepository): void {
 
   ipcMain.handle(
     "db:memo:upsert",
-    loggedHandler("Memo", "upsert", (_event, date: string, content: string) =>
-      repo.upsert(date, content),
-    ),
+    loggedHandler("Memo", "upsert", (_event, date: string, content: string) => {
+      const result = repo.upsert(date, content);
+      broadcastChange("memo", "update", date);
+      return result;
+    }),
   );
 
   ipcMain.handle(
     "db:memo:delete",
-    loggedHandler("Memo", "delete", (_event, date: string) =>
-      repo.delete(date),
-    ),
+    loggedHandler("Memo", "delete", (_event, date: string) => {
+      const result = repo.delete(date);
+      broadcastChange("memo", "delete", date);
+      return result;
+    }),
   );
 
   ipcMain.handle(
@@ -36,22 +41,28 @@ export function registerMemoHandlers(repo: MemoRepository): void {
 
   ipcMain.handle(
     "db:memo:restore",
-    loggedHandler("Memo", "restore", (_event, date: string) =>
-      repo.restore(date),
-    ),
+    loggedHandler("Memo", "restore", (_event, date: string) => {
+      const result = repo.restore(date);
+      broadcastChange("memo", "update", date);
+      return result;
+    }),
   );
 
   ipcMain.handle(
     "db:memo:permanentDelete",
-    loggedHandler("Memo", "permanentDelete", (_event, date: string) =>
-      repo.permanentDelete(date),
-    ),
+    loggedHandler("Memo", "permanentDelete", (_event, date: string) => {
+      const result = repo.permanentDelete(date);
+      broadcastChange("memo", "delete", date);
+      return result;
+    }),
   );
 
   ipcMain.handle(
     "db:memo:togglePin",
-    loggedHandler("Memo", "togglePin", (_event, date: string) =>
-      repo.togglePin(date),
-    ),
+    loggedHandler("Memo", "togglePin", (_event, date: string) => {
+      const result = repo.togglePin(date);
+      broadcastChange("memo", "update", date);
+      return result;
+    }),
   );
 }

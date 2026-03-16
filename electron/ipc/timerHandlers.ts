@@ -1,5 +1,6 @@
 import { ipcMain } from "electron";
 import { loggedHandler } from "./handlerUtil";
+import { broadcastChange } from "../server/broadcast";
 import type { TimerRepository } from "../database/timerRepository";
 import type { TimerSettings, SessionType } from "../types";
 
@@ -27,7 +28,11 @@ export function registerTimerHandlers(repo: TimerRepository): void {
             | "targetSessions"
           >
         >,
-      ) => repo.updateSettings(settings),
+      ) => {
+        const result = repo.updateSettings(settings);
+        broadcastChange("timerSettings", "update");
+        return result;
+      },
     ),
   );
 
@@ -36,8 +41,11 @@ export function registerTimerHandlers(repo: TimerRepository): void {
     loggedHandler(
       "Timer",
       "startSession",
-      (_event, sessionType: SessionType, taskId: string | null) =>
-        repo.startSession(sessionType, taskId),
+      (_event, sessionType: SessionType, taskId: string | null) => {
+        const result = repo.startSession(sessionType, taskId);
+        broadcastChange("timerSession", "create", result?.id);
+        return result;
+      },
     ),
   );
 
@@ -46,8 +54,11 @@ export function registerTimerHandlers(repo: TimerRepository): void {
     loggedHandler(
       "Timer",
       "endSession",
-      (_event, id: number, duration: number, completed: boolean) =>
-        repo.endSession(id, duration, completed),
+      (_event, id: number, duration: number, completed: boolean) => {
+        const result = repo.endSession(id, duration, completed);
+        broadcastChange("timerSession", "update", id);
+        return result;
+      },
     ),
   );
 

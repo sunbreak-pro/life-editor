@@ -1,4 +1,5 @@
 import type { DataService } from "./DataService";
+import type { PaperBoard, PaperNode, PaperEdge } from "../types/paperBoard";
 import type { TaskNode } from "../types/taskTree";
 import type {
   TimerSettings,
@@ -109,12 +110,12 @@ export class RestDataService implements DataService {
     return notSupported("migrateTasksToBackend");
   }
 
-  // Timer — not available on mobile (Phase 2)
+  // Timer
   fetchTimerSettings(): Promise<TimerSettings> {
-    return notSupported("Timer");
+    return get("/api/timer/settings");
   }
   updateTimerSettings(
-    _settings: Partial<
+    settings: Partial<
       Pick<
         TimerSettings,
         | "workDuration"
@@ -126,45 +127,45 @@ export class RestDataService implements DataService {
       >
     >,
   ): Promise<TimerSettings> {
-    return notSupported("Timer");
+    return patch("/api/timer/settings", settings);
   }
   startTimerSession(
-    _sessionType: SessionType,
-    _taskId?: string,
+    sessionType: SessionType,
+    taskId?: string,
   ): Promise<TimerSession> {
-    return notSupported("Timer");
+    return post("/api/timer/sessions/start", { sessionType, taskId });
   }
   endTimerSession(
-    _id: number,
-    _duration: number,
-    _completed: boolean,
+    id: number,
+    duration: number,
+    completed: boolean,
   ): Promise<TimerSession> {
-    return notSupported("Timer");
+    return post(`/api/timer/sessions/${id}/end`, { duration, completed });
   }
   fetchTimerSessions(): Promise<TimerSession[]> {
-    return notSupported("Timer");
+    return get("/api/timer/sessions");
   }
-  fetchSessionsByTaskId(_taskId: string): Promise<TimerSession[]> {
-    return notSupported("Timer");
+  fetchSessionsByTaskId(taskId: string): Promise<TimerSession[]> {
+    return get(`/api/timer/sessions/by-task/${taskId}`);
   }
 
-  // Pomodoro Presets — not available on mobile
+  // Pomodoro Presets
   fetchPomodoroPresets(): Promise<PomodoroPreset[]> {
-    return notSupported("Pomodoro");
+    return get("/api/timer/presets");
   }
   createPomodoroPreset(
-    _preset: Omit<PomodoroPreset, "id" | "createdAt">,
+    preset: Omit<PomodoroPreset, "id" | "createdAt">,
   ): Promise<PomodoroPreset> {
-    return notSupported("Pomodoro");
+    return post("/api/timer/presets", preset);
   }
   updatePomodoroPreset(
-    _id: number,
-    _updates: Partial<Omit<PomodoroPreset, "id" | "createdAt">>,
+    id: number,
+    updates: Partial<Omit<PomodoroPreset, "id" | "createdAt">>,
   ): Promise<PomodoroPreset> {
-    return notSupported("Pomodoro");
+    return patch(`/api/timer/presets/${id}`, updates);
   }
-  deletePomodoroPreset(_id: number): Promise<void> {
-    return notSupported("Pomodoro");
+  deletePomodoroPreset(id: number): Promise<void> {
+    return del(`/api/timer/presets/${id}`);
   }
 
   // Sound — not available on mobile
@@ -320,52 +321,52 @@ export class RestDataService implements DataService {
     return notSupported("Custom Sound");
   }
 
-  // Calendars — Phase 2
+  // Calendars
   fetchCalendars(): Promise<CalendarNode[]> {
-    return notSupported("Calendars");
+    return get("/api/calendars");
   }
   createCalendar(
-    _id: string,
-    _title: string,
-    _folderId: string,
+    id: string,
+    title: string,
+    folderId: string,
   ): Promise<CalendarNode> {
-    return notSupported("Calendars");
+    return post("/api/calendars", { id, title, folderId });
   }
   updateCalendar(
-    _id: string,
-    _updates: Partial<Pick<CalendarNode, "title" | "folderId" | "order">>,
+    id: string,
+    updates: Partial<Pick<CalendarNode, "title" | "folderId" | "order">>,
   ): Promise<CalendarNode> {
-    return notSupported("Calendars");
+    return patch(`/api/calendars/${id}`, updates);
   }
-  deleteCalendar(_id: string): Promise<void> {
-    return notSupported("Calendars");
+  deleteCalendar(id: string): Promise<void> {
+    return del(`/api/calendars/${id}`);
   }
 
-  // Routine Tags — Phase 2
+  // Routine Tags
   fetchRoutineTags(): Promise<RoutineTag[]> {
-    return notSupported("Routine Tags");
+    return get("/api/routine-tags");
   }
-  createRoutineTag(_name: string, _color: string): Promise<RoutineTag> {
-    return notSupported("Routine Tags");
+  createRoutineTag(name: string, color: string): Promise<RoutineTag> {
+    return post("/api/routine-tags", { name, color });
   }
   updateRoutineTag(
-    _id: number,
-    _updates: Partial<
+    id: number,
+    updates: Partial<
       Pick<RoutineTag, "name" | "color" | "textColor" | "order">
     >,
   ): Promise<RoutineTag> {
-    return notSupported("Routine Tags");
+    return patch(`/api/routine-tags/${id}`, updates);
   }
-  deleteRoutineTag(_id: number): Promise<void> {
-    return notSupported("Routine Tags");
+  deleteRoutineTag(id: number): Promise<void> {
+    return del(`/api/routine-tags/${id}`);
   }
   fetchAllRoutineTagAssignments(): Promise<
     Array<{ routine_id: string; tag_id: number }>
   > {
-    return notSupported("Routine Tags");
+    return get("/api/routine-tags/assignments");
   }
-  setTagsForRoutine(_routineId: string, _tagIds: number[]): Promise<void> {
-    return notSupported("Routine Tags");
+  setTagsForRoutine(routineId: string, tagIds: number[]): Promise<void> {
+    return put(`/api/routine-tags/routines/${routineId}`, { tagIds });
   }
 
   // Routines
@@ -469,42 +470,42 @@ export class RestDataService implements DataService {
     return post("/api/schedule-items/bulk", items);
   }
 
-  // Playlists — not available on mobile
+  // Playlists
   fetchPlaylists(): Promise<Playlist[]> {
-    return notSupported("Playlists");
+    return get("/api/playlists");
   }
-  createPlaylist(_id: string, _name: string): Promise<Playlist> {
-    return notSupported("Playlists");
+  createPlaylist(id: string, name: string): Promise<Playlist> {
+    return post("/api/playlists", { id, name });
   }
   updatePlaylist(
-    _id: string,
-    _updates: Partial<
+    id: string,
+    updates: Partial<
       Pick<Playlist, "name" | "sortOrder" | "repeatMode" | "isShuffle">
     >,
   ): Promise<Playlist> {
-    return notSupported("Playlists");
+    return patch(`/api/playlists/${id}`, updates);
   }
-  deletePlaylist(_id: string): Promise<void> {
-    return notSupported("Playlists");
+  deletePlaylist(id: string): Promise<void> {
+    return del(`/api/playlists/${id}`);
   }
-  fetchPlaylistItems(_playlistId: string): Promise<PlaylistItem[]> {
-    return notSupported("Playlists");
+  fetchPlaylistItems(playlistId: string): Promise<PlaylistItem[]> {
+    return get(`/api/playlists/${playlistId}/items`);
   }
   fetchAllPlaylistItems(): Promise<PlaylistItem[]> {
-    return notSupported("Playlists");
+    return get("/api/playlists/items/all");
   }
   addPlaylistItem(
-    _id: string,
-    _playlistId: string,
-    _soundId: string,
+    id: string,
+    playlistId: string,
+    soundId: string,
   ): Promise<PlaylistItem> {
-    return notSupported("Playlists");
+    return post(`/api/playlists/${playlistId}/items`, { id, soundId });
   }
-  removePlaylistItem(_itemId: string): Promise<void> {
-    return notSupported("Playlists");
+  removePlaylistItem(itemId: string): Promise<void> {
+    return del(`/api/playlists/items/${itemId}`);
   }
-  reorderPlaylistItems(_playlistId: string, _itemIds: string[]): Promise<void> {
-    return notSupported("Playlists");
+  reorderPlaylistItems(playlistId: string, itemIds: string[]): Promise<void> {
+    return put(`/api/playlists/${playlistId}/items/reorder`, { itemIds });
   }
 
   // Wiki Tags
@@ -573,93 +574,99 @@ export class RestDataService implements DataService {
     });
   }
 
-  // Wiki Tag Groups — Phase 2
+  // Wiki Tag Groups
   fetchWikiTagGroups(): Promise<WikiTagGroup[]> {
-    return notSupported("Wiki Tag Groups");
+    return get("/api/wiki-tag-groups");
   }
   createWikiTagGroup(
-    _name: string,
-    _noteIds: string[],
-    _filterTags?: string[],
+    name: string,
+    noteIds: string[],
+    filterTags?: string[],
   ): Promise<WikiTagGroup> {
-    return notSupported("Wiki Tag Groups");
+    return post("/api/wiki-tag-groups", { name, noteIds, filterTags });
   }
   updateWikiTagGroup(
-    _id: string,
-    _updates: { name?: string; filterTags?: string[] },
+    id: string,
+    updates: { name?: string; filterTags?: string[] },
   ): Promise<WikiTagGroup> {
-    return notSupported("Wiki Tag Groups");
+    return patch(`/api/wiki-tag-groups/${id}`, updates);
   }
-  deleteWikiTagGroup(_id: string): Promise<void> {
-    return notSupported("Wiki Tag Groups");
+  deleteWikiTagGroup(id: string): Promise<void> {
+    return del(`/api/wiki-tag-groups/${id}`);
   }
   fetchAllWikiTagGroupMembers(): Promise<WikiTagGroupMember[]> {
-    return notSupported("Wiki Tag Groups");
+    return get("/api/wiki-tag-groups/members");
   }
-  setWikiTagGroupMembers(_groupId: string, _noteIds: string[]): Promise<void> {
-    return notSupported("Wiki Tag Groups");
+  setWikiTagGroupMembers(groupId: string, noteIds: string[]): Promise<void> {
+    return put(`/api/wiki-tag-groups/${groupId}/members`, { noteIds });
   }
-  addWikiTagGroupMember(_groupId: string, _noteId: string): Promise<void> {
-    return notSupported("Wiki Tag Groups");
+  addWikiTagGroupMember(groupId: string, noteId: string): Promise<void> {
+    return post(`/api/wiki-tag-groups/${groupId}/members`, { noteId });
   }
-  removeWikiTagGroupMember(_groupId: string, _noteId: string): Promise<void> {
-    return notSupported("Wiki Tag Groups");
+  removeWikiTagGroupMember(groupId: string, noteId: string): Promise<void> {
+    return del(`/api/wiki-tag-groups/${groupId}/members/${noteId}`);
   }
 
-  // Wiki Tag Connections — Phase 2
+  // Wiki Tag Connections
   fetchWikiTagConnections(): Promise<WikiTagConnection[]> {
-    return notSupported("Wiki Tag Connections");
+    return get("/api/wiki-tag-connections");
   }
   createWikiTagConnection(
-    _sourceTagId: string,
-    _targetTagId: string,
+    sourceTagId: string,
+    targetTagId: string,
   ): Promise<WikiTagConnection> {
-    return notSupported("Wiki Tag Connections");
+    return post("/api/wiki-tag-connections", { sourceTagId, targetTagId });
   }
-  deleteWikiTagConnection(_id: string): Promise<void> {
-    return notSupported("Wiki Tag Connections");
+  deleteWikiTagConnection(id: string): Promise<void> {
+    return del(`/api/wiki-tag-connections/${id}`);
   }
   deleteWikiTagConnectionByPair(
-    _sourceTagId: string,
-    _targetTagId: string,
+    sourceTagId: string,
+    targetTagId: string,
   ): Promise<void> {
-    return notSupported("Wiki Tag Connections");
+    return post("/api/wiki-tag-connections/delete-by-pair", {
+      sourceTagId,
+      targetTagId,
+    });
   }
 
-  // Note Connections — Phase 2
+  // Note Connections
   fetchNoteConnections(): Promise<NoteConnection[]> {
-    return notSupported("Note Connections");
+    return get("/api/note-connections");
   }
   createNoteConnection(
-    _sourceNoteId: string,
-    _targetNoteId: string,
+    sourceNoteId: string,
+    targetNoteId: string,
   ): Promise<NoteConnection> {
-    return notSupported("Note Connections");
+    return post("/api/note-connections", { sourceNoteId, targetNoteId });
   }
-  deleteNoteConnection(_id: string): Promise<void> {
-    return notSupported("Note Connections");
+  deleteNoteConnection(id: string): Promise<void> {
+    return del(`/api/note-connections/${id}`);
   }
   deleteNoteConnectionByPair(
-    _sourceNoteId: string,
-    _targetNoteId: string,
+    sourceNoteId: string,
+    targetNoteId: string,
   ): Promise<void> {
-    return notSupported("Note Connections");
+    return post("/api/note-connections/delete-by-pair", {
+      sourceNoteId,
+      targetNoteId,
+    });
   }
 
   // Time Memos
-  fetchTimeMemosByDate(_date: string): Promise<TimeMemo[]> {
-    return notSupported("Time Memos");
+  fetchTimeMemosByDate(date: string): Promise<TimeMemo[]> {
+    return get(`/api/time-memos/${date}`);
   }
   upsertTimeMemo(
-    _id: string,
-    _date: string,
-    _hour: number,
-    _content: string,
+    id: string,
+    date: string,
+    hour: number,
+    content: string,
   ): Promise<TimeMemo> {
-    return notSupported("Time Memos");
+    return put("/api/time-memos", { id, date, hour, content });
   }
-  deleteTimeMemo(_id: string): Promise<void> {
-    return notSupported("Time Memos");
+  deleteTimeMemo(id: string): Promise<void> {
+    return del(`/api/time-memos/${id}`);
   }
 
   // Data I/O — not available on mobile
@@ -694,6 +701,61 @@ export class RestDataService implements DataService {
   }
   fetchSystemInfo(): Promise<SystemInfo> {
     return notSupported("Diagnostics");
+  }
+
+  // Paper Boards — not available on mobile
+  fetchPaperBoards(): Promise<PaperBoard[]> {
+    return notSupported("Paper Boards");
+  }
+  fetchPaperBoardById(_id: string): Promise<PaperBoard | null> {
+    return notSupported("Paper Boards");
+  }
+  fetchPaperBoardByNoteId(_noteId: string): Promise<PaperBoard | null> {
+    return notSupported("Paper Boards");
+  }
+  createPaperBoard(
+    _name: string,
+    _linkedNoteId?: string | null,
+  ): Promise<PaperBoard> {
+    return notSupported("Paper Boards");
+  }
+  updatePaperBoard(
+    _id: string,
+    _updates: Record<string, unknown>,
+  ): Promise<PaperBoard> {
+    return notSupported("Paper Boards");
+  }
+  deletePaperBoard(_id: string): Promise<void> {
+    return notSupported("Paper Boards");
+  }
+  fetchPaperNodesByBoard(_boardId: string): Promise<PaperNode[]> {
+    return notSupported("Paper Boards");
+  }
+  createPaperNode(_params: Record<string, unknown>): Promise<PaperNode> {
+    return notSupported("Paper Boards");
+  }
+  updatePaperNode(
+    _id: string,
+    _updates: Record<string, unknown>,
+  ): Promise<PaperNode> {
+    return notSupported("Paper Boards");
+  }
+  bulkUpdatePaperNodePositions(
+    _updates: Array<Record<string, unknown>>,
+  ): Promise<void> {
+    return notSupported("Paper Boards");
+  }
+  deletePaperNode(_id: string): Promise<void> {
+    return notSupported("Paper Boards");
+  }
+  fetchPaperEdgesByBoard(_boardId: string): Promise<PaperEdge[]> {
+    return notSupported("Paper Boards");
+  }
+  createPaperEdge(_params: Record<string, unknown>): Promise<PaperEdge> {
+    return notSupported("Paper Boards");
+  }
+  deletePaperEdge(_id: string): Promise<void> {
+    return notSupported("Paper Boards");
   }
 
   // Updater — not available on mobile

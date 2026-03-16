@@ -1,5 +1,6 @@
 import { ipcMain } from "electron";
 import { loggedHandler } from "./handlerUtil";
+import { broadcastChange } from "../server/broadcast";
 import type { PomodoroPresetRepository } from "../database/pomodoroPresetRepository";
 
 export function registerPomodoroPresetHandlers(
@@ -15,7 +16,9 @@ export function registerPomodoroPresetHandlers(
   ipcMain.handle(
     "db:timer:createPomodoroPreset",
     loggedHandler("PomodoroPresets", "create", (_event, preset) => {
-      return repo.create(preset);
+      const result = repo.create(preset);
+      broadcastChange("pomodoroPreset", "create", result?.id);
+      return result;
     }),
   );
 
@@ -25,7 +28,9 @@ export function registerPomodoroPresetHandlers(
       "PomodoroPresets",
       "update",
       (_event, id: number, updates) => {
-        return repo.update(id, updates);
+        const result = repo.update(id, updates);
+        broadcastChange("pomodoroPreset", "update", id);
+        return result;
       },
     ),
   );
@@ -34,6 +39,7 @@ export function registerPomodoroPresetHandlers(
     "db:timer:deletePomodoroPreset",
     loggedHandler("PomodoroPresets", "delete", (_event, id: number) => {
       repo.delete(id);
+      broadcastChange("pomodoroPreset", "delete", id);
     }),
   );
 }

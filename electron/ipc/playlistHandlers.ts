@@ -1,5 +1,6 @@
 import { ipcMain } from "electron";
 import { loggedHandler } from "./handlerUtil";
+import { broadcastChange } from "../server/broadcast";
 import type { PlaylistRepository } from "../database/playlistRepository";
 
 export function registerPlaylistHandlers(repo: PlaylistRepository): void {
@@ -13,7 +14,9 @@ export function registerPlaylistHandlers(repo: PlaylistRepository): void {
   ipcMain.handle(
     "db:playlists:create",
     loggedHandler("Playlists", "create", (_event, id: string, name: string) => {
-      return repo.create(id, name);
+      const result = repo.create(id, name);
+      broadcastChange("playlist", "create", id);
+      return result;
     }),
   );
 
@@ -32,7 +35,9 @@ export function registerPlaylistHandlers(repo: PlaylistRepository): void {
           isShuffle?: boolean;
         },
       ) => {
-        return repo.update(id, updates);
+        const result = repo.update(id, updates);
+        broadcastChange("playlist", "update", id);
+        return result;
       },
     ),
   );
@@ -41,6 +46,7 @@ export function registerPlaylistHandlers(repo: PlaylistRepository): void {
     "db:playlists:delete",
     loggedHandler("Playlists", "delete", (_event, id: string) => {
       repo.delete(id);
+      broadcastChange("playlist", "delete", id);
     }),
   );
 
@@ -64,7 +70,9 @@ export function registerPlaylistHandlers(repo: PlaylistRepository): void {
       "Playlists",
       "addItem",
       (_event, id: string, playlistId: string, soundId: string) => {
-        return repo.addItem(id, playlistId, soundId);
+        const result = repo.addItem(id, playlistId, soundId);
+        broadcastChange("playlistItem", "create", id);
+        return result;
       },
     ),
   );
@@ -73,6 +81,7 @@ export function registerPlaylistHandlers(repo: PlaylistRepository): void {
     "db:playlists:removeItem",
     loggedHandler("Playlists", "removeItem", (_event, itemId: string) => {
       repo.removeItem(itemId);
+      broadcastChange("playlistItem", "delete", itemId);
     }),
   );
 
@@ -83,6 +92,7 @@ export function registerPlaylistHandlers(repo: PlaylistRepository): void {
       "reorderItems",
       (_event, playlistId: string, itemIds: string[]) => {
         repo.reorderItems(playlistId, itemIds);
+        broadcastChange("playlistItem", "bulk", playlistId);
       },
     ),
   );

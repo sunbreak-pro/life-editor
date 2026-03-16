@@ -1,5 +1,6 @@
 import { ipcMain } from "electron";
 import { loggedHandler } from "./handlerUtil";
+import { broadcastChange } from "../server/broadcast";
 import type { RoutineTagRepository } from "../database/routineTagRepository";
 import type { RoutineTag } from "../types";
 
@@ -17,7 +18,9 @@ export function registerRoutineTagHandlers(repo: RoutineTagRepository): void {
       "RoutineTags",
       "create",
       (_event, name: string, color: string) => {
-        return repo.create(name, color);
+        const result = repo.create(name, color);
+        broadcastChange("routineTag", "create", result?.id);
+        return result;
       },
     ),
   );
@@ -34,7 +37,9 @@ export function registerRoutineTagHandlers(repo: RoutineTagRepository): void {
           Pick<RoutineTag, "name" | "color" | "textColor" | "order">
         >,
       ) => {
-        return repo.update(id, updates);
+        const result = repo.update(id, updates);
+        broadcastChange("routineTag", "update", id);
+        return result;
       },
     ),
   );
@@ -43,6 +48,7 @@ export function registerRoutineTagHandlers(repo: RoutineTagRepository): void {
     "db:routineTags:delete",
     loggedHandler("RoutineTags", "delete", (_event, id: number) => {
       repo.delete(id);
+      broadcastChange("routineTag", "delete", id);
     }),
   );
 
@@ -64,6 +70,7 @@ export function registerRoutineTagHandlers(repo: RoutineTagRepository): void {
       "setTagsForRoutine",
       (_event, routineId: string, tagIds: number[]) => {
         repo.setTagsForRoutine(routineId, tagIds);
+        broadcastChange("routineTag", "bulk", routineId);
       },
     ),
   );

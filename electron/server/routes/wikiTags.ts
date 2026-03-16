@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import type Database from "better-sqlite3";
 import { createWikiTagRepository } from "../../database/wikiTagRepository";
 import type { WikiTag } from "../../types";
+import { broadcastChange } from "../broadcast";
 
 export function createWikiTagRoutes(db: Database.Database): Hono {
   const app = new Hono();
@@ -22,7 +23,9 @@ export function createWikiTagRoutes(db: Database.Database): Hono {
 
   app.post("/", async (c) => {
     const { name, color } = await c.req.json<{ name: string; color: string }>();
-    return c.json(repo.create(name, color), 201);
+    const result = repo.create(name, color);
+    broadcastChange("wikiTag", "create", result.id);
+    return c.json(result, 201);
   });
 
   app.post("/with-id", async (c) => {
@@ -31,7 +34,9 @@ export function createWikiTagRoutes(db: Database.Database): Hono {
       name: string;
       color: string;
     }>();
-    return c.json(repo.createWithId(id, name, color), 201);
+    const result = repo.createWithId(id, name, color);
+    broadcastChange("wikiTag", "create", id);
+    return c.json(result, 201);
   });
 
   app.patch("/:id", async (c) => {
@@ -40,12 +45,15 @@ export function createWikiTagRoutes(db: Database.Database): Hono {
       await c.req.json<
         Partial<Pick<WikiTag, "name" | "color" | "textColor">>
       >();
-    return c.json(repo.update(id, updates));
+    const result = repo.update(id, updates);
+    broadcastChange("wikiTag", "update", id);
+    return c.json(result);
   });
 
   app.delete("/:id", (c) => {
     const id = c.req.param("id");
     repo.delete(id);
+    broadcastChange("wikiTag", "delete", id);
     return c.json({ ok: true });
   });
 
@@ -54,7 +62,9 @@ export function createWikiTagRoutes(db: Database.Database): Hono {
       sourceId: string;
       targetId: string;
     }>();
-    return c.json(repo.merge(sourceId, targetId));
+    const result = repo.merge(sourceId, targetId);
+    broadcastChange("wikiTag", "update", targetId);
+    return c.json(result);
   });
 
   app.get("/entity/:entityId", (c) => {
@@ -69,6 +79,7 @@ export function createWikiTagRoutes(db: Database.Database): Hono {
       tagIds: string[];
     }>();
     repo.setTagsForEntity(entityId, entityType, tagIds);
+    broadcastChange("wikiTagAssignment", "update", entityId);
     return c.json({ ok: true });
   });
 
@@ -79,6 +90,7 @@ export function createWikiTagRoutes(db: Database.Database): Hono {
       tagNames: string[];
     }>();
     repo.syncInlineTags(entityId, entityType, tagNames);
+    broadcastChange("wikiTagAssignment", "update", entityId);
     return c.json({ ok: true });
   });
 
@@ -90,6 +102,7 @@ export function createWikiTagRoutes(db: Database.Database): Hono {
       source: string;
     }>();
     repo.restoreAssignment(tagId, entityId, entityType, source);
+    broadcastChange("wikiTagAssignment", "update", entityId);
     return c.json({ ok: true });
   });
 

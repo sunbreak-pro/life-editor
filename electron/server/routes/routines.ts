@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import type Database from "better-sqlite3";
 import { createRoutineRepository } from "../../database/routineRepository";
 import type { RoutineNode } from "../../types";
+import { broadcastChange } from "../broadcast";
 
 export function createRoutineRoutes(db: Database.Database): Hono {
   const app = new Hono();
@@ -22,7 +23,9 @@ export function createRoutineRoutes(db: Database.Database): Hono {
       startTime?: string;
       endTime?: string;
     }>();
-    return c.json(repo.create(id, title, startTime, endTime), 201);
+    const result = repo.create(id, title, startTime, endTime);
+    broadcastChange("routine", "create", id);
+    return c.json(result, 201);
   });
 
   app.patch("/:id", async (c) => {
@@ -36,24 +39,29 @@ export function createRoutineRoutes(db: Database.Database): Hono {
           >
         >
       >();
-    return c.json(repo.update(id, updates));
+    const result = repo.update(id, updates);
+    broadcastChange("routine", "update", id);
+    return c.json(result);
   });
 
   app.delete("/:id", (c) => {
     const id = c.req.param("id");
     repo.softDelete(id);
+    broadcastChange("routine", "delete", id);
     return c.json({ ok: true });
   });
 
   app.post("/:id/restore", (c) => {
     const id = c.req.param("id");
     repo.restore(id);
+    broadcastChange("routine", "update", id);
     return c.json({ ok: true });
   });
 
   app.delete("/:id/permanent", (c) => {
     const id = c.req.param("id");
     repo.permanentDelete(id);
+    broadcastChange("routine", "delete", id);
     return c.json({ ok: true });
   });
 

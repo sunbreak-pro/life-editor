@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import type Database from "better-sqlite3";
 import { createNoteRepository } from "../../database/noteRepository";
+import { broadcastChange } from "../broadcast";
 
 export function createNoteRoutes(db: Database.Database): Hono {
   const app = new Hono();
@@ -29,7 +30,9 @@ export function createNoteRoutes(db: Database.Database): Hono {
 
   app.post("/", async (c) => {
     const { id, title } = await c.req.json<{ id: string; title: string }>();
-    return c.json(repo.create(id, title), 201);
+    const result = repo.create(id, title);
+    broadcastChange("note", "create", id);
+    return c.json(result, 201);
   });
 
   app.patch("/:id", async (c) => {
@@ -40,24 +43,29 @@ export function createNoteRoutes(db: Database.Database): Hono {
       isPinned?: boolean;
       color?: string;
     }>();
-    return c.json(repo.update(id, updates));
+    const result = repo.update(id, updates);
+    broadcastChange("note", "update", id);
+    return c.json(result);
   });
 
   app.delete("/:id", (c) => {
     const id = c.req.param("id");
     repo.softDelete(id);
+    broadcastChange("note", "delete", id);
     return c.json({ ok: true });
   });
 
   app.post("/:id/restore", (c) => {
     const id = c.req.param("id");
     repo.restore(id);
+    broadcastChange("note", "update", id);
     return c.json({ ok: true });
   });
 
   app.delete("/:id/permanent", (c) => {
     const id = c.req.param("id");
     repo.permanentDelete(id);
+    broadcastChange("note", "delete", id);
     return c.json({ ok: true });
   });
 

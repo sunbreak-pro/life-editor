@@ -18,12 +18,14 @@
     "electron-log": "~5.3",
     "electron-updater": "~6.3",
     "hono": "^4.12.8",
-    "node-pty": "^1.1.0"
+    "node-pty": "^1.1.0",
+    "ws": "^8.19.0"
   },
   "devDependencies": {
     "@electron/notarize": "^2.5.0",
     "@electron/rebuild": "^3.7.0",
     "@types/better-sqlite3": "^7.6.0",
+    "@types/ws": "^8.18.1",
     "concurrently": "^9.1.2",
     "electron": "^35.1.2",
     "electron-builder": "^26.0.12",

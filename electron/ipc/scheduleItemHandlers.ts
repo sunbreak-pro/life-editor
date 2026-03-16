@@ -1,5 +1,6 @@
 import { ipcMain } from "electron";
 import { loggedHandler } from "./handlerUtil";
+import { broadcastChange } from "../server/broadcast";
 import type { ScheduleItemRepository } from "../database/scheduleItemRepository";
 import type { ScheduleItem } from "../types";
 
@@ -39,7 +40,7 @@ export function registerScheduleItemHandlers(
         routineId?: string,
         templateId?: string,
       ) => {
-        return repo.create(
+        const result = repo.create(
           id,
           date,
           title,
@@ -48,6 +49,8 @@ export function registerScheduleItemHandlers(
           routineId,
           templateId,
         );
+        broadcastChange("scheduleItem", "create", id);
+        return result;
       },
     ),
   );
@@ -72,7 +75,9 @@ export function registerScheduleItemHandlers(
           >
         >,
       ) => {
-        return repo.update(id, updates);
+        const result = repo.update(id, updates);
+        broadcastChange("scheduleItem", "update", id);
+        return result;
       },
     ),
   );
@@ -81,13 +86,16 @@ export function registerScheduleItemHandlers(
     "db:scheduleItems:delete",
     loggedHandler("ScheduleItems", "delete", (_event, id: string) => {
       repo.delete(id);
+      broadcastChange("scheduleItem", "delete", id);
     }),
   );
 
   ipcMain.handle(
     "db:scheduleItems:toggleComplete",
     loggedHandler("ScheduleItems", "toggleComplete", (_event, id: string) => {
-      return repo.toggleComplete(id);
+      const result = repo.toggleComplete(id);
+      broadcastChange("scheduleItem", "update", id);
+      return result;
     }),
   );
 
@@ -108,7 +116,9 @@ export function registerScheduleItemHandlers(
           templateId?: string;
         }>,
       ) => {
-        return repo.bulkCreate(items);
+        const result = repo.bulkCreate(items);
+        broadcastChange("scheduleItem", "bulk");
+        return result;
       },
     ),
   );

@@ -1,5 +1,6 @@
 import { ipcMain } from "electron";
 import { loggedHandler } from "./handlerUtil";
+import { broadcastChange } from "../server/broadcast";
 import type { RoutineRepository } from "../database/routineRepository";
 import type { RoutineNode } from "../types";
 
@@ -23,7 +24,9 @@ export function registerRoutineHandlers(repo: RoutineRepository): void {
         startTime?: string,
         endTime?: string,
       ) => {
-        return repo.create(id, title, startTime, endTime);
+        const result = repo.create(id, title, startTime, endTime);
+        broadcastChange("routine", "create", id);
+        return result;
       },
     ),
   );
@@ -43,7 +46,9 @@ export function registerRoutineHandlers(repo: RoutineRepository): void {
           >
         >,
       ) => {
-        return repo.update(id, updates);
+        const result = repo.update(id, updates);
+        broadcastChange("routine", "update", id);
+        return result;
       },
     ),
   );
@@ -52,6 +57,7 @@ export function registerRoutineHandlers(repo: RoutineRepository): void {
     "db:routines:delete",
     loggedHandler("Routines", "delete", (_event, id: string) => {
       repo.delete(id);
+      broadcastChange("routine", "delete", id);
     }),
   );
 
@@ -66,6 +72,7 @@ export function registerRoutineHandlers(repo: RoutineRepository): void {
     "db:routines:softDelete",
     loggedHandler("Routines", "softDelete", (_event, id: string) => {
       repo.softDelete(id);
+      broadcastChange("routine", "delete", id);
     }),
   );
 
@@ -73,6 +80,7 @@ export function registerRoutineHandlers(repo: RoutineRepository): void {
     "db:routines:restore",
     loggedHandler("Routines", "restore", (_event, id: string) => {
       repo.restore(id);
+      broadcastChange("routine", "update", id);
     }),
   );
 
@@ -80,6 +88,7 @@ export function registerRoutineHandlers(repo: RoutineRepository): void {
     "db:routines:permanentDelete",
     loggedHandler("Routines", "permanentDelete", (_event, id: string) => {
       repo.permanentDelete(id);
+      broadcastChange("routine", "delete", id);
     }),
   );
 }
