@@ -13,7 +13,9 @@ import { useTranslation } from "react-i18next";
 import type { MemoNode } from "../../types/memo";
 import type { NoteNode } from "../../types/note";
 import type { WikiTagAssignment, WikiTag } from "../../types/wikiTag";
-import { formatDisplayDate } from "../../utils/dateKey";
+import { formatDisplayDate, formatMonthLabel } from "../../utils/dateKey";
+import { groupMemosByMonth } from "../../utils/memoGrouping";
+import { MonthGroup } from "../shared/MonthGroup";
 import { getContentPreview } from "../../utils/tiptapText";
 import { STORAGE_KEYS } from "../../constants/storageKeys";
 import { SearchBar, type SearchSuggestion } from "../shared/SearchBar";
@@ -241,9 +243,11 @@ export function MaterialsSidebar({
     <div
       key={note.id}
       data-sidebar-item
+      data-sidebar-active={isNoteSelected(note.id) || undefined}
       className={`group flex items-center gap-1.5 px-2 py-1.5 rounded text-left transition-colors ${
         isNoteSelected(note.id) ? "bg-notion-hover" : "hover:bg-notion-hover"
       }`}
+      onClick={() => onSelectView({ type: "note", noteId: note.id })}
     >
       <button
         onClick={() => onSelectView({ type: "note", noteId: note.id })}
@@ -305,9 +309,11 @@ export function MaterialsSidebar({
     <div
       key={memo.id}
       data-sidebar-item
+      data-sidebar-active={isDailySelected(memo.date) || undefined}
       className={`group flex items-center gap-1.5 px-2 py-1.5 rounded text-left transition-colors ${
         isDailySelected(memo.date) ? "bg-notion-hover" : "hover:bg-notion-hover"
       }`}
+      onClick={() => onSelectView({ type: "daily", date: memo.date })}
     >
       <button
         onClick={() => onSelectView({ type: "daily", date: memo.date })}
@@ -529,7 +535,16 @@ export function MaterialsSidebar({
               {hasTagFilter ? t("ideas.noSearchResults") : "No memos yet"}
             </p>
           ) : (
-            displayMemos.map(renderMemoItem)
+            groupMemosByMonth(displayMemos).map((group, groupIndex) => (
+              <MonthGroup
+                key={group.monthKey}
+                monthLabel={formatMonthLabel(group.monthKey)}
+                itemCount={group.memos.length}
+                defaultOpen={groupIndex === 0}
+              >
+                {group.memos.map(renderMemoItem)}
+              </MonthGroup>
+            ))
           )}
         </CollapsibleSection>
       </div>

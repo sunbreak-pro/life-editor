@@ -4,9 +4,7 @@ import type { MoveResult, MoveRejectionReason } from "../types/moveResult";
 
 interface UseTaskTreeKeyboardParams {
   selectedTaskId: string | null | undefined;
-  visibleNodes: TaskNode[];
   nodes: TaskNode[];
-  onSelectTask?: (id: string) => void;
   toggleExpanded: (id: string) => void;
   toggleTaskStatus: (id: string) => void;
   moveNodeInto: (nodeId: string, targetId: string) => MoveResult;
@@ -16,9 +14,7 @@ interface UseTaskTreeKeyboardParams {
 
 export function useTaskTreeKeyboard({
   selectedTaskId,
-  visibleNodes,
   nodes,
-  onSelectTask,
   toggleExpanded,
   toggleTaskStatus,
   moveNodeInto,
@@ -75,33 +71,6 @@ export function useTaskTreeKeyboard({
       if (el?.getAttribute("contenteditable") === "true") return;
       if (el?.closest?.('[contenteditable="true"]')) return;
 
-      if (e.key === "ArrowDown" && !e.shiftKey) {
-        e.preventDefault();
-        if (!selectedTaskId || visibleNodes.length === 0) {
-          if (visibleNodes.length > 0) onSelectTask?.(visibleNodes[0].id);
-          return;
-        }
-        const idx = visibleNodes.findIndex((n) => n.id === selectedTaskId);
-        if (idx < visibleNodes.length - 1) {
-          onSelectTask?.(visibleNodes[idx + 1].id);
-        }
-        return;
-      }
-
-      if (e.key === "ArrowUp" && !e.shiftKey) {
-        e.preventDefault();
-        if (!selectedTaskId || visibleNodes.length === 0) {
-          if (visibleNodes.length > 0)
-            onSelectTask?.(visibleNodes[visibleNodes.length - 1].id);
-          return;
-        }
-        const idx = visibleNodes.findIndex((n) => n.id === selectedTaskId);
-        if (idx > 0) {
-          onSelectTask?.(visibleNodes[idx - 1].id);
-        }
-        return;
-      }
-
       if (!selectedTaskId) return;
       const selected = nodes.find((n) => n.id === selectedTaskId);
       if (!selected) return;
@@ -152,9 +121,7 @@ export function useTaskTreeKeyboard({
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [
     selectedTaskId,
-    visibleNodes,
     nodes,
-    onSelectTask,
     toggleExpanded,
     toggleTaskStatus,
     indentNode,

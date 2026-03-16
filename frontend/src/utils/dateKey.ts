@@ -41,6 +41,10 @@ export function formatDateHeading(dateStr: string): string {
   });
 }
 
+export function formatMonthLabel(monthKey: string): string {
+  return monthKey;
+}
+
 const JA_WEEKDAYS = ["日", "月", "火", "水", "木", "金", "土"];
 const EN_WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 

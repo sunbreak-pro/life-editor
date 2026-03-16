@@ -364,7 +364,6 @@
       "toggleTerminal": "ターミナル切り替え",
       "toggleLeftSidebar": "左サイドバーの切り替え",
       "toggleRightSidebar": "右サイドバーの切り替え",
-      "moveBetweenTasks": "タスク間の移動",
       "expandFolder": "フォルダを展開",
       "collapseFolder": "フォルダを折りたたむ",
       "toggleTaskCompletion": "タスク完了の切り替え",
@@ -386,8 +385,8 @@
       "terminalSplitHorizontal": "水平分割（ターミナル内）",
       "switchNextTab": "次のタブに切り替え",
       "switchPrevTab": "前のタブに切り替え",
-      "sidebarItemDown": "サイドバーリストを下に移動",
-      "sidebarItemUp": "サイドバーリストを上に移動",
+      "sidebarItemDown": "次のアイテムに移動",
+      "sidebarItemUp": "前のアイテムに移動",
       "sidebarToggle": "フォルダの展開/折りたたみ切り替え"
     },
     "tasksTab": {

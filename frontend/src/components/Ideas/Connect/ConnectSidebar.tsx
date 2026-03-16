@@ -22,6 +22,9 @@ import { TagFilterOverlay } from "../../shared/TagFilterOverlay";
 import { ItemEditPopover } from "./ItemEditPopover";
 import { STORAGE_KEYS } from "../../../constants/storageKeys";
 import { formatDisplayDate } from "../../../utils/dateKey";
+import { groupMemosByMonth } from "../../../utils/memoGrouping";
+import { formatMonthLabel } from "../../../utils/dateKey";
+import { MonthGroup } from "../../shared/MonthGroup";
 
 interface SectionsState {
   favorites: boolean;
@@ -391,11 +394,15 @@ export function ConnectSidebar({
                     <div
                       key={note.id}
                       data-sidebar-item
+                      data-sidebar-active={
+                        sidebarSelectedItemId === note.id || undefined
+                      }
                       className={`group flex items-center gap-1.5 px-2 py-1.5 rounded transition-colors ${
                         sidebarSelectedItemId === note.id
                           ? "bg-notion-accent/10"
                           : "hover:bg-notion-hover"
                       }`}
+                      onClick={() => handleItemClick(note.id)}
                     >
                       <button
                         onClick={() => handleItemClick(note.id)}
@@ -505,11 +512,15 @@ export function ConnectSidebar({
               <div
                 key={note.id}
                 data-sidebar-item
+                data-sidebar-active={
+                  sidebarSelectedItemId === note.id || undefined
+                }
                 className={`group flex items-center gap-1.5 px-2 py-1.5 rounded transition-colors ${
                   sidebarSelectedItemId === note.id
                     ? "bg-notion-accent/10"
                     : "hover:bg-notion-hover"
                 }`}
+                onClick={() => handleItemClick(note.id)}
               >
                 <button
                   onClick={() => handleItemClick(note.id)}
@@ -564,11 +575,15 @@ export function ConnectSidebar({
               <div
                 key={memo.id}
                 data-sidebar-item
+                data-sidebar-active={
+                  sidebarSelectedItemId === memo.id || undefined
+                }
                 className={`group flex items-center gap-2 px-2 py-1.5 rounded text-left transition-colors ${
                   sidebarSelectedItemId === memo.id
                     ? "bg-notion-accent/10"
                     : "hover:bg-notion-hover"
                 }`}
+                onClick={() => handleItemClick(memo.id)}
               >
                 <button
                   onClick={() => handleItemClick(memo.id)}
@@ -673,11 +688,15 @@ export function ConnectSidebar({
                 <div
                   key={note.id}
                   data-sidebar-item
+                  data-sidebar-active={
+                    sidebarSelectedItemId === note.id || undefined
+                  }
                   className={`group flex items-center gap-1.5 px-2 py-1.5 rounded transition-colors ${
                     sidebarSelectedItemId === note.id
                       ? "bg-notion-accent/10"
                       : "hover:bg-notion-hover"
                   }`}
+                  onClick={() => handleItemClick(note.id)}
                 >
                   <button
                     onClick={() => handleItemClick(note.id)}
@@ -786,63 +805,76 @@ export function ConnectSidebar({
                   : "No memos yet"}
               </p>
             ) : (
-              filteredMemos.map((memo) => (
-                <div
-                  key={memo.id}
-                  data-sidebar-item
-                  className={`group flex items-center gap-2 px-2 py-1.5 rounded text-left transition-colors ${
-                    sidebarSelectedItemId === memo.id
-                      ? "bg-notion-accent/10"
-                      : "hover:bg-notion-hover"
-                  }`}
+              groupMemosByMonth(filteredMemos).map((group, groupIndex) => (
+                <MonthGroup
+                  key={group.monthKey}
+                  monthLabel={formatMonthLabel(group.monthKey)}
+                  itemCount={group.memos.length}
+                  defaultOpen={groupIndex === 0}
                 >
-                  <button
-                    onClick={() => handleItemClick(memo.id)}
-                    className="flex-1 flex items-center gap-1.5 min-w-0 text-left"
-                  >
-                    {memo.isPinned ? (
-                      <Heart
-                        size={15}
-                        className="text-red-500 fill-current shrink-0"
-                      />
-                    ) : (
-                      <BookOpen
-                        size={15}
-                        className="text-notion-text-secondary shrink-0"
-                      />
-                    )}
-                    <span className="flex-1 text-sm text-notion-text truncate">
-                      {formatDisplayDate(memo.date)}
-                    </span>
-                    {renderTagDots(memo.id)}
-                  </button>
-                  <button
-                    ref={(el) => {
-                      if (el) editButtonRefs.current.set(memo.id, el);
-                    }}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setEditingEntityId(
-                        editingEntityId === memo.id ? null : memo.id,
-                      );
-                    }}
-                    className="p-0.5 opacity-0 group-hover:opacity-100 text-notion-text-secondary hover:text-notion-text transition-opacity shrink-0"
-                    title={t("ideas.editItem")}
-                  >
-                    <Pencil size={12} />
-                  </button>
-                  {onDeleteMemo && (
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onDeleteMemo(memo.date);
-                      }}
-                      className="p-0.5 opacity-0 group-hover:opacity-100 text-notion-text-secondary hover:text-red-500 transition-opacity shrink-0"
+                  {group.memos.map((memo) => (
+                    <div
+                      key={memo.id}
+                      data-sidebar-item
+                      data-sidebar-active={
+                        sidebarSelectedItemId === memo.id || undefined
+                      }
+                      className={`group flex items-center gap-2 px-2 py-1.5 rounded text-left transition-colors ${
+                        sidebarSelectedItemId === memo.id
+                          ? "bg-notion-accent/10"
+                          : "hover:bg-notion-hover"
+                      }`}
+                      onClick={() => handleItemClick(memo.id)}
                     >
-                      <Trash2 size={12} />
-                    </button>
-                  )}
-                </div>
+                      <button
+                        onClick={() => handleItemClick(memo.id)}
+                        className="flex-1 flex items-center gap-1.5 min-w-0 text-left"
+                      >
+                        {memo.isPinned ? (
+                          <Heart
+                            size={15}
+                            className="text-red-500 fill-current shrink-0"
+                          />
+                        ) : (
+                          <BookOpen
+                            size={15}
+                            className="text-notion-text-secondary shrink-0"
+                          />
+                        )}
+                        <span className="flex-1 text-sm text-notion-text truncate">
+                          {formatDisplayDate(memo.date)}
+                        </span>
+                        {renderTagDots(memo.id)}
+                      </button>
+                      <button
+                        ref={(el) => {
+                          if (el) editButtonRefs.current.set(memo.id, el);
+                        }}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setEditingEntityId(
+                            editingEntityId === memo.id ? null : memo.id,
+                          );
+                        }}
+                        className="p-0.5 opacity-0 group-hover:opacity-100 text-notion-text-secondary hover:text-notion-text transition-opacity shrink-0"
+                        title={t("ideas.editItem")}
+                      >
+                        <Pencil size={12} />
+                      </button>
+                      {onDeleteMemo && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onDeleteMemo(memo.date);
+                          }}
+                          className="p-0.5 opacity-0 group-hover:opacity-100 text-notion-text-secondary hover:text-red-500 transition-opacity shrink-0"
+                        >
+                          <Trash2 size={12} />
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </MonthGroup>
               ))
             )}
           </CollapsibleSection>

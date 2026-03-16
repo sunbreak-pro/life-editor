@@ -1,5 +1,19 @@
 # HISTORY.md - 変更履歴
 
+### 2026-03-16 - Daily アイテムの月フォルダグルーピング
+
+#### 概要
+
+ConnectSidebar と MaterialsSidebar の Daily セクションで、メモを `memo.date` の年月（YYYY-MM）で自動グルーピングし、折りたたみ可能な月フォルダとして表示するようにした。
+
+#### 変更点
+
+- **ユーティリティ**: `memoGrouping.ts` 新規作成 — `groupMemosByMonth` で月キー降順・アイテム降順ソート
+- **ユーティリティ**: `dateKey.ts` に `formatMonthLabel` 追加（将来の i18n 対応ポイント）
+- **共有コンポーネント**: `MonthGroup.tsx` 新規作成 — `useState(defaultOpen)` でセッション内のみ開閉管理、控えめなスタイル
+- **ConnectSidebar**: Daily セクションのフラットリストを `MonthGroup` でラップ（最新月のみデフォルト展開）
+- **MaterialsSidebar**: Daily セクションのフラットリストを `MonthGroup` でラップ（最新月のみデフォルト展開）
+
 ### 2026-03-16 - Unified Keyboard Navigation — Plain ↑/↓ + Auto-Click
 
 #### 概要

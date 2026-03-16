@@ -212,27 +212,9 @@ export function TaskTree({
 
   const rootItemIds = useMemo(() => rootItems.map((n) => n.id), [rootItems]);
 
-  const visibleNodes = useMemo(() => {
-    if (isSearching) return directMatches;
-    const result: TaskNode[] = [];
-    const addVisible = (list: TaskNode[]) => {
-      for (const node of list) {
-        result.push(node);
-        if (node.type === "folder" && node.isExpanded) {
-          const children = getChildren(node.id);
-          addVisible(children);
-        }
-      }
-    };
-    addVisible(rootItems);
-    return result;
-  }, [rootItems, getChildren, isSearching, directMatches]);
-
   useTaskTreeKeyboard({
     selectedTaskId: selectedTaskId ?? null,
-    visibleNodes,
     nodes,
-    onSelectTask,
     toggleExpanded,
     toggleTaskStatus,
     moveNodeInto,

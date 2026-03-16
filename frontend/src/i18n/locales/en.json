@@ -364,7 +364,6 @@
       "toggleTerminal": "Toggle terminal",
       "toggleLeftSidebar": "Toggle left sidebar",
       "toggleRightSidebar": "Toggle right sidebar",
-      "moveBetweenTasks": "Move between tasks",
       "expandFolder": "Expand folder",
       "collapseFolder": "Collapse folder",
       "toggleTaskCompletion": "Toggle task completion",
@@ -386,8 +385,8 @@
       "terminalSplitHorizontal": "Split horizontally (in terminal)",
       "switchNextTab": "Switch to next tab",
       "switchPrevTab": "Switch to previous tab",
-      "sidebarItemDown": "Move down in sidebar list",
-      "sidebarItemUp": "Move up in sidebar list",
+      "sidebarItemDown": "Move to next item",
+      "sidebarItemUp": "Move to previous item",
       "sidebarToggle": "Toggle folder expand/collapse"
     },
     "tasksTab": {

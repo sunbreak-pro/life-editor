@@ -27,6 +27,7 @@ export function VerticalNavList<T extends string>({
         <button
           key={item.id}
           data-sidebar-item
+          data-sidebar-active={activeItem === item.id || undefined}
           className={`w-full flex items-center gap-2 px-2 py-1.5 text-xs rounded transition-colors ${
             activeItem === item.id
               ? "bg-notion-hover text-notion-text"
