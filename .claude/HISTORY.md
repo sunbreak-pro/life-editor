@@ -1,5 +1,17 @@
 # HISTORY.md - 変更履歴
 
+### 2026-03-16 - MANAGE TAGS 廃止 — タグクリック編集ポップオーバー
+
+#### 概要
+
+RoutineManagementOverlay の右カラム（MANAGE TAGS）を廃止し、タグピルクリックで編集ポップオーバーを表示する方式に変更。パネル幅を 820px → 600px に縮小。
+
+#### 変更点
+
+- **RoutineTagEditPopover（新規）**: タグ名入力 + UnifiedColorPicker（preset-full モード）+ 確認ステップ付き削除ボタン。createPortal でビューポート内に位置計算して描画
+- **RoutineManagementOverlay**: 右カラム（MANAGE TAGS セクション全体）を削除、パネル幅を w-[600px] に変更、タグピルに onClick ハンドラ追加、ヘッダーに Tag アイコンボタン + AllTagsDropdown を追加
+- **不要コード削除**: newTagName/newTagColor/editTagName/editTagColor/deleteConfirmTagId state、handleCreateTag/startEditTag/saveEditTag 関数、Check/UnifiedColorPicker/DEFAULT_PRESET_COLORS import を除去
+
 ### 2026-03-16 - ConnectSidebar / MaterialsSidebar アクションアイコン統一
 
 #### 概要
