@@ -172,7 +172,14 @@
       "pomodoroSettings": "ポモドーロ設定",
       "todayStats": "今日のセッション",
       "sessions": "{{count}} セッション",
-      "totalTime": "{{minutes}} 分"
+      "totalTime": "{{minutes}} 分",
+      "workTime": "ワーク時間",
+      "targetSessions": "目標",
+      "goalTime": "目標時間",
+      "sessionsProgress": "{{completed}} / {{target}} セッション",
+      "timeProgress": "{{actual}}m / {{goal}}m",
+      "selectPlaylist": "プレイリストを選択",
+      "selectNone": "なし"
     },
     "freeSession": "フリーセッション",
     "sessionComplete": "セッション完了",
@@ -380,7 +387,8 @@
       "switchNextTab": "次のタブに切り替え",
       "switchPrevTab": "前のタブに切り替え",
       "sidebarItemDown": "サイドバーリストを下に移動",
-      "sidebarItemUp": "サイドバーリストを上に移動"
+      "sidebarItemUp": "サイドバーリストを上に移動",
+      "sidebarToggle": "フォルダの展開/折りたたみ切り替え"
     },
     "tasksTab": {
       "creating": "タスクとフォルダの作成",

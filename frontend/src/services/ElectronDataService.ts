@@ -83,6 +83,7 @@ export class ElectronDataService implements DataService {
         | "longBreakDuration"
         | "sessionsBeforeLongBreak"
         | "autoStartBreaks"
+        | "targetSessions"
       >
     >,
   ): Promise<TimerSettings> {

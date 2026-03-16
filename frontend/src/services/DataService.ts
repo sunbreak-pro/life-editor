@@ -58,6 +58,7 @@ export interface DataService {
         | "longBreakDuration"
         | "sessionsBeforeLongBreak"
         | "autoStartBreaks"
+        | "targetSessions"
       >
     >,
   ): Promise<TimerSettings>;

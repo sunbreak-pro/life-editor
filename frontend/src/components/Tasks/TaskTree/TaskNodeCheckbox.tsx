@@ -45,6 +45,7 @@ export const TaskNodeCheckbox = memo(function TaskNodeCheckbox({
     return (
       <>
         <button
+          data-sidebar-toggle
           onClick={onToggleExpand}
           className="text-notion-text-secondary hover:text-notion-text"
         >

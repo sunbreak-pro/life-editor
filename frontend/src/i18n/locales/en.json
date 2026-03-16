@@ -172,7 +172,14 @@
       "pomodoroSettings": "Pomodoro Settings",
       "todayStats": "Today's Sessions",
       "sessions": "{{count}} sessions",
-      "totalTime": "{{minutes}} min"
+      "totalTime": "{{minutes}} min",
+      "workTime": "Work Time",
+      "targetSessions": "Target",
+      "goalTime": "Goal Time",
+      "sessionsProgress": "{{completed}} / {{target}} sessions",
+      "timeProgress": "{{actual}}m / {{goal}}m",
+      "selectPlaylist": "Select playlist",
+      "selectNone": "None"
     },
     "freeSession": "Free Session",
     "sessionComplete": "Session Complete",
@@ -380,7 +387,8 @@
       "switchNextTab": "Switch to next tab",
       "switchPrevTab": "Switch to previous tab",
       "sidebarItemDown": "Move down in sidebar list",
-      "sidebarItemUp": "Move up in sidebar list"
+      "sidebarItemUp": "Move up in sidebar list",
+      "sidebarToggle": "Toggle folder expand/collapse"
     },
     "tasksTab": {
       "creating": "Creating Tasks & Folders",

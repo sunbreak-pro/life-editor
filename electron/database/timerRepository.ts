@@ -1,5 +1,5 @@
-import type Database from 'better-sqlite3';
-import type { TimerSettings, TimerSession, SessionType } from '../types';
+import type Database from "better-sqlite3";
+import type { TimerSettings, TimerSession, SessionType } from "../types";
 
 interface TimerSettingsRow {
   id: number;
@@ -8,6 +8,7 @@ interface TimerSettingsRow {
   long_break_duration: number;
   sessions_before_long_break: number;
   auto_start_breaks: number;
+  target_sessions: number;
   updated_at: string;
 }
 
@@ -29,6 +30,7 @@ function settingsRowToObj(row: TimerSettingsRow): TimerSettings {
     longBreakDuration: row.long_break_duration,
     sessionsBeforeLongBreak: row.sessions_before_long_break,
     autoStartBreaks: !!row.auto_start_breaks,
+    targetSessions: row.target_sessions,
     updatedAt: row.updated_at,
   };
 }
@@ -55,6 +57,7 @@ export function createTimerRepository(db: Database.Database) {
         long_break_duration = COALESCE(@longBreakDuration, long_break_duration),
         sessions_before_long_break = COALESCE(@sessionsBeforeLongBreak, sessions_before_long_break),
         auto_start_breaks = COALESCE(@autoStartBreaks, auto_start_breaks),
+        target_sessions = COALESCE(@targetSessions, target_sessions),
         updated_at = datetime('now')
       WHERE id = 1
     `),
@@ -66,8 +69,12 @@ export function createTimerRepository(db: Database.Database) {
       UPDATE timer_sessions SET completed_at = datetime('now'), duration = @duration, completed = @completed
       WHERE id = @id
     `),
-    fetchSessions: db.prepare(`SELECT * FROM timer_sessions ORDER BY started_at DESC`),
-    fetchSessionsByTaskId: db.prepare(`SELECT * FROM timer_sessions WHERE task_id = ? ORDER BY started_at DESC`),
+    fetchSessions: db.prepare(
+      `SELECT * FROM timer_sessions ORDER BY started_at DESC`,
+    ),
+    fetchSessionsByTaskId: db.prepare(
+      `SELECT * FROM timer_sessions WHERE task_id = ? ORDER BY started_at DESC`,
+    ),
     fetchSessionById: db.prepare(`SELECT * FROM timer_sessions WHERE id = ?`),
   };
 
@@ -76,20 +83,43 @@ export function createTimerRepository(db: Database.Database) {
       return settingsRowToObj(stmts.fetchSettings.get() as TimerSettingsRow);
     },
 
-    updateSettings(settings: Partial<Pick<TimerSettings, 'workDuration' | 'breakDuration' | 'longBreakDuration' | 'sessionsBeforeLongBreak' | 'autoStartBreaks'>>): TimerSettings {
+    updateSettings(
+      settings: Partial<
+        Pick<
+          TimerSettings,
+          | "workDuration"
+          | "breakDuration"
+          | "longBreakDuration"
+          | "sessionsBeforeLongBreak"
+          | "autoStartBreaks"
+          | "targetSessions"
+        >
+      >,
+    ): TimerSettings {
       stmts.updateSettings.run({
         workDuration: settings.workDuration ?? null,
         breakDuration: settings.breakDuration ?? null,
         longBreakDuration: settings.longBreakDuration ?? null,
         sessionsBeforeLongBreak: settings.sessionsBeforeLongBreak ?? null,
-        autoStartBreaks: settings.autoStartBreaks != null ? (settings.autoStartBreaks ? 1 : 0) : null,
+        autoStartBreaks:
+          settings.autoStartBreaks != null
+            ? settings.autoStartBreaks
+              ? 1
+              : 0
+            : null,
+        targetSessions: settings.targetSessions ?? null,
       });
       return settingsRowToObj(stmts.fetchSettings.get() as TimerSettingsRow);
     },
 
-    startSession(sessionType: SessionType, taskId: string | null): TimerSession {
+    startSession(
+      sessionType: SessionType,
+      taskId: string | null,
+    ): TimerSession {
       const info = stmts.startSession.run({ taskId, sessionType });
-      const row = stmts.fetchSessionById.get(info.lastInsertRowid) as TimerSessionRow;
+      const row = stmts.fetchSessionById.get(
+        info.lastInsertRowid,
+      ) as TimerSessionRow;
       return sessionRowToObj(row);
     },
 
@@ -100,11 +130,15 @@ export function createTimerRepository(db: Database.Database) {
     },
 
     fetchSessions(): TimerSession[] {
-      return (stmts.fetchSessions.all() as TimerSessionRow[]).map(sessionRowToObj);
+      return (stmts.fetchSessions.all() as TimerSessionRow[]).map(
+        sessionRowToObj,
+      );
     },
 
     fetchSessionsByTaskId(taskId: string): TimerSession[] {
-      return (stmts.fetchSessionsByTaskId.all(taskId) as TimerSessionRow[]).map(sessionRowToObj);
+      return (stmts.fetchSessionsByTaskId.all(taskId) as TimerSessionRow[]).map(
+        sessionRowToObj,
+      );
     },
   };
 }

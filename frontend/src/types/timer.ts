@@ -1,4 +1,4 @@
-export type SessionType = 'WORK' | 'BREAK' | 'LONG_BREAK';
+export type SessionType = "WORK" | "BREAK" | "LONG_BREAK";
 
 export interface TimerSettings {
   id: number;
@@ -7,6 +7,7 @@ export interface TimerSettings {
   longBreakDuration: number;
   sessionsBeforeLongBreak: number;
   autoStartBreaks: boolean;
+  targetSessions: number;
   updatedAt: Date;
 }
 

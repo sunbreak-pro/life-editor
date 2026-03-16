@@ -11,6 +11,8 @@ import { registerTerminalHandlers } from "./ipc/terminalHandlers";
 import { registerClaudeSetupHandlers } from "./ipc/claudeSetupHandlers";
 import { registerMcpServer } from "./services/claudeSetup";
 import { migrateUserData } from "./migration/renameMigration";
+import { stopServer } from "./server/index";
+import { registerServerHandlers } from "./ipc/serverHandlers";
 
 const isDev = !app.isPackaged;
 const terminalManager = new TerminalManager();
@@ -77,8 +79,9 @@ app
     setupCSP();
     migrateUserData();
 
+    let db: ReturnType<typeof getDatabase>;
     try {
-      const db = getDatabase();
+      db = getDatabase();
       registerAllHandlers(db);
     } catch (e) {
       log.error("[Main] Failed to initialize database/handlers:", e);
@@ -92,6 +95,7 @@ app
 
     registerTerminalHandlers(terminalManager);
     registerClaudeSetupHandlers();
+    registerServerHandlers(db);
 
     ipcMain.handle("window:close", () => {
       BrowserWindow.getFocusedWindow()?.close();
@@ -130,5 +134,6 @@ app.on("window-all-closed", () => {
 
 app.on("before-quit", () => {
   terminalManager.destroyAll();
+  stopServer().catch(() => {});
   closeDatabase();
 });

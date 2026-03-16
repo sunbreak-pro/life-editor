@@ -33,6 +33,7 @@ export interface TimerSettings {
   longBreakDuration: number;
   sessionsBeforeLongBreak: number;
   autoStartBreaks: boolean;
+  targetSessions: number;
   updatedAt: string;
 }
 

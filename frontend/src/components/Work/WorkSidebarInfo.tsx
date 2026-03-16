@@ -1,16 +1,21 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Play,
   Pause,
   SkipForward,
   Music,
   Timer,
-  BarChart3,
+  Target,
+  ListMusic,
+  Minus,
+  Plus,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useTimerContext } from "../../hooks/useTimerContext";
 import { useAudioContext } from "../../hooks/useAudioContext";
 import { getDataService } from "../../services";
+
+import { PlaylistSelectPopover } from "./PlaylistSelectPopover";
 
 export function WorkSidebarInfo() {
   const { t } = useTranslation();
@@ -52,6 +57,10 @@ export function WorkSidebarInfo() {
     };
   }, [timer.completedSessions]);
 
+  // Playlist popover
+  const [showPlaylistPopover, setShowPlaylistPopover] = useState(false);
+  const playlistBtnRef = useRef<HTMLButtonElement>(null);
+
   const { playlistPlayer, playlistData } = audio;
   const activePlaylist = playlistData.playlists.find(
     (p) => p.id === playlistPlayer.activePlaylistId,
@@ -62,13 +71,37 @@ export function WorkSidebarInfo() {
     ? (audio.getDisplayName(currentTrack.soundId) ?? currentTrack.soundId)
     : null;
 
+  const handlePlaylistSelect = (id: string | null) => {
+    audio.setTimerPlaylistId(id);
+    if (id && timer.isRunning) {
+      playlistPlayer.setActivePlaylistId(id);
+      playlistPlayer.play();
+    }
+  };
+
+  // Work time calculations
+  const goalMinutes = timer.targetSessions * timer.workDurationMinutes;
+  const sessionProgress = `${todaySummary.sessions} / ${timer.targetSessions}`;
+  const sessionPercent = Math.min(
+    100,
+    (todaySummary.sessions / timer.targetSessions) * 100,
+  );
+
   return (
     <div className="p-3 space-y-4">
-      {/* Now Playing */}
+      {/* Section 1: Now Playing */}
       <div className="space-y-2">
         <h4 className="flex items-center gap-1.5 font-semibold text-notion-text-secondary text-scaling-xs uppercase tracking-wider px-1 opacity-80">
           <Music size={14} className="opacity-70" />
           {t("work.sidebar.nowPlaying")}
+          <button
+            ref={playlistBtnRef}
+            onClick={() => setShowPlaylistPopover((v) => !v)}
+            className="ml-auto p-0.5 text-notion-text-secondary hover:text-notion-text rounded transition-colors"
+            title={t("work.sidebar.selectPlaylist")}
+          >
+            <ListMusic size={14} />
+          </button>
         </h4>
         {activePlaylist ? (
           <div className="space-y-1.5 bg-notion-hover/30 rounded-lg p-2.5">
@@ -110,9 +143,19 @@ export function WorkSidebarInfo() {
         )}
       </div>
 
+      {showPlaylistPopover && (
+        <PlaylistSelectPopover
+          anchorRef={playlistBtnRef}
+          onClose={() => setShowPlaylistPopover(false)}
+          onSelect={handlePlaylistSelect}
+          playlists={playlistData.playlists}
+          currentPlaylistId={audio.timerPlaylistId}
+        />
+      )}
+
       <div className="border-t border-notion-border" />
 
-      {/* Pomodoro Settings Summary */}
+      {/* Section 2: Pomodoro Settings (inline editable) */}
       <div className="space-y-2">
         <h4 className="flex items-center gap-1.5 font-semibold text-notion-text-secondary text-scaling-xs uppercase tracking-wider px-1 opacity-80">
           <Timer size={14} className="opacity-70" />
@@ -121,48 +164,164 @@ export function WorkSidebarInfo() {
         <div className="space-y-1.5 bg-notion-hover/30 rounded-lg p-2.5">
           <div className="flex justify-between items-center text-scaling-sm px-1">
             <span className="text-notion-text-secondary">Work</span>
-            <span className="text-notion-text font-medium bg-notion-hover px-2 py-0.5 rounded">
-              {timer.workDurationMinutes}m
-            </span>
+            <div className="flex items-center gap-1.5">
+              <button
+                onClick={() =>
+                  timer.setWorkDurationMinutes(timer.workDurationMinutes - 5)
+                }
+                disabled={timer.isRunning || timer.workDurationMinutes <= 5}
+                className="p-0.5 text-notion-text-secondary hover:text-notion-text disabled:opacity-30 rounded transition-colors"
+              >
+                <Minus size={12} />
+              </button>
+              <span className="text-notion-text font-medium min-w-[2.5rem] text-center">
+                {timer.workDurationMinutes}m
+              </span>
+              <button
+                onClick={() =>
+                  timer.setWorkDurationMinutes(timer.workDurationMinutes + 5)
+                }
+                disabled={timer.isRunning || timer.workDurationMinutes >= 240}
+                className="p-0.5 text-notion-text-secondary hover:text-notion-text disabled:opacity-30 rounded transition-colors"
+              >
+                <Plus size={12} />
+              </button>
+            </div>
           </div>
           <div className="flex justify-between items-center text-scaling-sm px-1">
             <span className="text-notion-text-secondary">Break</span>
-            <span className="text-notion-text font-medium bg-notion-hover px-2 py-0.5 rounded">
-              {timer.breakDurationMinutes}m
-            </span>
+            <div className="flex items-center gap-1.5">
+              <button
+                onClick={() =>
+                  timer.setBreakDurationMinutes(timer.breakDurationMinutes - 5)
+                }
+                disabled={timer.isRunning || timer.breakDurationMinutes <= 5}
+                className="p-0.5 text-notion-text-secondary hover:text-notion-text disabled:opacity-30 rounded transition-colors"
+              >
+                <Minus size={12} />
+              </button>
+              <span className="text-notion-text font-medium min-w-[2.5rem] text-center">
+                {timer.breakDurationMinutes}m
+              </span>
+              <button
+                onClick={() =>
+                  timer.setBreakDurationMinutes(timer.breakDurationMinutes + 5)
+                }
+                disabled={timer.isRunning || timer.breakDurationMinutes >= 60}
+                className="p-0.5 text-notion-text-secondary hover:text-notion-text disabled:opacity-30 rounded transition-colors"
+              >
+                <Plus size={12} />
+              </button>
+            </div>
           </div>
           <div className="flex justify-between items-center text-scaling-sm px-1">
             <span className="text-notion-text-secondary">Long Break</span>
-            <span className="text-notion-text font-medium bg-notion-hover px-2 py-0.5 rounded">
-              {timer.longBreakDurationMinutes}m
-            </span>
-          </div>
-          <div className="flex justify-between items-center text-scaling-sm px-1">
-            <span className="text-notion-text-secondary">Sessions</span>
-            <span className="text-notion-text font-medium bg-notion-hover px-2 py-0.5 rounded">
-              {timer.sessionsBeforeLongBreak}
-            </span>
+            <div className="flex items-center gap-1.5">
+              <button
+                onClick={() =>
+                  timer.setLongBreakDurationMinutes(
+                    timer.longBreakDurationMinutes - 5,
+                  )
+                }
+                disabled={
+                  timer.isRunning || timer.longBreakDurationMinutes <= 5
+                }
+                className="p-0.5 text-notion-text-secondary hover:text-notion-text disabled:opacity-30 rounded transition-colors"
+              >
+                <Minus size={12} />
+              </button>
+              <span className="text-notion-text font-medium min-w-[2.5rem] text-center">
+                {timer.longBreakDurationMinutes}m
+              </span>
+              <button
+                onClick={() =>
+                  timer.setLongBreakDurationMinutes(
+                    timer.longBreakDurationMinutes + 5,
+                  )
+                }
+                disabled={
+                  timer.isRunning || timer.longBreakDurationMinutes >= 120
+                }
+                className="p-0.5 text-notion-text-secondary hover:text-notion-text disabled:opacity-30 rounded transition-colors"
+              >
+                <Plus size={12} />
+              </button>
+            </div>
           </div>
         </div>
       </div>
 
       <div className="border-t border-notion-border" />
 
-      {/* Today's Stats */}
+      {/* Section 3: Work Time */}
       <div className="space-y-2">
         <h4 className="flex items-center gap-1.5 font-semibold text-notion-text-secondary text-scaling-xs uppercase tracking-wider px-1 opacity-80">
-          <BarChart3 size={14} className="opacity-70" />
-          {t("work.sidebar.todayStats")}
+          <Target size={14} className="opacity-70" />
+          {t("work.sidebar.workTime")}
         </h4>
-        <div className="space-y-1 bg-notion-hover/30 rounded-lg p-2.5 px-3">
-          <p className="font-medium text-notion-text text-scaling-sm">
-            {t("work.sidebar.sessions", { count: todaySummary.sessions })}
-          </p>
-          <p className="text-notion-text-secondary text-scaling-xs opacity-75">
-            {t("work.sidebar.totalTime", {
-              minutes: todaySummary.totalMinutes,
-            })}
-          </p>
+        <div className="space-y-2.5 bg-notion-hover/30 rounded-lg p-2.5">
+          {/* Target sessions */}
+          <div className="flex justify-between items-center text-scaling-sm px-1">
+            <span className="text-notion-text-secondary">
+              {t("work.sidebar.targetSessions")}
+            </span>
+            <div className="flex items-center gap-1.5">
+              <button
+                onClick={() =>
+                  timer.setTargetSessions(timer.targetSessions - 1)
+                }
+                disabled={timer.targetSessions <= 1}
+                className="p-0.5 text-notion-text-secondary hover:text-notion-text disabled:opacity-30 rounded transition-colors"
+              >
+                <Minus size={12} />
+              </button>
+              <span className="text-notion-text font-medium min-w-[1.5rem] text-center">
+                {timer.targetSessions}
+              </span>
+              <button
+                onClick={() =>
+                  timer.setTargetSessions(timer.targetSessions + 1)
+                }
+                disabled={timer.targetSessions >= 20}
+                className="p-0.5 text-notion-text-secondary hover:text-notion-text disabled:opacity-30 rounded transition-colors"
+              >
+                <Plus size={12} />
+              </button>
+            </div>
+          </div>
+
+          {/* Goal time (auto-calculated) */}
+          <div className="flex justify-between items-center text-scaling-sm px-1">
+            <span className="text-notion-text-secondary">
+              {t("work.sidebar.goalTime")}
+            </span>
+            <span className="text-notion-text font-medium">{goalMinutes}m</span>
+          </div>
+
+          {/* Progress */}
+          <div className="space-y-1 px-1">
+            <div className="flex justify-between items-center text-scaling-xs">
+              <span className="text-notion-text-secondary">
+                {t("work.sidebar.sessionsProgress", {
+                  completed: todaySummary.sessions,
+                  target: timer.targetSessions,
+                })}
+              </span>
+              <span className="text-notion-text-secondary">
+                {t("work.sidebar.timeProgress", {
+                  actual: todaySummary.totalMinutes,
+                  goal: goalMinutes,
+                })}
+              </span>
+            </div>
+            {/* Progress bar */}
+            <div className="w-full h-1.5 bg-notion-hover rounded-full overflow-hidden">
+              <div
+                className="h-full bg-notion-accent rounded-full transition-all duration-300"
+                style={{ width: `${sessionPercent}%` }}
+              />
+            </div>
+          </div>
         </div>
       </div>
     </div>

@@ -145,6 +145,11 @@ export function runMigrations(db: Database.Database): void {
     migrateV32(db);
   }
 
+  if (currentVersion < 33) {
+    log.info("[DB] Running migration V33");
+    migrateV33(db);
+  }
+
   const newVersion = db.pragma("user_version", { simple: true }) as number;
   if (newVersion !== currentVersion) {
     log.info(`[DB] Schema migrated: ${currentVersion} → ${newVersion}`);
@@ -1199,4 +1204,13 @@ function migrateV32(db: Database.Database): void {
     db.exec(`ALTER TABLE schedule_items ADD COLUMN memo TEXT`);
   }
   db.pragma("user_version = 32");
+}
+
+function migrateV33(db: Database.Database): void {
+  if (!hasColumn(db, "timer_settings", "target_sessions")) {
+    db.exec(
+      `ALTER TABLE timer_settings ADD COLUMN target_sessions INTEGER NOT NULL DEFAULT 4`,
+    );
+  }
+  db.pragma("user_version = 33");
 }

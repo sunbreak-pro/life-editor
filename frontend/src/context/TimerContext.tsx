@@ -32,6 +32,7 @@ export function TimerProvider({ children }: { children: ReactNode }) {
   const intervalRef = useRef<number | null>(null);
   const currentSessionIdRef = useRef<number | null>(null);
   const [autoStartBreaks, setAutoStartBreaksState] = useState(false);
+  const [targetSessions, setTargetSessionsState] = useState(4);
   const [activeRoutineId, setActiveRoutineId] = useState<string | null>(null);
 
   // Load settings from DataService on mount
@@ -51,6 +52,7 @@ export function TimerProvider({ children }: { children: ReactNode }) {
           },
         });
         setAutoStartBreaksState(!!settings.autoStartBreaks);
+        setTargetSessionsState(settings.targetSessions ?? 4);
       })
       .catch((e) => console.warn("[Timer] fetch settings:", e.message));
     return () => {
@@ -332,6 +334,14 @@ export function TimerProvider({ children }: { children: ReactNode }) {
       .catch((e) => console.warn("[Timer] update autoStartBreaks:", e.message));
   }, []);
 
+  const setTargetSessions = useCallback((count: number) => {
+    const clamped = Math.max(1, Math.min(20, count));
+    setTargetSessionsState(clamped);
+    getDataService()
+      .updateTimerSettings({ targetSessions: clamped })
+      .catch((e) => console.warn("[Timer] update targetSessions:", e.message));
+  }, []);
+
   const adjustRemainingSeconds = useCallback(
     (delta: number) => {
       const newSeconds = Math.max(0, state.remainingSeconds + delta);
@@ -394,6 +404,8 @@ export function TimerProvider({ children }: { children: ReactNode }) {
       dismissCompletionModal,
       autoStartBreaks,
       setAutoStartBreaks,
+      targetSessions,
+      setTargetSessions,
       adjustRemainingSeconds,
       activeRoutineId,
       startRoutineTimer,
@@ -429,6 +441,8 @@ export function TimerProvider({ children }: { children: ReactNode }) {
       dismissCompletionModal,
       autoStartBreaks,
       setAutoStartBreaks,
+      targetSessions,
+      setTargetSessions,
       adjustRemainingSeconds,
       activeRoutineId,
       startRoutineTimer,

@@ -4,6 +4,7 @@ import "./index.css";
 import "./utils/migrateStorageKeys";
 import "./i18n";
 import App from "./App.tsx";
+import { MobileApp } from "./MobileApp.tsx";
 import { ErrorBoundary } from "./components/shared/ErrorBoundary";
 import { ThemeProvider } from "./context/ThemeContext";
 import { UndoRedoProvider } from "./components/shared/UndoRedo";
@@ -17,33 +18,40 @@ import { CalendarProvider } from "./context/CalendarContext";
 import { ShortcutConfigProvider } from "./hooks/useShortcutConfig";
 import { WikiTagProvider } from "./context/WikiTagContext";
 import { ToastProvider } from "./context/ToastContext";
+import { isElectron } from "./services/dataServiceFactory";
+
+const isMobile = !isElectron();
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <ErrorBoundary>
       <ThemeProvider>
         <ToastProvider>
-          <UndoRedoProvider>
-            <TaskTreeProvider>
-              <CalendarProvider>
-                <MemoProvider>
-                  <NoteProvider>
-                    <ScheduleProvider>
-                      <TimerProvider>
-                        <AudioProvider>
-                          <WikiTagProvider>
-                            <ShortcutConfigProvider>
-                              <App />
-                            </ShortcutConfigProvider>
-                          </WikiTagProvider>
-                        </AudioProvider>
-                      </TimerProvider>
-                    </ScheduleProvider>
-                  </NoteProvider>
-                </MemoProvider>
-              </CalendarProvider>
-            </TaskTreeProvider>
-          </UndoRedoProvider>
+          {isMobile ? (
+            <MobileApp />
+          ) : (
+            <UndoRedoProvider>
+              <TaskTreeProvider>
+                <CalendarProvider>
+                  <MemoProvider>
+                    <NoteProvider>
+                      <ScheduleProvider>
+                        <TimerProvider>
+                          <AudioProvider>
+                            <WikiTagProvider>
+                              <ShortcutConfigProvider>
+                                <App />
+                              </ShortcutConfigProvider>
+                            </WikiTagProvider>
+                          </AudioProvider>
+                        </TimerProvider>
+                      </ScheduleProvider>
+                    </NoteProvider>
+                  </MemoProvider>
+                </CalendarProvider>
+              </TaskTreeProvider>
+            </UndoRedoProvider>
+          )}
         </ToastProvider>
       </ThemeProvider>
     </ErrorBoundary>

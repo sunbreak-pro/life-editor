@@ -24,6 +24,7 @@
     "database/**/*.ts",
     "ipc/**/*.ts",
     "services/**/*.ts",
-    "terminal/**/*.ts"
+    "terminal/**/*.ts",
+    "server/**/*.ts"
   ]
 }

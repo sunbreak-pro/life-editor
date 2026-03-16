@@ -17,8 +17,6 @@ export type ShortcutId =
   | "view:toggle-terminal"
   | "view:toggle-right-sidebar"
   // Task Tree
-  | "tree:move-up"
-  | "tree:move-down"
   | "tree:expand"
   | "tree:collapse"
   | "tree:toggle-complete"
@@ -37,6 +35,7 @@ export type ShortcutId =
   | "tab:prev"
   | "sidebar:item-down"
   | "sidebar:item-up"
+  | "sidebar:toggle"
   // Calendar
   | "cal:next"
   | "cal:prev"

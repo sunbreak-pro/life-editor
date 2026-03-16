@@ -18,30 +18,42 @@ export function useSidebarListNavigation({
     );
   }, [containerRef]);
 
-  const clearFocus = useCallback(() => {
-    const items = getItems();
-    for (const item of items) {
-      item.removeAttribute("data-sidebar-focused");
-    }
-    focusedIndexRef.current = -1;
-  }, [getItems]);
+  const getActiveIndex = useCallback(
+    (items: HTMLElement[]): number => {
+      if (!containerRef.current) return -1;
+      const activeEl = containerRef.current.querySelector<HTMLElement>(
+        "[data-sidebar-active]",
+      );
+      if (!activeEl) return -1;
+      return items.indexOf(activeEl);
+    },
+    [containerRef],
+  );
 
-  const setFocus = useCallback(
-    (index: number) => {
+  const navigate = useCallback(
+    (direction: 1 | -1) => {
       const items = getItems();
       if (items.length === 0) return;
 
-      // Clear previous
-      for (const item of items) {
-        item.removeAttribute("data-sidebar-focused");
+      let startIdx: number;
+      if (focusedIndexRef.current === -1) {
+        startIdx = getActiveIndex(items);
+      } else {
+        startIdx = focusedIndexRef.current;
       }
 
-      const clamped = Math.max(0, Math.min(index, items.length - 1));
-      focusedIndexRef.current = clamped;
-      items[clamped].setAttribute("data-sidebar-focused", "true");
-      items[clamped].scrollIntoView({ block: "nearest" });
+      let nextIdx: number;
+      if (startIdx === -1) {
+        nextIdx = direction === 1 ? 0 : items.length - 1;
+      } else {
+        nextIdx = Math.max(0, Math.min(startIdx + direction, items.length - 1));
+      }
+
+      items[nextIdx].click();
+      items[nextIdx].scrollIntoView({ block: "nearest" });
+      focusedIndexRef.current = nextIdx;
     },
-    [getItems],
+    [getItems, getActiveIndex],
   );
 
   const handleKeyDown = useCallback(
@@ -54,68 +66,71 @@ export function useSidebarListNavigation({
 
       if (matchEvent(e, "sidebar:item-down")) {
         e.preventDefault();
-        const items = getItems();
-        if (items.length === 0) return;
-        const next =
-          focusedIndexRef.current < 0 ? 0 : focusedIndexRef.current + 1;
-        setFocus(Math.min(next, items.length - 1));
+        navigate(1);
         return;
       }
 
       if (matchEvent(e, "sidebar:item-up")) {
         e.preventDefault();
-        const items = getItems();
-        if (items.length === 0) return;
-        const next =
-          focusedIndexRef.current < 0
-            ? items.length - 1
-            : focusedIndexRef.current - 1;
-        setFocus(Math.max(next, 0));
+        navigate(-1);
         return;
       }
 
-      // Enter to click the focused item
-      if (e.key === "Enter" && !e.metaKey && !e.ctrlKey && !e.shiftKey) {
-        if (focusedIndexRef.current >= 0) {
-          const items = getItems();
-          const item = items[focusedIndexRef.current];
-          if (item) {
+      // Shift+Enter to toggle folder expand/collapse
+      if (matchEvent(e, "sidebar:toggle")) {
+        const items = getItems();
+        let idx = focusedIndexRef.current;
+        if (idx === -1) {
+          idx = getActiveIndex(items);
+        }
+        if (idx >= 0 && idx < items.length) {
+          const item = items[idx];
+          const toggle = item.querySelector<HTMLElement>(
+            "[data-sidebar-toggle]",
+          );
+          if (toggle) {
             e.preventDefault();
-            item.click();
+            toggle.click();
           }
         }
+        return;
       }
     },
-    [matchEvent, getItems, setFocus],
+    [matchEvent, getItems, getActiveIndex, navigate],
   );
 
-  // Clear focus on outside click
+  // Reset focusedIndexRef on mousedown so next arrow key re-reads from DOM
   useEffect(() => {
-    const handleClick = (e: MouseEvent) => {
-      if (
-        containerRef.current &&
-        !containerRef.current.contains(e.target as Node)
-      ) {
-        clearFocus();
-      }
+    const handleMouseDown = () => {
+      focusedIndexRef.current = -1;
     };
-    document.addEventListener("mousedown", handleClick);
-    return () => document.removeEventListener("mousedown", handleClick);
-  }, [containerRef, clearFocus]);
+    document.addEventListener("mousedown", handleMouseDown);
+    return () => document.removeEventListener("mousedown", handleMouseDown);
+  }, []);
 
-  // Reset focus when DOM children change
+  // Reset focusedIndexRef when DOM children change (debounced)
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
+    let timeoutId: ReturnType<typeof setTimeout>;
     const observer = new MutationObserver(() => {
-      const items = getItems();
-      if (focusedIndexRef.current >= items.length) {
-        clearFocus();
-      }
+      clearTimeout(timeoutId);
+      timeoutId = setTimeout(() => {
+        const items = getItems();
+        if (
+          focusedIndexRef.current >= items.length ||
+          focusedIndexRef.current < -1
+        ) {
+          focusedIndexRef.current = -1;
+        }
+      }, 50);
     });
     observer.observe(container, { childList: true, subtree: true });
-    return () => observer.disconnect();
-  }, [containerRef, getItems, clearFocus]);
+    return () => {
+      clearTimeout(timeoutId);
+      observer.disconnect();
+    };
+  }, [containerRef, getItems]);
 
   useEffect(() => {
     window.addEventListener("keydown", handleKeyDown);

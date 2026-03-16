@@ -23,6 +23,8 @@ export function registerTimerHandlers(repo: TimerRepository): void {
             | "breakDuration"
             | "longBreakDuration"
             | "sessionsBeforeLongBreak"
+            | "autoStartBreaks"
+            | "targetSessions"
           >
         >,
       ) => repo.updateSettings(settings),

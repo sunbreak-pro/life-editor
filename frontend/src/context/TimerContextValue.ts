@@ -37,6 +37,8 @@ export interface TimerContextValue {
   dismissCompletionModal: () => void;
   autoStartBreaks: boolean;
   setAutoStartBreaks: (enabled: boolean) => void;
+  targetSessions: number;
+  setTargetSessions: (count: number) => void;
   adjustRemainingSeconds: (delta: number) => void;
   activeRoutineId: string | null;
   startRoutineTimer: (

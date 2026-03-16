@@ -26,6 +26,7 @@ import {
   TerminalSquare,
   FolderTree,
   CalendarDays,
+  Smartphone,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import type { TabItem } from "../shared/SectionTabs";
@@ -45,6 +46,7 @@ import { ClaudeSetupSection } from "./ClaudeSetupSection";
 import { McpToolsList } from "./McpToolsList";
 import { ClaudeMdEditor } from "./ClaudeMdEditor";
 import { SkillsManager } from "./SkillsManager";
+import { MobileAccessSettings } from "./MobileAccessSettings";
 import { TasksTipsTab } from "../Tips/TasksTipsTab";
 import { WorkTipsTab } from "../Tips/WorkTipsTab";
 import { MemoTipsTab } from "../Tips/MemoTipsTab";
@@ -68,7 +70,7 @@ const TABS = [
 ] as const satisfies readonly TabItem<SettingsTab>[];
 
 // Sub-navigation items for each settings tab
-type GeneralSub = "appearance" | "language" | "notifications";
+type GeneralSub = "appearance" | "language" | "notifications" | "mobile";
 type AdvancedSub = "data" | "updates" | "performance" | "logs" | "trash";
 type ClaudeSub = "setup" | "mcpTools" | "claudeMd" | "skills";
 type TipsSub = "tasks" | "work" | "ideas" | "analytics";
@@ -84,6 +86,7 @@ const GENERAL_SUBS: readonly TabItem<GeneralSub>[] = [
   { id: "appearance", labelKey: "settings.appearance", icon: Palette },
   { id: "language", labelKey: "settings.language", icon: Languages },
   { id: "notifications", labelKey: "notifications.title", icon: Bell },
+  { id: "mobile", labelKey: "settings.mobileAccess.title", icon: Smartphone },
 ];
 const ADVANCED_SUBS: readonly TabItem<AdvancedSub>[] = [
   { id: "data", labelKey: "data.title", icon: Database },
@@ -247,6 +250,8 @@ export function Settings({ initialTab }: SettingsProps) {
             return <LanguageSettings />;
           case "notifications":
             return <NotificationSettings />;
+          case "mobile":
+            return <MobileAccessSettings />;
         }
       }
       return (
@@ -256,6 +261,8 @@ export function Settings({ initialTab }: SettingsProps) {
           <LanguageSettings />
           <div className="border-t border-notion-border" />
           <NotificationSettings />
+          <div className="border-t border-notion-border" />
+          <MobileAccessSettings />
         </div>
       );
     }

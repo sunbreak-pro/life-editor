@@ -133,20 +133,6 @@ export const DEFAULT_SHORTCUTS: ShortcutDefinition[] = [
   },
   // Task Tree
   {
-    id: "tree:move-up",
-    category: "taskTree",
-    descriptionKey: "tips.shortcutsTab.moveBetweenTasks",
-    defaultBinding: { key: "ArrowUp" },
-    activeInInput: false,
-  },
-  {
-    id: "tree:move-down",
-    category: "taskTree",
-    descriptionKey: "tips.shortcutsTab.moveBetweenTasks",
-    defaultBinding: { key: "ArrowDown" },
-    activeInInput: false,
-  },
-  {
     id: "tree:expand",
     category: "taskTree",
     descriptionKey: "tips.shortcutsTab.expandFolder",
@@ -215,14 +201,21 @@ export const DEFAULT_SHORTCUTS: ShortcutDefinition[] = [
     id: "sidebar:item-down",
     category: "navigation",
     descriptionKey: "tips.shortcutsTab.sidebarItemDown",
-    defaultBinding: { key: "ArrowDown", shift: true },
+    defaultBinding: { key: "ArrowDown" },
     activeInInput: false,
   },
   {
     id: "sidebar:item-up",
     category: "navigation",
     descriptionKey: "tips.shortcutsTab.sidebarItemUp",
-    defaultBinding: { key: "ArrowUp", shift: true },
+    defaultBinding: { key: "ArrowUp" },
+    activeInInput: false,
+  },
+  {
+    id: "sidebar:toggle",
+    category: "navigation",
+    descriptionKey: "tips.shortcutsTab.sidebarToggle",
+    defaultBinding: { key: "Enter", shift: true },
     activeInInput: false,
   },
   // Calendar

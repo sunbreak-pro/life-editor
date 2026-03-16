@@ -1,5 +1,23 @@
 # HISTORY.md - 変更履歴
 
+### 2026-03-16 - モバイル連携 Phase 1 — HTTP サーバー + PWA 基盤
+
+#### 概要
+
+Electron 内蔵の Hono HTTP サーバー (port 13456) + REST API + PWA で、iPhone/iPad から LAN 経由でメモ・ノート・タスク・スケジュールを操作可能にした。Phase 2/3 の計画書も作成。
+
+#### 変更点
+
+- **サーバー基盤**: `electron/server/index.ts` (Hono + Node.js HTTP + static file serving), `db.ts` (Electron非依存DB初期化), `middleware/auth.ts` (Bearer token認証), `middleware/cors.ts` (LAN CORS)
+- **REST API routes**: `routes/memos.ts`, `notes.ts`, `wikiTags.ts`, `tasks.ts`, `scheduleItems.ts`, `routines.ts` — 計50+ endpoints
+- **IPC統合**: `ipc/serverHandlers.ts` (server:enable/disable/status/regenerateToken), `preload.ts` にチャネル追加, `main.ts` にハンドラ登録
+- **RestDataService**: `frontend/src/services/RestDataService.ts` (fetch ベース DataService 70+ methods), `config/api.ts` (URL/token管理), `dataServiceFactory.ts` (isElectron() で自動切替)
+- **モバイルUI**: `MobileApp.tsx`, `MobileLayout.tsx` (ボトムタブ), `ConnectionSetup.tsx` (QR/URL接続), `MobileMemoView.tsx`, `MobileNoteView.tsx`, `MobileTaskView.tsx`, `MobileScheduleView.tsx`
+- **設定画面**: `Settings/MobileAccessSettings.tsx` (QRコード + トークン管理), Settings GeneralタブにMobile Accessセクション追加
+- **PWA**: `manifest.json`, `index.html` にPWA meta tags追加
+- **依存追加**: `hono` (root), `qrcode-generator` (frontend)
+- **計画書**: Phase 1 (COMPLETED), Phase 2 リアルタイム同期 (PLANNED), Phase 3 オフライン+常時稼働 (PLANNED) を `.claude/feature_plans/` に作成
+
 ### 2026-03-16 - ポモドーロ ±ステッパーUI + メインコンテンツのプレイリスト削除
 
 #### 概要
