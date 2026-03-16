@@ -1,5 +1,24 @@
 # HISTORY.md - 変更履歴
 
+### 2026-03-16 - Unified Keyboard Navigation — Plain ↑/↓ + Auto-Click
+
+#### 概要
+
+2つの独立したキーボードナビゲーションシステム（TaskTree専用の plain ↑/↓ と全セクション共通の Shift+↑/↓）を統一。全セクションで plain ↑/↓ による auto-click ナビゲーションを実現。
+
+#### 変更点
+
+- **useSidebarListNavigation**: auto-click 方式にリライト。`data-sidebar-focused` 属性管理を全削除し、`.click()` + `scrollIntoView` で自動ナビゲーション。`[data-sidebar-active]` から起点を取得
+- **useTaskTreeKeyboard**: ArrowUp/Down ハンドラ削除、`visibleNodes` / `onSelectTask` をインターフェースから削除
+- **TaskTree.tsx**: `visibleNodes` useMemo 削除、hook 呼び出し簡素化
+- **TaskTreeNode.tsx**: 外側 div に `data-sidebar-active` と `onClick` を追加
+- **VerticalNavList.tsx**: `data-sidebar-active` 属性を追加
+- **MaterialsSidebar.tsx**: renderNoteItem/renderMemoItem の外側 div に `data-sidebar-active` と `onClick` を追加
+- **ConnectSidebar.tsx**: 5箇所すべてに `data-sidebar-active` と `onClick` を追加
+- **shortcut.ts / defaultShortcuts.ts**: `tree:move-up/down` 削除、sidebar binding を plain arrow keys に変更
+- **index.css**: `[data-sidebar-focused="true"]` CSS ルール（box-shadow フォーカスインジケータ）を削除
+- **i18n (en/ja)**: `moveBetweenTasks` 削除、`sidebarItemDown/Up` の説明を更新
+
 ### 2026-03-16 - モバイル連携 Phase 1 — HTTP サーバー + PWA 基盤
 
 #### 概要
