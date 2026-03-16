@@ -6,9 +6,9 @@
 
 ## 直近の完了
 
+- Dayflow Timegrid 6つの改善 ✅（2026-03-16）
 - MANAGE TAGS 廃止 — タグクリック編集ポップオーバー ✅（2026-03-16）
 - RichEditor UI/UX 3点改善 ✅（2026-03-16）
-- ConnectSidebar / MaterialsSidebar アクションアイコン統一 ✅（2026-03-16）
 
 ## 予定
 

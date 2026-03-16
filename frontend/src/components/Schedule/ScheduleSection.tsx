@@ -17,6 +17,7 @@ import { useCalendar } from "../../hooks/useCalendar";
 import { useScheduleContext } from "../../hooks/useScheduleContext";
 import { formatDateKey } from "../../utils/dateKey";
 import { RightSidebarContext } from "../../context/RightSidebarContext";
+import { useUndoRedo } from "../shared/UndoRedo";
 
 type ScheduleTab = "calendar" | "dayflow";
 
@@ -69,8 +70,14 @@ export function ScheduleSection({
   const [calendarProgressFilter, setCalendarProgressFilter] =
     useState<DayFlowFilterTab>("all");
 
-  const { nodes, getTaskColor, getFolderTagForTask, updateNode } =
-    useTaskTreeContext();
+  const {
+    nodes,
+    getTaskColor,
+    getFolderTagForTask,
+    updateNode,
+    toggleTaskStatus,
+  } = useTaskTreeContext();
+  const { push: pushUndo } = useUndoRedo();
 
   const { tasksByDate } = useCalendar(
     nodes,
@@ -215,6 +222,29 @@ export function ScheduleSection({
     [updateNode],
   );
 
+  const handleUnscheduleTask = useCallback(
+    (taskId: string) => {
+      const task = nodes.find((n) => n.id === taskId);
+      if (!task) return;
+      const origScheduledAt = task.scheduledAt;
+      const origScheduledEndAt = task.scheduledEndAt;
+      updateNode(taskId, { scheduledAt: null, scheduledEndAt: null });
+      pushUndo("scheduleItem", {
+        label: "unscheduleTask",
+        undo: () => {
+          updateNode(taskId, {
+            scheduledAt: origScheduledAt,
+            scheduledEndAt: origScheduledEndAt,
+          });
+        },
+        redo: () => {
+          updateNode(taskId, { scheduledAt: null, scheduledEndAt: null });
+        },
+      });
+    },
+    [nodes, updateNode, pushUndo],
+  );
+
   return (
     <div
       className={`h-full flex flex-col ${LAYOUT.CONTENT_PX} ${LAYOUT.CONTENT_PT} ${LAYOUT.CONTENT_PB}`}
@@ -299,6 +329,8 @@ export function ScheduleSection({
             onToday={goToToday}
             filterTab={dayFlowFilterTab}
             onFilterTabChange={setDayFlowFilterTab}
+            onToggleTaskStatus={toggleTaskStatus}
+            onUnscheduleTask={handleUnscheduleTask}
           />
         )}
       </div>

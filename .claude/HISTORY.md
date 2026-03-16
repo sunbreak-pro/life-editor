@@ -1,5 +1,20 @@
 # HISTORY.md - 変更履歴
 
+### 2026-03-16 - Dayflow Timegrid 6つの改善
+
+#### 概要
+
+Dayflow タブの Timegrid に6つの改善を実施。ドラッグ基盤リファクタ（ロングプレス廃止→即座ドラッグ+リサイズハンドル）、Taskチェックボックス+完了スタイル、ホバーアイコン拡大、削除/unscheduleボタン、Undo/Redo対応、Task幅の動的フルワイドレイアウトを実装。
+
+#### 変更点
+
+- **useTimeGridDrag.ts（リファクタ）**: ロングプレス300ms廃止、即座ドラッグ開始+MOVE_THRESHOLD(5px)でクリック判定。getDragHandlersにmode引数追加（move/resize-top/resize-bottom）
+- **TimeGridTaskBlock.tsx**: チェックボックス追加、完了時opacity-50+灰色背景+line-through、StickyNoteアイコン10→15px+タイトル隣配置、Xボタン(unschedule)追加、上下リサイズハンドル追加
+- **ScheduleItemBlock.tsx**: StickyNoteアイコン12→15px+タイトル隣配置、X削除ボタン追加、上下リサイズハンドル追加、hasTaskOverlap時にright:40%制限
+- **ScheduleTimeGrid.tsx**: layoutTasksWithOverlap関数追加（タスクとScheduleItemの時間重複判定）、非重複タスクは全幅表示・重複タスクは右40%、新props中継（onToggleTaskStatus/onDeleteScheduleItem/onUnscheduleTask）
+- **OneDaySchedule.tsx**: deleteScheduleItemをuseScheduleContextから取得、新props（onToggleTaskStatus/onUnscheduleTask）を中継
+- **ScheduleTabView.tsx / ScheduleSection.tsx**: toggleTaskStatusをuseTaskTreeContextから取得、handleUnscheduleTask実装（useUndoRedo.pushでscheduleItemドメインにundo/redoコマンド登録）
+
 ### 2026-03-16 - MANAGE TAGS 廃止 — タグクリック編集ポップオーバー
 
 #### 概要

@@ -19,12 +19,14 @@ interface PositionedTask {
   height: number;
   column: number;
   totalColumns: number;
+  overlapsRoutine: boolean;
 }
 
 interface PositionedScheduleItem {
   item: ScheduleItem;
   top: number;
   height: number;
+  hasTaskOverlap: boolean;
 }
 
 function formatHour(hour: number): string {
@@ -50,7 +52,20 @@ function topToMinutes(top: number): number {
   return (top / TIME_GRID.SLOT_HEIGHT) * 60 + TIME_GRID.START_HOUR * 60;
 }
 
-function layoutTasks(tasks: TaskNode[], dayDate: Date): PositionedTask[] {
+function rangesOverlap(
+  aTop: number,
+  aHeight: number,
+  bTop: number,
+  bHeight: number,
+): boolean {
+  return aTop < bTop + bHeight && aTop + aHeight > bTop;
+}
+
+function layoutTasksWithOverlap(
+  tasks: TaskNode[],
+  dayDate: Date,
+  positionedItems: { top: number; height: number }[],
+): PositionedTask[] {
   const positioned: PositionedTask[] = tasks.map((task) => {
     const dayStart = new Date(dayDate);
     dayStart.setHours(0, 0, 0, 0);
@@ -75,17 +90,25 @@ function layoutTasks(tasks: TaskNode[], dayDate: Date): PositionedTask[] {
       0,
     );
     const height = Math.max((durationMinutes / 60) * TIME_GRID.SLOT_HEIGHT, 20);
-    return { task, top, height, column: 0, totalColumns: 1 };
+    return {
+      task,
+      top,
+      height,
+      column: 0,
+      totalColumns: 1,
+      overlapsRoutine: false,
+    };
   });
 
   positioned.sort((a, b) => a.top - b.top);
 
+  // Group overlapping tasks
   const groups: PositionedTask[][] = [];
   for (const item of positioned) {
     let placed = false;
     for (const group of groups) {
-      const overlaps = group.some(
-        (g) => item.top < g.top + g.height && item.top + item.height > g.top,
+      const overlaps = group.some((g) =>
+        rangesOverlap(item.top, item.height, g.top, g.height),
       );
       if (overlaps) {
         item.column = group.length;
@@ -107,6 +130,22 @@ function layoutTasks(tasks: TaskNode[], dayDate: Date): PositionedTask[] {
     }
   }
 
+  // Check overlap with schedule items
+  for (const pt of positioned) {
+    pt.overlapsRoutine = positionedItems.some((pi) =>
+      rangesOverlap(pt.top, pt.height, pi.top, pi.height),
+    );
+  }
+
+  // Propagate within groups: if any task in group overlaps, whole group overlaps
+  for (const group of groups) {
+    if (group.some((t) => t.overlapsRoutine)) {
+      for (const t of group) {
+        t.overlapsRoutine = true;
+      }
+    }
+  }
+
   return positioned;
 }
 
@@ -119,7 +158,7 @@ function layoutScheduleItems(items: ScheduleItem[]): PositionedScheduleItem[] {
       ((endMin - startMin) / 60) * TIME_GRID.SLOT_HEIGHT,
       20,
     );
-    return { item, top, height };
+    return { item, top, height, hasTaskOverlap: false };
   });
 }
 
@@ -149,6 +188,9 @@ interface ScheduleTimeGridProps {
     scheduledEndAt: string,
   ) => void;
   externalScroll?: boolean;
+  onToggleTaskStatus?: (taskId: string) => void;
+  onDeleteScheduleItem?: (id: string) => void;
+  onUnscheduleTask?: (taskId: string) => void;
 }
 
 export function ScheduleTimeGrid({
@@ -165,6 +207,9 @@ export function ScheduleTimeGrid({
   onUpdateScheduleItemTime,
   onUpdateTaskTime,
   externalScroll,
+  onToggleTaskStatus,
+  onDeleteScheduleItem,
+  onUnscheduleTask,
 }: ScheduleTimeGridProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const mainColumnRef = useRef<HTMLDivElement>(null);
@@ -221,15 +266,27 @@ export function ScheduleTimeGrid({
     }
   }, [externalScroll]);
 
-  const positionedTasks = useMemo(() => {
-    const timeTasks = tasks.filter((t) => t.scheduledAt && !t.isAllDay);
-    return layoutTasks(timeTasks, date);
-  }, [tasks, date]);
-
+  // Layout schedule items first
   const positionedItems = useMemo(
     () => layoutScheduleItems(scheduleItems),
     [scheduleItems],
   );
+
+  // Layout tasks with overlap detection against schedule items
+  const positionedTasks = useMemo(() => {
+    const timeTasks = tasks.filter((t) => t.scheduledAt && !t.isAllDay);
+    return layoutTasksWithOverlap(timeTasks, date, positionedItems);
+  }, [tasks, date, positionedItems]);
+
+  // Mark schedule items that overlap with any task
+  const enrichedItems = useMemo(() => {
+    return positionedItems.map((pi) => ({
+      ...pi,
+      hasTaskOverlap: positionedTasks.some((pt) =>
+        rangesOverlap(pt.top, pt.height, pi.top, pi.height),
+      ),
+    }));
+  }, [positionedItems, positionedTasks]);
 
   const nextItemId = useMemo(() => {
     const sorted = [...scheduleItems].sort((a, b) =>
@@ -317,7 +374,7 @@ export function ScheduleTimeGrid({
           </div>
         )}
 
-        {/* Task blocks (dim appearance) */}
+        {/* Task blocks */}
         <div className="opacity-70">
           {positionedTasks.map((p) => (
             <TimeGridTaskBlock
@@ -325,21 +382,51 @@ export function ScheduleTimeGrid({
               task={p.task}
               top={p.top}
               height={p.height}
-              left={`${60 + (p.column / p.totalColumns) * 40}%`}
-              width={`${(1 / p.totalColumns) * 40}%`}
+              left={
+                p.overlapsRoutine
+                  ? `${60 + (p.column / p.totalColumns) * 40}%`
+                  : `${(p.column / p.totalColumns) * 100}%`
+              }
+              width={
+                p.overlapsRoutine
+                  ? `${(1 / p.totalColumns) * 40}%`
+                  : `${(1 / p.totalColumns) * 100}%`
+              }
               color={getTaskColor?.(p.task.id)}
               tag={getFolderTag?.(p.task.id)}
               onClick={(e) => onClickTask(p.task.id, e)}
-              dragHandlers={getDragHandlers(p.task.id, "task", p.top, p.height)}
+              dragHandlers={getDragHandlers(
+                p.task.id,
+                "task",
+                p.top,
+                p.height,
+                "move",
+              )}
+              resizeTopHandlers={getDragHandlers(
+                p.task.id,
+                "task",
+                p.top,
+                p.height,
+                "resize-top",
+              )}
+              resizeBottomHandlers={getDragHandlers(
+                p.task.id,
+                "task",
+                p.top,
+                p.height,
+                "resize-bottom",
+              )}
               isDragging={
                 dragState.isDragging && dragState.itemId === p.task.id
               }
+              onToggleTaskStatus={onToggleTaskStatus}
+              onUnschedule={onUnscheduleTask}
             />
           ))}
         </div>
 
         {/* Schedule item blocks */}
-        {positionedItems.map((p) => (
+        {enrichedItems.map((p) => (
           <ScheduleItemBlock
             key={p.item.id}
             item={p.item}
@@ -349,13 +436,30 @@ export function ScheduleTimeGrid({
             onToggleComplete={onToggleComplete}
             onClick={onClickItem}
             onUpdateMemo={onUpdateMemo}
+            onDelete={onDeleteScheduleItem}
             dragHandlers={getDragHandlers(
               p.item.id,
               "schedule",
               p.top,
               p.height,
+              "move",
+            )}
+            resizeTopHandlers={getDragHandlers(
+              p.item.id,
+              "schedule",
+              p.top,
+              p.height,
+              "resize-top",
+            )}
+            resizeBottomHandlers={getDragHandlers(
+              p.item.id,
+              "schedule",
+              p.top,
+              p.height,
+              "resize-bottom",
             )}
             isDragging={dragState.isDragging && dragState.itemId === p.item.id}
+            hasTaskOverlap={p.hasTaskOverlap}
           />
         ))}
 

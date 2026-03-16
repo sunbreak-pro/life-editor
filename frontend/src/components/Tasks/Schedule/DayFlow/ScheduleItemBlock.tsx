@@ -3,6 +3,11 @@ import { Check, StickyNote, X } from "lucide-react";
 import type { ScheduleItem } from "../../../../types/schedule";
 import { ScheduleItemMemoPopover } from "./ScheduleItemMemoPopover";
 
+interface DragHandlers {
+  onMouseDown: (e: React.MouseEvent) => void;
+  onTouchStart: (e: React.TouchEvent) => void;
+}
+
 interface ScheduleItemBlockProps {
   item: ScheduleItem;
   top: number;
@@ -11,11 +16,12 @@ interface ScheduleItemBlockProps {
   onToggleComplete: (id: string) => void;
   onClick: (id: string) => void;
   onUpdateMemo?: (id: string, memo: string | null) => void;
-  dragHandlers?: {
-    onMouseDown: (e: React.MouseEvent) => void;
-    onTouchStart: (e: React.TouchEvent) => void;
-  };
+  onDelete?: (id: string) => void;
+  dragHandlers?: DragHandlers;
+  resizeTopHandlers?: DragHandlers;
+  resizeBottomHandlers?: DragHandlers;
   isDragging?: boolean;
+  hasTaskOverlap?: boolean;
 }
 
 function formatTimeRange(start: string, end: string): string {
@@ -30,8 +36,12 @@ export function ScheduleItemBlock({
   onToggleComplete,
   onClick,
   onUpdateMemo,
+  onDelete,
   dragHandlers,
+  resizeTopHandlers,
+  resizeBottomHandlers,
   isDragging,
+  hasTaskOverlap,
 }: ScheduleItemBlockProps) {
   const isCompact = height < 36;
   const [showMemoPopover, setShowMemoPopover] = useState(false);
@@ -41,7 +51,7 @@ export function ScheduleItemBlock({
   return (
     <>
       <div
-        className={`absolute left-1 right-1 rounded-md overflow-hidden transition-all cursor-pointer group ${
+        className={`absolute rounded-md overflow-hidden transition-all cursor-pointer group ${
           item.completed
             ? "opacity-40"
             : isNext
@@ -50,6 +60,8 @@ export function ScheduleItemBlock({
         }`}
         style={{
           top,
+          left: 4,
+          right: hasTaskOverlap ? "40%" : 4,
           height: Math.max(height, 20),
           backgroundColor: item.completed
             ? "rgba(34, 197, 94, 0.08)"
@@ -74,6 +86,19 @@ export function ScheduleItemBlock({
         onMouseDown={dragHandlers?.onMouseDown}
         onTouchStart={dragHandlers?.onTouchStart}
       >
+        {/* Resize handle - top */}
+        <div
+          className="absolute top-0 left-0 right-0 h-2 cursor-ns-resize opacity-0 group-hover:opacity-100 z-10"
+          onMouseDown={(e) => {
+            e.stopPropagation();
+            resizeTopHandlers?.onMouseDown(e);
+          }}
+          onTouchStart={(e) => {
+            e.stopPropagation();
+            resizeTopHandlers?.onTouchStart(e);
+          }}
+        />
+
         <div className="flex items-start gap-1.5 px-1.5 py-0.5 h-full">
           <button
             onClick={(e) => {
@@ -90,14 +115,32 @@ export function ScheduleItemBlock({
           </button>
           <div className="flex-1 min-w-0 flex items-start gap-0.5">
             <div className="flex-1 min-w-0">
-              <div
-                className={`font-medium truncate ${isCompact ? "text-[10px]" : "text-xs"} ${
-                  item.completed
-                    ? "line-through text-notion-text-secondary"
-                    : "text-notion-text"
-                }`}
-              >
-                {item.title}
+              <div className="flex items-center gap-0.5">
+                <span
+                  className={`font-medium truncate ${isCompact ? "text-[10px]" : "text-xs"} ${
+                    item.completed
+                      ? "line-through text-notion-text-secondary"
+                      : "text-notion-text"
+                  }`}
+                >
+                  {item.title}
+                </span>
+                {onUpdateMemo && (
+                  <button
+                    ref={memoIconRef}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setShowMemoPopover(true);
+                    }}
+                    className={`shrink-0 p-0.5 rounded transition-colors ${
+                      hasMemo
+                        ? "text-notion-accent"
+                        : "text-notion-text-secondary/40 opacity-0 group-hover:opacity-100"
+                    }`}
+                  >
+                    <StickyNote size={15} />
+                  </button>
+                )}
               </div>
               {!isCompact && (
                 <div className="text-[10px] text-notion-text-secondary truncate">
@@ -105,37 +148,46 @@ export function ScheduleItemBlock({
                 </div>
               )}
             </div>
-            {onUpdateMemo && (
-              <div className="flex items-center shrink-0 mt-0.5">
+            {/* Memo clear + Delete buttons */}
+            <div className="flex items-center shrink-0 mt-0.5 gap-0.5">
+              {onUpdateMemo && hasMemo && (
                 <button
-                  ref={memoIconRef}
                   onClick={(e) => {
                     e.stopPropagation();
-                    setShowMemoPopover(true);
+                    onUpdateMemo(item.id, null);
                   }}
-                  className={`p-0.5 rounded transition-colors ${
-                    hasMemo
-                      ? "text-notion-accent"
-                      : "text-notion-text-secondary/40 opacity-0 group-hover:opacity-100"
-                  }`}
+                  className="p-0.5 text-notion-text-secondary/60 hover:text-notion-text rounded transition-colors"
                 >
-                  <StickyNote size={12} />
+                  <X size={10} />
                 </button>
-                {hasMemo && (
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onUpdateMemo(item.id, null);
-                    }}
-                    className="p-0.5 text-notion-text-secondary/60 hover:text-notion-text rounded transition-colors"
-                  >
-                    <X size={10} />
-                  </button>
-                )}
-              </div>
-            )}
+              )}
+              {onDelete && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onDelete(item.id);
+                  }}
+                  className="p-0.5 rounded opacity-0 group-hover:opacity-100 text-notion-text-secondary/60 hover:text-red-500 transition-all"
+                >
+                  <X size={15} />
+                </button>
+              )}
+            </div>
           </div>
         </div>
+
+        {/* Resize handle - bottom */}
+        <div
+          className="absolute bottom-0 left-0 right-0 h-2 cursor-ns-resize opacity-0 group-hover:opacity-100 z-10"
+          onMouseDown={(e) => {
+            e.stopPropagation();
+            resizeBottomHandlers?.onMouseDown(e);
+          }}
+          onTouchStart={(e) => {
+            e.stopPropagation();
+            resizeBottomHandlers?.onTouchStart(e);
+          }}
+        />
       </div>
       {showMemoPopover && memoIconRef.current && (
         <ScheduleItemMemoPopover

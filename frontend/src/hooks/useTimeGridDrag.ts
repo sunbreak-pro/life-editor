@@ -22,10 +22,8 @@ const INITIAL_STATE: DragState = {
   previewHeight: 0,
 };
 
-const LONG_PRESS_MS = 300;
 const MOVE_THRESHOLD = 5;
 const SNAP_MINUTES = 5;
-const RESIZE_EDGE_PX = 8;
 const MIN_HEIGHT_PX = 20;
 
 function minutesToTimeString(totalMinutes: number): string {
@@ -57,7 +55,6 @@ export function useTimeGridDrag({
 }: UseTimeGridDragOptions) {
   const [dragState, setDragState] = useState<DragState>(INITIAL_STATE);
   const stateRef = useRef(INITIAL_STATE);
-  const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const startPos = useRef({ x: 0, y: 0 });
   const offsetInBlock = useRef(0);
   const originalTop = useRef(0);
@@ -67,16 +64,8 @@ export function useTimeGridDrag({
     type: ItemType;
     top: number;
     height: number;
+    mode: DragMode;
   } | null>(null);
-  const isLongPressing = useRef(false);
-
-  const cancelLongPress = useCallback(() => {
-    if (longPressTimer.current) {
-      clearTimeout(longPressTimer.current);
-      longPressTimer.current = null;
-    }
-    isLongPressing.current = false;
-  }, []);
 
   const getRelativeY = useCallback(
     (clientY: number): number => {
@@ -98,15 +87,33 @@ export function useTimeGridDrag({
       const clientY = "touches" in e ? e.touches[0].clientY : e.clientY;
       const clientX = "touches" in e ? e.touches[0].clientX : e.clientX;
 
-      // During long-press detection, check if moved too much
-      if (!stateRef.current.isDragging && isLongPressing.current) {
+      // Before drag starts, check if moved past threshold
+      if (!stateRef.current.isDragging && pendingItem.current) {
         const dx = clientX - startPos.current.x;
         const dy = clientY - startPos.current.y;
-        if (Math.sqrt(dx * dx + dy * dy) > MOVE_THRESHOLD) {
-          cancelLongPress();
-          pendingItem.current = null;
+        if (Math.sqrt(dx * dx + dy * dy) <= MOVE_THRESHOLD) {
+          return;
         }
-        return;
+
+        // Start dragging
+        const item = pendingItem.current;
+        const relY = getRelativeY(startPos.current.y);
+        const posInBlock = relY - item.top;
+
+        offsetInBlock.current = posInBlock;
+        originalTop.current = item.top;
+        originalHeight.current = item.height;
+
+        const next: DragState = {
+          isDragging: true,
+          itemId: item.id,
+          itemType: item.type,
+          mode: item.mode,
+          previewTop: item.top,
+          previewHeight: item.height,
+        };
+        stateRef.current = next;
+        setDragState(next);
       }
 
       if (!stateRef.current.isDragging) return;
@@ -139,12 +146,10 @@ export function useTimeGridDrag({
       stateRef.current = next;
       setDragState(next);
     },
-    [getRelativeY, snapTop, cancelLongPress],
+    [getRelativeY, snapTop],
   );
 
   const handleMouseUp = useCallback(() => {
-    cancelLongPress();
-
     if (stateRef.current.isDragging && stateRef.current.itemId) {
       const { previewTop, previewHeight, itemId, itemType } = stateRef.current;
       const startMinutes = topToMinutes(previewTop);
@@ -160,7 +165,7 @@ export function useTimeGridDrag({
     stateRef.current = INITIAL_STATE;
     setDragState(INITIAL_STATE);
     pendingItem.current = null;
-  }, [cancelLongPress, onDragEnd]);
+  }, [onDragEnd]);
 
   // Attach/detach global listeners
   useEffect(() => {
@@ -176,17 +181,13 @@ export function useTimeGridDrag({
     };
   }, [handleMouseMove, handleMouseUp]);
 
-  // Cleanup timer on unmount
-  useEffect(() => {
-    return () => cancelLongPress();
-  }, [cancelLongPress]);
-
   const getDragHandlers = useCallback(
     (
       itemId: string,
       itemType: ItemType,
       blockTop: number,
       blockHeight: number,
+      mode: DragMode = "move",
     ) => {
       const onStart = (clientX: number, clientY: number) => {
         startPos.current = { x: clientX, y: clientY };
@@ -195,38 +196,8 @@ export function useTimeGridDrag({
           type: itemType,
           top: blockTop,
           height: blockHeight,
+          mode,
         };
-        isLongPressing.current = true;
-
-        longPressTimer.current = setTimeout(() => {
-          if (!pendingItem.current) return;
-          isLongPressing.current = false;
-
-          const relY = getRelativeY(clientY);
-          const posInBlock = relY - blockTop;
-
-          let mode: DragMode = "move";
-          if (posInBlock <= RESIZE_EDGE_PX) {
-            mode = "resize-top";
-          } else if (posInBlock >= blockHeight - RESIZE_EDGE_PX) {
-            mode = "resize-bottom";
-          }
-
-          offsetInBlock.current = posInBlock;
-          originalTop.current = blockTop;
-          originalHeight.current = blockHeight;
-
-          const next: DragState = {
-            isDragging: true,
-            itemId,
-            itemType,
-            mode,
-            previewTop: blockTop,
-            previewHeight: blockHeight,
-          };
-          stateRef.current = next;
-          setDragState(next);
-        }, LONG_PRESS_MS);
       };
 
       return {
@@ -240,12 +211,11 @@ export function useTimeGridDrag({
         },
       };
     },
-    [getRelativeY],
+    [],
   );
 
   return {
     dragState,
     getDragHandlers,
-    isLongPressing: isLongPressing.current,
   };
 }

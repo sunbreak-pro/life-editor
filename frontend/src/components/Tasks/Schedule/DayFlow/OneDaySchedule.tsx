@@ -37,6 +37,8 @@ interface OneDayScheduleProps {
   onToday: () => void;
   filterTab: DayFlowFilterTab;
   onFilterTabChange: (tab: DayFlowFilterTab) => void;
+  onToggleTaskStatus?: (taskId: string) => void;
+  onUnscheduleTask?: (taskId: string) => void;
 }
 
 export function OneDaySchedule({
@@ -52,6 +54,8 @@ export function OneDaySchedule({
   onToday,
   filterTab,
   onFilterTabChange,
+  onToggleTaskStatus,
+  onUnscheduleTask,
 }: OneDayScheduleProps) {
   const { t, i18n } = useTranslation();
   const {
@@ -64,6 +68,7 @@ export function OneDaySchedule({
     tagAssignments,
     ensureRoutineItemsForDate,
     updateScheduleItem,
+    deleteScheduleItem,
     refreshRoutineStats,
   } = useScheduleContext();
   const dateKey = formatDateKey(date);
@@ -350,6 +355,9 @@ export function OneDaySchedule({
               onUpdateScheduleItemTime={handleUpdateScheduleItemTime}
               onUpdateTaskTime={handleUpdateTaskTime}
               externalScroll
+              onToggleTaskStatus={onToggleTaskStatus}
+              onDeleteScheduleItem={deleteScheduleItem}
+              onUnscheduleTask={onUnscheduleTask}
             />
           </div>
         </div>
