@@ -7,7 +7,7 @@ import {
   Plus,
   Network,
   Filter,
-  Tag,
+  Pencil,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import type { MemoNode } from "../../types/memo";
@@ -19,7 +19,7 @@ import { STORAGE_KEYS } from "../../constants/storageKeys";
 import { SearchBar, type SearchSuggestion } from "../shared/SearchBar";
 import { CollapsibleSection } from "../shared/CollapsibleSection";
 import { TagFilterOverlay } from "../shared/TagFilterOverlay";
-import { InlineTagEditor } from "../WikiTags/InlineTagEditor";
+import { ItemEditPopover } from "./Connect/ItemEditPopover";
 
 type MaterialsView =
   | { type: "note"; noteId: string }
@@ -42,6 +42,7 @@ interface MaterialsSidebarProps {
   onDeleteNote?: (noteId: string) => void;
   onDeleteMemo?: (date: string) => void;
   onNavigateToConnect?: (noteId: string) => void;
+  onUpdateNoteTitle?: (noteId: string, title: string) => void;
 }
 
 function loadSectionsState(): SectionsState {
@@ -83,6 +84,7 @@ export function MaterialsSidebar({
   onDeleteNote,
   onDeleteMemo,
   onNavigateToConnect,
+  onUpdateNoteTitle,
 }: MaterialsSidebarProps) {
   const { t } = useTranslation();
   const [sections, setSections] = useState<SectionsState>(loadSectionsState);
@@ -94,11 +96,19 @@ export function MaterialsSidebar({
   const [filterTagIds, setFilterTagIds] = useState<Set<string>>(new Set());
   const [showNoteFilter, setShowNoteFilter] = useState(false);
 
-  // Tag editing state for memos
-  const [editingTagEntityId, setEditingTagEntityId] = useState<string | null>(
-    null,
-  );
-  const tagButtonRefs = useRef<Map<string, HTMLButtonElement>>(new Map());
+  // Entity editing state (name + tags)
+  const [editingEntityId, setEditingEntityId] = useState<string | null>(null);
+  const editButtonRefs = useRef<Map<string, HTMLButtonElement>>(new Map());
+
+  const getEntityType = (id: string): "note" | "memo" => {
+    if (notes.some((n) => n.id === id)) return "note";
+    return "memo";
+  };
+
+  const getEntityTitle = (id: string): string | undefined => {
+    const note = notes.find((n) => n.id === id);
+    return note?.title;
+  };
 
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
@@ -251,6 +261,19 @@ export function MaterialsSidebar({
         </span>
         {renderTagDots(note.id)}
       </button>
+      <button
+        ref={(el) => {
+          if (el) editButtonRefs.current.set(note.id, el);
+        }}
+        onClick={(e) => {
+          e.stopPropagation();
+          setEditingEntityId(editingEntityId === note.id ? null : note.id);
+        }}
+        className="p-0.5 opacity-0 group-hover:opacity-100 text-notion-text-secondary hover:text-notion-text transition-opacity shrink-0"
+        title={t("ideas.editItem")}
+      >
+        <Pencil size={12} />
+      </button>
       {onNavigateToConnect && (
         <button
           onClick={(e) => {
@@ -300,18 +323,16 @@ export function MaterialsSidebar({
       </button>
       <button
         ref={(el) => {
-          if (el) tagButtonRefs.current.set(memo.id, el);
+          if (el) editButtonRefs.current.set(memo.id, el);
         }}
         onClick={(e) => {
           e.stopPropagation();
-          setEditingTagEntityId(
-            editingTagEntityId === memo.id ? null : memo.id,
-          );
+          setEditingEntityId(editingEntityId === memo.id ? null : memo.id);
         }}
         className="p-0.5 opacity-0 group-hover:opacity-100 text-notion-text-secondary hover:text-notion-text transition-opacity shrink-0"
-        title="Edit tags"
+        title={t("ideas.editItem")}
       >
-        <Tag size={12} />
+        <Pencil size={12} />
       </button>
       {onDeleteMemo && (
         <button
@@ -399,15 +420,20 @@ export function MaterialsSidebar({
           {filteredNotes.map(renderNoteItem)}
           {filteredMemos.map(renderMemoItem)}
         </div>
-        {editingTagEntityId &&
-          tagButtonRefs.current.get(editingTagEntityId) && (
-            <InlineTagEditor
-              entityId={editingTagEntityId}
-              entityType="memo"
-              onClose={() => setEditingTagEntityId(null)}
-              anchorEl={tagButtonRefs.current.get(editingTagEntityId)!}
-            />
-          )}
+        {editingEntityId && editButtonRefs.current.get(editingEntityId) && (
+          <ItemEditPopover
+            entityId={editingEntityId}
+            entityType={getEntityType(editingEntityId)}
+            title={getEntityTitle(editingEntityId)}
+            onTitleChange={
+              getEntityType(editingEntityId) === "note" && onUpdateNoteTitle
+                ? (title) => onUpdateNoteTitle(editingEntityId, title)
+                : undefined
+            }
+            onClose={() => setEditingEntityId(null)}
+            anchorEl={editButtonRefs.current.get(editingEntityId)!}
+          />
+        )}
       </div>
     );
   }
@@ -506,12 +532,18 @@ export function MaterialsSidebar({
         </CollapsibleSection>
       </div>
 
-      {editingTagEntityId && tagButtonRefs.current.get(editingTagEntityId) && (
-        <InlineTagEditor
-          entityId={editingTagEntityId}
-          entityType="memo"
-          onClose={() => setEditingTagEntityId(null)}
-          anchorEl={tagButtonRefs.current.get(editingTagEntityId)!}
+      {editingEntityId && editButtonRefs.current.get(editingEntityId) && (
+        <ItemEditPopover
+          entityId={editingEntityId}
+          entityType={getEntityType(editingEntityId)}
+          title={getEntityTitle(editingEntityId)}
+          onTitleChange={
+            getEntityType(editingEntityId) === "note" && onUpdateNoteTitle
+              ? (title) => onUpdateNoteTitle(editingEntityId, title)
+              : undefined
+          }
+          onClose={() => setEditingEntityId(null)}
+          anchorEl={editButtonRefs.current.get(editingEntityId)!}
         />
       )}
     </div>

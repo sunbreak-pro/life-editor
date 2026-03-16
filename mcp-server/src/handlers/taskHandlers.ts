@@ -1,4 +1,5 @@
 import { getDb } from "../db.js";
+import { markdownToTiptap } from "../utils/markdownToTiptap.js";
 import {
   getTagsForEntity,
   getTagMapByEntityType,
@@ -240,16 +241,8 @@ export function updateTask(args: {
     params.scheduled_end_at = args.scheduled_end_at;
   }
   if (args.content !== undefined) {
-    // Convert plain text to minimal TipTap JSON
-    const tiptapDoc = {
-      type: "doc",
-      content: args.content.split("\n").map((line) => ({
-        type: "paragraph",
-        content: line ? [{ type: "text", text: line }] : [],
-      })),
-    };
     updates.push("content = @content");
-    params.content = JSON.stringify(tiptapDoc);
+    params.content = JSON.stringify(markdownToTiptap(args.content));
   }
 
   if (updates.length === 0) return formatTask(existing);

@@ -7,6 +7,7 @@ import {
   Package,
   Filter,
   Pencil,
+  Trash2,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import type { WikiTag, WikiTagAssignment } from "../../../types/wikiTag";
@@ -42,6 +43,8 @@ interface ConnectSidebarProps {
   sidebarSelectedItemId: string | null;
   onSidebarSelect: (id: string | null) => void;
   onUpdateNoteTitle?: (noteId: string, title: string) => void;
+  onDeleteNote?: (noteId: string) => void;
+  onDeleteMemo?: (date: string) => void;
 }
 
 function loadSectionsState(): SectionsState {
@@ -90,6 +93,8 @@ export function ConnectSidebar({
   sidebarSelectedItemId,
   onSidebarSelect,
   onUpdateNoteTitle,
+  onDeleteNote,
+  onDeleteMemo,
 }: ConnectSidebarProps) {
   const { t } = useTranslation();
   const [sections, setSections] = useState<SectionsState>(loadSectionsState);
@@ -300,6 +305,17 @@ export function ConnectSidebar({
                           <Package size={12} />
                         </button>
                       )}
+                      {onDeleteNote && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onDeleteNote(note.id);
+                          }}
+                          className="p-0.5 opacity-0 group-hover:opacity-100 text-notion-text-secondary hover:text-red-500 transition-opacity shrink-0"
+                        >
+                          <Trash2 size={12} />
+                        </button>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -393,6 +409,21 @@ export function ConnectSidebar({
                     {note.title || t("notes.untitled")}
                   </span>
                 </button>
+                <button
+                  ref={(el) => {
+                    if (el) editButtonRefs.current.set(note.id, el);
+                  }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setEditingEntityId(
+                      editingEntityId === note.id ? null : note.id,
+                    );
+                  }}
+                  className="p-0.5 opacity-0 group-hover:opacity-100 text-notion-text-secondary hover:text-notion-text transition-opacity shrink-0"
+                  title={t("ideas.editItem")}
+                >
+                  <Pencil size={12} />
+                </button>
                 {onNavigateToNote && (
                   <button
                     onClick={() => onNavigateToNote(note.id)}
@@ -400,6 +431,17 @@ export function ConnectSidebar({
                     title={t("ideas.materials")}
                   >
                     <Package size={12} />
+                  </button>
+                )}
+                {onDeleteNote && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onDeleteNote(note.id);
+                    }}
+                    className="p-0.5 opacity-0 group-hover:opacity-100 text-notion-text-secondary hover:text-red-500 transition-opacity shrink-0"
+                  >
+                    <Trash2 size={12} />
                   </button>
                 )}
               </div>
@@ -426,6 +468,32 @@ export function ConnectSidebar({
                   </span>
                   {renderTagDots(memo.id)}
                 </button>
+                <button
+                  ref={(el) => {
+                    if (el) editButtonRefs.current.set(memo.id, el);
+                  }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setEditingEntityId(
+                      editingEntityId === memo.id ? null : memo.id,
+                    );
+                  }}
+                  className="p-0.5 opacity-0 group-hover:opacity-100 text-notion-text-secondary hover:text-notion-text transition-opacity shrink-0"
+                  title={t("ideas.editItem")}
+                >
+                  <Pencil size={12} />
+                </button>
+                {onDeleteMemo && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onDeleteMemo(memo.date);
+                    }}
+                    className="p-0.5 opacity-0 group-hover:opacity-100 text-notion-text-secondary hover:text-red-500 transition-opacity shrink-0"
+                  >
+                    <Trash2 size={12} />
+                  </button>
+                )}
               </div>
             ))}
           </CollapsibleSection>
@@ -538,6 +606,17 @@ export function ConnectSidebar({
                       <Package size={12} />
                     </button>
                   )}
+                  {onDeleteNote && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onDeleteNote(note.id);
+                      }}
+                      className="p-0.5 opacity-0 group-hover:opacity-100 text-notion-text-secondary hover:text-red-500 transition-opacity shrink-0"
+                    >
+                      <Trash2 size={12} />
+                    </button>
+                  )}
                 </div>
               ))
             )}
@@ -601,6 +680,17 @@ export function ConnectSidebar({
                   >
                     <Pencil size={12} />
                   </button>
+                  {onDeleteMemo && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onDeleteMemo(memo.date);
+                      }}
+                      className="p-0.5 opacity-0 group-hover:opacity-100 text-notion-text-secondary hover:text-red-500 transition-opacity shrink-0"
+                    >
+                      <Trash2 size={12} />
+                    </button>
+                  )}
                 </div>
               ))
             )}

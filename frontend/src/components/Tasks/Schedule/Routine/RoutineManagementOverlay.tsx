@@ -139,7 +139,7 @@ export function RoutineManagementOverlay({
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <div className="bg-notion-bg border border-notion-border rounded-lg shadow-xl w-[600px] max-h-[80vh] flex flex-col">
+      <div className="bg-notion-bg border border-notion-border rounded-lg shadow-xl w-[820px] max-h-[80vh] flex flex-col">
         {/* Header */}
         <div className="flex items-center justify-between px-4 py-3 border-b border-notion-border shrink-0">
           <h3 className="text-base font-semibold text-notion-text">
@@ -185,7 +185,7 @@ export function RoutineManagementOverlay({
                     className="flex items-center gap-1.5 px-2 py-1.5 rounded-md border border-notion-border hover:bg-notion-hover group transition-colors"
                   >
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-1.5">
+                      <div className="flex items-center gap-1.5 flex-wrap">
                         <span className="text-sm text-notion-text truncate">
                           {routine.title}
                         </span>
@@ -277,7 +277,7 @@ export function RoutineManagementOverlay({
           </div>
 
           {/* Right column: Tag management */}
-          <div className="w-[240px] overflow-y-auto p-3">
+          <div className="w-[320px] overflow-y-auto p-3">
             <span className="text-[11px] text-notion-text-secondary uppercase tracking-wide font-medium block mb-2">
               {t("schedule.manageTags", "Manage Tags")}
             </span>

@@ -31,7 +31,7 @@ export function DailyMemoView() {
               onClick={() => togglePin(selectedDate)}
               className={`p-1.5 rounded transition-colors ${
                 selectedMemo.isPinned
-                  ? "text-notion-primary hover:text-notion-primary/70"
+                  ? "text-red-500 hover:text-red-400"
                   : "text-notion-text-secondary hover:text-notion-text"
               }`}
               title={

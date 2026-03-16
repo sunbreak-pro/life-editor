@@ -54,6 +54,7 @@ export function IdeasView({ onNavigateToNote }: IdeasViewProps) {
     setSelectedNoteId,
     createNote,
     softDeleteNote,
+    updateNote,
   } = useNoteContext();
   const { assignments, tags } = useWikiTags();
 
@@ -98,6 +99,13 @@ export function IdeasView({ onNavigateToNote }: IdeasViewProps) {
     null,
   );
 
+  const handleUpdateNoteTitle = useCallback(
+    (noteId: string, title: string) => {
+      updateNote(noteId, { title });
+    },
+    [updateNote],
+  );
+
   const handleNavigateToConnect = useCallback((noteId: string) => {
     setActiveTab("connect");
     localStorage.setItem(STORAGE_KEYS.IDEAS_TAB, "connect");
@@ -136,6 +144,7 @@ export function IdeasView({ onNavigateToNote }: IdeasViewProps) {
         onDeleteNote={softDeleteNote}
         onDeleteMemo={deleteMemo}
         onNavigateToConnect={handleNavigateToConnect}
+        onUpdateNoteTitle={handleUpdateNoteTitle}
       />
     ) : null;
 

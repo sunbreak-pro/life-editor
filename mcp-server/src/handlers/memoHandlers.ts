@@ -1,4 +1,5 @@
 import { getDb } from "../db.js";
+import { markdownToTiptap } from "../utils/markdownToTiptap.js";
 
 interface MemoRow {
   id: string;
@@ -33,14 +34,7 @@ export function upsertMemo(args: { date: string; content: string }) {
   const db = getDb();
   const id = `memo-${args.date}`;
 
-  // Convert plain text to minimal TipTap JSON
-  const tiptapDoc = {
-    type: "doc",
-    content: args.content.split("\n").map((line) => ({
-      type: "paragraph",
-      content: line ? [{ type: "text", text: line }] : [],
-    })),
-  };
+  const contentJson = JSON.stringify(markdownToTiptap(args.content));
 
   db.prepare(
     `INSERT INTO memos (id, date, content, created_at, updated_at)
@@ -49,7 +43,7 @@ export function upsertMemo(args: { date: string; content: string }) {
   ).run({
     id,
     date: args.date,
-    content: JSON.stringify(tiptapDoc),
+    content: contentJson,
   });
 
   const row = db

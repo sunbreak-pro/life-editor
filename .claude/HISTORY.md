@@ -1,5 +1,30 @@
 # HISTORY.md - 変更履歴
 
+### 2026-03-16 - ConnectSidebar / MaterialsSidebar アクションアイコン統一
+
+#### 概要
+
+ConnectSidebar に Trash2（削除）アイコンを追加し、MaterialsSidebar に Pencil（編集）+ ItemEditPopover を追加。両サイドバーで同じ操作（編集・削除）が統一的に可能に。
+
+#### 変更点
+
+- **ConnectSidebar**: Trash2 アイコンを全5セクション（Search results / Favorites notes・memos / Notes / Daily）に追加。Favorites セクションにも Pencil ボタン追加
+- **ConnectTabView**: `softDeleteNote` / `deleteMemo` を ConnectSidebar にパススルー
+- **MaterialsSidebar**: Tag + InlineTagEditor を Pencil + ItemEditPopover に置換。renderNoteItem に Pencil ボタン追加。`onUpdateNoteTitle` prop 追加、`getEntityType` / `getEntityTitle` ヘルパー追加
+- **IdeasView**: `updateNote` を destructure し `handleUpdateNoteTitle` を作成、MaterialsSidebar に渡す
+
+### 2026-03-16 - RichEditor UI/UX 3点改善
+
+#### 概要
+
+Callout内見出しの余白ズレ修正、MCP Server のMarkdown→TipTap変換パーサー追加、ハートアイコン色の赤統一の3点を実施。
+
+#### 変更点
+
+- **Callout見出し余白**: `.callout-content > h1/h2/h3:first-child` に `margin-top: 0` を追加し、アイコンと見出しの上端を揃えた
+- **MCP Markdown変換**: `markdownToTiptap.ts` を新規作成。見出し・リスト・タスクリスト・blockquote・codeBlock・horizontalRule・インラインマーク（bold/italic/code/strike）に対応。noteHandlers/memoHandlers/taskHandlers の3ハンドラーで使用
+- **ハートアイコン統一**: NotesView・DailyMemoView の isPinned ハートを `text-notion-primary`（青）→ `text-red-500`（赤）に変更し、サイドバー側と統一
+
 ### 2026-03-16 - Connect Edit Popover位置改善 & Heart/TagDotアイコン統一
 
 #### 概要

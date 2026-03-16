@@ -405,6 +405,12 @@ body {
   min-width: 0;
 }
 
+.memo-editor .callout .callout-content > h1:first-child,
+.memo-editor .callout .callout-content > h2:first-child,
+.memo-editor .callout .callout-content > h3:first-child {
+  margin-top: 0;
+}
+
 /* Ordered List nesting */
 .memo-editor ol ol {
   list-style-type: lower-alpha;

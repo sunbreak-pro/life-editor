@@ -33,8 +33,8 @@ export function ConnectTabView({
 
   const { noteConnections, createNoteConnection, deleteNoteConnectionByPair } =
     useNoteConnections();
-  const { notes, createNote, updateNote } = useNoteContext();
-  const { memos } = useMemoContext();
+  const { notes, createNote, updateNote, softDeleteNote } = useNoteContext();
+  const { memos, deleteMemo } = useMemoContext();
 
   const [query, setQuery] = useState("");
   const [selectedTagId, setSelectedTagId] = useState<string | null>(null);
@@ -138,6 +138,8 @@ export function ConnectTabView({
       sidebarSelectedItemId={sidebarSelectedItemId}
       onSidebarSelect={handleSidebarSelect}
       onUpdateNoteTitle={handleUpdateNoteTitle}
+      onDeleteNote={softDeleteNote}
+      onDeleteMemo={deleteMemo}
     />
   );
 

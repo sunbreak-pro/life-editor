@@ -1,4 +1,5 @@
 import { getDb } from "../db.js";
+import { markdownToTiptap } from "../utils/markdownToTiptap.js";
 
 interface NoteRow {
   id: string;
@@ -49,14 +50,7 @@ export function createNote(args: { title: string; content?: string }) {
 
   let contentJson = "";
   if (args.content) {
-    const tiptapDoc = {
-      type: "doc",
-      content: args.content.split("\n").map((line) => ({
-        type: "paragraph",
-        content: line ? [{ type: "text", text: line }] : [],
-      })),
-    };
-    contentJson = JSON.stringify(tiptapDoc);
+    contentJson = JSON.stringify(markdownToTiptap(args.content));
   }
 
   db.prepare(
@@ -88,15 +82,8 @@ export function updateNote(args: {
     params.title = args.title;
   }
   if (args.content !== undefined) {
-    const tiptapDoc = {
-      type: "doc",
-      content: args.content.split("\n").map((line) => ({
-        type: "paragraph",
-        content: line ? [{ type: "text", text: line }] : [],
-      })),
-    };
     updates.push("content = @content");
-    params.content = JSON.stringify(tiptapDoc);
+    params.content = JSON.stringify(markdownToTiptap(args.content));
   }
 
   if (args.color !== undefined) {

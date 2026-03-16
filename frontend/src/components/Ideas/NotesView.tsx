@@ -78,7 +78,7 @@ export function NotesView() {
               onClick={() => togglePin(selectedNote.id)}
               className={`p-1.5 rounded transition-colors ${
                 selectedNote.isPinned
-                  ? "text-notion-primary hover:text-notion-primary/70"
+                  ? "text-red-500 hover:text-red-400"
                   : "text-notion-text-secondary hover:text-notion-text"
               }`}
               title={

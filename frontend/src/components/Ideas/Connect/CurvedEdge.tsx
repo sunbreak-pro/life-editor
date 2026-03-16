@@ -1,4 +1,4 @@
-import { getStraightPath, type EdgeProps } from "@xyflow/react";
+import type { EdgeProps } from "@xyflow/react";
 
 type CurvedEdgeData = {
   curveOffset?: number;
@@ -6,6 +6,8 @@ type CurvedEdgeData = {
   connectionId?: string;
   tagId?: string;
 };
+
+const NODE_RADIUS = 5; // w-2.5 = 10px / 2
 
 export function CurvedEdge({
   sourceX,
@@ -18,19 +20,35 @@ export function CurvedEdge({
 }: EdgeProps & { data?: CurvedEdgeData }) {
   const offset = data?.curveOffset ?? 0;
 
+  const dx = targetX - sourceX;
+  const dy = targetY - sourceY;
+  const dist = Math.sqrt(dx * dx + dy * dy) || 1;
+
+  let sx: number, sy: number, tx: number, ty: number;
+  if (dist < NODE_RADIUS * 2) {
+    sx = sourceX;
+    sy = sourceY;
+    tx = targetX;
+    ty = targetY;
+  } else {
+    sx = sourceX + (dx / dist) * NODE_RADIUS;
+    sy = sourceY + (dy / dist) * NODE_RADIUS;
+    tx = targetX - (dx / dist) * NODE_RADIUS;
+    ty = targetY - (dy / dist) * NODE_RADIUS;
+  }
+
   let path: string;
   if (offset === 0) {
-    [path] = getStraightPath({ sourceX, sourceY, targetX, targetY });
+    path = `M ${sx} ${sy} L ${tx} ${ty}`;
   } else {
-    const mx = (sourceX + targetX) / 2;
-    const my = (sourceY + targetY) / 2;
-    const dx = targetX - sourceX;
-    const dy = targetY - sourceY;
-    const len = Math.sqrt(dx * dx + dy * dy) || 1;
-    // Perpendicular offset
-    const cx = mx + (-dy / len) * offset;
-    const cy = my + (dx / len) * offset;
-    path = `M ${sourceX} ${sourceY} Q ${cx} ${cy} ${targetX} ${targetY}`;
+    const mx = (sx + tx) / 2;
+    const my = (sy + ty) / 2;
+    const edgeDx = tx - sx;
+    const edgeDy = ty - sy;
+    const edgeLen = Math.sqrt(edgeDx * edgeDx + edgeDy * edgeDy) || 1;
+    const cx = mx + (-edgeDy / edgeLen) * offset;
+    const cy = my + (edgeDx / edgeLen) * offset;
+    path = `M ${sx} ${sy} Q ${cx} ${cy} ${tx} ${ty}`;
   }
 
   return (
