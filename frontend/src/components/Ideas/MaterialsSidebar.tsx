@@ -240,6 +240,7 @@ export function MaterialsSidebar({
   const renderNoteItem = (note: NoteNode) => (
     <div
       key={note.id}
+      data-sidebar-item
       className={`group flex items-center gap-1.5 px-2 py-1.5 rounded text-left transition-colors ${
         isNoteSelected(note.id) ? "bg-notion-hover" : "hover:bg-notion-hover"
       }`}
@@ -303,6 +304,7 @@ export function MaterialsSidebar({
   const renderMemoItem = (memo: MemoNode) => (
     <div
       key={memo.id}
+      data-sidebar-item
       className={`group flex items-center gap-1.5 px-2 py-1.5 rounded text-left transition-colors ${
         isDailySelected(memo.date) ? "bg-notion-hover" : "hover:bg-notion-hover"
       }`}

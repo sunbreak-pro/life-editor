@@ -2,6 +2,7 @@ import { useContext, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { SectionTabs, type TabItem } from "./SectionTabs";
 import { HeaderPortalContext } from "../Layout/HeaderPortalContext";
+import { useTabKeyboardNavigation } from "../../hooks/useTabKeyboardNavigation";
 
 interface SectionHeaderProps<T extends string> {
   title: string;
@@ -23,6 +24,12 @@ export function SectionHeader<T extends string>({
   const portalTarget = useContext(HeaderPortalContext);
 
   const hasTabs = tabs && activeTab !== undefined && onTabChange;
+
+  useTabKeyboardNavigation({
+    tabs: hasTabs ? tabs : [],
+    activeTab: activeTab ?? ("" as T),
+    onTabChange: onTabChange ?? (() => {}),
+  });
 
   const content = (
     <>

@@ -92,6 +92,7 @@ export function MiniRoutineFlow({
         {steps.map((step, i) => (
           <button
             key={step.routineId}
+            data-sidebar-item
             onClick={() => handleToggle(step.scheduleItemId)}
             disabled={!step.scheduleItemId}
             className={`flex text-left w-full ${

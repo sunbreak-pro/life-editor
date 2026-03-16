@@ -196,6 +196,35 @@ export const DEFAULT_SHORTCUTS: ShortcutDefinition[] = [
     defaultBinding: { code: "KeyZ", meta: true, shift: true },
     activeInInput: false,
   },
+  // Tab / Sidebar navigation
+  {
+    id: "tab:next",
+    category: "navigation",
+    descriptionKey: "tips.shortcutsTab.switchNextTab",
+    defaultBinding: { key: "ArrowRight", shift: true },
+    activeInInput: false,
+  },
+  {
+    id: "tab:prev",
+    category: "navigation",
+    descriptionKey: "tips.shortcutsTab.switchPrevTab",
+    defaultBinding: { key: "ArrowLeft", shift: true },
+    activeInInput: false,
+  },
+  {
+    id: "sidebar:item-down",
+    category: "navigation",
+    descriptionKey: "tips.shortcutsTab.sidebarItemDown",
+    defaultBinding: { key: "ArrowDown", shift: true },
+    activeInInput: false,
+  },
+  {
+    id: "sidebar:item-up",
+    category: "navigation",
+    descriptionKey: "tips.shortcutsTab.sidebarItemUp",
+    defaultBinding: { key: "ArrowUp", shift: true },
+    activeInInput: false,
+  },
   // Calendar
   {
     id: "cal:next",

@@ -1,5 +1,19 @@
 # HISTORY.md - 変更履歴
 
+### 2026-03-16 - Connect Canvas & Sidebar Filter — Entity-Type + Virtual Untagged Tag
+
+#### 概要
+
+Connectキャンバスのフィルタに Entity-type フィルタ（Note/Daily）と仮想「未タグ(未所属)」タグを追加。キャンバスとサイドバー両方のフィルタに適用し、OR論理でフィルタリング可能に。
+
+#### 変更点
+
+- **filterItem.ts（新規）**: FilterItem型、FilterItemKind、ENTITY_FILTER_NOTE_ID/ENTITY_FILTER_MEMO_ID/VIRTUAL_UNTAGGED_ID定数を定義
+- **TagFilterOverlay.tsx**: items?: FilterItem[] propを追加。kindに応じた描画（entity-type→Lucideアイコン、tag→色付きドット、virtual-tag→灰色ドット）
+- **TagGraphView.tsx**: activeEdgeTagIds→activeFilterIdsにリネーム、activeFilterResult memoでentity-type/tag/untaggedに分解、displayFilterItems構築、noteTagDots/memoTagDotsに未タグ仮想ドット追加、buildNormalNodes/buildNormalEdges/buildSplitView系を\_\_prefix除外で更新
+- **ConnectSidebar.tsx**: Notes フィルタにnoteFilterItems（実タグ+未タグ仮想タグ）追加、filteredNotesにVIRTUAL_UNTAGGED_ID対応、DailyセクションにdailyFilterTagIds/showDailyFilter/dailyFilterItems新設、Filterボタン+TagFilterOverlay追加
+- **i18n**: ideas.untaggedLabel追加（en: "Untagged", ja: "未タグ(未所属)"）
+
 ### 2026-03-16 - Dayflow Timegrid 6つの改善
 
 #### 概要

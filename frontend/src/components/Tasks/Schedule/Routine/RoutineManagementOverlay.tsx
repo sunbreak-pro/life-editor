@@ -174,6 +174,7 @@ export function RoutineManagementOverlay({
                 return (
                   <div
                     key={routine.id}
+                    data-sidebar-item
                     className="flex items-center gap-1.5 px-2 py-1.5 rounded-md border border-notion-border hover:bg-notion-hover group transition-colors"
                   >
                     <div className="flex-1 min-w-0">
@@ -252,6 +253,7 @@ export function RoutineManagementOverlay({
                   {archivedRoutines.map((routine) => (
                     <div
                       key={routine.id}
+                      data-sidebar-item
                       className="flex items-center gap-1.5 px-2 py-1 rounded-md hover:bg-notion-hover group opacity-50"
                     >
                       <span className="flex-1 text-sm text-notion-text-secondary truncate">

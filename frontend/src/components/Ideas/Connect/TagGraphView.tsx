@@ -22,6 +22,8 @@ import {
   AlignHorizontalSpaceBetween,
   GitBranch,
   Filter,
+  StickyNote,
+  BookOpen,
 } from "lucide-react";
 import { applyPolygonLayout, applyLineLayout } from "./layoutTemplates";
 import { useReactFlow } from "@xyflow/react";
@@ -36,6 +38,12 @@ import type {
   NoteConnection,
 } from "../../../types/wikiTag";
 import type { NoteNode } from "../../../types/note";
+import type { FilterItem } from "../../../types/filterItem";
+import {
+  ENTITY_FILTER_NOTE_ID,
+  ENTITY_FILTER_MEMO_ID,
+  VIRTUAL_UNTAGGED_ID,
+} from "../../../types/filterItem";
 import { STORAGE_KEYS } from "../../../constants/storageKeys";
 import { TagFilterOverlay } from "../../shared/TagFilterOverlay";
 import { computeForceLayout } from "./forceLayout";
@@ -113,6 +121,10 @@ function extractContentPreview(content: string): string {
   }
 }
 
+function isSpecialFilterId(id: string): boolean {
+  return id.startsWith("__");
+}
+
 function CanvasControls() {
   const { zoomIn, zoomOut, fitView } = useReactFlow();
 
@@ -168,8 +180,8 @@ export function TagGraphView({
 
   const sidebarMode = sidebarSelectedItemId != null;
 
-  // Edge tag filter (normal mode only) — multi-select
-  const [activeEdgeTagIds, setActiveEdgeTagIds] = useState<Set<string>>(
+  // Filter state (normal mode only) — multi-select, supports tag/entity/virtual IDs
+  const [activeFilterIds, setActiveFilterIds] = useState<Set<string>>(
     new Set(),
   );
   const [showCanvasFilter, setShowCanvasFilter] = useState(false);
@@ -186,36 +198,72 @@ export function TagGraphView({
     return tagIds;
   }, [focusedItemId, assignments]);
 
-  // Remove activeEdgeTagIds that are no longer in the displayed tag list
+  // Remove activeFilterIds that reference tags no longer in the displayed tag list
+  // Keep special IDs (__ prefix) as-is
   useEffect(() => {
     const validTagIds = new Set(tags.map((t) => t.id));
-    setActiveEdgeTagIds((prev) => {
-      const filtered = new Set([...prev].filter((id) => validTagIds.has(id)));
+    setActiveFilterIds((prev) => {
+      const filtered = new Set(
+        [...prev].filter((id) => isSpecialFilterId(id) || validTagIds.has(id)),
+      );
       if (filtered.size === prev.size) return prev;
       return filtered;
     });
   }, [tags]);
 
-  // R1: Reset activeEdgeTagIds when focused item changes
+  // R1: Reset activeFilterIds when focused item changes (only real tag IDs)
   useEffect(() => {
     if (!focusedItemTagIds) return;
-    setActiveEdgeTagIds((prev) => {
+    setActiveFilterIds((prev) => {
       const filtered = new Set(
-        [...prev].filter((id) => focusedItemTagIds.has(id)),
+        [...prev].filter(
+          (id) => isSpecialFilterId(id) || focusedItemTagIds.has(id),
+        ),
       );
       if (filtered.size === prev.size) return prev;
       return filtered;
     });
   }, [focusedItemTagIds]);
 
-  const activeTagEntityIds = useMemo(() => {
-    if (activeEdgeTagIds.size === 0) return null;
-    return new Set(
-      assignments
-        .filter((a) => activeEdgeTagIds.has(a.tagId))
-        .map((a) => a.entityId),
-    );
-  }, [activeEdgeTagIds, assignments]);
+  // Decompose activeFilterIds into categories
+  const activeFilterResult = useMemo(() => {
+    const entityTypes = new Set<string>();
+    const realTagIds = new Set<string>();
+    let hasUntagged = false;
+
+    for (const id of activeFilterIds) {
+      if (id === ENTITY_FILTER_NOTE_ID || id === ENTITY_FILTER_MEMO_ID) {
+        entityTypes.add(id);
+      } else if (id === VIRTUAL_UNTAGGED_ID) {
+        hasUntagged = true;
+      } else {
+        realTagIds.add(id);
+      }
+    }
+
+    return { entityTypes, realTagIds, hasUntagged };
+  }, [activeFilterIds]);
+
+  // IDs of entities that have at least one tag assignment
+  const taggedEntityIds = useMemo(() => {
+    const set = new Set<string>();
+    for (const a of assignments) {
+      set.add(a.entityId);
+    }
+    return set;
+  }, [assignments]);
+
+  // Untagged entity IDs (notes and memos without any tag)
+  const untaggedEntityIds = useMemo(() => {
+    const set = new Set<string>();
+    for (const n of notes) {
+      if (!n.isDeleted && !taggedEntityIds.has(n.id)) set.add(n.id);
+    }
+    for (const m of memos) {
+      if (!m.isDeleted && !taggedEntityIds.has(m.id)) set.add(m.id);
+    }
+    return set;
+  }, [notes, memos, taggedEntityIds]);
 
   const displayTags = useMemo(
     () =>
@@ -224,6 +272,49 @@ export function TagGraphView({
         : tags,
     [focusedItemTagIds, tags],
   );
+
+  // Build displayFilterItems for the canvas filter overlay
+  const displayFilterItems = useMemo<FilterItem[]>(() => {
+    const items: FilterItem[] = [];
+
+    // Entity-type filters
+    items.push({
+      id: ENTITY_FILTER_NOTE_ID,
+      kind: "entity-type",
+      name: t("ideas.notes"),
+      icon: StickyNote,
+      textColor: "var(--notion-text-secondary)",
+    });
+    items.push({
+      id: ENTITY_FILTER_MEMO_ID,
+      kind: "entity-type",
+      name: t("ideas.daily"),
+      icon: BookOpen,
+      textColor: "var(--notion-text-secondary)",
+    });
+
+    // Real tags
+    for (const tag of displayTags) {
+      items.push({
+        id: tag.id,
+        kind: "tag",
+        name: tag.name,
+        color: tag.color,
+      });
+    }
+
+    // Virtual untagged tag (only if untagged items exist)
+    if (untaggedEntityIds.size > 0) {
+      items.push({
+        id: VIRTUAL_UNTAGGED_ID,
+        kind: "virtual-tag",
+        name: t("ideas.untaggedLabel"),
+        color: "#d1d5db",
+      });
+    }
+
+    return items;
+  }, [displayTags, untaggedEntityIds, t]);
 
   // Build tag dots data for notes
   const noteTagDots = useMemo(() => {
@@ -239,8 +330,20 @@ export function TagGraphView({
       existing.push({ id: tag.id, name: tag.name, color: tag.color });
       map.set(a.entityId, existing);
     }
+    // Add virtual untagged dot for notes without tags
+    for (const n of notes) {
+      if (!n.isDeleted && !map.has(n.id)) {
+        map.set(n.id, [
+          {
+            id: VIRTUAL_UNTAGGED_ID,
+            name: t("ideas.untaggedLabel"),
+            color: "#d1d5db",
+          },
+        ]);
+      }
+    }
     return map;
-  }, [assignments, tags]);
+  }, [assignments, tags, notes, t]);
 
   // Build tag dots data for memos
   const memoTagDots = useMemo(() => {
@@ -256,8 +359,20 @@ export function TagGraphView({
       existing.push({ id: tag.id, name: tag.name, color: tag.color });
       map.set(a.entityId, existing);
     }
+    // Add virtual untagged dot for memos without tags
+    for (const m of memos) {
+      if (!m.isDeleted && !map.has(m.id)) {
+        map.set(m.id, [
+          {
+            id: VIRTUAL_UNTAGGED_ID,
+            name: t("ideas.untaggedLabel"),
+            color: "#d1d5db",
+          },
+        ]);
+      }
+    }
     return map;
-  }, [assignments, tags]);
+  }, [assignments, tags, memos, t]);
 
   // Visible IDs: all non-deleted entities (no filter)
   const visibleNoteIds = useMemo(
@@ -285,8 +400,10 @@ export function TagGraphView({
     if (sidebarMode || !selectedNodeId) return null;
     const selectedTags =
       noteTagDots.get(selectedNodeId) || memoTagDots.get(selectedNodeId) || [];
-    if (selectedTags.length === 0) return new Set([selectedNodeId]);
-    const selectedTagIds = new Set(selectedTags.map((t) => t.id));
+    // Exclude virtual tags from relationship calculation
+    const realTags = selectedTags.filter((t) => !isSpecialFilterId(t.id));
+    if (realTags.length === 0) return new Set([selectedNodeId]);
+    const selectedTagIds = new Set(realTags.map((t) => t.id));
     const related = new Set<string>([selectedNodeId]);
     for (const a of assignments) {
       if (selectedTagIds.has(a.tagId)) {
@@ -354,17 +471,47 @@ export function TagGraphView({
     assignments,
     selectedTagId,
     relatedNodeIds,
-    activeTagEntityIds,
+    activeFilterIds,
   ]);
 
   function buildNormalNodes(): Node[] {
     const saved = positionsRef.current;
-    const visibleNotes = activeTagEntityIds
-      ? filteredNotes.filter((n) => activeTagEntityIds.has(n.id))
-      : filteredNotes;
-    const visibleMemosList = activeTagEntityIds
-      ? filteredMemos.filter((m) => activeTagEntityIds.has(m.id))
-      : filteredMemos;
+    const { entityTypes, realTagIds, hasUntagged } = activeFilterResult;
+    const hasAnyFilter =
+      entityTypes.size > 0 || realTagIds.size > 0 || hasUntagged;
+
+    // Apply OR filter across all filter types
+    let visibleNotes = filteredNotes;
+    let visibleMemosList = filteredMemos;
+
+    if (hasAnyFilter) {
+      // Compute entity IDs that match real tag filters
+      const tagMatchIds =
+        realTagIds.size > 0
+          ? new Set(
+              assignments
+                .filter((a) => realTagIds.has(a.tagId))
+                .map((a) => a.entityId),
+            )
+          : new Set<string>();
+
+      visibleNotes = filteredNotes.filter((n) => {
+        // Entity-type filter: if note entity type selected, include all notes
+        if (entityTypes.has(ENTITY_FILTER_NOTE_ID)) return true;
+        // Tag filter: if note matches any selected real tag
+        if (realTagIds.size > 0 && tagMatchIds.has(n.id)) return true;
+        // Untagged filter: if note has no tags
+        if (hasUntagged && untaggedEntityIds.has(n.id)) return true;
+        return false;
+      });
+
+      visibleMemosList = filteredMemos.filter((m) => {
+        if (entityTypes.has(ENTITY_FILTER_MEMO_ID)) return true;
+        if (realTagIds.size > 0 && tagMatchIds.has(m.id)) return true;
+        if (hasUntagged && untaggedEntityIds.has(m.id)) return true;
+        return false;
+      });
+    }
 
     // Compute force layout for nodes without saved positions
     const allVisibleItems = [
@@ -441,10 +588,15 @@ export function TagGraphView({
     const allTags = selectedNote
       ? noteTagDots.get(selectedId) || []
       : memoTagDots.get(selectedId) || [];
+    // Only use real tags for split view
+    const realAllTags = allTags.filter((t) => !isSpecialFilterId(t.id));
+    const realActiveTagIds = new Set(
+      [...activeFilterIds].filter((id) => !isSpecialFilterId(id)),
+    );
     const selectedTags =
-      activeEdgeTagIds.size > 0
-        ? allTags.filter((t) => activeEdgeTagIds.has(t.id))
-        : allTags;
+      realActiveTagIds.size > 0
+        ? realAllTags.filter((t) => realActiveTagIds.has(t.id))
+        : realAllTags;
 
     // No tags → single node only
     if (selectedTags.length === 0) {
@@ -459,7 +611,7 @@ export function TagGraphView({
               contentPreview: extractContentPreview(selectedNote.content),
               noteId: selectedNote.id,
               color: selectedNote.color,
-              tagDots: [],
+              tagDots: allTags,
               highlighted: false,
               dimmed: false,
             },
@@ -475,7 +627,7 @@ export function TagGraphView({
             date: selectedMemo!.date,
             contentPreview: extractContentPreview(selectedMemo!.content),
             memoId: selectedMemo!.id,
-            tagDots: [],
+            tagDots: allTags,
             highlighted: false,
             dimmed: false,
           },
@@ -637,7 +789,7 @@ export function TagGraphView({
     nodePositionMap,
     noteTagDots,
     memoTagDots,
-    activeEdgeTagIds,
+    activeFilterIds,
   ]);
 
   function buildNormalEdges(): Edge[] {
@@ -660,12 +812,17 @@ export function TagGraphView({
       data: { connectionType: "manual", connectionId: conn.id, curveOffset: 0 },
     }));
 
+    // Only use real tags for edge filtering (exclude __ prefix)
+    const realActiveTagIds = new Set(
+      [...activeFilterIds].filter((id) => !isSpecialFilterId(id)),
+    );
+
     // Tag-based edges with curve offset for duplicate pairs
     const tagEdges: Edge[] = [];
     const pairEdgeCount = new Map<string, number>();
     const seenPairs = new Set<string>();
     for (const tag of tags) {
-      if (activeEdgeTagIds.size > 0 && !activeEdgeTagIds.has(tag.id)) continue;
+      if (realActiveTagIds.size > 0 && !realActiveTagIds.has(tag.id)) continue;
       const noteIdsForTag = assignments
         .filter((a) => a.tagId === tag.id && a.entityType === "note")
         .map((a) => a.entityId)
@@ -708,10 +865,15 @@ export function TagGraphView({
     const selectedId = sidebarSelectedItemId!;
     const allTags =
       noteTagDots.get(selectedId) || memoTagDots.get(selectedId) || [];
+    // Only use real tags for split view edges
+    const realAllTags = allTags.filter((t) => !isSpecialFilterId(t.id));
+    const realActiveTagIds = new Set(
+      [...activeFilterIds].filter((id) => !isSpecialFilterId(id)),
+    );
     const selectedTags =
-      activeEdgeTagIds.size > 0
-        ? allTags.filter((t) => activeEdgeTagIds.has(t.id))
-        : allTags;
+      realActiveTagIds.size > 0
+        ? realAllTags.filter((t) => realActiveTagIds.has(t.id))
+        : realAllTags;
     const edges: Edge[] = [];
     const seenEdges = new Set<string>();
 
@@ -1019,9 +1181,9 @@ export function TagGraphView({
                 className="p-1.5 rounded bg-notion-bg border border-notion-border text-notion-text-secondary hover:bg-notion-hover flex items-center gap-1"
               >
                 <Filter size={14} />
-                {activeEdgeTagIds.size > 0 && (
+                {activeFilterIds.size > 0 && (
                   <span className="text-[10px] font-medium text-notion-accent">
-                    {activeEdgeTagIds.size}
+                    {activeFilterIds.size}
                   </span>
                 )}
               </button>
@@ -1029,19 +1191,20 @@ export function TagGraphView({
                 <div className="absolute right-0 top-full mt-1 z-20">
                   <TagFilterOverlay
                     tags={displayTags}
-                    selectedTagIds={[...activeEdgeTagIds]}
-                    onToggle={(tagId) =>
-                      setActiveEdgeTagIds((prev) => {
+                    selectedTagIds={[...activeFilterIds]}
+                    onToggle={(id) =>
+                      setActiveFilterIds((prev) => {
                         const next = new Set(prev);
-                        if (next.has(tagId)) {
-                          next.delete(tagId);
+                        if (next.has(id)) {
+                          next.delete(id);
                         } else {
-                          next.add(tagId);
+                          next.add(id);
                         }
                         return next;
                       })
                     }
                     onClose={() => setShowCanvasFilter(false)}
+                    items={displayFilterItems}
                   />
                 </div>
               )}

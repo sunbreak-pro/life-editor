@@ -256,7 +256,8 @@
     "noteConnection": "ノート接続",
     "sharedTags": "共通タグ",
     "editItem": "編集",
-    "editName": "名前"
+    "editName": "名前",
+    "untaggedLabel": "未タグ(未所属)"
   },
   "schedule": {
     "todayFlow": "Today Flow",
@@ -375,7 +376,11 @@
       "terminalNewTab": "新しいターミナルタブ（ターミナル内）",
       "terminalClosePane": "ターミナルペインを閉じる（ターミナル内）",
       "terminalSplitVertical": "垂直分割（ターミナル内）",
-      "terminalSplitHorizontal": "水平分割（ターミナル内）"
+      "terminalSplitHorizontal": "水平分割（ターミナル内）",
+      "switchNextTab": "次のタブに切り替え",
+      "switchPrevTab": "前のタブに切り替え",
+      "sidebarItemDown": "サイドバーリストを下に移動",
+      "sidebarItemUp": "サイドバーリストを上に移動"
     },
     "tasksTab": {
       "creating": "タスクとフォルダの作成",

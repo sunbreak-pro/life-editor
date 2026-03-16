@@ -471,6 +471,14 @@ body {
   opacity: 0.8;
 }
 
+/* Sidebar keyboard focus */
+[data-sidebar-focused="true"] {
+  outline: 2px solid var(--color-accent);
+  outline-offset: -2px;
+  background-color: var(--color-hover);
+  border-radius: 4px;
+}
+
 /* Check completion animation */
 @keyframes check-pop {
   0% {

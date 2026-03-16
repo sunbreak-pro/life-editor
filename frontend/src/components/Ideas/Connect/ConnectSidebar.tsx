@@ -13,6 +13,8 @@ import { useTranslation } from "react-i18next";
 import type { WikiTag, WikiTagAssignment } from "../../../types/wikiTag";
 import type { NoteNode } from "../../../types/note";
 import type { MemoNode } from "../../../types/memo";
+import type { FilterItem } from "../../../types/filterItem";
+import { VIRTUAL_UNTAGGED_ID } from "../../../types/filterItem";
 import { WikiTagChip } from "../../WikiTags/WikiTagChip";
 import { SearchBar, type SearchSuggestion } from "../../shared/SearchBar";
 import { CollapsibleSection } from "../../shared/CollapsibleSection";
@@ -103,6 +105,10 @@ export function ConnectSidebar({
   const [sidebarFilterTagIds, setSidebarFilterTagIds] = useState<string[]>([]);
   const [showNoteFilter, setShowNoteFilter] = useState(false);
 
+  // Daily filter state
+  const [dailyFilterTagIds, setDailyFilterTagIds] = useState<string[]>([]);
+  const [showDailyFilter, setShowDailyFilter] = useState(false);
+
   // Entity editing state (name + tags)
   const [editingEntityId, setEditingEntityId] = useState<string | null>(null);
   const editButtonRefs = useRef<Map<string, HTMLButtonElement>>(new Map());
@@ -132,6 +138,80 @@ export function ConnectSidebar({
     }
     return map;
   }, [assignments]);
+
+  // Memo tag filter
+  const memoTagMap = useMemo(() => {
+    const map = new Map<string, Set<string>>();
+    for (const a of assignments) {
+      if (a.entityType !== "memo") continue;
+      const existing = map.get(a.entityId) || new Set();
+      existing.add(a.tagId);
+      map.set(a.entityId, existing);
+    }
+    return map;
+  }, [assignments]);
+
+  // Untagged note IDs
+  const untaggedNoteIds = useMemo(() => {
+    const set = new Set<string>();
+    for (const n of notes) {
+      if (!noteTagMap.has(n.id)) set.add(n.id);
+    }
+    return set;
+  }, [notes, noteTagMap]);
+
+  // Untagged memo IDs
+  const untaggedMemoIds = useMemo(() => {
+    const set = new Set<string>();
+    for (const m of memos) {
+      if (!memoTagMap.has(m.id)) set.add(m.id);
+    }
+    return set;
+  }, [memos, memoTagMap]);
+
+  // Build filter items for Notes section
+  const noteFilterItems = useMemo<FilterItem[]>(() => {
+    const items: FilterItem[] = [];
+    for (const tag of tags) {
+      items.push({
+        id: tag.id,
+        kind: "tag",
+        name: tag.name,
+        color: tag.color,
+      });
+    }
+    if (untaggedNoteIds.size > 0) {
+      items.push({
+        id: VIRTUAL_UNTAGGED_ID,
+        kind: "virtual-tag",
+        name: t("ideas.untaggedLabel"),
+        color: "#d1d5db",
+      });
+    }
+    return items;
+  }, [tags, untaggedNoteIds, t]);
+
+  // Build filter items for Daily section
+  const dailyFilterItems = useMemo<FilterItem[]>(() => {
+    const items: FilterItem[] = [];
+    for (const tag of tags) {
+      items.push({
+        id: tag.id,
+        kind: "tag",
+        name: tag.name,
+        color: tag.color,
+      });
+    }
+    if (untaggedMemoIds.size > 0) {
+      items.push({
+        id: VIRTUAL_UNTAGGED_ID,
+        kind: "virtual-tag",
+        name: t("ideas.untaggedLabel"),
+        color: "#d1d5db",
+      });
+    }
+    return items;
+  }, [tags, untaggedMemoIds, t]);
 
   // Build tag color dots lookup (include both notes and memos)
   const entityTagColors = useMemo(() => {
@@ -167,13 +247,42 @@ export function ConnectSidebar({
     if (sidebarFilterTagIds.length === 0) return notes;
     return notes.filter((n) => {
       const tagSet = noteTagMap.get(n.id);
-      if (!tagSet) return false;
-      return sidebarFilterTagIds.some((tid) => tagSet.has(tid));
+      // Check if any selected real tag matches
+      const matchesRealTag = sidebarFilterTagIds.some(
+        (tid) => tid !== VIRTUAL_UNTAGGED_ID && tagSet?.has(tid),
+      );
+      // Check if untagged filter is active and this note is untagged
+      const matchesUntagged =
+        sidebarFilterTagIds.includes(VIRTUAL_UNTAGGED_ID) &&
+        untaggedNoteIds.has(n.id);
+      return matchesRealTag || matchesUntagged;
     });
-  }, [notes, sidebarFilterTagIds, noteTagMap]);
+  }, [notes, sidebarFilterTagIds, noteTagMap, untaggedNoteIds]);
+
+  const filteredMemos = useMemo(() => {
+    if (dailyFilterTagIds.length === 0) return memos;
+    return memos.filter((m) => {
+      const tagSet = memoTagMap.get(m.id);
+      const matchesRealTag = dailyFilterTagIds.some(
+        (tid) => tid !== VIRTUAL_UNTAGGED_ID && tagSet?.has(tid),
+      );
+      const matchesUntagged =
+        dailyFilterTagIds.includes(VIRTUAL_UNTAGGED_ID) &&
+        untaggedMemoIds.has(m.id);
+      return matchesRealTag || matchesUntagged;
+    });
+  }, [memos, dailyFilterTagIds, memoTagMap, untaggedMemoIds]);
 
   const toggleSidebarFilterTag = useCallback((tagId: string) => {
     setSidebarFilterTagIds((prev) =>
+      prev.includes(tagId)
+        ? prev.filter((id) => id !== tagId)
+        : [...prev, tagId],
+    );
+  }, []);
+
+  const toggleDailyFilterTag = useCallback((tagId: string) => {
+    setDailyFilterTagIds((prev) =>
       prev.includes(tagId)
         ? prev.filter((id) => id !== tagId)
         : [...prev, tagId],
@@ -191,7 +300,10 @@ export function ConnectSidebar({
     () => filteredNotes.filter((n) => n.isPinned),
     [filteredNotes],
   );
-  const pinnedMemos = useMemo(() => memos.filter((m) => m.isPinned), [memos]);
+  const pinnedMemos = useMemo(
+    () => filteredMemos.filter((m) => m.isPinned),
+    [filteredMemos],
+  );
   const hasFavorites = pinnedNotes.length > 0 || pinnedMemos.length > 0;
 
   const handleItemClick = useCallback(
@@ -278,6 +390,7 @@ export function ConnectSidebar({
                   {matchingNotes.map((note) => (
                     <div
                       key={note.id}
+                      data-sidebar-item
                       className={`group flex items-center gap-1.5 px-2 py-1.5 rounded transition-colors ${
                         sidebarSelectedItemId === note.id
                           ? "bg-notion-accent/10"
@@ -391,6 +504,7 @@ export function ConnectSidebar({
             {pinnedNotes.map((note) => (
               <div
                 key={note.id}
+                data-sidebar-item
                 className={`group flex items-center gap-1.5 px-2 py-1.5 rounded transition-colors ${
                   sidebarSelectedItemId === note.id
                     ? "bg-notion-accent/10"
@@ -449,6 +563,7 @@ export function ConnectSidebar({
             {pinnedMemos.map((memo) => (
               <div
                 key={memo.id}
+                data-sidebar-item
                 className={`group flex items-center gap-2 px-2 py-1.5 rounded text-left transition-colors ${
                   sidebarSelectedItemId === memo.id
                     ? "bg-notion-accent/10"
@@ -532,6 +647,7 @@ export function ConnectSidebar({
                         selectedTagIds={sidebarFilterTagIds}
                         onToggle={toggleSidebarFilterTag}
                         onClose={() => setShowNoteFilter(false)}
+                        items={noteFilterItems}
                       />
                     </div>
                   )}
@@ -556,6 +672,7 @@ export function ConnectSidebar({
               filteredNotes.map((note) => (
                 <div
                   key={note.id}
+                  data-sidebar-item
                   className={`group flex items-center gap-1.5 px-2 py-1.5 rounded transition-colors ${
                     sidebarSelectedItemId === note.id
                       ? "bg-notion-accent/10"
@@ -630,15 +747,49 @@ export function ConnectSidebar({
             icon={<BookOpen size={15} />}
             isOpen={sections.daily}
             onToggle={() => toggleSection("daily")}
+            rightAction={
+              <div className="relative">
+                <button
+                  onClick={() => setShowDailyFilter((v) => !v)}
+                  className={`p-1 rounded transition-colors ${
+                    dailyFilterTagIds.length > 0
+                      ? "text-notion-accent"
+                      : "text-notion-text-secondary hover:text-notion-text"
+                  }`}
+                  title="Filter by tag"
+                >
+                  <Filter size={14} />
+                  {dailyFilterTagIds.length > 0 && (
+                    <span className="absolute -top-0.5 -right-0.5 w-3.5 h-3.5 flex items-center justify-center rounded-full bg-notion-accent text-white text-[8px] font-bold">
+                      {dailyFilterTagIds.length}
+                    </span>
+                  )}
+                </button>
+                {showDailyFilter && (
+                  <div className="absolute right-0 top-full mt-1 z-20">
+                    <TagFilterOverlay
+                      tags={tags}
+                      selectedTagIds={dailyFilterTagIds}
+                      onToggle={toggleDailyFilterTag}
+                      onClose={() => setShowDailyFilter(false)}
+                      items={dailyFilterItems}
+                    />
+                  </div>
+                )}
+              </div>
+            }
           >
-            {memos.length === 0 ? (
+            {filteredMemos.length === 0 ? (
               <p className="text-xs text-notion-text-secondary px-2 py-2">
-                No memos yet
+                {dailyFilterTagIds.length > 0
+                  ? t("ideas.noSearchResults")
+                  : "No memos yet"}
               </p>
             ) : (
-              memos.map((memo) => (
+              filteredMemos.map((memo) => (
                 <div
                   key={memo.id}
+                  data-sidebar-item
                   className={`group flex items-center gap-2 px-2 py-1.5 rounded text-left transition-colors ${
                     sidebarSelectedItemId === memo.id
                       ? "bg-notion-accent/10"

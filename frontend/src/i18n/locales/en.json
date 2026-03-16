@@ -256,7 +256,8 @@
     "noteConnection": "Note connection",
     "sharedTags": "shared tags",
     "editItem": "Edit",
-    "editName": "Name"
+    "editName": "Name",
+    "untaggedLabel": "Untagged"
   },
   "schedule": {
     "todayFlow": "Today Flow",
@@ -375,7 +376,11 @@
       "terminalNewTab": "New terminal tab (in terminal)",
       "terminalClosePane": "Close terminal pane (in terminal)",
       "terminalSplitVertical": "Split vertically (in terminal)",
-      "terminalSplitHorizontal": "Split horizontally (in terminal)"
+      "terminalSplitHorizontal": "Split horizontally (in terminal)",
+      "switchNextTab": "Switch to next tab",
+      "switchPrevTab": "Switch to previous tab",
+      "sidebarItemDown": "Move down in sidebar list",
+      "sidebarItemUp": "Move up in sidebar list"
     },
     "tasksTab": {
       "creating": "Creating Tasks & Folders",

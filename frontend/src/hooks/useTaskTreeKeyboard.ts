@@ -75,7 +75,7 @@ export function useTaskTreeKeyboard({
       if (el?.getAttribute("contenteditable") === "true") return;
       if (el?.closest?.('[contenteditable="true"]')) return;
 
-      if (e.key === "ArrowDown") {
+      if (e.key === "ArrowDown" && !e.shiftKey) {
         e.preventDefault();
         if (!selectedTaskId || visibleNodes.length === 0) {
           if (visibleNodes.length > 0) onSelectTask?.(visibleNodes[0].id);
@@ -88,7 +88,7 @@ export function useTaskTreeKeyboard({
         return;
       }
 
-      if (e.key === "ArrowUp") {
+      if (e.key === "ArrowUp" && !e.shiftKey) {
         e.preventDefault();
         if (!selectedTaskId || visibleNodes.length === 0) {
           if (visibleNodes.length > 0)
@@ -108,6 +108,7 @@ export function useTaskTreeKeyboard({
 
       if (
         e.key === "ArrowRight" &&
+        !e.shiftKey &&
         selected.type === "folder" &&
         !selected.isExpanded
       ) {
@@ -117,6 +118,7 @@ export function useTaskTreeKeyboard({
       }
       if (
         e.key === "ArrowLeft" &&
+        !e.shiftKey &&
         selected.type === "folder" &&
         selected.isExpanded
       ) {

@@ -32,6 +32,11 @@ export type ShortcutId =
   | "terminal:close-pane"
   | "terminal:split-vertical"
   | "terminal:split-horizontal"
+  // Tab / Sidebar navigation
+  | "tab:next"
+  | "tab:prev"
+  | "sidebar:item-down"
+  | "sidebar:item-up"
   // Calendar
   | "cal:next"
   | "cal:prev"

@@ -1,4 +1,5 @@
 import { useRef, useEffect } from "react";
+import { useSidebarListNavigation } from "../../hooks/useSidebarListNavigation";
 
 interface RightSidebarProps {
   width: number;
@@ -12,6 +13,8 @@ export function RightSidebar({
   onPortalTarget,
 }: RightSidebarProps) {
   const portalRef = useRef<HTMLDivElement>(null);
+
+  useSidebarListNavigation({ containerRef: portalRef });
 
   useEffect(() => {
     onPortalTarget(portalRef.current);
