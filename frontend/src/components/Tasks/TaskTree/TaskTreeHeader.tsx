@@ -1,10 +1,10 @@
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import { ChevronDown, Search } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useTaskTreeContext } from "../../../hooks/useTaskTreeContext";
 import { flattenFolders } from "../../../utils/flattenFolders";
 import { FolderDropdown } from "../Folder/FolderDropdown";
-import { SearchInput } from "../../shared/SearchInput";
+import { SearchBar, type SearchSuggestion } from "../../shared/SearchBar";
 
 interface TaskTreeHeaderProps {
   filterFolderId: string | null;
@@ -14,6 +14,7 @@ interface TaskTreeHeaderProps {
   isSearchOpen: boolean;
   onSearchOpen: () => void;
   onSearchClose: () => void;
+  onSelectTask?: (id: string) => void;
 }
 
 export function TaskTreeHeader({
@@ -24,6 +25,7 @@ export function TaskTreeHeader({
   isSearchOpen,
   onSearchOpen,
   onSearchClose,
+  onSelectTask,
 }: TaskTreeHeaderProps) {
   const { t } = useTranslation();
   const { nodes } = useTaskTreeContext();
@@ -31,6 +33,38 @@ export function TaskTreeHeader({
   const folders = flattenFolders(nodes);
   const activeFolder = folders.find((f) => f.id === filterFolderId);
   const displayName = activeFolder?.title ?? t("taskTreeHeader.allTasks");
+
+  const suggestions = useMemo<SearchSuggestion[]>(() => {
+    const parentMap = new Map<string, string>();
+    for (const n of nodes) {
+      if (n.type === "folder") parentMap.set(n.id, n.title);
+    }
+    const items = [...nodes]
+      .filter((n) => !n.isCompleted)
+      .sort(
+        (a, b) =>
+          new Date(b.updatedAt ?? 0).getTime() -
+          new Date(a.updatedAt ?? 0).getTime(),
+      )
+      .slice(0, 10)
+      .map((n) => ({
+        id: n.id,
+        label:
+          n.title ||
+          (n.type === "folder" ? "Untitled Folder" : "Untitled Task"),
+        icon: (n.type === "folder" ? "folder" : "task") as "folder" | "task",
+        sublabel: n.parentId ? parentMap.get(n.parentId) : undefined,
+      }));
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      return items.filter((i) => i.label.toLowerCase().includes(q));
+    }
+    return items;
+  }, [nodes, searchQuery]);
+
+  const handleSuggestionSelect = (id: string) => {
+    onSelectTask?.(id);
+  };
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -79,11 +113,16 @@ export function TaskTreeHeader({
       </div>
 
       {isSearchOpen && (
-        <SearchInput
+        <SearchBar
           value={searchQuery}
           onChange={onSearchChange}
           placeholder={t("search.placeholder")}
           onClose={onSearchClose}
+          autoFocus
+          showSuggestionsOnFocus={false}
+          suggestions={suggestions}
+          onSuggestionSelect={handleSuggestionSelect}
+          className="px-4 py-2 border-b border-notion-border"
         />
       )}
     </div>

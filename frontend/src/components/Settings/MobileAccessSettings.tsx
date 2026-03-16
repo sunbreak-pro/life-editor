@@ -85,7 +85,7 @@ export function MobileAccessSettings() {
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4" data-section-id="mobile">
       <div className="flex items-center gap-2">
         <Smartphone size={18} className="text-notion-text-secondary" />
         <h3 className="text-base font-medium text-notion-text-primary">

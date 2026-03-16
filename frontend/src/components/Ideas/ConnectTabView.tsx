@@ -3,13 +3,24 @@ import { createPortal } from "react-dom";
 import { ReactFlowProvider } from "@xyflow/react";
 import { TagGraphView } from "./Connect/TagGraphView";
 import { ConnectSidebar } from "./Connect/ConnectSidebar";
+import { PaperCanvasView } from "./Connect/Paper/PaperCanvasView";
+import { PaperSidebar } from "./Connect/Paper/PaperSidebar";
 import { useWikiTags } from "../../hooks/useWikiTags";
 import { useNoteConnections } from "../../hooks/useNoteConnections";
 import { useConnectSearch } from "../../hooks/useConnectSearch";
 import { useNoteContext } from "../../hooks/useNoteContext";
 import { useMemoContext } from "../../hooks/useMemoContext";
+import { usePaperBoard } from "../../hooks/usePaperBoard";
 import { useUndoRedo } from "../shared/UndoRedo";
 import { RightSidebarContext } from "../../context/RightSidebarContext";
+import { STORAGE_KEYS } from "../../constants/storageKeys";
+
+type ConnectViewMode = "point" | "paper";
+
+function loadViewMode(): ConnectViewMode {
+  const saved = localStorage.getItem(STORAGE_KEYS.CONNECT_VIEW_MODE);
+  return saved === "paper" ? "paper" : "point";
+}
 
 interface ConnectTabViewProps {
   onNavigateToNote?: (noteId: string) => void;
@@ -23,6 +34,12 @@ export function ConnectTabView({
   onFocusConsumed,
 }: ConnectTabViewProps) {
   const { setActiveDomain } = useUndoRedo();
+  const [viewMode, setViewMode] = useState<ConnectViewMode>(loadViewMode);
+
+  const handleViewModeChange = useCallback((mode: ConnectViewMode) => {
+    setViewMode(mode);
+    localStorage.setItem(STORAGE_KEYS.CONNECT_VIEW_MODE, mode);
+  }, []);
 
   useEffect(() => {
     setActiveDomain("wikiTag");
@@ -35,6 +52,9 @@ export function ConnectTabView({
     useNoteConnections();
   const { notes, createNote, updateNote, softDeleteNote } = useNoteContext();
   const { memos, deleteMemo } = useMemoContext();
+
+  // Paper board hook
+  const paper = usePaperBoard();
 
   const [query, setQuery] = useState("");
   const [selectedTagId, setSelectedTagId] = useState<string | null>(null);
@@ -121,7 +141,8 @@ export function ConnectTabView({
 
   const { portalTarget: rightSidebarTarget } = useContext(RightSidebarContext);
 
-  const sidebar = (
+  // --- Point View sidebar ---
+  const pointSidebar = (
     <ConnectSidebar
       query={query}
       onQueryChange={setQuery}
@@ -140,6 +161,26 @@ export function ConnectTabView({
       onUpdateNoteTitle={handleUpdateNoteTitle}
       onDeleteNote={softDeleteNote}
       onDeleteMemo={deleteMemo}
+      viewMode={viewMode}
+      onViewModeChange={handleViewModeChange}
+    />
+  );
+
+  // --- Paper View sidebar ---
+  const paperSidebar = (
+    <PaperSidebar
+      viewMode={viewMode}
+      onViewModeChange={handleViewModeChange}
+      boards={paper.boards}
+      activeBoardId={paper.activeBoardId}
+      onSelectBoard={(id) => paper.setActiveBoardId(id)}
+      onCreateBoard={(name) => paper.createBoard(name)}
+      onDeleteBoard={(id) => paper.deleteBoard(id)}
+      onRenameBoard={(id, name) => paper.updateBoard(id, { name })}
+      notes={notes}
+      onOpenNoteBoard={(noteId, noteName) =>
+        paper.openBoardForNote(noteId, noteName)
+      }
     />
   );
 
@@ -164,16 +205,39 @@ export function ConnectTabView({
     </ReactFlowProvider>
   );
 
+  const paperView = (
+    <ReactFlowProvider>
+      <PaperCanvasView
+        board={paper.activeBoard}
+        paperNodes={paper.nodes}
+        paperEdges={paper.edges}
+        notes={notes}
+        memos={memos}
+        onCreateNode={paper.createNode}
+        onUpdateNode={paper.updateNode}
+        onBulkUpdatePositions={paper.bulkUpdatePositions}
+        onDeleteNode={paper.deleteNode}
+        onCreateEdge={paper.createEdge}
+        onDeleteEdge={paper.deleteEdge}
+        onSaveViewport={paper.saveViewport}
+        onNavigateToNote={onNavigateToNote}
+      />
+    </ReactFlowProvider>
+  );
+
+  const sidebar = viewMode === "point" ? pointSidebar : paperSidebar;
+  const mainContent = viewMode === "point" ? graphView : paperView;
+
   return (
     <div className="h-full flex">
       {rightSidebarTarget ? (
         <>
           {createPortal(sidebar, rightSidebarTarget)}
-          <div className="flex-1 min-w-0">{graphView}</div>
+          <div className="flex-1 min-w-0">{mainContent}</div>
         </>
       ) : (
         <>
-          <div className="flex-1 min-w-0">{graphView}</div>
+          <div className="flex-1 min-w-0">{mainContent}</div>
           <div className="w-64 shrink-0 border-l border-notion-border overflow-hidden">
             {sidebar}
           </div>

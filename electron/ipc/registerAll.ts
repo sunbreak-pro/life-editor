@@ -40,6 +40,8 @@ import { createNoteConnectionRepository } from "../database/noteConnectionReposi
 import { registerNoteConnectionHandlers } from "./noteConnectionHandlers";
 import { createTimeMemoRepository } from "../database/timeMemoRepository";
 import { registerTimeMemoHandlers } from "./timeMemoHandlers";
+import { createPaperBoardRepository } from "../database/paperBoardRepository";
+import { registerPaperBoardHandlers } from "./paperBoardHandlers";
 import { wrapHandler } from "./ipcMetrics";
 
 export function registerAllHandlers(db: Database.Database): void {
@@ -115,6 +117,10 @@ export function registerAllHandlers(db: Database.Database): void {
       () => registerNoteConnectionHandlers(createNoteConnectionRepository(db)),
     ],
     ["TimeMemos", () => registerTimeMemoHandlers(createTimeMemoRepository(db))],
+    [
+      "PaperBoards",
+      () => registerPaperBoardHandlers(createPaperBoardRepository(db)),
+    ],
   ];
 
   for (const [name, register] of registrations) {

@@ -35,4 +35,6 @@ export const STORAGE_KEYS = {
   MATERIALS_SECTIONS_STATE: "life-editor-materials-sections-state",
   MATERIALS_CONTENT_TYPE: "life-editor-materials-content-type",
   TASK_TREE_TAB: "life-editor-task-tree-tab",
+  CONNECT_VIEW_MODE: "life-editor-connect-view-mode",
+  PAPER_ACTIVE_BOARD_ID: "life-editor-paper-active-board-id",
 } as const;

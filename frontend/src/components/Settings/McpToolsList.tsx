@@ -359,7 +359,7 @@ export function McpToolsList() {
   const { t } = useTranslation();
 
   return (
-    <div>
+    <div data-section-id="claude-mcpTools">
       <p className="text-sm text-notion-text-secondary mb-4">
         {t("settings.claude.mcpToolsDescription")}
       </p>

@@ -64,7 +64,7 @@ export function SkillsManager() {
   }
 
   return (
-    <div>
+    <div data-section-id="claude-skills">
       <div className="flex items-center justify-between mb-4">
         <p className="text-sm text-notion-text-secondary">
           {t("settings.claude.skillsDescription")}

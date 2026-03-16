@@ -53,7 +53,7 @@ export function ClaudeMdEditor() {
   }
 
   return (
-    <div className="flex flex-col gap-3">
+    <div className="flex flex-col gap-3" data-section-id="claude-claudeMd">
       <p className="text-sm text-notion-text-secondary">
         {t("settings.claude.claudeMdDescription")}
       </p>

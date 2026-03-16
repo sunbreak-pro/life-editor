@@ -34,6 +34,7 @@ import type {
   NoteConnection,
 } from "../types/wikiTag";
 import type { TimeMemo } from "../types/timeMemo";
+import type { PaperBoard, PaperNode, PaperEdge } from "../types/paperBoard";
 
 export interface DataService {
   // Tasks
@@ -347,6 +348,87 @@ export interface DataService {
     content: string,
   ): Promise<TimeMemo>;
   deleteTimeMemo(id: string): Promise<void>;
+
+  // Paper Boards
+  fetchPaperBoards(): Promise<PaperBoard[]>;
+  fetchPaperBoardById(id: string): Promise<PaperBoard | null>;
+  fetchPaperBoardByNoteId(noteId: string): Promise<PaperBoard | null>;
+  createPaperBoard(
+    name: string,
+    linkedNoteId?: string | null,
+  ): Promise<PaperBoard>;
+  updatePaperBoard(
+    id: string,
+    updates: Partial<
+      Pick<
+        PaperBoard,
+        | "name"
+        | "linkedNoteId"
+        | "viewportX"
+        | "viewportY"
+        | "viewportZoom"
+        | "order"
+      >
+    >,
+  ): Promise<PaperBoard>;
+  deletePaperBoard(id: string): Promise<void>;
+
+  // Paper Nodes
+  fetchPaperNodesByBoard(boardId: string): Promise<PaperNode[]>;
+  createPaperNode(params: {
+    boardId: string;
+    nodeType: PaperNode["nodeType"];
+    positionX: number;
+    positionY: number;
+    width?: number;
+    height?: number;
+    zIndex?: number;
+    parentNodeId?: string | null;
+    refEntityId?: string | null;
+    refEntityType?: string | null;
+    textContent?: string | null;
+    frameColor?: string | null;
+    frameLabel?: string | null;
+  }): Promise<PaperNode>;
+  updatePaperNode(
+    id: string,
+    updates: Partial<
+      Pick<
+        PaperNode,
+        | "positionX"
+        | "positionY"
+        | "width"
+        | "height"
+        | "zIndex"
+        | "parentNodeId"
+        | "textContent"
+        | "frameColor"
+        | "frameLabel"
+      >
+    >,
+  ): Promise<PaperNode>;
+  bulkUpdatePaperNodePositions(
+    updates: Array<{
+      id: string;
+      positionX: number;
+      positionY: number;
+      parentNodeId: string | null;
+    }>,
+  ): Promise<void>;
+  deletePaperNode(id: string): Promise<void>;
+
+  // Paper Edges
+  fetchPaperEdgesByBoard(boardId: string): Promise<PaperEdge[]>;
+  createPaperEdge(params: {
+    boardId: string;
+    sourceNodeId: string;
+    targetNodeId: string;
+    sourceHandle?: string | null;
+    targetHandle?: string | null;
+    label?: string | null;
+    styleJson?: string | null;
+  }): Promise<PaperEdge>;
+  deletePaperEdge(id: string): Promise<void>;
 
   // Data I/O
   exportData(): Promise<boolean>;

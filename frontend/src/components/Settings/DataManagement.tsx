@@ -63,7 +63,7 @@ export function DataManagement() {
   };
 
   return (
-    <div>
+    <div data-section-id="data">
       <h3 className="text-lg font-semibold text-notion-text mb-3">
         {t("data.title")}
       </h3>

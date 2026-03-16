@@ -157,6 +157,23 @@ const ALLOWED_CHANNELS = new Set([
   "updater:checkForUpdates",
   "updater:downloadUpdate",
   "updater:installUpdate",
+  // Paper Boards
+  "db:paperBoards:fetchAll",
+  "db:paperBoards:fetchById",
+  "db:paperBoards:fetchByNoteId",
+  "db:paperBoards:create",
+  "db:paperBoards:update",
+  "db:paperBoards:delete",
+  // Paper Nodes
+  "db:paperNodes:fetchByBoard",
+  "db:paperNodes:create",
+  "db:paperNodes:update",
+  "db:paperNodes:bulkUpdatePositions",
+  "db:paperNodes:delete",
+  // Paper Edges
+  "db:paperEdges:fetchByBoard",
+  "db:paperEdges:create",
+  "db:paperEdges:delete",
   // Terminal
   "terminal:create",
   "terminal:write",

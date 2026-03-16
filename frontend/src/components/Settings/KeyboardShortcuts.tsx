@@ -265,7 +265,7 @@ export function KeyboardShortcuts({
   }, [draftConfig, saveAllBindings, onBeforeChange]);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6" data-section-id="shortcuts-global">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-1 bg-notion-bg-secondary rounded-lg p-1 w-fit border border-notion-border">
           <button

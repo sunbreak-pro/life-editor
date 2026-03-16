@@ -62,6 +62,7 @@ export function TaskTreeView({
         isSearchOpen={isSearchOpen}
         onSearchOpen={handleSearchOpen}
         onSearchClose={handleSearchClose}
+        onSelectTask={onSelectTask}
       />
       <SectionTabs
         tabs={TASK_TREE_TABS}

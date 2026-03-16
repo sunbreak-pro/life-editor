@@ -264,7 +264,15 @@
     "sharedTags": "共通タグ",
     "editItem": "編集",
     "editName": "名前",
-    "untaggedLabel": "未タグ(未所属)"
+    "untaggedLabel": "未タグ(未所属)",
+    "pointView": "ポイント",
+    "paperView": "ペーパー",
+    "boards": "ボード",
+    "newBoard": "新規ボード",
+    "deleteBoard": "ボードを削除",
+    "addCard": "カードを追加",
+    "addTextBlock": "テキストを追加",
+    "addFrame": "フレームを追加"
   },
   "schedule": {
     "todayFlow": "Today Flow",
@@ -637,7 +645,8 @@
     "placeholder": "タスクを検索...",
     "noResults": "一致するタスクはありません",
     "clear": "検索をクリア",
-    "rootLevel": "ルート直下"
+    "rootLevel": "ルート直下",
+    "searchSettings": "設定を検索..."
   },
   "common": {
     "cancel": "キャンセル",

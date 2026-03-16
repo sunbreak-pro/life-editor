@@ -264,7 +264,15 @@
     "sharedTags": "shared tags",
     "editItem": "Edit",
     "editName": "Name",
-    "untaggedLabel": "Untagged"
+    "untaggedLabel": "Untagged",
+    "pointView": "Point",
+    "paperView": "Paper",
+    "boards": "Boards",
+    "newBoard": "New Board",
+    "deleteBoard": "Delete board",
+    "addCard": "Add Card",
+    "addTextBlock": "Add Text",
+    "addFrame": "Add Frame"
   },
   "schedule": {
     "todayFlow": "Today Flow",
@@ -637,7 +645,8 @@
     "placeholder": "Search tasks...",
     "noResults": "No matching tasks",
     "clear": "Clear search",
-    "rootLevel": "Root level"
+    "rootLevel": "Root level",
+    "searchSettings": "Search settings..."
   },
   "common": {
     "cancel": "Cancel",

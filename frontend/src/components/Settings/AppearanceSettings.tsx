@@ -40,7 +40,7 @@ export function AppearanceSettings() {
   const { t } = useTranslation();
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6" data-section-id="appearance">
       <h3 className="text-lg font-semibold text-notion-text">
         {t("settings.appearance")}
       </h3>

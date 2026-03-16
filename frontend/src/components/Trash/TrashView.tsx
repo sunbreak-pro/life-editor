@@ -319,7 +319,7 @@ export function TrashView() {
   const { portalTarget: rightSidebarTarget } = useContext(RightSidebarContext);
 
   return (
-    <div className="h-full flex flex-col">
+    <div className="h-full flex flex-col" data-section-id="trash">
       {rightSidebarTarget &&
         createPortal(
           <VerticalNavList

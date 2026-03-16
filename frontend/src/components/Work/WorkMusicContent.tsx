@@ -1,7 +1,8 @@
 import { useState, useMemo, useEffect, useCallback } from "react";
-import { Volume2, Search, X, Plus, Check } from "lucide-react";
+import { Volume2, Plus, Check } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { SortDropdown } from "../shared/SortDropdown";
+import { SearchBar, type SearchSuggestion } from "../shared/SearchBar";
 import { useAudioContext } from "../../hooks/useAudioContext";
 import { useSoundTags } from "../../hooks/useSoundTags";
 import { useAudioFileUpload } from "../../hooks/useAudioFileUpload";
@@ -85,6 +86,37 @@ export function WorkMusicContent() {
     return sortSounds(filtered, sortMode, soundTagState.getDisplayName);
   }, [allItems, searchQuery, sortMode, soundTagState]);
 
+  // Search suggestions: sounds + playlists
+  const soundSuggestions = useMemo<SearchSuggestion[]>(() => {
+    const items: SearchSuggestion[] = [];
+    const sounds = allItems.slice(0, 8).map((s) => ({
+      id: `sound:${s.id}`,
+      label: soundTagState.getDisplayName(s.id) || s.label,
+      icon: "sound" as const,
+    }));
+    items.push(...sounds);
+    for (const p of audio.playlistData.playlists) {
+      const count = audio.playlistData.itemsByPlaylist[p.id]?.length ?? 0;
+      items.push({
+        id: `playlist:${p.id}`,
+        label: p.name,
+        icon: "playlist" as const,
+        sublabel: `${count} sounds`,
+      });
+    }
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      return items.filter((i) => i.label.toLowerCase().includes(q));
+    }
+    return items;
+  }, [
+    allItems,
+    audio.playlistData.playlists,
+    audio.playlistData.itemsByPlaylist,
+    searchQuery,
+    soundTagState,
+  ]);
+
   // Currently selected playlist's existing sound IDs
   const existingSoundIdsInPlaylist = useMemo(() => {
     if (!selectedPlaylistId) return new Set<string>();
@@ -145,6 +177,19 @@ export function WorkMusicContent() {
     [exitAddMode],
   );
 
+  const handleSuggestionSelect = useCallback(
+    (compositeId: string) => {
+      if (compositeId.startsWith("playlist:")) {
+        const id = compositeId.slice("playlist:".length);
+        handleSelectPlaylist(id);
+      } else if (compositeId.startsWith("sound:")) {
+        const id = compositeId.slice("sound:".length);
+        preview.togglePreview(id);
+      }
+    },
+    [handleSelectPlaylist, preview],
+  );
+
   const handleBack = useCallback(() => {
     setRightPanelView("list");
     exitAddMode();
@@ -172,36 +217,24 @@ export function WorkMusicContent() {
           </button>
 
           {/* Search + Sort */}
-          <div className="flex items-center gap-2">
-            <div className="relative flex-1">
-              <Search
-                size={14}
-                className="absolute left-3 top-1/2 -translate-y-1/2 text-notion-text-secondary"
+          <SearchBar
+            value={searchQuery}
+            onChange={setSearchQuery}
+            placeholder={t("music.searchAll")}
+            showSuggestionsOnFocus={false}
+            suggestions={soundSuggestions}
+            onSuggestionSelect={handleSuggestionSelect}
+            className=""
+            rightAction={
+              <SortDropdown<SoundSortMode>
+                sortMode={sortMode}
+                onSortChange={setSortMode}
+                options={SOUND_SORT_OPTIONS}
+                labelMap={soundSortLabelMap}
+                defaultMode="default"
               />
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder={t("music.searchAll")}
-                className="w-full pl-9 pr-1 py-2 text-sm rounded-md bg-notion-bg-secondary border border-notion-border text-notion-text placeholder:text-notion-text-secondary focus:outline-none focus:border-notion-accent"
-              />
-              {searchQuery && (
-                <button
-                  onClick={() => setSearchQuery("")}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-notion-text-secondary hover:text-notion-text"
-                >
-                  <X size={14} />
-                </button>
-              )}
-            </div>
-            <SortDropdown<SoundSortMode>
-              sortMode={sortMode}
-              onSortChange={setSortMode}
-              options={SOUND_SORT_OPTIONS}
-              labelMap={soundSortLabelMap}
-              defaultMode="default"
-            />
-          </div>
+            }
+          />
 
           {/* Tag Filter */}
           <SoundTagFilter soundTagState={soundTagState} />

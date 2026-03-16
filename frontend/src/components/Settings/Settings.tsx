@@ -1,4 +1,4 @@
-import { useState, useEffect, useContext, useCallback } from "react";
+import { useState, useEffect, useContext, useCallback, useMemo } from "react";
 import { createPortal } from "react-dom";
 import {
   Settings2,
@@ -55,6 +55,8 @@ import { isMac } from "../../utils/platform";
 import { RightSidebarContext } from "../../context/RightSidebarContext";
 import type { ShortcutCategory } from "../../types/shortcut";
 import { useSettingsHistory } from "../../hooks/useSettingsHistory";
+import { useSettingsSearch } from "../../hooks/useSettingsSearch";
+import { SearchBar } from "../shared/SearchBar";
 // メインタブ（5つ）
 type SettingsTab = "general" | "advanced" | "claude" | "shortcuts" | "tips";
 
@@ -175,6 +177,22 @@ export function Settings({ initialTab }: SettingsProps) {
   const [shortcutsSub, setShortcutsSub] = useState<ShortcutsSub>("global");
   const [showMac] = useState(isMac);
   const [settingsKey, setSettingsKey] = useState(0);
+  const [searchQuery, setSearchQuery] = useState("");
+
+  const settingsNavigators = useMemo(
+    () => ({
+      setActiveTab,
+      setGeneralSub: (sub: string) => setGeneralSub(sub as GeneralSub),
+      setAdvancedSub: (sub: string) => setAdvancedSub(sub as AdvancedSub),
+      setClaudeSub: (sub: string) => setClaudeSub(sub as ClaudeSub),
+      setTipsSub: (sub: string) => setTipsSub(sub as TipsSub),
+      setShortcutsSub: (sub: string) => setShortcutsSub(sub as ShortcutsSub),
+    }),
+    [],
+  );
+
+  const { suggestions: settingsSearchSuggestions, navigateTo } =
+    useSettingsSearch(searchQuery, settingsNavigators);
 
   const handleHistoryApply = useCallback(() => {
     setSettingsKey((k) => k + 1);
@@ -366,13 +384,35 @@ export function Settings({ initialTab }: SettingsProps) {
 
   const sidebarContent = renderSidebarContent();
 
+  const handleSettingsSearchSelect = useCallback(
+    (id: string) => {
+      navigateTo(id);
+      setSearchQuery("");
+    },
+    [navigateTo],
+  );
+
+  const sidebarWithSearch = sidebarContent ? (
+    <div className="flex flex-col h-full">
+      <SearchBar
+        value={searchQuery}
+        onChange={setSearchQuery}
+        placeholder={t("search.searchSettings")}
+        showSuggestionsOnFocus={false}
+        suggestions={settingsSearchSuggestions}
+        onSuggestionSelect={handleSettingsSearchSelect}
+      />
+      <div className="flex-1 overflow-y-auto">{sidebarContent}</div>
+    </div>
+  ) : null;
+
   return (
     <div
       className={`h-full flex flex-col ${LAYOUT.CONTENT_PX} ${LAYOUT.CONTENT_PT} ${LAYOUT.CONTENT_PB}`}
     >
       {rightSidebarTarget &&
-        sidebarContent &&
-        createPortal(sidebarContent, rightSidebarTarget)}
+        sidebarWithSearch &&
+        createPortal(sidebarWithSearch, rightSidebarTarget)}
 
       <SectionHeader
         title={t("settings.title")}

@@ -8,6 +8,8 @@ import {
   Filter,
   Pencil,
   Trash2,
+  GitBranch,
+  LayoutGrid,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import type { WikiTag, WikiTagAssignment } from "../../../types/wikiTag";
@@ -50,6 +52,8 @@ interface ConnectSidebarProps {
   onUpdateNoteTitle?: (noteId: string, title: string) => void;
   onDeleteNote?: (noteId: string) => void;
   onDeleteMemo?: (date: string) => void;
+  viewMode?: "point" | "paper";
+  onViewModeChange?: (mode: "point" | "paper") => void;
 }
 
 function loadSectionsState(): SectionsState {
@@ -100,6 +104,8 @@ export function ConnectSidebar({
   onUpdateNoteTitle,
   onDeleteNote,
   onDeleteMemo,
+  viewMode,
+  onViewModeChange,
 }: ConnectSidebarProps) {
   const { t } = useTranslation();
   const [sections, setSections] = useState<SectionsState>(loadSectionsState);
@@ -372,6 +378,34 @@ export function ConnectSidebar({
 
   return (
     <div className="h-full flex flex-col">
+      {viewMode !== undefined && onViewModeChange && (
+        <div className="flex items-center gap-1 px-3 py-2 border-b border-notion-border">
+          <button
+            onClick={() => onViewModeChange("point")}
+            className={`flex items-center gap-1 px-2 py-1 text-xs rounded ${
+              viewMode === "point"
+                ? "bg-notion-accent/10 text-notion-accent"
+                : "text-notion-text-secondary hover:text-notion-text hover:bg-notion-hover"
+            }`}
+            title={t("ideas.pointView")}
+          >
+            <GitBranch size={14} />
+            <span>{t("ideas.pointView")}</span>
+          </button>
+          <button
+            onClick={() => onViewModeChange("paper")}
+            className={`flex items-center gap-1 px-2 py-1 text-xs rounded ${
+              viewMode === "paper"
+                ? "bg-notion-accent/10 text-notion-accent"
+                : "text-notion-text-secondary hover:text-notion-text hover:bg-notion-hover"
+            }`}
+            title={t("ideas.paperView")}
+          >
+            <LayoutGrid size={14} />
+            <span>{t("ideas.paperView")}</span>
+          </button>
+        </div>
+      )}
       <SearchBar
         value={query}
         onChange={onQueryChange}

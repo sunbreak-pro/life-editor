@@ -35,6 +35,7 @@ import type {
   NoteConnection,
 } from "../types/wikiTag";
 import type { TimeMemo } from "../types/timeMemo";
+import type { PaperBoard, PaperNode, PaperEdge } from "../types/paperBoard";
 
 function invoke<T>(channel: string, ...args: unknown[]): Promise<T> {
   return window.electronAPI!.invoke<T>(channel, ...args);
@@ -626,6 +627,115 @@ export class ElectronDataService implements DataService {
   }
   deleteTimeMemo(id: string): Promise<void> {
     return invoke("db:timeMemos:delete", id);
+  }
+
+  // Paper Boards
+  fetchPaperBoards(): Promise<PaperBoard[]> {
+    return invoke("db:paperBoards:fetchAll");
+  }
+  fetchPaperBoardById(id: string): Promise<PaperBoard | null> {
+    return invoke("db:paperBoards:fetchById", id);
+  }
+  fetchPaperBoardByNoteId(noteId: string): Promise<PaperBoard | null> {
+    return invoke("db:paperBoards:fetchByNoteId", noteId);
+  }
+  createPaperBoard(
+    name: string,
+    linkedNoteId?: string | null,
+  ): Promise<PaperBoard> {
+    return invoke("db:paperBoards:create", name, linkedNoteId);
+  }
+  updatePaperBoard(
+    id: string,
+    updates: Partial<
+      Pick<
+        PaperBoard,
+        | "name"
+        | "linkedNoteId"
+        | "viewportX"
+        | "viewportY"
+        | "viewportZoom"
+        | "order"
+      >
+    >,
+  ): Promise<PaperBoard> {
+    return invoke("db:paperBoards:update", id, updates);
+  }
+  deletePaperBoard(id: string): Promise<void> {
+    return invoke("db:paperBoards:delete", id);
+  }
+
+  // Paper Nodes
+  fetchPaperNodesByBoard(boardId: string): Promise<PaperNode[]> {
+    return invoke("db:paperNodes:fetchByBoard", boardId);
+  }
+  createPaperNode(params: {
+    boardId: string;
+    nodeType: PaperNode["nodeType"];
+    positionX: number;
+    positionY: number;
+    width?: number;
+    height?: number;
+    zIndex?: number;
+    parentNodeId?: string | null;
+    refEntityId?: string | null;
+    refEntityType?: string | null;
+    textContent?: string | null;
+    frameColor?: string | null;
+    frameLabel?: string | null;
+  }): Promise<PaperNode> {
+    return invoke("db:paperNodes:create", params);
+  }
+  updatePaperNode(
+    id: string,
+    updates: Partial<
+      Pick<
+        PaperNode,
+        | "positionX"
+        | "positionY"
+        | "width"
+        | "height"
+        | "zIndex"
+        | "parentNodeId"
+        | "textContent"
+        | "frameColor"
+        | "frameLabel"
+      >
+    >,
+  ): Promise<PaperNode> {
+    return invoke("db:paperNodes:update", id, updates);
+  }
+  bulkUpdatePaperNodePositions(
+    updates: Array<{
+      id: string;
+      positionX: number;
+      positionY: number;
+      parentNodeId: string | null;
+    }>,
+  ): Promise<void> {
+    return invoke("db:paperNodes:bulkUpdatePositions", updates);
+  }
+  deletePaperNode(id: string): Promise<void> {
+    return invoke("db:paperNodes:delete", id);
+  }
+
+  // Paper Edges
+  fetchPaperEdgesByBoard(boardId: string): Promise<PaperEdge[]> {
+    return invoke("db:paperEdges:fetchByBoard", boardId);
+  }
+  createPaperEdge(params: {
+    boardId: string;
+    sourceNodeId: string;
+    targetNodeId: string;
+    sourceHandle?: string | null;
+    targetHandle?: string | null;
+    label?: string | null;
+    styleJson?: string | null;
+  }): Promise<PaperEdge> {
+    return invoke("db:paperEdges:create", params);
+  }
+  deletePaperEdge(id: string): Promise<void> {
+    return invoke("db:paperEdges:delete", id);
   }
 
   // Data I/O

@@ -150,6 +150,11 @@ export function runMigrations(db: Database.Database): void {
     migrateV33(db);
   }
 
+  if (currentVersion < 34) {
+    log.info("[DB] Running migration V34");
+    migrateV34(db);
+  }
+
   const newVersion = db.pragma("user_version", { simple: true }) as number;
   if (newVersion !== currentVersion) {
     log.info(`[DB] Schema migrated: ${currentVersion} → ${newVersion}`);
@@ -1213,4 +1218,65 @@ function migrateV33(db: Database.Database): void {
     );
   }
   db.pragma("user_version = 33");
+}
+
+function migrateV34(db: Database.Database): void {
+  const migrate = db.transaction(() => {
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS paper_boards (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        linked_note_id TEXT,
+        viewport_x REAL NOT NULL DEFAULT 0,
+        viewport_y REAL NOT NULL DEFAULT 0,
+        viewport_zoom REAL NOT NULL DEFAULT 1,
+        "order" INTEGER NOT NULL DEFAULT 0,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        FOREIGN KEY (linked_note_id) REFERENCES notes(id) ON DELETE CASCADE
+      );
+      CREATE INDEX IF NOT EXISTS idx_pb_note ON paper_boards(linked_note_id);
+
+      CREATE TABLE IF NOT EXISTS paper_nodes (
+        id TEXT PRIMARY KEY,
+        board_id TEXT NOT NULL,
+        node_type TEXT NOT NULL CHECK(node_type IN ('card', 'text', 'frame')),
+        position_x REAL NOT NULL DEFAULT 0,
+        position_y REAL NOT NULL DEFAULT 0,
+        width REAL NOT NULL DEFAULT 200,
+        height REAL NOT NULL DEFAULT 100,
+        z_index INTEGER NOT NULL DEFAULT 0,
+        parent_node_id TEXT,
+        ref_entity_id TEXT,
+        ref_entity_type TEXT,
+        text_content TEXT,
+        frame_color TEXT,
+        frame_label TEXT,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        FOREIGN KEY (board_id) REFERENCES paper_boards(id) ON DELETE CASCADE,
+        FOREIGN KEY (parent_node_id) REFERENCES paper_nodes(id) ON DELETE SET NULL
+      );
+      CREATE INDEX IF NOT EXISTS idx_pn_board ON paper_nodes(board_id);
+      CREATE INDEX IF NOT EXISTS idx_pn_parent ON paper_nodes(parent_node_id);
+
+      CREATE TABLE IF NOT EXISTS paper_edges (
+        id TEXT PRIMARY KEY,
+        board_id TEXT NOT NULL,
+        source_node_id TEXT NOT NULL,
+        target_node_id TEXT NOT NULL,
+        source_handle TEXT,
+        target_handle TEXT,
+        label TEXT,
+        style_json TEXT,
+        created_at TEXT NOT NULL,
+        FOREIGN KEY (board_id) REFERENCES paper_boards(id) ON DELETE CASCADE,
+        FOREIGN KEY (source_node_id) REFERENCES paper_nodes(id) ON DELETE CASCADE,
+        FOREIGN KEY (target_node_id) REFERENCES paper_nodes(id) ON DELETE CASCADE
+      );
+      CREATE INDEX IF NOT EXISTS idx_pe_board ON paper_edges(board_id);
+    `);
+  });
+  migrate();
+  db.pragma("user_version = 34");
 }

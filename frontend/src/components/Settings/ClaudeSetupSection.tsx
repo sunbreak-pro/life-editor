@@ -31,7 +31,7 @@ export function ClaudeSetupSection() {
   };
 
   return (
-    <div>
+    <div data-section-id="claude-setup">
       <h3 className="text-lg font-semibold text-notion-text mb-3 flex items-center gap-2">
         <Bot size={20} />
         {t("settings.claude.title")}
