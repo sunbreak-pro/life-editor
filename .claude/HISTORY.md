@@ -1,5 +1,20 @@
 # HISTORY.md - 変更履歴
 
+### 2026-03-16 - 検索UIの統一 — Unified Search UX
+
+#### 概要
+
+全セクション（Tasks / Work / Settings）の検索UIを SearchBar コンポーネントに統一。ドロップダウンサジェスション付きの一貫したUXを実現し、Settings には新たに検索機能を追加。
+
+#### 変更点
+
+- **SearchBar 強化**: アイコン型を8種類に拡張（task/folder/sound/playlist/settings/tag追加）、autoFocus/onClose/className/clearable props追加、Xボタン追加、Escapeの振り分けロジック修正
+- **Tasks 統一**: SearchInput → SearchBar に置き換え、最近更新タスク上位10件のサジェスション表示、onSelectTask prop追加
+- **Work 統一**: インライン検索 → SearchBar に置き換え、サウンド+プレイリストのサジェスション追加、SortDropdown を rightAction で維持
+- **Settings 検索新規**: settingsSearchRegistry.ts（23エントリ）、useSettingsSearch.ts フック、サイドバーに SearchBar 統合、13サブコンポーネント+TrashView に data-section-id 付与
+- **SearchInput 削除**: SearchBar に完全統合後、不要化したコンポーネントを削除
+- **i18n**: search.searchSettings キー追加（en/ja）
+
 ### 2026-03-16 - モバイル連携 Phase 2 — REST API 拡充 + WebSocket リアルタイム同期
 
 #### 概要
