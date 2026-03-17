@@ -1,5 +1,19 @@
 # HISTORY.md - 変更履歴
 
+### 2026-03-17 - フォルダページ改善 — チェックボックス + ナビゲーション + UI統一
+
+#### 概要
+
+フォルダページ（FolderSidebarContent）の子タスク・孫タスクにチェックボックスを追加し、子フォルダクリックでナビゲーション可能にした。TaskTree のチェックボックスをネイティブ HTML checkbox に統一し、portalTarget レイアウトの onSelectTask バグも修正。
+
+#### 変更点
+
+- **バグ修正**: `TaskTreeView.tsx` — portalTarget レイアウト時に `TaskDetailPanel` へ `onSelectTask` が渡されていなかったバグを修正
+- **TaskNodeCheckbox UI統一**: カスタム button を `<input type="checkbox">` + `accent-color: var(--color-accent)` に変更。`<label onClick={stopPropagation}>` で親要素のクリックバブリングを防止
+- **TipTap TaskList accent-color**: `index.css` の TipTap TaskList checkbox の `accent-color` を未定義の `--color-primary` から `--color-accent` に統一
+- **フォルダページ チェックボックス**: `TaskDetailPanel.tsx` の FolderSidebarContent に `toggleTaskStatus` を追加。子タスク・孫タスクにネイティブ checkbox 表示。チェック時に confetti + 効果音を発生
+- **フォルダナビゲーション**: 子フォルダの行構造を chevron（展開/折畳）とフォルダ名（ナビゲーション）の2操作領域に分割
+
 ### 2026-03-17 - Dayflow TimeGrid UX Improvements
 
 #### 概要
