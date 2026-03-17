@@ -1,5 +1,18 @@
 # HISTORY.md - 変更履歴
 
+### 2026-03-17 - Code Review Fix — セキュリティ・同期・堅牢性修正
+
+#### 概要
+
+feature/life-editor-v2 ブランチの包括的コードレビューで検出された 4 Blocking / 10 Important / 3 Suggestion の問題を修正。パストラバーサル脆弱性、CORS Origin エコー、WebSocket 循環参照、IPC↔REST 同期欠落、REST 入力バリデーション不足などを解消。
+
+#### 変更点
+
+- **Security（Phase 1）**: `electron/server/index.ts` にパストラバーサル防止チェック追加（`path.resolve` + `startsWith` + 403返却）。`cors.ts` で Origin エコーを廃止し `*` 固定化
+- **Sync（Phase 2）**: `useRealtimeSync.ts` で `connectRef` パターン導入により循環参照解消。`MobileApp.tsx` に `TAB_ENTITY_MAP` 追加で関連エンティティのみ refreshKey 更新。`paperBoardHandlers.ts`（9操作）/ `timeMemoHandlers.ts` / `calendarHandlers.ts` に `broadcastChange` 追加。`ws.ts` に cleanup 関数追加しリスナーリーク修正
+- **Robustness（Phase 3）**: `notes.ts` の `fetchAll().find()` → `fetchById()` 直接クエリ化。`index.ts` に `app.onError()` グローバルエラーハンドラ追加。calendars/playlists/timer/wikiTagGroups/routineTags の5ルートに入力バリデーション追加。timer/routineTags の Number() に NaN チェック。`usePaperBoard.ts` に error state + `.catch()` 追加、deleteBoard の setState 入れ子修正。`RestDataService.ts` の Paper メソッド型を DataService interface に合致
+- **Polish（Phase 4）**: 静的ファイル配信を `readFileSync` → `createReadStream().pipe()` にストリーム化。`TaskTreeHeader.tsx` のサジェスション filter→sort→slice 順序修正 + 型エラー修正。`PaperSidebar.tsx` にボード削除確認ダイアログ追加（en/ja 翻訳キー含む）
+
 ### 2026-03-16 - 検索UIの統一 — Unified Search UX
 
 #### 概要

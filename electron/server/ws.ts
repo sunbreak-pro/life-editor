@@ -6,7 +6,7 @@ import log from "../logger";
 
 const PING_INTERVAL_MS = 30_000;
 
-export function setupWebSocket(httpServer: Server): void {
+export function setupWebSocket(httpServer: Server): () => void {
   const wss = new WebSocketServer({ noServer: true });
 
   httpServer.on("upgrade", (req, socket, head) => {
@@ -74,4 +74,9 @@ export function setupWebSocket(httpServer: Server): void {
   changeBus.on("change", onChange);
 
   log.info("[WS] WebSocket server attached to HTTP server");
+
+  return () => {
+    changeBus.off("change", onChange);
+    wss.close();
+  };
 }

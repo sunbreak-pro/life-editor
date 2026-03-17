@@ -2,6 +2,7 @@ import { ipcMain } from "electron";
 import { loggedHandler } from "./handlerUtil";
 import type { PaperBoardRepository } from "../database/paperBoardRepository";
 import type { PaperNode } from "../types";
+import { broadcastChange } from "../server/broadcast";
 
 export function registerPaperBoardHandlers(repo: PaperBoardRepository): void {
   // --- Boards ---
@@ -32,7 +33,9 @@ export function registerPaperBoardHandlers(repo: PaperBoardRepository): void {
       "PaperBoards",
       "create",
       (_event, name: string, linkedNoteId?: string | null) => {
-        return repo.createBoard(name, linkedNoteId);
+        const board = repo.createBoard(name, linkedNoteId);
+        broadcastChange("paperBoard", "create", board.id);
+        return board;
       },
     ),
   );
@@ -43,7 +46,9 @@ export function registerPaperBoardHandlers(repo: PaperBoardRepository): void {
       "PaperBoards",
       "update",
       (_event, id: string, updates: Record<string, unknown>) => {
-        return repo.updateBoard(id, updates);
+        const board = repo.updateBoard(id, updates);
+        broadcastChange("paperBoard", "update", id);
+        return board;
       },
     ),
   );
@@ -52,6 +57,7 @@ export function registerPaperBoardHandlers(repo: PaperBoardRepository): void {
     "db:paperBoards:delete",
     loggedHandler("PaperBoards", "delete", (_event, id: string) => {
       repo.deleteBoard(id);
+      broadcastChange("paperBoard", "delete", id);
     }),
   );
 
@@ -69,7 +75,11 @@ export function registerPaperBoardHandlers(repo: PaperBoardRepository): void {
       "PaperNodes",
       "create",
       (_event, params: Record<string, unknown>) => {
-        return repo.createNode(params as Parameters<typeof repo.createNode>[0]);
+        const node = repo.createNode(
+          params as Parameters<typeof repo.createNode>[0],
+        );
+        broadcastChange("paperNode", "create", node.id);
+        return node;
       },
     ),
   );
@@ -80,10 +90,12 @@ export function registerPaperBoardHandlers(repo: PaperBoardRepository): void {
       "PaperNodes",
       "update",
       (_event, id: string, updates: Record<string, unknown>) => {
-        return repo.updateNode(
+        const node = repo.updateNode(
           id,
           updates as Parameters<typeof repo.updateNode>[1],
         );
+        broadcastChange("paperNode", "update", id);
+        return node;
       },
     ),
   );
@@ -103,6 +115,7 @@ export function registerPaperBoardHandlers(repo: PaperBoardRepository): void {
         }>,
       ) => {
         repo.bulkUpdatePositions(updates);
+        broadcastChange("paperNode", "bulk");
       },
     ),
   );
@@ -111,6 +124,7 @@ export function registerPaperBoardHandlers(repo: PaperBoardRepository): void {
     "db:paperNodes:delete",
     loggedHandler("PaperNodes", "delete", (_event, id: string) => {
       repo.deleteNode(id);
+      broadcastChange("paperNode", "delete", id);
     }),
   );
 
@@ -128,7 +142,11 @@ export function registerPaperBoardHandlers(repo: PaperBoardRepository): void {
       "PaperEdges",
       "create",
       (_event, params: Record<string, unknown>) => {
-        return repo.createEdge(params as Parameters<typeof repo.createEdge>[0]);
+        const edge = repo.createEdge(
+          params as Parameters<typeof repo.createEdge>[0],
+        );
+        broadcastChange("paperEdge", "create", edge.id);
+        return edge;
       },
     ),
   );
@@ -137,6 +155,7 @@ export function registerPaperBoardHandlers(repo: PaperBoardRepository): void {
     "db:paperEdges:delete",
     loggedHandler("PaperEdges", "delete", (_event, id: string) => {
       repo.deleteEdge(id);
+      broadcastChange("paperEdge", "delete", id);
     }),
   );
 }

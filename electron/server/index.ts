@@ -25,6 +25,7 @@ import { setupWebSocket } from "./ws";
 const SERVER_PORT = 13456;
 
 let server: Server | null = null;
+let wsCleanup: (() => void) | null = null;
 
 const MIME_TYPES: Record<string, string> = {
   ".html": "text/html",
@@ -72,6 +73,11 @@ export function createApiApp(db: Database.Database): Hono {
   app.route("/api/note-connections", createNoteConnectionRoutes(db));
   app.route("/api/playlists", createPlaylistRoutes(db));
 
+  app.onError((err, c) => {
+    log.error("[Server] Unhandled error:", err);
+    return c.json({ error: "Internal Server Error" }, 500);
+  });
+
   return app;
 }
 
@@ -89,26 +95,33 @@ function serveStatic(
   const staticDir = getStaticDir();
   if (!fs.existsSync(staticDir)) return false;
 
-  let urlPath = (req.url || "/").split("?")[0];
+  const urlPath = (req.url || "/").split("?")[0];
 
-  // Try exact file match, then fallback to index.html (SPA)
-  let filePath = path.join(staticDir, urlPath);
+  // Path traversal protection
+  const resolvedStaticDir = path.resolve(staticDir);
+  const filePath = path.resolve(path.join(staticDir, urlPath));
+  if (
+    !filePath.startsWith(resolvedStaticDir + path.sep) &&
+    filePath !== resolvedStaticDir
+  ) {
+    res.writeHead(403);
+    res.end("Forbidden");
+    return true;
+  }
 
   if (fs.existsSync(filePath) && fs.statSync(filePath).isFile()) {
     const ext = path.extname(filePath);
     const mimeType = MIME_TYPES[ext] || "application/octet-stream";
-    const content = fs.readFileSync(filePath);
     res.writeHead(200, { "Content-Type": mimeType });
-    res.end(content);
+    fs.createReadStream(filePath).pipe(res);
     return true;
   }
 
   // SPA fallback: serve index.html for non-API, non-file routes
   const indexPath = path.join(staticDir, "index.html");
   if (fs.existsSync(indexPath)) {
-    const content = fs.readFileSync(indexPath);
     res.writeHead(200, { "Content-Type": "text/html" });
-    res.end(content);
+    fs.createReadStream(indexPath).pipe(res);
     return true;
   }
 
@@ -183,7 +196,7 @@ export function startServer(db: Database.Database): Promise<Server> {
       }
     });
 
-    setupWebSocket(server);
+    wsCleanup = setupWebSocket(server);
 
     server.listen(SERVER_PORT, "0.0.0.0", () => {
       log.info(
@@ -204,6 +217,10 @@ export function stopServer(): Promise<void> {
     if (!server) {
       resolve();
       return;
+    }
+    if (wsCleanup) {
+      wsCleanup();
+      wsCleanup = null;
     }
     server.close(() => {
       log.info("[Server] HTTP server stopped");

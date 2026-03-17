@@ -1,9 +1,7 @@
 import type { MiddlewareHandler } from "hono";
 
 export const corsMiddleware: MiddlewareHandler = async (c, next) => {
-  const origin = c.req.header("Origin") || "*";
-
-  c.header("Access-Control-Allow-Origin", origin);
+  c.header("Access-Control-Allow-Origin", "*");
   c.header(
     "Access-Control-Allow-Methods",
     "GET, POST, PUT, PATCH, DELETE, OPTIONS",

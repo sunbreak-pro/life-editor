@@ -156,7 +156,9 @@ export function PaperSidebar({
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
-                        onDeleteBoard(board.id);
+                        if (window.confirm(t("ideas.deleteBoardConfirm"))) {
+                          onDeleteBoard(board.id);
+                        }
                       }}
                       className="text-notion-text-secondary hover:text-red-500"
                     >

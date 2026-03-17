@@ -12,11 +12,14 @@ export function createWikiTagGroupRoutes(db: Database.Database): Hono {
   });
 
   app.post("/", async (c) => {
-    const { name, noteIds, filterTags } = await c.req.json<{
-      name: string;
-      noteIds: string[];
-      filterTags?: string[];
-    }>();
+    const body = await c.req.json();
+    const { name, noteIds, filterTags } = body;
+    if (typeof name !== "string" || !Array.isArray(noteIds)) {
+      return c.json(
+        { error: "name (string) and noteIds (array) are required" },
+        400,
+      );
+    }
     const result = repo.create(name, noteIds, filterTags);
     broadcastChange("wikiTagGroup", "create", result.id);
     return c.json(result);

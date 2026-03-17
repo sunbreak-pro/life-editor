@@ -15,6 +15,8 @@ import { TableRow } from "@tiptap/extension-table-row";
 import { TableCell } from "@tiptap/extension-table-cell";
 import { TableHeader } from "@tiptap/extension-table-header";
 import { Image } from "@tiptap/extension-image";
+import TaskList from "@tiptap/extension-task-list";
+import TaskItem from "@tiptap/extension-task-item";
 import {
   ToggleList,
   ToggleSummary,
@@ -136,6 +138,8 @@ export function MemoEditor({
         TableCell,
         TableHeader,
         Image,
+        TaskList,
+        TaskItem.configure({ nested: true }),
         ToggleList,
         ToggleSummary,
         ToggleContent,

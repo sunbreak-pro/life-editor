@@ -270,6 +270,7 @@
     "boards": "Boards",
     "newBoard": "New Board",
     "deleteBoard": "Delete board",
+    "deleteBoardConfirm": "Are you sure you want to delete this board? This action cannot be undone.",
     "addCard": "Add Card",
     "addTextBlock": "Add Text",
     "addFrame": "Add Frame"

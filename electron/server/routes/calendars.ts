@@ -12,11 +12,18 @@ export function createCalendarRoutes(db: Database.Database): Hono {
   });
 
   app.post("/", async (c) => {
-    const { id, title, folderId } = await c.req.json<{
-      id: string;
-      title: string;
-      folderId: string;
-    }>();
+    const body = await c.req.json();
+    const { id, title, folderId } = body;
+    if (
+      typeof id !== "string" ||
+      typeof title !== "string" ||
+      typeof folderId !== "string"
+    ) {
+      return c.json(
+        { error: "id, title, and folderId are required strings" },
+        400,
+      );
+    }
     const result = repo.create(id, title, folderId);
     broadcastChange("calendar", "create", id);
     return c.json(result);

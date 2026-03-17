@@ -1,6 +1,7 @@
 import { ipcMain } from "electron";
 import { loggedHandler } from "./handlerUtil";
 import type { CalendarRepository } from "../database/calendarRepository";
+import { broadcastChange } from "../server/broadcast";
 
 export function registerCalendarHandlers(repo: CalendarRepository): void {
   ipcMain.handle(
@@ -13,8 +14,11 @@ export function registerCalendarHandlers(repo: CalendarRepository): void {
     loggedHandler(
       "Calendars",
       "create",
-      (_event, id: string, title: string, folderId: string) =>
-        repo.create(id, title, folderId),
+      (_event, id: string, title: string, folderId: string) => {
+        const result = repo.create(id, title, folderId);
+        broadcastChange("calendar", "create", id);
+        return result;
+      },
     ),
   );
 
@@ -27,14 +31,19 @@ export function registerCalendarHandlers(repo: CalendarRepository): void {
         _event,
         id: string,
         updates: { title?: string; folderId?: string; order?: number },
-      ) => repo.update(id, updates),
+      ) => {
+        const result = repo.update(id, updates);
+        broadcastChange("calendar", "update", id);
+        return result;
+      },
     ),
   );
 
   ipcMain.handle(
     "db:calendars:delete",
-    loggedHandler("Calendars", "delete", (_event, id: string) =>
-      repo.delete(id),
-    ),
+    loggedHandler("Calendars", "delete", (_event, id: string) => {
+      repo.delete(id);
+      broadcastChange("calendar", "delete", id);
+    }),
   );
 }

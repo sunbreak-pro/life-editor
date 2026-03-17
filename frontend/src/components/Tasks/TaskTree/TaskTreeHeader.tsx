@@ -39,12 +39,21 @@ export function TaskTreeHeader({
     for (const n of nodes) {
       if (n.type === "folder") parentMap.set(n.id, n.title);
     }
-    const items = [...nodes]
-      .filter((n) => !n.isCompleted)
+    let filtered = [...nodes].filter((n) => !n.completedAt);
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      filtered = filtered.filter((n) => {
+        const label =
+          n.title ||
+          (n.type === "folder" ? "Untitled Folder" : "Untitled Task");
+        return label.toLowerCase().includes(q);
+      });
+    }
+    return filtered
       .sort(
         (a, b) =>
-          new Date(b.updatedAt ?? 0).getTime() -
-          new Date(a.updatedAt ?? 0).getTime(),
+          new Date(b.createdAt ?? 0).getTime() -
+          new Date(a.createdAt ?? 0).getTime(),
       )
       .slice(0, 10)
       .map((n) => ({
@@ -55,11 +64,6 @@ export function TaskTreeHeader({
         icon: (n.type === "folder" ? "folder" : "task") as "folder" | "task",
         sublabel: n.parentId ? parentMap.get(n.parentId) : undefined,
       }));
-    if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase();
-      return items.filter((i) => i.label.toLowerCase().includes(q));
-    }
-    return items;
   }, [nodes, searchQuery]);
 
   const handleSuggestionSelect = (id: string) => {

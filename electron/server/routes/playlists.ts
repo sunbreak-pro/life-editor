@@ -12,7 +12,11 @@ export function createPlaylistRoutes(db: Database.Database): Hono {
   });
 
   app.post("/", async (c) => {
-    const { id, name } = await c.req.json<{ id: string; name: string }>();
+    const body = await c.req.json();
+    const { id, name } = body;
+    if (typeof id !== "string" || typeof name !== "string") {
+      return c.json({ error: "id and name are required strings" }, 400);
+    }
     const result = repo.create(id, name);
     broadcastChange("playlist", "create", id);
     return c.json(result);
@@ -44,10 +48,11 @@ export function createPlaylistRoutes(db: Database.Database): Hono {
 
   app.post("/:id/items", async (c) => {
     const playlistId = c.req.param("id");
-    const { id, soundId } = await c.req.json<{
-      id: string;
-      soundId: string;
-    }>();
+    const body = await c.req.json();
+    const { id, soundId } = body;
+    if (typeof id !== "string" || typeof soundId !== "string") {
+      return c.json({ error: "id and soundId are required strings" }, 400);
+    }
     const result = repo.addItem(id, playlistId, soundId);
     broadcastChange("playlistItem", "create", id);
     return c.json(result);

@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef } from "react";
 import { isApiConfigured } from "./config/api";
 import { ConnectionSetup } from "./components/Mobile/ConnectionSetup";
 import { MobileLayout, type MobileTab } from "./components/Layout/MobileLayout";
@@ -8,13 +8,31 @@ import { MobileTaskView } from "./components/Mobile/MobileTaskView";
 import { MobileScheduleView } from "./components/Mobile/MobileScheduleView";
 import { useRealtimeSync, type ChangeEvent } from "./hooks/useRealtimeSync";
 
+const TAB_ENTITY_MAP: Record<MobileTab, string[]> = {
+  memos: ["memo", "timeMemo"],
+  notes: [
+    "note",
+    "noteConnection",
+    "wikiTag",
+    "wikiTagGroup",
+    "wikiTagConnection",
+  ],
+  tasks: ["task"],
+  schedule: ["scheduleItem", "routine", "routineTag", "calendar"],
+};
+
 export function MobileApp() {
   const [connected, setConnected] = useState(isApiConfigured());
   const [activeTab, setActiveTab] = useState<MobileTab>("memos");
   const [refreshKey, setRefreshKey] = useState(0);
+  const activeTabRef = useRef(activeTab);
+  activeTabRef.current = activeTab;
 
-  const handleChange = useCallback((_event: ChangeEvent) => {
-    setRefreshKey((k) => k + 1);
+  const handleChange = useCallback((event: ChangeEvent) => {
+    const relevantEntities = TAB_ENTITY_MAP[activeTabRef.current];
+    if (relevantEntities?.includes(event.entity)) {
+      setRefreshKey((k) => k + 1);
+    }
   }, []);
 
   const connectionState = useRealtimeSync(handleChange);

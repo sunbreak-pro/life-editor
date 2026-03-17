@@ -23,17 +23,30 @@ export function createTimerRoutes(db: Database.Database): Hono {
 
   // Timer Sessions
   app.post("/sessions/start", async (c) => {
-    const { sessionType, taskId } = await c.req.json<{
-      sessionType: "WORK" | "BREAK" | "LONG_BREAK";
-      taskId?: string;
-    }>();
-    const session = timerRepo.startSession(sessionType, taskId ?? null);
+    const body = await c.req.json();
+    const { sessionType, taskId } = body;
+    if (
+      typeof sessionType !== "string" ||
+      !["WORK", "BREAK", "LONG_BREAK"].includes(sessionType)
+    ) {
+      return c.json(
+        { error: "sessionType must be WORK, BREAK, or LONG_BREAK" },
+        400,
+      );
+    }
+    const session = timerRepo.startSession(
+      sessionType as "WORK" | "BREAK" | "LONG_BREAK",
+      taskId ?? null,
+    );
     broadcastChange("timerSession", "create", session.id);
     return c.json(session);
   });
 
   app.post("/sessions/:id/end", async (c) => {
     const id = Number(c.req.param("id"));
+    if (Number.isNaN(id)) {
+      return c.json({ error: "Invalid session ID" }, 400);
+    }
     const { duration, completed } = await c.req.json<{
       duration: number;
       completed: boolean;
@@ -66,6 +79,9 @@ export function createTimerRoutes(db: Database.Database): Hono {
 
   app.patch("/presets/:id", async (c) => {
     const id = Number(c.req.param("id"));
+    if (Number.isNaN(id)) {
+      return c.json({ error: "Invalid preset ID" }, 400);
+    }
     const updates = await c.req.json();
     const result = presetRepo.update(id, updates);
     broadcastChange("pomodoroPreset", "update", id);
@@ -74,6 +90,9 @@ export function createTimerRoutes(db: Database.Database): Hono {
 
   app.delete("/presets/:id", (c) => {
     const id = Number(c.req.param("id"));
+    if (Number.isNaN(id)) {
+      return c.json({ error: "Invalid preset ID" }, 400);
+    }
     presetRepo.delete(id);
     broadcastChange("pomodoroPreset", "delete", id);
     return c.json({ ok: true });

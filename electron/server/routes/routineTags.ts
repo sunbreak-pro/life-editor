@@ -12,10 +12,11 @@ export function createRoutineTagRoutes(db: Database.Database): Hono {
   });
 
   app.post("/", async (c) => {
-    const { name, color } = await c.req.json<{
-      name: string;
-      color: string;
-    }>();
+    const body = await c.req.json();
+    const { name, color } = body;
+    if (typeof name !== "string" || typeof color !== "string") {
+      return c.json({ error: "name and color are required strings" }, 400);
+    }
     const result = repo.create(name, color);
     broadcastChange("routineTag", "create", result.id);
     return c.json(result);
@@ -23,6 +24,9 @@ export function createRoutineTagRoutes(db: Database.Database): Hono {
 
   app.patch("/:id", async (c) => {
     const id = Number(c.req.param("id"));
+    if (Number.isNaN(id)) {
+      return c.json({ error: "Invalid routine tag ID" }, 400);
+    }
     const updates = await c.req.json();
     const result = repo.update(id, updates);
     broadcastChange("routineTag", "update", id);
@@ -31,6 +35,9 @@ export function createRoutineTagRoutes(db: Database.Database): Hono {
 
   app.delete("/:id", (c) => {
     const id = Number(c.req.param("id"));
+    if (Number.isNaN(id)) {
+      return c.json({ error: "Invalid routine tag ID" }, 400);
+    }
     repo.delete(id);
     broadcastChange("routineTag", "delete", id);
     return c.json({ ok: true });

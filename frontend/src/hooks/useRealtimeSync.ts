@@ -22,6 +22,16 @@ export function useRealtimeSync(
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const onChangeRef = useRef(onChange);
   onChangeRef.current = onChange;
+  const connectRef = useRef<(() => void) | null>(null);
+
+  const scheduleReconnect = useCallback(() => {
+    const delay = Math.min(
+      RECONNECT_BASE_MS * Math.pow(2, retriesRef.current),
+      RECONNECT_MAX_MS,
+    );
+    retriesRef.current++;
+    timerRef.current = setTimeout(() => connectRef.current?.(), delay);
+  }, []);
 
   const connect = useCallback(() => {
     const baseUrl = getApiBaseUrl();
@@ -58,16 +68,9 @@ export function useRealtimeSync(
     ws.onerror = () => {
       ws.close();
     };
-  }, []);
+  }, [scheduleReconnect]);
 
-  const scheduleReconnect = useCallback(() => {
-    const delay = Math.min(
-      RECONNECT_BASE_MS * Math.pow(2, retriesRef.current),
-      RECONNECT_MAX_MS,
-    );
-    retriesRef.current++;
-    timerRef.current = setTimeout(connect, delay);
-  }, [connect]);
+  connectRef.current = connect;
 
   useEffect(() => {
     connect();

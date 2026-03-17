@@ -63,6 +63,11 @@ export function createNoteRepository(db: Database.Database) {
       return (stmts.fetchAll.all() as NoteRow[]).map(rowToNode);
     },
 
+    fetchById(id: string): NoteNode | undefined {
+      const row = stmts.fetchById.get(id) as NoteRow | undefined;
+      return row ? rowToNode(row) : undefined;
+    },
+
     fetchDeleted(): NoteNode[] {
       return (stmts.fetchDeleted.all() as NoteRow[]).map(rowToNode);
     },

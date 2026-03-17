@@ -270,6 +270,7 @@
     "boards": "ボード",
     "newBoard": "新規ボード",
     "deleteBoard": "ボードを削除",
+    "deleteBoardConfirm": "このボードを削除しますか？この操作は元に戻せません。",
     "addCard": "カードを追加",
     "addTextBlock": "テキストを追加",
     "addFrame": "フレームを追加"

@@ -22,8 +22,7 @@ export function createNoteRoutes(db: Database.Database): Hono {
 
   app.get("/:id", (c) => {
     const id = c.req.param("id");
-    const all = repo.fetchAll();
-    const note = all.find((n) => n.id === id);
+    const note = repo.fetchById(id);
     if (!note) return c.json({ error: "Not found" }, 404);
     return c.json(note);
   });

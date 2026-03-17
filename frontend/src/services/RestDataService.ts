@@ -721,7 +721,17 @@ export class RestDataService implements DataService {
   }
   updatePaperBoard(
     _id: string,
-    _updates: Record<string, unknown>,
+    _updates: Partial<
+      Pick<
+        PaperBoard,
+        | "name"
+        | "linkedNoteId"
+        | "viewportX"
+        | "viewportY"
+        | "viewportZoom"
+        | "order"
+      >
+    >,
   ): Promise<PaperBoard> {
     return notSupported("Paper Boards");
   }
@@ -731,17 +741,49 @@ export class RestDataService implements DataService {
   fetchPaperNodesByBoard(_boardId: string): Promise<PaperNode[]> {
     return notSupported("Paper Boards");
   }
-  createPaperNode(_params: Record<string, unknown>): Promise<PaperNode> {
+  createPaperNode(_params: {
+    boardId: string;
+    nodeType: PaperNode["nodeType"];
+    positionX: number;
+    positionY: number;
+    width?: number;
+    height?: number;
+    zIndex?: number;
+    parentNodeId?: string | null;
+    refEntityId?: string | null;
+    refEntityType?: string | null;
+    textContent?: string | null;
+    frameColor?: string | null;
+    frameLabel?: string | null;
+  }): Promise<PaperNode> {
     return notSupported("Paper Boards");
   }
   updatePaperNode(
     _id: string,
-    _updates: Record<string, unknown>,
+    _updates: Partial<
+      Pick<
+        PaperNode,
+        | "positionX"
+        | "positionY"
+        | "width"
+        | "height"
+        | "zIndex"
+        | "parentNodeId"
+        | "textContent"
+        | "frameColor"
+        | "frameLabel"
+      >
+    >,
   ): Promise<PaperNode> {
     return notSupported("Paper Boards");
   }
   bulkUpdatePaperNodePositions(
-    _updates: Array<Record<string, unknown>>,
+    _updates: Array<{
+      id: string;
+      positionX: number;
+      positionY: number;
+      parentNodeId: string | null;
+    }>,
   ): Promise<void> {
     return notSupported("Paper Boards");
   }
@@ -751,7 +793,15 @@ export class RestDataService implements DataService {
   fetchPaperEdgesByBoard(_boardId: string): Promise<PaperEdge[]> {
     return notSupported("Paper Boards");
   }
-  createPaperEdge(_params: Record<string, unknown>): Promise<PaperEdge> {
+  createPaperEdge(_params: {
+    boardId: string;
+    sourceNodeId: string;
+    targetNodeId: string;
+    sourceHandle?: string | null;
+    targetHandle?: string | null;
+    label?: string | null;
+    styleJson?: string | null;
+  }): Promise<PaperEdge> {
     return notSupported("Paper Boards");
   }
   deletePaperEdge(_id: string): Promise<void> {

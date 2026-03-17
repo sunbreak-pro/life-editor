@@ -1,6 +1,7 @@
 import { ipcMain } from "electron";
 import { loggedHandler } from "./handlerUtil";
 import type { TimeMemoRepository } from "../database/timeMemoRepository";
+import { broadcastChange } from "../server/broadcast";
 
 export function registerTimeMemoHandlers(repo: TimeMemoRepository): void {
   ipcMain.handle(
@@ -16,7 +17,9 @@ export function registerTimeMemoHandlers(repo: TimeMemoRepository): void {
       "TimeMemos",
       "upsert",
       (_event, id: string, date: string, hour: number, content: string) => {
-        return repo.upsert(id, date, hour, content);
+        const result = repo.upsert(id, date, hour, content);
+        broadcastChange("timeMemo", "update", id);
+        return result;
       },
     ),
   );
@@ -25,6 +28,7 @@ export function registerTimeMemoHandlers(repo: TimeMemoRepository): void {
     "db:timeMemos:delete",
     loggedHandler("TimeMemos", "delete", (_event, id: string) => {
       repo.delete(id);
+      broadcastChange("timeMemo", "delete", id);
     }),
   );
 }

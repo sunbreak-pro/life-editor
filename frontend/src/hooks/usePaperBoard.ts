@@ -16,6 +16,7 @@ export function usePaperBoard() {
   const [nodes, setNodes] = useState<PaperNode[]>([]);
   const [edges, setEdges] = useState<PaperEdge[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const loadedBoardRef = useRef<string | null>(null);
 
   // Persist active board id
@@ -30,17 +31,22 @@ export function usePaperBoard() {
   // Load boards
   useEffect(() => {
     const ds = getDataService();
-    ds.fetchPaperBoards().then((fetched) => {
-      setBoards(fetched);
-      // Auto-select first board if no active board or invalid
-      if (fetched.length > 0) {
-        const exists = fetched.some((b) => b.id === activeBoardId);
-        if (!exists) {
-          setActiveBoardId(fetched[0].id);
+    ds.fetchPaperBoards()
+      .then((fetched) => {
+        setBoards(fetched);
+        // Auto-select first board if no active board or invalid
+        if (fetched.length > 0) {
+          const exists = fetched.some((b) => b.id === activeBoardId);
+          if (!exists) {
+            setActiveBoardId(fetched[0].id);
+          }
         }
-      }
-      setLoading(false);
-    });
+        setLoading(false);
+      })
+      .catch((err) => {
+        setError(err instanceof Error ? err.message : "Failed to load boards");
+        setLoading(false);
+      });
   }, []);
 
   // Load nodes/edges when active board changes
@@ -51,10 +57,16 @@ export function usePaperBoard() {
     Promise.all([
       ds.fetchPaperNodesByBoard(activeBoardId),
       ds.fetchPaperEdgesByBoard(activeBoardId),
-    ]).then(([n, e]) => {
-      setNodes(n);
-      setEdges(e);
-    });
+    ])
+      .then(([n, e]) => {
+        setNodes(n);
+        setEdges(e);
+      })
+      .catch((err) => {
+        setError(
+          err instanceof Error ? err.message : "Failed to load board data",
+        );
+      });
   }, [activeBoardId]);
 
   const activeBoard = boards.find((b) => b.id === activeBoardId) ?? null;
@@ -94,20 +106,18 @@ export function usePaperBoard() {
     [],
   );
 
-  const deleteBoard = useCallback(
-    async (id: string) => {
-      const ds = getDataService();
-      await ds.deletePaperBoard(id);
-      setBoards((prev) => {
-        const remaining = prev.filter((b) => b.id !== id);
-        if (activeBoardId === id) {
-          setActiveBoardId(remaining[0]?.id ?? null);
-        }
-        return remaining;
-      });
-    },
-    [activeBoardId],
-  );
+  const boardsRef = useRef(boards);
+  boardsRef.current = boards;
+
+  const deleteBoard = useCallback(async (id: string) => {
+    const ds = getDataService();
+    await ds.deletePaperBoard(id);
+    setBoards((prev) => prev.filter((b) => b.id !== id));
+    if (boardsRef.current.find((b) => b.id === id)) {
+      const remaining = boardsRef.current.filter((b) => b.id !== id);
+      setActiveBoardId(remaining[0]?.id ?? null);
+    }
+  }, []);
 
   const saveViewport = useCallback(
     async (x: number, y: number, zoom: number) => {
@@ -281,6 +291,7 @@ export function usePaperBoard() {
     nodes,
     edges,
     loading,
+    error,
     createBoard,
     updateBoard,
     deleteBoard,
