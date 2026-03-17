@@ -1,5 +1,16 @@
 # HISTORY.md - 変更履歴
 
+### 2026-03-17 - Tasks タブ リサイザブルパネルのドラッグバグ修正
+
+#### 概要
+
+Schedule > Tasks タブの2カラムレイアウトで、ドラッグハンドルをクリックすると右カラムが突然広がるバグを修正。`useResizablePanel` フックを ref ベースに変更し、`e.target.closest()` への依存を排除。
+
+#### 変更点
+
+- **useResizablePanel.ts**: `containerRef` と `baseXRef` を追加。`mousedown` 時に親コンテナの `getBoundingClientRect().left` を記録し、`mousemove` でその固定値を基準に幅を計算するように変更。`e.target.closest("[data-resizable-parent]")` を廃止
+- **ScheduleTasksContent.tsx**: `containerRef` を hook から受け取りルート div に設定
+
 ### 2026-03-17 - ChaosContext.tsx Vite 500 エラー修正
 
 #### 概要
