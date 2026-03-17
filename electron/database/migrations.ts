@@ -155,6 +155,11 @@ export function runMigrations(db: Database.Database): void {
     migrateV34(db);
   }
 
+  if (currentVersion < 35) {
+    log.info("[DB] Running migration V35");
+    migrateV35(db);
+  }
+
   const newVersion = db.pragma("user_version", { simple: true }) as number;
   if (newVersion !== currentVersion) {
     log.info(`[DB] Schema migrated: ${currentVersion} → ${newVersion}`);
@@ -1279,4 +1284,11 @@ function migrateV34(db: Database.Database): void {
   });
   migrate();
   db.pragma("user_version = 34");
+}
+
+function migrateV35(db: Database.Database) {
+  if (!hasColumn(db, "tasks", "time_memo")) {
+    db.exec(`ALTER TABLE tasks ADD COLUMN time_memo TEXT DEFAULT NULL`);
+  }
+  db.pragma("user_version = 35");
 }

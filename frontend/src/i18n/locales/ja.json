@@ -920,5 +920,6 @@
     "default": "デフォルト"
   },
   "taskDetail.quickMemo": "クイックメモ",
-  "taskDetail.richEditor": "リッチエディタ"
+  "taskDetail.richEditor": "リッチエディタ",
+  "taskDetail.timeMemo": "タイムメモ"
 }

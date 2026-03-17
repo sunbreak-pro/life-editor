@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import type { KeyboardEvent } from "react";
-import { Play, Trash2, Clock } from "lucide-react";
+import { Play, Trash2, Clock, StickyNote } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import type { TaskNode } from "../../../types/taskTree";
 import { getAncestors } from "../../../utils/breadcrumb";
@@ -22,6 +22,7 @@ interface TaskDetailHeaderProps {
   onIsAllDayChange?: (isAllDay: boolean) => void;
   onFolderColorChange?: (folderId: string, color: string) => void;
   onTitleChange?: (newTitle: string) => void;
+  onTimeMemoChange?: (value: string | undefined) => void;
   folderTag?: string;
   taskColor?: string;
 }
@@ -38,6 +39,7 @@ export function TaskDetailHeader({
   onIsAllDayChange,
   onFolderColorChange,
   onTitleChange,
+  onTimeMemoChange,
   folderTag,
   taskColor,
 }: TaskDetailHeaderProps) {
@@ -206,6 +208,23 @@ export function TaskDetailHeader({
           onEndChange={(val) => onScheduledEndAtChange?.(val)}
           onAllDayChange={(val) => onIsAllDayChange?.(val)}
         />
+
+        {task.scheduledAt && onTimeMemoChange && (
+          <div className="flex items-center gap-1 px-2 py-1 rounded-md border border-notion-border">
+            <StickyNote
+              size={14}
+              className="text-notion-text-secondary shrink-0"
+            />
+            <input
+              type="text"
+              value={task.timeMemo ?? ""}
+              onChange={(e) => onTimeMemoChange(e.target.value || undefined)}
+              placeholder={t("taskDetail.timeMemo")}
+              className="text-sm bg-transparent outline-none text-notion-text placeholder:text-notion-text-secondary/50 w-28"
+              onClick={(e) => e.stopPropagation()}
+            />
+          </div>
+        )}
 
         <button
           onClick={onDelete}

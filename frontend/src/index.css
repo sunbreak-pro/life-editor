@@ -202,7 +202,7 @@ body {
 
 .memo-editor ul[data-type="taskList"] li > label input[type="checkbox"] {
   cursor: pointer;
-  accent-color: var(--color-primary, #6366f1);
+  accent-color: var(--color-accent);
 }
 
 .memo-editor ul[data-type="taskList"] li > div {

@@ -210,6 +210,13 @@ export function ScheduleTabView({
     [updateNode],
   );
 
+  const handleUpdateTaskTimeMemo = useCallback(
+    (taskId: string, memo: string | null) => {
+      updateNode(taskId, { timeMemo: memo ?? undefined });
+    },
+    [updateNode],
+  );
+
   const handleUnscheduleTask = useCallback(
     (taskId: string) => {
       const task = nodes.find((n) => n.id === taskId);
@@ -285,7 +292,6 @@ export function ScheduleTabView({
             date={dayFlowDate}
             tasksByDate={tasksByDate}
             allTasksByDate={allTasksByDate}
-            onSelectTask={onCalendarSelectTask}
             getTaskColor={getTaskColor}
             getFolderTag={getFolderTagForTask}
             onUpdateTaskTime={handleUpdateTaskTime}
@@ -296,6 +302,8 @@ export function ScheduleTabView({
             onFilterTabChange={setDayFlowFilterTab}
             onToggleTaskStatus={toggleTaskStatus}
             onUnscheduleTask={handleUnscheduleTask}
+            onNavigateTask={onCalendarSelectTask}
+            onUpdateTaskTimeMemo={handleUpdateTaskTimeMemo}
           />
         )}
       </div>

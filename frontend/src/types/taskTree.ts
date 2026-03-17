@@ -29,4 +29,5 @@ export interface TaskNode {
   content?: string;
   workDurationMinutes?: number;
   color?: string;
+  timeMemo?: string;
 }

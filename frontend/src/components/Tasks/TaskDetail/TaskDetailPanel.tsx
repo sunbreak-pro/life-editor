@@ -16,7 +16,7 @@ import {
   Folder,
   ChevronRight,
   ChevronDown,
-  Square,
+  StickyNote,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useTaskTreeContext } from "../../../hooks/useTaskTreeContext";
@@ -39,6 +39,8 @@ import { getAncestors } from "../../../utils/breadcrumb";
 import { DateTimeRangePicker } from "../Schedule/Calendar/DateTimeRangePicker";
 import { LazyMemoEditor } from "./LazyMemoEditor";
 import { STORAGE_KEYS } from "../../../constants/storageKeys";
+import { fireTaskCompleteConfetti } from "../../../utils/confetti";
+import { playEffectSound } from "../../../utils/playEffectSound";
 
 type MemoMode = "quick" | "rich";
 
@@ -81,8 +83,14 @@ export function TaskDetailPanel({
   onPlayTask,
   onSelectTask,
 }: TaskDetailPanelProps) {
-  const { nodes, updateNode, moveNodeInto, moveToRoot, softDelete } =
-    useTaskTreeContext();
+  const {
+    nodes,
+    updateNode,
+    moveNodeInto,
+    moveToRoot,
+    softDelete,
+    toggleTaskStatus,
+  } = useTaskTreeContext();
   const timer = useTimerContext();
   const { t } = useTranslation();
   const { showToast } = useToast();
@@ -119,6 +127,7 @@ export function TaskDetailPanel({
               nodes={nodes}
               updateNode={updateNode}
               onSelectTask={onSelectTask}
+              toggleTaskStatus={toggleTaskStatus}
             />
           )}
         </div>
@@ -337,6 +346,25 @@ function TaskSidebarContent({
             }}
           />
 
+          {node.scheduledAt && (
+            <div className="flex items-center gap-1 px-2 py-1 rounded-md border border-notion-border">
+              <StickyNote
+                size={12}
+                className="text-notion-text-secondary shrink-0"
+              />
+              <input
+                type="text"
+                value={node.timeMemo ?? ""}
+                onChange={(e) =>
+                  updateNode(node.id, { timeMemo: e.target.value || undefined })
+                }
+                placeholder={t("taskDetail.timeMemo")}
+                className="text-xs bg-transparent outline-none text-notion-text placeholder:text-notion-text-secondary/50 w-24"
+                onClick={(e) => e.stopPropagation()}
+              />
+            </div>
+          )}
+
           <button
             onClick={() => softDelete(node.id)}
             className="p-1.5 rounded-md text-notion-text-secondary hover:text-notion-danger hover:bg-notion-hover transition-colors ml-auto"
@@ -409,6 +437,7 @@ interface FolderSidebarContentProps {
   nodes: TaskNode[];
   updateNode: (id: string, updates: Partial<TaskNode>) => void;
   onSelectTask?: (id: string) => void;
+  toggleTaskStatus: (id: string) => void;
 }
 
 function FolderSidebarContent({
@@ -416,6 +445,7 @@ function FolderSidebarContent({
   nodes,
   updateNode,
   onSelectTask,
+  toggleTaskStatus,
 }: FolderSidebarContentProps) {
   const { t } = useTranslation();
   const [showColorPicker, setShowColorPicker] = useState(false);
@@ -479,6 +509,18 @@ function FolderSidebarContent({
       return next;
     });
   };
+
+  const handleToggleTaskStatus = useCallback(
+    (taskId: string) => {
+      const target = nodes.find((n) => n.id === taskId);
+      if (target && target.status !== "DONE") {
+        fireTaskCompleteConfetti();
+        playEffectSound("/sounds/task_complete_sound.mp3");
+      }
+      toggleTaskStatus(taskId);
+    },
+    [nodes, toggleTaskStatus],
+  );
 
   return (
     <div className="space-y-4">
@@ -642,31 +684,34 @@ function FolderSidebarContent({
                   const count = getChildCount(folder.id);
                   return (
                     <div key={folder.id}>
-                      <button
-                        onClick={() => toggleFolder(folder.id)}
-                        className="w-full flex items-center gap-1.5 px-2 py-1 rounded-md text-sm text-notion-text hover:bg-notion-hover transition-colors text-left"
-                      >
-                        {isExpanded ? (
-                          <ChevronDown
+                      <div className="w-full flex items-center gap-1.5 px-2 py-1 rounded-md text-sm text-notion-text hover:bg-notion-hover transition-colors">
+                        <button
+                          onClick={() => toggleFolder(folder.id)}
+                          className="shrink-0 text-notion-text-secondary hover:text-notion-text"
+                        >
+                          {isExpanded ? (
+                            <ChevronDown size={14} />
+                          ) : (
+                            <ChevronRight size={14} />
+                          )}
+                        </button>
+                        <button
+                          onClick={() => onSelectTask?.(folder.id)}
+                          className="flex items-center gap-1.5 flex-1 min-w-0 text-left"
+                        >
+                          <Folder
                             size={14}
-                            className="shrink-0 text-notion-text-secondary"
+                            className="shrink-0"
+                            style={{ color: folder.color ?? "#9CA3AF" }}
                           />
-                        ) : (
-                          <ChevronRight
-                            size={14}
-                            className="shrink-0 text-notion-text-secondary"
-                          />
-                        )}
-                        <Folder
-                          size={14}
-                          className="shrink-0"
-                          style={{ color: folder.color ?? "#9CA3AF" }}
-                        />
-                        <span className="truncate flex-1">{folder.title}</span>
-                        <span className="text-[10px] text-notion-text-secondary/60 shrink-0">
-                          {count} {count === 1 ? "item" : "items"}
-                        </span>
-                      </button>
+                          <span className="truncate flex-1">
+                            {folder.title}
+                          </span>
+                          <span className="text-[10px] text-notion-text-secondary/60 shrink-0">
+                            {count} {count === 1 ? "item" : "items"}
+                          </span>
+                        </button>
+                      </div>
 
                       {/* Grandchildren (2nd level) */}
                       {isExpanded && (
@@ -674,13 +719,7 @@ function FolderSidebarContent({
                           {getGrandchildren(folder.id).map((grandchild) => (
                             <button
                               key={grandchild.id}
-                              onClick={() => {
-                                if (grandchild.type === "folder") {
-                                  onSelectTask?.(grandchild.id);
-                                } else {
-                                  onSelectTask?.(grandchild.id);
-                                }
-                              }}
+                              onClick={() => onSelectTask?.(grandchild.id)}
                               className="w-full flex items-center gap-1.5 px-2 py-1 rounded-md text-sm text-notion-text hover:bg-notion-hover transition-colors text-left"
                             >
                               {grandchild.type === "folder" ? (
@@ -692,10 +731,22 @@ function FolderSidebarContent({
                                   }}
                                 />
                               ) : (
-                                <Square
-                                  size={13}
-                                  className="shrink-0 text-notion-text-secondary"
-                                />
+                                <label
+                                  onClick={(e) => e.stopPropagation()}
+                                  className="flex items-center shrink-0"
+                                >
+                                  <input
+                                    type="checkbox"
+                                    checked={false}
+                                    onChange={() =>
+                                      handleToggleTaskStatus(grandchild.id)
+                                    }
+                                    className="w-3.5 h-3.5 cursor-pointer"
+                                    style={{
+                                      accentColor: "var(--color-accent)",
+                                    }}
+                                  />
+                                </label>
                               )}
                               <span className="truncate">
                                 {grandchild.title}
@@ -729,10 +780,18 @@ function FolderSidebarContent({
                     onClick={() => onSelectTask?.(task.id)}
                     className="w-full flex items-center gap-1.5 px-2 py-1 rounded-md text-sm text-notion-text hover:bg-notion-hover transition-colors text-left"
                   >
-                    <Square
-                      size={13}
-                      className="shrink-0 text-notion-text-secondary"
-                    />
+                    <label
+                      onClick={(e) => e.stopPropagation()}
+                      className="flex items-center shrink-0"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={false}
+                        onChange={() => handleToggleTaskStatus(task.id)}
+                        className="w-3.5 h-3.5 cursor-pointer"
+                        style={{ accentColor: "var(--color-accent)" }}
+                      />
+                    </label>
                     <span className="truncate">{task.title}</span>
                   </button>
                 ))}

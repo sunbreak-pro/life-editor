@@ -4,7 +4,6 @@ import {
   ChevronDown,
   Folder,
   FolderOpen,
-  Check,
   CheckCircle2,
 } from "lucide-react";
 import { getTextColorForBg } from "../../../constants/folderColors";
@@ -70,15 +69,17 @@ export const TaskNodeCheckbox = memo(function TaskNodeCheckbox({
   }
 
   return (
-    <button
-      onClick={onToggleStatus}
-      className={`w-3.5 h-3.5 rounded border flex items-center justify-center shrink-0 transition-all ${
-        isDone
-          ? "bg-green-500 border-green-500 text-gray-900 hover:bg-green-500/70 hover:border-green-500/70"
-          : "border-notion-border hover:border-notion-accent"
-      }`}
+    <label
+      onClick={(e) => e.stopPropagation()}
+      className="flex items-center shrink-0"
     >
-      {isDone && <Check size={10} className="check-animate" />}
-    </button>
+      <input
+        type="checkbox"
+        checked={isDone}
+        onChange={onToggleStatus}
+        className="w-3.5 h-3.5 cursor-pointer"
+        style={{ accentColor: "var(--color-accent)" }}
+      />
+    </label>
   );
 });

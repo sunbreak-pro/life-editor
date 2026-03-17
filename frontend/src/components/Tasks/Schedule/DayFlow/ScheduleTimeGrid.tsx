@@ -167,8 +167,6 @@ interface ScheduleTimeGridProps {
   scheduleItems: ScheduleItem[];
   tasks: TaskNode[];
   onToggleComplete: (id: string) => void;
-  onClickItem: (id: string) => void;
-  onClickTask: (taskId: string, e: React.MouseEvent) => void;
   onCreateItem: (
     startTime: string,
     endTime: string,
@@ -191,6 +189,8 @@ interface ScheduleTimeGridProps {
   onToggleTaskStatus?: (taskId: string) => void;
   onDeleteScheduleItem?: (id: string) => void;
   onUnscheduleTask?: (taskId: string) => void;
+  onNavigateTask?: (taskId: string, e: React.MouseEvent) => void;
+  onUpdateTaskTimeMemo?: (taskId: string, memo: string | null) => void;
 }
 
 export function ScheduleTimeGrid({
@@ -198,8 +198,6 @@ export function ScheduleTimeGrid({
   scheduleItems,
   tasks,
   onToggleComplete,
-  onClickItem,
-  onClickTask,
   onCreateItem,
   getTaskColor,
   getFolderTag,
@@ -210,6 +208,8 @@ export function ScheduleTimeGrid({
   onToggleTaskStatus,
   onDeleteScheduleItem,
   onUnscheduleTask,
+  onNavigateTask,
+  onUpdateTaskTimeMemo,
 }: ScheduleTimeGridProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const mainColumnRef = useRef<HTMLDivElement>(null);
@@ -244,7 +244,7 @@ export function ScheduleTimeGrid({
     [onUpdateScheduleItemTime, onUpdateTaskTime],
   );
 
-  const { dragState, getDragHandlers } = useTimeGridDrag({
+  const { dragState, getDragHandlers, hasMovedRef } = useTimeGridDrag({
     containerRef: mainColumnRef,
     onDragEnd: handleDragEnd,
   });
@@ -394,7 +394,6 @@ export function ScheduleTimeGrid({
               }
               color={getTaskColor?.(p.task.id)}
               tag={getFolderTag?.(p.task.id)}
-              onClick={(e) => onClickTask(p.task.id, e)}
               dragHandlers={getDragHandlers(
                 p.task.id,
                 "task",
@@ -421,6 +420,9 @@ export function ScheduleTimeGrid({
               }
               onToggleTaskStatus={onToggleTaskStatus}
               onUnschedule={onUnscheduleTask}
+              onNavigate={onNavigateTask}
+              hasMovedRef={hasMovedRef}
+              onUpdateTimeMemo={onUpdateTaskTimeMemo}
             />
           ))}
         </div>
@@ -434,7 +436,6 @@ export function ScheduleTimeGrid({
             height={p.height}
             isNext={p.item.id === nextItemId}
             onToggleComplete={onToggleComplete}
-            onClick={onClickItem}
             onUpdateMemo={onUpdateMemo}
             onDelete={onDeleteScheduleItem}
             dragHandlers={getDragHandlers(
@@ -460,6 +461,7 @@ export function ScheduleTimeGrid({
             )}
             isDragging={dragState.isDragging && dragState.itemId === p.item.id}
             hasTaskOverlap={p.hasTaskOverlap}
+            hasMovedRef={hasMovedRef}
           />
         ))}
 

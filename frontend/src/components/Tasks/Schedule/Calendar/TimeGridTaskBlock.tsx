@@ -1,7 +1,9 @@
-import { Check, StickyNote, X } from "lucide-react";
+import { useState } from "react";
+import { ArrowUpRight, Check, StickyNote, X } from "lucide-react";
 import type { TaskNode } from "../../../../types/taskTree";
 import { getTextColorForBg } from "../../../../constants/folderColors";
 import { formatTimeRangeCompact } from "../../../../utils/formatSchedule";
+import { InlineMemoInput } from "../DayFlow/InlineMemoInput";
 
 interface DragHandlers {
   onMouseDown: (e: React.MouseEvent) => void;
@@ -16,13 +18,15 @@ interface TimeGridTaskBlockProps {
   width: string;
   color?: string;
   tag?: string;
-  onClick: (e: React.MouseEvent) => void;
   dragHandlers?: DragHandlers;
   resizeTopHandlers?: DragHandlers;
   resizeBottomHandlers?: DragHandlers;
   isDragging?: boolean;
   onToggleTaskStatus?: (taskId: string) => void;
   onUnschedule?: (taskId: string) => void;
+  onNavigate?: (taskId: string, e: React.MouseEvent) => void;
+  hasMovedRef?: React.RefObject<boolean>;
+  onUpdateTimeMemo?: (taskId: string, memo: string | null) => void;
 }
 
 export function TimeGridTaskBlock({
@@ -32,13 +36,15 @@ export function TimeGridTaskBlock({
   left,
   width,
   color,
-  onClick,
   dragHandlers,
   resizeTopHandlers,
   resizeBottomHandlers,
   isDragging,
   onToggleTaskStatus,
   onUnschedule,
+  onNavigate,
+  hasMovedRef,
+  onUpdateTimeMemo,
 }: TimeGridTaskBlockProps) {
   const isCompleted = task.status === "DONE";
   const bgColor = isCompleted ? "rgba(156,163,175,0.15)" : (color ?? "#E0E7FF");
@@ -49,14 +55,16 @@ export function TimeGridTaskBlock({
       : "#4338CA";
   const borderColor = isCompleted ? "#9CA3AF" : textColor;
   const isCompact = height < 40;
-  const hasContent = !!task.content;
+  const hasTimeMemo = !!task.timeMemo;
+  const [showInlineMemo, setShowInlineMemo] = useState(false);
 
   return (
     <div
       onClick={(e) => {
         if (isDragging) return;
+        if (hasMovedRef?.current) return;
         e.stopPropagation();
-        onClick(e);
+        onToggleTaskStatus?.(task.id);
       }}
       onMouseDown={dragHandlers?.onMouseDown}
       onTouchStart={dragHandlers?.onTouchStart}
@@ -116,32 +124,58 @@ export function TimeGridTaskBlock({
             >
               {task.title}
             </span>
-            <span
-              className={`shrink-0 ${
-                hasContent ? "opacity-70" : "opacity-0 group-hover:opacity-50"
-              }`}
-            >
-              <StickyNote size={15} />
-            </span>
+            {onUpdateTimeMemo && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShowInlineMemo(true);
+                }}
+                className={`shrink-0 p-0.5 rounded transition-colors ${
+                  hasTimeMemo ? "text-notion-accent" : "opacity-50"
+                }`}
+              >
+                <StickyNote size={15} />
+              </button>
+            )}
           </div>
-          {!isCompact && task.scheduledAt && (
+          {showInlineMemo && onUpdateTimeMemo && (
+            <InlineMemoInput
+              value={task.timeMemo ?? ""}
+              onSave={(val) => onUpdateTimeMemo(task.id, val)}
+              onClose={() => setShowInlineMemo(false)}
+            />
+          )}
+          {!showInlineMemo && !isCompact && task.scheduledAt && (
             <div className="text-[10px] truncate opacity-70">
               {formatTimeRangeCompact(task.scheduledAt, task.scheduledEndAt)}
             </div>
           )}
         </div>
-        {/* Unschedule button */}
-        {onUnschedule && (
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              onUnschedule(task.id);
-            }}
-            className="shrink-0 mt-0.5 p-0.5 rounded opacity-0 group-hover:opacity-100 hover:bg-black/10 transition-all"
-          >
-            <X size={15} />
-          </button>
-        )}
+        {/* Navigate + Unschedule buttons */}
+        <div className="flex items-center shrink-0 mt-0.5 gap-0.5">
+          {onNavigate && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onNavigate(task.id, e);
+              }}
+              className="p-0.5 rounded hover:bg-black/10 transition-all"
+            >
+              <ArrowUpRight size={15} />
+            </button>
+          )}
+          {onUnschedule && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onUnschedule(task.id);
+              }}
+              className="p-0.5 rounded hover:bg-black/10 transition-all"
+            >
+              <X size={15} />
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Resize handle - bottom */}

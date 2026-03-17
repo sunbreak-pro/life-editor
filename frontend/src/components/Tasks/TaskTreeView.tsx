@@ -116,6 +116,7 @@ export function TaskTreeView({
         <TaskDetailPanel
           selectedNodeId={selectedTaskId}
           onPlayTask={onPlayTask}
+          onSelectTask={onSelectTask}
         />
       </div>
     </div>

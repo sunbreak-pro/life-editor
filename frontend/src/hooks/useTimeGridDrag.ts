@@ -55,6 +55,7 @@ export function useTimeGridDrag({
 }: UseTimeGridDragOptions) {
   const [dragState, setDragState] = useState<DragState>(INITIAL_STATE);
   const stateRef = useRef(INITIAL_STATE);
+  const hasMovedRef = useRef(false);
   const startPos = useRef({ x: 0, y: 0 });
   const offsetInBlock = useRef(0);
   const originalTop = useRef(0);
@@ -96,6 +97,7 @@ export function useTimeGridDrag({
         }
 
         // Start dragging
+        hasMovedRef.current = true;
         const item = pendingItem.current;
         const relY = getRelativeY(startPos.current.y);
         const posInBlock = relY - item.top;
@@ -165,6 +167,10 @@ export function useTimeGridDrag({
     stateRef.current = INITIAL_STATE;
     setDragState(INITIAL_STATE);
     pendingItem.current = null;
+    // Keep hasMovedRef value briefly so onClick handlers can check it, then reset
+    setTimeout(() => {
+      hasMovedRef.current = false;
+    }, 0);
   }, [onDragEnd]);
 
   // Attach/detach global listeners
@@ -191,6 +197,7 @@ export function useTimeGridDrag({
     ) => {
       const onStart = (clientX: number, clientY: number) => {
         startPos.current = { x: clientX, y: clientY };
+        hasMovedRef.current = false;
         pendingItem.current = {
           id: itemId,
           type: itemType,
@@ -217,5 +224,6 @@ export function useTimeGridDrag({
   return {
     dragState,
     getDragHandlers,
+    hasMovedRef,
   };
 }

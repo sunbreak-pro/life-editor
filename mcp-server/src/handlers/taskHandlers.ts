@@ -20,6 +20,7 @@ interface TaskRow {
   scheduled_end_at: string | null;
   is_all_day: number;
   content: string | null;
+  time_memo: string | null;
 }
 
 function formatTask(row: TaskRow) {
@@ -36,6 +37,7 @@ function formatTask(row: TaskRow) {
     scheduledEndAt: row.scheduled_end_at,
     isAllDay: row.is_all_day === 1,
     content: row.content,
+    timeMemo: row.time_memo,
   };
 }
 
@@ -211,6 +213,7 @@ export function updateTask(args: {
   scheduled_at?: string;
   scheduled_end_at?: string;
   content?: string;
+  time_memo?: string | null;
 }) {
   const db = getDb();
   const existing = db
@@ -243,6 +246,10 @@ export function updateTask(args: {
   if (args.content !== undefined) {
     updates.push("content = @content");
     params.content = JSON.stringify(markdownToTiptap(args.content));
+  }
+  if (args.time_memo !== undefined) {
+    updates.push("time_memo = @time_memo");
+    params.time_memo = args.time_memo;
   }
 
   if (updates.length === 0) return formatTask(existing);

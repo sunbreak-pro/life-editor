@@ -24,7 +24,6 @@ interface OneDayScheduleProps {
   date: Date;
   tasksByDate: Map<string, TaskNode[]>;
   allTasksByDate: Map<string, TaskNode[]>;
-  onSelectTask: (taskId: string, e: React.MouseEvent) => void;
   getTaskColor?: (taskId: string) => string | undefined;
   getFolderTag?: (taskId: string) => string;
   onUpdateTaskTime?: (
@@ -39,13 +38,14 @@ interface OneDayScheduleProps {
   onFilterTabChange: (tab: DayFlowFilterTab) => void;
   onToggleTaskStatus?: (taskId: string) => void;
   onUnscheduleTask?: (taskId: string) => void;
+  onNavigateTask?: (taskId: string, e: React.MouseEvent) => void;
+  onUpdateTaskTimeMemo?: (taskId: string, memo: string | null) => void;
 }
 
 export function OneDaySchedule({
   date,
   tasksByDate,
   allTasksByDate,
-  onSelectTask,
   getTaskColor,
   getFolderTag,
   onUpdateTaskTime,
@@ -56,6 +56,8 @@ export function OneDaySchedule({
   onFilterTabChange,
   onToggleTaskStatus,
   onUnscheduleTask,
+  onNavigateTask,
+  onUpdateTaskTimeMemo,
 }: OneDayScheduleProps) {
   const { t, i18n } = useTranslation();
   const {
@@ -346,8 +348,6 @@ export function OneDaySchedule({
               scheduleItems={filteredScheduleItems}
               tasks={filteredDayTasks}
               onToggleComplete={toggleComplete}
-              onClickItem={() => {}}
-              onClickTask={onSelectTask}
               onCreateItem={handleCreateItem}
               getTaskColor={getTaskColor}
               getFolderTag={getFolderTag}
@@ -358,6 +358,8 @@ export function OneDaySchedule({
               onToggleTaskStatus={onToggleTaskStatus}
               onDeleteScheduleItem={deleteScheduleItem}
               onUnscheduleTask={onUnscheduleTask}
+              onNavigateTask={onNavigateTask}
+              onUpdateTaskTimeMemo={onUpdateTaskTimeMemo}
             />
           </div>
         </div>

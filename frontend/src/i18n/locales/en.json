@@ -920,5 +920,6 @@
     "default": "Default"
   },
   "taskDetail.quickMemo": "Quick Memo",
-  "taskDetail.richEditor": "Rich Editor"
+  "taskDetail.richEditor": "Rich Editor",
+  "taskDetail.timeMemo": "Time memo"
 }

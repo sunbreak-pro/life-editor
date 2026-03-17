@@ -17,6 +17,7 @@ interface TaskDetailProps {
   onIsAllDayChange?: (isAllDay: boolean) => void;
   onFolderColorChange?: (folderId: string, color: string) => void;
   onTitleChange?: (newTitle: string) => void;
+  onTimeMemoChange?: (value: string | undefined) => void;
   folderTag?: string;
   taskColor?: string;
 }
@@ -34,6 +35,7 @@ export function TaskDetail({
   onIsAllDayChange,
   onFolderColorChange,
   onTitleChange,
+  onTimeMemoChange,
   folderTag,
   taskColor,
 }: TaskDetailProps) {
@@ -56,6 +58,7 @@ export function TaskDetail({
           onIsAllDayChange={onIsAllDayChange}
           onFolderColorChange={onFolderColorChange}
           onTitleChange={onTitleChange}
+          onTimeMemoChange={onTimeMemoChange}
           folderTag={folderTag}
           taskColor={taskColor}
         />

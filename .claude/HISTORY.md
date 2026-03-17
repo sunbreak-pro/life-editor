@@ -1,5 +1,23 @@
 # HISTORY.md - 変更履歴
 
+### 2026-03-17 - Dayflow TimeGrid UX Improvements
+
+#### 概要
+
+Dayflow TimeGrid のアイテム操作に関する複数のUX問題を一括修正。アイコン常時表示化、クリック動作のチェックトグル統一、上方向スライドの誤検出防止、インラインメモ入力、TaskNode への timeMemo フィールド追加を実装。
+
+#### 変更点
+
+- **データ基盤（Phase 1）**: `tasks` テーブルに `time_memo` カラム追加（V35 migration）。`electron/types.ts`・`frontend/src/types/taskTree.ts` の TaskNode に `timeMemo?: string` 追加。`taskRepository.ts` の TaskRow/rowToNode/nodeToParams/SQL 全箇所に対応。MCP Server の `taskHandlers.ts` にも `time_memo` フィールド追加
+- **アイコン常時表示（Phase 2）**: `ScheduleItemBlock.tsx` のメモアイコン・削除ボタン、`TimeGridTaskBlock.tsx` の StickyNote・Unschedule ボタンから `opacity-0 group-hover:opacity-100` を削除し常時表示化
+- **スライド誤検出修正（Phase 2）**: `useTimeGridDrag.ts` に `hasMovedRef` 追加。ドラッグ閾値超過時に true、mouseUp 後に setTimeout でリセット。各ブロックの onClick で `hasMovedRef.current` チェック
+- **TimeGridMemoColumn 削除（Phase 2）**: 未使用の `TimeGridMemoColumn.tsx` を削除
+- **クリック動作変更（Phase 3）**: ブロック全体クリックをチェックボックストグルに統一。`ScheduleItemBlock`・`TimeGridTaskBlock` から `onClick` prop 削除。`ScheduleTimeGrid`・`OneDaySchedule` から `onClickItem`・`onClickTask` prop 削除
+- **ナビゲーションボタン（Phase 3）**: `TimeGridTaskBlock` に `ArrowUpRight` アイコンのナビゲーションボタン追加。`onNavigate` prop を `ScheduleTimeGrid` → `OneDaySchedule` → `ScheduleTabView` で中継
+- **インラインメモ（Phase 4）**: `InlineMemoInput.tsx` 新規作成（Enter/Blur で保存、Escape でキャンセル）。`ScheduleItemBlock` と `TimeGridTaskBlock` の StickyNote クリックでインライン入力展開。`ScheduleItemMemoPopover.tsx` を削除
+- **タスク詳細画面（Phase 5）**: `TaskDetailHeader.tsx` と `TaskDetailPanel.tsx` の DateTimeRangePicker 横に TimeMemo フィールド追加（scheduledAt がある場合のみ表示）
+- **i18n（Phase 6）**: en.json / ja.json に `taskDetail.timeMemo` 翻訳キー追加
+
 ### 2026-03-17 - TipTap TaskList extension 追加
 
 #### 概要
