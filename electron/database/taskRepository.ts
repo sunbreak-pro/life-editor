@@ -132,6 +132,9 @@ export function createTaskRepository(db: Database.Database) {
     },
 
     syncTree: db.transaction((nodes: TaskNode[]) => {
+      // Defer FK checks to end of transaction so parent-child delete order doesn't matter
+      db.pragma("defer_foreign_keys = ON");
+
       const incomingIds = new Set(nodes.map((n) => n.id));
       const existingRows = db.prepare("SELECT id FROM tasks").all() as {
         id: string;
@@ -141,9 +144,32 @@ export function createTaskRepository(db: Database.Database) {
           stmts.permanentDelete.run(id);
         }
       }
+      // Use ON CONFLICT DO UPDATE instead of INSERT OR REPLACE
+      // INSERT OR REPLACE does DELETE+INSERT internally, which:
+      //   1. Triggers FK violations from child rows referencing the deleted parent
+      //   2. Cascades deletes to task_tags and calendars (data loss)
       const upsert = db.prepare(`
-        INSERT OR REPLACE INTO tasks (id, type, title, parent_id, "order", status, is_expanded, is_deleted, deleted_at, created_at, completed_at, scheduled_at, scheduled_end_at, is_all_day, content, work_duration_minutes, color, due_date, time_memo)
+        INSERT INTO tasks (id, type, title, parent_id, "order", status, is_expanded, is_deleted, deleted_at, created_at, completed_at, scheduled_at, scheduled_end_at, is_all_day, content, work_duration_minutes, color, due_date, time_memo)
         VALUES (@id, @type, @title, @parentId, @order, @status, @isExpanded, @isDeleted, @deletedAt, @createdAt, @completedAt, @scheduledAt, @scheduledEndAt, @isAllDay, @content, @workDurationMinutes, @color, @dueDate, @timeMemo)
+        ON CONFLICT(id) DO UPDATE SET
+          type = excluded.type,
+          title = excluded.title,
+          parent_id = excluded.parent_id,
+          "order" = excluded."order",
+          status = excluded.status,
+          is_expanded = excluded.is_expanded,
+          is_deleted = excluded.is_deleted,
+          deleted_at = excluded.deleted_at,
+          created_at = excluded.created_at,
+          completed_at = excluded.completed_at,
+          scheduled_at = excluded.scheduled_at,
+          scheduled_end_at = excluded.scheduled_end_at,
+          is_all_day = excluded.is_all_day,
+          content = excluded.content,
+          work_duration_minutes = excluded.work_duration_minutes,
+          color = excluded.color,
+          due_date = excluded.due_date,
+          time_memo = excluded.time_memo
       `);
       for (const node of nodes) {
         upsert.run(nodeToParams(node));

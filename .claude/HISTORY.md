@@ -1,5 +1,16 @@
 # HISTORY.md - 変更履歴
 
+### 2026-03-17 - syncTree FOREIGN KEY constraint エラー修正
+
+#### 概要
+
+タスクタブでフォルダ作成時に `FOREIGN KEY constraint failed` エラーが発生する問題を修正。V38 マイグレーションで追加された自己参照 FK と `INSERT OR REPLACE` の組み合わせが原因。
+
+#### 変更点
+
+- **taskRepository.ts**: `syncTree` の `INSERT OR REPLACE` を `INSERT ... ON CONFLICT(id) DO UPDATE SET` に変更。DELETE+INSERT ではなく UPDATE で動作するため、FK 違反とカスケード削除（task_tags, calendars）を防止
+- **taskRepository.ts**: `syncTree` のトランザクション開頭に `db.pragma("defer_foreign_keys = ON")` を追加。親子ノード同時削除時の順序依存を解消
+
 ### 2026-03-17 - Tasks タブ リサイザブルパネルのドラッグバグ修正
 
 #### 概要
