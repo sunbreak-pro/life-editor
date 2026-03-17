@@ -23,6 +23,8 @@ export interface TaskNode {
   workDurationMinutes?: number;
   color?: string;
   timeMemo?: string;
+  updatedAt?: string;
+  version?: number;
 }
 
 export type SessionType = "WORK" | "BREAK" | "LONG_BREAK";

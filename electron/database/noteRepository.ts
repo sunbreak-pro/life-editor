@@ -41,14 +41,15 @@ export function createNoteRepository(db: Database.Database) {
       VALUES (@id, @title, '', 0, 0, datetime('now'), datetime('now'))
     `),
     update: db.prepare(`
-      UPDATE notes SET title = @title, content = @content, is_pinned = @isPinned, color = @color, updated_at = datetime('now')
+      UPDATE notes SET title = @title, content = @content, is_pinned = @isPinned, color = @color,
+        version = version + 1, updated_at = datetime('now')
       WHERE id = @id
     `),
     softDelete: db.prepare(
-      `UPDATE notes SET is_deleted = 1, deleted_at = datetime('now') WHERE id = ?`,
+      `UPDATE notes SET is_deleted = 1, deleted_at = datetime('now'), version = version + 1, updated_at = datetime('now') WHERE id = ?`,
     ),
     restore: db.prepare(
-      `UPDATE notes SET is_deleted = 0, deleted_at = NULL WHERE id = ?`,
+      `UPDATE notes SET is_deleted = 0, deleted_at = NULL, version = version + 1, updated_at = datetime('now') WHERE id = ?`,
     ),
     permanentDelete: db.prepare(`DELETE FROM notes WHERE id = ?`),
     search: db.prepare(`

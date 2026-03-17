@@ -30,4 +30,6 @@ export interface TaskNode {
   workDurationMinutes?: number;
   color?: string;
   timeMemo?: string;
+  updatedAt?: string;
+  version?: number;
 }

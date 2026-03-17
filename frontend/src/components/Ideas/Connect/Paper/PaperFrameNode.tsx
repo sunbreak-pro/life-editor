@@ -1,5 +1,6 @@
 import { memo, useState, useCallback, useRef, useEffect } from "react";
 import { NodeResizer, type NodeProps } from "@xyflow/react";
+import { UnifiedColorPicker } from "../../../shared/UnifiedColorPicker";
 
 export type PaperFrameData = {
   frameColor: string;
@@ -7,16 +8,6 @@ export type PaperFrameData = {
   onLabelChange?: (nodeId: string, label: string) => void;
   onColorChange?: (nodeId: string, color: string) => void;
 };
-
-const FRAME_COLORS = [
-  "#e2e8f0",
-  "#fef3c7",
-  "#dbeafe",
-  "#dcfce7",
-  "#fce7f3",
-  "#ede9fe",
-  "#ffedd5",
-];
 
 function PaperFrameNodeInner({
   id,
@@ -63,7 +54,7 @@ function PaperFrameNodeInner({
         minHeight={150}
         isVisible={!!selected}
         lineClassName="!border-notion-accent"
-        handleClassName="!w-2.5 !h-2.5 !bg-notion-accent !border-notion-accent"
+        handleClassName="!w-2.5 !h-2.5 !bg-notion-accent !border-notion-accent paper-frame-resize-handle"
       />
       <div
         className="w-full h-full rounded-lg border-2 border-opacity-30"
@@ -98,22 +89,19 @@ function PaperFrameNodeInner({
             </span>
           )}
           {selected && (
-            <div className="relative">
+            <div className="relative nodrag">
               <button
                 onClick={() => setShowColors(!showColors)}
-                className="w-3 h-3 rounded-full border border-notion-border nodrag"
+                className="w-3 h-3 rounded-full border border-notion-border"
                 style={{ backgroundColor: bgColor }}
               />
               {showColors && (
-                <div className="absolute top-full left-0 mt-1 flex gap-1 p-1 bg-notion-bg border border-notion-border rounded shadow-md z-50 nodrag">
-                  {FRAME_COLORS.map((c) => (
-                    <button
-                      key={c}
-                      onClick={() => handleColorSelect(c)}
-                      className="w-4 h-4 rounded-full border border-notion-border hover:scale-110 transition-transform"
-                      style={{ backgroundColor: c }}
-                    />
-                  ))}
+                <div className="nodrag">
+                  <UnifiedColorPicker
+                    color={bgColor}
+                    onChange={handleColorSelect}
+                    onClose={() => setShowColors(false)}
+                  />
                 </div>
               )}
             </div>

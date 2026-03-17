@@ -37,6 +37,7 @@
     "canvas-confetti": "^1.9.4",
     "d3-force": "^3.0.0",
     "i18next": "^25.8.5",
+    "idb": "^8.0.3",
     "lucide-react": "^0.563.0",
     "qrcode-generator": "^2.0.4",
     "react": "^19.2.0",

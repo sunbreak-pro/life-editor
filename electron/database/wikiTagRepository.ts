@@ -56,7 +56,8 @@ export function createWikiTagRepository(db: Database.Database) {
       VALUES (@id, @name, @color, @created_at, @updated_at)
     `),
     update: db.prepare(`
-      UPDATE wiki_tags SET name = @name, color = @color, text_color = @text_color, updated_at = @updated_at
+      UPDATE wiki_tags SET name = @name, color = @color, text_color = @text_color,
+        version = version + 1, updated_at = @updated_at
       WHERE id = @id
     `),
     delete: db.prepare(`DELETE FROM wiki_tags WHERE id = ?`),

@@ -1,5 +1,52 @@
 # HISTORY.md - 変更履歴
 
+### 2026-03-17 - Paper/Point Canvas — 6 UI/UX Improvements
+
+#### 概要
+
+Paper view と Point view の 2 つの ReactFlow キャンバスに対する 6 件の UI/UX 改善。共有 CanvasControls コンポーネント、Scan アイコン統一、UnifiedColorPicker 導入、Frame resize ハンドル拡大、Frame からの子ノード脱出、TipTap JSON テキスト抽出を実装。
+
+#### 変更点
+
+- **CanvasControls 共有化**: `CanvasControls.tsx` を新規作成し、Paper view と Point view で共有。ZoomIn/ZoomOut/Scan/Filter の縦並びボタン群
+- **Scan アイコン統一**: fitView ボタンのアイコンを `Maximize2` から `Scan` に変更（両ビュー）
+- **Paper view Filter ボタン**: `CanvasControls` の表示条件を `showFilter` のみに変更し、Paper view にフィルターボタンを表示
+- **UnifiedColorPicker 導入**: Frame のカラーピッカーを固定色リストから `UnifiedColorPicker`（Hex 入力対応）に変更
+- **Frame resize ハンドル拡大**: CSS `::before` 擬似要素で 24px のグラブ領域を追加
+- **Frame 子ノード脱出**: 子ノードを親フレーム境界から 50px 超外にドラッグすると親子関係を解除
+- **TipTap JSON テキスト抽出**: `tiptapText.ts` に `getContentPreview` を実装。JSON パース → プレーンテキスト、失敗時は HTML ストリップ
+
+### 2026-03-17 - DayCell Routine Completion — Bottom Progress Bar
+
+#### 概要
+
+Monthly カレンダーの DayCell でルーティン完了表示を上部チップ形式からセル最下部のプログレスバー + 数字表示に変更。薄い緑色のシンプルなUIに刷新。
+
+#### 変更点
+
+- **DayCell.tsx**: セルを `flex flex-col` レイアウトに変更し、アイテム領域を `flex-1` で伸縮
+- **DayCell.tsx**: 旧ルーティン完了チップ（ドット + テキスト、アイテム上部）を削除
+- **DayCell.tsx**: セル最下部に `mt-auto` で emerald 系カラーのプログレスバー（h-1）+ `text-[10px]` の数字表示を追加
+
+### 2026-03-17 - モバイル連携 Phase 3a — コアオフライン体験
+
+#### 概要
+
+ネットワーク切断時でもモバイルでデータの読み書きができ、復帰時に自動同期する仕組みを構築。V36 Migration、Sync API（full/changes/batch）、IndexedDB キャッシュ層、SyncQueue、OfflineDataService を実装。
+
+#### 変更点
+
+- **DB Migration V36**: 全8テーブルに `version` カラム、`tasks` に `updated_at`、junction テーブル3つに `updated_at`、11個のインデックス追加
+- **Repository 更新**: 全8 Repository の UPDATE 文に `version = version + 1, updated_at = datetime('now')` を追加
+- **Sync API**: `GET /api/sync/full`（全データスナップショット）、`GET /api/sync/changes?since=`（差分取得、limit=500）、`POST /api/sync/batch`（バッチ変更適用、楽観的ロック）
+- **IndexedDB キャッシュ**: `idb` パッケージ追加、13ストア定義、full sync / incremental sync 操作
+- **SyncQueue**: FIFO オフライン変更キュー、exponential backoff（1s〜30s）、同一エンティティのキュー圧縮
+- **OfflineDataService**: REST + IndexedDB フォールバック、楽観的更新、last-write-wins 競合解決
+- **dataServiceFactory**: モバイル時に `RestDataService` → `OfflineDataService` に切替
+- **useOnlineStatus Hook**: `navigator.onLine` + `/api/health` ポーリング + SyncQueue サイズ監視
+- **MobileLayout UI**: syncing（青スピナー）、pending（黄）状態追加、未同期件数バッジ表示
+- **型定義**: `TaskNode` に `updatedAt?`, `version?` 追加、`frontend/src/types/sync.ts` 新規作成
+
 ### 2026-03-17 - フォルダページ改善 — チェックボックス + ナビゲーション + UI統一
 
 #### 概要

@@ -13,6 +13,9 @@ export function getContentPreview(content: string, maxLength = 100): string {
     const parsed = JSON.parse(content);
     return extractTextFromTipTap(parsed).slice(0, maxLength) || "";
   } catch {
-    return content.slice(0, maxLength);
+    // Fallback: strip HTML tags
+    const tmp = document.createElement("div");
+    tmp.innerHTML = content;
+    return (tmp.textContent || tmp.innerText || "").slice(0, maxLength);
   }
 }

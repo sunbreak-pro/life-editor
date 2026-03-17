@@ -48,7 +48,8 @@ export function createScheduleItemRepository(db: Database.Database) {
     `),
     update: db.prepare(`
       UPDATE schedule_items SET title = @title, start_time = @start_time, end_time = @end_time,
-      completed = @completed, completed_at = @completed_at, memo = @memo, updated_at = datetime('now')
+      completed = @completed, completed_at = @completed_at, memo = @memo,
+      version = version + 1, updated_at = datetime('now')
       WHERE id = @id
     `),
     delete: db.prepare(`DELETE FROM schedule_items WHERE id = ?`),

@@ -35,22 +35,22 @@ export function createMemoRepository(db: Database.Database) {
       INSERT INTO memos (id, date, content, created_at, updated_at)
       VALUES (@id, @date, @content, datetime('now'), datetime('now'))
       ON CONFLICT(date) DO UPDATE SET
-        content = @content, updated_at = datetime('now')
+        content = @content, version = version + 1, updated_at = datetime('now')
     `),
     softDelete: db.prepare(
-      `UPDATE memos SET is_deleted = 1, deleted_at = datetime('now'), updated_at = datetime('now') WHERE date = ?`,
+      `UPDATE memos SET is_deleted = 1, deleted_at = datetime('now'), version = version + 1, updated_at = datetime('now') WHERE date = ?`,
     ),
     fetchDeleted: db.prepare(
       `SELECT * FROM memos WHERE is_deleted = 1 ORDER BY deleted_at DESC`,
     ),
     restore: db.prepare(
-      `UPDATE memos SET is_deleted = 0, deleted_at = NULL, updated_at = datetime('now') WHERE date = ?`,
+      `UPDATE memos SET is_deleted = 0, deleted_at = NULL, version = version + 1, updated_at = datetime('now') WHERE date = ?`,
     ),
     permanentDelete: db.prepare(
       `DELETE FROM memos WHERE date = ? AND is_deleted = 1`,
     ),
     togglePin: db.prepare(
-      `UPDATE memos SET is_pinned = CASE WHEN is_pinned = 1 THEN 0 ELSE 1 END, updated_at = datetime('now') WHERE date = ?`,
+      `UPDATE memos SET is_pinned = CASE WHEN is_pinned = 1 THEN 0 ELSE 1 END, version = version + 1, updated_at = datetime('now') WHERE date = ?`,
     ),
   };
 

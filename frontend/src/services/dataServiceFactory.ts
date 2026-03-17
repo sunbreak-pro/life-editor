@@ -1,6 +1,6 @@
 import type { DataService } from "./DataService";
 import { ElectronDataService } from "./ElectronDataService";
-import { RestDataService } from "./RestDataService";
+import { OfflineDataService } from "./OfflineDataService";
 
 let instance: DataService | null = null;
 let testOverride: DataService | null = null;
@@ -20,7 +20,14 @@ export function isElectron(): boolean {
 export function getDataService(): DataService {
   if (testOverride) return testOverride;
   if (!instance) {
-    instance = isElectron() ? new ElectronDataService() : new RestDataService();
+    instance = isElectron()
+      ? new ElectronDataService()
+      : new OfflineDataService();
   }
   return instance;
+}
+
+export function getOfflineDataService(): OfflineDataService | null {
+  const svc = getDataService();
+  return svc instanceof OfflineDataService ? svc : null;
 }

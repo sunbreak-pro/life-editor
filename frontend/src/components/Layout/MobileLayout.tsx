@@ -2,14 +2,19 @@ import { type ReactNode } from "react";
 import type { SectionId } from "../../types/taskTree";
 import { useTranslation } from "react-i18next";
 import type { ConnectionState } from "../../hooks/useRealtimeSync";
+import type { SyncStatus } from "../../hooks/useOnlineStatus";
 
 type MobileTab = "memos" | "notes" | "tasks" | "schedule";
+
+type ExtendedConnectionState = ConnectionState | "syncing" | "pending";
 
 interface MobileLayoutProps {
   children: ReactNode;
   activeTab: MobileTab;
   onTabChange: (tab: MobileTab) => void;
   connectionState?: ConnectionState;
+  syncStatus?: SyncStatus;
+  pendingCount?: number;
 }
 
 const TAB_TO_SECTION: Record<MobileTab, SectionId> = {
@@ -19,19 +24,49 @@ const TAB_TO_SECTION: Record<MobileTab, SectionId> = {
   schedule: "schedule",
 };
 
-const CONNECTION_COLORS: Record<ConnectionState, string> = {
+const CONNECTION_COLORS: Record<ExtendedConnectionState, string> = {
   connected: "bg-green-500",
   connecting: "bg-yellow-500",
   disconnected: "bg-red-500",
+  syncing: "bg-blue-500",
+  pending: "bg-amber-500",
 };
+
+function getEffectiveState(
+  connectionState: ConnectionState,
+  syncStatus?: SyncStatus,
+): ExtendedConnectionState {
+  if (syncStatus === "syncing") return "syncing";
+  if (syncStatus === "pending") return "pending";
+  return connectionState;
+}
+
+function getStatusLabel(state: ExtendedConnectionState): string {
+  switch (state) {
+    case "connected":
+      return "Live";
+    case "connecting":
+      return "...";
+    case "syncing":
+      return "Syncing";
+    case "pending":
+      return "Pending";
+    case "disconnected":
+      return "Offline";
+  }
+}
 
 export function MobileLayout({
   children,
   activeTab,
   onTabChange,
   connectionState = "disconnected",
+  syncStatus,
+  pendingCount = 0,
 }: MobileLayoutProps) {
   const { t } = useTranslation();
+
+  const effectiveState = getEffectiveState(connectionState, syncStatus);
 
   const tabs: Array<{ id: MobileTab; label: string; icon: string }> = [
     { id: "memos", label: t("mobile.tabs.memos", "Memos"), icon: "📝" },
@@ -52,16 +87,22 @@ export function MobileLayout({
           Life Editor
         </h1>
         <div className="ml-auto flex items-center gap-1.5">
-          <span
-            className={`inline-block h-2 w-2 rounded-full ${CONNECTION_COLORS[connectionState]}`}
-          />
+          {effectiveState === "syncing" && (
+            <span className="inline-block h-2 w-2 animate-spin rounded-full border border-blue-500 border-t-transparent" />
+          )}
+          {effectiveState !== "syncing" && (
+            <span
+              className={`inline-block h-2 w-2 rounded-full ${CONNECTION_COLORS[effectiveState]}`}
+            />
+          )}
           <span className="text-xs text-notion-text-secondary">
-            {connectionState === "connected"
-              ? "Live"
-              : connectionState === "connecting"
-                ? "..."
-                : "Offline"}
+            {getStatusLabel(effectiveState)}
           </span>
+          {pendingCount > 0 && (
+            <span className="ml-1 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-amber-500 px-1 text-[10px] font-medium text-white">
+              {pendingCount}
+            </span>
+          )}
         </div>
       </header>
 

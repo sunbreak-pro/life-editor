@@ -50,7 +50,7 @@ export function DayCell({
 
   return (
     <div
-      className={`group min-h-30 border border-notion-border p-1.5 ${cellBg}`}
+      className={`group min-h-30 border border-notion-border p-1.5 flex flex-col ${cellBg}`}
     >
       <div className="flex items-center justify-between mb-1">
         <button
@@ -86,33 +86,7 @@ export function DayCell({
           )}
         </div>
       </div>
-      <div className="space-y-0.5">
-        {routineCompletion && routineCompletion.total > 0 && (
-          <div
-            className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px] truncate"
-            style={{
-              backgroundColor:
-                routineCompletion.completed === routineCompletion.total
-                  ? "#DCFCE7"
-                  : "#F3F4F6",
-              color:
-                routineCompletion.completed === routineCompletion.total
-                  ? "#16A34A"
-                  : "#6B7280",
-            }}
-          >
-            <span
-              className={`w-1.5 h-1.5 rounded-full shrink-0 ${
-                routineCompletion.completed === routineCompletion.total
-                  ? "bg-green-500"
-                  : "bg-gray-400"
-              }`}
-            />
-            <span className="truncate font-medium">
-              {routineCompletion.completed}/{routineCompletion.total}
-            </span>
-          </div>
-        )}
+      <div className="flex-1 space-y-0.5">
         {visibleItems.map((item) => (
           <CalendarItemChip
             key={item.id}
@@ -166,6 +140,23 @@ export function DayCell({
           </div>
         )}
       </div>
+      {routineCompletion && routineCompletion.total > 0 && (
+        <div className="mt-auto pt-1">
+          <div className="flex items-center gap-1">
+            <div className="flex-1 h-1 bg-emerald-100 rounded-full overflow-hidden">
+              <div
+                className="h-full bg-emerald-400 rounded-full transition-all"
+                style={{
+                  width: `${(routineCompletion.completed / routineCompletion.total) * 100}%`,
+                }}
+              />
+            </div>
+            <span className="text-[10px] text-emerald-500 tabular-nums shrink-0">
+              {routineCompletion.completed}/{routineCompletion.total}
+            </span>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

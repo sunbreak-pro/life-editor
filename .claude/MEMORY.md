@@ -6,9 +6,9 @@
 
 ## 直近の完了
 
-- フォルダページ改善 — チェックボックス + ナビゲーション + UI統一 ✅（2026-03-17）
-- Dayflow TimeGrid UX Improvements ✅（2026-03-17）
-- TipTap TaskList extension 追加 ✅（2026-03-17）
+- Paper/Point Canvas — 6 UI/UX Improvements ✅（2026-03-17）
+- DayCell Routine Completion — Bottom Progress Bar ✅（2026-03-17）
+- モバイル連携 Phase 3a — コアオフライン体験 ✅（2026-03-17）
 
 ## 予定
 

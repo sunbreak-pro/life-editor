@@ -15,19 +15,17 @@ import {
 import "@xyflow/react/dist/style.css";
 import { useTranslation } from "react-i18next";
 import {
-  ZoomIn,
-  ZoomOut,
-  Maximize2,
   Hexagon,
   AlignHorizontalSpaceBetween,
   GitBranch,
-  Filter,
   StickyNote,
   BookOpen,
 } from "lucide-react";
 import { applyPolygonLayout, applyLineLayout } from "./layoutTemplates";
 import { useReactFlow } from "@xyflow/react";
 import { ColorPicker } from "../../shared/ColorPicker";
+import { CanvasControls } from "./CanvasControls";
+import { getContentPreview } from "../../../utils/tiptapText";
 import { NoteNodeComponent } from "./NoteNodeComponent";
 import { MemoNodeComponent } from "./MemoNodeComponent";
 import { CurvedEdge } from "./CurvedEdge";
@@ -106,50 +104,8 @@ function saveViewport(viewport: { x: number; y: number; zoom: number }) {
   );
 }
 
-function extractContentPreview(content: string): string {
-  try {
-    const doc = JSON.parse(content);
-    const texts: string[] = [];
-    const walk = (node: { text?: string; content?: unknown[] }) => {
-      if (node.text) texts.push(node.text);
-      if (node.content) (node.content as (typeof node)[]).forEach(walk);
-    };
-    walk(doc);
-    return texts.join(" ").slice(0, 80);
-  } catch {
-    return "";
-  }
-}
-
 function isSpecialFilterId(id: string): boolean {
   return id.startsWith("__");
-}
-
-function CanvasControls() {
-  const { zoomIn, zoomOut, fitView } = useReactFlow();
-
-  return (
-    <div className="flex flex-col gap-1">
-      <button
-        onClick={() => zoomIn()}
-        className="p-1.5 rounded bg-notion-bg border border-notion-border text-notion-text-secondary hover:bg-notion-hover"
-      >
-        <ZoomIn size={14} />
-      </button>
-      <button
-        onClick={() => zoomOut()}
-        className="p-1.5 rounded bg-notion-bg border border-notion-border text-notion-text-secondary hover:bg-notion-hover"
-      >
-        <ZoomOut size={14} />
-      </button>
-      <button
-        onClick={() => fitView({ padding: 0.3 })}
-        className="p-1.5 rounded bg-notion-bg border border-notion-border text-notion-text-secondary hover:bg-notion-hover"
-      >
-        <Maximize2 size={14} />
-      </button>
-    </div>
-  );
 }
 
 export function TagGraphView({
@@ -545,7 +501,7 @@ export function TagGraphView({
         position: pos,
         data: {
           title: note.title || "Untitled",
-          contentPreview: extractContentPreview(note.content),
+          contentPreview: getContentPreview(note.content),
           noteId: note.id,
           color: note.color,
           tagDots: dots,
@@ -567,7 +523,7 @@ export function TagGraphView({
         position: pos,
         data: {
           date: memo.date,
-          contentPreview: extractContentPreview(memo.content),
+          contentPreview: getContentPreview(memo.content),
           memoId: memo.id,
           tagDots: dots,
           highlighted,
@@ -608,7 +564,7 @@ export function TagGraphView({
             position: { x: 0, y: 0 },
             data: {
               title: selectedNote.title || "Untitled",
-              contentPreview: extractContentPreview(selectedNote.content),
+              contentPreview: getContentPreview(selectedNote.content),
               noteId: selectedNote.id,
               color: selectedNote.color,
               tagDots: allTags,
@@ -625,7 +581,7 @@ export function TagGraphView({
           position: { x: 0, y: 0 },
           data: {
             date: selectedMemo!.date,
-            contentPreview: extractContentPreview(selectedMemo!.content),
+            contentPreview: getContentPreview(selectedMemo!.content),
             memoId: selectedMemo!.id,
             tagDots: allTags,
             highlighted: false,
@@ -650,7 +606,7 @@ export function TagGraphView({
           position: splitPositions[splitId],
           data: {
             title: selectedNote.title || "Untitled",
-            contentPreview: extractContentPreview(selectedNote.content),
+            contentPreview: getContentPreview(selectedNote.content),
             noteId: selectedNote.id,
             color: selectedNote.color,
             tagDots: [tag],
@@ -666,7 +622,7 @@ export function TagGraphView({
         position: splitPositions[splitId],
         data: {
           date: selectedMemo!.date,
-          contentPreview: extractContentPreview(selectedMemo!.content),
+          contentPreview: getContentPreview(selectedMemo!.content),
           memoId: selectedMemo!.id,
           tagDots: [tag],
           highlighted: false,
@@ -735,7 +691,7 @@ export function TagGraphView({
             position: relatedPositions[note.id],
             data: {
               title: note.title || "Untitled",
-              contentPreview: extractContentPreview(note.content),
+              contentPreview: getContentPreview(note.content),
               noteId: note.id,
               color: note.color,
               tagDots: noteTagDots.get(note.id) || [],
@@ -750,7 +706,7 @@ export function TagGraphView({
             position: relatedPositions[memo.id],
             data: {
               date: memo.date,
-              contentPreview: extractContentPreview(memo.content),
+              contentPreview: getContentPreview(memo.content),
               memoId: memo.id,
               tagDots: memoTagDots.get(memo.id) || [],
               highlighted: false,
@@ -1174,21 +1130,14 @@ export function TagGraphView({
         </Panel>
         <Panel position="top-right">
           <div className="flex flex-col gap-1 items-end">
-            <CanvasControls />
-            <div className="relative">
-              <button
-                onClick={() => setShowCanvasFilter((v) => !v)}
-                className="p-1.5 rounded bg-notion-bg border border-notion-border text-notion-text-secondary hover:bg-notion-hover flex items-center gap-1"
-              >
-                <Filter size={14} />
-                {activeFilterIds.size > 0 && (
-                  <span className="text-[10px] font-medium text-notion-accent">
-                    {activeFilterIds.size}
-                  </span>
-                )}
-              </button>
-              {showCanvasFilter && (
-                <div className="absolute right-0 top-full mt-1 z-20">
+            <CanvasControls
+              showFilter
+              filterCount={activeFilterIds.size}
+              onFilterClick={() => setShowCanvasFilter((v) => !v)}
+            />
+            {showCanvasFilter && (
+              <div className="relative">
+                <div className="absolute right-0 top-0 z-20">
                   <TagFilterOverlay
                     tags={displayTags}
                     selectedTagIds={[...activeFilterIds]}
@@ -1207,8 +1156,8 @@ export function TagGraphView({
                     items={displayFilterItems}
                   />
                 </div>
-              )}
-            </div>
+              </div>
+            )}
           </div>
         </Panel>
       </ReactFlow>

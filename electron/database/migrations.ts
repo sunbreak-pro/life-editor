@@ -160,6 +160,11 @@ export function runMigrations(db: Database.Database): void {
     migrateV35(db);
   }
 
+  if (currentVersion < 36) {
+    log.info("[DB] Running migration V36");
+    migrateV36(db);
+  }
+
   const newVersion = db.pragma("user_version", { simple: true }) as number;
   if (newVersion !== currentVersion) {
     log.info(`[DB] Schema migrated: ${currentVersion} → ${newVersion}`);
@@ -1291,4 +1296,68 @@ function migrateV35(db: Database.Database) {
     db.exec(`ALTER TABLE tasks ADD COLUMN time_memo TEXT DEFAULT NULL`);
   }
   db.pragma("user_version = 35");
+}
+
+function migrateV36(db: Database.Database): void {
+  const migrate = db.transaction(() => {
+    // Add version column to all sync-target tables
+    const tablesWithVersion = [
+      "tasks",
+      "memos",
+      "notes",
+      "schedule_items",
+      "routines",
+      "wiki_tags",
+      "time_memos",
+      "calendars",
+    ];
+    for (const table of tablesWithVersion) {
+      if (!hasColumn(db, table, "version")) {
+        db.exec(
+          `ALTER TABLE ${table} ADD COLUMN version INTEGER NOT NULL DEFAULT 1`,
+        );
+      }
+    }
+
+    // Add updated_at to tasks (other tables already have it)
+    if (!hasColumn(db, "tasks", "updated_at")) {
+      db.exec(`ALTER TABLE tasks ADD COLUMN updated_at TEXT`);
+      db.exec(
+        `UPDATE tasks SET updated_at = COALESCE(completed_at, created_at)`,
+      );
+    }
+
+    // Add updated_at to junction/association tables
+    if (!hasColumn(db, "wiki_tag_assignments", "updated_at")) {
+      db.exec(`ALTER TABLE wiki_tag_assignments ADD COLUMN updated_at TEXT`);
+      db.exec(`UPDATE wiki_tag_assignments SET updated_at = created_at`);
+    }
+
+    if (!hasColumn(db, "wiki_tag_connections", "updated_at")) {
+      db.exec(`ALTER TABLE wiki_tag_connections ADD COLUMN updated_at TEXT`);
+      db.exec(`UPDATE wiki_tag_connections SET updated_at = created_at`);
+    }
+
+    if (!hasColumn(db, "note_connections", "updated_at")) {
+      db.exec(`ALTER TABLE note_connections ADD COLUMN updated_at TEXT`);
+      db.exec(`UPDATE note_connections SET updated_at = created_at`);
+    }
+
+    // Create indexes for efficient incremental sync queries
+    db.exec(`
+      CREATE INDEX IF NOT EXISTS idx_tasks_updated_at ON tasks(updated_at);
+      CREATE INDEX IF NOT EXISTS idx_memos_updated_at ON memos(updated_at);
+      CREATE INDEX IF NOT EXISTS idx_notes_updated_at ON notes(updated_at);
+      CREATE INDEX IF NOT EXISTS idx_schedule_items_updated_at ON schedule_items(updated_at);
+      CREATE INDEX IF NOT EXISTS idx_routines_updated_at ON routines(updated_at);
+      CREATE INDEX IF NOT EXISTS idx_wiki_tags_updated_at ON wiki_tags(updated_at);
+      CREATE INDEX IF NOT EXISTS idx_time_memos_updated_at ON time_memos(updated_at);
+      CREATE INDEX IF NOT EXISTS idx_calendars_updated_at ON calendars(updated_at);
+      CREATE INDEX IF NOT EXISTS idx_wiki_tag_assignments_updated_at ON wiki_tag_assignments(updated_at);
+      CREATE INDEX IF NOT EXISTS idx_wiki_tag_connections_updated_at ON wiki_tag_connections(updated_at);
+      CREATE INDEX IF NOT EXISTS idx_note_connections_updated_at ON note_connections(updated_at);
+    `);
+  });
+  migrate();
+  db.pragma("user_version = 36");
 }

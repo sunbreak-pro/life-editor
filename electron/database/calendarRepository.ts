@@ -1,5 +1,5 @@
-import type Database from 'better-sqlite3';
-import type { CalendarNode } from '../types';
+import type Database from "better-sqlite3";
+import type { CalendarNode } from "../types";
 
 interface CalendarRow {
   id: string;
@@ -23,18 +23,23 @@ function rowToNode(row: CalendarRow): CalendarNode {
 
 export function createCalendarRepository(db: Database.Database) {
   const stmts = {
-    fetchAll: db.prepare(`SELECT * FROM calendars ORDER BY "order" ASC, created_at ASC`),
+    fetchAll: db.prepare(
+      `SELECT * FROM calendars ORDER BY "order" ASC, created_at ASC`,
+    ),
     fetchById: db.prepare(`SELECT * FROM calendars WHERE id = ?`),
     insert: db.prepare(`
       INSERT INTO calendars (id, title, folder_id, "order", created_at, updated_at)
       VALUES (@id, @title, @folder_id, @order, datetime('now'), datetime('now'))
     `),
     update: db.prepare(`
-      UPDATE calendars SET title = @title, folder_id = @folder_id, "order" = @order, updated_at = datetime('now')
+      UPDATE calendars SET title = @title, folder_id = @folder_id, "order" = @order,
+        version = version + 1, updated_at = datetime('now')
       WHERE id = @id
     `),
     delete: db.prepare(`DELETE FROM calendars WHERE id = ?`),
-    maxOrder: db.prepare(`SELECT COALESCE(MAX("order"), -1) as max_order FROM calendars`),
+    maxOrder: db.prepare(
+      `SELECT COALESCE(MAX("order"), -1) as max_order FROM calendars`,
+    ),
   };
 
   return {
@@ -44,12 +49,20 @@ export function createCalendarRepository(db: Database.Database) {
 
     create(id: string, title: string, folderId: string): CalendarNode {
       const { max_order } = stmts.maxOrder.get() as { max_order: number };
-      stmts.insert.run({ id, title, folder_id: folderId, order: max_order + 1 });
+      stmts.insert.run({
+        id,
+        title,
+        folder_id: folderId,
+        order: max_order + 1,
+      });
       const row = stmts.fetchById.get(id) as CalendarRow;
       return rowToNode(row);
     },
 
-    update(id: string, updates: Partial<Pick<CalendarNode, 'title' | 'folderId' | 'order'>>): CalendarNode {
+    update(
+      id: string,
+      updates: Partial<Pick<CalendarNode, "title" | "folderId" | "order">>,
+    ): CalendarNode {
       const existing = stmts.fetchById.get(id) as CalendarRow | undefined;
       if (!existing) throw new Error(`Calendar not found: ${id}`);
       const current = rowToNode(existing);

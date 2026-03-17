@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import { isApiConfigured } from "./config/api";
 import { ConnectionSetup } from "./components/Mobile/ConnectionSetup";
 import { MobileLayout, type MobileTab } from "./components/Layout/MobileLayout";
@@ -7,6 +7,8 @@ import { MobileNoteView } from "./components/Mobile/MobileNoteView";
 import { MobileTaskView } from "./components/Mobile/MobileTaskView";
 import { MobileScheduleView } from "./components/Mobile/MobileScheduleView";
 import { useRealtimeSync, type ChangeEvent } from "./hooks/useRealtimeSync";
+import { useOnlineStatus } from "./hooks/useOnlineStatus";
+import { getOfflineDataService } from "./services/dataServiceFactory";
 
 const TAB_ENTITY_MAP: Record<MobileTab, string[]> = {
   memos: ["memo", "timeMemo"],
@@ -36,6 +38,19 @@ export function MobileApp() {
   }, []);
 
   const connectionState = useRealtimeSync(handleChange);
+  const { syncStatus, pendingCount } = useOnlineStatus();
+
+  // Initialize offline data service on mount
+  useEffect(() => {
+    const svc = getOfflineDataService();
+    if (svc) {
+      svc.initialize();
+    }
+    return () => {
+      const s = getOfflineDataService();
+      s?.destroy();
+    };
+  }, []);
 
   if (!connected) {
     return <ConnectionSetup onConnected={() => setConnected(true)} />;
@@ -61,6 +76,8 @@ export function MobileApp() {
       activeTab={activeTab}
       onTabChange={setActiveTab}
       connectionState={connectionState}
+      syncStatus={syncStatus}
+      pendingCount={pendingCount}
     >
       {renderContent()}
     </MobileLayout>

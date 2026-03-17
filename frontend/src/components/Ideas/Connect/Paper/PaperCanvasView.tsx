@@ -2,7 +2,6 @@ import { useCallback, useMemo, useState, useRef } from "react";
 import {
   ReactFlow,
   Background,
-  Controls,
   Panel,
   ConnectionMode,
   useNodesState,
@@ -34,6 +33,8 @@ import type {
 import type { NoteNode } from "../../../../types/note";
 import type { MemoNode } from "../../../../types/memo";
 import { formatDisplayDate } from "../../../../utils/dateKey";
+import { getContentPreview } from "../../../../utils/tiptapText";
+import { CanvasControls } from "../CanvasControls";
 import { useEffect } from "react";
 
 const nodeTypes: NodeTypes = {
@@ -45,12 +46,6 @@ const nodeTypes: NodeTypes = {
 const edgeTypes: EdgeTypes = {
   paperEdge: PaperCustomEdge as any,
 };
-
-function stripHtml(html: string): string {
-  const tmp = document.createElement("div");
-  tmp.innerHTML = html;
-  return tmp.textContent || tmp.innerText || "";
-}
 
 interface PaperCanvasViewProps {
   board: PaperBoard | null;
@@ -201,9 +196,9 @@ export function PaperCanvasView({
               ? formatDisplayDate(memo.date)
               : "Unknown",
           contentPreview: note
-            ? stripHtml(note.content).slice(0, 100)
+            ? getContentPreview(note.content, 100)
             : memo
-              ? stripHtml(memo.content).slice(0, 100)
+              ? getContentPreview(memo.content, 100)
               : "",
           refEntityId: pn.refEntityId,
           refEntityType: pn.refEntityType,
@@ -237,7 +232,6 @@ export function PaperCanvasView({
 
       if (pn.parentNodeId) {
         node.parentId = pn.parentNodeId;
-        node.extent = "parent" as const;
       }
 
       return node;
@@ -288,6 +282,31 @@ export function PaperCanvasView({
         parentNodeId: (n.parentId as string) || null,
       }));
       onBulkUpdatePositions(updates);
+
+      // Frame escape: check if child node was dragged outside its parent frame
+      if (node.type !== "paperFrame" && node.parentId) {
+        const parentFrame = flowNodes.find((n) => n.id === node.parentId);
+        if (parentFrame) {
+          const fw = (parentFrame.style?.width as number) || 200;
+          const fh = (parentFrame.style?.height as number) || 150;
+          const escapeThreshold = 50;
+          const outside =
+            node.position.x < -escapeThreshold ||
+            node.position.y < -escapeThreshold ||
+            node.position.x > fw + escapeThreshold ||
+            node.position.y > fh + escapeThreshold;
+          if (outside) {
+            // Convert relative position to absolute
+            const absX = parentFrame.position.x + node.position.x;
+            const absY = parentFrame.position.y + node.position.y;
+            onUpdateNode(node.id, {
+              positionX: absX,
+              positionY: absY,
+              parentNodeId: null,
+            });
+          }
+        }
+      }
 
       // Frame grouping: check if non-frame node was dropped onto a frame
       if (node.type !== "paperFrame" && !node.parentId) {
@@ -490,7 +509,9 @@ export function PaperCanvasView({
         }
       >
         <Background variant={BackgroundVariant.Dots} gap={16} size={1} />
-        <Controls showInteractive={false} />
+        <Panel position="top-right">
+          <CanvasControls showFilter />
+        </Panel>
         <Panel position="top-center">
           <PaperToolbar
             onAddCard={handleAddCard}

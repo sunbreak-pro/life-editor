@@ -975,6 +975,20 @@ body {
   color: var(--color-text-secondary);
 }
 
+/* Paper Frame resize handle — enlarged grab area */
+.paper-frame-resize-handle {
+  position: relative;
+}
+.paper-frame-resize-handle::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 24px;
+  height: 24px;
+  transform: translate(-50%, -50%);
+}
+
 /* Unified Color Picker (react-colorful) */
 .unified-color-picker .react-colorful {
   width: 100%;

@@ -21,6 +21,8 @@ interface TaskRow {
   color: string | null;
   due_date: string | null;
   time_memo: string | null;
+  updated_at: string | null;
+  version: number;
 }
 
 function rowToNode(row: TaskRow): TaskNode {
@@ -43,6 +45,8 @@ function rowToNode(row: TaskRow): TaskNode {
     workDurationMinutes: row.work_duration_minutes ?? undefined,
     color: row.color ?? undefined,
     timeMemo: row.time_memo ?? undefined,
+    updatedAt: row.updated_at ?? undefined,
+    version: row.version ?? 1,
   };
 }
 
@@ -64,14 +68,15 @@ export function createTaskRepository(db: Database.Database) {
         is_expanded=@isExpanded, is_deleted=@isDeleted, deleted_at=@deletedAt, created_at=@createdAt,
         completed_at=@completedAt, scheduled_at=@scheduledAt, scheduled_end_at=@scheduledEndAt,
         is_all_day=@isAllDay, content=@content,
-        work_duration_minutes=@workDurationMinutes, color=@color, due_date=@dueDate, time_memo=@timeMemo
+        work_duration_minutes=@workDurationMinutes, color=@color, due_date=@dueDate, time_memo=@timeMemo,
+        version = version + 1, updated_at = datetime('now')
       WHERE id=@id
     `),
     softDelete: db.prepare(
-      `UPDATE tasks SET is_deleted = 1, deleted_at = datetime('now') WHERE id = ?`,
+      `UPDATE tasks SET is_deleted = 1, deleted_at = datetime('now'), version = version + 1, updated_at = datetime('now') WHERE id = ?`,
     ),
     restore: db.prepare(
-      `UPDATE tasks SET is_deleted = 0, deleted_at = NULL WHERE id = ?`,
+      `UPDATE tasks SET is_deleted = 0, deleted_at = NULL, version = version + 1, updated_at = datetime('now') WHERE id = ?`,
     ),
     permanentDelete: db.prepare(`DELETE FROM tasks WHERE id = ?`),
     deleteAll: db.prepare(`DELETE FROM tasks`),

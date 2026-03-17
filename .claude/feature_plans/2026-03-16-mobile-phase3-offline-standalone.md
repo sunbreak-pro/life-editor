@@ -1,6 +1,6 @@
 # Plan: Life Editor モバイル連携 Phase 3 — オフライン対応 + 常時稼働サーバー
 
-**Status:** PLANNED
+**Status:** IN_PROGRESS (Phase 3a completed, Phase 3b remaining)
 **Created:** 2026-03-16
 **Depends on:** Phase 2 (PLANNED)
 **Project:** /Users/newlife/dev/apps/notion-timer

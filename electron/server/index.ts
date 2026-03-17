@@ -20,6 +20,7 @@ import { createWikiTagGroupRoutes } from "./routes/wikiTagGroups";
 import { createWikiTagConnectionRoutes } from "./routes/wikiTagConnections";
 import { createNoteConnectionRoutes } from "./routes/noteConnections";
 import { createPlaylistRoutes } from "./routes/playlists";
+import { createSyncRoutes } from "./routes/sync";
 import { setupWebSocket } from "./ws";
 
 const SERVER_PORT = 13456;
@@ -72,6 +73,7 @@ export function createApiApp(db: Database.Database): Hono {
   app.route("/api/wiki-tag-connections", createWikiTagConnectionRoutes(db));
   app.route("/api/note-connections", createNoteConnectionRoutes(db));
   app.route("/api/playlists", createPlaylistRoutes(db));
+  app.route("/api/sync", createSyncRoutes(db));
 
   app.onError((err, c) => {
     log.error("[Server] Unhandled error:", err);

@@ -38,10 +38,10 @@ export function createRoutineRepository(db: Database.Database) {
       `SELECT * FROM routines WHERE is_deleted = 1 ORDER BY deleted_at DESC`,
     ),
     softDelete: db.prepare(
-      `UPDATE routines SET is_deleted = 1, deleted_at = datetime('now'), updated_at = datetime('now') WHERE id = ?`,
+      `UPDATE routines SET is_deleted = 1, deleted_at = datetime('now'), version = version + 1, updated_at = datetime('now') WHERE id = ?`,
     ),
     restore: db.prepare(
-      `UPDATE routines SET is_deleted = 0, deleted_at = NULL, updated_at = datetime('now') WHERE id = ?`,
+      `UPDATE routines SET is_deleted = 0, deleted_at = NULL, version = version + 1, updated_at = datetime('now') WHERE id = ?`,
     ),
     permanentDelete: db.prepare(
       `DELETE FROM routines WHERE id = ? AND is_deleted = 1`,
@@ -53,7 +53,7 @@ export function createRoutineRepository(db: Database.Database) {
     `),
     update: db.prepare(`
       UPDATE routines SET title = @title, start_time = @start_time, end_time = @end_time,
-      is_archived = @is_archived, "order" = @order, updated_at = datetime('now')
+      is_archived = @is_archived, "order" = @order, version = version + 1, updated_at = datetime('now')
       WHERE id = @id
     `),
     delete: db.prepare(`DELETE FROM routines WHERE id = ?`),

@@ -30,7 +30,7 @@ export function createTimeMemoRepository(db: Database.Database) {
       INSERT INTO time_memos (id, date, hour, content, created_at, updated_at)
       VALUES (@id, @date, @hour, @content, datetime('now'), datetime('now'))
       ON CONFLICT(date, hour) DO UPDATE SET
-        content = @content, updated_at = datetime('now')
+        content = @content, version = version + 1, updated_at = datetime('now')
     `),
     delete: db.prepare(`DELETE FROM time_memos WHERE id = ?`),
     fetchById: db.prepare(`SELECT * FROM time_memos WHERE id = ?`),
