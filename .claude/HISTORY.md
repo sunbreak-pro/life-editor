@@ -1,5 +1,15 @@
 # HISTORY.md - 変更履歴
 
+### 2026-03-17 - ChaosContext.tsx Vite 500 エラー修正
+
+#### 概要
+
+Chaos（再発見エンジン）実装後、Vite dev server で ChaosContext.tsx 読み込み時に 500 エラーが発生する問題を修正。
+
+#### 変更点
+
+- **ChaosContext.tsx**: インポートパス `"../services/dataServiceManager"` を `"../services"` に修正。存在しないモジュールパスが原因だった
+
 ### 2026-03-17 - Dayflow タスク完了時の表示改善 + Undo/Redo 対応
 
 #### 概要
