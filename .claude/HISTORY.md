@@ -1,5 +1,17 @@
 # HISTORY.md - 変更履歴
 
+### 2026-03-17 - TipTap TaskList extension 追加
+
+#### 概要
+
+Rich Editor で `[] + Space` やスラッシュコマンドから TaskList を作成しようとすると `toggleTaskList is not a function` エラーが発生していた問題を修正。
+
+#### 変更点
+
+- **パッケージ追加**: `@tiptap/extension-task-list` と `@tiptap/extension-task-item` をインストール
+- **MemoEditor**: `TaskList` / `TaskItem`（nested: true）を extensions 配列に追加
+- **CSS**: `ul[data-type="taskList"]` のチェックボックス表示、チェック済みの取り消し線+透過スタイルを追加
+
 ### 2026-03-17 - Code Review Fix — セキュリティ・同期・堅牢性修正
 
 #### 概要
