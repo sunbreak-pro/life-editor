@@ -166,8 +166,8 @@ export function OneDaySchedule({
 
   const filteredDayTasks = useMemo(() => {
     if (filterTab === "routine" || filterTab === "others") return [];
-    return dayTasks;
-  }, [dayTasks, filterTab]);
+    return allDayTasks;
+  }, [allDayTasks, filterTab]);
 
   // Task IDs already scheduled for this date (for task picker exclusion)
   const existingTaskIds = useMemo(() => {

@@ -70,13 +70,8 @@ export function ScheduleSection({
   const [calendarProgressFilter, setCalendarProgressFilter] =
     useState<DayFlowFilterTab>("all");
 
-  const {
-    nodes,
-    getTaskColor,
-    getFolderTagForTask,
-    updateNode,
-    toggleTaskStatus,
-  } = useTaskTreeContext();
+  const { nodes, getTaskColor, getFolderTagForTask, updateNode } =
+    useTaskTreeContext();
   const { push: pushUndo } = useUndoRedo();
 
   const { tasksByDate } = useCalendar(
@@ -222,6 +217,35 @@ export function ScheduleSection({
     [updateNode],
   );
 
+  const handleToggleTaskStatus = useCallback(
+    (taskId: string) => {
+      const task = nodes.find((n) => n.id === taskId);
+      if (!task || task.type !== "task") return;
+
+      const newStatus = task.status === "TODO" ? "DONE" : "TODO";
+      const newCompletedAt =
+        newStatus === "DONE" ? new Date().toISOString() : undefined;
+      const origStatus = task.status;
+      const origCompletedAt = task.completedAt;
+
+      updateNode(taskId, { status: newStatus, completedAt: newCompletedAt });
+      pushUndo("scheduleItem", {
+        label: "toggleTaskStatus",
+        undo: () =>
+          updateNode(taskId, {
+            status: origStatus,
+            completedAt: origCompletedAt,
+          }),
+        redo: () =>
+          updateNode(taskId, {
+            status: newStatus,
+            completedAt: newCompletedAt,
+          }),
+      });
+    },
+    [nodes, updateNode, pushUndo],
+  );
+
   const handleUnscheduleTask = useCallback(
     (taskId: string) => {
       const task = nodes.find((n) => n.id === taskId);
@@ -329,7 +353,7 @@ export function ScheduleSection({
             onToday={goToToday}
             filterTab={dayFlowFilterTab}
             onFilterTabChange={setDayFlowFilterTab}
-            onToggleTaskStatus={toggleTaskStatus}
+            onToggleTaskStatus={handleToggleTaskStatus}
             onUnscheduleTask={handleUnscheduleTask}
           />
         )}

@@ -1,5 +1,16 @@
 # HISTORY.md - 変更履歴
 
+### 2026-03-17 - Dayflow タスク完了時の表示改善 + Undo/Redo 対応
+
+#### 概要
+
+Dayflow TimeGrid でタスクを完了にした際、タスクがグリッドから消える問題を修正。完了タスクを薄い表示で残し、Cmd+Z による Undo/Redo に対応。
+
+#### 変更点
+
+- **OneDaySchedule.tsx**: `filteredDayTasks` が `dayTasks`（未完了のみ）ではなく `allDayTasks`（全タスク）を参照するよう変更。完了タスクが TimeGrid に表示されるようになった
+- **ScheduleSection.tsx**: `handleToggleTaskStatus` を新規作成。`updateNode` でステータス変更 + `pushUndo("scheduleItem", ...)` で undo/redo 登録。既存の `toggleTaskStatus`（taskTree ドメイン）の代わりに使用し、schedule セクションで Cmd+Z が正しく動作するようになった
+
 ### 2026-03-17 - Paper/Point Canvas — 6 UI/UX Improvements
 
 #### 概要
