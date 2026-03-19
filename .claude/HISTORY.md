@@ -1,5 +1,18 @@
 # HISTORY.md - 変更履歴
 
+### 2026-03-19 - DayFlow カラムトグル位置修正 + 1/2カラム UI 統一
+
+#### 概要
+
+DayFlow の 1カラム/2カラム切り替えボタンを SectionHeader から DayFlow コンテンツ内ヘッダー（フィルターアイコンの右隣）に移動し、両モードで共通の CompactDateNav コンポーネントを使用するよう統一。
+
+#### 変更点
+
+- **CompactDateNav**: `isDualColumn` / `onToggleDualColumn` props を追加し、フィルターボタン右隣にトグルボタンを条件付きレンダリング
+- **OneDaySchedule**: インラインヘッダー（約110行）を削除し CompactDateNav に置換。不要な import/state を削除
+- **ScheduleSection**: SectionHeader.actions からトグルボタンを除去し、OneDaySchedule / DualDayFlowLayout に props パススルー
+- **DualDayFlowLayout**: onToggleDualColumn を左カラムのみにパススルー
+
 ### 2026-03-19 - Task Status UX Improvement
 
 #### 概要
