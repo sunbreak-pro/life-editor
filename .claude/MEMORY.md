@@ -6,9 +6,9 @@
 
 ## 直近の完了
 
+- syncTree FK 孤児データ修復（V39 マイグレーション追加） ✅（2026-03-19）
 - syncTree FOREIGN KEY constraint エラー修正 ✅（2026-03-17）
 - Tasks タブ リサイザブルパネルのドラッグバグ修正 ✅（2026-03-17）
-- ChaosContext.tsx Vite 500 エラー修正 ✅（2026-03-17）
 
 ## 予定
 

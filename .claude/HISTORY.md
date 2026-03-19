@@ -1,5 +1,17 @@
 # HISTORY.md - 変更履歴
 
+### 2026-03-19 - syncTree FK 孤児データ修復（V39 マイグレーション追加）
+
+#### 概要
+
+V38 マイグレーションで追加された自己参照 FK 制約が、既存の孤児 parent_id データと衝突して FOREIGN KEY constraint failed エラーを引き起こす問題の根本修正。V38 内にクリーンアップ処理を追加し、既存 DB 向けに V39 修復マイグレーションを追加。
+
+#### 変更点
+
+- **migrations.ts (V38)**: データコピー後・テーブルリネーム前に孤児 `parent_id` を `NULL` にクリーンアップする SQL を追加
+- **migrations.ts (V39 新規)**: V38 適用済み DB の孤児 `parent_id` を `NULL` に修復するマイグレーション追加
+- **taskRepository.ts**: `syncTree` の upsert 前に incoming nodes の孤児 `parentId` を `null` に修正する防御的ロジック追加
+
 ### 2026-03-17 - syncTree FOREIGN KEY constraint エラー修正
 
 #### 概要
