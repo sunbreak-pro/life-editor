@@ -1,5 +1,20 @@
 # HISTORY.md - 変更履歴
 
+### 2026-03-19 - コードベース整理 — 未使用コード削除 + 重複パターン統合
+
+#### 概要
+
+機能イテレーションで蓄積された未使用コード（17コンポーネント、4フック、3ユーティリティ）を削除し、IPC handler / Repository 層の重複パターンを factory ヘルパーで統合。推定 ~3,100行削減。
+
+#### 変更点
+
+- **Phase 1 — 未使用コンポーネント削除**: TagNode, MemoTree, CalendarCreateDialog, CalendarTaskItem, DateTimePicker, WeeklyView, DayFlowTaskPicker, ScheduleItemCreatePopover, TodayFlowTab, ScheduleTabView, InlineTagEditor, WikiTagManager, DurationSelector, InlineDurationEditor, EmptySlot, PlaylistPlayerBar, PomodoroSettingsPanel（17ファイル, ~2,700行）
+- **Phase 2 — 未使用フック/ユーティリティ削除**: useWikiTagConnections, useTimeMemos, useTagCooccurrence, useNoteCooccurrence, validation.ts/test, tagColors.ts（7ファイル, ~400行）
+- **Phase 3 — notSupported 共通化**: RestDataService / OfflineDataService の重複 `notSupported()` を `services/notSupported.ts` に統合
+- **Phase 4 — Sidebar Content 統合**: CalendarSidebarContent を DayFlowSidebarContent に統合（optional `tabs` prop 追加）
+- **Phase 5 — IPC Handler Factory**: `handlerUtil.ts` に `query()` / `mutation()` ヘルパーを追加し、14 handler ファイル（timeMemo, calendar, noteConnection, wikiTagConnection, note, memo, task, playlist, pomodoroPreset, timer, wikiTagGroup, scheduleItem, sound, paperBoard, routine, routineTag, wikiTag, chaos）を移行
+- **Phase 6 — Repository Soft Delete ヘルパー**: `repositoryHelpers.ts` の `prepareSoftDeleteStatements()` で taskRepository, noteRepository, memoRepository の重複 SQL を統合
+
 ### 2026-03-19 - syncTree FK 孤児データ修復（V39 マイグレーション追加）
 
 #### 概要
