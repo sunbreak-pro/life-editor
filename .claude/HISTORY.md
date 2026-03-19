@@ -1,5 +1,15 @@
 # HISTORY.md - 変更履歴
 
+### 2026-03-19 - AchievementPanel 初回表示バグ修正
+
+#### 概要
+
+Calendar/Tasks タブを最初に開いた場合に AchievementPanel が表示されないバグを修正。routineStats の初期化タイミングを ScheduleSection マウント時に変更。
+
+#### 変更点
+
+- **ScheduleSection.tsx**: `refreshRoutineStats` を useScheduleContext から取得し、useEffect で routines 存在時に即座に呼び出すよう追加。DayFlow タブ訪問に依存せず routineStats がロードされるようになった。
+
 ### 2026-03-19 - コードベース整理 — 未使用コード削除 + 重複パターン統合
 
 #### 概要

@@ -4,13 +4,14 @@ import { createPortal } from "react-dom";
 import type { TabItem } from "../shared/SectionTabs";
 import { SectionHeader } from "../shared/SectionHeader";
 import { LAYOUT } from "../../constants/layout";
+import { STORAGE_KEYS } from "../../constants/storageKeys";
 import { CalendarView } from "../Tasks/Schedule/Calendar/CalendarView";
 import { OneDaySchedule } from "../Tasks/Schedule/DayFlow/OneDaySchedule";
 import type { DayFlowFilterTab } from "../Tasks/Schedule/DayFlow/OneDaySchedule";
+import { DualDayFlowLayout } from "../Tasks/Schedule/DayFlow/DualDayFlowLayout";
 import { DayFlowSidebarContent } from "../Tasks/Schedule/DayFlow/DayFlowSidebarContent";
 import type { CategoryProgress } from "../Tasks/Schedule/DayFlow/DayFlowSidebarContent";
 import { ScheduleSidebarContent } from "./ScheduleSidebarContent";
-import { CalendarSidebarContent } from "../Tasks/Schedule/Calendar/CalendarSidebarContent";
 import type { CalendarContentFilter } from "../../types/calendarItem";
 import { useTaskTreeContext } from "../../hooks/useTaskTreeContext";
 import { useCalendar } from "../../hooks/useCalendar";
@@ -19,14 +20,30 @@ import { formatDateKey } from "../../utils/dateKey";
 import { RightSidebarContext } from "../../context/RightSidebarContext";
 import { useUndoRedo } from "../shared/UndoRedo";
 
-type ScheduleTab = "calendar" | "dayflow";
+import type { TaskNode } from "../../types/taskTree";
+import { ScheduleTasksContent } from "./ScheduleTasksContent";
+
+export type ScheduleTab = "calendar" | "dayflow" | "tasks";
+
+const CALENDAR_PROGRESS_TABS: readonly TabItem<DayFlowFilterTab>[] = [
+  { id: "all", labelKey: "dayFlow.filterAll" },
+  { id: "tasks", labelKey: "dayFlow.filterTasks" },
+];
 
 const SCHEDULE_TABS: readonly TabItem<ScheduleTab>[] = [
   { id: "calendar", labelKey: "tabs.calendar" },
   { id: "dayflow", labelKey: "tabs.dayflow" },
+  { id: "tasks", labelKey: "tabs.tasks" },
 ];
 
 interface ScheduleSectionProps {
+  activeTab?: ScheduleTab;
+  onTabChange?: (tab: ScheduleTab) => void;
+  selectedTaskId?: string | null;
+  onSelectTask?: (id: string) => void;
+  filterFolderId?: string | null;
+  onFilterChange?: (id: string | null) => void;
+  onPlayTask?: (node: TaskNode) => void;
   onCalendarSelectTask: (taskId: string, e: React.MouseEvent) => void;
   onCreateTask?: (
     title: string,
@@ -43,6 +60,13 @@ interface ScheduleSectionProps {
 }
 
 export function ScheduleSection({
+  activeTab: externalActiveTab,
+  onTabChange: externalOnTabChange,
+  selectedTaskId,
+  onSelectTask,
+  filterFolderId,
+  onFilterChange,
+  onPlayTask,
   onCalendarSelectTask,
   onCreateTask,
   onSelectMemo,
@@ -50,10 +74,24 @@ export function ScheduleSection({
   onCreateNote,
 }: ScheduleSectionProps) {
   const { t } = useTranslation();
-  const [activeTab, setActiveTab] = useState<ScheduleTab>("calendar");
+  const [internalActiveTab, setInternalActiveTab] =
+    useState<ScheduleTab>("calendar");
+  const activeTab = externalActiveTab ?? internalActiveTab;
+  const setActiveTab = externalOnTabChange ?? setInternalActiveTab;
   const [dayFlowDate, setDayFlowDate] = useState<Date>(() => new Date());
   const [dayFlowFilterTab, setDayFlowFilterTab] =
     useState<DayFlowFilterTab>("all");
+  const [isDualColumn, setIsDualColumn] = useState<boolean>(() => {
+    return localStorage.getItem(STORAGE_KEYS.DAYFLOW_DUAL_COLUMN) === "true";
+  });
+
+  const toggleDualColumn = useCallback(() => {
+    setIsDualColumn((prev) => {
+      const next = !prev;
+      localStorage.setItem(STORAGE_KEYS.DAYFLOW_DUAL_COLUMN, String(next));
+      return next;
+    });
+  }, []);
 
   // Calendar filter state (managed here for sidebar)
   const [calendarFilter] = useState<"incomplete" | "completed">("incomplete");
@@ -116,12 +154,18 @@ export function ScheduleSection({
 
   const {
     routines,
-    tagAssignments,
     routineStats,
     scheduleItems,
-    toggleComplete,
     loadItemsForDate,
+    refreshRoutineStats,
   } = useScheduleContext();
+
+  // Load routine stats immediately when Schedule section is active
+  useEffect(() => {
+    if (routines.length > 0) {
+      refreshRoutineStats(routines);
+    }
+  }, [routines, refreshRoutineStats]);
 
   const { portalTarget: rightSidebarTarget, requestOpen } =
     useContext(RightSidebarContext);
@@ -222,7 +266,14 @@ export function ScheduleSection({
       const task = nodes.find((n) => n.id === taskId);
       if (!task || task.type !== "task") return;
 
-      const newStatus = task.status === "TODO" ? "DONE" : "TODO";
+      // 3-state cycle: NOT_STARTED → IN_PROGRESS → DONE → NOT_STARTED
+      const statusCycle: Record<string, string> = {
+        NOT_STARTED: "IN_PROGRESS",
+        IN_PROGRESS: "DONE",
+        DONE: "NOT_STARTED",
+      };
+      const currentStatus = task.status ?? "NOT_STARTED";
+      const newStatus = statusCycle[currentStatus] ?? "NOT_STARTED";
       const newCompletedAt =
         newStatus === "DONE" ? new Date().toISOString() : undefined;
       const origStatus = task.status;
@@ -282,25 +333,27 @@ export function ScheduleSection({
 
       {rightSidebarTarget &&
         createPortal(
-          <ScheduleSidebarContent routineStats={routineStats}>
+          <ScheduleSidebarContent
+            routineStats={routineStats}
+            onSelectTask={(taskId) => {
+              onSelectTask?.(taskId);
+              setActiveTab("tasks");
+            }}
+          >
             {activeTab === "dayflow" && (
               <DayFlowSidebarContent
                 date={dayFlowDate}
                 activeFilter={dayFlowFilterTab}
                 onFilterChange={setDayFlowFilterTab}
                 categoryProgress={categoryProgress}
-                routines={routines}
-                tagAssignments={tagAssignments}
-                scheduleItems={scheduleItems}
-                onToggleComplete={toggleComplete}
               />
             )}
             {activeTab === "calendar" && (
-              <CalendarSidebarContent
-                progressDate={calendarProgressDate}
+              <DayFlowSidebarContent
+                date={calendarProgressDate}
                 categoryProgress={calendarCategoryProgress}
-                activeProgressFilter={calendarProgressFilter}
-                onProgressFilterChange={(tab) => {
+                activeFilter={calendarProgressFilter}
+                onFilterChange={(tab) => {
                   setCalendarProgressFilter(tab);
                   const mapping: Record<
                     DayFlowFilterTab,
@@ -313,10 +366,7 @@ export function ScheduleSection({
                   };
                   setCalendarContentFilter(mapping[tab]);
                 }}
-                routines={routines}
-                scheduleItems={scheduleItems}
-                tagAssignments={tagAssignments}
-                onToggleComplete={toggleComplete}
+                tabs={CALENDAR_PROGRESS_TABS}
               />
             )}
           </ScheduleSidebarContent>,
@@ -339,12 +389,28 @@ export function ScheduleSection({
             contentFilter={calendarContentFilter}
             onDateSelect={handleCalendarDateSelect}
           />
+        ) : activeTab === "tasks" ? (
+          <ScheduleTasksContent
+            selectedTaskId={selectedTaskId ?? null}
+            onSelectTask={onSelectTask ?? (() => {})}
+            filterFolderId={filterFolderId ?? null}
+            onFilterChange={onFilterChange ?? (() => {})}
+            onPlayTask={onPlayTask}
+          />
+        ) : isDualColumn ? (
+          <DualDayFlowLayout
+            getTaskColor={getTaskColor}
+            getFolderTag={getFolderTagForTask}
+            onUpdateTaskTime={handleUpdateTaskTime}
+            onToggleTaskStatus={handleToggleTaskStatus}
+            onUnscheduleTask={handleUnscheduleTask}
+            onToggleDualColumn={toggleDualColumn}
+          />
         ) : (
           <OneDaySchedule
             date={dayFlowDate}
             tasksByDate={tasksByDate}
             allTasksByDate={allTasksByDate}
-            onSelectTask={onCalendarSelectTask}
             getTaskColor={getTaskColor}
             getFolderTag={getFolderTagForTask}
             onUpdateTaskTime={handleUpdateTaskTime}
@@ -355,6 +421,8 @@ export function ScheduleSection({
             onFilterTabChange={setDayFlowFilterTab}
             onToggleTaskStatus={handleToggleTaskStatus}
             onUnscheduleTask={handleUnscheduleTask}
+            isDualColumn={isDualColumn}
+            onToggleDualColumn={toggleDualColumn}
           />
         )}
       </div>
