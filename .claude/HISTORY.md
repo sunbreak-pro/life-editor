@@ -1,5 +1,20 @@
 # HISTORY.md - 変更履歴
 
+### 2026-03-19 - Task Status UX Improvement
+
+#### 概要
+
+タスクステータスのUI/UXを包括的に改善。Undo/Redoバグ修正、効果音条件の適正化、ステータスラベル＋ドロップダウンUI追加、効果音個別設定ページ、Confettiトグルを実装。
+
+#### 変更点
+
+- **Undo/Redo バグ修正**: TitleBar.tsx の schedule ドメインを "taskTree" に修正、UndoRedoContext.tsx の version を useMemo deps に追加し再レンダリング不発を解消
+- **効果音条件修正**: NOT_STARTED→IN_PROGRESS での効果音・confetti 発火を廃止、IN_PROGRESS→DONE のみに限定（TaskTreeNode, TaskDetailPanel, SearchResultList の3箇所）
+- **ステータスラベルUI**: TaskStatusIcon にホバー時バッジ表示 + ドロップダウンで任意ステータスに直接変更可能に。useTaskTreeCRUD に setTaskStatus 関数追加
+- **効果音 Settings**: SoundEffectSettings コンポーネント新規作成（4種の効果音ごとにON/OFF・音量・プレビュー）。playEffectSound を SoundEffectKey ベースの個別設定対応に拡張。TimerContext の全 playEffectSound コールにキー付与
+- **Confetti トグル**: confetti.ts に CONFETTI_ENABLED 設定チェック追加、SoundEffectSettings 内にトグルUI配置
+- **i18n**: en.json / ja.json に soundEffects セクション追加
+
 ### 2026-03-19 - AchievementPanel 初回表示バグ修正
 
 #### 概要

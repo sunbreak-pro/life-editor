@@ -97,13 +97,19 @@ export function TimerProvider({ children }: { children: ReactNode }) {
         nextCompleted % state.config.sessionsBeforeLongBreak === 0;
       sendNotification("WORK完了！");
       if (willBeLongBreak) {
-        playEffectSound("/sounds/pomodoro_complete_sound.mp3");
+        playEffectSound(
+          "/sounds/pomodoro_complete_sound.mp3",
+          "pomodoroComplete",
+        );
       } else {
-        playEffectSound("/sounds/session_complete_sound.mp3");
+        playEffectSound(
+          "/sounds/session_complete_sound.mp3",
+          "sessionComplete",
+        );
       }
     } else {
       sendNotification("休憩終了！作業を再開しましょう");
-      playEffectSound("/sounds/session_complete_sound.mp3");
+      playEffectSound("/sounds/session_complete_sound.mp3", "sessionComplete");
     }
   }, [
     clearTimer,
@@ -136,7 +142,7 @@ export function TimerProvider({ children }: { children: ReactNode }) {
 
   const start = useCallback(() => {
     if (state.sessionType === "WORK") {
-      playEffectSound("/sounds/session_start_sound.mp3");
+      playEffectSound("/sounds/session_start_sound.mp3", "sessionStart");
     }
     dispatch({ type: "START" });
     getDataService()
@@ -174,7 +180,7 @@ export function TimerProvider({ children }: { children: ReactNode }) {
     (id: string, title: string) => {
       clearTimer();
       endCurrentSession(0, false);
-      playEffectSound("/sounds/session_start_sound.mp3");
+      playEffectSound("/sounds/session_start_sound.mp3", "sessionStart");
       const durationSeconds = state.config.workDuration;
       dispatch({
         type: "START_FOR_TASK",
@@ -354,7 +360,7 @@ export function TimerProvider({ children }: { children: ReactNode }) {
     (routineId: string, title: string, durationMinutes?: number) => {
       clearTimer();
       endCurrentSession(0, false);
-      playEffectSound("/sounds/session_start_sound.mp3");
+      playEffectSound("/sounds/session_start_sound.mp3", "sessionStart");
       setActiveRoutineId(routineId);
       const dur = durationMinutes ?? state.config.workDuration / 60;
       dispatch({

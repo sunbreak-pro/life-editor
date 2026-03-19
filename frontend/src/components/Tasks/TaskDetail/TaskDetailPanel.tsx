@@ -18,10 +18,11 @@ import {
   ChevronDown,
   StickyNote,
 } from "lucide-react";
+import { TaskStatusIcon } from "../TaskTree/TaskStatusIcon";
 import { useTranslation } from "react-i18next";
 import { useTaskTreeContext } from "../../../hooks/useTaskTreeContext";
 import { useTimerContext } from "../../../hooks/useTimerContext";
-import type { TaskNode } from "../../../types/taskTree";
+import type { TaskNode, TaskStatus } from "../../../types/taskTree";
 import type {
   MoveResult,
   MoveRejectionReason,
@@ -90,6 +91,7 @@ export function TaskDetailPanel({
     moveToRoot,
     softDelete,
     toggleTaskStatus,
+    setTaskStatus,
   } = useTaskTreeContext();
   const timer = useTimerContext();
   const { t } = useTranslation();
@@ -128,6 +130,7 @@ export function TaskDetailPanel({
               updateNode={updateNode}
               onSelectTask={onSelectTask}
               toggleTaskStatus={toggleTaskStatus}
+              setTaskStatus={setTaskStatus}
             />
           )}
         </div>
@@ -438,6 +441,7 @@ interface FolderSidebarContentProps {
   updateNode: (id: string, updates: Partial<TaskNode>) => void;
   onSelectTask?: (id: string) => void;
   toggleTaskStatus: (id: string) => void;
+  setTaskStatus: (id: string, status: TaskStatus) => void;
 }
 
 function FolderSidebarContent({
@@ -446,6 +450,7 @@ function FolderSidebarContent({
   updateNode,
   onSelectTask,
   toggleTaskStatus,
+  setTaskStatus,
 }: FolderSidebarContentProps) {
   const { t } = useTranslation();
   const [showColorPicker, setShowColorPicker] = useState(false);
@@ -513,13 +518,25 @@ function FolderSidebarContent({
   const handleToggleTaskStatus = useCallback(
     (taskId: string) => {
       const target = nodes.find((n) => n.id === taskId);
-      if (target && target.status !== "DONE") {
+      if (target && target.status === "IN_PROGRESS") {
         fireTaskCompleteConfetti();
-        playEffectSound("/sounds/task_complete_sound.mp3");
+        playEffectSound("/sounds/task_complete_sound.mp3", "taskComplete");
       }
       toggleTaskStatus(taskId);
     },
     [nodes, toggleTaskStatus],
+  );
+
+  const handleSetTaskStatus = useCallback(
+    (taskId: string, newStatus: TaskStatus) => {
+      const target = nodes.find((n) => n.id === taskId);
+      if (target && newStatus === "DONE" && target.status === "IN_PROGRESS") {
+        fireTaskCompleteConfetti();
+        playEffectSound("/sounds/task_complete_sound.mp3", "taskComplete");
+      }
+      setTaskStatus(taskId, newStatus);
+    },
+    [nodes, setTaskStatus],
   );
 
   return (
@@ -731,22 +748,20 @@ function FolderSidebarContent({
                                   }}
                                 />
                               ) : (
-                                <label
-                                  onClick={(e) => e.stopPropagation()}
-                                  className="flex items-center shrink-0"
-                                >
-                                  <input
-                                    type="checkbox"
-                                    checked={false}
-                                    onChange={() =>
-                                      handleToggleTaskStatus(grandchild.id)
-                                    }
-                                    className="w-3.5 h-3.5 cursor-pointer"
-                                    style={{
-                                      accentColor: "var(--color-accent)",
-                                    }}
-                                  />
-                                </label>
+                                <TaskStatusIcon
+                                  status={
+                                    (grandchild.status as
+                                      | "NOT_STARTED"
+                                      | "IN_PROGRESS"
+                                      | "DONE") ?? "NOT_STARTED"
+                                  }
+                                  onClick={() =>
+                                    handleToggleTaskStatus(grandchild.id)
+                                  }
+                                  onSetStatus={(s) =>
+                                    handleSetTaskStatus(grandchild.id, s)
+                                  }
+                                />
                               )}
                               <span className="truncate">
                                 {grandchild.title}
@@ -780,18 +795,16 @@ function FolderSidebarContent({
                     onClick={() => onSelectTask?.(task.id)}
                     className="w-full flex items-center gap-1.5 px-2 py-1 rounded-md text-sm text-notion-text hover:bg-notion-hover transition-colors text-left"
                   >
-                    <label
-                      onClick={(e) => e.stopPropagation()}
-                      className="flex items-center shrink-0"
-                    >
-                      <input
-                        type="checkbox"
-                        checked={false}
-                        onChange={() => handleToggleTaskStatus(task.id)}
-                        className="w-3.5 h-3.5 cursor-pointer"
-                        style={{ accentColor: "var(--color-accent)" }}
-                      />
-                    </label>
+                    <TaskStatusIcon
+                      status={
+                        (task.status as
+                          | "NOT_STARTED"
+                          | "IN_PROGRESS"
+                          | "DONE") ?? "NOT_STARTED"
+                      }
+                      onClick={() => handleToggleTaskStatus(task.id)}
+                      onSetStatus={(s) => handleSetTaskStatus(task.id, s)}
+                    />
                     <span className="truncate">{task.title}</span>
                   </button>
                 ))}

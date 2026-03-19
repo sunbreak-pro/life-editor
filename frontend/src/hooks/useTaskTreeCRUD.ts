@@ -54,7 +54,7 @@ export function useTaskTreeCRUD(
         title,
         parentId,
         order: newOrder,
-        status: "TODO",
+        status: "NOT_STARTED",
         isExpanded: type !== "task" ? true : undefined,
         createdAt: new Date().toISOString(),
         scheduledAt: type === "task" ? options?.scheduledAt : undefined,
@@ -91,7 +91,15 @@ export function useTaskTreeCRUD(
       const target = nodes.find((n) => n.id === id);
       if (!target || target.type !== "task") return;
 
-      const newStatus: TaskStatus = target.status === "TODO" ? "DONE" : "TODO";
+      // 3-state cycle: NOT_STARTED → IN_PROGRESS → DONE → NOT_STARTED
+      const statusCycle: Record<string, TaskStatus> = {
+        NOT_STARTED: "IN_PROGRESS",
+        IN_PROGRESS: "DONE",
+        DONE: "NOT_STARTED",
+      };
+      const currentStatus = target.status ?? "NOT_STARTED";
+      const newStatus: TaskStatus = statusCycle[currentStatus] ?? "NOT_STARTED";
+
       const siblings = nodes
         .filter(
           (n) => !n.isDeleted && n.parentId === target.parentId && n.id !== id,
@@ -109,7 +117,53 @@ export function useTaskTreeCRUD(
       };
 
       // DONE: append to end after all complete siblings
-      // TODO: insert at end of incomplete group (before complete siblings)
+      // Otherwise: insert at end of incomplete group (before complete siblings)
+      const reordered =
+        newStatus === "DONE"
+          ? [...incomplete, ...complete, updatedTarget]
+          : [...incomplete, updatedTarget, ...complete];
+
+      const orderMap = new Map<string, number>();
+      reordered.forEach((n, i) => orderMap.set(n.id, i));
+
+      persistWithHistory(
+        nodes,
+        nodes.map((n) => {
+          if (n.id === id)
+            return {
+              ...updatedTarget,
+              order: orderMap.get(id) ?? updatedTarget.order,
+            };
+          if (orderMap.has(n.id)) return { ...n, order: orderMap.get(n.id)! };
+          return n;
+        }),
+      );
+    },
+    [nodes, persistWithHistory],
+  );
+
+  const setTaskStatus = useCallback(
+    (id: string, newStatus: TaskStatus) => {
+      const target = nodes.find((n) => n.id === id);
+      if (!target || target.type !== "task") return;
+      if (target.status === newStatus) return;
+
+      const siblings = nodes
+        .filter(
+          (n) => !n.isDeleted && n.parentId === target.parentId && n.id !== id,
+        )
+        .sort((a, b) => a.order - b.order);
+
+      const incomplete = siblings.filter((n) => n.status !== "DONE");
+      const complete = siblings.filter((n) => n.status === "DONE");
+
+      const updatedTarget = {
+        ...target,
+        status: newStatus,
+        completedAt:
+          newStatus === "DONE" ? new Date().toISOString() : undefined,
+      };
+
       const reordered =
         newStatus === "DONE"
           ? [...incomplete, ...complete, updatedTarget]
@@ -171,7 +225,11 @@ export function useTaskTreeCRUD(
         nodes,
         nodes.map((n) =>
           n.id === folderId
-            ? { ...n, status: "TODO" as TaskStatus, completedAt: undefined }
+            ? {
+                ...n,
+                status: "NOT_STARTED" as TaskStatus,
+                completedAt: undefined,
+              }
             : n,
         ),
       );
@@ -184,6 +242,7 @@ export function useTaskTreeCRUD(
     updateNode,
     toggleExpanded,
     toggleTaskStatus,
+    setTaskStatus,
     completeFolderWithChildren,
     uncompleteFolder,
   };

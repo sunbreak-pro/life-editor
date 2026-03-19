@@ -1,8 +1,8 @@
 import { useState, useCallback } from "react";
-import { Bell, BellOff, Volume2 } from "lucide-react";
+import { Bell, BellOff } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { STORAGE_KEYS } from "../../constants/storageKeys";
-import { playEffectSound } from "../../utils/playEffectSound";
+import { SoundEffectSettings } from "./SoundEffectSettings";
 
 export function NotificationSettings() {
   const { t } = useTranslation();
@@ -30,16 +30,6 @@ export function NotificationSettings() {
       setEnabled(false);
     }
   }, [enabled]);
-
-  const [effectVolume, setEffectVolume] = useState(() => {
-    const stored = localStorage.getItem(STORAGE_KEYS.EFFECT_VOLUME);
-    return stored !== null ? Number(stored) : 70;
-  });
-
-  const handleVolumeChange = useCallback((val: number) => {
-    setEffectVolume(val);
-    localStorage.setItem(STORAGE_KEYS.EFFECT_VOLUME, String(val));
-  }, []);
 
   const isBlocked = permission === "denied";
 
@@ -81,32 +71,8 @@ export function NotificationSettings() {
         </button>
       </div>
 
-      <div className="mt-6">
-        <h3 className="text-lg font-semibold text-notion-text mb-4">
-          {t("notifications.completionSound")}
-        </h3>
-        <div className="flex items-center gap-3">
-          <Volume2 size={18} className="text-notion-text-secondary shrink-0" />
-          <input
-            type="range"
-            min={0}
-            max={100}
-            value={effectVolume}
-            onChange={(e) => handleVolumeChange(Number(e.target.value))}
-            className="flex-1 accent-notion-accent"
-          />
-          <span className="text-sm text-notion-text-secondary w-8 text-right tabular-nums">
-            {effectVolume}
-          </span>
-          <button
-            onClick={() =>
-              playEffectSound("/sounds/session_complete_sound.mp3")
-            }
-            className="px-2 py-1 text-xs rounded bg-notion-hover text-notion-text-secondary hover:text-notion-text transition-colors"
-          >
-            {t("notifications.preview")}
-          </button>
-        </div>
+      <div className="mt-6 border-t border-notion-border pt-6">
+        <SoundEffectSettings />
       </div>
     </div>
   );

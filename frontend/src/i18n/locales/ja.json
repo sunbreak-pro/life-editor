@@ -682,6 +682,12 @@
     "detail": "詳細",
     "tree": "ツリー"
   },
+  "taskStatus": {
+    "notStarted": "未着手",
+    "inProgress": "進行中",
+    "done": "完了",
+    "all": "すべて"
+  },
   "commandPalette": {
     "placeholder": "コマンドを入力...",
     "noResults": "結果が見つかりません"
@@ -869,7 +875,9 @@
     "selectTime": "時間を設定",
     "noItems": "項目なし",
     "sidebarProgress": "進捗",
-    "routineManagement": "ルーティン管理"
+    "routineManagement": "ルーティン管理",
+    "dualColumn": "2カラム",
+    "singleColumn": "1カラム"
   },
   "statusBar": {
     "terminal": "ターミナル",
@@ -921,5 +929,32 @@
   },
   "taskDetail.quickMemo": "クイックメモ",
   "taskDetail.richEditor": "リッチエディタ",
-  "taskDetail.timeMemo": "タイムメモ"
+  "taskDetail.timeMemo": "タイムメモ",
+  "soundEffects": {
+    "title": "効果音",
+    "taskComplete": "タスク完了",
+    "sessionStart": "セッション開始",
+    "sessionComplete": "セッション完了",
+    "pomodoroComplete": "ポモドーロ完了",
+    "confetti": "視覚エフェクト",
+    "confettiLabel": "紙吹雪アニメーション",
+    "confettiDescription": "タスク完了時に紙吹雪を表示する"
+  },
+  "chaos": {
+    "oracle": {
+      "title": "今日のお告げ"
+    },
+    "timecapsule": {
+      "label": "{{period}}の今日"
+    },
+    "drift": {
+      "title": "隠れたつながり"
+    },
+    "source": {
+      "memo": "メモ: {{date}}",
+      "note": "ノート: {{title}}"
+    },
+    "refresh": "更新",
+    "dataInsufficient": "メモやノートを書き続けると、再発見エンジンが動き出します。"
+  }
 }

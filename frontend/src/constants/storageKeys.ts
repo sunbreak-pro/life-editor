@@ -37,4 +37,8 @@ export const STORAGE_KEYS = {
   TASK_TREE_TAB: "life-editor-task-tree-tab",
   CONNECT_VIEW_MODE: "life-editor-connect-view-mode",
   PAPER_ACTIVE_BOARD_ID: "life-editor-paper-active-board-id",
+  SCHEDULE_TASKS_LEFT_WIDTH: "life-editor-schedule-tasks-left-width",
+  SOUND_EFFECT_SETTINGS: "life-editor-sound-effect-settings",
+  CONFETTI_ENABLED: "life-editor-confetti-enabled",
+  DAYFLOW_DUAL_COLUMN: "life-editor-dayflow-dual-column",
 } as const;

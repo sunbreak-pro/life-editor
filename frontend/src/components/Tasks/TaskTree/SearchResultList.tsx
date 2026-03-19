@@ -37,9 +37,9 @@ const SearchResultItem = memo(function SearchResultItem({
     : t("search.rootLevel");
 
   const handleToggleStatus = useCallback(() => {
-    if (node.status !== "DONE") {
+    if (node.status === "IN_PROGRESS") {
       fireTaskCompleteConfetti();
-      playEffectSound("/sounds/task_complete_sound.mp3");
+      playEffectSound("/sounds/task_complete_sound.mp3", "taskComplete");
     }
     toggleTaskStatus(node.id);
   }, [node.id, node.status, toggleTaskStatus]);

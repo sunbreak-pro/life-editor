@@ -11,6 +11,7 @@ import { resolveTaskColor } from "../../../utils/folderColor";
 
 import { TaskNodeIndent } from "./TaskNodeIndent";
 import { TaskNodeCheckbox } from "./TaskNodeCheckbox";
+import { TaskStatusIcon } from "./TaskStatusIcon";
 import { TaskNodeEditor } from "./TaskNodeEditor";
 import { TaskNodeContent } from "./TaskNodeContent";
 import { TaskNodeActions } from "./TaskNodeActions";
@@ -64,6 +65,7 @@ export const TaskTreeNode = memo(function TaskTreeNode({
     updateNode,
     toggleExpanded,
     toggleTaskStatus,
+    setTaskStatus,
     softDelete,
     addNode,
     moveToRoot,
@@ -184,13 +186,25 @@ export const TaskTreeNode = memo(function TaskTreeNode({
   }, [completeFolderWithChildren, node.id]);
 
   const handleToggleStatus = useCallback(() => {
-    if (node.status !== "DONE") {
+    if (node.status === "IN_PROGRESS") {
       fireTaskCompleteConfetti();
-      playEffectSound("/sounds/task_complete_sound.mp3");
+      playEffectSound("/sounds/task_complete_sound.mp3", "taskComplete");
       setCompletionToast(t("taskTree.taskComplete", { name: node.title }));
     }
     toggleTaskStatus(node.id);
   }, [node.id, node.status, node.title, toggleTaskStatus, t]);
+
+  const handleSetStatus = useCallback(
+    (newStatus: import("../../../types/taskTree").TaskStatus) => {
+      if (newStatus === "DONE" && node.status === "IN_PROGRESS") {
+        fireTaskCompleteConfetti();
+        playEffectSound("/sounds/task_complete_sound.mp3", "taskComplete");
+        setCompletionToast(t("taskTree.taskComplete", { name: node.title }));
+      }
+      setTaskStatus(node.id, newStatus);
+    },
+    [node.id, node.status, node.title, setTaskStatus, t],
+  );
 
   const handleToggleExpand = useCallback(
     () => toggleExpanded(node.id),
@@ -254,20 +268,29 @@ export const TaskTreeNode = memo(function TaskTreeNode({
             <div className="w-5.5 shrink-0" />
           )}
           <TaskNodeIndent depth={depth} isLastChild={isLastChild} />
-          <TaskNodeCheckbox
-            isFolder={isFolder}
-            isDone={isDone}
-            isExpanded={node.isExpanded}
-            isDragging={isDragging}
-            color={node.color}
-            isCompletedItem={showAsCompleted}
-            onToggleExpand={handleToggleExpand}
-            onToggleStatus={
-              showAsCompleted && isFolder
-                ? handleCompleteFolder
-                : handleToggleStatus
-            }
-          />
+          {isFolder ? (
+            <TaskNodeCheckbox
+              isFolder={isFolder}
+              isDone={isDone}
+              isExpanded={node.isExpanded}
+              isDragging={isDragging}
+              color={node.color}
+              isCompletedItem={showAsCompleted}
+              onToggleExpand={handleToggleExpand}
+              onToggleStatus={
+                showAsCompleted ? handleCompleteFolder : handleToggleStatus
+              }
+            />
+          ) : (
+            <TaskStatusIcon
+              status={
+                (node.status as "NOT_STARTED" | "IN_PROGRESS" | "DONE") ??
+                "NOT_STARTED"
+              }
+              onClick={handleToggleStatus}
+              onSetStatus={handleSetStatus}
+            />
+          )}
 
           {isEditing && !isStructureContainer ? (
             <TaskNodeEditor

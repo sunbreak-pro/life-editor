@@ -19,7 +19,7 @@ export const UndoRedoContext = createContext<UndoRedoContextValue | null>(null);
 export function UndoRedoProvider({ children }: { children: ReactNode }) {
   const managerRef = useRef<UndoRedoManager | null>(null);
   const activeDomainRef = useRef<UndoDomain | null>(null);
-  const [, setVersion] = useState(0);
+  const [version, setVersion] = useState(0);
 
   if (!managerRef.current) {
     const mgr = new UndoRedoManager();
@@ -83,6 +83,7 @@ export function UndoRedoProvider({ children }: { children: ReactNode }) {
       setActiveDomain,
       getActiveDomain,
     }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [
       push,
       undo,
@@ -92,6 +93,7 @@ export function UndoRedoProvider({ children }: { children: ReactNode }) {
       clear,
       setActiveDomain,
       getActiveDomain,
+      version,
     ],
   );
 
