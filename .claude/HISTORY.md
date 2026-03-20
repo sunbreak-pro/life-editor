@@ -1,5 +1,22 @@
 # HISTORY.md - 変更履歴
 
+### 2026-03-20 - Ideas Section 4-Tab Restructuring + Sidebar UI Unification
+
+#### 概要
+
+Ideas セクションを Materials / Connect の2タブ構成から Daily / Materials / Node / Board の4タブに再構成し、サイドバー UI を統一。Connect 内部の viewMode 切替を廃止し、各ビューを独立タブに昇格。
+
+#### 変更点
+
+- **i18n**: en.json / ja.json に `node`, `board`, `createBoard`, `linkToExistingNote`, `newBlankBoard`, `emptyBoardMessage` キー追加
+- **ConnectSidebar**: viewMode toggle 削除、アイコン 12px / アクション 10px / py-1 / text-xs に統一、ノート名はインライン編集に変更
+- **PaperSidebar**: viewMode toggle 削除、Notes セクション折りたたみ（localStorage 永続化）、空状態メッセージ + BoardCreateDialog 追加
+- **BoardCreateDialog（新規）**: 2択ダイアログ（既存ノートリンク / 新規空白ボード）
+- **DailySidebar（新規）**: MaterialsSidebar から Daily セクションを抽出した独立コンポーネント
+- **MaterialsSidebar**: Daily セクション削除、props 簡素化（selectedNoteId / onSelectNote ベース）、onNavigateToConnect → onNavigateToNode リネーム
+- **IdeasView**: 4タブ化（Daily / Materials / Node / Board）、ConnectTabView ロジック統合、localStorage マイグレーション（connect → node/board）、isCanvasTab パディング制御
+- **ConnectTabView**: 削除（ロジックは IdeasView に統合）
+
 ### 2026-03-19 - DayFlow カラムトグル位置修正 + 1/2カラム UI 統一
 
 #### 概要
