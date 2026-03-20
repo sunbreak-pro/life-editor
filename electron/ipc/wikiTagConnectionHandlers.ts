@@ -1,48 +1,47 @@
-import { ipcMain } from "electron";
-import { loggedHandler } from "./handlerUtil";
-import { broadcastChange } from "../server/broadcast";
+import { query, mutation } from "./handlerUtil";
 import type { WikiTagConnectionRepository } from "../database/wikiTagConnectionRepository";
 
 export function registerWikiTagConnectionHandlers(
   repo: WikiTagConnectionRepository,
 ): void {
-  ipcMain.handle(
+  query(
     "db:wikiTagConnections:fetchAll",
-    loggedHandler("WikiTagConnections", "fetchAll", () => {
-      return repo.fetchAll();
-    }),
+    "WikiTagConnections",
+    "fetchAll",
+    () => repo.fetchAll(),
   );
 
-  ipcMain.handle(
+  mutation(
     "db:wikiTagConnections:create",
-    loggedHandler(
-      "WikiTagConnections",
-      "create",
-      (_event, sourceTagId: string, targetTagId: string) => {
-        const result = repo.create(sourceTagId, targetTagId);
-        broadcastChange("wikiTagConnection", "create", result?.id);
-        return result;
-      },
-    ),
+    "WikiTagConnections",
+    "create",
+    "wikiTagConnection",
+    "create",
+    (_event, sourceTagId: string, targetTagId: string) =>
+      repo.create(sourceTagId, targetTagId),
+    (_args, result) => (result as { id?: string })?.id,
   );
 
-  ipcMain.handle(
+  mutation(
     "db:wikiTagConnections:delete",
-    loggedHandler("WikiTagConnections", "delete", (_event, id: string) => {
+    "WikiTagConnections",
+    "delete",
+    "wikiTagConnection",
+    "delete",
+    (_event, id: string) => {
       repo.delete(id);
-      broadcastChange("wikiTagConnection", "delete", id);
-    }),
+    },
   );
 
-  ipcMain.handle(
+  mutation(
     "db:wikiTagConnections:deleteByTagPair",
-    loggedHandler(
-      "WikiTagConnections",
-      "deleteByTagPair",
-      (_event, sourceTagId: string, targetTagId: string) => {
-        repo.deleteByTagPair(sourceTagId, targetTagId);
-        broadcastChange("wikiTagConnection", "delete");
-      },
-    ),
+    "WikiTagConnections",
+    "deleteByTagPair",
+    "wikiTagConnection",
+    "delete",
+    (_event, sourceTagId: string, targetTagId: string) => {
+      repo.deleteByTagPair(sourceTagId, targetTagId);
+    },
+    () => undefined,
   );
 }

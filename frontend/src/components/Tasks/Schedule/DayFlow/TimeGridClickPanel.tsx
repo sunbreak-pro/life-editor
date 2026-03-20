@@ -143,7 +143,7 @@ function TaskPickerTab({
 
     const countTodoTasks = (parentId: string): number => {
       return getChildren(parentId).reduce((acc, child) => {
-        if (child.type === "task" && child.status === "TODO") return acc + 1;
+        if (child.type === "task" && child.status !== "DONE") return acc + 1;
         if (child.type === "folder") return acc + countTodoTasks(child.id);
         return acc;
       }, 0);
@@ -151,7 +151,7 @@ function TaskPickerTab({
 
     const hasMatchingTask = (parentId: string, text: string): boolean => {
       return getChildren(parentId).some((child) => {
-        if (child.type === "task" && child.status === "TODO")
+        if (child.type === "task" && child.status !== "DONE")
           return child.title.toLowerCase().includes(text);
         if (child.type === "folder") return hasMatchingTask(child.id, text);
         return false;
@@ -161,7 +161,7 @@ function TaskPickerTab({
     const buildTree = (parentId: string | null, depth: number) => {
       const children = getChildren(parentId);
       const tasks = children.filter(
-        (c) => c.type === "task" && c.status === "TODO",
+        (c) => c.type === "task" && c.status !== "DONE",
       );
       const filtered = filterText
         ? tasks.filter((tt) => tt.title.toLowerCase().includes(filterText))
@@ -189,7 +189,7 @@ function TaskPickerTab({
 
     const rootChildren = getChildren(null);
     const rootTasks = rootChildren.filter(
-      (n) => n.type === "task" && n.status === "TODO",
+      (n) => n.type === "task" && n.status !== "DONE",
     );
     const filteredRootTasks = filterText
       ? rootTasks.filter((tt) => tt.title.toLowerCase().includes(filterText))

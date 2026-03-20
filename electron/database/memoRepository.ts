@@ -1,5 +1,6 @@
 import type Database from "better-sqlite3";
 import type { MemoNode } from "../types";
+import { prepareSoftDeleteStatements } from "./repositoryHelpers";
 
 interface MemoRow {
   id: string;
@@ -37,18 +38,10 @@ export function createMemoRepository(db: Database.Database) {
       ON CONFLICT(date) DO UPDATE SET
         content = @content, version = version + 1, updated_at = datetime('now')
     `),
-    softDelete: db.prepare(
-      `UPDATE memos SET is_deleted = 1, deleted_at = datetime('now'), version = version + 1, updated_at = datetime('now') WHERE date = ?`,
-    ),
-    fetchDeleted: db.prepare(
-      `SELECT * FROM memos WHERE is_deleted = 1 ORDER BY deleted_at DESC`,
-    ),
-    restore: db.prepare(
-      `UPDATE memos SET is_deleted = 0, deleted_at = NULL, version = version + 1, updated_at = datetime('now') WHERE date = ?`,
-    ),
-    permanentDelete: db.prepare(
-      `DELETE FROM memos WHERE date = ? AND is_deleted = 1`,
-    ),
+    ...prepareSoftDeleteStatements(db, "memos", {
+      keyColumn: "date",
+      safePermanentDelete: true,
+    }),
     togglePin: db.prepare(
       `UPDATE memos SET is_pinned = CASE WHEN is_pinned = 1 THEN 0 ELSE 1 END, version = version + 1, updated_at = datetime('now') WHERE date = ?`,
     ),

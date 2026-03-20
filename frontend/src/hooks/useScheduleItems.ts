@@ -434,6 +434,13 @@ export function useScheduleItems() {
     [push],
   );
 
+  const dismissScheduleItem = useCallback((id: string) => {
+    setScheduleItems((prev) => prev.filter((item) => item.id !== id));
+    getDataService()
+      .dismissScheduleItem(id)
+      .catch((e) => logServiceError("ScheduleItems", "dismiss", e));
+  }, []);
+
   const ensureRoutineItemsForDate = useCallback(
     async (
       date: string,
@@ -608,6 +615,7 @@ export function useScheduleItems() {
       createScheduleItem,
       updateScheduleItem,
       deleteScheduleItem,
+      dismissScheduleItem,
       toggleComplete,
       ensureRoutineItemsForDate,
       getRoutineCompletionRate,
@@ -623,6 +631,7 @@ export function useScheduleItems() {
       createScheduleItem,
       updateScheduleItem,
       deleteScheduleItem,
+      dismissScheduleItem,
       toggleComplete,
       ensureRoutineItemsForDate,
       getRoutineCompletionRate,

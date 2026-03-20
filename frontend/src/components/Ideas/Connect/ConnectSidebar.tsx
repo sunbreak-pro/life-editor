@@ -8,8 +8,6 @@ import {
   Filter,
   Pencil,
   Trash2,
-  GitBranch,
-  LayoutGrid,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import type { WikiTag, WikiTagAssignment } from "../../../types/wikiTag";
@@ -52,8 +50,6 @@ interface ConnectSidebarProps {
   onUpdateNoteTitle?: (noteId: string, title: string) => void;
   onDeleteNote?: (noteId: string) => void;
   onDeleteMemo?: (date: string) => void;
-  viewMode?: "point" | "paper";
-  onViewModeChange?: (mode: "point" | "paper") => void;
 }
 
 function loadSectionsState(): SectionsState {
@@ -104,8 +100,6 @@ export function ConnectSidebar({
   onUpdateNoteTitle,
   onDeleteNote,
   onDeleteMemo,
-  viewMode,
-  onViewModeChange,
 }: ConnectSidebarProps) {
   const { t } = useTranslation();
   const [sections, setSections] = useState<SectionsState>(loadSectionsState);
@@ -118,7 +112,11 @@ export function ConnectSidebar({
   const [dailyFilterTagIds, setDailyFilterTagIds] = useState<string[]>([]);
   const [showDailyFilter, setShowDailyFilter] = useState(false);
 
-  // Entity editing state (name + tags)
+  // Inline editing state
+  const [renamingId, setRenamingId] = useState<string | null>(null);
+  const [renameValue, setRenameValue] = useState("");
+
+  // Entity editing state (tags via popover)
   const [editingEntityId, setEditingEntityId] = useState<string | null>(null);
   const editButtonRefs = useRef<Map<string, HTMLButtonElement>>(new Map());
 
@@ -135,6 +133,18 @@ export function ConnectSidebar({
     const title = selectedTag ? selectedTag.name : "Untitled";
     onCreateNote(title, selectedTagId ?? undefined);
   }, [tags, selectedTagId, onCreateNote]);
+
+  const startRename = useCallback((id: string, currentTitle: string) => {
+    setRenamingId(id);
+    setRenameValue(currentTitle);
+  }, []);
+
+  const confirmRename = useCallback(() => {
+    if (renamingId && renameValue.trim() && onUpdateNoteTitle) {
+      onUpdateNoteTitle(renamingId, renameValue.trim());
+    }
+    setRenamingId(null);
+  }, [renamingId, renameValue, onUpdateNoteTitle]);
 
   // Note tag filter
   const noteTagMap = useMemo(() => {
@@ -222,7 +232,7 @@ export function ConnectSidebar({
     return items;
   }, [tags, untaggedMemoIds, t]);
 
-  // Build tag color dots lookup (include both notes and memos)
+  // Build tag color dots lookup
   const entityTagColors = useMemo(() => {
     const map = new Map<string, string[]>();
     for (const a of assignments) {
@@ -256,11 +266,9 @@ export function ConnectSidebar({
     if (sidebarFilterTagIds.length === 0) return notes;
     return notes.filter((n) => {
       const tagSet = noteTagMap.get(n.id);
-      // Check if any selected real tag matches
       const matchesRealTag = sidebarFilterTagIds.some(
         (tid) => tid !== VIRTUAL_UNTAGGED_ID && tagSet?.has(tid),
       );
-      // Check if untagged filter is active and this note is untagged
       const matchesUntagged =
         sidebarFilterTagIds.includes(VIRTUAL_UNTAGGED_ID) &&
         untaggedNoteIds.has(n.id);
@@ -324,7 +332,7 @@ export function ConnectSidebar({
 
   const isSearching = query.trim().length > 0;
 
-  // Search suggestions: recent notes + memos (up to 10)
+  // Search suggestions
   const suggestions = useMemo<SearchSuggestion[]>(() => {
     const items: SearchSuggestion[] = [];
     const sortedNotes = [...notes]
@@ -350,7 +358,6 @@ export function ConnectSidebar({
         icon: "memo",
       });
     }
-    // If searching, filter
     if (isSearching) {
       const q = query.toLowerCase();
       return items.filter((i) => i.label.toLowerCase().includes(q));
@@ -376,36 +383,147 @@ export function ConnectSidebar({
     return note?.title;
   };
 
+  const renderNoteItem = (note: NoteNode, showNavigate = true) => {
+    if (renamingId === note.id) {
+      return (
+        <div
+          key={note.id}
+          className="flex items-center gap-1 px-2 py-1"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <input
+            value={renameValue}
+            onChange={(e) => setRenameValue(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") confirmRename();
+              if (e.key === "Escape") setRenamingId(null);
+            }}
+            className="flex-1 bg-transparent outline-none text-xs text-notion-text border-b border-notion-accent"
+            autoFocus
+          />
+        </div>
+      );
+    }
+    return (
+      <div
+        key={note.id}
+        data-sidebar-item
+        data-sidebar-active={sidebarSelectedItemId === note.id || undefined}
+        className={`group flex items-center gap-1.5 px-2 py-1 rounded transition-colors ${
+          sidebarSelectedItemId === note.id
+            ? "bg-notion-accent/10 text-notion-accent"
+            : "hover:bg-notion-hover"
+        }`}
+        onClick={() => handleItemClick(note.id)}
+      >
+        <button
+          onClick={() => handleItemClick(note.id)}
+          className="flex-1 flex items-center gap-1.5 min-w-0 text-left"
+        >
+          {note.isPinned ? (
+            <Heart size={12} className="text-red-500 fill-current shrink-0" />
+          ) : (
+            <StickyNote
+              size={12}
+              className="text-notion-text-secondary shrink-0"
+            />
+          )}
+          <span className="flex-1 text-xs text-notion-text truncate">
+            {note.title || t("notes.untitled")}
+          </span>
+          {renderTagDots(note.id)}
+        </button>
+        {onUpdateNoteTitle && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              startRename(note.id, note.title || "");
+            }}
+            className="p-0.5 opacity-0 group-hover:opacity-100 text-notion-text-secondary hover:text-notion-text transition-opacity shrink-0"
+            title={t("ideas.editItem")}
+          >
+            <Pencil size={10} />
+          </button>
+        )}
+        {showNavigate && onNavigateToNote && (
+          <button
+            onClick={() => onNavigateToNote(note.id)}
+            className="p-0.5 opacity-0 group-hover:opacity-100 text-notion-text-secondary hover:text-notion-text transition-opacity shrink-0"
+            title={t("ideas.materials")}
+          >
+            <Package size={10} />
+          </button>
+        )}
+        {onDeleteNote && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onDeleteNote(note.id);
+            }}
+            className="p-0.5 opacity-0 group-hover:opacity-100 text-notion-text-secondary hover:text-red-500 transition-opacity shrink-0"
+          >
+            <Trash2 size={10} />
+          </button>
+        )}
+      </div>
+    );
+  };
+
+  const renderMemoItem = (memo: MemoNode) => (
+    <div
+      key={memo.id}
+      data-sidebar-item
+      data-sidebar-active={sidebarSelectedItemId === memo.id || undefined}
+      className={`group flex items-center gap-1.5 px-2 py-1 rounded text-left transition-colors ${
+        sidebarSelectedItemId === memo.id
+          ? "bg-notion-accent/10 text-notion-accent"
+          : "hover:bg-notion-hover"
+      }`}
+      onClick={() => handleItemClick(memo.id)}
+    >
+      <button
+        onClick={() => handleItemClick(memo.id)}
+        className="flex-1 flex items-center gap-1.5 min-w-0 text-left"
+      >
+        {memo.isPinned ? (
+          <Heart size={12} className="text-red-500 fill-current shrink-0" />
+        ) : (
+          <BookOpen size={12} className="text-notion-text-secondary shrink-0" />
+        )}
+        <span className="flex-1 text-xs text-notion-text truncate">
+          {formatDisplayDate(memo.date)}
+        </span>
+        {renderTagDots(memo.id)}
+      </button>
+      <button
+        ref={(el) => {
+          if (el) editButtonRefs.current.set(memo.id, el);
+        }}
+        onClick={(e) => {
+          e.stopPropagation();
+          setEditingEntityId(editingEntityId === memo.id ? null : memo.id);
+        }}
+        className="p-0.5 opacity-0 group-hover:opacity-100 text-notion-text-secondary hover:text-notion-text transition-opacity shrink-0"
+        title={t("ideas.editItem")}
+      >
+        <Pencil size={10} />
+      </button>
+      {onDeleteMemo && (
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            onDeleteMemo(memo.date);
+          }}
+          className="p-0.5 opacity-0 group-hover:opacity-100 text-notion-text-secondary hover:text-red-500 transition-opacity shrink-0"
+        >
+          <Trash2 size={10} />
+        </button>
+      )}
+    </div>
+  );
+
   return (
     <div className="h-full flex flex-col">
-      {viewMode !== undefined && onViewModeChange && (
-        <div className="flex items-center gap-1 px-3 py-2 border-b border-notion-border">
-          <button
-            onClick={() => onViewModeChange("point")}
-            className={`flex items-center gap-1 px-2 py-1 text-xs rounded ${
-              viewMode === "point"
-                ? "bg-notion-accent/10 text-notion-accent"
-                : "text-notion-text-secondary hover:text-notion-text hover:bg-notion-hover"
-            }`}
-            title={t("ideas.pointView")}
-          >
-            <GitBranch size={14} />
-            <span>{t("ideas.pointView")}</span>
-          </button>
-          <button
-            onClick={() => onViewModeChange("paper")}
-            className={`flex items-center gap-1 px-2 py-1 text-xs rounded ${
-              viewMode === "paper"
-                ? "bg-notion-accent/10 text-notion-accent"
-                : "text-notion-text-secondary hover:text-notion-text hover:bg-notion-hover"
-            }`}
-            title={t("ideas.paperView")}
-          >
-            <LayoutGrid size={14} />
-            <span>{t("ideas.paperView")}</span>
-          </button>
-        </div>
-      )}
       <SearchBar
         value={query}
         onChange={onQueryChange}
@@ -424,54 +542,7 @@ export function ConnectSidebar({
                   {t("ideas.notes")}
                 </h4>
                 <div className="space-y-0.5">
-                  {matchingNotes.map((note) => (
-                    <div
-                      key={note.id}
-                      data-sidebar-item
-                      data-sidebar-active={
-                        sidebarSelectedItemId === note.id || undefined
-                      }
-                      className={`group flex items-center gap-1.5 px-2 py-1.5 rounded transition-colors ${
-                        sidebarSelectedItemId === note.id
-                          ? "bg-notion-accent/10"
-                          : "hover:bg-notion-hover"
-                      }`}
-                      onClick={() => handleItemClick(note.id)}
-                    >
-                      <button
-                        onClick={() => handleItemClick(note.id)}
-                        className="flex-1 flex items-center gap-1.5 min-w-0 text-left"
-                      >
-                        <StickyNote
-                          size={12}
-                          className="text-notion-text-secondary shrink-0"
-                        />
-                        <span className="text-xs text-notion-text truncate">
-                          {note.title || t("notes.untitled")}
-                        </span>
-                      </button>
-                      {onNavigateToNote && (
-                        <button
-                          onClick={() => onNavigateToNote(note.id)}
-                          className="p-0.5 opacity-0 group-hover:opacity-100 text-notion-text-secondary hover:text-notion-text transition-opacity shrink-0"
-                          title={t("ideas.materials")}
-                        >
-                          <Package size={12} />
-                        </button>
-                      )}
-                      {onDeleteNote && (
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            onDeleteNote(note.id);
-                          }}
-                          className="p-0.5 opacity-0 group-hover:opacity-100 text-notion-text-secondary hover:text-red-500 transition-opacity shrink-0"
-                        >
-                          <Trash2 size={12} />
-                        </button>
-                      )}
-                    </div>
-                  ))}
+                  {matchingNotes.map((note) => renderNoteItem(note, true))}
                 </div>
               </div>
             )}
@@ -538,128 +609,12 @@ export function ConnectSidebar({
         {!isSearching && hasFavorites && (
           <CollapsibleSection
             label={t("ideas.favorites")}
-            icon={<Heart size={15} />}
+            icon={<Heart size={12} />}
             isOpen={sections.favorites}
             onToggle={() => toggleSection("favorites")}
           >
-            {pinnedNotes.map((note) => (
-              <div
-                key={note.id}
-                data-sidebar-item
-                data-sidebar-active={
-                  sidebarSelectedItemId === note.id || undefined
-                }
-                className={`group flex items-center gap-1.5 px-2 py-1.5 rounded transition-colors ${
-                  sidebarSelectedItemId === note.id
-                    ? "bg-notion-accent/10"
-                    : "hover:bg-notion-hover"
-                }`}
-                onClick={() => handleItemClick(note.id)}
-              >
-                <button
-                  onClick={() => handleItemClick(note.id)}
-                  className="flex-1 flex items-center gap-1.5 min-w-0 text-left"
-                >
-                  <Heart
-                    size={15}
-                    className="text-red-500 fill-current shrink-0"
-                  />
-                  <span className="flex-1 text-sm text-notion-text truncate">
-                    {note.title || t("notes.untitled")}
-                  </span>
-                </button>
-                <button
-                  ref={(el) => {
-                    if (el) editButtonRefs.current.set(note.id, el);
-                  }}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setEditingEntityId(
-                      editingEntityId === note.id ? null : note.id,
-                    );
-                  }}
-                  className="p-0.5 opacity-0 group-hover:opacity-100 text-notion-text-secondary hover:text-notion-text transition-opacity shrink-0"
-                  title={t("ideas.editItem")}
-                >
-                  <Pencil size={12} />
-                </button>
-                {onNavigateToNote && (
-                  <button
-                    onClick={() => onNavigateToNote(note.id)}
-                    className="p-0.5 opacity-0 group-hover:opacity-100 text-notion-text-secondary hover:text-notion-text transition-opacity shrink-0"
-                    title={t("ideas.materials")}
-                  >
-                    <Package size={12} />
-                  </button>
-                )}
-                {onDeleteNote && (
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onDeleteNote(note.id);
-                    }}
-                    className="p-0.5 opacity-0 group-hover:opacity-100 text-notion-text-secondary hover:text-red-500 transition-opacity shrink-0"
-                  >
-                    <Trash2 size={12} />
-                  </button>
-                )}
-              </div>
-            ))}
-            {pinnedMemos.map((memo) => (
-              <div
-                key={memo.id}
-                data-sidebar-item
-                data-sidebar-active={
-                  sidebarSelectedItemId === memo.id || undefined
-                }
-                className={`group flex items-center gap-2 px-2 py-1.5 rounded text-left transition-colors ${
-                  sidebarSelectedItemId === memo.id
-                    ? "bg-notion-accent/10"
-                    : "hover:bg-notion-hover"
-                }`}
-                onClick={() => handleItemClick(memo.id)}
-              >
-                <button
-                  onClick={() => handleItemClick(memo.id)}
-                  className="flex-1 flex items-center gap-1.5 min-w-0 text-left"
-                >
-                  <BookOpen
-                    size={15}
-                    className="text-notion-text-secondary shrink-0"
-                  />
-                  <span className="flex-1 text-sm text-notion-text truncate">
-                    {formatDisplayDate(memo.date)}
-                  </span>
-                  {renderTagDots(memo.id)}
-                </button>
-                <button
-                  ref={(el) => {
-                    if (el) editButtonRefs.current.set(memo.id, el);
-                  }}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setEditingEntityId(
-                      editingEntityId === memo.id ? null : memo.id,
-                    );
-                  }}
-                  className="p-0.5 opacity-0 group-hover:opacity-100 text-notion-text-secondary hover:text-notion-text transition-opacity shrink-0"
-                  title={t("ideas.editItem")}
-                >
-                  <Pencil size={12} />
-                </button>
-                {onDeleteMemo && (
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onDeleteMemo(memo.date);
-                    }}
-                    className="p-0.5 opacity-0 group-hover:opacity-100 text-notion-text-secondary hover:text-red-500 transition-opacity shrink-0"
-                  >
-                    <Trash2 size={12} />
-                  </button>
-                )}
-              </div>
-            ))}
+            {pinnedNotes.map((note) => renderNoteItem(note))}
+            {pinnedMemos.map((memo) => renderMemoItem(memo))}
           </CollapsibleSection>
         )}
 
@@ -667,7 +622,7 @@ export function ConnectSidebar({
         {!isSearching && (
           <CollapsibleSection
             label={t("ideas.notes")}
-            icon={<StickyNote size={15} />}
+            icon={<StickyNote size={12} />}
             isOpen={sections.notes}
             onToggle={() => toggleSection("notes")}
             rightAction={
@@ -718,77 +673,7 @@ export function ConnectSidebar({
                   : t("notes.noNotes")}
               </p>
             ) : (
-              filteredNotes.map((note) => (
-                <div
-                  key={note.id}
-                  data-sidebar-item
-                  data-sidebar-active={
-                    sidebarSelectedItemId === note.id || undefined
-                  }
-                  className={`group flex items-center gap-1.5 px-2 py-1.5 rounded transition-colors ${
-                    sidebarSelectedItemId === note.id
-                      ? "bg-notion-accent/10"
-                      : "hover:bg-notion-hover"
-                  }`}
-                  onClick={() => handleItemClick(note.id)}
-                >
-                  <button
-                    onClick={() => handleItemClick(note.id)}
-                    className="flex-1 flex items-center gap-1.5 min-w-0 text-left"
-                  >
-                    {note.isPinned ? (
-                      <Heart
-                        size={15}
-                        className="text-red-500 fill-current shrink-0"
-                      />
-                    ) : (
-                      <StickyNote
-                        size={15}
-                        className="text-notion-text-secondary shrink-0"
-                      />
-                    )}
-                    <span className="flex-1 text-sm text-notion-text truncate">
-                      {note.title || t("notes.untitled")}
-                    </span>
-                    {renderTagDots(note.id)}
-                  </button>
-                  <button
-                    ref={(el) => {
-                      if (el) editButtonRefs.current.set(note.id, el);
-                    }}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setEditingEntityId(
-                        editingEntityId === note.id ? null : note.id,
-                      );
-                    }}
-                    className="p-0.5 opacity-0 group-hover:opacity-100 text-notion-text-secondary hover:text-notion-text transition-opacity shrink-0"
-                    title={t("ideas.editItem")}
-                  >
-                    <Pencil size={12} />
-                  </button>
-                  {onNavigateToNote && (
-                    <button
-                      onClick={() => onNavigateToNote(note.id)}
-                      className="p-0.5 opacity-0 group-hover:opacity-100 text-notion-text-secondary hover:text-notion-text transition-opacity shrink-0"
-                      title={t("ideas.materials")}
-                    >
-                      <Package size={12} />
-                    </button>
-                  )}
-                  {onDeleteNote && (
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onDeleteNote(note.id);
-                      }}
-                      className="p-0.5 opacity-0 group-hover:opacity-100 text-notion-text-secondary hover:text-red-500 transition-opacity shrink-0"
-                    >
-                      <Trash2 size={12} />
-                    </button>
-                  )}
-                </div>
-              ))
+              filteredNotes.map((note) => renderNoteItem(note))
             )}
           </CollapsibleSection>
         )}
@@ -797,7 +682,7 @@ export function ConnectSidebar({
         {!isSearching && (
           <CollapsibleSection
             label={t("ideas.daily")}
-            icon={<BookOpen size={15} />}
+            icon={<BookOpen size={12} />}
             isOpen={sections.daily}
             onToggle={() => toggleSection("daily")}
             rightAction={
@@ -846,68 +731,7 @@ export function ConnectSidebar({
                   itemCount={group.memos.length}
                   defaultOpen={groupIndex === 0}
                 >
-                  {group.memos.map((memo) => (
-                    <div
-                      key={memo.id}
-                      data-sidebar-item
-                      data-sidebar-active={
-                        sidebarSelectedItemId === memo.id || undefined
-                      }
-                      className={`group flex items-center gap-2 px-2 py-1.5 rounded text-left transition-colors ${
-                        sidebarSelectedItemId === memo.id
-                          ? "bg-notion-accent/10"
-                          : "hover:bg-notion-hover"
-                      }`}
-                      onClick={() => handleItemClick(memo.id)}
-                    >
-                      <button
-                        onClick={() => handleItemClick(memo.id)}
-                        className="flex-1 flex items-center gap-1.5 min-w-0 text-left"
-                      >
-                        {memo.isPinned ? (
-                          <Heart
-                            size={15}
-                            className="text-red-500 fill-current shrink-0"
-                          />
-                        ) : (
-                          <BookOpen
-                            size={15}
-                            className="text-notion-text-secondary shrink-0"
-                          />
-                        )}
-                        <span className="flex-1 text-sm text-notion-text truncate">
-                          {formatDisplayDate(memo.date)}
-                        </span>
-                        {renderTagDots(memo.id)}
-                      </button>
-                      <button
-                        ref={(el) => {
-                          if (el) editButtonRefs.current.set(memo.id, el);
-                        }}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setEditingEntityId(
-                            editingEntityId === memo.id ? null : memo.id,
-                          );
-                        }}
-                        className="p-0.5 opacity-0 group-hover:opacity-100 text-notion-text-secondary hover:text-notion-text transition-opacity shrink-0"
-                        title={t("ideas.editItem")}
-                      >
-                        <Pencil size={12} />
-                      </button>
-                      {onDeleteMemo && (
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            onDeleteMemo(memo.date);
-                          }}
-                          className="p-0.5 opacity-0 group-hover:opacity-100 text-notion-text-secondary hover:text-red-500 transition-opacity shrink-0"
-                        >
-                          <Trash2 size={12} />
-                        </button>
-                      )}
-                    </div>
-                  ))}
+                  {group.memos.map((memo) => renderMemoItem(memo))}
                 </MonthGroup>
               ))
             )}

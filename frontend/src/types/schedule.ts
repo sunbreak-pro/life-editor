@@ -9,6 +9,7 @@ export interface ScheduleItem {
   routineId: string | null;
   templateId: string | null;
   memo: string | null;
+  isDismissed?: boolean;
   createdAt: string;
   updatedAt: string;
 }

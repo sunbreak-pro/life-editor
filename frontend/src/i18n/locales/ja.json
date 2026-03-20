@@ -273,7 +273,13 @@
     "deleteBoardConfirm": "このボードを削除しますか？この操作は元に戻せません。",
     "addCard": "カードを追加",
     "addTextBlock": "テキストを追加",
-    "addFrame": "フレームを追加"
+    "addFrame": "フレームを追加",
+    "node": "ノード",
+    "board": "ボード",
+    "createBoard": "ボードを作成",
+    "linkToExistingNote": "既存ノートにリンク",
+    "newBlankBoard": "新規空白ボード",
+    "emptyBoardMessage": "ボードがまだありません。作成して始めましょう。"
   },
   "schedule": {
     "todayFlow": "Today Flow",
@@ -314,6 +320,15 @@
       "totalAchievedDays": "達成日数",
       "perRoutine": "ルーティン別",
       "monthlyHeatmap": "90日間ヒートマップ"
+    },
+    "routineDeleteConfirm": {
+      "title": "ルーティンを削除",
+      "description": "「{{title}}」をどのように削除しますか？",
+      "dismissOnly": "今回のみ削除",
+      "dismissOnlyDesc": "今日のスケジュールから非表示にします。明日以降は通常通り表示されます。",
+      "archiveRoutine": "今後のルーティンからも削除",
+      "archiveRoutineDesc": "ルーティンをアーカイブし、今後自動生成されなくなります。ルーティン管理画面から復元できます。",
+      "cancel": "キャンセル"
     }
   },
   "analytics": {

@@ -55,8 +55,12 @@ export function TimeGridTaskBlock({
       : "#4338CA";
   const borderColor = isCompleted ? "#9CA3AF" : textColor;
   const isCompact = height < 40;
+  const isTiny = height < 24;
   const hasTimeMemo = !!task.timeMemo;
   const [showInlineMemo, setShowInlineMemo] = useState(false);
+  const [isHovered, setIsHovered] = useState(false);
+
+  const hoveredHeight = isTiny && isHovered ? 40 : Math.max(height, 20);
 
   return (
     <div
@@ -68,18 +72,24 @@ export function TimeGridTaskBlock({
       }}
       onMouseDown={dragHandlers?.onMouseDown}
       onTouchStart={dragHandlers?.onTouchStart}
-      className={`absolute rounded-md overflow-hidden cursor-pointer hover:opacity-90 transition-opacity text-left group ${
-        isCompleted ? "opacity-50" : ""
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+      className={`absolute rounded-md overflow-hidden cursor-pointer text-left group ${
+        isCompleted ? "opacity-50" : "opacity-70"
       }`}
       style={{
         top,
         left,
         width,
-        height: Math.max(height, 20),
+        height: hoveredHeight,
         backgroundColor: bgColor,
         borderLeft: `3px solid ${borderColor}`,
-        zIndex: 10,
+        zIndex: isHovered ? 40 : 10,
         opacity: isDragging ? 0.4 : undefined,
+        boxShadow: isHovered ? "0 4px 12px rgba(0,0,0,0.15)" : undefined,
+        transform: isHovered ? "scale(1.02)" : undefined,
+        transformOrigin: "left top",
+        transition: "box-shadow 0.15s, transform 0.15s, height 0.15s",
       }}
     >
       {/* Resize handle - top */}
@@ -149,6 +159,11 @@ export function TimeGridTaskBlock({
             <div className="text-[10px] truncate opacity-70">
               {formatTimeRangeCompact(task.scheduledAt, task.scheduledEndAt)}
             </div>
+          )}
+          {!showInlineMemo && isCompact && task.scheduledAt && (
+            <span className="text-[9px] truncate opacity-60 ml-1">
+              {formatTimeRangeCompact(task.scheduledAt, task.scheduledEndAt)}
+            </span>
           )}
         </div>
         {/* Navigate + Unschedule buttons */}

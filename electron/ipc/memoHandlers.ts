@@ -1,68 +1,59 @@
-import { ipcMain } from "electron";
-import { loggedHandler } from "./handlerUtil";
-import { broadcastChange } from "../server/broadcast";
+import { query, mutation } from "./handlerUtil";
 import type { MemoRepository } from "../database/memoRepository";
 
 export function registerMemoHandlers(repo: MemoRepository): void {
-  ipcMain.handle(
-    "db:memo:fetchAll",
-    loggedHandler("Memo", "fetchAll", () => repo.fetchAll()),
+  query("db:memo:fetchAll", "Memo", "fetchAll", () => repo.fetchAll());
+
+  query("db:memo:fetchByDate", "Memo", "fetchByDate", (_event, date: string) =>
+    repo.fetchByDate(date),
   );
 
-  ipcMain.handle(
-    "db:memo:fetchByDate",
-    loggedHandler("Memo", "fetchByDate", (_event, date: string) =>
-      repo.fetchByDate(date),
-    ),
+  query("db:memo:fetchDeleted", "Memo", "fetchDeleted", () =>
+    repo.fetchDeleted(),
   );
 
-  ipcMain.handle(
+  mutation(
     "db:memo:upsert",
-    loggedHandler("Memo", "upsert", (_event, date: string, content: string) => {
-      const result = repo.upsert(date, content);
-      broadcastChange("memo", "update", date);
-      return result;
-    }),
+    "Memo",
+    "upsert",
+    "memo",
+    "update",
+    (_event, date: string, content: string) => repo.upsert(date, content),
   );
 
-  ipcMain.handle(
+  mutation(
     "db:memo:delete",
-    loggedHandler("Memo", "delete", (_event, date: string) => {
-      const result = repo.delete(date);
-      broadcastChange("memo", "delete", date);
-      return result;
-    }),
+    "Memo",
+    "delete",
+    "memo",
+    "delete",
+    (_event, date: string) => repo.delete(date),
   );
 
-  ipcMain.handle(
-    "db:memo:fetchDeleted",
-    loggedHandler("Memo", "fetchDeleted", () => repo.fetchDeleted()),
-  );
-
-  ipcMain.handle(
+  mutation(
     "db:memo:restore",
-    loggedHandler("Memo", "restore", (_event, date: string) => {
-      const result = repo.restore(date);
-      broadcastChange("memo", "update", date);
-      return result;
-    }),
+    "Memo",
+    "restore",
+    "memo",
+    "update",
+    (_event, date: string) => repo.restore(date),
   );
 
-  ipcMain.handle(
+  mutation(
     "db:memo:permanentDelete",
-    loggedHandler("Memo", "permanentDelete", (_event, date: string) => {
-      const result = repo.permanentDelete(date);
-      broadcastChange("memo", "delete", date);
-      return result;
-    }),
+    "Memo",
+    "permanentDelete",
+    "memo",
+    "delete",
+    (_event, date: string) => repo.permanentDelete(date),
   );
 
-  ipcMain.handle(
+  mutation(
     "db:memo:togglePin",
-    loggedHandler("Memo", "togglePin", (_event, date: string) => {
-      const result = repo.togglePin(date);
-      broadcastChange("memo", "update", date);
-      return result;
-    }),
+    "Memo",
+    "togglePin",
+    "memo",
+    "update",
+    (_event, date: string) => repo.togglePin(date),
   );
 }

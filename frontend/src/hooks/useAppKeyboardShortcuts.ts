@@ -68,7 +68,7 @@ export function useAppKeyboardShortcuts({
 
       if (matchEvent(e, "nav:tasks")) {
         e.preventDefault();
-        setActiveSection("tasks");
+        setActiveSection("schedule");
         return;
       }
       if (matchEvent(e, "nav:schedule")) {
@@ -109,7 +109,7 @@ export function useAppKeyboardShortcuts({
       if (matchEvent(e, "global:new-task")) {
         e.preventDefault();
         let parentId: string | null = null;
-        if (activeSection === "tasks" && selectedTaskId) {
+        if (activeSection === "schedule" && selectedTaskId) {
           const selected = nodes.find((n) => n.id === selectedTaskId);
           if (selected) {
             parentId =

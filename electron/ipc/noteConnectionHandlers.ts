@@ -1,48 +1,44 @@
-import { ipcMain } from "electron";
-import { loggedHandler } from "./handlerUtil";
-import { broadcastChange } from "../server/broadcast";
+import { query, mutation } from "./handlerUtil";
 import type { NoteConnectionRepository } from "../database/noteConnectionRepository";
 
 export function registerNoteConnectionHandlers(
   repo: NoteConnectionRepository,
 ): void {
-  ipcMain.handle(
-    "db:noteConnections:fetchAll",
-    loggedHandler("NoteConnections", "fetchAll", () => {
-      return repo.fetchAll();
-    }),
+  query("db:noteConnections:fetchAll", "NoteConnections", "fetchAll", () =>
+    repo.fetchAll(),
   );
 
-  ipcMain.handle(
+  mutation(
     "db:noteConnections:create",
-    loggedHandler(
-      "NoteConnections",
-      "create",
-      (_event, sourceNoteId: string, targetNoteId: string) => {
-        const result = repo.create(sourceNoteId, targetNoteId);
-        broadcastChange("noteConnection", "create", result?.id);
-        return result;
-      },
-    ),
+    "NoteConnections",
+    "create",
+    "noteConnection",
+    "create",
+    (_event, sourceNoteId: string, targetNoteId: string) =>
+      repo.create(sourceNoteId, targetNoteId),
+    (_args, result) => (result as { id?: string })?.id,
   );
 
-  ipcMain.handle(
+  mutation(
     "db:noteConnections:delete",
-    loggedHandler("NoteConnections", "delete", (_event, id: string) => {
+    "NoteConnections",
+    "delete",
+    "noteConnection",
+    "delete",
+    (_event, id: string) => {
       repo.delete(id);
-      broadcastChange("noteConnection", "delete", id);
-    }),
+    },
   );
 
-  ipcMain.handle(
+  mutation(
     "db:noteConnections:deleteByNotePair",
-    loggedHandler(
-      "NoteConnections",
-      "deleteByNotePair",
-      (_event, sourceNoteId: string, targetNoteId: string) => {
-        repo.deleteByNotePair(sourceNoteId, targetNoteId);
-        broadcastChange("noteConnection", "delete");
-      },
-    ),
+    "NoteConnections",
+    "deleteByNotePair",
+    "noteConnection",
+    "delete",
+    (_event, sourceNoteId: string, targetNoteId: string) => {
+      repo.deleteByNotePair(sourceNoteId, targetNoteId);
+    },
+    () => undefined,
   );
 }

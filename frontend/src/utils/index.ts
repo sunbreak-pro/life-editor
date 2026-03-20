@@ -17,4 +17,3 @@ export { logServiceError } from "./logError";
 export { isMac, modSymbol, modKey, formatShortcut } from "./platform";
 export { playEffectSound } from "./playEffectSound";
 export { isValidUrl } from "./urlValidation";
-export { validateTaskTitle } from "./validation";

@@ -16,6 +16,7 @@ interface ScheduleItemBlockProps {
   onToggleComplete: (id: string) => void;
   onUpdateMemo?: (id: string, memo: string | null) => void;
   onDelete?: (id: string) => void;
+  onRequestRoutineDelete?: (item: ScheduleItem, e: React.MouseEvent) => void;
   dragHandlers?: DragHandlers;
   resizeTopHandlers?: DragHandlers;
   resizeBottomHandlers?: DragHandlers;
@@ -36,6 +37,7 @@ export function ScheduleItemBlock({
   onToggleComplete,
   onUpdateMemo,
   onDelete,
+  onRequestRoutineDelete,
   dragHandlers,
   resizeTopHandlers,
   resizeBottomHandlers,
@@ -44,12 +46,16 @@ export function ScheduleItemBlock({
   hasMovedRef,
 }: ScheduleItemBlockProps) {
   const isCompact = height < 36;
+  const isTiny = height < 24;
   const [showInlineMemo, setShowInlineMemo] = useState(false);
+  const [isHovered, setIsHovered] = useState(false);
   const hasMemo = !!item.memo;
+
+  const hoveredHeight = isTiny && isHovered ? 40 : Math.max(height, 20);
 
   return (
     <div
-      className={`absolute rounded-md overflow-hidden transition-all cursor-pointer group ${
+      className={`absolute rounded-md overflow-hidden cursor-pointer group ${
         item.completed
           ? "opacity-40"
           : isNext
@@ -60,7 +66,7 @@ export function ScheduleItemBlock({
         top,
         left: 4,
         right: hasTaskOverlap ? "40%" : 4,
-        height: Math.max(height, 20),
+        height: hoveredHeight,
         backgroundColor: item.completed
           ? "rgba(34, 197, 94, 0.08)"
           : item.routineId
@@ -73,8 +79,12 @@ export function ScheduleItemBlock({
               ? "var(--color-notion-accent)"
               : "var(--color-notion-text-secondary)"
         }`,
-        zIndex: isNext ? 15 : 10,
+        zIndex: isHovered ? 40 : isNext ? 15 : 10,
         opacity: isDragging ? 0.4 : undefined,
+        boxShadow: isHovered ? "0 4px 12px rgba(0,0,0,0.15)" : undefined,
+        transform: isHovered ? "scale(1.02)" : undefined,
+        transformOrigin: "left top",
+        transition: "box-shadow 0.15s, transform 0.15s, height 0.15s",
       }}
       onClick={(e) => {
         if (isDragging) return;
@@ -84,6 +94,8 @@ export function ScheduleItemBlock({
       }}
       onMouseDown={dragHandlers?.onMouseDown}
       onTouchStart={dragHandlers?.onTouchStart}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
     >
       {/* Resize handle - top */}
       <div
@@ -170,7 +182,11 @@ export function ScheduleItemBlock({
               <button
                 onClick={(e) => {
                   e.stopPropagation();
-                  onDelete(item.id);
+                  if (item.routineId && onRequestRoutineDelete) {
+                    onRequestRoutineDelete(item, e);
+                  } else {
+                    onDelete(item.id);
+                  }
                 }}
                 className="p-0.5 rounded text-notion-text-secondary/60 hover:text-red-500 transition-all"
               >

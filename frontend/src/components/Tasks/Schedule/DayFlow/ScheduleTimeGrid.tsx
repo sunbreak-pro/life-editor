@@ -6,12 +6,18 @@ import { TimeGridTaskBlock } from "../Calendar/TimeGridTaskBlock";
 import { ScheduleItemBlock } from "./ScheduleItemBlock";
 import { formatDateKey } from "../../../../utils/dateKey";
 import { useTimeGridDrag } from "../../../../hooks/useTimeGridDrag";
+import {
+  minutesToTimeString,
+  topToMinutes,
+  timeToMinutes,
+} from "../../../../utils/timeGridUtils";
 
 const HOURS = Array.from(
   { length: TIME_GRID.END_HOUR - TIME_GRID.START_HOUR },
   (_, i) => i + TIME_GRID.START_HOUR,
 );
 const GUTTER_WIDTH = 52;
+const STAGGER_OFFSET = 24;
 
 interface PositionedTask {
   task: TaskNode;
@@ -34,22 +40,6 @@ function formatHour(hour: number): string {
   if (hour < 12) return `${hour} AM`;
   if (hour === 12) return "12 PM";
   return `${hour - 12} PM`;
-}
-
-function timeToMinutes(time: string): number {
-  const [h, m] = time.split(":").map(Number);
-  return h * 60 + m;
-}
-
-function minutesToTimeString(totalMinutes: number): string {
-  const clamped = Math.max(0, Math.min(totalMinutes, 24 * 60));
-  const h = Math.floor(clamped / 60);
-  const m = clamped % 60;
-  return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
-}
-
-function topToMinutes(top: number): number {
-  return (top / TIME_GRID.SLOT_HEIGHT) * 60 + TIME_GRID.START_HOUR * 60;
 }
 
 function rangesOverlap(
@@ -102,48 +92,55 @@ function layoutTasksWithOverlap(
 
   positioned.sort((a, b) => a.top - b.top);
 
-  // Group overlapping tasks
+  // Greedy column assignment: place each task in the first column where it doesn't overlap
+  const columnEnds: number[] = [];
+  for (const item of positioned) {
+    const itemEnd = item.top + item.height;
+    let placed = false;
+    for (let col = 0; col < columnEnds.length; col++) {
+      if (item.top >= columnEnds[col]) {
+        item.column = col;
+        columnEnds[col] = itemEnd;
+        placed = true;
+        break;
+      }
+    }
+    if (!placed) {
+      item.column = columnEnds.length;
+      columnEnds.push(itemEnd);
+    }
+  }
+
+  // Group overlapping tasks to determine totalColumns per group
   const groups: PositionedTask[][] = [];
   for (const item of positioned) {
     let placed = false;
     for (const group of groups) {
-      const overlaps = group.some((g) =>
-        rangesOverlap(item.top, item.height, g.top, g.height),
-      );
-      if (overlaps) {
-        item.column = group.length;
+      if (
+        group.some((g) => rangesOverlap(item.top, item.height, g.top, g.height))
+      ) {
         group.push(item);
         placed = true;
         break;
       }
     }
     if (!placed) {
-      item.column = 0;
       groups.push([item]);
     }
   }
 
   for (const group of groups) {
-    const total = Math.min(group.length, 5);
+    const maxCol = Math.max(...group.map((g) => g.column)) + 1;
     for (const item of group) {
-      item.totalColumns = total;
+      item.totalColumns = maxCol;
     }
   }
 
-  // Check overlap with schedule items
+  // Check overlap with schedule items (per-task only, no group propagation)
   for (const pt of positioned) {
     pt.overlapsRoutine = positionedItems.some((pi) =>
       rangesOverlap(pt.top, pt.height, pi.top, pi.height),
     );
-  }
-
-  // Propagate within groups: if any task in group overlaps, whole group overlaps
-  for (const group of groups) {
-    if (group.some((t) => t.overlapsRoutine)) {
-      for (const t of group) {
-        t.overlapsRoutine = true;
-      }
-    }
   }
 
   return positioned;
@@ -188,6 +185,7 @@ interface ScheduleTimeGridProps {
   externalScroll?: boolean;
   onToggleTaskStatus?: (taskId: string) => void;
   onDeleteScheduleItem?: (id: string) => void;
+  onRequestRoutineDelete?: (item: ScheduleItem, e: React.MouseEvent) => void;
   onUnscheduleTask?: (taskId: string) => void;
   onNavigateTask?: (taskId: string, e: React.MouseEvent) => void;
   onUpdateTaskTimeMemo?: (taskId: string, memo: string | null) => void;
@@ -207,6 +205,7 @@ export function ScheduleTimeGrid({
   externalScroll,
   onToggleTaskStatus,
   onDeleteScheduleItem,
+  onRequestRoutineDelete,
   onUnscheduleTask,
   onNavigateTask,
   onUpdateTaskTimeMemo,
@@ -301,6 +300,7 @@ export function ScheduleTimeGrid({
 
   const handleColumnClick = (e: React.MouseEvent<HTMLDivElement>) => {
     if (dragState.isDragging) return;
+    if (hasMovedRef.current) return;
 
     const rect = e.currentTarget.getBoundingClientRect();
     const y = e.clientY - rect.top;
@@ -375,7 +375,7 @@ export function ScheduleTimeGrid({
         )}
 
         {/* Task blocks */}
-        <div className="opacity-70">
+        <div>
           {positionedTasks.map((p) => (
             <TimeGridTaskBlock
               key={p.task.id}
@@ -384,13 +384,13 @@ export function ScheduleTimeGrid({
               height={p.height}
               left={
                 p.overlapsRoutine
-                  ? `${60 + (p.column / p.totalColumns) * 40}%`
-                  : `${(p.column / p.totalColumns) * 100}%`
+                  ? `calc(60% + ${p.column * STAGGER_OFFSET}px)`
+                  : `${p.column * STAGGER_OFFSET}px`
               }
               width={
                 p.overlapsRoutine
-                  ? `${(1 / p.totalColumns) * 40}%`
-                  : `${(1 / p.totalColumns) * 100}%`
+                  ? `calc(40% - ${p.column * STAGGER_OFFSET}px)`
+                  : `calc(100% - ${p.column * STAGGER_OFFSET}px)`
               }
               color={getTaskColor?.(p.task.id)}
               tag={getFolderTag?.(p.task.id)}
@@ -438,6 +438,7 @@ export function ScheduleTimeGrid({
             onToggleComplete={onToggleComplete}
             onUpdateMemo={onUpdateMemo}
             onDelete={onDeleteScheduleItem}
+            onRequestRoutineDelete={onRequestRoutineDelete}
             dragHandlers={getDragHandlers(
               p.item.id,
               "schedule",

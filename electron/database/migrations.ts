@@ -165,6 +165,26 @@ export function runMigrations(db: Database.Database): void {
     migrateV36(db);
   }
 
+  if (currentVersion < 37) {
+    log.info("[DB] Running migration V37");
+    migrateV37(db);
+  }
+
+  if (currentVersion < 38) {
+    log.info("[DB] Running migration V38");
+    migrateV38(db);
+  }
+
+  if (currentVersion < 39) {
+    log.info("[DB] Running migration V39");
+    migrateV39(db);
+  }
+
+  if (currentVersion < 40) {
+    log.info("[DB] Running migration V40");
+    migrateV40(db);
+  }
+
   const newVersion = db.pragma("user_version", { simple: true }) as number;
   if (newVersion !== currentVersion) {
     log.info(`[DB] Schema migrated: ${currentVersion} → ${newVersion}`);
@@ -1296,6 +1316,127 @@ function migrateV35(db: Database.Database) {
     db.exec(`ALTER TABLE tasks ADD COLUMN time_memo TEXT DEFAULT NULL`);
   }
   db.pragma("user_version = 35");
+}
+
+function migrateV37(db: Database.Database): void {
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS chaos_settings (
+      key TEXT PRIMARY KEY,
+      value TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS chaos_display_log (
+      id TEXT PRIMARY KEY,
+      entity_id TEXT NOT NULL,
+      entity_type TEXT NOT NULL CHECK(entity_type IN ('memo', 'note')),
+      display_type TEXT NOT NULL CHECK(display_type IN ('oracle', 'timecapsule', 'drift')),
+      displayed_at TEXT NOT NULL,
+      created_at TEXT NOT NULL
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_chaos_log_entity ON chaos_display_log(entity_id);
+    CREATE INDEX IF NOT EXISTS idx_chaos_log_displayed ON chaos_display_log(displayed_at);
+
+    PRAGMA user_version = 37;
+  `);
+}
+
+function migrateV38(db: Database.Database): void {
+  // FK must be disabled outside transaction for SQLite
+  db.pragma("foreign_keys = OFF");
+
+  const migrate = db.transaction(() => {
+    // Recreate tasks table with updated CHECK constraint for 3-state status
+    db.exec(`
+      CREATE TABLE tasks_new (
+        id TEXT PRIMARY KEY,
+        type TEXT NOT NULL CHECK(type IN ('folder', 'task')),
+        title TEXT NOT NULL DEFAULT '',
+        parent_id TEXT,
+        "order" INTEGER NOT NULL DEFAULT 0,
+        status TEXT CHECK(status IN ('NOT_STARTED', 'IN_PROGRESS', 'DONE')),
+        is_expanded INTEGER DEFAULT 0,
+        is_deleted INTEGER DEFAULT 0,
+        deleted_at TEXT,
+        created_at TEXT NOT NULL,
+        completed_at TEXT,
+        content TEXT,
+        work_duration_minutes INTEGER,
+        color TEXT,
+        due_date TEXT,
+        scheduled_at TEXT,
+        scheduled_end_at TEXT,
+        is_all_day INTEGER DEFAULT 0,
+        time_memo TEXT DEFAULT NULL,
+        version INTEGER NOT NULL DEFAULT 1,
+        updated_at TEXT,
+        FOREIGN KEY (parent_id) REFERENCES tasks_new(id)
+      );
+    `);
+
+    // Copy data, converting TODO → NOT_STARTED
+    db.exec(`
+      INSERT INTO tasks_new
+        SELECT id, type, title, parent_id, "order",
+          CASE
+            WHEN status = 'TODO' THEN 'NOT_STARTED'
+            WHEN status = 'DONE' THEN 'DONE'
+            ELSE 'NOT_STARTED'
+          END AS status,
+          is_expanded, is_deleted, deleted_at, created_at, completed_at,
+          content, work_duration_minutes, color, due_date,
+          scheduled_at, scheduled_end_at, is_all_day, time_memo,
+          version, updated_at
+        FROM tasks;
+    `);
+
+    // Clean up orphan parent_id references before renaming
+    db.exec(`
+      UPDATE tasks_new SET parent_id = NULL
+      WHERE parent_id IS NOT NULL
+        AND parent_id NOT IN (SELECT id FROM tasks_new);
+    `);
+
+    db.exec(`DROP TABLE tasks;`);
+    db.exec(`ALTER TABLE tasks_new RENAME TO tasks;`);
+
+    // Recreate all indexes
+    db.exec(`
+      CREATE INDEX IF NOT EXISTS idx_tasks_parent ON tasks(parent_id);
+      CREATE INDEX IF NOT EXISTS idx_tasks_deleted ON tasks(is_deleted);
+      CREATE INDEX IF NOT EXISTS idx_tasks_updated_at ON tasks(updated_at);
+    `);
+  });
+  migrate();
+
+  db.pragma("foreign_keys = ON");
+  // Verify FK integrity after re-enable
+  const fkViolations = db.pragma("foreign_key_check");
+  if ((fkViolations as unknown[]).length > 0) {
+    log.error("[DB] Foreign key violations after V38 migration:", fkViolations);
+  }
+  db.pragma("user_version = 38");
+}
+
+function migrateV39(db: Database.Database): void {
+  // Repair orphan parent_id references left by V38 migration
+  // V38 added FK constraint but didn't clean existing orphan data
+  db.exec(`
+    UPDATE tasks SET parent_id = NULL
+    WHERE parent_id IS NOT NULL
+      AND parent_id NOT IN (SELECT id FROM tasks);
+  `);
+  db.pragma("user_version = 39");
+}
+
+function migrateV40(db: Database.Database): void {
+  if (!hasColumn(db, "schedule_items", "is_dismissed")) {
+    db.exec(
+      `ALTER TABLE schedule_items ADD COLUMN is_dismissed INTEGER NOT NULL DEFAULT 0`,
+    );
+  }
+  db.pragma("user_version = 40");
 }
 
 function migrateV36(db: Database.Database): void {

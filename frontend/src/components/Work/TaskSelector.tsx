@@ -111,7 +111,7 @@ export function TaskSelector({ currentTitle }: TaskSelectorProps) {
 
     const countTodoTasks = (parentId: string): number => {
       return getChildren(parentId).reduce((acc, child) => {
-        if (child.type === "task" && child.status === "TODO") return acc + 1;
+        if (child.type === "task" && child.status !== "DONE") return acc + 1;
         if (child.type === "folder") return acc + countTodoTasks(child.id);
         return acc;
       }, 0);
@@ -119,7 +119,7 @@ export function TaskSelector({ currentTitle }: TaskSelectorProps) {
 
     const hasMatchingTask = (parentId: string, text: string): boolean => {
       return getChildren(parentId).some((child) => {
-        if (child.type === "task" && child.status === "TODO")
+        if (child.type === "task" && child.status !== "DONE")
           return child.title.toLowerCase().includes(text);
         if (child.type === "folder") return hasMatchingTask(child.id, text);
         return false;
@@ -130,7 +130,7 @@ export function TaskSelector({ currentTitle }: TaskSelectorProps) {
       const children = getChildren(parentId);
       // Tasks at this level
       const tasks = children.filter(
-        (c) => c.type === "task" && c.status === "TODO",
+        (c) => c.type === "task" && c.status !== "DONE",
       );
       const filtered = filterText
         ? tasks.filter((t) => t.title.toLowerCase().includes(filterText))
@@ -172,7 +172,7 @@ export function TaskSelector({ currentTitle }: TaskSelectorProps) {
         const ch = getChildren(pid);
         const searchText = parsedInput.taskName.toLowerCase();
         const tasks = ch.filter(
-          (c) => c.type === "task" && c.status === "TODO",
+          (c) => c.type === "task" && c.status !== "DONE",
         );
         const matched = searchText
           ? tasks.filter((t) => t.title.toLowerCase().includes(searchText))
@@ -191,7 +191,7 @@ export function TaskSelector({ currentTitle }: TaskSelectorProps) {
     // Inbox (root tasks)
     const rootChildren = getChildren(null);
     const inboxTasks = rootChildren.filter(
-      (n) => n.type === "task" && n.status === "TODO",
+      (n) => n.type === "task" && n.status !== "DONE",
     );
     const filteredInbox = filterText
       ? inboxTasks.filter((t) => t.title.toLowerCase().includes(filterText))

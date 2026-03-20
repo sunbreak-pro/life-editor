@@ -61,7 +61,7 @@ export function useAppCommands({
         category: "Navigation",
         shortcut: getDisplayString("nav:tasks"),
         icon: ListTodo,
-        action: () => setActiveSection("tasks"),
+        action: () => setActiveSection("schedule"),
       },
       {
         id: "nav-schedule",

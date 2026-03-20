@@ -9,7 +9,7 @@ function makeTask(overrides: Partial<TaskNode> = {}): TaskNode {
     title: "Test",
     parentId: null,
     order: 0,
-    status: "TODO",
+    status: "NOT_STARTED",
     createdAt: "2026-01-15T00:00:00.000Z",
     ...overrides,
   };
@@ -34,7 +34,7 @@ describe("useCalendar", () => {
       const tasks = [
         makeTask({
           id: "task-1",
-          status: "TODO",
+          status: "NOT_STARTED",
           scheduledAt: "2026-01-15T10:00:00.000Z",
         }),
         makeTask({
@@ -55,7 +55,7 @@ describe("useCalendar", () => {
       const tasks = [
         makeTask({
           id: "task-1",
-          status: "TODO",
+          status: "NOT_STARTED",
           scheduledAt: "2026-01-15T10:00:00.000Z",
         }),
         makeTask({

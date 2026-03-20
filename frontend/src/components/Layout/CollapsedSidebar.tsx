@@ -19,7 +19,6 @@ const mainItems: {
   labelKey: string;
   icon: typeof CheckSquare;
 }[] = [
-  { id: "tasks", labelKey: "sidebar.tasks", icon: CheckSquare },
   { id: "schedule", labelKey: "sidebar.schedule", icon: Calendar },
   { id: "ideas", labelKey: "sidebar.ideas", icon: Lightbulb },
   { id: "work", labelKey: "sidebar.work", icon: Play },

@@ -273,7 +273,13 @@
     "deleteBoardConfirm": "Are you sure you want to delete this board? This action cannot be undone.",
     "addCard": "Add Card",
     "addTextBlock": "Add Text",
-    "addFrame": "Add Frame"
+    "addFrame": "Add Frame",
+    "node": "Node",
+    "board": "Board",
+    "createBoard": "Create Board",
+    "linkToExistingNote": "Link to existing note",
+    "newBlankBoard": "New blank board",
+    "emptyBoardMessage": "No boards yet. Create one to get started."
   },
   "schedule": {
     "todayFlow": "Today Flow",
@@ -314,6 +320,15 @@
       "totalAchievedDays": "Days",
       "perRoutine": "Per Routine",
       "monthlyHeatmap": "90-Day Heatmap"
+    },
+    "routineDeleteConfirm": {
+      "title": "Delete Routine",
+      "description": "How would you like to remove \"{{title}}\"?",
+      "dismissOnly": "Remove for today only",
+      "dismissOnlyDesc": "Hides it from today's schedule. It will appear again tomorrow.",
+      "archiveRoutine": "Remove from future schedules",
+      "archiveRoutineDesc": "Archives the routine so it won't be auto-generated anymore. You can restore it from routine management.",
+      "cancel": "Cancel"
     }
   },
   "analytics": {

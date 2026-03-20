@@ -18,6 +18,7 @@ interface UseTaskDetailHandlersParams {
   toggleTaskStatus: (id: string) => void;
   setSelectedTaskId: (id: string | null) => void;
   setActiveSection: (section: SectionId) => void;
+  setScheduleTab?: (tab: string) => void;
   setMemoDate: (date: string) => void;
   createNote?: (title?: string) => string;
 }
@@ -32,6 +33,7 @@ export function useTaskDetailHandlers({
   toggleTaskStatus,
   setSelectedTaskId,
   setActiveSection,
+  setScheduleTab,
   setMemoDate,
   createNote,
 }: UseTaskDetailHandlersParams) {
@@ -139,15 +141,17 @@ export function useTaskDetailHandlers({
     timer.reset();
     if (timer.showCompletionModal) timer.dismissCompletionModal();
     timer.clearTask();
-    setActiveSection("tasks");
-  }, [timer, toggleTaskStatus, setActiveSection]);
+    setActiveSection("schedule");
+    setScheduleTab?.("tasks");
+  }, [timer, toggleTaskStatus, setActiveSection, setScheduleTab]);
 
   const handleCalendarSelectTask = useCallback(
     (taskId: string) => {
       setSelectedTaskId(taskId);
-      setActiveSection("tasks");
+      setActiveSection("schedule");
+      setScheduleTab?.("tasks");
     },
-    [setSelectedTaskId, setActiveSection],
+    [setSelectedTaskId, setActiveSection, setScheduleTab],
   );
 
   const handleCalendarCreateTask = useCallback(

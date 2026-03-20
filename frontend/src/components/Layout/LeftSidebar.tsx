@@ -10,6 +10,7 @@ import {
 import type { SectionId } from "../../types/taskTree";
 import { useTimerContext } from "../../hooks/useTimerContext";
 import { useTranslation } from "react-i18next";
+import { ChaosWidget } from "../chaos/ChaosWidget";
 
 interface SidebarProps {
   width: number;
@@ -22,7 +23,6 @@ const mainMenuItems: {
   labelKey: string;
   icon: typeof CheckSquare;
 }[] = [
-  { id: "tasks", labelKey: "sidebar.tasks", icon: CheckSquare },
   { id: "schedule", labelKey: "sidebar.schedule", icon: Calendar },
   { id: "ideas", labelKey: "sidebar.ideas", icon: Lightbulb },
   { id: "work", labelKey: "sidebar.work", icon: Play },
@@ -88,6 +88,11 @@ export function LeftSidebar({
           );
         })}
       </nav>
+      <div className="border-t border-notion-border">
+        <ChaosWidget
+          onNavigate={(section, _entityId) => onSectionChange(section)}
+        />
+      </div>
       <div className="p-3 border-t border-notion-border">
         <button
           onClick={() => onSectionChange("settings")}

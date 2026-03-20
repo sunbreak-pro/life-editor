@@ -42,6 +42,8 @@ import { createTimeMemoRepository } from "../database/timeMemoRepository";
 import { registerTimeMemoHandlers } from "./timeMemoHandlers";
 import { createPaperBoardRepository } from "../database/paperBoardRepository";
 import { registerPaperBoardHandlers } from "./paperBoardHandlers";
+import { createChaosRepository } from "../database/chaosRepository";
+import { registerChaosHandlers } from "./chaosHandlers";
 import { wrapHandler } from "./ipcMetrics";
 
 export function registerAllHandlers(db: Database.Database): void {
@@ -121,6 +123,7 @@ export function registerAllHandlers(db: Database.Database): void {
       "PaperBoards",
       () => registerPaperBoardHandlers(createPaperBoardRepository(db)),
     ],
+    ["Chaos", () => registerChaosHandlers(createChaosRepository(db))],
   ];
 
   for (const [name, register] of registrations) {

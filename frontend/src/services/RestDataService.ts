@@ -76,9 +76,7 @@ async function del<T>(path: string): Promise<T> {
   return res.json();
 }
 
-function notSupported(feature: string): never {
-  throw new Error(`${feature} is not supported on mobile`);
-}
+import { notSupported } from "./notSupported";
 
 export class RestDataService implements DataService {
   // Tasks
@@ -456,6 +454,9 @@ export class RestDataService implements DataService {
   toggleScheduleItemComplete(id: string): Promise<ScheduleItem> {
     return post(`/api/schedule-items/${id}/toggle-complete`);
   }
+  dismissScheduleItem(id: string): Promise<void> {
+    return del(`/api/schedule-items/${id}/dismiss`);
+  }
   bulkCreateScheduleItems(
     items: Array<{
       id: string;
@@ -667,6 +668,31 @@ export class RestDataService implements DataService {
   }
   deleteTimeMemo(id: string): Promise<void> {
     return del(`/api/time-memos/${id}`);
+  }
+
+  // Chaos — not available on mobile
+  getChaosOracle(): Promise<null> {
+    return Promise.resolve(null);
+  }
+  refreshChaosOracle(): Promise<null> {
+    return Promise.resolve(null);
+  }
+  getChaosTimeCapsules(): Promise<[]> {
+    return Promise.resolve([]);
+  }
+  getChaosDrift(): Promise<null> {
+    return Promise.resolve(null);
+  }
+  getChaosSettings() {
+    return Promise.resolve({
+      oracle_enabled: false,
+      timecapsule_enabled: false,
+      drift_enabled: false,
+      oracle_min_age_days: 7,
+    });
+  }
+  setChaosSettings() {
+    return this.getChaosSettings();
   }
 
   // Data I/O — not available on mobile

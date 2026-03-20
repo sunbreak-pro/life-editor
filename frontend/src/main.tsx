@@ -18,6 +18,7 @@ import { CalendarProvider } from "./context/CalendarContext";
 import { ShortcutConfigProvider } from "./hooks/useShortcutConfig";
 import { WikiTagProvider } from "./context/WikiTagContext";
 import { ToastProvider } from "./context/ToastContext";
+import { ChaosProvider } from "./context/ChaosContext";
 import { isElectron } from "./services/dataServiceFactory";
 
 const isMobile = !isElectron();
@@ -39,9 +40,11 @@ createRoot(document.getElementById("root")!).render(
                         <TimerProvider>
                           <AudioProvider>
                             <WikiTagProvider>
-                              <ShortcutConfigProvider>
-                                <App />
-                              </ShortcutConfigProvider>
+                              <ChaosProvider>
+                                <ShortcutConfigProvider>
+                                  <App />
+                                </ShortcutConfigProvider>
+                              </ChaosProvider>
                             </WikiTagProvider>
                           </AudioProvider>
                         </TimerProvider>

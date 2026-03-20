@@ -1,5 +1,22 @@
 # HISTORY.md - 変更履歴
 
+### 2026-03-20 - DayFlow UI/UX 3点改善
+
+#### 概要
+
+DayFlow の TimeGrid 操作における3つの UX 問題を修正: ドラッグ/長押し時の create パネル誤表示、TimeGrid 変更が MiniTodayFlow に同期されない問題、Routine 削除時の確認ダイアログ追加。
+
+#### 変更点
+
+- **ドラッグ抑制**: useTimeGridDrag.ts の handleMouseUp で pendingItem がある場合 hasMovedRef を true に設定、ScheduleTimeGrid.tsx の handleColumnClick で hasMovedRef チェック追加
+- **MiniTodayFlow 同期**: MiniTodayFlow.tsx で scheduleItem の動的 startTime を使用、useDayFlowColumn.ts で更新/削除/完了後に ScheduleContext の loadItemsForDate を呼び出し
+- **DB 層**: migrations.ts に V40 マイグレーション（schedule_items に is_dismissed カラム追加）、scheduleItemRepository.ts に dismiss メソッド追加 + fetchByDate/fetchByDateRange に is_dismissed=0 フィルタ
+- **IPC/Service 層**: scheduleItemHandlers.ts に dismiss ハンドラ、preload.ts に チャンネル追加、DataService/ElectronDataService/RestDataService/OfflineDataService に dismissScheduleItem 追加
+- **Hook 層**: useScheduleItems.ts と useDayFlowColumn.ts に dismissScheduleItem メソッド追加
+- **UI**: RoutineDeleteConfirmDialog.tsx 新規作成（今回のみ/今後も の2択）、ScheduleItemBlock.tsx で routineId がある場合は onRequestRoutineDelete コールバック、OneDaySchedule.tsx と DualDayFlowLayout.tsx にダイアログ状態管理 + dismiss/archive ハンドラ
+- **i18n**: ja.json / en.json に schedule.routineDeleteConfirm セクション追加
+- **型定義**: electron/types.ts と frontend/types/schedule.ts に isDismissed 追加
+
 ### 2026-03-20 - Ideas Section 4-Tab Restructuring + Sidebar UI Unification
 
 #### 概要

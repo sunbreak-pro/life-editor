@@ -1,84 +1,78 @@
-import { ipcMain } from "electron";
-import { loggedHandler } from "./handlerUtil";
-import { broadcastChange } from "../server/broadcast";
+import { query, mutation } from "./handlerUtil";
 import type { RoutineTagRepository } from "../database/routineTagRepository";
 import type { RoutineTag } from "../types";
 
 export function registerRoutineTagHandlers(repo: RoutineTagRepository): void {
-  ipcMain.handle(
-    "db:routineTags:fetchAll",
-    loggedHandler("RoutineTags", "fetchAll", () => {
-      return repo.fetchAll();
-    }),
-  );
+  query("db:routineTags:fetchAll", "RoutineTags", "fetchAll", () => {
+    return repo.fetchAll();
+  });
 
-  ipcMain.handle(
+  mutation(
     "db:routineTags:create",
-    loggedHandler(
-      "RoutineTags",
-      "create",
-      (_event, name: string, color: string) => {
-        const result = repo.create(name, color);
-        broadcastChange("routineTag", "create", result?.id);
-        return result;
-      },
-    ),
+    "RoutineTags",
+    "create",
+    "routineTag",
+    "create",
+    (_event, name: string, color: string) => {
+      return repo.create(name, color);
+    },
+    (_args, result) => (result as { id?: number })?.id,
   );
 
-  ipcMain.handle(
+  mutation(
     "db:routineTags:update",
-    loggedHandler(
-      "RoutineTags",
-      "update",
-      (
-        _event,
-        id: number,
-        updates: Partial<
-          Pick<RoutineTag, "name" | "color" | "textColor" | "order">
-        >,
-      ) => {
-        const result = repo.update(id, updates);
-        broadcastChange("routineTag", "update", id);
-        return result;
-      },
-    ),
+    "RoutineTags",
+    "update",
+    "routineTag",
+    "update",
+    (
+      _event,
+      id: number,
+      updates: Partial<
+        Pick<RoutineTag, "name" | "color" | "textColor" | "order">
+      >,
+    ) => {
+      return repo.update(id, updates);
+    },
   );
 
-  ipcMain.handle(
+  mutation(
     "db:routineTags:delete",
-    loggedHandler("RoutineTags", "delete", (_event, id: number) => {
+    "RoutineTags",
+    "delete",
+    "routineTag",
+    "delete",
+    (_event, id: number) => {
       repo.delete(id);
-      broadcastChange("routineTag", "delete", id);
-    }),
+    },
   );
 
-  ipcMain.handle(
+  query(
     "db:routineTags:fetchTagsForRoutine",
-    loggedHandler(
-      "RoutineTags",
-      "fetchTagsForRoutine",
-      (_event, routineId: string) => {
-        return repo.fetchTagsForRoutine(routineId);
-      },
-    ),
+    "RoutineTags",
+    "fetchTagsForRoutine",
+    (_event, routineId: string) => {
+      return repo.fetchTagsForRoutine(routineId);
+    },
   );
 
-  ipcMain.handle(
+  mutation(
     "db:routineTags:setTagsForRoutine",
-    loggedHandler(
-      "RoutineTags",
-      "setTagsForRoutine",
-      (_event, routineId: string, tagIds: number[]) => {
-        repo.setTagsForRoutine(routineId, tagIds);
-        broadcastChange("routineTag", "bulk", routineId);
-      },
-    ),
+    "RoutineTags",
+    "setTagsForRoutine",
+    "routineTag",
+    "bulk",
+    (_event, routineId: string, tagIds: number[]) => {
+      repo.setTagsForRoutine(routineId, tagIds);
+    },
   );
 
-  ipcMain.handle(
+  query(
     "db:routineTags:fetchAllAssignments",
-    loggedHandler("RoutineTags", "fetchAllAssignments", () => {
+    "RoutineTags",
+    "fetchAllAssignments",
+    () => {
       return repo.fetchAllAssignments();
-    }),
+    },
   );
 }

@@ -36,6 +36,12 @@ import type {
 } from "../types/wikiTag";
 import type { TimeMemo } from "../types/timeMemo";
 import type { PaperBoard, PaperNode, PaperEdge } from "../types/paperBoard";
+import type {
+  OracleResult,
+  TimeCapsuleResult,
+  DriftResult,
+  ChaosSettings,
+} from "../types/chaos";
 
 function invoke<T>(channel: string, ...args: unknown[]): Promise<T> {
   return window.electronAPI!.invoke<T>(channel, ...args);
@@ -416,6 +422,9 @@ export class ElectronDataService implements DataService {
   toggleScheduleItemComplete(id: string): Promise<ScheduleItem> {
     return invoke("db:scheduleItems:toggleComplete", id);
   }
+  dismissScheduleItem(id: string): Promise<void> {
+    return invoke("db:scheduleItems:dismiss", id);
+  }
   bulkCreateScheduleItems(
     items: Array<{
       id: string;
@@ -736,6 +745,26 @@ export class ElectronDataService implements DataService {
   }
   deletePaperEdge(id: string): Promise<void> {
     return invoke("db:paperEdges:delete", id);
+  }
+
+  // Chaos (Rediscovery Engine)
+  getChaosOracle(): Promise<OracleResult | null> {
+    return invoke("chaos:oracle:get");
+  }
+  refreshChaosOracle(): Promise<OracleResult | null> {
+    return invoke("chaos:oracle:refresh");
+  }
+  getChaosTimeCapsules(today: string): Promise<TimeCapsuleResult[]> {
+    return invoke("chaos:timecapsule:get", today);
+  }
+  getChaosDrift(): Promise<DriftResult | null> {
+    return invoke("chaos:drift:get");
+  }
+  getChaosSettings(): Promise<ChaosSettings> {
+    return invoke("chaos:settings:get");
+  }
+  setChaosSettings(key: string, value: string): Promise<ChaosSettings> {
+    return invoke("chaos:settings:set", key, value);
   }
 
   // Data I/O

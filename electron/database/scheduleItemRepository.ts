@@ -12,6 +12,7 @@ interface ScheduleItemRow {
   routine_id: string | null;
   template_id: string | null;
   memo: string | null;
+  is_dismissed: number;
   created_at: string;
   updated_at: string;
 }
@@ -28,6 +29,7 @@ function rowToItem(row: ScheduleItemRow): ScheduleItem {
     routineId: row.routine_id,
     templateId: row.template_id,
     memo: row.memo ?? null,
+    isDismissed: row.is_dismissed === 1,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -36,10 +38,10 @@ function rowToItem(row: ScheduleItemRow): ScheduleItem {
 export function createScheduleItemRepository(db: Database.Database) {
   const stmts = {
     fetchByDate: db.prepare(
-      `SELECT * FROM schedule_items WHERE date = ? ORDER BY start_time ASC, created_at ASC`,
+      `SELECT * FROM schedule_items WHERE date = ? AND is_dismissed = 0 ORDER BY start_time ASC, created_at ASC`,
     ),
     fetchByDateRange: db.prepare(
-      `SELECT * FROM schedule_items WHERE date >= ? AND date <= ? ORDER BY date ASC, start_time ASC`,
+      `SELECT * FROM schedule_items WHERE date >= ? AND date <= ? AND is_dismissed = 0 ORDER BY date ASC, start_time ASC`,
     ),
     fetchById: db.prepare(`SELECT * FROM schedule_items WHERE id = ?`),
     insert: db.prepare(`
@@ -126,6 +128,12 @@ export function createScheduleItemRepository(db: Database.Database) {
 
     delete(id: string): void {
       stmts.delete.run(id);
+    },
+
+    dismiss(id: string): void {
+      db.prepare(
+        `UPDATE schedule_items SET is_dismissed = 1, version = version + 1, updated_at = datetime('now') WHERE id = ?`,
+      ).run(id);
     },
 
     toggleComplete(id: string): ScheduleItem {

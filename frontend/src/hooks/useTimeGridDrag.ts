@@ -1,5 +1,6 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 import { TIME_GRID } from "../constants/timeGrid";
+import { minutesToTimeString, topToMinutes } from "../utils/timeGridUtils";
 
 type DragMode = "move" | "resize-top" | "resize-bottom";
 type ItemType = "schedule" | "task";
@@ -25,17 +26,6 @@ const INITIAL_STATE: DragState = {
 const MOVE_THRESHOLD = 5;
 const SNAP_MINUTES = 5;
 const MIN_HEIGHT_PX = 20;
-
-function minutesToTimeString(totalMinutes: number): string {
-  const clamped = Math.max(0, Math.min(totalMinutes, 24 * 60));
-  const h = Math.floor(clamped / 60);
-  const m = clamped % 60;
-  return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
-}
-
-function topToMinutes(top: number): number {
-  return (top / TIME_GRID.SLOT_HEIGHT) * 60 + TIME_GRID.START_HOUR * 60;
-}
 
 interface DragEndPayload {
   itemId: string;
@@ -152,6 +142,8 @@ export function useTimeGridDrag({
   );
 
   const handleMouseUp = useCallback(() => {
+    if (pendingItem.current) hasMovedRef.current = true;
+
     if (stateRef.current.isDragging && stateRef.current.itemId) {
       const { previewTop, previewHeight, itemId, itemType } = stateRef.current;
       const startMinutes = topToMinutes(previewTop);

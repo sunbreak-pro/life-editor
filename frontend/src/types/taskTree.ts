@@ -1,5 +1,4 @@
 export type SectionId =
-  | "tasks"
   | "schedule"
   | "ideas"
   | "work"
@@ -7,7 +6,7 @@ export type SectionId =
   | "settings";
 
 export type NodeType = "folder" | "task";
-export type TaskStatus = "TODO" | "DONE";
+export type TaskStatus = "NOT_STARTED" | "IN_PROGRESS" | "DONE";
 
 export const FOLDER_PAD_TOP = 0; // px – visual separator above folders in Projects section
 

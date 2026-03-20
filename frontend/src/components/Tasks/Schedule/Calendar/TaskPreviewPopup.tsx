@@ -108,7 +108,11 @@ export function TaskPreviewPopup({
                   : "bg-notion-accent/10 text-notion-accent"
               }`}
             >
-              {task.status === "DONE" ? "DONE" : "TODO"}
+              {task.status === "DONE"
+                ? "DONE"
+                : task.status === "IN_PROGRESS"
+                  ? "IN PROGRESS"
+                  : "NOT STARTED"}
             </span>
           </div>
         </div>

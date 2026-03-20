@@ -2,7 +2,7 @@
 // prevents cross-importing from ../frontend/
 
 export type NodeType = "folder" | "task";
-export type TaskStatus = "TODO" | "DONE";
+export type TaskStatus = "NOT_STARTED" | "IN_PROGRESS" | "DONE";
 
 export interface TaskNode {
   id: string;
@@ -169,6 +169,7 @@ export interface ScheduleItem {
   routineId: string | null;
   templateId: string | null;
   memo: string | null;
+  isDismissed: boolean;
   createdAt: string;
   updatedAt: string;
 }

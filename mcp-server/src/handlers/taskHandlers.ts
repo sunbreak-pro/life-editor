@@ -191,7 +191,7 @@ export function createTask(args: {
 
   db.prepare(
     `INSERT INTO tasks (id, type, title, parent_id, "order", status, is_expanded, is_deleted, created_at, scheduled_at, scheduled_end_at, is_all_day, content)
-     VALUES (@id, 'task', @title, @parent_id, @order, 'todo', 0, 0, datetime('now'), @scheduled_at, @scheduled_end_at, @is_all_day, NULL)`,
+     VALUES (@id, 'task', @title, @parent_id, @order, 'not_started', 0, 0, datetime('now'), @scheduled_at, @scheduled_end_at, @is_all_day, NULL)`,
   ).run({
     id,
     title: args.title,

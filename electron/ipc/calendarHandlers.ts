@@ -1,49 +1,42 @@
-import { ipcMain } from "electron";
-import { loggedHandler } from "./handlerUtil";
+import { query, mutation } from "./handlerUtil";
 import type { CalendarRepository } from "../database/calendarRepository";
-import { broadcastChange } from "../server/broadcast";
 
 export function registerCalendarHandlers(repo: CalendarRepository): void {
-  ipcMain.handle(
-    "db:calendars:fetchAll",
-    loggedHandler("Calendars", "fetchAll", () => repo.fetchAll()),
+  query("db:calendars:fetchAll", "Calendars", "fetchAll", () =>
+    repo.fetchAll(),
   );
 
-  ipcMain.handle(
+  mutation(
     "db:calendars:create",
-    loggedHandler(
-      "Calendars",
-      "create",
-      (_event, id: string, title: string, folderId: string) => {
-        const result = repo.create(id, title, folderId);
-        broadcastChange("calendar", "create", id);
-        return result;
-      },
-    ),
+    "Calendars",
+    "create",
+    "calendar",
+    "create",
+    (_event, id: string, title: string, folderId: string) =>
+      repo.create(id, title, folderId),
   );
 
-  ipcMain.handle(
+  mutation(
     "db:calendars:update",
-    loggedHandler(
-      "Calendars",
-      "update",
-      (
-        _event,
-        id: string,
-        updates: { title?: string; folderId?: string; order?: number },
-      ) => {
-        const result = repo.update(id, updates);
-        broadcastChange("calendar", "update", id);
-        return result;
-      },
-    ),
+    "Calendars",
+    "update",
+    "calendar",
+    "update",
+    (
+      _event,
+      id: string,
+      updates: { title?: string; folderId?: string; order?: number },
+    ) => repo.update(id, updates),
   );
 
-  ipcMain.handle(
+  mutation(
     "db:calendars:delete",
-    loggedHandler("Calendars", "delete", (_event, id: string) => {
+    "Calendars",
+    "delete",
+    "calendar",
+    "delete",
+    (_event, id: string) => {
       repo.delete(id);
-      broadcastChange("calendar", "delete", id);
-    }),
+    },
   );
 }

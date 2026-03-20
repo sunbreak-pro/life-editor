@@ -1,34 +1,32 @@
-import { ipcMain } from "electron";
-import { loggedHandler } from "./handlerUtil";
+import { query, mutation } from "./handlerUtil";
 import type { TimeMemoRepository } from "../database/timeMemoRepository";
-import { broadcastChange } from "../server/broadcast";
 
 export function registerTimeMemoHandlers(repo: TimeMemoRepository): void {
-  ipcMain.handle(
+  query(
     "db:timeMemos:fetchByDate",
-    loggedHandler("TimeMemos", "fetchByDate", (_event, date: string) => {
-      return repo.fetchByDate(date);
-    }),
+    "TimeMemos",
+    "fetchByDate",
+    (_event, date: string) => repo.fetchByDate(date),
   );
 
-  ipcMain.handle(
+  mutation(
     "db:timeMemos:upsert",
-    loggedHandler(
-      "TimeMemos",
-      "upsert",
-      (_event, id: string, date: string, hour: number, content: string) => {
-        const result = repo.upsert(id, date, hour, content);
-        broadcastChange("timeMemo", "update", id);
-        return result;
-      },
-    ),
+    "TimeMemos",
+    "upsert",
+    "timeMemo",
+    "update",
+    (_event, id: string, date: string, hour: number, content: string) =>
+      repo.upsert(id, date, hour, content),
   );
 
-  ipcMain.handle(
+  mutation(
     "db:timeMemos:delete",
-    loggedHandler("TimeMemos", "delete", (_event, id: string) => {
+    "TimeMemos",
+    "delete",
+    "timeMemo",
+    "delete",
+    (_event, id: string) => {
       repo.delete(id);
-      broadcastChange("timeMemo", "delete", id);
-    }),
+    },
   );
 }

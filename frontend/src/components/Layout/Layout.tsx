@@ -283,7 +283,6 @@ export function Layout({
   // Auto-open right sidebar for sections that use it
   useEffect(() => {
     if (
-      activeSection === "tasks" ||
       activeSection === "ideas" ||
       activeSection === "settings" ||
       activeSection === "work"

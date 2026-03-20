@@ -1,14 +1,13 @@
-import { useState, useEffect, useMemo, useRef } from "react";
-import { useTranslation } from "react-i18next";
-import { ChevronLeft, ChevronRight, Filter } from "lucide-react";
+import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import type { TaskNode } from "../../../../types/taskTree";
+import type { ScheduleItem } from "../../../../types/schedule";
 import { useScheduleContext } from "../../../../hooks/useScheduleContext";
-import { formatDateKey, formatDayFlowDate } from "../../../../utils/dateKey";
+import { formatDateKey } from "../../../../utils/dateKey";
+import { CompactDateNav } from "./CompactDateNav";
 import { ScheduleTimeGrid } from "./ScheduleTimeGrid";
 import { TimeGridClickPanel } from "./TimeGridClickPanel";
+import { RoutineDeleteConfirmDialog } from "./RoutineDeleteConfirmDialog";
 import type { TabItem } from "../../../shared/SectionTabs";
-import { useClickOutside } from "../../../../hooks/useClickOutside";
-import { getTextColorForBg } from "../../../../constants/folderColors";
 import { TIME_GRID } from "../../../../constants/timeGrid";
 
 export type DayFlowFilterTab = "all" | "routine" | "tasks" | "others";
@@ -40,6 +39,8 @@ interface OneDayScheduleProps {
   onUnscheduleTask?: (taskId: string) => void;
   onNavigateTask?: (taskId: string, e: React.MouseEvent) => void;
   onUpdateTaskTimeMemo?: (taskId: string, memo: string | null) => void;
+  isDualColumn?: boolean;
+  onToggleDualColumn?: () => void;
 }
 
 export function OneDaySchedule({
@@ -58,8 +59,9 @@ export function OneDaySchedule({
   onUnscheduleTask,
   onNavigateTask,
   onUpdateTaskTimeMemo,
+  isDualColumn,
+  onToggleDualColumn,
 }: OneDayScheduleProps) {
-  const { t, i18n } = useTranslation();
   const {
     scheduleItems,
     loadItemsForDate,
@@ -71,7 +73,9 @@ export function OneDaySchedule({
     ensureRoutineItemsForDate,
     updateScheduleItem,
     deleteScheduleItem,
+    dismissScheduleItem,
     refreshRoutineStats,
+    updateRoutine,
   } = useScheduleContext();
   const dateKey = formatDateKey(date);
   const isToday = dateKey === formatDateKey(new Date());
@@ -79,13 +83,6 @@ export function OneDaySchedule({
     [],
   );
   const scrollRef = useRef<HTMLDivElement>(null);
-  const [showFilterDropdown, setShowFilterDropdown] = useState(false);
-  const filterDropdownRef = useRef<HTMLDivElement>(null);
-  useClickOutside(
-    filterDropdownRef,
-    () => setShowFilterDropdown(false),
-    showFilterDropdown,
-  );
 
   const routineTagMap = useMemo(() => {
     const map = new Map<string, number[]>();
@@ -99,6 +96,34 @@ export function OneDaySchedule({
     endTime: string;
     position: { x: number; y: number };
   } | null>(null);
+
+  const [routineDeleteTarget, setRoutineDeleteTarget] = useState<{
+    item: ScheduleItem;
+    position: { x: number; y: number };
+  } | null>(null);
+
+  const handleRequestRoutineDelete = useCallback(
+    (item: ScheduleItem, e: React.MouseEvent) => {
+      setRoutineDeleteTarget({
+        item,
+        position: { x: e.clientX, y: e.clientY },
+      });
+    },
+    [],
+  );
+
+  const handleDismissOnly = useCallback(() => {
+    if (!routineDeleteTarget) return;
+    dismissScheduleItem(routineDeleteTarget.item.id);
+    setRoutineDeleteTarget(null);
+  }, [routineDeleteTarget, dismissScheduleItem]);
+
+  const handleArchiveRoutine = useCallback(() => {
+    if (!routineDeleteTarget?.item.routineId) return;
+    updateRoutine(routineDeleteTarget.item.routineId, { isArchived: true });
+    deleteScheduleItem(routineDeleteTarget.item.id);
+    setRoutineDeleteTarget(null);
+  }, [routineDeleteTarget, updateRoutine, deleteScheduleItem]);
 
   // Load schedule items when date changes
   useEffect(() => {
@@ -225,119 +250,20 @@ export function OneDaySchedule({
 
   return (
     <div className="flex flex-col h-full">
-      {/* Date navigation header */}
-      <div className="flex items-center gap-2 px-3 py-2 border-b border-notion-border">
-        <button
-          onClick={onPrevDate}
-          className="p-1 text-notion-text-secondary hover:text-notion-text hover:bg-notion-hover rounded transition-colors"
-        >
-          <ChevronLeft size={16} />
-        </button>
-        <span className="text-sm font-medium text-notion-text min-w-20 text-center">
-          {formatDayFlowDate(date, i18n.language)}
-        </span>
-        <button
-          onClick={onNextDate}
-          className="p-1 text-notion-text-secondary hover:text-notion-text hover:bg-notion-hover rounded transition-colors"
-        >
-          <ChevronRight size={16} />
-        </button>
-        {!isToday && (
-          <button
-            onClick={onToday}
-            className="ml-1 px-2 py-0.5 text-[10px] font-medium text-notion-accent border border-notion-accent/30 rounded hover:bg-notion-accent/10 transition-colors"
-          >
-            {t("calendarHeader.today", "Today")}
-          </button>
-        )}
-        <div className="relative ml-auto" ref={filterDropdownRef}>
-          <button
-            onClick={() => setShowFilterDropdown((v) => !v)}
-            className={`p-1.5 rounded-md transition-colors ${
-              filterTab !== "all"
-                ? "text-notion-accent bg-notion-accent/10"
-                : "text-notion-text-secondary hover:text-notion-text hover:bg-notion-hover"
-            }`}
-          >
-            <Filter size={14} />
-          </button>
-          {showFilterDropdown && (
-            <div className="absolute right-0 top-full mt-1 z-50 w-48 bg-notion-bg border border-notion-border rounded-lg shadow-xl py-1">
-              {DAY_FLOW_FILTER_TABS.map((tab) => (
-                <button
-                  key={tab.id}
-                  onClick={() => {
-                    onFilterTabChange(tab.id);
-                    if (tab.id !== "all" && tab.id !== "routine") {
-                      setSelectedFilterTagIds([]);
-                    }
-                  }}
-                  className={`w-full flex items-center gap-2 px-3 py-1.5 text-xs text-left transition-colors ${
-                    filterTab === tab.id
-                      ? "text-notion-accent bg-notion-accent/5"
-                      : "text-notion-text-secondary hover:bg-notion-hover hover:text-notion-text"
-                  }`}
-                >
-                  <span
-                    className={`w-1.5 h-1.5 rounded-full ${
-                      filterTab === tab.id
-                        ? "bg-notion-accent"
-                        : "bg-transparent"
-                    }`}
-                  />
-                  {t(tab.labelKey)}
-                </button>
-              ))}
-              {(filterTab === "all" || filterTab === "routine") &&
-                routineTags.length > 0 && (
-                  <>
-                    <div className="border-t border-notion-border my-1" />
-                    <div className="flex items-center gap-1 flex-wrap px-3 py-1.5">
-                      <button
-                        onClick={() => setSelectedFilterTagIds([])}
-                        className={`text-[10px] px-1.5 py-0.5 rounded-full transition-colors ${
-                          selectedFilterTagIds.length === 0
-                            ? "bg-notion-text text-notion-bg"
-                            : "bg-notion-hover text-notion-text-secondary hover:text-notion-text"
-                        }`}
-                      >
-                        All
-                      </button>
-                      {routineTags.map((tag) => (
-                        <button
-                          key={tag.id}
-                          onClick={() =>
-                            setSelectedFilterTagIds((prev) =>
-                              prev.includes(tag.id)
-                                ? prev.filter((id) => id !== tag.id)
-                                : [...prev, tag.id],
-                            )
-                          }
-                          className={`flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-full transition-colors ${
-                            selectedFilterTagIds.includes(tag.id)
-                              ? "ring-1 ring-notion-text"
-                              : "hover:opacity-80"
-                          }`}
-                          style={{
-                            backgroundColor: tag.color + "E6",
-                            color: getTextColorForBg(tag.color),
-                            fontWeight: "bold",
-                          }}
-                        >
-                          <span
-                            className="w-2 h-2 rounded-full"
-                            style={{ backgroundColor: tag.color }}
-                          />
-                          {tag.name}
-                        </button>
-                      ))}
-                    </div>
-                  </>
-                )}
-            </div>
-          )}
-        </div>
-      </div>
+      <CompactDateNav
+        date={date}
+        isToday={isToday}
+        onPrevDate={onPrevDate}
+        onNextDate={onNextDate}
+        onToday={onToday}
+        filterTab={filterTab}
+        onFilterTabChange={onFilterTabChange}
+        selectedFilterTagIds={selectedFilterTagIds}
+        onSelectedFilterTagIdsChange={setSelectedFilterTagIds}
+        routineTags={routineTags}
+        isDualColumn={isDualColumn}
+        onToggleDualColumn={onToggleDualColumn}
+      />
 
       {/* Main content - TimeGrid + MemoColumn in shared scroll container */}
       <div className="flex-1 min-h-0 p-3">
@@ -357,6 +283,7 @@ export function OneDaySchedule({
               externalScroll
               onToggleTaskStatus={onToggleTaskStatus}
               onDeleteScheduleItem={deleteScheduleItem}
+              onRequestRoutineDelete={handleRequestRoutineDelete}
               onUnscheduleTask={onUnscheduleTask}
               onNavigateTask={onNavigateTask}
               onUpdateTaskTimeMemo={onUpdateTaskTimeMemo}
@@ -376,6 +303,17 @@ export function OneDaySchedule({
               createScheduleItem(dateKey, title, startTime, endTime);
             }}
             onClose={() => setCreatePopover(null)}
+          />
+        )}
+
+        {/* Routine delete confirmation */}
+        {routineDeleteTarget && (
+          <RoutineDeleteConfirmDialog
+            title={routineDeleteTarget.item.title}
+            position={routineDeleteTarget.position}
+            onDismissOnly={handleDismissOnly}
+            onArchiveRoutine={handleArchiveRoutine}
+            onCancel={() => setRoutineDeleteTarget(null)}
           />
         )}
       </div>

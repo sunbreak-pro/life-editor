@@ -1,11 +1,6 @@
-import { useState } from "react";
 import type { DayFlowFilterTab } from "./OneDaySchedule";
-import type { RoutineNode } from "../../../../types/routine";
-import type { ScheduleItem } from "../../../../types/schedule";
-import { MiniRoutineFlow } from "../Routine/MiniRoutineFlow";
-import { RoutineManagementOverlay } from "../Routine/RoutineManagementOverlay";
+import type { TabItem } from "../../../shared/SectionTabs";
 import { ProgressSection } from "../shared/ProgressSection";
-import { useScheduleContext } from "../../../../hooks/useScheduleContext";
 
 export interface CategoryProgress {
   completed: number;
@@ -17,10 +12,7 @@ interface DayFlowSidebarContentProps {
   activeFilter: DayFlowFilterTab;
   onFilterChange: (tab: DayFlowFilterTab) => void;
   categoryProgress: Record<DayFlowFilterTab, CategoryProgress>;
-  routines: RoutineNode[];
-  tagAssignments: Map<string, number[]>;
-  scheduleItems: ScheduleItem[];
-  onToggleComplete: (id: string) => void;
+  tabs?: readonly TabItem<DayFlowFilterTab>[];
 }
 
 export function DayFlowSidebarContent({
@@ -28,24 +20,8 @@ export function DayFlowSidebarContent({
   activeFilter,
   onFilterChange,
   categoryProgress,
-  routines,
-  tagAssignments,
-  scheduleItems,
-  onToggleComplete,
+  tabs,
 }: DayFlowSidebarContentProps) {
-  const [showManagement, setShowManagement] = useState(false);
-  const {
-    routineTags,
-    createRoutine,
-    updateRoutine,
-    deleteRoutine,
-    setTagsForRoutine,
-    getRoutineCompletionRate,
-    createRoutineTag,
-    updateRoutineTag,
-    deleteRoutineTag,
-  } = useScheduleContext();
-
   return (
     <div className="flex flex-col gap-3">
       <ProgressSection
@@ -53,35 +29,8 @@ export function DayFlowSidebarContent({
         categoryProgress={categoryProgress}
         activeFilter={activeFilter}
         onFilterChange={onFilterChange}
+        tabs={tabs}
       />
-
-      {/* Mini Routine Flow */}
-      <div className="px-3">
-        <MiniRoutineFlow
-          routines={routines}
-          scheduleItems={scheduleItems}
-          tagAssignments={tagAssignments}
-          onToggleComplete={onToggleComplete}
-          onOpenManagement={() => setShowManagement(true)}
-        />
-      </div>
-
-      {showManagement && (
-        <RoutineManagementOverlay
-          routines={routines}
-          routineTags={routineTags}
-          tagAssignments={tagAssignments}
-          onCreateRoutine={createRoutine}
-          onUpdateRoutine={updateRoutine}
-          onDeleteRoutine={deleteRoutine}
-          setTagsForRoutine={setTagsForRoutine}
-          getCompletionRate={getRoutineCompletionRate}
-          onCreateRoutineTag={createRoutineTag}
-          onUpdateRoutineTag={updateRoutineTag}
-          onDeleteRoutineTag={deleteRoutineTag}
-          onClose={() => setShowManagement(false)}
-        />
-      )}
     </div>
   );
 }

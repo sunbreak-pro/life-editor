@@ -1,8 +1,8 @@
 import { useState, useRef } from "react";
 import { Layout } from "./components/Layout";
 import type { LayoutHandle } from "./components/Layout";
-import { TasksLayout } from "./components/Tasks/TasksLayout";
 import { ScheduleSection } from "./components/Schedule/ScheduleSection";
+import type { ScheduleTab } from "./components/Schedule/ScheduleSection";
 import { useLocalStorage } from "./hooks/useLocalStorage";
 import { WorkScreen } from "./components/Work";
 import { SessionCompletionModal } from "./components/Work/SessionCompletionModal";
@@ -24,7 +24,8 @@ import type { SectionId } from "./types/taskTree";
 import { STORAGE_KEYS } from "./constants/storageKeys";
 
 function App() {
-  const [activeSection, setActiveSection] = useState<SectionId>("tasks");
+  const [activeSection, setActiveSection] = useState<SectionId>("schedule");
+  const [scheduleTab, setScheduleTab] = useState<ScheduleTab>("calendar");
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
   const [filterFolderId, setFilterFolderId] = useLocalStorage<string | null>(
@@ -59,6 +60,7 @@ function App() {
     toggleTaskStatus,
     setSelectedTaskId,
     setActiveSection,
+    setScheduleTab,
     setMemoDate,
     createNote,
   });
@@ -97,19 +99,16 @@ function App() {
 
   const renderContent = () => {
     switch (activeSection) {
-      case "tasks":
+      case "schedule":
         return (
-          <TasksLayout
+          <ScheduleSection
+            activeTab={scheduleTab}
+            onTabChange={setScheduleTab}
             selectedTaskId={selectedTaskId}
             onSelectTask={setSelectedTaskId}
             filterFolderId={filterFolderId}
             onFilterChange={setFilterFolderId}
             onPlayTask={handlers.handlePlayTask}
-          />
-        );
-      case "schedule":
-        return (
-          <ScheduleSection
             onCalendarSelectTask={(taskId) =>
               handlers.handleCalendarSelectTask(taskId)
             }

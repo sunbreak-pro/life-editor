@@ -1,45 +1,44 @@
-import { ipcMain } from "electron";
-import { loggedHandler } from "./handlerUtil";
-import { broadcastChange } from "../server/broadcast";
+import { query, mutation } from "./handlerUtil";
 import type { PomodoroPresetRepository } from "../database/pomodoroPresetRepository";
 
 export function registerPomodoroPresetHandlers(
   repo: PomodoroPresetRepository,
 ): void {
-  ipcMain.handle(
-    "db:timer:fetchPomodoroPresets",
-    loggedHandler("PomodoroPresets", "fetchAll", () => {
-      return repo.fetchAll();
-    }),
-  );
+  query("db:timer:fetchPomodoroPresets", "PomodoroPresets", "fetchAll", () => {
+    return repo.fetchAll();
+  });
 
-  ipcMain.handle(
+  mutation(
     "db:timer:createPomodoroPreset",
-    loggedHandler("PomodoroPresets", "create", (_event, preset) => {
-      const result = repo.create(preset);
-      broadcastChange("pomodoroPreset", "create", result?.id);
-      return result;
-    }),
+    "PomodoroPresets",
+    "create",
+    "pomodoroPreset",
+    "create",
+    (_event, preset) => {
+      return repo.create(preset);
+    },
+    (_args, result) => (result as { id?: number })?.id,
   );
 
-  ipcMain.handle(
+  mutation(
     "db:timer:updatePomodoroPreset",
-    loggedHandler(
-      "PomodoroPresets",
-      "update",
-      (_event, id: number, updates) => {
-        const result = repo.update(id, updates);
-        broadcastChange("pomodoroPreset", "update", id);
-        return result;
-      },
-    ),
+    "PomodoroPresets",
+    "update",
+    "pomodoroPreset",
+    "update",
+    (_event, id: number, updates) => {
+      return repo.update(id, updates);
+    },
   );
 
-  ipcMain.handle(
+  mutation(
     "db:timer:deletePomodoroPreset",
-    loggedHandler("PomodoroPresets", "delete", (_event, id: number) => {
+    "PomodoroPresets",
+    "delete",
+    "pomodoroPreset",
+    "delete",
+    (_event, id: number) => {
       repo.delete(id);
-      broadcastChange("pomodoroPreset", "delete", id);
-    }),
+    },
   );
 }

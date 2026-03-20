@@ -40,9 +40,7 @@ import type {
 import type { TimeMemo } from "../types/timeMemo";
 import type { PaperBoard, PaperNode, PaperEdge } from "../types/paperBoard";
 
-function notSupported(feature: string): never {
-  throw new Error(`${feature} is not supported on mobile`);
-}
+import { notSupported } from "./notSupported";
 
 export class OfflineDataService implements DataService {
   private rest = new RestDataService();
@@ -774,6 +772,14 @@ export class OfflineDataService implements DataService {
     }
   }
 
+  async dismissScheduleItem(id: string): Promise<void> {
+    try {
+      await this.rest.dismissScheduleItem(id);
+    } catch {
+      // queued
+    }
+  }
+
   async bulkCreateScheduleItems(
     items: Array<{
       id: string;
@@ -1316,6 +1322,31 @@ export class OfflineDataService implements DataService {
   }
   permanentDeleteCustomSound(_id: string): Promise<void> {
     return notSupported("Custom Sound");
+  }
+
+  // Chaos — not available on mobile
+  getChaosOracle(): Promise<null> {
+    return Promise.resolve(null);
+  }
+  refreshChaosOracle(): Promise<null> {
+    return Promise.resolve(null);
+  }
+  getChaosTimeCapsules(): Promise<[]> {
+    return Promise.resolve([]);
+  }
+  getChaosDrift(): Promise<null> {
+    return Promise.resolve(null);
+  }
+  getChaosSettings() {
+    return Promise.resolve({
+      oracle_enabled: false,
+      timecapsule_enabled: false,
+      drift_enabled: false,
+      oracle_min_age_days: 7,
+    });
+  }
+  setChaosSettings() {
+    return this.getChaosSettings();
   }
 
   exportData(): Promise<boolean> {

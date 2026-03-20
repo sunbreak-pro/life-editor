@@ -1,5 +1,6 @@
 import type Database from "better-sqlite3";
 import type { TaskNode } from "../types";
+import { prepareSoftDeleteStatements } from "./repositoryHelpers";
 
 interface TaskRow {
   id: string;
@@ -51,13 +52,13 @@ function rowToNode(row: TaskRow): TaskNode {
 }
 
 export function createTaskRepository(db: Database.Database) {
+  const softDelete = prepareSoftDeleteStatements(db, "tasks");
+
   const stmts = {
     fetchTree: db.prepare(
       `SELECT * FROM tasks WHERE is_deleted = 0 ORDER BY "order" ASC`,
     ),
-    fetchDeleted: db.prepare(
-      `SELECT * FROM tasks WHERE is_deleted = 1 ORDER BY deleted_at DESC`,
-    ),
+    ...softDelete,
     fetchById: db.prepare(`SELECT * FROM tasks WHERE id = ?`),
     insert: db.prepare(`
       INSERT INTO tasks (id, type, title, parent_id, "order", status, is_expanded, is_deleted, deleted_at, created_at, completed_at, scheduled_at, scheduled_end_at, is_all_day, content, work_duration_minutes, color, due_date, time_memo)
@@ -72,13 +73,6 @@ export function createTaskRepository(db: Database.Database) {
         version = version + 1, updated_at = datetime('now')
       WHERE id=@id
     `),
-    softDelete: db.prepare(
-      `UPDATE tasks SET is_deleted = 1, deleted_at = datetime('now'), version = version + 1, updated_at = datetime('now') WHERE id = ?`,
-    ),
-    restore: db.prepare(
-      `UPDATE tasks SET is_deleted = 0, deleted_at = NULL, version = version + 1, updated_at = datetime('now') WHERE id = ?`,
-    ),
-    permanentDelete: db.prepare(`DELETE FROM tasks WHERE id = ?`),
     deleteAll: db.prepare(`DELETE FROM tasks`),
   };
 
@@ -136,6 +130,13 @@ export function createTaskRepository(db: Database.Database) {
       db.pragma("defer_foreign_keys = ON");
 
       const incomingIds = new Set(nodes.map((n) => n.id));
+
+      // Fix orphan parent_id references: null out any parentId not present in incoming nodes
+      for (const node of nodes) {
+        if (node.parentId && !incomingIds.has(node.parentId)) {
+          node.parentId = null;
+        }
+      }
       const existingRows = db.prepare("SELECT id FROM tasks").all() as {
         id: string;
       }[];

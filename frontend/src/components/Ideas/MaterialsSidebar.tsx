@@ -2,7 +2,6 @@ import { useState, useMemo, useRef, useEffect, useCallback } from "react";
 import {
   Heart,
   StickyNote,
-  BookOpen,
   Trash2,
   Plus,
   Network,
@@ -10,12 +9,8 @@ import {
   Pencil,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import type { MemoNode } from "../../types/memo";
 import type { NoteNode } from "../../types/note";
 import type { WikiTagAssignment, WikiTag } from "../../types/wikiTag";
-import { formatDisplayDate, formatMonthLabel } from "../../utils/dateKey";
-import { groupMemosByMonth } from "../../utils/memoGrouping";
-import { MonthGroup } from "../shared/MonthGroup";
 import { getContentPreview } from "../../utils/tiptapText";
 import { STORAGE_KEYS } from "../../constants/storageKeys";
 import { SearchBar, type SearchSuggestion } from "../shared/SearchBar";
@@ -23,27 +18,20 @@ import { CollapsibleSection } from "../shared/CollapsibleSection";
 import { TagFilterOverlay } from "../shared/TagFilterOverlay";
 import { ItemEditPopover } from "./Connect/ItemEditPopover";
 
-type MaterialsView =
-  | { type: "note"; noteId: string }
-  | { type: "daily"; date: string };
-
 interface SectionsState {
   favorites: boolean;
   notes: boolean;
-  daily: boolean;
 }
 
 interface MaterialsSidebarProps {
-  memos: MemoNode[];
   notes: NoteNode[];
   assignments: WikiTagAssignment[];
   tags: WikiTag[];
-  selectedView: MaterialsView | null;
-  onSelectView: (view: MaterialsView) => void;
+  selectedNoteId: string | null;
+  onSelectNote: (noteId: string) => void;
   onCreateNote: () => void;
   onDeleteNote?: (noteId: string) => void;
-  onDeleteMemo?: (date: string) => void;
-  onNavigateToConnect?: (noteId: string) => void;
+  onNavigateToNode?: (noteId: string) => void;
   onUpdateNoteTitle?: (noteId: string, title: string) => void;
 }
 
@@ -55,7 +43,6 @@ function loadSectionsState(): SectionsState {
       return {
         favorites: parsed.favorites ?? true,
         notes: parsed.notes ?? true,
-        daily: parsed.daily ?? true,
       };
     }
   } catch {
@@ -64,7 +51,6 @@ function loadSectionsState(): SectionsState {
   return {
     favorites: true,
     notes: true,
-    daily: true,
   };
 }
 
@@ -76,16 +62,14 @@ function saveSectionsState(state: SectionsState): void {
 }
 
 export function MaterialsSidebar({
-  memos,
   notes,
   assignments,
   tags,
-  selectedView,
-  onSelectView,
+  selectedNoteId,
+  onSelectNote,
   onCreateNote,
   onDeleteNote,
-  onDeleteMemo,
-  onNavigateToConnect,
+  onNavigateToNode,
   onUpdateNoteTitle,
 }: MaterialsSidebarProps) {
   const { t } = useTranslation();
@@ -98,14 +82,9 @@ export function MaterialsSidebar({
   const [filterTagIds, setFilterTagIds] = useState<Set<string>>(new Set());
   const [showNoteFilter, setShowNoteFilter] = useState(false);
 
-  // Entity editing state (name + tags)
+  // Entity editing state
   const [editingEntityId, setEditingEntityId] = useState<string | null>(null);
   const editButtonRefs = useRef<Map<string, HTMLButtonElement>>(new Map());
-
-  const getEntityType = (id: string): "note" | "memo" => {
-    if (notes.some((n) => n.id === id)) return "note";
-    return "memo";
-  };
 
   const getEntityTitle = (id: string): string | undefined => {
     const note = notes.find((n) => n.id === id);
@@ -130,11 +109,10 @@ export function MaterialsSidebar({
     });
   };
 
-  // Search state (moved up for use in suggestions)
   const isSearching = debouncedQuery.trim().length > 0;
   const lowerQuery = debouncedQuery.toLowerCase();
 
-  // Search suggestions: recent notes + memos (up to 10)
+  // Search suggestions: recent notes
   const suggestions = useMemo<SearchSuggestion[]>(() => {
     const items: SearchSuggestion[] = [];
     const sortedNotes = [...notes]
@@ -142,7 +120,7 @@ export function MaterialsSidebar({
         (a, b) =>
           new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
       )
-      .slice(0, 6);
+      .slice(0, 10);
     for (const n of sortedNotes) {
       items.push({
         id: n.id,
@@ -150,38 +128,23 @@ export function MaterialsSidebar({
         icon: "note",
       });
     }
-    const sortedMemos = [...memos]
-      .sort((a, b) => b.date.localeCompare(a.date))
-      .slice(0, 4);
-    for (const m of sortedMemos) {
-      items.push({
-        id: m.id,
-        label: formatDisplayDate(m.date),
-        icon: "memo",
-      });
-    }
     if (isSearching) {
       return items.filter((i) => i.label.toLowerCase().includes(lowerQuery));
     }
     return items;
-  }, [notes, memos, isSearching, lowerQuery, t]);
+  }, [notes, isSearching, lowerQuery, t]);
 
   const handleSuggestionSelect = useCallback(
     (id: string) => {
       const note = notes.find((n) => n.id === id);
       if (note) {
-        onSelectView({ type: "note", noteId: note.id });
-        return;
-      }
-      const memo = memos.find((m) => m.id === id);
-      if (memo) {
-        onSelectView({ type: "daily", date: memo.date });
+        onSelectNote(note.id);
       }
     },
-    [notes, memos, onSelectView],
+    [notes, onSelectNote],
   );
 
-  // Build tag dot lookup: entityId -> tag colors
+  // Tag dot lookup
   const entityTagColors = useMemo(() => {
     const map = new Map<string, string[]>();
     for (const a of assignments) {
@@ -195,10 +158,9 @@ export function MaterialsSidebar({
     return map;
   }, [assignments, tags]);
 
-  // Pinned items
+  // Pinned notes only
   const pinnedNotes = useMemo(() => notes.filter((n) => n.isPinned), [notes]);
-  const pinnedMemos = useMemo(() => memos.filter((m) => m.isPinned), [memos]);
-  const hasFavorites = pinnedNotes.length > 0 || pinnedMemos.length > 0;
+  const hasFavorites = pinnedNotes.length > 0;
 
   const filteredNotes = useMemo(() => {
     if (!isSearching) return notes;
@@ -209,19 +171,7 @@ export function MaterialsSidebar({
     );
   }, [notes, isSearching, lowerQuery]);
 
-  const filteredMemos = useMemo(() => {
-    if (!isSearching) return memos;
-    return memos.filter(
-      (m) =>
-        m.date.includes(lowerQuery) ||
-        getContentPreview(m.content, 200).toLowerCase().includes(lowerQuery),
-    );
-  }, [memos, isSearching, lowerQuery]);
-
-  const isNoteSelected = (noteId: string) =>
-    selectedView?.type === "note" && selectedView.noteId === noteId;
-  const isDailySelected = (date: string) =>
-    selectedView?.type === "daily" && selectedView.date === date;
+  const isNoteSelected = (noteId: string) => selectedNoteId === noteId;
 
   const renderTagDots = (entityId: string) => {
     const colors = entityTagColors.get(entityId);
@@ -244,24 +194,24 @@ export function MaterialsSidebar({
       key={note.id}
       data-sidebar-item
       data-sidebar-active={isNoteSelected(note.id) || undefined}
-      className={`group flex items-center gap-1.5 px-2 py-1.5 rounded text-left transition-colors ${
+      className={`group flex items-center gap-1.5 px-2 py-1 rounded text-left transition-colors ${
         isNoteSelected(note.id) ? "bg-notion-hover" : "hover:bg-notion-hover"
       }`}
-      onClick={() => onSelectView({ type: "note", noteId: note.id })}
+      onClick={() => onSelectNote(note.id)}
     >
       <button
-        onClick={() => onSelectView({ type: "note", noteId: note.id })}
+        onClick={() => onSelectNote(note.id)}
         className="flex-1 flex items-center gap-1.5 min-w-0"
       >
         {note.isPinned ? (
-          <Heart size={15} className="text-red-500 fill-current shrink-0" />
+          <Heart size={12} className="text-red-500 fill-current shrink-0" />
         ) : (
           <StickyNote
-            size={15}
+            size={12}
             className="text-notion-text-secondary shrink-0"
           />
         )}
-        <span className="flex flex-1 text-sm text-notion-text justify-start truncate">
+        <span className="flex flex-1 text-xs text-notion-text justify-start truncate">
           {note.title || t("notes.untitled")}
         </span>
         {renderTagDots(note.id)}
@@ -277,18 +227,18 @@ export function MaterialsSidebar({
         className="p-0.5 opacity-0 group-hover:opacity-100 text-notion-text-secondary hover:text-notion-text transition-opacity shrink-0"
         title={t("ideas.editItem")}
       >
-        <Pencil size={12} />
+        <Pencil size={10} />
       </button>
-      {onNavigateToConnect && (
+      {onNavigateToNode && (
         <button
           onClick={(e) => {
             e.stopPropagation();
-            onNavigateToConnect(note.id);
+            onNavigateToNode(note.id);
           }}
           className="p-0.5 opacity-0 group-hover:opacity-100 text-notion-text-secondary hover:text-notion-text transition-opacity shrink-0"
-          title={t("ideas.connect")}
+          title={t("ideas.node")}
         >
-          <Network size={12} />
+          <Network size={10} />
         </button>
       )}
       {onDeleteNote && (
@@ -299,58 +249,7 @@ export function MaterialsSidebar({
           }}
           className="p-0.5 opacity-0 group-hover:opacity-100 text-notion-text-secondary hover:text-red-500 transition-opacity shrink-0"
         >
-          <Trash2 size={12} />
-        </button>
-      )}
-    </div>
-  );
-
-  const renderMemoItem = (memo: MemoNode) => (
-    <div
-      key={memo.id}
-      data-sidebar-item
-      data-sidebar-active={isDailySelected(memo.date) || undefined}
-      className={`group flex items-center gap-1.5 px-2 py-1.5 rounded text-left transition-colors ${
-        isDailySelected(memo.date) ? "bg-notion-hover" : "hover:bg-notion-hover"
-      }`}
-      onClick={() => onSelectView({ type: "daily", date: memo.date })}
-    >
-      <button
-        onClick={() => onSelectView({ type: "daily", date: memo.date })}
-        className="flex-1 flex items-center gap-1.5 min-w-0"
-      >
-        {memo.isPinned ? (
-          <Heart size={15} className="text-red-500 fill-current shrink-0" />
-        ) : (
-          <BookOpen size={15} className="text-notion-text-secondary shrink-0" />
-        )}
-        <span className="flex flex-1 text-sm text-notion-text justify-start truncate">
-          {formatDisplayDate(memo.date)}
-        </span>
-        {renderTagDots(memo.id)}
-      </button>
-      <button
-        ref={(el) => {
-          if (el) editButtonRefs.current.set(memo.id, el);
-        }}
-        onClick={(e) => {
-          e.stopPropagation();
-          setEditingEntityId(editingEntityId === memo.id ? null : memo.id);
-        }}
-        className="p-0.5 opacity-0 group-hover:opacity-100 text-notion-text-secondary hover:text-notion-text transition-opacity shrink-0"
-        title={t("ideas.editItem")}
-      >
-        <Pencil size={12} />
-      </button>
-      {onDeleteMemo && (
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            onDeleteMemo(memo.date);
-          }}
-          className="p-0.5 opacity-0 group-hover:opacity-100 text-notion-text-secondary hover:text-red-500 transition-opacity shrink-0"
-        >
-          <Trash2 size={12} />
+          <Trash2 size={10} />
         </button>
       )}
     </div>
@@ -365,7 +264,6 @@ export function MaterialsSidebar({
     });
   };
 
-  // Tag-filtered notes and memos
   const hasTagFilter = filterTagIds.size > 0;
 
   const entityTagIds = useMemo(() => {
@@ -387,28 +285,12 @@ export function MaterialsSidebar({
     });
   }, [notes, hasTagFilter, filterTagIds, entityTagIds]);
 
-  const tagFilteredMemos = useMemo(() => {
-    if (!hasTagFilter) return memos;
-    return memos.filter((m) => {
-      const memoTagSet = entityTagIds.get(m.id);
-      if (!memoTagSet) return false;
-      return [...filterTagIds].some((tid) => memoTagSet.has(tid));
-    });
-  }, [memos, hasTagFilter, filterTagIds, entityTagIds]);
-
-  // Apply tag filter to display lists
   const displayNotes = hasTagFilter ? tagFilteredNotes : notes;
-  const displayMemos = hasTagFilter ? tagFilteredMemos : memos;
   const displayPinnedNotes = hasTagFilter
     ? tagFilteredNotes.filter((n) => n.isPinned)
     : pinnedNotes;
-  const displayPinnedMemos = hasTagFilter
-    ? tagFilteredMemos.filter((m) => m.isPinned)
-    : pinnedMemos;
-  const displayHasFavorites =
-    displayPinnedNotes.length > 0 || displayPinnedMemos.length > 0;
+  const displayHasFavorites = displayPinnedNotes.length > 0;
 
-  // Search results: flat list
   if (isSearching) {
     return (
       <div className="h-full flex flex-col">
@@ -420,21 +302,20 @@ export function MaterialsSidebar({
           onSuggestionSelect={handleSuggestionSelect}
         />
         <div className="flex-1 overflow-y-auto p-1">
-          {filteredNotes.length === 0 && filteredMemos.length === 0 && (
+          {filteredNotes.length === 0 && (
             <p className="text-xs text-notion-text-secondary text-center py-4">
               {t("ideas.noSearchResults")}
             </p>
           )}
           {filteredNotes.map(renderNoteItem)}
-          {filteredMemos.map(renderMemoItem)}
         </div>
         {editingEntityId && editButtonRefs.current.get(editingEntityId) && (
           <ItemEditPopover
             entityId={editingEntityId}
-            entityType={getEntityType(editingEntityId)}
+            entityType="note"
             title={getEntityTitle(editingEntityId)}
             onTitleChange={
-              getEntityType(editingEntityId) === "note" && onUpdateNoteTitle
+              onUpdateNoteTitle
                 ? (title) => onUpdateNoteTitle(editingEntityId, title)
                 : undefined
             }
@@ -459,19 +340,18 @@ export function MaterialsSidebar({
         {displayHasFavorites && (
           <CollapsibleSection
             label={t("ideas.favorites")}
-            icon={<Heart size={15} />}
+            icon={<Heart size={12} />}
             isOpen={sections.favorites}
             onToggle={() => toggleSection("favorites")}
           >
             {displayPinnedNotes.map(renderNoteItem)}
-            {displayPinnedMemos.map(renderMemoItem)}
           </CollapsibleSection>
         )}
 
         {/* Notes */}
         <CollapsibleSection
           label={t("ideas.notes")}
-          icon={<StickyNote size={15} />}
+          icon={<StickyNote size={12} />}
           isOpen={sections.notes}
           onToggle={() => toggleSection("notes")}
           rightAction={
@@ -522,40 +402,15 @@ export function MaterialsSidebar({
             displayNotes.map(renderNoteItem)
           )}
         </CollapsibleSection>
-
-        {/* Daily */}
-        <CollapsibleSection
-          label={t("ideas.daily")}
-          icon={<BookOpen size={15} />}
-          isOpen={sections.daily}
-          onToggle={() => toggleSection("daily")}
-        >
-          {displayMemos.length === 0 ? (
-            <p className="text-xs text-notion-text-secondary px-2 py-2">
-              {hasTagFilter ? t("ideas.noSearchResults") : "No memos yet"}
-            </p>
-          ) : (
-            groupMemosByMonth(displayMemos).map((group, groupIndex) => (
-              <MonthGroup
-                key={group.monthKey}
-                monthLabel={formatMonthLabel(group.monthKey)}
-                itemCount={group.memos.length}
-                defaultOpen={groupIndex === 0}
-              >
-                {group.memos.map(renderMemoItem)}
-              </MonthGroup>
-            ))
-          )}
-        </CollapsibleSection>
       </div>
 
       {editingEntityId && editButtonRefs.current.get(editingEntityId) && (
         <ItemEditPopover
           entityId={editingEntityId}
-          entityType={getEntityType(editingEntityId)}
+          entityType="note"
           title={getEntityTitle(editingEntityId)}
           onTitleChange={
-            getEntityType(editingEntityId) === "note" && onUpdateNoteTitle
+            onUpdateNoteTitle
               ? (title) => onUpdateNoteTitle(editingEntityId, title)
               : undefined
           }

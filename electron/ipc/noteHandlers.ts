@@ -1,82 +1,69 @@
-import { ipcMain } from "electron";
-import { loggedHandler } from "./handlerUtil";
-import { broadcastChange } from "../server/broadcast";
+import { query, mutation } from "./handlerUtil";
 import type { NoteRepository } from "../database/noteRepository";
 
 export function registerNoteHandlers(repo: NoteRepository): void {
-  ipcMain.handle(
-    "db:notes:fetchAll",
-    loggedHandler("Notes", "fetchAll", () => repo.fetchAll()),
+  query("db:notes:fetchAll", "Notes", "fetchAll", () => repo.fetchAll());
+
+  query("db:notes:fetchDeleted", "Notes", "fetchDeleted", () =>
+    repo.fetchDeleted(),
   );
 
-  ipcMain.handle(
-    "db:notes:fetchDeleted",
-    loggedHandler("Notes", "fetchDeleted", () => repo.fetchDeleted()),
+  query("db:notes:search", "Notes", "search", (_event, searchQuery: string) =>
+    repo.search(searchQuery),
   );
 
-  ipcMain.handle(
+  mutation(
     "db:notes:create",
-    loggedHandler("Notes", "create", (_event, id: string, title: string) => {
-      const result = repo.create(id, title);
-      broadcastChange("note", "create", id);
-      return result;
-    }),
+    "Notes",
+    "create",
+    "note",
+    "create",
+    (_event, id: string, title: string) => repo.create(id, title),
   );
 
-  ipcMain.handle(
+  mutation(
     "db:notes:update",
-    loggedHandler(
-      "Notes",
-      "update",
-      (
-        _event,
-        id: string,
-        updates: {
-          title?: string;
-          content?: string;
-          isPinned?: boolean;
-          color?: string;
-        },
-      ) => {
-        const result = repo.update(id, updates);
-        broadcastChange("note", "update", id);
-        return result;
+    "Notes",
+    "update",
+    "note",
+    "update",
+    (
+      _event,
+      id: string,
+      updates: {
+        title?: string;
+        content?: string;
+        isPinned?: boolean;
+        color?: string;
       },
-    ),
+    ) => repo.update(id, updates),
   );
 
-  ipcMain.handle(
+  mutation(
     "db:notes:softDelete",
-    loggedHandler("Notes", "softDelete", (_event, id: string) => {
-      const result = repo.softDelete(id);
-      broadcastChange("note", "delete", id);
-      return result;
-    }),
+    "Notes",
+    "softDelete",
+    "note",
+    "delete",
+    (_event, id: string) => repo.softDelete(id),
   );
 
-  ipcMain.handle(
+  mutation(
     "db:notes:restore",
-    loggedHandler("Notes", "restore", (_event, id: string) => {
-      const result = repo.restore(id);
-      broadcastChange("note", "update", id);
-      return result;
-    }),
+    "Notes",
+    "restore",
+    "note",
+    "update",
+    (_event, id: string) => repo.restore(id),
   );
 
-  ipcMain.handle(
+  mutation(
     "db:notes:permanentDelete",
-    loggedHandler("Notes", "permanentDelete", (_event, id: string) => {
-      const result = repo.permanentDelete(id);
-      broadcastChange("note", "delete", id);
-      return result;
-    }),
-  );
-
-  ipcMain.handle(
-    "db:notes:search",
-    loggedHandler("Notes", "search", (_event, query: string) =>
-      repo.search(query),
-    ),
+    "Notes",
+    "permanentDelete",
+    "note",
+    "delete",
+    (_event, id: string) => repo.permanentDelete(id),
   );
 
   // Note tag handlers moved to tagHandlers.ts (db:noteTags:*)

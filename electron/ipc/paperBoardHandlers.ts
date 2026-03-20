@@ -1,161 +1,161 @@
-import { ipcMain } from "electron";
-import { loggedHandler } from "./handlerUtil";
+import { query, mutation } from "./handlerUtil";
 import type { PaperBoardRepository } from "../database/paperBoardRepository";
-import type { PaperNode } from "../types";
-import { broadcastChange } from "../server/broadcast";
 
 export function registerPaperBoardHandlers(repo: PaperBoardRepository): void {
   // --- Boards ---
-  ipcMain.handle(
-    "db:paperBoards:fetchAll",
-    loggedHandler("PaperBoards", "fetchAll", () => {
-      return repo.fetchAllBoards();
-    }),
-  );
+  query("db:paperBoards:fetchAll", "PaperBoards", "fetchAll", () => {
+    return repo.fetchAllBoards();
+  });
 
-  ipcMain.handle(
+  query(
     "db:paperBoards:fetchById",
-    loggedHandler("PaperBoards", "fetchById", (_event, id: string) => {
+    "PaperBoards",
+    "fetchById",
+    (_event, id: string) => {
       return repo.fetchBoardById(id);
-    }),
+    },
   );
 
-  ipcMain.handle(
+  query(
     "db:paperBoards:fetchByNoteId",
-    loggedHandler("PaperBoards", "fetchByNoteId", (_event, noteId: string) => {
+    "PaperBoards",
+    "fetchByNoteId",
+    (_event, noteId: string) => {
       return repo.fetchBoardByNoteId(noteId);
-    }),
+    },
   );
 
-  ipcMain.handle(
+  mutation(
     "db:paperBoards:create",
-    loggedHandler(
-      "PaperBoards",
-      "create",
-      (_event, name: string, linkedNoteId?: string | null) => {
-        const board = repo.createBoard(name, linkedNoteId);
-        broadcastChange("paperBoard", "create", board.id);
-        return board;
-      },
-    ),
+    "PaperBoards",
+    "create",
+    "paperBoard",
+    "create",
+    (_event, name: string, linkedNoteId?: string | null) => {
+      return repo.createBoard(name, linkedNoteId);
+    },
+    (_args, result) => (result as { id?: string })?.id,
   );
 
-  ipcMain.handle(
+  mutation(
     "db:paperBoards:update",
-    loggedHandler(
-      "PaperBoards",
-      "update",
-      (_event, id: string, updates: Record<string, unknown>) => {
-        const board = repo.updateBoard(id, updates);
-        broadcastChange("paperBoard", "update", id);
-        return board;
-      },
-    ),
+    "PaperBoards",
+    "update",
+    "paperBoard",
+    "update",
+    (_event, id: string, updates: Record<string, unknown>) => {
+      return repo.updateBoard(id, updates);
+    },
   );
 
-  ipcMain.handle(
+  mutation(
     "db:paperBoards:delete",
-    loggedHandler("PaperBoards", "delete", (_event, id: string) => {
+    "PaperBoards",
+    "delete",
+    "paperBoard",
+    "delete",
+    (_event, id: string) => {
       repo.deleteBoard(id);
-      broadcastChange("paperBoard", "delete", id);
-    }),
+    },
   );
 
   // --- Nodes ---
-  ipcMain.handle(
+  query(
     "db:paperNodes:fetchByBoard",
-    loggedHandler("PaperNodes", "fetchByBoard", (_event, boardId: string) => {
+    "PaperNodes",
+    "fetchByBoard",
+    (_event, boardId: string) => {
       return repo.fetchNodesByBoard(boardId);
-    }),
+    },
   );
 
-  ipcMain.handle(
+  mutation(
     "db:paperNodes:create",
-    loggedHandler(
-      "PaperNodes",
-      "create",
-      (_event, params: Record<string, unknown>) => {
-        const node = repo.createNode(
-          params as Parameters<typeof repo.createNode>[0],
-        );
-        broadcastChange("paperNode", "create", node.id);
-        return node;
-      },
-    ),
+    "PaperNodes",
+    "create",
+    "paperNode",
+    "create",
+    (_event, params: Record<string, unknown>) => {
+      return repo.createNode(params as Parameters<typeof repo.createNode>[0]);
+    },
+    (_args, result) => (result as { id?: string })?.id,
   );
 
-  ipcMain.handle(
+  mutation(
     "db:paperNodes:update",
-    loggedHandler(
-      "PaperNodes",
-      "update",
-      (_event, id: string, updates: Record<string, unknown>) => {
-        const node = repo.updateNode(
-          id,
-          updates as Parameters<typeof repo.updateNode>[1],
-        );
-        broadcastChange("paperNode", "update", id);
-        return node;
-      },
-    ),
+    "PaperNodes",
+    "update",
+    "paperNode",
+    "update",
+    (_event, id: string, updates: Record<string, unknown>) => {
+      return repo.updateNode(
+        id,
+        updates as Parameters<typeof repo.updateNode>[1],
+      );
+    },
   );
 
-  ipcMain.handle(
+  mutation(
     "db:paperNodes:bulkUpdatePositions",
-    loggedHandler(
-      "PaperNodes",
-      "bulkUpdatePositions",
-      (
-        _event,
-        updates: Array<{
-          id: string;
-          positionX: number;
-          positionY: number;
-          parentNodeId: string | null;
-        }>,
-      ) => {
-        repo.bulkUpdatePositions(updates);
-        broadcastChange("paperNode", "bulk");
-      },
-    ),
+    "PaperNodes",
+    "bulkUpdatePositions",
+    "paperNode",
+    "bulk",
+    (
+      _event,
+      updates: Array<{
+        id: string;
+        positionX: number;
+        positionY: number;
+        parentNodeId: string | null;
+      }>,
+    ) => {
+      repo.bulkUpdatePositions(updates);
+    },
+    () => undefined,
   );
 
-  ipcMain.handle(
+  mutation(
     "db:paperNodes:delete",
-    loggedHandler("PaperNodes", "delete", (_event, id: string) => {
+    "PaperNodes",
+    "delete",
+    "paperNode",
+    "delete",
+    (_event, id: string) => {
       repo.deleteNode(id);
-      broadcastChange("paperNode", "delete", id);
-    }),
+    },
   );
 
   // --- Edges ---
-  ipcMain.handle(
+  query(
     "db:paperEdges:fetchByBoard",
-    loggedHandler("PaperEdges", "fetchByBoard", (_event, boardId: string) => {
+    "PaperEdges",
+    "fetchByBoard",
+    (_event, boardId: string) => {
       return repo.fetchEdgesByBoard(boardId);
-    }),
+    },
   );
 
-  ipcMain.handle(
+  mutation(
     "db:paperEdges:create",
-    loggedHandler(
-      "PaperEdges",
-      "create",
-      (_event, params: Record<string, unknown>) => {
-        const edge = repo.createEdge(
-          params as Parameters<typeof repo.createEdge>[0],
-        );
-        broadcastChange("paperEdge", "create", edge.id);
-        return edge;
-      },
-    ),
+    "PaperEdges",
+    "create",
+    "paperEdge",
+    "create",
+    (_event, params: Record<string, unknown>) => {
+      return repo.createEdge(params as Parameters<typeof repo.createEdge>[0]);
+    },
+    (_args, result) => (result as { id?: string })?.id,
   );
 
-  ipcMain.handle(
+  mutation(
     "db:paperEdges:delete",
-    loggedHandler("PaperEdges", "delete", (_event, id: string) => {
+    "PaperEdges",
+    "delete",
+    "paperEdge",
+    "delete",
+    (_event, id: string) => {
       repo.deleteEdge(id);
-      broadcastChange("paperEdge", "delete", id);
-    }),
+    },
   );
 }

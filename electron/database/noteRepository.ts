@@ -1,5 +1,6 @@
 import type Database from "better-sqlite3";
 import type { NoteNode } from "../types";
+import { prepareSoftDeleteStatements } from "./repositoryHelpers";
 
 interface NoteRow {
   id: string;
@@ -32,9 +33,7 @@ export function createNoteRepository(db: Database.Database) {
     fetchAll: db.prepare(
       `SELECT * FROM notes WHERE is_deleted = 0 ORDER BY updated_at DESC`,
     ),
-    fetchDeleted: db.prepare(
-      `SELECT * FROM notes WHERE is_deleted = 1 ORDER BY deleted_at DESC`,
-    ),
+    ...prepareSoftDeleteStatements(db, "notes"),
     fetchById: db.prepare(`SELECT * FROM notes WHERE id = ?`),
     insert: db.prepare(`
       INSERT INTO notes (id, title, content, is_pinned, is_deleted, created_at, updated_at)
@@ -45,13 +44,6 @@ export function createNoteRepository(db: Database.Database) {
         version = version + 1, updated_at = datetime('now')
       WHERE id = @id
     `),
-    softDelete: db.prepare(
-      `UPDATE notes SET is_deleted = 1, deleted_at = datetime('now'), version = version + 1, updated_at = datetime('now') WHERE id = ?`,
-    ),
-    restore: db.prepare(
-      `UPDATE notes SET is_deleted = 0, deleted_at = NULL, version = version + 1, updated_at = datetime('now') WHERE id = ?`,
-    ),
-    permanentDelete: db.prepare(`DELETE FROM notes WHERE id = ?`),
     search: db.prepare(`
       SELECT * FROM notes WHERE is_deleted = 0
       AND (title LIKE @query OR content LIKE @query)

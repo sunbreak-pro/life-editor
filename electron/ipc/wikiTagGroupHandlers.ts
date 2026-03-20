@@ -1,96 +1,86 @@
-import { ipcMain } from "electron";
-import { loggedHandler } from "./handlerUtil";
-import { broadcastChange } from "../server/broadcast";
+import { query, mutation } from "./handlerUtil";
 import type { WikiTagGroupRepository } from "../database/wikiTagGroupRepository";
 
 export function registerWikiTagGroupHandlers(
   repo: WikiTagGroupRepository,
 ): void {
-  ipcMain.handle(
-    "db:wikiTagGroups:fetchAll",
-    loggedHandler("WikiTagGroups", "fetchAll", () => {
-      return repo.fetchAll();
-    }),
-  );
+  query("db:wikiTagGroups:fetchAll", "WikiTagGroups", "fetchAll", () => {
+    return repo.fetchAll();
+  });
 
-  ipcMain.handle(
+  mutation(
     "db:wikiTagGroups:create",
-    loggedHandler(
-      "WikiTagGroups",
-      "create",
-      (_event, name: string, noteIds: string[], filterTags?: string[]) => {
-        const result = repo.create(name, noteIds, filterTags);
-        broadcastChange("wikiTagGroup", "create", result?.id);
-        return result;
-      },
-    ),
+    "WikiTagGroups",
+    "create",
+    "wikiTagGroup",
+    "create",
+    (_event, name: string, noteIds: string[], filterTags?: string[]) => {
+      return repo.create(name, noteIds, filterTags);
+    },
+    (_args, result) => (result as { id?: string })?.id,
   );
 
-  ipcMain.handle(
+  mutation(
     "db:wikiTagGroups:update",
-    loggedHandler(
-      "WikiTagGroups",
-      "update",
-      (
-        _event,
-        id: string,
-        updates: { name?: string; filterTags?: string[] },
-      ) => {
-        const result = repo.update(id, updates);
-        broadcastChange("wikiTagGroup", "update", id);
-        return result;
-      },
-    ),
+    "WikiTagGroups",
+    "update",
+    "wikiTagGroup",
+    "update",
+    (_event, id: string, updates: { name?: string; filterTags?: string[] }) => {
+      return repo.update(id, updates);
+    },
   );
 
-  ipcMain.handle(
+  mutation(
     "db:wikiTagGroups:delete",
-    loggedHandler("WikiTagGroups", "delete", (_event, id: string) => {
+    "WikiTagGroups",
+    "delete",
+    "wikiTagGroup",
+    "delete",
+    (_event, id: string) => {
       repo.delete(id);
-      broadcastChange("wikiTagGroup", "delete", id);
-    }),
+    },
   );
 
-  ipcMain.handle(
+  query(
     "db:wikiTagGroups:fetchAllMembers",
-    loggedHandler("WikiTagGroups", "fetchAllMembers", () => {
+    "WikiTagGroups",
+    "fetchAllMembers",
+    () => {
       return repo.fetchAllMembers();
-    }),
+    },
   );
 
-  ipcMain.handle(
+  mutation(
     "db:wikiTagGroups:setMembers",
-    loggedHandler(
-      "WikiTagGroups",
-      "setMembers",
-      (_event, groupId: string, noteIds: string[]) => {
-        repo.setMembers(groupId, noteIds);
-        broadcastChange("wikiTagGroup", "update", groupId);
-      },
-    ),
+    "WikiTagGroups",
+    "setMembers",
+    "wikiTagGroup",
+    "update",
+    (_event, groupId: string, noteIds: string[]) => {
+      repo.setMembers(groupId, noteIds);
+    },
   );
 
-  ipcMain.handle(
+  mutation(
     "db:wikiTagGroups:addMember",
-    loggedHandler(
-      "WikiTagGroups",
-      "addMember",
-      (_event, groupId: string, noteId: string) => {
-        repo.addMember(groupId, noteId);
-        broadcastChange("wikiTagGroup", "update", groupId);
-      },
-    ),
+    "WikiTagGroups",
+    "addMember",
+    "wikiTagGroup",
+    "update",
+    (_event, groupId: string, noteId: string) => {
+      repo.addMember(groupId, noteId);
+    },
   );
 
-  ipcMain.handle(
+  mutation(
     "db:wikiTagGroups:removeMember",
-    loggedHandler(
-      "WikiTagGroups",
-      "removeMember",
-      (_event, groupId: string, noteId: string) => {
-        repo.removeMember(groupId, noteId);
-        broadcastChange("wikiTagGroup", "update", groupId);
-      },
-    ),
+    "WikiTagGroups",
+    "removeMember",
+    "wikiTagGroup",
+    "update",
+    (_event, groupId: string, noteId: string) => {
+      repo.removeMember(groupId, noteId);
+    },
   );
 }

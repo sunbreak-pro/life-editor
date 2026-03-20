@@ -1,94 +1,94 @@
-import { ipcMain } from "electron";
-import { loggedHandler } from "./handlerUtil";
-import { broadcastChange } from "../server/broadcast";
+import { query, mutation } from "./handlerUtil";
 import type { RoutineRepository } from "../database/routineRepository";
 import type { RoutineNode } from "../types";
 
 export function registerRoutineHandlers(repo: RoutineRepository): void {
-  ipcMain.handle(
-    "db:routines:fetchAll",
-    loggedHandler("Routines", "fetchAll", () => {
-      return repo.fetchAll();
-    }),
-  );
+  query("db:routines:fetchAll", "Routines", "fetchAll", () => {
+    return repo.fetchAll();
+  });
 
-  ipcMain.handle(
+  mutation(
     "db:routines:create",
-    loggedHandler(
-      "Routines",
-      "create",
-      (
-        _event,
-        id: string,
-        title: string,
-        startTime?: string,
-        endTime?: string,
-      ) => {
-        const result = repo.create(id, title, startTime, endTime);
-        broadcastChange("routine", "create", id);
-        return result;
-      },
-    ),
+    "Routines",
+    "create",
+    "routine",
+    "create",
+    (
+      _event,
+      id: string,
+      title: string,
+      startTime?: string,
+      endTime?: string,
+    ) => {
+      return repo.create(id, title, startTime, endTime);
+    },
   );
 
-  ipcMain.handle(
+  mutation(
     "db:routines:update",
-    loggedHandler(
-      "Routines",
-      "update",
-      (
-        _event,
-        id: string,
-        updates: Partial<
-          Pick<
-            RoutineNode,
-            "title" | "startTime" | "endTime" | "isArchived" | "order"
-          >
-        >,
-      ) => {
-        const result = repo.update(id, updates);
-        broadcastChange("routine", "update", id);
-        return result;
-      },
-    ),
+    "Routines",
+    "update",
+    "routine",
+    "update",
+    (
+      _event,
+      id: string,
+      updates: Partial<
+        Pick<
+          RoutineNode,
+          "title" | "startTime" | "endTime" | "isArchived" | "order"
+        >
+      >,
+    ) => {
+      return repo.update(id, updates);
+    },
   );
 
-  ipcMain.handle(
+  mutation(
     "db:routines:delete",
-    loggedHandler("Routines", "delete", (_event, id: string) => {
+    "Routines",
+    "delete",
+    "routine",
+    "delete",
+    (_event, id: string) => {
       repo.delete(id);
-      broadcastChange("routine", "delete", id);
-    }),
+    },
   );
 
-  ipcMain.handle(
-    "db:routines:fetchDeleted",
-    loggedHandler("Routines", "fetchDeleted", () => {
-      return repo.fetchDeleted();
-    }),
-  );
+  query("db:routines:fetchDeleted", "Routines", "fetchDeleted", () => {
+    return repo.fetchDeleted();
+  });
 
-  ipcMain.handle(
+  mutation(
     "db:routines:softDelete",
-    loggedHandler("Routines", "softDelete", (_event, id: string) => {
+    "Routines",
+    "softDelete",
+    "routine",
+    "delete",
+    (_event, id: string) => {
       repo.softDelete(id);
-      broadcastChange("routine", "delete", id);
-    }),
+    },
   );
 
-  ipcMain.handle(
+  mutation(
     "db:routines:restore",
-    loggedHandler("Routines", "restore", (_event, id: string) => {
+    "Routines",
+    "restore",
+    "routine",
+    "update",
+    (_event, id: string) => {
       repo.restore(id);
-      broadcastChange("routine", "update", id);
-    }),
+    },
   );
 
-  ipcMain.handle(
+  mutation(
     "db:routines:permanentDelete",
-    loggedHandler("Routines", "permanentDelete", (_event, id: string) => {
+    "Routines",
+    "permanentDelete",
+    "routine",
+    "delete",
+    (_event, id: string) => {
       repo.permanentDelete(id);
-      broadcastChange("routine", "delete", id);
-    }),
+    },
   );
 }

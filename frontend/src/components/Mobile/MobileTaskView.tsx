@@ -26,7 +26,14 @@ export function MobileTaskView() {
   }, [loadTasks]);
 
   async function handleToggle(task: TaskNode) {
-    const newStatus = task.status === "DONE" ? "TODO" : "DONE";
+    // 3-state cycle: NOT_STARTED → IN_PROGRESS → DONE → NOT_STARTED
+    const statusCycle: Record<string, string> = {
+      NOT_STARTED: "IN_PROGRESS",
+      IN_PROGRESS: "DONE",
+      DONE: "NOT_STARTED",
+    };
+    const currentStatus = task.status ?? "NOT_STARTED";
+    const newStatus = statusCycle[currentStatus] ?? "NOT_STARTED";
     try {
       await ds.updateTask(task.id, {
         status: newStatus,

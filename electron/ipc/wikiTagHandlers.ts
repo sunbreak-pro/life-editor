@@ -1,141 +1,137 @@
-import { ipcMain } from "electron";
-import { loggedHandler } from "./handlerUtil";
-import { broadcastChange } from "../server/broadcast";
+import { query, mutation } from "./handlerUtil";
 import type { WikiTagRepository } from "../database/wikiTagRepository";
 import type { WikiTag } from "../types";
 
 export function registerWikiTagHandlers(repo: WikiTagRepository): void {
-  ipcMain.handle(
-    "db:wikiTags:fetchAll",
-    loggedHandler("WikiTags", "fetchAll", () => {
-      return repo.fetchAll();
-    }),
-  );
+  query("db:wikiTags:fetchAll", "WikiTags", "fetchAll", () => {
+    return repo.fetchAll();
+  });
 
-  ipcMain.handle(
+  query(
     "db:wikiTags:search",
-    loggedHandler("WikiTags", "search", (_event, query: string) => {
-      return repo.search(query);
-    }),
+    "WikiTags",
+    "search",
+    (_event, query_: string) => {
+      return repo.search(query_);
+    },
   );
 
-  ipcMain.handle(
+  mutation(
     "db:wikiTags:create",
-    loggedHandler(
-      "WikiTags",
-      "create",
-      (_event, name: string, color: string) => {
-        const result = repo.create(name, color);
-        broadcastChange("wikiTag", "create", result?.id);
-        return result;
-      },
-    ),
+    "WikiTags",
+    "create",
+    "wikiTag",
+    "create",
+    (_event, name: string, color: string) => {
+      return repo.create(name, color);
+    },
+    (_args, result) => (result as { id?: string })?.id,
   );
 
-  ipcMain.handle(
+  mutation(
     "db:wikiTags:createWithId",
-    loggedHandler(
-      "WikiTags",
-      "createWithId",
-      (_event, id: string, name: string, color: string) => {
-        const result = repo.createWithId(id, name, color);
-        broadcastChange("wikiTag", "create", id);
-        return result;
-      },
-    ),
+    "WikiTags",
+    "createWithId",
+    "wikiTag",
+    "create",
+    (_event, id: string, name: string, color: string) => {
+      return repo.createWithId(id, name, color);
+    },
   );
 
-  ipcMain.handle(
+  mutation(
     "db:wikiTags:update",
-    loggedHandler(
-      "WikiTags",
-      "update",
-      (
-        _event,
-        id: string,
-        updates: Partial<Pick<WikiTag, "name" | "color" | "textColor">>,
-      ) => {
-        const result = repo.update(id, updates);
-        broadcastChange("wikiTag", "update", id);
-        return result;
-      },
-    ),
+    "WikiTags",
+    "update",
+    "wikiTag",
+    "update",
+    (
+      _event,
+      id: string,
+      updates: Partial<Pick<WikiTag, "name" | "color" | "textColor">>,
+    ) => {
+      return repo.update(id, updates);
+    },
   );
 
-  ipcMain.handle(
+  mutation(
     "db:wikiTags:delete",
-    loggedHandler("WikiTags", "delete", (_event, id: string) => {
+    "WikiTags",
+    "delete",
+    "wikiTag",
+    "delete",
+    (_event, id: string) => {
       repo.delete(id);
-      broadcastChange("wikiTag", "delete", id);
-    }),
+    },
   );
 
-  ipcMain.handle(
+  mutation(
     "db:wikiTags:merge",
-    loggedHandler(
-      "WikiTags",
-      "merge",
-      (_event, sourceId: string, targetId: string) => {
-        const result = repo.merge(sourceId, targetId);
-        broadcastChange("wikiTag", "bulk");
-        return result;
-      },
-    ),
+    "WikiTags",
+    "merge",
+    "wikiTag",
+    "bulk",
+    (_event, sourceId: string, targetId: string) => {
+      return repo.merge(sourceId, targetId);
+    },
+    () => undefined,
   );
 
-  ipcMain.handle(
+  query(
     "db:wikiTags:fetchForEntity",
-    loggedHandler("WikiTags", "fetchForEntity", (_event, entityId: string) => {
+    "WikiTags",
+    "fetchForEntity",
+    (_event, entityId: string) => {
       return repo.fetchTagsForEntity(entityId);
-    }),
+    },
   );
 
-  ipcMain.handle(
+  mutation(
     "db:wikiTags:setForEntity",
-    loggedHandler(
-      "WikiTags",
-      "setForEntity",
-      (_event, entityId: string, entityType: string, tagIds: string[]) => {
-        repo.setTagsForEntity(entityId, entityType, tagIds);
-        broadcastChange("wikiTagAssignment", "bulk", entityId);
-      },
-    ),
+    "WikiTags",
+    "setForEntity",
+    "wikiTagAssignment",
+    "bulk",
+    (_event, entityId: string, entityType: string, tagIds: string[]) => {
+      repo.setTagsForEntity(entityId, entityType, tagIds);
+    },
   );
 
-  ipcMain.handle(
+  mutation(
     "db:wikiTags:syncInline",
-    loggedHandler(
-      "WikiTags",
-      "syncInline",
-      (_event, entityId: string, entityType: string, tagNames: string[]) => {
-        repo.syncInlineTags(entityId, entityType, tagNames);
-        broadcastChange("wikiTagAssignment", "bulk", entityId);
-      },
-    ),
+    "WikiTags",
+    "syncInline",
+    "wikiTagAssignment",
+    "bulk",
+    (_event, entityId: string, entityType: string, tagNames: string[]) => {
+      repo.syncInlineTags(entityId, entityType, tagNames);
+    },
   );
 
-  ipcMain.handle(
+  query(
     "db:wikiTags:fetchAllAssignments",
-    loggedHandler("WikiTags", "fetchAllAssignments", () => {
+    "WikiTags",
+    "fetchAllAssignments",
+    () => {
       return repo.fetchAllAssignments();
-    }),
+    },
   );
 
-  ipcMain.handle(
+  mutation(
     "db:wikiTags:restoreAssignment",
-    loggedHandler(
-      "WikiTags",
-      "restoreAssignment",
-      (
-        _event,
-        tagId: string,
-        entityId: string,
-        entityType: string,
-        source: string,
-      ) => {
-        repo.restoreAssignment(tagId, entityId, entityType, source);
-        broadcastChange("wikiTagAssignment", "create", entityId);
-      },
-    ),
+    "WikiTags",
+    "restoreAssignment",
+    "wikiTagAssignment",
+    "create",
+    (
+      _event,
+      tagId: string,
+      entityId: string,
+      entityType: string,
+      source: string,
+    ) => {
+      repo.restoreAssignment(tagId, entityId, entityType, source);
+    },
+    (args) => args[2] as string,
   );
 }
