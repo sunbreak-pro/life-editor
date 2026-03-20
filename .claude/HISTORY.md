@@ -1,5 +1,19 @@
 # HISTORY.md - 変更履歴
 
+### 2026-03-20 - DayFlow UX改善（6項目）
+
+#### 概要
+
+DayFlowタイムグリッドの6つのUX問題を修正: テキスト選択防止、カーソル改善、iOS風スワイプアクション、2カラム同期、全アイテム統合重複レイアウト。
+
+#### 変更点
+
+- **テキスト選択防止**: useTimeGridDrag.ts で pendingItem 存在時に e.preventDefault() + body.userSelect 制御
+- **カーソル改善**: ScheduleTimeGrid.tsx のメインカラムを cursor-default に変更
+- **iOS風スワイプ**: useSwipeAction.ts 新規作成、ScheduleItemBlock/TimeGridTaskBlock で左スワイプによるアクションパネル表示
+- **2カラム同期**: useDayFlowColumn.ts に refresh() 追加、DualDayFlowLayout.tsx で同日表示時の相互リフレッシュ
+- **統合重複レイアウト**: ScheduleTimeGrid.tsx の layoutAllItems() で全アイテム（ScheduleItem + Task）を統一レイアウト、重複グループでカラム分割
+
 ### 2026-03-20 - CLAUDE.md をコードベース実態に合わせて更新
 
 #### 概要
