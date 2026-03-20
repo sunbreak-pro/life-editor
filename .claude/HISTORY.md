@@ -1,5 +1,21 @@
 # HISTORY.md - 変更履歴
 
+### 2026-03-21 - Calendar/DayFlow ナビゲーションバグ修正 + DayFlow プレビューポップアップ追加
+
+#### 概要
+
+Calendar から Note/Daily メモの「詳細を開く」で正しいタブ・アイテムに遷移しないバグを修正。DayFlow のタスク/スケジュールアイテムにクリックでプレビューポップアップを表示する機能を追加。
+
+#### 変更点
+
+- **Bug Fix (Note)**: `handleCalendarSelectNote` で `setSelectedNoteId(noteId)` を呼び、IDEAS_TAB を "materials" に直接設定
+- **Bug Fix (Daily)**: `handleCalendarSelectMemo` に `localStorage.setItem(IDEAS_TAB, "daily")` を追加
+- **App.tsx**: `useNoteContext()` から `setSelectedNoteId` を取得し `useTaskDetailHandlers` に渡す
+- **DayFlow Preview**: `ScheduleTimeGrid` に `taskPreview`/`schedulePreview` state を追加、`TaskPreviewPopup` を再利用
+- **ScheduleItemPreviewPopup**: スケジュール/ルーティンアイテム用の新規プレビューコンポーネント作成（完了トグル、メモ、削除）
+- **TimeGridTaskBlock/ScheduleItemBlock**: `onShowPreview` prop 追加、クリック時にプレビュー表示（既存スワイプ操作は維持）
+- **ScheduleSection**: `softDelete`/`handleDeleteTask`/`handleUpdateTaskTitle`/`handleStartTimer`/`handleNavigateTask` を定義し DayFlow コンポーネントへ伝播
+
 ### 2026-03-21 - Ideas RightSidebar アイコン色統一 & Board Note 空フィルタ修正
 
 #### 概要
