@@ -1,5 +1,18 @@
 # HISTORY.md - 変更履歴
 
+### 2026-03-20 - TaskDetailPanel UI改善 + ショートカット再割当 + MiniCalendar排他制御
+
+#### 概要
+
+TaskDetailPanelからStart/Workボタンを削除、ナビゲーションショートカットの繰り上げ（nav:tasks削除→Cmd+1〜4に再割当）、MiniCalendarの終日/終了時刻チェックボックスを双方向排他制御に変更、アクションボタンのスタイル統一。
+
+#### 変更点
+
+- **ショートカット**: `nav:tasks` を ShortcutId / defaultShortcuts / useAppKeyboardShortcuts / useAppCommands / i18n から削除。schedule→1, ideas→2, work→3, analytics→4 に繰り上げ
+- **TaskDetailPanel**: Start ボタン・Duration ボタン・DurationPicker を削除。不要な import（Play, Clock, DurationPicker, formatDuration, useTimerContext）と state を整理
+- **MiniCalendar排他制御**: 終了時刻ON時に終日を自動OFF、終日ON時に終了時刻を自動OFF。disabled属性を削除
+- **UIスタイル統一**: DateTimeRangePicker を text-xs/gap-1 に、Delete ボタンを px-2 py-1 に統一
+
 ### 2026-03-20 - DayFlow UX改善（6項目）
 
 #### 概要
