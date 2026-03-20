@@ -1,5 +1,19 @@
 # HISTORY.md - 変更履歴
 
+### 2026-03-20 - CLAUDE.md をコードベース実態に合わせて更新
+
+#### 概要
+
+CLAUDE.md の記述をコードベースの現状に合わせて5箇所修正。誤情報による Claude Code の判断ミスを防止。
+
+#### 変更点
+
+- **ソフトデリート**: CustomSounds がソフトデリート対応済み（JSON ファイルベース）である旨に修正
+- **DataService**: ファクトリパターン（ElectronDataService / OfflineDataService / RestDataService）の3実装構成に更新
+- **IPC追加手順**: registerAll.ts への登録と OfflineDataService/RestDataService のスタブ追加を追記
+- **Chaos Engine**: 再発見エンジン（Oracle/TimeCapsule/Drift）のセクションを新規追加
+- **Application_Overview.md**: 旧版である旨の注記を追加
+
 ### 2026-03-20 - DayFlow UI/UX 3点改善
 
 #### 概要
