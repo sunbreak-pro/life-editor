@@ -1,5 +1,18 @@
 # HISTORY.md - 変更履歴
 
+### 2026-03-21 - Ideas RightSidebar アイコン色統一 & Board Note 空フィルタ修正
+
+#### 概要
+
+サイドバーのアイコン色を統一（BookOpen→青、StickyNote→黄）し、Boardタブで未リンクノート（キャンバスなし）が表示され続ける問題を修正。
+
+#### 変更点
+
+- **アイコン色統一**: DailySidebar の BookOpen を `text-blue-500` に変更
+- **アイコン色統一**: MaterialsSidebar の StickyNote を `text-yellow-500` に変更
+- **アイコン色統一**: ConnectSidebar の StickyNote を `text-yellow-500`、BookOpen を `text-blue-500` に変更
+- **空フィルタ修正**: PaperSidebar の `activeNotes` で未リンクノート（ボード未作成）を非表示に変更（`return true` → `return false`）
+
 ### 2026-03-20 - TaskDetailPanel UI改善 + ショートカット再割当 + MiniCalendar排他制御
 
 #### 概要
