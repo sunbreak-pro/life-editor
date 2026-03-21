@@ -65,6 +65,7 @@ interface MemoEditorProps {
   initialContent?: string;
   onUpdate: (content: string) => void;
   entityType?: WikiTagEntityType;
+  syncEntityId?: string;
 }
 
 export function MemoEditor({
@@ -72,6 +73,7 @@ export function MemoEditor({
   initialContent,
   onUpdate,
   entityType = "task",
+  syncEntityId,
 }: MemoEditorProps) {
   const debounceRef = useRef<number | null>(null);
   const onUpdateRef = useRef(onUpdate);
@@ -168,7 +170,7 @@ export function MemoEditor({
     [taskId],
   );
 
-  useWikiTagSync(editor, taskId, entityType);
+  useWikiTagSync(editor, syncEntityId ?? taskId, entityType);
 
   // Monitor heading fontSize changes and persist to localStorage
   const handleHeadingFontSizeChange = useCallback(() => {

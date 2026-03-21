@@ -1,5 +1,20 @@
 # HISTORY.md - 変更履歴
 
+### 2026-03-21 - WikiTag UI/UX 7件修正
+
+#### 概要
+
+Ideas セクションおよび全エディタ共通の WikiTag に関する 7 件の UI/UX 修正。タブリネーム、アイコン追加、BubbleToolbar 制御、キーボードナビゲーション、タグ同期バグ、既存テキストのタグ化機能を実装。
+
+#### 変更点
+
+- **タブリネーム**: Ideas の Material タブを Notes にリネーム、アイコンを Package → StickyNote に変更（`IdeasView.tsx`）
+- **日記ヘッダー**: 日付表示の左に青い BookOpen アイコンを追加（`DailyMemoView.tsx`）
+- **BubbleToolbar**: WikiTag ノード選択時（クリック・矢印キー）にフォーマットツールバーを非表示に（`BubbleToolbar.tsx`）
+- **Cmd+Arrow**: WikiTag ノード左側での Cmd+Right/Left が正しく行末/行頭に移動するよう修正（`WikiTag.ts`）
+- **タグ同期バグ**: 日記エディタの `[[]]` タグが WikiTagList に反映されない問題を修正。entity ID 不一致（selectedDate vs selectedMemo.id）を `syncEntityId` prop で解消（`MemoEditor.tsx`, `DailyMemoView.tsx`）
+- **既存テキストタグ化**: 記述済みテキストを `[[` `]]` で囲んでタグに変換する機能を追加。`]]` 検出の `isOpen` 依存を除去（`useWikiTagSuggestion.ts`）
+
 ### 2026-03-21 - カオスの縁（Chaos Engine）完全廃止
 
 #### 概要

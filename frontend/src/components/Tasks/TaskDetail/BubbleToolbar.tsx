@@ -82,7 +82,8 @@ export function BubbleToolbar({ editor }: BubbleToolbarProps) {
         "type" in sel.node
       ) {
         const nodeType = (sel.node as { type: { name: string } }).type;
-        if (nodeType.name === "image") return false;
+        if (nodeType.name === "image" || nodeType.name === "wikiTag")
+          return false;
       }
       return true;
     },

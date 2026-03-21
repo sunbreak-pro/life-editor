@@ -1,6 +1,6 @@
 import { useState, useCallback, useContext, useEffect } from "react";
 import { createPortal } from "react-dom";
-import { BookOpen, Package, GitBranch, LayoutGrid } from "lucide-react";
+import { BookOpen, StickyNote, GitBranch, LayoutGrid } from "lucide-react";
 import { ReactFlowProvider } from "@xyflow/react";
 import { useTranslation } from "react-i18next";
 import { LAYOUT } from "../../constants/layout";
@@ -28,7 +28,7 @@ type IdeasTab = "daily" | "materials" | "node" | "board";
 
 const IDEAS_TABS: readonly TabItem<IdeasTab>[] = [
   { id: "daily", labelKey: "ideas.daily", icon: BookOpen },
-  { id: "materials", labelKey: "ideas.materials", icon: Package },
+  { id: "materials", labelKey: "ideas.notes", icon: StickyNote },
   { id: "node", labelKey: "ideas.node", icon: GitBranch },
   { id: "board", labelKey: "ideas.board", icon: LayoutGrid },
 ];

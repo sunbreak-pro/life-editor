@@ -105,7 +105,7 @@ export function useWikiTagSuggestion(
       const textBefore = $head.parent.textContent.slice(0, $head.parentOffset);
 
       // Check for ]] auto-confirm (when user types closing brackets)
-      if (!isComposing && isOpen && textBefore.endsWith("]]")) {
+      if (!isComposing && textBefore.endsWith("]]")) {
         // Extract the tag name between [[ and ]]
         const match = textBefore.match(/\[\[([^\]]+)\]\]$/);
         if (match) {

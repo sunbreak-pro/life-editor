@@ -1,5 +1,5 @@
 import { Suspense, useCallback } from "react";
-import { Heart } from "lucide-react";
+import { Heart, BookOpen } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useMemoContext } from "../../hooks/useMemoContext";
 import { formatDateTime } from "../../utils/formatRelativeDate";
@@ -23,6 +23,7 @@ export function DailyMemoView() {
     <div className="h-full overflow-y-auto">
       <div className="max-w-3xl mx-auto px-8 py-6">
         <div className="flex items-center gap-2 mb-1">
+          <BookOpen size={18} className="text-blue-500 shrink-0" />
           <h2 className="text-lg font-semibold text-notion-text flex-1">
             {formatDateHeading(selectedDate)}
           </h2>
@@ -71,6 +72,7 @@ export function DailyMemoView() {
             initialContent={selectedMemo?.content}
             onUpdate={handleUpdate}
             entityType="memo"
+            syncEntityId={selectedMemo?.id}
           />
         </Suspense>
       </div>
