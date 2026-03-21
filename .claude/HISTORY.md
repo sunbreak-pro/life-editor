@@ -1,5 +1,16 @@
 # HISTORY.md - 変更履歴
 
+### 2026-03-21 - コミット履歴統合（Schedule Progress + Calendar フィルタ）
+
+#### 概要
+
+前回セッションで分割されてしまった2コミット（`.claude/` 更新 `9c30c90` + 実装コード `989ab0c`）を `git reset --soft HEAD~2` で1コミットに統合し、適切なメッセージで force-push。
+
+#### 変更点
+
+- **Git**: 直近2コミットを `fix: Schedule Progress count dedup + Calendar Daily/Notes filter tabs` として統合
+- **Force Push**: `origin/main` を更新（`989ab0c` → `1186869`）
+
 ### 2026-03-21 - Schedule Progress カウント修正 + Calendar Note/Daily フィルタ追加
 
 #### 概要
