@@ -1,5 +1,20 @@
 # HISTORY.md - 変更履歴
 
+### 2026-03-21 - Ideas Node タブ UI/UX 改善
+
+#### 概要
+
+Ideas セクション Node タブの操作性を4点改善。カラーピッカー統一、左クリックメニュー、全体ノード表示ボタン、ノード間隔コンパクト化。
+
+#### 変更点
+
+- **ColorPicker 統一**: 古い ColorPicker（Pastel/Vivid 20色）を UnifiedColorPicker（preset-full モード）に置き換え（`TagGraphView.tsx`）
+- **左クリックメニュー**: 右クリックコンテキストメニューを左クリックに変更。noteNode + memoNode 両方対応。`handleNodeContextMenu` を削除し `handleNodeClick` に統合（`TagGraphView.tsx`）
+- **全体ノード表示ボタン**: サイドバーの同一アイテム二回クリックによるトグルを廃止。検索バー下に「全体ノードを表示」専用ボタンを追加（`ConnectSidebar.tsx`）
+- **ノード間隔コンパクト化**: force layout パラメータ調整（chargeStrength -200→-120, linkDistance 120→80, collide 30→25）、polygon/line レイアウト間隔も縮小（`forceLayout.ts`, `TagGraphView.tsx`）
+- **メモナビゲーション**: memoNode から Daily タブへの遷移機能を追加（`IdeasView.tsx`）
+- **i18n**: `openMemo`, `showAllNodes` キーを en/ja に追加
+
 ### 2026-03-21 - WikiTag UI/UX 7件修正
 
 #### 概要
