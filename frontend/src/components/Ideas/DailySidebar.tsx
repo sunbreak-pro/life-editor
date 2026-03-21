@@ -3,7 +3,11 @@ import { Heart, BookOpen, Trash2, Filter, Pencil } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import type { MemoNode } from "../../types/memo";
 import type { WikiTagAssignment, WikiTag } from "../../types/wikiTag";
-import { formatDisplayDate, formatMonthLabel } from "../../utils/dateKey";
+import {
+  formatDisplayDate,
+  formatMonthLabel,
+  getTodayKey,
+} from "../../utils/dateKey";
 import { groupMemosByMonth } from "../../utils/memoGrouping";
 import { MonthGroup } from "../shared/MonthGroup";
 import { getContentPreview } from "../../utils/tiptapText";
@@ -91,9 +95,18 @@ export function DailySidebar({
   const isSearching = debouncedQuery.trim().length > 0;
   const lowerQuery = debouncedQuery.toLowerCase();
 
-  // Suggestions
+  // Suggestions (include today even if no memo exists)
   const suggestions = useMemo<SearchSuggestion[]>(() => {
     const items: SearchSuggestion[] = [];
+    const todayKey = getTodayKey();
+    const hasTodayMemo = memos.some((m) => m.date === todayKey);
+    if (!hasTodayMemo) {
+      items.push({
+        id: `memo-${todayKey}`,
+        label: formatDisplayDate(todayKey),
+        icon: "memo",
+      });
+    }
     const sorted = [...memos]
       .sort((a, b) => b.date.localeCompare(a.date))
       .slice(0, 10);
@@ -113,7 +126,12 @@ export function DailySidebar({
   const handleSuggestionSelect = useCallback(
     (id: string) => {
       const memo = memos.find((m) => m.id === id);
-      if (memo) onSelectDate(memo.date);
+      if (memo) {
+        onSelectDate(memo.date);
+      } else if (id.startsWith("memo-")) {
+        // Virtual today entry
+        onSelectDate(id.replace("memo-", ""));
+      }
     },
     [memos, onSelectDate],
   );
@@ -162,13 +180,18 @@ export function DailySidebar({
     );
   };
 
+  const isVirtualMemo = (memo: MemoNode) =>
+    !memos.some((m) => m.date === memo.date);
+
   const renderMemoItem = (memo: MemoNode) => (
     <div
       key={memo.id}
       data-sidebar-item
       data-sidebar-active={isDailySelected(memo.date) || undefined}
       className={`group flex items-center gap-1.5 px-2 py-1 rounded text-left transition-colors ${
-        isDailySelected(memo.date) ? "bg-notion-hover" : "hover:bg-notion-hover"
+        isDailySelected(memo.date)
+          ? "bg-notion-accent/10 text-notion-accent"
+          : "hover:bg-notion-hover"
       }`}
       onClick={() => onSelectDate(memo.date)}
     >
@@ -179,27 +202,29 @@ export function DailySidebar({
         {memo.isPinned ? (
           <Heart size={12} className="text-red-500 fill-current shrink-0" />
         ) : (
-          <BookOpen size={12} className="text-notion-text-secondary shrink-0" />
+          <BookOpen size={12} className="text-blue-500 shrink-0" />
         )}
         <span className="flex flex-1 text-xs text-notion-text justify-start truncate">
           {formatDisplayDate(memo.date)}
         </span>
         {renderTagDots(memo.id)}
       </button>
-      <button
-        ref={(el) => {
-          if (el) editButtonRefs.current.set(memo.id, el);
-        }}
-        onClick={(e) => {
-          e.stopPropagation();
-          setEditingEntityId(editingEntityId === memo.id ? null : memo.id);
-        }}
-        className="p-0.5 opacity-0 group-hover:opacity-100 text-notion-text-secondary hover:text-notion-text transition-opacity shrink-0"
-        title={t("ideas.editItem")}
-      >
-        <Pencil size={10} />
-      </button>
-      {onDeleteMemo && (
+      {!isVirtualMemo(memo) && (
+        <button
+          ref={(el) => {
+            if (el) editButtonRefs.current.set(memo.id, el);
+          }}
+          onClick={(e) => {
+            e.stopPropagation();
+            setEditingEntityId(editingEntityId === memo.id ? null : memo.id);
+          }}
+          className="p-0.5 opacity-0 group-hover:opacity-100 text-notion-text-secondary hover:text-notion-text transition-opacity shrink-0"
+          title={t("ideas.editItem")}
+        >
+          <Pencil size={10} />
+        </button>
+      )}
+      {onDeleteMemo && !isVirtualMemo(memo) && (
         <button
           onClick={(e) => {
             e.stopPropagation();
@@ -243,7 +268,21 @@ export function DailySidebar({
     });
   }, [memos, hasTagFilter, filterTagIds, entityTagIds]);
 
-  const displayMemos = hasTagFilter ? tagFilteredMemos : memos;
+  // Insert virtual today entry if today's memo doesn't exist
+  const memosWithToday = useMemo(() => {
+    const todayKey = getTodayKey();
+    if (memos.some((m) => m.date === todayKey)) return memos;
+    const virtualMemo: MemoNode = {
+      id: `memo-${todayKey}`,
+      date: todayKey,
+      content: "",
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+    return [virtualMemo, ...memos];
+  }, [memos]);
+
+  const displayMemos = hasTagFilter ? tagFilteredMemos : memosWithToday;
   const displayPinnedMemos = hasTagFilter
     ? tagFilteredMemos.filter((m) => m.isPinned)
     : pinnedMemos;
@@ -285,6 +324,8 @@ export function DailySidebar({
         value={searchQuery}
         onChange={setSearchQuery}
         placeholder={t("ideas.searchMaterials")}
+        suggestions={suggestions}
+        onSuggestionSelect={handleSuggestionSelect}
       />
 
       <div className="flex-1 overflow-y-auto">

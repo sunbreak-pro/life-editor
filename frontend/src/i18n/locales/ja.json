@@ -279,7 +279,8 @@
     "createBoard": "ボードを作成",
     "linkToExistingNote": "既存ノートにリンク",
     "newBlankBoard": "新規空白ボード",
-    "emptyBoardMessage": "ボードがまだありません。作成して始めましょう。"
+    "emptyBoardMessage": "ボードがまだありません。作成して始めましょう。",
+    "searchBoards": "ボードを検索..."
   },
   "schedule": {
     "todayFlow": "Today Flow",
@@ -379,7 +380,6 @@
       "createNewTask": "新しいタスクを作成（入力中以外）",
       "resetTimer": "タイマーをリセット（入力中以外）",
       "closeModal": "モーダル/ダイアログを閉じる",
-      "goToTasks": "タスクへ移動",
       "goToMemo": "メモへ移動",
       "goToIdeas": "アイデアへ移動",
       "goToWork": "ワークへ移動",
@@ -886,6 +886,8 @@
     "filterRoutine": "ルーティン",
     "filterTasks": "タスク",
     "filterOthers": "その他",
+    "filterDaily": "デイリー",
+    "filterNotes": "ノート",
     "addTask": "タスクを追加",
     "selectTime": "時間を設定",
     "noItems": "項目なし",

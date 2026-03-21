@@ -381,6 +381,7 @@ export interface DataService {
   deletePaperBoard(id: string): Promise<void>;
 
   // Paper Nodes
+  fetchPaperNodeCountsByBoard(): Promise<Record<string, number>>;
   fetchPaperNodesByBoard(boardId: string): Promise<PaperNode[]>;
   createPaperNode(params: {
     boardId: string;

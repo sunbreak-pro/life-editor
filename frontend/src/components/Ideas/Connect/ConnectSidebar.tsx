@@ -423,10 +423,7 @@ export function ConnectSidebar({
           {note.isPinned ? (
             <Heart size={12} className="text-red-500 fill-current shrink-0" />
           ) : (
-            <StickyNote
-              size={12}
-              className="text-notion-text-secondary shrink-0"
-            />
+            <StickyNote size={12} className="text-yellow-500 shrink-0" />
           )}
           <span className="flex-1 text-xs text-notion-text truncate">
             {note.title || t("notes.untitled")}
@@ -488,7 +485,7 @@ export function ConnectSidebar({
         {memo.isPinned ? (
           <Heart size={12} className="text-red-500 fill-current shrink-0" />
         ) : (
-          <BookOpen size={12} className="text-notion-text-secondary shrink-0" />
+          <BookOpen size={12} className="text-blue-500 shrink-0" />
         )}
         <span className="flex-1 text-xs text-notion-text truncate">
           {formatDisplayDate(memo.date)}

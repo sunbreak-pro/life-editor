@@ -250,8 +250,12 @@ export function MiniCalendarGrid({
         <input
           type="checkbox"
           checked={hasEndDate}
-          onChange={(e) => handleToggleEndDate(e.target.checked)}
-          disabled={!!isAllDay}
+          onChange={(e) => {
+            if (e.target.checked && isAllDay) {
+              onAllDayChange(false);
+            }
+            handleToggleEndDate(e.target.checked);
+          }}
           className="w-3 h-3 rounded accent-notion-accent"
         />
         <span className="text-[10px] text-notion-text-secondary">
@@ -262,7 +266,12 @@ export function MiniCalendarGrid({
         <input
           type="checkbox"
           checked={!!isAllDay}
-          onChange={(e) => onAllDayChange(e.target.checked)}
+          onChange={(e) => {
+            if (e.target.checked && hasEndDate) {
+              handleToggleEndDate(false);
+            }
+            onAllDayChange(e.target.checked);
+          }}
           className="w-3 h-3 rounded accent-notion-accent"
         />
         <span className="text-[10px] text-notion-text-secondary">

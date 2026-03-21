@@ -5,7 +5,6 @@ import type { TaskNode } from "../types/taskTree";
 import type { SectionId } from "../types/taskTree";
 import { useShortcutConfig } from "./useShortcutConfig";
 import {
-  ListTodo,
   Calendar,
   Lightbulb,
   BarChart3,
@@ -55,14 +54,6 @@ export function useAppCommands({
 
   return useMemo(
     () => [
-      {
-        id: "nav-tasks",
-        title: "Go to Tasks",
-        category: "Navigation",
-        shortcut: getDisplayString("nav:tasks"),
-        icon: ListTodo,
-        action: () => setActiveSection("schedule"),
-      },
       {
         id: "nav-schedule",
         title: "Go to Schedule",

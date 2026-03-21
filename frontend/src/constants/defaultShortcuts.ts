@@ -46,38 +46,31 @@ export const DEFAULT_SHORTCUTS: ShortcutDefinition[] = [
   },
   // Navigation
   {
-    id: "nav:tasks",
-    category: "navigation",
-    descriptionKey: "tips.shortcutsTab.goToTasks",
-    defaultBinding: { key: "1", meta: true },
-    activeInInput: true,
-  },
-  {
     id: "nav:schedule",
     category: "navigation",
     descriptionKey: "tips.shortcutsTab.goToSchedule",
-    defaultBinding: { key: "2", meta: true },
+    defaultBinding: { key: "1", meta: true },
     activeInInput: true,
   },
   {
     id: "nav:ideas",
     category: "navigation",
     descriptionKey: "tips.shortcutsTab.goToIdeas",
-    defaultBinding: { key: "3", meta: true },
+    defaultBinding: { key: "2", meta: true },
     activeInInput: true,
   },
   {
     id: "nav:work",
     category: "navigation",
     descriptionKey: "tips.shortcutsTab.goToWork",
-    defaultBinding: { key: "4", meta: true },
+    defaultBinding: { key: "3", meta: true },
     activeInInput: true,
   },
   {
     id: "nav:analytics",
     category: "navigation",
     descriptionKey: "tips.shortcutsTab.goToAnalytics",
-    defaultBinding: { key: "5", meta: true },
+    defaultBinding: { key: "4", meta: true },
     activeInInput: true,
   },
   // View

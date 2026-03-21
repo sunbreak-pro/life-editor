@@ -195,7 +195,9 @@ export function MaterialsSidebar({
       data-sidebar-item
       data-sidebar-active={isNoteSelected(note.id) || undefined}
       className={`group flex items-center gap-1.5 px-2 py-1 rounded text-left transition-colors ${
-        isNoteSelected(note.id) ? "bg-notion-hover" : "hover:bg-notion-hover"
+        isNoteSelected(note.id)
+          ? "bg-notion-accent/10 text-notion-accent"
+          : "hover:bg-notion-hover"
       }`}
       onClick={() => onSelectNote(note.id)}
     >
@@ -206,10 +208,7 @@ export function MaterialsSidebar({
         {note.isPinned ? (
           <Heart size={12} className="text-red-500 fill-current shrink-0" />
         ) : (
-          <StickyNote
-            size={12}
-            className="text-notion-text-secondary shrink-0"
-          />
+          <StickyNote size={12} className="text-yellow-500 shrink-0" />
         )}
         <span className="flex flex-1 text-xs text-notion-text justify-start truncate">
           {note.title || t("notes.untitled")}
@@ -333,6 +332,8 @@ export function MaterialsSidebar({
         value={searchQuery}
         onChange={setSearchQuery}
         placeholder={t("ideas.searchMaterials")}
+        suggestions={suggestions}
+        onSuggestionSelect={handleSuggestionSelect}
       />
 
       <div className="flex-1 overflow-y-auto">

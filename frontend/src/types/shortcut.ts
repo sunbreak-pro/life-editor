@@ -7,7 +7,6 @@ export type ShortcutId =
   | "global:new-task"
   | "global:reset-timer"
   // Navigation
-  | "nav:tasks"
   | "nav:schedule"
   | "nav:ideas"
   | "nav:work"

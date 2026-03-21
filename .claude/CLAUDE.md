@@ -118,7 +118,6 @@ type: `feat` / `fix` / `docs` / `style` / `refactor` / `test` / `chore`
 | `.claude/HISTORY.md`                   | 変更履歴（セッション単位の詳細記録）       |
 | `.claude/feature_plans/`               | 実装プラン（PLANNED / IN_PROGRESS）        |
 | `.claude/archive/`                     | 完了済みプラン                             |
-| `.claude/docs/Application_Overview.md` | 仕様書（※旧版。参考程度に留めること）      |
 | `.claude/docs/adr/`                    | アーキテクチャ決定記録                     |
 | `TODO.md`                              | ロードマップ                               |
 

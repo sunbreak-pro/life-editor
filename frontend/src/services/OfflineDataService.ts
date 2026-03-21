@@ -1409,6 +1409,9 @@ export class OfflineDataService implements DataService {
   deletePaperBoard(_id: string): Promise<void> {
     return notSupported("Paper Boards");
   }
+  fetchPaperNodeCountsByBoard(): Promise<Record<string, number>> {
+    return Promise.resolve({});
+  }
   fetchPaperNodesByBoard(_bid: string): Promise<PaperNode[]> {
     return notSupported("Paper Boards");
   }

@@ -39,7 +39,7 @@ export function DateTimeRangePicker({
     <div className="relative" ref={ref}>
       <button
         onClick={() => setOpen(!open)}
-        className={`flex items-center gap-1.5 text-sm px-2 py-1 rounded-md transition-colors ${
+        className={`flex items-center gap-1 text-xs px-2 py-1 rounded-md transition-colors ${
           startValue
             ? "text-notion-accent bg-notion-accent/10"
             : "text-notion-text-secondary hover:bg-notion-hover"

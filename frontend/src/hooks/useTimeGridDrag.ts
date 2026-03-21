@@ -80,6 +80,7 @@ export function useTimeGridDrag({
 
       // Before drag starts, check if moved past threshold
       if (!stateRef.current.isDragging && pendingItem.current) {
+        e.preventDefault();
         const dx = clientX - startPos.current.x;
         const dy = clientY - startPos.current.y;
         if (Math.sqrt(dx * dx + dy * dy) <= MOVE_THRESHOLD) {
@@ -88,6 +89,7 @@ export function useTimeGridDrag({
 
         // Start dragging
         hasMovedRef.current = true;
+        document.body.style.userSelect = "none";
         const item = pendingItem.current;
         const relY = getRelativeY(startPos.current.y);
         const posInBlock = relY - item.top;
@@ -156,6 +158,7 @@ export function useTimeGridDrag({
       });
     }
 
+    document.body.style.userSelect = "";
     stateRef.current = INITIAL_STATE;
     setDragState(INITIAL_STATE);
     pendingItem.current = null;

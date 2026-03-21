@@ -21,6 +21,9 @@ interface DualDayFlowLayoutProps {
   onUnscheduleTask?: (taskId: string) => void;
   onNavigateTask?: (taskId: string, e: React.MouseEvent) => void;
   onUpdateTaskTimeMemo?: (taskId: string, memo: string | null) => void;
+  onDeleteTask?: (taskId: string) => void;
+  onUpdateTaskTitle?: (taskId: string, title: string) => void;
+  onStartTimer?: (task: TaskNode) => void;
   onToggleDualColumn?: () => void;
 }
 
@@ -38,10 +41,24 @@ export function DualDayFlowLayout({
   onUnscheduleTask,
   onNavigateTask,
   onUpdateTaskTimeMemo,
+  onDeleteTask,
+  onUpdateTaskTitle,
+  onStartTimer,
   onToggleDualColumn,
 }: DualDayFlowLayoutProps) {
   const left = useDayFlowColumn({ initialDate: new Date() });
   const right = useDayFlowColumn({ initialDate: tomorrow() });
+
+  // Cross-column refresh when same date
+  const refreshOther = useCallback(
+    (side: "left" | "right") => {
+      if (left.dateKey === right.dateKey) {
+        if (side === "left") right.refresh();
+        else left.refresh();
+      }
+    },
+    [left.dateKey, right.dateKey, left.refresh, right.refresh],
+  );
 
   const leftScrollRef = useRef<HTMLDivElement>(null);
   const rightScrollRef = useRef<HTMLDivElement>(null);
@@ -82,8 +99,12 @@ export function DualDayFlowLayout({
         onUnscheduleTask={onUnscheduleTask}
         onNavigateTask={onNavigateTask}
         onUpdateTaskTimeMemo={onUpdateTaskTimeMemo}
+        onDeleteTask={onDeleteTask}
+        onUpdateTaskTitle={onUpdateTaskTitle}
+        onStartTimer={onStartTimer}
         isDualColumn
         onToggleDualColumn={onToggleDualColumn}
+        onMutate={() => refreshOther("left")}
       />
       <DualColumn
         column={right}
@@ -96,6 +117,10 @@ export function DualDayFlowLayout({
         onUnscheduleTask={onUnscheduleTask}
         onNavigateTask={onNavigateTask}
         onUpdateTaskTimeMemo={onUpdateTaskTimeMemo}
+        onDeleteTask={onDeleteTask}
+        onUpdateTaskTitle={onUpdateTaskTitle}
+        onStartTimer={onStartTimer}
+        onMutate={() => refreshOther("right")}
       />
     </div>
   );
@@ -116,8 +141,12 @@ interface DualColumnProps {
   onUnscheduleTask?: (taskId: string) => void;
   onNavigateTask?: (taskId: string, e: React.MouseEvent) => void;
   onUpdateTaskTimeMemo?: (taskId: string, memo: string | null) => void;
+  onDeleteTask?: (taskId: string) => void;
+  onUpdateTaskTitle?: (taskId: string, title: string) => void;
+  onStartTimer?: (task: TaskNode) => void;
   isDualColumn?: boolean;
   onToggleDualColumn?: () => void;
+  onMutate?: () => void;
 }
 
 function DualColumn({
@@ -131,8 +160,12 @@ function DualColumn({
   onUnscheduleTask,
   onNavigateTask,
   onUpdateTaskTimeMemo,
+  onDeleteTask,
+  onUpdateTaskTitle,
+  onStartTimer,
   isDualColumn,
   onToggleDualColumn,
+  onMutate,
 }: DualColumnProps) {
   const { updateRoutine } = useScheduleContext();
   const [createPopover, setCreatePopover] = useState<{
@@ -160,14 +193,16 @@ function DualColumn({
     if (!routineDeleteTarget) return;
     column.dismissScheduleItem(routineDeleteTarget.item.id);
     setRoutineDeleteTarget(null);
-  }, [routineDeleteTarget, column]);
+    onMutate?.();
+  }, [routineDeleteTarget, column, onMutate]);
 
   const handleArchiveRoutine = useCallback(() => {
     if (!routineDeleteTarget?.item.routineId) return;
     updateRoutine(routineDeleteTarget.item.routineId, { isArchived: true });
     column.deleteScheduleItem(routineDeleteTarget.item.id);
     setRoutineDeleteTarget(null);
-  }, [routineDeleteTarget, updateRoutine, column]);
+    onMutate?.();
+  }, [routineDeleteTarget, updateRoutine, column, onMutate]);
 
   const handleCreateItem = (
     startTime: string,
@@ -183,6 +218,7 @@ function DualColumn({
 
   const handleUpdateMemo = (id: string, memo: string | null) => {
     column.updateScheduleItem(id, { memo });
+    onMutate?.();
   };
 
   const handleUpdateScheduleItemTime = (
@@ -191,6 +227,7 @@ function DualColumn({
     endTime: string,
   ) => {
     column.updateScheduleItem(id, { startTime, endTime });
+    onMutate?.();
   };
 
   const handleUpdateTaskTime = (
@@ -205,6 +242,7 @@ function DualColumn({
     const endDate = new Date(column.date);
     endDate.setHours(eh, em, 0, 0);
     onUpdateTaskTime?.(taskId, startDate.toISOString(), endDate.toISOString());
+    onMutate?.();
   };
 
   return (
@@ -232,7 +270,10 @@ function DualColumn({
           date={column.date}
           scheduleItems={column.filteredScheduleItems}
           tasks={column.filteredDayTasks}
-          onToggleComplete={column.toggleComplete}
+          onToggleComplete={(id) => {
+            column.toggleComplete(id);
+            onMutate?.();
+          }}
           onCreateItem={handleCreateItem}
           getTaskColor={getTaskColor}
           getFolderTag={getFolderTag}
@@ -241,11 +282,18 @@ function DualColumn({
           onUpdateTaskTime={handleUpdateTaskTime}
           externalScroll
           onToggleTaskStatus={onToggleTaskStatus}
-          onDeleteScheduleItem={column.deleteScheduleItem}
+          onDeleteScheduleItem={(id) => {
+            column.deleteScheduleItem(id);
+            onMutate?.();
+          }}
           onRequestRoutineDelete={handleRequestRoutineDelete}
           onUnscheduleTask={onUnscheduleTask}
           onNavigateTask={onNavigateTask}
           onUpdateTaskTimeMemo={onUpdateTaskTimeMemo}
+          onDeleteTask={onDeleteTask}
+          onUpdateTaskTitle={onUpdateTaskTitle}
+          onStartTimer={onStartTimer}
+          enablePreview
         />
       </div>
 
@@ -258,6 +306,7 @@ function DualColumn({
           existingTaskIds={column.existingTaskIds}
           onCreateScheduleItem={(title, startTime, endTime) => {
             column.createScheduleItem(title, startTime, endTime);
+            onMutate?.();
           }}
           onClose={() => setCreatePopover(null)}
         />

@@ -287,6 +287,7 @@ export function IdeasView({ onNavigateToNote }: IdeasViewProps) {
             onOpenNoteBoard={(noteId, noteName) =>
               paper.openBoardForNote(noteId, noteName)
             }
+            boardNodeCounts={paper.boardNodeCounts}
           />
         );
     }

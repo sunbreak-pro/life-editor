@@ -21,6 +21,7 @@ interface UseTaskDetailHandlersParams {
   setScheduleTab?: (tab: string) => void;
   setMemoDate: (date: string) => void;
   createNote?: (title?: string) => string;
+  setSelectedNoteId?: (id: string | null) => void;
 }
 
 export function useTaskDetailHandlers({
@@ -36,6 +37,7 @@ export function useTaskDetailHandlers({
   setScheduleTab,
   setMemoDate,
   createNote,
+  setSelectedNoteId,
 }: UseTaskDetailHandlersParams) {
   const handlePlayTask = useCallback(
     (node: TaskNode) => {
@@ -178,6 +180,7 @@ export function useTaskDetailHandlers({
 
   const handleCalendarSelectMemo = useCallback(
     (date: string) => {
+      localStorage.setItem(STORAGE_KEYS.IDEAS_TAB, "daily");
       setMemoDate(date);
       setActiveSection("ideas");
     },
@@ -185,12 +188,12 @@ export function useTaskDetailHandlers({
   );
 
   const handleCalendarSelectNote = useCallback(
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    (_noteId: string) => {
-      localStorage.setItem(STORAGE_KEYS.IDEAS_TAB, "notes");
+    (noteId: string) => {
+      localStorage.setItem(STORAGE_KEYS.IDEAS_TAB, "materials");
+      setSelectedNoteId?.(noteId);
       setActiveSection("ideas");
     },
-    [setActiveSection],
+    [setActiveSection, setSelectedNoteId],
   );
 
   const handleCreateFolder = useCallback(

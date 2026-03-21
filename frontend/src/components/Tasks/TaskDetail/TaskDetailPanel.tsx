@@ -8,8 +8,6 @@ import {
 } from "react";
 import type { KeyboardEvent } from "react";
 import {
-  Play,
-  Clock,
   Calendar,
   Trash2,
   FolderOpen,
@@ -21,7 +19,6 @@ import {
 import { TaskStatusIcon } from "../TaskTree/TaskStatusIcon";
 import { useTranslation } from "react-i18next";
 import { useTaskTreeContext } from "../../../hooks/useTaskTreeContext";
-import { useTimerContext } from "../../../hooks/useTimerContext";
 import type { TaskNode, TaskStatus } from "../../../types/taskTree";
 import type {
   MoveResult,
@@ -31,9 +28,7 @@ import { useToast } from "../../../context/ToastContext";
 import { FolderTag } from "../Folder/FolderTag";
 import { FolderMovePicker } from "../Folder/FolderMovePicker";
 import { UnifiedColorPicker } from "../../shared/UnifiedColorPicker";
-import { DurationPicker } from "../../shared/DurationPicker";
 import { MiniCalendarGrid } from "../../shared/MiniCalendarGrid";
-import { formatDuration } from "../../../utils/duration";
 import { TaskDetailEmpty } from "./TaskDetailEmpty";
 import { WikiTagList } from "../../WikiTags/WikiTagList";
 import { getAncestors } from "../../../utils/breadcrumb";
@@ -93,7 +88,6 @@ export function TaskDetailPanel({
     toggleTaskStatus,
     setTaskStatus,
   } = useTaskTreeContext();
-  const timer = useTimerContext();
   const { t } = useTranslation();
   const { showToast } = useToast();
 
@@ -116,7 +110,6 @@ export function TaskDetailPanel({
               moveToRoot={moveToRoot}
               softDelete={softDelete}
               onPlayTask={onPlayTask}
-              globalWorkDuration={timer.workDurationMinutes}
               onMoveRejected={(reason) => {
                 if (reason === "circular_reference") {
                   showToast("warning", t("taskTree.move.circularReference"));
@@ -149,7 +142,6 @@ interface TaskSidebarContentProps {
   moveToRoot: (id: string) => MoveResult;
   softDelete: (id: string) => void;
   onPlayTask?: (node: TaskNode) => void;
-  globalWorkDuration: number;
   onMoveRejected?: (reason: MoveRejectionReason) => void;
 }
 
@@ -161,13 +153,9 @@ function TaskSidebarContent({
   moveToRoot,
   softDelete,
   onPlayTask,
-  globalWorkDuration,
   onMoveRejected,
 }: TaskSidebarContentProps) {
   const { t } = useTranslation();
-  const duration = node.workDurationMinutes ?? globalWorkDuration;
-  const isCustomDuration = node.workDurationMinutes != null;
-  const [showDurationPicker, setShowDurationPicker] = useState(false);
   const [colorPickerAncestorId, setColorPickerAncestorId] = useState<
     string | null
   >(null);
@@ -279,48 +267,6 @@ function TaskSidebarContent({
 
         {/* Row 4: Actions */}
         <div className="flex items-center gap-2">
-          <button
-            onClick={() => onPlayTask?.(node)}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm bg-notion-accent text-white hover:opacity-90 transition-opacity"
-          >
-            <Play size={14} />
-            <span>{t("taskDetail.start")}</span>
-          </button>
-
-          <div className="relative">
-            <button
-              onClick={() => setShowDurationPicker(!showDurationPicker)}
-              className={`flex items-center gap-1 text-xs px-2 py-1 rounded-md transition-colors ${
-                isCustomDuration
-                  ? "text-notion-accent bg-notion-accent/10"
-                  : "text-notion-text-secondary hover:bg-notion-hover"
-              }`}
-            >
-              <Clock size={12} />
-              <span>{formatDuration(duration)}</span>
-            </button>
-            {showDurationPicker && (
-              <div className="absolute top-full left-0 mt-1 z-50 bg-notion-bg border border-notion-border rounded-lg shadow-lg p-3 w-52">
-                <DurationPicker
-                  value={duration}
-                  onChange={(min) => {
-                    updateNode(node.id, {
-                      workDurationMinutes: min === 0 ? undefined : min,
-                    });
-                  }}
-                  showResetToDefault={isCustomDuration}
-                  onResetToDefault={() => {
-                    updateNode(node.id, { workDurationMinutes: undefined });
-                    setShowDurationPicker(false);
-                  }}
-                  defaultLabel={t("taskDetail.useGlobalDefault", {
-                    min: globalWorkDuration,
-                  })}
-                />
-              </div>
-            )}
-          </div>
-
           <DateTimeRangePicker
             startValue={node.scheduledAt}
             endValue={node.scheduledEndAt}
@@ -370,7 +316,7 @@ function TaskSidebarContent({
 
           <button
             onClick={() => softDelete(node.id)}
-            className="p-1.5 rounded-md text-notion-text-secondary hover:text-notion-danger hover:bg-notion-hover transition-colors ml-auto"
+            className="px-2 py-1 rounded-md text-notion-text-secondary hover:text-notion-danger hover:bg-notion-hover transition-colors ml-auto"
           >
             <Trash2 size={14} />
           </button>

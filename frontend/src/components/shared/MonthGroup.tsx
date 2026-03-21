@@ -5,6 +5,7 @@ interface MonthGroupProps {
   monthLabel: string;
   itemCount: number;
   defaultOpen: boolean;
+  collapsible?: boolean;
   children: ReactNode;
 }
 
@@ -12,15 +13,30 @@ export function MonthGroup({
   monthLabel,
   itemCount,
   defaultOpen,
+  collapsible = true,
   children,
 }: MonthGroupProps) {
   const [isOpen, setIsOpen] = useState(defaultOpen);
+
+  if (!collapsible) {
+    return (
+      <div>
+        <div className="w-full flex items-center gap-1 px-2 py-1 text-[11px] font-medium text-notion-text-secondary">
+          <span className="flex-1 text-left">{monthLabel}</span>
+          <span className="text-[10px] tabular-nums opacity-60">
+            {itemCount}
+          </span>
+        </div>
+        <div>{children}</div>
+      </div>
+    );
+  }
 
   return (
     <div>
       <button
         onClick={() => setIsOpen((v) => !v)}
-        className="w-full flex items-center gap-1 px-2 py-1 text-[11px] font-medium text-notion-text-secondary hover:text-notion-text transition-colors"
+        className="w-full flex items-center gap-1 px-2 py-1 text-[13px] font-medium text-notion-text-secondary hover:text-notion-text transition-colors"
       >
         {isOpen ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
         <span className="flex-1 text-left">{monthLabel}</span>

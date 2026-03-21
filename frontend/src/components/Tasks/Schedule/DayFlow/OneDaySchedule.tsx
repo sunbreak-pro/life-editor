@@ -10,7 +10,13 @@ import { RoutineDeleteConfirmDialog } from "./RoutineDeleteConfirmDialog";
 import type { TabItem } from "../../../shared/SectionTabs";
 import { TIME_GRID } from "../../../../constants/timeGrid";
 
-export type DayFlowFilterTab = "all" | "routine" | "tasks" | "others";
+export type DayFlowFilterTab =
+  | "all"
+  | "routine"
+  | "tasks"
+  | "others"
+  | "daily"
+  | "notes";
 
 export const DAY_FLOW_FILTER_TABS: readonly TabItem<DayFlowFilterTab>[] = [
   { id: "all", labelKey: "dayFlow.filterAll" },
@@ -39,6 +45,9 @@ interface OneDayScheduleProps {
   onUnscheduleTask?: (taskId: string) => void;
   onNavigateTask?: (taskId: string, e: React.MouseEvent) => void;
   onUpdateTaskTimeMemo?: (taskId: string, memo: string | null) => void;
+  onDeleteTask?: (taskId: string) => void;
+  onUpdateTaskTitle?: (taskId: string, title: string) => void;
+  onStartTimer?: (task: TaskNode) => void;
   isDualColumn?: boolean;
   onToggleDualColumn?: () => void;
 }
@@ -59,6 +68,9 @@ export function OneDaySchedule({
   onUnscheduleTask,
   onNavigateTask,
   onUpdateTaskTimeMemo,
+  onDeleteTask,
+  onUpdateTaskTitle,
+  onStartTimer,
   isDualColumn,
   onToggleDualColumn,
 }: OneDayScheduleProps) {
@@ -287,6 +299,10 @@ export function OneDaySchedule({
               onUnscheduleTask={onUnscheduleTask}
               onNavigateTask={onNavigateTask}
               onUpdateTaskTimeMemo={onUpdateTaskTimeMemo}
+              onDeleteTask={onDeleteTask}
+              onUpdateTaskTitle={onUpdateTaskTitle}
+              onStartTimer={onStartTimer}
+              enablePreview
             />
           </div>
         </div>

@@ -166,6 +166,7 @@ const ALLOWED_CHANNELS = new Set([
   "db:paperBoards:update",
   "db:paperBoards:delete",
   // Paper Nodes
+  "db:paperNodes:fetchNodeCounts",
   "db:paperNodes:fetchByBoard",
   "db:paperNodes:create",
   "db:paperNodes:update",

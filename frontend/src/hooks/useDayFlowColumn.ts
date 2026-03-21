@@ -19,6 +19,7 @@ export function useDayFlowColumn({ initialDate }: UseDayFlowColumnOptions) {
     [],
   );
   const [scheduleItems, setScheduleItems] = useState<ScheduleItem[]>([]);
+  const [refreshKey, setRefreshKey] = useState(0);
 
   const { routines, routineTags, tagAssignments, loadItemsForDate } =
     useScheduleContext();
@@ -58,7 +59,11 @@ export function useDayFlowColumn({ initialDate }: UseDayFlowColumnOptions) {
         logServiceError("DayFlowColumn", "fetchByDate", e);
       }
     })();
-  }, [dateKey]);
+  }, [dateKey, refreshKey]);
+
+  const refresh = useCallback(() => {
+    setRefreshKey((k) => k + 1);
+  }, []);
 
   // Ensure routine items
   useEffect(() => {
@@ -344,5 +349,6 @@ export function useDayFlowColumn({ initialDate }: UseDayFlowColumnOptions) {
     deleteScheduleItem,
     dismissScheduleItem,
     toggleComplete,
+    refresh,
   };
 }

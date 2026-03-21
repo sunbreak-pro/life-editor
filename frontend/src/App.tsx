@@ -44,7 +44,7 @@ function App() {
     persistError,
   } = useTaskTreeContext();
   const { setSelectedDate: setMemoDate } = useMemoContext();
-  const { createNote } = useNoteContext();
+  const { createNote, setSelectedNoteId } = useNoteContext();
 
   const selectedTask = selectedTaskId
     ? (nodes.find((n) => n.id === selectedTaskId && n.type === "task") ?? null)
@@ -63,6 +63,7 @@ function App() {
     setScheduleTab,
     setMemoDate,
     createNote,
+    setSelectedNoteId,
   });
 
   const commands = useAppCommands({

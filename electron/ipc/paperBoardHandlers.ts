@@ -59,6 +59,15 @@ export function registerPaperBoardHandlers(repo: PaperBoardRepository): void {
     },
   );
 
+  query(
+    "db:paperNodes:fetchNodeCounts",
+    "PaperNodes",
+    "fetchNodeCounts",
+    () => {
+      return repo.fetchNodeCountsByBoard();
+    },
+  );
+
   // --- Nodes ---
   query(
     "db:paperNodes:fetchByBoard",

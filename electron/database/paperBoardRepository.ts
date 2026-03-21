@@ -122,6 +122,11 @@ export function createPaperBoardRepository(db: Database.Database) {
     `),
     deleteBoard: db.prepare(`DELETE FROM paper_boards WHERE id = ?`),
 
+    // Node counts per board
+    fetchNodeCountsByBoard: db.prepare(
+      `SELECT board_id, COUNT(*) as count FROM paper_nodes GROUP BY board_id`,
+    ),
+
     // Nodes
     fetchNodesByBoard: db.prepare(
       `SELECT * FROM paper_nodes WHERE board_id = ? ORDER BY z_index ASC`,
@@ -251,6 +256,18 @@ export function createPaperBoardRepository(db: Database.Database) {
 
     deleteBoard(id: string): void {
       stmts.deleteBoard.run(id);
+    },
+
+    fetchNodeCountsByBoard(): Record<string, number> {
+      const rows = stmts.fetchNodeCountsByBoard.all() as Array<{
+        board_id: string;
+        count: number;
+      }>;
+      const result: Record<string, number> = {};
+      for (const row of rows) {
+        result[row.board_id] = row.count;
+      }
+      return result;
     },
 
     // --- Nodes ---

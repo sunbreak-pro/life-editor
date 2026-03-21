@@ -16,6 +16,8 @@ import type { CalendarContentFilter } from "../../types/calendarItem";
 import { useTaskTreeContext } from "../../hooks/useTaskTreeContext";
 import { useCalendar } from "../../hooks/useCalendar";
 import { useScheduleContext } from "../../hooks/useScheduleContext";
+import { useMemoContext } from "../../hooks/useMemoContext";
+import { useNoteContext } from "../../hooks/useNoteContext";
 import { formatDateKey } from "../../utils/dateKey";
 import { RightSidebarContext } from "../../context/RightSidebarContext";
 import { useUndoRedo } from "../shared/UndoRedo";
@@ -28,6 +30,8 @@ export type ScheduleTab = "calendar" | "dayflow" | "tasks";
 const CALENDAR_PROGRESS_TABS: readonly TabItem<DayFlowFilterTab>[] = [
   { id: "all", labelKey: "dayFlow.filterAll" },
   { id: "tasks", labelKey: "dayFlow.filterTasks" },
+  { id: "daily", labelKey: "calendar.filterDaily" },
+  { id: "notes", labelKey: "calendar.filterNotes" },
 ];
 
 const SCHEDULE_TABS: readonly TabItem<ScheduleTab>[] = [
@@ -108,9 +112,11 @@ export function ScheduleSection({
   const [calendarProgressFilter, setCalendarProgressFilter] =
     useState<DayFlowFilterTab>("all");
 
-  const { nodes, getTaskColor, getFolderTagForTask, updateNode } =
+  const { nodes, getTaskColor, getFolderTagForTask, updateNode, softDelete } =
     useTaskTreeContext();
   const { push: pushUndo } = useUndoRedo();
+  const { memos } = useMemoContext();
+  const { notes } = useNoteContext();
 
   const { tasksByDate } = useCalendar(
     nodes,
@@ -185,7 +191,14 @@ export function ScheduleSection({
     const otherItems = scheduleItems.filter((i) => i.routineId === null);
     const dayTasks = tasksByDate.get(dateKey) ?? [];
     const allDayTasks = allTasksByDate.get(dateKey) ?? [];
-    const taskItems = [...dayTasks, ...allDayTasks];
+    const taskIdSet = new Set<string>();
+    const taskItems: TaskNode[] = [];
+    for (const t of [...dayTasks, ...allDayTasks]) {
+      if (!taskIdSet.has(t.id)) {
+        taskIdSet.add(t.id);
+        taskItems.push(t);
+      }
+    }
     const completedTasks = taskItems.filter((t) => t.status === "DONE").length;
 
     const routineCompleted = routineItems.filter((i) => i.completed).length;
@@ -199,6 +212,8 @@ export function ScheduleSection({
       tasks: { completed: completedTasks, total: taskItems.length },
       routine: { completed: routineCompleted, total: routineItems.length },
       others: { completed: otherCompleted, total: otherItems.length },
+      daily: { completed: 0, total: 0 },
+      notes: { completed: 0, total: 0 },
     };
   }, [scheduleItems, tasksByDate, allTasksByDate, dateKey]);
 
@@ -214,10 +229,12 @@ export function ScheduleSection({
     calendarProgressDate,
   );
 
-  // Load schedule items for calendar progress date
+  // Load schedule items for calendar progress date (only when calendar tab active)
   useEffect(() => {
-    loadItemsForDate(calendarProgressDateKey);
-  }, [calendarProgressDateKey, loadItemsForDate]);
+    if (activeTab === "calendar") {
+      loadItemsForDate(calendarProgressDateKey);
+    }
+  }, [activeTab, calendarProgressDateKey, loadItemsForDate]);
 
   const calendarCategoryProgress = useMemo((): Record<
     DayFlowFilterTab,
@@ -227,26 +244,63 @@ export function ScheduleSection({
     const otherItems = scheduleItems.filter((i) => i.routineId === null);
     const dayTasks = calendarTasksByDate.get(calendarProgressDateKey) ?? [];
     const allDayTasks = allTasksByDate.get(calendarProgressDateKey) ?? [];
-    const taskItems = [...dayTasks, ...allDayTasks];
+    const taskIdSet = new Set<string>();
+    const taskItems: TaskNode[] = [];
+    for (const t of [...dayTasks, ...allDayTasks]) {
+      if (!taskIdSet.has(t.id)) {
+        taskIdSet.add(t.id);
+        taskItems.push(t);
+      }
+    }
     const completedTasks = taskItems.filter((t) => t.status === "DONE").length;
 
     const routineCompleted = routineItems.filter((i) => i.completed).length;
     const otherCompleted = otherItems.filter((i) => i.completed).length;
 
-    const allTotal = routineItems.length + otherItems.length + taskItems.length;
-    const allCompleted = routineCompleted + otherCompleted + completedTasks;
+    // Daily: memo exists for this date → 1/1, otherwise 0/0
+    const hasDailyMemo = memos.some(
+      (m) => m.date === calendarProgressDateKey && !m.isDeleted,
+    );
+    const dailyTotal = hasDailyMemo ? 1 : 0;
+    const dailyCompleted = dailyTotal;
+
+    // Notes: count non-deleted notes created on this date
+    const notesForDate = notes.filter(
+      (n) =>
+        !n.isDeleted &&
+        formatDateKey(new Date(n.createdAt)) === calendarProgressDateKey,
+    );
+    const notesTotal = notesForDate.length;
+    const notesCompleted = notesTotal;
+
+    const allTotal =
+      routineItems.length +
+      otherItems.length +
+      taskItems.length +
+      dailyTotal +
+      notesTotal;
+    const allCompleted =
+      routineCompleted +
+      otherCompleted +
+      completedTasks +
+      dailyCompleted +
+      notesCompleted;
 
     return {
       all: { completed: allCompleted, total: allTotal },
       tasks: { completed: completedTasks, total: taskItems.length },
       routine: { completed: routineCompleted, total: routineItems.length },
       others: { completed: otherCompleted, total: otherItems.length },
+      daily: { completed: dailyCompleted, total: dailyTotal },
+      notes: { completed: notesCompleted, total: notesTotal },
     };
   }, [
     scheduleItems,
     calendarTasksByDate,
     allTasksByDate,
     calendarProgressDateKey,
+    memos,
+    notes,
   ]);
 
   // Handle date selection from CalendarView
@@ -295,6 +349,34 @@ export function ScheduleSection({
       });
     },
     [nodes, updateNode, pushUndo],
+  );
+
+  const handleDeleteTask = useCallback(
+    (taskId: string) => {
+      softDelete(taskId);
+    },
+    [softDelete],
+  );
+
+  const handleUpdateTaskTitle = useCallback(
+    (taskId: string, title: string) => {
+      updateNode(taskId, { title });
+    },
+    [updateNode],
+  );
+
+  const handleStartTimer = useCallback(
+    (task: TaskNode) => {
+      onPlayTask?.(task);
+    },
+    [onPlayTask],
+  );
+
+  const handleNavigateTask = useCallback(
+    (taskId: string) => {
+      onCalendarSelectTask(taskId, {} as React.MouseEvent);
+    },
+    [onCalendarSelectTask],
   );
 
   const handleUnscheduleTask = useCallback(
@@ -363,6 +445,8 @@ export function ScheduleSection({
                     tasks: "tasks",
                     routine: "all",
                     others: "all",
+                    daily: "daily",
+                    notes: "notes",
                   };
                   setCalendarContentFilter(mapping[tab]);
                 }}
@@ -404,6 +488,10 @@ export function ScheduleSection({
             onUpdateTaskTime={handleUpdateTaskTime}
             onToggleTaskStatus={handleToggleTaskStatus}
             onUnscheduleTask={handleUnscheduleTask}
+            onNavigateTask={handleNavigateTask}
+            onDeleteTask={handleDeleteTask}
+            onUpdateTaskTitle={handleUpdateTaskTitle}
+            onStartTimer={handleStartTimer}
             onToggleDualColumn={toggleDualColumn}
           />
         ) : (
@@ -421,6 +509,10 @@ export function ScheduleSection({
             onFilterTabChange={setDayFlowFilterTab}
             onToggleTaskStatus={handleToggleTaskStatus}
             onUnscheduleTask={handleUnscheduleTask}
+            onNavigateTask={handleNavigateTask}
+            onDeleteTask={handleDeleteTask}
+            onUpdateTaskTitle={handleUpdateTaskTitle}
+            onStartTimer={handleStartTimer}
             isDualColumn={isDualColumn}
             onToggleDualColumn={toggleDualColumn}
           />

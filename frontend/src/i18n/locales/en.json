@@ -279,7 +279,8 @@
     "createBoard": "Create Board",
     "linkToExistingNote": "Link to existing note",
     "newBlankBoard": "New blank board",
-    "emptyBoardMessage": "No boards yet. Create one to get started."
+    "emptyBoardMessage": "No boards yet. Create one to get started.",
+    "searchBoards": "Search boards..."
   },
   "schedule": {
     "todayFlow": "Today Flow",
@@ -379,7 +380,6 @@
       "createNewTask": "Create new task (when not typing)",
       "resetTimer": "Reset timer (when not typing)",
       "closeModal": "Close modal / dialog",
-      "goToTasks": "Go to Tasks",
       "goToMemo": "Go to Memo",
       "goToIdeas": "Go to Ideas",
       "goToWork": "Go to Work",
@@ -886,6 +886,8 @@
     "filterRoutine": "Routine",
     "filterTasks": "Tasks",
     "filterOthers": "Others",
+    "filterDaily": "Daily",
+    "filterNotes": "Notes",
     "addTask": "Add task",
     "selectTime": "Set time",
     "noItems": "No items",

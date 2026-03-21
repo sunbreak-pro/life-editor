@@ -675,6 +675,9 @@ export class ElectronDataService implements DataService {
   }
 
   // Paper Nodes
+  fetchPaperNodeCountsByBoard(): Promise<Record<string, number>> {
+    return invoke("db:paperNodes:fetchNodeCounts");
+  }
   fetchPaperNodesByBoard(boardId: string): Promise<PaperNode[]> {
     return invoke("db:paperNodes:fetchByBoard", boardId);
   }

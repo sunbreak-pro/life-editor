@@ -15,6 +15,9 @@ export function usePaperBoard() {
   });
   const [nodes, setNodes] = useState<PaperNode[]>([]);
   const [edges, setEdges] = useState<PaperEdge[]>([]);
+  const [boardNodeCounts, setBoardNodeCounts] = useState<
+    Record<string, number>
+  >({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const loadedBoardRef = useRef<string | null>(null);
@@ -28,12 +31,13 @@ export function usePaperBoard() {
     }
   }, [activeBoardId]);
 
-  // Load boards
+  // Load boards and node counts
   useEffect(() => {
     const ds = getDataService();
-    ds.fetchPaperBoards()
-      .then((fetched) => {
+    Promise.all([ds.fetchPaperBoards(), ds.fetchPaperNodeCountsByBoard()])
+      .then(([fetched, counts]) => {
         setBoards(fetched);
+        setBoardNodeCounts(counts);
         // Auto-select first board if no active board or invalid
         if (fetched.length > 0) {
           const exists = fetched.some((b) => b.id === activeBoardId);
@@ -155,6 +159,10 @@ export function usePaperBoard() {
       const ds = getDataService();
       const node = await ds.createPaperNode(params);
       setNodes((prev) => [...prev, node]);
+      setBoardNodeCounts((prev) => ({
+        ...prev,
+        [params.boardId]: (prev[params.boardId] ?? 0) + 1,
+      }));
       return node;
     },
     [],
@@ -215,15 +223,29 @@ export function usePaperBoard() {
     [],
   );
 
-  const deleteNode = useCallback(async (id: string) => {
-    const ds = getDataService();
-    await ds.deletePaperNode(id);
-    setNodes((prev) => prev.filter((n) => n.id !== id));
-    // Also remove edges connected to this node
-    setEdges((prev) =>
-      prev.filter((e) => e.sourceNodeId !== id && e.targetNodeId !== id),
-    );
-  }, []);
+  const deleteNode = useCallback(
+    async (id: string) => {
+      const ds = getDataService();
+      // Find boardId before deleting for count update
+      const deletedNode = nodes.find((n) => n.id === id);
+      await ds.deletePaperNode(id);
+      setNodes((prev) => prev.filter((n) => n.id !== id));
+      // Also remove edges connected to this node
+      setEdges((prev) =>
+        prev.filter((e) => e.sourceNodeId !== id && e.targetNodeId !== id),
+      );
+      if (deletedNode) {
+        setBoardNodeCounts((prev) => ({
+          ...prev,
+          [deletedNode.boardId]: Math.max(
+            0,
+            (prev[deletedNode.boardId] ?? 0) - 1,
+          ),
+        }));
+      }
+    },
+    [nodes],
+  );
 
   // --- Edge CRUD ---
   const createEdge = useCallback(
@@ -284,6 +306,7 @@ export function usePaperBoard() {
     boards,
     activeBoard,
     activeBoardId,
+    boardNodeCounts,
     setActiveBoardId: useCallback((id: string | null) => {
       setActiveBoardId(id);
       loadedBoardRef.current = null;

@@ -3,7 +3,9 @@ import type { TaskNode } from "../../../../types/taskTree";
 import type { ScheduleItem } from "../../../../types/schedule";
 import { TIME_GRID } from "../../../../constants/timeGrid";
 import { TimeGridTaskBlock } from "../Calendar/TimeGridTaskBlock";
+import { TaskPreviewPopup } from "../Calendar/TaskPreviewPopup";
 import { ScheduleItemBlock } from "./ScheduleItemBlock";
+import { ScheduleItemPreviewPopup } from "./ScheduleItemPreviewPopup";
 import { formatDateKey } from "../../../../utils/dateKey";
 import { useTimeGridDrag } from "../../../../hooks/useTimeGridDrag";
 import {
@@ -17,22 +19,18 @@ const HOURS = Array.from(
   (_, i) => i + TIME_GRID.START_HOUR,
 );
 const GUTTER_WIDTH = 52;
-const STAGGER_OFFSET = 24;
 
-interface PositionedTask {
-  task: TaskNode;
+type UnifiedItemKind = "schedule" | "task";
+
+interface UnifiedItem {
+  id: string;
+  kind: UnifiedItemKind;
   top: number;
   height: number;
   column: number;
   totalColumns: number;
-  overlapsRoutine: boolean;
-}
-
-interface PositionedScheduleItem {
-  item: ScheduleItem;
-  top: number;
-  height: number;
-  hasTaskOverlap: boolean;
+  scheduleItem?: ScheduleItem;
+  task?: TaskNode;
 }
 
 function formatHour(hour: number): string {
@@ -51,17 +49,40 @@ function rangesOverlap(
   return aTop < bTop + bHeight && aTop + aHeight > bTop;
 }
 
-function layoutTasksWithOverlap(
+function layoutAllItems(
+  scheduleItems: ScheduleItem[],
   tasks: TaskNode[],
   dayDate: Date,
-  positionedItems: { top: number; height: number }[],
-): PositionedTask[] {
-  const positioned: PositionedTask[] = tasks.map((task) => {
-    const dayStart = new Date(dayDate);
-    dayStart.setHours(0, 0, 0, 0);
-    const dayEnd = new Date(dayDate);
-    dayEnd.setHours(24, 0, 0, 0);
+): UnifiedItem[] {
+  const items: UnifiedItem[] = [];
 
+  // Convert schedule items
+  for (const si of scheduleItems) {
+    const startMin = timeToMinutes(si.startTime);
+    const endMin = timeToMinutes(si.endTime);
+    const top = (startMin / 60 - TIME_GRID.START_HOUR) * TIME_GRID.SLOT_HEIGHT;
+    const height = Math.max(
+      ((endMin - startMin) / 60) * TIME_GRID.SLOT_HEIGHT,
+      20,
+    );
+    items.push({
+      id: si.id,
+      kind: "schedule",
+      top,
+      height,
+      column: 0,
+      totalColumns: 1,
+      scheduleItem: si,
+    });
+  }
+
+  // Convert tasks
+  const dayStart = new Date(dayDate);
+  dayStart.setHours(0, 0, 0, 0);
+  const dayEnd = new Date(dayDate);
+  dayEnd.setHours(24, 0, 0, 0);
+
+  for (const task of tasks.filter((t) => t.scheduledAt && !t.isAllDay)) {
     const taskStart = task.scheduledAt ? new Date(task.scheduledAt) : dayStart;
     const taskEnd = task.scheduledEndAt
       ? new Date(task.scheduledEndAt)
@@ -80,21 +101,23 @@ function layoutTasksWithOverlap(
       0,
     );
     const height = Math.max((durationMinutes / 60) * TIME_GRID.SLOT_HEIGHT, 20);
-    return {
-      task,
+    items.push({
+      id: task.id,
+      kind: "task",
       top,
       height,
       column: 0,
       totalColumns: 1,
-      overlapsRoutine: false,
-    };
-  });
+      task,
+    });
+  }
 
-  positioned.sort((a, b) => a.top - b.top);
+  // Sort by top (start time), then by height descending (earlier end = shorter = left)
+  items.sort((a, b) => a.top - b.top || a.height - b.height);
 
-  // Greedy column assignment: place each task in the first column where it doesn't overlap
+  // Greedy column assignment
   const columnEnds: number[] = [];
-  for (const item of positioned) {
+  for (const item of items) {
     const itemEnd = item.top + item.height;
     let placed = false;
     for (let col = 0; col < columnEnds.length; col++) {
@@ -111,9 +134,9 @@ function layoutTasksWithOverlap(
     }
   }
 
-  // Group overlapping tasks to determine totalColumns per group
-  const groups: PositionedTask[][] = [];
-  for (const item of positioned) {
+  // Group overlapping items to determine totalColumns per group
+  const groups: UnifiedItem[][] = [];
+  for (const item of items) {
     let placed = false;
     for (const group of groups) {
       if (
@@ -136,27 +159,7 @@ function layoutTasksWithOverlap(
     }
   }
 
-  // Check overlap with schedule items (per-task only, no group propagation)
-  for (const pt of positioned) {
-    pt.overlapsRoutine = positionedItems.some((pi) =>
-      rangesOverlap(pt.top, pt.height, pi.top, pi.height),
-    );
-  }
-
-  return positioned;
-}
-
-function layoutScheduleItems(items: ScheduleItem[]): PositionedScheduleItem[] {
-  return items.map((item) => {
-    const startMin = timeToMinutes(item.startTime);
-    const endMin = timeToMinutes(item.endTime);
-    const top = (startMin / 60 - TIME_GRID.START_HOUR) * TIME_GRID.SLOT_HEIGHT;
-    const height = Math.max(
-      ((endMin - startMin) / 60) * TIME_GRID.SLOT_HEIGHT,
-      20,
-    );
-    return { item, top, height, hasTaskOverlap: false };
-  });
+  return items;
 }
 
 interface ScheduleTimeGridProps {
@@ -189,6 +192,10 @@ interface ScheduleTimeGridProps {
   onUnscheduleTask?: (taskId: string) => void;
   onNavigateTask?: (taskId: string, e: React.MouseEvent) => void;
   onUpdateTaskTimeMemo?: (taskId: string, memo: string | null) => void;
+  onDeleteTask?: (taskId: string) => void;
+  onUpdateTaskTitle?: (taskId: string, title: string) => void;
+  onStartTimer?: (task: TaskNode) => void;
+  enablePreview?: boolean;
 }
 
 export function ScheduleTimeGrid({
@@ -209,10 +216,40 @@ export function ScheduleTimeGrid({
   onUnscheduleTask,
   onNavigateTask,
   onUpdateTaskTimeMemo,
+  onDeleteTask,
+  onUpdateTaskTitle,
+  onStartTimer,
+  enablePreview,
 }: ScheduleTimeGridProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const mainColumnRef = useRef<HTMLDivElement>(null);
   const [currentTime, setCurrentTime] = useState(new Date());
+
+  // Preview popup state
+  const [taskPreview, setTaskPreview] = useState<{
+    task: TaskNode;
+    position: { x: number; y: number };
+  } | null>(null);
+  const [schedulePreview, setSchedulePreview] = useState<{
+    item: ScheduleItem;
+    position: { x: number; y: number };
+  } | null>(null);
+
+  const handleShowTaskPreview = useCallback(
+    (task: TaskNode, position: { x: number; y: number }) => {
+      setSchedulePreview(null);
+      setTaskPreview({ task, position });
+    },
+    [],
+  );
+
+  const handleShowSchedulePreview = useCallback(
+    (item: ScheduleItem, position: { x: number; y: number }) => {
+      setTaskPreview(null);
+      setSchedulePreview({ item, position });
+    },
+    [],
+  );
   const todayKey = formatDateKey(new Date());
   const dateKey = formatDateKey(date);
   const isToday = dateKey === todayKey;
@@ -265,27 +302,11 @@ export function ScheduleTimeGrid({
     }
   }, [externalScroll]);
 
-  // Layout schedule items first
-  const positionedItems = useMemo(
-    () => layoutScheduleItems(scheduleItems),
-    [scheduleItems],
+  // Unified layout for all items (schedule + tasks)
+  const unifiedItems = useMemo(
+    () => layoutAllItems(scheduleItems, tasks, date),
+    [scheduleItems, tasks, date],
   );
-
-  // Layout tasks with overlap detection against schedule items
-  const positionedTasks = useMemo(() => {
-    const timeTasks = tasks.filter((t) => t.scheduledAt && !t.isAllDay);
-    return layoutTasksWithOverlap(timeTasks, date, positionedItems);
-  }, [tasks, date, positionedItems]);
-
-  // Mark schedule items that overlap with any task
-  const enrichedItems = useMemo(() => {
-    return positionedItems.map((pi) => ({
-      ...pi,
-      hasTaskOverlap: positionedTasks.some((pt) =>
-        rangesOverlap(pt.top, pt.height, pi.top, pi.height),
-      ),
-    }));
-  }, [positionedItems, positionedTasks]);
 
   const nextItemId = useMemo(() => {
     const sorted = [...scheduleItems].sort((a, b) =>
@@ -347,7 +368,7 @@ export function ScheduleTimeGrid({
       {/* Main column */}
       <div
         ref={mainColumnRef}
-        className="flex-1 relative border-l border-notion-border cursor-pointer"
+        className="flex-1 relative border-l border-notion-border cursor-default"
         onClick={handleColumnClick}
       >
         {/* Hour grid lines */}
@@ -374,97 +395,113 @@ export function ScheduleTimeGrid({
           </div>
         )}
 
-        {/* Task blocks */}
-        <div>
-          {positionedTasks.map((p) => (
-            <TimeGridTaskBlock
-              key={p.task.id}
-              task={p.task}
-              top={p.top}
-              height={p.height}
-              left={
-                p.overlapsRoutine
-                  ? `calc(60% + ${p.column * STAGGER_OFFSET}px)`
-                  : `${p.column * STAGGER_OFFSET}px`
-              }
-              width={
-                p.overlapsRoutine
-                  ? `calc(40% - ${p.column * STAGGER_OFFSET}px)`
-                  : `calc(100% - ${p.column * STAGGER_OFFSET}px)`
-              }
-              color={getTaskColor?.(p.task.id)}
-              tag={getFolderTag?.(p.task.id)}
-              dragHandlers={getDragHandlers(
-                p.task.id,
-                "task",
-                p.top,
-                p.height,
-                "move",
-              )}
-              resizeTopHandlers={getDragHandlers(
-                p.task.id,
-                "task",
-                p.top,
-                p.height,
-                "resize-top",
-              )}
-              resizeBottomHandlers={getDragHandlers(
-                p.task.id,
-                "task",
-                p.top,
-                p.height,
-                "resize-bottom",
-              )}
-              isDragging={
-                dragState.isDragging && dragState.itemId === p.task.id
-              }
-              onToggleTaskStatus={onToggleTaskStatus}
-              onUnschedule={onUnscheduleTask}
-              onNavigate={onNavigateTask}
-              hasMovedRef={hasMovedRef}
-              onUpdateTimeMemo={onUpdateTaskTimeMemo}
-            />
-          ))}
-        </div>
+        {/* Unified item blocks */}
+        {unifiedItems.map((item) => {
+          const colLeft =
+            item.totalColumns === 1
+              ? "4px"
+              : `calc(${(item.column / item.totalColumns) * 100}% + 2px)`;
+          const colWidth =
+            item.totalColumns === 1
+              ? "calc(100% - 8px)"
+              : `calc(${(1 / item.totalColumns) * 100}% - 4px)`;
 
-        {/* Schedule item blocks */}
-        {enrichedItems.map((p) => (
-          <ScheduleItemBlock
-            key={p.item.id}
-            item={p.item}
-            top={p.top}
-            height={p.height}
-            isNext={p.item.id === nextItemId}
-            onToggleComplete={onToggleComplete}
-            onUpdateMemo={onUpdateMemo}
-            onDelete={onDeleteScheduleItem}
-            onRequestRoutineDelete={onRequestRoutineDelete}
-            dragHandlers={getDragHandlers(
-              p.item.id,
-              "schedule",
-              p.top,
-              p.height,
-              "move",
-            )}
-            resizeTopHandlers={getDragHandlers(
-              p.item.id,
-              "schedule",
-              p.top,
-              p.height,
-              "resize-top",
-            )}
-            resizeBottomHandlers={getDragHandlers(
-              p.item.id,
-              "schedule",
-              p.top,
-              p.height,
-              "resize-bottom",
-            )}
-            isDragging={dragState.isDragging && dragState.itemId === p.item.id}
-            hasTaskOverlap={p.hasTaskOverlap}
-            hasMovedRef={hasMovedRef}
-          />
-        ))}
+          if (item.kind === "task" && item.task) {
+            return (
+              <TimeGridTaskBlock
+                key={item.task.id}
+                task={item.task}
+                top={item.top}
+                height={item.height}
+                left={colLeft}
+                width={colWidth}
+                color={getTaskColor?.(item.task.id)}
+                tag={getFolderTag?.(item.task.id)}
+                dragHandlers={getDragHandlers(
+                  item.task.id,
+                  "task",
+                  item.top,
+                  item.height,
+                  "move",
+                )}
+                resizeTopHandlers={getDragHandlers(
+                  item.task.id,
+                  "task",
+                  item.top,
+                  item.height,
+                  "resize-top",
+                )}
+                resizeBottomHandlers={getDragHandlers(
+                  item.task.id,
+                  "task",
+                  item.top,
+                  item.height,
+                  "resize-bottom",
+                )}
+                isDragging={
+                  dragState.isDragging && dragState.itemId === item.task.id
+                }
+                onToggleTaskStatus={onToggleTaskStatus}
+                onUnschedule={onUnscheduleTask}
+                onNavigate={onNavigateTask}
+                hasMovedRef={hasMovedRef}
+                onUpdateTimeMemo={onUpdateTaskTimeMemo}
+                onShowPreview={
+                  enablePreview ? handleShowTaskPreview : undefined
+                }
+              />
+            );
+          }
+
+          if (item.kind === "schedule" && item.scheduleItem) {
+            return (
+              <ScheduleItemBlock
+                key={item.scheduleItem.id}
+                item={item.scheduleItem}
+                top={item.top}
+                height={item.height}
+                left={colLeft}
+                width={colWidth}
+                isNext={item.scheduleItem.id === nextItemId}
+                onToggleComplete={onToggleComplete}
+                onUpdateMemo={onUpdateMemo}
+                onDelete={onDeleteScheduleItem}
+                onRequestRoutineDelete={onRequestRoutineDelete}
+                dragHandlers={getDragHandlers(
+                  item.scheduleItem.id,
+                  "schedule",
+                  item.top,
+                  item.height,
+                  "move",
+                )}
+                resizeTopHandlers={getDragHandlers(
+                  item.scheduleItem.id,
+                  "schedule",
+                  item.top,
+                  item.height,
+                  "resize-top",
+                )}
+                resizeBottomHandlers={getDragHandlers(
+                  item.scheduleItem.id,
+                  "schedule",
+                  item.top,
+                  item.height,
+                  "resize-bottom",
+                )}
+                isDragging={
+                  dragState.isDragging &&
+                  dragState.itemId === item.scheduleItem.id
+                }
+                hasMovedRef={hasMovedRef}
+                onShowPreview={
+                  enablePreview ? handleShowSchedulePreview : undefined
+                }
+              />
+            );
+          }
+
+          return null;
+        })}
 
         {/* Drag ghost preview */}
         {dragState.isDragging && (
@@ -484,8 +521,82 @@ export function ScheduleTimeGrid({
     </div>
   );
 
+  const previewPopups = enablePreview && (
+    <>
+      {taskPreview && (
+        <TaskPreviewPopup
+          task={taskPreview.task}
+          position={taskPreview.position}
+          color={getTaskColor?.(taskPreview.task.id)}
+          onOpenDetail={() => {
+            const taskId = taskPreview.task.id;
+            setTaskPreview(null);
+            onNavigateTask?.(taskId, {} as React.MouseEvent);
+          }}
+          onStartTimer={
+            onStartTimer
+              ? () => {
+                  const task = taskPreview.task;
+                  setTaskPreview(null);
+                  onStartTimer(task);
+                }
+              : undefined
+          }
+          onDelete={() => {
+            const taskId = taskPreview.task.id;
+            setTaskPreview(null);
+            onDeleteTask?.(taskId);
+          }}
+          onClearSchedule={() => {
+            const taskId = taskPreview.task.id;
+            setTaskPreview(null);
+            onUnscheduleTask?.(taskId);
+          }}
+          onUpdateTitle={
+            onUpdateTaskTitle
+              ? (title) => onUpdateTaskTitle(taskPreview.task.id, title)
+              : undefined
+          }
+          onClose={() => setTaskPreview(null)}
+        />
+      )}
+      {schedulePreview && (
+        <ScheduleItemPreviewPopup
+          item={schedulePreview.item}
+          position={schedulePreview.position}
+          onToggleComplete={() => {
+            onToggleComplete(schedulePreview.item.id);
+            setSchedulePreview(null);
+          }}
+          onUpdateMemo={
+            onUpdateMemo
+              ? (memo) => {
+                  onUpdateMemo(schedulePreview.item.id, memo);
+                }
+              : undefined
+          }
+          onDelete={() => {
+            const item = schedulePreview.item;
+            setSchedulePreview(null);
+            if (item.routineId && onRequestRoutineDelete) {
+              onRequestRoutineDelete(item, {} as React.MouseEvent);
+            } else {
+              onDeleteScheduleItem?.(item.id);
+            }
+          }}
+          onClose={() => setSchedulePreview(null)}
+        />
+      )}
+    </>
+  );
+
   if (externalScroll) {
-    return gridContent;
+    return (
+      <>
+        {gridContent}
+        {previewPopups}
+      </>
+    );
   }
 
   return (
@@ -493,6 +604,7 @@ export function ScheduleTimeGrid({
       <div ref={scrollRef} className="overflow-y-auto h-full relative">
         {gridContent}
       </div>
+      {previewPopups}
     </div>
   );
 }

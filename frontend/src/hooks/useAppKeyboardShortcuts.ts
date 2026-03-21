@@ -66,11 +66,6 @@ export function useAppKeyboardShortcuts({
         return;
       }
 
-      if (matchEvent(e, "nav:tasks")) {
-        e.preventDefault();
-        setActiveSection("schedule");
-        return;
-      }
       if (matchEvent(e, "nav:schedule")) {
         e.preventDefault();
         setActiveSection("schedule");

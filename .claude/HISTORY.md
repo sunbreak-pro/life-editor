@@ -1,5 +1,20 @@
 # HISTORY.md - 変更履歴
 
+### 2026-03-21 - Schedule Progress カウント修正 + Calendar Note/Daily フィルタ追加
+
+#### 概要
+
+ScheduleセクションのProgress表示で Tasks が 0/0 になるバグ（taskItems 二重カウント）を修正し、Calendar ビューに Daily/Notes フィルタタブを追加。
+
+#### 変更点
+
+- **Bug Fix (taskItems 重複)**: `categoryProgress` と `calendarCategoryProgress` で `dayTasks` と `allDayTasks` を ID ベースで重複排除
+- **Bug Fix (race condition)**: Calendar の `loadItemsForDate` effect に `activeTab === "calendar"` ガードを追加
+- **Calendar フィルタ**: `CALENDAR_PROGRESS_TABS` に Daily/Notes タブを追加、`calendarCategoryProgress` で memo/note をカウント
+- **型拡張**: `DayFlowFilterTab` に `"daily"` | `"notes"` を追加
+- **i18n**: `dayFlow` セクションに `filterDaily`/`filterNotes` キーを追加（en/ja）
+- **Context追加**: `ScheduleSection` に `useMemoContext`/`useNoteContext` を導入
+
 ### 2026-03-21 - Calendar/DayFlow ナビゲーションバグ修正 + DayFlow プレビューポップアップ追加
 
 #### 概要
