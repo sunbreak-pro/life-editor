@@ -330,7 +330,14 @@
       "archiveRoutine": "Remove from future schedules",
       "archiveRoutineDesc": "Archives the routine so it won't be auto-generated anymore. You can restore it from routine management.",
       "cancel": "Cancel"
-    }
+    },
+    "itemTitlePlaceholder": "Schedule item name"
+  },
+  "schedulePanel": {
+    "existingTasks": "Existing Tasks",
+    "newTask": "New Task",
+    "scheduleItem": "Schedule Item",
+    "scheduled": "scheduled"
   },
   "analytics": {
     "title": "Analytics",
@@ -956,22 +963,5 @@
     "confetti": "Visual Effects",
     "confettiLabel": "Confetti animation",
     "confettiDescription": "Show confetti when a task is completed"
-  },
-  "chaos": {
-    "oracle": {
-      "title": "Today's Oracle"
-    },
-    "timecapsule": {
-      "label": "{{period}} today"
-    },
-    "drift": {
-      "title": "Hidden Connection"
-    },
-    "source": {
-      "memo": "Memo: {{date}}",
-      "note": "Note: {{title}}"
-    },
-    "refresh": "Refresh",
-    "dataInsufficient": "Keep writing memos and notes — your rediscovery engine will activate soon."
   }
 }

@@ -330,7 +330,14 @@
       "archiveRoutine": "今後のルーティンからも削除",
       "archiveRoutineDesc": "ルーティンをアーカイブし、今後自動生成されなくなります。ルーティン管理画面から復元できます。",
       "cancel": "キャンセル"
-    }
+    },
+    "itemTitlePlaceholder": "スケジュールアイテム名"
+  },
+  "schedulePanel": {
+    "existingTasks": "既存タスク",
+    "newTask": "新規タスク",
+    "scheduleItem": "スケジュールアイテム",
+    "scheduled": "スケジュール済"
   },
   "analytics": {
     "title": "分析",
@@ -956,22 +963,5 @@
     "confetti": "視覚エフェクト",
     "confettiLabel": "紙吹雪アニメーション",
     "confettiDescription": "タスク完了時に紙吹雪を表示する"
-  },
-  "chaos": {
-    "oracle": {
-      "title": "今日のお告げ"
-    },
-    "timecapsule": {
-      "label": "{{period}}の今日"
-    },
-    "drift": {
-      "title": "隠れたつながり"
-    },
-    "source": {
-      "memo": "メモ: {{date}}",
-      "note": "ノート: {{title}}"
-    },
-    "refresh": "更新",
-    "dataInsufficient": "メモやノートを書き続けると、再発見エンジンが動き出します。"
   }
 }

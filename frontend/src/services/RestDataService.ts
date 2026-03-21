@@ -670,31 +670,6 @@ export class RestDataService implements DataService {
     return del(`/api/time-memos/${id}`);
   }
 
-  // Chaos — not available on mobile
-  getChaosOracle(): Promise<null> {
-    return Promise.resolve(null);
-  }
-  refreshChaosOracle(): Promise<null> {
-    return Promise.resolve(null);
-  }
-  getChaosTimeCapsules(): Promise<[]> {
-    return Promise.resolve([]);
-  }
-  getChaosDrift(): Promise<null> {
-    return Promise.resolve(null);
-  }
-  getChaosSettings() {
-    return Promise.resolve({
-      oracle_enabled: false,
-      timecapsule_enabled: false,
-      drift_enabled: false,
-      oracle_min_age_days: 7,
-    });
-  }
-  setChaosSettings() {
-    return this.getChaosSettings();
-  }
-
   // Data I/O — not available on mobile
   exportData(): Promise<boolean> {
     return notSupported("Data I/O");

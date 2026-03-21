@@ -1,5 +1,21 @@
 # HISTORY.md - 変更履歴
 
+### 2026-03-21 - カオスの縁（Chaos Engine）完全廃止
+
+#### 概要
+
+Oracle / TimeCapsule / Drift の3機能を含む Chaos Engine を全レイヤーから削除。DB マイグレーション V41 で chaos テーブルを DROP。
+
+#### 変更点
+
+- **DB**: V41 マイグレーション追加（`chaos_settings` / `chaos_display_log` テーブル DROP）
+- **Backend 削除**: `chaosRepository.ts`, `chaosHandlers.ts`, `registerAll.ts` / `preload.ts` から chaos 参照除去
+- **Frontend 削除**: `components/chaos/` ディレクトリ, `ChaosContext.tsx`, `useChaos.ts`, `types/chaos.ts` を削除。`main.tsx` から ChaosProvider 除去、`LeftSidebar.tsx` から ChaosWidget 除去
+- **DataService**: `DataService.ts` インターフェース + `ElectronDataService` / `OfflineDataService` / `RestDataService` から chaos メソッド6件削除
+- **i18n**: `ja.json` / `en.json` から `chaos` キーブロック削除
+- **MCP Server**: `chaosHandlers.ts` 削除、`tools.ts` から `get_oracle` / `get_time_capsules` / `discover_connection` ツール定義 + dispatch 削除
+- **ドキュメント**: `026-edge-of-chaos-analysis.md` 削除、`CLAUDE.md` から Chaos Engine セクション除去
+
 ### 2026-03-21 - コミット履歴統合（Schedule Progress + Calendar フィルタ）
 
 #### 概要

@@ -185,6 +185,11 @@ export function runMigrations(db: Database.Database): void {
     migrateV40(db);
   }
 
+  if (currentVersion < 41) {
+    log.info("[DB] Running migration V41");
+    migrateV41(db);
+  }
+
   const newVersion = db.pragma("user_version", { simple: true }) as number;
   if (newVersion !== currentVersion) {
     log.info(`[DB] Schema migrated: ${currentVersion} → ${newVersion}`);
@@ -1437,6 +1442,14 @@ function migrateV40(db: Database.Database): void {
     );
   }
   db.pragma("user_version = 40");
+}
+
+function migrateV41(db: Database.Database): void {
+  db.exec(`
+    DROP TABLE IF EXISTS chaos_display_log;
+    DROP TABLE IF EXISTS chaos_settings;
+    PRAGMA user_version = 41;
+  `);
 }
 
 function migrateV36(db: Database.Database): void {

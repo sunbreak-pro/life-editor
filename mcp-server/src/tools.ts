@@ -18,12 +18,6 @@ import {
   searchByTag,
   getEntityTags,
 } from "./handlers/wikiTagHandlers.js";
-import {
-  getOracle,
-  getTimeCapsules,
-  discoverConnection,
-} from "./handlers/chaosHandlers.js";
-
 export const TOOLS: Tool[] = [
   {
     name: "list_tasks",
@@ -531,38 +525,6 @@ export const TOOLS: Tool[] = [
       required: ["target", "operations"],
     },
   },
-  {
-    name: "get_oracle",
-    description:
-      "Get a serendipitous rediscovery — a randomly selected memo or note from the past, weighted by age and richness.",
-    inputSchema: {
-      type: "object" as const,
-      properties: {},
-    },
-  },
-  {
-    name: "get_time_capsules",
-    description:
-      "Find memos and notes created on this day in previous weeks, months, or years.",
-    inputSchema: {
-      type: "object" as const,
-      properties: {
-        date: {
-          type: "string",
-          description: "Date in YYYY-MM-DD format (defaults to today)",
-        },
-      },
-    },
-  },
-  {
-    name: "discover_connection",
-    description:
-      "Discover a hidden 2-hop connection between memos/notes via shared wiki tags.",
-    inputSchema: {
-      type: "object" as const,
-      properties: {},
-    },
-  },
 ];
 
 type ToolArgs = Record<string, unknown>;
@@ -634,15 +596,6 @@ export function callTool(
       result = formatContent(
         args as unknown as Parameters<typeof formatContent>[0],
       );
-      break;
-    case "get_oracle":
-      result = getOracle(args);
-      break;
-    case "get_time_capsules":
-      result = getTimeCapsules(args as Parameters<typeof getTimeCapsules>[0]);
-      break;
-    case "discover_connection":
-      result = discoverConnection(args);
       break;
     default:
       throw new Error(`Unknown tool: ${name}`);

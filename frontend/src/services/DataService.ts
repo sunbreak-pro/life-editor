@@ -35,13 +35,6 @@ import type {
 } from "../types/wikiTag";
 import type { TimeMemo } from "../types/timeMemo";
 import type { PaperBoard, PaperNode, PaperEdge } from "../types/paperBoard";
-import type {
-  OracleResult,
-  TimeCapsuleResult,
-  DriftResult,
-  ChaosSettings,
-} from "../types/chaos";
-
 export interface DataService {
   // Tasks
   fetchTaskTree(): Promise<TaskNode[]>;
@@ -437,14 +430,6 @@ export interface DataService {
     styleJson?: string | null;
   }): Promise<PaperEdge>;
   deletePaperEdge(id: string): Promise<void>;
-
-  // Chaos (Rediscovery Engine)
-  getChaosOracle(): Promise<OracleResult | null>;
-  refreshChaosOracle(): Promise<OracleResult | null>;
-  getChaosTimeCapsules(today: string): Promise<TimeCapsuleResult[]>;
-  getChaosDrift(): Promise<DriftResult | null>;
-  getChaosSettings(): Promise<ChaosSettings>;
-  setChaosSettings(key: string, value: string): Promise<ChaosSettings>;
 
   // Data I/O
   exportData(): Promise<boolean>;

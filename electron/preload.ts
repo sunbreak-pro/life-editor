@@ -176,13 +176,6 @@ const ALLOWED_CHANNELS = new Set([
   "db:paperEdges:fetchByBoard",
   "db:paperEdges:create",
   "db:paperEdges:delete",
-  // Chaos (Rediscovery Engine)
-  "chaos:oracle:get",
-  "chaos:oracle:refresh",
-  "chaos:timecapsule:get",
-  "chaos:drift:get",
-  "chaos:settings:get",
-  "chaos:settings:set",
   // Terminal
   "terminal:create",
   "terminal:write",

@@ -35,15 +35,6 @@ Main Process 内の `TerminalManager` が PTY セッションを管理。Rendere
 
 独立 Node.js プロセス。Claude Code が stdio 経由で呼び出し、同一 SQLite DB をアクセス。
 
-#### Chaos Engine（再発見エンジン）
-
-過去のメモ・ノートをランダムに再提示する機能。`electron/database/chaosRepository.ts` が SQLite を直接クエリ。
-
-- **Oracle**: 重み付きランダムで過去のメモ/ノートを1件提示
-- **TimeCapsule**: 「N日/月/年前の今日」に作成されたエンティティを提示
-- **Drift**: Wiki Tag の2ホップ探索で関連エンティティを発見
-- IPC: `chaos:*` チャンネル群。設定は `chaos_settings` テーブル
-
 ### DataService 抽象化（重要）
 
 フロントエンドは `getDataService()` 経由でデータアクセス。直接IPCを呼ばない。
@@ -112,14 +103,14 @@ type: `feat` / `fix` / `docs` / `style` / `refactor` / `test` / `chore`
 
 ## ドキュメント体系
 
-| ディレクトリ                           | 用途                                       |
-| -------------------------------------- | ------------------------------------------ |
-| `.claude/MEMORY.md`                    | タスクトラッカー（進行中/直近の完了/予定） |
-| `.claude/HISTORY.md`                   | 変更履歴（セッション単位の詳細記録）       |
-| `.claude/feature_plans/`               | 実装プラン（PLANNED / IN_PROGRESS）        |
-| `.claude/archive/`                     | 完了済みプラン                             |
-| `.claude/docs/adr/`                    | アーキテクチャ決定記録                     |
-| `TODO.md`                              | ロードマップ                               |
+| ディレクトリ             | 用途                                       |
+| ------------------------ | ------------------------------------------ |
+| `.claude/MEMORY.md`      | タスクトラッカー（進行中/直近の完了/予定） |
+| `.claude/HISTORY.md`     | 変更履歴（セッション単位の詳細記録）       |
+| `.claude/feature_plans/` | 実装プラン（PLANNED / IN_PROGRESS）        |
+| `.claude/archive/`       | 完了済みプラン                             |
+| `.claude/docs/adr/`      | アーキテクチャ決定記録                     |
+| `TODO.md`                | ロードマップ                               |
 
 ライフサイクル: `feature_plans/` → `archive/`
 
