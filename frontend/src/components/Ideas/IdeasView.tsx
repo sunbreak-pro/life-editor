@@ -222,6 +222,16 @@ export function IdeasView({ onNavigateToNote }: IdeasViewProps) {
     [setSelectedNoteId, onNavigateToNote],
   );
 
+  // Navigate to memo from Node tab
+  const handleNavigateToMemo = useCallback(
+    (date: string) => {
+      setActiveTab("daily");
+      localStorage.setItem(STORAGE_KEYS.IDEAS_TAB, "daily");
+      handleSelectDailyDate(date);
+    },
+    [handleSelectDailyDate],
+  );
+
   const { portalTarget: rightSidebarTarget } = useContext(RightSidebarContext);
 
   // --- Sidebar rendering ---
@@ -317,6 +327,7 @@ export function IdeasView({ onNavigateToNote }: IdeasViewProps) {
               notes={notes}
               memos={memos}
               onNavigateToNote={handleNavigateToNote}
+              onNavigateToMemo={handleNavigateToMemo}
               onUpdateNoteColor={handleUpdateNoteColor}
               focusedNoteId={focusedNoteId}
               onFocusComplete={handleFocusComplete}

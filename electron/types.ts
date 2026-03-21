@@ -169,7 +169,17 @@ export interface ScheduleItem {
   routineId: string | null;
   templateId: string | null;
   memo: string | null;
+  noteId: string | null;
   isDismissed: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface RoutineGroup {
+  id: string;
+  name: string;
+  color: string;
+  order: number;
   createdAt: string;
   updatedAt: string;
 }

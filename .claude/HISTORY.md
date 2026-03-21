@@ -1,5 +1,21 @@
 # HISTORY.md - 変更履歴
 
+### 2026-03-21 - Routine Group System + Timegrid 3-Step Click + Note Scheduling
+
+#### 概要
+
+ルーティングループの概念を導入し、複数TagをまとめたGroupでTimegrid上の視覚化・一括操作・フィルタリングを実現。Timegridクリック時の3ステップ選択（ルーティン/タスク/ノート）とNoteのScheduleItem化を実装。
+
+#### 変更点
+
+- **Phase 1 - Data Layer**: Migration V42追加（routine_groups, routine_group_tag_assignments テーブル, schedule_items.note_id カラム）。routineGroupRepository.ts, routineGroupHandlers.ts 新規作成。DataService全3サービスにRoutineGroupメソッド＋noteId対応追加
+- **Phase 2 - Frontend State**: useRoutineGroups.ts（CRUD + undo/redo）, useRoutineGroupTagAssignments.ts（junction管理）, useRoutineGroupComputed.ts（派生計算: routinesByGroup, groupForRoutine, groupTimeRange）新規作成。ScheduleContext統合
+- **Phase 3 - Group CRUD UI**: RoutineGroupEditDialog.tsx（名前/カラー/Tag選択/スライド機能）, RoutineGroupTagPicker.tsx 新規作成。RoutineManagementOverlayにGroupセクション追加
+- **Phase 4 - Timegrid Group Visualization**: GroupFrame.tsx（背景色＋ラベル枠）新規作成。ScheduleTimeGrid.tsxにGroup枠レンダリング＋Routine/Task列分離ロジック追加
+- **Phase 5 - 3-Step Click**: TimeGridClickMenu.tsx（3択メニュー）, RoutinePickerPanel.tsx（Routine/Group選択＋時間設定）, NoteSchedulePanel/（既存/新規Note選択＋時間設定）新規作成。OneDayScheduleに3ステップフロー統合
+- **Phase 6 - Filter Enhancement**: CompactDateNavにGroup pills追加。OneDayScheduleにGroup filter state＋フィルタロジック追加
+- **Phase 7 - i18n**: EN/JA両方に全新規キー追加（routineGroup, schedulePanel, dayFlow）
+
 ### 2026-03-21 - DayFlow スクロール同期解除 + パフォーマンス改善
 
 #### 概要

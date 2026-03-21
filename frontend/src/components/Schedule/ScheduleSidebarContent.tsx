@@ -38,6 +38,14 @@ export function ScheduleSidebarContent({
     createRoutineTag,
     updateRoutineTag,
     deleteRoutineTag,
+    routineGroups,
+    groupTagAssignments,
+    routinesByGroup,
+    groupTimeRange,
+    createRoutineGroup,
+    updateRoutineGroup,
+    deleteRoutineGroup,
+    setTagsForGroup,
   } = useScheduleContext();
 
   const { nodes } = useTaskTreeContext();
@@ -97,6 +105,14 @@ export function ScheduleSidebarContent({
           onCreateRoutineTag={createRoutineTag}
           onUpdateRoutineTag={updateRoutineTag}
           onDeleteRoutineTag={deleteRoutineTag}
+          routineGroups={routineGroups}
+          groupTagAssignments={groupTagAssignments}
+          routinesByGroup={routinesByGroup}
+          groupTimeRange={groupTimeRange}
+          onCreateRoutineGroup={createRoutineGroup}
+          onUpdateRoutineGroup={updateRoutineGroup}
+          onDeleteRoutineGroup={deleteRoutineGroup}
+          setTagsForGroup={setTagsForGroup}
           onClose={() => setShowManagement(false)}
         />
       )}

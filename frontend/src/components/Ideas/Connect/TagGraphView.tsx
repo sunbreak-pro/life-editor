@@ -23,7 +23,7 @@ import {
 } from "lucide-react";
 import { applyPolygonLayout, applyLineLayout } from "./layoutTemplates";
 import { useReactFlow } from "@xyflow/react";
-import { ColorPicker } from "../../shared/ColorPicker";
+import { UnifiedColorPicker } from "../../shared/UnifiedColorPicker";
 import { CanvasControls } from "./CanvasControls";
 import { getContentPreview } from "../../../utils/tiptapText";
 import { NoteNodeComponent } from "./NoteNodeComponent";
@@ -66,6 +66,7 @@ interface TagGraphViewProps {
   notes: NoteNode[];
   memos: MemoNode[];
   onNavigateToNote?: (noteId: string) => void;
+  onNavigateToMemo?: (date: string) => void;
   onUpdateNoteColor?: (noteId: string, color: string) => void;
   focusedNoteId?: string | null;
   onFocusComplete?: () => void;
@@ -119,6 +120,7 @@ export function TagGraphView({
   notes,
   memos,
   onNavigateToNote,
+  onNavigateToMemo,
   onUpdateNoteColor,
   focusedNoteId,
   onFocusComplete,
@@ -126,10 +128,11 @@ export function TagGraphView({
 }: TagGraphViewProps) {
   const { t } = useTranslation();
   const positionsRef = useRef(loadPositions());
-  const [noteContextMenu, setNoteContextMenu] = useState<{
+  const [nodeContextMenu, setNodeContextMenu] = useState<{
     x: number;
     y: number;
-    noteId: string;
+    nodeType: "note" | "memo";
+    entityId: string;
     color?: string;
   } | null>(null);
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
@@ -965,12 +968,25 @@ export function TagGraphView({
     [onDeleteNoteConnection],
   );
 
-  const handleNodeClick = useCallback(
-    (_event: React.MouseEvent, node: Node) => {
-      setSelectedNodeId((prev) => (prev === node.id ? null : node.id));
-    },
-    [],
-  );
+  const handleNodeClick = useCallback((event: React.MouseEvent, node: Node) => {
+    setSelectedNodeId((prev) => (prev === node.id ? null : node.id));
+    if (node.type === "noteNode") {
+      setNodeContextMenu({
+        x: event.clientX,
+        y: event.clientY,
+        nodeType: "note",
+        entityId: node.data.noteId as string,
+        color: node.data.color as string | undefined,
+      });
+    } else if (node.type === "memoNode") {
+      setNodeContextMenu({
+        x: event.clientX,
+        y: event.clientY,
+        nodeType: "memo",
+        entityId: node.data.date as string,
+      });
+    }
+  }, []);
 
   const handleNodeDoubleClick = useCallback(
     (_event: React.MouseEvent, node: Node) => {
@@ -983,25 +999,10 @@ export function TagGraphView({
 
   const handlePaneClick = useCallback(() => {
     onSelectTag(null);
-    setNoteContextMenu(null);
+    setNodeContextMenu(null);
     setSelectedNodeId(null);
     setShowCanvasFilter(false);
   }, [onSelectTag]);
-
-  const handleNodeContextMenu = useCallback(
-    (event: React.MouseEvent, node: Node) => {
-      if (node.type === "noteNode") {
-        event.preventDefault();
-        setNoteContextMenu({
-          x: event.clientX,
-          y: event.clientY,
-          noteId: node.data.noteId as string,
-          color: node.data.color as string | undefined,
-        });
-      }
-    },
-    [],
-  );
 
   const applyLayout = useCallback(
     (type: "polygon" | "line" | "force") => {
@@ -1035,13 +1036,13 @@ export function TagGraphView({
           }
         }
       } else if (type === "polygon") {
-        const radius = Math.max(100, ids.length * 30);
+        const radius = Math.max(80, ids.length * 20);
         newPositions = applyPolygonLayout(ids, center, radius);
       } else {
         newPositions = applyLineLayout(
           ids,
-          { x: center.x - ((ids.length - 1) * 120) / 2, y: center.y },
-          120,
+          { x: center.x - ((ids.length - 1) * 80) / 2, y: center.y },
+          80,
         );
       }
 
@@ -1087,7 +1088,6 @@ export function TagGraphView({
         onEdgeClick={handleEdgeClick}
         onNodeClick={handleNodeClick}
         onNodeDoubleClick={handleNodeDoubleClick}
-        onNodeContextMenu={handleNodeContextMenu}
         onPaneClick={handlePaneClick}
         onMoveEnd={(_event, viewport) => saveViewport(viewport)}
         nodeTypes={nodeTypes}
@@ -1161,45 +1161,58 @@ export function TagGraphView({
           </div>
         </Panel>
       </ReactFlow>
-      {noteContextMenu &&
+      {nodeContextMenu &&
         createPortal(
           <div
             className="fixed inset-0 z-[9999]"
-            onClick={() => setNoteContextMenu(null)}
+            onClick={() => setNodeContextMenu(null)}
             onContextMenu={(e) => {
               e.preventDefault();
-              setNoteContextMenu(null);
+              setNodeContextMenu(null);
             }}
           >
             <div
-              className="absolute bg-notion-bg border border-notion-border rounded-lg shadow-lg p-2 w-48"
-              style={{ left: noteContextMenu.x, top: noteContextMenu.y }}
+              className="absolute bg-notion-bg border border-notion-border rounded-lg shadow-lg p-2 w-52"
+              style={{ left: nodeContextMenu.x, top: nodeContextMenu.y }}
               onClick={(e) => e.stopPropagation()}
             >
-              <button
-                className="w-full text-left px-2 py-1.5 text-xs rounded hover:bg-notion-hover text-notion-text"
-                onClick={() => {
-                  onNavigateToNote?.(noteContextMenu.noteId);
-                  setNoteContextMenu(null);
-                }}
-              >
-                {t("ideas.openNote")}
-              </button>
-              <div className="border-t border-notion-border my-1" />
-              <div className="px-2 py-1">
-                <p className="text-[10px] text-notion-text-secondary mb-1.5">
-                  {t("ideas.noteColor")}
-                </p>
-                <ColorPicker
-                  currentColor={noteContextMenu.color}
-                  onSelect={(color) => {
-                    onUpdateNoteColor?.(noteContextMenu.noteId, color);
-                    setNoteContextMenu(null);
+              {nodeContextMenu.nodeType === "note" ? (
+                <>
+                  <button
+                    className="w-full text-left px-2 py-1.5 text-xs rounded hover:bg-notion-hover text-notion-text"
+                    onClick={() => {
+                      onNavigateToNote?.(nodeContextMenu.entityId);
+                      setNodeContextMenu(null);
+                    }}
+                  >
+                    {t("ideas.openNote")}
+                  </button>
+                  <div className="border-t border-notion-border my-1" />
+                  <div className="px-2 py-1">
+                    <p className="text-[10px] text-notion-text-secondary mb-1.5">
+                      {t("ideas.noteColor")}
+                    </p>
+                    <UnifiedColorPicker
+                      color={nodeContextMenu.color || "#D5E8F5"}
+                      onChange={(color) => {
+                        onUpdateNoteColor?.(nodeContextMenu.entityId, color);
+                      }}
+                      mode="preset-full"
+                      inline
+                    />
+                  </div>
+                </>
+              ) : (
+                <button
+                  className="w-full text-left px-2 py-1.5 text-xs rounded hover:bg-notion-hover text-notion-text"
+                  onClick={() => {
+                    onNavigateToMemo?.(nodeContextMenu.entityId);
+                    setNodeContextMenu(null);
                   }}
-                  onClose={() => setNoteContextMenu(null)}
-                  inline
-                />
-              </div>
+                >
+                  {t("ideas.openMemo")}
+                </button>
+              )}
             </div>
           </div>,
           document.body,

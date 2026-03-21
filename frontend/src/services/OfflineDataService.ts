@@ -23,6 +23,7 @@ import type { CalendarNode } from "../types/calendar";
 import type { RoutineNode } from "../types/routine";
 import type { RoutineTag } from "../types/routineTag";
 import type { ScheduleItem } from "../types/schedule";
+import type { RoutineGroup } from "../types/routineGroup";
 import type { Playlist, PlaylistItem } from "../types/playlist";
 import type {
   LogEntry,
@@ -669,6 +670,7 @@ export class OfflineDataService implements DataService {
     endTime: string,
     routineId?: string,
     templateId?: string,
+    noteId?: string,
   ): Promise<ScheduleItem> {
     try {
       return await this.rest.createScheduleItem(
@@ -679,6 +681,7 @@ export class OfflineDataService implements DataService {
         endTime,
         routineId,
         templateId,
+        noteId,
       );
     } catch {
       const item: ScheduleItem = {
@@ -692,6 +695,7 @@ export class OfflineDataService implements DataService {
         routineId: routineId ?? null,
         templateId: templateId ?? null,
         memo: null,
+        noteId: noteId ?? null,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       };
@@ -789,6 +793,7 @@ export class OfflineDataService implements DataService {
       endTime: string;
       routineId?: string;
       templateId?: string;
+      noteId?: string;
     }>,
   ): Promise<ScheduleItem[]> {
     try {
@@ -1194,6 +1199,35 @@ export class OfflineDataService implements DataService {
   }
   setTagsForRoutine(routineId: string, tagIds: number[]): Promise<void> {
     return this.rest.setTagsForRoutine(routineId, tagIds);
+  }
+
+  // Routine Groups — pass through
+  fetchRoutineGroups(): Promise<RoutineGroup[]> {
+    return this.rest.fetchRoutineGroups();
+  }
+  createRoutineGroup(
+    id: string,
+    name: string,
+    color: string,
+  ): Promise<RoutineGroup> {
+    return this.rest.createRoutineGroup(id, name, color);
+  }
+  updateRoutineGroup(
+    id: string,
+    updates: Partial<Pick<RoutineGroup, "name" | "color" | "order">>,
+  ): Promise<RoutineGroup> {
+    return this.rest.updateRoutineGroup(id, updates);
+  }
+  deleteRoutineGroup(id: string): Promise<void> {
+    return this.rest.deleteRoutineGroup(id);
+  }
+  fetchAllRoutineGroupTagAssignments(): Promise<
+    Array<{ group_id: string; tag_id: number }>
+  > {
+    return this.rest.fetchAllRoutineGroupTagAssignments();
+  }
+  setTagsForRoutineGroup(groupId: string, tagIds: number[]): Promise<void> {
+    return this.rest.setTagsForRoutineGroup(groupId, tagIds);
   }
 
   // Playlists — pass through

@@ -19,6 +19,7 @@ import type { CalendarNode } from "../types/calendar";
 import type { RoutineNode } from "../types/routine";
 import type { RoutineTag } from "../types/routineTag";
 import type { ScheduleItem } from "../types/schedule";
+import type { RoutineGroup } from "../types/routineGroup";
 import type { Playlist, PlaylistItem } from "../types/playlist";
 import type {
   LogEntry,
@@ -219,6 +220,7 @@ export interface DataService {
     endTime: string,
     routineId?: string,
     templateId?: string,
+    noteId?: string,
   ): Promise<ScheduleItem>;
   updateScheduleItem(
     id: string,
@@ -241,8 +243,26 @@ export interface DataService {
       endTime: string;
       routineId?: string;
       templateId?: string;
+      noteId?: string;
     }>,
   ): Promise<ScheduleItem[]>;
+
+  // Routine Groups
+  fetchRoutineGroups(): Promise<RoutineGroup[]>;
+  createRoutineGroup(
+    id: string,
+    name: string,
+    color: string,
+  ): Promise<RoutineGroup>;
+  updateRoutineGroup(
+    id: string,
+    updates: Partial<Pick<RoutineGroup, "name" | "color" | "order">>,
+  ): Promise<RoutineGroup>;
+  deleteRoutineGroup(id: string): Promise<void>;
+  fetchAllRoutineGroupTagAssignments(): Promise<
+    Array<{ group_id: string; tag_id: number }>
+  >;
+  setTagsForRoutineGroup(groupId: string, tagIds: number[]): Promise<void>;
 
   // Playlists
   fetchPlaylists(): Promise<Playlist[]>;

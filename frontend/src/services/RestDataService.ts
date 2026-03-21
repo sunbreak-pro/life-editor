@@ -19,6 +19,7 @@ import type { NoteNode } from "../types/note";
 import type { CalendarNode } from "../types/calendar";
 import type { RoutineNode } from "../types/routine";
 import type { RoutineTag } from "../types/routineTag";
+import type { RoutineGroup } from "../types/routineGroup";
 import type { ScheduleItem } from "../types/schedule";
 import type { Playlist, PlaylistItem } from "../types/playlist";
 import type {
@@ -426,6 +427,7 @@ export class RestDataService implements DataService {
     endTime: string,
     routineId?: string,
     templateId?: string,
+    noteId?: string,
   ): Promise<ScheduleItem> {
     return post("/api/schedule-items", {
       id,
@@ -435,6 +437,7 @@ export class RestDataService implements DataService {
       endTime,
       routineId,
       templateId,
+      noteId,
     });
   }
   updateScheduleItem(
@@ -466,9 +469,39 @@ export class RestDataService implements DataService {
       endTime: string;
       routineId?: string;
       templateId?: string;
+      noteId?: string;
     }>,
   ): Promise<ScheduleItem[]> {
     return post("/api/schedule-items/bulk", items);
+  }
+
+  // Routine Groups
+  fetchRoutineGroups(): Promise<RoutineGroup[]> {
+    return get("/api/routine-groups");
+  }
+  createRoutineGroup(
+    id: string,
+    name: string,
+    color: string,
+  ): Promise<RoutineGroup> {
+    return post("/api/routine-groups", { id, name, color });
+  }
+  updateRoutineGroup(
+    id: string,
+    updates: Partial<Pick<RoutineGroup, "name" | "color" | "order">>,
+  ): Promise<RoutineGroup> {
+    return patch(`/api/routine-groups/${id}`, updates);
+  }
+  deleteRoutineGroup(id: string): Promise<void> {
+    return del(`/api/routine-groups/${id}`);
+  }
+  fetchAllRoutineGroupTagAssignments(): Promise<
+    Array<{ group_id: string; tag_id: number }>
+  > {
+    return get("/api/routine-groups/tag-assignments");
+  }
+  setTagsForRoutineGroup(groupId: string, tagIds: number[]): Promise<void> {
+    return put(`/api/routine-groups/${groupId}/tags`, { tagIds });
   }
 
   // Playlists

@@ -22,8 +22,8 @@ export function computeForceLayout(
   },
 ): Record<string, { x: number; y: number }> {
   const {
-    chargeStrength = -200,
-    linkDistance = 120,
+    chargeStrength = -120,
+    linkDistance = 80,
     iterations = 300,
   } = options ?? {};
 
@@ -46,7 +46,7 @@ export function computeForceLayout(
         linkDistance,
       ),
     )
-    .force("collide", forceCollide(30))
+    .force("collide", forceCollide(25))
     .stop();
 
   simulation.tick(iterations);

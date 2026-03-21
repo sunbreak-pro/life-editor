@@ -2,13 +2,19 @@ import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import type { TaskNode } from "../../../../types/taskTree";
 import type { ScheduleItem } from "../../../../types/schedule";
 import { useScheduleContext } from "../../../../hooks/useScheduleContext";
+import { useAutoInProgress } from "../../../../hooks/useAutoInProgress";
+import { useTaskTreeContext } from "../../../../hooks/useTaskTreeContext";
 import { formatDateKey } from "../../../../utils/dateKey";
 import { CompactDateNav } from "./CompactDateNav";
 import { ScheduleTimeGrid } from "./ScheduleTimeGrid";
-import { TimeGridClickPanel } from "./TimeGridClickPanel";
+import { TaskSchedulePanel } from "../../../shared/TaskSchedulePanel";
+import { TimeGridClickMenu } from "./TimeGridClickMenu";
+import { RoutinePickerPanel } from "./RoutinePickerPanel";
+import { NoteSchedulePanel } from "../../../shared/NoteSchedulePanel/NoteSchedulePanel";
 import { RoutineDeleteConfirmDialog } from "./RoutineDeleteConfirmDialog";
 import type { TabItem } from "../../../shared/SectionTabs";
 import { TIME_GRID } from "../../../../constants/timeGrid";
+import type { NoteNode } from "../../../../types/note";
 
 export type DayFlowFilterTab =
   | "all"
@@ -77,7 +83,6 @@ export function OneDaySchedule({
   const {
     scheduleItems,
     loadItemsForDate,
-    createScheduleItem,
     toggleComplete,
     routines,
     routineTags,
@@ -88,12 +93,20 @@ export function OneDaySchedule({
     dismissScheduleItem,
     refreshRoutineStats,
     updateRoutine,
+    routineGroups,
+    routinesByGroup,
+    groupForRoutine,
+    createScheduleItem,
   } = useScheduleContext();
+  const { addNode, updateNode } = useTaskTreeContext();
   const dateKey = formatDateKey(date);
   const isToday = dateKey === formatDateKey(new Date());
   const [selectedFilterTagIds, setSelectedFilterTagIds] = useState<number[]>(
     [],
   );
+  const [selectedFilterGroupIds, setSelectedFilterGroupIds] = useState<
+    string[]
+  >([]);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const routineTagMap = useMemo(() => {
@@ -103,7 +116,22 @@ export function OneDaySchedule({
     }
     return map;
   }, [tagAssignments]);
+  const [clickMenu, setClickMenu] = useState<{
+    startTime: string;
+    endTime: string;
+    position: { x: number; y: number };
+  } | null>(null);
   const [createPopover, setCreatePopover] = useState<{
+    startTime: string;
+    endTime: string;
+    position: { x: number; y: number };
+  } | null>(null);
+  const [routinePicker, setRoutinePicker] = useState<{
+    startTime: string;
+    endTime: string;
+    position: { x: number; y: number };
+  } | null>(null);
+  const [notePicker, setNotePicker] = useState<{
     startTime: string;
     endTime: string;
     position: { x: number; y: number };
@@ -178,6 +206,9 @@ export function OneDaySchedule({
     [allTasksByDate, dateKey],
   );
 
+  // Auto-set NOT_STARTED tasks to IN_PROGRESS for today
+  useAutoInProgress(dayTasks, isToday);
+
   // Filtered data based on active filter tab
   const filteredScheduleItems = useMemo(() => {
     let items = scheduleItems;
@@ -198,8 +229,23 @@ export function OneDaySchedule({
         return selectedFilterTagIds.some((id) => rTagIds.includes(id));
       });
     }
+    // Group filter: show items whose routines belong to selected groups
+    if (selectedFilterGroupIds.length > 0) {
+      items = items.filter((i) => {
+        if (!i.routineId) return false;
+        const group = groupForRoutine.get(i.routineId);
+        return group ? selectedFilterGroupIds.includes(group.id) : false;
+      });
+    }
     return items;
-  }, [scheduleItems, filterTab, selectedFilterTagIds, routineTagMap]);
+  }, [
+    scheduleItems,
+    filterTab,
+    selectedFilterTagIds,
+    routineTagMap,
+    selectedFilterGroupIds,
+    groupForRoutine,
+  ]);
 
   const filteredDayTasks = useMemo(() => {
     if (filterTab === "routine" || filterTab === "others") return [];
@@ -223,12 +269,88 @@ export function OneDaySchedule({
     endTime: string,
     e: React.MouseEvent,
   ) => {
-    setCreatePopover({
+    setClickMenu({
       startTime,
       endTime,
       position: { x: e.clientX, y: e.clientY },
     });
   };
+
+  const handleSelectRoutineForSchedule = useCallback(
+    (
+      routine: {
+        id: string;
+        title: string;
+        startTime?: string | null;
+        endTime?: string | null;
+      },
+      startTime: string,
+      endTime: string,
+    ) => {
+      const st = routine.startTime ?? startTime;
+      const et = routine.endTime ?? endTime;
+      createScheduleItem(dateKey, routine.title, st, et, routine.id);
+      setRoutinePicker(null);
+    },
+    [dateKey, createScheduleItem],
+  );
+
+  const handleSelectGroupForSchedule = useCallback(
+    (
+      _group: { id: string },
+      members: Array<{
+        id: string;
+        title: string;
+        startTime?: string | null;
+        endTime?: string | null;
+      }>,
+      startTime: string,
+      endTime: string,
+    ) => {
+      for (const routine of members) {
+        const st = routine.startTime ?? startTime;
+        const et = routine.endTime ?? endTime;
+        createScheduleItem(dateKey, routine.title, st, et, routine.id);
+      }
+      setRoutinePicker(null);
+    },
+    [dateKey, createScheduleItem],
+  );
+
+  const handleSelectExistingNote = useCallback(
+    (note: NoteNode, startTime: string, endTime: string) => {
+      createScheduleItem(
+        dateKey,
+        note.title || "Note",
+        startTime,
+        endTime,
+        undefined,
+        undefined,
+        note.id,
+      );
+      setNotePicker(null);
+    },
+    [dateKey, createScheduleItem],
+  );
+
+  const handleCreateNewNote = useCallback(
+    async (title: string, startTime: string, endTime: string) => {
+      const { getDataService } = await import("../../../../services");
+      const noteId = `note-${crypto.randomUUID()}`;
+      await getDataService().createNote(noteId, title);
+      createScheduleItem(
+        dateKey,
+        title,
+        startTime,
+        endTime,
+        undefined,
+        undefined,
+        noteId,
+      );
+      setNotePicker(null);
+    },
+    [dateKey, createScheduleItem],
+  );
 
   const handleUpdateMemo = (id: string, memo: string | null) => {
     updateScheduleItem(id, { memo });
@@ -257,9 +379,6 @@ export function OneDaySchedule({
     onUpdateTaskTime?.(taskId, startDate.toISOString(), endDate.toISOString());
   };
 
-  const totalHeight =
-    (TIME_GRID.END_HOUR - TIME_GRID.START_HOUR) * TIME_GRID.SLOT_HEIGHT;
-
   return (
     <div className="flex flex-col h-full">
       <CompactDateNav
@@ -275,6 +394,9 @@ export function OneDaySchedule({
         routineTags={routineTags}
         isDualColumn={isDualColumn}
         onToggleDualColumn={onToggleDualColumn}
+        routineGroups={routineGroups}
+        selectedFilterGroupIds={selectedFilterGroupIds}
+        onSelectedFilterGroupIdsChange={setSelectedFilterGroupIds}
       />
 
       {/* Main content - TimeGrid + MemoColumn in shared scroll container */}
@@ -302,21 +424,81 @@ export function OneDaySchedule({
               onDeleteTask={onDeleteTask}
               onUpdateTaskTitle={onUpdateTaskTitle}
               onStartTimer={onStartTimer}
-              enablePreview
+              routineGroups={routineGroups}
+              groupForRoutine={groupForRoutine}
             />
           </div>
         </div>
 
-        {/* Create panel */}
+        {/* 3-step click menu */}
+        {clickMenu && (
+          <TimeGridClickMenu
+            position={clickMenu.position}
+            onSelectRoutine={() => {
+              setRoutinePicker(clickMenu);
+              setClickMenu(null);
+            }}
+            onSelectTask={() => {
+              setCreatePopover(clickMenu);
+              setClickMenu(null);
+            }}
+            onSelectNote={() => {
+              setNotePicker(clickMenu);
+              setClickMenu(null);
+            }}
+            onClose={() => setClickMenu(null)}
+          />
+        )}
+
+        {/* Routine picker */}
+        {routinePicker && (
+          <RoutinePickerPanel
+            position={routinePicker.position}
+            defaultStartTime={routinePicker.startTime}
+            defaultEndTime={routinePicker.endTime}
+            routines={routines}
+            routineGroups={routineGroups}
+            routinesByGroup={routinesByGroup}
+            onSelectRoutine={handleSelectRoutineForSchedule}
+            onSelectGroup={handleSelectGroupForSchedule}
+            onClose={() => setRoutinePicker(null)}
+          />
+        )}
+
+        {/* Note picker */}
+        {notePicker && (
+          <NoteSchedulePanel
+            position={notePicker.position}
+            defaultStartTime={notePicker.startTime}
+            defaultEndTime={notePicker.endTime}
+            date={date}
+            onSelectExistingNote={handleSelectExistingNote}
+            onCreateNewNote={handleCreateNewNote}
+            onClose={() => setNotePicker(null)}
+          />
+        )}
+
+        {/* Task schedule panel */}
         {createPopover && (
-          <TimeGridClickPanel
+          <TaskSchedulePanel
             position={createPopover.position}
             defaultStartTime={createPopover.startTime}
             defaultEndTime={createPopover.endTime}
             date={date}
             existingTaskIds={existingTaskIds}
-            onCreateScheduleItem={(title, startTime, endTime) => {
-              createScheduleItem(dateKey, title, startTime, endTime);
+            onSelectExistingTask={(task, schedule) => {
+              updateNode(task.id, {
+                scheduledAt: schedule.scheduledAt,
+                scheduledEndAt: schedule.scheduledEndAt,
+                isAllDay: schedule.isAllDay,
+              });
+            }}
+            onCreateNewTask={(title, parentId, schedule) => {
+              addNode("task", parentId, title, {
+                scheduledAt: schedule.scheduledAt,
+                scheduledEndAt: schedule.scheduledEndAt,
+                isAllDay: schedule.isAllDay,
+              });
             }}
             onClose={() => setCreatePopover(null)}
           />

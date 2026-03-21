@@ -20,6 +20,7 @@ import type { CalendarNode } from "../types/calendar";
 import type { RoutineNode } from "../types/routine";
 import type { RoutineTag } from "../types/routineTag";
 import type { ScheduleItem } from "../types/schedule";
+import type { RoutineGroup } from "../types/routineGroup";
 import type { Playlist, PlaylistItem } from "../types/playlist";
 import type {
   LogEntry,
@@ -386,6 +387,7 @@ export class ElectronDataService implements DataService {
     endTime: string,
     routineId?: string,
     templateId?: string,
+    noteId?: string,
   ): Promise<ScheduleItem> {
     return invoke(
       "db:scheduleItems:create",
@@ -396,6 +398,7 @@ export class ElectronDataService implements DataService {
       endTime,
       routineId,
       templateId,
+      noteId,
     );
   }
   updateScheduleItem(
@@ -427,9 +430,39 @@ export class ElectronDataService implements DataService {
       endTime: string;
       routineId?: string;
       templateId?: string;
+      noteId?: string;
     }>,
   ): Promise<ScheduleItem[]> {
     return invoke("db:scheduleItems:bulkCreate", items);
+  }
+
+  // Routine Groups
+  fetchRoutineGroups(): Promise<RoutineGroup[]> {
+    return invoke("db:routineGroups:fetchAll");
+  }
+  createRoutineGroup(
+    id: string,
+    name: string,
+    color: string,
+  ): Promise<RoutineGroup> {
+    return invoke("db:routineGroups:create", id, name, color);
+  }
+  updateRoutineGroup(
+    id: string,
+    updates: Partial<Pick<RoutineGroup, "name" | "color" | "order">>,
+  ): Promise<RoutineGroup> {
+    return invoke("db:routineGroups:update", id, updates);
+  }
+  deleteRoutineGroup(id: string): Promise<void> {
+    return invoke("db:routineGroups:delete", id);
+  }
+  fetchAllRoutineGroupTagAssignments(): Promise<
+    Array<{ group_id: string; tag_id: number }>
+  > {
+    return invoke("db:routineGroups:fetchAllTagAssignments");
+  }
+  setTagsForRoutineGroup(groupId: string, tagIds: number[]): Promise<void> {
+    return invoke("db:routineGroups:setTagsForGroup", groupId, tagIds);
   }
 
   // Playlists

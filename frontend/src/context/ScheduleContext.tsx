@@ -4,17 +4,28 @@ import { useRoutines } from "../hooks/useRoutines";
 import { useRoutineTagAssignments } from "../hooks/useRoutineTagAssignments";
 import { useScheduleItems } from "../hooks/useScheduleItems";
 import { useRoutineTags } from "../hooks/useRoutineTags";
+import { useRoutineGroups } from "../hooks/useRoutineGroups";
+import { useRoutineGroupTagAssignments } from "../hooks/useRoutineGroupTagAssignments";
+import { useRoutineGroupComputed } from "../hooks/useRoutineGroupComputed";
 import { useUndoRedo } from "../components/shared/UndoRedo";
 
 type RoutinesState = ReturnType<typeof useRoutines>;
 type TagAssignmentsState = ReturnType<typeof useRoutineTagAssignments>;
 type ScheduleItemsState = ReturnType<typeof useScheduleItems>;
 type RoutineTagsState = ReturnType<typeof useRoutineTags>;
+type RoutineGroupsState = ReturnType<typeof useRoutineGroups>;
+type RoutineGroupTagAssignmentsState = ReturnType<
+  typeof useRoutineGroupTagAssignments
+>;
+type RoutineGroupComputedState = ReturnType<typeof useRoutineGroupComputed>;
 
 export type ScheduleContextValue = RoutinesState &
   TagAssignmentsState &
   ScheduleItemsState &
-  RoutineTagsState;
+  RoutineTagsState &
+  RoutineGroupsState &
+  RoutineGroupTagAssignmentsState &
+  RoutineGroupComputedState;
 
 export const ScheduleContext = createContext<ScheduleContextValue | null>(null);
 
@@ -23,6 +34,14 @@ export function ScheduleProvider({ children }: { children: ReactNode }) {
   const tagAssignmentsState = useRoutineTagAssignments();
   const scheduleItemsState = useScheduleItems();
   const routineTagsState = useRoutineTags();
+  const routineGroupsState = useRoutineGroups();
+  const routineGroupTagAssignmentsState = useRoutineGroupTagAssignments();
+  const routineGroupComputedState = useRoutineGroupComputed({
+    routineGroups: routineGroupsState.routineGroups,
+    routines: routinesState.routines,
+    groupTagAssignments: routineGroupTagAssignmentsState.groupTagAssignments,
+    tagAssignments: tagAssignmentsState.tagAssignments,
+  });
   const { push } = useUndoRedo();
 
   // Wrap deleteRoutine to also remove tag assignments + push composite undo
@@ -59,6 +78,9 @@ export function ScheduleProvider({ children }: { children: ReactNode }) {
       ...tagAssignmentsState,
       ...scheduleItemsState,
       ...routineTagsState,
+      ...routineGroupsState,
+      ...routineGroupTagAssignmentsState,
+      ...routineGroupComputedState,
       deleteRoutine,
     }),
     [
@@ -66,6 +88,9 @@ export function ScheduleProvider({ children }: { children: ReactNode }) {
       tagAssignmentsState,
       scheduleItemsState,
       routineTagsState,
+      routineGroupsState,
+      routineGroupTagAssignmentsState,
+      routineGroupComputedState,
       deleteRoutine,
     ],
   );

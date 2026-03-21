@@ -325,9 +325,9 @@ export function ConnectSidebar({
 
   const handleItemClick = useCallback(
     (itemId: string) => {
-      onSidebarSelect(sidebarSelectedItemId === itemId ? null : itemId);
+      onSidebarSelect(itemId);
     },
-    [sidebarSelectedItemId, onSidebarSelect],
+    [onSidebarSelect],
   );
 
   const isSearching = query.trim().length > 0;
@@ -528,6 +528,20 @@ export function ConnectSidebar({
         suggestions={suggestions}
         onSuggestionSelect={handleSuggestionSelect}
       />
+
+      <div className="px-2 py-1">
+        <button
+          onClick={() => onSidebarSelect(null)}
+          className={`w-full flex items-center gap-1.5 px-2 py-1 rounded text-xs transition-colors ${
+            sidebarSelectedItemId === null
+              ? "bg-notion-accent/10 text-notion-accent"
+              : "text-notion-text-secondary hover:bg-notion-hover"
+          }`}
+        >
+          <Package size={12} />
+          {t("ideas.showAllNodes")}
+        </button>
+      </div>
 
       <div className="flex-1 overflow-y-auto">
         {/* Search results */}

@@ -8,13 +8,16 @@ import {
   Pencil,
 } from "lucide-react";
 import type { SectionId } from "../../types/taskTree";
+import type { LayoutHandle } from "./Layout";
 import { useTimerContext } from "../../hooks/useTimerContext";
 import { useTranslation } from "react-i18next";
+import { AIActionsPanel } from "../AIActions/AIActionsPanel";
 
 interface SidebarProps {
   width: number;
   activeSection: SectionId;
   onSectionChange: (section: SectionId) => void;
+  layoutRef: React.RefObject<LayoutHandle | null>;
 }
 
 const mainMenuItems: {
@@ -32,6 +35,7 @@ export function LeftSidebar({
   width,
   activeSection,
   onSectionChange,
+  layoutRef,
 }: SidebarProps) {
   const timer = useTimerContext();
   const { t } = useTranslation();
@@ -87,6 +91,9 @@ export function LeftSidebar({
           );
         })}
       </nav>
+      <div className="px-3 pb-2 border-t border-notion-border pt-2">
+        <AIActionsPanel activeSection={activeSection} layoutRef={layoutRef} />
+      </div>
       <div className="p-3 border-t border-notion-border">
         <button
           onClick={() => onSectionChange("settings")}

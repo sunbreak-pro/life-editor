@@ -190,6 +190,11 @@ export function runMigrations(db: Database.Database): void {
     migrateV41(db);
   }
 
+  if (currentVersion < 42) {
+    log.info("[DB] Running migration V42");
+    migrateV42(db);
+  }
+
   const newVersion = db.pragma("user_version", { simple: true }) as number;
   if (newVersion !== currentVersion) {
     log.info(`[DB] Schema migrated: ${currentVersion} → ${newVersion}`);
@@ -1514,4 +1519,35 @@ function migrateV36(db: Database.Database): void {
   });
   migrate();
   db.pragma("user_version = 36");
+}
+
+function migrateV42(db: Database.Database): void {
+  const migrate = db.transaction(() => {
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS routine_groups (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL DEFAULT '',
+        color TEXT NOT NULL DEFAULT '#6B7280',
+        "order" INTEGER NOT NULL DEFAULT 0,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+      );
+
+      CREATE TABLE IF NOT EXISTS routine_group_tag_assignments (
+        group_id TEXT NOT NULL REFERENCES routine_groups(id) ON DELETE CASCADE,
+        tag_id INTEGER NOT NULL REFERENCES routine_tag_definitions(id) ON DELETE CASCADE,
+        PRIMARY KEY (group_id, tag_id)
+      );
+      CREATE INDEX IF NOT EXISTS idx_rgta_group ON routine_group_tag_assignments(group_id);
+      CREATE INDEX IF NOT EXISTS idx_rgta_tag ON routine_group_tag_assignments(tag_id);
+    `);
+
+    if (!hasColumn(db, "schedule_items", "note_id")) {
+      db.exec(
+        `ALTER TABLE schedule_items ADD COLUMN note_id TEXT DEFAULT NULL`,
+      );
+    }
+  });
+  migrate();
+  db.pragma("user_version = 42");
 }

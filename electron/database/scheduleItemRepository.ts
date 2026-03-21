@@ -12,6 +12,7 @@ interface ScheduleItemRow {
   routine_id: string | null;
   template_id: string | null;
   memo: string | null;
+  note_id: string | null;
   is_dismissed: number;
   created_at: string;
   updated_at: string;
@@ -29,6 +30,7 @@ function rowToItem(row: ScheduleItemRow): ScheduleItem {
     routineId: row.routine_id,
     templateId: row.template_id,
     memo: row.memo ?? null,
+    noteId: row.note_id ?? null,
     isDismissed: row.is_dismissed === 1,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
@@ -45,8 +47,8 @@ export function createScheduleItemRepository(db: Database.Database) {
     ),
     fetchById: db.prepare(`SELECT * FROM schedule_items WHERE id = ?`),
     insert: db.prepare(`
-      INSERT INTO schedule_items (id, date, title, start_time, end_time, completed, completed_at, routine_id, template_id, created_at, updated_at)
-      VALUES (@id, @date, @title, @start_time, @end_time, 0, NULL, @routine_id, @template_id, datetime('now'), datetime('now'))
+      INSERT INTO schedule_items (id, date, title, start_time, end_time, completed, completed_at, routine_id, template_id, note_id, created_at, updated_at)
+      VALUES (@id, @date, @title, @start_time, @end_time, 0, NULL, @routine_id, @template_id, @note_id, datetime('now'), datetime('now'))
     `),
     update: db.prepare(`
       UPDATE schedule_items SET title = @title, start_time = @start_time, end_time = @end_time,
@@ -79,6 +81,7 @@ export function createScheduleItemRepository(db: Database.Database) {
       endTime: string,
       routineId?: string,
       templateId?: string,
+      noteId?: string,
     ): ScheduleItem {
       stmts.insert.run({
         id,
@@ -88,6 +91,7 @@ export function createScheduleItemRepository(db: Database.Database) {
         end_time: endTime,
         routine_id: routineId ?? null,
         template_id: templateId ?? null,
+        note_id: noteId ?? null,
       });
       const row = stmts.fetchById.get(id) as ScheduleItemRow;
       return rowToItem(row);
@@ -162,6 +166,7 @@ export function createScheduleItemRepository(db: Database.Database) {
         endTime: string;
         routineId?: string;
         templateId?: string;
+        noteId?: string;
       }>,
     ): ScheduleItem[] {
       const bulkInsert = db.transaction(() => {
@@ -183,6 +188,7 @@ export function createScheduleItemRepository(db: Database.Database) {
             end_time: item.endTime,
             routine_id: item.routineId ?? null,
             template_id: item.templateId ?? null,
+            note_id: item.noteId ?? null,
           });
           const row = stmts.fetchById.get(item.id) as ScheduleItemRow;
           results.push(rowToItem(row));

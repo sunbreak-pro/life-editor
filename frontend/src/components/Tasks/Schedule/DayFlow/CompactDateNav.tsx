@@ -13,6 +13,7 @@ import { getTextColorForBg } from "../../../../constants/folderColors";
 import type { DayFlowFilterTab } from "./OneDaySchedule";
 import { DAY_FLOW_FILTER_TABS } from "./OneDaySchedule";
 import type { RoutineTag } from "../../../../types/routineTag";
+import type { RoutineGroup } from "../../../../types/routineGroup";
 
 interface CompactDateNavProps {
   date: Date;
@@ -27,6 +28,9 @@ interface CompactDateNavProps {
   routineTags: RoutineTag[];
   isDualColumn?: boolean;
   onToggleDualColumn?: () => void;
+  routineGroups?: RoutineGroup[];
+  selectedFilterGroupIds?: string[];
+  onSelectedFilterGroupIdsChange?: (ids: string[]) => void;
 }
 
 export function CompactDateNav({
@@ -42,6 +46,9 @@ export function CompactDateNav({
   routineTags,
   isDualColumn,
   onToggleDualColumn,
+  routineGroups,
+  selectedFilterGroupIds,
+  onSelectedFilterGroupIdsChange,
 }: CompactDateNavProps) {
   const { t, i18n } = useTranslation();
   const [showFilterDropdown, setShowFilterDropdown] = useState(false);
@@ -156,6 +163,50 @@ export function CompactDateNav({
                           style={{ backgroundColor: tag.color }}
                         />
                         {tag.name}
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
+            {/* Group filter pills */}
+            {(filterTab === "all" || filterTab === "routine") &&
+              routineGroups &&
+              routineGroups.length > 0 &&
+              onSelectedFilterGroupIdsChange && (
+                <>
+                  <div className="border-t border-notion-border my-1" />
+                  <div className="flex items-center gap-1 flex-wrap px-3 py-1.5">
+                    <span className="text-[9px] text-notion-text-secondary mr-1">
+                      {t("routineGroup.groups", "Groups")}
+                    </span>
+                    {routineGroups.map((group) => (
+                      <button
+                        key={group.id}
+                        onClick={() =>
+                          onSelectedFilterGroupIdsChange(
+                            (selectedFilterGroupIds ?? []).includes(group.id)
+                              ? (selectedFilterGroupIds ?? []).filter(
+                                  (id) => id !== group.id,
+                                )
+                              : [...(selectedFilterGroupIds ?? []), group.id],
+                          )
+                        }
+                        className={`flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-full transition-colors ${
+                          (selectedFilterGroupIds ?? []).includes(group.id)
+                            ? "ring-1 ring-notion-text"
+                            : "hover:opacity-80"
+                        }`}
+                        style={{
+                          backgroundColor: group.color + "30",
+                          color: group.color,
+                          fontWeight: "bold",
+                        }}
+                      >
+                        <span
+                          className="w-2 h-2 rounded"
+                          style={{ backgroundColor: group.color }}
+                        />
+                        {group.name}
                       </button>
                     ))}
                   </div>

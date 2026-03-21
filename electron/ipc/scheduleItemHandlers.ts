@@ -38,6 +38,7 @@ export function registerScheduleItemHandlers(
       endTime: string,
       routineId?: string,
       templateId?: string,
+      noteId?: string,
     ) => {
       return repo.create(
         id,
@@ -47,6 +48,7 @@ export function registerScheduleItemHandlers(
         endTime,
         routineId,
         templateId,
+        noteId,
       );
     },
   );
@@ -125,6 +127,7 @@ export function registerScheduleItemHandlers(
         endTime: string;
         routineId?: string;
         templateId?: string;
+        noteId?: string;
       }>,
     ) => {
       return repo.bulkCreate(items);

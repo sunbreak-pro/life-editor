@@ -1,4 +1,5 @@
 import { useEffect, useRef, useCallback } from "react";
+import type { MutableRefObject } from "react";
 import {
   ChevronLeft,
   ChevronUp,
@@ -15,7 +16,8 @@ import {
 import { SplitLayout } from "./SplitLayout";
 import { TerminalTabBar } from "./TerminalTabBar";
 import { useTerminalLayout } from "../../hooks/useTerminalLayout";
-import { countLeaves } from "../../utils/terminalLayout";
+import { countLeaves, findLeaf } from "../../utils/terminalLayout";
+import type { TerminalCommandHandle } from "../Layout/Layout";
 
 const MIN_HEIGHT = 150;
 const MAX_HEIGHT_RATIO = 0.8;
@@ -35,6 +37,7 @@ interface TerminalPanelProps {
   onDockChange: (dock: "bottom" | "right") => void;
   isMinimized: boolean;
   onMinimizedChange: (minimized: boolean) => void;
+  commandRef?: MutableRefObject<TerminalCommandHandle | null>;
 }
 
 export function TerminalPanel({
@@ -48,6 +51,7 @@ export function TerminalPanel({
   onDockChange,
   isMinimized,
   onMinimizedChange,
+  commandRef,
 }: TerminalPanelProps) {
   const layout = useTerminalLayout();
   const isResizing = useRef(false);
@@ -56,6 +60,23 @@ export function TerminalPanel({
   const panelRef = useRef<HTMLDivElement>(null);
 
   const prevLayoutStateRef = useRef(layout.state);
+
+  // Expose active session ID for external command sending
+  useEffect(() => {
+    if (commandRef) {
+      commandRef.current = {
+        getActiveSessionId: () => {
+          const tab = layout.activeTab;
+          if (!tab) return null;
+          const leaf = findLeaf(tab.root, tab.activePaneId);
+          return leaf?.sessionId ?? null;
+        },
+      };
+    }
+    return () => {
+      if (commandRef) commandRef.current = null;
+    };
+  }, [commandRef, layout.activeTab]);
 
   // Open panel when first shown (don't close on hide — keep PTY session alive)
   useEffect(() => {

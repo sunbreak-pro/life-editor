@@ -42,6 +42,8 @@ import { createTimeMemoRepository } from "../database/timeMemoRepository";
 import { registerTimeMemoHandlers } from "./timeMemoHandlers";
 import { createPaperBoardRepository } from "../database/paperBoardRepository";
 import { registerPaperBoardHandlers } from "./paperBoardHandlers";
+import { createRoutineGroupRepository } from "../database/routineGroupRepository";
+import { registerRoutineGroupHandlers } from "./routineGroupHandlers";
 import { wrapHandler } from "./ipcMetrics";
 
 export function registerAllHandlers(db: Database.Database): void {
@@ -120,6 +122,10 @@ export function registerAllHandlers(db: Database.Database): void {
     [
       "PaperBoards",
       () => registerPaperBoardHandlers(createPaperBoardRepository(db)),
+    ],
+    [
+      "RoutineGroups",
+      () => registerRoutineGroupHandlers(createRoutineGroupRepository(db)),
     ],
   ];
 

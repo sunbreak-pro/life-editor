@@ -254,7 +254,9 @@
     "deleteConnection": "Delete connection?",
     "newNoteButton": "+ New Note",
     "openNote": "Open note",
+    "openMemo": "Open memo",
     "noteColor": "Note color",
+    "showAllNodes": "Show all nodes",
     "relations": "Relations",
     "linkTags": "Link tags",
     "deleteNote": "Delete note",
@@ -336,8 +338,17 @@
   "schedulePanel": {
     "existingTasks": "Existing Tasks",
     "newTask": "New Task",
-    "scheduleItem": "Schedule Item",
-    "scheduled": "scheduled"
+    "scheduled": "scheduled",
+    "searchTasks": "Search tasks",
+    "allDay": "All day",
+    "endTime": "End time",
+    "noTasksFound": "No tasks found",
+    "existingNote": "Existing Note",
+    "newNote": "New Note",
+    "searchNotes": "Search notes...",
+    "noteTitle": "Note title",
+    "untitledNote": "Untitled",
+    "noNotes": "No notes found"
   },
   "analytics": {
     "title": "Analytics",
@@ -901,7 +912,24 @@
     "sidebarProgress": "Progress",
     "routineManagement": "Routine Management",
     "dualColumn": "Dual Column",
-    "singleColumn": "Single Column"
+    "singleColumn": "Single Column",
+    "selectRoutine": "Select Routine",
+    "selectTask": "Select Task",
+    "selectNote": "Select Note"
+  },
+  "routineGroup": {
+    "groups": "Groups",
+    "create": "Create Group",
+    "edit": "Edit Group",
+    "name": "Group Name",
+    "namePlaceholder": "e.g. Morning Routine",
+    "color": "Color",
+    "assignedTags": "Assigned Tags",
+    "noTags": "No tags available",
+    "noGroups": "No groups yet.",
+    "members": "routines",
+    "timeRange": "Time Range",
+    "slideHint": "Changing start time slides all member routines"
   },
   "statusBar": {
     "terminal": "Terminal",
@@ -954,6 +982,18 @@
   "taskDetail.quickMemo": "Quick Memo",
   "taskDetail.richEditor": "Rich Editor",
   "taskDetail.timeMemo": "Time memo",
+  "aiActions": {
+    "title": "AI Actions",
+    "taskReview": "Task review",
+    "organizeToday": "Organize today",
+    "planTomorrow": "Plan tomorrow",
+    "summarizeNote": "Summarize note",
+    "improveNote": "Suggest improvements",
+    "suggestTags": "Suggest tags",
+    "reviewMemo": "Review memo",
+    "promoteToNote": "Promote to note",
+    "dailyReview": "Daily review"
+  },
   "soundEffects": {
     "title": "Sound Effects",
     "taskComplete": "Task Complete",

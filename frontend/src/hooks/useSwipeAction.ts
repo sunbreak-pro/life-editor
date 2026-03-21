@@ -12,6 +12,7 @@ interface UseSwipeActionOptions {
 interface UseSwipeActionReturn {
   isOpen: boolean;
   translateX: number;
+  isSwipingHorizontal: boolean;
   close: () => void;
   swipeHandlers: {
     onMouseDown: (e: React.MouseEvent) => void;
@@ -27,6 +28,8 @@ export function useSwipeAction({
 }: UseSwipeActionOptions): UseSwipeActionReturn {
   const [isOpen, setIsOpen] = useState(false);
   const [translateX, setTranslateX] = useState(0);
+  const [isSwipeActive, setIsSwipeActive] = useState(false);
+  const [isHorizontalLocked, setIsHorizontalLocked] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
   const startPos = useRef({ x: 0, y: 0 });
@@ -59,6 +62,9 @@ export function useSwipeAction({
         }
         directionLocked.current =
           Math.abs(dx) > Math.abs(dy) ? "horizontal" : "vertical";
+        if (directionLocked.current === "horizontal") {
+          setIsHorizontalLocked(true);
+        }
       }
 
       if (directionLocked.current !== "horizontal") return;
@@ -77,6 +83,8 @@ export function useSwipeAction({
     if (!isSwiping.current) return;
     isSwiping.current = false;
     directionLocked.current = null;
+    setIsSwipeActive(false);
+    setIsHorizontalLocked(false);
 
     const threshold = wasOpen.current
       ? -actionWidth + SWIPE_THRESHOLD
@@ -114,7 +122,9 @@ export function useSwipeAction({
 
   const handleTouchEnd = useCallback(() => handleEnd(), [handleEnd]);
 
+  // Only register global listeners while swiping is active
   useEffect(() => {
+    if (!isSwipeActive) return;
     document.addEventListener("mousemove", handleMouseMove);
     document.addEventListener("mouseup", handleMouseUp);
     document.addEventListener("touchmove", handleTouchMove, { passive: false });
@@ -125,7 +135,13 @@ export function useSwipeAction({
       document.removeEventListener("touchmove", handleTouchMove);
       document.removeEventListener("touchend", handleTouchEnd);
     };
-  }, [handleMouseMove, handleMouseUp, handleTouchMove, handleTouchEnd]);
+  }, [
+    isSwipeActive,
+    handleMouseMove,
+    handleMouseUp,
+    handleTouchMove,
+    handleTouchEnd,
+  ]);
 
   // Close on outside click
   useEffect(() => {
@@ -149,6 +165,7 @@ export function useSwipeAction({
       directionLocked.current = null;
       wasOpen.current = isOpen;
       currentTranslate.current = isOpen ? -actionWidth : 0;
+      setIsSwipeActive(true);
     },
     [isOpen, actionWidth],
   );
@@ -166,6 +183,7 @@ export function useSwipeAction({
   return {
     isOpen,
     translateX,
+    isSwipingHorizontal: isSwipeActive && isHorizontalLocked,
     close,
     swipeHandlers,
     containerRef,

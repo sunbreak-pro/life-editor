@@ -47,10 +47,16 @@ function deserializeDock(raw: string): "bottom" | "right" {
   return raw === "right" ? "right" : "bottom";
 }
 
+export interface TerminalCommandHandle {
+  getActiveSessionId: () => string | null;
+}
+
 export interface LayoutHandle {
   toggleLeftSidebar: () => void;
   toggleTerminal: () => void;
   toggleRightSidebar: () => void;
+  openTerminal: () => void;
+  sendTerminalCommand: (prompt: string) => Promise<void>;
 }
 
 interface LayoutProps {
@@ -142,6 +148,7 @@ export function Layout({
   );
 
   const [terminalMinimized, setTerminalMinimized] = useState(false);
+  const terminalCommandRef = useRef<TerminalCommandHandle | null>(null);
 
   // Poll for external DB changes when terminal is open
   const { refetch } = useTaskTreeContext();
@@ -160,6 +167,32 @@ export function Layout({
           }
         },
         toggleRightSidebar: () => setRightSidebarOpen((prev) => !prev),
+        openTerminal: () => {
+          if (!terminalOpen) setTerminalOpen(true);
+          if (terminalMinimized) setTerminalMinimized(false);
+        },
+        sendTerminalCommand: async (prompt: string) => {
+          // Open terminal if needed
+          if (!terminalOpen) setTerminalOpen(true);
+          if (terminalMinimized) setTerminalMinimized(false);
+
+          // Wait for active session (terminal may need to initialize)
+          let sessionId: string | null = null;
+          for (let i = 0; i < 30; i++) {
+            sessionId =
+              terminalCommandRef.current?.getActiveSessionId() ?? null;
+            if (sessionId) break;
+            await new Promise((r) => setTimeout(r, 100));
+          }
+
+          if (sessionId) {
+            await window.electronAPI?.invoke(
+              "terminal:write",
+              sessionId,
+              prompt + "\n",
+            );
+          }
+        },
       };
     }
   }, [
@@ -335,6 +368,7 @@ export function Layout({
                     width={currentLeftWidth}
                     activeSection={activeSection}
                     onSectionChange={onSectionChange}
+                    layoutRef={handleRef ?? { current: null }}
                   />
                   <div
                     onMouseDown={handleLeftMouseDown}
@@ -368,6 +402,7 @@ export function Layout({
                 onDockChange={handleDockChange}
                 isMinimized={terminalMinimized}
                 onMinimizedChange={setTerminalMinimized}
+                commandRef={terminalCommandRef}
               />
             </div>
             <div

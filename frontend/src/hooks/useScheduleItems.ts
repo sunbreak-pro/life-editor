@@ -176,7 +176,15 @@ export function useScheduleItems() {
   }, []);
 
   const createScheduleItem = useCallback(
-    (date: string, title: string, startTime: string, endTime: string) => {
+    (
+      date: string,
+      title: string,
+      startTime: string,
+      endTime: string,
+      routineId?: string,
+      templateId?: string,
+      noteId?: string,
+    ) => {
       const id = generateId("si");
       const now = new Date().toISOString();
       const optimistic: ScheduleItem = {
@@ -187,9 +195,10 @@ export function useScheduleItems() {
         endTime,
         completed: false,
         completedAt: null,
-        routineId: null,
-        templateId: null,
+        routineId: routineId ?? null,
+        templateId: templateId ?? null,
         memo: null,
+        noteId: noteId ?? null,
         createdAt: now,
         updatedAt: now,
       };
@@ -199,7 +208,16 @@ export function useScheduleItems() {
         ),
       );
       getDataService()
-        .createScheduleItem(id, date, title, startTime, endTime)
+        .createScheduleItem(
+          id,
+          date,
+          title,
+          startTime,
+          endTime,
+          routineId,
+          templateId,
+          noteId,
+        )
         .catch((e) => logServiceError("ScheduleItems", "create", e));
 
       push("scheduleItem", {
@@ -217,7 +235,16 @@ export function useScheduleItems() {
             ),
           );
           getDataService()
-            .createScheduleItem(id, date, title, startTime, endTime)
+            .createScheduleItem(
+              id,
+              date,
+              title,
+              startTime,
+              endTime,
+              routineId,
+              templateId,
+              noteId,
+            )
             .catch((e) => logServiceError("ScheduleItems", "redoCreate", e));
         },
       });

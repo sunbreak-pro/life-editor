@@ -73,6 +73,13 @@ const ALLOWED_CHANNELS = new Set([
   "db:routineTags:fetchTagsForRoutine",
   "db:routineTags:setTagsForRoutine",
   "db:routineTags:fetchAllAssignments",
+  // Routine Groups
+  "db:routineGroups:fetchAll",
+  "db:routineGroups:create",
+  "db:routineGroups:update",
+  "db:routineGroups:delete",
+  "db:routineGroups:fetchAllTagAssignments",
+  "db:routineGroups:setTagsForGroup",
   // Schedule Items
   "db:scheduleItems:fetchByDate",
   "db:scheduleItems:fetchByDateRange",

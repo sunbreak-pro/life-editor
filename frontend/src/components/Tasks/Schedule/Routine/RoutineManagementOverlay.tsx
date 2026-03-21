@@ -1,12 +1,18 @@
 import { useState, useMemo, useCallback, useRef, useEffect } from "react";
 import { createPortal } from "react-dom";
-import { Plus, Pencil, Trash2, Archive, X, Tag } from "lucide-react";
+import { Plus, Pencil, Trash2, Archive, X, Tag, Layers } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import type { RoutineNode } from "../../../../types/routine";
 import type { RoutineTag } from "../../../../types/routineTag";
+import type { RoutineGroup } from "../../../../types/routineGroup";
 import { RoutineEditDialog } from "./RoutineEditDialog";
 import { RoutineTagEditPopover } from "./RoutineTagEditPopover";
+import { RoutineGroupEditDialog } from "./RoutineGroupEditDialog";
 import { getTextColorForBg } from "../../../../constants/folderColors";
+import {
+  minutesToTimeString,
+  timeToMinutes,
+} from "../../../../utils/timeGridUtils";
 
 interface RoutineManagementOverlayProps {
   routines: RoutineNode[];
@@ -35,6 +41,22 @@ interface RoutineManagementOverlayProps {
     updates: Partial<Pick<RoutineTag, "name" | "color">>,
   ) => void;
   onDeleteRoutineTag: (id: number) => void;
+  // Routine Groups
+  routineGroups: RoutineGroup[];
+  groupTagAssignments: Map<string, number[]>;
+  routinesByGroup: Map<string, RoutineNode[]>;
+  groupTimeRange: Map<string, { startTime: string; endTime: string }>;
+  onCreateRoutineGroup: (
+    id: string,
+    name: string,
+    color: string,
+  ) => Promise<RoutineGroup>;
+  onUpdateRoutineGroup: (
+    id: string,
+    updates: Partial<Pick<RoutineGroup, "name" | "color" | "order">>,
+  ) => void;
+  onDeleteRoutineGroup: (id: string) => void;
+  setTagsForGroup: (groupId: string, tagIds: number[]) => void;
   onClose: () => void;
 }
 
@@ -50,12 +72,23 @@ export function RoutineManagementOverlay({
   onCreateRoutineTag,
   onUpdateRoutineTag,
   onDeleteRoutineTag,
+  routineGroups,
+  groupTagAssignments,
+  routinesByGroup,
+  groupTimeRange,
+  onCreateRoutineGroup,
+  onUpdateRoutineGroup,
+  onDeleteRoutineGroup,
+  setTagsForGroup,
   onClose,
 }: RoutineManagementOverlayProps) {
   const { t } = useTranslation();
   const [editDialog, setEditDialog] = useState<RoutineNode | "new" | null>(
     null,
   );
+  const [groupEditDialog, setGroupEditDialog] = useState<
+    RoutineGroup | "new" | null
+  >(null);
 
   // Tag popover state
   const [editingTagId, setEditingTagId] = useState<number | null>(null);
@@ -101,6 +134,51 @@ export function RoutineManagementOverlay({
       }
     },
     [editDialog, onCreateRoutine, onUpdateRoutine, setTagsForRoutine],
+  );
+
+  const handleGroupSubmit = useCallback(
+    async (name: string, color: string, tagIds: number[]) => {
+      if (groupEditDialog === "new") {
+        const id = `rgroup-${crypto.randomUUID()}`;
+        const group = await onCreateRoutineGroup(id, name, color);
+        if (tagIds.length > 0) {
+          setTagsForGroup(group.id, tagIds);
+        }
+      } else if (groupEditDialog) {
+        onUpdateRoutineGroup(groupEditDialog.id, { name, color });
+        setTagsForGroup(groupEditDialog.id, tagIds);
+      }
+    },
+    [
+      groupEditDialog,
+      onCreateRoutineGroup,
+      onUpdateRoutineGroup,
+      setTagsForGroup,
+    ],
+  );
+
+  const handleSlideGroup = useCallback(
+    (groupId: string, offsetMinutes: number) => {
+      const members = routinesByGroup.get(groupId) ?? [];
+      for (const routine of members) {
+        if (!routine.startTime || !routine.endTime) continue;
+        const oldStart = timeToMinutes(routine.startTime);
+        const oldEnd = timeToMinutes(routine.endTime);
+        const newStart = Math.max(
+          0,
+          Math.min(23 * 60 + 59, oldStart + offsetMinutes),
+        );
+        const newEnd = Math.max(
+          0,
+          Math.min(23 * 60 + 59, oldEnd + offsetMinutes),
+        );
+        onUpdateRoutine(routine.id, {
+          startTime: minutesToTimeString(newStart),
+          endTime: minutesToTimeString(newEnd),
+        });
+      }
+    },
+    [routinesByGroup, onUpdateRoutine],
   );
 
   const openTagPopover = useCallback((tagId: number, el: HTMLElement) => {
@@ -243,6 +321,75 @@ export function RoutineManagementOverlay({
               })}
             </div>
 
+            {/* Groups */}
+            <div className="mt-3">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-[11px] text-notion-text-secondary uppercase tracking-wide font-medium flex items-center gap-1">
+                  <Layers size={12} />
+                  {t("routineGroup.groups", "Groups")}
+                </span>
+                <button
+                  onClick={() => setGroupEditDialog("new")}
+                  className="p-0.5 text-notion-text-secondary hover:text-notion-text rounded transition-colors"
+                >
+                  <Plus size={14} />
+                </button>
+              </div>
+
+              {routineGroups.length === 0 && (
+                <p className="text-[11px] text-notion-text-secondary py-1">
+                  {t("routineGroup.noGroups", "No groups yet.")}
+                </p>
+              )}
+
+              <div className="space-y-0.5">
+                {routineGroups.map((group) => {
+                  const memberCount = (routinesByGroup.get(group.id) ?? [])
+                    .length;
+                  const timeRange = groupTimeRange.get(group.id);
+                  return (
+                    <div
+                      key={group.id}
+                      data-sidebar-item
+                      className="flex items-center gap-1.5 px-2 py-1.5 rounded-md border border-notion-border hover:bg-notion-hover group transition-colors"
+                    >
+                      <span
+                        className="w-3 h-3 rounded shrink-0"
+                        style={{ backgroundColor: group.color }}
+                      />
+                      <div className="flex-1 min-w-0">
+                        <span className="text-sm text-notion-text truncate block">
+                          {group.name}
+                        </span>
+                        <div className="text-[11px] text-notion-text-secondary">
+                          {memberCount} {t("routineGroup.members", "routines")}
+                          {timeRange && (
+                            <span className="ml-2">
+                              {timeRange.startTime} - {timeRange.endTime}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button
+                          onClick={() => setGroupEditDialog(group)}
+                          className="p-0.5 text-notion-text-secondary hover:text-notion-text rounded transition-colors"
+                        >
+                          <Pencil size={12} />
+                        </button>
+                        <button
+                          onClick={() => onDeleteRoutineGroup(group.id)}
+                          className="p-0.5 text-notion-text-secondary hover:text-red-500 rounded transition-colors"
+                        >
+                          <Trash2 size={12} />
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
             {/* Archived */}
             {archivedRoutines.length > 0 && (
               <details className="mt-2">
@@ -318,6 +465,35 @@ export function RoutineManagementOverlay({
           onSubmit={handleEditSubmit}
           onCreateTag={onCreateRoutineTag}
           onClose={() => setEditDialog(null)}
+        />
+      )}
+
+      {groupEditDialog && (
+        <RoutineGroupEditDialog
+          group={groupEditDialog === "new" ? undefined : groupEditDialog}
+          tags={routineTags}
+          initialTagIds={
+            groupEditDialog !== "new"
+              ? (groupTagAssignments.get(groupEditDialog.id) ?? [])
+              : []
+          }
+          memberRoutines={
+            groupEditDialog !== "new"
+              ? (routinesByGroup.get(groupEditDialog.id) ?? [])
+              : []
+          }
+          groupTimeRange={
+            groupEditDialog !== "new"
+              ? groupTimeRange.get(groupEditDialog.id)
+              : undefined
+          }
+          onSubmit={handleGroupSubmit}
+          onSlideGroup={
+            groupEditDialog !== "new"
+              ? (offset) => handleSlideGroup(groupEditDialog.id, offset)
+              : undefined
+          }
+          onClose={() => setGroupEditDialog(null)}
         />
       )}
     </div>
