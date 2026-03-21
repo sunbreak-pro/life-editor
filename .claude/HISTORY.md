@@ -1,5 +1,19 @@
 # HISTORY.md - 変更履歴
 
+### 2026-03-21 - ExistingTaskTab / NewTaskTab UI統一 + カラーマーク追加
+
+#### 概要
+
+TaskSchedulePanel の ExistingTaskTab と NewTaskTab の UI/UX を統一。フォルダカラーマーク追加、検索入力サイズ統一、ボタンレイアウト統一を実施。
+
+#### 変更点
+
+- **カラーマーク追加**: TaskPickerNode のフォルダ行にカラードット（`w-2 h-2 rounded-full`）を追加。`node.color` がある場合のみ表示（`TaskPickerNode.tsx`）
+- **検索入力統一**: TaskPickerTree の検索入力を `text-xs` → `text-sm` に変更し NewTaskTab と統一（`TaskPickerTree.tsx`）
+- **ボタンレイアウト統一**: ExistingTaskTab の2ボタン横並びを全幅ボタン + キャンセルテキストリンクに変更。マージンを `mt-3`/`mb-3` → `mt-2`/`mb-2` に統一（`ExistingTaskTab.tsx`）
+- **ボタンラベル統一**: ExistingTaskTab の確認ボタンを「作成」に変更（`schedule.create`）
+- **キャンセルボタン追加**: NewTaskTab の作成ボタンの下にキャンセルボタンを追加（`NewTaskTab.tsx`）
+
 ### 2026-03-21 - Ideas Node タブ UI/UX 改善
 
 #### 概要
