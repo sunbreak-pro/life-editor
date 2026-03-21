@@ -1,11 +1,13 @@
 import { useEffect, useRef, useState, useMemo, useCallback } from "react";
 import type { TaskNode } from "../../../../types/taskTree";
 import type { ScheduleItem } from "../../../../types/schedule";
+import type { RoutineGroup } from "../../../../types/routineGroup";
 import { TIME_GRID } from "../../../../constants/timeGrid";
 import { TimeGridTaskBlock } from "../Calendar/TimeGridTaskBlock";
 import { TaskPreviewPopup } from "../Calendar/TaskPreviewPopup";
 import { ScheduleItemBlock } from "./ScheduleItemBlock";
 import { ScheduleItemPreviewPopup } from "./ScheduleItemPreviewPopup";
+import { GroupFrame } from "./GroupFrame";
 import { formatDateKey } from "../../../../utils/dateKey";
 import { useTimeGridDrag } from "../../../../hooks/useTimeGridDrag";
 import {
@@ -38,6 +40,14 @@ function formatHour(hour: number): string {
   if (hour < 12) return `${hour} AM`;
   if (hour === 12) return "12 PM";
   return `${hour - 12} PM`;
+}
+
+interface ComputedGroupFrame {
+  groupId: string;
+  groupName: string;
+  groupColor: string;
+  top: number;
+  height: number;
 }
 
 function rangesOverlap(
@@ -115,10 +125,17 @@ function layoutAllItems(
   // Sort by top (start time), then by height descending (earlier end = shorter = left)
   items.sort((a, b) => a.top - b.top || a.height - b.height);
 
-  // Greedy column assignment
+  // Greedy column assignment + overlap group detection in single pass
   const columnEnds: number[] = [];
-  for (const item of items) {
+  // Track which group each item belongs to
+  const groupIndex: number[] = new Array(items.length);
+  const groups: number[][] = []; // arrays of item indices
+
+  for (let i = 0; i < items.length; i++) {
+    const item = items[i];
     const itemEnd = item.top + item.height;
+
+    // Assign column
     let placed = false;
     for (let col = 0; col < columnEnds.length; col++) {
       if (item.top >= columnEnds[col]) {
@@ -132,30 +149,35 @@ function layoutAllItems(
       item.column = columnEnds.length;
       columnEnds.push(itemEnd);
     }
+
+    // Find overlapping group by checking previous items
+    let foundGroup = -1;
+    for (let j = i - 1; j >= 0; j--) {
+      const prev = items[j];
+      if (prev.top + prev.height <= item.top) continue;
+      // Overlaps with prev
+      foundGroup = groupIndex[j];
+      break;
+    }
+
+    if (foundGroup >= 0) {
+      groups[foundGroup].push(i);
+      groupIndex[i] = foundGroup;
+    } else {
+      groupIndex[i] = groups.length;
+      groups.push([i]);
+    }
   }
 
-  // Group overlapping items to determine totalColumns per group
-  const groups: UnifiedItem[][] = [];
-  for (const item of items) {
-    let placed = false;
-    for (const group of groups) {
-      if (
-        group.some((g) => rangesOverlap(item.top, item.height, g.top, g.height))
-      ) {
-        group.push(item);
-        placed = true;
-        break;
-      }
-    }
-    if (!placed) {
-      groups.push([item]);
-    }
-  }
-
+  // Set totalColumns per group
   for (const group of groups) {
-    const maxCol = Math.max(...group.map((g) => g.column)) + 1;
-    for (const item of group) {
-      item.totalColumns = maxCol;
+    let maxCol = 0;
+    for (const idx of group) {
+      if (items[idx].column > maxCol) maxCol = items[idx].column;
+    }
+    const totalColumns = maxCol + 1;
+    for (const idx of group) {
+      items[idx].totalColumns = totalColumns;
     }
   }
 
@@ -196,6 +218,10 @@ interface ScheduleTimeGridProps {
   onUpdateTaskTitle?: (taskId: string, title: string) => void;
   onStartTimer?: (task: TaskNode) => void;
   enablePreview?: boolean;
+  // Group visualization
+  routineGroups?: RoutineGroup[];
+  groupForRoutine?: Map<string, RoutineGroup>;
+  onGroupDragEnd?: (groupId: string, offsetMinutes: number) => void;
 }
 
 export function ScheduleTimeGrid({
@@ -220,6 +246,9 @@ export function ScheduleTimeGrid({
   onUpdateTaskTitle,
   onStartTimer,
   enablePreview,
+  routineGroups,
+  groupForRoutine,
+  onGroupDragEnd,
 }: ScheduleTimeGridProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const mainColumnRef = useRef<HTMLDivElement>(null);
@@ -308,6 +337,48 @@ export function ScheduleTimeGrid({
     [scheduleItems, tasks, date],
   );
 
+  // Compute group frames from unified items
+  const groupFrames = useMemo<ComputedGroupFrame[]>(() => {
+    if (!routineGroups?.length || !groupForRoutine) return [];
+    const frames = new Map<
+      string,
+      { group: RoutineGroup; minTop: number; maxBottom: number }
+    >();
+    for (const item of unifiedItems) {
+      if (item.kind !== "schedule" || !item.scheduleItem?.routineId) continue;
+      const group = groupForRoutine.get(item.scheduleItem.routineId);
+      if (!group) continue;
+      const bottom = item.top + item.height;
+      const existing = frames.get(group.id);
+      if (existing) {
+        existing.minTop = Math.min(existing.minTop, item.top);
+        existing.maxBottom = Math.max(existing.maxBottom, bottom);
+      } else {
+        frames.set(group.id, { group, minTop: item.top, maxBottom: bottom });
+      }
+    }
+    return Array.from(frames.values()).map(({ group, minTop, maxBottom }) => ({
+      groupId: group.id,
+      groupName: group.name,
+      groupColor: group.color,
+      top: minTop,
+      height: maxBottom - minTop,
+    }));
+  }, [unifiedItems, routineGroups, groupForRoutine]);
+
+  // Check if tasks overlap with any group frame
+  const hasRoutineTaskSplit = useMemo(() => {
+    if (groupFrames.length === 0) return false;
+    return unifiedItems.some((item) => {
+      if (item.kind !== "task") return false;
+      return groupFrames.some((gf) =>
+        rangesOverlap(item.top, item.height, gf.top, gf.height),
+      );
+    });
+  }, [unifiedItems, groupFrames]);
+
+  const routineColumnRatio = hasRoutineTaskSplit ? 0.6 : 1.0;
+
   const nextItemId = useMemo(() => {
     const sorted = [...scheduleItems].sort((a, b) =>
       a.startTime.localeCompare(b.startTime),
@@ -395,16 +466,74 @@ export function ScheduleTimeGrid({
           </div>
         )}
 
+        {/* Group frames (behind items) */}
+        {groupFrames.map((gf) => (
+          <GroupFrame
+            key={gf.groupId}
+            groupName={gf.groupName}
+            groupColor={gf.groupColor}
+            top={gf.top}
+            height={gf.height}
+            left={hasRoutineTaskSplit ? "2px" : undefined}
+            width={
+              hasRoutineTaskSplit
+                ? `calc(${routineColumnRatio * 100}% - 4px)`
+                : undefined
+            }
+            onMouseDown={
+              onGroupDragEnd
+                ? (e) => {
+                    e.stopPropagation();
+                    // Group drag is handled by parent via callback
+                  }
+                : undefined
+            }
+          />
+        ))}
+
         {/* Unified item blocks */}
         {unifiedItems.map((item) => {
-          const colLeft =
-            item.totalColumns === 1
-              ? "4px"
-              : `calc(${(item.column / item.totalColumns) * 100}% + 2px)`;
-          const colWidth =
-            item.totalColumns === 1
-              ? "calc(100% - 8px)"
-              : `calc(${(1 / item.totalColumns) * 100}% - 4px)`;
+          // Column separation: routine items in left column, tasks in right column
+          let colLeft: string;
+          let colWidth: string;
+
+          if (
+            hasRoutineTaskSplit &&
+            item.kind === "schedule" &&
+            item.scheduleItem?.routineId &&
+            groupForRoutine?.has(item.scheduleItem.routineId)
+          ) {
+            // Routine in group → left column
+            const baseWidth = routineColumnRatio;
+            colLeft =
+              item.totalColumns === 1
+                ? "4px"
+                : `calc(${(item.column / item.totalColumns) * baseWidth * 100}% + 2px)`;
+            colWidth =
+              item.totalColumns === 1
+                ? `calc(${baseWidth * 100}% - 8px)`
+                : `calc(${(baseWidth / item.totalColumns) * 100}% - 4px)`;
+          } else if (
+            hasRoutineTaskSplit &&
+            item.kind === "task" &&
+            groupFrames.some((gf) =>
+              rangesOverlap(item.top, item.height, gf.top, gf.height),
+            )
+          ) {
+            // Task overlapping group → right column
+            const taskWidth = 1 - routineColumnRatio;
+            colLeft = `calc(${routineColumnRatio * 100}% + 2px)`;
+            colWidth = `calc(${taskWidth * 100}% - 4px)`;
+          } else {
+            colLeft =
+              item.totalColumns === 1
+                ? "4px"
+                : `calc(${(item.column / item.totalColumns) * 100}% + 2px)`;
+            colWidth =
+              item.totalColumns === 1
+                ? "calc(100% - 8px)"
+                : `calc(${(1 / item.totalColumns) * 100}% - 4px)`;
+          }
 
           if (item.kind === "task" && item.task) {
             return (

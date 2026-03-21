@@ -37,21 +37,33 @@ export function getDescendantTasks(
 
 /**
  * Collects the IDs of a node and all its descendants.
+ * Uses a parentMap for O(n) performance.
  */
 export function collectDescendantIds(
   id: string,
   nodes: TaskNode[],
 ): Set<string> {
+  const childrenMap = new Map<string | null, string[]>();
+  for (const node of nodes) {
+    const pid = node.parentId;
+    const list = childrenMap.get(pid);
+    if (list) {
+      list.push(node.id);
+    } else {
+      childrenMap.set(pid, [node.id]);
+    }
+  }
+
   const ids = new Set<string>();
   ids.add(id);
   const stack = [id];
   while (stack.length > 0) {
     const parentId = stack.pop()!;
-    for (const n of nodes) {
-      if (n.parentId === parentId && !ids.has(n.id)) {
-        ids.add(n.id);
-        stack.push(n.id);
-      }
+    const children = childrenMap.get(parentId);
+    if (!children) continue;
+    for (const childId of children) {
+      ids.add(childId);
+      stack.push(childId);
     }
   }
   return ids;
@@ -59,6 +71,7 @@ export function collectDescendantIds(
 
 /**
  * Checks if `childId` is a descendant of `parentId`.
+ * Uses a parentMap + iterative BFS for O(n) performance.
  * @param parentId - The ancestor node to search from (root of the subtree)
  * @param childId - The node to find within the subtree
  * @param nodes - Flat array of all task nodes
@@ -69,8 +82,26 @@ export function isDescendantOf(
   childId: string,
   nodes: TaskNode[],
 ): boolean {
-  const children = nodes.filter((n) => n.parentId === parentId);
-  return children.some(
-    (c) => c.id === childId || isDescendantOf(c.id, childId, nodes),
-  );
+  const childrenMap = new Map<string | null, string[]>();
+  for (const node of nodes) {
+    const pid = node.parentId;
+    const list = childrenMap.get(pid);
+    if (list) {
+      list.push(node.id);
+    } else {
+      childrenMap.set(pid, [node.id]);
+    }
+  }
+
+  const stack = [parentId];
+  while (stack.length > 0) {
+    const current = stack.pop()!;
+    const children = childrenMap.get(current);
+    if (!children) continue;
+    for (const id of children) {
+      if (id === childId) return true;
+      stack.push(id);
+    }
+  }
+  return false;
 }

@@ -1,5 +1,19 @@
 # HISTORY.md - 変更履歴
 
+### 2026-03-21 - DayFlow スクロール同期解除 + パフォーマンス改善
+
+#### 概要
+
+DayFlow 2カラム表示のスクロール同期を解除し、左右独立スクロールに変更。加えて descendant 計算と TimeGrid レイアウトのパフォーマンスボトルネックを改善。
+
+#### 変更点
+
+- **スクロール同期解除**: `DualDayFlowLayout.tsx` から `leftScrollRef`, `rightScrollRef`, `isSyncingRef`, `handleLeftScroll`, `handleRightScroll` を削除。`DualColumn` の `scrollRef`/`onScroll` props も除去。データ同期（`refreshOther`）は維持
+- **collectDescendantIds 最適化**: O(n²) → O(n)。parentMap を先に構築してから BFS する方式に変更（`getDescendantTasks.ts`）
+- **isDescendantOf 最適化**: 再帰 + `.filter()` を parentMap + iterative BFS に置換。O(n²) → O(n)（`getDescendantTasks.ts`）
+- **CalendarView descendantIds 共有**: `filteredItemsByDate` と `filteredTasksByDate` で `collectDescendantIds` を2回呼んでいたのを `folderDescendantIds` として1回の計算結果を共有（`CalendarView.tsx`）
+- **layoutAllItems 最適化**: グループ検出をグリーディーカラム割り当てと同一パスに統合。2パス目の `rangesOverlap` チェックを削除（`ScheduleTimeGrid.tsx`）
+
 ### 2026-03-21 - ExistingTaskTab / NewTaskTab UI統一 + カラーマーク追加
 
 #### 概要

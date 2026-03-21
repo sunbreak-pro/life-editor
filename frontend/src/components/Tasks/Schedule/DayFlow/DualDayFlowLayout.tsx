@@ -1,13 +1,14 @@
-import { useState, useRef, useCallback } from "react";
+import { useState, useCallback } from "react";
 import type { TaskNode } from "../../../../types/taskTree";
 import type { ScheduleItem } from "../../../../types/schedule";
 import { useDayFlowColumn } from "../../../../hooks/useDayFlowColumn";
 import { useScheduleContext } from "../../../../hooks/useScheduleContext";
+import { useAutoInProgress } from "../../../../hooks/useAutoInProgress";
+import { useTaskTreeContext } from "../../../../hooks/useTaskTreeContext";
 import { CompactDateNav } from "./CompactDateNav";
 import { ScheduleTimeGrid } from "./ScheduleTimeGrid";
-import { TimeGridClickPanel } from "./TimeGridClickPanel";
+import { TaskSchedulePanel } from "../../../shared/TaskSchedulePanel";
 import { RoutineDeleteConfirmDialog } from "./RoutineDeleteConfirmDialog";
-import { TIME_GRID } from "../../../../constants/timeGrid";
 
 interface DualDayFlowLayoutProps {
   getTaskColor?: (taskId: string) => string | undefined;
@@ -60,38 +61,10 @@ export function DualDayFlowLayout({
     [left.dateKey, right.dateKey, left.refresh, right.refresh],
   );
 
-  const leftScrollRef = useRef<HTMLDivElement>(null);
-  const rightScrollRef = useRef<HTMLDivElement>(null);
-  const isSyncingRef = useRef(false);
-
-  const handleLeftScroll = useCallback(() => {
-    if (isSyncingRef.current) return;
-    isSyncingRef.current = true;
-    requestAnimationFrame(() => {
-      if (rightScrollRef.current && leftScrollRef.current) {
-        rightScrollRef.current.scrollTop = leftScrollRef.current.scrollTop;
-      }
-      isSyncingRef.current = false;
-    });
-  }, []);
-
-  const handleRightScroll = useCallback(() => {
-    if (isSyncingRef.current) return;
-    isSyncingRef.current = true;
-    requestAnimationFrame(() => {
-      if (leftScrollRef.current && rightScrollRef.current) {
-        leftScrollRef.current.scrollTop = rightScrollRef.current.scrollTop;
-      }
-      isSyncingRef.current = false;
-    });
-  }, []);
-
   return (
     <div className="flex h-full gap-2 p-3">
       <DualColumn
         column={left}
-        scrollRef={leftScrollRef}
-        onScroll={handleLeftScroll}
         getTaskColor={getTaskColor}
         getFolderTag={getFolderTag}
         onUpdateTaskTime={onUpdateTaskTime}
@@ -108,8 +81,6 @@ export function DualDayFlowLayout({
       />
       <DualColumn
         column={right}
-        scrollRef={rightScrollRef}
-        onScroll={handleRightScroll}
         getTaskColor={getTaskColor}
         getFolderTag={getFolderTag}
         onUpdateTaskTime={onUpdateTaskTime}
@@ -128,8 +99,6 @@ export function DualDayFlowLayout({
 
 interface DualColumnProps {
   column: ReturnType<typeof useDayFlowColumn>;
-  scrollRef: React.RefObject<HTMLDivElement | null>;
-  onScroll: () => void;
   getTaskColor?: (taskId: string) => string | undefined;
   getFolderTag?: (taskId: string) => string;
   onUpdateTaskTime?: (
@@ -151,8 +120,6 @@ interface DualColumnProps {
 
 function DualColumn({
   column,
-  scrollRef,
-  onScroll,
   getTaskColor,
   getFolderTag,
   onUpdateTaskTime,
@@ -168,6 +135,11 @@ function DualColumn({
   onMutate,
 }: DualColumnProps) {
   const { updateRoutine } = useScheduleContext();
+  const { addNode, updateNode } = useTaskTreeContext();
+
+  // Auto-set NOT_STARTED tasks to IN_PROGRESS for today
+  useAutoInProgress(column.filteredDayTasks, column.isToday);
+
   const [createPopover, setCreatePopover] = useState<{
     startTime: string;
     endTime: string;
@@ -261,11 +233,7 @@ function DualColumn({
         isDualColumn={isDualColumn}
         onToggleDualColumn={onToggleDualColumn}
       />
-      <div
-        ref={scrollRef}
-        className="flex-1 overflow-y-auto"
-        onScroll={onScroll}
-      >
+      <div className="flex-1 overflow-y-auto">
         <ScheduleTimeGrid
           date={column.date}
           scheduleItems={column.filteredScheduleItems}
@@ -293,19 +261,30 @@ function DualColumn({
           onDeleteTask={onDeleteTask}
           onUpdateTaskTitle={onUpdateTaskTitle}
           onStartTimer={onStartTimer}
-          enablePreview
         />
       </div>
 
       {createPopover && (
-        <TimeGridClickPanel
+        <TaskSchedulePanel
           position={createPopover.position}
           defaultStartTime={createPopover.startTime}
           defaultEndTime={createPopover.endTime}
           date={column.date}
           existingTaskIds={column.existingTaskIds}
-          onCreateScheduleItem={(title, startTime, endTime) => {
-            column.createScheduleItem(title, startTime, endTime);
+          onSelectExistingTask={(task, schedule) => {
+            updateNode(task.id, {
+              scheduledAt: schedule.scheduledAt,
+              scheduledEndAt: schedule.scheduledEndAt,
+              isAllDay: schedule.isAllDay,
+            });
+            onMutate?.();
+          }}
+          onCreateNewTask={(title, parentId, schedule) => {
+            addNode("task", parentId, title, {
+              scheduledAt: schedule.scheduledAt,
+              scheduledEndAt: schedule.scheduledEndAt,
+              isAllDay: schedule.isAllDay,
+            });
             onMutate?.();
           }}
           onClose={() => setCreatePopover(null)}

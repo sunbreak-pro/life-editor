@@ -8,10 +8,11 @@ import {
   getDescendantTasks,
   collectDescendantIds,
 } from "../../../../utils/getDescendantTasks";
+import { formatDateKey } from "../../../../utils/dateKey";
 import type { CalendarItem } from "../../../../types/calendarItem";
 import type { CalendarContentFilter } from "../../../../types/calendarItem";
 import { CalendarHeader } from "./CalendarHeader";
-import { TaskCreatePopover } from "./TaskCreatePopover";
+import { TaskSchedulePanel } from "../../../shared/TaskSchedulePanel";
 import { NoteCreatePopover } from "./NoteCreatePopover";
 import { TaskPreviewPopup } from "./TaskPreviewPopup";
 import { MemoPreviewPopup } from "./MemoPreviewPopup";
@@ -198,31 +199,35 @@ export function CalendarView({
   }, [handleNext, handlePrev, handleToday]);
   /* eslint-enable react-hooks/exhaustive-deps */
 
+  // Pre-compute descendant IDs once for folder filtering
+  const folderDescendantIds = useMemo(() => {
+    if (!filterFolderId) return null;
+    return collectDescendantIds(filterFolderId, nodes);
+  }, [filterFolderId, nodes]);
+
   // Filter itemsByDate by folder (only affects task items)
   const filteredItemsByDate = useMemo(() => {
-    if (!filterFolderId) return itemsByDate;
-    const descendantIds = collectDescendantIds(filterFolderId, nodes);
+    if (!folderDescendantIds) return itemsByDate;
     const map = new Map<string, CalendarItem[]>();
     for (const [date, items] of itemsByDate) {
       const matching = items.filter(
-        (item) => item.type !== "task" || descendantIds.has(item.id),
+        (item) => item.type !== "task" || folderDescendantIds.has(item.id),
       );
       if (matching.length > 0) map.set(date, matching);
     }
     return map;
-  }, [itemsByDate, filterFolderId, nodes]);
+  }, [itemsByDate, folderDescendantIds]);
 
   // Also keep filteredTasksByDate for WeeklyTimeGrid (which still uses TaskNode[])
   const filteredTasksByDate = useMemo(() => {
-    if (!filterFolderId) return tasksByDate;
-    const descendantIds = collectDescendantIds(filterFolderId, nodes);
+    if (!folderDescendantIds) return tasksByDate;
     const map = new Map<string, typeof nodes>();
     for (const [date, tasks] of tasksByDate) {
-      const matching = tasks.filter((task) => descendantIds.has(task.id));
+      const matching = tasks.filter((task) => folderDescendantIds.has(task.id));
       if (matching.length > 0) map.set(date, matching);
     }
     return map;
-  }, [tasksByDate, filterFolderId, nodes]);
+  }, [tasksByDate, folderDescendantIds]);
 
   const handleRequestCreate = (date: Date, e: React.MouseEvent) => {
     setPreviewPopup(null);
@@ -342,10 +347,25 @@ export function CalendarView({
       </div>
 
       {createPopover && (
-        <TaskCreatePopover
+        <TaskSchedulePanel
           position={createPopover.position}
           date={createPopover.date}
-          onSubmitTask={(title, parentId, schedule) => {
+          existingTaskIds={
+            new Set(
+              (
+                filteredTasksByDate.get(formatDateKey(createPopover.date)) ?? []
+              ).map((t) => t.id),
+            )
+          }
+          onSelectExistingTask={(task, schedule) => {
+            updateNode(task.id, {
+              scheduledAt: schedule.scheduledAt,
+              scheduledEndAt: schedule.scheduledEndAt,
+              isAllDay: schedule.isAllDay,
+            });
+            setCreatePopover(null);
+          }}
+          onCreateNewTask={(title, parentId, schedule) => {
             onCreateTask?.(title, parentId, schedule);
             setCreatePopover(null);
           }}
