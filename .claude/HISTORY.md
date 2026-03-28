@@ -1,5 +1,29 @@
 # HISTORY.md - 変更履歴
 
+### 2026-03-28 - DayFlow swipe action to hover + horizontal scroll
+
+#### 概要
+
+DayFlow / Calendar のアイテムのアクションパネル表示を「掴んで左ドラッグ」から「ホバー+横スクロール」に変更。ドラッグ操作との競合を解消。
+
+#### 変更点
+
+- **useSwipeAction.ts**: mousedown/touchstart ドラッグ方式を廃止、wheel イベントリスナー（passive: false）に置換。150ms スナップタイマーで開閉確定
+- **ScheduleItemBlock.tsx**: swipeHandlers 削除、isScrolling チェック追加
+- **TimeGridTaskBlock.tsx**: 同上
+
+### 2026-03-28 - RoutineManagement→TodayFlow sync / Time validation / Group filter fix
+
+#### 概要
+
+RoutineManagementPanelでの時間変更がTodayFlowPanelに即時反映されない問題、開始時間が終了時間より後に設定できる問題、DayFlowでGroupフィルターが表示されない問題の3つを修正。
+
+#### 変更点
+
+- **TodayFlow即時同期**: `useScheduleItems.ts`に`syncScheduleItemsWithRoutines`関数を追加。routine時間変更時にin-memory scheduleItemsを即座に同期しDB非同期更新。`ScheduleContext.tsx`にuseEffectを追加しroutines変更を検知して自動sync
+- **時間バリデーション**: `timeGridUtils.ts`に`adjustEndTimeForStartChange`/`clampEndTimeAfterStart`/`defaultEndTimeForStart`の3ユーティリティ追加。`RoutineEditDialog.tsx`, `TimeSettingsInline.tsx`, `MiniCalendarGrid.tsx`にstartTime変更時のendTime自動追従、endTimeクランプ、EndTimeトグルON時のデフォルト値(+1時間)を実装
+- **Groupフィルター修正**: `useDayFlowColumn.ts`にselectedFilterGroupIds state/routineGroups取得/groupフィルタリングロジック追加。`DualDayFlowLayout.tsx`のCompactDateNav/ScheduleTimeGridにroutineGroups系props追加
+
 ### 2026-03-21 - Routine Group System + Timegrid 3-Step Click + Note Scheduling
 
 #### 概要

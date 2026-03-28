@@ -6,9 +6,9 @@
 
 ## 直近の完了
 
+- DayFlow スワイプ操作をホバー+横スクロールに変更 ✅（2026-03-28）
+- RoutineManagement→TodayFlow同期 / 時間バリデーション / Groupフィルター修正 ✅（2026-03-28）
 - Routine Group System + Timegrid 3-Step Click + Note Scheduling ✅（2026-03-21）
-- DayFlow スクロール同期解除 + パフォーマンス改善 ✅（2026-03-21）
-- ExistingTaskTab / NewTaskTab UI統一 + カラーマーク追加 ✅（2026-03-21）
 
 ## 予定
 
