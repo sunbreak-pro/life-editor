@@ -195,6 +195,14 @@ const ALLOWED_CHANNELS = new Set([
   "server:regenerateToken",
   // Window
   "window:close",
+  // Shell
+  "shell:openExternal",
+  "shell:openPath",
+  // Attachments
+  "attachment:save",
+  "attachment:load",
+  "attachment:delete",
+  "attachment:fetchMetas",
   // Claude
   "claude:registerMcp",
   "claude:readClaudeMd",

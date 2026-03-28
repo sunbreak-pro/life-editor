@@ -1,5 +1,19 @@
 # HISTORY.md - 変更履歴
 
+### 2026-03-28 - Link/Image/PDF editor file operations
+
+#### 概要
+
+MemoEditor (TipTap) にリンクの外部ブラウザ起動、ローカル画像アップロード（ペースト/D&D対応）、PDF添付・閲覧機能を追加。統一 attachment リポジトリで画像・PDFを管理。
+
+#### 変更点
+
+- **リンク**: `shellHandlers.ts` に `shell:openExternal` IPC追加。MemoEditor に Cmd+Click ハンドラ追加で外部ブラウザ起動
+- **添付ファイル基盤**: `attachmentRepository.ts` を新規作成（`userData/attachments/` + `_meta.json`）。`attachmentHandlers.ts` で save/load/delete/fetchMetas の4チャンネル。CSP `img-src` に `blob:` 追加
+- **画像アップロード**: `useAttachments.ts` フック（magic bytes 検証、blob URL ライフサイクル管理）。CommandPanel をファイルピッカー方式に変更。`attachment://` スキームでエディタ内参照を永続化。ペースト/D&D対応
+- **PDF**: `PdfAttachment.ts` TipTap Node extension + `PdfAttachmentView.tsx` React コンポーネント。`shell:openPath` で Mac プレビューアプリ起動。`/pdf` スラッシュコマンド追加
+- **DataService**: 全3実装 (Electron/Offline/Rest) に shell 2メソッド + attachment 4メソッド追加。`preload.ts` に6チャンネル追加
+
 ### 2026-03-28 - DayFlow TimeGrid UI improvements (Group Header / Action Panel / Short Item)
 
 #### 概要

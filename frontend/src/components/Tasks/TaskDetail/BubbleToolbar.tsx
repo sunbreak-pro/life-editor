@@ -22,9 +22,15 @@ import { UnifiedColorPicker } from "../../shared/UnifiedColorPicker";
 
 interface BubbleToolbarProps {
   editor: Editor;
+  onImageUpload?: (file: File) => void;
+  onPdfUpload?: (file: File) => void;
 }
 
-export function BubbleToolbar({ editor }: BubbleToolbarProps) {
+export function BubbleToolbar({
+  editor,
+  onImageUpload,
+  onPdfUpload,
+}: BubbleToolbarProps) {
   const [linkMode, setLinkMode] = useState(false);
   const [linkUrl, setLinkUrl] = useState("");
   const [linkError, setLinkError] = useState("");
@@ -184,6 +190,8 @@ export function BubbleToolbar({ editor }: BubbleToolbarProps) {
           onExecute={handleSlashExecute}
           onClose={slash.close}
           deleteSlashText={slash.deleteSlashText}
+          onImageUpload={onImageUpload}
+          onPdfUpload={onPdfUpload}
         />
       </div>,
       portalTarget,

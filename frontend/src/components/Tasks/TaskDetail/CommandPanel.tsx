@@ -2,7 +2,6 @@ import { useState, useRef, useCallback } from "react";
 import { createPortal } from "react-dom";
 import type { Editor } from "@tiptap/react";
 import { MoreVertical } from "lucide-react";
-import { isValidUrl } from "../../../utils/urlValidation";
 import { setStoredHeadingFontSize } from "../../../utils/headingFontSize";
 import {
   type PanelCommand,
@@ -11,6 +10,7 @@ import {
 } from "./editorCommands";
 
 const IMAGE_COMMAND_ID = "Image";
+const PDF_COMMAND_ID = "PDF";
 
 interface CommandPanelProps {
   editor: Editor;
@@ -21,6 +21,8 @@ interface CommandPanelProps {
   onExecute: (index: number) => void;
   onClose: () => void;
   deleteSlashText?: () => void;
+  onImageUpload?: (file: File) => void;
+  onPdfUpload?: (file: File) => void;
 }
 
 export function CommandPanel({
@@ -32,11 +34,10 @@ export function CommandPanel({
   onExecute,
   onClose,
   deleteSlashText,
+  onImageUpload,
+  onPdfUpload,
 }: CommandPanelProps) {
   const menuRef = useRef<HTMLDivElement>(null);
-  const [imageUrlInput, setImageUrlInput] = useState(false);
-  const [imageUrl, setImageUrl] = useState("");
-  const [imageUrlError, setImageUrlError] = useState("");
   const [activeSubMenu, setActiveSubMenu] = useState<number | null>(null);
   const [subMenuPos, setSubMenuPos] = useState<{
     top: number;
@@ -46,39 +47,49 @@ export function CommandPanel({
   const [customFontSize, setCustomFontSize] = useState("");
   const [customFontSizeLevel, setCustomFontSizeLevel] = useState<1 | 2 | 3>(1);
 
+  const openFilePicker = useCallback(
+    (accept: string, handler: (file: File) => void) => {
+      const input = document.createElement("input");
+      input.type = "file";
+      input.accept = accept;
+      input.onchange = () => {
+        const file = input.files?.[0];
+        if (file) handler(file);
+      };
+      input.click();
+    },
+    [],
+  );
+
   const handleExecute = useCallback(
     (index: number) => {
       const cmd = commands[index];
       if (cmd?.title === IMAGE_COMMAND_ID) {
         deleteSlashText?.();
-        setImageUrlInput(true);
-        setImageUrl("");
-        setImageUrlError("");
+        openFilePicker("image/png,image/jpeg,image/gif,image/webp", (file) => {
+          onImageUpload?.(file);
+          onClose();
+        });
+      } else if (cmd?.title === PDF_COMMAND_ID) {
+        deleteSlashText?.();
+        openFilePicker(".pdf,application/pdf", (file) => {
+          onPdfUpload?.(file);
+          onClose();
+        });
       } else {
         onExecute(index);
       }
     },
-    [commands, onExecute, deleteSlashText],
+    [
+      commands,
+      onExecute,
+      deleteSlashText,
+      openFilePicker,
+      onImageUpload,
+      onPdfUpload,
+      onClose,
+    ],
   );
-
-  const handleImageUrlApply = useCallback(() => {
-    const validated = isValidUrl(imageUrl);
-    if (validated) {
-      editor.chain().focus().setImage({ src: validated }).run();
-      setImageUrlInput(false);
-      setImageUrl("");
-      setImageUrlError("");
-      onClose();
-    } else {
-      setImageUrlError("有効なURLを入力してください（http/https）");
-    }
-  }, [editor, imageUrl, onClose]);
-
-  const handleImageUrlCancel = useCallback(() => {
-    setImageUrlInput(false);
-    setImageUrl("");
-    setImageUrlError("");
-  }, []);
 
   const handleSubAction = useCallback(
     (sub: SubAction, cmd: PanelCommand) => {
@@ -103,41 +114,6 @@ export function CommandPanel({
     },
     [editor, deleteSlashText, onClose],
   );
-
-  // Image URL input view
-  if (imageUrlInput) {
-    return (
-      <div className="command-panel-inline">
-        <div className="command-panel-input-label">画像URL</div>
-        <input
-          className={`command-panel-number-input ${imageUrlError ? "border-red-500" : ""}`}
-          type="url"
-          placeholder="https://example.com/image.png"
-          value={imageUrl}
-          onChange={(e) => {
-            setImageUrl(e.target.value);
-            setImageUrlError("");
-          }}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") {
-              e.preventDefault();
-              handleImageUrlApply();
-            }
-            if (e.key === "Escape") {
-              e.preventDefault();
-              handleImageUrlCancel();
-            }
-          }}
-          autoFocus
-        />
-        {imageUrlError && (
-          <div className="text-xs text-red-500 mt-1 px-2.5">
-            {imageUrlError}
-          </div>
-        )}
-      </div>
-    );
-  }
 
   // Custom font size input view
   if (customFontSizeInput) {

@@ -15,6 +15,7 @@ import {
   Minus,
   Table2,
   ImageIcon,
+  FileText,
 } from "lucide-react";
 import {
   getStoredHeadingFontSize,
@@ -324,10 +325,19 @@ export const PANEL_COMMANDS: PanelCommand[] = [
   {
     title: "Image",
     icon: ImageIcon,
-    description: "Embed an image from URL",
+    description: "Upload an image",
     group: "Advanced",
     action: () => {
       // Handled via IMAGE_COMMAND_ID in CommandPanel
+    },
+  },
+  {
+    title: "PDF",
+    icon: FileText,
+    description: "Attach a PDF file",
+    group: "Advanced",
+    action: () => {
+      // Handled via PDF_COMMAND_ID in CommandPanel
     },
   },
 ];

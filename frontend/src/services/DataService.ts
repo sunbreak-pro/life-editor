@@ -36,6 +36,7 @@ import type {
 } from "../types/wikiTag";
 import type { TimeMemo } from "../types/timeMemo";
 import type { PaperBoard, PaperNode, PaperEdge } from "../types/paperBoard";
+import type { AttachmentMeta } from "../types/attachment";
 export interface DataService {
   // Tasks
   fetchTaskTree(): Promise<TaskNode[]>;
@@ -463,6 +464,16 @@ export interface DataService {
   fetchMetrics(): Promise<IpcChannelMetrics[]>;
   resetMetrics(): Promise<boolean>;
   fetchSystemInfo(): Promise<SystemInfo>;
+
+  // Shell
+  openExternal(url: string): Promise<void>;
+  openAttachmentFile(id: string): Promise<void>;
+
+  // Attachments
+  saveAttachment(meta: AttachmentMeta, data: ArrayBuffer): Promise<void>;
+  loadAttachment(id: string): Promise<ArrayBuffer | null>;
+  deleteAttachment(id: string): Promise<void>;
+  fetchAttachmentMetas(): Promise<AttachmentMeta[]>;
 
   // Updater
   checkForUpdates(): Promise<void>;

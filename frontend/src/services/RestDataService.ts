@@ -36,6 +36,7 @@ import type {
   NoteConnection,
 } from "../types/wikiTag";
 import type { TimeMemo } from "../types/timeMemo";
+import type { AttachmentMeta } from "../types/attachment";
 import { apiFetch } from "../config/api";
 
 async function get<T>(path: string): Promise<T> {
@@ -843,6 +844,28 @@ export class RestDataService implements DataService {
   }
   deletePaperEdge(_id: string): Promise<void> {
     return notSupported("Paper Boards");
+  }
+
+  // Shell — not available on mobile
+  openExternal(_url: string): Promise<void> {
+    return notSupported("Shell");
+  }
+  openAttachmentFile(_id: string): Promise<void> {
+    return notSupported("Shell");
+  }
+
+  // Attachments — not available on mobile
+  saveAttachment(_meta: AttachmentMeta, _data: ArrayBuffer): Promise<void> {
+    return notSupported("Attachments");
+  }
+  loadAttachment(_id: string): Promise<ArrayBuffer | null> {
+    return notSupported("Attachments");
+  }
+  deleteAttachment(_id: string): Promise<void> {
+    return notSupported("Attachments");
+  }
+  fetchAttachmentMetas(): Promise<AttachmentMeta[]> {
+    return notSupported("Attachments");
   }
 
   // Updater — not available on mobile

@@ -40,6 +40,7 @@ import type {
 } from "../types/wikiTag";
 import type { TimeMemo } from "../types/timeMemo";
 import type { PaperBoard, PaperNode, PaperEdge } from "../types/paperBoard";
+import type { AttachmentMeta } from "../types/attachment";
 
 import { notSupported } from "./notSupported";
 
@@ -1489,6 +1490,28 @@ export class OfflineDataService implements DataService {
   }
   deletePaperEdge(_id: string): Promise<void> {
     return notSupported("Paper Boards");
+  }
+
+  // Shell
+  openExternal(_url: string): Promise<void> {
+    return notSupported("Shell");
+  }
+  openAttachmentFile(_id: string): Promise<void> {
+    return notSupported("Shell");
+  }
+
+  // Attachments
+  saveAttachment(_meta: AttachmentMeta, _data: ArrayBuffer): Promise<void> {
+    return notSupported("Attachments");
+  }
+  loadAttachment(_id: string): Promise<ArrayBuffer | null> {
+    return notSupported("Attachments");
+  }
+  deleteAttachment(_id: string): Promise<void> {
+    return notSupported("Attachments");
+  }
+  fetchAttachmentMetas(): Promise<AttachmentMeta[]> {
+    return notSupported("Attachments");
   }
 
   checkForUpdates(): Promise<void> {

@@ -44,6 +44,9 @@ import { createPaperBoardRepository } from "../database/paperBoardRepository";
 import { registerPaperBoardHandlers } from "./paperBoardHandlers";
 import { createRoutineGroupRepository } from "../database/routineGroupRepository";
 import { registerRoutineGroupHandlers } from "./routineGroupHandlers";
+import { createAttachmentRepository } from "../database/attachmentRepository";
+import { registerAttachmentHandlers } from "./attachmentHandlers";
+import { registerShellHandlers } from "./shellHandlers";
 import { wrapHandler } from "./ipcMetrics";
 
 export function registerAllHandlers(db: Database.Database): void {
@@ -127,6 +130,11 @@ export function registerAllHandlers(db: Database.Database): void {
       "RoutineGroups",
       () => registerRoutineGroupHandlers(createRoutineGroupRepository(db)),
     ],
+    [
+      "Attachments",
+      () => registerAttachmentHandlers(createAttachmentRepository()),
+    ],
+    ["Shell", () => registerShellHandlers()],
   ];
 
   for (const [name, register] of registrations) {

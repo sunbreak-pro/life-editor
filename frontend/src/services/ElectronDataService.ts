@@ -37,6 +37,7 @@ import type {
 } from "../types/wikiTag";
 import type { TimeMemo } from "../types/timeMemo";
 import type { PaperBoard, PaperNode, PaperEdge } from "../types/paperBoard";
+import type { AttachmentMeta } from "../types/attachment";
 function invoke<T>(channel: string, ...args: unknown[]): Promise<T> {
   return window.electronAPI!.invoke<T>(channel, ...args);
 }
@@ -805,6 +806,28 @@ export class ElectronDataService implements DataService {
   }
   fetchSystemInfo(): Promise<SystemInfo> {
     return invoke("diagnostics:fetchSystemInfo");
+  }
+
+  // Shell
+  openExternal(url: string): Promise<void> {
+    return invoke("shell:openExternal", url);
+  }
+  openAttachmentFile(id: string): Promise<void> {
+    return invoke("shell:openPath", id);
+  }
+
+  // Attachments
+  async saveAttachment(meta: AttachmentMeta, data: ArrayBuffer): Promise<void> {
+    await invoke("attachment:save", meta, data);
+  }
+  loadAttachment(id: string): Promise<ArrayBuffer | null> {
+    return invoke("attachment:load", id);
+  }
+  deleteAttachment(id: string): Promise<void> {
+    return invoke("attachment:delete", id);
+  }
+  fetchAttachmentMetas(): Promise<AttachmentMeta[]> {
+    return invoke("attachment:fetchMetas");
   }
 
   // Updater

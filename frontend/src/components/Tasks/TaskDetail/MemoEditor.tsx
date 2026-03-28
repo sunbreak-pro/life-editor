@@ -26,10 +26,14 @@ import { Callout } from "../../../extensions/Callout";
 import { CustomHeading } from "../../../extensions/CustomHeading";
 import { CustomInputRules } from "../../../extensions/InputRules";
 import { WikiTag } from "../../../extensions/WikiTag";
+import { PdfAttachment } from "../../../extensions/PdfAttachment";
 import { BubbleToolbar } from "./BubbleToolbar";
 import { WikiTagSuggestionMenu } from "../../WikiTags/WikiTagSuggestionMenu";
 import { useWikiTagSync } from "../../../hooks/useWikiTagSync";
+import { useAttachments } from "../../../hooks/useAttachments";
 import { setStoredHeadingFontSize } from "../../../utils/headingFontSize";
+import { isValidUrl } from "../../../utils/urlValidation";
+import { getDataService } from "../../../services";
 import type { WikiTagEntityType } from "../../../types/wikiTag";
 
 // Disable markdown input rules so ** / * / ~~ / ` don't auto-convert
@@ -68,6 +72,61 @@ interface MemoEditorProps {
   syncEntityId?: string;
 }
 
+const ATTACHMENT_SCHEME = "attachment://";
+
+function collectAttachmentIds(json: Record<string, unknown>): string[] {
+  const ids: string[] = [];
+  function walk(node: Record<string, unknown>) {
+    if (node.type === "image") {
+      const src = (node.attrs as Record<string, unknown>)?.src as string;
+      if (src?.startsWith(ATTACHMENT_SCHEME)) {
+        ids.push(src.slice(ATTACHMENT_SCHEME.length));
+      }
+    }
+    if (node.type === "pdfAttachment") {
+      const aid = (node.attrs as Record<string, unknown>)
+        ?.attachmentId as string;
+      if (aid) ids.push(aid);
+    }
+    if (Array.isArray(node.content)) {
+      for (const child of node.content) walk(child as Record<string, unknown>);
+    }
+  }
+  walk(json);
+  return ids;
+}
+
+function sanitizeContentForSave(
+  json: Record<string, unknown>,
+  blobUrlToId: Map<string, string>,
+): Record<string, unknown> {
+  function walk(node: Record<string, unknown>): Record<string, unknown> {
+    if (node.type === "image") {
+      const attrs = node.attrs as Record<string, unknown>;
+      const src = attrs?.src as string;
+      if (src && blobUrlToId.has(src)) {
+        return {
+          ...node,
+          attrs: {
+            ...attrs,
+            src: `${ATTACHMENT_SCHEME}${blobUrlToId.get(src)}`,
+          },
+        };
+      }
+    }
+    if (Array.isArray(node.content)) {
+      return {
+        ...node,
+        content: node.content.map((c: unknown) =>
+          walk(c as Record<string, unknown>),
+        ),
+      };
+    }
+    return node;
+  }
+  return walk(json);
+}
+
 export function MemoEditor({
   taskId,
   initialContent,
@@ -78,6 +137,15 @@ export function MemoEditor({
   const debounceRef = useRef<number | null>(null);
   const onUpdateRef = useRef(onUpdate);
   const latestContentRef = useRef<string | null>(null);
+  const resolvingRef = useRef(false);
+  const imageUploadRef = useRef<(file: File) => void>(() => {});
+  const {
+    resolveAttachmentUrls,
+    uploadImage,
+    uploadPdf,
+    cleanup: cleanupBlobUrls,
+    blobUrlsRef,
+  } = useAttachments();
 
   useEffect(() => {
     onUpdateRef.current = onUpdate;
@@ -147,14 +215,26 @@ export function MemoEditor({
         ToggleContent,
         Callout,
         WikiTag,
+        PdfAttachment,
         CustomInputRules,
       ],
       content: initialContent ? tryParseJSON(initialContent) : undefined,
       onUpdate: ({ editor }) => {
+        if (resolvingRef.current) return;
         if (debounceRef.current) {
           clearTimeout(debounceRef.current);
         }
-        const json = JSON.stringify(editor.getJSON());
+        // Sanitize blob URLs back to attachment:// before saving
+        const rawJson = editor.getJSON();
+        const reverseMap = new Map<string, string>();
+        for (const [id, url] of Object.entries(blobUrlsRef.current)) {
+          reverseMap.set(url, id);
+        }
+        const sanitized = sanitizeContentForSave(
+          rawJson as Record<string, unknown>,
+          reverseMap,
+        );
+        const json = JSON.stringify(sanitized);
         latestContentRef.current = json;
         debounceRef.current = window.setTimeout(() => {
           onUpdateRef.current(json);
@@ -165,10 +245,114 @@ export function MemoEditor({
         attributes: {
           class: "memo-editor outline-none min-h-[200px]",
         },
+        handleClick(_view, _pos, event) {
+          if (!(event.metaKey || event.ctrlKey)) return false;
+          const target = event.target as HTMLElement;
+          const linkEl = target.closest("a[href]");
+          if (!linkEl) return false;
+          const href = linkEl.getAttribute("href");
+          if (!href) return false;
+          const validated = isValidUrl(href);
+          if (validated) {
+            event.preventDefault();
+            getDataService().openExternal(validated);
+          }
+          return true;
+        },
+        handlePaste(_view, event) {
+          const items = event.clipboardData?.items;
+          if (!items) return false;
+          for (const item of Array.from(items)) {
+            if (item.type.startsWith("image/")) {
+              const file = item.getAsFile();
+              if (file) {
+                event.preventDefault();
+                imageUploadRef.current(file);
+                return true;
+              }
+            }
+          }
+          return false;
+        },
+        handleDrop(_view, event) {
+          const files = event.dataTransfer?.files;
+          if (!files?.length) return false;
+          const imageFile = Array.from(files).find((f) =>
+            f.type.startsWith("image/"),
+          );
+          if (imageFile) {
+            event.preventDefault();
+            imageUploadRef.current(imageFile);
+            return true;
+          }
+          return false;
+        },
       },
     },
     [taskId],
   );
+
+  // Upload image and insert into editor
+  const handleImageUpload = useCallback(
+    async (file: File) => {
+      if (!editor) return;
+      const result = await uploadImage(file);
+      if (result) {
+        editor.chain().focus().setImage({ src: result.blobUrl }).run();
+      }
+    },
+    [editor, uploadImage],
+  );
+
+  // Keep ref in sync for editorProps callbacks
+  imageUploadRef.current = handleImageUpload;
+
+  // Resolve attachment:// URLs to blob URLs after editor mount
+  useEffect(() => {
+    if (!editor || !initialContent) return;
+    const parsed = tryParseJSON(initialContent);
+    if (typeof parsed === "string") return;
+    const ids = collectAttachmentIds(parsed as Record<string, unknown>);
+    if (ids.length === 0) return;
+
+    let cancelled = false;
+    (async () => {
+      const urlMap = await resolveAttachmentUrls(ids);
+      if (cancelled || !editor || editor.isDestroyed) return;
+
+      resolvingRef.current = true;
+      const { tr } = editor.state;
+      let modified = false;
+      editor.state.doc.descendants((node, pos) => {
+        if (node.type.name === "image") {
+          const src = node.attrs.src as string;
+          if (src?.startsWith(ATTACHMENT_SCHEME)) {
+            const id = src.slice(ATTACHMENT_SCHEME.length);
+            const blobUrl = urlMap[id];
+            if (blobUrl) {
+              tr.setNodeMarkup(pos, undefined, { ...node.attrs, src: blobUrl });
+              modified = true;
+            }
+          }
+        }
+      });
+      if (modified) {
+        editor.view.dispatch(tr);
+      }
+      resolvingRef.current = false;
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [editor, taskId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Cleanup blob URLs on unmount
+  useEffect(() => {
+    return () => {
+      cleanupBlobUrls();
+    };
+  }, [cleanupBlobUrls]);
 
   useWikiTagSync(editor, syncEntityId ?? taskId, entityType);
 
@@ -194,10 +378,38 @@ export function MemoEditor({
     };
   }, [editor, handleHeadingFontSizeChange]);
 
+  const handlePdfUpload = useCallback(
+    async (file: File) => {
+      if (!editor) return;
+      const result = await uploadPdf(file);
+      if (result) {
+        editor
+          .chain()
+          .focus()
+          .insertContent({
+            type: "pdfAttachment",
+            attrs: {
+              attachmentId: result.id,
+              filename: result.filename,
+              size: result.size,
+            },
+          })
+          .run();
+      }
+    },
+    [editor, uploadPdf],
+  );
+
   return (
     <div className="relative">
       <EditorContent editor={editor} />
-      {editor && <BubbleToolbar editor={editor} />}
+      {editor && (
+        <BubbleToolbar
+          editor={editor}
+          onImageUpload={handleImageUpload}
+          onPdfUpload={handlePdfUpload}
+        />
+      )}
       {editor && <WikiTagSuggestionMenu editor={editor} />}
     </div>
   );

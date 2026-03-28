@@ -501,6 +501,65 @@ body {
   opacity: 0.8;
 }
 
+/* PDF Attachment Block */
+.pdf-attachment-block {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--color-border);
+  border-radius: 0.5rem;
+  background: var(--color-surface-secondary, var(--color-surface));
+  margin: 0.5rem 0;
+  user-select: none;
+}
+
+.pdf-attachment-icon {
+  flex-shrink: 0;
+  color: #ef4444;
+}
+
+.pdf-attachment-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+  min-width: 0;
+  flex: 1;
+}
+
+.pdf-attachment-filename {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--color-text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pdf-attachment-size {
+  font-size: 0.75rem;
+  color: var(--color-text-secondary);
+}
+
+.pdf-attachment-open-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.375rem 0.75rem;
+  border: 1px solid var(--color-border);
+  border-radius: 0.375rem;
+  background: transparent;
+  color: var(--color-text);
+  font-size: 0.8125rem;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background 0.15s;
+}
+
+.pdf-attachment-open-btn:hover {
+  background: var(--color-surface-hover, rgba(255, 255, 255, 0.05));
+}
+
 /* Check completion animation */
 @keyframes check-pop {
   0% {
