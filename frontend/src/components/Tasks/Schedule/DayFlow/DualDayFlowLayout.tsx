@@ -232,6 +232,9 @@ function DualColumn({
         routineTags={column.routineTags}
         isDualColumn={isDualColumn}
         onToggleDualColumn={onToggleDualColumn}
+        routineGroups={column.routineGroups}
+        selectedFilterGroupIds={column.selectedFilterGroupIds}
+        onSelectedFilterGroupIdsChange={column.setSelectedFilterGroupIds}
       />
       <div className="flex-1 overflow-y-auto">
         <ScheduleTimeGrid
@@ -261,6 +264,8 @@ function DualColumn({
           onDeleteTask={onDeleteTask}
           onUpdateTaskTitle={onUpdateTaskTitle}
           onStartTimer={onStartTimer}
+          routineGroups={column.routineGroups}
+          groupForRoutine={column.groupForRoutine}
         />
       </div>
 

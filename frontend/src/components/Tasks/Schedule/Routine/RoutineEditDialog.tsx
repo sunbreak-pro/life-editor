@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import type { RoutineNode } from "../../../../types/routine";
@@ -6,6 +6,10 @@ import type { RoutineTag } from "../../../../types/routineTag";
 import { TimeInput } from "../../../shared/TimeInput";
 import { RoutineTagSelector } from "./RoutineTagSelector";
 import { useConfirmableSubmit } from "../../../../hooks/useConfirmableSubmit";
+import {
+  adjustEndTimeForStartChange,
+  clampEndTimeAfterStart,
+} from "../../../../utils/timeGridUtils";
 
 interface RoutineEditDialogProps {
   routine?: RoutineNode;
@@ -33,6 +37,7 @@ export function RoutineEditDialog({
   const [title, setTitle] = useState(routine?.title ?? "");
   const [startTime, setStartTime] = useState(routine?.startTime ?? "");
   const [endTime, setEndTime] = useState(routine?.endTime ?? "");
+  const prevStartRef = useRef(startTime);
   const [tagIds, setTagIds] = useState<number[]>(initialTagIds ?? []);
 
   const handleSubmit = () => {
@@ -99,11 +104,20 @@ export function RoutineEditDialog({
               <TimeInput
                 hour={parseInt(startTime.split(":")[0] || "0", 10)}
                 minute={parseInt(startTime.split(":")[1] || "0", 10)}
-                onChange={(h, m) =>
-                  setStartTime(
-                    `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`,
-                  )
-                }
+                onChange={(h, m) => {
+                  const newStart = `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+                  if (prevStartRef.current && endTime) {
+                    setEndTime(
+                      adjustEndTimeForStartChange(
+                        prevStartRef.current,
+                        newStart,
+                        endTime,
+                      ),
+                    );
+                  }
+                  prevStartRef.current = newStart;
+                  setStartTime(newStart);
+                }}
                 minuteStep={1}
               />
             </div>
@@ -114,11 +128,14 @@ export function RoutineEditDialog({
               <TimeInput
                 hour={parseInt(endTime.split(":")[0] || "0", 10)}
                 minute={parseInt(endTime.split(":")[1] || "0", 10)}
-                onChange={(h, m) =>
+                onChange={(h, m) => {
+                  const newEnd = `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
                   setEndTime(
-                    `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`,
-                  )
-                }
+                    startTime
+                      ? clampEndTimeAfterStart(startTime, newEnd)
+                      : newEnd,
+                  );
+                }}
                 minuteStep={1}
               />
             </div>

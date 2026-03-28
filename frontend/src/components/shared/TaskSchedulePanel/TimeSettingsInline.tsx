@@ -1,5 +1,11 @@
+import { useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { TimeInput } from "../TimeInput";
+import {
+  adjustEndTimeForStartChange,
+  clampEndTimeAfterStart,
+  defaultEndTimeForStart,
+} from "../../../utils/timeGridUtils";
 
 interface TimeSettingsInlineProps {
   isAllDay: boolean;
@@ -47,6 +53,32 @@ export function TimeSettingsInline({
   onEndTimeChange,
 }: TimeSettingsInlineProps) {
   const { t } = useTranslation();
+  const prevStartRef = useRef(startTime);
+
+  const handleHasEndTimeChange = (v: boolean) => {
+    if (v && startTime) {
+      onEndTimeChange(defaultEndTimeForStart(startTime));
+    }
+    onHasEndTimeChange(v);
+  };
+
+  const handleStartTimeChange = (h: number, m: number) => {
+    const newStart = `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+    if (hasEndTime && prevStartRef.current && endTime) {
+      onEndTimeChange(
+        adjustEndTimeForStartChange(prevStartRef.current, newStart, endTime),
+      );
+    }
+    prevStartRef.current = newStart;
+    onStartTimeChange(newStart);
+  };
+
+  const handleEndTimeChange = (h: number, m: number) => {
+    const newEnd = `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+    onEndTimeChange(
+      startTime ? clampEndTimeAfterStart(startTime, newEnd) : newEnd,
+    );
+  };
 
   return (
     <div className="space-y-2">
@@ -65,7 +97,10 @@ export function TimeSettingsInline({
             <span className="text-[10px] text-notion-text-secondary uppercase tracking-wide">
               {t("schedulePanel.endTime")}
             </span>
-            <ToggleSwitch checked={hasEndTime} onChange={onHasEndTimeChange} />
+            <ToggleSwitch
+              checked={hasEndTime}
+              onChange={handleHasEndTimeChange}
+            />
           </div>
 
           {/* Time inputs - side by side */}
@@ -77,11 +112,7 @@ export function TimeSettingsInline({
               <TimeInput
                 hour={parseInt(startTime.split(":")[0] || "0", 10)}
                 minute={parseInt(startTime.split(":")[1] || "0", 10)}
-                onChange={(h, m) =>
-                  onStartTimeChange(
-                    `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`,
-                  )
-                }
+                onChange={handleStartTimeChange}
                 minuteStep={1}
                 size="sm"
               />
@@ -95,11 +126,7 @@ export function TimeSettingsInline({
                 <TimeInput
                   hour={parseInt(endTime.split(":")[0] || "0", 10)}
                   minute={parseInt(endTime.split(":")[1] || "0", 10)}
-                  onChange={(h, m) =>
-                    onEndTimeChange(
-                      `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`,
-                    )
-                  }
+                  onChange={handleEndTimeChange}
                   minuteStep={1}
                   size="sm"
                 />

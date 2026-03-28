@@ -18,11 +18,20 @@ export function useDayFlowColumn({ initialDate }: UseDayFlowColumnOptions) {
   const [selectedFilterTagIds, setSelectedFilterTagIds] = useState<number[]>(
     [],
   );
+  const [selectedFilterGroupIds, setSelectedFilterGroupIds] = useState<
+    string[]
+  >([]);
   const [scheduleItems, setScheduleItems] = useState<ScheduleItem[]>([]);
   const [refreshKey, setRefreshKey] = useState(0);
 
-  const { routines, routineTags, tagAssignments, loadItemsForDate } =
-    useScheduleContext();
+  const {
+    routines,
+    routineTags,
+    tagAssignments,
+    loadItemsForDate,
+    routineGroups,
+    groupForRoutine,
+  } = useScheduleContext();
   const { nodes } = useTaskTreeContext();
 
   const dateKey = formatDateKey(date);
@@ -203,8 +212,22 @@ export function useDayFlowColumn({ initialDate }: UseDayFlowColumnOptions) {
         return selectedFilterTagIds.some((id) => rTagIds.includes(id));
       });
     }
+    if (selectedFilterGroupIds.length > 0) {
+      items = items.filter((i) => {
+        if (!i.routineId) return false;
+        const group = groupForRoutine.get(i.routineId);
+        return group ? selectedFilterGroupIds.includes(group.id) : false;
+      });
+    }
     return items;
-  }, [scheduleItems, filterTab, selectedFilterTagIds, routineTagMap]);
+  }, [
+    scheduleItems,
+    filterTab,
+    selectedFilterTagIds,
+    routineTagMap,
+    selectedFilterGroupIds,
+    groupForRoutine,
+  ]);
 
   const filteredDayTasks = useMemo(() => {
     if (filterTab === "routine" || filterTab === "others") return [];
@@ -334,6 +357,8 @@ export function useDayFlowColumn({ initialDate }: UseDayFlowColumnOptions) {
     setFilterTab,
     selectedFilterTagIds,
     setSelectedFilterTagIds,
+    selectedFilterGroupIds,
+    setSelectedFilterGroupIds,
     goToPrev,
     goToNext,
     goToToday,
@@ -344,6 +369,8 @@ export function useDayFlowColumn({ initialDate }: UseDayFlowColumnOptions) {
     existingTaskIds,
     routineTags,
     routineTagMap,
+    routineGroups,
+    groupForRoutine,
     createScheduleItem,
     updateScheduleItem,
     deleteScheduleItem,

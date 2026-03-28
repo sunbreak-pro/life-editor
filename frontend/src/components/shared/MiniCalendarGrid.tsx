@@ -129,6 +129,21 @@ export function MiniCalendarGrid({
   };
 
   const handleStartTimeChange = (h: number, m: number) => {
+    // Auto-adjust end time to maintain duration
+    if (endValue) {
+      const oldDuration =
+        (endHour - startHour) * 60 + (endMinute - startMinute);
+      const duration = Math.max(oldDuration, 15);
+      const newEndTotal = h * 60 + m + duration;
+      const clampedEnd = Math.min(newEndTotal, 23 * 60 + 59);
+      const newEH = Math.floor(clampedEnd / 60);
+      const newEM = clampedEnd % 60;
+      setEndHour(newEH);
+      setEndMinute(newEM);
+      const eDt = new Date(endValue);
+      eDt.setHours(newEH, newEM);
+      onEndChange(toLocalISOString(eDt));
+    }
     setStartHour(h);
     setStartMinute(m);
     if (startValue) {
@@ -139,6 +154,14 @@ export function MiniCalendarGrid({
   };
 
   const handleEndTimeChange = (h: number, m: number) => {
+    // Clamp end time to be after start time
+    const endMin = h * 60 + m;
+    const startMin = startHour * 60 + startMinute;
+    if (endMin <= startMin) {
+      const clamped = Math.min(startMin + 15, 23 * 60 + 59);
+      h = Math.floor(clamped / 60);
+      m = clamped % 60;
+    }
     setEndHour(h);
     setEndMinute(m);
     if (endValue) {

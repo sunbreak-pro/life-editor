@@ -16,3 +16,37 @@ export function timeToMinutes(time: string): number {
   const [h, m] = time.split(":").map(Number);
   return h * 60 + m;
 }
+
+/** When startTime changes, adjust endTime to maintain the same duration. */
+export function adjustEndTimeForStartChange(
+  oldStart: string,
+  newStart: string,
+  currentEnd: string,
+): string {
+  const oldStartMin = timeToMinutes(oldStart);
+  const newStartMin = timeToMinutes(newStart);
+  const currentEndMin = timeToMinutes(currentEnd);
+  const duration = Math.max(currentEndMin - oldStartMin, 15);
+  const newEndMin = Math.min(newStartMin + duration, 23 * 60 + 59);
+  return minutesToTimeString(newEndMin);
+}
+
+/** Clamp endTime so it is always after startTime by at least minDuration. */
+export function clampEndTimeAfterStart(
+  start: string,
+  end: string,
+  minDuration = 15,
+): string {
+  const startMin = timeToMinutes(start);
+  const endMin = timeToMinutes(end);
+  if (endMin <= startMin) {
+    return minutesToTimeString(Math.min(startMin + minDuration, 23 * 60 + 59));
+  }
+  return end;
+}
+
+/** Default end time = start + 1 hour. */
+export function defaultEndTimeForStart(start: string): string {
+  const startMin = timeToMinutes(start);
+  return minutesToTimeString(Math.min(startMin + 60, 23 * 60 + 59));
+}

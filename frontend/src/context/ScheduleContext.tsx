@@ -1,4 +1,4 @@
-import { createContext, useCallback, useMemo } from "react";
+import { createContext, useCallback, useEffect, useMemo } from "react";
 import type { ReactNode } from "react";
 import { useRoutines } from "../hooks/useRoutines";
 import { useRoutineTagAssignments } from "../hooks/useRoutineTagAssignments";
@@ -71,6 +71,16 @@ export function ScheduleProvider({ children }: { children: ReactNode }) {
     },
     [routinesState, tagAssignmentsState, push],
   );
+
+  // Sync schedule items when routine times change
+  useEffect(() => {
+    if (routinesState.routines.length > 0) {
+      scheduleItemsState.syncScheduleItemsWithRoutines(routinesState.routines);
+    }
+  }, [
+    routinesState.routines,
+    scheduleItemsState.syncScheduleItemsWithRoutines,
+  ]);
 
   const value = useMemo<ScheduleContextValue>(
     () => ({

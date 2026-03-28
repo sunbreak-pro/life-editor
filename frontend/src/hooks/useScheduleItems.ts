@@ -633,6 +633,47 @@ export function useScheduleItems() {
     }
   }, []);
 
+  const syncScheduleItemsWithRoutines = useCallback(
+    (routines: RoutineNode[]) => {
+      const routineMap = new Map(routines.map((r) => [r.id, r]));
+      let changed = false;
+      const updated = scheduleItemsRef.current.map((item) => {
+        if (!item.routineId) return item;
+        const routine = routineMap.get(item.routineId);
+        if (!routine) return item;
+        const newTitle = routine.title;
+        const newStart = routine.startTime ?? "09:00";
+        const newEnd = routine.endTime ?? "09:30";
+        if (
+          item.title === newTitle &&
+          item.startTime === newStart &&
+          item.endTime === newEnd
+        )
+          return item;
+        changed = true;
+        getDataService()
+          .updateScheduleItem(item.id, {
+            title: newTitle,
+            startTime: newStart,
+            endTime: newEnd,
+          })
+          .catch((e) => logServiceError("ScheduleItems", "syncRoutine", e));
+        return {
+          ...item,
+          title: newTitle,
+          startTime: newStart,
+          endTime: newEnd,
+        };
+      });
+      if (changed) {
+        setScheduleItems(
+          updated.sort((a, b) => a.startTime.localeCompare(b.startTime)),
+        );
+      }
+    },
+    [],
+  );
+
   return useMemo(
     () => ({
       scheduleItems,
@@ -650,6 +691,7 @@ export function useScheduleItems() {
       refreshRoutineStats,
       loadRoutineItemsForMonth,
       getRoutineCompletionByDate,
+      syncScheduleItemsWithRoutines,
     }),
     [
       scheduleItems,
@@ -666,6 +708,7 @@ export function useScheduleItems() {
       refreshRoutineStats,
       loadRoutineItemsForMonth,
       getRoutineCompletionByDate,
+      syncScheduleItemsWithRoutines,
     ],
   );
 }
