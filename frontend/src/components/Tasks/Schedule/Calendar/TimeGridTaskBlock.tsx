@@ -65,14 +65,8 @@ export function TimeGridTaskBlock({
   const [showInlineMemo, setShowInlineMemo] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
 
-  const {
-    isOpen,
-    translateX,
-    isSwipingHorizontal,
-    close,
-    swipeHandlers,
-    containerRef,
-  } = useSwipeAction({ actionWidth: ACTION_WIDTH });
+  const { isOpen, translateX, isScrolling, close, containerRef } =
+    useSwipeAction({ actionWidth: ACTION_WIDTH });
 
   const hoveredHeight = isTiny && isHovered ? 40 : Math.max(height, 20);
 
@@ -138,6 +132,7 @@ export function TimeGridTaskBlock({
         onClick={(e) => {
           if (isDragging) return;
           if (hasMovedRef?.current) return;
+          if (isScrolling) return;
           if (isOpen) {
             close();
             return;
@@ -150,12 +145,10 @@ export function TimeGridTaskBlock({
           }
         }}
         onMouseDown={(e) => {
-          swipeHandlers.onMouseDown(e);
-          if (!isOpen && !isSwipingHorizontal) dragHandlers?.onMouseDown(e);
+          if (!isOpen) dragHandlers?.onMouseDown(e);
         }}
         onTouchStart={(e) => {
-          swipeHandlers.onTouchStart(e);
-          if (!isOpen && !isSwipingHorizontal) dragHandlers?.onTouchStart(e);
+          if (!isOpen) dragHandlers?.onTouchStart(e);
         }}
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}

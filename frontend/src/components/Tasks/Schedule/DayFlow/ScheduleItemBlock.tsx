@@ -62,7 +62,7 @@ export function ScheduleItemBlock({
   const [showInlineMemo, setShowInlineMemo] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
 
-  const { isOpen, translateX, close, swipeHandlers, containerRef } =
+  const { isOpen, translateX, isScrolling, close, containerRef } =
     useSwipeAction({ actionWidth: ACTION_WIDTH });
 
   const hoveredHeight = isTiny && isHovered ? 40 : Math.max(height, 20);
@@ -150,6 +150,7 @@ export function ScheduleItemBlock({
         onClick={(e) => {
           if (isDragging) return;
           if (hasMovedRef?.current) return;
+          if (isScrolling) return;
           if (isOpen) {
             close();
             return;
@@ -162,11 +163,9 @@ export function ScheduleItemBlock({
           }
         }}
         onMouseDown={(e) => {
-          swipeHandlers.onMouseDown(e);
           if (!isOpen) dragHandlers?.onMouseDown(e);
         }}
         onTouchStart={(e) => {
-          swipeHandlers.onTouchStart(e);
           if (!isOpen) dragHandlers?.onTouchStart(e);
         }}
         onMouseEnter={() => setIsHovered(true)}
