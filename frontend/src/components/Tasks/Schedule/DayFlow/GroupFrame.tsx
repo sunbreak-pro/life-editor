@@ -3,6 +3,9 @@ interface GroupFrameProps {
   groupColor: string;
   top: number;
   height: number;
+  itemCount: number;
+  timeRange: string;
+  headerHeight: number;
   left?: string;
   width?: string;
   onMouseDown?: (e: React.MouseEvent) => void;
@@ -13,31 +16,65 @@ export function GroupFrame({
   groupColor,
   top,
   height,
+  itemCount,
+  timeRange,
+  headerHeight,
   left = "2px",
   width = "calc(100% - 4px)",
   onMouseDown,
 }: GroupFrameProps) {
   return (
     <div
-      className="absolute z-[1] pointer-events-auto rounded-md"
+      className="absolute z-[1] pointer-events-auto rounded-md overflow-hidden"
       style={{
         top,
-        height: Math.max(height, 20),
+        height: Math.max(height, headerHeight + 8),
         left,
         width,
-        backgroundColor: `${groupColor}12`,
-        border: `1px solid ${groupColor}30`,
-        borderRadius: 6,
+        border: `1px solid ${groupColor}40`,
         cursor: onMouseDown ? "grab" : undefined,
       }}
       onMouseDown={onMouseDown}
     >
-      <span
-        className="absolute top-0.5 left-1.5 text-[10px] font-medium select-none pointer-events-none"
-        style={{ color: groupColor }}
+      {/* Header bar */}
+      <div
+        className="flex items-center gap-1.5 px-2 select-none pointer-events-none"
+        style={{
+          height: headerHeight,
+          backgroundColor: `${groupColor}30`,
+          borderBottom: `1px solid ${groupColor}30`,
+        }}
       >
-        {groupName}
-      </span>
+        <div
+          className="w-2 h-2 rounded-full shrink-0"
+          style={{ backgroundColor: groupColor }}
+        />
+        <span
+          className="text-[10px] font-semibold truncate"
+          style={{ color: groupColor }}
+        >
+          {groupName}
+        </span>
+        <span
+          className="text-[9px] opacity-70 shrink-0"
+          style={{ color: groupColor }}
+        >
+          {itemCount}件
+        </span>
+        <span
+          className="text-[9px] opacity-60 shrink-0 ml-auto"
+          style={{ color: groupColor }}
+        >
+          {timeRange}
+        </span>
+      </div>
+      {/* Body area */}
+      <div
+        className="w-full h-full"
+        style={{
+          backgroundColor: `${groupColor}08`,
+        }}
+      />
     </div>
   );
 }

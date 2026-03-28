@@ -36,7 +36,7 @@ function formatTimeRange(start: string, end: string): string {
   return `${start} - ${end}`;
 }
 
-const ACTION_WIDTH = 72;
+const ACTION_WIDTH = 88;
 
 export function ScheduleItemBlock({
   item,
@@ -58,14 +58,14 @@ export function ScheduleItemBlock({
   onShowPreview,
 }: ScheduleItemBlockProps) {
   const isCompact = height < 36;
-  const isTiny = height < 24;
+  const isTiny = height < 28;
   const [showInlineMemo, setShowInlineMemo] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
 
   const { isOpen, translateX, isScrolling, close, containerRef } =
     useSwipeAction({ actionWidth: ACTION_WIDTH });
 
-  const hoveredHeight = isTiny && isHovered ? 40 : Math.max(height, 20);
+  const hoveredHeight = isTiny && isHovered ? 40 : Math.max(height, 28);
 
   return (
     <div
@@ -83,7 +83,7 @@ export function ScheduleItemBlock({
       {/* Action panel behind */}
       {(isOpen || translateX < 0) && (
         <div
-          className="absolute top-0 right-0 h-full flex items-stretch"
+          className="absolute top-0 right-0 h-full flex items-center gap-1 px-1"
           style={{ width: ACTION_WIDTH }}
         >
           {onUpdateMemo && (
@@ -93,9 +93,10 @@ export function ScheduleItemBlock({
                 close();
                 setShowInlineMemo(true);
               }}
-              className="flex-1 flex items-center justify-center bg-blue-500 text-white hover:bg-blue-600 transition-colors"
+              className="flex-1 flex flex-col items-center justify-center gap-0.5 h-[calc(100%-4px)] rounded-lg bg-blue-500 text-white hover:bg-blue-600 transition-colors"
             >
-              <StickyNote size={16} />
+              <StickyNote size={14} />
+              <span className="text-[8px] leading-none">Memo</span>
             </button>
           )}
           {onDelete && (
@@ -109,9 +110,10 @@ export function ScheduleItemBlock({
                   onDelete(item.id);
                 }
               }}
-              className="flex-1 flex items-center justify-center bg-red-500 text-white hover:bg-red-600 transition-colors"
+              className="flex-1 flex flex-col items-center justify-center gap-0.5 h-[calc(100%-4px)] rounded-lg bg-red-500 text-white hover:bg-red-600 transition-colors"
             >
-              <Trash2 size={16} />
+              <Trash2 size={14} />
+              <span className="text-[8px] leading-none">Del</span>
             </button>
           )}
         </div>
@@ -145,7 +147,11 @@ export function ScheduleItemBlock({
                 : "var(--color-notion-text-secondary)"
           }`,
           opacity: isDragging ? 0.4 : undefined,
-          boxShadow: isHovered ? "0 4px 12px rgba(0,0,0,0.15)" : undefined,
+          boxShadow: isHovered
+            ? "0 4px 12px rgba(0,0,0,0.15)"
+            : translateX < 0
+              ? "4px 0 8px rgba(0,0,0,0.1)"
+              : undefined,
         }}
         onClick={(e) => {
           if (isDragging) return;

@@ -1,5 +1,18 @@
 # HISTORY.md - 変更履歴
 
+### 2026-03-28 - DayFlow TimeGrid UI improvements (Group Header / Action Panel / Short Item)
+
+#### 概要
+
+DayFlowのTimeGridにおけるGroupFrame、アクションパネル、短時間アイテムの3つのUI改善を実施。
+
+#### 変更点
+
+- **GroupFrame ヘッダーバー**: 枠上部に20pxのヘッダーバーを追加。グループ名・アイテム数・時間範囲を表示し、先頭アイテムとの被りを解消
+- **アクションパネルUI**: 角丸ボタン＋テキストラベル（Memo/Del/Go/Remove）に改善。スライド時のメインコンテンツ右端にシャドウ追加
+- **短時間アイテム視認性**: 最小高さを20px→28pxに拡大（MIN_ITEM_HEIGHT定数導入）。isTiny閾値を調整
+- **対象ファイル**: GroupFrame.tsx, ScheduleTimeGrid.tsx, ScheduleItemBlock.tsx, TimeGridTaskBlock.tsx
+
 ### 2026-03-28 - DayFlow swipe action to hover + horizontal scroll
 
 #### 概要

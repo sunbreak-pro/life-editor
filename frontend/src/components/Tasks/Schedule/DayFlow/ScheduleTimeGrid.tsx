@@ -21,6 +21,7 @@ const HOURS = Array.from(
   (_, i) => i + TIME_GRID.START_HOUR,
 );
 const GUTTER_WIDTH = 52;
+const MIN_ITEM_HEIGHT = 28;
 
 type UnifiedItemKind = "schedule" | "task";
 
@@ -42,12 +43,16 @@ function formatHour(hour: number): string {
   return `${hour - 12} PM`;
 }
 
+const GROUP_HEADER_HEIGHT = 20;
+
 interface ComputedGroupFrame {
   groupId: string;
   groupName: string;
   groupColor: string;
   top: number;
   height: number;
+  itemCount: number;
+  timeRange: string;
 }
 
 function rangesOverlap(
@@ -73,7 +78,7 @@ function layoutAllItems(
     const top = (startMin / 60 - TIME_GRID.START_HOUR) * TIME_GRID.SLOT_HEIGHT;
     const height = Math.max(
       ((endMin - startMin) / 60) * TIME_GRID.SLOT_HEIGHT,
-      20,
+      MIN_ITEM_HEIGHT,
     );
     items.push({
       id: si.id,
@@ -110,7 +115,10 @@ function layoutAllItems(
       (clampedEnd.getTime() - clampedStart.getTime()) / 60000,
       0,
     );
-    const height = Math.max((durationMinutes / 60) * TIME_GRID.SLOT_HEIGHT, 20);
+    const height = Math.max(
+      (durationMinutes / 60) * TIME_GRID.SLOT_HEIGHT,
+      MIN_ITEM_HEIGHT,
+    );
     items.push({
       id: task.id,
       kind: "task",
@@ -342,7 +350,7 @@ export function ScheduleTimeGrid({
     if (!routineGroups?.length || !groupForRoutine) return [];
     const frames = new Map<
       string,
-      { group: RoutineGroup; minTop: number; maxBottom: number }
+      { group: RoutineGroup; minTop: number; maxBottom: number; count: number }
     >();
     for (const item of unifiedItems) {
       if (item.kind !== "schedule" || !item.scheduleItem?.routineId) continue;
@@ -353,26 +361,45 @@ export function ScheduleTimeGrid({
       if (existing) {
         existing.minTop = Math.min(existing.minTop, item.top);
         existing.maxBottom = Math.max(existing.maxBottom, bottom);
+        existing.count += 1;
       } else {
-        frames.set(group.id, { group, minTop: item.top, maxBottom: bottom });
+        frames.set(group.id, {
+          group,
+          minTop: item.top,
+          maxBottom: bottom,
+          count: 1,
+        });
       }
     }
-    return Array.from(frames.values()).map(({ group, minTop, maxBottom }) => ({
-      groupId: group.id,
-      groupName: group.name,
-      groupColor: group.color,
-      top: minTop,
-      height: maxBottom - minTop,
-    }));
+    return Array.from(frames.values()).map(
+      ({ group, minTop, maxBottom, count }) => {
+        const startStr = minutesToTimeString(topToMinutes(minTop));
+        const endStr = minutesToTimeString(topToMinutes(maxBottom));
+        return {
+          groupId: group.id,
+          groupName: group.name,
+          groupColor: group.color,
+          top: minTop - GROUP_HEADER_HEIGHT,
+          height: maxBottom - minTop + GROUP_HEADER_HEIGHT,
+          itemCount: count,
+          timeRange: `${startStr} - ${endStr}`,
+        };
+      },
+    );
   }, [unifiedItems, routineGroups, groupForRoutine]);
 
-  // Check if tasks overlap with any group frame
+  // Check if tasks overlap with any group frame (exclude header area from overlap check)
   const hasRoutineTaskSplit = useMemo(() => {
     if (groupFrames.length === 0) return false;
     return unifiedItems.some((item) => {
       if (item.kind !== "task") return false;
       return groupFrames.some((gf) =>
-        rangesOverlap(item.top, item.height, gf.top, gf.height),
+        rangesOverlap(
+          item.top,
+          item.height,
+          gf.top + GROUP_HEADER_HEIGHT,
+          gf.height - GROUP_HEADER_HEIGHT,
+        ),
       );
     });
   }, [unifiedItems, groupFrames]);
@@ -474,6 +501,9 @@ export function ScheduleTimeGrid({
             groupColor={gf.groupColor}
             top={gf.top}
             height={gf.height}
+            itemCount={gf.itemCount}
+            timeRange={gf.timeRange}
+            headerHeight={GROUP_HEADER_HEIGHT}
             left={hasRoutineTaskSplit ? "2px" : undefined}
             width={
               hasRoutineTaskSplit
@@ -517,7 +547,12 @@ export function ScheduleTimeGrid({
             hasRoutineTaskSplit &&
             item.kind === "task" &&
             groupFrames.some((gf) =>
-              rangesOverlap(item.top, item.height, gf.top, gf.height),
+              rangesOverlap(
+                item.top,
+                item.height,
+                gf.top + GROUP_HEADER_HEIGHT,
+                gf.height - GROUP_HEADER_HEIGHT,
+              ),
             )
           ) {
             // Task overlapping group → right column

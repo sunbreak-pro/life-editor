@@ -31,7 +31,7 @@ interface TimeGridTaskBlockProps {
   onShowPreview?: (task: TaskNode, position: { x: number; y: number }) => void;
 }
 
-const ACTION_WIDTH = 108;
+const ACTION_WIDTH = 132;
 
 export function TimeGridTaskBlock({
   task,
@@ -60,7 +60,7 @@ export function TimeGridTaskBlock({
       : "#4338CA";
   const borderColor = isCompleted ? "#9CA3AF" : textColor;
   const isCompact = height < 40;
-  const isTiny = height < 24;
+  const isTiny = height < 28;
   const hasTimeMemo = !!task.timeMemo;
   const [showInlineMemo, setShowInlineMemo] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
@@ -68,7 +68,7 @@ export function TimeGridTaskBlock({
   const { isOpen, translateX, isScrolling, close, containerRef } =
     useSwipeAction({ actionWidth: ACTION_WIDTH });
 
-  const hoveredHeight = isTiny && isHovered ? 40 : Math.max(height, 20);
+  const hoveredHeight = isTiny && isHovered ? 40 : Math.max(height, 28);
 
   return (
     <div
@@ -85,7 +85,7 @@ export function TimeGridTaskBlock({
       {/* Action panel behind */}
       {(isOpen || translateX < 0) && (
         <div
-          className="absolute top-0 right-0 h-full flex items-stretch"
+          className="absolute top-0 right-0 h-full flex items-center gap-1 px-1"
           style={{ width: ACTION_WIDTH }}
         >
           {onUpdateTimeMemo && (
@@ -95,9 +95,10 @@ export function TimeGridTaskBlock({
                 close();
                 setShowInlineMemo(true);
               }}
-              className="flex-1 flex items-center justify-center bg-blue-500 text-white hover:bg-blue-600 transition-colors"
+              className="flex-1 flex flex-col items-center justify-center gap-0.5 h-[calc(100%-4px)] rounded-lg bg-blue-500 text-white hover:bg-blue-600 transition-colors"
             >
-              <StickyNote size={16} />
+              <StickyNote size={14} />
+              <span className="text-[8px] leading-none">Memo</span>
             </button>
           )}
           {onNavigate && (
@@ -107,9 +108,10 @@ export function TimeGridTaskBlock({
                 close();
                 onNavigate(task.id, e);
               }}
-              className="flex-1 flex items-center justify-center bg-indigo-500 text-white hover:bg-indigo-600 transition-colors"
+              className="flex-1 flex flex-col items-center justify-center gap-0.5 h-[calc(100%-4px)] rounded-lg bg-indigo-500 text-white hover:bg-indigo-600 transition-colors"
             >
-              <ArrowUpRight size={16} />
+              <ArrowUpRight size={14} />
+              <span className="text-[8px] leading-none">Go</span>
             </button>
           )}
           {onUnschedule && (
@@ -119,9 +121,10 @@ export function TimeGridTaskBlock({
                 close();
                 onUnschedule(task.id);
               }}
-              className="flex-1 flex items-center justify-center bg-red-500 text-white hover:bg-red-600 transition-colors"
+              className="flex-1 flex flex-col items-center justify-center gap-0.5 h-[calc(100%-4px)] rounded-lg bg-red-500 text-white hover:bg-red-600 transition-colors"
             >
-              <X size={16} />
+              <X size={14} />
+              <span className="text-[8px] leading-none">Remove</span>
             </button>
           )}
         </div>
@@ -164,7 +167,11 @@ export function TimeGridTaskBlock({
           backgroundColor: bgColor,
           borderLeft: `3px solid ${borderColor}`,
           opacity: isDragging ? 0.4 : undefined,
-          boxShadow: isHovered ? "0 4px 12px rgba(0,0,0,0.15)" : undefined,
+          boxShadow: isHovered
+            ? "0 4px 12px rgba(0,0,0,0.15)"
+            : translateX < 0
+              ? "4px 0 8px rgba(0,0,0,0.1)"
+              : undefined,
         }}
       >
         {/* Resize handle - top */}
