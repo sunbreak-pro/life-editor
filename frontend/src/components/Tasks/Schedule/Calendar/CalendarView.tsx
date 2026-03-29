@@ -39,6 +39,7 @@ interface CalendarViewProps {
   onFilterFolderChange?: (folderId: string | null) => void;
   contentFilter?: CalendarContentFilter;
   onDateSelect?: (date: Date) => void;
+  onOpenRoutineManagement?: () => void;
 }
 
 function getInitialWeekStart(): Date {
@@ -59,6 +60,7 @@ export function CalendarView({
   onFilterFolderChange,
   contentFilter,
   onDateSelect,
+  onOpenRoutineManagement,
 }: CalendarViewProps) {
   const { nodes, getTaskColor, getFolderTagForTask, softDelete, updateNode } =
     useTaskTreeContext();
@@ -317,6 +319,7 @@ export function CalendarView({
             days={calendarDays}
             itemsByDate={filteredItemsByDate}
             onSelectItem={handleItemClick}
+            onOpenRoutineManagement={onOpenRoutineManagement}
             onCreateTask={onCreateTask ? handleRequestCreate : undefined}
             onCreateNote={handleRequestCreateNote}
             getTaskColor={getTaskColor}

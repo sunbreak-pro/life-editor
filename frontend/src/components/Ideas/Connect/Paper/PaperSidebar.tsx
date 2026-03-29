@@ -8,12 +8,14 @@ import {
   Check,
   X,
   StickyNote,
+  Layers,
 } from "lucide-react";
-import type { PaperBoard } from "../../../../types/paperBoard";
+import type { PaperBoard, PaperNode } from "../../../../types/paperBoard";
 import type { NoteNode } from "../../../../types/note";
 import { SearchBar, type SearchSuggestion } from "../../../shared/SearchBar";
 import { CollapsibleSection } from "../../../shared/CollapsibleSection";
 import { BoardCreateDialog } from "./BoardCreateDialog";
+import { PaperLayersPanel } from "./PaperLayersPanel";
 
 interface PaperSidebarProps {
   boards: PaperBoard[];
@@ -25,11 +27,16 @@ interface PaperSidebarProps {
   notes: NoteNode[];
   onOpenNoteBoard: (noteId: string, noteName: string) => void;
   boardNodeCounts: Record<string, number>;
+  paperNodes?: PaperNode[];
+  selectedNodeIds?: string[];
+  onSelectNode?: (nodeId: string) => void;
+  onUpdateNodeZIndex?: (id: string, zIndex: number) => void;
 }
 
 interface SectionsState {
   boards: boolean;
   notes: boolean;
+  layers: boolean;
 }
 
 const SECTIONS_KEY = "life-editor-paper-sidebar-sections";
@@ -42,12 +49,13 @@ function loadSectionsState(): SectionsState {
       return {
         boards: parsed.boards ?? true,
         notes: parsed.notes ?? true,
+        layers: parsed.layers ?? true,
       };
     }
   } catch {
     // ignore
   }
-  return { boards: true, notes: true };
+  return { boards: true, notes: true, layers: true };
 }
 
 function saveSectionsState(state: SectionsState): void {
@@ -64,6 +72,10 @@ export function PaperSidebar({
   notes,
   onOpenNoteBoard,
   boardNodeCounts,
+  paperNodes,
+  selectedNodeIds,
+  onSelectNode,
+  onUpdateNodeZIndex,
 }: PaperSidebarProps) {
   const { t } = useTranslation();
   const [sections, setSections] = useState<SectionsState>(loadSectionsState);
@@ -336,6 +348,23 @@ export function PaperSidebar({
             activeNotes.map(renderNoteItem)
           )}
         </CollapsibleSection>
+
+        {/* Layers */}
+        {paperNodes && onSelectNode && onUpdateNodeZIndex && (
+          <CollapsibleSection
+            label="Layers"
+            icon={<Layers size={12} />}
+            isOpen={sections.layers}
+            onToggle={() => toggleSection("layers")}
+          >
+            <PaperLayersPanel
+              nodes={paperNodes}
+              selectedNodeIds={selectedNodeIds ?? []}
+              onSelectNode={onSelectNode}
+              onUpdateNodeZIndex={onUpdateNodeZIndex}
+            />
+          </CollapsibleSection>
+        )}
       </div>
 
       {showCreateDialog && (

@@ -1,5 +1,5 @@
 import { useState, useRef } from "react";
-import { ListTodo, FileText } from "lucide-react";
+import { Repeat, ListTodo, FileText } from "lucide-react";
 import type { CalendarItem } from "../../../../types/calendarItem";
 import { CalendarItemChip } from "./CalendarItemChip";
 import { useClickOutside } from "../../../../hooks/useClickOutside";
@@ -10,6 +10,7 @@ interface DayCellProps {
   isToday: boolean;
   items: CalendarItem[];
   onSelectItem: (item: CalendarItem, event: React.MouseEvent) => void;
+  onOpenRoutineManagement?: () => void;
   onCreateTask?: (date: Date, event: React.MouseEvent) => void;
   onCreateNote?: (date: Date, event: React.MouseEvent) => void;
   getTaskColor?: (taskId: string) => string | undefined;
@@ -25,6 +26,7 @@ export function DayCell({
   isToday,
   items,
   onSelectItem,
+  onOpenRoutineManagement,
   onCreateTask,
   onCreateNote,
   getTaskColor,
@@ -60,6 +62,18 @@ export function DayCell({
           {date.getDate()}
         </button>
         <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+          {onOpenRoutineManagement && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onOpenRoutineManagement();
+              }}
+              className="w-5.5 h-5.5 flex items-center justify-center rounded hover:bg-notion-hover text-notion-text-secondary"
+              title="Routine"
+            >
+              <Repeat size={12} />
+            </button>
+          )}
           {onCreateTask && (
             <button
               onClick={(e) => {

@@ -83,6 +83,7 @@ export function ScheduleSection({
   const activeTab = externalActiveTab ?? internalActiveTab;
   const setActiveTab = externalOnTabChange ?? setInternalActiveTab;
   const [dayFlowDate, setDayFlowDate] = useState<Date>(() => new Date());
+  const [showRoutineManagement, setShowRoutineManagement] = useState(false);
   const [dayFlowFilterTab, setDayFlowFilterTab] =
     useState<DayFlowFilterTab>("all");
   const [isDualColumn, setIsDualColumn] = useState<boolean>(() => {
@@ -417,6 +418,15 @@ export function ScheduleSection({
         createPortal(
           <ScheduleSidebarContent
             routineStats={routineStats}
+            showManagement={showRoutineManagement}
+            onShowManagementChange={setShowRoutineManagement}
+            activeDate={
+              activeTab === "dayflow"
+                ? dayFlowDate
+                : activeTab === "calendar"
+                  ? calendarProgressDate
+                  : undefined
+            }
             onSelectTask={(taskId) => {
               onSelectTask?.(taskId);
               setActiveTab("tasks");
@@ -472,6 +482,7 @@ export function ScheduleSection({
             onFilterFolderChange={setCalendarFilterFolderId}
             contentFilter={calendarContentFilter}
             onDateSelect={handleCalendarDateSelect}
+            onOpenRoutineManagement={() => setShowRoutineManagement(true)}
           />
         ) : activeTab === "tasks" ? (
           <ScheduleTasksContent

@@ -1,5 +1,6 @@
 import { memo, useState, useCallback, useRef, useEffect } from "react";
 import { NodeResizer, type NodeProps } from "@xyflow/react";
+import { Pencil } from "lucide-react";
 import { UnifiedColorPicker } from "../../../shared/UnifiedColorPicker";
 
 export type PaperFrameData = {
@@ -82,28 +83,37 @@ function PaperFrameNodeInner({
             />
           ) : (
             <span
-              className="text-[10px] font-medium text-notion-text-secondary cursor-pointer"
+              className="text-[10px] font-medium text-notion-text-secondary cursor-pointer hover:underline hover:decoration-dashed"
               onDoubleClick={() => setEditingLabel(true)}
             >
               {label || "Frame"}
             </span>
           )}
           {selected && (
-            <div className="relative nodrag">
+            <div className="flex items-center gap-0.5 nodrag">
               <button
-                onClick={() => setShowColors(!showColors)}
-                className="w-3 h-3 rounded-full border border-notion-border"
-                style={{ backgroundColor: bgColor }}
-              />
-              {showColors && (
-                <div className="nodrag">
-                  <UnifiedColorPicker
-                    color={bgColor}
-                    onChange={handleColorSelect}
-                    onClose={() => setShowColors(false)}
-                  />
-                </div>
-              )}
+                onClick={() => setEditingLabel(true)}
+                className="p-0.5 rounded hover:bg-notion-hover text-notion-text-secondary hover:text-notion-text"
+                title="Edit name"
+              >
+                <Pencil size={10} />
+              </button>
+              <div className="relative">
+                <button
+                  onClick={() => setShowColors(!showColors)}
+                  className="w-3 h-3 rounded-full border border-notion-border"
+                  style={{ backgroundColor: bgColor }}
+                />
+                {showColors && (
+                  <div className="nodrag">
+                    <UnifiedColorPicker
+                      color={bgColor}
+                      onChange={handleColorSelect}
+                      onClose={() => setShowColors(false)}
+                    />
+                  </div>
+                )}
+              </div>
             </div>
           )}
         </div>

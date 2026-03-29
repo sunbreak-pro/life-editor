@@ -61,6 +61,9 @@ export function ConnectView({ onNavigateToNote }: ConnectViewProps) {
   const [connectQuery, setConnectQuery] = useState("");
   const [selectedTagId, setSelectedTagId] = useState<string | null>(null);
   const [focusedNoteId, setFocusedNoteId] = useState<string | null>(null);
+  const [canvasSelectedNodeIds, setCanvasSelectedNodeIds] = useState<string[]>(
+    [],
+  );
   const [sidebarSelectedItemId, setSidebarSelectedItemId] = useState<
     string | null
   >(null);
@@ -204,6 +207,10 @@ export function ConnectView({ onNavigateToNote }: ConnectViewProps) {
               paper.openBoardForNote(noteId, noteName)
             }
             boardNodeCounts={paper.boardNodeCounts}
+            paperNodes={paper.nodes}
+            selectedNodeIds={canvasSelectedNodeIds}
+            onSelectNode={(nodeId) => setCanvasSelectedNodeIds([nodeId])}
+            onUpdateNodeZIndex={paper.updateNodeZIndex}
           />
         );
     }
@@ -252,6 +259,7 @@ export function ConnectView({ onNavigateToNote }: ConnectViewProps) {
               onDeleteEdge={paper.deleteEdge}
               onSaveViewport={paper.saveViewport}
               onNavigateToNote={handleNavigateToNote}
+              onSelectionChanged={setCanvasSelectedNodeIds}
             />
           </ReactFlowProvider>
         );

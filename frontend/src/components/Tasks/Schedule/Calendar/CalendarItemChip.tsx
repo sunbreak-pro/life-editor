@@ -1,3 +1,4 @@
+import { CheckSquare, BookOpen, StickyNote } from "lucide-react";
 import type { CalendarItem } from "../../../../types/calendarItem";
 import { CALENDAR_ITEM_COLORS } from "../../../../types/calendarItem";
 import { getTextColorForBg } from "../../../../constants/folderColors";
@@ -34,12 +35,7 @@ export function CalendarItemChip({
             : undefined
         }
       >
-        {color && !isDone && (
-          <span
-            className="w-1.5 h-1.5 rounded-full shrink-0"
-            style={{ backgroundColor: textColor }}
-          />
-        )}
+        <CheckSquare size={10} className="shrink-0" />
         <span className="truncate">{item.title}</span>
       </button>
     );
@@ -51,16 +47,15 @@ export function CalendarItemChip({
       ? CALENDAR_ITEM_COLORS.daily
       : CALENDAR_ITEM_COLORS.note;
 
+  const Icon = item.type === "daily" ? BookOpen : StickyNote;
+
   return (
     <button
       onClick={onClick}
       className="w-full text-left px-1.5 py-1 rounded text-xs truncate transition-colors flex items-center gap-1 hover:opacity-80"
       style={{ backgroundColor: `${dotColor}20`, color: dotColor }}
     >
-      <span
-        className="w-1.5 h-1.5 rounded-full shrink-0"
-        style={{ backgroundColor: dotColor }}
-      />
+      <Icon size={10} className="shrink-0" />
       <span className="truncate">{item.title}</span>
     </button>
   );

@@ -1,12 +1,10 @@
-import { useState, useMemo, useCallback, useRef, useEffect } from "react";
-import { createPortal } from "react-dom";
-import { Plus, Pencil, Trash2, Archive, X, Tag, Layers } from "lucide-react";
+import { useState, useMemo, useCallback } from "react";
+import { Plus, Pencil, Trash2, Archive, X, Layers } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import type { RoutineNode } from "../../../../types/routine";
 import type { RoutineTag } from "../../../../types/routineTag";
 import type { RoutineGroup } from "../../../../types/routineGroup";
 import { RoutineEditDialog } from "./RoutineEditDialog";
-import { RoutineTagEditPopover } from "./RoutineTagEditPopover";
 import { RoutineGroupEditDialog } from "./RoutineGroupEditDialog";
 import { RoutineEditTimeChangeDialog } from "./RoutineEditTimeChangeDialog";
 import { getTextColorForBg } from "../../../../constants/folderColors";
@@ -92,15 +90,6 @@ export function RoutineManagementOverlay({
   const [groupEditDialog, setGroupEditDialog] = useState<
     RoutineGroup | "new" | null
   >(null);
-
-  // Tag popover state
-  const [editingTagId, setEditingTagId] = useState<number | null>(null);
-  const [editTagAnchorEl, setEditTagAnchorEl] = useState<HTMLElement | null>(
-    null,
-  );
-  const [showAllTags, setShowAllTags] = useState(false);
-  const allTagsButtonRef = useRef<HTMLButtonElement>(null);
-  const allTagsPopoverRef = useRef<HTMLDivElement>(null);
 
   // Pending time change confirmation
   const [pendingTimeChange, setPendingTimeChange] = useState<{
@@ -213,16 +202,6 @@ export function RoutineManagementOverlay({
     [routinesByGroup, onUpdateRoutine],
   );
 
-  const openTagPopover = useCallback((tagId: number, el: HTMLElement) => {
-    setEditingTagId(tagId);
-    setEditTagAnchorEl(el);
-  }, []);
-
-  const closeTagPopover = useCallback(() => {
-    setEditingTagId(null);
-    setEditTagAnchorEl(null);
-  }, []);
-
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/30"
@@ -236,24 +215,12 @@ export function RoutineManagementOverlay({
           <h3 className="text-base font-semibold text-notion-text">
             {t("dayFlow.routineManagement", "Routine Management")}
           </h3>
-          <div className="flex items-center gap-1">
-            <div className="relative">
-              <button
-                ref={allTagsButtonRef}
-                onClick={() => setShowAllTags((v) => !v)}
-                className="p-1 text-notion-text-secondary hover:text-notion-text rounded transition-colors"
-                title={t("schedule.manageTags", "Manage Tags")}
-              >
-                <Tag size={16} />
-              </button>
-            </div>
-            <button
-              onClick={onClose}
-              className="p-1 text-notion-text-secondary hover:text-notion-text rounded transition-colors"
-            >
-              <X size={16} />
-            </button>
-          </div>
+          <button
+            onClick={onClose}
+            className="p-1 text-notion-text-secondary hover:text-notion-text rounded transition-colors"
+          >
+            <X size={16} />
+          </button>
         </div>
 
         {/* Content - 2 columns */}
@@ -298,14 +265,10 @@ export function RoutineManagementOverlay({
                           return tag ? (
                             <span
                               key={tag.id}
-                              className="inline-flex items-center px-1.5 py-0 text-[10px] rounded-full shrink-0 cursor-pointer hover:opacity-80 transition-opacity"
+                              className="inline-flex items-center px-1.5 py-0 text-[10px] rounded-full shrink-0"
                               style={{
                                 backgroundColor: tag.color,
                                 color: getTextColorForBg(tag.color),
-                              }}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                openTagPopover(tag.id, e.currentTarget);
                               }}
                             >
                               {tag.name}
@@ -459,36 +422,6 @@ export function RoutineManagementOverlay({
         </div>
       </div>
 
-      {/* All Tags dropdown */}
-      {showAllTags && allTagsButtonRef.current && (
-        <AllTagsDropdown
-          anchorEl={allTagsButtonRef.current}
-          popoverRef={allTagsPopoverRef}
-          tags={routineTags}
-          onTagClick={(tag, el) => {
-            setShowAllTags(false);
-            openTagPopover(tag.id, el);
-          }}
-          onClose={() => setShowAllTags(false)}
-        />
-      )}
-
-      {/* Tag edit popover */}
-      {editingTagId !== null &&
-        editTagAnchorEl &&
-        (() => {
-          const tag = routineTags.find((t) => t.id === editingTagId);
-          return tag ? (
-            <RoutineTagEditPopover
-              tag={tag}
-              anchorEl={editTagAnchorEl}
-              onUpdate={onUpdateRoutineTag}
-              onDelete={onDeleteRoutineTag}
-              onClose={closeTagPopover}
-            />
-          ) : null;
-        })()}
-
       {editDialog && (
         <RoutineEditDialog
           routine={editDialog === "new" ? undefined : editDialog}
@@ -560,84 +493,5 @@ export function RoutineManagementOverlay({
         />
       )}
     </div>
-  );
-}
-
-// --- All Tags Dropdown ---
-
-interface AllTagsDropdownProps {
-  anchorEl: HTMLElement;
-  popoverRef: React.RefObject<HTMLDivElement | null>;
-  tags: RoutineTag[];
-  onTagClick: (tag: RoutineTag, el: HTMLElement) => void;
-  onClose: () => void;
-}
-
-function AllTagsDropdown({
-  anchorEl,
-  popoverRef,
-  tags,
-  onTagClick,
-  onClose,
-}: AllTagsDropdownProps) {
-  const { t } = useTranslation();
-  const [position, setPosition] = useState({ top: 0, left: 0 });
-
-  useEffect(() => {
-    const rect = anchorEl.getBoundingClientRect();
-    const dropdownWidth = 200;
-    let left = rect.left;
-    if (left + dropdownWidth > window.innerWidth - 8) {
-      left = window.innerWidth - dropdownWidth - 8;
-    }
-    setPosition({ top: rect.bottom + 4, left: Math.max(8, left) });
-  }, [anchorEl]);
-
-  useEffect(() => {
-    const handleMouseDown = (e: MouseEvent) => {
-      if (
-        popoverRef.current &&
-        !popoverRef.current.contains(e.target as Node)
-      ) {
-        onClose();
-      }
-    };
-    document.addEventListener("mousedown", handleMouseDown);
-    return () => document.removeEventListener("mousedown", handleMouseDown);
-  }, [onClose, popoverRef]);
-
-  return createPortal(
-    <div
-      ref={popoverRef}
-      className="fixed z-[9999] bg-notion-bg border border-notion-border rounded-lg shadow-lg w-50 overflow-hidden"
-      style={{ top: position.top, left: position.left }}
-    >
-      <div className="p-1.5 border-b border-notion-border">
-        <span className="text-[11px] text-notion-text-secondary uppercase tracking-wide font-medium px-1">
-          {t("schedule.manageTags", "Manage Tags")}
-        </span>
-      </div>
-      <div className="max-h-48 overflow-y-auto p-1">
-        {tags.map((tag) => (
-          <button
-            key={tag.id}
-            onClick={(e) => onTagClick(tag, e.currentTarget)}
-            className="w-full flex items-center gap-2 px-2 py-1.5 rounded text-sm text-left hover:bg-notion-hover text-notion-text transition-colors"
-          >
-            <span
-              className="w-3 h-3 rounded-full shrink-0"
-              style={{ backgroundColor: tag.color }}
-            />
-            <span className="truncate">{tag.name}</span>
-          </button>
-        ))}
-        {tags.length === 0 && (
-          <p className="text-[11px] text-notion-text-secondary px-2 py-1 text-center">
-            No tags yet.
-          </p>
-        )}
-      </div>
-    </div>,
-    document.body,
   );
 }

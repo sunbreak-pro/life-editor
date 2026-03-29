@@ -366,6 +366,15 @@ export function usePaperBoard() {
     [],
   );
 
+  const updateNodeZIndex = useCallback(
+    async (id: string, newZIndex: number) => {
+      const ds = getDataService();
+      const updated = await ds.updatePaperNode(id, { zIndex: newZIndex });
+      setNodes((prev) => prev.map((n) => (n.id === id ? updated : n)));
+    },
+    [],
+  );
+
   // Reload board data (after switching)
   const reloadBoardData = useCallback(async () => {
     if (!activeBoardId) return;
@@ -405,5 +414,6 @@ export function usePaperBoard() {
     deleteEdge,
     openBoardForNote,
     reloadBoardData,
+    updateNodeZIndex,
   };
 }

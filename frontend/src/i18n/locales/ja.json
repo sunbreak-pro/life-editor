@@ -293,6 +293,7 @@
   },
   "schedule": {
     "todayFlow": "Today Flow",
+    "noItems": "この日のアイテムはありません",
     "dayFlow": "Day Flow",
     "routines": "ルーティン",
     "newRoutine": "ルーティンを追加",

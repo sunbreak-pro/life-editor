@@ -293,6 +293,7 @@
   },
   "schedule": {
     "todayFlow": "Today Flow",
+    "noItems": "No items for this day",
     "dayFlow": "Day Flow",
     "routines": "Routines",
     "newRoutine": "New Routine",

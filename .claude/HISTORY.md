@@ -1,5 +1,21 @@
 # HISTORY.md - 変更履歴
 
+### 2026-03-29 - Board機能強化 + セクション再構成 + UI改善
+
+#### 概要
+
+Ideasセクションを Connect + Materials に分割再構成。Board タブのテキストノード位置ズレ修正、削除UI+Undo/Redo追加、フレーム名編集ボタン追加、レイヤー階層パネル追加。RoutineManagementPanelのTag UI削除。カレンダーアイテムにタイプ別アイコン追加。
+
+#### 変更点
+
+- **セクション再構成**: Ideas セクションを Connect（Node+Board タブ）と Materials（Daily+Notes タブ）に分離。SectionId型、サイドバー、ルーティング、ショートカット、コマンド、AIActions、Layout等14ファイル以上を更新
+- **テキストノード位置ズレ修正**: handleNodeDragStop のフレームグルーピング検出を bulkUpdatePositions 前に移動しレースコンディション解消。rfNodes 配列の親子順序ソート追加、DB側クエリも parent_node_id 優先ソートに変更
+- **削除UI + Undo/Redo**: UndoDomain に "paper" 追加。deleteNode を undo/redo コマンドでラップ（ノード・エッジ・子ノード完全復元対応）。createPaperNode に任意 id パラメータ追加。ツールバーに Trash2 削除ボタン追加、Backspace キー対応
+- **フレーム名編集ボタン**: PaperFrameNode にフレーム選択時 Pencil アイコンボタン追加。ラベルに hover:underline 追加
+- **レイヤー階層パネル**: PaperLayersPanel 新規作成（フレーム>子ノードのツリー表示、zIndex↑↓操作）。PaperSidebar に Layers セクション統合。キャンバス⇔レイヤー双方向選択同期
+- **Routine Tag UI削除**: RoutineManagementOverlay ヘッダーの Tag アイコンボタン、AllTagsDropdown、RoutineTagEditPopover 呼び出し、関連 state/callback を全削除
+- **カレンダーアイコン**: CalendarItemChip の丸ドットをタイプ別アイコンに置換（Task→CheckSquare、Daily→BookOpen、Note→StickyNote）
+
 ### 2026-03-29 - Replace floating file picker with inline FileUploadPlaceholder block
 
 #### 概要

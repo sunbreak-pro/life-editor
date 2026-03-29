@@ -2,35 +2,52 @@ import { useMemo } from "react";
 import { CircleDot, CheckCircle2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useTaskTreeContext } from "../../hooks/useTaskTreeContext";
+import { formatDateKey } from "../../utils/dateKey";
 
 interface InProgressTasksListProps {
+  date?: Date;
   onSelectTask?: (taskId: string) => void;
 }
 
 export function InProgressTasksList({
+  date,
   onSelectTask,
 }: InProgressTasksListProps) {
   const { t } = useTranslation();
   const { nodes, setTaskStatus } = useTaskTreeContext();
 
+  const dateKey = date ? formatDateKey(date) : null;
+
   const inProgressTasks = useMemo(
     () =>
-      nodes.filter(
-        (n) => n.type === "task" && n.status === "IN_PROGRESS" && !n.isDeleted,
-      ),
-    [nodes],
+      nodes.filter((n) => {
+        if (n.type !== "task" || n.status !== "IN_PROGRESS" || n.isDeleted)
+          return false;
+        if (!dateKey) return true;
+        if (!n.scheduledAt) return false;
+        return formatDateKey(new Date(n.scheduledAt)) === dateKey;
+      }),
+    [nodes, dateKey],
   );
 
   const completedTasks = useMemo(
     () =>
       nodes
-        .filter((n) => n.type === "task" && n.status === "DONE" && !n.isDeleted)
+        .filter((n) => {
+          if (n.type !== "task" || n.status !== "DONE" || n.isDeleted)
+            return false;
+          if (!dateKey) return true;
+          if (!n.scheduledAt) return false;
+          return formatDateKey(new Date(n.scheduledAt)) === dateKey;
+        })
         .sort((a, b) =>
           (b.completedAt ?? "").localeCompare(a.completedAt ?? ""),
         )
         .slice(0, 10),
-    [nodes],
+    [nodes, dateKey],
   );
+
+  if (inProgressTasks.length === 0 && completedTasks.length === 0) return null;
 
   return (
     <div className="space-y-2">
@@ -73,18 +90,18 @@ export function InProgressTasksList({
         </div>
       )}
 
-      {/* Completed Section - always visible */}
-      <div className="border border-notion-border rounded-lg p-2">
-        <div className="flex items-center gap-1">
-          <CheckCircle2 size={12} className="text-green-500" />
-          <span className="text-[10px] text-notion-text-secondary uppercase tracking-wide font-medium">
-            {t("taskStatus.done")}
-          </span>
-          <span className="text-[10px] text-notion-text-secondary ml-auto">
-            {completedTasks.length}
-          </span>
-        </div>
-        {completedTasks.length > 0 ? (
+      {/* Completed Section */}
+      {completedTasks.length > 0 && (
+        <div className="border border-notion-border rounded-lg p-2">
+          <div className="flex items-center gap-1">
+            <CheckCircle2 size={12} className="text-green-500" />
+            <span className="text-[10px] text-notion-text-secondary uppercase tracking-wide font-medium">
+              {t("taskStatus.done")}
+            </span>
+            <span className="text-[10px] text-notion-text-secondary ml-auto">
+              {completedTasks.length}
+            </span>
+          </div>
           <div className="mt-1.5 space-y-0.5">
             {completedTasks.map((task) => (
               <div
@@ -114,12 +131,8 @@ export function InProgressTasksList({
               </div>
             ))}
           </div>
-        ) : (
-          <p className="mt-1.5 text-[10px] text-notion-text-secondary/50 px-1.5">
-            {t("taskStatus.noCompleted", "No completed tasks")}
-          </p>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -1,15 +1,17 @@
 import { useMemo, useCallback } from "react";
 import {
   CheckCircle2,
+  ChevronLeft,
+  ChevronRight,
   Circle,
   CircleDot,
-  Settings,
   ListTodo,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import type { RoutineNode } from "../../types/routine";
 import type { ScheduleItem } from "../../types/schedule";
 import type { TaskNode } from "../../types/taskTree";
+import { formatDateKey } from "../../utils/dateKey";
 
 type FlowEntry =
   | {
@@ -23,12 +25,14 @@ type FlowEntry =
   | { type: "task"; task: TaskNode; sortKey: string };
 
 interface MiniTodayFlowProps {
+  date: Date;
   routines: RoutineNode[];
   scheduleItems: ScheduleItem[];
   onToggleComplete: (id: string) => void;
-  onOpenManagement?: () => void;
   tasks?: TaskNode[];
   onSelectTask?: (taskId: string) => void;
+  onPrevDate?: () => void;
+  onNextDate?: () => void;
 }
 
 function extractTimeFromScheduledAt(scheduledAt: string): string {
@@ -39,12 +43,14 @@ function extractTimeFromScheduledAt(scheduledAt: string): string {
 }
 
 export function MiniTodayFlow({
+  date,
   routines,
   scheduleItems,
   onToggleComplete,
-  onOpenManagement,
   tasks = [],
   onSelectTask,
+  onPrevDate,
+  onNextDate,
 }: MiniTodayFlowProps) {
   const { t } = useTranslation();
 
@@ -109,126 +115,156 @@ export function MiniTodayFlow({
     [onToggleComplete],
   );
 
-  if (totalCount === 0) return null;
+  const hasEntries = totalCount > 0;
+  const isToday = formatDateKey(date) === formatDateKey(new Date());
+  const dateLabel = `${date.getMonth() + 1}/${date.getDate()}`;
 
   return (
     <div className="border border-notion-border rounded-lg p-2">
       <div className="flex items-center justify-between">
-        <span className="text-[10px] text-notion-text-secondary uppercase tracking-wide font-medium">
-          {t("schedule.todayFlow", "Today Flow")}
-        </span>
-        {onOpenManagement && (
-          <button
-            onClick={onOpenManagement}
-            className="p-0.5 rounded hover:bg-notion-hover text-notion-text-secondary hover:text-notion-text transition-colors"
-          >
-            <Settings size={12} />
-          </button>
-        )}
-      </div>
-
-      <div className="mt-1.5 ml-[3px]">
-        {entries.map((entry, i) => {
-          if (entry.type === "routine") {
-            return (
-              <button
-                key={`r-${entry.routineId}`}
-                data-sidebar-item
-                onClick={() => handleToggle(entry.scheduleItemId)}
-                disabled={!entry.scheduleItemId}
-                className={`flex text-left w-full ${entry.scheduleItemId ? "cursor-pointer" : "cursor-default"}`}
-              >
-                <div className="flex flex-col items-center mr-2">
-                  <div className="flex-shrink-0 transition-colors">
-                    {entry.completed ? (
-                      <CheckCircle2 size={14} className="text-green-500" />
-                    ) : (
-                      <Circle
-                        size={14}
-                        className="text-notion-text-secondary"
-                      />
-                    )}
-                  </div>
-                  {i < entries.length - 1 && (
-                    <div className="w-px flex-1 min-h-[12px] bg-notion-border" />
-                  )}
-                </div>
-                <div className="pb-2 min-w-0">
-                  <div
-                    className={`text-xs truncate ${entry.completed ? "text-notion-text-secondary line-through" : "text-notion-text"}`}
-                  >
-                    {entry.startTime && (
-                      <span className="text-[10px] text-notion-text-secondary mr-1">
-                        {entry.startTime}
-                      </span>
-                    )}
-                    {entry.title}
-                  </div>
-                </div>
-              </button>
-            );
-          }
-
-          // Task entry
-          const task = entry.task;
-          const isDone = task.status === "DONE";
-          const isInProgress = task.status === "IN_PROGRESS";
-          return (
+        <div className="flex items-center gap-0.5">
+          {onPrevDate && (
             <button
-              key={`t-${task.id}`}
-              data-sidebar-item
-              onClick={() => onSelectTask?.(task.id)}
-              className="flex text-left w-full cursor-pointer"
+              onClick={onPrevDate}
+              className="p-0.5 rounded hover:bg-notion-hover text-notion-text-secondary hover:text-notion-text transition-colors"
             >
-              <div className="flex flex-col items-center mr-2">
-                <div className="flex-shrink-0 transition-colors">
-                  {isDone ? (
-                    <CheckCircle2 size={14} className="text-green-500" />
-                  ) : isInProgress ? (
-                    <CircleDot size={14} className="text-blue-500" />
-                  ) : (
-                    <Circle size={14} className="text-notion-text-secondary" />
-                  )}
-                </div>
-                {i < entries.length - 1 && (
-                  <div className="w-px flex-1 min-h-[12px] bg-notion-border" />
-                )}
-              </div>
-              <div className="pb-2 min-w-0">
-                <div
-                  className={`text-xs truncate ${isDone ? "text-notion-text-secondary line-through" : "text-notion-text"}`}
-                >
-                  {task.scheduledAt && !task.isAllDay && (
-                    <span className="text-[10px] text-notion-text-secondary mr-1">
-                      {extractTimeFromScheduledAt(task.scheduledAt)}
-                    </span>
-                  )}
-                  <ListTodo size={10} className="inline mr-0.5 opacity-60" />
-                  {task.title}
-                </div>
-              </div>
+              <ChevronLeft size={12} />
             </button>
-          );
-        })}
+          )}
+          <span className="text-[10px] text-notion-text-secondary uppercase tracking-wide font-medium">
+            {isToday
+              ? t("schedule.todayFlow", "Today Flow")
+              : `Flow ${dateLabel}`}
+          </span>
+          {onNextDate && (
+            <button
+              onClick={onNextDate}
+              className="p-0.5 rounded hover:bg-notion-hover text-notion-text-secondary hover:text-notion-text transition-colors"
+            >
+              <ChevronRight size={12} />
+            </button>
+          )}
+        </div>
       </div>
 
-      {/* Progress bar */}
-      <div className="mt-1 pt-1 border-t border-notion-border">
-        <div className="flex items-center justify-between mb-1">
-          <span className="text-[10px] text-notion-text-secondary">
-            {completedCount}/{totalCount}
-          </span>
-          <span className="text-[10px] text-notion-text-secondary">
-            {progressPercent}%
-          </span>
-        </div>
-        <div className="h-1 bg-notion-hover rounded-full overflow-hidden">
-          <div
-            className="h-full bg-green-500 rounded-full transition-all"
-            style={{ width: `${progressPercent}%` }}
-          />
-        </div>
-      </div>
+      {!hasEntries && (
+        <p className="mt-1.5 text-[10px] text-notion-text-secondary/50 px-1">
+          {t("schedule.noItems", "No items for this day")}
+        </p>
+      )}
+
+      {hasEntries && (
+        <>
+          <div className="mt-1.5 ml-[3px]">
+            {entries.map((entry, i) => {
+              if (entry.type === "routine") {
+                return (
+                  <button
+                    key={`r-${entry.routineId}`}
+                    data-sidebar-item
+                    onClick={() => handleToggle(entry.scheduleItemId)}
+                    disabled={!entry.scheduleItemId}
+                    className={`flex text-left w-full ${entry.scheduleItemId ? "cursor-pointer" : "cursor-default"}`}
+                  >
+                    <div className="flex flex-col items-center mr-2">
+                      <div className="flex-shrink-0 transition-colors">
+                        {entry.completed ? (
+                          <CheckCircle2 size={14} className="text-green-500" />
+                        ) : (
+                          <Circle
+                            size={14}
+                            className="text-notion-text-secondary"
+                          />
+                        )}
+                      </div>
+                      {i < entries.length - 1 && (
+                        <div className="w-px flex-1 min-h-[12px] bg-notion-border" />
+                      )}
+                    </div>
+                    <div className="pb-2 min-w-0">
+                      <div
+                        className={`text-xs truncate ${entry.completed ? "text-notion-text-secondary line-through" : "text-notion-text"}`}
+                      >
+                        {entry.startTime && (
+                          <span className="text-[10px] text-notion-text-secondary mr-1">
+                            {entry.startTime}
+                          </span>
+                        )}
+                        {entry.title}
+                      </div>
+                    </div>
+                  </button>
+                );
+              }
+
+              // Task entry
+              const task = entry.task;
+              const isDone = task.status === "DONE";
+              const isInProgress = task.status === "IN_PROGRESS";
+              return (
+                <button
+                  key={`t-${task.id}`}
+                  data-sidebar-item
+                  onClick={() => onSelectTask?.(task.id)}
+                  className="flex text-left w-full cursor-pointer"
+                >
+                  <div className="flex flex-col items-center mr-2">
+                    <div className="flex-shrink-0 transition-colors">
+                      {isDone ? (
+                        <CheckCircle2 size={14} className="text-green-500" />
+                      ) : isInProgress ? (
+                        <CircleDot size={14} className="text-blue-500" />
+                      ) : (
+                        <Circle
+                          size={14}
+                          className="text-notion-text-secondary"
+                        />
+                      )}
+                    </div>
+                    {i < entries.length - 1 && (
+                      <div className="w-px flex-1 min-h-[12px] bg-notion-border" />
+                    )}
+                  </div>
+                  <div className="pb-2 min-w-0">
+                    <div
+                      className={`text-xs truncate ${isDone ? "text-notion-text-secondary line-through" : "text-notion-text"}`}
+                    >
+                      {task.scheduledAt && !task.isAllDay && (
+                        <span className="text-[10px] text-notion-text-secondary mr-1">
+                          {extractTimeFromScheduledAt(task.scheduledAt)}
+                        </span>
+                      )}
+                      <ListTodo
+                        size={10}
+                        className="inline mr-0.5 opacity-60"
+                      />
+                      {task.title}
+                    </div>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Progress bar */}
+          <div className="mt-1 pt-1 border-t border-notion-border">
+            <div className="flex items-center justify-between mb-1">
+              <span className="text-[10px] text-notion-text-secondary">
+                {completedCount}/{totalCount}
+              </span>
+              <span className="text-[10px] text-notion-text-secondary">
+                {progressPercent}%
+              </span>
+            </div>
+            <div className="h-1 bg-notion-hover rounded-full overflow-hidden">
+              <div
+                className="h-full bg-green-500 rounded-full transition-all"
+                style={{ width: `${progressPercent}%` }}
+              />
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 }

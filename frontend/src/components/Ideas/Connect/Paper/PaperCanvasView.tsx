@@ -104,6 +104,7 @@ interface PaperCanvasViewProps {
   onDeleteEdge: (id: string) => Promise<void>;
   onSaveViewport: (x: number, y: number, zoom: number) => void;
   onNavigateToNote?: (noteId: string) => void;
+  onSelectionChanged?: (nodeIds: string[]) => void;
 }
 
 export function PaperCanvasView({
@@ -120,9 +121,11 @@ export function PaperCanvasView({
   onDeleteEdge,
   onSaveViewport,
   onNavigateToNote,
+  onSelectionChanged,
 }: PaperCanvasViewProps) {
   const { t } = useTranslation();
   const [showAddDialog, setShowAddDialog] = useState(false);
+  const [selectedNodeIds, setSelectedNodeIds] = useState<string[]>([]);
   const viewportTimerRef = useRef<ReturnType<typeof setTimeout>>();
   const { screenToFlowPosition } = useReactFlow();
 
@@ -489,6 +492,22 @@ export function PaperCanvasView({
     [board, onCreateNode, getNewNodePosition],
   );
 
+  const handleSelectionChange = useCallback(
+    ({ nodes: selected }: { nodes: Node[] }) => {
+      const ids = selected.map((n) => n.id);
+      setSelectedNodeIds(ids);
+      onSelectionChanged?.(ids);
+    },
+    [onSelectionChanged],
+  );
+
+  const handleDeleteSelected = useCallback(() => {
+    for (const id of selectedNodeIds) {
+      onDeleteNode(id);
+    }
+    setSelectedNodeIds([]);
+  }, [selectedNodeIds, onDeleteNode]);
+
   if (!board) {
     return (
       <div className="h-full flex items-center justify-center text-notion-text-secondary text-sm">
@@ -519,7 +538,8 @@ export function PaperCanvasView({
         edgeTypes={edgeTypes}
         defaultViewport={defaultViewport}
         connectionMode={ConnectionMode.Loose}
-        deleteKeyCode="Delete"
+        onSelectionChange={handleSelectionChange}
+        deleteKeyCode={["Delete", "Backspace"]}
         multiSelectionKeyCode="Shift"
         proOptions={{ hideAttribution: true }}
         fitView={
@@ -535,6 +555,8 @@ export function PaperCanvasView({
             onAddCard={handleAddCard}
             onAddText={handleAddText}
             onAddFrame={handleAddFrame}
+            selectedNodeCount={selectedNodeIds.length}
+            onDeleteSelected={handleDeleteSelected}
           />
         </Panel>
       </ReactFlow>
