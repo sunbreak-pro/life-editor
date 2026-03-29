@@ -27,6 +27,7 @@ import { CustomHeading } from "../../../extensions/CustomHeading";
 import { CustomInputRules } from "../../../extensions/InputRules";
 import { WikiTag } from "../../../extensions/WikiTag";
 import { PdfAttachment } from "../../../extensions/PdfAttachment";
+import { FileUploadPlaceholder } from "../../../extensions/FileUploadPlaceholder";
 import { BubbleToolbar } from "./BubbleToolbar";
 import { WikiTagSuggestionMenu } from "../../WikiTags/WikiTagSuggestionMenu";
 import { useWikiTagSync } from "../../../hooks/useWikiTagSync";
@@ -100,7 +101,11 @@ function sanitizeContentForSave(
   json: Record<string, unknown>,
   blobUrlToId: Map<string, string>,
 ): Record<string, unknown> {
-  function walk(node: Record<string, unknown>): Record<string, unknown> {
+  function walk(node: Record<string, unknown>): Record<string, unknown> | null {
+    // Strip ephemeral placeholder nodes
+    if (node.type === "fileUploadPlaceholder") {
+      return null;
+    }
     if (node.type === "image") {
       const attrs = node.attrs as Record<string, unknown>;
       const src = attrs?.src as string;
@@ -117,14 +122,14 @@ function sanitizeContentForSave(
     if (Array.isArray(node.content)) {
       return {
         ...node,
-        content: node.content.map((c: unknown) =>
-          walk(c as Record<string, unknown>),
-        ),
+        content: (node.content as unknown[])
+          .map((c) => walk(c as Record<string, unknown>))
+          .filter(Boolean),
       };
     }
     return node;
   }
-  return walk(json);
+  return walk(json) ?? { type: "doc", content: [] };
 }
 
 export function MemoEditor({
@@ -216,6 +221,7 @@ export function MemoEditor({
         Callout,
         WikiTag,
         PdfAttachment,
+        FileUploadPlaceholder,
         CustomInputRules,
       ],
       content: initialContent ? tryParseJSON(initialContent) : undefined,
@@ -306,6 +312,14 @@ export function MemoEditor({
 
   // Keep ref in sync for editorProps callbacks
   imageUploadRef.current = handleImageUpload;
+
+  // Wire upload callbacks into extension storage
+  useEffect(() => {
+    if (!editor) return;
+    editor.extensionStorage.fileUploadPlaceholder.onImageUpload =
+      handleImageUpload;
+    editor.extensionStorage.fileUploadPlaceholder.onPdfUpload = handlePdfUpload;
+  }, [editor, handleImageUpload, handlePdfUpload]);
 
   // Resolve attachment:// URLs to blob URLs after editor mount
   useEffect(() => {
@@ -403,13 +417,7 @@ export function MemoEditor({
   return (
     <div className="relative">
       <EditorContent editor={editor} />
-      {editor && (
-        <BubbleToolbar
-          editor={editor}
-          onImageUpload={handleImageUpload}
-          onPdfUpload={handlePdfUpload}
-        />
-      )}
+      {editor && <BubbleToolbar editor={editor} />}
       {editor && <WikiTagSuggestionMenu editor={editor} />}
     </div>
   );

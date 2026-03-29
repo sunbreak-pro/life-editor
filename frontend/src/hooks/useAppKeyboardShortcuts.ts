@@ -73,7 +73,7 @@ export function useAppKeyboardShortcuts({
       }
       if (matchEvent(e, "nav:ideas")) {
         e.preventDefault();
-        setActiveSection("ideas");
+        setActiveSection("connect");
         return;
       }
       if (matchEvent(e, "nav:work")) {

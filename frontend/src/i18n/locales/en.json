@@ -8,7 +8,8 @@
     "analytics": "Analytics",
     "settings": "Settings",
     "tips": "Tips",
-    "ideas": "Ideas",
+    "materials": "Materials",
+    "connect": "Connect",
     "trash": "Trash",
     "freeSession": "Free Session"
   },
@@ -235,8 +236,14 @@
     "daily": "Daily",
     "notes": "Notes"
   },
+  "materials": {
+    "title": "Materials"
+  },
+  "connect": {
+    "title": "Connect"
+  },
   "ideas": {
-    "title": "Ideas",
+    "title": "Connect",
     "daily": "Daily",
     "notes": "Notes",
     "connect": "Connect",

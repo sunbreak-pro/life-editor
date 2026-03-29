@@ -18,8 +18,8 @@ interface MobileLayoutProps {
 }
 
 const TAB_TO_SECTION: Record<MobileTab, SectionId> = {
-  memos: "ideas",
-  notes: "ideas",
+  memos: "materials",
+  notes: "materials",
   tasks: "tasks",
   schedule: "schedule",
 };

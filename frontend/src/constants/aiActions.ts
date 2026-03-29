@@ -36,8 +36,8 @@ export const AI_ACTIONS: AIAction[] = [
     icon: "FileText",
     promptTemplate:
       "ノート（ID: {{noteId}}）の内容を取得して要約してください。",
-    sections: ["ideas"],
-    ideasTab: "materials",
+    sections: ["materials"],
+    ideasTab: "notes",
     contextRequired: "note",
   },
   {
@@ -46,8 +46,8 @@ export const AI_ACTIONS: AIAction[] = [
     icon: "Sparkles",
     promptTemplate:
       "ノート（ID: {{noteId}}）の内容を取得して、改善点を提案してください。",
-    sections: ["ideas"],
-    ideasTab: "materials",
+    sections: ["materials"],
+    ideasTab: "notes",
     contextRequired: "note",
   },
   {
@@ -56,8 +56,8 @@ export const AI_ACTIONS: AIAction[] = [
     icon: "Tags",
     promptTemplate:
       "ノート（ID: {{noteId}}）の内容と list_wiki_tags の結果を照合して、適切なタグを提案してください。",
-    sections: ["ideas"],
-    ideasTab: "materials",
+    sections: ["materials"],
+    ideasTab: "notes",
     contextRequired: "note",
   },
 
@@ -68,7 +68,7 @@ export const AI_ACTIONS: AIAction[] = [
     icon: "BookOpen",
     promptTemplate:
       "get_memo で {{memoDate}} のメモを取得して、振り返りと要約をしてください。",
-    sections: ["ideas"],
+    sections: ["materials"],
     ideasTab: "daily",
     contextRequired: "memo",
   },
@@ -78,7 +78,7 @@ export const AI_ACTIONS: AIAction[] = [
     icon: "FileUp",
     promptTemplate:
       "get_memo で {{memoDate}} のメモを取得して、ノートに昇格させる形で整形してください。create_note で新しいノートを作成してください。",
-    sections: ["ideas"],
+    sections: ["materials"],
     ideasTab: "daily",
     contextRequired: "memo",
   },
@@ -90,7 +90,7 @@ export const AI_ACTIONS: AIAction[] = [
     icon: "Sun",
     promptTemplate:
       "今日（{{today}}）の振り返りをしてください。get_memo, list_tasks, list_schedule を使って1日の活動を横断的にまとめてください。",
-    sections: ["ideas"],
+    sections: ["materials"],
     ideasTab: "daily",
   },
 ];

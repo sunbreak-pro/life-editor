@@ -8,7 +8,8 @@ import { WorkScreen } from "./components/Work";
 import { SessionCompletionModal } from "./components/Work/SessionCompletionModal";
 import { Settings } from "./components/Settings";
 import { AnalyticsView } from "./components/Analytics/AnalyticsView";
-import { IdeasView } from "./components/Ideas";
+import { ConnectView } from "./components/Ideas";
+import { MaterialsView } from "./components/Materials/MaterialsView";
 import { CommandPalette } from "./components/CommandPalette/CommandPalette";
 import { UpdateNotification } from "./components/UpdateNotification";
 import { useTimerContext } from "./hooks/useTimerContext";
@@ -119,11 +120,13 @@ function App() {
             onCreateNote={handlers.handleCalendarCreateNote}
           />
         );
-      case "ideas":
+      case "materials":
+        return <MaterialsView />;
+      case "connect":
         return (
-          <IdeasView
+          <ConnectView
             onNavigateToNote={() => {
-              localStorage.setItem(STORAGE_KEYS.IDEAS_TAB, "materials");
+              localStorage.setItem(STORAGE_KEYS.MATERIALS_TAB, "notes");
             }}
           />
         );

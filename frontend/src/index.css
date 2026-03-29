@@ -946,22 +946,26 @@ body {
   border-top: 1px solid var(--color-border);
 }
 
-/* File Picker (Image / PDF) */
-.command-panel-file-picker {
+/* File Upload Placeholder (inline block in editor) */
+.file-upload-placeholder {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  padding: 8px 10px;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--color-border);
+  border-radius: 0.5rem;
+  background: var(--color-surface-secondary, var(--color-surface));
+  margin: 0.5rem 0;
+  user-select: none;
 }
 
-.command-panel-file-picker-icon {
+.file-upload-placeholder-icon {
   flex-shrink: 0;
   color: var(--color-text-secondary);
 }
 
-.command-panel-file-picker-btn {
-  flex: 1;
-  padding: 6px 12px;
+.file-upload-placeholder-btn {
+  padding: 6px 16px;
   font-size: 13px;
   border: 1px solid var(--color-border);
   border-radius: 6px;
@@ -971,11 +975,11 @@ body {
   transition: opacity 0.15s;
 }
 
-.command-panel-file-picker-btn:hover {
+.file-upload-placeholder-btn:hover {
   opacity: 0.85;
 }
 
-.command-panel-file-picker-cancel {
+.file-upload-placeholder-cancel {
   padding: 6px 10px;
   font-size: 12px;
   border: none;
@@ -984,7 +988,7 @@ body {
   cursor: pointer;
 }
 
-.command-panel-file-picker-cancel:hover {
+.file-upload-placeholder-cancel:hover {
   color: var(--color-text-primary);
 }
 

@@ -1,4 +1,4 @@
-export { IdeasView } from "./IdeasView";
+export { ConnectView } from "./ConnectView";
 export { MemoDateList } from "./MemoDateList";
 export { DailyMemoView } from "./DailyMemoView";
 export { NotesView } from "./NotesView";

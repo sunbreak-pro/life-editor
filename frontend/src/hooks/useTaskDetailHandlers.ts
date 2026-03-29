@@ -180,18 +180,18 @@ export function useTaskDetailHandlers({
 
   const handleCalendarSelectMemo = useCallback(
     (date: string) => {
-      localStorage.setItem(STORAGE_KEYS.IDEAS_TAB, "daily");
+      localStorage.setItem(STORAGE_KEYS.MATERIALS_TAB, "daily");
       setMemoDate(date);
-      setActiveSection("ideas");
+      setActiveSection("materials");
     },
     [setMemoDate, setActiveSection],
   );
 
   const handleCalendarSelectNote = useCallback(
     (noteId: string) => {
-      localStorage.setItem(STORAGE_KEYS.IDEAS_TAB, "materials");
+      localStorage.setItem(STORAGE_KEYS.MATERIALS_TAB, "notes");
       setSelectedNoteId?.(noteId);
-      setActiveSection("ideas");
+      setActiveSection("materials");
     },
     [setActiveSection, setSelectedNoteId],
   );

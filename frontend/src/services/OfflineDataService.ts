@@ -1426,6 +1426,7 @@ export class OfflineDataService implements DataService {
     return notSupported("Paper Boards");
   }
   createPaperNode(_p: {
+    id?: string;
     boardId: string;
     nodeType: PaperNode["nodeType"];
     positionX: number;

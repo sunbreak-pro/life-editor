@@ -1,5 +1,17 @@
 # HISTORY.md - 変更履歴
 
+### 2026-03-29 - AI Actions: Claude startup check before sending prompts
+
+#### 概要
+
+AI Action実行時にClaudeが起動していない場合、日本語プロンプトがシェルコマンドとして送られる問題を修正。Claude状態を事前チェックし、未起動なら自動起動してから送信する仕組みを追加。
+
+#### 変更点
+
+- **TerminalManager**: `getClaudeState(sessionId)` メソッド追加。ClaudeDetectorの現在の状態を直接返す
+- **IPC**: `terminal:claudeState` チャンネル追加（terminalHandlers.ts + preload.ts ALLOWED_CHANNELS）
+- **Layout.tsx sendTerminalCommand**: `terminal:claudeState`で状態を問い合わせ、inactive→`claude`自動起動+idle待機、busy→idle待機、idle→即送信のフローに改修
+
 ### 2026-03-29 - Routine time confirm / Sidebar status / 2-column management / Button fix
 
 #### 概要

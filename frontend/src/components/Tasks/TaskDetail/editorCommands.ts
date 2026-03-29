@@ -327,8 +327,15 @@ export const PANEL_COMMANDS: PanelCommand[] = [
     icon: ImageIcon,
     description: "Upload an image",
     group: "Advanced",
-    action: () => {
-      // Handled via IMAGE_COMMAND_ID in CommandPanel
+    action: (editor) => {
+      editor
+        .chain()
+        .focus()
+        .insertContent({
+          type: "fileUploadPlaceholder",
+          attrs: { mode: "image" },
+        })
+        .run();
     },
   },
   {
@@ -336,8 +343,15 @@ export const PANEL_COMMANDS: PanelCommand[] = [
     icon: FileText,
     description: "Attach a PDF file",
     group: "Advanced",
-    action: () => {
-      // Handled via PDF_COMMAND_ID in CommandPanel
+    action: (editor) => {
+      editor
+        .chain()
+        .focus()
+        .insertContent({
+          type: "fileUploadPlaceholder",
+          attrs: { mode: "pdf" },
+        })
+        .run();
     },
   },
 ];

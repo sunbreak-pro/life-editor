@@ -88,6 +88,11 @@ export class TerminalManager {
     }
   }
 
+  getClaudeState(sessionId: string): string {
+    const session = this.sessions.get(sessionId);
+    return session ? session.claudeDetector.getState() : "inactive";
+  }
+
   resize(sessionId: string, cols: number, rows: number): void {
     const session = this.sessions.get(sessionId);
     if (session) {

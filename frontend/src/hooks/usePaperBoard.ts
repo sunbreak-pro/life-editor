@@ -7,8 +7,10 @@ import type {
 } from "../types/paperBoard";
 import { getDataService } from "../services";
 import { STORAGE_KEYS } from "../constants/storageKeys";
+import { useUndoRedo } from "../components/shared/UndoRedo";
 
 export function usePaperBoard() {
+  const { push } = useUndoRedo();
   const [boards, setBoards] = useState<PaperBoard[]>([]);
   const [activeBoardId, setActiveBoardId] = useState<string | null>(() => {
     return localStorage.getItem(STORAGE_KEYS.PAPER_ACTIVE_BOARD_ID) || null;
@@ -226,25 +228,101 @@ export function usePaperBoard() {
   const deleteNode = useCallback(
     async (id: string) => {
       const ds = getDataService();
-      // Find boardId before deleting for count update
       const deletedNode = nodes.find((n) => n.id === id);
+      if (!deletedNode) return;
+
+      // Capture connected edges for undo
+      const connectedEdges = edges.filter(
+        (e) => e.sourceNodeId === id || e.targetNodeId === id,
+      );
+      // Capture child nodes (for frame deletion)
+      const childNodes = nodes.filter((n) => n.parentNodeId === id);
+
       await ds.deletePaperNode(id);
       setNodes((prev) => prev.filter((n) => n.id !== id));
-      // Also remove edges connected to this node
       setEdges((prev) =>
         prev.filter((e) => e.sourceNodeId !== id && e.targetNodeId !== id),
       );
-      if (deletedNode) {
-        setBoardNodeCounts((prev) => ({
-          ...prev,
-          [deletedNode.boardId]: Math.max(
-            0,
-            (prev[deletedNode.boardId] ?? 0) - 1,
-          ),
-        }));
-      }
+      setBoardNodeCounts((prev) => ({
+        ...prev,
+        [deletedNode.boardId]: Math.max(
+          0,
+          (prev[deletedNode.boardId] ?? 0) - 1,
+        ),
+      }));
+
+      // Register undo/redo
+      push("paper", {
+        label: `Delete ${deletedNode.nodeType}`,
+        undo: async () => {
+          const ds = getDataService();
+          // Restore the node with its original ID
+          const restored = await ds.createPaperNode({
+            id: deletedNode.id,
+            boardId: deletedNode.boardId,
+            nodeType: deletedNode.nodeType,
+            positionX: deletedNode.positionX,
+            positionY: deletedNode.positionY,
+            width: deletedNode.width,
+            height: deletedNode.height,
+            zIndex: deletedNode.zIndex,
+            parentNodeId: deletedNode.parentNodeId,
+            refEntityId: deletedNode.refEntityId,
+            refEntityType: deletedNode.refEntityType,
+            textContent: deletedNode.textContent,
+            frameColor: deletedNode.frameColor,
+            frameLabel: deletedNode.frameLabel,
+          });
+          setNodes((prev) => [...prev, restored]);
+          setBoardNodeCounts((prev) => ({
+            ...prev,
+            [restored.boardId]: (prev[restored.boardId] ?? 0) + 1,
+          }));
+          // Restore connected edges
+          for (const edge of connectedEdges) {
+            const restoredEdge = await ds.createPaperEdge({
+              boardId: edge.boardId,
+              sourceNodeId: edge.sourceNodeId,
+              targetNodeId: edge.targetNodeId,
+              sourceHandle: edge.sourceHandle,
+              targetHandle: edge.targetHandle,
+            });
+            setEdges((prev) => [...prev, restoredEdge]);
+          }
+          // Restore child parentNodeId references
+          for (const child of childNodes) {
+            await ds.updatePaperNode(child.id, {
+              parentNodeId: restored.id,
+            });
+            setNodes((prev) =>
+              prev.map((n) =>
+                n.id === child.id ? { ...n, parentNodeId: restored.id } : n,
+              ),
+            );
+          }
+        },
+        redo: async () => {
+          const ds = getDataService();
+          await ds.deletePaperNode(deletedNode.id);
+          setNodes((prev) => prev.filter((n) => n.id !== deletedNode.id));
+          setEdges((prev) =>
+            prev.filter(
+              (e) =>
+                e.sourceNodeId !== deletedNode.id &&
+                e.targetNodeId !== deletedNode.id,
+            ),
+          );
+          setBoardNodeCounts((prev) => ({
+            ...prev,
+            [deletedNode.boardId]: Math.max(
+              0,
+              (prev[deletedNode.boardId] ?? 0) - 1,
+            ),
+          }));
+        },
+      });
     },
-    [nodes],
+    [nodes, edges, push],
   );
 
   // --- Edge CRUD ---

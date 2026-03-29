@@ -1,18 +1,13 @@
-import { useState, useRef, useCallback, useEffect } from "react";
+import { useState, useRef, useCallback } from "react";
 import { createPortal } from "react-dom";
 import type { Editor } from "@tiptap/react";
-import { MoreVertical, ImageIcon, FileText } from "lucide-react";
+import { MoreVertical } from "lucide-react";
 import { setStoredHeadingFontSize } from "../../../utils/headingFontSize";
 import {
   type PanelCommand,
   type SubAction,
   GROUP_ORDER,
 } from "./editorCommands";
-
-const IMAGE_COMMAND_ID = "Image";
-const PDF_COMMAND_ID = "PDF";
-
-export type FilePickerMode = "image" | "pdf" | null;
 
 interface CommandPanelProps {
   editor: Editor;
@@ -23,9 +18,6 @@ interface CommandPanelProps {
   onExecute: (index: number) => void;
   onClose: () => void;
   deleteSlashText?: () => void;
-  onImageUpload?: (file: File) => void;
-  onPdfUpload?: (file: File) => void;
-  activeFilePickerMode?: FilePickerMode;
 }
 
 export function CommandPanel({
@@ -37,12 +29,8 @@ export function CommandPanel({
   onExecute,
   onClose,
   deleteSlashText,
-  onImageUpload,
-  onPdfUpload,
-  activeFilePickerMode,
 }: CommandPanelProps) {
   const menuRef = useRef<HTMLDivElement>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
   const [activeSubMenu, setActiveSubMenu] = useState<number | null>(null);
   const [subMenuPos, setSubMenuPos] = useState<{
     top: number;
@@ -51,45 +39,6 @@ export function CommandPanel({
   const [customFontSizeInput, setCustomFontSizeInput] = useState(false);
   const [customFontSize, setCustomFontSize] = useState("");
   const [customFontSizeLevel, setCustomFontSizeLevel] = useState<1 | 2 | 3>(1);
-  const [filePickerMode, setFilePickerMode] = useState<FilePickerMode>(null);
-
-  // Sync external trigger (Enter key from BubbleToolbar)
-  useEffect(() => {
-    if (activeFilePickerMode) {
-      setFilePickerMode(activeFilePickerMode);
-    }
-  }, [activeFilePickerMode]);
-
-  const handleFileChange = useCallback(
-    (e: React.ChangeEvent<HTMLInputElement>) => {
-      const file = e.target.files?.[0];
-      if (!file) return;
-      if (filePickerMode === "image") {
-        onImageUpload?.(file);
-      } else if (filePickerMode === "pdf") {
-        onPdfUpload?.(file);
-      }
-      setFilePickerMode(null);
-      onClose();
-    },
-    [filePickerMode, onImageUpload, onPdfUpload, onClose],
-  );
-
-  const handleExecute = useCallback(
-    (index: number) => {
-      const cmd = commands[index];
-      if (cmd?.title === IMAGE_COMMAND_ID) {
-        deleteSlashText?.();
-        setFilePickerMode("image");
-      } else if (cmd?.title === PDF_COMMAND_ID) {
-        deleteSlashText?.();
-        setFilePickerMode("pdf");
-      } else {
-        onExecute(index);
-      }
-    },
-    [commands, onExecute, deleteSlashText],
-  );
 
   const handleSubAction = useCallback(
     (sub: SubAction, cmd: PanelCommand) => {
@@ -114,47 +63,6 @@ export function CommandPanel({
     },
     [editor, deleteSlashText, onClose],
   );
-
-  // File picker view (Image / PDF)
-  if (filePickerMode) {
-    const isImage = filePickerMode === "image";
-    const Icon = isImage ? ImageIcon : FileText;
-    const label = isImage ? "画像を選択" : "PDFを選択";
-    const accept = isImage
-      ? "image/png,image/jpeg,image/gif,image/webp"
-      : ".pdf,application/pdf";
-    return (
-      <div className="command-panel-inline">
-        <div className="command-panel-file-picker">
-          <Icon size={20} className="command-panel-file-picker-icon" />
-          <button
-            className="command-panel-file-picker-btn"
-            onClick={() => fileInputRef.current?.click()}
-            type="button"
-          >
-            {label}
-          </button>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept={accept}
-            onChange={handleFileChange}
-            style={{ display: "none" }}
-          />
-          <button
-            className="command-panel-file-picker-cancel"
-            onClick={() => {
-              setFilePickerMode(null);
-              onClose();
-            }}
-            type="button"
-          >
-            Cancel
-          </button>
-        </div>
-      </div>
-    );
-  }
 
   // Custom font size input view
   if (customFontSizeInput) {
@@ -248,7 +156,7 @@ export function CommandPanel({
                   tabIndex={0}
                   onMouseDown={(e) => {
                     e.preventDefault();
-                    handleExecute(globalIndex);
+                    onExecute(globalIndex);
                   }}
                   className={`command-panel-item${isSelected ? " selected" : ""}${isActive ? " active" : ""}`}
                 >

@@ -33,4 +33,11 @@ export function registerTerminalHandlers(tm: TerminalManager): void {
       tm.destroy(sessionId),
     ),
   );
+
+  ipcMain.handle(
+    "terminal:claudeState",
+    loggedHandler("Terminal", "claudeState", (_event, sessionId: string) =>
+      tm.getClaudeState(sessionId),
+    ),
+  );
 }

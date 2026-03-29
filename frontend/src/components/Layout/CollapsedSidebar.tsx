@@ -5,6 +5,7 @@ import {
   Play,
   BarChart3,
   Settings,
+  BookOpen,
 } from "lucide-react";
 import type { SectionId } from "../../types/taskTree";
 import { useTranslation } from "react-i18next";
@@ -20,7 +21,8 @@ const mainItems: {
   icon: typeof CheckSquare;
 }[] = [
   { id: "schedule", labelKey: "sidebar.schedule", icon: Calendar },
-  { id: "ideas", labelKey: "sidebar.ideas", icon: Lightbulb },
+  { id: "materials", labelKey: "sidebar.materials", icon: BookOpen },
+  { id: "connect", labelKey: "sidebar.connect", icon: Lightbulb },
   { id: "work", labelKey: "sidebar.work", icon: Play },
   { id: "analytics", labelKey: "sidebar.analytics", icon: BarChart3 },
 ];

@@ -709,6 +709,7 @@ export class ElectronDataService implements DataService {
     return invoke("db:paperNodes:fetchByBoard", boardId);
   }
   createPaperNode(params: {
+    id?: string;
     boardId: string;
     nodeType: PaperNode["nodeType"];
     positionX: number;

@@ -1,0 +1,282 @@
+import { useState, useCallback, useContext, useEffect } from "react";
+import { createPortal } from "react-dom";
+import { GitBranch, LayoutGrid } from "lucide-react";
+import { ReactFlowProvider } from "@xyflow/react";
+import { useTranslation } from "react-i18next";
+import type { TabItem } from "../shared/SectionTabs";
+import { SectionHeader } from "../shared/SectionHeader";
+import { TagGraphView } from "./Connect/TagGraphView";
+import { ConnectSidebar } from "./Connect/ConnectSidebar";
+import { PaperCanvasView } from "./Connect/Paper/PaperCanvasView";
+import { PaperSidebar } from "./Connect/Paper/PaperSidebar";
+import { useMemoContext } from "../../hooks/useMemoContext";
+import { useNoteContext } from "../../hooks/useNoteContext";
+import { useWikiTags } from "../../hooks/useWikiTags";
+import { useNoteConnections } from "../../hooks/useNoteConnections";
+import { useConnectSearch } from "../../hooks/useConnectSearch";
+import { usePaperBoard } from "../../hooks/usePaperBoard";
+import { useUndoRedo } from "../shared/UndoRedo";
+import { STORAGE_KEYS } from "../../constants/storageKeys";
+import { RightSidebarContext } from "../../context/RightSidebarContext";
+
+type ConnectTab = "node" | "board";
+
+const CONNECT_TABS: readonly TabItem<ConnectTab>[] = [
+  { id: "node", labelKey: "ideas.node", icon: GitBranch },
+  { id: "board", labelKey: "ideas.board", icon: LayoutGrid },
+];
+
+function loadConnectTab(): ConnectTab {
+  const saved = localStorage.getItem(STORAGE_KEYS.CONNECT_TAB);
+  if (saved === "node") return "node";
+  if (saved === "board") return "board";
+  // Migrate from old IDEAS_TAB
+  const oldTab = localStorage.getItem(STORAGE_KEYS.IDEAS_TAB);
+  if (oldTab === "node") return "node";
+  if (oldTab === "board") return "board";
+  const viewMode = localStorage.getItem(STORAGE_KEYS.CONNECT_VIEW_MODE);
+  if (viewMode === "paper") return "board";
+  if (oldTab === "connect") return "node";
+  return "node";
+}
+
+interface ConnectViewProps {
+  onNavigateToNote?: (noteId: string) => void;
+}
+
+export function ConnectView({ onNavigateToNote }: ConnectViewProps) {
+  const { t } = useTranslation();
+  const [activeTab, setActiveTab] = useState<ConnectTab>(loadConnectTab);
+
+  const { memos } = useMemoContext();
+  const { notes, setSelectedNoteId, createNote, softDeleteNote, updateNote } =
+    useNoteContext();
+  const { assignments, tags, setTagsForEntity } = useWikiTags();
+
+  const { setActiveDomain } = useUndoRedo();
+  const { noteConnections, createNoteConnection, deleteNoteConnectionByPair } =
+    useNoteConnections();
+  const paper = usePaperBoard();
+
+  const [connectQuery, setConnectQuery] = useState("");
+  const [selectedTagId, setSelectedTagId] = useState<string | null>(null);
+  const [focusedNoteId, setFocusedNoteId] = useState<string | null>(null);
+  const [sidebarSelectedItemId, setSidebarSelectedItemId] = useState<
+    string | null
+  >(null);
+
+  const handleSidebarSelect = useCallback((id: string | null) => {
+    setSidebarSelectedItemId(id);
+  }, []);
+
+  const handleFocusComplete = useCallback(() => {
+    setFocusedNoteId(null);
+  }, []);
+
+  const { matchingTags, matchingNotes } = useConnectSearch({
+    query: connectQuery,
+    tags,
+    notes,
+  });
+
+  // Activate undo/redo domain
+  useEffect(() => {
+    if (activeTab === "node") {
+      setActiveDomain("wikiTag");
+    } else if (activeTab === "board") {
+      setActiveDomain("paper");
+    }
+    return () => setActiveDomain(null);
+  }, [activeTab, setActiveDomain]);
+
+  const handleCreateNoteConnection = useCallback(
+    async (sourceNoteId: string, targetNoteId: string) => {
+      await createNoteConnection(sourceNoteId, targetNoteId);
+      const sourceTagIds = assignments
+        .filter((a) => a.entityId === sourceNoteId && a.entityType === "note")
+        .map((a) => a.tagId);
+      const targetTagIds = assignments
+        .filter((a) => a.entityId === targetNoteId && a.entityType === "note")
+        .map((a) => a.tagId);
+      const mergedForSource = [...new Set([...sourceTagIds, ...targetTagIds])];
+      const mergedForTarget = [...new Set([...targetTagIds, ...sourceTagIds])];
+      if (mergedForSource.length > sourceTagIds.length) {
+        await setTagsForEntity(sourceNoteId, "note", mergedForSource);
+      }
+      if (mergedForTarget.length > targetTagIds.length) {
+        await setTagsForEntity(targetNoteId, "note", mergedForTarget);
+      }
+    },
+    [createNoteConnection, assignments, setTagsForEntity],
+  );
+
+  const handleDeleteNoteConnection = useCallback(
+    async (sourceNoteId: string, targetNoteId: string) => {
+      await deleteNoteConnectionByPair(sourceNoteId, targetNoteId);
+    },
+    [deleteNoteConnectionByPair],
+  );
+
+  const handleCreateNoteForConnect = useCallback(
+    async (title: string, tagId?: string) => {
+      const noteId = createNote(title);
+      if (tagId) {
+        await setTagsForEntity(noteId, "note", [tagId]);
+      }
+      onNavigateToNote?.(noteId);
+    },
+    [createNote, setTagsForEntity, onNavigateToNote],
+  );
+
+  const handleUpdateNoteColor = useCallback(
+    (noteId: string, color: string) => {
+      updateNote(noteId, { color });
+    },
+    [updateNote],
+  );
+
+  const handleUpdateNoteTitle = useCallback(
+    (noteId: string, title: string) => {
+      updateNote(noteId, { title });
+    },
+    [updateNote],
+  );
+
+  const handleTabChange = (tab: ConnectTab) => {
+    setActiveTab(tab);
+    localStorage.setItem(STORAGE_KEYS.CONNECT_TAB, tab);
+  };
+
+  // Navigate to note from Node/Board tab
+  const handleNavigateToNote = useCallback(
+    (noteId: string) => {
+      // Navigate to Materials section
+      localStorage.setItem(STORAGE_KEYS.MATERIALS_TAB, "notes");
+      setSelectedNoteId(noteId);
+      onNavigateToNote?.(noteId);
+    },
+    [setSelectedNoteId, onNavigateToNote],
+  );
+
+  // Navigate to memo from Node tab
+  const handleNavigateToMemo = useCallback((date: string) => {
+    // Navigate to Materials section daily tab
+    localStorage.setItem(STORAGE_KEYS.MATERIALS_TAB, "daily");
+  }, []);
+
+  const { portalTarget: rightSidebarTarget } = useContext(RightSidebarContext);
+
+  const renderSidebar = () => {
+    switch (activeTab) {
+      case "node":
+        return (
+          <ConnectSidebar
+            query={connectQuery}
+            onQueryChange={setConnectQuery}
+            matchingTags={matchingTags}
+            matchingNotes={matchingNotes}
+            selectedTagId={selectedTagId}
+            tags={tags}
+            assignments={assignments}
+            notes={notes}
+            memos={memos}
+            onSelectTag={setSelectedTagId}
+            onNavigateToNote={handleNavigateToNote}
+            onCreateNote={handleCreateNoteForConnect}
+            sidebarSelectedItemId={sidebarSelectedItemId}
+            onSidebarSelect={handleSidebarSelect}
+            onUpdateNoteTitle={handleUpdateNoteTitle}
+            onDeleteNote={softDeleteNote}
+            onDeleteMemo={() => {}}
+          />
+        );
+      case "board":
+        return (
+          <PaperSidebar
+            boards={paper.boards}
+            activeBoardId={paper.activeBoardId}
+            onSelectBoard={(id) => paper.setActiveBoardId(id)}
+            onCreateBoard={(name) => paper.createBoard(name)}
+            onDeleteBoard={(id) => paper.deleteBoard(id)}
+            onRenameBoard={(id, name) => paper.updateBoard(id, { name })}
+            notes={notes}
+            onOpenNoteBoard={(noteId, noteName) =>
+              paper.openBoardForNote(noteId, noteName)
+            }
+            boardNodeCounts={paper.boardNodeCounts}
+          />
+        );
+    }
+  };
+
+  const listElement = renderSidebar();
+
+  const renderContent = () => {
+    switch (activeTab) {
+      case "node":
+        return (
+          <ReactFlowProvider>
+            <TagGraphView
+              tags={tags}
+              assignments={assignments}
+              noteConnections={noteConnections}
+              selectedTagId={selectedTagId}
+              onSelectTag={setSelectedTagId}
+              onCreateNoteConnection={handleCreateNoteConnection}
+              onDeleteNoteConnection={handleDeleteNoteConnection}
+              notes={notes}
+              memos={memos}
+              onNavigateToNote={handleNavigateToNote}
+              onNavigateToMemo={handleNavigateToMemo}
+              onUpdateNoteColor={handleUpdateNoteColor}
+              focusedNoteId={focusedNoteId}
+              onFocusComplete={handleFocusComplete}
+              sidebarSelectedItemId={sidebarSelectedItemId}
+            />
+          </ReactFlowProvider>
+        );
+      case "board":
+        return (
+          <ReactFlowProvider>
+            <PaperCanvasView
+              board={paper.activeBoard}
+              paperNodes={paper.nodes}
+              paperEdges={paper.edges}
+              notes={notes}
+              memos={memos}
+              onCreateNode={paper.createNode}
+              onUpdateNode={paper.updateNode}
+              onBulkUpdatePositions={paper.bulkUpdatePositions}
+              onDeleteNode={paper.deleteNode}
+              onCreateEdge={paper.createEdge}
+              onDeleteEdge={paper.deleteEdge}
+              onSaveViewport={paper.saveViewport}
+              onNavigateToNote={handleNavigateToNote}
+            />
+          </ReactFlowProvider>
+        );
+    }
+  };
+
+  return (
+    <div className="h-full flex flex-col">
+      <SectionHeader
+        title={t("connect.title")}
+        tabs={CONNECT_TABS}
+        activeTab={activeTab}
+        onTabChange={handleTabChange}
+      />
+      {rightSidebarTarget &&
+        listElement &&
+        createPortal(listElement, rightSidebarTarget)}
+      <div className="flex-1 overflow-hidden flex">
+        {!rightSidebarTarget && listElement && (
+          <div className="w-64 shrink-0 border-r border-notion-border">
+            {listElement}
+          </div>
+        )}
+        <div className="flex-1 min-w-0">{renderContent()}</div>
+      </div>
+    </div>
+  );
+}

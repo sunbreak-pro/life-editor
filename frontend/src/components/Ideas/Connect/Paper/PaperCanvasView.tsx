@@ -178,8 +178,19 @@ export function PaperCanvasView({
   );
 
   // Convert DB nodes → ReactFlow nodes
+  // ReactFlow requires parent nodes to appear before children in the array
   const rfNodes: Node[] = useMemo(() => {
-    return paperNodes.map((pn) => {
+    const parentIds = new Set(
+      paperNodes.filter((pn) => pn.parentNodeId).map((pn) => pn.parentNodeId),
+    );
+    // Sort: parent nodes first, then children
+    const sorted = [...paperNodes].sort((a, b) => {
+      const aIsParent = parentIds.has(a.id) ? 0 : 1;
+      const bIsParent = parentIds.has(b.id) ? 0 : 1;
+      if (aIsParent !== bIsParent) return aIsParent - bIsParent;
+      return 0;
+    });
+    return sorted.map((pn) => {
       let data: Record<string, unknown> = {};
       let type = "paperCard";
 
@@ -273,15 +284,13 @@ export function PaperCanvasView({
   // Handle node drag stop → persist positions
   const handleNodeDragStop = useCallback(
     (_event: React.MouseEvent, node: Node, nodes: Node[]) => {
-      // Get all dragged nodes (could include children of frames)
-      const draggedNodes = nodes.length > 0 ? nodes : [node];
-      const updates = draggedNodes.map((n) => ({
-        id: n.id,
-        positionX: n.position.x,
-        positionY: n.position.y,
-        parentNodeId: (n.parentId as string) || null,
-      }));
-      onBulkUpdatePositions(updates);
+      // Pre-compute frame escape/grouping for the primary node
+      // so we can include the correct position in the bulk update
+      let overrideForNode: {
+        positionX: number;
+        positionY: number;
+        parentNodeId: string | null;
+      } | null = null;
 
       // Frame escape: check if child node was dragged outside its parent frame
       if (node.type !== "paperFrame" && node.parentId) {
@@ -296,20 +305,17 @@ export function PaperCanvasView({
             node.position.x > fw + escapeThreshold ||
             node.position.y > fh + escapeThreshold;
           if (outside) {
-            // Convert relative position to absolute
-            const absX = parentFrame.position.x + node.position.x;
-            const absY = parentFrame.position.y + node.position.y;
-            onUpdateNode(node.id, {
-              positionX: absX,
-              positionY: absY,
+            overrideForNode = {
+              positionX: parentFrame.position.x + node.position.x,
+              positionY: parentFrame.position.y + node.position.y,
               parentNodeId: null,
-            });
+            };
           }
         }
       }
 
       // Frame grouping: check if non-frame node was dropped onto a frame
-      if (node.type !== "paperFrame" && !node.parentId) {
+      if (node.type !== "paperFrame" && !node.parentId && !overrideForNode) {
         const frameNodes = flowNodes.filter((n) => n.type === "paperFrame");
         for (const frame of frameNodes) {
           const fw = (frame.style?.width as number) || 200;
@@ -320,20 +326,32 @@ export function PaperCanvasView({
             node.position.x <= frame.position.x + fw &&
             node.position.y <= frame.position.y + fh
           ) {
-            // Set parent
-            const relX = node.position.x - frame.position.x;
-            const relY = node.position.y - frame.position.y;
-            onUpdateNode(node.id, {
-              positionX: relX,
-              positionY: relY,
+            overrideForNode = {
+              positionX: node.position.x - frame.position.x,
+              positionY: node.position.y - frame.position.y,
               parentNodeId: frame.id,
-            });
+            };
             break;
           }
         }
       }
+
+      // Build bulk updates, applying override for the primary node
+      const draggedNodes = nodes.length > 0 ? nodes : [node];
+      const updates = draggedNodes.map((n) => {
+        if (n.id === node.id && overrideForNode) {
+          return { id: n.id, ...overrideForNode };
+        }
+        return {
+          id: n.id,
+          positionX: n.position.x,
+          positionY: n.position.y,
+          parentNodeId: (n.parentId as string) || null,
+        };
+      });
+      onBulkUpdatePositions(updates);
     },
-    [onBulkUpdatePositions, onUpdateNode, flowNodes],
+    [onBulkUpdatePositions, flowNodes],
   );
 
   // Handle resize

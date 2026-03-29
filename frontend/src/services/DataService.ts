@@ -398,6 +398,7 @@ export interface DataService {
   fetchPaperNodeCountsByBoard(): Promise<Record<string, number>>;
   fetchPaperNodesByBoard(boardId: string): Promise<PaperNode[]>;
   createPaperNode(params: {
+    id?: string;
     boardId: string;
     nodeType: PaperNode["nodeType"];
     positionX: number;

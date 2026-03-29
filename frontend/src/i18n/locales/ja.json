@@ -8,7 +8,8 @@
     "analytics": "分析",
     "settings": "設定",
     "tips": "ヒント",
-    "ideas": "アイデア",
+    "materials": "マテリアル",
+    "connect": "コネクト",
     "trash": "ゴミ箱",
     "freeSession": "フリーセッション"
   },
@@ -235,8 +236,14 @@
     "daily": "日記",
     "notes": "ノート"
   },
+  "materials": {
+    "title": "マテリアル"
+  },
+  "connect": {
+    "title": "コネクト"
+  },
   "ideas": {
-    "title": "アイデア",
+    "title": "コネクト",
     "daily": "日記",
     "notes": "ノート",
     "connect": "コネクト",

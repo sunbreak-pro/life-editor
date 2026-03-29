@@ -780,6 +780,7 @@ export class RestDataService implements DataService {
     return notSupported("Paper Boards");
   }
   createPaperNode(_params: {
+    id?: string;
     boardId: string;
     nodeType: PaperNode["nodeType"];
     positionX: number;

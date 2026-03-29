@@ -129,7 +129,7 @@ export function createPaperBoardRepository(db: Database.Database) {
 
     // Nodes
     fetchNodesByBoard: db.prepare(
-      `SELECT * FROM paper_nodes WHERE board_id = ? ORDER BY z_index ASC`,
+      `SELECT * FROM paper_nodes WHERE board_id = ? ORDER BY CASE WHEN parent_node_id IS NULL THEN 0 ELSE 1 END, z_index ASC`,
     ),
     fetchNodeById: db.prepare(`SELECT * FROM paper_nodes WHERE id = ?`),
     insertNode: db.prepare(`
@@ -276,6 +276,7 @@ export function createPaperBoardRepository(db: Database.Database) {
     },
 
     createNode(params: {
+      id?: string;
       boardId: string;
       nodeType: PaperNode["nodeType"];
       positionX: number;
@@ -291,7 +292,7 @@ export function createPaperBoardRepository(db: Database.Database) {
       frameLabel?: string | null;
     }): PaperNode {
       const now = new Date().toISOString();
-      const id = `pn-${crypto.randomUUID()}`;
+      const id = params.id ?? `pn-${crypto.randomUUID()}`;
       stmts.insertNode.run({
         id,
         board_id: params.boardId,

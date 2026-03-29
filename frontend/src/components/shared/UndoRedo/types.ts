@@ -8,7 +8,8 @@ export type UndoDomain =
   | "playlist"
   | "sound"
   | "settings"
-  | "wikiTag";
+  | "wikiTag"
+  | "paper";
 
 export interface UndoCommand {
   label: string;

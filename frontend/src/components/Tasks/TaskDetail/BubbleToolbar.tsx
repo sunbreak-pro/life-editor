@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { BubbleMenu } from "@tiptap/react/menus";
 import type { Editor } from "@tiptap/react";
@@ -17,60 +17,21 @@ import { isMac } from "../../../utils/platform";
 import { isValidUrl } from "../../../utils/urlValidation";
 import { useSlashCommand } from "../../../hooks/useSlashCommand";
 import { PANEL_COMMANDS, getCurrentBlockLabel } from "./editorCommands";
-import { CommandPanel, type FilePickerMode } from "./CommandPanel";
+import { CommandPanel } from "./CommandPanel";
 import { UnifiedColorPicker } from "../../shared/UnifiedColorPicker";
 
 interface BubbleToolbarProps {
   editor: Editor;
-  onImageUpload?: (file: File) => void;
-  onPdfUpload?: (file: File) => void;
 }
 
-export function BubbleToolbar({
-  editor,
-  onImageUpload,
-  onPdfUpload,
-}: BubbleToolbarProps) {
+export function BubbleToolbar({ editor }: BubbleToolbarProps) {
   const [linkMode, setLinkMode] = useState(false);
   const [linkUrl, setLinkUrl] = useState("");
   const [linkError, setLinkError] = useState("");
   const [showColorPicker, setShowColorPicker] = useState(false);
   const [showTurnInto, setShowTurnInto] = useState(false);
-  const [filePickerMode, setFilePickerMode] = useState<FilePickerMode>(null);
-  const filePickerPosRef = useRef({ top: 0, left: 0 });
 
-  // Use a ref-based override so we can set it after useSlashCommand initializes
-  const executeOverrideRef = useRef<((index: number) => void) | null>(null);
-
-  const slash = useSlashCommand(editor, PANEL_COMMANDS, (index: number) => {
-    executeOverrideRef.current?.(index);
-  });
-
-  const handleSlashExecute = useCallback(
-    (index: number) => {
-      const cmd = slash.filteredCommands[index];
-      if (!cmd) return;
-      if (cmd.title === "Image") {
-        filePickerPosRef.current = { ...slash.position };
-        slash.deleteSlashText();
-        slash.close();
-        setFilePickerMode("image");
-        return;
-      }
-      if (cmd.title === "PDF") {
-        filePickerPosRef.current = { ...slash.position };
-        slash.deleteSlashText();
-        slash.close();
-        setFilePickerMode("pdf");
-        return;
-      }
-      slash.executeCommand(index);
-    },
-    [slash],
-  );
-
-  // Set the actual override implementation (used by Enter key in useSlashCommand)
-  executeOverrideRef.current = handleSlashExecute;
+  const slash = useSlashCommand(editor, PANEL_COMMANDS);
 
   const shouldShow = useCallback(
     ({
@@ -177,37 +138,6 @@ export function BubbleToolbar({
   );
 
   // --- Slash mode: portal-based CommandPanel ---
-  // --- File picker mode (shown after Image/PDF command selected) ---
-  if (filePickerMode) {
-    const portalTarget = editor.view.dom.parentElement;
-    if (!portalTarget) return null;
-
-    return createPortal(
-      <div
-        className="bubble-toolbar-slash-wrapper"
-        style={{
-          top: filePickerPosRef.current.top,
-          left: filePickerPosRef.current.left,
-        }}
-      >
-        <CommandPanel
-          editor={editor}
-          commands={[]}
-          mode="slash"
-          selectedIndex={-1}
-          filterQuery=""
-          onExecute={() => {}}
-          onClose={() => setFilePickerMode(null)}
-          onImageUpload={onImageUpload}
-          onPdfUpload={onPdfUpload}
-          activeFilePickerMode={filePickerMode}
-        />
-      </div>,
-      portalTarget,
-    );
-  }
-
-  // --- Slash mode: portal-based CommandPanel ---
   if (slash.isOpen) {
     const portalTarget = editor.view.dom.parentElement;
     if (!portalTarget) return null;
@@ -223,11 +153,9 @@ export function BubbleToolbar({
           mode="slash"
           selectedIndex={slash.selectedIndex}
           filterQuery={slash.query}
-          onExecute={handleSlashExecute}
+          onExecute={slash.executeCommand}
           onClose={slash.close}
           deleteSlashText={slash.deleteSlashText}
-          onImageUpload={onImageUpload}
-          onPdfUpload={onPdfUpload}
         />
       </div>,
       portalTarget,

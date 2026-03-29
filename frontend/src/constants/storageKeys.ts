@@ -6,6 +6,8 @@ export const STORAGE_KEYS = {
   LEFT_SIDEBAR_WIDTH: "life-editor-left-sidebar-width",
   LANGUAGE: "life-editor-language",
   IDEAS_TAB: "life-editor-memo-tab",
+  MATERIALS_TAB: "life-editor-materials-tab",
+  CONNECT_TAB: "life-editor-connect-tab",
   EFFECT_VOLUME: "life-editor-effect-volume",
   ACTIVE_CALENDAR_ID: "life-editor-active-calendar-id",
   TASK_TREE_FOLDER_FILTER: "life-editor-task-tree-folder-filter",

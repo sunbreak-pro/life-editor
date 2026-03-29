@@ -188,6 +188,7 @@ const ALLOWED_CHANNELS = new Set([
   "terminal:write",
   "terminal:resize",
   "terminal:destroy",
+  "terminal:claudeState",
   // Server (mobile access)
   "server:getStatus",
   "server:enable",

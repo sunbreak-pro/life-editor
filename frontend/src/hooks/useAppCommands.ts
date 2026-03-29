@@ -63,12 +63,19 @@ export function useAppCommands({
         action: () => setActiveSection("schedule"),
       },
       {
-        id: "nav-ideas",
-        title: "Go to Ideas",
+        id: "nav-materials",
+        title: "Go to Materials",
+        category: "Navigation",
+        icon: Lightbulb,
+        action: () => setActiveSection("materials"),
+      },
+      {
+        id: "nav-connect",
+        title: "Go to Connect",
         category: "Navigation",
         shortcut: getDisplayString("nav:ideas"),
         icon: Lightbulb,
-        action: () => setActiveSection("ideas"),
+        action: () => setActiveSection("connect"),
       },
       {
         id: "nav-work",

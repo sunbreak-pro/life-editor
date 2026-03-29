@@ -67,9 +67,11 @@ export function AIActionsPanel({
   const { selectedDate } = useMemoContext();
 
   const ideasTab =
-    activeSection === "ideas"
-      ? (localStorage.getItem(STORAGE_KEYS.IDEAS_TAB) ?? "materials")
-      : null;
+    activeSection === "materials"
+      ? (localStorage.getItem(STORAGE_KEYS.MATERIALS_TAB) ?? "notes")
+      : activeSection === "connect"
+        ? (localStorage.getItem(STORAGE_KEYS.CONNECT_TAB) ?? "node")
+        : null;
 
   const today = formatDate(new Date());
   const tomorrow = formatDate(new Date(Date.now() + 24 * 60 * 60 * 1000));

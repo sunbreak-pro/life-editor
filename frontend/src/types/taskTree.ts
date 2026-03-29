@@ -1,6 +1,7 @@
 export type SectionId =
   | "schedule"
-  | "ideas"
+  | "materials"
+  | "connect"
   | "work"
   | "analytics"
   | "settings";
