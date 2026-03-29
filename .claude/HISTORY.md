@@ -1,5 +1,18 @@
 # HISTORY.md - 変更履歴
 
+### 2026-03-29 - Fix Image/PDF slash command UI and CSP
+
+#### 概要
+
+Image/PDF スラッシュコマンドの即時ファイルピッカーをインライン選択ボタンUIに変更し、CSP に `data:` を追加して既存画像のブロック問題を解決。
+
+#### 変更点
+
+- **CommandPanel**: `document.createElement("input").click()` による即時ファイルピッカーを廃止。「画像を選択」「PDFを選択」ボタン付きインラインUIに変更
+- **BubbleToolbar**: Enter キーで Image/PDF 選択時も file picker UI を表示するよう `filePickerMode` state と位置保持を追加
+- **CSP**: `img-src` に `data:` を追加。既存コンテンツの data URL 画像のブロックを解消
+- **CSS**: `.command-panel-file-picker-*` スタイルを追加
+
 ### 2026-03-28 - Link/Image/PDF editor file operations
 
 #### 概要

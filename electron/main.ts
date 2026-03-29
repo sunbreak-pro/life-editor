@@ -23,8 +23,8 @@ if (isDev) {
 
 function setupCSP(): void {
   const policy = isDev
-    ? "default-src 'self'; script-src 'self' 'unsafe-eval' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' https: http: blob:; media-src 'self' blob:; font-src 'self'; connect-src 'self' ws://localhost:*; worker-src 'self' blob:; frame-src 'none'; object-src 'none'; base-uri 'self'"
-    : "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' https: http: blob:; media-src 'self' blob:; font-src 'self'; connect-src 'self'; frame-src 'none'; object-src 'none'; base-uri 'self'";
+    ? "default-src 'self'; script-src 'self' 'unsafe-eval' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' https: http: blob: data:; media-src 'self' blob:; font-src 'self'; connect-src 'self' ws://localhost:*; worker-src 'self' blob:; frame-src 'none'; object-src 'none'; base-uri 'self'"
+    : "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' https: http: blob: data:; media-src 'self' blob:; font-src 'self'; connect-src 'self'; frame-src 'none'; object-src 'none'; base-uri 'self'";
 
   session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
     callback({
