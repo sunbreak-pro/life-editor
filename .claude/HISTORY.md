@@ -1,5 +1,20 @@
 # HISTORY.md - 変更履歴
 
+### 2026-03-29 - 画像リサイズ・ダウンロード・Undo修正
+
+#### 概要
+
+MemoEditorの画像にドラッグリサイズ機能とダウンロードボタンを追加。画像削除後のUndo時に画像が壊れる問題を修正。
+
+#### 変更点
+
+- **Undo修正**: `MemoEditor.tsx` のattachment URL解決トランザクションに `addToHistory: false` を設定。Undoで `attachment://` URLに戻り画像が壊れる問題を解消
+- **ResizableImage Extension**: `@tiptap/extension-image` を拡張し `attachmentId` 属性を追加。React NodeViewでリサイズ+ダウンロードUIを統合
+- **ResizableImageView**: 四隅ドラッグハンドルでアスペクト比維持のリサイズ。ホバー時右上にダウンロードボタン表示（既存 `shell:openPath` IPC再利用）
+- **MemoEditor統合**: `Image` → `ResizableImage` に差し替え、画像挿入時・URL解決時に `attachmentId` を設定
+- **CSS**: リサイズハンドル・ダウンロードボタン・選択時アウトラインのスタイル追加
+- **リンククリック**: cmd+クリック必須を解除し、通常クリックでリンクが開くよう変更
+
 ### 2026-03-29 - MemoEditor handlePdfUpload TDZバグ修正
 
 #### 概要
