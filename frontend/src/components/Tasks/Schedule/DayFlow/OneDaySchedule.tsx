@@ -12,6 +12,7 @@ import { TimeGridClickMenu } from "./TimeGridClickMenu";
 import { RoutinePickerPanel } from "./RoutinePickerPanel";
 import { NoteSchedulePanel } from "../../../shared/NoteSchedulePanel/NoteSchedulePanel";
 import { RoutineDeleteConfirmDialog } from "./RoutineDeleteConfirmDialog";
+import { RoutineTimeChangeDialog } from "./RoutineTimeChangeDialog";
 import type { TabItem } from "../../../shared/SectionTabs";
 import { TIME_GRID } from "../../../../constants/timeGrid";
 import type { NoteNode } from "../../../../types/note";
@@ -140,6 +141,14 @@ export function OneDaySchedule({
   const [routineDeleteTarget, setRoutineDeleteTarget] = useState<{
     item: ScheduleItem;
     position: { x: number; y: number };
+  } | null>(null);
+
+  const [routineTimeChange, setRoutineTimeChange] = useState<{
+    itemId: string;
+    routineId: string;
+    routineTitle: string;
+    startTime: string;
+    endTime: string;
   } | null>(null);
 
   const handleRequestRoutineDelete = useCallback(
@@ -362,6 +371,20 @@ export function OneDaySchedule({
     endTime: string,
   ) => {
     updateScheduleItem(id, { startTime, endTime });
+    // If this is a routine item, show confirmation dialog
+    const item = filteredScheduleItems.find((i) => i.id === id);
+    if (item?.routineId) {
+      const routine = routines.find((r) => r.id === item.routineId);
+      if (routine) {
+        setRoutineTimeChange({
+          itemId: id,
+          routineId: routine.id,
+          routineTitle: routine.title,
+          startTime,
+          endTime,
+        });
+      }
+    }
   };
 
   const handleUpdateTaskTime = (
@@ -512,6 +535,26 @@ export function OneDaySchedule({
             onDismissOnly={handleDismissOnly}
             onArchiveRoutine={handleArchiveRoutine}
             onCancel={() => setRoutineDeleteTarget(null)}
+          />
+        )}
+
+        {/* Routine time change confirmation */}
+        {routineTimeChange && (
+          <RoutineTimeChangeDialog
+            routineTitle={routineTimeChange.routineTitle}
+            newStartTime={routineTimeChange.startTime}
+            newEndTime={routineTimeChange.endTime}
+            onThisOnly={() => setRoutineTimeChange(null)}
+            onApplyToRoutine={() => {
+              updateRoutine(routineTimeChange.routineId, {
+                startTime: routineTimeChange.startTime,
+                endTime: routineTimeChange.endTime,
+              });
+              setRoutineTimeChange(null);
+            }}
+            onCancel={() => {
+              setRoutineTimeChange(null);
+            }}
           />
         )}
       </div>

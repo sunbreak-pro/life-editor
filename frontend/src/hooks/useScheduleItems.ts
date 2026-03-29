@@ -633,8 +633,18 @@ export function useScheduleItems() {
     }
   }, []);
 
+  const skipNextSyncRef = useRef(false);
+
+  const skipNextSync = useCallback(() => {
+    skipNextSyncRef.current = true;
+  }, []);
+
   const syncScheduleItemsWithRoutines = useCallback(
     (routines: RoutineNode[]) => {
+      if (skipNextSyncRef.current) {
+        skipNextSyncRef.current = false;
+        return;
+      }
       const routineMap = new Map(routines.map((r) => [r.id, r]));
       let changed = false;
       const updated = scheduleItemsRef.current.map((item) => {
@@ -692,6 +702,7 @@ export function useScheduleItems() {
       loadRoutineItemsForMonth,
       getRoutineCompletionByDate,
       syncScheduleItemsWithRoutines,
+      skipNextSync,
     }),
     [
       scheduleItems,
@@ -704,6 +715,7 @@ export function useScheduleItems() {
       toggleComplete,
       ensureRoutineItemsForDate,
       getRoutineCompletionRate,
+      skipNextSync,
       routineStats,
       refreshRoutineStats,
       loadRoutineItemsForMonth,

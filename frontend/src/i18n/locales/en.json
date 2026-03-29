@@ -333,6 +333,22 @@
       "archiveRoutineDesc": "Archives the routine so it won't be auto-generated anymore. You can restore it from routine management.",
       "cancel": "Cancel"
     },
+    "routineTimeChange": {
+      "title": "Update routine time?",
+      "description": "\"{{title}}\" was changed to {{time}}.",
+      "thisOnly": "This time only",
+      "thisOnlyDesc": "Only change today's schedule. The routine template stays the same.",
+      "applyToRoutine": "Update routine template",
+      "applyToRoutineDesc": "Also update the routine's default time for future schedules."
+    },
+    "routineEditTimeChange": {
+      "title": "Update existing schedules?",
+      "description": "\"{{title}}\" template time was changed to {{time}}.",
+      "templateOnly": "Template only",
+      "templateOnlyDesc": "Only change the routine's default time. Existing schedules are not affected.",
+      "applyToAll": "Update existing schedules",
+      "applyToAllDesc": "Also update all scheduled items from today onward."
+    },
     "itemTitlePlaceholder": "Schedule item name"
   },
   "schedulePanel": {
@@ -719,7 +735,10 @@
     "notStarted": "Not Started",
     "inProgress": "In Progress",
     "done": "Done",
-    "all": "All"
+    "all": "All",
+    "markDone": "Mark as done",
+    "markInProgress": "Mark as in progress",
+    "noCompleted": "No completed tasks"
   },
   "commandPalette": {
     "placeholder": "Type a command...",

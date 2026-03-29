@@ -333,6 +333,22 @@
       "archiveRoutineDesc": "ルーティンをアーカイブし、今後自動生成されなくなります。ルーティン管理画面から復元できます。",
       "cancel": "キャンセル"
     },
+    "routineTimeChange": {
+      "title": "ルーティンの時間を更新しますか？",
+      "description": "「{{title}}」の時間が {{time}} に変更されました。",
+      "thisOnly": "今回のみ変更",
+      "thisOnlyDesc": "今日のスケジュールのみ変更します。ルーティンのテンプレートはそのままです。",
+      "applyToRoutine": "ルーティンテンプレートも更新",
+      "applyToRoutineDesc": "今後のスケジュールにも反映されるよう、ルーティンのデフォルト時間を更新します。"
+    },
+    "routineEditTimeChange": {
+      "title": "既存スケジュールも更新しますか？",
+      "description": "「{{title}}」のテンプレート時間が {{time}} に変更されました。",
+      "templateOnly": "テンプレートのみ更新",
+      "templateOnlyDesc": "ルーティンのデフォルト時間のみ変更します。既存のスケジュールには影響しません。",
+      "applyToAll": "既存スケジュールも更新",
+      "applyToAllDesc": "今日以降のスケジュール済みアイテムの時間も同時に更新します。"
+    },
     "itemTitlePlaceholder": "スケジュールアイテム名"
   },
   "schedulePanel": {
@@ -719,7 +735,10 @@
     "notStarted": "未着手",
     "inProgress": "進行中",
     "done": "完了",
-    "all": "すべて"
+    "all": "すべて",
+    "markDone": "完了にする",
+    "markInProgress": "進行中に戻す",
+    "noCompleted": "完了済みタスクなし"
   },
   "commandPalette": {
     "placeholder": "コマンドを入力...",

@@ -8,6 +8,7 @@ import type { RoutineGroup } from "../../../../types/routineGroup";
 import { RoutineEditDialog } from "./RoutineEditDialog";
 import { RoutineTagEditPopover } from "./RoutineTagEditPopover";
 import { RoutineGroupEditDialog } from "./RoutineGroupEditDialog";
+import { RoutineEditTimeChangeDialog } from "./RoutineEditTimeChangeDialog";
 import { getTextColorForBg } from "../../../../constants/folderColors";
 import {
   minutesToTimeString,
@@ -57,6 +58,7 @@ interface RoutineManagementOverlayProps {
   ) => void;
   onDeleteRoutineGroup: (id: string) => void;
   setTagsForGroup: (groupId: string, tagIds: number[]) => void;
+  onSkipNextSync?: () => void;
   onClose: () => void;
 }
 
@@ -80,6 +82,7 @@ export function RoutineManagementOverlay({
   onUpdateRoutineGroup,
   onDeleteRoutineGroup,
   setTagsForGroup,
+  onSkipNextSync,
   onClose,
 }: RoutineManagementOverlayProps) {
   const { t } = useTranslation();
@@ -98,6 +101,14 @@ export function RoutineManagementOverlay({
   const [showAllTags, setShowAllTags] = useState(false);
   const allTagsButtonRef = useRef<HTMLButtonElement>(null);
   const allTagsPopoverRef = useRef<HTMLDivElement>(null);
+
+  // Pending time change confirmation
+  const [pendingTimeChange, setPendingTimeChange] = useState<{
+    routineId: string;
+    routineTitle: string;
+    startTime?: string;
+    endTime?: string;
+  } | null>(null);
 
   const activeRoutines = useMemo(
     () =>
@@ -127,9 +138,30 @@ export function RoutineManagementOverlay({
           setTagsForRoutine(id, tagIds);
         }
       } else if (editDialog) {
-        onUpdateRoutine(editDialog.id, { title, startTime, endTime });
-        if (tagIds !== undefined) {
-          setTagsForRoutine(editDialog.id, tagIds);
+        const timeChanged =
+          (startTime !== undefined &&
+            startTime !== (editDialog.startTime ?? undefined)) ||
+          (endTime !== undefined &&
+            endTime !== (editDialog.endTime ?? undefined));
+
+        if (timeChanged) {
+          // Update title and tags immediately
+          onUpdateRoutine(editDialog.id, { title });
+          if (tagIds !== undefined) {
+            setTagsForRoutine(editDialog.id, tagIds);
+          }
+          // Defer time update to confirmation dialog
+          setPendingTimeChange({
+            routineId: editDialog.id,
+            routineTitle: title,
+            startTime,
+            endTime,
+          });
+        } else {
+          onUpdateRoutine(editDialog.id, { title, startTime, endTime });
+          if (tagIds !== undefined) {
+            setTagsForRoutine(editDialog.id, tagIds);
+          }
         }
       }
     },
@@ -198,7 +230,7 @@ export function RoutineManagementOverlay({
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <div className="bg-notion-bg border border-notion-border rounded-lg shadow-xl w-[600px] max-h-[80vh] flex flex-col">
+      <div className="bg-notion-bg border border-notion-border rounded-lg shadow-xl w-[700px] max-h-[80vh] flex flex-col">
         {/* Header */}
         <div className="flex items-center justify-between px-4 py-3 border-b border-notion-border shrink-0">
           <h3 className="text-base font-semibold text-notion-text">
@@ -224,9 +256,10 @@ export function RoutineManagementOverlay({
           </div>
         </div>
 
-        {/* Content */}
+        {/* Content - 2 columns */}
         <div className="flex flex-1 min-h-0">
-          <div className="flex-1 overflow-y-auto p-3">
+          {/* Left column: Routines */}
+          <div className="flex-1 overflow-y-auto p-3 border-r border-notion-border">
             <div className="flex items-center justify-between mb-2">
               <span className="text-[11px] text-notion-text-secondary uppercase tracking-wide font-medium">
                 Routines
@@ -320,9 +353,12 @@ export function RoutineManagementOverlay({
                 );
               })}
             </div>
+          </div>
 
+          {/* Right column: Groups + Archived */}
+          <div className="w-[280px] shrink-0 overflow-y-auto p-3">
             {/* Groups */}
-            <div className="mt-3">
+            <div>
               <div className="flex items-center justify-between mb-2">
                 <span className="text-[11px] text-notion-text-secondary uppercase tracking-wide font-medium flex items-center gap-1">
                   <Layers size={12} />
@@ -392,7 +428,7 @@ export function RoutineManagementOverlay({
 
             {/* Archived */}
             {archivedRoutines.length > 0 && (
-              <details className="mt-2">
+              <details className="mt-3">
                 <summary className="text-[11px] text-notion-text-secondary cursor-pointer hover:text-notion-text transition-colors">
                   Archived ({archivedRoutines.length})
                 </summary>
@@ -494,6 +530,33 @@ export function RoutineManagementOverlay({
               : undefined
           }
           onClose={() => setGroupEditDialog(null)}
+        />
+      )}
+
+      {pendingTimeChange && (
+        <RoutineEditTimeChangeDialog
+          routineTitle={pendingTimeChange.routineTitle}
+          newTime={`${pendingTimeChange.startTime ?? "?"} - ${pendingTimeChange.endTime ?? "?"}`}
+          onTemplateOnly={() => {
+            // Update routine time but skip sync to existing schedule items
+            onSkipNextSync?.();
+            onUpdateRoutine(pendingTimeChange.routineId, {
+              startTime: pendingTimeChange.startTime,
+              endTime: pendingTimeChange.endTime,
+            });
+            setPendingTimeChange(null);
+          }}
+          onApplyToAll={() => {
+            // Update routine time and let sync propagate to schedule items
+            onUpdateRoutine(pendingTimeChange.routineId, {
+              startTime: pendingTimeChange.startTime,
+              endTime: pendingTimeChange.endTime,
+            });
+            setPendingTimeChange(null);
+          }}
+          onCancel={() => {
+            setPendingTimeChange(null);
+          }}
         />
       )}
     </div>

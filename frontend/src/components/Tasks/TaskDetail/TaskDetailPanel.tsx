@@ -680,10 +680,16 @@ function FolderSidebarContent({
                       {isExpanded && (
                         <div className="ml-5 space-y-0.5 mt-0.5">
                           {getGrandchildren(folder.id).map((grandchild) => (
-                            <button
+                            <div
                               key={grandchild.id}
+                              role="button"
+                              tabIndex={0}
                               onClick={() => onSelectTask?.(grandchild.id)}
-                              className="w-full flex items-center gap-1.5 px-2 py-1 rounded-md text-sm text-notion-text hover:bg-notion-hover transition-colors text-left"
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter" || e.key === " ")
+                                  onSelectTask?.(grandchild.id);
+                              }}
+                              className="w-full flex items-center gap-1.5 px-2 py-1 rounded-md text-sm text-notion-text hover:bg-notion-hover transition-colors text-left cursor-pointer"
                             >
                               {grandchild.type === "folder" ? (
                                 <Folder
@@ -712,7 +718,7 @@ function FolderSidebarContent({
                               <span className="truncate">
                                 {grandchild.title}
                               </span>
-                            </button>
+                            </div>
                           ))}
                           {getGrandchildren(folder.id).length === 0 && (
                             <p className="text-xs text-notion-text-secondary/50 px-2 py-1">
@@ -736,10 +742,16 @@ function FolderSidebarContent({
               </p>
               <div className="space-y-0.5">
                 {childTasks.map((task) => (
-                  <button
+                  <div
                     key={task.id}
+                    role="button"
+                    tabIndex={0}
                     onClick={() => onSelectTask?.(task.id)}
-                    className="w-full flex items-center gap-1.5 px-2 py-1 rounded-md text-sm text-notion-text hover:bg-notion-hover transition-colors text-left"
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ")
+                        onSelectTask?.(task.id);
+                    }}
+                    className="w-full flex items-center gap-1.5 px-2 py-1 rounded-md text-sm text-notion-text hover:bg-notion-hover transition-colors text-left cursor-pointer"
                   >
                     <TaskStatusIcon
                       status={
@@ -752,7 +764,7 @@ function FolderSidebarContent({
                       onSetStatus={(s) => handleSetTaskStatus(task.id, s)}
                     />
                     <span className="truncate">{task.title}</span>
-                  </button>
+                  </div>
                 ))}
               </div>
             </div>

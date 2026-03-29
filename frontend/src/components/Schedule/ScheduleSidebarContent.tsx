@@ -46,6 +46,7 @@ export function ScheduleSidebarContent({
     updateRoutineGroup,
     deleteRoutineGroup,
     setTagsForGroup,
+    skipNextSync,
   } = useScheduleContext();
 
   const { nodes } = useTaskTreeContext();
@@ -113,6 +114,7 @@ export function ScheduleSidebarContent({
           onUpdateRoutineGroup={updateRoutineGroup}
           onDeleteRoutineGroup={deleteRoutineGroup}
           setTagsForGroup={setTagsForGroup}
+          onSkipNextSync={skipNextSync}
           onClose={() => setShowManagement(false)}
         />
       )}

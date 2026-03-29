@@ -1,5 +1,18 @@
 # HISTORY.md - 変更履歴
 
+### 2026-03-29 - Routine time confirm / Sidebar status / 2-column management / Button fix
+
+#### 概要
+
+4つのUI改善を実施: Routine時間変更確認ダイアログ、RightSidebarのステータス変更チェックボックス、RoutineManagement 2カラム化、button入れ子エラー修正。
+
+#### 変更点
+
+- **Routine時間変更確認**: TimeGridドラッグ時「テンプレートにも反映？」、RoutineManagement編集時「既存スケジュールにも反映？」の確認ダイアログを追加。`skipNextSync`フラグでsync制御
+- **RightSidebarステータス**: InProgressTasksListにチェックボックス追加、完了済みセクション（常時表示、最大10件）を新設。DONE→IN_PROGRESS復元も対応
+- **RoutineManagement 2カラム化**: w-[600px]→w-[700px]、左列=Routines / 右列(280px)=Groups+Archived
+- **Button nesting修正**: TaskDetailPanel.tsx FolderSidebarContentの`<button>`を`<div role="button">`に変更しvalidateDOMNestingエラー解消
+
 ### 2026-03-29 - Fix Image/PDF slash command UI and CSP
 
 #### 概要
