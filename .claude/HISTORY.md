@@ -1,5 +1,21 @@
 # HISTORY.md - 変更履歴
 
+### 2026-03-29 - Replace floating file picker with inline FileUploadPlaceholder block
+
+#### 概要
+
+`/image` `/pdf` スラッシュコマンドで表示されるファイル選択UIを、フローティングパネル（ポータル）からエディタ内のインラインブロック要素（TipTap NodeView）に変更。クリック選択時にパネルが表示されないバグも同時に解消。
+
+#### 変更点
+
+- **FileUploadPlaceholder拡張**: 新規TipTapノード拡張（`fileUploadPlaceholder`）を作成。`mode`属性（image/pdf）、`addStorage`でアップロードコールバックを保持、`parseHTML`空配列で永続化防止
+- **FileUploadPlaceholderView**: React NodeViewコンポーネント。アイコン＋アップロードボタン＋キャンセルボタンのブロック表示。`extension.storage`からコールバック取得
+- **editorCommands.ts**: Image/PDFコマンドの`action`を`insertContent({ type: 'fileUploadPlaceholder' })`に変更
+- **MemoEditor.tsx**: 拡張登録、`useEffect`でstorageにコールバック設定、`sanitizeContentForSave`でプレースホルダーノード除外
+- **BubbleToolbar.tsx**: `filePickerMode`状態、ファイルピッカーポータル描画、Image/PDF特殊ハンドリングを全削除（-82行）
+- **CommandPanel.tsx**: 内部`filePickerMode`状態、ファイルピッカー描画ブロック、`FilePickerMode`型エクスポートを全削除（-98行）
+- **CSS**: 旧`.command-panel-file-picker`スタイルを`.file-upload-placeholder`に置換（pdf-attachment-blockと同様のレイアウト）
+
 ### 2026-03-29 - AI Actions: Claude startup check before sending prompts
 
 #### 概要
