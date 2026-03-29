@@ -1,5 +1,16 @@
 # HISTORY.md - 変更履歴
 
+### 2026-03-29 - Calloutアイコン・テキスト高さズレ修正
+
+#### 概要
+
+MemoEditorのCalloutブロック内でアイコンとテキストの高さがズレていた問題を修正。TipTapのNodeViewContentが付与する`white-space: pre-wrap`インラインスタイルによるストラット発生と、`<p>`のmargin-bottomが原因。
+
+#### 変更点
+
+- **CSS**: `.memo-editor .callout p:last-child { margin-bottom: 0; }` を追加し、callout内の最終段落の余分な下余白を除去
+- **CSS**: `.memo-editor .callout .callout-content` に `white-space: normal !important` を追加し、TipTapのインラインスタイル `white-space: pre-wrap` を上書き。ストラットによる微妙な高さズレを解消
+
 ### 2026-03-29 - 画像リサイズ・ダウンロード・Undo修正
 
 #### 概要
