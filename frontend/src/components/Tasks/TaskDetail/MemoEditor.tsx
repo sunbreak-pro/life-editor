@@ -252,7 +252,6 @@ export function MemoEditor({
           class: "memo-editor outline-none min-h-[200px]",
         },
         handleClick(_view, _pos, event) {
-          if (!(event.metaKey || event.ctrlKey)) return false;
           const target = event.target as HTMLElement;
           const linkEl = target.closest("a[href]");
           if (!linkEl) return false;
@@ -308,6 +307,28 @@ export function MemoEditor({
       }
     },
     [editor, uploadImage],
+  );
+
+  const handlePdfUpload = useCallback(
+    async (file: File) => {
+      if (!editor) return;
+      const result = await uploadPdf(file);
+      if (result) {
+        editor
+          .chain()
+          .focus()
+          .insertContent({
+            type: "pdfAttachment",
+            attrs: {
+              attachmentId: result.id,
+              filename: result.filename,
+              size: result.size,
+            },
+          })
+          .run();
+      }
+    },
+    [editor, uploadPdf],
   );
 
   // Keep ref in sync for editorProps callbacks
@@ -391,28 +412,6 @@ export function MemoEditor({
       editor.off("transaction", handleHeadingFontSizeChange);
     };
   }, [editor, handleHeadingFontSizeChange]);
-
-  const handlePdfUpload = useCallback(
-    async (file: File) => {
-      if (!editor) return;
-      const result = await uploadPdf(file);
-      if (result) {
-        editor
-          .chain()
-          .focus()
-          .insertContent({
-            type: "pdfAttachment",
-            attrs: {
-              attachmentId: result.id,
-              filename: result.filename,
-              size: result.size,
-            },
-          })
-          .run();
-      }
-    },
-    [editor, uploadPdf],
-  );
 
   return (
     <div className="relative">

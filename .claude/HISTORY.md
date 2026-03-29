@@ -1,5 +1,15 @@
 # HISTORY.md - 変更履歴
 
+### 2026-03-29 - MemoEditor handlePdfUpload TDZバグ修正
+
+#### 概要
+
+MemoEditorで `handlePdfUpload` が定義前に useEffect 内で参照されていたため Temporal Dead Zone エラーが発生し、Materials > Daily タブが表示できなかった問題を修正。
+
+#### 変更点
+
+- **MemoEditor.tsx**: `handlePdfUpload` の useCallback 定義を、それを参照する useEffect の前に移動。下部の重複定義を削除
+
 ### 2026-03-29 - Board機能強化 + セクション再構成 + UI改善
 
 #### 概要
