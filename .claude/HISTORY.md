@@ -1,5 +1,17 @@
 # HISTORY.md - 変更履歴
 
+### 2026-03-30 - RoutineTimeChangeDialog キャンセル・未来アイテム反映バグ修正
+
+#### 概要
+
+DayFlowでRoutineアイテムの時間をドラッグ変更した際のRoutineTimeChangeDialogにおける2つのバグを修正。キャンセル時に変更が元に戻らない問題と、「ルーティンテンプレートも更新」選択時に未来のスケジュールアイテムが更新されない問題を解決。
+
+#### 変更点
+
+- **Bug 1 (キャンセル)**: `OneDaySchedule.tsx`・`DualDayFlowLayout.tsx` の `routineTimeChange` stateに `prevStartTime`/`prevEndTime` を追加。`onCancel` で `updateScheduleItem()` を呼び元の時間に復元
+- **Bug 2 (未来アイテム)**: `scheduleItemRepository.ts` に `updateFutureByRoutine()` メソッド追加（`WHERE routine_id = ? AND date >= ? AND is_dismissed = 0`）。IPC ハンドラ・preload・DataService全実装（Electron/Offline/Rest）・RESTルートを追加。`onApplyToRoutine` で `skipNextSync()` 後に一括DB更新を実行
+- **Group対応**: RoutineGroupはタグベースUIフィルターでDB操作は `routine_id` ベースのため、修正不要を確認
+
 ### 2026-03-30 - DayFlow TimeGrid UI/UX 改善 (6項目)
 
 #### 概要
