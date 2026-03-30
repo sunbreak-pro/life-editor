@@ -794,6 +794,8 @@ export class RestDataService implements DataService {
     textContent?: string | null;
     frameColor?: string | null;
     frameLabel?: string | null;
+    label?: string | null;
+    hidden?: boolean;
   }): Promise<PaperNode> {
     return notSupported("Paper Boards");
   }
@@ -811,6 +813,8 @@ export class RestDataService implements DataService {
         | "textContent"
         | "frameColor"
         | "frameLabel"
+        | "label"
+        | "hidden"
       >
     >,
   ): Promise<PaperNode> {
@@ -821,6 +825,15 @@ export class RestDataService implements DataService {
       id: string;
       positionX: number;
       positionY: number;
+      parentNodeId: string | null;
+    }>,
+  ): Promise<void> {
+    return notSupported("Paper Boards");
+  }
+  bulkUpdatePaperNodeZIndices(
+    _updates: Array<{
+      id: string;
+      zIndex: number;
       parentNodeId: string | null;
     }>,
   ): Promise<void> {

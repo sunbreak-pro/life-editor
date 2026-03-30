@@ -412,6 +412,8 @@ export interface DataService {
     textContent?: string | null;
     frameColor?: string | null;
     frameLabel?: string | null;
+    label?: string | null;
+    hidden?: boolean;
   }): Promise<PaperNode>;
   updatePaperNode(
     id: string,
@@ -427,6 +429,8 @@ export interface DataService {
         | "textContent"
         | "frameColor"
         | "frameLabel"
+        | "label"
+        | "hidden"
       >
     >,
   ): Promise<PaperNode>;
@@ -435,6 +439,13 @@ export interface DataService {
       id: string;
       positionX: number;
       positionY: number;
+      parentNodeId: string | null;
+    }>,
+  ): Promise<void>;
+  bulkUpdatePaperNodeZIndices(
+    updates: Array<{
+      id: string;
+      zIndex: number;
       parentNodeId: string | null;
     }>,
   ): Promise<void>;

@@ -157,6 +157,8 @@ export function usePaperBoard() {
       textContent?: string | null;
       frameColor?: string | null;
       frameLabel?: string | null;
+      label?: string | null;
+      hidden?: boolean;
     }) => {
       const ds = getDataService();
       const node = await ds.createPaperNode(params);
@@ -185,6 +187,8 @@ export function usePaperBoard() {
           | "textContent"
           | "frameColor"
           | "frameLabel"
+          | "label"
+          | "hidden"
         >
       >,
     ) => {
@@ -272,6 +276,7 @@ export function usePaperBoard() {
             textContent: deletedNode.textContent,
             frameColor: deletedNode.frameColor,
             frameLabel: deletedNode.frameLabel,
+            label: deletedNode.label,
           });
           setNodes((prev) => [...prev, restored]);
           setBoardNodeCounts((prev) => ({
@@ -375,6 +380,67 @@ export function usePaperBoard() {
     [],
   );
 
+  const bulkUpdateZIndices = useCallback(
+    async (
+      updates: Array<{
+        id: string;
+        zIndex: number;
+        parentNodeId: string | null;
+      }>,
+    ) => {
+      const ds = getDataService();
+      await ds.bulkUpdatePaperNodeZIndices(updates);
+      // Optimistic update
+      setNodes((prev) => {
+        const updateMap = new Map(updates.map((u) => [u.id, u]));
+        return prev.map((n) => {
+          const u = updateMap.get(n.id);
+          if (!u) return n;
+          return {
+            ...n,
+            zIndex: u.zIndex,
+            parentNodeId: u.parentNodeId,
+          };
+        });
+      });
+    },
+    [],
+  );
+
+  const duplicateNode = useCallback(
+    async (nodeId: string) => {
+      const original = nodes.find((n) => n.id === nodeId);
+      if (!original) return;
+      const newNode = await createNode({
+        boardId: original.boardId,
+        nodeType: original.nodeType,
+        positionX: original.positionX + 20,
+        positionY: original.positionY + 20,
+        width: original.width,
+        height: original.height,
+        zIndex: original.zIndex + 1,
+        parentNodeId: original.parentNodeId,
+        refEntityId: original.refEntityId,
+        refEntityType: original.refEntityType,
+        textContent: original.textContent,
+        frameColor: original.frameColor,
+        frameLabel: original.frameLabel,
+        label: original.label,
+      });
+      return newNode;
+    },
+    [nodes, createNode],
+  );
+
+  const toggleNodeHidden = useCallback(
+    async (nodeId: string) => {
+      const node = nodes.find((n) => n.id === nodeId);
+      if (!node) return;
+      await updateNode(nodeId, { hidden: !node.hidden });
+    },
+    [nodes, updateNode],
+  );
+
   // Reload board data (after switching)
   const reloadBoardData = useCallback(async () => {
     if (!activeBoardId) return;
@@ -415,5 +481,8 @@ export function usePaperBoard() {
     openBoardForNote,
     reloadBoardData,
     updateNodeZIndex,
+    bulkUpdateZIndices,
+    duplicateNode,
+    toggleNodeHidden,
   };
 }

@@ -178,6 +178,7 @@ const ALLOWED_CHANNELS = new Set([
   "db:paperNodes:create",
   "db:paperNodes:update",
   "db:paperNodes:bulkUpdatePositions",
+  "db:paperNodes:bulkUpdateZIndices",
   "db:paperNodes:delete",
   // Paper Edges
   "db:paperEdges:fetchByBoard",

@@ -1,5 +1,22 @@
 # HISTORY.md - 変更履歴
 
+### 2026-03-30 - Layers DnD + Fit-Content + Layer Editing
+
+#### 概要
+
+PaperBoard の Layers パネルに @dnd-kit ベースのドラッグ&ドロップ（z-order並び替え + Frame出し入れ）、テキストノードの内容フィット自動リサイズ、レイヤー編集機能（削除・リネーム・複製・表示/非表示トグル）を追加。
+
+#### 変更点
+
+- **Schema (V43)**: `paper_nodes` テーブルに `label TEXT` と `hidden INTEGER` カラムを追加。全ノード共通の表示名オーバーライドとキャンバス上の表示/非表示を永続化
+- **Pipeline**: `PaperNode` 型、Repository（rowToNode, insert/update SQL, bulkUpdateZIndicesTx）、IPC ハンドラ、preload ALLOWED_CHANNELS、DataService 全実装（Electron/Offline/Rest）を更新
+- **usePaperBoard**: `bulkUpdateZIndices`（一括zIndex+parentNodeId更新）、`duplicateNode`（20pxオフセット複製）、`toggleNodeHidden`（hidden切替）を追加
+- **Fit-Content**: `measureTextDimensions` ユーティリティ（オフスクリーンDOM計測）を新規作成。PaperTextNode の blur 時に自動リサイズ。初期テキストノードサイズを 200x80 → 120x40 に縮小
+- **Layers DnD**: `usePaperLayersDnd` フック（PointerSensor + subscriber パターン、above/below/inside ドロップ位置判定、連番zIndex再割当）と `usePaperLayerDragIndicator` フック（useSyncExternalStore）を新規作成
+- **PaperLayersPanel 大幅改修**: DndContext + useDraggable/useDroppable で各行をDnD対応化。GripVertical ドラッグハンドル、ドロップインジケータ（青い水平線/アクセントBG）、DragOverlay ゴースト表示。z-order up/down ボタンを削除
+- **Layer Editing**: ホバー時に Trash2（削除）、Copy（複製）、Eye/EyeOff（表示切替）アイコンボタン。ダブルクリックでインラインリネーム（label フィールド更新）。hidden ノードは opacity-50 + line-through 表示
+- **PaperCanvasView**: rfNodes ビルダーで `hidden: pn.hidden` を ReactFlow Node に設定し非表示ノードをキャンバスから除外
+
 ### 2026-03-29 - Calloutアイコン・テキスト高さズレ修正
 
 #### 概要

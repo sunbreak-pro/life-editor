@@ -195,6 +195,11 @@ export function runMigrations(db: Database.Database): void {
     migrateV42(db);
   }
 
+  if (currentVersion < 43) {
+    log.info("[DB] Running migration V43");
+    migrateV43(db);
+  }
+
   const newVersion = db.pragma("user_version", { simple: true }) as number;
   if (newVersion !== currentVersion) {
     log.info(`[DB] Schema migrated: ${currentVersion} → ${newVersion}`);
@@ -1550,4 +1555,19 @@ function migrateV42(db: Database.Database): void {
   });
   migrate();
   db.pragma("user_version = 42");
+}
+
+function migrateV43(db: Database.Database): void {
+  const migrate = db.transaction(() => {
+    if (!hasColumn(db, "paper_nodes", "label")) {
+      db.exec(`ALTER TABLE paper_nodes ADD COLUMN label TEXT DEFAULT NULL`);
+    }
+    if (!hasColumn(db, "paper_nodes", "hidden")) {
+      db.exec(
+        `ALTER TABLE paper_nodes ADD COLUMN hidden INTEGER NOT NULL DEFAULT 0`,
+      );
+    }
+  });
+  migrate();
+  db.pragma("user_version = 43");
 }

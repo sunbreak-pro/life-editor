@@ -723,6 +723,8 @@ export class ElectronDataService implements DataService {
     textContent?: string | null;
     frameColor?: string | null;
     frameLabel?: string | null;
+    label?: string | null;
+    hidden?: boolean;
   }): Promise<PaperNode> {
     return invoke("db:paperNodes:create", params);
   }
@@ -740,6 +742,8 @@ export class ElectronDataService implements DataService {
         | "textContent"
         | "frameColor"
         | "frameLabel"
+        | "label"
+        | "hidden"
       >
     >,
   ): Promise<PaperNode> {
@@ -754,6 +758,15 @@ export class ElectronDataService implements DataService {
     }>,
   ): Promise<void> {
     return invoke("db:paperNodes:bulkUpdatePositions", updates);
+  }
+  bulkUpdatePaperNodeZIndices(
+    updates: Array<{
+      id: string;
+      zIndex: number;
+      parentNodeId: string | null;
+    }>,
+  ): Promise<void> {
+    return invoke("db:paperNodes:bulkUpdateZIndices", updates);
   }
   deletePaperNode(id: string): Promise<void> {
     return invoke("db:paperNodes:delete", id);

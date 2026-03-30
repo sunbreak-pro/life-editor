@@ -30,7 +30,20 @@ interface PaperSidebarProps {
   paperNodes?: PaperNode[];
   selectedNodeIds?: string[];
   onSelectNode?: (nodeId: string) => void;
-  onUpdateNodeZIndex?: (id: string, zIndex: number) => void;
+  onBulkUpdateZIndices?: (
+    updates: Array<{
+      id: string;
+      zIndex: number;
+      parentNodeId: string | null;
+    }>,
+  ) => Promise<void>;
+  onDeleteNode?: (id: string) => Promise<void>;
+  onUpdateNode?: (
+    id: string,
+    updates: Partial<Pick<PaperNode, "label">>,
+  ) => Promise<PaperNode>;
+  onDuplicateNode?: (nodeId: string) => Promise<PaperNode | undefined>;
+  onToggleHidden?: (nodeId: string) => Promise<void>;
 }
 
 interface SectionsState {
@@ -75,7 +88,11 @@ export function PaperSidebar({
   paperNodes,
   selectedNodeIds,
   onSelectNode,
-  onUpdateNodeZIndex,
+  onBulkUpdateZIndices,
+  onDeleteNode,
+  onUpdateNode,
+  onDuplicateNode,
+  onToggleHidden,
 }: PaperSidebarProps) {
   const { t } = useTranslation();
   const [sections, setSections] = useState<SectionsState>(loadSectionsState);
@@ -350,7 +367,7 @@ export function PaperSidebar({
         </CollapsibleSection>
 
         {/* Layers */}
-        {paperNodes && onSelectNode && onUpdateNodeZIndex && (
+        {paperNodes && onSelectNode && onBulkUpdateZIndices && (
           <CollapsibleSection
             label="Layers"
             icon={<Layers size={12} />}
@@ -361,7 +378,11 @@ export function PaperSidebar({
               nodes={paperNodes}
               selectedNodeIds={selectedNodeIds ?? []}
               onSelectNode={onSelectNode}
-              onUpdateNodeZIndex={onUpdateNodeZIndex}
+              onBulkUpdateZIndices={onBulkUpdateZIndices}
+              onDeleteNode={onDeleteNode}
+              onUpdateNode={onUpdateNode}
+              onDuplicateNode={onDuplicateNode}
+              onToggleHidden={onToggleHidden}
             />
           </CollapsibleSection>
         )}

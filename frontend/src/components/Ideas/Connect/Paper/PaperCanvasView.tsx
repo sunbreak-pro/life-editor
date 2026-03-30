@@ -166,6 +166,13 @@ export function PaperCanvasView({
     [onUpdateNode],
   );
 
+  const handleNodeResize = useCallback(
+    (nodeId: string, width: number, height: number) => {
+      onUpdateNode(nodeId, { width, height });
+    },
+    [onUpdateNode],
+  );
+
   const handleFrameColorChange = useCallback(
     (nodeId: string, color: string) => {
       onUpdateNode(nodeId, { frameColor: color });
@@ -223,6 +230,7 @@ export function PaperCanvasView({
         data = {
           textContent: pn.textContent || "",
           onTextChange: handleTextChange,
+          onResize: handleNodeResize,
         } satisfies PaperTextData;
       } else if (pn.nodeType === "frame") {
         type = "paperFrame";
@@ -241,6 +249,7 @@ export function PaperCanvasView({
         data,
         style: { width: pn.width, height: pn.height },
         zIndex: pn.zIndex,
+        hidden: pn.hidden,
         dragHandle: undefined,
       };
 
@@ -255,6 +264,7 @@ export function PaperCanvasView({
     noteMap,
     memoMap,
     handleTextChange,
+    handleNodeResize,
     handleFrameLabelChange,
     handleFrameColorChange,
   ]);
@@ -451,8 +461,8 @@ export function PaperCanvasView({
       nodeType: "text",
       positionX: pos.x,
       positionY: pos.y,
-      width: 200,
-      height: 80,
+      width: 120,
+      height: 40,
       textContent: "",
     });
   }, [board, onCreateNode, getNewNodePosition]);

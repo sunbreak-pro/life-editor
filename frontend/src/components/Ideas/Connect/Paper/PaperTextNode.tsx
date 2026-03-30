@@ -1,9 +1,11 @@
 import { memo, useState, useCallback, useRef, useEffect } from "react";
 import { Handle, Position, NodeResizer, type NodeProps } from "@xyflow/react";
+import { measureTextDimensions } from "../../../../utils/measureTextDimensions";
 
 export type PaperTextData = {
   textContent: string;
   onTextChange?: (nodeId: string, text: string) => void;
+  onResize?: (nodeId: string, width: number, height: number) => void;
 };
 
 function PaperTextNodeInner({
@@ -29,6 +31,16 @@ function PaperTextNodeInner({
     setEditing(false);
     if (text !== data.textContent) {
       data.onTextChange?.(id, text);
+    }
+    if (data.onResize && text) {
+      const { width, height } = measureTextDimensions({
+        text,
+        minWidth: 100,
+        minHeight: 40,
+        maxWidth: 400,
+        padding: 8,
+      });
+      data.onResize(id, width, height);
     }
   }, [id, text, data]);
 

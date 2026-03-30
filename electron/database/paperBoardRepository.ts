@@ -30,6 +30,8 @@ interface NodeRow {
   text_content: string | null;
   frame_color: string | null;
   frame_label: string | null;
+  label: string | null;
+  hidden: number;
   created_at: string;
   updated_at: string;
 }
@@ -78,6 +80,8 @@ function rowToNode(row: NodeRow): PaperNode {
     textContent: row.text_content,
     frameColor: row.frame_color,
     frameLabel: row.frame_label,
+    label: row.label,
+    hidden: row.hidden === 1,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -133,19 +137,23 @@ export function createPaperBoardRepository(db: Database.Database) {
     ),
     fetchNodeById: db.prepare(`SELECT * FROM paper_nodes WHERE id = ?`),
     insertNode: db.prepare(`
-      INSERT INTO paper_nodes (id, board_id, node_type, position_x, position_y, width, height, z_index, parent_node_id, ref_entity_id, ref_entity_type, text_content, frame_color, frame_label, created_at, updated_at)
-      VALUES (@id, @board_id, @node_type, @position_x, @position_y, @width, @height, @z_index, @parent_node_id, @ref_entity_id, @ref_entity_type, @text_content, @frame_color, @frame_label, @created_at, @updated_at)
+      INSERT INTO paper_nodes (id, board_id, node_type, position_x, position_y, width, height, z_index, parent_node_id, ref_entity_id, ref_entity_type, text_content, frame_color, frame_label, label, hidden, created_at, updated_at)
+      VALUES (@id, @board_id, @node_type, @position_x, @position_y, @width, @height, @z_index, @parent_node_id, @ref_entity_id, @ref_entity_type, @text_content, @frame_color, @frame_label, @label, @hidden, @created_at, @updated_at)
     `),
     updateNode: db.prepare(`
       UPDATE paper_nodes
       SET position_x = @position_x, position_y = @position_y, width = @width, height = @height,
           z_index = @z_index, parent_node_id = @parent_node_id,
           text_content = @text_content, frame_color = @frame_color, frame_label = @frame_label,
+          label = @label, hidden = @hidden,
           updated_at = @updated_at
       WHERE id = @id
     `),
     updateNodePosition: db.prepare(`
       UPDATE paper_nodes SET position_x = @position_x, position_y = @position_y, parent_node_id = @parent_node_id, updated_at = @updated_at WHERE id = @id
+    `),
+    updateNodeZIndex: db.prepare(`
+      UPDATE paper_nodes SET z_index = @z_index, parent_node_id = @parent_node_id, updated_at = @updated_at WHERE id = @id
     `),
     deleteNode: db.prepare(`DELETE FROM paper_nodes WHERE id = ?`),
 
@@ -175,6 +183,26 @@ export function createPaperBoardRepository(db: Database.Database) {
           id: u.id,
           position_x: u.positionX,
           position_y: u.positionY,
+          parent_node_id: u.parentNodeId,
+          updated_at: now,
+        });
+      }
+    },
+  );
+
+  const bulkUpdateZIndicesTx = db.transaction(
+    (
+      updates: Array<{
+        id: string;
+        zIndex: number;
+        parentNodeId: string | null;
+      }>,
+    ) => {
+      const now = new Date().toISOString();
+      for (const u of updates) {
+        stmts.updateNodeZIndex.run({
+          id: u.id,
+          z_index: u.zIndex,
           parent_node_id: u.parentNodeId,
           updated_at: now,
         });
@@ -290,6 +318,8 @@ export function createPaperBoardRepository(db: Database.Database) {
       textContent?: string | null;
       frameColor?: string | null;
       frameLabel?: string | null;
+      label?: string | null;
+      hidden?: boolean;
     }): PaperNode {
       const now = new Date().toISOString();
       const id = params.id ?? `pn-${crypto.randomUUID()}`;
@@ -308,6 +338,8 @@ export function createPaperBoardRepository(db: Database.Database) {
         text_content: params.textContent ?? null,
         frame_color: params.frameColor ?? null,
         frame_label: params.frameLabel ?? null,
+        label: params.label ?? null,
+        hidden: params.hidden ? 1 : 0,
         created_at: now,
         updated_at: now,
       });
@@ -328,6 +360,8 @@ export function createPaperBoardRepository(db: Database.Database) {
           | "textContent"
           | "frameColor"
           | "frameLabel"
+          | "label"
+          | "hidden"
         >
       >,
     ): PaperNode {
@@ -357,6 +391,13 @@ export function createPaperBoardRepository(db: Database.Database) {
           updates.frameLabel !== undefined
             ? updates.frameLabel
             : existing.frame_label,
+        label: updates.label !== undefined ? updates.label : existing.label,
+        hidden:
+          updates.hidden !== undefined
+            ? updates.hidden
+              ? 1
+              : 0
+            : existing.hidden,
         updated_at: now,
       });
       return rowToNode(stmts.fetchNodeById.get(id) as NodeRow);
@@ -371,6 +412,16 @@ export function createPaperBoardRepository(db: Database.Database) {
       }>,
     ): void {
       bulkUpdatePositionsTx(updates);
+    },
+
+    bulkUpdateZIndices(
+      updates: Array<{
+        id: string;
+        zIndex: number;
+        parentNodeId: string | null;
+      }>,
+    ): void {
+      bulkUpdateZIndicesTx(updates);
     },
 
     deleteNode(id: string): void {

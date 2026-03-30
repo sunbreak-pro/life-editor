@@ -14,7 +14,7 @@ import { Table } from "@tiptap/extension-table";
 import { TableRow } from "@tiptap/extension-table-row";
 import { TableCell } from "@tiptap/extension-table-cell";
 import { TableHeader } from "@tiptap/extension-table-header";
-import { Image } from "@tiptap/extension-image";
+import { ResizableImage } from "../../../extensions/ResizableImage";
 import TaskList from "@tiptap/extension-task-list";
 import TaskItem from "@tiptap/extension-task-item";
 import {
@@ -212,7 +212,7 @@ export function MemoEditor({
         TableRow,
         TableCell,
         TableHeader,
-        Image,
+        ResizableImage,
         TaskList,
         TaskItem.configure({ nested: true }),
         ToggleList,
@@ -303,7 +303,11 @@ export function MemoEditor({
       if (!editor) return;
       const result = await uploadImage(file);
       if (result) {
-        editor.chain().focus().setImage({ src: result.blobUrl }).run();
+        editor
+          .chain()
+          .focus()
+          .setImage({ src: result.blobUrl, attachmentId: result.id } as never)
+          .run();
       }
     },
     [editor, uploadImage],
@@ -365,13 +369,18 @@ export function MemoEditor({
             const id = src.slice(ATTACHMENT_SCHEME.length);
             const blobUrl = urlMap[id];
             if (blobUrl) {
-              tr.setNodeMarkup(pos, undefined, { ...node.attrs, src: blobUrl });
+              tr.setNodeMarkup(pos, undefined, {
+                ...node.attrs,
+                src: blobUrl,
+                attachmentId: id,
+              });
               modified = true;
             }
           }
         }
       });
       if (modified) {
+        tr.setMeta("addToHistory", false);
         editor.view.dispatch(tr);
       }
       resolvingRef.current = false;

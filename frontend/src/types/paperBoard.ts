@@ -27,6 +27,8 @@ export interface PaperNode {
   textContent: string | null;
   frameColor: string | null;
   frameLabel: string | null;
+  label: string | null;
+  hidden: boolean;
   createdAt: string;
   updatedAt: string;
 }

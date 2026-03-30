@@ -125,6 +125,25 @@ export function registerPaperBoardHandlers(repo: PaperBoardRepository): void {
   );
 
   mutation(
+    "db:paperNodes:bulkUpdateZIndices",
+    "PaperNodes",
+    "bulkUpdateZIndices",
+    "paperNode",
+    "bulk",
+    (
+      _event,
+      updates: Array<{
+        id: string;
+        zIndex: number;
+        parentNodeId: string | null;
+      }>,
+    ) => {
+      repo.bulkUpdateZIndices(updates);
+    },
+    () => undefined,
+  );
+
+  mutation(
     "db:paperNodes:delete",
     "PaperNodes",
     "delete",

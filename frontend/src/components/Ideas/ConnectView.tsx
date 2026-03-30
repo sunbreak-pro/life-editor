@@ -210,7 +210,11 @@ export function ConnectView({ onNavigateToNote }: ConnectViewProps) {
             paperNodes={paper.nodes}
             selectedNodeIds={canvasSelectedNodeIds}
             onSelectNode={(nodeId) => setCanvasSelectedNodeIds([nodeId])}
-            onUpdateNodeZIndex={paper.updateNodeZIndex}
+            onBulkUpdateZIndices={paper.bulkUpdateZIndices}
+            onDeleteNode={paper.deleteNode}
+            onUpdateNode={paper.updateNode}
+            onDuplicateNode={paper.duplicateNode}
+            onToggleHidden={paper.toggleNodeHidden}
           />
         );
     }
