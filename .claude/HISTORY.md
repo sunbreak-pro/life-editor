@@ -1,5 +1,32 @@
 # HISTORY.md - 変更履歴
 
+### 2026-03-30 - Calendar Schedule Item プレビューパネル追加
+
+#### 概要
+
+Calendar 月表示の Routine/Event アイテムをクリックした際のプレビューポップアップを追加。時間帯編集、メモ追加、完了トグル、削除が可能に。
+
+#### 変更点
+
+- **CalendarItemChip**: `event` タイプの表示追加（CalendarClock アイコン、紫色、完了時取り消し線）
+- **ScheduleItemPreviewPopup**: TimeInput を使った時間帯インライン編集機能を追加。`onUpdateTime` prop 新設
+- **CalendarView**: `scheduleItemPreview` state 追加。event クリックでポップアップ表示（DayFlow遷移を廃止）。完了/メモ/時間/削除の各コールバック実装
+
+### 2026-03-30 - Routine 頻度設定 / Calendar Event 表示修正 / UI 統一 / 遡及作成
+
+#### 概要
+
+5つの要件を一括実装: Calendar Event 表示バグ修正、Right Sidebar フィルタ分離、CreateEvent の時間入力UI統一（TimeSettingsInline）、Routine 繰り返し頻度設定（毎日/曜日指定/N日ごと）、未起動時の Routine アイテム遡及作成。
+
+#### 変更点
+
+- **Calendar Event 表示修正**: `useCalendar` に ScheduleItem → CalendarItem 変換ロジック追加。`loadScheduleItemsForMonth` で全アイテム（routine + event）を読み込むよう修正
+- **フィルタ分離**: Tasks フィルタから events を除外。`useCalendar` の contentFilter で tasks/events/routine を正しく分離
+- **UI 統一**: EventCreatePopover のネイティブ `<input type="time">` を `TimeSettingsInline` に置換（All-day/End time トグル付き）。RoutineGroupEditDialog も `TimeInput` に統一。`is_all_day` カラム追加（V45マイグレーション）
+- **頻度設定**: `routines`/`routine_groups` テーブルに `frequency_type`/`frequency_days`/`frequency_interval`/`frequency_start_date` カラム追加。`FrequencySelector` 共通UIコンポーネント作成。`shouldRoutineRunOnDate()` ユーティリティ。`ensureRoutineItemsForDate` で頻度チェック
+- **遡及作成**: `fetchLastRoutineDate` IPC 追加。`backfillMissedRoutineItems()` で最終生成日〜今日まで遡及作成（90日上限）。ScheduleContext 起動時に1回実行
+- **全レイヤー対応**: DB migration V45、型（electron/frontend）、Repository、IPC handlers、DataService（Electron/Offline/Rest）、Server routes、i18n（en/ja）を一括更新
+
 ### 2026-03-30 - RoutineTimeChangeDialog キャンセル・未来アイテム反映バグ修正
 
 #### 概要
