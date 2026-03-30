@@ -3,7 +3,13 @@ import type { MemoNode } from "./memo";
 import type { NoteNode } from "./note";
 
 export type CalendarItemType = "task" | "daily" | "note";
-export type CalendarContentFilter = "all" | "daily" | "notes" | "tasks";
+export type CalendarContentFilter =
+  | "all"
+  | "daily"
+  | "notes"
+  | "tasks"
+  | "routine"
+  | "others";
 
 export interface CalendarItem {
   id: string;

@@ -944,6 +944,20 @@
     "selectTask": "Select Task",
     "selectNote": "Select Note"
   },
+  "timeGridContextMenu": {
+    "complete": "Complete",
+    "uncomplete": "Mark incomplete",
+    "edit": "Edit",
+    "delete": "Delete",
+    "addMemo": "Add memo",
+    "extend15": "+15 min",
+    "shrink15": "-15 min",
+    "copyTime": "Copy time",
+    "moveToDay": "Move to another day",
+    "linkToTask": "Link to task",
+    "convertToRoutine": "Convert to routine",
+    "duplicate": "Duplicate"
+  },
   "routineGroup": {
     "groups": "Groups",
     "create": "Create Group",

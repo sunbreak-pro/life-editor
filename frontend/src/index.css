@@ -12,6 +12,8 @@
   --color-success: #0f7b6c;
   --color-danger: #e03e3e;
   --color-calendar-header: #f87171;
+  --color-schedule-routine-bg: #ebf0fe;
+  --color-schedule-other-bg: #f1f2f4;
   --font-size-base: 16px;
 }
 
@@ -27,6 +29,8 @@
   --color-success: #4dab9a;
   --color-danger: #ef4444;
   --color-calendar-header: #991b1b;
+  --color-schedule-routine-bg: #1e293b;
+  --color-schedule-other-bg: #1f2937;
 }
 
 [data-theme="monochrome"] {
@@ -41,6 +45,8 @@
   --color-success: #18181b;
   --color-danger: #71717a;
   --color-calendar-header: #e4e4e7;
+  --color-schedule-routine-bg: #f4f4f5;
+  --color-schedule-other-bg: #f4f4f5;
 }
 
 [data-theme="monochrome-dark"] {
@@ -55,6 +61,8 @@
   --color-success: #f4f4f5;
   --color-danger: #a1a1aa;
   --color-calendar-header: #27272a;
+  --color-schedule-routine-bg: #1e1e1e;
+  --color-schedule-other-bg: #1e1e1e;
 }
 
 @theme {

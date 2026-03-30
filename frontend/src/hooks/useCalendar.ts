@@ -57,8 +57,8 @@ export function useCalendar(
     const map = new Map<string, CalendarItem[]>();
     const cf = contentFilter ?? "all";
 
-    // Tasks
-    if (cf === "all" || cf === "tasks") {
+    // Tasks (shown for all, tasks, others — hidden for routine, daily, notes)
+    if (cf === "all" || cf === "tasks" || cf === "others") {
       for (const [dateKey, tasks] of tasksByDate) {
         const items: CalendarItem[] = tasks.map((task) => ({
           id: task.id,

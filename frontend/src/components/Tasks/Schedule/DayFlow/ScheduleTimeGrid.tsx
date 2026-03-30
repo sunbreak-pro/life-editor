@@ -8,6 +8,7 @@ import { TaskPreviewPopup } from "../Calendar/TaskPreviewPopup";
 import { ScheduleItemBlock } from "./ScheduleItemBlock";
 import { ScheduleItemPreviewPopup } from "./ScheduleItemPreviewPopup";
 import { GroupFrame } from "./GroupFrame";
+import { TimeGridContextMenu } from "./TimeGridContextMenu";
 import { formatDateKey } from "../../../../utils/dateKey";
 import { useTimeGridDrag } from "../../../../hooks/useTimeGridDrag";
 import {
@@ -230,6 +231,8 @@ interface ScheduleTimeGridProps {
   routineGroups?: RoutineGroup[];
   groupForRoutine?: Map<string, RoutineGroup>;
   onGroupDragEnd?: (groupId: string, offsetMinutes: number) => void;
+  // Context menu actions
+  onDuplicateScheduleItem?: (id: string) => void;
 }
 
 export function ScheduleTimeGrid({
@@ -257,6 +260,7 @@ export function ScheduleTimeGrid({
   routineGroups,
   groupForRoutine,
   onGroupDragEnd,
+  onDuplicateScheduleItem,
 }: ScheduleTimeGridProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const mainColumnRef = useRef<HTMLDivElement>(null);
@@ -287,6 +291,118 @@ export function ScheduleTimeGrid({
     },
     [],
   );
+  // Context menu state
+  const [contextMenu, setContextMenu] = useState<{
+    position: { x: number; y: number };
+    itemId: string;
+    itemType: "schedule" | "task";
+  } | null>(null);
+
+  const contextScheduleItem =
+    contextMenu?.itemType === "schedule"
+      ? scheduleItems.find((i) => i.id === contextMenu.itemId)
+      : undefined;
+  const contextTask =
+    contextMenu?.itemType === "task"
+      ? tasks.find((t) => t.id === contextMenu.itemId)
+      : undefined;
+
+  const handleContextMenuExtend15 = useCallback(() => {
+    if (!contextMenu) return;
+    if (contextMenu.itemType === "schedule" && contextScheduleItem) {
+      const endMin = timeToMinutes(contextScheduleItem.endTime) + 15;
+      const newEnd = minutesToTimeString(Math.min(endMin, 24 * 60));
+      onUpdateScheduleItemTime?.(
+        contextMenu.itemId,
+        contextScheduleItem.startTime,
+        newEnd,
+      );
+    } else if (contextMenu.itemType === "task" && contextTask?.scheduledAt) {
+      const startDate = new Date(contextTask.scheduledAt);
+      const endDate = contextTask.scheduledEndAt
+        ? new Date(contextTask.scheduledEndAt)
+        : new Date(startDate.getTime() + 25 * 60000);
+      endDate.setMinutes(endDate.getMinutes() + 15);
+      const sh = startDate.getHours();
+      const sm = startDate.getMinutes();
+      const eh = endDate.getHours();
+      const em = endDate.getMinutes();
+      onUpdateTaskTime?.(
+        contextMenu.itemId,
+        `${String(sh).padStart(2, "0")}:${String(sm).padStart(2, "0")}`,
+        `${String(eh).padStart(2, "0")}:${String(em).padStart(2, "0")}`,
+      );
+    }
+  }, [
+    contextMenu,
+    contextScheduleItem,
+    contextTask,
+    onUpdateScheduleItemTime,
+    onUpdateTaskTime,
+  ]);
+
+  const handleContextMenuShrink15 = useCallback(() => {
+    if (!contextMenu) return;
+    if (contextMenu.itemType === "schedule" && contextScheduleItem) {
+      const startMin = timeToMinutes(contextScheduleItem.startTime);
+      const endMin = timeToMinutes(contextScheduleItem.endTime);
+      const newEndMin = Math.max(endMin - 15, startMin + 15);
+      onUpdateScheduleItemTime?.(
+        contextMenu.itemId,
+        contextScheduleItem.startTime,
+        minutesToTimeString(newEndMin),
+      );
+    } else if (contextMenu.itemType === "task" && contextTask?.scheduledAt) {
+      const startDate = new Date(contextTask.scheduledAt);
+      const endDate = contextTask.scheduledEndAt
+        ? new Date(contextTask.scheduledEndAt)
+        : new Date(startDate.getTime() + 25 * 60000);
+      endDate.setMinutes(endDate.getMinutes() - 15);
+      if (endDate.getTime() - startDate.getTime() < 15 * 60000) {
+        endDate.setTime(startDate.getTime() + 15 * 60000);
+      }
+      const sh = startDate.getHours();
+      const sm = startDate.getMinutes();
+      const eh = endDate.getHours();
+      const em = endDate.getMinutes();
+      onUpdateTaskTime?.(
+        contextMenu.itemId,
+        `${String(sh).padStart(2, "0")}:${String(sm).padStart(2, "0")}`,
+        `${String(eh).padStart(2, "0")}:${String(em).padStart(2, "0")}`,
+      );
+    }
+  }, [
+    contextMenu,
+    contextScheduleItem,
+    contextTask,
+    onUpdateScheduleItemTime,
+    onUpdateTaskTime,
+  ]);
+
+  const handleContextMenuCopyTime = useCallback(() => {
+    if (!contextMenu) return;
+    let timeStr = "";
+    if (contextMenu.itemType === "schedule" && contextScheduleItem) {
+      timeStr = `${contextScheduleItem.startTime} - ${contextScheduleItem.endTime}`;
+    } else if (contextMenu.itemType === "task" && contextTask?.scheduledAt) {
+      const start = new Date(contextTask.scheduledAt);
+      const end = contextTask.scheduledEndAt
+        ? new Date(contextTask.scheduledEndAt)
+        : start;
+      const fmt = (d: Date) =>
+        `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+      timeStr = `${fmt(start)} - ${fmt(end)}`;
+    }
+    if (timeStr) navigator.clipboard.writeText(timeStr);
+  }, [contextMenu, contextScheduleItem, contextTask]);
+
+  const handleContextMenuDuplicate = useCallback(() => {
+    if (!contextMenu) return;
+    if (contextMenu.itemType === "schedule" && contextScheduleItem) {
+      onDuplicateScheduleItem?.(contextMenu.itemId);
+    }
+  }, [contextMenu, contextScheduleItem, onDuplicateScheduleItem]);
+
   const todayKey = formatDateKey(new Date());
   const dateKey = formatDateKey(date);
   const isToday = dateKey === todayKey;
@@ -613,6 +729,13 @@ export function ScheduleTimeGrid({
                 onShowPreview={
                   enablePreview ? handleShowTaskPreview : undefined
                 }
+                onContextMenu={(task, position) =>
+                  setContextMenu({
+                    position,
+                    itemId: task.id,
+                    itemType: "task",
+                  })
+                }
               />
             );
           }
@@ -659,6 +782,13 @@ export function ScheduleTimeGrid({
                 hasMovedRef={hasMovedRef}
                 onShowPreview={
                   enablePreview ? handleShowSchedulePreview : undefined
+                }
+                onContextMenu={(si, position) =>
+                  setContextMenu({
+                    position,
+                    itemId: si.id,
+                    itemType: "schedule",
+                  })
                 }
               />
             );
@@ -754,11 +884,73 @@ export function ScheduleTimeGrid({
     </>
   );
 
+  const contextMenuPopup = contextMenu &&
+    (contextScheduleItem || contextTask) && (
+      <TimeGridContextMenu
+        position={contextMenu.position}
+        itemType={contextMenu.itemType}
+        isCompleted={
+          contextMenu.itemType === "schedule"
+            ? !!contextScheduleItem?.completed
+            : contextTask?.status === "DONE"
+        }
+        isRoutine={!!contextScheduleItem?.routineId}
+        onToggleComplete={() => {
+          if (contextMenu.itemType === "schedule") {
+            onToggleComplete(contextMenu.itemId);
+          } else {
+            onToggleTaskStatus?.(contextMenu.itemId);
+          }
+        }}
+        onEdit={() => {
+          // Trigger preview popup for editing
+          if (contextMenu.itemType === "schedule" && contextScheduleItem) {
+            setSchedulePreview({
+              item: contextScheduleItem,
+              position: contextMenu.position,
+            });
+          } else if (contextMenu.itemType === "task" && contextTask) {
+            setTaskPreview({
+              task: contextTask,
+              position: contextMenu.position,
+            });
+          }
+        }}
+        onDelete={() => {
+          if (contextMenu.itemType === "schedule") {
+            if (contextScheduleItem?.routineId && onRequestRoutineDelete) {
+              onRequestRoutineDelete(
+                contextScheduleItem,
+                {} as React.MouseEvent,
+              );
+            } else {
+              onDeleteScheduleItem?.(contextMenu.itemId);
+            }
+          } else {
+            onDeleteTask?.(contextMenu.itemId);
+          }
+        }}
+        onAddMemo={() => {
+          if (contextMenu.itemType === "schedule") {
+            onUpdateMemo?.(contextMenu.itemId, "");
+          } else {
+            onUpdateTaskTimeMemo?.(contextMenu.itemId, "");
+          }
+        }}
+        onExtend15={handleContextMenuExtend15}
+        onShrink15={handleContextMenuShrink15}
+        onCopyTime={handleContextMenuCopyTime}
+        onDuplicate={handleContextMenuDuplicate}
+        onClose={() => setContextMenu(null)}
+      />
+    );
+
   if (externalScroll) {
     return (
       <>
         {gridContent}
         {previewPopups}
+        {contextMenuPopup}
       </>
     );
   }
@@ -769,6 +961,7 @@ export function ScheduleTimeGrid({
         {gridContent}
       </div>
       {previewPopups}
+      {contextMenuPopup}
     </div>
   );
 }

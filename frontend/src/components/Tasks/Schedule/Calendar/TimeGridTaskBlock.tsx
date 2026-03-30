@@ -29,6 +29,7 @@ interface TimeGridTaskBlockProps {
   hasMovedRef?: React.RefObject<boolean>;
   onUpdateTimeMemo?: (taskId: string, memo: string | null) => void;
   onShowPreview?: (task: TaskNode, position: { x: number; y: number }) => void;
+  onContextMenu?: (task: TaskNode, position: { x: number; y: number }) => void;
 }
 
 const ACTION_WIDTH = 132;
@@ -50,6 +51,7 @@ export function TimeGridTaskBlock({
   hasMovedRef,
   onUpdateTimeMemo,
   onShowPreview,
+  onContextMenu,
 }: TimeGridTaskBlockProps) {
   const isCompleted = task.status === "DONE";
   const bgColor = isCompleted ? "rgba(156,163,175,0.15)" : (color ?? "#E0E7FF");
@@ -153,10 +155,15 @@ export function TimeGridTaskBlock({
         onTouchStart={(e) => {
           if (!isOpen) dragHandlers?.onTouchStart(e);
         }}
+        onContextMenu={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          onContextMenu?.(task, { x: e.clientX, y: e.clientY });
+        }}
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
         className={`h-full rounded-md overflow-hidden cursor-pointer text-left group ${
-          isCompleted ? "opacity-50" : "opacity-70"
+          isCompleted ? "opacity-50" : ""
         }`}
         style={{
           transform: `translateX(${translateX}px)`,
@@ -210,11 +217,14 @@ export function TimeGridTaskBlock({
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-0.5">
               <span
-                className={`font-medium truncate ${isCompact ? "text-[10px]" : "text-xs"} ${
-                  isCompleted ? "line-through text-gray-400" : ""
+                className={`font-medium truncate relative ${isCompact ? "text-[10px]" : "text-xs"} ${
+                  isCompleted ? "text-gray-400" : ""
                 }`}
               >
                 {task.title}
+                {isCompleted && (
+                  <span className="absolute left-0 right-0 top-1/2 -translate-y-1/2 h-px bg-gray-400 pointer-events-none" />
+                )}
               </span>
             </div>
             {showInlineMemo && onUpdateTimeMemo && (

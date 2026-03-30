@@ -29,7 +29,9 @@ export type ScheduleTab = "calendar" | "dayflow" | "tasks";
 
 const CALENDAR_PROGRESS_TABS: readonly TabItem<DayFlowFilterTab>[] = [
   { id: "all", labelKey: "dayFlow.filterAll" },
+  { id: "routine", labelKey: "dayFlow.filterRoutine" },
   { id: "tasks", labelKey: "dayFlow.filterTasks" },
+  { id: "others", labelKey: "dayFlow.filterOthers" },
   { id: "daily", labelKey: "calendar.filterDaily" },
   { id: "notes", labelKey: "calendar.filterNotes" },
 ];
@@ -453,8 +455,8 @@ export function ScheduleSection({
                   > = {
                     all: "all",
                     tasks: "tasks",
-                    routine: "all",
-                    others: "all",
+                    routine: "routine",
+                    others: "others",
                     daily: "daily",
                     notes: "notes",
                   };

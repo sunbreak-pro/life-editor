@@ -944,6 +944,20 @@
     "selectTask": "タスクを選ぶ",
     "selectNote": "ノートを選ぶ"
   },
+  "timeGridContextMenu": {
+    "complete": "完了にする",
+    "uncomplete": "未完了に戻す",
+    "edit": "編集",
+    "delete": "削除",
+    "addMemo": "メモを追加",
+    "extend15": "+15分延長",
+    "shrink15": "-15分短縮",
+    "copyTime": "時間をコピー",
+    "moveToDay": "別の日に移動",
+    "linkToTask": "タスクにリンク",
+    "convertToRoutine": "ルーティンに変換",
+    "duplicate": "複製"
+  },
   "routineGroup": {
     "groups": "グループ",
     "create": "グループ作成",

@@ -30,6 +30,10 @@ interface ScheduleItemBlockProps {
     item: ScheduleItem,
     position: { x: number; y: number },
   ) => void;
+  onContextMenu?: (
+    item: ScheduleItem,
+    position: { x: number; y: number },
+  ) => void;
 }
 
 function formatTimeRange(start: string, end: string): string {
@@ -56,6 +60,7 @@ export function ScheduleItemBlock({
   hasTaskOverlap,
   hasMovedRef,
   onShowPreview,
+  onContextMenu,
 }: ScheduleItemBlockProps) {
   const isCompact = height < 36;
   const isTiny = height < 28;
@@ -137,8 +142,8 @@ export function ScheduleItemBlock({
           backgroundColor: item.completed
             ? "rgba(34, 197, 94, 0.08)"
             : item.routineId
-              ? "var(--color-notion-accent-muted, rgba(37, 99, 235, 0.08))"
-              : "rgba(156, 163, 175, 0.08)",
+              ? "var(--color-schedule-routine-bg, #EBF0FE)"
+              : "var(--color-schedule-other-bg, #F1F2F4)",
           borderLeft: `3px solid ${
             item.completed
               ? "#22c55e"
@@ -174,6 +179,11 @@ export function ScheduleItemBlock({
         onTouchStart={(e) => {
           if (!isOpen) dragHandlers?.onTouchStart(e);
         }}
+        onContextMenu={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          onContextMenu?.(item, { x: e.clientX, y: e.clientY });
+        }}
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
       >
@@ -207,13 +217,16 @@ export function ScheduleItemBlock({
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-0.5">
               <span
-                className={`font-medium truncate ${isCompact ? "text-[10px]" : "text-xs"} ${
+                className={`font-medium truncate relative ${isCompact ? "text-[10px]" : "text-xs"} ${
                   item.completed
-                    ? "line-through text-notion-text-secondary"
+                    ? "text-notion-text-secondary"
                     : "text-notion-text"
                 }`}
               >
                 {item.title}
+                {item.completed && (
+                  <span className="absolute left-0 right-0 top-1/2 -translate-y-1/2 h-px bg-notion-text-secondary pointer-events-none" />
+                )}
               </span>
             </div>
             {showInlineMemo && onUpdateMemo && (

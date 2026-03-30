@@ -9,6 +9,7 @@ import { CompactDateNav } from "./CompactDateNav";
 import { ScheduleTimeGrid } from "./ScheduleTimeGrid";
 import { TaskSchedulePanel } from "../../../shared/TaskSchedulePanel";
 import { RoutineDeleteConfirmDialog } from "./RoutineDeleteConfirmDialog";
+import { RoutineTimeChangeDialog } from "./RoutineTimeChangeDialog";
 
 interface DualDayFlowLayoutProps {
   getTaskColor?: (taskId: string) => string | undefined;
@@ -134,7 +135,7 @@ function DualColumn({
   onToggleDualColumn,
   onMutate,
 }: DualColumnProps) {
-  const { updateRoutine } = useScheduleContext();
+  const { updateRoutine, routines } = useScheduleContext();
   const { addNode, updateNode } = useTaskTreeContext();
 
   // Auto-set NOT_STARTED tasks to IN_PROGRESS for today
@@ -149,6 +150,14 @@ function DualColumn({
   const [routineDeleteTarget, setRoutineDeleteTarget] = useState<{
     item: ScheduleItem;
     position: { x: number; y: number };
+  } | null>(null);
+
+  const [routineTimeChange, setRoutineTimeChange] = useState<{
+    itemId: string;
+    routineId: string;
+    routineTitle: string;
+    startTime: string;
+    endTime: string;
   } | null>(null);
 
   const handleRequestRoutineDelete = useCallback(
@@ -200,6 +209,20 @@ function DualColumn({
   ) => {
     column.updateScheduleItem(id, { startTime, endTime });
     onMutate?.();
+    // If this is a routine item, show confirmation dialog
+    const item = column.filteredScheduleItems.find((i) => i.id === id);
+    if (item?.routineId) {
+      const routine = routines.find((r) => r.id === item.routineId);
+      if (routine) {
+        setRoutineTimeChange({
+          itemId: id,
+          routineId: routine.id,
+          routineTitle: routine.title,
+          startTime,
+          endTime,
+        });
+      }
+    }
   };
 
   const handleUpdateTaskTime = (
@@ -266,6 +289,17 @@ function DualColumn({
           onStartTimer={onStartTimer}
           routineGroups={column.routineGroups}
           groupForRoutine={column.groupForRoutine}
+          onDuplicateScheduleItem={(id) => {
+            const item = column.filteredScheduleItems.find((i) => i.id === id);
+            if (item) {
+              column.createScheduleItem(
+                item.title,
+                item.startTime,
+                item.endTime,
+              );
+              onMutate?.();
+            }
+          }}
         />
       </div>
 
@@ -303,6 +337,23 @@ function DualColumn({
           onDismissOnly={handleDismissOnly}
           onArchiveRoutine={handleArchiveRoutine}
           onCancel={() => setRoutineDeleteTarget(null)}
+        />
+      )}
+
+      {routineTimeChange && (
+        <RoutineTimeChangeDialog
+          routineTitle={routineTimeChange.routineTitle}
+          newStartTime={routineTimeChange.startTime}
+          newEndTime={routineTimeChange.endTime}
+          onThisOnly={() => setRoutineTimeChange(null)}
+          onApplyToRoutine={() => {
+            updateRoutine(routineTimeChange.routineId, {
+              startTime: routineTimeChange.startTime,
+              endTime: routineTimeChange.endTime,
+            });
+            setRoutineTimeChange(null);
+          }}
+          onCancel={() => setRoutineTimeChange(null)}
         />
       )}
     </div>

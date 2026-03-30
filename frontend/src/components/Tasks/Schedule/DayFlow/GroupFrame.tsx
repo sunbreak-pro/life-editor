@@ -31,7 +31,7 @@ export function GroupFrame({
         height: Math.max(height, headerHeight + 8),
         left,
         width,
-        border: `1px solid ${groupColor}40`,
+        border: `2px solid ${groupColor}80`,
         cursor: onMouseDown ? "grab" : undefined,
       }}
       onMouseDown={onMouseDown}
@@ -41,8 +41,8 @@ export function GroupFrame({
         className="flex items-center gap-1.5 px-2 select-none pointer-events-none"
         style={{
           height: headerHeight,
-          backgroundColor: `${groupColor}30`,
-          borderBottom: `1px solid ${groupColor}30`,
+          backgroundColor: `${groupColor}40`,
+          borderBottom: `2px solid ${groupColor}50`,
         }}
       >
         <div
@@ -72,7 +72,7 @@ export function GroupFrame({
       <div
         className="w-full h-full"
         style={{
-          backgroundColor: `${groupColor}08`,
+          backgroundColor: `${groupColor}15`,
         }}
       />
     </div>

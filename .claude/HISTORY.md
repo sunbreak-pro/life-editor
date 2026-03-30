@@ -1,5 +1,20 @@
 # HISTORY.md - 変更履歴
 
+### 2026-03-30 - DayFlow TimeGrid UI/UX 改善 (6項目)
+
+#### 概要
+
+DayFlow TimeGrid の視認性・操作性を6項目にわたって改善。アイテム背景の不透明化、Group border 強化、line-through 位置修正、Routine 時間変更確認ダイアログ追加、Calendar フィルタ拡張、右クリックコンテキストメニュー新設。
+
+#### 変更点
+
+- **透明度修正**: ScheduleItemBlock の未完了アイテム背景を CSS 変数ベースの不透明色に変更（4テーマ対応）。TimeGridTaskBlock の `opacity-70` を除去
+- **Group border**: GroupFrame の border を 1px→2px、opacity を 40→80 に強化。header/body の背景 alpha も増加
+- **line-through 位置修正**: CSS `line-through` を除去し、`top-1/2` に配置した absolute pseudo-element に置き換え（ScheduleItemBlock, TimeGridTaskBlock）
+- **Routine 確認ダイアログ**: DualDayFlowLayout に RoutineTimeChangeDialog を追加。ドラッグ/リサイズで routine 時間変更時に「今回のみ / ルーティンにも反映」の確認を表示
+- **Calendar フィルタ拡張**: CalendarContentFilter 型に `routine` / `others` を追加。CALENDAR_PROGRESS_TABS にルーティン・その他タブを追加。useCalendar と CalendarView でフィルタリング対応
+- **右クリックコンテキストメニュー**: TimeGridContextMenu コンポーネントを新規作成。完了/編集/メモ追加/+15分/-15分/時間コピー/複製/削除の全機能搭載。ScheduleTimeGrid で state 管理、OneDaySchedule・DualDayFlowLayout から duplicate ハンドラ接続。en/ja 翻訳追加
+
 ### 2026-03-30 - Layers DnD + Fit-Content + Layer Editing
 
 #### 概要

@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect } from "react";
+import type { TaskNode } from "../../../../types/taskTree";
 import { useTaskTreeContext } from "../../../../hooks/useTaskTreeContext";
 import { useCalendarContext } from "../../../../hooks/useCalendarContext";
 import { useMemoContext } from "../../../../hooks/useMemoContext";
@@ -221,7 +222,9 @@ export function CalendarView({
   }, [itemsByDate, folderDescendantIds]);
 
   // Also keep filteredTasksByDate for WeeklyTimeGrid (which still uses TaskNode[])
+  // When contentFilter is "routine", hide all tasks from time grid
   const filteredTasksByDate = useMemo(() => {
+    if (contentFilter === "routine") return new Map<string, TaskNode[]>();
     if (!folderDescendantIds) return tasksByDate;
     const map = new Map<string, typeof nodes>();
     for (const [date, tasks] of tasksByDate) {
