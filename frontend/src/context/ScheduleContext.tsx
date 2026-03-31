@@ -90,7 +90,7 @@ export function ScheduleProvider({ children }: { children: ReactNode }) {
     scheduleItemsState.syncScheduleItemsWithRoutines,
   ]);
 
-  // Backfill missed routine items on startup
+  // Backfill missed routine items and pre-generate future items on startup
   const backfillDoneRef = useRef(false);
   useEffect(() => {
     if (
@@ -100,15 +100,17 @@ export function ScheduleProvider({ children }: { children: ReactNode }) {
     )
       return;
     backfillDoneRef.current = true;
-    scheduleItemsState.backfillMissedRoutineItems(
-      routinesState.routines,
-      tagAssignmentsState.tagAssignments,
-    );
+    const ta = tagAssignmentsState.tagAssignments;
+    const r = routinesState.routines;
+    scheduleItemsState.backfillMissedRoutineItems(r, ta).then(() => {
+      scheduleItemsState.ensureRoutineItemsForWeek(r, ta);
+    });
   }, [
     routinesState.routines,
     routinesState.isLoading,
     tagAssignmentsState.tagAssignments,
     scheduleItemsState.backfillMissedRoutineItems,
+    scheduleItemsState.ensureRoutineItemsForWeek,
   ]);
 
   const value = useMemo<ScheduleContextValue>(

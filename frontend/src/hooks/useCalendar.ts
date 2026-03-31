@@ -3,6 +3,7 @@ import type { TaskNode } from "../types/taskTree";
 import type { MemoNode } from "../types/memo";
 import type { NoteNode } from "../types/note";
 import type { ScheduleItem } from "../types/schedule";
+import type { RoutineGroup } from "../types/routineGroup";
 import type {
   CalendarItem,
   CalendarContentFilter,
@@ -20,6 +21,7 @@ export function useCalendar(
   notes?: NoteNode[],
   contentFilter?: CalendarContentFilter,
   scheduleItems?: ScheduleItem[],
+  groupForRoutine?: Map<string, RoutineGroup>,
 ) {
   const tasksByDate = useMemo(() => {
     const map = new Map<string, TaskNode[]>();
@@ -114,28 +116,81 @@ export function useCalendar(
       scheduleItems &&
       (cf === "all" || cf === "events" || cf === "routine")
     ) {
+      // Collect routine items by group per date
+      const groupedByDate = new Map<
+        string,
+        Map<string, { group: RoutineGroup; items: ScheduleItem[] }>
+      >();
+
       for (const si of scheduleItems) {
         const isRoutine = si.routineId !== null;
         if (cf === "events" && isRoutine) continue;
         if (cf === "routine" && !isRoutine) continue;
         const dateKey = si.date;
-        const item: CalendarItem = {
-          id: si.id,
-          type: "event",
-          title: si.title,
-          color: isRoutine
-            ? CALENDAR_ITEM_COLORS.routine
-            : CALENDAR_ITEM_COLORS.event,
-          scheduleItem: si,
-        };
-        const existing = map.get(dateKey);
-        if (existing) existing.push(item);
-        else map.set(dateKey, [item]);
+
+        // Check if this routine belongs to a group
+        const group =
+          isRoutine && si.routineId && groupForRoutine
+            ? groupForRoutine.get(si.routineId)
+            : undefined;
+
+        if (group) {
+          // Accumulate into group bucket
+          let dateGroups = groupedByDate.get(dateKey);
+          if (!dateGroups) {
+            dateGroups = new Map();
+            groupedByDate.set(dateKey, dateGroups);
+          }
+          let bucket = dateGroups.get(group.id);
+          if (!bucket) {
+            bucket = { group, items: [] };
+            dateGroups.set(group.id, bucket);
+          }
+          bucket.items.push(si);
+        } else {
+          // Individual item (event or ungrouped routine)
+          const item: CalendarItem = {
+            id: si.id,
+            type: "event",
+            title: si.title,
+            color: isRoutine
+              ? CALENDAR_ITEM_COLORS.routine
+              : CALENDAR_ITEM_COLORS.event,
+            scheduleItem: si,
+          };
+          const existing = map.get(dateKey);
+          if (existing) existing.push(item);
+          else map.set(dateKey, [item]);
+        }
+      }
+
+      // Emit group chips
+      for (const [dateKey, dateGroups] of groupedByDate) {
+        for (const [, { group, items }] of dateGroups) {
+          const groupItem: CalendarItem = {
+            id: `group-${group.id}-${dateKey}`,
+            type: "routineGroup",
+            title: group.name,
+            color: group.color,
+            routineGroup: group,
+            groupScheduleItems: items,
+          };
+          const existing = map.get(dateKey);
+          if (existing) existing.push(groupItem);
+          else map.set(dateKey, [groupItem]);
+        }
       }
     }
 
     return map;
-  }, [tasksByDate, memos, notes, contentFilter, scheduleItems]);
+  }, [
+    tasksByDate,
+    memos,
+    notes,
+    contentFilter,
+    scheduleItems,
+    groupForRoutine,
+  ]);
 
   const calendarDays = useMemo(() => {
     const firstDay = new Date(year, month, 1);

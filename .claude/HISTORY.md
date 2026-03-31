@@ -1,5 +1,20 @@
 # HISTORY.md - 変更履歴
 
+### 2026-03-31 - Calendar 6-Issue Fix (Memo, Adjacent Month, Group, EndTime, Tags, Future Items)
+
+#### 概要
+
+Calendarビュー・Routine管理の6つのバグ/機能要件を一括修正。ルートコーズとしてScheduleContextでのプロパティ名衝突（tagAssignments）を発見・修正。
+
+#### 変更点
+
+- **Tag名前衝突修正**: `useCalendarTagAssignments` の `tagAssignments` を `calendarTagAssignments` にリネーム。ScheduleContext spread時にRoutine Tag AssignmentsがCalendar Tag Assignmentsに上書きされるバグを解消
+- **Memo即時反映**: `updateScheduleItem()` で `monthlyScheduleItems` も楽観更新するよう修正（`toggleComplete` と同パターン）
+- **前後月アイテム表示**: `loadScheduleItemsForMonth` のフェッチ範囲を42日間のカレンダーグリッド全体に拡張
+- **Group表示**: `CalendarItemType` に `"routineGroup"` 追加。`useCalendar` でGroup所属Routineを1チップに集約。`GroupPreviewPopup` 新規作成
+- **Group endTime編集**: `RoutineGroupEditDialog` のendTimeを `<span>` → `TimeInput` に変更。`handleSlideGroupEndTime` 追加
+- **未来アイテム自動生成**: `ensureRoutineItemsForWeek` を追加。起動時にbackfill完了後、today+7日先のRoutineアイテムを自動生成
+
 ### 2026-03-31 - Code Review + Bugfix + リファクタリング（直近10コミット）
 
 #### 概要

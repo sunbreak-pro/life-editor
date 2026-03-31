@@ -278,6 +278,24 @@ export function RoutineManagementOverlay({
     [routinesByGroup, onUpdateRoutine],
   );
 
+  const handleSlideGroupEndTime = useCallback(
+    (groupId: string, offsetMinutes: number) => {
+      const members = routinesByGroup.get(groupId) ?? [];
+      for (const routine of members) {
+        if (!routine.endTime) continue;
+        const oldEnd = timeToMinutes(routine.endTime);
+        const newEnd = Math.max(
+          0,
+          Math.min(23 * 60 + 59, oldEnd + offsetMinutes),
+        );
+        onUpdateRoutine(routine.id, {
+          endTime: minutesToTimeString(newEnd),
+        });
+      }
+    },
+    [routinesByGroup, onUpdateRoutine],
+  );
+
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/30"
@@ -536,6 +554,11 @@ export function RoutineManagementOverlay({
           onSlideGroup={
             groupEditDialog !== "new"
               ? (offset) => handleSlideGroup(groupEditDialog.id, offset)
+              : undefined
+          }
+          onSlideGroupEndTime={
+            groupEditDialog !== "new"
+              ? (offset) => handleSlideGroupEndTime(groupEditDialog.id, offset)
               : undefined
           }
           onClose={() => setGroupEditDialog(null)}

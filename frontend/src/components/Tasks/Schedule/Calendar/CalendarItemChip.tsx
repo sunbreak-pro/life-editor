@@ -4,6 +4,7 @@ import {
   StickyNote,
   CalendarClock,
   Repeat,
+  Layers,
 } from "lucide-react";
 import type { CalendarItem } from "../../../../types/calendarItem";
 import { CALENDAR_ITEM_COLORS } from "../../../../types/calendarItem";
@@ -43,6 +44,26 @@ export function CalendarItemChip({
       >
         <CheckSquare size={10} className="shrink-0" />
         <span className="truncate">{item.title}</span>
+      </button>
+    );
+  }
+
+  // Routine Group
+  if (item.type === "routineGroup" && item.routineGroup) {
+    const groupColor = item.color;
+    const count = item.groupScheduleItems?.length ?? 0;
+
+    return (
+      <button
+        onClick={onClick}
+        className="w-full text-left px-1.5 py-1 rounded text-xs truncate transition-colors flex items-center gap-1 hover:opacity-80"
+        style={{ backgroundColor: `${groupColor}30`, color: groupColor }}
+      >
+        <Layers size={10} className="shrink-0" />
+        <span className="truncate">
+          {item.title}
+          {count > 0 && <span className="ml-1 opacity-70">({count})</span>}
+        </span>
       </button>
     );
   }
