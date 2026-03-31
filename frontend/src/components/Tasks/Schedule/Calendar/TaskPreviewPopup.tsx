@@ -7,6 +7,7 @@ import { formatScheduleRange } from "../../../../utils/formatSchedule";
 import { ConfirmDialog } from "../../../shared/ConfirmDialog";
 import { TimeInput } from "../../../shared/TimeInput";
 import {
+  formatTime,
   clampEndTimeAfterStart,
   adjustEndTimeForStartChange,
 } from "../../../../utils/timeGridUtils";
@@ -30,7 +31,7 @@ interface TaskPreviewPopupProps {
 
 function extractTime(iso: string): string {
   const d = new Date(iso);
-  return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+  return formatTime(d.getHours(), d.getMinutes());
 }
 
 function applyTimeToDate(iso: string, time: string): string {
@@ -71,7 +72,7 @@ export function TaskPreviewPopup({
   const prevStartRef = useRef(editStartTime);
 
   const handleStartTimeChange = (h: number, m: number) => {
-    const newStart = `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+    const newStart = formatTime(h, m);
     const adjusted = adjustEndTimeForStartChange(
       prevStartRef.current,
       newStart,
@@ -83,7 +84,7 @@ export function TaskPreviewPopup({
   };
 
   const handleEndTimeChange = (h: number, m: number) => {
-    const newEnd = `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+    const newEnd = formatTime(h, m);
     setEditEndTime(clampEndTimeAfterStart(editStartTime, newEnd));
   };
 

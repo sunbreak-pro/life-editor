@@ -35,6 +35,7 @@ export function useCalendarTagAssignments() {
 
   const setTagsForScheduleItem = useCallback(
     (scheduleItemId: string, tagIds: number[]) => {
+      const prevTagIds = assignmentsMap.get(scheduleItemId) ?? [];
       setAssignmentsMap((prev) => {
         const next = new Map(prev);
         if (tagIds.length === 0) {
@@ -46,9 +47,20 @@ export function useCalendarTagAssignments() {
       });
       getDataService()
         .setTagsForScheduleItem(scheduleItemId, tagIds)
-        .catch((e) => logServiceError("CalendarTagAssignments", "setTags", e));
+        .catch((e) => {
+          logServiceError("CalendarTagAssignments", "setTags", e);
+          setAssignmentsMap((prev) => {
+            const rollback = new Map(prev);
+            if (prevTagIds.length === 0) {
+              rollback.delete(scheduleItemId);
+            } else {
+              rollback.set(scheduleItemId, prevTagIds);
+            }
+            return rollback;
+          });
+        });
     },
-    [],
+    [assignmentsMap],
   );
 
   const getTagIdsForScheduleItem = useCallback(
@@ -60,8 +72,8 @@ export function useCalendarTagAssignments() {
 
   return useMemo(
     () => ({
-      tagAssignments: assignmentsMap,
-      isLoading,
+      calendarTagAssignments: assignmentsMap,
+      isCalendarTagAssignmentsLoading: isLoading,
       setTagsForScheduleItem,
       getTagIdsForScheduleItem,
     }),

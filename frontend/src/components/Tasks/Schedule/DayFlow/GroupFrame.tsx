@@ -1,3 +1,5 @@
+import { useTranslation } from "react-i18next";
+
 interface GroupFrameProps {
   groupName: string;
   groupColor: string;
@@ -23,6 +25,7 @@ export function GroupFrame({
   width = "calc(100% - 4px)",
   onMouseDown,
 }: GroupFrameProps) {
+  const { t } = useTranslation();
   return (
     <div
       className="absolute z-[1] pointer-events-auto rounded-md overflow-hidden"
@@ -59,7 +62,7 @@ export function GroupFrame({
           className="text-[9px] opacity-70 shrink-0"
           style={{ color: groupColor }}
         >
-          {itemCount}件
+          {t("dayFlow.itemCount", { count: itemCount })}
         </span>
         <span
           className="text-[9px] opacity-60 shrink-0 ml-auto"

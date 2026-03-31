@@ -45,6 +45,7 @@ export function useCalendarTags() {
       id: number,
       updates: Partial<Pick<CalendarTag, "name" | "color" | "order">>,
     ) => {
+      const prev = calendarTags.find((t) => t.id === id);
       setCalendarTags((p) =>
         p.map((t) => (t.id === id ? { ...t, ...updates } : t)),
       );
@@ -52,19 +53,29 @@ export function useCalendarTags() {
         await getDataService().updateCalendarTag(id, updates);
       } catch (e) {
         logServiceError("CalendarTags", "update", e);
+        if (prev) {
+          setCalendarTags((p) => p.map((t) => (t.id === id ? prev : t)));
+        }
       }
     },
-    [],
+    [calendarTags],
   );
 
-  const deleteCalendarTag = useCallback(async (id: number) => {
-    setCalendarTags((prev) => prev.filter((t) => t.id !== id));
-    try {
-      await getDataService().deleteCalendarTag(id);
-    } catch (e) {
-      logServiceError("CalendarTags", "delete", e);
-    }
-  }, []);
+  const deleteCalendarTag = useCallback(
+    async (id: number) => {
+      const prev = calendarTags.find((t) => t.id === id);
+      setCalendarTags((p) => p.filter((t) => t.id !== id));
+      try {
+        await getDataService().deleteCalendarTag(id);
+      } catch (e) {
+        logServiceError("CalendarTags", "delete", e);
+        if (prev) {
+          setCalendarTags((p) => [...p, prev]);
+        }
+      }
+    },
+    [calendarTags],
+  );
 
   return useMemo(
     () => ({

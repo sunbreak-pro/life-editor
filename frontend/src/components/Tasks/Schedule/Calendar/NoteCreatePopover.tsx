@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { useClickOutside } from "../../../../hooks/useClickOutside";
+import { formatDateKey } from "../../../../utils/dateKey";
 
 interface NoteCreatePopoverProps {
   position: { x: number; y: number };
@@ -35,7 +36,7 @@ export function NoteCreatePopover({
     }
   }, [kind]);
 
-  const dateKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+  const dateKey = formatDateKey(date);
 
   const handleSubmit = () => {
     if (kind === "note") {

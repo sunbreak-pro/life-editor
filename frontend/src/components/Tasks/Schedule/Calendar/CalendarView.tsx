@@ -1,4 +1,5 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
+import { Check, Repeat } from "lucide-react";
 import type { TaskNode } from "../../../../types/taskTree";
 import { useTaskTreeContext } from "../../../../hooks/useTaskTreeContext";
 import { useCalendarContext } from "../../../../hooks/useCalendarContext";
@@ -24,6 +25,71 @@ import { MonthlyView } from "./MonthlyView";
 import { WeeklyTimeGrid } from "./WeeklyTimeGrid";
 import { useScheduleContext } from "../../../../hooks/useScheduleContext";
 import type { ScheduleItem } from "../../../../types/schedule";
+import type { RoutineGroup } from "../../../../types/routineGroup";
+import { useClickOutside } from "../../../../hooks/useClickOutside";
+
+function GroupPreviewPopup({
+  group,
+  scheduleItems,
+  position,
+  onSelectItem,
+  onClose,
+}: {
+  group: RoutineGroup;
+  scheduleItems: ScheduleItem[];
+  position: { x: number; y: number };
+  onSelectItem: (item: ScheduleItem) => void;
+  onClose: () => void;
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+  useClickOutside(ref, onClose);
+  const left = Math.min(position.x, window.innerWidth - 240 - 16);
+  const top = Math.min(position.y, window.innerHeight - 200 - 16);
+
+  return (
+    <div
+      ref={ref}
+      className="fixed z-50 w-60 bg-notion-bg border border-notion-border rounded-lg shadow-xl"
+      style={{ left, top }}
+    >
+      <div className="px-3 py-2 border-b border-notion-border flex items-center gap-2">
+        <span
+          className="w-3 h-3 rounded shrink-0"
+          style={{ backgroundColor: group.color }}
+        />
+        <span className="text-sm font-medium text-notion-text truncate">
+          {group.name}
+        </span>
+        <span className="text-[10px] text-notion-text-secondary ml-auto">
+          {scheduleItems.length}
+        </span>
+      </div>
+      <div className="p-1 max-h-48 overflow-y-auto">
+        {scheduleItems.map((si) => (
+          <button
+            key={si.id}
+            onClick={() => onSelectItem(si)}
+            className={`w-full text-left px-2 py-1.5 rounded text-xs flex items-center gap-2 hover:bg-notion-hover transition-colors ${
+              si.completed
+                ? "text-notion-text-secondary line-through"
+                : "text-notion-text"
+            }`}
+          >
+            {si.completed ? (
+              <Check size={10} className="text-green-500 shrink-0" />
+            ) : (
+              <Repeat size={10} className="text-emerald-500 shrink-0" />
+            )}
+            <span className="truncate">{si.title}</span>
+            <span className="ml-auto text-[10px] text-notion-text-secondary shrink-0">
+              {si.startTime}
+            </span>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 interface CalendarViewProps {
   onSelectTask: (taskId: string) => void;
@@ -87,6 +153,7 @@ export function CalendarView({
     calendarTags,
     setTagsForScheduleItem,
     monthlyScheduleItems,
+    groupForRoutine,
   } = useScheduleContext();
 
   // Filter nodes by active calendar's folder subtree
@@ -137,6 +204,10 @@ export function CalendarView({
     item: ScheduleItem;
     position: { x: number; y: number };
   } | null>(null);
+  const [groupPreview, setGroupPreview] = useState<{
+    item: CalendarItem;
+    position: { x: number; y: number };
+  } | null>(null);
 
   // Load schedule items for the current month
   useEffect(() => {
@@ -153,6 +224,7 @@ export function CalendarView({
     notes,
     contentFilter,
     monthlyScheduleItems,
+    groupForRoutine,
   );
 
   /* eslint-disable react-hooks/exhaustive-deps -- React Compiler auto-memoizes */
@@ -300,6 +372,7 @@ export function CalendarView({
   const handleItemClick = (item: CalendarItem, e: React.MouseEvent) => {
     setCreatePopover(null);
     setNoteCreatePopover(null);
+    setGroupPreview(null);
 
     if (item.type === "task") {
       setMemoPreview(null);
@@ -337,6 +410,14 @@ export function CalendarView({
         },
         noteId: note.id,
       });
+    } else if (item.type === "routineGroup") {
+      setPreviewPopup(null);
+      setMemoPreview(null);
+      setScheduleItemPreview(null);
+      setGroupPreview({
+        item,
+        position: { x: e.clientX, y: e.clientY },
+      });
     } else if (item.type === "event" && item.scheduleItem) {
       setPreviewPopup(null);
       setMemoPreview(null);
@@ -355,7 +436,7 @@ export function CalendarView({
   // Check if a daily exists for the note-create date
   const noteCreateDateHasDaily = noteCreatePopover
     ? memos.some((m) => {
-        const dateKey = `${noteCreatePopover.date.getFullYear()}-${String(noteCreatePopover.date.getMonth() + 1).padStart(2, "0")}-${String(noteCreatePopover.date.getDate()).padStart(2, "0")}`;
+        const dateKey = formatDateKey(noteCreatePopover.date);
         return m.date === dateKey && !m.isDeleted;
       })
     : false;
@@ -456,7 +537,7 @@ export function CalendarView({
             setNoteCreatePopover(null);
           }}
           onOpenExistingDaily={() => {
-            const dateKey = `${noteCreatePopover.date.getFullYear()}-${String(noteCreatePopover.date.getMonth() + 1).padStart(2, "0")}-${String(noteCreatePopover.date.getDate()).padStart(2, "0")}`;
+            const dateKey = formatDateKey(noteCreatePopover.date);
             onSelectMemo?.(dateKey);
             setNoteCreatePopover(null);
           }}
@@ -486,7 +567,7 @@ export function CalendarView({
             } as React.MouseEvent);
           }}
           onSelectDaily={() => {
-            const dateKey = `${createMenuPopover.date.getFullYear()}-${String(createMenuPopover.date.getMonth() + 1).padStart(2, "0")}-${String(createMenuPopover.date.getDate()).padStart(2, "0")}`;
+            const dateKey = formatDateKey(createMenuPopover.date);
             const hasDaily = memos.some(
               (m) => m.date === dateKey && !m.isDeleted,
             );
@@ -519,7 +600,7 @@ export function CalendarView({
             tagIds,
             isAllDay,
           ) => {
-            const dateKey = `${eventCreatePopover.date.getFullYear()}-${String(eventCreatePopover.date.getMonth() + 1).padStart(2, "0")}-${String(eventCreatePopover.date.getDate()).padStart(2, "0")}`;
+            const dateKey = formatDateKey(eventCreatePopover.date);
             const id = createScheduleItem(
               dateKey,
               title,
@@ -628,6 +709,22 @@ export function CalendarView({
                 }
               : undefined
           }
+        />
+      )}
+
+      {groupPreview && groupPreview.item.routineGroup && (
+        <GroupPreviewPopup
+          group={groupPreview.item.routineGroup}
+          scheduleItems={groupPreview.item.groupScheduleItems ?? []}
+          position={groupPreview.position}
+          onSelectItem={(si) => {
+            setGroupPreview(null);
+            setScheduleItemPreview({
+              item: si,
+              position: groupPreview.position,
+            });
+          }}
+          onClose={() => setGroupPreview(null)}
         />
       )}
     </div>

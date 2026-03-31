@@ -8,14 +8,11 @@ import { RoutineTagSelector } from "./RoutineTagSelector";
 import { FrequencySelector } from "./FrequencySelector";
 import { useConfirmableSubmit } from "../../../../hooks/useConfirmableSubmit";
 import {
+  formatTime,
   adjustEndTimeForStartChange,
   clampEndTimeAfterStart,
 } from "../../../../utils/timeGridUtils";
-
-function todayStr(): string {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-}
+import { getTodayKey } from "../../../../utils/dateKey";
 
 interface RoutineEditDialogProps {
   routine?: RoutineNode;
@@ -59,7 +56,7 @@ export function RoutineEditDialog({
     routine?.frequencyInterval ?? 2,
   );
   const [frequencyStartDate, setFrequencyStartDate] = useState(
-    routine?.frequencyStartDate ?? todayStr(),
+    routine?.frequencyStartDate ?? getTodayKey(),
   );
 
   const handleSubmit = () => {
@@ -131,7 +128,7 @@ export function RoutineEditDialog({
                 hour={parseInt(startTime.split(":")[0] || "0", 10)}
                 minute={parseInt(startTime.split(":")[1] || "0", 10)}
                 onChange={(h, m) => {
-                  const newStart = `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+                  const newStart = formatTime(h, m);
                   if (prevStartRef.current && endTime) {
                     setEndTime(
                       adjustEndTimeForStartChange(
@@ -155,7 +152,7 @@ export function RoutineEditDialog({
                 hour={parseInt(endTime.split(":")[0] || "0", 10)}
                 minute={parseInt(endTime.split(":")[1] || "0", 10)}
                 onChange={(h, m) => {
-                  const newEnd = `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+                  const newEnd = formatTime(h, m);
                   setEndTime(
                     startTime
                       ? clampEndTimeAfterStart(startTime, newEnd)

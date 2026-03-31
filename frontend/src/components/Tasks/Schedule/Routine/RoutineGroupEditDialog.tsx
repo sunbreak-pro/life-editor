@@ -8,12 +8,8 @@ import { UnifiedColorPicker } from "../../../shared/UnifiedColorPicker";
 import { RoutineGroupTagPicker } from "./RoutineGroupTagPicker";
 import { FrequencySelector } from "./FrequencySelector";
 import { TimeInput } from "../../../shared/TimeInput";
-import { timeToMinutes } from "../../../../utils/timeGridUtils";
-
-function todayStr(): string {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-}
+import { formatTime, timeToMinutes } from "../../../../utils/timeGridUtils";
+import { getTodayKey } from "../../../../utils/dateKey";
 
 interface RoutineGroupEditDialogProps {
   group?: RoutineGroup;
@@ -31,6 +27,7 @@ interface RoutineGroupEditDialogProps {
     frequencyStartDate?: string | null,
   ) => void;
   onSlideGroup?: (offsetMinutes: number) => void;
+  onSlideGroupEndTime?: (offsetMinutes: number) => void;
   onClose: () => void;
 }
 
@@ -42,6 +39,7 @@ export function RoutineGroupEditDialog({
   groupTimeRange,
   onSubmit,
   onSlideGroup,
+  onSlideGroupEndTime,
   onClose,
 }: RoutineGroupEditDialogProps) {
   const { t } = useTranslation();
@@ -59,7 +57,7 @@ export function RoutineGroupEditDialog({
     group?.frequencyInterval ?? 2,
   );
   const [frequencyStartDate, setFrequencyStartDate] = useState(
-    group?.frequencyStartDate ?? todayStr(),
+    group?.frequencyStartDate ?? getTodayKey(),
   );
 
   const handleSubmit = useCallback(() => {
@@ -97,6 +95,19 @@ export function RoutineGroupEditDialog({
       }
     },
     [groupTimeRange, onSlideGroup],
+  );
+
+  const handleSlideEnd = useCallback(
+    (newEndTime: string) => {
+      if (!groupTimeRange || !onSlideGroupEndTime) return;
+      const currentEnd = timeToMinutes(groupTimeRange.endTime);
+      const newEnd = timeToMinutes(newEndTime);
+      const offset = newEnd - currentEnd;
+      if (offset !== 0) {
+        onSlideGroupEndTime(offset);
+      }
+    },
+    [groupTimeRange, onSlideGroupEndTime],
   );
 
   return (
@@ -206,16 +217,27 @@ export function RoutineGroupEditDialog({
                     10,
                   )}
                   onChange={(h, m) => {
-                    const newStart = `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
-                    handleSlide(newStart);
+                    handleSlide(formatTime(h, m));
                   }}
                   minuteStep={5}
                   size="sm"
                 />
                 <span className="text-notion-text-secondary">-</span>
-                <span className="text-notion-text-secondary">
-                  {groupTimeRange.endTime}
-                </span>
+                <TimeInput
+                  hour={parseInt(
+                    groupTimeRange.endTime.split(":")[0] || "0",
+                    10,
+                  )}
+                  minute={parseInt(
+                    groupTimeRange.endTime.split(":")[1] || "0",
+                    10,
+                  )}
+                  onChange={(h, m) => {
+                    handleSlideEnd(formatTime(h, m));
+                  }}
+                  minuteStep={5}
+                  size="sm"
+                />
               </div>
               <div className="text-[10px] text-notion-text-secondary mt-1">
                 {t(

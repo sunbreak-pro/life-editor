@@ -43,7 +43,7 @@ export function registerPaperBoardHandlers(repo: PaperBoardRepository): void {
     "update",
     "paperBoard",
     "update",
-    (_event, id: string, updates: Record<string, unknown>) => {
+    (_event, id: string, updates: Parameters<typeof repo.updateBoard>[1]) => {
       return repo.updateBoard(id, updates);
     },
   );
@@ -84,8 +84,11 @@ export function registerPaperBoardHandlers(repo: PaperBoardRepository): void {
     "create",
     "paperNode",
     "create",
-    (_event, params: Record<string, unknown>) => {
-      return repo.createNode(params as Parameters<typeof repo.createNode>[0]);
+    (_event, params: Parameters<typeof repo.createNode>[0]) => {
+      if (!params.boardId || !params.nodeType) {
+        throw new Error("createNode: boardId and nodeType are required");
+      }
+      return repo.createNode(params);
     },
     (_args, result) => (result as { id?: string })?.id,
   );
@@ -96,11 +99,8 @@ export function registerPaperBoardHandlers(repo: PaperBoardRepository): void {
     "update",
     "paperNode",
     "update",
-    (_event, id: string, updates: Record<string, unknown>) => {
-      return repo.updateNode(
-        id,
-        updates as Parameters<typeof repo.updateNode>[1],
-      );
+    (_event, id: string, updates: Parameters<typeof repo.updateNode>[1]) => {
+      return repo.updateNode(id, updates);
     },
   );
 
@@ -170,8 +170,13 @@ export function registerPaperBoardHandlers(repo: PaperBoardRepository): void {
     "create",
     "paperEdge",
     "create",
-    (_event, params: Record<string, unknown>) => {
-      return repo.createEdge(params as Parameters<typeof repo.createEdge>[0]);
+    (_event, params: Parameters<typeof repo.createEdge>[0]) => {
+      if (!params.boardId || !params.sourceNodeId || !params.targetNodeId) {
+        throw new Error(
+          "createEdge: boardId, sourceNodeId, and targetNodeId are required",
+        );
+      }
+      return repo.createEdge(params);
     },
     (_args, result) => (result as { id?: string })?.id,
   );

@@ -65,6 +65,15 @@ export function createScheduleItemRepository(db: Database.Database) {
     fetchLastRoutineDate: db.prepare(
       `SELECT MAX(date) as last_date FROM schedule_items WHERE routine_id IS NOT NULL`,
     ),
+    updateFutureByRoutine: db.prepare(`
+      UPDATE schedule_items SET
+        title = CASE WHEN @update_title THEN @title ELSE title END,
+        start_time = CASE WHEN @update_start_time THEN @start_time ELSE start_time END,
+        end_time = CASE WHEN @update_end_time THEN @end_time ELSE end_time END,
+        version = version + 1,
+        updated_at = datetime('now')
+      WHERE routine_id = @routine_id AND date >= @from_date AND is_dismissed = 0
+    `),
   };
 
   return {
@@ -179,31 +188,22 @@ export function createScheduleItemRepository(db: Database.Database) {
       updates: { title?: string; startTime?: string; endTime?: string },
       fromDate: string,
     ): number {
-      const setClauses: string[] = [];
-      const params: Record<string, unknown> = {
+      if (
+        updates.title === undefined &&
+        updates.startTime === undefined &&
+        updates.endTime === undefined
+      )
+        return 0;
+      const result = stmts.updateFutureByRoutine.run({
+        update_title: updates.title !== undefined ? 1 : 0,
+        title: updates.title ?? "",
+        update_start_time: updates.startTime !== undefined ? 1 : 0,
+        start_time: updates.startTime ?? "",
+        update_end_time: updates.endTime !== undefined ? 1 : 0,
+        end_time: updates.endTime ?? "",
         routine_id: routineId,
         from_date: fromDate,
-      };
-      if (updates.title !== undefined) {
-        setClauses.push("title = @title");
-        params.title = updates.title;
-      }
-      if (updates.startTime !== undefined) {
-        setClauses.push("start_time = @start_time");
-        params.start_time = updates.startTime;
-      }
-      if (updates.endTime !== undefined) {
-        setClauses.push("end_time = @end_time");
-        params.end_time = updates.endTime;
-      }
-      if (setClauses.length === 0) return 0;
-      setClauses.push("version = version + 1");
-      setClauses.push("updated_at = datetime('now')");
-      const result = db
-        .prepare(
-          `UPDATE schedule_items SET ${setClauses.join(", ")} WHERE routine_id = @routine_id AND date >= @from_date AND is_dismissed = 0`,
-        )
-        .run(params);
+      });
       return result.changes;
     },
 

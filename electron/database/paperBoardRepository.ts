@@ -165,6 +165,7 @@ export function createPaperBoardRepository(db: Database.Database) {
       INSERT INTO paper_edges (id, board_id, source_node_id, target_node_id, source_handle, target_handle, label, style_json, created_at)
       VALUES (@id, @board_id, @source_node_id, @target_node_id, @source_handle, @target_handle, @label, @style_json, @created_at)
     `),
+    fetchEdgeById: db.prepare(`SELECT * FROM paper_edges WHERE id = ?`),
     deleteEdge: db.prepare(`DELETE FROM paper_edges WHERE id = ?`),
   };
 
@@ -455,11 +456,7 @@ export function createPaperBoardRepository(db: Database.Database) {
         style_json: params.styleJson ?? null,
         created_at: now,
       });
-      return rowToEdge(
-        stmts.fetchEdgesByBoard
-          .all(params.boardId)
-          .find((r: any) => r.id === id) as EdgeRow,
-      );
+      return rowToEdge(stmts.fetchEdgeById.get(id) as EdgeRow);
     },
 
     deleteEdge(id: string): void {

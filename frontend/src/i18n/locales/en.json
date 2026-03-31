@@ -966,7 +966,8 @@
     "singleColumn": "Single Column",
     "selectRoutine": "Select Routine",
     "selectTask": "Select Task",
-    "selectNote": "Select Note"
+    "selectNote": "Select Note",
+    "itemCount": "{{count}} items"
   },
   "timeGridContextMenu": {
     "complete": "Complete",

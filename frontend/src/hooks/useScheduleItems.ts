@@ -5,11 +5,9 @@ import { getDataService } from "../services";
 import { logServiceError } from "../utils/logError";
 import { generateId } from "../utils/generateId";
 import { useUndoRedo } from "../components/shared/UndoRedo";
+import { formatDateKey } from "../utils/dateKey";
+import { diffRoutineScheduleItems } from "../utils/routineScheduleSync";
 import { shouldRoutineRunOnDate } from "../utils/routineFrequency";
-
-function formatDate(d: Date): string {
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-}
 
 function computeRoutineStats(
   items: ScheduleItem[],
@@ -44,7 +42,7 @@ function computeRoutineStats(
   const totalCompletedDays = dayStats.filter((d) => d.completed > 0).length;
 
   // Streak calculation: walk backwards from today
-  const today = formatDate(new Date());
+  const today = formatDateKey(new Date());
   let currentStreak = 0;
   let longestStreak = 0;
   let streak = 0;
@@ -59,7 +57,7 @@ function computeRoutineStats(
   const cursor = new Date();
   cursor.setHours(0, 0, 0, 0);
   for (let i = 0; i < 90; i++) {
-    const key = formatDate(cursor);
+    const key = formatDateKey(cursor);
     if (completedDatesSet.has(key)) {
       currentStreak++;
     } else if (allDatesSet.has(key)) {
@@ -90,7 +88,7 @@ function computeRoutineStats(
   for (let i = 6; i >= 0; i--) {
     const d = new Date(recentCursor);
     d.setDate(d.getDate() - i);
-    const key = formatDate(d);
+    const key = formatDateKey(d);
     const found = dayStatsMap.get(key);
     recent7.push(
       found ?? { date: key, completed: 0, total: 0, completionRate: 0 },
@@ -130,7 +128,7 @@ function computeRoutineStats(
   for (let i = 89; i >= 0; i--) {
     const d = new Date(heatCursor);
     d.setDate(d.getDate() - i);
-    const key = formatDate(d);
+    const key = formatDateKey(d);
     const found = dayStatsMap.get(key);
     monthlyHeatmap.push({
       date: key,
@@ -281,13 +279,16 @@ export function useScheduleItems() {
       >,
     ) => {
       const prev = scheduleItemsRef.current.find((item) => item.id === id);
-      setScheduleItems((p) =>
-        p.map((item) =>
-          item.id === id
-            ? { ...item, ...updates, updatedAt: new Date().toISOString() }
-            : item,
-        ),
-      );
+      const applyUpdate = (item: ScheduleItem) =>
+        item.id === id
+          ? { ...item, ...updates, updatedAt: new Date().toISOString() }
+          : item;
+      const applyRevert = (item: ScheduleItem) =>
+        prev && item.id === id
+          ? { ...item, ...prev, updatedAt: new Date().toISOString() }
+          : item;
+      setScheduleItems((p) => p.map(applyUpdate));
+      setMonthlyScheduleItems((p) => p.map(applyUpdate));
       getDataService()
         .updateScheduleItem(id, updates)
         .catch((e) => logServiceError("ScheduleItems", "update", e));
@@ -300,33 +301,15 @@ export function useScheduleItems() {
         push("scheduleItem", {
           label: "updateScheduleItem",
           undo: () => {
-            setScheduleItems((p) =>
-              p.map((item) =>
-                item.id === id
-                  ? {
-                      ...item,
-                      ...prevValues,
-                      updatedAt: new Date().toISOString(),
-                    }
-                  : item,
-              ),
-            );
+            setScheduleItems((p) => p.map(applyRevert));
+            setMonthlyScheduleItems((p) => p.map(applyRevert));
             getDataService()
               .updateScheduleItem(id, prevValues)
               .catch((e) => logServiceError("ScheduleItems", "undoUpdate", e));
           },
           redo: () => {
-            setScheduleItems((p) =>
-              p.map((item) =>
-                item.id === id
-                  ? {
-                      ...item,
-                      ...updates,
-                      updatedAt: new Date().toISOString(),
-                    }
-                  : item,
-              ),
-            );
+            setScheduleItems((p) => p.map(applyUpdate));
+            setMonthlyScheduleItems((p) => p.map(applyUpdate));
             getDataService()
               .updateScheduleItem(id, updates)
               .catch((e) => logServiceError("ScheduleItems", "redoUpdate", e));
@@ -493,75 +476,13 @@ export function useScheduleItems() {
       tagAssignments: Map<string, number[]>,
     ) => {
       const existing = await getDataService().fetchScheduleItemsByDate(date);
-      const existingByRoutineId = new Map(
-        existing
-          .filter((i) => i.routineId)
-          .map((i) => [i.routineId, i] as const),
+      const { toCreate, toUpdate } = diffRoutineScheduleItems(
+        existing,
+        routines,
+        tagAssignments,
+        date,
       );
 
-      const toCreate: Array<{
-        id: string;
-        date: string;
-        title: string;
-        startTime: string;
-        endTime: string;
-        routineId: string;
-      }> = [];
-      const toUpdate: Array<{
-        id: string;
-        title: string;
-        startTime: string;
-        endTime: string;
-      }> = [];
-
-      for (const routine of routines) {
-        if (routine.isArchived) continue;
-        // Only include routines that have at least one tag
-        const routineTagIds = tagAssignments.get(routine.id);
-        if (!routineTagIds || routineTagIds.length === 0) continue;
-        // Frequency check
-        if (
-          !shouldRoutineRunOnDate(
-            routine.frequencyType,
-            routine.frequencyDays,
-            routine.frequencyInterval,
-            routine.frequencyStartDate,
-            date,
-          )
-        )
-          continue;
-
-        const existingItem = existingByRoutineId.get(routine.id);
-        if (existingItem) {
-          const newTitle = routine.title;
-          const newStart = routine.startTime ?? "09:00";
-          const newEnd = routine.endTime ?? "09:30";
-          if (
-            existingItem.title !== newTitle ||
-            existingItem.startTime !== newStart ||
-            existingItem.endTime !== newEnd
-          ) {
-            toUpdate.push({
-              id: existingItem.id,
-              title: newTitle,
-              startTime: newStart,
-              endTime: newEnd,
-            });
-          }
-          continue;
-        }
-
-        toCreate.push({
-          id: generateId("si"),
-          date,
-          title: routine.title,
-          startTime: routine.startTime ?? "09:00",
-          endTime: routine.endTime ?? "09:30",
-          routineId: routine.id,
-        });
-      }
-
-      // Update existing items whose routine info changed
       if (toUpdate.length > 0) {
         for (const upd of toUpdate) {
           getDataService()
@@ -621,9 +542,15 @@ export function useScheduleItems() {
 
   const loadScheduleItemsForMonth = useCallback(
     async (year: number, month: number) => {
-      const startDate = `${year}-${String(month + 1).padStart(2, "0")}-01`;
-      const lastDay = new Date(year, month + 1, 0).getDate();
-      const endDate = `${year}-${String(month + 1).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`;
+      // Compute the full 42-day calendar grid range (including adjacent month padding)
+      const firstDay = new Date(year, month, 1);
+      const startDayOfWeek = firstDay.getDay(); // 0=Sun
+      const gridStart = new Date(year, month, 1 - startDayOfWeek);
+      const gridEnd = new Date(gridStart);
+      gridEnd.setDate(gridEnd.getDate() + 41); // 42 days total
+
+      const startDate = formatDateKey(gridStart);
+      const endDate = formatDateKey(gridEnd);
       try {
         const items = await getDataService().fetchScheduleItemsByDateRange(
           startDate,
@@ -658,8 +585,8 @@ export function useScheduleItems() {
       const start = new Date();
       start.setDate(start.getDate() - 89);
       const items = await getDataService().fetchScheduleItemsByDateRange(
-        formatDate(start),
-        formatDate(end),
+        formatDateKey(start),
+        formatDateKey(end),
       );
       setRoutineStats(computeRoutineStats(items, routines));
     } catch (e) {
@@ -722,7 +649,7 @@ export function useScheduleItems() {
     async (routines: RoutineNode[], tagAssignments: Map<string, number[]>) => {
       try {
         const lastDate = await getDataService().fetchLastRoutineDate();
-        const today = formatDate(new Date());
+        const today = formatDateKey(new Date());
         if (!lastDate || lastDate >= today) return;
 
         const start = new Date(lastDate + "T00:00:00");
@@ -746,7 +673,7 @@ export function useScheduleItems() {
 
         const cursor = new Date(start);
         while (cursor <= end) {
-          const dateKey = formatDate(cursor);
+          const dateKey = formatDateKey(cursor);
           for (const routine of routines) {
             if (routine.isArchived) continue;
             const routineTagIds = tagAssignments.get(routine.id);
@@ -784,6 +711,81 @@ export function useScheduleItems() {
     [],
   );
 
+  const ensureRoutineItemsForWeek = useCallback(
+    async (routines: RoutineNode[], tagAssignments: Map<string, number[]>) => {
+      try {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const endDay = new Date(today);
+        endDay.setDate(endDay.getDate() + 7);
+
+        const startDate = formatDateKey(today);
+        const endDate = formatDateKey(endDay);
+
+        const existing = await getDataService().fetchScheduleItemsByDateRange(
+          startDate,
+          endDate,
+        );
+
+        // Build set of existing (routineId, date) pairs
+        const existingSet = new Set<string>();
+        for (const item of existing) {
+          if (item.routineId) {
+            existingSet.add(`${item.routineId}:${item.date}`);
+          }
+        }
+
+        const toCreate: Array<{
+          id: string;
+          date: string;
+          title: string;
+          startTime: string;
+          endTime: string;
+          routineId: string;
+        }> = [];
+
+        const cursor = new Date(today);
+        while (cursor <= endDay) {
+          const dateKey = formatDateKey(cursor);
+          for (const routine of routines) {
+            if (routine.isArchived) continue;
+            const routineTagIds = tagAssignments.get(routine.id);
+            if (!routineTagIds || routineTagIds.length === 0) continue;
+            if (existingSet.has(`${routine.id}:${dateKey}`)) continue;
+            if (
+              !shouldRoutineRunOnDate(
+                routine.frequencyType,
+                routine.frequencyDays,
+                routine.frequencyInterval,
+                routine.frequencyStartDate,
+                dateKey,
+              )
+            )
+              continue;
+
+            toCreate.push({
+              id: generateId("si"),
+              date: dateKey,
+              title: routine.title,
+              startTime: routine.startTime ?? "09:00",
+              endTime: routine.endTime ?? "09:30",
+              routineId: routine.id,
+            });
+          }
+          cursor.setDate(cursor.getDate() + 1);
+        }
+
+        if (toCreate.length > 0) {
+          await getDataService().bulkCreateScheduleItems(toCreate);
+          bumpVersion();
+        }
+      } catch (e) {
+        logServiceError("ScheduleItems", "ensureRoutineItemsForWeek", e);
+      }
+    },
+    [bumpVersion],
+  );
+
   return useMemo(
     () => ({
       scheduleItems,
@@ -796,6 +798,7 @@ export function useScheduleItems() {
       dismissScheduleItem,
       toggleComplete,
       ensureRoutineItemsForDate,
+      ensureRoutineItemsForWeek,
       getRoutineCompletionRate,
       routineStats,
       refreshRoutineStats,
@@ -817,6 +820,7 @@ export function useScheduleItems() {
       dismissScheduleItem,
       toggleComplete,
       ensureRoutineItemsForDate,
+      ensureRoutineItemsForWeek,
       getRoutineCompletionRate,
       skipNextSync,
       routineStats,

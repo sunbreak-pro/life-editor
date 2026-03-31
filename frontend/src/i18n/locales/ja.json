@@ -966,7 +966,8 @@
     "singleColumn": "1カラム",
     "selectRoutine": "ルーティンを選ぶ",
     "selectTask": "タスクを選ぶ",
-    "selectNote": "ノートを選ぶ"
+    "selectNote": "ノートを選ぶ",
+    "itemCount": "{{count}}件"
   },
   "timeGridContextMenu": {
     "complete": "完了にする",

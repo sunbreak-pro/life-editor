@@ -12,6 +12,7 @@ import { TimeGridContextMenu } from "./TimeGridContextMenu";
 import { formatDateKey } from "../../../../utils/dateKey";
 import { useTimeGridDrag } from "../../../../hooks/useTimeGridDrag";
 import {
+  formatTime,
   minutesToTimeString,
   topToMinutes,
   timeToMinutes,
@@ -323,14 +324,10 @@ export function ScheduleTimeGrid({
         ? new Date(contextTask.scheduledEndAt)
         : new Date(startDate.getTime() + 25 * 60000);
       endDate.setMinutes(endDate.getMinutes() + 15);
-      const sh = startDate.getHours();
-      const sm = startDate.getMinutes();
-      const eh = endDate.getHours();
-      const em = endDate.getMinutes();
       onUpdateTaskTime?.(
         contextMenu.itemId,
-        `${String(sh).padStart(2, "0")}:${String(sm).padStart(2, "0")}`,
-        `${String(eh).padStart(2, "0")}:${String(em).padStart(2, "0")}`,
+        formatTime(startDate.getHours(), startDate.getMinutes()),
+        formatTime(endDate.getHours(), endDate.getMinutes()),
       );
     }
   }, [
@@ -361,14 +358,10 @@ export function ScheduleTimeGrid({
       if (endDate.getTime() - startDate.getTime() < 15 * 60000) {
         endDate.setTime(startDate.getTime() + 15 * 60000);
       }
-      const sh = startDate.getHours();
-      const sm = startDate.getMinutes();
-      const eh = endDate.getHours();
-      const em = endDate.getMinutes();
       onUpdateTaskTime?.(
         contextMenu.itemId,
-        `${String(sh).padStart(2, "0")}:${String(sm).padStart(2, "0")}`,
-        `${String(eh).padStart(2, "0")}:${String(em).padStart(2, "0")}`,
+        formatTime(startDate.getHours(), startDate.getMinutes()),
+        formatTime(endDate.getHours(), endDate.getMinutes()),
       );
     }
   }, [
@@ -389,8 +382,7 @@ export function ScheduleTimeGrid({
       const end = contextTask.scheduledEndAt
         ? new Date(contextTask.scheduledEndAt)
         : start;
-      const fmt = (d: Date) =>
-        `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+      const fmt = (d: Date) => formatTime(d.getHours(), d.getMinutes());
       timeStr = `${fmt(start)} - ${fmt(end)}`;
     }
     if (timeStr) navigator.clipboard.writeText(timeStr);
@@ -543,11 +535,11 @@ export function ScheduleTimeGrid({
     const hour = Math.floor(rawHour);
     const snappedMinute = Math.round(((rawHour % 1) * 60) / 15) * 15;
     const finalMinute = snappedMinute >= 60 ? 0 : snappedMinute;
-    const finalHour = snappedMinute >= 60 ? hour + 1 : hour;
+    const finalHour = Math.min(snappedMinute >= 60 ? hour + 1 : hour, 23);
 
-    const startTime = `${String(finalHour).padStart(2, "0")}:${String(finalMinute).padStart(2, "0")}`;
-    const endHour = finalHour + 1;
-    const endTime = `${String(Math.min(endHour, 23)).padStart(2, "0")}:${String(finalMinute).padStart(2, "0")}`;
+    const startTime = formatTime(finalHour, finalMinute);
+    const endHour = Math.min(finalHour + 1, 23);
+    const endTime = formatTime(endHour, finalMinute);
 
     onCreateItem(startTime, endTime, e);
   };

@@ -1,5 +1,23 @@
 # HISTORY.md - 変更履歴
 
+### 2026-03-31 - Code Review + Bugfix + リファクタリング（直近10コミット）
+
+#### 概要
+
+直近10コミット（73ファイル、+4,525行）を対象にコードレビューを実施。Blocking 3件・Important 6件・Suggestion 5件を検出し、バグ修正とリファクタリングを実施。
+
+#### 変更点
+
+- **Blocking修正**: ScheduleTimeGrid の startTime 時間オーバーフロー（finalHour=24）をクランプ。paperBoardRepository の Edge 作成後の全件取得を fetchEdgeById に最適化。scheduleItemRepository の動的 SET 句を CASE WHEN パターンの prepared statement に置換
+- **Optimistic update ロールバック**: useCalendarTagAssignments / useCalendarTags でサービス失敗時に state をロールバックするよう修正
+- **IPC 型安全性向上**: paperBoardHandlers の unsafe type assertion を proper 型 + バリデーションに置換
+- **i18n**: GroupFrame の "件" ハードコードを i18n 化（en/ja）
+- **重複除去 — ルーティン同期**: `diffRoutineScheduleItems()` を `routineScheduleSync.ts` に抽出。useScheduleItems / useDayFlowColumn の ~115行の重複を解消。useDayFlowColumn に欠落していた shouldRoutineRunOnDate チェックも修正
+- **重複除去 — 時刻フォーマット**: `formatTime(h, m)` を timeGridUtils.ts に追加。8ファイル15箇所の padStart パターンを統一
+- **重複除去 — 日付フォーマット**: ローカル formatDate() / todayStr() を formatDateKey() / getTodayKey() に統一（6ファイル10箇所）
+- **重複除去 — ポップオーバー位置**: useClampedPosition フックを抽出（CreateItemPopover / EventCreatePopover）
+- **干渉解消 — useDayFlowColumn CRUD 委譲**: 独立 CRUD 5メソッド + syncContext ワークアラウンドを削除。context の CRUD に委譲し、undo/redo + version tracking を統一。scheduleItemsVersion 監視で他ビューからの変更も反映
+
 ### 2026-03-31 - Calendar即時反映バグ修正 / Event・Routine色分け / Task時間編集UI
 
 #### 概要

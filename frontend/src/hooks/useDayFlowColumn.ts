@@ -3,8 +3,8 @@ import type { ScheduleItem } from "../types/schedule";
 import type { DayFlowFilterTab } from "../components/Tasks/Schedule/DayFlow/OneDaySchedule";
 import { getDataService } from "../services";
 import { formatDateKey } from "../utils/dateKey";
-import { generateId } from "../utils/generateId";
 import { logServiceError } from "../utils/logError";
+import { diffRoutineScheduleItems } from "../utils/routineScheduleSync";
 import { useScheduleContext } from "./useScheduleContext";
 import { useTaskTreeContext } from "./useTaskTreeContext";
 
@@ -28,9 +28,14 @@ export function useDayFlowColumn({ initialDate }: UseDayFlowColumnOptions) {
     routines,
     routineTags,
     tagAssignments,
-    loadItemsForDate,
     routineGroups,
     groupForRoutine,
+    scheduleItemsVersion,
+    createScheduleItem: ctxCreate,
+    updateScheduleItem: ctxUpdate,
+    deleteScheduleItem: ctxDelete,
+    dismissScheduleItem: ctxDismiss,
+    toggleComplete: ctxToggle,
   } = useScheduleContext();
   const { nodes } = useTaskTreeContext();
 
@@ -58,85 +63,25 @@ export function useDayFlowColumn({ initialDate }: UseDayFlowColumnOptions) {
     setDate(new Date());
   }, []);
 
-  // Load schedule items for current date
+  // Load schedule items for current date + ensure routine items in a single effect
+  // Also re-fetch when context version changes (e.g. CRUD from other views)
   useEffect(() => {
+    let cancelled = false;
+
     (async () => {
       try {
         const items = await getDataService().fetchScheduleItemsByDate(dateKey);
+        if (cancelled) return;
         setScheduleItems(items);
-      } catch (e) {
-        logServiceError("DayFlowColumn", "fetchByDate", e);
-      }
-    })();
-  }, [dateKey, refreshKey]);
 
-  const refresh = useCallback(() => {
-    setRefreshKey((k) => k + 1);
-  }, []);
+        if (routines.length === 0) return;
 
-  // Ensure routine items
-  useEffect(() => {
-    if (routines.length === 0) return;
-
-    (async () => {
-      try {
-        const existing =
-          await getDataService().fetchScheduleItemsByDate(dateKey);
-        const existingByRoutineId = new Map(
-          existing
-            .filter((i) => i.routineId)
-            .map((i) => [i.routineId, i] as const),
+        const { toCreate, toUpdate } = diffRoutineScheduleItems(
+          items,
+          routines,
+          tagAssignments,
+          dateKey,
         );
-
-        const toCreate: Array<{
-          id: string;
-          date: string;
-          title: string;
-          startTime: string;
-          endTime: string;
-          routineId: string;
-        }> = [];
-        const toUpdate: Array<{
-          id: string;
-          title: string;
-          startTime: string;
-          endTime: string;
-        }> = [];
-
-        for (const routine of routines) {
-          if (routine.isArchived) continue;
-          const routineTagIds = tagAssignments.get(routine.id);
-          if (!routineTagIds || routineTagIds.length === 0) continue;
-
-          const existingItem = existingByRoutineId.get(routine.id);
-          if (existingItem) {
-            const newTitle = routine.title;
-            const newStart = routine.startTime ?? "09:00";
-            const newEnd = routine.endTime ?? "09:30";
-            if (
-              existingItem.title !== newTitle ||
-              existingItem.startTime !== newStart ||
-              existingItem.endTime !== newEnd
-            ) {
-              toUpdate.push({
-                id: existingItem.id,
-                title: newTitle,
-                startTime: newStart,
-                endTime: newEnd,
-              });
-            }
-            continue;
-          }
-
-          toCreate.push({
-            id: generateId("si"),
-            date: dateKey,
-            title: routine.title,
-            startTime: routine.startTime ?? "09:00",
-            endTime: routine.endTime ?? "09:30",
-            routineId: routine.id,
-          });
-        }
 
         if (toUpdate.length > 0) {
           for (const upd of toUpdate) {
@@ -148,6 +93,7 @@ export function useDayFlowColumn({ initialDate }: UseDayFlowColumnOptions) {
               })
               .catch((e) => logServiceError("DayFlowColumn", "update", e));
           }
+          if (cancelled) return;
           setScheduleItems((prev) =>
             prev
               .map((item) => {
@@ -163,6 +109,7 @@ export function useDayFlowColumn({ initialDate }: UseDayFlowColumnOptions) {
         if (toCreate.length > 0) {
           const created =
             await getDataService().bulkCreateScheduleItems(toCreate);
+          if (cancelled) return;
           setScheduleItems((prev) =>
             [...prev, ...created].sort((a, b) =>
               a.startTime.localeCompare(b.startTime),
@@ -170,10 +117,18 @@ export function useDayFlowColumn({ initialDate }: UseDayFlowColumnOptions) {
           );
         }
       } catch (e) {
-        logServiceError("DayFlowColumn", "ensureRoutines", e);
+        logServiceError("DayFlowColumn", "loadAndEnsureRoutines", e);
       }
     })();
-  }, [dateKey, routines, tagAssignments]);
+
+    return () => {
+      cancelled = true;
+    };
+  }, [dateKey, refreshKey, routines, tagAssignments, scheduleItemsVersion]);
+
+  const refresh = useCallback(() => {
+    setRefreshKey((k) => k + 1);
+  }, []);
 
   // Compute tasks for this date
   const allDayTasks = useMemo(() => {
@@ -238,42 +193,14 @@ export function useDayFlowColumn({ initialDate }: UseDayFlowColumnOptions) {
     return new Set(allDayTasks.map((t) => t.id));
   }, [allDayTasks]);
 
-  // CRUD
+  // CRUD — delegate to context (undo/redo + version bump included)
+  // Optimistic updates on local state for immediate UI feedback
   const createScheduleItem = useCallback(
     (title: string, startTime: string, endTime: string) => {
-      const id = generateId("si");
-      const now = new Date().toISOString();
-      const optimistic: ScheduleItem = {
-        id,
-        date: dateKey,
-        title,
-        startTime,
-        endTime,
-        completed: false,
-        completedAt: null,
-        routineId: null,
-        templateId: null,
-        memo: null,
-        createdAt: now,
-        updatedAt: now,
-      };
-      setScheduleItems((prev) =>
-        [...prev, optimistic].sort((a, b) =>
-          a.startTime.localeCompare(b.startTime),
-        ),
-      );
-      getDataService()
-        .createScheduleItem(id, dateKey, title, startTime, endTime)
-        .catch((e) => logServiceError("DayFlowColumn", "create", e));
+      ctxCreate(dateKey, title, startTime, endTime);
     },
-    [dateKey],
+    [dateKey, ctxCreate],
   );
-
-  const todayDateKey = formatDateKey(new Date());
-
-  const syncContext = useCallback(() => {
-    if (isToday) loadItemsForDate(todayDateKey);
-  }, [isToday, todayDateKey, loadItemsForDate]);
 
   const updateScheduleItem = useCallback(
     (
@@ -290,6 +217,7 @@ export function useDayFlowColumn({ initialDate }: UseDayFlowColumnOptions) {
         >
       >,
     ) => {
+      // Optimistic local update for immediate feedback
       setScheduleItems((prev) =>
         prev.map((item) =>
           item.id === id
@@ -297,34 +225,25 @@ export function useDayFlowColumn({ initialDate }: UseDayFlowColumnOptions) {
             : item,
         ),
       );
-      getDataService()
-        .updateScheduleItem(id, updates)
-        .then(() => syncContext())
-        .catch((e) => logServiceError("DayFlowColumn", "update", e));
+      ctxUpdate(id, updates);
     },
-    [syncContext],
+    [ctxUpdate],
   );
 
   const deleteScheduleItem = useCallback(
     (id: string) => {
       setScheduleItems((prev) => prev.filter((item) => item.id !== id));
-      getDataService()
-        .deleteScheduleItem(id)
-        .then(() => syncContext())
-        .catch((e) => logServiceError("DayFlowColumn", "delete", e));
+      ctxDelete(id);
     },
-    [syncContext],
+    [ctxDelete],
   );
 
   const dismissScheduleItem = useCallback(
     (id: string) => {
       setScheduleItems((prev) => prev.filter((item) => item.id !== id));
-      getDataService()
-        .dismissScheduleItem(id)
-        .then(() => syncContext())
-        .catch((e) => logServiceError("DayFlowColumn", "dismiss", e));
+      ctxDismiss(id);
     },
-    [syncContext],
+    [ctxDismiss],
   );
 
   const toggleComplete = useCallback(
@@ -340,12 +259,9 @@ export function useDayFlowColumn({ initialDate }: UseDayFlowColumnOptions) {
             : item,
         ),
       );
-      getDataService()
-        .toggleScheduleItemComplete(id)
-        .then(() => syncContext())
-        .catch((e) => logServiceError("DayFlowColumn", "toggleComplete", e));
+      ctxToggle(id);
     },
-    [syncContext],
+    [ctxToggle],
   );
 
   return {

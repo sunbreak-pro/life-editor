@@ -1,6 +1,7 @@
-import { useState, useRef, useLayoutEffect } from "react";
+import { useState, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { useClickOutside } from "../../../../hooks/useClickOutside";
+import { useClampedPosition } from "../../../../hooks/useClampedPosition";
 import { TimeSettingsInline } from "../../../shared/TaskSchedulePanel/TimeSettingsInline";
 import type { CalendarTag } from "../../../../types/calendarTag";
 
@@ -28,24 +29,8 @@ export function EventCreatePopover({
 }: EventCreatePopoverProps) {
   const { t } = useTranslation();
   const ref = useRef<HTMLDivElement>(null);
-  const [adjusted, setAdjusted] = useState(position);
+  const adjusted = useClampedPosition(ref, position);
   useClickOutside(ref, onClose, true);
-
-  useLayoutEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-    const rect = el.getBoundingClientRect();
-    const pad = 8;
-    const x = Math.max(
-      pad,
-      Math.min(position.x, window.innerWidth - rect.width - pad),
-    );
-    const y = Math.max(
-      pad,
-      Math.min(position.y, window.innerHeight - rect.height - pad),
-    );
-    setAdjusted({ x, y });
-  }, [position]);
 
   const [title, setTitle] = useState("");
   const [startTime, setStartTime] = useState("09:00");

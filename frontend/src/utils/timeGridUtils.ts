@@ -1,5 +1,10 @@
 import { TIME_GRID } from "../constants/timeGrid";
 
+/** Format hour and minute into "HH:MM" string. */
+export function formatTime(hour: number, minute: number): string {
+  return `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
+}
+
 export function minutesToTimeString(totalMinutes: number): string {
   const rounded = Math.round(totalMinutes);
   const clamped = Math.max(0, Math.min(rounded, 24 * 60));

@@ -6,6 +6,7 @@ import { useClickOutside } from "../../../../hooks/useClickOutside";
 import { InlineMemoInput } from "./InlineMemoInput";
 import { TimeInput } from "../../../shared/TimeInput";
 import {
+  formatTime,
   clampEndTimeAfterStart,
   adjustEndTimeForStartChange,
 } from "../../../../utils/timeGridUtils";
@@ -43,7 +44,7 @@ export function ScheduleItemPreviewPopup({
   const top = Math.min(position.y, window.innerHeight - 280 - 16);
 
   const handleStartTimeChange = (h: number, m: number) => {
-    const newStart = `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+    const newStart = formatTime(h, m);
     const adjusted = adjustEndTimeForStartChange(
       prevStartRef.current,
       newStart,
@@ -55,7 +56,7 @@ export function ScheduleItemPreviewPopup({
   };
 
   const handleEndTimeChange = (h: number, m: number) => {
-    const newEnd = `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+    const newEnd = formatTime(h, m);
     setEditEndTime(clampEndTimeAfterStart(editStartTime, newEnd));
   };
 
