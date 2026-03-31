@@ -8,7 +8,7 @@
 
 #### 変更点
 
-- **サイドバー即時反映**: `useScheduleItems` に `scheduleItemsVersion` カウンター追加。全mutation関数でインクリメントし、`ScheduleSidebarContent` の useEffect 依存に追加。Calendar操作がサイドバーに即時反映されるように修正
+- **サイドバー即時反映**: `useScheduleItems` に `scheduleItemsVersion` カウンター追加。全mutation関数でインクリメントし、`ScheduleSidebarContent` の useEffect 依存に追加。Calendar操作がサイドバーに即時反映されるように修正。`useScheduleContext()` の呼び出し順序を修正し TDZ エラーと `handlePrevDate` 未定義エラーを解消
 - **Event・Routine色分け**: `CALENDAR_ITEM_COLORS` に `routine: "#10B981"` (Emerald) 追加。`useCalendar` で `routineId` 有無により色を分岐。`CalendarItemChip` で Routine は Repeat アイコン + emerald、Event は CalendarClock + purple に。`ScheduleItemPreviewPopup` のバッジ色も分岐
 - **Task時間編集UI**: `TaskPreviewPopup` に `TimeInput` による時間編集UI追加（`ScheduleItemPreviewPopup` と同じパターン）。`CalendarView` と `ScheduleTimeGrid` から `onUpdateSchedule` prop を渡して接続
 
