@@ -17,13 +17,35 @@ export function createRoutineRoutes(db: Database.Database): Hono {
   });
 
   app.post("/", async (c) => {
-    const { id, title, startTime, endTime } = await c.req.json<{
+    const {
+      id,
+      title,
+      startTime,
+      endTime,
+      frequencyType,
+      frequencyDays,
+      frequencyInterval,
+      frequencyStartDate,
+    } = await c.req.json<{
       id: string;
       title: string;
       startTime?: string;
       endTime?: string;
+      frequencyType?: "daily" | "weekdays" | "interval";
+      frequencyDays?: number[];
+      frequencyInterval?: number;
+      frequencyStartDate?: string;
     }>();
-    const result = repo.create(id, title, startTime, endTime);
+    const result = repo.create(
+      id,
+      title,
+      startTime,
+      endTime,
+      frequencyType,
+      frequencyDays,
+      frequencyInterval,
+      frequencyStartDate,
+    );
     broadcastChange("routine", "create", id);
     return c.json(result, 201);
   });
@@ -35,7 +57,15 @@ export function createRoutineRoutes(db: Database.Database): Hono {
         Partial<
           Pick<
             RoutineNode,
-            "title" | "startTime" | "endTime" | "isArchived" | "order"
+            | "title"
+            | "startTime"
+            | "endTime"
+            | "isArchived"
+            | "order"
+            | "frequencyType"
+            | "frequencyDays"
+            | "frequencyInterval"
+            | "frequencyStartDate"
           >
         >
       >();

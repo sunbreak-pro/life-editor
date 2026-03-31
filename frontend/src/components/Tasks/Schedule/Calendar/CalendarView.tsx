@@ -15,11 +15,15 @@ import type { CalendarContentFilter } from "../../../../types/calendarItem";
 import { CalendarHeader } from "./CalendarHeader";
 import { TaskSchedulePanel } from "../../../shared/TaskSchedulePanel";
 import { NoteCreatePopover } from "./NoteCreatePopover";
+import { CreateItemPopover } from "./CreateItemPopover";
+import { EventCreatePopover } from "./EventCreatePopover";
 import { TaskPreviewPopup } from "./TaskPreviewPopup";
 import { MemoPreviewPopup } from "./MemoPreviewPopup";
+import { ScheduleItemPreviewPopup } from "../DayFlow/ScheduleItemPreviewPopup";
 import { MonthlyView } from "./MonthlyView";
 import { WeeklyTimeGrid } from "./WeeklyTimeGrid";
 import { useScheduleContext } from "../../../../hooks/useScheduleContext";
+import type { ScheduleItem } from "../../../../types/schedule";
 
 interface CalendarViewProps {
   onSelectTask: (taskId: string) => void;
@@ -73,8 +77,17 @@ export function CalendarView({
     updateNote,
     softDeleteNote,
   } = useNoteContext();
-  const { loadRoutineItemsForMonth, getRoutineCompletionByDate } =
-    useScheduleContext();
+  const {
+    loadScheduleItemsForMonth,
+    getRoutineCompletionByDate,
+    createScheduleItem,
+    updateScheduleItem,
+    deleteScheduleItem,
+    toggleComplete,
+    calendarTags,
+    setTagsForScheduleItem,
+    monthlyScheduleItems,
+  } = useScheduleContext();
 
   // Filter nodes by active calendar's folder subtree
   const filteredNodes = useMemo(() => {
@@ -100,6 +113,14 @@ export function CalendarView({
     date: Date;
     position: { x: number; y: number };
   } | null>(null);
+  const [createMenuPopover, setCreateMenuPopover] = useState<{
+    date: Date;
+    position: { x: number; y: number };
+  } | null>(null);
+  const [eventCreatePopover, setEventCreatePopover] = useState<{
+    date: Date;
+    position: { x: number; y: number };
+  } | null>(null);
   const [previewPopup, setPreviewPopup] = useState<{
     taskId: string;
     position: { x: number; y: number };
@@ -112,11 +133,15 @@ export function CalendarView({
     onOpenDetail: () => void;
     noteId?: string;
   } | null>(null);
+  const [scheduleItemPreview, setScheduleItemPreview] = useState<{
+    item: ScheduleItem;
+    position: { x: number; y: number };
+  } | null>(null);
 
-  // Load routine items for the current month
+  // Load schedule items for the current month
   useEffect(() => {
-    loadRoutineItemsForMonth(year, month);
-  }, [year, month, loadRoutineItemsForMonth]);
+    loadScheduleItemsForMonth(year, month);
+  }, [year, month, loadScheduleItemsForMonth]);
 
   const { tasksByDate, itemsByDate, calendarDays, weekDays } = useCalendar(
     filteredNodes,
@@ -127,6 +152,7 @@ export function CalendarView({
     memos,
     notes,
     contentFilter,
+    monthlyScheduleItems,
   );
 
   /* eslint-disable react-hooks/exhaustive-deps -- React Compiler auto-memoizes */
@@ -234,10 +260,20 @@ export function CalendarView({
     return map;
   }, [tasksByDate, folderDescendantIds]);
 
+  const handleOpenCreateMenu = (date: Date, e: React.MouseEvent) => {
+    setPreviewPopup(null);
+    setMemoPreview(null);
+    setCreatePopover(null);
+    setNoteCreatePopover(null);
+    setEventCreatePopover(null);
+    setCreateMenuPopover({ date, position: { x: e.clientX, y: e.clientY } });
+  };
+
   const handleRequestCreate = (date: Date, e: React.MouseEvent) => {
     setPreviewPopup(null);
     setMemoPreview(null);
     setNoteCreatePopover(null);
+    setCreateMenuPopover(null);
     setCreatePopover({ date, position: { x: e.clientX, y: e.clientY } });
   };
 
@@ -245,7 +281,20 @@ export function CalendarView({
     setPreviewPopup(null);
     setMemoPreview(null);
     setCreatePopover(null);
+    setCreateMenuPopover(null);
     setNoteCreatePopover({ date, position: { x: e.clientX, y: e.clientY } });
+  };
+
+  const handleRequestCreateEvent = (
+    date: Date,
+    position: { x: number; y: number },
+  ) => {
+    setPreviewPopup(null);
+    setMemoPreview(null);
+    setCreatePopover(null);
+    setNoteCreatePopover(null);
+    setCreateMenuPopover(null);
+    setEventCreatePopover({ date, position });
   };
 
   const handleItemClick = (item: CalendarItem, e: React.MouseEvent) => {
@@ -254,12 +303,14 @@ export function CalendarView({
 
     if (item.type === "task") {
       setMemoPreview(null);
+      setScheduleItemPreview(null);
       setPreviewPopup({
         taskId: item.id,
         position: { x: e.clientX, y: e.clientY },
       });
     } else if (item.type === "daily" && item.memo) {
       setPreviewPopup(null);
+      setScheduleItemPreview(null);
       const memo = item.memo;
       setMemoPreview({
         kind: "daily",
@@ -273,6 +324,7 @@ export function CalendarView({
       });
     } else if (item.type === "note" && item.note) {
       setPreviewPopup(null);
+      setScheduleItemPreview(null);
       const note = item.note;
       setMemoPreview({
         kind: "note",
@@ -284,6 +336,13 @@ export function CalendarView({
           setMemoPreview(null);
         },
         noteId: note.id,
+      });
+    } else if (item.type === "event" && item.scheduleItem) {
+      setPreviewPopup(null);
+      setMemoPreview(null);
+      setScheduleItemPreview({
+        item: item.scheduleItem,
+        position: { x: e.clientX, y: e.clientY },
       });
     }
   };
@@ -323,8 +382,7 @@ export function CalendarView({
             itemsByDate={filteredItemsByDate}
             onSelectItem={handleItemClick}
             onOpenRoutineManagement={onOpenRoutineManagement}
-            onCreateTask={onCreateTask ? handleRequestCreate : undefined}
-            onCreateNote={handleRequestCreateNote}
+            onOpenCreateMenu={handleOpenCreateMenu}
             getTaskColor={getTaskColor}
             getRoutineCompletion={getRoutineCompletionByDate}
             onDateSelect={onDateSelect}
@@ -406,6 +464,115 @@ export function CalendarView({
         />
       )}
 
+      {createMenuPopover && (
+        <CreateItemPopover
+          position={createMenuPopover.position}
+          onSelectTask={() => {
+            const { date, position } = createMenuPopover;
+            setCreateMenuPopover(null);
+            handleRequestCreate(date, {
+              clientX: position.x,
+              clientY: position.y,
+              stopPropagation: () => {},
+            } as React.MouseEvent);
+          }}
+          onSelectNote={() => {
+            const { date, position } = createMenuPopover;
+            setCreateMenuPopover(null);
+            handleRequestCreateNote(date, {
+              clientX: position.x,
+              clientY: position.y,
+              stopPropagation: () => {},
+            } as React.MouseEvent);
+          }}
+          onSelectDaily={() => {
+            const dateKey = `${createMenuPopover.date.getFullYear()}-${String(createMenuPopover.date.getMonth() + 1).padStart(2, "0")}-${String(createMenuPopover.date.getDate()).padStart(2, "0")}`;
+            const hasDaily = memos.some(
+              (m) => m.date === dateKey && !m.isDeleted,
+            );
+            if (hasDaily) {
+              onSelectMemo?.(dateKey);
+            } else {
+              upsertMemo(dateKey, "");
+            }
+            setCreateMenuPopover(null);
+          }}
+          onSelectEvent={() => {
+            const { date, position } = createMenuPopover;
+            setCreateMenuPopover(null);
+            handleRequestCreateEvent(date, position);
+          }}
+          onClose={() => setCreateMenuPopover(null)}
+        />
+      )}
+
+      {eventCreatePopover && (
+        <EventCreatePopover
+          position={eventCreatePopover.position}
+          date={eventCreatePopover.date}
+          calendarTags={calendarTags}
+          onCreateEvent={(
+            title,
+            startTime,
+            endTime,
+            memo,
+            tagIds,
+            isAllDay,
+          ) => {
+            const dateKey = `${eventCreatePopover.date.getFullYear()}-${String(eventCreatePopover.date.getMonth() + 1).padStart(2, "0")}-${String(eventCreatePopover.date.getDate()).padStart(2, "0")}`;
+            const id = createScheduleItem(
+              dateKey,
+              title,
+              startTime,
+              endTime,
+              undefined,
+              undefined,
+              undefined,
+              isAllDay,
+            );
+            if (memo) {
+              updateScheduleItem(id, { memo });
+            }
+            if (tagIds.length > 0) {
+              setTagsForScheduleItem(id, tagIds);
+            }
+            // Refresh monthly schedule items so the calendar displays the new event
+            loadScheduleItemsForMonth(year, month);
+            setEventCreatePopover(null);
+          }}
+          onClose={() => setEventCreatePopover(null)}
+        />
+      )}
+
+      {scheduleItemPreview && (
+        <ScheduleItemPreviewPopup
+          item={scheduleItemPreview.item}
+          position={scheduleItemPreview.position}
+          onToggleComplete={() => {
+            toggleComplete(scheduleItemPreview.item.id);
+            loadScheduleItemsForMonth(year, month);
+            setScheduleItemPreview(null);
+          }}
+          onUpdateMemo={(memo) => {
+            updateScheduleItem(scheduleItemPreview.item.id, { memo });
+            loadScheduleItemsForMonth(year, month);
+          }}
+          onUpdateTime={(startTime, endTime) => {
+            updateScheduleItem(scheduleItemPreview.item.id, {
+              startTime,
+              endTime,
+            });
+            loadScheduleItemsForMonth(year, month);
+          }}
+          onDelete={() => {
+            deleteScheduleItem(scheduleItemPreview.item.id);
+            loadScheduleItemsForMonth(year, month);
+            setScheduleItemPreview(null);
+          }}
+          onClose={() => setScheduleItemPreview(null)}
+        />
+      )}
+
       {previewPopup && previewTask && (
         <TaskPreviewPopup
           task={previewTask}
@@ -417,6 +584,13 @@ export function CalendarView({
             setPreviewPopup(null);
           }}
           onUpdateTitle={(title) => updateNode(previewTask.id, { title })}
+          onUpdateSchedule={(scheduledAt, scheduledEndAt) => {
+            updateNode(previewTask.id, {
+              scheduledAt,
+              scheduledEndAt,
+              isAllDay: false,
+            });
+          }}
           onDelete={() => {
             softDelete(previewTask.id);
             setPreviewPopup(null);

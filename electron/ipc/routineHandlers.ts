@@ -1,6 +1,6 @@
 import { query, mutation } from "./handlerUtil";
 import type { RoutineRepository } from "../database/routineRepository";
-import type { RoutineNode } from "../types";
+import type { RoutineNode, FrequencyType } from "../types";
 
 export function registerRoutineHandlers(repo: RoutineRepository): void {
   query("db:routines:fetchAll", "Routines", "fetchAll", () => {
@@ -19,8 +19,21 @@ export function registerRoutineHandlers(repo: RoutineRepository): void {
       title: string,
       startTime?: string,
       endTime?: string,
+      frequencyType?: FrequencyType,
+      frequencyDays?: number[],
+      frequencyInterval?: number | null,
+      frequencyStartDate?: string | null,
     ) => {
-      return repo.create(id, title, startTime, endTime);
+      return repo.create(
+        id,
+        title,
+        startTime,
+        endTime,
+        frequencyType,
+        frequencyDays,
+        frequencyInterval,
+        frequencyStartDate,
+      );
     },
   );
 
@@ -36,7 +49,15 @@ export function registerRoutineHandlers(repo: RoutineRepository): void {
       updates: Partial<
         Pick<
           RoutineNode,
-          "title" | "startTime" | "endTime" | "isArchived" | "order"
+          | "title"
+          | "startTime"
+          | "endTime"
+          | "isArchived"
+          | "order"
+          | "frequencyType"
+          | "frequencyDays"
+          | "frequencyInterval"
+          | "frequencyStartDate"
         >
       >,
     ) => {

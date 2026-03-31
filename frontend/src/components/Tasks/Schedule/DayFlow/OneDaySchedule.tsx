@@ -5,6 +5,7 @@ import { useScheduleContext } from "../../../../hooks/useScheduleContext";
 import { useAutoInProgress } from "../../../../hooks/useAutoInProgress";
 import { useTaskTreeContext } from "../../../../hooks/useTaskTreeContext";
 import { formatDateKey } from "../../../../utils/dateKey";
+import { getDataService } from "../../../../services";
 import { CompactDateNav } from "./CompactDateNav";
 import { ScheduleTimeGrid } from "./ScheduleTimeGrid";
 import { TaskSchedulePanel } from "../../../shared/TaskSchedulePanel";
@@ -21,7 +22,7 @@ export type DayFlowFilterTab =
   | "all"
   | "routine"
   | "tasks"
-  | "others"
+  | "events"
   | "daily"
   | "notes";
 
@@ -29,7 +30,7 @@ export const DAY_FLOW_FILTER_TABS: readonly TabItem<DayFlowFilterTab>[] = [
   { id: "all", labelKey: "dayFlow.filterAll" },
   { id: "routine", labelKey: "dayFlow.filterRoutine" },
   { id: "tasks", labelKey: "dayFlow.filterTasks" },
-  { id: "others", labelKey: "dayFlow.filterOthers" },
+  { id: "events", labelKey: "dayFlow.filterEvents" },
 ];
 
 interface OneDayScheduleProps {
@@ -98,6 +99,7 @@ export function OneDaySchedule({
     routinesByGroup,
     groupForRoutine,
     createScheduleItem,
+    skipNextSync,
   } = useScheduleContext();
   const { addNode, updateNode } = useTaskTreeContext();
   const dateKey = formatDateKey(date);
@@ -149,6 +151,8 @@ export function OneDaySchedule({
     routineTitle: string;
     startTime: string;
     endTime: string;
+    prevStartTime: string;
+    prevEndTime: string;
   } | null>(null);
 
   const handleRequestRoutineDelete = useCallback(
@@ -225,7 +229,7 @@ export function OneDaySchedule({
       case "routine":
         items = items.filter((i) => i.routineId !== null);
         break;
-      case "others":
+      case "events":
         items = items.filter((i) => i.routineId === null);
         break;
       case "tasks":
@@ -257,7 +261,7 @@ export function OneDaySchedule({
   ]);
 
   const filteredDayTasks = useMemo(() => {
-    if (filterTab === "routine" || filterTab === "others") return [];
+    if (filterTab === "routine" || filterTab === "events") return [];
     return allDayTasks;
   }, [allDayTasks, filterTab]);
 
@@ -370,9 +374,9 @@ export function OneDaySchedule({
     startTime: string,
     endTime: string,
   ) => {
+    const item = filteredScheduleItems.find((i) => i.id === id);
     updateScheduleItem(id, { startTime, endTime });
     // If this is a routine item, show confirmation dialog
-    const item = filteredScheduleItems.find((i) => i.id === id);
     if (item?.routineId) {
       const routine = routines.find((r) => r.id === item.routineId);
       if (routine) {
@@ -382,6 +386,8 @@ export function OneDaySchedule({
           routineTitle: routine.title,
           startTime,
           endTime,
+          prevStartTime: item.startTime,
+          prevEndTime: item.endTime,
         });
       }
     }
@@ -560,13 +566,28 @@ export function OneDaySchedule({
             newEndTime={routineTimeChange.endTime}
             onThisOnly={() => setRoutineTimeChange(null)}
             onApplyToRoutine={() => {
+              skipNextSync();
               updateRoutine(routineTimeChange.routineId, {
                 startTime: routineTimeChange.startTime,
                 endTime: routineTimeChange.endTime,
               });
+              getDataService()
+                .updateFutureScheduleItemsByRoutine(
+                  routineTimeChange.routineId,
+                  {
+                    startTime: routineTimeChange.startTime,
+                    endTime: routineTimeChange.endTime,
+                  },
+                  dateKey,
+                )
+                .catch(() => {});
               setRoutineTimeChange(null);
             }}
             onCancel={() => {
+              updateScheduleItem(routineTimeChange.itemId, {
+                startTime: routineTimeChange.prevStartTime,
+                endTime: routineTimeChange.prevEndTime,
+              });
               setRoutineTimeChange(null);
             }}
           />

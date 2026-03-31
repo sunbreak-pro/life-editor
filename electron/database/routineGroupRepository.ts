@@ -1,11 +1,15 @@
 import type Database from "better-sqlite3";
-import type { RoutineGroup } from "../types";
+import type { RoutineGroup, FrequencyType } from "../types";
 
 interface RoutineGroupRow {
   id: string;
   name: string;
   color: string;
   order: number;
+  frequency_type: string;
+  frequency_days: string;
+  frequency_interval: number | null;
+  frequency_start_date: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -16,6 +20,10 @@ function rowToGroup(row: RoutineGroupRow): RoutineGroup {
     name: row.name,
     color: row.color,
     order: row.order,
+    frequencyType: (row.frequency_type as FrequencyType) ?? "daily",
+    frequencyDays: JSON.parse(row.frequency_days || "[]") as number[],
+    frequencyInterval: row.frequency_interval,
+    frequencyStartDate: row.frequency_start_date,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -28,11 +36,17 @@ export function createRoutineGroupRepository(db: Database.Database) {
     ),
     fetchById: db.prepare(`SELECT * FROM routine_groups WHERE id = ?`),
     insert: db.prepare(`
-      INSERT INTO routine_groups (id, name, color, "order", created_at, updated_at)
-      VALUES (@id, @name, @color, @order, datetime('now'), datetime('now'))
+      INSERT INTO routine_groups (id, name, color, "order",
+        frequency_type, frequency_days, frequency_interval, frequency_start_date,
+        created_at, updated_at)
+      VALUES (@id, @name, @color, @order,
+        @frequency_type, @frequency_days, @frequency_interval, @frequency_start_date,
+        datetime('now'), datetime('now'))
     `),
     update: db.prepare(`
       UPDATE routine_groups SET name = @name, color = @color, "order" = @order,
+      frequency_type = @frequency_type, frequency_days = @frequency_days,
+      frequency_interval = @frequency_interval, frequency_start_date = @frequency_start_date,
       updated_at = datetime('now')
       WHERE id = @id
     `),
@@ -57,7 +71,15 @@ export function createRoutineGroupRepository(db: Database.Database) {
       return (stmts.fetchAll.all() as RoutineGroupRow[]).map(rowToGroup);
     },
 
-    create(id: string, name: string, color: string): RoutineGroup {
+    create(
+      id: string,
+      name: string,
+      color: string,
+      frequencyType?: FrequencyType,
+      frequencyDays?: number[],
+      frequencyInterval?: number | null,
+      frequencyStartDate?: string | null,
+    ): RoutineGroup {
       const maxOrder = (stmts.maxOrder.get() as { max_order: number })
         .max_order;
       stmts.insert.run({
@@ -65,6 +87,10 @@ export function createRoutineGroupRepository(db: Database.Database) {
         name,
         color,
         order: maxOrder + 1,
+        frequency_type: frequencyType ?? "daily",
+        frequency_days: JSON.stringify(frequencyDays ?? []),
+        frequency_interval: frequencyInterval ?? null,
+        frequency_start_date: frequencyStartDate ?? null,
       });
       const row = stmts.fetchById.get(id) as RoutineGroupRow;
       return rowToGroup(row);
@@ -72,7 +98,18 @@ export function createRoutineGroupRepository(db: Database.Database) {
 
     update(
       id: string,
-      updates: Partial<Pick<RoutineGroup, "name" | "color" | "order">>,
+      updates: Partial<
+        Pick<
+          RoutineGroup,
+          | "name"
+          | "color"
+          | "order"
+          | "frequencyType"
+          | "frequencyDays"
+          | "frequencyInterval"
+          | "frequencyStartDate"
+        >
+      >,
     ): RoutineGroup {
       const existing = stmts.fetchById.get(id) as RoutineGroupRow | undefined;
       if (!existing) throw new Error(`RoutineGroup not found: ${id}`);
@@ -82,6 +119,18 @@ export function createRoutineGroupRepository(db: Database.Database) {
         name: updates.name ?? current.name,
         color: updates.color ?? current.color,
         order: updates.order ?? current.order,
+        frequency_type: updates.frequencyType ?? current.frequencyType,
+        frequency_days: JSON.stringify(
+          updates.frequencyDays ?? current.frequencyDays,
+        ),
+        frequency_interval:
+          updates.frequencyInterval !== undefined
+            ? updates.frequencyInterval
+            : current.frequencyInterval,
+        frequency_start_date:
+          updates.frequencyStartDate !== undefined
+            ? updates.frequencyStartDate
+            : current.frequencyStartDate,
       });
       const row = stmts.fetchById.get(id) as RoutineGroupRow;
       return rowToGroup(row);

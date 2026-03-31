@@ -5,6 +5,7 @@ import { getDataService } from "../services";
 import { logServiceError } from "../utils/logError";
 import { generateId } from "../utils/generateId";
 import { useUndoRedo } from "../components/shared/UndoRedo";
+import { shouldRoutineRunOnDate } from "../utils/routineFrequency";
 
 function formatDate(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
@@ -156,6 +157,11 @@ function computeRoutineStats(
 
 export function useScheduleItems() {
   const [scheduleItems, setScheduleItems] = useState<ScheduleItem[]>([]);
+  const [scheduleItemsVersion, setScheduleItemsVersion] = useState(0);
+  const bumpVersion = useCallback(
+    () => setScheduleItemsVersion((v) => v + 1),
+    [],
+  );
   const [currentDate, setCurrentDate] = useState(
     () =>
       `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, "0")}-${String(new Date().getDate()).padStart(2, "0")}`,
@@ -184,7 +190,8 @@ export function useScheduleItems() {
       routineId?: string,
       templateId?: string,
       noteId?: string,
-    ) => {
+      isAllDay?: boolean,
+    ): string => {
       const id = generateId("si");
       const now = new Date().toISOString();
       const optimistic: ScheduleItem = {
@@ -199,6 +206,7 @@ export function useScheduleItems() {
         templateId: templateId ?? null,
         memo: null,
         noteId: noteId ?? null,
+        isAllDay: isAllDay ?? false,
         createdAt: now,
         updatedAt: now,
       };
@@ -217,6 +225,7 @@ export function useScheduleItems() {
           routineId,
           templateId,
           noteId,
+          isAllDay,
         )
         .catch((e) => logServiceError("ScheduleItems", "create", e));
 
@@ -244,14 +253,16 @@ export function useScheduleItems() {
               routineId,
               templateId,
               noteId,
+              isAllDay,
             )
             .catch((e) => logServiceError("ScheduleItems", "redoCreate", e));
         },
       });
 
+      bumpVersion();
       return id;
     },
-    [push],
+    [push, bumpVersion],
   );
 
   const updateScheduleItem = useCallback(
@@ -322,8 +333,9 @@ export function useScheduleItems() {
           },
         });
       }
+      bumpVersion();
     },
-    [push],
+    [push, bumpVersion],
   );
 
   const deleteScheduleItem = useCallback(
@@ -361,8 +373,9 @@ export function useScheduleItems() {
           },
         });
       }
+      bumpVersion();
     },
-    [push],
+    [push, bumpVersion],
   );
 
   const toggleComplete = useCallback(
@@ -381,7 +394,7 @@ export function useScheduleItems() {
             : item,
         ),
       );
-      setMonthlyRoutineItems((prev) =>
+      setMonthlyScheduleItems((prev) =>
         prev.map((item) =>
           item.id === id
             ? {
@@ -410,7 +423,7 @@ export function useScheduleItems() {
                 : i,
             ),
           );
-          setMonthlyRoutineItems((prev) =>
+          setMonthlyScheduleItems((prev) =>
             prev.map((i) =>
               i.id === id
                 ? {
@@ -439,7 +452,7 @@ export function useScheduleItems() {
                 : i,
             ),
           );
-          setMonthlyRoutineItems((prev) =>
+          setMonthlyScheduleItems((prev) =>
             prev.map((i) =>
               i.id === id
                 ? {
@@ -457,16 +470,21 @@ export function useScheduleItems() {
             .catch((e) => logServiceError("ScheduleItems", "redoToggle", e));
         },
       });
+      bumpVersion();
     },
-    [push],
+    [push, bumpVersion],
   );
 
-  const dismissScheduleItem = useCallback((id: string) => {
-    setScheduleItems((prev) => prev.filter((item) => item.id !== id));
-    getDataService()
-      .dismissScheduleItem(id)
-      .catch((e) => logServiceError("ScheduleItems", "dismiss", e));
-  }, []);
+  const dismissScheduleItem = useCallback(
+    (id: string) => {
+      setScheduleItems((prev) => prev.filter((item) => item.id !== id));
+      getDataService()
+        .dismissScheduleItem(id)
+        .catch((e) => logServiceError("ScheduleItems", "dismiss", e));
+      bumpVersion();
+    },
+    [bumpVersion],
+  );
 
   const ensureRoutineItemsForDate = useCallback(
     async (
@@ -501,6 +519,17 @@ export function useScheduleItems() {
         // Only include routines that have at least one tag
         const routineTagIds = tagAssignments.get(routine.id);
         if (!routineTagIds || routineTagIds.length === 0) continue;
+        // Frequency check
+        if (
+          !shouldRoutineRunOnDate(
+            routine.frequencyType,
+            routine.frequencyDays,
+            routine.frequencyInterval,
+            routine.frequencyStartDate,
+            date,
+          )
+        )
+          continue;
 
         const existingItem = existingByRoutineId.get(routine.id);
         if (existingItem) {
@@ -568,8 +597,11 @@ export function useScheduleItems() {
           logServiceError("ScheduleItems", "bulkCreate", e);
         }
       }
+      if (toCreate.length > 0 || toUpdate.length > 0) {
+        bumpVersion();
+      }
     },
-    [],
+    [bumpVersion],
   );
 
   const getRoutineCompletionRate = useCallback(
@@ -583,11 +615,11 @@ export function useScheduleItems() {
     [scheduleItems],
   );
 
-  const [monthlyRoutineItems, setMonthlyRoutineItems] = useState<
+  const [monthlyScheduleItems, setMonthlyScheduleItems] = useState<
     ScheduleItem[]
   >([]);
 
-  const loadRoutineItemsForMonth = useCallback(
+  const loadScheduleItemsForMonth = useCallback(
     async (year: number, month: number) => {
       const startDate = `${year}-${String(month + 1).padStart(2, "0")}-01`;
       const lastDay = new Date(year, month + 1, 0).getDate();
@@ -597,9 +629,9 @@ export function useScheduleItems() {
           startDate,
           endDate,
         );
-        setMonthlyRoutineItems(items.filter((i) => i.routineId));
+        setMonthlyScheduleItems(items);
       } catch (e) {
-        logServiceError("ScheduleItems", "loadRoutineItemsForMonth", e);
+        logServiceError("ScheduleItems", "loadScheduleItemsForMonth", e);
       }
     },
     [],
@@ -607,13 +639,15 @@ export function useScheduleItems() {
 
   const getRoutineCompletionByDate = useCallback(
     (date: string) => {
-      const items = monthlyRoutineItems.filter((i) => i.date === date);
+      const items = monthlyScheduleItems.filter(
+        (i) => i.date === date && i.routineId,
+      );
       return {
         completed: items.filter((i) => i.completed).length,
         total: items.length,
       };
     },
-    [monthlyRoutineItems],
+    [monthlyScheduleItems],
   );
 
   const [routineStats, setRoutineStats] = useState<RoutineStats | null>(null);
@@ -684,6 +718,72 @@ export function useScheduleItems() {
     [],
   );
 
+  const backfillMissedRoutineItems = useCallback(
+    async (routines: RoutineNode[], tagAssignments: Map<string, number[]>) => {
+      try {
+        const lastDate = await getDataService().fetchLastRoutineDate();
+        const today = formatDate(new Date());
+        if (!lastDate || lastDate >= today) return;
+
+        const start = new Date(lastDate + "T00:00:00");
+        start.setDate(start.getDate() + 1);
+        const end = new Date(today + "T00:00:00");
+
+        // Cap at 90 days
+        const maxMs = 90 * 24 * 60 * 60 * 1000;
+        if (end.getTime() - start.getTime() > maxMs) {
+          start.setTime(end.getTime() - maxMs);
+        }
+
+        const toCreate: Array<{
+          id: string;
+          date: string;
+          title: string;
+          startTime: string;
+          endTime: string;
+          routineId: string;
+        }> = [];
+
+        const cursor = new Date(start);
+        while (cursor <= end) {
+          const dateKey = formatDate(cursor);
+          for (const routine of routines) {
+            if (routine.isArchived) continue;
+            const routineTagIds = tagAssignments.get(routine.id);
+            if (!routineTagIds || routineTagIds.length === 0) continue;
+            if (
+              !shouldRoutineRunOnDate(
+                routine.frequencyType,
+                routine.frequencyDays,
+                routine.frequencyInterval,
+                routine.frequencyStartDate,
+                dateKey,
+              )
+            )
+              continue;
+
+            toCreate.push({
+              id: generateId("si"),
+              date: dateKey,
+              title: routine.title,
+              startTime: routine.startTime ?? "09:00",
+              endTime: routine.endTime ?? "09:30",
+              routineId: routine.id,
+            });
+          }
+          cursor.setDate(cursor.getDate() + 1);
+        }
+
+        if (toCreate.length > 0) {
+          await getDataService().bulkCreateScheduleItems(toCreate);
+        }
+      } catch (e) {
+        logServiceError("ScheduleItems", "backfillMissedRoutineItems", e);
+      }
+    },
+    [],
+  );
+
   return useMemo(
     () => ({
       scheduleItems,
@@ -699,10 +799,13 @@ export function useScheduleItems() {
       getRoutineCompletionRate,
       routineStats,
       refreshRoutineStats,
-      loadRoutineItemsForMonth,
+      loadScheduleItemsForMonth,
       getRoutineCompletionByDate,
+      monthlyScheduleItems,
       syncScheduleItemsWithRoutines,
       skipNextSync,
+      backfillMissedRoutineItems,
+      scheduleItemsVersion,
     }),
     [
       scheduleItems,
@@ -718,9 +821,12 @@ export function useScheduleItems() {
       skipNextSync,
       routineStats,
       refreshRoutineStats,
-      loadRoutineItemsForMonth,
+      loadScheduleItemsForMonth,
       getRoutineCompletionByDate,
+      monthlyScheduleItems,
       syncScheduleItemsWithRoutines,
+      backfillMissedRoutineItems,
+      scheduleItemsVersion,
     ],
   );
 }

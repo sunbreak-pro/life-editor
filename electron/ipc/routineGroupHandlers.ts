@@ -1,6 +1,6 @@
 import { query, mutation } from "./handlerUtil";
 import type { RoutineGroupRepository } from "../database/routineGroupRepository";
-import type { RoutineGroup } from "../types";
+import type { RoutineGroup, FrequencyType } from "../types";
 
 export function registerRoutineGroupHandlers(
   repo: RoutineGroupRepository,
@@ -15,8 +15,25 @@ export function registerRoutineGroupHandlers(
     "create",
     "routineGroup",
     "create",
-    (_event, id: string, name: string, color: string) => {
-      return repo.create(id, name, color);
+    (
+      _event,
+      id: string,
+      name: string,
+      color: string,
+      frequencyType?: FrequencyType,
+      frequencyDays?: number[],
+      frequencyInterval?: number | null,
+      frequencyStartDate?: string | null,
+    ) => {
+      return repo.create(
+        id,
+        name,
+        color,
+        frequencyType,
+        frequencyDays,
+        frequencyInterval,
+        frequencyStartDate,
+      );
     },
   );
 
@@ -29,7 +46,18 @@ export function registerRoutineGroupHandlers(
     (
       _event,
       id: string,
-      updates: Partial<Pick<RoutineGroup, "name" | "color" | "order">>,
+      updates: Partial<
+        Pick<
+          RoutineGroup,
+          | "name"
+          | "color"
+          | "order"
+          | "frequencyType"
+          | "frequencyDays"
+          | "frequencyInterval"
+          | "frequencyStartDate"
+        >
+      >,
     ) => {
       return repo.update(id, updates);
     },

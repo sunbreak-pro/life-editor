@@ -42,6 +42,7 @@ import type { TimeMemo } from "../types/timeMemo";
 import type { PaperBoard, PaperNode, PaperEdge } from "../types/paperBoard";
 import type { AttachmentMeta } from "../types/attachment";
 
+import type { CalendarTag } from "../types/calendarTag";
 import { notSupported } from "./notSupported";
 
 export class OfflineDataService implements DataService {
@@ -523,9 +524,22 @@ export class OfflineDataService implements DataService {
     title: string,
     startTime?: string,
     endTime?: string,
+    frequencyType?: string,
+    frequencyDays?: number[],
+    frequencyInterval?: number | null,
+    frequencyStartDate?: string | null,
   ): Promise<RoutineNode> {
     try {
-      return await this.rest.createRoutine(id, title, startTime, endTime);
+      return await this.rest.createRoutine(
+        id,
+        title,
+        startTime,
+        endTime,
+        frequencyType,
+        frequencyDays,
+        frequencyInterval,
+        frequencyStartDate,
+      );
     } catch {
       const routine: RoutineNode = {
         id,
@@ -555,7 +569,15 @@ export class OfflineDataService implements DataService {
     updates: Partial<
       Pick<
         RoutineNode,
-        "title" | "startTime" | "endTime" | "isArchived" | "order"
+        | "title"
+        | "startTime"
+        | "endTime"
+        | "isArchived"
+        | "order"
+        | "frequencyType"
+        | "frequencyDays"
+        | "frequencyInterval"
+        | "frequencyStartDate"
       >
     >,
   ): Promise<RoutineNode> {
@@ -672,6 +694,7 @@ export class OfflineDataService implements DataService {
     routineId?: string,
     templateId?: string,
     noteId?: string,
+    isAllDay?: boolean,
   ): Promise<ScheduleItem> {
     try {
       return await this.rest.createScheduleItem(
@@ -683,6 +706,7 @@ export class OfflineDataService implements DataService {
         routineId,
         templateId,
         noteId,
+        isAllDay,
       );
     } catch {
       const item: ScheduleItem = {
@@ -719,7 +743,13 @@ export class OfflineDataService implements DataService {
     updates: Partial<
       Pick<
         ScheduleItem,
-        "title" | "startTime" | "endTime" | "completed" | "completedAt" | "memo"
+        | "title"
+        | "startTime"
+        | "endTime"
+        | "completed"
+        | "completedAt"
+        | "memo"
+        | "isAllDay"
       >
     >,
   ): Promise<ScheduleItem> {
@@ -785,6 +815,10 @@ export class OfflineDataService implements DataService {
     }
   }
 
+  async fetchLastRoutineDate(): Promise<string | null> {
+    return this.rest.fetchLastRoutineDate();
+  }
+
   async bulkCreateScheduleItems(
     items: Array<{
       id: string;
@@ -816,6 +850,18 @@ export class OfflineDataService implements DataService {
       }
       return results;
     }
+  }
+
+  async updateFutureScheduleItemsByRoutine(
+    routineId: string,
+    updates: { title?: string; startTime?: string; endTime?: string },
+    fromDate: string,
+  ): Promise<number> {
+    return this.rest.updateFutureScheduleItemsByRoutine(
+      routineId,
+      updates,
+      fromDate,
+    );
   }
 
   // ============================================================
@@ -1202,6 +1248,36 @@ export class OfflineDataService implements DataService {
     return this.rest.setTagsForRoutine(routineId, tagIds);
   }
 
+  // Calendar Tags — pass through
+  fetchCalendarTags(): Promise<CalendarTag[]> {
+    return this.rest.fetchCalendarTags();
+  }
+  createCalendarTag(name: string, color: string): Promise<CalendarTag> {
+    return this.rest.createCalendarTag(name, color);
+  }
+  updateCalendarTag(
+    id: number,
+    updates: Partial<
+      Pick<CalendarTag, "name" | "color" | "textColor" | "order">
+    >,
+  ): Promise<CalendarTag> {
+    return this.rest.updateCalendarTag(id, updates);
+  }
+  deleteCalendarTag(id: number): Promise<void> {
+    return this.rest.deleteCalendarTag(id);
+  }
+  fetchAllCalendarTagAssignments(): Promise<
+    Array<{ schedule_item_id: string; tag_id: number }>
+  > {
+    return this.rest.fetchAllCalendarTagAssignments();
+  }
+  setTagsForScheduleItem(
+    scheduleItemId: string,
+    tagIds: number[],
+  ): Promise<void> {
+    return this.rest.setTagsForScheduleItem(scheduleItemId, tagIds);
+  }
+
   // Routine Groups — pass through
   fetchRoutineGroups(): Promise<RoutineGroup[]> {
     return this.rest.fetchRoutineGroups();
@@ -1210,12 +1286,35 @@ export class OfflineDataService implements DataService {
     id: string,
     name: string,
     color: string,
+    frequencyType?: string,
+    frequencyDays?: number[],
+    frequencyInterval?: number | null,
+    frequencyStartDate?: string | null,
   ): Promise<RoutineGroup> {
-    return this.rest.createRoutineGroup(id, name, color);
+    return this.rest.createRoutineGroup(
+      id,
+      name,
+      color,
+      frequencyType,
+      frequencyDays,
+      frequencyInterval,
+      frequencyStartDate,
+    );
   }
   updateRoutineGroup(
     id: string,
-    updates: Partial<Pick<RoutineGroup, "name" | "color" | "order">>,
+    updates: Partial<
+      Pick<
+        RoutineGroup,
+        | "name"
+        | "color"
+        | "order"
+        | "frequencyType"
+        | "frequencyDays"
+        | "frequencyInterval"
+        | "frequencyStartDate"
+      >
+    >,
   ): Promise<RoutineGroup> {
     return this.rest.updateRoutineGroup(id, updates);
   }

@@ -317,6 +317,20 @@
     "achievement": "実績",
     "achievementDetails": "実績詳細",
     "routineFlow": "Routine Flow",
+    "frequency": "頻度",
+    "frequencyDaily": "毎日",
+    "frequencyWeekdays": "曜日指定",
+    "frequencyInterval": "N日ごと",
+    "everyNDays": "{{n}}日ごと",
+    "intervalDays": "間隔（日数）",
+    "startDate": "開始日",
+    "sun": "日",
+    "mon": "月",
+    "tue": "火",
+    "wed": "水",
+    "thu": "木",
+    "fri": "金",
+    "sat": "土",
     "achieved": "達成",
     "notAchieved": "未達成",
     "achievementRate": "達成: {{completed}}/{{total}} ({{rate}}%)",
@@ -697,7 +711,16 @@
     "dailyExists": "この日付のデイリーは既に存在します",
     "filters": "フィルター",
     "status": "ステータス",
-    "folder": "フォルダ"
+    "folder": "フォルダ",
+    "createTask": "タスク",
+    "createNote": "ノート",
+    "createDaily": "日記",
+    "createEvent": "予定を作成",
+    "eventTitle": "タイトル",
+    "eventMemo": "メモ",
+    "calendarTags": "カレンダータグ",
+    "startTime": "開始",
+    "endTime": "終了"
   },
   "search": {
     "placeholder": "タスクを検索...",
@@ -715,7 +738,8 @@
     "close": "閉じる",
     "comingSoon": "Coming Soon",
     "undo": "元に戻す",
-    "redo": "やり直す"
+    "redo": "やり直す",
+    "create": "作成"
   },
   "tasks": {
     "title": "Tasks"
@@ -930,7 +954,7 @@
     "filterAll": "すべて",
     "filterRoutine": "ルーティン",
     "filterTasks": "タスク",
-    "filterOthers": "その他",
+    "filterEvents": "予定",
     "filterDaily": "デイリー",
     "filterNotes": "ノート",
     "addTask": "タスクを追加",

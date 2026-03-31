@@ -14,6 +14,7 @@ interface ScheduleItemRow {
   memo: string | null;
   note_id: string | null;
   is_dismissed: number;
+  is_all_day: number;
   created_at: string;
   updated_at: string;
 }
@@ -32,6 +33,7 @@ function rowToItem(row: ScheduleItemRow): ScheduleItem {
     memo: row.memo ?? null,
     noteId: row.note_id ?? null,
     isDismissed: row.is_dismissed === 1,
+    isAllDay: row.is_all_day === 1,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -47,18 +49,21 @@ export function createScheduleItemRepository(db: Database.Database) {
     ),
     fetchById: db.prepare(`SELECT * FROM schedule_items WHERE id = ?`),
     insert: db.prepare(`
-      INSERT INTO schedule_items (id, date, title, start_time, end_time, completed, completed_at, routine_id, template_id, note_id, created_at, updated_at)
-      VALUES (@id, @date, @title, @start_time, @end_time, 0, NULL, @routine_id, @template_id, @note_id, datetime('now'), datetime('now'))
+      INSERT INTO schedule_items (id, date, title, start_time, end_time, completed, completed_at, routine_id, template_id, note_id, is_all_day, created_at, updated_at)
+      VALUES (@id, @date, @title, @start_time, @end_time, 0, NULL, @routine_id, @template_id, @note_id, @is_all_day, datetime('now'), datetime('now'))
     `),
     update: db.prepare(`
       UPDATE schedule_items SET title = @title, start_time = @start_time, end_time = @end_time,
-      completed = @completed, completed_at = @completed_at, memo = @memo,
+      completed = @completed, completed_at = @completed_at, memo = @memo, is_all_day = @is_all_day,
       version = version + 1, updated_at = datetime('now')
       WHERE id = @id
     `),
     delete: db.prepare(`DELETE FROM schedule_items WHERE id = ?`),
     findByRoutineAndDate: db.prepare(
       `SELECT * FROM schedule_items WHERE routine_id = ? AND date = ?`,
+    ),
+    fetchLastRoutineDate: db.prepare(
+      `SELECT MAX(date) as last_date FROM schedule_items WHERE routine_id IS NOT NULL`,
     ),
   };
 
@@ -82,6 +87,7 @@ export function createScheduleItemRepository(db: Database.Database) {
       routineId?: string,
       templateId?: string,
       noteId?: string,
+      isAllDay?: boolean,
     ): ScheduleItem {
       stmts.insert.run({
         id,
@@ -92,6 +98,7 @@ export function createScheduleItemRepository(db: Database.Database) {
         routine_id: routineId ?? null,
         template_id: templateId ?? null,
         note_id: noteId ?? null,
+        is_all_day: isAllDay ? 1 : 0,
       });
       const row = stmts.fetchById.get(id) as ScheduleItemRow;
       return rowToItem(row);
@@ -108,6 +115,7 @@ export function createScheduleItemRepository(db: Database.Database) {
           | "completed"
           | "completedAt"
           | "memo"
+          | "isAllDay"
         >
       >,
     ): ScheduleItem {
@@ -125,6 +133,14 @@ export function createScheduleItemRepository(db: Database.Database) {
             ? updates.completedAt
             : current.completedAt,
         memo: updates.memo !== undefined ? updates.memo : current.memo,
+        is_all_day:
+          updates.isAllDay !== undefined
+            ? updates.isAllDay
+              ? 1
+              : 0
+            : current.isAllDay
+              ? 1
+              : 0,
       });
       const row = stmts.fetchById.get(id) as ScheduleItemRow;
       return rowToItem(row);
@@ -152,9 +168,43 @@ export function createScheduleItemRepository(db: Database.Database) {
         completed: nowCompleted ? 1 : 0,
         completed_at: nowCompleted ? new Date().toISOString() : null,
         memo: existing.memo,
+        is_all_day: existing.is_all_day,
       });
       const row = stmts.fetchById.get(id) as ScheduleItemRow;
       return rowToItem(row);
+    },
+
+    updateFutureByRoutine(
+      routineId: string,
+      updates: { title?: string; startTime?: string; endTime?: string },
+      fromDate: string,
+    ): number {
+      const setClauses: string[] = [];
+      const params: Record<string, unknown> = {
+        routine_id: routineId,
+        from_date: fromDate,
+      };
+      if (updates.title !== undefined) {
+        setClauses.push("title = @title");
+        params.title = updates.title;
+      }
+      if (updates.startTime !== undefined) {
+        setClauses.push("start_time = @start_time");
+        params.start_time = updates.startTime;
+      }
+      if (updates.endTime !== undefined) {
+        setClauses.push("end_time = @end_time");
+        params.end_time = updates.endTime;
+      }
+      if (setClauses.length === 0) return 0;
+      setClauses.push("version = version + 1");
+      setClauses.push("updated_at = datetime('now')");
+      const result = db
+        .prepare(
+          `UPDATE schedule_items SET ${setClauses.join(", ")} WHERE routine_id = @routine_id AND date >= @from_date AND is_dismissed = 0`,
+        )
+        .run(params);
+      return result.changes;
     },
 
     bulkCreate(
@@ -189,6 +239,7 @@ export function createScheduleItemRepository(db: Database.Database) {
             routine_id: item.routineId ?? null,
             template_id: item.templateId ?? null,
             note_id: item.noteId ?? null,
+            is_all_day: 0,
           });
           const row = stmts.fetchById.get(item.id) as ScheduleItemRow;
           results.push(rowToItem(row));
@@ -196,6 +247,15 @@ export function createScheduleItemRepository(db: Database.Database) {
         return results;
       });
       return bulkInsert();
+    },
+
+    fetchLastRoutineDate(): string | null {
+      const row = stmts.fetchLastRoutineDate.get() as
+        | {
+            last_date: string | null;
+          }
+        | undefined;
+      return row?.last_date ?? null;
     },
   };
 }

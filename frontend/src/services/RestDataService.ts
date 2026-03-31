@@ -19,6 +19,7 @@ import type { NoteNode } from "../types/note";
 import type { CalendarNode } from "../types/calendar";
 import type { RoutineNode } from "../types/routine";
 import type { RoutineTag } from "../types/routineTag";
+import type { CalendarTag } from "../types/calendarTag";
 import type { RoutineGroup } from "../types/routineGroup";
 import type { ScheduleItem } from "../types/schedule";
 import type { Playlist, PlaylistItem } from "../types/playlist";
@@ -369,6 +370,38 @@ export class RestDataService implements DataService {
     return put(`/api/routine-tags/routines/${routineId}`, { tagIds });
   }
 
+  // Calendar Tags
+  fetchCalendarTags(): Promise<CalendarTag[]> {
+    return get("/api/calendar-tags");
+  }
+  createCalendarTag(name: string, color: string): Promise<CalendarTag> {
+    return post("/api/calendar-tags", { name, color });
+  }
+  updateCalendarTag(
+    id: number,
+    updates: Partial<
+      Pick<CalendarTag, "name" | "color" | "textColor" | "order">
+    >,
+  ): Promise<CalendarTag> {
+    return put(`/api/calendar-tags/${id}`, updates);
+  }
+  deleteCalendarTag(id: number): Promise<void> {
+    return del(`/api/calendar-tags/${id}`);
+  }
+  fetchAllCalendarTagAssignments(): Promise<
+    Array<{ schedule_item_id: string; tag_id: number }>
+  > {
+    return get("/api/calendar-tags/assignments");
+  }
+  setTagsForScheduleItem(
+    scheduleItemId: string,
+    tagIds: number[],
+  ): Promise<void> {
+    return put(`/api/calendar-tags/schedule-items/${scheduleItemId}`, {
+      tagIds,
+    });
+  }
+
   // Routines
   fetchAllRoutines(): Promise<RoutineNode[]> {
     return get("/api/routines");
@@ -378,15 +411,36 @@ export class RestDataService implements DataService {
     title: string,
     startTime?: string,
     endTime?: string,
+    frequencyType?: string,
+    frequencyDays?: number[],
+    frequencyInterval?: number | null,
+    frequencyStartDate?: string | null,
   ): Promise<RoutineNode> {
-    return post("/api/routines", { id, title, startTime, endTime });
+    return post("/api/routines", {
+      id,
+      title,
+      startTime,
+      endTime,
+      frequencyType,
+      frequencyDays,
+      frequencyInterval,
+      frequencyStartDate,
+    });
   }
   updateRoutine(
     id: string,
     updates: Partial<
       Pick<
         RoutineNode,
-        "title" | "startTime" | "endTime" | "isArchived" | "order"
+        | "title"
+        | "startTime"
+        | "endTime"
+        | "isArchived"
+        | "order"
+        | "frequencyType"
+        | "frequencyDays"
+        | "frequencyInterval"
+        | "frequencyStartDate"
       >
     >,
   ): Promise<RoutineNode> {
@@ -429,6 +483,7 @@ export class RestDataService implements DataService {
     routineId?: string,
     templateId?: string,
     noteId?: string,
+    isAllDay?: boolean,
   ): Promise<ScheduleItem> {
     return post("/api/schedule-items", {
       id,
@@ -439,6 +494,7 @@ export class RestDataService implements DataService {
       routineId,
       templateId,
       noteId,
+      isAllDay,
     });
   }
   updateScheduleItem(
@@ -446,7 +502,13 @@ export class RestDataService implements DataService {
     updates: Partial<
       Pick<
         ScheduleItem,
-        "title" | "startTime" | "endTime" | "completed" | "completedAt" | "memo"
+        | "title"
+        | "startTime"
+        | "endTime"
+        | "completed"
+        | "completedAt"
+        | "memo"
+        | "isAllDay"
       >
     >,
   ): Promise<ScheduleItem> {
@@ -460,6 +522,12 @@ export class RestDataService implements DataService {
   }
   dismissScheduleItem(id: string): Promise<void> {
     return del(`/api/schedule-items/${id}/dismiss`);
+  }
+  async fetchLastRoutineDate(): Promise<string | null> {
+    const res = await get<{ date: string | null }>(
+      "/api/schedule-items/last-routine-date",
+    );
+    return res.date;
   }
   bulkCreateScheduleItems(
     items: Array<{
@@ -476,6 +544,17 @@ export class RestDataService implements DataService {
     return post("/api/schedule-items/bulk", items);
   }
 
+  updateFutureScheduleItemsByRoutine(
+    routineId: string,
+    updates: { title?: string; startTime?: string; endTime?: string },
+    fromDate: string,
+  ): Promise<number> {
+    return patch(`/api/schedule-items/future-by-routine/${routineId}`, {
+      ...updates,
+      fromDate,
+    });
+  }
+
   // Routine Groups
   fetchRoutineGroups(): Promise<RoutineGroup[]> {
     return get("/api/routine-groups");
@@ -484,12 +563,35 @@ export class RestDataService implements DataService {
     id: string,
     name: string,
     color: string,
+    frequencyType?: string,
+    frequencyDays?: number[],
+    frequencyInterval?: number | null,
+    frequencyStartDate?: string | null,
   ): Promise<RoutineGroup> {
-    return post("/api/routine-groups", { id, name, color });
+    return post("/api/routine-groups", {
+      id,
+      name,
+      color,
+      frequencyType,
+      frequencyDays,
+      frequencyInterval,
+      frequencyStartDate,
+    });
   }
   updateRoutineGroup(
     id: string,
-    updates: Partial<Pick<RoutineGroup, "name" | "color" | "order">>,
+    updates: Partial<
+      Pick<
+        RoutineGroup,
+        | "name"
+        | "color"
+        | "order"
+        | "frequencyType"
+        | "frequencyDays"
+        | "frequencyInterval"
+        | "frequencyStartDate"
+      >
+    >,
   ): Promise<RoutineGroup> {
     return patch(`/api/routine-groups/${id}`, updates);
   }

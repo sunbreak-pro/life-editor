@@ -31,7 +31,7 @@ const CALENDAR_PROGRESS_TABS: readonly TabItem<DayFlowFilterTab>[] = [
   { id: "all", labelKey: "dayFlow.filterAll" },
   { id: "routine", labelKey: "dayFlow.filterRoutine" },
   { id: "tasks", labelKey: "dayFlow.filterTasks" },
-  { id: "others", labelKey: "dayFlow.filterOthers" },
+  { id: "events", labelKey: "dayFlow.filterEvents" },
   { id: "daily", labelKey: "calendar.filterDaily" },
   { id: "notes", labelKey: "calendar.filterNotes" },
 ];
@@ -214,7 +214,7 @@ export function ScheduleSection({
       all: { completed: allCompleted, total: allTotal },
       tasks: { completed: completedTasks, total: taskItems.length },
       routine: { completed: routineCompleted, total: routineItems.length },
-      others: { completed: otherCompleted, total: otherItems.length },
+      events: { completed: otherCompleted, total: otherItems.length },
       daily: { completed: 0, total: 0 },
       notes: { completed: 0, total: 0 },
     };
@@ -293,7 +293,7 @@ export function ScheduleSection({
       all: { completed: allCompleted, total: allTotal },
       tasks: { completed: completedTasks, total: taskItems.length },
       routine: { completed: routineCompleted, total: routineItems.length },
-      others: { completed: otherCompleted, total: otherItems.length },
+      events: { completed: otherCompleted, total: otherItems.length },
       daily: { completed: dailyCompleted, total: dailyTotal },
       notes: { completed: notesCompleted, total: notesTotal },
     };
@@ -456,7 +456,7 @@ export function ScheduleSection({
                     all: "all",
                     tasks: "tasks",
                     routine: "routine",
-                    others: "others",
+                    events: "events",
                     daily: "daily",
                     notes: "notes",
                   };

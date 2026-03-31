@@ -20,16 +20,25 @@ export function createScheduleItemRoutes(db: Database.Database): Hono {
   });
 
   app.post("/", async (c) => {
-    const { id, date, title, startTime, endTime, routineId, templateId } =
-      await c.req.json<{
-        id: string;
-        date: string;
-        title: string;
-        startTime: string;
-        endTime: string;
-        routineId?: string;
-        templateId?: string;
-      }>();
+    const {
+      id,
+      date,
+      title,
+      startTime,
+      endTime,
+      routineId,
+      templateId,
+      isAllDay,
+    } = await c.req.json<{
+      id: string;
+      date: string;
+      title: string;
+      startTime: string;
+      endTime: string;
+      routineId?: string;
+      templateId?: string;
+      isAllDay?: boolean;
+    }>();
     const result = repo.create(
       id,
       date,
@@ -38,6 +47,8 @@ export function createScheduleItemRoutes(db: Database.Database): Hono {
       endTime,
       routineId,
       templateId,
+      undefined,
+      isAllDay,
     );
     broadcastChange("scheduleItem", "create", id);
     return c.json(result, 201);
@@ -56,6 +67,7 @@ export function createScheduleItemRoutes(db: Database.Database): Hono {
             | "completed"
             | "completedAt"
             | "memo"
+            | "isAllDay"
           >
         >
       >();
@@ -76,6 +88,23 @@ export function createScheduleItemRoutes(db: Database.Database): Hono {
     const result = repo.toggleComplete(id);
     broadcastChange("scheduleItem", "update", id);
     return c.json(result);
+  });
+
+  app.patch("/future-by-routine/:routineId", async (c) => {
+    const routineId = c.req.param("routineId");
+    const { title, startTime, endTime, fromDate } = await c.req.json<{
+      title?: string;
+      startTime?: string;
+      endTime?: string;
+      fromDate: string;
+    }>();
+    const count = repo.updateFutureByRoutine(
+      routineId,
+      { title, startTime, endTime },
+      fromDate,
+    );
+    broadcastChange("scheduleItem", "bulk");
+    return c.json({ count });
   });
 
   app.post("/bulk", async (c) => {

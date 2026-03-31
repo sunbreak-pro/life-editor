@@ -41,36 +41,6 @@ export function ScheduleSidebarContent({
     ScheduleItem[]
   >([]);
 
-  // Sync miniFlowDate when activeDate changes from parent
-  useEffect(() => {
-    if (activeDate) setMiniFlowDate(activeDate);
-  }, [activeDate]);
-
-  // Load schedule items for the sidebar date independently
-  const miniFlowDateKey = formatDateKey(miniFlowDate);
-  useEffect(() => {
-    getDataService()
-      .fetchScheduleItemsByDate(miniFlowDateKey)
-      .then(setSidebarScheduleItems)
-      .catch(() => setSidebarScheduleItems([]));
-  }, [miniFlowDateKey]);
-
-  const handlePrevDate = useCallback(() => {
-    setMiniFlowDate((prev) => {
-      const d = new Date(prev);
-      d.setDate(d.getDate() - 1);
-      return d;
-    });
-  }, []);
-
-  const handleNextDate = useCallback(() => {
-    setMiniFlowDate((prev) => {
-      const d = new Date(prev);
-      d.setDate(d.getDate() + 1);
-      return d;
-    });
-  }, []);
-
   const {
     routines,
     toggleComplete,
@@ -93,7 +63,38 @@ export function ScheduleSidebarContent({
     deleteRoutineGroup,
     setTagsForGroup,
     skipNextSync,
+    scheduleItemsVersion,
   } = useScheduleContext();
+
+  // Sync miniFlowDate when activeDate changes from parent
+  useEffect(() => {
+    if (activeDate) setMiniFlowDate(activeDate);
+  }, [activeDate]);
+
+  // Load schedule items for the sidebar date independently
+  const miniFlowDateKey = formatDateKey(miniFlowDate);
+  useEffect(() => {
+    getDataService()
+      .fetchScheduleItemsByDate(miniFlowDateKey)
+      .then(setSidebarScheduleItems)
+      .catch(() => setSidebarScheduleItems([]));
+  }, [miniFlowDateKey, scheduleItemsVersion]);
+
+  const handlePrevDate = useCallback(() => {
+    setMiniFlowDate((prev) => {
+      const d = new Date(prev);
+      d.setDate(d.getDate() - 1);
+      return d;
+    });
+  }, []);
+
+  const handleNextDate = useCallback(() => {
+    setMiniFlowDate((prev) => {
+      const d = new Date(prev);
+      d.setDate(d.getDate() + 1);
+      return d;
+    });
+  }, []);
 
   const { nodes } = useTaskTreeContext();
 

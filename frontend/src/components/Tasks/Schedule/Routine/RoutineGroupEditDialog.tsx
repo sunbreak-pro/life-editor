@@ -3,10 +3,17 @@ import { X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import type { RoutineGroup } from "../../../../types/routineGroup";
 import type { RoutineTag } from "../../../../types/routineTag";
-import type { RoutineNode } from "../../../../types/routine";
+import type { RoutineNode, FrequencyType } from "../../../../types/routine";
 import { UnifiedColorPicker } from "../../../shared/UnifiedColorPicker";
 import { RoutineGroupTagPicker } from "./RoutineGroupTagPicker";
+import { FrequencySelector } from "./FrequencySelector";
+import { TimeInput } from "../../../shared/TimeInput";
 import { timeToMinutes } from "../../../../utils/timeGridUtils";
+
+function todayStr(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
 
 interface RoutineGroupEditDialogProps {
   group?: RoutineGroup;
@@ -14,7 +21,15 @@ interface RoutineGroupEditDialogProps {
   initialTagIds: number[];
   memberRoutines: RoutineNode[];
   groupTimeRange?: { startTime: string; endTime: string };
-  onSubmit: (name: string, color: string, tagIds: number[]) => void;
+  onSubmit: (
+    name: string,
+    color: string,
+    tagIds: number[],
+    frequencyType?: FrequencyType,
+    frequencyDays?: number[],
+    frequencyInterval?: number | null,
+    frequencyStartDate?: string | null,
+  ) => void;
   onSlideGroup?: (offsetMinutes: number) => void;
   onClose: () => void;
 }
@@ -34,12 +49,42 @@ export function RoutineGroupEditDialog({
   const [color, setColor] = useState(group?.color ?? "#6B7280");
   const [selectedTagIds, setSelectedTagIds] = useState<number[]>(initialTagIds);
   const [showColorPicker, setShowColorPicker] = useState(false);
+  const [frequencyType, setFrequencyType] = useState<FrequencyType>(
+    group?.frequencyType ?? "daily",
+  );
+  const [frequencyDays, setFrequencyDays] = useState<number[]>(
+    group?.frequencyDays ?? [],
+  );
+  const [frequencyInterval, setFrequencyInterval] = useState(
+    group?.frequencyInterval ?? 2,
+  );
+  const [frequencyStartDate, setFrequencyStartDate] = useState(
+    group?.frequencyStartDate ?? todayStr(),
+  );
 
   const handleSubmit = useCallback(() => {
     if (!name.trim()) return;
-    onSubmit(name.trim(), color, selectedTagIds);
+    onSubmit(
+      name.trim(),
+      color,
+      selectedTagIds,
+      frequencyType,
+      frequencyType === "weekdays" ? frequencyDays : [],
+      frequencyType === "interval" ? frequencyInterval : null,
+      frequencyType === "interval" ? frequencyStartDate : null,
+    );
     onClose();
-  }, [name, color, selectedTagIds, onSubmit, onClose]);
+  }, [
+    name,
+    color,
+    selectedTagIds,
+    frequencyType,
+    frequencyDays,
+    frequencyInterval,
+    frequencyStartDate,
+    onSubmit,
+    onClose,
+  ]);
 
   const handleSlide = useCallback(
     (newStartTime: string) => {
@@ -132,6 +177,18 @@ export function RoutineGroupEditDialog({
             onChange={setSelectedTagIds}
           />
 
+          {/* Frequency */}
+          <FrequencySelector
+            frequencyType={frequencyType}
+            frequencyDays={frequencyDays}
+            frequencyInterval={frequencyInterval}
+            frequencyStartDate={frequencyStartDate}
+            onFrequencyTypeChange={setFrequencyType}
+            onFrequencyDaysChange={setFrequencyDays}
+            onFrequencyIntervalChange={setFrequencyInterval}
+            onFrequencyStartDateChange={setFrequencyStartDate}
+          />
+
           {/* Group slide (edit mode only) */}
           {group && groupTimeRange && onSlideGroup && (
             <div>
@@ -139,11 +196,21 @@ export function RoutineGroupEditDialog({
                 {t("routineGroup.timeRange", "Time Range")}
               </label>
               <div className="flex items-center gap-2 text-sm text-notion-text">
-                <input
-                  type="time"
-                  value={groupTimeRange.startTime}
-                  onChange={(e) => handleSlide(e.target.value)}
-                  className="px-1.5 py-1 bg-notion-bg-secondary border border-notion-border rounded text-sm focus:outline-none focus:ring-1 focus:ring-notion-blue text-notion-text"
+                <TimeInput
+                  hour={parseInt(
+                    groupTimeRange.startTime.split(":")[0] || "0",
+                    10,
+                  )}
+                  minute={parseInt(
+                    groupTimeRange.startTime.split(":")[1] || "0",
+                    10,
+                  )}
+                  onChange={(h, m) => {
+                    const newStart = `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+                    handleSlide(newStart);
+                  }}
+                  minuteStep={5}
+                  size="sm"
                 />
                 <span className="text-notion-text-secondary">-</span>
                 <span className="text-notion-text-secondary">

@@ -9,8 +9,7 @@ interface MonthlyViewProps {
   itemsByDate: Map<string, CalendarItem[]>;
   onSelectItem: (item: CalendarItem, event: React.MouseEvent) => void;
   onOpenRoutineManagement?: () => void;
-  onCreateTask?: (date: Date, event: React.MouseEvent) => void;
-  onCreateNote?: (date: Date, event: React.MouseEvent) => void;
+  onOpenCreateMenu?: (date: Date, event: React.MouseEvent) => void;
   getTaskColor?: (taskId: string) => string | undefined;
   getRoutineCompletion?: (date: string) => { completed: number; total: number };
   onDateSelect?: (date: Date) => void;
@@ -21,8 +20,7 @@ export function MonthlyView({
   itemsByDate,
   onSelectItem,
   onOpenRoutineManagement,
-  onCreateTask,
-  onCreateNote,
+  onOpenCreateMenu,
   getTaskColor,
   getRoutineCompletion,
   onDateSelect,
@@ -54,8 +52,7 @@ export function MonthlyView({
               items={itemsByDate.get(key) ?? []}
               onSelectItem={onSelectItem}
               onOpenRoutineManagement={onOpenRoutineManagement}
-              onCreateTask={onCreateTask}
-              onCreateNote={onCreateNote}
+              onOpenCreateMenu={onOpenCreateMenu}
               getTaskColor={getTaskColor}
               routineCompletion={getRoutineCompletion?.(key)}
               onDateSelect={onDateSelect}

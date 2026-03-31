@@ -200,6 +200,16 @@ export function runMigrations(db: Database.Database): void {
     migrateV43(db);
   }
 
+  if (currentVersion < 44) {
+    log.info("[DB] Running migration V44");
+    migrateV44(db);
+  }
+
+  if (currentVersion < 45) {
+    log.info("[DB] Running migration V45");
+    migrateV45(db);
+  }
+
   const newVersion = db.pragma("user_version", { simple: true }) as number;
   if (newVersion !== currentVersion) {
     log.info(`[DB] Schema migrated: ${currentVersion} → ${newVersion}`);
@@ -1570,4 +1580,85 @@ function migrateV43(db: Database.Database): void {
   });
   migrate();
   db.pragma("user_version = 43");
+}
+
+function migrateV44(db: Database.Database): void {
+  const migrate = db.transaction(() => {
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS calendar_tag_definitions (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL UNIQUE,
+        color TEXT NOT NULL DEFAULT '#808080',
+        text_color TEXT DEFAULT NULL,
+        "order" INTEGER NOT NULL DEFAULT 0
+      );
+
+      CREATE TABLE IF NOT EXISTS calendar_tag_assignments (
+        schedule_item_id TEXT NOT NULL REFERENCES schedule_items(id) ON DELETE CASCADE,
+        tag_id INTEGER NOT NULL REFERENCES calendar_tag_definitions(id) ON DELETE CASCADE,
+        PRIMARY KEY (schedule_item_id, tag_id)
+      );
+      CREATE INDEX IF NOT EXISTS idx_cta_item ON calendar_tag_assignments(schedule_item_id);
+      CREATE INDEX IF NOT EXISTS idx_cta_tag ON calendar_tag_assignments(tag_id);
+    `);
+  });
+  migrate();
+  db.pragma("user_version = 44");
+}
+
+function migrateV45(db: Database.Database): void {
+  const migrate = db.transaction(() => {
+    // Schedule items: all-day support
+    if (!hasColumn(db, "schedule_items", "is_all_day")) {
+      db.exec(
+        `ALTER TABLE schedule_items ADD COLUMN is_all_day INTEGER NOT NULL DEFAULT 0`,
+      );
+    }
+
+    // Routines: frequency settings
+    if (!hasColumn(db, "routines", "frequency_type")) {
+      db.exec(
+        `ALTER TABLE routines ADD COLUMN frequency_type TEXT NOT NULL DEFAULT 'daily'`,
+      );
+    }
+    if (!hasColumn(db, "routines", "frequency_days")) {
+      db.exec(
+        `ALTER TABLE routines ADD COLUMN frequency_days TEXT NOT NULL DEFAULT '[]'`,
+      );
+    }
+    if (!hasColumn(db, "routines", "frequency_interval")) {
+      db.exec(
+        `ALTER TABLE routines ADD COLUMN frequency_interval INTEGER DEFAULT NULL`,
+      );
+    }
+    if (!hasColumn(db, "routines", "frequency_start_date")) {
+      db.exec(
+        `ALTER TABLE routines ADD COLUMN frequency_start_date TEXT DEFAULT NULL`,
+      );
+    }
+
+    // Routine groups: frequency settings
+    if (!hasColumn(db, "routine_groups", "frequency_type")) {
+      db.exec(
+        `ALTER TABLE routine_groups ADD COLUMN frequency_type TEXT NOT NULL DEFAULT 'daily'`,
+      );
+    }
+    if (!hasColumn(db, "routine_groups", "frequency_days")) {
+      db.exec(
+        `ALTER TABLE routine_groups ADD COLUMN frequency_days TEXT NOT NULL DEFAULT '[]'`,
+      );
+    }
+    if (!hasColumn(db, "routine_groups", "frequency_interval")) {
+      db.exec(
+        `ALTER TABLE routine_groups ADD COLUMN frequency_interval INTEGER DEFAULT NULL`,
+      );
+    }
+    if (!hasColumn(db, "routine_groups", "frequency_start_date")) {
+      db.exec(
+        `ALTER TABLE routine_groups ADD COLUMN frequency_start_date TEXT DEFAULT NULL`,
+      );
+    }
+  });
+  migrate();
+  db.pragma("user_version = 45");
 }

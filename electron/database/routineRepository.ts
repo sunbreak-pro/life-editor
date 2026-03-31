@@ -1,6 +1,8 @@
 import type Database from "better-sqlite3";
 import type { RoutineNode } from "../types";
 
+import type { FrequencyType } from "../types";
+
 interface RoutineRow {
   id: string;
   title: string;
@@ -10,6 +12,10 @@ interface RoutineRow {
   is_deleted: number;
   deleted_at: string | null;
   order: number;
+  frequency_type: string;
+  frequency_days: string;
+  frequency_interval: number | null;
+  frequency_start_date: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -24,6 +30,10 @@ function rowToNode(row: RoutineRow): RoutineNode {
     isDeleted: row.is_deleted === 1,
     deletedAt: row.deleted_at,
     order: row.order,
+    frequencyType: (row.frequency_type as FrequencyType) ?? "daily",
+    frequencyDays: JSON.parse(row.frequency_days || "[]") as number[],
+    frequencyInterval: row.frequency_interval,
+    frequencyStartDate: row.frequency_start_date,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -48,12 +58,19 @@ export function createRoutineRepository(db: Database.Database) {
     ),
     fetchById: db.prepare(`SELECT * FROM routines WHERE id = ?`),
     insert: db.prepare(`
-      INSERT INTO routines (id, title, start_time, end_time, is_archived, "order", created_at, updated_at)
-      VALUES (@id, @title, @start_time, @end_time, 0, @order, datetime('now'), datetime('now'))
+      INSERT INTO routines (id, title, start_time, end_time, is_archived, "order",
+        frequency_type, frequency_days, frequency_interval, frequency_start_date,
+        created_at, updated_at)
+      VALUES (@id, @title, @start_time, @end_time, 0, @order,
+        @frequency_type, @frequency_days, @frequency_interval, @frequency_start_date,
+        datetime('now'), datetime('now'))
     `),
     update: db.prepare(`
       UPDATE routines SET title = @title, start_time = @start_time, end_time = @end_time,
-      is_archived = @is_archived, "order" = @order, version = version + 1, updated_at = datetime('now')
+      is_archived = @is_archived, "order" = @order,
+      frequency_type = @frequency_type, frequency_days = @frequency_days,
+      frequency_interval = @frequency_interval, frequency_start_date = @frequency_start_date,
+      version = version + 1, updated_at = datetime('now')
       WHERE id = @id
     `),
     delete: db.prepare(`DELETE FROM routines WHERE id = ?`),
@@ -72,6 +89,10 @@ export function createRoutineRepository(db: Database.Database) {
       title: string,
       startTime?: string,
       endTime?: string,
+      frequencyType?: FrequencyType,
+      frequencyDays?: number[],
+      frequencyInterval?: number | null,
+      frequencyStartDate?: string | null,
     ): RoutineNode {
       const maxOrder = (stmts.maxOrder.get() as { max_order: number })
         .max_order;
@@ -81,6 +102,10 @@ export function createRoutineRepository(db: Database.Database) {
         start_time: startTime ?? null,
         end_time: endTime ?? null,
         order: maxOrder + 1,
+        frequency_type: frequencyType ?? "daily",
+        frequency_days: JSON.stringify(frequencyDays ?? []),
+        frequency_interval: frequencyInterval ?? null,
+        frequency_start_date: frequencyStartDate ?? null,
       });
       const row = stmts.fetchById.get(id) as RoutineRow;
       return rowToNode(row);
@@ -91,7 +116,15 @@ export function createRoutineRepository(db: Database.Database) {
       updates: Partial<
         Pick<
           RoutineNode,
-          "title" | "startTime" | "endTime" | "isArchived" | "order"
+          | "title"
+          | "startTime"
+          | "endTime"
+          | "isArchived"
+          | "order"
+          | "frequencyType"
+          | "frequencyDays"
+          | "frequencyInterval"
+          | "frequencyStartDate"
         >
       >,
     ): RoutineNode {
@@ -109,6 +142,18 @@ export function createRoutineRepository(db: Database.Database) {
           updates.endTime !== undefined ? updates.endTime : current.endTime,
         is_archived: (updates.isArchived ?? current.isArchived) ? 1 : 0,
         order: updates.order ?? current.order,
+        frequency_type: updates.frequencyType ?? current.frequencyType,
+        frequency_days: JSON.stringify(
+          updates.frequencyDays ?? current.frequencyDays,
+        ),
+        frequency_interval:
+          updates.frequencyInterval !== undefined
+            ? updates.frequencyInterval
+            : current.frequencyInterval,
+        frequency_start_date:
+          updates.frequencyStartDate !== undefined
+            ? updates.frequencyStartDate
+            : current.frequencyStartDate,
       });
       const row = stmts.fetchById.get(id) as RoutineRow;
       return rowToNode(row);

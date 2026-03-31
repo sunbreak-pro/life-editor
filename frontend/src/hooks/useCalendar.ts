@@ -2,6 +2,7 @@ import { useMemo } from "react";
 import type { TaskNode } from "../types/taskTree";
 import type { MemoNode } from "../types/memo";
 import type { NoteNode } from "../types/note";
+import type { ScheduleItem } from "../types/schedule";
 import type {
   CalendarItem,
   CalendarContentFilter,
@@ -18,6 +19,7 @@ export function useCalendar(
   memos?: MemoNode[],
   notes?: NoteNode[],
   contentFilter?: CalendarContentFilter,
+  scheduleItems?: ScheduleItem[],
 ) {
   const tasksByDate = useMemo(() => {
     const map = new Map<string, TaskNode[]>();
@@ -57,8 +59,8 @@ export function useCalendar(
     const map = new Map<string, CalendarItem[]>();
     const cf = contentFilter ?? "all";
 
-    // Tasks (shown for all, tasks, others — hidden for routine, daily, notes)
-    if (cf === "all" || cf === "tasks" || cf === "others") {
+    // Tasks (shown for all, tasks — hidden for events, routine, daily, notes)
+    if (cf === "all" || cf === "tasks") {
       for (const [dateKey, tasks] of tasksByDate) {
         const items: CalendarItem[] = tasks.map((task) => ({
           id: task.id,
@@ -107,8 +109,33 @@ export function useCalendar(
       }
     }
 
+    // Schedule items (events & routines)
+    if (
+      scheduleItems &&
+      (cf === "all" || cf === "events" || cf === "routine")
+    ) {
+      for (const si of scheduleItems) {
+        const isRoutine = si.routineId !== null;
+        if (cf === "events" && isRoutine) continue;
+        if (cf === "routine" && !isRoutine) continue;
+        const dateKey = si.date;
+        const item: CalendarItem = {
+          id: si.id,
+          type: "event",
+          title: si.title,
+          color: isRoutine
+            ? CALENDAR_ITEM_COLORS.routine
+            : CALENDAR_ITEM_COLORS.event,
+          scheduleItem: si,
+        };
+        const existing = map.get(dateKey);
+        if (existing) existing.push(item);
+        else map.set(dateKey, [item]);
+      }
+    }
+
     return map;
-  }, [tasksByDate, memos, notes, contentFilter]);
+  }, [tasksByDate, memos, notes, contentFilter, scheduleItems]);
 
   const calendarDays = useMemo(() => {
     const firstDay = new Date(year, month, 1);

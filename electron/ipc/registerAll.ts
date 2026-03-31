@@ -44,6 +44,8 @@ import { createPaperBoardRepository } from "../database/paperBoardRepository";
 import { registerPaperBoardHandlers } from "./paperBoardHandlers";
 import { createRoutineGroupRepository } from "../database/routineGroupRepository";
 import { registerRoutineGroupHandlers } from "./routineGroupHandlers";
+import { createCalendarTagRepository } from "../database/calendarTagRepository";
+import { registerCalendarTagHandlers } from "./calendarTagHandlers";
 import { createAttachmentRepository } from "../database/attachmentRepository";
 import { registerAttachmentHandlers } from "./attachmentHandlers";
 import { registerShellHandlers } from "./shellHandlers";
@@ -129,6 +131,10 @@ export function registerAllHandlers(db: Database.Database): void {
     [
       "RoutineGroups",
       () => registerRoutineGroupHandlers(createRoutineGroupRepository(db)),
+    ],
+    [
+      "CalendarTags",
+      () => registerCalendarTagHandlers(createCalendarTagRepository(db)),
     ],
     [
       "Attachments",

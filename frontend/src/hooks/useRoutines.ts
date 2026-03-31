@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect, useMemo, useRef } from "react";
-import type { RoutineNode } from "../types/routine";
+import type { RoutineNode, FrequencyType } from "../types/routine";
 import { getDataService } from "../services";
 import { logServiceError } from "../utils/logError";
 import { generateId } from "../utils/generateId";
@@ -35,7 +35,15 @@ export function useRoutines() {
   }, []);
 
   const createRoutine = useCallback(
-    (title: string, startTime?: string, endTime?: string) => {
+    (
+      title: string,
+      startTime?: string,
+      endTime?: string,
+      frequencyType?: FrequencyType,
+      frequencyDays?: number[],
+      frequencyInterval?: number | null,
+      frequencyStartDate?: string | null,
+    ) => {
       const id = generateId("routine");
       const now = new Date().toISOString();
       const optimistic: RoutineNode = {
@@ -47,12 +55,25 @@ export function useRoutines() {
         isDeleted: false,
         deletedAt: null,
         order: routines.length,
+        frequencyType: frequencyType ?? "daily",
+        frequencyDays: frequencyDays ?? [],
+        frequencyInterval: frequencyInterval ?? null,
+        frequencyStartDate: frequencyStartDate ?? null,
         createdAt: now,
         updatedAt: now,
       };
       setRoutines((prev) => [...prev, optimistic]);
       getDataService()
-        .createRoutine(id, title, startTime, endTime)
+        .createRoutine(
+          id,
+          title,
+          startTime,
+          endTime,
+          frequencyType,
+          frequencyDays,
+          frequencyInterval,
+          frequencyStartDate,
+        )
         .catch((e) => logServiceError("Routines", "create", e));
 
       push("routine", {
@@ -82,7 +103,15 @@ export function useRoutines() {
       updates: Partial<
         Pick<
           RoutineNode,
-          "title" | "startTime" | "endTime" | "isArchived" | "order"
+          | "title"
+          | "startTime"
+          | "endTime"
+          | "isArchived"
+          | "order"
+          | "frequencyType"
+          | "frequencyDays"
+          | "frequencyInterval"
+          | "frequencyStartDate"
         >
       >,
     ) => {

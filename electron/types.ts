@@ -137,6 +137,8 @@ export interface PomodoroPreset {
   createdAt: string;
 }
 
+export type FrequencyType = "daily" | "weekdays" | "interval";
+
 export interface RoutineNode {
   id: string;
   title: string;
@@ -146,11 +148,23 @@ export interface RoutineNode {
   isDeleted: boolean;
   deletedAt: string | null;
   order: number;
+  frequencyType: FrequencyType;
+  frequencyDays: number[];
+  frequencyInterval: number | null;
+  frequencyStartDate: string | null;
   createdAt: string;
   updatedAt: string;
 }
 
 export interface RoutineTag {
+  id: number;
+  name: string;
+  color: string;
+  textColor?: string;
+  order: number;
+}
+
+export interface CalendarTag {
   id: number;
   name: string;
   color: string;
@@ -171,6 +185,7 @@ export interface ScheduleItem {
   memo: string | null;
   noteId: string | null;
   isDismissed: boolean;
+  isAllDay: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -180,6 +195,10 @@ export interface RoutineGroup {
   name: string;
   color: string;
   order: number;
+  frequencyType: FrequencyType;
+  frequencyDays: number[];
+  frequencyInterval: number | null;
+  frequencyStartDate: string | null;
   createdAt: string;
   updatedAt: string;
 }

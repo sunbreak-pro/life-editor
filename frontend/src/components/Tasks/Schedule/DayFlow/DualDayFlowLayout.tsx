@@ -5,6 +5,7 @@ import { useDayFlowColumn } from "../../../../hooks/useDayFlowColumn";
 import { useScheduleContext } from "../../../../hooks/useScheduleContext";
 import { useAutoInProgress } from "../../../../hooks/useAutoInProgress";
 import { useTaskTreeContext } from "../../../../hooks/useTaskTreeContext";
+import { getDataService } from "../../../../services";
 import { CompactDateNav } from "./CompactDateNav";
 import { ScheduleTimeGrid } from "./ScheduleTimeGrid";
 import { TaskSchedulePanel } from "../../../shared/TaskSchedulePanel";
@@ -135,7 +136,7 @@ function DualColumn({
   onToggleDualColumn,
   onMutate,
 }: DualColumnProps) {
-  const { updateRoutine, routines } = useScheduleContext();
+  const { updateRoutine, routines, skipNextSync } = useScheduleContext();
   const { addNode, updateNode } = useTaskTreeContext();
 
   // Auto-set NOT_STARTED tasks to IN_PROGRESS for today
@@ -158,6 +159,8 @@ function DualColumn({
     routineTitle: string;
     startTime: string;
     endTime: string;
+    prevStartTime: string;
+    prevEndTime: string;
   } | null>(null);
 
   const handleRequestRoutineDelete = useCallback(
@@ -207,10 +210,10 @@ function DualColumn({
     startTime: string,
     endTime: string,
   ) => {
+    const item = column.filteredScheduleItems.find((i) => i.id === id);
     column.updateScheduleItem(id, { startTime, endTime });
     onMutate?.();
     // If this is a routine item, show confirmation dialog
-    const item = column.filteredScheduleItems.find((i) => i.id === id);
     if (item?.routineId) {
       const routine = routines.find((r) => r.id === item.routineId);
       if (routine) {
@@ -220,6 +223,8 @@ function DualColumn({
           routineTitle: routine.title,
           startTime,
           endTime,
+          prevStartTime: item.startTime,
+          prevEndTime: item.endTime,
         });
       }
     }
@@ -347,13 +352,30 @@ function DualColumn({
           newEndTime={routineTimeChange.endTime}
           onThisOnly={() => setRoutineTimeChange(null)}
           onApplyToRoutine={() => {
+            skipNextSync();
             updateRoutine(routineTimeChange.routineId, {
               startTime: routineTimeChange.startTime,
               endTime: routineTimeChange.endTime,
             });
+            getDataService()
+              .updateFutureScheduleItemsByRoutine(
+                routineTimeChange.routineId,
+                {
+                  startTime: routineTimeChange.startTime,
+                  endTime: routineTimeChange.endTime,
+                },
+                column.dateKey,
+              )
+              .catch(() => {});
             setRoutineTimeChange(null);
           }}
-          onCancel={() => setRoutineTimeChange(null)}
+          onCancel={() => {
+            column.updateScheduleItem(routineTimeChange.itemId, {
+              startTime: routineTimeChange.prevStartTime,
+              endTime: routineTimeChange.prevEndTime,
+            });
+            setRoutineTimeChange(null);
+          }}
         />
       )}
     </div>

@@ -39,6 +39,7 @@ export function registerScheduleItemHandlers(
       routineId?: string,
       templateId?: string,
       noteId?: string,
+      isAllDay?: boolean,
     ) => {
       return repo.create(
         id,
@@ -49,6 +50,7 @@ export function registerScheduleItemHandlers(
         routineId,
         templateId,
         noteId,
+        isAllDay,
       );
     },
   );
@@ -71,6 +73,7 @@ export function registerScheduleItemHandlers(
           | "completed"
           | "completedAt"
           | "memo"
+          | "isAllDay"
         >
       >,
     ) => {
@@ -108,6 +111,32 @@ export function registerScheduleItemHandlers(
     "update",
     (_event, id: string) => {
       repo.dismiss(id);
+    },
+  );
+
+  mutation(
+    "db:scheduleItems:updateFutureByRoutine",
+    "ScheduleItems",
+    "updateFutureByRoutine",
+    "scheduleItem",
+    "bulk",
+    (
+      _event,
+      routineId: string,
+      updates: { title?: string; startTime?: string; endTime?: string },
+      fromDate: string,
+    ) => {
+      return repo.updateFutureByRoutine(routineId, updates, fromDate);
+    },
+    () => undefined,
+  );
+
+  query(
+    "db:scheduleItems:fetchLastRoutineDate",
+    "ScheduleItems",
+    "fetchLastRoutineDate",
+    () => {
+      return repo.fetchLastRoutineDate();
     },
   );
 

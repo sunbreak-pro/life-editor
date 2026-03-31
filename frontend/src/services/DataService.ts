@@ -18,6 +18,7 @@ import type { NoteNode } from "../types/note";
 import type { CalendarNode } from "../types/calendar";
 import type { RoutineNode } from "../types/routine";
 import type { RoutineTag } from "../types/routineTag";
+import type { CalendarTag } from "../types/calendarTag";
 import type { ScheduleItem } from "../types/schedule";
 import type { RoutineGroup } from "../types/routineGroup";
 import type { Playlist, PlaylistItem } from "../types/playlist";
@@ -184,6 +185,24 @@ export interface DataService {
   >;
   setTagsForRoutine(routineId: string, tagIds: number[]): Promise<void>;
 
+  // Calendar Tags
+  fetchCalendarTags(): Promise<CalendarTag[]>;
+  createCalendarTag(name: string, color: string): Promise<CalendarTag>;
+  updateCalendarTag(
+    id: number,
+    updates: Partial<
+      Pick<CalendarTag, "name" | "color" | "textColor" | "order">
+    >,
+  ): Promise<CalendarTag>;
+  deleteCalendarTag(id: number): Promise<void>;
+  fetchAllCalendarTagAssignments(): Promise<
+    Array<{ schedule_item_id: string; tag_id: number }>
+  >;
+  setTagsForScheduleItem(
+    scheduleItemId: string,
+    tagIds: number[],
+  ): Promise<void>;
+
   // Routines
   fetchAllRoutines(): Promise<RoutineNode[]>;
   createRoutine(
@@ -191,13 +210,25 @@ export interface DataService {
     title: string,
     startTime?: string,
     endTime?: string,
+    frequencyType?: string,
+    frequencyDays?: number[],
+    frequencyInterval?: number | null,
+    frequencyStartDate?: string | null,
   ): Promise<RoutineNode>;
   updateRoutine(
     id: string,
     updates: Partial<
       Pick<
         RoutineNode,
-        "title" | "startTime" | "endTime" | "isArchived" | "order"
+        | "title"
+        | "startTime"
+        | "endTime"
+        | "isArchived"
+        | "order"
+        | "frequencyType"
+        | "frequencyDays"
+        | "frequencyInterval"
+        | "frequencyStartDate"
       >
     >,
   ): Promise<RoutineNode>;
@@ -222,19 +253,27 @@ export interface DataService {
     routineId?: string,
     templateId?: string,
     noteId?: string,
+    isAllDay?: boolean,
   ): Promise<ScheduleItem>;
   updateScheduleItem(
     id: string,
     updates: Partial<
       Pick<
         ScheduleItem,
-        "title" | "startTime" | "endTime" | "completed" | "completedAt" | "memo"
+        | "title"
+        | "startTime"
+        | "endTime"
+        | "completed"
+        | "completedAt"
+        | "memo"
+        | "isAllDay"
       >
     >,
   ): Promise<ScheduleItem>;
   deleteScheduleItem(id: string): Promise<void>;
   toggleScheduleItemComplete(id: string): Promise<ScheduleItem>;
   dismissScheduleItem(id: string): Promise<void>;
+  fetchLastRoutineDate(): Promise<string | null>;
   bulkCreateScheduleItems(
     items: Array<{
       id: string;
@@ -247,6 +286,11 @@ export interface DataService {
       noteId?: string;
     }>,
   ): Promise<ScheduleItem[]>;
+  updateFutureScheduleItemsByRoutine(
+    routineId: string,
+    updates: { title?: string; startTime?: string; endTime?: string },
+    fromDate: string,
+  ): Promise<number>;
 
   // Routine Groups
   fetchRoutineGroups(): Promise<RoutineGroup[]>;
@@ -254,10 +298,25 @@ export interface DataService {
     id: string,
     name: string,
     color: string,
+    frequencyType?: string,
+    frequencyDays?: number[],
+    frequencyInterval?: number | null,
+    frequencyStartDate?: string | null,
   ): Promise<RoutineGroup>;
   updateRoutineGroup(
     id: string,
-    updates: Partial<Pick<RoutineGroup, "name" | "color" | "order">>,
+    updates: Partial<
+      Pick<
+        RoutineGroup,
+        | "name"
+        | "color"
+        | "order"
+        | "frequencyType"
+        | "frequencyDays"
+        | "frequencyInterval"
+        | "frequencyStartDate"
+      >
+    >,
   ): Promise<RoutineGroup>;
   deleteRoutineGroup(id: string): Promise<void>;
   fetchAllRoutineGroupTagAssignments(): Promise<

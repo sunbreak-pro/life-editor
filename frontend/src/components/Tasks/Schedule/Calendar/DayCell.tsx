@@ -1,5 +1,5 @@
 import { useState, useRef } from "react";
-import { Repeat, ListTodo, FileText } from "lucide-react";
+import { Repeat, Plus } from "lucide-react";
 import type { CalendarItem } from "../../../../types/calendarItem";
 import { CalendarItemChip } from "./CalendarItemChip";
 import { useClickOutside } from "../../../../hooks/useClickOutside";
@@ -11,8 +11,7 @@ interface DayCellProps {
   items: CalendarItem[];
   onSelectItem: (item: CalendarItem, event: React.MouseEvent) => void;
   onOpenRoutineManagement?: () => void;
-  onCreateTask?: (date: Date, event: React.MouseEvent) => void;
-  onCreateNote?: (date: Date, event: React.MouseEvent) => void;
+  onOpenCreateMenu?: (date: Date, event: React.MouseEvent) => void;
   getTaskColor?: (taskId: string) => string | undefined;
   routineCompletion?: { completed: number; total: number };
   onDateSelect?: (date: Date) => void;
@@ -27,8 +26,7 @@ export function DayCell({
   items,
   onSelectItem,
   onOpenRoutineManagement,
-  onCreateTask,
-  onCreateNote,
+  onOpenCreateMenu,
   getTaskColor,
   routineCompletion,
   onDateSelect,
@@ -74,28 +72,16 @@ export function DayCell({
               <Repeat size={12} />
             </button>
           )}
-          {onCreateTask && (
+          {onOpenCreateMenu && (
             <button
               onClick={(e) => {
                 e.stopPropagation();
-                onCreateTask(date, e);
+                onOpenCreateMenu(date, e);
               }}
               className="w-5.5 h-5.5 flex items-center justify-center rounded hover:bg-notion-hover text-notion-text-secondary"
-              title="Task"
+              title="Add"
             >
-              <ListTodo size={12} />
-            </button>
-          )}
-          {onCreateNote && (
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                onCreateNote(date, e);
-              }}
-              className="w-5.5 h-5.5 flex items-center justify-center rounded hover:bg-notion-hover text-notion-text-secondary"
-              title="Note / Daily"
-            >
-              <FileText size={12} />
+              <Plus size={12} />
             </button>
           )}
         </div>

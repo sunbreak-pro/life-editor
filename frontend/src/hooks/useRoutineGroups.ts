@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect, useMemo } from "react";
 import type { RoutineGroup } from "../types/routineGroup";
+import type { FrequencyType } from "../types/routine";
 import { getDataService } from "../services";
 import { logServiceError } from "../utils/logError";
 import { useUndoRedo } from "../components/shared/UndoRedo";
@@ -29,12 +30,24 @@ export function useRoutineGroups() {
   }, []);
 
   const createRoutineGroup = useCallback(
-    async (id: string, name: string, color: string): Promise<RoutineGroup> => {
+    async (
+      id: string,
+      name: string,
+      color: string,
+      frequencyType?: FrequencyType,
+      frequencyDays?: number[],
+      frequencyInterval?: number | null,
+      frequencyStartDate?: string | null,
+    ): Promise<RoutineGroup> => {
       const optimistic: RoutineGroup = {
         id,
         name,
         color,
         order: routineGroups.length,
+        frequencyType: frequencyType ?? "daily",
+        frequencyDays: frequencyDays ?? [],
+        frequencyInterval: frequencyInterval ?? null,
+        frequencyStartDate: frequencyStartDate ?? null,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       };
@@ -44,6 +57,10 @@ export function useRoutineGroups() {
           id,
           name,
           color,
+          frequencyType,
+          frequencyDays,
+          frequencyInterval,
+          frequencyStartDate,
         );
         setRoutineGroups((prev) => prev.map((g) => (g.id === id ? group : g)));
 
@@ -84,7 +101,18 @@ export function useRoutineGroups() {
   const updateRoutineGroup = useCallback(
     async (
       id: string,
-      updates: Partial<Pick<RoutineGroup, "name" | "color" | "order">>,
+      updates: Partial<
+        Pick<
+          RoutineGroup,
+          | "name"
+          | "color"
+          | "order"
+          | "frequencyType"
+          | "frequencyDays"
+          | "frequencyInterval"
+          | "frequencyStartDate"
+        >
+      >,
     ) => {
       const prev = routineGroups.find((g) => g.id === id);
       setRoutineGroups((p) =>

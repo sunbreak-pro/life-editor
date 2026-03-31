@@ -1,7 +1,7 @@
 import { useState, useMemo, useCallback } from "react";
 import { Plus, Pencil, Trash2, Archive, X, Layers } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import type { RoutineNode } from "../../../../types/routine";
+import type { RoutineNode, FrequencyType } from "../../../../types/routine";
 import type { RoutineTag } from "../../../../types/routineTag";
 import type { RoutineGroup } from "../../../../types/routineGroup";
 import { RoutineEditDialog } from "./RoutineEditDialog";
@@ -21,11 +21,25 @@ interface RoutineManagementOverlayProps {
     title: string,
     startTime?: string,
     endTime?: string,
+    frequencyType?: FrequencyType,
+    frequencyDays?: number[],
+    frequencyInterval?: number | null,
+    frequencyStartDate?: string | null,
   ) => string;
   onUpdateRoutine: (
     id: string,
     updates: Partial<
-      Pick<RoutineNode, "title" | "startTime" | "endTime" | "isArchived">
+      Pick<
+        RoutineNode,
+        | "title"
+        | "startTime"
+        | "endTime"
+        | "isArchived"
+        | "frequencyType"
+        | "frequencyDays"
+        | "frequencyInterval"
+        | "frequencyStartDate"
+      >
     >,
   ) => void;
   onDeleteRoutine: (id: string) => void;
@@ -49,10 +63,25 @@ interface RoutineManagementOverlayProps {
     id: string,
     name: string,
     color: string,
+    frequencyType?: FrequencyType,
+    frequencyDays?: number[],
+    frequencyInterval?: number | null,
+    frequencyStartDate?: string | null,
   ) => Promise<RoutineGroup>;
   onUpdateRoutineGroup: (
     id: string,
-    updates: Partial<Pick<RoutineGroup, "name" | "color" | "order">>,
+    updates: Partial<
+      Pick<
+        RoutineGroup,
+        | "name"
+        | "color"
+        | "order"
+        | "frequencyType"
+        | "frequencyDays"
+        | "frequencyInterval"
+        | "frequencyStartDate"
+      >
+    >,
   ) => void;
   onDeleteRoutineGroup: (id: string) => void;
   setTagsForGroup: (groupId: string, tagIds: number[]) => void;
@@ -120,9 +149,21 @@ export function RoutineManagementOverlay({
       startTime?: string,
       endTime?: string,
       tagIds?: number[],
+      frequencyType?: FrequencyType,
+      frequencyDays?: number[],
+      frequencyInterval?: number | null,
+      frequencyStartDate?: string | null,
     ) => {
       if (editDialog === "new") {
-        const id = onCreateRoutine(title, startTime, endTime);
+        const id = onCreateRoutine(
+          title,
+          startTime,
+          endTime,
+          frequencyType,
+          frequencyDays,
+          frequencyInterval,
+          frequencyStartDate,
+        );
         if (tagIds && tagIds.length > 0) {
           setTagsForRoutine(id, tagIds);
         }
@@ -133,9 +174,16 @@ export function RoutineManagementOverlay({
           (endTime !== undefined &&
             endTime !== (editDialog.endTime ?? undefined));
 
+        const freqUpdates = {
+          frequencyType,
+          frequencyDays,
+          frequencyInterval,
+          frequencyStartDate,
+        };
+
         if (timeChanged) {
-          // Update title and tags immediately
-          onUpdateRoutine(editDialog.id, { title });
+          // Update title, frequency, and tags immediately
+          onUpdateRoutine(editDialog.id, { title, ...freqUpdates });
           if (tagIds !== undefined) {
             setTagsForRoutine(editDialog.id, tagIds);
           }
@@ -147,7 +195,12 @@ export function RoutineManagementOverlay({
             endTime,
           });
         } else {
-          onUpdateRoutine(editDialog.id, { title, startTime, endTime });
+          onUpdateRoutine(editDialog.id, {
+            title,
+            startTime,
+            endTime,
+            ...freqUpdates,
+          });
           if (tagIds !== undefined) {
             setTagsForRoutine(editDialog.id, tagIds);
           }
@@ -158,15 +211,38 @@ export function RoutineManagementOverlay({
   );
 
   const handleGroupSubmit = useCallback(
-    async (name: string, color: string, tagIds: number[]) => {
+    async (
+      name: string,
+      color: string,
+      tagIds: number[],
+      frequencyType?: FrequencyType,
+      frequencyDays?: number[],
+      frequencyInterval?: number | null,
+      frequencyStartDate?: string | null,
+    ) => {
       if (groupEditDialog === "new") {
         const id = `rgroup-${crypto.randomUUID()}`;
-        const group = await onCreateRoutineGroup(id, name, color);
+        const group = await onCreateRoutineGroup(
+          id,
+          name,
+          color,
+          frequencyType,
+          frequencyDays,
+          frequencyInterval,
+          frequencyStartDate,
+        );
         if (tagIds.length > 0) {
           setTagsForGroup(group.id, tagIds);
         }
       } else if (groupEditDialog) {
-        onUpdateRoutineGroup(groupEditDialog.id, { name, color });
+        onUpdateRoutineGroup(groupEditDialog.id, {
+          name,
+          color,
+          frequencyType,
+          frequencyDays,
+          frequencyInterval,
+          frequencyStartDate,
+        });
         setTagsForGroup(groupEditDialog.id, tagIds);
       }
     },

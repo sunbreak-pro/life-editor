@@ -1,15 +1,21 @@
 import { useRef, useState } from "react";
-import { Check, Trash2, StickyNote } from "lucide-react";
+import { Check, Trash2, StickyNote, Clock } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import type { ScheduleItem } from "../../../../types/schedule";
 import { useClickOutside } from "../../../../hooks/useClickOutside";
 import { InlineMemoInput } from "./InlineMemoInput";
+import { TimeInput } from "../../../shared/TimeInput";
+import {
+  clampEndTimeAfterStart,
+  adjustEndTimeForStartChange,
+} from "../../../../utils/timeGridUtils";
 
 interface ScheduleItemPreviewPopupProps {
   item: ScheduleItem;
   position: { x: number; y: number };
   onToggleComplete: () => void;
   onUpdateMemo?: (memo: string | null) => void;
+  onUpdateTime?: (startTime: string, endTime: string) => void;
   onDelete: () => void;
   onClose: () => void;
 }
@@ -19,17 +25,46 @@ export function ScheduleItemPreviewPopup({
   position,
   onToggleComplete,
   onUpdateMemo,
+  onUpdateTime,
   onDelete,
   onClose,
 }: ScheduleItemPreviewPopupProps) {
   const { t } = useTranslation();
   const ref = useRef<HTMLDivElement>(null);
   const [showMemoInput, setShowMemoInput] = useState(false);
+  const [isEditingTime, setIsEditingTime] = useState(false);
+  const [editStartTime, setEditStartTime] = useState(item.startTime);
+  const [editEndTime, setEditEndTime] = useState(item.endTime);
+  const prevStartRef = useRef(editStartTime);
 
-  useClickOutside(ref, onClose, !showMemoInput);
+  useClickOutside(ref, onClose, !showMemoInput && !isEditingTime);
 
   const left = Math.min(position.x, window.innerWidth - 260 - 16);
-  const top = Math.min(position.y, window.innerHeight - 200 - 16);
+  const top = Math.min(position.y, window.innerHeight - 280 - 16);
+
+  const handleStartTimeChange = (h: number, m: number) => {
+    const newStart = `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+    const adjusted = adjustEndTimeForStartChange(
+      prevStartRef.current,
+      newStart,
+      editEndTime,
+    );
+    prevStartRef.current = newStart;
+    setEditStartTime(newStart);
+    setEditEndTime(adjusted);
+  };
+
+  const handleEndTimeChange = (h: number, m: number) => {
+    const newEnd = `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+    setEditEndTime(clampEndTimeAfterStart(editStartTime, newEnd));
+  };
+
+  const handleTimeSave = () => {
+    if (onUpdateTime) {
+      onUpdateTime(editStartTime, editEndTime);
+    }
+    setIsEditingTime(false);
+  };
 
   return (
     <div
@@ -41,22 +76,74 @@ export function ScheduleItemPreviewPopup({
         <div className="font-medium text-sm text-notion-text truncate">
           {item.title}
         </div>
-        <div className="text-xs text-notion-text-secondary">
-          {item.startTime} - {item.endTime}
-        </div>
+
+        {/* Time display / edit */}
+        {isEditingTime && onUpdateTime ? (
+          <div className="space-y-1.5">
+            <div className="flex items-center gap-1.5">
+              <TimeInput
+                hour={parseInt(editStartTime.split(":")[0], 10)}
+                minute={parseInt(editStartTime.split(":")[1], 10)}
+                onChange={handleStartTimeChange}
+                minuteStep={5}
+                size="sm"
+              />
+              <span className="text-xs text-notion-text-secondary">-</span>
+              <TimeInput
+                hour={parseInt(editEndTime.split(":")[0], 10)}
+                minute={parseInt(editEndTime.split(":")[1], 10)}
+                onChange={handleEndTimeChange}
+                minuteStep={5}
+                size="sm"
+              />
+            </div>
+            <div className="flex gap-1">
+              <button
+                onClick={handleTimeSave}
+                className="px-2 py-0.5 text-[10px] bg-notion-accent text-white rounded hover:opacity-90 transition-colors"
+              >
+                {t("common.save", "Save")}
+              </button>
+              <button
+                onClick={() => {
+                  setEditStartTime(item.startTime);
+                  setEditEndTime(item.endTime);
+                  setIsEditingTime(false);
+                }}
+                className="px-2 py-0.5 text-[10px] text-notion-text-secondary hover:text-notion-text transition-colors"
+              >
+                {t("common.cancel", "Cancel")}
+              </button>
+            </div>
+          </div>
+        ) : (
+          <button
+            onClick={() => onUpdateTime && setIsEditingTime(true)}
+            className={`text-xs text-notion-text-secondary flex items-center gap-1 ${
+              onUpdateTime
+                ? "hover:text-notion-text cursor-pointer"
+                : "cursor-default"
+            } transition-colors`}
+          >
+            <Clock size={10} />
+            {item.startTime} - {item.endTime}
+          </button>
+        )}
+
         <div className="flex items-center gap-2">
           <span
             className={`inline-block px-1.5 py-0.5 text-[10px] rounded-full font-medium ${
               item.completed
                 ? "bg-green-100 text-green-700"
                 : item.routineId
-                  ? "bg-notion-accent/10 text-notion-accent"
-                  : "bg-gray-100 text-gray-600"
+                  ? "bg-emerald-100 text-emerald-700"
+                  : "bg-purple-100 text-purple-700"
             }`}
           >
-            {item.completed ? "DONE" : item.routineId ? "Routine" : "Schedule"}
+            {item.completed ? "DONE" : item.routineId ? "Routine" : "Event"}
           </span>
         </div>
+
         {showMemoInput && onUpdateMemo && (
           <InlineMemoInput
             value={item.memo ?? ""}

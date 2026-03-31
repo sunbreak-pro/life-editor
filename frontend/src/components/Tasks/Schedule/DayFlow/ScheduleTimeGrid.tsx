@@ -851,6 +851,16 @@ export function ScheduleTimeGrid({
               ? (title) => onUpdateTaskTitle(taskPreview.task.id, title)
               : undefined
           }
+          onUpdateSchedule={
+            onUpdateTaskTime
+              ? (scheduledAt, scheduledEndAt) =>
+                  onUpdateTaskTime(
+                    taskPreview.task.id,
+                    scheduledAt,
+                    scheduledEndAt ?? scheduledAt,
+                  )
+              : undefined
+          }
           onClose={() => setTaskPreview(null)}
         />
       )}

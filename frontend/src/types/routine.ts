@@ -1,3 +1,5 @@
+export type FrequencyType = "daily" | "weekdays" | "interval";
+
 export interface RoutineNode {
   id: string;
   title: string;
@@ -7,6 +9,10 @@ export interface RoutineNode {
   isDeleted: boolean;
   deletedAt: string | null;
   order: number;
+  frequencyType: FrequencyType;
+  frequencyDays: number[]; // [0=Sun, 1=Mon, ..., 6=Sat]
+  frequencyInterval: number | null;
+  frequencyStartDate: string | null; // "YYYY-MM-DD"
   createdAt: string;
   updatedAt: string;
 }

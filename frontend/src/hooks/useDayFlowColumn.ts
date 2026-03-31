@@ -199,7 +199,7 @@ export function useDayFlowColumn({ initialDate }: UseDayFlowColumnOptions) {
       case "routine":
         items = items.filter((i) => i.routineId !== null);
         break;
-      case "others":
+      case "events":
         items = items.filter((i) => i.routineId === null);
         break;
       case "tasks":
@@ -230,7 +230,7 @@ export function useDayFlowColumn({ initialDate }: UseDayFlowColumnOptions) {
   ]);
 
   const filteredDayTasks = useMemo(() => {
-    if (filterTab === "routine" || filterTab === "others") return [];
+    if (filterTab === "routine" || filterTab === "events") return [];
     return allDayTasks;
   }, [allDayTasks, filterTab]);
 

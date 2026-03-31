@@ -1,10 +1,15 @@
 import { useRef, useState } from "react";
-import { ExternalLink, Play, CalendarOff, Trash2 } from "lucide-react";
+import { ExternalLink, Play, CalendarOff, Trash2, Clock } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import type { TaskNode } from "../../../../types/taskTree";
 import { useClickOutside } from "../../../../hooks/useClickOutside";
 import { formatScheduleRange } from "../../../../utils/formatSchedule";
 import { ConfirmDialog } from "../../../shared/ConfirmDialog";
+import { TimeInput } from "../../../shared/TimeInput";
+import {
+  clampEndTimeAfterStart,
+  adjustEndTimeForStartChange,
+} from "../../../../utils/timeGridUtils";
 
 interface TaskPreviewPopupProps {
   task: TaskNode;
@@ -17,6 +22,22 @@ interface TaskPreviewPopupProps {
   onClearSchedule: () => void;
   onClose: () => void;
   onUpdateTitle?: (title: string) => void;
+  onUpdateSchedule?: (
+    scheduledAt: string,
+    scheduledEndAt: string | undefined,
+  ) => void;
+}
+
+function extractTime(iso: string): string {
+  const d = new Date(iso);
+  return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+}
+
+function applyTimeToDate(iso: string, time: string): string {
+  const d = new Date(iso);
+  const [h, m] = time.split(":").map(Number);
+  d.setHours(h, m, 0, 0);
+  return d.toISOString();
 }
 
 export function TaskPreviewPopup({
@@ -29,14 +50,57 @@ export function TaskPreviewPopup({
   onClearSchedule,
   onClose,
   onUpdateTitle,
+  onUpdateSchedule,
 }: TaskPreviewPopupProps) {
   const { t } = useTranslation();
   const ref = useRef<HTMLDivElement>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [editValue, setEditValue] = useState(task.title);
+  const [isEditingTime, setIsEditingTime] = useState(false);
+  const [editStartTime, setEditStartTime] = useState(
+    task.scheduledAt && !task.isAllDay
+      ? extractTime(task.scheduledAt)
+      : "09:00",
+  );
+  const [editEndTime, setEditEndTime] = useState(
+    task.scheduledEndAt && !task.isAllDay
+      ? extractTime(task.scheduledEndAt)
+      : "10:00",
+  );
+  const prevStartRef = useRef(editStartTime);
 
-  useClickOutside(ref, onClose, !showDeleteConfirm && !isEditing);
+  const handleStartTimeChange = (h: number, m: number) => {
+    const newStart = `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+    const adjusted = adjustEndTimeForStartChange(
+      prevStartRef.current,
+      newStart,
+      editEndTime,
+    );
+    prevStartRef.current = newStart;
+    setEditStartTime(newStart);
+    setEditEndTime(adjusted);
+  };
+
+  const handleEndTimeChange = (h: number, m: number) => {
+    const newEnd = `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+    setEditEndTime(clampEndTimeAfterStart(editStartTime, newEnd));
+  };
+
+  const handleTimeSave = () => {
+    if (onUpdateSchedule && task.scheduledAt) {
+      const newStart = applyTimeToDate(task.scheduledAt, editStartTime);
+      const newEnd = applyTimeToDate(task.scheduledAt, editEndTime);
+      onUpdateSchedule(newStart, newEnd);
+    }
+    setIsEditingTime(false);
+  };
+
+  useClickOutside(
+    ref,
+    onClose,
+    !showDeleteConfirm && !isEditing && !isEditingTime,
+  );
 
   const commitEdit = () => {
     const trimmed = editValue.trim();
@@ -91,15 +155,70 @@ export function TaskPreviewPopup({
               {task.title}
             </div>
           )}
-          {task.scheduledAt && (
-            <div className="text-xs text-notion-text-secondary">
-              {formatScheduleRange(
-                task.scheduledAt,
-                task.scheduledEndAt,
-                task.isAllDay,
-              )}
-            </div>
-          )}
+          {task.scheduledAt &&
+            (isEditingTime && onUpdateSchedule ? (
+              <div className="space-y-1.5">
+                <div className="flex items-center gap-1.5">
+                  <TimeInput
+                    hour={parseInt(editStartTime.split(":")[0], 10)}
+                    minute={parseInt(editStartTime.split(":")[1], 10)}
+                    onChange={handleStartTimeChange}
+                    minuteStep={5}
+                    size="sm"
+                  />
+                  <span className="text-xs text-notion-text-secondary">-</span>
+                  <TimeInput
+                    hour={parseInt(editEndTime.split(":")[0], 10)}
+                    minute={parseInt(editEndTime.split(":")[1], 10)}
+                    onChange={handleEndTimeChange}
+                    minuteStep={5}
+                    size="sm"
+                  />
+                </div>
+                <div className="flex gap-1">
+                  <button
+                    onClick={handleTimeSave}
+                    className="px-2 py-0.5 text-[10px] bg-notion-accent text-white rounded hover:opacity-90 transition-colors"
+                  >
+                    {t("common.save", "Save")}
+                  </button>
+                  <button
+                    onClick={() => {
+                      setEditStartTime(
+                        task.scheduledAt && !task.isAllDay
+                          ? extractTime(task.scheduledAt)
+                          : "09:00",
+                      );
+                      setEditEndTime(
+                        task.scheduledEndAt && !task.isAllDay
+                          ? extractTime(task.scheduledEndAt)
+                          : "10:00",
+                      );
+                      setIsEditingTime(false);
+                    }}
+                    className="px-2 py-0.5 text-[10px] text-notion-text-secondary hover:text-notion-text transition-colors"
+                  >
+                    {t("common.cancel", "Cancel")}
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <button
+                onClick={() => onUpdateSchedule && setIsEditingTime(true)}
+                className={`text-xs text-notion-text-secondary flex items-center gap-1 ${
+                  onUpdateSchedule
+                    ? "hover:text-notion-text cursor-pointer"
+                    : "cursor-default"
+                } transition-colors`}
+              >
+                <Clock size={10} />
+                {formatScheduleRange(
+                  task.scheduledAt,
+                  task.scheduledEndAt,
+                  task.isAllDay,
+                )}
+              </button>
+            ))}
           <div className="flex items-center gap-2">
             <span
               className={`inline-block px-1.5 py-0.5 text-[10px] rounded-full font-medium ${

@@ -1,15 +1,21 @@
 import { useState, useEffect, useRef } from "react";
 import { X } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import type { RoutineNode } from "../../../../types/routine";
+import type { RoutineNode, FrequencyType } from "../../../../types/routine";
 import type { RoutineTag } from "../../../../types/routineTag";
 import { TimeInput } from "../../../shared/TimeInput";
 import { RoutineTagSelector } from "./RoutineTagSelector";
+import { FrequencySelector } from "./FrequencySelector";
 import { useConfirmableSubmit } from "../../../../hooks/useConfirmableSubmit";
 import {
   adjustEndTimeForStartChange,
   clampEndTimeAfterStart,
 } from "../../../../utils/timeGridUtils";
+
+function todayStr(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
 
 interface RoutineEditDialogProps {
   routine?: RoutineNode;
@@ -20,6 +26,10 @@ interface RoutineEditDialogProps {
     startTime?: string,
     endTime?: string,
     tagIds?: number[],
+    frequencyType?: FrequencyType,
+    frequencyDays?: number[],
+    frequencyInterval?: number | null,
+    frequencyStartDate?: string | null,
   ) => void;
   onCreateTag?: (name: string, color: string) => Promise<RoutineTag>;
   onClose: () => void;
@@ -39,6 +49,18 @@ export function RoutineEditDialog({
   const [endTime, setEndTime] = useState(routine?.endTime ?? "");
   const prevStartRef = useRef(startTime);
   const [tagIds, setTagIds] = useState<number[]>(initialTagIds ?? []);
+  const [frequencyType, setFrequencyType] = useState<FrequencyType>(
+    routine?.frequencyType ?? "daily",
+  );
+  const [frequencyDays, setFrequencyDays] = useState<number[]>(
+    routine?.frequencyDays ?? [],
+  );
+  const [frequencyInterval, setFrequencyInterval] = useState(
+    routine?.frequencyInterval ?? 2,
+  );
+  const [frequencyStartDate, setFrequencyStartDate] = useState(
+    routine?.frequencyStartDate ?? todayStr(),
+  );
 
   const handleSubmit = () => {
     if (!title.trim()) return;
@@ -47,6 +69,10 @@ export function RoutineEditDialog({
       startTime || undefined,
       endTime || undefined,
       tagIds,
+      frequencyType,
+      frequencyType === "weekdays" ? frequencyDays : [],
+      frequencyType === "interval" ? frequencyInterval : null,
+      frequencyType === "interval" ? frequencyStartDate : null,
     );
     onClose();
   };
@@ -140,6 +166,17 @@ export function RoutineEditDialog({
               />
             </div>
           </div>
+
+          <FrequencySelector
+            frequencyType={frequencyType}
+            frequencyDays={frequencyDays}
+            frequencyInterval={frequencyInterval}
+            frequencyStartDate={frequencyStartDate}
+            onFrequencyTypeChange={setFrequencyType}
+            onFrequencyDaysChange={setFrequencyDays}
+            onFrequencyIntervalChange={setFrequencyInterval}
+            onFrequencyStartDateChange={setFrequencyStartDate}
+          />
 
           <div>
             <label className="text-[11px] text-notion-text-secondary uppercase tracking-wide mb-1 block">

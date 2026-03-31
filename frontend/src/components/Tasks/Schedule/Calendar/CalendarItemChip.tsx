@@ -1,4 +1,10 @@
-import { CheckSquare, BookOpen, StickyNote } from "lucide-react";
+import {
+  CheckSquare,
+  BookOpen,
+  StickyNote,
+  CalendarClock,
+  Repeat,
+} from "lucide-react";
 import type { CalendarItem } from "../../../../types/calendarItem";
 import { CALENDAR_ITEM_COLORS } from "../../../../types/calendarItem";
 import { getTextColorForBg } from "../../../../constants/folderColors";
@@ -36,6 +42,29 @@ export function CalendarItemChip({
         }
       >
         <CheckSquare size={10} className="shrink-0" />
+        <span className="truncate">{item.title}</span>
+      </button>
+    );
+  }
+
+  // Event (schedule item)
+  if (item.type === "event" && item.scheduleItem) {
+    const isCompleted = item.scheduleItem.completed;
+    const isRoutine = item.scheduleItem.routineId !== null;
+    const eventColor = isRoutine
+      ? CALENDAR_ITEM_COLORS.routine
+      : CALENDAR_ITEM_COLORS.event;
+    const Icon = isRoutine ? Repeat : CalendarClock;
+
+    return (
+      <button
+        onClick={onClick}
+        className={`w-full text-left px-1.5 py-1 rounded text-xs truncate transition-colors flex items-center gap-1 hover:opacity-80 ${
+          isCompleted ? "line-through opacity-60" : ""
+        }`}
+        style={{ backgroundColor: `${eventColor}20`, color: eventColor }}
+      >
+        <Icon size={10} className="shrink-0" />
         <span className="truncate">{item.title}</span>
       </button>
     );

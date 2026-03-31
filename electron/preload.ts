@@ -80,6 +80,13 @@ const ALLOWED_CHANNELS = new Set([
   "db:routineGroups:delete",
   "db:routineGroups:fetchAllTagAssignments",
   "db:routineGroups:setTagsForGroup",
+  // Calendar Tags
+  "db:calendarTags:fetchAll",
+  "db:calendarTags:create",
+  "db:calendarTags:update",
+  "db:calendarTags:delete",
+  "db:calendarTags:setTagsForScheduleItem",
+  "db:calendarTags:fetchAllAssignments",
   // Schedule Items
   "db:scheduleItems:fetchByDate",
   "db:scheduleItems:fetchByDateRange",
@@ -89,6 +96,8 @@ const ALLOWED_CHANNELS = new Set([
   "db:scheduleItems:toggleComplete",
   "db:scheduleItems:bulkCreate",
   "db:scheduleItems:dismiss",
+  "db:scheduleItems:updateFutureByRoutine",
+  "db:scheduleItems:fetchLastRoutineDate",
   // Playlists
   "db:playlists:fetchAll",
   "db:playlists:create",

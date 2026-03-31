@@ -317,6 +317,20 @@
     "achievement": "Achievement",
     "achievementDetails": "Achievement Details",
     "routineFlow": "Routine Flow",
+    "frequency": "Frequency",
+    "frequencyDaily": "Daily",
+    "frequencyWeekdays": "Specific days",
+    "frequencyInterval": "Every N days",
+    "everyNDays": "Every {{n}} days",
+    "intervalDays": "Interval (days)",
+    "startDate": "Start date",
+    "sun": "Sun",
+    "mon": "Mon",
+    "tue": "Tue",
+    "wed": "Wed",
+    "thu": "Thu",
+    "fri": "Fri",
+    "sat": "Sat",
     "achieved": "Achieved",
     "notAchieved": "Not Achieved",
     "achievementRate": "Achieved: {{completed}}/{{total}} ({{rate}}%)",
@@ -697,7 +711,16 @@
     "dailyExists": "Daily already exists for this date",
     "filters": "Filters",
     "status": "Status",
-    "folder": "Folder"
+    "folder": "Folder",
+    "createTask": "Task",
+    "createNote": "Note",
+    "createDaily": "Daily",
+    "createEvent": "Create Event",
+    "eventTitle": "Title",
+    "eventMemo": "Memo",
+    "calendarTags": "Calendar Tags",
+    "startTime": "Start",
+    "endTime": "End"
   },
   "search": {
     "placeholder": "Search tasks...",
@@ -715,7 +738,8 @@
     "close": "Close",
     "comingSoon": "Coming Soon",
     "undo": "Undo",
-    "redo": "Redo"
+    "redo": "Redo",
+    "create": "Create"
   },
   "tasks": {
     "title": "Tasks"
@@ -930,7 +954,7 @@
     "filterAll": "All",
     "filterRoutine": "Routine",
     "filterTasks": "Tasks",
-    "filterOthers": "Others",
+    "filterEvents": "Events",
     "filterDaily": "Daily",
     "filterNotes": "Notes",
     "addTask": "Add task",

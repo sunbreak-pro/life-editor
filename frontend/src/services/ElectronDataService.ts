@@ -19,6 +19,7 @@ import type { NoteNode } from "../types/note";
 import type { CalendarNode } from "../types/calendar";
 import type { RoutineNode } from "../types/routine";
 import type { RoutineTag } from "../types/routineTag";
+import type { CalendarTag } from "../types/calendarTag";
 import type { ScheduleItem } from "../types/schedule";
 import type { RoutineGroup } from "../types/routineGroup";
 import type { Playlist, PlaylistItem } from "../types/playlist";
@@ -331,6 +332,40 @@ export class ElectronDataService implements DataService {
     return invoke("db:routineTags:setTagsForRoutine", routineId, tagIds);
   }
 
+  // Calendar Tags
+  fetchCalendarTags(): Promise<CalendarTag[]> {
+    return invoke("db:calendarTags:fetchAll");
+  }
+  createCalendarTag(name: string, color: string): Promise<CalendarTag> {
+    return invoke("db:calendarTags:create", name, color);
+  }
+  updateCalendarTag(
+    id: number,
+    updates: Partial<
+      Pick<CalendarTag, "name" | "color" | "textColor" | "order">
+    >,
+  ): Promise<CalendarTag> {
+    return invoke("db:calendarTags:update", id, updates);
+  }
+  deleteCalendarTag(id: number): Promise<void> {
+    return invoke("db:calendarTags:delete", id);
+  }
+  fetchAllCalendarTagAssignments(): Promise<
+    Array<{ schedule_item_id: string; tag_id: number }>
+  > {
+    return invoke("db:calendarTags:fetchAllAssignments");
+  }
+  setTagsForScheduleItem(
+    scheduleItemId: string,
+    tagIds: number[],
+  ): Promise<void> {
+    return invoke(
+      "db:calendarTags:setTagsForScheduleItem",
+      scheduleItemId,
+      tagIds,
+    );
+  }
+
   // Routines
   fetchAllRoutines(): Promise<RoutineNode[]> {
     return invoke("db:routines:fetchAll");
@@ -340,15 +375,37 @@ export class ElectronDataService implements DataService {
     title: string,
     startTime?: string,
     endTime?: string,
+    frequencyType?: string,
+    frequencyDays?: number[],
+    frequencyInterval?: number | null,
+    frequencyStartDate?: string | null,
   ): Promise<RoutineNode> {
-    return invoke("db:routines:create", id, title, startTime, endTime);
+    return invoke(
+      "db:routines:create",
+      id,
+      title,
+      startTime,
+      endTime,
+      frequencyType,
+      frequencyDays,
+      frequencyInterval,
+      frequencyStartDate,
+    );
   }
   updateRoutine(
     id: string,
     updates: Partial<
       Pick<
         RoutineNode,
-        "title" | "startTime" | "endTime" | "isArchived" | "order"
+        | "title"
+        | "startTime"
+        | "endTime"
+        | "isArchived"
+        | "order"
+        | "frequencyType"
+        | "frequencyDays"
+        | "frequencyInterval"
+        | "frequencyStartDate"
       >
     >,
   ): Promise<RoutineNode> {
@@ -389,6 +446,7 @@ export class ElectronDataService implements DataService {
     routineId?: string,
     templateId?: string,
     noteId?: string,
+    isAllDay?: boolean,
   ): Promise<ScheduleItem> {
     return invoke(
       "db:scheduleItems:create",
@@ -400,6 +458,7 @@ export class ElectronDataService implements DataService {
       routineId,
       templateId,
       noteId,
+      isAllDay,
     );
   }
   updateScheduleItem(
@@ -407,7 +466,13 @@ export class ElectronDataService implements DataService {
     updates: Partial<
       Pick<
         ScheduleItem,
-        "title" | "startTime" | "endTime" | "completed" | "completedAt" | "memo"
+        | "title"
+        | "startTime"
+        | "endTime"
+        | "completed"
+        | "completedAt"
+        | "memo"
+        | "isAllDay"
       >
     >,
   ): Promise<ScheduleItem> {
@@ -421,6 +486,9 @@ export class ElectronDataService implements DataService {
   }
   dismissScheduleItem(id: string): Promise<void> {
     return invoke("db:scheduleItems:dismiss", id);
+  }
+  fetchLastRoutineDate(): Promise<string | null> {
+    return invoke("db:scheduleItems:fetchLastRoutineDate");
   }
   bulkCreateScheduleItems(
     items: Array<{
@@ -436,6 +504,18 @@ export class ElectronDataService implements DataService {
   ): Promise<ScheduleItem[]> {
     return invoke("db:scheduleItems:bulkCreate", items);
   }
+  updateFutureScheduleItemsByRoutine(
+    routineId: string,
+    updates: { title?: string; startTime?: string; endTime?: string },
+    fromDate: string,
+  ): Promise<number> {
+    return invoke(
+      "db:scheduleItems:updateFutureByRoutine",
+      routineId,
+      updates,
+      fromDate,
+    );
+  }
 
   // Routine Groups
   fetchRoutineGroups(): Promise<RoutineGroup[]> {
@@ -445,12 +525,36 @@ export class ElectronDataService implements DataService {
     id: string,
     name: string,
     color: string,
+    frequencyType?: string,
+    frequencyDays?: number[],
+    frequencyInterval?: number | null,
+    frequencyStartDate?: string | null,
   ): Promise<RoutineGroup> {
-    return invoke("db:routineGroups:create", id, name, color);
+    return invoke(
+      "db:routineGroups:create",
+      id,
+      name,
+      color,
+      frequencyType,
+      frequencyDays,
+      frequencyInterval,
+      frequencyStartDate,
+    );
   }
   updateRoutineGroup(
     id: string,
-    updates: Partial<Pick<RoutineGroup, "name" | "color" | "order">>,
+    updates: Partial<
+      Pick<
+        RoutineGroup,
+        | "name"
+        | "color"
+        | "order"
+        | "frequencyType"
+        | "frequencyDays"
+        | "frequencyInterval"
+        | "frequencyStartDate"
+      >
+    >,
   ): Promise<RoutineGroup> {
     return invoke("db:routineGroups:update", id, updates);
   }
