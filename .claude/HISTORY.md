@@ -1,5 +1,17 @@
 # HISTORY.md - 変更履歴
 
+### 2026-03-31 - Calendar即時反映バグ修正 / Event・Routine色分け / Task時間編集UI
+
+#### 概要
+
+3つの改善を実施: Calendar→サイドバーの即時反映バグ修正、EventとRoutineの色分け、Calendar画面からTaskの時間設定・変更を可能にするUI追加。
+
+#### 変更点
+
+- **サイドバー即時反映**: `useScheduleItems` に `scheduleItemsVersion` カウンター追加。全mutation関数でインクリメントし、`ScheduleSidebarContent` の useEffect 依存に追加。Calendar操作がサイドバーに即時反映されるように修正
+- **Event・Routine色分け**: `CALENDAR_ITEM_COLORS` に `routine: "#10B981"` (Emerald) 追加。`useCalendar` で `routineId` 有無により色を分岐。`CalendarItemChip` で Routine は Repeat アイコン + emerald、Event は CalendarClock + purple に。`ScheduleItemPreviewPopup` のバッジ色も分岐
+- **Task時間編集UI**: `TaskPreviewPopup` に `TimeInput` による時間編集UI追加（`ScheduleItemPreviewPopup` と同じパターン）。`CalendarView` と `ScheduleTimeGrid` から `onUpdateSchedule` prop を渡して接続
+
 ### 2026-03-30 - Calendar Schedule Item プレビューパネル追加
 
 #### 概要
