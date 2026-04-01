@@ -29,6 +29,7 @@ import { CSS } from "@dnd-kit/utilities";
 import { SOUND_TYPES } from "../../../constants/sounds";
 import { SoundTagEditor } from "./SoundTagEditor";
 import { useSoundTags } from "../../../hooks/useSoundTags";
+import { useAudioContext } from "../../../hooks/useAudioContext";
 import type { PlaylistDataResult } from "../../../hooks/usePlaylistData";
 import type { PlaylistPlayerResult } from "../../../hooks/usePlaylistPlayer";
 import type { PlaylistItem } from "../../../types/playlist";
@@ -65,6 +66,7 @@ interface SortableItemProps {
   soundTagState: ReturnType<typeof useSoundTags>;
   onRemove: () => void;
   onPlay: () => void;
+  onUpdateLabel?: (soundId: string, label: string) => void;
 }
 
 function SortableItem({
@@ -75,6 +77,7 @@ function SortableItem({
   soundTagState,
   onRemove,
   onPlay,
+  onUpdateLabel,
 }: SortableItemProps) {
   const { t } = useTranslation();
   const {
@@ -101,9 +104,10 @@ function SortableItem({
     const trimmed = editValue.trim();
     if (trimmed) {
       soundTagState.updateDisplayName(soundId, trimmed);
+      if (onUpdateLabel) onUpdateLabel(soundId, trimmed);
     }
     setIsEditing(false);
-  }, [editValue, soundId, soundTagState]);
+  }, [editValue, soundId, soundTagState, onUpdateLabel]);
 
   const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
     e.stopPropagation();
@@ -247,6 +251,7 @@ export function PlaylistDetail({
   onRequestAddMode,
 }: PlaylistDetailProps) {
   const { t } = useTranslation();
+  const audio = useAudioContext();
   const soundTagState = useSoundTags();
 
   const items = useMemo(
@@ -327,6 +332,11 @@ export function PlaylistDetail({
                   )}
                   isCurrentTrack={currentTrackItem?.id === item.id}
                   soundTagState={soundTagState}
+                  onUpdateLabel={(soundId, label) => {
+                    if (soundId.startsWith("custom-")) {
+                      audio.updateCustomSoundLabel(soundId, label);
+                    }
+                  }}
                   onRemove={() => playlistData.removeItem(playlistId, item.id)}
                   onPlay={() => {
                     if (player.activePlaylistId !== playlistId) {

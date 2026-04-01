@@ -59,4 +59,15 @@ export function registerCustomSoundHandlers(repo: CustomSoundRepository): void {
       repo.permanentDelete(id);
     }),
   );
+
+  ipcMain.handle(
+    "db:customSound:updateLabel",
+    loggedHandler(
+      "CustomSound",
+      "updateLabel",
+      (_event, id: string, label: string) => {
+        repo.updateLabel(id, label);
+      },
+    ),
+  );
 }

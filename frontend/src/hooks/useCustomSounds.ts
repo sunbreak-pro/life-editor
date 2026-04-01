@@ -156,6 +156,17 @@ export function useCustomSounds() {
     });
   }, []);
 
+  const updateLabel = useCallback(async (id: string, label: string) => {
+    setCustomSounds((prev) =>
+      prev.map((s) => (s.id === id ? { ...s, label } : s)),
+    );
+    try {
+      await getDataService().updateCustomSoundLabel(id, label);
+    } catch (e) {
+      console.error("Failed to update custom sound label:", e);
+    }
+  }, []);
+
   const reloadSounds = useCallback(async () => {
     const ds = getDataService();
     const metas = await ds.fetchCustomSoundMetas();
@@ -184,6 +195,7 @@ export function useCustomSounds() {
     isLoading,
     addSound,
     removeSound,
+    updateLabel,
     reloadSounds,
   };
 }

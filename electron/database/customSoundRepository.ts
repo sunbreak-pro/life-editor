@@ -111,6 +111,17 @@ export function createCustomSoundRepository() {
       }
     },
 
+    updateLabel(id: string, label: string): void {
+      withWriteLock(() => {
+        const metas = loadMetas();
+        const idx = metas.findIndex((m) => m.id === id);
+        if (idx >= 0) {
+          metas[idx] = { ...metas[idx], label };
+          writeMetas(metas);
+        }
+      });
+    },
+
     saveBlob(id: string, data: Buffer): void {
       ensureDir();
       fs.writeFileSync(path.join(CUSTOM_SOUNDS_DIR, id), data);

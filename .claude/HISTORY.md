@@ -1,5 +1,18 @@
 # HISTORY.md - 変更履歴
 
+### 2026-04-01 - カスタムサウンド名称変更バグ修正 + メタデータ同期
+
+#### 概要
+
+カスタムサウンドの名称変更後、再度編集ボタンをクリックすると元のファイル名に戻るバグを修正。加えて、名称変更時に `_meta.json` の `label` も更新し、元のファイル名がフォールバック表示されないようにした。
+
+#### 変更点
+
+- **editValue同期修正**: `MusicSoundItem.tsx` の編集ボタンクリック時に `setEditValue(displayName)` を呼び、最新の表示名でinputを初期化するよう修正（`PlaylistDetail` と同じパターン）
+- **\_meta.json ラベル同期**: IPC `db:customSound:updateLabel` を新設。`customSoundRepository` に `updateLabel()` メソッド追加。名称変更時に SQLite `sound_display_meta` と `_meta.json` の両方を更新
+- **DataService層**: `updateCustomSoundLabel()` をインターフェース・全3実装に追加
+- **Context経由公開**: `useCustomSounds` に `updateLabel` コールバック追加、`AudioContextValue` 経由で `MusicSoundItem` と `PlaylistDetail` から利用可能に
+
 ### 2026-04-01 - UI統一 + Routine Calendar反映 + Tag編集 + Memo修正 + Reactivity改善
 
 #### 概要

@@ -54,11 +54,14 @@ export function MusicSoundItem({
     const trimmed = editValue.trim();
     if (trimmed) {
       soundTagState.updateDisplayName(soundId, trimmed);
+      if (isCustom) {
+        audio.updateCustomSoundLabel(soundId, trimmed);
+      }
       setShowSaved(true);
       setTimeout(() => setShowSaved(false), 1500);
     }
     setIsEditing(false);
-  }, [editValue, soundId, soundTagState]);
+  }, [editValue, soundId, soundTagState, isCustom, audio]);
 
   const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
     e.stopPropagation();
@@ -178,7 +181,10 @@ export function MusicSoundItem({
         {/* Edit name */}
         {!isEditing && (
           <button
-            onClick={() => setIsEditing(true)}
+            onClick={() => {
+              setEditValue(displayName);
+              setIsEditing(true);
+            }}
             className="p-1 rounded text-notion-text-secondary hover:text-notion-text hover:bg-notion-hover transition-colors"
             title={t("music.editName")}
           >
