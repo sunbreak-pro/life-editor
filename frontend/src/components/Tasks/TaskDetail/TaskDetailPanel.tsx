@@ -1,11 +1,4 @@
-import {
-  useState,
-  useEffect,
-  useRef,
-  useCallback,
-  useMemo,
-  Suspense,
-} from "react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import type { KeyboardEvent } from "react";
 import {
   Calendar,
@@ -33,40 +26,8 @@ import { TaskDetailEmpty } from "./TaskDetailEmpty";
 import { WikiTagList } from "../../WikiTags/WikiTagList";
 import { getAncestors } from "../../../utils/breadcrumb";
 import { DateTimeRangePicker } from "../Schedule/Calendar/DateTimeRangePicker";
-import { LazyMemoEditor } from "./LazyMemoEditor";
-import { STORAGE_KEYS } from "../../../constants/storageKeys";
 import { fireTaskCompleteConfetti } from "../../../utils/confetti";
 import { playEffectSound } from "../../../utils/playEffectSound";
-
-type MemoMode = "quick" | "rich";
-
-function extractPlainText(json: string): string {
-  try {
-    const doc = JSON.parse(json);
-    const extract = (node: Record<string, unknown>): string => {
-      if (node.type === "text") return (node.text as string) ?? "";
-      const children = node.content as Record<string, unknown>[] | undefined;
-      if (!children) return "";
-      return children
-        .map((child) => {
-          const text = extract(child);
-          const blockTypes = [
-            "paragraph",
-            "heading",
-            "blockquote",
-            "listItem",
-            "codeBlock",
-          ];
-          if (blockTypes.includes(child.type as string)) return text + "\n";
-          return text;
-        })
-        .join("");
-    };
-    return extract(doc).replace(/\n$/, "");
-  } catch {
-    return json;
-  }
-}
 
 interface TaskDetailPanelProps {
   selectedNodeId: string | null;
@@ -159,11 +120,6 @@ function TaskSidebarContent({
   const [colorPickerAncestorId, setColorPickerAncestorId] = useState<
     string | null
   >(null);
-  const [memoMode, setMemoMode] = useState<MemoMode>(() => {
-    const stored = localStorage.getItem(STORAGE_KEYS.TASK_MEMO_MODE);
-    return stored === "rich" ? "rich" : "quick";
-  });
-
   const ancestors = getAncestors(node.id, nodes);
 
   const handleMove = useCallback(
@@ -179,16 +135,6 @@ function TaskSidebarContent({
     [node.id, moveNodeInto, moveToRoot, onMoveRejected],
   );
 
-  const handleMemoModeChange = (mode: MemoMode) => {
-    setMemoMode(mode);
-    localStorage.setItem(STORAGE_KEYS.TASK_MEMO_MODE, mode);
-  };
-
-  const quickMemoContent =
-    memoMode === "quick" && node.content
-      ? extractPlainText(node.content)
-      : (node.content ?? "");
-
   return (
     <div className="flex flex-col h-full">
       {/* Header section */}
@@ -199,8 +145,12 @@ function TaskSidebarContent({
             currentFolderId={node.parentId}
             onMove={handleMove}
             trigger={
-              <span className="w-8 h-8 flex items-center justify-center text-notion-text-secondary hover:text-notion-text hover:bg-notion-hover rounded-lg transition-colors cursor-pointer bg-notion-bg">
-                <FolderOpen size={18} />
+              <span
+                className="inline-flex items-center gap-1 px-2 py-1 text-xs text-notion-text-secondary hover:text-notion-text hover:bg-notion-hover rounded-md transition-colors cursor-pointer"
+                title={t("taskDetailSidebar.moveToFolder")}
+              >
+                <FolderOpen size={14} />
+                <span>{t("taskDetailSidebar.moveToFolder")}</span>
               </span>
             }
           />
@@ -320,59 +270,6 @@ function TaskSidebarContent({
           >
             <Trash2 size={14} />
           </button>
-        </div>
-      </div>
-
-      {/* Row 5: Memo tabs */}
-      <div className="flex-1 flex flex-col min-h-0">
-        <div className="flex border-b border-notion-border mb-3">
-          <button
-            onClick={() => handleMemoModeChange("quick")}
-            className={`px-3 py-1.5 text-xs font-medium transition-colors border-b-2 -mb-px ${
-              memoMode === "quick"
-                ? "text-notion-accent border-notion-accent"
-                : "text-notion-text-secondary border-transparent hover:text-notion-text"
-            }`}
-          >
-            {t("taskDetail.quickMemo")}
-          </button>
-          <button
-            onClick={() => handleMemoModeChange("rich")}
-            className={`px-3 py-1.5 text-xs font-medium transition-colors border-b-2 -mb-px ${
-              memoMode === "rich"
-                ? "text-notion-accent border-notion-accent"
-                : "text-notion-text-secondary border-transparent hover:text-notion-text"
-            }`}
-          >
-            {t("taskDetail.richEditor")}
-          </button>
-        </div>
-
-        <div className="flex-1 min-h-0">
-          {memoMode === "quick" ? (
-            <DebouncedTextarea
-              key={node.id}
-              initialValue={quickMemoContent}
-              onSave={(content) => updateNode(node.id, { content })}
-              placeholder={t("taskDetailSidebar.memoPlaceholder")}
-            />
-          ) : (
-            <Suspense
-              fallback={
-                <div className="text-xs text-notion-text-secondary p-2">
-                  Loading editor...
-                </div>
-              }
-            >
-              <LazyMemoEditor
-                key={node.id}
-                taskId={node.id}
-                initialContent={node.content}
-                onUpdate={(content) => updateNode(node.id, { content })}
-                entityType="task"
-              />
-            </Suspense>
-          )}
         </div>
       </div>
     </div>

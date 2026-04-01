@@ -102,8 +102,9 @@ export function ScheduleProvider({ children }: { children: ReactNode }) {
     backfillDoneRef.current = true;
     const ta = tagAssignmentsState.tagAssignments;
     const r = routinesState.routines;
-    scheduleItemsState.backfillMissedRoutineItems(r, ta).then(() => {
-      scheduleItemsState.ensureRoutineItemsForWeek(r, ta);
+    const gfr = routineGroupComputedState.groupForRoutine;
+    scheduleItemsState.backfillMissedRoutineItems(r, ta, gfr).then(() => {
+      scheduleItemsState.ensureRoutineItemsForWeek(r, ta, gfr);
     });
   }, [
     routinesState.routines,

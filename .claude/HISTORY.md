@@ -1,5 +1,19 @@
 # HISTORY.md - 変更履歴
 
+### 2026-04-01 - session-loader スキル作成 + スキル構成整理
+
+#### 概要
+
+セッション開始時にプロジェクトコンテキストを読み込む session-loader スキルを新規作成。Global skills 13→8個、Project skills 9→6個に整理。重複スキルの有用な内容は `.claude/rules/` に移行。
+
+#### 変更点
+
+- **session-loader（新規）**: MEMORY.md、ビジョンドキュメント、ADR、コード説明インデックスを順番に読み込み、現在の状態を要約表示するプロジェクトスキル
+- **Global skills 削除（5個）**: `travel-planner`（無関係）、`frontend-refactoring`（code-refactoring+rulesで代替）、`find-skills`（未使用）、`skill-editor`（skill-creatorで代替）、`project-setter`（使用済み）
+- **Project skills 削除（4個）**: `code-review`、`git-workflow`、`refactoring`、`debug-strategy` — グローバル版+rulesで代替
+- **Project rules 新規作成（3個）**: `project-review-checklist.md`（IPC/DataService/Provider/SQLiteチェック）、`project-patterns.md`（共有コンポーネント/フック設計パターン）、`project-debug.md`（IPC/SQLite/Audio/Contextデバッグガイド）
+- **SKILL_INDEX.md 更新**: inactive状態の記録を追加、移行先のrulesファイルパスを記載
+
 ### 2026-04-01 - タスク詳細パネル簡素化 + フォルダ移動UI改善
 
 #### 概要

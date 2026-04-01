@@ -1,6 +1,7 @@
 import { useState, useCallback, useMemo, useRef, useEffect } from "react";
 import type { ScheduleItem, RoutineStats } from "../types/schedule";
 import type { RoutineNode } from "../types/routine";
+import type { RoutineGroup } from "../types/routineGroup";
 import { getDataService } from "../services";
 import { logServiceError } from "../utils/logError";
 import { generateId } from "../utils/generateId";
@@ -497,6 +498,7 @@ export function useScheduleItems() {
       date: string,
       routines: RoutineNode[],
       tagAssignments: Map<string, number[]>,
+      groupForRoutine?: Map<string, RoutineGroup>,
     ) => {
       const existing = await getDataService().fetchScheduleItemsByDate(date);
       const { toCreate, toUpdate } = diffRoutineScheduleItems(
@@ -504,6 +506,7 @@ export function useScheduleItems() {
         routines,
         tagAssignments,
         date,
+        groupForRoutine,
       );
 
       if (toUpdate.length > 0) {
@@ -702,7 +705,11 @@ export function useScheduleItems() {
   );
 
   const backfillMissedRoutineItems = useCallback(
-    async (routines: RoutineNode[], tagAssignments: Map<string, number[]>) => {
+    async (
+      routines: RoutineNode[],
+      tagAssignments: Map<string, number[]>,
+      groupForRoutine?: Map<string, RoutineGroup>,
+    ) => {
       try {
         const lastDate = await getDataService().fetchLastRoutineDate();
         const today = formatDateKey(new Date());
@@ -745,6 +752,20 @@ export function useScheduleItems() {
             )
               continue;
 
+            // Also check group frequency
+            const group = groupForRoutine?.get(routine.id);
+            if (
+              group &&
+              !shouldRoutineRunOnDate(
+                group.frequencyType,
+                group.frequencyDays,
+                group.frequencyInterval,
+                group.frequencyStartDate,
+                dateKey,
+              )
+            )
+              continue;
+
             toCreate.push({
               id: generateId("si"),
               date: dateKey,
@@ -768,7 +789,11 @@ export function useScheduleItems() {
   );
 
   const ensureRoutineItemsForWeek = useCallback(
-    async (routines: RoutineNode[], tagAssignments: Map<string, number[]>) => {
+    async (
+      routines: RoutineNode[],
+      tagAssignments: Map<string, number[]>,
+      groupForRoutine?: Map<string, RoutineGroup>,
+    ) => {
       try {
         const today = new Date();
         today.setHours(0, 0, 0, 0);
@@ -819,6 +844,20 @@ export function useScheduleItems() {
             )
               continue;
 
+            // Also check group frequency
+            const group = groupForRoutine?.get(routine.id);
+            if (
+              group &&
+              !shouldRoutineRunOnDate(
+                group.frequencyType,
+                group.frequencyDays,
+                group.frequencyInterval,
+                group.frequencyStartDate,
+                dateKey,
+              )
+            )
+              continue;
+
             toCreate.push({
               id: generateId("si"),
               date: dateKey,
@@ -843,7 +882,7 @@ export function useScheduleItems() {
   );
 
   const cleanupNonMatchingScheduleItems = useCallback(
-    async (routine: RoutineNode) => {
+    async (routine: RoutineNode, group?: RoutineGroup) => {
       try {
         const allItems = await getDataService().fetchScheduleItemsByRoutineId(
           routine.id,
@@ -852,13 +891,21 @@ export function useScheduleItems() {
           .filter(
             (item) =>
               !item.completed &&
-              !shouldRoutineRunOnDate(
+              (!shouldRoutineRunOnDate(
                 routine.frequencyType,
                 routine.frequencyDays,
                 routine.frequencyInterval,
                 routine.frequencyStartDate,
                 item.date,
-              ),
+              ) ||
+                (group &&
+                  !shouldRoutineRunOnDate(
+                    group.frequencyType,
+                    group.frequencyDays,
+                    group.frequencyInterval,
+                    group.frequencyStartDate,
+                    item.date,
+                  ))),
           )
           .map((item) => item.id);
 

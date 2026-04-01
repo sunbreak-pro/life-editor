@@ -933,7 +933,8 @@
     "duration": "作業時間",
     "noSelection": "タスクまたはフォルダを選択して詳細を表示",
     "moveFolderConfirm": "このアイテムを「{{folder}}」に移動しますか？",
-    "dontShowAgain": "今後表示しない"
+    "dontShowAgain": "今後表示しない",
+    "moveToFolder": "フォルダに移動"
   },
   "folderContents": {
     "title": "コンテンツ",
@@ -1045,8 +1046,6 @@
     "textColor": "文字色",
     "default": "デフォルト"
   },
-  "taskDetail.quickMemo": "クイックメモ",
-  "taskDetail.richEditor": "リッチエディタ",
   "taskDetail.timeMemo": "タイムメモ",
   "aiActions": {
     "title": "AI Actions",

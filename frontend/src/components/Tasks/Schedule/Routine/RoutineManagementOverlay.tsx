@@ -88,7 +88,10 @@ interface RoutineManagementOverlayProps {
   onDeleteRoutineGroup: (id: string) => void;
   setTagsForGroup: (groupId: string, tagIds: number[]) => void;
   onSkipNextSync?: () => void;
-  onCleanupNonMatchingScheduleItems?: (routine: RoutineNode) => Promise<void>;
+  onCleanupNonMatchingScheduleItems?: (
+    routine: RoutineNode,
+    group?: RoutineGroup,
+  ) => Promise<void>;
   onClose: () => void;
 }
 
@@ -274,6 +277,13 @@ export function RoutineManagementOverlay({
           setTagsForGroup(group.id, tagIds);
         }
       } else if (groupEditDialog) {
+        const freqChanged =
+          frequencyType !== groupEditDialog.frequencyType ||
+          JSON.stringify(frequencyDays) !==
+            JSON.stringify(groupEditDialog.frequencyDays) ||
+          frequencyInterval !== groupEditDialog.frequencyInterval ||
+          frequencyStartDate !== groupEditDialog.frequencyStartDate;
+
         onUpdateRoutineGroup(groupEditDialog.id, {
           name,
           color,
@@ -283,6 +293,29 @@ export function RoutineManagementOverlay({
           frequencyStartDate,
         });
         setTagsForGroup(groupEditDialog.id, tagIds);
+
+        // Clean up schedule items that no longer match the new group frequency
+        if (freqChanged && onCleanupNonMatchingScheduleItems) {
+          const updatedGroup = {
+            ...groupEditDialog,
+            name,
+            color,
+            frequencyType: frequencyType ?? groupEditDialog.frequencyType,
+            frequencyDays: frequencyDays ?? groupEditDialog.frequencyDays,
+            frequencyInterval:
+              frequencyInterval !== undefined
+                ? frequencyInterval
+                : groupEditDialog.frequencyInterval,
+            frequencyStartDate:
+              frequencyStartDate !== undefined
+                ? frequencyStartDate
+                : groupEditDialog.frequencyStartDate,
+          };
+          const members = routinesByGroup.get(groupEditDialog.id) ?? [];
+          for (const routine of members) {
+            onCleanupNonMatchingScheduleItems(routine, updatedGroup);
+          }
+        }
       }
     },
     [
@@ -290,6 +323,8 @@ export function RoutineManagementOverlay({
       onCreateRoutineGroup,
       onUpdateRoutineGroup,
       setTagsForGroup,
+      onCleanupNonMatchingScheduleItems,
+      routinesByGroup,
     ],
   );
 

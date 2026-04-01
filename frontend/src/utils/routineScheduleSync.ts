@@ -1,5 +1,6 @@
 import type { ScheduleItem } from "../types/schedule";
 import type { RoutineNode } from "../types/routine";
+import type { RoutineGroup } from "../types/routineGroup";
 import { shouldRoutineRunOnDate } from "./routineFrequency";
 import { generateId } from "./generateId";
 
@@ -28,6 +29,7 @@ export function diffRoutineScheduleItems(
   routines: RoutineNode[],
   tagAssignments: Map<string, number[]>,
   date: string,
+  groupForRoutine?: Map<string, RoutineGroup>,
 ): { toCreate: RoutineSyncCreate[]; toUpdate: RoutineSyncUpdate[] } {
   const existingByRoutineId = new Map(
     existingItems
@@ -48,6 +50,20 @@ export function diffRoutineScheduleItems(
         routine.frequencyDays,
         routine.frequencyInterval,
         routine.frequencyStartDate,
+        date,
+      )
+    )
+      continue;
+
+    // Also check group frequency if routine belongs to a group
+    const group = groupForRoutine?.get(routine.id);
+    if (
+      group &&
+      !shouldRoutineRunOnDate(
+        group.frequencyType,
+        group.frequencyDays,
+        group.frequencyInterval,
+        group.frequencyStartDate,
         date,
       )
     )

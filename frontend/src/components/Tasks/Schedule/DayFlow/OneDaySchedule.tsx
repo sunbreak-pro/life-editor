@@ -186,9 +186,20 @@ export function OneDaySchedule({
   // Auto-insert routine items when date/routines/tags change
   useEffect(() => {
     if (routines.length > 0) {
-      ensureRoutineItemsForDate(dateKey, routines, tagAssignments);
+      ensureRoutineItemsForDate(
+        dateKey,
+        routines,
+        tagAssignments,
+        groupForRoutine,
+      );
     }
-  }, [dateKey, routines, tagAssignments, ensureRoutineItemsForDate]);
+  }, [
+    dateKey,
+    routines,
+    tagAssignments,
+    groupForRoutine,
+    ensureRoutineItemsForDate,
+  ]);
 
   // Load routine stats on mount and when routines change
   useEffect(() => {

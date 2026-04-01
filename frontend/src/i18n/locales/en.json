@@ -933,7 +933,8 @@
     "duration": "Duration",
     "noSelection": "Select a task or folder to view details",
     "moveFolderConfirm": "Move this item to \"{{folder}}\"?",
-    "dontShowAgain": "Don't show again"
+    "dontShowAgain": "Don't show again",
+    "moveToFolder": "Move to folder"
   },
   "folderContents": {
     "title": "Contents",
@@ -1045,8 +1046,6 @@
     "textColor": "Text",
     "default": "Default"
   },
-  "taskDetail.quickMemo": "Quick Memo",
-  "taskDetail.richEditor": "Rich Editor",
   "taskDetail.timeMemo": "Time memo",
   "aiActions": {
     "title": "AI Actions",

@@ -232,6 +232,7 @@ interface ScheduleTimeGridProps {
   routineGroups?: RoutineGroup[];
   groupForRoutine?: Map<string, RoutineGroup>;
   onGroupDragEnd?: (groupId: string, offsetMinutes: number) => void;
+  onEditRoutine?: (routineId: string) => void;
   // Context menu actions
   onDuplicateScheduleItem?: (id: string) => void;
 }
@@ -261,6 +262,7 @@ export function ScheduleTimeGrid({
   routineGroups,
   groupForRoutine,
   onGroupDragEnd,
+  onEditRoutine,
   onDuplicateScheduleItem,
 }: ScheduleTimeGridProps) {
   const scrollRef = useRef<HTMLDivElement>(null);

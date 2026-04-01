@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect, useRef } from "react";
-import { Check, Repeat } from "lucide-react";
+import { Check, Repeat, Pencil } from "lucide-react";
 import type { TaskNode } from "../../../../types/taskTree";
 import { useTaskTreeContext } from "../../../../hooks/useTaskTreeContext";
 import { useCalendarContext } from "../../../../hooks/useCalendarContext";
@@ -26,6 +26,9 @@ import { WeeklyTimeGrid } from "./WeeklyTimeGrid";
 import { useScheduleContext } from "../../../../hooks/useScheduleContext";
 import type { ScheduleItem } from "../../../../types/schedule";
 import type { RoutineGroup } from "../../../../types/routineGroup";
+import type { RoutineNode } from "../../../../types/routine";
+import { RoutineEditDialog } from "../Routine/RoutineEditDialog";
+import { RoutineGroupEditDialog } from "../Routine/RoutineGroupEditDialog";
 import { useClickOutside } from "../../../../hooks/useClickOutside";
 
 function GroupPreviewPopup({
@@ -33,12 +36,14 @@ function GroupPreviewPopup({
   scheduleItems,
   position,
   onSelectItem,
+  onEditGroup,
   onClose,
 }: {
   group: RoutineGroup;
   scheduleItems: ScheduleItem[];
   position: { x: number; y: number };
   onSelectItem: (item: ScheduleItem) => void;
+  onEditGroup?: () => void;
   onClose: () => void;
 }) {
   const ref = useRef<HTMLDivElement>(null);
@@ -60,7 +65,20 @@ function GroupPreviewPopup({
         <span className="text-sm font-medium text-notion-text truncate">
           {group.name}
         </span>
-        <span className="text-[10px] text-notion-text-secondary ml-auto">
+        {onEditGroup && (
+          <button
+            onClick={() => {
+              onClose();
+              onEditGroup();
+            }}
+            className="p-0.5 text-notion-text-secondary hover:text-notion-text rounded transition-colors ml-auto"
+          >
+            <Pencil size={12} />
+          </button>
+        )}
+        <span
+          className={`text-[10px] text-notion-text-secondary ${onEditGroup ? "" : "ml-auto"}`}
+        >
           {scheduleItems.length}
         </span>
       </div>
@@ -154,6 +172,20 @@ export function CalendarView({
     setTagsForScheduleItem,
     monthlyScheduleItems,
     groupForRoutine,
+    routines,
+    routineTags,
+    tagAssignments,
+    updateRoutine,
+    routineGroups,
+    updateRoutineGroup,
+    setTagsForRoutine,
+    routinesByGroup,
+    groupTimeRange,
+    groupTagAssignments,
+    setTagsForGroup,
+    createRoutineTag,
+    skipNextSync,
+    cleanupNonMatchingScheduleItems,
   } = useScheduleContext();
 
   // Filter nodes by active calendar's folder subtree
@@ -208,6 +240,12 @@ export function CalendarView({
     item: CalendarItem;
     position: { x: number; y: number };
   } | null>(null);
+
+  const [editRoutineDialog, setEditRoutineDialog] =
+    useState<RoutineNode | null>(null);
+  const [editGroupDialog, setEditGroupDialog] = useState<RoutineGroup | null>(
+    null,
+  );
 
   // Load schedule items for the current month
   useEffect(() => {
@@ -631,18 +669,22 @@ export function CalendarView({
             toggleComplete(scheduleItemPreview.item.id);
             setScheduleItemPreview(null);
           }}
-          onUpdateMemo={(memo) => {
-            updateScheduleItem(scheduleItemPreview.item.id, { memo });
-            setScheduleItemPreview((prev) =>
-              prev ? { ...prev, item: { ...prev.item, memo } } : null,
-            );
-          }}
           onUpdateTime={(startTime, endTime) => {
             updateScheduleItem(scheduleItemPreview.item.id, {
               startTime,
               endTime,
             });
           }}
+          onEditRoutine={
+            scheduleItemPreview.item.routineId
+              ? () => {
+                  const routine = routines.find(
+                    (r) => r.id === scheduleItemPreview.item.routineId,
+                  );
+                  if (routine) setEditRoutineDialog(routine);
+                }
+              : undefined
+          }
           onDelete={() => {
             deleteScheduleItem(scheduleItemPreview.item.id);
             setScheduleItemPreview(null);
@@ -721,7 +763,102 @@ export function CalendarView({
               position: groupPreview.position,
             });
           }}
+          onEditGroup={() => {
+            const group = groupPreview.item.routineGroup;
+            if (group) setEditGroupDialog(group);
+          }}
           onClose={() => setGroupPreview(null)}
+        />
+      )}
+
+      {editRoutineDialog && (
+        <RoutineEditDialog
+          routine={editRoutineDialog}
+          tags={routineTags}
+          initialTagIds={tagAssignments.get(editRoutineDialog.id) ?? []}
+          onSubmit={(
+            title,
+            startTime,
+            endTime,
+            tagIds,
+            frequencyType,
+            frequencyDays,
+            frequencyInterval,
+            frequencyStartDate,
+          ) => {
+            skipNextSync();
+            updateRoutine(editRoutineDialog.id, {
+              title,
+              startTime,
+              endTime,
+              frequencyType,
+              frequencyDays,
+              frequencyInterval,
+              frequencyStartDate,
+            });
+            if (tagIds !== undefined) {
+              setTagsForRoutine(editRoutineDialog.id, tagIds);
+            }
+            if (
+              frequencyType !== editRoutineDialog.frequencyType ||
+              JSON.stringify(frequencyDays) !==
+                JSON.stringify(editRoutineDialog.frequencyDays) ||
+              frequencyInterval !== editRoutineDialog.frequencyInterval ||
+              frequencyStartDate !== editRoutineDialog.frequencyStartDate
+            ) {
+              const updatedRoutine = {
+                ...editRoutineDialog,
+                title,
+                startTime: startTime ?? editRoutineDialog.startTime,
+                endTime: endTime ?? editRoutineDialog.endTime,
+                frequencyType: frequencyType ?? editRoutineDialog.frequencyType,
+                frequencyDays: frequencyDays ?? editRoutineDialog.frequencyDays,
+                frequencyInterval:
+                  frequencyInterval !== undefined
+                    ? frequencyInterval
+                    : editRoutineDialog.frequencyInterval,
+                frequencyStartDate:
+                  frequencyStartDate !== undefined
+                    ? frequencyStartDate
+                    : editRoutineDialog.frequencyStartDate,
+              };
+              cleanupNonMatchingScheduleItems(updatedRoutine);
+            }
+            setEditRoutineDialog(null);
+          }}
+          onCreateTag={createRoutineTag}
+          onClose={() => setEditRoutineDialog(null)}
+        />
+      )}
+
+      {editGroupDialog && (
+        <RoutineGroupEditDialog
+          group={editGroupDialog}
+          tags={routineTags}
+          initialTagIds={groupTagAssignments.get(editGroupDialog.id) ?? []}
+          memberRoutines={routinesByGroup.get(editGroupDialog.id) ?? []}
+          groupTimeRange={groupTimeRange.get(editGroupDialog.id)}
+          onSubmit={(
+            name,
+            color,
+            tagIds,
+            frequencyType,
+            frequencyDays,
+            frequencyInterval,
+            frequencyStartDate,
+          ) => {
+            updateRoutineGroup(editGroupDialog.id, {
+              name,
+              color,
+              frequencyType,
+              frequencyDays,
+              frequencyInterval,
+              frequencyStartDate,
+            });
+            setTagsForGroup(editGroupDialog.id, tagIds);
+            setEditGroupDialog(null);
+          }}
+          onClose={() => setEditGroupDialog(null)}
         />
       )}
     </div>
