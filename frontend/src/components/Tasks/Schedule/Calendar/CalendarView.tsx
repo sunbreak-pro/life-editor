@@ -633,6 +633,9 @@ export function CalendarView({
           }}
           onUpdateMemo={(memo) => {
             updateScheduleItem(scheduleItemPreview.item.id, { memo });
+            setScheduleItemPreview((prev) =>
+              prev ? { ...prev, item: { ...prev.item, memo } } : null,
+            );
           }}
           onUpdateTime={(startTime, endTime) => {
             updateScheduleItem(scheduleItemPreview.item.id, {

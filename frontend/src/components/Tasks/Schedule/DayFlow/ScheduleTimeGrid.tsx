@@ -868,6 +868,9 @@ export function ScheduleTimeGrid({
             onUpdateMemo
               ? (memo) => {
                   onUpdateMemo(schedulePreview.item.id, memo);
+                  setSchedulePreview((prev) =>
+                    prev ? { ...prev, item: { ...prev.item, memo } } : null,
+                  );
                 }
               : undefined
           }

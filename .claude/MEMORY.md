@@ -6,9 +6,9 @@
 
 ## 直近の完了
 
+- Memo即時表示修正（Preview Popupスナップショット問題） ✅（2026-04-01）
 - MobileScheduleView リニューアル (週カレンダーストリップ + フルCRUD) ✅（2026-04-01）
 - カスタムサウンド名称変更バグ修正 + メタデータ同期 ✅（2026-04-01）
-- UI統一 + Routine Calendar反映 + Tag編集 + Memo修正 + Reactivity改善 ✅（2026-04-01）
 
 ## 予定
 

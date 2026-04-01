@@ -1,5 +1,16 @@
 # HISTORY.md - 変更履歴
 
+### 2026-04-01 - Memo即時表示修正（Preview Popupスナップショット問題）
+
+#### 概要
+
+CalendarView/DayFlowのScheduleItemPreviewPopupでメモ入力後にEnter確定しても、Popup内に文字が即時表示されない問題を修正。
+
+#### 変更点
+
+- **CalendarView.tsx**: `onUpdateMemo` コールバック内で `setScheduleItemPreview` のitemも更新し、Popup内の `item.memo` がスナップショットのまま古い値を参照する問題を解消
+- **ScheduleTimeGrid.tsx**: DayFlow側も同様に `setSchedulePreview` でitem.memoを即時更新
+
 ### 2026-04-01 - MobileScheduleView リニューアル (週カレンダーストリップ + フルCRUD)
 
 #### 概要
