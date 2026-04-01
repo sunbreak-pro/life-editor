@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import { useClickOutside } from "../../../../hooks/useClickOutside";
 import { getContentPreview } from "../../../../utils/tiptapText";
 import { ConfirmDialog } from "../../../shared/ConfirmDialog";
+import { Button } from "../../../shared/Button";
 
 interface MemoPreviewPopupProps {
   kind: "daily" | "note";
@@ -117,23 +118,27 @@ export function MemoPreviewPopup({
           </span>
         </div>
         <div className="border-t border-notion-border flex">
-          <button
+          <Button
+            variant="secondary"
+            size="sm"
+            icon={<ExternalLink size={12} />}
             onClick={onOpenDetail}
-            className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-xs text-notion-text-secondary hover:bg-notion-hover hover:text-notion-text transition-colors"
+            className="flex-1 justify-center rounded-none py-2"
           >
-            <ExternalLink size={12} />
             {t("calendar.openDetail")}
-          </button>
+          </Button>
           {kind === "note" && onDelete && (
             <>
               <div className="w-px bg-notion-border" />
-              <button
+              <Button
+                variant="danger"
+                size="sm"
+                icon={<Trash2 size={12} />}
                 onClick={() => setShowDeleteConfirm(true)}
-                className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-xs text-red-500 hover:bg-red-500/5 transition-colors"
+                className="flex-1 justify-center rounded-none py-2"
               >
-                <Trash2 size={12} />
                 {t("common.delete")}
-              </button>
+              </Button>
             </>
           )}
         </div>

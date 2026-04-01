@@ -3,6 +3,8 @@ import { Pencil, Trash2, Check, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import type { RoutineTag } from "../../../../types/routineTag";
 import { UnifiedColorPicker } from "../../../shared/UnifiedColorPicker";
+import { Button } from "../../../shared/Button";
+import { IconButton } from "../../../shared/IconButton";
 import { DEFAULT_PRESET_COLORS } from "../../../../constants/folderColors";
 
 interface RoutineTagManagerProps {
@@ -61,12 +63,7 @@ export function RoutineTagManager({
           <h3 className="text-base font-semibold text-notion-text">
             {t("schedule.manageTags", "Manage Tags")}
           </h3>
-          <button
-            onClick={onClose}
-            className="p-1 text-notion-text-secondary hover:text-notion-text rounded transition-colors"
-          >
-            <X size={16} />
-          </button>
+          <IconButton icon={<X size={16} />} label="Close" onClick={onClose} />
         </div>
 
         <div className="space-y-1 mb-3 max-h-48 overflow-y-auto">
@@ -80,7 +77,7 @@ export function RoutineTagManager({
                   <UnifiedColorPicker
                     color={editColor}
                     onChange={setEditColor}
-                    mode="preset-only"
+                    mode="preset-full"
                   />
                   <input
                     value={editName}
@@ -93,15 +90,17 @@ export function RoutineTagManager({
                     className="flex-1 text-sm px-1.5 py-0.5 rounded bg-notion-hover text-notion-text outline-none"
                     autoFocus
                   />
-                  <button onClick={saveEdit} className="p-0.5 text-green-500">
-                    <Check size={12} />
-                  </button>
-                  <button
+                  <IconButton
+                    icon={<Check size={12} />}
+                    size="sm"
+                    onClick={saveEdit}
+                    className="text-green-500"
+                  />
+                  <IconButton
+                    icon={<X size={12} />}
+                    size="sm"
                     onClick={() => setEditingId(null)}
-                    className="p-0.5 text-notion-text-secondary"
-                  >
-                    <X size={12} />
-                  </button>
+                  />
                 </>
               ) : deleteConfirmId === tag.id ? (
                 <div className="flex items-center gap-2 w-full">
@@ -164,7 +163,7 @@ export function RoutineTagManager({
             <UnifiedColorPicker
               color={newColor}
               onChange={setNewColor}
-              mode="preset-only"
+              mode="preset-full"
             />
           </div>
           <div className="flex items-center gap-1">
@@ -178,13 +177,14 @@ export function RoutineTagManager({
               placeholder={t("schedule.tagName", "Tag name...")}
               className="flex-1 text-sm px-2 py-1 rounded bg-notion-hover text-notion-text outline-none"
             />
-            <button
+            <Button
+              variant="primary"
+              size="sm"
               onClick={handleCreate}
               disabled={!newName.trim()}
-              className="text-sm px-2 py-1 rounded bg-notion-accent text-white disabled:opacity-40"
             >
               {t("schedule.createTag", "Create")}
-            </button>
+            </Button>
           </div>
         </div>
       </div>

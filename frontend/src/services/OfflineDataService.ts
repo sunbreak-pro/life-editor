@@ -864,6 +864,16 @@ export class OfflineDataService implements DataService {
     );
   }
 
+  async fetchScheduleItemsByRoutineId(
+    routineId: string,
+  ): Promise<ScheduleItem[]> {
+    return notSupported("fetchScheduleItemsByRoutineId");
+  }
+
+  async bulkDeleteScheduleItems(ids: string[]): Promise<number> {
+    return notSupported("bulkDeleteScheduleItems");
+  }
+
   // ============================================================
   // Calendars
   // ============================================================
@@ -1455,6 +1465,9 @@ export class OfflineDataService implements DataService {
     return notSupported("Custom Sound");
   }
   permanentDeleteCustomSound(_id: string): Promise<void> {
+    return notSupported("Custom Sound");
+  }
+  updateCustomSoundLabel(_id: string, _label: string): Promise<void> {
     return notSupported("Custom Sound");
   }
 

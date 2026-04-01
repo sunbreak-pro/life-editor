@@ -98,6 +98,8 @@ const ALLOWED_CHANNELS = new Set([
   "db:scheduleItems:dismiss",
   "db:scheduleItems:updateFutureByRoutine",
   "db:scheduleItems:fetchLastRoutineDate",
+  "db:scheduleItems:fetchByRoutineId",
+  "db:scheduleItems:bulkDelete",
   // Playlists
   "db:playlists:fetchAll",
   "db:playlists:create",
@@ -116,6 +118,7 @@ const ALLOWED_CHANNELS = new Set([
   "db:customSound:fetchDeleted",
   "db:customSound:restore",
   "db:customSound:permanentDelete",
+  "db:customSound:updateLabel",
   // Wiki Tags
   "db:wikiTags:fetchAll",
   "db:wikiTags:search",

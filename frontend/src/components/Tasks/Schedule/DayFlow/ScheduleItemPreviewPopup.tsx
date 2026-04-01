@@ -5,6 +5,7 @@ import type { ScheduleItem } from "../../../../types/schedule";
 import { useClickOutside } from "../../../../hooks/useClickOutside";
 import { InlineMemoInput } from "./InlineMemoInput";
 import { TimeInput } from "../../../shared/TimeInput";
+import { Button } from "../../../shared/Button";
 import {
   formatTime,
   clampEndTimeAfterStart,
@@ -99,22 +100,20 @@ export function ScheduleItemPreviewPopup({
               />
             </div>
             <div className="flex gap-1">
-              <button
-                onClick={handleTimeSave}
-                className="px-2 py-0.5 text-[10px] bg-notion-accent text-white rounded hover:opacity-90 transition-colors"
-              >
+              <Button variant="primary" size="sm" onClick={handleTimeSave}>
                 {t("common.save", "Save")}
-              </button>
-              <button
+              </Button>
+              <Button
+                variant="secondary"
+                size="sm"
                 onClick={() => {
                   setEditStartTime(item.startTime);
                   setEditEndTime(item.endTime);
                   setIsEditingTime(false);
                 }}
-                className="px-2 py-0.5 text-[10px] text-notion-text-secondary hover:text-notion-text transition-colors"
               >
                 {t("common.cancel", "Cancel")}
-              </button>
+              </Button>
             </div>
           </div>
         ) : (

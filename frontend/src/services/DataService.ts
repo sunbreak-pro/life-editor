@@ -156,6 +156,7 @@ export interface DataService {
   fetchDeletedCustomSounds(): Promise<CustomSoundMeta[]>;
   restoreCustomSound(id: string): Promise<void>;
   permanentDeleteCustomSound(id: string): Promise<void>;
+  updateCustomSoundLabel(id: string, label: string): Promise<void>;
 
   // Calendars
   fetchCalendars(): Promise<CalendarNode[]>;
@@ -291,6 +292,8 @@ export interface DataService {
     updates: { title?: string; startTime?: string; endTime?: string },
     fromDate: string,
   ): Promise<number>;
+  fetchScheduleItemsByRoutineId(routineId: string): Promise<ScheduleItem[]>;
+  bulkDeleteScheduleItems(ids: string[]): Promise<number>;
 
   // Routine Groups
   fetchRoutineGroups(): Promise<RoutineGroup[]>;

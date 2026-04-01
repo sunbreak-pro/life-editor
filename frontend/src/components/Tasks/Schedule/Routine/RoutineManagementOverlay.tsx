@@ -1,5 +1,6 @@
 import { useState, useMemo, useCallback } from "react";
-import { Plus, Pencil, Trash2, Archive, X, Layers } from "lucide-react";
+import { Plus, Pencil, Trash2, Archive, X, Layers, Tag } from "lucide-react";
+import { IconButton } from "../../../shared/IconButton";
 import { useTranslation } from "react-i18next";
 import type { RoutineNode, FrequencyType } from "../../../../types/routine";
 import type { RoutineTag } from "../../../../types/routineTag";
@@ -7,6 +8,7 @@ import type { RoutineGroup } from "../../../../types/routineGroup";
 import { RoutineEditDialog } from "./RoutineEditDialog";
 import { RoutineGroupEditDialog } from "./RoutineGroupEditDialog";
 import { RoutineEditTimeChangeDialog } from "./RoutineEditTimeChangeDialog";
+import { RoutineTagManager } from "./RoutineTagManager";
 import { getTextColorForBg } from "../../../../constants/folderColors";
 import {
   minutesToTimeString,
@@ -86,6 +88,7 @@ interface RoutineManagementOverlayProps {
   onDeleteRoutineGroup: (id: string) => void;
   setTagsForGroup: (groupId: string, tagIds: number[]) => void;
   onSkipNextSync?: () => void;
+  onCleanupNonMatchingScheduleItems?: (routine: RoutineNode) => Promise<void>;
   onClose: () => void;
 }
 
@@ -110,6 +113,7 @@ export function RoutineManagementOverlay({
   onDeleteRoutineGroup,
   setTagsForGroup,
   onSkipNextSync,
+  onCleanupNonMatchingScheduleItems,
   onClose,
 }: RoutineManagementOverlayProps) {
   const { t } = useTranslation();
@@ -119,6 +123,7 @@ export function RoutineManagementOverlay({
   const [groupEditDialog, setGroupEditDialog] = useState<
     RoutineGroup | "new" | null
   >(null);
+  const [showTagManager, setShowTagManager] = useState(false);
 
   // Pending time change confirmation
   const [pendingTimeChange, setPendingTimeChange] = useState<{
@@ -174,6 +179,13 @@ export function RoutineManagementOverlay({
           (endTime !== undefined &&
             endTime !== (editDialog.endTime ?? undefined));
 
+        const freqChanged =
+          frequencyType !== editDialog.frequencyType ||
+          JSON.stringify(frequencyDays) !==
+            JSON.stringify(editDialog.frequencyDays) ||
+          frequencyInterval !== editDialog.frequencyInterval ||
+          frequencyStartDate !== editDialog.frequencyStartDate;
+
         const freqUpdates = {
           frequencyType,
           frequencyDays,
@@ -205,9 +217,36 @@ export function RoutineManagementOverlay({
             setTagsForRoutine(editDialog.id, tagIds);
           }
         }
+
+        // Clean up schedule items that no longer match the new frequency
+        if (freqChanged && onCleanupNonMatchingScheduleItems) {
+          const updatedRoutine: RoutineNode = {
+            ...editDialog,
+            title,
+            startTime: startTime ?? editDialog.startTime,
+            endTime: endTime ?? editDialog.endTime,
+            frequencyType: frequencyType ?? editDialog.frequencyType,
+            frequencyDays: frequencyDays ?? editDialog.frequencyDays,
+            frequencyInterval:
+              frequencyInterval !== undefined
+                ? frequencyInterval
+                : editDialog.frequencyInterval,
+            frequencyStartDate:
+              frequencyStartDate !== undefined
+                ? frequencyStartDate
+                : editDialog.frequencyStartDate,
+          };
+          onCleanupNonMatchingScheduleItems(updatedRoutine);
+        }
       }
     },
-    [editDialog, onCreateRoutine, onUpdateRoutine, setTagsForRoutine],
+    [
+      editDialog,
+      onCreateRoutine,
+      onUpdateRoutine,
+      setTagsForRoutine,
+      onCleanupNonMatchingScheduleItems,
+    ],
   );
 
   const handleGroupSubmit = useCallback(
@@ -309,12 +348,18 @@ export function RoutineManagementOverlay({
           <h3 className="text-base font-semibold text-notion-text">
             {t("dayFlow.routineManagement", "Routine Management")}
           </h3>
-          <button
-            onClick={onClose}
-            className="p-1 text-notion-text-secondary hover:text-notion-text rounded transition-colors"
-          >
-            <X size={16} />
-          </button>
+          <div className="flex items-center gap-1">
+            <IconButton
+              icon={<Tag size={16} />}
+              label={t("dayFlow.manageTags", "Manage Tags")}
+              onClick={() => setShowTagManager(true)}
+            />
+            <IconButton
+              icon={<X size={16} />}
+              label="Close"
+              onClick={onClose}
+            />
+          </div>
         </div>
 
         {/* Content - 2 columns */}
@@ -562,6 +607,16 @@ export function RoutineManagementOverlay({
               : undefined
           }
           onClose={() => setGroupEditDialog(null)}
+        />
+      )}
+
+      {showTagManager && (
+        <RoutineTagManager
+          tags={routineTags}
+          onCreateTag={onCreateRoutineTag}
+          onUpdateTag={onUpdateRoutineTag}
+          onDeleteTag={onDeleteRoutineTag}
+          onClose={() => setShowTagManager(false)}
         />
       )}
 

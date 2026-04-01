@@ -283,6 +283,9 @@ export class ElectronDataService implements DataService {
   permanentDeleteCustomSound(id: string): Promise<void> {
     return invoke("db:customSound:permanentDelete", id);
   }
+  updateCustomSoundLabel(id: string, label: string): Promise<void> {
+    return invoke("db:customSound:updateLabel", id, label);
+  }
 
   // Calendars
   fetchCalendars(): Promise<CalendarNode[]> {
@@ -515,6 +518,14 @@ export class ElectronDataService implements DataService {
       updates,
       fromDate,
     );
+  }
+
+  fetchScheduleItemsByRoutineId(routineId: string): Promise<ScheduleItem[]> {
+    return invoke("db:scheduleItems:fetchByRoutineId", routineId);
+  }
+
+  bulkDeleteScheduleItems(ids: string[]): Promise<number> {
+    return invoke("db:scheduleItems:bulkDelete", ids);
   }
 
   // Routine Groups

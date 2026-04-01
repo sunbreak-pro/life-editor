@@ -213,6 +213,11 @@ export function useScheduleItems() {
           a.startTime.localeCompare(b.startTime),
         ),
       );
+      setMonthlyScheduleItems((prev) =>
+        [...prev, optimistic].sort((a, b) =>
+          a.startTime.localeCompare(b.startTime),
+        ),
+      );
       getDataService()
         .createScheduleItem(
           id,
@@ -231,12 +236,20 @@ export function useScheduleItems() {
         label: "createScheduleItem",
         undo: () => {
           setScheduleItems((prev) => prev.filter((item) => item.id !== id));
+          setMonthlyScheduleItems((prev) =>
+            prev.filter((item) => item.id !== id),
+          );
           getDataService()
             .deleteScheduleItem(id)
             .catch((e) => logServiceError("ScheduleItems", "undoCreate", e));
         },
         redo: () => {
           setScheduleItems((prev) =>
+            [...prev, optimistic].sort((a, b) =>
+              a.startTime.localeCompare(b.startTime),
+            ),
+          );
+          setMonthlyScheduleItems((prev) =>
             [...prev, optimistic].sort((a, b) =>
               a.startTime.localeCompare(b.startTime),
             ),
@@ -325,6 +338,7 @@ export function useScheduleItems() {
     (id: string) => {
       const target = scheduleItemsRef.current.find((item) => item.id === id);
       setScheduleItems((prev) => prev.filter((item) => item.id !== id));
+      setMonthlyScheduleItems((prev) => prev.filter((item) => item.id !== id));
       getDataService()
         .deleteScheduleItem(id)
         .catch((e) => logServiceError("ScheduleItems", "delete", e));
@@ -334,6 +348,11 @@ export function useScheduleItems() {
           label: "deleteScheduleItem",
           undo: () => {
             setScheduleItems((prev) =>
+              [...prev, target].sort((a, b) =>
+                a.startTime.localeCompare(b.startTime),
+              ),
+            );
+            setMonthlyScheduleItems((prev) =>
               [...prev, target].sort((a, b) =>
                 a.startTime.localeCompare(b.startTime),
               ),
@@ -350,6 +369,9 @@ export function useScheduleItems() {
           },
           redo: () => {
             setScheduleItems((prev) => prev.filter((item) => item.id !== id));
+            setMonthlyScheduleItems((prev) =>
+              prev.filter((item) => item.id !== id),
+            );
             getDataService()
               .deleteScheduleItem(id)
               .catch((e) => logServiceError("ScheduleItems", "redoDelete", e));
@@ -461,6 +483,7 @@ export function useScheduleItems() {
   const dismissScheduleItem = useCallback(
     (id: string) => {
       setScheduleItems((prev) => prev.filter((item) => item.id !== id));
+      setMonthlyScheduleItems((prev) => prev.filter((item) => item.id !== id));
       getDataService()
         .dismissScheduleItem(id)
         .catch((e) => logServiceError("ScheduleItems", "dismiss", e));
@@ -493,7 +516,7 @@ export function useScheduleItems() {
             })
             .catch((e) => logServiceError("ScheduleItems", "update", e));
         }
-        setScheduleItems((prev) =>
+        const applyUpdates = (prev: ScheduleItem[]) =>
           prev
             .map((item) => {
               const upd = toUpdate.find((u) => u.id === item.id);
@@ -501,19 +524,21 @@ export function useScheduleItems() {
                 ? { ...item, ...upd, updatedAt: new Date().toISOString() }
                 : item;
             })
-            .sort((a, b) => a.startTime.localeCompare(b.startTime)),
-        );
+            .sort((a, b) => a.startTime.localeCompare(b.startTime));
+        setScheduleItems(applyUpdates);
+        setMonthlyScheduleItems(applyUpdates);
       }
 
       if (toCreate.length > 0) {
         try {
           const created =
             await getDataService().bulkCreateScheduleItems(toCreate);
-          setScheduleItems((prev) =>
+          const addCreated = (prev: ScheduleItem[]) =>
             [...prev, ...created].sort((a, b) =>
               a.startTime.localeCompare(b.startTime),
-            ),
-          );
+            );
+          setScheduleItems(addCreated);
+          setMonthlyScheduleItems(addCreated);
         } catch (e) {
           logServiceError("ScheduleItems", "bulkCreate", e);
         }
@@ -637,9 +662,40 @@ export function useScheduleItems() {
         };
       });
       if (changed) {
-        setScheduleItems(
-          updated.sort((a, b) => a.startTime.localeCompare(b.startTime)),
+        const sorted = updated.sort((a, b) =>
+          a.startTime.localeCompare(b.startTime),
         );
+        setScheduleItems(sorted);
+        // Also sync monthly items with the same routine title/time updates
+        setMonthlyScheduleItems((prev) => {
+          let monthlyChanged = false;
+          const monthlyUpdated = prev.map((item) => {
+            if (!item.routineId) return item;
+            const routine = routineMap.get(item.routineId);
+            if (!routine) return item;
+            const newTitle = routine.title;
+            const newStart = routine.startTime ?? "09:00";
+            const newEnd = routine.endTime ?? "09:30";
+            if (
+              item.title === newTitle &&
+              item.startTime === newStart &&
+              item.endTime === newEnd
+            )
+              return item;
+            monthlyChanged = true;
+            return {
+              ...item,
+              title: newTitle,
+              startTime: newStart,
+              endTime: newEnd,
+            };
+          });
+          return monthlyChanged
+            ? monthlyUpdated.sort((a, b) =>
+                a.startTime.localeCompare(b.startTime),
+              )
+            : prev;
+        });
       }
     },
     [],
@@ -786,6 +842,44 @@ export function useScheduleItems() {
     [bumpVersion],
   );
 
+  const cleanupNonMatchingScheduleItems = useCallback(
+    async (routine: RoutineNode) => {
+      try {
+        const allItems = await getDataService().fetchScheduleItemsByRoutineId(
+          routine.id,
+        );
+        const toDeleteIds = allItems
+          .filter(
+            (item) =>
+              !item.completed &&
+              !shouldRoutineRunOnDate(
+                routine.frequencyType,
+                routine.frequencyDays,
+                routine.frequencyInterval,
+                routine.frequencyStartDate,
+                item.date,
+              ),
+          )
+          .map((item) => item.id);
+
+        if (toDeleteIds.length === 0) return;
+
+        const deleteSet = new Set(toDeleteIds);
+        setScheduleItems((prev) =>
+          prev.filter((item) => !deleteSet.has(item.id)),
+        );
+        setMonthlyScheduleItems((prev) =>
+          prev.filter((item) => !deleteSet.has(item.id)),
+        );
+        await getDataService().bulkDeleteScheduleItems(toDeleteIds);
+        bumpVersion();
+      } catch (e) {
+        logServiceError("ScheduleItems", "cleanupNonMatching", e);
+      }
+    },
+    [bumpVersion],
+  );
+
   return useMemo(
     () => ({
       scheduleItems,
@@ -809,6 +903,7 @@ export function useScheduleItems() {
       skipNextSync,
       backfillMissedRoutineItems,
       scheduleItemsVersion,
+      cleanupNonMatchingScheduleItems,
     }),
     [
       scheduleItems,
@@ -831,6 +926,7 @@ export function useScheduleItems() {
       syncScheduleItemsWithRoutines,
       backfillMissedRoutineItems,
       scheduleItemsVersion,
+      cleanupNonMatchingScheduleItems,
     ],
   );
 }

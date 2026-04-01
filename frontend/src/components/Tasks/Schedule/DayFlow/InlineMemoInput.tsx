@@ -40,7 +40,7 @@ export function InlineMemoInput({
       onClick={(e) => e.stopPropagation()}
       onMouseDown={(e) => e.stopPropagation()}
       placeholder="memo..."
-      className="w-full text-[10px] bg-transparent outline-none border-b border-notion-accent/50 text-current placeholder:text-current/30 px-0.5"
+      className="w-full text-xs bg-transparent outline-none border-b border-notion-accent/50 text-current placeholder:text-current/30 px-0.5"
     />
   );
 }

@@ -617,8 +617,6 @@ export function CalendarView({
             if (tagIds.length > 0) {
               setTagsForScheduleItem(id, tagIds);
             }
-            // Refresh monthly schedule items so the calendar displays the new event
-            loadScheduleItemsForMonth(year, month);
             setEventCreatePopover(null);
           }}
           onClose={() => setEventCreatePopover(null)}
@@ -631,23 +629,19 @@ export function CalendarView({
           position={scheduleItemPreview.position}
           onToggleComplete={() => {
             toggleComplete(scheduleItemPreview.item.id);
-            loadScheduleItemsForMonth(year, month);
             setScheduleItemPreview(null);
           }}
           onUpdateMemo={(memo) => {
             updateScheduleItem(scheduleItemPreview.item.id, { memo });
-            loadScheduleItemsForMonth(year, month);
           }}
           onUpdateTime={(startTime, endTime) => {
             updateScheduleItem(scheduleItemPreview.item.id, {
               startTime,
               endTime,
             });
-            loadScheduleItemsForMonth(year, month);
           }}
           onDelete={() => {
             deleteScheduleItem(scheduleItemPreview.item.id);
-            loadScheduleItemsForMonth(year, month);
             setScheduleItemPreview(null);
           }}
           onClose={() => setScheduleItemPreview(null)}

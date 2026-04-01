@@ -65,6 +65,9 @@ export function createScheduleItemRepository(db: Database.Database) {
     fetchLastRoutineDate: db.prepare(
       `SELECT MAX(date) as last_date FROM schedule_items WHERE routine_id IS NOT NULL`,
     ),
+    fetchByRoutineId: db.prepare(
+      `SELECT * FROM schedule_items WHERE routine_id = ? AND is_dismissed = 0 ORDER BY date ASC`,
+    ),
     updateFutureByRoutine: db.prepare(`
       UPDATE schedule_items SET
         title = CASE WHEN @update_title THEN @title ELSE title END,
@@ -256,6 +259,25 @@ export function createScheduleItemRepository(db: Database.Database) {
           }
         | undefined;
       return row?.last_date ?? null;
+    },
+
+    fetchByRoutineId(routineId: string): ScheduleItem[] {
+      return (stmts.fetchByRoutineId.all(routineId) as ScheduleItemRow[]).map(
+        rowToItem,
+      );
+    },
+
+    bulkDelete(ids: string[]): number {
+      if (ids.length === 0) return 0;
+      const bulkDel = db.transaction(() => {
+        let count = 0;
+        for (const id of ids) {
+          const result = stmts.delete.run(id);
+          count += result.changes;
+        }
+        return count;
+      });
+      return bulkDel();
     },
   };
 }

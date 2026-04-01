@@ -163,4 +163,25 @@ export function registerScheduleItemHandlers(
     },
     () => undefined,
   );
+
+  query(
+    "db:scheduleItems:fetchByRoutineId",
+    "ScheduleItems",
+    "fetchByRoutineId",
+    (_event, routineId: string) => {
+      return repo.fetchByRoutineId(routineId);
+    },
+  );
+
+  mutation(
+    "db:scheduleItems:bulkDelete",
+    "ScheduleItems",
+    "bulkDelete",
+    "scheduleItem",
+    "bulk",
+    (_event, ids: string[]) => {
+      return repo.bulkDelete(ids);
+    },
+    () => undefined,
+  );
 }

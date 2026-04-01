@@ -321,6 +321,9 @@ export class RestDataService implements DataService {
   permanentDeleteCustomSound(_id: string): Promise<void> {
     return notSupported("Custom Sound");
   }
+  updateCustomSoundLabel(_id: string, _label: string): Promise<void> {
+    return notSupported("Custom Sound");
+  }
 
   // Calendars
   fetchCalendars(): Promise<CalendarNode[]> {
@@ -553,6 +556,14 @@ export class RestDataService implements DataService {
       ...updates,
       fromDate,
     });
+  }
+
+  fetchScheduleItemsByRoutineId(routineId: string): Promise<ScheduleItem[]> {
+    return get(`/api/schedule-items/by-routine/${routineId}`);
+  }
+
+  bulkDeleteScheduleItems(ids: string[]): Promise<number> {
+    return post(`/api/schedule-items/bulk-delete`, { ids });
   }
 
   // Routine Groups

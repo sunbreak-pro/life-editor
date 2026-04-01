@@ -1,5 +1,19 @@
 # HISTORY.md - 変更履歴
 
+### 2026-04-01 - UI統一 + Routine Calendar反映 + Tag編集 + Memo修正 + Reactivity改善
+
+#### 概要
+
+5つの要件を段階的に実装。Reactivityの根本原因（useScheduleItemsの4関数がmonthlyScheduleItemsを未更新）を修正し、Routine frequency変更時のスケジュールアイテムクリーンアップ、Tag編集のアクセス改善、Memo font-size統一、共有ボタンコンポーネント作成を実施。
+
+#### 変更点
+
+- **Reactivity修正**: `deleteScheduleItem`, `createScheduleItem`, `dismissScheduleItem`, `ensureRoutineItemsForDate`, `syncScheduleItemsWithRoutines` に `setMonthlyScheduleItems` 追加。CalendarViewの冗長な `loadScheduleItemsForMonth` 5箇所除去
+- **Memo修正**: InlineMemoInput の font-size を `text-[10px]` → `text-xs` に統一。即時反映はReactivity修正で解決
+- **Routine frequency対応**: IPC層追加（fetchByRoutineId, bulkDelete）。`cleanupNonMatchingScheduleItems` 関数を新設し、frequency変更時に不一致アイテムを全期間から削除
+- **Tag編集**: RoutineManagementOverlayヘッダーにTagアイコン追加。RoutineTagManagerのColorPickerを `preset-only` → `preset-full`（カスタムカラー対応）に変更
+- **ボタンUI統一**: `Button.tsx`（primary/secondary/danger, sm/md）、`IconButton.tsx`（ghost/danger, sm/md）を共有コンポーネントとして作成。ScheduleItemPreviewPopup, MemoPreviewPopup, RoutineManagementOverlay, RoutineTagManagerで段階的置換
+
 ### 2026-03-31 - Calendar 6-Issue Fix (Memo, Adjacent Month, Group, EndTime, Tags, Future Items)
 
 #### 概要
