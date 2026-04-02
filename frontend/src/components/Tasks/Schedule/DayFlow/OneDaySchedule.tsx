@@ -13,6 +13,8 @@ import { TimeGridClickMenu } from "./TimeGridClickMenu";
 import { RoutinePickerPanel } from "./RoutinePickerPanel";
 import { NoteSchedulePanel } from "../../../shared/NoteSchedulePanel/NoteSchedulePanel";
 import { RoutineDeleteConfirmDialog } from "./RoutineDeleteConfirmDialog";
+import { RoutineEditDialog } from "../Routine/RoutineEditDialog";
+import type { RoutineNode } from "../../../../types/routine";
 import { RoutineTimeChangeDialog } from "./RoutineTimeChangeDialog";
 import type { TabItem } from "../../../shared/SectionTabs";
 import { TIME_GRID } from "../../../../constants/timeGrid";
@@ -100,6 +102,9 @@ export function OneDaySchedule({
     groupForRoutine,
     createScheduleItem,
     skipNextSync,
+    setTagsForRoutine,
+    createRoutineTag,
+    cleanupNonMatchingScheduleItems,
   } = useScheduleContext();
   const { addNode, updateNode } = useTaskTreeContext();
   const dateKey = formatDateKey(date);
@@ -110,6 +115,8 @@ export function OneDaySchedule({
   const [selectedFilterGroupIds, setSelectedFilterGroupIds] = useState<
     string[]
   >([]);
+  const [editRoutineDialog, setEditRoutineDialog] =
+    useState<RoutineNode | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const routineTagMap = useMemo(() => {
@@ -466,6 +473,10 @@ export function OneDaySchedule({
               onStartTimer={onStartTimer}
               routineGroups={routineGroups}
               groupForRoutine={groupForRoutine}
+              onEditRoutine={(routineId) => {
+                const routine = routines.find((r) => r.id === routineId);
+                if (routine) setEditRoutineDialog(routine);
+              }}
               onDuplicateScheduleItem={(id) => {
                 const item = filteredScheduleItems.find((i) => i.id === id);
                 if (item) {
@@ -601,6 +612,68 @@ export function OneDaySchedule({
               });
               setRoutineTimeChange(null);
             }}
+          />
+        )}
+
+        {editRoutineDialog && (
+          <RoutineEditDialog
+            routine={editRoutineDialog}
+            tags={routineTags}
+            initialTagIds={tagAssignments.get(editRoutineDialog.id) ?? []}
+            onSubmit={(
+              title,
+              startTime,
+              endTime,
+              tagIds,
+              frequencyType,
+              frequencyDays,
+              frequencyInterval,
+              frequencyStartDate,
+            ) => {
+              skipNextSync();
+              updateRoutine(editRoutineDialog.id, {
+                title,
+                startTime,
+                endTime,
+                frequencyType,
+                frequencyDays,
+                frequencyInterval,
+                frequencyStartDate,
+              });
+              if (tagIds !== undefined) {
+                setTagsForRoutine(editRoutineDialog.id, tagIds);
+              }
+              if (
+                frequencyType !== editRoutineDialog.frequencyType ||
+                JSON.stringify(frequencyDays) !==
+                  JSON.stringify(editRoutineDialog.frequencyDays) ||
+                frequencyInterval !== editRoutineDialog.frequencyInterval ||
+                frequencyStartDate !== editRoutineDialog.frequencyStartDate
+              ) {
+                const updatedRoutine = {
+                  ...editRoutineDialog,
+                  title,
+                  startTime: startTime ?? editRoutineDialog.startTime,
+                  endTime: endTime ?? editRoutineDialog.endTime,
+                  frequencyType:
+                    frequencyType ?? editRoutineDialog.frequencyType,
+                  frequencyDays:
+                    frequencyDays ?? editRoutineDialog.frequencyDays,
+                  frequencyInterval:
+                    frequencyInterval !== undefined
+                      ? frequencyInterval
+                      : editRoutineDialog.frequencyInterval,
+                  frequencyStartDate:
+                    frequencyStartDate !== undefined
+                      ? frequencyStartDate
+                      : editRoutineDialog.frequencyStartDate,
+                };
+                cleanupNonMatchingScheduleItems(updatedRoutine);
+              }
+              setEditRoutineDialog(null);
+            }}
+            onCreateTag={createRoutineTag}
+            onClose={() => setEditRoutineDialog(null)}
           />
         )}
       </div>

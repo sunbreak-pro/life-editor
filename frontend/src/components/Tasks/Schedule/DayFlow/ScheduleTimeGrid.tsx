@@ -866,14 +866,9 @@ export function ScheduleTimeGrid({
             onToggleComplete(schedulePreview.item.id);
             setSchedulePreview(null);
           }}
-          onUpdateMemo={
-            onUpdateMemo
-              ? (memo) => {
-                  onUpdateMemo(schedulePreview.item.id, memo);
-                  setSchedulePreview((prev) =>
-                    prev ? { ...prev, item: { ...prev.item, memo } } : null,
-                  );
-                }
+          onEditRoutine={
+            schedulePreview.item.routineId && onEditRoutine
+              ? () => onEditRoutine(schedulePreview.item.routineId!)
               : undefined
           }
           onDelete={() => {
