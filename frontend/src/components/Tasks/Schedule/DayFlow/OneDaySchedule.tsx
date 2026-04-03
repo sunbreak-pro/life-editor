@@ -14,7 +14,9 @@ import { RoutinePickerPanel } from "./RoutinePickerPanel";
 import { NoteSchedulePanel } from "../../../shared/NoteSchedulePanel/NoteSchedulePanel";
 import { RoutineDeleteConfirmDialog } from "./RoutineDeleteConfirmDialog";
 import { RoutineEditDialog } from "../Routine/RoutineEditDialog";
+import { RoutineGroupEditDialog } from "../Routine/RoutineGroupEditDialog";
 import type { RoutineNode } from "../../../../types/routine";
+import type { RoutineGroup } from "../../../../types/routineGroup";
 import { RoutineTimeChangeDialog } from "./RoutineTimeChangeDialog";
 import type { TabItem } from "../../../shared/SectionTabs";
 import { TIME_GRID } from "../../../../constants/timeGrid";
@@ -105,6 +107,11 @@ export function OneDaySchedule({
     setTagsForRoutine,
     createRoutineTag,
     cleanupNonMatchingScheduleItems,
+    updateRoutineGroup,
+    deleteRoutineGroup,
+    groupTagAssignments,
+    setTagsForGroup,
+    groupTimeRange,
   } = useScheduleContext();
   const { addNode, updateNode } = useTaskTreeContext();
   const dateKey = formatDateKey(date);
@@ -117,6 +124,9 @@ export function OneDaySchedule({
   >([]);
   const [editRoutineDialog, setEditRoutineDialog] =
     useState<RoutineNode | null>(null);
+  const [editGroupDialog, setEditGroupDialog] = useState<RoutineGroup | null>(
+    null,
+  );
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const routineTagMap = useMemo(() => {
@@ -477,6 +487,25 @@ export function OneDaySchedule({
                 const routine = routines.find((r) => r.id === routineId);
                 if (routine) setEditRoutineDialog(routine);
               }}
+              onEditGroup={(groupId) => {
+                const group = routineGroups.find((g) => g.id === groupId);
+                if (group) setEditGroupDialog(group);
+              }}
+              onDeleteGroup={(groupId, dismissToday) => {
+                if (dismissToday) {
+                  // Dismiss all schedule items in this group for today
+                  const groupRoutineIds = new Set(
+                    (routinesByGroup.get(groupId) ?? []).map((r) => r.id),
+                  );
+                  for (const item of filteredScheduleItems) {
+                    if (item.routineId && groupRoutineIds.has(item.routineId)) {
+                      dismissScheduleItem(item.id);
+                    }
+                  }
+                } else {
+                  deleteRoutineGroup(groupId);
+                }
+              }}
               onDuplicateScheduleItem={(id) => {
                 const item = filteredScheduleItems.find((i) => i.id === id);
                 if (item) {
@@ -674,6 +703,37 @@ export function OneDaySchedule({
             }}
             onCreateTag={createRoutineTag}
             onClose={() => setEditRoutineDialog(null)}
+          />
+        )}
+
+        {editGroupDialog && (
+          <RoutineGroupEditDialog
+            group={editGroupDialog}
+            tags={routineTags}
+            initialTagIds={groupTagAssignments.get(editGroupDialog.id) ?? []}
+            memberRoutines={routinesByGroup.get(editGroupDialog.id) ?? []}
+            groupTimeRange={groupTimeRange.get(editGroupDialog.id)}
+            onSubmit={(
+              name,
+              color,
+              tagIds,
+              frequencyType,
+              frequencyDays,
+              frequencyInterval,
+              frequencyStartDate,
+            ) => {
+              updateRoutineGroup(editGroupDialog.id, {
+                name,
+                color,
+                frequencyType,
+                frequencyDays,
+                frequencyInterval,
+                frequencyStartDate,
+              });
+              setTagsForGroup(editGroupDialog.id, tagIds);
+              setEditGroupDialog(null);
+            }}
+            onClose={() => setEditGroupDialog(null)}
           />
         )}
       </div>

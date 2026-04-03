@@ -984,6 +984,11 @@
     "convertToRoutine": "ルーティンに変換",
     "duplicate": "複製"
   },
+  "groupContextMenu": {
+    "edit": "グループを編集",
+    "dismissToday": "今日だけ非表示",
+    "deleteGroup": "グループを削除"
+  },
   "routineGroup": {
     "groups": "グループ",
     "create": "グループ作成",

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Check, StickyNote, Trash2 } from "lucide-react";
 import type { ScheduleItem } from "../../../../types/schedule";
 import { InlineMemoInput } from "./InlineMemoInput";
@@ -26,10 +26,8 @@ interface ScheduleItemBlockProps {
   isDragging?: boolean;
   hasTaskOverlap?: boolean;
   hasMovedRef?: React.RefObject<boolean>;
-  onShowPreview?: (
-    item: ScheduleItem,
-    position: { x: number; y: number },
-  ) => void;
+  activeMemoItemId?: string | null;
+  onClearActiveMemo?: () => void;
   onContextMenu?: (
     item: ScheduleItem,
     position: { x: number; y: number },
@@ -59,13 +57,21 @@ export function ScheduleItemBlock({
   isDragging,
   hasTaskOverlap,
   hasMovedRef,
-  onShowPreview,
+  activeMemoItemId,
+  onClearActiveMemo,
   onContextMenu,
 }: ScheduleItemBlockProps) {
   const isCompact = height < 36;
   const isTiny = height < 28;
   const [showInlineMemo, setShowInlineMemo] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
+
+  useEffect(() => {
+    if (activeMemoItemId === item.id) {
+      setShowInlineMemo(true);
+      onClearActiveMemo?.();
+    }
+  }, [activeMemoItemId, item.id, onClearActiveMemo]);
 
   const { isOpen, translateX, isScrolling, close, containerRef } =
     useSwipeAction({ actionWidth: ACTION_WIDTH });
@@ -167,11 +173,7 @@ export function ScheduleItemBlock({
             return;
           }
           e.stopPropagation();
-          if (onShowPreview) {
-            onShowPreview(item, { x: e.clientX, y: e.clientY });
-          } else {
-            onToggleComplete(item.id);
-          }
+          onToggleComplete(item.id);
         }}
         onMouseDown={(e) => {
           if (!isOpen) dragHandlers?.onMouseDown(e);

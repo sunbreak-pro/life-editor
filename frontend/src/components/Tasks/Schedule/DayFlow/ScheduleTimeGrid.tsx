@@ -17,6 +17,9 @@ import {
   topToMinutes,
   timeToMinutes,
 } from "../../../../utils/timeGridUtils";
+import { createPortal } from "react-dom";
+import { useTranslation } from "react-i18next";
+import { Pencil, Trash2, EyeOff } from "lucide-react";
 
 const HOURS = Array.from(
   { length: TIME_GRID.END_HOUR - TIME_GRID.START_HOUR },
@@ -55,6 +58,96 @@ interface ComputedGroupFrame {
   height: number;
   itemCount: number;
   timeRange: string;
+}
+
+function GroupContextMenu({
+  position,
+  onEdit,
+  onDismissToday,
+  onDeleteGroup,
+  onClose,
+}: {
+  position: { x: number; y: number };
+  onEdit?: () => void;
+  onDismissToday?: () => void;
+  onDeleteGroup?: () => void;
+  onClose: () => void;
+}) {
+  const { t } = useTranslation();
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    const handleClickOutside = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        onClose();
+      }
+    };
+    document.addEventListener("keydown", handleEscape);
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("keydown", handleEscape);
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [onClose]);
+
+  const menuWidth = 200;
+  const menuHeight = 140;
+  const left = Math.min(position.x, window.innerWidth - menuWidth - 8);
+  const top = Math.min(position.y, window.innerHeight - menuHeight - 8);
+  const iconSize = 14;
+  const iconClass = "text-notion-text-secondary shrink-0";
+
+  return createPortal(
+    <div
+      ref={menuRef}
+      className="fixed z-[60] bg-notion-bg border border-notion-border rounded-lg shadow-xl overflow-hidden py-1"
+      style={{ top, left, width: menuWidth }}
+    >
+      {onEdit && (
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            onEdit();
+          }}
+          className="w-full flex items-center gap-2 px-3 py-1.5 text-xs text-notion-text hover:bg-notion-hover transition-colors text-left"
+        >
+          <Pencil size={iconSize} className={iconClass} />
+          {t("groupContextMenu.edit", "Edit group")}
+        </button>
+      )}
+      {onDismissToday && (
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            onDismissToday();
+          }}
+          className="w-full flex items-center gap-2 px-3 py-1.5 text-xs text-notion-text hover:bg-notion-hover transition-colors text-left"
+        >
+          <EyeOff size={iconSize} className={iconClass} />
+          {t("groupContextMenu.dismissToday", "Dismiss today")}
+        </button>
+      )}
+      {(onEdit || onDismissToday) && onDeleteGroup && (
+        <div className="h-px bg-notion-border my-1" />
+      )}
+      {onDeleteGroup && (
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            onDeleteGroup();
+          }}
+          className="w-full flex items-center gap-2 px-3 py-1.5 text-xs text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors text-left"
+        >
+          <Trash2 size={iconSize} className="text-red-500 shrink-0" />
+          {t("groupContextMenu.deleteGroup", "Delete group")}
+        </button>
+      )}
+    </div>,
+    document.body,
+  );
 }
 
 function rangesOverlap(
@@ -227,12 +320,13 @@ interface ScheduleTimeGridProps {
   onDeleteTask?: (taskId: string) => void;
   onUpdateTaskTitle?: (taskId: string, title: string) => void;
   onStartTimer?: (task: TaskNode) => void;
-  enablePreview?: boolean;
   // Group visualization
   routineGroups?: RoutineGroup[];
   groupForRoutine?: Map<string, RoutineGroup>;
   onGroupDragEnd?: (groupId: string, offsetMinutes: number) => void;
   onEditRoutine?: (routineId: string) => void;
+  onEditGroup?: (groupId: string) => void;
+  onDeleteGroup?: (groupId: string, dismissToday: boolean) => void;
   // Context menu actions
   onDuplicateScheduleItem?: (id: string) => void;
 }
@@ -258,11 +352,12 @@ export function ScheduleTimeGrid({
   onDeleteTask,
   onUpdateTaskTitle,
   onStartTimer,
-  enablePreview,
   routineGroups,
   groupForRoutine,
   onGroupDragEnd,
   onEditRoutine,
+  onEditGroup,
+  onDeleteGroup,
   onDuplicateScheduleItem,
 }: ScheduleTimeGridProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -277,6 +372,15 @@ export function ScheduleTimeGrid({
   const [schedulePreview, setSchedulePreview] = useState<{
     item: ScheduleItem;
     position: { x: number; y: number };
+  } | null>(null);
+
+  // Active memo item state (for context menu "Add memo")
+  const [activeMemoItemId, setActiveMemoItemId] = useState<string | null>(null);
+
+  // Group context menu state
+  const [groupContextMenu, setGroupContextMenu] = useState<{
+    position: { x: number; y: number };
+    groupId: string;
   } | null>(null);
 
   const handleShowTaskPreview = useCallback(
@@ -490,7 +594,7 @@ export function ScheduleTimeGrid({
           groupName: group.name,
           groupColor: group.color,
           top: minTop - GROUP_HEADER_HEIGHT,
-          height: maxBottom - minTop + GROUP_HEADER_HEIGHT,
+          height: maxBottom - minTop + GROUP_HEADER_HEIGHT + 4,
           itemCount: count,
           timeRange: `${startStr} - ${endStr}`,
         };
@@ -527,7 +631,8 @@ export function ScheduleTimeGrid({
     (currentTime.getHours() - TIME_GRID.START_HOUR) * TIME_GRID.SLOT_HEIGHT +
     (currentTime.getMinutes() / 60) * TIME_GRID.SLOT_HEIGHT;
 
-  const handleColumnClick = (e: React.MouseEvent<HTMLDivElement>) => {
+  const handleColumnContextMenu = (e: React.MouseEvent<HTMLDivElement>) => {
+    e.preventDefault();
     if (dragState.isDragging) return;
     if (hasMovedRef.current) return;
 
@@ -577,7 +682,7 @@ export function ScheduleTimeGrid({
       <div
         ref={mainColumnRef}
         className="flex-1 relative border-l border-notion-border cursor-default"
-        onClick={handleColumnClick}
+        onContextMenu={handleColumnContextMenu}
       >
         {/* Hour grid lines */}
         {HOURS.map((hour) => (
@@ -625,6 +730,19 @@ export function ScheduleTimeGrid({
                 ? (e) => {
                     e.stopPropagation();
                     // Group drag is handled by parent via callback
+                  }
+                : undefined
+            }
+            onDoubleClick={
+              onEditGroup ? () => onEditGroup(gf.groupId) : undefined
+            }
+            onHeaderContextMenu={
+              onEditGroup || onDeleteGroup
+                ? (e) => {
+                    setGroupContextMenu({
+                      position: { x: e.clientX, y: e.clientY },
+                      groupId: gf.groupId,
+                    });
                   }
                 : undefined
             }
@@ -720,9 +838,8 @@ export function ScheduleTimeGrid({
                 onNavigate={onNavigateTask}
                 hasMovedRef={hasMovedRef}
                 onUpdateTimeMemo={onUpdateTaskTimeMemo}
-                onShowPreview={
-                  enablePreview ? handleShowTaskPreview : undefined
-                }
+                activeMemoItemId={activeMemoItemId}
+                onClearActiveMemo={() => setActiveMemoItemId(null)}
                 onContextMenu={(task, position) =>
                   setContextMenu({
                     position,
@@ -774,9 +891,8 @@ export function ScheduleTimeGrid({
                   dragState.itemId === item.scheduleItem.id
                 }
                 hasMovedRef={hasMovedRef}
-                onShowPreview={
-                  enablePreview ? handleShowSchedulePreview : undefined
-                }
+                activeMemoItemId={activeMemoItemId}
+                onClearActiveMemo={() => setActiveMemoItemId(null)}
                 onContextMenu={(si, position) =>
                   setContextMenu({
                     position,
@@ -809,7 +925,7 @@ export function ScheduleTimeGrid({
     </div>
   );
 
-  const previewPopups = enablePreview && (
+  const previewPopups = (
     <>
       {taskPreview && (
         <TaskPreviewPopup
@@ -938,6 +1054,7 @@ export function ScheduleTimeGrid({
           } else {
             onUpdateTaskTimeMemo?.(contextMenu.itemId, "");
           }
+          setActiveMemoItemId(contextMenu.itemId);
         }}
         onExtend15={handleContextMenuExtend15}
         onShrink15={handleContextMenuShrink15}
@@ -947,12 +1064,44 @@ export function ScheduleTimeGrid({
       />
     );
 
+  const groupContextMenuPopup = groupContextMenu && (
+    <GroupContextMenu
+      position={groupContextMenu.position}
+      onEdit={
+        onEditGroup
+          ? () => {
+              onEditGroup(groupContextMenu.groupId);
+              setGroupContextMenu(null);
+            }
+          : undefined
+      }
+      onDismissToday={
+        onDeleteGroup
+          ? () => {
+              onDeleteGroup(groupContextMenu.groupId, true);
+              setGroupContextMenu(null);
+            }
+          : undefined
+      }
+      onDeleteGroup={
+        onDeleteGroup
+          ? () => {
+              onDeleteGroup(groupContextMenu.groupId, false);
+              setGroupContextMenu(null);
+            }
+          : undefined
+      }
+      onClose={() => setGroupContextMenu(null)}
+    />
+  );
+
   if (externalScroll) {
     return (
       <>
         {gridContent}
         {previewPopups}
         {contextMenuPopup}
+        {groupContextMenuPopup}
       </>
     );
   }
@@ -964,6 +1113,7 @@ export function ScheduleTimeGrid({
       </div>
       {previewPopups}
       {contextMenuPopup}
+      {groupContextMenuPopup}
     </div>
   );
 }

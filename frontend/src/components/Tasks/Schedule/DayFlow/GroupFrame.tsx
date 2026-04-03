@@ -11,6 +11,8 @@ interface GroupFrameProps {
   left?: string;
   width?: string;
   onMouseDown?: (e: React.MouseEvent) => void;
+  onDoubleClick?: () => void;
+  onHeaderContextMenu?: (e: React.MouseEvent) => void;
 }
 
 export function GroupFrame({
@@ -24,6 +26,8 @@ export function GroupFrame({
   left = "2px",
   width = "calc(100% - 4px)",
   onMouseDown,
+  onDoubleClick,
+  onHeaderContextMenu,
 }: GroupFrameProps) {
   const { t } = useTranslation();
   return (
@@ -41,11 +45,22 @@ export function GroupFrame({
     >
       {/* Header bar */}
       <div
-        className="flex items-center gap-1.5 px-2 select-none pointer-events-none"
+        className={`flex items-center gap-1.5 px-2 select-none ${onDoubleClick ? "cursor-pointer" : "pointer-events-none"}`}
         style={{
           height: headerHeight,
           backgroundColor: `${groupColor}40`,
           borderBottom: `2px solid ${groupColor}50`,
+        }}
+        onDoubleClick={(e) => {
+          e.stopPropagation();
+          onDoubleClick?.();
+        }}
+        onContextMenu={(e) => {
+          if (onHeaderContextMenu) {
+            e.preventDefault();
+            e.stopPropagation();
+            onHeaderContextMenu(e);
+          }
         }}
       >
         <div

@@ -3,6 +3,11 @@ import { Repeat, Plus } from "lucide-react";
 import type { CalendarItem } from "../../../../types/calendarItem";
 import { CalendarItemChip } from "./CalendarItemChip";
 import { useClickOutside } from "../../../../hooks/useClickOutside";
+import {
+  getDateType,
+  getDateBgClass,
+  getDateTextClass,
+} from "../../../../utils/holidays";
 
 interface DayCellProps {
   date: Date;
@@ -41,12 +46,18 @@ export function DayCell({
   const closeMore = () => setShowMore(false);
   useClickOutside(moreRef, closeMore, showMore);
 
-  const cellBg = isCurrentMonth ? "bg-notion-bg" : "bg-notion-bg-secondary/50";
+  const dateType = getDateType(date);
+  const dateBg = getDateBgClass(dateType, isCurrentMonth);
+  const cellBg =
+    dateBg || (isCurrentMonth ? "bg-notion-bg" : "bg-notion-bg-secondary/50");
+  const dateTextColor = getDateTextClass(dateType);
   const dateColor = isToday
     ? "w-6 h-6 flex items-center justify-center rounded-full bg-notion-accent text-white font-bold"
-    : isCurrentMonth
-      ? "text-notion-text"
-      : "text-notion-text-secondary/50";
+    : dateTextColor
+      ? dateTextColor
+      : isCurrentMonth
+        ? "text-notion-text"
+        : "text-notion-text-secondary/50";
 
   return (
     <div

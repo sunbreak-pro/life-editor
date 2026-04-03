@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { ArrowUpRight, Check, StickyNote, X } from "lucide-react";
 import type { TaskNode } from "../../../../types/taskTree";
 import { getTextColorForBg } from "../../../../constants/folderColors";
@@ -28,7 +28,8 @@ interface TimeGridTaskBlockProps {
   onNavigate?: (taskId: string, e: React.MouseEvent) => void;
   hasMovedRef?: React.RefObject<boolean>;
   onUpdateTimeMemo?: (taskId: string, memo: string | null) => void;
-  onShowPreview?: (task: TaskNode, position: { x: number; y: number }) => void;
+  activeMemoItemId?: string | null;
+  onClearActiveMemo?: () => void;
   onContextMenu?: (task: TaskNode, position: { x: number; y: number }) => void;
 }
 
@@ -50,7 +51,8 @@ export function TimeGridTaskBlock({
   onNavigate,
   hasMovedRef,
   onUpdateTimeMemo,
-  onShowPreview,
+  activeMemoItemId,
+  onClearActiveMemo,
   onContextMenu,
 }: TimeGridTaskBlockProps) {
   const isCompleted = task.status === "DONE";
@@ -66,6 +68,13 @@ export function TimeGridTaskBlock({
   const hasTimeMemo = !!task.timeMemo;
   const [showInlineMemo, setShowInlineMemo] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
+
+  useEffect(() => {
+    if (activeMemoItemId === task.id) {
+      setShowInlineMemo(true);
+      onClearActiveMemo?.();
+    }
+  }, [activeMemoItemId, task.id, onClearActiveMemo]);
 
   const { isOpen, translateX, isScrolling, close, containerRef } =
     useSwipeAction({ actionWidth: ACTION_WIDTH });
@@ -143,11 +152,7 @@ export function TimeGridTaskBlock({
             return;
           }
           e.stopPropagation();
-          if (onShowPreview) {
-            onShowPreview(task, { x: e.clientX, y: e.clientY });
-          } else {
-            onToggleTaskStatus?.(task.id);
-          }
+          onToggleTaskStatus?.(task.id);
         }}
         onMouseDown={(e) => {
           if (!isOpen) dragHandlers?.onMouseDown(e);

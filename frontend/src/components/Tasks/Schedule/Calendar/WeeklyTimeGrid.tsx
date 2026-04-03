@@ -4,6 +4,11 @@ import type { MemoNode } from "../../../../types/memo";
 import { TIME_GRID } from "../../../../constants/timeGrid";
 import { TimeGridTaskBlock } from "./TimeGridTaskBlock";
 import { formatDateKey } from "../../../../hooks/useCalendar";
+import {
+  getDateType,
+  getDateBgClass,
+  getDateTextClass,
+} from "../../../../utils/holidays";
 
 const DAY_NAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const HOURS = Array.from(
@@ -193,12 +198,16 @@ export function WeeklyTimeGrid({
         {days.map((day, i) => {
           const key = formatDateKey(day.date);
           const isToday = key === todayKey;
+          const dateType = getDateType(day.date);
+          const headerTextColor = getDateTextClass(dateType);
           return (
             <div
               key={i}
-              className="flex-1 text-center py-2 border-l border-notion-border"
+              className={`flex-1 text-center py-2 border-l border-notion-border ${getDateBgClass(dateType)}`}
             >
-              <div className="text-xs text-notion-text-secondary">
+              <div
+                className={`text-xs ${headerTextColor || "text-notion-text-secondary"}`}
+              >
                 {DAY_NAMES[day.date.getDay()]}
               </div>
               <div className="flex items-center justify-center gap-1">
@@ -206,7 +215,7 @@ export function WeeklyTimeGrid({
                   className={`text-sm font-medium ${
                     isToday
                       ? "w-7 h-7 flex items-center justify-center rounded-full bg-notion-accent text-white"
-                      : "text-notion-text"
+                      : headerTextColor || "text-notion-text"
                   }`}
                 >
                   {day.date.getDate()}
@@ -303,11 +312,12 @@ export function WeeklyTimeGrid({
             const key = formatDateKey(day.date);
             const isToday = key === todayKey;
             const positioned = positionedByDay.get(key) ?? [];
+            const colDateType = getDateType(day.date);
 
             return (
               <div
                 key={i}
-                className="flex-1 relative border-l border-notion-border cursor-pointer"
+                className={`flex-1 relative border-l border-notion-border cursor-pointer ${getDateBgClass(colDateType)}`}
                 onClick={(e) => handleColumnClick(day.date, e)}
               >
                 {/* Hour grid lines */}

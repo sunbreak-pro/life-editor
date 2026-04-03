@@ -301,27 +301,26 @@ export function BubbleToolbar({ editor }: BubbleToolbarProps) {
 
           <div className="bubble-toolbar-divider" />
 
-          <div className="relative">
-            <button
-              className="bubble-toolbar-btn"
-              onMouseDown={(e) => {
-                e.preventDefault();
-                setShowColorPicker(!showColorPicker);
-              }}
-              title="Text color"
-            >
-              <Palette size={14} />
-            </button>
-            {showColorPicker && (
-              <div className="bubble-toolbar-color-picker">
-                <UnifiedColorPicker
-                  color=""
-                  onChange={handleColorSelect}
-                  mode="preset-only"
-                />
-              </div>
-            )}
-          </div>
+          <button
+            className="bubble-toolbar-btn"
+            onMouseDown={(e) => {
+              e.preventDefault();
+              setShowColorPicker(!showColorPicker);
+            }}
+            title="Text color"
+          >
+            <Palette size={14} />
+          </button>
+          {showColorPicker && (
+            <>
+              <div className="bubble-toolbar-divider" />
+              <UnifiedColorPicker
+                color=""
+                onChange={handleColorSelect}
+                mode="preset-only"
+              />
+            </>
+          )}
         </div>
 
         {/* Turn Into CommandPanel dropdown */}

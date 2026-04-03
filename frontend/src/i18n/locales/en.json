@@ -984,6 +984,11 @@
     "convertToRoutine": "Convert to routine",
     "duplicate": "Duplicate"
   },
+  "groupContextMenu": {
+    "edit": "Edit group",
+    "dismissToday": "Dismiss today",
+    "deleteGroup": "Delete group"
+  },
   "routineGroup": {
     "groups": "Groups",
     "create": "Create Group",
