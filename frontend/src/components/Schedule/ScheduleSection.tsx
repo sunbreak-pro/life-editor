@@ -23,8 +23,9 @@ import { useUndoRedo } from "../shared/UndoRedo";
 
 import type { TaskNode } from "../../types/taskTree";
 import { ScheduleTasksContent } from "./ScheduleTasksContent";
+import { ScheduleEventsContent } from "./ScheduleEventsContent";
 
-export type ScheduleTab = "calendar" | "dayflow" | "tasks";
+export type ScheduleTab = "calendar" | "dayflow" | "tasks" | "events";
 
 const CALENDAR_PROGRESS_TABS: readonly TabItem<DayFlowFilterTab>[] = [
   { id: "all", labelKey: "dayFlow.filterAll" },
@@ -39,6 +40,7 @@ const SCHEDULE_TABS: readonly TabItem<ScheduleTab>[] = [
   { id: "calendar", labelKey: "tabs.calendar" },
   { id: "dayflow", labelKey: "tabs.dayflow" },
   { id: "tasks", labelKey: "tabs.tasks" },
+  { id: "events", labelKey: "tabs.events" },
 ];
 
 interface ScheduleSectionProps {
@@ -108,6 +110,8 @@ export function ScheduleSection({
   const [calendarContentFilters, setCalendarContentFilters] = useState<
     Set<DayFlowFilterTab>
   >(() => new Set());
+
+  const [calendarSearchQuery, setCalendarSearchQuery] = useState("");
 
   // Calendar progress date state
   const [calendarProgressDate, setCalendarProgressDate] = useState<Date>(
@@ -451,6 +455,18 @@ export function ScheduleSection({
                   ? calendarContentFilters
                   : undefined
             }
+            filterFolderId={
+              activeTab === "calendar" ? calendarFilterFolderId : undefined
+            }
+            onFilterFolderChange={
+              activeTab === "calendar" ? setCalendarFilterFolderId : undefined
+            }
+            searchQuery={
+              activeTab === "calendar" ? calendarSearchQuery : undefined
+            }
+            onSearchQueryChange={
+              activeTab === "calendar" ? setCalendarSearchQuery : undefined
+            }
             onSelectTask={(taskId) => {
               onSelectTask?.(taskId);
               setActiveTab("tasks");
@@ -493,6 +509,7 @@ export function ScheduleSection({
             filterFolderId={calendarFilterFolderId}
             onFilterFolderChange={setCalendarFilterFolderId}
             contentFilters={calendarContentFilters}
+            searchQuery={calendarSearchQuery}
             onDateSelect={handleCalendarDateSelect}
             onOpenRoutineManagement={() => setShowRoutineManagement(true)}
           />
@@ -504,6 +521,8 @@ export function ScheduleSection({
             onFilterChange={onFilterChange ?? (() => {})}
             onPlayTask={onPlayTask}
           />
+        ) : activeTab === "events" ? (
+          <ScheduleEventsContent />
         ) : isDualColumn ? (
           <DualDayFlowLayout
             getTaskColor={getTaskColor}

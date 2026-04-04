@@ -6,9 +6,9 @@
 
 ## 直近の完了
 
+- Calendar UI改善（MiniTodayFlow Routine修正、Undo Completeラベル、Today削除+フォルダフィルタ移動、検索システム） ✅（2026-04-04）
+- Event First-Class Entity + 全ビューRole切り替え（DB migration V46、Events tab、EventDetailPanel、ConversionToast、RoleSwitcher統合） ✅（2026-04-04）
 - Routine schedule reconciliation リファクタリング（cleanup→reconcile統合、skipNextSync廃止、全ビュー統一） ✅（2026-04-04）
-- Role変換機能（CalendarアイテムのTask/Event/Note/Daily相互変換） ✅（2026-04-04）
-- Noir テーマ削除 + カレンダー色テキストのみ化 + ボタンUI統一 + ルーティン編集リフレッシュ + 祝日アイテム生成 ✅（2026-04-04）
 
 ## 予定
 

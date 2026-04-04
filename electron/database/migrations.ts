@@ -210,6 +210,11 @@ export function runMigrations(db: Database.Database): void {
     migrateV45(db);
   }
 
+  if (currentVersion < 46) {
+    log.info("[DB] Running migration V46");
+    migrateV46(db);
+  }
+
   const newVersion = db.pragma("user_version", { simple: true }) as number;
   if (newVersion !== currentVersion) {
     log.info(`[DB] Schema migrated: ${currentVersion} → ${newVersion}`);
@@ -1661,4 +1666,16 @@ function migrateV45(db: Database.Database): void {
   });
   migrate();
   db.pragma("user_version = 45");
+}
+
+function migrateV46(db: Database.Database): void {
+  const migrate = db.transaction(() => {
+    if (!hasColumn(db, "schedule_items", "content")) {
+      db.exec(
+        `ALTER TABLE schedule_items ADD COLUMN content TEXT DEFAULT NULL`,
+      );
+    }
+  });
+  migrate();
+  db.pragma("user_version = 46");
 }

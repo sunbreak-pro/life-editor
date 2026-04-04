@@ -13,6 +13,7 @@ interface ScheduleItemRow {
   template_id: string | null;
   memo: string | null;
   note_id: string | null;
+  content: string | null;
   is_dismissed: number;
   is_all_day: number;
   created_at: string;
@@ -32,6 +33,7 @@ function rowToItem(row: ScheduleItemRow): ScheduleItem {
     templateId: row.template_id,
     memo: row.memo ?? null,
     noteId: row.note_id ?? null,
+    content: row.content ?? null,
     isDismissed: row.is_dismissed === 1,
     isAllDay: row.is_all_day === 1,
     createdAt: row.created_at,
@@ -49,15 +51,18 @@ export function createScheduleItemRepository(db: Database.Database) {
     ),
     fetchById: db.prepare(`SELECT * FROM schedule_items WHERE id = ?`),
     insert: db.prepare(`
-      INSERT INTO schedule_items (id, date, title, start_time, end_time, completed, completed_at, routine_id, template_id, note_id, is_all_day, created_at, updated_at)
-      VALUES (@id, @date, @title, @start_time, @end_time, 0, NULL, @routine_id, @template_id, @note_id, @is_all_day, datetime('now'), datetime('now'))
+      INSERT INTO schedule_items (id, date, title, start_time, end_time, completed, completed_at, routine_id, template_id, note_id, is_all_day, content, created_at, updated_at)
+      VALUES (@id, @date, @title, @start_time, @end_time, 0, NULL, @routine_id, @template_id, @note_id, @is_all_day, @content, datetime('now'), datetime('now'))
     `),
     update: db.prepare(`
       UPDATE schedule_items SET title = @title, start_time = @start_time, end_time = @end_time,
       completed = @completed, completed_at = @completed_at, memo = @memo, is_all_day = @is_all_day,
-      version = version + 1, updated_at = datetime('now')
+      content = @content, version = version + 1, updated_at = datetime('now')
       WHERE id = @id
     `),
+    fetchEvents: db.prepare(
+      `SELECT * FROM schedule_items WHERE routine_id IS NULL AND is_dismissed = 0 ORDER BY date DESC, start_time ASC`,
+    ),
     delete: db.prepare(`DELETE FROM schedule_items WHERE id = ?`),
     findByRoutineAndDate: db.prepare(
       `SELECT * FROM schedule_items WHERE routine_id = ? AND date = ?`,
@@ -100,6 +105,7 @@ export function createScheduleItemRepository(db: Database.Database) {
       templateId?: string,
       noteId?: string,
       isAllDay?: boolean,
+      content?: string,
     ): ScheduleItem {
       stmts.insert.run({
         id,
@@ -111,6 +117,7 @@ export function createScheduleItemRepository(db: Database.Database) {
         template_id: templateId ?? null,
         note_id: noteId ?? null,
         is_all_day: isAllDay ? 1 : 0,
+        content: content ?? null,
       });
       const row = stmts.fetchById.get(id) as ScheduleItemRow;
       return rowToItem(row);
@@ -128,6 +135,7 @@ export function createScheduleItemRepository(db: Database.Database) {
           | "completedAt"
           | "memo"
           | "isAllDay"
+          | "content"
         >
       >,
     ): ScheduleItem {
@@ -153,6 +161,8 @@ export function createScheduleItemRepository(db: Database.Database) {
             : current.isAllDay
               ? 1
               : 0,
+        content:
+          updates.content !== undefined ? updates.content : current.content,
       });
       const row = stmts.fetchById.get(id) as ScheduleItemRow;
       return rowToItem(row);
@@ -181,6 +191,7 @@ export function createScheduleItemRepository(db: Database.Database) {
         completed_at: nowCompleted ? new Date().toISOString() : null,
         memo: existing.memo,
         is_all_day: existing.is_all_day,
+        content: existing.content,
       });
       const row = stmts.fetchById.get(id) as ScheduleItemRow;
       return rowToItem(row);
@@ -208,6 +219,10 @@ export function createScheduleItemRepository(db: Database.Database) {
         from_date: fromDate,
       });
       return result.changes;
+    },
+
+    fetchEvents(): ScheduleItem[] {
+      return (stmts.fetchEvents.all() as ScheduleItemRow[]).map(rowToItem);
     },
 
     bulkCreate(
@@ -243,6 +258,7 @@ export function createScheduleItemRepository(db: Database.Database) {
             template_id: item.templateId ?? null,
             note_id: item.noteId ?? null,
             is_all_day: 0,
+            content: null,
           });
           const row = stmts.fetchById.get(item.id) as ScheduleItemRow;
           results.push(rowToItem(row));

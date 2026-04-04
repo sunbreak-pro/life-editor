@@ -294,6 +294,8 @@
   "schedule": {
     "todayFlow": "Today Flow",
     "noItems": "No items for this day",
+    "complete": "Complete",
+    "undoComplete": "Undo Complete",
     "dayFlow": "Day Flow",
     "routines": "Routines",
     "newRoutine": "New Routine",
@@ -725,7 +727,9 @@
     "roleEvent": "Event",
     "roleNote": "Note",
     "roleDaily": "Daily",
-    "conversionSuccess": "Converted to {{role}}"
+    "conversionSuccess": "Converted to {{role}}",
+    "goToTarget": "Go to {{role}}",
+    "searchPlaceholder": "Search items..."
   },
   "search": {
     "placeholder": "Search tasks...",
@@ -764,6 +768,7 @@
     "calendar": "Calendar",
     "dayflow": "Dayflow",
     "routine": "Routine",
+    "events": "Events",
     "overview": "Overview",
     "detail": "Detail",
     "tree": "Tree"
@@ -1079,5 +1084,18 @@
     "confetti": "Visual Effects",
     "confettiLabel": "Confetti animation",
     "confettiDescription": "Show confetti when a task is completed"
+  },
+  "events": {
+    "emptyState": "Select an event to view details",
+    "noEvents": "No events",
+    "filterIncomplete": "Upcoming",
+    "filterCompleted": "Completed"
+  },
+  "eventDetail": {
+    "timeMemo": "Memo",
+    "memoPlaceholder": "Add a quick memo...",
+    "delete": "Delete event",
+    "deleteTitle": "Delete Event",
+    "deleteMessage": "Are you sure you want to delete this event?"
   }
 }

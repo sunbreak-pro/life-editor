@@ -136,6 +136,7 @@ interface CalendarViewProps {
   filterFolderId: string | null;
   onFilterFolderChange?: (folderId: string | null) => void;
   contentFilters?: Set<string>;
+  searchQuery?: string;
   onDateSelect?: (date: Date) => void;
   onOpenRoutineManagement?: () => void;
 }
@@ -157,6 +158,7 @@ export function CalendarView({
   filterFolderId,
   onFilterFolderChange,
   contentFilters,
+  searchQuery,
   onDateSelect,
   onOpenRoutineManagement,
 }: CalendarViewProps) {
@@ -370,16 +372,31 @@ export function CalendarView({
 
   // Filter itemsByDate by folder (only affects task items)
   const filteredItemsByDate = useMemo(() => {
-    if (!folderDescendantIds) return itemsByDate;
-    const map = new Map<string, CalendarItem[]>();
-    for (const [date, items] of itemsByDate) {
-      const matching = items.filter(
-        (item) => item.type !== "task" || folderDescendantIds.has(item.id),
-      );
-      if (matching.length > 0) map.set(date, matching);
+    const query = searchQuery?.trim().toLowerCase();
+    let source = itemsByDate;
+
+    if (folderDescendantIds) {
+      const folderMap = new Map<string, CalendarItem[]>();
+      for (const [date, items] of source) {
+        const matching = items.filter(
+          (item) => item.type !== "task" || folderDescendantIds.has(item.id),
+        );
+        if (matching.length > 0) folderMap.set(date, matching);
+      }
+      source = folderMap;
     }
-    return map;
-  }, [itemsByDate, folderDescendantIds]);
+
+    if (!query) return source;
+
+    const searchMap = new Map<string, CalendarItem[]>();
+    for (const [date, items] of source) {
+      const matching = items.filter((item) =>
+        item.title.toLowerCase().includes(query),
+      );
+      if (matching.length > 0) searchMap.set(date, matching);
+    }
+    return searchMap;
+  }, [itemsByDate, folderDescendantIds, searchQuery]);
 
   // Also keep filteredTasksByDate for WeeklyTimeGrid (which still uses TaskNode[])
   // When only routine/events filters are active, hide tasks from time grid
@@ -528,10 +545,7 @@ export function CalendarView({
           weekStartDate={weekStartDate}
           onPrev={handlePrev}
           onNext={handleNext}
-          onToday={handleToday}
           onViewModeChange={setViewMode}
-          filterFolderId={filterFolderId}
-          onFilterFolderChange={onFilterFolderChange}
           showHolidays={showHolidays}
           onShowHolidaysChange={setShowHolidays}
         />
@@ -739,7 +753,7 @@ export function CalendarView({
                     scheduleItem: scheduleItemPreview.item,
                     date: scheduleItemPreview.item.date,
                   };
-                  if (convert(source, targetRole)) {
+                  if (convert(source, targetRole).success) {
                     setScheduleItemPreview(null);
                   }
                 }
@@ -799,7 +813,7 @@ export function CalendarView({
                     task: previewTask,
                     date,
                   };
-                  if (convert(source, targetRole)) {
+                  if (convert(source, targetRole).success) {
                     setPreviewPopup(null);
                   }
                 }
@@ -845,7 +859,7 @@ export function CalendarView({
               note: memoPreview.noteNode,
               date: memoPreview.date,
             };
-            if (convert(source, targetRole)) {
+            if (convert(source, targetRole).success) {
               setMemoPreview(null);
             }
           }}

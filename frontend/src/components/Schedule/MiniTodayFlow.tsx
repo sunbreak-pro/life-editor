@@ -7,6 +7,8 @@ import {
   Circle,
   CircleDot,
   ListTodo,
+  Pencil,
+  X,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import type { RoutineNode } from "../../types/routine";
@@ -36,6 +38,8 @@ interface MiniTodayFlowProps {
   onPrevDate?: () => void;
   onNextDate?: () => void;
   activeFilters?: Set<string>;
+  onEditRoutine?: (routineId: string) => void;
+  onDismissItem?: (scheduleItemId: string) => void;
 }
 
 function extractTimeFromScheduledAt(scheduledAt: string): string {
@@ -55,6 +59,8 @@ export function MiniTodayFlow({
   onPrevDate,
   onNextDate,
   activeFilters,
+  onEditRoutine,
+  onDismissItem,
 }: MiniTodayFlowProps) {
   const { t } = useTranslation();
 
@@ -204,31 +210,33 @@ export function MiniTodayFlow({
             {entries.map((entry, i) => {
               if (entry.type === "routine") {
                 return (
-                  <button
+                  <div
                     key={`r-${entry.routineId}`}
                     data-sidebar-item
-                    onClick={() => handleToggle(entry.scheduleItemId)}
-                    disabled={!entry.scheduleItemId}
-                    className={`flex text-left w-full ${entry.scheduleItemId ? "cursor-pointer" : "cursor-default"}`}
+                    className="flex text-left w-full group"
                   >
                     <div className="flex flex-col items-center mr-2">
-                      <div className="flex-shrink-0 transition-colors">
+                      <button
+                        onClick={() => handleToggle(entry.scheduleItemId)}
+                        disabled={!entry.scheduleItemId}
+                        className="flex-shrink-0 transition-colors"
+                      >
                         {entry.completed ? (
                           <CheckCircle2 size={14} className="text-green-500" />
                         ) : (
                           <Circle
                             size={14}
-                            className="text-notion-text-secondary"
+                            className={`text-notion-text-secondary ${entry.scheduleItemId ? "hover:text-green-500" : ""}`}
                           />
                         )}
-                      </div>
+                      </button>
                       {i < entries.length - 1 && (
                         <div className="w-px flex-1 min-h-[12px] bg-notion-border" />
                       )}
                     </div>
-                    <div className="pb-2 min-w-0">
+                    <div className="pb-2 min-w-0 flex-1 flex items-start">
                       <div
-                        className={`text-xs truncate ${entry.completed ? "text-notion-text-secondary line-through" : "text-notion-text"}`}
+                        className={`text-xs truncate flex-1 ${entry.completed ? "text-notion-text-secondary line-through" : "text-notion-text"}`}
                       >
                         {entry.startTime && (
                           <span className="text-[10px] text-notion-text-secondary mr-1">
@@ -237,8 +245,32 @@ export function MiniTodayFlow({
                         )}
                         {entry.title}
                       </div>
+                      <div className="hidden group-hover:flex items-center gap-0.5 shrink-0 ml-1">
+                        {onEditRoutine && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onEditRoutine(entry.routineId);
+                            }}
+                            className="p-0.5 rounded hover:bg-notion-hover text-notion-text-secondary hover:text-notion-text transition-colors"
+                          >
+                            <Pencil size={10} />
+                          </button>
+                        )}
+                        {onDismissItem && entry.scheduleItemId && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onDismissItem(entry.scheduleItemId!);
+                            }}
+                            className="p-0.5 rounded hover:bg-notion-hover text-notion-text-secondary hover:text-red-500 transition-colors"
+                          >
+                            <X size={10} />
+                          </button>
+                        )}
+                      </div>
                     </div>
-                  </button>
+                  </div>
                 );
               }
 

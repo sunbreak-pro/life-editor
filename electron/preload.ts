@@ -100,6 +100,7 @@ const ALLOWED_CHANNELS = new Set([
   "db:scheduleItems:fetchLastRoutineDate",
   "db:scheduleItems:fetchByRoutineId",
   "db:scheduleItems:bulkDelete",
+  "db:scheduleItems:fetchEvents",
   // Playlists
   "db:playlists:fetchAll",
   "db:playlists:create",

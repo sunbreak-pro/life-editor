@@ -14,13 +14,21 @@ interface ToastState {
   variant: ToastVariant;
   message: string;
   durationMs: number;
+  actionLabel?: string;
+  onAction?: () => void;
+}
+
+interface ToastOptions {
+  actionLabel?: string;
+  onAction?: () => void;
 }
 
 interface ToastContextValue {
   showToast: (
     variant: ToastVariant,
     message: string,
-    durationMs?: number,
+    durationMsOrOptions?: number | ToastOptions,
+    options?: ToastOptions,
   ) => void;
 }
 
@@ -32,8 +40,29 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   const [toast, setToast] = useState<ToastState | null>(null);
 
   const showToast = useCallback(
-    (variant: ToastVariant, message: string, durationMs = 3000) => {
-      setToast({ id: ++nextId, variant, message, durationMs });
+    (
+      variant: ToastVariant,
+      message: string,
+      durationMsOrOptions?: number | ToastOptions,
+      options?: ToastOptions,
+    ) => {
+      let durationMs = 3000;
+      let opts: ToastOptions | undefined;
+      if (typeof durationMsOrOptions === "number") {
+        durationMs = durationMsOrOptions;
+        opts = options;
+      } else if (durationMsOrOptions) {
+        opts = durationMsOrOptions;
+      }
+      if (opts?.actionLabel) durationMs = Math.max(durationMs, 5000);
+      setToast({
+        id: ++nextId,
+        variant,
+        message,
+        durationMs,
+        actionLabel: opts?.actionLabel,
+        onAction: opts?.onAction,
+      });
     },
     [],
   );
@@ -52,6 +81,8 @@ export function ToastProvider({ children }: { children: ReactNode }) {
           message={toast.message}
           durationMs={toast.durationMs}
           onDismiss={handleDismiss}
+          actionLabel={toast.actionLabel}
+          onAction={toast.onAction}
         />
       )}
     </ToastContext.Provider>

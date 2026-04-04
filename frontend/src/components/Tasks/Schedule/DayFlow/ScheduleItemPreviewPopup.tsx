@@ -166,7 +166,9 @@ export function ScheduleItemPreviewPopup({
           }`}
         >
           <Check size={12} />
-          {item.completed ? "DONE" : "Complete"}
+          {item.completed
+            ? t("schedule.undoComplete", "Undo Complete")
+            : t("schedule.complete", "Complete")}
         </button>
         {item.routineId && onEditRoutine && (
           <>

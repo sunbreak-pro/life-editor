@@ -6,6 +6,13 @@ import { formatDateTime } from "../../utils/formatRelativeDate";
 import { LazyMemoEditor as MemoEditor } from "../Tasks/TaskDetail/LazyMemoEditor";
 import { WikiTagList } from "../WikiTags/WikiTagList";
 import { ColorPicker } from "../shared/ColorPicker";
+import { RoleSwitcher } from "../Tasks/Schedule/Calendar/RoleSwitcher";
+import {
+  useRoleConversion,
+  type ConversionSource,
+  type ConversionRole,
+} from "../../hooks/useRoleConversion";
+import { formatDateKey } from "../../utils/dateKey";
 
 export function NotesView() {
   const { t } = useTranslation();
@@ -100,6 +107,11 @@ export function NotesView() {
             <WikiTagList entityId={selectedNote.id} entityType="note" />
           </div>
 
+          {/* Role Switcher */}
+          <div className="mb-2">
+            <NoteRoleSwitcher note={selectedNote} />
+          </div>
+
           {/* Date info */}
           <div className="flex items-center gap-3 text-[11px] text-notion-text-secondary/60 mb-3">
             {selectedNote.createdAt && (
@@ -140,5 +152,29 @@ export function NotesView() {
         </div>
       )}
     </div>
+  );
+}
+
+function NoteRoleSwitcher({
+  note,
+}: {
+  note: { id: string; createdAt: string };
+}) {
+  const { convert, canConvert } = useRoleConversion();
+  const { selectedNote } = useNoteContext();
+  const fullNote = selectedNote?.id === note.id ? selectedNote : undefined;
+  if (!fullNote) return null;
+
+  const date = formatDateKey(new Date(fullNote.createdAt));
+  const source: ConversionSource = { role: "note", note: fullNote, date };
+  const roles: ConversionRole[] = ["task", "event", "note", "daily"];
+  const disabledRoles = roles.filter((r) => !canConvert(source, r));
+
+  return (
+    <RoleSwitcher
+      currentRole="note"
+      disabledRoles={disabledRoles}
+      onSelectRole={(targetRole) => convert(source, targetRole)}
+    />
   );
 }

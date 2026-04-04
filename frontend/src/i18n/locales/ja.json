@@ -294,6 +294,8 @@
   "schedule": {
     "todayFlow": "Today Flow",
     "noItems": "この日のアイテムはありません",
+    "complete": "完了",
+    "undoComplete": "完了を取り消す",
     "dayFlow": "Day Flow",
     "routines": "ルーティン",
     "newRoutine": "ルーティンを追加",
@@ -725,7 +727,9 @@
     "roleEvent": "予定",
     "roleNote": "ノート",
     "roleDaily": "デイリー",
-    "conversionSuccess": "{{role}}に変換しました"
+    "conversionSuccess": "{{role}}に変換しました",
+    "goToTarget": "{{role}}へ移動",
+    "searchPlaceholder": "アイテムを検索..."
   },
   "search": {
     "placeholder": "タスクを検索...",
@@ -764,6 +768,7 @@
     "calendar": "カレンダー",
     "dayflow": "デイフロー",
     "routine": "ルーティン",
+    "events": "予定",
     "overview": "概要",
     "detail": "詳細",
     "tree": "ツリー"
@@ -1079,5 +1084,18 @@
     "confetti": "視覚エフェクト",
     "confettiLabel": "紙吹雪アニメーション",
     "confettiDescription": "タスク完了時に紙吹雪を表示する"
+  },
+  "events": {
+    "emptyState": "予定を選択してください",
+    "noEvents": "予定なし",
+    "filterIncomplete": "未完了",
+    "filterCompleted": "完了"
+  },
+  "eventDetail": {
+    "timeMemo": "メモ",
+    "memoPlaceholder": "メモを追加...",
+    "delete": "予定を削除",
+    "deleteTitle": "予定の削除",
+    "deleteMessage": "この予定を削除しますか？"
   }
 }

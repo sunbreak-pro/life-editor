@@ -6,6 +6,12 @@ import { formatDateTime } from "../../utils/formatRelativeDate";
 import { formatDateHeading } from "../../utils/dateKey";
 import { LazyMemoEditor as MemoEditor } from "../Tasks/TaskDetail/LazyMemoEditor";
 import { WikiTagList } from "../WikiTags/WikiTagList";
+import { RoleSwitcher } from "../Tasks/Schedule/Calendar/RoleSwitcher";
+import {
+  useRoleConversion,
+  type ConversionSource,
+  type ConversionRole,
+} from "../../hooks/useRoleConversion";
 
 export function DailyMemoView() {
   const { selectedDate, selectedMemo, upsertMemo, togglePin } =
@@ -60,6 +66,11 @@ export function DailyMemoView() {
             <WikiTagList entityId={selectedMemo.id} entityType="memo" />
           </div>
         )}
+        {selectedMemo && (
+          <div className="mb-3">
+            <DailyRoleSwitcher date={selectedDate} memo={selectedMemo} />
+          </div>
+        )}
         <Suspense
           fallback={
             <div className="text-notion-text-secondary text-sm">
@@ -77,5 +88,30 @@ export function DailyMemoView() {
         </Suspense>
       </div>
     </div>
+  );
+}
+
+function DailyRoleSwitcher({
+  date,
+  memo,
+}: {
+  date: string;
+  memo: { id: string; date: string; content: string };
+}) {
+  const { convert, canConvert } = useRoleConversion();
+  const source: ConversionSource = {
+    role: "daily",
+    memo: memo as ConversionSource["memo"],
+    date,
+  };
+  const roles: ConversionRole[] = ["task", "event", "note", "daily"];
+  const disabledRoles = roles.filter((r) => !canConvert(source, r));
+
+  return (
+    <RoleSwitcher
+      currentRole="daily"
+      disabledRoles={disabledRoles}
+      onSelectRole={(targetRole) => convert(source, targetRole)}
+    />
   );
 }

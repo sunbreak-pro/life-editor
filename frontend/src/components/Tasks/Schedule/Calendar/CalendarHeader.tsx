@@ -1,14 +1,5 @@
-import { useMemo } from "react";
-import {
-  ChevronLeft,
-  ChevronRight,
-  Filter,
-  ChevronDown,
-  Sparkles,
-} from "lucide-react";
+import { ChevronLeft, ChevronRight, Sparkles } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { FolderDropdown } from "../../Folder/FolderDropdown";
-import { useTaskTreeContext } from "../../../../hooks/useTaskTreeContext";
 
 type ViewMode = "month" | "week";
 
@@ -19,10 +10,7 @@ interface CalendarHeaderProps {
   weekStartDate?: Date;
   onPrev: () => void;
   onNext: () => void;
-  onToday: () => void;
   onViewModeChange: (mode: ViewMode) => void;
-  filterFolderId?: string | null;
-  onFilterFolderChange?: (folderId: string | null) => void;
   showHolidays?: boolean;
   onShowHolidaysChange?: (show: boolean) => void;
 }
@@ -84,20 +72,11 @@ export function CalendarHeader({
   weekStartDate,
   onPrev,
   onNext,
-  onToday,
   onViewModeChange,
-  filterFolderId,
-  onFilterFolderChange,
   showHolidays,
   onShowHolidaysChange,
 }: CalendarHeaderProps) {
   const { t } = useTranslation();
-  const { nodes } = useTaskTreeContext();
-
-  const selectedFolderName = useMemo(() => {
-    if (!filterFolderId) return null;
-    return nodes.find((n) => n.id === filterFolderId)?.title ?? null;
-  }, [filterFolderId, nodes]);
 
   const title = (() => {
     if (viewMode === "week" && weekStartDate)
@@ -123,37 +102,6 @@ export function CalendarHeader({
             <ChevronRight size={18} />
           </button>
         </div>
-        <button
-          onClick={onToday}
-          className="px-2 py-1 text-xs rounded-md border border-notion-border text-notion-text-secondary hover:bg-notion-hover transition-colors"
-        >
-          {t("calendarHeader.today")}
-        </button>
-        {onFilterFolderChange && (
-          <FolderDropdown
-            selectedId={filterFolderId ?? null}
-            onSelect={onFilterFolderChange}
-            rootLabel={t("calendar.all")}
-            panelMinWidth="min-w-44"
-            trigger={
-              <button
-                className={`flex items-center gap-1.5 px-2 py-1 text-xs rounded-md border transition-colors ${
-                  filterFolderId
-                    ? "border-notion-accent/30 bg-notion-accent/10 text-notion-accent"
-                    : "border-notion-border text-notion-text-secondary hover:bg-notion-hover"
-                }`}
-              >
-                <Filter size={12} />
-                <span className="truncate max-w-24">
-                  {filterFolderId && selectedFolderName
-                    ? selectedFolderName
-                    : t("calendar.folder")}
-                </span>
-                <ChevronDown size={11} />
-              </button>
-            }
-          />
-        )}
         {onShowHolidaysChange && (
           <button
             onClick={() => onShowHolidaysChange(!showHolidays)}

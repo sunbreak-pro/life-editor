@@ -1,3 +1,30 @@
+### 2026-04-04 - Events表示対応 + サイドバーフィルタ マルチセレクト化
+
+#### 概要
+
+MiniTodayFlow（右サイドバー）にEventsアイテムを表示。右サイドバーのフィルタを排他的ラジオからマルチセレクトチェックボックスに変更。フィルタ選択をMiniTodayFlowに反映。
+
+#### 変更点
+
+- **MiniTodayFlow Events表示**: FlowEntryに`"event"`型追加。`routineId === null`のscheduleItemsをeventとして表示（CalendarClockアイコン、紫色）。完了トグル対応
+- **フィルタ マルチセレクト化**: ProgressSectionをチェックボックスUIに変更（`activeFilters: Set` / `onToggleFilter`）。DayFlowSidebarContent、ScheduleSection、OneDaySchedule、useCalendar、CalendarViewを全てSetベースに変更。空Set=全表示
+- **フィルタMiniTodayFlow連携**: ScheduleSidebarContentに`activeFilters` prop追加。MiniTodayFlowが`showRoutines`/`showEvents`/`showTasks`でentries構築をフィルタリング
+- **CompactDateNav互換**: OneDayScheduleに`onSetExclusiveFilter`追加。DayFlow本体のインラインフィルタは排他的UIを維持しつつSetベースstateと連携
+
+### 2026-04-04 - Noir テーマ削除 + カレンダーUI改善 + ボタンUI統一 + 祝日アイテム
+
+#### 概要
+
+Noirテーマ（monochrome/monochrome-dark）を完全削除。カレンダーDayCellの土日・祝日表現を背景色からテキスト色のみに変更。ルーティン編集後のカレンダー自動リフレッシュ修正。ダイアログのCancel/Saveボタン統一。祝日名をCalendarItemとして生成しトグル表示機能追加。
+
+#### 変更点
+
+- **Noir テーマ削除**: ThemeContextValue型、ThemeContext VALID_THEMES、index.css CSS変数ブロック2つ、AppearanceSettings Noirボタン2つを削除。既存ユーザーはlightにフォールバック
+- **カレンダー色テキストのみ化**: `getDateBgClass`を空返却に変更、`getDateTextClass`に`isCurrentMonth`パラメータ追加。当月: 緑/赤/青、非当月: グレーベースの薄い色味で区別
+- **ルーティン編集リフレッシュ**: CalendarViewのuseEffectに`scheduleItemsVersion`依存追加。RoutineGroupEditDialogのonSubmitに頻度変更検知+cleanupNonMatchingScheduleItems呼び出し追加
+- **ボタンUI統一**: `bg-notion-blue`（未定義色）→`bg-notion-accent`。Cancelボタンを`text-notion-danger`に。RoutineEditDialog, RoutineGroupEditDialog, NewNoteTab対象
+- **祝日アイテム**: CalendarItemTypeに`"holiday"`追加。`getHolidayName`関数追加（holiday-jp between API）。useCalendarで42日グリッド内の祝日をCalendarItemとして生成。CalendarItemChipにholidayレンダリング追加（Sparklesアイコン）。CalendarHeaderに祝日トグルボタン追加、localStorage永続化
+
 ### 2026-04-04 - useMemos レンダリングエラー修正 + ref パターンリファクタリング
 
 #### 概要

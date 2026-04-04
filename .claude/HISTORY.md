@@ -1,5 +1,40 @@
 # HISTORY.md - 変更履歴
 
+### 2026-04-04 - Calendar UI改善（MiniTodayFlow + Undo Complete + 検索 + フォルダフィルタ移動）
+
+#### 概要
+
+MiniTodayFlowのRoutineアイテムにクリック完了トグル+ホバーアクションボタン（Edit/Dismiss）を追加。ScheduleItemPreviewPopupの完了戻しラベルを修正。CalendarHeaderからTodayボタン削除・フォルダフィルタをサイドバー最上部に移動。サイドバーにカレンダー検索システムを追加。
+
+#### 変更点
+
+- **MiniTodayFlow Routine修正**: Routineアイテムのクリックで完了トグル。ホバー時にPencil(Edit)とX(Dismiss)ボタン表示。ScheduleSidebarContentにdismissScheduleItem/editRoutineコールバック追加
+- **Undo Completeラベル**: ScheduleItemPreviewPopupの完了済みアイテムボタンを"DONE"→"Undo Complete"/"完了を取り消す"に変更。i18n対応
+- **CalendarHeader整理**: Todayボタン削除（キーボードショートカット`t`は維持）。フォルダフィルタをCalendarHeaderから除去、未使用import整理
+- **フォルダフィルタ移動**: ScheduleSidebarContentにfilterFolderId/onFilterFolderChange props追加。サイドバー最上部に全幅FolderDropdownを配置。Calendar tab時のみ表示
+- **カレンダー検索**: ScheduleSection→CalendarView→filteredItemsByDateにsearchQuery伝播。サイドバー最上部に検索入力欄（Searchアイコン+クリアボタン）追加。タイトル部分一致でCalendarItem非表示フィルタリング
+
+### 2026-04-04 - Event First-Class Entity + 全ビューRole切り替え
+
+#### 概要
+
+ScheduleItemにcontentフィールドを追加しEventをリッチコンテンツ対応に拡張。ScheduleセクションにEventsタブ（EventList+EventDetailPanel）を新設。Toast にアクションボタン対応を追加。全ビュー（TaskDetailPanel/NotesView/DailyMemoView/EventDetailPanel）にRoleSwitcherを統合。
+
+#### 変更点
+
+- **DB migration V46**: schedule_itemsテーブルにcontent TEXT DEFAULT NULL追加
+- **全層content対応**: ScheduleItem型、Repository（create/update/toggleComplete/bulkCreate）、IPC handlers、DataService、ElectronDataService、OfflineDataService、RestDataService、useScheduleItems hookを更新
+- **fetchEvents API**: routine_id IS NULLのScheduleItemを全件取得する新メソッド。Repository→IPC→DataService→Hook全層に追加
+- **EventList component**: 日付グルーピング付きフラットリスト。完了/未完了フィルタ。完了チェックボックス+CalendarClockアイコン
+- **EventDetailPanel component**: タイトル編集（ダブルクリック）、日付表示、TimeInput時間編集、メモテキストエリア、TipTap MemoEditor、RoleSwitcher、削除ボタン
+- **ScheduleEventsContent**: useResizablePanel 2パネルレイアウト（EventList左 + EventDetailPanel右）
+- **Events tab**: ScheduleSection ScheduleTab型に"events"追加、SCHEDULE_TABS配列に4番目タブ追加
+- **Toast actionButton**: ToastContext showToastにToastOptions（actionLabel/onAction）追加。Toast.tsxにアクションボタンUI追加。アクション付きは5秒表示
+- **useRoleNavigation hook**: role別ナビゲーションコールバック（task/event/note/daily）
+- **useRoleConversion更新**: convert返り値をConversionResult（success+targetId+targetRole）に変更。content直接コピー対応。actionLabel付きToast表示。bumpEventsVersion呼び出し
+- **RoleSwitcher統合**: TaskDetailPanel（TaskRoleSwitcherRow）、NotesView（NoteRoleSwitcher）、DailyMemoView（DailyRoleSwitcher）、EventDetailPanel（EventRoleSwitcherInline）に追加
+- **i18n**: tabs.events、events._、eventDetail._、calendar.goToTarget、calendar.searchPlaceholder、schedule.complete/undoCompleteをen.json/ja.jsonに追加
+
 ### 2026-04-04 - Routine schedule reconciliation リファクタリング
 
 #### 概要
@@ -43,30 +78,3 @@ CalendarビューのPreviewPopup内にRoleSwitcherコンポーネントを追加
 - **ScheduleItemPreviewPopup**: Event時のみRoleSwitcher表示（Routineは従来の静的バッジ維持）
 - **CalendarView**: useRoleConversion接続、memoPreview stateにentity参照追加、3つのPopupへconversion props接続、getDisabledRolesヘルパー追加
 - **i18n**: calendar.roleTask/roleEvent/roleNote/roleDaily/conversionSuccessをen.json/ja.jsonに追加
-
-### 2026-04-04 - Noir テーマ削除 + カレンダーUI改善 + ボタンUI統一 + 祝日アイテム
-
-#### 概要
-
-Noirテーマ（monochrome/monochrome-dark）を完全削除。カレンダーDayCellの土日・祝日表現を背景色からテキスト色のみに変更。ルーティン編集後のカレンダー自動リフレッシュ修正。ダイアログのCancel/Saveボタン統一。祝日名をCalendarItemとして生成しトグル表示機能追加。
-
-#### 変更点
-
-- **Noir テーマ削除**: ThemeContextValue型、ThemeContext VALID_THEMES、index.css CSS変数ブロック2つ、AppearanceSettings Noirボタン2つを削除。既存ユーザーはlightにフォールバック
-- **カレンダー色テキストのみ化**: `getDateBgClass`を空返却に変更、`getDateTextClass`に`isCurrentMonth`パラメータ追加。当月: 緑/赤/青、非当月: グレーベースの薄い色味で区別
-- **ルーティン編集リフレッシュ**: CalendarViewのuseEffectに`scheduleItemsVersion`依存追加。RoutineGroupEditDialogのonSubmitに頻度変更検知+cleanupNonMatchingScheduleItems呼び出し追加
-- **ボタンUI統一**: `bg-notion-blue`（未定義色）→`bg-notion-accent`。Cancelボタンを`text-notion-danger`に。RoutineEditDialog, RoutineGroupEditDialog, NewNoteTab対象
-- **祝日アイテム**: CalendarItemTypeに`"holiday"`追加。`getHolidayName`関数追加（holiday-jp between API）。useCalendarで42日グリッド内の祝日をCalendarItemとして生成。CalendarItemChipにholidayレンダリング追加（Sparklesアイコン）。CalendarHeaderに祝日トグルボタン追加、localStorage永続化
-
-### 2026-04-04 - Events表示対応 + サイドバーフィルタ マルチセレクト化
-
-#### 概要
-
-MiniTodayFlow（右サイドバー）にEventsアイテムを表示。右サイドバーのフィルタを排他的ラジオからマルチセレクトチェックボックスに変更。フィルタ選択をMiniTodayFlowに反映。
-
-#### 変更点
-
-- **MiniTodayFlow Events表示**: FlowEntryに`"event"`型追加。`routineId === null`のscheduleItemsをeventとして表示（CalendarClockアイコン、紫色）。完了トグル対応
-- **フィルタ マルチセレクト化**: ProgressSectionをチェックボックスUIに変更（`activeFilters: Set` / `onToggleFilter`）。DayFlowSidebarContent、ScheduleSection、OneDaySchedule、useCalendar、CalendarViewを全てSetベースに変更。空Set=全表示
-- **フィルタMiniTodayFlow連携**: ScheduleSidebarContentに`activeFilters` prop追加。MiniTodayFlowが`showRoutines`/`showEvents`/`showTasks`でentries構築をフィルタリング
-- **CompactDateNav互換**: OneDayScheduleに`onSetExclusiveFilter`追加。DayFlow本体のインラインフィルタは排他的UIを維持しつつSetベースstateと連携

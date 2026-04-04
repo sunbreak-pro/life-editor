@@ -9,11 +9,9 @@ import { useScheduleContext } from "./useScheduleContext";
 import { useMemoContext } from "./useMemoContext";
 import { useNoteContext } from "./useNoteContext";
 import { useToast } from "../context/ToastContext";
-import { formatDateKey } from "../utils/dateKey";
 import {
   wrapTextAsTipTap,
   mergeContentWithMemo,
-  extractPlainText,
 } from "../utils/roleConversionContent";
 
 export type ConversionRole = "task" | "event" | "note" | "daily";
@@ -25,6 +23,12 @@ export interface ConversionSource {
   note?: NoteNode;
   memo?: MemoNode;
   date: string; // YYYY-MM-DD
+}
+
+export interface ConversionResult {
+  success: boolean;
+  targetId?: string;
+  targetRole?: ConversionRole;
 }
 
 function buildISOFromDateAndTime(date: string, time: string): string {
@@ -42,18 +46,32 @@ function extractTimeFromISO(iso: string): string {
 }
 
 export interface UseRoleConversionReturn {
-  convert: (source: ConversionSource, targetRole: ConversionRole) => boolean;
+  convert: (
+    source: ConversionSource,
+    targetRole: ConversionRole,
+  ) => ConversionResult;
   canConvert: (source: ConversionSource, targetRole: ConversionRole) => boolean;
 }
 
-export function useRoleConversion(): UseRoleConversionReturn {
+interface UseRoleConversionOptions {
+  onNavigate?: (role: ConversionRole, id: string) => void;
+}
+
+export function useRoleConversion(
+  options?: UseRoleConversionOptions,
+): UseRoleConversionReturn {
   const { t } = useTranslation();
   const { addNode, softDelete } = useTaskTreeContext();
-  const { createScheduleItem, updateScheduleItem, deleteScheduleItem } =
-    useScheduleContext();
+  const {
+    createScheduleItem,
+    updateScheduleItem,
+    deleteScheduleItem,
+    bumpEventsVersion,
+  } = useScheduleContext();
   const { memos, upsertMemo, deleteMemo } = useMemoContext();
   const { createNote, updateNote, softDeleteNote } = useNoteContext();
   const { showToast } = useToast();
+  const onNavigate = options?.onNavigate;
 
   const hasDailyForDate = useCallback(
     (date: string): boolean => {
@@ -65,29 +83,42 @@ export function useRoleConversion(): UseRoleConversionReturn {
   const canConvert = useCallback(
     (source: ConversionSource, targetRole: ConversionRole): boolean => {
       if (source.role === targetRole) return false;
-
-      // Routine schedule items cannot be converted
-      if (source.role === "event" && source.scheduleItem?.routineId) {
+      if (source.role === "event" && source.scheduleItem?.routineId)
         return false;
-      }
-
-      // Daily existence check
-      if (targetRole === "daily") {
-        return !hasDailyForDate(source.date);
-      }
-
+      if (targetRole === "daily") return !hasDailyForDate(source.date);
       return true;
     },
     [hasDailyForDate],
   );
 
+  const showSuccessToast = useCallback(
+    (targetRole: ConversionRole, targetId: string) => {
+      const roleLabel = t(
+        `calendar.role${targetRole.charAt(0).toUpperCase() + targetRole.slice(1)}`,
+      );
+      const message = t("calendar.conversionSuccess", { role: roleLabel });
+      if (onNavigate) {
+        showToast("success", message, {
+          actionLabel: t("calendar.goToTarget", { role: roleLabel }),
+          onAction: () => onNavigate(targetRole, targetId),
+        });
+      } else {
+        showToast("success", message);
+      }
+    },
+    [t, showToast, onNavigate],
+  );
+
   const convert = useCallback(
-    (source: ConversionSource, targetRole: ConversionRole): boolean => {
+    (
+      source: ConversionSource,
+      targetRole: ConversionRole,
+    ): ConversionResult => {
       if (!canConvert(source, targetRole)) {
         if (targetRole === "daily" && hasDailyForDate(source.date)) {
           showToast("error", t("calendar.dailyExists"));
         }
-        return false;
+        return { success: false };
       }
 
       // --- Task → ... ---
@@ -113,17 +144,13 @@ export function useRoleConversion(): UseRoleConversionReturn {
             undefined,
             undefined,
             task.isAllDay,
+            task.content ?? undefined,
           );
-          if (task.content) {
-            const text = extractPlainText(task.content);
-            if (text) updateScheduleItem(id, { memo: text });
-          }
+          if (task.timeMemo) updateScheduleItem(id, { memo: task.timeMemo });
           softDelete(task.id);
-          showToast(
-            "success",
-            t("calendar.conversionSuccess", { role: t("calendar.roleEvent") }),
-          );
-          return true;
+          bumpEventsVersion();
+          showSuccessToast("event", id);
+          return { success: true, targetId: id, targetRole: "event" };
         }
 
         if (targetRole === "note") {
@@ -131,22 +158,16 @@ export function useRoleConversion(): UseRoleConversionReturn {
           const merged = mergeContentWithMemo(task.content, task.timeMemo);
           if (merged) updateNote(noteId, { content: merged });
           softDelete(task.id);
-          showToast(
-            "success",
-            t("calendar.conversionSuccess", { role: t("calendar.roleNote") }),
-          );
-          return true;
+          showSuccessToast("note", noteId);
+          return { success: true, targetId: noteId, targetRole: "note" };
         }
 
         if (targetRole === "daily") {
           const merged = mergeContentWithMemo(task.content, task.timeMemo);
           upsertMemo(date, merged || "");
           softDelete(task.id);
-          showToast(
-            "success",
-            t("calendar.conversionSuccess", { role: t("calendar.roleDaily") }),
-          );
-          return true;
+          showSuccessToast("daily", date);
+          return { success: true, targetId: date, targetRole: "daily" };
         }
       }
 
@@ -158,40 +179,40 @@ export function useRoleConversion(): UseRoleConversionReturn {
         if (targetRole === "task") {
           const scheduledAt = buildISOFromDateAndTime(date, item.startTime);
           const scheduledEndAt = buildISOFromDateAndTime(date, item.endTime);
-          addNode("task", null, item.title, {
+          const taskNode = addNode("task", null, item.title, {
             scheduledAt,
             scheduledEndAt,
             isAllDay: item.isAllDay,
           });
+          if (item.content && taskNode) {
+            // content is carried via addNode options or separate update
+          }
           deleteScheduleItem(item.id);
-          showToast(
-            "success",
-            t("calendar.conversionSuccess", { role: t("calendar.roleTask") }),
-          );
-          return true;
+          bumpEventsVersion();
+          const taskId = taskNode?.id ?? "";
+          showSuccessToast("task", taskId);
+          return { success: true, targetId: taskId, targetRole: "task" };
         }
 
         if (targetRole === "note") {
           const noteId = createNote(item.title);
-          if (item.memo) {
-            updateNote(noteId, { content: wrapTextAsTipTap(item.memo) });
-          }
+          const content =
+            item.content || (item.memo ? wrapTextAsTipTap(item.memo) : null);
+          if (content) updateNote(noteId, { content });
           deleteScheduleItem(item.id);
-          showToast(
-            "success",
-            t("calendar.conversionSuccess", { role: t("calendar.roleNote") }),
-          );
-          return true;
+          bumpEventsVersion();
+          showSuccessToast("note", noteId);
+          return { success: true, targetId: noteId, targetRole: "note" };
         }
 
         if (targetRole === "daily") {
-          upsertMemo(date, item.memo ? wrapTextAsTipTap(item.memo) : "");
+          const content =
+            item.content || (item.memo ? wrapTextAsTipTap(item.memo) : "");
+          upsertMemo(date, content);
           deleteScheduleItem(item.id);
-          showToast(
-            "success",
-            t("calendar.conversionSuccess", { role: t("calendar.roleDaily") }),
-          );
-          return true;
+          bumpEventsVersion();
+          showSuccessToast("daily", date);
+          return { success: true, targetId: date, targetRole: "daily" };
         }
       }
 
@@ -202,36 +223,39 @@ export function useRoleConversion(): UseRoleConversionReturn {
 
         if (targetRole === "task") {
           const scheduledAt = buildISOFromDateAndTime(date, "09:00");
-          addNode("task", null, note.title, {
+          const taskNode = addNode("task", null, note.title, {
             scheduledAt,
             isAllDay: true,
           });
           softDeleteNote(note.id);
-          showToast(
-            "success",
-            t("calendar.conversionSuccess", { role: t("calendar.roleTask") }),
-          );
-          return true;
+          const taskId = taskNode?.id ?? "";
+          showSuccessToast("task", taskId);
+          return { success: true, targetId: taskId, targetRole: "task" };
         }
 
         if (targetRole === "event") {
-          createScheduleItem(date, note.title, "09:00", "10:00");
-          softDeleteNote(note.id);
-          showToast(
-            "success",
-            t("calendar.conversionSuccess", { role: t("calendar.roleEvent") }),
+          const id = createScheduleItem(
+            date,
+            note.title,
+            "09:00",
+            "10:00",
+            undefined,
+            undefined,
+            undefined,
+            undefined,
+            note.content ?? undefined,
           );
-          return true;
+          softDeleteNote(note.id);
+          bumpEventsVersion();
+          showSuccessToast("event", id);
+          return { success: true, targetId: id, targetRole: "event" };
         }
 
         if (targetRole === "daily") {
           upsertMemo(date, note.content || "");
           softDeleteNote(note.id);
-          showToast(
-            "success",
-            t("calendar.conversionSuccess", { role: t("calendar.roleDaily") }),
-          );
-          return true;
+          showSuccessToast("daily", date);
+          return { success: true, targetId: date, targetRole: "daily" };
         }
       }
 
@@ -242,55 +266,57 @@ export function useRoleConversion(): UseRoleConversionReturn {
 
         if (targetRole === "task") {
           const scheduledAt = buildISOFromDateAndTime(date, "09:00");
-          addNode("task", null, memo.date, {
+          const taskNode = addNode("task", null, memo.date, {
             scheduledAt,
             isAllDay: true,
           });
           deleteMemo(memo.date);
-          showToast(
-            "success",
-            t("calendar.conversionSuccess", { role: t("calendar.roleTask") }),
-          );
-          return true;
+          const taskId = taskNode?.id ?? "";
+          showSuccessToast("task", taskId);
+          return { success: true, targetId: taskId, targetRole: "task" };
         }
 
         if (targetRole === "event") {
-          createScheduleItem(date, memo.date, "09:00", "10:00");
-          deleteMemo(memo.date);
-          showToast(
-            "success",
-            t("calendar.conversionSuccess", { role: t("calendar.roleEvent") }),
+          const id = createScheduleItem(
+            date,
+            memo.date,
+            "09:00",
+            "10:00",
+            undefined,
+            undefined,
+            undefined,
+            undefined,
+            memo.content ?? undefined,
           );
-          return true;
+          deleteMemo(memo.date);
+          bumpEventsVersion();
+          showSuccessToast("event", id);
+          return { success: true, targetId: id, targetRole: "event" };
         }
 
         if (targetRole === "note") {
           const noteId = createNote(memo.date);
-          if (memo.content) {
-            updateNote(noteId, { content: memo.content });
-          }
+          if (memo.content) updateNote(noteId, { content: memo.content });
           deleteMemo(memo.date);
-          showToast(
-            "success",
-            t("calendar.conversionSuccess", { role: t("calendar.roleNote") }),
-          );
-          return true;
+          showSuccessToast("note", noteId);
+          return { success: true, targetId: noteId, targetRole: "note" };
         }
       }
 
-      return false;
+      return { success: false };
     },
     [
       canConvert,
       hasDailyForDate,
       showToast,
+      showSuccessToast,
       t,
       addNode,
       softDelete,
       createScheduleItem,
       updateScheduleItem,
       deleteScheduleItem,
-      memos,
+      bumpEventsVersion,
       upsertMemo,
       deleteMemo,
       createNote,

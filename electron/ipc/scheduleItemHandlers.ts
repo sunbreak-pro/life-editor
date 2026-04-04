@@ -40,6 +40,7 @@ export function registerScheduleItemHandlers(
       templateId?: string,
       noteId?: string,
       isAllDay?: boolean,
+      content?: string,
     ) => {
       return repo.create(
         id,
@@ -51,6 +52,7 @@ export function registerScheduleItemHandlers(
         templateId,
         noteId,
         isAllDay,
+        content,
       );
     },
   );
@@ -74,12 +76,17 @@ export function registerScheduleItemHandlers(
           | "completedAt"
           | "memo"
           | "isAllDay"
+          | "content"
         >
       >,
     ) => {
       return repo.update(id, updates);
     },
   );
+
+  query("db:scheduleItems:fetchEvents", "ScheduleItems", "fetchEvents", () => {
+    return repo.fetchEvents();
+  });
 
   mutation(
     "db:scheduleItems:delete",

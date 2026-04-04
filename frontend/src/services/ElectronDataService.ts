@@ -450,6 +450,7 @@ export class ElectronDataService implements DataService {
     templateId?: string,
     noteId?: string,
     isAllDay?: boolean,
+    content?: string,
   ): Promise<ScheduleItem> {
     return invoke(
       "db:scheduleItems:create",
@@ -462,6 +463,7 @@ export class ElectronDataService implements DataService {
       templateId,
       noteId,
       isAllDay,
+      content,
     );
   }
   updateScheduleItem(
@@ -476,6 +478,7 @@ export class ElectronDataService implements DataService {
         | "completedAt"
         | "memo"
         | "isAllDay"
+        | "content"
       >
     >,
   ): Promise<ScheduleItem> {
@@ -526,6 +529,10 @@ export class ElectronDataService implements DataService {
 
   bulkDeleteScheduleItems(ids: string[]): Promise<number> {
     return invoke("db:scheduleItems:bulkDelete", ids);
+  }
+
+  fetchEvents(): Promise<ScheduleItem[]> {
+    return invoke("db:scheduleItems:fetchEvents");
   }
 
   // Routine Groups

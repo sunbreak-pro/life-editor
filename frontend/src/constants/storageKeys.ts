@@ -44,4 +44,6 @@ export const STORAGE_KEYS = {
   CONFETTI_ENABLED: "life-editor-confetti-enabled",
   DAYFLOW_DUAL_COLUMN: "life-editor-dayflow-dual-column",
   CALENDAR_SHOW_HOLIDAYS: "life-editor-calendar-show-holidays",
+  SCHEDULE_EVENTS_LEFT_WIDTH: "life-editor-schedule-events-left-width",
+  EVENTS_FILTER_TAB: "life-editor-events-filter-tab",
 } as const;

@@ -8,6 +8,8 @@ interface ToastProps {
   message: string;
   durationMs: number;
   onDismiss: () => void;
+  actionLabel?: string;
+  onAction?: () => void;
 }
 
 const variantConfig: Record<
@@ -19,7 +21,14 @@ const variantConfig: Record<
   error: { bg: "bg-red-500", Icon: XCircle },
 };
 
-export function Toast({ variant, message, durationMs, onDismiss }: ToastProps) {
+export function Toast({
+  variant,
+  message,
+  durationMs,
+  onDismiss,
+  actionLabel,
+  onAction,
+}: ToastProps) {
   const [isExiting, setIsExiting] = useState(false);
   const { bg, Icon } = variantConfig[variant];
 
@@ -41,6 +50,17 @@ export function Toast({ variant, message, durationMs, onDismiss }: ToastProps) {
       >
         <Icon size={16} />
         <span className="text-sm font-medium">{message}</span>
+        {actionLabel && onAction && (
+          <button
+            onClick={() => {
+              onAction();
+              onDismiss();
+            }}
+            className="ml-2 px-2 py-0.5 text-xs font-medium bg-white/20 hover:bg-white/30 rounded transition-colors pointer-events-auto"
+          >
+            {actionLabel}
+          </button>
+        )}
       </div>
     </div>,
     document.body,

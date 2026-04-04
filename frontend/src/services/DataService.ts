@@ -255,6 +255,7 @@ export interface DataService {
     templateId?: string,
     noteId?: string,
     isAllDay?: boolean,
+    content?: string,
   ): Promise<ScheduleItem>;
   updateScheduleItem(
     id: string,
@@ -268,6 +269,7 @@ export interface DataService {
         | "completedAt"
         | "memo"
         | "isAllDay"
+        | "content"
       >
     >,
   ): Promise<ScheduleItem>;
@@ -294,6 +296,7 @@ export interface DataService {
   ): Promise<number>;
   fetchScheduleItemsByRoutineId(routineId: string): Promise<ScheduleItem[]>;
   bulkDeleteScheduleItems(ids: string[]): Promise<number>;
+  fetchEvents(): Promise<ScheduleItem[]>;
 
   // Routine Groups
   fetchRoutineGroups(): Promise<RoutineGroup[]>;

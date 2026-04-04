@@ -10,6 +10,7 @@ export interface ScheduleItem {
   templateId: string | null;
   memo: string | null;
   noteId: string | null;
+  content: string | null;
   isDismissed?: boolean;
   isAllDay?: boolean;
   createdAt: string;

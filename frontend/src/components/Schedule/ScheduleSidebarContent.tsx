@@ -11,6 +11,9 @@ import { formatDateKey } from "../../utils/dateKey";
 import { getDataService } from "../../services/dataServiceFactory";
 import type { ScheduleItem } from "../../types/schedule";
 import type { RoutineStats } from "../../types/schedule";
+import { FolderDropdown } from "../Tasks/Folder/FolderDropdown";
+import { Filter, ChevronDown, Search, X } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 interface ScheduleSidebarContentProps {
   routineStats: RoutineStats | null;
@@ -20,6 +23,10 @@ interface ScheduleSidebarContentProps {
   onShowManagementChange?: (open: boolean) => void;
   children: ReactNode;
   onSelectTask?: (taskId: string) => void;
+  filterFolderId?: string | null;
+  onFilterFolderChange?: (folderId: string | null) => void;
+  searchQuery?: string;
+  onSearchQueryChange?: (query: string) => void;
 }
 
 export function ScheduleSidebarContent({
@@ -30,6 +37,10 @@ export function ScheduleSidebarContent({
   onShowManagementChange,
   children,
   onSelectTask,
+  filterFolderId,
+  onFilterFolderChange,
+  searchQuery,
+  onSearchQueryChange,
 }: ScheduleSidebarContentProps) {
   const [showDetails, setShowDetails] = useState(false);
   const [internalShowManagement, setInternalShowManagement] = useState(false);
@@ -46,6 +57,7 @@ export function ScheduleSidebarContent({
   const {
     routines,
     toggleComplete,
+    dismissScheduleItem,
     routineTags,
     tagAssignments,
     createRoutine,
@@ -67,6 +79,23 @@ export function ScheduleSidebarContent({
     scheduleItemsVersion,
     reconcileRoutineScheduleItems,
   } = useScheduleContext();
+
+  const handleDismissItem = useCallback(
+    (scheduleItemId: string) => {
+      setSidebarScheduleItems((prev) =>
+        prev.filter((item) => item.id !== scheduleItemId),
+      );
+      dismissScheduleItem(scheduleItemId);
+    },
+    [dismissScheduleItem],
+  );
+
+  const handleEditRoutine = useCallback(
+    (routineId: string) => {
+      setShowManagement(true);
+    },
+    [setShowManagement],
+  );
 
   // Sync miniFlowDate when activeDate changes from parent
   useEffect(() => {
@@ -127,8 +156,63 @@ export function ScheduleSidebarContent({
     [toggleComplete],
   );
 
+  const { t } = useTranslation();
+  const folderName = nodes.find((n) => n.id === filterFolderId)?.title;
+
   return (
     <div className="flex flex-col h-full">
+      {onSearchQueryChange && (
+        <div className="px-3 pt-2 pb-1 shrink-0">
+          <div className="relative">
+            <Search
+              size={12}
+              className="absolute left-2 top-1/2 -translate-y-1/2 text-notion-text-secondary"
+            />
+            <input
+              type="text"
+              value={searchQuery ?? ""}
+              onChange={(e) => onSearchQueryChange(e.target.value)}
+              placeholder={t("calendar.searchPlaceholder", "Search items...")}
+              className="w-full pl-7 pr-7 py-1.5 text-xs bg-notion-bg-secondary border border-notion-border rounded-md text-notion-text placeholder:text-notion-text-secondary/50 outline-none focus:border-notion-accent/50 transition-colors"
+            />
+            {searchQuery && (
+              <button
+                onClick={() => onSearchQueryChange("")}
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-notion-text-secondary hover:text-notion-text transition-colors"
+              >
+                <X size={12} />
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+      {onFilterFolderChange && (
+        <div className="px-3 pt-2 pb-1 shrink-0">
+          <FolderDropdown
+            selectedId={filterFolderId ?? null}
+            onSelect={onFilterFolderChange}
+            rootLabel={t("calendar.all")}
+            panelMinWidth="min-w-44"
+            trigger={
+              <button
+                className={`flex items-center gap-1.5 w-full px-2 py-1.5 text-xs rounded-md border transition-colors ${
+                  filterFolderId
+                    ? "border-notion-accent/30 bg-notion-accent/10 text-notion-accent"
+                    : "border-notion-border text-notion-text-secondary hover:bg-notion-hover"
+                }`}
+              >
+                <Filter size={12} />
+                <span className="truncate flex-1 text-left">
+                  {filterFolderId && folderName
+                    ? folderName
+                    : t("calendar.folder")}
+                </span>
+                <ChevronDown size={11} />
+              </button>
+            }
+          />
+        </div>
+      )}
       <div className="flex-1 min-h-0 overflow-y-auto">
         {children}
         <div className="px-3 py-2 space-y-2">
@@ -142,6 +226,8 @@ export function ScheduleSidebarContent({
             onPrevDate={handlePrevDate}
             onNextDate={handleNextDate}
             activeFilters={activeFilters}
+            onEditRoutine={handleEditRoutine}
+            onDismissItem={handleDismissItem}
           />
           <InProgressTasksList
             date={miniFlowDate}

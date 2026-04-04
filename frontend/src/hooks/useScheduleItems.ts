@@ -156,6 +156,12 @@ function computeRoutineStats(
 
 export function useScheduleItems() {
   const [scheduleItems, setScheduleItems] = useState<ScheduleItem[]>([]);
+  const [events, setEvents] = useState<ScheduleItem[]>([]);
+  const [eventsVersion, setEventsVersion] = useState(0);
+  const bumpEventsVersion = useCallback(
+    () => setEventsVersion((v) => v + 1),
+    [],
+  );
   const [scheduleItemsVersion, setScheduleItemsVersion] = useState(0);
   const bumpVersion = useCallback(
     () => setScheduleItemsVersion((v) => v + 1),
@@ -180,6 +186,15 @@ export function useScheduleItems() {
     }
   }, []);
 
+  const loadEvents = useCallback(async () => {
+    try {
+      const items = await getDataService().fetchEvents();
+      setEvents(items);
+    } catch (e) {
+      logServiceError("ScheduleItems", "fetchEvents", e);
+    }
+  }, []);
+
   const createScheduleItem = useCallback(
     (
       date: string,
@@ -190,6 +205,7 @@ export function useScheduleItems() {
       templateId?: string,
       noteId?: string,
       isAllDay?: boolean,
+      content?: string,
     ): string => {
       const id = generateId("si");
       const now = new Date().toISOString();
@@ -205,6 +221,7 @@ export function useScheduleItems() {
         templateId: templateId ?? null,
         memo: null,
         noteId: noteId ?? null,
+        content: content ?? null,
         isAllDay: isAllDay ?? false,
         createdAt: now,
         updatedAt: now,
@@ -230,6 +247,7 @@ export function useScheduleItems() {
           templateId,
           noteId,
           isAllDay,
+          content,
         )
         .catch((e) => logServiceError("ScheduleItems", "create", e));
 
@@ -266,6 +284,7 @@ export function useScheduleItems() {
               templateId,
               noteId,
               isAllDay,
+              content,
             )
             .catch((e) => logServiceError("ScheduleItems", "redoCreate", e));
         },
@@ -289,6 +308,7 @@ export function useScheduleItems() {
           | "completed"
           | "completedAt"
           | "memo"
+          | "content"
         >
       >,
     ) => {
@@ -1003,6 +1023,10 @@ export function useScheduleItems() {
       backfillMissedRoutineItems,
       scheduleItemsVersion,
       reconcileRoutineScheduleItems,
+      events,
+      loadEvents,
+      eventsVersion,
+      bumpEventsVersion,
     }),
     [
       scheduleItems,
@@ -1025,6 +1049,10 @@ export function useScheduleItems() {
       backfillMissedRoutineItems,
       scheduleItemsVersion,
       reconcileRoutineScheduleItems,
+      events,
+      loadEvents,
+      eventsVersion,
+      bumpEventsVersion,
     ],
   );
 }

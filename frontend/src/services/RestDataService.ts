@@ -566,6 +566,10 @@ export class RestDataService implements DataService {
     return post(`/api/schedule-items/bulk-delete`, { ids });
   }
 
+  fetchEvents(): Promise<ScheduleItem[]> {
+    return get("/api/schedule-items/events");
+  }
+
   // Routine Groups
   fetchRoutineGroups(): Promise<RoutineGroup[]> {
     return get("/api/routine-groups");

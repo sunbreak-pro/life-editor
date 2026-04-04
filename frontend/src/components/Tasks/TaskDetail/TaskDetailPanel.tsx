@@ -18,6 +18,13 @@ import type {
   MoveRejectionReason,
 } from "../../../types/moveResult";
 import { useToast } from "../../../context/ToastContext";
+import { RoleSwitcher } from "../Schedule/Calendar/RoleSwitcher";
+import {
+  useRoleConversion,
+  type ConversionSource,
+  type ConversionRole,
+} from "../../../hooks/useRoleConversion";
+import { formatDateKey } from "../../../utils/dateKey";
 import { FolderTag } from "../Folder/FolderTag";
 import { FolderMovePicker } from "../Folder/FolderMovePicker";
 import { UnifiedColorPicker } from "../../shared/UnifiedColorPicker";
@@ -214,6 +221,9 @@ function TaskSidebarContent({
 
         {/* Row 3: WikiTags */}
         <WikiTagList entityId={node.id} entityType="task" />
+
+        {/* Row 3.5: Role Switcher */}
+        <TaskRoleSwitcherRow node={node} />
 
         {/* Row 4: Actions */}
         <div className="flex items-center gap-2">
@@ -789,6 +799,24 @@ function DebouncedTextarea({
       onKeyDown={(e) => e.stopPropagation()}
       placeholder={placeholder}
       className="w-full min-h-24 text-sm bg-notion-bg-secondary border border-notion-border rounded-lg p-2 text-notion-text placeholder:text-notion-text-secondary/50 resize-y outline-none focus:border-notion-accent/50 transition-colors"
+    />
+  );
+}
+
+function TaskRoleSwitcherRow({ node }: { node: TaskNode }) {
+  const { convert, canConvert } = useRoleConversion();
+  const date = node.scheduledAt
+    ? formatDateKey(new Date(node.scheduledAt))
+    : formatDateKey(new Date());
+  const source: ConversionSource = { role: "task", task: node, date };
+  const roles: ConversionRole[] = ["task", "event", "note", "daily"];
+  const disabledRoles = roles.filter((r) => !canConvert(source, r));
+
+  return (
+    <RoleSwitcher
+      currentRole="task"
+      disabledRoles={disabledRoles}
+      onSelectRole={(targetRole) => convert(source, targetRole)}
     />
   );
 }

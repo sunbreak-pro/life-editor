@@ -874,6 +874,10 @@ export class OfflineDataService implements DataService {
     return notSupported("bulkDeleteScheduleItems");
   }
 
+  async fetchEvents(): Promise<ScheduleItem[]> {
+    return notSupported("fetchEvents");
+  }
+
   // ============================================================
   // Calendars
   // ============================================================
