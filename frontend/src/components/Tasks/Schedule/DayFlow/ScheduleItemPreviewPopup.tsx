@@ -1,5 +1,5 @@
 import { useRef, useState } from "react";
-import { Check, Trash2, Pencil, Clock } from "lucide-react";
+import { Check, Trash2, Pencil, Clock, StickyNote } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import type { ScheduleItem } from "../../../../types/schedule";
 import { useClickOutside } from "../../../../hooks/useClickOutside";
@@ -20,6 +20,7 @@ interface ScheduleItemPreviewPopupProps {
   onUpdateTime?: (startTime: string, endTime: string) => void;
   onEditRoutine?: () => void;
   onDelete: () => void;
+  onUpdateMemo?: (id: string, memo: string | null) => void;
   onClose: () => void;
   onConvertRole?: (targetRole: ConversionRole) => void;
   disabledRoles?: ConversionRole[];
@@ -32,6 +33,7 @@ export function ScheduleItemPreviewPopup({
   onUpdateTime,
   onEditRoutine,
   onDelete,
+  onUpdateMemo,
   onClose,
   onConvertRole,
   disabledRoles,
@@ -132,6 +134,34 @@ export function ScheduleItemPreviewPopup({
             <Clock size={10} />
             {item.startTime} - {item.endTime}
           </button>
+        )}
+
+        {/* Memo */}
+        {onUpdateMemo && (
+          <div className="flex items-center gap-1 px-1 py-0.5 rounded border border-notion-border/50">
+            <StickyNote
+              size={10}
+              className="text-notion-text-secondary shrink-0"
+            />
+            <input
+              type="text"
+              defaultValue={item.memo ?? ""}
+              onBlur={(e) => {
+                const val = e.target.value;
+                if (val !== (item.memo ?? "")) {
+                  onUpdateMemo(item.id, val || null);
+                }
+              }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.currentTarget.blur();
+                }
+              }}
+              placeholder="memo..."
+              className="flex-1 text-xs bg-transparent outline-none text-notion-text placeholder:text-notion-text-secondary/50"
+              onClick={(e) => e.stopPropagation()}
+            />
+          </div>
         )}
 
         <div className="flex items-center gap-2">

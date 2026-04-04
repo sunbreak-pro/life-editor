@@ -29,6 +29,7 @@ interface WeeklyTimeGridProps {
   getRoutineCompletion?: (
     date: string,
   ) => { completed: number; total: number } | undefined;
+  onUpdateTimeMemo?: (taskId: string, memo: string | null) => void;
 }
 
 interface PositionedTask {
@@ -131,6 +132,7 @@ export function WeeklyTimeGrid({
   memosByDate,
   onSelectMemo,
   getRoutineCompletion,
+  onUpdateTimeMemo,
 }: WeeklyTimeGridProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [currentTime, setCurrentTime] = useState(new Date());
@@ -357,6 +359,7 @@ export function WeeklyTimeGrid({
                     color={getTaskColor?.(p.task.id)}
                     tag={getFolderTag?.(p.task.id)}
                     onClick={(e) => onSelectTask(p.task.id, e)}
+                    onUpdateTimeMemo={onUpdateTimeMemo}
                   />
                 ))}
               </div>

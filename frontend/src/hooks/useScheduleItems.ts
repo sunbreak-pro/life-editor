@@ -431,6 +431,17 @@ export function useScheduleItems() {
             : item,
         ),
       );
+      setEvents((prev) =>
+        prev.map((item) =>
+          item.id === id
+            ? {
+                ...item,
+                completed: !item.completed,
+                completedAt: !item.completed ? new Date().toISOString() : null,
+              }
+            : item,
+        ),
+      );
       getDataService()
         .toggleScheduleItemComplete(id)
         .catch((e) => logServiceError("ScheduleItems", "toggleComplete", e));
@@ -460,6 +471,17 @@ export function useScheduleItems() {
                 : i,
             ),
           );
+          setEvents((prev) =>
+            prev.map((i) =>
+              i.id === id
+                ? {
+                    ...i,
+                    completed: wasCompleted,
+                    completedAt: wasCompleted ? i.completedAt : null,
+                  }
+                : i,
+            ),
+          );
           getDataService()
             .toggleScheduleItemComplete(id)
             .catch((e) => logServiceError("ScheduleItems", "undoToggle", e));
@@ -479,6 +501,19 @@ export function useScheduleItems() {
             ),
           );
           setMonthlyScheduleItems((prev) =>
+            prev.map((i) =>
+              i.id === id
+                ? {
+                    ...i,
+                    completed: !wasCompleted,
+                    completedAt: !wasCompleted
+                      ? new Date().toISOString()
+                      : null,
+                  }
+                : i,
+            ),
+          );
+          setEvents((prev) =>
             prev.map((i) =>
               i.id === id
                 ? {

@@ -580,6 +580,9 @@ export function CalendarView({
             onCreateTask={onCreateTask ? handleRequestCreate : undefined}
             getTaskColor={getTaskColor}
             getFolderTag={getFolderTagForTask}
+            onUpdateTimeMemo={(taskId, memo) =>
+              updateNode(taskId, { timeMemo: memo ?? undefined })
+            }
           />
         )}
       </div>
@@ -744,6 +747,7 @@ export function CalendarView({
             deleteScheduleItem(scheduleItemPreview.item.id);
             setScheduleItemPreview(null);
           }}
+          onUpdateMemo={(id, memo) => updateScheduleItem(id, { memo })}
           onClose={() => setScheduleItemPreview(null)}
           onConvertRole={
             !scheduleItemPreview.item.routineId

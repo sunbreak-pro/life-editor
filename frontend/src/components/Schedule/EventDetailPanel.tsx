@@ -1,10 +1,9 @@
-import { useState, useCallback, Suspense } from "react";
-import { Trash2, Clock, CalendarDays } from "lucide-react";
+import { useState, useCallback } from "react";
+import { Trash2, Clock, CalendarDays, StickyNote } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useScheduleContext } from "../../hooks/useScheduleContext";
 import { TimeInput } from "../shared/TimeInput";
 import { ConfirmDialog } from "../shared/ConfirmDialog";
-import { LazyMemoEditor as MemoEditor } from "../Tasks/TaskDetail/LazyMemoEditor";
 import {
   formatTime,
   clampEndTimeAfterStart,
@@ -97,13 +96,6 @@ function EventDetailContent({
     onUpdate({ endTime: clamped });
   };
 
-  const handleContentUpdate = useCallback(
-    (content: string) => {
-      onUpdate({ content });
-    },
-    [onUpdate],
-  );
-
   return (
     <div className="h-full flex flex-col overflow-y-auto">
       <div className="p-4 space-y-4">
@@ -173,11 +165,13 @@ function EventDetailContent({
         )}
 
         {/* Memo */}
-        <div>
-          <label className="text-xs text-notion-text-secondary block mb-1">
-            {t("eventDetail.timeMemo", "Memo")}
-          </label>
-          <textarea
+        <div className="flex items-center gap-1 px-2 py-1 rounded-md border border-notion-border">
+          <StickyNote
+            size={12}
+            className="text-notion-text-secondary shrink-0"
+          />
+          <input
+            type="text"
             defaultValue={event.memo ?? ""}
             onBlur={(e) => {
               const val = e.target.value;
@@ -189,8 +183,8 @@ function EventDetailContent({
               "eventDetail.memoPlaceholder",
               "Add a quick memo...",
             )}
-            className="w-full text-sm bg-notion-bg-secondary border border-notion-border rounded-md px-3 py-2 text-notion-text placeholder:text-notion-text-secondary/50 resize-none focus:outline-none focus:ring-1 focus:ring-notion-accent"
-            rows={2}
+            className="text-xs bg-transparent outline-none text-notion-text placeholder:text-notion-text-secondary/50 w-full"
+            onClick={(e) => e.stopPropagation()}
           />
         </div>
 
@@ -202,18 +196,6 @@ function EventDetailContent({
           <Trash2 size={12} />
           {t("eventDetail.delete", "Delete event")}
         </button>
-      </div>
-
-      {/* Content Editor */}
-      <div className="flex-1 min-h-[200px] border-t border-notion-border">
-        <Suspense fallback={null}>
-          <MemoEditor
-            taskId={event.id}
-            initialContent={event.content ?? undefined}
-            onUpdate={handleContentUpdate}
-            entityType="task"
-          />
-        </Suspense>
       </div>
 
       {showDeleteConfirm && (
