@@ -202,8 +202,7 @@ export function CalendarView({
     groupTagAssignments,
     setTagsForGroup,
     createRoutineTag,
-    skipNextSync,
-    cleanupNonMatchingScheduleItems,
+    reconcileRoutineScheduleItems,
   } = useScheduleContext();
 
   const { convert, canConvert } = useRoleConversion();
@@ -894,7 +893,6 @@ export function CalendarView({
             frequencyInterval,
             frequencyStartDate,
           ) => {
-            skipNextSync();
             updateRoutine(editRoutineDialog.id, {
               title,
               startTime,
@@ -907,14 +905,14 @@ export function CalendarView({
             if (tagIds !== undefined) {
               setTagsForRoutine(editRoutineDialog.id, tagIds);
             }
-            if (
+            const freqChanged =
               frequencyType !== editRoutineDialog.frequencyType ||
               JSON.stringify(frequencyDays) !==
                 JSON.stringify(editRoutineDialog.frequencyDays) ||
               frequencyInterval !== editRoutineDialog.frequencyInterval ||
-              frequencyStartDate !== editRoutineDialog.frequencyStartDate
-            ) {
-              const updatedRoutine = {
+              frequencyStartDate !== editRoutineDialog.frequencyStartDate;
+            if (freqChanged) {
+              const updatedRoutine: RoutineNode = {
                 ...editRoutineDialog,
                 title,
                 startTime: startTime ?? editRoutineDialog.startTime,
@@ -930,8 +928,16 @@ export function CalendarView({
                     ? frequencyStartDate
                     : editRoutineDialog.frequencyStartDate,
               };
-              await cleanupNonMatchingScheduleItems(updatedRoutine);
-              loadScheduleItemsForMonth(year, month);
+              const group = groupForRoutine.get(editRoutineDialog.id);
+              const gridStart = new Date(year, month, 1);
+              gridStart.setDate(gridStart.getDate() - gridStart.getDay());
+              const gridEnd = new Date(gridStart);
+              gridEnd.setDate(gridEnd.getDate() + 41);
+              await reconcileRoutineScheduleItems(updatedRoutine, group, {
+                startDate: formatDateKey(gridStart),
+                endDate: formatDateKey(gridEnd),
+              });
+              await loadScheduleItemsForMonth(year, month);
             }
             setEditRoutineDialog(null);
           }}
@@ -966,7 +972,6 @@ export function CalendarView({
             });
             setTagsForGroup(editGroupDialog.id, tagIds);
 
-            // Detect frequency change and cleanup non-matching schedule items
             const freqChanged =
               frequencyType !== editGroupDialog.frequencyType ||
               JSON.stringify(frequencyDays) !==
@@ -989,12 +994,23 @@ export function CalendarView({
                     ? frequencyStartDate
                     : editGroupDialog.frequencyStartDate,
               };
+              const gridStart = new Date(year, month, 1);
+              gridStart.setDate(gridStart.getDate() - gridStart.getDay());
+              const gridEnd = new Date(gridStart);
+              gridEnd.setDate(gridEnd.getDate() + 41);
+              const dateRange = {
+                startDate: formatDateKey(gridStart),
+                endDate: formatDateKey(gridEnd),
+              };
               const members = routinesByGroup.get(editGroupDialog.id) ?? [];
               for (const routine of members) {
-                await cleanupNonMatchingScheduleItems(routine, updatedGroup);
+                await reconcileRoutineScheduleItems(
+                  routine,
+                  updatedGroup,
+                  dateRange,
+                );
               }
-              // Reload after all cleanups complete
-              loadScheduleItemsForMonth(year, month);
+              await loadScheduleItemsForMonth(year, month);
             }
 
             setEditGroupDialog(null);

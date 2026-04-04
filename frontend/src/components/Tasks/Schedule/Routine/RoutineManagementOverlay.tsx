@@ -87,8 +87,7 @@ interface RoutineManagementOverlayProps {
   ) => void;
   onDeleteRoutineGroup: (id: string) => void;
   setTagsForGroup: (groupId: string, tagIds: number[]) => void;
-  onSkipNextSync?: () => void;
-  onCleanupNonMatchingScheduleItems?: (
+  onReconcileRoutineScheduleItems?: (
     routine: RoutineNode,
     group?: RoutineGroup,
   ) => Promise<void>;
@@ -115,8 +114,7 @@ export function RoutineManagementOverlay({
   onUpdateRoutineGroup,
   onDeleteRoutineGroup,
   setTagsForGroup,
-  onSkipNextSync,
-  onCleanupNonMatchingScheduleItems,
+  onReconcileRoutineScheduleItems,
   onClose,
 }: RoutineManagementOverlayProps) {
   const { t } = useTranslation();
@@ -221,8 +219,8 @@ export function RoutineManagementOverlay({
           }
         }
 
-        // Clean up schedule items that no longer match the new frequency
-        if (freqChanged && onCleanupNonMatchingScheduleItems) {
+        // Reconcile schedule items after frequency change
+        if (freqChanged && onReconcileRoutineScheduleItems) {
           const updatedRoutine: RoutineNode = {
             ...editDialog,
             title,
@@ -239,7 +237,7 @@ export function RoutineManagementOverlay({
                 ? frequencyStartDate
                 : editDialog.frequencyStartDate,
           };
-          onCleanupNonMatchingScheduleItems(updatedRoutine);
+          onReconcileRoutineScheduleItems(updatedRoutine);
         }
       }
     },
@@ -248,7 +246,7 @@ export function RoutineManagementOverlay({
       onCreateRoutine,
       onUpdateRoutine,
       setTagsForRoutine,
-      onCleanupNonMatchingScheduleItems,
+      onReconcileRoutineScheduleItems,
     ],
   );
 
@@ -294,8 +292,8 @@ export function RoutineManagementOverlay({
         });
         setTagsForGroup(groupEditDialog.id, tagIds);
 
-        // Clean up schedule items that no longer match the new group frequency
-        if (freqChanged && onCleanupNonMatchingScheduleItems) {
+        // Reconcile schedule items after group frequency change
+        if (freqChanged && onReconcileRoutineScheduleItems) {
           const updatedGroup = {
             ...groupEditDialog,
             name,
@@ -313,7 +311,7 @@ export function RoutineManagementOverlay({
           };
           const members = routinesByGroup.get(groupEditDialog.id) ?? [];
           for (const routine of members) {
-            onCleanupNonMatchingScheduleItems(routine, updatedGroup);
+            await onReconcileRoutineScheduleItems(routine, updatedGroup);
           }
         }
       }
@@ -323,7 +321,7 @@ export function RoutineManagementOverlay({
       onCreateRoutineGroup,
       onUpdateRoutineGroup,
       setTagsForGroup,
-      onCleanupNonMatchingScheduleItems,
+      onReconcileRoutineScheduleItems,
       routinesByGroup,
     ],
   );
@@ -660,8 +658,7 @@ export function RoutineManagementOverlay({
           routineTitle={pendingTimeChange.routineTitle}
           newTime={`${pendingTimeChange.startTime ?? "?"} - ${pendingTimeChange.endTime ?? "?"}`}
           onTemplateOnly={() => {
-            // Update routine time but skip sync to existing schedule items
-            onSkipNextSync?.();
+            // Update routine time (sync will propagate to future items)
             onUpdateRoutine(pendingTimeChange.routineId, {
               startTime: pendingTimeChange.startTime,
               endTime: pendingTimeChange.endTime,

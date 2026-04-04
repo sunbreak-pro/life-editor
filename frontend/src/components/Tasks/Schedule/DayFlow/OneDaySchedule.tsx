@@ -103,10 +103,9 @@ export function OneDaySchedule({
     routinesByGroup,
     groupForRoutine,
     createScheduleItem,
-    skipNextSync,
     setTagsForRoutine,
     createRoutineTag,
-    cleanupNonMatchingScheduleItems,
+    reconcileRoutineScheduleItems,
     updateRoutineGroup,
     deleteRoutineGroup,
     groupTagAssignments,
@@ -620,7 +619,6 @@ export function OneDaySchedule({
             newEndTime={routineTimeChange.endTime}
             onThisOnly={() => setRoutineTimeChange(null)}
             onApplyToRoutine={() => {
-              skipNextSync();
               updateRoutine(routineTimeChange.routineId, {
                 startTime: routineTimeChange.startTime,
                 endTime: routineTimeChange.endTime,
@@ -652,7 +650,7 @@ export function OneDaySchedule({
             routine={editRoutineDialog}
             tags={routineTags}
             initialTagIds={tagAssignments.get(editRoutineDialog.id) ?? []}
-            onSubmit={(
+            onSubmit={async (
               title,
               startTime,
               endTime,
@@ -662,7 +660,6 @@ export function OneDaySchedule({
               frequencyInterval,
               frequencyStartDate,
             ) => {
-              skipNextSync();
               updateRoutine(editRoutineDialog.id, {
                 title,
                 startTime,
@@ -675,14 +672,14 @@ export function OneDaySchedule({
               if (tagIds !== undefined) {
                 setTagsForRoutine(editRoutineDialog.id, tagIds);
               }
-              if (
+              const freqChanged =
                 frequencyType !== editRoutineDialog.frequencyType ||
                 JSON.stringify(frequencyDays) !==
                   JSON.stringify(editRoutineDialog.frequencyDays) ||
                 frequencyInterval !== editRoutineDialog.frequencyInterval ||
-                frequencyStartDate !== editRoutineDialog.frequencyStartDate
-              ) {
-                const updatedRoutine = {
+                frequencyStartDate !== editRoutineDialog.frequencyStartDate;
+              if (freqChanged) {
+                const updatedRoutine: RoutineNode = {
                   ...editRoutineDialog,
                   title,
                   startTime: startTime ?? editRoutineDialog.startTime,
@@ -700,7 +697,9 @@ export function OneDaySchedule({
                       ? frequencyStartDate
                       : editRoutineDialog.frequencyStartDate,
                 };
-                cleanupNonMatchingScheduleItems(updatedRoutine);
+                const group = groupForRoutine.get(editRoutineDialog.id);
+                await reconcileRoutineScheduleItems(updatedRoutine, group);
+                await loadItemsForDate(dateKey);
               }
               setEditRoutineDialog(null);
             }}
@@ -716,7 +715,7 @@ export function OneDaySchedule({
             initialTagIds={groupTagAssignments.get(editGroupDialog.id) ?? []}
             memberRoutines={routinesByGroup.get(editGroupDialog.id) ?? []}
             groupTimeRange={groupTimeRange.get(editGroupDialog.id)}
-            onSubmit={(
+            onSubmit={async (
               name,
               color,
               tagIds,
@@ -734,6 +733,36 @@ export function OneDaySchedule({
                 frequencyStartDate,
               });
               setTagsForGroup(editGroupDialog.id, tagIds);
+
+              const freqChanged =
+                frequencyType !== editGroupDialog.frequencyType ||
+                JSON.stringify(frequencyDays) !==
+                  JSON.stringify(editGroupDialog.frequencyDays) ||
+                frequencyInterval !== editGroupDialog.frequencyInterval ||
+                frequencyStartDate !== editGroupDialog.frequencyStartDate;
+              if (freqChanged) {
+                const updatedGroup = {
+                  ...editGroupDialog,
+                  name,
+                  color,
+                  frequencyType: frequencyType ?? editGroupDialog.frequencyType,
+                  frequencyDays: frequencyDays ?? editGroupDialog.frequencyDays,
+                  frequencyInterval:
+                    frequencyInterval !== undefined
+                      ? frequencyInterval
+                      : editGroupDialog.frequencyInterval,
+                  frequencyStartDate:
+                    frequencyStartDate !== undefined
+                      ? frequencyStartDate
+                      : editGroupDialog.frequencyStartDate,
+                };
+                const members = routinesByGroup.get(editGroupDialog.id) ?? [];
+                for (const routine of members) {
+                  await reconcileRoutineScheduleItems(routine, updatedGroup);
+                }
+                await loadItemsForDate(dateKey);
+              }
+
               setEditGroupDialog(null);
             }}
             onClose={() => setEditGroupDialog(null)}

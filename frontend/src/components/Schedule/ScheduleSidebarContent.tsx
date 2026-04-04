@@ -64,9 +64,8 @@ export function ScheduleSidebarContent({
     updateRoutineGroup,
     deleteRoutineGroup,
     setTagsForGroup,
-    skipNextSync,
     scheduleItemsVersion,
-    cleanupNonMatchingScheduleItems,
+    reconcileRoutineScheduleItems,
   } = useScheduleContext();
 
   // Sync miniFlowDate when activeDate changes from parent
@@ -188,8 +187,7 @@ export function ScheduleSidebarContent({
           onUpdateRoutineGroup={updateRoutineGroup}
           onDeleteRoutineGroup={deleteRoutineGroup}
           setTagsForGroup={setTagsForGroup}
-          onSkipNextSync={skipNextSync}
-          onCleanupNonMatchingScheduleItems={cleanupNonMatchingScheduleItems}
+          onReconcileRoutineScheduleItems={reconcileRoutineScheduleItems}
           onClose={() => setShowManagement(false)}
         />
       )}

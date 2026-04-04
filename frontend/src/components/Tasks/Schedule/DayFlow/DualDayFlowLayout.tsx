@@ -136,7 +136,7 @@ function DualColumn({
   onToggleDualColumn,
   onMutate,
 }: DualColumnProps) {
-  const { updateRoutine, routines, skipNextSync } = useScheduleContext();
+  const { updateRoutine, routines } = useScheduleContext();
   const { addNode, updateNode } = useTaskTreeContext();
 
   // Auto-set NOT_STARTED tasks to IN_PROGRESS for today
@@ -352,7 +352,6 @@ function DualColumn({
           newEndTime={routineTimeChange.endTime}
           onThisOnly={() => setRoutineTimeChange(null)}
           onApplyToRoutine={() => {
-            skipNextSync();
             updateRoutine(routineTimeChange.routineId, {
               startTime: routineTimeChange.startTime,
               endTime: routineTimeChange.endTime,

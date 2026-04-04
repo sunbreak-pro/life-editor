@@ -622,18 +622,8 @@ export function useScheduleItems() {
     }
   }, []);
 
-  const skipNextSyncRef = useRef(false);
-
-  const skipNextSync = useCallback(() => {
-    skipNextSyncRef.current = true;
-  }, []);
-
   const syncScheduleItemsWithRoutines = useCallback(
     (routines: RoutineNode[]) => {
-      if (skipNextSyncRef.current) {
-        skipNextSyncRef.current = false;
-        return;
-      }
       const routineMap = new Map(routines.map((r) => [r.id, r]));
       let changed = false;
       const updated = scheduleItemsRef.current.map((item) => {
@@ -881,47 +871,110 @@ export function useScheduleItems() {
     [bumpVersion],
   );
 
-  const cleanupNonMatchingScheduleItems = useCallback(
-    async (routine: RoutineNode, group?: RoutineGroup) => {
+  /**
+   * Reconcile routine schedule items after frequency change.
+   * 1. Delete non-matching items from DB
+   * 2. Create items for matching dates in the given range
+   * 3. Caller must reload state after this completes
+   */
+  const reconcileRoutineScheduleItems = useCallback(
+    async (
+      routine: RoutineNode,
+      group?: RoutineGroup,
+      dateRange?: { startDate: string; endDate: string },
+    ) => {
       try {
         const allItems = await getDataService().fetchScheduleItemsByRoutineId(
           routine.id,
         );
+
+        // --- Delete non-matching items ---
         const toDeleteIds = allItems
-          .filter(
-            (item) =>
-              !item.completed &&
-              (!shouldRoutineRunOnDate(
+          .filter((item) => {
+            if (item.completed) return false;
+            const routineMatch = shouldRoutineRunOnDate(
+              routine.frequencyType,
+              routine.frequencyDays,
+              routine.frequencyInterval,
+              routine.frequencyStartDate,
+              item.date,
+            );
+            const groupMatch = group
+              ? shouldRoutineRunOnDate(
+                  group.frequencyType,
+                  group.frequencyDays,
+                  group.frequencyInterval,
+                  group.frequencyStartDate,
+                  item.date,
+                )
+              : true;
+            return !routineMatch || !groupMatch;
+          })
+          .map((item) => item.id);
+
+        if (toDeleteIds.length > 0) {
+          await getDataService().bulkDeleteScheduleItems(toDeleteIds);
+        }
+
+        // --- Create missing items for matching dates in range ---
+        if (dateRange) {
+          const deleteSet = new Set(toDeleteIds);
+          const existingDates = new Set(
+            allItems.filter((i) => !deleteSet.has(i.id)).map((i) => i.date),
+          );
+
+          const toCreate: Array<{
+            id: string;
+            date: string;
+            title: string;
+            startTime: string;
+            endTime: string;
+            routineId: string;
+          }> = [];
+
+          const cursor = new Date(dateRange.startDate + "T00:00:00");
+          const end = new Date(dateRange.endDate + "T00:00:00");
+          while (cursor <= end) {
+            const dateKey = formatDateKey(cursor);
+            if (!existingDates.has(dateKey)) {
+              const routineMatch = shouldRoutineRunOnDate(
                 routine.frequencyType,
                 routine.frequencyDays,
                 routine.frequencyInterval,
                 routine.frequencyStartDate,
-                item.date,
-              ) ||
-                (group &&
-                  !shouldRoutineRunOnDate(
+                dateKey,
+              );
+              const groupMatch = group
+                ? shouldRoutineRunOnDate(
                     group.frequencyType,
                     group.frequencyDays,
                     group.frequencyInterval,
                     group.frequencyStartDate,
-                    item.date,
-                  ))),
-          )
-          .map((item) => item.id);
+                    dateKey,
+                  )
+                : true;
+              if (routineMatch && groupMatch) {
+                toCreate.push({
+                  id: generateId("si"),
+                  date: dateKey,
+                  title: routine.title,
+                  startTime: routine.startTime ?? "09:00",
+                  endTime: routine.endTime ?? "09:30",
+                  routineId: routine.id,
+                });
+              }
+            }
+            cursor.setDate(cursor.getDate() + 1);
+          }
 
-        if (toDeleteIds.length === 0) return;
+          if (toCreate.length > 0) {
+            await getDataService().bulkCreateScheduleItems(toCreate);
+          }
+        }
 
-        const deleteSet = new Set(toDeleteIds);
-        setScheduleItems((prev) =>
-          prev.filter((item) => !deleteSet.has(item.id)),
-        );
-        setMonthlyScheduleItems((prev) =>
-          prev.filter((item) => !deleteSet.has(item.id)),
-        );
-        await getDataService().bulkDeleteScheduleItems(toDeleteIds);
         bumpVersion();
       } catch (e) {
-        logServiceError("ScheduleItems", "cleanupNonMatching", e);
+        logServiceError("ScheduleItems", "reconcileRoutine", e);
       }
     },
     [bumpVersion],
@@ -947,10 +1000,9 @@ export function useScheduleItems() {
       getRoutineCompletionByDate,
       monthlyScheduleItems,
       syncScheduleItemsWithRoutines,
-      skipNextSync,
       backfillMissedRoutineItems,
       scheduleItemsVersion,
-      cleanupNonMatchingScheduleItems,
+      reconcileRoutineScheduleItems,
     }),
     [
       scheduleItems,
@@ -964,7 +1016,6 @@ export function useScheduleItems() {
       ensureRoutineItemsForDate,
       ensureRoutineItemsForWeek,
       getRoutineCompletionRate,
-      skipNextSync,
       routineStats,
       refreshRoutineStats,
       loadScheduleItemsForMonth,
@@ -973,7 +1024,7 @@ export function useScheduleItems() {
       syncScheduleItemsWithRoutines,
       backfillMissedRoutineItems,
       scheduleItemsVersion,
-      cleanupNonMatchingScheduleItems,
+      reconcileRoutineScheduleItems,
     ],
   );
 }
