@@ -602,11 +602,13 @@ export function ScheduleTimeGrid({
     );
   }, [unifiedItems, routineGroups, groupForRoutine]);
 
-  // Check if tasks overlap with any group frame (exclude header area from overlap check)
+  // Check if any non-routine item (task or event) overlaps with a group frame
   const hasRoutineTaskSplit = useMemo(() => {
     if (groupFrames.length === 0) return false;
     return unifiedItems.some((item) => {
-      if (item.kind !== "task") return false;
+      // Grouped routine items don't trigger the split
+      if (item.kind === "schedule" && item.scheduleItem?.routineId)
+        return false;
       return groupFrames.some((gf) =>
         rangesOverlap(
           item.top,
@@ -836,7 +838,7 @@ export function ScheduleTimeGrid({
 
         {/* Unified item blocks */}
         {adjustedItems.map((item) => {
-          // Column separation: routine items in left column, tasks in right column
+          // Column separation: routine items in left column, tasks/events in right column
           let colLeft: string;
           let colWidth: string;
 

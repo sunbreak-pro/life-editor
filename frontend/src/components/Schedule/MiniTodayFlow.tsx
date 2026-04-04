@@ -177,18 +177,18 @@ export function MiniTodayFlow({
   const dateLabel = `${date.getMonth() + 1}/${date.getDate()}`;
 
   return (
-    <div className="border border-notion-border rounded-lg p-2">
+    <div className="border border-notion-border/60 rounded-lg p-2">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-0.5">
           {onPrevDate && (
             <button
               onClick={onPrevDate}
-              className="p-0.5 rounded hover:bg-notion-hover text-notion-text-secondary hover:text-notion-text transition-colors"
+              className="p-1 rounded hover:bg-notion-hover text-notion-text-secondary hover:text-notion-text transition-colors"
             >
-              <ChevronLeft size={12} />
+              <ChevronLeft size={14} />
             </button>
           )}
-          <span className="text-[10px] text-notion-text-secondary uppercase tracking-wide font-medium">
+          <span className="text-xs text-notion-text-secondary uppercase tracking-wide font-medium">
             {isToday
               ? t("schedule.todayFlow", "Today Flow")
               : `Flow ${dateLabel}`}
@@ -196,16 +196,16 @@ export function MiniTodayFlow({
           {onNextDate && (
             <button
               onClick={onNextDate}
-              className="p-0.5 rounded hover:bg-notion-hover text-notion-text-secondary hover:text-notion-text transition-colors"
+              className="p-1 rounded hover:bg-notion-hover text-notion-text-secondary hover:text-notion-text transition-colors"
             >
-              <ChevronRight size={12} />
+              <ChevronRight size={14} />
             </button>
           )}
         </div>
       </div>
 
       {!hasEntries && (
-        <p className="mt-1.5 text-[10px] text-notion-text-secondary/50 px-1">
+        <p className="mt-1.5 text-xs text-notion-text-secondary/50 px-1">
           {t("schedule.noItems", "No items for this day")}
         </p>
       )}
@@ -228,16 +228,16 @@ export function MiniTodayFlow({
                         className="flex-shrink-0 transition-colors"
                       >
                         {entry.completed ? (
-                          <CheckCircle2 size={14} className="text-green-500" />
+                          <CheckCircle2 size={16} className="text-green-500" />
                         ) : (
                           <Repeat
-                            size={14}
+                            size={16}
                             className={`text-emerald-500 ${entry.scheduleItemId ? "hover:text-green-500" : ""}`}
                           />
                         )}
                       </button>
                       {i < entries.length - 1 && (
-                        <div className="w-px flex-1 min-h-[12px] bg-notion-border" />
+                        <div className="w-px flex-1 min-h-[10px] bg-notion-border" />
                       )}
                     </div>
                     <div className="pb-2 min-w-0 flex-1 flex items-start">
@@ -245,7 +245,7 @@ export function MiniTodayFlow({
                         className={`text-xs truncate flex-1 ${entry.completed ? "text-notion-text-secondary line-through" : "text-notion-text"}`}
                       >
                         {entry.startTime && (
-                          <span className="text-[10px] text-notion-text-secondary mr-1">
+                          <span className="text-xs text-notion-text-secondary mr-1">
                             {entry.startTime}
                           </span>
                         )}
@@ -258,9 +258,9 @@ export function MiniTodayFlow({
                               e.stopPropagation();
                               onEditRoutine(entry.routineId, e);
                             }}
-                            className="p-0.5 rounded hover:bg-notion-hover text-notion-text-secondary hover:text-notion-text transition-colors"
+                            className="p-1 rounded hover:bg-notion-hover text-notion-text-secondary hover:text-notion-text transition-colors"
                           >
-                            <Pencil size={10} />
+                            <Pencil size={12} />
                           </button>
                         )}
                         {onDismissItem && entry.scheduleItemId && (
@@ -269,9 +269,9 @@ export function MiniTodayFlow({
                               e.stopPropagation();
                               onDismissItem(entry.scheduleItemId!);
                             }}
-                            className="p-0.5 rounded hover:bg-notion-hover text-notion-text-secondary hover:text-red-500 transition-colors"
+                            className="p-1 rounded hover:bg-notion-hover text-notion-text-secondary hover:text-red-500 transition-colors"
                           >
-                            <X size={10} />
+                            <X size={12} />
                           </button>
                         )}
                       </div>
@@ -295,16 +295,16 @@ export function MiniTodayFlow({
                         className="flex-shrink-0 transition-colors"
                       >
                         {si.completed ? (
-                          <CheckCircle2 size={14} className="text-green-500" />
+                          <CheckCircle2 size={16} className="text-green-500" />
                         ) : (
                           <CalendarClock
-                            size={14}
+                            size={16}
                             className="text-purple-500 hover:text-green-500"
                           />
                         )}
                       </button>
                       {i < entries.length - 1 && (
-                        <div className="w-px flex-1 min-h-[12px] bg-notion-border" />
+                        <div className="w-px flex-1 min-h-[10px] bg-notion-border" />
                       )}
                     </div>
                     <div className="pb-2 min-w-0 flex-1 flex items-start">
@@ -312,7 +312,7 @@ export function MiniTodayFlow({
                         className={`text-xs truncate flex-1 ${si.completed ? "text-notion-text-secondary line-through" : "text-notion-text"}`}
                       >
                         {si.startTime && (
-                          <span className="text-[10px] text-notion-text-secondary mr-1">
+                          <span className="text-xs text-notion-text-secondary mr-1">
                             {si.startTime}
                           </span>
                         )}
@@ -325,9 +325,9 @@ export function MiniTodayFlow({
                               e.stopPropagation();
                               onEditEvent(si.id, e);
                             }}
-                            className="p-0.5 rounded hover:bg-notion-hover text-notion-text-secondary hover:text-notion-text transition-colors"
+                            className="p-1 rounded hover:bg-notion-hover text-notion-text-secondary hover:text-notion-text transition-colors"
                           >
-                            <Pencil size={10} />
+                            <Pencil size={12} />
                           </button>
                         )}
                         {onDismissItem && (
@@ -336,9 +336,9 @@ export function MiniTodayFlow({
                               e.stopPropagation();
                               onDismissItem(si.id);
                             }}
-                            className="p-0.5 rounded hover:bg-notion-hover text-notion-text-secondary hover:text-red-500 transition-colors"
+                            className="p-1 rounded hover:bg-notion-hover text-notion-text-secondary hover:text-red-500 transition-colors"
                           >
-                            <X size={10} />
+                            <X size={12} />
                           </button>
                         )}
                       </div>
@@ -368,13 +368,13 @@ export function MiniTodayFlow({
                         />
                       ) : (
                         <CheckSquare
-                          size={14}
+                          size={16}
                           className="text-notion-accent hover:text-green-500"
                         />
                       )}
                     </button>
                     {i < entries.length - 1 && (
-                      <div className="w-px flex-1 min-h-[12px] bg-notion-border" />
+                      <div className="w-px flex-1 min-h-[10px] bg-notion-border" />
                     )}
                   </div>
                   <div className="pb-2 min-w-0 flex-1 flex items-start">
@@ -383,7 +383,7 @@ export function MiniTodayFlow({
                       className={`text-xs truncate flex-1 text-left ${isDone ? "text-notion-text-secondary line-through" : "text-notion-text"}`}
                     >
                       {task.scheduledAt && !task.isAllDay && (
-                        <span className="text-[10px] text-notion-text-secondary mr-1">
+                        <span className="text-xs text-notion-text-secondary mr-1">
                           {extractTimeFromScheduledAt(task.scheduledAt)}
                         </span>
                       )}
@@ -396,9 +396,9 @@ export function MiniTodayFlow({
                             e.stopPropagation();
                             onEditTask(task.id, e);
                           }}
-                          className="p-0.5 rounded hover:bg-notion-hover text-notion-text-secondary hover:text-notion-text transition-colors"
+                          className="p-1 rounded hover:bg-notion-hover text-notion-text-secondary hover:text-notion-text transition-colors"
                         >
-                          <Pencil size={10} />
+                          <Pencil size={12} />
                         </button>
                       )}
                       {onRemoveTaskFromSchedule && (
@@ -407,9 +407,9 @@ export function MiniTodayFlow({
                             e.stopPropagation();
                             onRemoveTaskFromSchedule(task.id);
                           }}
-                          className="p-0.5 rounded hover:bg-notion-hover text-notion-text-secondary hover:text-red-500 transition-colors"
+                          className="p-1 rounded hover:bg-notion-hover text-notion-text-secondary hover:text-red-500 transition-colors"
                         >
-                          <CalendarMinus size={10} />
+                          <CalendarMinus size={12} />
                         </button>
                       )}
                     </div>
@@ -422,10 +422,10 @@ export function MiniTodayFlow({
           {/* Progress bar */}
           <div className="mt-1 pt-1 border-t border-notion-border">
             <div className="flex items-center justify-between mb-1">
-              <span className="text-[10px] text-notion-text-secondary">
+              <span className="text-xs text-notion-text-secondary">
                 {completedCount}/{totalCount}
               </span>
-              <span className="text-[10px] text-notion-text-secondary">
+              <span className="text-xs text-notion-text-secondary">
                 {progressPercent}%
               </span>
             </div>

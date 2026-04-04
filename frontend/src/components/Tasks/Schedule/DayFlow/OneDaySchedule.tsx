@@ -8,10 +8,11 @@ import { formatDateKey } from "../../../../utils/dateKey";
 import { getDataService } from "../../../../services";
 import { CompactDateNav } from "./CompactDateNav";
 import { ScheduleTimeGrid } from "./ScheduleTimeGrid";
-import { TaskSchedulePanel } from "../../../shared/TaskSchedulePanel";
+import {
+  TaskSchedulePanel,
+  type PanelTab,
+} from "../../../shared/TaskSchedulePanel";
 import { TimeGridClickMenu } from "./TimeGridClickMenu";
-import { RoutinePickerPanel } from "./RoutinePickerPanel";
-import { NoteSchedulePanel } from "../../../shared/NoteSchedulePanel/NoteSchedulePanel";
 import { RoutineDeleteConfirmDialog } from "./RoutineDeleteConfirmDialog";
 import { RoutineEditDialog } from "../Routine/RoutineEditDialog";
 import { RoutineGroupEditDialog } from "../Routine/RoutineGroupEditDialog";
@@ -21,6 +22,8 @@ import { RoutineTimeChangeDialog } from "./RoutineTimeChangeDialog";
 import type { TabItem } from "../../../shared/SectionTabs";
 import { TIME_GRID } from "../../../../constants/timeGrid";
 import type { NoteNode } from "../../../../types/note";
+import { CheckCircle2, CheckSquare, Pencil, CalendarMinus } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 export type DayFlowFilterTab =
   | "all"
@@ -113,6 +116,7 @@ export function OneDaySchedule({
     groupTimeRange,
   } = useScheduleContext();
   const { addNode, updateNode } = useTaskTreeContext();
+  const { t } = useTranslation();
   const dateKey = formatDateKey(date);
   const isToday = dateKey === formatDateKey(new Date());
   const [selectedFilterTagIds, setSelectedFilterTagIds] = useState<number[]>(
@@ -144,16 +148,7 @@ export function OneDaySchedule({
     startTime: string;
     endTime: string;
     position: { x: number; y: number };
-  } | null>(null);
-  const [routinePicker, setRoutinePicker] = useState<{
-    startTime: string;
-    endTime: string;
-    position: { x: number; y: number };
-  } | null>(null);
-  const [notePicker, setNotePicker] = useState<{
-    startTime: string;
-    endTime: string;
-    position: { x: number; y: number };
+    defaultTab?: PanelTab;
   } | null>(null);
 
   const [routineDeleteTarget, setRoutineDeleteTarget] = useState<{
@@ -294,6 +289,11 @@ export function OneDaySchedule({
     if (!showAll && !activeFilters.has("tasks")) return [];
     return allDayTasks;
   }, [allDayTasks, showAll, activeFilters]);
+
+  const allDayItems = useMemo(
+    () => filteredDayTasks.filter((t) => t.isAllDay),
+    [filteredDayTasks],
+  );
 
   // Task IDs already scheduled for this date (for task picker exclusion)
   const existingTaskIds = useMemo(() => {
@@ -462,6 +462,64 @@ export function OneDaySchedule({
       <div className="flex-1 min-h-0 p-3">
         <div className="border border-notion-border rounded-lg overflow-hidden bg-notion-bg h-full">
           <div ref={scrollRef} className="overflow-y-auto h-full">
+            {allDayItems.length > 0 && (
+              <div className="sticky top-0 z-20 bg-notion-bg border-b border-notion-border px-2 py-1.5">
+                <div className="text-[10px] text-notion-text-secondary uppercase tracking-wide font-medium mb-1">
+                  {t("schedule.allDay", "All day")}
+                </div>
+                <div className="flex flex-wrap gap-1">
+                  {allDayItems.map((task) => {
+                    const isDone = task.status === "DONE";
+                    return (
+                      <div
+                        key={task.id}
+                        className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-notion-bg-secondary border border-notion-border/50 group max-w-[200px]"
+                      >
+                        <button
+                          onClick={() => onToggleTaskStatus?.(task.id)}
+                          className="shrink-0"
+                        >
+                          {isDone ? (
+                            <CheckCircle2
+                              size={14}
+                              className="text-green-500"
+                            />
+                          ) : (
+                            <CheckSquare
+                              size={14}
+                              className="text-notion-accent hover:text-green-500"
+                            />
+                          )}
+                        </button>
+                        <span
+                          className={`text-xs truncate ${isDone ? "text-notion-text-secondary line-through" : "text-notion-text"}`}
+                        >
+                          {task.title}
+                        </span>
+                        <div className="hidden group-hover:flex items-center gap-0.5 shrink-0">
+                          {onNavigateTask && (
+                            <button
+                              onClick={(e) => onNavigateTask(task.id, e)}
+                              className="p-0.5 rounded hover:bg-notion-hover text-notion-text-secondary hover:text-notion-text"
+                            >
+                              <Pencil size={10} />
+                            </button>
+                          )}
+                          {onUnscheduleTask && (
+                            <button
+                              onClick={() => onUnscheduleTask(task.id)}
+                              className="p-0.5 rounded hover:bg-notion-hover text-notion-text-secondary hover:text-red-500"
+                            >
+                              <CalendarMinus size={10} />
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
             <ScheduleTimeGrid
               date={date}
               scheduleItems={filteredScheduleItems}
@@ -526,60 +584,33 @@ export function OneDaySchedule({
           </div>
         </div>
 
-        {/* 3-step click menu */}
+        {/* Click menu */}
         {clickMenu && (
           <TimeGridClickMenu
             position={clickMenu.position}
-            onSelectRoutine={() => {
-              setRoutinePicker(clickMenu);
-              setClickMenu(null);
-            }}
             onSelectTask={() => {
-              setCreatePopover(clickMenu);
+              setCreatePopover({ ...clickMenu, defaultTab: "task" });
               setClickMenu(null);
             }}
-            onSelectNote={() => {
-              setNotePicker(clickMenu);
+            onSelectEvent={() => {
+              setCreatePopover({ ...clickMenu, defaultTab: "event" });
+              setClickMenu(null);
+            }}
+            onSelectRoutine={() => {
+              setCreatePopover({ ...clickMenu, defaultTab: "routine" });
               setClickMenu(null);
             }}
             onClose={() => setClickMenu(null)}
           />
         )}
 
-        {/* Routine picker */}
-        {routinePicker && (
-          <RoutinePickerPanel
-            position={routinePicker.position}
-            defaultStartTime={routinePicker.startTime}
-            defaultEndTime={routinePicker.endTime}
-            routines={routines}
-            routineGroups={routineGroups}
-            routinesByGroup={routinesByGroup}
-            onSelectRoutine={handleSelectRoutineForSchedule}
-            onSelectGroup={handleSelectGroupForSchedule}
-            onClose={() => setRoutinePicker(null)}
-          />
-        )}
-
-        {/* Note picker */}
-        {notePicker && (
-          <NoteSchedulePanel
-            position={notePicker.position}
-            defaultStartTime={notePicker.startTime}
-            defaultEndTime={notePicker.endTime}
-            date={date}
-            onSelectExistingNote={handleSelectExistingNote}
-            onCreateNewNote={handleCreateNewNote}
-            onClose={() => setNotePicker(null)}
-          />
-        )}
-
-        {/* Task schedule panel */}
+        {/* Unified schedule panel */}
         {createPopover && (
           <TaskSchedulePanel
             position={createPopover.position}
             defaultStartTime={createPopover.startTime}
             defaultEndTime={createPopover.endTime}
+            defaultTab={createPopover.defaultTab}
             date={date}
             existingTaskIds={existingTaskIds}
             onSelectExistingTask={(task, schedule) => {
@@ -595,6 +626,45 @@ export function OneDaySchedule({
                 scheduledEndAt: schedule.scheduledEndAt,
                 isAllDay: schedule.isAllDay,
               });
+            }}
+            onCreateEvent={(title, startTime, endTime, memo) => {
+              const id = createScheduleItem(dateKey, title, startTime, endTime);
+              if (id && memo) {
+                updateScheduleItem(id, { memo });
+              }
+              setCreatePopover(null);
+            }}
+            recentEvents={scheduleItems.filter((si) => !si.routineId)}
+            onDuplicateEvent={(event) => {
+              createScheduleItem(
+                dateKey,
+                event.title,
+                event.startTime,
+                event.endTime,
+              );
+              setCreatePopover(null);
+            }}
+            routines={routines}
+            routineGroups={routineGroups}
+            routinesByGroup={routinesByGroup}
+            onSelectRoutine={(routine, startTime, endTime) => {
+              handleSelectRoutineForSchedule(routine, startTime, endTime);
+              setCreatePopover(null);
+            }}
+            onSelectGroup={(group, members, startTime, endTime) => {
+              handleSelectGroupForSchedule(group, members, startTime, endTime);
+              setCreatePopover(null);
+            }}
+            onCreateRoutine={async (title, startTime, endTime) => {
+              const routineId = `routine-${crypto.randomUUID()}`;
+              await getDataService().createRoutine(
+                routineId,
+                title,
+                startTime,
+                endTime,
+              );
+              createScheduleItem(dateKey, title, startTime, endTime, routineId);
+              setCreatePopover(null);
             }}
             onClose={() => setCreatePopover(null)}
           />

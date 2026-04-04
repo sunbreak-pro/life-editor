@@ -471,6 +471,8 @@ export function ScheduleSection({
               onSelectTask?.(taskId);
               setActiveTab("tasks");
             }}
+            onSelectMemo={onSelectMemo}
+            onSelectNote={onSelectNote}
           >
             {activeTab === "dayflow" && (
               <DayFlowSidebarContent

@@ -1,3 +1,18 @@
+### 2026-04-04 - Routine schedule reconciliation リファクタリング
+
+#### 概要
+
+Routine頻度編集後にCalendarビューで間違った曜日にアイテムが表示されるバグの根本修正。cleanup(削除のみ)をreconcile(削除+作成)に統合し、skipNextSync機構を廃止、3箇所に分散していた編集ハンドラを統一パターンに整理。
+
+#### 変更点
+
+- **reconcileRoutineScheduleItems新設**: `cleanupNonMatchingScheduleItems`を置換。非一致アイテムのDB削除に加え、dateRange内の一致日にアイテムが無ければ新規作成。CalendarViewでは42日グリッド範囲を渡す
+- **skipNextSync完全廃止**: `skipNextSyncRef`/`skipNextSync`コールバックを削除。`syncScheduleItemsWithRoutines`はタイトル/時刻のみ更新で冪等のため不要
+- **CalendarView統一**: Routine/Group両ハンドラで`await reconcileRoutineScheduleItems` + `await loadScheduleItemsForMonth`パターンに統一
+- **OneDaySchedule修正**: Routine編集に`await reconcile` + `await loadItemsForDate`追加。**Group編集にreconcileを追加**（完全に欠落していたバグ修正）
+- **RoutineManagementOverlay修正**: `onCleanupNonMatchingScheduleItems`→`onReconcileRoutineScheduleItems`に置換、Group編集のcleanupを`await`に変更、`onSkipNextSync`廃止
+- **DualDayFlowLayout修正**: `skipNextSync`参照を除去
+
 ### 2026-04-04 - Routine編集時のCalendar race condition修正
 
 #### 概要

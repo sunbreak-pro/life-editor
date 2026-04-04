@@ -13,8 +13,17 @@ import { getDataService } from "../../services/dataServiceFactory";
 import type { ScheduleItem } from "../../types/schedule";
 import type { RoutineStats } from "../../types/schedule";
 import { FolderDropdown } from "../Tasks/Folder/FolderDropdown";
-import { Filter, ChevronDown, Search, X } from "lucide-react";
+import {
+  Filter,
+  ChevronDown,
+  Search,
+  X,
+  BookOpen,
+  StickyNote,
+} from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { useNoteContext } from "../../hooks/useNoteContext";
+import { useMemoContext } from "../../hooks/useMemoContext";
 
 interface ScheduleSidebarContentProps {
   routineStats: RoutineStats | null;
@@ -28,6 +37,8 @@ interface ScheduleSidebarContentProps {
   onFilterFolderChange?: (folderId: string | null) => void;
   searchQuery?: string;
   onSearchQueryChange?: (query: string) => void;
+  onSelectMemo?: (date: string) => void;
+  onSelectNote?: (noteId: string) => void;
 }
 
 export function ScheduleSidebarContent({
@@ -42,6 +53,8 @@ export function ScheduleSidebarContent({
   onFilterFolderChange,
   searchQuery,
   onSearchQueryChange,
+  onSelectMemo,
+  onSelectNote,
 }: ScheduleSidebarContentProps) {
   const [showDetails, setShowDetails] = useState(false);
   const [internalShowManagement, setInternalShowManagement] = useState(false);
@@ -88,6 +101,8 @@ export function ScheduleSidebarContent({
   } | null>(null);
 
   const { nodes, updateNode, setTaskStatus } = useTaskTreeContext();
+  const { notes } = useNoteContext();
+  const { memos } = useMemoContext();
 
   const handleDismissItem = useCallback(
     (scheduleItemId: string) => {
@@ -193,6 +208,21 @@ export function ScheduleSidebarContent({
     });
   }, [nodes, miniFlowDateKey]);
 
+  const notesForDate = useMemo(
+    () =>
+      notes.filter(
+        (n) =>
+          !n.isDeleted &&
+          formatDateKey(new Date(n.createdAt)) === miniFlowDateKey,
+      ),
+    [notes, miniFlowDateKey],
+  );
+
+  const memoForDate = useMemo(
+    () => memos.find((m) => m.date === miniFlowDateKey && !m.isDeleted),
+    [memos, miniFlowDateKey],
+  );
+
   // Optimistic toggle: update sidebar items immediately, then persist via context
   const handleToggleComplete = useCallback(
     (id: string) => {
@@ -289,6 +319,38 @@ export function ScheduleSidebarContent({
             onRemoveTaskFromSchedule={handleRemoveTaskFromSchedule}
             onToggleTaskStatus={handleToggleTaskStatus}
           />
+          {(memoForDate || notesForDate.length > 0) && (
+            <div className="border border-notion-border/60 rounded-lg p-2">
+              <div className="text-xs text-notion-text-secondary uppercase tracking-wide font-medium mb-1.5">
+                {t("schedule.materials", "Materials")}
+              </div>
+              <div className="space-y-0.5">
+                {memoForDate && (
+                  <button
+                    onClick={() => onSelectMemo?.(miniFlowDateKey)}
+                    className="flex items-center gap-2 w-full px-1.5 py-1 rounded hover:bg-notion-hover text-left transition-colors"
+                  >
+                    <BookOpen size={14} className="text-amber-500 shrink-0" />
+                    <span className="text-xs text-notion-text truncate flex-1">
+                      {t("schedule.dailyMemo", "Daily")}
+                    </span>
+                  </button>
+                )}
+                {notesForDate.map((note) => (
+                  <button
+                    key={note.id}
+                    onClick={() => onSelectNote?.(note.id)}
+                    className="flex items-center gap-2 w-full px-1.5 py-1 rounded hover:bg-notion-hover text-left transition-colors"
+                  >
+                    <StickyNote size={14} className="text-blue-500 shrink-0" />
+                    <span className="text-xs text-notion-text truncate flex-1">
+                      {note.title || t("notes.untitled", "Untitled")}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       </div>
 

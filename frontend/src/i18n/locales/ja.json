@@ -375,7 +375,10 @@
       "applyToAll": "既存スケジュールも更新",
       "applyToAllDesc": "今日以降のスケジュール済みアイテムの時間も同時に更新します。"
     },
-    "itemTitlePlaceholder": "スケジュールアイテム名"
+    "itemTitlePlaceholder": "スケジュールアイテム名",
+    "allDay": "終日",
+    "materials": "マテリアル",
+    "dailyMemo": "デイリー"
   },
   "schedulePanel": {
     "existingTasks": "既存タスク",
@@ -390,7 +393,11 @@
     "searchNotes": "ノートを検索...",
     "noteTitle": "ノートタイトル",
     "untitledNote": "無題",
-    "noNotes": "ノートが見つかりません"
+    "noNotes": "ノートが見つかりません",
+    "tabTask": "タスク",
+    "tabEvent": "イベント",
+    "tabRoutine": "ルーティン",
+    "useExisting": "既存を選択"
   },
   "analytics": {
     "title": "分析",
@@ -980,6 +987,7 @@
     "singleColumn": "1カラム",
     "selectRoutine": "ルーティンを選ぶ",
     "selectTask": "タスクを選ぶ",
+    "selectEvent": "イベントを選ぶ",
     "selectNote": "ノートを選ぶ",
     "itemCount": "{{count}}件"
   },

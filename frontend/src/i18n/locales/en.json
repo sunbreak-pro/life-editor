@@ -375,7 +375,10 @@
       "applyToAll": "Update existing schedules",
       "applyToAllDesc": "Also update all scheduled items from today onward."
     },
-    "itemTitlePlaceholder": "Schedule item name"
+    "itemTitlePlaceholder": "Schedule item name",
+    "allDay": "All day",
+    "materials": "Materials",
+    "dailyMemo": "Daily"
   },
   "schedulePanel": {
     "existingTasks": "Existing Tasks",
@@ -390,7 +393,11 @@
     "searchNotes": "Search notes...",
     "noteTitle": "Note title",
     "untitledNote": "Untitled",
-    "noNotes": "No notes found"
+    "noNotes": "No notes found",
+    "tabTask": "Task",
+    "tabEvent": "Event",
+    "tabRoutine": "Routine",
+    "useExisting": "Select existing"
   },
   "analytics": {
     "title": "Analytics",
@@ -980,6 +987,7 @@
     "singleColumn": "Single Column",
     "selectRoutine": "Select Routine",
     "selectTask": "Select Task",
+    "selectEvent": "Select Event",
     "selectNote": "Select Note",
     "itemCount": "{{count}} items"
   },

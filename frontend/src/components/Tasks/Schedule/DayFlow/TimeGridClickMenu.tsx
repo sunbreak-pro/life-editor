@@ -1,19 +1,19 @@
 import { useTranslation } from "react-i18next";
-import { CalendarClock, ListTodo, FileText } from "lucide-react";
+import { ListTodo, CalendarDays, CalendarClock } from "lucide-react";
 
 interface TimeGridClickMenuProps {
   position: { x: number; y: number };
-  onSelectRoutine: () => void;
   onSelectTask: () => void;
-  onSelectNote: () => void;
+  onSelectEvent: () => void;
+  onSelectRoutine: () => void;
   onClose: () => void;
 }
 
 export function TimeGridClickMenu({
   position,
-  onSelectRoutine,
   onSelectTask,
-  onSelectNote,
+  onSelectEvent,
+  onSelectRoutine,
   onClose,
 }: TimeGridClickMenuProps) {
   const { t } = useTranslation();
@@ -36,13 +36,6 @@ export function TimeGridClickMenu({
         style={{ top, left, width: menuWidth }}
       >
         <button
-          onClick={onSelectRoutine}
-          className="w-full flex items-center gap-2 px-3 py-2 text-sm text-notion-text hover:bg-notion-hover transition-colors text-left"
-        >
-          <CalendarClock size={14} className="text-notion-text-secondary" />
-          {t("dayFlow.selectRoutine", "Select Routine")}
-        </button>
-        <button
           onClick={onSelectTask}
           className="w-full flex items-center gap-2 px-3 py-2 text-sm text-notion-text hover:bg-notion-hover transition-colors text-left"
         >
@@ -50,11 +43,18 @@ export function TimeGridClickMenu({
           {t("dayFlow.selectTask", "Select Task")}
         </button>
         <button
-          onClick={onSelectNote}
+          onClick={onSelectEvent}
           className="w-full flex items-center gap-2 px-3 py-2 text-sm text-notion-text hover:bg-notion-hover transition-colors text-left"
         >
-          <FileText size={14} className="text-notion-text-secondary" />
-          {t("dayFlow.selectNote", "Select Note")}
+          <CalendarDays size={14} className="text-notion-text-secondary" />
+          {t("dayFlow.selectEvent", "Select Event")}
+        </button>
+        <button
+          onClick={onSelectRoutine}
+          className="w-full flex items-center gap-2 px-3 py-2 text-sm text-notion-text hover:bg-notion-hover transition-colors text-left"
+        >
+          <CalendarClock size={14} className="text-notion-text-secondary" />
+          {t("dayFlow.selectRoutine", "Select Routine")}
         </button>
       </div>
     </div>
