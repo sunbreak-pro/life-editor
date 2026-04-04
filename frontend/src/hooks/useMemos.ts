@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useMemo } from "react";
+import { useState, useCallback, useEffect, useMemo, useRef } from "react";
 import type { MemoNode } from "../types/memo";
 import { getDataService } from "../services";
 import { logServiceError } from "../utils/logError";
@@ -12,16 +12,21 @@ export function useMemos() {
     formatDateKey(new Date()),
   );
   const { push } = useUndoRedo();
+  const memosRef = useRef(memos);
+  const deletedMemosRef = useRef(deletedMemos);
+  useEffect(() => {
+    memosRef.current = memos;
+  }, [memos]);
+  useEffect(() => {
+    deletedMemosRef.current = deletedMemos;
+  }, [deletedMemos]);
 
-  // Load from DataService on mount
   useEffect(() => {
     let cancelled = false;
     (async () => {
       try {
         const loaded = await getDataService().fetchAllMemos();
-        if (!cancelled) {
-          setMemos(loaded);
-        }
+        if (!cancelled) setMemos(loaded);
       } catch (e) {
         logServiceError("Memo", "fetch", e);
       }
@@ -33,41 +38,41 @@ export function useMemos() {
 
   const upsertMemo = useCallback(
     (date: string, content: string) => {
-      setMemos((prev) => {
-        const existing = prev.find((m) => m.date === date);
-        const now = new Date().toISOString();
-        if (existing) {
-          // Content update — silent (TipTap handles undo)
-          return prev.map((m) =>
+      const existing = memosRef.current.find((m) => m.date === date);
+      const now = new Date().toISOString();
+
+      if (existing) {
+        setMemos((prev) =>
+          prev.map((m) =>
             m.date === date ? { ...m, content, updatedAt: now } : m,
-          );
-        } else {
-          const newMemo: MemoNode = {
-            id: `memo-${date}`,
-            date,
-            content,
-            createdAt: now,
-            updatedAt: now,
-          };
-          // Push undo command for new memo creation
-          push("memo", {
-            label: "createMemo",
-            undo: () => {
-              setMemos((p) => p.filter((m) => m.date !== date));
-              getDataService()
-                .deleteMemo(date)
-                .catch((e) => logServiceError("Memo", "undoCreate", e));
-            },
-            redo: () => {
-              setMemos((p) => [newMemo, ...p]);
-              getDataService()
-                .upsertMemo(date, content)
-                .catch((e) => logServiceError("Memo", "redoCreate", e));
-            },
-          });
-          return [newMemo, ...prev];
-        }
-      });
+          ),
+        );
+      } else {
+        const newMemo: MemoNode = {
+          id: `memo-${date}`,
+          date,
+          content,
+          createdAt: now,
+          updatedAt: now,
+        };
+        setMemos((prev) => [newMemo, ...prev]);
+        push("memo", {
+          label: "createMemo",
+          undo: () => {
+            setMemos((p) => p.filter((m) => m.date !== date));
+            getDataService()
+              .deleteMemo(date)
+              .catch((e) => logServiceError("Memo", "undoCreate", e));
+          },
+          redo: () => {
+            setMemos((p) => [newMemo, ...p]);
+            getDataService()
+              .upsertMemo(date, content)
+              .catch((e) => logServiceError("Memo", "redoCreate", e));
+          },
+        });
+      }
+
       getDataService()
         .upsertMemo(date, content)
         .catch((e) => logServiceError("Memo", "sync", e));
@@ -77,7 +82,12 @@ export function useMemos() {
 
   const deleteMemo = useCallback(
     (date: string) => {
-      const target = memos.find((m) => m.date === date);
+      const target = memosRef.current.find((m) => m.date === date);
+      setMemos((prev) => prev.filter((m) => m.date !== date));
+      getDataService()
+        .deleteMemo(date)
+        .catch((e) => logServiceError("Memo", "delete", e));
+
       if (target) {
         const deleted: MemoNode = {
           ...target,
@@ -104,12 +114,8 @@ export function useMemos() {
           },
         });
       }
-      setMemos((prev) => prev.filter((m) => m.date !== date));
-      getDataService()
-        .deleteMemo(date)
-        .catch((e) => logServiceError("Memo", "delete", e));
     },
-    [memos, push],
+    [push],
   );
 
   const loadDeletedMemos = useCallback(async () => {
@@ -121,24 +127,21 @@ export function useMemos() {
     }
   }, []);
 
-  const restoreMemo = useCallback(
-    (date: string) => {
-      const target = deletedMemos.find((m) => m.date === date);
-      if (target) {
-        const restored: MemoNode = {
-          ...target,
-          isDeleted: false,
-          deletedAt: null,
-        };
-        setMemos((m) => [restored, ...m]);
-      }
-      setDeletedMemos((prev) => prev.filter((m) => m.date !== date));
-      getDataService()
-        .restoreMemo(date)
-        .catch((e) => logServiceError("Memo", "restore", e));
-    },
-    [deletedMemos],
-  );
+  const restoreMemo = useCallback((date: string) => {
+    const target = deletedMemosRef.current.find((m) => m.date === date);
+    if (target) {
+      const restored: MemoNode = {
+        ...target,
+        isDeleted: false,
+        deletedAt: null,
+      };
+      setMemos((m) => [restored, ...m]);
+    }
+    setDeletedMemos((prev) => prev.filter((m) => m.date !== date));
+    getDataService()
+      .restoreMemo(date)
+      .catch((e) => logServiceError("Memo", "restore", e));
+  }, []);
 
   const permanentDeleteMemo = useCallback((date: string) => {
     setDeletedMemos((prev) => prev.filter((m) => m.date !== date));
@@ -149,7 +152,7 @@ export function useMemos() {
 
   const togglePin = useCallback(
     (date: string) => {
-      const memo = memos.find((m) => m.date === date);
+      const memo = memosRef.current.find((m) => m.date === date);
       if (!memo) return;
 
       const newPinned = !memo.isPinned;
@@ -183,17 +186,17 @@ export function useMemos() {
         },
       });
     },
-    [memos, push],
+    [push],
   );
 
-  const getMemoForDate = useCallback(
-    (date: string): MemoNode | undefined => {
-      return memos.find((m) => m.date === date);
-    },
-    [memos],
+  const selectedMemo = useMemo(
+    () => memos.find((m) => m.date === selectedDate),
+    [memos, selectedDate],
   );
 
-  const selectedMemo = getMemoForDate(selectedDate);
+  const getMemoForDate = useCallback((date: string): MemoNode | undefined => {
+    return memosRef.current.find((m) => m.date === date);
+  }, []);
 
   return useMemo(
     () => ({

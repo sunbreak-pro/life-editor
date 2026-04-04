@@ -1,5 +1,20 @@
 # HISTORY.md - 変更履歴
 
+### 2026-04-04 - useMemos レンダリングエラー修正 + ref パターンリファクタリング
+
+#### 概要
+
+CalendarからDailyアイテム作成時に発生する「Cannot update a component (UndoRedoProvider) while rendering a different component (MemoProvider)」エラーを修正。併せて `useMemos.ts` を `useNotes.ts` と同じ ref パターンに統一し、コールバックの安定性を向上。
+
+#### 変更点
+
+- **レンダリングエラー修正**: `upsertMemo` 内で `setMemos` アップデータ関数内から `push()` を呼んでいたのを外に移動。レンダリング中の他コンポーネント state 更新を解消
+- **ref パターン導入**: `memosRef` / `deletedMemosRef` を追加し、コールバック内では `ref.current` で最新 state を参照。依存配列を `[memos, push]` → `[push]` に縮小
+- **deleteMemo 構造改善**: 即時 state 更新・DB 同期を先に実行し、target 存在時のみ undo/redo 登録する構造に変更（`useNotes.ts` の `softDeleteNote` と統一）
+- **restoreMemo deps 修正**: `[deletedMemos]` → `[]`（`deletedMemosRef` 経由に変更）
+- **selectedMemo 最適化**: `useCallback` + 呼び出し → `useMemo` で直接計算（`useNotes.ts` の `selectedNote` と統一）
+- **getMemoForDate 最適化**: `memosRef` 経由に変更し deps を `[]` に
+
 ### 2026-04-04 - DayFlow Timegrid 5件の改善
 
 #### 概要
@@ -60,29 +75,3 @@ DayFlow/CalendarのRoutine/GroupアイテムPopupから直接EditDialogを開け
 - **Project skills 削除（4個）**: `code-review`、`git-workflow`、`refactoring`、`debug-strategy` — グローバル版+rulesで代替
 - **Project rules 新規作成（3個）**: `project-review-checklist.md`（IPC/DataService/Provider/SQLiteチェック）、`project-patterns.md`（共有コンポーネント/フック設計パターン）、`project-debug.md`（IPC/SQLite/Audio/Contextデバッグガイド）
 - **SKILL_INDEX.md 更新**: inactive状態の記録を追加、移行先のrulesファイルパスを記載
-
-### 2026-04-01 - タスク詳細パネル簡素化 + フォルダ移動UI改善
-
-#### 概要
-
-タスク詳細パネルからRichEditor（TipTap）とQuickMemo（textarea）のタブUIを削除し、timeMemoのみ残した。フォルダ移動ボタンにラベルテキストを追加してUXを改善した。
-
-#### 変更点
-
-- **RichEditor/QuickMemo削除**: `TaskDetailPanel.tsx` からメモタブUI、`MemoMode`型、`extractPlainText`関数、関連state/handlerを削除
-- **Import整理**: `Suspense`, `LazyMemoEditor`, `STORAGE_KEYS`の不要importを削除
-- **storageKeys**: `TASK_MEMO_MODE`キーを削除
-- **i18n**: `taskDetail.quickMemo`, `taskDetail.richEditor`キーを削除（ja/en）
-- **フォルダ移動UI**: アイコンのみ→アイコン+「フォルダに移動」ラベル付きボタンに変更
-- **i18n追加**: `taskDetailSidebar.moveToFolder`キーを追加（ja/en）
-
-### 2026-04-01 - Memo即時表示修正（Preview Popupスナップショット問題）
-
-#### 概要
-
-CalendarView/DayFlowのScheduleItemPreviewPopupでメモ入力後にEnter確定しても、Popup内に文字が即時表示されない問題を修正。
-
-#### 変更点
-
-- **CalendarView.tsx**: `onUpdateMemo` コールバック内で `setScheduleItemPreview` のitemも更新し、Popup内の `item.memo` がスナップショットのまま古い値を参照する問題を解消
-- **ScheduleTimeGrid.tsx**: DayFlow側も同様に `setSchedulePreview` でitem.memoを即時更新

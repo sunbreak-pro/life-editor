@@ -1,3 +1,29 @@
+### 2026-04-01 - タスク詳細パネル簡素化 + フォルダ移動UI改善
+
+#### 概要
+
+タスク詳細パネルからRichEditor（TipTap）とQuickMemo（textarea）のタブUIを削除し、timeMemoのみ残した。フォルダ移動ボタンにラベルテキストを追加してUXを改善した。
+
+#### 変更点
+
+- **RichEditor/QuickMemo削除**: `TaskDetailPanel.tsx` からメモタブUI、`MemoMode`型、`extractPlainText`関数、関連state/handlerを削除
+- **Import整理**: `Suspense`, `LazyMemoEditor`, `STORAGE_KEYS`の不要importを削除
+- **storageKeys**: `TASK_MEMO_MODE`キーを削除
+- **i18n**: `taskDetail.quickMemo`, `taskDetail.richEditor`キーを削除（ja/en）
+- **フォルダ移動UI**: アイコンのみ→アイコン+「フォルダに移動」ラベル付きボタンに変更
+- **i18n追加**: `taskDetailSidebar.moveToFolder`キーを追加（ja/en）
+
+### 2026-04-01 - Memo即時表示修正（Preview Popupスナップショット問題）
+
+#### 概要
+
+CalendarView/DayFlowのScheduleItemPreviewPopupでメモ入力後にEnter確定しても、Popup内に文字が即時表示されない問題を修正。
+
+#### 変更点
+
+- **CalendarView.tsx**: `onUpdateMemo` コールバック内で `setScheduleItemPreview` のitemも更新し、Popup内の `item.memo` がスナップショットのまま古い値を参照する問題を解消
+- **ScheduleTimeGrid.tsx**: DayFlow側も同様に `setSchedulePreview` でitem.memoを即時更新
+
 ### 2026-04-01 - MobileScheduleView リニューアル (週カレンダーストリップ + フルCRUD)
 
 #### 概要
