@@ -94,7 +94,13 @@ export function LeftSidebar({
         })}
       </nav>
       <div className="px-3 pb-2 border-t border-notion-border pt-2">
-        <AIActionsPanel activeSection={activeSection} layoutRef={layoutRef} />
+        <button
+          onClick={() => layoutRef.current?.launchClaude()}
+          className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-scaling-sm text-notion-text-secondary hover:bg-notion-hover/80 hover:text-notion-text transition-all duration-200"
+        >
+          <Terminal size={18} />
+          <span>{t("sidebar.launchClaude")}</span>
+        </button>
       </div>
       <div className="p-3 border-t border-notion-border">
         <button

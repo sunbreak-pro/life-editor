@@ -384,6 +384,7 @@ export function Layout({
                 <CollapsedSidebar
                   activeSection={activeSection}
                   onSectionChange={onSectionChange}
+                  layoutRef={handleRef ?? { current: null }}
                 />
               )}
             </div>
