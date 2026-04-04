@@ -204,7 +204,6 @@ export function CalendarView({
     createRoutineTag,
     skipNextSync,
     cleanupNonMatchingScheduleItems,
-    scheduleItemsVersion,
   } = useScheduleContext();
 
   const { convert, canConvert } = useRoleConversion();
@@ -271,10 +270,10 @@ export function CalendarView({
     null,
   );
 
-  // Load schedule items for the current month (also reloads when items change via bumpVersion)
+  // Load schedule items for the current month
   useEffect(() => {
     loadScheduleItemsForMonth(year, month);
-  }, [year, month, loadScheduleItemsForMonth, scheduleItemsVersion]);
+  }, [year, month, loadScheduleItemsForMonth]);
 
   const { tasksByDate, itemsByDate, calendarDays, weekDays } = useCalendar(
     filteredNodes,
@@ -733,6 +732,29 @@ export function CalendarView({
             setScheduleItemPreview(null);
           }}
           onClose={() => setScheduleItemPreview(null)}
+          onConvertRole={
+            !scheduleItemPreview.item.routineId
+              ? (targetRole) => {
+                  const source: ConversionSource = {
+                    role: "event",
+                    scheduleItem: scheduleItemPreview.item,
+                    date: scheduleItemPreview.item.date,
+                  };
+                  if (convert(source, targetRole)) {
+                    setScheduleItemPreview(null);
+                  }
+                }
+              : undefined
+          }
+          disabledRoles={
+            !scheduleItemPreview.item.routineId
+              ? getDisabledRoles({
+                  role: "event",
+                  scheduleItem: scheduleItemPreview.item,
+                  date: scheduleItemPreview.item.date,
+                })
+              : undefined
+          }
         />
       )}
 
@@ -767,6 +789,32 @@ export function CalendarView({
             setPreviewPopup(null);
           }}
           onClose={() => setPreviewPopup(null)}
+          onConvertRole={
+            previewTask.scheduledAt
+              ? (targetRole) => {
+                  const date = formatDateKey(
+                    new Date(previewTask.scheduledAt!),
+                  );
+                  const source: ConversionSource = {
+                    role: "task",
+                    task: previewTask,
+                    date,
+                  };
+                  if (convert(source, targetRole)) {
+                    setPreviewPopup(null);
+                  }
+                }
+              : undefined
+          }
+          disabledRoles={
+            previewTask.scheduledAt
+              ? getDisabledRoles({
+                  role: "task",
+                  task: previewTask,
+                  date: formatDateKey(new Date(previewTask.scheduledAt)),
+                })
+              : undefined
+          }
         />
       )}
 
@@ -791,6 +839,23 @@ export function CalendarView({
                 }
               : undefined
           }
+          onConvertRole={(targetRole) => {
+            const source: ConversionSource = {
+              role: memoPreview.kind,
+              memo: memoPreview.memoNode,
+              note: memoPreview.noteNode,
+              date: memoPreview.date,
+            };
+            if (convert(source, targetRole)) {
+              setMemoPreview(null);
+            }
+          }}
+          disabledRoles={getDisabledRoles({
+            role: memoPreview.kind,
+            memo: memoPreview.memoNode,
+            note: memoPreview.noteNode,
+            date: memoPreview.date,
+          })}
         />
       )}
 
@@ -819,7 +884,7 @@ export function CalendarView({
           routine={editRoutineDialog}
           tags={routineTags}
           initialTagIds={tagAssignments.get(editRoutineDialog.id) ?? []}
-          onSubmit={(
+          onSubmit={async (
             title,
             startTime,
             endTime,
@@ -865,7 +930,8 @@ export function CalendarView({
                     ? frequencyStartDate
                     : editRoutineDialog.frequencyStartDate,
               };
-              cleanupNonMatchingScheduleItems(updatedRoutine);
+              await cleanupNonMatchingScheduleItems(updatedRoutine);
+              loadScheduleItemsForMonth(year, month);
             }
             setEditRoutineDialog(null);
           }}
@@ -881,7 +947,7 @@ export function CalendarView({
           initialTagIds={groupTagAssignments.get(editGroupDialog.id) ?? []}
           memberRoutines={routinesByGroup.get(editGroupDialog.id) ?? []}
           groupTimeRange={groupTimeRange.get(editGroupDialog.id)}
-          onSubmit={(
+          onSubmit={async (
             name,
             color,
             tagIds,
@@ -925,8 +991,10 @@ export function CalendarView({
               };
               const members = routinesByGroup.get(editGroupDialog.id) ?? [];
               for (const routine of members) {
-                cleanupNonMatchingScheduleItems(routine, updatedGroup);
+                await cleanupNonMatchingScheduleItems(routine, updatedGroup);
               }
+              // Reload after all cleanups complete
+              loadScheduleItemsForMonth(year, month);
             }
 
             setEditGroupDialog(null);
