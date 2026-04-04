@@ -16,7 +16,7 @@ export function NewNoteTab({ onSubmit }: NewNoteTabProps) {
         value={title}
         onChange={(e) => setTitle(e.target.value)}
         placeholder={t("schedulePanel.noteTitle", "Note title")}
-        className="w-full px-2 py-1.5 text-sm bg-notion-bg-secondary border border-notion-border rounded focus:outline-none focus:ring-1 focus:ring-notion-blue text-notion-text"
+        className="w-full px-2 py-1.5 text-sm bg-notion-bg-secondary border border-notion-border rounded focus:outline-none focus:ring-1 focus:ring-notion-accent text-notion-text"
         autoFocus
         onKeyDown={(e) => {
           if (e.key === "Enter" && title.trim()) {
@@ -27,7 +27,7 @@ export function NewNoteTab({ onSubmit }: NewNoteTabProps) {
       <button
         onClick={() => title.trim() && onSubmit(title.trim())}
         disabled={!title.trim()}
-        className="px-3 py-1.5 text-sm bg-notion-blue text-white rounded hover:bg-notion-blue/90 disabled:opacity-50 transition-colors"
+        className="px-3 py-1.5 text-sm bg-notion-accent text-white rounded-md hover:bg-notion-accent/90 disabled:opacity-50 transition-colors"
       >
         {t("schedule.create", "Create")}
       </button>

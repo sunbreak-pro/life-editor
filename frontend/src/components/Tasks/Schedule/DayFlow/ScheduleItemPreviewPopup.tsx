@@ -10,6 +10,8 @@ import {
   clampEndTimeAfterStart,
   adjustEndTimeForStartChange,
 } from "../../../../utils/timeGridUtils";
+import { RoleSwitcher } from "../Calendar/RoleSwitcher";
+import type { ConversionRole } from "../../../../hooks/useRoleConversion";
 
 interface ScheduleItemPreviewPopupProps {
   item: ScheduleItem;
@@ -19,6 +21,8 @@ interface ScheduleItemPreviewPopupProps {
   onEditRoutine?: () => void;
   onDelete: () => void;
   onClose: () => void;
+  onConvertRole?: (targetRole: ConversionRole) => void;
+  disabledRoles?: ConversionRole[];
 }
 
 export function ScheduleItemPreviewPopup({
@@ -29,6 +33,8 @@ export function ScheduleItemPreviewPopup({
   onEditRoutine,
   onDelete,
   onClose,
+  onConvertRole,
+  disabledRoles,
 }: ScheduleItemPreviewPopupProps) {
   const { t } = useTranslation();
   const ref = useRef<HTMLDivElement>(null);
@@ -129,17 +135,25 @@ export function ScheduleItemPreviewPopup({
         )}
 
         <div className="flex items-center gap-2">
-          <span
-            className={`inline-block px-1.5 py-0.5 text-[10px] rounded-full font-medium ${
-              item.completed
-                ? "bg-green-100 text-green-700"
-                : item.routineId
-                  ? "bg-emerald-100 text-emerald-700"
-                  : "bg-purple-100 text-purple-700"
-            }`}
-          >
-            {item.completed ? "DONE" : item.routineId ? "Routine" : "Event"}
-          </span>
+          {onConvertRole && !item.routineId ? (
+            <RoleSwitcher
+              currentRole="event"
+              disabledRoles={disabledRoles}
+              onSelectRole={onConvertRole}
+            />
+          ) : (
+            <span
+              className={`inline-block px-1.5 py-0.5 text-[10px] rounded-full font-medium ${
+                item.completed
+                  ? "bg-green-100 text-green-700"
+                  : item.routineId
+                    ? "bg-emerald-100 text-emerald-700"
+                    : "bg-purple-100 text-purple-700"
+              }`}
+            >
+              {item.completed ? "DONE" : item.routineId ? "Routine" : "Event"}
+            </span>
+          )}
         </div>
       </div>
       <div className="border-t border-notion-border flex">

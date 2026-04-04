@@ -5,6 +5,8 @@ import { useClickOutside } from "../../../../hooks/useClickOutside";
 import { getContentPreview } from "../../../../utils/tiptapText";
 import { ConfirmDialog } from "../../../shared/ConfirmDialog";
 import { Button } from "../../../shared/Button";
+import { RoleSwitcher } from "./RoleSwitcher";
+import type { ConversionRole } from "../../../../hooks/useRoleConversion";
 
 interface MemoPreviewPopupProps {
   kind: "daily" | "note";
@@ -15,6 +17,8 @@ interface MemoPreviewPopupProps {
   onClose: () => void;
   onUpdateTitle?: (title: string) => void;
   onDelete?: () => void;
+  onConvertRole?: (targetRole: ConversionRole) => void;
+  disabledRoles?: ConversionRole[];
 }
 
 const ACCENT: Record<
@@ -42,6 +46,8 @@ export function MemoPreviewPopup({
   onClose,
   onUpdateTitle,
   onDelete,
+  onConvertRole,
+  disabledRoles,
 }: MemoPreviewPopupProps) {
   const { t } = useTranslation();
   const ref = useRef<HTMLDivElement>(null);
@@ -111,11 +117,19 @@ export function MemoPreviewPopup({
           <p className="text-xs text-notion-text-secondary line-clamp-3">
             {preview || t("calendar.memoPreviewEmpty")}
           </p>
-          <span
-            className={`inline-block px-1.5 py-0.5 text-[10px] rounded-full font-medium ${accent.badge}`}
-          >
-            {accent.badgeText}
-          </span>
+          {onConvertRole ? (
+            <RoleSwitcher
+              currentRole={kind}
+              disabledRoles={disabledRoles}
+              onSelectRole={onConvertRole}
+            />
+          ) : (
+            <span
+              className={`inline-block px-1.5 py-0.5 text-[10px] rounded-full font-medium ${accent.badge}`}
+            >
+              {accent.badgeText}
+            </span>
+          )}
         </div>
         <div className="border-t border-notion-border flex">
           <Button

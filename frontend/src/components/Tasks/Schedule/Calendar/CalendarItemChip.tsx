@@ -5,6 +5,7 @@ import {
   CalendarClock,
   Repeat,
   Layers,
+  Sparkles,
 } from "lucide-react";
 import type { CalendarItem } from "../../../../types/calendarItem";
 import { CALENDAR_ITEM_COLORS } from "../../../../types/calendarItem";
@@ -21,6 +22,21 @@ export function CalendarItemChip({
   onClick,
   taskColor,
 }: CalendarItemChipProps) {
+  if (item.type === "holiday") {
+    return (
+      <div
+        className="w-full text-left px-1.5 py-1 rounded text-xs truncate flex items-center gap-1"
+        style={{
+          backgroundColor: `${CALENDAR_ITEM_COLORS.holiday}15`,
+          color: CALENDAR_ITEM_COLORS.holiday,
+        }}
+      >
+        <Sparkles size={10} className="shrink-0" />
+        <span className="truncate">{item.title}</span>
+      </div>
+    );
+  }
+
   if (item.type === "task" && item.task) {
     const isDone = item.task.status === "DONE";
     const color = taskColor;

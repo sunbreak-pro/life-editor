@@ -1,5 +1,11 @@
 import { useMemo } from "react";
-import { ChevronLeft, ChevronRight, Filter, ChevronDown } from "lucide-react";
+import {
+  ChevronLeft,
+  ChevronRight,
+  Filter,
+  ChevronDown,
+  Sparkles,
+} from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { FolderDropdown } from "../../Folder/FolderDropdown";
 import { useTaskTreeContext } from "../../../../hooks/useTaskTreeContext";
@@ -17,6 +23,8 @@ interface CalendarHeaderProps {
   onViewModeChange: (mode: ViewMode) => void;
   filterFolderId?: string | null;
   onFilterFolderChange?: (folderId: string | null) => void;
+  showHolidays?: boolean;
+  onShowHolidaysChange?: (show: boolean) => void;
 }
 
 const MONTH_NAMES = [
@@ -80,6 +88,8 @@ export function CalendarHeader({
   onViewModeChange,
   filterFolderId,
   onFilterFolderChange,
+  showHolidays,
+  onShowHolidaysChange,
 }: CalendarHeaderProps) {
   const { t } = useTranslation();
   const { nodes } = useTaskTreeContext();
@@ -143,6 +153,20 @@ export function CalendarHeader({
               </button>
             }
           />
+        )}
+        {onShowHolidaysChange && (
+          <button
+            onClick={() => onShowHolidaysChange(!showHolidays)}
+            className={`flex items-center gap-1 px-2 py-1 text-xs rounded-md border transition-colors ${
+              showHolidays
+                ? "border-green-500/30 bg-green-500/10 text-green-600"
+                : "border-notion-border text-notion-text-secondary hover:bg-notion-hover"
+            }`}
+            title={t("calendarHeader.holidays", "Holidays")}
+          >
+            <Sparkles size={12} />
+            {t("calendarHeader.holidays", "Holidays")}
+          </button>
         )}
       </div>
 

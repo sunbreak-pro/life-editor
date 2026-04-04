@@ -15,6 +15,7 @@ import type { RoutineStats } from "../../types/schedule";
 interface ScheduleSidebarContentProps {
   routineStats: RoutineStats | null;
   activeDate?: Date;
+  activeFilters?: Set<string>;
   showManagement?: boolean;
   onShowManagementChange?: (open: boolean) => void;
   children: ReactNode;
@@ -24,6 +25,7 @@ interface ScheduleSidebarContentProps {
 export function ScheduleSidebarContent({
   routineStats,
   activeDate,
+  activeFilters,
   showManagement: externalShowManagement,
   onShowManagementChange,
   children,
@@ -140,6 +142,7 @@ export function ScheduleSidebarContent({
             onSelectTask={onSelectTask}
             onPrevDate={handlePrevDate}
             onNextDate={handleNextDate}
+            activeFilters={activeFilters}
           />
           <InProgressTasksList
             date={miniFlowDate}

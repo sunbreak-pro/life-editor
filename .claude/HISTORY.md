@@ -1,5 +1,32 @@
 # HISTORY.md - 変更履歴
 
+### 2026-04-04 - Noir テーマ削除 + カレンダーUI改善 + ボタンUI統一 + 祝日アイテム
+
+#### 概要
+
+Noirテーマ（monochrome/monochrome-dark）を完全削除。カレンダーDayCellの土日・祝日表現を背景色からテキスト色のみに変更。ルーティン編集後のカレンダー自動リフレッシュ修正。ダイアログのCancel/Saveボタン統一。祝日名をCalendarItemとして生成しトグル表示機能追加。
+
+#### 変更点
+
+- **Noir テーマ削除**: ThemeContextValue型、ThemeContext VALID_THEMES、index.css CSS変数ブロック2つ、AppearanceSettings Noirボタン2つを削除。既存ユーザーはlightにフォールバック
+- **カレンダー色テキストのみ化**: `getDateBgClass`を空返却に変更、`getDateTextClass`に`isCurrentMonth`パラメータ追加。当月: 緑/赤/青、非当月: グレーベースの薄い色味で区別
+- **ルーティン編集リフレッシュ**: CalendarViewのuseEffectに`scheduleItemsVersion`依存追加。RoutineGroupEditDialogのonSubmitに頻度変更検知+cleanupNonMatchingScheduleItems呼び出し追加
+- **ボタンUI統一**: `bg-notion-blue`（未定義色）→`bg-notion-accent`。Cancelボタンを`text-notion-danger`に。RoutineEditDialog, RoutineGroupEditDialog, NewNoteTab対象
+- **祝日アイテム**: CalendarItemTypeに`"holiday"`追加。`getHolidayName`関数追加（holiday-jp between API）。useCalendarで42日グリッド内の祝日をCalendarItemとして生成。CalendarItemChipにholidayレンダリング追加（Sparklesアイコン）。CalendarHeaderに祝日トグルボタン追加、localStorage永続化
+
+### 2026-04-04 - Events表示対応 + サイドバーフィルタ マルチセレクト化
+
+#### 概要
+
+MiniTodayFlow（右サイドバー）にEventsアイテムを表示。右サイドバーのフィルタを排他的ラジオからマルチセレクトチェックボックスに変更。フィルタ選択をMiniTodayFlowに反映。
+
+#### 変更点
+
+- **MiniTodayFlow Events表示**: FlowEntryに`"event"`型追加。`routineId === null`のscheduleItemsをeventとして表示（CalendarClockアイコン、紫色）。完了トグル対応
+- **フィルタ マルチセレクト化**: ProgressSectionをチェックボックスUIに変更（`activeFilters: Set` / `onToggleFilter`）。DayFlowSidebarContent、ScheduleSection、OneDaySchedule、useCalendar、CalendarViewを全てSetベースに変更。空Set=全表示
+- **フィルタMiniTodayFlow連携**: ScheduleSidebarContentに`activeFilters` prop追加。MiniTodayFlowが`showRoutines`/`showEvents`/`showTasks`でentries構築をフィルタリング
+- **CompactDateNav互換**: OneDayScheduleに`onSetExclusiveFilter`追加。DayFlow本体のインラインフィルタは排他的UIを維持しつつSetベースstateと連携
+
 ### 2026-04-04 - useMemos レンダリングエラー修正 + ref パターンリファクタリング
 
 #### 概要
@@ -45,33 +72,3 @@ BubbleToolbarの色変更ボタンが表示されないバグを修正（overflo
 - **DayCell**: セル背景色を土曜(bg-blue-50)/日曜(bg-red-50)/祝日(bg-green-50)に色分け。日付番号の文字色も対応。ダークモード対応
 - **MonthlyViewヘッダー**: Sun(赤)/Sat(青)の曜日名に色付け
 - **WeeklyTimeGrid**: ヘッダー曜日名・日付番号の色 + 列背景色を土曜/日曜/祝日で色分け
-
-### 2026-04-02 - Routine/Group Popup編集ボタン追加 + Memo UI削除 + Group frequency修正 + Reactivity改善
-
-#### 概要
-
-DayFlow/CalendarのRoutine/GroupアイテムPopupから直接EditDialogを開けるようにし、Routine PopupからMemo機能を削除。Group frequencyがスケジュール生成に反映されないバグを修正。Reactivityの根本問題（monthlyScheduleItems未更新）を修正し、共有Button/IconButtonコンポーネントを作成。
-
-#### 変更点
-
-- **Reactivity修正**: `useScheduleItems.ts` の5関数（delete/create/dismiss/ensureForDate/syncWithRoutines）に`setMonthlyScheduleItems`追加。CalendarViewの冗長な`loadScheduleItemsForMonth`呼び出し5箇所除去
-- **Memo修正**: InlineMemoInput font-size `text-[10px]`→`text-xs`統一。Preview Popupスナップショット問題（`scheduleItemPreview`/`schedulePreview` stateのitem.memo未更新）修正
-- **Routine frequency対応**: IPC層追加（fetchByRoutineId, bulkDelete）。`cleanupNonMatchingScheduleItems`関数を新設、frequency変更時に不一致アイテムを全期間削除
-- **Group frequency修正**: `diffRoutineScheduleItems`, `backfillMissedRoutineItems`, `ensureRoutineItemsForWeek`, `ensureRoutineItemsForDate`の全てにGroup frequencyチェック追加。`groupForRoutine`パラメータを各関数に伝播
-- **Routine Tag編集**: RoutineManagementOverlayヘッダーにTagアイコン追加。ColorPickerを`preset-only`→`preset-full`（カスタムカラー対応）に変更
-- **ボタンUI統一**: `Button.tsx`（primary/secondary/danger）、`IconButton.tsx`（ghost/danger）共有コンポーネント作成。ScheduleItemPreviewPopup, MemoPreviewPopup, RoutineManagementOverlay, RoutineTagManagerで段階的置換
-- **Popup編集ボタン**: ScheduleItemPreviewPopupからMemo UI全削除、Editボタン（Pencilアイコン）追加→RoutineEditDialog表示。GroupPreviewPopupヘッダーにPencilアイコン追加→RoutineGroupEditDialog表示。CalendarView/OneDayScheduleにEditDialog state・描画追加
-
-### 2026-04-01 - session-loader スキル作成 + スキル構成整理
-
-#### 概要
-
-セッション開始時にプロジェクトコンテキストを読み込む session-loader スキルを新規作成。Global skills 13→8個、Project skills 9→6個に整理。重複スキルの有用な内容は `.claude/rules/` に移行。
-
-#### 変更点
-
-- **session-loader（新規）**: MEMORY.md、ビジョンドキュメント、ADR、コード説明インデックスを順番に読み込み、現在の状態を要約表示するプロジェクトスキル
-- **Global skills 削除（5個）**: `travel-planner`（無関係）、`frontend-refactoring`（code-refactoring+rulesで代替）、`find-skills`（未使用）、`skill-editor`（skill-creatorで代替）、`project-setter`（使用済み）
-- **Project skills 削除（4個）**: `code-review`、`git-workflow`、`refactoring`、`debug-strategy` — グローバル版+rulesで代替
-- **Project rules 新規作成（3個）**: `project-review-checklist.md`（IPC/DataService/Provider/SQLiteチェック）、`project-patterns.md`（共有コンポーネント/フック設計パターン）、`project-debug.md`（IPC/SQLite/Audio/Contextデバッグガイド）
-- **SKILL_INDEX.md 更新**: inactive状態の記録を追加、移行先のrulesファイルパスを記載

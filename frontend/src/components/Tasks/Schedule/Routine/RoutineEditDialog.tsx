@@ -191,7 +191,7 @@ export function RoutineEditDialog({
         <div className="flex justify-end gap-2 mt-4">
           <button
             onClick={onClose}
-            className="px-3 py-1.5 text-sm text-notion-text-secondary hover:bg-notion-hover rounded-md transition-colors"
+            className="px-3 py-1.5 text-sm text-notion-danger hover:bg-notion-danger/10 rounded-md transition-colors"
           >
             {t("common.cancel", "Cancel")}
           </button>

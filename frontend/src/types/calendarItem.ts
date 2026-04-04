@@ -9,7 +9,8 @@ export type CalendarItemType =
   | "daily"
   | "note"
   | "event"
-  | "routineGroup";
+  | "routineGroup"
+  | "holiday";
 export type CalendarContentFilter =
   | "all"
   | "daily"
@@ -36,4 +37,5 @@ export const CALENDAR_ITEM_COLORS = {
   note: "#3B82F6",
   event: "#8B5CF6",
   routine: "#10B981",
+  holiday: "#16A34A",
 } as const;

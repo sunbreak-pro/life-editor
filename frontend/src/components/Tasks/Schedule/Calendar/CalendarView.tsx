@@ -12,7 +12,6 @@ import {
 } from "../../../../utils/getDescendantTasks";
 import { formatDateKey } from "../../../../utils/dateKey";
 import type { CalendarItem } from "../../../../types/calendarItem";
-import type { CalendarContentFilter } from "../../../../types/calendarItem";
 import { CalendarHeader } from "./CalendarHeader";
 import { TaskSchedulePanel } from "../../../shared/TaskSchedulePanel";
 import { NoteCreatePopover } from "./NoteCreatePopover";
@@ -30,6 +29,16 @@ import type { RoutineNode } from "../../../../types/routine";
 import { RoutineEditDialog } from "../Routine/RoutineEditDialog";
 import { RoutineGroupEditDialog } from "../Routine/RoutineGroupEditDialog";
 import { useClickOutside } from "../../../../hooks/useClickOutside";
+import { useLocalStorage } from "../../../../hooks/useLocalStorage";
+import { useTheme } from "../../../../hooks/useTheme";
+import { STORAGE_KEYS } from "../../../../constants/storageKeys";
+import {
+  useRoleConversion,
+  type ConversionRole,
+  type ConversionSource,
+} from "../../../../hooks/useRoleConversion";
+import type { MemoNode } from "../../../../types/memo";
+import type { NoteNode } from "../../../../types/note";
 
 function GroupPreviewPopup({
   group,
@@ -126,7 +135,7 @@ interface CalendarViewProps {
   filter: "incomplete" | "completed";
   filterFolderId: string | null;
   onFilterFolderChange?: (folderId: string | null) => void;
-  contentFilter?: CalendarContentFilter;
+  contentFilters?: Set<string>;
   onDateSelect?: (date: Date) => void;
   onOpenRoutineManagement?: () => void;
 }
@@ -147,7 +156,7 @@ export function CalendarView({
   filter,
   filterFolderId,
   onFilterFolderChange,
-  contentFilter,
+  contentFilters,
   onDateSelect,
   onOpenRoutineManagement,
 }: CalendarViewProps) {
@@ -155,6 +164,15 @@ export function CalendarView({
     useTaskTreeContext();
   const { activeCalendar } = useCalendarContext();
   const { memos, upsertMemo } = useMemoContext();
+  const { language } = useTheme();
+  const [showHolidays, setShowHolidays] = useLocalStorage<boolean>(
+    STORAGE_KEYS.CALENDAR_SHOW_HOLIDAYS,
+    true,
+    {
+      serialize: String,
+      deserialize: (raw) => raw !== "false",
+    },
+  );
   const {
     notes,
     createNote: createNoteFromContext,
@@ -186,7 +204,10 @@ export function CalendarView({
     createRoutineTag,
     skipNextSync,
     cleanupNonMatchingScheduleItems,
+    scheduleItemsVersion,
   } = useScheduleContext();
+
+  const { convert, canConvert } = useRoleConversion();
 
   // Filter nodes by active calendar's folder subtree
   const filteredNodes = useMemo(() => {
@@ -231,6 +252,9 @@ export function CalendarView({
     position: { x: number; y: number };
     onOpenDetail: () => void;
     noteId?: string;
+    date: string;
+    memoNode?: MemoNode;
+    noteNode?: NoteNode;
   } | null>(null);
   const [scheduleItemPreview, setScheduleItemPreview] = useState<{
     item: ScheduleItem;
@@ -247,10 +271,10 @@ export function CalendarView({
     null,
   );
 
-  // Load schedule items for the current month
+  // Load schedule items for the current month (also reloads when items change via bumpVersion)
   useEffect(() => {
     loadScheduleItemsForMonth(year, month);
-  }, [year, month, loadScheduleItemsForMonth]);
+  }, [year, month, loadScheduleItemsForMonth, scheduleItemsVersion]);
 
   const { tasksByDate, itemsByDate, calendarDays, weekDays } = useCalendar(
     filteredNodes,
@@ -260,9 +284,11 @@ export function CalendarView({
     weekStartDate,
     memos,
     notes,
-    contentFilter,
+    contentFilters,
     monthlyScheduleItems,
     groupForRoutine,
+    showHolidays,
+    language,
   );
 
   /* eslint-disable react-hooks/exhaustive-deps -- React Compiler auto-memoizes */
@@ -358,9 +384,14 @@ export function CalendarView({
   }, [itemsByDate, folderDescendantIds]);
 
   // Also keep filteredTasksByDate for WeeklyTimeGrid (which still uses TaskNode[])
-  // When contentFilter is "routine", hide all tasks from time grid
+  // When only routine/events filters are active, hide tasks from time grid
   const filteredTasksByDate = useMemo(() => {
-    if (contentFilter === "routine") return new Map<string, TaskNode[]>();
+    if (
+      contentFilters &&
+      contentFilters.size > 0 &&
+      !contentFilters.has("tasks")
+    )
+      return new Map<string, TaskNode[]>();
     if (!folderDescendantIds) return tasksByDate;
     const map = new Map<string, typeof nodes>();
     for (const [date, tasks] of tasksByDate) {
@@ -432,11 +463,14 @@ export function CalendarView({
           onSelectMemo?.(memo.date);
           setMemoPreview(null);
         },
+        date: memo.date,
+        memoNode: memo,
       });
     } else if (item.type === "note" && item.note) {
       setPreviewPopup(null);
       setScheduleItemPreview(null);
       const note = item.note;
+      const dateKey = formatDateKey(new Date(note.createdAt));
       setMemoPreview({
         kind: "note",
         title: note.title || "Untitled",
@@ -447,6 +481,8 @@ export function CalendarView({
           setMemoPreview(null);
         },
         noteId: note.id,
+        date: dateKey,
+        noteNode: note,
       });
     } else if (item.type === "routineGroup") {
       setPreviewPopup(null);
@@ -471,6 +507,11 @@ export function CalendarView({
       nodes.find((n) => n.id === previewPopup.taskId))
     : null;
 
+  const getDisabledRoles = (source: ConversionSource): ConversionRole[] => {
+    const roles: ConversionRole[] = ["task", "event", "note", "daily"];
+    return roles.filter((r) => !canConvert(source, r));
+  };
+
   // Check if a daily exists for the note-create date
   const noteCreateDateHasDaily = noteCreatePopover
     ? memos.some((m) => {
@@ -493,6 +534,8 @@ export function CalendarView({
           onViewModeChange={setViewMode}
           filterFolderId={filterFolderId}
           onFilterFolderChange={onFilterFolderChange}
+          showHolidays={showHolidays}
+          onShowHolidaysChange={setShowHolidays}
         />
 
         {viewMode === "month" ? (
@@ -856,6 +899,36 @@ export function CalendarView({
               frequencyStartDate,
             });
             setTagsForGroup(editGroupDialog.id, tagIds);
+
+            // Detect frequency change and cleanup non-matching schedule items
+            const freqChanged =
+              frequencyType !== editGroupDialog.frequencyType ||
+              JSON.stringify(frequencyDays) !==
+                JSON.stringify(editGroupDialog.frequencyDays) ||
+              frequencyInterval !== editGroupDialog.frequencyInterval ||
+              frequencyStartDate !== editGroupDialog.frequencyStartDate;
+            if (freqChanged) {
+              const updatedGroup = {
+                ...editGroupDialog,
+                name,
+                color,
+                frequencyType: frequencyType ?? editGroupDialog.frequencyType,
+                frequencyDays: frequencyDays ?? editGroupDialog.frequencyDays,
+                frequencyInterval:
+                  frequencyInterval !== undefined
+                    ? frequencyInterval
+                    : editGroupDialog.frequencyInterval,
+                frequencyStartDate:
+                  frequencyStartDate !== undefined
+                    ? frequencyStartDate
+                    : editGroupDialog.frequencyStartDate,
+              };
+              const members = routinesByGroup.get(editGroupDialog.id) ?? [];
+              for (const routine of members) {
+                cleanupNonMatchingScheduleItems(routine, updatedGroup);
+              }
+            }
+
             setEditGroupDialog(null);
           }}
           onClose={() => setEditGroupDialog(null)}

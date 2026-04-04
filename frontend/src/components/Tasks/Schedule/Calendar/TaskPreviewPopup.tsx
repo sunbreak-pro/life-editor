@@ -11,6 +11,8 @@ import {
   clampEndTimeAfterStart,
   adjustEndTimeForStartChange,
 } from "../../../../utils/timeGridUtils";
+import { RoleSwitcher } from "./RoleSwitcher";
+import type { ConversionRole } from "../../../../hooks/useRoleConversion";
 
 interface TaskPreviewPopupProps {
   task: TaskNode;
@@ -27,6 +29,8 @@ interface TaskPreviewPopupProps {
     scheduledAt: string,
     scheduledEndAt: string | undefined,
   ) => void;
+  onConvertRole?: (targetRole: ConversionRole) => void;
+  disabledRoles?: ConversionRole[];
 }
 
 function extractTime(iso: string): string {
@@ -52,6 +56,8 @@ export function TaskPreviewPopup({
   onClose,
   onUpdateTitle,
   onUpdateSchedule,
+  onConvertRole,
+  disabledRoles,
 }: TaskPreviewPopupProps) {
   const { t } = useTranslation();
   const ref = useRef<HTMLDivElement>(null);
@@ -221,19 +227,27 @@ export function TaskPreviewPopup({
               </button>
             ))}
           <div className="flex items-center gap-2">
-            <span
-              className={`inline-block px-1.5 py-0.5 text-[10px] rounded-full font-medium ${
-                task.status === "DONE"
-                  ? "bg-green-100 text-green-700"
-                  : "bg-notion-accent/10 text-notion-accent"
-              }`}
-            >
-              {task.status === "DONE"
-                ? "DONE"
-                : task.status === "IN_PROGRESS"
-                  ? "IN PROGRESS"
-                  : "NOT STARTED"}
-            </span>
+            {onConvertRole ? (
+              <RoleSwitcher
+                currentRole="task"
+                disabledRoles={disabledRoles}
+                onSelectRole={onConvertRole}
+              />
+            ) : (
+              <span
+                className={`inline-block px-1.5 py-0.5 text-[10px] rounded-full font-medium ${
+                  task.status === "DONE"
+                    ? "bg-green-100 text-green-700"
+                    : "bg-notion-accent/10 text-notion-accent"
+                }`}
+              >
+                {task.status === "DONE"
+                  ? "DONE"
+                  : task.status === "IN_PROGRESS"
+                    ? "IN PROGRESS"
+                    : "NOT STARTED"}
+              </span>
+            )}
           </div>
         </div>
         <div className="border-t border-notion-border flex">

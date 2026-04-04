@@ -9,16 +9,16 @@ export interface CategoryProgress {
 
 interface DayFlowSidebarContentProps {
   date: Date;
-  activeFilter: DayFlowFilterTab;
-  onFilterChange: (tab: DayFlowFilterTab) => void;
+  activeFilters: Set<DayFlowFilterTab>;
+  onToggleFilter: (tab: DayFlowFilterTab) => void;
   categoryProgress: Record<DayFlowFilterTab, CategoryProgress>;
   tabs?: readonly TabItem<DayFlowFilterTab>[];
 }
 
 export function DayFlowSidebarContent({
   date,
-  activeFilter,
-  onFilterChange,
+  activeFilters,
+  onToggleFilter,
   categoryProgress,
   tabs,
 }: DayFlowSidebarContentProps) {
@@ -27,8 +27,8 @@ export function DayFlowSidebarContent({
       <ProgressSection
         date={date}
         categoryProgress={categoryProgress}
-        activeFilter={activeFilter}
-        onFilterChange={onFilterChange}
+        activeFilters={activeFilters}
+        onToggleFilter={onToggleFilter}
         tabs={tabs}
       />
     </div>

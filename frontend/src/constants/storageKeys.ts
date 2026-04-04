@@ -43,4 +43,5 @@ export const STORAGE_KEYS = {
   SOUND_EFFECT_SETTINGS: "life-editor-sound-effect-settings",
   CONFETTI_ENABLED: "life-editor-confetti-enabled",
   DAYFLOW_DUAL_COLUMN: "life-editor-dayflow-dual-column",
+  CALENDAR_SHOW_HOLIDAYS: "life-editor-calendar-show-holidays",
 } as const;

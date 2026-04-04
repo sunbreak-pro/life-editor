@@ -720,7 +720,12 @@
     "eventMemo": "Memo",
     "calendarTags": "Calendar Tags",
     "startTime": "Start",
-    "endTime": "End"
+    "endTime": "End",
+    "roleTask": "Task",
+    "roleEvent": "Event",
+    "roleNote": "Note",
+    "roleDaily": "Daily",
+    "conversionSuccess": "Converted to {{role}}"
   },
   "search": {
     "placeholder": "Search tasks...",
@@ -874,7 +879,8 @@
     "today": "Today",
     "month": "Month",
     "week": "Week",
-    "day": "Day"
+    "day": "Day",
+    "holidays": "Holidays"
   },
   "calendarSidebar": {
     "title": "Schedule",

@@ -75,26 +75,6 @@ export function AppearanceSettings() {
           >
             Dark
           </button>
-          <button
-            onClick={() => setTheme("monochrome")}
-            className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
-              theme === "monochrome"
-                ? "bg-notion-accent text-white"
-                : "bg-notion-hover text-notion-text"
-            }`}
-          >
-            Noir (Light)
-          </button>
-          <button
-            onClick={() => setTheme("monochrome-dark")}
-            className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
-              theme === "monochrome-dark"
-                ? "bg-notion-accent text-white"
-                : "bg-notion-hover text-notion-text"
-            }`}
-          >
-            Noir (Dark)
-          </button>
         </div>
       </div>
 

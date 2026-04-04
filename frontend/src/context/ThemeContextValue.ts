@@ -1,6 +1,6 @@
 import { createContext } from "react";
 
-export type Theme = "light" | "dark" | "monochrome" | "monochrome-dark";
+export type Theme = "light" | "dark";
 export type FontSize = number; // 1〜10
 export type Language = "en" | "ja";
 

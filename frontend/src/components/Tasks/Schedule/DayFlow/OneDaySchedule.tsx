@@ -51,8 +51,8 @@ interface OneDayScheduleProps {
   onPrevDate: () => void;
   onNextDate: () => void;
   onToday: () => void;
-  filterTab: DayFlowFilterTab;
-  onFilterTabChange: (tab: DayFlowFilterTab) => void;
+  activeFilters: Set<DayFlowFilterTab>;
+  onSetExclusiveFilter?: (tab: DayFlowFilterTab) => void;
   onToggleTaskStatus?: (taskId: string) => void;
   onUnscheduleTask?: (taskId: string) => void;
   onNavigateTask?: (taskId: string, e: React.MouseEvent) => void;
@@ -74,8 +74,8 @@ export function OneDaySchedule({
   onPrevDate,
   onNextDate,
   onToday,
-  filterTab,
-  onFilterTabChange,
+  activeFilters,
+  onSetExclusiveFilter,
   onToggleTaskStatus,
   onUnscheduleTask,
   onNavigateTask,
@@ -250,18 +250,21 @@ export function OneDaySchedule({
   // Auto-set NOT_STARTED tasks to IN_PROGRESS for today
   useAutoInProgress(dayTasks, isToday);
 
-  // Filtered data based on active filter tab
+  // Filtered data based on active filters (multi-select; empty = all)
+  const showAll = activeFilters.size === 0;
   const filteredScheduleItems = useMemo(() => {
     let items = scheduleItems;
-    switch (filterTab) {
-      case "routine":
-        items = items.filter((i) => i.routineId !== null);
-        break;
-      case "events":
-        items = items.filter((i) => i.routineId === null);
-        break;
-      case "tasks":
-        return [];
+    if (!showAll) {
+      const showRoutine = activeFilters.has("routine");
+      const showEvents = activeFilters.has("events");
+      if (!showRoutine && !showEvents) {
+        items = [];
+      } else {
+        items = items.filter((i) => {
+          const isRoutine = i.routineId !== null;
+          return isRoutine ? showRoutine : showEvents;
+        });
+      }
     }
     if (selectedFilterTagIds.length > 0) {
       items = items.filter((i) => {
@@ -270,7 +273,6 @@ export function OneDaySchedule({
         return selectedFilterTagIds.some((id) => rTagIds.includes(id));
       });
     }
-    // Group filter: show items whose routines belong to selected groups
     if (selectedFilterGroupIds.length > 0) {
       items = items.filter((i) => {
         if (!i.routineId) return false;
@@ -281,7 +283,8 @@ export function OneDaySchedule({
     return items;
   }, [
     scheduleItems,
-    filterTab,
+    showAll,
+    activeFilters,
     selectedFilterTagIds,
     routineTagMap,
     selectedFilterGroupIds,
@@ -289,9 +292,9 @@ export function OneDaySchedule({
   ]);
 
   const filteredDayTasks = useMemo(() => {
-    if (filterTab === "routine" || filterTab === "events") return [];
+    if (!showAll && !activeFilters.has("tasks")) return [];
     return allDayTasks;
-  }, [allDayTasks, filterTab]);
+  }, [allDayTasks, showAll, activeFilters]);
 
   // Task IDs already scheduled for this date (for task picker exclusion)
   const existingTaskIds = useMemo(() => {
@@ -444,8 +447,8 @@ export function OneDaySchedule({
         onPrevDate={onPrevDate}
         onNextDate={onNextDate}
         onToday={onToday}
-        filterTab={filterTab}
-        onFilterTabChange={onFilterTabChange}
+        filterTab={activeFilters.size === 1 ? [...activeFilters][0] : "all"}
+        onFilterTabChange={(tab) => onSetExclusiveFilter?.(tab)}
         selectedFilterTagIds={selectedFilterTagIds}
         onSelectedFilterTagIdsChange={setSelectedFilterTagIds}
         routineTags={routineTags}

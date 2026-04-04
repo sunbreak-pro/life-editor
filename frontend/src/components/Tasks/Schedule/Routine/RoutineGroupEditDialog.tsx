@@ -146,7 +146,7 @@ export function RoutineGroupEditDialog({
                 "routineGroup.namePlaceholder",
                 "e.g. Morning Routine",
               )}
-              className="w-full px-2 py-1.5 text-sm bg-notion-bg-secondary border border-notion-border rounded focus:outline-none focus:ring-1 focus:ring-notion-blue text-notion-text"
+              className="w-full px-2 py-1.5 text-sm bg-notion-bg-secondary border border-notion-border rounded focus:outline-none focus:ring-1 focus:ring-notion-accent text-notion-text"
               autoFocus
               onKeyDown={(e) => {
                 if (e.key === "Enter") handleSubmit();
@@ -258,14 +258,14 @@ export function RoutineGroupEditDialog({
         <div className="flex justify-end gap-2 px-4 py-3 border-t border-notion-border">
           <button
             onClick={onClose}
-            className="px-3 py-1.5 text-sm text-notion-text-secondary hover:text-notion-text rounded transition-colors"
+            className="px-3 py-1.5 text-sm text-notion-danger hover:bg-notion-danger/10 rounded-md transition-colors"
           >
             {t("common.cancel", "Cancel")}
           </button>
           <button
             onClick={handleSubmit}
             disabled={!name.trim()}
-            className="px-3 py-1.5 text-sm bg-notion-blue text-white rounded hover:bg-notion-blue/90 disabled:opacity-50 transition-colors"
+            className="px-3 py-1.5 text-sm bg-notion-accent text-white rounded-md hover:bg-notion-accent/90 disabled:opacity-50 transition-colors"
           >
             {group ? t("common.save", "Save") : t("schedule.create", "Create")}
           </button>

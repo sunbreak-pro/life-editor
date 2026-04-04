@@ -4,12 +4,10 @@ import type { MemoNode } from "../types/memo";
 import type { NoteNode } from "../types/note";
 import type { ScheduleItem } from "../types/schedule";
 import type { RoutineGroup } from "../types/routineGroup";
-import type {
-  CalendarItem,
-  CalendarContentFilter,
-} from "../types/calendarItem";
+import type { CalendarItem } from "../types/calendarItem";
 import { CALENDAR_ITEM_COLORS } from "../types/calendarItem";
 import { formatDateKey } from "../utils/dateKey";
+import { getHolidayName } from "../utils/holidays";
 
 export function useCalendar(
   nodes: TaskNode[],
@@ -19,9 +17,11 @@ export function useCalendar(
   weekStartDate?: Date,
   memos?: MemoNode[],
   notes?: NoteNode[],
-  contentFilter?: CalendarContentFilter,
+  contentFilters?: Set<string>,
   scheduleItems?: ScheduleItem[],
   groupForRoutine?: Map<string, RoutineGroup>,
+  showHolidays?: boolean,
+  language?: "ja" | "en",
 ) {
   const tasksByDate = useMemo(() => {
     const map = new Map<string, TaskNode[]>();
@@ -59,10 +59,12 @@ export function useCalendar(
 
   const itemsByDate = useMemo(() => {
     const map = new Map<string, CalendarItem[]>();
-    const cf = contentFilter ?? "all";
+    // Empty set = show all
+    const showAll = !contentFilters || contentFilters.size === 0;
+    const has = (key: string) => showAll || contentFilters!.has(key);
 
-    // Tasks (shown for all, tasks — hidden for events, routine, daily, notes)
-    if (cf === "all" || cf === "tasks") {
+    // Tasks
+    if (has("tasks")) {
       for (const [dateKey, tasks] of tasksByDate) {
         const items: CalendarItem[] = tasks.map((task) => ({
           id: task.id,
@@ -76,7 +78,7 @@ export function useCalendar(
     }
 
     // Dailies (MemoNode)
-    if ((cf === "all" || cf === "daily") && memos) {
+    if (has("daily") && memos) {
       for (const memo of memos) {
         if (memo.isDeleted) continue;
         const dateKey = memo.date;
@@ -94,7 +96,7 @@ export function useCalendar(
     }
 
     // Notes (NoteNode)
-    if ((cf === "all" || cf === "notes") && notes) {
+    if (has("notes") && notes) {
       for (const note of notes) {
         if (note.isDeleted) continue;
         const dateKey = formatDateKey(new Date(note.createdAt));
@@ -112,10 +114,7 @@ export function useCalendar(
     }
 
     // Schedule items (events & routines)
-    if (
-      scheduleItems &&
-      (cf === "all" || cf === "events" || cf === "routine")
-    ) {
+    if (scheduleItems && (has("events") || has("routine"))) {
       // Collect routine items by group per date
       const groupedByDate = new Map<
         string,
@@ -124,8 +123,8 @@ export function useCalendar(
 
       for (const si of scheduleItems) {
         const isRoutine = si.routineId !== null;
-        if (cf === "events" && isRoutine) continue;
-        if (cf === "routine" && !isRoutine) continue;
+        if (isRoutine && !has("routine")) continue;
+        if (!isRoutine && !has("events")) continue;
         const dateKey = si.date;
 
         // Check if this routine belongs to a group
@@ -182,14 +181,42 @@ export function useCalendar(
       }
     }
 
+    // Holidays
+    if (showHolidays) {
+      const firstDay = new Date(year, month, 1);
+      const startDayOfWeek = firstDay.getDay();
+      const gridStart = new Date(year, month, 1 - startDayOfWeek);
+      const lang = language ?? "ja";
+      for (let i = 0; i < 42; i++) {
+        const d = new Date(gridStart);
+        d.setDate(d.getDate() + i);
+        const name = getHolidayName(d, lang);
+        if (!name) continue;
+        const dateKey = formatDateKey(d);
+        const item: CalendarItem = {
+          id: `holiday-${dateKey}`,
+          type: "holiday",
+          title: name,
+          color: CALENDAR_ITEM_COLORS.holiday,
+        };
+        const existing = map.get(dateKey);
+        if (existing) existing.unshift(item);
+        else map.set(dateKey, [item]);
+      }
+    }
+
     return map;
   }, [
     tasksByDate,
     memos,
     notes,
-    contentFilter,
+    contentFilters,
     scheduleItems,
     groupForRoutine,
+    showHolidays,
+    language,
+    year,
+    month,
   ]);
 
   const calendarDays = useMemo(() => {

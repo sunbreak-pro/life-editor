@@ -1,5 +1,6 @@
 import { useMemo, useCallback } from "react";
 import {
+  CalendarClock,
   CheckCircle2,
   ChevronLeft,
   ChevronRight,
@@ -22,7 +23,8 @@ type FlowEntry =
       startTime: string | null;
       completed: boolean;
     }
-  | { type: "task"; task: TaskNode; sortKey: string };
+  | { type: "task"; task: TaskNode; sortKey: string }
+  | { type: "event"; scheduleItem: ScheduleItem };
 
 interface MiniTodayFlowProps {
   date: Date;
@@ -33,6 +35,7 @@ interface MiniTodayFlowProps {
   onSelectTask?: (taskId: string) => void;
   onPrevDate?: () => void;
   onNextDate?: () => void;
+  activeFilters?: Set<string>;
 }
 
 function extractTimeFromScheduledAt(scheduledAt: string): string {
@@ -51,8 +54,15 @@ export function MiniTodayFlow({
   onSelectTask,
   onPrevDate,
   onNextDate,
+  activeFilters,
 }: MiniTodayFlowProps) {
   const { t } = useTranslation();
+
+  // Empty set = show all
+  const showAll = !activeFilters || activeFilters.size === 0;
+  const showRoutines = showAll || activeFilters!.has("routine");
+  const showEvents = showAll || activeFilters!.has("events");
+  const showTasks = showAll || activeFilters!.has("tasks");
 
   const scheduleItemByRoutineId = useMemo(() => {
     const map = new Map<string, ScheduleItem>();
@@ -68,41 +78,76 @@ export function MiniTodayFlow({
     const result: FlowEntry[] = [];
 
     // Add routines
-    for (const routine of routines) {
-      if (routine.isArchived) continue;
-      const scheduleItem = scheduleItemByRoutineId.get(routine.id);
-      result.push({
-        type: "routine",
-        routineId: routine.id,
-        scheduleItemId: scheduleItem?.id ?? null,
-        title: routine.title,
-        startTime: scheduleItem?.startTime ?? routine.startTime,
-        completed: scheduleItem?.completed ?? false,
-      });
+    if (showRoutines) {
+      for (const routine of routines) {
+        if (routine.isArchived) continue;
+        const scheduleItem = scheduleItemByRoutineId.get(routine.id);
+        result.push({
+          type: "routine",
+          routineId: routine.id,
+          scheduleItemId: scheduleItem?.id ?? null,
+          title: routine.title,
+          startTime: scheduleItem?.startTime ?? routine.startTime,
+          completed: scheduleItem?.completed ?? false,
+        });
+      }
+    }
+
+    // Add events (schedule items without routineId)
+    if (showEvents) {
+      for (const item of scheduleItems) {
+        if (item.routineId === null) {
+          result.push({ type: "event", scheduleItem: item });
+        }
+      }
     }
 
     // Add tasks
-    for (const task of tasks) {
-      if (task.isAllDay) {
-        result.push({ type: "task", task, sortKey: "99:99" });
-      } else if (task.scheduledAt) {
-        const time = extractTimeFromScheduledAt(task.scheduledAt);
-        result.push({ type: "task", task, sortKey: time });
+    if (showTasks) {
+      for (const task of tasks) {
+        if (task.isAllDay) {
+          result.push({ type: "task", task, sortKey: "99:99" });
+        } else if (task.scheduledAt) {
+          const time = extractTimeFromScheduledAt(task.scheduledAt);
+          result.push({ type: "task", task, sortKey: time });
+        }
       }
     }
 
     // Sort by time
     result.sort((a, b) => {
-      const aKey = a.type === "routine" ? (a.startTime ?? "99:99") : a.sortKey;
-      const bKey = b.type === "routine" ? (b.startTime ?? "99:99") : b.sortKey;
+      const aKey =
+        a.type === "routine"
+          ? (a.startTime ?? "99:99")
+          : a.type === "event"
+            ? (a.scheduleItem.startTime ?? "99:99")
+            : a.sortKey;
+      const bKey =
+        b.type === "routine"
+          ? (b.startTime ?? "99:99")
+          : b.type === "event"
+            ? (b.scheduleItem.startTime ?? "99:99")
+            : b.sortKey;
       return aKey.localeCompare(bKey);
     });
 
     return result;
-  }, [routines, scheduleItemByRoutineId, tasks]);
+  }, [
+    routines,
+    scheduleItemByRoutineId,
+    scheduleItems,
+    tasks,
+    showRoutines,
+    showEvents,
+    showTasks,
+  ]);
 
   const completedCount = entries.filter((e) =>
-    e.type === "routine" ? e.completed : e.task.status === "DONE",
+    e.type === "routine"
+      ? e.completed
+      : e.type === "event"
+        ? e.scheduleItem.completed
+        : e.task.status === "DONE",
   ).length;
   const totalCount = entries.length;
   const progressPercent =
@@ -191,6 +236,47 @@ export function MiniTodayFlow({
                           </span>
                         )}
                         {entry.title}
+                      </div>
+                    </div>
+                  </button>
+                );
+              }
+
+              // Event entry
+              if (entry.type === "event") {
+                const si = entry.scheduleItem;
+                return (
+                  <button
+                    key={`e-${si.id}`}
+                    data-sidebar-item
+                    onClick={() => handleToggle(si.id)}
+                    className="flex text-left w-full cursor-pointer"
+                  >
+                    <div className="flex flex-col items-center mr-2">
+                      <div className="flex-shrink-0 transition-colors">
+                        {si.completed ? (
+                          <CheckCircle2 size={14} className="text-green-500" />
+                        ) : (
+                          <CalendarClock
+                            size={14}
+                            className="text-purple-500"
+                          />
+                        )}
+                      </div>
+                      {i < entries.length - 1 && (
+                        <div className="w-px flex-1 min-h-[12px] bg-notion-border" />
+                      )}
+                    </div>
+                    <div className="pb-2 min-w-0">
+                      <div
+                        className={`text-xs truncate ${si.completed ? "text-notion-text-secondary line-through" : "text-notion-text"}`}
+                      >
+                        {si.startTime && (
+                          <span className="text-[10px] text-notion-text-secondary mr-1">
+                            {si.startTime}
+                          </span>
+                        )}
+                        {si.title}
                       </div>
                     </div>
                   </button>

@@ -33,38 +33,6 @@
   --color-schedule-other-bg: #1f2937;
 }
 
-[data-theme="monochrome"] {
-  --color-bg-primary: #ffffff;
-  --color-bg-secondary: #f4f4f5;
-  --color-bg-subsidebar: #fafafa;
-  --color-text-primary: #18181b;
-  --color-text-secondary: #71717a;
-  --color-border: #e4e4e7;
-  --color-accent: #18181b;
-  --color-hover: #f4f4f5;
-  --color-success: #18181b;
-  --color-danger: #71717a;
-  --color-calendar-header: #e4e4e7;
-  --color-schedule-routine-bg: #f4f4f5;
-  --color-schedule-other-bg: #f4f4f5;
-}
-
-[data-theme="monochrome-dark"] {
-  --color-bg-primary: #121212;
-  --color-bg-secondary: #1e1e1e;
-  --color-bg-subsidebar: #18181b;
-  --color-text-primary: #f4f4f5;
-  --color-text-secondary: #a1a1aa;
-  --color-border: #27272a;
-  --color-accent: #f4f4f5;
-  --color-hover: #27272a;
-  --color-success: #f4f4f5;
-  --color-danger: #a1a1aa;
-  --color-calendar-header: #27272a;
-  --color-schedule-routine-bg: #1e1e1e;
-  --color-schedule-other-bg: #1e1e1e;
-}
-
 @theme {
   --color-notion-bg: var(--color-bg-primary);
   --color-notion-bg-secondary: var(--color-bg-secondary);

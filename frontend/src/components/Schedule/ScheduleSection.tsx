@@ -12,7 +12,6 @@ import { DualDayFlowLayout } from "../Tasks/Schedule/DayFlow/DualDayFlowLayout";
 import { DayFlowSidebarContent } from "../Tasks/Schedule/DayFlow/DayFlowSidebarContent";
 import type { CategoryProgress } from "../Tasks/Schedule/DayFlow/DayFlowSidebarContent";
 import { ScheduleSidebarContent } from "./ScheduleSidebarContent";
-import type { CalendarContentFilter } from "../../types/calendarItem";
 import { useTaskTreeContext } from "../../hooks/useTaskTreeContext";
 import { useCalendar } from "../../hooks/useCalendar";
 import { useScheduleContext } from "../../hooks/useScheduleContext";
@@ -86,8 +85,9 @@ export function ScheduleSection({
   const setActiveTab = externalOnTabChange ?? setInternalActiveTab;
   const [dayFlowDate, setDayFlowDate] = useState<Date>(() => new Date());
   const [showRoutineManagement, setShowRoutineManagement] = useState(false);
-  const [dayFlowFilterTab, setDayFlowFilterTab] =
-    useState<DayFlowFilterTab>("all");
+  const [dayFlowFilters, setDayFlowFilters] = useState<Set<DayFlowFilterTab>>(
+    () => new Set(),
+  );
   const [isDualColumn, setIsDualColumn] = useState<boolean>(() => {
     return localStorage.getItem(STORAGE_KEYS.DAYFLOW_DUAL_COLUMN) === "true";
   });
@@ -105,15 +105,30 @@ export function ScheduleSection({
   const [calendarFilterFolderId, setCalendarFilterFolderId] = useState<
     string | null
   >(null);
-  const [calendarContentFilter, setCalendarContentFilter] =
-    useState<CalendarContentFilter>("all");
+  const [calendarContentFilters, setCalendarContentFilters] = useState<
+    Set<DayFlowFilterTab>
+  >(() => new Set());
 
   // Calendar progress date state
   const [calendarProgressDate, setCalendarProgressDate] = useState<Date>(
     () => new Date(),
   );
-  const [calendarProgressFilter, setCalendarProgressFilter] =
-    useState<DayFlowFilterTab>("all");
+  // Toggle filter helper
+  const toggleFilter = useCallback(
+    (
+      setter: React.Dispatch<React.SetStateAction<Set<DayFlowFilterTab>>>,
+      tab: DayFlowFilterTab,
+    ) => {
+      setter((prev) => {
+        if (tab === "all") return new Set();
+        const next = new Set(prev);
+        if (next.has(tab)) next.delete(tab);
+        else next.add(tab);
+        return next;
+      });
+    },
+    [],
+  );
 
   const { nodes, getTaskColor, getFolderTagForTask, updateNode, softDelete } =
     useTaskTreeContext();
@@ -429,6 +444,13 @@ export function ScheduleSection({
                   ? calendarProgressDate
                   : undefined
             }
+            activeFilters={
+              activeTab === "dayflow"
+                ? dayFlowFilters
+                : activeTab === "calendar"
+                  ? calendarContentFilters
+                  : undefined
+            }
             onSelectTask={(taskId) => {
               onSelectTask?.(taskId);
               setActiveTab("tasks");
@@ -437,8 +459,8 @@ export function ScheduleSection({
             {activeTab === "dayflow" && (
               <DayFlowSidebarContent
                 date={dayFlowDate}
-                activeFilter={dayFlowFilterTab}
-                onFilterChange={setDayFlowFilterTab}
+                activeFilters={dayFlowFilters}
+                onToggleFilter={(tab) => toggleFilter(setDayFlowFilters, tab)}
                 categoryProgress={categoryProgress}
               />
             )}
@@ -446,22 +468,10 @@ export function ScheduleSection({
               <DayFlowSidebarContent
                 date={calendarProgressDate}
                 categoryProgress={calendarCategoryProgress}
-                activeFilter={calendarProgressFilter}
-                onFilterChange={(tab) => {
-                  setCalendarProgressFilter(tab);
-                  const mapping: Record<
-                    DayFlowFilterTab,
-                    CalendarContentFilter
-                  > = {
-                    all: "all",
-                    tasks: "tasks",
-                    routine: "routine",
-                    events: "events",
-                    daily: "daily",
-                    notes: "notes",
-                  };
-                  setCalendarContentFilter(mapping[tab]);
-                }}
+                activeFilters={calendarContentFilters}
+                onToggleFilter={(tab) =>
+                  toggleFilter(setCalendarContentFilters, tab)
+                }
                 tabs={CALENDAR_PROGRESS_TABS}
               />
             )}
@@ -482,7 +492,7 @@ export function ScheduleSection({
             filter={calendarFilter}
             filterFolderId={calendarFilterFolderId}
             onFilterFolderChange={setCalendarFilterFolderId}
-            contentFilter={calendarContentFilter}
+            contentFilters={calendarContentFilters}
             onDateSelect={handleCalendarDateSelect}
             onOpenRoutineManagement={() => setShowRoutineManagement(true)}
           />
@@ -518,8 +528,10 @@ export function ScheduleSection({
             onPrevDate={goToPrev}
             onNextDate={goToNext}
             onToday={goToToday}
-            filterTab={dayFlowFilterTab}
-            onFilterTabChange={setDayFlowFilterTab}
+            activeFilters={dayFlowFilters}
+            onSetExclusiveFilter={(tab) =>
+              setDayFlowFilters(tab === "all" ? new Set() : new Set([tab]))
+            }
             onToggleTaskStatus={handleToggleTaskStatus}
             onUnscheduleTask={handleUnscheduleTask}
             onNavigateTask={handleNavigateTask}
