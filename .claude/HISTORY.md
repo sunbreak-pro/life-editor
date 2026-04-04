@@ -1,5 +1,25 @@
 # HISTORY.md - 変更履歴
 
+### 2026-04-04 - Calendar RightSidebar/DayFlow改善 + Popup簡素化
+
+#### 概要
+
+RightSidebarのMiniTodayFlowに全アイテムタイプ（Routine/Event/Task）の編集・削除アイコンを追加し、インライン編集ポップアップを新規作成。DayFlowのEvent色を紫に変更、TimeGridの重なりバグ（RoutineGroup二重半分 + Event重なり）を修正。InProgressTasksList削除、MiniTodayFlowアイコン統一、タスク完了トグル、CalendarのTaskPreviewPopup/ScheduleItemPreviewPopupのボタンレイアウト改善。
+
+#### 変更点
+
+- **InProgressTasksList削除**: `InProgressTasksList.tsx`を削除。`ScheduleSidebarContent.tsx`から参照除去。`useAutoInProgress`は維持
+- **Event紫色化**: `index.css`にevent用CSS変数（light/dark）追加。`ScheduleItemBlock.tsx`でEvent背景・ボーダーを紫に変更
+- **MiniTodayFlowアイコン統一**: Routine=`Repeat`(emerald)、Task=`CheckSquare`(accent)、Event=`CalendarClock`(purple)にCalendarItemChipと統一
+- **MiniTodayFlowにTasks常時表示**: `activeFilters`によるフィルタリングを無視してTasksを常時表示
+- **Event/Task編集・削除アイコン**: Event/Taskエントリをgroupパターンにリファクタ。Pencil(編集)+X/CalendarMinus(削除)アイコン追加
+- **インライン編集ポップアップ**: `ScheduleItemEditPopup.tsx`新規作成。Routine(title/time/tag)、Event(title/time)、Task(title/time)対応
+- **RoutineGroup二重半分バグ修正**: `adjustedItems`後処理でグループ内アイテムのtotalColumnsをグループ内ピアのみで再計算
+- **Event重なりバグ修正**: `hasRoutineTaskSplit=true`時、Eventをleft 60%ゾーンに制約する新ブランチ追加
+- **タスク完了トグル**: MiniTodayFlowのタスクアイコンクリックで完了/未完了をトグル（タイトルクリックは詳細遷移維持）
+- **TaskPreviewPopup簡素化**: Start Timer行+Delete行を削除、「Open Detail」「Clear Schedule」の2ボタン横並びに
+- **ScheduleItemPreviewPopup横並び化**: Complete/Edit/Deleteボタンを1行横並びに統合
+
 ### 2026-04-04 - Calendar UI改善（MiniTodayFlow + Undo Complete + 検索 + フォルダフィルタ移動）
 
 #### 概要

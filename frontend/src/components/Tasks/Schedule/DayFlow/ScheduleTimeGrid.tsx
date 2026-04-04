@@ -620,6 +620,91 @@ export function ScheduleTimeGrid({
 
   const routineColumnRatio = hasRoutineTaskSplit ? 0.6 : 1.0;
 
+  // Fix totalColumns for items affected by routine-task split
+  // Grouped routines should only divide columns among themselves (not with external tasks/events)
+  // Tasks and events overlapping group frames go to the right column
+  const adjustedItems = useMemo(() => {
+    if (!hasRoutineTaskSplit || !groupForRoutine) return unifiedItems;
+
+    // Collect IDs of grouped routine items
+    const groupedRoutineIds = new Set<string>();
+    for (const item of unifiedItems) {
+      if (
+        item.kind === "schedule" &&
+        item.scheduleItem?.routineId &&
+        groupForRoutine.has(item.scheduleItem.routineId)
+      ) {
+        groupedRoutineIds.add(item.id);
+      }
+    }
+
+    // Collect IDs of tasks AND events that overlap with group frames (these go to the right column)
+    const rightColumnIds = new Set<string>();
+    for (const item of unifiedItems) {
+      if (groupedRoutineIds.has(item.id)) continue;
+      if (
+        groupFrames.some((gf) =>
+          rangesOverlap(
+            item.top,
+            item.height,
+            gf.top + GROUP_HEADER_HEIGHT,
+            gf.height - GROUP_HEADER_HEIGHT,
+          ),
+        )
+      ) {
+        rightColumnIds.add(item.id);
+      }
+    }
+
+    return unifiedItems.map((item) => {
+      // Grouped routine: only count overlapping grouped-routine peers for totalColumns
+      if (groupedRoutineIds.has(item.id)) {
+        const peers = unifiedItems.filter(
+          (other) =>
+            other.id !== item.id &&
+            groupedRoutineIds.has(other.id) &&
+            rangesOverlap(item.top, item.height, other.top, other.height),
+        );
+        const newTotal = peers.length + 1;
+        // Re-assign sequential column among peers
+        const allPeers = [item, ...peers].sort((a, b) => a.column - b.column);
+        const newColumn = allPeers.findIndex((p) => p.id === item.id);
+        return { ...item, totalColumns: newTotal, column: newColumn };
+      }
+
+      // Right-column item (task or event overlapping group): count peers in right column
+      if (rightColumnIds.has(item.id)) {
+        const peers = unifiedItems.filter(
+          (other) =>
+            other.id !== item.id &&
+            rightColumnIds.has(other.id) &&
+            rangesOverlap(item.top, item.height, other.top, other.height),
+        );
+        const newTotal = peers.length + 1;
+        const allPeers = [item, ...peers].sort((a, b) => a.column - b.column);
+        const newColumn = allPeers.findIndex((p) => p.id === item.id);
+        return { ...item, totalColumns: newTotal, column: newColumn };
+      }
+
+      // Non-grouped event not overlapping group: count overlaps with non-right-column items
+      if (item.kind === "schedule" && !groupedRoutineIds.has(item.id)) {
+        const peers = unifiedItems.filter(
+          (other) =>
+            other.id !== item.id &&
+            !groupedRoutineIds.has(other.id) &&
+            !rightColumnIds.has(other.id) &&
+            rangesOverlap(item.top, item.height, other.top, other.height),
+        );
+        const newTotal = peers.length + 1;
+        const allPeers = [item, ...peers].sort((a, b) => a.column - b.column);
+        const newColumn = allPeers.findIndex((p) => p.id === item.id);
+        return { ...item, totalColumns: newTotal, column: newColumn };
+      }
+
+      return item;
+    });
+  }, [unifiedItems, hasRoutineTaskSplit, groupForRoutine, groupFrames]);
+
   const nextItemId = useMemo(() => {
     const sorted = [...scheduleItems].sort((a, b) =>
       a.startTime.localeCompare(b.startTime),
@@ -750,7 +835,7 @@ export function ScheduleTimeGrid({
         ))}
 
         {/* Unified item blocks */}
-        {unifiedItems.map((item) => {
+        {adjustedItems.map((item) => {
           // Column separation: routine items in left column, tasks in right column
           let colLeft: string;
           let colWidth: string;
@@ -773,7 +858,11 @@ export function ScheduleTimeGrid({
                 : `calc(${(baseWidth / item.totalColumns) * 100}% - 4px)`;
           } else if (
             hasRoutineTaskSplit &&
-            item.kind === "task" &&
+            !(
+              item.kind === "schedule" &&
+              item.scheduleItem?.routineId &&
+              groupForRoutine?.has(item.scheduleItem.routineId)
+            ) &&
             groupFrames.some((gf) =>
               rangesOverlap(
                 item.top,
@@ -783,10 +872,16 @@ export function ScheduleTimeGrid({
               ),
             )
           ) {
-            // Task overlapping group → right column
-            const taskWidth = 1 - routineColumnRatio;
-            colLeft = `calc(${routineColumnRatio * 100}% + 2px)`;
-            colWidth = `calc(${taskWidth * 100}% - 4px)`;
+            // Task or event overlapping group → right column with subdivision
+            const rightWidth = 1 - routineColumnRatio;
+            colLeft =
+              item.totalColumns === 1
+                ? `calc(${routineColumnRatio * 100}% + 2px)`
+                : `calc(${routineColumnRatio * 100}% + ${(item.column / item.totalColumns) * rightWidth * 100}% + 2px)`;
+            colWidth =
+              item.totalColumns === 1
+                ? `calc(${rightWidth * 100}% - 4px)`
+                : `calc(${(rightWidth / item.totalColumns) * 100}% - 4px)`;
           } else {
             colLeft =
               item.totalColumns === 1

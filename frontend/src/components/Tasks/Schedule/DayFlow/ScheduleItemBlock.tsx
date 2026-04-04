@@ -149,13 +149,13 @@ export function ScheduleItemBlock({
             ? "rgba(34, 197, 94, 0.08)"
             : item.routineId
               ? "var(--color-schedule-routine-bg, #EBF0FE)"
-              : "var(--color-schedule-other-bg, #F1F2F4)",
+              : "var(--color-schedule-event-bg, #f3e8ff)",
           borderLeft: `3px solid ${
             item.completed
               ? "#22c55e"
               : item.routineId
                 ? "var(--color-notion-accent)"
-                : "var(--color-notion-text-secondary)"
+                : "var(--color-schedule-event-border, #8b5cf6)"
           }`,
           opacity: isDragging ? 0.4 : undefined,
           boxShadow: isHovered

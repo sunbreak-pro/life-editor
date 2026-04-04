@@ -2,8 +2,9 @@ import { useState, useEffect, useMemo, useCallback } from "react";
 import type { ReactNode } from "react";
 import { AchievementPanel } from "../Tasks/Schedule/Routine/AchievementPanel";
 import { AchievementDetailsOverlay } from "../Tasks/Schedule/Routine/AchievementDetailsOverlay";
-import { InProgressTasksList } from "./InProgressTasksList";
 import { MiniTodayFlow } from "./MiniTodayFlow";
+import { ScheduleItemEditPopup } from "./ScheduleItemEditPopup";
+import type { EditTarget } from "./ScheduleItemEditPopup";
 import { RoutineManagementOverlay } from "../Tasks/Schedule/Routine/RoutineManagementOverlay";
 import { useScheduleContext } from "../../hooks/useScheduleContext";
 import { useTaskTreeContext } from "../../hooks/useTaskTreeContext";
@@ -80,6 +81,14 @@ export function ScheduleSidebarContent({
     reconcileRoutineScheduleItems,
   } = useScheduleContext();
 
+  const [editTarget, setEditTarget] = useState<EditTarget | null>(null);
+  const [editPosition, setEditPosition] = useState<{
+    x: number;
+    y: number;
+  } | null>(null);
+
+  const { nodes, updateNode, setTaskStatus } = useTaskTreeContext();
+
   const handleDismissItem = useCallback(
     (scheduleItemId: string) => {
       setSidebarScheduleItems((prev) =>
@@ -96,6 +105,55 @@ export function ScheduleSidebarContent({
     },
     [setShowManagement],
   );
+
+  const handleEditRoutinePopup = useCallback(
+    (routineId: string, e: React.MouseEvent) => {
+      const scheduleItem = sidebarScheduleItems.find(
+        (si) => si.routineId === routineId,
+      );
+      setEditTarget({
+        type: "routine",
+        routineId,
+        scheduleItemId: scheduleItem?.id ?? null,
+      });
+      setEditPosition({ x: e.clientX, y: e.clientY });
+    },
+    [sidebarScheduleItems],
+  );
+
+  const handleEditEvent = useCallback(
+    (scheduleItemId: string, e: React.MouseEvent) => {
+      setEditTarget({ type: "event", scheduleItemId });
+      setEditPosition({ x: e.clientX, y: e.clientY });
+    },
+    [],
+  );
+
+  const handleEditTask = useCallback((taskId: string, e: React.MouseEvent) => {
+    setEditTarget({ type: "task", taskId });
+    setEditPosition({ x: e.clientX, y: e.clientY });
+  }, []);
+
+  const handleRemoveTaskFromSchedule = useCallback(
+    (taskId: string) => {
+      updateNode(taskId, { scheduledAt: null, scheduledEndAt: null });
+    },
+    [updateNode],
+  );
+
+  const handleToggleTaskStatus = useCallback(
+    (taskId: string) => {
+      const task = nodes.find((n) => n.id === taskId);
+      if (!task) return;
+      setTaskStatus(taskId, task.status === "DONE" ? "NOT_STARTED" : "DONE");
+    },
+    [nodes, setTaskStatus],
+  );
+
+  const handleCloseEditPopup = useCallback(() => {
+    setEditTarget(null);
+    setEditPosition(null);
+  }, []);
 
   // Sync miniFlowDate when activeDate changes from parent
   useEffect(() => {
@@ -126,8 +184,6 @@ export function ScheduleSidebarContent({
       return d;
     });
   }, []);
-
-  const { nodes } = useTaskTreeContext();
 
   const dateTasks = useMemo(() => {
     return nodes.filter((n) => {
@@ -226,12 +282,12 @@ export function ScheduleSidebarContent({
             onPrevDate={handlePrevDate}
             onNextDate={handleNextDate}
             activeFilters={activeFilters}
-            onEditRoutine={handleEditRoutine}
+            onEditRoutine={handleEditRoutinePopup}
+            onEditEvent={handleEditEvent}
+            onEditTask={handleEditTask}
             onDismissItem={handleDismissItem}
-          />
-          <InProgressTasksList
-            date={miniFlowDate}
-            onSelectTask={onSelectTask}
+            onRemoveTaskFromSchedule={handleRemoveTaskFromSchedule}
+            onToggleTaskStatus={handleToggleTaskStatus}
           />
         </div>
       </div>
@@ -249,6 +305,33 @@ export function ScheduleSidebarContent({
         <AchievementDetailsOverlay
           stats={routineStats}
           onClose={() => setShowDetails(false)}
+        />
+      )}
+
+      {editTarget && editPosition && (
+        <ScheduleItemEditPopup
+          target={editTarget}
+          position={editPosition}
+          onClose={handleCloseEditPopup}
+          routines={routines}
+          scheduleItems={sidebarScheduleItems}
+          tasks={dateTasks}
+          routineTags={routineTags}
+          tagAssignments={tagAssignments}
+          onUpdateRoutine={updateRoutine}
+          onSetTagsForRoutine={setTagsForRoutine}
+          onUpdateScheduleItem={(id, updates) => {
+            setSidebarScheduleItems((prev) =>
+              prev.map((item) =>
+                item.id === id ? { ...item, ...updates } : item,
+              ),
+            );
+            getDataService().updateScheduleItem(id, updates);
+          }}
+          onUpdateTask={(taskId, updates) => {
+            updateNode(taskId, updates);
+          }}
+          onCreateRoutineTag={createRoutineTag}
         />
       )}
 

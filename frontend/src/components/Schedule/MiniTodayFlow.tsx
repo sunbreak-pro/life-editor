@@ -1,13 +1,13 @@
 import { useMemo, useCallback } from "react";
 import {
   CalendarClock,
+  CalendarMinus,
   CheckCircle2,
+  CheckSquare,
   ChevronLeft,
   ChevronRight,
-  Circle,
-  CircleDot,
-  ListTodo,
   Pencil,
+  Repeat,
   X,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
@@ -38,8 +38,12 @@ interface MiniTodayFlowProps {
   onPrevDate?: () => void;
   onNextDate?: () => void;
   activeFilters?: Set<string>;
-  onEditRoutine?: (routineId: string) => void;
+  onEditRoutine?: (routineId: string, e: React.MouseEvent) => void;
+  onEditEvent?: (scheduleItemId: string, e: React.MouseEvent) => void;
+  onEditTask?: (taskId: string, e: React.MouseEvent) => void;
   onDismissItem?: (scheduleItemId: string) => void;
+  onRemoveTaskFromSchedule?: (taskId: string) => void;
+  onToggleTaskStatus?: (taskId: string) => void;
 }
 
 function extractTimeFromScheduledAt(scheduledAt: string): string {
@@ -60,7 +64,11 @@ export function MiniTodayFlow({
   onNextDate,
   activeFilters,
   onEditRoutine,
+  onEditEvent,
+  onEditTask,
   onDismissItem,
+  onRemoveTaskFromSchedule,
+  onToggleTaskStatus,
 }: MiniTodayFlowProps) {
   const { t } = useTranslation();
 
@@ -68,7 +76,6 @@ export function MiniTodayFlow({
   const showAll = !activeFilters || activeFilters.size === 0;
   const showRoutines = showAll || activeFilters!.has("routine");
   const showEvents = showAll || activeFilters!.has("events");
-  const showTasks = showAll || activeFilters!.has("tasks");
 
   const scheduleItemByRoutineId = useMemo(() => {
     const map = new Map<string, ScheduleItem>();
@@ -108,8 +115,8 @@ export function MiniTodayFlow({
       }
     }
 
-    // Add tasks
-    if (showTasks) {
+    // Add tasks (always shown in sidebar regardless of filters)
+    {
       for (const task of tasks) {
         if (task.isAllDay) {
           result.push({ type: "task", task, sortKey: "99:99" });
@@ -145,7 +152,6 @@ export function MiniTodayFlow({
     tasks,
     showRoutines,
     showEvents,
-    showTasks,
   ]);
 
   const completedCount = entries.filter((e) =>
@@ -224,9 +230,9 @@ export function MiniTodayFlow({
                         {entry.completed ? (
                           <CheckCircle2 size={14} className="text-green-500" />
                         ) : (
-                          <Circle
+                          <Repeat
                             size={14}
-                            className={`text-notion-text-secondary ${entry.scheduleItemId ? "hover:text-green-500" : ""}`}
+                            className={`text-emerald-500 ${entry.scheduleItemId ? "hover:text-green-500" : ""}`}
                           />
                         )}
                       </button>
@@ -250,7 +256,7 @@ export function MiniTodayFlow({
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
-                              onEditRoutine(entry.routineId);
+                              onEditRoutine(entry.routineId, e);
                             }}
                             className="p-0.5 rounded hover:bg-notion-hover text-notion-text-secondary hover:text-notion-text transition-colors"
                           >
@@ -278,30 +284,32 @@ export function MiniTodayFlow({
               if (entry.type === "event") {
                 const si = entry.scheduleItem;
                 return (
-                  <button
+                  <div
                     key={`e-${si.id}`}
                     data-sidebar-item
-                    onClick={() => handleToggle(si.id)}
-                    className="flex text-left w-full cursor-pointer"
+                    className="flex text-left w-full group"
                   >
                     <div className="flex flex-col items-center mr-2">
-                      <div className="flex-shrink-0 transition-colors">
+                      <button
+                        onClick={() => handleToggle(si.id)}
+                        className="flex-shrink-0 transition-colors"
+                      >
                         {si.completed ? (
                           <CheckCircle2 size={14} className="text-green-500" />
                         ) : (
                           <CalendarClock
                             size={14}
-                            className="text-purple-500"
+                            className="text-purple-500 hover:text-green-500"
                           />
                         )}
-                      </div>
+                      </button>
                       {i < entries.length - 1 && (
                         <div className="w-px flex-1 min-h-[12px] bg-notion-border" />
                       )}
                     </div>
-                    <div className="pb-2 min-w-0">
+                    <div className="pb-2 min-w-0 flex-1 flex items-start">
                       <div
-                        className={`text-xs truncate ${si.completed ? "text-notion-text-secondary line-through" : "text-notion-text"}`}
+                        className={`text-xs truncate flex-1 ${si.completed ? "text-notion-text-secondary line-through" : "text-notion-text"}`}
                       >
                         {si.startTime && (
                           <span className="text-[10px] text-notion-text-secondary mr-1">
@@ -310,56 +318,103 @@ export function MiniTodayFlow({
                         )}
                         {si.title}
                       </div>
+                      <div className="hidden group-hover:flex items-center gap-0.5 shrink-0 ml-1">
+                        {onEditEvent && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onEditEvent(si.id, e);
+                            }}
+                            className="p-0.5 rounded hover:bg-notion-hover text-notion-text-secondary hover:text-notion-text transition-colors"
+                          >
+                            <Pencil size={10} />
+                          </button>
+                        )}
+                        {onDismissItem && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onDismissItem(si.id);
+                            }}
+                            className="p-0.5 rounded hover:bg-notion-hover text-notion-text-secondary hover:text-red-500 transition-colors"
+                          >
+                            <X size={10} />
+                          </button>
+                        )}
+                      </div>
                     </div>
-                  </button>
+                  </div>
                 );
               }
 
               // Task entry
               const task = entry.task;
               const isDone = task.status === "DONE";
-              const isInProgress = task.status === "IN_PROGRESS";
               return (
-                <button
+                <div
                   key={`t-${task.id}`}
                   data-sidebar-item
-                  onClick={() => onSelectTask?.(task.id)}
-                  className="flex text-left w-full cursor-pointer"
+                  className="flex text-left w-full group"
                 >
                   <div className="flex flex-col items-center mr-2">
-                    <div className="flex-shrink-0 transition-colors">
+                    <button
+                      onClick={() => onToggleTaskStatus?.(task.id)}
+                      className="flex-shrink-0 transition-colors"
+                    >
                       {isDone ? (
-                        <CheckCircle2 size={14} className="text-green-500" />
-                      ) : isInProgress ? (
-                        <CircleDot size={14} className="text-blue-500" />
-                      ) : (
-                        <Circle
+                        <CheckCircle2
                           size={14}
-                          className="text-notion-text-secondary"
+                          className="text-green-500 hover:text-notion-accent"
+                        />
+                      ) : (
+                        <CheckSquare
+                          size={14}
+                          className="text-notion-accent hover:text-green-500"
                         />
                       )}
-                    </div>
+                    </button>
                     {i < entries.length - 1 && (
                       <div className="w-px flex-1 min-h-[12px] bg-notion-border" />
                     )}
                   </div>
-                  <div className="pb-2 min-w-0">
-                    <div
-                      className={`text-xs truncate ${isDone ? "text-notion-text-secondary line-through" : "text-notion-text"}`}
+                  <div className="pb-2 min-w-0 flex-1 flex items-start">
+                    <button
+                      onClick={() => onSelectTask?.(task.id)}
+                      className={`text-xs truncate flex-1 text-left ${isDone ? "text-notion-text-secondary line-through" : "text-notion-text"}`}
                     >
                       {task.scheduledAt && !task.isAllDay && (
                         <span className="text-[10px] text-notion-text-secondary mr-1">
                           {extractTimeFromScheduledAt(task.scheduledAt)}
                         </span>
                       )}
-                      <ListTodo
-                        size={10}
-                        className="inline mr-0.5 opacity-60"
-                      />
                       {task.title}
+                    </button>
+                    <div className="hidden group-hover:flex items-center gap-0.5 shrink-0 ml-1">
+                      {onEditTask && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onEditTask(task.id, e);
+                          }}
+                          className="p-0.5 rounded hover:bg-notion-hover text-notion-text-secondary hover:text-notion-text transition-colors"
+                        >
+                          <Pencil size={10} />
+                        </button>
+                      )}
+                      {onRemoveTaskFromSchedule && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onRemoveTaskFromSchedule(task.id);
+                          }}
+                          className="p-0.5 rounded hover:bg-notion-hover text-notion-text-secondary hover:text-red-500 transition-colors"
+                        >
+                          <CalendarMinus size={10} />
+                        </button>
+                      )}
                     </div>
                   </div>
-                </button>
+                </div>
               );
             })}
           </div>

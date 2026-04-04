@@ -300,6 +300,8 @@
     "routines": "ルーティン",
     "newRoutine": "ルーティンを追加",
     "editRoutine": "ルーティンを編集",
+    "editEvent": "イベントを編集",
+    "editTask": "タスクを編集",
     "routineTitle": "タイトル",
     "routineTitlePlaceholder": "ルーティン名",
     "start": "開始",

@@ -300,6 +300,8 @@
     "routines": "Routines",
     "newRoutine": "New Routine",
     "editRoutine": "Edit Routine",
+    "editEvent": "Edit Event",
+    "editTask": "Edit Task",
     "routineTitle": "Title",
     "routineTitlePlaceholder": "Routine name",
     "start": "Start",

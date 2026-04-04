@@ -258,20 +258,7 @@ export function TaskPreviewPopup({
             <ExternalLink size={12} />
             {t("calendar.openDetail")}
           </button>
-          {onStartTimer && (
-            <>
-              <div className="w-px bg-notion-border" />
-              <button
-                onClick={onStartTimer}
-                className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-xs text-notion-accent hover:bg-notion-accent/5 transition-colors"
-              >
-                <Play size={12} />
-                {t("calendar.startTimer")}
-              </button>
-            </>
-          )}
-        </div>
-        <div className="border-t border-notion-border flex">
+          <div className="w-px bg-notion-border" />
           <button
             onClick={onClearSchedule}
             className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-xs text-notion-text-secondary hover:bg-notion-hover hover:text-notion-text transition-colors"
@@ -279,25 +266,8 @@ export function TaskPreviewPopup({
             <CalendarOff size={12} />
             {t("calendar.clearSchedule")}
           </button>
-          <div className="w-px bg-notion-border" />
-          <button
-            onClick={() => setShowDeleteConfirm(true)}
-            className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-xs text-red-500 hover:bg-red-500/5 transition-colors"
-          >
-            <Trash2 size={12} />
-            {t("common.delete")}
-          </button>
         </div>
       </div>
-
-      {showDeleteConfirm && (
-        <ConfirmDialog
-          title={t("calendar.deleteTaskTitle")}
-          message={t("calendar.deleteTaskMessage")}
-          onConfirm={onDelete}
-          onCancel={() => setShowDeleteConfirm(false)}
-        />
-      )}
     </>
   );
 }
