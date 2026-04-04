@@ -3,6 +3,7 @@ import type { Command } from "../components/CommandPalette/CommandPalette";
 import type { LayoutHandle } from "../components/Layout";
 import type { TaskNode } from "../types/taskTree";
 import type { SectionId } from "../types/taskTree";
+import type { SettingsInitialTab } from "../components/Settings/Settings";
 import { useShortcutConfig } from "./useShortcutConfig";
 import {
   Calendar,
@@ -16,10 +17,19 @@ import {
   Pause,
   RotateCcw,
   PanelLeft,
+  Palette,
+  Timer,
+  Bell,
+  Keyboard,
+  Bot,
+  Database,
+  Smartphone,
+  Wrench,
 } from "lucide-react";
 
 interface UseAppCommandsParams {
   setActiveSection: (section: SectionId) => void;
+  setSettingsInitialTab: (tab: SettingsInitialTab | undefined) => void;
   addNode: (
     type: "task" | "folder",
     parentId: string | null,
@@ -41,6 +51,7 @@ interface UseAppCommandsParams {
 
 export function useAppCommands({
   setActiveSection,
+  setSettingsInitialTab,
   addNode,
   selectedTask,
   softDelete,
@@ -52,8 +63,14 @@ export function useAppCommands({
 }: UseAppCommandsParams): Command[] {
   const { getDisplayString } = useShortcutConfig();
 
-  return useMemo(
-    () => [
+  return useMemo(() => {
+    const navigateToSettings = (tab?: SettingsInitialTab) => {
+      setSettingsInitialTab(tab);
+      setActiveSection("settings");
+    };
+
+    return [
+      // --- Navigation ---
       {
         id: "nav-schedule",
         title: "Go to Schedule",
@@ -99,22 +116,73 @@ export function useAppCommands({
         category: "Navigation",
         shortcut: getDisplayString("global:settings"),
         icon: SettingsIcon,
-        action: () => setActiveSection("settings"),
+        action: () => navigateToSettings(),
+      },
+      // --- Settings deep links ---
+      {
+        id: "nav-settings-appearance",
+        title: "Open Appearance Settings",
+        category: "Settings",
+        icon: Palette,
+        action: () => navigateToSettings("general"),
       },
       {
-        id: "nav-tips",
-        title: "Go to Tips",
-        category: "Navigation",
-        icon: SettingsIcon,
-        action: () => setActiveSection("settings"),
+        id: "nav-settings-timer",
+        title: "Open Timer Settings",
+        category: "Settings",
+        icon: Timer,
+        action: () => navigateToSettings("timer"),
+      },
+      {
+        id: "nav-settings-notifications",
+        title: "Open Notifications & Sounds",
+        category: "Settings",
+        icon: Bell,
+        action: () => navigateToSettings("notifications"),
+      },
+      {
+        id: "nav-settings-shortcuts",
+        title: "Open Keyboard Shortcuts",
+        category: "Settings",
+        icon: Keyboard,
+        action: () => navigateToSettings("shortcuts"),
+      },
+      {
+        id: "nav-settings-claude",
+        title: "Open Claude Settings",
+        category: "Settings",
+        icon: Bot,
+        action: () => navigateToSettings("claude"),
+      },
+      {
+        id: "nav-settings-data",
+        title: "Open Data Management",
+        category: "Settings",
+        icon: Database,
+        action: () => navigateToSettings("data"),
+      },
+      {
+        id: "nav-settings-mobile",
+        title: "Open Mobile Access",
+        category: "Settings",
+        icon: Smartphone,
+        action: () => navigateToSettings("mobile"),
+      },
+      {
+        id: "nav-settings-devtools",
+        title: "Open Developer Tools",
+        category: "Settings",
+        icon: Wrench,
+        action: () => navigateToSettings("devtools"),
       },
       {
         id: "nav-trash",
         title: "Go to Trash",
         category: "Navigation",
         icon: Trash2,
-        action: () => setActiveSection("settings"),
+        action: () => navigateToSettings("data"),
       },
+      // --- Task ---
       {
         id: "task-create",
         title: "Create new task",
@@ -152,6 +220,7 @@ export function useAppCommands({
           }
         },
       },
+      // --- Timer ---
       {
         id: "timer-toggle",
         title: timer.isRunning ? "Pause timer" : "Start timer",
@@ -171,6 +240,7 @@ export function useAppCommands({
         icon: RotateCcw,
         action: () => timer.reset(),
       },
+      // --- View ---
       {
         id: "view-left-sidebar",
         title: "Toggle left sidebar",
@@ -179,18 +249,18 @@ export function useAppCommands({
         icon: PanelLeft,
         action: () => layoutRef.current?.toggleLeftSidebar(),
       },
-    ],
-    [
-      addNode,
-      selectedTask,
-      softDelete,
-      setSelectedTaskId,
-      timer,
-      setActiveSection,
-      layoutRef,
-      getDisplayString,
-      nodes,
-      selectedTaskId,
-    ],
-  );
+    ];
+  }, [
+    addNode,
+    selectedTask,
+    softDelete,
+    setSelectedTaskId,
+    timer,
+    setActiveSection,
+    setSettingsInitialTab,
+    layoutRef,
+    getDisplayString,
+    nodes,
+    selectedTaskId,
+  ]);
 }

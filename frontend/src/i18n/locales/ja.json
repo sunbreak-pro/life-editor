@@ -11,7 +11,8 @@
     "materials": "マテリアル",
     "connect": "コネクト",
     "trash": "ゴミ箱",
-    "freeSession": "フリーセッション"
+    "freeSession": "フリーセッション",
+    "launchClaude": "Claude起動"
   },
   "settings": {
     "title": "設定",
@@ -70,10 +71,33 @@
     "editorFontSize": "エディタのフォントサイズ",
     "editorFontFamily": "フォントファミリー",
     "editorLineHeight": "行間",
-    "editorPaddingInline": "コンテンツの余白"
+    "editorPaddingInline": "コンテンツの余白",
+    "developerTools": "開発者ツール",
+    "mobileAccess": {
+      "title": "モバイルアクセス",
+      "description": "同じWiFiネットワーク上のiPhone/iPadからLife Editorにアクセスできます。",
+      "enable": "モバイルアクセスを有効化",
+      "disable": "モバイルアクセスを無効化",
+      "scanQr": "スマートフォンのカメラでQRコードをスキャン",
+      "copy": "URLをコピー",
+      "copied": "コピーしました！",
+      "regenerate": "トークンを再生成（現在のセッションは無効化されます）"
+    }
+  },
+  "timerSettings": {
+    "title": "タイマー",
+    "workDuration": "作業時間",
+    "breakDuration": "休憩時間",
+    "longBreakDuration": "ロング休憩時間",
+    "sessionsBeforeLongBreak": "ロング休憩までのセッション数",
+    "autoStartBreaks": "休憩の自動開始",
+    "autoStartBreaksDesc": "作業セッション終了時に自動的に休憩タイマーを開始",
+    "targetSessions": "1日の目標セッション数",
+    "runningWarning": "タイマー実行中です。変更は次のセッションから適用されます。",
+    "minutes": "分"
   },
   "notifications": {
-    "title": "通知",
+    "title": "通知とサウンド",
     "timerNotifications": "タイマー通知",
     "blocked": "通知がブロックされています。ブラウザ設定で有効にしてください。",
     "description": "作業/休憩セッション終了時に通知を受け取る",
@@ -93,7 +117,8 @@
     "resetConfirm": "すべてのデータが削除され、アプリが初期状態に戻ります。この操作は取り消せません。リセット前にバックアップが自動作成されます。本当にリセットしますか？",
     "resetSuccess": "データをリセットしました。再読み込み中...",
     "resetFailed": "リセット失敗: {{error}}",
-    "unknownError": "不明なエラー"
+    "unknownError": "不明なエラー",
+    "openTrash": "ゴミ箱を開く"
   },
   "trash": {
     "title": "ゴミ箱",
@@ -401,6 +426,11 @@
   },
   "analytics": {
     "title": "分析",
+    "tabs": {
+      "overview": "概要",
+      "time": "時間",
+      "tasks": "タスク"
+    },
     "totalTasks": "全タスク",
     "completed": "完了",
     "inProgress": "進行中",
@@ -419,7 +449,83 @@
     "sessions": "セッション数",
     "avgPerDay": "日平均",
     "hours": "{{hours}}時間{{minutes}}分",
-    "noSessions": "まだ作業セッションが記録されていません。タイマーを開始して作業時間を追跡しましょう。"
+    "noSessions": "まだ作業セッションが記録されていません。タイマーを開始して作業時間を追跡しましょう。",
+    "today": {
+      "title": "今日",
+      "workTime": "作業時間",
+      "completedTasks": "完了",
+      "pomodoroCount": "ポモドーロ"
+    },
+    "weekly": {
+      "title": "週間比較",
+      "thisWeek": "今週",
+      "lastWeek": "先週",
+      "change": "変化",
+      "workTimeLabel": "作業時間",
+      "sessionsLabel": "セッション",
+      "completedLabel": "完了タスク"
+    },
+    "streak": {
+      "title": "ストリーク",
+      "current": "現在",
+      "longest": "最長",
+      "days": "日",
+      "noStreak": "作業を開始してストリークを積み上げよう！"
+    },
+    "heatmap": {
+      "title": "アクティビティヒートマップ",
+      "tooltip": "{{minutes}}分",
+      "mon": "月",
+      "tue": "火",
+      "wed": "水",
+      "thu": "木",
+      "fri": "金",
+      "sat": "土",
+      "sun": "日"
+    },
+    "pomodoroRate": {
+      "title": "ポモドーロ達成率",
+      "actual": "実績",
+      "target": "目標"
+    },
+    "workBreak": {
+      "title": "作業・休憩バランス",
+      "work": "作業",
+      "break": "休憩",
+      "longBreak": "長い休憩"
+    },
+    "timeline": {
+      "title": "デイリータイムライン",
+      "noSessions": "この日のセッションはありません"
+    },
+    "taskTrend": {
+      "title": "タスク完了トレンド",
+      "completedCount": "完了数"
+    },
+    "stagnation": {
+      "title": "タスク経過日数分布",
+      "tasks": "件"
+    },
+    "projectTime": {
+      "title": "プロジェクト別作業時間",
+      "noData": "プロジェクトデータがありません"
+    },
+    "sidebar": {
+      "period": "期間",
+      "preset": {
+        "7d": "過去7日間",
+        "30d": "過去30日間",
+        "thisMonth": "今月",
+        "3m": "過去3ヶ月",
+        "all": "全期間"
+      },
+      "dateRange": "日付範囲",
+      "folder": "プロジェクトフィルター",
+      "allFolders": "すべてのプロジェクト",
+      "charts": "表示チャート",
+      "showAll": "すべて表示",
+      "hideAll": "すべて非表示"
+    }
   },
   "tips": {
     "title": "ヒント",
@@ -1073,18 +1179,6 @@
     "default": "デフォルト"
   },
   "taskDetail.timeMemo": "タイムメモ",
-  "aiActions": {
-    "title": "AI Actions",
-    "taskReview": "タスク棚卸し",
-    "organizeToday": "今日を整理",
-    "planTomorrow": "明日を計画",
-    "summarizeNote": "ノートを要約",
-    "improveNote": "改善を提案",
-    "suggestTags": "タグ提案",
-    "reviewMemo": "メモを振り返り",
-    "promoteToNote": "Noteに昇格",
-    "dailyReview": "今日の振り返り"
-  },
   "soundEffects": {
     "title": "効果音",
     "taskComplete": "タスク完了",

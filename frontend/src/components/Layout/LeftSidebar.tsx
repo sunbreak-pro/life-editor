@@ -7,12 +7,12 @@ import {
   Settings,
   Pencil,
   BookOpen,
+  Terminal,
 } from "lucide-react";
 import type { SectionId } from "../../types/taskTree";
 import type { LayoutHandle } from "./Layout";
 import { useTimerContext } from "../../hooks/useTimerContext";
 import { useTranslation } from "react-i18next";
-import { AIActionsPanel } from "../AIActions/AIActionsPanel";
 
 interface SidebarProps {
   width: number;

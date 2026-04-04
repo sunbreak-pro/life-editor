@@ -2,7 +2,7 @@ export interface SettingsSearchEntry {
   id: string;
   labelKey: string;
   keywords?: string[];
-  tab: "general" | "advanced" | "claude" | "shortcuts" | "tips";
+  tab: "general" | "advanced" | "claude" | "shortcuts";
   subTab: string;
   sectionId: string;
 }
@@ -26,21 +26,38 @@ export const SETTINGS_SEARCH_ENTRIES: SettingsSearchEntry[] = [
     subTab: "language",
     sectionId: "language",
   },
-  // General > Notifications
+  // General > Notifications & Sounds
   {
     id: "notifications",
     labelKey: "notifications.title",
-    keywords: ["alert", "sound", "timer"],
+    keywords: ["alert", "sound", "timer", "confetti"],
     tab: "general",
     subTab: "notifications",
     sectionId: "notifications",
   },
-  // General > Mobile Access
+  // General > Timer
+  {
+    id: "timer",
+    labelKey: "timerSettings.title",
+    keywords: [
+      "timer",
+      "pomodoro",
+      "work",
+      "break",
+      "session",
+      "duration",
+      "focus",
+    ],
+    tab: "general",
+    subTab: "timer",
+    sectionId: "timer",
+  },
+  // Advanced > Mobile Access
   {
     id: "mobile",
     labelKey: "settings.mobileAccess.title",
     keywords: ["mobile", "phone", "remote", "http", "server"],
-    tab: "general",
+    tab: "advanced",
     subTab: "mobile",
     sectionId: "mobile",
   },
@@ -48,7 +65,7 @@ export const SETTINGS_SEARCH_ENTRIES: SettingsSearchEntry[] = [
   {
     id: "data",
     labelKey: "data.title",
-    keywords: ["export", "import", "backup", "reset"],
+    keywords: ["export", "import", "backup", "reset", "trash"],
     tab: "advanced",
     subTab: "data",
     sectionId: "data",
@@ -62,32 +79,23 @@ export const SETTINGS_SEARCH_ENTRIES: SettingsSearchEntry[] = [
     subTab: "updates",
     sectionId: "updates",
   },
-  // Advanced > Performance
+  // Advanced > Developer Tools
   {
-    id: "performance",
-    labelKey: "performance.title",
-    keywords: ["memory", "ipc", "metrics", "monitor"],
+    id: "devtools",
+    labelKey: "settings.developerTools",
+    keywords: [
+      "performance",
+      "memory",
+      "ipc",
+      "metrics",
+      "monitor",
+      "log",
+      "error",
+      "debug",
+    ],
     tab: "advanced",
-    subTab: "performance",
-    sectionId: "performance",
-  },
-  // Advanced > Logs
-  {
-    id: "logs",
-    labelKey: "logs.title",
-    keywords: ["log", "error", "debug"],
-    tab: "advanced",
-    subTab: "logs",
-    sectionId: "logs",
-  },
-  // Advanced > Trash
-  {
-    id: "trash",
-    labelKey: "sidebar.trash",
-    keywords: ["trash", "delete", "restore", "recycle"],
-    tab: "advanced",
-    subTab: "trash",
-    sectionId: "trash",
+    subTab: "devtools",
+    sectionId: "devtools",
   },
   // Claude > Setup
   {
@@ -173,38 +181,5 @@ export const SETTINGS_SEARCH_ENTRIES: SettingsSearchEntry[] = [
     tab: "shortcuts",
     subTab: "calendar",
     sectionId: "shortcuts-calendar",
-  },
-  // Tips
-  {
-    id: "tips-tasks",
-    labelKey: "tips.tasks",
-    keywords: ["task", "tips", "help"],
-    tab: "tips",
-    subTab: "tasks",
-    sectionId: "tips-tasks",
-  },
-  {
-    id: "tips-work",
-    labelKey: "tips.work",
-    keywords: ["timer", "pomodoro", "music", "work"],
-    tab: "tips",
-    subTab: "work",
-    sectionId: "tips-work",
-  },
-  {
-    id: "tips-ideas",
-    labelKey: "tips.ideas",
-    keywords: ["ideas", "memo", "notes"],
-    tab: "tips",
-    subTab: "ideas",
-    sectionId: "tips-ideas",
-  },
-  {
-    id: "tips-analytics",
-    labelKey: "tips.analytics",
-    keywords: ["analytics", "stats", "chart"],
-    tab: "tips",
-    subTab: "analytics",
-    sectionId: "tips-analytics",
   },
 ];

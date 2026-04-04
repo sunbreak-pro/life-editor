@@ -11,7 +11,8 @@
     "materials": "Materials",
     "connect": "Connect",
     "trash": "Trash",
-    "freeSession": "Free Session"
+    "freeSession": "Free Session",
+    "launchClaude": "Launch Claude"
   },
   "settings": {
     "title": "Settings",
@@ -70,10 +71,33 @@
     "editorFontSize": "Editor Font Size",
     "editorFontFamily": "Font Family",
     "editorLineHeight": "Line Height",
-    "editorPaddingInline": "Content Padding"
+    "editorPaddingInline": "Content Padding",
+    "developerTools": "Developer Tools",
+    "mobileAccess": {
+      "title": "Mobile Access",
+      "description": "Access Life Editor from your iPhone/iPad on the same WiFi network.",
+      "enable": "Enable Mobile Access",
+      "disable": "Disable Mobile Access",
+      "scanQr": "Scan this QR code with your phone's camera",
+      "copy": "Copy URL",
+      "copied": "Copied!",
+      "regenerate": "Regenerate Token (invalidates current sessions)"
+    }
+  },
+  "timerSettings": {
+    "title": "Timer",
+    "workDuration": "Work Duration",
+    "breakDuration": "Break Duration",
+    "longBreakDuration": "Long Break Duration",
+    "sessionsBeforeLongBreak": "Sessions Before Long Break",
+    "autoStartBreaks": "Auto-start Breaks",
+    "autoStartBreaksDesc": "Automatically start break timer when work session ends",
+    "targetSessions": "Daily Target Sessions",
+    "runningWarning": "Timer is running. Changes will apply to the next session.",
+    "minutes": "min"
   },
   "notifications": {
-    "title": "Notifications",
+    "title": "Notifications & Sounds",
     "timerNotifications": "Timer notifications",
     "blocked": "Notifications are blocked. Please enable them in browser settings.",
     "description": "Get notified when work/break sessions end",
@@ -93,7 +117,8 @@
     "resetConfirm": "All data will be deleted and the app will return to its initial state. This action cannot be undone. A backup is created automatically before resetting. Are you sure?",
     "resetSuccess": "Data reset. Reloading...",
     "resetFailed": "Reset failed: {{error}}",
-    "unknownError": "Unknown error"
+    "unknownError": "Unknown error",
+    "openTrash": "Open Trash"
   },
   "trash": {
     "title": "Trash",
@@ -401,6 +426,11 @@
   },
   "analytics": {
     "title": "Analytics",
+    "tabs": {
+      "overview": "Overview",
+      "time": "Time",
+      "tasks": "Tasks"
+    },
     "totalTasks": "Total Tasks",
     "completed": "Completed",
     "inProgress": "In Progress",
@@ -419,7 +449,83 @@
     "sessions": "Sessions",
     "avgPerDay": "Avg / Day",
     "hours": "{{hours}}h {{minutes}}m",
-    "noSessions": "No work sessions recorded yet. Start a timer to track your work time."
+    "noSessions": "No work sessions recorded yet. Start a timer to track your work time.",
+    "today": {
+      "title": "Today",
+      "workTime": "Work Time",
+      "completedTasks": "Completed",
+      "pomodoroCount": "Pomodoros"
+    },
+    "weekly": {
+      "title": "Weekly Comparison",
+      "thisWeek": "This Week",
+      "lastWeek": "Last Week",
+      "change": "Change",
+      "workTimeLabel": "Work Time",
+      "sessionsLabel": "Sessions",
+      "completedLabel": "Completed"
+    },
+    "streak": {
+      "title": "Streaks",
+      "current": "Current",
+      "longest": "Longest",
+      "days": "days",
+      "noStreak": "Start working to build a streak!"
+    },
+    "heatmap": {
+      "title": "Activity Heatmap",
+      "tooltip": "{{minutes}} min",
+      "mon": "Mon",
+      "tue": "Tue",
+      "wed": "Wed",
+      "thu": "Thu",
+      "fri": "Fri",
+      "sat": "Sat",
+      "sun": "Sun"
+    },
+    "pomodoroRate": {
+      "title": "Pomodoro Completion Rate",
+      "actual": "Actual",
+      "target": "Target"
+    },
+    "workBreak": {
+      "title": "Work / Break Balance",
+      "work": "Work",
+      "break": "Break",
+      "longBreak": "Long Break"
+    },
+    "timeline": {
+      "title": "Daily Timeline",
+      "noSessions": "No sessions for this day"
+    },
+    "taskTrend": {
+      "title": "Task Completion Trend",
+      "completedCount": "Completed"
+    },
+    "stagnation": {
+      "title": "Task Age Distribution",
+      "tasks": "tasks"
+    },
+    "projectTime": {
+      "title": "Work Time by Project",
+      "noData": "No project data available"
+    },
+    "sidebar": {
+      "period": "Period",
+      "preset": {
+        "7d": "Last 7 days",
+        "30d": "Last 30 days",
+        "thisMonth": "This month",
+        "3m": "Last 3 months",
+        "all": "All time"
+      },
+      "dateRange": "Date Range",
+      "folder": "Project Filter",
+      "allFolders": "All Projects",
+      "charts": "Visible Charts",
+      "showAll": "Show all",
+      "hideAll": "Hide all"
+    }
   },
   "tips": {
     "title": "Tips",
@@ -1073,18 +1179,6 @@
     "default": "Default"
   },
   "taskDetail.timeMemo": "Time memo",
-  "aiActions": {
-    "title": "AI Actions",
-    "taskReview": "Task review",
-    "organizeToday": "Organize today",
-    "planTomorrow": "Plan tomorrow",
-    "summarizeNote": "Summarize note",
-    "improveNote": "Suggest improvements",
-    "suggestTags": "Suggest tags",
-    "reviewMemo": "Review memo",
-    "promoteToNote": "Promote to note",
-    "dailyReview": "Daily review"
-  },
   "soundEffects": {
     "title": "Sound Effects",
     "taskComplete": "Task Complete",

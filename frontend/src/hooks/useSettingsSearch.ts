@@ -11,7 +11,6 @@ interface SettingsNavigators {
   setGeneralSub: (sub: string) => void;
   setAdvancedSub: (sub: string) => void;
   setClaudeSub: (sub: string) => void;
-  setTipsSub: (sub: string) => void;
   setShortcutsSub: (sub: string) => void;
 }
 
@@ -20,7 +19,6 @@ const TAB_LABEL_KEYS: Record<SettingsSearchEntry["tab"], string> = {
   advanced: "settings.advancedTab",
   claude: "settings.claude.title",
   shortcuts: "settings.shortcutsTab",
-  tips: "tips.title",
 };
 
 export function useSettingsSearch(
@@ -62,9 +60,6 @@ export function useSettingsSearch(
           break;
         case "claude":
           navigators.setClaudeSub(entry.subTab);
-          break;
-        case "tips":
-          navigators.setTipsSub(entry.subTab);
           break;
         case "shortcuts":
           navigators.setShortcutsSub(entry.subTab);

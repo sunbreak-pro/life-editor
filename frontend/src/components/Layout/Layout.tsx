@@ -56,7 +56,7 @@ export interface LayoutHandle {
   toggleTerminal: () => void;
   toggleRightSidebar: () => void;
   openTerminal: () => void;
-  sendTerminalCommand: (prompt: string) => Promise<void>;
+  launchClaude: () => Promise<void>;
 }
 
 interface LayoutProps {
@@ -171,7 +171,7 @@ export function Layout({
           if (!terminalOpen) setTerminalOpen(true);
           if (terminalMinimized) setTerminalMinimized(false);
         },
-        sendTerminalCommand: async (prompt: string) => {
+        launchClaude: async () => {
           // Open terminal if needed
           if (!terminalOpen) setTerminalOpen(true);
           if (terminalMinimized) setTerminalMinimized(false);
@@ -188,43 +188,15 @@ export function Layout({
           }
           if (!sessionId) return;
 
-          // Helper: wait for Claude to reach idle state
-          const waitForClaudeIdle = (): Promise<boolean> =>
-            new Promise((resolve) => {
-              let done = false;
-              const timeout = setTimeout(() => {
-                if (!done) {
-                  done = true;
-                  unsub?.();
-                  resolve(false);
-                }
-              }, 15000);
-              const unsub = api?.onClaudeStatus?.((_sid, state) => {
-                if (state === "idle" && !done) {
-                  done = true;
-                  clearTimeout(timeout);
-                  unsub?.();
-                  resolve(true);
-                }
-              });
-            });
-
           // Check current Claude state via IPC
           const currentState: string =
             (await api?.invoke("terminal:claudeState", sessionId)) ??
             "inactive";
 
           if (currentState === "inactive") {
-            // Claude not running - launch it and wait for idle
+            // Claude not running - launch it
             await api?.invoke("terminal:write", sessionId, "claude\n");
-            if (!(await waitForClaudeIdle())) return;
-          } else if (currentState !== "idle") {
-            // Claude is busy - wait for idle
-            if (!(await waitForClaudeIdle())) return;
           }
-
-          // Claude is idle - send the prompt
-          await api?.invoke("terminal:write", sessionId, prompt + "\n");
         },
       };
     }
@@ -352,7 +324,8 @@ export function Layout({
       activeSection === "materials" ||
       activeSection === "connect" ||
       activeSection === "settings" ||
-      activeSection === "work"
+      activeSection === "work" ||
+      activeSection === "analytics"
     ) {
       setRightSidebarOpen(true);
     }
@@ -382,8 +355,6 @@ export function Layout({
             onToggleSidebar={handleToggleSidebar}
             onPortalTarget={setPortalTarget}
             activeSection={activeSection}
-            terminalOpen={terminalOpen}
-            onToggleTerminal={() => setTerminalOpen((prev) => !prev)}
             rightSidebarOpen={rightSidebarOpen}
             onToggleRightSidebar={handleToggleRightSidebar}
           />

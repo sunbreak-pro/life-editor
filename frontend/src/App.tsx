@@ -7,6 +7,7 @@ import { useLocalStorage } from "./hooks/useLocalStorage";
 import { WorkScreen } from "./components/Work";
 import { SessionCompletionModal } from "./components/Work/SessionCompletionModal";
 import { Settings } from "./components/Settings";
+import type { SettingsInitialTab } from "./components/Settings";
 import { AnalyticsView } from "./components/Analytics/AnalyticsView";
 import { ConnectView } from "./components/Ideas";
 import { MaterialsView } from "./components/Materials/MaterialsView";
@@ -28,6 +29,9 @@ function App() {
   const [activeSection, setActiveSection] = useState<SectionId>("schedule");
   const [scheduleTab, setScheduleTab] = useState<ScheduleTab>("calendar");
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
+  const [settingsInitialTab, setSettingsInitialTab] = useState<
+    SettingsInitialTab | undefined
+  >(undefined);
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
   const [filterFolderId, setFilterFolderId] = useLocalStorage<string | null>(
     STORAGE_KEYS.TASK_TREE_FOLDER_FILTER,
@@ -69,6 +73,7 @@ function App() {
 
   const commands = useAppCommands({
     setActiveSection,
+    setSettingsInitialTab,
     addNode,
     selectedTask,
     softDelete,
@@ -135,7 +140,7 @@ function App() {
       case "analytics":
         return <AnalyticsView />;
       case "settings":
-        return <Settings />;
+        return <Settings initialTab={settingsInitialTab} />;
       default:
         return null;
     }

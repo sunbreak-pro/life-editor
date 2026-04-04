@@ -3,12 +3,14 @@ import { Download, Upload, Trash2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { getDataService } from "../../services";
 import { ConfirmDialog } from "../shared/ConfirmDialog";
+import { TrashView } from "../Trash/TrashView";
 
 export function DataManagement() {
   const { t } = useTranslation();
   const [status, setStatus] = useState<string | null>(null);
   const [isError, setIsError] = useState(false);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
+  const [showTrash, setShowTrash] = useState(false);
 
   const handleExport = async () => {
     try {
@@ -62,6 +64,22 @@ export function DataManagement() {
     }
   };
 
+  if (showTrash) {
+    return (
+      <div data-section-id="data">
+        <div className="flex items-center gap-2 mb-4">
+          <button
+            onClick={() => setShowTrash(false)}
+            className="text-sm text-notion-accent hover:underline"
+          >
+            ← {t("data.title")}
+          </button>
+        </div>
+        <TrashView />
+      </div>
+    );
+  }
+
   return (
     <div data-section-id="data">
       <h3 className="text-lg font-semibold text-notion-text mb-3">
@@ -92,13 +110,23 @@ export function DataManagement() {
         </p>
 
         <div className="border-t border-notion-border pt-3 mt-3">
-          <button
-            onClick={() => setShowResetConfirm(true)}
-            className="flex items-center gap-2 px-4 py-2 rounded-md text-sm bg-notion-danger/10 text-notion-danger hover:bg-notion-danger/20 transition-colors"
-          >
-            <Trash2 size={16} />
-            {t("data.reset")}
-          </button>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => setShowTrash(true)}
+              className="flex items-center gap-2 px-4 py-2 rounded-md text-sm bg-notion-hover text-notion-text hover:bg-notion-border transition-colors"
+            >
+              <Trash2 size={16} />
+              {t("data.openTrash")}
+            </button>
+
+            <button
+              onClick={() => setShowResetConfirm(true)}
+              className="flex items-center gap-2 px-4 py-2 rounded-md text-sm bg-notion-danger/10 text-notion-danger hover:bg-notion-danger/20 transition-colors"
+            >
+              <Trash2 size={16} />
+              {t("data.reset")}
+            </button>
+          </div>
         </div>
 
         {status && (

@@ -1,5 +1,5 @@
 import { useRef, useEffect } from "react";
-import { PanelLeft, PanelRight, Terminal } from "lucide-react";
+import { PanelLeft, PanelRight } from "lucide-react";
 import { isMac } from "../../utils/platform";
 import type { SectionId } from "../../types/taskTree";
 import { UndoRedoButtons } from "../shared/UndoRedo";
@@ -18,8 +18,6 @@ interface TitleBarProps {
   onToggleSidebar: () => void;
   onPortalTarget: (el: HTMLDivElement | null) => void;
   activeSection: SectionId;
-  terminalOpen: boolean;
-  onToggleTerminal: () => void;
   rightSidebarOpen: boolean;
   onToggleRightSidebar: () => void;
 }
@@ -29,8 +27,6 @@ export function TitleBar({
   onToggleSidebar,
   onPortalTarget,
   activeSection,
-  terminalOpen,
-  onToggleTerminal,
   rightSidebarOpen,
   onToggleRightSidebar,
 }: TitleBarProps) {
@@ -82,18 +78,6 @@ export function TitleBar({
             </span>
           </div>
         )}
-        <div className="mx-1 h-5 w-px bg-notion-border" />
-        <button
-          onClick={onToggleTerminal}
-          className={`p-1.5 rounded transition-colors ${
-            terminalOpen
-              ? "text-notion-accent hover:text-notion-text"
-              : "text-notion-text-secondary hover:text-notion-text"
-          }`}
-          title="Toggle terminal (⌘J)"
-        >
-          <Terminal size={16} />
-        </button>
         <div className="mx-1 h-5 w-px bg-notion-border" />
         <button
           onClick={onToggleRightSidebar}

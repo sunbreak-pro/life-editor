@@ -44,7 +44,8 @@ export function useElectronMenuActions({
           setActiveSection("settings");
           break;
         case "navigate:tips":
-          setActiveSection("settings");
+          // Tips is accessible via Help menu → standalone Tips component
+          // No longer part of Settings
           break;
         case "toggle-timer-modal":
           setActiveSection("work");
