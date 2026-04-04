@@ -1,4 +1,10 @@
-import type { TipTapNode, TipTapDoc } from "./tiptapJsonBuilder.js";
+import {
+  toggleList,
+  callout,
+  paragraph,
+  type TipTapNode,
+  type TipTapDoc,
+} from "./tiptapJsonBuilder.js";
 
 interface Mark {
   type: string;
@@ -97,6 +103,15 @@ function collectListItems(
   return { items, nextIndex: i };
 }
 
+/* GitHub-style alert type → callout config */
+const ALERT_MAP: Record<string, { iconName: string; color: string }> = {
+  NOTE: { iconName: "Info", color: "blue" },
+  TIP: { iconName: "Lightbulb", color: "green" },
+  WARNING: { iconName: "AlertTriangle", color: "yellow" },
+  IMPORTANT: { iconName: "AlertCircle", color: "purple" },
+  CAUTION: { iconName: "ShieldAlert", color: "red" },
+};
+
 export function markdownToTiptap(text: string): TipTapDoc {
   const lines = text.split("\n");
   const content: TipTapNode[] = [];
@@ -128,6 +143,32 @@ export function markdownToTiptap(text: string): TipTapDoc {
       continue;
     }
 
+    // HTML <details>/<summary> → toggleList
+    const detailsMatch = line.match(/^<details>\s*$/i);
+    if (detailsMatch) {
+      i++;
+      let summary = "Details";
+      // Look for <summary>...</summary>
+      if (i < lines.length) {
+        const summaryMatch = lines[i].match(/^<summary>(.*?)<\/summary>\s*$/i);
+        if (summaryMatch) {
+          summary = summaryMatch[1].trim() || "Details";
+          i++;
+        }
+      }
+      // Collect inner content until </details>
+      const innerLines: string[] = [];
+      while (i < lines.length && !lines[i].match(/^<\/details>\s*$/i)) {
+        innerLines.push(lines[i]);
+        i++;
+      }
+      i++; // skip </details>
+      // Recursively parse inner content
+      const innerDoc = markdownToTiptap(innerLines.join("\n"));
+      content.push(toggleList(summary, ...innerDoc.content));
+      continue;
+    }
+
     // Horizontal rule
     if (/^---+$/.test(line)) {
       content.push({ type: "horizontalRule" });
@@ -135,10 +176,11 @@ export function markdownToTiptap(text: string): TipTapDoc {
       continue;
     }
 
-    // Headings
-    const headingMatch = line.match(/^(#{1,3})\s+(.+)$/);
+    // Headings: allow optional space after # (handles both "### Title" and "###Title")
+    const headingMatch = line.match(/^(#{1,6})\s*(.+)$/);
     if (headingMatch) {
-      const level = headingMatch[1].length as 1 | 2 | 3;
+      const rawLevel = headingMatch[1].length;
+      const level = Math.min(rawLevel, 3) as 1 | 2 | 3;
       const headingContent = parseInlineMarks(headingMatch[2]);
       content.push({
         type: "heading",
@@ -192,6 +234,33 @@ export function markdownToTiptap(text: string): TipTapDoc {
         })),
       });
       i = nextIndex;
+      continue;
+    }
+
+    // GitHub-style alerts: > [!NOTE], > [!TIP], > [!WARNING], > [!IMPORTANT], > [!CAUTION]
+    const alertMatch = line.match(
+      /^>\s*\[!(NOTE|TIP|WARNING|IMPORTANT|CAUTION)\]\s*$/i,
+    );
+    if (alertMatch) {
+      const alertType = alertMatch[1].toUpperCase();
+      const config = ALERT_MAP[alertType] ?? {
+        iconName: "Info",
+        color: "default",
+      };
+      i++;
+      // Collect subsequent > lines as callout body
+      const bodyLines: string[] = [];
+      while (i < lines.length) {
+        const bm = lines[i].match(/^>\s?(.*)$/);
+        if (!bm) break;
+        bodyLines.push(bm[1]);
+        i++;
+      }
+      const bodyNodes =
+        bodyLines.length > 0
+          ? bodyLines.map((l) => paragraphWithInline(l))
+          : [paragraph()];
+      content.push(callout(bodyNodes, config));
       continue;
     }
 

@@ -9,7 +9,13 @@ import {
 } from "./handlers/taskHandlers.js";
 import { getMemo, upsertMemo } from "./handlers/memoHandlers.js";
 import { listNotes, createNote, updateNote } from "./handlers/noteHandlers.js";
-import { listSchedule } from "./handlers/scheduleHandlers.js";
+import {
+  listSchedule,
+  createScheduleItem,
+  updateScheduleItem,
+  deleteScheduleItem,
+  toggleScheduleComplete,
+} from "./handlers/scheduleHandlers.js";
 import { searchAll } from "./handlers/searchHandlers.js";
 import { generateContent, formatContent } from "./handlers/contentHandlers.js";
 import {
@@ -107,7 +113,7 @@ export const TOOLS: Tool[] = [
         content: {
           type: "string",
           description:
-            "New content (plain text, will be converted to TipTap JSON)",
+            "Markdown content (# headings, **bold**, *italic*, - lists, - [ ] tasks, > quotes, ```code```, > [!NOTE] callouts). For toggle lists, tables, or complex layouts, use generate_content instead.",
         },
       },
       required: ["id"],
@@ -149,7 +155,11 @@ export const TOOLS: Tool[] = [
           type: "string",
           description: "Date in YYYY-MM-DD format",
         },
-        content: { type: "string", description: "Memo content (plain text)" },
+        content: {
+          type: "string",
+          description:
+            "Markdown content (# headings, **bold**, *italic*, - lists, - [ ] tasks, > quotes, ```code```, > [!NOTE] callouts). For toggle lists, tables, or complex layouts, use generate_content instead.",
+        },
       },
       required: ["date", "content"],
     },
@@ -177,7 +187,7 @@ export const TOOLS: Tool[] = [
         content: {
           type: "string",
           description:
-            "Note content (plain text, will be converted to TipTap JSON)",
+            "Markdown content (# headings, **bold**, *italic*, - lists, - [ ] tasks, > quotes, ```code```, > [!NOTE] callouts). For toggle lists, tables, or complex layouts, use generate_content instead.",
         },
       },
       required: ["title"],
@@ -195,7 +205,7 @@ export const TOOLS: Tool[] = [
         content: {
           type: "string",
           description:
-            "New content (plain text, will be converted to TipTap JSON)",
+            "Markdown content (# headings, **bold**, *italic*, - lists, - [ ] tasks, > quotes, ```code```, > [!NOTE] callouts). For toggle lists, tables, or complex layouts, use generate_content instead.",
         },
         color: {
           type: "string",
@@ -207,7 +217,31 @@ export const TOOLS: Tool[] = [
   },
   {
     name: "list_schedule",
-    description: "List schedule items and scheduled tasks for a specific date.",
+    description:
+      "List schedule items and scheduled tasks for a specific date or date range.",
+    inputSchema: {
+      type: "object" as const,
+      properties: {
+        date: {
+          type: "string",
+          description: "Single date in YYYY-MM-DD format",
+        },
+        start_date: {
+          type: "string",
+          description:
+            "Range start date (YYYY-MM-DD). Use with end_date instead of date.",
+        },
+        end_date: {
+          type: "string",
+          description: "Range end date (YYYY-MM-DD). Use with start_date.",
+        },
+      },
+    },
+  },
+  {
+    name: "create_schedule_item",
+    description:
+      "Create a new schedule item (event) on the calendar. For routine-based items, use tasks instead.",
     inputSchema: {
       type: "object" as const,
       properties: {
@@ -215,8 +249,75 @@ export const TOOLS: Tool[] = [
           type: "string",
           description: "Date in YYYY-MM-DD format",
         },
+        title: { type: "string", description: "Event title" },
+        start_time: {
+          type: "string",
+          description: "Start time in HH:MM format",
+        },
+        end_time: {
+          type: "string",
+          description: "End time in HH:MM format",
+        },
+        is_all_day: {
+          type: "boolean",
+          description: "All-day event (default: false)",
+        },
+        note_id: {
+          type: "string",
+          description: "Link to an existing note ID",
+        },
+        content: {
+          type: "string",
+          description: "Additional content/description",
+        },
       },
-      required: ["date"],
+      required: ["date", "title", "start_time", "end_time"],
+    },
+  },
+  {
+    name: "update_schedule_item",
+    description:
+      "Update an existing schedule item. Only provide fields you want to change.",
+    inputSchema: {
+      type: "object" as const,
+      properties: {
+        id: { type: "string", description: "Schedule item ID" },
+        title: { type: "string", description: "New title" },
+        start_time: {
+          type: "string",
+          description: "New start time (HH:MM)",
+        },
+        end_time: {
+          type: "string",
+          description: "New end time (HH:MM)",
+        },
+        memo: { type: "string", description: "Memo/notes about the item" },
+        is_all_day: { type: "boolean", description: "All-day event flag" },
+        content: { type: "string", description: "New content/description" },
+      },
+      required: ["id"],
+    },
+  },
+  {
+    name: "delete_schedule_item",
+    description: "Delete a schedule item permanently.",
+    inputSchema: {
+      type: "object" as const,
+      properties: {
+        id: { type: "string", description: "Schedule item ID" },
+      },
+      required: ["id"],
+    },
+  },
+  {
+    name: "toggle_schedule_complete",
+    description: "Toggle the completion status of a schedule item.",
+    inputSchema: {
+      type: "object" as const,
+      properties: {
+        id: { type: "string", description: "Schedule item ID" },
+      },
+      required: ["id"],
     },
   },
   {
@@ -250,18 +351,20 @@ export const TOOLS: Tool[] = [
   {
     name: "generate_content",
     description:
-      "Generate structured rich content (headings, lists, callouts, code blocks, tables, etc.) for a note or memo. Use this to create well-formatted documents with complex structure.",
+      "PREFERRED tool for creating rich content in notes, memos, or schedule items. Supports headings, lists, toggle lists, callouts, code blocks, tables, and nested structures. Use this instead of create_note/upsert_memo when you need formatted output.",
     inputSchema: {
       type: "object" as const,
       properties: {
         target: {
           type: "string",
-          enum: ["note", "memo"],
-          description: "Target entity type",
+          enum: ["note", "memo", "schedule"],
+          description:
+            "Target entity type (schedule: updates content column of a schedule item)",
         },
         target_id: {
           type: "string",
-          description: "Existing note/memo ID to update (omit to create new)",
+          description:
+            "Existing note/memo/schedule-item ID to update (omit to create new note/memo)",
         },
         target_date: {
           type: "string",
@@ -461,18 +564,18 @@ export const TOOLS: Tool[] = [
   {
     name: "format_content",
     description:
-      "Read and restructure existing note/memo content. Supports wrapping in callout/toggle, adding headings, inserting blocks, or replacing all content.",
+      "Read and restructure existing note/memo/schedule-item content. Supports wrapping in callout/toggle, adding headings, inserting blocks, or replacing all content.",
     inputSchema: {
       type: "object" as const,
       properties: {
         target: {
           type: "string",
-          enum: ["note", "memo"],
+          enum: ["note", "memo", "schedule"],
           description: "Target entity type",
         },
         target_id: {
           type: "string",
-          description: "Note ID (required for notes)",
+          description: "Note or schedule item ID (required for notes/schedule)",
         },
         target_date: {
           type: "string",
@@ -568,6 +671,26 @@ export function callTool(
       break;
     case "list_schedule":
       result = listSchedule(args as Parameters<typeof listSchedule>[0]);
+      break;
+    case "create_schedule_item":
+      result = createScheduleItem(
+        args as Parameters<typeof createScheduleItem>[0],
+      );
+      break;
+    case "update_schedule_item":
+      result = updateScheduleItem(
+        args as Parameters<typeof updateScheduleItem>[0],
+      );
+      break;
+    case "delete_schedule_item":
+      result = deleteScheduleItem(
+        args as Parameters<typeof deleteScheduleItem>[0],
+      );
+      break;
+    case "toggle_schedule_complete":
+      result = toggleScheduleComplete(
+        args as Parameters<typeof toggleScheduleComplete>[0],
+      );
       break;
     case "search_all":
       result = searchAll(args as Parameters<typeof searchAll>[0]);

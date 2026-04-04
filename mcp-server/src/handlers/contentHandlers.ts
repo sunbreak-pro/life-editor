@@ -102,7 +102,7 @@ function buildDoc(structure: ContentBlock[]): TipTapDoc {
 /* ===== generate_content ===== */
 
 interface GenerateContentArgs {
-  target: "note" | "memo";
+  target: "note" | "memo" | "schedule";
   target_id?: string;
   target_date?: string;
   title?: string;
@@ -147,6 +147,20 @@ export function generateContent(args: GenerateContentArgs) {
       ).run({ id, title: args.title ?? "Untitled", content: contentJson });
       return { id, target: "note", content: tiptapDoc };
     }
+  } else if (args.target === "schedule") {
+    // schedule item content
+    if (!args.target_id)
+      throw new Error("target_id required for schedule target");
+    const existing = db
+      .prepare("SELECT id FROM schedule_items WHERE id = ?")
+      .get(args.target_id) as { id: string } | undefined;
+    if (!existing)
+      throw new Error(`Schedule item not found: ${args.target_id}`);
+
+    db.prepare(
+      `UPDATE schedule_items SET content = @content, version = version + 1, updated_at = datetime('now') WHERE id = @id`,
+    ).run({ id: args.target_id, content: contentJson });
+    return { id: args.target_id, target: "schedule", content: tiptapDoc };
   } else {
     // memo
     const date = args.target_date ?? new Date().toISOString().slice(0, 10);
@@ -185,7 +199,7 @@ interface FormatOperation {
 }
 
 interface FormatContentArgs {
-  target: "note" | "memo";
+  target: "note" | "memo" | "schedule";
   target_id?: string;
   target_date?: string;
   operations: FormatOperation[];
@@ -205,6 +219,17 @@ export function formatContent(args: FormatContentArgs) {
       .get(args.target_id) as { id: string; content: string } | undefined;
     if (!row) throw new Error(`Note not found: ${args.target_id}`);
     contentJson = row.content;
+    entityId = row.id;
+  } else if (args.target === "schedule") {
+    if (!args.target_id)
+      throw new Error("target_id required for schedule target");
+    const row = db
+      .prepare("SELECT id, content FROM schedule_items WHERE id = ?")
+      .get(args.target_id) as
+      | { id: string; content: string | null }
+      | undefined;
+    if (!row) throw new Error(`Schedule item not found: ${args.target_id}`);
+    contentJson = row.content ?? "";
     entityId = row.id;
   } else {
     const date = args.target_date ?? new Date().toISOString().slice(0, 10);
@@ -277,6 +302,10 @@ export function formatContent(args: FormatContentArgs) {
   if (args.target === "note") {
     db.prepare(
       "UPDATE notes SET content = @content, updated_at = datetime('now') WHERE id = @id",
+    ).run({ id: entityId, content: updatedJson });
+  } else if (args.target === "schedule") {
+    db.prepare(
+      "UPDATE schedule_items SET content = @content, version = version + 1, updated_at = datetime('now') WHERE id = @id",
     ).run({ id: entityId, content: updatedJson });
   } else {
     db.prepare(
