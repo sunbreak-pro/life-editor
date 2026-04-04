@@ -1,5 +1,17 @@
 # HISTORY.md - 変更履歴
 
+### 2026-04-04 - Routine編集時のCalendar race condition修正
+
+#### 概要
+
+Routine/Group頻度編集後にCalendarビューで間違った曜日にアイテムが表示されるバグを修正。`scheduleItemsVersion`をCalendarView useEffect依存に追加した前回変更がrace conditionの原因だった。
+
+#### 変更点
+
+- **Race condition修正**: CalendarViewのuseEffectから`scheduleItemsVersion`依存を削除。`cleanupNonMatchingScheduleItems`が直接`setMonthlyScheduleItems`でstateを更新するためDBリロードは不要
+- **Cleanup直列化**: Group編集時の各メンバーroutineのcleanupを`for...await`で直列実行に変更（並列実行による早期bumpVersionでDB未削除アイテムが復活する問題を解消）
+- **明示的リロード**: Routine/Group両方の編集ハンドラで、全cleanup完了後に`loadScheduleItemsForMonth(year, month)`を1回だけ呼ぶように変更
+
 ### 2026-04-04 - Role変換機能（CalendarアイテムのTask/Event/Note/Daily相互変換）
 
 #### 概要
@@ -58,34 +70,3 @@ CalendarからDailyアイテム作成時に発生する「Cannot update a compon
 - **restoreMemo deps 修正**: `[deletedMemos]` → `[]`（`deletedMemosRef` 経由に変更）
 - **selectedMemo 最適化**: `useCallback` + 呼び出し → `useMemo` で直接計算（`useNotes.ts` の `selectedNote` と統一）
 - **getMemoForDate 最適化**: `memosRef` 経由に変更し deps を `[]` に
-
-### 2026-04-04 - DayFlow Timegrid 5件の改善
-
-#### 概要
-
-DayFlow Timegridのコンテキストメニュー「Edit」「Add memo」が動作しないバグ修正、アイテムクリックでの完了トグル、RoutineGroupヘッダーの編集/削除機能、GroupFrame下部ボーダー修正、空スペースの作成メニューを右クリックに変更。
-
-#### 変更点
-
-- **Edit修正**: `enablePreview`がfalsy値のままプレビューポップアップJSXをゲーティングしていた根本原因を修正。`enablePreview` propを完全削除し、プレビューポップアップを常にレンダリング可能に
-- **Add memo修正**: `activeMemoItemId` stateパターンを導入。コンテキストメニューからIDを設定→`ScheduleItemBlock`/`TimeGridTaskBlock`内のuseEffectでインラインメモエディタを表示
-- **クリック完了トグル**: `onShowPreview` propを`ScheduleItemBlock`/`TimeGridTaskBlock`から削除。アイテム本体クリックで常に完了トグル
-- **GroupFrame編集/削除**: ヘッダーにダブルクリック→`RoutineGroupEditDialog`、右クリック→`GroupContextMenu`（Edit/Dismiss today/Delete group）を追加。`OneDaySchedule`にグループ編集・削除ハンドラ実装
-- **GroupFrame下部ボーダー**: groupFrame height計算に+4px追加しアイテムとの重なり解消
-- **空スペース右クリック作成**: `onClick={handleColumnClick}`→`onContextMenu={handleColumnContextMenu}`に変更
-- **i18n**: `groupContextMenu`キーをen.json/ja.jsonに追加
-
-### 2026-04-02 - BubbleToolbarカラーピッカー修正 + カレンダー祝日・休日カラーリング
-
-#### 概要
-
-BubbleToolbarの色変更ボタンが表示されないバグを修正（overflow:hiddenによるクリッピング問題）。カレンダーのMonthlyView/WeeklyTimeGridに土曜(青)・日曜(赤)・祝日(緑)の薄い背景色分けを追加。
-
-#### 変更点
-
-- **BubbleToolbar修正**: カラーピッカーをabsoluteドロップダウンからツールバー内インライン展開に変更。`.bubble-toolbar-color-picker` CSS削除
-- **祝日ライブラリ導入**: `@holiday-jp/holiday_jp`パッケージをインストール
-- **祝日ユーティリティ作成**: `frontend/src/utils/holidays.ts` — `getDateType()`, `getDateBgClass()`, `getDateTextClass()`関数
-- **DayCell**: セル背景色を土曜(bg-blue-50)/日曜(bg-red-50)/祝日(bg-green-50)に色分け。日付番号の文字色も対応。ダークモード対応
-- **MonthlyViewヘッダー**: Sun(赤)/Sat(青)の曜日名に色付け
-- **WeeklyTimeGrid**: ヘッダー曜日名・日付番号の色 + 列背景色を土曜/日曜/祝日で色分け
