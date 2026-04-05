@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useRef, useState, useEffect } from "react";
 import {
   ExternalLink,
   Play,
@@ -11,7 +11,6 @@ import {
 import { useTranslation } from "react-i18next";
 import type { TaskNode } from "../../../../types/taskTree";
 import { useClickOutside } from "../../../../hooks/useClickOutside";
-import { formatScheduleRange } from "../../../../utils/formatSchedule";
 import { ConfirmDialog } from "../../../shared/ConfirmDialog";
 import { TimeInput } from "../../../shared/TimeInput";
 import { DateInput } from "../../../shared/DateInput";
@@ -77,7 +76,6 @@ export function TaskPreviewPopup({
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [editValue, setEditValue] = useState(task.title);
-  const [isEditingTime, setIsEditingTime] = useState(false);
   const [editStartTime, setEditStartTime] = useState(
     task.scheduledAt && !task.isAllDay
       ? extractTime(task.scheduledAt)
@@ -90,6 +88,28 @@ export function TaskPreviewPopup({
   );
   const prevStartRef = useRef(editStartTime);
 
+  useEffect(() => {
+    const start =
+      task.scheduledAt && !task.isAllDay
+        ? extractTime(task.scheduledAt)
+        : "09:00";
+    const end =
+      task.scheduledEndAt && !task.isAllDay
+        ? extractTime(task.scheduledEndAt)
+        : "10:00";
+    setEditStartTime(start);
+    setEditEndTime(end);
+    prevStartRef.current = start;
+  }, [task.scheduledAt, task.scheduledEndAt, task.isAllDay]);
+
+  const saveTime = (start: string, end: string) => {
+    if (onUpdateSchedule && task.scheduledAt) {
+      const newStart = applyTimeToDate(task.scheduledAt, start);
+      const newEnd = applyTimeToDate(task.scheduledAt, end);
+      onUpdateSchedule(newStart, newEnd);
+    }
+  };
+
   const handleStartTimeChange = (h: number, m: number) => {
     const newStart = formatTime(h, m);
     const adjusted = adjustEndTimeForStartChange(
@@ -100,27 +120,17 @@ export function TaskPreviewPopup({
     prevStartRef.current = newStart;
     setEditStartTime(newStart);
     setEditEndTime(adjusted);
+    saveTime(newStart, adjusted);
   };
 
   const handleEndTimeChange = (h: number, m: number) => {
     const newEnd = formatTime(h, m);
-    setEditEndTime(clampEndTimeAfterStart(editStartTime, newEnd));
+    const clamped = clampEndTimeAfterStart(editStartTime, newEnd);
+    setEditEndTime(clamped);
+    saveTime(editStartTime, clamped);
   };
 
-  const handleTimeSave = () => {
-    if (onUpdateSchedule && task.scheduledAt) {
-      const newStart = applyTimeToDate(task.scheduledAt, editStartTime);
-      const newEnd = applyTimeToDate(task.scheduledAt, editEndTime);
-      onUpdateSchedule(newStart, newEnd);
-    }
-    setIsEditingTime(false);
-  };
-
-  useClickOutside(
-    ref,
-    onClose,
-    !showDeleteConfirm && !isEditing && !isEditingTime,
-  );
+  useClickOutside(ref, onClose, !showDeleteConfirm && !isEditing);
 
   const commitEdit = () => {
     const trimmed = editValue.trim();
@@ -226,72 +236,36 @@ export function TaskPreviewPopup({
               </div>
             )}
 
-          {/* Time display / edit (hidden when all-day) */}
-          {task.scheduledAt &&
-            !task.isAllDay &&
-            (isEditingTime && onUpdateSchedule ? (
-              <div className="space-y-1.5">
-                <div className="flex items-center gap-1.5">
-                  <TimeInput
-                    hour={parseInt(editStartTime.split(":")[0], 10)}
-                    minute={parseInt(editStartTime.split(":")[1], 10)}
-                    onChange={handleStartTimeChange}
-                    minuteStep={5}
-                    size="sm"
-                  />
-                  <span className="text-xs text-notion-text-secondary">-</span>
-                  <TimeInput
-                    hour={parseInt(editEndTime.split(":")[0], 10)}
-                    minute={parseInt(editEndTime.split(":")[1], 10)}
-                    onChange={handleEndTimeChange}
-                    minuteStep={5}
-                    size="sm"
-                  />
-                </div>
-                <div className="flex gap-1">
-                  <button
-                    onClick={handleTimeSave}
-                    className="px-2 py-0.5 text-[10px] bg-notion-accent text-white rounded hover:opacity-90 transition-colors"
-                  >
-                    {t("common.save", "Save")}
-                  </button>
-                  <button
-                    onClick={() => {
-                      setEditStartTime(
-                        task.scheduledAt && !task.isAllDay
-                          ? extractTime(task.scheduledAt)
-                          : "09:00",
-                      );
-                      setEditEndTime(
-                        task.scheduledEndAt && !task.isAllDay
-                          ? extractTime(task.scheduledEndAt)
-                          : "10:00",
-                      );
-                      setIsEditingTime(false);
-                    }}
-                    className="px-2 py-0.5 text-[10px] text-notion-text-secondary hover:text-notion-text transition-colors"
-                  >
-                    {t("common.cancel", "Cancel")}
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <button
-                onClick={() => onUpdateSchedule && setIsEditingTime(true)}
-                className={`text-xs text-notion-text-secondary flex items-center gap-1 ${
-                  onUpdateSchedule
-                    ? "hover:text-notion-text cursor-pointer"
-                    : "cursor-default"
-                } transition-colors`}
-              >
-                <Clock size={10} />
-                {formatScheduleRange(
-                  task.scheduledAt,
-                  task.scheduledEndAt,
-                  task.isAllDay,
-                )}
-              </button>
-            ))}
+          {/* Time (hidden when all-day) */}
+          {task.scheduledAt && !task.isAllDay && onUpdateSchedule && (
+            <div className="flex items-center gap-1.5">
+              <Clock
+                size={10}
+                className="text-notion-text-secondary shrink-0"
+              />
+              <TimeInput
+                hour={parseInt(editStartTime.split(":")[0], 10)}
+                minute={parseInt(editStartTime.split(":")[1], 10)}
+                onChange={handleStartTimeChange}
+                minuteStep={5}
+                size="sm"
+              />
+              <span className="text-xs text-notion-text-secondary">-</span>
+              <TimeInput
+                hour={parseInt(editEndTime.split(":")[0], 10)}
+                minute={parseInt(editEndTime.split(":")[1], 10)}
+                onChange={handleEndTimeChange}
+                minuteStep={5}
+                size="sm"
+              />
+            </div>
+          )}
+          {task.scheduledAt && !task.isAllDay && !onUpdateSchedule && (
+            <div className="text-xs text-notion-text-secondary flex items-center gap-1">
+              <Clock size={10} />
+              {editStartTime} - {editEndTime}
+            </div>
+          )}
           {/* Memo */}
           {onUpdateTimeMemo && (
             <div className="flex items-center gap-1 px-1 py-0.5 rounded border border-notion-border/50">

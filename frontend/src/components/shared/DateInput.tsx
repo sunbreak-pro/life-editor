@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback } from "react";
+import { useTranslation } from "react-i18next";
 
 interface DateInputProps {
   year: number;
@@ -29,6 +30,8 @@ export function DateInput({
   onChange,
   size = "default",
 }: DateInputProps) {
+  const { i18n } = useTranslation();
+  const isJa = i18n.language === "ja";
   const [activeField, setActiveField] = useState<Field | null>(null);
   const [editBuffer, setEditBuffer] = useState("");
   const editBufferRef = useRef("");
@@ -202,7 +205,9 @@ export function DateInput({
       >
         {displayMonth}
       </span>
-      <span className="text-notion-text-secondary mx-px">/</span>
+      <span className="text-notion-text-secondary mx-px">
+        {isJa ? "月" : "/"}
+      </span>
       <span
         ref={dayRef}
         tabIndex={0}
@@ -220,6 +225,7 @@ export function DateInput({
       >
         {displayDay}
       </span>
+      {isJa && <span className="text-notion-text-secondary mx-px">日</span>}
     </div>
   );
 }

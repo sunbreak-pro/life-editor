@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useRef, useState, useEffect } from "react";
 import {
   Check,
   Trash2,
@@ -12,7 +12,6 @@ import type { ScheduleItem } from "../../../../types/schedule";
 import { useClickOutside } from "../../../../hooks/useClickOutside";
 import { TimeInput } from "../../../shared/TimeInput";
 import { DateInput } from "../../../shared/DateInput";
-import { Button } from "../../../shared/Button";
 import {
   formatTime,
   clampEndTimeAfterStart,
@@ -52,12 +51,17 @@ export function ScheduleItemPreviewPopup({
 }: ScheduleItemPreviewPopupProps) {
   const { t } = useTranslation();
   const ref = useRef<HTMLDivElement>(null);
-  const [isEditingTime, setIsEditingTime] = useState(false);
   const [editStartTime, setEditStartTime] = useState(item.startTime);
   const [editEndTime, setEditEndTime] = useState(item.endTime);
   const prevStartRef = useRef(editStartTime);
 
-  useClickOutside(ref, onClose, !isEditingTime);
+  useEffect(() => {
+    setEditStartTime(item.startTime);
+    setEditEndTime(item.endTime);
+    prevStartRef.current = item.startTime;
+  }, [item.startTime, item.endTime]);
+
+  useClickOutside(ref, onClose);
 
   const left = Math.min(position.x, window.innerWidth - 260 - 16);
   const top = Math.min(position.y, window.innerHeight - 320 - 16);
@@ -77,18 +81,14 @@ export function ScheduleItemPreviewPopup({
     prevStartRef.current = newStart;
     setEditStartTime(newStart);
     setEditEndTime(adjusted);
+    onUpdateTime?.(newStart, adjusted);
   };
 
   const handleEndTimeChange = (h: number, m: number) => {
     const newEnd = formatTime(h, m);
-    setEditEndTime(clampEndTimeAfterStart(editStartTime, newEnd));
-  };
-
-  const handleTimeSave = () => {
-    if (onUpdateTime) {
-      onUpdateTime(editStartTime, editEndTime);
-    }
-    setIsEditingTime(false);
+    const clamped = clampEndTimeAfterStart(editStartTime, newEnd);
+    setEditEndTime(clamped);
+    onUpdateTime?.(editStartTime, clamped);
   };
 
   return (
@@ -144,57 +144,33 @@ export function ScheduleItemPreviewPopup({
           </div>
         )}
 
-        {/* Time display / edit (hidden when all-day) */}
-        {!item.isAllDay &&
-          (isEditingTime && onUpdateTime ? (
-            <div className="space-y-1.5">
-              <div className="flex items-center gap-1.5">
-                <TimeInput
-                  hour={parseInt(editStartTime.split(":")[0], 10)}
-                  minute={parseInt(editStartTime.split(":")[1], 10)}
-                  onChange={handleStartTimeChange}
-                  minuteStep={5}
-                  size="sm"
-                />
-                <span className="text-xs text-notion-text-secondary">-</span>
-                <TimeInput
-                  hour={parseInt(editEndTime.split(":")[0], 10)}
-                  minute={parseInt(editEndTime.split(":")[1], 10)}
-                  onChange={handleEndTimeChange}
-                  minuteStep={5}
-                  size="sm"
-                />
-              </div>
-              <div className="flex gap-1">
-                <Button variant="primary" size="sm" onClick={handleTimeSave}>
-                  {t("common.save", "Save")}
-                </Button>
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  onClick={() => {
-                    setEditStartTime(item.startTime);
-                    setEditEndTime(item.endTime);
-                    setIsEditingTime(false);
-                  }}
-                >
-                  {t("common.cancel", "Cancel")}
-                </Button>
-              </div>
-            </div>
-          ) : (
-            <button
-              onClick={() => onUpdateTime && setIsEditingTime(true)}
-              className={`text-xs text-notion-text-secondary flex items-center gap-1 ${
-                onUpdateTime
-                  ? "hover:text-notion-text cursor-pointer"
-                  : "cursor-default"
-              } transition-colors`}
-            >
-              <Clock size={10} />
-              {item.startTime} - {item.endTime}
-            </button>
-          ))}
+        {/* Time (hidden when all-day) */}
+        {!item.isAllDay && onUpdateTime && (
+          <div className="flex items-center gap-1.5">
+            <Clock size={10} className="text-notion-text-secondary shrink-0" />
+            <TimeInput
+              hour={parseInt(editStartTime.split(":")[0], 10)}
+              minute={parseInt(editStartTime.split(":")[1], 10)}
+              onChange={handleStartTimeChange}
+              minuteStep={5}
+              size="sm"
+            />
+            <span className="text-xs text-notion-text-secondary">-</span>
+            <TimeInput
+              hour={parseInt(editEndTime.split(":")[0], 10)}
+              minute={parseInt(editEndTime.split(":")[1], 10)}
+              onChange={handleEndTimeChange}
+              minuteStep={5}
+              size="sm"
+            />
+          </div>
+        )}
+        {!item.isAllDay && !onUpdateTime && (
+          <div className="text-xs text-notion-text-secondary flex items-center gap-1">
+            <Clock size={10} />
+            {item.startTime} - {item.endTime}
+          </div>
+        )}
 
         {/* Memo */}
         {onUpdateMemo && (
