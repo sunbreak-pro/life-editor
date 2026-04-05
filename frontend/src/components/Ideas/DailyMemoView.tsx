@@ -6,7 +6,7 @@ import { formatDateTime } from "../../utils/formatRelativeDate";
 import { formatDateHeading } from "../../utils/dateKey";
 import { LazyMemoEditor as MemoEditor } from "../Tasks/TaskDetail/LazyMemoEditor";
 import { WikiTagList } from "../WikiTags/WikiTagList";
-import { RoleSwitcher } from "../Tasks/Schedule/Calendar/RoleSwitcher";
+import { RoleSwitcher } from "../Tasks/Schedule/shared/RoleSwitcher";
 import {
   useRoleConversion,
   type ConversionSource,

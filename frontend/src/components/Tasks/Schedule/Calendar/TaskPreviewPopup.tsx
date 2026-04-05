@@ -11,7 +11,7 @@ import {
   clampEndTimeAfterStart,
   adjustEndTimeForStartChange,
 } from "../../../../utils/timeGridUtils";
-import { RoleSwitcher } from "./RoleSwitcher";
+import { RoleSwitcher } from "../shared/RoleSwitcher";
 import type { ConversionRole } from "../../../../hooks/useRoleConversion";
 
 interface TaskPreviewPopupProps {

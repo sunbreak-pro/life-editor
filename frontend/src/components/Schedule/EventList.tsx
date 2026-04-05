@@ -2,7 +2,7 @@ import { useEffect, useMemo } from "react";
 import { CalendarClock, Check, Circle } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import type { ScheduleItem } from "../../types/schedule";
-import { useScheduleContext } from "../../hooks/useScheduleContext";
+import { useScheduleItemsContext } from "../../hooks/useScheduleItemsContext";
 
 interface EventListProps {
   selectedEventId: string | null;
@@ -23,7 +23,7 @@ export function EventList({
 }: EventListProps) {
   const { t } = useTranslation();
   const { events, loadEvents, eventsVersion, toggleComplete } =
-    useScheduleContext();
+    useScheduleItemsContext();
 
   useEffect(() => {
     loadEvents();

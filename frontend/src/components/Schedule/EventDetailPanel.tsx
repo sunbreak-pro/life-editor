@@ -1,7 +1,7 @@
 import { useState, useCallback } from "react";
 import { Trash2, Clock, CalendarDays, StickyNote } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { useScheduleContext } from "../../hooks/useScheduleContext";
+import { useScheduleItemsContext } from "../../hooks/useScheduleItemsContext";
 import { TimeInput } from "../shared/TimeInput";
 import { ConfirmDialog } from "../shared/ConfirmDialog";
 import {
@@ -9,7 +9,7 @@ import {
   clampEndTimeAfterStart,
   adjustEndTimeForStartChange,
 } from "../../utils/timeGridUtils";
-import { RoleSwitcher } from "../Tasks/Schedule/Calendar/RoleSwitcher";
+import { RoleSwitcher } from "../Tasks/Schedule/shared/RoleSwitcher";
 import {
   useRoleConversion,
   type ConversionSource,
@@ -23,7 +23,7 @@ interface EventDetailPanelProps {
 export function EventDetailPanel({ selectedEventId }: EventDetailPanelProps) {
   const { t } = useTranslation();
   const { events, updateScheduleItem, deleteScheduleItem, bumpEventsVersion } =
-    useScheduleContext();
+    useScheduleItemsContext();
 
   const event = selectedEventId
     ? events.find((e) => e.id === selectedEventId)
@@ -58,7 +58,9 @@ function EventDetailContent({
   onUpdate,
   onDelete,
 }: {
-  event: NonNullable<ReturnType<typeof useScheduleContext>["events"][number]>;
+  event: NonNullable<
+    ReturnType<typeof useScheduleItemsContext>["events"][number]
+  >;
   onUpdate: (updates: Record<string, unknown>) => void;
   onDelete: () => void;
 }) {
@@ -221,7 +223,7 @@ function EventRoleSwitcherInline({
   const { convert, canConvert } = useRoleConversion();
   if (event.routineId) return null;
 
-  const { events } = useScheduleContext();
+  const { events } = useScheduleItemsContext();
   const fullEvent = events.find((e) => e.id === event.id);
   if (!fullEvent) return null;
 

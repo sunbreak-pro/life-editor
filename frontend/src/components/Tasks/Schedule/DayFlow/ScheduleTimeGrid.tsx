@@ -3,7 +3,7 @@ import type { TaskNode } from "../../../../types/taskTree";
 import type { ScheduleItem } from "../../../../types/schedule";
 import type { RoutineGroup } from "../../../../types/routineGroup";
 import { TIME_GRID } from "../../../../constants/timeGrid";
-import { TimeGridTaskBlock } from "../Calendar/TimeGridTaskBlock";
+import { TimeGridTaskBlock } from "../shared/TimeGridTaskBlock";
 import { TaskPreviewPopup } from "../Calendar/TaskPreviewPopup";
 import { ScheduleItemBlock } from "./ScheduleItemBlock";
 import { ScheduleItemPreviewPopup } from "./ScheduleItemPreviewPopup";
@@ -13,6 +13,7 @@ import { formatDateKey } from "../../../../utils/dateKey";
 import { useTimeGridDrag } from "../../../../hooks/useTimeGridDrag";
 import {
   formatTime,
+  formatHour,
   minutesToTimeString,
   topToMinutes,
   timeToMinutes,
@@ -39,13 +40,6 @@ interface UnifiedItem {
   totalColumns: number;
   scheduleItem?: ScheduleItem;
   task?: TaskNode;
-}
-
-function formatHour(hour: number): string {
-  if (hour === 0) return "12 AM";
-  if (hour < 12) return `${hour} AM`;
-  if (hour === 12) return "12 PM";
-  return `${hour - 12} PM`;
 }
 
 const GROUP_HEADER_HEIGHT = 28;

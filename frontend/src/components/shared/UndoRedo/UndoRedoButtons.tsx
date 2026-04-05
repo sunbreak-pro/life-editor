@@ -1,8 +1,8 @@
 import { useEffect } from "react";
 import { Undo2, Redo2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { useUndoRedo } from "./useUndoRedo";
-import type { UndoDomain } from "./types";
+import { useUndoRedo } from "../../../hooks/useUndoRedo";
+import type { UndoDomain } from "../../../utils/undoRedo/types";
 
 interface UndoRedoButtonsProps {
   /** @deprecated Use `domains` instead */

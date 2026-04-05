@@ -6,7 +6,7 @@ import type { TaskNode } from "../../../types/taskTree";
 import { getAncestors } from "../../../utils/breadcrumb";
 import { DurationPicker } from "../../shared/DurationPicker";
 import { formatDuration } from "../../../utils/duration";
-import { DateTimeRangePicker } from "../Schedule/Calendar/DateTimeRangePicker";
+import { DateTimeRangePicker } from "../Schedule/shared/DateTimeRangePicker";
 import { FolderTag } from "../Folder/FolderTag";
 import { UnifiedColorPicker } from "../../shared/UnifiedColorPicker";
 

@@ -5,7 +5,7 @@ import type { ScheduleItem } from "../types/schedule";
 import type { NoteNode } from "../types/note";
 import type { MemoNode } from "../types/memo";
 import { useTaskTreeContext } from "./useTaskTreeContext";
-import { useScheduleContext } from "./useScheduleContext";
+import { useScheduleItemsContext } from "./useScheduleItemsContext";
 import { useMemoContext } from "./useMemoContext";
 import { useNoteContext } from "./useNoteContext";
 import { useToast } from "../context/ToastContext";
@@ -70,7 +70,7 @@ export function useRoleConversion(
     updateScheduleItem,
     deleteScheduleItem,
     bumpEventsVersion,
-  } = useScheduleContext();
+  } = useScheduleItemsContext();
   const { memos, upsertMemo, deleteMemo } = useMemoContext();
   const { createNote, updateNote, softDeleteNote } = useNoteContext();
   const { showToast } = useToast();

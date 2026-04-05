@@ -5,7 +5,7 @@ import { useClickOutside } from "../../../../hooks/useClickOutside";
 import { getContentPreview } from "../../../../utils/tiptapText";
 import { ConfirmDialog } from "../../../shared/ConfirmDialog";
 import { Button } from "../../../shared/Button";
-import { RoleSwitcher } from "./RoleSwitcher";
+import { RoleSwitcher } from "../shared/RoleSwitcher";
 import type { ConversionRole } from "../../../../hooks/useRoleConversion";
 
 interface MemoPreviewPopupProps {

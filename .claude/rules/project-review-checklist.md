@@ -14,9 +14,14 @@
 
 ## Provider / Context
 
-- Provider順序: Theme → UndoRedo → TaskTree → Calendar → Memo → Note → Schedule → Timer → Audio
+- Provider順序 (外→内): Theme → Toast → UndoRedo → TaskTree → Calendar → Memo → Note → Routine → ScheduleItems → CalendarTags → Timer → Audio → WikiTag → ShortcutConfig
+- ScheduleItemsProvider は RoutineProvider の内側に配置（sync/backfill 依存）
 - 新Provider追加時は `renderWithProviders.tsx` にも追加
-- Context値の型は `ReturnType<typeof useHook>` パターン
+- **Pattern A 準拠**: 新Context作成時は3ファイル構成（ADR-0002 参照）
+  - `context/FooContextValue.ts` — 型 + createContext
+  - `context/FooContext.tsx` — Provider
+  - `hooks/useFooContext.ts` — `createContextHook()` で consumer hook
+- `context/index.ts` に Provider, Context, ContextValue type を export 追加
 
 ## SQLite / Migration
 

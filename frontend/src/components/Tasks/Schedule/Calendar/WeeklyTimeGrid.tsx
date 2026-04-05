@@ -2,8 +2,9 @@ import { useEffect, useRef, useState, useMemo } from "react";
 import type { TaskNode } from "../../../../types/taskTree";
 import type { MemoNode } from "../../../../types/memo";
 import { TIME_GRID } from "../../../../constants/timeGrid";
-import { TimeGridTaskBlock } from "./TimeGridTaskBlock";
-import { formatDateKey } from "../../../../hooks/useCalendar";
+import { TimeGridTaskBlock } from "../shared/TimeGridTaskBlock";
+import { formatDateKey } from "../../../../utils/dateKey";
+import { formatHour } from "../../../../utils/timeGridUtils";
 import {
   getDateType,
   getDateBgClass,
@@ -113,13 +114,6 @@ function layoutOverlappingTasks(
   }
 
   return positioned;
-}
-
-function formatHour(hour: number): string {
-  if (hour === 0) return "12 AM";
-  if (hour < 12) return `${hour} AM`;
-  if (hour === 12) return "12 PM";
-  return `${hour - 12} PM`;
 }
 
 export function WeeklyTimeGrid({

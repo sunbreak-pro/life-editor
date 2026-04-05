@@ -7,15 +7,17 @@ import App from "./App.tsx";
 import { MobileApp } from "./MobileApp.tsx";
 import { ErrorBoundary } from "./components/shared/ErrorBoundary";
 import { ThemeProvider } from "./context/ThemeContext";
-import { UndoRedoProvider } from "./components/shared/UndoRedo";
+import { UndoRedoProvider } from "./context/UndoRedoContext";
 import { TaskTreeProvider } from "./context/TaskTreeContext";
 import { MemoProvider } from "./context/MemoContext";
 import { TimerProvider } from "./context/TimerContext";
 import { AudioProvider } from "./context/AudioContext";
 import { NoteProvider } from "./context/NoteContext";
-import { ScheduleProvider } from "./context/ScheduleContext";
+import { RoutineProvider } from "./context/RoutineContext";
+import { ScheduleItemsProvider } from "./context/ScheduleItemsContext";
+import { CalendarTagsProvider } from "./context/CalendarTagsContext";
 import { CalendarProvider } from "./context/CalendarContext";
-import { ShortcutConfigProvider } from "./hooks/useShortcutConfig";
+import { ShortcutConfigProvider } from "./context/ShortcutConfigContext";
 import { WikiTagProvider } from "./context/WikiTagContext";
 import { ToastProvider } from "./context/ToastContext";
 import { isElectron } from "./services/dataServiceFactory";
@@ -35,17 +37,21 @@ createRoot(document.getElementById("root")!).render(
                 <CalendarProvider>
                   <MemoProvider>
                     <NoteProvider>
-                      <ScheduleProvider>
-                        <TimerProvider>
-                          <AudioProvider>
-                            <WikiTagProvider>
-                              <ShortcutConfigProvider>
-                                <App />
-                              </ShortcutConfigProvider>
-                            </WikiTagProvider>
-                          </AudioProvider>
-                        </TimerProvider>
-                      </ScheduleProvider>
+                      <RoutineProvider>
+                        <ScheduleItemsProvider>
+                          <CalendarTagsProvider>
+                            <TimerProvider>
+                              <AudioProvider>
+                                <WikiTagProvider>
+                                  <ShortcutConfigProvider>
+                                    <App />
+                                  </ShortcutConfigProvider>
+                                </WikiTagProvider>
+                              </AudioProvider>
+                            </TimerProvider>
+                          </CalendarTagsProvider>
+                        </ScheduleItemsProvider>
+                      </RoutineProvider>
                     </NoteProvider>
                   </MemoProvider>
                 </CalendarProvider>

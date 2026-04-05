@@ -2,12 +2,15 @@ import { useState, useEffect, useMemo, useCallback } from "react";
 import { X, ChevronLeft, ChevronRight } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import type { RoutineStats, ScheduleItem } from "../../../../types/schedule";
+import type { RoutineGroup } from "../../../../types/routineGroup";
 import { formatDateKey, formatDayFlowDate } from "../../../../utils/dateKey";
 import { getDataService } from "../../../../services";
 
 interface AchievementDetailsOverlayProps {
   stats: RoutineStats;
   onClose: () => void;
+  groupForRoutine: Map<string, RoutineGroup>;
+  routineGroups: RoutineGroup[];
 }
 
 function getHeatmapColor(rate: number): string {
@@ -31,9 +34,41 @@ function getMonthDays(year: number, month: number): Date[] {
 const JA_WEEKDAYS_SHORT = ["日", "月", "火", "水", "木", "金", "土"];
 const EN_WEEKDAYS_SHORT = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
 
+function CompactBar({
+  title,
+  rate,
+  color,
+}: {
+  title: string;
+  rate: number;
+  color?: string;
+}) {
+  return (
+    <div>
+      <div className="flex items-center justify-between">
+        <span className="text-[11px] text-notion-text truncate">{title}</span>
+        <span className="text-[10px] text-notion-text-secondary ml-2 shrink-0">
+          {rate}%
+        </span>
+      </div>
+      <div className="h-1 bg-notion-hover rounded-full overflow-hidden">
+        <div
+          className="h-full rounded-full transition-all"
+          style={{
+            width: `${rate}%`,
+            backgroundColor: color ?? "#22c55e",
+          }}
+        />
+      </div>
+    </div>
+  );
+}
+
 export function AchievementDetailsOverlay({
   stats,
   onClose,
+  groupForRoutine,
+  routineGroups,
 }: AchievementDetailsOverlayProps) {
   const { t, i18n } = useTranslation();
   const locale = i18n.language;
@@ -47,6 +82,64 @@ export function AchievementDetailsOverlay({
   const [heatmapData, setHeatmapData] = useState<Map<string, number>>(
     new Map(),
   );
+  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
+
+  const toggleGroupExpand = useCallback((groupId: string) => {
+    setExpandedGroups((prev) => {
+      const next = new Set(prev);
+      if (next.has(groupId)) next.delete(groupId);
+      else next.add(groupId);
+      return next;
+    });
+  }, []);
+
+  const { individualRates, groupRates } = useMemo(() => {
+    const individualRates: RoutineStats["perRoutineRates"] = [];
+    const groupMap = new Map<
+      string,
+      {
+        group: RoutineGroup;
+        routineRates: RoutineStats["perRoutineRates"];
+        completedCount: number;
+        totalCount: number;
+      }
+    >();
+
+    for (const g of routineGroups) {
+      groupMap.set(g.id, {
+        group: g,
+        routineRates: [],
+        completedCount: 0,
+        totalCount: 0,
+      });
+    }
+
+    for (const rate of stats.perRoutineRates) {
+      const group = groupForRoutine.get(rate.routineId);
+      if (group) {
+        const entry = groupMap.get(group.id);
+        if (entry) {
+          entry.routineRates.push(rate);
+          entry.completedCount += rate.completedCount;
+          entry.totalCount += rate.totalCount;
+        }
+      } else {
+        individualRates.push(rate);
+      }
+    }
+
+    const groupRates = [...groupMap.values()]
+      .filter((e) => e.routineRates.length > 0)
+      .map((e) => ({
+        ...e,
+        completionRate:
+          e.totalCount > 0
+            ? Math.round((e.completedCount / e.totalCount) * 100)
+            : 0,
+      }));
+
+    return { individualRates, groupRates };
+  }, [stats.perRoutineRates, groupForRoutine, routineGroups]);
 
   // Initialize heatmap from stats.monthlyHeatmap (90 days)
   useEffect(() => {
@@ -324,34 +417,149 @@ export function AchievementDetailsOverlay({
             </div>
           </div>
 
-          {/* Per-routine rates */}
+          {/* Per-routine rates: 2-column layout */}
           {stats.perRoutineRates.length > 0 && (
             <div className="mt-4 pt-3 border-t border-notion-border">
-              <div className="text-[11px] text-notion-text-secondary uppercase tracking-wide mb-2">
-                {t("schedule.stats.perRoutine", "Per Routine")}
-              </div>
-              <div className="space-y-2">
-                {stats.perRoutineRates.map((r) => (
-                  <div key={r.routineId}>
-                    <div className="flex items-center justify-between mb-0.5">
-                      <span className="text-xs text-notion-text truncate">
-                        {r.routineTitle}
-                      </span>
-                      <span className="text-[11px] text-notion-text-secondary">
-                        {r.completionRate}%
-                      </span>
+              {individualRates.length > 0 && groupRates.length > 0 ? (
+                <div className="grid grid-cols-2 gap-4">
+                  {/* Individual column */}
+                  <div>
+                    <div className="text-[11px] text-notion-text-secondary uppercase tracking-wide mb-2">
+                      {t("schedule.stats.individual", "Individual")}
                     </div>
-                    <div className="h-1.5 bg-notion-hover rounded-full overflow-hidden">
-                      <div
-                        className="h-full bg-green-500 rounded-full transition-all"
-                        style={{
-                          width: `${r.completionRate}%`,
-                        }}
-                      />
+                    <div className="space-y-1.5">
+                      {individualRates.map((r) => (
+                        <CompactBar
+                          key={r.routineId}
+                          title={r.routineTitle}
+                          rate={r.completionRate}
+                        />
+                      ))}
                     </div>
                   </div>
-                ))}
-              </div>
+                  {/* Groups column */}
+                  <div>
+                    <div className="text-[11px] text-notion-text-secondary uppercase tracking-wide mb-2">
+                      {t("schedule.stats.groups", "Groups")}
+                    </div>
+                    <div className="space-y-1.5">
+                      {groupRates.map((g) => (
+                        <div key={g.group.id}>
+                          <button
+                            onClick={() => toggleGroupExpand(g.group.id)}
+                            className="w-full text-left"
+                          >
+                            <div className="flex items-center gap-1.5">
+                              <ChevronRight
+                                size={10}
+                                className={`text-notion-text-secondary shrink-0 transition-transform ${expandedGroups.has(g.group.id) ? "rotate-90" : ""}`}
+                              />
+                              <span
+                                className="w-2 h-2 rounded shrink-0"
+                                style={{ backgroundColor: g.group.color }}
+                              />
+                              <span className="text-[11px] text-notion-text truncate">
+                                {g.group.name}
+                              </span>
+                              <span className="text-[10px] text-notion-text-secondary ml-auto shrink-0">
+                                {g.completionRate}%
+                              </span>
+                            </div>
+                            <div className="h-1 bg-notion-hover rounded-full overflow-hidden mt-0.5">
+                              <div
+                                className="h-full rounded-full transition-all"
+                                style={{
+                                  width: `${g.completionRate}%`,
+                                  backgroundColor: g.group.color,
+                                }}
+                              />
+                            </div>
+                          </button>
+                          {expandedGroups.has(g.group.id) && (
+                            <div className="ml-4 mt-1 space-y-1">
+                              {g.routineRates.map((r) => (
+                                <CompactBar
+                                  key={r.routineId}
+                                  title={r.routineTitle}
+                                  rate={r.completionRate}
+                                />
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              ) : individualRates.length > 0 ? (
+                <div>
+                  <div className="text-[11px] text-notion-text-secondary uppercase tracking-wide mb-2">
+                    {t("schedule.stats.perRoutine", "Per Routine")}
+                  </div>
+                  <div className="space-y-1.5">
+                    {individualRates.map((r) => (
+                      <CompactBar
+                        key={r.routineId}
+                        title={r.routineTitle}
+                        rate={r.completionRate}
+                      />
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                <div>
+                  <div className="text-[11px] text-notion-text-secondary uppercase tracking-wide mb-2">
+                    {t("schedule.stats.groups", "Groups")}
+                  </div>
+                  <div className="space-y-1.5">
+                    {groupRates.map((g) => (
+                      <div key={g.group.id}>
+                        <button
+                          onClick={() => toggleGroupExpand(g.group.id)}
+                          className="w-full text-left"
+                        >
+                          <div className="flex items-center gap-1.5">
+                            <ChevronRight
+                              size={10}
+                              className={`text-notion-text-secondary shrink-0 transition-transform ${expandedGroups.has(g.group.id) ? "rotate-90" : ""}`}
+                            />
+                            <span
+                              className="w-2 h-2 rounded shrink-0"
+                              style={{ backgroundColor: g.group.color }}
+                            />
+                            <span className="text-[11px] text-notion-text truncate">
+                              {g.group.name}
+                            </span>
+                            <span className="text-[10px] text-notion-text-secondary ml-auto shrink-0">
+                              {g.completionRate}%
+                            </span>
+                          </div>
+                          <div className="h-1 bg-notion-hover rounded-full overflow-hidden mt-0.5">
+                            <div
+                              className="h-full rounded-full transition-all"
+                              style={{
+                                width: `${g.completionRate}%`,
+                                backgroundColor: g.group.color,
+                              }}
+                            />
+                          </div>
+                        </button>
+                        {expandedGroups.has(g.group.id) && (
+                          <div className="ml-4 mt-1 space-y-1">
+                            {g.routineRates.map((r) => (
+                              <CompactBar
+                                key={r.routineId}
+                                title={r.routineTitle}
+                                rate={r.completionRate}
+                              />
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>

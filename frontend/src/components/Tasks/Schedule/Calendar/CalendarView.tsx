@@ -1,5 +1,6 @@
 import { useState, useMemo, useEffect, useRef } from "react";
-import { Check, Repeat, Pencil } from "lucide-react";
+import { Check, Repeat, Pencil, EyeOff } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import type { TaskNode } from "../../../../types/taskTree";
 import { useTaskTreeContext } from "../../../../hooks/useTaskTreeContext";
 import { useCalendarContext } from "../../../../hooks/useCalendarContext";
@@ -46,6 +47,8 @@ function GroupPreviewPopup({
   position,
   onSelectItem,
   onEditGroup,
+  onDismissItem,
+  onDismissAll,
   onClose,
 }: {
   group: RoutineGroup;
@@ -53,8 +56,11 @@ function GroupPreviewPopup({
   position: { x: number; y: number };
   onSelectItem: (item: ScheduleItem) => void;
   onEditGroup?: () => void;
+  onDismissItem?: (item: ScheduleItem) => void;
+  onDismissAll?: () => void;
   onClose: () => void;
 }) {
+  const { t } = useTranslation();
   const ref = useRef<HTMLDivElement>(null);
   useClickOutside(ref, onClose);
   const left = Math.min(position.x, window.innerWidth - 240 - 16);
@@ -74,44 +80,73 @@ function GroupPreviewPopup({
         <span className="text-sm font-medium text-notion-text truncate">
           {group.name}
         </span>
-        {onEditGroup && (
-          <button
-            onClick={() => {
-              onClose();
-              onEditGroup();
-            }}
-            className="p-0.5 text-notion-text-secondary hover:text-notion-text rounded transition-colors ml-auto"
-          >
-            <Pencil size={12} />
-          </button>
-        )}
-        <span
-          className={`text-[10px] text-notion-text-secondary ${onEditGroup ? "" : "ml-auto"}`}
-        >
-          {scheduleItems.length}
-        </span>
+        <div className="flex items-center gap-1 ml-auto">
+          {onEditGroup && (
+            <button
+              onClick={() => {
+                onClose();
+                onEditGroup();
+              }}
+              className="p-0.5 text-notion-text-secondary hover:text-notion-text rounded transition-colors"
+              title={t("groupContextMenu.edit", "Edit group")}
+            >
+              <Pencil size={12} />
+            </button>
+          )}
+          {onDismissAll && (
+            <button
+              onClick={() => {
+                onDismissAll();
+                onClose();
+              }}
+              className="p-0.5 text-notion-text-secondary hover:text-red-500 rounded transition-colors"
+              title={t("groupContextMenu.dismissToday", "Dismiss today")}
+            >
+              <EyeOff size={12} />
+            </button>
+          )}
+          <span className="text-[10px] text-notion-text-secondary">
+            {scheduleItems.length}
+          </span>
+        </div>
       </div>
       <div className="p-1 max-h-48 overflow-y-auto">
         {scheduleItems.map((si) => (
-          <button
+          <div
             key={si.id}
-            onClick={() => onSelectItem(si)}
-            className={`w-full text-left px-2 py-1.5 rounded text-xs flex items-center gap-2 hover:bg-notion-hover transition-colors ${
+            className={`group/item w-full text-left px-2 py-1.5 rounded text-xs flex items-center gap-2 hover:bg-notion-hover transition-colors ${
               si.completed
                 ? "text-notion-text-secondary line-through"
                 : "text-notion-text"
             }`}
           >
-            {si.completed ? (
-              <Check size={10} className="text-green-500 shrink-0" />
-            ) : (
-              <Repeat size={10} className="text-emerald-500 shrink-0" />
+            <button
+              onClick={() => onSelectItem(si)}
+              className="flex items-center gap-2 flex-1 min-w-0"
+            >
+              {si.completed ? (
+                <Check size={10} className="text-green-500 shrink-0" />
+              ) : (
+                <Repeat size={10} className="text-emerald-500 shrink-0" />
+              )}
+              <span className="truncate">{si.title}</span>
+              <span className="ml-auto text-[10px] text-notion-text-secondary shrink-0">
+                {si.startTime}
+              </span>
+            </button>
+            {onDismissItem && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onDismissItem(si);
+                }}
+                className="p-0.5 text-notion-text-secondary hover:text-red-500 rounded transition-colors shrink-0 opacity-0 group-hover/item:opacity-100"
+                title={t("groupContextMenu.dismissItem", "Dismiss for today")}
+              >
+                <EyeOff size={10} />
+              </button>
             )}
-            <span className="truncate">{si.title}</span>
-            <span className="ml-auto text-[10px] text-notion-text-secondary shrink-0">
-              {si.startTime}
-            </span>
-          </button>
+          </div>
         ))}
       </div>
     </div>
@@ -205,6 +240,7 @@ export function CalendarView({
     setTagsForGroup,
     createRoutineTag,
     reconcileRoutineScheduleItems,
+    dismissScheduleItem,
   } = useScheduleContext();
 
   const { convert, canConvert } = useRoleConversion();
@@ -891,6 +927,15 @@ export function CalendarView({
           onEditGroup={() => {
             const group = groupPreview.item.routineGroup;
             if (group) setEditGroupDialog(group);
+          }}
+          onDismissAll={() => {
+            const items = groupPreview.item.groupScheduleItems ?? [];
+            for (const si of items) {
+              dismissScheduleItem(si.id);
+            }
+          }}
+          onDismissItem={(si) => {
+            dismissScheduleItem(si.id);
           }}
           onClose={() => setGroupPreview(null)}
         />

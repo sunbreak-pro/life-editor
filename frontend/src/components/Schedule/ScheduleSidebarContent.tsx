@@ -92,6 +92,7 @@ export function ScheduleSidebarContent({
     setTagsForGroup,
     scheduleItemsVersion,
     reconcileRoutineScheduleItems,
+    groupForRoutine,
   } = useScheduleContext();
 
   const [editTarget, setEditTarget] = useState<EditTarget | null>(null);
@@ -428,6 +429,8 @@ export function ScheduleSidebarContent({
         <AchievementDetailsOverlay
           stats={routineStats}
           onClose={() => setShowDetails(false)}
+          groupForRoutine={groupForRoutine}
+          routineGroups={routineGroups}
         />
       )}
 

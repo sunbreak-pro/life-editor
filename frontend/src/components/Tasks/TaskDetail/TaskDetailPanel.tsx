@@ -18,7 +18,7 @@ import type {
   MoveRejectionReason,
 } from "../../../types/moveResult";
 import { useToast } from "../../../context/ToastContext";
-import { RoleSwitcher } from "../Schedule/Calendar/RoleSwitcher";
+import { RoleSwitcher } from "../Schedule/shared/RoleSwitcher";
 import {
   useRoleConversion,
   type ConversionSource,
@@ -32,7 +32,7 @@ import { MiniCalendarGrid } from "../../shared/MiniCalendarGrid";
 import { TaskDetailEmpty } from "./TaskDetailEmpty";
 import { WikiTagList } from "../../WikiTags/WikiTagList";
 import { getAncestors } from "../../../utils/breadcrumb";
-import { DateTimeRangePicker } from "../Schedule/Calendar/DateTimeRangePicker";
+import { DateTimeRangePicker } from "../Schedule/shared/DateTimeRangePicker";
 import { fireTaskCompleteConfetti } from "../../../utils/confetti";
 import { playEffectSound } from "../../../utils/playEffectSound";
 

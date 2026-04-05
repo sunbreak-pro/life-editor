@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { useUndoRedo } from "./useUndoRedo";
+import { useUndoRedo } from "../../../hooks/useUndoRedo";
 
 export function useUndoRedoKeyboard(): void {
   const {

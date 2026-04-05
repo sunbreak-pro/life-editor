@@ -37,6 +37,9 @@ sqlite3 ~/Library/Application\ Support/sonic-flow/life-editor.db "PRAGMA user_ve
 
 ## Context/Provider デバッグ
 
-- Provider順序 (外→内): ErrorBoundary → Theme → TaskTree → Calendar → Memo → Note → Timer → Audio
-- 内側Providerは外側Contextに依存可（逆は不可）。Timer は TaskTree に依存
+- Provider順序 (外→内): ErrorBoundary → Theme → Toast → UndoRedo → TaskTree → Calendar → Memo → Note → Routine → ScheduleItems → CalendarTags → Timer → Audio → WikiTag → ShortcutConfig
+- 内側Providerは外側Contextに依存可（逆は不可）
+- 依存関係: ScheduleItemsProvider → RoutineProvider、AudioProvider → TimerProvider
 - `Cannot read properties of null` → コンポーネントが対応Providerの外で使用されている
+- Schedule系は3 Provider に分解済み（ADR-0003 参照）: Routine / ScheduleItems / CalendarTags
+- `useScheduleContext()` はファサード（3つの新hookを内部で合成）。新コードでは `useRoutineContext()` / `useScheduleItemsContext()` / `useCalendarTagsContext()` を直接使用推奨

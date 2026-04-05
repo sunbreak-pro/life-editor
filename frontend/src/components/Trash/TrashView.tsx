@@ -14,7 +14,7 @@ import { useTaskTreeContext } from "../../hooks/useTaskTreeContext";
 import { useNoteContext } from "../../hooks/useNoteContext";
 import { useAudioContext } from "../../hooks/useAudioContext";
 import { useMemoContext } from "../../hooks/useMemoContext";
-import { useScheduleContext } from "../../hooks/useScheduleContext";
+import { useRoutineContext } from "../../hooks/useRoutineContext";
 import { getDataService } from "../../services";
 import { ConfirmDialog } from "../shared/ConfirmDialog";
 import { type TabItem } from "../shared/SectionTabs";
@@ -43,7 +43,7 @@ export function TrashView() {
     loadDeletedRoutines,
     restoreRoutine,
     permanentDeleteRoutine,
-  } = useScheduleContext();
+  } = useRoutineContext();
   const audio = useAudioContext();
 
   const [activeTab, setActiveTab] = useState<TrashTab>("tasks");

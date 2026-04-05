@@ -1,27 +1,9 @@
-import { createContext, useRef, useState, useCallback, useMemo } from "react";
+import { useRef, useState, useCallback, useMemo } from "react";
 import type { ReactNode } from "react";
-import type { UndoDomain, UndoCommand } from "./types";
-import { UndoRedoManager } from "./UndoRedoManager";
-
-export interface UndoRedoContextValue {
-  push: (domain: UndoDomain, command: UndoCommand) => void;
-  undo: (domain: UndoDomain) => Promise<void>;
-  redo: (domain: UndoDomain) => Promise<void>;
-  canUndo: (domain: UndoDomain) => boolean;
-  canRedo: (domain: UndoDomain) => boolean;
-  clear: (domain: UndoDomain) => void;
-  setActiveDomain: (domain: UndoDomain | null) => void;
-  getActiveDomain: () => UndoDomain | null;
-  /* Multi-domain support */
-  undoLatest: (domains: UndoDomain[]) => Promise<void>;
-  redoLatest: (domains: UndoDomain[]) => Promise<void>;
-  canUndoAny: (domains: UndoDomain[]) => boolean;
-  canRedoAny: (domains: UndoDomain[]) => boolean;
-  setActiveDomains: (domains: UndoDomain[] | null) => void;
-  getActiveDomains: () => UndoDomain[] | null;
-}
-
-export const UndoRedoContext = createContext<UndoRedoContextValue | null>(null);
+import type { UndoDomain, UndoCommand } from "../utils/undoRedo/types";
+import { UndoRedoManager } from "../utils/undoRedo/UndoRedoManager";
+import { UndoRedoContext } from "./UndoRedoContextValue";
+import type { UndoRedoContextValue } from "./UndoRedoContextValue";
 
 export function UndoRedoProvider({ children }: { children: ReactNode }) {
   const managerRef = useRef<UndoRedoManager | null>(null);

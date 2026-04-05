@@ -50,6 +50,14 @@ export function clampEndTimeAfterStart(
   return end;
 }
 
+/** Format hour number into 12-hour display string (e.g. "9 AM", "12 PM"). */
+export function formatHour(hour: number): string {
+  if (hour === 0) return "12 AM";
+  if (hour < 12) return `${hour} AM`;
+  if (hour === 12) return "12 PM";
+  return `${hour - 12} PM`;
+}
+
 /** Default end time = start + 1 hour. */
 export function defaultEndTimeForStart(start: string): string {
   const startMin = timeToMinutes(start);

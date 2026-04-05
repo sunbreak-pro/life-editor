@@ -1,4 +1,4 @@
-import { CalendarContext } from "../context/CalendarContext";
+import { CalendarContext } from "../context/CalendarContextValue";
 import { createContextHook } from "./createContextHook";
 
 export const useCalendarContext = createContextHook(
