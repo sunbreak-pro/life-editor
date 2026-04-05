@@ -1,3 +1,16 @@
+### 2026-04-04 - MiniDayflow拡大 + 終日アイテムSticky + サイドバーMaterials一覧
+
+#### 概要
+
+MiniTodayFlowパネルの文字・アイコンサイズを拡大して操作性を改善。DayFlowのTimeGridに終日アイテム用stickyセクションを追加。サイドバーにその日のNote/Dailyメモへの導線リストを追加。
+
+#### 変更点
+
+- **MiniTodayFlowサイズ改善**: ヘッダーラベル10px→12px、ナビChevron 12→14、ステータスアイコン14→16、編集/削除アイコン10→12、ボタンpadding p-0.5→p-1、時刻・プログレステキスト10px→12px、border透過度追加
+- **終日アイテムStickyセクション**: OneDaySchedule.tsxにallDayItems memo追加。スクロールコンテナ内にsticky top-0 z-20のチップ形式セクションを追加（チェックボックス+タイトル+hover時の編集/解除ボタン）
+- **サイドバーMaterials一覧**: ScheduleSidebarContentにuseNoteContext/useMemoContextを追加し日付フィルタリング。MiniTodayFlow下にDaily(BookOpenアイコン/amber)とNote(StickyNoteアイコン/blue)のリストを表示。クリックでMaterials画面に遷移
+- **i18n**: schedule.allDay/materials/dailyMemoをen.json/ja.jsonに追加
+
 ### 2026-04-04 - Events完了トグル修正 + timeMemo復活 + EventDetailPanel整理 + TimeGrid Event配置修正 + 統合ScheduleCreatePanel
 
 #### 概要

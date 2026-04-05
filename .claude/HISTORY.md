@@ -1,5 +1,34 @@
 # HISTORY.md - 変更履歴
 
+### 2026-04-05 - Settings Claude Code タブ改善
+
+#### 概要
+
+Settings画面のClaude Codeタブ名を簡潔化し、MCPツール一覧の説明文をi18n対応＋ユーザーフレンドリーに改善。バックエンドと同期して全23ツールを表示し、カテゴリ別グルーピングで見やすく整理。
+
+#### 変更点
+
+- **タブ名変更**: `settings.claude.title` を「Claude Code 連携」/「Claude Code Integration」から「Claude Code」に統一（en/ja）
+- **MCPツールi18n化**: 全23ツールの説明文とパラメータ説明をi18nキー化（`settings.claude.tools.*`）。日本語はユーザー目線の直感的な表現、英語も同様に改善
+- **不足9ツール追加**: get_task_tree, create/update/delete_schedule_item, toggle_schedule_complete, list_wiki_tags, tag_entity, search_by_tag, get_entity_tagsをフロントエンド一覧に追加（バックエンド23ツールと同期）
+- **カテゴリ別グルーピング**: 7カテゴリ（タスク/メモ/ノート/スケジュール/横断検索/コンテンツ生成/Wikiタグ）でツールを視覚的に分類表示
+- **i18n**: `settings.claude.toolCategories.*` と `settings.claude.tools.*` を en.json/ja.json に追加
+
+### 2026-04-05 - Group 表示/非表示 UI + GroupFrame UX 改善 + dismiss undo 修正
+
+#### 概要
+
+DayFlow の RightSidebar（MiniTodayFlow）に RoutineGroup 表示と全アイテムの表示/非表示トグルを追加。GroupFrame のヘッダーテキスト拡大・シングルクリック編集化。dismiss undo が UNIQUE 制約エラーになるバグを修正。
+
+#### 変更点
+
+- **dismiss undo 修正**: `undismissScheduleItem` IPC チャンネル追加（`is_dismissed = 0` に戻す UPDATE）。undo が INSERT（createScheduleItem）ではなく UPDATE を使用するように修正
+- **fetchScheduleItemsByDateAll 追加**: dismissed 含む全アイテム取得の新 DB/IPC/DataService メソッド。サイドバーが dismissed アイテムも表示可能に
+- **MiniTodayFlow Group 表示**: Layers アイコン + グループ色で RoutineGroup エントリを表示。メンバー数表示。Group 単位の一括 dismiss/undismiss
+- **Eye/EyeOff トグル**: Routine/Event/Group の X/CalendarMinus ボタンを Eye/EyeOff 表示/非表示トグルに置換。dismissed アイテムは薄いテキスト + 取り消し線で表示
+- **GroupFrame シングルクリック編集**: ダブルクリック→シングルクリックで編集ダイアログを開く
+- **GroupFrame ヘッダー拡大**: グループ名 text-[10px]→text-[15px]、メタデータ text-[9px]→text-[11px]、ヘッダー高さ 20px→28px
+
 ### 2026-04-05 - Undo/Redo 全ドメイン修正
 
 #### 概要
@@ -74,16 +103,3 @@ Analyticsセクションを2タブ(overview/detail)から3タブ(overview/time/t
 - **analyticsAggregation.ts**: 8つの新集計関数追加（aggregateByHourAndDay、aggregatePomodoroRate、aggregateWorkBreakBalance、aggregateDailyTimeline、aggregateTaskCompletionTrend、aggregateTaskStagnation、aggregateByFolder、computeWorkStreak）
 - **Layout.tsx**: analyticsを右サイドバー自動オープンセクションに追加
 - **i18n**: en.json/ja.jsonにanalytics.tabs、today、weekly、streak、heatmap、pomodoroRate、workBreak、timeline、taskTrend、stagnation、projectTime、sidebarの翻訳キーを追加
-
-### 2026-04-04 - MiniDayflow拡大 + 終日アイテムSticky + サイドバーMaterials一覧
-
-#### 概要
-
-MiniTodayFlowパネルの文字・アイコンサイズを拡大して操作性を改善。DayFlowのTimeGridに終日アイテム用stickyセクションを追加。サイドバーにその日のNote/Dailyメモへの導線リストを追加。
-
-#### 変更点
-
-- **MiniTodayFlowサイズ改善**: ヘッダーラベル10px→12px、ナビChevron 12→14、ステータスアイコン14→16、編集/削除アイコン10→12、ボタンpadding p-0.5→p-1、時刻・プログレステキスト10px→12px、border透過度追加
-- **終日アイテムStickyセクション**: OneDaySchedule.tsxにallDayItems memo追加。スクロールコンテナ内にsticky top-0 z-20のチップ形式セクションを追加（チェックボックス+タイトル+hover時の編集/解除ボタン）
-- **サイドバーMaterials一覧**: ScheduleSidebarContentにuseNoteContext/useMemoContextを追加し日付フィルタリング。MiniTodayFlow下にDaily(BookOpenアイコン/amber)とNote(StickyNoteアイコン/blue)のリストを表示。クリックでMaterials画面に遷移
-- **i18n**: schedule.allDay/materials/dailyMemoをen.json/ja.jsonに追加
