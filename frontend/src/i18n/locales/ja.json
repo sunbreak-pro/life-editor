@@ -22,7 +22,7 @@
     "advancedTab": "詳細",
     "shortcutsTab": "ショートカット",
     "claude": {
-      "title": "Claude Code 連携",
+      "title": "Claude Code",
       "description": "MCP Server を登録すると、Claude Code から自然言語でタスク・スケジュール・メモを操作できます。",
       "register": "MCP Server を登録",
       "registering": "登録中...",
@@ -47,7 +47,194 @@
       "noSkillsFound": "利用可能なスキルが見つかりません。",
       "toolParameters": "パラメータ",
       "required": "必須",
-      "optional": "任意"
+      "optional": "任意",
+      "toolCategories": {
+        "tasks": "タスク",
+        "memos": "メモ",
+        "notes": "ノート",
+        "schedule": "スケジュール",
+        "search": "横断検索",
+        "content": "コンテンツ生成",
+        "wikiTags": "Wikiタグ"
+      },
+      "tools": {
+        "list_tasks": {
+          "description": "タスクの一覧を取得します。ステータスや日付、フォルダで絞り込みも可能です。",
+          "params": {
+            "status": "ステータスで絞り込み（未着手 / 進行中 / 完了）",
+            "date_range": "日付範囲で絞り込み（ISO 8601形式）",
+            "folder_id": "フォルダIDで絞り込み"
+          }
+        },
+        "get_task": {
+          "description": "指定したIDのタスクを1件取得します。",
+          "params": {
+            "id": "タスクID"
+          }
+        },
+        "get_task_tree": {
+          "description": "タスクをフォルダ階層のツリー構造で取得します。全体像の把握に便利です。",
+          "params": {
+            "root_id": "起点にするフォルダ/タスクID（省略で全体ツリー）",
+            "include_done": "完了済みタスクを含めるか（デフォルト: はい）",
+            "max_depth": "取得する階層の深さ（省略で無制限）"
+          }
+        },
+        "create_task": {
+          "description": "新しいタスクを作成します。",
+          "params": {
+            "title": "タスクのタイトル",
+            "parent_id": "配置先のフォルダID",
+            "scheduled_at": "開始予定日時（ISO 8601形式）",
+            "scheduled_end_at": "終了予定日時（ISO 8601形式）",
+            "is_all_day": "終日イベントにするか"
+          }
+        },
+        "update_task": {
+          "description": "既存のタスクを更新します。変更したい項目だけ指定できます。",
+          "params": {
+            "id": "タスクID",
+            "title": "新しいタイトル",
+            "status": "新しいステータス（未着手 / 進行中 / 完了）",
+            "content": "新しい本文（Markdown形式）"
+          }
+        },
+        "delete_task": {
+          "description": "タスクをゴミ箱に移動します（復元可能）。",
+          "params": {
+            "id": "タスクID"
+          }
+        },
+        "get_memo": {
+          "description": "指定した日付のデイリーメモを取得します。",
+          "params": {
+            "date": "日付（YYYY-MM-DD形式）"
+          }
+        },
+        "upsert_memo": {
+          "description": "デイリーメモを作成または更新します。",
+          "params": {
+            "date": "日付（YYYY-MM-DD形式）",
+            "content": "メモの内容（Markdown形式）"
+          }
+        },
+        "list_notes": {
+          "description": "ノートの一覧を取得します。キーワードで検索もできます。",
+          "params": {
+            "query": "検索キーワード（タイトルと本文を検索）"
+          }
+        },
+        "create_note": {
+          "description": "新しいノートを作成します。",
+          "params": {
+            "title": "ノートのタイトル",
+            "content": "ノートの本文（Markdown形式）"
+          }
+        },
+        "update_note": {
+          "description": "既存のノートを更新します。変更したい項目だけ指定できます。",
+          "params": {
+            "id": "ノートID",
+            "title": "新しいタイトル",
+            "content": "新しい本文（Markdown形式）"
+          }
+        },
+        "list_schedule": {
+          "description": "指定した日付のスケジュール（予定とタスク）を取得します。",
+          "params": {
+            "date": "日付（YYYY-MM-DD形式）"
+          }
+        },
+        "create_schedule_item": {
+          "description": "カレンダーに新しい予定を作成します。",
+          "params": {
+            "date": "日付（YYYY-MM-DD形式）",
+            "title": "予定のタイトル",
+            "start_time": "開始時刻（HH:MM形式）",
+            "end_time": "終了時刻（HH:MM形式）",
+            "is_all_day": "終日イベントにするか",
+            "note_id": "関連するノートのID",
+            "content": "補足メモ"
+          }
+        },
+        "update_schedule_item": {
+          "description": "既存のスケジュール予定を更新します。変更したい項目だけ指定できます。",
+          "params": {
+            "id": "予定ID",
+            "title": "新しいタイトル",
+            "start_time": "新しい開始時刻（HH:MM形式）",
+            "end_time": "新しい終了時刻（HH:MM形式）",
+            "memo": "メモ",
+            "is_all_day": "終日イベントにするか",
+            "content": "新しい補足メモ"
+          }
+        },
+        "delete_schedule_item": {
+          "description": "スケジュール予定を完全に削除します。",
+          "params": {
+            "id": "予定ID"
+          }
+        },
+        "toggle_schedule_complete": {
+          "description": "スケジュール予定の完了/未完了を切り替えます。",
+          "params": {
+            "id": "予定ID"
+          }
+        },
+        "search_all": {
+          "description": "タスク・メモ・ノートを横断してキーワード検索します。",
+          "params": {
+            "query": "検索キーワード",
+            "domains": "検索対象（タスク / メモ / ノート、デフォルト: すべて）",
+            "limit": "各カテゴリの最大件数（デフォルト: 10）"
+          }
+        },
+        "generate_content": {
+          "description": "見出し・リスト・テーブルなどのリッチコンテンツを生成してノートやメモに書き込みます。",
+          "params": {
+            "target": "書き込み先（ノート / メモ）",
+            "structure": "コンテンツブロックの配列",
+            "target_id": "更新対象のノート/メモID（省略で新規作成）",
+            "title": "新規ノートのタイトル"
+          }
+        },
+        "format_content": {
+          "description": "既存のノートやメモの内容を整形・再構成します。コールアウトで囲む、見出し追加などが可能です。",
+          "params": {
+            "target": "対象の種類（ノート / メモ）",
+            "operations": "適用する操作の配列",
+            "target_id": "ノートID",
+            "target_date": "メモの日付（YYYY-MM-DD形式）"
+          }
+        },
+        "list_wiki_tags": {
+          "description": "Wikiタグの一覧を取得します。タグはタスク・メモ・ノートを横断してつなげるラベルです。",
+          "params": {
+            "query": "タグ名で絞り込み"
+          }
+        },
+        "tag_entity": {
+          "description": "タスク・メモ・ノートにWikiタグを付けます。タグが存在しない場合は自動作成されます。",
+          "params": {
+            "tag_name": "タグ名",
+            "entity_id": "対象のID",
+            "entity_type": "対象の種類（タスク / メモ / ノート）"
+          }
+        },
+        "search_by_tag": {
+          "description": "指定したWikiタグが付いているタスク・メモ・ノートを検索します。",
+          "params": {
+            "tag_name": "検索するタグ名",
+            "entity_type": "対象を絞る種類（タスク / メモ / ノート、省略で全て）"
+          }
+        },
+        "get_entity_tags": {
+          "description": "指定したタスク・メモ・ノートに付いているWikiタグを全て取得します。",
+          "params": {
+            "entity_id": "対象のID（タスク / メモ / ノート）"
+          }
+        }
+      }
     },
     "shortcuts": {
       "resetAll": "すべてリセット",
@@ -373,6 +560,8 @@
       "longestStreak": "最長",
       "totalAchievedDays": "達成日数",
       "perRoutine": "ルーティン別",
+      "individual": "個別",
+      "groups": "グループ",
       "monthlyHeatmap": "90日間ヒートマップ"
     },
     "routineDeleteConfirm": {
@@ -1114,6 +1303,7 @@
   "groupContextMenu": {
     "edit": "グループを編集",
     "dismissToday": "今日だけ非表示",
+    "dismissItem": "今日だけ非表示",
     "deleteGroup": "グループを削除"
   },
   "routineGroup": {

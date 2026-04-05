@@ -1,3 +1,21 @@
+### 2026-04-04 - Analytics拡張 + Right Sidebar フィルターパネル
+
+#### 概要
+
+Analyticsセクションを2タブ(overview/detail)から3タブ(overview/time/tasks)に再構成。時間・生産性分析（ヒートマップ、ポモドーロ達成率、作業/休憩バランス、デイリータイムライン）、タスク分析（完了トレンド、滞留分析、プロジェクト別作業時間）、サマリーウィジェット（今日のダッシュボード、週間比較、ストリーク表示）を追加。右サイドバーにフィルター・設定パネル（期間プリセット、日付範囲、フォルダフィルター、チャート表示トグル）を配置。
+
+#### 変更点
+
+- **3タブ再構成**: AnalyticsView.tsxをoverview/time/tasksの3タブに変更。各タブは専用コンテナコンポーネント（OverviewTab/TimeTab/TasksTab）をrender
+- **AnalyticsFilterContext**: dateRange、selectedFolderIds、period、visibleChartsを管理するContext。期間プリセット（7d/30d/今月/3m/全期間）対応
+- **OverviewTab**: 既存StatCards + 完了率バー + TodayDashboard（今日の作業時間/完了タスク/ポモドーロ数） + WeeklySummary（今週vs先週の比較） + StreakDisplay（連続作業日数/最長記録）
+- **TimeTab**: 既存WorkTimeChart/TaskWorkTimeChart + WorkTimeHeatmap（7×24 CSS Grid、曜日×時間帯） + PomodoroCompletionRate（AreaChart、目標vs実績） + WorkBreakBalance（stacked BarChart、WORK/BREAK/LONG_BREAK） + DailyTimeline（CSS absolute配置のガントチャート風）
+- **TasksTab**: TaskCompletionTrend（AreaChart、日別完了数推移） + TaskStagnationChart（horizontal BarChart、未完了タスク経過日数分布） + ProjectWorkTimeChart（PieChart、フォルダ別作業時間）
+- **AnalyticsSidebarContent**: createPortalで右サイドバーに描画。期間プリセットボタン、カスタム日付範囲入力、フォルダチェックボックスフィルター、チャート表示トグル
+- **analyticsAggregation.ts**: 8つの新集計関数追加（aggregateByHourAndDay、aggregatePomodoroRate、aggregateWorkBreakBalance、aggregateDailyTimeline、aggregateTaskCompletionTrend、aggregateTaskStagnation、aggregateByFolder、computeWorkStreak）
+- **Layout.tsx**: analyticsを右サイドバー自動オープンセクションに追加
+- **i18n**: en.json/ja.jsonにanalytics.tabs、today、weekly、streak、heatmap、pomodoroRate、workBreak、timeline、taskTrend、stagnation、projectTime、sidebarの翻訳キーを追加
+
 ### 2026-04-04 - MiniDayflow拡大 + 終日アイテムSticky + サイドバーMaterials一覧
 
 #### 概要

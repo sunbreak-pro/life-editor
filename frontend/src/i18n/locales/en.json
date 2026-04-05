@@ -22,7 +22,7 @@
     "advancedTab": "Advanced",
     "shortcutsTab": "Shortcuts",
     "claude": {
-      "title": "Claude Code Integration",
+      "title": "Claude Code",
       "description": "Register the MCP Server so Claude Code can access your tasks, schedules, and memos via natural language.",
       "register": "Register MCP Server",
       "registering": "Registering...",
@@ -47,7 +47,194 @@
       "noSkillsFound": "No available skills found.",
       "toolParameters": "Parameters",
       "required": "required",
-      "optional": "optional"
+      "optional": "optional",
+      "toolCategories": {
+        "tasks": "Tasks",
+        "memos": "Memos",
+        "notes": "Notes",
+        "schedule": "Schedule",
+        "search": "Search",
+        "content": "Content",
+        "wikiTags": "Wiki Tags"
+      },
+      "tools": {
+        "list_tasks": {
+          "description": "Retrieve a list of tasks. You can filter by status, date range, or folder.",
+          "params": {
+            "status": "Filter by status (not started / in progress / done)",
+            "date_range": "Filter by date range (ISO 8601)",
+            "folder_id": "Filter by folder ID"
+          }
+        },
+        "get_task": {
+          "description": "Get a single task by its ID.",
+          "params": {
+            "id": "Task ID"
+          }
+        },
+        "get_task_tree": {
+          "description": "Get tasks as a folder hierarchy tree. Useful for seeing the big picture.",
+          "params": {
+            "root_id": "Folder/task ID to start from (omit for full tree)",
+            "include_done": "Include completed tasks (default: yes)",
+            "max_depth": "How many levels deep to retrieve (omit for unlimited)"
+          }
+        },
+        "create_task": {
+          "description": "Create a new task.",
+          "params": {
+            "title": "Task title",
+            "parent_id": "Folder to place the task in",
+            "scheduled_at": "Scheduled start (ISO 8601)",
+            "scheduled_end_at": "Scheduled end (ISO 8601)",
+            "is_all_day": "Make it an all-day event"
+          }
+        },
+        "update_task": {
+          "description": "Update an existing task. Only specify the fields you want to change.",
+          "params": {
+            "id": "Task ID",
+            "title": "New title",
+            "status": "New status (not started / in progress / done)",
+            "content": "New body text (Markdown)"
+          }
+        },
+        "delete_task": {
+          "description": "Move a task to the trash (can be restored later).",
+          "params": {
+            "id": "Task ID"
+          }
+        },
+        "get_memo": {
+          "description": "Get the daily memo for a specific date.",
+          "params": {
+            "date": "Date (YYYY-MM-DD)"
+          }
+        },
+        "upsert_memo": {
+          "description": "Create or update a daily memo.",
+          "params": {
+            "date": "Date (YYYY-MM-DD)",
+            "content": "Memo content (Markdown)"
+          }
+        },
+        "list_notes": {
+          "description": "List all notes. You can search by keyword.",
+          "params": {
+            "query": "Search keyword (searches title and content)"
+          }
+        },
+        "create_note": {
+          "description": "Create a new note.",
+          "params": {
+            "title": "Note title",
+            "content": "Note body (Markdown)"
+          }
+        },
+        "update_note": {
+          "description": "Update an existing note. Only specify the fields you want to change.",
+          "params": {
+            "id": "Note ID",
+            "title": "New title",
+            "content": "New body (Markdown)"
+          }
+        },
+        "list_schedule": {
+          "description": "Get the schedule (events and tasks) for a specific date.",
+          "params": {
+            "date": "Date (YYYY-MM-DD)"
+          }
+        },
+        "create_schedule_item": {
+          "description": "Create a new event on the calendar.",
+          "params": {
+            "date": "Date (YYYY-MM-DD)",
+            "title": "Event title",
+            "start_time": "Start time (HH:MM)",
+            "end_time": "End time (HH:MM)",
+            "is_all_day": "Make it an all-day event",
+            "note_id": "Link to an existing note",
+            "content": "Additional notes"
+          }
+        },
+        "update_schedule_item": {
+          "description": "Update an existing schedule event. Only specify the fields you want to change.",
+          "params": {
+            "id": "Event ID",
+            "title": "New title",
+            "start_time": "New start time (HH:MM)",
+            "end_time": "New end time (HH:MM)",
+            "memo": "Memo",
+            "is_all_day": "Make it an all-day event",
+            "content": "New additional notes"
+          }
+        },
+        "delete_schedule_item": {
+          "description": "Permanently delete a schedule event.",
+          "params": {
+            "id": "Event ID"
+          }
+        },
+        "toggle_schedule_complete": {
+          "description": "Toggle completion status of a schedule event.",
+          "params": {
+            "id": "Event ID"
+          }
+        },
+        "search_all": {
+          "description": "Search across tasks, memos, and notes with a keyword.",
+          "params": {
+            "query": "Search keyword",
+            "domains": "Where to search (tasks / memos / notes, default: all)",
+            "limit": "Max results per category (default: 10)"
+          }
+        },
+        "generate_content": {
+          "description": "Generate rich content (headings, lists, tables, etc.) and write it to a note or memo.",
+          "params": {
+            "target": "Where to write (note / memo)",
+            "structure": "Array of content blocks",
+            "target_id": "Existing note/memo ID to update (omit to create new)",
+            "title": "Title for new note"
+          }
+        },
+        "format_content": {
+          "description": "Restructure existing note or memo content. Wrap in callouts, add headings, and more.",
+          "params": {
+            "target": "Target type (note / memo)",
+            "operations": "Array of operations to apply",
+            "target_id": "Note ID",
+            "target_date": "Memo date (YYYY-MM-DD)"
+          }
+        },
+        "list_wiki_tags": {
+          "description": "List all wiki tags. Tags are labels that connect tasks, memos, and notes across domains.",
+          "params": {
+            "query": "Filter by tag name"
+          }
+        },
+        "tag_entity": {
+          "description": "Assign a wiki tag to a task, memo, or note. Creates the tag automatically if it doesn't exist.",
+          "params": {
+            "tag_name": "Tag name",
+            "entity_id": "Target ID",
+            "entity_type": "Target type (task / memo / note)"
+          }
+        },
+        "search_by_tag": {
+          "description": "Find tasks, memos, and notes that have a specific wiki tag.",
+          "params": {
+            "tag_name": "Tag name to search for",
+            "entity_type": "Narrow by type (task / memo / note, omit for all)"
+          }
+        },
+        "get_entity_tags": {
+          "description": "Get all wiki tags assigned to a specific task, memo, or note.",
+          "params": {
+            "entity_id": "Target ID (task, memo, or note)"
+          }
+        }
+      }
     },
     "shortcuts": {
       "resetAll": "Reset all shortcuts",
@@ -373,6 +560,8 @@
       "longestStreak": "Longest",
       "totalAchievedDays": "Days",
       "perRoutine": "Per Routine",
+      "individual": "Individual",
+      "groups": "Groups",
       "monthlyHeatmap": "90-Day Heatmap"
     },
     "routineDeleteConfirm": {
@@ -1114,6 +1303,7 @@
   "groupContextMenu": {
     "edit": "Edit group",
     "dismissToday": "Dismiss today",
+    "dismissItem": "Dismiss for today",
     "deleteGroup": "Delete group"
   },
   "routineGroup": {

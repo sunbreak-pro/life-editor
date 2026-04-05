@@ -5,291 +5,234 @@ import { useTranslation } from "react-i18next";
 interface ToolParam {
   name: string;
   type: string;
-  description: string;
   required: boolean;
 }
 
 interface McpTool {
   name: string;
-  description: string;
   params: ToolParam[];
 }
 
-const MCP_TOOLS: McpTool[] = [
+interface ToolCategory {
+  key: string;
+  tools: McpTool[];
+}
+
+const TOOL_CATEGORIES: ToolCategory[] = [
   {
-    name: "list_tasks",
-    description:
-      "List tasks. Optionally filter by status, date_range, or folder_id.",
-    params: [
+    key: "tasks",
+    tools: [
       {
-        name: "status",
-        type: "string (todo | in_progress | done)",
-        description: "Filter by task status",
-        required: false,
+        name: "list_tasks",
+        params: [
+          {
+            name: "status",
+            type: "string (todo | in_progress | done)",
+            required: false,
+          },
+          {
+            name: "date_range",
+            type: "object { start, end }",
+            required: false,
+          },
+          { name: "folder_id", type: "string", required: false },
+        ],
       },
       {
-        name: "date_range",
-        type: "object { start, end }",
-        description: "Filter by scheduled date range (ISO 8601)",
-        required: false,
+        name: "get_task",
+        params: [{ name: "id", type: "string", required: true }],
       },
       {
-        name: "folder_id",
-        type: "string",
-        description: "Filter by parent folder ID",
-        required: false,
+        name: "get_task_tree",
+        params: [
+          { name: "root_id", type: "string", required: false },
+          { name: "include_done", type: "boolean", required: false },
+          { name: "max_depth", type: "number", required: false },
+        ],
+      },
+      {
+        name: "create_task",
+        params: [
+          { name: "title", type: "string", required: true },
+          { name: "parent_id", type: "string", required: false },
+          { name: "scheduled_at", type: "string", required: false },
+          { name: "scheduled_end_at", type: "string", required: false },
+          { name: "is_all_day", type: "boolean", required: false },
+        ],
+      },
+      {
+        name: "update_task",
+        params: [
+          { name: "id", type: "string", required: true },
+          { name: "title", type: "string", required: false },
+          {
+            name: "status",
+            type: "string (todo | in_progress | done)",
+            required: false,
+          },
+          { name: "content", type: "string", required: false },
+        ],
+      },
+      {
+        name: "delete_task",
+        params: [{ name: "id", type: "string", required: true }],
       },
     ],
   },
   {
-    name: "get_task",
-    description: "Get a single task by ID.",
-    params: [
-      { name: "id", type: "string", description: "Task ID", required: true },
-    ],
-  },
-  {
-    name: "create_task",
-    description: "Create a new task.",
-    params: [
+    key: "memos",
+    tools: [
       {
-        name: "title",
-        type: "string",
-        description: "Task title",
-        required: true,
+        name: "get_memo",
+        params: [{ name: "date", type: "string (YYYY-MM-DD)", required: true }],
       },
       {
-        name: "parent_id",
-        type: "string",
-        description: "Parent folder ID",
-        required: false,
-      },
-      {
-        name: "scheduled_at",
-        type: "string",
-        description: "Scheduled start (ISO 8601)",
-        required: false,
-      },
-      {
-        name: "scheduled_end_at",
-        type: "string",
-        description: "Scheduled end (ISO 8601)",
-        required: false,
-      },
-      {
-        name: "is_all_day",
-        type: "boolean",
-        description: "All-day event",
-        required: false,
+        name: "upsert_memo",
+        params: [
+          { name: "date", type: "string (YYYY-MM-DD)", required: true },
+          { name: "content", type: "string", required: true },
+        ],
       },
     ],
   },
   {
-    name: "update_task",
-    description: "Update an existing task. Only provide fields to change.",
-    params: [
-      { name: "id", type: "string", description: "Task ID", required: true },
+    key: "notes",
+    tools: [
       {
-        name: "title",
-        type: "string",
-        description: "New title",
-        required: false,
+        name: "list_notes",
+        params: [{ name: "query", type: "string", required: false }],
       },
       {
-        name: "status",
-        type: "string (todo | in_progress | done)",
-        description: "New status",
-        required: false,
+        name: "create_note",
+        params: [
+          { name: "title", type: "string", required: true },
+          { name: "content", type: "string", required: false },
+        ],
       },
       {
-        name: "content",
-        type: "string",
-        description: "New content (plain text → TipTap JSON)",
-        required: false,
-      },
-    ],
-  },
-  {
-    name: "delete_task",
-    description: "Soft-delete a task (moves to trash).",
-    params: [
-      { name: "id", type: "string", description: "Task ID", required: true },
-    ],
-  },
-  {
-    name: "get_memo",
-    description: "Get the daily memo for a specific date.",
-    params: [
-      {
-        name: "date",
-        type: "string",
-        description: "Date in YYYY-MM-DD format",
-        required: true,
+        name: "update_note",
+        params: [
+          { name: "id", type: "string", required: true },
+          { name: "title", type: "string", required: false },
+          { name: "content", type: "string", required: false },
+        ],
       },
     ],
   },
   {
-    name: "upsert_memo",
-    description: "Create or update a daily memo.",
-    params: [
+    key: "schedule",
+    tools: [
       {
-        name: "date",
-        type: "string",
-        description: "Date in YYYY-MM-DD format",
-        required: true,
+        name: "list_schedule",
+        params: [{ name: "date", type: "string (YYYY-MM-DD)", required: true }],
       },
       {
-        name: "content",
-        type: "string",
-        description: "Memo content (plain text)",
-        required: true,
-      },
-    ],
-  },
-  {
-    name: "list_notes",
-    description: "List all notes, optionally filtered by a search query.",
-    params: [
-      {
-        name: "query",
-        type: "string",
-        description: "Search query (matches title and content)",
-        required: false,
-      },
-    ],
-  },
-  {
-    name: "create_note",
-    description: "Create a new note.",
-    params: [
-      {
-        name: "title",
-        type: "string",
-        description: "Note title",
-        required: true,
+        name: "create_schedule_item",
+        params: [
+          { name: "date", type: "string (YYYY-MM-DD)", required: true },
+          { name: "title", type: "string", required: true },
+          { name: "start_time", type: "string (HH:MM)", required: true },
+          { name: "end_time", type: "string (HH:MM)", required: true },
+          { name: "is_all_day", type: "boolean", required: false },
+          { name: "note_id", type: "string", required: false },
+          { name: "content", type: "string", required: false },
+        ],
       },
       {
-        name: "content",
-        type: "string",
-        description: "Note content (plain text → TipTap JSON)",
-        required: false,
+        name: "update_schedule_item",
+        params: [
+          { name: "id", type: "string", required: true },
+          { name: "title", type: "string", required: false },
+          { name: "start_time", type: "string (HH:MM)", required: false },
+          { name: "end_time", type: "string (HH:MM)", required: false },
+          { name: "memo", type: "string", required: false },
+          { name: "is_all_day", type: "boolean", required: false },
+          { name: "content", type: "string", required: false },
+        ],
+      },
+      {
+        name: "delete_schedule_item",
+        params: [{ name: "id", type: "string", required: true }],
+      },
+      {
+        name: "toggle_schedule_complete",
+        params: [{ name: "id", type: "string", required: true }],
       },
     ],
   },
   {
-    name: "update_note",
-    description: "Update an existing note. Only provide fields to change.",
-    params: [
-      { name: "id", type: "string", description: "Note ID", required: true },
+    key: "search",
+    tools: [
       {
-        name: "title",
-        type: "string",
-        description: "New title",
-        required: false,
-      },
-      {
-        name: "content",
-        type: "string",
-        description: "New content (plain text → TipTap JSON)",
-        required: false,
+        name: "search_all",
+        params: [
+          { name: "query", type: "string", required: true },
+          {
+            name: "domains",
+            type: "array (tasks | memos | notes)",
+            required: false,
+          },
+          { name: "limit", type: "number", required: false },
+        ],
       },
     ],
   },
   {
-    name: "list_schedule",
-    description: "List schedule items and scheduled tasks for a specific date.",
-    params: [
+    key: "content",
+    tools: [
       {
-        name: "date",
-        type: "string",
-        description: "Date in YYYY-MM-DD format",
-        required: true,
+        name: "generate_content",
+        params: [
+          { name: "target", type: "string (note | memo)", required: true },
+          { name: "structure", type: "array", required: true },
+          { name: "target_id", type: "string", required: false },
+          { name: "title", type: "string", required: false },
+        ],
+      },
+      {
+        name: "format_content",
+        params: [
+          { name: "target", type: "string (note | memo)", required: true },
+          { name: "operations", type: "array", required: true },
+          { name: "target_id", type: "string", required: false },
+          { name: "target_date", type: "string (YYYY-MM-DD)", required: false },
+        ],
       },
     ],
   },
   {
-    name: "search_all",
-    description: "Search across tasks, memos, and notes.",
-    params: [
+    key: "wikiTags",
+    tools: [
       {
-        name: "query",
-        type: "string",
-        description: "Search keyword",
-        required: true,
+        name: "list_wiki_tags",
+        params: [{ name: "query", type: "string", required: false }],
       },
       {
-        name: "domains",
-        type: "array (tasks | memos | notes)",
-        description: "Domains to search (default: all)",
-        required: false,
+        name: "tag_entity",
+        params: [
+          { name: "tag_name", type: "string", required: true },
+          { name: "entity_id", type: "string", required: true },
+          {
+            name: "entity_type",
+            type: "string (task | memo | note)",
+            required: true,
+          },
+        ],
       },
       {
-        name: "limit",
-        type: "number",
-        description: "Max results per domain (default: 10)",
-        required: false,
-      },
-    ],
-  },
-  {
-    name: "generate_content",
-    description:
-      "Generate structured rich content (headings, lists, callouts, tables, etc.).",
-    params: [
-      {
-        name: "target",
-        type: "string (note | memo)",
-        description: "Target entity type",
-        required: true,
+        name: "search_by_tag",
+        params: [
+          { name: "tag_name", type: "string", required: true },
+          {
+            name: "entity_type",
+            type: "string (task | memo | note)",
+            required: false,
+          },
+        ],
       },
       {
-        name: "structure",
-        type: "array",
-        description: "Array of content blocks",
-        required: true,
-      },
-      {
-        name: "target_id",
-        type: "string",
-        description: "Existing note/memo ID to update",
-        required: false,
-      },
-      {
-        name: "title",
-        type: "string",
-        description: "Title for new note",
-        required: false,
-      },
-    ],
-  },
-  {
-    name: "format_content",
-    description:
-      "Read and restructure existing note/memo content. Supports wrapping, inserting, or replacing.",
-    params: [
-      {
-        name: "target",
-        type: "string (note | memo)",
-        description: "Target entity type",
-        required: true,
-      },
-      {
-        name: "operations",
-        type: "array",
-        description: "Operations to apply",
-        required: true,
-      },
-      {
-        name: "target_id",
-        type: "string",
-        description: "Note ID",
-        required: false,
-      },
-      {
-        name: "target_date",
-        type: "string",
-        description: "Memo date (YYYY-MM-DD)",
-        required: false,
+        name: "get_entity_tags",
+        params: [{ name: "entity_id", type: "string", required: true }],
       },
     ],
   },
@@ -298,6 +241,8 @@ const MCP_TOOLS: McpTool[] = [
 function ToolCard({ tool }: { tool: McpTool }) {
   const [expanded, setExpanded] = useState(false);
   const { t } = useTranslation();
+
+  const description = t(`settings.claude.tools.${tool.name}.description`);
 
   return (
     <div className="border border-notion-border rounded-lg overflow-hidden">
@@ -314,13 +259,13 @@ function ToolCard({ tool }: { tool: McpTool }) {
           {tool.name}
         </code>
         <span className="text-xs text-notion-text-secondary ml-2 flex-1 truncate">
-          {tool.description}
+          {description}
         </span>
       </button>
       {expanded && (
         <div className="px-4 pb-3 border-t border-notion-border">
           <p className="text-sm text-notion-text-secondary mt-2 mb-3">
-            {tool.description}
+            {description}
           </p>
           {tool.params.length > 0 && (
             <>
@@ -342,7 +287,8 @@ function ToolCard({ tool }: { tool: McpTool }) {
                         : t("settings.claude.optional")}
                     </span>
                     <span className="text-notion-text-secondary flex-1">
-                      — {p.description}
+                      —{" "}
+                      {t(`settings.claude.tools.${tool.name}.params.${p.name}`)}
                     </span>
                   </div>
                 ))}
@@ -363,9 +309,18 @@ export function McpToolsList() {
       <p className="text-sm text-notion-text-secondary mb-4">
         {t("settings.claude.mcpToolsDescription")}
       </p>
-      <div className="space-y-2">
-        {MCP_TOOLS.map((tool) => (
-          <ToolCard key={tool.name} tool={tool} />
+      <div className="space-y-6">
+        {TOOL_CATEGORIES.map((category) => (
+          <div key={category.key}>
+            <h3 className="text-xs font-semibold text-notion-text-secondary uppercase tracking-wider mb-2">
+              {t(`settings.claude.toolCategories.${category.key}`)}
+            </h3>
+            <div className="space-y-2">
+              {category.tools.map((tool) => (
+                <ToolCard key={tool.name} tool={tool} />
+              ))}
+            </div>
+          </div>
         ))}
       </div>
     </div>
