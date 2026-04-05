@@ -1,9 +1,17 @@
 import { useRef, useState } from "react";
-import { Check, Trash2, Pencil, Clock, StickyNote } from "lucide-react";
+import {
+  Check,
+  Trash2,
+  Pencil,
+  Clock,
+  StickyNote,
+  CalendarDays,
+} from "lucide-react";
 import { useTranslation } from "react-i18next";
 import type { ScheduleItem } from "../../../../types/schedule";
 import { useClickOutside } from "../../../../hooks/useClickOutside";
 import { TimeInput } from "../../../shared/TimeInput";
+import { DateInput } from "../../../shared/DateInput";
 import { Button } from "../../../shared/Button";
 import {
   formatTime,
@@ -24,6 +32,8 @@ interface ScheduleItemPreviewPopupProps {
   onClose: () => void;
   onConvertRole?: (targetRole: ConversionRole) => void;
   disabledRoles?: ConversionRole[];
+  onUpdateDate?: (date: string) => void;
+  onUpdateAllDay?: (isAllDay: boolean) => void;
 }
 
 export function ScheduleItemPreviewPopup({
@@ -37,6 +47,8 @@ export function ScheduleItemPreviewPopup({
   onClose,
   onConvertRole,
   disabledRoles,
+  onUpdateDate,
+  onUpdateAllDay,
 }: ScheduleItemPreviewPopupProps) {
   const { t } = useTranslation();
   const ref = useRef<HTMLDivElement>(null);
@@ -48,7 +60,12 @@ export function ScheduleItemPreviewPopup({
   useClickOutside(ref, onClose, !isEditingTime);
 
   const left = Math.min(position.x, window.innerWidth - 260 - 16);
-  const top = Math.min(position.y, window.innerHeight - 280 - 16);
+  const top = Math.min(position.y, window.innerHeight - 320 - 16);
+
+  const dateParts = item.date.split("-").map(Number);
+  const dateYear = dateParts[0];
+  const dateMonth = dateParts[1];
+  const dateDay = dateParts[2];
 
   const handleStartTimeChange = (h: number, m: number) => {
     const newStart = formatTime(h, m);
@@ -85,56 +102,99 @@ export function ScheduleItemPreviewPopup({
           {item.title}
         </div>
 
-        {/* Time display / edit */}
-        {isEditingTime && onUpdateTime ? (
-          <div className="space-y-1.5">
-            <div className="flex items-center gap-1.5">
-              <TimeInput
-                hour={parseInt(editStartTime.split(":")[0], 10)}
-                minute={parseInt(editStartTime.split(":")[1], 10)}
-                onChange={handleStartTimeChange}
-                minuteStep={5}
-                size="sm"
-              />
-              <span className="text-xs text-notion-text-secondary">-</span>
-              <TimeInput
-                hour={parseInt(editEndTime.split(":")[0], 10)}
-                minute={parseInt(editEndTime.split(":")[1], 10)}
-                onChange={handleEndTimeChange}
-                minuteStep={5}
-                size="sm"
-              />
-            </div>
-            <div className="flex gap-1">
-              <Button variant="primary" size="sm" onClick={handleTimeSave}>
-                {t("common.save", "Save")}
-              </Button>
-              <Button
-                variant="secondary"
-                size="sm"
-                onClick={() => {
-                  setEditStartTime(item.startTime);
-                  setEditEndTime(item.endTime);
-                  setIsEditingTime(false);
+        {/* Date + All-day */}
+        {(onUpdateDate || onUpdateAllDay) && (
+          <div className="flex items-center gap-1.5">
+            <CalendarDays
+              size={10}
+              className="text-notion-text-secondary shrink-0"
+            />
+            {onUpdateDate ? (
+              <DateInput
+                year={dateYear}
+                month={dateMonth}
+                day={dateDay}
+                onChange={(y, m, d) => {
+                  const newDate = `${y}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+                  if (newDate !== item.date) {
+                    onUpdateDate(newDate);
+                    onClose();
+                  }
                 }}
-              >
-                {t("common.cancel", "Cancel")}
-              </Button>
-            </div>
+                size="sm"
+              />
+            ) : (
+              <span className="text-xs text-notion-text-secondary">
+                {dateMonth}/{dateDay}
+              </span>
+            )}
+            {onUpdateAllDay && (
+              <label className="flex items-center gap-1 ml-auto cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={!!item.isAllDay}
+                  onChange={(e) => onUpdateAllDay(e.target.checked)}
+                  className="w-3 h-3 rounded accent-notion-accent"
+                />
+                <span className="text-[10px] text-notion-text-secondary">
+                  {t("calendar.allDay", "All day")}
+                </span>
+              </label>
+            )}
           </div>
-        ) : (
-          <button
-            onClick={() => onUpdateTime && setIsEditingTime(true)}
-            className={`text-xs text-notion-text-secondary flex items-center gap-1 ${
-              onUpdateTime
-                ? "hover:text-notion-text cursor-pointer"
-                : "cursor-default"
-            } transition-colors`}
-          >
-            <Clock size={10} />
-            {item.startTime} - {item.endTime}
-          </button>
         )}
+
+        {/* Time display / edit (hidden when all-day) */}
+        {!item.isAllDay &&
+          (isEditingTime && onUpdateTime ? (
+            <div className="space-y-1.5">
+              <div className="flex items-center gap-1.5">
+                <TimeInput
+                  hour={parseInt(editStartTime.split(":")[0], 10)}
+                  minute={parseInt(editStartTime.split(":")[1], 10)}
+                  onChange={handleStartTimeChange}
+                  minuteStep={5}
+                  size="sm"
+                />
+                <span className="text-xs text-notion-text-secondary">-</span>
+                <TimeInput
+                  hour={parseInt(editEndTime.split(":")[0], 10)}
+                  minute={parseInt(editEndTime.split(":")[1], 10)}
+                  onChange={handleEndTimeChange}
+                  minuteStep={5}
+                  size="sm"
+                />
+              </div>
+              <div className="flex gap-1">
+                <Button variant="primary" size="sm" onClick={handleTimeSave}>
+                  {t("common.save", "Save")}
+                </Button>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => {
+                    setEditStartTime(item.startTime);
+                    setEditEndTime(item.endTime);
+                    setIsEditingTime(false);
+                  }}
+                >
+                  {t("common.cancel", "Cancel")}
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <button
+              onClick={() => onUpdateTime && setIsEditingTime(true)}
+              className={`text-xs text-notion-text-secondary flex items-center gap-1 ${
+                onUpdateTime
+                  ? "hover:text-notion-text cursor-pointer"
+                  : "cursor-default"
+              } transition-colors`}
+            >
+              <Clock size={10} />
+              {item.startTime} - {item.endTime}
+            </button>
+          ))}
 
         {/* Memo */}
         {onUpdateMemo && (

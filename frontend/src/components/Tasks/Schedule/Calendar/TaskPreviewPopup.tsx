@@ -1,11 +1,20 @@
 import { useRef, useState } from "react";
-import { ExternalLink, Play, CalendarOff, Trash2, Clock } from "lucide-react";
+import {
+  ExternalLink,
+  Play,
+  Trash2,
+  Clock,
+  CalendarDays,
+  StickyNote,
+  X,
+} from "lucide-react";
 import { useTranslation } from "react-i18next";
 import type { TaskNode } from "../../../../types/taskTree";
 import { useClickOutside } from "../../../../hooks/useClickOutside";
 import { formatScheduleRange } from "../../../../utils/formatSchedule";
 import { ConfirmDialog } from "../../../shared/ConfirmDialog";
 import { TimeInput } from "../../../shared/TimeInput";
+import { DateInput } from "../../../shared/DateInput";
 import {
   formatTime,
   clampEndTimeAfterStart,
@@ -31,6 +40,8 @@ interface TaskPreviewPopupProps {
   ) => void;
   onConvertRole?: (targetRole: ConversionRole) => void;
   disabledRoles?: ConversionRole[];
+  onUpdateAllDay?: (isAllDay: boolean) => void;
+  onUpdateTimeMemo?: (memo: string | null) => void;
 }
 
 function extractTime(iso: string): string {
@@ -58,6 +69,8 @@ export function TaskPreviewPopup({
   onUpdateSchedule,
   onConvertRole,
   disabledRoles,
+  onUpdateAllDay,
+  onUpdateTimeMemo,
 }: TaskPreviewPopupProps) {
   const { t } = useTranslation();
   const ref = useRef<HTMLDivElement>(null);
@@ -118,7 +131,9 @@ export function TaskPreviewPopup({
   };
 
   const left = Math.min(position.x, window.innerWidth - 260 - 16);
-  const top = Math.min(position.y, window.innerHeight - 240 - 16);
+  const top = Math.min(position.y, window.innerHeight - 280 - 16);
+
+  const scheduledDate = task.scheduledAt ? new Date(task.scheduledAt) : null;
 
   return (
     <>
@@ -162,7 +177,58 @@ export function TaskPreviewPopup({
               {task.title}
             </div>
           )}
+          {/* Date + All-day */}
           {task.scheduledAt &&
+            scheduledDate &&
+            (onUpdateSchedule || onUpdateAllDay) && (
+              <div className="flex items-center gap-1.5">
+                <CalendarDays
+                  size={10}
+                  className="text-notion-text-secondary shrink-0"
+                />
+                {onUpdateSchedule ? (
+                  <DateInput
+                    year={scheduledDate.getFullYear()}
+                    month={scheduledDate.getMonth() + 1}
+                    day={scheduledDate.getDate()}
+                    onChange={(y, m, d) => {
+                      const newStart = new Date(task.scheduledAt!);
+                      newStart.setFullYear(y, m - 1, d);
+                      const newEnd = task.scheduledEndAt
+                        ? new Date(task.scheduledEndAt)
+                        : undefined;
+                      if (newEnd) newEnd.setFullYear(y, m - 1, d);
+                      onUpdateSchedule(
+                        newStart.toISOString(),
+                        newEnd?.toISOString(),
+                      );
+                    }}
+                    size="sm"
+                  />
+                ) : (
+                  <span className="text-xs text-notion-text-secondary">
+                    {scheduledDate.getMonth() + 1}/{scheduledDate.getDate()}
+                  </span>
+                )}
+                {onUpdateAllDay && (
+                  <label className="flex items-center gap-1 ml-auto cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={!!task.isAllDay}
+                      onChange={(e) => onUpdateAllDay(e.target.checked)}
+                      className="w-3 h-3 rounded accent-notion-accent"
+                    />
+                    <span className="text-[10px] text-notion-text-secondary">
+                      {t("calendar.allDay", "All day")}
+                    </span>
+                  </label>
+                )}
+              </div>
+            )}
+
+          {/* Time display / edit (hidden when all-day) */}
+          {task.scheduledAt &&
+            !task.isAllDay &&
             (isEditingTime && onUpdateSchedule ? (
               <div className="space-y-1.5">
                 <div className="flex items-center gap-1.5">
@@ -226,6 +292,34 @@ export function TaskPreviewPopup({
                 )}
               </button>
             ))}
+          {/* Memo */}
+          {onUpdateTimeMemo && (
+            <div className="flex items-center gap-1 px-1 py-0.5 rounded border border-notion-border/50">
+              <StickyNote
+                size={10}
+                className="text-notion-text-secondary shrink-0"
+              />
+              <input
+                type="text"
+                defaultValue={task.timeMemo ?? ""}
+                onBlur={(e) => {
+                  const val = e.target.value;
+                  if (val !== (task.timeMemo ?? "")) {
+                    onUpdateTimeMemo(val || null);
+                  }
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.currentTarget.blur();
+                  }
+                }}
+                placeholder="memo..."
+                className="flex-1 text-xs bg-transparent outline-none text-notion-text placeholder:text-notion-text-secondary/50"
+                onClick={(e) => e.stopPropagation()}
+              />
+            </div>
+          )}
+
           <div className="flex items-center gap-2">
             {onConvertRole ? (
               <RoleSwitcher
@@ -263,8 +357,8 @@ export function TaskPreviewPopup({
             onClick={onClearSchedule}
             className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-xs text-notion-text-secondary hover:bg-notion-hover hover:text-notion-text transition-colors"
           >
-            <CalendarOff size={12} />
-            {t("calendar.clearSchedule")}
+            <X size={14} />
+            {t("calendar.clearTime", "Clear time")}
           </button>
         </div>
       </div>

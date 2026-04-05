@@ -754,6 +754,7 @@ export class OfflineDataService implements DataService {
         | "completedAt"
         | "memo"
         | "isAllDay"
+        | "date"
       >
     >,
   ): Promise<ScheduleItem> {

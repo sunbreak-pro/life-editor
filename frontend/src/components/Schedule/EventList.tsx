@@ -64,10 +64,18 @@ export function EventList({
             {formatDateHeading(date)}
           </div>
           {items.map((event) => (
-            <button
+            <div
               key={event.id}
+              role="button"
+              tabIndex={0}
               onClick={() => onSelectEvent(event.id)}
-              className={`w-full text-left px-3 py-2 flex items-center gap-2 text-sm transition-colors border-l-2 ${
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  onSelectEvent(event.id);
+                }
+              }}
+              className={`w-full text-left px-3 py-2 flex items-center gap-2 text-sm transition-colors border-l-2 cursor-pointer ${
                 selectedEventId === event.id
                   ? "bg-notion-accent/5 border-l-notion-accent"
                   : "border-l-transparent hover:bg-notion-hover"
@@ -104,7 +112,7 @@ export function EventList({
                   {event.startTime}
                 </span>
               )}
-            </button>
+            </div>
           ))}
         </div>
       ))}

@@ -271,6 +271,7 @@ export interface DataService {
         | "memo"
         | "isAllDay"
         | "content"
+        | "date"
       >
     >,
   ): Promise<ScheduleItem>;

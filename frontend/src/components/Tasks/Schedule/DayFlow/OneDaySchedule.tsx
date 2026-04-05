@@ -24,6 +24,11 @@ import { TIME_GRID } from "../../../../constants/timeGrid";
 import type { NoteNode } from "../../../../types/note";
 import { CheckCircle2, CheckSquare, Pencil, CalendarMinus } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import {
+  useRoleConversion,
+  type ConversionRole,
+  type ConversionSource,
+} from "../../../../hooks/useRoleConversion";
 
 export type DayFlowFilterTab =
   | "all"
@@ -117,7 +122,13 @@ export function OneDaySchedule({
   } = useScheduleContext();
   const { addNode, updateNode } = useTaskTreeContext();
   const { t } = useTranslation();
+  const { convert, canConvert } = useRoleConversion();
   const dateKey = formatDateKey(date);
+
+  const getDisabledRoles = (source: ConversionSource): ConversionRole[] => {
+    const roles: ConversionRole[] = ["task", "event", "note", "daily"];
+    return roles.filter((r) => !canConvert(source, r));
+  };
   const isToday = dateKey === formatDateKey(new Date());
   const [selectedFilterTagIds, setSelectedFilterTagIds] = useState<number[]>(
     [],
@@ -580,6 +591,51 @@ export function OneDaySchedule({
                   );
                 }
               }}
+              onConvertScheduleItemRole={(item, targetRole) => {
+                const source: ConversionSource = {
+                  role: "event",
+                  scheduleItem: item,
+                  date: item.date,
+                };
+                convert(source, targetRole);
+              }}
+              getDisabledRolesForScheduleItem={(item) =>
+                getDisabledRoles({
+                  role: "event",
+                  scheduleItem: item,
+                  date: item.date,
+                })
+              }
+              onConvertTaskRole={(task, targetRole) => {
+                const taskDate = task.scheduledAt
+                  ? formatDateKey(new Date(task.scheduledAt))
+                  : dateKey;
+                const source: ConversionSource = {
+                  role: "task",
+                  task,
+                  date: taskDate,
+                };
+                convert(source, targetRole);
+              }}
+              getDisabledRolesForTask={(task) => {
+                const taskDate = task.scheduledAt
+                  ? formatDateKey(new Date(task.scheduledAt))
+                  : dateKey;
+                return getDisabledRoles({
+                  role: "task",
+                  task,
+                  date: taskDate,
+                });
+              }}
+              onUpdateScheduleItemDate={(id, newDate) =>
+                updateScheduleItem(id, { date: newDate })
+              }
+              onUpdateScheduleItemAllDay={(id, isAllDay) =>
+                updateScheduleItem(id, { isAllDay })
+              }
+              onUpdateTaskAllDay={(taskId, isAllDay) =>
+                updateNode(taskId, { isAllDay })
+              }
             />
           </div>
         </div>

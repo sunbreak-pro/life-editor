@@ -515,6 +515,7 @@ export class RestDataService implements DataService {
         | "completedAt"
         | "memo"
         | "isAllDay"
+        | "date"
       >
     >,
   ): Promise<ScheduleItem> {

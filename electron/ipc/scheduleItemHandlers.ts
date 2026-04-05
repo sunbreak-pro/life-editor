@@ -86,6 +86,7 @@ export function registerScheduleItemHandlers(
           | "memo"
           | "isAllDay"
           | "content"
+          | "date"
         >
       >,
     ) => {

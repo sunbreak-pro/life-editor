@@ -1004,6 +1004,7 @@
     "startLabel": "開始",
     "endLabel": "終了",
     "clearSchedule": "スケジュールをクリア",
+    "clearTime": "時刻をクリア",
     "deleteTaskTitle": "タスクを削除",
     "deleteTaskMessage": "このタスクを削除しますか？",
     "deleteNoteTitle": "ノートを削除",

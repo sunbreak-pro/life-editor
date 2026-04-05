@@ -482,6 +482,7 @@ export class ElectronDataService implements DataService {
         | "memo"
         | "isAllDay"
         | "content"
+        | "date"
       >
     >,
   ): Promise<ScheduleItem> {

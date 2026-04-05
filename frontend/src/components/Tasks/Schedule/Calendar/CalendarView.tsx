@@ -241,6 +241,7 @@ export function CalendarView({
     createRoutineTag,
     reconcileRoutineScheduleItems,
     dismissScheduleItem,
+    scheduleItemsVersion,
   } = useScheduleContext();
 
   const { convert, canConvert } = useRoleConversion();
@@ -307,10 +308,10 @@ export function CalendarView({
     null,
   );
 
-  // Load schedule items for the current month
+  // Load schedule items for the current month (also reload on version change)
   useEffect(() => {
     loadScheduleItemsForMonth(year, month);
-  }, [year, month, loadScheduleItemsForMonth]);
+  }, [year, month, loadScheduleItemsForMonth, scheduleItemsVersion]);
 
   const { tasksByDate, itemsByDate, calendarDays, weekDays } = useCalendar(
     filteredNodes,
@@ -558,6 +559,13 @@ export function CalendarView({
       nodes.find((n) => n.id === previewPopup.taskId))
     : null;
 
+  // Resolve live schedule item from state (not snapshot) for immediate updates
+  const liveScheduleItem = scheduleItemPreview
+    ? (monthlyScheduleItems.find(
+        (si) => si.id === scheduleItemPreview.item.id,
+      ) ?? scheduleItemPreview.item)
+    : null;
+
   const getDisabledRoles = (source: ConversionSource): ConversionRole[] => {
     const roles: ConversionRole[] = ["task", "event", "note", "daily"];
     return roles.filter((r) => !canConvert(source, r));
@@ -755,9 +763,9 @@ export function CalendarView({
         />
       )}
 
-      {scheduleItemPreview && (
+      {scheduleItemPreview && liveScheduleItem && (
         <ScheduleItemPreviewPopup
-          item={scheduleItemPreview.item}
+          item={liveScheduleItem}
           position={scheduleItemPreview.position}
           onToggleComplete={() => {
             toggleComplete(scheduleItemPreview.item.id);
@@ -807,6 +815,13 @@ export function CalendarView({
                   date: scheduleItemPreview.item.date,
                 })
               : undefined
+          }
+          onUpdateDate={(date) => {
+            updateScheduleItem(scheduleItemPreview.item.id, { date });
+            setScheduleItemPreview(null);
+          }}
+          onUpdateAllDay={(isAllDay) =>
+            updateScheduleItem(scheduleItemPreview.item.id, { isAllDay })
           }
         />
       )}
@@ -867,6 +882,14 @@ export function CalendarView({
                   date: formatDateKey(new Date(previewTask.scheduledAt)),
                 })
               : undefined
+          }
+          onUpdateAllDay={(isAllDay) =>
+            updateNode(previewTask.id, { isAllDay })
+          }
+          onUpdateTimeMemo={(memo) =>
+            updateNode(previewTask.id, {
+              timeMemo: memo ?? undefined,
+            })
           }
         />
       )}

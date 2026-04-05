@@ -5,11 +5,13 @@ import {
   CheckSquare,
   ChevronLeft,
   ChevronRight,
+  Clock,
   Eye,
   EyeOff,
   Layers,
   Pencil,
   Repeat,
+  Sun,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import type { RoutineNode } from "../../types/routine";
@@ -35,7 +37,7 @@ type FlowEntry =
       allDismissed: boolean;
       startTime: string | null;
     }
-  | { type: "task"; task: TaskNode; sortKey: string }
+  | { type: "task"; task: TaskNode; sortKey: string; isAllDay: boolean }
   | { type: "event"; scheduleItem: ScheduleItem };
 
 interface MiniTodayFlowProps {
@@ -93,6 +95,7 @@ export function MiniTodayFlow({
   const showAll = !activeFilters || activeFilters.size === 0;
   const showRoutines = showAll || activeFilters!.has("routine");
   const showEvents = showAll || activeFilters!.has("events");
+  const showTasks = showAll || activeFilters!.has("tasks");
 
   const scheduleItemByRoutineId = useMemo(() => {
     const map = new Map<string, ScheduleItem>();
@@ -115,6 +118,7 @@ export function MiniTodayFlow({
         const memberScheduleItems = members
           .map((r) => scheduleItemByRoutineId.get(r.id))
           .filter(Boolean) as ScheduleItem[];
+        if (memberScheduleItems.length === 0) continue;
         const allDismissed =
           memberScheduleItems.length > 0 &&
           memberScheduleItems.every((si) => si.isDismissed);
@@ -139,6 +143,7 @@ export function MiniTodayFlow({
       for (const routine of routines) {
         if (routine.isArchived) continue;
         const scheduleItem = scheduleItemByRoutineId.get(routine.id);
+        if (!scheduleItem) continue;
         result.push({
           type: "routine",
           routineId: routine.id,
@@ -161,12 +166,19 @@ export function MiniTodayFlow({
     }
 
     // Add tasks
-    for (const task of tasks) {
-      if (task.isAllDay) {
-        result.push({ type: "task", task, sortKey: "99:99" });
-      } else if (task.scheduledAt) {
-        const time = extractTimeFromScheduledAt(task.scheduledAt);
-        result.push({ type: "task", task, sortKey: time });
+    if (showTasks) {
+      for (const task of tasks) {
+        if (task.isAllDay) {
+          result.push({
+            type: "task",
+            task,
+            sortKey: "99:99",
+            isAllDay: true,
+          });
+        } else if (task.scheduledAt) {
+          const time = extractTimeFromScheduledAt(task.scheduledAt);
+          result.push({ type: "task", task, sortKey: time, isAllDay: false });
+        }
       }
     }
 
@@ -204,7 +216,32 @@ export function MiniTodayFlow({
     tasks,
     showRoutines,
     showEvents,
+    showTasks,
   ]);
+
+  const groupEntries = useMemo(
+    () => entries.filter((e) => e.type === "group"),
+    [entries],
+  );
+  const allDayEntries = useMemo(
+    () =>
+      entries.filter(
+        (e) =>
+          (e.type === "task" && e.isAllDay) ||
+          (e.type === "event" && e.scheduleItem.isAllDay),
+      ),
+    [entries],
+  );
+  const timelineEntries = useMemo(
+    () =>
+      entries.filter(
+        (e) =>
+          e.type !== "group" &&
+          !(e.type === "task" && e.isAllDay) &&
+          !(e.type === "event" && e.scheduleItem.isAllDay),
+      ),
+    [entries],
+  );
 
   const completedCount = entries.filter((e) =>
     e.type === "routine"
@@ -266,31 +303,26 @@ export function MiniTodayFlow({
 
       {hasEntries && (
         <>
-          <div className="mt-1.5 ml-[3px]">
-            {entries.map((entry, i) => {
-              // --- Group entry ---
-              if (entry.type === "group") {
+          {/* ── Groups section ── */}
+          {groupEntries.length > 0 && (
+            <div className="mt-1.5 space-y-1">
+              {groupEntries.map((entry) => {
+                if (entry.type !== "group") return null;
                 const g = entry.group;
                 return (
                   <div
                     key={`g-${g.id}`}
-                    data-sidebar-item
-                    className="flex text-left w-full group"
+                    className="group rounded-md px-2 py-1.5"
+                    style={{ backgroundColor: `${g.color}12` }}
                   >
-                    <div className="flex flex-col items-center mr-2">
-                      <div
-                        className="w-4 h-4 rounded shrink-0 flex items-center justify-center"
-                        style={{ backgroundColor: `${g.color}30` }}
-                      >
-                        <Layers size={12} style={{ color: g.color }} />
-                      </div>
-                      {i < entries.length - 1 && (
-                        <div className="w-px flex-1 min-h-[10px] bg-notion-border" />
-                      )}
-                    </div>
-                    <div className="pb-2 min-w-0 flex-1 flex items-start">
-                      <div
-                        className={`text-xs truncate flex-1 font-medium ${entry.allDismissed ? "text-notion-text-secondary/50" : ""}`}
+                    <div className="flex items-center gap-1.5">
+                      <Layers
+                        size={12}
+                        style={{ color: g.color }}
+                        className="shrink-0"
+                      />
+                      <span
+                        className={`text-xs font-medium truncate flex-1 ${entry.allDismissed ? "text-notion-text-secondary/50" : ""}`}
                         style={{
                           color: entry.allDismissed ? undefined : g.color,
                         }}
@@ -299,18 +331,18 @@ export function MiniTodayFlow({
                         <span className="text-[10px] opacity-60 ml-1">
                           ({entry.memberCount})
                         </span>
-                      </div>
-                      <div className="hidden group-hover:flex items-center gap-0.5 shrink-0 ml-1">
+                      </span>
+                      <div className="hidden group-hover:flex items-center gap-0.5 shrink-0">
                         {entry.allDismissed && onUndismissGroup ? (
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
                               onUndismissGroup(g.id);
                             }}
-                            className="p-1 rounded hover:bg-notion-hover text-notion-text-secondary/50 hover:text-notion-text transition-colors"
+                            className="p-0.5 rounded hover:bg-white/10 text-notion-text-secondary/50 hover:text-notion-text transition-colors"
                             title={t("schedule.show", "Show")}
                           >
-                            <EyeOff size={12} />
+                            <Eye size={11} />
                           </button>
                         ) : onDismissGroup ? (
                           <button
@@ -318,243 +350,373 @@ export function MiniTodayFlow({
                               e.stopPropagation();
                               onDismissGroup(g.id);
                             }}
-                            className="p-1 rounded hover:bg-notion-hover text-notion-text-secondary hover:text-notion-text transition-colors"
+                            className="p-0.5 rounded hover:bg-white/10 text-notion-text-secondary hover:text-notion-text transition-colors"
                             title={t("schedule.hide", "Hide")}
                           >
-                            <Eye size={12} />
+                            <EyeOff size={11} />
                           </button>
                         ) : null}
                       </div>
                     </div>
                   </div>
                 );
-              }
+              })}
+            </div>
+          )}
 
-              // --- Routine entry ---
-              if (entry.type === "routine") {
-                const isDismissed = entry.isDismissed;
-                return (
-                  <div
-                    key={`r-${entry.routineId}`}
-                    data-sidebar-item
-                    className="flex text-left w-full group"
-                  >
-                    <div className="flex flex-col items-center mr-2">
-                      <button
-                        onClick={() => handleToggle(entry.scheduleItemId)}
-                        disabled={!entry.scheduleItemId || isDismissed}
-                        className="flex-shrink-0 transition-colors"
-                      >
-                        {entry.completed ? (
-                          <CheckCircle2 size={16} className="text-green-500" />
-                        ) : (
-                          <Repeat
-                            size={16}
-                            className={`${isDismissed ? "text-notion-text-secondary/30" : "text-emerald-500"} ${entry.scheduleItemId && !isDismissed ? "hover:text-green-500" : ""}`}
-                          />
-                        )}
-                      </button>
-                      {i < entries.length - 1 && (
-                        <div className="w-px flex-1 min-h-[10px] bg-notion-border" />
-                      )}
-                    </div>
-                    <div className="pb-2 min-w-0 flex-1 flex items-start">
-                      <div
-                        className={`text-xs truncate flex-1 ${isDismissed ? "text-notion-text-secondary/40 line-through" : entry.completed ? "text-notion-text-secondary line-through" : "text-notion-text"}`}
-                      >
-                        {entry.startTime && (
-                          <span className="text-xs text-notion-text-secondary mr-1">
-                            {entry.startTime}
-                          </span>
-                        )}
-                        {entry.title}
-                      </div>
-                      <div className="hidden group-hover:flex items-center gap-0.5 shrink-0 ml-1">
-                        {!isDismissed && onEditRoutine && (
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              onEditRoutine(entry.routineId, e);
-                            }}
-                            className="p-1 rounded hover:bg-notion-hover text-notion-text-secondary hover:text-notion-text transition-colors"
-                          >
-                            <Pencil size={12} />
-                          </button>
-                        )}
-                        {isDismissed &&
-                        onUndismissItem &&
-                        entry.scheduleItemId ? (
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              onUndismissItem(entry.scheduleItemId!);
-                            }}
-                            className="p-1 rounded hover:bg-notion-hover text-notion-text-secondary/50 hover:text-notion-text transition-colors"
-                            title={t("schedule.show", "Show")}
-                          >
-                            <EyeOff size={12} />
-                          </button>
-                        ) : !isDismissed &&
-                          onDismissItem &&
-                          entry.scheduleItemId ? (
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              onDismissItem(entry.scheduleItemId!);
-                            }}
-                            className="p-1 rounded hover:bg-notion-hover text-notion-text-secondary hover:text-notion-text transition-colors"
-                            title={t("schedule.hide", "Hide")}
-                          >
-                            <Eye size={12} />
-                          </button>
-                        ) : null}
-                      </div>
-                    </div>
-                  </div>
-                );
-              }
-
-              // --- Event entry ---
-              if (entry.type === "event") {
-                const si = entry.scheduleItem;
-                const isDismissed = si.isDismissed ?? false;
-                return (
-                  <div
-                    key={`e-${si.id}`}
-                    data-sidebar-item
-                    className="flex text-left w-full group"
-                  >
-                    <div className="flex flex-col items-center mr-2">
-                      <button
-                        onClick={() => handleToggle(si.id)}
-                        disabled={isDismissed}
-                        className="flex-shrink-0 transition-colors"
-                      >
-                        {si.completed ? (
-                          <CheckCircle2 size={16} className="text-green-500" />
-                        ) : (
-                          <CalendarClock
-                            size={16}
-                            className={`${isDismissed ? "text-notion-text-secondary/30" : "text-purple-500"} ${!isDismissed ? "hover:text-green-500" : ""}`}
-                          />
-                        )}
-                      </button>
-                      {i < entries.length - 1 && (
-                        <div className="w-px flex-1 min-h-[10px] bg-notion-border" />
-                      )}
-                    </div>
-                    <div className="pb-2 min-w-0 flex-1 flex items-start">
-                      <div
-                        className={`text-xs truncate flex-1 ${isDismissed ? "text-notion-text-secondary/40 line-through" : si.completed ? "text-notion-text-secondary line-through" : "text-notion-text"}`}
-                      >
-                        {si.startTime && (
-                          <span className="text-xs text-notion-text-secondary mr-1">
-                            {si.startTime}
-                          </span>
-                        )}
-                        {si.title}
-                      </div>
-                      <div className="hidden group-hover:flex items-center gap-0.5 shrink-0 ml-1">
-                        {!isDismissed && onEditEvent && (
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              onEditEvent(si.id, e);
-                            }}
-                            className="p-1 rounded hover:bg-notion-hover text-notion-text-secondary hover:text-notion-text transition-colors"
-                          >
-                            <Pencil size={12} />
-                          </button>
-                        )}
-                        {isDismissed && onUndismissItem ? (
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              onUndismissItem(si.id);
-                            }}
-                            className="p-1 rounded hover:bg-notion-hover text-notion-text-secondary/50 hover:text-notion-text transition-colors"
-                            title={t("schedule.show", "Show")}
-                          >
-                            <EyeOff size={12} />
-                          </button>
-                        ) : !isDismissed && onDismissItem ? (
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              onDismissItem(si.id);
-                            }}
-                            className="p-1 rounded hover:bg-notion-hover text-notion-text-secondary hover:text-notion-text transition-colors"
-                            title={t("schedule.hide", "Hide")}
-                          >
-                            <Eye size={12} />
-                          </button>
-                        ) : null}
-                      </div>
-                    </div>
-                  </div>
-                );
-              }
-
-              // --- Task entry ---
-              const task = entry.task;
-              const isDone = task.status === "DONE";
-              return (
-                <div
-                  key={`t-${task.id}`}
-                  data-sidebar-item
-                  className="flex text-left w-full group"
-                >
-                  <div className="flex flex-col items-center mr-2">
-                    <button
-                      onClick={() => onToggleTaskStatus?.(task.id)}
-                      className="flex-shrink-0 transition-colors"
+          {/* ── Timeline section (timed items) ── */}
+          {timelineEntries.length > 0 && (
+            <div
+              className={`ml-[3px] ${groupEntries.length > 0 ? "mt-2" : "mt-1.5"}`}
+            >
+              {timelineEntries.map((entry, i) => {
+                // --- Routine entry ---
+                if (entry.type === "routine") {
+                  const isDismissed = entry.isDismissed;
+                  return (
+                    <div
+                      key={`r-${entry.routineId}`}
+                      data-sidebar-item
+                      className="flex text-left w-full group"
                     >
-                      {isDone ? (
-                        <CheckCircle2
-                          size={14}
-                          className="text-green-500 hover:text-notion-accent"
-                        />
-                      ) : (
-                        <CheckSquare
-                          size={16}
-                          className="text-notion-accent hover:text-green-500"
-                        />
-                      )}
-                    </button>
-                    {i < entries.length - 1 && (
-                      <div className="w-px flex-1 min-h-[10px] bg-notion-border" />
-                    )}
-                  </div>
-                  <div className="pb-2 min-w-0 flex-1 flex items-start">
-                    <button
-                      onClick={() => onSelectTask?.(task.id)}
-                      className={`text-xs truncate flex-1 text-left ${isDone ? "text-notion-text-secondary line-through" : "text-notion-text"}`}
-                    >
-                      {task.scheduledAt && !task.isAllDay && (
-                        <span className="text-xs text-notion-text-secondary mr-1">
-                          {extractTimeFromScheduledAt(task.scheduledAt)}
-                        </span>
-                      )}
-                      {task.title}
-                    </button>
-                    <div className="hidden group-hover:flex items-center gap-0.5 shrink-0 ml-1">
-                      {onEditTask && (
+                      <div className="flex flex-col items-center mr-2">
                         <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            onEditTask(task.id, e);
-                          }}
-                          className="p-1 rounded hover:bg-notion-hover text-notion-text-secondary hover:text-notion-text transition-colors"
+                          onClick={() => handleToggle(entry.scheduleItemId)}
+                          disabled={!entry.scheduleItemId || isDismissed}
+                          className="flex-shrink-0 transition-colors"
                         >
-                          <Pencil size={12} />
+                          {entry.completed ? (
+                            <CheckCircle2
+                              size={16}
+                              className="text-green-500"
+                            />
+                          ) : (
+                            <Repeat
+                              size={16}
+                              className={`${isDismissed ? "text-notion-text-secondary/30" : "text-emerald-500"} ${entry.scheduleItemId && !isDismissed ? "hover:text-green-500" : ""}`}
+                            />
+                          )}
                         </button>
+                        {i < timelineEntries.length - 1 && (
+                          <div className="w-px flex-1 min-h-[10px] bg-notion-border" />
+                        )}
+                      </div>
+                      <div className="pb-2 min-w-0 flex-1 flex items-start">
+                        <div
+                          className={`text-xs truncate flex-1 ${isDismissed ? "text-notion-text-secondary/40 line-through" : entry.completed ? "text-notion-text-secondary line-through" : "text-notion-text"}`}
+                        >
+                          {entry.startTime && (
+                            <span className="text-xs text-notion-text-secondary mr-1">
+                              {entry.startTime}
+                            </span>
+                          )}
+                          {entry.title}
+                        </div>
+                        <div className="hidden group-hover:flex items-center gap-0.5 shrink-0 ml-1">
+                          {!isDismissed && onEditRoutine && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onEditRoutine(entry.routineId, e);
+                              }}
+                              className="p-1 rounded hover:bg-notion-hover text-notion-text-secondary hover:text-notion-text transition-colors"
+                            >
+                              <Pencil size={12} />
+                            </button>
+                          )}
+                          {isDismissed &&
+                          onUndismissItem &&
+                          entry.scheduleItemId ? (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onUndismissItem(entry.scheduleItemId!);
+                              }}
+                              className="p-1 rounded hover:bg-notion-hover text-notion-text-secondary/50 hover:text-notion-text transition-colors"
+                              title={t("schedule.show", "Show")}
+                            >
+                              <Eye size={12} />
+                            </button>
+                          ) : !isDismissed &&
+                            onDismissItem &&
+                            entry.scheduleItemId ? (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onDismissItem(entry.scheduleItemId!);
+                              }}
+                              className="p-1 rounded hover:bg-notion-hover text-notion-text-secondary hover:text-notion-text transition-colors"
+                              title={t("schedule.hide", "Hide")}
+                            >
+                              <EyeOff size={12} />
+                            </button>
+                          ) : null}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                }
+
+                // --- Event entry ---
+                if (entry.type === "event") {
+                  const si = entry.scheduleItem;
+                  const isDismissed = si.isDismissed ?? false;
+                  return (
+                    <div
+                      key={`e-${si.id}`}
+                      data-sidebar-item
+                      className="flex text-left w-full group"
+                    >
+                      <div className="flex flex-col items-center mr-2">
+                        <button
+                          onClick={() => handleToggle(si.id)}
+                          disabled={isDismissed}
+                          className="flex-shrink-0 transition-colors"
+                        >
+                          {si.completed ? (
+                            <CheckCircle2
+                              size={16}
+                              className="text-green-500"
+                            />
+                          ) : (
+                            <CalendarClock
+                              size={16}
+                              className={`${isDismissed ? "text-notion-text-secondary/30" : "text-purple-500"} ${!isDismissed ? "hover:text-green-500" : ""}`}
+                            />
+                          )}
+                        </button>
+                        {i < timelineEntries.length - 1 && (
+                          <div className="w-px flex-1 min-h-[10px] bg-notion-border" />
+                        )}
+                      </div>
+                      <div className="pb-2 min-w-0 flex-1 flex items-start">
+                        <div
+                          className={`text-xs truncate flex-1 ${isDismissed ? "text-notion-text-secondary/40 line-through" : si.completed ? "text-notion-text-secondary line-through" : "text-notion-text"}`}
+                        >
+                          {si.startTime && (
+                            <span className="text-xs text-notion-text-secondary mr-1">
+                              {si.startTime}
+                            </span>
+                          )}
+                          {si.title}
+                        </div>
+                        <div className="hidden group-hover:flex items-center gap-0.5 shrink-0 ml-1">
+                          {!isDismissed && onEditEvent && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onEditEvent(si.id, e);
+                              }}
+                              className="p-1 rounded hover:bg-notion-hover text-notion-text-secondary hover:text-notion-text transition-colors"
+                            >
+                              <Pencil size={12} />
+                            </button>
+                          )}
+                          {isDismissed && onUndismissItem ? (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onUndismissItem(si.id);
+                              }}
+                              className="p-1 rounded hover:bg-notion-hover text-notion-text-secondary/50 hover:text-notion-text transition-colors"
+                              title={t("schedule.show", "Show")}
+                            >
+                              <Eye size={12} />
+                            </button>
+                          ) : !isDismissed && onDismissItem ? (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onDismissItem(si.id);
+                              }}
+                              className="p-1 rounded hover:bg-notion-hover text-notion-text-secondary hover:text-notion-text transition-colors"
+                              title={t("schedule.hide", "Hide")}
+                            >
+                              <EyeOff size={12} />
+                            </button>
+                          ) : null}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                }
+
+                // --- Timed task entry ---
+                const task = entry.task;
+                const isDone = task.status === "DONE";
+                return (
+                  <div
+                    key={`t-${task.id}`}
+                    data-sidebar-item
+                    className="flex text-left w-full group"
+                  >
+                    <div className="flex flex-col items-center mr-2">
+                      <button
+                        onClick={() => onToggleTaskStatus?.(task.id)}
+                        className="flex-shrink-0 transition-colors"
+                      >
+                        {isDone ? (
+                          <CheckCircle2
+                            size={14}
+                            className="text-green-500 hover:text-notion-accent"
+                          />
+                        ) : (
+                          <CheckSquare
+                            size={16}
+                            className="text-notion-accent hover:text-green-500"
+                          />
+                        )}
+                      </button>
+                      {i < timelineEntries.length - 1 && (
+                        <div className="w-px flex-1 min-h-[10px] bg-notion-border" />
                       )}
                     </div>
+                    <div className="pb-2 min-w-0 flex-1 flex items-start">
+                      <button
+                        onClick={() => onSelectTask?.(task.id)}
+                        className={`text-xs truncate flex-1 text-left ${isDone ? "text-notion-text-secondary line-through" : "text-notion-text"}`}
+                      >
+                        {task.scheduledAt && !task.isAllDay && (
+                          <span className="text-xs text-notion-text-secondary mr-1">
+                            {extractTimeFromScheduledAt(task.scheduledAt)}
+                          </span>
+                        )}
+                        {task.title}
+                      </button>
+                      <div className="hidden group-hover:flex items-center gap-0.5 shrink-0 ml-1">
+                        {onEditTask && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onEditTask(task.id, e);
+                            }}
+                            className="p-1 rounded hover:bg-notion-hover text-notion-text-secondary hover:text-notion-text transition-colors"
+                          >
+                            <Pencil size={12} />
+                          </button>
+                        )}
+                      </div>
+                    </div>
                   </div>
-                </div>
-              );
-            })}
-          </div>
+                );
+              })}
+            </div>
+          )}
+
+          {/* ── All-day section ── */}
+          {allDayEntries.length > 0 && (
+            <div
+              className={`${timelineEntries.length > 0 || groupEntries.length > 0 ? "mt-1.5 pt-1.5 border-t border-notion-border/50" : "mt-1.5"}`}
+            >
+              <div className="flex items-center gap-1 mb-1 px-0.5">
+                <Sun size={10} className="text-notion-text-secondary/50" />
+                <span className="text-[10px] text-notion-text-secondary/50 uppercase tracking-wide">
+                  {t("schedule.allDay", "All day")}
+                </span>
+              </div>
+              <div className="space-y-0.5">
+                {allDayEntries.map((entry) => {
+                  if (entry.type === "task") {
+                    const task = entry.task;
+                    const isDone = task.status === "DONE";
+                    return (
+                      <div
+                        key={`t-${task.id}`}
+                        className="flex items-center gap-1.5 px-1.5 py-1 rounded group hover:bg-notion-hover transition-colors"
+                      >
+                        <button
+                          onClick={() => onToggleTaskStatus?.(task.id)}
+                          className="shrink-0 transition-colors"
+                        >
+                          {isDone ? (
+                            <CheckCircle2
+                              size={13}
+                              className="text-green-500 hover:text-notion-accent"
+                            />
+                          ) : (
+                            <CheckSquare
+                              size={13}
+                              className="text-notion-accent hover:text-green-500"
+                            />
+                          )}
+                        </button>
+                        <button
+                          onClick={() => onSelectTask?.(task.id)}
+                          className={`text-[11px] truncate flex-1 text-left ${isDone ? "text-notion-text-secondary line-through" : "text-notion-text"}`}
+                        >
+                          {task.title}
+                        </button>
+                        <div className="hidden group-hover:flex items-center shrink-0">
+                          {onEditTask && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onEditTask(task.id, e);
+                              }}
+                              className="p-0.5 rounded hover:bg-notion-hover text-notion-text-secondary hover:text-notion-text transition-colors"
+                            >
+                              <Pencil size={11} />
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  }
+                  if (entry.type === "event") {
+                    const si = entry.scheduleItem;
+                    const isDismissed = si.isDismissed ?? false;
+                    return (
+                      <div
+                        key={`e-${si.id}`}
+                        className="flex items-center gap-1.5 px-1.5 py-1 rounded group hover:bg-notion-hover transition-colors"
+                      >
+                        <button
+                          onClick={() => handleToggle(si.id)}
+                          disabled={isDismissed}
+                          className="shrink-0 transition-colors"
+                        >
+                          {si.completed ? (
+                            <CheckCircle2
+                              size={13}
+                              className="text-green-500"
+                            />
+                          ) : (
+                            <CalendarClock
+                              size={13}
+                              className={
+                                isDismissed
+                                  ? "text-notion-text-secondary/30"
+                                  : "text-purple-500"
+                              }
+                            />
+                          )}
+                        </button>
+                        <span
+                          className={`text-[11px] truncate flex-1 ${isDismissed ? "text-notion-text-secondary/40 line-through" : si.completed ? "text-notion-text-secondary line-through" : "text-notion-text"}`}
+                        >
+                          {si.title}
+                        </span>
+                        <div className="hidden group-hover:flex items-center shrink-0">
+                          {!isDismissed && onEditEvent && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onEditEvent(si.id, e);
+                              }}
+                              className="p-0.5 rounded hover:bg-notion-hover text-notion-text-secondary hover:text-notion-text transition-colors"
+                            >
+                              <Pencil size={11} />
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  }
+                  return null;
+                })}
+              </div>
+            </div>
+          )}
 
           {/* Progress bar */}
           <div className="mt-1 pt-1 border-t border-notion-border">

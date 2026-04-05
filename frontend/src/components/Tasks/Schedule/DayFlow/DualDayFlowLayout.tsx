@@ -11,6 +11,12 @@ import { ScheduleTimeGrid } from "./ScheduleTimeGrid";
 import { TaskSchedulePanel } from "../../../shared/TaskSchedulePanel";
 import { RoutineDeleteConfirmDialog } from "./RoutineDeleteConfirmDialog";
 import { RoutineTimeChangeDialog } from "./RoutineTimeChangeDialog";
+import { formatDateKey } from "../../../../utils/dateKey";
+import {
+  useRoleConversion,
+  type ConversionRole,
+  type ConversionSource,
+} from "../../../../hooks/useRoleConversion";
 
 interface DualDayFlowLayoutProps {
   getTaskColor?: (taskId: string) => string | undefined;
@@ -136,8 +142,14 @@ function DualColumn({
   onToggleDualColumn,
   onMutate,
 }: DualColumnProps) {
-  const { updateRoutine, routines } = useScheduleContext();
+  const { updateRoutine, updateScheduleItem, routines } = useScheduleContext();
   const { addNode, updateNode } = useTaskTreeContext();
+  const { convert, canConvert } = useRoleConversion();
+
+  const getDisabledRoles = (source: ConversionSource): ConversionRole[] => {
+    const roles: ConversionRole[] = ["task", "event", "note", "daily"];
+    return roles.filter((r) => !canConvert(source, r));
+  };
 
   // Auto-set NOT_STARTED tasks to IN_PROGRESS for today
   useAutoInProgress(column.filteredDayTasks, column.isToday);
@@ -304,6 +316,56 @@ function DualColumn({
               );
               onMutate?.();
             }
+          }}
+          onConvertScheduleItemRole={(item, targetRole) => {
+            const source: ConversionSource = {
+              role: "event",
+              scheduleItem: item,
+              date: item.date,
+            };
+            convert(source, targetRole);
+            onMutate?.();
+          }}
+          getDisabledRolesForScheduleItem={(item) =>
+            getDisabledRoles({
+              role: "event",
+              scheduleItem: item,
+              date: item.date,
+            })
+          }
+          onConvertTaskRole={(task, targetRole) => {
+            const taskDate = task.scheduledAt
+              ? formatDateKey(new Date(task.scheduledAt))
+              : column.dateKey;
+            const source: ConversionSource = {
+              role: "task",
+              task,
+              date: taskDate,
+            };
+            convert(source, targetRole);
+            onMutate?.();
+          }}
+          getDisabledRolesForTask={(task) => {
+            const taskDate = task.scheduledAt
+              ? formatDateKey(new Date(task.scheduledAt))
+              : column.dateKey;
+            return getDisabledRoles({
+              role: "task",
+              task,
+              date: taskDate,
+            });
+          }}
+          onUpdateScheduleItemDate={(id, newDate) => {
+            updateScheduleItem(id, { date: newDate });
+            onMutate?.();
+          }}
+          onUpdateScheduleItemAllDay={(id, isAllDay) => {
+            updateScheduleItem(id, { isAllDay });
+            onMutate?.();
+          }}
+          onUpdateTaskAllDay={(taskId, isAllDay) => {
+            updateNode(taskId, { isAllDay });
+            onMutate?.();
           }}
         />
       </div>

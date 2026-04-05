@@ -1004,6 +1004,7 @@
     "startLabel": "Start",
     "endLabel": "End",
     "clearSchedule": "Clear schedule",
+    "clearTime": "Clear time",
     "deleteTaskTitle": "Delete Task",
     "deleteTaskMessage": "Are you sure you want to delete this task?",
     "deleteNoteTitle": "Delete Note",

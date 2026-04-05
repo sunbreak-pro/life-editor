@@ -312,10 +312,13 @@ export function useScheduleItems() {
           | "completedAt"
           | "memo"
           | "content"
+          | "date"
+          | "isAllDay"
         >
       >,
     ) => {
       const prev = scheduleItemsRef.current.find((item) => item.id === id);
+      const dateChanged = updates.date && prev && updates.date !== prev.date;
       const applyUpdate = (item: ScheduleItem) =>
         item.id === id
           ? { ...item, ...updates, updatedAt: new Date().toISOString() }
@@ -324,8 +327,14 @@ export function useScheduleItems() {
         prev && item.id === id
           ? { ...item, ...prev, updatedAt: new Date().toISOString() }
           : item;
-      setScheduleItems((p) => p.map(applyUpdate));
-      setMonthlyScheduleItems((p) => p.map(applyUpdate));
+      if (dateChanged) {
+        // Item moved to a different date — remove from current lists
+        setScheduleItems((p) => p.filter((item) => item.id !== id));
+        setMonthlyScheduleItems((p) => p.filter((item) => item.id !== id));
+      } else {
+        setScheduleItems((p) => p.map(applyUpdate));
+        setMonthlyScheduleItems((p) => p.map(applyUpdate));
+      }
       getDataService()
         .updateScheduleItem(id, updates)
         .catch((e) => logServiceError("ScheduleItems", "update", e));
@@ -338,15 +347,32 @@ export function useScheduleItems() {
         push("scheduleItem", {
           label: "updateScheduleItem",
           undo: () => {
-            setScheduleItems((p) => p.map(applyRevert));
-            setMonthlyScheduleItems((p) => p.map(applyRevert));
+            if (dateChanged) {
+              // Re-add item to lists with reverted values
+              const reverted = {
+                ...prev,
+                updatedAt: new Date().toISOString(),
+              };
+              setScheduleItems((p) => [...p, reverted]);
+              setMonthlyScheduleItems((p) => [...p, reverted]);
+            } else {
+              setScheduleItems((p) => p.map(applyRevert));
+              setMonthlyScheduleItems((p) => p.map(applyRevert));
+            }
             getDataService()
               .updateScheduleItem(id, prevValues)
               .catch((e) => logServiceError("ScheduleItems", "undoUpdate", e));
           },
           redo: () => {
-            setScheduleItems((p) => p.map(applyUpdate));
-            setMonthlyScheduleItems((p) => p.map(applyUpdate));
+            if (dateChanged) {
+              setScheduleItems((p) => p.filter((item) => item.id !== id));
+              setMonthlyScheduleItems((p) =>
+                p.filter((item) => item.id !== id),
+              );
+            } else {
+              setScheduleItems((p) => p.map(applyUpdate));
+              setMonthlyScheduleItems((p) => p.map(applyUpdate));
+            }
             getDataService()
               .updateScheduleItem(id, updates)
               .catch((e) => logServiceError("ScheduleItems", "redoUpdate", e));
@@ -602,6 +628,27 @@ export function useScheduleItems() {
     [push, bumpVersion],
   );
 
+  const undismissScheduleItem = useCallback(
+    async (id: string) => {
+      try {
+        await getDataService().undismissScheduleItem(id);
+      } catch (e) {
+        logServiceError("ScheduleItems", "undismiss", e);
+        return;
+      }
+      // Re-fetch to get the item with isDismissed=false
+      try {
+        const items =
+          await getDataService().fetchScheduleItemsByDate(currentDate);
+        setScheduleItems(items);
+      } catch {
+        // ignore
+      }
+      bumpVersion();
+    },
+    [currentDate, bumpVersion],
+  );
+
   const ensureRoutineItemsForDate = useCallback(
     async (
       date: string,
@@ -798,9 +845,10 @@ export function useScheduleItems() {
               )
             : prev;
         });
+        bumpVersion();
       }
     },
-    [],
+    [bumpVersion],
   );
 
   const backfillMissedRoutineItems = useCallback(
@@ -996,11 +1044,13 @@ export function useScheduleItems() {
         const allItems = await getDataService().fetchScheduleItemsByRoutineId(
           routine.id,
         );
+        const today = formatDateKey(new Date());
 
-        // --- Delete non-matching items ---
+        // --- Delete non-matching items (today onward only) ---
         const toDeleteIds = allItems
           .filter((item) => {
             if (item.completed) return false;
+            if (item.date < today) return false;
             const routineMatch = shouldRoutineRunOnDate(
               routine.frequencyType,
               routine.frequencyDays,
@@ -1041,7 +1091,10 @@ export function useScheduleItems() {
             routineId: string;
           }> = [];
 
-          const cursor = new Date(dateRange.startDate + "T00:00:00");
+          const rangeStart = new Date(dateRange.startDate + "T00:00:00");
+          const todayDate = new Date(today + "T00:00:00");
+          const cursor =
+            rangeStart < todayDate ? new Date(todayDate) : rangeStart;
           const end = new Date(dateRange.endDate + "T00:00:00");
           while (cursor <= end) {
             const dateKey = formatDateKey(cursor);
@@ -1099,6 +1152,7 @@ export function useScheduleItems() {
       updateScheduleItem,
       deleteScheduleItem,
       dismissScheduleItem,
+      undismissScheduleItem,
       toggleComplete,
       ensureRoutineItemsForDate,
       ensureRoutineItemsForWeek,
@@ -1125,6 +1179,7 @@ export function useScheduleItems() {
       updateScheduleItem,
       deleteScheduleItem,
       dismissScheduleItem,
+      undismissScheduleItem,
       toggleComplete,
       ensureRoutineItemsForDate,
       ensureRoutineItemsForWeek,

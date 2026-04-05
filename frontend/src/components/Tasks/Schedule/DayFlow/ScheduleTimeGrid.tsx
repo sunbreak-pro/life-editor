@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, useMemo, useCallback } from "react";
 import type { TaskNode } from "../../../../types/taskTree";
 import type { ScheduleItem } from "../../../../types/schedule";
 import type { RoutineGroup } from "../../../../types/routineGroup";
+import type { ConversionRole } from "../../../../hooks/useRoleConversion";
 import { TIME_GRID } from "../../../../constants/timeGrid";
 import { TimeGridTaskBlock } from "../shared/TimeGridTaskBlock";
 import { TaskPreviewPopup } from "../Calendar/TaskPreviewPopup";
@@ -323,6 +324,18 @@ interface ScheduleTimeGridProps {
   onDeleteGroup?: (groupId: string, dismissToday: boolean) => void;
   // Context menu actions
   onDuplicateScheduleItem?: (id: string) => void;
+  // Role conversion
+  onConvertScheduleItemRole?: (
+    item: ScheduleItem,
+    targetRole: ConversionRole,
+  ) => void;
+  getDisabledRolesForScheduleItem?: (item: ScheduleItem) => ConversionRole[];
+  onConvertTaskRole?: (task: TaskNode, targetRole: ConversionRole) => void;
+  getDisabledRolesForTask?: (task: TaskNode) => ConversionRole[];
+  // Date / all-day
+  onUpdateScheduleItemDate?: (id: string, date: string) => void;
+  onUpdateScheduleItemAllDay?: (id: string, isAllDay: boolean) => void;
+  onUpdateTaskAllDay?: (taskId: string, isAllDay: boolean) => void;
 }
 
 export function ScheduleTimeGrid({
@@ -353,6 +366,13 @@ export function ScheduleTimeGrid({
   onEditGroup,
   onDeleteGroup,
   onDuplicateScheduleItem,
+  onConvertScheduleItemRole,
+  getDisabledRolesForScheduleItem,
+  onConvertTaskRole,
+  getDisabledRolesForTask,
+  onUpdateScheduleItemDate,
+  onUpdateScheduleItemAllDay,
+  onUpdateTaskAllDay,
 }: ScheduleTimeGridProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const mainColumnRef = useRef<HTMLDivElement>(null);
@@ -367,6 +387,12 @@ export function ScheduleTimeGrid({
     item: ScheduleItem;
     position: { x: number; y: number };
   } | null>(null);
+
+  // Resolve live schedule item from props (not snapshot) for immediate updates
+  const liveSchedulePreviewItem = schedulePreview
+    ? (scheduleItems.find((si) => si.id === schedulePreview.item.id) ??
+      schedulePreview.item)
+    : null;
 
   // Active memo item state (for context menu "Add memo")
   const [activeMemoItemId, setActiveMemoItemId] = useState<string | null>(null);
@@ -1060,24 +1086,44 @@ export function ScheduleTimeGrid({
                   )
               : undefined
           }
+          onConvertRole={
+            onConvertTaskRole
+              ? (targetRole) => onConvertTaskRole(taskPreview.task, targetRole)
+              : undefined
+          }
+          disabledRoles={
+            getDisabledRolesForTask
+              ? getDisabledRolesForTask(taskPreview.task)
+              : undefined
+          }
+          onUpdateAllDay={
+            onUpdateTaskAllDay
+              ? (isAllDay) => onUpdateTaskAllDay(taskPreview.task.id, isAllDay)
+              : undefined
+          }
+          onUpdateTimeMemo={
+            onUpdateTaskTimeMemo
+              ? (memo) => onUpdateTaskTimeMemo(taskPreview.task.id, memo)
+              : undefined
+          }
           onClose={() => setTaskPreview(null)}
         />
       )}
-      {schedulePreview && (
+      {schedulePreview && liveSchedulePreviewItem && (
         <ScheduleItemPreviewPopup
-          item={schedulePreview.item}
+          item={liveSchedulePreviewItem}
           position={schedulePreview.position}
           onToggleComplete={() => {
             onToggleComplete(schedulePreview.item.id);
             setSchedulePreview(null);
           }}
           onEditRoutine={
-            schedulePreview.item.routineId && onEditRoutine
-              ? () => onEditRoutine(schedulePreview.item.routineId!)
+            liveSchedulePreviewItem.routineId && onEditRoutine
+              ? () => onEditRoutine(liveSchedulePreviewItem.routineId!)
               : undefined
           }
           onDelete={() => {
-            const item = schedulePreview.item;
+            const item = liveSchedulePreviewItem;
             setSchedulePreview(null);
             if (item.routineId && onRequestRoutineDelete) {
               onRequestRoutineDelete(item, {} as React.MouseEvent);
@@ -1085,6 +1131,41 @@ export function ScheduleTimeGrid({
               onDeleteScheduleItem?.(item.id);
             }
           }}
+          onUpdateTime={
+            onUpdateScheduleItemTime
+              ? (startTime, endTime) =>
+                  onUpdateScheduleItemTime(
+                    schedulePreview.item.id,
+                    startTime,
+                    endTime,
+                  )
+              : undefined
+          }
+          onUpdateMemo={onUpdateMemo}
+          onConvertRole={
+            onConvertScheduleItemRole && !liveSchedulePreviewItem.routineId
+              ? (targetRole) =>
+                  onConvertScheduleItemRole(liveSchedulePreviewItem, targetRole)
+              : undefined
+          }
+          disabledRoles={
+            getDisabledRolesForScheduleItem &&
+            !liveSchedulePreviewItem.routineId
+              ? getDisabledRolesForScheduleItem(liveSchedulePreviewItem)
+              : undefined
+          }
+          onUpdateDate={
+            onUpdateScheduleItemDate
+              ? (date) =>
+                  onUpdateScheduleItemDate(schedulePreview.item.id, date)
+              : undefined
+          }
+          onUpdateAllDay={
+            onUpdateScheduleItemAllDay
+              ? (isAllDay) =>
+                  onUpdateScheduleItemAllDay(schedulePreview.item.id, isAllDay)
+              : undefined
+          }
           onClose={() => setSchedulePreview(null)}
         />
       )}

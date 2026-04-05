@@ -68,6 +68,7 @@ export function createScheduleItemRoutes(db: Database.Database): Hono {
             | "completedAt"
             | "memo"
             | "isAllDay"
+            | "date"
           >
         >
       >();

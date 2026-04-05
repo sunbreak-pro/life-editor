@@ -60,7 +60,7 @@ export function createScheduleItemRepository(db: Database.Database) {
     update: db.prepare(`
       UPDATE schedule_items SET title = @title, start_time = @start_time, end_time = @end_time,
       completed = @completed, completed_at = @completed_at, memo = @memo, is_all_day = @is_all_day,
-      content = @content, version = version + 1, updated_at = datetime('now')
+      content = @content, date = @date, version = version + 1, updated_at = datetime('now')
       WHERE id = @id
     `),
     fetchEvents: db.prepare(
@@ -145,6 +145,7 @@ export function createScheduleItemRepository(db: Database.Database) {
           | "memo"
           | "isAllDay"
           | "content"
+          | "date"
         >
       >,
     ): ScheduleItem {
@@ -172,6 +173,7 @@ export function createScheduleItemRepository(db: Database.Database) {
               : 0,
         content:
           updates.content !== undefined ? updates.content : current.content,
+        date: updates.date ?? current.date,
       });
       const row = stmts.fetchById.get(id) as ScheduleItemRow;
       return rowToItem(row);
