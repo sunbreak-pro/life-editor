@@ -276,6 +276,7 @@ export interface DataService {
   deleteScheduleItem(id: string): Promise<void>;
   toggleScheduleItemComplete(id: string): Promise<ScheduleItem>;
   dismissScheduleItem(id: string): Promise<void>;
+  undismissScheduleItem(id: string): Promise<void>;
   fetchLastRoutineDate(): Promise<string | null>;
   bulkCreateScheduleItems(
     items: Array<{

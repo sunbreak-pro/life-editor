@@ -815,6 +815,10 @@ export class OfflineDataService implements DataService {
     }
   }
 
+  async undismissScheduleItem(_id: string): Promise<void> {
+    return notSupported("undismissScheduleItem");
+  }
+
   async fetchLastRoutineDate(): Promise<string | null> {
     return this.rest.fetchLastRoutineDate();
   }

@@ -493,6 +493,9 @@ export class ElectronDataService implements DataService {
   dismissScheduleItem(id: string): Promise<void> {
     return invoke("db:scheduleItems:dismiss", id);
   }
+  undismissScheduleItem(id: string): Promise<void> {
+    return invoke("db:scheduleItems:undismiss", id);
+  }
   fetchLastRoutineDate(): Promise<string | null> {
     return invoke("db:scheduleItems:fetchLastRoutineDate");
   }

@@ -122,6 +122,17 @@ export function registerScheduleItemHandlers(
   );
 
   mutation(
+    "db:scheduleItems:undismiss",
+    "ScheduleItems",
+    "undismiss",
+    "scheduleItem",
+    "update",
+    (_event, id: string) => {
+      repo.undismiss(id);
+    },
+  );
+
+  mutation(
     "db:scheduleItems:updateFutureByRoutine",
     "ScheduleItems",
     "updateFutureByRoutine",

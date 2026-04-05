@@ -526,6 +526,9 @@ export class RestDataService implements DataService {
   dismissScheduleItem(id: string): Promise<void> {
     return del(`/api/schedule-items/${id}/dismiss`);
   }
+  undismissScheduleItem(_id: string): Promise<void> {
+    return notSupported("undismissScheduleItem");
+  }
   async fetchLastRoutineDate(): Promise<string | null> {
     const res = await get<{ date: string | null }>(
       "/api/schedule-items/last-routine-date",

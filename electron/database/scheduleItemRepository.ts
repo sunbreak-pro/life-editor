@@ -178,6 +178,12 @@ export function createScheduleItemRepository(db: Database.Database) {
       ).run(id);
     },
 
+    undismiss(id: string): void {
+      db.prepare(
+        `UPDATE schedule_items SET is_dismissed = 0, version = version + 1, updated_at = datetime('now') WHERE id = ?`,
+      ).run(id);
+    },
+
     toggleComplete(id: string): ScheduleItem {
       const existing = stmts.fetchById.get(id) as ScheduleItemRow | undefined;
       if (!existing) throw new Error(`ScheduleItem not found: ${id}`);

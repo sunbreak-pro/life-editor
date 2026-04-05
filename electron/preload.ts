@@ -96,6 +96,7 @@ const ALLOWED_CHANNELS = new Set([
   "db:scheduleItems:toggleComplete",
   "db:scheduleItems:bulkCreate",
   "db:scheduleItems:dismiss",
+  "db:scheduleItems:undismiss",
   "db:scheduleItems:updateFutureByRoutine",
   "db:scheduleItems:fetchLastRoutineDate",
   "db:scheduleItems:fetchByRoutineId",

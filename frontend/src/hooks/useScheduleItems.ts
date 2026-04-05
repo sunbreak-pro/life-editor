@@ -583,18 +583,7 @@ export function useScheduleItems() {
               ),
             );
             getDataService()
-              .createScheduleItem(
-                target.id,
-                target.date,
-                target.title,
-                target.startTime,
-                target.endTime,
-                target.routineId ?? undefined,
-                target.templateId ?? undefined,
-                target.noteId ?? undefined,
-                target.isAllDay,
-                target.content ?? undefined,
-              )
+              .undismissScheduleItem(target.id)
               .catch((e) => logServiceError("ScheduleItems", "undoDismiss", e));
           },
           redo: () => {
