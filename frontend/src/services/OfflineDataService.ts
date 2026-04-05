@@ -573,6 +573,7 @@ export class OfflineDataService implements DataService {
         | "startTime"
         | "endTime"
         | "isArchived"
+        | "isVisible"
         | "order"
         | "frequencyType"
         | "frequencyDays"
@@ -1331,6 +1332,7 @@ export class OfflineDataService implements DataService {
         RoutineGroup,
         | "name"
         | "color"
+        | "isVisible"
         | "order"
         | "frequencyType"
         | "frequencyDays"

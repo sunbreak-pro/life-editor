@@ -145,6 +145,7 @@ export interface RoutineNode {
   startTime: string | null;
   endTime: string | null;
   isArchived: boolean;
+  isVisible: boolean;
   isDeleted: boolean;
   deletedAt: string | null;
   order: number;
@@ -195,6 +196,7 @@ export interface RoutineGroup {
   id: string;
   name: string;
   color: string;
+  isVisible: boolean;
   order: number;
   frequencyType: FrequencyType;
   frequencyDays: number[];

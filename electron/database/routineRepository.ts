@@ -9,6 +9,7 @@ interface RoutineRow {
   start_time: string | null;
   end_time: string | null;
   is_archived: number;
+  is_visible: number;
   is_deleted: number;
   deleted_at: string | null;
   order: number;
@@ -27,6 +28,7 @@ function rowToNode(row: RoutineRow): RoutineNode {
     startTime: row.start_time,
     endTime: row.end_time,
     isArchived: row.is_archived === 1,
+    isVisible: row.is_visible === 1,
     isDeleted: row.is_deleted === 1,
     deletedAt: row.deleted_at,
     order: row.order,
@@ -58,16 +60,16 @@ export function createRoutineRepository(db: Database.Database) {
     ),
     fetchById: db.prepare(`SELECT * FROM routines WHERE id = ?`),
     insert: db.prepare(`
-      INSERT INTO routines (id, title, start_time, end_time, is_archived, "order",
+      INSERT INTO routines (id, title, start_time, end_time, is_archived, is_visible, "order",
         frequency_type, frequency_days, frequency_interval, frequency_start_date,
         created_at, updated_at)
-      VALUES (@id, @title, @start_time, @end_time, 0, @order,
+      VALUES (@id, @title, @start_time, @end_time, 0, 1, @order,
         @frequency_type, @frequency_days, @frequency_interval, @frequency_start_date,
         datetime('now'), datetime('now'))
     `),
     update: db.prepare(`
       UPDATE routines SET title = @title, start_time = @start_time, end_time = @end_time,
-      is_archived = @is_archived, "order" = @order,
+      is_archived = @is_archived, is_visible = @is_visible, "order" = @order,
       frequency_type = @frequency_type, frequency_days = @frequency_days,
       frequency_interval = @frequency_interval, frequency_start_date = @frequency_start_date,
       version = version + 1, updated_at = datetime('now')
@@ -120,6 +122,7 @@ export function createRoutineRepository(db: Database.Database) {
           | "startTime"
           | "endTime"
           | "isArchived"
+          | "isVisible"
           | "order"
           | "frequencyType"
           | "frequencyDays"
@@ -141,6 +144,7 @@ export function createRoutineRepository(db: Database.Database) {
         end_time:
           updates.endTime !== undefined ? updates.endTime : current.endTime,
         is_archived: (updates.isArchived ?? current.isArchived) ? 1 : 0,
+        is_visible: (updates.isVisible ?? current.isVisible) ? 1 : 0,
         order: updates.order ?? current.order,
         frequency_type: updates.frequencyType ?? current.frequencyType,
         frequency_days: JSON.stringify(

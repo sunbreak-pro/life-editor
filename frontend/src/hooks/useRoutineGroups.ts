@@ -43,6 +43,7 @@ export function useRoutineGroups() {
         id,
         name,
         color,
+        isVisible: true,
         order: routineGroups.length,
         frequencyType: frequencyType ?? "daily",
         frequencyDays: frequencyDays ?? [],
@@ -106,6 +107,7 @@ export function useRoutineGroups() {
           RoutineGroup,
           | "name"
           | "color"
+          | "isVisible"
           | "order"
           | "frequencyType"
           | "frequencyDays"

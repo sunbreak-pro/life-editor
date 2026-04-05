@@ -439,6 +439,7 @@ export class RestDataService implements DataService {
         | "startTime"
         | "endTime"
         | "isArchived"
+        | "isVisible"
         | "order"
         | "frequencyType"
         | "frequencyDays"
@@ -607,6 +608,7 @@ export class RestDataService implements DataService {
         RoutineGroup,
         | "name"
         | "color"
+        | "isVisible"
         | "order"
         | "frequencyType"
         | "frequencyDays"

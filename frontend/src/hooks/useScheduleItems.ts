@@ -886,6 +886,7 @@ export function useScheduleItems() {
           const dateKey = formatDateKey(cursor);
           for (const routine of routines) {
             if (routine.isArchived) continue;
+            if (!routine.isVisible) continue;
             const routineTagIds = tagAssignments.get(routine.id);
             if (!routineTagIds || routineTagIds.length === 0) continue;
             if (
@@ -899,8 +900,9 @@ export function useScheduleItems() {
             )
               continue;
 
-            // Also check group frequency
+            // Also check group visibility and frequency
             const group = groupForRoutine?.get(routine.id);
+            if (group && !group.isVisible) continue;
             if (
               group &&
               !shouldRoutineRunOnDate(
@@ -977,6 +979,7 @@ export function useScheduleItems() {
           const dateKey = formatDateKey(cursor);
           for (const routine of routines) {
             if (routine.isArchived) continue;
+            if (!routine.isVisible) continue;
             const routineTagIds = tagAssignments.get(routine.id);
             if (!routineTagIds || routineTagIds.length === 0) continue;
             if (existingSet.has(`${routine.id}:${dateKey}`)) continue;
@@ -991,8 +994,9 @@ export function useScheduleItems() {
             )
               continue;
 
-            // Also check group frequency
+            // Also check group visibility and frequency
             const group = groupForRoutine?.get(routine.id);
+            if (group && !group.isVisible) continue;
             if (
               group &&
               !shouldRoutineRunOnDate(
@@ -1023,6 +1027,98 @@ export function useScheduleItems() {
         }
       } catch (e) {
         logServiceError("ScheduleItems", "ensureRoutineItemsForWeek", e);
+      }
+    },
+    [bumpVersion],
+  );
+
+  /**
+   * Ensure routine schedule items exist for an arbitrary date range.
+   * Idempotent: skips dates/routines that already have items.
+   */
+  const ensureRoutineItemsForDateRange = useCallback(
+    async (
+      startDate: string,
+      endDate: string,
+      routines: RoutineNode[],
+      tagAssignments: Map<string, number[]>,
+      groupForRoutine?: Map<string, RoutineGroup>,
+    ) => {
+      try {
+        const existing = await getDataService().fetchScheduleItemsByDateRange(
+          startDate,
+          endDate,
+        );
+
+        const existingSet = new Set<string>();
+        for (const item of existing) {
+          if (item.routineId) {
+            existingSet.add(`${item.routineId}:${item.date}`);
+          }
+        }
+
+        const toCreate: Array<{
+          id: string;
+          date: string;
+          title: string;
+          startTime: string;
+          endTime: string;
+          routineId: string;
+        }> = [];
+
+        const cursor = new Date(startDate + "T00:00:00");
+        const end = new Date(endDate + "T00:00:00");
+        while (cursor <= end) {
+          const dateKey = formatDateKey(cursor);
+          for (const routine of routines) {
+            if (routine.isArchived) continue;
+            if (!routine.isVisible) continue;
+            const routineTagIds = tagAssignments.get(routine.id);
+            if (!routineTagIds || routineTagIds.length === 0) continue;
+            if (existingSet.has(`${routine.id}:${dateKey}`)) continue;
+            if (
+              !shouldRoutineRunOnDate(
+                routine.frequencyType,
+                routine.frequencyDays,
+                routine.frequencyInterval,
+                routine.frequencyStartDate,
+                dateKey,
+              )
+            )
+              continue;
+
+            const group = groupForRoutine?.get(routine.id);
+            if (group && !group.isVisible) continue;
+            if (
+              group &&
+              !shouldRoutineRunOnDate(
+                group.frequencyType,
+                group.frequencyDays,
+                group.frequencyInterval,
+                group.frequencyStartDate,
+                dateKey,
+              )
+            )
+              continue;
+
+            toCreate.push({
+              id: generateId("si"),
+              date: dateKey,
+              title: routine.title,
+              startTime: routine.startTime ?? "09:00",
+              endTime: routine.endTime ?? "09:30",
+              routineId: routine.id,
+            });
+          }
+          cursor.setDate(cursor.getDate() + 1);
+        }
+
+        if (toCreate.length > 0) {
+          await getDataService().bulkCreateScheduleItems(toCreate);
+          bumpVersion();
+        }
+      } catch (e) {
+        logServiceError("ScheduleItems", "ensureRoutineItemsForDateRange", e);
       }
     },
     [bumpVersion],
@@ -1156,6 +1252,7 @@ export function useScheduleItems() {
       toggleComplete,
       ensureRoutineItemsForDate,
       ensureRoutineItemsForWeek,
+      ensureRoutineItemsForDateRange,
       getRoutineCompletionRate,
       routineStats,
       refreshRoutineStats,
@@ -1183,6 +1280,7 @@ export function useScheduleItems() {
       toggleComplete,
       ensureRoutineItemsForDate,
       ensureRoutineItemsForWeek,
+      ensureRoutineItemsForDateRange,
       getRoutineCompletionRate,
       routineStats,
       refreshRoutineStats,

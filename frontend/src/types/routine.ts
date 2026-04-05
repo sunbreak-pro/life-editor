@@ -6,6 +6,7 @@ export interface RoutineNode {
   startTime: string | null; // "HH:MM"
   endTime: string | null; // "HH:MM"
   isArchived: boolean;
+  isVisible: boolean;
   isDeleted: boolean;
   deletedAt: string | null;
   order: number;

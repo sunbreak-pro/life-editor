@@ -4,6 +4,7 @@ export interface RoutineGroup {
   id: string; // "rgroup-<uuid>"
   name: string;
   color: string;
+  isVisible: boolean;
   order: number;
   frequencyType: FrequencyType;
   frequencyDays: number[];

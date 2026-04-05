@@ -1,5 +1,15 @@
 import { useState, useMemo, useCallback } from "react";
-import { Plus, Pencil, Trash2, Archive, X, Layers, Tag } from "lucide-react";
+import {
+  Plus,
+  Pencil,
+  Trash2,
+  Archive,
+  X,
+  Layers,
+  Tag,
+  Eye,
+  EyeOff,
+} from "lucide-react";
 import { IconButton } from "../../../shared/IconButton";
 import { useTranslation } from "react-i18next";
 import type { RoutineNode, FrequencyType } from "../../../../types/routine";
@@ -425,7 +435,7 @@ export function RoutineManagementOverlay({
                   <div
                     key={routine.id}
                     data-sidebar-item
-                    className="flex items-center gap-1.5 px-2 py-1.5 rounded-md border border-notion-border hover:bg-notion-hover group transition-colors"
+                    className={`flex items-center gap-1.5 px-2 py-1.5 rounded-md border border-notion-border hover:bg-notion-hover group transition-colors ${!routine.isVisible ? "opacity-40" : ""}`}
                   >
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-1.5 flex-wrap">
@@ -462,6 +472,25 @@ export function RoutineManagementOverlay({
                       </div>
                     </div>
                     <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <button
+                        onClick={() =>
+                          onUpdateRoutine(routine.id, {
+                            isVisible: !routine.isVisible,
+                          })
+                        }
+                        className="p-0.5 text-notion-text-secondary hover:text-notion-text rounded transition-colors"
+                        title={
+                          routine.isVisible
+                            ? t("routine.hide", "Hide")
+                            : t("routine.show", "Show")
+                        }
+                      >
+                        {routine.isVisible ? (
+                          <Eye size={12} />
+                        ) : (
+                          <EyeOff size={12} />
+                        )}
+                      </button>
                       <button
                         onClick={() => setEditDialog(routine)}
                         className="p-0.5 text-notion-text-secondary hover:text-notion-text rounded transition-colors"
@@ -522,7 +551,7 @@ export function RoutineManagementOverlay({
                     <div
                       key={group.id}
                       data-sidebar-item
-                      className="flex items-center gap-1.5 px-2 py-1.5 rounded-md border border-notion-border hover:bg-notion-hover group transition-colors"
+                      className={`flex items-center gap-1.5 px-2 py-1.5 rounded-md border border-notion-border hover:bg-notion-hover group transition-colors ${!group.isVisible ? "opacity-40" : ""}`}
                     >
                       <span
                         className="w-3 h-3 rounded shrink-0"
@@ -542,6 +571,25 @@ export function RoutineManagementOverlay({
                         </div>
                       </div>
                       <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button
+                          onClick={() =>
+                            onUpdateRoutineGroup(group.id, {
+                              isVisible: !group.isVisible,
+                            })
+                          }
+                          className="p-0.5 text-notion-text-secondary hover:text-notion-text rounded transition-colors"
+                          title={
+                            group.isVisible
+                              ? t("routine.hide", "Hide")
+                              : t("routine.show", "Show")
+                          }
+                        >
+                          {group.isVisible ? (
+                            <Eye size={12} />
+                          ) : (
+                            <EyeOff size={12} />
+                          )}
+                        </button>
                         <button
                           onClick={() => setGroupEditDialog(group)}
                           className="p-0.5 text-notion-text-secondary hover:text-notion-text rounded transition-colors"
@@ -639,6 +687,9 @@ export function RoutineManagementOverlay({
               ? (offset) => handleSlideGroupEndTime(groupEditDialog.id, offset)
               : undefined
           }
+          onUpdateRoutine={(id, updates) => onUpdateRoutine(id, updates)}
+          allRoutines={routines}
+          allTagAssignments={tagAssignments}
           onClose={() => setGroupEditDialog(null)}
         />
       )}

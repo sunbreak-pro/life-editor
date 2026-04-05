@@ -225,6 +225,7 @@ export interface DataService {
         | "startTime"
         | "endTime"
         | "isArchived"
+        | "isVisible"
         | "order"
         | "frequencyType"
         | "frequencyDays"
@@ -319,6 +320,7 @@ export interface DataService {
         RoutineGroup,
         | "name"
         | "color"
+        | "isVisible"
         | "order"
         | "frequencyType"
         | "frequencyDays"

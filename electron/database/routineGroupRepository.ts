@@ -5,6 +5,7 @@ interface RoutineGroupRow {
   id: string;
   name: string;
   color: string;
+  is_visible: number;
   order: number;
   frequency_type: string;
   frequency_days: string;
@@ -19,6 +20,7 @@ function rowToGroup(row: RoutineGroupRow): RoutineGroup {
     id: row.id,
     name: row.name,
     color: row.color,
+    isVisible: row.is_visible === 1,
     order: row.order,
     frequencyType: (row.frequency_type as FrequencyType) ?? "daily",
     frequencyDays: JSON.parse(row.frequency_days || "[]") as number[],
@@ -36,15 +38,15 @@ export function createRoutineGroupRepository(db: Database.Database) {
     ),
     fetchById: db.prepare(`SELECT * FROM routine_groups WHERE id = ?`),
     insert: db.prepare(`
-      INSERT INTO routine_groups (id, name, color, "order",
+      INSERT INTO routine_groups (id, name, color, is_visible, "order",
         frequency_type, frequency_days, frequency_interval, frequency_start_date,
         created_at, updated_at)
-      VALUES (@id, @name, @color, @order,
+      VALUES (@id, @name, @color, 1, @order,
         @frequency_type, @frequency_days, @frequency_interval, @frequency_start_date,
         datetime('now'), datetime('now'))
     `),
     update: db.prepare(`
-      UPDATE routine_groups SET name = @name, color = @color, "order" = @order,
+      UPDATE routine_groups SET name = @name, color = @color, is_visible = @is_visible, "order" = @order,
       frequency_type = @frequency_type, frequency_days = @frequency_days,
       frequency_interval = @frequency_interval, frequency_start_date = @frequency_start_date,
       updated_at = datetime('now')
@@ -103,6 +105,7 @@ export function createRoutineGroupRepository(db: Database.Database) {
           RoutineGroup,
           | "name"
           | "color"
+          | "isVisible"
           | "order"
           | "frequencyType"
           | "frequencyDays"
@@ -118,6 +121,7 @@ export function createRoutineGroupRepository(db: Database.Database) {
         id,
         name: updates.name ?? current.name,
         color: updates.color ?? current.color,
+        is_visible: (updates.isVisible ?? current.isVisible) ? 1 : 0,
         order: updates.order ?? current.order,
         frequency_type: updates.frequencyType ?? current.frequencyType,
         frequency_days: JSON.stringify(

@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo } from "react";
 import { X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import type { RoutineGroup } from "../../../../types/routineGroup";
@@ -28,6 +28,12 @@ interface RoutineGroupEditDialogProps {
   ) => void;
   onSlideGroup?: (offsetMinutes: number) => void;
   onSlideGroupEndTime?: (offsetMinutes: number) => void;
+  onUpdateRoutine?: (
+    id: string,
+    updates: Partial<Pick<RoutineNode, "startTime" | "endTime">>,
+  ) => void;
+  allRoutines?: RoutineNode[];
+  allTagAssignments?: Map<string, number[]>;
   onClose: () => void;
 }
 
@@ -40,6 +46,9 @@ export function RoutineGroupEditDialog({
   onSubmit,
   onSlideGroup,
   onSlideGroupEndTime,
+  onUpdateRoutine,
+  allRoutines,
+  allTagAssignments,
   onClose,
 }: RoutineGroupEditDialogProps) {
   const { t } = useTranslation();
@@ -60,6 +69,24 @@ export function RoutineGroupEditDialog({
     group?.frequencyStartDate ?? getTodayKey(),
   );
 
+  // Compute displayed member routines (edit: from prop, create: from selected tags)
+  const displayedRoutines = useMemo(() => {
+    if (group) return memberRoutines;
+    if (!allRoutines || !allTagAssignments || selectedTagIds.length === 0)
+      return [];
+    const tagSet = new Set(selectedTagIds);
+    return allRoutines.filter((r) => {
+      if (r.isArchived || r.isDeleted) return false;
+      const routineTags = allTagAssignments.get(r.id) ?? [];
+      return routineTags.some((tid) => tagSet.has(tid));
+    });
+  }, [group, memberRoutines, allRoutines, allTagAssignments, selectedTagIds]);
+
+  // Track per-routine time edits
+  const [routineTimeEdits, setRoutineTimeEdits] = useState<
+    Map<string, { startTime: string; endTime: string }>
+  >(new Map());
+
   const handleSubmit = useCallback(() => {
     if (!name.trim()) return;
     onSubmit(
@@ -71,6 +98,14 @@ export function RoutineGroupEditDialog({
       frequencyType === "interval" ? frequencyInterval : null,
       frequencyType === "interval" ? frequencyStartDate : null,
     );
+    if (onUpdateRoutine) {
+      for (const [routineId, times] of routineTimeEdits.entries()) {
+        onUpdateRoutine(routineId, {
+          startTime: times.startTime,
+          endTime: times.endTime,
+        });
+      }
+    }
     onClose();
   }, [
     name,
@@ -82,6 +117,8 @@ export function RoutineGroupEditDialog({
     frequencyStartDate,
     onSubmit,
     onClose,
+    onUpdateRoutine,
+    routineTimeEdits,
   ]);
 
   const handleSlide = useCallback(
@@ -251,6 +288,81 @@ export function RoutineGroupEditDialog({
                   {t("routineGroup.members", "routines")}
                 </div>
               )}
+            </div>
+          )}
+
+          {/* Member Routines */}
+          {displayedRoutines.length > 0 && (
+            <div>
+              <label className="text-[11px] text-notion-text-secondary font-medium block mb-1">
+                {t("routineGroup.memberRoutines", "Member Routines")}
+                <span className="ml-1">({displayedRoutines.length})</span>
+              </label>
+              <div className="space-y-1.5 max-h-40 overflow-y-auto">
+                {displayedRoutines.map((routine) => {
+                  const edited = routineTimeEdits.get(routine.id);
+                  const startTime =
+                    edited?.startTime ?? routine.startTime ?? "09:00";
+                  const endTime = edited?.endTime ?? routine.endTime ?? "09:30";
+                  const [startH, startM] = startTime.split(":").map(Number);
+                  const [endH, endM] = endTime.split(":").map(Number);
+                  const hasNoTime = !routine.startTime && !routine.endTime;
+                  return (
+                    <div
+                      key={routine.id}
+                      className="flex items-center gap-2 text-xs text-notion-text"
+                    >
+                      <span className="truncate flex-1 min-w-0">
+                        {routine.title}
+                        {hasNoTime && (
+                          <span className="ml-1 text-[10px] text-notion-text-secondary">
+                            ({t("routineGroup.noTimeSet", "no time set")})
+                          </span>
+                        )}
+                      </span>
+                      <TimeInput
+                        hour={startH}
+                        minute={startM}
+                        onChange={(h, m) => {
+                          const newStart = formatTime(h, m);
+                          setRoutineTimeEdits((prev) => {
+                            const next = new Map(prev);
+                            next.set(routine.id, {
+                              startTime: newStart,
+                              endTime:
+                                edited?.endTime ?? routine.endTime ?? "09:30",
+                            });
+                            return next;
+                          });
+                        }}
+                        minuteStep={5}
+                        size="sm"
+                      />
+                      <span className="text-notion-text-secondary">-</span>
+                      <TimeInput
+                        hour={endH}
+                        minute={endM}
+                        onChange={(h, m) => {
+                          const newEnd = formatTime(h, m);
+                          setRoutineTimeEdits((prev) => {
+                            const next = new Map(prev);
+                            next.set(routine.id, {
+                              startTime:
+                                edited?.startTime ??
+                                routine.startTime ??
+                                "09:00",
+                              endTime: newEnd,
+                            });
+                            return next;
+                          });
+                        }}
+                        minuteStep={5}
+                        size="sm"
+                      />
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           )}
         </div>

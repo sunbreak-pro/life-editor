@@ -42,6 +42,7 @@ export function diffRoutineScheduleItems(
 
   for (const routine of routines) {
     if (routine.isArchived) continue;
+    if (!routine.isVisible) continue;
     const routineTagIds = tagAssignments.get(routine.id);
     if (!routineTagIds || routineTagIds.length === 0) continue;
     if (
@@ -55,8 +56,9 @@ export function diffRoutineScheduleItems(
     )
       continue;
 
-    // Also check group frequency if routine belongs to a group
+    // Also check group visibility and frequency
     const group = groupForRoutine?.get(routine.id);
+    if (group && !group.isVisible) continue;
     if (
       group &&
       !shouldRoutineRunOnDate(

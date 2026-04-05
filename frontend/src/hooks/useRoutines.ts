@@ -52,6 +52,7 @@ export function useRoutines() {
         startTime: startTime ?? null,
         endTime: endTime ?? null,
         isArchived: false,
+        isVisible: true,
         isDeleted: false,
         deletedAt: null,
         order: routines.length,
@@ -107,6 +108,7 @@ export function useRoutines() {
           | "startTime"
           | "endTime"
           | "isArchived"
+          | "isVisible"
           | "order"
           | "frequencyType"
           | "frequencyDays"

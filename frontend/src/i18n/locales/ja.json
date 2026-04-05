@@ -1319,7 +1319,9 @@
     "noGroups": "グループがありません",
     "members": "ルーティン",
     "timeRange": "時間帯",
-    "slideHint": "開始時間を変更するとメンバー全ルーティンがシフトします"
+    "slideHint": "開始時間を変更するとメンバー全ルーティンがシフトします",
+    "memberRoutines": "メンバールーティン",
+    "noTimeSet": "時間未設定"
   },
   "statusBar": {
     "terminal": "ターミナル",

@@ -215,6 +215,11 @@ export function runMigrations(db: Database.Database): void {
     migrateV46(db);
   }
 
+  if (currentVersion < 47) {
+    log.info("[DB] Running migration V47");
+    migrateV47(db);
+  }
+
   const newVersion = db.pragma("user_version", { simple: true }) as number;
   if (newVersion !== currentVersion) {
     log.info(`[DB] Schema migrated: ${currentVersion} → ${newVersion}`);
@@ -1678,4 +1683,21 @@ function migrateV46(db: Database.Database): void {
   });
   migrate();
   db.pragma("user_version = 46");
+}
+
+function migrateV47(db: Database.Database): void {
+  const migrate = db.transaction(() => {
+    if (!hasColumn(db, "routines", "is_visible")) {
+      db.exec(
+        `ALTER TABLE routines ADD COLUMN is_visible INTEGER NOT NULL DEFAULT 1`,
+      );
+    }
+    if (!hasColumn(db, "routine_groups", "is_visible")) {
+      db.exec(
+        `ALTER TABLE routine_groups ADD COLUMN is_visible INTEGER NOT NULL DEFAULT 1`,
+      );
+    }
+  });
+  migrate();
+  db.pragma("user_version = 47");
 }

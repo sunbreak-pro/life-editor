@@ -1319,7 +1319,9 @@
     "noGroups": "No groups yet.",
     "members": "routines",
     "timeRange": "Time Range",
-    "slideHint": "Changing start time slides all member routines"
+    "slideHint": "Changing start time slides all member routines",
+    "memberRoutines": "Member Routines",
+    "noTimeSet": "no time set"
   },
   "statusBar": {
     "terminal": "Terminal",

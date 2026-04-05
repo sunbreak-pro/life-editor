@@ -242,6 +242,7 @@ export function CalendarView({
     reconcileRoutineScheduleItems,
     dismissScheduleItem,
     scheduleItemsVersion,
+    ensureRoutineItemsForDateRange,
   } = useScheduleContext();
 
   const { convert, canConvert } = useRoleConversion();
@@ -312,6 +313,30 @@ export function CalendarView({
   useEffect(() => {
     loadScheduleItemsForMonth(year, month);
   }, [year, month, loadScheduleItemsForMonth, scheduleItemsVersion]);
+
+  // Ensure routine items exist for the displayed month grid (42 days)
+  useEffect(() => {
+    if (routines.length === 0) return;
+    const firstDay = new Date(year, month, 1);
+    const startDayOfWeek = firstDay.getDay();
+    const gridStart = new Date(year, month, 1 - startDayOfWeek);
+    const gridEnd = new Date(gridStart);
+    gridEnd.setDate(gridEnd.getDate() + 41);
+    ensureRoutineItemsForDateRange(
+      formatDateKey(gridStart),
+      formatDateKey(gridEnd),
+      routines,
+      tagAssignments,
+      groupForRoutine,
+    );
+  }, [
+    year,
+    month,
+    routines,
+    tagAssignments,
+    groupForRoutine,
+    ensureRoutineItemsForDateRange,
+  ]);
 
   const { tasksByDate, itemsByDate, calendarDays, weekDays } = useCalendar(
     filteredNodes,
@@ -1101,6 +1126,7 @@ export function CalendarView({
 
             setEditGroupDialog(null);
           }}
+          onUpdateRoutine={(id, updates) => updateRoutine(id, updates)}
           onClose={() => setEditGroupDialog(null)}
         />
       )}
