@@ -15,6 +15,15 @@ export function registerScheduleItemHandlers(
   );
 
   query(
+    "db:scheduleItems:fetchByDateAll",
+    "ScheduleItems",
+    "fetchByDateAll",
+    (_event, date: string) => {
+      return repo.fetchByDateAll(date);
+    },
+  );
+
+  query(
     "db:scheduleItems:fetchByDateRange",
     "ScheduleItems",
     "fetchByDateRange",

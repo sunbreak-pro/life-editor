@@ -434,6 +434,9 @@ export class ElectronDataService implements DataService {
   fetchScheduleItemsByDate(date: string): Promise<ScheduleItem[]> {
     return invoke("db:scheduleItems:fetchByDate", date);
   }
+  fetchScheduleItemsByDateAll(date: string): Promise<ScheduleItem[]> {
+    return invoke("db:scheduleItems:fetchByDateAll", date);
+  }
   fetchScheduleItemsByDateRange(
     startDate: string,
     endDate: string,

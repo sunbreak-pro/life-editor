@@ -241,6 +241,7 @@ export interface DataService {
 
   // Schedule Items
   fetchScheduleItemsByDate(date: string): Promise<ScheduleItem[]>;
+  fetchScheduleItemsByDateAll(date: string): Promise<ScheduleItem[]>;
   fetchScheduleItemsByDateRange(
     startDate: string,
     endDate: string,

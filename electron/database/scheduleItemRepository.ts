@@ -46,6 +46,9 @@ export function createScheduleItemRepository(db: Database.Database) {
     fetchByDate: db.prepare(
       `SELECT * FROM schedule_items WHERE date = ? AND is_dismissed = 0 ORDER BY start_time ASC, created_at ASC`,
     ),
+    fetchByDateAll: db.prepare(
+      `SELECT * FROM schedule_items WHERE date = ? ORDER BY start_time ASC, created_at ASC`,
+    ),
     fetchByDateRange: db.prepare(
       `SELECT * FROM schedule_items WHERE date >= ? AND date <= ? AND is_dismissed = 0 ORDER BY date ASC, start_time ASC`,
     ),
@@ -87,6 +90,12 @@ export function createScheduleItemRepository(db: Database.Database) {
   return {
     fetchByDate(date: string): ScheduleItem[] {
       return (stmts.fetchByDate.all(date) as ScheduleItemRow[]).map(rowToItem);
+    },
+
+    fetchByDateAll(date: string): ScheduleItem[] {
+      return (stmts.fetchByDateAll.all(date) as ScheduleItemRow[]).map(
+        rowToItem,
+      );
     },
 
     fetchByDateRange(startDate: string, endDate: string): ScheduleItem[] {

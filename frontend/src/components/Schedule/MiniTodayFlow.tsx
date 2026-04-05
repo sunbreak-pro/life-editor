@@ -1,17 +1,19 @@
 import { useMemo, useCallback } from "react";
 import {
   CalendarClock,
-  CalendarMinus,
   CheckCircle2,
   CheckSquare,
   ChevronLeft,
   ChevronRight,
+  Eye,
+  EyeOff,
+  Layers,
   Pencil,
   Repeat,
-  X,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import type { RoutineNode } from "../../types/routine";
+import type { RoutineGroup } from "../../types/routineGroup";
 import type { ScheduleItem } from "../../types/schedule";
 import type { TaskNode } from "../../types/taskTree";
 import { formatDateKey } from "../../utils/dateKey";
@@ -24,6 +26,14 @@ type FlowEntry =
       title: string;
       startTime: string | null;
       completed: boolean;
+      isDismissed: boolean;
+    }
+  | {
+      type: "group";
+      group: RoutineGroup;
+      memberCount: number;
+      allDismissed: boolean;
+      startTime: string | null;
     }
   | { type: "task"; task: TaskNode; sortKey: string }
   | { type: "event"; scheduleItem: ScheduleItem };
@@ -34,6 +44,8 @@ interface MiniTodayFlowProps {
   scheduleItems: ScheduleItem[];
   onToggleComplete: (id: string) => void;
   tasks?: TaskNode[];
+  routineGroups?: RoutineGroup[];
+  routinesByGroup?: Map<string, RoutineNode[]>;
   onSelectTask?: (taskId: string) => void;
   onPrevDate?: () => void;
   onNextDate?: () => void;
@@ -42,7 +54,9 @@ interface MiniTodayFlowProps {
   onEditEvent?: (scheduleItemId: string, e: React.MouseEvent) => void;
   onEditTask?: (taskId: string, e: React.MouseEvent) => void;
   onDismissItem?: (scheduleItemId: string) => void;
-  onRemoveTaskFromSchedule?: (taskId: string) => void;
+  onUndismissItem?: (scheduleItemId: string) => void;
+  onDismissGroup?: (groupId: string) => void;
+  onUndismissGroup?: (groupId: string) => void;
   onToggleTaskStatus?: (taskId: string) => void;
 }
 
@@ -59,6 +73,8 @@ export function MiniTodayFlow({
   scheduleItems,
   onToggleComplete,
   tasks = [],
+  routineGroups = [],
+  routinesByGroup,
   onSelectTask,
   onPrevDate,
   onNextDate,
@@ -67,12 +83,13 @@ export function MiniTodayFlow({
   onEditEvent,
   onEditTask,
   onDismissItem,
-  onRemoveTaskFromSchedule,
+  onUndismissItem,
+  onDismissGroup,
+  onUndismissGroup,
   onToggleTaskStatus,
 }: MiniTodayFlowProps) {
   const { t } = useTranslation();
 
-  // Empty set = show all
   const showAll = !activeFilters || activeFilters.size === 0;
   const showRoutines = showAll || activeFilters!.has("routine");
   const showEvents = showAll || activeFilters!.has("events");
@@ -90,6 +107,33 @@ export function MiniTodayFlow({
   const entries = useMemo((): FlowEntry[] => {
     const result: FlowEntry[] = [];
 
+    // Add groups
+    if (showRoutines && routineGroups.length > 0 && routinesByGroup) {
+      for (const group of routineGroups) {
+        const members = routinesByGroup.get(group.id) ?? [];
+        if (members.length === 0) continue;
+        const memberScheduleItems = members
+          .map((r) => scheduleItemByRoutineId.get(r.id))
+          .filter(Boolean) as ScheduleItem[];
+        const allDismissed =
+          memberScheduleItems.length > 0 &&
+          memberScheduleItems.every((si) => si.isDismissed);
+        const firstTime =
+          memberScheduleItems.length > 0
+            ? memberScheduleItems.sort((a, b) =>
+                a.startTime.localeCompare(b.startTime),
+              )[0].startTime
+            : null;
+        result.push({
+          type: "group",
+          group,
+          memberCount: members.length,
+          allDismissed,
+          startTime: firstTime,
+        });
+      }
+    }
+
     // Add routines
     if (showRoutines) {
       for (const routine of routines) {
@@ -102,6 +146,7 @@ export function MiniTodayFlow({
           title: routine.title,
           startTime: scheduleItem?.startTime ?? routine.startTime,
           completed: scheduleItem?.completed ?? false,
+          isDismissed: scheduleItem?.isDismissed ?? false,
         });
       }
     }
@@ -115,38 +160,45 @@ export function MiniTodayFlow({
       }
     }
 
-    // Add tasks (always shown in sidebar regardless of filters)
-    {
-      for (const task of tasks) {
-        if (task.isAllDay) {
-          result.push({ type: "task", task, sortKey: "99:99" });
-        } else if (task.scheduledAt) {
-          const time = extractTimeFromScheduledAt(task.scheduledAt);
-          result.push({ type: "task", task, sortKey: time });
-        }
+    // Add tasks
+    for (const task of tasks) {
+      if (task.isAllDay) {
+        result.push({ type: "task", task, sortKey: "99:99" });
+      } else if (task.scheduledAt) {
+        const time = extractTimeFromScheduledAt(task.scheduledAt);
+        result.push({ type: "task", task, sortKey: time });
       }
     }
 
-    // Sort by time
+    // Sort by time (groups and dismissed items mixed in)
     result.sort((a, b) => {
+      // Groups first
+      if (a.type === "group" && b.type !== "group") return -1;
+      if (a.type !== "group" && b.type === "group") return 1;
       const aKey =
         a.type === "routine"
           ? (a.startTime ?? "99:99")
           : a.type === "event"
             ? (a.scheduleItem.startTime ?? "99:99")
-            : a.sortKey;
+            : a.type === "group"
+              ? (a.startTime ?? "99:99")
+              : a.sortKey;
       const bKey =
         b.type === "routine"
           ? (b.startTime ?? "99:99")
           : b.type === "event"
             ? (b.scheduleItem.startTime ?? "99:99")
-            : b.sortKey;
+            : b.type === "group"
+              ? (b.startTime ?? "99:99")
+              : b.sortKey;
       return aKey.localeCompare(bKey);
     });
 
     return result;
   }, [
     routines,
+    routineGroups,
+    routinesByGroup,
     scheduleItemByRoutineId,
     scheduleItems,
     tasks,
@@ -159,9 +211,11 @@ export function MiniTodayFlow({
       ? e.completed
       : e.type === "event"
         ? e.scheduleItem.completed
-        : e.task.status === "DONE",
+        : e.type === "task"
+          ? e.task.status === "DONE"
+          : false,
   ).length;
-  const totalCount = entries.length;
+  const totalCount = entries.filter((e) => e.type !== "group").length;
   const progressPercent =
     totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
 
@@ -172,7 +226,7 @@ export function MiniTodayFlow({
     [onToggleComplete],
   );
 
-  const hasEntries = totalCount > 0;
+  const hasEntries = entries.length > 0;
   const isToday = formatDateKey(date) === formatDateKey(new Date());
   const dateLabel = `${date.getMonth() + 1}/${date.getDate()}`;
 
@@ -214,7 +268,71 @@ export function MiniTodayFlow({
         <>
           <div className="mt-1.5 ml-[3px]">
             {entries.map((entry, i) => {
+              // --- Group entry ---
+              if (entry.type === "group") {
+                const g = entry.group;
+                return (
+                  <div
+                    key={`g-${g.id}`}
+                    data-sidebar-item
+                    className="flex text-left w-full group"
+                  >
+                    <div className="flex flex-col items-center mr-2">
+                      <div
+                        className="w-4 h-4 rounded shrink-0 flex items-center justify-center"
+                        style={{ backgroundColor: `${g.color}30` }}
+                      >
+                        <Layers size={12} style={{ color: g.color }} />
+                      </div>
+                      {i < entries.length - 1 && (
+                        <div className="w-px flex-1 min-h-[10px] bg-notion-border" />
+                      )}
+                    </div>
+                    <div className="pb-2 min-w-0 flex-1 flex items-start">
+                      <div
+                        className={`text-xs truncate flex-1 font-medium ${entry.allDismissed ? "text-notion-text-secondary/50" : ""}`}
+                        style={{
+                          color: entry.allDismissed ? undefined : g.color,
+                        }}
+                      >
+                        {g.name}
+                        <span className="text-[10px] opacity-60 ml-1">
+                          ({entry.memberCount})
+                        </span>
+                      </div>
+                      <div className="hidden group-hover:flex items-center gap-0.5 shrink-0 ml-1">
+                        {entry.allDismissed && onUndismissGroup ? (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onUndismissGroup(g.id);
+                            }}
+                            className="p-1 rounded hover:bg-notion-hover text-notion-text-secondary/50 hover:text-notion-text transition-colors"
+                            title={t("schedule.show", "Show")}
+                          >
+                            <EyeOff size={12} />
+                          </button>
+                        ) : onDismissGroup ? (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onDismissGroup(g.id);
+                            }}
+                            className="p-1 rounded hover:bg-notion-hover text-notion-text-secondary hover:text-notion-text transition-colors"
+                            title={t("schedule.hide", "Hide")}
+                          >
+                            <Eye size={12} />
+                          </button>
+                        ) : null}
+                      </div>
+                    </div>
+                  </div>
+                );
+              }
+
+              // --- Routine entry ---
               if (entry.type === "routine") {
+                const isDismissed = entry.isDismissed;
                 return (
                   <div
                     key={`r-${entry.routineId}`}
@@ -224,7 +342,7 @@ export function MiniTodayFlow({
                     <div className="flex flex-col items-center mr-2">
                       <button
                         onClick={() => handleToggle(entry.scheduleItemId)}
-                        disabled={!entry.scheduleItemId}
+                        disabled={!entry.scheduleItemId || isDismissed}
                         className="flex-shrink-0 transition-colors"
                       >
                         {entry.completed ? (
@@ -232,7 +350,7 @@ export function MiniTodayFlow({
                         ) : (
                           <Repeat
                             size={16}
-                            className={`text-emerald-500 ${entry.scheduleItemId ? "hover:text-green-500" : ""}`}
+                            className={`${isDismissed ? "text-notion-text-secondary/30" : "text-emerald-500"} ${entry.scheduleItemId && !isDismissed ? "hover:text-green-500" : ""}`}
                           />
                         )}
                       </button>
@@ -242,7 +360,7 @@ export function MiniTodayFlow({
                     </div>
                     <div className="pb-2 min-w-0 flex-1 flex items-start">
                       <div
-                        className={`text-xs truncate flex-1 ${entry.completed ? "text-notion-text-secondary line-through" : "text-notion-text"}`}
+                        className={`text-xs truncate flex-1 ${isDismissed ? "text-notion-text-secondary/40 line-through" : entry.completed ? "text-notion-text-secondary line-through" : "text-notion-text"}`}
                       >
                         {entry.startTime && (
                           <span className="text-xs text-notion-text-secondary mr-1">
@@ -252,7 +370,7 @@ export function MiniTodayFlow({
                         {entry.title}
                       </div>
                       <div className="hidden group-hover:flex items-center gap-0.5 shrink-0 ml-1">
-                        {onEditRoutine && (
+                        {!isDismissed && onEditRoutine && (
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
@@ -263,26 +381,43 @@ export function MiniTodayFlow({
                             <Pencil size={12} />
                           </button>
                         )}
-                        {onDismissItem && entry.scheduleItemId && (
+                        {isDismissed &&
+                        onUndismissItem &&
+                        entry.scheduleItemId ? (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onUndismissItem(entry.scheduleItemId!);
+                            }}
+                            className="p-1 rounded hover:bg-notion-hover text-notion-text-secondary/50 hover:text-notion-text transition-colors"
+                            title={t("schedule.show", "Show")}
+                          >
+                            <EyeOff size={12} />
+                          </button>
+                        ) : !isDismissed &&
+                          onDismissItem &&
+                          entry.scheduleItemId ? (
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
                               onDismissItem(entry.scheduleItemId!);
                             }}
-                            className="p-1 rounded hover:bg-notion-hover text-notion-text-secondary hover:text-red-500 transition-colors"
+                            className="p-1 rounded hover:bg-notion-hover text-notion-text-secondary hover:text-notion-text transition-colors"
+                            title={t("schedule.hide", "Hide")}
                           >
-                            <X size={12} />
+                            <Eye size={12} />
                           </button>
-                        )}
+                        ) : null}
                       </div>
                     </div>
                   </div>
                 );
               }
 
-              // Event entry
+              // --- Event entry ---
               if (entry.type === "event") {
                 const si = entry.scheduleItem;
+                const isDismissed = si.isDismissed ?? false;
                 return (
                   <div
                     key={`e-${si.id}`}
@@ -292,6 +427,7 @@ export function MiniTodayFlow({
                     <div className="flex flex-col items-center mr-2">
                       <button
                         onClick={() => handleToggle(si.id)}
+                        disabled={isDismissed}
                         className="flex-shrink-0 transition-colors"
                       >
                         {si.completed ? (
@@ -299,7 +435,7 @@ export function MiniTodayFlow({
                         ) : (
                           <CalendarClock
                             size={16}
-                            className="text-purple-500 hover:text-green-500"
+                            className={`${isDismissed ? "text-notion-text-secondary/30" : "text-purple-500"} ${!isDismissed ? "hover:text-green-500" : ""}`}
                           />
                         )}
                       </button>
@@ -309,7 +445,7 @@ export function MiniTodayFlow({
                     </div>
                     <div className="pb-2 min-w-0 flex-1 flex items-start">
                       <div
-                        className={`text-xs truncate flex-1 ${si.completed ? "text-notion-text-secondary line-through" : "text-notion-text"}`}
+                        className={`text-xs truncate flex-1 ${isDismissed ? "text-notion-text-secondary/40 line-through" : si.completed ? "text-notion-text-secondary line-through" : "text-notion-text"}`}
                       >
                         {si.startTime && (
                           <span className="text-xs text-notion-text-secondary mr-1">
@@ -319,7 +455,7 @@ export function MiniTodayFlow({
                         {si.title}
                       </div>
                       <div className="hidden group-hover:flex items-center gap-0.5 shrink-0 ml-1">
-                        {onEditEvent && (
+                        {!isDismissed && onEditEvent && (
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
@@ -330,24 +466,36 @@ export function MiniTodayFlow({
                             <Pencil size={12} />
                           </button>
                         )}
-                        {onDismissItem && (
+                        {isDismissed && onUndismissItem ? (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onUndismissItem(si.id);
+                            }}
+                            className="p-1 rounded hover:bg-notion-hover text-notion-text-secondary/50 hover:text-notion-text transition-colors"
+                            title={t("schedule.show", "Show")}
+                          >
+                            <EyeOff size={12} />
+                          </button>
+                        ) : !isDismissed && onDismissItem ? (
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
                               onDismissItem(si.id);
                             }}
-                            className="p-1 rounded hover:bg-notion-hover text-notion-text-secondary hover:text-red-500 transition-colors"
+                            className="p-1 rounded hover:bg-notion-hover text-notion-text-secondary hover:text-notion-text transition-colors"
+                            title={t("schedule.hide", "Hide")}
                           >
-                            <X size={12} />
+                            <Eye size={12} />
                           </button>
-                        )}
+                        ) : null}
                       </div>
                     </div>
                   </div>
                 );
               }
 
-              // Task entry
+              // --- Task entry ---
               const task = entry.task;
               const isDone = task.status === "DONE";
               return (
@@ -399,17 +547,6 @@ export function MiniTodayFlow({
                           className="p-1 rounded hover:bg-notion-hover text-notion-text-secondary hover:text-notion-text transition-colors"
                         >
                           <Pencil size={12} />
-                        </button>
-                      )}
-                      {onRemoveTaskFromSchedule && (
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            onRemoveTaskFromSchedule(task.id);
-                          }}
-                          className="p-1 rounded hover:bg-notion-hover text-notion-text-secondary hover:text-red-500 transition-colors"
-                        >
-                          <CalendarMinus size={12} />
                         </button>
                       )}
                     </div>

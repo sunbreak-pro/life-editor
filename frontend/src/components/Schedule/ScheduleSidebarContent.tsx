@@ -107,11 +107,68 @@ export function ScheduleSidebarContent({
   const handleDismissItem = useCallback(
     (scheduleItemId: string) => {
       setSidebarScheduleItems((prev) =>
-        prev.filter((item) => item.id !== scheduleItemId),
+        prev.map((item) =>
+          item.id === scheduleItemId ? { ...item, isDismissed: true } : item,
+        ),
       );
       dismissScheduleItem(scheduleItemId);
     },
     [dismissScheduleItem],
+  );
+
+  const handleUndismissItem = useCallback((scheduleItemId: string) => {
+    setSidebarScheduleItems((prev) =>
+      prev.map((item) =>
+        item.id === scheduleItemId ? { ...item, isDismissed: false } : item,
+      ),
+    );
+    getDataService()
+      .undismissScheduleItem(scheduleItemId)
+      .catch(() => {});
+  }, []);
+
+  const handleDismissGroup = useCallback(
+    (groupId: string) => {
+      const groupRoutineIds = new Set(
+        (routinesByGroup.get(groupId) ?? []).map((r) => r.id),
+      );
+      setSidebarScheduleItems((prev) =>
+        prev.map((item) =>
+          item.routineId && groupRoutineIds.has(item.routineId)
+            ? { ...item, isDismissed: true }
+            : item,
+        ),
+      );
+      for (const item of sidebarScheduleItems) {
+        if (item.routineId && groupRoutineIds.has(item.routineId)) {
+          dismissScheduleItem(item.id);
+        }
+      }
+    },
+    [routinesByGroup, sidebarScheduleItems, dismissScheduleItem],
+  );
+
+  const handleUndismissGroup = useCallback(
+    (groupId: string) => {
+      const groupRoutineIds = new Set(
+        (routinesByGroup.get(groupId) ?? []).map((r) => r.id),
+      );
+      setSidebarScheduleItems((prev) =>
+        prev.map((item) =>
+          item.routineId && groupRoutineIds.has(item.routineId)
+            ? { ...item, isDismissed: false }
+            : item,
+        ),
+      );
+      for (const item of sidebarScheduleItems) {
+        if (item.routineId && groupRoutineIds.has(item.routineId)) {
+          getDataService()
+            .undismissScheduleItem(item.id)
+            .catch(() => {});
+        }
+      }
+    },
+    [routinesByGroup, sidebarScheduleItems],
   );
 
   const handleEditRoutine = useCallback(
@@ -179,7 +236,7 @@ export function ScheduleSidebarContent({
   const miniFlowDateKey = formatDateKey(miniFlowDate);
   useEffect(() => {
     getDataService()
-      .fetchScheduleItemsByDate(miniFlowDateKey)
+      .fetchScheduleItemsByDateAll(miniFlowDateKey)
       .then(setSidebarScheduleItems)
       .catch(() => setSidebarScheduleItems([]));
   }, [miniFlowDateKey, scheduleItemsVersion]);
@@ -308,6 +365,8 @@ export function ScheduleSidebarContent({
             scheduleItems={sidebarScheduleItems}
             onToggleComplete={handleToggleComplete}
             tasks={dateTasks}
+            routineGroups={routineGroups}
+            routinesByGroup={routinesByGroup}
             onSelectTask={onSelectTask}
             onPrevDate={handlePrevDate}
             onNextDate={handleNextDate}
@@ -316,7 +375,9 @@ export function ScheduleSidebarContent({
             onEditEvent={handleEditEvent}
             onEditTask={handleEditTask}
             onDismissItem={handleDismissItem}
-            onRemoveTaskFromSchedule={handleRemoveTaskFromSchedule}
+            onUndismissItem={handleUndismissItem}
+            onDismissGroup={handleDismissGroup}
+            onUndismissGroup={handleUndismissGroup}
             onToggleTaskStatus={handleToggleTaskStatus}
           />
           {(memoForDate || notesForDate.length > 0) && (

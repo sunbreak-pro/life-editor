@@ -11,6 +11,8 @@ interface GroupFrameProps {
   left?: string;
   width?: string;
   onMouseDown?: (e: React.MouseEvent) => void;
+  onClick?: () => void;
+  /** @deprecated Use onClick instead */
   onDoubleClick?: () => void;
   onHeaderContextMenu?: (e: React.MouseEvent) => void;
 }
@@ -26,6 +28,7 @@ export function GroupFrame({
   left = "2px",
   width = "calc(100% - 4px)",
   onMouseDown,
+  onClick,
   onDoubleClick,
   onHeaderContextMenu,
 }: GroupFrameProps) {
@@ -45,11 +48,15 @@ export function GroupFrame({
     >
       {/* Header bar */}
       <div
-        className={`flex items-center gap-1.5 px-2 select-none ${onDoubleClick ? "cursor-pointer" : "pointer-events-none"}`}
+        className={`flex items-center gap-1.5 px-2 select-none ${onClick || onDoubleClick ? "cursor-pointer" : "pointer-events-none"}`}
         style={{
           height: headerHeight,
           backgroundColor: `${groupColor}40`,
           borderBottom: `2px solid ${groupColor}50`,
+        }}
+        onClick={(e) => {
+          e.stopPropagation();
+          onClick?.();
         }}
         onDoubleClick={(e) => {
           e.stopPropagation();
@@ -68,19 +75,19 @@ export function GroupFrame({
           style={{ backgroundColor: groupColor }}
         />
         <span
-          className="text-[10px] font-semibold truncate"
+          className="text-[15px] font-semibold truncate leading-tight"
           style={{ color: groupColor }}
         >
           {groupName}
         </span>
         <span
-          className="text-[9px] opacity-70 shrink-0"
+          className="text-[11px] opacity-70 shrink-0"
           style={{ color: groupColor }}
         >
           {t("dayFlow.itemCount", { count: itemCount })}
         </span>
         <span
-          className="text-[9px] opacity-60 shrink-0 ml-auto"
+          className="text-[11px] opacity-60 shrink-0 ml-auto"
           style={{ color: groupColor }}
         >
           {timeRange}

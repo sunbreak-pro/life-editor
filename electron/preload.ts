@@ -89,6 +89,7 @@ const ALLOWED_CHANNELS = new Set([
   "db:calendarTags:fetchAllAssignments",
   // Schedule Items
   "db:scheduleItems:fetchByDate",
+  "db:scheduleItems:fetchByDateAll",
   "db:scheduleItems:fetchByDateRange",
   "db:scheduleItems:create",
   "db:scheduleItems:update",

@@ -665,6 +665,10 @@ export class OfflineDataService implements DataService {
     );
   }
 
+  async fetchScheduleItemsByDateAll(date: string): Promise<ScheduleItem[]> {
+    return this.fetchScheduleItemsByDate(date);
+  }
+
   fetchScheduleItemsByDateRange(
     startDate: string,
     endDate: string,

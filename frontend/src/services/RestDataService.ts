@@ -469,6 +469,9 @@ export class RestDataService implements DataService {
   fetchScheduleItemsByDate(date: string): Promise<ScheduleItem[]> {
     return get(`/api/schedule-items/by-date/${date}`);
   }
+  fetchScheduleItemsByDateAll(date: string): Promise<ScheduleItem[]> {
+    return this.fetchScheduleItemsByDate(date);
+  }
   fetchScheduleItemsByDateRange(
     startDate: string,
     endDate: string,

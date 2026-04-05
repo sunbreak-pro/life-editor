@@ -48,7 +48,7 @@ function formatHour(hour: number): string {
   return `${hour - 12} PM`;
 }
 
-const GROUP_HEADER_HEIGHT = 20;
+const GROUP_HEADER_HEIGHT = 28;
 
 interface ComputedGroupFrame {
   groupId: string;
@@ -820,9 +820,7 @@ export function ScheduleTimeGrid({
                   }
                 : undefined
             }
-            onDoubleClick={
-              onEditGroup ? () => onEditGroup(gf.groupId) : undefined
-            }
+            onClick={onEditGroup ? () => onEditGroup(gf.groupId) : undefined}
             onHeaderContextMenu={
               onEditGroup || onDeleteGroup
                 ? (e) => {
