@@ -58,7 +58,7 @@ export function ScheduleProvider({ children }: { children: ReactNode }) {
       const target = routinesState.routines.find((r) => r.id === id);
       const prevTagIds = tagAssignmentsState.tagAssignments.get(id) ?? [];
 
-      routinesState.deleteRoutine(id);
+      routinesState.deleteRoutine(id, { skipUndo: true });
       tagAssignmentsState.removeRoutineAssignments(id);
 
       if (target) {
@@ -71,7 +71,7 @@ export function ScheduleProvider({ children }: { children: ReactNode }) {
             }
           },
           redo: () => {
-            routinesState.deleteRoutine(id);
+            routinesState.deleteRoutine(id, { skipUndo: true });
             tagAssignmentsState.removeRoutineAssignments(id);
           },
         });

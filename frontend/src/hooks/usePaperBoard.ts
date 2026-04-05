@@ -167,9 +167,30 @@ export function usePaperBoard() {
         ...prev,
         [params.boardId]: (prev[params.boardId] ?? 0) + 1,
       }));
+
+      push("paper", {
+        label: "createNode",
+        undo: async () => {
+          await ds.deletePaperNode(node.id);
+          setNodes((prev) => prev.filter((n) => n.id !== node.id));
+          setBoardNodeCounts((prev) => ({
+            ...prev,
+            [params.boardId]: Math.max(0, (prev[params.boardId] ?? 0) - 1),
+          }));
+        },
+        redo: async () => {
+          const restored = await ds.createPaperNode(params);
+          setNodes((prev) => [...prev, restored]);
+          setBoardNodeCounts((prev) => ({
+            ...prev,
+            [params.boardId]: (prev[params.boardId] ?? 0) + 1,
+          }));
+        },
+      });
+
       return node;
     },
-    [],
+    [push],
   );
 
   const updateNode = useCallback(
@@ -344,16 +365,55 @@ export function usePaperBoard() {
       const ds = getDataService();
       const edge = await ds.createPaperEdge(params);
       setEdges((prev) => [...prev, edge]);
+
+      push("paper", {
+        label: "createEdge",
+        undo: async () => {
+          await ds.deletePaperEdge(edge.id);
+          setEdges((prev) => prev.filter((e) => e.id !== edge.id));
+        },
+        redo: async () => {
+          const restored = await ds.createPaperEdge(params);
+          setEdges((prev) => [...prev, restored]);
+        },
+      });
+
       return edge;
     },
-    [],
+    [push],
   );
 
-  const deleteEdge = useCallback(async (id: string) => {
-    const ds = getDataService();
-    await ds.deletePaperEdge(id);
-    setEdges((prev) => prev.filter((e) => e.id !== id));
-  }, []);
+  const deleteEdge = useCallback(
+    async (id: string) => {
+      const ds = getDataService();
+      const target = edges.find((e) => e.id === id);
+      await ds.deletePaperEdge(id);
+      setEdges((prev) => prev.filter((e) => e.id !== id));
+
+      if (target) {
+        push("paper", {
+          label: "deleteEdge",
+          undo: async () => {
+            const restored = await ds.createPaperEdge({
+              boardId: target.boardId,
+              sourceNodeId: target.sourceNodeId,
+              targetNodeId: target.targetNodeId,
+              sourceHandle: target.sourceHandle,
+              targetHandle: target.targetHandle,
+              label: target.label,
+              styleJson: target.styleJson,
+            });
+            setEdges((prev) => [...prev, restored]);
+          },
+          redo: async () => {
+            await ds.deletePaperEdge(id);
+            setEdges((prev) => prev.filter((e) => e.id !== id));
+          },
+        });
+      }
+    },
+    [edges, push],
+  );
 
   // --- Note link board ---
   const openBoardForNote = useCallback(

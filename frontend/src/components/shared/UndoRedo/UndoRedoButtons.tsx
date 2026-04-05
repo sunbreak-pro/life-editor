@@ -5,25 +5,72 @@ import { useUndoRedo } from "./useUndoRedo";
 import type { UndoDomain } from "./types";
 
 interface UndoRedoButtonsProps {
-  domain: UndoDomain;
+  /** @deprecated Use `domains` instead */
+  domain?: UndoDomain;
+  domains?: UndoDomain[];
 }
 
-export function UndoRedoButtons({ domain }: UndoRedoButtonsProps) {
+export function UndoRedoButtons({ domain, domains }: UndoRedoButtonsProps) {
   const { t } = useTranslation();
-  const { undo, redo, canUndo, canRedo, setActiveDomain } = useUndoRedo();
+  const {
+    undo,
+    redo,
+    canUndo,
+    canRedo,
+    setActiveDomain,
+    undoLatest,
+    redoLatest,
+    canUndoAny,
+    canRedoAny,
+    setActiveDomains,
+  } = useUndoRedo();
 
-  const hasUndo = canUndo(domain);
-  const hasRedo = canRedo(domain);
+  const resolvedDomains = domains ?? (domain ? [domain] : []);
+  const isMulti = resolvedDomains.length > 1;
+
+  const hasUndo = isMulti
+    ? canUndoAny(resolvedDomains)
+    : resolvedDomains.length === 1
+      ? canUndo(resolvedDomains[0])
+      : false;
+  const hasRedo = isMulti
+    ? canRedoAny(resolvedDomains)
+    : resolvedDomains.length === 1
+      ? canRedo(resolvedDomains[0])
+      : false;
 
   useEffect(() => {
-    setActiveDomain(domain);
-    return () => setActiveDomain(null);
-  }, [domain, setActiveDomain]);
+    if (isMulti) {
+      setActiveDomains(resolvedDomains);
+      return () => setActiveDomains(null);
+    }
+    if (resolvedDomains.length === 1) {
+      setActiveDomain(resolvedDomains[0]);
+      return () => setActiveDomain(null);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [resolvedDomains.join(","), setActiveDomain, setActiveDomains]);
+
+  const handleUndo = () => {
+    if (isMulti) {
+      undoLatest(resolvedDomains);
+    } else if (resolvedDomains.length === 1) {
+      undo(resolvedDomains[0]);
+    }
+  };
+
+  const handleRedo = () => {
+    if (isMulti) {
+      redoLatest(resolvedDomains);
+    } else if (resolvedDomains.length === 1) {
+      redo(resolvedDomains[0]);
+    }
+  };
 
   return (
     <div className="flex items-center gap-1">
       <button
-        onClick={() => undo(domain)}
+        onClick={handleUndo}
         disabled={!hasUndo}
         className={`p-1.5 rounded transition-colors ${
           hasUndo
@@ -35,7 +82,7 @@ export function UndoRedoButtons({ domain }: UndoRedoButtonsProps) {
         <Undo2 size={16} />
       </button>
       <button
-        onClick={() => redo(domain)}
+        onClick={handleRedo}
         disabled={!hasRedo}
         className={`p-1.5 rounded transition-colors ${
           hasRedo

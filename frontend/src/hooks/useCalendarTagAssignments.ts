@@ -1,12 +1,14 @@
 import { useState, useCallback, useEffect, useMemo } from "react";
 import { getDataService } from "../services";
 import { logServiceError } from "../utils/logError";
+import { useUndoRedo } from "../components/shared/UndoRedo";
 
 export function useCalendarTagAssignments() {
   const [assignmentsMap, setAssignmentsMap] = useState<Map<string, number[]>>(
     new Map(),
   );
   const [isLoading, setIsLoading] = useState(true);
+  const { push } = useUndoRedo();
 
   useEffect(() => {
     let cancelled = false;
@@ -36,6 +38,7 @@ export function useCalendarTagAssignments() {
   const setTagsForScheduleItem = useCallback(
     (scheduleItemId: string, tagIds: number[]) => {
       const prevTagIds = assignmentsMap.get(scheduleItemId) ?? [];
+
       setAssignmentsMap((prev) => {
         const next = new Map(prev);
         if (tagIds.length === 0) {
@@ -59,8 +62,44 @@ export function useCalendarTagAssignments() {
             return rollback;
           });
         });
+
+      push("calendar", {
+        label: "setTagsForScheduleItem",
+        undo: () => {
+          setAssignmentsMap((prev) => {
+            const next = new Map(prev);
+            if (prevTagIds.length === 0) {
+              next.delete(scheduleItemId);
+            } else {
+              next.set(scheduleItemId, prevTagIds);
+            }
+            return next;
+          });
+          getDataService()
+            .setTagsForScheduleItem(scheduleItemId, prevTagIds)
+            .catch((e) =>
+              logServiceError("CalendarTagAssignments", "undoSetTags", e),
+            );
+        },
+        redo: () => {
+          setAssignmentsMap((prev) => {
+            const next = new Map(prev);
+            if (tagIds.length === 0) {
+              next.delete(scheduleItemId);
+            } else {
+              next.set(scheduleItemId, tagIds);
+            }
+            return next;
+          });
+          getDataService()
+            .setTagsForScheduleItem(scheduleItemId, tagIds)
+            .catch((e) =>
+              logServiceError("CalendarTagAssignments", "redoSetTags", e),
+            );
+        },
+      });
     },
-    [assignmentsMap],
+    [assignmentsMap, push],
   );
 
   const getTagIdsForScheduleItem = useCallback(

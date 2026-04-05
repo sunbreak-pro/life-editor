@@ -66,7 +66,7 @@ export function useNotes() {
   }, [notes, searchQuery, sortMode]);
 
   const createNote = useCallback(
-    (title?: string) => {
+    (title?: string, options?: { skipUndo?: boolean }) => {
       const id = generateId("note");
       const now = new Date().toISOString();
       const newNote: NoteNode = {
@@ -84,23 +84,25 @@ export function useNotes() {
         .createNote(id, newNote.title)
         .catch((e) => logServiceError("Notes", "create", e));
 
-      push("note", {
-        label: "createNote",
-        undo: () => {
-          setNotes((p) => p.filter((n) => n.id !== id));
-          if (selectedNoteIdRef.current === id) setSelectedNoteId(null);
-          getDataService()
-            .permanentDeleteNote(id)
-            .catch((e) => logServiceError("Notes", "undoCreate", e));
-        },
-        redo: () => {
-          setNotes((p) => [newNote, ...p]);
-          setSelectedNoteId(id);
-          getDataService()
-            .createNote(id, newNote.title)
-            .catch((e) => logServiceError("Notes", "redoCreate", e));
-        },
-      });
+      if (!options?.skipUndo) {
+        push("note", {
+          label: "createNote",
+          undo: () => {
+            setNotes((p) => p.filter((n) => n.id !== id));
+            if (selectedNoteIdRef.current === id) setSelectedNoteId(null);
+            getDataService()
+              .permanentDeleteNote(id)
+              .catch((e) => logServiceError("Notes", "undoCreate", e));
+          },
+          redo: () => {
+            setNotes((p) => [newNote, ...p]);
+            setSelectedNoteId(id);
+            getDataService()
+              .createNote(id, newNote.title)
+              .catch((e) => logServiceError("Notes", "redoCreate", e));
+          },
+        });
+      }
 
       return id;
     },
@@ -171,7 +173,7 @@ export function useNotes() {
   );
 
   const softDeleteNote = useCallback(
-    (id: string) => {
+    (id: string, options?: { skipUndo?: boolean }) => {
       const target = notesRef.current.find((n) => n.id === id);
       setNotes((prev) => prev.filter((n) => n.id !== id));
       if (selectedNoteIdRef.current === id) setSelectedNoteId(null);
@@ -179,7 +181,7 @@ export function useNotes() {
         .softDeleteNote(id)
         .catch((e) => logServiceError("Notes", "delete", e));
 
-      if (target) {
+      if (target && !options?.skipUndo) {
         push("note", {
           label: "softDeleteNote",
           undo: () => {

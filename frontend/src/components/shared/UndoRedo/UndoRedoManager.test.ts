@@ -134,4 +134,97 @@ describe("UndoRedoManager", () => {
     await mgr.redo("memo");
     expect(value).toBe(1);
   });
+
+  describe("multi-domain", () => {
+    it("undoLatest picks the most recently pushed across domains", async () => {
+      const mgr = new UndoRedoManager();
+      const undoA = vi.fn();
+      const undoB = vi.fn();
+
+      mgr.push("taskTree", { label: "a", undo: undoA, redo: vi.fn() });
+      mgr.push("scheduleItem", { label: "b", undo: undoB, redo: vi.fn() });
+
+      await mgr.undoLatest(["taskTree", "scheduleItem"]);
+
+      expect(undoB).toHaveBeenCalledOnce();
+      expect(undoA).not.toHaveBeenCalled();
+    });
+
+    it("redoLatest picks the most recently undone across domains", async () => {
+      const mgr = new UndoRedoManager();
+      const redoA = vi.fn();
+      const redoB = vi.fn();
+
+      mgr.push("taskTree", { label: "a", undo: vi.fn(), redo: redoA });
+      mgr.push("scheduleItem", { label: "b", undo: vi.fn(), redo: redoB });
+
+      // Undo both
+      await mgr.undo("scheduleItem");
+      await mgr.undo("taskTree");
+
+      // Redo latest should pick scheduleItem (higher seq)
+      await mgr.redoLatest(["taskTree", "scheduleItem"]);
+
+      expect(redoB).toHaveBeenCalledOnce();
+      expect(redoA).not.toHaveBeenCalled();
+    });
+
+    it("undoLatest handles empty domains gracefully", async () => {
+      const mgr = new UndoRedoManager();
+      await mgr.undoLatest(["taskTree", "memo"]);
+      // No error
+    });
+
+    it("canUndoAny returns true if any domain has entries", () => {
+      const mgr = new UndoRedoManager();
+      mgr.push("memo", { label: "a", undo: vi.fn(), redo: vi.fn() });
+
+      expect(mgr.canUndoAny(["taskTree", "memo"])).toBe(true);
+      expect(mgr.canUndoAny(["taskTree", "note"])).toBe(false);
+    });
+
+    it("canRedoAny returns true if any domain has redo entries", async () => {
+      const mgr = new UndoRedoManager();
+      mgr.push("memo", { label: "a", undo: vi.fn(), redo: vi.fn() });
+      await mgr.undo("memo");
+
+      expect(mgr.canRedoAny(["taskTree", "memo"])).toBe(true);
+      expect(mgr.canRedoAny(["taskTree", "note"])).toBe(false);
+    });
+
+    it("seq ordering is correct across interleaved pushes", async () => {
+      const mgr = new UndoRedoManager();
+      const calls: string[] = [];
+
+      mgr.push("taskTree", {
+        label: "t1",
+        undo: () => {
+          calls.push("undo-t1");
+        },
+        redo: vi.fn(),
+      });
+      mgr.push("memo", {
+        label: "m1",
+        undo: () => {
+          calls.push("undo-m1");
+        },
+        redo: vi.fn(),
+      });
+      mgr.push("taskTree", {
+        label: "t2",
+        undo: () => {
+          calls.push("undo-t2");
+        },
+        redo: vi.fn(),
+      });
+
+      const domains: ("taskTree" | "memo")[] = ["taskTree", "memo"];
+
+      await mgr.undoLatest(domains); // should undo t2
+      await mgr.undoLatest(domains); // should undo m1
+      await mgr.undoLatest(domains); // should undo t1
+
+      expect(calls).toEqual(["undo-t2", "undo-m1", "undo-t1"]);
+    });
+  });
 });

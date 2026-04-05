@@ -12,6 +12,13 @@ export interface UndoRedoContextValue {
   clear: (domain: UndoDomain) => void;
   setActiveDomain: (domain: UndoDomain | null) => void;
   getActiveDomain: () => UndoDomain | null;
+  /* Multi-domain support */
+  undoLatest: (domains: UndoDomain[]) => Promise<void>;
+  redoLatest: (domains: UndoDomain[]) => Promise<void>;
+  canUndoAny: (domains: UndoDomain[]) => boolean;
+  canRedoAny: (domains: UndoDomain[]) => boolean;
+  setActiveDomains: (domains: UndoDomain[] | null) => void;
+  getActiveDomains: () => UndoDomain[] | null;
 }
 
 export const UndoRedoContext = createContext<UndoRedoContextValue | null>(null);
@@ -19,6 +26,7 @@ export const UndoRedoContext = createContext<UndoRedoContextValue | null>(null);
 export function UndoRedoProvider({ children }: { children: ReactNode }) {
   const managerRef = useRef<UndoRedoManager | null>(null);
   const activeDomainRef = useRef<UndoDomain | null>(null);
+  const activeDomainsRef = useRef<UndoDomain[] | null>(null);
   const [version, setVersion] = useState(0);
 
   if (!managerRef.current) {
@@ -68,9 +76,41 @@ export function UndoRedoProvider({ children }: { children: ReactNode }) {
 
   const setActiveDomain = useCallback((domain: UndoDomain | null) => {
     activeDomainRef.current = domain;
+    activeDomainsRef.current = domain ? [domain] : null;
   }, []);
 
   const getActiveDomain = useCallback(() => activeDomainRef.current, []);
+
+  const undoLatest = useCallback(
+    async (domains: UndoDomain[]) => {
+      await manager.undoLatest(domains);
+    },
+    [manager],
+  );
+
+  const redoLatest = useCallback(
+    async (domains: UndoDomain[]) => {
+      await manager.redoLatest(domains);
+    },
+    [manager],
+  );
+
+  const canUndoAny = useCallback(
+    (domains: UndoDomain[]) => manager.canUndoAny(domains),
+    [manager],
+  );
+
+  const canRedoAny = useCallback(
+    (domains: UndoDomain[]) => manager.canRedoAny(domains),
+    [manager],
+  );
+
+  const setActiveDomains = useCallback((domains: UndoDomain[] | null) => {
+    activeDomainsRef.current = domains;
+    activeDomainRef.current = domains?.[0] ?? null;
+  }, []);
+
+  const getActiveDomains = useCallback(() => activeDomainsRef.current, []);
 
   const value = useMemo<UndoRedoContextValue>(
     () => ({
@@ -82,6 +122,12 @@ export function UndoRedoProvider({ children }: { children: ReactNode }) {
       clear,
       setActiveDomain,
       getActiveDomain,
+      undoLatest,
+      redoLatest,
+      canUndoAny,
+      canRedoAny,
+      setActiveDomains,
+      getActiveDomains,
     }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [
@@ -93,6 +139,12 @@ export function UndoRedoProvider({ children }: { children: ReactNode }) {
       clear,
       setActiveDomain,
       getActiveDomain,
+      undoLatest,
+      redoLatest,
+      canUndoAny,
+      canRedoAny,
+      setActiveDomains,
+      getActiveDomains,
       version,
     ],
   );

@@ -165,7 +165,7 @@ export function useRoutines() {
   );
 
   const deleteRoutine = useCallback(
-    (id: string) => {
+    (id: string, options?: { skipUndo?: boolean }) => {
       const target = routinesRef.current.find((r) => r.id === id);
       if (target) {
         const deleted: RoutineNode = {
@@ -180,7 +180,7 @@ export function useRoutines() {
         .softDeleteRoutine(id)
         .catch((e) => logServiceError("Routines", "softDelete", e));
 
-      if (target) {
+      if (target && !options?.skipUndo) {
         push("routine", {
           label: "deleteRoutine",
           undo: () => {

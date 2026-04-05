@@ -206,6 +206,7 @@ export function useScheduleItems() {
       noteId?: string,
       isAllDay?: boolean,
       content?: string,
+      options?: { skipUndo?: boolean },
     ): string => {
       const id = generateId("si");
       const now = new Date().toISOString();
@@ -251,44 +252,46 @@ export function useScheduleItems() {
         )
         .catch((e) => logServiceError("ScheduleItems", "create", e));
 
-      push("scheduleItem", {
-        label: "createScheduleItem",
-        undo: () => {
-          setScheduleItems((prev) => prev.filter((item) => item.id !== id));
-          setMonthlyScheduleItems((prev) =>
-            prev.filter((item) => item.id !== id),
-          );
-          getDataService()
-            .deleteScheduleItem(id)
-            .catch((e) => logServiceError("ScheduleItems", "undoCreate", e));
-        },
-        redo: () => {
-          setScheduleItems((prev) =>
-            [...prev, optimistic].sort((a, b) =>
-              a.startTime.localeCompare(b.startTime),
-            ),
-          );
-          setMonthlyScheduleItems((prev) =>
-            [...prev, optimistic].sort((a, b) =>
-              a.startTime.localeCompare(b.startTime),
-            ),
-          );
-          getDataService()
-            .createScheduleItem(
-              id,
-              date,
-              title,
-              startTime,
-              endTime,
-              routineId,
-              templateId,
-              noteId,
-              isAllDay,
-              content,
-            )
-            .catch((e) => logServiceError("ScheduleItems", "redoCreate", e));
-        },
-      });
+      if (!options?.skipUndo) {
+        push("scheduleItem", {
+          label: "createScheduleItem",
+          undo: () => {
+            setScheduleItems((prev) => prev.filter((item) => item.id !== id));
+            setMonthlyScheduleItems((prev) =>
+              prev.filter((item) => item.id !== id),
+            );
+            getDataService()
+              .deleteScheduleItem(id)
+              .catch((e) => logServiceError("ScheduleItems", "undoCreate", e));
+          },
+          redo: () => {
+            setScheduleItems((prev) =>
+              [...prev, optimistic].sort((a, b) =>
+                a.startTime.localeCompare(b.startTime),
+              ),
+            );
+            setMonthlyScheduleItems((prev) =>
+              [...prev, optimistic].sort((a, b) =>
+                a.startTime.localeCompare(b.startTime),
+              ),
+            );
+            getDataService()
+              .createScheduleItem(
+                id,
+                date,
+                title,
+                startTime,
+                endTime,
+                routineId,
+                templateId,
+                noteId,
+                isAllDay,
+                content,
+              )
+              .catch((e) => logServiceError("ScheduleItems", "redoCreate", e));
+          },
+        });
+      }
 
       bumpVersion();
       return id;
@@ -356,7 +359,7 @@ export function useScheduleItems() {
   );
 
   const deleteScheduleItem = useCallback(
-    (id: string) => {
+    (id: string, options?: { skipUndo?: boolean }) => {
       const target = scheduleItemsRef.current.find((item) => item.id === id);
       setScheduleItems((prev) => prev.filter((item) => item.id !== id));
       setMonthlyScheduleItems((prev) => prev.filter((item) => item.id !== id));
@@ -364,7 +367,7 @@ export function useScheduleItems() {
         .deleteScheduleItem(id)
         .catch((e) => logServiceError("ScheduleItems", "delete", e));
 
-      if (target) {
+      if (target && !options?.skipUndo) {
         push("scheduleItem", {
           label: "deleteScheduleItem",
           undo: () => {
@@ -385,7 +388,27 @@ export function useScheduleItems() {
                 target.title,
                 target.startTime,
                 target.endTime,
+                target.routineId ?? undefined,
+                target.templateId ?? undefined,
+                target.noteId ?? undefined,
+                target.isAllDay,
+                target.content ?? undefined,
               )
+              .then(() => {
+                const extra: Record<string, unknown> = {};
+                if (target.memo) extra.memo = target.memo;
+                if (target.completed) {
+                  extra.completed = target.completed;
+                  extra.completedAt = target.completedAt;
+                }
+                if (Object.keys(extra).length > 0) {
+                  getDataService()
+                    .updateScheduleItem(target.id, extra)
+                    .catch((e) =>
+                      logServiceError("ScheduleItems", "undoDeleteExtra", e),
+                    );
+                }
+              })
               .catch((e) => logServiceError("ScheduleItems", "undoDelete", e));
           },
           redo: () => {
@@ -538,14 +561,56 @@ export function useScheduleItems() {
 
   const dismissScheduleItem = useCallback(
     (id: string) => {
+      const target = scheduleItemsRef.current.find((item) => item.id === id);
       setScheduleItems((prev) => prev.filter((item) => item.id !== id));
       setMonthlyScheduleItems((prev) => prev.filter((item) => item.id !== id));
       getDataService()
         .dismissScheduleItem(id)
         .catch((e) => logServiceError("ScheduleItems", "dismiss", e));
+
+      if (target) {
+        push("scheduleItem", {
+          label: "dismissScheduleItem",
+          undo: () => {
+            setScheduleItems((prev) =>
+              [...prev, target].sort((a, b) =>
+                a.startTime.localeCompare(b.startTime),
+              ),
+            );
+            setMonthlyScheduleItems((prev) =>
+              [...prev, target].sort((a, b) =>
+                a.startTime.localeCompare(b.startTime),
+              ),
+            );
+            getDataService()
+              .createScheduleItem(
+                target.id,
+                target.date,
+                target.title,
+                target.startTime,
+                target.endTime,
+                target.routineId ?? undefined,
+                target.templateId ?? undefined,
+                target.noteId ?? undefined,
+                target.isAllDay,
+                target.content ?? undefined,
+              )
+              .catch((e) => logServiceError("ScheduleItems", "undoDismiss", e));
+          },
+          redo: () => {
+            setScheduleItems((prev) => prev.filter((item) => item.id !== id));
+            setMonthlyScheduleItems((prev) =>
+              prev.filter((item) => item.id !== id),
+            );
+            getDataService()
+              .dismissScheduleItem(id)
+              .catch((e) => logServiceError("ScheduleItems", "redoDismiss", e));
+          },
+        });
+      }
       bumpVersion();
     },
-    [bumpVersion],
+    [push, bumpVersion],
   );
 
   const ensureRoutineItemsForDate = useCallback(

@@ -1,3 +1,21 @@
+### 2026-04-04 - Events完了トグル修正 + timeMemo復活 + EventDetailPanel整理 + TimeGrid Event配置修正 + 統合ScheduleCreatePanel
+
+#### 概要
+
+Eventsタブのチェックボックスが反応しないバグ修正、CalendarView/DetailPanelからのtimeMemo入力復活、EventDetailPanelのRichEditor廃止+compact memo化、ScheduleTimeGridでEventがRoutineGroupの中に入る配置バグ修正、TimeGrid右クリックメニューをTask/Event/Routineの3タブ統合パネルに刷新。
+
+#### 変更点
+
+- **Events完了トグル修正**: `useScheduleItems.ts`の`toggleComplete`に`setEvents`更新を3箇所（primary/undo/redo）追加。`events`stateが更新されずUIに反映されなかった問題を修正
+- **EventDetailPanel RichEditor廃止**: `MemoEditor`(TipTap)、`Suspense`、`handleContentUpdate`、Content Editorセクションを削除
+- **EventDetailPanel memo compact化**: textareaを`StickyNote`アイコン付きコンパクト`<input>`に置換（TaskDetailPanelと統一スタイル）
+- **timeMemo CalendarView復活**: `WeeklyTimeGrid`に`onUpdateTimeMemo`prop追加→`TimeGridTaskBlock`に伝播。`CalendarView`からcallback接続
+- **ScheduleItemPreviewPopup memo追加**: `onUpdateMemo`propと`StickyNote`付きmemo inputを追加。CalendarViewから`updateScheduleItem`を接続
+- **TimeGrid Event配置修正**: `hasRoutineTaskSplit`の条件を「taskのみ」→「grouped routine以外（task+event）」に拡張。EventがGroupFrameと重なる場合も右カラムに配置。右カラム内のtask+eventでカラム分割を再計算
+- **TimeGridClickMenu刷新**: Routine/Task/Note → Task/Event/Routineに変更
+- **TaskSchedulePanel 3タブ統合**: タブを[Existing/New]→[Task/Event/Routine]に変更。各タブに「既存を選択」チェックボックストグル追加。`EventTab.tsx`（新規/既存イベント）、`RoutineTab.tsx`（既存ルーティン選択/新規作成）を新規作成
+- **OneDaySchedule統合**: 個別の`routinePicker`/`notePicker`stateを削除し、`createPopover`に`defaultTab`を追加して統合パネルに一本化
+
 ### 2026-04-04 - Calendar RightSidebar/DayFlow改善 + Popup簡素化
 
 #### 概要

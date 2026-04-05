@@ -37,7 +37,7 @@ export function useMemos() {
   }, []);
 
   const upsertMemo = useCallback(
-    (date: string, content: string) => {
+    (date: string, content: string, options?: { skipUndo?: boolean }) => {
       const existing = memosRef.current.find((m) => m.date === date);
       const now = new Date().toISOString();
 
@@ -56,21 +56,23 @@ export function useMemos() {
           updatedAt: now,
         };
         setMemos((prev) => [newMemo, ...prev]);
-        push("memo", {
-          label: "createMemo",
-          undo: () => {
-            setMemos((p) => p.filter((m) => m.date !== date));
-            getDataService()
-              .deleteMemo(date)
-              .catch((e) => logServiceError("Memo", "undoCreate", e));
-          },
-          redo: () => {
-            setMemos((p) => [newMemo, ...p]);
-            getDataService()
-              .upsertMemo(date, content)
-              .catch((e) => logServiceError("Memo", "redoCreate", e));
-          },
-        });
+        if (!options?.skipUndo) {
+          push("memo", {
+            label: "createMemo",
+            undo: () => {
+              setMemos((p) => p.filter((m) => m.date !== date));
+              getDataService()
+                .deleteMemo(date)
+                .catch((e) => logServiceError("Memo", "undoCreate", e));
+            },
+            redo: () => {
+              setMemos((p) => [newMemo, ...p]);
+              getDataService()
+                .upsertMemo(date, content)
+                .catch((e) => logServiceError("Memo", "redoCreate", e));
+            },
+          });
+        }
       }
 
       getDataService()
@@ -81,7 +83,7 @@ export function useMemos() {
   );
 
   const deleteMemo = useCallback(
-    (date: string) => {
+    (date: string, options?: { skipUndo?: boolean }) => {
       const target = memosRef.current.find((m) => m.date === date);
       setMemos((prev) => prev.filter((m) => m.date !== date));
       getDataService()
@@ -96,23 +98,25 @@ export function useMemos() {
         };
         setDeletedMemos((d) => [deleted, ...d]);
 
-        push("memo", {
-          label: "deleteMemo",
-          undo: () => {
-            setMemos((p) => [target, ...p]);
-            setDeletedMemos((d) => d.filter((m) => m.date !== date));
-            getDataService()
-              .restoreMemo(date)
-              .catch((e) => logServiceError("Memo", "undoDelete", e));
-          },
-          redo: () => {
-            setMemos((p) => p.filter((m) => m.date !== date));
-            setDeletedMemos((d) => [deleted, ...d]);
-            getDataService()
-              .deleteMemo(date)
-              .catch((e) => logServiceError("Memo", "redoDelete", e));
-          },
-        });
+        if (!options?.skipUndo) {
+          push("memo", {
+            label: "deleteMemo",
+            undo: () => {
+              setMemos((p) => [target, ...p]);
+              setDeletedMemos((d) => d.filter((m) => m.date !== date));
+              getDataService()
+                .restoreMemo(date)
+                .catch((e) => logServiceError("Memo", "undoDelete", e));
+            },
+            redo: () => {
+              setMemos((p) => p.filter((m) => m.date !== date));
+              setDeletedMemos((d) => [deleted, ...d]);
+              getDataService()
+                .deleteMemo(date)
+                .catch((e) => logServiceError("Memo", "redoDelete", e));
+            },
+          });
+        }
       }
     },
     [push],

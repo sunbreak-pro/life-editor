@@ -6,6 +6,7 @@ interface AddNodeOptions {
   scheduledAt?: string;
   scheduledEndAt?: string;
   isAllDay?: boolean;
+  skipUndo?: boolean;
 }
 
 export function useTaskTreeCRUD(
@@ -62,7 +63,11 @@ export function useTaskTreeCRUD(
         isAllDay: type === "task" ? options?.isAllDay : undefined,
         color: folderColor,
       };
-      persistWithHistory(nodes, [...updatedNodes, newNode]);
+      if (options?.skipUndo) {
+        persistSilent([...updatedNodes, newNode]);
+      } else {
+        persistWithHistory(nodes, [...updatedNodes, newNode]);
+      }
       return newNode;
     },
     [nodes, persistWithHistory, generateId],

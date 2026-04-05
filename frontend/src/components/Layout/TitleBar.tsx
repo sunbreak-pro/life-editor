@@ -5,12 +5,12 @@ import type { SectionId } from "../../types/taskTree";
 import { UndoRedoButtons } from "../shared/UndoRedo";
 import type { UndoDomain } from "../shared/UndoRedo";
 
-const SECTION_UNDO_DOMAIN: Partial<Record<SectionId, UndoDomain>> = {
-  tasks: "taskTree",
-  ideas: "memo",
-  work: "playlist",
-  schedule: "taskTree",
-  settings: "settings",
+const SECTION_UNDO_DOMAINS: Partial<Record<SectionId, UndoDomain[]>> = {
+  schedule: ["scheduleItem", "routine", "taskTree", "calendar"],
+  materials: ["memo", "note", "wikiTag"],
+  connect: ["wikiTag"],
+  work: ["playlist", "sound"],
+  settings: ["settings"],
 };
 
 interface TitleBarProps {
@@ -37,7 +37,7 @@ export function TitleBar({
     return () => onPortalTarget(null);
   }, [onPortalTarget]);
 
-  const sectionDomain = SECTION_UNDO_DOMAIN[activeSection] ?? null;
+  const sectionDomains = SECTION_UNDO_DOMAINS[activeSection] ?? null;
 
   return (
     <div
@@ -66,8 +66,8 @@ export function TitleBar({
       />
       {/* Fixed right area */}
       <div className="titlebar-nodrag flex items-center gap-1 px-2 shrink-0">
-        {sectionDomain ? (
-          <UndoRedoButtons domain={sectionDomain} />
+        {sectionDomains ? (
+          <UndoRedoButtons domains={sectionDomains} />
         ) : (
           <div className="flex items-center gap-1">
             <span className="p-1.5 opacity-30 cursor-default">

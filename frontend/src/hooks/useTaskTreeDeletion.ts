@@ -9,23 +9,25 @@ export function useTaskTreeDeletion(
   clearHistory: () => void,
 ) {
   const softDelete = useCallback(
-    (id: string) => {
+    (id: string, options?: { skipUndo?: boolean }) => {
       const descendantIds = collectDescendantIds(id, nodes);
-
-      persistWithHistory(
-        nodes,
-        nodes.map((n) =>
-          descendantIds.has(n.id)
-            ? { ...n, isDeleted: true, deletedAt: new Date().toISOString() }
-            : n,
-        ),
+      const updated = nodes.map((n) =>
+        descendantIds.has(n.id)
+          ? { ...n, isDeleted: true, deletedAt: new Date().toISOString() }
+          : n,
       );
+
+      if (options?.skipUndo) {
+        persistSilent(updated);
+      } else {
+        persistWithHistory(nodes, updated);
+      }
     },
-    [nodes, persistWithHistory],
+    [nodes, persistWithHistory, persistSilent],
   );
 
   const restoreNode = useCallback(
-    (id: string) => {
+    (id: string, options?: { skipUndo?: boolean }) => {
       const node = nodes.find((n) => n.id === id);
       if (!node) return;
 
@@ -42,16 +44,19 @@ export function useTaskTreeDeletion(
         current = parent;
       }
 
-      persistWithHistory(
-        nodes,
-        nodes.map((n) =>
-          idsToRestore.has(n.id)
-            ? { ...n, isDeleted: false, deletedAt: undefined }
-            : n,
-        ),
+      const updated = nodes.map((n) =>
+        idsToRestore.has(n.id)
+          ? { ...n, isDeleted: false, deletedAt: undefined }
+          : n,
       );
+
+      if (options?.skipUndo) {
+        persistSilent(updated);
+      } else {
+        persistWithHistory(nodes, updated);
+      }
     },
-    [nodes, persistWithHistory],
+    [nodes, persistWithHistory, persistSilent],
   );
 
   const permanentDelete = useCallback(

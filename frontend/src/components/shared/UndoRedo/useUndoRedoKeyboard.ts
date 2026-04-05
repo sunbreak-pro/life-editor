@@ -2,7 +2,14 @@ import { useEffect } from "react";
 import { useUndoRedo } from "./useUndoRedo";
 
 export function useUndoRedoKeyboard(): void {
-  const { undo, redo, getActiveDomain } = useUndoRedo();
+  const {
+    undo,
+    redo,
+    getActiveDomain,
+    undoLatest,
+    redoLatest,
+    getActiveDomains,
+  } = useUndoRedo();
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -14,6 +21,18 @@ export function useUndoRedoKeyboard(): void {
       if (el?.getAttribute("contenteditable") === "true") return;
       if (el?.closest?.('[contenteditable="true"]')) return;
 
+      const domains = getActiveDomains();
+      if (domains && domains.length > 0) {
+        e.preventDefault();
+        if (e.shiftKey) {
+          redoLatest(domains);
+        } else {
+          undoLatest(domains);
+        }
+        return;
+      }
+
+      // Fallback to single domain for backward compatibility
       const domain = getActiveDomain();
       if (!domain) return;
 
@@ -27,5 +46,5 @@ export function useUndoRedoKeyboard(): void {
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [undo, redo, getActiveDomain]);
+  }, [undo, redo, getActiveDomain, undoLatest, redoLatest, getActiveDomains]);
 }
