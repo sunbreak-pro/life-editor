@@ -32,7 +32,11 @@ export function RightSidebar({
         className="absolute top-0 left-0 w-1.5 h-full cursor-col-resize hover:bg-notion-accent/30 transition-colors z-10"
       />
       {/* Portal target for section content */}
-      <div ref={portalRef} className="flex-1 overflow-y-auto" />
+      <div
+        ref={portalRef}
+        className="flex-1 overflow-y-auto"
+        style={{ scrollbarGutter: "stable" }}
+      />
     </aside>
   );
 }

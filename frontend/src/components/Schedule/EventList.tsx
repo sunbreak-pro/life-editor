@@ -1,5 +1,6 @@
 import { useEffect, useMemo } from "react";
-import { CalendarClock, Check, Circle } from "lucide-react";
+import { CalendarClock } from "lucide-react";
+import { RoundedCheckbox } from "../shared/RoundedCheckbox";
 import { useTranslation } from "react-i18next";
 import type { ScheduleItem } from "../../types/schedule";
 import { useScheduleItemsContext } from "../../hooks/useScheduleItemsContext";
@@ -8,6 +9,7 @@ interface EventListProps {
   selectedEventId: string | null;
   onSelectEvent: (id: string) => void;
   filter: "incomplete" | "completed";
+  searchQuery?: string;
 }
 
 function formatDateHeading(dateStr: string): string {
@@ -20,6 +22,7 @@ export function EventList({
   selectedEventId,
   onSelectEvent,
   filter,
+  searchQuery,
 }: EventListProps) {
   const { t } = useTranslation();
   const { events, loadEvents, eventsVersion, toggleComplete } =
@@ -30,10 +33,13 @@ export function EventList({
   }, [loadEvents, eventsVersion]);
 
   const filteredEvents = useMemo(() => {
-    return events.filter((e) =>
-      filter === "completed" ? e.completed : !e.completed,
-    );
-  }, [events, filter]);
+    const q = searchQuery?.toLowerCase().trim();
+    return events.filter((e) => {
+      if (filter === "completed" ? !e.completed : e.completed) return false;
+      if (q && !e.title.toLowerCase().includes(q)) return false;
+      return true;
+    });
+  }, [events, filter, searchQuery]);
 
   // Group by date
   const groupedEvents = useMemo(() => {
@@ -81,19 +87,11 @@ export function EventList({
                   : "border-l-transparent hover:bg-notion-hover"
               }`}
             >
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  toggleComplete(event.id);
-                }}
-                className="shrink-0 text-notion-text-secondary hover:text-notion-accent transition-colors"
-              >
-                {event.completed ? (
-                  <Check size={14} className="text-green-500" />
-                ) : (
-                  <Circle size={14} />
-                )}
-              </button>
+              <RoundedCheckbox
+                checked={event.completed}
+                onChange={() => toggleComplete(event.id)}
+                size={14}
+              />
               <CalendarClock
                 size={12}
                 className="shrink-0 text-purple-500 opacity-60"

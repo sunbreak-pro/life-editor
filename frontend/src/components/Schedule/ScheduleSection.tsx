@@ -22,6 +22,7 @@ import { RightSidebarContext } from "../../context/RightSidebarContext";
 import { useUndoRedo } from "../shared/UndoRedo";
 
 import type { TaskNode } from "../../types/taskTree";
+import type { SearchSuggestion } from "../shared/SearchBar";
 import { ScheduleTasksContent } from "./ScheduleTasksContent";
 import { ScheduleEventsContent } from "./ScheduleEventsContent";
 
@@ -111,7 +112,16 @@ export function ScheduleSection({
     Set<DayFlowFilterTab>
   >(() => new Set());
 
-  const [calendarSearchQuery, setCalendarSearchQuery] = useState("");
+  const [sidebarSearchQuery, setSidebarSearchQuery] = useState("");
+
+  // Clear search when switching tabs
+  const handleSetActiveTab = useCallback(
+    (tab: ScheduleTab) => {
+      setSidebarSearchQuery("");
+      setActiveTab(tab);
+    },
+    [setActiveTab],
+  );
 
   // Calendar progress date state
   const [calendarProgressDate, setCalendarProgressDate] = useState<Date>(
@@ -187,6 +197,134 @@ export function ScheduleSection({
     loadItemsForDate,
     refreshRoutineStats,
   } = useScheduleContext();
+
+  // Search suggestions based on active tab
+  const searchPlaceholder = useMemo(() => {
+    switch (activeTab) {
+      case "tasks":
+        return t("schedule.searchTasks", "Search tasks...");
+      case "events":
+        return t("schedule.searchEvents", "Search events...");
+      default:
+        return t("calendar.searchPlaceholder", "Search items...");
+    }
+  }, [activeTab, t]);
+
+  const searchSuggestions = useMemo((): SearchSuggestion[] => {
+    const q = sidebarSearchQuery.toLowerCase().trim();
+    if (!q) {
+      // Show recent items when empty
+      if (activeTab === "tasks") {
+        return nodes
+          .filter((n) => n.type === "task" && !n.isDeleted && n.scheduledAt)
+          .sort(
+            (a, b) =>
+              new Date(b.scheduledAt!).getTime() -
+              new Date(a.scheduledAt!).getTime(),
+          )
+          .slice(0, 10)
+          .map((n) => ({ id: n.id, label: n.title, icon: "task" as const }));
+      }
+      if (activeTab === "events") {
+        return scheduleItems
+          .filter((i) => !i.routineId)
+          .sort(
+            (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(),
+          )
+          .slice(0, 10)
+          .map((i) => ({
+            id: i.id,
+            label: i.title,
+            sublabel: i.date,
+            icon: "tag" as const,
+          }));
+      }
+      // calendar / dayflow: mix of routines + events + tasks
+      return [
+        ...routines.slice(0, 5).map((r) => ({
+          id: `routine:${r.id}`,
+          label: r.title,
+          icon: "tag" as const,
+        })),
+        ...scheduleItems
+          .filter((i) => !i.routineId)
+          .slice(0, 5)
+          .map((i) => ({
+            id: `event:${i.id}`,
+            label: i.title,
+            sublabel: i.date,
+            icon: "tag" as const,
+          })),
+      ];
+    }
+    // Filter by query
+    if (activeTab === "tasks") {
+      return nodes
+        .filter(
+          (n) =>
+            n.type === "task" &&
+            !n.isDeleted &&
+            n.scheduledAt &&
+            n.title.toLowerCase().includes(q),
+        )
+        .slice(0, 10)
+        .map((n) => ({ id: n.id, label: n.title, icon: "task" as const }));
+    }
+    if (activeTab === "events") {
+      return scheduleItems
+        .filter((i) => !i.routineId && i.title.toLowerCase().includes(q))
+        .slice(0, 10)
+        .map((i) => ({
+          id: i.id,
+          label: i.title,
+          sublabel: i.date,
+          icon: "tag" as const,
+        }));
+    }
+    // calendar / dayflow
+    const results: SearchSuggestion[] = [];
+    for (const r of routines) {
+      if (r.title.toLowerCase().includes(q))
+        results.push({
+          id: `routine:${r.id}`,
+          label: r.title,
+          icon: "tag" as const,
+        });
+    }
+    for (const i of scheduleItems) {
+      if (i.title.toLowerCase().includes(q))
+        results.push({
+          id: `event:${i.id}`,
+          label: i.title,
+          sublabel: i.date,
+          icon: "tag" as const,
+        });
+    }
+    for (const n of nodes) {
+      if (
+        n.type === "task" &&
+        !n.isDeleted &&
+        n.scheduledAt &&
+        n.title.toLowerCase().includes(q)
+      )
+        results.push({ id: n.id, label: n.title, icon: "task" as const });
+    }
+    return results.slice(0, 10);
+  }, [activeTab, sidebarSearchQuery, nodes, scheduleItems, routines]);
+
+  const handleSearchSuggestionSelect = useCallback(
+    (id: string) => {
+      if (id.startsWith("routine:") || id.startsWith("event:")) {
+        // No direct navigation for these - just set the search to the item name
+        const suggestion = searchSuggestions.find((s) => s.id === id);
+        if (suggestion) setSidebarSearchQuery(suggestion.label);
+      } else {
+        // Task id - navigate to task
+        onSelectTask?.(id);
+      }
+    },
+    [searchSuggestions, onSelectTask],
+  );
 
   // Load routine stats immediately when Schedule section is active
   useEffect(() => {
@@ -432,7 +570,7 @@ export function ScheduleSection({
         title={t("sidebar.schedule")}
         tabs={SCHEDULE_TABS}
         activeTab={activeTab}
-        onTabChange={setActiveTab}
+        onTabChange={handleSetActiveTab}
       />
 
       {rightSidebarTarget &&
@@ -461,12 +599,11 @@ export function ScheduleSection({
             onFilterFolderChange={
               activeTab === "calendar" ? setCalendarFilterFolderId : undefined
             }
-            searchQuery={
-              activeTab === "calendar" ? calendarSearchQuery : undefined
-            }
-            onSearchQueryChange={
-              activeTab === "calendar" ? setCalendarSearchQuery : undefined
-            }
+            searchQuery={sidebarSearchQuery}
+            onSearchQueryChange={setSidebarSearchQuery}
+            searchPlaceholder={searchPlaceholder}
+            searchSuggestions={searchSuggestions}
+            onSearchSuggestionSelect={handleSearchSuggestionSelect}
             onSelectTask={(taskId) => {
               onSelectTask?.(taskId);
               setActiveTab("tasks");
@@ -511,7 +648,7 @@ export function ScheduleSection({
             filterFolderId={calendarFilterFolderId}
             onFilterFolderChange={setCalendarFilterFolderId}
             contentFilters={calendarContentFilters}
-            searchQuery={calendarSearchQuery}
+            searchQuery={sidebarSearchQuery}
             onDateSelect={handleCalendarDateSelect}
             onOpenRoutineManagement={() => setShowRoutineManagement(true)}
           />
@@ -522,9 +659,10 @@ export function ScheduleSection({
             filterFolderId={filterFolderId ?? null}
             onFilterChange={onFilterChange ?? (() => {})}
             onPlayTask={onPlayTask}
+            sidebarSearchQuery={sidebarSearchQuery}
           />
         ) : activeTab === "events" ? (
-          <ScheduleEventsContent />
+          <ScheduleEventsContent sidebarSearchQuery={sidebarSearchQuery} />
         ) : isDualColumn ? (
           <DualDayFlowLayout
             getTaskColor={getTaskColor}

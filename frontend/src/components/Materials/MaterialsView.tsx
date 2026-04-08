@@ -51,11 +51,16 @@ export function MaterialsView({ onNavigateToNote }: MaterialsViewProps) {
     useMemoContext();
   const {
     notes,
+    flattenedNotes,
+    expandedIds,
+    toggleExpanded,
     selectedNoteId,
     setSelectedNoteId,
     createNote,
+    createFolder,
     softDeleteNote,
     updateNote,
+    persistWithHistory,
   } = useNoteContext();
   const { assignments, tags } = useWikiTags();
 
@@ -86,6 +91,10 @@ export function MaterialsView({ onNavigateToNote }: MaterialsViewProps) {
     setSelectedNoteId(noteId);
   }, [createNote, setSelectedNoteId]);
 
+  const handleCreateFolder = useCallback(() => {
+    createFolder();
+  }, [createFolder]);
+
   const handleUpdateNoteTitle = useCallback(
     (noteId: string, title: string) => {
       updateNote(noteId, { title });
@@ -112,13 +121,18 @@ export function MaterialsView({ onNavigateToNote }: MaterialsViewProps) {
         return (
           <MaterialsSidebar
             notes={notes}
+            flattenedNotes={flattenedNotes}
+            expandedIds={expandedIds}
             assignments={assignments}
             tags={tags}
             selectedNoteId={selectedNoteId}
             onSelectNote={handleSelectMaterialsNote}
             onCreateNote={handleCreateNoteMaterials}
+            onCreateFolder={handleCreateFolder}
             onDeleteNote={softDeleteNote}
             onUpdateNoteTitle={handleUpdateNoteTitle}
+            onToggleExpand={toggleExpanded}
+            persistWithHistory={persistWithHistory}
           />
         );
     }

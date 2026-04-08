@@ -7,8 +7,20 @@ import {
   Network,
   Filter,
   Pencil,
+  FolderPlus,
+  GripVertical,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import {
+  DndContext,
+  DragOverlay,
+  pointerWithin,
+  type UniqueIdentifier,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
 import type { NoteNode } from "../../types/note";
 import type { WikiTagAssignment, WikiTag } from "../../types/wikiTag";
 import { getContentPreview } from "../../utils/tiptapText";
@@ -17,6 +29,12 @@ import { SearchBar, type SearchSuggestion } from "../shared/SearchBar";
 import { CollapsibleSection } from "../shared/CollapsibleSection";
 import { TagFilterOverlay } from "../shared/TagFilterOverlay";
 import { ItemEditPopover } from "./Connect/ItemEditPopover";
+import { NoteTreeNode } from "./NoteTreeNode";
+import {
+  useNoteTreeDnd,
+  NoteDragOverStoreContext,
+} from "../../hooks/useNoteTreeDnd";
+import { useNoteTreeMovement } from "../../hooks/useNoteTreeMovement";
 
 interface SectionsState {
   favorites: boolean;
@@ -25,14 +43,19 @@ interface SectionsState {
 
 interface MaterialsSidebarProps {
   notes: NoteNode[];
+  flattenedNotes: NoteNode[];
+  expandedIds: Set<string>;
   assignments: WikiTagAssignment[];
   tags: WikiTag[];
   selectedNoteId: string | null;
   onSelectNote: (noteId: string) => void;
   onCreateNote: () => void;
+  onCreateFolder: () => void;
   onDeleteNote?: (noteId: string) => void;
   onNavigateToNode?: (noteId: string) => void;
   onUpdateNoteTitle?: (noteId: string, title: string) => void;
+  onToggleExpand: (id: string) => void;
+  persistWithHistory: (currentNotes: NoteNode[], updated: NoteNode[]) => void;
 }
 
 function loadSectionsState(): SectionsState {
@@ -63,14 +86,19 @@ function saveSectionsState(state: SectionsState): void {
 
 export function MaterialsSidebar({
   notes,
+  flattenedNotes,
+  expandedIds,
   assignments,
   tags,
   selectedNoteId,
   onSelectNote,
   onCreateNote,
+  onCreateFolder,
   onDeleteNote,
   onNavigateToNode,
   onUpdateNoteTitle,
+  onToggleExpand,
+  persistWithHistory,
 }: MaterialsSidebarProps) {
   const { t } = useTranslation();
   const [sections, setSections] = useState<SectionsState>(loadSectionsState);
@@ -90,6 +118,27 @@ export function MaterialsSidebar({
     const note = notes.find((n) => n.id === id);
     return note?.title;
   };
+
+  // DnD setup
+  const { moveNode, moveNodeInto, moveToRoot } = useNoteTreeMovement(
+    notes,
+    persistWithHistory,
+  );
+
+  const {
+    sensors,
+    activeNode,
+    dragOverStore,
+    handleDragStart,
+    handleDragMove,
+    handleDragEnd,
+    handleDragCancel,
+  } = useNoteTreeDnd({
+    notes,
+    moveNode,
+    moveNodeInto,
+    moveToRoot,
+  });
 
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
@@ -116,6 +165,7 @@ export function MaterialsSidebar({
   const suggestions = useMemo<SearchSuggestion[]>(() => {
     const items: SearchSuggestion[] = [];
     const sortedNotes = [...notes]
+      .filter((n) => n.type === "note")
       .sort(
         (a, b) =>
           new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
@@ -159,43 +209,29 @@ export function MaterialsSidebar({
   }, [assignments, tags]);
 
   // Pinned notes only
-  const pinnedNotes = useMemo(() => notes.filter((n) => n.isPinned), [notes]);
+  const pinnedNotes = useMemo(
+    () => notes.filter((n) => n.isPinned && n.type === "note"),
+    [notes],
+  );
   const hasFavorites = pinnedNotes.length > 0;
 
   const filteredNotes = useMemo(() => {
-    if (!isSearching) return notes;
+    if (!isSearching) return notes.filter((n) => n.type === "note");
     return notes.filter(
       (n) =>
-        n.title.toLowerCase().includes(lowerQuery) ||
-        getContentPreview(n.content, 200).toLowerCase().includes(lowerQuery),
+        n.type === "note" &&
+        (n.title.toLowerCase().includes(lowerQuery) ||
+          getContentPreview(n.content, 200).toLowerCase().includes(lowerQuery)),
     );
   }, [notes, isSearching, lowerQuery]);
-
-  const isNoteSelected = (noteId: string) => selectedNoteId === noteId;
-
-  const renderTagDots = (entityId: string) => {
-    const colors = entityTagColors.get(entityId);
-    if (!colors || colors.length === 0) return null;
-    return (
-      <div className="flex items-center gap-0.5 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
-        {colors.slice(0, 3).map((color, i) => (
-          <span
-            key={i}
-            className="w-1.5 h-1.5 rounded-full"
-            style={{ backgroundColor: color }}
-          />
-        ))}
-      </div>
-    );
-  };
 
   const renderNoteItem = (note: NoteNode) => (
     <div
       key={note.id}
       data-sidebar-item
-      data-sidebar-active={isNoteSelected(note.id) || undefined}
+      data-sidebar-active={selectedNoteId === note.id || undefined}
       className={`group flex items-center gap-1.5 px-2 py-1 rounded text-left transition-colors ${
-        isNoteSelected(note.id)
+        selectedNoteId === note.id
           ? "bg-notion-accent/10 text-notion-accent"
           : "hover:bg-notion-hover"
       }`}
@@ -213,33 +249,7 @@ export function MaterialsSidebar({
         <span className="flex flex-1 text-xs text-notion-text justify-start truncate">
           {note.title || t("notes.untitled")}
         </span>
-        {renderTagDots(note.id)}
       </button>
-      <button
-        ref={(el) => {
-          if (el) editButtonRefs.current.set(note.id, el);
-        }}
-        onClick={(e) => {
-          e.stopPropagation();
-          setEditingEntityId(editingEntityId === note.id ? null : note.id);
-        }}
-        className="p-0.5 opacity-0 group-hover:opacity-100 text-notion-text-secondary hover:text-notion-text transition-opacity shrink-0"
-        title={t("ideas.editItem")}
-      >
-        <Pencil size={10} />
-      </button>
-      {onNavigateToNode && (
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            onNavigateToNode(note.id);
-          }}
-          className="p-0.5 opacity-0 group-hover:opacity-100 text-notion-text-secondary hover:text-notion-text transition-opacity shrink-0"
-          title={t("ideas.node")}
-        >
-          <Network size={10} />
-        </button>
-      )}
       {onDeleteNote && (
         <button
           onClick={(e) => {
@@ -276,19 +286,40 @@ export function MaterialsSidebar({
   }, [assignments]);
 
   const tagFilteredNotes = useMemo(() => {
-    if (!hasTagFilter) return notes;
-    return notes.filter((n) => {
+    if (!hasTagFilter) return flattenedNotes;
+    return flattenedNotes.filter((n) => {
+      if (n.type === "folder") return true;
       const noteTagSet = entityTagIds.get(n.id);
       if (!noteTagSet) return false;
       return [...filterTagIds].some((tid) => noteTagSet.has(tid));
     });
-  }, [notes, hasTagFilter, filterTagIds, entityTagIds]);
+  }, [flattenedNotes, hasTagFilter, filterTagIds, entityTagIds]);
 
-  const displayNotes = hasTagFilter ? tagFilteredNotes : notes;
   const displayPinnedNotes = hasTagFilter
-    ? tagFilteredNotes.filter((n) => n.isPinned)
+    ? tagFilteredNotes.filter((n) => n.isPinned && n.type === "note")
     : pinnedNotes;
   const displayHasFavorites = displayPinnedNotes.length > 0;
+
+  // Compute depth for each flattened node
+  const depthMap = useMemo(() => {
+    const map = new Map<string, number>();
+    const computeDepth = (id: string): number => {
+      if (map.has(id)) return map.get(id)!;
+      const node = notes.find((n) => n.id === id);
+      if (!node || !node.parentId) {
+        map.set(id, 0);
+        return 0;
+      }
+      const d = computeDepth(node.parentId) + 1;
+      map.set(id, d);
+      return d;
+    };
+    for (const n of notes) computeDepth(n.id);
+    return map;
+  }, [notes]);
+
+  const displayTree = hasTagFilter ? tagFilteredNotes : flattenedNotes;
+  const sortableIds: UniqueIdentifier[] = displayTree.map((n) => n.id);
 
   if (isSearching) {
     return (
@@ -349,7 +380,7 @@ export function MaterialsSidebar({
           </CollapsibleSection>
         )}
 
-        {/* Notes */}
+        {/* Notes tree */}
         <CollapsibleSection
           label={t("ideas.notes")}
           icon={<StickyNote size={12} />}
@@ -386,6 +417,13 @@ export function MaterialsSidebar({
                 )}
               </div>
               <button
+                onClick={onCreateFolder}
+                className="p-1 text-notion-text-secondary hover:text-notion-text rounded transition-colors"
+                title={t("notes.newFolder")}
+              >
+                <FolderPlus size={14} />
+              </button>
+              <button
                 onClick={onCreateNote}
                 className="p-1 text-notion-text-secondary hover:text-notion-text rounded transition-colors"
                 title={t("notes.newNote")}
@@ -395,13 +433,53 @@ export function MaterialsSidebar({
             </div>
           }
         >
-          {displayNotes.length === 0 ? (
-            <p className="text-xs text-notion-text-secondary px-2 py-2">
-              {hasTagFilter ? t("ideas.noSearchResults") : t("notes.noNotes")}
-            </p>
-          ) : (
-            displayNotes.map(renderNoteItem)
-          )}
+          <NoteDragOverStoreContext.Provider value={dragOverStore}>
+            <DndContext
+              sensors={sensors}
+              collisionDetection={pointerWithin}
+              onDragStart={handleDragStart}
+              onDragMove={handleDragMove}
+              onDragEnd={handleDragEnd}
+              onDragCancel={handleDragCancel}
+            >
+              <SortableContext
+                items={sortableIds}
+                strategy={verticalListSortingStrategy}
+              >
+                {displayTree.length === 0 ? (
+                  <p className="text-xs text-notion-text-secondary px-2 py-2">
+                    {hasTagFilter
+                      ? t("ideas.noSearchResults")
+                      : t("notes.noNotes")}
+                  </p>
+                ) : (
+                  displayTree.map((node) => (
+                    <NoteTreeNode
+                      key={node.id}
+                      node={node}
+                      depth={depthMap.get(node.id) ?? 0}
+                      isExpanded={expandedIds.has(node.id)}
+                      isSelected={selectedNoteId === node.id}
+                      onSelect={onSelectNote}
+                      onToggleExpand={onToggleExpand}
+                      onDelete={onDeleteNote}
+                    />
+                  ))
+                )}
+              </SortableContext>
+              <DragOverlay>
+                {activeNode ? (
+                  <div className="flex items-center gap-1 px-2 py-1 rounded-md bg-notion-bg border border-notion-border shadow-lg text-[13px] text-notion-text opacity-50">
+                    <GripVertical
+                      size={14}
+                      className="text-notion-text-secondary"
+                    />
+                    <span>{activeNode.title || "Untitled"}</span>
+                  </div>
+                ) : null}
+              </DragOverlay>
+            </DndContext>
+          </NoteDragOverStoreContext.Provider>
         </CollapsibleSection>
       </div>
 

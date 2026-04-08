@@ -25,6 +25,8 @@ export interface TaskNode {
   timeMemo?: string;
   updatedAt?: string;
   version?: number;
+  folderType?: "normal" | "complete";
+  originalParentId?: string | null;
 }
 
 export type SessionType = "WORK" | "BREAK" | "LONG_BREAK";
@@ -94,16 +96,58 @@ export interface TaskTemplate {
   createdAt: string;
 }
 
+export type NoteNodeType = "folder" | "note";
+
 export interface NoteNode {
   id: string;
+  type: NoteNodeType;
   title: string;
   content: string;
+  parentId: string | null;
+  order: number;
   isPinned: boolean;
   isDeleted: boolean;
   deletedAt?: string;
   color?: string;
   createdAt: string;
   updatedAt: string;
+}
+
+export type PropertyType = "text" | "number" | "select" | "date" | "checkbox";
+
+export interface DatabaseEntity {
+  id: string;
+  title: string;
+  isDeleted: boolean;
+  deletedAt?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface DatabaseProperty {
+  id: string;
+  databaseId: string;
+  name: string;
+  type: PropertyType;
+  order: number;
+  config: {
+    options?: Array<{ id: string; label: string; color: string }>;
+  };
+  createdAt: string;
+}
+
+export interface DatabaseRow {
+  id: string;
+  databaseId: string;
+  order: number;
+  createdAt: string;
+}
+
+export interface DatabaseCell {
+  id: string;
+  rowId: string;
+  propertyId: string;
+  value: string;
 }
 
 export interface SoundTag {

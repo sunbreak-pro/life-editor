@@ -68,6 +68,36 @@ body {
 
 * {
   box-sizing: border-box;
+  scrollbar-width: thin;
+  scrollbar-color: transparent transparent;
+}
+
+*:hover {
+  scrollbar-color: var(--color-border) transparent;
+}
+
+/* Thin scrollbar — Notion/VS Code style */
+*::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+*::-webkit-scrollbar-thumb {
+  background-color: transparent;
+  border-radius: 3px;
+  transition: background-color 0.2s;
+}
+
+*:hover::-webkit-scrollbar-thumb {
+  background-color: var(--color-border);
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background-color: var(--color-text-secondary);
 }
 
 @layer base {
@@ -121,6 +151,103 @@ body {
   font-family: var(--editor-font-family);
   padding-inline: var(--editor-padding-inline, 0px);
   color: var(--color-text-primary);
+}
+
+/* === Block Drag Handle === */
+.drag-handle {
+  position: absolute;
+  left: 0;
+  display: flex;
+  align-items: center;
+  gap: 1px;
+  opacity: 0;
+  visibility: hidden;
+  z-index: 10;
+  transition: opacity 0.08s ease;
+  height: 24px;
+}
+
+.drag-handle.visible {
+  opacity: 1;
+  visibility: visible;
+}
+
+.drag-handle-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 24px;
+  border: none;
+  background: transparent;
+  color: var(--color-text-secondary);
+  border-radius: 4px;
+  padding: 0;
+  opacity: 0.35;
+  transition:
+    opacity 0.1s,
+    background-color 0.1s;
+}
+
+.drag-handle-btn:hover {
+  opacity: 1;
+  background-color: var(--color-hover);
+}
+
+.drag-handle-plus {
+  cursor: pointer;
+}
+
+.drag-handle-grip {
+  cursor: grab !important;
+}
+
+.drag-handle-grip:active {
+  cursor: grabbing !important;
+}
+
+/* Drag state */
+.memo-editor.is-dragging .drag-source {
+  opacity: 0.25;
+  outline: 2px dashed var(--color-accent);
+  outline-offset: 1px;
+  border-radius: 3px;
+}
+
+/* Drop indicator line */
+.drag-drop-indicator {
+  position: absolute;
+  left: 32px;
+  right: 0;
+  height: 2px;
+  background: var(--color-accent);
+  border-radius: 1px;
+  pointer-events: none;
+  z-index: 20;
+  opacity: 0;
+  transition: opacity 0.08s ease;
+}
+
+.drag-drop-indicator.visible {
+  opacity: 1;
+}
+
+/* Drag overlay — ghost of the block following the cursor */
+.drag-block-overlay {
+  position: fixed;
+  pointer-events: none;
+  z-index: 1000;
+  opacity: 0.2;
+  transform: translate(-10px, -50%);
+  border-radius: 6px;
+  background: var(--color-accent, #3b82f6);
+  box-shadow:
+    0 8px 24px rgba(59, 130, 246, 0.3),
+    0 2px 8px rgba(0, 0, 0, 0.1);
+  max-height: 120px;
+  overflow: hidden;
+  padding: 4px 8px;
+  color: white;
 }
 
 .memo-editor h1 {
@@ -239,6 +366,17 @@ body {
   float: left;
   color: var(--color-text-secondary);
   opacity: 0.5;
+  pointer-events: none;
+  height: 0;
+}
+
+.memo-editor h1.is-empty::before,
+.memo-editor h2.is-empty::before,
+.memo-editor h3.is-empty::before {
+  content: attr(data-placeholder);
+  float: left;
+  color: var(--color-text-secondary);
+  opacity: 0.4;
   pointer-events: none;
   height: 0;
 }

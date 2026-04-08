@@ -23,6 +23,7 @@ interface ScheduleTasksContentProps {
   filterFolderId: string | null;
   onFilterChange: (folderId: string | null) => void;
   onPlayTask?: (node: TaskNode) => void;
+  sidebarSearchQuery?: string;
 }
 
 export function ScheduleTasksContent({
@@ -31,6 +32,7 @@ export function ScheduleTasksContent({
   filterFolderId,
   onFilterChange,
   onPlayTask,
+  sidebarSearchQuery,
 }: ScheduleTasksContentProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [isSearchOpen, setIsSearchOpen] = useState(false);
@@ -89,7 +91,7 @@ export function ScheduleTasksContent({
             selectedTaskId={selectedTaskId}
             filterFolderId={filterFolderId}
             onFilterChange={onFilterChange}
-            searchQuery={searchQuery}
+            searchQuery={sidebarSearchQuery || searchQuery}
             activeTab={activeTab}
           />
         </div>

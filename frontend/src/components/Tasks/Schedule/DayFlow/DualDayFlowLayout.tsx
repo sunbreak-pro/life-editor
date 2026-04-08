@@ -290,6 +290,9 @@ function DualColumn({
           getFolderTag={getFolderTag}
           onUpdateMemo={handleUpdateMemo}
           onUpdateScheduleItemTime={handleUpdateScheduleItemTime}
+          onUpdateScheduleItemTitle={(id, title) =>
+            updateScheduleItem(id, { title })
+          }
           onUpdateTaskTime={handleUpdateTaskTime}
           externalScroll
           onToggleTaskStatus={onToggleTaskStatus}

@@ -294,6 +294,18 @@ export class RestDataService implements DataService {
   searchNotes(query: string): Promise<NoteNode[]> {
     return get(`/api/notes/search?q=${encodeURIComponent(query)}`);
   }
+  createNoteFolder(
+    id: string,
+    title: string,
+    parentId: string | null,
+  ): Promise<NoteNode> {
+    return post("/api/notes/folder", { id, title, parentId });
+  }
+  syncNoteTree(
+    items: Array<{ id: string; parentId: string | null; order: number }>,
+  ): Promise<void> {
+    return post("/api/notes/sync-tree", { items });
+  }
 
   // Custom Sounds — not available on mobile
   saveCustomSound(
@@ -1017,5 +1029,43 @@ export class RestDataService implements DataService {
   }
   installUpdate(): Promise<void> {
     return notSupported("Updater");
+  }
+
+  // Databases
+  fetchAllDatabases(): Promise<never> {
+    return notSupported("fetchAllDatabases");
+  }
+  fetchDatabaseFull(): Promise<never> {
+    return notSupported("fetchDatabaseFull");
+  }
+  createDatabase(): Promise<never> {
+    return notSupported("createDatabase");
+  }
+  updateDatabase(): Promise<never> {
+    return notSupported("updateDatabase");
+  }
+  softDeleteDatabase(): Promise<never> {
+    return notSupported("softDeleteDatabase");
+  }
+  permanentDeleteDatabase(): Promise<never> {
+    return notSupported("permanentDeleteDatabase");
+  }
+  addDatabaseProperty(): Promise<never> {
+    return notSupported("addDatabaseProperty");
+  }
+  updateDatabaseProperty(): Promise<never> {
+    return notSupported("updateDatabaseProperty");
+  }
+  removeDatabaseProperty(): Promise<never> {
+    return notSupported("removeDatabaseProperty");
+  }
+  addDatabaseRow(): Promise<never> {
+    return notSupported("addDatabaseRow");
+  }
+  removeDatabaseRow(): Promise<never> {
+    return notSupported("removeDatabaseRow");
+  }
+  upsertDatabaseCell(): Promise<never> {
+    return notSupported("upsertDatabaseCell");
   }
 }

@@ -46,4 +46,5 @@ export const STORAGE_KEYS = {
   CALENDAR_SHOW_HOLIDAYS: "life-editor-calendar-show-holidays",
   SCHEDULE_EVENTS_LEFT_WIDTH: "life-editor-schedule-events-left-width",
   EVENTS_FILTER_TAB: "life-editor-events-filter-tab",
+  NOTE_TREE_EXPANDED: "life-editor-note-tree-expanded",
 } as const;

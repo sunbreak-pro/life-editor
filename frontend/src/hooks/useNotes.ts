@@ -4,6 +4,24 @@ import { getDataService } from "../services";
 import { logServiceError } from "../utils/logError";
 import { generateId } from "../utils/generateId";
 import { useUndoRedo } from "../components/shared/UndoRedo";
+import { STORAGE_KEYS } from "../constants/storageKeys";
+
+function loadExpandedIds(): Set<string> {
+  try {
+    const saved = localStorage.getItem(STORAGE_KEYS.NOTE_TREE_EXPANDED);
+    if (saved) return new Set(JSON.parse(saved));
+  } catch {
+    // ignore
+  }
+  return new Set();
+}
+
+function saveExpandedIds(ids: Set<string>): void {
+  localStorage.setItem(
+    STORAGE_KEYS.NOTE_TREE_EXPANDED,
+    JSON.stringify([...ids]),
+  );
+}
 
 export function useNotes() {
   const [notes, setNotes] = useState<NoteNode[]>([]);
@@ -11,6 +29,7 @@ export function useNotes() {
   const [selectedNoteId, setSelectedNoteId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [sortMode, setSortMode] = useState<NoteSortMode>("updatedAt");
+  const [expandedIds, setExpandedIds] = useState<Set<string>>(loadExpandedIds);
   const { push } = useUndoRedo();
   const notesRef = useRef(notes);
   const selectedNoteIdRef = useRef(selectedNoteId);
@@ -35,6 +54,47 @@ export function useNotes() {
       cancelled = true;
     };
   }, []);
+
+  // Tree helpers
+  const getChildren = useCallback(
+    (parentId: string | null): NoteNode[] => {
+      return notes
+        .filter((n) => n.parentId === parentId)
+        .sort((a, b) => a.order - b.order);
+    },
+    [notes],
+  );
+
+  const toggleExpanded = useCallback((id: string) => {
+    setExpandedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      saveExpandedIds(next);
+      return next;
+    });
+  }, []);
+
+  // Flatten tree for DnD (only visible nodes)
+  const flattenedNotes = useMemo(() => {
+    const result: NoteNode[] = [];
+    const walk = (parentId: string | null) => {
+      const children = notes
+        .filter((n) => n.parentId === parentId)
+        .sort((a, b) => a.order - b.order);
+      for (const child of children) {
+        result.push(child);
+        if (child.type === "folder" && expandedIds.has(child.id)) {
+          walk(child.id);
+        }
+      }
+    };
+    walk(null);
+    return result;
+  }, [notes, expandedIds]);
 
   const sortedFilteredNotes = useMemo(() => {
     let result = notes;
@@ -65,14 +125,48 @@ export function useNotes() {
     });
   }, [notes, searchQuery, sortMode]);
 
+  // Persist tree to DB
+  const syncToDb = useCallback((updatedNotes: NoteNode[]) => {
+    const items = updatedNotes.map((n) => ({
+      id: n.id,
+      parentId: n.parentId,
+      order: n.order,
+    }));
+    getDataService()
+      .syncNoteTree(items)
+      .catch((e) => logServiceError("Notes", "syncTree", e));
+  }, []);
+
+  const persistWithHistory = useCallback(
+    (currentNotes: NoteNode[], updated: NoteNode[]) => {
+      setNotes(updated);
+      syncToDb(updated);
+      push("note", {
+        label: "moveNote",
+        undo: () => {
+          setNotes(currentNotes);
+          syncToDb(currentNotes);
+        },
+        redo: () => {
+          setNotes(updated);
+          syncToDb(updated);
+        },
+      });
+    },
+    [push, syncToDb],
+  );
+
   const createNote = useCallback(
     (title?: string, options?: { skipUndo?: boolean }) => {
       const id = generateId("note");
       const now = new Date().toISOString();
       const newNote: NoteNode = {
         id,
+        type: "note",
         title: title || "Untitled",
         content: "",
+        parentId: null,
+        order: 0,
         isPinned: false,
         isDeleted: false,
         createdAt: now,
@@ -103,6 +197,49 @@ export function useNotes() {
           },
         });
       }
+
+      return id;
+    },
+    [push],
+  );
+
+  const createFolder = useCallback(
+    (title?: string, parentId?: string | null) => {
+      const id = generateId("notefolder");
+      const now = new Date().toISOString();
+      const resolvedParentId = parentId ?? null;
+      const newFolder: NoteNode = {
+        id,
+        type: "folder",
+        title: title || "New Folder",
+        content: "",
+        parentId: resolvedParentId,
+        order: 0,
+        isPinned: false,
+        isDeleted: false,
+        createdAt: now,
+        updatedAt: now,
+      };
+      setNotes((prev) => [newFolder, ...prev]);
+      getDataService()
+        .createNoteFolder(id, newFolder.title, resolvedParentId)
+        .catch((e) => logServiceError("Notes", "createFolder", e));
+
+      push("note", {
+        label: "createFolder",
+        undo: () => {
+          setNotes((p) => p.filter((n) => n.id !== id));
+          getDataService()
+            .permanentDeleteNote(id)
+            .catch((e) => logServiceError("Notes", "undoCreateFolder", e));
+        },
+        redo: () => {
+          setNotes((p) => [newFolder, ...p]);
+          getDataService()
+            .createNoteFolder(id, newFolder.title, resolvedParentId)
+            .catch((e) => logServiceError("Notes", "redoCreateFolder", e));
+        },
+      });
 
       return id;
     },
@@ -309,13 +446,19 @@ export function useNotes() {
       sortMode,
       setSortMode,
       sortedFilteredNotes,
+      flattenedNotes,
+      expandedIds,
+      toggleExpanded,
+      getChildren,
       createNote,
+      createFolder,
       updateNote,
       softDeleteNote,
       togglePin,
       loadDeletedNotes,
       restoreNote,
       permanentDeleteNote,
+      persistWithHistory,
     }),
     [
       notes,
@@ -325,13 +468,19 @@ export function useNotes() {
       searchQuery,
       sortMode,
       sortedFilteredNotes,
+      flattenedNotes,
+      expandedIds,
+      toggleExpanded,
+      getChildren,
       createNote,
+      createFolder,
       updateNote,
       softDeleteNote,
       togglePin,
       loadDeletedNotes,
       restoreNote,
       permanentDeleteNote,
+      persistWithHistory,
     ],
   );
 }

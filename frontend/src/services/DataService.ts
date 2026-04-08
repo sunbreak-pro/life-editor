@@ -38,6 +38,14 @@ import type {
 import type { TimeMemo } from "../types/timeMemo";
 import type { PaperBoard, PaperNode, PaperEdge } from "../types/paperBoard";
 import type { AttachmentMeta } from "../types/attachment";
+import type {
+  DatabaseEntity,
+  DatabaseFull,
+  DatabaseProperty,
+  DatabaseRow,
+  DatabaseCell,
+  PropertyType,
+} from "../types/database";
 export interface DataService {
   // Tasks
   fetchTaskTree(): Promise<TaskNode[]>;
@@ -143,6 +151,14 @@ export interface DataService {
   restoreNote(id: string): Promise<void>;
   permanentDeleteNote(id: string): Promise<void>;
   searchNotes(query: string): Promise<NoteNode[]>;
+  createNoteFolder(
+    id: string,
+    title: string,
+    parentId: string | null,
+  ): Promise<NoteNode>;
+  syncNoteTree(
+    items: Array<{ id: string; parentId: string | null; order: number }>,
+  ): Promise<void>;
 
   // Custom Sounds
   saveCustomSound(
@@ -561,4 +577,42 @@ export interface DataService {
   checkForUpdates(): Promise<void>;
   downloadUpdate(): Promise<void>;
   installUpdate(): Promise<void>;
+
+  // Databases
+  fetchAllDatabases(): Promise<DatabaseEntity[]>;
+  fetchDatabaseFull(id: string): Promise<DatabaseFull | undefined>;
+  createDatabase(id: string, title: string): Promise<DatabaseEntity>;
+  updateDatabase(id: string, title: string): Promise<DatabaseEntity>;
+  softDeleteDatabase(id: string): Promise<void>;
+  permanentDeleteDatabase(id: string): Promise<void>;
+  addDatabaseProperty(
+    id: string,
+    databaseId: string,
+    name: string,
+    type: PropertyType,
+    order: number,
+    config: DatabaseProperty["config"],
+  ): Promise<DatabaseProperty>;
+  updateDatabaseProperty(
+    id: string,
+    updates: {
+      name?: string;
+      type?: PropertyType;
+      order?: number;
+      config?: DatabaseProperty["config"];
+    },
+  ): Promise<void>;
+  removeDatabaseProperty(id: string): Promise<void>;
+  addDatabaseRow(
+    id: string,
+    databaseId: string,
+    order: number,
+  ): Promise<DatabaseRow>;
+  removeDatabaseRow(id: string): Promise<void>;
+  upsertDatabaseCell(
+    id: string,
+    rowId: string,
+    propertyId: string,
+    value: string,
+  ): Promise<DatabaseCell>;
 }

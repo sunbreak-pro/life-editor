@@ -155,6 +155,19 @@ export function createMockDataService(): DataService & {
     restoreNote: vi.fn().mockResolvedValue(undefined),
     permanentDeleteNote: vi.fn().mockResolvedValue(undefined),
     searchNotes: vi.fn().mockResolvedValue([]),
+    createNoteFolder: vi.fn().mockResolvedValue({
+      id: "notefolder-mock",
+      type: "folder",
+      title: "New Folder",
+      content: "",
+      parentId: null,
+      order: 0,
+      isPinned: false,
+      isDeleted: false,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    }),
+    syncNoteTree: vi.fn().mockResolvedValue(undefined),
 
     // Custom Sounds
     saveCustomSound: vi.fn().mockResolvedValue(undefined),
@@ -320,5 +333,49 @@ export function createMockDataService(): DataService & {
     checkForUpdates: vi.fn().mockResolvedValue(undefined),
     downloadUpdate: vi.fn().mockResolvedValue(undefined),
     installUpdate: vi.fn().mockResolvedValue(undefined),
+
+    // Databases
+    fetchAllDatabases: vi.fn().mockResolvedValue([]),
+    fetchDatabaseFull: vi.fn().mockResolvedValue(undefined),
+    createDatabase: vi.fn().mockResolvedValue({
+      id: "db-mock",
+      title: "Untitled",
+      isDeleted: false,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    }),
+    updateDatabase: vi.fn().mockResolvedValue({
+      id: "db-mock",
+      title: "Updated",
+      isDeleted: false,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    }),
+    softDeleteDatabase: vi.fn().mockResolvedValue(undefined),
+    permanentDeleteDatabase: vi.fn().mockResolvedValue(undefined),
+    addDatabaseProperty: vi.fn().mockResolvedValue({
+      id: "prop-mock",
+      databaseId: "db-mock",
+      name: "Property",
+      type: "text",
+      order: 0,
+      config: {},
+      createdAt: new Date().toISOString(),
+    }),
+    updateDatabaseProperty: vi.fn().mockResolvedValue(undefined),
+    removeDatabaseProperty: vi.fn().mockResolvedValue(undefined),
+    addDatabaseRow: vi.fn().mockResolvedValue({
+      id: "row-mock",
+      databaseId: "db-mock",
+      order: 0,
+      createdAt: new Date().toISOString(),
+    }),
+    removeDatabaseRow: vi.fn().mockResolvedValue(undefined),
+    upsertDatabaseCell: vi.fn().mockResolvedValue({
+      id: "cell-mock",
+      rowId: "row-mock",
+      propertyId: "prop-mock",
+      value: "",
+    }),
   };
 }

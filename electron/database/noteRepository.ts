@@ -1,11 +1,14 @@
 import type Database from "better-sqlite3";
-import type { NoteNode } from "../types";
+import type { NoteNode, NoteNodeType } from "../types";
 import { prepareSoftDeleteStatements } from "./repositoryHelpers";
 
 interface NoteRow {
   id: string;
+  type: string;
   title: string;
   content: string;
+  parent_id: string | null;
+  order_index: number;
   is_pinned: number;
   is_deleted: number;
   deleted_at: string | null;
@@ -17,8 +20,11 @@ interface NoteRow {
 function rowToNode(row: NoteRow): NoteNode {
   return {
     id: row.id,
+    type: (row.type ?? "note") as NoteNodeType,
     title: row.title,
     content: row.content,
+    parentId: row.parent_id,
+    order: row.order_index,
     isPinned: row.is_pinned === 1,
     isDeleted: row.is_deleted === 1,
     deletedAt: row.deleted_at ?? undefined,
@@ -31,13 +37,13 @@ function rowToNode(row: NoteRow): NoteNode {
 export function createNoteRepository(db: Database.Database) {
   const stmts = {
     fetchAll: db.prepare(
-      `SELECT * FROM notes WHERE is_deleted = 0 ORDER BY updated_at DESC`,
+      `SELECT * FROM notes WHERE is_deleted = 0 ORDER BY order_index ASC, updated_at DESC`,
     ),
     ...prepareSoftDeleteStatements(db, "notes"),
     fetchById: db.prepare(`SELECT * FROM notes WHERE id = ?`),
     insert: db.prepare(`
-      INSERT INTO notes (id, title, content, is_pinned, is_deleted, created_at, updated_at)
-      VALUES (@id, @title, '', 0, 0, datetime('now'), datetime('now'))
+      INSERT INTO notes (id, type, title, content, parent_id, order_index, is_pinned, is_deleted, created_at, updated_at)
+      VALUES (@id, @type, @title, '', @parentId, @orderIndex, 0, 0, datetime('now'), datetime('now'))
     `),
     update: db.prepare(`
       UPDATE notes SET title = @title, content = @content, is_pinned = @isPinned, color = @color,
@@ -48,6 +54,10 @@ export function createNoteRepository(db: Database.Database) {
       SELECT * FROM notes WHERE is_deleted = 0
       AND (title LIKE @query OR content LIKE @query)
       ORDER BY updated_at DESC
+    `),
+    syncTree: db.prepare(`
+      UPDATE notes SET parent_id = @parentId, order_index = @order
+      WHERE id = @id
     `),
   };
 
@@ -66,7 +76,19 @@ export function createNoteRepository(db: Database.Database) {
     },
 
     create(id: string, title: string): NoteNode {
-      stmts.insert.run({ id, title });
+      stmts.insert.run({
+        id,
+        type: "note",
+        title,
+        parentId: null,
+        orderIndex: 0,
+      });
+      const row = stmts.fetchById.get(id) as NoteRow;
+      return rowToNode(row);
+    },
+
+    createFolder(id: string, title: string, parentId: string | null): NoteNode {
+      stmts.insert.run({ id, type: "folder", title, parentId, orderIndex: 0 });
       const row = stmts.fetchById.get(id) as NoteRow;
       return rowToNode(row);
     },
@@ -92,6 +114,21 @@ export function createNoteRepository(db: Database.Database) {
       });
       const row = stmts.fetchById.get(id) as NoteRow;
       return rowToNode(row);
+    },
+
+    syncTree(
+      items: Array<{ id: string; parentId: string | null; order: number }>,
+    ): void {
+      const syncMany = db.transaction(() => {
+        for (const item of items) {
+          stmts.syncTree.run({
+            id: item.id,
+            parentId: item.parentId,
+            order: item.order,
+          });
+        }
+      });
+      syncMany();
     },
 
     softDelete(id: string): void {

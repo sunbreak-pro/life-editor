@@ -81,6 +81,7 @@ export function EventCreatePopover({
         className="w-full px-2 py-1.5 text-sm border border-notion-border rounded bg-notion-bg text-notion-text placeholder-notion-text-secondary focus:outline-none focus:border-notion-accent mb-2"
         autoFocus
         onKeyDown={(e) => {
+          if (e.nativeEvent.isComposing) return;
           if (e.key === "Enter") handleSubmit();
           if (e.key === "Escape") onClose();
         }}

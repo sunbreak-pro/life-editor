@@ -28,6 +28,8 @@ import { CustomInputRules } from "../../../extensions/InputRules";
 import { WikiTag } from "../../../extensions/WikiTag";
 import { PdfAttachment } from "../../../extensions/PdfAttachment";
 import { FileUploadPlaceholder } from "../../../extensions/FileUploadPlaceholder";
+import { DatabaseBlock } from "../../../extensions/DatabaseBlock";
+import { DragHandle } from "../../../extensions/DragHandle";
 import { BubbleToolbar } from "./BubbleToolbar";
 import { WikiTagSuggestionMenu } from "../../WikiTags/WikiTagSuggestionMenu";
 import { useWikiTagSync } from "../../../hooks/useWikiTagSync";
@@ -195,6 +197,10 @@ export function MemoEditor({
           code: false,
           blockquote: false,
           link: false,
+          dropcursor: {
+            color: "var(--color-accent)",
+            width: 2,
+          },
         }),
         CustomHeading.configure({ levels: [1, 2, 3] }),
         BoldNoInputRules,
@@ -206,7 +212,14 @@ export function MemoEditor({
         TextStyle,
         Color,
         Placeholder.configure({
-          placeholder: "Type '/' for commands...",
+          includeChildren: true,
+          placeholder: ({ node }) => {
+            if (node.type.name === "heading") {
+              const level = node.attrs.level as number;
+              return `見出し ${level}`;
+            }
+            return "Type '/' for commands...";
+          },
         }),
         Table.configure({ resizable: true }),
         TableRow,
@@ -222,6 +235,8 @@ export function MemoEditor({
         WikiTag,
         PdfAttachment,
         FileUploadPlaceholder,
+        DatabaseBlock,
+        DragHandle,
         CustomInputRules,
       ],
       content: initialContent ? tryParseJSON(initialContent) : undefined,
@@ -423,7 +438,7 @@ export function MemoEditor({
   }, [editor, handleHeadingFontSizeChange]);
 
   return (
-    <div className="relative">
+    <div className="relative mx-auto max-w-[760px] pl-8">
       <EditorContent editor={editor} />
       {editor && <BubbleToolbar editor={editor} />}
       {editor && <WikiTagSuggestionMenu editor={editor} />}

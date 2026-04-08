@@ -91,12 +91,132 @@ export function useTaskTreeCRUD(
     [nodes, persistSilent],
   );
 
+  /** Apply a status change with Complete-folder auto-management */
+  const applyStatusChange = useCallback(
+    (id: string, newStatus: TaskStatus) => {
+      const target = nodes.find((n) => n.id === id);
+      if (!target || target.type !== "task") return;
+      if (target.status === newStatus) return;
+
+      const currentStatus = target.status ?? "NOT_STARTED";
+      let workingNodes = [...nodes];
+      let targetParentId = target.parentId;
+      let updatedTarget: TaskNode = {
+        ...target,
+        status: newStatus,
+        completedAt:
+          newStatus === "DONE" ? new Date().toISOString() : undefined,
+      };
+
+      // --- Complete folder logic (only for tasks inside a folder) ---
+      if (newStatus === "DONE" && targetParentId !== null) {
+        // Find or create a Complete folder inside the parent
+        let completeFolder = workingNodes.find(
+          (n) =>
+            n.parentId === targetParentId &&
+            n.folderType === "complete" &&
+            !n.isDeleted,
+        );
+        if (!completeFolder) {
+          const parentSiblings = workingNodes.filter(
+            (n) => n.parentId === targetParentId && !n.isDeleted,
+          );
+          completeFolder = {
+            id: generateId("folder"),
+            type: "folder",
+            title: "Complete",
+            parentId: targetParentId,
+            order: parentSiblings.length,
+            status: "NOT_STARTED",
+            isExpanded: false,
+            folderType: "complete",
+            createdAt: new Date().toISOString(),
+          };
+          workingNodes = [...workingNodes, completeFolder];
+        }
+        // Move task into Complete folder
+        updatedTarget = {
+          ...updatedTarget,
+          originalParentId: targetParentId,
+          parentId: completeFolder.id,
+        };
+        targetParentId = completeFolder.id;
+      } else if (
+        currentStatus === "DONE" &&
+        newStatus !== "DONE" &&
+        target.parentId !== null
+      ) {
+        // Moving out of DONE: check if currently inside a Complete folder
+        const parentFolder = workingNodes.find((n) => n.id === target.parentId);
+        if (parentFolder?.folderType === "complete") {
+          const restoreParentId =
+            target.originalParentId ?? parentFolder.parentId;
+          updatedTarget = {
+            ...updatedTarget,
+            parentId: restoreParentId,
+            originalParentId: undefined,
+          };
+          targetParentId = restoreParentId;
+
+          // Check if Complete folder will be empty after this move
+          const remaining = workingNodes.filter(
+            (n) =>
+              n.parentId === parentFolder.id && !n.isDeleted && n.id !== id,
+          );
+          if (remaining.length === 0) {
+            // Auto-delete the empty Complete folder
+            workingNodes = workingNodes.map((n) =>
+              n.id === parentFolder.id
+                ? {
+                    ...n,
+                    isDeleted: true,
+                    deletedAt: new Date().toISOString(),
+                  }
+                : n,
+            );
+          }
+        }
+      }
+
+      // --- Reorder siblings in destination parent ---
+      const siblings = workingNodes
+        .filter(
+          (n) => !n.isDeleted && n.parentId === targetParentId && n.id !== id,
+        )
+        .sort((a, b) => a.order - b.order);
+
+      const incomplete = siblings.filter((n) => n.status !== "DONE");
+      const complete = siblings.filter((n) => n.status === "DONE");
+
+      const reordered =
+        newStatus === "DONE"
+          ? [...incomplete, ...complete, updatedTarget]
+          : [...incomplete, updatedTarget, ...complete];
+
+      const orderMap = new Map<string, number>();
+      reordered.forEach((n, i) => orderMap.set(n.id, i));
+
+      persistWithHistory(
+        nodes,
+        workingNodes.map((n) => {
+          if (n.id === id)
+            return {
+              ...updatedTarget,
+              order: orderMap.get(id) ?? updatedTarget.order,
+            };
+          if (orderMap.has(n.id)) return { ...n, order: orderMap.get(n.id)! };
+          return n;
+        }),
+      );
+    },
+    [nodes, persistWithHistory, generateId],
+  );
+
   const toggleTaskStatus = useCallback(
     (id: string) => {
       const target = nodes.find((n) => n.id === id);
       if (!target || target.type !== "task") return;
 
-      // 3-state cycle: NOT_STARTED → IN_PROGRESS → DONE → NOT_STARTED
       const statusCycle: Record<string, TaskStatus> = {
         NOT_STARTED: "IN_PROGRESS",
         IN_PROGRESS: "DONE",
@@ -104,93 +224,16 @@ export function useTaskTreeCRUD(
       };
       const currentStatus = target.status ?? "NOT_STARTED";
       const newStatus: TaskStatus = statusCycle[currentStatus] ?? "NOT_STARTED";
-
-      const siblings = nodes
-        .filter(
-          (n) => !n.isDeleted && n.parentId === target.parentId && n.id !== id,
-        )
-        .sort((a, b) => a.order - b.order);
-
-      const incomplete = siblings.filter((n) => n.status !== "DONE");
-      const complete = siblings.filter((n) => n.status === "DONE");
-
-      const updatedTarget = {
-        ...target,
-        status: newStatus,
-        completedAt:
-          newStatus === "DONE" ? new Date().toISOString() : undefined,
-      };
-
-      // DONE: append to end after all complete siblings
-      // Otherwise: insert at end of incomplete group (before complete siblings)
-      const reordered =
-        newStatus === "DONE"
-          ? [...incomplete, ...complete, updatedTarget]
-          : [...incomplete, updatedTarget, ...complete];
-
-      const orderMap = new Map<string, number>();
-      reordered.forEach((n, i) => orderMap.set(n.id, i));
-
-      persistWithHistory(
-        nodes,
-        nodes.map((n) => {
-          if (n.id === id)
-            return {
-              ...updatedTarget,
-              order: orderMap.get(id) ?? updatedTarget.order,
-            };
-          if (orderMap.has(n.id)) return { ...n, order: orderMap.get(n.id)! };
-          return n;
-        }),
-      );
+      applyStatusChange(id, newStatus);
     },
-    [nodes, persistWithHistory],
+    [nodes, applyStatusChange],
   );
 
   const setTaskStatus = useCallback(
     (id: string, newStatus: TaskStatus) => {
-      const target = nodes.find((n) => n.id === id);
-      if (!target || target.type !== "task") return;
-      if (target.status === newStatus) return;
-
-      const siblings = nodes
-        .filter(
-          (n) => !n.isDeleted && n.parentId === target.parentId && n.id !== id,
-        )
-        .sort((a, b) => a.order - b.order);
-
-      const incomplete = siblings.filter((n) => n.status !== "DONE");
-      const complete = siblings.filter((n) => n.status === "DONE");
-
-      const updatedTarget = {
-        ...target,
-        status: newStatus,
-        completedAt:
-          newStatus === "DONE" ? new Date().toISOString() : undefined,
-      };
-
-      const reordered =
-        newStatus === "DONE"
-          ? [...incomplete, ...complete, updatedTarget]
-          : [...incomplete, updatedTarget, ...complete];
-
-      const orderMap = new Map<string, number>();
-      reordered.forEach((n, i) => orderMap.set(n.id, i));
-
-      persistWithHistory(
-        nodes,
-        nodes.map((n) => {
-          if (n.id === id)
-            return {
-              ...updatedTarget,
-              order: orderMap.get(id) ?? updatedTarget.order,
-            };
-          if (orderMap.has(n.id)) return { ...n, order: orderMap.get(n.id)! };
-          return n;
-        }),
-      );
+      applyStatusChange(id, newStatus);
     },
-    [nodes, persistWithHistory],
+    [applyStatusChange],
   );
 
   const completeFolderWithChildren = useCallback(

@@ -5,5 +5,12 @@ interface MainContentProps {
 }
 
 export function MainContent({ children }: MainContentProps) {
-  return <main className="flex-1 overflow-auto bg-notion-bg">{children}</main>;
+  return (
+    <main
+      className="flex-1 overflow-auto bg-notion-bg"
+      style={{ scrollbarGutter: "stable" }}
+    >
+      {children}
+    </main>
+  );
 }

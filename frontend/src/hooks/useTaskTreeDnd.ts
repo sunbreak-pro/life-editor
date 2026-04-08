@@ -172,6 +172,9 @@ export function useTaskTreeDnd({
       const overNode = nodes.find((n) => n.id === overId);
       if (!overNode) return;
 
+      // Prevent dropping into Complete system folders
+      if (overNode.folderType === "complete") return;
+
       if (overNode.type === "folder") {
         const pointerY = getPointerY(event);
         if (!pointerY || !over.rect) {

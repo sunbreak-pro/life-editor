@@ -8,9 +8,10 @@ export function registerNoteHandlers(repo: NoteRepository): void {
     repo.fetchDeleted(),
   );
 
-  query("db:notes:search", "Notes", "search", (_event, searchQuery: string) =>
-    repo.search(searchQuery),
-  );
+  query("db:notes:search", "Notes", "search", (_event, searchQuery: string) => {
+    if (typeof searchQuery !== "string" || searchQuery.length > 500) return [];
+    return repo.search(searchQuery);
+  });
 
   mutation(
     "db:notes:create",
@@ -64,6 +65,28 @@ export function registerNoteHandlers(repo: NoteRepository): void {
     "note",
     "delete",
     (_event, id: string) => repo.permanentDelete(id),
+  );
+
+  mutation(
+    "db:notes:createFolder",
+    "Notes",
+    "createFolder",
+    "note",
+    "create",
+    (_event, id: string, title: string, parentId: string | null) =>
+      repo.createFolder(id, title, parentId),
+  );
+
+  mutation(
+    "db:notes:syncTree",
+    "Notes",
+    "syncTree",
+    "note",
+    "update",
+    (
+      _event,
+      items: Array<{ id: string; parentId: string | null; order: number }>,
+    ) => repo.syncTree(items),
   );
 
   // Note tag handlers moved to tagHandlers.ts (db:noteTags:*)

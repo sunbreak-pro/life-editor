@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 
 interface InlineMemoInputProps {
   value: string;
@@ -13,17 +13,20 @@ export function InlineMemoInput({
 }: InlineMemoInputProps) {
   const [text, setText] = useState(value);
   const inputRef = useRef<HTMLInputElement>(null);
+  const savedRef = useRef(false);
 
   useEffect(() => {
     inputRef.current?.focus();
     inputRef.current?.select();
   }, []);
 
-  const handleSave = () => {
+  const handleSave = useCallback(() => {
+    if (savedRef.current) return;
+    savedRef.current = true;
     const trimmed = text.trim();
     onSave(trimmed || null);
     onClose();
-  };
+  }, [text, onSave, onClose]);
 
   return (
     <input
@@ -33,6 +36,7 @@ export function InlineMemoInput({
       onChange={(e) => setText(e.target.value)}
       onKeyDown={(e) => {
         e.stopPropagation();
+        if (e.nativeEvent.isComposing) return;
         if (e.key === "Enter") handleSave();
         if (e.key === "Escape") onClose();
       }}

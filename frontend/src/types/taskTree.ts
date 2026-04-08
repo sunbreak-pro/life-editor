@@ -32,4 +32,6 @@ export interface TaskNode {
   timeMemo?: string;
   updatedAt?: string;
   version?: number;
+  folderType?: "normal" | "complete";
+  originalParentId?: string | null;
 }

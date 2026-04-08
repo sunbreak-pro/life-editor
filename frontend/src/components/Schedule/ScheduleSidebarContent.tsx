@@ -13,17 +13,11 @@ import { getDataService } from "../../services/dataServiceFactory";
 import type { ScheduleItem } from "../../types/schedule";
 import type { RoutineStats } from "../../types/schedule";
 import { FolderDropdown } from "../Tasks/Folder/FolderDropdown";
-import {
-  Filter,
-  ChevronDown,
-  Search,
-  X,
-  BookOpen,
-  StickyNote,
-} from "lucide-react";
+import { Filter, ChevronDown, BookOpen, StickyNote } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useNoteContext } from "../../hooks/useNoteContext";
 import { useMemoContext } from "../../hooks/useMemoContext";
+import { SearchBar, type SearchSuggestion } from "../shared/SearchBar";
 
 interface ScheduleSidebarContentProps {
   routineStats: RoutineStats | null;
@@ -37,6 +31,9 @@ interface ScheduleSidebarContentProps {
   onFilterFolderChange?: (folderId: string | null) => void;
   searchQuery?: string;
   onSearchQueryChange?: (query: string) => void;
+  searchPlaceholder?: string;
+  searchSuggestions?: SearchSuggestion[];
+  onSearchSuggestionSelect?: (id: string) => void;
   onSelectMemo?: (date: string) => void;
   onSelectNote?: (noteId: string) => void;
 }
@@ -53,6 +50,9 @@ export function ScheduleSidebarContent({
   onFilterFolderChange,
   searchQuery,
   onSearchQueryChange,
+  searchPlaceholder,
+  searchSuggestions,
+  onSearchSuggestionSelect,
   onSelectMemo,
   onSelectNote,
 }: ScheduleSidebarContentProps) {
@@ -306,29 +306,17 @@ export function ScheduleSidebarContent({
   return (
     <div className="flex flex-col h-full">
       {onSearchQueryChange && (
-        <div className="px-3 pt-2 pb-1 shrink-0">
-          <div className="relative">
-            <Search
-              size={12}
-              className="absolute left-2 top-1/2 -translate-y-1/2 text-notion-text-secondary"
-            />
-            <input
-              type="text"
-              value={searchQuery ?? ""}
-              onChange={(e) => onSearchQueryChange(e.target.value)}
-              placeholder={t("calendar.searchPlaceholder", "Search items...")}
-              className="w-full pl-7 pr-7 py-1.5 text-xs bg-notion-bg-secondary border border-notion-border rounded-md text-notion-text placeholder:text-notion-text-secondary/50 outline-none focus:border-notion-accent/50 transition-colors"
-            />
-            {searchQuery && (
-              <button
-                onClick={() => onSearchQueryChange("")}
-                className="absolute right-2 top-1/2 -translate-y-1/2 text-notion-text-secondary hover:text-notion-text transition-colors"
-              >
-                <X size={12} />
-              </button>
-            )}
-          </div>
-        </div>
+        <SearchBar
+          value={searchQuery ?? ""}
+          onChange={onSearchQueryChange}
+          placeholder={
+            searchPlaceholder ??
+            t("calendar.searchPlaceholder", "Search items...")
+          }
+          suggestions={searchSuggestions}
+          onSuggestionSelect={onSearchSuggestionSelect}
+          className="px-3 pt-2 pb-1 shrink-0"
+        />
       )}
       {onFilterFolderChange && (
         <div className="px-3 pt-2 pb-1 shrink-0">

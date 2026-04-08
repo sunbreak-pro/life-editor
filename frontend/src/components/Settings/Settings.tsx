@@ -373,7 +373,9 @@ export function Settings({ initialTab }: SettingsProps) {
       />
 
       <div key={settingsKey} className="flex-1 overflow-y-auto">
-        {renderContent()}
+        <div className={`${LAYOUT.CONTENT_MAX_W} mx-auto w-full`}>
+          {renderContent()}
+        </div>
       </div>
     </div>
   );

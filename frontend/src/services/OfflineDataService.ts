@@ -411,8 +411,11 @@ export class OfflineDataService implements DataService {
   async createNote(id: string, title: string): Promise<NoteNode> {
     const note: NoteNode = {
       id,
+      type: "note",
       title,
       content: "",
+      parentId: null,
+      order: 0,
       isPinned: false,
       isDeleted: false,
       createdAt: new Date().toISOString(),
@@ -491,6 +494,20 @@ export class OfflineDataService implements DataService {
         );
       },
     );
+  }
+
+  createNoteFolder(
+    _id: string,
+    _title: string,
+    _parentId: string | null,
+  ): Promise<NoteNode> {
+    return notSupported("createNoteFolder");
+  }
+
+  syncNoteTree(
+    _items: Array<{ id: string; parentId: string | null; order: number }>,
+  ): Promise<void> {
+    return notSupported("syncNoteTree");
   }
 
   // ============================================================
@@ -1663,5 +1680,43 @@ export class OfflineDataService implements DataService {
   }
   installUpdate(): Promise<void> {
     return notSupported("Updater");
+  }
+
+  // Databases
+  fetchAllDatabases(): Promise<never> {
+    return notSupported("fetchAllDatabases");
+  }
+  fetchDatabaseFull(): Promise<never> {
+    return notSupported("fetchDatabaseFull");
+  }
+  createDatabase(): Promise<never> {
+    return notSupported("createDatabase");
+  }
+  updateDatabase(): Promise<never> {
+    return notSupported("updateDatabase");
+  }
+  softDeleteDatabase(): Promise<never> {
+    return notSupported("softDeleteDatabase");
+  }
+  permanentDeleteDatabase(): Promise<never> {
+    return notSupported("permanentDeleteDatabase");
+  }
+  addDatabaseProperty(): Promise<never> {
+    return notSupported("addDatabaseProperty");
+  }
+  updateDatabaseProperty(): Promise<never> {
+    return notSupported("updateDatabaseProperty");
+  }
+  removeDatabaseProperty(): Promise<never> {
+    return notSupported("removeDatabaseProperty");
+  }
+  addDatabaseRow(): Promise<never> {
+    return notSupported("addDatabaseRow");
+  }
+  removeDatabaseRow(): Promise<never> {
+    return notSupported("removeDatabaseRow");
+  }
+  upsertDatabaseCell(): Promise<never> {
+    return notSupported("upsertDatabaseCell");
   }
 }

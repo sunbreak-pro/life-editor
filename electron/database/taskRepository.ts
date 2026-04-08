@@ -24,6 +24,8 @@ interface TaskRow {
   time_memo: string | null;
   updated_at: string | null;
   version: number;
+  folder_type: string | null;
+  original_parent_id: string | null;
 }
 
 function rowToNode(row: TaskRow): TaskNode {
@@ -48,6 +50,8 @@ function rowToNode(row: TaskRow): TaskNode {
     timeMemo: row.time_memo ?? undefined,
     updatedAt: row.updated_at ?? undefined,
     version: row.version ?? 1,
+    folderType: (row.folder_type as TaskNode["folderType"]) ?? undefined,
+    originalParentId: row.original_parent_id ?? undefined,
   };
 }
 
@@ -61,8 +65,8 @@ export function createTaskRepository(db: Database.Database) {
     ...softDelete,
     fetchById: db.prepare(`SELECT * FROM tasks WHERE id = ?`),
     insert: db.prepare(`
-      INSERT INTO tasks (id, type, title, parent_id, "order", status, is_expanded, is_deleted, deleted_at, created_at, completed_at, scheduled_at, scheduled_end_at, is_all_day, content, work_duration_minutes, color, due_date, time_memo)
-      VALUES (@id, @type, @title, @parentId, @order, @status, @isExpanded, @isDeleted, @deletedAt, @createdAt, @completedAt, @scheduledAt, @scheduledEndAt, @isAllDay, @content, @workDurationMinutes, @color, @dueDate, @timeMemo)
+      INSERT INTO tasks (id, type, title, parent_id, "order", status, is_expanded, is_deleted, deleted_at, created_at, completed_at, scheduled_at, scheduled_end_at, is_all_day, content, work_duration_minutes, color, due_date, time_memo, folder_type, original_parent_id)
+      VALUES (@id, @type, @title, @parentId, @order, @status, @isExpanded, @isDeleted, @deletedAt, @createdAt, @completedAt, @scheduledAt, @scheduledEndAt, @isAllDay, @content, @workDurationMinutes, @color, @dueDate, @timeMemo, @folderType, @originalParentId)
     `),
     update: db.prepare(`
       UPDATE tasks SET type=@type, title=@title, parent_id=@parentId, "order"=@order, status=@status,
@@ -70,6 +74,7 @@ export function createTaskRepository(db: Database.Database) {
         completed_at=@completedAt, scheduled_at=@scheduledAt, scheduled_end_at=@scheduledEndAt,
         is_all_day=@isAllDay, content=@content,
         work_duration_minutes=@workDurationMinutes, color=@color, due_date=@dueDate, time_memo=@timeMemo,
+        folder_type=@folderType, original_parent_id=@originalParentId,
         version = version + 1, updated_at = datetime('now')
       WHERE id=@id
     `),
@@ -97,6 +102,8 @@ export function createTaskRepository(db: Database.Database) {
       color: node.color ?? null,
       dueDate: null,
       timeMemo: node.timeMemo ?? null,
+      folderType: node.folderType ?? null,
+      originalParentId: node.originalParentId ?? null,
     };
   }
 
@@ -150,8 +157,8 @@ export function createTaskRepository(db: Database.Database) {
       //   1. Triggers FK violations from child rows referencing the deleted parent
       //   2. Cascades deletes to task_tags and calendars (data loss)
       const upsert = db.prepare(`
-        INSERT INTO tasks (id, type, title, parent_id, "order", status, is_expanded, is_deleted, deleted_at, created_at, completed_at, scheduled_at, scheduled_end_at, is_all_day, content, work_duration_minutes, color, due_date, time_memo)
-        VALUES (@id, @type, @title, @parentId, @order, @status, @isExpanded, @isDeleted, @deletedAt, @createdAt, @completedAt, @scheduledAt, @scheduledEndAt, @isAllDay, @content, @workDurationMinutes, @color, @dueDate, @timeMemo)
+        INSERT INTO tasks (id, type, title, parent_id, "order", status, is_expanded, is_deleted, deleted_at, created_at, completed_at, scheduled_at, scheduled_end_at, is_all_day, content, work_duration_minutes, color, due_date, time_memo, folder_type, original_parent_id)
+        VALUES (@id, @type, @title, @parentId, @order, @status, @isExpanded, @isDeleted, @deletedAt, @createdAt, @completedAt, @scheduledAt, @scheduledEndAt, @isAllDay, @content, @workDurationMinutes, @color, @dueDate, @timeMemo, @folderType, @originalParentId)
         ON CONFLICT(id) DO UPDATE SET
           type = excluded.type,
           title = excluded.title,
@@ -170,7 +177,9 @@ export function createTaskRepository(db: Database.Database) {
           work_duration_minutes = excluded.work_duration_minutes,
           color = excluded.color,
           due_date = excluded.due_date,
-          time_memo = excluded.time_memo
+          time_memo = excluded.time_memo,
+          folder_type = excluded.folder_type,
+          original_parent_id = excluded.original_parent_id
       `);
       for (const node of nodes) {
         upsert.run(nodeToParams(node));

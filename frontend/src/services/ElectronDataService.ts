@@ -39,6 +39,14 @@ import type {
 import type { TimeMemo } from "../types/timeMemo";
 import type { PaperBoard, PaperNode, PaperEdge } from "../types/paperBoard";
 import type { AttachmentMeta } from "../types/attachment";
+import type {
+  DatabaseEntity,
+  DatabaseFull,
+  DatabaseProperty,
+  DatabaseRow,
+  DatabaseCell,
+  PropertyType,
+} from "../types/database";
 function invoke<T>(channel: string, ...args: unknown[]): Promise<T> {
   return window.electronAPI!.invoke<T>(channel, ...args);
 }
@@ -255,6 +263,18 @@ export class ElectronDataService implements DataService {
   }
   searchNotes(query: string): Promise<NoteNode[]> {
     return invoke("db:notes:search", query);
+  }
+  createNoteFolder(
+    id: string,
+    title: string,
+    parentId: string | null,
+  ): Promise<NoteNode> {
+    return invoke("db:notes:createFolder", id, title, parentId);
+  }
+  syncNoteTree(
+    items: Array<{ id: string; parentId: string | null; order: number }>,
+  ): Promise<void> {
+    return invoke("db:notes:syncTree", items);
   }
 
   // Custom Sounds
@@ -984,5 +1004,75 @@ export class ElectronDataService implements DataService {
   }
   installUpdate(): Promise<void> {
     return invoke("updater:installUpdate");
+  }
+
+  // Databases
+  fetchAllDatabases(): Promise<DatabaseEntity[]> {
+    return invoke("db:database:fetchAll");
+  }
+  fetchDatabaseFull(id: string): Promise<DatabaseFull | undefined> {
+    return invoke("db:database:fetchFull", id);
+  }
+  createDatabase(id: string, title: string): Promise<DatabaseEntity> {
+    return invoke("db:database:create", id, title);
+  }
+  updateDatabase(id: string, title: string): Promise<DatabaseEntity> {
+    return invoke("db:database:update", id, title);
+  }
+  softDeleteDatabase(id: string): Promise<void> {
+    return invoke("db:database:softDelete", id);
+  }
+  permanentDeleteDatabase(id: string): Promise<void> {
+    return invoke("db:database:permanentDelete", id);
+  }
+  addDatabaseProperty(
+    id: string,
+    databaseId: string,
+    name: string,
+    type: PropertyType,
+    order: number,
+    config: DatabaseProperty["config"],
+  ): Promise<DatabaseProperty> {
+    return invoke(
+      "db:database:addProperty",
+      id,
+      databaseId,
+      name,
+      type,
+      order,
+      config,
+    );
+  }
+  updateDatabaseProperty(
+    id: string,
+    updates: {
+      name?: string;
+      type?: PropertyType;
+      order?: number;
+      config?: DatabaseProperty["config"];
+    },
+  ): Promise<void> {
+    return invoke("db:database:updateProperty", id, updates);
+  }
+  removeDatabaseProperty(id: string): Promise<void> {
+    return invoke("db:database:removeProperty", id);
+  }
+  addDatabaseRow(
+    id: string,
+    databaseId: string,
+    order: number,
+  ): Promise<DatabaseRow> {
+    return invoke("db:database:addRow", id, databaseId, order);
+  }
+  removeDatabaseRow(id: string): Promise<void> {
+    return invoke("db:database:removeRow", id);
+  }
+  upsertDatabaseCell(
+    id: string,
+    rowId: string,
+    propertyId: string,
+    value: string,
+  ): Promise<DatabaseCell> {
+    return invoke("db:database:upsertCell", id, rowId, propertyId, value);
   }
 }

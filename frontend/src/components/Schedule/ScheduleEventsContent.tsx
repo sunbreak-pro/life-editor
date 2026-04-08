@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { CalendarClock, CheckCircle2 } from "lucide-react";
+import { CalendarClock, CheckCircle2, Plus } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { SectionTabs } from "../shared/SectionTabs";
 import type { TabItem } from "../shared/SectionTabs";
 import { useLocalStorage } from "../../hooks/useLocalStorage";
@@ -7,6 +8,7 @@ import { useResizablePanel } from "../../hooks/useResizablePanel";
 import { STORAGE_KEYS } from "../../constants/storageKeys";
 import { EventList } from "./EventList";
 import { EventDetailPanel } from "./EventDetailPanel";
+import { EventQuickCreatePopover } from "./EventQuickCreatePopover";
 
 type EventFilterTab = "incomplete" | "completed";
 
@@ -19,8 +21,16 @@ const EVENT_FILTER_TABS: readonly TabItem<EventFilterTab>[] = [
   { id: "completed", labelKey: "events.filterCompleted", icon: CheckCircle2 },
 ];
 
-export function ScheduleEventsContent() {
+interface ScheduleEventsContentProps {
+  sidebarSearchQuery?: string;
+}
+
+export function ScheduleEventsContent({
+  sidebarSearchQuery,
+}: ScheduleEventsContentProps) {
+  const { t } = useTranslation();
   const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
+  const [showCreatePopover, setShowCreatePopover] = useState(false);
   const [activeTab, setActiveTab] = useLocalStorage<EventFilterTab>(
     STORAGE_KEYS.EVENTS_FILTER_TAB,
     "incomplete",
@@ -44,16 +54,32 @@ export function ScheduleEventsContent() {
         className="flex flex-col border-r border-notion-border shrink-0 relative"
         style={{ width: currentWidth }}
       >
-        <SectionTabs
-          tabs={EVENT_FILTER_TABS}
-          activeTab={activeTab}
-          onTabChange={setActiveTab}
-          size="sm"
-        />
+        <div className="flex items-center border-b border-notion-border relative">
+          <SectionTabs
+            tabs={EVENT_FILTER_TABS}
+            activeTab={activeTab}
+            onTabChange={setActiveTab}
+            size="sm"
+            noBorder
+          />
+          <button
+            onClick={() => setShowCreatePopover(!showCreatePopover)}
+            className="ml-auto mr-2 p-1 text-notion-text-secondary hover:text-notion-text hover:bg-notion-hover rounded-md transition-colors"
+            title={t("events.createEvent")}
+          >
+            <Plus size={14} />
+          </button>
+          {showCreatePopover && (
+            <EventQuickCreatePopover
+              onClose={() => setShowCreatePopover(false)}
+            />
+          )}
+        </div>
         <EventList
           selectedEventId={selectedEventId}
           onSelectEvent={setSelectedEventId}
           filter={activeTab}
+          searchQuery={sidebarSearchQuery}
         />
 
         {/* Drag handle */}

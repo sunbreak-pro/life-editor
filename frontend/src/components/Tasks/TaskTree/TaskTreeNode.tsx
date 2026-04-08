@@ -1,7 +1,7 @@
 import { useState, useCallback, useMemo, memo } from "react";
 import { useSortable } from "@dnd-kit/sortable";
 import { SortableContext } from "@dnd-kit/sortable";
-import { GripVertical } from "lucide-react";
+import { GripVertical, FolderCheck } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import type { TaskNode } from "../../../types/taskTree";
 import { useTaskTreeContext } from "../../../hooks/useTaskTreeContext";
@@ -87,12 +87,14 @@ export const TaskTreeNode = memo(function TaskTreeNode({
   // Subscribe to drag-over store — only re-renders when this node's indicator changes
   const dropPosition = useDragOverIndicator(node.id);
 
+  const isFolder = node.type === "folder";
+  const isSystemFolder = isFolder && node.folderType === "complete";
+  const isInCompletedTree = isCompletedItem || isStructureContainer;
+
   const { attributes, listeners, setNodeRef, isDragging } = useSortable({
     id: node.id,
-    disabled: isCompletedItem || isStructureContainer,
+    disabled: isCompletedItem || isStructureContainer || isSystemFolder,
   });
-
-  const isInCompletedTree = isCompletedItem || isStructureContainer;
 
   const rawChildren = getChildren(node.id);
   const activeChildren = useMemo(() => {
@@ -104,7 +106,10 @@ export const TaskTreeNode = memo(function TaskTreeNode({
       );
       return sortTaskNodes(children, sortMode);
     }
-    const active = rawChildren.filter((c) => c.status !== "DONE");
+    // Include Complete system folders (they hold DONE tasks but aren't DONE themselves)
+    const active = rawChildren.filter(
+      (c) => c.status !== "DONE" || c.folderType === "complete",
+    );
     const sorted = sortTaskNodes(active, sortMode);
     if (isSearching && searchMatchIds) {
       return sorted.filter((c) => searchMatchIds.has(c.id));
@@ -123,7 +128,6 @@ export const TaskTreeNode = memo(function TaskTreeNode({
     () => activeChildren.map((c) => c.id),
     [activeChildren],
   );
-  const isFolder = node.type === "folder";
   const isDone = node.type === "task" && node.status === "DONE";
   const isFolderDone = isFolder && node.status === "DONE";
   const isTimerActive = timer.activeTask?.id === node.id && timer.isRunning;
@@ -253,11 +257,16 @@ export const TaskTreeNode = memo(function TaskTreeNode({
           className={`group flex items-center gap-0.5 py-1 rounded-md hover:bg-notion-hover transition-colors border-l-2 ${isSelected ? "bg-notion-hover border-l-notion-accent" : "border-l-transparent"} ${isFolder && dropPosition === "inside" && !isDragging && !isInCompletedTree ? "ring-2 ring-notion-accent bg-notion-accent/5" : ""} ${isDone || isFolderDone ? "opacity-60 hover:opacity-90" : ""} ${isCreateTarget && !isSelected ? "ring-1 ring-notion-accent/30" : ""}`}
           style={bgStyle}
           onClick={() => onSelectTask?.(node.id)}
-          onContextMenu={isStructureContainer ? undefined : handleContextMenu}
+          onContextMenu={
+            isStructureContainer || isSystemFolder
+              ? undefined
+              : handleContextMenu
+          }
         >
           {sortMode === "manual" &&
           !showAsCompleted &&
-          !isStructureContainer ? (
+          !isStructureContainer &&
+          !isSystemFolder ? (
             <button
               {...listeners}
               className="w-5.5 shrink-0 opacity-0 group-hover:opacity-100 p-0.5 cursor-grab text-notion-text-secondary"
@@ -268,7 +277,14 @@ export const TaskTreeNode = memo(function TaskTreeNode({
             <div className="w-5.5 shrink-0" />
           )}
           <TaskNodeIndent depth={depth} isLastChild={isLastChild} />
-          {isFolder ? (
+          {isSystemFolder ? (
+            <button
+              onClick={handleToggleExpand}
+              className="shrink-0 p-0.5 text-green-500"
+            >
+              <FolderCheck size={16} />
+            </button>
+          ) : isFolder ? (
             <TaskNodeCheckbox
               isFolder={isFolder}
               isDone={isDone}
@@ -292,7 +308,7 @@ export const TaskTreeNode = memo(function TaskTreeNode({
             />
           )}
 
-          {isEditing && !isStructureContainer ? (
+          {isEditing && !isStructureContainer && !isSystemFolder ? (
             <TaskNodeEditor
               initialValue={node.title}
               onSave={handleSave}
@@ -300,13 +316,19 @@ export const TaskTreeNode = memo(function TaskTreeNode({
             />
           ) : (
             <TaskNodeContent
-              title={node.title}
+              title={isSystemFolder ? t("taskTree.completeFolder") : node.title}
               isDone={isDone || isFolderDone}
               isFolder={isFolder}
               progress={progress}
-              onSelectTask={isStructureContainer ? undefined : onSelectTask}
+              onSelectTask={
+                isStructureContainer || isSystemFolder
+                  ? undefined
+                  : onSelectTask
+              }
               onStartEditing={
-                isStructureContainer ? undefined : handleStartEditing
+                isStructureContainer || isSystemFolder
+                  ? undefined
+                  : handleStartEditing
               }
               onToggleExpand={handleToggleExpand}
               nodeId={node.id}
@@ -319,7 +341,7 @@ export const TaskTreeNode = memo(function TaskTreeNode({
             formatTime={timer.formatTime}
           />
 
-          {!showAsCompleted && !isStructureContainer && (
+          {!showAsCompleted && !isStructureContainer && !isSystemFolder && (
             <TaskNodeActions
               node={node}
               isDone={isDone}
@@ -339,7 +361,7 @@ export const TaskTreeNode = memo(function TaskTreeNode({
         <div className="h-0.5 bg-notion-accent rounded-full mx-2" />
       )}
 
-      {contextMenu && !isStructureContainer && (
+      {contextMenu && !isStructureContainer && !isSystemFolder && (
         <TaskNodeContextMenu
           x={contextMenu.x}
           y={contextMenu.y}

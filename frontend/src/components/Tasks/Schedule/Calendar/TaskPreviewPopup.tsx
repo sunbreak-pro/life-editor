@@ -166,6 +166,7 @@ export function TaskPreviewPopup({
               onChange={(e) => setEditValue(e.target.value)}
               onBlur={commitEdit}
               onKeyDown={(e) => {
+                if (e.nativeEvent.isComposing) return;
                 if (e.key === "Enter") commitEdit();
                 if (e.key === "Escape") {
                   setEditValue(task.title);

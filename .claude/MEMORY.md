@@ -2,7 +2,7 @@
 
 ## 進行中
 
-### 🔧 DragHandle全面リライト — Notion風ブロックUI/UX（着手日: 2026-04-06）
+### ⏸️ DragHandle全面リライト — Notion風ブロックUI/UX（着手日: 2026-04-06）
 
 **対象**: `frontend/src/extensions/DragHandle.ts`, `frontend/src/index.css`
 **計画書**: `.claude/plans/functional-tinkering-wigderson.md`
@@ -13,9 +13,9 @@
 
 ## 直近の完了
 
+- Task Status UI + Complete Folder + Event Creation ✅（2026-04-08）
 - Schedule Sidebar 検索統一 + Tasks/Events タブ検索追加 ✅（2026-04-06）
 - Calendar IME修正 + Popup タイトル編集 + メモ重複バグ修正 ✅（2026-04-06）
-- Database機能コードレビュー改善（セキュリティ・可読性・i18n） ✅（2026-04-06）
 
 ## 予定
 

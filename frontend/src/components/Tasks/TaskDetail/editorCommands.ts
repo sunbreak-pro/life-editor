@@ -13,7 +13,7 @@ import {
   Lightbulb,
   ChevronRight,
   Minus,
-  Table2,
+  Database as DatabaseIcon,
   ImageIcon,
   FileText,
 } from "lucide-react";
@@ -310,15 +310,18 @@ export const PANEL_COMMANDS: PanelCommand[] = [
     },
   },
   {
-    title: "Table",
-    icon: Table2,
-    description: "Table with rows and columns",
+    title: "Database",
+    icon: DatabaseIcon,
+    description: "Notion-style database table",
     group: "Advanced",
     action: (editor) => {
       editor
         .chain()
         .focus()
-        .insertTable({ rows: 3, cols: 3, withHeaderRow: true })
+        .insertContent({
+          type: "databaseBlock",
+          attrs: { databaseId: null },
+        })
         .run();
     },
   },

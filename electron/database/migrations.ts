@@ -220,6 +220,21 @@ export function runMigrations(db: Database.Database): void {
     migrateV47(db);
   }
 
+  if (currentVersion < 48) {
+    log.info("[DB] Running migration V48");
+    migrateV48(db);
+  }
+
+  if (currentVersion < 49) {
+    log.info("[DB] Running migration V49");
+    migrateV49(db);
+  }
+
+  if (currentVersion < 50) {
+    log.info("[DB] Running migration V50");
+    migrateV50(db);
+  }
+
   const newVersion = db.pragma("user_version", { simple: true }) as number;
   if (newVersion !== currentVersion) {
     log.info(`[DB] Schema migrated: ${currentVersion} → ${newVersion}`);
@@ -1700,4 +1715,80 @@ function migrateV47(db: Database.Database): void {
   });
   migrate();
   db.pragma("user_version = 47");
+}
+
+function migrateV48(db: Database.Database): void {
+  const migrate = db.transaction(() => {
+    if (!hasColumn(db, "notes", "parent_id")) {
+      db.exec(`ALTER TABLE notes ADD COLUMN parent_id TEXT DEFAULT NULL`);
+    }
+    if (!hasColumn(db, "notes", "order_index")) {
+      db.exec(
+        `ALTER TABLE notes ADD COLUMN order_index INTEGER NOT NULL DEFAULT 0`,
+      );
+    }
+    if (!hasColumn(db, "notes", "type")) {
+      db.exec(`ALTER TABLE notes ADD COLUMN type TEXT NOT NULL DEFAULT 'note'`);
+    }
+  });
+  migrate();
+  db.pragma("user_version = 48");
+}
+
+function migrateV49(db: Database.Database): void {
+  const migrate = db.transaction(() => {
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS databases (
+        id TEXT PRIMARY KEY,
+        title TEXT NOT NULL DEFAULT 'Untitled',
+        is_deleted INTEGER NOT NULL DEFAULT 0,
+        deleted_at TEXT,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      )
+    `);
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS database_properties (
+        id TEXT PRIMARY KEY,
+        database_id TEXT NOT NULL REFERENCES databases(id) ON DELETE CASCADE,
+        name TEXT NOT NULL DEFAULT 'Property',
+        type TEXT NOT NULL DEFAULT 'text',
+        order_index INTEGER NOT NULL DEFAULT 0,
+        config_json TEXT DEFAULT '{}',
+        created_at TEXT NOT NULL
+      )
+    `);
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS database_rows (
+        id TEXT PRIMARY KEY,
+        database_id TEXT NOT NULL REFERENCES databases(id) ON DELETE CASCADE,
+        order_index INTEGER NOT NULL DEFAULT 0,
+        created_at TEXT NOT NULL
+      )
+    `);
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS database_cells (
+        id TEXT PRIMARY KEY,
+        row_id TEXT NOT NULL REFERENCES database_rows(id) ON DELETE CASCADE,
+        property_id TEXT NOT NULL REFERENCES database_properties(id) ON DELETE CASCADE,
+        value TEXT DEFAULT '',
+        UNIQUE(row_id, property_id)
+      )
+    `);
+  });
+  migrate();
+  db.pragma("user_version = 49");
+}
+
+function migrateV50(db: Database.Database): void {
+  const migrate = db.transaction(() => {
+    db.exec(`
+      ALTER TABLE tasks ADD COLUMN folder_type TEXT DEFAULT NULL;
+    `);
+    db.exec(`
+      ALTER TABLE tasks ADD COLUMN original_parent_id TEXT DEFAULT NULL;
+    `);
+    db.pragma("user_version = 50");
+  });
+  migrate();
 }

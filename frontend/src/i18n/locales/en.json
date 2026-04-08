@@ -441,7 +441,8 @@
     "redo": "Redo",
     "move": {
       "circularReference": "Cannot move a folder into its own subfolder"
-    }
+    },
+    "completeFolder": "Complete"
   },
   "memo": {
     "title": "Memo",
@@ -552,6 +553,8 @@
     "achievementRate": "Achieved: {{completed}}/{{total}} ({{rate}}%)",
     "noRoutineItems": "No routine items for this day.",
     "noActiveRoutines": "No active routines for today.",
+    "searchTasks": "Search tasks...",
+    "searchEvents": "Search events...",
     "stats": {
       "title": "Stats",
       "details": "Details",
@@ -1148,6 +1151,7 @@
   "notes": {
     "title": "Notes",
     "newNote": "New note",
+    "newFolder": "New folder",
     "searchNotes": "Search notes...",
     "noMatching": "No matching notes",
     "noNotes": "No notes yet",
@@ -1386,13 +1390,55 @@
     "emptyState": "Select an event to view details",
     "noEvents": "No events",
     "filterIncomplete": "Upcoming",
-    "filterCompleted": "Completed"
+    "filterCompleted": "Completed",
+    "createEvent": "Create Event",
+    "titlePlaceholder": "Event title",
+    "untitled": "Untitled"
   },
   "eventDetail": {
     "timeMemo": "Memo",
     "memoPlaceholder": "Add a quick memo...",
     "delete": "Delete event",
     "deleteTitle": "Delete Event",
-    "deleteMessage": "Are you sure you want to delete this event?"
+    "deleteMessage": "Are you sure you want to delete this event?",
+    "markComplete": "Mark as complete",
+    "markIncomplete": "Mark as incomplete"
+  },
+  "database": {
+    "loading": "Loading...",
+    "notFound": "Database not found",
+    "empty": "Empty database",
+    "addProperty": "Add a property",
+    "newRow": "New",
+    "filter": "Filter",
+    "filterValue": "value",
+    "sort": "Sort",
+    "ascending": "Ascending",
+    "descending": "Descending",
+    "propertyNamePlaceholder": "Property name",
+    "propertyDefaultName": "Property",
+    "typeLabel": "Type",
+    "noOptions": "No options",
+    "types": {
+      "text": "Text",
+      "number": "Number",
+      "select": "Select",
+      "date": "Date",
+      "checkbox": "Checkbox"
+    },
+    "operators": {
+      "equals": "is",
+      "not_equals": "is not",
+      "contains": "contains",
+      "not_contains": "doesn't contain",
+      "is_empty": "is empty",
+      "is_not_empty": "is not empty",
+      "greater_than": ">",
+      "less_than": "<",
+      "is_checked": "is checked",
+      "is_not_checked": "is not checked",
+      "before": "before",
+      "after": "after"
+    }
   }
 }

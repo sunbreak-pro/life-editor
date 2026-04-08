@@ -5,6 +5,7 @@ import {
   Trash2,
   FolderOpen,
   Folder,
+  FolderCheck,
   ChevronRight,
   ChevronDown,
   StickyNote,
@@ -78,6 +79,8 @@ export function TaskDetailPanel({
               moveToRoot={moveToRoot}
               softDelete={softDelete}
               onPlayTask={onPlayTask}
+              toggleTaskStatus={toggleTaskStatus}
+              setTaskStatus={setTaskStatus}
               onMoveRejected={(reason) => {
                 if (reason === "circular_reference") {
                   showToast("warning", t("taskTree.move.circularReference"));
@@ -111,6 +114,8 @@ interface TaskSidebarContentProps {
   softDelete: (id: string) => void;
   onPlayTask?: (node: TaskNode) => void;
   onMoveRejected?: (reason: MoveRejectionReason) => void;
+  toggleTaskStatus: (id: string) => void;
+  setTaskStatus: (id: string, status: TaskStatus) => void;
 }
 
 function TaskSidebarContent({
@@ -122,6 +127,8 @@ function TaskSidebarContent({
   softDelete,
   onPlayTask,
   onMoveRejected,
+  toggleTaskStatus,
+  setTaskStatus,
 }: TaskSidebarContentProps) {
   const { t } = useTranslation();
   const [colorPickerAncestorId, setColorPickerAncestorId] = useState<
@@ -212,12 +219,38 @@ function TaskSidebarContent({
           </div>
         </div>
 
-        {/* Row 2: Title */}
-        <EditableTitle
-          key={node.id}
-          value={node.title}
-          onSave={(title) => updateNode(node.id, { title })}
-        />
+        {/* Row 2: Status + Title */}
+        <div className="flex items-center gap-2">
+          <TaskStatusIcon
+            status={
+              (node.status as "NOT_STARTED" | "IN_PROGRESS" | "DONE") ??
+              "NOT_STARTED"
+            }
+            onClick={() => {
+              const prev = node.status ?? "NOT_STARTED";
+              toggleTaskStatus(node.id);
+              if (prev === "IN_PROGRESS") {
+                fireTaskCompleteConfetti();
+                playEffectSound("complete");
+              }
+            }}
+            onSetStatus={(s) => {
+              const prev = node.status ?? "NOT_STARTED";
+              setTaskStatus(node.id, s);
+              if (s === "DONE" && prev !== "DONE") {
+                fireTaskCompleteConfetti();
+                playEffectSound("complete");
+              }
+            }}
+          />
+          <div className="flex-1 min-w-0">
+            <EditableTitle
+              key={node.id}
+              value={node.title}
+              onSave={(title) => updateNode(node.id, { title })}
+            />
+          </div>
+        </div>
 
         {/* Row 3: WikiTags */}
         <WikiTagList entityId={node.id} entityType="task" />
@@ -327,12 +360,22 @@ function FolderSidebarContent({
   const children = useMemo(
     () =>
       nodes.filter(
-        (n) => n.parentId === node.id && !n.isDeleted && n.status !== "DONE",
+        (n) =>
+          n.parentId === node.id &&
+          !n.isDeleted &&
+          (n.status !== "DONE" || n.folderType === "complete"),
       ),
     [nodes, node.id],
   );
   const childFolders = useMemo(
-    () => children.filter((n) => n.type === "folder"),
+    () =>
+      children
+        .filter((n) => n.type === "folder" && n.folderType !== "complete")
+        .sort((a, b) => a.order - b.order),
+    [children],
+  );
+  const completeFolders = useMemo(
+    () => children.filter((n) => n.folderType === "complete"),
     [children],
   );
   const childTasks = useMemo(
@@ -341,18 +384,33 @@ function FolderSidebarContent({
   );
 
   const getGrandchildren = useCallback(
-    (folderId: string) =>
-      nodes.filter(
-        (n) => n.parentId === folderId && !n.isDeleted && n.status !== "DONE",
-      ),
+    (folderId: string) => {
+      const folder = nodes.find((n) => n.id === folderId);
+      // For Complete folders, show DONE tasks inside
+      if (folder?.folderType === "complete") {
+        return nodes.filter((n) => n.parentId === folderId && !n.isDeleted);
+      }
+      return nodes.filter(
+        (n) =>
+          n.parentId === folderId &&
+          !n.isDeleted &&
+          (n.status !== "DONE" || n.folderType === "complete"),
+      );
+    },
     [nodes],
   );
 
   const getChildCount = useCallback(
-    (folderId: string) =>
-      nodes.filter(
+    (folderId: string) => {
+      const folder = nodes.find((n) => n.id === folderId);
+      if (folder?.folderType === "complete") {
+        return nodes.filter((n) => n.parentId === folderId && !n.isDeleted)
+          .length;
+      }
+      return nodes.filter(
         (n) => n.parentId === folderId && !n.isDeleted && n.status !== "DONE",
-      ).length,
+      ).length;
+    },
     [nodes],
   );
 
@@ -444,34 +502,42 @@ function FolderSidebarContent({
       </div>
 
       {/* Title */}
-      <EditableTitle
-        key={node.id}
-        value={node.title}
-        onSave={(title) => updateNode(node.id, { title })}
-      />
+      {node.folderType === "complete" ? (
+        <h2 className="text-lg font-bold text-notion-text">
+          {t("taskTree.completeFolder")}
+        </h2>
+      ) : (
+        <EditableTitle
+          key={node.id}
+          value={node.title}
+          onSave={(title) => updateNode(node.id, { title })}
+        />
+      )}
 
       {/* Color picker */}
-      <div className="relative">
-        <button
-          onClick={() => setShowColorPicker(!showColorPicker)}
-          className="flex items-center gap-2"
-        >
-          <div
-            className="w-5 h-5 rounded-full border border-notion-border"
-            style={{ backgroundColor: node.color ?? "#E5E7EB" }}
-          />
-          <span className="text-xs text-notion-text-secondary">
-            {t("taskDetailSidebar.folderColor")}
-          </span>
-        </button>
-        {showColorPicker && (
-          <UnifiedColorPicker
-            color={node.color ?? ""}
-            onChange={(color) => updateNode(node.id, { color })}
-            onClose={() => setShowColorPicker(false)}
-          />
-        )}
-      </div>
+      {node.folderType !== "complete" && (
+        <div className="relative">
+          <button
+            onClick={() => setShowColorPicker(!showColorPicker)}
+            className="flex items-center gap-2"
+          >
+            <div
+              className="w-5 h-5 rounded-full border border-notion-border"
+              style={{ backgroundColor: node.color ?? "#E5E7EB" }}
+            />
+            <span className="text-xs text-notion-text-secondary">
+              {t("taskDetailSidebar.folderColor")}
+            </span>
+          </button>
+          {showColorPicker && (
+            <UnifiedColorPicker
+              color={node.color ?? ""}
+              onChange={(color) => updateNode(node.id, { color })}
+              onClose={() => setShowColorPicker(false)}
+            />
+          )}
+        </div>
+      )}
 
       {/* Schedule toggle */}
       <div className="flex items-center gap-2">
@@ -536,7 +602,9 @@ function FolderSidebarContent({
       </div>
 
       {/* Folder contents */}
-      {(childFolders.length > 0 || childTasks.length > 0) && (
+      {(childFolders.length > 0 ||
+        childTasks.length > 0 ||
+        completeFolders.length > 0) && (
         <div className="pt-2 border-t border-notion-border">
           <p className="text-xs font-medium text-notion-text-secondary mb-2">
             {t("folderContents.title")}
@@ -676,6 +744,68 @@ function FolderSidebarContent({
               </div>
             </div>
           )}
+
+          {/* Complete folders (always at bottom) */}
+          {completeFolders.map((folder) => {
+            const isExpanded = expandedFolders.has(folder.id);
+            const count = getChildCount(folder.id);
+            if (count === 0) return null;
+            return (
+              <div
+                key={folder.id}
+                className="mt-2 pt-2 border-t border-notion-border/50"
+              >
+                <div className="w-full flex items-center gap-1.5 px-2 py-1 rounded-md text-sm text-notion-text-secondary hover:bg-notion-hover transition-colors">
+                  <button
+                    onClick={() => toggleFolder(folder.id)}
+                    className="shrink-0 text-notion-text-secondary hover:text-notion-text"
+                  >
+                    {isExpanded ? (
+                      <ChevronDown size={14} />
+                    ) : (
+                      <ChevronRight size={14} />
+                    )}
+                  </button>
+                  <FolderCheck size={14} className="shrink-0 text-green-500" />
+                  <span className="flex-1 truncate">
+                    {t("taskTree.completeFolder")}
+                  </span>
+                  <span className="text-[10px] text-notion-text-secondary/60 shrink-0">
+                    {count}
+                  </span>
+                </div>
+                {isExpanded && (
+                  <div className="ml-5 space-y-0.5 mt-0.5">
+                    {getGrandchildren(folder.id).map((child) => (
+                      <div
+                        key={child.id}
+                        role="button"
+                        tabIndex={0}
+                        onClick={() => onSelectTask?.(child.id)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" || e.key === " ")
+                            onSelectTask?.(child.id);
+                        }}
+                        className="w-full flex items-center gap-1.5 px-2 py-1 rounded-md text-sm text-notion-text-secondary hover:bg-notion-hover transition-colors text-left cursor-pointer line-through opacity-60"
+                      >
+                        <TaskStatusIcon
+                          status={
+                            (child.status as
+                              | "NOT_STARTED"
+                              | "IN_PROGRESS"
+                              | "DONE") ?? "NOT_STARTED"
+                          }
+                          onClick={() => handleToggleTaskStatus(child.id)}
+                          onSetStatus={(s) => handleSetTaskStatus(child.id, s)}
+                        />
+                        <span className="truncate">{child.title}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
       )}
     </div>

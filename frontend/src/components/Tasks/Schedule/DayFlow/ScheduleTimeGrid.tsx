@@ -300,6 +300,7 @@ interface ScheduleTimeGridProps {
     startTime: string,
     endTime: string,
   ) => void;
+  onUpdateScheduleItemTitle?: (id: string, title: string) => void;
   onUpdateTaskTime?: (
     taskId: string,
     scheduledAt: string,
@@ -348,6 +349,7 @@ export function ScheduleTimeGrid({
   getFolderTag,
   onUpdateMemo,
   onUpdateScheduleItemTime,
+  onUpdateScheduleItemTitle,
   onUpdateTaskTime,
   externalScroll,
   onToggleTaskStatus,
@@ -1164,6 +1166,12 @@ export function ScheduleTimeGrid({
             onUpdateScheduleItemAllDay
               ? (isAllDay) =>
                   onUpdateScheduleItemAllDay(schedulePreview.item.id, isAllDay)
+              : undefined
+          }
+          onUpdateTitle={
+            onUpdateScheduleItemTitle
+              ? (title) =>
+                  onUpdateScheduleItemTitle(schedulePreview.item.id, title)
               : undefined
           }
           onClose={() => setSchedulePreview(null)}

@@ -1,5 +1,6 @@
 import { useState, useCallback } from "react";
 import { Trash2, Clock, CalendarDays, StickyNote } from "lucide-react";
+import { RoundedCheckbox } from "../shared/RoundedCheckbox";
 import { useTranslation } from "react-i18next";
 import { useScheduleItemsContext } from "../../hooks/useScheduleItemsContext";
 import { TimeInput } from "../shared/TimeInput";
@@ -22,8 +23,13 @@ interface EventDetailPanelProps {
 
 export function EventDetailPanel({ selectedEventId }: EventDetailPanelProps) {
   const { t } = useTranslation();
-  const { events, updateScheduleItem, deleteScheduleItem, bumpEventsVersion } =
-    useScheduleItemsContext();
+  const {
+    events,
+    updateScheduleItem,
+    deleteScheduleItem,
+    bumpEventsVersion,
+    toggleComplete,
+  } = useScheduleItemsContext();
 
   const event = selectedEventId
     ? events.find((e) => e.id === selectedEventId)
@@ -45,6 +51,7 @@ export function EventDetailPanel({ selectedEventId }: EventDetailPanelProps) {
         updateScheduleItem(event.id, updates);
         bumpEventsVersion();
       }}
+      onToggleComplete={() => toggleComplete(event.id)}
       onDelete={() => {
         deleteScheduleItem(event.id);
         bumpEventsVersion();
@@ -56,12 +63,14 @@ export function EventDetailPanel({ selectedEventId }: EventDetailPanelProps) {
 function EventDetailContent({
   event,
   onUpdate,
+  onToggleComplete,
   onDelete,
 }: {
   event: NonNullable<
     ReturnType<typeof useScheduleItemsContext>["events"][number]
   >;
   onUpdate: (updates: Record<string, unknown>) => void;
+  onToggleComplete: () => void;
   onDelete: () => void;
 }) {
   const { t } = useTranslation();
@@ -101,34 +110,45 @@ function EventDetailContent({
   return (
     <div className="h-full flex flex-col overflow-y-auto">
       <div className="p-4 space-y-4">
-        {/* Title */}
-        {isEditingTitle ? (
-          <input
-            autoFocus
-            value={titleValue}
-            onChange={(e) => setTitleValue(e.target.value)}
-            onBlur={commitTitle}
-            onKeyDown={(e) => {
-              if (e.nativeEvent.isComposing) return;
-              if (e.key === "Enter") commitTitle();
-              if (e.key === "Escape") {
-                setTitleValue(event.title);
-                setIsEditingTitle(false);
-              }
-            }}
-            className="text-lg font-bold text-notion-text w-full bg-transparent border-b-2 border-notion-accent outline-none"
+        {/* Title + Completion */}
+        <div className="flex items-center gap-2">
+          <RoundedCheckbox
+            checked={event.completed}
+            onChange={() => onToggleComplete()}
+            size={18}
           />
-        ) : (
-          <h2
-            className="text-lg font-bold text-notion-text cursor-text hover:bg-notion-hover/50 rounded px-1 -mx-1"
-            onDoubleClick={() => {
-              setTitleValue(event.title);
-              setIsEditingTitle(true);
-            }}
-          >
-            {event.title}
-          </h2>
-        )}
+          {isEditingTitle ? (
+            <input
+              autoFocus
+              value={titleValue}
+              onChange={(e) => setTitleValue(e.target.value)}
+              onBlur={commitTitle}
+              onKeyDown={(e) => {
+                if (e.nativeEvent.isComposing) return;
+                if (e.key === "Enter") commitTitle();
+                if (e.key === "Escape") {
+                  setTitleValue(event.title);
+                  setIsEditingTitle(false);
+                }
+              }}
+              className="text-lg font-bold text-notion-text w-full bg-transparent border-b-2 border-notion-accent outline-none"
+            />
+          ) : (
+            <h2
+              className={`text-lg font-bold cursor-text hover:bg-notion-hover/50 rounded px-1 -mx-1 flex-1 min-w-0 ${
+                event.completed
+                  ? "text-notion-text-secondary line-through opacity-60"
+                  : "text-notion-text"
+              }`}
+              onDoubleClick={() => {
+                setTitleValue(event.title);
+                setIsEditingTitle(true);
+              }}
+            >
+              {event.title}
+            </h2>
+          )}
+        </div>
 
         {/* Role Switcher */}
         <EventRoleSwitcherInline event={event} />

@@ -848,6 +848,9 @@ export function CalendarView({
           onUpdateAllDay={(isAllDay) =>
             updateScheduleItem(scheduleItemPreview.item.id, { isAllDay })
           }
+          onUpdateTitle={(title) =>
+            updateScheduleItem(scheduleItemPreview.item.id, { title })
+          }
         />
       )}
 

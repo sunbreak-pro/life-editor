@@ -65,7 +65,11 @@ export function AnalyticsView() {
         />
         {rightSidebarTarget &&
           createPortal(<AnalyticsSidebarContent />, rightSidebarTarget)}
-        <div className="flex-1 overflow-y-auto">{renderTab()}</div>
+        <div className="flex-1 overflow-y-auto">
+          <div className={`${LAYOUT.CONTENT_MAX_W} mx-auto w-full`}>
+            {renderTab()}
+          </div>
+        </div>
       </div>
     </AnalyticsFilterProvider>
   );

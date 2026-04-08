@@ -33,6 +33,7 @@ interface ScheduleItemPreviewPopupProps {
   disabledRoles?: ConversionRole[];
   onUpdateDate?: (date: string) => void;
   onUpdateAllDay?: (isAllDay: boolean) => void;
+  onUpdateTitle?: (title: string) => void;
 }
 
 export function ScheduleItemPreviewPopup({
@@ -48,12 +49,15 @@ export function ScheduleItemPreviewPopup({
   disabledRoles,
   onUpdateDate,
   onUpdateAllDay,
+  onUpdateTitle,
 }: ScheduleItemPreviewPopupProps) {
   const { t } = useTranslation();
   const ref = useRef<HTMLDivElement>(null);
   const [editStartTime, setEditStartTime] = useState(item.startTime);
   const [editEndTime, setEditEndTime] = useState(item.endTime);
   const prevStartRef = useRef(editStartTime);
+  const [isEditingTitle, setIsEditingTitle] = useState(false);
+  const [titleDraft, setTitleDraft] = useState(item.title);
 
   useEffect(() => {
     setEditStartTime(item.startTime);
@@ -61,7 +65,15 @@ export function ScheduleItemPreviewPopup({
     prevStartRef.current = item.startTime;
   }, [item.startTime, item.endTime]);
 
-  useClickOutside(ref, onClose);
+  const commitTitle = () => {
+    const trimmed = titleDraft.trim();
+    if (trimmed && trimmed !== item.title) {
+      onUpdateTitle?.(trimmed);
+    }
+    setIsEditingTitle(false);
+  };
+
+  useClickOutside(ref, onClose, !isEditingTitle);
 
   const left = Math.min(position.x, window.innerWidth - 260 - 16);
   const top = Math.min(position.y, window.innerHeight - 320 - 16);
@@ -98,9 +110,35 @@ export function ScheduleItemPreviewPopup({
       style={{ left, top }}
     >
       <div className="p-3 space-y-2">
-        <div className="font-medium text-sm text-notion-text truncate">
-          {item.title}
-        </div>
+        {isEditingTitle ? (
+          <input
+            autoFocus
+            value={titleDraft}
+            onChange={(e) => setTitleDraft(e.target.value)}
+            onBlur={commitTitle}
+            onKeyDown={(e) => {
+              if (e.nativeEvent.isComposing) return;
+              if (e.key === "Enter") commitTitle();
+              if (e.key === "Escape") {
+                setTitleDraft(item.title);
+                setIsEditingTitle(false);
+              }
+            }}
+            className="font-medium text-sm text-notion-text w-full bg-transparent border-b border-notion-accent outline-none"
+          />
+        ) : (
+          <div
+            className={`font-medium text-sm text-notion-text truncate ${onUpdateTitle ? "cursor-text hover:bg-notion-hover/50 rounded px-0.5 -mx-0.5" : ""}`}
+            onClick={() => {
+              if (onUpdateTitle) {
+                setTitleDraft(item.title);
+                setIsEditingTitle(true);
+              }
+            }}
+          >
+            {item.title}
+          </div>
+        )}
 
         {/* Date + All-day */}
         {(onUpdateDate || onUpdateAllDay) && (

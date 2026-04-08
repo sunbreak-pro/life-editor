@@ -66,11 +66,16 @@ export function IdeasView({ onNavigateToNote }: IdeasViewProps) {
     useMemoContext();
   const {
     notes,
+    flattenedNotes,
+    expandedIds,
+    toggleExpanded,
     selectedNoteId,
     setSelectedNoteId,
     createNote,
+    createFolder,
     softDeleteNote,
     updateNote,
+    persistWithHistory,
   } = useNoteContext();
   const { assignments, tags, setTagsForEntity } = useWikiTags();
 
@@ -192,6 +197,10 @@ export function IdeasView({ onNavigateToNote }: IdeasViewProps) {
     setSelectedNoteId(noteId);
   }, [createNote, setSelectedNoteId]);
 
+  const handleCreateFolder = useCallback(() => {
+    createFolder();
+  }, [createFolder]);
+
   // Cross-navigation: Materials → Node with focus
   const handleNavigateToNode = useCallback((noteId: string) => {
     setActiveTab("node");
@@ -252,14 +261,19 @@ export function IdeasView({ onNavigateToNote }: IdeasViewProps) {
         return (
           <MaterialsSidebar
             notes={notes}
+            flattenedNotes={flattenedNotes}
+            expandedIds={expandedIds}
             assignments={assignments}
             tags={tags}
             selectedNoteId={selectedNoteId}
             onSelectNote={handleSelectMaterialsNote}
             onCreateNote={handleCreateNoteMaterials}
+            onCreateFolder={handleCreateFolder}
             onDeleteNote={softDeleteNote}
             onNavigateToNode={handleNavigateToNode}
             onUpdateNoteTitle={handleUpdateNoteTitle}
+            onToggleExpand={toggleExpanded}
+            persistWithHistory={persistWithHistory}
           />
         );
       case "node":

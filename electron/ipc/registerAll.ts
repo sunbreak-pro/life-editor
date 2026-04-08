@@ -49,6 +49,8 @@ import { registerCalendarTagHandlers } from "./calendarTagHandlers";
 import { createAttachmentRepository } from "../database/attachmentRepository";
 import { registerAttachmentHandlers } from "./attachmentHandlers";
 import { registerShellHandlers } from "./shellHandlers";
+import { createDatabaseRepository } from "../database/databaseRepository";
+import { registerDatabaseHandlers } from "./databaseHandlers";
 import { wrapHandler } from "./ipcMetrics";
 
 export function registerAllHandlers(db: Database.Database): void {
@@ -141,6 +143,7 @@ export function registerAllHandlers(db: Database.Database): void {
       () => registerAttachmentHandlers(createAttachmentRepository()),
     ],
     ["Shell", () => registerShellHandlers()],
+    ["Databases", () => registerDatabaseHandlers(createDatabaseRepository(db))],
   ];
 
   for (const [name, register] of registrations) {
