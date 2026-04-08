@@ -1,3 +1,37 @@
+### 2026-04-05 - Schedule Preview Popup 日付・終日編集 + DayFlow 共通化修正
+
+#### 概要
+
+Calendar/DayFlow のスケジュールアイテム（Task/Event）プレビューポップアップに日付変更・終日トグル機能を追加。DayFlow の編集ポップアップが CalendarView と同じ共通コンポーネントを使用しているにもかかわらず編集コールバックが未接続だった問題を修正。
+
+#### 変更点
+
+- **Backend date 更新パス追加**: `updateScheduleItem` の全レイヤー（Repository SQL / IPC / Server Route / DataService 4実装 / useScheduleItems hook）に `date` フィールドを追加。date 変更時のリスト除去 + undo/redo 対応
+- **ScheduleItemPreviewPopup 日付・終日 UI**: `DateInput` + 終日チェックボックスをタイトルと時刻セクションの間に追加。終日=true で時刻セクション非表示（EventDetailPanel と同パターン）
+- **TaskPreviewPopup 日付・終日 UI**: 同様に `DateInput` + 終日チェックボックス追加。日付変更は既存 `onUpdateSchedule` で ISO 文字列を再構築
+- **TaskPreviewPopup メモ欄追加**: `onUpdateTimeMemo` prop + `StickyNote` アイコン付きインライン入力欄。CalendarView/DayFlow から `timeMemo` 更新コールバックを接続
+- **TaskPreviewPopup クリアボタン変更**: アイコン `CalendarOff` → `X` (size 14)、テキスト「スケジュールをクリア」→「時刻をクリア」（i18n `calendar.clearTime`）
+- **DayFlow 不足コールバック接続**: `ScheduleTimeGrid` の `ScheduleItemPreviewPopup` に `onUpdateTime`/`onUpdateMemo`/`onConvertRole`/`disabledRoles`/`onUpdateDate`/`onUpdateAllDay` を全接続。`TaskPreviewPopup` にも `onConvertRole`/`disabledRoles`/`onUpdateAllDay`/`onUpdateTimeMemo` を接続
+- **DayFlow Role Conversion 導入**: `OneDaySchedule` と `DualDayFlowLayout` の `DualColumn` に `useRoleConversion()` を追加。CalendarView と同パターンで `convert`/`canConvert`/`getDisabledRoles` を `ScheduleTimeGrid` に配線
+- **Event 終日即時反映修正**: CalendarView と DayFlow で `ScheduleItemPreviewPopup` にスナップショットではなくライブデータ（`monthlyScheduleItems`/`scheduleItems` から都度解決）を渡すように修正
+- **i18n**: `calendar.clearTime` を en.json/ja.json に追加
+
+### 2026-04-05 - 包括的フロントエンドリファクタリング（Phase 1-5）
+
+#### 概要
+
+コンポーネント247ファイル・フック80+・Context Provider 14個の規模に達したコードベースを5フェーズに分けて包括的にリファクタリング。未使用コード削除、Schedule系構造整理、Context/Providerパターン標準化、ScheduleProvider 3分割、UndoRedo配置変更を実施。
+
+#### 変更点
+
+- **Phase 1 Dead Code削除**: 未使用ファイル6件削除（useClaudeStatus, useRoleNavigation, SoundCard, AddSoundCard, MemoDateList, NoteList）、空ディレクトリ MemoTree/ 削除、バレルexport整理4件、hooks/index.ts 削除
+- **Phase 2 Schedule構造整理**: RoleSwitcher, TimeGridTaskBlock, DateTimeRangePicker を Calendar/ → Tasks/Schedule/shared/ に移動（11ファイルimport更新）、formatHour 重複関数を utils/timeGridUtils.ts に抽出、shared/index.ts バレル作成
+- **Phase 3 Context/Providerパターン標準化**: Memo/Note/Calendar を Pattern A（3ファイル構成）に移行、ScheduleContextValue.ts 分離、ShortcutConfig を hooks/ → context/ に移動、context/index.ts に不足export追加
+- **Phase 4 ScheduleProvider 3分割**: 9フック合成の ScheduleProvider を RoutineProvider / ScheduleItemsProvider / CalendarTagsProvider に分解、useScheduleContext を後方互換ファサードに変換、4件のconsumer（TrashView, EventDetailPanel, EventList, useRoleConversion）を新hookに移行
+- **Phase 5 構造整理**: UndoRedo を context/ + utils/undoRedo/ + hooks/ に Pattern A 準拠で配置変更（shared/UndoRedo/index.ts は re-export で後方互換維持）、ADR 3件作成（0002 Context/Providerパターン、0003 ScheduleProvider分解、0004 Schedule shared規約）
+- **Rules更新**: project-review-checklist.md / project-debug.md / project-patterns.md のProvider順序・Context作成パターンを更新、CLAUDE.md にContext/Provider標準・Provider順序を追記
+- **計画書**: `.claude/feature_plans/026-comprehensive-frontend-refactoring.md`（COMPLETED）
+
 ### 2026-04-05 - Settings Claude Code タブ改善
 
 #### 概要
