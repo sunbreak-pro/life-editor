@@ -1,5 +1,16 @@
 # HISTORY.md - 変更履歴
 
+### 2026-04-08 - Daily日記の日付表示i18n対応
+
+#### 概要
+
+MaterialsセクションのDaily(日記)で、headerタイトルとsidebarの日付が日本語設定でも英語で表示されるバグを修正。`dateKey.ts`の3関数にlocaleパラメータを追加。
+
+#### 変更点
+
+- **dateKey.ts**: `formatDateHeading`、`formatDisplayDate`、`formatMonthLabel`に`locale`引数追加。ja時は「2026年4月8日 火曜日」「4月8日」「2026年4月」形式
+- **呼び出し元6ファイル更新**: DailyMemoView、DailySidebar、ConnectSidebar、MemoNodeComponent、PaperCanvasView、PaperAddItemDialogで`i18n.language`を渡すよう修正
+
 ### 2026-04-08 - Task Status UI + Complete Folder + Event Creation
 
 #### 概要

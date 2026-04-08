@@ -13,9 +13,9 @@
 
 ## 直近の完了
 
+- Daily日記の日付表示i18n対応 ✅（2026-04-08）
 - Task Status UI + Complete Folder + Event Creation ✅（2026-04-08）
 - Schedule Sidebar 検索統一 + Tasks/Events タブ検索追加 ✅（2026-04-06）
-- Calendar IME修正 + Popup タイトル編集 + メモ重複バグ修正 ✅（2026-04-06）
 
 ## 予定
 
