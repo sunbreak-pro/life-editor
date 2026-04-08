@@ -193,6 +193,38 @@ export function useMemos() {
     [push],
   );
 
+  const setMemoPassword = useCallback(
+    async (date: string, password: string) => {
+      const updated = await getDataService().setMemoPassword(date, password);
+      setMemos((prev) =>
+        prev.map((m) => (m.date === date ? { ...m, hasPassword: true } : m)),
+      );
+      return updated;
+    },
+    [],
+  );
+
+  const removeMemoPassword = useCallback(
+    async (date: string, currentPassword: string) => {
+      const updated = await getDataService().removeMemoPassword(
+        date,
+        currentPassword,
+      );
+      setMemos((prev) =>
+        prev.map((m) => (m.date === date ? { ...m, hasPassword: false } : m)),
+      );
+      return updated;
+    },
+    [],
+  );
+
+  const verifyMemoPassword = useCallback(
+    (date: string, password: string): Promise<boolean> => {
+      return getDataService().verifyMemoPassword(date, password);
+    },
+    [],
+  );
+
   const selectedMemo = useMemo(
     () => memos.find((m) => m.date === selectedDate),
     [memos, selectedDate],
@@ -216,6 +248,9 @@ export function useMemos() {
       restoreMemo,
       permanentDeleteMemo,
       getMemoForDate,
+      setMemoPassword,
+      removeMemoPassword,
+      verifyMemoPassword,
     }),
     [
       memos,
@@ -229,6 +264,9 @@ export function useMemos() {
       restoreMemo,
       permanentDeleteMemo,
       getMemoForDate,
+      setMemoPassword,
+      removeMemoPassword,
+      verifyMemoPassword,
     ],
   );
 }

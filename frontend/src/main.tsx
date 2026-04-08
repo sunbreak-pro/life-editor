@@ -20,6 +20,7 @@ import { CalendarProvider } from "./context/CalendarContext";
 import { ShortcutConfigProvider } from "./context/ShortcutConfigContext";
 import { WikiTagProvider } from "./context/WikiTagContext";
 import { ToastProvider } from "./context/ToastContext";
+import { ScreenLockProvider } from "./context/ScreenLockContext";
 import { isElectron } from "./services/dataServiceFactory";
 
 const isMobile = !isElectron();
@@ -33,29 +34,31 @@ createRoot(document.getElementById("root")!).render(
             <MobileApp />
           ) : (
             <UndoRedoProvider>
-              <TaskTreeProvider>
-                <CalendarProvider>
-                  <MemoProvider>
-                    <NoteProvider>
-                      <RoutineProvider>
-                        <ScheduleItemsProvider>
-                          <CalendarTagsProvider>
-                            <TimerProvider>
-                              <AudioProvider>
-                                <WikiTagProvider>
-                                  <ShortcutConfigProvider>
-                                    <App />
-                                  </ShortcutConfigProvider>
-                                </WikiTagProvider>
-                              </AudioProvider>
-                            </TimerProvider>
-                          </CalendarTagsProvider>
-                        </ScheduleItemsProvider>
-                      </RoutineProvider>
-                    </NoteProvider>
-                  </MemoProvider>
-                </CalendarProvider>
-              </TaskTreeProvider>
+              <ScreenLockProvider>
+                <TaskTreeProvider>
+                  <CalendarProvider>
+                    <MemoProvider>
+                      <NoteProvider>
+                        <RoutineProvider>
+                          <ScheduleItemsProvider>
+                            <CalendarTagsProvider>
+                              <TimerProvider>
+                                <AudioProvider>
+                                  <WikiTagProvider>
+                                    <ShortcutConfigProvider>
+                                      <App />
+                                    </ShortcutConfigProvider>
+                                  </WikiTagProvider>
+                                </AudioProvider>
+                              </TimerProvider>
+                            </CalendarTagsProvider>
+                          </ScheduleItemsProvider>
+                        </RoutineProvider>
+                      </NoteProvider>
+                    </MemoProvider>
+                  </CalendarProvider>
+                </TaskTreeProvider>
+              </ScreenLockProvider>
             </UndoRedoProvider>
           )}
         </ToastProvider>

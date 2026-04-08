@@ -133,6 +133,40 @@ export const SETTINGS_SEARCH_ENTRIES: SettingsSearchEntry[] = [
     subTab: "skills",
     sectionId: "claude-skills",
   },
+  // General > Behaviors
+  {
+    id: "behaviors",
+    labelKey: "settings.behaviors",
+    keywords: [
+      "startup",
+      "default",
+      "folder",
+      "archive",
+      "completed",
+      "auto",
+      "priority",
+      "behavior",
+    ],
+    tab: "general",
+    subTab: "behaviors",
+    sectionId: "behaviors",
+  },
+  // Advanced > System
+  {
+    id: "system",
+    labelKey: "settings.system",
+    keywords: [
+      "auto launch",
+      "startup",
+      "tray",
+      "minimize",
+      "global shortcut",
+      "system",
+    ],
+    tab: "advanced",
+    subTab: "system",
+    sectionId: "system",
+  },
   // Shortcuts categories
   {
     id: "shortcuts-global",

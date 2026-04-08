@@ -34,4 +34,5 @@ export interface TaskNode {
   version?: number;
   folderType?: "normal" | "complete";
   originalParentId?: string | null;
+  priority?: 1 | 2 | 3 | 4 | null;
 }

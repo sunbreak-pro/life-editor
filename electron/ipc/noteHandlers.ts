@@ -1,5 +1,6 @@
 import { query, mutation } from "./handlerUtil";
 import type { NoteRepository } from "../database/noteRepository";
+import { hashPassword, verifyPassword } from "../utils/passwordHash";
 
 export function registerNoteHandlers(repo: NoteRepository): void {
   query("db:notes:fetchAll", "Notes", "fetchAll", () => repo.fetchAll());
@@ -87,6 +88,44 @@ export function registerNoteHandlers(repo: NoteRepository): void {
       _event,
       items: Array<{ id: string; parentId: string | null; order: number }>,
     ) => repo.syncTree(items),
+  );
+
+  mutation(
+    "db:notes:setPassword",
+    "Notes",
+    "setPassword",
+    "note",
+    "update",
+    (_event: unknown, id: string, password: string) => {
+      const hash = hashPassword(password);
+      return repo.setPassword(id, hash);
+    },
+  );
+
+  mutation(
+    "db:notes:removePassword",
+    "Notes",
+    "removePassword",
+    "note",
+    "update",
+    (_event: unknown, id: string, currentPassword: string) => {
+      const stored = repo.getPasswordHash(id);
+      if (!stored || !verifyPassword(currentPassword, stored)) {
+        throw new Error("Invalid password");
+      }
+      return repo.removePassword(id);
+    },
+  );
+
+  query(
+    "db:notes:verifyPassword",
+    "Notes",
+    "verifyPassword",
+    (_event: unknown, id: string, password: string) => {
+      const stored = repo.getPasswordHash(id);
+      if (!stored) return false;
+      return verifyPassword(password, stored);
+    },
   );
 
   // Note tag handlers moved to tagHandlers.ts (db:noteTags:*)

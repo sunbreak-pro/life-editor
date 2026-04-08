@@ -1,3 +1,49 @@
+### 2026-04-06 - Database機能コードレビュー改善（セキュリティ・可読性・i18n）
+
+#### 概要
+
+新規追加されたDatabase機能（Notionライクなテーブルデータベース）のコードをセキュリティ・可読性・コード品質の3観点でレビューし、11件の問題を5ステップで修正。IPC境界バリデーション、日付比較修正、重複コード排除、デッドコード削除、i18n対応を実施。
+
+#### 変更点
+
+- **IPC境界バリデーション（セキュリティ）**: `databaseHandlers.ts` に `validatePropertyFields()` を追加。PropertyType enum・name長（1-255文字）・order（非負整数）・config（オブジェクト|null）を実行時検証。`addProperty`/`updateProperty` の両ハンドラに適用。`noteHandlers.ts` の検索クエリに型・長さ上限（500文字）チェック追加
+- **JSON parse ログ出力**: `databaseRepository.ts` の `propRowToProperty` でJSON.parse失敗時に `console.warn` でログ出力（従来は silent ignore）
+- **デッドコード削除**: `databaseRepository.ts` の `updateProperty` 内の `stmts.fetchProperties.all("").find(() => false)` — 常にundefinedを返す無意味なコードを削除。`CellEditor.tsx` の `CheckboxEditor` コンポーネントを削除（チェックボックスは `DatabaseTable` の `handleCellClick` で直接トグルされ、CellEditor は描画されないデッドコード）
+- **日付フィルタ修正**: `databaseFilter.ts` の `before`/`after` オペレータを文字列比較から `new Date().getTime()` ベースのタイムスタンプ比較に変更。NaN ガード付き
+- **getCellValue重複排除**: `databaseCell.ts` に共通ユーティリティとして抽出。`databaseFilter.ts`・`databaseSort.ts`・`useDatabase.ts` の3箇所の同一実装を統合
+- **upsertCellレース修正**: `useDatabase.ts` で `data?.cells.find()` が `setData` の外で読まれていた問題を修正。`setData` updater 内で cellId を決定し変数にキャプチャするパターンに変更
+- **バレルexport追加**: `Database/index.ts` を新規作成（`DatabaseView`, `DatabaseTable`）
+- **i18n対応**: Database機能の全ハードコード英語文字列（約30個）を `en.json`/`ja.json` に移行
+
+### 2026-04-05 - UI/UXレイアウト改善（スクロールバー・幅安定化・コンパクト化）
+
+#### 概要
+
+グローバル thin scrollbar（6px、ホバー時のみ表示）を導入し、`scrollbar-gutter: stable` でスクロールバー出現時のレイアウトシフトを防止。セクションパディングを縮小してコンパクト化し、Work/Analytics/Settings に max-width 制約を追加。
+
+#### 変更点
+
+- **グローバル thin scrollbar**: `index.css` に WebKit 6px scrollbar + Firefox `scrollbar-width: thin` を追加
+- **scrollbar-gutter: stable**: `MainContent.tsx` と `RightSidebar.tsx` に追加
+- **パディング縮小**: `layout.ts` の CONTENT_PX/PT/PB を縮小
+- **max-width 定数追加・適用**: `WorkScreen.tsx`、`AnalyticsView.tsx`、`Settings.tsx` に `max-w-6xl mx-auto w-full` 適用
+
+### 2026-04-05 - RoutineGroup Calendar自動生成 + isVisible表示/非表示 + Group編集メンバー時間設定
+
+#### 概要
+
+新規RoutineGroupがCalendarビューに表示されないバグを修正。isVisibleフラグ追加、Group編集ダイアログにメンバーRoutineの時間設定UIを追加。
+
+#### 変更点
+
+- **CalendarView自動生成**: `ensureRoutineItemsForDateRange`関数を追加
+- **isVisible DBカラム**: migration V47で`routines`と`routine_groups`に追加
+- **isVisible型・Repository・DataService**: 全レイヤーに反映
+- **スケジュール生成のvisibilityチェック**: 全4箇所で対応
+- **RoutineManagementOverlay表示/非表示UI**: Eye/EyeOffトグルボタン追加
+- **Group編集ダイアログメンバー一覧**: 時間設定UI追加
+- **i18n**: `routineGroup.memberRoutines`、`routineGroup.noTimeSet`追加
+
 ### 2026-04-05 - Calendar EditPanel 時刻UI統一 & 日本語フォーマット
 
 #### 概要

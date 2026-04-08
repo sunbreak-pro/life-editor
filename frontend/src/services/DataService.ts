@@ -136,6 +136,9 @@ export interface DataService {
   restoreMemo(date: string): Promise<void>;
   permanentDeleteMemo(date: string): Promise<void>;
   toggleMemoPin(date: string): Promise<MemoNode>;
+  setMemoPassword(date: string, password: string): Promise<MemoNode>;
+  removeMemoPassword(date: string, currentPassword: string): Promise<MemoNode>;
+  verifyMemoPassword(date: string, password: string): Promise<boolean>;
 
   // Notes
   fetchAllNotes(): Promise<NoteNode[]>;
@@ -151,6 +154,9 @@ export interface DataService {
   restoreNote(id: string): Promise<void>;
   permanentDeleteNote(id: string): Promise<void>;
   searchNotes(query: string): Promise<NoteNode[]>;
+  setNotePassword(id: string, password: string): Promise<NoteNode>;
+  removeNotePassword(id: string, currentPassword: string): Promise<NoteNode>;
+  verifyNotePassword(id: string, password: string): Promise<boolean>;
   createNoteFolder(
     id: string,
     title: string,
@@ -615,4 +621,28 @@ export interface DataService {
     propertyId: string,
     value: string,
   ): Promise<DatabaseCell>;
+
+  // App Settings (main-process-accessible)
+  getAppSetting(key: string): Promise<string | null>;
+  setAppSetting(key: string, value: string): Promise<void>;
+  getAllAppSettings(): Promise<Record<string, string>>;
+  removeAppSetting(key: string): Promise<void>;
+
+  // System Integration
+  getAutoLaunch(): Promise<boolean>;
+  setAutoLaunch(enabled: boolean): Promise<void>;
+  getStartMinimized(): Promise<boolean>;
+  setStartMinimized(enabled: boolean): Promise<void>;
+  getTrayEnabled(): Promise<boolean>;
+  setTrayEnabled(enabled: boolean): Promise<void>;
+  getGlobalShortcuts(): Promise<Record<string, string>>;
+  setGlobalShortcuts(shortcuts: Record<string, string>): Promise<void>;
+  updateTrayTimer(state: {
+    remaining: string;
+    isRunning: boolean;
+  }): Promise<void>;
+
+  // Reminders
+  getReminderSettings(): Promise<Record<string, string>>;
+  setReminderSettings(settings: Record<string, string>): Promise<void>;
 }

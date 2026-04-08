@@ -36,6 +36,7 @@ import { getAncestors } from "../../../utils/breadcrumb";
 import { DateTimeRangePicker } from "../Schedule/shared/DateTimeRangePicker";
 import { fireTaskCompleteConfetti } from "../../../utils/confetti";
 import { playEffectSound } from "../../../utils/playEffectSound";
+import { PriorityPicker } from "../../shared/PriorityPicker";
 
 interface TaskDetailPanelProps {
   selectedNodeId: string | null;
@@ -260,6 +261,10 @@ function TaskSidebarContent({
 
         {/* Row 4: Actions */}
         <div className="flex items-center gap-2">
+          <PriorityPicker
+            value={node.priority}
+            onChange={(p) => updateNode(node.id, { priority: p })}
+          />
           <DateTimeRangePicker
             startValue={node.scheduledAt}
             endValue={node.scheduledEndAt}

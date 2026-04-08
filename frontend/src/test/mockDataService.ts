@@ -124,6 +124,31 @@ export function createMockDataService(): DataService & {
     fetchDeletedMemos: vi.fn().mockResolvedValue([]),
     restoreMemo: vi.fn().mockResolvedValue(undefined),
     permanentDeleteMemo: vi.fn().mockResolvedValue(undefined),
+    toggleMemoPin: vi.fn().mockResolvedValue({
+      id: "memo-mock",
+      date: "2026-01-01",
+      content: "",
+      isPinned: true,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    }),
+    setMemoPassword: vi.fn().mockResolvedValue({
+      id: "memo-mock",
+      date: "2026-01-01",
+      content: "",
+      hasPassword: true,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    }),
+    removeMemoPassword: vi.fn().mockResolvedValue({
+      id: "memo-mock",
+      date: "2026-01-01",
+      content: "",
+      hasPassword: false,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    }),
+    verifyMemoPassword: vi.fn().mockResolvedValue(true),
 
     // Notes
     fetchAllNotes: vi.fn().mockResolvedValue([]),
@@ -155,6 +180,27 @@ export function createMockDataService(): DataService & {
     restoreNote: vi.fn().mockResolvedValue(undefined),
     permanentDeleteNote: vi.fn().mockResolvedValue(undefined),
     searchNotes: vi.fn().mockResolvedValue([]),
+    setNotePassword: vi.fn().mockResolvedValue({
+      id: "note-mock",
+      title: "",
+      content: "",
+      isPinned: false,
+      hasPassword: true,
+      isDeleted: false,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    }),
+    removeNotePassword: vi.fn().mockResolvedValue({
+      id: "note-mock",
+      title: "",
+      content: "",
+      isPinned: false,
+      hasPassword: false,
+      isDeleted: false,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    }),
+    verifyNotePassword: vi.fn().mockResolvedValue(true),
     createNoteFolder: vi.fn().mockResolvedValue({
       id: "notefolder-mock",
       type: "folder",
@@ -377,5 +423,26 @@ export function createMockDataService(): DataService & {
       propertyId: "prop-mock",
       value: "",
     }),
+
+    // App Settings
+    getAppSetting: vi.fn().mockResolvedValue(null),
+    setAppSetting: vi.fn().mockResolvedValue(undefined),
+    getAllAppSettings: vi.fn().mockResolvedValue({}),
+    removeAppSetting: vi.fn().mockResolvedValue(undefined),
+
+    // System Integration
+    getAutoLaunch: vi.fn().mockResolvedValue(false),
+    setAutoLaunch: vi.fn().mockResolvedValue(undefined),
+    getStartMinimized: vi.fn().mockResolvedValue(false),
+    setStartMinimized: vi.fn().mockResolvedValue(undefined),
+    getTrayEnabled: vi.fn().mockResolvedValue(false),
+    setTrayEnabled: vi.fn().mockResolvedValue(undefined),
+    getGlobalShortcuts: vi.fn().mockResolvedValue({}),
+    setGlobalShortcuts: vi.fn().mockResolvedValue(undefined),
+    updateTrayTimer: vi.fn().mockResolvedValue(undefined),
+
+    // Reminders
+    getReminderSettings: vi.fn().mockResolvedValue({}),
+    setReminderSettings: vi.fn().mockResolvedValue(undefined),
   };
 }

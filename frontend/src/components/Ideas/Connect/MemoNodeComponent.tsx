@@ -1,6 +1,7 @@
 import { memo, useState } from "react";
 import { Handle, Position, type NodeProps } from "@xyflow/react";
 import { BookOpen } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { formatDisplayDate } from "../../../utils/dateKey";
 
 type MemoNodeType = {
@@ -15,6 +16,7 @@ type MemoNodeType = {
 };
 
 function MemoNodeInner({ data }: NodeProps & { data: MemoNodeType }) {
+  const { i18n } = useTranslation();
   const [hovered, setHovered] = useState(false);
   const tagDots = data.tagDots || [];
 
@@ -69,7 +71,7 @@ function MemoNodeInner({ data }: NodeProps & { data: MemoNodeType }) {
                 className="shrink-0 text-blue-600 dark:text-blue-400"
               />
               <span className="text-xs font-medium truncate text-blue-900 dark:text-blue-200">
-                {formatDisplayDate(data.date)}
+                {formatDisplayDate(data.date, i18n.language)}
               </span>
             </div>
             {data.contentPreview && (

@@ -27,6 +27,7 @@ export interface TaskNode {
   version?: number;
   folderType?: "normal" | "complete";
   originalParentId?: string | null;
+  priority?: 1 | 2 | 3 | 4 | null;
 }
 
 export type SessionType = "WORK" | "BREAK" | "LONG_BREAK";
@@ -72,6 +73,7 @@ export interface MemoNode {
   date: string;
   content: string;
   isPinned?: boolean;
+  hasPassword?: boolean;
   isDeleted?: boolean;
   deletedAt?: string | null;
   createdAt: string;
@@ -106,6 +108,7 @@ export interface NoteNode {
   parentId: string | null;
   order: number;
   isPinned: boolean;
+  hasPassword?: boolean;
   isDeleted: boolean;
   deletedAt?: string;
   color?: string;

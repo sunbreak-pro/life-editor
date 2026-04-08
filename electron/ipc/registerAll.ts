@@ -51,6 +51,9 @@ import { registerAttachmentHandlers } from "./attachmentHandlers";
 import { registerShellHandlers } from "./shellHandlers";
 import { createDatabaseRepository } from "../database/databaseRepository";
 import { registerDatabaseHandlers } from "./databaseHandlers";
+import { createAppSettingsRepository } from "../database/appSettingsRepository";
+import { registerSettingsHandlers } from "./settingsHandlers";
+import { registerSystemHandlers } from "./systemHandlers";
 import { wrapHandler } from "./ipcMetrics";
 
 export function registerAllHandlers(db: Database.Database): void {
@@ -144,6 +147,14 @@ export function registerAllHandlers(db: Database.Database): void {
     ],
     ["Shell", () => registerShellHandlers()],
     ["Databases", () => registerDatabaseHandlers(createDatabaseRepository(db))],
+    [
+      "AppSettings",
+      () => {
+        const repo = createAppSettingsRepository(db);
+        registerSettingsHandlers(repo);
+        registerSystemHandlers(repo);
+      },
+    ],
   ];
 
   for (const [name, register] of registrations) {

@@ -47,4 +47,8 @@ export const STORAGE_KEYS = {
   SCHEDULE_EVENTS_LEFT_WIDTH: "life-editor-schedule-events-left-width",
   EVENTS_FILTER_TAB: "life-editor-events-filter-tab",
   NOTE_TREE_EXPANDED: "life-editor-note-tree-expanded",
+  STARTUP_SCREEN: "life-editor-startup-screen",
+  DEFAULT_TASK_FOLDER: "life-editor-default-task-folder",
+  HIDE_COMPLETED_TASKS: "life-editor-hide-completed-tasks",
+  AUTO_COMPLETE_PARENT: "life-editor-auto-complete-parent",
 } as const;

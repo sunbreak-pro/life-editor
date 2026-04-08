@@ -19,8 +19,18 @@ export function getTodayKey(): string {
   return formatDateKey(new Date());
 }
 
-export function formatDisplayDate(dateStr: string): string {
+export function formatDisplayDate(dateStr: string, locale = "en"): string {
   const date = new Date(dateStr + "T00:00:00");
+  if (locale.startsWith("ja")) {
+    const m = date.getMonth() + 1;
+    const d = date.getDate();
+    const year = date.getFullYear();
+    const now = new Date();
+    if (year !== now.getFullYear()) {
+      return `${year}年${m}月${d}日`;
+    }
+    return `${m}月${d}日`;
+  }
   const month = date.toLocaleString("en-US", { month: "short" });
   const day = date.getDate();
   const year = date.getFullYear();
@@ -31,9 +41,10 @@ export function formatDisplayDate(dateStr: string): string {
   return `${month} ${day}`;
 }
 
-export function formatDateHeading(dateStr: string): string {
+export function formatDateHeading(dateStr: string, locale = "en"): string {
   const date = new Date(dateStr + "T00:00:00");
-  return date.toLocaleDateString("en-US", {
+  const loc = locale.startsWith("ja") ? "ja-JP" : "en-US";
+  return date.toLocaleDateString(loc, {
     weekday: "long",
     year: "numeric",
     month: "long",
@@ -41,7 +52,11 @@ export function formatDateHeading(dateStr: string): string {
   });
 }
 
-export function formatMonthLabel(monthKey: string): string {
+export function formatMonthLabel(monthKey: string, locale = "en"): string {
+  if (locale.startsWith("ja")) {
+    const [y, m] = monthKey.split("-");
+    return `${y}年${parseInt(m)}月`;
+  }
   return monthKey;
 }
 

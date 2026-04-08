@@ -49,6 +49,10 @@ export type { TimerContextValue, ActiveTask } from "./TimerContextValue";
 export { RightSidebarContext } from "./RightSidebarContext";
 export type { RightSidebarContextValue } from "./RightSidebarContext";
 
+export { ScreenLockProvider } from "./ScreenLockContext";
+export { ScreenLockContext } from "./ScreenLockContextValue";
+export type { ScreenLockContextValue } from "./ScreenLockContextValue";
+
 export { UndoRedoProvider } from "./UndoRedoContext";
 export { UndoRedoContext } from "./UndoRedoContextValue";
 export type { UndoRedoContextValue } from "./UndoRedoContextValue";

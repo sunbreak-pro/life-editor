@@ -10,6 +10,7 @@ interface NoteRow {
   parent_id: string | null;
   order_index: number;
   is_pinned: number;
+  password_hash: string | null;
   is_deleted: number;
   deleted_at: string | null;
   color: string | null;
@@ -26,6 +27,7 @@ function rowToNode(row: NoteRow): NoteNode {
     parentId: row.parent_id,
     order: row.order_index,
     isPinned: row.is_pinned === 1,
+    hasPassword: !!row.password_hash,
     isDeleted: row.is_deleted === 1,
     deletedAt: row.deleted_at ?? undefined,
     color: row.color ?? undefined,
@@ -54,6 +56,14 @@ export function createNoteRepository(db: Database.Database) {
       SELECT * FROM notes WHERE is_deleted = 0
       AND (title LIKE @query OR content LIKE @query)
       ORDER BY updated_at DESC
+    `),
+    setPassword: db.prepare(`
+      UPDATE notes SET password_hash = @passwordHash, version = version + 1, updated_at = datetime('now')
+      WHERE id = @id
+    `),
+    removePassword: db.prepare(`
+      UPDATE notes SET password_hash = NULL, version = version + 1, updated_at = datetime('now')
+      WHERE id = ?
     `),
     syncTree: db.prepare(`
       UPDATE notes SET parent_id = @parentId, order_index = @order
@@ -147,6 +157,23 @@ export function createNoteRepository(db: Database.Database) {
       return (stmts.search.all({ query: `%${query}%` }) as NoteRow[]).map(
         rowToNode,
       );
+    },
+
+    getPasswordHash(id: string): string | null {
+      const row = stmts.fetchById.get(id) as NoteRow | undefined;
+      return row?.password_hash ?? null;
+    },
+
+    setPassword(id: string, passwordHash: string): NoteNode {
+      stmts.setPassword.run({ id, passwordHash });
+      const row = stmts.fetchById.get(id) as NoteRow;
+      return rowToNode(row);
+    },
+
+    removePassword(id: string): NoteNode {
+      stmts.removePassword.run(id);
+      const row = stmts.fetchById.get(id) as NoteRow;
+      return rowToNode(row);
     },
   };
 }

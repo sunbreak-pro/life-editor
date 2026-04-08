@@ -101,7 +101,8 @@ export function ConnectSidebar({
   onDeleteNote,
   onDeleteMemo,
 }: ConnectSidebarProps) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const lang = i18n.language;
   const [sections, setSections] = useState<SectionsState>(loadSectionsState);
 
   // Note filter state
@@ -354,7 +355,7 @@ export function ConnectSidebar({
     for (const m of sortedMemos) {
       items.push({
         id: m.id,
-        label: formatDisplayDate(m.date),
+        label: formatDisplayDate(m.date, lang),
         icon: "memo",
       });
     }
@@ -488,7 +489,7 @@ export function ConnectSidebar({
           <BookOpen size={12} className="text-blue-500 shrink-0" />
         )}
         <span className="flex-1 text-xs text-notion-text truncate">
-          {formatDisplayDate(memo.date)}
+          {formatDisplayDate(memo.date, lang)}
         </span>
         {renderTagDots(memo.id)}
       </button>

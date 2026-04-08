@@ -1,5 +1,6 @@
 import { Suspense } from "react";
 import type { TaskNode } from "../../../types/taskTree";
+import type { Priority } from "../../../types/priority";
 import { TaskDetailHeader } from "./TaskDetailHeader";
 import { EmptyState } from "./EmptyState";
 import { LazyMemoEditor as MemoEditor } from "./LazyMemoEditor";
@@ -18,6 +19,7 @@ interface TaskDetailProps {
   onFolderColorChange?: (folderId: string, color: string) => void;
   onTitleChange?: (newTitle: string) => void;
   onTimeMemoChange?: (value: string | undefined) => void;
+  onPriorityChange?: (priority: Priority | null) => void;
   folderTag?: string;
   taskColor?: string;
 }
@@ -36,6 +38,7 @@ export function TaskDetail({
   onFolderColorChange,
   onTitleChange,
   onTimeMemoChange,
+  onPriorityChange,
   folderTag,
   taskColor,
 }: TaskDetailProps) {
@@ -59,6 +62,7 @@ export function TaskDetail({
           onFolderColorChange={onFolderColorChange}
           onTitleChange={onTitleChange}
           onTimeMemoChange={onTimeMemoChange}
+          onPriorityChange={onPriorityChange}
           folderTag={folderTag}
           taskColor={taskColor}
         />

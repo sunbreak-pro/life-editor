@@ -320,6 +320,7 @@ export const TaskTreeNode = memo(function TaskTreeNode({
               isDone={isDone || isFolderDone}
               isFolder={isFolder}
               progress={progress}
+              priority={node.priority}
               onSelectTask={
                 isStructureContainer || isSystemFolder
                   ? undefined

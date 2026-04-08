@@ -380,6 +380,19 @@ export class OfflineDataService implements DataService {
     }
   }
 
+  setMemoPassword(_date: string, _password: string): Promise<MemoNode> {
+    return notSupported("setMemoPassword");
+  }
+  removeMemoPassword(
+    _date: string,
+    _currentPassword: string,
+  ): Promise<MemoNode> {
+    return notSupported("removeMemoPassword");
+  }
+  verifyMemoPassword(_date: string, _password: string): Promise<boolean> {
+    return notSupported("verifyMemoPassword");
+  }
+
   // ============================================================
   // Notes
   // ============================================================
@@ -494,6 +507,16 @@ export class OfflineDataService implements DataService {
         );
       },
     );
+  }
+
+  setNotePassword(_id: string, _password: string): Promise<NoteNode> {
+    return notSupported("setNotePassword");
+  }
+  removeNotePassword(_id: string, _currentPassword: string): Promise<NoteNode> {
+    return notSupported("removeNotePassword");
+  }
+  verifyNotePassword(_id: string, _password: string): Promise<boolean> {
+    return notSupported("verifyNotePassword");
   }
 
   createNoteFolder(
@@ -1718,5 +1741,56 @@ export class OfflineDataService implements DataService {
   }
   upsertDatabaseCell(): Promise<never> {
     return notSupported("upsertDatabaseCell");
+  }
+
+  // App Settings
+  getAppSetting(): Promise<never> {
+    return notSupported("getAppSetting");
+  }
+  setAppSetting(): Promise<never> {
+    return notSupported("setAppSetting");
+  }
+  getAllAppSettings(): Promise<never> {
+    return notSupported("getAllAppSettings");
+  }
+  removeAppSetting(): Promise<never> {
+    return notSupported("removeAppSetting");
+  }
+
+  // System Integration
+  getAutoLaunch(): Promise<never> {
+    return notSupported("getAutoLaunch");
+  }
+  setAutoLaunch(): Promise<never> {
+    return notSupported("setAutoLaunch");
+  }
+  getStartMinimized(): Promise<never> {
+    return notSupported("getStartMinimized");
+  }
+  setStartMinimized(): Promise<never> {
+    return notSupported("setStartMinimized");
+  }
+  getTrayEnabled(): Promise<never> {
+    return notSupported("getTrayEnabled");
+  }
+  setTrayEnabled(): Promise<never> {
+    return notSupported("setTrayEnabled");
+  }
+  getGlobalShortcuts(): Promise<never> {
+    return notSupported("getGlobalShortcuts");
+  }
+  setGlobalShortcuts(): Promise<never> {
+    return notSupported("setGlobalShortcuts");
+  }
+  updateTrayTimer(): Promise<never> {
+    return notSupported("updateTrayTimer");
+  }
+
+  // Reminders
+  getReminderSettings(): Promise<never> {
+    return notSupported("getReminderSettings");
+  }
+  setReminderSettings(): Promise<never> {
+    return notSupported("setReminderSettings");
   }
 }

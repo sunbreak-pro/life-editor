@@ -60,7 +60,8 @@ export function DailySidebar({
   onSelectDate,
   onDeleteMemo,
 }: DailySidebarProps) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const lang = i18n.language;
   const [sections, setSections] = useState<SectionsState>(loadSectionsState);
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedQuery, setDebouncedQuery] = useState("");
@@ -103,7 +104,7 @@ export function DailySidebar({
     if (!hasTodayMemo) {
       items.push({
         id: `memo-${todayKey}`,
-        label: formatDisplayDate(todayKey),
+        label: formatDisplayDate(todayKey, lang),
         icon: "memo",
       });
     }
@@ -113,7 +114,7 @@ export function DailySidebar({
     for (const m of sorted) {
       items.push({
         id: m.id,
-        label: formatDisplayDate(m.date),
+        label: formatDisplayDate(m.date, lang),
         icon: "memo",
       });
     }
@@ -205,7 +206,7 @@ export function DailySidebar({
           <BookOpen size={12} className="text-blue-500 shrink-0" />
         )}
         <span className="flex flex-1 text-xs text-notion-text justify-start truncate">
-          {formatDisplayDate(memo.date)}
+          {formatDisplayDate(memo.date, lang)}
         </span>
         {renderTagDots(memo.id)}
       </button>
@@ -386,7 +387,7 @@ export function DailySidebar({
             groupMemosByMonth(displayMemos).map((group, groupIndex) => (
               <MonthGroup
                 key={group.monthKey}
-                monthLabel={formatMonthLabel(group.monthKey)}
+                monthLabel={formatMonthLabel(group.monthKey, lang)}
                 itemCount={group.memos.length}
                 defaultOpen={groupIndex === 0}
               >

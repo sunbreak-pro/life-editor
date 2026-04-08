@@ -22,6 +22,8 @@ import {
   FolderTree,
   CalendarDays,
   Smartphone,
+  Sliders,
+  Monitor,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import type { TabItem } from "../shared/SectionTabs";
@@ -41,6 +43,8 @@ import { ClaudeSetupSection } from "./ClaudeSetupSection";
 import { McpToolsList } from "./McpToolsList";
 import { ClaudeMdEditor } from "./ClaudeMdEditor";
 import { SkillsManager } from "./SkillsManager";
+import { BehaviorSettings } from "./BehaviorSettings";
+import { SystemSettings } from "./SystemSettings";
 import { RightSidebarContext } from "../../context/RightSidebarContext";
 import type { ShortcutCategory } from "../../types/shortcut";
 import { useSettingsHistory } from "../../hooks/useSettingsHistory";
@@ -58,7 +62,9 @@ export type SettingsInitialTab =
   | "notifications"
   | "timer"
   | "mobile"
-  | "devtools";
+  | "devtools"
+  | "behaviors"
+  | "system";
 
 const TABS = [
   { id: "general", labelKey: "settings.general", icon: Settings2 },
@@ -68,8 +74,13 @@ const TABS = [
 ] as const satisfies readonly TabItem<SettingsTab>[];
 
 // Sub-navigation items for each settings tab
-type GeneralSub = "appearance" | "language" | "notifications" | "timer";
-type AdvancedSub = "mobile" | "data" | "updates" | "devtools";
+type GeneralSub =
+  | "appearance"
+  | "language"
+  | "notifications"
+  | "timer"
+  | "behaviors";
+type AdvancedSub = "mobile" | "data" | "updates" | "devtools" | "system";
 type ClaudeSub = "setup" | "mcpTools" | "claudeMd" | "skills";
 type ShortcutsSub =
   | "global"
@@ -84,12 +95,14 @@ const GENERAL_SUBS: readonly TabItem<GeneralSub>[] = [
   { id: "language", labelKey: "settings.language", icon: Languages },
   { id: "notifications", labelKey: "notifications.title", icon: Bell },
   { id: "timer", labelKey: "timerSettings.title", icon: Timer },
+  { id: "behaviors", labelKey: "settings.behaviors", icon: Sliders },
 ];
 const ADVANCED_SUBS: readonly TabItem<AdvancedSub>[] = [
   { id: "mobile", labelKey: "settings.mobileAccess.title", icon: Smartphone },
   { id: "data", labelKey: "data.title", icon: Database },
   { id: "updates", labelKey: "updates.title", icon: Download },
   { id: "devtools", labelKey: "settings.developerTools", icon: Gauge },
+  { id: "system", labelKey: "settings.system", icon: Monitor },
 ];
 const CLAUDE_SUBS: readonly TabItem<ClaudeSub>[] = [
   { id: "setup", labelKey: "settings.claude.setup", icon: Cog },
@@ -141,6 +154,10 @@ function resolveInitialTab(initialTab: SettingsInitialTab | undefined): {
       return { tab: "advanced", advancedSub: "mobile" };
     case "devtools":
       return { tab: "advanced", advancedSub: "devtools" };
+    case "behaviors":
+      return { tab: "general", generalSub: "behaviors" };
+    case "system":
+      return { tab: "advanced", advancedSub: "system" };
     case undefined:
       return { tab: "general" };
     default:
@@ -252,6 +269,8 @@ export function Settings({ initialTab }: SettingsProps) {
             return <NotificationSettings />;
           case "timer":
             return <TimerSettings />;
+          case "behaviors":
+            return <BehaviorSettings />;
         }
       }
       return (
@@ -263,6 +282,8 @@ export function Settings({ initialTab }: SettingsProps) {
           <NotificationSettings />
           <div className="border-t border-notion-border" />
           <TimerSettings />
+          <div className="border-t border-notion-border" />
+          <BehaviorSettings />
         </div>
       );
     }
@@ -278,6 +299,8 @@ export function Settings({ initialTab }: SettingsProps) {
             return <UpdateSettings />;
           case "devtools":
             return <DeveloperTools />;
+          case "system":
+            return <SystemSettings />;
         }
       }
       return (
@@ -289,6 +312,8 @@ export function Settings({ initialTab }: SettingsProps) {
           <UpdateSettings />
           <div className="border-t border-notion-border" />
           <DeveloperTools />
+          <div className="border-t border-notion-border" />
+          <SystemSettings />
         </div>
       );
     }

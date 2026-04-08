@@ -2,7 +2,12 @@ import { useTranslation } from "react-i18next";
 import { SortDropdown as GenericSortDropdown } from "../../shared/SortDropdown";
 import type { SortMode } from "../../../utils/sortTaskNodes";
 
-const SORT_OPTIONS: readonly SortMode[] = ["manual", "status", "scheduledAt"];
+const SORT_OPTIONS: readonly SortMode[] = [
+  "manual",
+  "status",
+  "scheduledAt",
+  "priority",
+];
 
 interface TaskTreeSortDropdownProps {
   sortMode: SortMode;
@@ -19,6 +24,7 @@ export function SortDropdown({
     manual: t("taskTree.sortManual"),
     status: t("taskTree.sortStatus"),
     scheduledAt: t("taskTree.sortSchedule"),
+    priority: t("taskTree.sortPriority"),
   };
 
   return (

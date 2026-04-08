@@ -26,7 +26,16 @@ import type { SectionId } from "./types/taskTree";
 import { STORAGE_KEYS } from "./constants/storageKeys";
 
 function App() {
-  const [activeSection, setActiveSection] = useState<SectionId>("schedule");
+  const [activeSection, setActiveSection] = useState<SectionId>(() => {
+    const saved = localStorage.getItem(STORAGE_KEYS.STARTUP_SCREEN);
+    if (
+      saved &&
+      ["schedule", "materials", "connect", "work", "analytics"].includes(saved)
+    ) {
+      return saved as SectionId;
+    }
+    return "schedule";
+  });
   const [scheduleTab, setScheduleTab] = useState<ScheduleTab>("calendar");
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
   const [settingsInitialTab, setSettingsInitialTab] = useState<

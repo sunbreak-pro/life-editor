@@ -430,6 +430,35 @@ export function useNotes() {
       .catch((e) => logServiceError("Notes", "permanentDelete", e));
   }, []);
 
+  const setNotePassword = useCallback(async (id: string, password: string) => {
+    const updated = await getDataService().setNotePassword(id, password);
+    setNotes((prev) =>
+      prev.map((n) => (n.id === id ? { ...n, hasPassword: true } : n)),
+    );
+    return updated;
+  }, []);
+
+  const removeNotePassword = useCallback(
+    async (id: string, currentPassword: string) => {
+      const updated = await getDataService().removeNotePassword(
+        id,
+        currentPassword,
+      );
+      setNotes((prev) =>
+        prev.map((n) => (n.id === id ? { ...n, hasPassword: false } : n)),
+      );
+      return updated;
+    },
+    [],
+  );
+
+  const verifyNotePassword = useCallback(
+    (id: string, password: string): Promise<boolean> => {
+      return getDataService().verifyNotePassword(id, password);
+    },
+    [],
+  );
+
   const selectedNote = useMemo(() => {
     return notes.find((n) => n.id === selectedNoteId) ?? null;
   }, [notes, selectedNoteId]);
@@ -459,6 +488,9 @@ export function useNotes() {
       restoreNote,
       permanentDeleteNote,
       persistWithHistory,
+      setNotePassword,
+      removeNotePassword,
+      verifyNotePassword,
     }),
     [
       notes,
@@ -481,6 +513,9 @@ export function useNotes() {
       restoreNote,
       permanentDeleteNote,
       persistWithHistory,
+      setNotePassword,
+      removeNotePassword,
+      verifyNotePassword,
     ],
   );
 }

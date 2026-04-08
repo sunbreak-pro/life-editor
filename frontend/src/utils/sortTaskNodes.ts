@@ -1,6 +1,6 @@
 import type { TaskNode } from "../types/taskTree";
 
-export type SortMode = "manual" | "status" | "scheduledAt";
+export type SortMode = "manual" | "status" | "scheduledAt" | "priority";
 
 export function sortTaskNodes(nodes: TaskNode[], mode: SortMode): TaskNode[] {
   // Separate complete system folders — always rendered last
@@ -32,6 +32,15 @@ export function sortTaskNodes(nodes: TaskNode[], mode: SortMode): TaskNode[] {
         if (!aDate) return 1;
         if (!bDate) return -1;
         return aDate.localeCompare(bDate);
+      });
+    }
+
+    if (mode === "priority") {
+      sorted.sort((a, b) => {
+        const aPri = a.priority ?? 5;
+        const bPri = b.priority ?? 5;
+        if (aPri !== bPri) return aPri - bPri;
+        return a.order - b.order;
       });
     }
 

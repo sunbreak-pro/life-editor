@@ -8,6 +8,7 @@ export interface NoteNode {
   parentId: string | null;
   order: number;
   isPinned: boolean;
+  hasPassword?: boolean;
   isDeleted: boolean;
   deletedAt?: string;
   color?: string;

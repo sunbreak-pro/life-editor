@@ -263,6 +263,17 @@ export class RestDataService implements DataService {
   toggleMemoPin(date: string): Promise<MemoNode> {
     return post(`/api/memos/${date}/toggle-pin`);
   }
+  setMemoPassword(date: string, password: string): Promise<MemoNode> {
+    return post(`/api/memos/${date}/set-password`, { password });
+  }
+  removeMemoPassword(date: string, currentPassword: string): Promise<MemoNode> {
+    return post(`/api/memos/${date}/remove-password`, {
+      password: currentPassword,
+    });
+  }
+  verifyMemoPassword(date: string, password: string): Promise<boolean> {
+    return post(`/api/memos/${date}/verify-password`, { password });
+  }
 
   // Notes
   fetchAllNotes(): Promise<NoteNode[]> {
@@ -293,6 +304,17 @@ export class RestDataService implements DataService {
   }
   searchNotes(query: string): Promise<NoteNode[]> {
     return get(`/api/notes/search?q=${encodeURIComponent(query)}`);
+  }
+  setNotePassword(id: string, password: string): Promise<NoteNode> {
+    return post(`/api/notes/${id}/set-password`, { password });
+  }
+  removeNotePassword(id: string, currentPassword: string): Promise<NoteNode> {
+    return post(`/api/notes/${id}/remove-password`, {
+      password: currentPassword,
+    });
+  }
+  verifyNotePassword(id: string, password: string): Promise<boolean> {
+    return post(`/api/notes/${id}/verify-password`, { password });
   }
   createNoteFolder(
     id: string,

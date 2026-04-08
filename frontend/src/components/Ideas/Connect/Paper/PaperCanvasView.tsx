@@ -123,7 +123,8 @@ export function PaperCanvasView({
   onNavigateToNote,
   onSelectionChanged,
 }: PaperCanvasViewProps) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const lang = i18n.language;
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [selectedNodeIds, setSelectedNodeIds] = useState<string[]>([]);
   const viewportTimerRef = useRef<ReturnType<typeof setTimeout>>();
@@ -214,7 +215,7 @@ export function PaperCanvasView({
           label: note
             ? note.title
             : memo
-              ? formatDisplayDate(memo.date)
+              ? formatDisplayDate(memo.date, lang)
               : "Unknown",
           contentPreview: note
             ? getContentPreview(note.content, 100)

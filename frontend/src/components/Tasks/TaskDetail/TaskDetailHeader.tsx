@@ -3,6 +3,8 @@ import type { KeyboardEvent } from "react";
 import { Play, Trash2, Clock, StickyNote } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import type { TaskNode } from "../../../types/taskTree";
+import type { Priority } from "../../../types/priority";
+import { PriorityPicker } from "../../shared/PriorityPicker";
 import { getAncestors } from "../../../utils/breadcrumb";
 import { DurationPicker } from "../../shared/DurationPicker";
 import { formatDuration } from "../../../utils/duration";
@@ -23,6 +25,7 @@ interface TaskDetailHeaderProps {
   onFolderColorChange?: (folderId: string, color: string) => void;
   onTitleChange?: (newTitle: string) => void;
   onTimeMemoChange?: (value: string | undefined) => void;
+  onPriorityChange?: (priority: Priority | null) => void;
   folderTag?: string;
   taskColor?: string;
 }
@@ -40,6 +43,7 @@ export function TaskDetailHeader({
   onFolderColorChange,
   onTitleChange,
   onTimeMemoChange,
+  onPriorityChange,
   folderTag,
   taskColor,
 }: TaskDetailHeaderProps) {
@@ -199,6 +203,11 @@ export function TaskDetailHeader({
             </div>
           )}
         </div>
+
+        <PriorityPicker
+          value={task.priority}
+          onChange={(p) => onPriorityChange?.(p)}
+        />
 
         <DateTimeRangePicker
           startValue={task.scheduledAt}

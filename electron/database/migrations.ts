@@ -235,6 +235,21 @@ export function runMigrations(db: Database.Database): void {
     migrateV50(db);
   }
 
+  if (currentVersion < 51) {
+    log.info("[DB] Running migration V51");
+    migrateV51(db);
+  }
+
+  if (currentVersion < 52) {
+    log.info("[DB] Running migration V52");
+    migrateV52(db);
+  }
+
+  if (currentVersion < 53) {
+    log.info("[DB] Running migration V53");
+    migrateV53(db);
+  }
+
   const newVersion = db.pragma("user_version", { simple: true }) as number;
   if (newVersion !== currentVersion) {
     log.info(`[DB] Schema migrated: ${currentVersion} → ${newVersion}`);
@@ -1789,6 +1804,44 @@ function migrateV50(db: Database.Database): void {
       ALTER TABLE tasks ADD COLUMN original_parent_id TEXT DEFAULT NULL;
     `);
     db.pragma("user_version = 50");
+  });
+  migrate();
+}
+
+function migrateV51(db: Database.Database): void {
+  const migrate = db.transaction(() => {
+    db.exec(`
+      ALTER TABLE notes ADD COLUMN password_hash TEXT DEFAULT NULL;
+    `);
+    db.exec(`
+      ALTER TABLE memos ADD COLUMN password_hash TEXT DEFAULT NULL;
+    `);
+    db.pragma("user_version = 51");
+  });
+  migrate();
+}
+
+function migrateV52(db: Database.Database): void {
+  const migrate = db.transaction(() => {
+    if (!hasColumn(db, "tasks", "priority")) {
+      db.exec(`ALTER TABLE tasks ADD COLUMN priority INTEGER DEFAULT NULL`);
+    }
+    db.exec(`CREATE INDEX IF NOT EXISTS idx_tasks_priority ON tasks(priority)`);
+    db.pragma("user_version = 52");
+  });
+  migrate();
+}
+
+function migrateV53(db: Database.Database): void {
+  const migrate = db.transaction(() => {
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS app_settings (
+        key TEXT PRIMARY KEY,
+        value TEXT NOT NULL,
+        updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+      );
+    `);
+    db.pragma("user_version = 53");
   });
   migrate();
 }

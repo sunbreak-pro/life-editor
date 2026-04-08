@@ -20,7 +20,8 @@ export function PaperAddItemDialog({
   onSelect,
   onClose,
 }: PaperAddItemDialogProps) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const lang = i18n.language;
   const [query, setQuery] = useState("");
   const [tab, setTab] = useState<"note" | "memo">("note");
 
@@ -140,7 +141,7 @@ export function PaperAddItemDialog({
                 >
                   <BookOpen size={12} className="shrink-0 text-blue-500" />
                   <span className="truncate text-notion-text">
-                    {formatDisplayDate(memo.date)}
+                    {formatDisplayDate(memo.date, lang)}
                   </span>
                 </button>
               );

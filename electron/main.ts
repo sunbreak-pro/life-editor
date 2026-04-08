@@ -13,6 +13,15 @@ import { registerMcpServer } from "./services/claudeSetup";
 import { migrateUserData } from "./migration/renameMigration";
 import { stopServer } from "./server/index";
 import { registerServerHandlers } from "./ipc/serverHandlers";
+import { createAppSettingsRepository } from "./database/appSettingsRepository";
+import { createTray, updateTrayTimer } from "./tray";
+import {
+  registerGlobalShortcuts,
+  unregisterAllGlobalShortcuts,
+} from "./globalShortcuts";
+import { ReminderService } from "./services/reminderService";
+import { AutoArchiveService } from "./services/autoArchiveService";
+import type { Tray } from "electron";
 
 const isDev = !app.isPackaged;
 const terminalManager = new TerminalManager();

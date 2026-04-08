@@ -1,6 +1,7 @@
 import { useCallback } from "react";
 import type { TaskNode, NodeType, TaskStatus } from "../types/taskTree";
 import { getColorByIndex } from "../constants/folderColors";
+import { STORAGE_KEYS } from "../constants/storageKeys";
 
 interface AddNodeOptions {
   scheduledAt?: string;
@@ -22,8 +23,23 @@ export function useTaskTreeCRUD(
       title: string,
       options?: AddNodeOptions,
     ) => {
+      // Apply default folder if parentId is null and type is task
+      const resolvedParentId =
+        parentId === null && type === "task"
+          ? localStorage.getItem(STORAGE_KEYS.DEFAULT_TASK_FOLDER) || null
+          : parentId;
+      // Verify the default folder exists
+      const effectiveParentId =
+        resolvedParentId &&
+        nodes.some(
+          (n) =>
+            n.id === resolvedParentId && n.type === "folder" && !n.isDeleted,
+        )
+          ? resolvedParentId
+          : parentId;
+
       const siblings = nodes.filter(
-        (n) => !n.isDeleted && n.parentId === parentId,
+        (n) => !n.isDeleted && n.parentId === effectiveParentId,
       );
       const folderColor =
         type === "folder"
@@ -53,7 +69,7 @@ export function useTaskTreeCRUD(
         id: generateId(type),
         type,
         title,
-        parentId,
+        parentId: effectiveParentId,
         order: newOrder,
         status: "NOT_STARTED",
         isExpanded: type !== "task" ? true : undefined,
@@ -196,18 +212,54 @@ export function useTaskTreeCRUD(
       const orderMap = new Map<string, number>();
       reordered.forEach((n, i) => orderMap.set(n.id, i));
 
-      persistWithHistory(
-        nodes,
-        workingNodes.map((n) => {
-          if (n.id === id)
-            return {
-              ...updatedTarget,
-              order: orderMap.get(id) ?? updatedTarget.order,
-            };
-          if (orderMap.has(n.id)) return { ...n, order: orderMap.get(n.id)! };
-          return n;
-        }),
-      );
+      let finalNodes = workingNodes.map((n) => {
+        if (n.id === id)
+          return {
+            ...updatedTarget,
+            order: orderMap.get(id) ?? updatedTarget.order,
+          };
+        if (orderMap.has(n.id)) return { ...n, order: orderMap.get(n.id)! };
+        return n;
+      });
+
+      // Auto-complete parent when all children are done
+      if (
+        newStatus === "DONE" &&
+        localStorage.getItem(STORAGE_KEYS.AUTO_COMPLETE_PARENT) === "true"
+      ) {
+        let currentParentId = target.parentId;
+        let depth = 0;
+        while (currentParentId && depth < 10) {
+          const parent = finalNodes.find((n) => n.id === currentParentId);
+          if (!parent || parent.type !== "folder" || parent.isDeleted) break;
+          if (parent.folderType === "complete") break;
+
+          const childTasks = finalNodes.filter(
+            (n) =>
+              n.parentId === currentParentId &&
+              n.type === "task" &&
+              !n.isDeleted,
+          );
+          const allDone =
+            childTasks.length > 0 &&
+            childTasks.every((n) => n.status === "DONE");
+          if (!allDone) break;
+
+          finalNodes = finalNodes.map((n) =>
+            n.id === currentParentId
+              ? {
+                  ...n,
+                  status: "DONE" as TaskStatus,
+                  completedAt: new Date().toISOString(),
+                }
+              : n,
+          );
+          currentParentId = parent.parentId;
+          depth++;
+        }
+      }
+
+      persistWithHistory(nodes, finalNodes);
     },
     [nodes, persistWithHistory, generateId],
   );

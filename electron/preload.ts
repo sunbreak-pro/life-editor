@@ -47,6 +47,9 @@ const ALLOWED_CHANNELS = new Set([
   "db:memo:restore",
   "db:memo:permanentDelete",
   "db:memo:togglePin",
+  "db:memo:setPassword",
+  "db:memo:removePassword",
+  "db:memo:verifyPassword",
   // Notes
   "db:notes:fetchAll",
   "db:notes:fetchDeleted",
@@ -58,6 +61,9 @@ const ALLOWED_CHANNELS = new Set([
   "db:notes:search",
   "db:notes:createFolder",
   "db:notes:syncTree",
+  "db:notes:setPassword",
+  "db:notes:removePassword",
+  "db:notes:verifyPassword",
   // Databases
   "db:database:fetchAll",
   "db:database:fetchFull",
@@ -235,6 +241,25 @@ const ALLOWED_CHANNELS = new Set([
   "attachment:load",
   "attachment:delete",
   "attachment:fetchMetas",
+  // App Settings
+  "settings:get",
+  "settings:getAll",
+  "settings:set",
+  "settings:remove",
+  // System Integration
+  "system:getAutoLaunch",
+  "system:setAutoLaunch",
+  "system:getStartMinimized",
+  "system:setStartMinimized",
+  "system:getTrayEnabled",
+  "system:setTrayEnabled",
+  "system:getGlobalShortcuts",
+  "system:setGlobalShortcuts",
+  // Tray
+  "tray:updateTimer",
+  // Reminders
+  "reminder:getSettings",
+  "reminder:setSettings",
   // Claude
   "claude:registerMcp",
   "claude:readClaudeMd",
@@ -297,6 +322,18 @@ contextBridge.exposeInMainWorld("electronAPI", {
     ipcRenderer.on("terminal:claudeStatus", handler);
     return () => {
       ipcRenderer.removeListener("terminal:claudeStatus", handler);
+    };
+  },
+  onReminder(
+    callback: (data: { id: string; title: string; type: string }) => void,
+  ): () => void {
+    const handler = (
+      _event: IpcRendererEvent,
+      data: { id: string; title: string; type: string },
+    ) => callback(data);
+    ipcRenderer.on("reminder:notify", handler);
+    return () => {
+      ipcRenderer.removeListener("reminder:notify", handler);
     };
   },
 });

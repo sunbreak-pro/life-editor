@@ -233,6 +233,15 @@ export class ElectronDataService implements DataService {
   toggleMemoPin(date: string): Promise<MemoNode> {
     return invoke("db:memo:togglePin", date);
   }
+  setMemoPassword(date: string, password: string): Promise<MemoNode> {
+    return invoke("db:memo:setPassword", date, password);
+  }
+  removeMemoPassword(date: string, currentPassword: string): Promise<MemoNode> {
+    return invoke("db:memo:removePassword", date, currentPassword);
+  }
+  verifyMemoPassword(date: string, password: string): Promise<boolean> {
+    return invoke("db:memo:verifyPassword", date, password);
+  }
 
   // Notes
   fetchAllNotes(): Promise<NoteNode[]> {
@@ -263,6 +272,15 @@ export class ElectronDataService implements DataService {
   }
   searchNotes(query: string): Promise<NoteNode[]> {
     return invoke("db:notes:search", query);
+  }
+  setNotePassword(id: string, password: string): Promise<NoteNode> {
+    return invoke("db:notes:setPassword", id, password);
+  }
+  removeNotePassword(id: string, currentPassword: string): Promise<NoteNode> {
+    return invoke("db:notes:removePassword", id, currentPassword);
+  }
+  verifyNotePassword(id: string, password: string): Promise<boolean> {
+    return invoke("db:notes:verifyPassword", id, password);
   }
   createNoteFolder(
     id: string,
@@ -1074,5 +1092,59 @@ export class ElectronDataService implements DataService {
     value: string,
   ): Promise<DatabaseCell> {
     return invoke("db:database:upsertCell", id, rowId, propertyId, value);
+  }
+
+  // App Settings
+  getAppSetting(key: string): Promise<string | null> {
+    return invoke("settings:get", key);
+  }
+  setAppSetting(key: string, value: string): Promise<void> {
+    return invoke("settings:set", key, value);
+  }
+  getAllAppSettings(): Promise<Record<string, string>> {
+    return invoke("settings:getAll");
+  }
+  removeAppSetting(key: string): Promise<void> {
+    return invoke("settings:remove", key);
+  }
+
+  // System Integration
+  getAutoLaunch(): Promise<boolean> {
+    return invoke("system:getAutoLaunch");
+  }
+  setAutoLaunch(enabled: boolean): Promise<void> {
+    return invoke("system:setAutoLaunch", enabled);
+  }
+  getStartMinimized(): Promise<boolean> {
+    return invoke("system:getStartMinimized");
+  }
+  setStartMinimized(enabled: boolean): Promise<void> {
+    return invoke("system:setStartMinimized", enabled);
+  }
+  getTrayEnabled(): Promise<boolean> {
+    return invoke("system:getTrayEnabled");
+  }
+  setTrayEnabled(enabled: boolean): Promise<void> {
+    return invoke("system:setTrayEnabled", enabled);
+  }
+  getGlobalShortcuts(): Promise<Record<string, string>> {
+    return invoke("system:getGlobalShortcuts");
+  }
+  setGlobalShortcuts(shortcuts: Record<string, string>): Promise<void> {
+    return invoke("system:setGlobalShortcuts", shortcuts);
+  }
+  updateTrayTimer(state: {
+    remaining: string;
+    isRunning: boolean;
+  }): Promise<void> {
+    return invoke("tray:updateTimer", state);
+  }
+
+  // Reminders
+  getReminderSettings(): Promise<Record<string, string>> {
+    return invoke("reminder:getSettings");
+  }
+  setReminderSettings(settings: Record<string, string>): Promise<void> {
+    return invoke("reminder:setSettings", settings);
   }
 }
