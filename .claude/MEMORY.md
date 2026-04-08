@@ -7,15 +7,15 @@
 **対象**: `frontend/src/extensions/DragHandle.ts`, `frontend/src/index.css`
 **計画書**: `.claude/plans/functional-tinkering-wigderson.md`
 
-- 前回: ElectronでネイティブHTML5 drag-and-drop不動を特定、PointerEventベースに全面書き換え
-- 現在: オーバーレイ青背景化、pending状態リセットバグ修正、h1/h2アイコン位置補正、左側ホバー検出改善の4件を実装
+- 前回: オーバーレイ青背景化、pending状態リセットバグ修正
+- 現在: h1/h2 line-height計算修正(fontSize\*1.4)、scrollParent広域ホバー検出、コンテンツ幅拡張(pl-8/760px)、見出しプレースホルダー、cleanupDrag統合+lostpointercapture対応
 - 次: ユーザー動作確認待ち
 
 ## 直近の完了
 
+- Schedule Sidebar 検索統一 + Tasks/Events タブ検索追加 ✅（2026-04-06）
+- Calendar IME修正 + Popup タイトル編集 + メモ重複バグ修正 ✅（2026-04-06）
 - Database機能コードレビュー改善（セキュリティ・可読性・i18n） ✅（2026-04-06）
-- UI/UXレイアウト改善（スクロールバー・幅安定化・コンパクト化） ✅（2026-04-05）
-- RoutineGroup Calendar自動生成 + isVisible表示/非表示 + Group編集メンバー時間設定 ✅（2026-04-05）
 
 ## 予定
 

@@ -1,5 +1,34 @@
 # HISTORY.md - 変更履歴
 
+### 2026-04-06 - Schedule Sidebar 検索統一 + Tasks/Events タブ検索追加
+
+#### 概要
+
+Schedule セクションの Calendar RightSidebar にあったカスタム検索入力を共有 `SearchBar` コンポーネントに置換し、全4タブ（Calendar/DayFlow/Tasks/Events）で統一的な検索UIを提供。タブ別プレースホルダーとサジェスションを実装。
+
+#### 変更点
+
+- **ScheduleSidebarContent 検索置換**: カスタムインライン検索（`<Search>` + `<input>` + `<X>`）を削除し、共有 `SearchBar` コンポーネントに置換。`searchPlaceholder`, `searchSuggestions`, `onSearchSuggestionSelect` props を新規追加
+- **全タブ検索拡張**: `ScheduleSection` で検索を Calendar 限定から全タブに拡張。`calendarSearchQuery` → `sidebarSearchQuery` にリネーム。タブ切替時に検索クエリクリア
+- **タブ別サジェスション**: Calendar/DayFlow はルーティン+イベント、Tasks はスケジュール済みタスク、Events はイベントをサジェスション表示。タイトルマッチングフィルタ付き
+- **ScheduleTasksContent 検索対応**: `sidebarSearchQuery` prop追加。内部TaskTree検索と合成
+- **ScheduleEventsContent/EventList 検索対応**: `sidebarSearchQuery` → `EventList` へ伝搬。タイトル部分一致フィルタリング追加
+- **i18n**: `schedule.searchTasks` / `schedule.searchEvents` を en.json / ja.json に追加
+
+### 2026-04-06 - Calendar IME修正 + Popup タイトル編集 + メモ重複バグ修正
+
+#### 概要
+
+Calendar からのイベント/タスク作成時にIME変換確定のEnterでタイトルが確定されてしまう問題の修正、ScheduleItemPreviewPopup へのタイトル編集機能追加、InlineMemoInput のEnter押下時メモ二重生成バグの修正を実施。
+
+#### 変更点
+
+- **EventCreatePopover IME対応**: `e.nativeEvent.isComposing` チェックを追加。変換確定のEnterではsubmitされなくなった
+- **TaskPreviewPopup IME対応**: タイトル編集入力にも `isComposing` チェック追加
+- **ScheduleItemPreviewPopup タイトル編集**: `onUpdateTitle` prop + `isEditingTitle`/`titleDraft` state によるインライン編集機能を追加。クリックで編集開始、Enter/blur で確定、Escape でキャンセル。IME composing 対応付き
+- **タイトル編集接続**: `CalendarView`（`updateScheduleItem` 経由）、`ScheduleTimeGrid`（`onUpdateScheduleItemTitle` 新prop）、`OneDaySchedule`/`DualDayFlowLayout` の3箇所で接続
+- **InlineMemoInput 二重実行バグ修正**: Enter → `handleSave()` + blur → `handleSave()` の二重呼び出しを `savedRef` ガードで防止。IME composing チェックも追加
+
 ### 2026-04-06 - Database機能コードレビュー改善（セキュリティ・可読性・i18n）
 
 #### 概要
@@ -47,37 +76,5 @@
 - **RoutineManagementOverlay表示/非表示UI**: Routine単体とGroupそれぞれにEye/EyeOffトグルボタン追加。非表示時はopacity-40で視覚的に区別。Groupの非表示はメンバーRoutineに優先
 - **Group編集ダイアログメンバー一覧**: `RoutineGroupEditDialog`にメンバーRoutine一覧を追加。各RoutineのstartTime/endTimeをTimeInputでインライン編集可能。新規作成時は選択タグから動的プレビュー
 - **i18n**: `routineGroup.memberRoutines`、`routineGroup.noTimeSet`をen/jaに追加
-
-### 2026-04-05 - Calendar EditPanel 時刻UI統一 & 日本語フォーマット
-
-#### 概要
-
-Calendar DayCell のアイテムクリック時に表示される EditPanel（ScheduleItemPreviewPopup / TaskPreviewPopup）の時刻編集UIを DateInput と統一し、即時保存に変更。DateInput に i18n 対応の日本語フォーマットを追加。
-
-#### 変更点
-
-- **DateInput i18n フォーマット**: `useTranslation` の `i18n.language` で言語判定し、ja →「4月5日」形式、en →「4/5」形式に自動切替
-- **ScheduleItemPreviewPopup 時刻UI統一**: `isEditingTime` state と Save/Cancel ボタンを削除。時刻を常に TimeInput スピンボタンで表示し、変更時に `onUpdateTime` を即時呼び出し。`useEffect` で外部 state 同期追加
-- **TaskPreviewPopup 時刻UI統一**: 同様に `isEditingTime` と Save/Cancel を削除、常時 TimeInput 表示。`formatScheduleRange`（"Apr 5 09:00"形式）の使用を削除し月日の冗長表示を解消。即時保存の `saveTime` ヘルパー追加
-
-### 2026-04-05 - Calendar dismiss + Achievement 2カラム + MiniTodayFlow 3セクションUI
-
-#### 概要
-
-Calendar GroupPreviewPopup に dismiss 機能追加、Achievement パネルを Individual/Groups の2カラムに分割、MiniTodayFlow の表示/非表示バグ修正と Groups/Timeline/All-day の3セクションUI分離を実施。
-
-#### 変更点
-
-- **Calendar GroupPreviewPopup dismiss**: EyeOff ボタンでグループ全体 dismiss + 個別アイテム dismiss 追加。既存の `dismissScheduleItem` を活用しバックエンド変更不要
-- **Achievement 2カラム**: `AchievementDetailsOverlay` を Individual（グループ未所属）/ Groups（グループ集約率 + 展開で内部ルーティン表示）の2カラムに分割。CompactBar コンポーネントでバー高さ h-1 に縮小
-- **MiniTodayFlow Eye/EyeOff 逆転修正**: dismissed 状態で Eye（表示する）、visible 状態で EyeOff（非表示にする）に修正。Group/Routine/Event 全3箇所
-- **undismissScheduleItem 追加**: `useScheduleItems` に新メソッド追加。DB undismiss → context scheduleItems 再フェッチ → version バンプで DayFlow/Calendar に即時反映
-- **showTasks フィルター追加**: MiniTodayFlow に `showTasks` 変数追加、activeFilters 対応
-- **Routine 頻度編集の過去保護**: `reconcileRoutineScheduleItems` で今日以降のアイテムのみ削除/作成するよう制限
-- **Calendar 即時反映**: CalendarView の月間データ useEffect に `scheduleItemsVersion` 依存追加
-- **syncScheduleItemsWithRoutines version バンプ**: タイトル/時間変更時に `bumpVersion()` を呼び MiniTodayFlow に即時反映
-- **MiniTodayFlow scheduleItem ベース表示**: ルーティン一覧ではなく scheduleItem が存在するルーティンのみ表示。Group も memberScheduleItems が空ならスキップ
-- **MiniTodayFlow 3セクション UI**: Groups（色付きカード）/ Timeline（接続線付きタイムライン）/ All-day（Sun アイコン + ラベル区切り）に分離
-- **i18n**: `groupContextMenu.dismissItem`, `schedule.stats.individual`, `schedule.stats.groups` を en/ja に追加
 
 <!-- older entries archived to HISTORY-archive.md -->
