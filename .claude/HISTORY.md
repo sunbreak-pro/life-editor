@@ -1,5 +1,19 @@
 # HISTORY.md - 変更履歴
 
+### 2026-04-09 - Routine Calendar — 複数グループ対応 & 頻度クリーンアップ
+
+#### 概要
+
+RoutineGroupが複数タグを持つ場合、Calendarビューでグループチップのカウント・ポップアップが一つのグループのアイテムしか表示しないバグを修正。また、頻度設定に合わない既存スケジュールアイテムを自動クリーンアップするロジックを追加。
+
+#### 変更点
+
+- **useRoutineGroupComputed.ts**: `groupForRoutine`を`Map<string, RoutineGroup>`→`Map<string, RoutineGroup[]>`に変更。1ルーティンが複数グループに属せるように
+- **useCalendar.ts**: 各スケジュールアイテムを全マッチグループのバケットに追加。`groupScheduleItems`を`startTime`でソート
+- **routineScheduleSync.ts**: グループ頻度チェックを「いずれかのグループが許可すればOK」ロジックに変更
+- **useScheduleItems.ts**: 4関数(`ensureRoutineItemsForDate/backfill/ensureWeek/ensureRange`)のパラメータ型・グループチェック更新。`ensureRoutineItemsForDateRange`に頻度不一致アイテムの自動削除ロジック追加
+- **消費側5ファイル更新**: `useDayFlowColumn.ts`/`OneDaySchedule.tsx`（フィルタで`.some()`使用）、`ScheduleTimeGrid.tsx`（`groups?.[0]`）、`AchievementDetailsOverlay.tsx`（全グループにカウント加算）、`CalendarView.tsx`（reconcile `groups?.[0]`）
+
 ### 2026-04-09 - Note/Daily 編集ロック機能
 
 #### 概要
@@ -72,24 +86,5 @@ MaterialsセクションのDaily(日記)で、headerタイトルとsidebarの日
 
 - **dateKey.ts**: `formatDateHeading`、`formatDisplayDate`、`formatMonthLabel`に`locale`引数追加。ja時は「2026年4月8日 火曜日」「4月8日」「2026年4月」形式
 - **呼び出し元6ファイル更新**: DailyMemoView、DailySidebar、ConnectSidebar、MemoNodeComponent、PaperCanvasView、PaperAddItemDialogで`i18n.language`を渡すよう修正
-
-### 2026-04-08 - Task Status UI + Complete Folder + Event Creation
-
-#### 概要
-
-TaskDetailPanelにステータス表示、EventDetailPanelに完了チェックボックス、フォルダ内タスク完了時のCompleteフォルダ自動管理、EventsタブへのEvent直接作成機能を追加。チェックボックスUIを角丸四角形に統一。
-
-#### 変更点
-
-- **RoundedCheckbox共有コンポーネント**: `frontend/src/components/shared/RoundedCheckbox.tsx` を新規作成。角丸四角形スタイルのチェックボックス（button ベース）
-- **TaskDetailPanel ステータス表示**: タイトル行にTaskStatusIconを追加。3段階ステータス切替 + confetti/sound エフェクト対応
-- **EventDetailPanel 完了トグル**: タイトル左にRoundedCheckboxを配置。完了時はストライクスルー+opacity低下表示
-- **EventList チェックボックス統一**: Lucide Check/CircleアイコンをRoundedCheckboxに置換
-- **Completeフォルダ自動管理**: フォルダ内タスク完了時に「Complete」システムフォルダを自動作成し、タスクを移動。未完了に戻すと元フォルダに復帰、空になったCompleteフォルダは自動削除
-- **データモデル拡張**: TaskNodeに`folderType`/`originalParentId`追加、DBマイグレーションV50、taskRepository更新
-- **Completeフォルダ保護**: リネーム・削除・DnD投入・コンテキストメニュー無効化。FolderCheckアイコンで視覚区別。i18n対応タイトル表示
-- **Completeフォルダ表示**: Incompleteタブ・TaskDetailPanelの両方からCompleteフォルダと内容を確認可能。sortTaskNodesで常に最下部に配置
-- **Event直接作成**: Eventsタブのタブバー右端に+ボタン追加。EventQuickCreatePopoverでMiniCalendarGrid+TimeSettingsInlineを使用した作成UI
-- **i18n**: `taskTree.completeFolder`、`events.createEvent`、`eventDetail.markComplete/markIncomplete` 等を en.json/ja.json に追加
 
 <!-- older entries archived to HISTORY-archive.md -->
