@@ -25,6 +25,9 @@ import type { Tray } from "electron";
 
 const isDev = !app.isPackaged;
 const terminalManager = new TerminalManager();
+const reminderService = new ReminderService();
+const autoArchiveService = new AutoArchiveService();
+let appTray: Tray | null = null;
 
 if (isDev) {
   process.env.ELECTRON_DISABLE_SECURITY_WARNINGS = "true";
@@ -115,13 +118,50 @@ app
       log.warn("[Main] Auto MCP registration failed:", e),
     );
 
+    // Read system settings before creating window
+    const appSettings = createAppSettingsRepository(db);
+    const startMinimized = appSettings.get("start_minimized") === "true";
+
     const win = createWindow();
+    if (startMinimized) {
+      win.hide();
+    }
     terminalManager.setMainWindow(win);
     createMenu(win);
 
     if (!isDev) {
       initAutoUpdater(win);
     }
+
+    // System tray
+    const trayEnabled = appSettings.get("tray_enabled") === "true";
+    if (trayEnabled) {
+      appTray = createTray(win);
+    }
+
+    // Tray timer updates from renderer
+    ipcMain.handle(
+      "tray:updateTimer",
+      (_event, state: { remaining: string; isRunning: boolean }) => {
+        if (appTray) {
+          updateTrayTimer(appTray, state);
+        }
+      },
+    );
+
+    // Global shortcuts
+    const shortcutsJson = appSettings.get("global_shortcuts");
+    if (shortcutsJson) {
+      try {
+        registerGlobalShortcuts(win, JSON.parse(shortcutsJson));
+      } catch (e) {
+        log.warn("[Main] Failed to register global shortcuts:", e);
+      }
+    }
+
+    // Start background services
+    reminderService.start(db, win);
+    autoArchiveService.start(db);
 
     // macOS: re-create window on dock click when no windows exist
     app.on("activate", () => {
@@ -142,6 +182,9 @@ app.on("window-all-closed", () => {
 });
 
 app.on("before-quit", () => {
+  reminderService.stop();
+  autoArchiveService.stop();
+  unregisterAllGlobalShortcuts();
   terminalManager.destroyAll();
   stopServer().catch(() => {});
   closeDatabase();

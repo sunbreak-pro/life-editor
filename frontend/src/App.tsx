@@ -22,6 +22,7 @@ import { useElectronMenuActions } from "./hooks/useElectronMenuActions";
 import { useTaskDetailHandlers } from "./hooks/useTaskDetailHandlers";
 import { useUndoRedoKeyboard } from "./components/shared/UndoRedo";
 import { useNoteContext } from "./hooks/useNoteContext";
+import { useReminderListener } from "./hooks/useReminderListener";
 import type { SectionId } from "./types/taskTree";
 import { STORAGE_KEYS } from "./constants/storageKeys";
 
@@ -94,6 +95,7 @@ function App() {
   });
 
   useUndoRedoKeyboard();
+  useReminderListener();
 
   useAppKeyboardShortcuts({
     timer,

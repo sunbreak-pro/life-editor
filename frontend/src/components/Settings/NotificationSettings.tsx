@@ -3,6 +3,7 @@ import { Bell, BellOff } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { STORAGE_KEYS } from "../../constants/storageKeys";
 import { SoundEffectSettings } from "./SoundEffectSettings";
+import { ReminderSettings } from "./ReminderSettings";
 
 export function NotificationSettings() {
   const { t } = useTranslation();
@@ -73,6 +74,10 @@ export function NotificationSettings() {
 
       <div className="mt-6 border-t border-notion-border pt-6">
         <SoundEffectSettings />
+      </div>
+
+      <div className="mt-6 border-t border-notion-border pt-6">
+        <ReminderSettings />
       </div>
     </div>
   );

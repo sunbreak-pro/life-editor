@@ -80,11 +80,6 @@ export function registerSystemHandlers(repo: AppSettingsRepository): void {
     () => undefined,
   );
 
-  // --- Tray Timer Update (no-op: actual tray update is handled by tray module) ---
-  query("tray:updateTimer", "System", "updateTimer", () => {
-    // no-op — the tray module listens for timer state changes directly
-  });
-
   // --- Reminder Settings ---
   query("reminder:getSettings", "System", "getReminderSettings", () => {
     return {

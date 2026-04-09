@@ -1,6 +1,7 @@
 import { useCallback } from "react";
 import type { TaskNode, SectionId } from "../types/taskTree";
 import type { TimerContextValue } from "../context/TimerContextValue";
+import type { Priority } from "../types/priority";
 import { STORAGE_KEYS } from "../constants/storageKeys";
 
 interface UseTaskDetailHandlersParams {
@@ -135,6 +136,14 @@ export function useTaskDetailHandlers({
     [updateNode],
   );
 
+  const handlePriorityChange = useCallback(
+    (priority: Priority | null) => {
+      if (!selectedTaskId) return;
+      updateNode(selectedTaskId, { priority });
+    },
+    [selectedTaskId, updateNode],
+  );
+
   const handleCompleteTask = useCallback(() => {
     const taskId = timer.activeTask?.id;
     if (!taskId) return;
@@ -229,5 +238,6 @@ export function useTaskDetailHandlers({
     handleCalendarSelectNote,
     handleCreateFolder,
     handleCreateTask,
+    handlePriorityChange,
   };
 }

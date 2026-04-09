@@ -1,3 +1,17 @@
+### 2026-04-06 - Calendar IME修正 + Popup タイトル編集 + メモ重複バグ修正
+
+#### 概要
+
+Calendar からのイベント/タスク作成時にIME変換確定のEnterでタイトルが確定されてしまう問題の修正、ScheduleItemPreviewPopup へのタイトル編集機能追加、InlineMemoInput のEnter押下時メモ二重生成バグの修正を実施。
+
+#### 変更点
+
+- **EventCreatePopover IME対応**: `e.nativeEvent.isComposing` チェックを追加。変換確定のEnterではsubmitされなくなった
+- **TaskPreviewPopup IME対応**: タイトル編集入力にも `isComposing` チェック追加
+- **ScheduleItemPreviewPopup タイトル編集**: `onUpdateTitle` prop + `isEditingTitle`/`titleDraft` state によるインライン編集機能を追加。クリックで編集開始、Enter/blur で確定、Escape でキャンセル。IME composing 対応付き
+- **タイトル編集接続**: `CalendarView`（`updateScheduleItem` 経由）、`ScheduleTimeGrid`（`onUpdateScheduleItemTitle` 新prop）、`OneDaySchedule`/`DualDayFlowLayout` の3箇所で接続
+- **InlineMemoInput 二重実行バグ修正**: Enter → `handleSave()` + blur → `handleSave()` の二重呼び出しを `savedRef` ガードで防止。IME composing チェックも追加
+
 ### 2026-04-06 - Database機能コードレビュー改善（セキュリティ・可読性・i18n）
 
 #### 概要

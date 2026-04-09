@@ -1,5 +1,31 @@
 # HISTORY.md - 変更履歴
 
+### 2026-04-09 - Settings拡充 — デフォルト動作・リマインダー・タスク管理・システム連携
+
+#### 概要
+
+他のタスク管理アプリと比較して不足していた設定項目を4カテゴリ（デフォルト動作、リマインダー、タスク管理、システム連携）にわたって追加。DB基盤からElectron Main Process、フロントエンドSettings UIまでフルスタック実装。
+
+#### 変更点
+
+- **DBマイグレーションV52-V53**: `tasks.priority`カラム（INTEGER, P1-P4）追加+インデックス、`app_settings`テーブル（key-value）新規作成
+- **P1-P4優先度システム**: `PriorityBadge`/`PriorityPicker`共有コンポーネント、TaskTreeNode・TaskDetailPanel・TaskDetailHeaderに統合、`sortTaskNodes.ts`にpriorityソートモード追加、SortDropdownに反映
+- **起動時画面設定**: `App.tsx`のinitial sectionをlocalStorage (`STARTUP_SCREEN`) から読み取り。5セクション選択可
+- **デフォルトタスクフォルダ**: `useTaskTreeCRUD.ts`の`addNode()`でparentId未指定時にデフォルトフォルダ適用
+- **完了タスク自動アーカイブ**: `AutoArchiveService`（Main Process、6時間間隔）。app_settings `auto_archive_days` に基づきソフトデリート
+- **親タスク自動完了**: `applyStatusChange`内で全子タスクDONE検出→親フォルダ自動完了（最大10階層、localStorage設定ON時のみ）
+- **完了タスク表示切替**: localStorage `HIDE_COMPLETED_TASKS` トグル
+- **リマインダーサービス**: `ReminderService`（Main Process、60秒間隔）。scheduledAt基準でOS通知+renderer `reminder:notify`イベント送信。デイリーレビュー通知対応
+- **アプリ内リマインダー通知**: `useReminderListener.ts`フック→ToastContext経由で表示。`electron.d.ts`に`onReminder`型追加
+- **システムトレイ**: `electron/tray.ts` — macOSテンプレートアイコン、コンテキストメニュー(Show/Hide/Quit)、`tray.setTitle()`でタイマー残時間表示
+- **グローバルショートカット**: `electron/globalShortcuts.ts` — `CmdOrCtrl+Shift+Space`(タイマー切替)、`CmdOrCtrl+Shift+A`(クイック追加)。`menu:action`イベント連携
+- **自動起動/最小化起動**: `app.setLoginItemSettings()` + `start_minimized`設定。main.tsで`win.hide()`制御
+- **IPC 16チャンネル追加**: settings:get/set/getAll/remove、system:get/set×4(autoLaunch/startMinimized/trayEnabled/globalShortcuts)、tray:updateTimer、reminder:get/setSettings。preload.ts ALLOWED_CHANNELS + onReminderリスナー追加
+- **DataService全実装更新**: インターフェース16メソッド追加、ElectronDataService実装、OfflineDataService/RestDataServiceスタブ、mockDataServiceモック
+- **Settings UI**: `BehaviorSettings.tsx`（5設定）、`SystemSettings.tsx`（4設定+グローバルショートカット表示）、`ReminderSettings.tsx`（タスクリマインダー+デイリーレビュー）。Settings.txsにbehaviors/systemサブタブ追加、settingsSearchRegistryに2エントリ追加
+- **i18n**: settings.behaviors/system（18キー）、reminders（12キー）、priority（6キー）、taskTree.sortPriority をen.json/ja.jsonに追加
+- **TimerContext**: タイマーtick時に`tray:updateTimer` IPC送信でトレイ表示連動
+
 ### 2026-04-09 - Note/Daily パスワード保護 & 画面ロック機能
 
 #### 概要
@@ -63,19 +89,5 @@ Schedule セクションの Calendar RightSidebar にあったカスタム検索
 - **ScheduleTasksContent 検索対応**: `sidebarSearchQuery` prop追加。内部TaskTree検索と合成
 - **ScheduleEventsContent/EventList 検索対応**: `sidebarSearchQuery` → `EventList` へ伝搬。タイトル部分一致フィルタリング追加
 - **i18n**: `schedule.searchTasks` / `schedule.searchEvents` を en.json / ja.json に追加
-
-### 2026-04-06 - Calendar IME修正 + Popup タイトル編集 + メモ重複バグ修正
-
-#### 概要
-
-Calendar からのイベント/タスク作成時にIME変換確定のEnterでタイトルが確定されてしまう問題の修正、ScheduleItemPreviewPopup へのタイトル編集機能追加、InlineMemoInput のEnter押下時メモ二重生成バグの修正を実施。
-
-#### 変更点
-
-- **EventCreatePopover IME対応**: `e.nativeEvent.isComposing` チェックを追加。変換確定のEnterではsubmitされなくなった
-- **TaskPreviewPopup IME対応**: タイトル編集入力にも `isComposing` チェック追加
-- **ScheduleItemPreviewPopup タイトル編集**: `onUpdateTitle` prop + `isEditingTitle`/`titleDraft` state によるインライン編集機能を追加。クリックで編集開始、Enter/blur で確定、Escape でキャンセル。IME composing 対応付き
-- **タイトル編集接続**: `CalendarView`（`updateScheduleItem` 経由）、`ScheduleTimeGrid`（`onUpdateScheduleItemTitle` 新prop）、`OneDaySchedule`/`DualDayFlowLayout` の3箇所で接続
-- **InlineMemoInput 二重実行バグ修正**: Enter → `handleSave()` + blur → `handleSave()` の二重呼び出しを `savedRef` ガードで防止。IME composing チェックも追加
 
 <!-- older entries archived to HISTORY-archive.md -->

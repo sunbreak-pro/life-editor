@@ -1090,4 +1090,55 @@ export class RestDataService implements DataService {
   upsertDatabaseCell(): Promise<never> {
     return notSupported("upsertDatabaseCell");
   }
+
+  // App Settings
+  getAppSetting(): Promise<never> {
+    return notSupported("getAppSetting");
+  }
+  setAppSetting(): Promise<never> {
+    return notSupported("setAppSetting");
+  }
+  getAllAppSettings(): Promise<never> {
+    return notSupported("getAllAppSettings");
+  }
+  removeAppSetting(): Promise<never> {
+    return notSupported("removeAppSetting");
+  }
+
+  // System Integration
+  getAutoLaunch(): Promise<never> {
+    return notSupported("getAutoLaunch");
+  }
+  setAutoLaunch(): Promise<never> {
+    return notSupported("setAutoLaunch");
+  }
+  getStartMinimized(): Promise<never> {
+    return notSupported("getStartMinimized");
+  }
+  setStartMinimized(): Promise<never> {
+    return notSupported("setStartMinimized");
+  }
+  getTrayEnabled(): Promise<never> {
+    return notSupported("getTrayEnabled");
+  }
+  setTrayEnabled(): Promise<never> {
+    return notSupported("setTrayEnabled");
+  }
+  getGlobalShortcuts(): Promise<never> {
+    return notSupported("getGlobalShortcuts");
+  }
+  setGlobalShortcuts(): Promise<never> {
+    return notSupported("setGlobalShortcuts");
+  }
+  updateTrayTimer(): Promise<never> {
+    return notSupported("updateTrayTimer");
+  }
+
+  // Reminders
+  getReminderSettings(): Promise<never> {
+    return notSupported("getReminderSettings");
+  }
+  setReminderSettings(): Promise<never> {
+    return notSupported("setReminderSettings");
+  }
 }

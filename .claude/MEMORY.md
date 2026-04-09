@@ -13,9 +13,9 @@
 
 ## 直近の完了
 
+- Settings拡充 — デフォルト動作・リマインダー・タスク管理・システム連携 ✅（2026-04-09）
 - Note/Daily パスワード保護 & 画面ロック機能 ✅（2026-04-09）
 - Daily日記の日付表示i18n対応 ✅（2026-04-08）
-- Task Status UI + Complete Folder + Event Creation ✅（2026-04-08）
 
 ## 予定
 

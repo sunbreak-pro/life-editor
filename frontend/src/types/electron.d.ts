@@ -11,6 +11,9 @@ export interface ElectronAPI {
   onClaudeStatus(
     callback: (sessionId: string, state: string) => void,
   ): () => void;
+  onReminder(
+    callback: (data: { id: string; title: string; type: string }) => void,
+  ): () => void;
 }
 
 declare global {
