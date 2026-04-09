@@ -1,5 +1,5 @@
 import { Suspense, useCallback, useRef, useState } from "react";
-import { Heart, BookOpen, Lock, MoreHorizontal } from "lucide-react";
+import { Heart, BookOpen, Lock, MoreHorizontal, PenOff } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useMemoContext } from "../../hooks/useMemoContext";
 import { useScreenLockContext } from "../../hooks/useScreenLockContext";
@@ -28,6 +28,7 @@ export function DailyMemoView() {
     setMemoPassword,
     removeMemoPassword,
     verifyMemoPassword,
+    toggleEditLock,
   } = useMemoContext();
   const { isUnlocked, unlock } = useScreenLockContext();
   const { t, i18n } = useTranslation();
@@ -39,6 +40,7 @@ export function DailyMemoView() {
 
   const memoId = selectedMemo?.id ?? `memo-${selectedDate}`;
   const isLocked = !!selectedMemo?.hasPassword && !isUnlocked(memoId);
+  const isEditLocked = !!selectedMemo?.isEditLocked;
 
   const handleUpdate = useCallback(
     (content: string) => {
@@ -102,8 +104,8 @@ export function DailyMemoView() {
           </h2>
           {selectedMemo && (
             <button
-              onClick={() => togglePin(selectedDate)}
-              className={`p-1.5 rounded transition-colors ${
+              onClick={() => !isEditLocked && togglePin(selectedDate)}
+              className={`p-1.5 rounded transition-colors ${isEditLocked ? "cursor-not-allowed opacity-50" : ""} ${
                 selectedMemo.isPinned
                   ? "text-red-500 hover:text-red-400"
                   : "text-notion-text-secondary hover:text-notion-text"
@@ -139,11 +141,20 @@ export function DailyMemoView() {
           {showOptionsMenu && (
             <ItemOptionsMenu
               hasPassword={!!selectedMemo?.hasPassword}
+              isEditLocked={isEditLocked}
               onSetPassword={() => setPasswordDialogMode("set")}
               onChangePassword={() => setPasswordDialogMode("change")}
               onRemovePassword={() => setPasswordDialogMode("remove")}
+              onToggleEditLock={() => toggleEditLock(selectedDate)}
               onClose={() => setShowOptionsMenu(false)}
               anchorRef={moreButtonRef}
+            />
+          )}
+          {isEditLocked && !isLocked && (
+            <PenOff
+              size={14}
+              className="text-notion-text-secondary/60 shrink-0"
+              title={t("screenLock.editLocked")}
             />
           )}
         </div>
@@ -198,6 +209,7 @@ export function DailyMemoView() {
                 onUpdate={handleUpdate}
                 entityType="memo"
                 syncEntityId={selectedMemo?.id}
+                editable={!isEditLocked}
               />
             </Suspense>
           </div>

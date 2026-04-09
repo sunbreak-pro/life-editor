@@ -1509,6 +1509,9 @@
     "passwordsMismatch": "Passwords do not match",
     "passwordTooShort": "Password must be at least 4 characters",
     "locked": "Locked",
-    "moreOptions": "More options"
+    "moreOptions": "More options",
+    "lockEditing": "Lock Editing",
+    "unlockEditing": "Unlock Editing",
+    "editLocked": "Edit Locked"
   }
 }

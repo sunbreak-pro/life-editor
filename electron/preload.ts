@@ -50,6 +50,7 @@ const ALLOWED_CHANNELS = new Set([
   "db:memo:setPassword",
   "db:memo:removePassword",
   "db:memo:verifyPassword",
+  "db:memo:toggleEditLock",
   // Notes
   "db:notes:fetchAll",
   "db:notes:fetchDeleted",
@@ -64,6 +65,7 @@ const ALLOWED_CHANNELS = new Set([
   "db:notes:setPassword",
   "db:notes:removePassword",
   "db:notes:verifyPassword",
+  "db:notes:toggleEditLock",
   // Databases
   "db:database:fetchAll",
   "db:database:fetchFull",

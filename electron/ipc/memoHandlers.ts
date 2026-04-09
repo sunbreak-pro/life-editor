@@ -87,6 +87,16 @@ export function registerMemoHandlers(repo: MemoRepository): void {
     (_args, result) => (result as { date?: string })?.date,
   );
 
+  mutation(
+    "db:memo:toggleEditLock",
+    "Memo",
+    "toggleEditLock",
+    "memo",
+    "update",
+    (_event: unknown, date: string) => repo.toggleEditLock(date),
+    (_args, result) => (result as { date?: string })?.date,
+  );
+
   query(
     "db:memo:verifyPassword",
     "Memo",

@@ -73,6 +73,7 @@ interface MemoEditorProps {
   onUpdate: (content: string) => void;
   entityType?: WikiTagEntityType;
   syncEntityId?: string;
+  editable?: boolean;
 }
 
 const ATTACHMENT_SCHEME = "attachment://";
@@ -140,6 +141,7 @@ export function MemoEditor({
   onUpdate,
   entityType = "task",
   syncEntityId,
+  editable = true,
 }: MemoEditorProps) {
   const debounceRef = useRef<number | null>(null);
   const onUpdateRef = useRef(onUpdate);
@@ -239,6 +241,7 @@ export function MemoEditor({
         DragHandle,
         CustomInputRules,
       ],
+      editable,
       content: initialContent ? tryParseJSON(initialContent) : undefined,
       onUpdate: ({ editor }) => {
         if (resolvingRef.current) return;
@@ -311,6 +314,10 @@ export function MemoEditor({
     },
     [taskId],
   );
+
+  useEffect(() => {
+    if (editor) editor.setEditable(editable);
+  }, [editor, editable]);
 
   // Upload image and insert into editor
   const handleImageUpload = useCallback(

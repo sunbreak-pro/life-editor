@@ -11,6 +11,7 @@ interface NoteRow {
   order_index: number;
   is_pinned: number;
   password_hash: string | null;
+  is_edit_locked: number;
   is_deleted: number;
   deleted_at: string | null;
   color: string | null;
@@ -28,6 +29,7 @@ function rowToNode(row: NoteRow): NoteNode {
     order: row.order_index,
     isPinned: row.is_pinned === 1,
     hasPassword: !!row.password_hash,
+    isEditLocked: row.is_edit_locked === 1,
     isDeleted: row.is_deleted === 1,
     deletedAt: row.deleted_at ?? undefined,
     color: row.color ?? undefined,
@@ -63,6 +65,11 @@ export function createNoteRepository(db: Database.Database) {
     `),
     removePassword: db.prepare(`
       UPDATE notes SET password_hash = NULL, version = version + 1, updated_at = datetime('now')
+      WHERE id = ?
+    `),
+    toggleEditLock: db.prepare(`
+      UPDATE notes SET is_edit_locked = CASE WHEN is_edit_locked = 1 THEN 0 ELSE 1 END,
+        version = version + 1, updated_at = datetime('now')
       WHERE id = ?
     `),
     syncTree: db.prepare(`
@@ -172,6 +179,12 @@ export function createNoteRepository(db: Database.Database) {
 
     removePassword(id: string): NoteNode {
       stmts.removePassword.run(id);
+      const row = stmts.fetchById.get(id) as NoteRow;
+      return rowToNode(row);
+    },
+
+    toggleEditLock(id: string): NoteNode {
+      stmts.toggleEditLock.run(id);
       const row = stmts.fetchById.get(id) as NoteRow;
       return rowToNode(row);
     },

@@ -392,6 +392,9 @@ export class OfflineDataService implements DataService {
   verifyMemoPassword(_date: string, _password: string): Promise<boolean> {
     return notSupported("verifyMemoPassword");
   }
+  toggleMemoEditLock(_date: string): Promise<MemoNode> {
+    return notSupported("toggleMemoEditLock");
+  }
 
   // ============================================================
   // Notes
@@ -517,6 +520,9 @@ export class OfflineDataService implements DataService {
   }
   verifyNotePassword(_id: string, _password: string): Promise<boolean> {
     return notSupported("verifyNotePassword");
+  }
+  toggleNoteEditLock(_id: string): Promise<NoteNode> {
+    return notSupported("toggleNoteEditLock");
   }
 
   createNoteFolder(

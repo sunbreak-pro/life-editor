@@ -9,6 +9,7 @@ export interface NoteNode {
   order: number;
   isPinned: boolean;
   hasPassword?: boolean;
+  isEditLocked?: boolean;
   isDeleted: boolean;
   deletedAt?: string;
   color?: string;

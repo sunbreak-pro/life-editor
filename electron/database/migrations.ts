@@ -250,6 +250,11 @@ export function runMigrations(db: Database.Database): void {
     migrateV53(db);
   }
 
+  if (currentVersion < 54) {
+    log.info("[DB] Running migration V54");
+    migrateV54(db);
+  }
+
   const newVersion = db.pragma("user_version", { simple: true }) as number;
   if (newVersion !== currentVersion) {
     log.info(`[DB] Schema migrated: ${currentVersion} → ${newVersion}`);
@@ -1842,6 +1847,19 @@ function migrateV53(db: Database.Database): void {
       );
     `);
     db.pragma("user_version = 53");
+  });
+  migrate();
+}
+
+function migrateV54(db: Database.Database): void {
+  const migrate = db.transaction(() => {
+    db.exec(`
+      ALTER TABLE notes ADD COLUMN is_edit_locked INTEGER NOT NULL DEFAULT 0;
+    `);
+    db.exec(`
+      ALTER TABLE memos ADD COLUMN is_edit_locked INTEGER NOT NULL DEFAULT 0;
+    `);
+    db.pragma("user_version = 54");
   });
   migrate();
 }

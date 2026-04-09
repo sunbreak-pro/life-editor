@@ -139,6 +139,7 @@ export interface DataService {
   setMemoPassword(date: string, password: string): Promise<MemoNode>;
   removeMemoPassword(date: string, currentPassword: string): Promise<MemoNode>;
   verifyMemoPassword(date: string, password: string): Promise<boolean>;
+  toggleMemoEditLock(date: string): Promise<MemoNode>;
 
   // Notes
   fetchAllNotes(): Promise<NoteNode[]>;
@@ -157,6 +158,7 @@ export interface DataService {
   setNotePassword(id: string, password: string): Promise<NoteNode>;
   removeNotePassword(id: string, currentPassword: string): Promise<NoteNode>;
   verifyNotePassword(id: string, password: string): Promise<boolean>;
+  toggleNoteEditLock(id: string): Promise<NoteNode>;
   createNoteFolder(
     id: string,
     title: string,

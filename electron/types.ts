@@ -74,6 +74,7 @@ export interface MemoNode {
   content: string;
   isPinned?: boolean;
   hasPassword?: boolean;
+  isEditLocked?: boolean;
   isDeleted?: boolean;
   deletedAt?: string | null;
   createdAt: string;
@@ -109,6 +110,7 @@ export interface NoteNode {
   order: number;
   isPinned: boolean;
   hasPassword?: boolean;
+  isEditLocked?: boolean;
   isDeleted: boolean;
   deletedAt?: string;
   color?: string;

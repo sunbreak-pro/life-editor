@@ -242,6 +242,9 @@ export class ElectronDataService implements DataService {
   verifyMemoPassword(date: string, password: string): Promise<boolean> {
     return invoke("db:memo:verifyPassword", date, password);
   }
+  toggleMemoEditLock(date: string): Promise<MemoNode> {
+    return invoke("db:memo:toggleEditLock", date);
+  }
 
   // Notes
   fetchAllNotes(): Promise<NoteNode[]> {
@@ -281,6 +284,9 @@ export class ElectronDataService implements DataService {
   }
   verifyNotePassword(id: string, password: string): Promise<boolean> {
     return invoke("db:notes:verifyPassword", id, password);
+  }
+  toggleNoteEditLock(id: string): Promise<NoteNode> {
+    return invoke("db:notes:toggleEditLock", id);
   }
   createNoteFolder(
     id: string,

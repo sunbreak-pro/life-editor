@@ -1,5 +1,5 @@
 import { Suspense, useCallback, useRef, useState } from "react";
-import { Heart, Lock, MoreHorizontal, StickyNote } from "lucide-react";
+import { Heart, Lock, MoreHorizontal, PenOff, StickyNote } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useNoteContext } from "../../hooks/useNoteContext";
 import { useScreenLockContext } from "../../hooks/useScreenLockContext";
@@ -29,6 +29,7 @@ export function NotesView() {
     setNotePassword,
     removeNotePassword,
     verifyNotePassword,
+    toggleEditLock,
   } = useNoteContext();
   const { isUnlocked, unlock } = useScreenLockContext();
 
@@ -39,6 +40,7 @@ export function NotesView() {
   const moreButtonRef = useRef<HTMLButtonElement>(null);
 
   const isLocked = !!selectedNote?.hasPassword && !isUnlocked(selectedNote.id);
+  const isEditLocked = !!selectedNote?.isEditLocked;
 
   const handlePasswordSubmit = useCallback(
     async (password: string, newPassword?: string): Promise<boolean> => {
@@ -111,8 +113,10 @@ export function NotesView() {
           <div className="flex items-center gap-2 mb-4">
             <div className="relative">
               <button
-                onClick={() => setShowColorPicker(!showColorPicker)}
-                className="p-1 rounded hover:bg-notion-hover"
+                onClick={() =>
+                  !isEditLocked && setShowColorPicker(!showColorPicker)
+                }
+                className={`p-1 rounded hover:bg-notion-hover ${isEditLocked ? "cursor-not-allowed opacity-50" : ""}`}
               >
                 <StickyNote
                   size={16}
@@ -143,12 +147,13 @@ export function NotesView() {
               type="text"
               value={selectedNote.title}
               onChange={handleTitleChange}
+              readOnly={isEditLocked}
               placeholder={t("notesView.untitled")}
-              className="flex-1 text-lg font-semibold text-notion-text bg-transparent border-none outline-none placeholder:text-notion-text-secondary"
+              className={`flex-1 text-lg font-semibold text-notion-text bg-transparent border-none outline-none placeholder:text-notion-text-secondary ${isEditLocked ? "cursor-not-allowed" : ""}`}
             />
             <button
-              onClick={() => togglePin(selectedNote.id)}
-              className={`p-1.5 rounded transition-colors ${
+              onClick={() => !isEditLocked && togglePin(selectedNote.id)}
+              className={`p-1.5 rounded transition-colors ${isEditLocked ? "cursor-not-allowed opacity-50" : ""} ${
                 selectedNote.isPinned
                   ? "text-red-500 hover:text-red-400"
                   : "text-notion-text-secondary hover:text-notion-text"
@@ -183,11 +188,20 @@ export function NotesView() {
             {showOptionsMenu && (
               <ItemOptionsMenu
                 hasPassword={!!selectedNote.hasPassword}
+                isEditLocked={isEditLocked}
                 onSetPassword={() => setPasswordDialogMode("set")}
                 onChangePassword={() => setPasswordDialogMode("change")}
                 onRemovePassword={() => setPasswordDialogMode("remove")}
+                onToggleEditLock={() => toggleEditLock(selectedNote.id)}
                 onClose={() => setShowOptionsMenu(false)}
                 anchorRef={moreButtonRef}
+              />
+            )}
+            {isEditLocked && !isLocked && (
+              <PenOff
+                size={14}
+                className="text-notion-text-secondary/60 shrink-0"
+                title={t("screenLock.editLocked")}
               />
             )}
           </div>
@@ -252,6 +266,7 @@ export function NotesView() {
                   initialContent={selectedNote.content}
                   onUpdate={handleContentUpdate}
                   entityType="note"
+                  editable={!isEditLocked}
                 />
               </Suspense>
             </div>

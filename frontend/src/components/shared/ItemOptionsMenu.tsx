@@ -1,23 +1,27 @@
 import { useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
-import { Lock, Unlock, KeyRound } from "lucide-react";
+import { Lock, Unlock, KeyRound, PenOff, Pen, Check } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useClickOutside } from "../../hooks/useClickOutside";
 
 interface ItemOptionsMenuProps {
   hasPassword: boolean;
+  isEditLocked: boolean;
   onSetPassword: () => void;
   onChangePassword: () => void;
   onRemovePassword: () => void;
+  onToggleEditLock: () => void;
   onClose: () => void;
   anchorRef: React.RefObject<HTMLElement | null>;
 }
 
 export function ItemOptionsMenu({
   hasPassword,
+  isEditLocked,
   onSetPassword,
   onChangePassword,
   onRemovePassword,
+  onToggleEditLock,
   onClose,
   anchorRef,
 }: ItemOptionsMenuProps) {
@@ -75,6 +79,24 @@ export function ItemOptionsMenu({
           />
         </>
       )}
+      <div className="my-1 border-t border-notion-border" />
+      <MenuButton
+        icon={isEditLocked ? <Pen size={14} /> : <PenOff size={14} />}
+        label={
+          isEditLocked
+            ? t("screenLock.unlockEditing")
+            : t("screenLock.lockEditing")
+        }
+        trailing={
+          isEditLocked ? (
+            <Check size={12} className="text-notion-accent" />
+          ) : undefined
+        }
+        onClick={() => {
+          onToggleEditLock();
+          onClose();
+        }}
+      />
     </div>,
     document.body,
   );
@@ -85,11 +107,13 @@ function MenuButton({
   label,
   onClick,
   danger,
+  trailing,
 }: {
   icon: React.ReactNode;
   label: string;
   onClick: () => void;
   danger?: boolean;
+  trailing?: React.ReactNode;
 }) {
   return (
     <button
@@ -101,7 +125,8 @@ function MenuButton({
       }`}
     >
       {icon}
-      <span>{label}</span>
+      <span className="flex-1 text-left">{label}</span>
+      {trailing}
     </button>
   );
 }

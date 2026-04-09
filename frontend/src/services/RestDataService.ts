@@ -274,6 +274,9 @@ export class RestDataService implements DataService {
   verifyMemoPassword(date: string, password: string): Promise<boolean> {
     return post(`/api/memos/${date}/verify-password`, { password });
   }
+  toggleMemoEditLock(date: string): Promise<MemoNode> {
+    return post(`/api/memos/${date}/toggle-edit-lock`);
+  }
 
   // Notes
   fetchAllNotes(): Promise<NoteNode[]> {
@@ -315,6 +318,9 @@ export class RestDataService implements DataService {
   }
   verifyNotePassword(id: string, password: string): Promise<boolean> {
     return post(`/api/notes/${id}/verify-password`, { password });
+  }
+  toggleNoteEditLock(id: string): Promise<NoteNode> {
+    return post(`/api/notes/${id}/toggle-edit-lock`);
   }
   createNoteFolder(
     id: string,

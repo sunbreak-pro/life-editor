@@ -4,6 +4,7 @@ export interface MemoNode {
   content: string; // TipTap JSON string
   isPinned?: boolean;
   hasPassword?: boolean;
+  isEditLocked?: boolean;
   isDeleted?: boolean;
   deletedAt?: string | null;
   createdAt: string; // ISO datetime

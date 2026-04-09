@@ -459,6 +459,16 @@ export function useNotes() {
     [],
   );
 
+  const toggleEditLock = useCallback(async (id: string) => {
+    const updated = await getDataService().toggleNoteEditLock(id);
+    setNotes((prev) =>
+      prev.map((n) =>
+        n.id === id ? { ...n, isEditLocked: updated.isEditLocked } : n,
+      ),
+    );
+    return updated;
+  }, []);
+
   const selectedNote = useMemo(() => {
     return notes.find((n) => n.id === selectedNoteId) ?? null;
   }, [notes, selectedNoteId]);
@@ -491,6 +501,7 @@ export function useNotes() {
       setNotePassword,
       removeNotePassword,
       verifyNotePassword,
+      toggleEditLock,
     }),
     [
       notes,
@@ -516,6 +527,7 @@ export function useNotes() {
       setNotePassword,
       removeNotePassword,
       verifyNotePassword,
+      toggleEditLock,
     ],
   );
 }

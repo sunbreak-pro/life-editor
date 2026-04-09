@@ -149,6 +149,14 @@ export function createMockDataService(): DataService & {
       updatedAt: new Date().toISOString(),
     }),
     verifyMemoPassword: vi.fn().mockResolvedValue(true),
+    toggleMemoEditLock: vi.fn().mockResolvedValue({
+      id: "memo-mock",
+      date: "2026-01-01",
+      content: "",
+      isEditLocked: true,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    }),
 
     // Notes
     fetchAllNotes: vi.fn().mockResolvedValue([]),
@@ -201,6 +209,16 @@ export function createMockDataService(): DataService & {
       updatedAt: new Date().toISOString(),
     }),
     verifyNotePassword: vi.fn().mockResolvedValue(true),
+    toggleNoteEditLock: vi.fn().mockResolvedValue({
+      id: "note-mock",
+      title: "",
+      content: "",
+      isPinned: false,
+      isEditLocked: true,
+      isDeleted: false,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    }),
     createNoteFolder: vi.fn().mockResolvedValue({
       id: "notefolder-mock",
       type: "folder",

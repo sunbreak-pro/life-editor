@@ -1,3 +1,16 @@
+### 2026-04-06 - Schedule Sidebar 検索統一 + Tasks/Events タブ検索追加
+
+#### 概要
+
+Schedule セクションの Calendar RightSidebar にあったカスタム検索入力を共有 `SearchBar` コンポーネントに置換し、全4タブで統一的な検索UIを提供。
+
+#### 変更点
+
+- **ScheduleSidebarContent 検索置換**: 共有 `SearchBar` コンポーネントに置換
+- **全タブ検索拡張**: Calendar限定から全タブに拡張。タブ切替時にクエリクリア
+- **タブ別サジェスション**: Calendar/DayFlow/Tasks/Eventsごとに異なるサジェスション
+- **i18n**: `schedule.searchTasks` / `schedule.searchEvents` を追加
+
 ### 2026-04-06 - Calendar IME修正 + Popup タイトル編集 + メモ重複バグ修正
 
 #### 概要

@@ -225,6 +225,16 @@ export function useMemos() {
     [],
   );
 
+  const toggleEditLock = useCallback(async (date: string) => {
+    const updated = await getDataService().toggleMemoEditLock(date);
+    setMemos((prev) =>
+      prev.map((m) =>
+        m.date === date ? { ...m, isEditLocked: updated.isEditLocked } : m,
+      ),
+    );
+    return updated;
+  }, []);
+
   const selectedMemo = useMemo(
     () => memos.find((m) => m.date === selectedDate),
     [memos, selectedDate],
@@ -251,6 +261,7 @@ export function useMemos() {
       setMemoPassword,
       removeMemoPassword,
       verifyMemoPassword,
+      toggleEditLock,
     }),
     [
       memos,
@@ -267,6 +278,7 @@ export function useMemos() {
       setMemoPassword,
       removeMemoPassword,
       verifyMemoPassword,
+      toggleEditLock,
     ],
   );
 }

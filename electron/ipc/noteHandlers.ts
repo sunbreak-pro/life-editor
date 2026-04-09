@@ -128,5 +128,14 @@ export function registerNoteHandlers(repo: NoteRepository): void {
     },
   );
 
+  mutation(
+    "db:notes:toggleEditLock",
+    "Notes",
+    "toggleEditLock",
+    "note",
+    "update",
+    (_event: unknown, id: string) => repo.toggleEditLock(id),
+  );
+
   // Note tag handlers moved to tagHandlers.ts (db:noteTags:*)
 }

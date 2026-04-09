@@ -1509,6 +1509,9 @@
     "passwordsMismatch": "パスワードが一致しません",
     "passwordTooShort": "パスワードは4文字以上で入力してください",
     "locked": "ロック中",
-    "moreOptions": "その他のオプション"
+    "moreOptions": "その他のオプション",
+    "lockEditing": "編集をロック",
+    "unlockEditing": "編集ロックを解除",
+    "editLocked": "編集ロック中"
   }
 }

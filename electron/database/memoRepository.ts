@@ -8,6 +8,7 @@ interface MemoRow {
   content: string;
   is_pinned: number;
   password_hash: string | null;
+  is_edit_locked: number;
   is_deleted: number;
   deleted_at: string | null;
   created_at: string;
@@ -21,6 +22,7 @@ function rowToNode(row: MemoRow): MemoNode {
     content: row.content,
     isPinned: row.is_pinned === 1,
     hasPassword: !!row.password_hash,
+    isEditLocked: row.is_edit_locked === 1,
     isDeleted: row.is_deleted === 1,
     deletedAt: row.deleted_at,
     createdAt: row.created_at,
@@ -53,6 +55,11 @@ export function createMemoRepository(db: Database.Database) {
     `),
     removePassword: db.prepare(`
       UPDATE memos SET password_hash = NULL, version = version + 1, updated_at = datetime('now')
+      WHERE date = ?
+    `),
+    toggleEditLock: db.prepare(`
+      UPDATE memos SET is_edit_locked = CASE WHEN is_edit_locked = 1 THEN 0 ELSE 1 END,
+        version = version + 1, updated_at = datetime('now')
       WHERE date = ?
     `),
   };
@@ -109,6 +116,12 @@ export function createMemoRepository(db: Database.Database) {
 
     removePassword(date: string): MemoNode {
       stmts.removePassword.run(date);
+      const row = stmts.fetchByDate.get(date) as MemoRow;
+      return rowToNode(row);
+    },
+
+    toggleEditLock(date: string): MemoNode {
+      stmts.toggleEditLock.run(date);
       const row = stmts.fetchByDate.get(date) as MemoRow;
       return rowToNode(row);
     },
