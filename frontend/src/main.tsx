@@ -21,6 +21,7 @@ import { ShortcutConfigProvider } from "./context/ShortcutConfigContext";
 import { WikiTagProvider } from "./context/WikiTagContext";
 import { ToastProvider } from "./context/ToastContext";
 import { ScreenLockProvider } from "./context/ScreenLockContext";
+import { FileExplorerProvider } from "./context/FileExplorerContext";
 import { isElectron } from "./services/dataServiceFactory";
 
 const isMobile = !isElectron();
@@ -39,21 +40,23 @@ createRoot(document.getElementById("root")!).render(
                   <CalendarProvider>
                     <MemoProvider>
                       <NoteProvider>
-                        <RoutineProvider>
-                          <ScheduleItemsProvider>
-                            <CalendarTagsProvider>
-                              <TimerProvider>
-                                <AudioProvider>
-                                  <WikiTagProvider>
-                                    <ShortcutConfigProvider>
-                                      <App />
-                                    </ShortcutConfigProvider>
-                                  </WikiTagProvider>
-                                </AudioProvider>
-                              </TimerProvider>
-                            </CalendarTagsProvider>
-                          </ScheduleItemsProvider>
-                        </RoutineProvider>
+                        <FileExplorerProvider>
+                          <RoutineProvider>
+                            <ScheduleItemsProvider>
+                              <CalendarTagsProvider>
+                                <TimerProvider>
+                                  <AudioProvider>
+                                    <WikiTagProvider>
+                                      <ShortcutConfigProvider>
+                                        <App />
+                                      </ShortcutConfigProvider>
+                                    </WikiTagProvider>
+                                  </AudioProvider>
+                                </TimerProvider>
+                              </CalendarTagsProvider>
+                            </ScheduleItemsProvider>
+                          </RoutineProvider>
+                        </FileExplorerProvider>
                       </NoteProvider>
                     </MemoProvider>
                   </CalendarProvider>

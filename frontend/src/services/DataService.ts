@@ -38,6 +38,7 @@ import type {
 import type { TimeMemo } from "../types/timeMemo";
 import type { PaperBoard, PaperNode, PaperEdge } from "../types/paperBoard";
 import type { AttachmentMeta } from "../types/attachment";
+import type { FileEntry, FileInfo } from "../types/fileExplorer";
 import type {
   DatabaseEntity,
   DatabaseFull,
@@ -647,4 +648,19 @@ export interface DataService {
   // Reminders
   getReminderSettings(): Promise<Record<string, string>>;
   setReminderSettings(settings: Record<string, string>): Promise<void>;
+
+  // Files
+  selectFolder(): Promise<string | null>;
+  getFilesRootPath(): Promise<string | null>;
+  listDirectory(relativePath: string): Promise<FileEntry[]>;
+  getFileInfo(relativePath: string): Promise<FileInfo>;
+  readTextFile(relativePath: string): Promise<string>;
+  readFile(relativePath: string): Promise<ArrayBuffer>;
+  createDirectory(relativePath: string): Promise<void>;
+  createFile(relativePath: string): Promise<void>;
+  writeTextFile(relativePath: string, content: string): Promise<void>;
+  renameFile(oldPath: string, newPath: string): Promise<void>;
+  moveFile(sourcePath: string, destPath: string): Promise<void>;
+  deleteFile(relativePath: string): Promise<void>;
+  openFileInSystem(relativePath: string): Promise<void>;
 }

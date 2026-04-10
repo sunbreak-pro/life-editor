@@ -503,6 +503,31 @@
   "materials": {
     "title": "マテリアル"
   },
+  "files": {
+    "settingsTitle": "ファイルエクスプローラー",
+    "rootFolder": "ルートフォルダ",
+    "rootFolderDescription": "ファイルタブで閲覧するフォルダを選択します。このフォルダ内のファイルのみアクセス可能です。",
+    "browse": "参照",
+    "notConfigured": "未設定",
+    "resetToDefault": "デフォルトパスにリセット",
+    "noRootPath": "フォルダが未設定です。設定画面で設定してください。",
+    "configureInSettings": "設定 > 詳細 > ファイル から設定できます。",
+    "newFile": "新規ファイル",
+    "newFolder": "新規フォルダ",
+    "refresh": "更新",
+    "emptyFolder": "このフォルダは空です",
+    "rename": "名前変更",
+    "delete": "削除",
+    "openInSystem": "システムアプリで開く",
+    "save": "保存",
+    "unsaved": "未保存",
+    "close": "閉じる",
+    "root": "ルート",
+    "fileNamePlaceholder": "ファイル名...",
+    "folderNamePlaceholder": "フォルダ名...",
+    "open": "開く",
+    "copyPath": "パスをコピー"
+  },
   "connect": {
     "title": "コネクト"
   },
@@ -510,6 +535,7 @@
     "title": "コネクト",
     "daily": "日記",
     "notes": "ノート",
+    "files": "ファイル",
     "connect": "コネクト",
     "materials": "マテリアル",
     "favorites": "お気に入り",

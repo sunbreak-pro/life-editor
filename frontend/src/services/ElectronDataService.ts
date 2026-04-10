@@ -39,6 +39,7 @@ import type {
 import type { TimeMemo } from "../types/timeMemo";
 import type { PaperBoard, PaperNode, PaperEdge } from "../types/paperBoard";
 import type { AttachmentMeta } from "../types/attachment";
+import type { FileEntry, FileInfo } from "../types/fileExplorer";
 import type {
   DatabaseEntity,
   DatabaseFull,
@@ -1152,5 +1153,46 @@ export class ElectronDataService implements DataService {
   }
   setReminderSettings(settings: Record<string, string>): Promise<void> {
     return invoke("reminder:setSettings", settings);
+  }
+
+  // Files
+  selectFolder(): Promise<string | null> {
+    return invoke("files:selectFolder");
+  }
+  getFilesRootPath(): Promise<string | null> {
+    return invoke("files:getRootPath");
+  }
+  listDirectory(relativePath: string): Promise<FileEntry[]> {
+    return invoke("files:listDirectory", relativePath);
+  }
+  getFileInfo(relativePath: string): Promise<FileInfo> {
+    return invoke("files:getFileInfo", relativePath);
+  }
+  readTextFile(relativePath: string): Promise<string> {
+    return invoke("files:readTextFile", relativePath);
+  }
+  readFile(relativePath: string): Promise<ArrayBuffer> {
+    return invoke("files:readFile", relativePath);
+  }
+  createDirectory(relativePath: string): Promise<void> {
+    return invoke("files:createDirectory", relativePath);
+  }
+  createFile(relativePath: string): Promise<void> {
+    return invoke("files:createFile", relativePath);
+  }
+  writeTextFile(relativePath: string, content: string): Promise<void> {
+    return invoke("files:writeTextFile", relativePath, content);
+  }
+  renameFile(oldPath: string, newPath: string): Promise<void> {
+    return invoke("files:rename", oldPath, newPath);
+  }
+  moveFile(sourcePath: string, destPath: string): Promise<void> {
+    return invoke("files:move", sourcePath, destPath);
+  }
+  deleteFile(relativePath: string): Promise<void> {
+    return invoke("files:delete", relativePath);
+  }
+  openFileInSystem(relativePath: string): Promise<void> {
+    return invoke("files:openInSystem", relativePath);
   }
 }

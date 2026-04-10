@@ -1799,4 +1799,45 @@ export class OfflineDataService implements DataService {
   setReminderSettings(): Promise<never> {
     return notSupported("setReminderSettings");
   }
+
+  // Files
+  selectFolder(): Promise<never> {
+    return notSupported("selectFolder");
+  }
+  getFilesRootPath(): Promise<never> {
+    return notSupported("getFilesRootPath");
+  }
+  listDirectory(): Promise<never> {
+    return notSupported("listDirectory");
+  }
+  getFileInfo(): Promise<never> {
+    return notSupported("getFileInfo");
+  }
+  readTextFile(): Promise<never> {
+    return notSupported("readTextFile");
+  }
+  readFile(): Promise<never> {
+    return notSupported("readFile");
+  }
+  createDirectory(): Promise<never> {
+    return notSupported("createDirectory");
+  }
+  createFile(): Promise<never> {
+    return notSupported("createFile");
+  }
+  writeTextFile(): Promise<never> {
+    return notSupported("writeTextFile");
+  }
+  renameFile(): Promise<never> {
+    return notSupported("renameFile");
+  }
+  moveFile(): Promise<never> {
+    return notSupported("moveFile");
+  }
+  deleteFile(): Promise<never> {
+    return notSupported("deleteFile");
+  }
+  openFileInSystem(): Promise<never> {
+    return notSupported("openFileInSystem");
+  }
 }

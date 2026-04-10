@@ -1,6 +1,6 @@
 import { useState, useCallback, useContext } from "react";
 import { createPortal } from "react-dom";
-import { BookOpen, StickyNote } from "lucide-react";
+import { BookOpen, StickyNote, FolderOpen } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { LAYOUT } from "../../constants/layout";
 import type { TabItem } from "../shared/SectionTabs";
@@ -9,23 +9,27 @@ import { DailyMemoView } from "../Ideas/DailyMemoView";
 import { NotesView } from "../Ideas/NotesView";
 import { DailySidebar } from "../Ideas/DailySidebar";
 import { MaterialsSidebar } from "../Ideas/MaterialsSidebar";
+import { FileExplorerSidebar } from "./FileExplorerSidebar";
+import { FileExplorerView } from "./FileExplorerView";
 import { useMemoContext } from "../../hooks/useMemoContext";
 import { useNoteContext } from "../../hooks/useNoteContext";
 import { useWikiTags } from "../../hooks/useWikiTags";
 import { STORAGE_KEYS } from "../../constants/storageKeys";
 import { RightSidebarContext } from "../../context/RightSidebarContext";
 
-type MaterialsTab = "daily" | "notes";
+type MaterialsTab = "daily" | "notes" | "files";
 
 const MATERIALS_TABS: readonly TabItem<MaterialsTab>[] = [
   { id: "daily", labelKey: "ideas.daily", icon: BookOpen },
   { id: "notes", labelKey: "ideas.notes", icon: StickyNote },
+  { id: "files", labelKey: "ideas.files", icon: FolderOpen },
 ];
 
 function loadMaterialsTab(): MaterialsTab {
   const saved = localStorage.getItem(STORAGE_KEYS.MATERIALS_TAB);
   if (saved === "daily") return "daily";
   if (saved === "notes") return "notes";
+  if (saved === "files") return "files";
   // Migrate from old IDEAS_TAB
   const oldTab = localStorage.getItem(STORAGE_KEYS.IDEAS_TAB);
   if (oldTab === "daily") return "daily";
@@ -135,6 +139,8 @@ export function MaterialsView({ onNavigateToNote }: MaterialsViewProps) {
             persistWithHistory={persistWithHistory}
           />
         );
+      case "files":
+        return <FileExplorerSidebar />;
     }
   };
 
@@ -146,6 +152,8 @@ export function MaterialsView({ onNavigateToNote }: MaterialsViewProps) {
         return <DailyMemoView />;
       case "notes":
         return <NotesView />;
+      case "files":
+        return <FileExplorerView />;
     }
   };
 

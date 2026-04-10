@@ -24,6 +24,7 @@ import {
   Smartphone,
   Sliders,
   Monitor,
+  HardDrive,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import type { TabItem } from "../shared/SectionTabs";
@@ -45,6 +46,7 @@ import { ClaudeMdEditor } from "./ClaudeMdEditor";
 import { SkillsManager } from "./SkillsManager";
 import { BehaviorSettings } from "./BehaviorSettings";
 import { SystemSettings } from "./SystemSettings";
+import { FilesSettings } from "./FilesSettings";
 import { RightSidebarContext } from "../../context/RightSidebarContext";
 import type { ShortcutCategory } from "../../types/shortcut";
 import { useSettingsHistory } from "../../hooks/useSettingsHistory";
@@ -80,7 +82,13 @@ type GeneralSub =
   | "notifications"
   | "timer"
   | "behaviors";
-type AdvancedSub = "mobile" | "data" | "updates" | "devtools" | "system";
+type AdvancedSub =
+  | "mobile"
+  | "data"
+  | "updates"
+  | "devtools"
+  | "system"
+  | "files";
 type ClaudeSub = "setup" | "mcpTools" | "claudeMd" | "skills";
 type ShortcutsSub =
   | "global"
@@ -103,6 +111,7 @@ const ADVANCED_SUBS: readonly TabItem<AdvancedSub>[] = [
   { id: "updates", labelKey: "updates.title", icon: Download },
   { id: "devtools", labelKey: "settings.developerTools", icon: Gauge },
   { id: "system", labelKey: "settings.system", icon: Monitor },
+  { id: "files", labelKey: "files.settingsTitle", icon: HardDrive },
 ];
 const CLAUDE_SUBS: readonly TabItem<ClaudeSub>[] = [
   { id: "setup", labelKey: "settings.claude.setup", icon: Cog },
@@ -301,6 +310,8 @@ export function Settings({ initialTab }: SettingsProps) {
             return <DeveloperTools />;
           case "system":
             return <SystemSettings />;
+          case "files":
+            return <FilesSettings />;
         }
       }
       return (
@@ -314,6 +325,8 @@ export function Settings({ initialTab }: SettingsProps) {
           <DeveloperTools />
           <div className="border-t border-notion-border" />
           <SystemSettings />
+          <div className="border-t border-notion-border" />
+          <FilesSettings />
         </div>
       );
     }

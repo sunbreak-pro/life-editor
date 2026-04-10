@@ -24,6 +24,15 @@ import {
   searchByTag,
   getEntityTags,
 } from "./handlers/wikiTagHandlers.js";
+import {
+  listFiles,
+  readFile,
+  writeFile,
+  createDirectory,
+  renameFile,
+  deleteFile,
+  searchFiles,
+} from "./handlers/fileHandlers.js";
 export const TOOLS: Tool[] = [
   {
     name: "list_tasks",
@@ -562,6 +571,109 @@ export const TOOLS: Tool[] = [
     },
   },
   {
+    name: "list_files",
+    description:
+      "List files and directories in the user's Files folder. Returns name, type, size, and modification date for each entry.",
+    inputSchema: {
+      type: "object" as const,
+      properties: {
+        path: {
+          type: "string",
+          description: "Relative path within the Files folder (default: root)",
+        },
+      },
+    },
+  },
+  {
+    name: "read_file",
+    description: "Read the text content of a file in the user's Files folder.",
+    inputSchema: {
+      type: "object" as const,
+      properties: {
+        path: { type: "string", description: "Relative file path" },
+      },
+      required: ["path"],
+    },
+  },
+  {
+    name: "write_file",
+    description:
+      "Write or create a text file in the user's Files folder. Creates parent directories if needed.",
+    inputSchema: {
+      type: "object" as const,
+      properties: {
+        path: { type: "string", description: "Relative file path" },
+        content: { type: "string", description: "File content to write" },
+      },
+      required: ["path", "content"],
+    },
+  },
+  {
+    name: "create_directory",
+    description: "Create a new directory in the user's Files folder.",
+    inputSchema: {
+      type: "object" as const,
+      properties: {
+        path: {
+          type: "string",
+          description: "Relative directory path to create",
+        },
+      },
+      required: ["path"],
+    },
+  },
+  {
+    name: "rename_file",
+    description:
+      "Rename or move a file/directory within the user's Files folder.",
+    inputSchema: {
+      type: "object" as const,
+      properties: {
+        old_path: {
+          type: "string",
+          description: "Current relative path",
+        },
+        new_path: { type: "string", description: "New relative path" },
+      },
+      required: ["old_path", "new_path"],
+    },
+  },
+  {
+    name: "delete_file",
+    description:
+      "Delete a file or directory from the user's Files folder. Directories are deleted recursively.",
+    inputSchema: {
+      type: "object" as const,
+      properties: {
+        path: {
+          type: "string",
+          description: "Relative path to delete",
+        },
+      },
+      required: ["path"],
+    },
+  },
+  {
+    name: "search_files",
+    description:
+      "Search for files by name or content in the user's Files folder. Returns up to 50 matches.",
+    inputSchema: {
+      type: "object" as const,
+      properties: {
+        query: {
+          type: "string",
+          description: "Search query (matches file names and text content)",
+        },
+        path: {
+          type: "string",
+          description:
+            "Relative path to search within (default: entire Files folder)",
+        },
+      },
+      required: ["query"],
+    },
+  },
+  {
     name: "format_content",
     description:
       "Read and restructure existing note/memo/schedule-item content. Supports wrapping in callout/toggle, adding headings, inserting blocks, or replacing all content.",
@@ -719,6 +831,27 @@ export function callTool(
       result = formatContent(
         args as unknown as Parameters<typeof formatContent>[0],
       );
+      break;
+    case "list_files":
+      result = listFiles(args as Parameters<typeof listFiles>[0]);
+      break;
+    case "read_file":
+      result = readFile(args as Parameters<typeof readFile>[0]);
+      break;
+    case "write_file":
+      result = writeFile(args as Parameters<typeof writeFile>[0]);
+      break;
+    case "create_directory":
+      result = createDirectory(args as Parameters<typeof createDirectory>[0]);
+      break;
+    case "rename_file":
+      result = renameFile(args as Parameters<typeof renameFile>[0]);
+      break;
+    case "delete_file":
+      result = deleteFile(args as Parameters<typeof deleteFile>[0]);
+      break;
+    case "search_files":
+      result = searchFiles(args as Parameters<typeof searchFiles>[0]);
       break;
     default:
       throw new Error(`Unknown tool: ${name}`);

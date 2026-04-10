@@ -14,6 +14,9 @@ export interface ElectronAPI {
   onReminder(
     callback: (data: { id: string; title: string; type: string }) => void,
   ): () => void;
+  onFileChange(
+    callback: (changes: Array<{ path: string; type: string }>) => void,
+  ): () => void;
 }
 
 declare global {

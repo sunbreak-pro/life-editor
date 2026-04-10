@@ -9,7 +9,7 @@ import { initAutoUpdater } from "./updater";
 import { TerminalManager } from "./terminal/TerminalManager";
 import { registerTerminalHandlers } from "./ipc/terminalHandlers";
 import { registerClaudeSetupHandlers } from "./ipc/claudeSetupHandlers";
-import { registerMcpServer } from "./services/claudeSetup";
+import { registerMcpServer, setFilesRootPath } from "./services/claudeSetup";
 import { migrateUserData } from "./migration/renameMigration";
 import { stopServer } from "./server/index";
 import { registerServerHandlers } from "./ipc/serverHandlers";
@@ -21,12 +21,14 @@ import {
 } from "./globalShortcuts";
 import { ReminderService } from "./services/reminderService";
 import { AutoArchiveService } from "./services/autoArchiveService";
+import { FileWatcher } from "./services/fileWatcher";
 import type { Tray } from "electron";
 
 const isDev = !app.isPackaged;
 const terminalManager = new TerminalManager();
 const reminderService = new ReminderService();
 const autoArchiveService = new AutoArchiveService();
+const fileWatcher = new FileWatcher();
 let appTray: Tray | null = null;
 
 if (isDev) {
@@ -113,14 +115,20 @@ app
       BrowserWindow.getFocusedWindow()?.close();
     });
 
+    // Read system settings before creating window
+    const appSettings = createAppSettingsRepository(db);
+    const startMinimized = appSettings.get("start_minimized") === "true";
+
+    // Set files root path for MCP server registration
+    const filesRootPath = appSettings.get("files_root_path");
+    if (filesRootPath) {
+      setFilesRootPath(filesRootPath);
+    }
+
     // Auto-register MCP Server (fire and forget)
     registerMcpServer().catch((e) =>
       log.warn("[Main] Auto MCP registration failed:", e),
     );
-
-    // Read system settings before creating window
-    const appSettings = createAppSettingsRepository(db);
-    const startMinimized = appSettings.get("start_minimized") === "true";
 
     const win = createWindow();
     if (startMinimized) {
@@ -163,6 +171,12 @@ app
     reminderService.start(db, win);
     autoArchiveService.start(db);
 
+    // File watcher
+    fileWatcher.setMainWindow(win);
+    if (filesRootPath) {
+      fileWatcher.start(filesRootPath);
+    }
+
     // macOS: re-create window on dock click when no windows exist
     app.on("activate", () => {
       if (BrowserWindow.getAllWindows().length === 0) {
@@ -184,6 +198,7 @@ app.on("window-all-closed", () => {
 app.on("before-quit", () => {
   reminderService.stop();
   autoArchiveService.stop();
+  fileWatcher.stop();
   unregisterAllGlobalShortcuts();
   terminalManager.destroyAll();
   stopServer().catch(() => {});

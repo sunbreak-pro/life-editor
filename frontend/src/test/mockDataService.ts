@@ -462,5 +462,20 @@ export function createMockDataService(): DataService & {
     // Reminders
     getReminderSettings: vi.fn().mockResolvedValue({}),
     setReminderSettings: vi.fn().mockResolvedValue(undefined),
+
+    // Files
+    selectFolder: vi.fn().mockResolvedValue(null),
+    getFilesRootPath: vi.fn().mockResolvedValue(null),
+    listDirectory: vi.fn().mockResolvedValue([]),
+    getFileInfo: vi.fn().mockResolvedValue(null),
+    readTextFile: vi.fn().mockResolvedValue(""),
+    readFile: vi.fn().mockResolvedValue(new ArrayBuffer(0)),
+    createDirectory: vi.fn().mockResolvedValue(undefined),
+    createFile: vi.fn().mockResolvedValue(undefined),
+    writeTextFile: vi.fn().mockResolvedValue(undefined),
+    renameFile: vi.fn().mockResolvedValue(undefined),
+    moveFile: vi.fn().mockResolvedValue(undefined),
+    deleteFile: vi.fn().mockResolvedValue(undefined),
+    openFileInSystem: vi.fn().mockResolvedValue(undefined),
   };
 }

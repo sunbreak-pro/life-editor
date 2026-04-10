@@ -56,3 +56,7 @@ export type { ScreenLockContextValue } from "./ScreenLockContextValue";
 export { UndoRedoProvider } from "./UndoRedoContext";
 export { UndoRedoContext } from "./UndoRedoContextValue";
 export type { UndoRedoContextValue } from "./UndoRedoContextValue";
+
+export { FileExplorerProvider } from "./FileExplorerContext";
+export { FileExplorerContext } from "./FileExplorerContextValue";
+export type { FileExplorerContextValue } from "./FileExplorerContextValue";

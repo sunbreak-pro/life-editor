@@ -54,6 +54,7 @@ import { registerDatabaseHandlers } from "./databaseHandlers";
 import { createAppSettingsRepository } from "../database/appSettingsRepository";
 import { registerSettingsHandlers } from "./settingsHandlers";
 import { registerSystemHandlers } from "./systemHandlers";
+import { registerFileHandlers } from "./fileHandlers";
 import { wrapHandler } from "./ipcMetrics";
 
 export function registerAllHandlers(db: Database.Database): void {
@@ -153,6 +154,7 @@ export function registerAllHandlers(db: Database.Database): void {
         const repo = createAppSettingsRepository(db);
         registerSettingsHandlers(repo);
         registerSystemHandlers(repo);
+        registerFileHandlers(repo);
       },
     ],
   ];

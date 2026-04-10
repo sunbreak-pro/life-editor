@@ -262,6 +262,20 @@ const ALLOWED_CHANNELS = new Set([
   // Reminders
   "reminder:getSettings",
   "reminder:setSettings",
+  // Files
+  "files:selectFolder",
+  "files:getRootPath",
+  "files:listDirectory",
+  "files:getFileInfo",
+  "files:readTextFile",
+  "files:readFile",
+  "files:createDirectory",
+  "files:createFile",
+  "files:writeTextFile",
+  "files:rename",
+  "files:move",
+  "files:delete",
+  "files:openInSystem",
   // Claude
   "claude:registerMcp",
   "claude:readClaudeMd",
@@ -336,6 +350,18 @@ contextBridge.exposeInMainWorld("electronAPI", {
     ipcRenderer.on("reminder:notify", handler);
     return () => {
       ipcRenderer.removeListener("reminder:notify", handler);
+    };
+  },
+  onFileChange(
+    callback: (changes: Array<{ path: string; type: string }>) => void,
+  ): () => void {
+    const handler = (
+      _event: IpcRendererEvent,
+      changes: Array<{ path: string; type: string }>,
+    ) => callback(changes);
+    ipcRenderer.on("files:changed", handler);
+    return () => {
+      ipcRenderer.removeListener("files:changed", handler);
     };
   },
 });

@@ -11,6 +11,7 @@ export interface ClaudeSetupResult {
 }
 
 const MCP_SERVER_NAME = "life-editor";
+const DEFAULT_FILES_ROOT = path.join(os.homedir(), "life-editor", "files");
 
 function getClaudeDir(): string {
   return path.join(os.homedir(), ".claude");
@@ -38,6 +39,16 @@ function getDbPath(): string {
 
 function getLifeEditorDir(): string {
   return path.join(os.homedir(), "life-editor");
+}
+
+let _filesRootPath: string = DEFAULT_FILES_ROOT;
+
+function getFilesRootPath(): string {
+  return _filesRootPath;
+}
+
+export function setFilesRootPath(rootPath: string): void {
+  _filesRootPath = rootPath;
 }
 
 function setupLifeEditorDir(): void {
@@ -77,12 +88,13 @@ You are a life management assistant with access to the user's tasks, memos, note
   }
 
   // Create/update .mcp.json for project-level MCP registration
+  const filesRootPath = getFilesRootPath();
   const projectMcpConfig = {
     mcpServers: {
       [MCP_SERVER_NAME]: {
         command: "node",
         args: [mcpServerPath],
-        env: { DB_PATH: dbPath },
+        env: { DB_PATH: dbPath, FILES_ROOT_PATH: filesRootPath },
         type: "stdio",
       },
     },
@@ -307,6 +319,7 @@ export async function registerMcpServer(): Promise<ClaudeSetupResult> {
     args: [getMcpServerPath()],
     env: {
       DB_PATH: getDbPath(),
+      FILES_ROOT_PATH: getFilesRootPath(),
     },
     type: "stdio",
   };

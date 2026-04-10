@@ -503,6 +503,31 @@
   "materials": {
     "title": "Materials"
   },
+  "files": {
+    "settingsTitle": "File Explorer",
+    "rootFolder": "Root Folder",
+    "rootFolderDescription": "Select the folder to browse in the Files tab. Only files within this folder will be accessible.",
+    "browse": "Browse",
+    "notConfigured": "Not configured",
+    "resetToDefault": "Reset to default path",
+    "noRootPath": "No folder configured. Set it in Settings.",
+    "configureInSettings": "Go to Settings > Advanced > Files to configure.",
+    "newFile": "New File",
+    "newFolder": "New Folder",
+    "refresh": "Refresh",
+    "emptyFolder": "This folder is empty",
+    "rename": "Rename",
+    "delete": "Delete",
+    "openInSystem": "Open in System App",
+    "save": "Save",
+    "unsaved": "Unsaved",
+    "close": "Close",
+    "root": "Root",
+    "fileNamePlaceholder": "File name...",
+    "folderNamePlaceholder": "Folder name...",
+    "open": "Open",
+    "copyPath": "Copy Path"
+  },
   "connect": {
     "title": "Connect"
   },
@@ -510,6 +535,7 @@
     "title": "Connect",
     "daily": "Daily",
     "notes": "Notes",
+    "files": "Files",
     "connect": "Connect",
     "materials": "Materials",
     "favorites": "Favorites",
