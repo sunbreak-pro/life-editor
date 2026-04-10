@@ -2,6 +2,15 @@
 
 ## 進行中
 
+### 🔧 Board タブ — Frame nesting, Undo/Redo fix, Trash UI, Color picker z-index（着手日: 2026-04-09）
+
+**対象**: `frontend/src/components/Ideas/Connect/Paper/`, `frontend/src/hooks/usePaperBoard.ts`, `frontend/src/utils/undoRedo/`
+**計画書**: `.claude/plans/mutable-pondering-ocean.md`
+
+- 前回: —
+- 現在: 全4件の修正実装完了、動作確認待ち
+- 次: ユーザー動作確認 → コミット
+
 ### ⏸️ DragHandle全面リライト — Notion風ブロックUI/UX（着手日: 2026-04-06）
 
 **対象**: `frontend/src/extensions/DragHandle.ts`, `frontend/src/index.css`
@@ -13,9 +22,9 @@
 
 ## 直近の完了
 
+- RoutineGroup 複数タグ時のカレンダー表示バグ修正 ✅（2026-04-11）
+- File Explorer Tab in Materials Section ✅（2026-04-11）
 - Routine Calendar — 複数グループ対応 & 頻度クリーンアップ ✅（2026-04-09）
-- Note/Daily 編集ロック機能 ✅（2026-04-09）
-- Settings拡充 — デフォルト動作・リマインダー・タスク管理・システム連携 ✅（2026-04-09）
 
 ## 予定
 

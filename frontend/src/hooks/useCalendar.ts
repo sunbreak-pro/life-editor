@@ -8,6 +8,7 @@ import type { CalendarItem } from "../types/calendarItem";
 import { CALENDAR_ITEM_COLORS } from "../types/calendarItem";
 import { formatDateKey } from "../utils/dateKey";
 import { getHolidayName } from "../utils/holidays";
+import { shouldRoutineRunOnDate } from "../utils/routineFrequency";
 
 export function useCalendar(
   nodes: TaskNode[],
@@ -19,7 +20,7 @@ export function useCalendar(
   notes?: NoteNode[],
   contentFilters?: Set<string>,
   scheduleItems?: ScheduleItem[],
-  groupForRoutine?: Map<string, RoutineGroup>,
+  groupForRoutine?: Map<string, RoutineGroup[]>,
   showHolidays?: boolean,
   language?: "ja" | "en",
 ) {
@@ -127,25 +128,38 @@ export function useCalendar(
         if (!isRoutine && !has("events")) continue;
         const dateKey = si.date;
 
-        // Check if this routine belongs to a group
-        const group =
+        // Check if this routine belongs to group(s)
+        const groups =
           isRoutine && si.routineId && groupForRoutine
             ? groupForRoutine.get(si.routineId)
             : undefined;
 
-        if (group) {
-          // Accumulate into group bucket
-          let dateGroups = groupedByDate.get(dateKey);
-          if (!dateGroups) {
-            dateGroups = new Map();
-            groupedByDate.set(dateKey, dateGroups);
+        if (groups && groups.length > 0) {
+          // Accumulate into matching group buckets (filter by frequency)
+          for (const group of groups) {
+            if (!group.isVisible) continue;
+            if (
+              !shouldRoutineRunOnDate(
+                group.frequencyType,
+                group.frequencyDays,
+                group.frequencyInterval,
+                group.frequencyStartDate,
+                dateKey,
+              )
+            )
+              continue;
+            let dateGroups = groupedByDate.get(dateKey);
+            if (!dateGroups) {
+              dateGroups = new Map();
+              groupedByDate.set(dateKey, dateGroups);
+            }
+            let bucket = dateGroups.get(group.id);
+            if (!bucket) {
+              bucket = { group, items: [] };
+              dateGroups.set(group.id, bucket);
+            }
+            bucket.items.push(si);
           }
-          let bucket = dateGroups.get(group.id);
-          if (!bucket) {
-            bucket = { group, items: [] };
-            dateGroups.set(group.id, bucket);
-          }
-          bucket.items.push(si);
         } else {
           // Individual item (event or ungrouped routine)
           const item: CalendarItem = {
@@ -166,6 +180,8 @@ export function useCalendar(
       // Emit group chips
       for (const [dateKey, dateGroups] of groupedByDate) {
         for (const [, { group, items }] of dateGroups) {
+          // Sort items by startTime across all tags
+          items.sort((a, b) => a.startTime.localeCompare(b.startTime));
           const groupItem: CalendarItem = {
             id: `group-${group.id}-${dateKey}`,
             type: "routineGroup",

@@ -11,6 +11,7 @@ import { ScheduleItemPreviewPopup } from "./ScheduleItemPreviewPopup";
 import { GroupFrame } from "./GroupFrame";
 import { TimeGridContextMenu } from "./TimeGridContextMenu";
 import { formatDateKey } from "../../../../utils/dateKey";
+import { shouldRoutineRunOnDate } from "../../../../utils/routineFrequency";
 import { useTimeGridDrag } from "../../../../hooks/useTimeGridDrag";
 import {
   formatTime,
@@ -318,7 +319,7 @@ interface ScheduleTimeGridProps {
   onStartTimer?: (task: TaskNode) => void;
   // Group visualization
   routineGroups?: RoutineGroup[];
-  groupForRoutine?: Map<string, RoutineGroup>;
+  groupForRoutine?: Map<string, RoutineGroup[]>;
   onGroupDragEnd?: (groupId: string, offsetMinutes: number) => void;
   onEditRoutine?: (routineId: string) => void;
   onEditGroup?: (groupId: string) => void;
@@ -590,7 +591,18 @@ export function ScheduleTimeGrid({
     >();
     for (const item of unifiedItems) {
       if (item.kind !== "schedule" || !item.scheduleItem?.routineId) continue;
-      const group = groupForRoutine.get(item.scheduleItem.routineId);
+      const groups = groupForRoutine.get(item.scheduleItem.routineId);
+      const group = groups?.find(
+        (g) =>
+          g.isVisible &&
+          shouldRoutineRunOnDate(
+            g.frequencyType,
+            g.frequencyDays,
+            g.frequencyInterval,
+            g.frequencyStartDate,
+            date,
+          ),
+      );
       if (!group) continue;
       const bottom = item.top + item.height;
       const existing = frames.get(group.id);
