@@ -28,6 +28,8 @@ export interface TaskNode {
   folderType?: "normal" | "complete";
   originalParentId?: string | null;
   priority?: 1 | 2 | 3 | 4 | null;
+  reminderEnabled?: boolean;
+  reminderOffset?: number;
 }
 
 export type SessionType = "WORK" | "BREAK" | "LONG_BREAK";
@@ -114,6 +116,7 @@ export interface NoteNode {
   isDeleted: boolean;
   deletedAt?: string;
   color?: string;
+  icon?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -202,6 +205,8 @@ export interface RoutineNode {
   frequencyDays: number[];
   frequencyInterval: number | null;
   frequencyStartDate: string | null;
+  reminderEnabled?: boolean;
+  reminderOffset?: number;
   createdAt: string;
   updatedAt: string;
 }
@@ -237,6 +242,8 @@ export interface ScheduleItem {
   content: string | null;
   isDismissed: boolean;
   isAllDay: boolean;
+  reminderEnabled?: boolean;
+  reminderOffset?: number;
   createdAt: string;
   updatedAt: string;
 }

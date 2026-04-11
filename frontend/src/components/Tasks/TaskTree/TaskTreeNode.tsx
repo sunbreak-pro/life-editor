@@ -382,6 +382,16 @@ export const TaskTreeNode = memo(function TaskTreeNode({
           onCompleteFolder={isFolder ? handleCompleteFolder : undefined}
           onDelete={handleDelete}
           onClose={() => setContextMenu(null)}
+          hasSchedule={!!node.scheduledAt}
+          reminderEnabled={!!node.reminderEnabled}
+          onToggleReminder={
+            node.scheduledAt
+              ? () =>
+                  updateNode(node.id, {
+                    reminderEnabled: !node.reminderEnabled,
+                  })
+              : undefined
+          }
         />
       )}
 

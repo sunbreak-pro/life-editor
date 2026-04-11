@@ -4,7 +4,10 @@ import type { MemoNode } from "../../../../types/memo";
 import { TIME_GRID } from "../../../../constants/timeGrid";
 import { TimeGridTaskBlock } from "../shared/TimeGridTaskBlock";
 import { formatDateKey } from "../../../../utils/dateKey";
-import { formatHour } from "../../../../utils/timeGridUtils";
+import {
+  formatHour,
+  snapTimeFromPosition,
+} from "../../../../utils/timeGridUtils";
 import {
   getDateType,
   getDateBgClass,
@@ -173,12 +176,13 @@ export function WeeklyTimeGrid({
     if (!onCreateTask) return;
     const rect = e.currentTarget.getBoundingClientRect();
     const y = e.clientY - rect.top;
-    const rawHour = y / TIME_GRID.SLOT_HEIGHT + TIME_GRID.START_HOUR;
-    const snappedMinute = Math.round(((rawHour % 1) * 60) / 15) * 15;
-    const hour = Math.floor(rawHour);
+    const snapped = snapTimeFromPosition(
+      y,
+      TIME_GRID.SLOT_HEIGHT,
+      TIME_GRID.START_HOUR,
+    );
     const date = new Date(dayDate);
-    date.setHours(hour, snappedMinute >= 60 ? 0 : snappedMinute, 0, 0);
-    if (snappedMinute >= 60) date.setHours(hour + 1);
+    date.setHours(snapped.hour, snapped.minute, 0, 0);
     onCreateTask(date, e);
   };
 

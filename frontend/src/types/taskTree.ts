@@ -35,4 +35,6 @@ export interface TaskNode {
   folderType?: "normal" | "complete";
   originalParentId?: string | null;
   priority?: 1 | 2 | 3 | 4 | null;
+  reminderEnabled?: boolean;
+  reminderOffset?: number;
 }

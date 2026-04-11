@@ -58,6 +58,28 @@ export function formatHour(hour: number): string {
   return `${hour - 12} PM`;
 }
 
+/**
+ * Convert a Y pixel position on a time grid to snapped hour/minute.
+ * @param y - Pixel offset from the top of the grid
+ * @param slotHeight - Height of one hour slot
+ * @param startHour - The hour at which the grid begins
+ * @param snapMinutes - Snap resolution in minutes (default 15)
+ */
+export function snapTimeFromPosition(
+  y: number,
+  slotHeight: number,
+  startHour: number,
+  snapMinutes = 15,
+): { hour: number; minute: number } {
+  const rawHour = y / slotHeight + startHour;
+  const baseHour = Math.floor(rawHour);
+  const snappedMinute =
+    Math.round(((rawHour % 1) * 60) / snapMinutes) * snapMinutes;
+  const minute = snappedMinute >= 60 ? 0 : snappedMinute;
+  const hour = Math.min(snappedMinute >= 60 ? baseHour + 1 : baseHour, 23);
+  return { hour, minute };
+}
+
 /** Default end time = start + 1 hour. */
 export function defaultEndTimeForStart(start: string): string {
   const startMin = timeToMinutes(start);

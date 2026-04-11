@@ -13,6 +13,8 @@ export interface ScheduleItem {
   content: string | null;
   isDismissed?: boolean;
   isAllDay?: boolean;
+  reminderEnabled?: boolean;
+  reminderOffset?: number;
   createdAt: string;
   updatedAt: string;
 }

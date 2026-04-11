@@ -144,6 +144,22 @@ export function useTaskDetailHandlers({
     [selectedTaskId, updateNode],
   );
 
+  const handleReminderEnabledChange = useCallback(
+    (enabled: boolean) => {
+      if (!selectedTaskId) return;
+      updateNode(selectedTaskId, { reminderEnabled: enabled });
+    },
+    [selectedTaskId, updateNode],
+  );
+
+  const handleReminderOffsetChange = useCallback(
+    (offset: number) => {
+      if (!selectedTaskId) return;
+      updateNode(selectedTaskId, { reminderOffset: offset });
+    },
+    [selectedTaskId, updateNode],
+  );
+
   const handleCompleteTask = useCallback(() => {
     const taskId = timer.activeTask?.id;
     if (!taskId) return;
@@ -239,5 +255,7 @@ export function useTaskDetailHandlers({
     handleCreateFolder,
     handleCreateTask,
     handlePriorityChange,
+    handleReminderEnabledChange,
+    handleReminderOffsetChange,
   };
 }

@@ -250,7 +250,7 @@ export function useNotes() {
     (
       id: string,
       updates: Partial<
-        Pick<NoteNode, "title" | "content" | "isPinned" | "color">
+        Pick<NoteNode, "title" | "content" | "isPinned" | "color" | "icon">
       >,
     ) => {
       // Don't push undo for content-only updates (TipTap handles its own undo)
@@ -262,11 +262,12 @@ export function useNotes() {
         const prev = notesRef.current.find((n) => n.id === id);
         if (prev) {
           const prevValues: Partial<
-            Pick<NoteNode, "title" | "isPinned" | "color">
+            Pick<NoteNode, "title" | "isPinned" | "color" | "icon">
           > = {};
           if ("title" in updates) prevValues.title = prev.title;
           if ("isPinned" in updates) prevValues.isPinned = prev.isPinned;
           if ("color" in updates) prevValues.color = prev.color;
+          if ("icon" in updates) prevValues.icon = prev.icon;
 
           push("note", {
             label: "updateNote",

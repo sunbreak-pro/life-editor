@@ -43,6 +43,8 @@ export function useRoutines() {
       frequencyDays?: number[],
       frequencyInterval?: number | null,
       frequencyStartDate?: string | null,
+      reminderEnabled?: boolean,
+      reminderOffset?: number,
     ) => {
       const id = generateId("routine");
       const now = new Date().toISOString();
@@ -60,6 +62,8 @@ export function useRoutines() {
         frequencyDays: frequencyDays ?? [],
         frequencyInterval: frequencyInterval ?? null,
         frequencyStartDate: frequencyStartDate ?? null,
+        reminderEnabled,
+        reminderOffset,
         createdAt: now,
         updatedAt: now,
       };
@@ -74,6 +78,8 @@ export function useRoutines() {
           frequencyDays,
           frequencyInterval,
           frequencyStartDate,
+          reminderEnabled,
+          reminderOffset,
         )
         .catch((e) => logServiceError("Routines", "create", e));
 
@@ -114,6 +120,8 @@ export function useRoutines() {
           | "frequencyDays"
           | "frequencyInterval"
           | "frequencyStartDate"
+          | "reminderEnabled"
+          | "reminderOffset"
         >
       >,
     ) => {

@@ -331,7 +331,11 @@
     "dailyReview": "Daily Review Reminder",
     "dailyReviewDesc": "Get a notification to review and plan your day",
     "dailyReviewTime": "Reminder Time",
-    "taskDueNotification": "Task due: {{title}}"
+    "taskDueNotification": "Task due: {{title}}",
+    "itemReminderToggle": "Reminder",
+    "setReminder": "Set Reminder",
+    "removeReminder": "Remove Reminder",
+    "itemReminderNotification": "Upcoming: {{title}}"
   },
   "priority": {
     "p1": "P1 - Urgent",
@@ -1245,7 +1249,11 @@
     "markIncomplete": "Mark Incomplete",
     "startTimer": "Start Timer",
     "moveToRoot": "Move to Root",
-    "delete": "Delete"
+    "delete": "Delete",
+    "changeIcon": "Change Icon",
+    "removeIcon": "Remove Icon",
+    "pin": "Pin",
+    "unpin": "Unpin"
   },
   "taskActions": {
     "completeFolder": "Complete Folder",
@@ -1516,6 +1524,27 @@
       "is_not_checked": "is not checked",
       "before": "before",
       "after": "after"
+    },
+    "contextMenu": {
+      "rename": "Rename",
+      "changeType": "Change type",
+      "delete": "Delete property",
+      "overflow": {
+        "wrap": "Wrap cell content",
+        "truncate": "Truncate cell content"
+      }
+    },
+    "aggregation": {
+      "label": "Calculate",
+      "none": "None",
+      "sum": "Sum",
+      "count": "Count all",
+      "countValues": "Count values",
+      "countChecked": "Checked",
+      "countUnchecked": "Unchecked",
+      "avg": "Average",
+      "min": "Min",
+      "max": "Max"
     }
   },
   "screenLock": {
@@ -1539,5 +1568,58 @@
     "lockEditing": "Lock Editing",
     "unlockEditing": "Unlock Editing",
     "editLocked": "Edit Locked"
+  },
+  "blockMenu": {
+    "turnInto": "Turn Into",
+    "color": "Color",
+    "background": "Background",
+    "duplicate": "Duplicate",
+    "delete": "Delete",
+    "addIcon": "Add Icon",
+    "textColors": {
+      "default": "Default",
+      "red": "Red",
+      "blue": "Blue",
+      "green": "Green",
+      "yellow": "Yellow",
+      "gray": "Gray",
+      "purple": "Purple",
+      "orange": "Orange"
+    },
+    "bgColors": {
+      "default": "Default",
+      "gray": "Gray",
+      "blue": "Blue",
+      "green": "Green",
+      "yellow": "Yellow",
+      "red": "Red",
+      "purple": "Purple"
+    },
+    "calloutColors": {
+      "default": "Default",
+      "blue": "Blue",
+      "green": "Green",
+      "yellow": "Yellow",
+      "red": "Red",
+      "purple": "Purple"
+    },
+    "turnIntoItems": {
+      "paragraph": "Paragraph",
+      "heading1": "Heading 1",
+      "heading2": "Heading 2",
+      "heading3": "Heading 3",
+      "blockquote": "Blockquote",
+      "codeBlock": "Code Block",
+      "bulletList": "Bullet List",
+      "orderedList": "Ordered List",
+      "taskList": "Task List",
+      "callout": "Callout",
+      "toggleList": "Toggle List"
+    }
+  },
+  "iconPicker": {
+    "search": "Search icons...",
+    "empty": "No icons found",
+    "remove": "Remove"
   }
 }

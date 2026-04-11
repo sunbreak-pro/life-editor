@@ -75,6 +75,7 @@ export function IdeasView({ onNavigateToNote }: IdeasViewProps) {
     createFolder,
     softDeleteNote,
     updateNote,
+    togglePin,
     persistWithHistory,
   } = useNoteContext();
   const { assignments, tags, setTagsForEntity } = useWikiTags();
@@ -272,6 +273,8 @@ export function IdeasView({ onNavigateToNote }: IdeasViewProps) {
             onDeleteNote={softDeleteNote}
             onNavigateToNode={handleNavigateToNode}
             onUpdateNoteTitle={handleUpdateNoteTitle}
+            onUpdateNote={updateNote}
+            onTogglePin={togglePin}
             onToggleExpand={toggleExpanded}
             persistWithHistory={persistWithHistory}
           />

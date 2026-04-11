@@ -450,7 +450,7 @@ export class OfflineDataService implements DataService {
   async updateNote(
     id: string,
     updates: Partial<
-      Pick<NoteNode, "title" | "content" | "isPinned" | "color">
+      Pick<NoteNode, "title" | "content" | "isPinned" | "color" | "icon">
     >,
   ): Promise<NoteNode> {
     const db = await getOfflineDb();
@@ -574,6 +574,8 @@ export class OfflineDataService implements DataService {
     frequencyDays?: number[],
     frequencyInterval?: number | null,
     frequencyStartDate?: string | null,
+    reminderEnabled?: boolean,
+    reminderOffset?: number,
   ): Promise<RoutineNode> {
     try {
       return await this.rest.createRoutine(
@@ -585,6 +587,8 @@ export class OfflineDataService implements DataService {
         frequencyDays,
         frequencyInterval,
         frequencyStartDate,
+        reminderEnabled,
+        reminderOffset,
       );
     } catch {
       const routine: RoutineNode = {
@@ -885,6 +889,8 @@ export class OfflineDataService implements DataService {
       routineId?: string;
       templateId?: string;
       noteId?: string;
+      reminderEnabled?: boolean;
+      reminderOffset?: number;
     }>,
   ): Promise<ScheduleItem[]> {
     try {

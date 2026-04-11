@@ -170,8 +170,10 @@ export function useDayFlowColumn({ initialDate }: UseDayFlowColumnOptions) {
     if (selectedFilterGroupIds.length > 0) {
       items = items.filter((i) => {
         if (!i.routineId) return false;
-        const group = groupForRoutine.get(i.routineId);
-        return group ? selectedFilterGroupIds.includes(group.id) : false;
+        const groups = groupForRoutine.get(i.routineId);
+        return groups
+          ? groups.some((g) => selectedFilterGroupIds.includes(g.id))
+          : false;
       });
     }
     return items;

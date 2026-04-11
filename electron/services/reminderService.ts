@@ -8,6 +8,20 @@ interface TaskRow {
   scheduled_at: string;
 }
 
+interface ItemReminderRow {
+  id: string;
+  title: string;
+  scheduled_at: string;
+  reminder_offset: number | null;
+}
+
+interface ScheduleReminderRow {
+  id: string;
+  title: string;
+  scheduled_datetime: string;
+  reminder_offset: number | null;
+}
+
 const CHECK_INTERVAL_MS = 60_000; // 60 seconds
 
 export class ReminderService {
@@ -42,6 +56,7 @@ export class ReminderService {
 
     try {
       this.checkTaskReminders();
+      this.checkPerItemReminders();
       this.checkDailyReview();
     } catch (e) {
       log.error("[ReminderService] Error during check:", e);
@@ -97,6 +112,88 @@ export class ReminderService {
       });
 
       log.info(`[ReminderService] Fired reminder for task: ${row.id}`);
+    }
+  }
+
+  private getDefaultOffset(): number {
+    const db = this.db!;
+    const offsetRow = db
+      .prepare(`SELECT value FROM app_settings WHERE key = ?`)
+      .get("reminder_default_offset") as { value: string } | undefined;
+    return Number(offsetRow?.value ?? "30");
+  }
+
+  private fireReminder(dedupKey: string, title: string, type: string): void {
+    if (this.firedReminders.has(dedupKey)) return;
+    this.firedReminders.add(dedupKey);
+
+    if (Notification.isSupported()) {
+      const notification = new Notification({
+        title: "Reminder",
+        body: title,
+      });
+      notification.show();
+    }
+
+    this.win!.webContents.send("reminder:notify", {
+      id: dedupKey,
+      title,
+      type,
+    });
+
+    log.info(`[ReminderService] Fired ${type} reminder: ${dedupKey}`);
+  }
+
+  private checkPerItemReminders(): void {
+    const db = this.db!;
+    const defaultOffset = this.getDefaultOffset();
+
+    // Per-item task reminders
+    const taskRows = db
+      .prepare(
+        `SELECT id, title, scheduled_at, reminder_offset
+         FROM tasks
+         WHERE reminder_enabled = 1
+           AND scheduled_at IS NOT NULL
+           AND status != 'DONE'
+           AND is_deleted = 0`,
+      )
+      .all() as ItemReminderRow[];
+
+    const now = Date.now();
+
+    for (const row of taskRows) {
+      const dedupKey = `task:${row.id}`;
+      const offset = row.reminder_offset ?? defaultOffset;
+      const scheduledTime = new Date(row.scheduled_at).getTime();
+      const reminderTime = scheduledTime - offset * 60_000;
+
+      if (now >= reminderTime && now < scheduledTime) {
+        this.fireReminder(dedupKey, row.title, "itemReminder");
+      }
+    }
+
+    // Per-item schedule item reminders
+    const scheduleRows = db
+      .prepare(
+        `SELECT id, title, datetime(date || 'T' || start_time) as scheduled_datetime, reminder_offset
+         FROM schedule_items
+         WHERE reminder_enabled = 1
+           AND completed = 0
+           AND is_dismissed = 0
+           AND is_all_day = 0`,
+      )
+      .all() as ScheduleReminderRow[];
+
+    for (const row of scheduleRows) {
+      const dedupKey = `schedule:${row.id}`;
+      const offset = row.reminder_offset ?? defaultOffset;
+      const scheduledTime = new Date(row.scheduled_datetime).getTime();
+      const reminderTime = scheduledTime - offset * 60_000;
+
+      if (now >= reminderTime && now < scheduledTime) {
+        this.fireReminder(dedupKey, row.title, "itemReminder");
+      }
     }
   }
 

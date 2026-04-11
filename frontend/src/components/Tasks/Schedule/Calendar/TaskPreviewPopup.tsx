@@ -1,4 +1,4 @@
-import { useRef, useState, useEffect } from "react";
+import { useRef, useState, useCallback } from "react";
 import {
   ExternalLink,
   Play,
@@ -9,18 +9,16 @@ import {
   X,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { formatTime } from "../../../../utils/timeGridUtils";
 import type { TaskNode } from "../../../../types/taskTree";
 import { useClickOutside } from "../../../../hooks/useClickOutside";
 import { ConfirmDialog } from "../../../shared/ConfirmDialog";
 import { TimeInput } from "../../../shared/TimeInput";
 import { DateInput } from "../../../shared/DateInput";
-import {
-  formatTime,
-  clampEndTimeAfterStart,
-  adjustEndTimeForStartChange,
-} from "../../../../utils/timeGridUtils";
 import { RoleSwitcher } from "../shared/RoleSwitcher";
+import { usePreviewTimeEdit } from "../shared/usePreviewTimeEdit";
 import type { ConversionRole } from "../../../../hooks/useRoleConversion";
+import { ReminderToggle } from "../../../shared/ReminderToggle";
 
 interface TaskPreviewPopupProps {
   task: TaskNode;
@@ -41,6 +39,7 @@ interface TaskPreviewPopupProps {
   disabledRoles?: ConversionRole[];
   onUpdateAllDay?: (isAllDay: boolean) => void;
   onUpdateTimeMemo?: (memo: string | null) => void;
+  onReminderChange?: (enabled: boolean, offset?: number) => void;
 }
 
 function extractTime(iso: string): string {
@@ -70,75 +69,53 @@ export function TaskPreviewPopup({
   disabledRoles,
   onUpdateAllDay,
   onUpdateTimeMemo,
+  onReminderChange,
 }: TaskPreviewPopupProps) {
   const { t } = useTranslation();
   const ref = useRef<HTMLDivElement>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const [isEditing, setIsEditing] = useState(false);
-  const [editValue, setEditValue] = useState(task.title);
-  const [editStartTime, setEditStartTime] = useState(
+
+  const handleTimeChange = useCallback(
+    (start: string, end: string) => {
+      if (onUpdateSchedule && task.scheduledAt) {
+        onUpdateSchedule(
+          applyTimeToDate(task.scheduledAt, start),
+          applyTimeToDate(task.scheduledAt, end),
+        );
+      }
+    },
+    [onUpdateSchedule, task.scheduledAt],
+  );
+
+  const initStart =
     task.scheduledAt && !task.isAllDay
       ? extractTime(task.scheduledAt)
-      : "09:00",
-  );
-  const [editEndTime, setEditEndTime] = useState(
+      : "09:00";
+  const initEnd =
     task.scheduledEndAt && !task.isAllDay
       ? extractTime(task.scheduledEndAt)
-      : "10:00",
-  );
-  const prevStartRef = useRef(editStartTime);
+      : "10:00";
 
-  useEffect(() => {
-    const start =
-      task.scheduledAt && !task.isAllDay
-        ? extractTime(task.scheduledAt)
-        : "09:00";
-    const end =
-      task.scheduledEndAt && !task.isAllDay
-        ? extractTime(task.scheduledEndAt)
-        : "10:00";
-    setEditStartTime(start);
-    setEditEndTime(end);
-    prevStartRef.current = start;
-  }, [task.scheduledAt, task.scheduledEndAt, task.isAllDay]);
-
-  const saveTime = (start: string, end: string) => {
-    if (onUpdateSchedule && task.scheduledAt) {
-      const newStart = applyTimeToDate(task.scheduledAt, start);
-      const newEnd = applyTimeToDate(task.scheduledAt, end);
-      onUpdateSchedule(newStart, newEnd);
-    }
-  };
-
-  const handleStartTimeChange = (h: number, m: number) => {
-    const newStart = formatTime(h, m);
-    const adjusted = adjustEndTimeForStartChange(
-      prevStartRef.current,
-      newStart,
-      editEndTime,
-    );
-    prevStartRef.current = newStart;
-    setEditStartTime(newStart);
-    setEditEndTime(adjusted);
-    saveTime(newStart, adjusted);
-  };
-
-  const handleEndTimeChange = (h: number, m: number) => {
-    const newEnd = formatTime(h, m);
-    const clamped = clampEndTimeAfterStart(editStartTime, newEnd);
-    setEditEndTime(clamped);
-    saveTime(editStartTime, clamped);
-  };
+  const {
+    editStartTime,
+    editEndTime,
+    handleStartTimeChange,
+    handleEndTimeChange,
+    isEditingTitle: isEditing,
+    titleDraft: editValue,
+    setTitleDraft: setEditValue,
+    commitTitle: commitEdit,
+    startEditingTitle: startEditing,
+    cancelEditingTitle: cancelEditing,
+  } = usePreviewTimeEdit({
+    startTime: initStart,
+    endTime: initEnd,
+    title: task.title,
+    onTimeChange: handleTimeChange,
+    onTitleChange: onUpdateTitle,
+  });
 
   useClickOutside(ref, onClose, !showDeleteConfirm && !isEditing);
-
-  const commitEdit = () => {
-    const trimmed = editValue.trim();
-    if (trimmed && trimmed !== task.title) {
-      onUpdateTitle?.(trimmed);
-    }
-    setIsEditing(false);
-  };
 
   const left = Math.min(position.x, window.innerWidth - 260 - 16);
   const top = Math.min(position.y, window.innerHeight - 280 - 16);
@@ -169,8 +146,7 @@ export function TaskPreviewPopup({
                 if (e.nativeEvent.isComposing) return;
                 if (e.key === "Enter") commitEdit();
                 if (e.key === "Escape") {
-                  setEditValue(task.title);
-                  setIsEditing(false);
+                  cancelEditing();
                 }
               }}
               className="font-medium text-sm text-notion-text w-full bg-transparent border-b border-notion-accent outline-none"
@@ -180,8 +156,7 @@ export function TaskPreviewPopup({
               className="font-medium text-sm text-notion-text truncate cursor-text hover:bg-notion-hover/50 rounded px-0.5 -mx-0.5"
               onClick={() => {
                 if (onUpdateTitle) {
-                  setEditValue(task.title);
-                  setIsEditing(true);
+                  startEditing();
                 }
               }}
             >
@@ -293,6 +268,20 @@ export function TaskPreviewPopup({
                 onClick={(e) => e.stopPropagation()}
               />
             </div>
+          )}
+
+          {onReminderChange && (
+            <ReminderToggle
+              enabled={!!task.reminderEnabled}
+              offset={task.reminderOffset ?? 30}
+              onEnabledChange={(enabled) =>
+                onReminderChange(enabled, task.reminderOffset)
+              }
+              onOffsetChange={(offset) =>
+                onReminderChange(!!task.reminderEnabled, offset)
+              }
+              compact
+            />
           )}
 
           <div className="flex items-center gap-2">

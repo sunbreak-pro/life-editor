@@ -54,6 +54,8 @@ interface MaterialsSidebarProps {
   onDeleteNote?: (noteId: string) => void;
   onNavigateToNode?: (noteId: string) => void;
   onUpdateNoteTitle?: (noteId: string, title: string) => void;
+  onUpdateNote?: (id: string, updates: Partial<Pick<NoteNode, "icon">>) => void;
+  onTogglePin?: (id: string) => void;
   onToggleExpand: (id: string) => void;
   persistWithHistory: (currentNotes: NoteNode[], updated: NoteNode[]) => void;
 }
@@ -97,6 +99,8 @@ export function MaterialsSidebar({
   onDeleteNote,
   onNavigateToNode,
   onUpdateNoteTitle,
+  onUpdateNote,
+  onTogglePin,
   onToggleExpand,
   persistWithHistory,
 }: MaterialsSidebarProps) {
@@ -463,6 +467,17 @@ export function MaterialsSidebar({
                       onSelect={onSelectNote}
                       onToggleExpand={onToggleExpand}
                       onDelete={onDeleteNote}
+                      onRename={
+                        onUpdateNoteTitle
+                          ? (id, title) => onUpdateNoteTitle(id, title)
+                          : undefined
+                      }
+                      onChangeIcon={
+                        onUpdateNote
+                          ? (id, icon) => onUpdateNote(id, { icon })
+                          : undefined
+                      }
+                      onTogglePin={onTogglePin}
                     />
                   ))
                 )}

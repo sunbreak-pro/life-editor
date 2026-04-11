@@ -17,6 +17,8 @@ interface RoutineRow {
   frequency_days: string;
   frequency_interval: number | null;
   frequency_start_date: string | null;
+  reminder_enabled: number;
+  reminder_offset: number | null;
   created_at: string;
   updated_at: string;
 }
@@ -36,6 +38,8 @@ function rowToNode(row: RoutineRow): RoutineNode {
     frequencyDays: JSON.parse(row.frequency_days || "[]") as number[],
     frequencyInterval: row.frequency_interval,
     frequencyStartDate: row.frequency_start_date,
+    reminderEnabled: row.reminder_enabled === 1 ? true : undefined,
+    reminderOffset: row.reminder_offset ?? undefined,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -62,9 +66,11 @@ export function createRoutineRepository(db: Database.Database) {
     insert: db.prepare(`
       INSERT INTO routines (id, title, start_time, end_time, is_archived, is_visible, "order",
         frequency_type, frequency_days, frequency_interval, frequency_start_date,
+        reminder_enabled, reminder_offset,
         created_at, updated_at)
       VALUES (@id, @title, @start_time, @end_time, 0, 1, @order,
         @frequency_type, @frequency_days, @frequency_interval, @frequency_start_date,
+        @reminder_enabled, @reminder_offset,
         datetime('now'), datetime('now'))
     `),
     update: db.prepare(`
@@ -72,6 +78,7 @@ export function createRoutineRepository(db: Database.Database) {
       is_archived = @is_archived, is_visible = @is_visible, "order" = @order,
       frequency_type = @frequency_type, frequency_days = @frequency_days,
       frequency_interval = @frequency_interval, frequency_start_date = @frequency_start_date,
+      reminder_enabled = @reminder_enabled, reminder_offset = @reminder_offset,
       version = version + 1, updated_at = datetime('now')
       WHERE id = @id
     `),
@@ -95,6 +102,8 @@ export function createRoutineRepository(db: Database.Database) {
       frequencyDays?: number[],
       frequencyInterval?: number | null,
       frequencyStartDate?: string | null,
+      reminderEnabled?: boolean,
+      reminderOffset?: number,
     ): RoutineNode {
       const maxOrder = (stmts.maxOrder.get() as { max_order: number })
         .max_order;
@@ -108,6 +117,8 @@ export function createRoutineRepository(db: Database.Database) {
         frequency_days: JSON.stringify(frequencyDays ?? []),
         frequency_interval: frequencyInterval ?? null,
         frequency_start_date: frequencyStartDate ?? null,
+        reminder_enabled: reminderEnabled ? 1 : 0,
+        reminder_offset: reminderOffset ?? null,
       });
       const row = stmts.fetchById.get(id) as RoutineRow;
       return rowToNode(row);
@@ -128,6 +139,8 @@ export function createRoutineRepository(db: Database.Database) {
           | "frequencyDays"
           | "frequencyInterval"
           | "frequencyStartDate"
+          | "reminderEnabled"
+          | "reminderOffset"
         >
       >,
     ): RoutineNode {
@@ -158,6 +171,18 @@ export function createRoutineRepository(db: Database.Database) {
           updates.frequencyStartDate !== undefined
             ? updates.frequencyStartDate
             : current.frequencyStartDate,
+        reminder_enabled:
+          updates.reminderEnabled !== undefined
+            ? updates.reminderEnabled
+              ? 1
+              : 0
+            : current.reminderEnabled
+              ? 1
+              : 0,
+        reminder_offset:
+          updates.reminderOffset !== undefined
+            ? updates.reminderOffset
+            : (current.reminderOffset ?? null),
       });
       const row = stmts.fetchById.get(id) as RoutineRow;
       return rowToNode(row);

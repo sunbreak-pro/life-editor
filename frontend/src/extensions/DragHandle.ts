@@ -1,7 +1,15 @@
 import { Extension } from "@tiptap/core";
-import { Plugin, PluginKey, TextSelection } from "@tiptap/pm/state";
+import {
+  Plugin,
+  PluginKey,
+  TextSelection,
+  NodeSelection,
+} from "@tiptap/pm/state";
 import type { Slice } from "@tiptap/pm/model";
-import type { EditorView } from "@tiptap/pm/view";
+import {
+  resolveTopLevelBlock,
+  getDOMForPos,
+} from "../utils/prosemirrorHelpers";
 
 const DRAG_HANDLE_KEY = new PluginKey("dragHandle");
 
@@ -23,6 +31,9 @@ const dragState = {
   sourceSlice: null as Slice | null,
   startX: 0,
   startY: 0,
+  dropBefore: true,
+  dropTargetPos: null as number | null,
+  dropTargetSize: null as number | null,
 };
 
 function resetDragState(): void {
@@ -33,68 +44,9 @@ function resetDragState(): void {
   dragState.sourceSlice = null;
   dragState.startX = 0;
   dragState.startY = 0;
-}
-
-// ---- Helpers ----
-
-function resolveTopLevelBlock(
-  view: EditorView,
-  clientY: number,
-): { pos: number; size: number } | null {
-  const editorRect = view.dom.getBoundingClientRect();
-  const coords = { left: editorRect.left + 20, top: clientY };
-  const posInfo = view.posAtCoords(coords);
-  if (posInfo) {
-    try {
-      const resolved = view.state.doc.resolve(posInfo.pos);
-      if (resolved.depth >= 1) {
-        const pos = resolved.before(1);
-        return { pos, size: resolved.node(1).nodeSize };
-      }
-    } catch {
-      /* fall through */
-    }
-  }
-
-  // DOM fallback — find nearest block by Y distance
-  const children = view.dom.children;
-  let bestChild: HTMLElement | null = null;
-  let bestDist = Infinity;
-  for (let i = 0; i < children.length; i++) {
-    const child = children[i] as HTMLElement;
-    const rect = child.getBoundingClientRect();
-    const centerY = rect.top + rect.height / 2;
-    const dist = Math.abs(clientY - centerY);
-    if (dist < bestDist) {
-      bestDist = dist;
-      bestChild = child;
-    }
-  }
-  if (bestChild) {
-    try {
-      const pmPos = view.posAtDOM(bestChild, 0);
-      const resolved = view.state.doc.resolve(pmPos);
-      if (resolved.depth >= 1) {
-        return { pos: resolved.before(1), size: resolved.node(1).nodeSize };
-      }
-    } catch {
-      /* skip */
-    }
-  }
-
-  if (view.state.doc.childCount > 0) {
-    return { pos: 0, size: view.state.doc.child(0).nodeSize };
-  }
-  return null;
-}
-
-function getDOMForPos(view: EditorView, pos: number): HTMLElement | null {
-  try {
-    const dom = view.nodeDOM(pos);
-    return dom instanceof HTMLElement ? dom : null;
-  } catch {
-    return null;
-  }
+  dragState.dropBefore = true;
+  dragState.dropTargetPos = null;
+  dragState.dropTargetSize = null;
 }
 
 // ---- Extension ----
@@ -162,8 +114,22 @@ export const DragHandle = Extension.create({
             return parseFloat(styles.fontSize) * 1.4;
           }
 
+          /**
+           * Get the top-level DOM element for a block.
+           * nodeDOM may return an inner element for atom NodeViews,
+           * so walk up to the direct child of the editor DOM.
+           */
+          function getTopBlockDOM(pos: number): HTMLElement | null {
+            let dom = getDOMForPos(editorView, pos);
+            if (!dom) return null;
+            while (dom && dom.parentElement !== editorDOM) {
+              dom = dom.parentElement as HTMLElement | null;
+            }
+            return dom;
+          }
+
           function positionHandle(pos: number): void {
-            const blockDOM = getDOMForPos(editorView, pos);
+            const blockDOM = getTopBlockDOM(pos);
             if (!blockDOM) {
               hide();
               return;
@@ -331,7 +297,7 @@ export const DragHandle = Extension.create({
               dragState.phase = "dragging";
               const sourceDOM =
                 dragState.sourcePos !== null
-                  ? getDOMForPos(editorView, dragState.sourcePos)
+                  ? getTopBlockDOM(dragState.sourcePos)
                   : null;
               if (sourceDOM) {
                 sourceDOM.classList.add("drag-source");
@@ -362,7 +328,7 @@ export const DragHandle = Extension.create({
               return;
             }
 
-            const blockDOM = getDOMForPos(editorView, block.pos);
+            const blockDOM = getTopBlockDOM(block.pos);
             if (!blockDOM) {
               dropLine.classList.remove("visible");
               return;
@@ -371,7 +337,16 @@ export const DragHandle = Extension.create({
             const containerRect = container.getBoundingClientRect();
             const blockRect = blockDOM.getBoundingClientRect();
             const midY = blockRect.top + blockRect.height / 2;
-            const lineY = e.clientY < midY ? blockRect.top : blockRect.bottom;
+            const insertBefore = e.clientY < midY;
+
+            // Show indicator at block edge
+            const lineY = Math.round(
+              insertBefore ? blockRect.top : blockRect.bottom,
+            );
+
+            dragState.dropBefore = insertBefore;
+            dragState.dropTargetPos = block.pos;
+            dragState.dropTargetSize = block.size;
 
             dropLine.style.top = `${lineY - containerRect.top}px`;
             dropLine.classList.add("visible");
@@ -398,9 +373,27 @@ export const DragHandle = Extension.create({
               /* may already be released */
             }
 
-            // If still pending (didn't move enough), just cancel
+            // If still pending (didn't move enough), select block and open context menu
             if (dragState.phase === "pending") {
+              const pos = dragState.sourcePos;
               cleanupDrag();
+              if (pos !== null) {
+                // Set NodeSelection on the block (visual blue background)
+                try {
+                  const tr = editorView.state.tr.setSelection(
+                    NodeSelection.create(editorView.state.doc, pos),
+                  );
+                  editorView.dispatch(tr);
+                } catch {
+                  /* some nodes may not support NodeSelection */
+                }
+
+                const event = new CustomEvent("draghandle:contextmenu", {
+                  detail: { x: e.clientX, y: e.clientY, pos },
+                  bubbles: true,
+                });
+                editorDOM.dispatchEvent(event);
+              }
               return;
             }
 
@@ -409,57 +402,49 @@ export const DragHandle = Extension.create({
                 dragState.phase === "dragging" &&
                 dragState.sourceSlice &&
                 dragState.sourcePos !== null &&
-                dragState.sourceEnd !== null
+                dragState.sourceEnd !== null &&
+                dragState.dropTargetPos !== null &&
+                dragState.dropTargetSize !== null
               ) {
-                // Find drop target
-                const dropBlock = resolveTopLevelBlock(editorView, e.clientY);
-                if (dropBlock) {
-                  const dropDOM = getDOMForPos(editorView, dropBlock.pos);
-                  if (dropDOM) {
-                    const dropRect = dropDOM.getBoundingClientRect();
-                    const midY = dropRect.top + dropRect.height / 2;
-                    const dropAfter = e.clientY > midY;
-                    const dropPos = dropAfter
-                      ? dropBlock.pos + dropBlock.size
-                      : dropBlock.pos;
+                const dropPos = dragState.dropBefore
+                  ? dragState.dropTargetPos
+                  : dragState.dropTargetPos + dragState.dropTargetSize;
 
-                    // Only move if not dropping on self
-                    if (
-                      dropPos < dragState.sourcePos ||
-                      dropPos > dragState.sourceEnd
-                    ) {
-                      const { state } = editorView;
-                      const tr = state.tr;
-                      const slice = dragState.sourceSlice;
+                // Only move if not dropping on self
+                if (
+                  dropPos < dragState.sourcePos ||
+                  dropPos > dragState.sourceEnd
+                ) {
+                  const { state } = editorView;
+                  const tr = state.tr;
+                  const slice = dragState.sourceSlice;
 
-                      if (dropPos > dragState.sourcePos) {
-                        tr.delete(dragState.sourcePos, dragState.sourceEnd);
-                        const mapped = tr.mapping.map(dropPos);
-                        tr.insert(mapped, slice.content);
-                        try {
-                          tr.setSelection(
-                            TextSelection.near(tr.doc.resolve(mapped + 1)),
-                          );
-                        } catch {
-                          /* best-effort */
-                        }
-                      } else {
-                        tr.insert(dropPos, slice.content);
-                        const mappedStart = tr.mapping.map(dragState.sourcePos);
-                        const mappedEnd = tr.mapping.map(dragState.sourceEnd);
-                        tr.delete(mappedStart, mappedEnd);
-                        try {
-                          tr.setSelection(
-                            TextSelection.near(tr.doc.resolve(dropPos + 1)),
-                          );
-                        } catch {
-                          /* best-effort */
-                        }
-                      }
-
-                      editorView.dispatch(tr);
+                  if (dropPos > dragState.sourcePos) {
+                    tr.delete(dragState.sourcePos, dragState.sourceEnd);
+                    const mapped = tr.mapping.map(dropPos);
+                    tr.insert(mapped, slice.content);
+                    try {
+                      tr.setSelection(
+                        TextSelection.near(tr.doc.resolve(mapped + 1)),
+                      );
+                    } catch {
+                      /* best-effort */
+                    }
+                  } else {
+                    tr.insert(dropPos, slice.content);
+                    const mappedStart = tr.mapping.map(dragState.sourcePos);
+                    const mappedEnd = tr.mapping.map(dragState.sourceEnd);
+                    tr.delete(mappedStart, mappedEnd);
+                    try {
+                      tr.setSelection(
+                        TextSelection.near(tr.doc.resolve(dropPos + 1)),
+                      );
+                    } catch {
+                      /* best-effort */
                     }
                   }
+
+                  editorView.dispatch(tr);
                 }
               }
             } catch (err) {
@@ -494,7 +479,7 @@ export const DragHandle = Extension.create({
           return {
             update() {
               if (dragState.activePos !== null && dragState.phase === "idle") {
-                const blockDOM = getDOMForPos(editorView, dragState.activePos);
+                const blockDOM = getTopBlockDOM(dragState.activePos);
                 if (blockDOM && container.contains(blockDOM)) {
                   const containerRect = container.getBoundingClientRect();
                   const blockRect = blockDOM.getBoundingClientRect();

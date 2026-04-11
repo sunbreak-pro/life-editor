@@ -15,6 +15,7 @@ interface NoteRow {
   is_deleted: number;
   deleted_at: string | null;
   color: string | null;
+  icon: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -33,6 +34,7 @@ function rowToNode(row: NoteRow): NoteNode {
     isDeleted: row.is_deleted === 1,
     deletedAt: row.deleted_at ?? undefined,
     color: row.color ?? undefined,
+    icon: row.icon ?? undefined,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -50,7 +52,7 @@ export function createNoteRepository(db: Database.Database) {
       VALUES (@id, @type, @title, '', @parentId, @orderIndex, 0, 0, datetime('now'), datetime('now'))
     `),
     update: db.prepare(`
-      UPDATE notes SET title = @title, content = @content, is_pinned = @isPinned, color = @color,
+      UPDATE notes SET title = @title, content = @content, is_pinned = @isPinned, color = @color, icon = @icon,
         version = version + 1, updated_at = datetime('now')
       WHERE id = @id
     `),
@@ -113,7 +115,7 @@ export function createNoteRepository(db: Database.Database) {
     update(
       id: string,
       updates: Partial<
-        Pick<NoteNode, "title" | "content" | "isPinned" | "color">
+        Pick<NoteNode, "title" | "content" | "isPinned" | "color" | "icon">
       >,
     ): NoteNode {
       const existing = stmts.fetchById.get(id) as NoteRow | undefined;
@@ -128,6 +130,8 @@ export function createNoteRepository(db: Database.Database) {
           updates.color !== undefined
             ? updates.color
             : (existing.color ?? null),
+        icon:
+          updates.icon !== undefined ? updates.icon : (existing.icon ?? null),
       });
       const row = stmts.fetchById.get(id) as NoteRow;
       return rowToNode(row);

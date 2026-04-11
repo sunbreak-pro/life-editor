@@ -37,6 +37,7 @@ export function registerNoteHandlers(repo: NoteRepository): void {
         content?: string;
         isPinned?: boolean;
         color?: string;
+        icon?: string;
       },
     ) => repo.update(id, updates),
   );

@@ -16,6 +16,8 @@ interface ScheduleItemRow {
   content: string | null;
   is_dismissed: number;
   is_all_day: number;
+  reminder_enabled: number;
+  reminder_offset: number | null;
   created_at: string;
   updated_at: string;
 }
@@ -36,6 +38,8 @@ function rowToItem(row: ScheduleItemRow): ScheduleItem {
     content: row.content ?? null,
     isDismissed: row.is_dismissed === 1,
     isAllDay: row.is_all_day === 1,
+    reminderEnabled: row.reminder_enabled === 1 ? true : undefined,
+    reminderOffset: row.reminder_offset ?? undefined,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -54,13 +58,14 @@ export function createScheduleItemRepository(db: Database.Database) {
     ),
     fetchById: db.prepare(`SELECT * FROM schedule_items WHERE id = ?`),
     insert: db.prepare(`
-      INSERT INTO schedule_items (id, date, title, start_time, end_time, completed, completed_at, routine_id, template_id, note_id, is_all_day, content, created_at, updated_at)
-      VALUES (@id, @date, @title, @start_time, @end_time, 0, NULL, @routine_id, @template_id, @note_id, @is_all_day, @content, datetime('now'), datetime('now'))
+      INSERT INTO schedule_items (id, date, title, start_time, end_time, completed, completed_at, routine_id, template_id, note_id, is_all_day, content, reminder_enabled, reminder_offset, created_at, updated_at)
+      VALUES (@id, @date, @title, @start_time, @end_time, 0, NULL, @routine_id, @template_id, @note_id, @is_all_day, @content, @reminder_enabled, @reminder_offset, datetime('now'), datetime('now'))
     `),
     update: db.prepare(`
       UPDATE schedule_items SET title = @title, start_time = @start_time, end_time = @end_time,
       completed = @completed, completed_at = @completed_at, memo = @memo, is_all_day = @is_all_day,
-      content = @content, date = @date, version = version + 1, updated_at = datetime('now')
+      content = @content, date = @date, reminder_enabled = @reminder_enabled, reminder_offset = @reminder_offset,
+      version = version + 1, updated_at = datetime('now')
       WHERE id = @id
     `),
     fetchEvents: db.prepare(
@@ -115,6 +120,8 @@ export function createScheduleItemRepository(db: Database.Database) {
       noteId?: string,
       isAllDay?: boolean,
       content?: string,
+      reminderEnabled?: boolean,
+      reminderOffset?: number,
     ): ScheduleItem {
       stmts.insert.run({
         id,
@@ -127,6 +134,8 @@ export function createScheduleItemRepository(db: Database.Database) {
         note_id: noteId ?? null,
         is_all_day: isAllDay ? 1 : 0,
         content: content ?? null,
+        reminder_enabled: reminderEnabled ? 1 : 0,
+        reminder_offset: reminderOffset ?? null,
       });
       const row = stmts.fetchById.get(id) as ScheduleItemRow;
       return rowToItem(row);
@@ -146,6 +155,8 @@ export function createScheduleItemRepository(db: Database.Database) {
           | "isAllDay"
           | "content"
           | "date"
+          | "reminderEnabled"
+          | "reminderOffset"
         >
       >,
     ): ScheduleItem {
@@ -174,6 +185,18 @@ export function createScheduleItemRepository(db: Database.Database) {
         content:
           updates.content !== undefined ? updates.content : current.content,
         date: updates.date ?? current.date,
+        reminder_enabled:
+          updates.reminderEnabled !== undefined
+            ? updates.reminderEnabled
+              ? 1
+              : 0
+            : current.reminderEnabled
+              ? 1
+              : 0,
+        reminder_offset:
+          updates.reminderOffset !== undefined
+            ? updates.reminderOffset
+            : (current.reminderOffset ?? null),
       });
       const row = stmts.fetchById.get(id) as ScheduleItemRow;
       return rowToItem(row);
@@ -252,6 +275,8 @@ export function createScheduleItemRepository(db: Database.Database) {
         routineId?: string;
         templateId?: string;
         noteId?: string;
+        reminderEnabled?: boolean;
+        reminderOffset?: number;
       }>,
     ): ScheduleItem[] {
       const bulkInsert = db.transaction(() => {
@@ -276,6 +301,8 @@ export function createScheduleItemRepository(db: Database.Database) {
             note_id: item.noteId ?? null,
             is_all_day: 0,
             content: null,
+            reminder_enabled: item.reminderEnabled ? 1 : 0,
+            reminder_offset: item.reminderOffset ?? null,
           });
           const row = stmts.fetchById.get(item.id) as ScheduleItemRow;
           results.push(rowToItem(row));

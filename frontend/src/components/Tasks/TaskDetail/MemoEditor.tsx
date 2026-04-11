@@ -1,4 +1,4 @@
-import { useEffect, useRef, useCallback } from "react";
+import { useEffect, useRef, useCallback, useState } from "react";
 import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Bold from "@tiptap/extension-bold";
@@ -9,6 +9,7 @@ import Blockquote from "@tiptap/extension-blockquote";
 import Link from "@tiptap/extension-link";
 import { TextStyle } from "@tiptap/extension-text-style";
 import { Color } from "@tiptap/extension-color";
+import { Highlight } from "@tiptap/extension-highlight";
 import Placeholder from "@tiptap/extension-placeholder";
 import { Table } from "@tiptap/extension-table";
 import { TableRow } from "@tiptap/extension-table-row";
@@ -30,14 +31,25 @@ import { PdfAttachment } from "../../../extensions/PdfAttachment";
 import { FileUploadPlaceholder } from "../../../extensions/FileUploadPlaceholder";
 import { DatabaseBlock } from "../../../extensions/DatabaseBlock";
 import { DragHandle } from "../../../extensions/DragHandle";
+import { BlockBackground } from "../../../extensions/BlockBackground";
 import { BubbleToolbar } from "./BubbleToolbar";
+import { BlockContextMenu } from "./BlockContextMenu";
 import { WikiTagSuggestionMenu } from "../../WikiTags/WikiTagSuggestionMenu";
 import { useWikiTagSync } from "../../../hooks/useWikiTagSync";
 import { useAttachments } from "../../../hooks/useAttachments";
 import { setStoredHeadingFontSize } from "../../../utils/headingFontSize";
 import { isValidUrl } from "../../../utils/urlValidation";
+import { resolveTopLevelBlock } from "../../../utils/prosemirrorHelpers";
 import { getDataService } from "../../../services";
 import type { WikiTagEntityType } from "../../../types/wikiTag";
+import type { Node as PmNode } from "@tiptap/pm/model";
+
+interface ContextMenuState {
+  x: number;
+  y: number;
+  blockPos: number;
+  blockNode: PmNode;
+}
 
 // Disable markdown input rules so ** / * / ~~ / ` don't auto-convert
 const BoldNoInputRules = Bold.extend({
@@ -148,6 +160,7 @@ export function MemoEditor({
   const latestContentRef = useRef<string | null>(null);
   const resolvingRef = useRef(false);
   const imageUploadRef = useRef<(file: File) => void>(() => {});
+  const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
   const {
     resolveAttachmentUrls,
     uploadImage,
@@ -239,6 +252,8 @@ export function MemoEditor({
         FileUploadPlaceholder,
         DatabaseBlock,
         DragHandle,
+        BlockBackground,
+        Highlight.configure({ multicolor: true }),
         CustomInputRules,
       ],
       editable,
@@ -309,6 +324,27 @@ export function MemoEditor({
             return true;
           }
           return false;
+        },
+        handleDOMEvents: {
+          contextmenu(view, event) {
+            const block = resolveTopLevelBlock(view, event.clientY);
+            if (block) {
+              event.preventDefault();
+              const node = view.state.doc.nodeAt(block.pos);
+              if (node) {
+                const customEvent = new CustomEvent("draghandle:contextmenu", {
+                  detail: {
+                    x: event.clientX,
+                    y: event.clientY,
+                    pos: block.pos,
+                  },
+                  bubbles: true,
+                });
+                view.dom.dispatchEvent(customEvent);
+              }
+            }
+            return true;
+          },
         },
       },
     },
@@ -444,11 +480,53 @@ export function MemoEditor({
     };
   }, [editor, handleHeadingFontSizeChange]);
 
+  // Listen for draghandle:contextmenu custom events
+  useEffect(() => {
+    if (!editor || editor.isDestroyed) return;
+    let dom: HTMLElement;
+    try {
+      dom = editor.view.dom;
+    } catch {
+      return;
+    }
+    const handler = (e: Event) => {
+      const detail = (e as CustomEvent).detail as {
+        x: number;
+        y: number;
+        pos: number;
+      };
+      const node = editor.state.doc.nodeAt(detail.pos);
+      if (node) {
+        setContextMenu({
+          x: detail.x,
+          y: detail.y,
+          blockPos: detail.pos,
+          blockNode: node,
+        });
+      }
+    };
+    dom.addEventListener("draghandle:contextmenu", handler);
+    return () => dom.removeEventListener("draghandle:contextmenu", handler);
+  }, [editor]);
+
   return (
-    <div className="relative mx-auto max-w-[760px] pl-8">
+    <div className="relative mx-auto max-w-[760px] pl-10">
       <EditorContent editor={editor} />
       {editor && <BubbleToolbar editor={editor} />}
       {editor && <WikiTagSuggestionMenu editor={editor} />}
+      {editor && contextMenu && (
+        <BlockContextMenu
+          x={contextMenu.x}
+          y={contextMenu.y}
+          editor={editor}
+          blockPos={contextMenu.blockPos}
+          blockNode={contextMenu.blockNode}
+          onClose={() => {
+            setContextMenu(null);
+            editor.view.focus();
+          }}
+        />
+      )}
     </div>
   );
 }

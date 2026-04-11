@@ -62,6 +62,14 @@ export const Callout = Node.create({
           return { "data-emoji": attributes.emoji };
         },
       },
+      showIcon: {
+        default: true,
+        parseHTML: (element) =>
+          element.getAttribute("data-show-icon") !== "false",
+        renderHTML: (attributes) => ({
+          "data-show-icon": attributes.showIcon ? "true" : "false",
+        }),
+      },
     };
   },
 

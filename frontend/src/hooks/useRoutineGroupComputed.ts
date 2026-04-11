@@ -24,8 +24,8 @@ export function useRoutineGroupComputed({
   return useMemo(() => {
     // Map<groupId, RoutineNode[]>
     const routinesByGroup = new Map<string, RoutineNode[]>();
-    // Map<routineId, RoutineGroup>
-    const groupForRoutine = new Map<string, RoutineGroup>();
+    // Map<routineId, RoutineGroup[]>
+    const groupForRoutine = new Map<string, RoutineGroup[]>();
     // Map<groupId, { startTime: string; endTime: string }>
     const groupTimeRange = new Map<
       string,
@@ -47,7 +47,12 @@ export function useRoutineGroupComputed({
         const routineTagIds = tagAssignments.get(routine.id) ?? [];
         if (routineTagIds.some((tid) => groupTagSet.has(tid))) {
           memberRoutines.push(routine);
-          groupForRoutine.set(routine.id, group);
+          const existing = groupForRoutine.get(routine.id);
+          if (existing) {
+            existing.push(group);
+          } else {
+            groupForRoutine.set(routine.id, [group]);
+          }
         }
       }
 

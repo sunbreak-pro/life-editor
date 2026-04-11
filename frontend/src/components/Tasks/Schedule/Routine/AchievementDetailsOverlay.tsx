@@ -9,7 +9,7 @@ import { getDataService } from "../../../../services";
 interface AchievementDetailsOverlayProps {
   stats: RoutineStats;
   onClose: () => void;
-  groupForRoutine: Map<string, RoutineGroup>;
+  groupForRoutine: Map<string, RoutineGroup[]>;
   routineGroups: RoutineGroup[];
 }
 
@@ -115,13 +115,15 @@ export function AchievementDetailsOverlay({
     }
 
     for (const rate of stats.perRoutineRates) {
-      const group = groupForRoutine.get(rate.routineId);
-      if (group) {
-        const entry = groupMap.get(group.id);
-        if (entry) {
-          entry.routineRates.push(rate);
-          entry.completedCount += rate.completedCount;
-          entry.totalCount += rate.totalCount;
+      const groups = groupForRoutine.get(rate.routineId);
+      if (groups && groups.length > 0) {
+        for (const group of groups) {
+          const entry = groupMap.get(group.id);
+          if (entry) {
+            entry.routineRates.push(rate);
+            entry.completedCount += rate.completedCount;
+            entry.totalCount += rate.totalCount;
+          }
         }
       } else {
         individualRates.push(rate);

@@ -20,6 +20,8 @@ interface TaskDetailProps {
   onTitleChange?: (newTitle: string) => void;
   onTimeMemoChange?: (value: string | undefined) => void;
   onPriorityChange?: (priority: Priority | null) => void;
+  onReminderEnabledChange?: (enabled: boolean) => void;
+  onReminderOffsetChange?: (offset: number) => void;
   folderTag?: string;
   taskColor?: string;
 }
@@ -39,6 +41,8 @@ export function TaskDetail({
   onTitleChange,
   onTimeMemoChange,
   onPriorityChange,
+  onReminderEnabledChange,
+  onReminderOffsetChange,
   folderTag,
   taskColor,
 }: TaskDetailProps) {
@@ -63,6 +67,8 @@ export function TaskDetail({
           onTitleChange={onTitleChange}
           onTimeMemoChange={onTimeMemoChange}
           onPriorityChange={onPriorityChange}
+          onReminderEnabledChange={onReminderEnabledChange}
+          onReminderOffsetChange={onReminderOffsetChange}
           folderTag={folderTag}
           taskColor={taskColor}
         />

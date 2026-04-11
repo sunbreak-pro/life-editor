@@ -1,4 +1,4 @@
-import { useRef, useState, useEffect } from "react";
+import { useRef } from "react";
 import {
   Check,
   Trash2,
@@ -12,13 +12,10 @@ import type { ScheduleItem } from "../../../../types/schedule";
 import { useClickOutside } from "../../../../hooks/useClickOutside";
 import { TimeInput } from "../../../shared/TimeInput";
 import { DateInput } from "../../../shared/DateInput";
-import {
-  formatTime,
-  clampEndTimeAfterStart,
-  adjustEndTimeForStartChange,
-} from "../../../../utils/timeGridUtils";
 import { RoleSwitcher } from "../shared/RoleSwitcher";
+import { usePreviewTimeEdit } from "../shared/usePreviewTimeEdit";
 import type { ConversionRole } from "../../../../hooks/useRoleConversion";
+import { ReminderToggle } from "../../../shared/ReminderToggle";
 
 interface ScheduleItemPreviewPopupProps {
   item: ScheduleItem;
@@ -34,6 +31,7 @@ interface ScheduleItemPreviewPopupProps {
   onUpdateDate?: (date: string) => void;
   onUpdateAllDay?: (isAllDay: boolean) => void;
   onUpdateTitle?: (title: string) => void;
+  onReminderChange?: (enabled: boolean, offset?: number) => void;
 }
 
 export function ScheduleItemPreviewPopup({
@@ -50,28 +48,29 @@ export function ScheduleItemPreviewPopup({
   onUpdateDate,
   onUpdateAllDay,
   onUpdateTitle,
+  onReminderChange,
 }: ScheduleItemPreviewPopupProps) {
   const { t } = useTranslation();
   const ref = useRef<HTMLDivElement>(null);
-  const [editStartTime, setEditStartTime] = useState(item.startTime);
-  const [editEndTime, setEditEndTime] = useState(item.endTime);
-  const prevStartRef = useRef(editStartTime);
-  const [isEditingTitle, setIsEditingTitle] = useState(false);
-  const [titleDraft, setTitleDraft] = useState(item.title);
 
-  useEffect(() => {
-    setEditStartTime(item.startTime);
-    setEditEndTime(item.endTime);
-    prevStartRef.current = item.startTime;
-  }, [item.startTime, item.endTime]);
-
-  const commitTitle = () => {
-    const trimmed = titleDraft.trim();
-    if (trimmed && trimmed !== item.title) {
-      onUpdateTitle?.(trimmed);
-    }
-    setIsEditingTitle(false);
-  };
+  const {
+    editStartTime,
+    editEndTime,
+    handleStartTimeChange,
+    handleEndTimeChange,
+    isEditingTitle,
+    titleDraft,
+    setTitleDraft,
+    commitTitle,
+    startEditingTitle,
+    cancelEditingTitle,
+  } = usePreviewTimeEdit({
+    startTime: item.startTime,
+    endTime: item.endTime,
+    title: item.title,
+    onTimeChange: onUpdateTime,
+    onTitleChange: onUpdateTitle,
+  });
 
   useClickOutside(ref, onClose, !isEditingTitle);
 
@@ -82,26 +81,6 @@ export function ScheduleItemPreviewPopup({
   const dateYear = dateParts[0];
   const dateMonth = dateParts[1];
   const dateDay = dateParts[2];
-
-  const handleStartTimeChange = (h: number, m: number) => {
-    const newStart = formatTime(h, m);
-    const adjusted = adjustEndTimeForStartChange(
-      prevStartRef.current,
-      newStart,
-      editEndTime,
-    );
-    prevStartRef.current = newStart;
-    setEditStartTime(newStart);
-    setEditEndTime(adjusted);
-    onUpdateTime?.(newStart, adjusted);
-  };
-
-  const handleEndTimeChange = (h: number, m: number) => {
-    const newEnd = formatTime(h, m);
-    const clamped = clampEndTimeAfterStart(editStartTime, newEnd);
-    setEditEndTime(clamped);
-    onUpdateTime?.(editStartTime, clamped);
-  };
 
   return (
     <div
@@ -120,8 +99,7 @@ export function ScheduleItemPreviewPopup({
               if (e.nativeEvent.isComposing) return;
               if (e.key === "Enter") commitTitle();
               if (e.key === "Escape") {
-                setTitleDraft(item.title);
-                setIsEditingTitle(false);
+                cancelEditingTitle();
               }
             }}
             className="font-medium text-sm text-notion-text w-full bg-transparent border-b border-notion-accent outline-none"
@@ -131,8 +109,7 @@ export function ScheduleItemPreviewPopup({
             className={`font-medium text-sm text-notion-text truncate ${onUpdateTitle ? "cursor-text hover:bg-notion-hover/50 rounded px-0.5 -mx-0.5" : ""}`}
             onClick={() => {
               if (onUpdateTitle) {
-                setTitleDraft(item.title);
-                setIsEditingTitle(true);
+                startEditingTitle();
               }
             }}
           >
@@ -236,6 +213,20 @@ export function ScheduleItemPreviewPopup({
               onClick={(e) => e.stopPropagation()}
             />
           </div>
+        )}
+
+        {onReminderChange && (
+          <ReminderToggle
+            enabled={!!item.reminderEnabled}
+            offset={item.reminderOffset ?? 30}
+            onEnabledChange={(enabled) =>
+              onReminderChange(enabled, item.reminderOffset)
+            }
+            onOffsetChange={(offset) =>
+              onReminderChange(!!item.reminderEnabled, offset)
+            }
+            compact
+          />
         )}
 
         <div className="flex items-center gap-2">

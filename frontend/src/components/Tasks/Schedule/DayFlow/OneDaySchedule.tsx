@@ -281,8 +281,10 @@ export function OneDaySchedule({
     if (selectedFilterGroupIds.length > 0) {
       items = items.filter((i) => {
         if (!i.routineId) return false;
-        const group = groupForRoutine.get(i.routineId);
-        return group ? selectedFilterGroupIds.includes(group.id) : false;
+        const groups = groupForRoutine.get(i.routineId);
+        return groups
+          ? groups.some((g) => selectedFilterGroupIds.includes(g.id))
+          : false;
       });
     }
     return items;
@@ -788,6 +790,8 @@ export function OneDaySchedule({
               frequencyDays,
               frequencyInterval,
               frequencyStartDate,
+              reminderEnabled,
+              reminderOffset,
             ) => {
               updateRoutine(editRoutineDialog.id, {
                 title,
@@ -797,6 +801,8 @@ export function OneDaySchedule({
                 frequencyDays,
                 frequencyInterval,
                 frequencyStartDate,
+                reminderEnabled,
+                reminderOffset,
               });
               if (tagIds !== undefined) {
                 setTagsForRoutine(editRoutineDialog.id, tagIds);
@@ -826,8 +832,11 @@ export function OneDaySchedule({
                       ? frequencyStartDate
                       : editRoutineDialog.frequencyStartDate,
                 };
-                const group = groupForRoutine.get(editRoutineDialog.id);
-                await reconcileRoutineScheduleItems(updatedRoutine, group);
+                const groups = groupForRoutine.get(editRoutineDialog.id);
+                await reconcileRoutineScheduleItems(
+                  updatedRoutine,
+                  groups?.[0],
+                );
                 await loadItemsForDate(dateKey);
               }
               setEditRoutineDialog(null);

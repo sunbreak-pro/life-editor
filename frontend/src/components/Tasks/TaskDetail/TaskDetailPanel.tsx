@@ -37,6 +37,7 @@ import { DateTimeRangePicker } from "../Schedule/shared/DateTimeRangePicker";
 import { fireTaskCompleteConfetti } from "../../../utils/confetti";
 import { playEffectSound } from "../../../utils/playEffectSound";
 import { PriorityPicker } from "../../shared/PriorityPicker";
+import { ReminderToggle } from "../../shared/ReminderToggle";
 
 interface TaskDetailPanelProps {
   selectedNodeId: string | null;
@@ -292,6 +293,20 @@ function TaskSidebarContent({
               }
             }}
           />
+
+          {node.scheduledAt && (
+            <ReminderToggle
+              enabled={!!node.reminderEnabled}
+              offset={node.reminderOffset ?? 30}
+              onEnabledChange={(enabled) =>
+                updateNode(node.id, { reminderEnabled: enabled })
+              }
+              onOffsetChange={(offset) =>
+                updateNode(node.id, { reminderOffset: offset })
+              }
+              compact
+            />
+          )}
 
           {node.scheduledAt && (
             <div className="flex items-center gap-1 px-2 py-1 rounded-md border border-notion-border">

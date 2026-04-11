@@ -1,13 +1,25 @@
 import { Check } from "lucide-react";
-import type { PropertyType, SelectOption } from "../../types/database";
+import type {
+  PropertyType,
+  SelectOption,
+  OverflowMode,
+} from "../../types/database";
 
 interface CellRendererProps {
   type: PropertyType;
   value: string;
   options?: SelectOption[];
+  overflow?: OverflowMode;
 }
 
-export function CellRenderer({ type, value, options }: CellRendererProps) {
+export function CellRenderer({
+  type,
+  value,
+  options,
+  overflow = "truncate",
+}: CellRendererProps) {
+  const textClass =
+    overflow === "wrap" ? "whitespace-pre-wrap break-words" : "truncate";
   switch (type) {
     case "checkbox":
       return (
@@ -23,7 +35,12 @@ export function CellRenderer({ type, value, options }: CellRendererProps) {
       );
 
     case "select": {
-      if (!value) return null;
+      if (!value)
+        return (
+          <span className="text-notion-text-secondary/40 text-xs">
+            Select...
+          </span>
+        );
       const option = options?.find((o) => o.id === value);
       if (!option)
         return (
@@ -43,15 +60,37 @@ export function CellRenderer({ type, value, options }: CellRendererProps) {
     }
 
     case "number":
-      return <span className="text-xs tabular-nums">{value}</span>;
+      if (!value)
+        return (
+          <span className="text-notion-text-secondary/40 text-xs tabular-nums">
+            0
+          </span>
+        );
+      return (
+        <span className={`text-xs tabular-nums ${textClass}`}>{value}</span>
+      );
 
     case "date":
+      if (!value)
+        return (
+          <span className="text-notion-text-secondary/40 text-xs">
+            Pick a date...
+          </span>
+        );
       return (
-        <span className="text-xs text-notion-text-secondary">{value}</span>
+        <span className={`text-xs text-notion-text-secondary ${textClass}`}>
+          {value}
+        </span>
       );
 
     case "text":
     default:
-      return <span className="text-xs">{value}</span>;
+      if (!value)
+        return (
+          <span className="text-notion-text-secondary/40 text-xs">
+            Type something...
+          </span>
+        );
+      return <span className={`text-xs ${textClass}`}>{value}</span>;
   }
 }

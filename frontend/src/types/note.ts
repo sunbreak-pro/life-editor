@@ -13,6 +13,7 @@ export interface NoteNode {
   isDeleted: boolean;
   deletedAt?: string;
   color?: string;
+  icon?: string;
   createdAt: string;
   updatedAt: string;
 }

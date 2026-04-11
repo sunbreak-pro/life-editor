@@ -9,6 +9,7 @@ import { TaskPreviewPopup } from "../Calendar/TaskPreviewPopup";
 import { ScheduleItemBlock } from "./ScheduleItemBlock";
 import { ScheduleItemPreviewPopup } from "./ScheduleItemPreviewPopup";
 import { GroupFrame } from "./GroupFrame";
+import { GroupContextMenu } from "./GroupContextMenu";
 import { TimeGridContextMenu } from "./TimeGridContextMenu";
 import { formatDateKey } from "../../../../utils/dateKey";
 import { shouldRoutineRunOnDate } from "../../../../utils/routineFrequency";
@@ -19,10 +20,10 @@ import {
   minutesToTimeString,
   topToMinutes,
   timeToMinutes,
+  snapTimeFromPosition,
 } from "../../../../utils/timeGridUtils";
 import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
-import { Pencil, Trash2, EyeOff } from "lucide-react";
 
 const HOURS = Array.from(
   { length: TIME_GRID.END_HOUR - TIME_GRID.START_HOUR },
@@ -54,96 +55,6 @@ interface ComputedGroupFrame {
   height: number;
   itemCount: number;
   timeRange: string;
-}
-
-function GroupContextMenu({
-  position,
-  onEdit,
-  onDismissToday,
-  onDeleteGroup,
-  onClose,
-}: {
-  position: { x: number; y: number };
-  onEdit?: () => void;
-  onDismissToday?: () => void;
-  onDeleteGroup?: () => void;
-  onClose: () => void;
-}) {
-  const { t } = useTranslation();
-  const menuRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const handleEscape = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
-    const handleClickOutside = (e: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
-        onClose();
-      }
-    };
-    document.addEventListener("keydown", handleEscape);
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => {
-      document.removeEventListener("keydown", handleEscape);
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
-  }, [onClose]);
-
-  const menuWidth = 200;
-  const menuHeight = 140;
-  const left = Math.min(position.x, window.innerWidth - menuWidth - 8);
-  const top = Math.min(position.y, window.innerHeight - menuHeight - 8);
-  const iconSize = 14;
-  const iconClass = "text-notion-text-secondary shrink-0";
-
-  return createPortal(
-    <div
-      ref={menuRef}
-      className="fixed z-[60] bg-notion-bg border border-notion-border rounded-lg shadow-xl overflow-hidden py-1"
-      style={{ top, left, width: menuWidth }}
-    >
-      {onEdit && (
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            onEdit();
-          }}
-          className="w-full flex items-center gap-2 px-3 py-1.5 text-xs text-notion-text hover:bg-notion-hover transition-colors text-left"
-        >
-          <Pencil size={iconSize} className={iconClass} />
-          {t("groupContextMenu.edit", "Edit group")}
-        </button>
-      )}
-      {onDismissToday && (
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            onDismissToday();
-          }}
-          className="w-full flex items-center gap-2 px-3 py-1.5 text-xs text-notion-text hover:bg-notion-hover transition-colors text-left"
-        >
-          <EyeOff size={iconSize} className={iconClass} />
-          {t("groupContextMenu.dismissToday", "Dismiss today")}
-        </button>
-      )}
-      {(onEdit || onDismissToday) && onDeleteGroup && (
-        <div className="h-px bg-notion-border my-1" />
-      )}
-      {onDeleteGroup && (
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            onDeleteGroup();
-          }}
-          className="w-full flex items-center gap-2 px-3 py-1.5 text-xs text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors text-left"
-        >
-          <Trash2 size={iconSize} className="text-red-500 shrink-0" />
-          {t("groupContextMenu.deleteGroup", "Delete group")}
-        </button>
-      )}
-    </div>,
-    document.body,
-  );
 }
 
 function rangesOverlap(
@@ -759,15 +670,15 @@ export function ScheduleTimeGrid({
 
     const rect = e.currentTarget.getBoundingClientRect();
     const y = e.clientY - rect.top;
-    const rawHour = y / TIME_GRID.SLOT_HEIGHT + TIME_GRID.START_HOUR;
-    const hour = Math.floor(rawHour);
-    const snappedMinute = Math.round(((rawHour % 1) * 60) / 15) * 15;
-    const finalMinute = snappedMinute >= 60 ? 0 : snappedMinute;
-    const finalHour = Math.min(snappedMinute >= 60 ? hour + 1 : hour, 23);
+    const snapped = snapTimeFromPosition(
+      y,
+      TIME_GRID.SLOT_HEIGHT,
+      TIME_GRID.START_HOUR,
+    );
 
-    const startTime = formatTime(finalHour, finalMinute);
-    const endHour = Math.min(finalHour + 1, 23);
-    const endTime = formatTime(endHour, finalMinute);
+    const startTime = formatTime(snapped.hour, snapped.minute);
+    const endHour = Math.min(snapped.hour + 1, 23);
+    const endTime = formatTime(endHour, snapped.minute);
 
     onCreateItem(startTime, endTime, e);
   };

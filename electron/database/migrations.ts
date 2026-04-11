@@ -255,6 +255,16 @@ export function runMigrations(db: Database.Database): void {
     migrateV54(db);
   }
 
+  if (currentVersion < 55) {
+    log.info("[DB] Running migration V55");
+    migrateV55(db);
+  }
+
+  if (currentVersion < 56) {
+    log.info("[DB] Running migration V56");
+    migrateV56(db);
+  }
+
   const newVersion = db.pragma("user_version", { simple: true }) as number;
   if (newVersion !== currentVersion) {
     log.info(`[DB] Schema migrated: ${currentVersion} → ${newVersion}`);
@@ -1860,6 +1870,31 @@ function migrateV54(db: Database.Database): void {
       ALTER TABLE memos ADD COLUMN is_edit_locked INTEGER NOT NULL DEFAULT 0;
     `);
     db.pragma("user_version = 54");
+  });
+  migrate();
+}
+
+function migrateV55(db: Database.Database): void {
+  const migrate = db.transaction(() => {
+    db.exec(`
+      ALTER TABLE notes ADD COLUMN icon TEXT DEFAULT NULL;
+    `);
+    db.pragma("user_version = 55");
+  });
+  migrate();
+}
+
+function migrateV56(db: Database.Database): void {
+  const migrate = db.transaction(() => {
+    db.exec(`
+      ALTER TABLE tasks ADD COLUMN reminder_enabled INTEGER NOT NULL DEFAULT 0;
+      ALTER TABLE tasks ADD COLUMN reminder_offset INTEGER;
+      ALTER TABLE schedule_items ADD COLUMN reminder_enabled INTEGER NOT NULL DEFAULT 0;
+      ALTER TABLE schedule_items ADD COLUMN reminder_offset INTEGER;
+      ALTER TABLE routines ADD COLUMN reminder_enabled INTEGER NOT NULL DEFAULT 0;
+      ALTER TABLE routines ADD COLUMN reminder_offset INTEGER;
+    `);
+    db.pragma("user_version = 56");
   });
   migrate();
 }

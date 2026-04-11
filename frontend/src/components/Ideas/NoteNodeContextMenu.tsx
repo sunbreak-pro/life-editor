@@ -1,18 +1,8 @@
 import { useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
-import {
-  Pencil,
-  Plus,
-  LucideFolderPlus,
-  Play,
-  ArrowUp,
-  Trash2,
-  CheckCircle2,
-  RotateCcw,
-  Bell,
-  BellOff,
-} from "lucide-react";
+import { Pencil, Trash2, Heart, HeartOff, ImageIcon } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import type { NoteNode } from "../../types/note";
 
 interface MenuAction {
   label: string;
@@ -21,47 +11,30 @@ interface MenuAction {
   danger?: boolean;
 }
 
-interface TaskNodeContextMenuProps {
+interface NoteNodeContextMenuProps {
   x: number;
   y: number;
-  isFolder: boolean;
-  isDone: boolean;
-  isFolderDone?: boolean;
-  hasParent: boolean;
+  node: NoteNode;
   onRename: () => void;
-  onAddTask: () => void;
-  onAddFolder: () => void;
-  onStartTimer: () => void;
-  onMoveToRoot: () => void;
-  onCompleteFolder?: () => void;
+  onChangeIcon: () => void;
+  onTogglePin: () => void;
   onDelete: () => void;
   onClose: () => void;
-  hasSchedule?: boolean;
-  reminderEnabled?: boolean;
-  onToggleReminder?: () => void;
 }
 
-export function TaskNodeContextMenu({
+export function NoteNodeContextMenu({
   x,
   y,
-  isFolder,
-  isDone,
-  isFolderDone,
-  hasParent,
+  node,
   onRename,
-  onAddTask,
-  onAddFolder,
-  onStartTimer,
-  onMoveToRoot,
-  onCompleteFolder,
+  onChangeIcon,
+  onTogglePin,
   onDelete,
   onClose,
-  hasSchedule,
-  reminderEnabled,
-  onToggleReminder,
-}: TaskNodeContextMenuProps) {
+}: NoteNodeContextMenuProps) {
   const { t } = useTranslation();
   const menuRef = useRef<HTMLDivElement>(null);
+  const isFolder = node.type === "folder";
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -80,7 +53,6 @@ export function TaskNodeContextMenu({
     };
   }, [onClose]);
 
-  // Adjust position to stay within viewport
   useEffect(() => {
     if (!menuRef.current) return;
     const rect = menuRef.current.getBoundingClientRect();
@@ -104,58 +76,18 @@ export function TaskNodeContextMenu({
   ];
 
   if (isFolder) {
-    actions.push(
-      {
-        label: t("contextMenu.addTask"),
-        icon: <Plus size={14} />,
-        onClick: onAddTask,
-      },
-      {
-        label: t("contextMenu.addFolder"),
-        icon: <LucideFolderPlus size={14} />,
-        onClick: onAddFolder,
-      },
-    );
-    if (onCompleteFolder) {
-      actions.push({
-        label: isFolderDone
-          ? t("contextMenu.markIncomplete")
-          : t("contextMenu.completeFolder"),
-        icon: isFolderDone ? (
-          <RotateCcw size={14} />
-        ) : (
-          <CheckCircle2 size={14} />
-        ),
-        onClick: onCompleteFolder,
-      });
-    }
-  }
-
-  if (!isFolder && !isDone) {
     actions.push({
-      label: t("contextMenu.startTimer"),
-      icon: <Play size={14} />,
-      onClick: onStartTimer,
+      label: t("contextMenu.changeIcon"),
+      icon: <ImageIcon size={14} />,
+      onClick: onChangeIcon,
     });
   }
 
-  if (!isFolder && hasSchedule && onToggleReminder) {
-    actions.push({
-      label: reminderEnabled
-        ? t("reminders.removeReminder", "Remove Reminder")
-        : t("reminders.setReminder", "Set Reminder"),
-      icon: reminderEnabled ? <BellOff size={14} /> : <Bell size={14} />,
-      onClick: onToggleReminder,
-    });
-  }
-
-  if (hasParent) {
-    actions.push("separator", {
-      label: t("contextMenu.moveToRoot"),
-      icon: <ArrowUp size={14} />,
-      onClick: onMoveToRoot,
-    });
-  }
+  actions.push({
+    label: node.isPinned ? t("contextMenu.unpin") : t("contextMenu.pin"),
+    icon: node.isPinned ? <HeartOff size={14} /> : <Heart size={14} />,
+    onClick: onTogglePin,
+  });
 
   actions.push("separator", {
     label: t("contextMenu.delete"),

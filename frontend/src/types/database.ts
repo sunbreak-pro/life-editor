@@ -6,6 +6,19 @@ export interface SelectOption {
   color: string;
 }
 
+export type OverflowMode = "wrap" | "truncate";
+
+export type AggregationType =
+  | "none"
+  | "sum"
+  | "count"
+  | "countValues"
+  | "countChecked"
+  | "countUnchecked"
+  | "avg"
+  | "min"
+  | "max";
+
 export interface DatabaseProperty {
   id: string;
   databaseId: string;
@@ -14,6 +27,9 @@ export interface DatabaseProperty {
   order: number;
   config: {
     options?: SelectOption[];
+    overflow?: OverflowMode;
+    width?: number;
+    aggregation?: AggregationType;
   };
   createdAt: string;
 }

@@ -13,6 +13,7 @@ import {
   clampEndTimeAfterStart,
 } from "../../../../utils/timeGridUtils";
 import { getTodayKey } from "../../../../utils/dateKey";
+import { ReminderToggle } from "../../../shared/ReminderToggle";
 
 interface RoutineEditDialogProps {
   routine?: RoutineNode;
@@ -27,6 +28,8 @@ interface RoutineEditDialogProps {
     frequencyDays?: number[],
     frequencyInterval?: number | null,
     frequencyStartDate?: string | null,
+    reminderEnabled?: boolean,
+    reminderOffset?: number,
   ) => void;
   onCreateTag?: (name: string, color: string) => Promise<RoutineTag>;
   onClose: () => void;
@@ -58,6 +61,12 @@ export function RoutineEditDialog({
   const [frequencyStartDate, setFrequencyStartDate] = useState(
     routine?.frequencyStartDate ?? getTodayKey(),
   );
+  const [reminderEnabled, setReminderEnabled] = useState(
+    !!routine?.reminderEnabled,
+  );
+  const [reminderOffset, setReminderOffset] = useState(
+    routine?.reminderOffset ?? 30,
+  );
 
   const handleSubmit = () => {
     if (!title.trim()) return;
@@ -70,6 +79,8 @@ export function RoutineEditDialog({
       frequencyType === "weekdays" ? frequencyDays : [],
       frequencyType === "interval" ? frequencyInterval : null,
       frequencyType === "interval" ? frequencyStartDate : null,
+      reminderEnabled,
+      reminderOffset,
     );
     onClose();
   };
@@ -174,6 +185,18 @@ export function RoutineEditDialog({
             onFrequencyIntervalChange={setFrequencyInterval}
             onFrequencyStartDateChange={setFrequencyStartDate}
           />
+
+          <div>
+            <label className="text-[11px] text-notion-text-secondary uppercase tracking-wide mb-1 block">
+              {t("reminders.itemReminderToggle", "Reminder")}
+            </label>
+            <ReminderToggle
+              enabled={reminderEnabled}
+              offset={reminderOffset}
+              onEnabledChange={setReminderEnabled}
+              onOffsetChange={setReminderOffset}
+            />
+          </div>
 
           <div>
             <label className="text-[11px] text-notion-text-secondary uppercase tracking-wide mb-1 block">

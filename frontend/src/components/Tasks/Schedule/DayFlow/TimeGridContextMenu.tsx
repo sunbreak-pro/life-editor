@@ -14,6 +14,8 @@ import {
   RefreshCw,
   CopyPlus,
   Trash2,
+  Bell,
+  BellOff,
 } from "lucide-react";
 
 interface TimeGridContextMenuProps {
@@ -33,6 +35,8 @@ interface TimeGridContextMenuProps {
   onConvertToRoutine?: () => void;
   onDuplicate: () => void;
   onClose: () => void;
+  reminderEnabled?: boolean;
+  onToggleReminder?: () => void;
 }
 
 interface MenuItem {
@@ -60,6 +64,8 @@ export function TimeGridContextMenu({
   onConvertToRoutine,
   onDuplicate,
   onClose,
+  reminderEnabled,
+  onToggleReminder,
 }: TimeGridContextMenuProps) {
   const { t } = useTranslation();
   const menuRef = useRef<HTMLDivElement>(null);
@@ -132,7 +138,21 @@ export function TimeGridContextMenu({
     },
   ];
 
+  const reminderItem: MenuItem = {
+    icon: reminderEnabled ? (
+      <BellOff size={iconSize} className={iconClass} />
+    ) : (
+      <Bell size={iconSize} className={iconClass} />
+    ),
+    label: reminderEnabled
+      ? t("reminders.removeReminder", "Remove Reminder")
+      : t("reminders.setReminder", "Set Reminder"),
+    onClick: onToggleReminder ?? onClose,
+    hidden: !onToggleReminder,
+  };
+
   const advancedItems: MenuItem[] = [
+    reminderItem,
     {
       icon: <Link size={iconSize} className={iconClass} />,
       label: t("timeGridContextMenu.linkToTask", "Link to task"),

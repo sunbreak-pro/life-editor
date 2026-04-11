@@ -14,6 +14,11 @@ export function useReminderListener(): void {
       (data: { id: string; title: string; type: string }) => {
         if (data.type === "dailyReview") {
           showToast("info", t("reminders.dailyReview"));
+        } else if (data.type === "itemReminder") {
+          showToast(
+            "info",
+            t("reminders.itemReminderNotification", { title: data.title }),
+          );
         } else {
           showToast(
             "info",

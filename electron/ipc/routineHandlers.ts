@@ -23,6 +23,8 @@ export function registerRoutineHandlers(repo: RoutineRepository): void {
       frequencyDays?: number[],
       frequencyInterval?: number | null,
       frequencyStartDate?: string | null,
+      reminderEnabled?: boolean,
+      reminderOffset?: number,
     ) => {
       return repo.create(
         id,
@@ -33,6 +35,8 @@ export function registerRoutineHandlers(repo: RoutineRepository): void {
         frequencyDays,
         frequencyInterval,
         frequencyStartDate,
+        reminderEnabled,
+        reminderOffset,
       );
     },
   );
@@ -58,6 +62,8 @@ export function registerRoutineHandlers(repo: RoutineRepository): void {
           | "frequencyDays"
           | "frequencyInterval"
           | "frequencyStartDate"
+          | "reminderEnabled"
+          | "reminderOffset"
         >
       >,
     ) => {

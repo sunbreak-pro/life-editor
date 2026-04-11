@@ -14,6 +14,8 @@ export interface RoutineNode {
   frequencyDays: number[]; // [0=Sun, 1=Mon, ..., 6=Sat]
   frequencyInterval: number | null;
   frequencyStartDate: string | null; // "YYYY-MM-DD"
+  reminderEnabled?: boolean;
+  reminderOffset?: number;
   createdAt: string;
   updatedAt: string;
 }

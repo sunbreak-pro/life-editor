@@ -8,21 +8,24 @@ import type {
   DatabaseFilter,
   DatabaseSort,
   PropertyType,
+  AggregationType,
   SelectOption,
 } from "../../types/database";
 import { CellRenderer } from "./CellRenderer";
 import { CellEditor } from "./CellEditor";
 import { PropertyHeader } from "./PropertyHeader";
 import { AddPropertyPopover } from "./AddPropertyPopover";
-import { DatabaseFilterBar } from "./DatabaseFilterBar";
-import { DatabaseSortBar } from "./DatabaseSortBar";
+import { AggregationSelector } from "./AggregationSelector";
 import { applyFilters } from "../../utils/databaseFilter";
 import { applySorts } from "../../utils/databaseSort";
+import { computeAggregation } from "../../utils/databaseAggregation";
 
 interface DatabaseTableProps {
   properties: DatabaseProperty[];
   rows: DatabaseRow[];
   cells: DatabaseCell[];
+  filters: DatabaseFilter[];
+  sorts: DatabaseSort[];
   onAddProperty: (name: string, type: PropertyType) => void;
   onUpdateProperty: (
     propertyId: string,
@@ -49,6 +52,8 @@ export function DatabaseTable({
   properties,
   rows,
   cells,
+  filters,
+  sorts,
   onAddProperty,
   onUpdateProperty,
   onRemoveProperty,
@@ -59,8 +64,11 @@ export function DatabaseTable({
 }: DatabaseTableProps) {
   const { t } = useTranslation();
   const [editingCell, setEditingCell] = useState<EditingCell | null>(null);
-  const [filters, setFilters] = useState<DatabaseFilter[]>([]);
-  const [sorts, setSorts] = useState<DatabaseSort[]>([]);
+  const [aggSelector, setAggSelector] = useState<{
+    x: number;
+    y: number;
+    propertyId: string;
+  } | null>(null);
 
   const sortedProperties = useMemo(
     () => [...properties].sort((a, b) => a.order - b.order),
@@ -117,37 +125,31 @@ export function DatabaseTable({
 
   return (
     <div className="w-full overflow-x-auto">
-      {/* Filter & Sort toolbar */}
-      <div className="flex items-center gap-2 px-2 py-1 border-b border-notion-border">
-        <DatabaseFilterBar
-          filters={filters}
-          properties={sortedProperties}
-          onFiltersChange={setFilters}
-        />
-        <DatabaseSortBar
-          sorts={sorts}
-          properties={sortedProperties}
-          onSortsChange={setSorts}
-        />
-      </div>
-
-      <table className="w-full border-collapse text-sm">
+      <table
+        className="border-collapse text-sm"
+        style={{ tableLayout: "fixed" }}
+      >
         {/* Header */}
         <thead>
-          <tr className="border-b border-notion-border">
+          <tr>
             {sortedProperties.map((prop) => (
               <th
                 key={prop.id}
-                className="text-left font-normal border-r border-notion-border last:border-r-0 min-w-[120px]"
+                className="text-left font-normal"
+                style={{
+                  width: prop.config?.width ?? 120,
+                  minWidth: 60,
+                }}
               >
                 <PropertyHeader
                   property={prop}
+                  isFixed={prop.order === 0}
                   onUpdate={(updates) => onUpdateProperty(prop.id, updates)}
                   onRemove={() => onRemoveProperty(prop.id)}
                 />
               </th>
             ))}
-            <th className="w-8 border-r-0">
+            <th className="w-8">
               <AddPropertyPopover onAdd={onAddProperty} />
             </th>
           </tr>
@@ -158,7 +160,7 @@ export function DatabaseTable({
           {displayRows.map((row) => (
             <tr
               key={row.id}
-              className="group/row border-b border-notion-border hover:bg-notion-hover/50 transition-colors"
+              className="group/row hover:bg-notion-hover/50 transition-colors"
             >
               {sortedProperties.map((prop) => {
                 const isEditing =
@@ -166,10 +168,11 @@ export function DatabaseTable({
                   editingCell?.propertyId === prop.id;
                 const value = getCellValue(row.id, prop.id);
 
+                const cellOverflow = prop.config?.overflow ?? "truncate";
                 return (
                   <td
                     key={prop.id}
-                    className="relative border-r border-notion-border last:border-r-0 h-8 min-w-[120px] cursor-pointer"
+                    className={`relative cursor-pointer ${cellOverflow === "wrap" ? "min-h-[2rem]" : "h-8"}`}
                     onClick={() =>
                       !isEditing && handleCellClick(row.id, prop.id, prop.type)
                     }
@@ -188,6 +191,7 @@ export function DatabaseTable({
                           type={prop.type}
                           value={value}
                           options={getOptions(prop.id)}
+                          overflow={cellOverflow}
                         />
                       </div>
                     )}
@@ -206,7 +210,70 @@ export function DatabaseTable({
             </tr>
           ))}
         </tbody>
+
+        {/* Aggregation footer */}
+        <tfoot>
+          <tr>
+            {sortedProperties.map((prop) => {
+              const agg = prop.config?.aggregation ?? "none";
+              const values = displayRows.map((row) =>
+                getCellValue(row.id, prop.id),
+              );
+              const result =
+                agg !== "none"
+                  ? computeAggregation(agg, prop.type, values)
+                  : "";
+              return (
+                <td
+                  key={prop.id}
+                  className="h-7 cursor-pointer hover:bg-notion-hover/50 transition-colors"
+                  onClick={(e) => {
+                    const rect = e.currentTarget.getBoundingClientRect();
+                    setAggSelector({
+                      x: rect.left,
+                      y: rect.bottom,
+                      propertyId: prop.id,
+                    });
+                  }}
+                >
+                  <div className="px-2 py-1 text-xs text-notion-text-secondary tabular-nums">
+                    {result || (
+                      <span className="opacity-0 group-hover/db-title:opacity-40">
+                        {t("database.aggregation.label")}
+                      </span>
+                    )}
+                  </div>
+                </td>
+              );
+            })}
+            <td className="w-8" />
+          </tr>
+        </tfoot>
       </table>
+
+      {/* Aggregation selector popover */}
+      {aggSelector &&
+        (() => {
+          const prop = sortedProperties.find(
+            (p) => p.id === aggSelector.propertyId,
+          );
+          if (!prop) return null;
+          return (
+            <AggregationSelector
+              x={aggSelector.x}
+              y={aggSelector.y}
+              propertyType={prop.type}
+              current={prop.config?.aggregation ?? "none"}
+              onSelect={(aggregation: AggregationType) => {
+                onUpdateProperty(prop.id, {
+                  config: { ...prop.config, aggregation },
+                });
+                setAggSelector(null);
+              }}
+              onClose={() => setAggSelector(null)}
+            />
+          );
+        })()}
 
       {/* Add row button */}
       <button

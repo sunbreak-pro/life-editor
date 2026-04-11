@@ -1,5 +1,22 @@
 # HISTORY.md - 変更履歴
 
+### 2026-04-11 - Per-Item Reminder Feature + TaskPreviewPopup Bug Fix
+
+#### 概要
+
+Task/予定(ScheduleItem)/Routineにアイテム個別のリマインダー機能（ON/OFFトグル + カスタムオフセット）を追加。CalendarのTaskPreviewPopupで`formatTime is not defined`エラーも修正。
+
+#### 変更点
+
+- **Bug Fix**: `TaskPreviewPopup.tsx`に`formatTime`のインポート追加（`timeGridUtils.ts`から）
+- **DB Migration V56**: `tasks`/`schedule_items`/`routines`テーブルに`reminder_enabled`/`reminder_offset`カラム追加
+- **Types**: `TaskNode`/`ScheduleItem`/`RoutineNode`（frontend + electron両方）に`reminderEnabled`/`reminderOffset`追加
+- **Repository Layer**: 3つのRepositoryのRow型、rowTo変換、INSERT/UPDATE SQL更新
+- **ReminderService**: `checkPerItemReminders()`メソッド追加 — per-itemオフセットで通知タイミング判定
+- **Routine→ScheduleItem伝播**: `routineScheduleSync.ts`でRoutineのリマインダー設定を生成ScheduleItemに伝播
+- **UI**: `ReminderToggle.tsx`共有コンポーネント新規作成、TaskDetailPanel/TaskPreviewPopup/ScheduleItemPreviewPopup/RoutineEditDialog/TaskNodeContextMenu/TimeGridContextMenuに統合
+- **i18n**: en.json/ja.jsonに4キー追加
+
 ### 2026-04-11 - Database 機能強化（Feature 2-6）
 
 #### 概要

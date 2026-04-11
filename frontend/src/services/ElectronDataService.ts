@@ -260,7 +260,7 @@ export class ElectronDataService implements DataService {
   updateNote(
     id: string,
     updates: Partial<
-      Pick<NoteNode, "title" | "content" | "isPinned" | "color">
+      Pick<NoteNode, "title" | "content" | "isPinned" | "color" | "icon">
     >,
   ): Promise<NoteNode> {
     return invoke("db:notes:update", id, updates);
@@ -427,6 +427,8 @@ export class ElectronDataService implements DataService {
     frequencyDays?: number[],
     frequencyInterval?: number | null,
     frequencyStartDate?: string | null,
+    reminderEnabled?: boolean,
+    reminderOffset?: number,
   ): Promise<RoutineNode> {
     return invoke(
       "db:routines:create",
@@ -438,6 +440,8 @@ export class ElectronDataService implements DataService {
       frequencyDays,
       frequencyInterval,
       frequencyStartDate,
+      reminderEnabled,
+      reminderOffset,
     );
   }
   updateRoutine(
@@ -455,6 +459,8 @@ export class ElectronDataService implements DataService {
         | "frequencyDays"
         | "frequencyInterval"
         | "frequencyStartDate"
+        | "reminderEnabled"
+        | "reminderOffset"
       >
     >,
   ): Promise<RoutineNode> {
@@ -559,6 +565,8 @@ export class ElectronDataService implements DataService {
       routineId?: string;
       templateId?: string;
       noteId?: string;
+      reminderEnabled?: boolean;
+      reminderOffset?: number;
     }>,
   ): Promise<ScheduleItem[]> {
     return invoke("db:scheduleItems:bulkCreate", items);

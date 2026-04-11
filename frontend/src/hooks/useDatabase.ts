@@ -110,6 +110,8 @@ export function useDatabase(databaseId: string | null) {
   const removeProperty = useCallback((propertyId: string) => {
     setData((prev) => {
       if (!prev) return null;
+      const target = prev.properties.find((p) => p.id === propertyId);
+      if (target?.order === 0) return prev;
       return {
         ...prev,
         properties: prev.properties.filter((p) => p.id !== propertyId),

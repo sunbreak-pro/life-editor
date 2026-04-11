@@ -149,7 +149,7 @@ export interface DataService {
   updateNote(
     id: string,
     updates: Partial<
-      Pick<NoteNode, "title" | "content" | "isPinned" | "color">
+      Pick<NoteNode, "title" | "content" | "isPinned" | "color" | "icon">
     >,
   ): Promise<NoteNode>;
   softDeleteNote(id: string): Promise<void>;
@@ -240,6 +240,8 @@ export interface DataService {
     frequencyDays?: number[],
     frequencyInterval?: number | null,
     frequencyStartDate?: string | null,
+    reminderEnabled?: boolean,
+    reminderOffset?: number,
   ): Promise<RoutineNode>;
   updateRoutine(
     id: string,
@@ -256,6 +258,8 @@ export interface DataService {
         | "frequencyDays"
         | "frequencyInterval"
         | "frequencyStartDate"
+        | "reminderEnabled"
+        | "reminderOffset"
       >
     >,
   ): Promise<RoutineNode>;
@@ -316,6 +320,8 @@ export interface DataService {
       routineId?: string;
       templateId?: string;
       noteId?: string;
+      reminderEnabled?: boolean;
+      reminderOffset?: number;
     }>,
   ): Promise<ScheduleItem[]>;
   updateFutureScheduleItemsByRoutine(

@@ -9,16 +9,24 @@ import {
   Code,
   Link as LinkIcon,
   Palette,
+  Highlighter,
   X,
   Check,
-  ChevronDown,
 } from "lucide-react";
 import { isMac } from "../../../utils/platform";
 import { isValidUrl } from "../../../utils/urlValidation";
 import { useSlashCommand } from "../../../hooks/useSlashCommand";
-import { PANEL_COMMANDS, getCurrentBlockLabel } from "./editorCommands";
+import { PANEL_COMMANDS } from "./editorCommands";
 import { CommandPanel } from "./CommandPanel";
 import { UnifiedColorPicker } from "../../shared/UnifiedColorPicker";
+
+const HIGHLIGHT_COLORS = [
+  { label: "Yellow", value: "rgba(249,226,175,0.4)" },
+  { label: "Green", value: "rgba(166,227,161,0.4)" },
+  { label: "Blue", value: "rgba(137,180,250,0.4)" },
+  { label: "Red", value: "rgba(243,139,168,0.4)" },
+  { label: "Purple", value: "rgba(203,166,247,0.4)" },
+];
 
 interface BubbleToolbarProps {
   editor: Editor;
@@ -29,7 +37,7 @@ export function BubbleToolbar({ editor }: BubbleToolbarProps) {
   const [linkUrl, setLinkUrl] = useState("");
   const [linkError, setLinkError] = useState("");
   const [showColorPicker, setShowColorPicker] = useState(false);
-  const [showTurnInto, setShowTurnInto] = useState(false);
+  const [showHighlightPicker, setShowHighlightPicker] = useState(false);
 
   const slash = useSlashCommand(editor, PANEL_COMMANDS);
 
@@ -53,9 +61,7 @@ export function BubbleToolbar({ editor }: BubbleToolbarProps) {
         typeof sel.node === "object" &&
         "type" in sel.node
       ) {
-        const nodeType = (sel.node as { type: { name: string } }).type;
-        if (nodeType.name === "image" || nodeType.name === "wikiTag")
-          return false;
+        return false; // Don't show bubble toolbar for any NodeSelection (grip click, image, etc.)
       }
       return true;
     },
@@ -121,21 +127,22 @@ export function BubbleToolbar({ editor }: BubbleToolbarProps) {
     setShowColorPicker(false);
   };
 
+  const handleHighlightSelect = (color: string) => {
+    if (color) {
+      editor.chain().focus().toggleHighlight({ color }).run();
+    } else {
+      editor.chain().focus().unsetHighlight().run();
+    }
+    setShowHighlightPicker(false);
+  };
+
   const handleHide = () => {
     setLinkMode(false);
     setLinkUrl("");
     setLinkError("");
     setShowColorPicker(false);
-    setShowTurnInto(false);
+    setShowHighlightPicker(false);
   };
-
-  const handleTurnIntoExecute = useCallback(
-    (index: number) => {
-      PANEL_COMMANDS[index]?.action(editor);
-      setShowTurnInto(false);
-    },
-    [editor],
-  );
 
   // --- Slash mode: portal-based CommandPanel ---
   if (slash.isOpen) {
@@ -224,25 +231,11 @@ export function BubbleToolbar({ editor }: BubbleToolbarProps) {
       <div className="bubble-toolbar-unified">
         <div
           className="bubble-toolbar"
-          onMouseLeave={() => setShowColorPicker(false)}
+          onMouseLeave={() => {
+            setShowColorPicker(false);
+            setShowHighlightPicker(false);
+          }}
         >
-          {/* Turn Into dropdown */}
-          <div className="bubble-toolbar-turninto-wrapper">
-            <button
-              className="bubble-toolbar-turninto-btn"
-              onMouseDown={(e) => {
-                e.preventDefault();
-                setShowTurnInto(!showTurnInto);
-              }}
-              title="Turn into..."
-            >
-              <span>{getCurrentBlockLabel(editor)}</span>
-              <ChevronDown size={12} />
-            </button>
-          </div>
-
-          <div className="bubble-toolbar-divider" />
-
           <button
             className={`bubble-toolbar-btn ${editor.isActive("bold") ? "is-active" : ""}`}
             onMouseDown={(e) => {
@@ -301,10 +294,12 @@ export function BubbleToolbar({ editor }: BubbleToolbarProps) {
 
           <div className="bubble-toolbar-divider" />
 
+          {/* Text color */}
           <button
             className="bubble-toolbar-btn"
             onMouseDown={(e) => {
               e.preventDefault();
+              setShowHighlightPicker(false);
               setShowColorPicker(!showColorPicker);
             }}
             title="Text color"
@@ -321,20 +316,46 @@ export function BubbleToolbar({ editor }: BubbleToolbarProps) {
               />
             </>
           )}
-        </div>
 
-        {/* Turn Into CommandPanel dropdown */}
-        {showTurnInto && (
-          <CommandPanel
-            editor={editor}
-            commands={PANEL_COMMANDS}
-            mode="selection"
-            selectedIndex={-1}
-            filterQuery=""
-            onExecute={handleTurnIntoExecute}
-            onClose={() => setShowTurnInto(false)}
-          />
-        )}
+          {/* Text highlight */}
+          <button
+            className={`bubble-toolbar-btn ${editor.isActive("highlight") ? "is-active" : ""}`}
+            onMouseDown={(e) => {
+              e.preventDefault();
+              setShowColorPicker(false);
+              setShowHighlightPicker(!showHighlightPicker);
+            }}
+            title="Highlight"
+          >
+            <Highlighter size={14} />
+          </button>
+          {showHighlightPicker && (
+            <div className="bubble-toolbar-highlight-picker">
+              {HIGHLIGHT_COLORS.map((c) => (
+                <button
+                  key={c.label}
+                  className="bubble-toolbar-highlight-swatch"
+                  style={{ backgroundColor: c.value }}
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    handleHighlightSelect(c.value);
+                  }}
+                  title={c.label}
+                />
+              ))}
+              <button
+                className="bubble-toolbar-highlight-swatch bubble-toolbar-highlight-clear"
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  handleHighlightSelect("");
+                }}
+                title="Clear"
+              >
+                <X size={10} />
+              </button>
+            </div>
+          )}
+        </div>
       </div>
     </BubbleMenu>
   );

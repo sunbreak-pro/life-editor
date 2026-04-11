@@ -7,7 +7,11 @@ import { logServiceError } from "../utils/logError";
 import { generateId } from "../utils/generateId";
 import { useUndoRedo } from "../components/shared/UndoRedo";
 import { formatDateKey } from "../utils/dateKey";
-import { diffRoutineScheduleItems } from "../utils/routineScheduleSync";
+import {
+  diffRoutineScheduleItems,
+  shouldCreateRoutineItem,
+  collectRoutineItemsForDates,
+} from "../utils/routineScheduleSync";
 import { shouldRoutineRunOnDate } from "../utils/routineFrequency";
 
 function computeRoutineStats(
@@ -195,6 +199,38 @@ export function useScheduleItems() {
     }
   }, []);
 
+  // ---- Internal list helpers ----
+  // Apply the same updater to scheduleItems + monthlyScheduleItems (+ events).
+  // Setters are stable React identities; monthlyScheduleItems is declared later
+  // but resolved by the time any callback is invoked.
+  const applyToLists = useCallback(
+    (
+      updater: (prev: ScheduleItem[]) => ScheduleItem[],
+      includeEvents = false,
+    ) => {
+      setScheduleItems(updater);
+      setMonthlyScheduleItems(updater);
+      if (includeEvents) setEvents(updater);
+    },
+    [],
+  );
+
+  const addToLists = useCallback(
+    (item: ScheduleItem) => {
+      applyToLists((prev) =>
+        [...prev, item].sort((a, b) => a.startTime.localeCompare(b.startTime)),
+      );
+    },
+    [applyToLists],
+  );
+
+  const removeFromLists = useCallback(
+    (id: string) => {
+      applyToLists((prev) => prev.filter((item) => item.id !== id));
+    },
+    [applyToLists],
+  );
+
   const createScheduleItem = useCallback(
     (
       date: string,
@@ -227,16 +263,7 @@ export function useScheduleItems() {
         createdAt: now,
         updatedAt: now,
       };
-      setScheduleItems((prev) =>
-        [...prev, optimistic].sort((a, b) =>
-          a.startTime.localeCompare(b.startTime),
-        ),
-      );
-      setMonthlyScheduleItems((prev) =>
-        [...prev, optimistic].sort((a, b) =>
-          a.startTime.localeCompare(b.startTime),
-        ),
-      );
+      addToLists(optimistic);
       getDataService()
         .createScheduleItem(
           id,
@@ -256,25 +283,13 @@ export function useScheduleItems() {
         push("scheduleItem", {
           label: "createScheduleItem",
           undo: () => {
-            setScheduleItems((prev) => prev.filter((item) => item.id !== id));
-            setMonthlyScheduleItems((prev) =>
-              prev.filter((item) => item.id !== id),
-            );
+            removeFromLists(id);
             getDataService()
               .deleteScheduleItem(id)
               .catch((e) => logServiceError("ScheduleItems", "undoCreate", e));
           },
           redo: () => {
-            setScheduleItems((prev) =>
-              [...prev, optimistic].sort((a, b) =>
-                a.startTime.localeCompare(b.startTime),
-              ),
-            );
-            setMonthlyScheduleItems((prev) =>
-              [...prev, optimistic].sort((a, b) =>
-                a.startTime.localeCompare(b.startTime),
-              ),
-            );
+            addToLists(optimistic);
             getDataService()
               .createScheduleItem(
                 id,
@@ -328,12 +343,9 @@ export function useScheduleItems() {
           ? { ...item, ...prev, updatedAt: new Date().toISOString() }
           : item;
       if (dateChanged) {
-        // Item moved to a different date — remove from current lists
-        setScheduleItems((p) => p.filter((item) => item.id !== id));
-        setMonthlyScheduleItems((p) => p.filter((item) => item.id !== id));
+        removeFromLists(id);
       } else {
-        setScheduleItems((p) => p.map(applyUpdate));
-        setMonthlyScheduleItems((p) => p.map(applyUpdate));
+        applyToLists((p) => p.map(applyUpdate));
       }
       getDataService()
         .updateScheduleItem(id, updates)
@@ -348,16 +360,13 @@ export function useScheduleItems() {
           label: "updateScheduleItem",
           undo: () => {
             if (dateChanged) {
-              // Re-add item to lists with reverted values
               const reverted = {
                 ...prev,
                 updatedAt: new Date().toISOString(),
               };
-              setScheduleItems((p) => [...p, reverted]);
-              setMonthlyScheduleItems((p) => [...p, reverted]);
+              applyToLists((p) => [...p, reverted]);
             } else {
-              setScheduleItems((p) => p.map(applyRevert));
-              setMonthlyScheduleItems((p) => p.map(applyRevert));
+              applyToLists((p) => p.map(applyRevert));
             }
             getDataService()
               .updateScheduleItem(id, prevValues)
@@ -365,13 +374,9 @@ export function useScheduleItems() {
           },
           redo: () => {
             if (dateChanged) {
-              setScheduleItems((p) => p.filter((item) => item.id !== id));
-              setMonthlyScheduleItems((p) =>
-                p.filter((item) => item.id !== id),
-              );
+              removeFromLists(id);
             } else {
-              setScheduleItems((p) => p.map(applyUpdate));
-              setMonthlyScheduleItems((p) => p.map(applyUpdate));
+              applyToLists((p) => p.map(applyUpdate));
             }
             getDataService()
               .updateScheduleItem(id, updates)
@@ -387,8 +392,7 @@ export function useScheduleItems() {
   const deleteScheduleItem = useCallback(
     (id: string, options?: { skipUndo?: boolean }) => {
       const target = scheduleItemsRef.current.find((item) => item.id === id);
-      setScheduleItems((prev) => prev.filter((item) => item.id !== id));
-      setMonthlyScheduleItems((prev) => prev.filter((item) => item.id !== id));
+      removeFromLists(id);
       getDataService()
         .deleteScheduleItem(id)
         .catch((e) => logServiceError("ScheduleItems", "delete", e));
@@ -397,16 +401,7 @@ export function useScheduleItems() {
         push("scheduleItem", {
           label: "deleteScheduleItem",
           undo: () => {
-            setScheduleItems((prev) =>
-              [...prev, target].sort((a, b) =>
-                a.startTime.localeCompare(b.startTime),
-              ),
-            );
-            setMonthlyScheduleItems((prev) =>
-              [...prev, target].sort((a, b) =>
-                a.startTime.localeCompare(b.startTime),
-              ),
-            );
+            addToLists(target);
             getDataService()
               .createScheduleItem(
                 target.id,
@@ -438,10 +433,7 @@ export function useScheduleItems() {
               .catch((e) => logServiceError("ScheduleItems", "undoDelete", e));
           },
           redo: () => {
-            setScheduleItems((prev) => prev.filter((item) => item.id !== id));
-            setMonthlyScheduleItems((prev) =>
-              prev.filter((item) => item.id !== id),
-            );
+            removeFromLists(id);
             getDataService()
               .deleteScheduleItem(id)
               .catch((e) => logServiceError("ScheduleItems", "redoDelete", e));
@@ -458,39 +450,18 @@ export function useScheduleItems() {
       const item = scheduleItemsRef.current.find((i) => i.id === id);
       const wasCompleted = item?.completed ?? false;
 
-      setScheduleItems((prev) =>
-        prev.map((item) =>
-          item.id === id
+      const toggleMapper = (completed: boolean) => (prev: ScheduleItem[]) =>
+        prev.map((i) =>
+          i.id === id
             ? {
-                ...item,
-                completed: !item.completed,
-                completedAt: !item.completed ? new Date().toISOString() : null,
+                ...i,
+                completed,
+                completedAt: completed ? new Date().toISOString() : null,
               }
-            : item,
-        ),
-      );
-      setMonthlyScheduleItems((prev) =>
-        prev.map((item) =>
-          item.id === id
-            ? {
-                ...item,
-                completed: !item.completed,
-                completedAt: !item.completed ? new Date().toISOString() : null,
-              }
-            : item,
-        ),
-      );
-      setEvents((prev) =>
-        prev.map((item) =>
-          item.id === id
-            ? {
-                ...item,
-                completed: !item.completed,
-                completedAt: !item.completed ? new Date().toISOString() : null,
-              }
-            : item,
-        ),
-      );
+            : i,
+        );
+
+      applyToLists(toggleMapper(!wasCompleted), true);
       getDataService()
         .toggleScheduleItemComplete(id)
         .catch((e) => logServiceError("ScheduleItems", "toggleComplete", e));
@@ -498,83 +469,13 @@ export function useScheduleItems() {
       push("scheduleItem", {
         label: "toggleComplete",
         undo: () => {
-          setScheduleItems((prev) =>
-            prev.map((i) =>
-              i.id === id
-                ? {
-                    ...i,
-                    completed: wasCompleted,
-                    completedAt: wasCompleted ? i.completedAt : null,
-                  }
-                : i,
-            ),
-          );
-          setMonthlyScheduleItems((prev) =>
-            prev.map((i) =>
-              i.id === id
-                ? {
-                    ...i,
-                    completed: wasCompleted,
-                    completedAt: wasCompleted ? i.completedAt : null,
-                  }
-                : i,
-            ),
-          );
-          setEvents((prev) =>
-            prev.map((i) =>
-              i.id === id
-                ? {
-                    ...i,
-                    completed: wasCompleted,
-                    completedAt: wasCompleted ? i.completedAt : null,
-                  }
-                : i,
-            ),
-          );
+          applyToLists(toggleMapper(wasCompleted), true);
           getDataService()
             .toggleScheduleItemComplete(id)
             .catch((e) => logServiceError("ScheduleItems", "undoToggle", e));
         },
         redo: () => {
-          setScheduleItems((prev) =>
-            prev.map((i) =>
-              i.id === id
-                ? {
-                    ...i,
-                    completed: !wasCompleted,
-                    completedAt: !wasCompleted
-                      ? new Date().toISOString()
-                      : null,
-                  }
-                : i,
-            ),
-          );
-          setMonthlyScheduleItems((prev) =>
-            prev.map((i) =>
-              i.id === id
-                ? {
-                    ...i,
-                    completed: !wasCompleted,
-                    completedAt: !wasCompleted
-                      ? new Date().toISOString()
-                      : null,
-                  }
-                : i,
-            ),
-          );
-          setEvents((prev) =>
-            prev.map((i) =>
-              i.id === id
-                ? {
-                    ...i,
-                    completed: !wasCompleted,
-                    completedAt: !wasCompleted
-                      ? new Date().toISOString()
-                      : null,
-                  }
-                : i,
-            ),
-          );
+          applyToLists(toggleMapper(!wasCompleted), true);
           getDataService()
             .toggleScheduleItemComplete(id)
             .catch((e) => logServiceError("ScheduleItems", "redoToggle", e));
@@ -588,8 +489,7 @@ export function useScheduleItems() {
   const dismissScheduleItem = useCallback(
     (id: string) => {
       const target = scheduleItemsRef.current.find((item) => item.id === id);
-      setScheduleItems((prev) => prev.filter((item) => item.id !== id));
-      setMonthlyScheduleItems((prev) => prev.filter((item) => item.id !== id));
+      removeFromLists(id);
       getDataService()
         .dismissScheduleItem(id)
         .catch((e) => logServiceError("ScheduleItems", "dismiss", e));
@@ -598,25 +498,13 @@ export function useScheduleItems() {
         push("scheduleItem", {
           label: "dismissScheduleItem",
           undo: () => {
-            setScheduleItems((prev) =>
-              [...prev, target].sort((a, b) =>
-                a.startTime.localeCompare(b.startTime),
-              ),
-            );
-            setMonthlyScheduleItems((prev) =>
-              [...prev, target].sort((a, b) =>
-                a.startTime.localeCompare(b.startTime),
-              ),
-            );
+            addToLists(target);
             getDataService()
               .undismissScheduleItem(target.id)
               .catch((e) => logServiceError("ScheduleItems", "undoDismiss", e));
           },
           redo: () => {
-            setScheduleItems((prev) => prev.filter((item) => item.id !== id));
-            setMonthlyScheduleItems((prev) =>
-              prev.filter((item) => item.id !== id),
-            );
+            removeFromLists(id);
             getDataService()
               .dismissScheduleItem(id)
               .catch((e) => logServiceError("ScheduleItems", "redoDismiss", e));
@@ -654,7 +542,7 @@ export function useScheduleItems() {
       date: string,
       routines: RoutineNode[],
       tagAssignments: Map<string, number[]>,
-      groupForRoutine?: Map<string, RoutineGroup>,
+      groupForRoutine?: Map<string, RoutineGroup[]>,
     ) => {
       const existing = await getDataService().fetchScheduleItemsByDate(date);
       const { toCreate, toUpdate } = diffRoutineScheduleItems(
@@ -855,7 +743,7 @@ export function useScheduleItems() {
     async (
       routines: RoutineNode[],
       tagAssignments: Map<string, number[]>,
-      groupForRoutine?: Map<string, RoutineGroup>,
+      groupForRoutine?: Map<string, RoutineGroup[]>,
     ) => {
       try {
         const lastDate = await getDataService().fetchLastRoutineDate();
@@ -872,60 +760,13 @@ export function useScheduleItems() {
           start.setTime(end.getTime() - maxMs);
         }
 
-        const toCreate: Array<{
-          id: string;
-          date: string;
-          title: string;
-          startTime: string;
-          endTime: string;
-          routineId: string;
-        }> = [];
-
-        const cursor = new Date(start);
-        while (cursor <= end) {
-          const dateKey = formatDateKey(cursor);
-          for (const routine of routines) {
-            if (routine.isArchived) continue;
-            if (!routine.isVisible) continue;
-            const routineTagIds = tagAssignments.get(routine.id);
-            if (!routineTagIds || routineTagIds.length === 0) continue;
-            if (
-              !shouldRoutineRunOnDate(
-                routine.frequencyType,
-                routine.frequencyDays,
-                routine.frequencyInterval,
-                routine.frequencyStartDate,
-                dateKey,
-              )
-            )
-              continue;
-
-            // Also check group visibility and frequency
-            const group = groupForRoutine?.get(routine.id);
-            if (group && !group.isVisible) continue;
-            if (
-              group &&
-              !shouldRoutineRunOnDate(
-                group.frequencyType,
-                group.frequencyDays,
-                group.frequencyInterval,
-                group.frequencyStartDate,
-                dateKey,
-              )
-            )
-              continue;
-
-            toCreate.push({
-              id: generateId("si"),
-              date: dateKey,
-              title: routine.title,
-              startTime: routine.startTime ?? "09:00",
-              endTime: routine.endTime ?? "09:30",
-              routineId: routine.id,
-            });
-          }
-          cursor.setDate(cursor.getDate() + 1);
-        }
+        const toCreate = collectRoutineItemsForDates(
+          start,
+          end,
+          routines,
+          tagAssignments,
+          groupForRoutine,
+        );
 
         if (toCreate.length > 0) {
           await getDataService().bulkCreateScheduleItems(toCreate);
@@ -941,7 +782,7 @@ export function useScheduleItems() {
     async (
       routines: RoutineNode[],
       tagAssignments: Map<string, number[]>,
-      groupForRoutine?: Map<string, RoutineGroup>,
+      groupForRoutine?: Map<string, RoutineGroup[]>,
     ) => {
       try {
         const today = new Date();
@@ -957,7 +798,6 @@ export function useScheduleItems() {
           endDate,
         );
 
-        // Build set of existing (routineId, date) pairs
         const existingSet = new Set<string>();
         for (const item of existing) {
           if (item.routineId) {
@@ -965,61 +805,14 @@ export function useScheduleItems() {
           }
         }
 
-        const toCreate: Array<{
-          id: string;
-          date: string;
-          title: string;
-          startTime: string;
-          endTime: string;
-          routineId: string;
-        }> = [];
-
-        const cursor = new Date(today);
-        while (cursor <= endDay) {
-          const dateKey = formatDateKey(cursor);
-          for (const routine of routines) {
-            if (routine.isArchived) continue;
-            if (!routine.isVisible) continue;
-            const routineTagIds = tagAssignments.get(routine.id);
-            if (!routineTagIds || routineTagIds.length === 0) continue;
-            if (existingSet.has(`${routine.id}:${dateKey}`)) continue;
-            if (
-              !shouldRoutineRunOnDate(
-                routine.frequencyType,
-                routine.frequencyDays,
-                routine.frequencyInterval,
-                routine.frequencyStartDate,
-                dateKey,
-              )
-            )
-              continue;
-
-            // Also check group visibility and frequency
-            const group = groupForRoutine?.get(routine.id);
-            if (group && !group.isVisible) continue;
-            if (
-              group &&
-              !shouldRoutineRunOnDate(
-                group.frequencyType,
-                group.frequencyDays,
-                group.frequencyInterval,
-                group.frequencyStartDate,
-                dateKey,
-              )
-            )
-              continue;
-
-            toCreate.push({
-              id: generateId("si"),
-              date: dateKey,
-              title: routine.title,
-              startTime: routine.startTime ?? "09:00",
-              endTime: routine.endTime ?? "09:30",
-              routineId: routine.id,
-            });
-          }
-          cursor.setDate(cursor.getDate() + 1);
-        }
+        const toCreate = collectRoutineItemsForDates(
+          today,
+          endDay,
+          routines,
+          tagAssignments,
+          groupForRoutine,
+          existingSet,
+        );
 
         if (toCreate.length > 0) {
           await getDataService().bulkCreateScheduleItems(toCreate);
@@ -1042,7 +835,7 @@ export function useScheduleItems() {
       endDate: string,
       routines: RoutineNode[],
       tagAssignments: Map<string, number[]>,
-      groupForRoutine?: Map<string, RoutineGroup>,
+      groupForRoutine?: Map<string, RoutineGroup[]>,
     ) => {
       try {
         const existing = await getDataService().fetchScheduleItemsByDateRange(
@@ -1050,71 +843,54 @@ export function useScheduleItems() {
           endDate,
         );
 
+        // Build routine lookup for cleanup frequency checks
+        const routineMap = new Map(routines.map((r) => [r.id, r]));
+
+        // --- Cleanup: delete routine items that no longer match frequency ---
+        const today = formatDateKey(new Date());
+        const toDeleteIds = new Set<string>();
+        for (const item of existing) {
+          if (!item.routineId) continue;
+          if (item.completed || item.date < today) continue;
+          const routine = routineMap.get(item.routineId);
+          if (!routine) continue;
+          if (
+            !shouldCreateRoutineItem(
+              routine,
+              item.date,
+              tagAssignments,
+              groupForRoutine,
+            )
+          ) {
+            toDeleteIds.add(item.id);
+          }
+        }
+        if (toDeleteIds.size > 0) {
+          await getDataService().bulkDeleteScheduleItems([...toDeleteIds]);
+        }
+
+        // Build existingSet excluding deleted items
         const existingSet = new Set<string>();
         for (const item of existing) {
-          if (item.routineId) {
+          if (item.routineId && !toDeleteIds.has(item.id)) {
             existingSet.add(`${item.routineId}:${item.date}`);
           }
         }
 
-        const toCreate: Array<{
-          id: string;
-          date: string;
-          title: string;
-          startTime: string;
-          endTime: string;
-          routineId: string;
-        }> = [];
-
-        const cursor = new Date(startDate + "T00:00:00");
-        const end = new Date(endDate + "T00:00:00");
-        while (cursor <= end) {
-          const dateKey = formatDateKey(cursor);
-          for (const routine of routines) {
-            if (routine.isArchived) continue;
-            if (!routine.isVisible) continue;
-            const routineTagIds = tagAssignments.get(routine.id);
-            if (!routineTagIds || routineTagIds.length === 0) continue;
-            if (existingSet.has(`${routine.id}:${dateKey}`)) continue;
-            if (
-              !shouldRoutineRunOnDate(
-                routine.frequencyType,
-                routine.frequencyDays,
-                routine.frequencyInterval,
-                routine.frequencyStartDate,
-                dateKey,
-              )
-            )
-              continue;
-
-            const group = groupForRoutine?.get(routine.id);
-            if (group && !group.isVisible) continue;
-            if (
-              group &&
-              !shouldRoutineRunOnDate(
-                group.frequencyType,
-                group.frequencyDays,
-                group.frequencyInterval,
-                group.frequencyStartDate,
-                dateKey,
-              )
-            )
-              continue;
-
-            toCreate.push({
-              id: generateId("si"),
-              date: dateKey,
-              title: routine.title,
-              startTime: routine.startTime ?? "09:00",
-              endTime: routine.endTime ?? "09:30",
-              routineId: routine.id,
-            });
-          }
-          cursor.setDate(cursor.getDate() + 1);
-        }
+        // --- Create missing items for matching dates ---
+        const toCreate = collectRoutineItemsForDates(
+          new Date(startDate + "T00:00:00"),
+          new Date(endDate + "T00:00:00"),
+          routines,
+          tagAssignments,
+          groupForRoutine,
+          existingSet,
+        );
 
         if (toCreate.length > 0) {
           await getDataService().bulkCreateScheduleItems(toCreate);
+        }
+        if (toDeleteIds.size > 0 || toCreate.length > 0) {
           bumpVersion();
         }
       } catch (e) {
@@ -1143,18 +919,12 @@ export function useScheduleItems() {
         const today = formatDateKey(new Date());
 
         // --- Delete non-matching items (today onward only) ---
+        // Group frequency takes precedence over routine's own
         const toDeleteIds = allItems
           .filter((item) => {
             if (item.completed) return false;
             if (item.date < today) return false;
-            const routineMatch = shouldRoutineRunOnDate(
-              routine.frequencyType,
-              routine.frequencyDays,
-              routine.frequencyInterval,
-              routine.frequencyStartDate,
-              item.date,
-            );
-            const groupMatch = group
+            const match = group
               ? shouldRoutineRunOnDate(
                   group.frequencyType,
                   group.frequencyDays,
@@ -1162,8 +932,14 @@ export function useScheduleItems() {
                   group.frequencyStartDate,
                   item.date,
                 )
-              : true;
-            return !routineMatch || !groupMatch;
+              : shouldRoutineRunOnDate(
+                  routine.frequencyType,
+                  routine.frequencyDays,
+                  routine.frequencyInterval,
+                  routine.frequencyStartDate,
+                  item.date,
+                );
+            return !match;
           })
           .map((item) => item.id);
 
@@ -1195,14 +971,8 @@ export function useScheduleItems() {
           while (cursor <= end) {
             const dateKey = formatDateKey(cursor);
             if (!existingDates.has(dateKey)) {
-              const routineMatch = shouldRoutineRunOnDate(
-                routine.frequencyType,
-                routine.frequencyDays,
-                routine.frequencyInterval,
-                routine.frequencyStartDate,
-                dateKey,
-              );
-              const groupMatch = group
+              // Group frequency takes precedence over routine's own
+              const match = group
                 ? shouldRoutineRunOnDate(
                     group.frequencyType,
                     group.frequencyDays,
@@ -1210,8 +980,14 @@ export function useScheduleItems() {
                     group.frequencyStartDate,
                     dateKey,
                   )
-                : true;
-              if (routineMatch && groupMatch) {
+                : shouldRoutineRunOnDate(
+                    routine.frequencyType,
+                    routine.frequencyDays,
+                    routine.frequencyInterval,
+                    routine.frequencyStartDate,
+                    dateKey,
+                  );
+              if (match) {
                 toCreate.push({
                   id: generateId("si"),
                   date: dateKey,

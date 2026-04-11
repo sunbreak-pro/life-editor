@@ -11,6 +11,7 @@ import { formatDuration } from "../../../utils/duration";
 import { DateTimeRangePicker } from "../Schedule/shared/DateTimeRangePicker";
 import { FolderTag } from "../Folder/FolderTag";
 import { UnifiedColorPicker } from "../../shared/UnifiedColorPicker";
+import { ReminderToggle } from "../../shared/ReminderToggle";
 
 interface TaskDetailHeaderProps {
   task: TaskNode;
@@ -26,6 +27,8 @@ interface TaskDetailHeaderProps {
   onTitleChange?: (newTitle: string) => void;
   onTimeMemoChange?: (value: string | undefined) => void;
   onPriorityChange?: (priority: Priority | null) => void;
+  onReminderEnabledChange?: (enabled: boolean) => void;
+  onReminderOffsetChange?: (offset: number) => void;
   folderTag?: string;
   taskColor?: string;
 }
@@ -44,6 +47,8 @@ export function TaskDetailHeader({
   onTitleChange,
   onTimeMemoChange,
   onPriorityChange,
+  onReminderEnabledChange,
+  onReminderOffsetChange,
   folderTag,
   taskColor,
 }: TaskDetailHeaderProps) {
@@ -217,6 +222,16 @@ export function TaskDetailHeader({
           onEndChange={(val) => onScheduledEndAtChange?.(val)}
           onAllDayChange={(val) => onIsAllDayChange?.(val)}
         />
+
+        {task.scheduledAt && onReminderEnabledChange && (
+          <ReminderToggle
+            enabled={!!task.reminderEnabled}
+            offset={task.reminderOffset ?? 30}
+            onEnabledChange={onReminderEnabledChange}
+            onOffsetChange={(offset) => onReminderOffsetChange?.(offset)}
+            compact
+          />
+        )}
 
         {task.scheduledAt && onTimeMemoChange && (
           <div className="flex items-center gap-1 px-2 py-1 rounded-md border border-notion-border">

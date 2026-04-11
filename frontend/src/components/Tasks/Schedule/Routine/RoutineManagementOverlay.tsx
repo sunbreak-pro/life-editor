@@ -37,6 +37,8 @@ interface RoutineManagementOverlayProps {
     frequencyDays?: number[],
     frequencyInterval?: number | null,
     frequencyStartDate?: string | null,
+    reminderEnabled?: boolean,
+    reminderOffset?: number,
   ) => string;
   onUpdateRoutine: (
     id: string,
@@ -51,6 +53,8 @@ interface RoutineManagementOverlayProps {
         | "frequencyDays"
         | "frequencyInterval"
         | "frequencyStartDate"
+        | "reminderEnabled"
+        | "reminderOffset"
       >
     >,
   ) => void;
@@ -169,6 +173,8 @@ export function RoutineManagementOverlay({
       frequencyDays?: number[],
       frequencyInterval?: number | null,
       frequencyStartDate?: string | null,
+      reminderEnabled?: boolean,
+      reminderOffset?: number,
     ) => {
       if (editDialog === "new") {
         const id = onCreateRoutine(
@@ -179,6 +185,8 @@ export function RoutineManagementOverlay({
           frequencyDays,
           frequencyInterval,
           frequencyStartDate,
+          reminderEnabled,
+          reminderOffset,
         );
         if (tagIds && tagIds.length > 0) {
           setTagsForRoutine(id, tagIds);
@@ -204,9 +212,18 @@ export function RoutineManagementOverlay({
           frequencyStartDate,
         };
 
+        const reminderUpdates = {
+          reminderEnabled,
+          reminderOffset,
+        };
+
         if (timeChanged) {
-          // Update title, frequency, and tags immediately
-          onUpdateRoutine(editDialog.id, { title, ...freqUpdates });
+          // Update title, frequency, reminder, and tags immediately
+          onUpdateRoutine(editDialog.id, {
+            title,
+            ...freqUpdates,
+            ...reminderUpdates,
+          });
           if (tagIds !== undefined) {
             setTagsForRoutine(editDialog.id, tagIds);
           }
@@ -223,6 +240,7 @@ export function RoutineManagementOverlay({
             startTime,
             endTime,
             ...freqUpdates,
+            ...reminderUpdates,
           });
           if (tagIds !== undefined) {
             setTagsForRoutine(editDialog.id, tagIds);

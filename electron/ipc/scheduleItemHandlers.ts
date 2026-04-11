@@ -50,6 +50,8 @@ export function registerScheduleItemHandlers(
       noteId?: string,
       isAllDay?: boolean,
       content?: string,
+      reminderEnabled?: boolean,
+      reminderOffset?: number,
     ) => {
       return repo.create(
         id,
@@ -62,6 +64,8 @@ export function registerScheduleItemHandlers(
         noteId,
         isAllDay,
         content,
+        reminderEnabled,
+        reminderOffset,
       );
     },
   );
@@ -87,6 +91,8 @@ export function registerScheduleItemHandlers(
           | "isAllDay"
           | "content"
           | "date"
+          | "reminderEnabled"
+          | "reminderOffset"
         >
       >,
     ) => {
@@ -185,6 +191,8 @@ export function registerScheduleItemHandlers(
         routineId?: string;
         templateId?: string;
         noteId?: string;
+        reminderEnabled?: boolean;
+        reminderOffset?: number;
       }>,
     ) => {
       return repo.bulkCreate(items);

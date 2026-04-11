@@ -6,7 +6,12 @@ import { getDataService } from "../services";
 import { generateId } from "../utils/generateId";
 import { logServiceError } from "../utils/logError";
 
-export function DatabaseBlockView({ node, updateAttributes }: NodeViewProps) {
+export function DatabaseBlockView({
+  node,
+  updateAttributes,
+  editor,
+  getPos,
+}: NodeViewProps) {
   const databaseId = node.attrs.databaseId as string | null;
   const creatingRef = useRef(false);
 
@@ -46,7 +51,11 @@ export function DatabaseBlockView({ node, updateAttributes }: NodeViewProps) {
     >
       <div onKeyDown={handleKeyDown}>
         {databaseId ? (
-          <DatabaseView databaseId={databaseId} />
+          <DatabaseView
+            databaseId={databaseId}
+            editor={editor}
+            getPos={getPos as () => number}
+          />
         ) : (
           <div className="flex items-center justify-center py-4 text-xs text-notion-text-secondary border border-notion-border rounded-md">
             Creating database...

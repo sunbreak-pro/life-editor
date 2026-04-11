@@ -1,4 +1,4 @@
-import { memo, useCallback } from "react";
+import { memo, useCallback, useRef, useState } from "react";
 import { useSortable } from "@dnd-kit/sortable";
 import {
   GripVertical,
@@ -12,6 +12,9 @@ import {
 } from "lucide-react";
 import type { NoteNode } from "../../types/note";
 import { useNoteDragOverIndicator } from "../../hooks/useNoteDragOverIndicator";
+import { renderIcon } from "../../utils/iconRenderer";
+import { NoteNodeContextMenu } from "./NoteNodeContextMenu";
+import { IconPicker } from "../common/IconPicker";
 
 interface NoteTreeNodeProps {
   node: NoteNode;
@@ -22,6 +25,9 @@ interface NoteTreeNodeProps {
   onToggleExpand: (id: string) => void;
   onDelete?: (id: string) => void;
   onEdit?: (id: string) => void;
+  onRename?: (id: string, title: string) => void;
+  onChangeIcon?: (id: string, icon: string | undefined) => void;
+  onTogglePin?: (id: string) => void;
 }
 
 export const NoteTreeNode = memo(function NoteTreeNode({
@@ -33,6 +39,9 @@ export const NoteTreeNode = memo(function NoteTreeNode({
   onToggleExpand,
   onDelete,
   onEdit,
+  onRename,
+  onChangeIcon,
+  onTogglePin,
 }: NoteTreeNodeProps) {
   const dropPosition = useNoteDragOverIndicator(node.id);
   const isFolder = node.type === "folder";
@@ -40,6 +49,15 @@ export const NoteTreeNode = memo(function NoteTreeNode({
   const { attributes, listeners, setNodeRef, isDragging } = useSortable({
     id: node.id,
   });
+
+  const [contextMenu, setContextMenu] = useState<{
+    x: number;
+    y: number;
+  } | null>(null);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editValue, setEditValue] = useState("");
+  const [showIconPicker, setShowIconPicker] = useState(false);
+  const iconRef = useRef<HTMLDivElement>(null);
 
   const handleClick = useCallback(() => {
     if (isFolder) {
@@ -57,6 +75,70 @@ export const NoteTreeNode = memo(function NoteTreeNode({
     [node.id, onToggleExpand],
   );
 
+  const handleContextMenu = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    setContextMenu({ x: e.clientX, y: e.clientY });
+  }, []);
+
+  const handleStartRename = useCallback(() => {
+    setEditValue(node.title);
+    setIsEditing(true);
+  }, [node.title]);
+
+  const handleSaveRename = useCallback(() => {
+    const trimmed = editValue.trim();
+    if (trimmed && trimmed !== node.title && onRename) {
+      onRename(node.id, trimmed);
+    }
+    setIsEditing(false);
+  }, [editValue, node.id, node.title, onRename]);
+
+  const handleCancelRename = useCallback(() => {
+    setIsEditing(false);
+  }, []);
+
+  const handleRenameKeyDown = useCallback(
+    (e: React.KeyboardEvent) => {
+      if (e.nativeEvent.isComposing) return;
+      if (e.key === "Enter") {
+        e.preventDefault();
+        handleSaveRename();
+      } else if (e.key === "Escape") {
+        e.preventDefault();
+        handleCancelRename();
+      }
+    },
+    [handleSaveRename, handleCancelRename],
+  );
+
+  const handleOpenIconPicker = useCallback(() => {
+    setShowIconPicker(true);
+  }, []);
+
+  const handleSelectIcon = useCallback(
+    (iconName: string) => {
+      onChangeIcon?.(node.id, iconName);
+      setShowIconPicker(false);
+    },
+    [node.id, onChangeIcon],
+  );
+
+  const handleRemoveIcon = useCallback(() => {
+    onChangeIcon?.(node.id, undefined);
+    setShowIconPicker(false);
+  }, [node.id, onChangeIcon]);
+
+  const folderIcon = isFolder ? (
+    node.icon ? (
+      renderIcon(node.icon, {
+        size: 14,
+        className: "shrink-0 text-notion-text-secondary",
+      })
+    ) : (
+      <Folder size={14} className="shrink-0 text-notion-text-secondary" />
+    )
+  ) : null;
+
   return (
     <div ref={setNodeRef} className="relative">
       {/* Drop indicator: above */}
@@ -69,6 +151,7 @@ export const NoteTreeNode = memo(function NoteTreeNode({
 
       <div
         onClick={handleClick}
+        onContextMenu={handleContextMenu}
         className={`
           group flex items-center gap-0.5 px-1 py-0.5 rounded-md cursor-pointer text-[13px]
           transition-colors duration-75
@@ -104,7 +187,7 @@ export const NoteTreeNode = memo(function NoteTreeNode({
 
         {/* Icon */}
         {isFolder ? (
-          <Folder size={14} className="shrink-0 text-notion-text-secondary" />
+          <div ref={iconRef}>{folderIcon}</div>
         ) : node.isPinned ? (
           <Heart
             size={14}
@@ -115,36 +198,52 @@ export const NoteTreeNode = memo(function NoteTreeNode({
           <StickyNote size={14} className="shrink-0 text-yellow-500/70" />
         )}
 
-        {/* Title */}
-        <span className="truncate flex-1 min-w-0">
-          {node.title || "Untitled"}
-        </span>
+        {/* Title or inline editor */}
+        {isEditing ? (
+          <input
+            type="text"
+            value={editValue}
+            onChange={(e) => setEditValue(e.target.value)}
+            onBlur={handleSaveRename}
+            onKeyDown={handleRenameKeyDown}
+            autoFocus
+            onFocus={(e) => e.target.select()}
+            className="flex-1 min-w-0 bg-transparent border-b border-notion-border outline-none text-[13px] text-notion-text px-0.5"
+            maxLength={255}
+          />
+        ) : (
+          <span className="truncate flex-1 min-w-0">
+            {node.title || "Untitled"}
+          </span>
+        )}
 
         {/* Action buttons (visible on hover) */}
-        <div className="shrink-0 flex items-center gap-0.5 opacity-0 group-hover:opacity-100">
-          {onEdit && !isFolder && (
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                onEdit(node.id);
-              }}
-              className="p-0.5 rounded hover:bg-notion-hover-strong text-notion-text-secondary"
-            >
-              <Pencil size={12} />
-            </button>
-          )}
-          {onDelete && (
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                onDelete(node.id);
-              }}
-              className="p-0.5 rounded hover:bg-notion-hover-strong text-notion-text-secondary hover:text-red-400"
-            >
-              <Trash2 size={12} />
-            </button>
-          )}
-        </div>
+        {!isEditing && (
+          <div className="shrink-0 flex items-center gap-0.5 opacity-0 group-hover:opacity-100">
+            {onEdit && !isFolder && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onEdit(node.id);
+                }}
+                className="p-0.5 rounded hover:bg-notion-hover-strong text-notion-text-secondary"
+              >
+                <Pencil size={12} />
+              </button>
+            )}
+            {onDelete && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onDelete(node.id);
+                }}
+                className="p-0.5 rounded hover:bg-notion-hover-strong text-notion-text-secondary hover:text-red-400"
+              >
+                <Trash2 size={12} />
+              </button>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Drop indicator: below */}
@@ -152,6 +251,31 @@ export const NoteTreeNode = memo(function NoteTreeNode({
         <div
           className="h-0.5 bg-notion-accent rounded-full mx-2"
           style={{ marginLeft: `${depth * 16 + 8}px` }}
+        />
+      )}
+
+      {/* Context menu */}
+      {contextMenu && (
+        <NoteNodeContextMenu
+          x={contextMenu.x}
+          y={contextMenu.y}
+          node={node}
+          onRename={handleStartRename}
+          onChangeIcon={handleOpenIconPicker}
+          onTogglePin={() => onTogglePin?.(node.id)}
+          onDelete={() => onDelete?.(node.id)}
+          onClose={() => setContextMenu(null)}
+        />
+      )}
+
+      {/* Icon picker */}
+      {showIconPicker && (
+        <IconPicker
+          value={node.icon}
+          onSelect={handleSelectIcon}
+          onClose={() => setShowIconPicker(false)}
+          anchorRect={iconRef.current?.getBoundingClientRect() ?? null}
+          onRemove={node.icon ? handleRemoveIcon : undefined}
         />
       )}
     </div>

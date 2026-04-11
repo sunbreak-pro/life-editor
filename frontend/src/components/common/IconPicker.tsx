@@ -1,4 +1,6 @@
 import { useState, useMemo, useRef, useEffect } from "react";
+import { useTranslation } from "react-i18next";
+import { Trash2 } from "lucide-react";
 import {
   getIconNames,
   getDynamicIcon,
@@ -10,6 +12,7 @@ interface IconPickerProps {
   onSelect: (iconName: string) => void;
   onClose: () => void;
   anchorRect?: DOMRect | null;
+  onRemove?: () => void;
 }
 
 const MAX_DISPLAY = 64;
@@ -19,7 +22,9 @@ export function IconPicker({
   onSelect,
   onClose,
   anchorRect,
+  onRemove,
 }: IconPickerProps) {
+  const { t } = useTranslation();
   const [search, setSearch] = useState("");
   const [allNames, setAllNames] = useState<string[]>(() => getIconNames());
   const searchRef = useRef<HTMLInputElement>(null);
@@ -49,19 +54,34 @@ export function IconPicker({
     <>
       <div className="icon-picker-overlay" onClick={onClose} />
       <div className="icon-picker" style={style}>
-        <input
-          ref={searchRef}
-          className="icon-picker-search"
-          type="text"
-          placeholder="Search icons..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Escape") onClose();
-          }}
-        />
+        <div className="icon-picker-header">
+          <input
+            ref={searchRef}
+            className="icon-picker-search"
+            type="text"
+            placeholder={t("iconPicker.search")}
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Escape") onClose();
+            }}
+          />
+          {onRemove && (
+            <button
+              className="icon-picker-remove-btn"
+              onClick={() => {
+                onRemove();
+                onClose();
+              }}
+              type="button"
+              title={t("iconPicker.remove")}
+            >
+              <Trash2 size={14} />
+            </button>
+          )}
+        </div>
         {filtered.length === 0 ? (
-          <div className="icon-picker-empty">No icons found</div>
+          <div className="icon-picker-empty">{t("iconPicker.empty")}</div>
         ) : (
           <div className="icon-picker-grid">
             {filtered.map((name) => {

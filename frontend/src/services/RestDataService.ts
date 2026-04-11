@@ -291,7 +291,7 @@ export class RestDataService implements DataService {
   updateNote(
     id: string,
     updates: Partial<
-      Pick<NoteNode, "title" | "content" | "isPinned" | "color">
+      Pick<NoteNode, "title" | "content" | "isPinned" | "color" | "icon">
     >,
   ): Promise<NoteNode> {
     return patch(`/api/notes/${id}`, updates);
@@ -458,6 +458,8 @@ export class RestDataService implements DataService {
     frequencyDays?: number[],
     frequencyInterval?: number | null,
     frequencyStartDate?: string | null,
+    reminderEnabled?: boolean,
+    reminderOffset?: number,
   ): Promise<RoutineNode> {
     return post("/api/routines", {
       id,
@@ -590,6 +592,8 @@ export class RestDataService implements DataService {
       routineId?: string;
       templateId?: string;
       noteId?: string;
+      reminderEnabled?: boolean;
+      reminderOffset?: number;
     }>,
   ): Promise<ScheduleItem[]> {
     return post("/api/schedule-items/bulk", items);
