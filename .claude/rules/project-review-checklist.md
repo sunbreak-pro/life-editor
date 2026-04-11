@@ -14,7 +14,7 @@
 
 ## Provider / Context
 
-- Provider順序 (外→内): Theme → Toast → UndoRedo → TaskTree → Calendar → Memo → Note → Routine → ScheduleItems → CalendarTags → Timer → Audio → WikiTag → ShortcutConfig
+- Provider順序 (外→内): Theme → Toast → UndoRedo → ScreenLock → TaskTree → Calendar → Memo → Note → FileExplorer → Routine → ScheduleItems → CalendarTags → Timer → Audio → WikiTag → ShortcutConfig
 - ScheduleItemsProvider は RoutineProvider の内側に配置（sync/backfill 依存）
 - 新Provider追加時は `renderWithProviders.tsx` にも追加
 - **Pattern A 準拠**: 新Context作成時は3ファイル構成（ADR-0002 参照）

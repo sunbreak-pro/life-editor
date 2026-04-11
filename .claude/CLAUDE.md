@@ -64,7 +64,7 @@ Main Process 内の `TerminalManager` が PTY セッションを管理。Rendere
 - **Context/Provider**: Pattern A（3ファイル構成）が標準。詳細は ADR-0002 参照
   - `context/FooContextValue.ts` → `context/FooContext.tsx` → `hooks/useFooContext.ts`
   - consumer hook は `createContextHook()` 使用
-- **Provider順序** (外→内): Theme → Toast → UndoRedo → TaskTree → Calendar → Memo → Note → Routine → ScheduleItems → CalendarTags → Timer → Audio → WikiTag → ShortcutConfig
+- **Provider順序** (外→内): Theme → Toast → UndoRedo → ScreenLock → TaskTree → Calendar → Memo → Note → FileExplorer → Routine → ScheduleItems → CalendarTags → Timer → Audio → WikiTag → ShortcutConfig
 - **Schedule系**: RoutineProvider / ScheduleItemsProvider / CalendarTagsProvider の3分割（ADR-0003）。`useScheduleContext()` は後方互換ファサード
 - **Schedule共通コンポーネント**: `Tasks/Schedule/shared/` に配置（ADR-0004）
 

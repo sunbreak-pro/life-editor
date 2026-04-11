@@ -37,7 +37,7 @@ sqlite3 ~/Library/Application\ Support/sonic-flow/life-editor.db "PRAGMA user_ve
 
 ## Context/Provider デバッグ
 
-- Provider順序 (外→内): ErrorBoundary → Theme → Toast → UndoRedo → TaskTree → Calendar → Memo → Note → Routine → ScheduleItems → CalendarTags → Timer → Audio → WikiTag → ShortcutConfig
+- Provider順序 (外→内): ErrorBoundary → Theme → Toast → UndoRedo → ScreenLock → TaskTree → Calendar → Memo → Note → FileExplorer → Routine → ScheduleItems → CalendarTags → Timer → Audio → WikiTag → ShortcutConfig
 - 内側Providerは外側Contextに依存可（逆は不可）
 - 依存関係: ScheduleItemsProvider → RoutineProvider、AudioProvider → TimerProvider
 - `Cannot read properties of null` → コンポーネントが対応Providerの外で使用されている

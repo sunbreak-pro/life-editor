@@ -1,5 +1,18 @@
 # HISTORY.md - 変更履歴
 
+### 2026-04-11 - Schedule UI/UX 4件改善
+
+#### 概要
+
+Schedule関連のUI/UXを4件改善: 終日チェックボックスをスライド式トグルに統一、DayFlowの終日イベント表示修正、miniDayFlowのRoutineGroup曜日フィルタ追加、時刻入力をリスト形式ドロップダウンに変更。
+
+#### 変更点
+
+- **ToggleSwitch統一**: `ToggleSwitch.tsx` 共有コンポーネント新規作成（sm/default サイズ対応）。MiniCalendarGrid、ScheduleItemPreviewPopup、TaskPreviewPopup の checkbox を置換。TimeSettingsInline、SystemSettings、BehaviorSettings の private ToggleSwitch を共通コンポーネントに統合
+- **DayFlow終日イベント修正**: `OneDaySchedule.tsx` で `filteredScheduleItems` を `timedScheduleItems` と `allDayScheduleItems` に分離。終日セクションに ScheduleItem pill 表示を追加。`ScheduleTimeGrid.tsx` の `buildUnifiedItems` に `isAllDay` 防御フィルタ追加
+- **RoutineGroupフィルタ**: `MiniTodayFlow.tsx` に `shouldRoutineRunOnDate` による曜日フィルタを追加。グループとルーティン個別の両方で曜日外の表示を抑制
+- **TimeDropdown**: `TimeDropdown.tsx` 新規作成（15分刻みリスト + テキスト入力欄、createPortal、自動スクロール）。ScheduleItemPreviewPopup、TaskPreviewPopup、MiniCalendarGrid、ScheduleItemEditPopup、TimeSettingsInline の TimeInput を置換
+
 ### 2026-04-11 - Per-Item Reminder Feature + TaskPreviewPopup Bug Fix
 
 #### 概要
@@ -63,32 +76,5 @@ Event チェックボックスクリック時のコンソール警告（React Ho
 - **MonthlyView.tsx**: `React.memo` でラップ、`todayKey` を `useMemo` 化、空日用の `EMPTY_ITEMS` 定数を導入（`?? []` による毎レンダリングの新配列生成を防止）
 - **DayCell.tsx**: `React.memo` でラップ
 - **CalendarItemChip.tsx**: `React.memo` でラップ、props を `onClick` → `onSelectItem + item` に変更（コンポーネント内部でバインドすることで安定した参照を実現し、memo の効果を最大化）
-
-### 2026-04-11 - RichEditor & Schedule コード整理リファクタリング
-
-#### 概要
-
-RichEditor（TipTap）と Schedule 関連コードの重複コード除去、共通ユーティリティ抽出、コンポーネント分離を実施。useScheduleItems.ts を1,368行→1,076行に削減（-292行）、全体で約320行の純減。
-
-#### 変更点
-
-- **Phase 1a — timeGridUtils.ts**: `snapTimeFromPosition()` を新規追加。WeeklyTimeGrid.tsx と ScheduleTimeGrid.tsx で重複していた時刻スナップ計算を共通化
-- **Phase 1b — prosemirrorHelpers.ts**: `safeDispatch()` を新規追加。BlockContextMenu.tsx の7ハンドラで繰り返されていた try-catch パターンを共通化（5ハンドラを簡素化）
-- **Phase 2 — GroupContextMenu.tsx**: ScheduleTimeGrid.tsx（1,309行）内にインライン定義されていた GroupContextMenu（~89行）を独立ファイルに抽出
-- **Phase 3 — useScheduleItems リスト操作ヘルパー**: `applyToLists`/`addToLists`/`removeFromLists` を追加。CRUD + undo/redo での `setScheduleItems`/`setMonthlyScheduleItems` ペア呼び出しを統一。`toggleComplete` の3リスト×3箇所のマッパーを `toggleMapper` + `applyToLists` に集約（-116行）
-- **Phase 4 — ルーティン同期メソッド統合**: `routineScheduleSync.ts` に `shouldCreateRoutineItem()` と `collectRoutineItemsForDates()` を追加。`backfillMissedRoutineItems`、`ensureRoutineItemsForWeek`、`ensureRoutineItemsForDateRange` の3メソッドの内部ループ（各~30行）を共通関数呼び出しに置換。`diffRoutineScheduleItems` も簡素化（-176行）
-- **Phase 5 — usePreviewTimeEdit フック**: TaskPreviewPopup と ScheduleItemPreviewPopup で重複していた時間編集・タイトル編集ロジックを `Schedule/shared/usePreviewTimeEdit.ts` に抽出
-
-### 2026-04-11 - RoutineGroup 複数タグ時のカレンダー表示バグ修正
-
-#### 概要
-
-RoutineGroupに複数タグを割り当てた際、グループのfrequency設定（平日のみ等）が無視され休日にも表示されてしまうバグを修正。表示ロジックで各グループのfrequencyをチェックせずに全グループのバケットにアイテムを追加していたことが原因。
-
-#### 変更点
-
-- **useCalendar.ts**: グループバケット構築ループに`shouldRoutineRunOnDate`によるfrequencyフィルタを追加。当日のfrequencyに合致しないグループへのアイテム追加をスキップ
-- **ScheduleTimeGrid.tsx**: `groupFrames`計算で`groups?.[0]`（先頭グループ無条件選択）を`groups?.find()`に変更し、当日のfrequencyに合致するグループのみ選択
-- **useCalendar.test.ts**: マルチグループfrequencyフィルタリングテスト2件追加（土曜日にweekdaysグループ非表示 / 月曜日に両グループ表示）
 
 <!-- older entries archived to HISTORY-archive.md -->
