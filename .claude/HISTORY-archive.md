@@ -1,3 +1,20 @@
+### 2026-04-09 - Note/Daily 編集ロック機能
+
+#### 概要
+
+NoteとDailyアイテムに編集ロック機能を追加。パスワード保護（コンテンツ非表示）とは独立した機能で、ロック時はコンテンツが閲覧可能だが全ての編集操作（タイトル変更、本文編集、タグ追加、ピン切替、カラー変更等）が無効化される。
+
+#### 変更点
+
+- **DBマイグレーションV54**: `notes`と`memos`テーブルに`is_edit_locked INTEGER NOT NULL DEFAULT 0`カラム追加
+- **Repository層**: `noteRepository.ts`/`memoRepository.ts`に`toggleEditLock`メソッド追加。`rowToNode`で`isEditLocked: boolean`マッピング
+- **IPC 2チャンネル追加**: `db:notes:toggleEditLock`、`db:memo:toggleEditLock`
+- **DataService全4実装更新**: インターフェース2メソッド追加、ElectronDataService実装、OfflineDataService/RestDataServiceスタブ
+- **ItemOptionsMenu拡張**: セパレータ後に「編集をロック / 編集ロック解除」トグル項目追加。チェックマーク表示。MenuButtonに`trailing` prop追加
+- **MemoEditor拡張**: `editable` prop追加。TipTap `useEditor`に`editable`オプション渡し＋`useEffect`で動的切替対応
+- **NotesView/DailyMemoView統合**: タイトルinput→`readOnly`、カラーピッカー/ピンボタン→クリック無効+`opacity-50 cursor-not-allowed`、MemoEditor→`editable={!isEditLocked}`、ヘッダーにPenOffアイコン表示
+- **i18n**: `screenLock.lockEditing/unlockEditing/editLocked`（3キー）をen.json/ja.jsonに追加
+
 ### 2026-04-09 - Settings拡充 — デフォルト動作・リマインダー・タスク管理・システム連携
 
 #### 概要

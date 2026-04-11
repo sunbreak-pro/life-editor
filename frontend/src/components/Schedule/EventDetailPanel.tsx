@@ -241,9 +241,10 @@ function EventRoleSwitcherInline({
   event: { id: string; date: string; routineId: string | null };
 }) {
   const { convert, canConvert } = useRoleConversion();
+  const { events } = useScheduleItemsContext();
+
   if (event.routineId) return null;
 
-  const { events } = useScheduleItemsContext();
   const fullEvent = events.find((e) => e.id === event.id);
   if (!fullEvent) return null;
 

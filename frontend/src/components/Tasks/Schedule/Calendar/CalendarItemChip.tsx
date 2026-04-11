@@ -1,3 +1,4 @@
+import { memo } from "react";
 import {
   CheckSquare,
   BookOpen,
@@ -13,15 +14,16 @@ import { getTextColorForBg } from "../../../../constants/folderColors";
 
 interface CalendarItemChipProps {
   item: CalendarItem;
-  onClick: (e: React.MouseEvent) => void;
+  onSelectItem: (item: CalendarItem, e: React.MouseEvent) => void;
   taskColor?: string;
 }
 
-export function CalendarItemChip({
+export const CalendarItemChip = memo(function CalendarItemChip({
   item,
-  onClick,
+  onSelectItem,
   taskColor,
 }: CalendarItemChipProps) {
+  const onClick = (e: React.MouseEvent) => onSelectItem(item, e);
   if (item.type === "holiday") {
     return (
       <div
@@ -125,4 +127,4 @@ export function CalendarItemChip({
       <span className="truncate">{item.title}</span>
     </button>
   );
-}
+});

@@ -1,3 +1,4 @@
+import { memo, useMemo } from "react";
 import type { CalendarItem } from "../../../../types/calendarItem";
 import { DayCell } from "./DayCell";
 import { formatDateKey } from "../../../../hooks/useCalendar";
@@ -7,6 +8,7 @@ const DAY_HEADER_COLORS: Record<number, string> = {
   0: "text-red-500 dark:text-red-400",
   6: "text-blue-500 dark:text-blue-400",
 };
+const EMPTY_ITEMS: CalendarItem[] = [];
 
 interface MonthlyViewProps {
   days: { date: Date; isCurrentMonth: boolean }[];
@@ -19,7 +21,7 @@ interface MonthlyViewProps {
   onDateSelect?: (date: Date) => void;
 }
 
-export function MonthlyView({
+export const MonthlyView = memo(function MonthlyView({
   days,
   itemsByDate,
   onSelectItem,
@@ -29,8 +31,7 @@ export function MonthlyView({
   getRoutineCompletion,
   onDateSelect,
 }: MonthlyViewProps) {
-  const today = new Date();
-  const todayKey = formatDateKey(today);
+  const todayKey = useMemo(() => formatDateKey(new Date()), []);
 
   return (
     <div>
@@ -53,7 +54,7 @@ export function MonthlyView({
               date={day.date}
               isCurrentMonth={day.isCurrentMonth}
               isToday={key === todayKey}
-              items={itemsByDate.get(key) ?? []}
+              items={itemsByDate.get(key) ?? EMPTY_ITEMS}
               onSelectItem={onSelectItem}
               onOpenRoutineManagement={onOpenRoutineManagement}
               onOpenCreateMenu={onOpenCreateMenu}
@@ -66,4 +67,4 @@ export function MonthlyView({
       </div>
     </div>
   );
-}
+});

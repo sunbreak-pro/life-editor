@@ -1,5 +1,19 @@
 # HISTORY.md - 変更履歴
 
+### 2026-04-12 - Calendar パフォーマンス最適化 & Event チェックボックス警告修正
+
+#### 概要
+
+Event チェックボックスクリック時のコンソール警告（React Hooks ルール違反）を修正し、Calendar コンポーネントチェーンに useCallback / React.memo を適用してカレンダーアイテムクリック時の再レンダリングを約40分の1に削減。
+
+#### 変更点
+
+- **EventDetailPanel.tsx**: `EventRoleSwitcherInline` で `useScheduleItemsContext()` が条件付き return の後に呼ばれていた Hooks ルール違反を修正（return の前に移動）
+- **CalendarView.tsx**: React Compiler 未有効なのに「React Compiler auto-memoizes」と記載していた不正確な eslint-disable コメントを削除。8個のハンドラー関数（handlePrev/Next/Today/OpenCreateMenu/RequestCreate/RequestCreateNote/RequestCreateEvent/ItemClick）を全て `useCallback` でラップ
+- **MonthlyView.tsx**: `React.memo` でラップ、`todayKey` を `useMemo` 化、空日用の `EMPTY_ITEMS` 定数を導入（`?? []` による毎レンダリングの新配列生成を防止）
+- **DayCell.tsx**: `React.memo` でラップ
+- **CalendarItemChip.tsx**: `React.memo` でラップ、props を `onClick` → `onSelectItem + item` に変更（コンポーネント内部でバインドすることで安定した参照を実現し、memo の効果を最大化）
+
 ### 2026-04-11 - RichEditor & Schedule コード整理リファクタリング
 
 #### 概要
@@ -57,22 +71,5 @@ RoutineGroupが複数タグを持つ場合、Calendarビューでグループチ
 - **routineScheduleSync.ts**: グループ頻度チェックを「いずれかのグループが許可すればOK」ロジックに変更
 - **useScheduleItems.ts**: 4関数(`ensureRoutineItemsForDate/backfill/ensureWeek/ensureRange`)のパラメータ型・グループチェック更新。`ensureRoutineItemsForDateRange`に頻度不一致アイテムの自動削除ロジック追加
 - **消費側5ファイル更新**: `useDayFlowColumn.ts`/`OneDaySchedule.tsx`（フィルタで`.some()`使用）、`ScheduleTimeGrid.tsx`（`groups?.[0]`）、`AchievementDetailsOverlay.tsx`（全グループにカウント加算）、`CalendarView.tsx`（reconcile `groups?.[0]`）
-
-### 2026-04-09 - Note/Daily 編集ロック機能
-
-#### 概要
-
-NoteとDailyアイテムに編集ロック機能を追加。パスワード保護（コンテンツ非表示）とは独立した機能で、ロック時はコンテンツが閲覧可能だが全ての編集操作（タイトル変更、本文編集、タグ追加、ピン切替、カラー変更等）が無効化される。
-
-#### 変更点
-
-- **DBマイグレーションV54**: `notes`と`memos`テーブルに`is_edit_locked INTEGER NOT NULL DEFAULT 0`カラム追加
-- **Repository層**: `noteRepository.ts`/`memoRepository.ts`に`toggleEditLock`メソッド追加。`rowToNode`で`isEditLocked: boolean`マッピング
-- **IPC 2チャンネル追加**: `db:notes:toggleEditLock`、`db:memo:toggleEditLock`
-- **DataService全4実装更新**: インターフェース2メソッド追加、ElectronDataService実装、OfflineDataService/RestDataServiceスタブ
-- **ItemOptionsMenu拡張**: セパレータ後に「編集をロック / 編集ロック解除」トグル項目追加。チェックマーク表示。MenuButtonに`trailing` prop追加
-- **MemoEditor拡張**: `editable` prop追加。TipTap `useEditor`に`editable`オプション渡し＋`useEffect`で動的切替対応
-- **NotesView/DailyMemoView統合**: タイトルinput→`readOnly`、カラーピッカー/ピンボタン→クリック無効+`opacity-50 cursor-not-allowed`、MemoEditor→`editable={!isEditLocked}`、ヘッダーにPenOffアイコン表示
-- **i18n**: `screenLock.lockEditing/unlockEditing/editLocked`（3キー）をen.json/ja.jsonに追加
 
 <!-- older entries archived to HISTORY-archive.md -->

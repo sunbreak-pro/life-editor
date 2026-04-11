@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useRef } from "react";
+import { useState, useMemo, useEffect, useRef, useCallback } from "react";
 import { Check, Repeat, Pencil, EyeOff } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import type { TaskNode } from "../../../../types/taskTree";
@@ -353,8 +353,7 @@ export function CalendarView({
     language,
   );
 
-  /* eslint-disable react-hooks/exhaustive-deps -- React Compiler auto-memoizes */
-  const handlePrev = () => {
+  const handlePrev = useCallback(() => {
     if (viewMode === "week") {
       setWeekStartDate((prev) => {
         const d = new Date(prev);
@@ -367,9 +366,9 @@ export function CalendarView({
         setYear((y) => y - 1);
       } else setMonth((m) => m - 1);
     }
-  };
+  }, [viewMode, month]);
 
-  const handleNext = () => {
+  const handleNext = useCallback(() => {
     if (viewMode === "week") {
       setWeekStartDate((prev) => {
         const d = new Date(prev);
@@ -382,14 +381,14 @@ export function CalendarView({
         setYear((y) => y + 1);
       } else setMonth((m) => m + 1);
     }
-  };
+  }, [viewMode, month]);
 
-  const handleToday = () => {
+  const handleToday = useCallback(() => {
     const now = new Date();
     setYear(now.getFullYear());
     setMonth(now.getMonth());
     setWeekStartDate(getInitialWeekStart());
-  };
+  }, []);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -424,7 +423,6 @@ export function CalendarView({
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [handleNext, handlePrev, handleToday]);
-  /* eslint-enable react-hooks/exhaustive-deps */
 
   // Pre-compute descendant IDs once for folder filtering
   const folderDescendantIds = useMemo(() => {
@@ -478,106 +476,115 @@ export function CalendarView({
     return map;
   }, [tasksByDate, folderDescendantIds]);
 
-  const handleOpenCreateMenu = (date: Date, e: React.MouseEvent) => {
-    setPreviewPopup(null);
-    setMemoPreview(null);
-    setCreatePopover(null);
-    setNoteCreatePopover(null);
-    setEventCreatePopover(null);
-    setCreateMenuPopover({ date, position: { x: e.clientX, y: e.clientY } });
-  };
+  const handleOpenCreateMenu = useCallback(
+    (date: Date, e: React.MouseEvent) => {
+      setPreviewPopup(null);
+      setMemoPreview(null);
+      setCreatePopover(null);
+      setNoteCreatePopover(null);
+      setEventCreatePopover(null);
+      setCreateMenuPopover({ date, position: { x: e.clientX, y: e.clientY } });
+    },
+    [],
+  );
 
-  const handleRequestCreate = (date: Date, e: React.MouseEvent) => {
+  const handleRequestCreate = useCallback((date: Date, e: React.MouseEvent) => {
     setPreviewPopup(null);
     setMemoPreview(null);
     setNoteCreatePopover(null);
     setCreateMenuPopover(null);
     setCreatePopover({ date, position: { x: e.clientX, y: e.clientY } });
-  };
+  }, []);
 
-  const handleRequestCreateNote = (date: Date, e: React.MouseEvent) => {
-    setPreviewPopup(null);
-    setMemoPreview(null);
-    setCreatePopover(null);
-    setCreateMenuPopover(null);
-    setNoteCreatePopover({ date, position: { x: e.clientX, y: e.clientY } });
-  };
-
-  const handleRequestCreateEvent = (
-    date: Date,
-    position: { x: number; y: number },
-  ) => {
-    setPreviewPopup(null);
-    setMemoPreview(null);
-    setCreatePopover(null);
-    setNoteCreatePopover(null);
-    setCreateMenuPopover(null);
-    setEventCreatePopover({ date, position });
-  };
-
-  const handleItemClick = (item: CalendarItem, e: React.MouseEvent) => {
-    setCreatePopover(null);
-    setNoteCreatePopover(null);
-    setGroupPreview(null);
-
-    if (item.type === "task") {
-      setMemoPreview(null);
-      setScheduleItemPreview(null);
-      setPreviewPopup({
-        taskId: item.id,
-        position: { x: e.clientX, y: e.clientY },
-      });
-    } else if (item.type === "daily" && item.memo) {
-      setPreviewPopup(null);
-      setScheduleItemPreview(null);
-      const memo = item.memo;
-      setMemoPreview({
-        kind: "daily",
-        title: memo.date,
-        content: memo.content,
-        position: { x: e.clientX, y: e.clientY },
-        onOpenDetail: () => {
-          onSelectMemo?.(memo.date);
-          setMemoPreview(null);
-        },
-        date: memo.date,
-        memoNode: memo,
-      });
-    } else if (item.type === "note" && item.note) {
-      setPreviewPopup(null);
-      setScheduleItemPreview(null);
-      const note = item.note;
-      const dateKey = formatDateKey(new Date(note.createdAt));
-      setMemoPreview({
-        kind: "note",
-        title: note.title || "Untitled",
-        content: note.content,
-        position: { x: e.clientX, y: e.clientY },
-        onOpenDetail: () => {
-          onSelectNote?.(note.id);
-          setMemoPreview(null);
-        },
-        noteId: note.id,
-        date: dateKey,
-        noteNode: note,
-      });
-    } else if (item.type === "routineGroup") {
+  const handleRequestCreateNote = useCallback(
+    (date: Date, e: React.MouseEvent) => {
       setPreviewPopup(null);
       setMemoPreview(null);
-      setScheduleItemPreview(null);
-      setGroupPreview({
-        item,
-        position: { x: e.clientX, y: e.clientY },
-      });
-    } else if (item.type === "event" && item.scheduleItem) {
+      setCreatePopover(null);
+      setCreateMenuPopover(null);
+      setNoteCreatePopover({ date, position: { x: e.clientX, y: e.clientY } });
+    },
+    [],
+  );
+
+  const handleRequestCreateEvent = useCallback(
+    (date: Date, position: { x: number; y: number }) => {
       setPreviewPopup(null);
       setMemoPreview(null);
-      setScheduleItemPreview({
-        item: item.scheduleItem,
-        position: { x: e.clientX, y: e.clientY },
-      });
-    }
-  };
+      setCreatePopover(null);
+      setNoteCreatePopover(null);
+      setCreateMenuPopover(null);
+      setEventCreatePopover({ date, position });
+    },
+    [],
+  );
+
+  const handleItemClick = useCallback(
+    (item: CalendarItem, e: React.MouseEvent) => {
+      setCreatePopover(null);
+      setNoteCreatePopover(null);
+      setGroupPreview(null);
+
+      if (item.type === "task") {
+        setMemoPreview(null);
+        setScheduleItemPreview(null);
+        setPreviewPopup({
+          taskId: item.id,
+          position: { x: e.clientX, y: e.clientY },
+        });
+      } else if (item.type === "daily" && item.memo) {
+        setPreviewPopup(null);
+        setScheduleItemPreview(null);
+        const memo = item.memo;
+        setMemoPreview({
+          kind: "daily",
+          title: memo.date,
+          content: memo.content,
+          position: { x: e.clientX, y: e.clientY },
+          onOpenDetail: () => {
+            onSelectMemo?.(memo.date);
+            setMemoPreview(null);
+          },
+          date: memo.date,
+          memoNode: memo,
+        });
+      } else if (item.type === "note" && item.note) {
+        setPreviewPopup(null);
+        setScheduleItemPreview(null);
+        const note = item.note;
+        const dateKey = formatDateKey(new Date(note.createdAt));
+        setMemoPreview({
+          kind: "note",
+          title: note.title || "Untitled",
+          content: note.content,
+          position: { x: e.clientX, y: e.clientY },
+          onOpenDetail: () => {
+            onSelectNote?.(note.id);
+            setMemoPreview(null);
+          },
+          noteId: note.id,
+          date: dateKey,
+          noteNode: note,
+        });
+      } else if (item.type === "routineGroup") {
+        setPreviewPopup(null);
+        setMemoPreview(null);
+        setScheduleItemPreview(null);
+        setGroupPreview({
+          item,
+          position: { x: e.clientX, y: e.clientY },
+        });
+      } else if (item.type === "event" && item.scheduleItem) {
+        setPreviewPopup(null);
+        setMemoPreview(null);
+        setScheduleItemPreview({
+          item: item.scheduleItem,
+          position: { x: e.clientX, y: e.clientY },
+        });
+      }
+    },
+    [onSelectMemo, onSelectNote],
+  );
 
   const previewTask = previewPopup
     ? (filteredNodes.find((n) => n.id === previewPopup.taskId) ??
@@ -1006,6 +1013,8 @@ export function CalendarView({
             frequencyDays,
             frequencyInterval,
             frequencyStartDate,
+            reminderEnabled,
+            reminderOffset,
           ) => {
             updateRoutine(editRoutineDialog.id, {
               title,
@@ -1015,6 +1024,8 @@ export function CalendarView({
               frequencyDays,
               frequencyInterval,
               frequencyStartDate,
+              reminderEnabled,
+              reminderOffset,
             });
             if (tagIds !== undefined) {
               setTagsForRoutine(editRoutineDialog.id, tagIds);
@@ -1042,12 +1053,12 @@ export function CalendarView({
                     ? frequencyStartDate
                     : editRoutineDialog.frequencyStartDate,
               };
-              const group = groupForRoutine.get(editRoutineDialog.id);
+              const groups = groupForRoutine.get(editRoutineDialog.id);
               const gridStart = new Date(year, month, 1);
               gridStart.setDate(gridStart.getDate() - gridStart.getDay());
               const gridEnd = new Date(gridStart);
               gridEnd.setDate(gridEnd.getDate() + 41);
-              await reconcileRoutineScheduleItems(updatedRoutine, group, {
+              await reconcileRoutineScheduleItems(updatedRoutine, groups?.[0], {
                 startDate: formatDateKey(gridStart),
                 endDate: formatDateKey(gridEnd),
               });

@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, memo } from "react";
 import { Repeat, Plus } from "lucide-react";
 import type { CalendarItem } from "../../../../types/calendarItem";
 import { CalendarItemChip } from "./CalendarItemChip";
@@ -20,7 +20,7 @@ interface DayCellProps {
 
 const MAX_VISIBLE_ITEMS = 2;
 
-export function DayCell({
+export const DayCell = memo(function DayCell({
   date,
   isCurrentMonth,
   isToday,
@@ -96,7 +96,7 @@ export function DayCell({
           <CalendarItemChip
             key={item.id}
             item={item}
-            onClick={(e) => onSelectItem(item, e)}
+            onSelectItem={onSelectItem}
             taskColor={
               item.type === "task" ? getTaskColor?.(item.id) : undefined
             }
@@ -106,7 +106,7 @@ export function DayCell({
           <CalendarItemChip
             key={hiddenItems[0].id}
             item={hiddenItems[0]}
-            onClick={(e) => onSelectItem(hiddenItems[0], e)}
+            onSelectItem={onSelectItem}
             taskColor={
               hiddenItems[0].type === "task"
                 ? getTaskColor?.(hiddenItems[0].id)
@@ -131,8 +131,8 @@ export function DayCell({
                   <CalendarItemChip
                     key={item.id}
                     item={item}
-                    onClick={(e) => {
-                      onSelectItem(item, e);
+                    onSelectItem={(selectedItem, e) => {
+                      onSelectItem(selectedItem, e);
                       setShowMore(false);
                     }}
                     taskColor={
@@ -164,4 +164,4 @@ export function DayCell({
       )}
     </div>
   );
-}
+});
