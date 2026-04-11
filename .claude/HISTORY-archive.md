@@ -1,3 +1,17 @@
+### 2026-04-09 - Routine Calendar — 複数グループ対応 & 頻度クリーンアップ
+
+#### 概要
+
+RoutineGroupが複数タグを持つ場合、Calendarビューでグループチップのカウント・ポップアップが一つのグループのアイテムしか表示しないバグを修正。また、頻度設定に合わない既存スケジュールアイテムを自動クリーンアップするロジックを追加。
+
+#### 変更点
+
+- **useRoutineGroupComputed.ts**: `groupForRoutine`を`Map<string, RoutineGroup>`→`Map<string, RoutineGroup[]>`に変更。1ルーティンが複数グループに属せるように
+- **useCalendar.ts**: 各スケジュールアイテムを全マッチグループのバケットに追加。`groupScheduleItems`を`startTime`でソート
+- **routineScheduleSync.ts**: グループ頻度チェックを「いずれかのグループが許可すればOK」ロジックに変更
+- **useScheduleItems.ts**: 4関数(`ensureRoutineItemsForDate/backfill/ensureWeek/ensureRange`)のパラメータ型・グループチェック更新。`ensureRoutineItemsForDateRange`に頻度不一致アイテムの自動削除ロジック追加
+- **消費側5ファイル更新**: `useDayFlowColumn.ts`/`OneDaySchedule.tsx`（フィルタで`.some()`使用）、`ScheduleTimeGrid.tsx`（`groups?.[0]`）、`AchievementDetailsOverlay.tsx`（全グループにカウント加算）、`CalendarView.tsx`（reconcile `groups?.[0]`）
+
 ### 2026-04-09 - Note/Daily 編集ロック機能
 
 #### 概要
