@@ -35,9 +35,9 @@
 
 ## 直近の完了
 
+- Per-Item Reminder Feature + TaskPreviewPopup Bug Fix ✅（2026-04-11）
 - Database 機能強化（Feature 2-6: Fixed Name, Overflow, Resize, ContextMenu, Aggregation） ✅（2026-04-11）
 - Note フォルダ/ノート右クリックコンテキストメニュー ✅（2026-04-11）
-- Calendar パフォーマンス最適化 & Event チェックボックス警告修正 ✅（2026-04-12）
 
 ## 予定
 

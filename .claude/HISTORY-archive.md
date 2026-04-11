@@ -1,3 +1,20 @@
+### 2026-04-11 - File Explorer Tab in Materials Section
+
+#### 概要
+
+MaterialsセクションにFinderライクな「Files」タブを追加。PC上の指定フォルダ内のファイルをアプリ内で閲覧・編集・管理でき、Claude MCP経由でのファイル操作も可能。全5フェーズ（基盤+ブラウジング、編集、プレビュー+監視、MCP連携、高度UX）を実装。
+
+#### 変更点
+
+- **Phase 1 — Core Infrastructure**: `electron/services/fileSystemService.ts`新規（サンドボックス化されたfs操作、パストラバーサル防止、MIMEマッピング）。`electron/ipc/fileHandlers.ts`新規（13 IPCチャンネル）。preload.ts ALLOWED_CHANNELS追加、registerAll.ts登録
+- **Phase 1 — Frontend**: `frontend/src/types/fileExplorer.ts`、DataService全4実装に13メソッド追加。Context/Provider Pattern A、`useFileExplorer.ts`コアhook
+- **Phase 1 — UI**: MaterialsView.tsxにFilesタブ追加。FileExplorerSidebar.tsx、FileExplorerView.tsx、FilesSettings.tsx
+- **Phase 2 — File Editing**: FileEditor.tsx、FileEditorToolbar.tsx
+- **Phase 3 — File Watching**: `electron/services/fileWatcher.ts`新規（fs.watch recursive、150msデバウンス）
+- **Phase 4 — MCP Integration**: `mcp-server/src/handlers/fileHandlers.ts`新規（7ツール）
+- **Phase 5 — Advanced UX**: FileContextMenu.tsx新規、キーボードナビゲーション、ドラッグ&ドロップ
+- **i18n**: en.json/ja.jsonに`files`セクション（25キー）+ `ideas.files`タブラベル追加
+
 ### 2026-04-09 - Routine Calendar — 複数グループ対応 & 頻度クリーンアップ
 
 #### 概要
