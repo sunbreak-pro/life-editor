@@ -43,7 +43,11 @@ export class UndoRedoManager {
     const stack = this.getStack(domain);
     const command = stack.undoStack.pop();
     if (!command) return;
-    await command.undo();
+    try {
+      await command.undo();
+    } catch (err) {
+      console.error(`[UndoRedo] undo failed (${domain}):`, err);
+    }
     stack.redoStack.push(command);
     this.notify();
   }
@@ -52,7 +56,11 @@ export class UndoRedoManager {
     const stack = this.getStack(domain);
     const command = stack.redoStack.pop();
     if (!command) return;
-    await command.redo();
+    try {
+      await command.redo();
+    } catch (err) {
+      console.error(`[UndoRedo] redo failed (${domain}):`, err);
+    }
     stack.undoStack.push(command);
     this.notify();
   }

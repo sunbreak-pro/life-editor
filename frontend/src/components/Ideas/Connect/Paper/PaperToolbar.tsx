@@ -7,6 +7,7 @@ interface PaperToolbarProps {
   onAddFrame: () => void;
   selectedNodeCount?: number;
   onDeleteSelected?: () => void;
+  isDragging?: boolean;
 }
 
 export function PaperToolbar({
@@ -15,6 +16,7 @@ export function PaperToolbar({
   onAddFrame,
   selectedNodeCount = 0,
   onDeleteSelected,
+  isDragging = false,
 }: PaperToolbarProps) {
   const { t } = useTranslation();
 
@@ -49,11 +51,15 @@ export function PaperToolbar({
           <div className="w-px h-4 bg-notion-border mx-0.5" />
           <button
             onClick={onDeleteSelected}
-            className="flex items-center gap-1 px-2 py-1 text-xs text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded"
+            disabled={isDragging}
+            className={`flex items-center gap-1 px-2 py-1 text-xs rounded ${
+              isDragging
+                ? "text-red-300 opacity-40 pointer-events-none"
+                : "text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20"
+            }`}
             title="Delete selected"
           >
             <Trash2 size={12} />
-            <span>{selectedNodeCount}</span>
           </button>
         </>
       )}

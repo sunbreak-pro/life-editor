@@ -105,7 +105,14 @@ function PaperFrameNodeInner({
                   style={{ backgroundColor: bgColor }}
                 />
                 {showColors && (
-                  <div className="nodrag">
+                  <div
+                    className="nodrag"
+                    style={{
+                      position: "relative",
+                      zIndex: 9999,
+                      pointerEvents: "auto",
+                    }}
+                  >
                     <UnifiedColorPicker
                       color={bgColor}
                       onChange={handleColorSelect}

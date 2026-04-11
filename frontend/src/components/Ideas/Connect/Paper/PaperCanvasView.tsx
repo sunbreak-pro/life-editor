@@ -127,6 +127,7 @@ export function PaperCanvasView({
   const lang = i18n.language;
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [selectedNodeIds, setSelectedNodeIds] = useState<string[]>([]);
+  const [isDragging, setIsDragging] = useState(false);
   const viewportTimerRef = useRef<ReturnType<typeof setTimeout>>();
   const { screenToFlowPosition } = useReactFlow();
 
@@ -191,16 +192,19 @@ export function PaperCanvasView({
   // Convert DB nodes → ReactFlow nodes
   // ReactFlow requires parent nodes to appear before children in the array
   const rfNodes: Node[] = useMemo(() => {
-    const parentIds = new Set(
-      paperNodes.filter((pn) => pn.parentNodeId).map((pn) => pn.parentNodeId),
-    );
-    // Sort: parent nodes first, then children
-    const sorted = [...paperNodes].sort((a, b) => {
-      const aIsParent = parentIds.has(a.id) ? 0 : 1;
-      const bIsParent = parentIds.has(b.id) ? 0 : 1;
-      if (aIsParent !== bIsParent) return aIsParent - bIsParent;
-      return 0;
-    });
+    // Topological sort: parents must appear before children at any depth
+    const nodeMap = new Map(paperNodes.map((pn) => [pn.id, pn]));
+    const visited = new Set<string>();
+    const sorted: PaperNodeDB[] = [];
+    const visit = (pn: PaperNodeDB) => {
+      if (visited.has(pn.id)) return;
+      if (pn.parentNodeId && nodeMap.has(pn.parentNodeId)) {
+        visit(nodeMap.get(pn.parentNodeId)!);
+      }
+      visited.add(pn.id);
+      sorted.push(pn);
+    };
+    for (const pn of paperNodes) visit(pn);
     return sorted.map((pn) => {
       let data: Record<string, unknown> = {};
       let type = "paperCard";
@@ -295,9 +299,53 @@ export function PaperCanvasView({
     setFlowEdges(rfEdges);
   }, [rfEdges, setFlowEdges]);
 
+  // --- Frame nesting helpers ---
+  // Calculate the depth of a node by walking up the parent chain (root = 0)
+  const getFrameDepth = useCallback(
+    (nodeId: string | undefined, nodes: Node[]): number => {
+      let depth = 0;
+      let currentId = nodeId;
+      while (currentId) {
+        const parent = nodes.find((n) => n.id === currentId);
+        if (!parent?.parentId) break;
+        currentId = parent.parentId;
+        depth++;
+      }
+      return depth;
+    },
+    [],
+  );
+
+  // Calculate the max subtree depth below a given node
+  const getMaxSubtreeDepth = useCallback(
+    (nodeId: string, nodes: Node[]): number => {
+      const children = nodes.filter((n) => n.parentId === nodeId);
+      if (children.length === 0) return 0;
+      return (
+        1 + Math.max(...children.map((c) => getMaxSubtreeDepth(c.id, nodes)))
+      );
+    },
+    [],
+  );
+
+  // Check if targetId is a descendant of nodeId (to prevent circular nesting)
+  const isDescendant = useCallback(
+    (nodeId: string, targetId: string, nodes: Node[]): boolean => {
+      const children = nodes.filter((n) => n.parentId === nodeId);
+      for (const child of children) {
+        if (child.id === targetId) return true;
+        if (isDescendant(child.id, targetId, nodes)) return true;
+      }
+      return false;
+    },
+    [],
+  );
+
   // Handle node drag stop → persist positions
   const handleNodeDragStop = useCallback(
     (_event: React.MouseEvent, node: Node, nodes: Node[]) => {
+      setIsDragging(false);
+
       // Pre-compute frame escape/grouping for the primary node
       // so we can include the correct position in the bulk update
       let overrideForNode: {
@@ -307,7 +355,7 @@ export function PaperCanvasView({
       } | null = null;
 
       // Frame escape: check if child node was dragged outside its parent frame
-      if (node.type !== "paperFrame" && node.parentId) {
+      if (node.parentId) {
         const parentFrame = flowNodes.find((n) => n.id === node.parentId);
         if (parentFrame) {
           const fw = (parentFrame.style?.width as number) || 200;
@@ -328,10 +376,19 @@ export function PaperCanvasView({
         }
       }
 
-      // Frame grouping: check if non-frame node was dropped onto a frame
-      if (node.type !== "paperFrame" && !node.parentId && !overrideForNode) {
+      // Frame grouping: check if node was dropped onto a frame
+      if (!node.parentId && !overrideForNode) {
         const frameNodes = flowNodes.filter((n) => n.type === "paperFrame");
         for (const frame of frameNodes) {
+          // Skip self
+          if (frame.id === node.id) continue;
+          // Prevent circular nesting (can't drop into own descendant)
+          if (
+            node.type === "paperFrame" &&
+            isDescendant(node.id, frame.id, flowNodes)
+          )
+            continue;
+
           const fw = (frame.style?.width as number) || 200;
           const fh = (frame.style?.height as number) || 150;
           if (
@@ -340,6 +397,13 @@ export function PaperCanvasView({
             node.position.x <= frame.position.x + fw &&
             node.position.y <= frame.position.y + fh
           ) {
+            // Depth check for max 3 levels
+            if (node.type === "paperFrame") {
+              const targetDepth = getFrameDepth(frame.id, flowNodes) + 1;
+              const subtreeDepth = getMaxSubtreeDepth(node.id, flowNodes);
+              if (targetDepth + subtreeDepth > 2) continue; // 0-indexed: depth 2 = 3 levels
+            }
+
             overrideForNode = {
               positionX: node.position.x - frame.position.x,
               positionY: node.position.y - frame.position.y,
@@ -365,8 +429,18 @@ export function PaperCanvasView({
       });
       onBulkUpdatePositions(updates);
     },
-    [onBulkUpdatePositions, flowNodes],
+    [
+      onBulkUpdatePositions,
+      flowNodes,
+      isDescendant,
+      getFrameDepth,
+      getMaxSubtreeDepth,
+    ],
   );
+
+  const handleNodeDragStart = useCallback(() => {
+    setIsDragging(true);
+  }, []);
 
   // Handle resize
   const handleNodesChange: OnNodesChange = useCallback(
@@ -541,6 +615,7 @@ export function PaperCanvasView({
         onNodesChange={handleNodesChange}
         onEdgesChange={onEdgesChange}
         onConnect={handleConnect}
+        onNodeDragStart={handleNodeDragStart}
         onNodeDragStop={handleNodeDragStop}
         onNodesDelete={handleNodesDelete}
         onNodeDoubleClick={handleNodeDoubleClick}
@@ -567,6 +642,7 @@ export function PaperCanvasView({
             onAddText={handleAddText}
             onAddFrame={handleAddFrame}
             selectedNodeCount={selectedNodeIds.length}
+            isDragging={isDragging}
             onDeleteSelected={handleDeleteSelected}
           />
         </Panel>

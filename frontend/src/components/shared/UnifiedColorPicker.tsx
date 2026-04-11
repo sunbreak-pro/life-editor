@@ -247,7 +247,7 @@ export function UnifiedColorPicker({
   return (
     <div
       ref={ref}
-      className="absolute top-full left-0 mt-1 z-50 bg-notion-bg border border-notion-border rounded-lg shadow-lg w-52 overflow-hidden"
+      className="absolute top-full left-0 mt-1 z-[9999] bg-notion-bg border border-notion-border rounded-lg shadow-lg w-52 overflow-hidden opacity-100"
     >
       {content}
     </div>

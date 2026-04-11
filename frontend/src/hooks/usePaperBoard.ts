@@ -179,7 +179,7 @@ export function usePaperBoard() {
           }));
         },
         redo: async () => {
-          const restored = await ds.createPaperNode(params);
+          const restored = await ds.createPaperNode({ ...params, id: node.id });
           setNodes((prev) => [...prev, restored]);
           setBoardNodeCounts((prev) => ({
             ...prev,
