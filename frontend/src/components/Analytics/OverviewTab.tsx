@@ -1,9 +1,26 @@
-import { useMemo } from "react";
-import { BarChart3, CheckCircle2, Circle, FolderOpen } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import {
+  BarChart3,
+  CalendarCheck2,
+  Clock,
+  RefreshCw,
+  Tag,
+  FileText,
+} from "lucide-react";
 import { useTranslation } from "react-i18next";
 import type { TimerSession } from "../../types/timer";
 import type { TaskNode } from "../../types/taskTree";
+import type { ScheduleItem } from "../../types/schedule";
+import { useNoteContext } from "../../hooks/useNoteContext";
+import { useRoutineContext } from "../../hooks/useRoutineContext";
+import { useWikiTags } from "../../hooks/useWikiTags";
+import { getDataService } from "../../services";
 import { formatDateKey } from "../../utils/dateKey";
+import {
+  computeSummary,
+  getWorkSessions,
+} from "../../utils/analyticsAggregation";
+import { AnalyticsStatCard } from "./AnalyticsStatCard";
 import { TodayDashboard } from "./TodayDashboard";
 import { WeeklySummary } from "./WeeklySummary";
 import { StreakDisplay } from "./StreakDisplay";
@@ -15,108 +32,134 @@ interface OverviewTabProps {
 
 export function OverviewTab({ sessions, nodes }: OverviewTabProps) {
   const { t } = useTranslation();
+  const { notes } = useNoteContext();
+  const { routines } = useRoutineContext();
+  const { tags, assignments } = useWikiTags();
+  const [todayItems, setTodayItems] = useState<ScheduleItem[]>([]);
+
+  useEffect(() => {
+    const today = formatDateKey(new Date());
+    getDataService()
+      .fetchScheduleItemsByDateRange(today, today)
+      .then(setTodayItems);
+  }, []);
 
   const stats = useMemo(() => {
+    // Tasks
     const tasks = nodes.filter((n) => n.type === "task");
-    const folders = nodes.filter((n) => n.type === "folder");
-    const completed = tasks.filter((n) => n.status === "DONE");
-    const incomplete = tasks.filter((n) => n.status !== "DONE");
-    const completionRate =
+    const completedTasks = tasks.filter((n) => n.status === "DONE");
+    const taskRate =
       tasks.length > 0
-        ? Math.round((completed.length / tasks.length) * 100)
+        ? Math.round((completedTasks.length / tasks.length) * 100)
         : 0;
 
+    // Events (today)
+    const todayCompleted = todayItems.filter((i) => i.completed);
+
+    // Notes
+    const activeNotes = notes.filter((n) => !n.isDeleted && n.type === "note");
     const now = new Date();
-    const todayStr = formatDateKey(now);
-    const todayTasks = tasks.filter(
-      (t) => t.scheduledAt?.substring(0, 10) === todayStr,
+    const weekAgo = new Date(now);
+    weekAgo.setDate(weekAgo.getDate() - 7);
+    const weekAgoStr = formatDateKey(weekAgo);
+    const notesThisWeek = activeNotes.filter(
+      (n) => n.createdAt.substring(0, 10) >= weekAgoStr,
     );
-    const todayCompleted = todayTasks.filter((t) => t.status === "DONE");
-    const todayCompletionRate =
-      todayTasks.length > 0
-        ? Math.round((todayCompleted.length / todayTasks.length) * 100)
+
+    // Work
+    const summary = computeSummary(sessions);
+    const todayStr = formatDateKey(now);
+    const todayWork = getWorkSessions(sessions).filter(
+      (s) => formatDateKey(new Date(s.startedAt)) === todayStr,
+    );
+    const todayMinutes = todayWork.reduce(
+      (sum, s) => sum + (s.duration ?? 0) / 60,
+      0,
+    );
+
+    // Routines
+    const activeRoutines = routines.filter(
+      (r) => !r.isArchived && !r.isDeleted,
+    );
+    const routineItems = todayItems.filter((i) => i.routineId);
+    const routineCompleted = routineItems.filter((i) => i.completed);
+    const routineRate =
+      routineItems.length > 0
+        ? Math.round((routineCompleted.length / routineItems.length) * 100)
         : 0;
+
+    // Tags
+    const totalAssignments = assignments.length;
+
+    const formatHours = (minutes: number) => {
+      const h = Math.floor(minutes / 60);
+      const m = Math.round(minutes % 60);
+      return t("analytics.hours", { hours: h, minutes: m });
+    };
 
     return {
       totalTasks: tasks.length,
-      completedTasks: completed.length,
-      incompleteTasks: incomplete.length,
-      totalFolders: folders.length,
-      completionRate,
-      todayTotal: todayTasks.length,
-      todayCompleted: todayCompleted.length,
-      todayCompletionRate,
+      completedTasks: completedTasks.length,
+      taskRate,
+      todayEvents: todayItems.length,
+      todayEventsCompleted: todayCompleted.length,
+      totalNotes: activeNotes.length,
+      notesThisWeek: notesThisWeek.length,
+      totalWorkTime: formatHours(summary.totalMinutes),
+      todayWorkTime: formatHours(todayMinutes),
+      activeRoutines: activeRoutines.length,
+      routineRate,
+      totalTags: tags.length,
+      totalAssignments,
     };
-  }, [nodes]);
+  }, [nodes, todayItems, notes, sessions, routines, tags, assignments, t]);
 
   return (
     <div className="max-w-3xl mx-auto w-full space-y-6">
-      {/* Stat cards */}
-      <div className="grid grid-cols-2 gap-4">
-        <StatCard
+      {/* Multi-domain stat cards */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+        <AnalyticsStatCard
           icon={<BarChart3 size={20} />}
-          label={t("analytics.totalTasks")}
+          label={t("analytics.overview.tasks")}
           value={stats.totalTasks}
           color="text-notion-accent"
+          subtitle={`${stats.completedTasks} ${t("analytics.overview.completed")} (${stats.taskRate}%)`}
         />
-        <StatCard
-          icon={<CheckCircle2 size={20} />}
-          label={t("analytics.completed")}
-          value={stats.completedTasks}
+        <AnalyticsStatCard
+          icon={<CalendarCheck2 size={20} />}
+          label={t("analytics.overview.events")}
+          value={stats.todayEvents}
+          color="text-blue-500"
+          subtitle={`${stats.todayEventsCompleted} ${t("analytics.overview.completed")} ${t("analytics.overview.today")}`}
+        />
+        <AnalyticsStatCard
+          icon={<FileText size={20} />}
+          label={t("analytics.overview.notes")}
+          value={stats.totalNotes}
+          color="text-purple-500"
+          subtitle={`+${stats.notesThisWeek} ${t("analytics.overview.thisWeek")}`}
+        />
+        <AnalyticsStatCard
+          icon={<Clock size={20} />}
+          label={t("analytics.overview.work")}
+          value={stats.totalWorkTime}
+          color="text-orange-500"
+          subtitle={`${stats.todayWorkTime} ${t("analytics.overview.today")}`}
+        />
+        <AnalyticsStatCard
+          icon={<RefreshCw size={20} />}
+          label={t("analytics.overview.routines")}
+          value={stats.activeRoutines}
           color="text-notion-success"
+          subtitle={`${stats.routineRate}% ${t("analytics.overview.rate")}`}
         />
-        <StatCard
-          icon={<Circle size={20} />}
-          label={t("analytics.inProgress")}
-          value={stats.incompleteTasks}
+        <AnalyticsStatCard
+          icon={<Tag size={20} />}
+          label={t("analytics.overview.tags")}
+          value={stats.totalTags}
           color="text-yellow-500"
+          subtitle={`${stats.totalAssignments} ${t("analytics.overview.assigned")}`}
         />
-        <StatCard
-          icon={<FolderOpen size={20} />}
-          label={t("analytics.folders")}
-          value={stats.totalFolders}
-          color="text-notion-text-secondary"
-        />
-      </div>
-
-      {/* Completion rates */}
-      <div className="space-y-4">
-        <div className="bg-notion-bg-secondary rounded-lg p-4">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-sm font-medium text-notion-text">
-              {t("analytics.todayRate")}
-            </span>
-            <span className="text-sm font-bold text-notion-success">
-              {stats.todayCompletionRate}%
-              <span className="text-xs font-normal text-notion-text-secondary ml-1">
-                ({stats.todayCompleted}/{stats.todayTotal})
-              </span>
-            </span>
-          </div>
-          <div className="w-full h-3 bg-notion-hover rounded-full overflow-hidden">
-            <div
-              className="h-full bg-notion-success rounded-full transition-all duration-500"
-              style={{ width: `${stats.todayCompletionRate}%` }}
-            />
-          </div>
-        </div>
-
-        <div className="bg-notion-bg-secondary rounded-lg p-4">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-sm font-medium text-notion-text">
-              {t("analytics.totalRate")}
-            </span>
-            <span className="text-sm font-bold text-notion-accent">
-              {stats.completionRate}%
-            </span>
-          </div>
-          <div className="w-full h-3 bg-notion-hover rounded-full overflow-hidden">
-            <div
-              className="h-full bg-notion-accent rounded-full transition-all duration-500"
-              style={{ width: `${stats.completionRate}%` }}
-            />
-          </div>
-        </div>
       </div>
 
       {/* Today Dashboard */}
@@ -127,28 +170,6 @@ export function OverviewTab({ sessions, nodes }: OverviewTabProps) {
 
       {/* Streak Display */}
       <StreakDisplay sessions={sessions} />
-    </div>
-  );
-}
-
-function StatCard({
-  icon,
-  label,
-  value,
-  color,
-}: {
-  icon: React.ReactNode;
-  label: string;
-  value: number;
-  color: string;
-}) {
-  return (
-    <div className="bg-notion-bg-secondary rounded-lg p-4 flex items-center gap-3">
-      <div className={color}>{icon}</div>
-      <div>
-        <p className="text-2xl font-bold text-notion-text">{value}</p>
-        <p className="text-xs text-notion-text-secondary">{label}</p>
-      </div>
     </div>
   );
 }

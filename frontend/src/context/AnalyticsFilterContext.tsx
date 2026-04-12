@@ -40,6 +40,15 @@ const DEFAULT_CHARTS = new Set([
   "taskCompletionTrend",
   "taskStagnation",
   "projectWorkTime",
+  "eventCompletionTrend",
+  "eventTimeDistribution",
+  "routineCompletionChart",
+  "noteCreationTrend",
+  "memoActivityHeatmap",
+  "notesByFolder",
+  "tagUsageChart",
+  "tagEntityTypeChart",
+  "tagConnectionSummary",
 ]);
 
 function getPresetRange(preset: DatePreset): DateRange {

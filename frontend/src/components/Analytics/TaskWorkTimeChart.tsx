@@ -44,7 +44,7 @@ export function TaskWorkTimeChart({
         {t("analytics.taskWorkTime")}
       </h3>
       <div style={{ height: chartHeight }}>
-        <ResponsiveContainer width="100%" height="100%">
+        <ResponsiveContainer width="100%" height="100%" minWidth={0}>
           <BarChart
             data={data}
             layout="vertical"

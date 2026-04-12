@@ -5,6 +5,7 @@ import type { TimerSession } from "../../types/timer";
 import type { Period } from "./PeriodSelector";
 import { computeSummary } from "../../utils/analyticsAggregation";
 import { useAnalyticsFilter } from "../../context/AnalyticsFilterContext";
+import { AnalyticsStatCard } from "./AnalyticsStatCard";
 import { PeriodSelector } from "./PeriodSelector";
 import { WorkTimeChart } from "./WorkTimeChart";
 import { TaskWorkTimeChart } from "./TaskWorkTimeChart";
@@ -52,19 +53,19 @@ export function TimeTab({ sessions, taskNameMap }: TimeTabProps) {
     <div className="max-w-3xl mx-auto w-full space-y-6">
       {/* Summary cards */}
       <div className="grid grid-cols-3 gap-4">
-        <StatCard
+        <AnalyticsStatCard
           icon={<Clock size={20} />}
           label={t("analytics.totalWorkTime")}
           value={formatHours(summary.totalMinutes)}
           color="text-blue-500"
         />
-        <StatCard
+        <AnalyticsStatCard
           icon={<Hash size={20} />}
           label={t("analytics.sessions")}
           value={String(summary.totalSessions)}
           color="text-purple-500"
         />
-        <StatCard
+        <AnalyticsStatCard
           icon={<TrendingUp size={20} />}
           label={t("analytics.avgPerDay")}
           value={formatHours(summary.avgMinutesPerDay)}
@@ -109,28 +110,6 @@ export function TimeTab({ sessions, taskNameMap }: TimeTabProps) {
       {visibleCharts.has("taskWorkTimeChart") && (
         <TaskWorkTimeChart sessions={sessions} taskNameMap={taskNameMap} />
       )}
-    </div>
-  );
-}
-
-function StatCard({
-  icon,
-  label,
-  value,
-  color,
-}: {
-  icon: React.ReactNode;
-  label: string;
-  value: string;
-  color: string;
-}) {
-  return (
-    <div className="bg-notion-bg-secondary rounded-lg p-4 flex items-center gap-3">
-      <div className={color}>{icon}</div>
-      <div>
-        <p className="text-2xl font-bold text-notion-text">{value}</p>
-        <p className="text-xs text-notion-text-secondary">{label}</p>
-      </div>
     </div>
   );
 }

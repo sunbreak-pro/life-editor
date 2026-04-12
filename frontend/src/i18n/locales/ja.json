@@ -705,7 +705,11 @@
     "tabs": {
       "overview": "概要",
       "time": "時間",
-      "tasks": "タスク"
+      "tasks": "タスク",
+      "schedule": "スケジュール",
+      "materials": "マテリアル",
+      "work": "作業",
+      "connect": "コネクト"
     },
     "totalTasks": "全タスク",
     "completed": "完了",
@@ -800,7 +804,97 @@
       "allFolders": "すべてのプロジェクト",
       "charts": "表示チャート",
       "showAll": "すべて表示",
-      "hideAll": "すべて非表示"
+      "hideAll": "すべて非表示",
+      "chartGroup": {
+        "work": "作業チャート",
+        "tasks": "タスクチャート",
+        "schedule": "スケジュールチャート",
+        "materials": "マテリアルチャート",
+        "connect": "コネクトチャート"
+      }
+    },
+    "overview": {
+      "tasks": "タスク",
+      "events": "イベント",
+      "notes": "ノート",
+      "work": "作業時間",
+      "routines": "ルーティン",
+      "tags": "タグ",
+      "total": "合計",
+      "completed": "完了",
+      "today": "今日",
+      "active": "アクティブ",
+      "rate": "達成率",
+      "thisWeek": "今週",
+      "assigned": "割り当て"
+    },
+    "schedule": {
+      "totalEvents": "イベント総数",
+      "completedEvents": "完了",
+      "completionRate": "完了率",
+      "activeRoutines": "アクティブルーティン",
+      "routineRate": "ルーティン達成率",
+      "eventTrend": {
+        "title": "イベント完了トレンド",
+        "completed": "完了数"
+      },
+      "timeDistribution": {
+        "title": "時間帯別イベント",
+        "count": "イベント数"
+      },
+      "routineCompletion": {
+        "title": "ルーティン別達成率",
+        "rate": "達成率"
+      },
+      "noEvents": "この期間のイベントはありません。"
+    },
+    "materials": {
+      "totalNotes": "ノート数",
+      "noteFolders": "フォルダ数",
+      "pinnedNotes": "ピン留め",
+      "createdPeriod": "作成数(期間)",
+      "totalMemos": "メモ数",
+      "memosPeriod": "メモ数(期間)",
+      "creationTrend": {
+        "title": "ノート作成トレンド",
+        "count": "作成数"
+      },
+      "memoHeatmap": {
+        "title": "メモアクティビティ",
+        "tooltip": "{{count}}件のメモ"
+      },
+      "byFolder": {
+        "title": "フォルダ別ノート数",
+        "count": "ノート数",
+        "noFolder": "フォルダなし"
+      },
+      "noNotes": "ノートはまだありません。"
+    },
+    "connect": {
+      "totalTags": "タグ数",
+      "totalAssignments": "割り当て数",
+      "uniqueEntities": "タグ付きアイテム",
+      "coverageRate": "カバー率",
+      "topTags": {
+        "title": "使用頻度の高いタグ",
+        "count": "割り当て数"
+      },
+      "byEntityType": {
+        "title": "エンティティ種別別タグ",
+        "task": "タスク",
+        "note": "ノート",
+        "memo": "メモ"
+      },
+      "connections": {
+        "title": "コネクション統計",
+        "tagConnections": "タグコネクション",
+        "noteConnections": "ノートコネクション",
+        "mostConnected": "最多接続",
+        "isolatedTags": "孤立タグ",
+        "avgConnections": "平均接続数",
+        "density": "密度"
+      },
+      "noTags": "タグはまだありません。"
     }
   },
   "tips": {

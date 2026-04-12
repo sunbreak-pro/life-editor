@@ -7,40 +7,49 @@ import {
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
-  Cell,
 } from "recharts";
 import { useTranslation } from "react-i18next";
-import type { TaskNode } from "../../types/taskTree";
-import { aggregateTaskStagnation } from "../../utils/analyticsAggregation";
+import type { NoteNode } from "../../types/note";
+import { aggregateNotesByFolder } from "../../utils/analyticsAggregation";
 
-interface TaskStagnationChartProps {
-  nodes: TaskNode[];
+interface NotesByFolderChartProps {
+  notes: NoteNode[];
 }
 
-export function TaskStagnationChart({ nodes }: TaskStagnationChartProps) {
+export function NotesByFolderChart({ notes }: NotesByFolderChartProps) {
   const { t } = useTranslation();
 
-  const data = useMemo(() => aggregateTaskStagnation(nodes), [nodes]);
+  const data = useMemo(
+    () =>
+      aggregateNotesByFolder(notes).map((d) => ({
+        name:
+          d.folderId === null
+            ? t("analytics.materials.byFolder.noFolder")
+            : d.folderName.length > 15
+              ? d.folderName.substring(0, 15) + "..."
+              : d.folderName,
+        count: d.noteCount,
+      })),
+    [notes, t],
+  );
 
-  const hasData = data.some((d) => d.count > 0);
-  if (!hasData) return null;
+  if (data.length === 0) return null;
 
   return (
     <div>
       <h3 className="text-sm font-semibold text-notion-text mb-3">
-        {t("analytics.stagnation.title")}
+        {t("analytics.materials.byFolder.title")}
       </h3>
-      <div className="h-40">
+      <div style={{ height: Math.max(160, data.length * 32 + 40) }}>
         <ResponsiveContainer width="100%" height="100%" minWidth={0}>
           <BarChart
             data={data}
             layout="vertical"
-            margin={{ top: 5, right: 20, left: 10, bottom: 0 }}
+            margin={{ top: 5, right: 30, left: 10, bottom: 5 }}
           >
             <CartesianGrid
               strokeDasharray="3 3"
               stroke="var(--color-notion-border, #e5e5e5)"
-              horizontal={false}
             />
             <XAxis
               type="number"
@@ -51,13 +60,13 @@ export function TaskStagnationChart({ nodes }: TaskStagnationChartProps) {
               allowDecimals={false}
             />
             <YAxis
-              dataKey="label"
               type="category"
+              dataKey="name"
               tick={{
                 fontSize: 10,
                 fill: "var(--color-notion-text-secondary, #999)",
               }}
-              width={80}
+              width={120}
             />
             <Tooltip
               contentStyle={{
@@ -66,15 +75,12 @@ export function TaskStagnationChart({ nodes }: TaskStagnationChartProps) {
                 borderRadius: 8,
                 fontSize: 12,
               }}
-              formatter={(value: number) => [
-                `${value} ${t("analytics.stagnation.tasks")}`,
+              formatter={(value: number | undefined) => [
+                value ?? 0,
+                t("analytics.materials.byFolder.count"),
               ]}
             />
-            <Bar dataKey="count" radius={[0, 4, 4, 0]}>
-              {data.map((entry, index) => (
-                <Cell key={index} fill={entry.color} />
-              ))}
-            </Bar>
+            <Bar dataKey="count" fill="#8b5cf6" radius={[0, 4, 4, 0]} />
           </BarChart>
         </ResponsiveContainer>
       </div>

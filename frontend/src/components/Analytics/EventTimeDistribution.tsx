@@ -7,35 +7,31 @@ import {
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
-  Legend,
 } from "recharts";
 import { useTranslation } from "react-i18next";
-import type { TimerSession } from "../../types/timer";
-import { aggregateWorkBreakBalance } from "../../utils/analyticsAggregation";
+import type { ScheduleItem } from "../../types/schedule";
+import { aggregateEventsByHour } from "../../utils/analyticsAggregation";
 
-interface WorkBreakBalanceProps {
-  sessions: TimerSession[];
-  days: number;
+interface EventTimeDistributionProps {
+  items: ScheduleItem[];
 }
 
-export function WorkBreakBalance({ sessions, days }: WorkBreakBalanceProps) {
+export function EventTimeDistribution({ items }: EventTimeDistributionProps) {
   const { t } = useTranslation();
 
   const data = useMemo(
     () =>
-      aggregateWorkBreakBalance(sessions, days).map((d) => ({
-        date: d.date.substring(5), // MM-DD
-        [t("analytics.workBreak.work")]: Math.round(d.workMinutes),
-        [t("analytics.workBreak.break")]: Math.round(d.breakMinutes),
-        [t("analytics.workBreak.longBreak")]: Math.round(d.longBreakMinutes),
+      aggregateEventsByHour(items).map((d) => ({
+        hour: `${d.hour}`,
+        count: d.count,
       })),
-    [sessions, days, t],
+    [items],
   );
 
   return (
     <div>
       <h3 className="text-sm font-semibold text-notion-text mb-3">
-        {t("analytics.workBreak.title")}
+        {t("analytics.schedule.timeDistribution.title")}
       </h3>
       <div className="h-48">
         <ResponsiveContainer width="100%" height="100%" minWidth={0}>
@@ -48,19 +44,19 @@ export function WorkBreakBalance({ sessions, days }: WorkBreakBalanceProps) {
               stroke="var(--color-notion-border, #e5e5e5)"
             />
             <XAxis
-              dataKey="date"
+              dataKey="hour"
               tick={{
                 fontSize: 10,
                 fill: "var(--color-notion-text-secondary, #999)",
               }}
-              interval="preserveStartEnd"
+              interval={2}
             />
             <YAxis
               tick={{
                 fontSize: 10,
                 fill: "var(--color-notion-text-secondary, #999)",
               }}
-              unit="m"
+              allowDecimals={false}
             />
             <Tooltip
               contentStyle={{
@@ -69,25 +65,15 @@ export function WorkBreakBalance({ sessions, days }: WorkBreakBalanceProps) {
                 borderRadius: 8,
                 fontSize: 12,
               }}
-              formatter={(value: number) => [`${value}m`]}
+              formatter={(value: number | undefined) => [
+                value ?? 0,
+                t("analytics.schedule.timeDistribution.count"),
+              ]}
+              labelFormatter={(label) => `${label}:00`}
             />
-            <Legend wrapperStyle={{ fontSize: 11 }} />
             <Bar
-              dataKey={t("analytics.workBreak.work")}
-              stackId="a"
+              dataKey="count"
               fill="var(--color-notion-accent, #2563eb)"
-              radius={[0, 0, 0, 0]}
-            />
-            <Bar
-              dataKey={t("analytics.workBreak.break")}
-              stackId="a"
-              fill="var(--color-notion-success, #22c55e)"
-              radius={[0, 0, 0, 0]}
-            />
-            <Bar
-              dataKey={t("analytics.workBreak.longBreak")}
-              stackId="a"
-              fill="#f59e0b"
               radius={[4, 4, 0, 0]}
             />
           </BarChart>

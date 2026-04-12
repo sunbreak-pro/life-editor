@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import {
-  AreaChart,
-  Area,
+  BarChart,
+  Bar,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -9,55 +9,70 @@ import {
   ResponsiveContainer,
 } from "recharts";
 import { useTranslation } from "react-i18next";
-import type { TaskNode } from "../../types/taskTree";
-import { aggregateTaskCompletionTrend } from "../../utils/analyticsAggregation";
+import type { ScheduleItem } from "../../types/schedule";
+import type { RoutineNode } from "../../types/routine";
+import { aggregateRoutineCompletion } from "../../utils/analyticsAggregation";
 
-interface TaskCompletionTrendProps {
-  nodes: TaskNode[];
-  days: number;
+interface RoutineCompletionChartProps {
+  items: ScheduleItem[];
+  routines: RoutineNode[];
 }
 
-export function TaskCompletionTrend({ nodes, days }: TaskCompletionTrendProps) {
+export function RoutineCompletionChart({
+  items,
+  routines,
+}: RoutineCompletionChartProps) {
   const { t } = useTranslation();
 
   const data = useMemo(
     () =>
-      aggregateTaskCompletionTrend(nodes, days).map((d) => ({
-        date: d.date.substring(5), // MM-DD
+      aggregateRoutineCompletion(items, routines).map((d) => ({
+        name:
+          d.routineTitle.length > 12
+            ? d.routineTitle.substring(0, 12) + "..."
+            : d.routineTitle,
+        rate: d.rate,
         completed: d.completedCount,
+        total: d.totalCount,
       })),
-    [nodes, days],
+    [items, routines],
   );
+
+  if (data.length === 0) return null;
 
   return (
     <div>
       <h3 className="text-sm font-semibold text-notion-text mb-3">
-        {t("analytics.taskTrend.title")}
+        {t("analytics.schedule.routineCompletion.title")}
       </h3>
-      <div className="h-48">
+      <div style={{ height: Math.max(160, data.length * 32 + 40) }}>
         <ResponsiveContainer width="100%" height="100%" minWidth={0}>
-          <AreaChart
+          <BarChart
             data={data}
-            margin={{ top: 5, right: 10, left: -10, bottom: 0 }}
+            layout="vertical"
+            margin={{ top: 5, right: 30, left: 10, bottom: 5 }}
           >
             <CartesianGrid
               strokeDasharray="3 3"
               stroke="var(--color-notion-border, #e5e5e5)"
             />
             <XAxis
-              dataKey="date"
+              type="number"
+              domain={[0, 100]}
               tick={{
                 fontSize: 10,
                 fill: "var(--color-notion-text-secondary, #999)",
               }}
-              interval="preserveStartEnd"
+              tickFormatter={(v) => `${v}%`}
             />
             <YAxis
+              type="category"
+              dataKey="name"
               tick={{
                 fontSize: 10,
                 fill: "var(--color-notion-text-secondary, #999)",
               }}
-              allowDecimals={false}
+              width={100}
             />
             <Tooltip
               contentStyle={{
@@ -66,20 +81,17 @@ export function TaskCompletionTrend({ nodes, days }: TaskCompletionTrendProps) {
                 borderRadius: 8,
                 fontSize: 12,
               }}
-              formatter={(value: number) => [
-                value,
-                t("analytics.taskTrend.completedCount"),
+              formatter={(value: number | undefined) => [
+                `${value ?? 0}%`,
+                t("analytics.schedule.routineCompletion.rate"),
               ]}
             />
-            <Area
-              type="monotone"
-              dataKey="completed"
-              stroke="var(--color-notion-success, #22c55e)"
+            <Bar
+              dataKey="rate"
               fill="var(--color-notion-success, #22c55e)"
-              fillOpacity={0.15}
-              strokeWidth={2}
+              radius={[0, 4, 4, 0]}
             />
-          </AreaChart>
+          </BarChart>
         </ResponsiveContainer>
       </div>
     </div>

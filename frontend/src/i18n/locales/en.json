@@ -705,7 +705,11 @@
     "tabs": {
       "overview": "Overview",
       "time": "Time",
-      "tasks": "Tasks"
+      "tasks": "Tasks",
+      "schedule": "Schedule",
+      "materials": "Materials",
+      "work": "Work",
+      "connect": "Connect"
     },
     "totalTasks": "Total Tasks",
     "completed": "Completed",
@@ -800,7 +804,97 @@
       "allFolders": "All Projects",
       "charts": "Visible Charts",
       "showAll": "Show all",
-      "hideAll": "Hide all"
+      "hideAll": "Hide all",
+      "chartGroup": {
+        "work": "Work Charts",
+        "tasks": "Task Charts",
+        "schedule": "Schedule Charts",
+        "materials": "Materials Charts",
+        "connect": "Connect Charts"
+      }
+    },
+    "overview": {
+      "tasks": "Tasks",
+      "events": "Events",
+      "notes": "Notes",
+      "work": "Work Time",
+      "routines": "Routines",
+      "tags": "Tags",
+      "total": "total",
+      "completed": "completed",
+      "today": "today",
+      "active": "active",
+      "rate": "rate",
+      "thisWeek": "this week",
+      "assigned": "assigned"
+    },
+    "schedule": {
+      "totalEvents": "Total Events",
+      "completedEvents": "Completed",
+      "completionRate": "Completion Rate",
+      "activeRoutines": "Active Routines",
+      "routineRate": "Routine Rate",
+      "eventTrend": {
+        "title": "Event Completion Trend",
+        "completed": "Completed"
+      },
+      "timeDistribution": {
+        "title": "Events by Time of Day",
+        "count": "Events"
+      },
+      "routineCompletion": {
+        "title": "Routine Completion Rates",
+        "rate": "Rate"
+      },
+      "noEvents": "No events in this period."
+    },
+    "materials": {
+      "totalNotes": "Total Notes",
+      "noteFolders": "Folders",
+      "pinnedNotes": "Pinned",
+      "createdPeriod": "Created (Period)",
+      "totalMemos": "Total Memos",
+      "memosPeriod": "Memos (Period)",
+      "creationTrend": {
+        "title": "Note Creation Trend",
+        "count": "Created"
+      },
+      "memoHeatmap": {
+        "title": "Memo Activity",
+        "tooltip": "{{count}} memo(s)"
+      },
+      "byFolder": {
+        "title": "Notes by Folder",
+        "count": "Notes",
+        "noFolder": "No Folder"
+      },
+      "noNotes": "No notes yet."
+    },
+    "connect": {
+      "totalTags": "Total Tags",
+      "totalAssignments": "Assignments",
+      "uniqueEntities": "Tagged Items",
+      "coverageRate": "Coverage",
+      "topTags": {
+        "title": "Top Tags by Usage",
+        "count": "Assignments"
+      },
+      "byEntityType": {
+        "title": "Tags by Entity Type",
+        "task": "Tasks",
+        "note": "Notes",
+        "memo": "Memos"
+      },
+      "connections": {
+        "title": "Connection Statistics",
+        "tagConnections": "Tag Connections",
+        "noteConnections": "Note Connections",
+        "mostConnected": "Most Connected",
+        "isolatedTags": "Isolated Tags",
+        "avgConnections": "Avg Connections",
+        "density": "Density"
+      },
+      "noTags": "No tags yet."
     }
   },
   "tips": {

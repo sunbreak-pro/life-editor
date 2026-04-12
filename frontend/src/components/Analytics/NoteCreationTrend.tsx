@@ -1,45 +1,42 @@
 import { useMemo } from "react";
 import {
-  BarChart,
-  Bar,
+  AreaChart,
+  Area,
   XAxis,
   YAxis,
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
-  Legend,
 } from "recharts";
 import { useTranslation } from "react-i18next";
-import type { TimerSession } from "../../types/timer";
-import { aggregateWorkBreakBalance } from "../../utils/analyticsAggregation";
+import type { NoteNode } from "../../types/note";
+import { aggregateNoteCreationByDay } from "../../utils/analyticsAggregation";
 
-interface WorkBreakBalanceProps {
-  sessions: TimerSession[];
+interface NoteCreationTrendProps {
+  notes: NoteNode[];
   days: number;
 }
 
-export function WorkBreakBalance({ sessions, days }: WorkBreakBalanceProps) {
+export function NoteCreationTrend({ notes, days }: NoteCreationTrendProps) {
   const { t } = useTranslation();
 
   const data = useMemo(
     () =>
-      aggregateWorkBreakBalance(sessions, days).map((d) => ({
-        date: d.date.substring(5), // MM-DD
-        [t("analytics.workBreak.work")]: Math.round(d.workMinutes),
-        [t("analytics.workBreak.break")]: Math.round(d.breakMinutes),
-        [t("analytics.workBreak.longBreak")]: Math.round(d.longBreakMinutes),
+      aggregateNoteCreationByDay(notes, days).map((d) => ({
+        date: d.date.substring(5),
+        count: d.completedCount,
       })),
-    [sessions, days, t],
+    [notes, days],
   );
 
   return (
     <div>
       <h3 className="text-sm font-semibold text-notion-text mb-3">
-        {t("analytics.workBreak.title")}
+        {t("analytics.materials.creationTrend.title")}
       </h3>
       <div className="h-48">
         <ResponsiveContainer width="100%" height="100%" minWidth={0}>
-          <BarChart
+          <AreaChart
             data={data}
             margin={{ top: 5, right: 10, left: -10, bottom: 0 }}
           >
@@ -60,7 +57,7 @@ export function WorkBreakBalance({ sessions, days }: WorkBreakBalanceProps) {
                 fontSize: 10,
                 fill: "var(--color-notion-text-secondary, #999)",
               }}
-              unit="m"
+              allowDecimals={false}
             />
             <Tooltip
               contentStyle={{
@@ -69,28 +66,20 @@ export function WorkBreakBalance({ sessions, days }: WorkBreakBalanceProps) {
                 borderRadius: 8,
                 fontSize: 12,
               }}
-              formatter={(value: number) => [`${value}m`]}
+              formatter={(value: number | undefined) => [
+                value ?? 0,
+                t("analytics.materials.creationTrend.count"),
+              ]}
             />
-            <Legend wrapperStyle={{ fontSize: 11 }} />
-            <Bar
-              dataKey={t("analytics.workBreak.work")}
-              stackId="a"
-              fill="var(--color-notion-accent, #2563eb)"
-              radius={[0, 0, 0, 0]}
+            <Area
+              type="monotone"
+              dataKey="count"
+              stroke="#8b5cf6"
+              fill="#8b5cf6"
+              fillOpacity={0.15}
+              strokeWidth={2}
             />
-            <Bar
-              dataKey={t("analytics.workBreak.break")}
-              stackId="a"
-              fill="var(--color-notion-success, #22c55e)"
-              radius={[0, 0, 0, 0]}
-            />
-            <Bar
-              dataKey={t("analytics.workBreak.longBreak")}
-              stackId="a"
-              fill="#f59e0b"
-              radius={[4, 4, 0, 0]}
-            />
-          </BarChart>
+          </AreaChart>
         </ResponsiveContainer>
       </div>
     </div>

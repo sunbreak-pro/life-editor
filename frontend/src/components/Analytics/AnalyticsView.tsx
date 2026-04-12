@@ -1,4 +1,4 @@
-import { useContext, useEffect, useMemo, useState } from "react";
+import { useContext, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
 import { LAYOUT } from "../../constants/layout";
@@ -12,14 +12,26 @@ import { SectionHeader } from "../shared/SectionHeader";
 import { OverviewTab } from "./OverviewTab";
 import { TimeTab } from "./TimeTab";
 import { TasksTab } from "./TasksTab";
+import { ScheduleTab } from "./ScheduleTab";
+import { MaterialsTab } from "./MaterialsTab";
+import { ConnectTab } from "./ConnectTab";
 import { AnalyticsSidebarContent } from "./AnalyticsSidebarContent";
 
-type AnalyticsTab = "overview" | "time" | "tasks";
+type AnalyticsTab =
+  | "overview"
+  | "tasks"
+  | "schedule"
+  | "materials"
+  | "work"
+  | "connect";
 
 const ANALYTICS_TABS: readonly TabItem<AnalyticsTab>[] = [
   { id: "overview", labelKey: "analytics.tabs.overview" },
-  { id: "time", labelKey: "analytics.tabs.time" },
   { id: "tasks", labelKey: "analytics.tabs.tasks" },
+  { id: "schedule", labelKey: "analytics.tabs.schedule" },
+  { id: "materials", labelKey: "analytics.tabs.materials" },
+  { id: "work", labelKey: "analytics.tabs.work" },
+  { id: "connect", labelKey: "analytics.tabs.connect" },
 ];
 
 export function AnalyticsView() {
@@ -41,14 +53,31 @@ export function AnalyticsView() {
     return map;
   }, [nodes]);
 
+  // Defer tab content rendering by 1 frame so ResponsiveContainer
+  // can measure a laid-out parent instead of getting -1 dimensions.
+  const [readyTab, setReadyTab] = useState<AnalyticsTab | null>(null);
+  const rafRef = useRef(0);
+  useEffect(() => {
+    setReadyTab(null);
+    rafRef.current = requestAnimationFrame(() => setReadyTab(activeTab));
+    return () => cancelAnimationFrame(rafRef.current);
+  }, [activeTab]);
+
   const renderTab = () => {
+    if (readyTab !== activeTab) return null;
     switch (activeTab) {
       case "overview":
         return <OverviewTab sessions={sessions} nodes={nodes} />;
-      case "time":
-        return <TimeTab sessions={sessions} taskNameMap={taskNameMap} />;
       case "tasks":
         return <TasksTab sessions={sessions} nodes={nodes} />;
+      case "schedule":
+        return <ScheduleTab />;
+      case "materials":
+        return <MaterialsTab />;
+      case "work":
+        return <TimeTab sessions={sessions} taskNameMap={taskNameMap} />;
+      case "connect":
+        return <ConnectTab />;
     }
   };
 

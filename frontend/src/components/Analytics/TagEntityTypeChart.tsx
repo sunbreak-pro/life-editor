@@ -6,61 +6,72 @@ import {
   YAxis,
   CartesianGrid,
   Tooltip,
-  ResponsiveContainer,
   Legend,
+  ResponsiveContainer,
 } from "recharts";
 import { useTranslation } from "react-i18next";
-import type { TimerSession } from "../../types/timer";
-import { aggregateWorkBreakBalance } from "../../utils/analyticsAggregation";
+import type { WikiTag, WikiTagAssignment } from "../../types/wikiTag";
+import { aggregateTagByEntityType } from "../../utils/analyticsAggregation";
 
-interface WorkBreakBalanceProps {
-  sessions: TimerSession[];
-  days: number;
+interface TagEntityTypeChartProps {
+  tags: WikiTag[];
+  assignments: WikiTagAssignment[];
 }
 
-export function WorkBreakBalance({ sessions, days }: WorkBreakBalanceProps) {
+export function TagEntityTypeChart({
+  tags,
+  assignments,
+}: TagEntityTypeChartProps) {
   const { t } = useTranslation();
 
   const data = useMemo(
     () =>
-      aggregateWorkBreakBalance(sessions, days).map((d) => ({
-        date: d.date.substring(5), // MM-DD
-        [t("analytics.workBreak.work")]: Math.round(d.workMinutes),
-        [t("analytics.workBreak.break")]: Math.round(d.breakMinutes),
-        [t("analytics.workBreak.longBreak")]: Math.round(d.longBreakMinutes),
+      aggregateTagByEntityType(tags, assignments, 10).map((d) => ({
+        name:
+          d.tagName.length > 10
+            ? d.tagName.substring(0, 10) + "..."
+            : d.tagName,
+        tasks: d.taskCount,
+        notes: d.noteCount,
+        memos: d.memoCount,
       })),
-    [sessions, days, t],
+    [tags, assignments],
   );
+
+  if (data.length === 0) return null;
 
   return (
     <div>
       <h3 className="text-sm font-semibold text-notion-text mb-3">
-        {t("analytics.workBreak.title")}
+        {t("analytics.connect.byEntityType.title")}
       </h3>
-      <div className="h-48">
+      <div className="h-64">
         <ResponsiveContainer width="100%" height="100%" minWidth={0}>
           <BarChart
             data={data}
-            margin={{ top: 5, right: 10, left: -10, bottom: 0 }}
+            margin={{ top: 5, right: 10, left: -10, bottom: 5 }}
           >
             <CartesianGrid
               strokeDasharray="3 3"
               stroke="var(--color-notion-border, #e5e5e5)"
             />
             <XAxis
-              dataKey="date"
+              dataKey="name"
               tick={{
                 fontSize: 10,
                 fill: "var(--color-notion-text-secondary, #999)",
               }}
-              interval="preserveStartEnd"
+              interval={0}
+              angle={-30}
+              textAnchor="end"
+              height={50}
             />
             <YAxis
               tick={{
                 fontSize: 10,
                 fill: "var(--color-notion-text-secondary, #999)",
               }}
-              unit="m"
+              allowDecimals={false}
             />
             <Tooltip
               contentStyle={{
@@ -69,23 +80,23 @@ export function WorkBreakBalance({ sessions, days }: WorkBreakBalanceProps) {
                 borderRadius: 8,
                 fontSize: 12,
               }}
-              formatter={(value: number) => [`${value}m`]}
             />
             <Legend wrapperStyle={{ fontSize: 11 }} />
             <Bar
-              dataKey={t("analytics.workBreak.work")}
+              dataKey="tasks"
+              name={t("analytics.connect.byEntityType.task")}
               stackId="a"
-              fill="var(--color-notion-accent, #2563eb)"
-              radius={[0, 0, 0, 0]}
+              fill="#2563eb"
             />
             <Bar
-              dataKey={t("analytics.workBreak.break")}
+              dataKey="notes"
+              name={t("analytics.connect.byEntityType.note")}
               stackId="a"
-              fill="var(--color-notion-success, #22c55e)"
-              radius={[0, 0, 0, 0]}
+              fill="#8b5cf6"
             />
             <Bar
-              dataKey={t("analytics.workBreak.longBreak")}
+              dataKey="memos"
+              name={t("analytics.connect.byEntityType.memo")}
               stackId="a"
               fill="#f59e0b"
               radius={[4, 4, 0, 0]}

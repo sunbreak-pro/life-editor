@@ -62,7 +62,7 @@ export function WorkTimeChart({ sessions, period }: WorkTimeChartProps) {
         {t("analytics.workTime")}
       </h3>
       <div className="h-48">
-        <ResponsiveContainer width="100%" height="100%">
+        <ResponsiveContainer width="100%" height="100%" minWidth={0}>
           <BarChart
             data={data}
             margin={{ top: 4, right: 8, left: -16, bottom: 0 }}

@@ -1,5 +1,14 @@
 import type { TimerSession } from "../types/timer";
 import type { TaskNode } from "../types/taskTree";
+import type { ScheduleItem } from "../types/schedule";
+import type { NoteNode } from "../types/note";
+import type { MemoNode } from "../types/memo";
+import type { RoutineNode } from "../types/routine";
+import type {
+  WikiTag,
+  WikiTagAssignment,
+  WikiTagConnection,
+} from "../types/wikiTag";
 import { formatDateKey as toDateStr } from "./dateKey";
 
 export interface DayBucket {
@@ -513,4 +522,358 @@ export function computeWorkStreak(sessions: TimerSession[]): WorkStreak {
   }
 
   return { currentStreak, longestStreak };
+}
+
+// ============================================================
+// Schedule aggregation
+// ============================================================
+
+export interface EventCompletionBucket {
+  date: string;
+  completedCount: number;
+  totalCount: number;
+}
+
+export interface HourBucket {
+  hour: number;
+  count: number;
+}
+
+export interface RoutineCompletionBucket {
+  routineId: string;
+  routineTitle: string;
+  completedCount: number;
+  totalCount: number;
+  rate: number;
+}
+
+/** Event completion count per day */
+export function aggregateEventCompletionByDay(
+  items: ScheduleItem[],
+  days: number,
+): EventCompletionBucket[] {
+  const now = new Date();
+  const cutoff = new Date(now);
+  cutoff.setDate(cutoff.getDate() - days + 1);
+  cutoff.setHours(0, 0, 0, 0);
+
+  const map = new Map<string, EventCompletionBucket>();
+  for (let i = 0; i < days; i++) {
+    const d = new Date(cutoff);
+    d.setDate(d.getDate() + i);
+    const key = toDateStr(d);
+    map.set(key, { date: key, completedCount: 0, totalCount: 0 });
+  }
+
+  for (const item of items) {
+    const key = item.date;
+    const bucket = map.get(key);
+    if (bucket) {
+      bucket.totalCount += 1;
+      if (item.completed) bucket.completedCount += 1;
+    }
+  }
+
+  return Array.from(map.values()).sort((a, b) => a.date.localeCompare(b.date));
+}
+
+/** Events distribution by hour of day */
+export function aggregateEventsByHour(items: ScheduleItem[]): HourBucket[] {
+  const buckets: HourBucket[] = Array.from({ length: 24 }, (_, i) => ({
+    hour: i,
+    count: 0,
+  }));
+
+  for (const item of items) {
+    if (!item.startTime) continue;
+    const hour = parseInt(item.startTime.split(":")[0], 10);
+    if (hour >= 0 && hour < 24) {
+      buckets[hour].count += 1;
+    }
+  }
+
+  return buckets;
+}
+
+/** Per-routine completion rate */
+export function aggregateRoutineCompletion(
+  items: ScheduleItem[],
+  routines: RoutineNode[],
+): RoutineCompletionBucket[] {
+  const routineMap = new Map(routines.map((r) => [r.id, r]));
+  const map = new Map<
+    string,
+    { completed: number; total: number; title: string }
+  >();
+
+  for (const item of items) {
+    if (!item.routineId) continue;
+    let entry = map.get(item.routineId);
+    if (!entry) {
+      const routine = routineMap.get(item.routineId);
+      entry = { completed: 0, total: 0, title: routine?.title ?? item.title };
+      map.set(item.routineId, entry);
+    }
+    entry.total += 1;
+    if (item.completed) entry.completed += 1;
+  }
+
+  return Array.from(map.entries())
+    .map(([routineId, data]) => ({
+      routineId,
+      routineTitle: data.title,
+      completedCount: data.completed,
+      totalCount: data.total,
+      rate:
+        data.total > 0 ? Math.round((data.completed / data.total) * 100) : 0,
+    }))
+    .sort((a, b) => b.rate - a.rate);
+}
+
+// ============================================================
+// Materials aggregation
+// ============================================================
+
+/** Note creation count per day */
+export function aggregateNoteCreationByDay(
+  notes: NoteNode[],
+  days: number,
+): CompletionTrendBucket[] {
+  const now = new Date();
+  const cutoff = new Date(now);
+  cutoff.setDate(cutoff.getDate() - days + 1);
+  cutoff.setHours(0, 0, 0, 0);
+
+  const map = new Map<string, CompletionTrendBucket>();
+  for (let i = 0; i < days; i++) {
+    const d = new Date(cutoff);
+    d.setDate(d.getDate() + i);
+    const key = toDateStr(d);
+    map.set(key, { date: key, completedCount: 0 });
+  }
+
+  for (const note of notes) {
+    if (note.type !== "note" || note.isDeleted) continue;
+    const key = note.createdAt.substring(0, 10);
+    const bucket = map.get(key);
+    if (bucket) {
+      bucket.completedCount += 1;
+    }
+  }
+
+  return Array.from(map.values()).sort((a, b) => a.date.localeCompare(b.date));
+}
+
+export interface MemoActivityCell {
+  date: string;
+  hasContent: boolean;
+}
+
+/** Memo activity: which days have memos */
+export function aggregateMemoActivity(
+  memos: MemoNode[],
+  days: number,
+): MemoActivityCell[] {
+  const now = new Date();
+  const cutoff = new Date(now);
+  cutoff.setDate(cutoff.getDate() - days + 1);
+  cutoff.setHours(0, 0, 0, 0);
+
+  const memoDateSet = new Set(
+    memos.filter((m) => !m.isDeleted).map((m) => m.date),
+  );
+
+  const cells: MemoActivityCell[] = [];
+  for (let i = 0; i < days; i++) {
+    const d = new Date(cutoff);
+    d.setDate(d.getDate() + i);
+    const key = toDateStr(d);
+    cells.push({ date: key, hasContent: memoDateSet.has(key) });
+  }
+
+  return cells;
+}
+
+export interface FolderNoteBucket {
+  folderId: string | null;
+  folderName: string;
+  noteCount: number;
+}
+
+/** Notes grouped by parent folder */
+export function aggregateNotesByFolder(notes: NoteNode[]): FolderNoteBucket[] {
+  const folderMap = new Map<string, string>();
+  for (const n of notes) {
+    if (n.type === "folder" && !n.isDeleted) {
+      folderMap.set(n.id, n.title || n.id);
+    }
+  }
+
+  const map = new Map<string | null, number>();
+  for (const n of notes) {
+    if (n.type !== "note" || n.isDeleted) continue;
+    const key = n.parentId;
+    map.set(key, (map.get(key) ?? 0) + 1);
+  }
+
+  return Array.from(map.entries())
+    .map(([folderId, noteCount]) => ({
+      folderId,
+      folderName: folderId
+        ? (folderMap.get(folderId) ?? folderId)
+        : "No Folder",
+      noteCount,
+    }))
+    .sort((a, b) => b.noteCount - a.noteCount);
+}
+
+// ============================================================
+// Connect aggregation
+// ============================================================
+
+export interface TagUsageBucket {
+  tagId: string;
+  tagName: string;
+  tagColor: string;
+  count: number;
+}
+
+/** Top tags by assignment count */
+export function aggregateTagUsage(
+  tags: WikiTag[],
+  assignments: WikiTagAssignment[],
+  limit: number = 15,
+): TagUsageBucket[] {
+  const tagMap = new Map(tags.map((t) => [t.id, t]));
+  const countMap = new Map<string, number>();
+
+  for (const a of assignments) {
+    countMap.set(a.tagId, (countMap.get(a.tagId) ?? 0) + 1);
+  }
+
+  return Array.from(countMap.entries())
+    .map(([tagId, count]) => {
+      const tag = tagMap.get(tagId);
+      return {
+        tagId,
+        tagName: tag?.name ?? tagId,
+        tagColor: tag?.color ?? "#808080",
+        count,
+      };
+    })
+    .sort((a, b) => b.count - a.count)
+    .slice(0, limit);
+}
+
+export interface TagEntityTypeBucket {
+  tagId: string;
+  tagName: string;
+  tagColor: string;
+  taskCount: number;
+  noteCount: number;
+  memoCount: number;
+}
+
+/** Tag usage broken down by entity type */
+export function aggregateTagByEntityType(
+  tags: WikiTag[],
+  assignments: WikiTagAssignment[],
+  limit: number = 10,
+): TagEntityTypeBucket[] {
+  const tagMap = new Map(tags.map((t) => [t.id, t]));
+  const map = new Map<string, { task: number; note: number; memo: number }>();
+
+  for (const a of assignments) {
+    let entry = map.get(a.tagId);
+    if (!entry) {
+      entry = { task: 0, note: 0, memo: 0 };
+      map.set(a.tagId, entry);
+    }
+    if (a.entityType === "task") entry.task += 1;
+    else if (a.entityType === "note") entry.note += 1;
+    else if (a.entityType === "memo") entry.memo += 1;
+  }
+
+  return Array.from(map.entries())
+    .map(([tagId, counts]) => {
+      const tag = tagMap.get(tagId);
+      return {
+        tagId,
+        tagName: tag?.name ?? tagId,
+        tagColor: tag?.color ?? "#808080",
+        taskCount: counts.task,
+        noteCount: counts.note,
+        memoCount: counts.memo,
+      };
+    })
+    .sort(
+      (a, b) =>
+        b.taskCount +
+        b.noteCount +
+        b.memoCount -
+        (a.taskCount + a.noteCount + a.memoCount),
+    )
+    .slice(0, limit);
+}
+
+export interface TagConnectionStats {
+  totalTagConnections: number;
+  totalNoteConnections: number;
+  mostConnectedTag: { name: string; count: number } | null;
+  isolatedTagCount: number;
+  avgConnections: number;
+  density: number;
+}
+
+/** Compute tag and note connection statistics */
+export function computeTagConnectionStats(
+  tags: WikiTag[],
+  tagConnections: WikiTagConnection[],
+  noteConnectionCount: number,
+): TagConnectionStats {
+  const connectionCount = new Map<string, number>();
+  for (const c of tagConnections) {
+    connectionCount.set(
+      c.sourceTagId,
+      (connectionCount.get(c.sourceTagId) ?? 0) + 1,
+    );
+    connectionCount.set(
+      c.targetTagId,
+      (connectionCount.get(c.targetTagId) ?? 0) + 1,
+    );
+  }
+
+  let mostConnectedTag: { name: string; count: number } | null = null;
+  let isolatedTagCount = 0;
+
+  for (const tag of tags) {
+    const count = connectionCount.get(tag.id) ?? 0;
+    if (count === 0) {
+      isolatedTagCount += 1;
+    }
+    if (!mostConnectedTag || count > mostConnectedTag.count) {
+      mostConnectedTag = { name: tag.name, count };
+    }
+  }
+
+  const totalTags = tags.length;
+  const maxPossible = totalTags > 1 ? (totalTags * (totalTags - 1)) / 2 : 0;
+  const density =
+    maxPossible > 0
+      ? Math.round((tagConnections.length / maxPossible) * 100)
+      : 0;
+
+  const avgConnections =
+    totalTags > 0
+      ? Math.round((tagConnections.length * 2 * 10) / totalTags) / 10
+      : 0;
+
+  return {
+    totalTagConnections: tagConnections.length,
+    totalNoteConnections: noteConnectionCount,
+    mostConnectedTag: mostConnectedTag?.count ? mostConnectedTag : null,
+    isolatedTagCount,
+    avgConnections,
+    density,
+  };
 }

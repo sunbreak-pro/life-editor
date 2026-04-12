@@ -10,37 +10,47 @@ import {
   Cell,
 } from "recharts";
 import { useTranslation } from "react-i18next";
-import type { TaskNode } from "../../types/taskTree";
-import { aggregateTaskStagnation } from "../../utils/analyticsAggregation";
+import type { WikiTag, WikiTagAssignment } from "../../types/wikiTag";
+import { aggregateTagUsage } from "../../utils/analyticsAggregation";
 
-interface TaskStagnationChartProps {
-  nodes: TaskNode[];
+interface TagUsageChartProps {
+  tags: WikiTag[];
+  assignments: WikiTagAssignment[];
 }
 
-export function TaskStagnationChart({ nodes }: TaskStagnationChartProps) {
+export function TagUsageChart({ tags, assignments }: TagUsageChartProps) {
   const { t } = useTranslation();
 
-  const data = useMemo(() => aggregateTaskStagnation(nodes), [nodes]);
+  const data = useMemo(
+    () =>
+      aggregateTagUsage(tags, assignments, 15).map((d) => ({
+        name:
+          d.tagName.length > 12
+            ? d.tagName.substring(0, 12) + "..."
+            : d.tagName,
+        count: d.count,
+        color: d.tagColor,
+      })),
+    [tags, assignments],
+  );
 
-  const hasData = data.some((d) => d.count > 0);
-  if (!hasData) return null;
+  if (data.length === 0) return null;
 
   return (
     <div>
       <h3 className="text-sm font-semibold text-notion-text mb-3">
-        {t("analytics.stagnation.title")}
+        {t("analytics.connect.topTags.title")}
       </h3>
-      <div className="h-40">
+      <div style={{ height: Math.max(160, data.length * 28 + 40) }}>
         <ResponsiveContainer width="100%" height="100%" minWidth={0}>
           <BarChart
             data={data}
             layout="vertical"
-            margin={{ top: 5, right: 20, left: 10, bottom: 0 }}
+            margin={{ top: 5, right: 30, left: 10, bottom: 5 }}
           >
             <CartesianGrid
               strokeDasharray="3 3"
               stroke="var(--color-notion-border, #e5e5e5)"
-              horizontal={false}
             />
             <XAxis
               type="number"
@@ -51,13 +61,13 @@ export function TaskStagnationChart({ nodes }: TaskStagnationChartProps) {
               allowDecimals={false}
             />
             <YAxis
-              dataKey="label"
               type="category"
+              dataKey="name"
               tick={{
                 fontSize: 10,
                 fill: "var(--color-notion-text-secondary, #999)",
               }}
-              width={80}
+              width={100}
             />
             <Tooltip
               contentStyle={{
@@ -66,8 +76,9 @@ export function TaskStagnationChart({ nodes }: TaskStagnationChartProps) {
                 borderRadius: 8,
                 fontSize: 12,
               }}
-              formatter={(value: number) => [
-                `${value} ${t("analytics.stagnation.tasks")}`,
+              formatter={(value: number | undefined) => [
+                value ?? 0,
+                t("analytics.connect.topTags.count"),
               ]}
             />
             <Bar dataKey="count" radius={[0, 4, 4, 0]}>

@@ -7,17 +7,74 @@ import { useTaskTreeContext } from "../../hooks/useTaskTreeContext";
 
 const PRESETS: DatePreset[] = ["7d", "30d", "thisMonth", "3m", "all"];
 
-const CHART_IDS = [
-  { id: "workTimeChart", labelKey: "analytics.workTime" },
-  { id: "taskWorkTimeChart", labelKey: "analytics.taskWorkTime" },
-  { id: "workTimeHeatmap", labelKey: "analytics.heatmap.title" },
-  { id: "pomodoroRate", labelKey: "analytics.pomodoroRate.title" },
-  { id: "workBreakBalance", labelKey: "analytics.workBreak.title" },
-  { id: "dailyTimeline", labelKey: "analytics.timeline.title" },
-  { id: "taskCompletionTrend", labelKey: "analytics.taskTrend.title" },
-  { id: "taskStagnation", labelKey: "analytics.stagnation.title" },
-  { id: "projectWorkTime", labelKey: "analytics.projectTime.title" },
+const CHART_GROUPS = [
+  {
+    groupKey: "analytics.sidebar.chartGroup.work",
+    charts: [
+      { id: "workTimeChart", labelKey: "analytics.workTime" },
+      { id: "taskWorkTimeChart", labelKey: "analytics.taskWorkTime" },
+      { id: "workTimeHeatmap", labelKey: "analytics.heatmap.title" },
+      { id: "pomodoroRate", labelKey: "analytics.pomodoroRate.title" },
+      { id: "workBreakBalance", labelKey: "analytics.workBreak.title" },
+      { id: "dailyTimeline", labelKey: "analytics.timeline.title" },
+    ],
+  },
+  {
+    groupKey: "analytics.sidebar.chartGroup.tasks",
+    charts: [
+      { id: "taskCompletionTrend", labelKey: "analytics.taskTrend.title" },
+      { id: "taskStagnation", labelKey: "analytics.stagnation.title" },
+      { id: "projectWorkTime", labelKey: "analytics.projectTime.title" },
+    ],
+  },
+  {
+    groupKey: "analytics.sidebar.chartGroup.schedule",
+    charts: [
+      {
+        id: "eventCompletionTrend",
+        labelKey: "analytics.schedule.eventTrend.title",
+      },
+      {
+        id: "eventTimeDistribution",
+        labelKey: "analytics.schedule.timeDistribution.title",
+      },
+      {
+        id: "routineCompletionChart",
+        labelKey: "analytics.schedule.routineCompletion.title",
+      },
+    ],
+  },
+  {
+    groupKey: "analytics.sidebar.chartGroup.materials",
+    charts: [
+      {
+        id: "noteCreationTrend",
+        labelKey: "analytics.materials.creationTrend.title",
+      },
+      {
+        id: "memoActivityHeatmap",
+        labelKey: "analytics.materials.memoHeatmap.title",
+      },
+      { id: "notesByFolder", labelKey: "analytics.materials.byFolder.title" },
+    ],
+  },
+  {
+    groupKey: "analytics.sidebar.chartGroup.connect",
+    charts: [
+      { id: "tagUsageChart", labelKey: "analytics.connect.topTags.title" },
+      {
+        id: "tagEntityTypeChart",
+        labelKey: "analytics.connect.byEntityType.title",
+      },
+      {
+        id: "tagConnectionSummary",
+        labelKey: "analytics.connect.connections.title",
+      },
+    ],
+  },
 ];
+
+const ALL_CHART_IDS = CHART_GROUPS.flatMap((g) => g.charts);
 
 export function AnalyticsSidebarContent() {
   const { t } = useTranslation();
@@ -159,7 +216,7 @@ export function AnalyticsSidebarContent() {
           <div className="flex gap-2">
             <button
               onClick={() =>
-                setVisibleCharts(new Set(CHART_IDS.map((c) => c.id)))
+                setVisibleCharts(new Set(ALL_CHART_IDS.map((c) => c.id)))
               }
               className="text-[10px] text-notion-accent hover:underline"
             >
@@ -173,22 +230,31 @@ export function AnalyticsSidebarContent() {
             </button>
           </div>
         </div>
-        <div className="space-y-1.5">
-          {CHART_IDS.map((chart) => (
-            <label
-              key={chart.id}
-              className="flex items-center gap-2 cursor-pointer"
-            >
-              <input
-                type="checkbox"
-                checked={visibleCharts.has(chart.id)}
-                onChange={() => toggleChart(chart.id)}
-                className="rounded border-notion-border text-notion-accent focus:ring-notion-accent"
-              />
-              <span className="text-xs text-notion-text">
-                {t(chart.labelKey)}
-              </span>
-            </label>
+        <div className="space-y-3">
+          {CHART_GROUPS.map((group) => (
+            <div key={group.groupKey}>
+              <p className="text-[10px] font-medium text-notion-text-secondary mb-1">
+                {t(group.groupKey)}
+              </p>
+              <div className="space-y-1">
+                {group.charts.map((chart) => (
+                  <label
+                    key={chart.id}
+                    className="flex items-center gap-2 cursor-pointer"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={visibleCharts.has(chart.id)}
+                      onChange={() => toggleChart(chart.id)}
+                      className="rounded border-notion-border text-notion-accent focus:ring-notion-accent"
+                    />
+                    <span className="text-xs text-notion-text">
+                      {t(chart.labelKey)}
+                    </span>
+                  </label>
+                ))}
+              </div>
+            </div>
           ))}
         </div>
       </div>
