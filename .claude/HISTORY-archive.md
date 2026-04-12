@@ -1,3 +1,21 @@
+### 2026-04-11 - Note フォルダ/ノート右クリックコンテキストメニュー
+
+#### 概要
+
+NoteのMaterialsSidebarツリーでフォルダ・ノートを右クリックしてコンテキストメニュー（名前変更、アイコン変更、ピン留め、削除）を表示できるようにした。フォルダにはLucideアイコンをカスタム設定可能（DB migrationでiconカラム追加）。
+
+#### 変更点
+
+- **DB Migration V55**: `notes`テーブルに`icon TEXT DEFAULT NULL`カラム追加
+- **型・Repository更新**: `electron/types.ts`、`frontend/src/types/note.ts`の`NoteNode`に`icon?: string`追加。`noteRepository.ts`のNoteRow/rowToNode/update prepared statementに`icon`追加
+- **サービス層**: DataService/ElectronDataService/OfflineDataService/RestDataServiceの`updateNote`型に`"icon"`追加。`noteHandlers.ts`のupdates型にも追加
+- **useNotes.ts**: `updateNote`の型とundoキャプチャに`icon`フィールド追加
+- **NoteNodeContextMenu.tsx**: 新規作成。TaskNodeContextMenuパターン踏襲（createPortal、viewport境界チェック、ESC/click-outside閉じ）。フォルダ用: 名前変更/アイコン変更/ピン留め/削除、ノート用: 名前変更/ピン留め/削除
+- **NoteTreeNode.tsx**: 右クリックハンドラ、インライン名前変更（IME対応）、動的アイコン表示（renderIcon）、IconPicker統合を追加
+- **MaterialsSidebar.tsx**: `onRename`/`onChangeIcon`/`onTogglePin`のprops追加・接続
+- **IdeasView.tsx**: `updateNote`/`togglePin`をMaterialsSidebarに渡す
+- **i18n**: en.json/ja.jsonに`changeIcon`/`removeIcon`/`pin`/`unpin`キー追加
+
 ### 2026-04-12 - Calendar パフォーマンス最適化 & Event チェックボックス警告修正
 
 #### 概要

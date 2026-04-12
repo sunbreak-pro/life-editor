@@ -73,6 +73,13 @@ export const DEFAULT_SHORTCUTS: ShortcutDefinition[] = [
     defaultBinding: { key: "4", meta: true },
     activeInInput: true,
   },
+  {
+    id: "nav:materials",
+    category: "navigation",
+    descriptionKey: "tips.shortcutsTab.goToMaterials",
+    defaultBinding: { key: "5", meta: true },
+    activeInInput: true,
+  },
   // View
   {
     id: "view:toggle-sidebar",

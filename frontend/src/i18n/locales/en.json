@@ -242,7 +242,10 @@
       "change": "Change",
       "pressKey": "Press a key combination...",
       "conflict": "Already assigned to \"{{action}}\"",
-      "save": "Save"
+      "save": "Save",
+      "searchPlaceholder": "Search shortcuts...",
+      "noResults": "No shortcuts found",
+      "modified": "Modified"
     },
     "appearance": "Appearance",
     "darkMode": "Dark Mode",
@@ -831,6 +834,7 @@
       "goToWork": "Go to Work",
       "goToSchedule": "Go to Schedule",
       "goToAnalytics": "Go to Analytics",
+      "goToMaterials": "Go to Materials",
       "toggleTerminal": "Toggle terminal",
       "toggleLeftSidebar": "Toggle left sidebar",
       "toggleRightSidebar": "Toggle right sidebar",

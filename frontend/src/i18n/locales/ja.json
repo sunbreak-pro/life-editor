@@ -242,7 +242,10 @@
       "change": "変更",
       "pressKey": "キーの組み合わせを入力...",
       "conflict": "「{{action}}」に割り当て済み",
-      "save": "保存"
+      "save": "保存",
+      "searchPlaceholder": "ショートカットを検索...",
+      "noResults": "ショートカットが見つかりません",
+      "modified": "変更済み"
     },
     "appearance": "外観",
     "darkMode": "ダークモード",
@@ -831,6 +834,7 @@
       "goToWork": "ワークへ移動",
       "goToSchedule": "スケジュールへ移動",
       "goToAnalytics": "分析へ移動",
+      "goToMaterials": "素材へ移動",
       "toggleTerminal": "ターミナル切り替え",
       "toggleLeftSidebar": "左サイドバーの切り替え",
       "toggleRightSidebar": "右サイドバーの切り替え",

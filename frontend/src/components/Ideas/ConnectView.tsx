@@ -42,13 +42,17 @@ function loadConnectTab(): ConnectTab {
 
 interface ConnectViewProps {
   onNavigateToNote?: (noteId: string) => void;
+  onNavigateToMemo?: (date: string) => void;
 }
 
-export function ConnectView({ onNavigateToNote }: ConnectViewProps) {
+export function ConnectView({
+  onNavigateToNote,
+  onNavigateToMemo,
+}: ConnectViewProps) {
   const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState<ConnectTab>(loadConnectTab);
 
-  const { memos } = useMemoContext();
+  const { memos, setSelectedDate } = useMemoContext();
   const { notes, setSelectedNoteId, createNote, softDeleteNote, updateNote } =
     useNoteContext();
   const { assignments, tags, setTagsForEntity } = useWikiTags();
@@ -162,10 +166,14 @@ export function ConnectView({ onNavigateToNote }: ConnectViewProps) {
   );
 
   // Navigate to memo from Node tab
-  const handleNavigateToMemo = useCallback((date: string) => {
-    // Navigate to Materials section daily tab
-    localStorage.setItem(STORAGE_KEYS.MATERIALS_TAB, "daily");
-  }, []);
+  const handleNavigateToMemo = useCallback(
+    (date: string) => {
+      localStorage.setItem(STORAGE_KEYS.MATERIALS_TAB, "daily");
+      setSelectedDate(date);
+      onNavigateToMemo?.(date);
+    },
+    [setSelectedDate, onNavigateToMemo],
+  );
 
   const { portalTarget: rightSidebarTarget } = useContext(RightSidebarContext);
 

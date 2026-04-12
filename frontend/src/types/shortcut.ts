@@ -11,6 +11,7 @@ export type ShortcutId =
   | "nav:ideas"
   | "nav:work"
   | "nav:analytics"
+  | "nav:materials"
   // View
   | "view:toggle-sidebar"
   | "view:toggle-terminal"

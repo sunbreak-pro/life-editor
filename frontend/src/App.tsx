@@ -143,6 +143,10 @@ function App() {
           <ConnectView
             onNavigateToNote={() => {
               localStorage.setItem(STORAGE_KEYS.MATERIALS_TAB, "notes");
+              setActiveSection("materials");
+            }}
+            onNavigateToMemo={() => {
+              setActiveSection("materials");
             }}
           />
         );

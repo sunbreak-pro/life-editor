@@ -749,6 +749,7 @@ export function TagGraphView({
     noteTagDots,
     memoTagDots,
     activeFilterIds,
+    relatedNodeIds,
   ]);
 
   function buildNormalEdges(): Edge[] {
@@ -760,16 +761,30 @@ export function TagGraphView({
         visibleNodeIds.has(c.targetNoteId),
     );
 
-    const manualEdges: Edge[] = filteredManual.map((conn) => ({
-      id: `manual-${conn.id}`,
-      source: conn.sourceNoteId,
-      target: conn.targetNoteId,
-      sourceHandle: "center-source",
-      targetHandle: "center-target",
-      type: "curved",
-      style: { stroke: "#6366f1", strokeWidth: 2 },
-      data: { connectionType: "manual", connectionId: conn.id, curveOffset: 0 },
-    }));
+    const manualEdges: Edge[] = filteredManual.map((conn) => {
+      const shouldDim =
+        relatedNodeIds != null &&
+        (!relatedNodeIds.has(conn.sourceNoteId) ||
+          !relatedNodeIds.has(conn.targetNoteId));
+      return {
+        id: `manual-${conn.id}`,
+        source: conn.sourceNoteId,
+        target: conn.targetNoteId,
+        sourceHandle: "center-source",
+        targetHandle: "center-target",
+        type: "curved",
+        style: {
+          stroke: "#6366f1",
+          strokeWidth: 2,
+          opacity: shouldDim ? 0.08 : undefined,
+        },
+        data: {
+          connectionType: "manual",
+          connectionId: conn.id,
+          curveOffset: 0,
+        },
+      };
+    });
 
     // Only use real tags for edge filtering (exclude __ prefix)
     const realActiveTagIds = new Set(
@@ -803,6 +818,9 @@ export function TagGraphView({
           const curveOffset =
             idx === 0 ? 0 : (idx % 2 === 1 ? 1 : -1) * Math.ceil(idx / 2) * 20;
 
+          const shouldDim =
+            relatedNodeIds != null &&
+            (!relatedNodeIds.has(n1) || !relatedNodeIds.has(n2));
           tagEdges.push({
             id: pairKey,
             source: n1,
@@ -810,7 +828,11 @@ export function TagGraphView({
             sourceHandle: "center-source",
             targetHandle: "center-target",
             type: "curved",
-            style: { stroke: tag.color, strokeWidth: 1.5, opacity: 0.6 },
+            style: {
+              stroke: tag.color,
+              strokeWidth: 1.5,
+              opacity: shouldDim ? 0.08 : 0.6,
+            },
             data: { connectionType: "tag", tagId: tag.id, curveOffset },
           });
         }

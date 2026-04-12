@@ -86,6 +86,11 @@ export function useAppKeyboardShortcuts({
         setActiveSection("analytics");
         return;
       }
+      if (matchEvent(e, "nav:materials")) {
+        e.preventDefault();
+        setActiveSection("materials");
+        return;
+      }
 
       if (matchEvent(e, "global:work-timer")) {
         e.preventDefault();
