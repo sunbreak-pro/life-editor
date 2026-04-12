@@ -35,9 +35,9 @@
 
 ## 直近の完了
 
+- DayFlow isAllDay トグル無反応バグ修正 ✅（2026-04-12）
 - Connect Node Navigation Fix + Edge Dimming + Materials Shortcuts & Settings UI Refresh ✅（2026-04-12）
 - Schedule Preview Popup UI Improvements（カラーバー・完了CB・ボタン色統一・Open Detail） ✅（2026-04-12）
-- Schedule UI/UX 4件改善 + 終日アイテムプレビューポップアップ ✅（2026-04-11）
 
 ## 予定
 
