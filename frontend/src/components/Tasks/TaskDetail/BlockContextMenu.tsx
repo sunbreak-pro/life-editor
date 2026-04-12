@@ -244,7 +244,7 @@ export function BlockContextMenu({
       {/* Color (text color for normal blocks, callout color for callouts) */}
       <div
         className="block-context-menu-item"
-        onMouseEnter={() => setSubMenu(isCallout ? "calloutColor" : "color")}
+        onMouseEnter={() => setSubMenu("color")}
       >
         <Palette size={14} />
         <span>{t("blockMenu.color")}</span>
@@ -254,7 +254,9 @@ export function BlockContextMenu({
       {/* Background */}
       <div
         className="block-context-menu-item"
-        onMouseEnter={() => setSubMenu("background")}
+        onMouseEnter={() =>
+          setSubMenu(isCallout ? "calloutColor" : "background")
+        }
       >
         <PaintBucket size={14} />
         <span>{t("blockMenu.background")}</span>

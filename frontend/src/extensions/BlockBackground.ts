@@ -2,12 +2,12 @@ import { Extension } from "@tiptap/core";
 
 export const BLOCK_BG_COLORS = [
   { label: "Default", value: "" },
-  { label: "Gray", value: "rgba(128,128,128,0.08)" },
-  { label: "Blue", value: "rgba(137,180,250,0.12)" },
-  { label: "Green", value: "rgba(166,227,161,0.12)" },
-  { label: "Yellow", value: "rgba(249,226,175,0.12)" },
-  { label: "Red", value: "rgba(243,139,168,0.12)" },
-  { label: "Purple", value: "rgba(203,166,247,0.12)" },
+  { label: "Gray", value: "rgba(107,114,128,0.25)" },
+  { label: "Blue", value: "rgba(46,170,220,0.25)" },
+  { label: "Green", value: "rgba(15,123,108,0.25)" },
+  { label: "Yellow", value: "rgba(223,171,1,0.25)" },
+  { label: "Red", value: "rgba(224,62,62,0.25)" },
+  { label: "Purple", value: "rgba(155,89,182,0.25)" },
 ];
 
 declare module "@tiptap/core" {

@@ -3,7 +3,7 @@ import { createPortal } from "react-dom";
 import { X } from "lucide-react";
 import { useClickOutside } from "../../hooks/useClickOutside";
 import { useClampedPosition } from "../../hooks/useClampedPosition";
-import { TimeInput } from "../shared/TimeInput";
+import { TimeDropdown } from "../shared/TimeDropdown";
 import { RoutineTagSelector } from "../Tasks/Schedule/Routine/RoutineTagSelector";
 import type { RoutineNode } from "../../types/routine";
 import type { ScheduleItem } from "../../types/schedule";
@@ -288,7 +288,7 @@ export function ScheduleItemEditPopup({
             <label className="block text-[10px] text-notion-text-secondary mb-1">
               {t("schedule.start", "Start")}
             </label>
-            <TimeInput
+            <TimeDropdown
               hour={startHour}
               minute={startMinute}
               onChange={(h, m) => {
@@ -303,7 +303,7 @@ export function ScheduleItemEditPopup({
             <label className="block text-[10px] text-notion-text-secondary mb-1">
               {t("schedule.end", "End")}
             </label>
-            <TimeInput
+            <TimeDropdown
               hour={endHour}
               minute={endMinute}
               onChange={(h, m) => {

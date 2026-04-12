@@ -2,27 +2,56 @@
 import { render, type RenderOptions } from "@testing-library/react";
 import type { ReactElement, ReactNode } from "react";
 import { ThemeProvider } from "../context/ThemeContext";
+import { ToastProvider } from "../context/ToastContext";
+import { UndoRedoProvider } from "../context/UndoRedoContext";
+import { ScreenLockProvider } from "../context/ScreenLockContext";
 import { TaskTreeProvider } from "../context/TaskTreeContext";
+import { CalendarProvider } from "../context/CalendarContext";
 import { MemoProvider } from "../context/MemoContext";
 import { NoteProvider } from "../context/NoteContext";
+import { FileExplorerProvider } from "../context/FileExplorerContext";
+import { RoutineProvider } from "../context/RoutineContext";
+import { ScheduleItemsProvider } from "../context/ScheduleItemsContext";
+import { CalendarTagsProvider } from "../context/CalendarTagsContext";
 import { TimerProvider } from "../context/TimerContext";
 import { AudioProvider } from "../context/AudioContext";
-import { ScreenLockProvider } from "../context/ScreenLockContext";
+import { WikiTagProvider } from "../context/WikiTagContext";
+import { ShortcutConfigProvider } from "../context/ShortcutConfigContext";
 
 function AllProviders({ children }: { children: ReactNode }) {
   return (
     <ThemeProvider>
-      <ScreenLockProvider>
-        <TaskTreeProvider>
-          <MemoProvider>
-            <NoteProvider>
-              <TimerProvider>
-                <AudioProvider>{children}</AudioProvider>
-              </TimerProvider>
-            </NoteProvider>
-          </MemoProvider>
-        </TaskTreeProvider>
-      </ScreenLockProvider>
+      <ToastProvider>
+        <UndoRedoProvider>
+          <ScreenLockProvider>
+            <TaskTreeProvider>
+              <CalendarProvider>
+                <MemoProvider>
+                  <NoteProvider>
+                    <FileExplorerProvider>
+                      <RoutineProvider>
+                        <ScheduleItemsProvider>
+                          <CalendarTagsProvider>
+                            <TimerProvider>
+                              <AudioProvider>
+                                <WikiTagProvider>
+                                  <ShortcutConfigProvider>
+                                    {children}
+                                  </ShortcutConfigProvider>
+                                </WikiTagProvider>
+                              </AudioProvider>
+                            </TimerProvider>
+                          </CalendarTagsProvider>
+                        </ScheduleItemsProvider>
+                      </RoutineProvider>
+                    </FileExplorerProvider>
+                  </NoteProvider>
+                </MemoProvider>
+              </CalendarProvider>
+            </TaskTreeProvider>
+          </ScreenLockProvider>
+        </UndoRedoProvider>
+      </ToastProvider>
     </ThemeProvider>
   );
 }

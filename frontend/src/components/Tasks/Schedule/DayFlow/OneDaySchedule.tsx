@@ -19,10 +19,19 @@ import { RoutineGroupEditDialog } from "../Routine/RoutineGroupEditDialog";
 import type { RoutineNode } from "../../../../types/routine";
 import type { RoutineGroup } from "../../../../types/routineGroup";
 import { RoutineTimeChangeDialog } from "./RoutineTimeChangeDialog";
+import { TaskPreviewPopup } from "../Calendar/TaskPreviewPopup";
+import { ScheduleItemPreviewPopup } from "./ScheduleItemPreviewPopup";
 import type { TabItem } from "../../../shared/SectionTabs";
 import { TIME_GRID } from "../../../../constants/timeGrid";
 import type { NoteNode } from "../../../../types/note";
-import { CheckCircle2, CheckSquare, Pencil, CalendarMinus } from "lucide-react";
+import {
+  CalendarClock,
+  CalendarMinus,
+  Check,
+  CheckCircle2,
+  CheckSquare,
+  Pencil,
+} from "lucide-react";
 import { useTranslation } from "react-i18next";
 import {
   useRoleConversion,
@@ -150,6 +159,15 @@ export function OneDaySchedule({
     }
     return map;
   }, [tagAssignments]);
+  const [allDayTaskPreview, setAllDayTaskPreview] = useState<{
+    task: TaskNode;
+    position: { x: number; y: number };
+  } | null>(null);
+  const [allDaySchedulePreview, setAllDaySchedulePreview] = useState<{
+    item: ScheduleItem;
+    position: { x: number; y: number };
+  } | null>(null);
+
   const [clickMenu, setClickMenu] = useState<{
     startTime: string;
     endTime: string;
@@ -303,10 +321,23 @@ export function OneDaySchedule({
     return allDayTasks;
   }, [allDayTasks, showAll, activeFilters]);
 
-  const allDayItems = useMemo(
+  const allDayTasks2 = useMemo(
     () => filteredDayTasks.filter((t) => t.isAllDay),
     [filteredDayTasks],
   );
+
+  const allDayScheduleItems = useMemo(
+    () => filteredScheduleItems.filter((si) => si.isAllDay),
+    [filteredScheduleItems],
+  );
+
+  const timedScheduleItems = useMemo(
+    () => filteredScheduleItems.filter((si) => !si.isAllDay),
+    [filteredScheduleItems],
+  );
+
+  const hasAllDayItems =
+    allDayTasks2.length > 0 || allDayScheduleItems.length > 0;
 
   // Task IDs already scheduled for this date (for task picker exclusion)
   const existingTaskIds = useMemo(() => {
@@ -475,13 +506,13 @@ export function OneDaySchedule({
       <div className="flex-1 min-h-0 p-3">
         <div className="border border-notion-border rounded-lg overflow-hidden bg-notion-bg h-full">
           <div ref={scrollRef} className="overflow-y-auto h-full">
-            {allDayItems.length > 0 && (
+            {hasAllDayItems && (
               <div className="sticky top-0 z-20 bg-notion-bg border-b border-notion-border px-2 py-1.5">
                 <div className="text-[10px] text-notion-text-secondary uppercase tracking-wide font-medium mb-1">
                   {t("schedule.allDay", "All day")}
                 </div>
                 <div className="flex flex-wrap gap-1">
-                  {allDayItems.map((task) => {
+                  {allDayTasks2.map((task) => {
                     const isDone = task.status === "DONE";
                     return (
                       <div
@@ -510,14 +541,21 @@ export function OneDaySchedule({
                           {task.title}
                         </span>
                         <div className="hidden group-hover:flex items-center gap-0.5 shrink-0">
-                          {onNavigateTask && (
-                            <button
-                              onClick={(e) => onNavigateTask(task.id, e)}
-                              className="p-0.5 rounded hover:bg-notion-hover text-notion-text-secondary hover:text-notion-text"
-                            >
-                              <Pencil size={10} />
-                            </button>
-                          )}
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setAllDayTaskPreview({
+                                task,
+                                position: {
+                                  x: e.clientX,
+                                  y: e.clientY,
+                                },
+                              });
+                            }}
+                            className="p-0.5 rounded hover:bg-notion-hover text-notion-text-secondary hover:text-notion-text"
+                          >
+                            <Pencil size={10} />
+                          </button>
                           {onUnscheduleTask && (
                             <button
                               onClick={() => onUnscheduleTask(task.id)}
@@ -530,12 +568,54 @@ export function OneDaySchedule({
                       </div>
                     );
                   })}
+                  {allDayScheduleItems.map((si) => (
+                    <div
+                      key={si.id}
+                      className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-notion-accent/10 border border-notion-accent/20 group max-w-[200px]"
+                    >
+                      <button
+                        onClick={() => toggleComplete(si.id)}
+                        className="shrink-0"
+                      >
+                        {si.completed ? (
+                          <CheckCircle2 size={14} className="text-green-500" />
+                        ) : (
+                          <CalendarClock
+                            size={14}
+                            className="text-notion-accent hover:text-green-500"
+                          />
+                        )}
+                      </button>
+                      <span
+                        className={`text-xs truncate ${si.completed ? "text-notion-text-secondary line-through" : "text-notion-text"}`}
+                      >
+                        {si.title}
+                      </span>
+                      <div className="hidden group-hover:flex items-center gap-0.5 shrink-0">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setAllDaySchedulePreview({
+                              item: si,
+                              position: {
+                                x: e.clientX,
+                                y: e.clientY,
+                              },
+                            });
+                          }}
+                          className="p-0.5 rounded hover:bg-notion-hover text-notion-text-secondary hover:text-notion-text"
+                        >
+                          <Pencil size={10} />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </div>
             )}
             <ScheduleTimeGrid
               date={date}
-              scheduleItems={filteredScheduleItems}
+              scheduleItems={timedScheduleItems}
               tasks={filteredDayTasks}
               onToggleComplete={toggleComplete}
               onCreateItem={handleCreateItem}
@@ -843,6 +923,113 @@ export function OneDaySchedule({
             }}
             onCreateTag={createRoutineTag}
             onClose={() => setEditRoutineDialog(null)}
+          />
+        )}
+
+        {/* All-day task preview popup */}
+        {allDayTaskPreview && (
+          <TaskPreviewPopup
+            task={allDayTaskPreview.task}
+            position={allDayTaskPreview.position}
+            color={getTaskColor?.(allDayTaskPreview.task.id)}
+            folderTag={getFolderTag?.(allDayTaskPreview.task.id)}
+            onOpenDetail={() => {
+              const taskId = allDayTaskPreview.task.id;
+              setAllDayTaskPreview(null);
+              onNavigateTask?.(taskId, {} as React.MouseEvent);
+            }}
+            onStartTimer={
+              onStartTimer
+                ? () => {
+                    const task = allDayTaskPreview.task;
+                    setAllDayTaskPreview(null);
+                    onStartTimer(task);
+                  }
+                : undefined
+            }
+            onDelete={() => {
+              const taskId = allDayTaskPreview.task.id;
+              setAllDayTaskPreview(null);
+              onDeleteTask?.(taskId);
+            }}
+            onClearSchedule={() => {
+              const taskId = allDayTaskPreview.task.id;
+              setAllDayTaskPreview(null);
+              onUnscheduleTask?.(taskId);
+            }}
+            onUpdateTitle={
+              onUpdateTaskTitle
+                ? (title) => onUpdateTaskTitle(allDayTaskPreview.task.id, title)
+                : undefined
+            }
+            onUpdateSchedule={
+              onUpdateTaskTime
+                ? (scheduledAt, scheduledEndAt) =>
+                    onUpdateTaskTime(
+                      allDayTaskPreview.task.id,
+                      scheduledAt,
+                      scheduledEndAt ?? scheduledAt,
+                    )
+                : undefined
+            }
+            onUpdateAllDay={(isAllDay) =>
+              updateNode(allDayTaskPreview.task.id, { isAllDay })
+            }
+            onUpdateTimeMemo={
+              onUpdateTaskTimeMemo
+                ? (memo) =>
+                    onUpdateTaskTimeMemo(allDayTaskPreview.task.id, memo)
+                : undefined
+            }
+            onClose={() => setAllDayTaskPreview(null)}
+          />
+        )}
+
+        {/* All-day schedule item preview popup */}
+        {allDaySchedulePreview && (
+          <ScheduleItemPreviewPopup
+            item={allDaySchedulePreview.item}
+            position={allDaySchedulePreview.position}
+            onToggleComplete={() => {
+              toggleComplete(allDaySchedulePreview.item.id);
+              setAllDaySchedulePreview(null);
+            }}
+            onEditRoutine={
+              allDaySchedulePreview.item.routineId
+                ? () => {
+                    const routine = routines.find(
+                      (r) => r.id === allDaySchedulePreview.item.routineId,
+                    );
+                    setAllDaySchedulePreview(null);
+                    if (routine) setEditRoutineDialog(routine);
+                  }
+                : undefined
+            }
+            onDelete={() => {
+              const itemId = allDaySchedulePreview.item.id;
+              setAllDaySchedulePreview(null);
+              deleteScheduleItem(itemId);
+            }}
+            onUpdateTime={(startTime, endTime) =>
+              handleUpdateScheduleItemTime(
+                allDaySchedulePreview.item.id,
+                startTime,
+                endTime,
+              )
+            }
+            onUpdateMemo={handleUpdateMemo}
+            onUpdateDate={(newDate) =>
+              updateScheduleItem(allDaySchedulePreview.item.id, {
+                date: newDate,
+              })
+            }
+            onUpdateAllDay={(isAllDay) =>
+              updateScheduleItem(allDaySchedulePreview.item.id, { isAllDay })
+            }
+            onUpdateTitle={(title) =>
+              updateScheduleItem(allDaySchedulePreview.item.id, { title })
+            }
+            onClose={() => setAllDaySchedulePreview(null)}
           />
         )}
 

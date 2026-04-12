@@ -10,8 +10,9 @@ import {
 import { useTranslation } from "react-i18next";
 import type { ScheduleItem } from "../../../../types/schedule";
 import { useClickOutside } from "../../../../hooks/useClickOutside";
-import { TimeInput } from "../../../shared/TimeInput";
+import { TimeDropdown } from "../../../shared/TimeDropdown";
 import { DateInput } from "../../../shared/DateInput";
+import { ToggleSwitch } from "../../../shared/ToggleSwitch";
 import { RoleSwitcher } from "../shared/RoleSwitcher";
 import { usePreviewTimeEdit } from "../shared/usePreviewTimeEdit";
 import type { ConversionRole } from "../../../../hooks/useRoleConversion";
@@ -144,17 +145,16 @@ export function ScheduleItemPreviewPopup({
               </span>
             )}
             {onUpdateAllDay && (
-              <label className="flex items-center gap-1 ml-auto cursor-pointer">
-                <input
-                  type="checkbox"
+              <div className="flex items-center gap-1 ml-auto">
+                <ToggleSwitch
                   checked={!!item.isAllDay}
-                  onChange={(e) => onUpdateAllDay(e.target.checked)}
-                  className="w-3 h-3 rounded accent-notion-accent"
+                  onChange={(v) => onUpdateAllDay(v)}
+                  size="sm"
                 />
                 <span className="text-[10px] text-notion-text-secondary">
                   {t("calendar.allDay", "All day")}
                 </span>
-              </label>
+              </div>
             )}
           </div>
         )}
@@ -163,7 +163,7 @@ export function ScheduleItemPreviewPopup({
         {!item.isAllDay && onUpdateTime && (
           <div className="flex items-center gap-1.5">
             <Clock size={10} className="text-notion-text-secondary shrink-0" />
-            <TimeInput
+            <TimeDropdown
               hour={parseInt(editStartTime.split(":")[0], 10)}
               minute={parseInt(editStartTime.split(":")[1], 10)}
               onChange={handleStartTimeChange}
@@ -171,7 +171,7 @@ export function ScheduleItemPreviewPopup({
               size="sm"
             />
             <span className="text-xs text-notion-text-secondary">-</span>
-            <TimeInput
+            <TimeDropdown
               hour={parseInt(editEndTime.split(":")[0], 10)}
               minute={parseInt(editEndTime.split(":")[1], 10)}
               onChange={handleEndTimeChange}

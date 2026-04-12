@@ -141,13 +141,7 @@ export function DatabaseView({
         )}
 
         {/* Action icons */}
-        <div
-          className={`ml-auto flex items-center gap-0.5 transition-opacity ${
-            hasFilters || hasSorts
-              ? "opacity-100"
-              : "opacity-0 group-hover/db-title:opacity-100"
-          }`}
-        >
+        <div className="ml-auto flex items-center gap-0.5">
           {/* Filter toggle */}
           <button
             onClick={() => setShowFilterBar((v) => !v)}

@@ -9,6 +9,8 @@ import type { Slice } from "@tiptap/pm/model";
 import {
   resolveTopLevelBlock,
   getDOMForPos,
+  resolveDropTarget,
+  resolveTargetBlock,
 } from "../utils/prosemirrorHelpers";
 
 const DRAG_HANDLE_KEY = new PluginKey("dragHandle");
@@ -26,6 +28,7 @@ type DragPhase = "idle" | "pending" | "dragging";
 const dragState = {
   phase: "idle" as DragPhase,
   activePos: null as number | null,
+  activeDepth: 1,
   sourcePos: null as number | null,
   sourceEnd: null as number | null,
   sourceSlice: null as Slice | null,
@@ -34,11 +37,16 @@ const dragState = {
   dropBefore: true,
   dropTargetPos: null as number | null,
   dropTargetSize: null as number | null,
+  insideContainer: false,
+  containerPos: null as number | null,
+  containerSize: null as number | null,
+  closedToggle: false,
 };
 
 function resetDragState(): void {
   dragState.phase = "idle";
   dragState.activePos = null;
+  dragState.activeDepth = 1;
   dragState.sourcePos = null;
   dragState.sourceEnd = null;
   dragState.sourceSlice = null;
@@ -47,6 +55,10 @@ function resetDragState(): void {
   dragState.dropBefore = true;
   dragState.dropTargetPos = null;
   dragState.dropTargetSize = null;
+  dragState.insideContainer = false;
+  dragState.containerPos = null;
+  dragState.containerSize = null;
+  dragState.closedToggle = false;
 }
 
 // ---- Extension ----
@@ -128,8 +140,40 @@ export const DragHandle = Extension.create({
             return dom;
           }
 
-          function positionHandle(pos: number): void {
-            const blockDOM = getTopBlockDOM(pos);
+          /**
+           * Get the DOM element for any block (nested or top-level).
+           * For top-level blocks, walks up to editor DOM child.
+           * For nested blocks, uses nodeDOM or domAtPos fallback.
+           */
+          function getBlockDOM(pos: number, depth: number): HTMLElement | null {
+            if (depth <= 1) return getTopBlockDOM(pos);
+            // Try nodeDOM first
+            const dom = getDOMForPos(editorView, pos);
+            if (dom) return dom;
+            // Fallback: use domAtPos and walk up to find block-level element
+            try {
+              const { node, offset } = editorView.domAtPos(pos);
+              let el = node instanceof HTMLElement ? node : node.parentElement;
+              // Walk up to a block-level element (p, div, li, etc.)
+              while (el && el !== editorDOM) {
+                const display = getComputedStyle(el).display;
+                if (
+                  display === "block" ||
+                  display === "list-item" ||
+                  display === "flex"
+                ) {
+                  return el;
+                }
+                el = el.parentElement;
+              }
+            } catch {
+              /* ignore */
+            }
+            return null;
+          }
+
+          function positionHandle(pos: number, depth: number = 1): void {
+            const blockDOM = getBlockDOM(pos, depth);
             if (!blockDOM) {
               hide();
               return;
@@ -139,7 +183,10 @@ export const DragHandle = Extension.create({
             const lineHeight = getFirstLineHeight(blockDOM);
             const firstLineCenterY = blockRect.top + lineHeight / 2;
             handle.style.top = `${firstLineCenterY - containerRect.top - HANDLE_HEIGHT / 2}px`;
-            handle.style.left = "0px";
+            // Indent handle for nested blocks
+            const handleLeft = blockRect.left - containerRect.left - 40;
+            handle.style.left =
+              depth > 1 ? `${Math.max(0, handleLeft)}px` : "0px";
             show();
           }
 
@@ -172,7 +219,7 @@ export const DragHandle = Extension.create({
               return;
             }
 
-            const block = resolveTopLevelBlock(editorView, e.clientY);
+            const block = resolveTargetBlock(editorView, e.clientX, e.clientY);
             if (!block) {
               scheduledHide();
               return;
@@ -184,7 +231,8 @@ export const DragHandle = Extension.create({
             }
 
             dragState.activePos = block.pos;
-            positionHandle(block.pos);
+            dragState.activeDepth = block.depth;
+            positionHandle(block.pos, block.depth);
           }
 
           function onScrollParentLeave(): void {
@@ -297,7 +345,7 @@ export const DragHandle = Extension.create({
               dragState.phase = "dragging";
               const sourceDOM =
                 dragState.sourcePos !== null
-                  ? getTopBlockDOM(dragState.sourcePos)
+                  ? getBlockDOM(dragState.sourcePos, dragState.activeDepth)
                   : null;
               if (sourceDOM) {
                 sourceDOM.classList.add("drag-source");
@@ -311,31 +359,57 @@ export const DragHandle = Extension.create({
             moveOverlay(e.clientX, e.clientY);
 
             // Position drop indicator
-            const block = resolveTopLevelBlock(editorView, e.clientY);
-            if (!block) {
+            const target = resolveDropTarget(editorView, e.clientX, e.clientY);
+            if (!target) {
               dropLine.classList.remove("visible");
               return;
             }
 
-            // Don't show indicator on source block
+            // Clear previous closed-toggle highlight
+            editorDOM
+              .querySelectorAll(".drag-over-container")
+              .forEach((el) => el.classList.remove("drag-over-container"));
+
+            // Don't show indicator on source block (top-level check)
             if (
               dragState.sourcePos !== null &&
               dragState.sourceEnd !== null &&
-              block.pos >= dragState.sourcePos &&
-              block.pos < dragState.sourceEnd
+              !target.insideContainer &&
+              target.pos >= dragState.sourcePos &&
+              target.pos < dragState.sourceEnd
             ) {
               dropLine.classList.remove("visible");
               return;
             }
 
-            const blockDOM = getTopBlockDOM(block.pos);
-            if (!blockDOM) {
+            // Closed toggle: highlight the toggle instead of showing line
+            if (target.closedToggle) {
+              dropLine.classList.remove("visible");
+              const toggleDOM = getTopBlockDOM(target.pos);
+              if (toggleDOM) {
+                toggleDOM.classList.add("drag-over-container");
+              }
+              dragState.dropBefore = true;
+              dragState.dropTargetPos = target.pos;
+              dragState.dropTargetSize = target.size;
+              dragState.insideContainer = true;
+              dragState.containerPos = target.containerPos ?? null;
+              dragState.containerSize = target.containerSize ?? null;
+              dragState.closedToggle = true;
+              return;
+            }
+
+            // For container drops, get the child block DOM; for top-level, get top block DOM
+            const targetDOM = target.insideContainer
+              ? getDOMForPos(editorView, target.pos)
+              : getTopBlockDOM(target.pos);
+            if (!targetDOM) {
               dropLine.classList.remove("visible");
               return;
             }
 
             const containerRect = container.getBoundingClientRect();
-            const blockRect = blockDOM.getBoundingClientRect();
+            const blockRect = targetDOM.getBoundingClientRect();
             const midY = blockRect.top + blockRect.height / 2;
             const insertBefore = e.clientY < midY;
 
@@ -345,10 +419,19 @@ export const DragHandle = Extension.create({
             );
 
             dragState.dropBefore = insertBefore;
-            dragState.dropTargetPos = block.pos;
-            dragState.dropTargetSize = block.size;
+            dragState.dropTargetPos = target.pos;
+            dragState.dropTargetSize = target.size;
+            dragState.insideContainer = target.insideContainer;
+            dragState.containerPos = target.containerPos ?? null;
+            dragState.containerSize = target.containerSize ?? null;
+            dragState.closedToggle = false;
 
             dropLine.style.top = `${lineY - containerRect.top}px`;
+            if (target.insideContainer) {
+              dropLine.classList.add("inside-container");
+            } else {
+              dropLine.classList.remove("inside-container");
+            }
             dropLine.classList.add("visible");
           }
 
@@ -360,6 +443,10 @@ export const DragHandle = Extension.create({
               .querySelectorAll(".drag-source")
               .forEach((el) => el.classList.remove("drag-source"));
             dropLine.classList.remove("visible");
+            dropLine.classList.remove("inside-container");
+            editorDOM
+              .querySelectorAll(".drag-over-container")
+              .forEach((el) => el.classList.remove("drag-over-container"));
             resetDragState();
             hide();
           }
@@ -406,15 +493,41 @@ export const DragHandle = Extension.create({
                 dragState.dropTargetPos !== null &&
                 dragState.dropTargetSize !== null
               ) {
-                const dropPos = dragState.dropBefore
-                  ? dragState.dropTargetPos
-                  : dragState.dropTargetPos + dragState.dropTargetSize;
+                let dropPos: number;
 
-                // Only move if not dropping on self
-                if (
-                  dropPos < dragState.sourcePos ||
-                  dropPos > dragState.sourceEnd
-                ) {
+                if (dragState.closedToggle && dragState.containerPos !== null) {
+                  // Closed toggle: insert at end of toggleContent
+                  const toggleNode = editorView.state.doc.nodeAt(
+                    dragState.containerPos,
+                  );
+                  if (toggleNode && toggleNode.childCount >= 2) {
+                    const summary = toggleNode.child(0);
+                    const content = toggleNode.child(1);
+                    // End of toggleContent (before its closing tag)
+                    dropPos =
+                      dragState.containerPos +
+                      1 +
+                      summary.nodeSize +
+                      content.nodeSize -
+                      1;
+                  } else {
+                    dropPos = dragState.dropBefore
+                      ? dragState.dropTargetPos
+                      : dragState.dropTargetPos + dragState.dropTargetSize;
+                  }
+                } else {
+                  dropPos = dragState.dropBefore
+                    ? dragState.dropTargetPos
+                    : dragState.dropTargetPos + dragState.dropTargetSize;
+                }
+
+                // Determine effective source range for self-drop check
+                const isSelfDrop =
+                  !dragState.insideContainer &&
+                  dropPos >= dragState.sourcePos &&
+                  dropPos <= dragState.sourceEnd;
+
+                if (!isSelfDrop) {
                   const { state } = editorView;
                   const tr = state.tr;
                   const slice = dragState.sourceSlice;
@@ -479,7 +592,10 @@ export const DragHandle = Extension.create({
           return {
             update() {
               if (dragState.activePos !== null && dragState.phase === "idle") {
-                const blockDOM = getTopBlockDOM(dragState.activePos);
+                const blockDOM = getBlockDOM(
+                  dragState.activePos,
+                  dragState.activeDepth,
+                );
                 if (blockDOM && container.contains(blockDOM)) {
                   const containerRect = container.getBoundingClientRect();
                   const blockRect = blockDOM.getBoundingClientRect();

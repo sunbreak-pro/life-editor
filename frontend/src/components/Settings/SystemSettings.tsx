@@ -2,6 +2,7 @@ import { useState, useCallback, useEffect } from "react";
 import { Power, Minimize2, AppWindow, Keyboard } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { getDataService } from "../../services/dataServiceFactory";
+import { ToggleSwitch } from "../shared/ToggleSwitch";
 
 export function SystemSettings() {
   const { t } = useTranslation();
@@ -70,7 +71,7 @@ export function SystemSettings() {
         label={t("settings.autoLaunch")}
         description={t("settings.autoLaunchDesc")}
       >
-        <ToggleSwitch enabled={autoLaunch} onToggle={handleAutoLaunchToggle} />
+        <ToggleSwitch checked={autoLaunch} onChange={handleAutoLaunchToggle} />
       </SettingRow>
 
       {/* Start Minimized */}
@@ -80,8 +81,8 @@ export function SystemSettings() {
         description={t("settings.startMinimizedDesc")}
       >
         <ToggleSwitch
-          enabled={startMinimized}
-          onToggle={handleStartMinimizedToggle}
+          checked={startMinimized}
+          onChange={handleStartMinimizedToggle}
         />
       </SettingRow>
 
@@ -91,7 +92,7 @@ export function SystemSettings() {
         label={t("settings.trayIcon")}
         description={t("settings.trayIconDesc")}
       >
-        <ToggleSwitch enabled={trayEnabled} onToggle={handleTrayToggle} />
+        <ToggleSwitch checked={trayEnabled} onChange={handleTrayToggle} />
       </SettingRow>
 
       {/* Global Shortcuts */}
@@ -154,29 +155,6 @@ function SettingRow({
       </div>
       {children}
     </div>
-  );
-}
-
-function ToggleSwitch({
-  enabled,
-  onToggle,
-}: {
-  enabled: boolean;
-  onToggle: () => void;
-}) {
-  return (
-    <button
-      onClick={onToggle}
-      className={`relative w-10 h-5 rounded-full transition-colors cursor-pointer ${
-        enabled ? "bg-notion-accent" : "bg-notion-border"
-      }`}
-    >
-      <span
-        className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full transition-transform shadow-sm ${
-          enabled ? "translate-x-5" : ""
-        }`}
-      />
-    </button>
   );
 }
 

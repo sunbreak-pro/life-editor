@@ -35,7 +35,7 @@
 
 ## 直近の完了
 
-- Schedule UI/UX 4件改善（ToggleSwitch統一、終日イベント表示修正、RoutineGroupフィルタ、TimeDropdown） ✅（2026-04-11）
+- Schedule UI/UX 4件改善 + 終日アイテムプレビューポップアップ ✅（2026-04-11）
 - Per-Item Reminder Feature + TaskPreviewPopup Bug Fix ✅（2026-04-11）
 - Database 機能強化（Feature 2-6: Fixed Name, Overflow, Resize, ContextMenu, Aggregation） ✅（2026-04-11）
 

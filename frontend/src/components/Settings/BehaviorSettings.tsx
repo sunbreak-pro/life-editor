@@ -2,6 +2,7 @@ import { useState, useCallback, useEffect } from "react";
 import { Play, FolderOpen, Archive, EyeOff, ListChecks } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { STORAGE_KEYS } from "../../constants/storageKeys";
+import { ToggleSwitch } from "../shared/ToggleSwitch";
 import { useTaskTreeContext } from "../../hooks/useTaskTreeContext";
 import { getDataService } from "../../services/dataServiceFactory";
 import type { SectionId } from "../../types/taskTree";
@@ -174,8 +175,8 @@ export function BehaviorSettings() {
         description={t("settings.hideCompletedTasksDesc")}
       >
         <ToggleSwitch
-          enabled={hideCompleted}
-          onToggle={handleHideCompletedToggle}
+          checked={hideCompleted}
+          onChange={handleHideCompletedToggle}
         />
       </SettingRow>
 
@@ -186,8 +187,8 @@ export function BehaviorSettings() {
         description={t("settings.autoCompleteParentDesc")}
       >
         <ToggleSwitch
-          enabled={autoCompleteParent}
-          onToggle={handleAutoCompleteToggle}
+          checked={autoCompleteParent}
+          onChange={handleAutoCompleteToggle}
         />
       </SettingRow>
     </div>
@@ -216,28 +217,5 @@ function SettingRow({
       </div>
       {children}
     </div>
-  );
-}
-
-function ToggleSwitch({
-  enabled,
-  onToggle,
-}: {
-  enabled: boolean;
-  onToggle: () => void;
-}) {
-  return (
-    <button
-      onClick={onToggle}
-      className={`relative w-10 h-5 rounded-full transition-colors cursor-pointer ${
-        enabled ? "bg-notion-accent" : "bg-notion-border"
-      }`}
-    >
-      <span
-        className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full transition-transform shadow-sm ${
-          enabled ? "translate-x-5" : ""
-        }`}
-      />
-    </button>
   );
 }

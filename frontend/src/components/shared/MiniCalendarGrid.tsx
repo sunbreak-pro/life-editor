@@ -2,8 +2,9 @@ import { useState } from "react";
 import { ChevronLeft, ChevronRight, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { formatDateKey, toLocalISOString } from "../../utils/dateKey";
-import { TimeInput } from "./TimeInput";
+import { TimeDropdown } from "./TimeDropdown";
 import { DateInput } from "./DateInput";
+import { ToggleSwitch } from "./ToggleSwitch";
 
 interface MiniCalendarGridProps {
   startValue?: string;
@@ -269,38 +270,36 @@ export function MiniCalendarGrid({
 
   const controlsContent = (
     <>
-      <label className="flex items-center gap-1.5 cursor-pointer">
-        <input
-          type="checkbox"
+      <div className="flex items-center gap-1.5">
+        <ToggleSwitch
           checked={hasEndDate}
-          onChange={(e) => {
-            if (e.target.checked && isAllDay) {
+          onChange={(v) => {
+            if (v && isAllDay) {
               onAllDayChange(false);
             }
-            handleToggleEndDate(e.target.checked);
+            handleToggleEndDate(v);
           }}
-          className="w-3 h-3 rounded accent-notion-accent"
+          size="sm"
         />
         <span className="text-[10px] text-notion-text-secondary">
           {t("taskDetail.showEndTime")}
         </span>
-      </label>
-      <label className="flex items-center gap-1.5 cursor-pointer">
-        <input
-          type="checkbox"
+      </div>
+      <div className="flex items-center gap-1.5">
+        <ToggleSwitch
           checked={!!isAllDay}
-          onChange={(e) => {
-            if (e.target.checked && hasEndDate) {
+          onChange={(v) => {
+            if (v && hasEndDate) {
               handleToggleEndDate(false);
             }
-            onAllDayChange(e.target.checked);
+            onAllDayChange(v);
           }}
-          className="w-3 h-3 rounded accent-notion-accent"
+          size="sm"
         />
         <span className="text-[10px] text-notion-text-secondary">
           {t("taskDetail.allDay")}
         </span>
-      </label>
+      </div>
       {startValue && (
         <button
           onClick={handleClear}
@@ -326,7 +325,7 @@ export function MiniCalendarGrid({
           onChange={handleStartDateInput}
           size="sm"
         />
-        <TimeInput
+        <TimeDropdown
           hour={startHour}
           minute={startMinute}
           onChange={handleStartTimeChange}
@@ -345,7 +344,7 @@ export function MiniCalendarGrid({
             onChange={handleEndDateInput}
             size="sm"
           />
-          <TimeInput
+          <TimeDropdown
             hour={endHour}
             minute={endMinute}
             onChange={handleEndTimeChange}

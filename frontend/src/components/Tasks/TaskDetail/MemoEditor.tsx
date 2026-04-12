@@ -41,6 +41,7 @@ import { setStoredHeadingFontSize } from "../../../utils/headingFontSize";
 import { isValidUrl } from "../../../utils/urlValidation";
 import { resolveTopLevelBlock } from "../../../utils/prosemirrorHelpers";
 import { getDataService } from "../../../services";
+import { NodeSelection } from "@tiptap/pm/state";
 import type { WikiTagEntityType } from "../../../types/wikiTag";
 import type { Node as PmNode } from "@tiptap/pm/model";
 
@@ -283,6 +284,22 @@ export function MemoEditor({
       editorProps: {
         attributes: {
           class: "memo-editor outline-none min-h-[200px]",
+        },
+        handleClickOn(view, _pos, node, nodePos, _event, direct) {
+          if (node.type.name === "databaseBlock" && direct) {
+            return true;
+          }
+          return false;
+        },
+        handleDoubleClickOn(view, _pos, node, nodePos, _event, direct) {
+          if (node.type.name === "databaseBlock" && direct) {
+            const tr = view.state.tr.setSelection(
+              NodeSelection.create(view.state.doc, nodePos),
+            );
+            view.dispatch(tr);
+            return true;
+          }
+          return false;
         },
         handleClick(_view, _pos, event) {
           const target = event.target as HTMLElement;

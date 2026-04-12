@@ -73,8 +73,8 @@ function layoutAllItems(
 ): UnifiedItem[] {
   const items: UnifiedItem[] = [];
 
-  // Convert schedule items
-  for (const si of scheduleItems) {
+  // Convert schedule items (exclude all-day items)
+  for (const si of scheduleItems.filter((s) => !s.isAllDay)) {
     const startMin = timeToMinutes(si.startTime);
     const endMin = timeToMinutes(si.endTime);
     const top = (startMin / 60 - TIME_GRID.START_HOUR) * TIME_GRID.SLOT_HEIGHT;

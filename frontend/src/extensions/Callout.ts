@@ -14,24 +14,24 @@ export const CALLOUT_COLORS: Record<
   },
   blue: {
     label: "Blue",
-    bg: "rgba(137,180,250,0.1)",
-    border: "var(--color-accent)",
+    bg: "rgba(46,170,220,0.25)",
+    border: "#2EAADC",
   },
   green: {
     label: "Green",
-    bg: "rgba(166,227,161,0.1)",
-    border: "#a6e3a1",
+    bg: "rgba(15,123,108,0.25)",
+    border: "#0F7B6C",
   },
   yellow: {
     label: "Yellow",
-    bg: "rgba(249,226,175,0.1)",
-    border: "#f9e2af",
+    bg: "rgba(223,171,1,0.25)",
+    border: "#DFAB01",
   },
-  red: { label: "Red", bg: "rgba(243,139,168,0.1)", border: "#f38ba8" },
+  red: { label: "Red", bg: "rgba(224,62,62,0.25)", border: "#E03E3E" },
   purple: {
     label: "Purple",
-    bg: "rgba(203,166,247,0.1)",
-    border: "#cba6f7",
+    bg: "rgba(155,89,182,0.25)",
+    border: "#9B59B6",
   },
 };
 
@@ -131,6 +131,60 @@ export const Callout = Node.create({
         const { $from, empty } = state.selection;
         if (!empty) return false;
 
+        // Block below callout: prevent callout from extending
+        if ($from.parentOffset === 0 && $from.depth >= 1) {
+          const blockPos = $from.before($from.depth);
+          if (blockPos > 0) {
+            const $blockStart = state.doc.resolve(blockPos);
+            const parentDepth = $blockStart.depth;
+            const indexInParent = $blockStart.index(parentDepth);
+            if (indexInParent > 0) {
+              const parentNode = $blockStart.node(parentDepth);
+              const prevNode = parentNode.child(indexInParent - 1);
+              if (prevNode.type.name === "callout") {
+                const currentBlock = $from.parent;
+                const currentBlockEnd = blockPos + currentBlock.nodeSize;
+                const calloutPos = blockPos - prevNode.nodeSize;
+
+                if (currentBlock.content.size === 0) {
+                  // Empty line: delete it, move cursor to end of callout
+                  const { tr } = state;
+                  tr.delete(blockPos, currentBlockEnd);
+                  try {
+                    tr.setSelection(
+                      TextSelection.near(tr.doc.resolve(blockPos - 1), -1),
+                    );
+                    editor.view.dispatch(tr);
+                  } catch {
+                    return false;
+                  }
+                  return true;
+                } else {
+                  // Has content: merge into callout's last paragraph
+                  // Position of the last child's end inside callout
+                  // callout structure: calloutPos, [children...], calloutPos + prevNode.nodeSize
+                  // Last child ends at: calloutPos + prevNode.nodeSize - 1 (before callout close tag)
+                  const lastChildEnd = calloutPos + prevNode.nodeSize - 1;
+                  // Delete boundary: lastChild close + callout close + nextBlock open
+                  // = lastChildEnd .. blockPos + 1
+                  const { tr } = state;
+                  try {
+                    tr.delete(lastChildEnd, blockPos + 1);
+                    tr.setSelection(
+                      TextSelection.near(tr.doc.resolve(lastChildEnd)),
+                    );
+                    editor.view.dispatch(tr);
+                  } catch {
+                    return false;
+                  }
+                  return true;
+                }
+              }
+            }
+          }
+        }
+
+        // Inside callout: existing logic
         for (let depth = $from.depth; depth > 0; depth--) {
           if ($from.node(depth).type.name === "callout") {
             const atStart = $from.parentOffset === 0;

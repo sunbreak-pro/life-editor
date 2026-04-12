@@ -19,6 +19,7 @@ import type { RoutineGroup } from "../../types/routineGroup";
 import type { ScheduleItem } from "../../types/schedule";
 import type { TaskNode } from "../../types/taskTree";
 import { formatDateKey } from "../../utils/dateKey";
+import { shouldRoutineRunOnDate } from "../../utils/routineFrequency";
 
 type FlowEntry =
   | {
@@ -112,7 +113,17 @@ export function MiniTodayFlow({
 
     // Add groups
     if (showRoutines && routineGroups.length > 0 && routinesByGroup) {
-      for (const group of routineGroups) {
+      const dateKey = formatDateKey(date);
+      const activeGroups = routineGroups.filter((group) =>
+        shouldRoutineRunOnDate(
+          group.frequencyType,
+          group.frequencyDays,
+          group.frequencyInterval,
+          group.frequencyStartDate,
+          dateKey,
+        ),
+      );
+      for (const group of activeGroups) {
         const members = routinesByGroup.get(group.id) ?? [];
         if (members.length === 0) continue;
         const memberScheduleItems = members
@@ -140,8 +151,19 @@ export function MiniTodayFlow({
 
     // Add routines
     if (showRoutines) {
+      const routineDateKey = formatDateKey(date);
       for (const routine of routines) {
         if (routine.isArchived) continue;
+        if (
+          !shouldRoutineRunOnDate(
+            routine.frequencyType,
+            routine.frequencyDays,
+            routine.frequencyInterval,
+            routine.frequencyStartDate,
+            routineDateKey,
+          )
+        )
+          continue;
         const scheduleItem = scheduleItemByRoutineId.get(routine.id);
         if (!scheduleItem) continue;
         result.push({
@@ -208,6 +230,7 @@ export function MiniTodayFlow({
 
     return result;
   }, [
+    date,
     routines,
     routineGroups,
     routinesByGroup,

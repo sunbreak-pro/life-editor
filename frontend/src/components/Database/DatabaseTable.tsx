@@ -1,6 +1,6 @@
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo, useRef } from "react";
 import { useTranslation } from "react-i18next";
-import { Plus, Trash2 } from "lucide-react";
+import { Plus, Trash2, GripVertical } from "lucide-react";
 import type {
   DatabaseProperty,
   DatabaseRow,
@@ -70,6 +70,11 @@ export function DatabaseTable({
     propertyId: string;
   } | null>(null);
 
+  // Row drag state
+  const [dragRowId, setDragRowId] = useState<string | null>(null);
+  const [rowOrder, setRowOrder] = useState<string[] | null>(null);
+  const tbodyRef = useRef<HTMLTableSectionElement>(null);
+
   const sortedProperties = useMemo(
     () => [...properties].sort((a, b) => a.order - b.order),
     [properties],
@@ -108,6 +113,38 @@ export function DatabaseTable({
     [onUpsertCell],
   );
 
+  // Row drag handlers
+  const handleRowDragStart = useCallback(
+    (rowId: string) => {
+      setDragRowId(rowId);
+      setRowOrder(displayRows.map((r) => r.id));
+    },
+    [displayRows],
+  );
+
+  const handleRowDragOver = useCallback(
+    (targetRowId: string) => {
+      if (!dragRowId || dragRowId === targetRowId || !rowOrder) return;
+      const newOrder = rowOrder.filter((id) => id !== dragRowId);
+      const targetIndex = newOrder.indexOf(targetRowId);
+      newOrder.splice(targetIndex, 0, dragRowId);
+      setRowOrder(newOrder);
+    },
+    [dragRowId, rowOrder],
+  );
+
+  const handleRowDragEnd = useCallback(() => {
+    setDragRowId(null);
+    setRowOrder(null);
+  }, []);
+
+  // Use reordered rows if dragging, otherwise use computed display order
+  const finalRows = useMemo(() => {
+    if (!rowOrder) return displayRows;
+    const map = new Map(displayRows.map((r) => [r.id, r]));
+    return rowOrder.map((id) => map.get(id)).filter(Boolean) as DatabaseRow[];
+  }, [displayRows, rowOrder]);
+
   if (sortedProperties.length === 0 && rows.length === 0) {
     return (
       <div className="flex flex-col items-center gap-2 py-6 text-notion-text-secondary">
@@ -132,6 +169,7 @@ export function DatabaseTable({
         {/* Header */}
         <thead>
           <tr>
+            <th className="w-10 !border-none" />
             {sortedProperties.map((prop) => (
               <th
                 key={prop.id}
@@ -156,12 +194,39 @@ export function DatabaseTable({
         </thead>
 
         {/* Body */}
-        <tbody>
-          {displayRows.map((row) => (
+        <tbody ref={tbodyRef}>
+          {finalRows.map((row) => (
             <tr
               key={row.id}
-              className="group/row hover:bg-notion-hover/50 transition-colors"
+              className={`group/row hover:bg-notion-hover/50 transition-colors ${dragRowId === row.id ? "opacity-30" : ""}`}
+              onPointerEnter={() => handleRowDragOver(row.id)}
             >
+              {/* Grip + Add row column */}
+              <td className="w-10 !border-none !p-0">
+                <div className="flex items-center justify-center gap-0 h-8">
+                  <button
+                    type="button"
+                    className="p-0.5 text-notion-text-secondary hover:text-notion-text rounded"
+                    onClick={onAddRow}
+                    title={t("database.newRow")}
+                  >
+                    <Plus size={11} />
+                  </button>
+                  <div
+                    className="p-0.5 text-notion-text-secondary hover:text-notion-text rounded cursor-grab active:cursor-grabbing"
+                    onPointerDown={(e) => {
+                      if (e.button !== 0) return;
+                      e.preventDefault();
+                      e.currentTarget.setPointerCapture(e.pointerId);
+                      handleRowDragStart(row.id);
+                    }}
+                    onPointerUp={handleRowDragEnd}
+                    onPointerCancel={handleRowDragEnd}
+                  >
+                    <GripVertical size={11} />
+                  </div>
+                </div>
+              </td>
               {sortedProperties.map((prop) => {
                 const isEditing =
                   editingCell?.rowId === row.id &&
@@ -214,6 +279,7 @@ export function DatabaseTable({
         {/* Aggregation footer */}
         <tfoot>
           <tr>
+            <td className="w-10 !border-none" />
             {sortedProperties.map((prop) => {
               const agg = prop.config?.aggregation ?? "none";
               const values = displayRows.map((row) =>
