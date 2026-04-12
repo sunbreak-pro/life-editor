@@ -105,38 +105,76 @@ export interface ResolvedBlock {
   depth: number;
 }
 
+/** Block types that are themselves significant containers (not just leaf blocks) */
+const BLOCK_CONTAINER_TYPES = new Set([
+  "callout",
+  "toggleList",
+  "bulletList",
+  "orderedList",
+  "taskList",
+  "blockquote",
+  "table",
+]);
+
 /**
- * Try resolving a ProseMirror position from coords and walk up to find
- * the best draggable block.
+ * Resolve best draggable block from a known ProseMirror position.
+ *
+ * Strategy: walk from depth 1 outward to find the shallowest container,
+ * then return its direct child. If that child is itself a significant block
+ * (callout, list, etc.), return the child at its own depth — don't descend into it.
  */
-function resolveFromCoords(
+function resolveFromPos(
   view: EditorView,
-  left: number,
-  top: number,
+  pos: number,
+  clientY?: number,
 ): ResolvedBlock | null {
-  const posInfo = view.posAtCoords({ left, top });
-  if (!posInfo) return null;
-
   try {
-    const $pos = view.state.doc.resolve(posInfo.pos);
+    const $pos = view.state.doc.resolve(pos);
 
-    for (let d = $pos.depth; d >= 1; d--) {
-      const parentNode = $pos.node(d);
-      const parentName = parentNode.type.name;
+    // Walk from root outward (depth 1 → $pos.depth) to find the
+    // shallowest container whose direct child should get a grip.
+    for (let d = 1; d <= $pos.depth; d++) {
+      const node = $pos.node(d);
+      const name = node.type.name;
 
-      if (CONTAINER_TYPES.has(parentName) && d + 1 <= $pos.depth) {
+      if (CONTAINER_TYPES.has(name) && d + 1 <= $pos.depth) {
         const childPos = $pos.before(d + 1);
         const childNode = view.state.doc.nodeAt(childPos);
-        if (childNode) {
-          return { pos: childPos, size: childNode.nodeSize, depth: d + 1 };
+        if (!childNode) continue;
+
+        // Callout with single child — show callout-level grip instead
+        if (name === "callout" && node.childCount <= 1) {
+          const calloutPos = $pos.before(d);
+          return {
+            pos: calloutPos,
+            size: node.nodeSize,
+            depth: d,
+          };
         }
+
+        // Callout padding guard
+        if (name === "callout" && clientY !== undefined) {
+          const childDOM = getDOMForPos(view, childPos);
+          if (childDOM) {
+            const childRect = childDOM.getBoundingClientRect();
+            if (clientY < childRect.top) {
+              const calloutPos = $pos.before(d);
+              return { pos: calloutPos, size: node.nodeSize, depth: d };
+            }
+          }
+        }
+
+        // Return the direct child of this container
+        return { pos: childPos, size: childNode.nodeSize, depth: d + 1 };
       }
 
-      if (WRAPPER_TYPES.has(parentName)) {
+      // toggleList is a wrapper — skip it, let toggleContent handle
+      if (WRAPPER_TYPES.has(name)) {
         continue;
       }
     }
 
+    // No container found — return top-level block
     if ($pos.depth >= 1) {
       const blockPos = $pos.before(1);
       const node = $pos.node(1);
@@ -150,27 +188,105 @@ function resolveFromCoords(
 
 /**
  * Resolve the most specific draggable block at a given position.
- * For containers (callout, toggle content, lists), returns the child block.
- * Falls back to top-level block.
+ * Single posAtCoords call for performance; fallback only when needed.
  */
 export function resolveTargetBlock(
   view: EditorView,
   clientX: number,
   clientY: number,
 ): ResolvedBlock | null {
-  // First try: use actual mouse X — most accurate for nested content
-  const result = resolveFromCoords(view, clientX, clientY);
-  if (result && result.depth > 1) return result;
+  // Single posAtCoords call with actual mouse position
+  const posInfo = view.posAtCoords({ left: clientX, top: clientY });
+  let result: ResolvedBlock | null = null;
+  if (posInfo) {
+    result = resolveFromPos(view, posInfo.pos, clientY);
+  }
 
-  // Second try: use center of editor — better for top-level detection
-  const editorRect = view.dom.getBoundingClientRect();
-  const centerResult = resolveFromCoords(view, editorRect.left + 20, clientY);
-  if (centerResult) return centerResult;
+  // Fallback: mouse was in editor padding or outside content — use top-level
+  if (!result) {
+    const top = resolveTopLevelBlock(view, clientY);
+    result = top ? { ...top, depth: 1 } : null;
+  }
 
-  // Final fallback: top-level block resolution
-  if (result) return result;
-  const top = resolveTopLevelBlock(view, clientY);
-  return top ? { ...top, depth: 1 } : null;
+  // If result is a top-level toggleList (open), try to find the nested child
+  if (result && result.depth === 1) {
+    const deeper = resolveInsideContainer(view, result, clientX, clientY);
+    if (deeper) return deeper;
+  }
+
+  return result;
+}
+
+/**
+ * If the block is a top-level container (toggleList, callout, etc.),
+ * try to resolve a specific child block inside it.
+ */
+function resolveInsideContainer(
+  view: EditorView,
+  block: ResolvedBlock,
+  clientX: number,
+  clientY: number,
+): ResolvedBlock | null {
+  try {
+    const node = view.state.doc.nodeAt(block.pos);
+    if (!node) return null;
+
+    // Open toggleList: find child inside toggleContent
+    if (
+      node.type.name === "toggleList" &&
+      node.attrs.open !== false &&
+      node.childCount >= 2
+    ) {
+      const summary = node.child(0);
+      const content = node.child(1);
+      const contentPos = block.pos + 1 + summary.nodeSize;
+      const contentDOM = getDOMForPos(view, contentPos);
+      if (contentDOM) {
+        const contentRect = contentDOM.getBoundingClientRect();
+        if (clientY >= contentRect.top) {
+          const child = findNearestChild(view, contentPos, content, clientY);
+          if (child) {
+            return { pos: child.pos, size: child.size, depth: 3 };
+          }
+        }
+      }
+    }
+
+    // Callout with multiple children: find specific child
+    if (node.type.name === "callout" && node.childCount > 1) {
+      // Only drill into children if mouse is past the icon area
+      const calloutDOM = getDOMForPos(view, block.pos);
+      if (calloutDOM) {
+        const contentEl = calloutDOM.querySelector(".callout-content");
+        if (contentEl) {
+          const contentLeft = contentEl.getBoundingClientRect().left;
+          if (clientX < contentLeft) {
+            return null; // Icon area → keep callout-level grip
+          }
+        }
+      }
+      const child = findNearestChild(view, block.pos, node, clientY);
+      if (child) {
+        return { pos: child.pos, size: child.size, depth: 2 };
+      }
+    }
+
+    // BulletList / OrderedList / TaskList: find child inside
+    if (
+      (node.type.name === "bulletList" ||
+        node.type.name === "orderedList" ||
+        node.type.name === "taskList") &&
+      node.childCount > 0
+    ) {
+      const child = findNearestChild(view, block.pos, node, clientY);
+      if (child) {
+        return { pos: child.pos, size: child.size, depth: 2 };
+      }
+    }
+  } catch {
+    /* ignore */
+  }
+  return null;
 }
 
 export function getDOMForPos(
@@ -199,7 +315,7 @@ export interface DropTarget {
 }
 
 /** Find nearest child block inside a container by Y position */
-function findNearestChild(
+export function findNearestChild(
   view: EditorView,
   parentPos: number,
   parentNode: {
@@ -214,10 +330,26 @@ function findNearestChild(
 
   for (let i = 0; i < parentNode.childCount; i++) {
     const child = parentNode.child(i);
+    let centerY: number | null = null;
+
+    // Try DOM-based rect first
     const childDOM = getDOMForPos(view, childPos);
     if (childDOM) {
       const childRect = childDOM.getBoundingClientRect();
-      const centerY = childRect.top + childRect.height / 2;
+      centerY = childRect.top + childRect.height / 2;
+    }
+
+    // Fallback: use coordsAtPos for atom nodes / NodeViews
+    if (centerY === null) {
+      try {
+        const coords = view.coordsAtPos(childPos);
+        centerY = coords.top;
+      } catch {
+        /* ignore */
+      }
+    }
+
+    if (centerY !== null) {
       const dist = Math.abs(clientY - centerY);
       if (dist < bestDist) {
         bestDist = dist;

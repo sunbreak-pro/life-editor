@@ -434,6 +434,7 @@ export function createMockDataService(): DataService & {
       order: 0,
       createdAt: new Date().toISOString(),
     }),
+    reorderDatabaseRows: vi.fn().mockResolvedValue(undefined),
     removeDatabaseRow: vi.fn().mockResolvedValue(undefined),
     upsertDatabaseCell: vi.fn().mockResolvedValue({
       id: "cell-mock",

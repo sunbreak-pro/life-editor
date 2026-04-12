@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, useMemo, useCallback } from "react";
-import type { TaskNode } from "../../../../types/taskTree";
+import type { TaskNode, TaskStatus } from "../../../../types/taskTree";
 import type { ScheduleItem } from "../../../../types/schedule";
 import type { RoutineGroup } from "../../../../types/routineGroup";
 import type { ConversionRole } from "../../../../hooks/useRoleConversion";
@@ -249,6 +249,9 @@ interface ScheduleTimeGridProps {
   onUpdateScheduleItemDate?: (id: string, date: string) => void;
   onUpdateScheduleItemAllDay?: (id: string, isAllDay: boolean) => void;
   onUpdateTaskAllDay?: (taskId: string, isAllDay: boolean) => void;
+  // Status / detail navigation
+  onSetTaskStatus?: (taskId: string, status: TaskStatus) => void;
+  onNavigateToEventsTab?: () => void;
 }
 
 export function ScheduleTimeGrid({
@@ -287,6 +290,8 @@ export function ScheduleTimeGrid({
   onUpdateScheduleItemDate,
   onUpdateScheduleItemAllDay,
   onUpdateTaskAllDay,
+  onSetTaskStatus,
+  onNavigateToEventsTab,
 }: ScheduleTimeGridProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const mainColumnRef = useRef<HTMLDivElement>(null);
@@ -977,6 +982,16 @@ export function ScheduleTimeGrid({
             setTaskPreview(null);
             onNavigateTask?.(taskId, {} as React.MouseEvent);
           }}
+          onToggleStatus={
+            onToggleTaskStatus
+              ? () => onToggleTaskStatus(taskPreview.task.id)
+              : undefined
+          }
+          onSetStatus={
+            onSetTaskStatus
+              ? (status) => onSetTaskStatus(taskPreview.task.id, status)
+              : undefined
+          }
           onStartTimer={
             onStartTimer
               ? () => {
@@ -1023,7 +1038,10 @@ export function ScheduleTimeGrid({
           }
           onUpdateAllDay={
             onUpdateTaskAllDay
-              ? (isAllDay) => onUpdateTaskAllDay(taskPreview.task.id, isAllDay)
+              ? (isAllDay) => {
+                  onUpdateTaskAllDay(taskPreview.task.id, isAllDay);
+                  setTaskPreview(null);
+                }
               : undefined
           }
           onUpdateTimeMemo={
@@ -1087,14 +1105,24 @@ export function ScheduleTimeGrid({
           }
           onUpdateAllDay={
             onUpdateScheduleItemAllDay
-              ? (isAllDay) =>
-                  onUpdateScheduleItemAllDay(schedulePreview.item.id, isAllDay)
+              ? (isAllDay) => {
+                  onUpdateScheduleItemAllDay(schedulePreview.item.id, isAllDay);
+                  setSchedulePreview(null);
+                }
               : undefined
           }
           onUpdateTitle={
             onUpdateScheduleItemTitle
               ? (title) =>
                   onUpdateScheduleItemTitle(schedulePreview.item.id, title)
+              : undefined
+          }
+          onOpenDetail={
+            onNavigateToEventsTab
+              ? () => {
+                  setSchedulePreview(null);
+                  onNavigateToEventsTab();
+                }
               : undefined
           }
           onClose={() => setSchedulePreview(null)}

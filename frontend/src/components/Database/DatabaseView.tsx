@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { Filter, ArrowUpDown, MoreHorizontal, Trash2 } from "lucide-react";
 import type { Editor } from "@tiptap/react";
 import { useDatabase } from "../../hooks/useDatabase";
+import { useUndoRedo } from "../../hooks/useUndoRedo";
 import { DatabaseTable } from "./DatabaseTable";
 import { DatabaseFilterBar } from "./DatabaseFilterBar";
 import { DatabaseSortBar } from "./DatabaseSortBar";
@@ -27,11 +28,23 @@ export function DatabaseView({
     updateProperty,
     removeProperty,
     addRow,
+    duplicateRow,
+    reorderRows,
     removeRow,
     upsertCell,
     getCellValue,
+    pushCellUndo,
   } = useDatabase(databaseId);
   const { t } = useTranslation();
+  const { setActiveDomains } = useUndoRedo();
+
+  const handleFocusCapture = useCallback(() => {
+    setActiveDomains(["database"]);
+  }, [setActiveDomains]);
+
+  const handleBlurCapture = useCallback(() => {
+    setActiveDomains(null);
+  }, [setActiveDomains]);
 
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [titleDraft, setTitleDraft] = useState("");
@@ -111,7 +124,11 @@ export function DatabaseView({
   );
 
   return (
-    <div className="w-full">
+    <div
+      className="w-full"
+      onFocusCapture={handleFocusCapture}
+      onBlurCapture={handleBlurCapture}
+    >
       {/* Title row */}
       <div className="flex items-center gap-1 mb-1 group/db-title">
         {/* Title */}
@@ -227,9 +244,12 @@ export function DatabaseView({
         onUpdateProperty={updateProperty}
         onRemoveProperty={removeProperty}
         onAddRow={addRow}
+        onDuplicateRow={duplicateRow}
+        onReorderRows={reorderRows}
         onRemoveRow={removeRow}
         onUpsertCell={upsertCell}
         getCellValue={getCellValue}
+        onPushCellUndo={pushCellUndo}
       />
     </div>
   );

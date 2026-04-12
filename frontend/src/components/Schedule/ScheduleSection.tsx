@@ -21,7 +21,7 @@ import { formatDateKey } from "../../utils/dateKey";
 import { RightSidebarContext } from "../../context/RightSidebarContext";
 import { useUndoRedo } from "../shared/UndoRedo";
 
-import type { TaskNode } from "../../types/taskTree";
+import type { TaskNode, TaskStatus } from "../../types/taskTree";
 import type { SearchSuggestion } from "../shared/SearchBar";
 import { ScheduleTasksContent } from "./ScheduleTasksContent";
 import { ScheduleEventsContent } from "./ScheduleEventsContent";
@@ -511,6 +511,34 @@ export function ScheduleSection({
     [nodes, updateNode, pushUndo],
   );
 
+  const handleSetTaskStatus = useCallback(
+    (taskId: string, newStatus: TaskStatus) => {
+      const task = nodes.find((n) => n.id === taskId);
+      if (!task || task.type !== "task") return;
+
+      const origStatus = task.status;
+      const origCompletedAt = task.completedAt;
+      const newCompletedAt =
+        newStatus === "DONE" ? new Date().toISOString() : undefined;
+
+      updateNode(taskId, { status: newStatus, completedAt: newCompletedAt });
+      pushUndo("scheduleItem", {
+        label: "setTaskStatus",
+        undo: () =>
+          updateNode(taskId, {
+            status: origStatus,
+            completedAt: origCompletedAt,
+          }),
+        redo: () =>
+          updateNode(taskId, {
+            status: newStatus,
+            completedAt: newCompletedAt,
+          }),
+      });
+    },
+    [nodes, updateNode, pushUndo],
+  );
+
   const handleDeleteTask = useCallback(
     (taskId: string) => {
       softDelete(taskId);
@@ -651,6 +679,7 @@ export function ScheduleSection({
             searchQuery={sidebarSearchQuery}
             onDateSelect={handleCalendarDateSelect}
             onOpenRoutineManagement={() => setShowRoutineManagement(true)}
+            onNavigateToEventsTab={() => handleSetActiveTab("events")}
           />
         ) : activeTab === "tasks" ? (
           <ScheduleTasksContent
@@ -675,6 +704,8 @@ export function ScheduleSection({
             onUpdateTaskTitle={handleUpdateTaskTitle}
             onStartTimer={handleStartTimer}
             onToggleDualColumn={toggleDualColumn}
+            onSetTaskStatus={handleSetTaskStatus}
+            onNavigateToEventsTab={() => handleSetActiveTab("events")}
           />
         ) : (
           <OneDaySchedule
@@ -699,6 +730,8 @@ export function ScheduleSection({
             onStartTimer={handleStartTimer}
             isDualColumn={isDualColumn}
             onToggleDualColumn={toggleDualColumn}
+            onSetTaskStatus={handleSetTaskStatus}
+            onNavigateToEventsTab={() => handleSetActiveTab("events")}
           />
         )}
       </div>

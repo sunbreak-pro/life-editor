@@ -1,5 +1,5 @@
 import { useState, useCallback } from "react";
-import type { TaskNode } from "../../../../types/taskTree";
+import type { TaskNode, TaskStatus } from "../../../../types/taskTree";
 import type { ScheduleItem } from "../../../../types/schedule";
 import { useDayFlowColumn } from "../../../../hooks/useDayFlowColumn";
 import { useScheduleContext } from "../../../../hooks/useScheduleContext";
@@ -34,6 +34,8 @@ interface DualDayFlowLayoutProps {
   onUpdateTaskTitle?: (taskId: string, title: string) => void;
   onStartTimer?: (task: TaskNode) => void;
   onToggleDualColumn?: () => void;
+  onSetTaskStatus?: (taskId: string, status: TaskStatus) => void;
+  onNavigateToEventsTab?: () => void;
 }
 
 function tomorrow(): Date {
@@ -54,6 +56,8 @@ export function DualDayFlowLayout({
   onUpdateTaskTitle,
   onStartTimer,
   onToggleDualColumn,
+  onSetTaskStatus,
+  onNavigateToEventsTab,
 }: DualDayFlowLayoutProps) {
   const left = useDayFlowColumn({ initialDate: new Date() });
   const right = useDayFlowColumn({ initialDate: tomorrow() });
@@ -370,6 +374,8 @@ function DualColumn({
             updateNode(taskId, { isAllDay });
             onMutate?.();
           }}
+          onSetTaskStatus={onSetTaskStatus}
+          onNavigateToEventsTab={onNavigateToEventsTab}
         />
       </div>
 

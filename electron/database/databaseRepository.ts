@@ -267,6 +267,15 @@ export function createDatabaseRepository(db: Database.Database) {
       };
     },
 
+    reorderRows(rowIds: string[]): void {
+      const tx = db.transaction(() => {
+        for (let i = 0; i < rowIds.length; i++) {
+          stmts.updateRowOrder.run({ id: rowIds[i], orderIndex: i });
+        }
+      });
+      tx();
+    },
+
     removeRow(id: string): void {
       stmts.deleteRow.run(id);
     },

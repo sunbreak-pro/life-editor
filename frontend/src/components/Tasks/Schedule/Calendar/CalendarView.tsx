@@ -72,6 +72,12 @@ function GroupPreviewPopup({
       className="fixed z-50 w-60 bg-notion-bg border border-notion-border rounded-lg shadow-xl"
       style={{ left, top }}
     >
+      <div className="px-3 pt-2">
+        <div
+          className="w-full h-1 rounded-full"
+          style={{ backgroundColor: group.color }}
+        />
+      </div>
       <div className="px-3 py-2 border-b border-notion-border flex items-center gap-2">
         <span
           className="w-3 h-3 rounded shrink-0"
@@ -174,6 +180,7 @@ interface CalendarViewProps {
   searchQuery?: string;
   onDateSelect?: (date: Date) => void;
   onOpenRoutineManagement?: () => void;
+  onNavigateToEventsTab?: () => void;
 }
 
 function getInitialWeekStart(): Date {
@@ -196,9 +203,17 @@ export function CalendarView({
   searchQuery,
   onDateSelect,
   onOpenRoutineManagement,
+  onNavigateToEventsTab,
 }: CalendarViewProps) {
-  const { nodes, getTaskColor, getFolderTagForTask, softDelete, updateNode } =
-    useTaskTreeContext();
+  const {
+    nodes,
+    getTaskColor,
+    getFolderTagForTask,
+    softDelete,
+    updateNode,
+    toggleTaskStatus,
+    setTaskStatus,
+  } = useTaskTreeContext();
   const { activeCalendar } = useCalendarContext();
   const { memos, upsertMemo } = useMemoContext();
   const { language } = useTheme();
@@ -852,11 +867,20 @@ export function CalendarView({
             updateScheduleItem(scheduleItemPreview.item.id, { date });
             setScheduleItemPreview(null);
           }}
-          onUpdateAllDay={(isAllDay) =>
-            updateScheduleItem(scheduleItemPreview.item.id, { isAllDay })
-          }
+          onUpdateAllDay={(isAllDay) => {
+            updateScheduleItem(scheduleItemPreview.item.id, { isAllDay });
+            setScheduleItemPreview(null);
+          }}
           onUpdateTitle={(title) =>
             updateScheduleItem(scheduleItemPreview.item.id, { title })
+          }
+          onOpenDetail={
+            onNavigateToEventsTab
+              ? () => {
+                  setScheduleItemPreview(null);
+                  onNavigateToEventsTab();
+                }
+              : undefined
           }
         />
       )}
@@ -871,6 +895,8 @@ export function CalendarView({
             onSelectTask(previewTask.id);
             setPreviewPopup(null);
           }}
+          onToggleStatus={() => toggleTaskStatus(previewTask.id)}
+          onSetStatus={(status) => setTaskStatus(previewTask.id, status)}
           onUpdateTitle={(title) => updateNode(previewTask.id, { title })}
           onUpdateSchedule={(scheduledAt, scheduledEndAt) => {
             updateNode(previewTask.id, {
@@ -918,9 +944,10 @@ export function CalendarView({
                 })
               : undefined
           }
-          onUpdateAllDay={(isAllDay) =>
-            updateNode(previewTask.id, { isAllDay })
-          }
+          onUpdateAllDay={(isAllDay) => {
+            updateNode(previewTask.id, { isAllDay });
+            setPreviewPopup(null);
+          }}
           onUpdateTimeMemo={(memo) =>
             updateNode(previewTask.id, {
               timeMemo: memo ?? undefined,

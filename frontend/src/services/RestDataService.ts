@@ -1094,6 +1094,9 @@ export class RestDataService implements DataService {
   addDatabaseRow(): Promise<never> {
     return notSupported("addDatabaseRow");
   }
+  reorderDatabaseRows(): Promise<never> {
+    return notSupported("reorderDatabaseRows");
+  }
   removeDatabaseRow(): Promise<never> {
     return notSupported("removeDatabaseRow");
   }

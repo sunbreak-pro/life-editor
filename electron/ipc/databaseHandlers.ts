@@ -152,6 +152,15 @@ export function registerDatabaseHandlers(repo: DatabaseRepository): void {
   );
 
   mutation(
+    "db:database:reorderRows",
+    "Database",
+    "reorderRows",
+    "database",
+    "update",
+    (_event, rowIds: string[]) => repo.reorderRows(rowIds),
+  );
+
+  mutation(
     "db:database:removeRow",
     "Database",
     "removeRow",

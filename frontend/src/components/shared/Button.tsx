@@ -5,6 +5,7 @@ const variantClasses = {
   secondary:
     "text-notion-text-secondary hover:bg-notion-hover hover:text-notion-text",
   danger: "text-red-500 hover:bg-red-500/5",
+  info: "text-blue-500 hover:bg-blue-500/5",
 } as const;
 
 const sizeClasses = {

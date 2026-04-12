@@ -77,6 +77,7 @@ const ALLOWED_CHANNELS = new Set([
   "db:database:updateProperty",
   "db:database:removeProperty",
   "db:database:addRow",
+  "db:database:reorderRows",
   "db:database:removeRow",
   "db:database:upsertCell",
   // Routines

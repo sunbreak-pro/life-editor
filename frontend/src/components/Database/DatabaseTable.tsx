@@ -1,6 +1,11 @@
-import { useState, useCallback, useMemo, useRef } from "react";
+import { useState, useCallback, useMemo, createContext } from "react";
 import { useTranslation } from "react-i18next";
-import { Plus, Trash2, GripVertical } from "lucide-react";
+import { Plus, GripVertical } from "lucide-react";
+import { DndContext, DragOverlay, closestCenter } from "@dnd-kit/core";
+import {
+  SortableContext,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
 import type {
   DatabaseProperty,
   DatabaseRow,
@@ -12,13 +17,20 @@ import type {
   SelectOption,
 } from "../../types/database";
 import { CellRenderer } from "./CellRenderer";
-import { CellEditor } from "./CellEditor";
 import { PropertyHeader } from "./PropertyHeader";
 import { AddPropertyPopover } from "./AddPropertyPopover";
 import { AggregationSelector } from "./AggregationSelector";
 import { applyFilters } from "../../utils/databaseFilter";
 import { applySorts } from "../../utils/databaseSort";
 import { computeAggregation } from "../../utils/databaseAggregation";
+import {
+  useDatabaseRowDnd,
+  type DbRowDragOverStore,
+} from "../../hooks/useDatabaseRowDnd";
+import { DatabaseTableRow } from "./DatabaseTableRow";
+
+export const DbRowDragOverStoreContext =
+  createContext<DbRowDragOverStore | null>(null);
 
 interface DatabaseTableProps {
   properties: DatabaseProperty[];
@@ -38,14 +50,23 @@ interface DatabaseTableProps {
   ) => void;
   onRemoveProperty: (propertyId: string) => void;
   onAddRow: () => void;
+  onDuplicateRow: (rowId: string) => void;
+  onReorderRows: (rowIds: string[]) => void;
   onRemoveRow: (rowId: string) => void;
   onUpsertCell: (rowId: string, propertyId: string, value: string) => void;
   getCellValue: (rowId: string, propertyId: string) => string;
+  onPushCellUndo: (
+    rowId: string,
+    propertyId: string,
+    originalValue: string,
+    newValue: string,
+  ) => void;
 }
 
 interface EditingCell {
   rowId: string;
   propertyId: string;
+  originalValue: string;
 }
 
 export function DatabaseTable({
@@ -58,9 +79,12 @@ export function DatabaseTable({
   onUpdateProperty,
   onRemoveProperty,
   onAddRow,
+  onDuplicateRow,
+  onReorderRows,
   onRemoveRow,
   onUpsertCell,
   getCellValue,
+  onPushCellUndo,
 }: DatabaseTableProps) {
   const { t } = useTranslation();
   const [editingCell, setEditingCell] = useState<EditingCell | null>(null);
@@ -69,11 +93,6 @@ export function DatabaseTable({
     y: number;
     propertyId: string;
   } | null>(null);
-
-  // Row drag state
-  const [dragRowId, setDragRowId] = useState<string | null>(null);
-  const [rowOrder, setRowOrder] = useState<string[] | null>(null);
-  const tbodyRef = useRef<HTMLTableSectionElement>(null);
 
   const sortedProperties = useMemo(
     () => [...properties].sort((a, b) => a.order - b.order),
@@ -85,6 +104,18 @@ export function DatabaseTable({
     const filtered = applyFilters(ordered, cells, properties, filters);
     return applySorts(filtered, cells, properties, sorts);
   }, [rows, cells, properties, filters, sorts]);
+
+  const hasSorts = sorts.length > 0;
+
+  const {
+    sensors,
+    activeRow,
+    dragOverStore,
+    handleDragStart,
+    handleDragMove,
+    handleDragEnd,
+    handleDragCancel,
+  } = useDatabaseRowDnd({ rows: displayRows, onReorderRows });
 
   const getOptions = useCallback(
     (propertyId: string): SelectOption[] => {
@@ -98,12 +129,15 @@ export function DatabaseTable({
     (rowId: string, propertyId: string, type: PropertyType) => {
       if (type === "checkbox") {
         const current = getCellValue(rowId, propertyId);
-        onUpsertCell(rowId, propertyId, current === "true" ? "false" : "true");
+        const newValue = current === "true" ? "false" : "true";
+        onUpsertCell(rowId, propertyId, newValue);
+        onPushCellUndo(rowId, propertyId, current, newValue);
       } else {
-        setEditingCell({ rowId, propertyId });
+        const originalValue = getCellValue(rowId, propertyId);
+        setEditingCell({ rowId, propertyId, originalValue });
       }
     },
-    [getCellValue, onUpsertCell],
+    [getCellValue, onUpsertCell, onPushCellUndo],
   );
 
   const handleCellChange = useCallback(
@@ -113,37 +147,21 @@ export function DatabaseTable({
     [onUpsertCell],
   );
 
-  // Row drag handlers
-  const handleRowDragStart = useCallback(
-    (rowId: string) => {
-      setDragRowId(rowId);
-      setRowOrder(displayRows.map((r) => r.id));
+  const handleCellEditClose = useCallback(
+    (rowId: string, propertyId: string, originalValue: string) => {
+      const currentValue = getCellValue(rowId, propertyId);
+      onPushCellUndo(rowId, propertyId, originalValue, currentValue);
+      setEditingCell(null);
     },
-    [displayRows],
+    [getCellValue, onPushCellUndo],
   );
 
-  const handleRowDragOver = useCallback(
-    (targetRowId: string) => {
-      if (!dragRowId || dragRowId === targetRowId || !rowOrder) return;
-      const newOrder = rowOrder.filter((id) => id !== dragRowId);
-      const targetIndex = newOrder.indexOf(targetRowId);
-      newOrder.splice(targetIndex, 0, dragRowId);
-      setRowOrder(newOrder);
-    },
-    [dragRowId, rowOrder],
-  );
-
-  const handleRowDragEnd = useCallback(() => {
-    setDragRowId(null);
-    setRowOrder(null);
-  }, []);
-
-  // Use reordered rows if dragging, otherwise use computed display order
-  const finalRows = useMemo(() => {
-    if (!rowOrder) return displayRows;
-    const map = new Map(displayRows.map((r) => [r.id, r]));
-    return rowOrder.map((id) => map.get(id)).filter(Boolean) as DatabaseRow[];
-  }, [displayRows, rowOrder]);
+  // Column width: equal distribution with min-width guard
+  const colWidthPercent = useMemo(() => {
+    const count = sortedProperties.length;
+    if (count === 0) return "100%";
+    return `${100 / count}%`;
+  }, [sortedProperties.length]);
 
   if (sortedProperties.length === 0 && rows.length === 0) {
     return (
@@ -160,162 +178,162 @@ export function DatabaseTable({
     );
   }
 
+  const isLastProp = (index: number) => index === sortedProperties.length - 1;
+
   return (
     <div className="w-full overflow-x-auto">
-      <table
-        className="border-collapse text-sm"
-        style={{ tableLayout: "fixed" }}
+      <DndContext
+        sensors={sensors}
+        collisionDetection={closestCenter}
+        onDragStart={handleDragStart}
+        onDragMove={handleDragMove}
+        onDragEnd={handleDragEnd}
+        onDragCancel={handleDragCancel}
       >
-        {/* Header */}
-        <thead>
-          <tr>
-            <th className="w-10 !border-none" />
-            {sortedProperties.map((prop) => (
-              <th
-                key={prop.id}
-                className="text-left font-normal"
-                style={{
-                  width: prop.config?.width ?? 120,
-                  minWidth: 60,
-                }}
-              >
-                <PropertyHeader
-                  property={prop}
-                  isFixed={prop.order === 0}
-                  onUpdate={(updates) => onUpdateProperty(prop.id, updates)}
-                  onRemove={() => onRemoveProperty(prop.id)}
-                />
-              </th>
-            ))}
-            <th className="w-8">
-              <AddPropertyPopover onAdd={onAddProperty} />
-            </th>
-          </tr>
-        </thead>
-
-        {/* Body */}
-        <tbody ref={tbodyRef}>
-          {finalRows.map((row) => (
-            <tr
-              key={row.id}
-              className={`group/row hover:bg-notion-hover/50 transition-colors ${dragRowId === row.id ? "opacity-30" : ""}`}
-              onPointerEnter={() => handleRowDragOver(row.id)}
-            >
-              {/* Grip + Add row column */}
-              <td className="w-10 !border-none !p-0">
-                <div className="flex items-center justify-center gap-0 h-8">
-                  <button
-                    type="button"
-                    className="p-0.5 text-notion-text-secondary hover:text-notion-text rounded"
-                    onClick={onAddRow}
-                    title={t("database.newRow")}
-                  >
-                    <Plus size={11} />
-                  </button>
-                  <div
-                    className="p-0.5 text-notion-text-secondary hover:text-notion-text rounded cursor-grab active:cursor-grabbing"
-                    onPointerDown={(e) => {
-                      if (e.button !== 0) return;
-                      e.preventDefault();
-                      e.currentTarget.setPointerCapture(e.pointerId);
-                      handleRowDragStart(row.id);
-                    }}
-                    onPointerUp={handleRowDragEnd}
-                    onPointerCancel={handleRowDragEnd}
-                  >
-                    <GripVertical size={11} />
-                  </div>
-                </div>
-              </td>
-              {sortedProperties.map((prop) => {
-                const isEditing =
-                  editingCell?.rowId === row.id &&
-                  editingCell?.propertyId === prop.id;
-                const value = getCellValue(row.id, prop.id);
-
-                const cellOverflow = prop.config?.overflow ?? "truncate";
-                return (
-                  <td
-                    key={prop.id}
-                    className={`relative cursor-pointer ${cellOverflow === "wrap" ? "min-h-[2rem]" : "h-8"}`}
-                    onClick={() =>
-                      !isEditing && handleCellClick(row.id, prop.id, prop.type)
-                    }
-                  >
-                    {isEditing ? (
-                      <CellEditor
-                        type={prop.type}
-                        value={value}
-                        options={getOptions(prop.id)}
-                        onChange={(v) => handleCellChange(row.id, prop.id, v)}
-                        onClose={() => setEditingCell(null)}
-                      />
-                    ) : (
-                      <div className="px-2 py-1 h-full flex items-center">
-                        <CellRenderer
-                          type={prop.type}
-                          value={value}
-                          options={getOptions(prop.id)}
-                          overflow={cellOverflow}
-                        />
+        <DbRowDragOverStoreContext.Provider value={dragOverStore}>
+          <SortableContext
+            items={displayRows.map((r) => r.id)}
+            strategy={verticalListSortingStrategy}
+          >
+            <table className="w-full border-collapse text-sm">
+              {/* Header */}
+              <thead>
+                <tr>
+                  <th className="w-10 !border-none" />
+                  {sortedProperties.map((prop, i) => (
+                    <th
+                      key={prop.id}
+                      className="text-left font-normal"
+                      style={{
+                        width: colWidthPercent,
+                        minWidth: 60,
+                      }}
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex-1 min-w-0">
+                          <PropertyHeader
+                            property={prop}
+                            isFixed={prop.order === 0}
+                            onUpdate={(updates) =>
+                              onUpdateProperty(prop.id, updates)
+                            }
+                            onRemove={() => onRemoveProperty(prop.id)}
+                          />
+                        </div>
+                        {isLastProp(i) && (
+                          <AddPropertyPopover onAdd={onAddProperty} />
+                        )}
                       </div>
-                    )}
-                  </td>
-                );
-              })}
-              {/* Delete row button */}
-              <td className="w-8 text-center">
-                <button
-                  onClick={() => onRemoveRow(row.id)}
-                  className="p-1 opacity-0 group-hover/row:opacity-100 text-notion-text-secondary hover:text-red-400 transition-opacity"
-                >
-                  <Trash2 size={12} />
-                </button>
-              </td>
-            </tr>
-          ))}
-        </tbody>
+                    </th>
+                  ))}
+                </tr>
+              </thead>
 
-        {/* Aggregation footer */}
-        <tfoot>
-          <tr>
-            <td className="w-10 !border-none" />
-            {sortedProperties.map((prop) => {
-              const agg = prop.config?.aggregation ?? "none";
-              const values = displayRows.map((row) =>
-                getCellValue(row.id, prop.id),
-              );
-              const result =
-                agg !== "none"
-                  ? computeAggregation(agg, prop.type, values)
-                  : "";
-              return (
-                <td
-                  key={prop.id}
-                  className="h-7 cursor-pointer hover:bg-notion-hover/50 transition-colors"
-                  onClick={(e) => {
-                    const rect = e.currentTarget.getBoundingClientRect();
-                    setAggSelector({
-                      x: rect.left,
-                      y: rect.bottom,
-                      propertyId: prop.id,
-                    });
-                  }}
-                >
-                  <div className="px-2 py-1 text-xs text-notion-text-secondary tabular-nums">
-                    {result || (
-                      <span className="opacity-0 group-hover/db-title:opacity-40">
-                        {t("database.aggregation.label")}
-                      </span>
-                    )}
-                  </div>
-                </td>
-              );
-            })}
-            <td className="w-8" />
-          </tr>
-        </tfoot>
-      </table>
+              {/* Body */}
+              <tbody>
+                {displayRows.map((row) => (
+                  <DatabaseTableRow
+                    key={row.id}
+                    row={row}
+                    sortedProperties={sortedProperties}
+                    editingCell={editingCell}
+                    hasSorts={hasSorts}
+                    getCellValue={getCellValue}
+                    getOptions={getOptions}
+                    onCellClick={handleCellClick}
+                    onCellChange={handleCellChange}
+                    onCellEditClose={handleCellEditClose}
+                    onAddRow={onAddRow}
+                    onDuplicateRow={onDuplicateRow}
+                    onRemoveRow={onRemoveRow}
+                  />
+                ))}
+              </tbody>
+
+              {/* Aggregation footer */}
+              <tfoot>
+                <tr>
+                  <td className="w-10 !border-none" />
+                  {sortedProperties.map((prop) => {
+                    const agg = prop.config?.aggregation ?? "none";
+                    const values = displayRows.map((row) =>
+                      getCellValue(row.id, prop.id),
+                    );
+                    const result =
+                      agg !== "none"
+                        ? computeAggregation(agg, prop.type, values)
+                        : "";
+                    return (
+                      <td
+                        key={prop.id}
+                        className="h-7 cursor-pointer hover:bg-notion-hover/50 transition-colors"
+                        onClick={(e) => {
+                          const rect = e.currentTarget.getBoundingClientRect();
+                          setAggSelector({
+                            x: rect.left,
+                            y: rect.bottom,
+                            propertyId: prop.id,
+                          });
+                        }}
+                      >
+                        <div className="px-2 py-1 text-xs text-notion-text-secondary tabular-nums">
+                          {result || (
+                            <span className="opacity-0 group-hover/db-title:opacity-40">
+                              {t("database.aggregation.label")}
+                            </span>
+                          )}
+                        </div>
+                      </td>
+                    );
+                  })}
+                </tr>
+              </tfoot>
+            </table>
+          </SortableContext>
+        </DbRowDragOverStoreContext.Provider>
+
+        {/* Drag overlay — semi-transparent row clone */}
+        <DragOverlay dropAnimation={null}>
+          {activeRow && (
+            <table className="w-full border-collapse text-sm db-row-drag-overlay">
+              <tbody>
+                <tr className="bg-notion-bg">
+                  <td className="w-10 !border-none !p-0">
+                    <div className="flex items-center justify-center gap-0 h-8">
+                      <GripVertical
+                        size={11}
+                        className="text-notion-text-secondary"
+                      />
+                    </div>
+                  </td>
+                  {sortedProperties.map((prop) => {
+                    const value = getCellValue(activeRow.id, prop.id);
+                    const cellOverflow = prop.config?.overflow ?? "truncate";
+                    return (
+                      <td
+                        key={prop.id}
+                        style={{ width: colWidthPercent, minWidth: 60 }}
+                        className={
+                          cellOverflow === "wrap" ? "min-h-[2rem]" : "h-8"
+                        }
+                      >
+                        <div className="px-2 py-1 h-full flex items-center">
+                          <CellRenderer
+                            type={prop.type}
+                            value={value}
+                            options={getOptions(prop.id)}
+                            overflow={cellOverflow}
+                          />
+                        </div>
+                      </td>
+                    );
+                  })}
+                </tr>
+              </tbody>
+            </table>
+          )}
+        </DragOverlay>
+      </DndContext>
 
       {/* Aggregation selector popover */}
       {aggSelector &&

@@ -1097,6 +1097,9 @@ export class ElectronDataService implements DataService {
   ): Promise<DatabaseRow> {
     return invoke("db:database:addRow", id, databaseId, order);
   }
+  reorderDatabaseRows(rowIds: string[]): Promise<void> {
+    return invoke("db:database:reorderRows", rowIds);
+  }
   removeDatabaseRow(id: string): Promise<void> {
     return invoke("db:database:removeRow", id);
   }

@@ -9,10 +9,12 @@ import type {
 import { getDataService } from "../services";
 import { logServiceError } from "../utils/logError";
 import { generateId } from "../utils/generateId";
+import { useUndoRedo } from "./useUndoRedo";
 
 export function useDatabase(databaseId: string | null) {
   const [data, setData] = useState<DatabaseFull | null>(null);
   const [loading, setLoading] = useState(false);
+  const { push: pushUndo } = useUndoRedo();
 
   const load = useCallback(async () => {
     if (!databaseId) {
@@ -127,9 +129,10 @@ export function useDatabase(databaseId: string | null) {
     if (!data) return;
     const id = generateId("dbrow");
     const order = data.rows.length;
+    const dbId = data.database.id;
     const newRow: DatabaseRow = {
       id,
-      databaseId: data.database.id,
+      databaseId: dbId,
       order,
       createdAt: new Date().toISOString(),
     };
@@ -137,23 +140,235 @@ export function useDatabase(databaseId: string | null) {
       prev ? { ...prev, rows: [...prev.rows, newRow] } : null,
     );
     getDataService()
-      .addDatabaseRow(id, data.database.id, order)
+      .addDatabaseRow(id, dbId, order)
       .catch((e) => logServiceError("Database", "addRow", e));
-  }, [data]);
 
-  const removeRow = useCallback((rowId: string) => {
-    setData((prev) => {
-      if (!prev) return null;
-      return {
-        ...prev,
-        rows: prev.rows.filter((r) => r.id !== rowId),
-        cells: prev.cells.filter((c) => c.rowId !== rowId),
-      };
+    pushUndo("database", {
+      label: "addRow",
+      undo: () => {
+        setData((prev) =>
+          prev
+            ? {
+                ...prev,
+                rows: prev.rows.filter((r) => r.id !== id),
+                cells: prev.cells.filter((c) => c.rowId !== id),
+              }
+            : null,
+        );
+        getDataService()
+          .removeDatabaseRow(id)
+          .catch((e) => logServiceError("Database", "undoAddRow", e));
+      },
+      redo: () => {
+        setData((prev) =>
+          prev ? { ...prev, rows: [...prev.rows, newRow] } : null,
+        );
+        getDataService()
+          .addDatabaseRow(id, dbId, order)
+          .catch((e) => logServiceError("Database", "redoAddRow", e));
+      },
     });
-    getDataService()
-      .removeDatabaseRow(rowId)
-      .catch((e) => logServiceError("Database", "removeRow", e));
-  }, []);
+  }, [data, pushUndo]);
+
+  const duplicateRow = useCallback(
+    (rowId: string) => {
+      if (!data) return;
+      const sourceRow = data.rows.find((r) => r.id === rowId);
+      if (!sourceRow) return;
+      const sourceCells = data.cells.filter((c) => c.rowId === rowId);
+
+      const newId = generateId("dbrow");
+      const order = data.rows.length;
+      const dbId = data.database.id;
+      const newRow: DatabaseRow = {
+        id: newId,
+        databaseId: dbId,
+        order,
+        createdAt: new Date().toISOString(),
+      };
+      const newCells = sourceCells.map((c) => ({
+        ...c,
+        id: generateId("dbcell"),
+        rowId: newId,
+      }));
+
+      setData((prev) =>
+        prev
+          ? {
+              ...prev,
+              rows: [...prev.rows, newRow],
+              cells: [...prev.cells, ...newCells],
+            }
+          : null,
+      );
+      getDataService()
+        .addDatabaseRow(newId, dbId, order)
+        .then(() =>
+          Promise.all(
+            newCells.map((c) =>
+              getDataService().upsertDatabaseCell(
+                c.id,
+                c.rowId,
+                c.propertyId,
+                c.value,
+              ),
+            ),
+          ),
+        )
+        .catch((e) => logServiceError("Database", "duplicateRow", e));
+
+      pushUndo("database", {
+        label: "duplicateRow",
+        undo: () => {
+          setData((prev) =>
+            prev
+              ? {
+                  ...prev,
+                  rows: prev.rows.filter((r) => r.id !== newId),
+                  cells: prev.cells.filter((c) => c.rowId !== newId),
+                }
+              : null,
+          );
+          getDataService()
+            .removeDatabaseRow(newId)
+            .catch((e) => logServiceError("Database", "undoDuplicateRow", e));
+        },
+        redo: () => {
+          setData((prev) =>
+            prev
+              ? {
+                  ...prev,
+                  rows: [...prev.rows, newRow],
+                  cells: [...prev.cells, ...newCells],
+                }
+              : null,
+          );
+          getDataService()
+            .addDatabaseRow(newId, dbId, order)
+            .then(() =>
+              Promise.all(
+                newCells.map((c) =>
+                  getDataService().upsertDatabaseCell(
+                    c.id,
+                    c.rowId,
+                    c.propertyId,
+                    c.value,
+                  ),
+                ),
+              ),
+            )
+            .catch((e) => logServiceError("Database", "redoDuplicateRow", e));
+        },
+      });
+    },
+    [data, pushUndo],
+  );
+
+  const reorderRows = useCallback(
+    (rowIds: string[]) => {
+      const previousOrder = data?.rows
+        .slice()
+        .sort((a, b) => a.order - b.order)
+        .map((r) => r.id);
+
+      const applyOrder = (ids: string[]) => {
+        setData((prev) => {
+          if (!prev) return null;
+          const map = new Map(prev.rows.map((r) => [r.id, r]));
+          const reordered = ids
+            .map((id, i) => {
+              const row = map.get(id);
+              return row ? { ...row, order: i } : null;
+            })
+            .filter(Boolean) as typeof prev.rows;
+          return { ...prev, rows: reordered };
+        });
+        getDataService()
+          .reorderDatabaseRows(ids)
+          .catch((e) => logServiceError("Database", "reorderRows", e));
+      };
+
+      applyOrder(rowIds);
+
+      if (previousOrder) {
+        pushUndo("database", {
+          label: "reorderRows",
+          undo: () => applyOrder(previousOrder),
+          redo: () => applyOrder(rowIds),
+        });
+      }
+    },
+    [data, pushUndo],
+  );
+
+  const removeRow = useCallback(
+    (rowId: string) => {
+      if (!data) return;
+      const deletedRow = data.rows.find((r) => r.id === rowId);
+      const deletedCells = data.cells.filter((c) => c.rowId === rowId);
+      if (!deletedRow) return;
+
+      setData((prev) => {
+        if (!prev) return null;
+        return {
+          ...prev,
+          rows: prev.rows.filter((r) => r.id !== rowId),
+          cells: prev.cells.filter((c) => c.rowId !== rowId),
+        };
+      });
+      getDataService()
+        .removeDatabaseRow(rowId)
+        .catch((e) => logServiceError("Database", "removeRow", e));
+
+      pushUndo("database", {
+        label: "removeRow",
+        undo: () => {
+          setData((prev) =>
+            prev
+              ? {
+                  ...prev,
+                  rows: [...prev.rows, deletedRow],
+                  cells: [...prev.cells, ...deletedCells],
+                }
+              : null,
+          );
+          getDataService()
+            .addDatabaseRow(
+              deletedRow.id,
+              deletedRow.databaseId,
+              deletedRow.order,
+            )
+            .then(() =>
+              Promise.all(
+                deletedCells.map((c) =>
+                  getDataService().upsertDatabaseCell(
+                    c.id,
+                    c.rowId,
+                    c.propertyId,
+                    c.value,
+                  ),
+                ),
+              ),
+            )
+            .catch((e) => logServiceError("Database", "undoRemoveRow", e));
+        },
+        redo: () => {
+          setData((prev) => {
+            if (!prev) return null;
+            return {
+              ...prev,
+              rows: prev.rows.filter((r) => r.id !== rowId),
+              cells: prev.cells.filter((c) => c.rowId !== rowId),
+            };
+          });
+          getDataService()
+            .removeDatabaseRow(rowId)
+            .catch((e) => logServiceError("Database", "redoRemoveRow", e));
+        },
+      });
+    },
+    [data, pushUndo],
+  );
 
   const upsertCell = useCallback(
     (rowId: string, propertyId: string, value: string) => {
@@ -201,6 +416,28 @@ export function useDatabase(databaseId: string | null) {
     [data],
   );
 
+  /** Push undo for a committed cell edit (call from CellEditor close) */
+  const pushCellUndo = useCallback(
+    (
+      rowId: string,
+      propertyId: string,
+      originalValue: string,
+      newValue: string,
+    ) => {
+      if (originalValue === newValue) return;
+      pushUndo("database", {
+        label: "editCell",
+        undo: () => {
+          upsertCell(rowId, propertyId, originalValue);
+        },
+        redo: () => {
+          upsertCell(rowId, propertyId, newValue);
+        },
+      });
+    },
+    [pushUndo, upsertCell],
+  );
+
   return useMemo(
     () => ({
       data,
@@ -211,9 +448,12 @@ export function useDatabase(databaseId: string | null) {
       updateProperty,
       removeProperty,
       addRow,
+      duplicateRow,
+      reorderRows,
       removeRow,
       upsertCell,
       getCellValue,
+      pushCellUndo,
     }),
     [
       data,
@@ -224,9 +464,12 @@ export function useDatabase(databaseId: string | null) {
       updateProperty,
       removeProperty,
       addRow,
+      duplicateRow,
+      reorderRows,
       removeRow,
       upsertCell,
       getCellValue,
+      pushCellUndo,
     ],
   );
 }

@@ -140,35 +140,55 @@ export const DragHandle = Extension.create({
             return dom;
           }
 
+          const BLOCK_TAGS = new Set([
+            "P",
+            "DIV",
+            "LI",
+            "H1",
+            "H2",
+            "H3",
+            "H4",
+            "BLOCKQUOTE",
+            "PRE",
+            "UL",
+            "OL",
+            "TABLE",
+          ]);
+          const HANDLE_TOTAL_W = 38; // plus(18) + grip(18) + 2px gap
+
+          /** Check if a DOM element is a block-level element */
+          function isBlockEl(el: HTMLElement): boolean {
+            return (
+              BLOCK_TAGS.has(el.tagName) ||
+              el.hasAttribute("data-node-view-wrapper")
+            );
+          }
+
           /**
            * Get the DOM element for any block (nested or top-level).
-           * For top-level blocks, walks up to editor DOM child.
-           * For nested blocks, uses nodeDOM or domAtPos fallback.
            */
           function getBlockDOM(pos: number, depth: number): HTMLElement | null {
             if (depth <= 1) return getTopBlockDOM(pos);
-            // Try nodeDOM first
+
+            // Primary: use ProseMirror's nodeDOM
             const dom = getDOMForPos(editorView, pos);
             if (dom) return dom;
-            // Fallback: use domAtPos and walk up to find block-level element
+
+            // Fallback: domAtPos + walk up to nearest block element
             try {
-              const { node, offset } = editorView.domAtPos(pos);
-              let el = node instanceof HTMLElement ? node : node.parentElement;
-              // Walk up to a block-level element (p, div, li, etc.)
+              const { node: domNode } = editorView.domAtPos(pos);
+              let el =
+                domNode instanceof HTMLElement
+                  ? domNode
+                  : domNode.parentElement;
               while (el && el !== editorDOM) {
-                const display = getComputedStyle(el).display;
-                if (
-                  display === "block" ||
-                  display === "list-item" ||
-                  display === "flex"
-                ) {
-                  return el;
-                }
+                if (isBlockEl(el)) return el;
                 el = el.parentElement;
               }
             } catch {
               /* ignore */
             }
+
             return null;
           }
 
@@ -183,10 +203,13 @@ export const DragHandle = Extension.create({
             const lineHeight = getFirstLineHeight(blockDOM);
             const firstLineCenterY = blockRect.top + lineHeight / 2;
             handle.style.top = `${firstLineCenterY - containerRect.top - HANDLE_HEIGHT / 2}px`;
-            // Indent handle for nested blocks
-            const handleLeft = blockRect.left - containerRect.left - 40;
-            handle.style.left =
-              depth > 1 ? `${Math.max(0, handleLeft)}px` : "0px";
+
+            // Unified positioning: handle right edge aligns to block left with small gap
+            const GAP = 2;
+            const handleLeft =
+              blockRect.left - containerRect.left - HANDLE_TOTAL_W - GAP;
+            handle.style.left = `${Math.max(0, handleLeft)}px`;
+            plusBtn.style.display = ""; // Always show Plus
             show();
           }
 
@@ -262,8 +285,30 @@ export const DragHandle = Extension.create({
                 null,
                 schema.text("/"),
               );
-              tr.insert(blockEnd, newPara);
-              tr.setSelection(TextSelection.create(tr.doc, blockEnd + 2));
+
+              // Walk up to find a parent that accepts paragraphs
+              let insertPos = blockEnd;
+              try {
+                let $r = state.doc.resolve(insertPos);
+                while ($r.depth > 0) {
+                  if (
+                    $r.parent.canReplaceWith(
+                      $r.index(),
+                      $r.index(),
+                      schema.nodes.paragraph,
+                    )
+                  ) {
+                    break;
+                  }
+                  insertPos = $r.after();
+                  $r = state.doc.resolve(insertPos);
+                }
+              } catch {
+                /* fallback: use blockEnd */
+              }
+
+              tr.insert(insertPos, newPara);
+              tr.setSelection(TextSelection.create(tr.doc, insertPos + 2));
               editorView.dispatch(tr);
               editorView.focus();
             } catch (err) {
@@ -427,11 +472,9 @@ export const DragHandle = Extension.create({
             dragState.closedToggle = false;
 
             dropLine.style.top = `${lineY - containerRect.top}px`;
-            if (target.insideContainer) {
-              dropLine.classList.add("inside-container");
-            } else {
-              dropLine.classList.remove("inside-container");
-            }
+            // Dynamic left based on target block position
+            const leftOffset = blockRect.left - containerRect.left;
+            dropLine.style.left = `${leftOffset}px`;
             dropLine.classList.add("visible");
           }
 
@@ -443,7 +486,7 @@ export const DragHandle = Extension.create({
               .querySelectorAll(".drag-source")
               .forEach((el) => el.classList.remove("drag-source"));
             dropLine.classList.remove("visible");
-            dropLine.classList.remove("inside-container");
+            dropLine.style.left = "";
             editorDOM
               .querySelectorAll(".drag-over-container")
               .forEach((el) => el.classList.remove("drag-over-container"));
@@ -592,19 +635,7 @@ export const DragHandle = Extension.create({
           return {
             update() {
               if (dragState.activePos !== null && dragState.phase === "idle") {
-                const blockDOM = getBlockDOM(
-                  dragState.activePos,
-                  dragState.activeDepth,
-                );
-                if (blockDOM && container.contains(blockDOM)) {
-                  const containerRect = container.getBoundingClientRect();
-                  const blockRect = blockDOM.getBoundingClientRect();
-                  const lineHeight = getFirstLineHeight(blockDOM);
-                  const firstLineCenterY = blockRect.top + lineHeight / 2;
-                  handle.style.top = `${firstLineCenterY - containerRect.top - HANDLE_HEIGHT / 2}px`;
-                } else {
-                  hide();
-                }
+                positionHandle(dragState.activePos, dragState.activeDepth);
               }
             },
             destroy() {

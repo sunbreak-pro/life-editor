@@ -623,6 +623,7 @@ export interface DataService {
     databaseId: string,
     order: number,
   ): Promise<DatabaseRow>;
+  reorderDatabaseRows(rowIds: string[]): Promise<void>;
   removeDatabaseRow(id: string): Promise<void>;
   upsertDatabaseCell(
     id: string,

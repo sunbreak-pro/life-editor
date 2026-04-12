@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from "react";
-import type { TaskNode } from "../../../../types/taskTree";
+import type { TaskNode, TaskStatus } from "../../../../types/taskTree";
 import type { ScheduleItem } from "../../../../types/schedule";
 import { useScheduleContext } from "../../../../hooks/useScheduleContext";
 import { useAutoInProgress } from "../../../../hooks/useAutoInProgress";
@@ -79,6 +79,8 @@ interface OneDayScheduleProps {
   onStartTimer?: (task: TaskNode) => void;
   isDualColumn?: boolean;
   onToggleDualColumn?: () => void;
+  onSetTaskStatus?: (taskId: string, status: TaskStatus) => void;
+  onNavigateToEventsTab?: () => void;
 }
 
 export function OneDaySchedule({
@@ -102,6 +104,8 @@ export function OneDaySchedule({
   onStartTimer,
   isDualColumn,
   onToggleDualColumn,
+  onSetTaskStatus,
+  onNavigateToEventsTab,
 }: OneDayScheduleProps) {
   const {
     scheduleItems,
@@ -721,6 +725,8 @@ export function OneDaySchedule({
               onUpdateTaskAllDay={(taskId, isAllDay) =>
                 updateNode(taskId, { isAllDay })
               }
+              onSetTaskStatus={onSetTaskStatus}
+              onNavigateToEventsTab={onNavigateToEventsTab}
             />
           </div>
         </div>
@@ -938,6 +944,16 @@ export function OneDaySchedule({
               setAllDayTaskPreview(null);
               onNavigateTask?.(taskId, {} as React.MouseEvent);
             }}
+            onToggleStatus={
+              onToggleTaskStatus
+                ? () => onToggleTaskStatus(allDayTaskPreview.task.id)
+                : undefined
+            }
+            onSetStatus={
+              onSetTaskStatus
+                ? (status) => onSetTaskStatus(allDayTaskPreview.task.id, status)
+                : undefined
+            }
             onStartTimer={
               onStartTimer
                 ? () => {
@@ -972,9 +988,10 @@ export function OneDaySchedule({
                     )
                 : undefined
             }
-            onUpdateAllDay={(isAllDay) =>
-              updateNode(allDayTaskPreview.task.id, { isAllDay })
-            }
+            onUpdateAllDay={(isAllDay) => {
+              updateNode(allDayTaskPreview.task.id, { isAllDay });
+              setAllDayTaskPreview(null);
+            }}
             onUpdateTimeMemo={
               onUpdateTaskTimeMemo
                 ? (memo) =>
@@ -1023,11 +1040,20 @@ export function OneDaySchedule({
                 date: newDate,
               })
             }
-            onUpdateAllDay={(isAllDay) =>
-              updateScheduleItem(allDaySchedulePreview.item.id, { isAllDay })
-            }
+            onUpdateAllDay={(isAllDay) => {
+              updateScheduleItem(allDaySchedulePreview.item.id, { isAllDay });
+              setAllDaySchedulePreview(null);
+            }}
             onUpdateTitle={(title) =>
               updateScheduleItem(allDaySchedulePreview.item.id, { title })
+            }
+            onOpenDetail={
+              onNavigateToEventsTab
+                ? () => {
+                    setAllDaySchedulePreview(null);
+                    onNavigateToEventsTab();
+                  }
+                : undefined
             }
             onClose={() => setAllDaySchedulePreview(null)}
           />

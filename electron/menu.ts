@@ -81,6 +81,9 @@ export function createMenu(win: BrowserWindow): void {
     {
       label: "View",
       submenu: [
+        { role: "reload" },
+        { role: "forceReload" },
+        { type: "separator" },
         {
           label: "Toggle Left Sidebar",
           accelerator: "CmdOrCtrl+.",
