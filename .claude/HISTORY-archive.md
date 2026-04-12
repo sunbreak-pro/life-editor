@@ -1,3 +1,17 @@
+### 2026-04-12 - Connect Node Navigation Fix + Edge Dimming + Materials Shortcuts & Settings UI Refresh
+
+#### 概要
+
+Connect Canvas のノードクリックナビゲーション不具合を修正し、ノード選択時のエッジdimming を追加。Materials セクションのショートカットキー (Cmd+5) を追加し、Settings のショートカット設定UIをフル刷新した。
+
+#### 変更点
+
+- **Connect Navigation Fix**: `App.tsx` の `onNavigateToNote` に `setActiveSection("materials")` 追加。`ConnectView.tsx` に `onNavigateToMemo` prop 追加、`setSelectedDate(date)` でメモ日付選択を実装
+- **Edge Dimming**: `TagGraphView.tsx` の `buildNormalEdges()` で manual edges と tag edges に dimming ロジック追加（`relatedNodeIds` に含まれないノードに接続するエッジは `opacity: 0.08`）。`initialEdges` の依存配列に `relatedNodeIds` 追加
+- **nav:materials ショートカット**: `shortcut.ts` に `nav:materials` 追加、`defaultShortcuts.ts` に Cmd+5 定義、`useAppKeyboardShortcuts.ts` にハンドラ追加
+- **Settings Shortcuts UI フル刷新**: `KeyboardShortcuts.tsx` を全面書き換え — HTML table → flex カード型レイアウト、ピル型キーバッジ（修飾キー+キーを個別pill表示）、検索フィルター、カテゴリ折りたたみアコーディオン、個別リセットボタン、キャプチャ中の行ハイライト
+- **i18n**: en.json/ja.json に `goToMaterials`、`searchPlaceholder`、`noResults`、`modified` キー追加
+
 ### 2026-04-12 - Schedule Preview Popup UI Improvements
 
 #### 概要
