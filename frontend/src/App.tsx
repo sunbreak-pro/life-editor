@@ -1,18 +1,29 @@
-import { useState, useRef } from "react";
+import { useState, useRef, lazy, Suspense } from "react";
 import { Layout } from "./components/Layout";
 import type { LayoutHandle } from "./components/Layout";
 import { ScheduleSection } from "./components/Schedule/ScheduleSection";
 import type { ScheduleTab } from "./components/Schedule/ScheduleSection";
 import { useLocalStorage } from "./hooks/useLocalStorage";
-import { WorkScreen } from "./components/Work";
 import { SessionCompletionModal } from "./components/Work/SessionCompletionModal";
-import { Settings } from "./components/Settings";
 import type { SettingsInitialTab } from "./components/Settings";
-import { AnalyticsView } from "./components/Analytics/AnalyticsView";
-import { ConnectView } from "./components/Ideas";
 import { MaterialsView } from "./components/Materials/MaterialsView";
 import { CommandPalette } from "./components/CommandPalette/CommandPalette";
 import { UpdateNotification } from "./components/UpdateNotification";
+
+const WorkScreen = lazy(() =>
+  import("./components/Work").then((m) => ({ default: m.WorkScreen })),
+);
+const Settings = lazy(() =>
+  import("./components/Settings").then((m) => ({ default: m.Settings })),
+);
+const AnalyticsView = lazy(() =>
+  import("./components/Analytics/AnalyticsView").then((m) => ({
+    default: m.AnalyticsView,
+  })),
+);
+const ConnectView = lazy(() =>
+  import("./components/Ideas").then((m) => ({ default: m.ConnectView })),
+);
 import { useTimerContext } from "./hooks/useTimerContext";
 import { useTaskTreeContext } from "./hooks/useTaskTreeContext";
 import { useMemoContext } from "./hooks/useMemoContext";
@@ -140,22 +151,36 @@ function App() {
         return <MaterialsView />;
       case "connect":
         return (
-          <ConnectView
-            onNavigateToNote={() => {
-              localStorage.setItem(STORAGE_KEYS.MATERIALS_TAB, "notes");
-              setActiveSection("materials");
-            }}
-            onNavigateToMemo={() => {
-              setActiveSection("materials");
-            }}
-          />
+          <Suspense fallback={null}>
+            <ConnectView
+              onNavigateToNote={() => {
+                localStorage.setItem(STORAGE_KEYS.MATERIALS_TAB, "notes");
+                setActiveSection("materials");
+              }}
+              onNavigateToMemo={() => {
+                setActiveSection("materials");
+              }}
+            />
+          </Suspense>
         );
       case "work":
-        return <WorkScreen onCompleteTask={handlers.handleCompleteTask} />;
+        return (
+          <Suspense fallback={null}>
+            <WorkScreen onCompleteTask={handlers.handleCompleteTask} />
+          </Suspense>
+        );
       case "analytics":
-        return <AnalyticsView />;
+        return (
+          <Suspense fallback={null}>
+            <AnalyticsView />
+          </Suspense>
+        );
       case "settings":
-        return <Settings initialTab={settingsInitialTab} />;
+        return (
+          <Suspense fallback={null}>
+            <Settings initialTab={settingsInitialTab} />
+          </Suspense>
+        );
       default:
         return null;
     }

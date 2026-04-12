@@ -35,10 +35,11 @@
 
 ## 直近の完了
 
+- Analytics Section Expansion — 6-Tab Multi-Domain Dashboard ✅（2026-04-12）
+- App Optimization Phase 1+2（TaskTree useMemo, Tips削除, React.lazy, BasePreviewPopup統合） ✅（2026-04-12）
 - DayFlow isAllDay トグル無反応バグ修正 ✅（2026-04-12）
-- Connect Node Navigation Fix + Edge Dimming + Materials Shortcuts & Settings UI Refresh ✅（2026-04-12）
-- Schedule Preview Popup UI Improvements（カラーバー・完了CB・ボタン色統一・Open Detail） ✅（2026-04-12）
 
 ## 予定
 
-（なし）
+- App Optimization Phase 3: useScheduleItems分割, EditableTitle共有化, RoutineTimeChangeDialog統合
+- App Optimization Phase 4: TaskNode Map, usePlaylistEngine Effect統合, ColorPicker統合, TaskDetailHeader breadcrumb削除

@@ -115,19 +115,30 @@ export function useTaskTreeAPI() {
     [activeNodes],
   );
 
-  const crud = useTaskTreeCRUD(
+  const {
+    addNode,
+    updateNode,
+    toggleExpanded,
+    toggleTaskStatus,
+    setTaskStatus,
+    completeFolderWithChildren,
+    uncompleteFolder,
+  } = useTaskTreeCRUD(
     nodes,
     guardedPersistWithHistory,
     guardedPersistSilent,
     generateId,
   );
-  const deletion = useTaskTreeDeletion(
+  const { softDelete, restoreNode, permanentDelete } = useTaskTreeDeletion(
     nodes,
     guardedPersistWithHistory,
     guardedPersistSilent,
     clearHistory,
   );
-  const movement = useTaskTreeMovement(nodes, guardedPersistWithHistory);
+  const { moveNode, moveNodeInto, moveToRoot } = useTaskTreeMovement(
+    nodes,
+    guardedPersistWithHistory,
+  );
 
   const getTaskColor = useCallback(
     (taskId: string) => resolveTaskColor(taskId, nodes),
@@ -138,22 +149,62 @@ export function useTaskTreeAPI() {
     [nodes],
   );
 
-  return {
-    nodes: activeNodes,
-    deletedNodes,
-    getChildren,
-    isLoading,
-    error,
-    persistError,
-    getTaskColor,
-    getFolderTagForTask,
-    refetch,
-    undo,
-    redo,
-    canUndo,
-    canRedo,
-    ...crud,
-    ...deletion,
-    ...movement,
-  };
+  return useMemo(
+    () => ({
+      nodes: activeNodes,
+      deletedNodes,
+      getChildren,
+      isLoading,
+      error,
+      persistError,
+      getTaskColor,
+      getFolderTagForTask,
+      refetch,
+      undo,
+      redo,
+      canUndo,
+      canRedo,
+      addNode,
+      updateNode,
+      toggleExpanded,
+      toggleTaskStatus,
+      setTaskStatus,
+      completeFolderWithChildren,
+      uncompleteFolder,
+      softDelete,
+      restoreNode,
+      permanentDelete,
+      moveNode,
+      moveNodeInto,
+      moveToRoot,
+    }),
+    [
+      activeNodes,
+      deletedNodes,
+      getChildren,
+      isLoading,
+      error,
+      persistError,
+      getTaskColor,
+      getFolderTagForTask,
+      refetch,
+      undo,
+      redo,
+      canUndo,
+      canRedo,
+      addNode,
+      updateNode,
+      toggleExpanded,
+      toggleTaskStatus,
+      setTaskStatus,
+      completeFolderWithChildren,
+      uncompleteFolder,
+      softDelete,
+      restoreNode,
+      permanentDelete,
+      moveNode,
+      moveNodeInto,
+      moveToRoot,
+    ],
+  );
 }

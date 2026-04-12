@@ -1,3 +1,34 @@
+### 2026-04-11 - Schedule UI/UX 4件改善 + 終日アイテムプレビューポップアップ
+
+#### 概要
+
+Schedule関連のUI/UXを4件改善: 終日チェックボックスをスライド式トグルに統一、DayFlowの終日イベント表示修正、miniDayFlowのRoutineGroup曜日フィルタ追加、時刻入力をリスト形式ドロップダウンに変更。
+
+#### 変更点
+
+- **ToggleSwitch統一**: `ToggleSwitch.tsx` 共有コンポーネント新規作成（sm/default サイズ対応）。MiniCalendarGrid、ScheduleItemPreviewPopup、TaskPreviewPopup の checkbox を置換。TimeSettingsInline、SystemSettings、BehaviorSettings の private ToggleSwitch を共通コンポーネントに統合
+- **DayFlow終日イベント修正**: `OneDaySchedule.tsx` で `filteredScheduleItems` を `timedScheduleItems` と `allDayScheduleItems` に分離。終日セクションに ScheduleItem pill 表示を追加。`ScheduleTimeGrid.tsx` の `buildUnifiedItems` に `isAllDay` 防御フィルタ追加
+- **RoutineGroupフィルタ**: `MiniTodayFlow.tsx` に `shouldRoutineRunOnDate` による曜日フィルタを追加。グループとルーティン個別の両方で曜日外の表示を抑制
+- **TimeDropdown**: `TimeDropdown.tsx` 新規作成（15分刻みリスト + テキスト入力欄、createPortal、自動スクロール）。ScheduleItemPreviewPopup、TaskPreviewPopup、MiniCalendarGrid、ScheduleItemEditPopup、TimeSettingsInline の TimeInput を置換
+- **終日アイテムプレビューポップアップ**: `OneDaySchedule.tsx` の終日セクションで編集ボタンクリック時に即座に詳細画面遷移せず、`TaskPreviewPopup` / `ScheduleItemPreviewPopup` を表示。終日トグルON/OFF、時刻設定、詳細画面遷移、削除等の操作が可能。ScheduleItem にも編集ボタンを追加
+
+### 2026-04-11 - Per-Item Reminder Feature + TaskPreviewPopup Bug Fix
+
+#### 概要
+
+Task/予定(ScheduleItem)/Routineにアイテム個別のリマインダー機能（ON/OFFトグル + カスタムオフセット）を追加。CalendarのTaskPreviewPopupで`formatTime is not defined`エラーも修正。
+
+#### 変更点
+
+- **Bug Fix**: `TaskPreviewPopup.tsx`に`formatTime`のインポート追加（`timeGridUtils.ts`から）
+- **DB Migration V56**: `tasks`/`schedule_items`/`routines`テーブルに`reminder_enabled`/`reminder_offset`カラム追加
+- **Types**: `TaskNode`/`ScheduleItem`/`RoutineNode`（frontend + electron両方）に`reminderEnabled`/`reminderOffset`追加
+- **Repository Layer**: 3つのRepositoryのRow型、rowTo変換、INSERT/UPDATE SQL更新
+- **ReminderService**: `checkPerItemReminders()`メソッド追加 — per-itemオフセットで通知タイミング判定
+- **Routine→ScheduleItem伝播**: `routineScheduleSync.ts`でRoutineのリマインダー設定を生成ScheduleItemに伝播
+- **UI**: `ReminderToggle.tsx`共有コンポーネント新規作成、TaskDetailPanel/TaskPreviewPopup/ScheduleItemPreviewPopup/RoutineEditDialog/TaskNodeContextMenu/TimeGridContextMenuに統合
+- **i18n**: en.json/ja.jsonに4キー追加
+
 ### 2026-04-11 - Database 機能強化（Feature 2-6）
 
 #### 概要

@@ -1,22 +1,14 @@
-import { useRef, useState, useCallback } from "react";
-import {
-  ExternalLink,
-  Play,
-  Trash2,
-  Clock,
-  CalendarDays,
-  StickyNote,
-  X,
-} from "lucide-react";
+import { useState, useCallback } from "react";
+import { ExternalLink, Clock, CalendarDays, StickyNote, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { formatTime } from "../../../../utils/timeGridUtils";
-import type { TaskNode } from "../../../../types/taskTree";
-import { useClickOutside } from "../../../../hooks/useClickOutside";
-import { ConfirmDialog } from "../../../shared/ConfirmDialog";
+import type { TaskNode, TaskStatus } from "../../../../types/taskTree";
+import { TaskStatusIcon } from "../../TaskTree/TaskStatusIcon";
 import { TimeDropdown } from "../../../shared/TimeDropdown";
 import { DateInput } from "../../../shared/DateInput";
 import { ToggleSwitch } from "../../../shared/ToggleSwitch";
 import { RoleSwitcher } from "../shared/RoleSwitcher";
+import { BasePreviewPopup } from "../shared/BasePreviewPopup";
 import { usePreviewTimeEdit } from "../shared/usePreviewTimeEdit";
 import type { ConversionRole } from "../../../../hooks/useRoleConversion";
 import { ReminderToggle } from "../../../shared/ReminderToggle";
@@ -41,6 +33,8 @@ interface TaskPreviewPopupProps {
   onUpdateAllDay?: (isAllDay: boolean) => void;
   onUpdateTimeMemo?: (memo: string | null) => void;
   onReminderChange?: (enabled: boolean, offset?: number) => void;
+  onToggleStatus?: () => void;
+  onSetStatus?: (status: TaskStatus) => void;
 }
 
 function extractTime(iso: string): string {
@@ -60,7 +54,6 @@ export function TaskPreviewPopup({
   position,
   color,
   onOpenDetail,
-  onStartTimer,
   onDelete,
   onClearSchedule,
   onClose,
@@ -71,9 +64,10 @@ export function TaskPreviewPopup({
   onUpdateAllDay,
   onUpdateTimeMemo,
   onReminderChange,
+  onToggleStatus,
+  onSetStatus,
 }: TaskPreviewPopupProps) {
   const { t } = useTranslation();
-  const ref = useRef<HTMLDivElement>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   const handleTimeChange = useCallback(
@@ -116,27 +110,43 @@ export function TaskPreviewPopup({
     onTitleChange: onUpdateTitle,
   });
 
-  useClickOutside(ref, onClose, !showDeleteConfirm && !isEditing);
-
-  const left = Math.min(position.x, window.innerWidth - 260 - 16);
-  const top = Math.min(position.y, window.innerHeight - 280 - 16);
-
   const scheduledDate = task.scheduledAt ? new Date(task.scheduledAt) : null;
 
   return (
-    <>
-      <div
-        ref={ref}
-        className="fixed z-50 w-64 bg-notion-bg border border-notion-border rounded-lg shadow-xl"
-        style={{ left, top }}
-      >
-        <div className="p-3 space-y-2">
-          {color && (
-            <div
-              className="w-full h-1 rounded-full"
-              style={{ backgroundColor: color }}
-            />
-          )}
+    <BasePreviewPopup
+      position={position}
+      barColor={color}
+      onClose={onClose}
+      disableClickOutside={showDeleteConfirm || isEditing}
+      footer={
+        <>
+          <button
+            onClick={onOpenDetail}
+            className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-xs text-blue-500 hover:bg-blue-500/5 transition-colors"
+          >
+            <ExternalLink size={12} />
+            {t("calendar.openDetail")}
+          </button>
+          <div className="w-px bg-notion-border" />
+          <button
+            onClick={onClearSchedule}
+            className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-xs text-red-500 hover:bg-red-500/5 transition-colors"
+          >
+            <X size={14} />
+            {t("calendar.clearTime", "Clear time")}
+          </button>
+        </>
+      }
+    >
+      <div className="flex items-center gap-2">
+        {onToggleStatus && (
+          <TaskStatusIcon
+            status={(task.status as TaskStatus) ?? "NOT_STARTED"}
+            onClick={onToggleStatus}
+            onSetStatus={onSetStatus}
+          />
+        )}
+        <div className="flex-1 min-w-0">
           {isEditing ? (
             <input
               autoFocus
@@ -164,168 +174,150 @@ export function TaskPreviewPopup({
               {task.title}
             </div>
           )}
-          {/* Date + All-day */}
-          {task.scheduledAt &&
-            scheduledDate &&
-            (onUpdateSchedule || onUpdateAllDay) && (
-              <div className="flex items-center gap-1.5">
-                <CalendarDays
-                  size={10}
-                  className="text-notion-text-secondary shrink-0"
-                />
-                {onUpdateSchedule ? (
-                  <DateInput
-                    year={scheduledDate.getFullYear()}
-                    month={scheduledDate.getMonth() + 1}
-                    day={scheduledDate.getDate()}
-                    onChange={(y, m, d) => {
-                      const newStart = new Date(task.scheduledAt!);
-                      newStart.setFullYear(y, m - 1, d);
-                      const newEnd = task.scheduledEndAt
-                        ? new Date(task.scheduledEndAt)
-                        : undefined;
-                      if (newEnd) newEnd.setFullYear(y, m - 1, d);
-                      onUpdateSchedule(
-                        newStart.toISOString(),
-                        newEnd?.toISOString(),
-                      );
-                    }}
-                    size="sm"
-                  />
-                ) : (
-                  <span className="text-xs text-notion-text-secondary">
-                    {scheduledDate.getMonth() + 1}/{scheduledDate.getDate()}
-                  </span>
-                )}
-                {onUpdateAllDay && (
-                  <div className="flex items-center gap-1 ml-auto">
-                    <ToggleSwitch
-                      checked={!!task.isAllDay}
-                      onChange={(v) => onUpdateAllDay(v)}
-                      size="sm"
-                    />
-                    <span className="text-[10px] text-notion-text-secondary">
-                      {t("calendar.allDay", "All day")}
-                    </span>
-                  </div>
-                )}
-              </div>
-            )}
-
-          {/* Time (hidden when all-day) */}
-          {task.scheduledAt && !task.isAllDay && onUpdateSchedule && (
-            <div className="flex items-center gap-1.5">
-              <Clock
-                size={10}
-                className="text-notion-text-secondary shrink-0"
-              />
-              <TimeDropdown
-                hour={parseInt(editStartTime.split(":")[0], 10)}
-                minute={parseInt(editStartTime.split(":")[1], 10)}
-                onChange={handleStartTimeChange}
-                minuteStep={5}
-                size="sm"
-              />
-              <span className="text-xs text-notion-text-secondary">-</span>
-              <TimeDropdown
-                hour={parseInt(editEndTime.split(":")[0], 10)}
-                minute={parseInt(editEndTime.split(":")[1], 10)}
-                onChange={handleEndTimeChange}
-                minuteStep={5}
-                size="sm"
-              />
-            </div>
-          )}
-          {task.scheduledAt && !task.isAllDay && !onUpdateSchedule && (
-            <div className="text-xs text-notion-text-secondary flex items-center gap-1">
-              <Clock size={10} />
-              {editStartTime} - {editEndTime}
-            </div>
-          )}
-          {/* Memo */}
-          {onUpdateTimeMemo && (
-            <div className="flex items-center gap-1 px-1 py-0.5 rounded border border-notion-border/50">
-              <StickyNote
-                size={10}
-                className="text-notion-text-secondary shrink-0"
-              />
-              <input
-                type="text"
-                defaultValue={task.timeMemo ?? ""}
-                onBlur={(e) => {
-                  const val = e.target.value;
-                  if (val !== (task.timeMemo ?? "")) {
-                    onUpdateTimeMemo(val || null);
-                  }
-                }}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    e.currentTarget.blur();
-                  }
-                }}
-                placeholder="memo..."
-                className="flex-1 text-xs bg-transparent outline-none text-notion-text placeholder:text-notion-text-secondary/50"
-                onClick={(e) => e.stopPropagation()}
-              />
-            </div>
-          )}
-
-          {onReminderChange && (
-            <ReminderToggle
-              enabled={!!task.reminderEnabled}
-              offset={task.reminderOffset ?? 30}
-              onEnabledChange={(enabled) =>
-                onReminderChange(enabled, task.reminderOffset)
-              }
-              onOffsetChange={(offset) =>
-                onReminderChange(!!task.reminderEnabled, offset)
-              }
-              compact
-            />
-          )}
-
-          <div className="flex items-center gap-2">
-            {onConvertRole ? (
-              <RoleSwitcher
-                currentRole="task"
-                disabledRoles={disabledRoles}
-                onSelectRole={onConvertRole}
-              />
-            ) : (
-              <span
-                className={`inline-block px-1.5 py-0.5 text-[10px] rounded-full font-medium ${
-                  task.status === "DONE"
-                    ? "bg-green-100 text-green-700"
-                    : "bg-notion-accent/10 text-notion-accent"
-                }`}
-              >
-                {task.status === "DONE"
-                  ? "DONE"
-                  : task.status === "IN_PROGRESS"
-                    ? "IN PROGRESS"
-                    : "NOT STARTED"}
-              </span>
-            )}
-          </div>
-        </div>
-        <div className="border-t border-notion-border flex">
-          <button
-            onClick={onOpenDetail}
-            className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-xs text-notion-text-secondary hover:bg-notion-hover hover:text-notion-text transition-colors"
-          >
-            <ExternalLink size={12} />
-            {t("calendar.openDetail")}
-          </button>
-          <div className="w-px bg-notion-border" />
-          <button
-            onClick={onClearSchedule}
-            className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-xs text-notion-text-secondary hover:bg-notion-hover hover:text-notion-text transition-colors"
-          >
-            <X size={14} />
-            {t("calendar.clearTime", "Clear time")}
-          </button>
         </div>
       </div>
-    </>
+
+      {/* Date + All-day */}
+      {task.scheduledAt &&
+        scheduledDate &&
+        (onUpdateSchedule || onUpdateAllDay) && (
+          <div className="flex items-center gap-1.5">
+            <CalendarDays
+              size={10}
+              className="text-notion-text-secondary shrink-0"
+            />
+            {onUpdateSchedule ? (
+              <DateInput
+                year={scheduledDate.getFullYear()}
+                month={scheduledDate.getMonth() + 1}
+                day={scheduledDate.getDate()}
+                onChange={(y, m, d) => {
+                  const newStart = new Date(task.scheduledAt!);
+                  newStart.setFullYear(y, m - 1, d);
+                  const newEnd = task.scheduledEndAt
+                    ? new Date(task.scheduledEndAt)
+                    : undefined;
+                  if (newEnd) newEnd.setFullYear(y, m - 1, d);
+                  onUpdateSchedule(
+                    newStart.toISOString(),
+                    newEnd?.toISOString(),
+                  );
+                }}
+                size="sm"
+              />
+            ) : (
+              <span className="text-xs text-notion-text-secondary">
+                {scheduledDate.getMonth() + 1}/{scheduledDate.getDate()}
+              </span>
+            )}
+            {onUpdateAllDay && (
+              <div className="flex items-center gap-1 ml-auto">
+                <ToggleSwitch
+                  checked={!!task.isAllDay}
+                  onChange={(v) => onUpdateAllDay(v)}
+                  size="sm"
+                />
+                <span className="text-[10px] text-notion-text-secondary">
+                  {t("calendar.allDay", "All day")}
+                </span>
+              </div>
+            )}
+          </div>
+        )}
+
+      {/* Time (hidden when all-day) */}
+      {task.scheduledAt && !task.isAllDay && onUpdateSchedule && (
+        <div className="flex items-center gap-1.5">
+          <Clock size={10} className="text-notion-text-secondary shrink-0" />
+          <TimeDropdown
+            hour={parseInt(editStartTime.split(":")[0], 10)}
+            minute={parseInt(editStartTime.split(":")[1], 10)}
+            onChange={handleStartTimeChange}
+            minuteStep={5}
+            size="sm"
+          />
+          <span className="text-xs text-notion-text-secondary">-</span>
+          <TimeDropdown
+            hour={parseInt(editEndTime.split(":")[0], 10)}
+            minute={parseInt(editEndTime.split(":")[1], 10)}
+            onChange={handleEndTimeChange}
+            minuteStep={5}
+            size="sm"
+          />
+        </div>
+      )}
+      {task.scheduledAt && !task.isAllDay && !onUpdateSchedule && (
+        <div className="text-xs text-notion-text-secondary flex items-center gap-1">
+          <Clock size={10} />
+          {editStartTime} - {editEndTime}
+        </div>
+      )}
+
+      {/* Memo */}
+      {onUpdateTimeMemo && (
+        <div className="flex items-center gap-1 px-1 py-0.5 rounded border border-notion-border/50">
+          <StickyNote
+            size={10}
+            className="text-notion-text-secondary shrink-0"
+          />
+          <input
+            type="text"
+            defaultValue={task.timeMemo ?? ""}
+            onBlur={(e) => {
+              const val = e.target.value;
+              if (val !== (task.timeMemo ?? "")) {
+                onUpdateTimeMemo(val || null);
+              }
+            }}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.currentTarget.blur();
+              }
+            }}
+            placeholder="memo..."
+            className="flex-1 text-xs bg-transparent outline-none text-notion-text placeholder:text-notion-text-secondary/50"
+            onClick={(e) => e.stopPropagation()}
+          />
+        </div>
+      )}
+
+      {onReminderChange && (
+        <ReminderToggle
+          enabled={!!task.reminderEnabled}
+          offset={task.reminderOffset ?? 30}
+          onEnabledChange={(enabled) =>
+            onReminderChange(enabled, task.reminderOffset)
+          }
+          onOffsetChange={(offset) =>
+            onReminderChange(!!task.reminderEnabled, offset)
+          }
+          compact
+        />
+      )}
+
+      <div className="flex items-center gap-2">
+        {onConvertRole ? (
+          <RoleSwitcher
+            currentRole="task"
+            disabledRoles={disabledRoles}
+            onSelectRole={onConvertRole}
+          />
+        ) : (
+          <span
+            className={`inline-block px-1.5 py-0.5 text-[10px] rounded-full font-medium ${
+              task.status === "DONE"
+                ? "bg-green-100 text-green-700"
+                : "bg-notion-accent/10 text-notion-accent"
+            }`}
+          >
+            {task.status === "DONE"
+              ? "DONE"
+              : task.status === "IN_PROGRESS"
+                ? "IN PROGRESS"
+                : "NOT STARTED"}
+          </span>
+        )}
+      </div>
+    </BasePreviewPopup>
   );
 }
