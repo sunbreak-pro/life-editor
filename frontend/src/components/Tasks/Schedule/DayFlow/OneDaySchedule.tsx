@@ -18,7 +18,7 @@ import { RoutineEditDialog } from "../Routine/RoutineEditDialog";
 import { RoutineGroupEditDialog } from "../Routine/RoutineGroupEditDialog";
 import type { RoutineNode } from "../../../../types/routine";
 import type { RoutineGroup } from "../../../../types/routineGroup";
-import { RoutineTimeChangeDialog } from "./RoutineTimeChangeDialog";
+import { RoutineTimeChangeDialog } from "../shared/RoutineTimeChangeDialog";
 import { TaskPreviewPopup } from "../Calendar/TaskPreviewPopup";
 import { ScheduleItemPreviewPopup } from "./ScheduleItemPreviewPopup";
 import type { TabItem } from "../../../shared/SectionTabs";

@@ -16,14 +16,12 @@ interface TaskDetailProps {
   onScheduledAtChange?: (scheduledAt: string | undefined) => void;
   onScheduledEndAtChange?: (scheduledEndAt: string | undefined) => void;
   onIsAllDayChange?: (isAllDay: boolean) => void;
-  onFolderColorChange?: (folderId: string, color: string) => void;
+  onNodeIconChange?: (nodeId: string, icon: string | undefined) => void;
   onTitleChange?: (newTitle: string) => void;
   onTimeMemoChange?: (value: string | undefined) => void;
   onPriorityChange?: (priority: Priority | null) => void;
   onReminderEnabledChange?: (enabled: boolean) => void;
   onReminderOffsetChange?: (offset: number) => void;
-  folderTag?: string;
-  taskColor?: string;
 }
 
 export function TaskDetail({
@@ -37,14 +35,12 @@ export function TaskDetail({
   onScheduledAtChange,
   onScheduledEndAtChange,
   onIsAllDayChange,
-  onFolderColorChange,
+  onNodeIconChange,
   onTitleChange,
   onTimeMemoChange,
   onPriorityChange,
   onReminderEnabledChange,
   onReminderOffsetChange,
-  folderTag,
-  taskColor,
 }: TaskDetailProps) {
   if (!task) {
     return <EmptyState />;
@@ -63,14 +59,12 @@ export function TaskDetail({
           onScheduledAtChange={onScheduledAtChange}
           onScheduledEndAtChange={onScheduledEndAtChange}
           onIsAllDayChange={onIsAllDayChange}
-          onFolderColorChange={onFolderColorChange}
+          onNodeIconChange={onNodeIconChange}
           onTitleChange={onTitleChange}
           onTimeMemoChange={onTimeMemoChange}
           onPriorityChange={onPriorityChange}
           onReminderEnabledChange={onReminderEnabledChange}
           onReminderOffsetChange={onReminderOffsetChange}
-          folderTag={folderTag}
-          taskColor={taskColor}
         />
         <div className="mt-6">
           <Suspense fallback={<div className="min-h-50" />}>

@@ -23,6 +23,8 @@ export function usePaperBoard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const loadedBoardRef = useRef<string | null>(null);
+  const nodesRef = useRef(nodes);
+  nodesRef.current = nodes;
 
   // Persist active board id
   useEffect(() => {
@@ -230,9 +232,19 @@ export function usePaperBoard() {
         parentNodeId: string | null;
       }>,
     ) => {
+      // Capture before-state for undo
+      const beforeState = updates.map((u) => {
+        const current = nodesRef.current.find((n) => n.id === u.id);
+        return {
+          id: u.id,
+          positionX: current?.positionX ?? u.positionX,
+          positionY: current?.positionY ?? u.positionY,
+          parentNodeId: current?.parentNodeId ?? null,
+        };
+      });
+
       const ds = getDataService();
       await ds.bulkUpdatePaperNodePositions(updates);
-      // Optimistic update
       setNodes((prev) => {
         const updateMap = new Map(updates.map((u) => [u.id, u]));
         return prev.map((n) => {
@@ -246,8 +258,46 @@ export function usePaperBoard() {
           };
         });
       });
+
+      push("paper", {
+        label: "Move nodes",
+        undo: async () => {
+          const ds = getDataService();
+          await ds.bulkUpdatePaperNodePositions(beforeState);
+          setNodes((prev) => {
+            const map = new Map(beforeState.map((u) => [u.id, u]));
+            return prev.map((n) => {
+              const u = map.get(n.id);
+              if (!u) return n;
+              return {
+                ...n,
+                positionX: u.positionX,
+                positionY: u.positionY,
+                parentNodeId: u.parentNodeId,
+              };
+            });
+          });
+        },
+        redo: async () => {
+          const ds = getDataService();
+          await ds.bulkUpdatePaperNodePositions(updates);
+          setNodes((prev) => {
+            const map = new Map(updates.map((u) => [u.id, u]));
+            return prev.map((n) => {
+              const u = map.get(n.id);
+              if (!u) return n;
+              return {
+                ...n,
+                positionX: u.positionX,
+                positionY: u.positionY,
+                parentNodeId: u.parentNodeId,
+              };
+            });
+          });
+        },
+      });
     },
-    [],
+    [push],
   );
 
   const deleteNode = useCallback(
@@ -467,6 +517,132 @@ export function usePaperBoard() {
     [],
   );
 
+  const bulkUpdateLayerOrder = useCallback(
+    async (
+      zIndexUpdates: Array<{
+        id: string;
+        zIndex: number;
+        parentNodeId: string | null;
+      }>,
+      positionUpdates: Array<{
+        id: string;
+        positionX: number;
+        positionY: number;
+        parentNodeId: string | null;
+      }>,
+    ) => {
+      // Capture before-state for undo
+      const currentNodes = nodesRef.current;
+      const beforeZIndex = zIndexUpdates.map((u) => {
+        const current = currentNodes.find((n) => n.id === u.id);
+        return {
+          id: u.id,
+          zIndex: current?.zIndex ?? u.zIndex,
+          parentNodeId: current?.parentNodeId ?? null,
+        };
+      });
+      const beforePositions = positionUpdates.map((u) => {
+        const current = currentNodes.find((n) => n.id === u.id);
+        return {
+          id: u.id,
+          positionX: current?.positionX ?? u.positionX,
+          positionY: current?.positionY ?? u.positionY,
+          parentNodeId: current?.parentNodeId ?? null,
+        };
+      });
+
+      const ds = getDataService();
+      const promises: Promise<void>[] = [
+        ds.bulkUpdatePaperNodeZIndices(zIndexUpdates),
+      ];
+      if (positionUpdates.length > 0) {
+        promises.push(ds.bulkUpdatePaperNodePositions(positionUpdates));
+      }
+      await Promise.all(promises);
+
+      // Optimistic update for both z-index and positions
+      setNodes((prev) => {
+        const zMap = new Map(zIndexUpdates.map((u) => [u.id, u]));
+        const pMap = new Map(positionUpdates.map((u) => [u.id, u]));
+        return prev.map((n) => {
+          const z = zMap.get(n.id);
+          const p = pMap.get(n.id);
+          if (!z && !p) return n;
+          return {
+            ...n,
+            ...(z && { zIndex: z.zIndex, parentNodeId: z.parentNodeId }),
+            ...(p && {
+              positionX: p.positionX,
+              positionY: p.positionY,
+              parentNodeId: p.parentNodeId,
+            }),
+          };
+        });
+      });
+
+      push("paper", {
+        label: "Reorder layers",
+        undo: async () => {
+          const ds = getDataService();
+          const undoPromises: Promise<void>[] = [
+            ds.bulkUpdatePaperNodeZIndices(beforeZIndex),
+          ];
+          if (beforePositions.length > 0) {
+            undoPromises.push(ds.bulkUpdatePaperNodePositions(beforePositions));
+          }
+          await Promise.all(undoPromises);
+          setNodes((prev) => {
+            const zMap = new Map(beforeZIndex.map((u) => [u.id, u]));
+            const pMap = new Map(beforePositions.map((u) => [u.id, u]));
+            return prev.map((n) => {
+              const z = zMap.get(n.id);
+              const p = pMap.get(n.id);
+              if (!z && !p) return n;
+              return {
+                ...n,
+                ...(z && { zIndex: z.zIndex, parentNodeId: z.parentNodeId }),
+                ...(p && {
+                  positionX: p.positionX,
+                  positionY: p.positionY,
+                  parentNodeId: p.parentNodeId,
+                }),
+              };
+            });
+          });
+        },
+        redo: async () => {
+          const ds = getDataService();
+          const redoPromises: Promise<void>[] = [
+            ds.bulkUpdatePaperNodeZIndices(zIndexUpdates),
+          ];
+          if (positionUpdates.length > 0) {
+            redoPromises.push(ds.bulkUpdatePaperNodePositions(positionUpdates));
+          }
+          await Promise.all(redoPromises);
+          setNodes((prev) => {
+            const zMap = new Map(zIndexUpdates.map((u) => [u.id, u]));
+            const pMap = new Map(positionUpdates.map((u) => [u.id, u]));
+            return prev.map((n) => {
+              const z = zMap.get(n.id);
+              const p = pMap.get(n.id);
+              if (!z && !p) return n;
+              return {
+                ...n,
+                ...(z && { zIndex: z.zIndex, parentNodeId: z.parentNodeId }),
+                ...(p && {
+                  positionX: p.positionX,
+                  positionY: p.positionY,
+                  parentNodeId: p.parentNodeId,
+                }),
+              };
+            });
+          });
+        },
+      });
+    },
+    [push],
+  );
+
   const duplicateNode = useCallback(
     async (nodeId: string) => {
       const original = nodes.find((n) => n.id === nodeId);
@@ -542,6 +718,7 @@ export function usePaperBoard() {
     reloadBoardData,
     updateNodeZIndex,
     bulkUpdateZIndices,
+    bulkUpdateLayerOrder,
     duplicateNode,
     toggleNodeHidden,
   };

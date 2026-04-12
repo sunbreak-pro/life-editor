@@ -1,4 +1,5 @@
 import { memo, useCallback, useRef, useState } from "react";
+import { EditableTitle } from "../shared/EditableTitle";
 import { useSortable } from "@dnd-kit/sortable";
 import {
   GripVertical,
@@ -55,7 +56,6 @@ export const NoteTreeNode = memo(function NoteTreeNode({
     y: number;
   } | null>(null);
   const [isEditing, setIsEditing] = useState(false);
-  const [editValue, setEditValue] = useState("");
   const [showIconPicker, setShowIconPicker] = useState(false);
   const iconRef = useRef<HTMLDivElement>(null);
 
@@ -81,35 +81,22 @@ export const NoteTreeNode = memo(function NoteTreeNode({
   }, []);
 
   const handleStartRename = useCallback(() => {
-    setEditValue(node.title);
     setIsEditing(true);
-  }, [node.title]);
+  }, []);
 
-  const handleSaveRename = useCallback(() => {
-    const trimmed = editValue.trim();
-    if (trimmed && trimmed !== node.title && onRename) {
-      onRename(node.id, trimmed);
-    }
-    setIsEditing(false);
-  }, [editValue, node.id, node.title, onRename]);
+  const handleSaveRename = useCallback(
+    (trimmed: string) => {
+      if (trimmed !== node.title && onRename) {
+        onRename(node.id, trimmed);
+      }
+      setIsEditing(false);
+    },
+    [node.id, node.title, onRename],
+  );
 
   const handleCancelRename = useCallback(() => {
     setIsEditing(false);
   }, []);
-
-  const handleRenameKeyDown = useCallback(
-    (e: React.KeyboardEvent) => {
-      if (e.nativeEvent.isComposing) return;
-      if (e.key === "Enter") {
-        e.preventDefault();
-        handleSaveRename();
-      } else if (e.key === "Escape") {
-        e.preventDefault();
-        handleCancelRename();
-      }
-    },
-    [handleSaveRename, handleCancelRename],
-  );
 
   const handleOpenIconPicker = useCallback(() => {
     setShowIconPicker(true);
@@ -200,16 +187,12 @@ export const NoteTreeNode = memo(function NoteTreeNode({
 
         {/* Title or inline editor */}
         {isEditing ? (
-          <input
-            type="text"
-            value={editValue}
-            onChange={(e) => setEditValue(e.target.value)}
-            onBlur={handleSaveRename}
-            onKeyDown={handleRenameKeyDown}
-            autoFocus
-            onFocus={(e) => e.target.select()}
+          <EditableTitle
+            value={node.title}
+            onSave={handleSaveRename}
+            onCancel={handleCancelRename}
+            checkComposing
             className="flex-1 min-w-0 bg-transparent border-b border-notion-border outline-none text-[13px] text-notion-text px-0.5"
-            maxLength={255}
           />
         ) : (
           <span className="truncate flex-1 min-w-0">

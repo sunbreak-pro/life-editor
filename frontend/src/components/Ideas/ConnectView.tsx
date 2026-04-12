@@ -218,7 +218,7 @@ export function ConnectView({
             paperNodes={paper.nodes}
             selectedNodeIds={canvasSelectedNodeIds}
             onSelectNode={(nodeId) => setCanvasSelectedNodeIds([nodeId])}
-            onBulkUpdateZIndices={paper.bulkUpdateZIndices}
+            onBulkUpdateLayerOrder={paper.bulkUpdateLayerOrder}
             onDeleteNode={paper.deleteNode}
             onUpdateNode={paper.updateNode}
             onDuplicateNode={paper.duplicateNode}

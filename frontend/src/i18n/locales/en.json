@@ -1432,6 +1432,7 @@
     "memo": "Memo",
     "memoPlaceholder": "Add a memo...",
     "folderColor": "Folder Color",
+    "folderIcon": "Change icon",
     "schedule": "Schedule",
     "duration": "Duration",
     "noSelection": "Select a task or folder to view details",

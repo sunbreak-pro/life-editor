@@ -1432,6 +1432,7 @@
     "memo": "メモ",
     "memoPlaceholder": "メモを追加...",
     "folderColor": "フォルダカラー",
+    "folderIcon": "アイコンを変更",
     "schedule": "スケジュール",
     "duration": "作業時間",
     "noSelection": "タスクまたはフォルダを選択して詳細を表示",

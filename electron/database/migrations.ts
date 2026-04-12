@@ -1896,5 +1896,11 @@ function migrateV56(db: Database.Database): void {
     `);
     db.pragma("user_version = 56");
   });
+
+  // v57: Add icon field to tasks
+  registerMigration(57, () => {
+    db.exec(`ALTER TABLE tasks ADD COLUMN icon TEXT`);
+    db.pragma("user_version = 57");
+  });
   migrate();
 }

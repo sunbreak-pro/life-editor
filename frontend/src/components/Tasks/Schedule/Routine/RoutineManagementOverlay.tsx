@@ -17,7 +17,7 @@ import type { RoutineTag } from "../../../../types/routineTag";
 import type { RoutineGroup } from "../../../../types/routineGroup";
 import { RoutineEditDialog } from "./RoutineEditDialog";
 import { RoutineGroupEditDialog } from "./RoutineGroupEditDialog";
-import { RoutineEditTimeChangeDialog } from "./RoutineEditTimeChangeDialog";
+import { RoutineTimeChangeDialog } from "../shared/RoutineTimeChangeDialog";
 import { RoutineTagManager } from "./RoutineTagManager";
 import { getTextColorForBg } from "../../../../constants/folderColors";
 import {
@@ -723,10 +723,12 @@ export function RoutineManagementOverlay({
       )}
 
       {pendingTimeChange && (
-        <RoutineEditTimeChangeDialog
+        <RoutineTimeChangeDialog
           routineTitle={pendingTimeChange.routineTitle}
-          newTime={`${pendingTimeChange.startTime ?? "?"} - ${pendingTimeChange.endTime ?? "?"}`}
-          onTemplateOnly={() => {
+          newStartTime={pendingTimeChange.startTime ?? "?"}
+          newEndTime={pendingTimeChange.endTime ?? "?"}
+          zIndex={60}
+          onThisOnly={() => {
             // Update routine time (sync will propagate to future items)
             onUpdateRoutine(pendingTimeChange.routineId, {
               startTime: pendingTimeChange.startTime,
@@ -734,7 +736,7 @@ export function RoutineManagementOverlay({
             });
             setPendingTimeChange(null);
           }}
-          onApplyToAll={() => {
+          onApplyToRoutine={() => {
             // Update routine time and let sync propagate to schedule items
             onUpdateRoutine(pendingTimeChange.routineId, {
               startTime: pendingTimeChange.startTime,

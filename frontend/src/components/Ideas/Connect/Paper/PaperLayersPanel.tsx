@@ -29,10 +29,16 @@ interface PaperLayersPanelProps {
   nodes: PaperNode[];
   selectedNodeIds: string[];
   onSelectNode: (nodeId: string) => void;
-  onBulkUpdateZIndices: (
-    updates: Array<{
+  onBulkUpdateLayerOrder: (
+    zIndexUpdates: Array<{
       id: string;
       zIndex: number;
+      parentNodeId: string | null;
+    }>,
+    positionUpdates: Array<{
+      id: string;
+      positionX: number;
+      positionY: number;
       parentNodeId: string | null;
     }>,
   ) => Promise<void>;
@@ -260,7 +266,7 @@ export function PaperLayersPanel({
   nodes,
   selectedNodeIds,
   onSelectNode,
-  onBulkUpdateZIndices,
+  onBulkUpdateLayerOrder,
   onDeleteNode,
   onUpdateNode,
   onDuplicateNode,
@@ -305,7 +311,7 @@ export function PaperLayersPanel({
     nodes,
     topLevel,
     childrenMap,
-    bulkUpdateZIndices: onBulkUpdateZIndices,
+    bulkUpdateLayerOrder: onBulkUpdateLayerOrder,
   });
 
   const handleStartRename = useCallback((nodeId: string) => {

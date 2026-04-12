@@ -1,6 +1,13 @@
-import { useState, useRef, useEffect } from "react";
-import type { KeyboardEvent } from "react";
-import { Play, Trash2, Clock, StickyNote } from "lucide-react";
+import { useState, useRef } from "react";
+import { EditableTitle } from "../../shared/EditableTitle";
+import {
+  Play,
+  Trash2,
+  Clock,
+  StickyNote,
+  ChevronRight,
+  Folder,
+} from "lucide-react";
 import { useTranslation } from "react-i18next";
 import type { TaskNode } from "../../../types/taskTree";
 import type { Priority } from "../../../types/priority";
@@ -9,9 +16,9 @@ import { getAncestors } from "../../../utils/breadcrumb";
 import { DurationPicker } from "../../shared/DurationPicker";
 import { formatDuration } from "../../../utils/duration";
 import { DateTimeRangePicker } from "../Schedule/shared/DateTimeRangePicker";
-import { FolderTag } from "../Folder/FolderTag";
-import { UnifiedColorPicker } from "../../shared/UnifiedColorPicker";
 import { ReminderToggle } from "../../shared/ReminderToggle";
+import { IconPicker } from "../../common/IconPicker";
+import { renderIcon } from "../../../utils/iconRenderer";
 
 interface TaskDetailHeaderProps {
   task: TaskNode;
@@ -23,14 +30,12 @@ interface TaskDetailHeaderProps {
   onScheduledAtChange?: (scheduledAt: string | undefined) => void;
   onScheduledEndAtChange?: (scheduledEndAt: string | undefined) => void;
   onIsAllDayChange?: (isAllDay: boolean) => void;
-  onFolderColorChange?: (folderId: string, color: string) => void;
+  onNodeIconChange?: (nodeId: string, icon: string | undefined) => void;
   onTitleChange?: (newTitle: string) => void;
   onTimeMemoChange?: (value: string | undefined) => void;
   onPriorityChange?: (priority: Priority | null) => void;
   onReminderEnabledChange?: (enabled: boolean) => void;
   onReminderOffsetChange?: (offset: number) => void;
-  folderTag?: string;
-  taskColor?: string;
 }
 
 export function TaskDetailHeader({
@@ -43,60 +48,30 @@ export function TaskDetailHeader({
   onScheduledAtChange,
   onScheduledEndAtChange,
   onIsAllDayChange,
-  onFolderColorChange,
+  onNodeIconChange,
   onTitleChange,
   onTimeMemoChange,
   onPriorityChange,
   onReminderEnabledChange,
   onReminderOffsetChange,
-  folderTag,
-  taskColor,
 }: TaskDetailHeaderProps) {
   const { t } = useTranslation();
   const [showDurationPicker, setShowDurationPicker] = useState(false);
-  const [colorPickerAncestorId, setColorPickerAncestorId] = useState<
-    string | null
-  >(null);
+  const [iconPickerNodeId, setIconPickerNodeId] = useState<string | null>(null);
+  const iconBtnRef = useRef<HTMLButtonElement>(null);
   const [isEditingTitle, setIsEditingTitle] = useState(false);
-  const [editTitleValue, setEditTitleValue] = useState(task.title);
-  const titleInputRef = useRef<HTMLInputElement>(null);
   const [prevTaskId, setPrevTaskId] = useState(task.id);
 
   if (prevTaskId !== task.id) {
     setPrevTaskId(task.id);
     setIsEditingTitle(false);
-    setEditTitleValue(task.title);
   }
 
-  const startEditing = () => {
-    setEditTitleValue(task.title);
-    setIsEditingTitle(true);
-  };
-
-  useEffect(() => {
-    if (isEditingTitle && titleInputRef.current) {
-      titleInputRef.current.focus();
-      titleInputRef.current.select();
-    }
-  }, [isEditingTitle]);
-
-  const handleTitleSave = () => {
-    const trimmed = editTitleValue.trim();
-    if (trimmed && trimmed !== task.title) {
+  const handleTitleSave = (trimmed: string) => {
+    if (trimmed !== task.title) {
       onTitleChange?.(trimmed);
-    } else {
-      setEditTitleValue(task.title);
     }
     setIsEditingTitle(false);
-  };
-
-  const handleTitleKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
-    e.stopPropagation();
-    if (e.key === "Enter") handleTitleSave();
-    if (e.key === "Escape") {
-      setEditTitleValue(task.title);
-      setIsEditingTitle(false);
-    }
   };
   const ancestors = getAncestors(task.id, allNodes);
   const duration = task.workDurationMinutes ?? globalWorkDuration;
@@ -105,66 +80,63 @@ export function TaskDetailHeader({
   return (
     <div className="space-y-3 pb-4 border-b border-notion-border">
       {ancestors.length > 0 && (
-        <div className="flex items-center gap-2">
-          <div className="flex items-center gap-1.5 text-xs text-notion-text-secondary">
-            {ancestors.map((ancestor, i) => (
-              <span
-                key={ancestor.id}
-                className="flex items-center gap-1.5 relative"
+        <div className="flex items-center gap-1 text-xs text-notion-text-secondary overflow-x-auto">
+          {ancestors.map((ancestor, i) => (
+            <div key={ancestor.id} className="flex items-center gap-1 shrink-0">
+              {i > 0 && (
+                <ChevronRight
+                  size={12}
+                  className="text-notion-text-secondary"
+                />
+              )}
+              <button
+                ref={iconPickerNodeId === ancestor.id ? iconBtnRef : undefined}
+                onClick={(e) => {
+                  if (!onNodeIconChange) return;
+                  e.stopPropagation();
+                  setIconPickerNodeId(
+                    iconPickerNodeId === ancestor.id ? null : ancestor.id,
+                  );
+                }}
+                className="flex items-center gap-1 px-1.5 py-0.5 rounded hover:bg-notion-hover transition-colors"
               >
-                {i > 0 && <span>/</span>}
-                {ancestor.type === "folder" && onFolderColorChange ? (
-                  <>
-                    <button
-                      onClick={() =>
-                        setColorPickerAncestorId(
-                          colorPickerAncestorId === ancestor.id
-                            ? null
-                            : ancestor.id,
-                        )
-                      }
-                      className="hover:text-notion-text transition-colors cursor-pointer"
-                    >
-                      <FolderTag tag={ancestor.title} color={ancestor.color} />
-                    </button>
-                    {colorPickerAncestorId === ancestor.id && (
-                      <UnifiedColorPicker
-                        color={ancestor.color ?? ""}
-                        onChange={(color) =>
-                          onFolderColorChange(ancestor.id, color)
-                        }
-                        onClose={() => setColorPickerAncestorId(null)}
-                      />
-                    )}
-                  </>
+                {ancestor.icon ? (
+                  renderIcon(ancestor.icon, { size: 13 })
                 ) : (
-                  <span>{ancestor.title}</span>
+                  <Folder size={13} />
                 )}
-              </span>
-            ))}
-          </div>
-        </div>
-      )}
-      {!ancestors.length && folderTag && (
-        <div className="flex items-center">
-          <FolderTag tag={folderTag} color={taskColor} />
+                <span>{ancestor.title}</span>
+              </button>
+              {iconPickerNodeId === ancestor.id && (
+                <IconPicker
+                  value={ancestor.icon}
+                  onSelect={(iconName) => {
+                    onNodeIconChange?.(ancestor.id, iconName);
+                    setIconPickerNodeId(null);
+                  }}
+                  onClose={() => setIconPickerNodeId(null)}
+                  anchorRect={iconBtnRef.current?.getBoundingClientRect()}
+                  onRemove={() => {
+                    onNodeIconChange?.(ancestor.id, undefined);
+                    setIconPickerNodeId(null);
+                  }}
+                />
+              )}
+            </div>
+          ))}
         </div>
       )}
       {isEditingTitle ? (
-        <input
-          ref={titleInputRef}
-          type="text"
-          value={editTitleValue}
-          onChange={(e) => setEditTitleValue(e.target.value)}
-          onBlur={handleTitleSave}
-          onKeyDown={handleTitleKeyDown}
-          maxLength={255}
+        <EditableTitle
+          value={task.title}
+          onSave={handleTitleSave}
+          onCancel={() => setIsEditingTitle(false)}
           className="text-2xl font-bold bg-transparent outline-none border-b border-notion-accent w-full text-notion-text"
         />
       ) : (
         <h1
           className="text-2xl font-bold text-notion-text cursor-pointer hover:bg-notion-hover/50 rounded px-1 -mx-1 transition-colors"
-          onClick={() => startEditing()}
+          onClick={() => setIsEditingTitle(true)}
         >
           {task.title}
         </h1>

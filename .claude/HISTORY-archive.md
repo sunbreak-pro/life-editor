@@ -1,3 +1,18 @@
+### 2026-04-12 - Schedule Preview Popup UI Improvements
+
+#### 概要
+
+Schedule/Calendar の全プレビューポップアップにヘッダーカラーバー・完了チェックボックス・TaskStatusIcon を追加し、フッターボタンの色を統一（Open Detail=青、削除/リセット=赤）。Event の「完了する」ボタンを「Open Detail」（Events タブ遷移）に置換。
+
+#### 変更点
+
+- **ScheduleItemPreviewPopup**: ヘッダーにカラーバー追加（Event=紫 `#8B5CF6`、Routine=緑 `#10B981`）。タイトル左に `RoundedCheckbox` 追加（Event/Routine 両方）。フッター「完了する」→「Open Detail」(青) に置換、`onOpenDetail` prop 追加
+- **TaskPreviewPopup**: タイトル左に `TaskStatusIcon`（3段階: NOT_STARTED/IN_PROGRESS/DONE）追加。`onToggleStatus`/`onSetStatus` props 追加。「Open Detail」→青、「Clear time」→赤に色変更
+- **MemoPreviewPopup**: 「Open Detail」ボタンを `variant="info"` (青) に変更
+- **GroupPreviewPopup (CalendarView内)**: グループ色のヘッダーカラーバー追加
+- **Button.tsx**: `info` variant (`text-blue-500 hover:bg-blue-500/5`) 追加
+- **親コンポーネント配線**: ScheduleSection に `handleSetTaskStatus` 追加（undo 対応）。CalendarView / ScheduleTimeGrid / OneDaySchedule / DualDayFlowLayout に `onSetTaskStatus` / `onNavigateToEventsTab` props をスレッド。全ポップアップの「Open Detail」クリックで Events タブへ遷移
+
 ### 2026-04-11 - Schedule UI/UX 4件改善 + 終日アイテムプレビューポップアップ
 
 #### 概要

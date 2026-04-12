@@ -1,41 +1,119 @@
-import { useState, useCallback } from "react";
-import { FolderOpen, Folder, Plus, FolderPlus, RefreshCw } from "lucide-react";
+import { useState, useCallback, useEffect } from "react";
+import {
+  FolderOpen,
+  Folder,
+  Plus,
+  FolderPlus,
+  RefreshCw,
+  ChevronRight,
+  ChevronDown,
+} from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useFileExplorerContext } from "../../hooks/useFileExplorerContext";
+import { getDataService } from "../../services/dataServiceFactory";
 import type { FileEntry } from "../../types/fileExplorer";
 import { getFileIcon } from "./fileIcons";
 
-function FileListItem({
+function FileTreeNode({
   entry,
-  onSelect,
+  depth,
   isSelected,
+  onSelect,
+  onNavigate,
 }: {
   entry: FileEntry;
-  onSelect: (entry: FileEntry) => void;
+  depth: number;
   isSelected: boolean;
+  onSelect: (entry: FileEntry) => void;
+  onNavigate: (path: string) => void;
 }) {
-  const Icon =
-    entry.type === "directory"
-      ? isSelected
-        ? FolderOpen
-        : Folder
-      : getFileIcon(entry.extension);
+  const [isExpanded, setIsExpanded] = useState(false);
+  const [children, setChildren] = useState<FileEntry[]>([]);
+  const [loaded, setLoaded] = useState(false);
+
+  const isDir = entry.type === "directory";
+  const Icon = isDir
+    ? isExpanded
+      ? FolderOpen
+      : Folder
+    : getFileIcon(entry.extension);
+
+  const handleToggle = useCallback(async () => {
+    if (!isDir) return;
+    if (!loaded) {
+      try {
+        const entries = await getDataService().listDirectory(
+          entry.relativePath,
+        );
+        setChildren(
+          entries.sort((a, b) => {
+            if (a.type !== b.type) return a.type === "directory" ? -1 : 1;
+            return a.name.localeCompare(b.name);
+          }),
+        );
+        setLoaded(true);
+      } catch {
+        setChildren([]);
+        setLoaded(true);
+      }
+    }
+    setIsExpanded((v) => !v);
+  }, [isDir, loaded, entry.relativePath]);
+
+  const handleClick = useCallback(() => {
+    if (isDir) {
+      handleToggle();
+    } else {
+      onSelect(entry);
+    }
+  }, [isDir, handleToggle, onSelect, entry]);
+
+  const handleDoubleClick = useCallback(() => {
+    if (isDir) {
+      onNavigate(entry.relativePath);
+    }
+  }, [isDir, onNavigate, entry.relativePath]);
 
   return (
-    <button
-      className={`w-full flex items-center gap-2 px-3 py-1.5 text-sm rounded-md hover:bg-notion-hover transition-colors ${
-        isSelected
-          ? "bg-notion-hover text-notion-text"
-          : "text-notion-secondary"
-      }`}
-      onClick={() => onSelect(entry)}
-      onDoubleClick={() => {
-        if (entry.type !== "directory") onSelect(entry);
-      }}
-    >
-      <Icon className="w-4 h-4 shrink-0" />
-      <span className="truncate">{entry.name}</span>
-    </button>
+    <div>
+      <button
+        className={`w-full flex items-center gap-1.5 py-1 pr-2 text-sm rounded-md hover:bg-notion-hover transition-colors ${
+          isSelected
+            ? "bg-notion-hover text-notion-text"
+            : "text-notion-secondary"
+        }`}
+        style={{ paddingLeft: `${depth * 16 + 8}px` }}
+        onClick={handleClick}
+        onDoubleClick={handleDoubleClick}
+      >
+        {isDir && (
+          <span className="shrink-0 w-3.5">
+            {isExpanded ? (
+              <ChevronDown size={12} />
+            ) : (
+              <ChevronRight size={12} />
+            )}
+          </span>
+        )}
+        {!isDir && <span className="shrink-0 w-3.5" />}
+        <Icon className="w-4 h-4 shrink-0" />
+        <span className="truncate">{entry.name}</span>
+      </button>
+      {isDir && isExpanded && children.length > 0 && (
+        <div>
+          {children.map((child) => (
+            <FileTreeNode
+              key={child.relativePath}
+              entry={child}
+              depth={depth + 1}
+              isSelected={false}
+              onSelect={onSelect}
+              onNavigate={onNavigate}
+            />
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -60,50 +138,45 @@ export function FileExplorerSidebar() {
 
   const handleSelect = useCallback(
     (entry: FileEntry) => {
-      if (entry.type === "directory") {
-        navigateTo(entry.relativePath);
+      setSelectedEntry(entry);
+      const ext = entry.extension.toLowerCase();
+      const textExts = new Set([
+        ".txt",
+        ".md",
+        ".json",
+        ".yaml",
+        ".yml",
+        ".toml",
+        ".xml",
+        ".csv",
+        ".log",
+        ".ts",
+        ".tsx",
+        ".js",
+        ".jsx",
+        ".html",
+        ".css",
+        ".scss",
+        ".py",
+        ".go",
+        ".rs",
+        ".java",
+        ".c",
+        ".cpp",
+        ".h",
+        ".sh",
+        ".sql",
+        ".env",
+        ".gitignore",
+        ".editorconfig",
+      ]);
+      if (textExts.has(ext)) {
+        openTextFile(entry);
       } else {
-        setSelectedEntry(entry);
-        // Auto-open file
-        const ext = entry.extension.toLowerCase();
-        const textExts = new Set([
-          ".txt",
-          ".md",
-          ".json",
-          ".yaml",
-          ".yml",
-          ".toml",
-          ".xml",
-          ".csv",
-          ".log",
-          ".ts",
-          ".tsx",
-          ".js",
-          ".jsx",
-          ".html",
-          ".css",
-          ".scss",
-          ".py",
-          ".go",
-          ".rs",
-          ".java",
-          ".c",
-          ".cpp",
-          ".h",
-          ".sh",
-          ".sql",
-          ".env",
-          ".gitignore",
-          ".editorconfig",
-        ]);
-        if (textExts.has(ext)) {
-          openTextFile(entry);
-        } else {
-          openBinaryFile(entry);
-        }
+        openBinaryFile(entry);
       }
     },
-    [navigateTo, setSelectedEntry, openTextFile, openBinaryFile],
+    [setSelectedEntry, openTextFile, openBinaryFile],
   );
 
   const handleCreate = useCallback(async () => {
@@ -123,6 +196,12 @@ export function FileExplorerSidebar() {
     setNewName("");
     setIsCreating(null);
   }, [newName, isCreating, createFolder, createFile]);
+
+  // Sort: directories first, then alphabetical
+  const sortedEntries = [...entries].sort((a, b) => {
+    if (a.type !== b.type) return a.type === "directory" ? -1 : 1;
+    return a.name.localeCompare(b.name);
+  });
 
   if (!rootPath) {
     return (
@@ -185,14 +264,16 @@ export function FileExplorerSidebar() {
         </div>
       )}
 
-      {/* File list */}
+      {/* File tree */}
       <div className="flex-1 overflow-y-auto py-1">
-        {entries.map((entry) => (
-          <FileListItem
+        {sortedEntries.map((entry) => (
+          <FileTreeNode
             key={entry.relativePath}
             entry={entry}
-            onSelect={handleSelect}
+            depth={0}
             isSelected={selectedEntry?.relativePath === entry.relativePath}
+            onSelect={handleSelect}
+            onNavigate={navigateTo}
           />
         ))}
         {entries.length === 0 && !isLoading && (

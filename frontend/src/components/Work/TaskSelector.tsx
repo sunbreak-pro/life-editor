@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useMemo } from "react";
+import { EditableTitle } from "../shared/EditableTitle";
 import { ChevronDown, ChevronRight, Plus, Inbox, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useTaskTreeContext } from "../../hooks/useTaskTreeContext";
@@ -34,8 +35,6 @@ export function TaskSelector({ currentTitle }: TaskSelectorProps) {
 
   // Inline editing state for Untitled tasks
   const [isEditingTitle, setIsEditingTitle] = useState(false);
-  const [editTitleValue, setEditTitleValue] = useState("");
-  const editTitleRef = useRef<HTMLInputElement>(null);
 
   // Close on outside click
   useEffect(() => {
@@ -63,20 +62,11 @@ export function TaskSelector({ currentTitle }: TaskSelectorProps) {
   useEffect(() => {
     if (timer.activeTask?.title === "Untitled") {
       setIsEditingTitle(true);
-      setEditTitleValue("");
     }
   }, [timer.activeTask?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Focus the edit input when entering editing mode
-  useEffect(() => {
-    if (isEditingTitle && editTitleRef.current) {
-      editTitleRef.current.focus();
-    }
-  }, [isEditingTitle]);
-
-  const commitRename = () => {
-    const trimmed = editTitleValue.trim();
-    if (trimmed && timer.activeTask) {
+  const commitRename = (trimmed: string) => {
+    if (timer.activeTask) {
       updateNode(timer.activeTask.id, { title: trimmed });
       timer.updateActiveTaskTitle(trimmed);
     }
@@ -286,16 +276,15 @@ export function TaskSelector({ currentTitle }: TaskSelectorProps) {
   return (
     <div className="relative" ref={dropdownRef}>
       {isEditingTitle ? (
-        <input
-          ref={editTitleRef}
-          type="text"
-          value={editTitleValue}
-          onChange={(e) => setEditTitleValue(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") commitRename();
-            if (e.key === "Escape") setIsEditingTitle(false);
-          }}
-          onBlur={commitRename}
+        <EditableTitle
+          value={
+            timer.activeTask?.title === "Untitled"
+              ? ""
+              : (timer.activeTask?.title ?? "")
+          }
+          onSave={commitRename}
+          onCancel={() => setIsEditingTitle(false)}
+          selectAllOnFocus={false}
           placeholder={t("taskSelector.taskName")}
           className="text-lg font-semibold text-notion-text bg-transparent outline-none border-b border-notion-accent max-w-full"
         />

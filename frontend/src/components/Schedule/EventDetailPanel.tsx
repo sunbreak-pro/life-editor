@@ -1,4 +1,5 @@
 import { useState, useCallback } from "react";
+import { EditableTitle } from "../shared/EditableTitle";
 import { Trash2, Clock, CalendarDays, StickyNote } from "lucide-react";
 import { RoundedCheckbox } from "../shared/RoundedCheckbox";
 import { useTranslation } from "react-i18next";
@@ -75,18 +76,19 @@ function EventDetailContent({
 }) {
   const { t } = useTranslation();
   const [isEditingTitle, setIsEditingTitle] = useState(false);
-  const [titleValue, setTitleValue] = useState(event.title);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [editStartTime, setEditStartTime] = useState(event.startTime);
   const [editEndTime, setEditEndTime] = useState(event.endTime);
 
-  const commitTitle = useCallback(() => {
-    const trimmed = titleValue.trim();
-    if (trimmed && trimmed !== event.title) {
-      onUpdate({ title: trimmed });
-    }
-    setIsEditingTitle(false);
-  }, [titleValue, event.title, onUpdate]);
+  const commitTitle = useCallback(
+    (trimmed: string) => {
+      if (trimmed !== event.title) {
+        onUpdate({ title: trimmed });
+      }
+      setIsEditingTitle(false);
+    },
+    [event.title, onUpdate],
+  );
 
   const handleStartTimeChange = (h: number, m: number) => {
     const newStart = formatTime(h, m);
@@ -118,19 +120,11 @@ function EventDetailContent({
             size={18}
           />
           {isEditingTitle ? (
-            <input
-              autoFocus
-              value={titleValue}
-              onChange={(e) => setTitleValue(e.target.value)}
-              onBlur={commitTitle}
-              onKeyDown={(e) => {
-                if (e.nativeEvent.isComposing) return;
-                if (e.key === "Enter") commitTitle();
-                if (e.key === "Escape") {
-                  setTitleValue(event.title);
-                  setIsEditingTitle(false);
-                }
-              }}
+            <EditableTitle
+              value={event.title}
+              onSave={commitTitle}
+              onCancel={() => setIsEditingTitle(false)}
+              checkComposing
               className="text-lg font-bold text-notion-text w-full bg-transparent border-b-2 border-notion-accent outline-none"
             />
           ) : (
@@ -140,10 +134,7 @@ function EventDetailContent({
                   ? "text-notion-text-secondary line-through opacity-60"
                   : "text-notion-text"
               }`}
-              onDoubleClick={() => {
-                setTitleValue(event.title);
-                setIsEditingTitle(true);
-              }}
+              onDoubleClick={() => setIsEditingTitle(true)}
             >
               {event.title}
             </h2>

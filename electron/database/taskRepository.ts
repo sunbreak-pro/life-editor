@@ -20,6 +20,7 @@ interface TaskRow {
   content: string | null;
   work_duration_minutes: number | null;
   color: string | null;
+  icon: string | null;
   due_date: string | null;
   time_memo: string | null;
   updated_at: string | null;
@@ -50,6 +51,7 @@ function rowToNode(row: TaskRow): TaskNode {
     content: row.content ?? undefined,
     workDurationMinutes: row.work_duration_minutes ?? undefined,
     color: row.color ?? undefined,
+    icon: row.icon ?? undefined,
     timeMemo: row.time_memo ?? undefined,
     updatedAt: row.updated_at ?? undefined,
     version: row.version ?? 1,
@@ -71,15 +73,15 @@ export function createTaskRepository(db: Database.Database) {
     ...softDelete,
     fetchById: db.prepare(`SELECT * FROM tasks WHERE id = ?`),
     insert: db.prepare(`
-      INSERT INTO tasks (id, type, title, parent_id, "order", status, is_expanded, is_deleted, deleted_at, created_at, completed_at, scheduled_at, scheduled_end_at, is_all_day, content, work_duration_minutes, color, due_date, time_memo, folder_type, original_parent_id, priority, reminder_enabled, reminder_offset)
-      VALUES (@id, @type, @title, @parentId, @order, @status, @isExpanded, @isDeleted, @deletedAt, @createdAt, @completedAt, @scheduledAt, @scheduledEndAt, @isAllDay, @content, @workDurationMinutes, @color, @dueDate, @timeMemo, @folderType, @originalParentId, @priority, @reminderEnabled, @reminderOffset)
+      INSERT INTO tasks (id, type, title, parent_id, "order", status, is_expanded, is_deleted, deleted_at, created_at, completed_at, scheduled_at, scheduled_end_at, is_all_day, content, work_duration_minutes, color, icon, due_date, time_memo, folder_type, original_parent_id, priority, reminder_enabled, reminder_offset)
+      VALUES (@id, @type, @title, @parentId, @order, @status, @isExpanded, @isDeleted, @deletedAt, @createdAt, @completedAt, @scheduledAt, @scheduledEndAt, @isAllDay, @content, @workDurationMinutes, @color, @icon, @dueDate, @timeMemo, @folderType, @originalParentId, @priority, @reminderEnabled, @reminderOffset)
     `),
     update: db.prepare(`
       UPDATE tasks SET type=@type, title=@title, parent_id=@parentId, "order"=@order, status=@status,
         is_expanded=@isExpanded, is_deleted=@isDeleted, deleted_at=@deletedAt, created_at=@createdAt,
         completed_at=@completedAt, scheduled_at=@scheduledAt, scheduled_end_at=@scheduledEndAt,
         is_all_day=@isAllDay, content=@content,
-        work_duration_minutes=@workDurationMinutes, color=@color, due_date=@dueDate, time_memo=@timeMemo,
+        work_duration_minutes=@workDurationMinutes, color=@color, icon=@icon, due_date=@dueDate, time_memo=@timeMemo,
         folder_type=@folderType, original_parent_id=@originalParentId, priority=@priority,
         reminder_enabled=@reminderEnabled, reminder_offset=@reminderOffset,
         version = version + 1, updated_at = datetime('now')
@@ -107,6 +109,7 @@ export function createTaskRepository(db: Database.Database) {
       content: node.content ?? null,
       workDurationMinutes: node.workDurationMinutes ?? null,
       color: node.color ?? null,
+      icon: node.icon ?? null,
       dueDate: null,
       timeMemo: node.timeMemo ?? null,
       folderType: node.folderType ?? null,
@@ -167,8 +170,8 @@ export function createTaskRepository(db: Database.Database) {
       //   1. Triggers FK violations from child rows referencing the deleted parent
       //   2. Cascades deletes to task_tags and calendars (data loss)
       const upsert = db.prepare(`
-        INSERT INTO tasks (id, type, title, parent_id, "order", status, is_expanded, is_deleted, deleted_at, created_at, completed_at, scheduled_at, scheduled_end_at, is_all_day, content, work_duration_minutes, color, due_date, time_memo, folder_type, original_parent_id, priority, reminder_enabled, reminder_offset)
-        VALUES (@id, @type, @title, @parentId, @order, @status, @isExpanded, @isDeleted, @deletedAt, @createdAt, @completedAt, @scheduledAt, @scheduledEndAt, @isAllDay, @content, @workDurationMinutes, @color, @dueDate, @timeMemo, @folderType, @originalParentId, @priority, @reminderEnabled, @reminderOffset)
+        INSERT INTO tasks (id, type, title, parent_id, "order", status, is_expanded, is_deleted, deleted_at, created_at, completed_at, scheduled_at, scheduled_end_at, is_all_day, content, work_duration_minutes, color, icon, due_date, time_memo, folder_type, original_parent_id, priority, reminder_enabled, reminder_offset)
+        VALUES (@id, @type, @title, @parentId, @order, @status, @isExpanded, @isDeleted, @deletedAt, @createdAt, @completedAt, @scheduledAt, @scheduledEndAt, @isAllDay, @content, @workDurationMinutes, @color, @icon, @dueDate, @timeMemo, @folderType, @originalParentId, @priority, @reminderEnabled, @reminderOffset)
         ON CONFLICT(id) DO UPDATE SET
           type = excluded.type,
           title = excluded.title,
@@ -186,6 +189,7 @@ export function createTaskRepository(db: Database.Database) {
           content = excluded.content,
           work_duration_minutes = excluded.work_duration_minutes,
           color = excluded.color,
+          icon = excluded.icon,
           due_date = excluded.due_date,
           time_memo = excluded.time_memo,
           folder_type = excluded.folder_type,

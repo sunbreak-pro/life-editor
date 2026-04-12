@@ -27,13 +27,36 @@ interface UsePaperLayersDndParams {
   nodes: PaperNode[];
   topLevel: PaperNode[];
   childrenMap: Map<string, PaperNode[]>;
-  bulkUpdateZIndices: (
-    updates: Array<{
+  bulkUpdateLayerOrder: (
+    zIndexUpdates: Array<{
       id: string;
       zIndex: number;
       parentNodeId: string | null;
     }>,
+    positionUpdates: Array<{
+      id: string;
+      positionX: number;
+      positionY: number;
+      parentNodeId: string | null;
+    }>,
   ) => Promise<void>;
+}
+
+function getAbsolutePosition(
+  node: PaperNode,
+  allNodes: PaperNode[],
+): { x: number; y: number } {
+  let x = node.positionX;
+  let y = node.positionY;
+  let currentParentId = node.parentNodeId;
+  while (currentParentId) {
+    const parent = allNodes.find((n) => n.id === currentParentId);
+    if (!parent) break;
+    x += parent.positionX;
+    y += parent.positionY;
+    currentParentId = parent.parentNodeId;
+  }
+  return { x, y };
 }
 
 const FRAME_ZONE_ABOVE = 0.25;
@@ -78,7 +101,7 @@ export function usePaperLayersDnd({
   nodes,
   topLevel,
   childrenMap,
-  bulkUpdateZIndices,
+  bulkUpdateLayerOrder,
 }: UsePaperLayersDndParams) {
   const [activeId, setActiveId] = useState<string | null>(null);
 
@@ -239,11 +262,42 @@ export function usePaperLayersDnd({
         updates.push(...recalcZIndices(filteredSource, sourceParent));
       }
 
+      // Compute position updates for nodes whose parent changed
+      const positionUpdates: Array<{
+        id: string;
+        positionX: number;
+        positionY: number;
+        parentNodeId: string | null;
+      }> = [];
+
+      if (sourceParent !== targetParent) {
+        const abs = getAbsolutePosition(activeNode, nodes);
+        if (targetParent === null) {
+          positionUpdates.push({
+            id: activeNode.id,
+            positionX: abs.x,
+            positionY: abs.y,
+            parentNodeId: null,
+          });
+        } else {
+          const targetParentNode = nodes.find((n) => n.id === targetParent);
+          const parentAbs = targetParentNode
+            ? getAbsolutePosition(targetParentNode, nodes)
+            : { x: 0, y: 0 };
+          positionUpdates.push({
+            id: activeNode.id,
+            positionX: abs.x - parentAbs.x,
+            positionY: abs.y - parentAbs.y,
+            parentNodeId: targetParent,
+          });
+        }
+      }
+
       if (updates.length > 0) {
-        bulkUpdateZIndices(updates);
+        bulkUpdateLayerOrder(updates, positionUpdates);
       }
     },
-    [nodes, topLevel, childrenMap, bulkUpdateZIndices, notify],
+    [nodes, topLevel, childrenMap, bulkUpdateLayerOrder, notify],
   );
 
   const handleDragCancel = useCallback(() => {

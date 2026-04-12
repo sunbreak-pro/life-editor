@@ -53,18 +53,18 @@
 
 ### Phase 3: P2 — リファクタリング（別セッション）
 
-- [ ] 6. **useScheduleItems 分割**
+- [x] 6. **useScheduleItems 分割**
   - `useScheduleItemsCore` — CRUD + 日付ロード（items, currentDate, create/update/delete/toggle）
   - `useScheduleItemsRoutineSync` — ルーティン同期・バックフィル・reconcile
   - `useScheduleItemsStats` — routineStats, completionRate, completionByDate
   - `useScheduleItemsEvents` — events, loadEvents, eventsVersion
   - Provider側で4つのフックを合成して value に渡す
 
-- [ ] 7. **EditableTitle 共有コンポーネント作成**
+- [x] 7. **EditableTitle 共有コンポーネント作成**
   - 6箇所の重複 inline title 編集を統一
   - Props: value, onSubmit, placeholder, className, autoFocus
 
-- [ ] 8. **RoutineTimeChangeDialog 統合**
+- [x] 8. **RoutineTimeChangeDialog 統合**
   - `Routine/RoutineEditTimeChangeDialog.tsx` と `DayFlow/RoutineTimeChangeDialog.tsx` を1つに
 
 ### Phase 4: P3 — 小規模改善（任意タイミング）

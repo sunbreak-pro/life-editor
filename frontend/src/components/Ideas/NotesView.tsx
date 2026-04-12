@@ -1,5 +1,14 @@
-import { Suspense, useCallback, useRef, useState } from "react";
-import { Heart, Lock, MoreHorizontal, PenOff, StickyNote } from "lucide-react";
+import { Suspense, useCallback, useMemo, useRef, useState } from "react";
+import {
+  ChevronRight,
+  Folder,
+  Heart,
+  Lock,
+  MoreHorizontal,
+  PenOff,
+  StickyNote,
+} from "lucide-react";
+import { renderIcon } from "../../utils/iconRenderer";
 import { useTranslation } from "react-i18next";
 import { useNoteContext } from "../../hooks/useNoteContext";
 import { useScreenLockContext } from "../../hooks/useScreenLockContext";
@@ -23,7 +32,9 @@ import { formatDateKey } from "../../utils/dateKey";
 export function NotesView() {
   const { t } = useTranslation();
   const {
+    notes,
     selectedNote,
+    setSelectedNoteId,
     updateNote,
     togglePin,
     setNotePassword,
@@ -41,6 +52,20 @@ export function NotesView() {
 
   const isLocked = !!selectedNote?.hasPassword && !isUnlocked(selectedNote.id);
   const isEditLocked = !!selectedNote?.isEditLocked;
+
+  // Build breadcrumb ancestors
+  const ancestors = useMemo(() => {
+    if (!selectedNote?.parentId) return [];
+    const result: typeof notes = [];
+    let currentId: string | null = selectedNote.parentId;
+    while (currentId) {
+      const parent = notes.find((n) => n.id === currentId);
+      if (!parent) break;
+      result.unshift(parent);
+      currentId = parent.parentId;
+    }
+    return result;
+  }, [selectedNote, notes]);
 
   const handlePasswordSubmit = useCallback(
     async (password: string, newPassword?: string): Promise<boolean> => {
@@ -109,6 +134,32 @@ export function NotesView() {
     <div className="h-full overflow-y-auto">
       {selectedNote ? (
         <div className="max-w-3xl mx-auto px-8 py-6">
+          {/* Breadcrumb */}
+          {ancestors.length > 0 && (
+            <div className="flex items-center gap-1 text-xs text-notion-text-secondary mb-2 overflow-x-auto">
+              {ancestors.map((ancestor, i) => (
+                <div
+                  key={ancestor.id}
+                  className="flex items-center gap-1 shrink-0"
+                >
+                  {i > 0 && <ChevronRight size={12} />}
+                  <button
+                    onClick={() => setSelectedNoteId(ancestor.id)}
+                    className="flex items-center gap-1 px-1.5 py-0.5 rounded hover:bg-notion-hover transition-colors"
+                  >
+                    {ancestor.icon ? (
+                      renderIcon(ancestor.icon, { size: 13 })
+                    ) : ancestor.type === "folder" ? (
+                      <Folder size={13} />
+                    ) : (
+                      <StickyNote size={13} />
+                    )}
+                    <span>{ancestor.title}</span>
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
           {/* Title + Pin */}
           <div className="flex items-center gap-2 mb-4">
             <div className="relative">

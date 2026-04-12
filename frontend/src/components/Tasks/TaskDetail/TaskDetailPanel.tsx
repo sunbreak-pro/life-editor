@@ -26,9 +26,7 @@ import {
   type ConversionRole,
 } from "../../../hooks/useRoleConversion";
 import { formatDateKey } from "../../../utils/dateKey";
-import { FolderTag } from "../Folder/FolderTag";
 import { FolderMovePicker } from "../Folder/FolderMovePicker";
-import { UnifiedColorPicker } from "../../shared/UnifiedColorPicker";
 import { MiniCalendarGrid } from "../../shared/MiniCalendarGrid";
 import { TaskDetailEmpty } from "./TaskDetailEmpty";
 import { WikiTagList } from "../../WikiTags/WikiTagList";
@@ -38,6 +36,8 @@ import { fireTaskCompleteConfetti } from "../../../utils/confetti";
 import { playEffectSound } from "../../../utils/playEffectSound";
 import { PriorityPicker } from "../../shared/PriorityPicker";
 import { ReminderToggle } from "../../shared/ReminderToggle";
+import { IconPicker } from "../../common/IconPicker";
+import { renderIcon } from "../../../utils/iconRenderer";
 
 interface TaskDetailPanelProps {
   selectedNodeId: string | null;
@@ -133,9 +133,8 @@ function TaskSidebarContent({
   setTaskStatus,
 }: TaskSidebarContentProps) {
   const { t } = useTranslation();
-  const [colorPickerAncestorId, setColorPickerAncestorId] = useState<
-    string | null
-  >(null);
+  const [iconPickerNodeId, setIconPickerNodeId] = useState<string | null>(null);
+  const iconBtnRef = useRef<HTMLButtonElement>(null);
   const ancestors = getAncestors(node.id, nodes);
 
   const handleMove = useCallback(
@@ -170,48 +169,54 @@ function TaskSidebarContent({
               </span>
             }
           />
-          <div className="flex items-center gap-1.5 text-sm text-notion-text-secondary flex-1 min-w-0">
+          <div className="flex items-center gap-1 text-sm text-notion-text-secondary flex-1 min-w-0 overflow-x-auto">
             {ancestors.length > 0 ? (
               ancestors.map((ancestor, i) => (
-                <span
+                <div
                   key={ancestor.id}
-                  className="flex items-center gap-1 relative shrink-0"
+                  className="flex items-center gap-1 shrink-0"
                 >
                   {i > 0 && (
-                    <span className="text-notion-text-secondary/50">/</span>
+                    <ChevronRight
+                      size={12}
+                      className="text-notion-text-secondary"
+                    />
                   )}
-                  {ancestor.type === "folder" ? (
-                    <>
-                      <button
-                        onClick={() =>
-                          setColorPickerAncestorId(
-                            colorPickerAncestorId === ancestor.id
-                              ? null
-                              : ancestor.id,
-                          )
-                        }
-                        className="hover:text-notion-text transition-colors cursor-pointer"
-                      >
-                        <FolderTag
-                          tag={ancestor.title}
-                          color={ancestor.color}
-                          compact
-                        />
-                      </button>
-                      {colorPickerAncestorId === ancestor.id && (
-                        <UnifiedColorPicker
-                          color={ancestor.color ?? ""}
-                          onChange={(color) =>
-                            updateNode(ancestor.id, { color })
-                          }
-                          onClose={() => setColorPickerAncestorId(null)}
-                        />
-                      )}
-                    </>
-                  ) : (
-                    <span>{ancestor.title}</span>
+                  <button
+                    ref={
+                      iconPickerNodeId === ancestor.id ? iconBtnRef : undefined
+                    }
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setIconPickerNodeId(
+                        iconPickerNodeId === ancestor.id ? null : ancestor.id,
+                      );
+                    }}
+                    className="flex items-center gap-1 px-1.5 py-0.5 rounded hover:bg-notion-hover transition-colors"
+                  >
+                    {ancestor.icon ? (
+                      renderIcon(ancestor.icon, { size: 13 })
+                    ) : (
+                      <Folder size={13} />
+                    )}
+                    <span className="text-xs">{ancestor.title}</span>
+                  </button>
+                  {iconPickerNodeId === ancestor.id && (
+                    <IconPicker
+                      value={ancestor.icon}
+                      onSelect={(iconName) => {
+                        updateNode(ancestor.id, { icon: iconName });
+                        setIconPickerNodeId(null);
+                      }}
+                      onClose={() => setIconPickerNodeId(null)}
+                      anchorRect={iconBtnRef.current?.getBoundingClientRect()}
+                      onRemove={() => {
+                        updateNode(ancestor.id, { icon: undefined });
+                        setIconPickerNodeId(null);
+                      }}
+                    />
                   )}
-                </span>
+                </div>
               ))
             ) : (
               <span className="text-notion-text-secondary/50">
@@ -359,12 +364,14 @@ function FolderSidebarContent({
   setTaskStatus,
 }: FolderSidebarContentProps) {
   const { t } = useTranslation();
-  const [showColorPicker, setShowColorPicker] = useState(false);
+  const [showIconPicker, setShowIconPicker] = useState(false);
+  const folderIconRef = useRef<HTMLButtonElement>(null);
   const [showSchedule, setShowSchedule] = useState(node.scheduledAt != null);
   const [prevNodeId, setPrevNodeId] = useState(node.id);
-  const [colorPickerAncestorId, setColorPickerAncestorId] = useState<
+  const [iconPickerAncestorId, setIconPickerAncestorId] = useState<
     string | null
   >(null);
+  const ancestorIconRef = useRef<HTMLButtonElement>(null);
   const [expandedFolders, setExpandedFolders] = useState<Set<string>>(
     new Set(),
   );
@@ -473,46 +480,53 @@ function FolderSidebarContent({
   return (
     <div className="space-y-4">
       {/* Breadcrumb path */}
-      <div className="flex items-center gap-1.5 text-sm text-notion-text-secondary min-h-6">
+      <div className="flex items-center gap-1 text-sm text-notion-text-secondary min-h-6 overflow-x-auto">
         {ancestors.length > 0 ? (
           ancestors.map((ancestor, i) => (
-            <span
-              key={ancestor.id}
-              className="flex items-center gap-1 relative shrink-0"
-            >
+            <div key={ancestor.id} className="flex items-center gap-1 shrink-0">
               {i > 0 && (
-                <span className="text-notion-text-secondary/50">/</span>
+                <ChevronRight
+                  size={12}
+                  className="text-notion-text-secondary"
+                />
               )}
-              {ancestor.type === "folder" ? (
-                <>
-                  <button
-                    onClick={() =>
-                      setColorPickerAncestorId(
-                        colorPickerAncestorId === ancestor.id
-                          ? null
-                          : ancestor.id,
-                      )
-                    }
-                    className="hover:text-notion-text transition-colors cursor-pointer"
-                  >
-                    <FolderTag
-                      tag={ancestor.title}
-                      color={ancestor.color}
-                      compact
-                    />
-                  </button>
-                  {colorPickerAncestorId === ancestor.id && (
-                    <UnifiedColorPicker
-                      color={ancestor.color ?? ""}
-                      onChange={(color) => updateNode(ancestor.id, { color })}
-                      onClose={() => setColorPickerAncestorId(null)}
-                    />
-                  )}
-                </>
-              ) : (
-                <span>{ancestor.title}</span>
+              <button
+                ref={
+                  iconPickerAncestorId === ancestor.id
+                    ? ancestorIconRef
+                    : undefined
+                }
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setIconPickerAncestorId(
+                    iconPickerAncestorId === ancestor.id ? null : ancestor.id,
+                  );
+                }}
+                className="flex items-center gap-1 px-1.5 py-0.5 rounded hover:bg-notion-hover transition-colors"
+              >
+                {ancestor.icon ? (
+                  renderIcon(ancestor.icon, { size: 13 })
+                ) : (
+                  <Folder size={13} />
+                )}
+                <span className="text-xs">{ancestor.title}</span>
+              </button>
+              {iconPickerAncestorId === ancestor.id && (
+                <IconPicker
+                  value={ancestor.icon}
+                  onSelect={(iconName) => {
+                    updateNode(ancestor.id, { icon: iconName });
+                    setIconPickerAncestorId(null);
+                  }}
+                  onClose={() => setIconPickerAncestorId(null)}
+                  anchorRect={ancestorIconRef.current?.getBoundingClientRect()}
+                  onRemove={() => {
+                    updateNode(ancestor.id, { icon: undefined });
+                    setIconPickerAncestorId(null);
+                  }}
+                />
               )}
-            </span>
+            </div>
           ))
         ) : (
           <span className="text-notion-text-secondary/50">
@@ -534,26 +548,36 @@ function FolderSidebarContent({
         />
       )}
 
-      {/* Color picker */}
+      {/* Icon picker */}
       {node.folderType !== "complete" && (
         <div className="relative">
           <button
-            onClick={() => setShowColorPicker(!showColorPicker)}
-            className="flex items-center gap-2"
+            ref={folderIconRef}
+            onClick={() => setShowIconPicker(!showIconPicker)}
+            className="flex items-center gap-2 hover:bg-notion-hover rounded px-1.5 py-1 transition-colors"
           >
-            <div
-              className="w-5 h-5 rounded-full border border-notion-border"
-              style={{ backgroundColor: node.color ?? "#E5E7EB" }}
-            />
+            {node.icon ? (
+              renderIcon(node.icon, { size: 18 })
+            ) : (
+              <Folder size={18} className="text-notion-text-secondary" />
+            )}
             <span className="text-xs text-notion-text-secondary">
-              {t("taskDetailSidebar.folderColor")}
+              {t("taskDetailSidebar.folderIcon")}
             </span>
           </button>
-          {showColorPicker && (
-            <UnifiedColorPicker
-              color={node.color ?? ""}
-              onChange={(color) => updateNode(node.id, { color })}
-              onClose={() => setShowColorPicker(false)}
+          {showIconPicker && (
+            <IconPicker
+              value={node.icon}
+              onSelect={(iconName) => {
+                updateNode(node.id, { icon: iconName });
+                setShowIconPicker(false);
+              }}
+              onClose={() => setShowIconPicker(false)}
+              anchorRect={folderIconRef.current?.getBoundingClientRect()}
+              onRemove={() => {
+                updateNode(node.id, { icon: undefined });
+                setShowIconPicker(false);
+              }}
             />
           )}
         </div>
@@ -657,11 +681,15 @@ function FolderSidebarContent({
                           onClick={() => onSelectTask?.(folder.id)}
                           className="flex items-center gap-1.5 flex-1 min-w-0 text-left"
                         >
-                          <Folder
-                            size={14}
-                            className="shrink-0"
-                            style={{ color: folder.color ?? "#9CA3AF" }}
-                          />
+                          {folder.icon ? (
+                            renderIcon(folder.icon, { size: 14 })
+                          ) : (
+                            <Folder
+                              size={14}
+                              className="shrink-0"
+                              style={{ color: folder.color ?? "#9CA3AF" }}
+                            />
+                          )}
                           <span className="truncate flex-1">
                             {folder.title}
                           </span>
@@ -687,13 +715,17 @@ function FolderSidebarContent({
                               className="w-full flex items-center gap-1.5 px-2 py-1 rounded-md text-sm text-notion-text hover:bg-notion-hover transition-colors text-left cursor-pointer"
                             >
                               {grandchild.type === "folder" ? (
-                                <Folder
-                                  size={13}
-                                  className="shrink-0"
-                                  style={{
-                                    color: grandchild.color ?? "#9CA3AF",
-                                  }}
-                                />
+                                grandchild.icon ? (
+                                  renderIcon(grandchild.icon, { size: 13 })
+                                ) : (
+                                  <Folder
+                                    size={13}
+                                    className="shrink-0"
+                                    style={{
+                                      color: grandchild.color ?? "#9CA3AF",
+                                    }}
+                                  />
+                                )
                               ) : (
                                 <TaskStatusIcon
                                   status={

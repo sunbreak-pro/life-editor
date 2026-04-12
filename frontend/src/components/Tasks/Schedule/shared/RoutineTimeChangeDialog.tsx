@@ -1,43 +1,57 @@
 import { useTranslation } from "react-i18next";
 import { Clock, RefreshCw } from "lucide-react";
 
-interface RoutineEditTimeChangeDialogProps {
+interface RoutineTimeChangeDialogProps {
   routineTitle: string;
-  newTime: string;
-  onTemplateOnly: () => void;
-  onApplyToAll: () => void;
+  newStartTime: string;
+  newEndTime: string;
+  onThisOnly: () => void;
+  onApplyToRoutine: () => void;
   onCancel: () => void;
+  zIndex?: number;
 }
 
-export function RoutineEditTimeChangeDialog({
+export function RoutineTimeChangeDialog({
   routineTitle,
-  newTime,
-  onTemplateOnly,
-  onApplyToAll,
+  newStartTime,
+  newEndTime,
+  onThisOnly,
+  onApplyToRoutine,
   onCancel,
-}: RoutineEditTimeChangeDialogProps) {
+  zIndex = 50,
+}: RoutineTimeChangeDialogProps) {
   const { t } = useTranslation();
 
   return (
     <>
-      <div className="fixed inset-0 z-[60] bg-black/20" onClick={onCancel} />
+      {/* Backdrop */}
+      <div
+        className="fixed inset-0 bg-black/20"
+        style={{ zIndex }}
+        onClick={onCancel}
+      />
 
-      <div className="fixed z-[60] w-80 bg-notion-bg border border-notion-border rounded-lg shadow-xl top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">
+      {/* Dialog */}
+      <div
+        className="fixed w-80 bg-notion-bg border border-notion-border rounded-lg shadow-xl top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2"
+        style={{ zIndex }}
+      >
         <div className="p-3 border-b border-notion-border">
           <h3 className="text-sm font-medium text-notion-text">
-            {t("schedule.routineEditTimeChange.title")}
+            {t("schedule.routineTimeChange.title", "Update routine time?")}
           </h3>
           <p className="text-xs text-notion-text-secondary mt-1">
-            {t("schedule.routineEditTimeChange.description", {
+            {t("schedule.routineTimeChange.description", {
               title: routineTitle,
-              time: newTime,
+              time: `${newStartTime} - ${newEndTime}`,
+              defaultValue: `"{{title}}" was changed to {{time}}.`,
             })}
           </p>
         </div>
 
         <div className="p-2 space-y-1">
           <button
-            onClick={onTemplateOnly}
+            onClick={onThisOnly}
             className="w-full flex items-start gap-2 px-2 py-2 rounded hover:bg-notion-hover text-left transition-colors"
           >
             <Clock
@@ -46,25 +60,34 @@ export function RoutineEditTimeChangeDialog({
             />
             <div>
               <div className="text-xs font-medium text-notion-text">
-                {t("schedule.routineEditTimeChange.templateOnly")}
+                {t("schedule.routineTimeChange.thisOnly", "This time only")}
               </div>
               <div className="text-[10px] text-notion-text-secondary mt-0.5">
-                {t("schedule.routineEditTimeChange.templateOnlyDesc")}
+                {t(
+                  "schedule.routineTimeChange.thisOnlyDesc",
+                  "Only change today's schedule. The routine template stays the same.",
+                )}
               </div>
             </div>
           </button>
 
           <button
-            onClick={onApplyToAll}
+            onClick={onApplyToRoutine}
             className="w-full flex items-start gap-2 px-2 py-2 rounded hover:bg-notion-hover text-left transition-colors"
           >
             <RefreshCw size={14} className="text-blue-500 mt-0.5 shrink-0" />
             <div>
               <div className="text-xs font-medium text-blue-600 dark:text-blue-400">
-                {t("schedule.routineEditTimeChange.applyToAll")}
+                {t(
+                  "schedule.routineTimeChange.applyToRoutine",
+                  "Update routine template",
+                )}
               </div>
               <div className="text-[10px] text-notion-text-secondary mt-0.5">
-                {t("schedule.routineEditTimeChange.applyToAllDesc")}
+                {t(
+                  "schedule.routineTimeChange.applyToRoutineDesc",
+                  "Also update the routine's default time for future schedules.",
+                )}
               </div>
             </div>
           </button>

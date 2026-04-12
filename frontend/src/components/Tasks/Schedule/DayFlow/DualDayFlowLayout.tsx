@@ -10,7 +10,7 @@ import { CompactDateNav } from "./CompactDateNav";
 import { ScheduleTimeGrid } from "./ScheduleTimeGrid";
 import { TaskSchedulePanel } from "../../../shared/TaskSchedulePanel";
 import { RoutineDeleteConfirmDialog } from "./RoutineDeleteConfirmDialog";
-import { RoutineTimeChangeDialog } from "./RoutineTimeChangeDialog";
+import { RoutineTimeChangeDialog } from "../shared/RoutineTimeChangeDialog";
 import { formatDateKey } from "../../../../utils/dateKey";
 import {
   useRoleConversion,
