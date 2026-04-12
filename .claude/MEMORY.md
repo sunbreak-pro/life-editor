@@ -35,9 +35,9 @@
 
 ## 直近の完了
 
+- Schedule Preview Popup UI Improvements（カラーバー・完了CB・ボタン色統一・Open Detail） ✅（2026-04-12）
 - Schedule UI/UX 4件改善 + 終日アイテムプレビューポップアップ ✅（2026-04-11）
 - Per-Item Reminder Feature + TaskPreviewPopup Bug Fix ✅（2026-04-11）
-- Database 機能強化（Feature 2-6: Fixed Name, Overflow, Resize, ContextMenu, Aggregation） ✅（2026-04-11）
 
 ## 予定
 

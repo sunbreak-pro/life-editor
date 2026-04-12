@@ -1,5 +1,20 @@
 # HISTORY.md - 変更履歴
 
+### 2026-04-12 - Schedule Preview Popup UI Improvements
+
+#### 概要
+
+Schedule/Calendar の全プレビューポップアップにヘッダーカラーバー・完了チェックボックス・TaskStatusIcon を追加し、フッターボタンの色を統一（Open Detail=青、削除/リセット=赤）。Event の「完了する」ボタンを「Open Detail」（Events タブ遷移）に置換。
+
+#### 変更点
+
+- **ScheduleItemPreviewPopup**: ヘッダーにカラーバー追加（Event=紫 `#8B5CF6`、Routine=緑 `#10B981`）。タイトル左に `RoundedCheckbox` 追加（Event/Routine 両方）。フッター「完了する」→「Open Detail」(青) に置換、`onOpenDetail` prop 追加
+- **TaskPreviewPopup**: タイトル左に `TaskStatusIcon`（3段階: NOT_STARTED/IN_PROGRESS/DONE）追加。`onToggleStatus`/`onSetStatus` props 追加。「Open Detail」→青、「Clear time」→赤に色変更
+- **MemoPreviewPopup**: 「Open Detail」ボタンを `variant="info"` (青) に変更
+- **GroupPreviewPopup (CalendarView内)**: グループ色のヘッダーカラーバー追加
+- **Button.tsx**: `info` variant (`text-blue-500 hover:bg-blue-500/5`) 追加
+- **親コンポーネント配線**: ScheduleSection に `handleSetTaskStatus` 追加（undo 対応）。CalendarView / ScheduleTimeGrid / OneDaySchedule / DualDayFlowLayout に `onSetTaskStatus` / `onNavigateToEventsTab` props をスレッド。全ポップアップの「Open Detail」クリックで Events タブへ遷移
+
 ### 2026-04-11 - Schedule UI/UX 4件改善 + 終日アイテムプレビューポップアップ
 
 #### 概要
@@ -63,19 +78,5 @@ NoteのMaterialsSidebarツリーでフォルダ・ノートを右クリックし
 - **MaterialsSidebar.tsx**: `onRename`/`onChangeIcon`/`onTogglePin`のprops追加・接続
 - **IdeasView.tsx**: `updateNote`/`togglePin`をMaterialsSidebarに渡す
 - **i18n**: en.json/ja.jsonに`changeIcon`/`removeIcon`/`pin`/`unpin`キー追加
-
-### 2026-04-12 - Calendar パフォーマンス最適化 & Event チェックボックス警告修正
-
-#### 概要
-
-Event チェックボックスクリック時のコンソール警告（React Hooks ルール違反）を修正し、Calendar コンポーネントチェーンに useCallback / React.memo を適用してカレンダーアイテムクリック時の再レンダリングを約40分の1に削減。
-
-#### 変更点
-
-- **EventDetailPanel.tsx**: `EventRoleSwitcherInline` で `useScheduleItemsContext()` が条件付き return の後に呼ばれていた Hooks ルール違反を修正（return の前に移動）
-- **CalendarView.tsx**: React Compiler 未有効なのに「React Compiler auto-memoizes」と記載していた不正確な eslint-disable コメントを削除。8個のハンドラー関数（handlePrev/Next/Today/OpenCreateMenu/RequestCreate/RequestCreateNote/RequestCreateEvent/ItemClick）を全て `useCallback` でラップ
-- **MonthlyView.tsx**: `React.memo` でラップ、`todayKey` を `useMemo` 化、空日用の `EMPTY_ITEMS` 定数を導入（`?? []` による毎レンダリングの新配列生成を防止）
-- **DayCell.tsx**: `React.memo` でラップ
-- **CalendarItemChip.tsx**: `React.memo` でラップ、props を `onClick` → `onSelectItem + item` に変更（コンポーネント内部でバインドすることで安定した参照を実現し、memo の効果を最大化）
 
 <!-- older entries archived to HISTORY-archive.md -->
