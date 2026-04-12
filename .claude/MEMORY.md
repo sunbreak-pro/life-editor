@@ -13,25 +13,22 @@
 
 ### 🔧 RichEditor UI/UX Improvements（着手日: 2026-04-11）
 
-**対象**: `frontend/src/extensions/`, `frontend/src/components/Tasks/TaskDetail/`, `frontend/src/components/Database/`, `frontend/src/components/common/IconPicker.tsx`, `frontend/src/index.css`, `frontend/src/i18n/locales/`, `frontend/src/utils/prosemirrorHelpers.ts`
+**対象**: `frontend/src/extensions/`, `frontend/src/components/Tasks/TaskDetail/`, `frontend/src/components/Database/`, `frontend/src/index.css`, `frontend/src/i18n/locales/`, `frontend/src/utils/prosemirrorHelpers.ts`
 
-- 前回: Database block スタイリング修正 + DragHandle atom ノード対応（tsc OK）
-- 現在: ランタイム動作確認中（ドロップインジケーター位置の最終確認）
-- 次: 動作確認 → 残バグ修正 → コミット
+- 前回: DragHandle拡張の全面削除、prosemirrorHelpersクリーンアップ
+- 現在: Database UI改善（グリップ左マージン移動、Select作成UI、プロパティ名バリデーション）完了、動作確認待ち
+- 次: ブラウザ動作確認 → コミット
 
-**実装済み内容**:
+**実装済み内容（当セッション）**:
 
-- Callout: 色パレットをグリップメニューへ移動、アイコン削除UIをIconPickerへ移動
-- グリップメニュー: 全テキストi18n対応、複製後Cmd+Z修正、クリック時ブロック選択+Delete対応
-- Toggle List: 三角形↔テキスト間スペーシング拡大、グリップアイコン右余白拡大
-- Database: プロパティ背景色・枠・padding削除、AddPropertyPopoverビューポート対応
-- Database: フィルター/ソートをタイトル行に移動、3点メニュー追加
-- Database: グリップをグローバルDragHandleに統一（インラインgrip削除）
-- Database: テーブル両端の縦線削除、グリッド線を`--color-border-strong`で濃く
-- DragHandle: `resolveToBlock`でatomノードのdepth 0位置を処理
-- DragHandle: `getTopBlockDOM()`で正確なブロックDOM取得（atomNodeView対応）
-- DragHandle: ドロップインジケーターをブロック端に固定
-- BubbleToolbar: NodeSelection時に非表示化
+- DragHandle拡張を全面削除（DragHandle.ts削除、関連CSS/ヘルパー全削除）
+- 右クリック→BlockContextMenu（青背景ブロック選択）は残存
+- Database: グリップ列を左マージン領域に移動（-ml-12）
+- Database: セレクトプロパティのオプション作成UI（検索+インライン作成）
+- Database: プロパティデフォルト名を種類名（テキスト/数値/セレクト等）に
+- Database: 最初のプロパティ名を「名前」に
+- Database: プロパティ名重複バリデーション（「その名前は無効です」表示）
+- Database: @dnd-kit行DnD、Undo/Redo統合（前セッション）
 
 ## 直近の完了
 

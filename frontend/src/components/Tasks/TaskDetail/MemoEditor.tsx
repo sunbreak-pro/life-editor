@@ -30,7 +30,6 @@ import { WikiTag } from "../../../extensions/WikiTag";
 import { PdfAttachment } from "../../../extensions/PdfAttachment";
 import { FileUploadPlaceholder } from "../../../extensions/FileUploadPlaceholder";
 import { DatabaseBlock } from "../../../extensions/DatabaseBlock";
-import { DragHandle } from "../../../extensions/DragHandle";
 import { BlockBackground } from "../../../extensions/BlockBackground";
 import { BubbleToolbar } from "./BubbleToolbar";
 import { BlockContextMenu } from "./BlockContextMenu";
@@ -252,7 +251,6 @@ export function MemoEditor({
         PdfAttachment,
         FileUploadPlaceholder,
         DatabaseBlock,
-        DragHandle,
         BlockBackground,
         Highlight.configure({ multicolor: true }),
         CustomInputRules,

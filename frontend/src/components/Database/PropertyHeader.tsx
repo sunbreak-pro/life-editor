@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from "react";
+import { useTranslation } from "react-i18next";
 import { Type, Hash, List, Calendar, CheckSquare, Trash2 } from "lucide-react";
 import type { PropertyType, DatabaseProperty } from "../../types/database";
 import { PropertyContextMenu } from "./PropertyContextMenu";
@@ -17,6 +18,7 @@ const TYPE_ICONS: Record<PropertyType, typeof Type> = {
 interface PropertyHeaderProps {
   property: DatabaseProperty;
   isFixed?: boolean;
+  existingNames?: string[];
   onUpdate: (updates: {
     name?: string;
     type?: PropertyType;
@@ -28,11 +30,14 @@ interface PropertyHeaderProps {
 export function PropertyHeader({
   property,
   isFixed,
+  existingNames = [],
   onUpdate,
   onRemove,
 }: PropertyHeaderProps) {
+  const { t } = useTranslation();
   const [isEditing, setIsEditing] = useState(false);
   const [draft, setDraft] = useState(property.name);
+  const [nameError, setNameError] = useState(false);
   const [contextMenu, setContextMenu] = useState<{
     x: number;
     y: number;
@@ -44,15 +49,27 @@ export function PropertyHeader({
     if (isEditing) {
       inputRef.current?.focus();
       inputRef.current?.select();
+      setNameError(false);
     }
   }, [isEditing]);
 
   const commit = () => {
-    if (draft.trim() && draft !== property.name) {
-      onUpdate({ name: draft.trim() });
-    } else {
+    const trimmed = draft.trim();
+    if (!trimmed || trimmed === property.name) {
       setDraft(property.name);
+      setNameError(false);
+      setIsEditing(false);
+      return;
     }
+    const isDuplicate = existingNames.some(
+      (n) => n.toLowerCase() === trimmed.toLowerCase(),
+    );
+    if (isDuplicate) {
+      setNameError(true);
+      return;
+    }
+    setNameError(false);
+    onUpdate({ name: trimmed });
     setIsEditing(false);
   };
 
@@ -110,21 +127,32 @@ export function PropertyHeader({
     >
       <Icon size={12} className="shrink-0" />
       {isEditing ? (
-        <input
-          ref={inputRef}
-          value={draft}
-          onChange={(e) => setDraft(e.target.value)}
-          onBlur={commit}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") commit();
-            if (e.key === "Escape") {
-              setDraft(property.name);
-              setIsEditing(false);
-            }
-            e.stopPropagation();
-          }}
-          className="flex-1 min-w-0 bg-transparent border-none outline-none text-xs font-medium text-notion-text"
-        />
+        <div className="flex-1 min-w-0 relative">
+          <input
+            ref={inputRef}
+            value={draft}
+            onChange={(e) => {
+              setDraft(e.target.value);
+              setNameError(false);
+            }}
+            onBlur={commit}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") commit();
+              if (e.key === "Escape") {
+                setDraft(property.name);
+                setNameError(false);
+                setIsEditing(false);
+              }
+              e.stopPropagation();
+            }}
+            className={`w-full bg-transparent border-none outline-none text-xs font-medium text-notion-text ${nameError ? "text-red-400" : ""}`}
+          />
+          {nameError && (
+            <div className="absolute left-0 top-full mt-1 px-2 py-1 text-[10px] text-red-400 bg-notion-bg border border-red-400/30 rounded shadow-sm whitespace-nowrap z-40">
+              {t("database.invalidName")}
+            </div>
+          )}
+        </div>
       ) : (
         <span
           className={`flex-1 min-w-0 truncate ${isFixed ? "cursor-default" : "cursor-pointer"}`}

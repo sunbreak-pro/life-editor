@@ -37,6 +37,7 @@ interface DatabaseTableRowProps {
   onAddRow: () => void;
   onDuplicateRow: (rowId: string) => void;
   onRemoveRow: (rowId: string) => void;
+  onCreateOption: (propertyId: string, label: string) => SelectOption;
 }
 
 const noopSubscribe = (_listener: () => void) => () => {};
@@ -68,6 +69,7 @@ export function DatabaseTableRow({
   onAddRow,
   onDuplicateRow,
   onRemoveRow,
+  onCreateOption,
 }: DatabaseTableRowProps) {
   const { attributes, listeners, setNodeRef, transform, isDragging } =
     useSortable({ id: row.id, disabled: hasSorts });
@@ -161,6 +163,11 @@ export function DatabaseTableRow({
                   onChange={(v) => onCellChange(row.id, prop.id, v)}
                   onClose={() =>
                     onCellEditClose(row.id, prop.id, editingCell.originalValue)
+                  }
+                  onCreateOption={
+                    prop.type === "select"
+                      ? (label) => onCreateOption(prop.id, label)
+                      : undefined
                   }
                 />
               ) : (

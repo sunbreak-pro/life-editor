@@ -1602,6 +1602,10 @@
     "propertyDefaultName": "プロパティ",
     "typeLabel": "タイプ",
     "noOptions": "オプションなし",
+    "nameProperty": "名前",
+    "invalidName": "その名前は無効です",
+    "createOption": "作成",
+    "searchOrCreate": "検索または作成...",
     "types": {
       "text": "テキスト",
       "number": "数値",

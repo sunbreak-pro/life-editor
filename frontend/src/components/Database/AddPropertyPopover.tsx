@@ -18,15 +18,20 @@ const PROPERTY_TYPES: {
 
 interface AddPropertyPopoverProps {
   onAdd: (name: string, type: PropertyType) => void;
+  existingNames?: string[];
 }
 
 const POPOVER_WIDTH = 208;
 const POPOVER_MAX_HEIGHT = 260;
 
-export function AddPropertyPopover({ onAdd }: AddPropertyPopoverProps) {
+export function AddPropertyPopover({
+  onAdd,
+  existingNames = [],
+}: AddPropertyPopoverProps) {
   const { t } = useTranslation();
   const [isOpen, setIsOpen] = useState(false);
   const [name, setName] = useState("");
+  const [nameError, setNameError] = useState(false);
   const btnRef = useRef<HTMLButtonElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const [popoverPos, setPopoverPos] = useState<{
@@ -65,10 +70,19 @@ export function AddPropertyPopover({ onAdd }: AddPropertyPopoverProps) {
   const handleClose = () => {
     setIsOpen(false);
     setName("");
+    setNameError(false);
   };
 
   const handleAdd = (type: PropertyType) => {
-    onAdd(name.trim() || t("database.propertyDefaultName"), type);
+    const finalName = name.trim() || t(`database.types.${type}`);
+    const isDuplicate = existingNames.some(
+      (n) => n.toLowerCase() === finalName.toLowerCase(),
+    );
+    if (isDuplicate) {
+      setNameError(true);
+      return;
+    }
+    onAdd(finalName, type);
     handleClose();
   };
 
@@ -101,15 +115,23 @@ export function AddPropertyPopover({ onAdd }: AddPropertyPopoverProps) {
                 <input
                   ref={inputRef}
                   value={name}
-                  onChange={(e) => setName(e.target.value)}
+                  onChange={(e) => {
+                    setName(e.target.value);
+                    setNameError(false);
+                  }}
                   placeholder={t("database.propertyNamePlaceholder")}
                   onKeyDown={(e) => {
                     if (e.key === "Enter") handleAdd("text");
                     if (e.key === "Escape") handleClose();
                     e.stopPropagation();
                   }}
-                  className="w-full px-2 py-1 text-xs bg-transparent rounded border border-notion-border outline-none focus:ring-1 focus:ring-notion-accent"
+                  className={`w-full px-2 py-1 text-xs bg-transparent rounded border outline-none focus:ring-1 focus:ring-notion-accent ${nameError ? "border-red-400" : "border-notion-border"}`}
                 />
+                {nameError && (
+                  <p className="mt-1 text-[10px] text-red-400">
+                    {t("database.invalidName")}
+                  </p>
+                )}
               </div>
               <div className="border-t border-notion-border mt-1 pt-1">
                 <p className="px-3 py-1 text-[10px] font-medium text-notion-text-secondary uppercase tracking-wider">

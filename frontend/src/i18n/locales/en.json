@@ -1602,6 +1602,10 @@
     "propertyDefaultName": "Property",
     "typeLabel": "Type",
     "noOptions": "No options",
+    "nameProperty": "Name",
+    "invalidName": "This name is invalid",
+    "createOption": "Create",
+    "searchOrCreate": "Search or create...",
     "types": {
       "text": "Text",
       "number": "Number",

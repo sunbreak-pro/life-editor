@@ -17,6 +17,7 @@ import type {
   SelectOption,
 } from "../../types/database";
 import { CellRenderer } from "./CellRenderer";
+import { SELECT_COLORS } from "./CellEditor";
 import { PropertyHeader } from "./PropertyHeader";
 import { AddPropertyPopover } from "./AddPropertyPopover";
 import { AggregationSelector } from "./AggregationSelector";
@@ -125,6 +126,25 @@ export function DatabaseTable({
     [properties],
   );
 
+  const handleCreateOption = useCallback(
+    (propertyId: string, label: string): SelectOption => {
+      const prop = properties.find((p) => p.id === propertyId);
+      const existing = prop?.config?.options ?? [];
+      const color =
+        SELECT_COLORS[existing.length % SELECT_COLORS.length] ?? "#6366f1";
+      const newOption: SelectOption = {
+        id: `opt-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+        label,
+        color,
+      };
+      onUpdateProperty(propertyId, {
+        config: { ...prop?.config, options: [...existing, newOption] },
+      });
+      return newOption;
+    },
+    [properties, onUpdateProperty],
+  );
+
   const handleCellClick = useCallback(
     (rowId: string, propertyId: string, type: PropertyType) => {
       if (type === "checkbox") {
@@ -168,7 +188,7 @@ export function DatabaseTable({
       <div className="flex flex-col items-center gap-2 py-6 text-notion-text-secondary">
         <p className="text-xs">{t("database.empty")}</p>
         <button
-          onClick={() => onAddProperty("Name", "text")}
+          onClick={() => onAddProperty(t("database.nameProperty"), "text")}
           className="flex items-center gap-1 px-3 py-1.5 text-xs rounded-md bg-notion-accent text-white hover:bg-notion-accent/90 transition-colors"
         >
           <Plus size={12} />
@@ -181,7 +201,10 @@ export function DatabaseTable({
   const isLastProp = (index: number) => index === sortedProperties.length - 1;
 
   return (
-    <div className="w-full overflow-x-auto">
+    <div
+      className="-ml-12 overflow-x-auto"
+      style={{ width: "calc(100% + 3rem)" }}
+    >
       <DndContext
         sensors={sensors}
         collisionDetection={closestCenter}
@@ -214,6 +237,9 @@ export function DatabaseTable({
                           <PropertyHeader
                             property={prop}
                             isFixed={prop.order === 0}
+                            existingNames={sortedProperties
+                              .filter((p) => p.id !== prop.id)
+                              .map((p) => p.name)}
                             onUpdate={(updates) =>
                               onUpdateProperty(prop.id, updates)
                             }
@@ -221,7 +247,10 @@ export function DatabaseTable({
                           />
                         </div>
                         {isLastProp(i) && (
-                          <AddPropertyPopover onAdd={onAddProperty} />
+                          <AddPropertyPopover
+                            onAdd={onAddProperty}
+                            existingNames={sortedProperties.map((p) => p.name)}
+                          />
                         )}
                       </div>
                     </th>
@@ -246,6 +275,7 @@ export function DatabaseTable({
                     onAddRow={onAddRow}
                     onDuplicateRow={onDuplicateRow}
                     onRemoveRow={onRemoveRow}
+                    onCreateOption={handleCreateOption}
                   />
                 ))}
               </tbody>
@@ -362,7 +392,7 @@ export function DatabaseTable({
       {/* Add row button */}
       <button
         onClick={onAddRow}
-        className="flex items-center gap-1 w-full px-2 py-1.5 text-xs text-notion-text-secondary hover:bg-notion-hover rounded-b transition-colors"
+        className="flex items-center gap-1 w-full pl-12 pr-2 py-1.5 text-xs text-notion-text-secondary hover:bg-notion-hover rounded-b transition-colors"
       >
         <Plus size={12} />
         {t("database.newRow")}
