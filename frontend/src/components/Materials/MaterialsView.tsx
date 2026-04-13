@@ -1,4 +1,6 @@
 import { useState, useCallback, useContext } from "react";
+import { getDataService } from "../../services/dataServiceFactory";
+import { useToast } from "../../context/ToastContext";
 import { createPortal } from "react-dom";
 import { BookOpen, StickyNote, FolderOpen } from "lucide-react";
 import { useTranslation } from "react-i18next";
@@ -67,6 +69,7 @@ export function MaterialsView({ onNavigateToNote }: MaterialsViewProps) {
     persistWithHistory,
   } = useNoteContext();
   const { assignments, tags } = useWikiTags();
+  const { showToast } = useToast();
 
   const handleTabChange = (tab: MaterialsTab) => {
     setActiveTab(tab);
@@ -106,6 +109,24 @@ export function MaterialsView({ onNavigateToNote }: MaterialsViewProps) {
     [updateNote],
   );
 
+  const handleCopyNoteToFiles = useCallback(
+    async (noteId: string) => {
+      try {
+        const ds = getDataService();
+        const dir = await ds.selectFolder();
+        if (!dir) return;
+        const filePath = await ds.copyNoteToFile(noteId, dir);
+        showToast("success", t("copy.copiedToFile", { path: filePath }));
+      } catch (e) {
+        showToast(
+          "error",
+          e instanceof Error ? e.message : t("copy.copyFailed"),
+        );
+      }
+    },
+    [showToast, t],
+  );
+
   const { portalTarget: rightSidebarTarget } = useContext(RightSidebarContext);
 
   const renderSidebar = () => {
@@ -135,6 +156,7 @@ export function MaterialsView({ onNavigateToNote }: MaterialsViewProps) {
             onCreateFolder={handleCreateFolder}
             onDeleteNote={softDeleteNote}
             onUpdateNoteTitle={handleUpdateNoteTitle}
+            onCopyToFiles={handleCopyNoteToFiles}
             onToggleExpand={toggleExpanded}
             persistWithHistory={persistWithHistory}
           />

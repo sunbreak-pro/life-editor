@@ -1,6 +1,13 @@
 import { useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
-import { Pencil, Trash2, Heart, HeartOff, ImageIcon } from "lucide-react";
+import {
+  Pencil,
+  Trash2,
+  Heart,
+  HeartOff,
+  ImageIcon,
+  FileOutput,
+} from "lucide-react";
 import { useTranslation } from "react-i18next";
 import type { NoteNode } from "../../types/note";
 
@@ -18,6 +25,7 @@ interface NoteNodeContextMenuProps {
   onRename: () => void;
   onChangeIcon: () => void;
   onTogglePin: () => void;
+  onCopyToFiles?: () => void;
   onDelete: () => void;
   onClose: () => void;
 }
@@ -28,6 +36,7 @@ export function NoteNodeContextMenu({
   node,
   onRename,
   onChangeIcon,
+  onCopyToFiles,
   onTogglePin,
   onDelete,
   onClose,
@@ -88,6 +97,14 @@ export function NoteNodeContextMenu({
     icon: node.isPinned ? <HeartOff size={14} /> : <Heart size={14} />,
     onClick: onTogglePin,
   });
+
+  if (!isFolder && onCopyToFiles) {
+    actions.push({
+      label: t("contextMenu.copyToFiles"),
+      icon: <FileOutput size={14} />,
+      onClick: onCopyToFiles,
+    });
+  }
 
   actions.push("separator", {
     label: t("contextMenu.delete"),

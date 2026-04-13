@@ -1195,4 +1195,13 @@ export class RestDataService implements DataService {
   openFileInSystem(): Promise<never> {
     return notSupported("openFileInSystem");
   }
+  copyNoteToFile(): Promise<never> {
+    return notSupported("copyNoteToFile");
+  }
+  copyMemoToFile(): Promise<never> {
+    return notSupported("copyMemoToFile");
+  }
+  convertFileToTiptap(): Promise<never> {
+    return notSupported("convertFileToTiptap");
+  }
 }

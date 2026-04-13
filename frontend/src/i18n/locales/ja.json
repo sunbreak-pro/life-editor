@@ -1351,7 +1351,18 @@
     "changeIcon": "アイコンを変更",
     "removeIcon": "アイコンを削除",
     "pin": "ピン留め",
-    "unpin": "ピン留め解除"
+    "unpin": "ピン留め解除",
+    "copyToFiles": "ファイルにコピー"
+  },
+  "copy": {
+    "copyToFiles": "ファイルにコピー",
+    "copyToNote": "ノートにコピー",
+    "copyToMemo": "メモにコピー",
+    "selectDate": "対象日付を選択",
+    "copiedToFile": "ファイルにコピーしました: {{path}}",
+    "copiedToNote": "ノートを作成しました: {{title}}",
+    "copiedToMemo": "メモを更新しました: {{date}}",
+    "copyFailed": "コピーに失敗しました"
   },
   "taskActions": {
     "completeFolder": "フォルダを完了",
@@ -1724,5 +1735,68 @@
     "search": "アイコンを検索...",
     "empty": "アイコンが見つかりません",
     "remove": "削除"
+  },
+  "mobile": {
+    "tabs": {
+      "materials": "マテリアル",
+      "calendar": "カレンダー",
+      "work": "作業",
+      "settings": "設定",
+      "memos": "メモ",
+      "notes": "ノート"
+    },
+    "calendar": {
+      "monthly": "月表示",
+      "dayflow": "デイフロー",
+      "today": "今日",
+      "tasks": "タスク",
+      "schedule": "スケジュール",
+      "empty": "この日の予定はありません",
+      "itemCount": "{{count}}件"
+    },
+    "schedule": {
+      "allDay": "終日",
+      "addFirst": "追加する",
+      "create": "新規追加",
+      "itemCount": "{{count}}件",
+      "empty": "スケジュールはありません"
+    },
+    "memo": {
+      "today": "今日",
+      "empty": "メモはまだありません",
+      "placeholder": "自由に書いてください..."
+    },
+    "note": {
+      "new": "新規",
+      "empty": "ノートはまだありません",
+      "untitled": "無題",
+      "titlePlaceholder": "タイトル",
+      "contentPlaceholder": "書き始める..."
+    },
+    "work": {
+      "selectTask": "タスクを選択...",
+      "searchTask": "タスクを検索...",
+      "clearTask": "タスク選択を解除",
+      "noTasks": "タスクが見つかりません"
+    },
+    "settings": {
+      "connection": "接続",
+      "connected": "デスクトップに接続中",
+      "disconnected": "未接続",
+      "disconnect": "切断",
+      "theme": "テーマ",
+      "language": "言語"
+    },
+    "connection": {
+      "subtitle": "デスクトップアプリに接続",
+      "howTo": "接続方法",
+      "step1": "デスクトップでLife Editorを開く",
+      "step2": "設定 → 「モバイルアクセス」を開く",
+      "step3": "QRコードをスキャンするか、以下にURLを貼り付け",
+      "connecting": "接続中...",
+      "connect": "接続",
+      "error": "接続に失敗しました。URLを確認してください。",
+      "invalidUrl": "無効なURLです。QRコードを使うか、接続URLを貼り付けてください。"
+    }
   }
 }

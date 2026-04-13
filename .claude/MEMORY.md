@@ -6,9 +6,9 @@
 
 ## 直近の完了
 
+- Notes/Memos ↔ Files 双方向コピー機能 ✅（2026-04-13）
 - Board タブ — Frame nesting position fix, Undo/Redo for drag operations ✅（2026-04-12）
 - RichEditor UI/UX Improvements + 階層UI統一 ✅（2026-04-12）
-- App Optimization Phase 3（useScheduleItems分割, EditableTitle共有化, RoutineTimeChangeDialog統合） ✅（2026-04-12）
 
 ## 予定
 

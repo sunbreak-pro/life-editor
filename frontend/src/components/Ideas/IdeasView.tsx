@@ -1,4 +1,6 @@
 import { useState, useCallback, useContext, useEffect } from "react";
+import { getDataService } from "../../services/dataServiceFactory";
+import { useToast } from "../../context/ToastContext";
 import { createPortal } from "react-dom";
 import { BookOpen, StickyNote, GitBranch, LayoutGrid } from "lucide-react";
 import { ReactFlowProvider } from "@xyflow/react";
@@ -79,6 +81,25 @@ export function IdeasView({ onNavigateToNote }: IdeasViewProps) {
     persistWithHistory,
   } = useNoteContext();
   const { assignments, tags, setTagsForEntity } = useWikiTags();
+  const { showToast } = useToast();
+
+  const handleCopyNoteToFiles = useCallback(
+    async (noteId: string) => {
+      try {
+        const ds = getDataService();
+        const dir = await ds.selectFolder();
+        if (!dir) return;
+        const filePath = await ds.copyNoteToFile(noteId, dir);
+        showToast("success", t("copy.copiedToFile", { path: filePath }));
+      } catch (e) {
+        showToast(
+          "error",
+          e instanceof Error ? e.message : t("copy.copyFailed"),
+        );
+      }
+    },
+    [showToast, t],
+  );
 
   // --- Connect/Node tab state (from ConnectTabView) ---
   const { setActiveDomain } = useUndoRedo();
@@ -275,6 +296,7 @@ export function IdeasView({ onNavigateToNote }: IdeasViewProps) {
             onUpdateNoteTitle={handleUpdateNoteTitle}
             onUpdateNote={updateNote}
             onTogglePin={togglePin}
+            onCopyToFiles={handleCopyNoteToFiles}
             onToggleExpand={toggleExpanded}
             persistWithHistory={persistWithHistory}
           />

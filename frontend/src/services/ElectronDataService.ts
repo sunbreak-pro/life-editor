@@ -1206,4 +1206,17 @@ export class ElectronDataService implements DataService {
   openFileInSystem(relativePath: string): Promise<void> {
     return invoke("files:openInSystem", relativePath);
   }
+
+  // Copy (Notes/Memos <-> Files)
+  copyNoteToFile(noteId: string, directoryPath: string): Promise<string> {
+    return invoke("copy:noteToFile", noteId, directoryPath);
+  }
+  copyMemoToFile(memoDate: string, directoryPath: string): Promise<string> {
+    return invoke("copy:memoToFile", memoDate, directoryPath);
+  }
+  convertFileToTiptap(
+    relativeFilePath: string,
+  ): Promise<{ title: string; content: string }> {
+    return invoke("copy:convertFileToTiptap", relativeFilePath);
+  }
 }

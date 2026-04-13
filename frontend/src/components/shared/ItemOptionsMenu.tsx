@@ -1,6 +1,14 @@
 import { useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
-import { Lock, Unlock, KeyRound, PenOff, Pen, Check } from "lucide-react";
+import {
+  Lock,
+  Unlock,
+  KeyRound,
+  PenOff,
+  Pen,
+  Check,
+  FileOutput,
+} from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useClickOutside } from "../../hooks/useClickOutside";
 
@@ -11,6 +19,7 @@ interface ItemOptionsMenuProps {
   onChangePassword: () => void;
   onRemovePassword: () => void;
   onToggleEditLock: () => void;
+  onCopyToFiles?: () => void;
   onClose: () => void;
   anchorRef: React.RefObject<HTMLElement | null>;
 }
@@ -22,6 +31,7 @@ export function ItemOptionsMenu({
   onChangePassword,
   onRemovePassword,
   onToggleEditLock,
+  onCopyToFiles,
   onClose,
   anchorRef,
 }: ItemOptionsMenuProps) {
@@ -97,6 +107,19 @@ export function ItemOptionsMenu({
           onClose();
         }}
       />
+      {onCopyToFiles && (
+        <>
+          <div className="my-1 border-t border-notion-border" />
+          <MenuButton
+            icon={<FileOutput size={14} />}
+            label={t("copy.copyToFiles")}
+            onClick={() => {
+              onCopyToFiles();
+              onClose();
+            }}
+          />
+        </>
+      )}
     </div>,
     document.body,
   );

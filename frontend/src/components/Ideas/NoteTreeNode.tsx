@@ -29,6 +29,7 @@ interface NoteTreeNodeProps {
   onRename?: (id: string, title: string) => void;
   onChangeIcon?: (id: string, icon: string | undefined) => void;
   onTogglePin?: (id: string) => void;
+  onCopyToFiles?: (id: string) => void;
 }
 
 export const NoteTreeNode = memo(function NoteTreeNode({
@@ -43,6 +44,7 @@ export const NoteTreeNode = memo(function NoteTreeNode({
   onRename,
   onChangeIcon,
   onTogglePin,
+  onCopyToFiles,
 }: NoteTreeNodeProps) {
   const dropPosition = useNoteDragOverIndicator(node.id);
   const isFolder = node.type === "folder";
@@ -245,6 +247,9 @@ export const NoteTreeNode = memo(function NoteTreeNode({
           node={node}
           onRename={handleStartRename}
           onChangeIcon={handleOpenIconPicker}
+          onCopyToFiles={
+            onCopyToFiles ? () => onCopyToFiles(node.id) : undefined
+          }
           onTogglePin={() => onTogglePin?.(node.id)}
           onDelete={() => onDelete?.(node.id)}
           onClose={() => setContextMenu(null)}

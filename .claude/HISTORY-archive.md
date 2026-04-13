@@ -1,3 +1,15 @@
+### 2026-04-12 - DayFlow isAllDay トグル無反応バグ修正
+
+#### 概要
+
+DayFlow の TimeGrid 内アイテムで終日トグルを切り替えた後、トグル UI が無反応になるバグを修正。アイテムが timedScheduleItems ⇔ allDayScheduleItems 間で移動する際、ポップアップが古いスナップショットを参照し続ける問題。
+
+#### 変更点
+
+- **ScheduleTimeGrid.tsx**: TaskPreviewPopup / ScheduleItemPreviewPopup の `onUpdateAllDay` コールバックでトグル後にポップアップを閉じるように修正
+- **OneDaySchedule.tsx**: all-day セクションの TaskPreviewPopup / ScheduleItemPreviewPopup でも同様に修正
+- **CalendarView.tsx**: CalendarView 内の TaskPreviewPopup / ScheduleItemPreviewPopup でも同様に修正
+
 ### 2026-04-12 - Connect Node Navigation Fix + Edge Dimming + Materials Shortcuts & Settings UI Refresh
 
 #### 概要

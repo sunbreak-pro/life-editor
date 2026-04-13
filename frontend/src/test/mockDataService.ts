@@ -478,5 +478,11 @@ export function createMockDataService(): DataService & {
     moveFile: vi.fn().mockResolvedValue(undefined),
     deleteFile: vi.fn().mockResolvedValue(undefined),
     openFileInSystem: vi.fn().mockResolvedValue(undefined),
+    copyNoteToFile: vi.fn().mockResolvedValue("/mock/path/note.md"),
+    copyMemoToFile: vi.fn().mockResolvedValue("/mock/path/memo.md"),
+    convertFileToTiptap: vi.fn().mockResolvedValue({
+      title: "Mock",
+      content: '{"type":"doc","content":[{"type":"paragraph"}]}',
+    }),
   };
 }

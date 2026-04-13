@@ -7,6 +7,8 @@ import {
   Copy,
   FilePlus,
   FolderPlus,
+  StickyNote,
+  BookOpen,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import type { FileEntry } from "../../types/fileExplorer";
@@ -21,6 +23,8 @@ interface FileContextMenuProps {
   onRename: (entry: FileEntry) => void;
   onDelete: (entry: FileEntry) => void;
   onCopyPath: (entry: FileEntry) => void;
+  onCopyToNote?: (entry: FileEntry) => void;
+  onCopyToMemo?: (entry: FileEntry) => void;
   onNewFile: () => void;
   onNewFolder: () => void;
 }
@@ -62,6 +66,8 @@ export function FileContextMenu({
   onRename,
   onDelete,
   onCopyPath,
+  onCopyToNote,
+  onCopyToMemo,
   onNewFile,
   onNewFolder,
 }: FileContextMenuProps) {
@@ -138,6 +144,27 @@ export function FileContextMenu({
               onClose();
             }}
           />
+          {entry.extension === ".md" && onCopyToNote && onCopyToMemo && (
+            <>
+              <Separator />
+              <MenuItem
+                icon={StickyNote}
+                label={t("copy.copyToNote")}
+                onClick={() => {
+                  onCopyToNote(entry);
+                  onClose();
+                }}
+              />
+              <MenuItem
+                icon={BookOpen}
+                label={t("copy.copyToMemo")}
+                onClick={() => {
+                  onCopyToMemo(entry);
+                  onClose();
+                }}
+              />
+            </>
+          )}
           <Separator />
           <MenuItem
             icon={Trash2}

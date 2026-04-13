@@ -1,4 +1,9 @@
 import { useState, useCallback, useEffect, useRef } from "react";
+import { getDataService } from "../../services/dataServiceFactory";
+import { useToast } from "../../context/ToastContext";
+import { useNoteContext } from "../../hooks/useNoteContext";
+import { useMemoContext } from "../../hooks/useMemoContext";
+import { DatePickerDialog } from "../shared/DatePickerDialog";
 import {
   ChevronRight,
   Home,
@@ -190,7 +195,59 @@ export function FileExplorerView() {
   const [isDropTarget, setIsDropTarget] = useState(false);
   const [isCreating, setIsCreating] = useState<"file" | "folder" | null>(null);
   const [newName, setNewName] = useState("");
+  const [datePickerEntry, setDatePickerEntry] = useState<FileEntry | null>(
+    null,
+  );
   const gridRef = useRef<HTMLDivElement>(null);
+  const { showToast } = useToast();
+  const { createNote, updateNote } = useNoteContext();
+  const { upsertMemo } = useMemoContext();
+
+  const handleCopyToNote = useCallback(
+    async (entry: FileEntry) => {
+      try {
+        const ds = getDataService();
+        const { title, content } = await ds.convertFileToTiptap(
+          entry.relativePath,
+        );
+        const noteId = createNote(title);
+        await updateNote(noteId, { content });
+        showToast("success", t("copy.copiedToNote", { title }));
+      } catch (e) {
+        showToast(
+          "error",
+          e instanceof Error ? e.message : t("copy.copyFailed"),
+        );
+      }
+    },
+    [createNote, updateNote, showToast, t],
+  );
+
+  const handleCopyToMemo = useCallback((entry: FileEntry) => {
+    setDatePickerEntry(entry);
+  }, []);
+
+  const handleDatePickerConfirm = useCallback(
+    async (date: string) => {
+      if (!datePickerEntry) return;
+      try {
+        const ds = getDataService();
+        const { content } = await ds.convertFileToTiptap(
+          datePickerEntry.relativePath,
+        );
+        upsertMemo(date, content);
+        showToast("success", t("copy.copiedToMemo", { date }));
+      } catch (e) {
+        showToast(
+          "error",
+          e instanceof Error ? e.message : t("copy.copyFailed"),
+        );
+      } finally {
+        setDatePickerEntry(null);
+      }
+    },
+    [datePickerEntry, upsertMemo, showToast, t],
+  );
 
   const handleOpen = useCallback(
     (entry: FileEntry) => {
@@ -487,8 +544,18 @@ export function FileExplorerView() {
           onRename={setRenamingEntry}
           onDelete={handleDelete}
           onCopyPath={handleCopyPath}
+          onCopyToNote={handleCopyToNote}
+          onCopyToMemo={handleCopyToMemo}
           onNewFile={() => setIsCreating("file")}
           onNewFolder={() => setIsCreating("folder")}
+        />
+      )}
+
+      {/* Date picker for copy to memo */}
+      {datePickerEntry && (
+        <DatePickerDialog
+          onConfirm={handleDatePickerConfirm}
+          onCancel={() => setDatePickerEntry(null)}
         />
       )}
     </div>

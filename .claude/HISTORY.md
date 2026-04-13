@@ -1,5 +1,24 @@
 # HISTORY.md - 変更履歴
 
+### 2026-04-13 - Notes/Memos ↔ Files 双方向コピー機能
+
+#### 概要
+
+Notes/Memos (TipTap JSON) と Files (.md) 間の双方向コピー機能を実装。コンテキストメニューからワンクリックでコピー可能。TipTap JSON → Markdown 変換器を新規作成。
+
+#### 変更点
+
+- **TipTap→Markdown 変換器**: `electron/utils/tiptapToMarkdown.ts` を新規作成。heading, list, code block, table, callout (GitHub alert), toggle list (details/summary), image 等をサポート
+- **変換ユーティリティ複製**: `mcp-server/src/utils/` の `tiptapJsonBuilder.ts`, `markdownToTiptap.ts` を `electron/utils/` にコピー（electron main process で使用するため）
+- **IPC 3チャンネル**: `copy:noteToFile`（Note→.md）, `copy:memoToFile`（Memo→.md）, `copy:convertFileToTiptap`（.md→TipTap JSON 変換のみ）を `copyHandlers.ts` に追加
+- **状態同期設計**: File→Note/Memo は変換のみバックエンドで実行し、エンティティ作成はフロントエンドの Context メソッド（`createNote`/`upsertMemo`）経由に。これによりReact状態が即座に反映
+- **Note コンテキストメニュー**: `NoteNodeContextMenu.tsx` に「ファイルにコピー」追加（note のみ、folder 除外）。MaterialsSidebar → NoteTreeNode → NoteNodeContextMenu の prop チェーン
+- **Memo オプションメニュー**: `ItemOptionsMenu.tsx` にオプショナル `onCopyToFiles` 追加。`DailyMemoView.tsx` から接続
+- **File コンテキストメニュー**: `FileContextMenu.tsx` に「ノートにコピー」「メモにコピー」追加（.md ファイルのみ表示）
+- **日付選択ダイアログ**: `DatePickerDialog.tsx` 新規作成（File→Memo 時のターゲット日付選択用）
+- **DataService 層**: `DataService.ts`, `ElectronDataService.ts`, `OfflineDataService.ts`, `RestDataService.ts`, mockDataService を全て更新
+- **i18n**: `en.json`/`ja.json` に `copy.*` と `contextMenu.copyToFiles` キー追加
+
 ### 2026-04-12 - Board タブ — Frame nesting position fix, Undo/Redo for drag operations
 
 #### 概要
@@ -75,17 +94,5 @@ Analytics セクションを3タブ（Overview/Time/Tasks）から6タブ（Over
 - **BasePreviewPopup 統合**: `Tasks/Schedule/shared/BasePreviewPopup.tsx` を新規作成（位置計算、click-outside、カラーバー、フッターレイアウトを共通化）。TaskPreviewPopup(-83行), ScheduleItemPreviewPopup(-39行), MemoPreviewPopup(-11行) をリファクタリング（合計 -133行）
 - **Provider 遅延初期化**: WikiTag は Materials(Notes)で毎日使用、Audio はタイマー再生でセクション横断必要のため見送り
 - **計画書**: `.claude/feature_plans/2026-04-11-app-optimization.md` に Phase 3/4 の残作業を記録
-
-### 2026-04-12 - DayFlow isAllDay トグル無反応バグ修正
-
-#### 概要
-
-DayFlow の TimeGrid 内アイテムで終日トグルを切り替えた後、トグル UI が無反応になるバグを修正。アイテムが timedScheduleItems ⇔ allDayScheduleItems 間で移動する際、ポップアップが古いスナップショットを参照し続ける問題。
-
-#### 変更点
-
-- **ScheduleTimeGrid.tsx**: TaskPreviewPopup / ScheduleItemPreviewPopup の `onUpdateAllDay` コールバックでトグル後にポップアップを閉じるように修正
-- **OneDaySchedule.tsx**: all-day セクションの TaskPreviewPopup / ScheduleItemPreviewPopup でも同様に修正
-- **CalendarView.tsx**: CalendarView 内の TaskPreviewPopup / ScheduleItemPreviewPopup でも同様に修正
 
 <!-- older entries archived to HISTORY-archive.md -->

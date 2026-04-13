@@ -1351,7 +1351,18 @@
     "changeIcon": "Change Icon",
     "removeIcon": "Remove Icon",
     "pin": "Pin",
-    "unpin": "Unpin"
+    "unpin": "Unpin",
+    "copyToFiles": "Copy to Files"
+  },
+  "copy": {
+    "copyToFiles": "Copy to Files",
+    "copyToNote": "Copy to Notes",
+    "copyToMemo": "Copy to Memo",
+    "selectDate": "Select target date",
+    "copiedToFile": "Copied to file: {{path}}",
+    "copiedToNote": "Note created: {{title}}",
+    "copiedToMemo": "Memo updated for {{date}}",
+    "copyFailed": "Copy failed"
   },
   "taskActions": {
     "completeFolder": "Complete Folder",
@@ -1724,5 +1735,68 @@
     "search": "Search icons...",
     "empty": "No icons found",
     "remove": "Remove"
+  },
+  "mobile": {
+    "tabs": {
+      "materials": "Materials",
+      "calendar": "Calendar",
+      "work": "Work",
+      "settings": "Settings",
+      "memos": "Memos",
+      "notes": "Notes"
+    },
+    "calendar": {
+      "monthly": "Monthly",
+      "dayflow": "Day Flow",
+      "today": "Today",
+      "tasks": "Tasks",
+      "schedule": "Schedule",
+      "empty": "No items for this day",
+      "itemCount": "{{count}} items"
+    },
+    "schedule": {
+      "allDay": "All day",
+      "addFirst": "Add item",
+      "create": "New Item",
+      "itemCount": "{{count}} items",
+      "empty": "No schedule items"
+    },
+    "memo": {
+      "today": "Today",
+      "empty": "No memos yet",
+      "placeholder": "Write your thoughts..."
+    },
+    "note": {
+      "new": "New",
+      "empty": "No notes yet",
+      "untitled": "Untitled",
+      "titlePlaceholder": "Title",
+      "contentPlaceholder": "Start writing..."
+    },
+    "work": {
+      "selectTask": "Select a task...",
+      "searchTask": "Search tasks...",
+      "clearTask": "Clear selected task",
+      "noTasks": "No tasks found"
+    },
+    "settings": {
+      "connection": "Connection",
+      "connected": "Connected to desktop",
+      "disconnected": "Not connected",
+      "disconnect": "Disconnect",
+      "theme": "Theme",
+      "language": "Language"
+    },
+    "connection": {
+      "subtitle": "Connect to your desktop app",
+      "howTo": "How to connect",
+      "step1": "Open Life Editor on your desktop",
+      "step2": "Go to Settings → \"Mobile Access\"",
+      "step3": "Scan the QR code or paste the URL below",
+      "connecting": "Connecting...",
+      "connect": "Connect",
+      "error": "Connection failed. Check the URL and try again.",
+      "invalidUrl": "Invalid URL. Use the QR code or paste the full connection URL."
+    }
   }
 }

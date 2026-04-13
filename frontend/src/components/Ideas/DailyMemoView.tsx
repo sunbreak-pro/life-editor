@@ -1,4 +1,6 @@
 import { Suspense, useCallback, useRef, useState } from "react";
+import { getDataService } from "../../services/dataServiceFactory";
+import { useToast } from "../../context/ToastContext";
 import { Heart, BookOpen, Lock, MoreHorizontal, PenOff } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useMemoContext } from "../../hooks/useMemoContext";
@@ -32,11 +34,24 @@ export function DailyMemoView() {
   } = useMemoContext();
   const { isUnlocked, unlock } = useScreenLockContext();
   const { t, i18n } = useTranslation();
+  const { showToast } = useToast();
 
   const [showOptionsMenu, setShowOptionsMenu] = useState(false);
   const [passwordDialogMode, setPasswordDialogMode] =
     useState<PasswordDialogMode | null>(null);
   const moreButtonRef = useRef<HTMLButtonElement>(null);
+
+  const handleCopyToFiles = useCallback(async () => {
+    try {
+      const ds = getDataService();
+      const dir = await ds.selectFolder();
+      if (!dir) return;
+      const filePath = await ds.copyMemoToFile(selectedDate, dir);
+      showToast("success", t("copy.copiedToFile", { path: filePath }));
+    } catch (e) {
+      showToast("error", e instanceof Error ? e.message : t("copy.copyFailed"));
+    }
+  }, [selectedDate, showToast, t]);
 
   const memoId = selectedMemo?.id ?? `memo-${selectedDate}`;
   const isLocked = !!selectedMemo?.hasPassword && !isUnlocked(memoId);
@@ -146,6 +161,7 @@ export function DailyMemoView() {
               onChangePassword={() => setPasswordDialogMode("change")}
               onRemovePassword={() => setPasswordDialogMode("remove")}
               onToggleEditLock={() => toggleEditLock(selectedDate)}
+              onCopyToFiles={selectedMemo ? handleCopyToFiles : undefined}
               onClose={() => setShowOptionsMenu(false)}
               anchorRef={moreButtonRef}
             />

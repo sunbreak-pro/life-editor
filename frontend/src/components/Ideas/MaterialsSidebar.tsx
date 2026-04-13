@@ -56,6 +56,7 @@ interface MaterialsSidebarProps {
   onUpdateNoteTitle?: (noteId: string, title: string) => void;
   onUpdateNote?: (id: string, updates: Partial<Pick<NoteNode, "icon">>) => void;
   onTogglePin?: (id: string) => void;
+  onCopyToFiles?: (id: string) => void;
   onToggleExpand: (id: string) => void;
   persistWithHistory: (currentNotes: NoteNode[], updated: NoteNode[]) => void;
 }
@@ -101,6 +102,7 @@ export function MaterialsSidebar({
   onUpdateNoteTitle,
   onUpdateNote,
   onTogglePin,
+  onCopyToFiles,
   onToggleExpand,
   persistWithHistory,
 }: MaterialsSidebarProps) {
@@ -478,6 +480,7 @@ export function MaterialsSidebar({
                           : undefined
                       }
                       onTogglePin={onTogglePin}
+                      onCopyToFiles={onCopyToFiles}
                     />
                   ))
                 )}

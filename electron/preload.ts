@@ -277,6 +277,10 @@ const ALLOWED_CHANNELS = new Set([
   "files:move",
   "files:delete",
   "files:openInSystem",
+  // Copy (Notes/Memos <-> Files)
+  "copy:noteToFile",
+  "copy:memoToFile",
+  "copy:convertFileToTiptap",
   // Claude
   "claude:registerMcp",
   "claude:readClaudeMd",

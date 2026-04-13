@@ -670,4 +670,11 @@ export interface DataService {
   moveFile(sourcePath: string, destPath: string): Promise<void>;
   deleteFile(relativePath: string): Promise<void>;
   openFileInSystem(relativePath: string): Promise<void>;
+
+  // Copy (Notes/Memos <-> Files)
+  copyNoteToFile(noteId: string, directoryPath: string): Promise<string>;
+  copyMemoToFile(memoDate: string, directoryPath: string): Promise<string>;
+  convertFileToTiptap(
+    relativeFilePath: string,
+  ): Promise<{ title: string; content: string }>;
 }
