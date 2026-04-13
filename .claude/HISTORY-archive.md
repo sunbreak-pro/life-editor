@@ -1,3 +1,16 @@
+### 2026-04-12 - Board タブ — Frame nesting position fix, Undo/Redo for drag operations
+
+#### 概要
+
+Paper Board のレイヤーパネルでFrame階層変更時にノードが画面外に飛ぶ問題を修正。キャンバスドラッグ・レイヤーパネル操作の Undo/Redo サポートを追加。
+
+#### 変更点
+
+- **座標変換**: `usePaperLayersDnd.ts` に `getAbsolutePosition()` ヘルパー追加。parent chain を辿ってグローバル座標を算出し、レイヤーパネルでの親変更時に正しくローカル/グローバル座標変換を実行
+- **Undo/Redo (キャンバスドラッグ)**: `usePaperBoard.ts` の `bulkUpdatePositions` に before-state キャプチャ + undo command push を追加
+- **Undo/Redo (レイヤーパネル)**: `bulkUpdateLayerOrder` 関数を新規追加。zIndex更新 + 座標更新を単一の undo コマンドとして管理
+- **Props チェーン**: PaperLayersPanel / PaperSidebar / ConnectView の props を `onBulkUpdateLayerOrder` に統一
+
 ### 2026-04-12 - RichEditor UI/UX Improvements + 階層UI統一
 
 #### 概要

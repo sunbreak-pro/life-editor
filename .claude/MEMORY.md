@@ -13,9 +13,9 @@
 
 ## 直近の完了
 
+- .claude/ 設計書・コード整合性修正 ✅（2026-04-14）
 - Trash を Settings ヘッダータブに移動 + ScheduleItem ソフトデリート ✅（2026-04-14）
 - Global Shortcuts → Shortcuts タブ移動 + Cancel ボタン追加 ✅（2026-04-13）
-- session-verifier + life-editor-mcp スキル作成 & Life Editor ノート記録 ✅（2026-04-13）
 
 ## 予定
 
