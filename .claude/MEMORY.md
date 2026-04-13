@@ -13,9 +13,9 @@
 
 ## 直近の完了
 
+- Global Shortcuts → Shortcuts タブ移動 + Cancel ボタン追加 ✅（2026-04-13）
 - session-verifier + life-editor-mcp スキル作成 & Life Editor ノート記録 ✅（2026-04-13）
 - Notes/Memos ↔ Files 双方向コピー機能 ✅（2026-04-13）
-- Board タブ — Frame nesting position fix, Undo/Redo for drag operations ✅（2026-04-12）
 
 ## 予定
 

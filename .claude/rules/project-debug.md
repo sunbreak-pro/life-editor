@@ -8,7 +8,7 @@
 
 ### ハンドラ未登録
 
-1. `electron/ipc/registerAll.ts` で登録確認
+1. `electron/ipc/registerAll.ts`（DB依存系）または `electron/main.ts`（Terminal/Claude/Server系）で登録確認
 2. `*Handlers.ts` の try-catch とエラーメッセージ確認
 3. Repository層のメソッド名・引数の不一致チェック
 
@@ -37,7 +37,7 @@ sqlite3 ~/Library/Application\ Support/sonic-flow/life-editor.db "PRAGMA user_ve
 
 ## Context/Provider デバッグ
 
-- Provider順序 (外→内): ErrorBoundary → Theme → Toast → UndoRedo → ScreenLock → TaskTree → Calendar → Memo → Note → FileExplorer → Routine → ScheduleItems → CalendarTags → Timer → Audio → WikiTag → ShortcutConfig
+- Provider順序: CLAUDE.md のモバイル構成 / デスクトップ構成を参照
 - 内側Providerは外側Contextに依存可（逆は不可）
 - 依存関係: ScheduleItemsProvider → RoutineProvider、AudioProvider → TimerProvider
 - `Cannot read properties of null` → コンポーネントが対応Providerの外で使用されている

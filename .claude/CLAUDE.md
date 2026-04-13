@@ -41,10 +41,19 @@ Main Process 内の `TerminalManager` が PTY セッションを管理。Rendere
 ファクトリ (`dataServiceFactory.ts`) が環境を判別し実装を選択:
 
 - `ElectronDataService.ts` — デスクトップ: Electron IPC 経由
-- `OfflineDataService.ts` — Web/モバイル: IndexedDB + SyncQueue
+- `OfflineDataService.ts` — Web/モバイル: IndexedDB + SyncQueue（未対応メソッドは `notSupported()` スタブ）
 - `RestDataService.ts` — OfflineDataService 内部で利用する REST クライアント
 
 インターフェース定義: `frontend/src/services/DataService.ts`
+
+### モバイル構成
+
+`isElectron()` が `false` の場合にモバイルモードで起動。デスクトップと同じ React コードベースだが Provider セットが異なる:
+
+- **デスクトップ Provider** (外→内): ErrorBoundary → Theme → Toast → UndoRedo → ScreenLock → TaskTree → Calendar → Memo → Note → FileExplorer → Routine → ScheduleItems → CalendarTags → Timer → Audio → WikiTag → ShortcutConfig
+- **モバイル Provider** (外→内): ErrorBoundary → Theme → Toast → UndoRedo → TaskTree → Calendar → Memo → Note → Routine → ScheduleItems → Timer
+
+モバイルで省略: ScreenLock, FileExplorer, CalendarTags, Audio, WikiTag, ShortcutConfig
 
 ### データ永続化
 
@@ -55,16 +64,15 @@ Main Process 内の `TerminalManager` が PTY セッションを管理。Rendere
 
 - **ルーティング**: React Router なし。`App.tsx` の `activeSection` で画面切替
 - **TaskNode**: フラット配列 + `parentId` で階層表現。`type: 'folder' | 'task'`。フォルダの階層制限なし
-- **ソフトデリート**: `is_deleted` + `deleted_at` カラム → TrashView から復元可能（Tasks/Notes/Memos/Routines/CustomSounds）。CustomSounds のみ JSON ファイルベース（`_meta.json`）、他は SQLite
+- **ソフトデリート**: `is_deleted` + `deleted_at` カラム → TrashView から復元可能（Tasks/Notes/Memos/Routines/Databases）。CustomSounds は `db:customSound:*` IPC 経由
 - **DnD**: `@dnd-kit` 使用。`moveNode`（並び替え）と `moveNodeInto`（階層移動）は別操作
 - **リッチテキスト**: TipTap (`@tiptap/react`)
 - **i18n**: `react-i18next`。対応: en/ja。ロケール: `frontend/src/i18n/locales/`
-- **ID**: String型。TaskNode は `"<type>-<timestamp+counter>"` 形式（例: `task-1710201234566`）、他エンティティは `"<prefix>-<uuid>"` 形式（例: `note-xxxxxxxx-...`）
+- **ID**: String型。TaskNode は `"<type>-<timestamp+counter>"` 形式（例: `task-1710201234566`）、他エンティティは `"<prefix>-<uuid>"` 形式（例: `tag-xxxxxxxx-...`）
 - **TerminalPanel**: SectionId に含めず全画面共通の下部パネル（VSCode のターミナルと同じ位置づけ）
-- **Context/Provider**: Pattern A（3ファイル構成）が標準。詳細は ADR-0002 参照
+- **Context/Provider**: Pattern A（3ファイル構成）が標準。例外あり。詳細は ADR-0002 参照
   - `context/FooContextValue.ts` → `context/FooContext.tsx` → `hooks/useFooContext.ts`
   - consumer hook は `createContextHook()` 使用
-- **Provider順序** (外→内): Theme → Toast → UndoRedo → ScreenLock → TaskTree → Calendar → Memo → Note → FileExplorer → Routine → ScheduleItems → CalendarTags → Timer → Audio → WikiTag → ShortcutConfig
 - **Schedule系**: RoutineProvider / ScheduleItemsProvider / CalendarTagsProvider の3分割（ADR-0003）。`useScheduleContext()` は後方互換ファサード
 - **Schedule共通コンポーネント**: `Tasks/Schedule/shared/` に配置（ADR-0004）
 
@@ -101,9 +109,12 @@ type: `feat` / `fix` / `docs` / `style` / `refactor` / `test` / `chore`
 - **音源ファイル**: リポジトリにコミット禁止（`public/sounds/` は `.gitignore` 対象）
 - **IPC追加時**: 以下の箇所を必ず更新:
   1. `electron/preload.ts` の `ALLOWED_CHANNELS`
-  2. `electron/ipc/` に対応ハンドラ追加 + `registerAll.ts` に登録
+  2. `electron/ipc/` に対応ハンドラ追加 + 登録（下記参照）
   3. `frontend/src/services/ElectronDataService.ts` にメソッド追加
   4. `frontend/src/services/OfflineDataService.ts` / `RestDataService.ts` にもメソッド追加（未対応なら `notSupported()` でスタブ）
+- **IPC ハンドラ登録の2系統**:
+  - `registerAll.ts` — DB 依存のデータ操作系ハンドラ（大部分はこちら）
+  - `main.ts` 直接登録 — TerminalManager / ClaudeSetup / Server など、DB 以外の依存がある or 初期化順序に制約があるハンドラ
 
 ---
 

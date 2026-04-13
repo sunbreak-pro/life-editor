@@ -26,23 +26,21 @@
 - DataService 依存はコールバックで注入（フック内で直接 `getDataService()` を呼ばない）
 - UndoRedo 統合は `push` 関数を引数で受け取る
 
-## Context/Provider パターン（Pattern A — ADR-0002）
+## Context/Provider パターン（ADR-0002）
 
-新しい Context/Provider 作成時は必ず以下の3ファイル構成:
+### Pattern A（標準 — 3ファイル構成）
+
+新しい Context/Provider 作成時の標準:
 
 1. `context/FooContextValue.ts` — interface + `createContext<T | null>(null)`
 2. `context/FooContext.tsx` — Provider component（フック呼び出し + useMemo）
 3. `hooks/useFooContext.ts` — `createContextHook(FooContext, "useFooContext")`
 
-### バレルexport
+`context/index.ts` に Provider, Context, ContextValue type を export 追加。
 
-`context/index.ts` に以下を追加:
+### 例外（単一ファイル構成）
 
-```typescript
-export { FooProvider } from "./FooContext";
-export { FooContext } from "./FooContextValue";
-export type { FooContextValue } from "./FooContextValue";
-```
+特定セクション内でのみ使用・他 Provider に依存されない・型が外部参照されない場合は単一ファイル許容（例: `AnalyticsFilterContext`, `ToastContext`）
 
 ### Schedule 共通コンポーネント（ADR-0004）
 

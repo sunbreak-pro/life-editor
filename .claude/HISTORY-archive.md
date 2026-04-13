@@ -1,3 +1,18 @@
+### 2026-04-12 - App Optimization Phase 3 — useScheduleItems分割, EditableTitle共有化, RoutineTimeChangeDialog統合
+
+#### 概要
+
+App Optimization プランの Phase 3（P2 リファクタリング）3タスクを完了。1,076行の巨大フック分割、インラインタイトル編集の共通コンポーネント抽出、重複ダイアログの統合を実施。
+
+#### 変更点
+
+- **RoutineTimeChangeDialog統合**: `DayFlow/RoutineTimeChangeDialog.tsx` と `Routine/RoutineEditTimeChangeDialog.tsx` を `Tasks/Schedule/shared/RoutineTimeChangeDialog.tsx` に統合。DayFlow版ベースに `zIndex` prop 追加。RoutineManagementOverlay の props を統一インターフェースに移行、旧ファイル2つを削除
+- **EditableTitle共有コンポーネント**: `shared/EditableTitle.tsx` を新規作成（blur/Enter/Escape保存、autoFocus+selectAll、IME isComposing対応）。TaskNodeEditor, NoteTreeNode, TaskDetailHeader, EventDetailPanel, TaskSelector の5箇所に適用し、重複コードを削減
+- **useScheduleItems 4分割**: `useScheduleItemsCore.ts`（CRUD+state+helpers ~300行）、`useScheduleItemsEvents.ts`（events管理 ~35行）、`useScheduleItemsStats.ts`（統計計算+computeRoutineStats ~170行）、`useScheduleItemsRoutineSync.ts`（ルーティン同期 ~300行）に分割。`useScheduleItems.ts` を ~75行のオーケストレータに書き換え
+- **ScheduleItemsContextValue**: `ReturnType<typeof useScheduleItems>` から明示的インターフェース定義に変更（27フィールド、全型を明記）
+- **CoreHandles パターン**: Core が `_handles`（scheduleItemsRef, setScheduleItems, setMonthlyScheduleItems, bumpVersion）を返し、RoutineSync が受け取る設計。Events hook の `_setEvents` を Core に渡して applyToLists の includeEvents を実現
+- **検証**: `tsc --noEmit` 型エラーなし、148テスト全パス
+
 ### 2026-04-12 - Analytics Section Expansion — 6-Tab Multi-Domain Dashboard
 
 #### 概要

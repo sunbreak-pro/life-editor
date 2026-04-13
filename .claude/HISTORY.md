@@ -1,5 +1,20 @@
 # HISTORY.md - 変更履歴
 
+### 2026-04-13 - Global Shortcuts → Shortcuts タブ移動 + Cancel ボタン追加
+
+#### 概要
+
+SystemSettings（Advanced > System）にあったOSグローバルショートカット設定をShortcutsタブに移動し、既存のキーキャプチャUIで任意のキーを割り当て可能にした。ショートカット編集中のCancelボタンも追加。
+
+#### 変更点
+
+- **accelerator変換ユーティリティ**: `frontend/src/utils/electronAccelerator.ts` を新規作成。`keyBindingToAccelerator()` / `acceleratorToKeyBinding()` でKeyBinding ↔ Electron accelerator文字列を双方向変換。modifier有無に応じた`code`/`key`の整合性を保証
+- **reregister IPC**: `system:reregisterGlobalShortcuts` チャンネルを追加（`electron/main.ts`）。保存後にアプリ再起動なしでOS側のグローバルショートカットを即時再登録
+- **KeyboardShortcuts.tsx**: `ShortcutRowBase` に統合（旧`ShortcutRow`+`GlobalShortcutRow`の重複解消）。`CapturingTarget`型で inApp/global を区別。Cancel ボタン追加。グローバルショートカットセクションをGlobalカテゴリ先頭に表示。保存時エラーハンドリング（失敗時ロールバック）
+- **SystemSettings.tsx**: グローバルショートカットUI、関連state、ローカル`ShortcutRow`コンポーネントを削除。`getGlobalShortcuts`のnullフォールバック修正
+- **IPC 3点セット更新**: `electron/preload.ts`（ALLOWED_CHANNELS）、DataService interface、ElectronDataService / OfflineDataService / RestDataService / mockDataService
+- **i18n**: `settings.shortcuts.cancel` / `osGlobalShortcuts` / `osGlobalShortcutsDesc` を en/ja 両方に追加
+
 ### 2026-04-13 - session-verifier + life-editor-mcp スキル作成
 
 #### 概要
@@ -59,20 +74,5 @@ TaskDetail の IconPicker 導入、Notes の Breadcrumb ヘッダー追加、Fil
 - **Notes Breadcrumb**: NotesView にフォルダパス表示 + クリックナビゲーション付き Breadcrumb ヘッダー追加
 - **Files ツリー表示**: FileExplorerSidebar をフラットリスト → ツリー表示（展開/折りたたみ、遅延ロード）に改修
 - **NoteTreeNode 修正**: useRef import 修正
-
-### 2026-04-12 - App Optimization Phase 3 — useScheduleItems分割, EditableTitle共有化, RoutineTimeChangeDialog統合
-
-#### 概要
-
-App Optimization プランの Phase 3（P2 リファクタリング）3タスクを完了。1,076行の巨大フック分割、インラインタイトル編集の共通コンポーネント抽出、重複ダイアログの統合を実施。
-
-#### 変更点
-
-- **RoutineTimeChangeDialog統合**: `DayFlow/RoutineTimeChangeDialog.tsx` と `Routine/RoutineEditTimeChangeDialog.tsx` を `Tasks/Schedule/shared/RoutineTimeChangeDialog.tsx` に統合。DayFlow版ベースに `zIndex` prop 追加。RoutineManagementOverlay の props を統一インターフェースに移行、旧ファイル2つを削除
-- **EditableTitle共有コンポーネント**: `shared/EditableTitle.tsx` を新規作成（blur/Enter/Escape保存、autoFocus+selectAll、IME isComposing対応）。TaskNodeEditor, NoteTreeNode, TaskDetailHeader, EventDetailPanel, TaskSelector の5箇所に適用し、重複コードを削減
-- **useScheduleItems 4分割**: `useScheduleItemsCore.ts`（CRUD+state+helpers ~300行）、`useScheduleItemsEvents.ts`（events管理 ~35行）、`useScheduleItemsStats.ts`（統計計算+computeRoutineStats ~170行）、`useScheduleItemsRoutineSync.ts`（ルーティン同期 ~300行）に分割。`useScheduleItems.ts` を ~75行のオーケストレータに書き換え
-- **ScheduleItemsContextValue**: `ReturnType<typeof useScheduleItems>` から明示的インターフェース定義に変更（27フィールド、全型を明記）
-- **CoreHandles パターン**: Core が `_handles`（scheduleItemsRef, setScheduleItems, setMonthlyScheduleItems, bumpVersion）を返し、RoutineSync が受け取る設計。Events hook の `_setEvents` を Core に渡して applyToLists の includeEvents を実現
-- **検証**: `tsc --noEmit` 型エラーなし、148テスト全パス
 
 <!-- older entries archived to HISTORY-archive.md -->
