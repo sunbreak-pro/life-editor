@@ -32,7 +32,23 @@ createRoot(document.getElementById("root")!).render(
       <ThemeProvider>
         <ToastProvider>
           {isMobile ? (
-            <MobileApp />
+            <UndoRedoProvider>
+              <TaskTreeProvider>
+                <CalendarProvider>
+                  <MemoProvider>
+                    <NoteProvider>
+                      <RoutineProvider>
+                        <ScheduleItemsProvider>
+                          <TimerProvider>
+                            <MobileApp />
+                          </TimerProvider>
+                        </ScheduleItemsProvider>
+                      </RoutineProvider>
+                    </NoteProvider>
+                  </MemoProvider>
+                </CalendarProvider>
+              </TaskTreeProvider>
+            </UndoRedoProvider>
           ) : (
             <UndoRedoProvider>
               <ScreenLockProvider>

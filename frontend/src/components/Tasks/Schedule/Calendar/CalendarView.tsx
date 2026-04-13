@@ -236,7 +236,7 @@ export function CalendarView({
     getRoutineCompletionByDate,
     createScheduleItem,
     updateScheduleItem,
-    deleteScheduleItem,
+    softDeleteScheduleItem,
     toggleComplete,
     calendarTags,
     setTagsForScheduleItem,
@@ -835,7 +835,7 @@ export function CalendarView({
               : undefined
           }
           onDelete={() => {
-            deleteScheduleItem(scheduleItemPreview.item.id);
+            softDeleteScheduleItem(scheduleItemPreview.item.id);
             setScheduleItemPreview(null);
           }}
           onUpdateMemo={(id, memo) => updateScheduleItem(id, { memo })}

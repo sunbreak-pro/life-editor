@@ -567,6 +567,18 @@ export class RestDataService implements DataService {
   deleteScheduleItem(id: string): Promise<void> {
     return del(`/api/schedule-items/${id}`);
   }
+  softDeleteScheduleItem(id: string): Promise<void> {
+    return del(`/api/schedule-items/${id}/soft`);
+  }
+  restoreScheduleItem(id: string): Promise<void> {
+    return post(`/api/schedule-items/${id}/restore`);
+  }
+  permanentDeleteScheduleItem(id: string): Promise<void> {
+    return del(`/api/schedule-items/${id}/permanent`);
+  }
+  fetchDeletedScheduleItems(): Promise<ScheduleItem[]> {
+    return get("/api/schedule-items/deleted");
+  }
   toggleScheduleItemComplete(id: string): Promise<ScheduleItem> {
     return post(`/api/schedule-items/${id}/toggle-complete`);
   }
@@ -1142,6 +1154,9 @@ export class RestDataService implements DataService {
   }
   setGlobalShortcuts(): Promise<never> {
     return notSupported("setGlobalShortcuts");
+  }
+  reregisterGlobalShortcuts(): Promise<never> {
+    return notSupported("reregisterGlobalShortcuts");
   }
   updateTrayTimer(): Promise<never> {
     return notSupported("updateTrayTimer");

@@ -14,6 +14,8 @@ interface ScheduleItemRow {
   memo: string | null;
   note_id: string | null;
   content: string | null;
+  is_deleted: number;
+  deleted_at: string | null;
   is_dismissed: number;
   is_all_day: number;
   reminder_enabled: number;
@@ -36,6 +38,8 @@ function rowToItem(row: ScheduleItemRow): ScheduleItem {
     memo: row.memo ?? null,
     noteId: row.note_id ?? null,
     content: row.content ?? null,
+    isDeleted: row.is_deleted === 1,
+    deletedAt: row.deleted_at,
     isDismissed: row.is_dismissed === 1,
     isAllDay: row.is_all_day === 1,
     reminderEnabled: row.reminder_enabled === 1 ? true : undefined,
@@ -48,13 +52,13 @@ function rowToItem(row: ScheduleItemRow): ScheduleItem {
 export function createScheduleItemRepository(db: Database.Database) {
   const stmts = {
     fetchByDate: db.prepare(
-      `SELECT * FROM schedule_items WHERE date = ? AND is_dismissed = 0 ORDER BY start_time ASC, created_at ASC`,
+      `SELECT * FROM schedule_items WHERE date = ? AND is_dismissed = 0 AND is_deleted = 0 ORDER BY start_time ASC, created_at ASC`,
     ),
     fetchByDateAll: db.prepare(
-      `SELECT * FROM schedule_items WHERE date = ? ORDER BY start_time ASC, created_at ASC`,
+      `SELECT * FROM schedule_items WHERE date = ? AND is_deleted = 0 ORDER BY start_time ASC, created_at ASC`,
     ),
     fetchByDateRange: db.prepare(
-      `SELECT * FROM schedule_items WHERE date >= ? AND date <= ? AND is_dismissed = 0 ORDER BY date ASC, start_time ASC`,
+      `SELECT * FROM schedule_items WHERE date >= ? AND date <= ? AND is_dismissed = 0 AND is_deleted = 0 ORDER BY date ASC, start_time ASC`,
     ),
     fetchById: db.prepare(`SELECT * FROM schedule_items WHERE id = ?`),
     insert: db.prepare(`
@@ -69,17 +73,29 @@ export function createScheduleItemRepository(db: Database.Database) {
       WHERE id = @id
     `),
     fetchEvents: db.prepare(
-      `SELECT * FROM schedule_items WHERE routine_id IS NULL AND is_dismissed = 0 ORDER BY date DESC, start_time ASC`,
+      `SELECT * FROM schedule_items WHERE routine_id IS NULL AND is_dismissed = 0 AND is_deleted = 0 ORDER BY date DESC, start_time ASC`,
     ),
     delete: db.prepare(`DELETE FROM schedule_items WHERE id = ?`),
+    softDelete: db.prepare(
+      `UPDATE schedule_items SET is_deleted = 1, deleted_at = datetime('now'), version = version + 1, updated_at = datetime('now') WHERE id = ?`,
+    ),
+    restore: db.prepare(
+      `UPDATE schedule_items SET is_deleted = 0, deleted_at = NULL, version = version + 1, updated_at = datetime('now') WHERE id = ?`,
+    ),
+    permanentDelete: db.prepare(
+      `DELETE FROM schedule_items WHERE id = ? AND is_deleted = 1`,
+    ),
+    fetchDeleted: db.prepare(
+      `SELECT * FROM schedule_items WHERE is_deleted = 1 ORDER BY deleted_at DESC`,
+    ),
     findByRoutineAndDate: db.prepare(
-      `SELECT * FROM schedule_items WHERE routine_id = ? AND date = ?`,
+      `SELECT * FROM schedule_items WHERE routine_id = ? AND date = ? AND is_deleted = 0`,
     ),
     fetchLastRoutineDate: db.prepare(
-      `SELECT MAX(date) as last_date FROM schedule_items WHERE routine_id IS NOT NULL`,
+      `SELECT MAX(date) as last_date FROM schedule_items WHERE routine_id IS NOT NULL AND is_deleted = 0`,
     ),
     fetchByRoutineId: db.prepare(
-      `SELECT * FROM schedule_items WHERE routine_id = ? AND is_dismissed = 0 ORDER BY date ASC`,
+      `SELECT * FROM schedule_items WHERE routine_id = ? AND is_dismissed = 0 AND is_deleted = 0 ORDER BY date ASC`,
     ),
     updateFutureByRoutine: db.prepare(`
       UPDATE schedule_items SET
@@ -88,7 +104,7 @@ export function createScheduleItemRepository(db: Database.Database) {
         end_time = CASE WHEN @update_end_time THEN @end_time ELSE end_time END,
         version = version + 1,
         updated_at = datetime('now')
-      WHERE routine_id = @routine_id AND date >= @from_date AND is_dismissed = 0
+      WHERE routine_id = @routine_id AND date >= @from_date AND is_dismissed = 0 AND is_deleted = 0
     `),
   };
 
@@ -204,6 +220,22 @@ export function createScheduleItemRepository(db: Database.Database) {
 
     delete(id: string): void {
       stmts.delete.run(id);
+    },
+
+    softDelete(id: string): void {
+      stmts.softDelete.run(id);
+    },
+
+    restore(id: string): void {
+      stmts.restore.run(id);
+    },
+
+    permanentDelete(id: string): void {
+      stmts.permanentDelete.run(id);
+    },
+
+    fetchDeleted(): ScheduleItem[] {
+      return (stmts.fetchDeleted.all() as ScheduleItemRow[]).map(rowToItem);
     },
 
     dismiss(id: string): void {

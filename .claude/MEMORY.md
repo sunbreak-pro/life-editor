@@ -13,9 +13,9 @@
 
 ## 直近の完了
 
+- Trash を Settings ヘッダータブに移動 + ScheduleItem ソフトデリート ✅（2026-04-14）
 - Global Shortcuts → Shortcuts タブ移動 + Cancel ボタン追加 ✅（2026-04-13）
 - session-verifier + life-editor-mcp スキル作成 & Life Editor ノート記録 ✅（2026-04-13）
-- Notes/Memos ↔ Files 双方向コピー機能 ✅（2026-04-13）
 
 ## 予定
 

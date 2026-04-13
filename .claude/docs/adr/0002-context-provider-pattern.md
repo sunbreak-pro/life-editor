@@ -1,6 +1,6 @@
 # ADR-0002: Context/Provider パターン標準化（Pattern A）
 
-## Status: Accepted (Updated: 2026-04-13)
+## Status: Accepted (Updated: 2026-04-14)
 
 ## Date: 2026-04-05
 
@@ -43,15 +43,15 @@ hooks/useFooContext.ts       → consumer hook（createContextHook使用）
 
 以下の条件を**すべて**満たす場合、単一ファイル構成を許容する:
 
-- 特定のセクション内でのみ使用される（グローバルでない）
-- Provider が他の Provider に依存されない
-- 型が外部から参照されない
+- 他の Provider がこの Context に依存しない
+- ContextValue 型が他の Context ファイルから参照されない
+- 実装が自己完結している（単純な状態 + フック）
 
-現在の例外: `AnalyticsFilterContext`（Analytics セクション内でのみ使用）、`ToastContext`（UIフィードバック専用、外部依存なし）
+現在の例外: `ToastContext`（UIフィードバック専用）、`AnalyticsFilterContext`（Analytics セクション内ローカル）
 
 ## Consequences
 
 - 新規 Context 追加時の手順が明確
 - 全ての Context が同一パターンで予測可能
 - consumer hook は `createContextHook` 経由で型安全
-- 小規模な局所 Context は単一ファイルで簡潔に記述可能
+- 小規模な自己完結 Context は単一ファイルで簡潔に記述可能

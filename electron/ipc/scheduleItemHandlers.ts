@@ -220,4 +220,46 @@ export function registerScheduleItemHandlers(
     },
     () => undefined,
   );
+
+  query(
+    "db:scheduleItems:fetchDeleted",
+    "ScheduleItems",
+    "fetchDeleted",
+    () => {
+      return repo.fetchDeleted();
+    },
+  );
+
+  mutation(
+    "db:scheduleItems:softDelete",
+    "ScheduleItems",
+    "softDelete",
+    "scheduleItem",
+    "delete",
+    (_event, id: string) => {
+      repo.softDelete(id);
+    },
+  );
+
+  mutation(
+    "db:scheduleItems:restore",
+    "ScheduleItems",
+    "restore",
+    "scheduleItem",
+    "update",
+    (_event, id: string) => {
+      repo.restore(id);
+    },
+  );
+
+  mutation(
+    "db:scheduleItems:permanentDelete",
+    "ScheduleItems",
+    "permanentDelete",
+    "scheduleItem",
+    "delete",
+    (_event, id: string) => {
+      repo.permanentDelete(id);
+    },
+  );
 }

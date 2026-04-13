@@ -1,10 +1,10 @@
 import { type ReactNode } from "react";
-import type { SectionId } from "../../types/taskTree";
 import { useTranslation } from "react-i18next";
 import type { ConnectionState } from "../../hooks/useRealtimeSync";
 import type { SyncStatus } from "../../hooks/useOnlineStatus";
+import { FileText, Calendar, Timer, Settings } from "lucide-react";
 
-type MobileTab = "memos" | "notes" | "tasks" | "schedule";
+export type MobileTab = "materials" | "calendar" | "work" | "settings";
 
 type ExtendedConnectionState = ConnectionState | "syncing" | "pending";
 
@@ -16,13 +16,6 @@ interface MobileLayoutProps {
   syncStatus?: SyncStatus;
   pendingCount?: number;
 }
-
-const TAB_TO_SECTION: Record<MobileTab, SectionId> = {
-  memos: "materials",
-  notes: "materials",
-  tasks: "tasks",
-  schedule: "schedule",
-};
 
 const CONNECTION_COLORS: Record<ExtendedConnectionState, string> = {
   connected: "bg-green-500",
@@ -68,14 +61,26 @@ export function MobileLayout({
 
   const effectiveState = getEffectiveState(connectionState, syncStatus);
 
-  const tabs: Array<{ id: MobileTab; label: string; icon: string }> = [
-    { id: "memos", label: t("mobile.tabs.memos", "Memos"), icon: "📝" },
-    { id: "notes", label: t("mobile.tabs.notes", "Notes"), icon: "📒" },
-    { id: "tasks", label: t("mobile.tabs.tasks", "Tasks"), icon: "✓" },
+  const tabs: Array<{
+    id: MobileTab;
+    label: string;
+    icon: typeof FileText;
+  }> = [
     {
-      id: "schedule",
-      label: t("mobile.tabs.schedule", "Schedule"),
-      icon: "📅",
+      id: "materials",
+      label: t("mobile.tabs.materials", "Materials"),
+      icon: FileText,
+    },
+    {
+      id: "calendar",
+      label: t("mobile.tabs.calendar", "Calendar"),
+      icon: Calendar,
+    },
+    { id: "work", label: t("mobile.tabs.work", "Work"), icon: Timer },
+    {
+      id: "settings",
+      label: t("mobile.tabs.settings", "Settings"),
+      icon: Settings,
     },
   ];
 
@@ -111,24 +116,23 @@ export function MobileLayout({
 
       {/* Bottom tab bar */}
       <nav className="flex shrink-0 border-t border-notion-border bg-notion-bg-primary">
-        {tabs.map((tab) => (
-          <button
-            key={tab.id}
-            onClick={() => onTabChange(tab.id)}
-            className={`flex flex-1 flex-col items-center gap-0.5 py-2 text-xs transition-colors ${
-              activeTab === tab.id
-                ? "text-notion-accent"
-                : "text-notion-text-secondary"
-            }`}
-          >
-            <span className="text-lg">{tab.icon}</span>
-            <span>{tab.label}</span>
-          </button>
-        ))}
+        {tabs.map((tab) => {
+          const Icon = tab.icon;
+          const isActive = activeTab === tab.id;
+          return (
+            <button
+              key={tab.id}
+              onClick={() => onTabChange(tab.id)}
+              className={`flex flex-1 flex-col items-center gap-0.5 py-2 text-xs transition-colors ${
+                isActive ? "text-notion-accent" : "text-notion-text-secondary"
+              }`}
+            >
+              <Icon size={20} strokeWidth={isActive ? 2.5 : 1.5} />
+              <span>{tab.label}</span>
+            </button>
+          );
+        })}
       </nav>
     </div>
   );
 }
-
-export { TAB_TO_SECTION };
-export type { MobileTab };

@@ -84,6 +84,32 @@ export function createScheduleItemRoutes(db: Database.Database): Hono {
     return c.json({ ok: true });
   });
 
+  app.delete("/:id/soft", (c) => {
+    const id = c.req.param("id");
+    repo.softDelete(id);
+    broadcastChange("scheduleItem", "delete", id);
+    return c.json({ ok: true });
+  });
+
+  app.post("/:id/restore", (c) => {
+    const id = c.req.param("id");
+    repo.restore(id);
+    broadcastChange("scheduleItem", "update", id);
+    return c.json({ ok: true });
+  });
+
+  app.delete("/:id/permanent", (c) => {
+    const id = c.req.param("id");
+    repo.permanentDelete(id);
+    broadcastChange("scheduleItem", "delete", id);
+    return c.json({ ok: true });
+  });
+
+  app.get("/deleted", (c) => {
+    const items = repo.fetchDeleted();
+    return c.json(items);
+  });
+
   app.post("/:id/toggle-complete", (c) => {
     const id = c.req.param("id");
     const result = repo.toggleComplete(id);

@@ -127,6 +127,10 @@ const ALLOWED_CHANNELS = new Set([
   "db:scheduleItems:fetchByRoutineId",
   "db:scheduleItems:bulkDelete",
   "db:scheduleItems:fetchEvents",
+  "db:scheduleItems:fetchDeleted",
+  "db:scheduleItems:softDelete",
+  "db:scheduleItems:restore",
+  "db:scheduleItems:permanentDelete",
   // Playlists
   "db:playlists:fetchAll",
   "db:playlists:create",
@@ -258,6 +262,7 @@ const ALLOWED_CHANNELS = new Set([
   "system:setTrayEnabled",
   "system:getGlobalShortcuts",
   "system:setGlobalShortcuts",
+  "system:reregisterGlobalShortcuts",
   // Tray
   "tray:updateTimer",
   // Reminders

@@ -6,11 +6,18 @@ import {
   ChevronDown,
   RotateCcw,
   Search,
+  Globe,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { DEFAULT_SHORTCUTS } from "../../constants/defaultShortcuts";
 import { useShortcutConfig } from "../../hooks/useShortcutConfig";
+import { isElectron } from "../../services/dataServiceFactory";
+import { getDataService } from "../../services/dataServiceFactory";
 import { isMac } from "../../utils/platform";
+import {
+  keyBindingToAccelerator,
+  acceleratorToKeyBinding,
+} from "../../utils/electronAccelerator";
 import type {
   ShortcutId,
   ShortcutCategory,
@@ -149,27 +156,29 @@ function KeyBadge({
   );
 }
 
-interface ShortcutRowProps {
-  def: ShortcutDefinition;
+interface ShortcutRowBaseProps {
+  descriptionKey: string;
   showMac: boolean;
   isCapturing: boolean;
   onStartCapture: () => void;
+  onCancelCapture: () => void;
   binding: KeyBinding;
   isModified: boolean;
   onReset: () => void;
   conflictLabel?: string;
 }
 
-function ShortcutRow({
-  def,
+function ShortcutRowBase({
+  descriptionKey,
   showMac,
   isCapturing,
   onStartCapture,
+  onCancelCapture,
   binding,
   isModified,
   onReset,
   conflictLabel,
-}: ShortcutRowProps) {
+}: ShortcutRowBaseProps) {
   const { t } = useTranslation();
 
   return (
@@ -181,9 +190,7 @@ function ShortcutRow({
       }`}
     >
       <div className="flex-1 min-w-0 mr-4">
-        <p className="text-sm text-notion-text truncate">
-          {t(def.descriptionKey)}
-        </p>
+        <p className="text-sm text-notion-text truncate">{t(descriptionKey)}</p>
         {conflictLabel && (
           <p className="text-xs text-red-500 mt-0.5">
             {t("settings.shortcuts.conflict", { action: conflictLabel })}
@@ -213,6 +220,18 @@ function ShortcutRow({
           </button>
         )}
 
+        {isCapturing && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onCancelCapture();
+            }}
+            className="px-2.5 py-1 text-xs rounded-md text-notion-text-secondary hover:text-notion-text hover:bg-notion-hover transition-colors"
+          >
+            {t("settings.shortcuts.cancel")}
+          </button>
+        )}
+
         <button
           onClick={onStartCapture}
           className={`px-2.5 py-1 text-xs rounded-md transition-colors ${
@@ -227,6 +246,36 @@ function ShortcutRow({
     </div>
   );
 }
+
+// --- Global Shortcut definitions ---
+
+interface GlobalShortcutDef {
+  id: string;
+  descriptionKey: string;
+  defaultAccelerator: string;
+}
+
+const GLOBAL_SHORTCUT_DEFS: GlobalShortcutDef[] = [
+  {
+    id: "toggleTimer",
+    descriptionKey: "settings.toggleTimerShortcut",
+    defaultAccelerator: "CmdOrCtrl+Shift+Space",
+  },
+  {
+    id: "quickAddTask",
+    descriptionKey: "settings.quickAddTaskShortcut",
+    defaultAccelerator: "CmdOrCtrl+Shift+A",
+  },
+];
+
+// --- Capturing target type ---
+
+type CapturingTarget =
+  | { type: "inApp"; id: ShortcutId }
+  | { type: "global"; id: string }
+  | null;
+
+// --- Main component ---
 
 interface KeyboardShortcutsProps {
   activeCategory?: ShortcutCategory | null;
@@ -243,9 +292,9 @@ export function KeyboardShortcuts({
   const [draftConfig, setDraftConfig] = useState<ShortcutConfig>(() => ({
     ...config,
   }));
-  const [capturingId, setCapturingId] = useState<ShortcutId | null>(null);
+  const [capturingTarget, setCapturingTarget] = useState<CapturingTarget>(null);
   const [conflictInfo, setConflictInfo] = useState<{
-    id: ShortcutId;
+    targetKey: string;
     label: string;
   } | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
@@ -253,63 +302,151 @@ export function KeyboardShortcuts({
     Set<ShortcutCategory>
   >(new Set());
 
-  const capturingRef = useRef(capturingId);
-  capturingRef.current = capturingId;
+  // Global shortcuts state
+  const isElectronEnv = useMemo(() => isElectron(), []);
+  const [globalConfig, setGlobalConfig] = useState<Record<string, string>>({});
+  const [globalDraft, setGlobalDraft] = useState<Record<string, string>>({});
+  const [globalLoaded, setGlobalLoaded] = useState(false);
+
+  const capturingRef = useRef(capturingTarget);
+  capturingRef.current = capturingTarget;
   const draftRef = useRef(draftConfig);
   draftRef.current = draftConfig;
+  const globalDraftRef = useRef(globalDraft);
+  globalDraftRef.current = globalDraft;
+
+  // Load global shortcuts
+  useEffect(() => {
+    if (!isElectronEnv) return;
+    const ds = getDataService();
+    ds.getGlobalShortcuts()
+      .then((gs) => {
+        const defaults: Record<string, string> = {};
+        for (const def of GLOBAL_SHORTCUT_DEFS) {
+          defaults[def.id] = def.defaultAccelerator;
+        }
+        const merged = { ...defaults, ...(gs ?? {}) };
+        setGlobalConfig(merged);
+        setGlobalDraft(merged);
+        setGlobalLoaded(true);
+      })
+      .catch(() => {
+        setGlobalLoaded(true);
+      });
+  }, [isElectronEnv]);
 
   // Sync draft when config changes externally (e.g. undo/redo)
   useEffect(() => {
     setDraftConfig({ ...config });
   }, [config]);
 
-  const isDirty = JSON.stringify(draftConfig) !== JSON.stringify(config);
+  const isInAppDirty = JSON.stringify(draftConfig) !== JSON.stringify(config);
+  const isGlobalDirty =
+    isElectronEnv &&
+    JSON.stringify(globalDraft) !== JSON.stringify(globalConfig);
+  const isDirty = isInAppDirty || isGlobalDirty;
+
+  const cancelCapture = useCallback(() => {
+    setCapturingTarget(null);
+    setConflictInfo(null);
+  }, []);
 
   const handleCapture = useCallback(
     (e: KeyboardEvent) => {
-      if (!capturingRef.current) return;
+      const target = capturingRef.current;
+      if (!target) return;
       e.preventDefault();
       e.stopPropagation();
 
       if (e.key === "Escape") {
-        setCapturingId(null);
-        setConflictInfo(null);
+        cancelCapture();
         return;
       }
 
       const binding = eventToBinding(e);
       if (!binding) return;
 
-      const conflict = findDraftConflict(
-        draftRef.current,
-        binding,
-        capturingRef.current,
-      );
-      if (conflict) {
-        setConflictInfo({
-          id: capturingRef.current,
-          label: t(conflict.descriptionKey),
-        });
-        return;
-      }
+      if (target.type === "inApp") {
+        const conflict = findDraftConflict(
+          draftRef.current,
+          binding,
+          target.id,
+        );
+        if (conflict) {
+          setConflictInfo({
+            targetKey: target.id,
+            label: t(conflict.descriptionKey),
+          });
+          return;
+        }
 
-      setDraftConfig((prev) => ({ ...prev, [capturingRef.current!]: binding }));
-      setCapturingId(null);
-      setConflictInfo(null);
+        setDraftConfig((prev) => ({ ...prev, [target.id]: binding }));
+        setCapturingTarget(null);
+        setConflictInfo(null);
+      } else {
+        // Global shortcut capture
+        const accel = keyBindingToAccelerator(binding);
+
+        // Check conflict with other global shortcuts
+        for (const def of GLOBAL_SHORTCUT_DEFS) {
+          if (def.id === target.id) continue;
+          const existingAccel =
+            globalDraftRef.current[def.id] ?? def.defaultAccelerator;
+          const existingBinding = acceleratorToKeyBinding(existingAccel);
+          if (bindingsEqual(binding, existingBinding)) {
+            setConflictInfo({
+              targetKey: target.id,
+              label: t(def.descriptionKey),
+            });
+            return;
+          }
+        }
+
+        setGlobalDraft((prev) => ({ ...prev, [target.id]: accel }));
+        setCapturingTarget(null);
+        setConflictInfo(null);
+      }
     },
-    [t],
+    [t, cancelCapture],
   );
 
   useEffect(() => {
-    if (!capturingId) return;
+    if (!capturingTarget) return;
     window.addEventListener("keydown", handleCapture, true);
     return () => window.removeEventListener("keydown", handleCapture, true);
-  }, [capturingId, handleCapture]);
+  }, [capturingTarget, handleCapture]);
 
-  const handleSave = useCallback(() => {
+  const handleSave = useCallback(async () => {
     onBeforeChange?.();
-    saveAllBindings(draftConfig);
-  }, [draftConfig, saveAllBindings, onBeforeChange]);
+
+    if (isInAppDirty) {
+      saveAllBindings(draftConfig);
+    }
+
+    if (isGlobalDirty) {
+      try {
+        const ds = getDataService();
+        await ds.setGlobalShortcuts(globalDraft);
+        const result = await ds.reregisterGlobalShortcuts();
+        if (result.success) {
+          setGlobalConfig({ ...globalDraft });
+        } else {
+          // Revert draft to last known good config
+          setGlobalDraft({ ...globalConfig });
+        }
+      } catch {
+        setGlobalDraft({ ...globalConfig });
+      }
+    }
+  }, [
+    draftConfig,
+    saveAllBindings,
+    onBeforeChange,
+    isInAppDirty,
+    isGlobalDirty,
+    globalDraft,
+    globalConfig,
+  ]);
 
   const handleResetBinding = useCallback((id: ShortcutId) => {
     setDraftConfig((prev) => {
@@ -317,6 +454,13 @@ export function KeyboardShortcuts({
       delete next[id];
       return next;
     });
+  }, []);
+
+  const handleResetGlobalBinding = useCallback((id: string) => {
+    const def = GLOBAL_SHORTCUT_DEFS.find((d) => d.id === id);
+    if (def) {
+      setGlobalDraft((prev) => ({ ...prev, [id]: def.defaultAccelerator }));
+    }
   }, []);
 
   const toggleCategory = useCallback((category: ShortcutCategory) => {
@@ -363,10 +507,26 @@ export function KeyboardShortcuts({
     return result;
   }, [searchQuery, activeCategory, t]);
 
-  const hasResults = useMemo(
-    () => Object.values(filteredByCategory).some((items) => items.length > 0),
-    [filteredByCategory],
-  );
+  // Filter global shortcuts by search
+  const filteredGlobalDefs = useMemo(() => {
+    if (!isElectronEnv || !globalLoaded) return [];
+    if (activeCategory && activeCategory !== "global") return [];
+
+    const lowerQuery = searchQuery.toLowerCase();
+    return GLOBAL_SHORTCUT_DEFS.filter((def) => {
+      if (!lowerQuery) return true;
+      return t(def.descriptionKey).toLowerCase().includes(lowerQuery);
+    });
+  }, [isElectronEnv, globalLoaded, activeCategory, searchQuery, t]);
+
+  const hasResults = useMemo(() => {
+    const hasInApp = Object.values(filteredByCategory).some(
+      (items) => items.length > 0,
+    );
+    return hasInApp || filteredGlobalDefs.length > 0;
+  }, [filteredByCategory, filteredGlobalDefs]);
+
+  const showGlobalSection = filteredGlobalDefs.length > 0;
 
   return (
     <div className="space-y-4" data-section-id="shortcuts-global">
@@ -421,13 +581,65 @@ export function KeyboardShortcuts({
         </button>
       </div>
 
-      {/* Shortcut categories */}
+      {/* No results */}
       {!hasResults && searchQuery && (
         <p className="text-sm text-notion-text-secondary text-center py-8">
           {t("settings.shortcuts.noResults")}
         </p>
       )}
 
+      {/* OS Global Shortcuts section */}
+      {showGlobalSection && (
+        <div>
+          <div className="flex items-center gap-2 py-2">
+            <Globe size={14} className="text-notion-text-secondary" />
+            <div>
+              <h3 className="text-sm font-semibold text-notion-text">
+                {t("settings.shortcuts.osGlobalShortcuts")}
+              </h3>
+              <p className="text-[10px] text-notion-text-secondary/60">
+                {t("settings.shortcuts.osGlobalShortcutsDesc")}
+              </p>
+            </div>
+          </div>
+
+          <div className="space-y-0.5 ml-1">
+            {filteredGlobalDefs.map((def) => {
+              const currentAccel =
+                globalDraft[def.id] ?? def.defaultAccelerator;
+              const binding = acceleratorToKeyBinding(currentAccel);
+              const isModified = currentAccel !== def.defaultAccelerator;
+              const isCapturing =
+                capturingTarget?.type === "global" &&
+                capturingTarget.id === def.id;
+
+              return (
+                <ShortcutRowBase
+                  key={def.id}
+                  descriptionKey={def.descriptionKey}
+                  showMac={showMac}
+                  isCapturing={isCapturing}
+                  onStartCapture={() => {
+                    setCapturingTarget({ type: "global", id: def.id });
+                    setConflictInfo(null);
+                  }}
+                  onCancelCapture={cancelCapture}
+                  binding={binding}
+                  isModified={isModified}
+                  onReset={() => handleResetGlobalBinding(def.id)}
+                  conflictLabel={
+                    conflictInfo?.targetKey === def.id
+                      ? conflictInfo.label
+                      : undefined
+                  }
+                />
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Shortcut categories */}
       {CATEGORY_ORDER.map((category) => {
         const items = filteredByCategory[category];
         if (!items || items.length === 0) return null;
@@ -461,22 +673,26 @@ export function KeyboardShortcuts({
                   const isModified =
                     draftConfig[def.id] != null &&
                     !bindingsEqual(draftConfig[def.id]!, def.defaultBinding);
+                  const isCapturing =
+                    capturingTarget?.type === "inApp" &&
+                    capturingTarget.id === def.id;
 
                   return (
-                    <ShortcutRow
+                    <ShortcutRowBase
                       key={def.id}
-                      def={def}
+                      descriptionKey={def.descriptionKey}
                       showMac={showMac}
-                      isCapturing={capturingId === def.id}
+                      isCapturing={isCapturing}
                       onStartCapture={() => {
-                        setCapturingId(def.id);
+                        setCapturingTarget({ type: "inApp", id: def.id });
                         setConflictInfo(null);
                       }}
+                      onCancelCapture={cancelCapture}
                       binding={binding}
                       isModified={isModified}
                       onReset={() => handleResetBinding(def.id)}
                       conflictLabel={
-                        conflictInfo?.id === def.id
+                        conflictInfo?.targetKey === def.id
                           ? conflictInfo.label
                           : undefined
                       }

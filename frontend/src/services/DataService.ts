@@ -306,6 +306,10 @@ export interface DataService {
     >,
   ): Promise<ScheduleItem>;
   deleteScheduleItem(id: string): Promise<void>;
+  softDeleteScheduleItem(id: string): Promise<void>;
+  restoreScheduleItem(id: string): Promise<void>;
+  permanentDeleteScheduleItem(id: string): Promise<void>;
+  fetchDeletedScheduleItems(): Promise<ScheduleItem[]>;
   toggleScheduleItemComplete(id: string): Promise<ScheduleItem>;
   dismissScheduleItem(id: string): Promise<void>;
   undismissScheduleItem(id: string): Promise<void>;
@@ -647,6 +651,7 @@ export interface DataService {
   setTrayEnabled(enabled: boolean): Promise<void>;
   getGlobalShortcuts(): Promise<Record<string, string>>;
   setGlobalShortcuts(shortcuts: Record<string, string>): Promise<void>;
+  reregisterGlobalShortcuts(): Promise<{ success: boolean }>;
   updateTrayTimer(state: {
     remaining: string;
     isRunning: boolean;

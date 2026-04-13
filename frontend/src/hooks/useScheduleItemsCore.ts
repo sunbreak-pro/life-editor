@@ -399,6 +399,104 @@ export function useScheduleItemsCore(
     [currentDate, bumpVersion],
   );
 
+  // ---- Soft delete (Trash) ----
+  const [deletedScheduleItems, setDeletedScheduleItems] = useState<
+    ScheduleItem[]
+  >([]);
+
+  const loadDeletedScheduleItems = useCallback(async () => {
+    try {
+      const items = await getDataService().fetchDeletedScheduleItems();
+      setDeletedScheduleItems(items);
+    } catch (e) {
+      logServiceError("ScheduleItems", "fetchDeleted", e);
+    }
+  }, []);
+
+  const softDeleteScheduleItem = useCallback(
+    (id: string, options?: { skipUndo?: boolean }) => {
+      const target = scheduleItemsRef.current.find((item) => item.id === id);
+      removeFromLists(id);
+
+      if (target) {
+        const deleted: ScheduleItem = {
+          ...target,
+          isDeleted: true,
+          deletedAt: new Date().toISOString(),
+        };
+        setDeletedScheduleItems((prev) => [deleted, ...prev]);
+      }
+
+      getDataService()
+        .softDeleteScheduleItem(id)
+        .catch((e) => logServiceError("ScheduleItems", "softDelete", e));
+
+      if (target && !options?.skipUndo) {
+        push("scheduleItem", {
+          label: "softDeleteScheduleItem",
+          undo: () => {
+            addToLists(target);
+            setDeletedScheduleItems((prev) =>
+              prev.filter((item) => item.id !== id),
+            );
+            getDataService()
+              .restoreScheduleItem(id)
+              .catch((e) =>
+                logServiceError("ScheduleItems", "undoSoftDelete", e),
+              );
+          },
+          redo: () => {
+            removeFromLists(id);
+            if (target) {
+              setDeletedScheduleItems((prev) => [
+                {
+                  ...target,
+                  isDeleted: true,
+                  deletedAt: new Date().toISOString(),
+                },
+                ...prev,
+              ]);
+            }
+            getDataService()
+              .softDeleteScheduleItem(id)
+              .catch((e) =>
+                logServiceError("ScheduleItems", "redoSoftDelete", e),
+              );
+          },
+        });
+      }
+      bumpVersion();
+    },
+    [push, bumpVersion, addToLists, removeFromLists],
+  );
+
+  const restoreScheduleItem = useCallback(
+    (id: string) => {
+      const target = deletedScheduleItems.find((item) => item.id === id);
+      setDeletedScheduleItems((prev) => prev.filter((item) => item.id !== id));
+      if (target) {
+        const restored: ScheduleItem = {
+          ...target,
+          isDeleted: false,
+          deletedAt: null,
+        };
+        addToLists(restored);
+      }
+      getDataService()
+        .restoreScheduleItem(id)
+        .catch((e) => logServiceError("ScheduleItems", "restore", e));
+      bumpVersion();
+    },
+    [deletedScheduleItems, addToLists, bumpVersion],
+  );
+
+  const permanentDeleteScheduleItem = useCallback((id: string) => {
+    setDeletedScheduleItems((prev) => prev.filter((item) => item.id !== id));
+    getDataService()
+      .permanentDeleteScheduleItem(id)
+      .catch((e) => logServiceError("ScheduleItems", "permanentDelete", e));
+  }, []);
+
   // ---- Handles for sub-hooks ----
   const _handles: ScheduleItemsCoreHandles = {
     scheduleItemsRef,
@@ -420,9 +518,15 @@ export function useScheduleItemsCore(
     createScheduleItem,
     updateScheduleItem,
     deleteScheduleItem,
+    softDeleteScheduleItem,
     dismissScheduleItem,
     undismissScheduleItem,
     toggleComplete,
+    // Trash
+    deletedScheduleItems,
+    loadDeletedScheduleItems,
+    restoreScheduleItem,
+    permanentDeleteScheduleItem,
     // Internal
     _handles,
   } as const;

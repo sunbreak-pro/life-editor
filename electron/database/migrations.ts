@@ -265,6 +265,15 @@ export function runMigrations(db: Database.Database): void {
     migrateV56(db);
   }
 
+  if (currentVersion < 57) {
+    log.info("[DB] Running migration V57");
+    migrateV57(db);
+  }
+  if (currentVersion < 58) {
+    log.info("[DB] Running migration V58");
+    migrateV58(db);
+  }
+
   const newVersion = db.pragma("user_version", { simple: true }) as number;
   if (newVersion !== currentVersion) {
     log.info(`[DB] Schema migrated: ${currentVersion} → ${newVersion}`);
@@ -1896,11 +1905,31 @@ function migrateV56(db: Database.Database): void {
     `);
     db.pragma("user_version = 56");
   });
+  migrate();
+}
 
-  // v57: Add icon field to tasks
-  registerMigration(57, () => {
+function migrateV57(db: Database.Database): void {
+  const migrate = db.transaction(() => {
     db.exec(`ALTER TABLE tasks ADD COLUMN icon TEXT`);
     db.pragma("user_version = 57");
+  });
+  migrate();
+}
+
+function migrateV58(db: Database.Database): void {
+  const migrate = db.transaction(() => {
+    if (!hasColumn(db, "schedule_items", "is_deleted")) {
+      db.exec(
+        `ALTER TABLE schedule_items ADD COLUMN is_deleted INTEGER NOT NULL DEFAULT 0`,
+      );
+    }
+    if (!hasColumn(db, "schedule_items", "deleted_at")) {
+      db.exec(`ALTER TABLE schedule_items ADD COLUMN deleted_at TEXT`);
+    }
+    db.exec(
+      `CREATE INDEX IF NOT EXISTS idx_schedule_items_deleted ON schedule_items(is_deleted)`,
+    );
+    db.pragma("user_version = 58");
   });
   migrate();
 }

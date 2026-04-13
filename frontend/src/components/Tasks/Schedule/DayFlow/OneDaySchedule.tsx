@@ -116,7 +116,7 @@ export function OneDaySchedule({
     tagAssignments,
     ensureRoutineItemsForDate,
     updateScheduleItem,
-    deleteScheduleItem,
+    softDeleteScheduleItem,
     dismissScheduleItem,
     refreshRoutineStats,
     updateRoutine,
@@ -218,9 +218,9 @@ export function OneDaySchedule({
   const handleArchiveRoutine = useCallback(() => {
     if (!routineDeleteTarget?.item.routineId) return;
     updateRoutine(routineDeleteTarget.item.routineId, { isArchived: true });
-    deleteScheduleItem(routineDeleteTarget.item.id);
+    softDeleteScheduleItem(routineDeleteTarget.item.id);
     setRoutineDeleteTarget(null);
-  }, [routineDeleteTarget, updateRoutine, deleteScheduleItem]);
+  }, [routineDeleteTarget, updateRoutine, softDeleteScheduleItem]);
 
   // Load schedule items when date changes
   useEffect(() => {
@@ -633,7 +633,7 @@ export function OneDaySchedule({
               onUpdateTaskTime={handleUpdateTaskTime}
               externalScroll
               onToggleTaskStatus={onToggleTaskStatus}
-              onDeleteScheduleItem={deleteScheduleItem}
+              onDeleteScheduleItem={softDeleteScheduleItem}
               onRequestRoutineDelete={handleRequestRoutineDelete}
               onUnscheduleTask={onUnscheduleTask}
               onNavigateTask={onNavigateTask}
@@ -1025,7 +1025,7 @@ export function OneDaySchedule({
             onDelete={() => {
               const itemId = allDaySchedulePreview.item.id;
               setAllDaySchedulePreview(null);
-              deleteScheduleItem(itemId);
+              softDeleteScheduleItem(itemId);
             }}
             onUpdateTime={(startTime, endTime) =>
               handleUpdateScheduleItemTime(

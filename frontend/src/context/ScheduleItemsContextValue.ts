@@ -44,6 +44,14 @@ export interface ScheduleItemsContextValue {
     >,
   ) => void;
   deleteScheduleItem: (id: string, options?: { skipUndo?: boolean }) => void;
+  softDeleteScheduleItem: (
+    id: string,
+    options?: { skipUndo?: boolean },
+  ) => void;
+  deletedScheduleItems: ScheduleItem[];
+  loadDeletedScheduleItems: () => Promise<void>;
+  restoreScheduleItem: (id: string) => void;
+  permanentDeleteScheduleItem: (id: string) => void;
   dismissScheduleItem: (id: string) => void;
   undismissScheduleItem: (id: string) => Promise<void>;
   toggleComplete: (id: string) => void;

@@ -2,30 +2,32 @@ import { useState, useCallback, useRef, useEffect } from "react";
 import { isApiConfigured } from "./config/api";
 import { ConnectionSetup } from "./components/Mobile/ConnectionSetup";
 import { MobileLayout, type MobileTab } from "./components/Layout/MobileLayout";
-import { MobileMemoView } from "./components/Mobile/MobileMemoView";
-import { MobileNoteView } from "./components/Mobile/MobileNoteView";
-import { MobileTaskView } from "./components/Mobile/MobileTaskView";
-import { MobileScheduleView } from "./components/Mobile/MobileScheduleView";
+import { MobileMaterialsView } from "./components/Mobile/MobileMaterialsView";
+import { MobileCalendarView } from "./components/Mobile/MobileCalendarView";
+import { MobileWorkView } from "./components/Mobile/MobileWorkView";
+import { MobileSettingsView } from "./components/Mobile/MobileSettingsView";
 import { useRealtimeSync, type ChangeEvent } from "./hooks/useRealtimeSync";
 import { useOnlineStatus } from "./hooks/useOnlineStatus";
 import { getOfflineDataService } from "./services/dataServiceFactory";
 
 const TAB_ENTITY_MAP: Record<MobileTab, string[]> = {
-  memos: ["memo", "timeMemo"],
-  notes: [
+  materials: [
+    "memo",
+    "timeMemo",
     "note",
     "noteConnection",
     "wikiTag",
     "wikiTagGroup",
     "wikiTagConnection",
   ],
-  tasks: ["task"],
-  schedule: ["scheduleItem", "routine", "routineTag", "calendar"],
+  calendar: ["task", "scheduleItem", "routine", "routineTag", "calendar"],
+  work: ["task", "timerSession"],
+  settings: [],
 };
 
 export function MobileApp() {
   const [connected, setConnected] = useState(isApiConfigured());
-  const [activeTab, setActiveTab] = useState<MobileTab>("memos");
+  const [activeTab, setActiveTab] = useState<MobileTab>("materials");
   const [refreshKey, setRefreshKey] = useState(0);
   const activeTabRef = useRef(activeTab);
   activeTabRef.current = activeTab;
@@ -40,7 +42,6 @@ export function MobileApp() {
   const connectionState = useRealtimeSync(handleChange);
   const { syncStatus, pendingCount } = useOnlineStatus();
 
-  // Initialize offline data service on mount
   useEffect(() => {
     const svc = getOfflineDataService();
     if (svc) {
@@ -58,14 +59,14 @@ export function MobileApp() {
 
   const renderContent = () => {
     switch (activeTab) {
-      case "memos":
-        return <MobileMemoView key={refreshKey} />;
-      case "notes":
-        return <MobileNoteView key={refreshKey} />;
-      case "tasks":
-        return <MobileTaskView key={refreshKey} />;
-      case "schedule":
-        return <MobileScheduleView key={refreshKey} />;
+      case "materials":
+        return <MobileMaterialsView key={refreshKey} />;
+      case "calendar":
+        return <MobileCalendarView key={refreshKey} />;
+      case "work":
+        return <MobileWorkView key={refreshKey} />;
+      case "settings":
+        return <MobileSettingsView onDisconnect={() => setConnected(false)} />;
       default:
         return null;
     }

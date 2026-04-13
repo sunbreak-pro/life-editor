@@ -332,6 +332,10 @@ export function createMockDataService(): DataService & {
       ),
     updateScheduleItem: vi.fn().mockResolvedValue({}),
     deleteScheduleItem: vi.fn().mockResolvedValue(undefined),
+    softDeleteScheduleItem: vi.fn().mockResolvedValue(undefined),
+    restoreScheduleItem: vi.fn().mockResolvedValue(undefined),
+    permanentDeleteScheduleItem: vi.fn().mockResolvedValue(undefined),
+    fetchDeletedScheduleItems: vi.fn().mockResolvedValue([]),
     toggleScheduleItemComplete: vi.fn().mockResolvedValue({}),
     bulkCreateScheduleItems: vi.fn().mockResolvedValue([]),
 
@@ -458,6 +462,7 @@ export function createMockDataService(): DataService & {
     setTrayEnabled: vi.fn().mockResolvedValue(undefined),
     getGlobalShortcuts: vi.fn().mockResolvedValue({}),
     setGlobalShortcuts: vi.fn().mockResolvedValue(undefined),
+    reregisterGlobalShortcuts: vi.fn().mockResolvedValue({ success: true }),
     updateTrayTimer: vi.fn().mockResolvedValue(undefined),
 
     // Reminders

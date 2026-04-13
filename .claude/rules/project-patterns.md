@@ -40,7 +40,7 @@
 
 ### 例外（単一ファイル構成）
 
-特定セクション内でのみ使用・他 Provider に依存されない・型が外部参照されない場合は単一ファイル許容（例: `AnalyticsFilterContext`, `ToastContext`）
+他 Provider が依存しない・ContextValue 型が他 Context から参照されない・実装が自己完結している場合は単一ファイル許容（例: `ToastContext`, `AnalyticsFilterContext`）
 
 ### Schedule 共通コンポーネント（ADR-0004）
 

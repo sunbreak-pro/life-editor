@@ -27,7 +27,7 @@ export function EventDetailPanel({ selectedEventId }: EventDetailPanelProps) {
   const {
     events,
     updateScheduleItem,
-    deleteScheduleItem,
+    softDeleteScheduleItem,
     bumpEventsVersion,
     toggleComplete,
   } = useScheduleItemsContext();
@@ -54,7 +54,7 @@ export function EventDetailPanel({ selectedEventId }: EventDetailPanelProps) {
       }}
       onToggleComplete={() => toggleComplete(event.id)}
       onDelete={() => {
-        deleteScheduleItem(event.id);
+        softDeleteScheduleItem(event.id);
         bumpEventsVersion();
       }}
     />

@@ -245,7 +245,10 @@
       "save": "保存",
       "searchPlaceholder": "ショートカットを検索...",
       "noResults": "ショートカットが見つかりません",
-      "modified": "変更済み"
+      "modified": "変更済み",
+      "cancel": "キャンセル",
+      "osGlobalShortcuts": "OSグローバルショートカット",
+      "osGlobalShortcutsDesc": "アプリが非アクティブでも動作"
     },
     "appearance": "外観",
     "darkMode": "ダークモード",
@@ -376,8 +379,13 @@
     "sounds": "サウンド",
     "sound": "サウンド",
     "tabTasks": "タスク",
+    "tabRoutine": "ルーティン",
+    "tabEvents": "イベント",
+    "tabMaterials": "素材",
     "tabMemo": "メモ",
     "tabSounds": "サウンド",
+    "event": "イベント",
+    "events": "イベント",
     "folders": "フォルダ",
     "routines": "ルーティン",
     "routine": "ルーティン",
@@ -1223,7 +1231,8 @@
     "noResults": "一致するタスクはありません",
     "clear": "検索をクリア",
     "rootLevel": "ルート直下",
-    "searchSettings": "設定を検索..."
+    "searchSettings": "設定を検索...",
+    "searchTrash": "ゴミ箱を検索..."
   },
   "common": {
     "cancel": "キャンセル",

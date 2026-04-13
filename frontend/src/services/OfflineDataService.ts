@@ -837,6 +837,19 @@ export class OfflineDataService implements DataService {
     }
   }
 
+  softDeleteScheduleItem(_id: string): Promise<void> {
+    return notSupported("softDeleteScheduleItem");
+  }
+  restoreScheduleItem(_id: string): Promise<void> {
+    return notSupported("restoreScheduleItem");
+  }
+  permanentDeleteScheduleItem(_id: string): Promise<void> {
+    return notSupported("permanentDeleteScheduleItem");
+  }
+  fetchDeletedScheduleItems(): Promise<ScheduleItem[]> {
+    return notSupported("fetchDeletedScheduleItems");
+  }
+
   async toggleScheduleItemComplete(id: string): Promise<ScheduleItem> {
     try {
       return await this.rest.toggleScheduleItemComplete(id);
@@ -1796,6 +1809,9 @@ export class OfflineDataService implements DataService {
   }
   setGlobalShortcuts(): Promise<never> {
     return notSupported("setGlobalShortcuts");
+  }
+  reregisterGlobalShortcuts(): Promise<never> {
+    return notSupported("reregisterGlobalShortcuts");
   }
   updateTrayTimer(): Promise<never> {
     return notSupported("updateTrayTimer");

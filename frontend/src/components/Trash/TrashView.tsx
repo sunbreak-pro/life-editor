@@ -1,5 +1,4 @@
-import { useState, useEffect, useContext } from "react";
-import { createPortal } from "react-dom";
+import { useState, useEffect } from "react";
 import {
   RotateCcw,
   Trash2,
@@ -8,6 +7,7 @@ import {
   StickyNote,
   Volume2,
   Calendar,
+  CalendarDays,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useTaskTreeContext } from "../../hooks/useTaskTreeContext";
@@ -15,23 +15,20 @@ import { useNoteContext } from "../../hooks/useNoteContext";
 import { useAudioContext } from "../../hooks/useAudioContext";
 import { useMemoContext } from "../../hooks/useMemoContext";
 import { useRoutineContext } from "../../hooks/useRoutineContext";
+import { useScheduleItemsContext } from "../../hooks/useScheduleItemsContext";
 import { getDataService } from "../../services";
 import { ConfirmDialog } from "../shared/ConfirmDialog";
-import { type TabItem } from "../shared/SectionTabs";
-import { VerticalNavList } from "../shared/VerticalNavList";
 import type { CustomSoundMeta } from "../../types/customSound";
 import type { SoundDisplayMeta } from "../../types/sound";
-import { RightSidebarContext } from "../../context/RightSidebarContext";
 
-type TrashTab = "tasks" | "memo" | "sounds";
+export type TrashSub = "tasks" | "routine" | "events" | "materials" | "sounds";
 
-const TRASH_TABS: readonly TabItem<TrashTab>[] = [
-  { id: "tasks", labelKey: "trash.tabTasks" },
-  { id: "memo", labelKey: "trash.tabMemo" },
-  { id: "sounds", labelKey: "trash.tabSounds" },
-] as const;
+interface TrashViewProps {
+  activeTab: TrashSub;
+  searchQuery: string;
+}
 
-export function TrashView() {
+export function TrashView({ activeTab, searchQuery }: TrashViewProps) {
   const { t } = useTranslation();
   const { deletedNodes, restoreNode, permanentDelete } = useTaskTreeContext();
   const { deletedNotes, loadDeletedNotes, restoreNote, permanentDeleteNote } =
@@ -44,9 +41,14 @@ export function TrashView() {
     restoreRoutine,
     permanentDeleteRoutine,
   } = useRoutineContext();
+  const {
+    deletedScheduleItems,
+    loadDeletedScheduleItems,
+    restoreScheduleItem,
+    permanentDeleteScheduleItem,
+  } = useScheduleItemsContext();
   const audio = useAudioContext();
 
-  const [activeTab, setActiveTab] = useState<TrashTab>("tasks");
   const [deletedSounds, setDeletedSounds] = useState<CustomSoundMeta[]>([]);
   const [displayMetas, setDisplayMetas] = useState<SoundDisplayMeta[]>([]);
 
@@ -54,7 +56,13 @@ export function TrashView() {
     loadDeletedNotes();
     loadDeletedMemos();
     loadDeletedRoutines();
-  }, [loadDeletedNotes, loadDeletedMemos, loadDeletedRoutines]);
+    loadDeletedScheduleItems();
+  }, [
+    loadDeletedNotes,
+    loadDeletedMemos,
+    loadDeletedRoutines,
+    loadDeletedScheduleItems,
+  ]);
 
   useEffect(() => {
     let cancelled = false;
@@ -79,11 +87,19 @@ export function TrashView() {
     return !deletedNodes.some((d) => d.id === n.parentId);
   });
 
-  const deletedFolders = topLevelDeleted.filter((n) => n.type === "folder");
-  const deletedTasks = topLevelDeleted.filter((n) => n.type === "task");
+  const query = searchQuery.toLowerCase();
+  const matchesSearch = (text: string) =>
+    !query || text.toLowerCase().includes(query);
+
+  const deletedFolders = topLevelDeleted.filter(
+    (n) => n.type === "folder" && matchesSearch(n.title),
+  );
+  const deletedTasks = topLevelDeleted.filter(
+    (n) => n.type === "task" && matchesSearch(n.title),
+  );
 
   const [deleteTarget, setDeleteTarget] = useState<{
-    type: "task" | "note" | "sound" | "routine" | "memo";
+    type: "task" | "note" | "sound" | "routine" | "memo" | "scheduleItem";
     id: string;
     name: string;
   } | null>(null);
@@ -142,10 +158,7 @@ export function TrashView() {
   };
 
   const renderTasksTab = () => {
-    const isEmpty =
-      deletedFolders.length === 0 &&
-      deletedTasks.length === 0 &&
-      deletedRoutines.length === 0;
+    const isEmpty = deletedFolders.length === 0 && deletedTasks.length === 0;
     if (isEmpty)
       return (
         <p className="text-sm text-notion-text-secondary py-4">
@@ -200,35 +213,76 @@ export function TrashView() {
             )}
           </div>
         )}
+      </div>
+    );
+  };
 
-        {deletedRoutines.length > 0 && (
-          <div className="space-y-1">
-            <h4 className="text-xs font-medium text-notion-text-secondary uppercase tracking-wide px-1">
-              {t("trash.routines")}
-            </h4>
-            {deletedRoutines.map((routine) =>
-              renderItem(
-                routine.id,
-                Calendar,
-                routine.title,
-                t("trash.routine"),
-                () => restoreRoutine(routine.id),
-                () =>
-                  setDeleteTarget({
-                    type: "routine",
-                    id: routine.id,
-                    name: routine.title,
-                  }),
-              ),
-            )}
-          </div>
+  const renderRoutineTab = () => {
+    const filtered = deletedRoutines.filter((r) => matchesSearch(r.title));
+    if (filtered.length === 0)
+      return (
+        <p className="text-sm text-notion-text-secondary py-4">
+          {t("trash.empty")}
+        </p>
+      );
+
+    return (
+      <div className="space-y-1">
+        {filtered.map((routine) =>
+          renderItem(
+            routine.id,
+            Calendar,
+            routine.title,
+            t("trash.routine"),
+            () => restoreRoutine(routine.id),
+            () =>
+              setDeleteTarget({
+                type: "routine",
+                id: routine.id,
+                name: routine.title,
+              }),
+          ),
         )}
       </div>
     );
   };
 
-  const renderMemoTab = () => {
-    const isEmpty = deletedMemos.length === 0 && deletedNotes.length === 0;
+  const renderEventsTab = () => {
+    const filtered = deletedScheduleItems.filter((item) =>
+      matchesSearch(item.title),
+    );
+    if (filtered.length === 0)
+      return (
+        <p className="text-sm text-notion-text-secondary py-4">
+          {t("trash.empty")}
+        </p>
+      );
+
+    return (
+      <div className="space-y-1">
+        {filtered.map((item) =>
+          renderItem(
+            item.id,
+            CalendarDays,
+            item.title,
+            `${item.date} ${t("trash.event")}`,
+            () => restoreScheduleItem(item.id),
+            () =>
+              setDeleteTarget({
+                type: "scheduleItem",
+                id: item.id,
+                name: item.title,
+              }),
+          ),
+        )}
+      </div>
+    );
+  };
+
+  const renderMaterialsTab = () => {
+    const filteredMemos = deletedMemos.filter((m) => matchesSearch(m.date));
+    const filteredNotes = deletedNotes.filter((n) => matchesSearch(n.title));
+    const isEmpty = filteredMemos.length === 0 && filteredNotes.length === 0;
     if (isEmpty)
       return (
         <p className="text-sm text-notion-text-secondary py-4">
@@ -238,12 +292,12 @@ export function TrashView() {
 
     return (
       <div className="space-y-6">
-        {deletedMemos.length > 0 && (
+        {filteredMemos.length > 0 && (
           <div className="space-y-1">
             <h4 className="text-xs font-medium text-notion-text-secondary uppercase tracking-wide px-1">
               {t("trash.daily")}
             </h4>
-            {deletedMemos.map((memo) =>
+            {filteredMemos.map((memo) =>
               renderItem(
                 memo.id,
                 FileText,
@@ -261,12 +315,12 @@ export function TrashView() {
           </div>
         )}
 
-        {deletedNotes.length > 0 && (
+        {filteredNotes.length > 0 && (
           <div className="space-y-1">
             <h4 className="text-xs font-medium text-notion-text-secondary uppercase tracking-wide px-1">
               {t("trash.notes")}
             </h4>
-            {deletedNotes.map((note) =>
+            {filteredNotes.map((note) =>
               renderItem(
                 note.id,
                 StickyNote,
@@ -288,7 +342,10 @@ export function TrashView() {
   };
 
   const renderSoundsTab = () => {
-    if (deletedSounds.length === 0)
+    const filtered = deletedSounds.filter((s) =>
+      matchesSearch(getSoundDisplayName(s)),
+    );
+    if (filtered.length === 0)
       return (
         <p className="text-sm text-notion-text-secondary py-4">
           {t("trash.empty")}
@@ -297,7 +354,7 @@ export function TrashView() {
 
     return (
       <div className="space-y-1">
-        {deletedSounds.map((sound) =>
+        {filtered.map((sound) =>
           renderItem(
             sound.id,
             Volume2,
@@ -316,23 +373,13 @@ export function TrashView() {
     );
   };
 
-  const { portalTarget: rightSidebarTarget } = useContext(RightSidebarContext);
-
   return (
     <div className="h-full flex flex-col" data-section-id="trash">
-      {rightSidebarTarget &&
-        createPortal(
-          <VerticalNavList
-            items={TRASH_TABS}
-            activeItem={activeTab}
-            onItemChange={setActiveTab}
-          />,
-          rightSidebarTarget,
-        )}
-
       <div className="flex-1 overflow-y-auto">
         {activeTab === "tasks" && renderTasksTab()}
-        {activeTab === "memo" && renderMemoTab()}
+        {activeTab === "routine" && renderRoutineTab()}
+        {activeTab === "events" && renderEventsTab()}
+        {activeTab === "materials" && renderMaterialsTab()}
         {activeTab === "sounds" && renderSoundsTab()}
       </div>
 
@@ -350,6 +397,8 @@ export function TrashView() {
               permanentDeleteRoutine(deleteTarget.id);
             } else if (deleteTarget.type === "memo") {
               permanentDeleteMemo(deleteTarget.id);
+            } else if (deleteTarget.type === "scheduleItem") {
+              permanentDeleteScheduleItem(deleteTarget.id);
             } else {
               handlePermanentDeleteSound(deleteTarget.id);
             }

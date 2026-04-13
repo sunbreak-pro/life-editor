@@ -167,6 +167,22 @@ app
       }
     }
 
+    // IPC: re-register global shortcuts on-the-fly
+    ipcMain.handle("system:reregisterGlobalShortcuts", () => {
+      const raw = appSettings.get("global_shortcuts");
+      if (!raw) {
+        unregisterAllGlobalShortcuts();
+        return { success: true };
+      }
+      try {
+        registerGlobalShortcuts(win, JSON.parse(raw));
+        return { success: true };
+      } catch (e) {
+        log.error("[Main] Failed to re-register global shortcuts:", e);
+        return { success: false };
+      }
+    });
+
     // Start background services
     reminderService.start(db, win);
     autoArchiveService.start(db);

@@ -86,7 +86,9 @@ export function createApiApp(db: Database.Database): Hono {
 function getStaticDir(): string {
   // In packaged app: <app>/frontend/dist
   // In dev: <project>/frontend/dist
-  const appDir = process.env.APP_PATH || path.join(__dirname, "..", "..");
+  // In dev: __dirname = electron/dist/server/ → need 3 levels up to project root
+  // In packaged: APP_PATH is set to app root
+  const appDir = process.env.APP_PATH || path.join(__dirname, "..", "..", "..");
   return path.join(appDir, "frontend", "dist");
 }
 

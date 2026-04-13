@@ -1,16 +1,12 @@
 import { useState } from "react";
-import { Download, Upload, Trash2 } from "lucide-react";
+import { Download, Upload } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { getDataService } from "../../services";
-import { ConfirmDialog } from "../shared/ConfirmDialog";
-import { TrashView } from "../Trash/TrashView";
 
 export function DataManagement() {
   const { t } = useTranslation();
   const [status, setStatus] = useState<string | null>(null);
   const [isError, setIsError] = useState(false);
-  const [showResetConfirm, setShowResetConfirm] = useState(false);
-  const [showTrash, setShowTrash] = useState(false);
 
   const handleExport = async () => {
     try {
@@ -45,41 +41,6 @@ export function DataManagement() {
     }
   };
 
-  const handleReset = async () => {
-    setShowResetConfirm(false);
-    try {
-      const success = await getDataService().resetData();
-      if (success) {
-        setIsError(false);
-        setStatus(t("data.resetSuccess"));
-        setTimeout(() => window.location.reload(), 1000);
-      }
-    } catch (e) {
-      setIsError(true);
-      setStatus(
-        t("data.resetFailed", {
-          error: e instanceof Error ? e.message : t("data.unknownError"),
-        }),
-      );
-    }
-  };
-
-  if (showTrash) {
-    return (
-      <div data-section-id="data">
-        <div className="flex items-center gap-2 mb-4">
-          <button
-            onClick={() => setShowTrash(false)}
-            className="text-sm text-notion-accent hover:underline"
-          >
-            ← {t("data.title")}
-          </button>
-        </div>
-        <TrashView />
-      </div>
-    );
-  }
-
   return (
     <div data-section-id="data">
       <h3 className="text-lg font-semibold text-notion-text mb-3">
@@ -109,26 +70,6 @@ export function DataManagement() {
           {t("data.importWarning")}
         </p>
 
-        <div className="border-t border-notion-border pt-3 mt-3">
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => setShowTrash(true)}
-              className="flex items-center gap-2 px-4 py-2 rounded-md text-sm bg-notion-hover text-notion-text hover:bg-notion-border transition-colors"
-            >
-              <Trash2 size={16} />
-              {t("data.openTrash")}
-            </button>
-
-            <button
-              onClick={() => setShowResetConfirm(true)}
-              className="flex items-center gap-2 px-4 py-2 rounded-md text-sm bg-notion-danger/10 text-notion-danger hover:bg-notion-danger/20 transition-colors"
-            >
-              <Trash2 size={16} />
-              {t("data.reset")}
-            </button>
-          </div>
-        </div>
-
         {status && (
           <p
             className={`text-sm ${isError ? "text-notion-danger" : "text-notion-success"}`}
@@ -137,14 +78,6 @@ export function DataManagement() {
           </p>
         )}
       </div>
-
-      {showResetConfirm && (
-        <ConfirmDialog
-          message={t("data.resetConfirm")}
-          onConfirm={handleReset}
-          onCancel={() => setShowResetConfirm(false)}
-        />
-      )}
     </div>
   );
 }

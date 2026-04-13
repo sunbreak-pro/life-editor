@@ -1,8 +1,4 @@
-import { useContext } from "react";
 import { WikiTagContext } from "../context/WikiTagContextValue";
+import { createContextHook } from "./createContextHook";
 
-export function useWikiTags() {
-  const ctx = useContext(WikiTagContext);
-  if (!ctx) throw new Error("useWikiTags must be used within WikiTagProvider");
-  return ctx;
-}
+export const useWikiTags = createContextHook(WikiTagContext, "useWikiTags");

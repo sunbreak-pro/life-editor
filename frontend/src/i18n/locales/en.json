@@ -245,7 +245,10 @@
       "save": "Save",
       "searchPlaceholder": "Search shortcuts...",
       "noResults": "No shortcuts found",
-      "modified": "Modified"
+      "modified": "Modified",
+      "cancel": "Cancel",
+      "osGlobalShortcuts": "OS Global Shortcuts",
+      "osGlobalShortcutsDesc": "Work even when the app is not focused"
     },
     "appearance": "Appearance",
     "darkMode": "Dark Mode",
@@ -376,8 +379,13 @@
     "sounds": "Sounds",
     "sound": "sound",
     "tabTasks": "Tasks",
+    "tabRoutine": "Routine",
+    "tabEvents": "Events",
+    "tabMaterials": "Materials",
     "tabMemo": "Memo",
     "tabSounds": "Sounds",
+    "event": "event",
+    "events": "Events",
     "folders": "Folders",
     "routines": "Routines",
     "routine": "routine",
@@ -1223,7 +1231,8 @@
     "noResults": "No matching tasks",
     "clear": "Clear search",
     "rootLevel": "Root level",
-    "searchSettings": "Search settings..."
+    "searchSettings": "Search settings...",
+    "searchTrash": "Search trash..."
   },
   "common": {
     "cancel": "Cancel",

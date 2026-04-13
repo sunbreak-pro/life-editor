@@ -1,3 +1,17 @@
+### 2026-04-12 - RichEditor UI/UX Improvements + 階層UI統一
+
+#### 概要
+
+TaskDetail の IconPicker 導入、Notes の Breadcrumb ヘッダー追加、Files サイドバーのツリー表示化など階層UIを統一。
+
+#### 変更点
+
+- **TaskNode icon フィールド**: DB migration v57 で `icon` カラム追加。TaskDetailHeader/TaskDetailPanel でカラーピッカーを IconPicker に置換
+- **Breadcrumb 統一**: TaskDetailHeader の Breadcrumb を Materials スタイル（ChevronRight + アイコン）に統一
+- **Notes Breadcrumb**: NotesView にフォルダパス表示 + クリックナビゲーション付き Breadcrumb ヘッダー追加
+- **Files ツリー表示**: FileExplorerSidebar をフラットリスト → ツリー表示（展開/折りたたみ、遅延ロード）に改修
+- **NoteTreeNode 修正**: useRef import 修正
+
 ### 2026-04-12 - App Optimization Phase 3 — useScheduleItems分割, EditableTitle共有化, RoutineTimeChangeDialog統合
 
 #### 概要

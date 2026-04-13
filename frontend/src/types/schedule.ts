@@ -11,6 +11,8 @@ export interface ScheduleItem {
   memo: string | null;
   noteId: string | null;
   content: string | null;
+  isDeleted?: boolean;
+  deletedAt?: string | null;
   isDismissed?: boolean;
   isAllDay?: boolean;
   reminderEnabled?: boolean;

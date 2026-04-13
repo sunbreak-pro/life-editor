@@ -34,6 +34,7 @@ export function useDayFlowColumn({ initialDate }: UseDayFlowColumnOptions) {
     createScheduleItem: ctxCreate,
     updateScheduleItem: ctxUpdate,
     deleteScheduleItem: ctxDelete,
+    softDeleteScheduleItem: ctxSoftDelete,
     dismissScheduleItem: ctxDismiss,
     toggleComplete: ctxToggle,
   } = useScheduleContext();
@@ -235,9 +236,9 @@ export function useDayFlowColumn({ initialDate }: UseDayFlowColumnOptions) {
   const deleteScheduleItem = useCallback(
     (id: string) => {
       setScheduleItems((prev) => prev.filter((item) => item.id !== id));
-      ctxDelete(id);
+      ctxSoftDelete(id);
     },
-    [ctxDelete],
+    [ctxSoftDelete],
   );
 
   const dismissScheduleItem = useCallback(

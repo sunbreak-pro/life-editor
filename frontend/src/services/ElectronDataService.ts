@@ -543,6 +543,18 @@ export class ElectronDataService implements DataService {
   deleteScheduleItem(id: string): Promise<void> {
     return invoke("db:scheduleItems:delete", id);
   }
+  softDeleteScheduleItem(id: string): Promise<void> {
+    return invoke("db:scheduleItems:softDelete", id);
+  }
+  restoreScheduleItem(id: string): Promise<void> {
+    return invoke("db:scheduleItems:restore", id);
+  }
+  permanentDeleteScheduleItem(id: string): Promise<void> {
+    return invoke("db:scheduleItems:permanentDelete", id);
+  }
+  fetchDeletedScheduleItems(): Promise<ScheduleItem[]> {
+    return invoke("db:scheduleItems:fetchDeleted");
+  }
   toggleScheduleItemComplete(id: string): Promise<ScheduleItem> {
     return invoke("db:scheduleItems:toggleComplete", id);
   }
@@ -1150,6 +1162,9 @@ export class ElectronDataService implements DataService {
   }
   setGlobalShortcuts(shortcuts: Record<string, string>): Promise<void> {
     return invoke("system:setGlobalShortcuts", shortcuts);
+  }
+  reregisterGlobalShortcuts(): Promise<{ success: boolean }> {
+    return invoke("system:reregisterGlobalShortcuts");
   }
   updateTrayTimer(state: {
     remaining: string;

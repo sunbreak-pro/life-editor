@@ -262,7 +262,7 @@ export function MobileScheduleView() {
   const handleDelete = useCallback(
     async (id: string) => {
       try {
-        await ds.deleteScheduleItem(id);
+        await ds.softDeleteScheduleItem(id);
         setFormOpen(false);
         setEditingItem(null);
         await loadItems(selectedDate);
