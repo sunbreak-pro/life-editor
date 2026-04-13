@@ -1,5 +1,19 @@
 # HISTORY.md - 変更履歴
 
+### 2026-04-13 - session-verifier + life-editor-mcp スキル作成
+
+#### 概要
+
+Pre-commit 品質検証スキル（session-verifier）と Life Editor MCP 記録スキル（life-editor-mcp）を新規作成。スキル構成一覧を Life Editor ノートに MCP ツールで記録。
+
+#### 変更点
+
+- **session-verifier スキル**: `original-skills-storage/skills/custom/global/session-verifier/SKILL.md` を新規作成。6ゲート構成（Scope → TypeScript → Lint → Tests → Coverage → Structural → Bug Scan）の Pre-commit Quality Gate。作業完了後、`/task-tracker` の前に実行する運用
+- **life-editor-mcp スキル**: `original-skills-storage/skills/custom/global/life-editor-mcp/SKILL.md` を新規作成。Life Editor MCP ツール（Note/Memo/Task/Schedule/File/Tag）の使い方ガイド。エンティティ選択、コンテンツ形式、ToolSearch 事前読み込みのワークフローを提供
+- **シンボリックリンク**: `~/.claude/skills/session-verifier`, `~/.claude/skills/life-editor-mcp` を作成。Global active skills 8→10個
+- **SKILL_INDEX.md**: 2スキルのエントリ追加、カウント更新
+- **Life Editor ノート**: MCP ツール `create_note` で「Claude Code Skills 構成一覧 (2026-04-13)」を作成。Global 10個 + Project 6個の全スキル構成、session-verifier の6ゲート詳細、life-editor-mcp のエンティティ選択ガイドを記録
+
 ### 2026-04-13 - Notes/Memos ↔ Files 双方向コピー機能
 
 #### 概要
@@ -60,39 +74,5 @@ App Optimization プランの Phase 3（P2 リファクタリング）3タスク
 - **ScheduleItemsContextValue**: `ReturnType<typeof useScheduleItems>` から明示的インターフェース定義に変更（27フィールド、全型を明記）
 - **CoreHandles パターン**: Core が `_handles`（scheduleItemsRef, setScheduleItems, setMonthlyScheduleItems, bumpVersion）を返し、RoutineSync が受け取る設計。Events hook の `_setEvents` を Core に渡して applyToLists の includeEvents を実現
 - **検証**: `tsc --noEmit` 型エラーなし、148テスト全パス
-
-### 2026-04-12 - Analytics Section Expansion — 6-Tab Multi-Domain Dashboard
-
-#### 概要
-
-Analytics セクションを3タブ（Overview/Time/Tasks）から6タブ（Overview/Tasks/Schedule/Materials/Work/Connect）に拡張。全エンティティ（Task, Event, Note, Routine, WikiTag）を横断的に分析できるダッシュボードを実装。
-
-#### 変更点
-
-- **タブ構成**: `AnalyticsView.tsx` を6タブに拡張（Overview/Tasks/Schedule/Materials/Work/Connect）。Time タブを Work に改名
-- **Overview 拡張**: `OverviewTab.tsx` を全6ドメイン（Tasks/Events/Notes/Work/Routines/Tags）のサマリーカードに拡張。各カードにsubtitle追加
-- **共通StatCard**: `AnalyticsStatCard.tsx` を抽出、`TimeTab.tsx` のローカル StatCard を置換
-- **Schedule タブ**: `ScheduleTab.tsx` 新規作成。イベント完了トレンド（AreaChart）、時間帯別分布（BarChart）、ルーティン別完了率（Horizontal BarChart）
-- **Materials タブ**: `MaterialsTab.tsx` 新規作成。ノート作成トレンド（AreaChart）、メモ活動ヒートマップ、フォルダ別ノート数（Horizontal BarChart）
-- **Connect タブ**: `ConnectTab.tsx` 新規作成。タグ使用頻度（タグ色付きBarChart）、エンティティ別タグ使用（Stacked BarChart）、コネクション統計（タグ/ノートコネクション数、最多接続タグ、孤立タグ数、接続密度）
-- **集計関数**: `analyticsAggregation.ts` に9つの新��集計関数追加（Schedule/Materials/Connect用）
-- **サイドバー**: `AnalyticsSidebarContent.tsx` のチャートトグルをタブ別5グループに分類
-- **i18n**: `en.json`/`ja.json` に約90キー追加（タブラベル、Overview、Schedule、Materials、Connect）
-- **新規ファイル13個**: AnalyticsStatCard, ScheduleTab, EventCompletionTrend, EventTimeDistribution, RoutineCompletionChart, MaterialsTab, NoteCreationTrend, MemoActivityHeatmap, NotesByFolderChart, ConnectTab, TagUsageChart, TagEntityTypeChart, TagConnectionSummary
-
-### 2026-04-12 - App Optimization Phase 1+2
-
-#### 概要
-
-アプリのパフォーマンス改善とコード整理。TaskTreeContext の useMemo 追加、Tips コンポーネント完全削除、React.lazy によるセクション遅延ロード、PreviewPopup 3種の BasePreviewPopup 統合を実施。
-
-#### 変更点
-
-- **TaskTreeContext useMemo**: `useTaskTreeAPI.ts` の返り値を `useMemo` でラップ。sub-hook（CRUD/Deletion/Movement）から個別の useCallback 関数を分割代入し安定した参照を依存配列に使用。セクション切替時の不要な再レンダーを削減
-- **Tips コンポーネント削除**: `frontend/src/components/Tips/` ディレクトリ全体（15ファイル、約1,133行）を削除。`useElectronMenuActions.ts` の参照コメントもクリーンアップ
-- **React.lazy 導入**: ConnectView, WorkScreen, AnalyticsView, Settings を `lazy()` + `Suspense` に変換。ScheduleSection, MaterialsView は毎日使用のため静的import維持。起動時のJSパース量を削減
-- **BasePreviewPopup 統合**: `Tasks/Schedule/shared/BasePreviewPopup.tsx` を新規作成（位置計算、click-outside、カラーバー、フッターレイアウトを共通化）。TaskPreviewPopup(-83行), ScheduleItemPreviewPopup(-39行), MemoPreviewPopup(-11行) をリファクタリング（合計 -133行）
-- **Provider 遅延初期化**: WikiTag は Materials(Notes)で毎日使用、Audio はタイマー再生でセクション横断必要のため見送り
-- **計画書**: `.claude/feature_plans/2026-04-11-app-optimization.md` に Phase 3/4 の残作業を記録
 
 <!-- older entries archived to HISTORY-archive.md -->
