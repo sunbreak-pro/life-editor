@@ -9,7 +9,7 @@ import { LAYOUT } from "../../constants/layout";
 import type { TabItem } from "../shared/SectionTabs";
 import { SectionHeader } from "../shared/SectionHeader";
 import { TimerDisplay } from "./TimerDisplay";
-import { TimerProgressBar } from "./TimerProgressBar";
+import { TimerCircularProgress } from "./TimerCircularProgress";
 import { TaskSelector } from "./TaskSelector";
 import { TodaySessionSummary } from "./TodaySessionSummary";
 import { WorkMusicContent } from "./WorkMusicContent";
@@ -138,22 +138,24 @@ export function WorkScreen({ onCompleteTask }: WorkScreenProps) {
               </div>
 
               {/* Timer center */}
-              <div className="flex-1 flex flex-col items-center justify-center gap-8 py-0">
-                <TimerDisplay
+              <div className="flex-1 flex flex-col items-center justify-center gap-6 py-0">
+                <TimerCircularProgress
+                  progress={timer.progress}
                   sessionType={timer.sessionType}
-                  remainingSeconds={timer.remainingSeconds}
-                  isRunning={timer.isRunning}
-                  completedSessions={timer.completedSessions}
-                  sessionsBeforeLongBreak={timer.sessionsBeforeLongBreak}
-                  formatTime={timer.formatTime}
-                  onStart={timer.start}
-                  onPause={timer.pause}
-                  onReset={timer.reset}
-                  onAdjustTime={timer.adjustRemainingSeconds}
-                />
-                <div className="w-full max-w-xl">
-                  <TimerProgressBar progress={timer.progress} />
-                </div>
+                >
+                  <TimerDisplay
+                    sessionType={timer.sessionType}
+                    remainingSeconds={timer.remainingSeconds}
+                    isRunning={timer.isRunning}
+                    completedSessions={timer.completedSessions}
+                    sessionsBeforeLongBreak={timer.sessionsBeforeLongBreak}
+                    formatTime={timer.formatTime}
+                    onStart={timer.start}
+                    onPause={timer.pause}
+                    onReset={timer.reset}
+                    onAdjustTime={timer.adjustRemainingSeconds}
+                  />
+                </TimerCircularProgress>
                 <TodaySessionSummary
                   sessions={todaySummary.sessions}
                   totalMinutes={todaySummary.totalMinutes}

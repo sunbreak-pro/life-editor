@@ -1,3 +1,17 @@
+### 2026-04-13 - session-verifier + life-editor-mcp スキル作成
+
+#### 概要
+
+Pre-commit 品質検証スキル（session-verifier）と Life Editor MCP 記録スキル（life-editor-mcp）を新規作成。スキル構成一覧を Life Editor ノートに MCP ツールで記録。
+
+#### 変更点
+
+- **session-verifier スキル**: `original-skills-storage/skills/custom/global/session-verifier/SKILL.md` を新規作成。6ゲート構成（Scope → TypeScript → Lint → Tests → Coverage → Structural → Bug Scan）の Pre-commit Quality Gate。作業完了後、`/task-tracker` の前に実行する運用
+- **life-editor-mcp スキル**: `original-skills-storage/skills/custom/global/life-editor-mcp/SKILL.md` を新規作成。Life Editor MCP ツール（Note/Memo/Task/Schedule/File/Tag）の使い方ガイド。エンティティ選択、コンテンツ形式、ToolSearch 事前読み込みのワークフローを提供
+- **シンボリックリンク**: `~/.claude/skills/session-verifier`, `~/.claude/skills/life-editor-mcp` を作成。Global active skills 8→10個
+- **SKILL_INDEX.md**: 2スキルのエントリ追加、カウント更新
+- **Life Editor ノート**: MCP ツール `create_note` で「Claude Code Skills 構成一覧 (2026-04-13)」を作成。Global 10個 + Project 6個の全スキル構成、session-verifier の6ゲート詳細、life-editor-mcp のエンティティ選択ガイドを記録
+
 ### 2026-04-13 - Notes/Memos ↔ Files 双方向コピー機能
 
 #### 概要
