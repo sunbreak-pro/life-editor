@@ -1809,5 +1809,18 @@
       "error": "接続に失敗しました。URLを確認してください。",
       "invalidUrl": "無効なURLです。QRコードを使うか、接続URLを貼り付けてください。"
     }
+  },
+  "templates": {
+    "title": "テンプレート",
+    "untitled": "無題のテンプレート",
+    "empty": "テンプレートがありません",
+    "defaultNote": "ノートのデフォルトに設定",
+    "defaultDaily": "デイリーのデフォルトに設定",
+    "removeDefault": "デフォルトを解除",
+    "delete": "削除",
+    "deleteConfirm": "このテンプレートを削除しますか？",
+    "deleteDefaultWarning": "デフォルトに設定中のテンプレートです。削除しますか？",
+    "editContent": "テンプレート内容を編集",
+    "rename": "名前を変更"
   }
 }

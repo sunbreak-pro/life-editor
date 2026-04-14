@@ -18,6 +18,7 @@ import { DailySidebar } from "./DailySidebar";
 import { MaterialsSidebar } from "./MaterialsSidebar";
 import { useMemoContext } from "../../hooks/useMemoContext";
 import { useNoteContext } from "../../hooks/useNoteContext";
+import { useTemplateContext } from "../../hooks/useTemplateContext";
 import { useWikiTags } from "../../hooks/useWikiTags";
 import { useNoteConnections } from "../../hooks/useNoteConnections";
 import { useConnectSearch } from "../../hooks/useConnectSearch";
@@ -84,6 +85,7 @@ export function IdeasView({ onNavigateToNote }: IdeasViewProps) {
     sortDirection,
     setSortDirection,
   } = useNoteContext();
+  const { getDefaultNoteContent } = useTemplateContext();
   const { assignments, tags, setTagsForEntity } = useWikiTags();
   const { showToast } = useToast();
 
@@ -219,13 +221,48 @@ export function IdeasView({ onNavigateToNote }: IdeasViewProps) {
   );
 
   const handleCreateNoteMaterials = useCallback(() => {
-    const noteId = createNote();
+    const initialContent = getDefaultNoteContent();
+    const noteId = createNote(
+      undefined,
+      initialContent ? { initialContent } : undefined,
+    );
     setSelectedNoteId(noteId);
-  }, [createNote, setSelectedNoteId]);
+  }, [createNote, setSelectedNoteId, getDefaultNoteContent]);
 
   const handleCreateFolder = useCallback(() => {
     createFolder();
   }, [createFolder]);
+
+  const handleCreateNoteInFolder = useCallback(
+    (parentId: string) => {
+      const initialContent = getDefaultNoteContent();
+      const noteId = createNote(undefined, {
+        parentId,
+        ...(initialContent ? { initialContent } : {}),
+      });
+      setSelectedNoteId(noteId);
+      if (!expandedIds.has(parentId)) {
+        toggleExpanded(parentId);
+      }
+    },
+    [
+      createNote,
+      setSelectedNoteId,
+      expandedIds,
+      toggleExpanded,
+      getDefaultNoteContent,
+    ],
+  );
+
+  const handleCreateFolderInFolder = useCallback(
+    (parentId: string) => {
+      createFolder(undefined, parentId);
+      if (!expandedIds.has(parentId)) {
+        toggleExpanded(parentId);
+      }
+    },
+    [createFolder, expandedIds, toggleExpanded],
+  );
 
   // Cross-navigation: Materials → Node with focus
   const handleNavigateToNode = useCallback((noteId: string) => {
@@ -295,6 +332,8 @@ export function IdeasView({ onNavigateToNote }: IdeasViewProps) {
             onSelectNote={handleSelectMaterialsNote}
             onCreateNote={handleCreateNoteMaterials}
             onCreateFolder={handleCreateFolder}
+            onCreateNoteInFolder={handleCreateNoteInFolder}
+            onCreateFolderInFolder={handleCreateFolderInFolder}
             onDeleteNote={softDeleteNote}
             onNavigateToNode={handleNavigateToNode}
             onUpdateNoteTitle={handleUpdateNoteTitle}

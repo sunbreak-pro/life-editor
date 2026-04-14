@@ -13,9 +13,9 @@
 
 ## 直近の完了
 
+- Note/Daily テンプレート機能 + フォルダアクションボタン + DnD修正 ✅（2026-04-14）
 - Desktop Timer 円形プログレスゲージ追加 ✅（2026-04-14）
 - Sort Direction + Calendar Type Order + TimeGrid Click Menu ✅（2026-04-13）
-- .claude/ 設計書・コード整合性修正 ✅（2026-04-14）
 
 ## 予定
 

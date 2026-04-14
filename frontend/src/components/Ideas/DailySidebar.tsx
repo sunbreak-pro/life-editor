@@ -15,6 +15,7 @@ import { SearchBar, type SearchSuggestion } from "../shared/SearchBar";
 import { CollapsibleSection } from "../shared/CollapsibleSection";
 import { TagFilterOverlay } from "../shared/TagFilterOverlay";
 import { ItemEditPopover } from "./Connect/ItemEditPopover";
+import { TemplateManager } from "./TemplateManager";
 
 interface DailySidebarProps {
   memos: MemoNode[];
@@ -397,6 +398,8 @@ export function DailySidebar({
           )}
         </CollapsibleSection>
       </div>
+
+      <TemplateManager entityType="daily" />
 
       {editingEntityId && editButtonRefs.current.get(editingEntityId) && (
         <ItemEditPopover

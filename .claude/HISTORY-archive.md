@@ -1,3 +1,18 @@
+### 2026-04-13 - Global Shortcuts → Shortcuts タブ移動 + Cancel ボタン追加
+
+#### 概要
+
+SystemSettings（Advanced > System）にあったOSグローバルショートカット設定をShortcutsタブに移動し、既存のキーキャプチャUIで任意のキーを割り当て可能にした。ショートカット編集中のCancelボタンも追加。
+
+#### 変更点
+
+- **accelerator変換ユーティリティ**: `frontend/src/utils/electronAccelerator.ts` を新規作成。`keyBindingToAccelerator()` / `acceleratorToKeyBinding()` でKeyBinding ↔ Electron accelerator文字列を双方向変換。modifier有無に応じた`code`/`key`の整合性を保証
+- **reregister IPC**: `system:reregisterGlobalShortcuts` チャンネルを追加（`electron/main.ts`）。保存後にアプリ再起動なしでOS側のグローバルショートカットを即時再登録
+- **KeyboardShortcuts.tsx**: `ShortcutRowBase` に統合（旧`ShortcutRow`+`GlobalShortcutRow`の重複解消）。`CapturingTarget`型で inApp/global を区別。Cancel ボタン追加。グローバルショートカットセクションをGlobalカテゴリ先頭に表示。保存時エラーハンドリング（失敗時ロールバック）
+- **SystemSettings.tsx**: グローバルショートカットUI、関連state、ローカル`ShortcutRow`コンポーネントを削除。`getGlobalShortcuts`のnullフォールバック修正
+- **IPC 3点セット更新**: `electron/preload.ts`（ALLOWED_CHANNELS）、DataService interface、ElectronDataService / OfflineDataService / RestDataService / mockDataService
+- **i18n**: `settings.shortcuts.cancel` / `osGlobalShortcuts` / `osGlobalShortcutsDesc` を en/ja 両方に追加
+
 ### 2026-04-13 - session-verifier + life-editor-mcp スキル作成
 
 #### 概要

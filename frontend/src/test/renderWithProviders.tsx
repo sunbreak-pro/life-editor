@@ -17,6 +17,7 @@ import { TimerProvider } from "../context/TimerContext";
 import { AudioProvider } from "../context/AudioContext";
 import { WikiTagProvider } from "../context/WikiTagContext";
 import { ShortcutConfigProvider } from "../context/ShortcutConfigContext";
+import { TemplateProvider } from "../context/TemplateContext";
 
 function AllProviders({ children }: { children: ReactNode }) {
   return (
@@ -26,27 +27,29 @@ function AllProviders({ children }: { children: ReactNode }) {
           <ScreenLockProvider>
             <TaskTreeProvider>
               <CalendarProvider>
-                <MemoProvider>
-                  <NoteProvider>
-                    <FileExplorerProvider>
-                      <RoutineProvider>
-                        <ScheduleItemsProvider>
-                          <CalendarTagsProvider>
-                            <TimerProvider>
-                              <AudioProvider>
-                                <WikiTagProvider>
-                                  <ShortcutConfigProvider>
-                                    {children}
-                                  </ShortcutConfigProvider>
-                                </WikiTagProvider>
-                              </AudioProvider>
-                            </TimerProvider>
-                          </CalendarTagsProvider>
-                        </ScheduleItemsProvider>
-                      </RoutineProvider>
-                    </FileExplorerProvider>
-                  </NoteProvider>
-                </MemoProvider>
+                <TemplateProvider>
+                  <MemoProvider>
+                    <NoteProvider>
+                      <FileExplorerProvider>
+                        <RoutineProvider>
+                          <ScheduleItemsProvider>
+                            <CalendarTagsProvider>
+                              <TimerProvider>
+                                <AudioProvider>
+                                  <WikiTagProvider>
+                                    <ShortcutConfigProvider>
+                                      {children}
+                                    </ShortcutConfigProvider>
+                                  </WikiTagProvider>
+                                </AudioProvider>
+                              </TimerProvider>
+                            </CalendarTagsProvider>
+                          </ScheduleItemsProvider>
+                        </RoutineProvider>
+                      </FileExplorerProvider>
+                    </NoteProvider>
+                  </MemoProvider>
+                </TemplateProvider>
               </CalendarProvider>
             </TaskTreeProvider>
           </ScreenLockProvider>

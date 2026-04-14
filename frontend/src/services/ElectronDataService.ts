@@ -48,6 +48,7 @@ import type {
   DatabaseCell,
   PropertyType,
 } from "../types/database";
+import type { Template } from "../types/template";
 function invoke<T>(channel: string, ...args: unknown[]): Promise<T> {
   return window.electronAPI!.invoke<T>(channel, ...args);
 }
@@ -254,8 +255,12 @@ export class ElectronDataService implements DataService {
   fetchDeletedNotes(): Promise<NoteNode[]> {
     return invoke("db:notes:fetchDeleted");
   }
-  createNote(id: string, title: string): Promise<NoteNode> {
-    return invoke("db:notes:create", id, title);
+  createNote(
+    id: string,
+    title: string,
+    parentId?: string | null,
+  ): Promise<NoteNode> {
+    return invoke("db:notes:create", id, title, parentId ?? null);
   }
   updateNote(
     id: string,
@@ -1136,6 +1141,29 @@ export class ElectronDataService implements DataService {
   }
   removeAppSetting(key: string): Promise<void> {
     return invoke("settings:remove", key);
+  }
+
+  // Templates
+  fetchAllTemplates(): Promise<Template[]> {
+    return invoke("db:templates:fetchAll");
+  }
+  fetchTemplateById(id: string): Promise<Template | undefined> {
+    return invoke("db:templates:fetchById", id);
+  }
+  createTemplate(id: string, name: string): Promise<Template> {
+    return invoke("db:templates:create", id, name);
+  }
+  updateTemplate(
+    id: string,
+    updates: { name?: string; content?: string },
+  ): Promise<Template> {
+    return invoke("db:templates:update", id, updates);
+  }
+  softDeleteTemplate(id: string): Promise<void> {
+    return invoke("db:templates:softDelete", id);
+  }
+  permanentDeleteTemplate(id: string): Promise<void> {
+    return invoke("db:templates:permanentDelete", id);
   }
 
   // System Integration

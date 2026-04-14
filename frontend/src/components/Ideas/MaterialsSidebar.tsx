@@ -36,6 +36,7 @@ import {
   NoteDragOverStoreContext,
 } from "../../hooks/useNoteTreeDnd";
 import { useNoteTreeMovement } from "../../hooks/useNoteTreeMovement";
+import { TemplateManager } from "./TemplateManager";
 
 interface SectionsState {
   favorites: boolean;
@@ -52,6 +53,8 @@ interface MaterialsSidebarProps {
   onSelectNote: (noteId: string) => void;
   onCreateNote: () => void;
   onCreateFolder: () => void;
+  onCreateNoteInFolder?: (parentId: string) => void;
+  onCreateFolderInFolder?: (parentId: string) => void;
   onDeleteNote?: (noteId: string) => void;
   onNavigateToNode?: (noteId: string) => void;
   onUpdateNoteTitle?: (noteId: string, title: string) => void;
@@ -102,6 +105,8 @@ export function MaterialsSidebar({
   onSelectNote,
   onCreateNote,
   onCreateFolder,
+  onCreateNoteInFolder,
+  onCreateFolderInFolder,
   onDeleteNote,
   onNavigateToNode,
   onUpdateNoteTitle,
@@ -150,6 +155,7 @@ export function MaterialsSidebar({
     handleDragCancel,
   } = useNoteTreeDnd({
     notes,
+    expandedIds,
     moveNode,
     moveNodeInto,
     moveToRoot,
@@ -505,6 +511,8 @@ export function MaterialsSidebar({
                       }
                       onTogglePin={onTogglePin}
                       onCopyToFiles={onCopyToFiles}
+                      onCreateNote={onCreateNoteInFolder}
+                      onCreateFolder={onCreateFolderInFolder}
                     />
                   ))
                 )}
@@ -524,6 +532,8 @@ export function MaterialsSidebar({
           </NoteDragOverStoreContext.Provider>
         </CollapsibleSection>
       </div>
+
+      <TemplateManager entityType="note" />
 
       {editingEntityId && editButtonRefs.current.get(editingEntityId) && (
         <ItemEditPopover

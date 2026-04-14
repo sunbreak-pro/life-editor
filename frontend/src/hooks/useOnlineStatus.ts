@@ -1,5 +1,8 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import { getOfflineDataService } from "../services/dataServiceFactory";
+import {
+  getOfflineDataService,
+  isStandalone,
+} from "../services/dataServiceFactory";
 import { apiFetch } from "../config/api";
 
 export type OnlineStatus = "online" | "offline";
@@ -34,6 +37,11 @@ export function useOnlineStatus(): {
   }, [syncStatus]);
 
   const checkHealth = useCallback(async () => {
+    if (isStandalone()) {
+      // Standalone mode: no server to check
+      setOnlineStatus("offline");
+      return;
+    }
     try {
       const res = await apiFetch("/api/health");
       if (res.ok) {
@@ -47,6 +55,7 @@ export function useOnlineStatus(): {
   }, []);
 
   const triggerSync = useCallback(async () => {
+    if (isStandalone()) return;
     const svc = getOfflineDataService();
     if (!svc) return;
 

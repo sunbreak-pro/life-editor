@@ -286,6 +286,13 @@ const ALLOWED_CHANNELS = new Set([
   "copy:noteToFile",
   "copy:memoToFile",
   "copy:convertFileToTiptap",
+  // Templates
+  "db:templates:fetchAll",
+  "db:templates:fetchById",
+  "db:templates:create",
+  "db:templates:update",
+  "db:templates:softDelete",
+  "db:templates:permanentDelete",
   // Claude
   "claude:registerMcp",
   "claude:readClaudeMd",

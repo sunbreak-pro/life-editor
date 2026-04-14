@@ -94,12 +94,12 @@ export function createNoteRepository(db: Database.Database) {
       return (stmts.fetchDeleted.all() as NoteRow[]).map(rowToNode);
     },
 
-    create(id: string, title: string): NoteNode {
+    create(id: string, title: string, parentId?: string | null): NoteNode {
       stmts.insert.run({
         id,
         type: "note",
         title,
-        parentId: null,
+        parentId: parentId ?? null,
         orderIndex: 0,
       });
       const row = stmts.fetchById.get(id) as NoteRow;

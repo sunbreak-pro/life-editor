@@ -166,15 +166,24 @@ export function useNotes() {
   );
 
   const createNote = useCallback(
-    (title?: string, options?: { skipUndo?: boolean }) => {
+    (
+      title?: string,
+      options?: {
+        skipUndo?: boolean;
+        parentId?: string | null;
+        initialContent?: string;
+      },
+    ) => {
       const id = generateId("note");
       const now = new Date().toISOString();
+      const resolvedParentId = options?.parentId ?? null;
+      const resolvedContent = options?.initialContent ?? "";
       const newNote: NoteNode = {
         id,
         type: "note",
         title: title || "Untitled",
-        content: "",
-        parentId: null,
+        content: resolvedContent,
+        parentId: resolvedParentId,
         order: 0,
         isPinned: false,
         isDeleted: false,
@@ -184,7 +193,14 @@ export function useNotes() {
       setNotes((prev) => [newNote, ...prev]);
       setSelectedNoteId(id);
       getDataService()
-        .createNote(id, newNote.title)
+        .createNote(id, newNote.title, resolvedParentId)
+        .then(() => {
+          if (resolvedContent) {
+            return getDataService().updateNote(id, {
+              content: resolvedContent,
+            });
+          }
+        })
         .catch((e) => logServiceError("Notes", "create", e));
 
       if (!options?.skipUndo) {
@@ -201,7 +217,14 @@ export function useNotes() {
             setNotes((p) => [newNote, ...p]);
             setSelectedNoteId(id);
             getDataService()
-              .createNote(id, newNote.title)
+              .createNote(id, newNote.title, resolvedParentId)
+              .then(() => {
+                if (resolvedContent) {
+                  return getDataService().updateNote(id, {
+                    content: resolvedContent,
+                  });
+                }
+              })
               .catch((e) => logServiceError("Notes", "redoCreate", e));
           },
         });

@@ -14,6 +14,7 @@
     "postinstall": "cd frontend && npm install && npx electron-rebuild -f -w better-sqlite3,node-pty"
   },
   "dependencies": {
+    "@capacitor/ios": "^8.3.0",
     "better-sqlite3": "^11.0.0",
     "electron-log": "~5.3",
     "electron-updater": "~6.3",
@@ -22,6 +23,7 @@
     "ws": "^8.19.0"
   },
   "devDependencies": {
+    "@capacitor/cli": "^7.6.1",
     "@electron/notarize": "^2.5.0",
     "@electron/rebuild": "^3.7.0",
     "@types/better-sqlite3": "^7.6.0",

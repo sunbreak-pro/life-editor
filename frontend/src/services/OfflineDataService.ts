@@ -424,13 +424,17 @@ export class OfflineDataService implements DataService {
     );
   }
 
-  async createNote(id: string, title: string): Promise<NoteNode> {
+  async createNote(
+    id: string,
+    title: string,
+    parentId?: string | null,
+  ): Promise<NoteNode> {
     const note: NoteNode = {
       id,
       type: "note",
       title,
       content: "",
-      parentId: null,
+      parentId: parentId ?? null,
       order: 0,
       isPinned: false,
       isDeleted: false,
@@ -439,9 +443,12 @@ export class OfflineDataService implements DataService {
     };
     const db = await getOfflineDb();
     await db.put("notes", note as unknown as Record<string, unknown>);
-    await this.syncQueue.enqueue("note", id, "create", { title });
+    await this.syncQueue.enqueue("note", id, "create", {
+      title,
+      parentId: parentId ?? null,
+    });
     try {
-      return await this.rest.createNote(id, title);
+      return await this.rest.createNote(id, title, parentId);
     } catch {
       return note;
     }
@@ -1783,6 +1790,26 @@ export class OfflineDataService implements DataService {
   }
   removeAppSetting(): Promise<never> {
     return notSupported("removeAppSetting");
+  }
+
+  // Templates
+  fetchAllTemplates(): Promise<never> {
+    return notSupported("fetchAllTemplates");
+  }
+  fetchTemplateById(): Promise<never> {
+    return notSupported("fetchTemplateById");
+  }
+  createTemplate(): Promise<never> {
+    return notSupported("createTemplate");
+  }
+  updateTemplate(): Promise<never> {
+    return notSupported("updateTemplate");
+  }
+  softDeleteTemplate(): Promise<never> {
+    return notSupported("softDeleteTemplate");
+  }
+  permanentDeleteTemplate(): Promise<never> {
+    return notSupported("permanentDeleteTemplate");
   }
 
   // System Integration

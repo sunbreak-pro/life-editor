@@ -1809,5 +1809,18 @@
       "error": "Connection failed. Check the URL and try again.",
       "invalidUrl": "Invalid URL. Use the QR code or paste the full connection URL."
     }
+  },
+  "templates": {
+    "title": "Templates",
+    "untitled": "Untitled Template",
+    "empty": "No templates yet",
+    "defaultNote": "Set as Note default",
+    "defaultDaily": "Set as Daily default",
+    "removeDefault": "Remove default",
+    "delete": "Delete",
+    "deleteConfirm": "Delete this template?",
+    "deleteDefaultWarning": "This is the default template. Delete anyway?",
+    "editContent": "Edit template content",
+    "rename": "Rename"
   }
 }

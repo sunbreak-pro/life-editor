@@ -285,8 +285,12 @@ export class RestDataService implements DataService {
   fetchDeletedNotes(): Promise<NoteNode[]> {
     return get("/api/notes/deleted");
   }
-  createNote(id: string, title: string): Promise<NoteNode> {
-    return post("/api/notes", { id, title });
+  createNote(
+    id: string,
+    title: string,
+    parentId?: string | null,
+  ): Promise<NoteNode> {
+    return post("/api/notes", { id, title, parentId: parentId ?? null });
   }
   updateNote(
     id: string,
@@ -1128,6 +1132,26 @@ export class RestDataService implements DataService {
   }
   removeAppSetting(): Promise<never> {
     return notSupported("removeAppSetting");
+  }
+
+  // Templates
+  fetchAllTemplates(): Promise<never> {
+    return notSupported("fetchAllTemplates");
+  }
+  fetchTemplateById(): Promise<never> {
+    return notSupported("fetchTemplateById");
+  }
+  createTemplate(): Promise<never> {
+    return notSupported("createTemplate");
+  }
+  updateTemplate(): Promise<never> {
+    return notSupported("updateTemplate");
+  }
+  softDeleteTemplate(): Promise<never> {
+    return notSupported("softDeleteTemplate");
+  }
+  permanentDeleteTemplate(): Promise<never> {
+    return notSupported("permanentDeleteTemplate");
   }
 
   // System Integration

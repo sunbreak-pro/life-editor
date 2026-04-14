@@ -273,6 +273,10 @@ export function runMigrations(db: Database.Database): void {
     log.info("[DB] Running migration V58");
     migrateV58(db);
   }
+  if (currentVersion < 59) {
+    log.info("[DB] Running migration V59");
+    migrateV59(db);
+  }
 
   const newVersion = db.pragma("user_version", { simple: true }) as number;
   if (newVersion !== currentVersion) {
@@ -1930,6 +1934,25 @@ function migrateV58(db: Database.Database): void {
       `CREATE INDEX IF NOT EXISTS idx_schedule_items_deleted ON schedule_items(is_deleted)`,
     );
     db.pragma("user_version = 58");
+  });
+  migrate();
+}
+
+function migrateV59(db: Database.Database): void {
+  const migrate = db.transaction(() => {
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS templates (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL DEFAULT 'Untitled Template',
+        content TEXT NOT NULL DEFAULT '',
+        is_deleted INTEGER NOT NULL DEFAULT 0,
+        deleted_at TEXT,
+        version INTEGER NOT NULL DEFAULT 1,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      )
+    `);
+    db.pragma("user_version = 59");
   });
   migrate();
 }

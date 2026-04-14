@@ -67,3 +67,7 @@ export type { ToastVariant } from "./ToastContext";
 export { WikiTagProvider } from "./WikiTagContext";
 export { WikiTagContext } from "./WikiTagContextValue";
 export type { WikiTagContextValue } from "./WikiTagContextValue";
+
+export { TemplateProvider } from "./TemplateContext";
+export { TemplateContext } from "./TemplateContextValue";
+export type { TemplateContextValue } from "./TemplateContextValue";

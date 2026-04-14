@@ -15,6 +15,7 @@ import { FileExplorerSidebar } from "./FileExplorerSidebar";
 import { FileExplorerView } from "./FileExplorerView";
 import { useMemoContext } from "../../hooks/useMemoContext";
 import { useNoteContext } from "../../hooks/useNoteContext";
+import { useTemplateContext } from "../../hooks/useTemplateContext";
 import { useWikiTags } from "../../hooks/useWikiTags";
 import { STORAGE_KEYS } from "../../constants/storageKeys";
 import { RightSidebarContext } from "../../context/RightSidebarContext";
@@ -68,6 +69,7 @@ export function MaterialsView({ onNavigateToNote }: MaterialsViewProps) {
     updateNote,
     persistWithHistory,
   } = useNoteContext();
+  const { getDefaultNoteContent } = useTemplateContext();
   const { assignments, tags } = useWikiTags();
   const { showToast } = useToast();
 
@@ -94,13 +96,48 @@ export function MaterialsView({ onNavigateToNote }: MaterialsViewProps) {
   );
 
   const handleCreateNoteMaterials = useCallback(() => {
-    const noteId = createNote();
+    const initialContent = getDefaultNoteContent();
+    const noteId = createNote(
+      undefined,
+      initialContent ? { initialContent } : undefined,
+    );
     setSelectedNoteId(noteId);
-  }, [createNote, setSelectedNoteId]);
+  }, [createNote, setSelectedNoteId, getDefaultNoteContent]);
 
   const handleCreateFolder = useCallback(() => {
     createFolder();
   }, [createFolder]);
+
+  const handleCreateNoteInFolder = useCallback(
+    (parentId: string) => {
+      const initialContent = getDefaultNoteContent();
+      const noteId = createNote(undefined, {
+        parentId,
+        ...(initialContent ? { initialContent } : {}),
+      });
+      setSelectedNoteId(noteId);
+      if (!expandedIds.has(parentId)) {
+        toggleExpanded(parentId);
+      }
+    },
+    [
+      createNote,
+      setSelectedNoteId,
+      expandedIds,
+      toggleExpanded,
+      getDefaultNoteContent,
+    ],
+  );
+
+  const handleCreateFolderInFolder = useCallback(
+    (parentId: string) => {
+      createFolder(undefined, parentId);
+      if (!expandedIds.has(parentId)) {
+        toggleExpanded(parentId);
+      }
+    },
+    [createFolder, expandedIds, toggleExpanded],
+  );
 
   const handleUpdateNoteTitle = useCallback(
     (noteId: string, title: string) => {
@@ -154,6 +191,8 @@ export function MaterialsView({ onNavigateToNote }: MaterialsViewProps) {
             onSelectNote={handleSelectMaterialsNote}
             onCreateNote={handleCreateNoteMaterials}
             onCreateFolder={handleCreateFolder}
+            onCreateNoteInFolder={handleCreateNoteInFolder}
+            onCreateFolderInFolder={handleCreateFolderInFolder}
             onDeleteNote={softDeleteNote}
             onUpdateNoteTitle={handleUpdateNoteTitle}
             onCopyToFiles={handleCopyNoteToFiles}

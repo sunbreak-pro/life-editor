@@ -102,6 +102,7 @@ describe("ElectronDataService", () => {
       "db:notes:create",
       "note-1",
       "Title",
+      null,
     );
   });
 

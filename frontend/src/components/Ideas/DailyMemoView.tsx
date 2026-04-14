@@ -20,6 +20,7 @@ import {
   type ConversionSource,
   type ConversionRole,
 } from "../../hooks/useRoleConversion";
+import { useTemplateContext } from "../../hooks/useTemplateContext";
 
 export function DailyMemoView() {
   const {
@@ -33,6 +34,7 @@ export function DailyMemoView() {
     toggleEditLock,
   } = useMemoContext();
   const { isUnlocked, unlock } = useScreenLockContext();
+  const { getDefaultDailyContent } = useTemplateContext();
   const { t, i18n } = useTranslation();
   const { showToast } = useToast();
 
@@ -221,7 +223,9 @@ export function DailyMemoView() {
             >
               <MemoEditor
                 taskId={selectedDate}
-                initialContent={selectedMemo?.content}
+                initialContent={
+                  selectedMemo?.content || getDefaultDailyContent() || undefined
+                }
                 onUpdate={handleUpdate}
                 entityType="memo"
                 syncEntityId={selectedMemo?.id}

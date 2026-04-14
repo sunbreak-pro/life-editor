@@ -2,7 +2,7 @@ import { openDB, type DBSchema, type IDBPDatabase } from "idb";
 import type { SyncQueueEntry } from "../types/sync";
 
 const DB_NAME = "life-editor-offline";
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 
 export interface OfflineDBSchema extends DBSchema {
   tasks: {
@@ -54,6 +54,19 @@ export interface OfflineDBSchema extends DBSchema {
   };
   calendars: {
     key: string;
+    value: Record<string, unknown>;
+  };
+  timerSettings: {
+    key: string;
+    value: Record<string, unknown>;
+  };
+  timerSessions: {
+    key: number;
+    value: Record<string, unknown>;
+    indexes: { "by-taskId": string };
+  };
+  pomodoroPresets: {
+    key: number;
     value: Record<string, unknown>;
   };
   syncMeta: {
@@ -118,6 +131,24 @@ export async function getOfflineDb(): Promise<IDBPDatabase<OfflineDBSchema>> {
         db.createObjectStore("calendars", { keyPath: "id" });
       }
 
+      // Timer stores (v2)
+      if (!db.objectStoreNames.contains("timerSettings")) {
+        db.createObjectStore("timerSettings", { keyPath: "key" });
+      }
+      if (!db.objectStoreNames.contains("timerSessions")) {
+        const tsStore = db.createObjectStore("timerSessions", {
+          keyPath: "id",
+          autoIncrement: true,
+        });
+        tsStore.createIndex("by-taskId", "taskId");
+      }
+      if (!db.objectStoreNames.contains("pomodoroPresets")) {
+        db.createObjectStore("pomodoroPresets", {
+          keyPath: "id",
+          autoIncrement: true,
+        });
+      }
+
       // Sync metadata
       if (!db.objectStoreNames.contains("syncMeta")) {
         db.createObjectStore("syncMeta", { keyPath: "key" });
@@ -161,6 +192,9 @@ export async function clearOfflineDb(): Promise<void> {
     "noteConnections",
     "timeMemos",
     "calendars",
+    "timerSettings",
+    "timerSessions",
+    "pomodoroPresets",
     "syncQueue",
     "syncMeta",
   ] as const;

@@ -27,12 +27,17 @@ export const NoteDragOverStoreContext = createContext<NoteDragOverStore | null>(
 
 interface UseNoteTreeDndParams {
   notes: NoteNode[];
+  expandedIds: Set<string>;
   moveNode: (
     activeId: string,
     overId: string,
     position?: "above" | "below",
   ) => MoveResult;
-  moveNodeInto: (activeId: string, overId: string) => MoveResult;
+  moveNodeInto: (
+    activeId: string,
+    overId: string,
+    insertIndex?: number,
+  ) => MoveResult;
   moveToRoot: (id: string) => MoveResult;
   onMoveRejected?: (reason: MoveRejectionReason) => void;
 }
@@ -66,6 +71,7 @@ function handleResult(
 
 export function useNoteTreeDnd({
   notes,
+  expandedIds,
   moveNode,
   moveNodeInto,
   moveToRoot,
@@ -132,6 +138,9 @@ export function useNoteTreeDnd({
         newPosition = overNode.type === "folder" ? "inside" : "below";
       } else if (overNode.type === "folder") {
         newPosition = computeFolderPosition(pointerY, over.rect);
+        if (newPosition === "below" && expandedIds.has(overId)) {
+          newPosition = "inside";
+        }
       } else {
         const { top, height } = over.rect;
         const relY = pointerY - top;
@@ -146,7 +155,7 @@ export function useNoteTreeDnd({
       overInfoRef.current = { overId, position: newPosition };
       notify();
     },
-    [notes, notify],
+    [notes, expandedIds, notify],
   );
 
   const handleDragEnd = useCallback(
@@ -191,10 +200,17 @@ export function useNoteTreeDnd({
             onMoveRejected,
           );
         } else if (position === "below") {
-          handleResult(
-            moveNode(active.id as string, over.id as string, "below"),
-            onMoveRejected,
-          );
+          if (expandedIds.has(overId)) {
+            handleResult(
+              moveNodeInto(active.id as string, over.id as string, 0),
+              onMoveRejected,
+            );
+          } else {
+            handleResult(
+              moveNode(active.id as string, over.id as string, "below"),
+              onMoveRejected,
+            );
+          }
         } else {
           if (activeNode.parentId !== overNode.id) {
             handleResult(
@@ -220,7 +236,15 @@ export function useNoteTreeDnd({
         );
       }
     },
-    [notes, moveNode, moveNodeInto, moveToRoot, notify, onMoveRejected],
+    [
+      notes,
+      expandedIds,
+      moveNode,
+      moveNodeInto,
+      moveToRoot,
+      notify,
+      onMoveRejected,
+    ],
   );
 
   const handleDragCancel = useCallback(() => {

@@ -161,11 +161,12 @@ export function createMockDataService(): DataService & {
     // Notes
     fetchAllNotes: vi.fn().mockResolvedValue([]),
     fetchDeletedNotes: vi.fn().mockResolvedValue([]),
-    createNote: vi.fn().mockImplementation((id, title) =>
+    createNote: vi.fn().mockImplementation((id, title, parentId) =>
       Promise.resolve({
         id,
         title,
         content: "",
+        parentId: parentId ?? null,
         isPinned: false,
         isDeleted: false,
         createdAt: new Date().toISOString(),
@@ -452,6 +453,32 @@ export function createMockDataService(): DataService & {
     setAppSetting: vi.fn().mockResolvedValue(undefined),
     getAllAppSettings: vi.fn().mockResolvedValue({}),
     removeAppSetting: vi.fn().mockResolvedValue(undefined),
+
+    // Templates
+    fetchAllTemplates: vi.fn().mockResolvedValue([]),
+    fetchTemplateById: vi.fn().mockResolvedValue(undefined),
+    createTemplate: vi.fn().mockImplementation((id, name) =>
+      Promise.resolve({
+        id,
+        name,
+        content: "",
+        isDeleted: false,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      }),
+    ),
+    updateTemplate: vi.fn().mockImplementation((id, updates) =>
+      Promise.resolve({
+        id,
+        name: updates.name ?? "Template",
+        content: updates.content ?? "",
+        isDeleted: false,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      }),
+    ),
+    softDeleteTemplate: vi.fn().mockResolvedValue(undefined),
+    permanentDeleteTemplate: vi.fn().mockResolvedValue(undefined),
 
     // System Integration
     getAutoLaunch: vi.fn().mockResolvedValue(false),

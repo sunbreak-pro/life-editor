@@ -47,6 +47,7 @@ import type {
   DatabaseCell,
   PropertyType,
 } from "../types/database";
+import type { Template } from "../types/template";
 export interface DataService {
   // Tasks
   fetchTaskTree(): Promise<TaskNode[]>;
@@ -145,7 +146,11 @@ export interface DataService {
   // Notes
   fetchAllNotes(): Promise<NoteNode[]>;
   fetchDeletedNotes(): Promise<NoteNode[]>;
-  createNote(id: string, title: string): Promise<NoteNode>;
+  createNote(
+    id: string,
+    title: string,
+    parentId?: string | null,
+  ): Promise<NoteNode>;
   updateNote(
     id: string,
     updates: Partial<
@@ -641,6 +646,17 @@ export interface DataService {
   setAppSetting(key: string, value: string): Promise<void>;
   getAllAppSettings(): Promise<Record<string, string>>;
   removeAppSetting(key: string): Promise<void>;
+
+  // Templates
+  fetchAllTemplates(): Promise<Template[]>;
+  fetchTemplateById(id: string): Promise<Template | undefined>;
+  createTemplate(id: string, name: string): Promise<Template>;
+  updateTemplate(
+    id: string,
+    updates: { name?: string; content?: string },
+  ): Promise<Template>;
+  softDeleteTemplate(id: string): Promise<void>;
+  permanentDeleteTemplate(id: string): Promise<void>;
 
   // System Integration
   getAutoLaunch(): Promise<boolean>;

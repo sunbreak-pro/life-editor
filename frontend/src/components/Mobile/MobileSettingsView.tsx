@@ -1,7 +1,16 @@
 import { useTranslation } from "react-i18next";
 import { useTheme } from "../../hooks/useTheme";
-import { Sun, Moon, Wifi, WifiOff, Globe, LogOut } from "lucide-react";
+import {
+  Sun,
+  Moon,
+  Wifi,
+  WifiOff,
+  Globe,
+  LogOut,
+  Smartphone,
+} from "lucide-react";
 import { isApiConfigured, clearApiCredentials } from "../../config/api";
+import { isStandalone } from "../../services/dataServiceFactory";
 import type { Language } from "../../context/ThemeContextValue";
 
 interface MobileSettingsViewProps {
@@ -12,7 +21,8 @@ export function MobileSettingsView({ onDisconnect }: MobileSettingsViewProps) {
   const { t } = useTranslation();
   const { theme, setTheme, language, setLanguage } = useTheme();
 
-  const isConnected = isApiConfigured();
+  const standaloneMode = isStandalone();
+  const isConnected = !standaloneMode && isApiConfigured();
 
   function handleDisconnect() {
     clearApiCredentials();
@@ -24,17 +34,21 @@ export function MobileSettingsView({ onDisconnect }: MobileSettingsViewProps) {
       {/* Connection */}
       <SettingsSection title={t("mobile.settings.connection", "Connection")}>
         <div className="flex items-center gap-3 px-4 py-3">
-          {isConnected ? (
+          {standaloneMode ? (
+            <Smartphone size={18} className="text-notion-accent" />
+          ) : isConnected ? (
             <Wifi size={18} className="text-notion-success" />
           ) : (
             <WifiOff size={18} className="text-notion-text-secondary" />
           )}
           <span className="flex-1 text-sm text-notion-text-primary">
-            {isConnected
-              ? t("mobile.settings.connected", "Connected to desktop")
-              : t("mobile.settings.disconnected", "Not connected")}
+            {standaloneMode
+              ? t("mobile.settings.standalone", "Standalone mode")
+              : isConnected
+                ? t("mobile.settings.connected", "Connected to desktop")
+                : t("mobile.settings.disconnected", "Not connected")}
           </span>
-          {isConnected && (
+          {!standaloneMode && isConnected && (
             <button
               onClick={handleDisconnect}
               className="flex items-center gap-1.5 rounded-lg border border-notion-danger/30 px-3 py-1.5 text-xs text-notion-danger active:opacity-70"

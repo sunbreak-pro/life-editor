@@ -36,7 +36,11 @@ export function useNoteTreeMovement(
   persistWithHistory: (currentNotes: NoteNode[], updated: NoteNode[]) => void,
 ) {
   const moveNodeInto = useCallback(
-    (activeId: string, targetFolderId: string): MoveResult => {
+    (
+      activeId: string,
+      targetFolderId: string,
+      insertIndex?: number,
+    ): MoveResult => {
       const active = notes.find((n) => n.id === activeId);
       const target = notes.find((n) => n.id === targetFolderId);
       if (!active || !target)
@@ -52,9 +56,18 @@ export function useNoteTreeMovement(
         return { success: false, reason: "already_in_target" };
 
       const targetChildren = notes
-        .filter((n) => !n.isDeleted && n.parentId === targetFolderId)
+        .filter(
+          (n) =>
+            !n.isDeleted && n.parentId === targetFolderId && n.id !== activeId,
+        )
         .sort((a, b) => a.order - b.order);
-      const newOrder = targetChildren.length;
+
+      const idx =
+        insertIndex !== undefined
+          ? Math.min(insertIndex, targetChildren.length)
+          : targetChildren.length;
+      targetChildren.splice(idx, 0, active);
+      const childOrderMap = new Map(targetChildren.map((n, i) => [n.id, i]));
 
       const oldSiblings = notes
         .filter(
@@ -68,7 +81,14 @@ export function useNoteTreeMovement(
         notes,
         notes.map((n) => {
           if (n.id === activeId) {
-            return { ...n, parentId: targetFolderId, order: newOrder };
+            return {
+              ...n,
+              parentId: targetFolderId,
+              order: childOrderMap.get(n.id) ?? 0,
+            };
+          }
+          if (childOrderMap.has(n.id)) {
+            return { ...n, order: childOrderMap.get(n.id)! };
           }
           if (orderMap.has(n.id)) {
             return { ...n, order: orderMap.get(n.id)! };

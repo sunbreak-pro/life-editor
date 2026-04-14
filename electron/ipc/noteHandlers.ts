@@ -20,7 +20,8 @@ export function registerNoteHandlers(repo: NoteRepository): void {
     "create",
     "note",
     "create",
-    (_event, id: string, title: string) => repo.create(id, title),
+    (_event, id: string, title: string, parentId?: string | null) =>
+      repo.create(id, title, parentId),
   );
 
   mutation(

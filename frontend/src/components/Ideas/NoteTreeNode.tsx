@@ -10,6 +10,8 @@ import {
   Heart,
   Trash2,
   Pencil,
+  Plus,
+  LucideFolderPlus,
 } from "lucide-react";
 import type { NoteNode } from "../../types/note";
 import { useNoteDragOverIndicator } from "../../hooks/useNoteDragOverIndicator";
@@ -30,6 +32,8 @@ interface NoteTreeNodeProps {
   onChangeIcon?: (id: string, icon: string | undefined) => void;
   onTogglePin?: (id: string) => void;
   onCopyToFiles?: (id: string) => void;
+  onCreateNote?: (parentId: string) => void;
+  onCreateFolder?: (parentId: string) => void;
 }
 
 export const NoteTreeNode = memo(function NoteTreeNode({
@@ -45,6 +49,8 @@ export const NoteTreeNode = memo(function NoteTreeNode({
   onChangeIcon,
   onTogglePin,
   onCopyToFiles,
+  onCreateNote,
+  onCreateFolder,
 }: NoteTreeNodeProps) {
   const dropPosition = useNoteDragOverIndicator(node.id);
   const isFolder = node.type === "folder";
@@ -205,6 +211,28 @@ export const NoteTreeNode = memo(function NoteTreeNode({
         {/* Action buttons (visible on hover) */}
         {!isEditing && (
           <div className="shrink-0 flex items-center gap-0.5 opacity-0 group-hover:opacity-100">
+            {isFolder && onCreateNote && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onCreateNote(node.id);
+                }}
+                className="p-0.5 rounded hover:bg-notion-hover-strong text-notion-text-secondary hover:text-notion-success"
+              >
+                <Plus size={12} />
+              </button>
+            )}
+            {isFolder && onCreateFolder && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onCreateFolder(node.id);
+                }}
+                className="p-0.5 rounded hover:bg-notion-hover-strong text-notion-text-secondary hover:text-notion-success"
+              >
+                <LucideFolderPlus size={12} />
+              </button>
+            )}
             {onEdit && !isFolder && (
               <button
                 onClick={(e) => {

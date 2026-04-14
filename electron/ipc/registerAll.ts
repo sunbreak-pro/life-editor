@@ -56,6 +56,8 @@ import { registerSettingsHandlers } from "./settingsHandlers";
 import { registerSystemHandlers } from "./systemHandlers";
 import { registerFileHandlers } from "./fileHandlers";
 import { registerCopyHandlers } from "./copyHandlers";
+import { createTemplateRepository } from "../database/templateRepository";
+import { registerTemplateHandlers } from "./templateHandlers";
 import { wrapHandler } from "./ipcMetrics";
 
 export function registerAllHandlers(db: Database.Database): void {
@@ -149,6 +151,7 @@ export function registerAllHandlers(db: Database.Database): void {
     ],
     ["Shell", () => registerShellHandlers()],
     ["Databases", () => registerDatabaseHandlers(createDatabaseRepository(db))],
+    ["Templates", () => registerTemplateHandlers(createTemplateRepository(db))],
     [
       "AppSettings",
       () => {
