@@ -2,6 +2,21 @@
 
 - 2026-04-15: [途中] Capacitor iOS Standalone App — Step 1-3 完了（Capacitor init, StandaloneDataService, スタンドアロンモード対応）。Step 4（Xcode ビルド&テスト）待ち
 
+### 2026-04-15 - テンプレート内容編集をコンテンツエリアに移動
+
+#### 概要
+
+テンプレートの内容編集をサイドバー内の小さなインラインエディタからメインコンテンツエリアのフル MemoEditor に移動。NotesView と同じパターンで、サイドバーのテンプレート選択→コンテンツエリア表示を実現。
+
+#### 変更点
+
+- **useTemplates フック拡張**: `selectedTemplateId` / `setSelectedTemplateId` / `selectedTemplate` を追加。テンプレート選択状態を Context 経由で共有
+- **TemplateManager リファクタ**: インライン TipTap エディタ（TemplateEditor）を完全削除。サイドバーリスト専用化。クリックで `onSelectTemplate` を呼び、選択中テンプレートをハイライト表示
+- **TemplateContentView 新規作成**: NotesView パターン準拠のコンテンツエリアコンポーネント。テンプレート名 `<input>` インライン編集 + ★Note/Daily デフォルトトグル + 削除ボタン + フル LazyMemoEditor
+- **IdeasView / MaterialsView 統合**: `selectedTemplateId` があれば TemplateContentView を表示、Note/Daily 選択時にテンプレート選択を自動解除
+- **MaterialsSidebar / DailySidebar**: `onSelectTemplate` / `selectedTemplateId` props を TemplateManager に伝播
+- **i18n**: `selectTemplate`, `defaultNoteShort`, `defaultDailyShort` を en/ja に追加
+
 ### 2026-04-15 - notion-timer / Sonic Flow → Life Editor 完全リネーム
 
 #### 概要
@@ -69,20 +84,5 @@ Note/Daily 作成時にリッチテキストテンプレートを自動適用す
 - **DayFlow左クリックメニュー**: `TimeGridTaskBlock.tsx` / `ScheduleItemBlock.tsx` の `onClick` を `onContextMenu` 呼び出しに変更。チェックボックスは `stopPropagation` で独立動作維持
 - **i18n**: `taskTree.sortAscending` / `taskTree.sortDescending` を en/ja に追加
 - **テスト**: `sortTaskNodes.test.ts`（9テスト）、`sortSounds.test.ts`（7テスト）新規作成
-
-### 2026-04-14 - .claude/ 設計書・コード整合性修正
-
-#### 概要
-
-.claude/ 内の設計書（ADR、ルール）とコードベースの間にある矛盾を網羅的に調査し、9項目の不整合を修正。ドキュメントの一元化・柔軟化を行った。
-
-#### 変更点
-
-- **ADR-0001**: Status を `Superseded` に変更。Java + Spring Boot → Electron + SQLite への移行経緯を記録し、現在の技術スタックは CLAUDE.md への参照に一本化
-- **ADR-0002**: Exceptions セクションを追加。小規模・自己完結な Context（ToastContext, AnalyticsFilterContext）の単一ファイル構成を許容する条件を明文化
-- **CLAUDE.md**: Provider順序に ErrorBoundary を追加、モバイル Provider 構成を新設セクションとして記載、ソフトデリート対象に Databases を追加、IPC ハンドラ登録の2系統（registerAll.ts / main.ts）を記載
-- **project-debug.md / project-review-checklist.md / project-patterns.md**: Provider順序の定義を CLAUDE.md への参照に一元化（重複排除）、IPC 登録の2系統を反映、Context パターン例外条件を統一
-- **コード修正**: `useTheme.ts` / `useWikiTags.ts` を `createContextHook` に統一（Pattern A 準拠）
-- **ファイル操作**: 完了済みプラン 024 を `feature_plans/` → `archive/` に移動
 
 <!-- older entries archived to HISTORY-archive.md -->

@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useRef } from "react";
+import { useState, useCallback } from "react";
 import {
   FileText,
   Plus,
@@ -6,24 +6,24 @@ import {
   Star,
   ChevronRight,
   ChevronDown,
-  ArrowLeft,
   Pencil,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { useEditor, EditorContent } from "@tiptap/react";
-import StarterKit from "@tiptap/starter-kit";
-import Placeholder from "@tiptap/extension-placeholder";
-import TaskList from "@tiptap/extension-task-list";
-import TaskItem from "@tiptap/extension-task-item";
 import { useTemplateContext } from "../../hooks/useTemplateContext";
 import { EditableTitle } from "../shared/EditableTitle";
 import type { Template } from "../../types/template";
 
 interface TemplateManagerProps {
   entityType: "note" | "daily";
+  onSelectTemplate?: (id: string) => void;
+  selectedTemplateId?: string | null;
 }
 
-export function TemplateManager({ entityType }: TemplateManagerProps) {
+export function TemplateManager({
+  entityType,
+  onSelectTemplate,
+  selectedTemplateId,
+}: TemplateManagerProps) {
   const { t } = useTranslation();
   const {
     templates,
@@ -38,7 +38,6 @@ export function TemplateManager({ entityType }: TemplateManagerProps) {
 
   const [isOpen, setIsOpen] = useState(false);
   const [editingNameId, setEditingNameId] = useState<string | null>(null);
-  const [editingContentId, setEditingContentId] = useState<string | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
   const defaultId =
@@ -65,51 +64,9 @@ export function TemplateManager({ entityType }: TemplateManagerProps) {
     (id: string) => {
       deleteTemplate(id);
       setConfirmDeleteId(null);
-      if (editingContentId === id) {
-        setEditingContentId(null);
-      }
     },
-    [deleteTemplate, editingContentId],
+    [deleteTemplate],
   );
-
-  const handleSaveContent = useCallback(
-    (id: string, content: string) => {
-      updateTemplate(id, { content });
-    },
-    [updateTemplate],
-  );
-
-  const editingTemplate = editingContentId
-    ? templates.find((t) => t.id === editingContentId)
-    : null;
-
-  if (editingTemplate) {
-    return (
-      <div className="border-t border-notion-border">
-        <div className="flex items-center gap-1.5 px-3 py-2 border-b border-notion-border">
-          <button
-            onClick={() => setEditingContentId(null)}
-            className="p-0.5 rounded hover:bg-notion-hover text-notion-text-secondary"
-          >
-            <ArrowLeft size={14} />
-          </button>
-          <span className="text-xs font-medium text-notion-text truncate">
-            {editingTemplate.name}
-          </span>
-        </div>
-        <div className="max-h-[300px] overflow-y-auto">
-          <TemplateEditor
-            key={editingTemplate.id}
-            content={editingTemplate.content}
-            onChange={(content) =>
-              handleSaveContent(editingTemplate.id, content)
-            }
-            placeholder={t("templates.editContent")}
-          />
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="border-t border-notion-border">
@@ -144,8 +101,10 @@ export function TemplateManager({ entityType }: TemplateManagerProps) {
                 key={tmpl.id}
                 template={tmpl}
                 isDefault={defaultId === tmpl.id}
+                isSelected={selectedTemplateId === tmpl.id}
                 isEditingName={editingNameId === tmpl.id}
                 isConfirmingDelete={confirmDeleteId === tmpl.id}
+                onSelect={() => onSelectTemplate?.(tmpl.id)}
                 onToggleDefault={() => handleToggleDefault(tmpl.id)}
                 onStartEditName={() => setEditingNameId(tmpl.id)}
                 onSaveName={(name) => {
@@ -153,7 +112,6 @@ export function TemplateManager({ entityType }: TemplateManagerProps) {
                   setEditingNameId(null);
                 }}
                 onCancelEditName={() => setEditingNameId(null)}
-                onEditContent={() => setEditingContentId(tmpl.id)}
                 onRequestDelete={() => setConfirmDeleteId(tmpl.id)}
                 onConfirmDelete={() => handleDelete(tmpl.id)}
                 onCancelDelete={() => setConfirmDeleteId(null)}
@@ -174,84 +132,31 @@ export function TemplateManager({ entityType }: TemplateManagerProps) {
 interface TemplateItemProps {
   template: Template;
   isDefault: boolean;
+  isSelected: boolean;
   isEditingName: boolean;
   isConfirmingDelete: boolean;
+  onSelect: () => void;
   onToggleDefault: () => void;
   onStartEditName: () => void;
   onSaveName: (name: string) => void;
   onCancelEditName: () => void;
-  onEditContent: () => void;
   onRequestDelete: () => void;
   onConfirmDelete: () => void;
   onCancelDelete: () => void;
   defaultLabel: string;
 }
 
-function TemplateEditor({
-  content,
-  onChange,
-  placeholder,
-}: {
-  content: string;
-  onChange: (content: string) => void;
-  placeholder?: string;
-}) {
-  const debounceRef = useRef<number | null>(null);
-
-  const editor = useEditor({
-    extensions: [
-      StarterKit.configure({
-        heading: { levels: [1, 2, 3] },
-      }),
-      TaskList,
-      TaskItem.configure({ nested: true }),
-      Placeholder.configure({
-        placeholder: placeholder ?? "",
-      }),
-    ],
-    content: content
-      ? (() => {
-          try {
-            return JSON.parse(content);
-          } catch {
-            return content;
-          }
-        })()
-      : undefined,
-    onUpdate: ({ editor: ed }) => {
-      if (debounceRef.current) clearTimeout(debounceRef.current);
-      debounceRef.current = window.setTimeout(() => {
-        const json = JSON.stringify(ed.getJSON());
-        onChange(json);
-      }, 500);
-    },
-  });
-
-  useEffect(() => {
-    return () => {
-      if (debounceRef.current) clearTimeout(debounceRef.current);
-    };
-  }, []);
-
-  if (!editor) return null;
-
-  return (
-    <div className="px-3 py-2 prose prose-sm max-w-none text-notion-text [&_.ProseMirror]:outline-none [&_.ProseMirror]:min-h-[80px]">
-      <EditorContent editor={editor} />
-    </div>
-  );
-}
-
 function TemplateItem({
   template,
   isDefault,
+  isSelected,
   isEditingName,
   isConfirmingDelete,
+  onSelect,
   onToggleDefault,
   onStartEditName,
   onSaveName,
   onCancelEditName,
-  onEditContent,
   onRequestDelete,
   onConfirmDelete,
   onCancelDelete,
@@ -284,9 +189,19 @@ function TemplateItem({
   }
 
   return (
-    <div className="group flex items-center gap-1 px-2 py-1 rounded-md hover:bg-notion-hover text-[13px]">
+    <div
+      onClick={onSelect}
+      className={`group flex items-center gap-1 px-2 py-1 rounded-md cursor-pointer text-[13px] transition-colors duration-75 ${
+        isSelected
+          ? "bg-notion-accent/10 text-notion-accent"
+          : "hover:bg-notion-hover text-notion-text"
+      }`}
+    >
       <button
-        onClick={onToggleDefault}
+        onClick={(e) => {
+          e.stopPropagation();
+          onToggleDefault();
+        }}
         className={`shrink-0 p-0.5 rounded ${
           isDefault
             ? "text-yellow-500"
@@ -307,8 +222,11 @@ function TemplateItem({
         />
       ) : (
         <span
-          className="truncate flex-1 min-w-0 text-notion-text cursor-pointer"
-          onDoubleClick={onStartEditName}
+          className="truncate flex-1 min-w-0"
+          onDoubleClick={(e) => {
+            e.stopPropagation();
+            onStartEditName();
+          }}
         >
           {template.name}
         </span>
@@ -317,21 +235,20 @@ function TemplateItem({
       {!isEditingName && (
         <div className="shrink-0 flex items-center gap-0.5 opacity-0 group-hover:opacity-100">
           <button
-            onClick={onStartEditName}
+            onClick={(e) => {
+              e.stopPropagation();
+              onStartEditName();
+            }}
             className="p-0.5 rounded hover:bg-notion-hover-strong text-notion-text-secondary"
             title={t("templates.rename")}
           >
             <Pencil size={11} />
           </button>
           <button
-            onClick={onEditContent}
-            className="p-0.5 rounded hover:bg-notion-hover-strong text-notion-text-secondary"
-            title={t("templates.editContent")}
-          >
-            <FileText size={11} />
-          </button>
-          <button
-            onClick={onRequestDelete}
+            onClick={(e) => {
+              e.stopPropagation();
+              onRequestDelete();
+            }}
             className="p-0.5 rounded hover:bg-notion-hover-strong text-notion-text-secondary hover:text-red-400"
             title={t("templates.delete")}
           >

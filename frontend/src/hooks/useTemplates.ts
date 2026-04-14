@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { getDataService } from "../services/dataServiceFactory";
 import { generateId } from "../utils/generateId";
 import { logServiceError } from "../utils/logError";
@@ -15,6 +15,9 @@ export function useTemplates() {
   const [defaultDailyTemplateId, setDefaultDailyTemplateIdState] = useState<
     string | null
   >(null);
+  const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(
+    null,
+  );
   const [isLoaded, setIsLoaded] = useState(false);
   const loadedRef = useRef(false);
 
@@ -137,9 +140,20 @@ export function useTemplates() {
     return tmpl?.content ?? "";
   }, [defaultDailyTemplateId, templates]);
 
+  const selectedTemplate = useMemo(
+    () =>
+      selectedTemplateId
+        ? (templates.find((t) => t.id === selectedTemplateId) ?? null)
+        : null,
+    [selectedTemplateId, templates],
+  );
+
   return {
     templates,
     isLoaded,
+    selectedTemplateId,
+    setSelectedTemplateId,
+    selectedTemplate,
     defaultNoteTemplateId,
     defaultDailyTemplateId,
     createTemplate,

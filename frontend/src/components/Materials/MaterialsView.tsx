@@ -9,6 +9,7 @@ import type { TabItem } from "../shared/SectionTabs";
 import { SectionHeader } from "../shared/SectionHeader";
 import { DailyMemoView } from "../Ideas/DailyMemoView";
 import { NotesView } from "../Ideas/NotesView";
+import { TemplateContentView } from "../Ideas/TemplateContentView";
 import { DailySidebar } from "../Ideas/DailySidebar";
 import { MaterialsSidebar } from "../Ideas/MaterialsSidebar";
 import { FileExplorerSidebar } from "./FileExplorerSidebar";
@@ -69,7 +70,8 @@ export function MaterialsView({ onNavigateToNote }: MaterialsViewProps) {
     updateNote,
     persistWithHistory,
   } = useNoteContext();
-  const { getDefaultNoteContent } = useTemplateContext();
+  const { getDefaultNoteContent, selectedTemplateId, setSelectedTemplateId } =
+    useTemplateContext();
   const { assignments, tags } = useWikiTags();
   const { showToast } = useToast();
 
@@ -81,18 +83,20 @@ export function MaterialsView({ onNavigateToNote }: MaterialsViewProps) {
   const handleSelectDailyDate = useCallback(
     (date: string) => {
       setSelectedDate(date);
+      setSelectedTemplateId(null);
       if (!memos.some((m) => m.date === date)) {
         upsertMemo(date, "");
       }
     },
-    [setSelectedDate, memos, upsertMemo],
+    [setSelectedDate, setSelectedTemplateId, memos, upsertMemo],
   );
 
   const handleSelectMaterialsNote = useCallback(
     (noteId: string) => {
       setSelectedNoteId(noteId);
+      setSelectedTemplateId(null);
     },
-    [setSelectedNoteId],
+    [setSelectedNoteId, setSelectedTemplateId],
   );
 
   const handleCreateNoteMaterials = useCallback(() => {
@@ -177,6 +181,8 @@ export function MaterialsView({ onNavigateToNote }: MaterialsViewProps) {
             selectedDate={selectedDate}
             onSelectDate={handleSelectDailyDate}
             onDeleteMemo={deleteMemo}
+            onSelectTemplate={setSelectedTemplateId}
+            selectedTemplateId={selectedTemplateId}
           />
         );
       case "notes":
@@ -198,6 +204,8 @@ export function MaterialsView({ onNavigateToNote }: MaterialsViewProps) {
             onCopyToFiles={handleCopyNoteToFiles}
             onToggleExpand={toggleExpanded}
             persistWithHistory={persistWithHistory}
+            onSelectTemplate={setSelectedTemplateId}
+            selectedTemplateId={selectedTemplateId}
           />
         );
       case "files":
@@ -208,6 +216,12 @@ export function MaterialsView({ onNavigateToNote }: MaterialsViewProps) {
   const listElement = renderSidebar();
 
   const renderContent = () => {
+    if (
+      selectedTemplateId &&
+      (activeTab === "daily" || activeTab === "notes")
+    ) {
+      return <TemplateContentView />;
+    }
     switch (activeTab) {
       case "daily":
         return <DailyMemoView />;

@@ -24,6 +24,8 @@ interface DailySidebarProps {
   selectedDate: string | null;
   onSelectDate: (date: string) => void;
   onDeleteMemo?: (date: string) => void;
+  onSelectTemplate?: (id: string) => void;
+  selectedTemplateId?: string | null;
 }
 
 interface SectionsState {
@@ -60,6 +62,8 @@ export function DailySidebar({
   selectedDate,
   onSelectDate,
   onDeleteMemo,
+  onSelectTemplate,
+  selectedTemplateId,
 }: DailySidebarProps) {
   const { t, i18n } = useTranslation();
   const lang = i18n.language;
@@ -399,7 +403,11 @@ export function DailySidebar({
         </CollapsibleSection>
       </div>
 
-      <TemplateManager entityType="daily" />
+      <TemplateManager
+        entityType="daily"
+        onSelectTemplate={onSelectTemplate}
+        selectedTemplateId={selectedTemplateId}
+      />
 
       {editingEntityId && editButtonRefs.current.get(editingEntityId) && (
         <ItemEditPopover

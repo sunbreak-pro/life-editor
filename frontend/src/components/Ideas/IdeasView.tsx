@@ -10,6 +10,7 @@ import type { TabItem } from "../shared/SectionTabs";
 import { SectionHeader } from "../shared/SectionHeader";
 import { DailyMemoView } from "./DailyMemoView";
 import { NotesView } from "./NotesView";
+import { TemplateContentView } from "./TemplateContentView";
 import { TagGraphView } from "./Connect/TagGraphView";
 import { ConnectSidebar } from "./Connect/ConnectSidebar";
 import { PaperCanvasView } from "./Connect/Paper/PaperCanvasView";
@@ -85,7 +86,8 @@ export function IdeasView({ onNavigateToNote }: IdeasViewProps) {
     sortDirection,
     setSortDirection,
   } = useNoteContext();
-  const { getDefaultNoteContent } = useTemplateContext();
+  const { getDefaultNoteContent, selectedTemplateId, setSelectedTemplateId } =
+    useTemplateContext();
   const { assignments, tags, setTagsForEntity } = useWikiTags();
   const { showToast } = useToast();
 
@@ -205,19 +207,21 @@ export function IdeasView({ onNavigateToNote }: IdeasViewProps) {
   const handleSelectDailyDate = useCallback(
     (date: string) => {
       setSelectedDate(date);
+      setSelectedTemplateId(null);
       if (!memos.some((m) => m.date === date)) {
         upsertMemo(date, "");
       }
     },
-    [setSelectedDate, memos, upsertMemo],
+    [setSelectedDate, setSelectedTemplateId, memos, upsertMemo],
   );
 
   // Materials tab: select note
   const handleSelectMaterialsNote = useCallback(
     (noteId: string) => {
       setSelectedNoteId(noteId);
+      setSelectedTemplateId(null);
     },
-    [setSelectedNoteId],
+    [setSelectedNoteId, setSelectedTemplateId],
   );
 
   const handleCreateNoteMaterials = useCallback(() => {
@@ -318,6 +322,8 @@ export function IdeasView({ onNavigateToNote }: IdeasViewProps) {
             selectedDate={selectedDate}
             onSelectDate={handleSelectDailyDate}
             onDeleteMemo={deleteMemo}
+            onSelectTemplate={setSelectedTemplateId}
+            selectedTemplateId={selectedTemplateId}
           />
         );
       case "materials":
@@ -346,6 +352,8 @@ export function IdeasView({ onNavigateToNote }: IdeasViewProps) {
             onSortChange={setSortMode}
             sortDirection={sortDirection}
             onSortDirectionChange={setSortDirection}
+            onSelectTemplate={setSelectedTemplateId}
+            selectedTemplateId={selectedTemplateId}
           />
         );
       case "node":
@@ -394,6 +402,12 @@ export function IdeasView({ onNavigateToNote }: IdeasViewProps) {
   const isCanvasTab = activeTab === "node" || activeTab === "board";
 
   const renderContent = () => {
+    if (
+      selectedTemplateId &&
+      (activeTab === "daily" || activeTab === "materials")
+    ) {
+      return <TemplateContentView />;
+    }
     switch (activeTab) {
       case "daily":
         return <DailyMemoView />;

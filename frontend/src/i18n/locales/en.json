@@ -1821,6 +1821,9 @@
     "deleteConfirm": "Delete this template?",
     "deleteDefaultWarning": "This is the default template. Delete anyway?",
     "editContent": "Edit template content",
-    "rename": "Rename"
+    "rename": "Rename",
+    "selectTemplate": "Select a template",
+    "defaultNoteShort": "Note default",
+    "defaultDailyShort": "Daily default"
   }
 }

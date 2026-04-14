@@ -1,3 +1,18 @@
+### 2026-04-14 - .claude/ 設計書・コード整合性修正
+
+#### 概要
+
+.claude/ 内の設計書（ADR、ルール）とコードベースの間にある矛盾を網羅的に調査し、9項目の不整合を修正。ドキュメントの一元化・柔軟化を行った。
+
+#### 変更点
+
+- **ADR-0001**: Status を `Superseded` に変更。Java + Spring Boot → Electron + SQLite への移行経緯を記録し、現在の技術スタックは CLAUDE.md への参照に一本化
+- **ADR-0002**: Exceptions セクションを追加。小規模・自己完結な Context（ToastContext, AnalyticsFilterContext）の単一ファイル構成を許容する条件を明文化
+- **CLAUDE.md**: Provider順序に ErrorBoundary を追加、モバイル Provider 構成を新設セクションとして記載、ソフトデリート対象に Databases を追加、IPC ハンドラ登録の2系統（registerAll.ts / main.ts）を記載
+- **project-debug.md / project-review-checklist.md / project-patterns.md**: Provider順序の定義を CLAUDE.md への参照に一元化（重複排除）、IPC 登録の2系統を反映、Context パターン例外条件を統一
+- **コード修正**: `useTheme.ts` / `useWikiTags.ts` を `createContextHook` に統一（Pattern A 準拠）
+- **ファイル操作**: 完了済みプラン 024 を `feature_plans/` → `archive/` に移動
+
 ### 2026-04-14 - Trash を Settings ヘッダータブに移動 + ScheduleItem ソフトデリート
 
 #### 概要

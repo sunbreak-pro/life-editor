@@ -1821,6 +1821,9 @@
     "deleteConfirm": "このテンプレートを削除しますか？",
     "deleteDefaultWarning": "デフォルトに設定中のテンプレートです。削除しますか？",
     "editContent": "テンプレート内容を編集",
-    "rename": "名前を変更"
+    "rename": "名前を変更",
+    "selectTemplate": "テンプレートを選択してください",
+    "defaultNoteShort": "ノートデフォルト",
+    "defaultDailyShort": "デイリーデフォルト"
   }
 }

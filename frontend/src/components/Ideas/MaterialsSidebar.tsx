@@ -67,6 +67,8 @@ interface MaterialsSidebarProps {
   onSortChange?: (mode: NoteSortMode) => void;
   sortDirection?: SortDirection;
   onSortDirectionChange?: (d: SortDirection) => void;
+  onSelectTemplate?: (id: string) => void;
+  selectedTemplateId?: string | null;
 }
 
 function loadSectionsState(): SectionsState {
@@ -119,6 +121,8 @@ export function MaterialsSidebar({
   onSortChange,
   sortDirection,
   onSortDirectionChange,
+  onSelectTemplate,
+  selectedTemplateId,
 }: MaterialsSidebarProps) {
   const { t } = useTranslation();
   const [sections, setSections] = useState<SectionsState>(loadSectionsState);
@@ -533,7 +537,11 @@ export function MaterialsSidebar({
         </CollapsibleSection>
       </div>
 
-      <TemplateManager entityType="note" />
+      <TemplateManager
+        entityType="note"
+        onSelectTemplate={onSelectTemplate}
+        selectedTemplateId={selectedTemplateId}
+      />
 
       {editingEntityId && editButtonRefs.current.get(editingEntityId) && (
         <ItemEditPopover
