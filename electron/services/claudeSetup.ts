@@ -189,7 +189,7 @@ export function listAvailableSkills(): SkillInfo[] {
   );
   const projectDir = path.join(
     os.homedir(),
-    "dev/Claude/original-skills-storage/skills/custom/projects/notion-timer",
+    "dev/Claude/original-skills-storage/skills/custom/projects/life-editor",
   );
 
   for (const [dir, scope] of [

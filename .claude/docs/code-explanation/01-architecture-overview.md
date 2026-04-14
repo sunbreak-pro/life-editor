@@ -2,7 +2,7 @@
 
 ## 概要
 
-Sonic Flow はフロントエンド中心のSPAアプリケーション。React アプリが localStorage でデータを永続化し、Spring Boot バックエンドは構築済みだが未接続。将来的にバックエンド統合を予定。
+Life Editor はフロントエンド中心のSPAアプリケーション。React アプリが localStorage でデータを永続化し、Spring Boot バックエンドは構築済みだが未接続。将来的にバックエンド統合を予定。
 
 ## 現在のアーキテクチャ (Phase 2-3)
 
@@ -26,12 +26,12 @@ Sonic Flow はフロントエンド中心のSPAアプリケーション。React 
 │                            └─ TaskDetail | WorkScreen | Settings │
 │                                                             │
 │  データ永続化: localStorage                                  │
-│    ├─ sonic-flow-task-tree     (TaskNode[])                │
-│    ├─ sonic-flow-work-duration (number)                    │
-│    ├─ sonic-flow-sound-mixer   (SoundMixerState)           │
-│    ├─ sonic-flow-theme         (light | dark)              │
-│    ├─ sonic-flow-font-size     (small | medium | large)    │
-│    └─ sonic-flow-subsidebar-width (number)                 │
+│    ├─ life-editor-task-tree     (TaskNode[])                │
+│    ├─ life-editor-work-duration (number)                    │
+│    ├─ life-editor-sound-mixer   (SoundMixerState)           │
+│    ├─ life-editor-theme         (light | dark)              │
+│    ├─ life-editor-font-size     (small | medium | large)    │
+│    └─ life-editor-subsidebar-width (number)                 │
 └─────────────────────────────────────────────────────────────┘
 
 ┌─────────────────────────────────────────────────────────────┐
@@ -42,7 +42,7 @@ Sonic Flow はフロントエンド中心のSPAアプリケーション。React 
 │  Repositories: JPA auto-generated                          │
 │  Entities: Task, TimerSettings, TimerSession,              │
 │           SoundSettings, SoundPreset                       │
-│  Database: H2 (file: ./data/sonicflow)                     │
+│  Database: H2 (file: ./data/lifeeditor)                     │
 └─────────────────────────────────────────────────────────────┘
 ```
 
@@ -97,25 +97,25 @@ App
 
 ### Context vs ローカル State
 
-| State | 管理場所 | 永続化 | スコープ |
-|-------|---------|--------|---------|
-| タスクツリー | TaskTreeContext | localStorage | グローバル |
-| タイマー | TimerContext | localStorage (duration) | グローバル |
-| テーマ | ThemeContext | localStorage | グローバル |
-| サウンドミキサー | useLocalSoundMixer (hook) | localStorage | WorkScreen |
-| activeSection | App.tsx ローカル | なし | App |
-| selectedTaskId | App.tsx ローカル | なし | App |
+| State            | 管理場所                  | 永続化                  | スコープ   |
+| ---------------- | ------------------------- | ----------------------- | ---------- |
+| タスクツリー     | TaskTreeContext           | localStorage            | グローバル |
+| タイマー         | TimerContext              | localStorage (duration) | グローバル |
+| テーマ           | ThemeContext              | localStorage            | グローバル |
+| サウンドミキサー | useLocalSoundMixer (hook) | localStorage            | WorkScreen |
+| activeSection    | App.tsx ローカル          | なし                    | App        |
+| selectedTaskId   | App.tsx ローカル          | なし                    | App        |
 
 ### カスタムフック
 
-| Hook | ファイル | 管理データ | 永続化 |
-|------|---------|-----------|--------|
-| `useTaskTree` | hooks/useTaskTree.ts | TaskNode[], CRUD操作 | localStorage |
-| `useTaskTreeCRUD` | hooks/useTaskTreeCRUD.ts | 作成・更新操作 | — |
-| `useTaskTreeDeletion` | hooks/useTaskTreeDeletion.ts | ソフトデリート・復元 | — |
-| `useTaskTreeMovement` | hooks/useTaskTreeMovement.ts | DnD移動・並び替え | — |
-| `useLocalSoundMixer` | hooks/useLocalSoundMixer.ts | SoundMixerState | localStorage |
-| `useLocalStorage` | hooks/useLocalStorage.ts | 汎用localStorage | localStorage |
+| Hook                  | ファイル                     | 管理データ           | 永続化       |
+| --------------------- | ---------------------------- | -------------------- | ------------ |
+| `useTaskTree`         | hooks/useTaskTree.ts         | TaskNode[], CRUD操作 | localStorage |
+| `useTaskTreeCRUD`     | hooks/useTaskTreeCRUD.ts     | 作成・更新操作       | —            |
+| `useTaskTreeDeletion` | hooks/useTaskTreeDeletion.ts | ソフトデリート・復元 | —            |
+| `useTaskTreeMovement` | hooks/useTaskTreeMovement.ts | DnD移動・並び替え    | —            |
+| `useLocalSoundMixer`  | hooks/useLocalSoundMixer.ts  | SoundMixerState      | localStorage |
+| `useLocalStorage`     | hooks/useLocalStorage.ts     | 汎用localStorage     | localStorage |
 
 ## バックエンド層（参考: 未接続）
 
@@ -130,26 +130,28 @@ Repository (JpaRepository)
     ▼
 Entity (@Entity)
     ▼
-H2 Database (file: ./data/sonicflow)
+H2 Database (file: ./data/lifeeditor)
 ```
 
 ### エンティティ
 
-| Entity | テーブル | 備考 |
-|--------|---------|------|
-| Task | tasks | Phase 1のフラットTask。フロントエンドのTaskNodeとは構造が異なる |
-| TimerSettings | timer_settings | シングルトン |
-| TimerSession | timer_sessions | taskIdはLong（FK制約なし） |
-| SoundSettings | sound_settings | soundType別に行を持つ |
-| SoundPreset | sound_presets | settingsJson でミキサー状態を保存 |
+| Entity        | テーブル       | 備考                                                            |
+| ------------- | -------------- | --------------------------------------------------------------- |
+| Task          | tasks          | Phase 1のフラットTask。フロントエンドのTaskNodeとは構造が異なる |
+| TimerSettings | timer_settings | シングルトン                                                    |
+| TimerSession  | timer_sessions | taskIdはLong（FK制約なし）                                      |
+| SoundSettings | sound_settings | soundType別に行を持つ                                           |
+| SoundPreset   | sound_presets  | settingsJson でミキサー状態を保存                               |
 
 ## エラーハンドリングパターン
 
 ### フロントエンド (localStorage)
+
 現在はtry/catchなし（localStorageはほぼ常に成功する）。
 将来のBackend統合時にエラーハンドリングを追加予定。
 
 ### バックエンド
+
 ```java
 // Controller層
 try {

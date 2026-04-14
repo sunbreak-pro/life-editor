@@ -1,3 +1,23 @@
+### 2026-04-14 - Trash を Settings ヘッダータブに移動 + ScheduleItem ソフトデリート
+
+#### 概要
+
+Settings > Advanced > Data Management 内のゴミ箱を Settings TitleBar の5つ目のタブに昇格。右サイドバーに「全データリセット」ボタン・検索フィールド・5サブタブ（Tasks/Routine/Events/Materials/Sounds）を配置。ScheduleItems にソフトデリート基盤を新規実装し、イベント削除もゴミ箱対応にした。
+
+#### 変更点
+
+- **DB Migration V58**: `schedule_items` テーブルに `is_deleted`, `deleted_at` カラム追加。既存クエリ全てに `is_deleted = 0` フィルタ追加
+- **Repository**: `scheduleItemRepository.ts` に `softDelete`/`restore`/`permanentDelete`/`fetchDeleted` メソッド追加
+- **IPC 4チャンネル**: `db:scheduleItems:fetchDeleted`, `softDelete`, `restore`, `permanentDelete` を追加（preload + handlers）
+- **DataService 全層**: Interface / ElectronDataService / OfflineDataService / RestDataService / mockDataService に4メソッド追加
+- **REST エンドポイント**: `scheduleItems.ts` に `/deleted`, `/:id/soft`, `/:id/restore`, `/:id/permanent` 追加
+- **Context/Hook**: `ScheduleItemsContextValue` に `deletedScheduleItems`, `loadDeletedScheduleItems`, `softDeleteScheduleItem`, `restoreScheduleItem`, `permanentDeleteScheduleItem` 追加。`useScheduleItemsCore.ts` にソフトデリートロジック（Undo対応）実装
+- **ユーザー操作の soft delete 化**: `EventDetailPanel`, `CalendarView`, `OneDaySchedule`, `DualDayFlowLayout`, `MobileCalendarView`, `MobileScheduleView`, `useDayFlowColumn` の削除操作を `softDeleteScheduleItem` に変更。`useRoleConversion` のハードデリートは維持
+- **Settings Trash タブ**: `Settings.tsx` に5つ目のタブ "Trash" 追加。右サイドバーにリセットボタン + 検索 + 5サブタブ（Tasks/Routine/Events/Materials/Sounds）
+- **TrashView リデザイン**: Props ベース（`activeTab`, `searchQuery`）に変更。5タブ構成に分割。検索フィルタリング対応
+- **DataManagement クリーンアップ**: Trash ボタン・Reset ボタン・関連ロジック削除、Export/Import のみに簡素化
+- **i18n**: `tabRoutine`, `tabEvents`, `tabMaterials`, `event`, `events`, `searchTrash` を en/ja に追加
+
 ### 2026-04-13 - Global Shortcuts → Shortcuts タブ移動 + Cancel ボタン追加
 
 #### 概要

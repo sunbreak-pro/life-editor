@@ -21,6 +21,7 @@ life-editor v2 としてのブランディングと UX を整える。
 ### 1. デフォルト画面をカレンダーに変更
 
 現在の `App.tsx`:
+
 ```typescript
 const [activeSection, setActiveSection] = useState<SectionId>("tasks");
 ```
@@ -32,14 +33,16 @@ const [activeSection, setActiveSection] = useState<SectionId>("tasks");
 ### 2. LeftSidebar の調整
 
 現在のメニュー項目:
+
 ```
 Tasks / Memo / Work / Analytics / Trash / Settings / Tips
 ```
 
 **変更方針**:
+
 - 全項目をそのまま残す（既存機能保持の方針に従う）
 - 順序を調整してカレンダー/タスクが上部に来るようにする（必要であれば）
-- アプリタイトル「Sonic Flow」→「Life Editor」に変更
+- アプリタイトル「Life Editor」→「Life Editor」に変更
 
 ### 3. StatusBar の追加
 
@@ -53,13 +56,13 @@ StatusBar は全セクション共通で表示される。
 
 ### 4. アプリ名・ブランディング変更
 
-| 変更箇所 | Before | After |
-|---------|--------|-------|
-| `package.json` の `name` | `sonic-flow` | `life-editor` |
-| `package.json` の `productName` | `Sonic Flow` | `Life Editor` |
-| LeftSidebar のタイトル | `Sonic Flow` | `Life Editor` |
-| ウィンドウタイトル | `Sonic Flow` | `Life Editor` |
-| `electron-builder.yml` の `appId` | 現在の値 | `com.life-editor.app` |
+| 変更箇所                          | Before        | After                 |
+| --------------------------------- | ------------- | --------------------- |
+| `package.json` の `name`          | `life-editor` | `life-editor`         |
+| `package.json` の `productName`   | `Life Editor` | `Life Editor`         |
+| LeftSidebar のタイトル            | `Life Editor` | `Life Editor`         |
+| ウィンドウタイトル                | `Life Editor` | `Life Editor`         |
+| `electron-builder.yml` の `appId` | 現在の値      | `com.life-editor.app` |
 
 **注意**: アプリ名変更は `userData` パスに影響する可能性がある。
 Electron の `app.name` が変わると `app.getPath("userData")` のパスが変わり、既存の DB ファイルにアクセスできなくなる。
@@ -77,15 +80,15 @@ TerminalPanel の開閉方法:
 
 ## 参照すべき既存コード
 
-| ファイル | 参照ポイント |
-|---------|-------------|
-| `frontend/src/App.tsx` | activeSection の初期値、レイアウト構成 |
-| `frontend/src/components/Layout/LeftSidebar.tsx` | メニュー項目の定義、タイトル表示 |
-| `frontend/src/types/taskTree.ts` | SectionId 型の定義 |
-| `package.json`（ルート） | アプリ名、productName |
-| `electron-builder.yml` | appId、ビルド設定 |
-| `electron/main.ts` | ウィンドウタイトルの設定 |
-| `frontend/src/constants/storageKeys.ts` | localStorage キーの管理 |
+| ファイル                                         | 参照ポイント                           |
+| ------------------------------------------------ | -------------------------------------- |
+| `frontend/src/App.tsx`                           | activeSection の初期値、レイアウト構成 |
+| `frontend/src/components/Layout/LeftSidebar.tsx` | メニュー項目の定義、タイトル表示       |
+| `frontend/src/types/taskTree.ts`                 | SectionId 型の定義                     |
+| `package.json`（ルート）                         | アプリ名、productName                  |
+| `electron-builder.yml`                           | appId、ビルド設定                      |
+| `electron/main.ts`                               | ウィンドウタイトルの設定               |
+| `frontend/src/constants/storageKeys.ts`          | localStorage キーの管理                |
 
 ---
 
@@ -95,23 +98,26 @@ TerminalPanel の開閉方法:
 
 Electron はアプリ名から `userData` パス（`~/Library/Application Support/{appName}/`）を決定する。
 アプリ名を変更すると:
-- 既存の `sonic-flow.db` が見つからなくなる
+
+- 既存の `life-editor.db` が見つからなくなる
 - 設定やログが初期化される
 
-**Phase A の方針: 内部の app name は `sonic-flow` のまま変更しない。** UI 表示のみ「Life Editor」にする。
+**Phase A の方針: 内部の app name は `life-editor` のまま変更しない。** UI 表示のみ「Life Editor」にする。
 
 具体的には:
-- `package.json` の `name` は `sonic-flow` のまま
+
+- `package.json` の `name` は `life-editor` のまま
 - LeftSidebar のタイトルテキストのみ変更
 - ウィンドウタイトルのみ変更
 - `electron-builder.yml` の `appId` は変更しない
 
-これにより、userData パス（`~/Library/Application Support/sonic-flow/`）が維持され、既存 DB やログが失われるリスクがゼロになる。本格的なリネームは Phase B 以降で検討する。
+これにより、userData パス（`~/Library/Application Support/life-editor/`）が維持され、既存 DB やログが失われるリスクがゼロになる。本格的なリネームは Phase B 以降で検討する。
 
 ### 既存ショートカットとの競合
 
 ターミナル開閉ショートカット（Ctrl+`` ` ``）が既存のショートカットと競合しないか確認する。
-notion-timer の既存ショートカット:
+Life Editor の既存ショートカット:
+
 - j/k: カレンダー前後移動
 - t: 今日
 - m: 月/週切替

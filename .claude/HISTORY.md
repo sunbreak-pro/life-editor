@@ -1,5 +1,21 @@
 # HISTORY.md - 変更履歴
 
+### 2026-04-15 - notion-timer / Sonic Flow → Life Editor 完全リネーム
+
+#### 概要
+
+プロジェクト全体から旧アプリケーション名（notion-timer、Sonic Flow、sonic-flow）の参照を Life Editor / life-editor に統一。ソースコード1ファイル + ドキュメント/ルール15ファイルを更新。マイグレーション/後方互換コードと HISTORY-archive.md の歴史的記録は意図的に旧名を保持。
+
+#### 変更点
+
+- **ソースコード**: `electron/services/claudeSetup.ts` のスキルパス `projects/notion-timer` → `projects/life-editor`
+- **ルール**: `.claude/rules/project-debug.md` の診断コマンドパス `sonic-flow` → `life-editor`
+- **設計書（life-editor-v2/）**: 5ファイル（00-vision〜04-ui-adjustment）の全旧名称を置換
+- **コード解説ドキュメント**: 3ファイル（00-index, 01-architecture, 02-infrastructure）のアプリ名・localStorage キー名・Java パッケージ名を更新
+- **機能計画**: 5ファイルの Project パスを `/dev/apps/life-editor` に更新
+- **アーカイブ/ロードマップ**: 2ファイルのプロジェクト名・タイトルを更新
+- **意図的に保持**: `renameMigration.ts`、`migrateStorageKeys.ts`、`dataIOHandlers.ts`（マイグレーション/後方互換）、`HISTORY-archive.md`（歴史的記録）
+
 ### 2026-04-14 - Note/Daily テンプレート機能 + フォルダアクションボタン + DnD修正
 
 #### 概要
@@ -66,25 +82,5 @@ Note/Daily 作成時にリッチテキストテンプレートを自動適用す
 - **project-debug.md / project-review-checklist.md / project-patterns.md**: Provider順序の定義を CLAUDE.md への参照に一元化（重複排除）、IPC 登録の2系統を反映、Context パターン例外条件を統一
 - **コード修正**: `useTheme.ts` / `useWikiTags.ts` を `createContextHook` に統一（Pattern A 準拠）
 - **ファイル操作**: 完了済みプラン 024 を `feature_plans/` → `archive/` に移動
-
-### 2026-04-14 - Trash を Settings ヘッダータブに移動 + ScheduleItem ソフトデリート
-
-#### 概要
-
-Settings > Advanced > Data Management 内のゴミ箱を Settings TitleBar の5つ目のタブに昇格。右サイドバーに「全データリセット」ボタン・検索フィールド・5サブタブ（Tasks/Routine/Events/Materials/Sounds）を配置。ScheduleItems にソフトデリート基盤を新規実装し、イベント削除もゴミ箱対応にした。
-
-#### 変更点
-
-- **DB Migration V58**: `schedule_items` テーブルに `is_deleted`, `deleted_at` カラム追加。既存クエリ全てに `is_deleted = 0` フィルタ追加
-- **Repository**: `scheduleItemRepository.ts` に `softDelete`/`restore`/`permanentDelete`/`fetchDeleted` メソッド追加
-- **IPC 4チャンネル**: `db:scheduleItems:fetchDeleted`, `softDelete`, `restore`, `permanentDelete` を追加（preload + handlers）
-- **DataService 全層**: Interface / ElectronDataService / OfflineDataService / RestDataService / mockDataService に4メソッド追加
-- **REST エンドポイント**: `scheduleItems.ts` に `/deleted`, `/:id/soft`, `/:id/restore`, `/:id/permanent` 追加
-- **Context/Hook**: `ScheduleItemsContextValue` に `deletedScheduleItems`, `loadDeletedScheduleItems`, `softDeleteScheduleItem`, `restoreScheduleItem`, `permanentDeleteScheduleItem` 追加。`useScheduleItemsCore.ts` にソフトデリートロジック（Undo対応）実装
-- **ユーザー操作の soft delete 化**: `EventDetailPanel`, `CalendarView`, `OneDaySchedule`, `DualDayFlowLayout`, `MobileCalendarView`, `MobileScheduleView`, `useDayFlowColumn` の削除操作を `softDeleteScheduleItem` に変更。`useRoleConversion` のハードデリートは維持
-- **Settings Trash タブ**: `Settings.tsx` に5つ目のタブ "Trash" 追加。右サイドバーにリセットボタン + 検索 + 5サブタブ（Tasks/Routine/Events/Materials/Sounds）
-- **TrashView リデザイン**: Props ベース（`activeTab`, `searchQuery`）に変更。5タブ構成に分割。検索フィルタリング対応
-- **DataManagement クリーンアップ**: Trash ボタン・Reset ボタン・関連ロジック削除、Export/Import のみに簡素化
-- **i18n**: `tabRoutine`, `tabEvents`, `tabMaterials`, `event`, `events`, `searchTrash` を en/ja に追加
 
 <!-- older entries archived to HISTORY-archive.md -->

@@ -13,9 +13,9 @@
 
 ## 直近の完了
 
+- notion-timer / Sonic Flow → Life Editor 完全リネーム ✅（2026-04-15）
 - Note/Daily テンプレート機能 + フォルダアクションボタン + DnD修正 ✅（2026-04-14）
 - Desktop Timer 円形プログレスゲージ追加 ✅（2026-04-14）
-- Sort Direction + Calendar Type Order + TimeGrid Click Menu ✅（2026-04-13）
 
 ## 予定
 

@@ -2,7 +2,7 @@
 
 ## このドキュメントの目的
 
-Sonic Flow（notion-timer）を「life-editor v2」へ進化させるための全体構想を記述する。
+Life Editor を「life-editor v2」へ進化させるための全体構想を記述する。
 以降の Step 別計画書（01〜04）はこのドキュメントを前提とする。
 
 ---
@@ -26,9 +26,9 @@ Wails（Go + React）で life-editor v1 を開発した。得られた教訓:
 - **ファイルツリー中心の UI は目的に合わない**: カレンダーがメインなのにファイル管理が前面に出てしまう
 - **要件が広がりすぎた**: Notion 風リッチエディタ、Obsidian 風グラフビュー等、手を広げすぎて完成しなかった
 
-### notion-timer（Sonic Flow）の資産
+### Life Editor の資産（v2 以前に実装済み）
 
-別プロジェクトとして開発した Sonic Flow は、すでに以下を実現している:
+Life Editor は、すでに以下を実現している:
 
 - カレンダー（月/週ビュー、タスク重なり処理、日付ナビゲーション）
 - SQLite + Repository 層（15 リポジトリ、WAL モード）
@@ -37,7 +37,7 @@ Wails（Go + React）で life-editor v1 を開発した。得られた教訓:
 - ポモドーロタイマー、環境音ミキサー、Analytics
 - i18n（日/英）、ダークモード、キーボードショートカット
 
-**→ この Sonic Flow をベースに、ターミナル + MCP Server を追加するのが最小コストで最大の効果を得る方法。**
+**→ この Life Editor をベースに、ターミナル + MCP Server を追加するのが最小コストで最大の効果を得る方法。**
 
 ---
 
@@ -91,7 +91,7 @@ Wails（Go + React）で life-editor v1 を開発した。得られた教訓:
 │                     │                        │  │
 │                     │  ┌──────────────────┐  │  │
 │                     │  │  SQLite (WAL)    │  │  │
-│                     │  │  sonic-flow.db   │  │  │
+│                     │  │  life-editor.db  │  │  │
 │                     │  └────────┬─────────┘  │  │
 │                     └───────────┼────────────┘  │
 └─────────────────────────────────┼───────────────┘
@@ -116,7 +116,7 @@ Wails（Go + React）で life-editor v1 を開発した。得られた教訓:
 
 ### Phase A（本計画の対象）
 
-既存の Sonic Flow に以下を追加し、日常使用を開始する:
+既存の Life Editor に以下を追加し、日常使用を開始する:
 
 | Step   | 内容                                          | 計画書                |
 | ------ | --------------------------------------------- | --------------------- |
@@ -142,7 +142,7 @@ Wails（Go + React）で life-editor v1 を開発した。得られた教訓:
 
 | リポジトリ                   | パス                        | 用途                                              |
 | ---------------------------- | --------------------------- | ------------------------------------------------- |
-| **notion-timer（ベース）**   | `~/dev/apps/notion-timer/`  | 実装対象。ここに機能を追加する                    |
+| **life-editor（ベース）**    | `~/dev/apps/life-editor/`   | 実装対象。ここに機能を追加する                    |
 | **life-editor v1（参照元）** | `~/dev/Claude/life-editor/` | ターミナル実装、Claude 検知ロジックの移植時に参照 |
 
 ### life-editor v1 のターミナル関連コード（移植元）
@@ -171,16 +171,16 @@ Wails（Go + React）で life-editor v1 を開発した。得られた教訓:
 
 ### 変換ルール（Go/Wails → Electron）
 
-life-editor v1 のコードを notion-timer に移植する際の対応表:
+life-editor v1 のコードを Life Editor (Electron) に移植する際の対応表:
 
-| life-editor (Go + Wails)                                | notion-timer (Electron)                            |
-| ------------------------------------------------------- | -------------------------------------------------- |
-| `creack/pty`                                            | `node-pty`                                         |
-| `runtime.EventsEmit(ctx, "event", data)`                | `mainWindow.webContents.send("event", data)`       |
-| `EventsOn("event", callback)`                           | `window.electronAPI.on("event", callback)`         |
-| Go Binding `import { Method } from '../wailsjs/go/...'` | `window.electronAPI.invoke("channel", ...)`        |
-| `sync.Mutex`                                            | `better-sqlite3` の同期 API（排他制御不要）        |
-| zustand ストア                                          | React Context（notion-timer の既存パターンに従う） |
+| life-editor (Go + Wails)                                | Life Editor (Electron)                            |
+| ------------------------------------------------------- | ------------------------------------------------- |
+| `creack/pty`                                            | `node-pty`                                        |
+| `runtime.EventsEmit(ctx, "event", data)`                | `mainWindow.webContents.send("event", data)`      |
+| `EventsOn("event", callback)`                           | `window.electronAPI.on("event", callback)`        |
+| Go Binding `import { Method } from '../wailsjs/go/...'` | `window.electronAPI.invoke("channel", ...)`       |
+| `sync.Mutex`                                            | `better-sqlite3` の同期 API（排他制御不要）       |
+| zustand ストア                                          | React Context（Life Editor の既存パターンに従う） |
 
 ---
 
@@ -188,7 +188,7 @@ life-editor v1 のコードを notion-timer に移植する際の対応表:
 
 ### IPC チャンネル追加の手順（厳守）
 
-notion-timer で新しい IPC チャンネルを追加する場合、**必ず以下の 3 箇所**を更新する:
+Life Editor で新しい IPC チャンネルを追加する場合、**必ず以下の 3 箇所**を更新する:
 
 1. `electron/preload.ts` の `ALLOWED_CHANNELS` に追加
 2. `electron/ipc/` にハンドラファイル作成 → `registerAll.ts` に登録
@@ -236,5 +236,5 @@ type SectionId =
 
 ### フロントエンドの状態管理パターン
 
-notion-timer は **React Context + カスタムフック** パターンを使用（zustand ではない）。
+Life Editor は **React Context + カスタムフック** パターンを使用（zustand ではない）。
 life-editor v1 の zustand ストアを移植する場合は Context に変換するか、新規で Context を作成する。

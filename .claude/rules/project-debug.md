@@ -25,8 +25,8 @@
 ### 診断コマンド
 
 ```bash
-sqlite3 ~/Library/Application\ Support/sonic-flow/life-editor.db ".tables"
-sqlite3 ~/Library/Application\ Support/sonic-flow/life-editor.db "PRAGMA user_version"
+sqlite3 ~/Library/Application\ Support/life-editor/life-editor.db ".tables"
+sqlite3 ~/Library/Application\ Support/life-editor/life-editor.db "PRAGMA user_version"
 ```
 
 ## Audio デバッグ

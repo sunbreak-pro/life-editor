@@ -4,7 +4,7 @@
 
 ## Created: 2026-04-05
 
-## Project: /Users/newlife/dev/apps/notion-timer
+## Project: /Users/newlife/dev/apps/life-editor
 
 ---
 

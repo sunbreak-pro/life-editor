@@ -3,7 +3,7 @@
 **Status:** PLANNED
 **Created:** 2026-04-14
 **Task:** Capacitor iOS App（MEMORY.md）
-**Project:** /Users/newlife/dev/apps/notion-timer
+**Project:** /Users/newlife/dev/apps/life-editor
 **Supersedes:** `2026-03-16-mobile-phase3-offline-standalone.md`（Phase 3 の方針を Capacitor に変更）
 
 ---

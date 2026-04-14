@@ -3,7 +3,7 @@
 **Status:** IN_PROGRESS (Phase 3a completed, Phase 3b remaining)
 **Created:** 2026-03-16
 **Depends on:** Phase 2 (PLANNED)
-**Project:** /Users/newlife/dev/apps/notion-timer
+**Project:** /Users/newlife/dev/apps/life-editor
 
 ---
 

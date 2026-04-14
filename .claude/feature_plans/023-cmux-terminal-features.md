@@ -7,7 +7,7 @@
 
 ## 概要
 
-cmux（macOS ネイティブの AI エージェント向けターミナルアプリ）のコンセプトを参考に、Sonic Flow のターミナル機能を強化する。Socket API、通知システム、マルチエージェント管理、ブラウザペインの4フェーズで段階的に導入。
+cmux（macOS ネイティブの AI エージェント向けターミナルアプリ）のコンセプトを参考に、Life Editor のターミナル機能を強化する。Socket API、通知システム、マルチエージェント管理、ブラウザペインの4フェーズで段階的に導入。
 
 ## cmux とは
 
@@ -18,9 +18,9 @@ macOS ネイティブの AI エージェント向けターミナルアプリ（S
 - **マルチエージェント管理**: 親子エージェントのオーケストレーション
 - **ブラウザペイン**: WebKit ベースのブラウザをペイン内に配置
 
-## Sonic Flow 既存資産との差分
+## Life Editor 既存資産との差分
 
-| cmux 機能          | Sonic Flow 現状     | ギャップ     |
+| cmux 機能          | Life Editor 現状    | ギャップ     |
 | ------------------ | ------------------- | ------------ |
 | Socket API         | なし                | 外部制御不可 |
 | 通知システム       | ClaudeDetector のみ | UI通知なし   |
@@ -33,7 +33,7 @@ macOS ネイティブの AI エージェント向けターミナルアプリ（S
 
 ### 目的
 
-外部プログラム（AI エージェント等）が Sonic Flow のターミナルをプログラム的に制御できるようにする。
+外部プログラム（AI エージェント等）が Life Editor のターミナルをプログラム的に制御できるようにする。
 
 ### 新規ファイル
 
@@ -43,7 +43,7 @@ macOS ネイティブの AI エージェント向けターミナルアプリ（S
 
 ### 仕様
 
-- **ソケットパス**: `~/Library/Application Support/sonic-flow/sonic-flow.sock`
+- **ソケットパス**: `~/Library/Application Support/life-editor/life-editor.sock`
 - **プロトコル**: JSON-RPC 2.0 ライク（method, params, id）
 - **メソッド一覧**:
   - `terminal.create` — 新しいターミナルセッション作成

@@ -2,7 +2,7 @@
 
 - **Status**: IN_PROGRESS
 - **Created**: 2026-04-11
-- **Project**: /Users/newlife/dev/apps/notion-timer
+- **Project**: /Users/newlife/dev/apps/life-editor
 
 ---
 

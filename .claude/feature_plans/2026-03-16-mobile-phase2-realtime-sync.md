@@ -3,7 +3,7 @@
 **Status:** PLANNED
 **Created:** 2026-03-16
 **Depends on:** Phase 1 (COMPLETED)
-**Project:** /Users/newlife/dev/apps/notion-timer
+**Project:** /Users/newlife/dev/apps/life-editor
 
 ---
 
