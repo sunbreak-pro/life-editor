@@ -1,5 +1,7 @@
 # HISTORY.md - 変更履歴
 
+- 2026-04-15: [途中] Capacitor iOS Standalone App — Step 1-3 完了（Capacitor init, StandaloneDataService, スタンドアロンモード対応）。Step 4（Xcode ビルド&テスト）待ち
+
 ### 2026-04-15 - notion-timer / Sonic Flow → Life Editor 完全リネーム
 
 #### 概要
