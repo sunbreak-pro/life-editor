@@ -13,6 +13,7 @@ interface DayFlowSidebarContentProps {
   onToggleFilter: (tab: DayFlowFilterTab) => void;
   categoryProgress: Record<DayFlowFilterTab, CategoryProgress>;
   tabs?: readonly TabItem<DayFlowFilterTab>[];
+  onReorderTabs?: (newOrder: DayFlowFilterTab[]) => void;
 }
 
 export function DayFlowSidebarContent({
@@ -21,6 +22,7 @@ export function DayFlowSidebarContent({
   onToggleFilter,
   categoryProgress,
   tabs,
+  onReorderTabs,
 }: DayFlowSidebarContentProps) {
   return (
     <div className="flex flex-col gap-3">
@@ -30,6 +32,7 @@ export function DayFlowSidebarContent({
         activeFilters={activeFilters}
         onToggleFilter={onToggleFilter}
         tabs={tabs}
+        onReorderTabs={onReorderTabs}
       />
     </div>
   );

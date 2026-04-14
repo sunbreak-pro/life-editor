@@ -21,8 +21,9 @@ import {
   SortableContext,
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
-import type { NoteNode } from "../../types/note";
+import type { NoteNode, NoteSortMode } from "../../types/note";
 import type { WikiTagAssignment, WikiTag } from "../../types/wikiTag";
+import { SortDropdown, type SortDirection } from "../shared/SortDropdown";
 import { getContentPreview } from "../../utils/tiptapText";
 import { STORAGE_KEYS } from "../../constants/storageKeys";
 import { SearchBar, type SearchSuggestion } from "../shared/SearchBar";
@@ -59,6 +60,10 @@ interface MaterialsSidebarProps {
   onCopyToFiles?: (id: string) => void;
   onToggleExpand: (id: string) => void;
   persistWithHistory: (currentNotes: NoteNode[], updated: NoteNode[]) => void;
+  sortMode?: NoteSortMode;
+  onSortChange?: (mode: NoteSortMode) => void;
+  sortDirection?: SortDirection;
+  onSortDirectionChange?: (d: SortDirection) => void;
 }
 
 function loadSectionsState(): SectionsState {
@@ -105,6 +110,10 @@ export function MaterialsSidebar({
   onCopyToFiles,
   onToggleExpand,
   persistWithHistory,
+  sortMode,
+  onSortChange,
+  sortDirection,
+  onSortDirectionChange,
 }: MaterialsSidebarProps) {
   const { t } = useTranslation();
   const [sections, setSections] = useState<SectionsState>(loadSectionsState);
@@ -394,6 +403,21 @@ export function MaterialsSidebar({
           onToggle={() => toggleSection("notes")}
           rightAction={
             <div className="flex items-center gap-0.5">
+              {sortMode && onSortChange && (
+                <SortDropdown<NoteSortMode>
+                  sortMode={sortMode}
+                  onSortChange={onSortChange}
+                  options={["updatedAt", "createdAt", "title"]}
+                  labelMap={{
+                    updatedAt: t("notes.sortUpdated"),
+                    createdAt: t("notes.sortCreated"),
+                    title: t("notes.sortTitle"),
+                  }}
+                  defaultMode="updatedAt"
+                  sortDirection={sortDirection}
+                  onDirectionChange={onSortDirectionChange}
+                />
+              )}
               <div className="relative">
                 <button
                   onClick={() => setShowNoteFilter((v) => !v)}

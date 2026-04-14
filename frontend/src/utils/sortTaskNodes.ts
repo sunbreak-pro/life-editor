@@ -1,8 +1,13 @@
 import type { TaskNode } from "../types/taskTree";
+import type { SortDirection } from "../components/shared/SortDropdown";
 
 export type SortMode = "manual" | "status" | "scheduledAt" | "priority";
 
-export function sortTaskNodes(nodes: TaskNode[], mode: SortMode): TaskNode[] {
+export function sortTaskNodes(
+  nodes: TaskNode[],
+  mode: SortMode,
+  direction: SortDirection = "asc",
+): TaskNode[] {
   // Separate complete system folders — always rendered last
   const completeFolders = nodes.filter((n) => n.folderType === "complete");
   const rest = nodes.filter((n) => n.folderType !== "complete");
@@ -44,6 +49,7 @@ export function sortTaskNodes(nodes: TaskNode[], mode: SortMode): TaskNode[] {
       });
     }
 
+    if (mode !== "manual" && direction === "desc") sorted.reverse();
     return sorted;
   };
 

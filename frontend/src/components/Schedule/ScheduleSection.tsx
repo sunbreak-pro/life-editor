@@ -20,6 +20,7 @@ import { useNoteContext } from "../../hooks/useNoteContext";
 import { formatDateKey } from "../../utils/dateKey";
 import { RightSidebarContext } from "../../context/RightSidebarContext";
 import { useUndoRedo } from "../shared/UndoRedo";
+import { useCalendarTypeOrder } from "../../hooks/useCalendarTypeOrder";
 
 import type { TaskNode, TaskStatus } from "../../types/taskTree";
 import type { SearchSuggestion } from "../shared/SearchBar";
@@ -111,6 +112,12 @@ export function ScheduleSection({
   const [calendarContentFilters, setCalendarContentFilters] = useState<
     Set<DayFlowFilterTab>
   >(() => new Set());
+
+  const { typeOrder, reorderTabs, getTabsInOrder } = useCalendarTypeOrder();
+  const orderedCalendarTabs = useMemo(
+    () => getTabsInOrder(CALENDAR_PROGRESS_TABS),
+    [getTabsInOrder],
+  );
 
   const [sidebarSearchQuery, setSidebarSearchQuery] = useState("");
 
@@ -655,7 +662,8 @@ export function ScheduleSection({
                 onToggleFilter={(tab) =>
                   toggleFilter(setCalendarContentFilters, tab)
                 }
-                tabs={CALENDAR_PROGRESS_TABS}
+                tabs={orderedCalendarTabs}
+                onReorderTabs={reorderTabs}
               />
             )}
           </ScheduleSidebarContent>,
@@ -680,6 +688,7 @@ export function ScheduleSection({
             onDateSelect={handleCalendarDateSelect}
             onOpenRoutineManagement={() => setShowRoutineManagement(true)}
             onNavigateToEventsTab={() => handleSetActiveTab("events")}
+            typeOrder={typeOrder}
           />
         ) : activeTab === "tasks" ? (
           <ScheduleTasksContent

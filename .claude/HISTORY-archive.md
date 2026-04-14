@@ -1,3 +1,22 @@
+### 2026-04-13 - Notes/Memos ↔ Files 双方向コピー機能
+
+#### 概要
+
+Notes/Memos (TipTap JSON) と Files (.md) 間の双方向コピー機能を実装。コンテキストメニューからワンクリックでコピー可能。TipTap JSON → Markdown 変換器を新規作成。
+
+#### 変更点
+
+- **TipTap→Markdown 変換器**: `electron/utils/tiptapToMarkdown.ts` を新規作成。heading, list, code block, table, callout (GitHub alert), toggle list (details/summary), image 等をサポート
+- **変換ユーティリティ複製**: `mcp-server/src/utils/` の `tiptapJsonBuilder.ts`, `markdownToTiptap.ts` を `electron/utils/` にコピー（electron main process で使用するため）
+- **IPC 3チャンネル**: `copy:noteToFile`（Note→.md）, `copy:memoToFile`（Memo→.md）, `copy:convertFileToTiptap`（.md→TipTap JSON 変換のみ）を `copyHandlers.ts` に追加
+- **状態同期設計**: File→Note/Memo は変換のみバックエンドで実行し、エンティティ作成はフロントエンドの Context メソッド（`createNote`/`upsertMemo`）経由に。これによりReact状態が即座に反映
+- **Note コンテキストメニュー**: `NoteNodeContextMenu.tsx` に「ファイルにコピー」追加（note のみ、folder 除外）。MaterialsSidebar → NoteTreeNode → NoteNodeContextMenu の prop チェーン
+- **Memo オプションメニュー**: `ItemOptionsMenu.tsx` にオプショナル `onCopyToFiles` 追加。`DailyMemoView.tsx` から接続
+- **File コンテキストメニュー**: `FileContextMenu.tsx` に「ノートにコピー」「メモにコピー」追加（.md ファイルのみ表示）
+- **日付選択ダイアログ**: `DatePickerDialog.tsx` 新規作成（File→Memo 時のターゲット日付選択用）
+- **DataService 層**: `DataService.ts`, `ElectronDataService.ts`, `OfflineDataService.ts`, `RestDataService.ts`, mockDataService を全て更新
+- **i18n**: `en.json`/`ja.json` に `copy.*` と `contextMenu.copyToFiles` キー追加
+
 ### 2026-04-12 - Board タブ — Frame nesting position fix, Undo/Redo for drag operations
 
 #### 概要

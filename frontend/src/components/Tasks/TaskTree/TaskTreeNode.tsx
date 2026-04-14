@@ -34,6 +34,7 @@ interface TaskTreeNodeProps {
   onSelectTask?: (id: string) => void;
   selectedTaskId?: string | null;
   sortMode?: SortMode;
+  sortDirection?: "asc" | "desc";
   searchMatchIds?: Set<string>;
   isSearching?: boolean;
   activeTargetFolderId?: string | null;
@@ -51,6 +52,7 @@ export const TaskTreeNode = memo(function TaskTreeNode({
   onSelectTask,
   selectedTaskId,
   sortMode = "manual",
+  sortDirection = "asc",
   searchMatchIds,
   isSearching,
   activeTargetFolderId,
@@ -104,13 +106,13 @@ export const TaskTreeNode = memo(function TaskTreeNode({
       const children = rawChildren.filter(
         (c) => c.status === "DONE" || completedTreeContainerIds.has(c.id),
       );
-      return sortTaskNodes(children, sortMode);
+      return sortTaskNodes(children, sortMode, sortDirection);
     }
     // Include Complete system folders (they hold DONE tasks but aren't DONE themselves)
     const active = rawChildren.filter(
       (c) => c.status !== "DONE" || c.folderType === "complete",
     );
-    const sorted = sortTaskNodes(active, sortMode);
+    const sorted = sortTaskNodes(active, sortMode, sortDirection);
     if (isSearching && searchMatchIds) {
       return sorted.filter((c) => searchMatchIds.has(c.id));
     }
@@ -118,6 +120,7 @@ export const TaskTreeNode = memo(function TaskTreeNode({
   }, [
     rawChildren,
     sortMode,
+    sortDirection,
     isSearching,
     searchMatchIds,
     isInCompletedTree,
@@ -431,6 +434,7 @@ export const TaskTreeNode = memo(function TaskTreeNode({
                 onSelectTask={onSelectTask}
                 selectedTaskId={selectedTaskId}
                 sortMode={sortMode}
+                sortDirection={sortDirection}
                 isCompletedItem={!completedTreeContainerIds?.has(child.id)}
                 isStructureContainer={
                   completedTreeContainerIds?.has(child.id) ?? false
@@ -454,6 +458,7 @@ export const TaskTreeNode = memo(function TaskTreeNode({
                   onSelectTask={onSelectTask}
                   selectedTaskId={selectedTaskId}
                   sortMode={sortMode}
+                  sortDirection={sortDirection}
                   searchMatchIds={searchMatchIds}
                   isSearching={isSearching}
                   activeTargetFolderId={activeTargetFolderId}

@@ -1,5 +1,23 @@
 # HISTORY.md - 変更履歴
 
+### 2026-04-13 - Sort Direction + Calendar Type Order + TimeGrid Click Menu
+
+#### 概要
+
+全リストビュー（TaskTree/Notes/Sound Library）に昇順・降順ソートトグルを追加。Calendar右サイドバーのフィルターチェックボックスにドラッグ並び替えを実装しアイテムタイプの表示順を制御可能にした。DayFlow TimeGridのアイテム左クリック動作を完了トグルからコンテキストメニュー表示に変更（チェックボックスは完了トグル維持）。
+
+#### 変更点
+
+- **共有SortDropdown拡張**: `SortDropdown.tsx` に `sortDirection` / `onDirectionChange` / `noDirectionModes` props追加。ドロップダウン内に昇順・降順トグルボタン表示
+- **sortTaskNodes/sortSounds**: `direction` パラメータ追加。`"desc"` でソート後reverse。`"manual"` / `"default"` モードは方向無視
+- **TaskTree**: `useLocalStorage` で direction 永続化、`TaskTree.tsx` / `TaskTreeNode.tsx` / `SortDropdown.tsx` に伝搬
+- **Sound Library**: `WorkMusicContent.tsx` に direction state追加、`noDirectionModes={["default"]}`
+- **Notes SortDropdown新設**: `useNotes.ts` に `sortDirection` state（localStorage永続化）追加。`MaterialsSidebar.tsx` の Notes セクションに `SortDropdown<NoteSortMode>` 新規配置。`IdeasView.tsx` から接続
+- **Calendar Type Order**: `useCalendarTypeOrder.ts` フック新規作成（localStorage永続化）。`ProgressSection.tsx` に `@dnd-kit/sortable` でドラッグ並び替え追加（"all" は固定）。`useCalendar.ts` に `typeOrder` パラメータ追加し各日付のアイテムをタイプ順ソート（Holiday常に先頭）
+- **DayFlow左クリックメニュー**: `TimeGridTaskBlock.tsx` / `ScheduleItemBlock.tsx` の `onClick` を `onContextMenu` 呼び出しに変更。チェックボックスは `stopPropagation` で独立動作維持
+- **i18n**: `taskTree.sortAscending` / `taskTree.sortDescending` を en/ja に追加
+- **テスト**: `sortTaskNodes.test.ts`（9テスト）、`sortSounds.test.ts`（7テスト）新規作成
+
 ### 2026-04-14 - .claude/ 設計書・コード整合性修正
 
 #### 概要
@@ -63,24 +81,5 @@ Pre-commit 品質検証スキル（session-verifier）と Life Editor MCP 記録
 - **シンボリックリンク**: `~/.claude/skills/session-verifier`, `~/.claude/skills/life-editor-mcp` を作成。Global active skills 8→10個
 - **SKILL_INDEX.md**: 2スキルのエントリ追加、カウント更新
 - **Life Editor ノート**: MCP ツール `create_note` で「Claude Code Skills 構成一覧 (2026-04-13)」を作成。Global 10個 + Project 6個の全スキル構成、session-verifier の6ゲート詳細、life-editor-mcp のエンティティ選択ガイドを記録
-
-### 2026-04-13 - Notes/Memos ↔ Files 双方向コピー機能
-
-#### 概要
-
-Notes/Memos (TipTap JSON) と Files (.md) 間の双方向コピー機能を実装。コンテキストメニューからワンクリックでコピー可能。TipTap JSON → Markdown 変換器を新規作成。
-
-#### 変更点
-
-- **TipTap→Markdown 変換器**: `electron/utils/tiptapToMarkdown.ts` を新規作成。heading, list, code block, table, callout (GitHub alert), toggle list (details/summary), image 等をサポート
-- **変換ユーティリティ複製**: `mcp-server/src/utils/` の `tiptapJsonBuilder.ts`, `markdownToTiptap.ts` を `electron/utils/` にコピー（electron main process で使用するため）
-- **IPC 3チャンネル**: `copy:noteToFile`（Note→.md）, `copy:memoToFile`（Memo→.md）, `copy:convertFileToTiptap`（.md→TipTap JSON 変換のみ）を `copyHandlers.ts` に追加
-- **状態同期設計**: File→Note/Memo は変換のみバックエンドで実行し、エンティティ作成はフロントエンドの Context メソッド（`createNote`/`upsertMemo`）経由に。これによりReact状態が即座に反映
-- **Note コンテキストメニュー**: `NoteNodeContextMenu.tsx` に「ファイルにコピー」追加（note のみ、folder 除外）。MaterialsSidebar → NoteTreeNode → NoteNodeContextMenu の prop チェーン
-- **Memo オプションメニュー**: `ItemOptionsMenu.tsx` にオプショナル `onCopyToFiles` 追加。`DailyMemoView.tsx` から接続
-- **File コンテキストメニュー**: `FileContextMenu.tsx` に「ノートにコピー」「メモにコピー」追加（.md ファイルのみ表示）
-- **日付選択ダイアログ**: `DatePickerDialog.tsx` 新規作成（File→Memo 時のターゲット日付選択用）
-- **DataService 層**: `DataService.ts`, `ElectronDataService.ts`, `OfflineDataService.ts`, `RestDataService.ts`, mockDataService を全て更新
-- **i18n**: `en.json`/`ja.json` に `copy.*` と `contextMenu.copyToFiles` キー追加
 
 <!-- older entries archived to HISTORY-archive.md -->

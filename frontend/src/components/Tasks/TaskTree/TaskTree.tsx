@@ -104,6 +104,10 @@ export function TaskTree({
     STORAGE_KEYS.TASK_TREE_SORT_MODE,
     "manual",
   );
+  const [sortDirection, setSortDirection] = useLocalStorage<"asc" | "desc">(
+    STORAGE_KEYS.TASK_TREE_SORT_DIRECTION,
+    "asc",
+  );
 
   // Reset filter if the folder no longer exists
   useEffect(() => {
@@ -189,12 +193,13 @@ export function TaskTree({
     if (isSearching) {
       items = items.filter((n) => searchMatchIds.has(n.id));
     }
-    return sortTaskNodes(items, sortMode);
+    return sortTaskNodes(items, sortMode, sortDirection);
   }, [
     rootChildren,
     filterFolderId,
     nodes,
     sortMode,
+    sortDirection,
     isSearching,
     searchMatchIds,
     isCompleted,
@@ -270,6 +275,8 @@ export function TaskTree({
                             <SortDropdown
                               sortMode={sortMode}
                               onSortChange={setSortMode}
+                              sortDirection={sortDirection}
+                              onDirectionChange={setSortDirection}
                             />
                           )}
                         </div>
@@ -310,6 +317,7 @@ export function TaskTree({
                             onSelectTask={onSelectTask}
                             selectedTaskId={selectedTaskId}
                             sortMode={sortMode}
+                            sortDirection={sortDirection}
                             activeTargetFolderId={activeTargetFolderId}
                             isCompletedItem={
                               isCompleted &&

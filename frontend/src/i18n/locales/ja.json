@@ -499,6 +499,8 @@
     "deleteConfirm": "「{{name}}」を削除しますか？ゴミ箱に移動されます。",
     "taskComplete": "{{name}} 完了！",
     "sort": "並べ替え",
+    "sortAscending": "昇順",
+    "sortDescending": "降順",
     "sortManual": "手動",
     "sortStatus": "ステータス",
     "sortSchedule": "スケジュール日",

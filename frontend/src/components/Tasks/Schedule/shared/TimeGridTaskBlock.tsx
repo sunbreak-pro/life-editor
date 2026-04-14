@@ -152,7 +152,7 @@ export function TimeGridTaskBlock({
             return;
           }
           e.stopPropagation();
-          onToggleTaskStatus?.(task.id);
+          onContextMenu?.(task, { x: e.clientX, y: e.clientY });
         }}
         onMouseDown={(e) => {
           if (!isOpen) dragHandlers?.onMouseDown(e);

@@ -4,7 +4,9 @@ import { getDataService } from "../services";
 import { logServiceError } from "../utils/logError";
 import { generateId } from "../utils/generateId";
 import { useUndoRedo } from "../components/shared/UndoRedo";
+import { useLocalStorage } from "./useLocalStorage";
 import { STORAGE_KEYS } from "../constants/storageKeys";
+import type { SortDirection } from "../components/shared/SortDropdown";
 
 function loadExpandedIds(): Set<string> {
   try {
@@ -29,6 +31,10 @@ export function useNotes() {
   const [selectedNoteId, setSelectedNoteId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [sortMode, setSortMode] = useState<NoteSortMode>("updatedAt");
+  const [sortDirection, setSortDirection] = useLocalStorage<SortDirection>(
+    STORAGE_KEYS.NOTE_SORT_DIRECTION,
+    "asc",
+  );
   const [expandedIds, setExpandedIds] = useState<Set<string>>(loadExpandedIds);
   const { push } = useUndoRedo();
   const notesRef = useRef(notes);
@@ -109,21 +115,24 @@ export function useNotes() {
       );
     }
 
-    // Sort: pinned first, then by sort mode
-    return [...result].sort((a, b) => {
-      if (a.isPinned !== b.isPinned) return a.isPinned ? -1 : 1;
+    // Sort: pinned first, then by sort mode within each group
+    const dir = sortDirection === "desc" ? -1 : 1;
+    const compare = (a: NoteNode, b: NoteNode): number => {
       switch (sortMode) {
         case "updatedAt":
-          return b.updatedAt.localeCompare(a.updatedAt);
+          return b.updatedAt.localeCompare(a.updatedAt) * dir;
         case "createdAt":
-          return b.createdAt.localeCompare(a.createdAt);
+          return b.createdAt.localeCompare(a.createdAt) * dir;
         case "title":
-          return a.title.localeCompare(b.title);
+          return a.title.localeCompare(b.title) * dir;
         default:
           return 0;
       }
-    });
-  }, [notes, searchQuery, sortMode]);
+    };
+    const pinned = result.filter((n) => n.isPinned).sort(compare);
+    const unpinned = result.filter((n) => !n.isPinned).sort(compare);
+    return [...pinned, ...unpinned];
+  }, [notes, searchQuery, sortMode, sortDirection]);
 
   // Persist tree to DB
   const syncToDb = useCallback((updatedNotes: NoteNode[]) => {
@@ -485,6 +494,8 @@ export function useNotes() {
       setSearchQuery,
       sortMode,
       setSortMode,
+      sortDirection,
+      setSortDirection,
       sortedFilteredNotes,
       flattenedNotes,
       expandedIds,
@@ -511,6 +522,8 @@ export function useNotes() {
       selectedNote,
       searchQuery,
       sortMode,
+      sortDirection,
+      setSortDirection,
       sortedFilteredNotes,
       flattenedNotes,
       expandedIds,

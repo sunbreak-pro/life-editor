@@ -181,6 +181,7 @@ interface CalendarViewProps {
   onDateSelect?: (date: Date) => void;
   onOpenRoutineManagement?: () => void;
   onNavigateToEventsTab?: () => void;
+  typeOrder?: string[];
 }
 
 function getInitialWeekStart(): Date {
@@ -204,6 +205,7 @@ export function CalendarView({
   onDateSelect,
   onOpenRoutineManagement,
   onNavigateToEventsTab,
+  typeOrder,
 }: CalendarViewProps) {
   const {
     nodes,
@@ -366,6 +368,7 @@ export function CalendarView({
     groupForRoutine,
     showHolidays,
     language,
+    typeOrder,
   );
 
   const handlePrev = useCallback(() => {

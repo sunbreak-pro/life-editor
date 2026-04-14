@@ -29,6 +29,7 @@ export function WorkMusicContent() {
 
   const [searchQuery, setSearchQuery] = useState("");
   const [sortMode, setSortMode] = useState<SoundSortMode>("default");
+  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
   const [selectedPlaylistId, setSelectedPlaylistId] = useState<string | null>(
     audio.playlistPlayer.activePlaylistId,
   );
@@ -83,8 +84,13 @@ export function WorkMusicContent() {
       });
     }
 
-    return sortSounds(filtered, sortMode, soundTagState.getDisplayName);
-  }, [allItems, searchQuery, sortMode, soundTagState]);
+    return sortSounds(
+      filtered,
+      sortMode,
+      soundTagState.getDisplayName,
+      sortDirection,
+    );
+  }, [allItems, searchQuery, sortMode, sortDirection, soundTagState]);
 
   // Search suggestions: sounds + playlists
   const soundSuggestions = useMemo<SearchSuggestion[]>(() => {
@@ -232,6 +238,9 @@ export function WorkMusicContent() {
                 options={SOUND_SORT_OPTIONS}
                 labelMap={soundSortLabelMap}
                 defaultMode="default"
+                sortDirection={sortDirection}
+                onDirectionChange={setSortDirection}
+                noDirectionModes={["default"]}
               />
             }
           />

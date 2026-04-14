@@ -23,6 +23,7 @@ export function useCalendar(
   groupForRoutine?: Map<string, RoutineGroup[]>,
   showHolidays?: boolean,
   language?: "ja" | "en",
+  typeOrder?: string[],
 ) {
   const tasksByDate = useMemo(() => {
     const map = new Map<string, TaskNode[]>();
@@ -221,6 +222,31 @@ export function useCalendar(
       }
     }
 
+    // Sort items within each date by typeOrder
+    if (typeOrder && typeOrder.length > 0) {
+      const typeToFilter: Record<string, string> = {
+        task: "tasks",
+        daily: "daily",
+        note: "notes",
+        event: "events",
+        routineGroup: "routine",
+      };
+      for (const [, items] of map) {
+        items.sort((a, b) => {
+          // Holidays always first
+          if (a.type === "holiday") return -1;
+          if (b.type === "holiday") return 1;
+          const aKey = typeToFilter[a.type] ?? a.type;
+          const bKey = typeToFilter[b.type] ?? b.type;
+          const aIdx = typeOrder.indexOf(aKey);
+          const bIdx = typeOrder.indexOf(bKey);
+          return (
+            (aIdx === -1 ? Infinity : aIdx) - (bIdx === -1 ? Infinity : bIdx)
+          );
+        });
+      }
+    }
+
     return map;
   }, [
     tasksByDate,
@@ -233,6 +259,7 @@ export function useCalendar(
     language,
     year,
     month,
+    typeOrder,
   ]);
 
   const calendarDays = useMemo(() => {

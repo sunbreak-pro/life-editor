@@ -173,7 +173,7 @@ export function ScheduleItemBlock({
             return;
           }
           e.stopPropagation();
-          onToggleComplete(item.id);
+          onContextMenu?.(item, { x: e.clientX, y: e.clientY });
         }}
         onMouseDown={(e) => {
           if (!isOpen) dragHandlers?.onMouseDown(e);

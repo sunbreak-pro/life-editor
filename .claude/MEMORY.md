@@ -13,9 +13,9 @@
 
 ## 直近の完了
 
+- Sort Direction + Calendar Type Order + TimeGrid Click Menu ✅（2026-04-13）
 - .claude/ 設計書・コード整合性修正 ✅（2026-04-14）
 - Trash を Settings ヘッダータブに移動 + ScheduleItem ソフトデリート ✅（2026-04-14）
-- Global Shortcuts → Shortcuts タブ移動 + Cancel ボタン追加 ✅（2026-04-13）
 
 ## 予定
 

@@ -499,6 +499,8 @@
     "deleteConfirm": "Delete \"{{name}}\"? It will be moved to Trash.",
     "taskComplete": "{{name}} Complete!",
     "sort": "Sort",
+    "sortAscending": "Ascending",
+    "sortDescending": "Descending",
     "sortManual": "Manual",
     "sortStatus": "Status",
     "sortSchedule": "Scheduled date",

@@ -51,4 +51,7 @@ export const STORAGE_KEYS = {
   DEFAULT_TASK_FOLDER: "life-editor-default-task-folder",
   HIDE_COMPLETED_TASKS: "life-editor-hide-completed-tasks",
   AUTO_COMPLETE_PARENT: "life-editor-auto-complete-parent",
+  TASK_TREE_SORT_DIRECTION: "life-editor-task-tree-sort-direction",
+  NOTE_SORT_DIRECTION: "life-editor-note-sort-direction",
+  CALENDAR_TYPE_ORDER: "life-editor-calendar-type-order",
 } as const;

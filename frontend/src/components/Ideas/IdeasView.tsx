@@ -79,6 +79,10 @@ export function IdeasView({ onNavigateToNote }: IdeasViewProps) {
     updateNote,
     togglePin,
     persistWithHistory,
+    sortMode,
+    setSortMode,
+    sortDirection,
+    setSortDirection,
   } = useNoteContext();
   const { assignments, tags, setTagsForEntity } = useWikiTags();
   const { showToast } = useToast();
@@ -299,6 +303,10 @@ export function IdeasView({ onNavigateToNote }: IdeasViewProps) {
             onCopyToFiles={handleCopyNoteToFiles}
             onToggleExpand={toggleExpanded}
             persistWithHistory={persistWithHistory}
+            sortMode={sortMode}
+            onSortChange={setSortMode}
+            sortDirection={sortDirection}
+            onSortDirectionChange={setSortDirection}
           />
         );
       case "node":
