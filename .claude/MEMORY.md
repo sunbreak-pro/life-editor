@@ -2,14 +2,23 @@
 
 ## 進行中
 
+### ⏸️ Tauri 2.0 Migration（着手日: 2026-04-15）
+
+**対象**: `src-tauri/`, `frontend/src/services/bridge.ts`, `frontend/src/services/TauriDataService.ts`
+**計画書**: `.claude/feature_plans/2026-04-15-tauri-migration.md`
+
+- 前回: Phase 0 Step 0.1 完了（Tauri プロジェクト初期化、cargo check/run 成功）
+- 現在: Rust 1.94.1 + Tauri CLI 2.10.1 インストール済み、src-tauri/ scaffold 作成済み
+- 次: Phase 0 Step 0.2（フロントエンド IPC ブリッジ: bridge.ts, events.ts, TauriDataService.ts）
+
 ### ⏸️ Capacitor iOS Standalone App（着手日: 2026-04-14）
 
 **対象**: `frontend/src/services/StandaloneDataService.ts`, `frontend/src/services/dataServiceFactory.ts`, `frontend/src/db/indexedDb.ts`, `frontend/src/MobileApp.tsx`, `frontend/capacitor.config.ts`, `frontend/ios/`
 **計画書**: `.claude/feature_plans/2026-04-14-capacitor-ios-standalone.md`
 
 - 前回: Step 1-3 完了（Capacitor init + StandaloneDataService 1706行 + スタンドアロンモード対応）
-- 現在: Step 4 — Xcode インストール済み、`cap sync` 成功、iOS プロジェクト生成完了
-- 次: Xcode でシミュレータビルド&テスト、実機テスト、ネイティブ強化（Step 4-5）
+- 現在: Tauri 移行計画により Phase 2 は Tauri 後に統合予定。Phase 1 Step 4-5 は保留
+- 次: Tauri 移行完了後に方針再検討
 
 ### ⏸️ Mobile Optimization — 4タブ構成リニューアル（着手日: 2026-04-12）
 

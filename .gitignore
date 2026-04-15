@@ -20,3 +20,7 @@ release/
 # MCP Server
 mcp-server/dist/
 mcp-server/node_modules/
+
+# Tauri
+src-tauri/target/
+src-tauri/gen/

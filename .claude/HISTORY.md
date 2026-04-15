@@ -1,5 +1,7 @@
 # HISTORY.md - 変更履歴
 
+- 2026-04-15: [途中] Tauri 2.0 Migration — Phase 0 Step 0.1 完了（Rust/Tauri CLI インストール、src-tauri/ scaffold 作成、cargo check/run 成功）。Step 0.2（IPC ブリッジ）待ち
+
 - 2026-04-15: [途中] Capacitor iOS Standalone App — Step 1-3 完了（Capacitor init, StandaloneDataService, スタンドアロンモード対応）。Step 4（Xcode ビルド&テスト）待ち
 
 ### 2026-04-15 - テンプレート内容編集をコンテンツエリアに移動
