@@ -2,6 +2,8 @@ import type { DataService } from "./DataService";
 import { ElectronDataService } from "./ElectronDataService";
 import { OfflineDataService } from "./OfflineDataService";
 import { StandaloneDataService } from "./StandaloneDataService";
+import { TauriDataService } from "./TauriDataService";
+import { isTauri } from "./bridge";
 
 let instance: DataService | null = null;
 let testOverride: DataService | null = null;
@@ -37,7 +39,9 @@ export function isStandalone(): boolean {
 export function getDataService(): DataService {
   if (testOverride) return testOverride;
   if (!instance) {
-    if (isElectron()) {
+    if (isTauri()) {
+      instance = new TauriDataService();
+    } else if (isElectron()) {
       instance = new ElectronDataService();
     } else if (isStandalone()) {
       instance = new StandaloneDataService();
@@ -56,4 +60,9 @@ export function getOfflineDataService(): OfflineDataService | null {
 export function getStandaloneDataService(): StandaloneDataService | null {
   const svc = getDataService();
   return svc instanceof StandaloneDataService ? svc : null;
+}
+
+export function getTauriDataService(): TauriDataService | null {
+  const svc = getDataService();
+  return svc instanceof TauriDataService ? svc : null;
 }

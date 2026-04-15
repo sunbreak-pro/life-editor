@@ -7,9 +7,10 @@
 **対象**: `src-tauri/`, `frontend/src/services/bridge.ts`, `frontend/src/services/TauriDataService.ts`
 **計画書**: `.claude/feature_plans/2026-04-15-tauri-migration.md`
 
-- 前回: Phase 0 Step 0.1 完了（Tauri プロジェクト初期化、cargo check/run 成功）
-- 現在: Rust 1.94.1 + Tauri CLI 2.10.1 インストール済み、src-tauri/ scaffold 作成済み
-- 次: Phase 0 Step 0.2（フロントエンド IPC ブリッジ: bridge.ts, events.ts, TauriDataService.ts）
+- Phase 0 完了: Step 0.1（scaffold）+ Step 0.2（bridge.ts, events.ts, TauriDataService.ts, dataServiceFactory 更新）
+- Phase 1 完了: Step 1.1（DB初期化+V59マイグレーション）+ Step 1.2（helpers+task_repository）+ Step 1.3（全27リポジトリ+全コマンド、cargo check パス）
+- Phase 2.1 完了: ウィンドウ状態永続化（tauri-plugin-window-state）+ ネイティブメニュー（menu.rs）
+- 次: Phase 2.2（システムトレイ）→ Phase 2.3（グローバルショートカット）→ Phase 2.4+
 
 ### ⏸️ Capacitor iOS Standalone App（着手日: 2026-04-14）
 
