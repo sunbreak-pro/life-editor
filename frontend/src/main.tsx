@@ -23,9 +23,9 @@ import { ToastProvider } from "./context/ToastContext";
 import { ScreenLockProvider } from "./context/ScreenLockContext";
 import { FileExplorerProvider } from "./context/FileExplorerContext";
 import { TemplateProvider } from "./context/TemplateContext";
-import { isTauri } from "./services/bridge";
+import { isTauri, isTauriMobile } from "./services/bridge";
 
-const isMobile = !isTauri();
+const isMobile = !isTauri() || isTauriMobile();
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
@@ -42,7 +42,7 @@ createRoot(document.getElementById("root")!).render(
                         <RoutineProvider>
                           <ScheduleItemsProvider>
                             <TimerProvider>
-                              <MobileApp />
+                              <MobileApp local={isTauriMobile()} />
                             </TimerProvider>
                           </ScheduleItemsProvider>
                         </RoutineProvider>

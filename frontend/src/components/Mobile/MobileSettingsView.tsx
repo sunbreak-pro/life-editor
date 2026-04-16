@@ -6,13 +6,17 @@ import type { Language } from "../../context/ThemeContextValue";
 
 interface MobileSettingsViewProps {
   onDisconnect: () => void;
+  local?: boolean;
 }
 
-export function MobileSettingsView({ onDisconnect }: MobileSettingsViewProps) {
+export function MobileSettingsView({
+  onDisconnect,
+  local = false,
+}: MobileSettingsViewProps) {
   const { t } = useTranslation();
   const { theme, setTheme, language, setLanguage } = useTheme();
 
-  const isConnected = isApiConfigured();
+  const isConnected = local || isApiConfigured();
 
   function handleDisconnect() {
     clearApiCredentials();
@@ -21,30 +25,32 @@ export function MobileSettingsView({ onDisconnect }: MobileSettingsViewProps) {
 
   return (
     <div className="flex h-full flex-col overflow-y-auto">
-      {/* Connection */}
-      <SettingsSection title={t("mobile.settings.connection", "Connection")}>
-        <div className="flex items-center gap-3 px-4 py-3">
-          {isConnected ? (
-            <Wifi size={18} className="text-notion-success" />
-          ) : (
-            <WifiOff size={18} className="text-notion-text-secondary" />
-          )}
-          <span className="flex-1 text-sm text-notion-text-primary">
-            {isConnected
-              ? t("mobile.settings.connected", "Connected to desktop")
-              : t("mobile.settings.disconnected", "Not connected")}
-          </span>
-          {isConnected && (
-            <button
-              onClick={handleDisconnect}
-              className="flex items-center gap-1.5 rounded-lg border border-notion-danger/30 px-3 py-1.5 text-xs text-notion-danger active:opacity-70"
-            >
-              <LogOut size={12} />
-              {t("mobile.settings.disconnect", "Disconnect")}
-            </button>
-          )}
-        </div>
-      </SettingsSection>
+      {/* Connection (hidden in local mode — data is stored on-device) */}
+      {!local && (
+        <SettingsSection title={t("mobile.settings.connection", "Connection")}>
+          <div className="flex items-center gap-3 px-4 py-3">
+            {isConnected ? (
+              <Wifi size={18} className="text-notion-success" />
+            ) : (
+              <WifiOff size={18} className="text-notion-text-secondary" />
+            )}
+            <span className="flex-1 text-sm text-notion-text-primary">
+              {isConnected
+                ? t("mobile.settings.connected", "Connected to desktop")
+                : t("mobile.settings.disconnected", "Not connected")}
+            </span>
+            {isConnected && (
+              <button
+                onClick={handleDisconnect}
+                className="flex items-center gap-1.5 rounded-lg border border-notion-danger/30 px-3 py-1.5 text-xs text-notion-danger active:opacity-70"
+              >
+                <LogOut size={12} />
+                {t("mobile.settings.disconnect", "Disconnect")}
+              </button>
+            )}
+          </div>
+        </SettingsSection>
+      )}
 
       {/* Theme */}
       <SettingsSection title={t("mobile.settings.theme", "Theme")}>

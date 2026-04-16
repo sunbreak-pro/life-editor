@@ -1,0 +1,17 @@
+{
+  "identifier": "mobile",
+  "description": "Capabilities for Life Editor (iOS)",
+  "platforms": ["iOS"],
+  "windows": ["main"],
+  "permissions": [
+    "core:default",
+    "shell:allow-open",
+    "core:window:allow-set-title",
+    "core:window:allow-show",
+    "core:window:allow-set-size",
+    "core:window:allow-set-fullscreen",
+    "core:window:allow-is-fullscreen",
+    "dialog:default",
+    "notification:default"
+  ]
+}

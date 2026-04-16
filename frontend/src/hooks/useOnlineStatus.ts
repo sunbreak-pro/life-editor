@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import { apiFetch } from "../config/api";
+import { apiFetch, isApiConfigured } from "../config/api";
 
 export type OnlineStatus = "online" | "offline";
 export type SyncStatus = "idle" | "syncing" | "pending" | "error";
@@ -52,8 +52,9 @@ export function useOnlineStatus(): {
     };
   }, []);
 
-  // Health check polling
+  // Health check polling (only when API is configured)
   useEffect(() => {
+    if (!isApiConfigured()) return;
     checkHealth();
     healthTimerRef.current = setInterval(checkHealth, HEALTH_CHECK_INTERVAL_MS);
     return () => {

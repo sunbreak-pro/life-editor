@@ -24,8 +24,12 @@ const TAB_ENTITY_MAP: Record<MobileTab, string[]> = {
   settings: [],
 };
 
-export function MobileApp() {
-  const [connected, setConnected] = useState(isApiConfigured());
+interface MobileAppProps {
+  local?: boolean;
+}
+
+export function MobileApp({ local = false }: MobileAppProps) {
+  const [connected, setConnected] = useState(local || isApiConfigured());
   const [activeTab, setActiveTab] = useState<MobileTab>("materials");
   const [refreshKey, setRefreshKey] = useState(0);
   const activeTabRef = useRef(activeTab);
@@ -38,8 +42,12 @@ export function MobileApp() {
     }
   }, []);
 
-  const connectionState = useRealtimeSync(handleChange);
-  const { syncStatus, pendingCount } = useOnlineStatus();
+  const realtimeState = useRealtimeSync(handleChange);
+  const onlineStatus = useOnlineStatus();
+
+  const connectionState = local ? "connected" : realtimeState;
+  const syncStatus = local ? ("idle" as const) : onlineStatus.syncStatus;
+  const pendingCount = local ? 0 : onlineStatus.pendingCount;
 
   if (!connected) {
     return <ConnectionSetup onConnected={() => setConnected(true)} />;
@@ -54,7 +62,12 @@ export function MobileApp() {
       case "work":
         return <MobileWorkView key={refreshKey} />;
       case "settings":
-        return <MobileSettingsView onDisconnect={() => setConnected(false)} />;
+        return (
+          <MobileSettingsView
+            onDisconnect={() => setConnected(false)}
+            local={local}
+          />
+        );
       default:
         return null;
     }

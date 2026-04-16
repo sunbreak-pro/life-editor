@@ -41,7 +41,7 @@ pub fn system_get_tray_enabled(state: State<'_, DbState>) -> Result<bool, String
 
 #[tauri::command]
 pub fn system_set_tray_enabled(
-    app: tauri::AppHandle,
+    _app: tauri::AppHandle,
     state: State<'_, DbState>,
     enabled: bool,
 ) -> Result<(), String> {
@@ -49,10 +49,13 @@ pub fn system_set_tray_enabled(
     app_settings_repository::set(&conn, "trayEnabled", &enabled.to_string())
         .map_err(|e| e.to_string())?;
 
-    if enabled {
-        crate::tray::setup_tray(&app).map_err(|e| e.to_string())?;
-    } else {
-        crate::tray::remove_tray(&app);
+    #[cfg(not(mobile))]
+    {
+        if enabled {
+            crate::tray::setup_tray(&_app).map_err(|e| e.to_string())?;
+        } else {
+            crate::tray::remove_tray(&_app);
+        }
     }
     Ok(())
 }
@@ -80,36 +83,44 @@ pub fn system_set_global_shortcuts(
 
 #[tauri::command]
 pub fn system_reregister_global_shortcuts(
-    app: tauri::AppHandle,
+    _app: tauri::AppHandle,
     state: State<'_, DbState>,
 ) -> Result<Value, String> {
     let conn = state.conn.lock().map_err(|e| e.to_string())?;
-    let val =
+    let _val =
         app_settings_repository::get(&conn, "globalShortcuts").map_err(|e| e.to_string())?;
 
-    match val {
-        Some(json) => {
-            let config: HashMap<String, String> =
-                serde_json::from_str(&json).map_err(|e| e.to_string())?;
-            crate::shortcuts::register_shortcuts(&app, &config);
-        }
-        None => {
-            crate::shortcuts::unregister_all(&app);
+    #[cfg(not(mobile))]
+    {
+        match _val {
+            Some(json) => {
+                let config: HashMap<String, String> =
+                    serde_json::from_str(&json).map_err(|e| e.to_string())?;
+                crate::shortcuts::register_shortcuts(&_app, &config);
+            }
+            None => {
+                crate::shortcuts::unregister_all(&_app);
+            }
         }
     }
     Ok(serde_json::json!({ "success": true }))
 }
 
 #[tauri::command]
-pub fn tray_update_timer(app: tauri::AppHandle, state: Value) -> Result<(), String> {
-    let remaining = state
-        .get("remaining")
-        .and_then(|v| v.as_str())
-        .unwrap_or("00:00");
-    let is_running = state
-        .get("isRunning")
-        .and_then(|v| v.as_bool())
-        .unwrap_or(false);
-    crate::tray::update_timer(&app, remaining, is_running);
+pub fn tray_update_timer(_app: tauri::AppHandle, state: Value) -> Result<(), String> {
+    #[cfg(not(mobile))]
+    {
+        let remaining = state
+            .get("remaining")
+            .and_then(|v| v.as_str())
+            .unwrap_or("00:00");
+        let is_running = state
+            .get("isRunning")
+            .and_then(|v| v.as_bool())
+            .unwrap_or(false);
+        crate::tray::update_timer(&_app, remaining, is_running);
+    }
+    #[cfg(mobile)]
+    let _ = state;
     Ok(())
 }

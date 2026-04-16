@@ -1,6 +1,6 @@
 # Plan: Electron + Capacitor → Tauri 2.0 移行
 
-**Status:** IN_PROGRESS (Phase 0-4 COMPLETED, Phase 5-6 pending)
+**Status:** IN_PROGRESS (Phase 0-4 COMPLETED, Phase 5.1-5.3 COMPLETED, Phase 5.4+6 pending)
 **Created:** 2026-04-15
 **Task:** Tauri 2.0 Migration（MEMORY.md）
 **Project:** /Users/newlife/dev/apps/notion-timer
@@ -316,21 +316,21 @@ pub fn soft_delete(conn: &Connection, id: &str) -> Result<()> { ... }
 
 **目的**: Tauri 2.0 の iOS サポートで「SQLite Everywhere」実現
 
-### [ ] Step 5.1: iOS 初期化
+### [x] Step 5.1: iOS 初期化
 
 - `cargo tauri ios init` → `src-tauri/gen/apple/` 生成
 - Bundle ID: `com.lifeEditor.app`
 - rusqlite `bundled` feature で iOS 向け SQLite 自動コンパイル
 - Deployment Target: iOS 16.0+
 
-### [ ] Step 5.2: モバイル固有調整
+### [x] Step 5.2: モバイル固有調整
 
 - ターミナル/PTY: iOS では無効化 (`not supported`)
 - トレイ/グローバルショートカット/アップデーター: iOS 非該当、graceful disable
 - ファイルパス: `tauri::path::app_data_dir()` が iOS で正しく解決
 - Safe area / ノッチ / ホームインジケーター対応
 
-### [ ] Step 5.3: 既存モバイル UI の流用
+### [x] Step 5.3: 既存モバイル UI の流用
 
 - `MobileApp.tsx` + 全 `Mobile*` コンポーネント: そのまま動作
 - DataService: `TauriDataService` → Rust/rusqlite（IndexedDB 不要、LAN サーバー不要）

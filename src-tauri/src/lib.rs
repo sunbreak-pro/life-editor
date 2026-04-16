@@ -1,26 +1,40 @@
 mod auto_archive;
 mod commands;
 mod db;
+#[cfg(not(mobile))]
 mod file_watcher;
+#[cfg(not(mobile))]
 mod menu;
 mod reminder;
+#[cfg(not(mobile))]
 mod shortcuts;
+#[cfg(not(mobile))]
 mod terminal;
+#[cfg(not(mobile))]
 mod tray;
 
 use db::DbState;
+#[cfg(not(mobile))]
 use std::collections::HashMap;
 use std::sync::Mutex;
 use tauri::Manager;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    tauri::Builder::default()
+    #[allow(unused_mut)]
+    let mut builder = tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
-        .plugin(tauri_plugin_window_state::Builder::default().build())
-        .plugin(tauri_plugin_global_shortcut::Builder::new().build())
         .plugin(tauri_plugin_dialog::init())
-        .plugin(tauri_plugin_notification::init())
+        .plugin(tauri_plugin_notification::init());
+
+    #[cfg(not(mobile))]
+    {
+        builder = builder
+            .plugin(tauri_plugin_window_state::Builder::default().build())
+            .plugin(tauri_plugin_global_shortcut::Builder::new().build());
+    }
+
+    builder
         .setup(|app| {
             // Use the same data directory as the Electron version
             let data_dir = dirs::data_dir()
@@ -32,56 +46,60 @@ pub fn run() {
                 conn: Mutex::new(conn),
             });
 
-            // Set up native menu
-            menu::setup_menu(app)?;
-
-            // Set up system tray (conditional on tray_enabled setting)
+            // Desktop-only setup: menu, tray, shortcuts, file watcher, terminal
+            #[cfg(not(mobile))]
             {
-                let db_state = app.state::<DbState>();
-                let conn = db_state.conn.lock().map_err(|e| e.to_string())?;
-                let tray_enabled =
-                    db::app_settings_repository::get(&conn, "trayEnabled").unwrap_or(None);
-                // Default to true (enabled unless explicitly set to "false")
-                if tray_enabled.as_deref() != Some("false") {
-                    let handle = app.handle().clone();
-                    tray::setup_tray(&handle).map_err(|e| e.to_string())?;
-                }
-            }
+                // Set up native menu
+                menu::setup_menu(app)?;
 
-            // Register global shortcuts from saved config
-            {
-                let db_state = app.state::<DbState>();
-                let conn = db_state.conn.lock().map_err(|e| e.to_string())?;
-                let shortcuts_json =
-                    db::app_settings_repository::get(&conn, "globalShortcuts")
-                        .unwrap_or(None);
-                if let Some(json) = shortcuts_json {
-                    if let Ok(config) =
-                        serde_json::from_str::<HashMap<String, String>>(&json)
-                    {
+                // Set up system tray (conditional on tray_enabled setting)
+                {
+                    let db_state = app.state::<DbState>();
+                    let conn = db_state.conn.lock().map_err(|e| e.to_string())?;
+                    let tray_enabled =
+                        db::app_settings_repository::get(&conn, "trayEnabled")
+                            .unwrap_or(None);
+                    if tray_enabled.as_deref() != Some("false") {
                         let handle = app.handle().clone();
-                        shortcuts::register_shortcuts(&handle, &config);
+                        tray::setup_tray(&handle).map_err(|e| e.to_string())?;
                     }
                 }
-            }
 
-            // Start file watcher if root path is configured
-            {
-                let db_state = app.state::<DbState>();
-                let conn = db_state.conn.lock().map_err(|e| e.to_string())?;
-                if let Some(root_path) =
-                    db::app_settings_repository::get(&conn, "files_root_path")
-                        .unwrap_or(None)
+                // Register global shortcuts from saved config
+                {
+                    let db_state = app.state::<DbState>();
+                    let conn = db_state.conn.lock().map_err(|e| e.to_string())?;
+                    let shortcuts_json =
+                        db::app_settings_repository::get(&conn, "globalShortcuts")
+                            .unwrap_or(None);
+                    if let Some(json) = shortcuts_json {
+                        if let Ok(config) =
+                            serde_json::from_str::<HashMap<String, String>>(&json)
+                        {
+                            let handle = app.handle().clone();
+                            shortcuts::register_shortcuts(&handle, &config);
+                        }
+                    }
+                }
+
+                // Start file watcher if root path is configured
+                {
+                    let db_state = app.state::<DbState>();
+                    let conn = db_state.conn.lock().map_err(|e| e.to_string())?;
+                    if let Some(root_path) =
+                        db::app_settings_repository::get(&conn, "files_root_path")
+                            .unwrap_or(None)
+                    {
+                        let handle = app.handle().clone();
+                        file_watcher::start(&handle, &root_path);
+                    }
+                }
+
+                // Initialize terminal PTY manager
                 {
                     let handle = app.handle().clone();
-                    file_watcher::start(&handle, &root_path);
+                    app.manage(terminal::pty_manager::PtyState::new(handle));
                 }
-            }
-
-            // Initialize terminal PTY manager
-            {
-                let handle = app.handle().clone();
-                app.manage(terminal::pty_manager::PtyState::new(handle));
             }
 
             // Start background services
@@ -384,12 +402,15 @@ pub fn run() {
             commands::terminal_commands::terminal_destroy,
             commands::terminal_commands::terminal_claude_state,
         ])
-        .on_window_event(|window, event| {
-            if let tauri::WindowEvent::Destroyed = event {
-                if let Some(pty_state) =
-                    window.try_state::<terminal::pty_manager::PtyState>()
-                {
-                    pty_state.destroy_all();
+        .on_window_event(|_window, _event| {
+            #[cfg(not(mobile))]
+            {
+                if let tauri::WindowEvent::Destroyed = _event {
+                    if let Some(pty_state) =
+                        _window.try_state::<terminal::pty_manager::PtyState>()
+                    {
+                        pty_state.destroy_all();
+                    }
                 }
             }
         })

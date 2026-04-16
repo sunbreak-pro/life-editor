@@ -1,7 +1,8 @@
 {
   "$schema": "https://raw.githubusercontent.com/nicerdicer/tauri/dev/crates/tauri-utils/schema/capability.json",
   "identifier": "default",
-  "description": "Default capabilities for Life Editor",
+  "description": "Default capabilities for Life Editor (desktop)",
+  "platforms": ["macOS", "windows", "linux"],
   "windows": ["main"],
   "permissions": [
     "core:default",
@@ -12,6 +13,7 @@
     "core:window:allow-show",
     "core:window:allow-hide",
     "core:window:allow-close",
+    "core:window:allow-start-dragging",
     "core:window:allow-minimize",
     "core:window:allow-maximize",
     "core:window:allow-unmaximize",

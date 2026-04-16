@@ -149,21 +149,28 @@ fn stat_to_entry(root: &Path, path: &Path, meta: &fs::Metadata) -> FileEntry {
 
 #[tauri::command]
 pub async fn files_select_folder(
-    app: tauri::AppHandle,
-    state: State<'_, DbState>,
+    _app: tauri::AppHandle,
+    _state: State<'_, DbState>,
 ) -> Result<Option<String>, String> {
-    use tauri_plugin_dialog::DialogExt;
+    #[cfg(not(mobile))]
+    {
+        use tauri_plugin_dialog::DialogExt;
 
-    let picked = app.dialog().file().blocking_pick_folder();
-    match picked {
-        Some(path) => {
-            let path_str = path.to_string();
-            let conn = state.conn.lock().map_err(|e| e.to_string())?;
-            app_settings_repository::set(&conn, SETTINGS_KEY, &path_str)
-                .map_err(|e| e.to_string())?;
-            Ok(Some(path_str))
+        let picked = _app.dialog().file().blocking_pick_folder();
+        match picked {
+            Some(path) => {
+                let path_str = path.to_string();
+                let conn = _state.conn.lock().map_err(|e| e.to_string())?;
+                app_settings_repository::set(&conn, SETTINGS_KEY, &path_str)
+                    .map_err(|e| e.to_string())?;
+                Ok(Some(path_str))
+            }
+            None => Ok(None),
         }
-        None => Ok(None),
+    }
+    #[cfg(mobile)]
+    {
+        Err("Folder selection is not available on mobile".to_string())
     }
 }
 
@@ -414,7 +421,19 @@ pub fn files_delete(
     if !abs_path.exists() {
         return Err(format!("Not found: {}", relative_path));
     }
-    trash::delete(&abs_path).map_err(|e| e.to_string())
+
+    #[cfg(not(mobile))]
+    {
+        trash::delete(&abs_path).map_err(|e| e.to_string())
+    }
+    #[cfg(mobile)]
+    {
+        if abs_path.is_dir() {
+            std::fs::remove_dir_all(&abs_path).map_err(|e| e.to_string())
+        } else {
+            std::fs::remove_file(&abs_path).map_err(|e| e.to_string())
+        }
+    }
 }
 
 #[tauri::command]
