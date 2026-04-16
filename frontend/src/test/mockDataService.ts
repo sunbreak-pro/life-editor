@@ -514,5 +514,19 @@ export function createMockDataService(): DataService & {
       title: "Mock",
       content: '{"type":"doc","content":[{"type":"paragraph"}]}',
     }),
+    syncConfigure: vi.fn().mockResolvedValue(true),
+    syncTrigger: vi
+      .fn()
+      .mockResolvedValue({ pushed: 0, pulled: 0, timestamp: "" }),
+    syncGetStatus: vi.fn().mockResolvedValue({
+      enabled: false,
+      lastSyncedAt: null,
+      deviceId: null,
+      url: null,
+    }),
+    syncDisconnect: vi.fn().mockResolvedValue(undefined),
+    syncFullDownload: vi
+      .fn()
+      .mockResolvedValue({ pushed: 0, pulled: 0, timestamp: "" }),
   };
 }

@@ -23,68 +23,71 @@ import { ToastProvider } from "./context/ToastContext";
 import { ScreenLockProvider } from "./context/ScreenLockContext";
 import { FileExplorerProvider } from "./context/FileExplorerContext";
 import { TemplateProvider } from "./context/TemplateContext";
-import { isTauri, isTauriMobile } from "./services/bridge";
+import { SyncProvider } from "./context/SyncContext";
+import { isTauriMobile } from "./services/bridge";
 
-const isMobile = !isTauri() || isTauriMobile();
+const isMobile = isTauriMobile();
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <ErrorBoundary>
       <ThemeProvider>
         <ToastProvider>
-          {isMobile ? (
-            <UndoRedoProvider>
-              <TaskTreeProvider>
-                <CalendarProvider>
-                  <TemplateProvider>
-                    <MemoProvider>
-                      <NoteProvider>
-                        <RoutineProvider>
-                          <ScheduleItemsProvider>
-                            <TimerProvider>
-                              <MobileApp local={isTauriMobile()} />
-                            </TimerProvider>
-                          </ScheduleItemsProvider>
-                        </RoutineProvider>
-                      </NoteProvider>
-                    </MemoProvider>
-                  </TemplateProvider>
-                </CalendarProvider>
-              </TaskTreeProvider>
-            </UndoRedoProvider>
-          ) : (
-            <UndoRedoProvider>
-              <ScreenLockProvider>
+          <SyncProvider>
+            {isMobile ? (
+              <UndoRedoProvider>
                 <TaskTreeProvider>
                   <CalendarProvider>
                     <TemplateProvider>
                       <MemoProvider>
                         <NoteProvider>
-                          <FileExplorerProvider>
-                            <RoutineProvider>
-                              <ScheduleItemsProvider>
-                                <CalendarTagsProvider>
-                                  <TimerProvider>
-                                    <AudioProvider>
-                                      <WikiTagProvider>
-                                        <ShortcutConfigProvider>
-                                          <App />
-                                        </ShortcutConfigProvider>
-                                      </WikiTagProvider>
-                                    </AudioProvider>
-                                  </TimerProvider>
-                                </CalendarTagsProvider>
-                              </ScheduleItemsProvider>
-                            </RoutineProvider>
-                          </FileExplorerProvider>
+                          <RoutineProvider>
+                            <ScheduleItemsProvider>
+                              <TimerProvider>
+                                <MobileApp />
+                              </TimerProvider>
+                            </ScheduleItemsProvider>
+                          </RoutineProvider>
                         </NoteProvider>
                       </MemoProvider>
                     </TemplateProvider>
                   </CalendarProvider>
                 </TaskTreeProvider>
-              </ScreenLockProvider>
-            </UndoRedoProvider>
-          )}
+              </UndoRedoProvider>
+            ) : (
+              <UndoRedoProvider>
+                <ScreenLockProvider>
+                  <TaskTreeProvider>
+                    <CalendarProvider>
+                      <TemplateProvider>
+                        <MemoProvider>
+                          <NoteProvider>
+                            <FileExplorerProvider>
+                              <RoutineProvider>
+                                <ScheduleItemsProvider>
+                                  <CalendarTagsProvider>
+                                    <TimerProvider>
+                                      <AudioProvider>
+                                        <WikiTagProvider>
+                                          <ShortcutConfigProvider>
+                                            <App />
+                                          </ShortcutConfigProvider>
+                                        </WikiTagProvider>
+                                      </AudioProvider>
+                                    </TimerProvider>
+                                  </CalendarTagsProvider>
+                                </ScheduleItemsProvider>
+                              </RoutineProvider>
+                            </FileExplorerProvider>
+                          </NoteProvider>
+                        </MemoProvider>
+                      </TemplateProvider>
+                    </CalendarProvider>
+                  </TaskTreeProvider>
+                </ScreenLockProvider>
+              </UndoRedoProvider>
+            )}
+          </SyncProvider>
         </ToastProvider>
       </ThemeProvider>
     </ErrorBoundary>

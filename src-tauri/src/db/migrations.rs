@@ -112,7 +112,8 @@ fn create_full_schema(conn: &Connection) -> rusqlite::Result<()> {
             deleted_at TEXT,
             is_pinned INTEGER DEFAULT 0,
             password_hash TEXT DEFAULT NULL,
-            is_edit_locked INTEGER DEFAULT 0
+            is_edit_locked INTEGER DEFAULT 0,
+            version INTEGER DEFAULT 1
         );
 
         -- ===== AI Settings (singleton) =====
@@ -148,7 +149,8 @@ fn create_full_schema(conn: &Connection) -> rusqlite::Result<()> {
             type TEXT DEFAULT 'note',
             password_hash TEXT DEFAULT NULL,
             is_edit_locked INTEGER DEFAULT 0,
-            icon TEXT DEFAULT NULL
+            icon TEXT DEFAULT NULL,
+            version INTEGER DEFAULT 1
         );
 
         -- ===== Task Tag Definitions =====

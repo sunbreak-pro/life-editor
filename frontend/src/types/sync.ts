@@ -93,3 +93,16 @@ export interface SyncChangesResponse {
   timestamp: string;
   hasMore: boolean;
 }
+
+export interface SyncResult {
+  pushed: number;
+  pulled: number;
+  timestamp: string;
+}
+
+export interface SyncStatus {
+  enabled: boolean;
+  lastSyncedAt: string | null;
+  deviceId: string | null;
+  url: string | null;
+}

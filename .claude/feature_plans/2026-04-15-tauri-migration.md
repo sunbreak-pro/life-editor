@@ -1,6 +1,6 @@
 # Plan: Electron + Capacitor → Tauri 2.0 移行
 
-**Status:** IN_PROGRESS (Phase 0-4 COMPLETED, Phase 5.1-5.3 COMPLETED, Phase 5.4+6 pending)
+**Status:** IN_PROGRESS (Phase 0-4 COMPLETED, Phase 5.1-5.3 COMPLETED, Phase 6 COMPLETED, Phase 5.4 pending)
 **Created:** 2026-04-15
 **Task:** Tauri 2.0 Migration（MEMORY.md）
 **Project:** /Users/newlife/dev/apps/notion-timer

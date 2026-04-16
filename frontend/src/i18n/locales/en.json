@@ -367,6 +367,23 @@
     "unknownError": "Unknown error",
     "openTrash": "Open Trash"
   },
+  "sync": {
+    "title": "Cloud Sync",
+    "connected": "Connected",
+    "cloudUrl": "Cloud URL",
+    "token": "Sync Token",
+    "tokenPlaceholder": "Enter your sync token",
+    "connect": "Connect",
+    "connecting": "Connecting...",
+    "connectFailed": "Connection failed",
+    "disconnect": "Disconnect",
+    "syncNow": "Sync Now",
+    "syncing": "Syncing...",
+    "fullResync": "Full Re-sync",
+    "lastSynced": "Last synced",
+    "lastResult": "Last result",
+    "deviceId": "Device ID"
+  },
   "trash": {
     "title": "Trash",
     "empty": "Trash is empty",

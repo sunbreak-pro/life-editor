@@ -48,6 +48,7 @@ import type {
   PropertyType,
 } from "../types/database";
 import type { Template } from "../types/template";
+import type { SyncResult, SyncStatus } from "../types/sync";
 export interface DataService {
   // Tasks
   fetchTaskTree(): Promise<TaskNode[]>;
@@ -698,4 +699,11 @@ export interface DataService {
   convertFileToTiptap(
     relativeFilePath: string,
   ): Promise<{ title: string; content: string }>;
+
+  // Sync
+  syncConfigure(url: string, token: string): Promise<boolean>;
+  syncTrigger(): Promise<SyncResult>;
+  syncGetStatus(): Promise<SyncStatus>;
+  syncDisconnect(): Promise<void>;
+  syncFullDownload(): Promise<SyncResult>;
 }

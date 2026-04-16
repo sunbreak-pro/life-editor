@@ -1,5 +1,24 @@
 # HISTORY.md - 変更履歴
 
+### 2026-04-16 - Tauri 2.0 Migration: Phase 6 Cloud Sync (CF Workers + D1)
+
+#### 概要
+
+Cloudflare Workers + D1 によるクラウド同期機能を実装。Desktop ↔ iOS 間のデータ同期を実現。Cloud backend (Hono REST API)、Rust sync engine (delta query + batch apply + HTTP client)、Frontend integration (SyncProvider + Settings UI) の3層を新規構築。
+
+#### 変更点
+
+- **Cloud Backend (`cloud/`)**: Hono + Wrangler プロジェクト新規作成。D1 スキーマ（10 versioned テーブル + 8 relation テーブル）、Token 認証ミドルウェア、3 API エンドポイント（`/sync/full`, `/sync/changes`, `/sync/push`）。Last-write-wins 競合解決（version カラム比較）
+- **Rust Sync Engine (`src-tauri/src/sync/`)**: `sync_engine.rs`（collect_local_changes / collect_all / apply_remote_changes）、`http_client.rs`（reqwest + rustls-tls で iOS 対応）、`types.rs`（SyncPayload / SyncResult / SyncStatus / SyncError）。5 Tauri コマンド（sync_configure / sync_trigger / sync_get_status / sync_disconnect / sync_full_download）
+- **Frontend Integration**: SyncProvider/Context（ADR-0002 Pattern A 3ファイル構成）、30秒ポーリング同期、`sync_complete` Tauri Event によるデータ再取得トリガー。Desktop Settings（Advanced > Cloud Sync）+ Mobile Settings に同期設定 UI。DataService + TauriDataService に5メソッド追加
+- **Bug fix**: `create_full_schema()` の memos/notes テーブルに欠落していた `version INTEGER DEFAULT 1` カラムを追加
+- **Bug fix**: `sync_engine.rs` の SQL 文字列補間を `query_all_json_with_params()` によるパラメータバインドに修正
+- **Bug fix**: `SyncContext.tsx` の `isSyncing` stale closure 問題を useRef ガードで修正（interval リセットループ防止）
+- **helpers.rs**: `query_all_json_with_params()` ヘルパー関数追加（パラメータ付き SQL クエリ）
+- **i18n**: en.json / ja.json に sync セクション（16キー）追加
+- **mockDataService.ts**: sync 5メソッドのモック追加
+- **Cargo.toml**: `reqwest` 依存追加（rustls-tls feature、iOS OpenSSL 不要）
+
 ### 2026-04-16 - Tauri 2.0 IPC 引数キー名修正 (snake_case → camelCase)
 
 #### 概要
@@ -70,40 +89,5 @@ Tauri 2.0 移行の Phase 4 Step 4.3 を完了。Electron/Capacitor の全コー
 - **package.json**: root から Electron/Capacitor 依存13パッケージ削除、scripts を `cargo tauri dev`/`cargo tauri build` に更新。frontend から `@capacitor/core`/`idb`/`qrcode-generator` 削除
 - **CLAUDE.md**: アーキテクチャを Electron → Tauri 2.0 に全面更新（全体構成、DataService、開発コマンド、コマンド追加手順）
 - **README.md**: 技術スタック・セットアップ手順を Tauri 2.0 に更新
-
-### 2026-04-16 - Tauri 2.0 Migration: Phase 4 Data I/O + Diagnostics
-
-#### 概要
-
-Tauri 2.0 移行の Phase 4 Step 4.1-4.2 を完了。Data I/O（export/import/reset）3コマンドと Diagnostics 6コマンドのスタブを Rust で本実装。全 V59 テーブル対応のリセット、バックアップ付きインポート/リセット、ファイルダイアログ連携を実装。
-
-#### 変更点
-
-- **helpers.rs**: `query_all_json()` / `query_one_json()` 汎用クエリヘルパー追加。既存 `fetch_deleted_json()` を `query_all_json` のラッパーにリファクタ。`row_to_json()` で ValueRef マッピングを共通化
-- **data_export**: `tauri-plugin-dialog` で save dialog → 15テーブル（tasks, timer_settings, timer_sessions, sound_settings, sound_presets, memos, notes, sound_tag_definitions, sound_tag_assignments, sound_display_meta, calendars, routines, routine_tag_assignments, routine_tag_definitions, schedule_items）をクエリ → JSON メタデータ付きファイル出力
-- **data_import**: open dialog → JSON パース → バリデーション（app名, version, 14 array フィールド, tasks スキーマ検証）→ DB バックアップ作成 → トランザクション内で 13テーブル DELETE + 14エンティティ INSERT（timer_settings は UPDATE）→ 失敗時ロールバック
-- **data_reset**: DB バックアップ → 全 V59 テーブル DELETE（44テーブル、FK依存順）→ timer_settings デフォルトリセット → custom-sounds ファイル削除
-- **diagnostics_fetch_logs**: ログファイル解析（regex パース、level フィルタ、limit 対応）。ログファイル未存在時は空配列
-- **diagnostics_open_log_folder**: `open` crate で `{userData}/logs/` を Finder で開く
-- **diagnostics_export_logs**: save dialog → ログファイルコピー
-- **diagnostics_fetch_system_info**: DB ファイルサイズ + 6テーブル COUNT(\*) + platform/arch/appVersion
-- **Bug fix**: `as_path().unwrap()` → `as_path().ok_or()` に修正（3箇所、パニック防止）
-
-### 2026-04-16 - Tauri 2.0 Migration: Phase 3 ターミナル PTY
-
-#### 概要
-
-Tauri 2.0 移行の Phase 3 を完了。Electron の node-pty ベースターミナルを Rust の portable-pty に移植。ClaudeDetector（Claude Code 状態検出）も Rust に移植。フロントエンド全 19 箇所の直接 IPC 呼び出しを terminalBridge.ts 経由に統一し、Electron/Tauri 両対応を実現。
-
-#### 変更点
-
-- **portable-pty (Rust)**: `pty_manager.rs` 新規作成 — PtyState（Mutex<HashMap> セッション管理）、セッション毎の専用 OS スレッドで blocking read + 16ms バッチング、`terminal_data` / `terminal_claude_status` イベント emit
-- **ClaudeDetector (Rust)**: `claude_detector.rs` 新規作成 — ANSI ストリッピング（regex）、状態機械（inactive/idle/thinking/generating/tool_use/error）、100ms debounce（poll 方式）、LazyLock コンパイル済み regex パターン
-- **5 Tauri コマンド**: `terminal_commands.rs` — terminal_create, terminal_write, terminal_resize, terminal_destroy, terminal_claude_state
-- **terminalBridge.ts**: 新規作成 — isTauri() で Electron/Tauri を振り分ける 5 関数（create, write, resize, destroy, claudeState）
-- **フロントエンド置換**: `useTerminalLayout.ts`（6箇所）、`TerminalPane.tsx`（10箇所 + onTerminalData を events.ts 経由に変更）、`Layout.tsx`（2箇所）— 全 19 箇所の `window.electronAPI?.invoke("terminal:...")` を bridge 経由に統一
-- **バグ修正**: TerminalPane.tsx の `onTerminalData` async unlisten に race condition 修正（disposed フラグパターン）
-- **Cargo.toml**: portable-pty 0.8, regex 1, tokio sync feature 追加
-- **lib.rs**: `mod terminal` + PtyState 管理 + 5 コマンド登録 + window destroy 時 cleanup
 
 <!-- older entries archived to HISTORY-archive.md -->

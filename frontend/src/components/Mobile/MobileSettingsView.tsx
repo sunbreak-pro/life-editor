@@ -1,57 +1,25 @@
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useTheme } from "../../hooks/useTheme";
-import { Sun, Moon, Wifi, WifiOff, Globe, LogOut } from "lucide-react";
-import { isApiConfigured, clearApiCredentials } from "../../config/api";
+import { useSyncContext } from "../../hooks/useSyncContext";
+import {
+  Sun,
+  Moon,
+  Globe,
+  Cloud,
+  RefreshCw,
+  Unplug,
+  Eye,
+  EyeOff,
+} from "lucide-react";
 import type { Language } from "../../context/ThemeContextValue";
 
-interface MobileSettingsViewProps {
-  onDisconnect: () => void;
-  local?: boolean;
-}
-
-export function MobileSettingsView({
-  onDisconnect,
-  local = false,
-}: MobileSettingsViewProps) {
+export function MobileSettingsView() {
   const { t } = useTranslation();
   const { theme, setTheme, language, setLanguage } = useTheme();
 
-  const isConnected = local || isApiConfigured();
-
-  function handleDisconnect() {
-    clearApiCredentials();
-    onDisconnect();
-  }
-
   return (
     <div className="flex h-full flex-col overflow-y-auto">
-      {/* Connection (hidden in local mode — data is stored on-device) */}
-      {!local && (
-        <SettingsSection title={t("mobile.settings.connection", "Connection")}>
-          <div className="flex items-center gap-3 px-4 py-3">
-            {isConnected ? (
-              <Wifi size={18} className="text-notion-success" />
-            ) : (
-              <WifiOff size={18} className="text-notion-text-secondary" />
-            )}
-            <span className="flex-1 text-sm text-notion-text-primary">
-              {isConnected
-                ? t("mobile.settings.connected", "Connected to desktop")
-                : t("mobile.settings.disconnected", "Not connected")}
-            </span>
-            {isConnected && (
-              <button
-                onClick={handleDisconnect}
-                className="flex items-center gap-1.5 rounded-lg border border-notion-danger/30 px-3 py-1.5 text-xs text-notion-danger active:opacity-70"
-              >
-                <LogOut size={12} />
-                {t("mobile.settings.disconnect", "Disconnect")}
-              </button>
-            )}
-          </div>
-        </SettingsSection>
-      )}
-
       {/* Theme */}
       <SettingsSection title={t("mobile.settings.theme", "Theme")}>
         <div className="flex gap-3 px-4 py-3">
@@ -86,6 +54,9 @@ export function MobileSettingsView({
         </div>
       </SettingsSection>
 
+      {/* Cloud Sync */}
+      <MobileSyncSection />
+
       {/* App info */}
       <div className="mt-auto px-4 py-6 text-center">
         <p className="text-xs text-notion-text-secondary/60">
@@ -93,6 +64,126 @@ export function MobileSettingsView({
         </p>
       </div>
     </div>
+  );
+}
+
+function MobileSyncSection() {
+  const { t } = useTranslation();
+  const {
+    status,
+    lastSyncResult,
+    isSyncing,
+    triggerSync,
+    configure,
+    disconnect,
+  } = useSyncContext();
+  const [url, setUrl] = useState(status?.url ?? "");
+  const [token, setToken] = useState("");
+  const [showToken, setShowToken] = useState(false);
+  const [configError, setConfigError] = useState<string | null>(null);
+  const [isConfiguring, setIsConfiguring] = useState(false);
+
+  const isConnected = status?.enabled === true;
+
+  const handleConnect = async () => {
+    setConfigError(null);
+    setIsConfiguring(true);
+    try {
+      const ok = await configure(url, token);
+      if (!ok) setConfigError(t("sync.connectFailed", "Connection failed"));
+      else setToken("");
+    } catch (e) {
+      setConfigError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setIsConfiguring(false);
+    }
+  };
+
+  return (
+    <SettingsSection title={t("sync.title", "Cloud Sync")}>
+      <div className="px-4 py-3 space-y-3">
+        {isConnected ? (
+          <>
+            <div className="flex items-center gap-2">
+              <div className="w-2 h-2 rounded-full bg-green-500" />
+              <span className="text-sm text-notion-text">
+                {t("sync.connected", "Connected")}
+              </span>
+            </div>
+            {status?.lastSyncedAt && (
+              <p className="text-xs text-notion-text-secondary">
+                {t("sync.lastSynced", "Last synced")}:{" "}
+                {new Date(status.lastSyncedAt).toLocaleString()}
+              </p>
+            )}
+            {lastSyncResult && (
+              <p className="text-xs text-notion-text-secondary">
+                {lastSyncResult.pushed} pushed, {lastSyncResult.pulled} pulled
+              </p>
+            )}
+            <div className="flex gap-2">
+              <button
+                onClick={triggerSync}
+                disabled={isSyncing}
+                className="flex flex-1 items-center justify-center gap-2 rounded-xl border-2 border-notion-accent bg-notion-accent/10 py-2.5 text-sm font-medium text-notion-accent disabled:opacity-50"
+              >
+                <RefreshCw
+                  size={14}
+                  className={isSyncing ? "animate-spin" : ""}
+                />
+                {isSyncing
+                  ? t("sync.syncing", "Syncing...")
+                  : t("sync.syncNow", "Sync Now")}
+              </button>
+              <button
+                onClick={disconnect}
+                className="flex items-center justify-center gap-2 rounded-xl border-2 border-notion-border px-4 py-2.5 text-sm text-notion-text-secondary active:bg-notion-hover"
+              >
+                <Unplug size={14} />
+              </button>
+            </div>
+          </>
+        ) : (
+          <>
+            <input
+              type="text"
+              value={url}
+              onChange={(e) => setUrl(e.target.value)}
+              placeholder={t("sync.cloudUrl", "Cloud URL")}
+              className="w-full rounded-lg border border-notion-border bg-notion-bg px-3 py-2 text-sm text-notion-text"
+            />
+            <div className="relative">
+              <input
+                type={showToken ? "text" : "password"}
+                value={token}
+                onChange={(e) => setToken(e.target.value)}
+                placeholder={t("sync.token", "Sync Token")}
+                className="w-full rounded-lg border border-notion-border bg-notion-bg px-3 py-2 pr-10 text-sm text-notion-text"
+              />
+              <button
+                onClick={() => setShowToken(!showToken)}
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-notion-text-secondary"
+              >
+                {showToken ? <EyeOff size={16} /> : <Eye size={16} />}
+              </button>
+            </div>
+            {configError && (
+              <p className="text-xs text-notion-danger">{configError}</p>
+            )}
+            <button
+              onClick={handleConnect}
+              disabled={isConfiguring || !url || !token}
+              className="flex w-full items-center justify-center gap-2 rounded-xl border-2 border-notion-accent bg-notion-accent/10 py-2.5 text-sm font-medium text-notion-accent disabled:opacity-50"
+            >
+              <Cloud size={14} />
+              {isConfiguring
+                ? t("sync.connecting", "Connecting...")
+                : t("sync.connect", "Connect")}
+            </button>
+          </>
+        )}
+      </div>
+    </SettingsSection>
   );
 }
 

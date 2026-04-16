@@ -72,3 +72,15 @@ export async function onFileChange(
     (event) => callback(event.payload),
   );
 }
+
+export async function emitSyncComplete(): Promise<void> {
+  const { emit } = await getTauriEvent();
+  emit("sync_complete", {});
+}
+
+export async function onSyncComplete(
+  callback: () => void,
+): Promise<UnlistenFn> {
+  const { listen } = await getTauriEvent();
+  return listen("sync_complete", () => callback());
+}

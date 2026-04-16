@@ -12,6 +12,7 @@ import {
   Download,
   Gauge,
   Cog,
+  Cloud,
   FileCode,
   Puzzle,
   Timer,
@@ -50,6 +51,7 @@ import { SkillsManager } from "./SkillsManager";
 import { BehaviorSettings } from "./BehaviorSettings";
 import { SystemSettings } from "./SystemSettings";
 import { FilesSettings } from "./FilesSettings";
+import { SyncSettings } from "./SyncSettings";
 import { RightSidebarContext } from "../../context/RightSidebarContext";
 import type { ShortcutCategory } from "../../types/shortcut";
 import { useSettingsHistory } from "../../hooks/useSettingsHistory";
@@ -88,7 +90,13 @@ type GeneralSub =
   | "notifications"
   | "timer"
   | "behaviors";
-type AdvancedSub = "data" | "updates" | "devtools" | "system" | "files";
+type AdvancedSub =
+  | "data"
+  | "sync"
+  | "updates"
+  | "devtools"
+  | "system"
+  | "files";
 type ClaudeSub = "setup" | "mcpTools" | "claudeMd" | "skills";
 type ShortcutsSub =
   | "global"
@@ -107,6 +115,7 @@ const GENERAL_SUBS: readonly TabItem<GeneralSub>[] = [
 ];
 const ADVANCED_SUBS: readonly TabItem<AdvancedSub>[] = [
   { id: "data", labelKey: "data.title", icon: Database },
+  { id: "sync", labelKey: "sync.title", icon: Cloud },
   { id: "updates", labelKey: "updates.title", icon: Download },
   { id: "devtools", labelKey: "settings.developerTools", icon: Gauge },
   { id: "system", labelKey: "settings.system", icon: Monitor },
@@ -367,6 +376,8 @@ export function Settings({ initialTab }: SettingsProps) {
         switch (advancedSub) {
           case "data":
             return <DataManagement />;
+          case "sync":
+            return <SyncSettings />;
           case "updates":
             return <UpdateSettings />;
           case "devtools":
@@ -380,6 +391,8 @@ export function Settings({ initialTab }: SettingsProps) {
       return (
         <div className="space-y-8">
           <DataManagement />
+          <div className="border-t border-notion-border" />
+          <SyncSettings />
           <div className="border-t border-notion-border" />
           <UpdateSettings />
           <div className="border-t border-notion-border" />

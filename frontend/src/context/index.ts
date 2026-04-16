@@ -71,3 +71,7 @@ export type { WikiTagContextValue } from "./WikiTagContextValue";
 export { TemplateProvider } from "./TemplateContext";
 export { TemplateContext } from "./TemplateContextValue";
 export type { TemplateContextValue } from "./TemplateContextValue";
+
+export { SyncProvider } from "./SyncContext";
+export { SyncContext } from "./SyncContextValue";
+export type { SyncContextValue } from "./SyncContextValue";

@@ -12,10 +12,11 @@
 
 ## 直近の完了
 
+- Tauri 2.0 Migration Phase 6: Cloud Sync (CF Workers + D1) ✅（2026-04-16）
 - Tauri 2.0 IPC 引数キー名修正 (snake_case → camelCase) ✅（2026-04-16）
 - Electron コード・依存関係の完全削除 ✅（2026-04-16）
-- Tauri 2.0 Migration Phase 5 iOS Target (Steps 5.1-5.3) ✅（2026-04-16）
 
 ## 予定
 
+- Tauri 2.0 Migration Phase 5.4: 既存 Capacitor ユーザーのデータ移行
 - App Optimization Phase 4: TaskNode Map, usePlaylistEngine Effect統合, ColorPicker統合, TaskDetailHeader breadcrumb削除

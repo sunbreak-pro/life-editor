@@ -6,6 +6,7 @@ mod file_watcher;
 #[cfg(not(mobile))]
 mod menu;
 mod reminder;
+mod sync;
 #[cfg(not(mobile))]
 mod shortcuts;
 #[cfg(not(mobile))]
@@ -401,6 +402,12 @@ pub fn run() {
             commands::terminal_commands::terminal_resize,
             commands::terminal_commands::terminal_destroy,
             commands::terminal_commands::terminal_claude_state,
+            // Sync
+            commands::sync_commands::sync_configure,
+            commands::sync_commands::sync_trigger,
+            commands::sync_commands::sync_get_status,
+            commands::sync_commands::sync_disconnect,
+            commands::sync_commands::sync_full_download,
         ])
         .on_window_event(|_window, _event| {
             #[cfg(not(mobile))]

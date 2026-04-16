@@ -98,6 +98,23 @@ pub fn query_all_json(conn: &Connection, sql: &str) -> rusqlite::Result<Vec<Valu
     rows.collect()
 }
 
+/// Execute a parameterized SELECT and return all rows as JSON values
+pub fn query_all_json_with_params(
+    conn: &Connection,
+    sql: &str,
+    params: &[&dyn rusqlite::types::ToSql],
+) -> rusqlite::Result<Vec<Value>> {
+    let mut stmt = conn.prepare(sql)?;
+    let col_count = stmt.column_count();
+    let col_names: Vec<String> = (0..col_count)
+        .map(|i| stmt.column_name(i).unwrap().to_string())
+        .collect();
+
+    let rows = stmt.query_map(params, |row| Ok(row_to_json(row, &col_names)))?;
+
+    rows.collect()
+}
+
 /// Execute an arbitrary SELECT and return the first row as JSON (or None)
 pub fn query_one_json(conn: &Connection, sql: &str) -> rusqlite::Result<Option<Value>> {
     let mut stmt = conn.prepare(sql)?;

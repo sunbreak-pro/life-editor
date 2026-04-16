@@ -49,6 +49,7 @@ import type {
   PropertyType,
 } from "../types/database";
 import type { Template } from "../types/template";
+import type { SyncResult, SyncStatus } from "../types/sync";
 import { tauriInvoke } from "./bridge";
 
 export class TauriDataService implements DataService {
@@ -1384,5 +1385,22 @@ export class TauriDataService implements DataService {
     return tauriInvoke("copy_convert_file_to_tiptap", {
       relativeFilePath,
     });
+  }
+
+  // --- Sync ---
+  syncConfigure(url: string, token: string): Promise<boolean> {
+    return tauriInvoke("sync_configure", { url, token });
+  }
+  syncTrigger(): Promise<SyncResult> {
+    return tauriInvoke("sync_trigger");
+  }
+  syncGetStatus(): Promise<SyncStatus> {
+    return tauriInvoke("sync_get_status");
+  }
+  syncDisconnect(): Promise<void> {
+    return tauriInvoke("sync_disconnect");
+  }
+  syncFullDownload(): Promise<SyncResult> {
+    return tauriInvoke("sync_full_download");
   }
 }

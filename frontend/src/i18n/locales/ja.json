@@ -367,6 +367,23 @@
     "unknownError": "不明なエラー",
     "openTrash": "ゴミ箱を開く"
   },
+  "sync": {
+    "title": "クラウド同期",
+    "connected": "接続済み",
+    "cloudUrl": "クラウドURL",
+    "token": "同期トークン",
+    "tokenPlaceholder": "同期トークンを入力",
+    "connect": "接続",
+    "connecting": "接続中...",
+    "connectFailed": "接続に失敗しました",
+    "disconnect": "切断",
+    "syncNow": "今すぐ同期",
+    "syncing": "同期中...",
+    "fullResync": "完全再同期",
+    "lastSynced": "最終同期",
+    "lastResult": "最終結果",
+    "deviceId": "デバイスID"
+  },
   "trash": {
     "title": "ゴミ箱",
     "empty": "ゴミ箱は空です",

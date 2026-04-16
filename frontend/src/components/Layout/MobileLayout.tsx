@@ -1,65 +1,21 @@
 import { type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
-import type { ConnectionState } from "../../hooks/useRealtimeSync";
-import type { SyncStatus } from "../../hooks/useOnlineStatus";
 import { FileText, Calendar, Timer, Settings } from "lucide-react";
 
 export type MobileTab = "materials" | "calendar" | "work" | "settings";
-
-type ExtendedConnectionState = ConnectionState | "syncing" | "pending";
 
 interface MobileLayoutProps {
   children: ReactNode;
   activeTab: MobileTab;
   onTabChange: (tab: MobileTab) => void;
-  connectionState?: ConnectionState;
-  syncStatus?: SyncStatus;
-  pendingCount?: number;
-}
-
-const CONNECTION_COLORS: Record<ExtendedConnectionState, string> = {
-  connected: "bg-green-500",
-  connecting: "bg-yellow-500",
-  disconnected: "bg-red-500",
-  syncing: "bg-blue-500",
-  pending: "bg-amber-500",
-};
-
-function getEffectiveState(
-  connectionState: ConnectionState,
-  syncStatus?: SyncStatus,
-): ExtendedConnectionState {
-  if (syncStatus === "syncing") return "syncing";
-  if (syncStatus === "pending") return "pending";
-  return connectionState;
-}
-
-function getStatusLabel(state: ExtendedConnectionState): string {
-  switch (state) {
-    case "connected":
-      return "Live";
-    case "connecting":
-      return "...";
-    case "syncing":
-      return "Syncing";
-    case "pending":
-      return "Pending";
-    case "disconnected":
-      return "Offline";
-  }
 }
 
 export function MobileLayout({
   children,
   activeTab,
   onTabChange,
-  connectionState = "disconnected",
-  syncStatus,
-  pendingCount = 0,
 }: MobileLayoutProps) {
   const { t } = useTranslation();
-
-  const effectiveState = getEffectiveState(connectionState, syncStatus);
 
   const tabs: Array<{
     id: MobileTab;
@@ -91,24 +47,6 @@ export function MobileLayout({
         <h1 className="text-lg font-semibold text-notion-text-primary">
           Life Editor
         </h1>
-        <div className="ml-auto flex items-center gap-1.5">
-          {effectiveState === "syncing" && (
-            <span className="inline-block h-2 w-2 animate-spin rounded-full border border-blue-500 border-t-transparent" />
-          )}
-          {effectiveState !== "syncing" && (
-            <span
-              className={`inline-block h-2 w-2 rounded-full ${CONNECTION_COLORS[effectiveState]}`}
-            />
-          )}
-          <span className="text-xs text-notion-text-secondary">
-            {getStatusLabel(effectiveState)}
-          </span>
-          {pendingCount > 0 && (
-            <span className="ml-1 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-amber-500 px-1 text-[10px] font-medium text-white">
-              {pendingCount}
-            </span>
-          )}
-        </div>
       </header>
 
       {/* Main content */}

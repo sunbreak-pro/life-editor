@@ -1,3 +1,32 @@
+### 2026-04-16 - Tauri 2.0 Migration: Phase 4 Data I/O + Diagnostics
+
+#### 概要
+
+Tauri 2.0 移行の Phase 4 Step 4.1-4.2 を完了。Data I/O（export/import/reset）3コマンドと Diagnostics 6コマンドのスタブを Rust で本実装。全 V59 テーブル対応のリセット、バックアップ付きインポート/リセット、ファイルダイアログ連携を実装。
+
+#### 変更点
+
+- **helpers.rs**: `query_all_json()` / `query_one_json()` 汎用クエリヘルパー追加。既存 `fetch_deleted_json()` を `query_all_json` のラッパーにリファクタ。`row_to_json()` で ValueRef マッピングを共通化
+- **data_export**: `tauri-plugin-dialog` で save dialog → 15テーブル → JSON メタデータ付きファイル出力
+- **data_import**: open dialog → JSON パース → バリデーション → DB バックアップ → トランザクション内で 13テーブル DELETE + 14エンティティ INSERT → 失敗時ロールバック
+- **data_reset**: DB バックアップ → 全 V59 テーブル DELETE（44テーブル、FK依存順）→ timer_settings デフォルトリセット → custom-sounds ファイル削除
+- **diagnostics**: fetch_logs, open_log_folder, export_logs, fetch_system_info, fetch_metrics, reset_metrics の6コマンド実装
+- **Bug fix**: `as_path().unwrap()` → `as_path().ok_or()` に修正（3箇所、パニック防止）
+
+### 2026-04-16 - Tauri 2.0 Migration: Phase 3 ターミナル PTY
+
+#### 概要
+
+Tauri 2.0 移行の Phase 3 を完了。Electron の node-pty ベースターミナルを Rust の portable-pty に移植。ClaudeDetector も Rust に移植。フロントエンド全 19 箇所の直接 IPC 呼び出しを terminalBridge.ts 経由に統一。
+
+#### 変更点
+
+- **portable-pty (Rust)**: `pty_manager.rs` — PtyState, blocking read + 16ms バッチング, terminal_data / terminal_claude_status イベント emit
+- **ClaudeDetector (Rust)**: `claude_detector.rs` — ANSI ストリッピング、状態機械、100ms debounce
+- **5 Tauri コマンド**: terminal_create, terminal_write, terminal_resize, terminal_destroy, terminal_claude_state
+- **terminalBridge.ts + フロントエンド**: 19箇所の直接 IPC → bridge 経由に統一
+- **バグ修正**: TerminalPane.tsx の async unlisten race condition 修正
+
 ### 2026-04-16 - Tauri 2.0 Migration: Phase 2.2〜2.7 システム統合完了
 
 #### 概要
