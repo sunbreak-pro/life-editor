@@ -31,3 +31,4 @@ pub mod copy_commands;
 pub mod reminder_commands;
 pub mod updater_commands;
 pub mod claude_commands;
+pub mod terminal_commands;

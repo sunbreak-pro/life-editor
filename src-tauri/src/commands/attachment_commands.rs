@@ -4,7 +4,7 @@ use tauri::{AppHandle, Manager};
 
 #[tauri::command]
 pub fn attachment_save(app: AppHandle, meta: Value, data: Vec<u8>) -> Result<(), String> {
-    let data_dir = app.path().app_data_dir().map_err(|e| e.to_string())?;
+    let data_dir = dirs::data_dir().ok_or("failed to resolve data dir")?.join("life-editor");
     let meta: attachment_repository::AttachmentMeta =
         serde_json::from_value(meta).map_err(|e| e.to_string())?;
     attachment_repository::save_meta(&data_dir, &meta)?;
@@ -13,18 +13,18 @@ pub fn attachment_save(app: AppHandle, meta: Value, data: Vec<u8>) -> Result<(),
 
 #[tauri::command]
 pub fn attachment_load(app: AppHandle, id: String) -> Result<Option<Vec<u8>>, String> {
-    let data_dir = app.path().app_data_dir().map_err(|e| e.to_string())?;
+    let data_dir = dirs::data_dir().ok_or("failed to resolve data dir")?.join("life-editor");
     attachment_repository::load_blob(&data_dir, &id)
 }
 
 #[tauri::command]
 pub fn attachment_delete(app: AppHandle, id: String) -> Result<(), String> {
-    let data_dir = app.path().app_data_dir().map_err(|e| e.to_string())?;
+    let data_dir = dirs::data_dir().ok_or("failed to resolve data dir")?.join("life-editor");
     attachment_repository::delete_permanent(&data_dir, &id)
 }
 
 #[tauri::command]
 pub fn attachment_fetch_metas(app: AppHandle) -> Result<Vec<attachment_repository::AttachmentMeta>, String> {
-    let data_dir = app.path().app_data_dir().map_err(|e| e.to_string())?;
+    let data_dir = dirs::data_dir().ok_or("failed to resolve data dir")?.join("life-editor");
     attachment_repository::fetch_all_metas(&data_dir)
 }

@@ -2,6 +2,8 @@ import { useEffect, useRef } from "react";
 import { Terminal } from "@xterm/xterm";
 import { FitAddon } from "@xterm/addon-fit";
 import "@xterm/xterm/css/xterm.css";
+import { terminalWrite, terminalResize } from "../../services/terminalBridge";
+import { onTerminalData } from "../../services/events";
 
 const CATPPUCCIN_MOCHA = {
   background: "#11111b",
@@ -60,12 +62,7 @@ export function TerminalPane({ sessionId, onFocus }: TerminalPaneProps) {
     // Delay fit to ensure container is measured
     requestAnimationFrame(() => {
       fitAddon.fit();
-      window.electronAPI?.invoke(
-        "terminal:resize",
-        sessionId,
-        term.cols,
-        term.rows,
-      );
+      terminalResize(sessionId, term.cols, term.rows);
     });
 
     termRef.current = term;
@@ -80,7 +77,7 @@ export function TerminalPane({ sessionId, onFocus }: TerminalPaneProps) {
           const seq = term.modes.bracketedPasteMode
             ? "\x1b[200~\n\x1b[201~"
             : "\x16\n";
-          window.electronAPI?.invoke("terminal:write", sessionId, seq);
+          terminalWrite(sessionId, seq);
         }
         return false;
       }
@@ -89,32 +86,32 @@ export function TerminalPane({ sessionId, onFocus }: TerminalPaneProps) {
 
       // cmd+backspace → line clear (\x15 = Ctrl+U)
       if (e.metaKey && e.code === "Backspace") {
-        window.electronAPI?.invoke("terminal:write", sessionId, "\x15");
+        terminalWrite(sessionId, "\x15");
         return false;
       }
       // cmd+→ → End key (xterm-256color)
       if (e.metaKey && e.code === "ArrowRight") {
-        window.electronAPI?.invoke("terminal:write", sessionId, "\x1bOF");
+        terminalWrite(sessionId, "\x1bOF");
         return false;
       }
       // cmd+← → Home key (xterm-256color)
       if (e.metaKey && e.code === "ArrowLeft") {
-        window.electronAPI?.invoke("terminal:write", sessionId, "\x1bOH");
+        terminalWrite(sessionId, "\x1bOH");
         return false;
       }
       // cmd+z → Undo (readline/zsh Ctrl+_)
       if (e.metaKey && !e.shiftKey && e.code === "KeyZ") {
-        window.electronAPI?.invoke("terminal:write", sessionId, "\x1f");
+        terminalWrite(sessionId, "\x1f");
         return false;
       }
       // cmd+↑ → beginning-of-buffer-or-history (ESC-<)
       if (e.metaKey && e.code === "ArrowUp") {
-        window.electronAPI?.invoke("terminal:write", sessionId, "\x1b<");
+        terminalWrite(sessionId, "\x1b<");
         return false;
       }
       // cmd+↓ → end-of-buffer-or-history (ESC->)
       if (e.metaKey && e.code === "ArrowDown") {
-        window.electronAPI?.invoke("terminal:write", sessionId, "\x1b>");
+        terminalWrite(sessionId, "\x1b>");
         return false;
       }
       // cmd+j/w/t/d → let DOM handle these (panel-level shortcuts)
@@ -126,36 +123,38 @@ export function TerminalPane({ sessionId, onFocus }: TerminalPaneProps) {
 
     // Handle user input → IPC write
     const onDataDispose = term.onData((data) => {
-      window.electronAPI?.invoke("terminal:write", sessionId, data);
+      terminalWrite(sessionId, data);
     });
 
     // Handle PTY output → term write
-    const cleanup = window.electronAPI?.onTerminalData(
-      (sid: string, data: string) => {
-        if (sid === sessionId) {
-          term.write(data);
-        }
-      },
-    );
+    let unlistenTermData: (() => void) | undefined;
+    let disposed = false;
+    onTerminalData((sid: string, data: string) => {
+      if (sid === sessionId) {
+        term.write(data);
+      }
+    }).then((fn) => {
+      if (disposed) {
+        fn(); // Component already unmounted — unlisten immediately
+      } else {
+        unlistenTermData = fn;
+      }
+    });
 
     // ResizeObserver → fit + IPC resize
     const observer = new ResizeObserver(() => {
       requestAnimationFrame(() => {
         fitAddon.fit();
-        window.electronAPI?.invoke(
-          "terminal:resize",
-          sessionId,
-          term.cols,
-          term.rows,
-        );
+        terminalResize(sessionId, term.cols, term.rows);
       });
     });
     observer.observe(containerRef.current);
 
     return () => {
+      disposed = true;
       observer.disconnect();
       onDataDispose.dispose();
-      cleanup?.();
+      unlistenTermData?.();
       term.dispose();
       termRef.current = null;
       fitAddonRef.current = null;

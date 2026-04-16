@@ -258,7 +258,7 @@ pub fn soft_delete(conn: &Connection, id: &str) -> Result<()> { ... }
 
 **目的**: node-pty → portable-pty (Rust) に置換。xterm.js (フロント) は変更なし。
 
-### [ ] Step 3.1: Rust PTY マネージャー
+### [x] Step 3.1: Rust PTY マネージャー
 
 - `portable_pty::native_pty_system().openpty()` でシェル起動
 - 出力読み取りスレッド + 16ms バッチング（現行と同一仕様）
@@ -266,13 +266,13 @@ pub fn soft_delete(conn: &Connection, id: &str) -> Result<()> { ... }
 - **新規:** `src-tauri/src/terminal/mod.rs`, `src-tauri/src/terminal/pty_manager.rs`
 - **既存参照:** `electron/terminal/TerminalManager.ts` (132行)
 
-### [ ] Step 3.2: Claude Detector
+### [x] Step 3.2: Claude Detector
 
 - ANSI ストリッピング + 正規表現パターンマッチを Rust に移植
 - **新規:** `src-tauri/src/terminal/claude_detector.rs`
 - **既存参照:** `electron/terminal/ClaudeDetector.ts` (118行)
 
-### [ ] Step 3.3: ターミナルコマンド登録
+### [x] Step 3.3: ターミナルコマンド登録
 
 - `terminal_create`, `terminal_write`, `terminal_resize`, `terminal_destroy`
 - **新規:** `src-tauri/src/commands/terminal_commands.rs`

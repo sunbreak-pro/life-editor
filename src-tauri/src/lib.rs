@@ -5,6 +5,7 @@ mod file_watcher;
 mod menu;
 mod reminder;
 mod shortcuts;
+mod terminal;
 mod tray;
 
 use db::DbState;
@@ -21,10 +22,10 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_notification::init())
         .setup(|app| {
-            let data_dir = app
-                .path()
-                .app_data_dir()
-                .expect("failed to resolve app data dir");
+            // Use the same data directory as the Electron version
+            let data_dir = dirs::data_dir()
+                .expect("failed to resolve data dir")
+                .join("life-editor");
             let conn =
                 db::init_database(&data_dir).expect("failed to initialize database");
             app.manage(DbState {
@@ -75,6 +76,12 @@ pub fn run() {
                     let handle = app.handle().clone();
                     file_watcher::start(&handle, &root_path);
                 }
+            }
+
+            // Initialize terminal PTY manager
+            {
+                let handle = app.handle().clone();
+                app.manage(terminal::pty_manager::PtyState::new(handle));
             }
 
             // Start background services
@@ -370,7 +377,22 @@ pub fn run() {
             commands::claude_commands::claude_list_installed_skills,
             commands::claude_commands::claude_install_skill,
             commands::claude_commands::claude_uninstall_skill,
+            // Terminal
+            commands::terminal_commands::terminal_create,
+            commands::terminal_commands::terminal_write,
+            commands::terminal_commands::terminal_resize,
+            commands::terminal_commands::terminal_destroy,
+            commands::terminal_commands::terminal_claude_state,
         ])
+        .on_window_event(|window, event| {
+            if let tauri::WindowEvent::Destroyed = event {
+                if let Some(pty_state) =
+                    window.try_state::<terminal::pty_manager::PtyState>()
+                {
+                    pty_state.destroy_all();
+                }
+            }
+        })
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

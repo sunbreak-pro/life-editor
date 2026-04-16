@@ -14,6 +14,10 @@ import { useLocalStorage } from "../../hooks/useLocalStorage";
 import { useTaskTreeContext } from "../../hooks/useTaskTreeContext";
 import { useExternalDataSync } from "../../hooks/useExternalDataSync";
 import { useShortcutConfig } from "../../hooks/useShortcutConfig";
+import {
+  terminalClaudeState,
+  terminalWrite,
+} from "../../services/terminalBridge";
 
 import {
   RightSidebarContext,
@@ -176,8 +180,6 @@ export function Layout({
           if (!terminalOpen) setTerminalOpen(true);
           if (terminalMinimized) setTerminalMinimized(false);
 
-          const api = window.electronAPI;
-
           // Wait for active session (terminal may need to initialize)
           let sessionId: string | null = null;
           for (let i = 0; i < 30; i++) {
@@ -189,13 +191,11 @@ export function Layout({
           if (!sessionId) return;
 
           // Check current Claude state via IPC
-          const currentState: string =
-            (await api?.invoke("terminal:claudeState", sessionId)) ??
-            "inactive";
+          const currentState = await terminalClaudeState(sessionId);
 
           if (currentState === "inactive") {
             // Claude not running - launch it
-            await api?.invoke("terminal:write", sessionId, "claude\n");
+            await terminalWrite(sessionId, "claude\n");
           }
         },
       };

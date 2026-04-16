@@ -1,5 +1,22 @@
 # HISTORY.md - 変更履歴
 
+### 2026-04-16 - Tauri 2.0 Migration: Phase 3 ターミナル PTY
+
+#### 概要
+
+Tauri 2.0 移行の Phase 3 を完了。Electron の node-pty ベースターミナルを Rust の portable-pty に移植。ClaudeDetector（Claude Code 状態検出）も Rust に移植。フロントエンド全 19 箇所の直接 IPC 呼び出しを terminalBridge.ts 経由に統一し、Electron/Tauri 両対応を実現。
+
+#### 変更点
+
+- **portable-pty (Rust)**: `pty_manager.rs` 新規作成 — PtyState（Mutex<HashMap> セッション管理）、セッション毎の専用 OS スレッドで blocking read + 16ms バッチング、`terminal_data` / `terminal_claude_status` イベント emit
+- **ClaudeDetector (Rust)**: `claude_detector.rs` 新規作成 — ANSI ストリッピング（regex）、状態機械（inactive/idle/thinking/generating/tool_use/error）、100ms debounce（poll 方式）、LazyLock コンパイル済み regex パターン
+- **5 Tauri コマンド**: `terminal_commands.rs` — terminal_create, terminal_write, terminal_resize, terminal_destroy, terminal_claude_state
+- **terminalBridge.ts**: 新規作成 — isTauri() で Electron/Tauri を振り分ける 5 関数（create, write, resize, destroy, claudeState）
+- **フロントエンド置換**: `useTerminalLayout.ts`（6箇所）、`TerminalPane.tsx`（10箇所 + onTerminalData を events.ts 経由に変更）、`Layout.tsx`（2箇所）— 全 19 箇所の `window.electronAPI?.invoke("terminal:...")` を bridge 経由に統一
+- **バグ修正**: TerminalPane.tsx の `onTerminalData` async unlisten に race condition 修正（disposed フラグパターン）
+- **Cargo.toml**: portable-pty 0.8, regex 1, tokio sync feature 追加
+- **lib.rs**: `mod terminal` + PtyState 管理 + 5 コマンド登録 + window destroy 時 cleanup
+
 ### 2026-04-16 - Tauri 2.0 Migration: Phase 2.2〜2.7 システム統合完了
 
 #### 概要
@@ -65,26 +82,5 @@ Tauri 2.0 移行の中核実装。フロントエンド IPC ブリッジ層（Ph
 - **機能計画**: 5ファイルの Project パスを `/dev/apps/life-editor` に更新
 - **アーカイブ/ロードマップ**: 2ファイルのプロジェクト名・タイトルを更新
 - **意図的に保持**: `renameMigration.ts`、`migrateStorageKeys.ts`、`dataIOHandlers.ts`（マイグレーション/後方互換）、`HISTORY-archive.md`（歴史的記録）
-
-### 2026-04-14 - Note/Daily テンプレート機能 + フォルダアクションボタン + DnD修正
-
-#### 概要
-
-Note/Daily 作成時にリッチテキストテンプレートを自動適用するテンプレートシステムを新規実装。Note サイドバーのフォルダにホバー時の＋ボタン追加。展開中フォルダへの DnD ドロップがフォルダ外に配置されるバグを修正。
-
-#### 変更点
-
-- **DB Migration V59**: `templates` テーブル新規作成（id, name, content, is_deleted, deleted_at, version, created_at, updated_at）
-- **templateRepository + templateHandlers**: CRUD リポジトリ・IPC ハンドラ新規作成（6チャンネル: fetchAll, fetchById, create, update, softDelete, permanentDelete）
-- **DataService 全層**: Template CRUD 6メソッドを DataService / ElectronDataService / OfflineDataService / RestDataService / mockDataService に追加
-- **useTemplates フック**: テンプレート管理（CRUD + デフォルト設定）。デフォルトID は `app_settings` テーブルに `default_template_note` / `default_template_daily` キーで保存
-- **Template Context (Pattern A)**: `TemplateContextValue.ts` + `TemplateContext.tsx` + `useTemplateContext.ts` の3ファイル構成。デスクトップ/モバイル両方の Provider ツリーに追加
-- **TemplateManager UI**: サイドバー下部に配置。テンプレート一覧・インライン名前編集・TipTap 内容編集・★デフォルトトグル・削除確認ダイアログ。Note/Daily 両サイドバーに統合
-- **テンプレート適用**: Note 作成時に `getDefaultNoteContent()` で初期コンテンツ設定。Daily 作成時も同様
-- **createNote parentId 対応**: `noteRepository.create()` / IPC / DataService 全層に `parentId` パラメータ追加
-- **NoteTreeNode フォルダアクション**: フォルダホバー時に `Plus`（+ノート）/ `LucideFolderPlus`（+フォルダ）ボタン表示。クリックでフォルダ直下に作成 + 自動展開
-- **DnD バグ修正**: `useNoteTreeDnd` に `expandedIds` パラメータ追加。展開中フォルダの下部にドロップ → フォルダ内先頭に挿入（`moveNodeInto` に `insertIndex` パラメータ追加）
-- **テスト**: `useNoteTreeMovement.test.ts` 新規作成（5テスト: moveNodeInto default/insertIndex=0/reject non-folder/reject already-in-target/reject circular）
-- **i18n**: `templates.*` キー10件を en/ja に追加
 
 <!-- older entries archived to HISTORY-archive.md -->

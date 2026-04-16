@@ -4,12 +4,12 @@
 
 ### ⏸️ Tauri 2.0 Migration（着手日: 2026-04-15）
 
-**対象**: `src-tauri/`, `frontend/src/services/bridge.ts`, `frontend/src/services/TauriDataService.ts`
+**対象**: `src-tauri/`, `frontend/src/services/bridge.ts`, `frontend/src/services/TauriDataService.ts`, `frontend/src/services/terminalBridge.ts`
 **計画書**: `.claude/feature_plans/2026-04-15-tauri-migration.md`
 
-- Phase 0〜1 完了: scaffold + IPC ブリッジ + DB層全27リポジトリ + 全コマンド
-- Phase 2 完了: メニュー + トレイ + ショートカット + アップデーター + ファイルシステム + 監視 + リマインダー + アーカイブ + Claude/MCP
-- 次: Phase 3（ターミナル PTY）
+- 前回: Phase 3 完了 — portable-pty (Rust) + ClaudeDetector + 5 Tauri コマンド + terminalBridge.ts (フロント19箇所置換)
+- 現在: Phase 0〜3 全完了（scaffold + DB + システム統合 + ターミナル PTY）
+- 次: Phase 4（残機能: Data I/O, 診断 + Electron コード除去）
 
 ### ⏸️ Capacitor iOS Standalone App（着手日: 2026-04-14）
 

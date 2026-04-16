@@ -29,10 +29,14 @@ fn get_mcp_server_path() -> String {
     dev_path.to_string_lossy().to_string()
 }
 
-fn get_db_path(app: &AppHandle) -> String {
-    app.path()
-        .app_data_dir()
-        .map(|p| p.join("life-editor.db").to_string_lossy().to_string())
+fn get_db_path() -> String {
+    dirs::data_dir()
+        .map(|p| {
+            p.join("life-editor")
+                .join("life-editor.db")
+                .to_string_lossy()
+                .to_string()
+        })
         .unwrap_or_default()
 }
 
@@ -84,7 +88,7 @@ fn setup_life_editor_dir(app: &AppHandle, state: &State<'_, DbState>) {
                 "command": "node",
                 "args": [get_mcp_server_path()],
                 "env": {
-                    "DB_PATH": get_db_path(app),
+                    "DB_PATH": get_db_path(),
                     "FILES_ROOT_PATH": get_files_root_path(state),
                 },
                 "type": "stdio",
@@ -193,7 +197,7 @@ pub fn claude_register_mcp(
                 "command": "node",
                 "args": [get_mcp_server_path()],
                 "env": {
-                    "DB_PATH": get_db_path(&app),
+                    "DB_PATH": get_db_path(),
                     "FILES_ROOT_PATH": get_files_root_path(&state),
                 },
                 "type": "stdio",

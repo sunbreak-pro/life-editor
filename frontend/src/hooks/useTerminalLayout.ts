@@ -9,6 +9,7 @@ import {
   removePane,
   updateSplitSizes,
 } from "../utils/terminalLayout";
+import { terminalCreate, terminalDestroy } from "../services/terminalBridge";
 
 const MAX_PANES = 4;
 const MAX_TABS = 4;
@@ -64,8 +65,7 @@ export function useTerminalLayout(): UseTerminalLayoutReturn {
   const activePaneId = activeTabData?.activePaneId ?? null;
 
   const openPanel = useCallback(async () => {
-    const sessionId =
-      await window.electronAPI?.invoke<string>("terminal:create");
+    const sessionId = await terminalCreate().catch(() => null);
     if (!sessionId) return;
     tabCounter = 0;
     const tab = createTab(sessionId);
@@ -80,9 +80,7 @@ export function useTerminalLayout(): UseTerminalLayoutReturn {
     for (const tab of state.tabs) {
       const leaves = collectLeaves(tab.root);
       for (const leaf of leaves) {
-        window.electronAPI
-          ?.invoke("terminal:destroy", leaf.sessionId)
-          .catch(() => {});
+        terminalDestroy(leaf.sessionId).catch(() => {});
       }
     }
     setState(null);
@@ -92,8 +90,7 @@ export function useTerminalLayout(): UseTerminalLayoutReturn {
     if (!state) return;
     if (state.tabs.length >= MAX_TABS) return;
 
-    const sessionId =
-      await window.electronAPI?.invoke<string>("terminal:create");
+    const sessionId = await terminalCreate().catch(() => null);
     if (!sessionId) return;
 
     const tab = createTab(sessionId);
@@ -112,9 +109,7 @@ export function useTerminalLayout(): UseTerminalLayoutReturn {
       // Destroy all PTY sessions in this tab
       const leaves = collectLeaves(tab.root);
       for (const leaf of leaves) {
-        window.electronAPI
-          ?.invoke("terminal:destroy", leaf.sessionId)
-          .catch(() => {});
+        terminalDestroy(leaf.sessionId).catch(() => {});
       }
 
       const remaining = state.tabs.filter((t) => t.id !== tabId);
@@ -154,8 +149,7 @@ export function useTerminalLayout(): UseTerminalLayoutReturn {
       if (!tab) return;
       if (countLeaves(tab.root) >= MAX_PANES) return;
 
-      const sessionId =
-        await window.electronAPI?.invoke<string>("terminal:create");
+      const sessionId = await terminalCreate().catch(() => null);
       if (!sessionId) return;
 
       const newLeaf = createLeaf(sessionId);
@@ -184,9 +178,7 @@ export function useTerminalLayout(): UseTerminalLayoutReturn {
 
     const leaf = collectLeaves(tab.root).find((l) => l.id === tab.activePaneId);
     if (leaf) {
-      window.electronAPI
-        ?.invoke("terminal:destroy", leaf.sessionId)
-        .catch(() => {});
+      terminalDestroy(leaf.sessionId).catch(() => {});
     }
 
     const newRoot = removePane(tab.root, tab.activePaneId);

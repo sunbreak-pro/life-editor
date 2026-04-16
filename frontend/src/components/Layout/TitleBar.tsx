@@ -41,6 +41,7 @@ export function TitleBar({
 
   return (
     <div
+      data-tauri-drag-region
       className={`titlebar-drag flex items-center h-12 border-b border-notion-border bg-notion-bg-secondary shrink-0 ${
         isMac ? "pl-[70px]" : ""
       }`}
