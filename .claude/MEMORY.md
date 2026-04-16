@@ -2,19 +2,19 @@
 
 ## 進行中
 
-### ⏸️ Mobile Optimization — 4タブ構成リニューアル（着手日: 2026-04-12）
+### ⏸️ TitleBar ドラッグ修復 + タイトル修正（着手日: 2026-04-16）
 
-**対象**: `frontend/src/MobileApp.tsx`, `frontend/src/components/Mobile/`, `frontend/src/components/Layout/MobileLayout.tsx`, `frontend/src/main.tsx`
+**対象**: `frontend/src/components/Layout/TitleBar.tsx`, `frontend/src/utils/platform.ts`, `src-tauri/capabilities/default.json`
 
-- 前回: Step 1-6 完了（Provider追加, 4タブUI, Materials/Calendar/Work/Settings 各ビュー新規作成, i18n追加）
-- 現在: Tauri 移行で Electron サーバー削除済み。モバイルアクセスは Phase 5 (Tauri iOS) で再構築予定
-- 次: Tauri iOS 対応時にモバイルUI統合
+- 前回: タイトル「Life Editor」変更・トラフィックライト間隔修正・isMac検出修正・capabilities に allow-start-dragging 追加完了
+- 現在: `getCurrentWindow().startDragging()` による全ヘッダー領域ドラッグ対応を実装、動作確認待ち
+- 次: ユーザー動作確認 → ボタン・タブのクリック動作確認 → 完了
 
 ## 直近の完了
 
+- Tauri 2.0 Migration Phase 5 iOS Target (Steps 5.1-5.3) ✅（2026-04-16）
 - Tauri 2.0 Migration Phase 0-4 完了 ✅（2026-04-16）
-- テンプレート内容編集をコンテンツエリアに移動 ✅（2026-04-15）
-- notion-timer / Sonic Flow → Life Editor 完全リネーム ✅（2026-04-15）
+- Mobile Optimization — 4タブ構成 ✅（2026-04-16） — Phase 5 で Tauri iOS ローカルモードとして統合完了
 
 ## 予定
 

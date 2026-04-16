@@ -1,3 +1,20 @@
+### 2026-04-16 - Tauri 2.0 Migration: Phase 0.2 + Phase 1 + Phase 2.1
+
+#### 概要
+
+Tauri 2.0 移行の中核実装。フロントエンド IPC ブリッジ層（Phase 0.2）、Rust DB層全27リポジトリ+全コマンド（Phase 1）、ウィンドウ管理+ネイティブメニュー（Phase 2.1）を完了。`cargo check` パス。
+
+#### 変更点
+
+- **Phase 0 Step 0.2 — IPC ブリッジ**: `bridge.ts`（isTauri + tauriInvoke）、`events.ts`（6イベントリスナー統一API）、`TauriDataService.ts`（DataService 全243メソッドの Tauri 実装 ~1200行）、`dataServiceFactory.ts`（isTauri 分岐追加）、`@tauri-apps/api@^2` 依存追加
+- **Phase 1 Step 1.1 — DB 初期化**: `db/mod.rs`（DbState + init_database）、`db/migrations.rs`（V59 consolidated schema + incremental migrations）
+- **Phase 1 Step 1.2 — リファレンス実装**: `db/helpers.rs`（soft_delete/restore/permanent_delete ヘルパー）、`db/task_repository.rs`（TaskNode CRUD + syncTree）
+- **Phase 1 Step 1.3 — 全リポジトリ+コマンド**: 27 リポジトリ（timer, memo, note, sound, schedule_item, routine, wiki_tag, paper_board, database, playlist, attachment, custom_sound 等）+ 32 コマンドファイル（`#[tauri::command]` 全登録）
+- **Phase 2.1 — ウィンドウ+メニュー**: `tauri-plugin-window-state`（ウィンドウ状態永続化）、`menu.rs`（File/Edit/View/Window/Help ネイティブメニュー + フロントエンドへのイベント送信）
+- **lib.rs**: 全コマンド登録 + DB初期化 + plugin 初期化 + メニューセットアップ
+
+- 2026-04-15: [途中] Capacitor iOS Standalone App — Step 1-3 完了（Capacitor init, StandaloneDataService, スタンドアロンモード対応）。Step 4（Xcode ビルド&テスト）待ち
+
 ### 2026-04-15 - テンプレート内容編集をコンテンツエリアに移動
 
 #### 概要
