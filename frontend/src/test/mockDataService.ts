@@ -389,8 +389,6 @@ export function createMockDataService(): DataService & {
     resetMetrics: vi.fn().mockResolvedValue(true),
     fetchSystemInfo: vi.fn().mockResolvedValue({
       appVersion: "1.0.0",
-      electronVersion: "35.0.0",
-      nodeVersion: "22.0.0",
       platform: "darwin",
       arch: "arm64",
       dbSizeBytes: 0,

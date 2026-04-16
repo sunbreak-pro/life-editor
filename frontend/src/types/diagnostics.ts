@@ -15,8 +15,6 @@ export interface IpcChannelMetrics {
 
 export interface SystemInfo {
   appVersion: string;
-  electronVersion: string;
-  nodeVersion: string;
   platform: string;
   arch: string;
   dbSizeBytes: number;

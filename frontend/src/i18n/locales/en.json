@@ -409,7 +409,6 @@
   "performance": {
     "title": "Performance Monitor",
     "appVersion": "App Version",
-    "electron": "Electron",
     "dbSize": "DB Size",
     "memory": "Memory (RSS)",
     "refresh": "Refresh",

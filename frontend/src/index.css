@@ -138,7 +138,7 @@ body {
   min-height: 100vh;
 }
 
-/* Electron titlebar drag regions */
+/* Titlebar drag regions */
 .titlebar-drag {
   -webkit-app-region: drag;
 }

@@ -12,9 +12,9 @@
 
 ## 直近の完了
 
+- Electron コード・依存関係の完全削除 ✅（2026-04-16）
 - Tauri 2.0 Migration Phase 5 iOS Target (Steps 5.1-5.3) ✅（2026-04-16）
 - Tauri 2.0 Migration Phase 0-4 完了 ✅（2026-04-16）
-- Mobile Optimization — 4タブ構成 ✅（2026-04-16） — Phase 5 で Tauri iOS ローカルモードとして統合完了
 
 ## 予定
 

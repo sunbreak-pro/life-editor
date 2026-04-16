@@ -1,20 +1,17 @@
 # Project Debug Guide
 
-## IPC デバッグ
+## Tauri IPC デバッグ
 
-### チャンネル未許可エラー
+### コマンド未登録
 
-`Error: IPC channel not allowed: <channel>` → `electron/preload.ts` の `ALLOWED_CHANNELS` を確認。チャンネル名規則: `db:domain:action`
-
-### ハンドラ未登録
-
-1. `electron/ipc/registerAll.ts`（DB依存系）または `electron/main.ts`（Terminal/Claude/Server系）で登録確認
-2. `*Handlers.ts` の try-catch とエラーメッセージ確認
-3. Repository層のメソッド名・引数の不一致チェック
+1. `src-tauri/src/commands/` に `#[tauri::command]` 関数が定義されているか確認
+2. `src-tauri/src/lib.rs` の `generate_handler![]` にコマンドが登録されているか確認
+3. `frontend/src/services/TauriDataService.ts` の `invoke()` 呼び出しでコマンド名が一致しているか確認
 
 ### シリアライゼーション
 
-- IPC経由はJSON互換データのみ。`Date` → 文字列化、`undefined` → 消失（`null` を使う）
+- Tauri IPC は `serde` でシリアライズ。Rust 側の引数名はフロントエンドの `invoke()` 引数と一致が必要
+- `Date` → 文字列化、`undefined` → 消失（`null` を使う）
 
 ## SQLite デバッグ
 

@@ -2,15 +2,15 @@
 
 コード変更時に該当する項目を確認する。
 
-## IPC / Electron
+## IPC / Tauri
 
-- IPC追加・変更時は3点同期を確認: `electron/preload.ts` (ALLOWED_CHANNELS) / `electron/ipc/*Handlers.ts`（登録先は `registerAll.ts` or `main.ts`）/ `frontend/src/services/ElectronDataService.ts`
-- IPC経由データはJSON互換のみ（Date→文字列、undefined→null）
+- IPC追加・変更時は3点同期を確認: `src-tauri/src/commands/` (`#[tauri::command]`) / `src-tauri/src/lib.rs` (`generate_handler![]`) / `frontend/src/services/TauriDataService.ts`
+- Tauri IPC は `serde` でシリアライズ。Rust 引数名とフロントエンド `invoke()` 引数名を一致させる
 
 ## DataService 層
 
-- 新しいデータ操作は `DataService.ts` インターフェースに定義 → `ElectronDataService.ts` に実装
-- コンポーネントから直接 `window.electronAPI` を呼ばない（DataService経由）
+- 新しいデータ操作は `DataService.ts` インターフェースに定義 → `TauriDataService.ts` に実装
+- コンポーネントから直接 `invoke()` を呼ばない（DataService 経由）
 
 ## Provider / Context
 

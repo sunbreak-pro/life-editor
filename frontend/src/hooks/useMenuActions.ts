@@ -4,7 +4,7 @@ import type { SectionId, TaskNode } from "../types/taskTree";
 import { getDataService } from "../services";
 import { onMenuAction } from "../services/events";
 
-interface UseElectronMenuActionsParams {
+interface UseMenuActionsParams {
   addNode: (
     type: "task" | "folder",
     parentId: string | null,
@@ -16,13 +16,13 @@ interface UseElectronMenuActionsParams {
   nodes?: TaskNode[];
 }
 
-export function useElectronMenuActions({
+export function useMenuActions({
   addNode,
   setActiveSection,
   layoutRef,
   selectedTaskId,
   nodes,
-}: UseElectronMenuActionsParams) {
+}: UseMenuActionsParams) {
   useEffect(() => {
     let unlisten: (() => void) | undefined;
 

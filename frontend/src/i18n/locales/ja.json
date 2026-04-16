@@ -409,7 +409,6 @@
   "performance": {
     "title": "パフォーマンスモニター",
     "appVersion": "アプリバージョン",
-    "electron": "Electron",
     "dbSize": "DBサイズ",
     "memory": "メモリ (RSS)",
     "refresh": "更新",

@@ -29,7 +29,7 @@ import { useTaskTreeContext } from "./hooks/useTaskTreeContext";
 import { useMemoContext } from "./hooks/useMemoContext";
 import { useAppCommands } from "./hooks/useAppCommands";
 import { useAppKeyboardShortcuts } from "./hooks/useAppKeyboardShortcuts";
-import { useElectronMenuActions } from "./hooks/useElectronMenuActions";
+import { useMenuActions } from "./hooks/useMenuActions";
 import { useTaskDetailHandlers } from "./hooks/useTaskDetailHandlers";
 import { useUndoRedoKeyboard } from "./components/shared/UndoRedo";
 import { useNoteContext } from "./hooks/useNoteContext";
@@ -118,7 +118,7 @@ function App() {
     activeSection,
   });
 
-  useElectronMenuActions({
+  useMenuActions({
     addNode,
     setActiveSection,
     layoutRef,

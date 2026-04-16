@@ -17,7 +17,7 @@ import { isMac } from "../../utils/platform";
 import {
   keyBindingToAccelerator,
   acceleratorToKeyBinding,
-} from "../../utils/electronAccelerator";
+} from "../../utils/accelerator";
 import type {
   ShortcutId,
   ShortcutCategory,
