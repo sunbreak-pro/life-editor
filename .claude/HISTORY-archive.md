@@ -1,3 +1,16 @@
+### 2026-04-14 - Desktop Timer 円形プログレスゲージ追加
+
+#### 概要
+
+デスクトップ Work セクションのタイマーにモバイル版と同様の SVG 円形プログレスゲージを追加。リニアプログレスバーを扇形（∩型、270°アーク）ゲージに置換し、タイマー設定時間全体に対して正しく1周するようにした。
+
+#### 変更点
+
+- **TimerCircularProgress 新規作成**: `frontend/src/components/Work/TimerCircularProgress.tsx` — SVG 二重円（背景アーク + 進行アーク）の扇形ゲージ。270°アーク（下部90°ギャップ）、左端→右端の時計回り進行。WORK時 `text-notion-accent`、BREAK時 `text-notion-success`
+- **WorkScreen 統合**: `TimerDisplay` を `TimerCircularProgress` で囲むラッパー構成に変更。リニアバーの `TimerProgressBar` インポートを削除
+- **TimerProgressBar 削除**: 不要になったリニアプログレスバーコンポーネントを削除
+- **progress 値の正しい使用**: `timer.progress`（0-100）をそのまま使用。モバイル版の `* 100` バグ（0-10000、数十秒で1周）を再現せず、1セッション = 1周を実現
+
 ### 2026-04-13 - Sort Direction + Calendar Type Order + TimeGrid Click Menu
 
 #### 概要

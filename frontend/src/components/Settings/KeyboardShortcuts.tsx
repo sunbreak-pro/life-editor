@@ -13,6 +13,7 @@ import { DEFAULT_SHORTCUTS } from "../../constants/defaultShortcuts";
 import { useShortcutConfig } from "../../hooks/useShortcutConfig";
 import { isElectron } from "../../services/dataServiceFactory";
 import { getDataService } from "../../services/dataServiceFactory";
+import { isTauri } from "../../services/bridge";
 import { isMac } from "../../utils/platform";
 import {
   keyBindingToAccelerator,
@@ -303,7 +304,7 @@ export function KeyboardShortcuts({
   >(new Set());
 
   // Global shortcuts state
-  const isElectronEnv = useMemo(() => isElectron(), []);
+  const isDesktopEnv = useMemo(() => isElectron() || isTauri(), []);
   const [globalConfig, setGlobalConfig] = useState<Record<string, string>>({});
   const [globalDraft, setGlobalDraft] = useState<Record<string, string>>({});
   const [globalLoaded, setGlobalLoaded] = useState(false);
@@ -317,7 +318,7 @@ export function KeyboardShortcuts({
 
   // Load global shortcuts
   useEffect(() => {
-    if (!isElectronEnv) return;
+    if (!isDesktopEnv) return;
     const ds = getDataService();
     ds.getGlobalShortcuts()
       .then((gs) => {
@@ -333,7 +334,7 @@ export function KeyboardShortcuts({
       .catch(() => {
         setGlobalLoaded(true);
       });
-  }, [isElectronEnv]);
+  }, [isDesktopEnv]);
 
   // Sync draft when config changes externally (e.g. undo/redo)
   useEffect(() => {
@@ -342,7 +343,7 @@ export function KeyboardShortcuts({
 
   const isInAppDirty = JSON.stringify(draftConfig) !== JSON.stringify(config);
   const isGlobalDirty =
-    isElectronEnv &&
+    isDesktopEnv &&
     JSON.stringify(globalDraft) !== JSON.stringify(globalConfig);
   const isDirty = isInAppDirty || isGlobalDirty;
 
@@ -509,7 +510,7 @@ export function KeyboardShortcuts({
 
   // Filter global shortcuts by search
   const filteredGlobalDefs = useMemo(() => {
-    if (!isElectronEnv || !globalLoaded) return [];
+    if (!isDesktopEnv || !globalLoaded) return [];
     if (activeCategory && activeCategory !== "global") return [];
 
     const lowerQuery = searchQuery.toLowerCase();
@@ -517,7 +518,7 @@ export function KeyboardShortcuts({
       if (!lowerQuery) return true;
       return t(def.descriptionKey).toLowerCase().includes(lowerQuery);
     });
-  }, [isElectronEnv, globalLoaded, activeCategory, searchQuery, t]);
+  }, [isDesktopEnv, globalLoaded, activeCategory, searchQuery, t]);
 
   const hasResults = useMemo(() => {
     const hasInApp = Object.values(filteredByCategory).some(

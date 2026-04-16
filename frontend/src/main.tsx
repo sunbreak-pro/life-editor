@@ -24,8 +24,9 @@ import { ScreenLockProvider } from "./context/ScreenLockContext";
 import { FileExplorerProvider } from "./context/FileExplorerContext";
 import { TemplateProvider } from "./context/TemplateContext";
 import { isElectron } from "./services/dataServiceFactory";
+import { isTauri } from "./services/bridge";
 
-const isMobile = !isElectron();
+const isMobile = !isElectron() && !isTauri();
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>

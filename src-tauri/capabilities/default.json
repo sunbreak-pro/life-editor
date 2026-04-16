@@ -19,6 +19,13 @@
     "core:window:allow-set-position",
     "core:window:allow-set-fullscreen",
     "core:window:allow-is-fullscreen",
-    "core:menu:default"
+    "core:menu:default",
+    "core:tray:default",
+    "global-shortcut:allow-register",
+    "global-shortcut:allow-unregister",
+    "global-shortcut:allow-unregister-all",
+    "global-shortcut:allow-is-registered",
+    "dialog:default",
+    "notification:default"
   ]
 }

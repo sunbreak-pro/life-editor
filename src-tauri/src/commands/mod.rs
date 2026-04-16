@@ -30,3 +30,4 @@ pub mod files_commands;
 pub mod copy_commands;
 pub mod reminder_commands;
 pub mod updater_commands;
+pub mod claude_commands;

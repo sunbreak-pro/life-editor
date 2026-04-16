@@ -142,12 +142,11 @@ export function TimerProvider({ children }: { children: ReactNode }) {
 
   // Update tray timer display
   useEffect(() => {
-    if (!window.electronAPI) return;
     const mins = Math.floor(state.remainingSeconds / 60);
     const secs = state.remainingSeconds % 60;
     const remaining = `${String(mins).padStart(2, "0")}:${String(secs).padStart(2, "0")}`;
-    window.electronAPI
-      .invoke("tray:updateTimer", { remaining, isRunning: state.isRunning })
+    getDataService()
+      .updateTrayTimer({ remaining, isRunning: state.isRunning })
       .catch(() => {});
   }, [state.remainingSeconds, state.isRunning]);
 

@@ -2,6 +2,7 @@ import { useEffect, type RefObject } from "react";
 import type { LayoutHandle } from "../components/Layout";
 import type { SectionId, TaskNode } from "../types/taskTree";
 import { getDataService } from "../services";
+import { onMenuAction } from "../services/events";
 
 interface UseElectronMenuActionsParams {
   addNode: (
@@ -23,7 +24,9 @@ export function useElectronMenuActions({
   nodes,
 }: UseElectronMenuActionsParams) {
   useEffect(() => {
-    const cleanup = window.electronAPI?.onMenuAction((action: string) => {
+    let unlisten: (() => void) | undefined;
+
+    onMenuAction((action: string) => {
       switch (action) {
         case "new-task": {
           let parentId: string | null = null;
@@ -46,6 +49,7 @@ export function useElectronMenuActions({
         case "navigate:tips":
           break;
         case "toggle-timer-modal":
+        case "toggleTimer":
           setActiveSection("work");
           break;
         case "toggle-left-sidebar":
@@ -53,6 +57,9 @@ export function useElectronMenuActions({
           break;
         case "toggle-terminal":
           layoutRef.current?.toggleTerminal();
+          break;
+        case "quickAddTask":
+          addNode("task", null, "New Task");
           break;
         case "export-data":
           getDataService().exportData().catch(console.warn);
@@ -66,9 +73,12 @@ export function useElectronMenuActions({
             .catch(console.warn);
           break;
       }
+    }).then((fn) => {
+      unlisten = fn;
     });
+
     return () => {
-      cleanup?.();
+      unlisten?.();
     };
   }, [addNode, setActiveSection, layoutRef, selectedTaskId, nodes]);
 }

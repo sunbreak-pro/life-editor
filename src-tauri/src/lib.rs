@@ -1,8 +1,14 @@
+mod auto_archive;
 mod commands;
 mod db;
+mod file_watcher;
 mod menu;
+mod reminder;
+mod shortcuts;
+mod tray;
 
 use db::DbState;
+use std::collections::HashMap;
 use std::sync::Mutex;
 use tauri::Manager;
 
@@ -11,6 +17,9 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_window_state::Builder::default().build())
+        .plugin(tauri_plugin_global_shortcut::Builder::new().build())
+        .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_notification::init())
         .setup(|app| {
             let data_dir = app
                 .path()
@@ -24,6 +33,56 @@ pub fn run() {
 
             // Set up native menu
             menu::setup_menu(app)?;
+
+            // Set up system tray (conditional on tray_enabled setting)
+            {
+                let db_state = app.state::<DbState>();
+                let conn = db_state.conn.lock().map_err(|e| e.to_string())?;
+                let tray_enabled =
+                    db::app_settings_repository::get(&conn, "trayEnabled").unwrap_or(None);
+                // Default to true (enabled unless explicitly set to "false")
+                if tray_enabled.as_deref() != Some("false") {
+                    let handle = app.handle().clone();
+                    tray::setup_tray(&handle).map_err(|e| e.to_string())?;
+                }
+            }
+
+            // Register global shortcuts from saved config
+            {
+                let db_state = app.state::<DbState>();
+                let conn = db_state.conn.lock().map_err(|e| e.to_string())?;
+                let shortcuts_json =
+                    db::app_settings_repository::get(&conn, "globalShortcuts")
+                        .unwrap_or(None);
+                if let Some(json) = shortcuts_json {
+                    if let Ok(config) =
+                        serde_json::from_str::<HashMap<String, String>>(&json)
+                    {
+                        let handle = app.handle().clone();
+                        shortcuts::register_shortcuts(&handle, &config);
+                    }
+                }
+            }
+
+            // Start file watcher if root path is configured
+            {
+                let db_state = app.state::<DbState>();
+                let conn = db_state.conn.lock().map_err(|e| e.to_string())?;
+                if let Some(root_path) =
+                    db::app_settings_repository::get(&conn, "files_root_path")
+                        .unwrap_or(None)
+                {
+                    let handle = app.handle().clone();
+                    file_watcher::start(&handle, &root_path);
+                }
+            }
+
+            // Start background services
+            {
+                let handle = app.handle().clone();
+                reminder::start(&handle);
+                auto_archive::start(&handle);
+            }
 
             Ok(())
         })
@@ -303,6 +362,14 @@ pub fn run() {
             commands::updater_commands::updater_check_for_updates,
             commands::updater_commands::updater_download_update,
             commands::updater_commands::updater_install_update,
+            // Claude/MCP
+            commands::claude_commands::claude_register_mcp,
+            commands::claude_commands::claude_read_claude_md,
+            commands::claude_commands::claude_write_claude_md,
+            commands::claude_commands::claude_list_available_skills,
+            commands::claude_commands::claude_list_installed_skills,
+            commands::claude_commands::claude_install_skill,
+            commands::claude_commands::claude_uninstall_skill,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

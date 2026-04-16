@@ -7,10 +7,9 @@
 **対象**: `src-tauri/`, `frontend/src/services/bridge.ts`, `frontend/src/services/TauriDataService.ts`
 **計画書**: `.claude/feature_plans/2026-04-15-tauri-migration.md`
 
-- Phase 0 完了: Step 0.1（scaffold）+ Step 0.2（bridge.ts, events.ts, TauriDataService.ts, dataServiceFactory 更新）
-- Phase 1 完了: Step 1.1（DB初期化+V59マイグレーション）+ Step 1.2（helpers+task_repository）+ Step 1.3（全27リポジトリ+全コマンド、cargo check パス）
-- Phase 2.1 完了: ウィンドウ状態永続化（tauri-plugin-window-state）+ ネイティブメニュー（menu.rs）
-- 次: Phase 2.2（システムトレイ）→ Phase 2.3（グローバルショートカット）→ Phase 2.4+
+- Phase 0〜1 完了: scaffold + IPC ブリッジ + DB層全27リポジトリ + 全コマンド
+- Phase 2 完了: メニュー + トレイ + ショートカット + アップデーター + ファイルシステム + 監視 + リマインダー + アーカイブ + Claude/MCP
+- 次: Phase 3（ターミナル PTY）
 
 ### ⏸️ Capacitor iOS Standalone App（着手日: 2026-04-14）
 
