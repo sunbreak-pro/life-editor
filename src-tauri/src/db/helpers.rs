@@ -80,31 +80,60 @@ pub fn fetch_deleted_json(conn: &Connection, table: &str) -> rusqlite::Result<Ve
     let sql = format!(
         "SELECT * FROM \"{table}\" WHERE is_deleted = 1 ORDER BY deleted_at DESC"
     );
-    let mut stmt = conn.prepare(&sql)?;
+    query_all_json(conn, &sql)
+}
+
+/// Execute an arbitrary SELECT and return all rows as JSON values
+pub fn query_all_json(conn: &Connection, sql: &str) -> rusqlite::Result<Vec<Value>> {
+    let mut stmt = conn.prepare(sql)?;
     let col_count = stmt.column_count();
     let col_names: Vec<String> = (0..col_count)
         .map(|i| stmt.column_name(i).unwrap().to_string())
         .collect();
 
     let rows = stmt.query_map([], |row| {
-        let mut map = serde_json::Map::new();
-        for (i, name) in col_names.iter().enumerate() {
-            let val = match row.get_ref(i) {
-                Ok(ValueRef::Null) => Value::Null,
-                Ok(ValueRef::Integer(n)) => Value::from(n),
-                Ok(ValueRef::Real(f)) => Value::from(f),
-                Ok(ValueRef::Text(s)) => {
-                    Value::String(String::from_utf8_lossy(s).to_string())
-                }
-                Ok(ValueRef::Blob(_)) => Value::Null,
-                Err(_) => Value::Null,
-            };
-            map.insert(name.clone(), val);
-        }
-        Ok(Value::Object(map))
+        Ok(row_to_json(row, &col_names))
     })?;
 
     rows.collect()
+}
+
+/// Execute an arbitrary SELECT and return the first row as JSON (or None)
+pub fn query_one_json(conn: &Connection, sql: &str) -> rusqlite::Result<Option<Value>> {
+    let mut stmt = conn.prepare(sql)?;
+    let col_count = stmt.column_count();
+    let col_names: Vec<String> = (0..col_count)
+        .map(|i| stmt.column_name(i).unwrap().to_string())
+        .collect();
+
+    let result = stmt.query_row([], |row| {
+        Ok(row_to_json(row, &col_names))
+    });
+
+    match result {
+        Ok(val) => Ok(Some(val)),
+        Err(rusqlite::Error::QueryReturnedNoRows) => Ok(None),
+        Err(e) => Err(e),
+    }
+}
+
+/// Convert a single database row to a JSON Value using column names
+fn row_to_json(row: &rusqlite::Row, col_names: &[String]) -> Value {
+    let mut map = serde_json::Map::new();
+    for (i, name) in col_names.iter().enumerate() {
+        let val = match row.get_ref(i) {
+            Ok(ValueRef::Null) => Value::Null,
+            Ok(ValueRef::Integer(n)) => Value::from(n),
+            Ok(ValueRef::Real(f)) => Value::from(f),
+            Ok(ValueRef::Text(s)) => {
+                Value::String(String::from_utf8_lossy(s).to_string())
+            }
+            Ok(ValueRef::Blob(_)) => Value::Null,
+            Err(_) => Value::Null,
+        };
+        map.insert(name.clone(), val);
+    }
+    Value::Object(map)
 }
 
 /// Get the next order value for a table

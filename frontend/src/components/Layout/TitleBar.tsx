@@ -41,13 +41,12 @@ export function TitleBar({
 
   return (
     <div
-      data-tauri-drag-region
       className={`titlebar-drag flex items-center h-12 border-b border-notion-border bg-notion-bg-secondary shrink-0 ${
-        isMac ? "pl-[70px]" : ""
+        isMac ? "pl-[88px]" : ""
       }`}
     >
       <span className="text-sm font-semibold text-notion-text-secondary px-3 select-none whitespace-nowrap">
-        life-editor
+        Life Editor
       </span>
       <button
         onClick={onToggleSidebar}
@@ -63,7 +62,7 @@ export function TitleBar({
       <div className="mx-3 h-5 w-px bg-notion-border shrink-0" />
       <div
         ref={portalRef}
-        className="flex items-center flex-1 min-w-0 overflow-x-auto"
+        className="titlebar-drag flex items-center flex-1 min-w-0 overflow-x-clip"
       />
       {/* Fixed right area */}
       <div className="titlebar-nodrag flex items-center gap-1 px-2 shrink-0">

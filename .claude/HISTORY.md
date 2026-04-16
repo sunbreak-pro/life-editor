@@ -1,5 +1,23 @@
 # HISTORY.md - 変更履歴
 
+### 2026-04-16 - Tauri 2.0 Migration: Phase 4 Data I/O + Diagnostics
+
+#### 概要
+
+Tauri 2.0 移行の Phase 4 Step 4.1-4.2 を完了。Data I/O（export/import/reset）3コマンドと Diagnostics 6コマンドのスタブを Rust で本実装。全 V59 テーブル対応のリセット、バックアップ付きインポート/リセット、ファイルダイアログ連携を実装。
+
+#### 変更点
+
+- **helpers.rs**: `query_all_json()` / `query_one_json()` 汎用クエリヘルパー追加。既存 `fetch_deleted_json()` を `query_all_json` のラッパーにリファクタ。`row_to_json()` で ValueRef マッピングを共通化
+- **data_export**: `tauri-plugin-dialog` で save dialog → 15テーブル（tasks, timer_settings, timer_sessions, sound_settings, sound_presets, memos, notes, sound_tag_definitions, sound_tag_assignments, sound_display_meta, calendars, routines, routine_tag_assignments, routine_tag_definitions, schedule_items）をクエリ → JSON メタデータ付きファイル出力
+- **data_import**: open dialog → JSON パース → バリデーション（app名, version, 14 array フィールド, tasks スキーマ検証）→ DB バックアップ作成 → トランザクション内で 13テーブル DELETE + 14エンティティ INSERT（timer_settings は UPDATE）→ 失敗時ロールバック
+- **data_reset**: DB バックアップ → 全 V59 テーブル DELETE（44テーブル、FK依存順）→ timer_settings デフォルトリセット → custom-sounds ファイル削除
+- **diagnostics_fetch_logs**: ログファイル解析（regex パース、level フィルタ、limit 対応）。ログファイル未存在時は空配列
+- **diagnostics_open_log_folder**: `open` crate で `{userData}/logs/` を Finder で開く
+- **diagnostics_export_logs**: save dialog → ログファイルコピー
+- **diagnostics_fetch_system_info**: DB ファイルサイズ + 6テーブル COUNT(\*) + platform/arch/appVersion
+- **Bug fix**: `as_path().unwrap()` → `as_path().ok_or()` に修正（3箇所、パニック防止）
+
 ### 2026-04-16 - Tauri 2.0 Migration: Phase 3 ターミナル PTY
 
 #### 概要
@@ -66,21 +84,5 @@ Tauri 2.0 移行の中核実装。フロントエンド IPC ブリッジ層（Ph
 - **IdeasView / MaterialsView 統合**: `selectedTemplateId` があれば TemplateContentView を表示、Note/Daily 選択時にテンプレート選択を自動解除
 - **MaterialsSidebar / DailySidebar**: `onSelectTemplate` / `selectedTemplateId` props を TemplateManager に伝播
 - **i18n**: `selectTemplate`, `defaultNoteShort`, `defaultDailyShort` を en/ja に追加
-
-### 2026-04-15 - notion-timer / Sonic Flow → Life Editor 完全リネーム
-
-#### 概要
-
-プロジェクト全体から旧アプリケーション名（notion-timer、Sonic Flow、sonic-flow）の参照を Life Editor / life-editor に統一。ソースコード1ファイル + ドキュメント/ルール15ファイルを更新。マイグレーション/後方互換コードと HISTORY-archive.md の歴史的記録は意図的に旧名を保持。
-
-#### 変更点
-
-- **ソースコード**: `electron/services/claudeSetup.ts` のスキルパス `projects/notion-timer` → `projects/life-editor`
-- **ルール**: `.claude/rules/project-debug.md` の診断コマンドパス `sonic-flow` → `life-editor`
-- **設計書（life-editor-v2/）**: 5ファイル（00-vision〜04-ui-adjustment）の全旧名称を置換
-- **コード解説ドキュメント**: 3ファイル（00-index, 01-architecture, 02-infrastructure）のアプリ名・localStorage キー名・Java パッケージ名を更新
-- **機能計画**: 5ファイルの Project パスを `/dev/apps/life-editor` に更新
-- **アーカイブ/ロードマップ**: 2ファイルのプロジェクト名・タイトルを更新
-- **意図的に保持**: `renameMigration.ts`、`migrateStorageKeys.ts`、`dataIOHandlers.ts`（マイグレーション/後方互換）、`HISTORY-archive.md`（歴史的記録）
 
 <!-- older entries archived to HISTORY-archive.md -->

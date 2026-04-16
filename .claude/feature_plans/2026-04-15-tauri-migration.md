@@ -1,6 +1,6 @@
 # Plan: Electron + Capacitor → Tauri 2.0 移行
 
-**Status:** PLANNED
+**Status:** IN_PROGRESS
 **Created:** 2026-04-15
 **Task:** Tauri 2.0 Migration（MEMORY.md）
 **Project:** /Users/newlife/dev/apps/notion-timer
@@ -283,11 +283,11 @@ pub fn soft_delete(conn: &Connection, id: &str) -> Result<()> { ... }
 
 **目的**: 機能パリティ達成 → Electron/Capacitor コードを削除
 
-### [ ] Step 4.1: Data I/O (export/import/reset)
+### [x] Step 4.1: Data I/O (export/import/reset)
 
 - **既存参照:** `electron/ipc/dataIOHandlers.ts` (468行)
 
-### [ ] Step 4.2: 診断 (logs, metrics, systemInfo)
+### [x] Step 4.2: 診断 (logs, metrics, systemInfo)
 
 - **既存参照:** `electron/ipc/diagnosticsHandlers.ts` (150行)
 

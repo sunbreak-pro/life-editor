@@ -7,9 +7,9 @@
 **対象**: `src-tauri/`, `frontend/src/services/bridge.ts`, `frontend/src/services/TauriDataService.ts`, `frontend/src/services/terminalBridge.ts`
 **計画書**: `.claude/feature_plans/2026-04-15-tauri-migration.md`
 
-- 前回: Phase 3 完了 — portable-pty (Rust) + ClaudeDetector + 5 Tauri コマンド + terminalBridge.ts (フロント19箇所置換)
-- 現在: Phase 0〜3 全完了（scaffold + DB + システム統合 + ターミナル PTY）
-- 次: Phase 4（残機能: Data I/O, 診断 + Electron コード除去）
+- 前回: Phase 4 Step 4.1-4.2 完了 — Data I/O (export/import/reset) + Diagnostics (logs/systemInfo) Rust 実装
+- 現在: Phase 0〜3 全完了 + Phase 4 Step 4.1-4.2 完了（残: Step 4.3 Electron コード除去）
+- 次: Phase 4 Step 4.3（Electron/Capacitor コード削除 + dataServiceFactory 簡素化）
 
 ### ⏸️ Capacitor iOS Standalone App（着手日: 2026-04-14）
 

@@ -1,3 +1,19 @@
+### 2026-04-15 - notion-timer / Sonic Flow → Life Editor 完全リネーム
+
+#### 概要
+
+プロジェクト全体から旧アプリケーション名（notion-timer、Sonic Flow、sonic-flow）の参照を Life Editor / life-editor に統一。ソースコード1ファイル + ドキュメント/ルール15ファイルを更新。マイグレーション/後方互換コードと HISTORY-archive.md の歴史的記録は意図的に旧名を保持。
+
+#### 変更点
+
+- **ソースコード**: `electron/services/claudeSetup.ts` のスキルパス `projects/notion-timer` → `projects/life-editor`
+- **ルール**: `.claude/rules/project-debug.md` の診断コマンドパス `sonic-flow` → `life-editor`
+- **設計書（life-editor-v2/）**: 5ファイル（00-vision〜04-ui-adjustment）の全旧名称を置換
+- **コード解説ドキュメント**: 3ファイル（00-index, 01-architecture, 02-infrastructure）のアプリ名・localStorage キー名・Java パッケージ名を更新
+- **機能計画**: 5ファイルの Project パスを `/dev/apps/life-editor` に更新
+- **アーカイブ/ロードマップ**: 2ファイルのプロジェクト名・タイトルを更新
+- **意図的に保持**: `renameMigration.ts`、`migrateStorageKeys.ts`、`dataIOHandlers.ts`（マイグレーション/後方互換）、`HISTORY-archive.md`（歴史的記録）
+
 ### 2026-04-14 - Note/Daily テンプレート機能 + フォルダアクションボタン + DnD修正
 
 #### 概要
