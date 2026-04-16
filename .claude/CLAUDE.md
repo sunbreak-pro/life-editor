@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## プロジェクト概要
 
-Notionライクなタスク管理 + 環境音ミキサー + プレイリスト + ポモドーロタイマーを組み合わせた没入型個人タスク管理デスクトップアプリ（Life Editor）。Electron + SQLite でスタンドアロン動作（バックエンドサーバー不要）。
+Notionライクなタスク管理 + 環境音ミキサー + プレイリスト + ポモドーロタイマーを組み合わせた没入型個人タスク管理デスクトップアプリ（Life Editor）。Tauri 2.0 + rusqlite でスタンドアロン動作（バックエンドサーバー不要）。
 
 **Life Editor v2 テーマ: 「AIと一緒に生活を設計する」** — アプリ内ターミナルから Claude Code を起動し、MCP Server 経由で自然言語でタスク・スケジュール・メモを操作可能。
 
@@ -13,7 +13,7 @@ Notionライクなタスク管理 + 環境音ミキサー + プレイリスト +
 ## 開発コマンド
 
 ```bash
-npm run dev                          # Electron + Vite 同時起動（開発時はこれ）
+cargo tauri dev                      # Tauri + Vite 同時起動（開発時はこれ）
 cd frontend && npm run test          # Vitest（単発実行）
 cd frontend && npx vitest run src/path/to/File.test.tsx  # 単一テスト実行
 cd mcp-server && npm run build       # MCP Server ビルド
@@ -25,11 +25,11 @@ cd mcp-server && npm run build       # MCP Server ビルド
 
 ### 全体構成
 
-Renderer (React 19 + Vite) → Preload (contextBridge) → Main Process (Electron 35) → Repository層 (better-sqlite3 → `userData/life-editor.db`)
+Renderer (React 19 + Vite) → Tauri IPC (`@tauri-apps/api`) → Rust Backend (`src-tauri/`) → rusqlite → `userData/life-editor.db`
 
-#### Terminal Manager (node-pty)
+#### Terminal (portable-pty)
 
-Main Process 内の `TerminalManager` が PTY セッションを管理。Renderer の xterm.js と IPC (`terminal:*`) で通信。
+Rust の `PtyManager` が PTY セッションを管理。Renderer の xterm.js と Tauri Events (`terminal_data`) で通信。
 
 #### MCP Server (`mcp-server/`)
 
@@ -37,18 +37,16 @@ Main Process 内の `TerminalManager` が PTY セッションを管理。Rendere
 
 ### DataService 抽象化（重要）
 
-フロントエンドは `getDataService()` 経由でデータアクセス。直接IPCを呼ばない。
-ファクトリ (`dataServiceFactory.ts`) が環境を判別し実装を選択:
+フロントエンドは `getDataService()` 経由でデータアクセス。直接 Tauri invoke を呼ばない。
+ファクトリ (`dataServiceFactory.ts`) は `TauriDataService` を返す。
 
-- `ElectronDataService.ts` — デスクトップ: Electron IPC 経由
-- `OfflineDataService.ts` — Web/モバイル: IndexedDB + SyncQueue（未対応メソッドは `notSupported()` スタブ）
-- `RestDataService.ts` — OfflineDataService 内部で利用する REST クライアント
+- `TauriDataService.ts` — Tauri IPC 経由（`@tauri-apps/api/core` の `invoke()`）
 
 インターフェース定義: `frontend/src/services/DataService.ts`
 
 ### モバイル構成
 
-`isElectron()` が `false` の場合にモバイルモードで起動。デスクトップと同じ React コードベースだが Provider セットが異なる:
+`isTauri()` が `false` の場合にモバイルモードで起動。デスクトップと同じ React コードベースだが Provider セットが異なる:
 
 - **デスクトップ Provider** (外→内): ErrorBoundary → Theme → Toast → UndoRedo → ScreenLock → TaskTree → Calendar → Memo → Note → FileExplorer → Routine → ScheduleItems → CalendarTags → Timer → Audio → WikiTag → ShortcutConfig
 - **モバイル Provider** (外→内): ErrorBoundary → Theme → Toast → UndoRedo → TaskTree → Calendar → Memo → Note → Routine → ScheduleItems → Timer
@@ -57,7 +55,7 @@ Main Process 内の `TerminalManager` が PTY セッションを管理。Rendere
 
 ### データ永続化
 
-- **SQLite**: better-sqlite3、WALモード。スキーマは `electron/database/migrations.ts` が正
+- **SQLite**: rusqlite (Rust)、WALモード。スキーマは `src-tauri/src/db/migrations.rs` が正
 - **localStorage**: UI状態のみ（キー一覧は `frontend/src/constants/storageKeys.ts`）
 
 ### 重要パターン
@@ -107,14 +105,11 @@ type: `feat` / `fix` / `docs` / `style` / `refactor` / `test` / `chore`
 
 - **README.md更新**: 機能追加・削除時は「主な機能」セクション、アーキテクチャ変更時は「技術スタック」「セットアップ」セクションを更新
 - **音源ファイル**: リポジトリにコミット禁止（`public/sounds/` は `.gitignore` 対象）
-- **IPC追加時**: 以下の箇所を必ず更新:
-  1. `electron/preload.ts` の `ALLOWED_CHANNELS`
-  2. `electron/ipc/` に対応ハンドラ追加 + 登録（下記参照）
-  3. `frontend/src/services/ElectronDataService.ts` にメソッド追加
-  4. `frontend/src/services/OfflineDataService.ts` / `RestDataService.ts` にもメソッド追加（未対応なら `notSupported()` でスタブ）
-- **IPC ハンドラ登録の2系統**:
-  - `registerAll.ts` — DB 依存のデータ操作系ハンドラ（大部分はこちら）
-  - `main.ts` 直接登録 — TerminalManager / ClaudeSetup / Server など、DB 以外の依存がある or 初期化順序に制約があるハンドラ
+- **Tauri コマンド追加時**: 以下の箇所を必ず更新:
+  1. `src-tauri/src/commands/` に `#[tauri::command]` 関数追加
+  2. `src-tauri/src/lib.rs` の `generate_handler![]` にコマンド登録
+  3. `frontend/src/services/TauriDataService.ts` にメソッド追加
+  4. `frontend/src/services/DataService.ts` インターフェースにメソッド定義
 
 ---
 

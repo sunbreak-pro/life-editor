@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { Save } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { isTauri, tauriInvoke } from "../../services/bridge";
+import { tauriInvoke } from "../../services/bridge";
 
 export function ClaudeMdEditor() {
   const { t } = useTranslation();
@@ -13,11 +13,7 @@ export function ClaudeMdEditor() {
   );
 
   useEffect(() => {
-    const loadContent = isTauri()
-      ? tauriInvoke<string>("claude_read_claude_md")
-      : (window.electronAPI?.invoke<string>("claude:readClaudeMd") ??
-        Promise.resolve(""));
-    loadContent
+    tauriInvoke<string>("claude_read_claude_md")
       .then((text) => {
         setContent(text);
         setSavedContent(text);
@@ -30,11 +26,7 @@ export function ClaudeMdEditor() {
 
   const handleSave = useCallback(async () => {
     try {
-      if (isTauri()) {
-        await tauriInvoke("claude_write_claude_md", { content });
-      } else {
-        await window.electronAPI?.invoke("claude:writeClaudeMd", content);
-      }
+      await tauriInvoke("claude_write_claude_md", { content });
       setSavedContent(content);
       setSaveStatus("success");
       setTimeout(() => setSaveStatus("idle"), 2000);

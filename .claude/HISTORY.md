@@ -1,5 +1,26 @@
 # HISTORY.md - 変更履歴
 
+### 2026-04-16 - Tauri 2.0 Migration: Phase 4 Step 4.3 Electron/Capacitor コード完全削除
+
+#### 概要
+
+Tauri 2.0 移行の Phase 4 Step 4.3 を完了。Electron/Capacitor の全コードを削除し、フロントエンドを Tauri 一本化。Phase 0〜4 全完了により、Electron → Tauri 2.0 のコア移行が完了。
+
+#### 変更点
+
+- **ファイル削除（~130ファイル）**: `electron/` ディレクトリ全体（95ファイル）、`frontend/ios/`（Capacitor iOS）、`ElectronDataService.ts`/`OfflineDataService.ts`/`StandaloneDataService.ts`/`RestDataService.ts`/`SyncQueue.ts`（5サービス計~5,000行）、`frontend/src/db/`（indexedDb.ts, syncOperations.ts）、`frontend/src/types/electron.d.ts`、`MobileAccessSettings.tsx`、`electron-builder.yml`、`frontend/capacitor.config.ts`
+- **dataServiceFactory.ts**: 4種の DataService 分岐を削除、常に `TauriDataService` を返すように簡素化（69行→22行）
+- **events.ts**: 6関数の `if (isTauri()) ... else window.electronAPI` フォールバックを除去、Tauri `listen()` 直接呼び出しに統一
+- **terminalBridge.ts**: 5関数の Electron フォールバック除去、`tauriInvoke` 直接呼び出しに統一
+- **コンポーネント修正（14ファイル）**: `ClaudeMdEditor`/`ClaudeSetupSection`/`SkillsManager` の `isTauri()` 分岐除去、`UpdateSettings`/`UpdateNotification`/`useReminderListener`/`useFileExplorer` を `events.ts` ブリッジ経由に移行、`main.tsx`/`MobileApp.tsx`/`useOnlineStatus.ts`/`MobileSettingsView.tsx`/`KeyboardShortcuts.tsx` から `isElectron`/`isStandalone` 参照除去
+- **platform.ts**: Mac 判定を `window.electronAPI?.platform` から `navigator.userAgent` ベースに変更
+- **TerminalPanel.tsx**: `window.electronAPI?.invoke("window:close")` → Tauri `getCurrentWindow().close()` に変更
+- **Settings.tsx**: MobileAccessSettings セクション除去（Electron LAN サーバー削除に伴い）
+- **Bug fix**: async event listener 4箇所に disposed フラグパターン追加（race condition 防止）
+- **package.json**: root から Electron/Capacitor 依存13パッケージ削除、scripts を `cargo tauri dev`/`cargo tauri build` に更新。frontend から `@capacitor/core`/`idb`/`qrcode-generator` 削除
+- **CLAUDE.md**: アーキテクチャを Electron → Tauri 2.0 に全面更新（全体構成、DataService、開発コマンド、コマンド追加手順）
+- **README.md**: 技術スタック・セットアップ手順を Tauri 2.0 に更新
+
 ### 2026-04-16 - Tauri 2.0 Migration: Phase 4 Data I/O + Diagnostics
 
 #### 概要
@@ -69,20 +90,5 @@ Tauri 2.0 移行の中核実装。フロントエンド IPC ブリッジ層（Ph
 - **lib.rs**: 全コマンド登録 + DB初期化 + plugin 初期化 + メニューセットアップ
 
 - 2026-04-15: [途中] Capacitor iOS Standalone App — Step 1-3 完了（Capacitor init, StandaloneDataService, スタンドアロンモード対応）。Step 4（Xcode ビルド&テスト）待ち
-
-### 2026-04-15 - テンプレート内容編集をコンテンツエリアに移動
-
-#### 概要
-
-テンプレートの内容編集をサイドバー内の小さなインラインエディタからメインコンテンツエリアのフル MemoEditor に移動。NotesView と同じパターンで、サイドバーのテンプレート選択→コンテンツエリア表示を実現。
-
-#### 変更点
-
-- **useTemplates フック拡張**: `selectedTemplateId` / `setSelectedTemplateId` / `selectedTemplate` を追加。テンプレート選択状態を Context 経由で共有
-- **TemplateManager リファクタ**: インライン TipTap エディタ（TemplateEditor）を完全削除。サイドバーリスト専用化。クリックで `onSelectTemplate` を呼び、選択中テンプレートをハイライト表示
-- **TemplateContentView 新規作成**: NotesView パターン準拠のコンテンツエリアコンポーネント。テンプレート名 `<input>` インライン編集 + ★Note/Daily デフォルトトグル + 削除ボタン + フル LazyMemoEditor
-- **IdeasView / MaterialsView 統合**: `selectedTemplateId` があれば TemplateContentView を表示、Note/Daily 選択時にテンプレート選択を自動解除
-- **MaterialsSidebar / DailySidebar**: `onSelectTemplate` / `selectedTemplateId` props を TemplateManager に伝播
-- **i18n**: `selectTemplate`, `defaultNoteShort`, `defaultDailyShort` を en/ja に追加
 
 <!-- older entries archived to HISTORY-archive.md -->

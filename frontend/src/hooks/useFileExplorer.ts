@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from "react";
 import { getDataService } from "../services/dataServiceFactory";
+import { onFileChange } from "../services/events";
 import type { FileEntry, FileInfo } from "../types/fileExplorer";
 
 export function useFileExplorer() {
@@ -54,13 +55,11 @@ export function useFileExplorer() {
     }
   }, [currentPath, rootPath, loadDirectory]);
 
-  // Subscribe to file system changes from main process
+  // Subscribe to file system changes
   useEffect(() => {
-    const api = window.electronAPI;
-    if (!api?.onFileChange) return;
-
-    const unsubscribe = api.onFileChange((changes) => {
-      // Check if any change affects the current directory
+    let disposed = false;
+    let cleanup: (() => void) | undefined;
+    onFileChange((changes) => {
       const currentDir = currentPath || "";
       const shouldRefresh = changes.some((c) => {
         const dir = c.path.includes("/")
@@ -71,9 +70,18 @@ export function useFileExplorer() {
       if (shouldRefresh) {
         loadDirectory(currentPath);
       }
+    }).then((unlisten) => {
+      if (disposed) {
+        unlisten();
+      } else {
+        cleanup = unlisten;
+      }
     });
 
-    return unsubscribe;
+    return () => {
+      disposed = true;
+      cleanup?.();
+    };
   }, [currentPath, loadDirectory]);
 
   const navigateTo = useCallback((path: string) => {

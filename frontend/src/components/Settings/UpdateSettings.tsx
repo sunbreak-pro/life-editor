@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { RefreshCw, Download, RotateCcw } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { getDataService } from "../../services";
+import { onUpdaterStatus } from "../../services/events";
 import type { UpdaterStatus } from "../../types/updater";
 
 export function UpdateSettings() {
@@ -10,13 +11,20 @@ export function UpdateSettings() {
   const [checking, setChecking] = useState(false);
 
   useEffect(() => {
-    const cleanup = window.electronAPI?.onUpdaterStatus?.(
-      (s: UpdaterStatus) => {
-        setStatus(s);
-        if (s.event !== "checking") setChecking(false);
-      },
-    );
+    let disposed = false;
+    let cleanup: (() => void) | undefined;
+    onUpdaterStatus((s: UpdaterStatus) => {
+      setStatus(s);
+      if (s.event !== "checking") setChecking(false);
+    }).then((unlisten) => {
+      if (disposed) {
+        unlisten();
+      } else {
+        cleanup = unlisten;
+      }
+    });
     return () => {
+      disposed = true;
       cleanup?.();
     };
   }, []);

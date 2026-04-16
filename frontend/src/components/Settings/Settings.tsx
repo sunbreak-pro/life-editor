@@ -21,7 +21,6 @@ import {
   TerminalSquare,
   FolderTree,
   CalendarDays,
-  Smartphone,
   Sliders,
   Monitor,
   HardDrive,
@@ -40,7 +39,6 @@ import { AppearanceSettings } from "./AppearanceSettings";
 import { LanguageSettings } from "./LanguageSettings";
 import { NotificationSettings } from "./NotificationSettings";
 import { TimerSettings } from "./TimerSettings";
-import { MobileAccessSettings } from "./MobileAccessSettings";
 import { DataManagement } from "./DataManagement";
 import { UpdateSettings } from "./UpdateSettings";
 import { DeveloperTools } from "./DeveloperTools";
@@ -71,7 +69,6 @@ export type SettingsInitialTab =
   | "data"
   | "notifications"
   | "timer"
-  | "mobile"
   | "devtools"
   | "behaviors"
   | "system";
@@ -91,13 +88,7 @@ type GeneralSub =
   | "notifications"
   | "timer"
   | "behaviors";
-type AdvancedSub =
-  | "mobile"
-  | "data"
-  | "updates"
-  | "devtools"
-  | "system"
-  | "files";
+type AdvancedSub = "data" | "updates" | "devtools" | "system" | "files";
 type ClaudeSub = "setup" | "mcpTools" | "claudeMd" | "skills";
 type ShortcutsSub =
   | "global"
@@ -115,7 +106,6 @@ const GENERAL_SUBS: readonly TabItem<GeneralSub>[] = [
   { id: "behaviors", labelKey: "settings.behaviors", icon: Sliders },
 ];
 const ADVANCED_SUBS: readonly TabItem<AdvancedSub>[] = [
-  { id: "mobile", labelKey: "settings.mobileAccess.title", icon: Smartphone },
   { id: "data", labelKey: "data.title", icon: Database },
   { id: "updates", labelKey: "updates.title", icon: Download },
   { id: "devtools", labelKey: "settings.developerTools", icon: Gauge },
@@ -178,8 +168,6 @@ function resolveInitialTab(initialTab: SettingsInitialTab | undefined): {
       return { tab: "general", generalSub: "notifications" };
     case "timer":
       return { tab: "general", generalSub: "timer" };
-    case "mobile":
-      return { tab: "advanced", advancedSub: "mobile" };
     case "devtools":
       return { tab: "advanced", advancedSub: "devtools" };
     case "behaviors":
@@ -208,7 +196,7 @@ export function Settings({ initialTab }: SettingsProps) {
     resolved.generalSub ?? "appearance",
   );
   const [advancedSub, setAdvancedSub] = useState<AdvancedSub>(
-    resolved.advancedSub ?? "mobile",
+    resolved.advancedSub ?? "data",
   );
   const [claudeSub, setClaudeSub] = useState<ClaudeSub>("setup");
   const [shortcutsSub, setShortcutsSub] = useState<ShortcutsSub>("global");
@@ -377,8 +365,6 @@ export function Settings({ initialTab }: SettingsProps) {
     if (activeTab === "advanced") {
       if (rightSidebarTarget) {
         switch (advancedSub) {
-          case "mobile":
-            return <MobileAccessSettings />;
           case "data":
             return <DataManagement />;
           case "updates":
@@ -393,8 +379,6 @@ export function Settings({ initialTab }: SettingsProps) {
       }
       return (
         <div className="space-y-8">
-          <MobileAccessSettings />
-          <div className="border-t border-notion-border" />
           <DataManagement />
           <div className="border-t border-notion-border" />
           <UpdateSettings />

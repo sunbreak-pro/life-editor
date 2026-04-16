@@ -1,20 +1,32 @@
-import { useState, useEffect, useCallback } from 'react';
-import { X } from 'lucide-react';
-import { getDataService } from '../services';
-import type { UpdaterStatus } from '../types/updater';
+import { useState, useEffect, useCallback } from "react";
+import { X } from "lucide-react";
+import { getDataService } from "../services";
+import { onUpdaterStatus } from "../services/events";
+import type { UpdaterStatus } from "../types/updater";
 
 export function UpdateNotification() {
   const [status, setStatus] = useState<UpdaterStatus | null>(null);
   const [dismissed, setDismissed] = useState(false);
 
   useEffect(() => {
-    const cleanup = window.electronAPI?.onUpdaterStatus?.((s: UpdaterStatus) => {
+    let disposed = false;
+    let cleanup: (() => void) | undefined;
+    onUpdaterStatus((s: UpdaterStatus) => {
       setStatus(s);
-      if (s.event === 'available' || s.event === 'downloaded') {
+      if (s.event === "available" || s.event === "downloaded") {
         setDismissed(false);
       }
+    }).then((unlisten) => {
+      if (disposed) {
+        unlisten();
+      } else {
+        cleanup = unlisten;
+      }
     });
-    return () => { cleanup?.(); };
+    return () => {
+      disposed = true;
+      cleanup?.();
+    };
   }, []);
 
   const handleDownload = useCallback(async () => {
@@ -27,7 +39,7 @@ export function UpdateNotification() {
 
   if (dismissed || !status) return null;
 
-  if (status.event === 'available') {
+  if (status.event === "available") {
     return (
       <div className="bg-notion-primary/10 border-b border-notion-primary/20 px-4 py-2 flex items-center gap-3 text-sm">
         <span className="text-notion-text flex-1">
@@ -49,7 +61,7 @@ export function UpdateNotification() {
     );
   }
 
-  if (status.event === 'downloaded') {
+  if (status.event === "downloaded") {
     return (
       <div className="bg-green-500/10 border-b border-green-500/20 px-4 py-2 flex items-center gap-3 text-sm">
         <span className="text-notion-text flex-1">

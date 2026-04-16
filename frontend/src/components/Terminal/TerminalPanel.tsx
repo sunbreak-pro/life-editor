@@ -106,7 +106,9 @@ export function TerminalPanel({
       const panel = panelRef.current;
       if (!panel || !panel.contains(document.activeElement)) {
         if (e.code === "KeyW" && !e.shiftKey) {
-          window.electronAPI?.invoke("window:close");
+          import("@tauri-apps/api/window").then(({ getCurrentWindow }) => {
+            getCurrentWindow().close();
+          });
           return;
         }
         return;

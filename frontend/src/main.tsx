@@ -23,10 +23,9 @@ import { ToastProvider } from "./context/ToastContext";
 import { ScreenLockProvider } from "./context/ScreenLockContext";
 import { FileExplorerProvider } from "./context/FileExplorerContext";
 import { TemplateProvider } from "./context/TemplateContext";
-import { isElectron } from "./services/dataServiceFactory";
 import { isTauri } from "./services/bridge";
 
-const isMobile = !isElectron() && !isTauri();
+const isMobile = !isTauri();
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>

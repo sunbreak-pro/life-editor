@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { Download, Trash2, RefreshCw } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { isTauri, tauriInvoke } from "../../services/bridge";
+import { tauriInvoke } from "../../services/bridge";
 
 interface SkillInfo {
   name: string;
@@ -20,16 +20,8 @@ export function SkillsManager() {
     setLoading(true);
     try {
       const [avail, inst] = await Promise.all([
-        isTauri()
-          ? tauriInvoke<SkillInfo[]>("claude_list_available_skills")
-          : (window.electronAPI?.invoke<SkillInfo[]>(
-              "claude:listAvailableSkills",
-            ) ?? []),
-        isTauri()
-          ? tauriInvoke<string[]>("claude_list_installed_skills")
-          : (window.electronAPI?.invoke<string[]>(
-              "claude:listInstalledSkills",
-            ) ?? []),
+        tauriInvoke<SkillInfo[]>("claude_list_available_skills"),
+        tauriInvoke<string[]>("claude_list_installed_skills"),
       ]);
       setAvailable(avail);
       setInstalled(inst);
@@ -46,18 +38,10 @@ export function SkillsManager() {
 
   const handleInstall = async (skill: SkillInfo) => {
     try {
-      if (isTauri()) {
-        await tauriInvoke("claude_install_skill", {
-          sourcePath: skill.sourcePath,
-          name: skill.name,
-        });
-      } else {
-        await window.electronAPI?.invoke(
-          "claude:installSkill",
-          skill.sourcePath,
-          skill.name,
-        );
-      }
+      await tauriInvoke("claude_install_skill", {
+        sourcePath: skill.sourcePath,
+        name: skill.name,
+      });
       setInstalled((prev) => [...prev, skill.name]);
     } catch (e) {
       console.warn("Install failed:", e);
@@ -66,11 +50,7 @@ export function SkillsManager() {
 
   const handleUninstall = async (name: string) => {
     try {
-      if (isTauri()) {
-        await tauriInvoke("claude_uninstall_skill", { name });
-      } else {
-        await window.electronAPI?.invoke("claude:uninstallSkill", name);
-      }
+      await tauriInvoke("claude_uninstall_skill", { name });
       setInstalled((prev) => prev.filter((n) => n !== name));
     } catch (e) {
       console.warn("Uninstall failed:", e);

@@ -2,36 +2,14 @@
   "name": "life-editor",
   "version": "1.0.0",
   "description": "Immersive task management app with ambient sounds and pomodoro timer",
-  "main": "electron/dist/main.js",
   "private": true,
   "scripts": {
-    "dev": "cd electron && npx tsc && cd .. && concurrently -n vite,tsc,electron -c cyan,yellow,green \"cd frontend && npm run dev\" \"cd electron && npx tsc --watch\" \"wait-on http://localhost:5173 && electron .\"",
-    "build": "cd frontend && npm run build && cd ../electron && npx tsc",
-    "start": "npm run build && electron .",
-    "dist": "rm -rf release && npm run build && electron-builder",
-    "dist:mac": "rm -rf release && npm run build && electron-builder --mac",
-    "dist:win": "rm -rf release && npm run build && electron-builder --win",
-    "postinstall": "cd frontend && npm install && npx electron-rebuild -f -w better-sqlite3,node-pty"
-  },
-  "dependencies": {
-    "@capacitor/ios": "^8.3.0",
-    "better-sqlite3": "^11.0.0",
-    "electron-log": "~5.3",
-    "electron-updater": "~6.3",
-    "hono": "^4.12.8",
-    "node-pty": "^1.1.0",
-    "ws": "^8.19.0"
+    "dev": "cargo tauri dev",
+    "build": "cargo tauri build",
+    "postinstall": "cd frontend && npm install"
   },
   "devDependencies": {
-    "@capacitor/cli": "^7.6.1",
-    "@electron/notarize": "^2.5.0",
-    "@electron/rebuild": "^3.7.0",
-    "@types/better-sqlite3": "^7.6.0",
-    "@types/ws": "^8.18.1",
-    "concurrently": "^9.1.2",
-    "electron": "^35.1.2",
-    "electron-builder": "^26.0.12",
-    "typescript": "~5.9.3",
-    "wait-on": "^8.0.3"
+    "@tauri-apps/cli": "^2.5.0",
+    "typescript": "~5.9.3"
   }
 }

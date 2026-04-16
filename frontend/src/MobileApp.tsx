@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef, useEffect } from "react";
+import { useState, useCallback, useRef } from "react";
 import { isApiConfigured } from "./config/api";
 import { ConnectionSetup } from "./components/Mobile/ConnectionSetup";
 import { MobileLayout, type MobileTab } from "./components/Layout/MobileLayout";
@@ -8,10 +8,6 @@ import { MobileWorkView } from "./components/Mobile/MobileWorkView";
 import { MobileSettingsView } from "./components/Mobile/MobileSettingsView";
 import { useRealtimeSync, type ChangeEvent } from "./hooks/useRealtimeSync";
 import { useOnlineStatus } from "./hooks/useOnlineStatus";
-import {
-  getOfflineDataService,
-  isStandalone,
-} from "./services/dataServiceFactory";
 
 const TAB_ENTITY_MAP: Record<MobileTab, string[]> = {
   materials: [
@@ -29,10 +25,7 @@ const TAB_ENTITY_MAP: Record<MobileTab, string[]> = {
 };
 
 export function MobileApp() {
-  const standaloneMode = isStandalone();
-  const [connected, setConnected] = useState(
-    standaloneMode || isApiConfigured(),
-  );
+  const [connected, setConnected] = useState(isApiConfigured());
   const [activeTab, setActiveTab] = useState<MobileTab>("materials");
   const [refreshKey, setRefreshKey] = useState(0);
   const activeTabRef = useRef(activeTab);
@@ -47,17 +40,6 @@ export function MobileApp() {
 
   const connectionState = useRealtimeSync(handleChange);
   const { syncStatus, pendingCount } = useOnlineStatus();
-
-  useEffect(() => {
-    const svc = getOfflineDataService();
-    if (svc) {
-      svc.initialize();
-    }
-    return () => {
-      const s = getOfflineDataService();
-      s?.destroy();
-    };
-  }, []);
 
   if (!connected) {
     return <ConnectionSetup onConnected={() => setConnected(true)} />;

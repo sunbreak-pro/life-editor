@@ -11,7 +11,6 @@ import {
 import { useTranslation } from "react-i18next";
 import { DEFAULT_SHORTCUTS } from "../../constants/defaultShortcuts";
 import { useShortcutConfig } from "../../hooks/useShortcutConfig";
-import { isElectron } from "../../services/dataServiceFactory";
 import { getDataService } from "../../services/dataServiceFactory";
 import { isTauri } from "../../services/bridge";
 import { isMac } from "../../utils/platform";
@@ -304,7 +303,7 @@ export function KeyboardShortcuts({
   >(new Set());
 
   // Global shortcuts state
-  const isDesktopEnv = useMemo(() => isElectron() || isTauri(), []);
+  const isDesktopEnv = useMemo(() => isTauri(), []);
   const [globalConfig, setGlobalConfig] = useState<Record<string, string>>({});
   const [globalDraft, setGlobalDraft] = useState<Record<string, string>>({});
   const [globalLoaded, setGlobalLoaded] = useState(false);

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Bot } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { isTauri, tauriInvoke } from "../../services/bridge";
+import { tauriInvoke } from "../../services/bridge";
 
 interface SetupResult {
   success: boolean;
@@ -17,9 +17,7 @@ export function ClaudeSetupSection() {
   const handleRegister = async () => {
     setLoading(true);
     try {
-      const res = isTauri()
-        ? await tauriInvoke<SetupResult>("claude_register_mcp")
-        : await window.electronAPI?.invoke<SetupResult>("claude:registerMcp");
+      const res = await tauriInvoke<SetupResult>("claude_register_mcp");
       if (res) setResult(res);
     } catch (e) {
       setResult({
