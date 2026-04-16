@@ -12,9 +12,9 @@
 
 ## 直近の完了
 
+- Tauri 2.0 IPC 引数キー名修正 (snake_case → camelCase) ✅（2026-04-16）
 - Electron コード・依存関係の完全削除 ✅（2026-04-16）
 - Tauri 2.0 Migration Phase 5 iOS Target (Steps 5.1-5.3) ✅（2026-04-16）
-- Tauri 2.0 Migration Phase 0-4 完了 ✅（2026-04-16）
 
 ## 予定
 

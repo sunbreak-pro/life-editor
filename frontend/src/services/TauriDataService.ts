@@ -105,8 +105,8 @@ export class TauriDataService implements DataService {
     taskId?: string,
   ): Promise<TimerSession> {
     return tauriInvoke("db_timer_start_session", {
-      session_type: sessionType,
-      task_id: taskId ?? null,
+      sessionType,
+      taskId: taskId ?? null,
     });
   }
   endTimerSession(
@@ -121,7 +121,7 @@ export class TauriDataService implements DataService {
   }
   fetchSessionsByTaskId(taskId: string): Promise<TimerSession[]> {
     return tauriInvoke("db_timer_fetch_sessions_by_task_id", {
-      task_id: taskId,
+      taskId,
     });
   }
 
@@ -154,7 +154,7 @@ export class TauriDataService implements DataService {
     enabled: boolean,
   ): Promise<SoundSettings> {
     return tauriInvoke("db_sound_update_setting", {
-      sound_type: soundType,
+      soundType,
       volume,
       enabled,
     });
@@ -165,7 +165,7 @@ export class TauriDataService implements DataService {
   createSoundPreset(name: string, settingsJson: string): Promise<SoundPreset> {
     return tauriInvoke("db_sound_create_preset", {
       name,
-      settings_json: settingsJson,
+      settingsJson,
     });
   }
   deleteSoundPreset(id: number): Promise<void> {
@@ -190,13 +190,13 @@ export class TauriDataService implements DataService {
   }
   fetchTagsForSound(soundId: string): Promise<SoundTag[]> {
     return tauriInvoke("db_sound_fetch_tags_for_sound", {
-      sound_id: soundId,
+      soundId,
     });
   }
   setTagsForSound(soundId: string, tagIds: number[]): Promise<void> {
     return tauriInvoke("db_sound_set_tags_for_sound", {
-      sound_id: soundId,
-      tag_ids: tagIds,
+      soundId,
+      tagIds,
     });
   }
   fetchAllSoundTagAssignments(): Promise<
@@ -209,8 +209,8 @@ export class TauriDataService implements DataService {
   }
   updateSoundDisplayMeta(soundId: string, displayName: string): Promise<void> {
     return tauriInvoke("db_sound_update_sound_display_meta", {
-      sound_id: soundId,
-      display_name: displayName,
+      soundId,
+      displayName,
     });
   }
   fetchWorkscreenSelections(): Promise<
@@ -220,7 +220,7 @@ export class TauriDataService implements DataService {
   }
   setWorkscreenSelections(soundIds: string[]): Promise<void> {
     return tauriInvoke("db_sound_set_workscreen_selections", {
-      sound_ids: soundIds,
+      soundIds,
     });
   }
 
@@ -255,7 +255,7 @@ export class TauriDataService implements DataService {
   removeMemoPassword(date: string, currentPassword: string): Promise<MemoNode> {
     return tauriInvoke("db_memo_remove_password", {
       date,
-      current_password: currentPassword,
+      currentPassword,
     });
   }
   verifyMemoPassword(date: string, password: string): Promise<boolean> {
@@ -280,7 +280,7 @@ export class TauriDataService implements DataService {
     return tauriInvoke("db_notes_create", {
       id,
       title,
-      parent_id: parentId ?? null,
+      parentId: parentId ?? null,
     });
   }
   updateNote(
@@ -309,7 +309,7 @@ export class TauriDataService implements DataService {
   removeNotePassword(id: string, currentPassword: string): Promise<NoteNode> {
     return tauriInvoke("db_notes_remove_password", {
       id,
-      current_password: currentPassword,
+      currentPassword,
     });
   }
   verifyNotePassword(id: string, password: string): Promise<boolean> {
@@ -326,7 +326,7 @@ export class TauriDataService implements DataService {
     return tauriInvoke("db_notes_create_folder", {
       id,
       title,
-      parent_id: parentId,
+      parentId,
     });
   }
   syncNoteTree(
@@ -380,7 +380,7 @@ export class TauriDataService implements DataService {
     return tauriInvoke("db_calendars_create", {
       id,
       title,
-      folder_id: folderId,
+      folderId,
     });
   }
   updateCalendar(
@@ -418,8 +418,8 @@ export class TauriDataService implements DataService {
   }
   setTagsForRoutine(routineId: string, tagIds: number[]): Promise<void> {
     return tauriInvoke("db_routine_tags_set_tags_for_routine", {
-      routine_id: routineId,
-      tag_ids: tagIds,
+      routineId,
+      tagIds,
     });
   }
 
@@ -451,8 +451,8 @@ export class TauriDataService implements DataService {
     tagIds: number[],
   ): Promise<void> {
     return tauriInvoke("db_calendar_tags_set_tags_for_schedule_item", {
-      schedule_item_id: scheduleItemId,
-      tag_ids: tagIds,
+      scheduleItemId,
+      tagIds,
     });
   }
 
@@ -475,14 +475,14 @@ export class TauriDataService implements DataService {
     return tauriInvoke("db_routines_create", {
       id,
       title,
-      start_time: startTime,
-      end_time: endTime,
-      frequency_type: frequencyType,
-      frequency_days: frequencyDays,
-      frequency_interval: frequencyInterval,
-      frequency_start_date: frequencyStartDate,
-      reminder_enabled: reminderEnabled,
-      reminder_offset: reminderOffset,
+      startTime,
+      endTime,
+      frequencyType,
+      frequencyDays,
+      frequencyInterval,
+      frequencyStartDate,
+      reminderEnabled,
+      reminderOffset,
     });
   }
   updateRoutine(
@@ -535,8 +535,8 @@ export class TauriDataService implements DataService {
     endDate: string,
   ): Promise<ScheduleItem[]> {
     return tauriInvoke("db_schedule_items_fetch_by_date_range", {
-      start_date: startDate,
-      end_date: endDate,
+      startDate,
+      endDate,
     });
   }
   createScheduleItem(
@@ -555,12 +555,12 @@ export class TauriDataService implements DataService {
       id,
       date,
       title,
-      start_time: startTime,
-      end_time: endTime,
-      routine_id: routineId,
-      template_id: templateId,
-      note_id: noteId,
-      is_all_day: isAllDay,
+      startTime,
+      endTime,
+      routineId,
+      templateId,
+      noteId,
+      isAllDay,
       content,
     });
   }
@@ -632,14 +632,14 @@ export class TauriDataService implements DataService {
     fromDate: string,
   ): Promise<number> {
     return tauriInvoke("db_schedule_items_update_future_by_routine", {
-      routine_id: routineId,
+      routineId,
       updates,
-      from_date: fromDate,
+      fromDate,
     });
   }
   fetchScheduleItemsByRoutineId(routineId: string): Promise<ScheduleItem[]> {
     return tauriInvoke("db_schedule_items_fetch_by_routine_id", {
-      routine_id: routineId,
+      routineId,
     });
   }
   bulkDeleteScheduleItems(ids: string[]): Promise<number> {
@@ -666,10 +666,10 @@ export class TauriDataService implements DataService {
       id,
       name,
       color,
-      frequency_type: frequencyType,
-      frequency_days: frequencyDays,
-      frequency_interval: frequencyInterval,
-      frequency_start_date: frequencyStartDate,
+      frequencyType,
+      frequencyDays,
+      frequencyInterval,
+      frequencyStartDate,
     });
   }
   updateRoutineGroup(
@@ -700,8 +700,8 @@ export class TauriDataService implements DataService {
   }
   setTagsForRoutineGroup(groupId: string, tagIds: number[]): Promise<void> {
     return tauriInvoke("db_routine_groups_set_tags_for_group", {
-      group_id: groupId,
-      tag_ids: tagIds,
+      groupId,
+      tagIds,
     });
   }
 
@@ -725,7 +725,7 @@ export class TauriDataService implements DataService {
   }
   fetchPlaylistItems(playlistId: string): Promise<PlaylistItem[]> {
     return tauriInvoke("db_playlists_fetch_items", {
-      playlist_id: playlistId,
+      playlistId,
     });
   }
   fetchAllPlaylistItems(): Promise<PlaylistItem[]> {
@@ -738,17 +738,17 @@ export class TauriDataService implements DataService {
   ): Promise<PlaylistItem> {
     return tauriInvoke("db_playlists_add_item", {
       id,
-      playlist_id: playlistId,
-      sound_id: soundId,
+      playlistId,
+      soundId,
     });
   }
   removePlaylistItem(itemId: string): Promise<void> {
-    return tauriInvoke("db_playlists_remove_item", { item_id: itemId });
+    return tauriInvoke("db_playlists_remove_item", { itemId });
   }
   reorderPlaylistItems(playlistId: string, itemIds: string[]): Promise<void> {
     return tauriInvoke("db_playlists_reorder_items", {
-      playlist_id: playlistId,
-      item_ids: itemIds,
+      playlistId,
+      itemIds,
     });
   }
 
@@ -780,13 +780,13 @@ export class TauriDataService implements DataService {
   }
   mergeWikiTags(sourceId: string, targetId: string): Promise<WikiTag> {
     return tauriInvoke("db_wiki_tags_merge", {
-      source_id: sourceId,
-      target_id: targetId,
+      sourceId,
+      targetId,
     });
   }
   fetchWikiTagsForEntity(entityId: string): Promise<WikiTag[]> {
     return tauriInvoke("db_wiki_tags_fetch_for_entity", {
-      entity_id: entityId,
+      entityId,
     });
   }
   setWikiTagsForEntity(
@@ -795,9 +795,9 @@ export class TauriDataService implements DataService {
     tagIds: string[],
   ): Promise<void> {
     return tauriInvoke("db_wiki_tags_set_for_entity", {
-      entity_id: entityId,
-      entity_type: entityType,
-      tag_ids: tagIds,
+      entityId,
+      entityType,
+      tagIds,
     });
   }
   syncInlineWikiTags(
@@ -806,9 +806,9 @@ export class TauriDataService implements DataService {
     tagNames: string[],
   ): Promise<void> {
     return tauriInvoke("db_wiki_tags_sync_inline", {
-      entity_id: entityId,
-      entity_type: entityType,
-      tag_names: tagNames,
+      entityId,
+      entityType,
+      tagNames,
     });
   }
   fetchAllWikiTagAssignments(): Promise<WikiTagAssignment[]> {
@@ -821,9 +821,9 @@ export class TauriDataService implements DataService {
     source: string,
   ): Promise<void> {
     return tauriInvoke("db_wiki_tags_restore_assignment", {
-      tag_id: tagId,
-      entity_id: entityId,
-      entity_type: entityType,
+      tagId,
+      entityId,
+      entityType,
       source,
     });
   }
@@ -839,8 +839,8 @@ export class TauriDataService implements DataService {
   ): Promise<WikiTagGroup> {
     return tauriInvoke("db_wiki_tag_groups_create", {
       name,
-      note_ids: noteIds,
-      filter_tags: filterTags,
+      noteIds,
+      filterTags,
     });
   }
   updateWikiTagGroup(
@@ -857,20 +857,20 @@ export class TauriDataService implements DataService {
   }
   setWikiTagGroupMembers(groupId: string, noteIds: string[]): Promise<void> {
     return tauriInvoke("db_wiki_tag_groups_set_members", {
-      group_id: groupId,
-      note_ids: noteIds,
+      groupId,
+      noteIds,
     });
   }
   addWikiTagGroupMember(groupId: string, noteId: string): Promise<void> {
     return tauriInvoke("db_wiki_tag_groups_add_member", {
-      group_id: groupId,
-      note_id: noteId,
+      groupId,
+      noteId,
     });
   }
   removeWikiTagGroupMember(groupId: string, noteId: string): Promise<void> {
     return tauriInvoke("db_wiki_tag_groups_remove_member", {
-      group_id: groupId,
-      note_id: noteId,
+      groupId,
+      noteId,
     });
   }
 
@@ -883,8 +883,8 @@ export class TauriDataService implements DataService {
     targetTagId: string,
   ): Promise<WikiTagConnection> {
     return tauriInvoke("db_wiki_tag_connections_create", {
-      source_tag_id: sourceTagId,
-      target_tag_id: targetTagId,
+      sourceTagId,
+      targetTagId,
     });
   }
   deleteWikiTagConnection(id: string): Promise<void> {
@@ -895,8 +895,8 @@ export class TauriDataService implements DataService {
     targetTagId: string,
   ): Promise<void> {
     return tauriInvoke("db_wiki_tag_connections_delete_by_tag_pair", {
-      source_tag_id: sourceTagId,
-      target_tag_id: targetTagId,
+      sourceTagId,
+      targetTagId,
     });
   }
 
@@ -909,8 +909,8 @@ export class TauriDataService implements DataService {
     targetNoteId: string,
   ): Promise<NoteConnection> {
     return tauriInvoke("db_note_connections_create", {
-      source_note_id: sourceNoteId,
-      target_note_id: targetNoteId,
+      sourceNoteId,
+      targetNoteId,
     });
   }
   deleteNoteConnection(id: string): Promise<void> {
@@ -921,8 +921,8 @@ export class TauriDataService implements DataService {
     targetNoteId: string,
   ): Promise<void> {
     return tauriInvoke("db_note_connections_delete_by_note_pair", {
-      source_note_id: sourceNoteId,
-      target_note_id: targetNoteId,
+      sourceNoteId,
+      targetNoteId,
     });
   }
 
@@ -951,7 +951,7 @@ export class TauriDataService implements DataService {
   }
   fetchPaperBoardByNoteId(noteId: string): Promise<PaperBoard | null> {
     return tauriInvoke("db_paper_boards_fetch_by_note_id", {
-      note_id: noteId,
+      noteId,
     });
   }
   createPaperBoard(
@@ -960,7 +960,7 @@ export class TauriDataService implements DataService {
   ): Promise<PaperBoard> {
     return tauriInvoke("db_paper_boards_create", {
       name,
-      linked_note_id: linkedNoteId,
+      linkedNoteId,
     });
   }
   updatePaperBoard(
@@ -989,7 +989,7 @@ export class TauriDataService implements DataService {
   }
   fetchPaperNodesByBoard(boardId: string): Promise<PaperNode[]> {
     return tauriInvoke("db_paper_nodes_fetch_by_board", {
-      board_id: boardId,
+      boardId,
     });
   }
   createPaperNode(params: {
@@ -1059,7 +1059,7 @@ export class TauriDataService implements DataService {
   // --- Paper Edges ---
   fetchPaperEdgesByBoard(boardId: string): Promise<PaperEdge[]> {
     return tauriInvoke("db_paper_edges_fetch_by_board", {
-      board_id: boardId,
+      boardId,
     });
   }
   createPaperEdge(params: {
@@ -1173,9 +1173,9 @@ export class TauriDataService implements DataService {
   ): Promise<DatabaseProperty> {
     return tauriInvoke("db_database_add_property", {
       id,
-      database_id: databaseId,
+      databaseId,
       name,
-      property_type: type,
+      propertyType: type,
       order,
       config,
     });
@@ -1201,12 +1201,12 @@ export class TauriDataService implements DataService {
   ): Promise<DatabaseRow> {
     return tauriInvoke("db_database_add_row", {
       id,
-      database_id: databaseId,
+      databaseId,
       order,
     });
   }
   reorderDatabaseRows(rowIds: string[]): Promise<void> {
-    return tauriInvoke("db_database_reorder_rows", { row_ids: rowIds });
+    return tauriInvoke("db_database_reorder_rows", { rowIds });
   }
   removeDatabaseRow(id: string): Promise<void> {
     return tauriInvoke("db_database_remove_row", { id });
@@ -1219,8 +1219,8 @@ export class TauriDataService implements DataService {
   ): Promise<DatabaseCell> {
     return tauriInvoke("db_database_upsert_cell", {
       id,
-      row_id: rowId,
-      property_id: propertyId,
+      rowId,
+      propertyId,
       value,
     });
   }
@@ -1314,75 +1314,75 @@ export class TauriDataService implements DataService {
   }
   listDirectory(relativePath: string): Promise<FileEntry[]> {
     return tauriInvoke("files_list_directory", {
-      relative_path: relativePath,
+      relativePath,
     });
   }
   getFileInfo(relativePath: string): Promise<FileInfo> {
     return tauriInvoke("files_get_file_info", {
-      relative_path: relativePath,
+      relativePath,
     });
   }
   readTextFile(relativePath: string): Promise<string> {
     return tauriInvoke("files_read_text_file", {
-      relative_path: relativePath,
+      relativePath,
     });
   }
   readFile(relativePath: string): Promise<ArrayBuffer> {
-    return tauriInvoke("files_read_file", { relative_path: relativePath });
+    return tauriInvoke("files_read_file", { relativePath });
   }
   createDirectory(relativePath: string): Promise<void> {
     return tauriInvoke("files_create_directory", {
-      relative_path: relativePath,
+      relativePath,
     });
   }
   createFile(relativePath: string): Promise<void> {
-    return tauriInvoke("files_create_file", { relative_path: relativePath });
+    return tauriInvoke("files_create_file", { relativePath });
   }
   writeTextFile(relativePath: string, content: string): Promise<void> {
     return tauriInvoke("files_write_text_file", {
-      relative_path: relativePath,
+      relativePath,
       content,
     });
   }
   renameFile(oldPath: string, newPath: string): Promise<void> {
     return tauriInvoke("files_rename", {
-      old_path: oldPath,
-      new_path: newPath,
+      oldPath,
+      newPath,
     });
   }
   moveFile(sourcePath: string, destPath: string): Promise<void> {
     return tauriInvoke("files_move", {
-      source_path: sourcePath,
-      dest_path: destPath,
+      sourcePath,
+      destPath,
     });
   }
   deleteFile(relativePath: string): Promise<void> {
-    return tauriInvoke("files_delete", { relative_path: relativePath });
+    return tauriInvoke("files_delete", { relativePath });
   }
   openFileInSystem(relativePath: string): Promise<void> {
     return tauriInvoke("files_open_in_system", {
-      relative_path: relativePath,
+      relativePath,
     });
   }
 
   // --- Copy (Notes/Memos <-> Files) ---
   copyNoteToFile(noteId: string, directoryPath: string): Promise<string> {
     return tauriInvoke("copy_note_to_file", {
-      note_id: noteId,
-      directory_path: directoryPath,
+      noteId,
+      directoryPath,
     });
   }
   copyMemoToFile(memoDate: string, directoryPath: string): Promise<string> {
     return tauriInvoke("copy_memo_to_file", {
-      memo_date: memoDate,
-      directory_path: directoryPath,
+      memoDate,
+      directoryPath,
     });
   }
   convertFileToTiptap(
     relativeFilePath: string,
   ): Promise<{ title: string; content: string }> {
     return tauriInvoke("copy_convert_file_to_tiptap", {
-      relative_file_path: relativeFilePath,
+      relativeFilePath,
     });
   }
 }
