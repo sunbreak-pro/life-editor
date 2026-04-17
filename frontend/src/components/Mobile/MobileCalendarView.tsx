@@ -11,6 +11,7 @@ import {
   List,
 } from "lucide-react";
 import { getDataService } from "../../services/dataServiceFactory";
+import { useSyncContext } from "../../hooks/useSyncContext";
 import type { ScheduleItem } from "../../types/schedule";
 import type { TaskNode } from "../../types/taskTree";
 import {
@@ -473,6 +474,7 @@ type CalendarSubTab = "monthly" | "dayflow";
 
 export function MobileCalendarView() {
   const { t } = useTranslation();
+  const { syncVersion } = useSyncContext();
   const [selectedDate, setSelectedDate] = useState(todayStr);
   const [subTab, setSubTab] = useState<CalendarSubTab>("monthly");
   const [scheduleItems, setScheduleItems] = useState<ScheduleItem[]>([]);
@@ -535,7 +537,7 @@ export function MobileCalendarView() {
     loadDayItems(selectedDate);
     loadMonthItems(selectedDate);
     loadTasks();
-  }, [selectedDate, loadDayItems, loadMonthItems, loadTasks]);
+  }, [selectedDate, loadDayItems, loadMonthItems, loadTasks, syncVersion]);
 
   // Aggregate counts for calendar dots
   const itemCountByDate = useMemo(() => {
@@ -829,7 +831,7 @@ export function MobileCalendarView() {
             setEditingItem(null);
             setFormOpen(true);
           }}
-          className="absolute right-4 bottom-20 z-30 flex h-14 w-14 items-center justify-center rounded-full bg-notion-accent shadow-lg active:opacity-80"
+          className="absolute right-4 bottom-20 z-30 mb-[env(safe-area-inset-bottom)] flex h-14 w-14 items-center justify-center rounded-full bg-notion-accent shadow-lg active:opacity-80"
           aria-label={t("mobile.schedule.create", "New Item")}
         >
           <Plus size={24} className="text-white" />

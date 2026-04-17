@@ -1,10 +1,12 @@
 import { useState, useEffect, useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { getDataService } from "../../services/dataServiceFactory";
+import { useSyncContext } from "../../hooks/useSyncContext";
 import type { NoteNode } from "../../types/note";
 
 export function MobileNoteView() {
   const { t } = useTranslation();
+  const { syncVersion } = useSyncContext();
   const [notes, setNotes] = useState<NoteNode[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [editTitle, setEditTitle] = useState("");
@@ -26,7 +28,7 @@ export function MobileNoteView() {
 
   useEffect(() => {
     loadNotes();
-  }, [loadNotes]);
+  }, [loadNotes, syncVersion]);
 
   useEffect(() => {
     if (selectedId) {

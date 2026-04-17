@@ -8,8 +8,8 @@
 **計画書**: `.claude/feature_plans/2026-04-17-ios-safe-area.md`
 
 - 前回: —
-- 現在: 計画書作成完了、実装待ち
-- 次: Step 1 MobileLayout.tsx に safe area padding 追加 → シミュレータ確認
+- 現在: Step 1-3 実装完了（header/nav/FAB に safe area padding 追加）、iOS シミュレータ確認待ち
+- 次: シミュレータ確認 → FAB の mb が過剰なら除去 → 完了
 
 ### ⏸️ TitleBar ドラッグ修復 + タイトル修正（着手日: 2026-04-16）
 
@@ -21,11 +21,10 @@
 
 ## 直近の完了
 
-- CLAUDE.md 現状コード反映更新 ✅（2026-04-17）
-- Tauri 2.0 Migration Phase 6: Cloud Sync (CF Workers + D1) ✅（2026-04-16）
-- Tauri 2.0 IPC 引数キー名修正 (snake_case → camelCase) ✅（2026-04-16）
+- Cloud Sync UI リフレッシュ修正（syncVersion + 即時 sync） ✅（2026-04-18）
+- Tauri 2.0 Migration Phase 5.4: MobileSettingsView に Data セクション追加 ✅（2026-04-18）
+- App Optimization Phase 4: TaskNode Map, Effect統合, ColorPicker統合, breadcrumb削除 ✅（2026-04-18）
 
 ## 予定
 
-- Tauri 2.0 Migration Phase 5.4: 既存 Capacitor ユーザーのデータ移行
-- App Optimization Phase 4: TaskNode Map, usePlaylistEngine Effect統合, ColorPicker統合, TaskDetailHeader breadcrumb削除
+（なし — 新しいタスクを追加してください）

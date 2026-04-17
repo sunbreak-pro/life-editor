@@ -5,6 +5,7 @@ import { STORAGE_KEYS } from "../constants/storageKeys";
 import { generateId } from "../utils/generateId";
 import { useLocalStorage } from "./useLocalStorage";
 import { useUndoRedo } from "../components/shared/UndoRedo";
+import { useSyncContext } from "./useSyncContext";
 
 const nullableStringOptions = {
   serialize: (v: string | null) => v ?? "",
@@ -12,6 +13,7 @@ const nullableStringOptions = {
 };
 
 export function useCalendars() {
+  const { syncVersion } = useSyncContext();
   const [calendars, setCalendars] = useState<CalendarNode[]>([]);
   const [activeCalendarId, setActiveCalendarId] = useLocalStorage<
     string | null
@@ -32,7 +34,7 @@ export function useCalendars() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [syncVersion]);
 
   // Derive a valid calendar ID (auto-reset if referenced calendar was deleted)
   const validActiveCalendarId = useMemo(() => {

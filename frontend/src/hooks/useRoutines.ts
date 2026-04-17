@@ -4,8 +4,10 @@ import { getDataService } from "../services";
 import { logServiceError } from "../utils/logError";
 import { generateId } from "../utils/generateId";
 import { useUndoRedo } from "../components/shared/UndoRedo";
+import { useSyncContext } from "./useSyncContext";
 
 export function useRoutines() {
+  const { syncVersion } = useSyncContext();
   const { push } = useUndoRedo();
   const [routines, setRoutines] = useState<RoutineNode[]>([]);
   const [deletedRoutines, setDeletedRoutines] = useState<RoutineNode[]>([]);
@@ -32,7 +34,7 @@ export function useRoutines() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [syncVersion]);
 
   const createRoutine = useCallback(
     (

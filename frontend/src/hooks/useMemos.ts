@@ -4,8 +4,10 @@ import { getDataService } from "../services";
 import { logServiceError } from "../utils/logError";
 import { formatDateKey } from "../utils/dateKey";
 import { useUndoRedo } from "../components/shared/UndoRedo";
+import { useSyncContext } from "./useSyncContext";
 
 export function useMemos() {
+  const { syncVersion } = useSyncContext();
   const [memos, setMemos] = useState<MemoNode[]>([]);
   const [deletedMemos, setDeletedMemos] = useState<MemoNode[]>([]);
   const [selectedDate, setSelectedDate] = useState<string>(
@@ -34,7 +36,7 @@ export function useMemos() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [syncVersion]);
 
   const upsertMemo = useCallback(
     (date: string, content: string, options?: { skipUndo?: boolean }) => {

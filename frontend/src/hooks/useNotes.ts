@@ -7,6 +7,7 @@ import { useUndoRedo } from "../components/shared/UndoRedo";
 import { useLocalStorage } from "./useLocalStorage";
 import { STORAGE_KEYS } from "../constants/storageKeys";
 import type { SortDirection } from "../components/shared/SortDropdown";
+import { useSyncContext } from "./useSyncContext";
 
 function loadExpandedIds(): Set<string> {
   try {
@@ -26,6 +27,7 @@ function saveExpandedIds(ids: Set<string>): void {
 }
 
 export function useNotes() {
+  const { syncVersion } = useSyncContext();
   const [notes, setNotes] = useState<NoteNode[]>([]);
   const [deletedNotes, setDeletedNotes] = useState<NoteNode[]>([]);
   const [selectedNoteId, setSelectedNoteId] = useState<string | null>(null);
@@ -59,7 +61,7 @@ export function useNotes() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [syncVersion]);
 
   // Tree helpers
   const getChildren = useCallback(

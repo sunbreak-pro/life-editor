@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { Plus, Repeat, Clock, Trash2 } from "lucide-react";
 import { getDataService } from "../../services/dataServiceFactory";
+import { useSyncContext } from "../../hooks/useSyncContext";
 import type { ScheduleItem } from "../../types/schedule";
 import { MobileCalendarStrip } from "./MobileCalendarStrip";
 import {
@@ -123,6 +124,7 @@ function SwipeableItem({ children, onDelete }: SwipeableItemProps) {
 
 export function MobileScheduleView() {
   const { t } = useTranslation();
+  const { syncVersion } = useSyncContext();
   const [selectedDate, setSelectedDate] = useState(todayStr);
   const [items, setItems] = useState<ScheduleItem[]>([]);
   const [weekItems, setWeekItems] = useState<ScheduleItem[]>([]);
@@ -185,7 +187,7 @@ export function MobileScheduleView() {
   useEffect(() => {
     loadItems(selectedDate);
     loadWeekItems(selectedDate);
-  }, [selectedDate, loadItems, loadWeekItems]);
+  }, [selectedDate, loadItems, loadWeekItems, syncVersion]);
 
   // Item count by date for calendar dots
   const itemCountByDate = useMemo(() => {

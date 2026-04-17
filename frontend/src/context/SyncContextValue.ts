@@ -5,6 +5,7 @@ export interface SyncContextValue {
   status: SyncStatus | null;
   lastSyncResult: SyncResult | null;
   isSyncing: boolean;
+  syncVersion: number;
   triggerSync: () => Promise<void>;
   configure: (url: string, token: string) => Promise<boolean>;
   disconnect: () => Promise<void>;

@@ -17,6 +17,7 @@ export function SyncProvider({ children }: { children: ReactNode }) {
   const [status, setStatus] = useState<SyncStatus | null>(null);
   const [lastSyncResult, setLastSyncResult] = useState<SyncResult | null>(null);
   const [isSyncing, setIsSyncing] = useState(false);
+  const [syncVersion, setSyncVersion] = useState(0);
   const isSyncingRef = useRef(false);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const ds = getDataService();
@@ -39,6 +40,7 @@ export function SyncProvider({ children }: { children: ReactNode }) {
       setStatus(newStatus);
       if (result.pulled > 0) {
         emitSyncComplete();
+        setSyncVersion((v) => v + 1);
       }
     } catch {
       // Silently handle sync errors for background polling
@@ -54,10 +56,12 @@ export function SyncProvider({ children }: { children: ReactNode }) {
       if (ok) {
         const newStatus = await ds.syncGetStatus();
         setStatus(newStatus);
+        // Trigger immediate sync instead of waiting for the 30s interval
+        triggerSync();
       }
       return ok;
     },
-    [ds],
+    [ds, triggerSync],
   );
 
   const disconnect = useCallback(async () => {
@@ -85,6 +89,7 @@ export function SyncProvider({ children }: { children: ReactNode }) {
       setStatus(newStatus);
       if (result.pulled > 0) {
         emitSyncComplete();
+        setSyncVersion((v) => v + 1);
       }
     } finally {
       isSyncingRef.current = false;
@@ -115,6 +120,7 @@ export function SyncProvider({ children }: { children: ReactNode }) {
       status,
       lastSyncResult,
       isSyncing,
+      syncVersion,
       triggerSync,
       configure,
       disconnect,
@@ -124,6 +130,7 @@ export function SyncProvider({ children }: { children: ReactNode }) {
       status,
       lastSyncResult,
       isSyncing,
+      syncVersion,
       triggerSync,
       configure,
       disconnect,

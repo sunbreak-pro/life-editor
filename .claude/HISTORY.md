@@ -1,5 +1,18 @@
 # HISTORY.md - 変更履歴
 
+### 2026-04-18 - Cloud Sync UI リフレッシュ修正
+
+#### 概要
+
+Cloud Sync でデータを pull した後に iOS/Desktop の UI が更新されない問題を修正。`syncVersion` カウンターによる自動再取得メカニズムと、configure 後の即時 sync を実装。
+
+#### 変更点
+
+- **SyncContext**: `syncVersion` state を追加。`pulled > 0` 時にインクリメントし、`configure()` 成功後に即時 `triggerSync()` を呼び出し（30秒待ち解消）
+- **データフック（7ファイル）**: `useTaskTreeAPI`, `useMemos`, `useNotes`, `useRoutines`, `useCalendars`, `useTemplates`, `ScheduleItemsContext` の初期ロード `useEffect` 依存配列に `syncVersion` 追加。sync 完了時に自動再取得
+- **モバイルビュー（5ファイル）**: `MobileTaskView`, `MobileMemoView`, `MobileNoteView`, `MobileCalendarView`, `MobileScheduleView` のデータロード `useEffect` に `syncVersion` 依存追加
+- **useTemplates リファクタ**: `loadedRef` ガードを撤去し、標準 `cancelled` cleanup パターンに統一
+
 - 2026-04-17: [途中] iOS Safe Area 対応 — 計画書 `.claude/feature_plans/2026-04-17-ios-safe-area.md` 作成完了。MobileLayout.tsx の header/footer に `env(safe-area-inset-*)` padding を追加する方針。実装は次セッション
 
 ### 2026-04-17 - CLAUDE.md 現状コード反映更新
@@ -61,27 +74,6 @@ Tauri 2.0 移行完了後に残存していた Electron アーティファクト
 - **CI/CD 書き換え**: `.github/workflows/build.yml` を `electron-builder` → `tauri-apps/tauri-action@v0` に全面書き換え（macOS + Windows、Rust cache、Tauri 成果物パス）
 - **ドキュメント更新**: `.gitignore` から Electron エントリ削除、`.claude/rules/` 3ファイル（project-debug.md, project-patterns.md, project-review-checklist.md）を Tauri パターンに更新
 - **CSS**: `index.css` のコメント `Electron titlebar drag regions` → `Titlebar drag regions`
-
-### 2026-04-16 - Tauri 2.0 Migration: Phase 5 iOS Target (Steps 5.1-5.3)
-
-#### 概要
-
-Tauri 2.0 の iOS サポートを追加。デスクトップ専用モジュールの条件コンパイル、iOS プロジェクト初期化、フロントエンドのモバイル検出・ローカルモード対応を実装。Desktop/iOS 両ターゲットでコンパイル成功。
-
-#### 変更点
-
-- **Cargo.toml**: `portable-pty`, `notify`, `notify-debouncer-mini`, `trash` を `[target.'cfg(not(target_os = "ios"))'.dependencies]` に分離。`tauri-plugin-global-shortcut`, `tauri-plugin-window-state`, `tray-icon` feature も同セクション
-- **lib.rs**: 5モジュール（terminal, tray, shortcuts, file_watcher, menu）を `#[cfg(not(mobile))]` でゲート。プラグイン登録・setup・on_window_event も条件分岐
-- **terminal_commands.rs**: desktop/mobile 分離。iOS では5コマンド全てエラースタブ（State<PtyState> 不要）
-- **system_commands.rs**: `system_set_tray_enabled`, `system_reregister_global_shortcuts`, `tray_update_timer` の OS 操作部分を `#[cfg(not(mobile))]` でゲート（DB操作は共通）
-- **files_commands.rs**: `files_delete` の `trash::delete` をゲート（iOS は `std::fs::remove_file/remove_dir_all`）、`files_select_folder` の `blocking_pick_folder` をデスクトップ限定に
-- **capabilities**: `default.json` に `"platforms": ["macOS", "windows", "linux"]` 追加、`mobile.json` 新規作成（iOS 用最小権限: core, shell, dialog, notification）
-- **bridge.ts**: `isTauriMobile()` 追加（UserAgent ベースの同期判定）
-- **main.tsx**: `const isMobile = !isTauri() || isTauriMobile()` に変更。Tauri iOS → MobileApp レンダリング
-- **MobileApp.tsx**: `local` prop 追加。ローカルモード時は ConnectionSetup スキップ、realtimeState/onlineStatus を定数で上書き
-- **useOnlineStatus.ts**: API 未設定時にヘルスチェックポーリングをスキップ
-- **MobileSettingsView.tsx**: `local` prop 追加。ローカルモード時は接続セクション非表示
-- **iOS init**: `cargo tauri ios init` で `src-tauri/gen/apple/` Xcode プロジェクト生成
 
 - 2026-04-16: [途中] TitleBar ドラッグ修復 + タイトル修正 — タイトル「Life Editor」変更、pl-[88px]間隔修正、isMac を navigator.userAgent ベースに変更、Tauri capabilities に allow-start-dragging 追加、getCurrentWindow().startDragging() による全域ドラッグ実装済み。動作確認待ち
 

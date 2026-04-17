@@ -1,10 +1,12 @@
 import { useState, useEffect, useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { getDataService } from "../../services/dataServiceFactory";
+import { useSyncContext } from "../../hooks/useSyncContext";
 import type { TaskNode } from "../../types/taskTree";
 
 export function MobileTaskView() {
   const { t } = useTranslation();
+  const { syncVersion } = useSyncContext();
   const [tasks, setTasks] = useState<TaskNode[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -23,7 +25,7 @@ export function MobileTaskView() {
 
   useEffect(() => {
     loadTasks();
-  }, [loadTasks]);
+  }, [loadTasks, syncVersion]);
 
   async function handleToggle(task: TaskNode) {
     // 3-state cycle: NOT_STARTED → IN_PROGRESS → DONE → NOT_STARTED

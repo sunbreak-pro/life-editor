@@ -8,6 +8,7 @@ import { logServiceError } from "../utils/logError";
 import { resolveTaskColor } from "../utils/folderColor";
 import { getFolderTag } from "../utils/folderTag";
 import { getDataService } from "../services";
+import { useSyncContext } from "./useSyncContext";
 
 let idCounter = Date.now();
 function generateId(type: NodeType): string {
@@ -20,6 +21,7 @@ export function useTaskTreeAPI() {
   const [error, setError] = useState<string | null>(null);
   const [persistError, setPersistError] = useState<string | null>(null);
   const loadedRef = useRef(false);
+  const { syncVersion } = useSyncContext();
 
   // Load from DataService on mount (including soft-deleted tasks)
   useEffect(() => {
@@ -46,7 +48,7 @@ export function useTaskTreeAPI() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [syncVersion]);
 
   const refetch = useCallback(async () => {
     try {
@@ -101,6 +103,7 @@ export function useTaskTreeAPI() {
 
   const activeNodes = useMemo(() => nodes.filter((n) => !n.isDeleted), [nodes]);
   const deletedNodes = useMemo(() => nodes.filter((n) => n.isDeleted), [nodes]);
+  const nodeMap = useMemo(() => new Map(nodes.map((n) => [n.id, n])), [nodes]);
 
   const getChildren = useCallback(
     (parentId: string | null) => {
@@ -141,17 +144,18 @@ export function useTaskTreeAPI() {
   );
 
   const getTaskColor = useCallback(
-    (taskId: string) => resolveTaskColor(taskId, nodes),
-    [nodes],
+    (taskId: string) => resolveTaskColor(taskId, nodeMap),
+    [nodeMap],
   );
   const getFolderTagForTask = useCallback(
-    (taskId: string) => getFolderTag(taskId, nodes),
-    [nodes],
+    (taskId: string) => getFolderTag(taskId, nodeMap),
+    [nodeMap],
   );
 
   return useMemo(
     () => ({
       nodes: activeNodes,
+      nodeMap,
       deletedNodes,
       getChildren,
       isLoading,
@@ -180,6 +184,7 @@ export function useTaskTreeAPI() {
     }),
     [
       activeNodes,
+      nodeMap,
       deletedNodes,
       getChildren,
       isLoading,

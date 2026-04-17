@@ -1,10 +1,12 @@
 import { useState, useEffect, useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { getDataService } from "../../services/dataServiceFactory";
+import { useSyncContext } from "../../hooks/useSyncContext";
 import type { MemoNode } from "../../types/memo";
 
 export function MobileMemoView() {
   const { t } = useTranslation();
+  const { syncVersion } = useSyncContext();
   const [memos, setMemos] = useState<MemoNode[]>([]);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [editContent, setEditContent] = useState("");
@@ -25,7 +27,7 @@ export function MobileMemoView() {
 
   useEffect(() => {
     loadMemos();
-  }, [loadMemos]);
+  }, [loadMemos, syncVersion]);
 
   useEffect(() => {
     if (selectedDate) {

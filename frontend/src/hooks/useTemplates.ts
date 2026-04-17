@@ -1,8 +1,9 @@
-import { useState, useEffect, useCallback, useRef, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { getDataService } from "../services/dataServiceFactory";
 import { generateId } from "../utils/generateId";
 import { logServiceError } from "../utils/logError";
 import type { Template } from "../types/template";
+import { useSyncContext } from "./useSyncContext";
 
 const SETTING_KEY_NOTE = "default_template_note";
 const SETTING_KEY_DAILY = "default_template_daily";
@@ -19,12 +20,10 @@ export function useTemplates() {
     null,
   );
   const [isLoaded, setIsLoaded] = useState(false);
-  const loadedRef = useRef(false);
+  const { syncVersion } = useSyncContext();
 
   useEffect(() => {
-    if (loadedRef.current) return;
-    loadedRef.current = true;
-
+    let cancelled = false;
     const ds = getDataService();
     Promise.all([
       ds.fetchAllTemplates(),
@@ -32,13 +31,17 @@ export function useTemplates() {
       ds.getAppSetting(SETTING_KEY_DAILY),
     ])
       .then(([tmpl, noteId, dailyId]) => {
+        if (cancelled) return;
         setTemplates(tmpl);
         setDefaultNoteTemplateIdState(noteId);
         setDefaultDailyTemplateIdState(dailyId);
         setIsLoaded(true);
       })
       .catch((e) => logServiceError("Templates", "load", e));
-  }, []);
+    return () => {
+      cancelled = true;
+    };
+  }, [syncVersion]);
 
   const createTemplate = useCallback((name: string): string => {
     const id = generateId("tmpl");
