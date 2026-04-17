@@ -1,4 +1,4 @@
-use tauri::menu::{Menu, MenuItemKind, PredefinedMenuItem, Submenu};
+use tauri::menu::{Menu, PredefinedMenuItem, Submenu};
 use tauri::{AppHandle, Emitter, Manager, Wry};
 
 /// Set up the native application menu and handle menu events

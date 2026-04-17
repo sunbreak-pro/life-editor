@@ -75,14 +75,6 @@ pub fn restore_by_key(
     Ok(())
 }
 
-/// Fetch all soft-deleted rows (returns raw JSON values)
-pub fn fetch_deleted_json(conn: &Connection, table: &str) -> rusqlite::Result<Vec<Value>> {
-    let sql = format!(
-        "SELECT * FROM \"{table}\" WHERE is_deleted = 1 ORDER BY deleted_at DESC"
-    );
-    query_all_json(conn, &sql)
-}
-
 /// Execute an arbitrary SELECT and return all rows as JSON values
 pub fn query_all_json(conn: &Connection, sql: &str) -> rusqlite::Result<Vec<Value>> {
     let mut stmt = conn.prepare(sql)?;
@@ -156,20 +148,6 @@ fn row_to_json(row: &rusqlite::Row, col_names: &[String]) -> Value {
 /// Get the next order value for a table
 pub fn next_order(conn: &Connection, table: &str) -> rusqlite::Result<i64> {
     let sql = format!("SELECT COALESCE(MAX(\"order\"), -1) FROM \"{table}\"");
-    let max: i64 = conn.query_row(&sql, [], |row| row.get(0))?;
-    Ok(max + 1)
-}
-
-/// Get the next order_index value for a table
-pub fn next_order_index(conn: &Connection, table: &str) -> rusqlite::Result<i64> {
-    let sql = format!("SELECT COALESCE(MAX(order_index), -1) FROM \"{table}\"");
-    let max: i64 = conn.query_row(&sql, [], |row| row.get(0))?;
-    Ok(max + 1)
-}
-
-/// Get the next sort_order value for a table
-pub fn next_sort_order(conn: &Connection, table: &str) -> rusqlite::Result<i64> {
-    let sql = format!("SELECT COALESCE(MAX(sort_order), -1) FROM \"{table}\"");
     let max: i64 = conn.query_row(&sql, [], |row| row.get(0))?;
     Ok(max + 1)
 }

@@ -134,10 +134,6 @@ impl ClaudeDetector {
         self.try_flush_pending()
     }
 
-    pub fn get_state(&self) -> &ClaudeState {
-        &self.state
-    }
-
     fn set_state(&mut self, new_state: ClaudeState) -> Option<ClaudeState> {
         self.pending_state = Some(new_state);
         self.last_change = Instant::now();

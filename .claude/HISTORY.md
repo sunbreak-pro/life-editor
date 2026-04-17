@@ -1,5 +1,17 @@
 # HISTORY.md - 変更履歴
 
+### 2026-04-18 - Rust コンパイラ警告 24 件修正
+
+#### 概要
+
+`cargo tauri build` で発生していた Rust 警告 24 件（未使用 import、未使用変数、dead code）をすべて解消。
+
+#### 変更点
+
+- **未使用 import 削除**: `Manager`（custom_sound_commands, attachment_commands, claude_commands）、`MenuItemKind`（menu.rs）、`super::helpers`（routine_repository, routine_tag_repository, routine_group_repository）
+- **未使用変数**: custom_sound_commands の全 `app` 引数を `_app` に、attachment_commands の全 `app` を `_app` に、claude_commands の `setup_life_editor_dir` の `app` を `_app` に
+- **dead code 削除**: `helpers.rs` の `fetch_deleted_json`, `next_order_index`, `next_sort_order`、`claude_detector.rs` の `get_state` メソッド
+
 ### 2026-04-18 - TypeScript build エラー 109 件修正
 
 #### 概要
@@ -65,16 +77,5 @@ Cloudflare Workers + D1 によるクラウド同期機能を実装。Desktop ↔
 - **i18n**: en.json / ja.json に sync セクション（16キー）追加
 - **mockDataService.ts**: sync 5メソッドのモック追加
 - **Cargo.toml**: `reqwest` 依存追加（rustls-tls feature、iOS OpenSSL 不要）
-
-### 2026-04-16 - Tauri 2.0 IPC 引数キー名修正 (snake_case → camelCase)
-
-#### 概要
-
-Tauri 2.0 の `#[tauri::command]` マクロがデフォルトで引数名を camelCase にリネームする仕様により、TauriDataService.ts が snake_case キーで送信していたためコマンド呼び出しが失敗していた。Schedule タブ表示時の `db_schedule_items_fetch_by_date_range` エラーを起点に発覚。約80箇所の引数キーを一括修正。
-
-#### 変更点
-
-- **TauriDataService.ts**: 全 `tauriInvoke` 呼び出しの引数オブジェクトキーを snake_case → camelCase に変換（約80箇所）。Timer, Sound, Memo, Notes, Calendar, Routines, Schedule Items, Routine Groups, Playlists, Wiki Tags, Wiki Tag Groups/Connections, Note Connections, Paper Boards/Nodes/Edges, Database, Files, Copy の全セクション対象
-- **短縮プロパティ活用**: `{ start_date: startDate }` → `{ startDate }` のように、変数名とキー名が一致する箇所は短縮プロパティ表記に統一
 
 <!-- older entries archived to HISTORY-archive.md -->

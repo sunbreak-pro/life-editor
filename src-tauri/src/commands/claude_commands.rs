@@ -2,7 +2,7 @@ use crate::db::{app_settings_repository, DbState};
 use serde::Serialize;
 use std::fs;
 use std::path::PathBuf;
-use tauri::{AppHandle, Manager, State};
+use tauri::{AppHandle, State};
 
 const MCP_SERVER_NAME: &str = "life-editor";
 
@@ -71,7 +71,7 @@ You are a life management assistant with access to the user's tasks, memos, note
 - When creating tasks, ask about scheduling if not specified
 "#;
 
-fn setup_life_editor_dir(app: &AppHandle, state: &State<'_, DbState>) {
+fn setup_life_editor_dir(_app: &AppHandle, state: &State<'_, DbState>) {
     let dir = life_editor_dir();
     let _ = fs::create_dir_all(&dir);
 
