@@ -78,6 +78,7 @@ function MobileSyncSection() {
   const {
     status,
     lastSyncResult,
+    lastError,
     isSyncing,
     triggerSync,
     configure,
@@ -125,6 +126,11 @@ function MobileSyncSection() {
             {lastSyncResult && (
               <p className="text-xs text-notion-text-secondary">
                 {lastSyncResult.pushed} pushed, {lastSyncResult.pulled} pulled
+              </p>
+            )}
+            {lastError && (
+              <p className="text-xs text-notion-danger">
+                {t("sync.lastError", "Last error")}: {lastError.message}
               </p>
             )}
             <div className="flex gap-2">

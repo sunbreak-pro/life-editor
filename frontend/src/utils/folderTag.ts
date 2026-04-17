@@ -1,21 +1,17 @@
 import type { TaskNode } from "../types/taskTree";
+import { walkAncestors } from "./walkAncestors";
 
 export function getFolderTag(
   taskId: string,
   nodeMap: Map<string, TaskNode>,
 ): string {
-  const node = nodeMap.get(taskId);
-  if (!node) return "";
+  if (!nodeMap.has(taskId)) return "";
 
   const ancestors: string[] = [];
-  let current = node;
-  while (current.parentId) {
-    const parent = nodeMap.get(current.parentId);
-    if (!parent) break;
-    if (parent.type === "folder") {
-      ancestors.unshift(parent.title);
+  for (const ancestor of walkAncestors(taskId, nodeMap)) {
+    if (ancestor.type === "folder") {
+      ancestors.unshift(ancestor.title);
     }
-    current = parent;
   }
 
   return ancestors.join("/");

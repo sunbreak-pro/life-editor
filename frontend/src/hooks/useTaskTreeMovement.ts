@@ -14,6 +14,9 @@ export function useTaskTreeMovement(
       if (!active || !target)
         return { success: false, reason: "node_not_found" };
 
+      if (active.isDeleted || target.isDeleted)
+        return { success: false, reason: "deleted_node" };
+
       if (target.type === "task")
         return { success: false, reason: "target_is_task" };
 
@@ -57,6 +60,7 @@ export function useTaskTreeMovement(
     (activeId: string): MoveResult => {
       const active = nodes.find((n) => n.id === activeId);
       if (!active) return { success: false, reason: "node_not_found" };
+      if (active.isDeleted) return { success: false, reason: "deleted_node" };
       if (active.parentId === null)
         return { success: false, reason: "already_in_target" };
 
@@ -99,6 +103,9 @@ export function useTaskTreeMovement(
       const active = nodes.find((n) => n.id === activeId);
       const over = nodes.find((n) => n.id === overId);
       if (!active || !over) return { success: false, reason: "node_not_found" };
+
+      if (active.isDeleted || over.isDeleted)
+        return { success: false, reason: "deleted_node" };
 
       if (isDescendantOf(activeId, overId, nodes))
         return { success: false, reason: "circular_reference" };

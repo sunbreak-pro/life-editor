@@ -3,7 +3,8 @@ export type MoveRejectionReason =
   | "target_is_task"
   | "circular_reference"
   | "already_in_target"
-  | "parent_is_task";
+  | "parent_is_task"
+  | "deleted_node";
 
 export type MoveResult =
   | { success: true }

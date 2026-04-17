@@ -30,11 +30,14 @@ export function buildCompletedTree(
   // Collect IDs of all DONE items
   const doneIds = new Set(relevantDone.map((n) => n.id));
 
-  // Find ancestor containers: TODO/IN_PROGRESS folders that are ancestors of DONE items
+  // Find ancestor containers: TODO/IN_PROGRESS folders that are ancestors of DONE items.
+  // Track visited nodes per traversal to guard against circular parentId chains.
   const containerIds = new Set<string>();
   for (const node of relevantDone) {
+    const visited = new Set<string>([node.id]);
     let current = node.parentId ? nodeMap.get(node.parentId) : undefined;
-    while (current) {
+    while (current && !visited.has(current.id)) {
+      visited.add(current.id);
       if (doneIds.has(current.id)) break; // Stop if ancestor is also DONE
       if (current.type === "folder" && current.status !== "DONE") {
         containerIds.add(current.id);
@@ -76,10 +79,11 @@ function isDescendantOf(
   ancestorId: string,
   nodeMap: Map<string, TaskNode>,
 ): boolean {
+  const visited = new Set<string>();
   let current: TaskNode | undefined = node;
-  while (current) {
+  while (current && !visited.has(current.id)) {
+    visited.add(current.id);
     if (current.id === ancestorId) return true;
-    if (current.parentId === ancestorId) return true;
     current = current.parentId ? nodeMap.get(current.parentId) : undefined;
   }
   return false;

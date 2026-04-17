@@ -201,7 +201,7 @@ export class TauriDataService implements DataService {
     });
   }
   fetchAllSoundTagAssignments(): Promise<
-    Array<{ sound_id: string; tag_id: number }>
+    Array<{ soundId: string; tagId: number }>
   > {
     return tauriInvoke("db_sound_fetch_all_sound_tag_assignments");
   }
@@ -413,7 +413,7 @@ export class TauriDataService implements DataService {
     return tauriInvoke("db_routine_tags_delete", { id });
   }
   fetchAllRoutineTagAssignments(): Promise<
-    Array<{ routine_id: string; tag_id: number }>
+    Array<{ routineId: string; tagId: number }>
   > {
     return tauriInvoke("db_routine_tags_fetch_all_assignments");
   }
@@ -443,7 +443,7 @@ export class TauriDataService implements DataService {
     return tauriInvoke("db_calendar_tags_delete", { id });
   }
   fetchAllCalendarTagAssignments(): Promise<
-    Array<{ schedule_item_id: string; tag_id: number }>
+    Array<{ scheduleItemId: string; tagId: number }>
   > {
     return tauriInvoke("db_calendar_tags_fetch_all_assignments");
   }
@@ -695,7 +695,7 @@ export class TauriDataService implements DataService {
     return tauriInvoke("db_routine_groups_delete", { id });
   }
   fetchAllRoutineGroupTagAssignments(): Promise<
-    Array<{ group_id: string; tag_id: number }>
+    Array<{ groupId: string; tagId: number }>
   > {
     return tauriInvoke("db_routine_groups_fetch_all_tag_assignments");
   }

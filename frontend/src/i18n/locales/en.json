@@ -382,6 +382,7 @@
     "fullResync": "Full Re-sync",
     "lastSynced": "Last synced",
     "lastResult": "Last result",
+    "lastError": "Last error",
     "deviceId": "Device ID"
   },
   "trash": {
@@ -524,7 +525,8 @@
     "undo": "Undo",
     "redo": "Redo",
     "move": {
-      "circularReference": "Cannot move a folder into its own subfolder"
+      "circularReference": "Cannot move a folder into its own subfolder",
+      "deletedNode": "Cannot move a deleted item. Restore it first."
     },
     "completeFolder": "Complete"
   },

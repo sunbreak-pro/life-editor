@@ -6,96 +6,150 @@ import {
   useMemo,
   type ReactNode,
 } from "react";
-import { SyncContext, type SyncContextValue } from "./SyncContextValue";
+import {
+  SyncContext,
+  type SyncContextValue,
+  type SyncError,
+} from "./SyncContextValue";
 import { getDataService } from "../services/dataServiceFactory";
 import { emitSyncComplete } from "../services/events";
+import { useToast } from "./ToastContext";
 import type { SyncResult, SyncStatus } from "../types/sync";
 
 const SYNC_INTERVAL_MS = 30_000;
 
+function toErrorMessage(e: unknown): string {
+  if (e instanceof Error) return e.message;
+  if (typeof e === "string") return e;
+  try {
+    return JSON.stringify(e);
+  } catch {
+    return "Unknown error";
+  }
+}
+
 export function SyncProvider({ children }: { children: ReactNode }) {
   const [status, setStatus] = useState<SyncStatus | null>(null);
   const [lastSyncResult, setLastSyncResult] = useState<SyncResult | null>(null);
+  const [lastError, setLastError] = useState<SyncError | null>(null);
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncVersion, setSyncVersion] = useState(0);
   const isSyncingRef = useRef(false);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const abortRef = useRef<AbortController | null>(null);
+  const { showToast } = useToast();
   const ds = getDataService();
+
+  const reportError = useCallback(
+    (message: string, opts: { toast?: boolean } = { toast: true }) => {
+      setLastError({ message, at: Date.now() });
+      if (opts.toast) {
+        showToast("error", message);
+      }
+    },
+    [showToast],
+  );
+
+  const clearError = useCallback(() => setLastError(null), []);
 
   // Load status on mount
   useEffect(() => {
     ds.syncGetStatus()
       .then(setStatus)
-      .catch(() => {});
-  }, [ds]);
+      .catch((e) => {
+        reportError(toErrorMessage(e), { toast: false });
+      });
+  }, [ds, reportError]);
+
+  const runSync = useCallback(
+    async (
+      op: () => Promise<SyncResult>,
+      opts: { notifyOnError: boolean },
+    ): Promise<SyncResult | null> => {
+      if (isSyncingRef.current) return null;
+      isSyncingRef.current = true;
+      setIsSyncing(true);
+
+      // Cancel any previous request; set up new controller
+      abortRef.current?.abort();
+      const controller = new AbortController();
+      abortRef.current = controller;
+
+      try {
+        const result = await op();
+        if (controller.signal.aborted) return null;
+        setLastSyncResult(result);
+        setLastError(null);
+        const newStatus = await ds.syncGetStatus();
+        if (controller.signal.aborted) return null;
+        setStatus(newStatus);
+        if (result.pulled > 0) {
+          emitSyncComplete();
+          setSyncVersion((v) => v + 1);
+        }
+        return result;
+      } catch (e) {
+        if (controller.signal.aborted) return null;
+        reportError(toErrorMessage(e), { toast: opts.notifyOnError });
+        return null;
+      } finally {
+        isSyncingRef.current = false;
+        setIsSyncing(false);
+        if (abortRef.current === controller) {
+          abortRef.current = null;
+        }
+      }
+    },
+    [ds, reportError],
+  );
 
   const triggerSync = useCallback(async () => {
-    if (isSyncingRef.current) return;
-    isSyncingRef.current = true;
-    setIsSyncing(true);
-    try {
-      const result = await ds.syncTrigger();
-      setLastSyncResult(result);
-      const newStatus = await ds.syncGetStatus();
-      setStatus(newStatus);
-      if (result.pulled > 0) {
-        emitSyncComplete();
-        setSyncVersion((v) => v + 1);
-      }
-    } catch {
-      // Silently handle sync errors for background polling
-    } finally {
-      isSyncingRef.current = false;
-      setIsSyncing(false);
-    }
-  }, [ds]);
+    await runSync(() => ds.syncTrigger(), { notifyOnError: false });
+  }, [ds, runSync]);
 
   const configure = useCallback(
     async (url: string, token: string): Promise<boolean> => {
-      const ok = await ds.syncConfigure(url, token);
-      if (ok) {
+      try {
+        const ok = await ds.syncConfigure(url, token);
+        if (!ok) return false;
         const newStatus = await ds.syncGetStatus();
         setStatus(newStatus);
-        // Trigger immediate sync instead of waiting for the 30s interval
-        triggerSync();
+        setLastError(null);
+        // Initial sync — notify on error since user-initiated
+        await runSync(() => ds.syncTrigger(), { notifyOnError: true });
+        return true;
+      } catch (e) {
+        reportError(toErrorMessage(e));
+        return false;
       }
-      return ok;
     },
-    [ds, triggerSync],
+    [ds, runSync, reportError],
   );
 
   const disconnect = useCallback(async () => {
-    await ds.syncDisconnect();
-    setStatus(
-      (prev) =>
-        prev && {
-          ...prev,
-          enabled: false,
-          lastSyncedAt: null,
-          url: null,
-        },
-    );
-    setLastSyncResult(null);
-  }, [ds]);
+    // Cancel any in-flight sync so it can't mutate state after disconnect
+    abortRef.current?.abort();
+    try {
+      await ds.syncDisconnect();
+      setStatus(
+        (prev) =>
+          prev && {
+            ...prev,
+            enabled: false,
+            lastSyncedAt: null,
+            url: null,
+          },
+      );
+      setLastSyncResult(null);
+      setLastError(null);
+    } catch (e) {
+      reportError(toErrorMessage(e));
+    }
+  }, [ds, reportError]);
 
   const fullDownload = useCallback(async () => {
-    if (isSyncingRef.current) return;
-    isSyncingRef.current = true;
-    setIsSyncing(true);
-    try {
-      const result = await ds.syncFullDownload();
-      setLastSyncResult(result);
-      const newStatus = await ds.syncGetStatus();
-      setStatus(newStatus);
-      if (result.pulled > 0) {
-        emitSyncComplete();
-        setSyncVersion((v) => v + 1);
-      }
-    } finally {
-      isSyncingRef.current = false;
-      setIsSyncing(false);
-    }
-  }, [ds]);
+    await runSync(() => ds.syncFullDownload(), { notifyOnError: true });
+  }, [ds, runSync]);
 
   // Start/stop polling based on enabled status
   useEffect(() => {
@@ -105,6 +159,10 @@ export function SyncProvider({ children }: { children: ReactNode }) {
     }
     if (status?.enabled) {
       intervalRef.current = setInterval(() => {
+        // Skip background polling when tab hidden or offline (battery/data)
+        if (typeof document !== "undefined" && document.hidden) return;
+        if (typeof navigator !== "undefined" && navigator.onLine === false)
+          return;
         triggerSync();
       }, SYNC_INTERVAL_MS);
     }
@@ -115,26 +173,37 @@ export function SyncProvider({ children }: { children: ReactNode }) {
     };
   }, [status?.enabled, triggerSync]);
 
+  // Cancel in-flight sync on unmount
+  useEffect(() => {
+    return () => {
+      abortRef.current?.abort();
+    };
+  }, []);
+
   const value = useMemo<SyncContextValue>(
     () => ({
       status,
       lastSyncResult,
+      lastError,
       isSyncing,
       syncVersion,
       triggerSync,
       configure,
       disconnect,
       fullDownload,
+      clearError,
     }),
     [
       status,
       lastSyncResult,
+      lastError,
       isSyncing,
       syncVersion,
       triggerSync,
       configure,
       disconnect,
       fullDownload,
+      clearError,
     ],
   );
 

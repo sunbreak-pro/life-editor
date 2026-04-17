@@ -17,10 +17,10 @@ export function useRoutineTagAssignments() {
         const data = await getDataService().fetchAllRoutineTagAssignments();
         if (!cancelled) {
           const map = new Map<string, number[]>();
-          for (const { routine_id, tag_id } of data) {
-            const existing = map.get(routine_id) ?? [];
-            existing.push(tag_id);
-            map.set(routine_id, existing);
+          for (const { routineId, tagId } of data) {
+            const existing = map.get(routineId) ?? [];
+            existing.push(tagId);
+            map.set(routineId, existing);
           }
           setAssignmentsMap(map);
           setIsLoading(false);

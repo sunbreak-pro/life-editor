@@ -37,12 +37,12 @@ export function useSoundTags() {
         const tagMap = new Map<number, SoundTag>();
         for (const t of tags) tagMap.set(t.id, t);
         const assignMap = new Map<string, SoundTag[]>();
-        for (const { sound_id, tag_id } of assignments) {
-          const tag = tagMap.get(tag_id);
+        for (const { soundId, tagId } of assignments) {
+          const tag = tagMap.get(tagId);
           if (tag) {
-            const existing = assignMap.get(sound_id) || [];
+            const existing = assignMap.get(soundId) || [];
             existing.push(tag);
-            assignMap.set(sound_id, existing);
+            assignMap.set(soundId, existing);
           }
         }
         soundTagAssignments.current = assignMap;

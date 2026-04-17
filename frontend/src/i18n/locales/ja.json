@@ -382,6 +382,7 @@
     "fullResync": "完全再同期",
     "lastSynced": "最終同期",
     "lastResult": "最終結果",
+    "lastError": "最終エラー",
     "deviceId": "デバイスID"
   },
   "trash": {
@@ -524,7 +525,8 @@
     "undo": "元に戻す",
     "redo": "やり直す",
     "move": {
-      "circularReference": "フォルダを自身のサブフォルダに移動できません"
+      "circularReference": "フォルダを自身のサブフォルダに移動できません",
+      "deletedNode": "削除済みのアイテムは移動できません。先に復元してください。"
     },
     "completeFolder": "完了"
   },

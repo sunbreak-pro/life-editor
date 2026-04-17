@@ -533,11 +533,27 @@ export function MobileCalendarView() {
     [ds],
   );
 
+  // Date-scoped fetches: re-run when the user selects a different date.
   useEffect(() => {
     loadDayItems(selectedDate);
     loadMonthItems(selectedDate);
+  }, [selectedDate, loadDayItems, loadMonthItems]);
+
+  // Full task list is expensive. Reload only on mount and when sync pulls
+  // new data — not on every date change.
+  useEffect(() => {
     loadTasks();
-  }, [selectedDate, loadDayItems, loadMonthItems, loadTasks, syncVersion]);
+  }, [loadTasks, syncVersion]);
+
+  // After a sync pull, refresh the currently-visible date's schedule items.
+  useEffect(() => {
+    if (syncVersion === 0) return;
+    loadDayItems(selectedDate);
+    loadMonthItems(selectedDate);
+    // selectedDate intentionally omitted — this effect handles the post-sync refresh;
+    // date-change refresh is handled by the first effect above.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [syncVersion, loadDayItems, loadMonthItems]);
 
   // Aggregate counts for calendar dots
   const itemCountByDate = useMemo(() => {

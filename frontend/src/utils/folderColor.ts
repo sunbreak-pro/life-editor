@@ -1,4 +1,5 @@
 import type { TaskNode } from "../types/taskTree";
+import { walkAncestors } from "./walkAncestors";
 
 export function resolveTaskColor(
   taskId: string,
@@ -9,12 +10,8 @@ export function resolveTaskColor(
 
   if (node.type === "folder" && node.color) return node.color;
 
-  let current = node;
-  while (current.parentId) {
-    const parent = nodeMap.get(current.parentId);
-    if (!parent) break;
-    if (parent.type === "folder" && parent.color) return parent.color;
-    current = parent;
+  for (const ancestor of walkAncestors(taskId, nodeMap)) {
+    if (ancestor.type === "folder" && ancestor.color) return ancestor.color;
   }
 
   return undefined;

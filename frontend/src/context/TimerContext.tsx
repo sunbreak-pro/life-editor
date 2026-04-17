@@ -10,6 +10,7 @@ import type { ReactNode } from "react";
 import { TimerContext } from "./TimerContextValue";
 import { STORAGE_KEYS } from "../constants/storageKeys";
 import { getDataService } from "../services";
+import { isTauriMobile } from "../services/bridge";
 import { timerReducer, createInitialState, getDuration } from "./timerReducer";
 import { playEffectSound } from "../utils/playEffectSound";
 
@@ -140,8 +141,9 @@ export function TimerProvider({ children }: { children: ReactNode }) {
     }
   }, [state.remainingSeconds, state.isRunning, advanceSession]);
 
-  // Update tray timer display
+  // Update tray timer display (desktop only — mobile has no system tray)
   useEffect(() => {
+    if (isTauriMobile()) return;
     const mins = Math.floor(state.remainingSeconds / 60);
     const secs = state.remainingSeconds % 60;
     const remaining = `${String(mins).padStart(2, "0")}:${String(secs).padStart(2, "0")}`;

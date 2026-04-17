@@ -17,10 +17,10 @@ export function useCalendarTagAssignments() {
         const data = await getDataService().fetchAllCalendarTagAssignments();
         if (!cancelled) {
           const map = new Map<string, number[]>();
-          for (const { schedule_item_id, tag_id } of data) {
-            const existing = map.get(schedule_item_id) ?? [];
-            existing.push(tag_id);
-            map.set(schedule_item_id, existing);
+          for (const { scheduleItemId, tagId } of data) {
+            const existing = map.get(scheduleItemId) ?? [];
+            existing.push(tagId);
+            map.set(scheduleItemId, existing);
           }
           setAssignmentsMap(map);
           setIsLoading(false);

@@ -18,10 +18,10 @@ export function useRoutineGroupTagAssignments() {
           await getDataService().fetchAllRoutineGroupTagAssignments();
         if (!cancelled) {
           const map = new Map<string, number[]>();
-          for (const { group_id, tag_id } of data) {
-            const existing = map.get(group_id) ?? [];
-            existing.push(tag_id);
-            map.set(group_id, existing);
+          for (const { groupId, tagId } of data) {
+            const existing = map.get(groupId) ?? [];
+            existing.push(tagId);
+            map.set(groupId, existing);
           }
           setAssignmentsMap(map);
           setIsLoading(false);

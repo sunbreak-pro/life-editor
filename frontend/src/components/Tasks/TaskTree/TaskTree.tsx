@@ -138,6 +138,7 @@ export function TaskTree({
   const handleMoveRejected = useMemo(() => {
     const reasonToMessageKey: Partial<Record<MoveRejectionReason, string>> = {
       circular_reference: "taskTree.move.circularReference",
+      deleted_node: "taskTree.move.deletedNode",
     };
     return (reason: MoveRejectionReason) => {
       const key = reasonToMessageKey[reason];

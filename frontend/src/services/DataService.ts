@@ -121,7 +121,7 @@ export interface DataService {
   fetchTagsForSound(soundId: string): Promise<SoundTag[]>;
   setTagsForSound(soundId: string, tagIds: number[]): Promise<void>;
   fetchAllSoundTagAssignments(): Promise<
-    Array<{ sound_id: string; tag_id: number }>
+    Array<{ soundId: string; tagId: number }>
   >;
   fetchAllSoundDisplayMeta(): Promise<SoundDisplayMeta[]>;
   updateSoundDisplayMeta(soundId: string, displayName: string): Promise<void>;
@@ -213,7 +213,7 @@ export interface DataService {
   ): Promise<RoutineTag>;
   deleteRoutineTag(id: number): Promise<void>;
   fetchAllRoutineTagAssignments(): Promise<
-    Array<{ routine_id: string; tag_id: number }>
+    Array<{ routineId: string; tagId: number }>
   >;
   setTagsForRoutine(routineId: string, tagIds: number[]): Promise<void>;
 
@@ -228,7 +228,7 @@ export interface DataService {
   ): Promise<CalendarTag>;
   deleteCalendarTag(id: number): Promise<void>;
   fetchAllCalendarTagAssignments(): Promise<
-    Array<{ schedule_item_id: string; tag_id: number }>
+    Array<{ scheduleItemId: string; tagId: number }>
   >;
   setTagsForScheduleItem(
     scheduleItemId: string,
@@ -372,7 +372,7 @@ export interface DataService {
   ): Promise<RoutineGroup>;
   deleteRoutineGroup(id: string): Promise<void>;
   fetchAllRoutineGroupTagAssignments(): Promise<
-    Array<{ group_id: string; tag_id: number }>
+    Array<{ groupId: string; tagId: number }>
   >;
   setTagsForRoutineGroup(groupId: string, tagIds: number[]): Promise<void>;
 

@@ -11,6 +11,7 @@ export function SyncSettings() {
   const {
     status,
     lastSyncResult,
+    lastError,
     isSyncing,
     triggerSync,
     configure,
@@ -86,6 +87,11 @@ export function SyncSettings() {
               <div className="text-xs text-notion-text-secondary">
                 {t("sync.lastResult", "Last result")}: {lastSyncResult.pushed}{" "}
                 pushed, {lastSyncResult.pulled} pulled
+              </div>
+            )}
+            {lastError && (
+              <div className="text-xs text-notion-danger">
+                {t("sync.lastError", "Last error")}: {lastError.message}
               </div>
             )}
           </div>
