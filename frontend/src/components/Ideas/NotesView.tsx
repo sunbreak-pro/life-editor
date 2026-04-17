@@ -15,7 +15,8 @@ import { useScreenLockContext } from "../../hooks/useScreenLockContext";
 import { formatDateTime } from "../../utils/formatRelativeDate";
 import { LazyMemoEditor as MemoEditor } from "../Tasks/TaskDetail/LazyMemoEditor";
 import { WikiTagList } from "../WikiTags/WikiTagList";
-import { ColorPicker } from "../shared/ColorPicker";
+import { UnifiedColorPicker } from "../shared/UnifiedColorPicker";
+import { FOLDER_COLORS } from "../../constants/folderColors";
 import {
   PasswordDialog,
   type PasswordDialogMode,
@@ -184,12 +185,14 @@ export function NotesView() {
                 />
               </button>
               {showColorPicker && (
-                <ColorPicker
-                  currentColor={selectedNote.color}
-                  onSelect={(color) => {
+                <UnifiedColorPicker
+                  color={selectedNote.color ?? ""}
+                  onChange={(color) => {
                     updateNote(selectedNote.id, { color });
                     setShowColorPicker(false);
                   }}
+                  mode="preset-only"
+                  presets={FOLDER_COLORS}
                   onClose={() => setShowColorPicker(false)}
                 />
               )}

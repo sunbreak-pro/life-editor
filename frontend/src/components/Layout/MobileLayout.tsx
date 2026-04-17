@@ -41,9 +41,12 @@ export function MobileLayout({
   ];
 
   return (
-    <div className="flex h-dvh flex-col bg-notion-bg-primary">
+    <div className="flex h-dvh flex-col bg-notion-bg-primary pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)]">
       {/* Header */}
-      <header className="flex h-12 shrink-0 items-center border-b border-notion-border px-4">
+      <header
+        className="flex shrink-0 items-center border-b border-notion-border px-4 pt-[env(safe-area-inset-top)]"
+        style={{ minHeight: "calc(3rem + env(safe-area-inset-top, 0px))" }}
+      >
         <h1 className="text-lg font-semibold text-notion-text-primary">
           Life Editor
         </h1>
@@ -53,7 +56,7 @@ export function MobileLayout({
       <main className="min-h-0 flex-1 overflow-y-auto">{children}</main>
 
       {/* Bottom tab bar */}
-      <nav className="flex shrink-0 border-t border-notion-border bg-notion-bg-primary">
+      <nav className="flex shrink-0 border-t border-notion-border bg-notion-bg-primary pb-[env(safe-area-inset-bottom)]">
         {tabs.map((tab) => {
           const Icon = tab.icon;
           const isActive = activeTab === tab.id;

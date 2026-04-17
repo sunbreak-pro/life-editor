@@ -9,7 +9,6 @@ import { playEffectSound } from "../../../utils/playEffectSound";
 
 interface SearchResultListProps {
   matchedNodes: TaskNode[];
-  allNodes: TaskNode[];
   onSelectTask?: (id: string) => void;
   selectedTaskId?: string | null;
   onPlayTask?: (node: TaskNode) => void;
@@ -17,21 +16,19 @@ interface SearchResultListProps {
 
 const SearchResultItem = memo(function SearchResultItem({
   node,
-  allNodes,
   onSelectTask,
   isSelected,
 }: {
   node: TaskNode;
-  allNodes: TaskNode[];
   onSelectTask?: (id: string) => void;
   isSelected: boolean;
 }) {
   const { t } = useTranslation();
-  const { toggleTaskStatus, toggleExpanded } = useTaskTreeContext();
+  const { nodeMap, toggleTaskStatus, toggleExpanded } = useTaskTreeContext();
 
   const isFolder = node.type === "folder";
   const isDone = node.type === "task" && node.status === "DONE";
-  const folderPath = getFolderTag(node.id, allNodes);
+  const folderPath = getFolderTag(node.id, nodeMap);
   const breadcrumb = folderPath
     ? folderPath.split("/").join(" > ")
     : t("search.rootLevel");
@@ -82,7 +79,6 @@ const SearchResultItem = memo(function SearchResultItem({
 
 export const SearchResultList = memo(function SearchResultList({
   matchedNodes,
-  allNodes,
   onSelectTask,
   selectedTaskId,
 }: SearchResultListProps) {
@@ -92,7 +88,6 @@ export const SearchResultList = memo(function SearchResultList({
         <SearchResultItem
           key={node.id}
           node={node}
-          allNodes={allNodes}
           onSelectTask={onSelectTask}
           isSelected={selectedTaskId === node.id}
         />

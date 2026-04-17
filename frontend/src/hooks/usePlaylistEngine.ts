@@ -59,22 +59,12 @@ export function usePlaylistEngine(
 
   useEffect(() => {
     repeatModeRef.current = repeatMode;
-  }, [repeatMode]);
-  useEffect(() => {
     isShuffleRef.current = isShuffle;
-  }, [isShuffle]);
-  useEffect(() => {
     shouldPlayRef.current = shouldPlay;
-  }, [shouldPlay]);
-  useEffect(() => {
     volumeRef.current = volume;
-  }, [volume]);
-  useEffect(() => {
     tracksRef.current = tracks;
-  }, [tracks]);
-  useEffect(() => {
     soundSourcesRef.current = soundSources;
-  }, [soundSources]);
+  }, [repeatMode, isShuffle, shouldPlay, volume, tracks, soundSources]);
 
   // Compute play order
   useEffect(() => {

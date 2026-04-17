@@ -63,6 +63,7 @@ export const TaskTreeNode = memo(function TaskTreeNode({
 }: TaskTreeNodeProps) {
   const {
     nodes,
+    nodeMap,
     getChildren,
     updateNode,
     toggleExpanded,
@@ -143,8 +144,8 @@ export const TaskTreeNode = memo(function TaskTreeNode({
   );
 
   const inheritedColor = useMemo(
-    () => (!isFolder ? resolveTaskColor(node.id, nodes) : undefined),
-    [isFolder, node.id, nodes],
+    () => (!isFolder ? resolveTaskColor(node.id, nodeMap) : undefined),
+    [isFolder, node.id, nodeMap],
   );
 
   const transformStyle = useMemo(

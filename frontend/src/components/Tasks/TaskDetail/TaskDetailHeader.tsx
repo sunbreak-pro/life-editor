@@ -1,28 +1,17 @@
-import { useState, useRef } from "react";
+import { useState } from "react";
 import { EditableTitle } from "../../shared/EditableTitle";
-import {
-  Play,
-  Trash2,
-  Clock,
-  StickyNote,
-  ChevronRight,
-  Folder,
-} from "lucide-react";
+import { Play, Trash2, Clock, StickyNote } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import type { TaskNode } from "../../../types/taskTree";
 import type { Priority } from "../../../types/priority";
 import { PriorityPicker } from "../../shared/PriorityPicker";
-import { getAncestors } from "../../../utils/breadcrumb";
 import { DurationPicker } from "../../shared/DurationPicker";
 import { formatDuration } from "../../../utils/duration";
 import { DateTimeRangePicker } from "../Schedule/shared/DateTimeRangePicker";
 import { ReminderToggle } from "../../shared/ReminderToggle";
-import { IconPicker } from "../../common/IconPicker";
-import { renderIcon } from "../../../utils/iconRenderer";
 
 interface TaskDetailHeaderProps {
   task: TaskNode;
-  allNodes: TaskNode[];
   globalWorkDuration: number;
   onPlay: () => void;
   onDelete: () => void;
@@ -40,7 +29,6 @@ interface TaskDetailHeaderProps {
 
 export function TaskDetailHeader({
   task,
-  allNodes,
   globalWorkDuration,
   onPlay,
   onDelete,
@@ -57,8 +45,6 @@ export function TaskDetailHeader({
 }: TaskDetailHeaderProps) {
   const { t } = useTranslation();
   const [showDurationPicker, setShowDurationPicker] = useState(false);
-  const [iconPickerNodeId, setIconPickerNodeId] = useState<string | null>(null);
-  const iconBtnRef = useRef<HTMLButtonElement>(null);
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [prevTaskId, setPrevTaskId] = useState(task.id);
 
@@ -73,59 +59,11 @@ export function TaskDetailHeader({
     }
     setIsEditingTitle(false);
   };
-  const ancestors = getAncestors(task.id, allNodes);
   const duration = task.workDurationMinutes ?? globalWorkDuration;
   const isCustomDuration = task.workDurationMinutes != null;
 
   return (
     <div className="space-y-3 pb-4 border-b border-notion-border">
-      {ancestors.length > 0 && (
-        <div className="flex items-center gap-1 text-xs text-notion-text-secondary overflow-x-auto">
-          {ancestors.map((ancestor, i) => (
-            <div key={ancestor.id} className="flex items-center gap-1 shrink-0">
-              {i > 0 && (
-                <ChevronRight
-                  size={12}
-                  className="text-notion-text-secondary"
-                />
-              )}
-              <button
-                ref={iconPickerNodeId === ancestor.id ? iconBtnRef : undefined}
-                onClick={(e) => {
-                  if (!onNodeIconChange) return;
-                  e.stopPropagation();
-                  setIconPickerNodeId(
-                    iconPickerNodeId === ancestor.id ? null : ancestor.id,
-                  );
-                }}
-                className="flex items-center gap-1 px-1.5 py-0.5 rounded hover:bg-notion-hover transition-colors"
-              >
-                {ancestor.icon ? (
-                  renderIcon(ancestor.icon, { size: 13 })
-                ) : (
-                  <Folder size={13} />
-                )}
-                <span>{ancestor.title}</span>
-              </button>
-              {iconPickerNodeId === ancestor.id && (
-                <IconPicker
-                  value={ancestor.icon}
-                  onSelect={(iconName) => {
-                    onNodeIconChange?.(ancestor.id, iconName);
-                    setIconPickerNodeId(null);
-                  }}
-                  onClose={() => setIconPickerNodeId(null)}
-                  anchorRect={iconBtnRef.current?.getBoundingClientRect()}
-                  onRemove={() => {
-                    onNodeIconChange?.(ancestor.id, undefined);
-                    setIconPickerNodeId(null);
-                  }}
-                />
-              )}
-            </div>
-          ))}
-        </div>
-      )}
       {isEditingTitle ? (
         <EditableTitle
           value={task.title}

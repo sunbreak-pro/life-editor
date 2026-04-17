@@ -1,6 +1,6 @@
 # Plan: Life Editor App Optimization — Feature Pruning & Performance
 
-- **Status**: IN_PROGRESS
+- **Status**: COMPLETED
 - **Created**: 2026-04-11
 - **Project**: /Users/newlife/dev/apps/life-editor
 
@@ -69,10 +69,10 @@
 
 ### Phase 4: P3 — 小規模改善（任意タイミング）
 
-- [ ] 9. TaskNode Map ルックアップ（`Map<string, TaskNode>`）
-- [ ] 10. usePlaylistEngine Effect 統合（6→1）
-- [ ] 11. ColorPicker / UnifiedColorPicker 統合
-- [ ] 12. TaskDetailHeader breadcrumb 削除（ユーザー削除予定）
+- [x] 9. TaskNode Map ルックアップ（`Map<string, TaskNode>`）
+- [x] 10. usePlaylistEngine Effect 統合（6→1）
+- [x] 11. ColorPicker / UnifiedColorPicker 統合
+- [x] 12. TaskDetailHeader breadcrumb 削除（ユーザー削除予定）
 
 ---
 

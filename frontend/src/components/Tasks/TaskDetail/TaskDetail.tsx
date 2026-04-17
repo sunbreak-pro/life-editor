@@ -7,7 +7,6 @@ import { LazyMemoEditor as MemoEditor } from "./LazyMemoEditor";
 
 interface TaskDetailProps {
   task: TaskNode | null;
-  allNodes: TaskNode[];
   globalWorkDuration: number;
   onPlay: () => void;
   onDelete: () => void;
@@ -26,7 +25,6 @@ interface TaskDetailProps {
 
 export function TaskDetail({
   task,
-  allNodes,
   globalWorkDuration,
   onPlay,
   onDelete,
@@ -51,7 +49,6 @@ export function TaskDetail({
       <div className="max-w-3xl mx-auto w-full h-full flex-1">
         <TaskDetailHeader
           task={task}
-          allNodes={allNodes}
           globalWorkDuration={globalWorkDuration}
           onPlay={onPlay}
           onDelete={onDelete}

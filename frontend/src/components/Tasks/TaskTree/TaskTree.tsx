@@ -235,7 +235,6 @@ export function TaskTree({
         directMatches.length > 0 ? (
           <SearchResultList
             matchedNodes={directMatches}
-            allNodes={nodes}
             onSelectTask={onSelectTask}
             selectedTaskId={selectedTaskId}
             onPlayTask={onPlayTask}

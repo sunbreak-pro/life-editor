@@ -1,13 +1,16 @@
 import type { TaskNode } from "../types/taskTree";
 
-export function getFolderTag(taskId: string, nodes: TaskNode[]): string {
-  const node = nodes.find((n) => n.id === taskId);
+export function getFolderTag(
+  taskId: string,
+  nodeMap: Map<string, TaskNode>,
+): string {
+  const node = nodeMap.get(taskId);
   if (!node) return "";
 
   const ancestors: string[] = [];
   let current = node;
   while (current.parentId) {
-    const parent = nodes.find((n) => n.id === current.parentId);
+    const parent = nodeMap.get(current.parentId);
     if (!parent) break;
     if (parent.type === "folder") {
       ancestors.unshift(parent.title);

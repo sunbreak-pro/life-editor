@@ -17,6 +17,9 @@
 mcp-server/dist/
 mcp-server/node_modules/
 
+# Cloud (Cloudflare Workers)
+cloud/node_modules/
+
 # Tauri
 src-tauri/target/
 src-tauri/gen/

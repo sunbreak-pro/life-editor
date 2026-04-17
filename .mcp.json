@@ -1,0 +1,13 @@
+{
+  "mcpServers": {
+    "life-editor": {
+      "command": "node",
+      "args": ["/Users/newlife/dev/apps/life-editor/mcp-server/dist/index.js"],
+      "env": {
+        "DB_PATH": "/Users/newlife/Library/Application Support/life-editor/life-editor.db",
+        "FILES_ROOT_PATH": "/Users/newlife/life-editor/files"
+      },
+      "type": "stdio"
+    }
+  }
+}

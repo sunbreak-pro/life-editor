@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useTheme } from "../../hooks/useTheme";
 import { useSyncContext } from "../../hooks/useSyncContext";
+import { getDataService } from "../../services";
 import {
   Sun,
   Moon,
@@ -11,6 +12,8 @@ import {
   Unplug,
   Eye,
   EyeOff,
+  Download,
+  Upload,
 } from "lucide-react";
 import type { Language } from "../../context/ThemeContextValue";
 
@@ -56,6 +59,9 @@ export function MobileSettingsView() {
 
       {/* Cloud Sync */}
       <MobileSyncSection />
+
+      {/* Data Management */}
+      <MobileDataSection />
 
       {/* App info */}
       <div className="mt-auto px-4 py-6 text-center">
@@ -181,6 +187,78 @@ function MobileSyncSection() {
                 : t("sync.connect", "Connect")}
             </button>
           </>
+        )}
+      </div>
+    </SettingsSection>
+  );
+}
+
+function MobileDataSection() {
+  const { t } = useTranslation();
+  const [status, setStatus] = useState<string | null>(null);
+  const [isError, setIsError] = useState(false);
+
+  const handleExport = async () => {
+    try {
+      const success = await getDataService().exportData();
+      setIsError(false);
+      setStatus(success ? t("data.exportSuccess") : null);
+    } catch (e) {
+      setIsError(true);
+      setStatus(
+        t("data.exportFailed", {
+          error: e instanceof Error ? e.message : t("data.unknownError"),
+        }),
+      );
+    }
+  };
+
+  const handleImport = async () => {
+    try {
+      const success = await getDataService().importData();
+      if (success) {
+        setIsError(false);
+        setStatus(t("data.importSuccess"));
+        setTimeout(() => window.location.reload(), 1000);
+      }
+    } catch (e) {
+      setIsError(true);
+      setStatus(
+        t("data.importFailed", {
+          error: e instanceof Error ? e.message : t("data.unknownError"),
+        }),
+      );
+    }
+  };
+
+  return (
+    <SettingsSection title={t("data.title", "Data")}>
+      <div className="px-4 py-3 space-y-3">
+        <div className="flex gap-2">
+          <button
+            onClick={handleExport}
+            className="flex flex-1 items-center justify-center gap-2 rounded-xl border-2 border-notion-border py-2.5 text-sm text-notion-text-secondary active:bg-notion-hover"
+          >
+            <Download size={14} />
+            {t("data.export", "Export")}
+          </button>
+          <button
+            onClick={handleImport}
+            className="flex flex-1 items-center justify-center gap-2 rounded-xl border-2 border-notion-border py-2.5 text-sm text-notion-text-secondary active:bg-notion-hover"
+          >
+            <Upload size={14} />
+            {t("data.import", "Import")}
+          </button>
+        </div>
+        <p className="text-xs text-notion-text-secondary/60">
+          {t("data.importWarning", "Import will replace all existing data.")}
+        </p>
+        {status && (
+          <p
+            className={`text-xs ${isError ? "text-notion-danger" : "text-green-500"}`}
+          >
+            {status}
+          </p>
         )}
       </div>
     </SettingsSection>

@@ -1,6 +1,6 @@
 # Plan: Electron + Capacitor → Tauri 2.0 移行
 
-**Status:** IN_PROGRESS (Phase 0-4 COMPLETED, Phase 5.1-5.3 COMPLETED, Phase 6 COMPLETED, Phase 5.4 pending)
+**Status:** COMPLETED (Phase 0-6 全完了)
 **Created:** 2026-04-15
 **Task:** Tauri 2.0 Migration（MEMORY.md）
 **Project:** /Users/newlife/dev/apps/notion-timer
@@ -336,10 +336,11 @@ pub fn soft_delete(conn: &Connection, id: &str) -> Result<()> { ... }
 - DataService: `TauriDataService` → Rust/rusqlite（IndexedDB 不要、LAN サーバー不要）
 - ConnectionSetup: 不要（ローカル SQLite に直接アクセス）
 
-### [ ] Step 5.4: 既存 Capacitor ユーザーのデータ移行
+### [x] Step 5.4: 既存 Capacitor ユーザーのデータ移行
 
-- IndexedDB → JSON エクスポート（既存 data:export 機能）
-- JSON → 新 Tauri iOS アプリの SQLite にインポート
+- export/import IPC は既に実装済み（data_export / data_import コマンド）
+- MobileSettingsView に Data セクション（Export/Import ボタン）を追加
+- iOS ユーザーが Settings から直接 JSON エクスポート/インポート可能に
 
 ---
 
