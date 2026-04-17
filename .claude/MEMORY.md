@@ -21,9 +21,9 @@
 
 ## 直近の完了
 
+- アプリ再定義ロードマップ策定（3 プラン作成: 戦略/定義書雛形/保留項目再評価） ✅（2026-04-18）
 - コードレビュー + Blocking/Important バグ修正（SyncContext / soft-delete / TagAssignment snake_case） ✅（2026-04-18）
 - Rust コンパイラ警告 24 件修正（未使用 import/変数/関数の削除） ✅（2026-04-18）
-- TypeScript build エラー 109 件修正（`cargo tauri build` 復旧 + DayFlow picker 復元） ✅（2026-04-18）
 
 ## 予定
 

@@ -1,3 +1,17 @@
+### 2026-04-17 - CLAUDE.md 現状コード反映更新
+
+#### 概要
+
+Tauri 2.0 移行・機能追加後の CLAUDE.md を現在のコードベースと照合し、5箇所の差分を修正。
+
+#### 変更点
+
+- **モバイル判定**: `isTauri() が false` → `isTauriMobile() が true`（Tauri + iOS デバイス判定）に修正
+- **Provider スタック（Desktop/Mobile）**: Calendar と Memo の間に `Template` を追加（TemplateProvider の記載漏れ）
+- **ソフトデリート対象**: Templates を追加（Tasks/Notes/Memos/Routines/Databases/Templates）
+- **SectionId**: `schedule/materials/connect/work/analytics/settings` の6値を明記（旧 tasks/memo/trash/tips は廃止済み）
+- **ID 生成**: `generateId(prefix)` 関数名を明記、UUID 例を `note-xxxxxxxx-xxxx-...` に修正
+
 ### 2026-04-16 - Tauri 2.0 Migration: Phase 6 Cloud Sync (CF Workers + D1)
 
 #### 概要
