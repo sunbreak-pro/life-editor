@@ -2,6 +2,15 @@
 
 ## 進行中
 
+### ⏸️ iOS Safe Area 対応（着手日: 2026-04-17）
+
+**対象**: `frontend/src/components/Layout/MobileLayout.tsx`
+**計画書**: `.claude/feature_plans/2026-04-17-ios-safe-area.md`
+
+- 前回: —
+- 現在: 計画書作成完了、実装待ち
+- 次: Step 1 MobileLayout.tsx に safe area padding 追加 → シミュレータ確認
+
 ### ⏸️ TitleBar ドラッグ修復 + タイトル修正（着手日: 2026-04-16）
 
 **対象**: `frontend/src/components/Layout/TitleBar.tsx`, `frontend/src/utils/platform.ts`, `src-tauri/capabilities/default.json`

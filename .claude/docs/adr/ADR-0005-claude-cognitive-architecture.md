@@ -78,34 +78,53 @@ suggest_task_priority — コンテキストに基づくタスク優先順位提
 **同一 SQLite DB を参照**。mcp-server と mcp-server-cognitive は同じ DB ファイルを読み書きする。
 WAL モードにより同時アクセスは安全。
 
-### 判断 3: マルチデバイス対応 → チャット UI 付き、Cloud Sync 対象
+### 判断 3: マルチデバイス対応 → Claude Code ラッピング方式 + Cloud Sync
 
-**選択**: Claude 記憶テーブルも Cloud Sync (Cloudflare D1) の対象に含め、将来的にチャット UI を構築する
+**選択**: Claude API 直接呼び出しではなく、Claude Code プロセスをラッピングしたチャット UI を構築する
 
-**APIコスト分析（月額推定）**:
+**調査結果（2026-04-16 時点）**:
 
-| 利用パターン | モデル | メッセージ数/日 | 月額コスト |
-|---|---|---|---|
-| 日常会話・簡単な指示 | Haiku 4.5 ($1/$5/MTok) | 50 | ~$4.50 |
-| 分析・計画・振り返り | Sonnet 4.6 ($3/$15/MTok) | 10 | ~$6.00 |
-| 合計（Prompt Cache 適用後） | — | — | **$5-12** |
+- Claude Agent SDK は公式に「Anthropic does not allow third party developers to offer claude.ai
+  login or rate limits for their products」と明記。**サブスクリプション課金は使用不可、API キーのみ**
+- 2026-04-04 付でサードパーティツールの Pro/Max プラン利用がさらに制限
+- CloudCLI（GitHub 8,500+ スター）が Claude Code の PTY 出力をパースして
+  Web チャット UI でラップするアプローチで成功
 
-Prompt Caching（システムプロンプト + 記憶コンテキストのキャッシュ、入力コスト 90% 削減）と
-モデル自動ルーティング（Haiku/Sonnet の切り替え）により、個人利用は十分現実的。
+**選択の根拠**: life-editor は既に portable-pty + xterm.js で Claude Code を Max サブスク内で
+動作させている。この PTY の入出力をチャットバブル風に再レンダリングすれば **追加コスト $0** で実現可能。
 
-**チャット UI のアーキテクチャ**:
+**チャット UI のアーキテクチャ（Claude Code ラッピング方式）**:
 
 ```
-[Mobile/Desktop Chat UI]
-  ↓ Claude API (Messages API)
-  ↓ System Prompt に記憶コンテキストを動的注入
-  ↓ Tool Use で MCP Server のツールを呼び出し
-  ↓ 結果を life-editor の SQLite に書き込み
+[Chat Panel (React コンポーネント)]
+  ↓ ユーザー入力を PTY に送信
+[portable-pty → Claude Code プロセス]  ← Max サブスク利用
+  ↓ Claude Code の構造化出力をパース
+[Chat Panel] ← チャットバブルとして描画
+  ↓ MCP Server 経由で life-editor DB にアクセス（既存インフラ）
 ```
 
-注意: Claude API の Tool Use 機能を使えば、チャット UI から直接 MCP ツールを呼び出せる。
-ただし、MCP プロトコル自体は stdio/SSE ベースのため、
-**API 側では Tool Use の定義として MCP ツールのスキーマを変換して渡す**必要がある。
+追加月額コスト: **$0**（Max サブスクリプションの範囲内）
+
+**却下した代替案**:
+- Claude API 直接呼び出し: 月 $5-12 追加。ラッピング方式が $0 で可能なら不要
+- Claude Agent SDK: サブスク課金不可。API キー必須のためコスト発生
+- Meridian 等のプロキシ: Anthropic の利用規約に抵触する可能性
+
+**Cloud Sync**: claude_* テーブルは Cloud Sync (D1) の対象に含める。
+チャット UI のモバイル対応は、以下の段階的アプローチ:
+1. 短期: CloudCLI をセルフホストしてモバイルアクセスを確保（即座に利用可能）
+2. 中期: life-editor 内にチャットパネルを構築（デスクトップ版）
+3. 長期: Tauri iOS 版にチャットパネルを統合
+
+**参考**: CloudCLI (https://github.com/siteboon/claudecodeui)
+技術スタック: React + Vite + Tailwind（life-editor と同一）。`~/.claude` 設定を共有。
+
+**フォールバック**: もし将来的により高度なチャット体験（軽量な日常会話など）が必要になった場合、
+Claude API 直接呼び出しへの移行も選択肢として残す。コスト試算:
+- Haiku 4.5: $1/$5 per MTok → 1日50メッセージで月 ~$4.50
+- Sonnet 4.6: $3/$15 per MTok → 1日10メッセージで月 ~$6.00
+- Prompt Caching 適用で入力コスト 90% 削減可能
 
 ---
 
@@ -260,11 +279,12 @@ Active Memory + Today's Context は毎リクエスト更新。
 ### Phase 3: チャット UI + Cloud Sync
 
 - life-editor にチャットパネルを追加（React コンポーネント）
-- Claude API (Messages API) との直接通信
-- 動的システムプロンプトの構築ロジック
-- claude_* テーブルの Cloud Sync 対応
-- モデルルーティング（Haiku / Sonnet 自動切り替え）
-- Prompt Caching の実装
+- Claude Code プロセスの PTY 出力をパースし、チャットバブル UI で描画
+- 認証: Max サブスクリプション経由（追加コスト $0）
+- 動的システムプロンプトの構築ロジック（CLAUDE.md + claude_memories の動的注入）
+- claude_* テーブルの Cloud Sync 対応（D1 への同期）
+- 短期モバイル対応: CloudCLI セルフホスト（`npx @cloudcli-ai/cloudcli`）
+- 参考実装: CloudCLI (github.com/siteboon/claudecodeui) — React + Vite + Tailwind
 
 ### Phase 4: 自己最適化（Eval 駆動）
 
@@ -276,11 +296,15 @@ Active Memory + Today's Context は毎リクエスト更新。
 
 ## 7. 技術的制約と前提
 
-- **Claude API と MCP は別レイヤー**: チャット UI → Claude API (Tool Use) → life-editor DB。
-  MCP プロトコルは Claude Code CLI 経由でのみ使用。チャット UI からは Tool Use 定義として変換
-- **コスト管理**: API キーに月額上限を設定。暴走防止のハードリミット必須
-- **プライバシー**: Claude API にデータを送信する以上、Anthropic のデータポリシーを理解した上で設計
-- **オフライン対応**: チャット UI はオンライン必須だが、記憶の参照・蓄積はローカル SQLite で完結
+- **Claude Code ラッピング方式の制約**: PTY 出力のパースは Claude Code の出力フォーマットに依存。
+  Claude Code のアップデートでフォーマットが変わった場合、パーサーの更新が必要
+- **Agent SDK の制約**: サブスク課金は不可（2026-04-16 確認済み）。API キー認証のみ。
+  将来的に Anthropic がポリシーを変更する可能性はあるが、現時点では ラッピング方式を採用
+- **コスト管理**: ラッピング方式は Max サブスク範囲内。API 直接呼び出しに移行する場合は
+  月額上限を設定し暴走防止のハードリミット必須
+- **プライバシー**: Claude Code 経由でもデータは Anthropic に送信される。データポリシーを理解した上で設計
+- **オフライン対応**: チャット UI（Claude Code 経由）はオンライン必須だが、
+  記憶の参照・蓄積はローカル SQLite で完結。mcp-server-cognitive のツールはオフラインで動作可能
 
 ---
 

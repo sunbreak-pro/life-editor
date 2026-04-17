@@ -1,5 +1,7 @@
 # HISTORY.md - 変更履歴
 
+- 2026-04-17: [途中] iOS Safe Area 対応 — 計画書 `.claude/feature_plans/2026-04-17-ios-safe-area.md` 作成完了。MobileLayout.tsx の header/footer に `env(safe-area-inset-*)` padding を追加する方針。実装は次セッション
+
 ### 2026-04-17 - CLAUDE.md 現状コード反映更新
 
 #### 概要
