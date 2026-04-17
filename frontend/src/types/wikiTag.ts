@@ -2,7 +2,7 @@ export interface WikiTag {
   id: string;
   name: string;
   color: string;
-  textColor?: string;
+  textColor?: string | null;
   createdAt: string;
   updatedAt: string;
 }

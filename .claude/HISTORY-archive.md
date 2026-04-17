@@ -1,3 +1,21 @@
+### 2026-04-16 - Electron コード・依存関係の完全削除
+
+#### 概要
+
+Tauri 2.0 移行完了後に残存していた Electron アーティファクト（ディレクトリ、依存関係、コード参照、CI/CD）を全削除。root node_modules を 709 MB → 37 MB に削減。CI/CD を Tauri ビルドに書き換え。
+
+#### 変更点
+
+- **ディレクトリ削除**: `electron/`（1.3 MB、compiled dist）、`scripts/`（notarize.js — Electron macOS notarization）、`build/`（entitlements.mac.plist — Electron entitlements）、`code-review-report.md`（旧レビューレポート）
+- **容量削減**: root `node_modules/` 709 MB → 37 MB（672 MB 削減）、`package-lock.json` を再生成（stale な Electron 依存を除去）
+- **ファイルリネーム**: `useElectronMenuActions.ts` → `useMenuActions.ts`（interface/function 名も更新）、`electronAccelerator.ts` → `accelerator.ts`。消費側の `App.tsx`、`KeyboardShortcuts.tsx` の import 更新
+- **型・UI クリーンアップ**: `SystemInfo` から `electronVersion`/`nodeVersion` 削除、`PerformanceMonitor.tsx` から Electron InfoCard 削除（grid 4→3列）、i18n の `performance.electron` キー削除（en/ja）、mockDataService のモック更新
+- **CI/CD 書き換え**: `.github/workflows/build.yml` を `electron-builder` → `tauri-apps/tauri-action@v0` に全面書き換え（macOS + Windows、Rust cache、Tauri 成果物パス）
+- **ドキュメント更新**: `.gitignore` から Electron エントリ削除、`.claude/rules/` 3ファイル（project-debug.md, project-patterns.md, project-review-checklist.md）を Tauri パターンに更新
+- **CSS**: `index.css` のコメント `Electron titlebar drag regions` → `Titlebar drag regions`
+
+- 2026-04-16: [途中] TitleBar ドラッグ修復 + タイトル修正 — タイトル「Life Editor」変更、pl-[88px]間隔修正、isMac を navigator.userAgent ベースに変更、Tauri capabilities に allow-start-dragging 追加、getCurrentWindow().startDragging() による全域ドラッグ実装済み。動作確認待ち
+
 ### 2026-04-16 - Tauri 2.0 Migration: Phase 5 iOS Target (Steps 5.1-5.3)
 
 #### 概要

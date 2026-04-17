@@ -2,6 +2,7 @@ import { useCallback } from "react";
 import type { TaskNode, SectionId } from "../types/taskTree";
 import type { TimerContextValue } from "../context/TimerContextValue";
 import type { Priority } from "../types/priority";
+import type { ScheduleTab } from "../components/Schedule/ScheduleSection";
 import { STORAGE_KEYS } from "../constants/storageKeys";
 
 interface UseTaskDetailHandlersParams {
@@ -19,7 +20,7 @@ interface UseTaskDetailHandlersParams {
   toggleTaskStatus: (id: string) => void;
   setSelectedTaskId: (id: string | null) => void;
   setActiveSection: (section: SectionId) => void;
-  setScheduleTab?: (tab: string) => void;
+  setScheduleTab?: React.Dispatch<React.SetStateAction<ScheduleTab>>;
   setMemoDate: (date: string) => void;
   createNote?: (title?: string) => string;
   setSelectedNoteId?: (id: string | null) => void;

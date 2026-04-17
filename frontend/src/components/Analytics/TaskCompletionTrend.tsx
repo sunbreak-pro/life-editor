@@ -66,8 +66,8 @@ export function TaskCompletionTrend({ nodes, days }: TaskCompletionTrendProps) {
                 borderRadius: 8,
                 fontSize: 12,
               }}
-              formatter={(value: number) => [
-                value,
+              formatter={(value: number | undefined) => [
+                value ?? 0,
                 t("analytics.taskTrend.completedCount"),
               ]}
             />

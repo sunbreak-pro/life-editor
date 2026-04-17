@@ -22,8 +22,6 @@ import {
   timeToMinutes,
   snapTimeFromPosition,
 } from "../../../../utils/timeGridUtils";
-import { createPortal } from "react-dom";
-import { useTranslation } from "react-i18next";
 
 const HOURS = Array.from(
   { length: TIME_GRID.END_HOUR - TIME_GRID.START_HOUR },
@@ -322,21 +320,6 @@ export function ScheduleTimeGrid({
     groupId: string;
   } | null>(null);
 
-  const handleShowTaskPreview = useCallback(
-    (task: TaskNode, position: { x: number; y: number }) => {
-      setSchedulePreview(null);
-      setTaskPreview({ task, position });
-    },
-    [],
-  );
-
-  const handleShowSchedulePreview = useCallback(
-    (item: ScheduleItem, position: { x: number; y: number }) => {
-      setTaskPreview(null);
-      setSchedulePreview({ item, position });
-    },
-    [],
-  );
   // Context menu state
   const [contextMenu, setContextMenu] = useState<{
     position: { x: number; y: number };
@@ -516,7 +499,7 @@ export function ScheduleTimeGrid({
             g.frequencyDays,
             g.frequencyInterval,
             g.frequencyStartDate,
-            date,
+            dateKey,
           ),
       );
       if (!group) continue;

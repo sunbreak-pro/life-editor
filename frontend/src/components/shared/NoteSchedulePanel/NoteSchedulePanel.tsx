@@ -98,7 +98,7 @@ export function NoteSchedulePanel({
             hasEndTime={hasEndTime}
             onStartTimeChange={setStartTime}
             onEndTimeChange={setEndTime}
-            onIsAllDayChange={setIsAllDay}
+            onAllDayChange={setIsAllDay}
             onHasEndTimeChange={setHasEndTime}
           />
         </div>

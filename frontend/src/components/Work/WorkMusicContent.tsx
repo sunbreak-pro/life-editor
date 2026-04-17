@@ -190,10 +190,14 @@ export function WorkMusicContent() {
         handleSelectPlaylist(id);
       } else if (compositeId.startsWith("sound:")) {
         const id = compositeId.slice("sound:".length);
-        preview.togglePreview(id);
+        const url =
+          audio.soundSources[id] ||
+          SOUND_TYPES.find((s) => s.id === id)?.file ||
+          "";
+        if (url) preview.togglePreview(id, url);
       }
     },
-    [handleSelectPlaylist, preview],
+    [handleSelectPlaylist, preview, audio.soundSources],
   );
 
   const handleBack = useCallback(() => {

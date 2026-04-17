@@ -47,11 +47,7 @@ function loadMaterialsTab(): MaterialsTab {
   return "notes";
 }
 
-interface MaterialsViewProps {
-  onNavigateToNote?: (noteId: string) => void;
-}
-
-export function MaterialsView({ onNavigateToNote }: MaterialsViewProps) {
+export function MaterialsView() {
   const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState<MaterialsTab>(loadMaterialsTab);
 

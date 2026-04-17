@@ -3,9 +3,7 @@ import {
   DndContext,
   DragOverlay,
   closestCenter,
-  type DragStartEvent,
   type DragEndEvent,
-  type DragMoveEvent,
 } from "@dnd-kit/core";
 import { useDroppable, useDraggable } from "@dnd-kit/core";
 import {

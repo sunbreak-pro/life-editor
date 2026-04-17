@@ -81,7 +81,6 @@ export function WorkSidebarInfo() {
 
   // Work time calculations
   const goalMinutes = timer.targetSessions * timer.workDurationMinutes;
-  const sessionProgress = `${todaySummary.sessions} / ${timer.targetSessions}`;
   const sessionPercent = Math.min(
     100,
     (todaySummary.sessions / timer.targetSessions) * 100,

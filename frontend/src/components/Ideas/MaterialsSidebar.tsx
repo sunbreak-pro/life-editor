@@ -4,9 +4,7 @@ import {
   StickyNote,
   Trash2,
   Plus,
-  Network,
   Filter,
-  Pencil,
   FolderPlus,
   GripVertical,
 } from "lucide-react";
@@ -110,7 +108,6 @@ export function MaterialsSidebar({
   onCreateNoteInFolder,
   onCreateFolderInFolder,
   onDeleteNote,
-  onNavigateToNode,
   onUpdateNoteTitle,
   onUpdateNote,
   onTogglePin,
@@ -219,26 +216,11 @@ export function MaterialsSidebar({
     [notes, onSelectNote],
   );
 
-  // Tag dot lookup
-  const entityTagColors = useMemo(() => {
-    const map = new Map<string, string[]>();
-    for (const a of assignments) {
-      const tag = tags.find((t) => t.id === a.tagId);
-      if (tag) {
-        const existing = map.get(a.entityId) || [];
-        existing.push(tag.color);
-        map.set(a.entityId, existing);
-      }
-    }
-    return map;
-  }, [assignments, tags]);
-
   // Pinned notes only
   const pinnedNotes = useMemo(
     () => notes.filter((n) => n.isPinned && n.type === "note"),
     [notes],
   );
-  const hasFavorites = pinnedNotes.length > 0;
 
   const filteredNotes = useMemo(() => {
     if (!isSearching) return notes.filter((n) => n.type === "note");

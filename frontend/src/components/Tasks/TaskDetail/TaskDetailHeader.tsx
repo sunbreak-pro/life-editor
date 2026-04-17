@@ -36,7 +36,6 @@ export function TaskDetailHeader({
   onScheduledAtChange,
   onScheduledEndAtChange,
   onIsAllDayChange,
-  onNodeIconChange,
   onTitleChange,
   onTimeMemoChange,
   onPriorityChange,

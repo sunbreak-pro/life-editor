@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
-import { CheckCircle2, AlertTriangle, XCircle } from "lucide-react";
+import { CheckCircle2, AlertTriangle, XCircle, Info } from "lucide-react";
 import type { ToastVariant } from "../../context/ToastContext";
 
 interface ToastProps {
@@ -19,6 +19,7 @@ const variantConfig: Record<
   success: { bg: "bg-notion-accent", Icon: CheckCircle2 },
   warning: { bg: "bg-yellow-500", Icon: AlertTriangle },
   error: { bg: "bg-red-500", Icon: XCircle },
+  info: { bg: "bg-blue-500", Icon: Info },
 };
 
 export function Toast({

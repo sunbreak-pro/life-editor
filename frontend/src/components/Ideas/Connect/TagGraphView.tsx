@@ -22,7 +22,7 @@ import {
   BookOpen,
 } from "lucide-react";
 import { applyPolygonLayout, applyLineLayout } from "./layoutTemplates";
-import { useReactFlow } from "@xyflow/react";
+import { useReactFlow, ConnectionMode } from "@xyflow/react";
 import { UnifiedColorPicker } from "../../shared/UnifiedColorPicker";
 import { CanvasControls } from "./CanvasControls";
 import { getContentPreview } from "../../../utils/tiptapText";
@@ -1114,7 +1114,7 @@ export function TagGraphView({
         onMoveEnd={(_event, viewport) => saveViewport(viewport)}
         nodeTypes={nodeTypes}
         edgeTypes={edgeTypes}
-        connectionMode="loose"
+        connectionMode={ConnectionMode.Loose}
         elevateNodesOnSelect
         defaultViewport={savedViewport ?? { x: 50, y: 50, zoom: 1 }}
         fitView={!savedViewport}

@@ -26,7 +26,9 @@ export function useSwipeAction({
   const [isScrolling, setIsScrolling] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const currentTranslate = useRef(0);
-  const snapTimeoutRef = useRef<ReturnType<typeof setTimeout>>();
+  const snapTimeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(
+    undefined,
+  );
   const isOpenRef = useRef(false);
 
   const close = useCallback(() => {

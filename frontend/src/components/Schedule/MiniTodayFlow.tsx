@@ -5,7 +5,6 @@ import {
   CheckSquare,
   ChevronLeft,
   ChevronRight,
-  Clock,
   Eye,
   EyeOff,
   Layers,
@@ -565,6 +564,7 @@ export function MiniTodayFlow({
                 }
 
                 // --- Timed task entry ---
+                if (entry.type !== "task") return null;
                 const task = entry.task;
                 const isDone = task.status === "DONE";
                 return (

@@ -66,8 +66,8 @@ export function TaskStagnationChart({ nodes }: TaskStagnationChartProps) {
                 borderRadius: 8,
                 fontSize: 12,
               }}
-              formatter={(value: number) => [
-                `${value} ${t("analytics.stagnation.tasks")}`,
+              formatter={(value: number | undefined) => [
+                `${value ?? 0} ${t("analytics.stagnation.tasks")}`,
               ]}
             />
             <Bar dataKey="count" radius={[0, 4, 4, 0]}>

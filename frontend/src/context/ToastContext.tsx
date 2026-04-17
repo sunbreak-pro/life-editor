@@ -7,7 +7,7 @@ import {
 } from "react";
 import { Toast } from "../components/shared/Toast";
 
-export type ToastVariant = "success" | "warning" | "error";
+export type ToastVariant = "success" | "warning" | "error" | "info";
 
 interface ToastState {
   id: number;

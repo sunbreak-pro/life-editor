@@ -11,7 +11,7 @@ interface UnifiedColorPickerProps {
   mode?: "preset-only" | "preset-full";
   presets?: readonly string[];
   showTextColor?: boolean;
-  textColor?: string;
+  textColor?: string | null;
   effectiveTextColor?: string;
   onTextColorChange?: (color: string | undefined) => void;
   onClose?: () => void;

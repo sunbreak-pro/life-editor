@@ -5,7 +5,6 @@ import { STORAGE_KEYS } from "../../constants/storageKeys";
 import {
   loadSoundEffectSettings,
   saveSoundEffectSettings,
-  playEffectSound,
 } from "../../utils/playEffectSound";
 import type {
   SoundEffectKey,

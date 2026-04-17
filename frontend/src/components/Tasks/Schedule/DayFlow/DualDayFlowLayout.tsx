@@ -89,6 +89,8 @@ export function DualDayFlowLayout({
         onStartTimer={onStartTimer}
         isDualColumn
         onToggleDualColumn={onToggleDualColumn}
+        onSetTaskStatus={onSetTaskStatus}
+        onNavigateToEventsTab={onNavigateToEventsTab}
         onMutate={() => refreshOther("left")}
       />
       <DualColumn
@@ -103,6 +105,8 @@ export function DualDayFlowLayout({
         onDeleteTask={onDeleteTask}
         onUpdateTaskTitle={onUpdateTaskTitle}
         onStartTimer={onStartTimer}
+        onSetTaskStatus={onSetTaskStatus}
+        onNavigateToEventsTab={onNavigateToEventsTab}
         onMutate={() => refreshOther("right")}
       />
     </div>
@@ -127,6 +131,8 @@ interface DualColumnProps {
   onStartTimer?: (task: TaskNode) => void;
   isDualColumn?: boolean;
   onToggleDualColumn?: () => void;
+  onSetTaskStatus?: (taskId: string, status: TaskStatus) => void;
+  onNavigateToEventsTab?: () => void;
   onMutate?: () => void;
 }
 
@@ -144,6 +150,8 @@ function DualColumn({
   onStartTimer,
   isDualColumn,
   onToggleDualColumn,
+  onSetTaskStatus,
+  onNavigateToEventsTab,
   onMutate,
 }: DualColumnProps) {
   const { updateRoutine, updateScheduleItem, routines } = useScheduleContext();

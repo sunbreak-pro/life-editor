@@ -26,6 +26,7 @@ interface TimeGridTaskBlockProps {
   onToggleTaskStatus?: (taskId: string) => void;
   onUnschedule?: (taskId: string) => void;
   onNavigate?: (taskId: string, e: React.MouseEvent) => void;
+  onClick?: (e: React.MouseEvent) => void;
   hasMovedRef?: React.RefObject<boolean>;
   onUpdateTimeMemo?: (taskId: string, memo: string | null) => void;
   activeMemoItemId?: string | null;
@@ -49,6 +50,7 @@ export function TimeGridTaskBlock({
   onToggleTaskStatus,
   onUnschedule,
   onNavigate,
+  onClick,
   hasMovedRef,
   onUpdateTimeMemo,
   activeMemoItemId,
@@ -65,7 +67,6 @@ export function TimeGridTaskBlock({
   const borderColor = isCompleted ? "#9CA3AF" : textColor;
   const isCompact = height < 40;
   const isTiny = height < 28;
-  const hasTimeMemo = !!task.timeMemo;
   const [showInlineMemo, setShowInlineMemo] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
 
@@ -152,7 +153,11 @@ export function TimeGridTaskBlock({
             return;
           }
           e.stopPropagation();
-          onContextMenu?.(task, { x: e.clientX, y: e.clientY });
+          if (onClick) {
+            onClick(e);
+          } else {
+            onContextMenu?.(task, { x: e.clientX, y: e.clientY });
+          }
         }}
         onMouseDown={(e) => {
           if (!isOpen) dragHandlers?.onMouseDown(e);

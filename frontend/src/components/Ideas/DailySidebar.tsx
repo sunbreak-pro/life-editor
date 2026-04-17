@@ -157,7 +157,6 @@ export function DailySidebar({
   }, [assignments, tags]);
 
   const pinnedMemos = useMemo(() => memos.filter((m) => m.isPinned), [memos]);
-  const hasFavorites = pinnedMemos.length > 0;
 
   const filteredMemos = useMemo(() => {
     if (!isSearching) return memos;

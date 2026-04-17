@@ -65,8 +65,8 @@ export function buildCompletedTree(
     }
   }
 
-  // Sort roots by sortOrder
-  roots.sort((a, b) => a.sortOrder - b.sortOrder);
+  // Sort roots by order
+  roots.sort((a, b) => a.order - b.order);
 
   return { roots, containerIds };
 }
@@ -99,5 +99,5 @@ export function getCompletedChildren(
     .filter(
       (n) => n.parentId === parentId && includedIds.has(n.id) && !n.isDeleted,
     )
-    .sort((a, b) => a.sortOrder - b.sortOrder);
+    .sort((a, b) => a.order - b.order);
 }

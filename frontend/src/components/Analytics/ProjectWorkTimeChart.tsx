@@ -77,7 +77,7 @@ export function ProjectWorkTimeChart({
               innerRadius={40}
               paddingAngle={2}
               label={({ name, percent }) =>
-                `${name} (${(percent * 100).toFixed(0)}%)`
+                `${name} (${((percent ?? 0) * 100).toFixed(0)}%)`
               }
               labelLine={{ strokeWidth: 1 }}
             >
@@ -92,9 +92,10 @@ export function ProjectWorkTimeChart({
                 borderRadius: 8,
                 fontSize: 12,
               }}
-              formatter={(value: number) => {
-                const h = Math.floor(value / 60);
-                const m = value % 60;
+              formatter={(value: number | undefined) => {
+                const v = value ?? 0;
+                const h = Math.floor(v / 60);
+                const m = v % 60;
                 return [t("analytics.hours", { hours: h, minutes: m })];
               }}
             />

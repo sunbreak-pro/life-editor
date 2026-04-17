@@ -21,9 +21,9 @@
 
 ## 直近の完了
 
+- TypeScript build エラー 109 件修正（`cargo tauri build` 復旧 + DayFlow picker 復元） ✅（2026-04-18）
 - Cloud Sync UI リフレッシュ修正（syncVersion + 即時 sync） ✅（2026-04-18）
 - Tauri 2.0 Migration Phase 5.4: MobileSettingsView に Data セクション追加 ✅（2026-04-18）
-- App Optimization Phase 4: TaskNode Map, Effect統合, ColorPicker統合, breadcrumb削除 ✅（2026-04-18）
 
 ## 予定
 

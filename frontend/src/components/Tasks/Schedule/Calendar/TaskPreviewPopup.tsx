@@ -54,7 +54,6 @@ export function TaskPreviewPopup({
   position,
   color,
   onOpenDetail,
-  onDelete,
   onClearSchedule,
   onClose,
   onUpdateTitle,
@@ -68,7 +67,7 @@ export function TaskPreviewPopup({
   onSetStatus,
 }: TaskPreviewPopupProps) {
   const { t } = useTranslation();
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [showDeleteConfirm] = useState(false);
 
   const handleTimeChange = useCallback(
     (start: string, end: string) => {

@@ -141,11 +141,12 @@ export function DailyMemoView() {
             </button>
           )}
           {isLocked && (
-            <Lock
-              size={14}
-              className="text-notion-text-secondary/60 shrink-0"
+            <span
+              className="shrink-0 inline-flex"
               title={t("screenLock.locked")}
-            />
+            >
+              <Lock size={14} className="text-notion-text-secondary/60" />
+            </span>
           )}
           <button
             ref={moreButtonRef}
@@ -169,11 +170,12 @@ export function DailyMemoView() {
             />
           )}
           {isEditLocked && !isLocked && (
-            <PenOff
-              size={14}
-              className="text-notion-text-secondary/60 shrink-0"
+            <span
+              className="shrink-0 inline-flex"
               title={t("screenLock.editLocked")}
-            />
+            >
+              <PenOff size={14} className="text-notion-text-secondary/60" />
+            </span>
           )}
         </div>
 

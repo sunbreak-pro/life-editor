@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { getDataService } from "../../services/dataServiceFactory";
 import { useSyncContext } from "../../hooks/useSyncContext";
-import type { TaskNode } from "../../types/taskTree";
+import type { TaskNode, TaskStatus } from "../../types/taskTree";
 
 export function MobileTaskView() {
   const { t } = useTranslation();
@@ -35,7 +35,8 @@ export function MobileTaskView() {
       DONE: "NOT_STARTED",
     };
     const currentStatus = task.status ?? "NOT_STARTED";
-    const newStatus = statusCycle[currentStatus] ?? "NOT_STARTED";
+    const newStatus = (statusCycle[currentStatus] ??
+      "NOT_STARTED") as TaskStatus;
     try {
       await ds.updateTask(task.id, {
         status: newStatus,

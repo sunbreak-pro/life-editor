@@ -69,7 +69,7 @@ export function WorkBreakBalance({ sessions, days }: WorkBreakBalanceProps) {
                 borderRadius: 8,
                 fontSize: 12,
               }}
-              formatter={(value: number) => [`${value}m`]}
+              formatter={(value: number | undefined) => [`${value ?? 0}m`]}
             />
             <Legend wrapperStyle={{ fontSize: 11 }} />
             <Bar

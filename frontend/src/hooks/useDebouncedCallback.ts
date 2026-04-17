@@ -1,16 +1,17 @@
 import { useRef, useCallback, useEffect } from "react";
 
-export function useDebouncedCallback<T extends (...args: unknown[]) => void>(
-  callback: T,
+export function useDebouncedCallback<TArgs extends unknown[]>(
+  callback: (...args: TArgs) => void,
   delay: number,
-): T & { flush: () => void; cancel: () => void } {
+): ((...args: TArgs) => void) & { flush: () => void; cancel: () => void } {
+  type T = (...args: TArgs) => void;
   const callbackRef = useRef(callback);
   useEffect(() => {
     callbackRef.current = callback;
   }, [callback]);
 
-  const timerRef = useRef<ReturnType<typeof setTimeout>>();
-  const pendingArgsRef = useRef<Parameters<T>>();
+  const timerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const pendingArgsRef = useRef<Parameters<T> | undefined>(undefined);
 
   const flush = useCallback(() => {
     if (timerRef.current) {

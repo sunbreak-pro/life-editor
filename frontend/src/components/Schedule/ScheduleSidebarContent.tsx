@@ -172,13 +172,6 @@ export function ScheduleSidebarContent({
     [routinesByGroup, sidebarScheduleItems, undismissScheduleItem],
   );
 
-  const handleEditRoutine = useCallback(
-    (routineId: string) => {
-      setShowManagement(true);
-    },
-    [setShowManagement],
-  );
-
   const handleEditRoutinePopup = useCallback(
     (routineId: string, e: React.MouseEvent) => {
       const scheduleItem = sidebarScheduleItems.find(
@@ -206,13 +199,6 @@ export function ScheduleSidebarContent({
     setEditTarget({ type: "task", taskId });
     setEditPosition({ x: e.clientX, y: e.clientY });
   }, []);
-
-  const handleRemoveTaskFromSchedule = useCallback(
-    (taskId: string) => {
-      updateNode(taskId, { scheduledAt: null, scheduledEndAt: null });
-    },
-    [updateNode],
-  );
 
   const handleToggleTaskStatus = useCallback(
     (taskId: string) => {

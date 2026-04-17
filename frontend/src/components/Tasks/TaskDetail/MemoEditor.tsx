@@ -283,7 +283,7 @@ export function MemoEditor({
         attributes: {
           class: "memo-editor outline-none min-h-[200px]",
         },
-        handleClickOn(view, _pos, node, nodePos, _event, direct) {
+        handleClickOn(_view, _pos, node, _nodePos, _event, direct) {
           if (node.type.name === "databaseBlock" && direct) {
             return true;
           }
@@ -414,9 +414,16 @@ export function MemoEditor({
   // Wire upload callbacks into extension storage
   useEffect(() => {
     if (!editor) return;
-    editor.extensionStorage.fileUploadPlaceholder.onImageUpload =
-      handleImageUpload;
-    editor.extensionStorage.fileUploadPlaceholder.onPdfUpload = handlePdfUpload;
+    const storage = editor.extensionStorage as {
+      fileUploadPlaceholder?: {
+        onImageUpload?: typeof handleImageUpload;
+        onPdfUpload?: typeof handlePdfUpload;
+      };
+    };
+    if (storage.fileUploadPlaceholder) {
+      storage.fileUploadPlaceholder.onImageUpload = handleImageUpload;
+      storage.fileUploadPlaceholder.onPdfUpload = handlePdfUpload;
+    }
   }, [editor, handleImageUpload, handlePdfUpload]);
 
   // Resolve attachment:// URLs to blob URLs after editor mount

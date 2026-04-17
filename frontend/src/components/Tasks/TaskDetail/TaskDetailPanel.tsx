@@ -127,7 +127,6 @@ function TaskSidebarContent({
   moveNodeInto,
   moveToRoot,
   softDelete,
-  onPlayTask,
   onMoveRejected,
   toggleTaskStatus,
   setTaskStatus,

@@ -1,11 +1,6 @@
-export type UnlistenFn = () => void;
+import type { UpdaterStatus } from "../types/updater";
 
-type UpdaterStatus = {
-  status: string;
-  version?: string;
-  error?: string;
-  progress?: number;
-};
+export type UnlistenFn = () => void;
 
 let tauriEvent: typeof import("@tauri-apps/api/event") | null = null;
 

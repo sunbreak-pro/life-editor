@@ -53,7 +53,7 @@ function formatTime(h: number, m: number): string {
   return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
 }
 
-function parseScheduledAt(scheduledAt: string | null): {
+function parseScheduledAt(scheduledAt: string | null | undefined): {
   hour: number;
   minute: number;
 } {
@@ -63,7 +63,7 @@ function parseScheduledAt(scheduledAt: string | null): {
 }
 
 function buildScheduledAt(
-  baseDate: string | null,
+  baseDate: string | null | undefined,
   hour: number,
   minute: number,
 ): string {

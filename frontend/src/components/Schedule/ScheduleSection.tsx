@@ -494,7 +494,8 @@ export function ScheduleSection({
         DONE: "NOT_STARTED",
       };
       const currentStatus = task.status ?? "NOT_STARTED";
-      const newStatus = statusCycle[currentStatus] ?? "NOT_STARTED";
+      const newStatus = (statusCycle[currentStatus] ??
+        "NOT_STARTED") as TaskStatus;
       const newCompletedAt =
         newStatus === "DONE" ? new Date().toISOString() : undefined;
       const origStatus = task.status;
@@ -580,7 +581,7 @@ export function ScheduleSection({
       if (!task) return;
       const origScheduledAt = task.scheduledAt;
       const origScheduledEndAt = task.scheduledEndAt;
-      updateNode(taskId, { scheduledAt: null, scheduledEndAt: null });
+      updateNode(taskId, { scheduledAt: undefined, scheduledEndAt: undefined });
       pushUndo("scheduleItem", {
         label: "unscheduleTask",
         undo: () => {
@@ -590,7 +591,10 @@ export function ScheduleSection({
           });
         },
         redo: () => {
-          updateNode(taskId, { scheduledAt: null, scheduledEndAt: null });
+          updateNode(taskId, {
+            scheduledAt: undefined,
+            scheduledEndAt: undefined,
+          });
         },
       });
     },

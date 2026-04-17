@@ -81,12 +81,15 @@ export function PomodoroCompletionRate({
                 borderRadius: 8,
                 fontSize: 12,
               }}
-              formatter={(value: number, name: string) => {
+              formatter={(
+                value: number | undefined,
+                name: string | undefined,
+              ) => {
                 const label =
                   name === "actual"
                     ? t("analytics.pomodoroRate.actual")
                     : t("analytics.pomodoroRate.target");
-                return [value, label];
+                return [value ?? 0, label];
               }}
             />
             <ReferenceLine

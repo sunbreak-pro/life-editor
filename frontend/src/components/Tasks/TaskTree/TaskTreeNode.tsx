@@ -332,7 +332,7 @@ export const TaskTreeNode = memo(function TaskTreeNode({
               }
               onStartEditing={
                 isStructureContainer || isSystemFolder
-                  ? undefined
+                  ? () => {}
                   : handleStartEditing
               }
               onToggleExpand={handleToggleExpand}

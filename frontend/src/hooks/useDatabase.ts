@@ -3,7 +3,6 @@ import type {
   DatabaseFull,
   DatabaseProperty,
   DatabaseRow,
-  DatabaseCell,
   PropertyType,
 } from "../types/database";
 import { getDataService } from "../services";

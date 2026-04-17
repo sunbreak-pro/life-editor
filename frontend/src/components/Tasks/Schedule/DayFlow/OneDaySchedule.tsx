@@ -21,13 +21,14 @@ import type { RoutineGroup } from "../../../../types/routineGroup";
 import { RoutineTimeChangeDialog } from "../shared/RoutineTimeChangeDialog";
 import { TaskPreviewPopup } from "../Calendar/TaskPreviewPopup";
 import { ScheduleItemPreviewPopup } from "./ScheduleItemPreviewPopup";
+import { RoutinePickerPanel } from "./RoutinePickerPanel";
+import { NoteSchedulePanel } from "../../../shared/NoteSchedulePanel/NoteSchedulePanel";
 import type { TabItem } from "../../../shared/SectionTabs";
 import { TIME_GRID } from "../../../../constants/timeGrid";
 import type { NoteNode } from "../../../../types/note";
 import {
   CalendarClock,
   CalendarMinus,
-  Check,
   CheckCircle2,
   CheckSquare,
   Pencil,
@@ -197,6 +198,18 @@ export function OneDaySchedule({
     endTime: string;
     prevStartTime: string;
     prevEndTime: string;
+  } | null>(null);
+
+  const [routinePicker, setRoutinePicker] = useState<{
+    startTime: string;
+    endTime: string;
+    position: { x: number; y: number };
+  } | null>(null);
+
+  const [notePicker, setNotePicker] = useState<{
+    startTime: string;
+    endTime: string;
+    position: { x: number; y: number };
   } | null>(null);
 
   const handleRequestRoutineDelete = useCallback(
@@ -747,7 +760,43 @@ export function OneDaySchedule({
               setCreatePopover({ ...clickMenu, defaultTab: "routine" });
               setClickMenu(null);
             }}
+            onSelectNote={() => {
+              setNotePicker({
+                startTime: clickMenu.startTime,
+                endTime: clickMenu.endTime,
+                position: clickMenu.position,
+              });
+              setClickMenu(null);
+            }}
             onClose={() => setClickMenu(null)}
+          />
+        )}
+
+        {/* Routine picker panel */}
+        {routinePicker && (
+          <RoutinePickerPanel
+            position={routinePicker.position}
+            defaultStartTime={routinePicker.startTime}
+            defaultEndTime={routinePicker.endTime}
+            routines={routines}
+            routineGroups={routineGroups}
+            routinesByGroup={routinesByGroup}
+            onSelectRoutine={handleSelectRoutineForSchedule}
+            onSelectGroup={handleSelectGroupForSchedule}
+            onClose={() => setRoutinePicker(null)}
+          />
+        )}
+
+        {/* Note picker panel */}
+        {notePicker && (
+          <NoteSchedulePanel
+            position={notePicker.position}
+            defaultStartTime={notePicker.startTime}
+            defaultEndTime={notePicker.endTime}
+            date={date}
+            onSelectExistingNote={handleSelectExistingNote}
+            onCreateNewNote={handleCreateNewNote}
+            onClose={() => setNotePicker(null)}
           />
         )}
 

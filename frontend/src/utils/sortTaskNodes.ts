@@ -49,7 +49,7 @@ export function sortTaskNodes(
       });
     }
 
-    if (mode !== "manual" && direction === "desc") sorted.reverse();
+    if (direction === "desc") sorted.reverse();
     return sorted;
   };
 

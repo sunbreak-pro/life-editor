@@ -30,8 +30,6 @@ export function EventTab({
   onDuplicateEvent,
   onClose,
 }: EventTabProps) {
-  const { t } = useTranslation();
-
   if (useExisting) {
     return (
       <ExistingEventContent
@@ -55,7 +53,6 @@ export function EventTab({
 }
 
 function NewEventContent({
-  date,
   defaultStartTime,
   defaultEndTime,
   onCreateEvent,
@@ -153,8 +150,6 @@ function NewEventContent({
 
 function ExistingEventContent({
   recentEvents,
-  defaultStartTime,
-  defaultEndTime,
   onDuplicate,
 }: {
   recentEvents?: ScheduleItem[];

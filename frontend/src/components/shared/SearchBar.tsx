@@ -9,6 +9,7 @@ import {
   ListMusic,
   Settings2,
   Tag,
+  LayoutGrid,
   X,
 } from "lucide-react";
 
@@ -20,7 +21,8 @@ export type SearchSuggestionIconType =
   | "sound"
   | "playlist"
   | "settings"
-  | "tag";
+  | "tag"
+  | "board";
 
 export interface SearchSuggestion {
   id: string;
@@ -119,6 +121,8 @@ export function SearchBar({
         return <Settings2 size={12} className={cls} />;
       case "tag":
         return <Tag size={12} className={cls} />;
+      case "board":
+        return <LayoutGrid size={12} className={cls} />;
       default:
         return null;
     }

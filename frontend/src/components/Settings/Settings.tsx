@@ -73,7 +73,8 @@ export type SettingsInitialTab =
   | "timer"
   | "devtools"
   | "behaviors"
-  | "system";
+  | "system"
+  | "mobile";
 
 const TABS = [
   { id: "general", labelKey: "settings.general", icon: Settings2 },
@@ -183,6 +184,8 @@ function resolveInitialTab(initialTab: SettingsInitialTab | undefined): {
       return { tab: "general", generalSub: "behaviors" };
     case "system":
       return { tab: "advanced", advancedSub: "system" };
+    case "mobile":
+      return { tab: "general" };
     case undefined:
       return { tab: "general" };
     default:

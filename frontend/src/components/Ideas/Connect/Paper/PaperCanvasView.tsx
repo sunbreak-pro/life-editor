@@ -10,7 +10,6 @@ import {
   type Edge,
   type OnConnect,
   type OnNodesChange,
-  type OnEdgesChange,
   type NodeTypes,
   type EdgeTypes,
   type Viewport,
@@ -128,7 +127,9 @@ export function PaperCanvasView({
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [selectedNodeIds, setSelectedNodeIds] = useState<string[]>([]);
   const [isDragging, setIsDragging] = useState(false);
-  const viewportTimerRef = useRef<ReturnType<typeof setTimeout>>();
+  const viewportTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(
+    undefined,
+  );
   const { screenToFlowPosition } = useReactFlow();
 
   // Build note/memo lookup

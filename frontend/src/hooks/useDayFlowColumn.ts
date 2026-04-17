@@ -33,7 +33,6 @@ export function useDayFlowColumn({ initialDate }: UseDayFlowColumnOptions) {
     scheduleItemsVersion,
     createScheduleItem: ctxCreate,
     updateScheduleItem: ctxUpdate,
-    deleteScheduleItem: ctxDelete,
     softDeleteScheduleItem: ctxSoftDelete,
     dismissScheduleItem: ctxDismiss,
     toggleComplete: ctxToggle,
