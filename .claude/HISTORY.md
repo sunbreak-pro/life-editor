@@ -1,5 +1,101 @@
 # HISTORY.md - 変更履歴
 
+### 2026-04-18 - アプリ再定義ロードマップ v2 Phase C 完了（feature_plan 棚卸し + 保留 5 件 Verdict 確定）（計画書: archive/2026-04-18-integrated-design-roadmap.md）
+
+#### 概要
+
+Phase B に続いて Phase C を完遂。事前データ表（calendar plan §Phase C）をベースに既存 feature_plan 9 件を Merge / Drop 判定で archive へ移動し、保留 5 件（I-1 / S-2 / S-4 / S-5 / S-6）の Verdict を確定。Keep 判定の 4 件を新規 plan、Modify / Option A 決定の 2 件を新規 ADR として起票。これで Life Editor プロジェクトの SSOT（CLAUDE.md 13 章 + requirements/ 26 機能）と、アクティブ plan 群（4 件の具体的な実装候補）が一貫した状態で整った。
+
+#### 変更点
+
+- **feature_plan 9 件の archive 移動**:
+  - Drop 5 件 → `.claude/archive/dropped/`:
+    - `019-phase1-security-critical-fixes.md`（Electron 前提、2026-02-22 作成 3 ヶ月放置）
+    - `020-phase2-data-integrity.md` / `021-phase3-architecture-improvement.md` / `022-phase4-quality-optimization.md`（同上、Tauri 2.0 migration で対象コード消失）
+    - `2026-04-14-capacitor-ios-standalone.md`（Tauri Mobile 採用で不要）
+  - Merge 4 件 → `.claude/archive/`:
+    - `023-cmux-terminal-features.md` → Terminal Future Enhancements（分割ペインのみ採用、Socket API は Boundary と矛盾で不採用）
+    - `025-life-editor-ui-ux-refactor.md` → CLAUDE.md §1-5 + tier-2-supporting の Theme / Shortcuts に吸収済
+    - `2026-03-16-mobile-phase2-realtime-sync.md` → Cloud Sync Future Enhancements（WebSocket / SSE リアルタイム push）
+    - `2026-03-16-mobile-phase3-offline-standalone.md` → Cloud Sync Known Issues + Future（オフラインキュー / conflict resolution / claude\_\* テーブル対応）
+  - 各ファイルに `Status: DROPPED (reason)` または `Status: MERGED (target + reason)` マークを追記
+
+- **保留 5 件の Verdict 確定と後続ファイル起票**:
+  - **I-1 (Rust `db_tasks_fetch_by_scheduled_range`)**: Keep (measurement-first) → `.claude/feature_plans/2026-04-18-tasks-fetch-by-range.md` 起票（iOS で 500 / 1000 / 3000 件計測 → しきい値 500ms 以上なら実装）
+  - **S-2 (Tauri IPC naming policy)**: Modify (ADR-only) → `.claude/docs/adr/ADR-0006-tauri-ipc-naming-policy.md` 起票。規約明文化のみ、150 コマンド全件 typed struct 化は不採用
+  - **S-4 (computeFolderProgress batch memo)**: Keep (measurement-first) → `.claude/feature_plans/2026-04-18-folder-progress-batch-memo.md` 起票（React Compiler 有効化後再計測、Profiler で 150ms 超なら一括 Map 計算に切替）
+  - **S-5 (useServiceErrorHandler)**: Keep (immediate) → `.claude/feature_plans/2026-04-18-service-error-handler-hook.md` 起票。V2「信頼できるデータ」を silent failure が直接損なうため即時実装可
+  - **S-6 (Mobile Provider strategy)**: Keep Option A → `.claude/docs/adr/ADR-0007-mobile-provider-strategy.md` で Optional hook 採用決定 + `.claude/feature_plans/2026-04-18-context-hook-optional.md` 実装 plan 起票。Stub Provider（Option B）は Mobile バンドル膨張のため不採用
+
+- **deferred-items-reevaluation.md**: Status: Consumed (Phase C 完了) に更新 + 冒頭に Verdict 集約表を追加 → `.claude/archive/` に移動
+
+- **requirements/ の Related Plans 更新**:
+  - §Tasks Related Plans: I-1 / S-4 の新規 plan リンク追加
+  - §Schedule Related Plans: Schedule 3 Provider ADR のリンクは archive 維持（変更なし）
+  - §Cloud Sync Related Plans: MERGED 2 件を archive リンクに書換 + 吸収済 note 追記
+  - §Terminal Related Plans: MERGED 023 を archive リンクに書換 + Boundary 矛盾 note 追記
+  - §Toast Known Issues: S-5 の新規 plan リンク追加 + Related Plans セクション新設
+
+- **計画書更新**: §Phase C-1（Steps 5 件 + Verification 3 件）と §Phase C-2（Steps 6 件 + Verification 4 件）を全て `[x]` に
+
+- **MEMORY.md 更新**: 直近完了に Phase C 追加、予定を「Phase C 起票の新規 plan 4 件（優先度順）」に書換。1. S-5 即時実装可 / 2. S-6 Option A 実装 / 3. I-1 計測 first / 4. S-4 計測 first の順
+
+- **最終状態サマリー**:
+  - `.claude/feature_plans/` PLANNED: 4 件（Phase C 起票、他は Consumed/Superseded/IN_PROGRESS）
+  - `.claude/docs/adr/` Active: 3 件（ADR-0005 PROPOSED / ADR-0006 Accepted / ADR-0007 Accepted）
+  - `.claude/archive/dropped/` 新設: 5 件（Electron 前提 Plan + Capacitor）
+  - `.claude/archive/` Merge 4 件追加
+
+### 2026-04-18 - アプリ再定義ロードマップ v2 Phase B 完了（Tier 1-3 全 26 機能要件定義）
+
+#### 概要
+
+同日 B-1 完了に続けて Phase B-2 / B-3 を連続実施し、全 Tier の要件定義を完遂。Tier 2（12 機能 / AC 各 3-6 件）と Tier 3（6 機能 / Verdict 付き）を記入し、CLAUDE.md §11 に相互リンク（markdown link）+ Verdict 反映を行った。CLAUDE.md §11 機能数 = requirements/ 機能数 = 26 で差分ゼロを確認。Phase C（実装プラン群の整理 + 保留 5 件再評価）は次セッション以降。
+
+#### 変更点
+
+- **tier-2-supporting.md（364 → 495 行）**: 全 12 機能の Purpose / Boundary / AC 3-6 件 / Dependencies を記入。プレースホルダ残存ゼロを grep 確認
+- **Audio Mixer**: AC 5 件（on/off + ボリューム、magic bytes 検証、プリセット、タグ、AudioContext resume）
+- **Playlist**: AC 5 件（DnD reorder、タイマー連動自動開始、シャッフル / リピート、Pause 追従）
+- **Pomodoro Timer**: AC 6 件（プリセット、完了フロー、3 箇所残り時間同期、±5m 調整、timer_sessions 記録、sessionsBeforeLongBreak）
+- **WikiTags**: AC 5 件（横断付与、sync_inline_tags、CRUD + 色ピッカー、接続の有向グラフ、MCP tag_entity）+ IPC 21 件列挙
+- **File Explorer**: AC 5 件（ルート選択、パストラバーサル検証、FileEditor 永続化、attachment_save、Mobile 省略）+ IPC 17 件列挙
+- **Templates**: AC 4 件（JSON 保存、新規 ID 展開、ソフトデリート、rename）+ `task_templates` レガシーテーブル残留を Known Issues に記録（実コード調査発見）
+- **UndoRedo / Theme / i18n / Shortcuts / Toast / Trash**: AC 3-5 件ずつ記入（ドメイン別スタック / 10 段階フォント / en/ja / 29 shortcuts / 4 種トースト / 7 ドメイン復元）
+- **tier-3-experimental.md（173 行）**: 6 機能に Verdict ラベル付与
+  - **Paper Boards**: 凍結継続（13 commits、2026-04-12 で機能追加停止、Notes / WikiTag Connections で代替可）
+  - **Analytics**: 凍結継続 + ADR-0005 Phase 4 統合予定（17 commits、2026-02-25 で機能追加停止）
+  - **NotebookLM / Google Calendar / Google Drive**: 未着手（Claude 経由代替 / ICS 購読 Phase 1 / google-drive MCP で各対応）
+  - **Cognitive Architecture (ADR-0005)**: PROPOSED 維持（Phase 1 から段階着手）
+- **CLAUDE.md §11 更新**: tier-1/2/3 リンクを markdown link 化、各 Tier 冒頭の「（Phase B-X で作成予定）」を「（N 機能、各 AC X-Y 件、Phase B-X 完了）」に変更、Tier 3 の Paper Boards / Analytics 等に Verdict ラベルを反映
+- **計画書更新**: §Phase B-2（Steps 3 件 + Verification 3 件）と §Phase B-3（Steps 6 件 + Verification 2 件）を全て `[x]` に
+- **MEMORY.md 更新**: 直近完了を「Phase B 完了」に集約、予定を Phase C に書換（起点ファイル / 準備済みデータ / 最初のアクションを具体化）
+- **実コード整合の発見と記録**:
+  - Templates の `task_templates` はレガシー残留（migrations.rs で CREATE するが CRUD コマンドなし、data_io_commands リセット時のみ DELETE 対象）→ Known Issues 記録
+  - Paper Boards の Owner Provider パスは `frontend/src/components/Ideas/Connect/Paper/`（骨格の `PaperBoards/` は誤り）→ 正しいパスに修正
+- **機能数サマリー**: Tier 1: 8 / Tier 2: 12 / Tier 3: 6 = 合計 **26 機能**（CLAUDE.md §11 と差分ゼロ）
+
+### 2026-04-18 - アプリ再定義ロードマップ v2 Phase B-1 完了（Tier 1 全 8 機能要件定義）
+
+#### 概要
+
+Phase A（CLAUDE.md 13 章統合）に続く Phase B-1（Tier 1 コア機能の要件定義）を 1 セッションで完遂。`.claude/docs/requirements/tier-1-core.md` の事前骨格に対し、全 8 機能（Tasks / Schedule / Notes / Memo / Database / MCP Server / Cloud Sync / Terminal）の Purpose / Boundary / Acceptance Criteria（計 70 件、機能あたり 7-10 件）/ Dependencies / Known Issues / Future Enhancements を記入。各機能の Owner Provider/Module・IPC コマンド・MCP ツール対応範囲は Explore agent + grep で実コードから事実確認済。Phase B-2 (Tier 2 補助機能) / Phase B-3 (Tier 3 実験) は次セッション以降。計画書 §Phase B-1 の Steps/Verification checkbox を全て完了状態に更新。
+
+#### 変更点
+
+- **tier-1-core.md（379 行 → 506 行）**: 全 8 機能のテンプレ全項目を記入。`<!-- 記入予定 -->` / `<!-- AC -->` プレースホルダ残存ゼロを grep で確認
+- **Tasks**: AC 10 件（階層 DnD のゾーン判定、紙吹雪、folderType='complete' 自動集約、ソフトデリート + 復元、UndoRedo、Schedule 双方向同期、MCP get_task_tree の UI 一致、カラー継承）
+- **Schedule**: AC 10 件（frequencyType weekdays の自動生成、startTime 変更の既存 ScheduleItem 追従、Routine 削除カスケード、routine_logs 記録、Preview 編集、Calendar Tag、MCP list_schedule 一致、Mobile CalendarTagsProvider 省略、時間ドラッグの Tasks 同期）
+- **Notes**: AC 8 件（TipTap JSON 保存、スラッシュコマンド、note_connections 双方向、Pin、パスワード保護の verify、全文検索、MCP list_notes、UI 限定削除）
+- **Memo**: AC 7 件（DayFlow/DailyMemoView 表示、MCP upsert の冪等性、パスワード/ロック、TimeMemo の空保存で自動削除、Pin、UI 限定削除）
+- **Database**: AC 8 件（5 種 PropertyType + config_json、Inline エディタ、フィルタ AND、Select 10 色、集計（sum/avg/min/max/countChecked）、Row DnD order_index、ソフトデリート、型変更後のキャスト）
+- **MCP Server**: AC 8 件（claude コマンド自動接続、list_tasks UI 一致、create_task の UI 反映、search_all 横断、tag_entity + search_by_tag、ファイル系 7 ツール、異常終了時の本体無影響、JSON-RPC error）
+- **Cloud Sync**: AC 8 件（sync_configure 保存、双方向 push/pull、last-write-wins、full_download、未対応テーブルはローカルのみ、sync_disconnect、オフライン動作、pending_changes 表示）。Status を「△基盤のみ」→「○基本完成（10 versioned + 3 relation テーブル対応、残り約 30 テーブル未対応）」に変更（sync_engine.rs の実装を読んで事実ベースに修正）
+- **Terminal**: AC 8 件（Ctrl+` 開閉の SectionId 切替後維持、ドラッグで高さ調整、xterm.js 接続、claude コマンド → MCP 30 ツール認識、複数セッション、claude_state 検出、セッション終了で PTY kill、Mobile エラー返却）
+- **Phase B-1 完了マーク**: `.claude/feature_plans/2026-04-18-integrated-design-roadmap.md` §Phase B-1 の Steps 6 件と Verification 3 件を `[x]` に更新
+- **MEMORY.md 更新**: Phase B-1 完了を「直近の完了」に追加、「予定」を Phase B-2 / B-3 に書き換え（tier-2-supporting.md の Audio Mixer から着手する旨を記述）
+- **設計判断の事実補正**: Cloud Sync の Status を実装調査で上方修正（sync_engine.rs に 13 テーブル分の push/pull ロジックが既に存在）。Tasks の Known Issues に保留 I-1（scheduled range 全件 fetch）を関連課題として追記
+
 ### 2026-04-18 - Routine Calendar 改善（Preview/Tag/削除カスケード + Group sort/頻度同期）
 
 #### 概要
@@ -37,48 +133,5 @@ Routine Calendar まわりのユーザー要件 7 件を 1 セッションで実
 - **README.md 簡素化**: 80 行 → 35 行。「主な機能」セクションを CLAUDE.md §11 へリンク化、技術スタック・セットアップ・ドキュメントリンクのみ残置
 - **既存 3 プランに Status マーク**: `2026-04-18-app-redefinition-roadmap.md` を `Superseded by integrated-design-roadmap` に、`2026-04-18-application-definition-template.md` と `2026-04-17-daily-life-hub-requirements.md` を `Consumed (CLAUDE.md に吸収)` にマーク
 - **新規プラン作成**: `.claude/feature_plans/2026-04-18-integrated-design-roadmap.md`（Phase A/B/C 全体ロードマップ）— 既存 3 プランを土台に拡張、Tier 1-3 全機能網羅要件定義 + 実装プラン整理戦略を記述
-
-### 2026-04-18 - アプリ再定義ロードマップ策定
-
-#### 概要
-
-Electron → Tauri + モバイル追加で有機的に膨張したコードベースに対し、次セッション以降で「定義 → 要件 → 差分評価」の 3 ステップで再整理するためのロードマップを策定。`.claude/feature_plans/` に 3 ファイル作成し、チャット間の引き継ぎを確立。直近のコードレビューで保留となった 5 件（I-1 / S-2 / S-4 / S-5 / S-6）は実装 TODO ではなく「定義確定後に判断する問い」として位置づけ直し。
-
-#### 変更点
-
-- **ロードマップ (`2026-04-18-app-redefinition-roadmap.md`)**: 3 ステップ戦略（定義書 → 要件 Spec → 差分評価）と各ステップの goal / deliverable / 完了条件 / 検証項目を記述。ビジョン確定前は保留 5 件の実装着手を凍結する方針
-- **定義書テンプレート (`2026-04-18-application-definition-template.md`)**: 最上位定義書の 8 セクション雛形（Core Identity / Target User / Core Value Propositions / Non-Goals / Platform Strategy / Data Model Philosophy / AI Integration Strategy / Feature Tier）。各セクションに記入ガイドと例示を付与
-- **保留項目再評価 (`2026-04-18-deferred-items-reevaluation.md`)**: 5 件を Keep / Modify / Drop の判断フレームで整理。各項目に 3〜4 個の問いと判断材料（Tier / Target User / Platform Strategy の参照先）を記載。加えて「矛盾点」「不要機能候補」「負債」の空欄セクションを用意
-
-### 2026-04-18 - コードレビュー + Blocking/Important バグ修正
-
-#### 概要
-
-Electron → Tauri 2.0 移行とモバイル対応追加後の保守性・バグ温床を Plan モードで全体調査し、Blocking 3 件・Important 5 件・Suggestion 2 件を実装修正。特に 4 つの TagAssignment API で Rust 側 camelCase ／ TS 側 snake_case の不整合によりサウンドタグ／ルーチンタグ等が実質無効化されていた**プロダクションバグ**を発見・修正。レビュー計画書: `~/.claude/plans/electron-tauri-snoopy-avalanche.md`。
-
-#### 変更点
-
-- **SyncContext 刷新 (B-1/I-2/I-3/S-3)**: `SyncContextValue` に `lastError`/`clearError` 追加、silent `catch {}` を排除して全エラーを state + toast に伝搬、`fullDownload()` にも catch を追加、`configure()` を `await runSync()` で待機化、`AbortController` で disconnect 時に in-flight sync をキャンセル、polling で `document.hidden`/`navigator.onLine` をチェック
-- **soft-delete フィルタ整合 (B-2/B-3)**: `getSearchMatchIds` に `isDeleted` フィルタ追加＋祖先走査の deleted 停止、`useTaskTreeMovement` の `moveNodeInto`/`moveToRoot`/`moveNode` すべてに `isDeleted` ガード、`MoveRejectionReason` に `deleted_node` 追加、i18n `taskTree.move.deletedNode` 追加
-- **🔴 TagAssignment snake_case バグ修正 (I-4)**: Rust 側は `soundId`/`tagId` 等の camelCase JSON を返していたのに TS 側が `sound_id`/`tag_id` で destructure していたため、4 機能（Sound tag, Routine tag, Calendar tag, Routine group tag）の assignments map がすべて空だった。consumer 4 ファイル + `DataService.ts` / `TauriDataService.ts` の型定義を camelCase に統一
-- **モバイル IPC 無駄呼び排除 (I-5)**: `TimerContext.updateTrayTimer` を `isTauriMobile()` ガードで skip、iOS で毎秒の無駄 IPC を停止
-- **MobileCalendarView パフォーマンス (I-1 部分)**: 日付変更用と syncVersion 用の useEffect を分離し、日付切替時の `fetchTaskTree()` 全件取得を排除。Rust `db_tasks_fetch_by_scheduled_range` 新コマンドは別タスクに切り出し
-- **祖先走査の循環保護 (S-1)**: `utils/walkAncestors.ts` を新設（visited Set 付きの generator）、`folderColor.ts` / `folderTag.ts` / `buildCompletedTree.ts` の 4 箇所の `while (parentId) { ... }` ループを循環安全化
-- **テスト追加**: `filterTreeBySearch.test.ts`（7件）、`useTaskTreeMovement.test.ts`（4件）、`walkAncestors.test.ts`（5件）で +16 件。全 175 件 pass
-- **i18n 追加**: `sync.lastError`（en/ja）、`taskTree.move.deletedNode`（en/ja）
-
-### 2026-04-18 - Rust コンパイラ警告 24 件修正
-
-#### 概要
-
-`cargo tauri build` で発生していた Rust 警告 24 件（未使用 import、未使用変数、dead code）をすべて解消。
-
-#### 変更点
-
-- **未使用 import 削除**: `Manager`（custom_sound_commands, attachment_commands, claude_commands）、`MenuItemKind`（menu.rs）、`super::helpers`（routine_repository, routine_tag_repository, routine_group_repository）
-- **未使用変数**: custom_sound_commands の全 `app` 引数を `_app` に、attachment_commands の全 `app` を `_app` に、claude_commands の `setup_life_editor_dir` の `app` を `_app` に
-- **dead code 削除**: `helpers.rs` の `fetch_deleted_json`, `next_order_index`, `next_sort_order`、`claude_detector.rs` の `get_state` メソッド
-
-- 2026-04-17: [途中] iOS Safe Area 対応 — 計画書 `.claude/feature_plans/2026-04-17-ios-safe-area.md` 作成完了。MobileLayout.tsx の header/footer に `env(safe-area-inset-*)` padding を追加する方針。実装は次セッション
 
 <!-- older entries archived to HISTORY-archive.md -->

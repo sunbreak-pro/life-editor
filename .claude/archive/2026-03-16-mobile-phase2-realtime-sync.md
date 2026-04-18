@@ -1,9 +1,11 @@
 # Plan: Life Editor モバイル連携 Phase 2 — 機能拡充 + リアルタイム同期 + 外出先アクセス
 
-**Status:** PLANNED
+**Status:** MERGED (Phase C, 2026-04-18) — リアルタイム同期 / 外出先アクセスの要点を `requirements/tier-1-core.md` §Cloud Sync に統合済
 **Created:** 2026-03-16
 **Depends on:** Phase 1 (COMPLETED)
 **Project:** /Users/newlife/dev/apps/life-editor
+**Merge target**: `.claude/docs/requirements/tier-1-core.md` §Cloud Sync (Known Issues + Future Enhancements)
+**Merge reason**: 本 Plan は Electron + Hono server + REST architecture 前提。Tauri 2.0 migration (2026-04-15) で基盤が変わり、Cloud Sync は Cloudflare Workers + D1 方式へ移行。**採用した要点**: WebSocket / SSE によるリアルタイム push は Cloud Sync の Future Enhancements 短期項目として記録済。Tailscale 外出先アクセスは Cloudflare Workers で代替。
 
 ---
 

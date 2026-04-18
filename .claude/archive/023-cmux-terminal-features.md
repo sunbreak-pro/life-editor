@@ -1,7 +1,9 @@
 # 023: cmux インスパイア ターミナル機能強化
 
-**Status**: PLANNED
+**Status**: MERGED (Phase C, 2026-04-18) — 要点を `requirements/tier-1-core.md` §Terminal Future Enhancements（中期: 分割ペイン）に統合
 **Created**: 2026-03-08
+**Merge target**: `.claude/docs/requirements/tier-1-core.md` §Terminal
+**Merge reason**: Socket API / マルチエージェント / ブラウザペインの 3 機能は Tier 1 Terminal の Boundary「やらない: 独自のリッチ出力レンダリング」と明示的に矛盾。分割ペイン / タブ UI のみ Merge 対象として Future Enhancements に残し、Socket API 系は ADR-0005 Phase 3（チャットバブル UI）で別途扱う方針。
 
 ---
 

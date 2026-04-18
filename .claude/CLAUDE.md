@@ -643,11 +643,11 @@ sqlite3 ~/Library/Application\ Support/life-editor/life-editor.db "PRAGMA user_v
 ## 11. Feature Tier Map
 
 > Phase B（要件定義）への入口。各 Tier の詳細は `.claude/docs/requirements/` 参照。
-> Tier 分類は Phase A-2 で確定予定。以下は暫定マッピング。
+> Tier 分類は Phase A-2 / B で確定。Phase B-1/B-2/B-3（2026-04-18 完了）で全 26 機能に Purpose / Boundary / AC / Dependencies を記入済み。
 
 ### Tier 1（コア — Value Proposition を直接支える）
 
-詳細: `.claude/docs/requirements/tier-1-core.md`（Phase B-1 で作成予定）
+詳細: [`.claude/docs/requirements/tier-1-core.md`](./docs/requirements/tier-1-core.md)（8 機能、各 AC 7-10 件、Phase B-1 完了）
 
 - **Tasks (TaskTree)**: 階層型タスクツリー、DnD、ソフトデリート、ステータス管理
 - **Schedule (Routine + ScheduleItems + CalendarTags)**: カレンダー、ルーチン、スケジュール項目
@@ -660,7 +660,7 @@ sqlite3 ~/Library/Application\ Support/life-editor/life-editor.db "PRAGMA user_v
 
 ### Tier 2（補助 — あると価値が大幅増）
 
-詳細: `.claude/docs/requirements/tier-2-supporting.md`（Phase B-2 で作成予定）
+詳細: [`.claude/docs/requirements/tier-2-supporting.md`](./docs/requirements/tier-2-supporting.md)（12 機能、各 AC 3-6 件、Phase B-2 完了）
 
 - **Audio Mixer**: 6 種環境音 + カスタムサウンド + プレビュー
 - **Playlist**: タイマー連動再生、シャッフル / リピート、シークバー
@@ -677,14 +677,14 @@ sqlite3 ~/Library/Application\ Support/life-editor/life-editor.db "PRAGMA user_v
 
 ### Tier 3（実験 / 凍結候補）
 
-詳細: `.claude/docs/requirements/tier-3-experimental.md`（Phase B-3 で作成予定）
+詳細: [`.claude/docs/requirements/tier-3-experimental.md`](./docs/requirements/tier-3-experimental.md)（6 機能、Verdict 付き、Phase B-3 完了）
 
-- **Paper Boards**: ノード・エッジ管理（実験的）
-- **Analytics**: 作業統計、グラフ表示
-- **NotebookLM 連携**: 構想のみ
-- **Google Calendar 連携**: 構想のみ
-- **Google Drive 連携**: 構想のみ
-- **Cognitive Architecture (ADR-0005)**: 永続的記憶化（PROPOSED）
+- **Paper Boards**: ノード・エッジ管理（実装済み、**凍結継続** — 新機能追加停止）
+- **Analytics**: 作業統計、グラフ表示（基盤のみ、**凍結継続** — ADR-0005 Phase 4 と統合予定）
+- **NotebookLM 連携**: 構想のみ（**未着手** — Claude 経由代替で暫定対応）
+- **Google Calendar 連携**: 構想のみ（**未着手** — ICS 購読 Phase 1 を短期で検討、Schedule 側吸収可能性あり）
+- **Google Drive 連携**: 構想のみ（**未着手** — google-drive MCP で代替、優先度低）
+- **Cognitive Architecture (ADR-0005)**: 永続的記憶化（**PROPOSED** — ADR 残置、Phase 1 から段階着手予定）
 
 ### 補足: 実装済み機能リスト（README.md より転記、Tier 分類は Phase A-2 で確定）
 

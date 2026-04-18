@@ -1,9 +1,23 @@
 # Plan: 保留項目 5 件の再評価（定義確定後の判断用）
 
-**Status:** PLANNED
+**Status:** Consumed (Phase C 完了, 2026-04-18) — 全 5 件の Verdict 確定済、実装は後続 Plan / ADR に移管
 **Created:** 2026-04-18
 **Task:** `2026-04-18-app-redefinition-roadmap.md` Step 3 の問いリスト
 **Project:** /Users/newlife/dev/apps/life-editor
+
+---
+
+## Phase C Verdicts（2026-04-18 確定）
+
+| Item | Verdict                        | 後続アクション                                                                                                         |
+| ---- | ------------------------------ | ---------------------------------------------------------------------------------------------------------------------- |
+| I-1  | **Keep (measurement-first)**   | `.claude/feature_plans/2026-04-18-tasks-fetch-by-range.md`（iOS 計測 → しきい値判断）                                  |
+| S-2  | **Modify (ADR-only)**          | `.claude/docs/adr/ADR-0006-tauri-ipc-naming-policy.md`（実装は Drop、規約明文化のみ）                                  |
+| S-4  | **Keep (measurement-first)**   | `.claude/feature_plans/2026-04-18-folder-progress-batch-memo.md`（Profiler + React Compiler 再計測 → しきい値判断）    |
+| S-5  | **Keep (immediate)**           | `.claude/feature_plans/2026-04-18-service-error-handler-hook.md`（`useServiceErrorHandler` 導入、silent failure 解消） |
+| S-6  | **Keep Option A (ADR + plan)** | `.claude/docs/adr/ADR-0007-mobile-provider-strategy.md` + `.claude/feature_plans/2026-04-18-context-hook-optional.md`  |
+
+本ファイル以降の「問い」セクションは各後続 Plan / ADR で解決済。
 
 ---
 

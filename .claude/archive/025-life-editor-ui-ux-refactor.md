@@ -1,8 +1,17 @@
 # Life Editor UI/UX Refactor Plan
 
+**Status**: MERGED (Phase C, 2026-04-18) — UI 方向性は CLAUDE.md §1-5 (素案) と requirements/tier-2-supporting.md (Theme / Shortcuts / Toast) に吸収済
+**Created**: 2026-03-09
+**Merge target**: CLAUDE.md §1 Core Identity / §5 Platform Strategy / tier-2-supporting.md
+**Merge reason**: 本 Plan は Electron 版時代の UI/UX 分析を起点とする。Tauri 2.0 migration と本 Phase B の要件定義を通じて、UI の方向性 (ダーク/ライト、フォントサイズ 10 段階、shortcuts 29 件、Notion-like デザイントークン) は既に CLAUDE.md / tier-2 に集約済み。単独 Plan としては重複のため MERGED とする。
+
+---
+
 ## 1. Current State Analysis
+
 The current application "Life Editor" is an Electron-based desktop app (React + Vite + Tailwind CSS v4).
 It consists of several core screens:
+
 - **Tasks** (Tree structure, drag-and-drop support)
 - **Schedule** (Calendar/Timeline views)
 - **Memo** (Rich text editor using TipTap)
@@ -11,6 +20,7 @@ It consists of several core screens:
 - **Settings & Trash**
 
 The layout is built around a standard desktop application structure:
+
 - `TitleBar` (Electron drag region)
 - `LeftSidebar` (Navigation between sections)
 - `MainContent` (The active section view)
@@ -19,12 +29,13 @@ The layout is built around a standard desktop application structure:
 The visual theme currently relies heavily on Notion-like aesthetics (e.g., `--color-notion-bg`, `--color-notion-text`).
 
 ## 2. Goal
+
 To refine and modernize the UI/UX without altering the underlying core data flow or functionality. The objective is to make the application feel more "premium" and "clean", leveraging modern UI trends (e.g., refined typography, improved whitespace, cohesive colors, smooth micro-animations) while keeping the highly productive core.
 
 ## 3. User Requirements (From Q&A)
 
 1. **Target Aesthetic:** Minimalist and functional, deeply inspired by Obsidian and Notion. The interface should feel self-explanatory at a glance without clutter.
-2. **Pain Points:** 
+2. **Pain Points:**
    - Typography inconsistencies: Text sizes vary wildly in places like the Work Right Sidebar, making the global font size setting ineffective. Needs complete normalization.
    - Tag UI (`[[]]`): Tags currently look raw. They need visual upgrades (e.g., rendering as `【】`, adding a leading hyphen/icon, or using colors for borders/backgrounds instead of raw text brackets).
 3. **Animations/Transitions:** Speed is the priority. Keep transitions either zero or extremely fast (micro-interactions only) to ensure a snappy, productive feel.
@@ -34,24 +45,29 @@ To refine and modernize the UI/UX without altering the underlying core data flow
 ## 4. Proposed Implementation Phases
 
 ### Phase 1: Design System & Typography Normalization
+
 - Create a new "Modern Monochrome" theme in `index.css` alongside the existing ones.
 - Introduce strict, unified typography utility classes (or redefine base text sizes) across the app to fix the scaling issues (especially in `Work/` and Sidebars).
 - Ensure the global font-size setting scales all text harmoniously.
 
 ### Phase 2: Tag UI & Markdown Rendering Enhancements
+
 - Update the TipTap editor extensions/rendering logic to transform `[[Task]]` syntax visually.
 - Implement options for Tag display modes: Icon + Text, colored badges, or simple bracket replacements (e.g. `【】`).
 
 ### Phase 3: Layout Polish & Sidebar Refinement
+
 - Polish the `LeftSidebar` and `RightSidebar` (padding, borders, hover states) to match the Obsidian/Notion clean look.
 - Refactor the `RightSidebar` in the Work screen to standardize its varied font sizes and blocky layout.
 
 ### Phase 4: Panels, Command Palette, and Speed
+
 - Refine the `CommandPalette` component to match the newly polished aesthetic.
 - Panelize the search functionality if necessary, ensuring it feels integrated.
 - Audit CSS for any slow transitions and ensure UI interactions are snappy (under 100ms or instant).
 
 ## 5. Verification Plan
+
 1. **Visual QA:** Toggle all typography settings to ensure text scales consistently, particularly in the Work sidebar.
 2. **Tag Interaction Test:** Create various wiki-links (`[[tag]]`) and ensure they render according to the new logic.
 3. **Theme Test:** Switch between the classic theme and the new Monochrome + Accent theme.

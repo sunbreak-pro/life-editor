@@ -1,9 +1,11 @@
 # Plan: Life Editor モバイル連携 Phase 3 — オフライン対応 + 常時稼働サーバー
 
-**Status:** IN_PROGRESS (Phase 3a completed, Phase 3b remaining)
+**Status:** MERGED (Phase C, 2026-04-18) — オフラインキュー / 競合解決の要点を `requirements/tier-1-core.md` §Cloud Sync に統合済
 **Created:** 2026-03-16
-**Depends on:** Phase 2 (PLANNED)
+**Depends on:** Phase 2 (MERGED)
 **Project:** /Users/newlife/dev/apps/life-editor
+**Merge target**: `.claude/docs/requirements/tier-1-core.md` §Cloud Sync (Boundary + Known Issues)
+**Merge reason**: 本 Plan は Electron + IndexedDB + Raspberry Pi 常時稼働 server 前提。Tauri 2.0 移行で SQLite ローカル SSOT モデルへ変更、オフライン完全動作は Tauri + rusqlite で自動達成済み。**採用した要点**: conflict resolution 戦略 (last-write-wins) と claude\_\* テーブル対応を Future Enhancements 中期項目として記録済。Raspberry Pi 常時稼働は Cloudflare Workers + D1 で代替。Phase 3a 完了分（OfflineDataService 骨格）は Tauri 版では不要となり破棄。
 
 ---
 

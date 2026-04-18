@@ -1,10 +1,11 @@
 # Plan: Capacitor iOS スタンドアロンアプリ
 
-**Status:** PLANNED
+**Status:** DROPPED (Phase C, 2026-04-18) — Tauri 2.0 Mobile 採用済で不要
 **Created:** 2026-04-14
 **Task:** Capacitor iOS App（MEMORY.md）
 **Project:** /Users/newlife/dev/apps/life-editor
 **Supersedes:** `2026-03-16-mobile-phase3-offline-standalone.md`（Phase 3 の方針を Capacitor に変更）
+**Drop reason**: 2026-04-15 に完了した Tauri 2.0 migration で Tauri Mobile が採用された。Capacitor + WKWebView ラッピング方式は代替案として検討されたが、Tauri で Desktop/Mobile コードを一本化できるため不採用。Cloud Sync は §Cloud Sync 側で Cloudflare Workers + D1 方式に確定。
 
 ---
 
