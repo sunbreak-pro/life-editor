@@ -1,9 +1,12 @@
 # Plan: アプリケーション再定義ロードマップ（3 ステップ戦略）
 
-**Status:** PLANNED
+**Status:** Superseded by `2026-04-18-integrated-design-roadmap.md`
 **Created:** 2026-04-18
+**Superseded:** 2026-04-18
 **Task:** 次セッション以降の作業指針
 **Project:** /Users/newlife/dev/apps/life-editor
+
+> **NOTE**: 本プランは `2026-04-18-integrated-design-roadmap.md` に発展統合されました。3 ステップ戦略（定義 → 要件 → 差分評価）の枠組みは継承されています。本ファイルは履歴保存のため残置。
 
 ---
 

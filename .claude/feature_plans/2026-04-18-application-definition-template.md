@@ -1,9 +1,12 @@
 # Plan: 最上位アプリケーション定義書（テンプレート）
 
-**Status:** PLANNED
+**Status:** Consumed (Phase A-1/A-2 完了 — 内容は `.claude/CLAUDE.md` に統合済み)
 **Created:** 2026-04-18
+**Consumed:** 2026-04-18
 **Task:** `2026-04-18-app-redefinition-roadmap.md` Step 1 の雛形
 **Project:** /Users/newlife/dev/apps/life-editor
+
+> **NOTE**: 本テンプレートの 8 セクション（Core Identity / Target User / Value Props / Non-Goals / Platform Strategy / Data Model / AI Integration / Feature Tier）は `.claude/CLAUDE.md` の §1-5/7/8/11 に吸収されました。本ファイルは履歴保存のため残置。
 
 ---
 

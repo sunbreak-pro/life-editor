@@ -21,10 +21,11 @@
 
 ## 直近の完了
 
+- アプリ再定義ロードマップ v2 Phase A 完了（CLAUDE.md 13章統合 / ADR・rules・life-editor-v2・TODO archive 移動 / README 簡素化） ✅（2026-04-18）
 - アプリ再定義ロードマップ策定（3 プラン作成: 戦略/定義書雛形/保留項目再評価） ✅（2026-04-18）
 - コードレビュー + Blocking/Important バグ修正（SyncContext / soft-delete / TagAssignment snake_case） ✅（2026-04-18）
-- Rust コンパイラ警告 24 件修正（未使用 import/変数/関数の削除） ✅（2026-04-18）
 
 ## 予定
 
-（なし — 新しいタスクを追加してください）
+- アプリ再定義ロードマップ v2 Phase B（全機能 Tier 1-3 要件定義 — `.claude/docs/requirements/` に 4 ファイル作成）
+- アプリ再定義ロードマップ v2 Phase C（実装プラン群整理 + 保留 5 件 I-1/S-2/S-4/S-5/S-6 再評価）

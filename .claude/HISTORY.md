@@ -1,5 +1,22 @@
 # HISTORY.md - 変更履歴
 
+### 2026-04-18 - アプリ再定義ロードマップ v2 Phase A 完了
+
+#### 概要
+
+「アプリケーション設計定義の統合 + 全機能要件定義」拡張ロードマップ v2 を策定し、Phase A（統合最上位 CLAUDE.md の作成 + ADR/rules/life-editor-v2/TODO の archive 移動 + README 簡素化）を完了。`.claude/CLAUDE.md` を 133 行 → 805 行（13 章構成）に拡張し、Life Editor の SSOT（Single Source of Truth）として確立。Claude Code が起動時に auto-load する唯一のファイルにビジョン・アーキテクチャ・規約・機能マップ・運用ガイドを集約。Phase B（Tier 1-3 全機能要件定義）と Phase C（実装プラン群整理 + 保留 5 件再評価）は次セッション以降。計画書: `.claude/feature_plans/2026-04-18-integrated-design-roadmap.md`。
+
+#### 変更点
+
+- **CLAUDE.md 13 章拡張 (Phase A-1/A-2)**: `0.Meta / 1.Core Identity / 2.Target User / 3.Value Propositions / 4.Non-Goals / 5.Platform Strategy / 6.Architecture / 7.Data Model / 8.AI Integration / 9.Coding Standards / 10.Workflows / 11.Feature Tier Map / 12.Document System / 13.Roadmap` の 13 章構成に再編。§1-5/8 はビジョン素案（ユーザーレビュー待ち）、§6-13 は既存資産から機械的吸収。Core Identity は「AI と会話しながら生活を設計・記録・運用するパーソナル OS」に確定（素案）
+- **rules/ 全文吸収**: `project-debug.md` → §10.5、`project-patterns.md` → §9.2/9.3 + §6.2、`project-review-checklist.md` → §10.2/10.6 に分割吸収。`.claude/rules/` ディレクトリは `.claude/archive/rules/` に移動
+- **ADR 0001-0004 archive (Phase A-3)**: `0001-tech-stack`（Superseded）/ `0002-context-provider-pattern`（Pattern A 統合済み）/ `0003-schedule-provider-decomposition`（§9.4 統合済み）/ `0004-schedule-shared-components`（§9.4 統合済み）を `.claude/archive/adr/` に移動。`ADR-0005-claude-cognitive-architecture`（PROPOSED）は `.claude/docs/adr/` に残置し §8.3 から要約参照
+- **life-editor-v2 archive**: `00-vision / 01-terminal / 02-mcp-server / 03-claude-setup / 04-ui-adjustment` の 5 ファイルを `.claude/archive/docs/life-editor-v2/` に移動（要点は §6.5 / §8 に吸収済み）
+- **TODO.md 廃止**: §13 Roadmap & Status に吸収後、`.claude/archive/TODO.md` に移動
+- **README.md 簡素化**: 80 行 → 35 行。「主な機能」セクションを CLAUDE.md §11 へリンク化、技術スタック・セットアップ・ドキュメントリンクのみ残置
+- **既存 3 プランに Status マーク**: `2026-04-18-app-redefinition-roadmap.md` を `Superseded by integrated-design-roadmap` に、`2026-04-18-application-definition-template.md` と `2026-04-17-daily-life-hub-requirements.md` を `Consumed (CLAUDE.md に吸収)` にマーク
+- **新規プラン作成**: `.claude/feature_plans/2026-04-18-integrated-design-roadmap.md`（Phase A/B/C 全体ロードマップ）— 既存 3 プランを土台に拡張、Tier 1-3 全機能網羅要件定義 + 実装プラン整理戦略を記述
+
 ### 2026-04-18 - アプリ再定義ロードマップ策定
 
 #### 概要
@@ -58,19 +75,6 @@ Electron → Tauri 2.0 移行とモバイル対応追加後の保守性・バグ
 - **MiniTodayFlow / ScheduleTimeGrid**: discriminated union の type guard 追加（`entry.type !== "task"` で narrowing）、`shouldRoutineRunOnDate` 呼び出しで `date: Date` → `dateKey: string` に修正
 - **未使用変数削除**: TS6133 エラー約 25 件を単純削除または destructure から除外（Sidebar / Paper / Settings / Schedule / Tasks 系の複数ファイル）
 - **その他**: `TimeGridTaskBlock` に `onClick` prop 追加（`WeeklyTimeGrid` で silently drop されていた callback を有効化）、`TipTap` の `fileUploadPlaceholder` extension storage を型アサーションで参照、`WorkMusicContent.togglePreview(id, url)` で `audio.soundSources` から URL 解決、`MaterialsView` の未使用 props を削除
-
-### 2026-04-18 - Cloud Sync UI リフレッシュ修正
-
-#### 概要
-
-Cloud Sync でデータを pull した後に iOS/Desktop の UI が更新されない問題を修正。`syncVersion` カウンターによる自動再取得メカニズムと、configure 後の即時 sync を実装。
-
-#### 変更点
-
-- **SyncContext**: `syncVersion` state を追加。`pulled > 0` 時にインクリメントし、`configure()` 成功後に即時 `triggerSync()` を呼び出し（30秒待ち解消）
-- **データフック（7ファイル）**: `useTaskTreeAPI`, `useMemos`, `useNotes`, `useRoutines`, `useCalendars`, `useTemplates`, `ScheduleItemsContext` の初期ロード `useEffect` 依存配列に `syncVersion` 追加。sync 完了時に自動再取得
-- **モバイルビュー（5ファイル）**: `MobileTaskView`, `MobileMemoView`, `MobileNoteView`, `MobileCalendarView`, `MobileScheduleView` のデータロード `useEffect` に `syncVersion` 依存追加
-- **useTemplates リファクタ**: `loadedRef` ガードを撤去し、標準 `cancelled` cleanup パターンに統一
 
 - 2026-04-17: [途中] iOS Safe Area 対応 — 計画書 `.claude/feature_plans/2026-04-17-ios-safe-area.md` 作成完了。MobileLayout.tsx の header/footer に `env(safe-area-inset-*)` padding を追加する方針。実装は次セッション
 
