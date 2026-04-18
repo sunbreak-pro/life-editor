@@ -455,7 +455,6 @@ pub async fn data_reset(state: State<'_, DbState>) -> Result<bool, String> {
              DELETE FROM schedule_items;
              DELETE FROM routine_tag_assignments;
              DELETE FROM routine_tag_definitions;
-             DELETE FROM routine_logs;
              DELETE FROM routines;
              DELETE FROM calendars;
              DELETE FROM wiki_tag_group_members;
@@ -465,8 +464,6 @@ pub async fn data_reset(state: State<'_, DbState>) -> Result<bool, String> {
              DELETE FROM wiki_tags;
              DELETE FROM note_connections;
              DELETE FROM notes;
-             DELETE FROM note_tags;
-             DELETE FROM note_tag_definitions;
              DELETE FROM sound_tag_assignments;
              DELETE FROM sound_tag_definitions;
              DELETE FROM sound_display_meta;
@@ -477,8 +474,6 @@ pub async fn data_reset(state: State<'_, DbState>) -> Result<bool, String> {
              DELETE FROM sound_presets;
              DELETE FROM memos;
              DELETE FROM time_memos;
-             DELETE FROM task_tags;
-             DELETE FROM task_tag_definitions;
              DELETE FROM paper_edges;
              DELETE FROM paper_nodes;
              DELETE FROM paper_boards;
@@ -487,7 +482,6 @@ pub async fn data_reset(state: State<'_, DbState>) -> Result<bool, String> {
              DELETE FROM database_properties;
              DELETE FROM databases;
              DELETE FROM templates;
-             DELETE FROM ai_settings;
              DELETE FROM task_templates;
              DELETE FROM app_settings;
              DELETE FROM tasks;",

@@ -1,17 +1,17 @@
 use rusqlite::Connection;
 
-/// Run database migrations to bring the schema up to V59.
+/// Run database migrations to bring the schema up to V60.
 ///
-/// - Fresh databases (version 0): creates all tables in their final V59 state.
+/// - Fresh databases (version 0): creates all tables in their final V60 state.
 /// - Existing databases: runs incremental migrations from current version.
 pub fn run_migrations(conn: &Connection) -> rusqlite::Result<()> {
     let current_version: i32 =
         conn.pragma_query_value(None, "user_version", |row| row.get(0))?;
 
     if current_version < 1 {
-        // Fresh database — create consolidated V59 schema
+        // Fresh database — create consolidated V60 schema
         create_full_schema(conn)?;
-        conn.pragma_update(None, "user_version", &59i32)?;
+        conn.pragma_update(None, "user_version", &60i32)?;
         return Ok(());
     }
 
@@ -22,7 +22,7 @@ pub fn run_migrations(conn: &Connection) -> rusqlite::Result<()> {
 }
 
 // ---------------------------------------------------------------------------
-// Full schema creation (V59 final state)
+// Full schema creation (V60 final state)
 // ---------------------------------------------------------------------------
 
 fn create_full_schema(conn: &Connection) -> rusqlite::Result<()> {
@@ -116,15 +116,6 @@ fn create_full_schema(conn: &Connection) -> rusqlite::Result<()> {
             version INTEGER DEFAULT 1
         );
 
-        -- ===== AI Settings (singleton) =====
-        CREATE TABLE IF NOT EXISTS ai_settings (
-            id INTEGER PRIMARY KEY CHECK(id = 1),
-            api_key TEXT DEFAULT '',
-            model TEXT DEFAULT 'gemini-2.5-flash-lite',
-            updated_at TEXT NOT NULL
-        );
-        INSERT OR IGNORE INTO ai_settings (id, updated_at) VALUES (1, datetime('now'));
-
         -- ===== Task Templates =====
         CREATE TABLE IF NOT EXISTS task_templates (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -151,38 +142,6 @@ fn create_full_schema(conn: &Connection) -> rusqlite::Result<()> {
             is_edit_locked INTEGER DEFAULT 0,
             icon TEXT DEFAULT NULL,
             version INTEGER DEFAULT 1
-        );
-
-        -- ===== Task Tag Definitions =====
-        CREATE TABLE IF NOT EXISTS task_tag_definitions (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            name TEXT NOT NULL UNIQUE,
-            color TEXT DEFAULT '#808080'
-        );
-
-        -- ===== Note Tag Definitions =====
-        CREATE TABLE IF NOT EXISTS note_tag_definitions (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            name TEXT NOT NULL UNIQUE,
-            color TEXT DEFAULT '#808080'
-        );
-
-        -- ===== Task Tags =====
-        CREATE TABLE IF NOT EXISTS task_tags (
-            task_id TEXT NOT NULL,
-            tag_id INTEGER NOT NULL,
-            PRIMARY KEY (task_id, tag_id),
-            FOREIGN KEY (task_id) REFERENCES tasks(id) ON DELETE CASCADE,
-            FOREIGN KEY (tag_id) REFERENCES task_tag_definitions(id) ON DELETE CASCADE
-        );
-
-        -- ===== Note Tags =====
-        CREATE TABLE IF NOT EXISTS note_tags (
-            note_id TEXT NOT NULL,
-            tag_id INTEGER NOT NULL,
-            PRIMARY KEY (note_id, tag_id),
-            FOREIGN KEY (note_id) REFERENCES notes(id) ON DELETE CASCADE,
-            FOREIGN KEY (tag_id) REFERENCES note_tag_definitions(id) ON DELETE CASCADE
         );
 
         -- ===== Sound Tag Definitions =====
@@ -258,17 +217,6 @@ fn create_full_schema(conn: &Connection) -> rusqlite::Result<()> {
             reminder_offset INTEGER
         );
 
-        -- ===== Routine Logs =====
-        CREATE TABLE IF NOT EXISTS routine_logs (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            routine_id TEXT NOT NULL,
-            date TEXT NOT NULL,
-            completed INTEGER DEFAULT 1,
-            created_at TEXT NOT NULL,
-            UNIQUE(routine_id, date),
-            FOREIGN KEY (routine_id) REFERENCES routines(id) ON DELETE CASCADE
-        );
-
         -- ===== Playlists =====
         CREATE TABLE IF NOT EXISTS playlists (
             id TEXT PRIMARY KEY,
@@ -299,6 +247,7 @@ fn create_full_schema(conn: &Connection) -> rusqlite::Result<()> {
             completed INTEGER DEFAULT 0,
             completed_at TEXT,
             routine_id TEXT,
+            template_id TEXT,
             created_at TEXT NOT NULL,
             updated_at TEXT NOT NULL,
             memo TEXT,
@@ -584,17 +533,10 @@ fn create_full_schema(conn: &Connection) -> rusqlite::Result<()> {
         CREATE INDEX IF NOT EXISTS idx_notes_deleted ON notes(is_deleted);
         CREATE INDEX IF NOT EXISTS idx_notes_pinned ON notes(is_pinned);
         CREATE INDEX IF NOT EXISTS idx_notes_updated_at ON notes(updated_at);
-        CREATE INDEX IF NOT EXISTS idx_task_tags_task ON task_tags(task_id);
-        CREATE INDEX IF NOT EXISTS idx_task_tags_tag ON task_tags(tag_id);
-        CREATE INDEX IF NOT EXISTS idx_note_tags_note ON note_tags(note_id);
-        CREATE INDEX IF NOT EXISTS idx_note_tags_tag ON note_tags(tag_id);
         CREATE INDEX IF NOT EXISTS idx_sta_sound ON sound_tag_assignments(sound_id);
         CREATE INDEX IF NOT EXISTS idx_sta_tag ON sound_tag_assignments(tag_id);
         CREATE INDEX IF NOT EXISTS idx_calendars_folder ON calendars(folder_id);
         CREATE INDEX IF NOT EXISTS idx_calendars_updated_at ON calendars(updated_at);
-        CREATE INDEX IF NOT EXISTS idx_routine_logs_routine ON routine_logs(routine_id);
-        CREATE INDEX IF NOT EXISTS idx_routine_logs_date ON routine_logs(date);
-        CREATE INDEX IF NOT EXISTS idx_routine_logs_routine_date ON routine_logs(routine_id, date);
         CREATE INDEX IF NOT EXISTS idx_si_date ON schedule_items(date);
         CREATE INDEX IF NOT EXISTS idx_si_routine ON schedule_items(routine_id);
         CREATE INDEX IF NOT EXISTS idx_schedule_items_updated_at ON schedule_items(updated_at);
@@ -1824,5 +1766,136 @@ fn run_incremental_migrations(conn: &Connection, current_version: i32) -> rusqli
         conn.pragma_update(None, "user_version", &59i32)?;
     }
 
+    // V60: Drop legacy orphan tables (replaced by wiki_tags) + migration residues
+    if current_version < 60 {
+        eprintln!("V60: dropping legacy orphan tables and migration residues");
+        exec_ignore(conn, "PRAGMA foreign_keys = OFF");
+        exec_ignore(
+            conn,
+            "DROP TABLE IF EXISTS task_tags;
+             DROP TABLE IF EXISTS note_tags;
+             DROP TABLE IF EXISTS task_tag_definitions;
+             DROP TABLE IF EXISTS note_tag_definitions;
+             DROP TABLE IF EXISTS routine_logs;
+             DROP TABLE IF EXISTS ai_settings;
+             DROP TABLE IF EXISTS tasks_new;
+             DROP TABLE IF EXISTS schedule_items_new;
+             DROP TABLE IF EXISTS sound_settings_new;
+             DROP TABLE IF EXISTS routines_new;
+             DROP TABLE IF EXISTS note_tags_new;
+             DROP TABLE IF EXISTS task_tags_new;
+             DROP TABLE IF EXISTS wiki_tag_group_members_new;
+             DROP TABLE IF EXISTS sound_settings_v13;
+             DROP TABLE IF EXISTS sound_workscreen_selections_v13;
+             DROP TABLE IF EXISTS task_tags_backup_v9;
+             DROP TABLE IF EXISTS task_tag_definitions_backup_v9;
+             DROP TABLE IF EXISTS note_tags_backup_v9;
+             DROP TABLE IF EXISTS note_tag_definitions_backup_v9;",
+        );
+        exec_ignore(conn, "PRAGMA foreign_keys = ON");
+        conn.pragma_update(None, "user_version", &60i32)?;
+    }
+
+    // Defensive: ensure schedule_items.template_id exists. Fresh DBs created
+    // before the initial schema was fixed (v59-) lack this column, which
+    // breaks Cloud Sync when pulling data from other devices.
+    if !has_column(conn, "schedule_items", "template_id") {
+        exec_ignore(conn, "ALTER TABLE schedule_items ADD COLUMN template_id TEXT");
+    }
+
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn table_exists(conn: &Connection, name: &str) -> bool {
+        conn.query_row(
+            "SELECT 1 FROM sqlite_master WHERE type='table' AND name=?1",
+            [name],
+            |_| Ok(()),
+        )
+        .is_ok()
+    }
+
+    fn user_version(conn: &Connection) -> i32 {
+        conn.pragma_query_value(None, "user_version", |row| row.get(0))
+            .unwrap()
+    }
+
+    #[test]
+    fn fresh_db_reaches_v60_without_orphan_tables() {
+        let conn = Connection::open_in_memory().unwrap();
+        run_migrations(&conn).unwrap();
+
+        assert_eq!(user_version(&conn), 60);
+        for orphan in [
+            "ai_settings",
+            "routine_logs",
+            "task_tags",
+            "task_tag_definitions",
+            "note_tags",
+            "note_tag_definitions",
+        ] {
+            assert!(
+                !table_exists(&conn, orphan),
+                "orphan table {orphan} should not exist in fresh V60 schema"
+            );
+        }
+    }
+
+    #[test]
+    fn v59_db_upgrades_to_v60_and_drops_orphans() {
+        let conn = Connection::open_in_memory().unwrap();
+        // Seed as V59 with orphan tables + a few residue tables present.
+        create_full_schema(&conn).unwrap();
+        conn.pragma_update(None, "user_version", &59i32).unwrap();
+        conn.execute_batch(
+            "CREATE TABLE ai_settings (id INTEGER PRIMARY KEY, api_key TEXT, updated_at TEXT);
+             CREATE TABLE routine_logs (id INTEGER PRIMARY KEY);
+             CREATE TABLE task_tags (task_id TEXT, tag_id INTEGER);
+             CREATE TABLE task_tag_definitions (id INTEGER PRIMARY KEY, name TEXT);
+             CREATE TABLE note_tags (note_id TEXT, tag_id INTEGER);
+             CREATE TABLE note_tag_definitions (id INTEGER PRIMARY KEY, name TEXT);
+             CREATE TABLE tasks_new (id TEXT);
+             CREATE TABLE sound_settings_v13 (id INTEGER PRIMARY KEY);
+             CREATE TABLE task_tags_backup_v9 (task_id TEXT);",
+        )
+        .unwrap();
+
+        run_migrations(&conn).unwrap();
+
+        assert_eq!(user_version(&conn), 60);
+        for dropped in [
+            "ai_settings",
+            "routine_logs",
+            "task_tags",
+            "task_tag_definitions",
+            "note_tags",
+            "note_tag_definitions",
+            "tasks_new",
+            "sound_settings_v13",
+            "task_tags_backup_v9",
+        ] {
+            assert!(
+                !table_exists(&conn, dropped),
+                "table {dropped} should have been dropped by V60 migration"
+            );
+        }
+        // Live tables remain intact.
+        for live in ["tasks", "notes", "memos", "routines", "wiki_tags", "schedule_items"] {
+            assert!(table_exists(&conn, live), "live table {live} must remain");
+        }
+    }
+
+    #[test]
+    fn v60_migration_is_idempotent() {
+        let conn = Connection::open_in_memory().unwrap();
+        run_migrations(&conn).unwrap();
+        let version_after_first = user_version(&conn);
+        run_migrations(&conn).unwrap();
+        assert_eq!(user_version(&conn), version_after_first);
+        assert_eq!(user_version(&conn), 60);
+    }
 }
