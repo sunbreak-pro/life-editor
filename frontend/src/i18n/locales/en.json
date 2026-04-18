@@ -1845,5 +1845,28 @@
     "selectTemplate": "Select a template",
     "defaultNoteShort": "Note default",
     "defaultDailyShort": "Daily default"
+  },
+  "errors": {
+    "timer": {
+      "fetchSettingsFailed": "Failed to load timer settings",
+      "sessionStartFailed": "Failed to start timer session",
+      "sessionEndFailed": "Failed to end timer session",
+      "updateSettingsFailed": "Failed to update timer settings"
+    },
+    "sync": {
+      "loadStatusFailed": "Failed to load sync status",
+      "operationFailed": "Sync failed: {{error}}",
+      "configureFailed": "Failed to configure sync: {{error}}",
+      "disconnectFailed": "Failed to disconnect: {{error}}"
+    },
+    "schedule": {
+      "loadFailed": "Failed to load schedule",
+      "loadTasksFailed": "Failed to load tasks",
+      "loadMonthFailed": "Failed to load month items",
+      "toggleFailed": "Failed to toggle schedule item",
+      "toggleTaskFailed": "Failed to toggle task",
+      "saveFailed": "Failed to save schedule item",
+      "deleteFailed": "Failed to delete schedule item"
+    }
   }
 }

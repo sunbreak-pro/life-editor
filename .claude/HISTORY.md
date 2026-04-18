@@ -1,5 +1,123 @@
 # HISTORY.md - 変更履歴
 
+### 2026-04-18 - iOS 実機ビルド + Cloud Sync 有効化 + Known Issues ディレクトリ新設
+
+#### 概要
+
+1 セッションで 3 つの関連作業を完遂:
+(1) Life Editor を実機 iPhone にデプロイできる環境を構築（Xcode 署名、Tauri CLI、Life Editor Note に手順保存）、
+(2) Cloudflare Workers + D1 ベースの Cloud Sync を実アクティベート（Workers/Rust 側の複数バグを発見・修正し、Mac ↔ iPhone 双方向同期まで動作確認）、
+(3) 本セッションで得た Root Cause 知見と未解決 Structural 問題を記録する新設ディレクトリ `.claude/docs/known-issues/` を立ち上げ、CLAUDE.md §0/§12 に参照を明記。計画書: `~/.claude/plans/xcode-xcode-life-editor-note-rosy-yeti.md`（2 回書き換え）。
+
+#### 変更点
+
+- **iOS 実機ビルド環境構築**: Xcode Personal Team での署名設定、iPhone 側デベロッパモード ON + 信頼設定、Vite dev server LAN 公開（`frontend/vite.config.ts` に `host: true` 追加）。Bundle ID を `com.lifeEditor.app` → `com.lifeEditor.app.newlife` に変更（ユニーク性確保）。Life Editor に「iOS 実機ビルド手順（Xcode + Tauri）」Note を MCP `create_note` 経由で保存（note-1776486115347）
+
+- **`project.yml` 恒久修正**: `src-tauri/gen/apple/project.yml` の `settingGroups.app.base` に `PRODUCT_BUNDLE_IDENTIFIER: com.lifeEditor.app.newlife` / `DEVELOPMENT_TEAM: 542QHWHN37` / `CODE_SIGN_STYLE: Automatic` を追加。`cargo tauri ios dev` の XcodeGen 再生成で Xcode UI の手動設定が飛ぶ問題を解消（Known Issue 007）
+
+- **Cloud Sync Workers バグ修正**（`cloud/src/routes/sync.ts`）:
+  - SQL 予約語 `order` を `"order"` でエスケープする `quoteCol()` ヘルパー追加（Known Issue 001）
+  - `VERSIONED_TABLES` を FK 依存順に並び替え: `routines, tasks, memos, notes, wiki_tags, time_memos, templates, routine_groups, schedule_items, calendars`（Known Issue 002）
+  - `tasks.parent_id` 自己参照用の `topoSortByParent()` 関数追加
+  - `PRAGMA defer_foreign_keys = ON` を batch 先頭に挿入（belt-and-suspenders）
+  - `life-editor-sync` を 2 回デプロイ（version `9387c11f...` → `f118169f...`）
+
+- **Cloud Sync Rust 側修正**（`src-tauri/src/sync/sync_engine.rs`）: `table_columns()` ヘルパー追加。`upsert_versioned` / `insert_or_replace` で `PRAGMA table_info` の結果から payload キーをフィルタし、ローカルに存在しないカラムは silently 捨てる。これで新機能追加時の schema drift に対して sync が壊れなくなる（Known Issue 003）
+
+- **初期スキーマ + 防御的 ALTER**（`src-tauri/src/db/migrations.rs`）: fresh DB 用 `CREATE TABLE schedule_items`（line 293）に抜けていた `template_id TEXT` カラムを追加。既存 DB 用に `has_column` ガード付きの `ALTER TABLE schedule_items ADD COLUMN template_id TEXT` を migration 末尾に追加（Known Issue 003）
+
+- **tasks.updated_at バックフィル**: Mac の DB で 120/120 件が NULL だったため、`UPDATE tasks SET updated_at = strftime('%Y-%m-%dT%H:%M:%S.000Z', 'now')` で暫定対応。根本原因（task 作成パスが updated_at を set していない）は未解決 → Known Issue 005 として追跡
+
+- **`tauri.conf.json` identifier 更新**: `com.lifeEditor.app` → `com.lifeEditor.app.newlife`
+
+- **Cloud Sync 動作確認**: D1 に `tasks 120 / notes 34 / memos 29 / schedule_items 757 / routines 12 / wiki_tags 19 / templates 1` が同期完了。iPhone 側 Full Download で Mac のデータが反映されることを確認
+
+- **Known Issues ディレクトリ新設**（`.claude/docs/known-issues/`）: `_TEMPLATE.md` + `INDEX.md` + 7 件の Issue ファイル作成
+  - Fixed (4 件): 001 SQL 予約語 / 002 FK 順序 / 003 schema drift / 007 XcodeGen 再生成
+  - Active (2 件): 004 sync_last_synced_at 未保存 / 005 tasks.updated_at NULL
+  - Monitoring (1 件): 006 Desktop app_data_dir bundle ID 分裂
+
+- **CLAUDE.md 更新**: §0 Meta 関連ドキュメントテーブルに `known-issues/` 行（INDEX 直リンク付き）追加。§12 Document System 詳細テーブルに同行追加 + 「Known Issue ライフサイクル」節を新設し、発見 / 着手 / 解決 / Monitoring の運用フローを明記
+
+---
+
+### 2026-04-18 - Phase C Execution 完遂（S-5 / S-6 実装 + I-1 / S-4 計測 → Drop）
+
+#### 概要
+
+MEMORY.md 優先順位に沿って Phase C の 4 件を一括実行。実装系 2 件 (S-5 / S-6) を完遂し、計測系 2 件 (I-1 / S-4) を計測結果で Drop 判定 → `archive/dropped/` へ移動。計画書: `/Users/newlife/.claude/plans/memory-md-mossy-micali.md`
+
+#### 変更点
+
+##### S-5: Service Error Handler Hook（実装完了）
+
+- 新規: `frontend/src/hooks/useServiceErrorHandler.ts` + `.test.ts` (6/6 pass)
+  - シグネチャ: `() => { handle(err, i18nKey, { silent?, rateLimitMs? }) }`
+  - 既定: toast + DEV 時 console.error + 5s 同一 key dedup
+- i18n: `errors.timer.*` / `errors.sync.*` / `errors.schedule.*` を en/ja 両方に追加
+- 移行: `TimerContext.tsx` (10 catch → hook 経由) / `SyncContext.tsx` (reportError を hook 経由に統一) / `MobileCalendarView.tsx` (7 console.error → hook 経由)
+- `tier-2-supporting.md` §Toast Known Issues S-5 を「解消」に更新
+- archive: `.claude/archive/2026-04-18-service-error-handler-hook.md`
+
+##### S-6: Optional Context Hook インフラ（実装完了）
+
+- 新規: `frontend/src/hooks/createOptionalContextHook.ts` + `.test.tsx` (2/2 pass)
+- 新規: 6 Optional hook (`useAudioContextOptional` / `useScreenLockContextOptional` / `useFileExplorerContextOptional` / `useCalendarTagsContextOptional` / `useWikiTagsOptional` / `useShortcutConfigOptional`)
+- 現状 Mobile から 6 hook への到達経路はゼロのため既存 hook 書換は不要、将来の共有コンポーネント向け安全装置として配備
+- `CLAUDE.md` §9.2 Pattern A に「Mobile 省略 Provider は Optional バリアントを用意」ルール追記
+- archive: `.claude/archive/2026-04-18-context-hook-optional.md`
+
+##### I-1: Tasks Fetch by Range（計測 → Drop）
+
+- Rust bench 追加: `src-tauri/src/db/task_repository.rs` の `fetch_tree_benchmark` (`#[ignore]`、`cargo test --release --lib db::task_repository::fetch_tree_benchmark -- --ignored --nocapture`)
+- 計測結果（M1 Mac, in-memory SQLite, release build, 10 runs/size）:
+  - n=500: avg 3.17ms / max 3.65ms
+  - n=1000: avg 6.11ms / max 6.35ms
+  - n=3000: avg 19.42ms / max 25.03ms
+- iOS 5x 補正 + IPC/JS parse 込みでも 500ms しきい値未達 → **Drop**
+- `tier-1-core.md` §Tasks Known Issues I-1 を「Drop」に更新
+- archive: `.claude/archive/dropped/2026-04-18-tasks-fetch-by-range.md`
+
+##### S-4: Folder Progress Batch Memo（計測 → Drop）
+
+- Vitest bench 追加: `frontend/src/utils/folderProgress.bench.test.ts`
+- 計測結果（M1 Mac, Node 20, 20 runs/size, 全フォルダ 1 サイクル再計算 = 最悪ケース）:
+  - F=50 × T=10 (550 nodes): avg 0.27ms / max 0.85ms
+  - F=100 × T=20 (2100 nodes): avg 1.87ms / max 1.94ms
+  - F=200 × T=10 (2200 nodes): avg 3.33ms / max 3.35ms
+  - F=100 × T=50 (5100 nodes): avg 4.31ms / max 4.58ms
+  - F=50 × T=100 (5050 nodes): avg 2.08ms / max 2.12ms
+- 全サイズで 50ms しきい値の 1/10 未満 → **Drop**（Compiler 有効化も不要と判断、別プラン送り）
+- `tier-1-core.md` §Tasks Known Issues S-4 を「Drop」に更新
+- archive: `.claude/archive/dropped/2026-04-18-folder-progress-batch-memo.md`
+
+##### ドキュメント同期
+
+- `CLAUDE.md` §13 Roadmap: 現在進行中を空に、保留中から I-1 / S-4 / S-5 / S-6 を除去（S-2 のみ残）
+- `MEMORY.md`: 進行中を空に、直近の完了に Phase C 成果を追記、予定から 4 件 plan を除去
+
+#### 計測・テスト結果
+
+- フロントエンド: `npx vitest run` — 22 files / 190 tests pass（S-5 で +6、S-6 で +2、S-4 bench で +1）
+- Rust: `cargo test --release` — 問題なし
+- TypeScript: `tsc --noEmit` クリーン
+
+---
+
+### 2026-04-18 - iOS Safe Area + TitleBar ドラッグ修復 完了（進行中 2 件 archive 移動）
+
+#### 概要
+
+MEMORY.md 進行中の 2 件をユーザー動作確認（両件 OK）経由で完了 → archive 移動。Phase C 新規 plan 4 件（S-5 / S-6 / I-1 / S-4）の実行前クリーンアップ。
+
+#### 変更点
+
+- `.claude/feature_plans/2026-04-17-ios-safe-area.md` → Status: COMPLETED + `archive/` 移動（Step 1-3 実装済、Step 4 は不要判断で Skip）
+- TitleBar ドラッグ修復は plan 書類なし、MEMORY.md「進行中」除去のみ（実装は `TitleBar.tsx` / `platform.ts` / `capabilities/default.json` のコミット済）
+- `.claude/MEMORY.md`: 進行中 2 件を除去、直近の完了に追記、進行中に Phase C 実行を追加
+
+---
+
 ### 2026-04-18 - アプリ再定義ロードマップ v2 Phase C 完了（feature_plan 棚卸し + 保留 5 件 Verdict 確定）（計画書: archive/2026-04-18-integrated-design-roadmap.md）
 
 #### 概要
@@ -74,64 +192,5 @@ Phase B に続いて Phase C を完遂。事前データ表（calendar plan §Ph
   - Templates の `task_templates` はレガシー残留（migrations.rs で CREATE するが CRUD コマンドなし、data_io_commands リセット時のみ DELETE 対象）→ Known Issues 記録
   - Paper Boards の Owner Provider パスは `frontend/src/components/Ideas/Connect/Paper/`（骨格の `PaperBoards/` は誤り）→ 正しいパスに修正
 - **機能数サマリー**: Tier 1: 8 / Tier 2: 12 / Tier 3: 6 = 合計 **26 機能**（CLAUDE.md §11 と差分ゼロ）
-
-### 2026-04-18 - アプリ再定義ロードマップ v2 Phase B-1 完了（Tier 1 全 8 機能要件定義）
-
-#### 概要
-
-Phase A（CLAUDE.md 13 章統合）に続く Phase B-1（Tier 1 コア機能の要件定義）を 1 セッションで完遂。`.claude/docs/requirements/tier-1-core.md` の事前骨格に対し、全 8 機能（Tasks / Schedule / Notes / Memo / Database / MCP Server / Cloud Sync / Terminal）の Purpose / Boundary / Acceptance Criteria（計 70 件、機能あたり 7-10 件）/ Dependencies / Known Issues / Future Enhancements を記入。各機能の Owner Provider/Module・IPC コマンド・MCP ツール対応範囲は Explore agent + grep で実コードから事実確認済。Phase B-2 (Tier 2 補助機能) / Phase B-3 (Tier 3 実験) は次セッション以降。計画書 §Phase B-1 の Steps/Verification checkbox を全て完了状態に更新。
-
-#### 変更点
-
-- **tier-1-core.md（379 行 → 506 行）**: 全 8 機能のテンプレ全項目を記入。`<!-- 記入予定 -->` / `<!-- AC -->` プレースホルダ残存ゼロを grep で確認
-- **Tasks**: AC 10 件（階層 DnD のゾーン判定、紙吹雪、folderType='complete' 自動集約、ソフトデリート + 復元、UndoRedo、Schedule 双方向同期、MCP get_task_tree の UI 一致、カラー継承）
-- **Schedule**: AC 10 件（frequencyType weekdays の自動生成、startTime 変更の既存 ScheduleItem 追従、Routine 削除カスケード、routine_logs 記録、Preview 編集、Calendar Tag、MCP list_schedule 一致、Mobile CalendarTagsProvider 省略、時間ドラッグの Tasks 同期）
-- **Notes**: AC 8 件（TipTap JSON 保存、スラッシュコマンド、note_connections 双方向、Pin、パスワード保護の verify、全文検索、MCP list_notes、UI 限定削除）
-- **Memo**: AC 7 件（DayFlow/DailyMemoView 表示、MCP upsert の冪等性、パスワード/ロック、TimeMemo の空保存で自動削除、Pin、UI 限定削除）
-- **Database**: AC 8 件（5 種 PropertyType + config_json、Inline エディタ、フィルタ AND、Select 10 色、集計（sum/avg/min/max/countChecked）、Row DnD order_index、ソフトデリート、型変更後のキャスト）
-- **MCP Server**: AC 8 件（claude コマンド自動接続、list_tasks UI 一致、create_task の UI 反映、search_all 横断、tag_entity + search_by_tag、ファイル系 7 ツール、異常終了時の本体無影響、JSON-RPC error）
-- **Cloud Sync**: AC 8 件（sync_configure 保存、双方向 push/pull、last-write-wins、full_download、未対応テーブルはローカルのみ、sync_disconnect、オフライン動作、pending_changes 表示）。Status を「△基盤のみ」→「○基本完成（10 versioned + 3 relation テーブル対応、残り約 30 テーブル未対応）」に変更（sync_engine.rs の実装を読んで事実ベースに修正）
-- **Terminal**: AC 8 件（Ctrl+` 開閉の SectionId 切替後維持、ドラッグで高さ調整、xterm.js 接続、claude コマンド → MCP 30 ツール認識、複数セッション、claude_state 検出、セッション終了で PTY kill、Mobile エラー返却）
-- **Phase B-1 完了マーク**: `.claude/feature_plans/2026-04-18-integrated-design-roadmap.md` §Phase B-1 の Steps 6 件と Verification 3 件を `[x]` に更新
-- **MEMORY.md 更新**: Phase B-1 完了を「直近の完了」に追加、「予定」を Phase B-2 / B-3 に書き換え（tier-2-supporting.md の Audio Mixer から着手する旨を記述）
-- **設計判断の事実補正**: Cloud Sync の Status を実装調査で上方修正（sync_engine.rs に 13 テーブル分の push/pull ロジックが既に存在）。Tasks の Known Issues に保留 I-1（scheduled range 全件 fetch）を関連課題として追記
-
-### 2026-04-18 - Routine Calendar 改善（Preview/Tag/削除カスケード + Group sort/頻度同期）
-
-#### 概要
-
-Routine Calendar まわりのユーザー要件 7 件を 1 セッションで実装。Calendar 上の Routine インスタンス preview popup の Edit ボタン無反応バグ修正と「詳細を開く」廃止、削除ボタンの「外す」ラベル化、`RoutineTagManager` のタグ色変更 UI 改善（色丸クリックで Portal ベースのカラーピッカー）、Rust 側の `routine_repository::soft_delete` を transaction 化して未完了 schedule_items のカスケード削除を実装。さらに Group Edit の Member Routines を startTime 昇順ソート、Group 保存時に member の頻度を Group の頻度で強制上書き、`RoutineEditDialog` に所属 Group の警告バナーを追加。計画書: `~/.claude/plans/routine-calendar-1-routine-edit-edito-ro-dreamy-crown.md`。
-
-#### 変更点
-
-- **ScheduleItemPreviewPopup 改修**: `onOpenDetail` prop と「詳細を開く」ボタン削除、Edit ボタン onClick の `onEditRoutine()` → `onClose()` 順序入替で state 更新競合の無反応バグを解消、削除ボタンを Routine インスタンス時のみ「外す」(`schedule.removeFromDay`)に条件分岐
-- **onOpenDetail / onNavigateToEventsTab 連鎖削除**: CalendarView / OneDaySchedule / ScheduleTimeGrid / DualDayFlowLayout / ScheduleSection の各 prop / 受け渡しを一括除去（dead-code 化）
-- **RoutineTagManager 色丸クリック対応**: 通常表示の色丸を `<button>` 化、`createPortal` + `getBoundingClientRect()` ベースの `ColorPickerPopover` を新設し `UnifiedColorPicker mode="preset-full" inline` をラップ。色選択即時反映＋自動クローズ、outside-click でも閉じる
-- **Rust 削除カスケード**: `routine_repository::soft_delete` を `&mut Connection` + `conn.transaction()` 化し、`SELECT id FROM schedule_items WHERE routine_id = ?1 AND completed = 0` で取得した ID を DELETE。返り値を `Result<Vec<String>>` に変更し削除した schedule_item ID を返却。`db_routines_soft_delete` Tauri command も `Result<Vec<String>, String>` に変更
-- **DataService 3点同期**: `DataService.softDeleteRoutine` 戻り型を `Promise<{ deletedScheduleItemIds: string[] }>` に変更、`TauriDataService` 実装と `mockDataService` モック追従
-- **フロント state 同期**: `useScheduleItemsCore` に `removeScheduleItemsByIds(ids)` 追加（applyToLists で local state 一括除去 + bumpVersion）、`useScheduleItems` / `ScheduleItemsContextValue` に export、`useRoutines.deleteRoutine` を async 化して結果を返却、`RoutineContext.deleteRoutine` ラッパーで propagate、`ScheduleSidebarContent.handleDeleteRoutine` で削除→ローカル state 除去の連鎖を実装
-- **Group Member Routine sort (G1)**: `useRoutineGroupComputed` で `memberRoutines` を `startTime` 昇順ソート（未設定は末尾、同時刻は title で tiebreak）。`RoutineGroupEditDialog.displayedRoutines` も create/edit 両モードで同様にソート
-- **Group 頻度強制同期 (G2)**: `RoutineGroupEditDialog.handleSubmit` で Group 保存と同時に `displayedRoutines` 全員に `updateRoutine(id, { frequencyType, frequencyDays, frequencyInterval, frequencyStartDate })` を発火。`onUpdateRoutine` prop の Pick 型に frequency フィールドを追加。OneDaySchedule の Group dialog 利用箇所に欠けていた `onUpdateRoutine` を追加
-- **Routine 個別編集の警告バナー (G3)**: `RoutineEditDialog` に `belongingGroups?: RoutineGroup[]` prop を追加し、所属 Group がある場合は FrequencySelector の上に amber トーンの情報バナー（`Info` icon + 所属 Group 名のリスト + 「次回の Group 保存で上書きされる」旨）を表示。CalendarView / OneDaySchedule は `groupForRoutine.get(id)`、RoutineManagementOverlay は `routinesByGroup` から逆引きで渡す
-- **i18n 追加**: `schedule.removeFromDay`（en: "Remove from day" / ja: "外す"）、`routineGroup.frequencyOverrideWarning`（{{groups}} 補間付き）を en.json / ja.json 両方に追加
-- **テスト追加**: `useRoutineGroupComputed.test.ts` を新設し 6 ケース（startTime 昇順 / 未設定末尾 / title tiebreak / archived/deleted 除外 / groupForRoutine 複数所属 / groupTimeRange min/max）。全 181 件 pass
-- **Lint 修正**: `RoutineTagManager.ColorPickerPopover` の `useEffect`+`setPosition` を `useState` lazy initializer に置換し `react-hooks/set-state-in-effect` 警告を解消
-
-### 2026-04-18 - アプリ再定義ロードマップ v2 Phase A 完了
-
-#### 概要
-
-「アプリケーション設計定義の統合 + 全機能要件定義」拡張ロードマップ v2 を策定し、Phase A（統合最上位 CLAUDE.md の作成 + ADR/rules/life-editor-v2/TODO の archive 移動 + README 簡素化）を完了。`.claude/CLAUDE.md` を 133 行 → 805 行（13 章構成）に拡張し、Life Editor の SSOT（Single Source of Truth）として確立。Claude Code が起動時に auto-load する唯一のファイルにビジョン・アーキテクチャ・規約・機能マップ・運用ガイドを集約。Phase B（Tier 1-3 全機能要件定義）と Phase C（実装プラン群整理 + 保留 5 件再評価）は次セッション以降。計画書: `.claude/feature_plans/2026-04-18-integrated-design-roadmap.md`。
-
-#### 変更点
-
-- **CLAUDE.md 13 章拡張 (Phase A-1/A-2)**: `0.Meta / 1.Core Identity / 2.Target User / 3.Value Propositions / 4.Non-Goals / 5.Platform Strategy / 6.Architecture / 7.Data Model / 8.AI Integration / 9.Coding Standards / 10.Workflows / 11.Feature Tier Map / 12.Document System / 13.Roadmap` の 13 章構成に再編。§1-5/8 はビジョン素案（ユーザーレビュー待ち）、§6-13 は既存資産から機械的吸収。Core Identity は「AI と会話しながら生活を設計・記録・運用するパーソナル OS」に確定（素案）
-- **rules/ 全文吸収**: `project-debug.md` → §10.5、`project-patterns.md` → §9.2/9.3 + §6.2、`project-review-checklist.md` → §10.2/10.6 に分割吸収。`.claude/rules/` ディレクトリは `.claude/archive/rules/` に移動
-- **ADR 0001-0004 archive (Phase A-3)**: `0001-tech-stack`（Superseded）/ `0002-context-provider-pattern`（Pattern A 統合済み）/ `0003-schedule-provider-decomposition`（§9.4 統合済み）/ `0004-schedule-shared-components`（§9.4 統合済み）を `.claude/archive/adr/` に移動。`ADR-0005-claude-cognitive-architecture`（PROPOSED）は `.claude/docs/adr/` に残置し §8.3 から要約参照
-- **life-editor-v2 archive**: `00-vision / 01-terminal / 02-mcp-server / 03-claude-setup / 04-ui-adjustment` の 5 ファイルを `.claude/archive/docs/life-editor-v2/` に移動（要点は §6.5 / §8 に吸収済み）
-- **TODO.md 廃止**: §13 Roadmap & Status に吸収後、`.claude/archive/TODO.md` に移動
-- **README.md 簡素化**: 80 行 → 35 行。「主な機能」セクションを CLAUDE.md §11 へリンク化、技術スタック・セットアップ・ドキュメントリンクのみ残置
-- **既存 3 プランに Status マーク**: `2026-04-18-app-redefinition-roadmap.md` を `Superseded by integrated-design-roadmap` に、`2026-04-18-application-definition-template.md` と `2026-04-17-daily-life-hub-requirements.md` を `Consumed (CLAUDE.md に吸収)` にマーク
-- **新規プラン作成**: `.claude/feature_plans/2026-04-18-integrated-design-roadmap.md`（Phase A/B/C 全体ロードマップ）— 既存 3 プランを土台に拡張、Tier 1-3 全機能網羅要件定義 + 実装プラン整理戦略を記述
 
 <!-- older entries archived to HISTORY-archive.md -->

@@ -3,18 +3,25 @@ import type { Env } from "../index";
 
 const sync = new Hono<{ Bindings: Env }>();
 
-/** Tables with version + updated_at columns (primary sync targets) */
+/**
+ * Tables with version + updated_at columns (primary sync targets).
+ *
+ * Order matters for FK constraints during /sync/push batch execution:
+ * - routines must come before schedule_items (schedule_items.routine_id → routines.id)
+ * - tasks must come before calendars       (calendars.folder_id → tasks.id)
+ * - tasks also self-references via parent_id, handled by topological sort below
+ */
 const VERSIONED_TABLES = [
+  "routines",
   "tasks",
   "memos",
   "notes",
-  "schedule_items",
-  "routines",
   "wiki_tags",
   "time_memos",
-  "calendars",
   "templates",
   "routine_groups",
+  "schedule_items",
+  "calendars",
 ] as const;
 
 /** Relation tables with updated_at */
@@ -197,14 +204,28 @@ sync.post("/push", async (c) => {
   const body = await c.req.json<Record<string, unknown[]>>();
   const db = c.env.DB;
 
-  const statements: D1PreparedStatement[] = [];
+  const statements: D1PreparedStatement[] = [
+    // Defer FK checks to transaction commit so parents/children can be inserted
+    // in any order within the batch (e.g. tasks with self-referencing parent_id,
+    // schedule_items referencing routines).
+    db.prepare("PRAGMA defer_foreign_keys = ON"),
+  ];
   let pushCount = 0;
+
+  const quoteCol = (c: string) => `"${c}"`;
 
   // Process versioned tables
   for (const table of VERSIONED_TABLES) {
     const camelKey = toCamelCase(table);
-    const rows = body[camelKey];
+    let rows = body[camelKey];
     if (!Array.isArray(rows) || rows.length === 0) continue;
+
+    // Tasks self-reference via parent_id. Within a batch, a child row must be
+    // inserted after its parent, otherwise SQLite's FK check fires on that
+    // statement. Topologically sort so parents always precede children.
+    if (table === "tasks") {
+      rows = topoSortByParent(rows as Record<string, unknown>[], "parent_id");
+    }
 
     for (const row of rows) {
       const record = row as Record<string, unknown>;
@@ -216,12 +237,12 @@ sync.post("/push", async (c) => {
       // Build ON CONFLICT SET clause (exclude PK, apply version check)
       const updateCols = columns.filter((col) => col !== pk);
       const setClauses = updateCols
-        .map((col) => `${col} = excluded.${col}`)
+        .map((col) => `${quoteCol(col)} = excluded.${quoteCol(col)}`)
         .join(", ");
 
-      const sql = `INSERT INTO ${table} (${columns.join(", ")})
+      const sql = `INSERT INTO ${table} (${columns.map(quoteCol).join(", ")})
         VALUES (${placeholders})
-        ON CONFLICT(${pk}) DO UPDATE SET ${setClauses}
+        ON CONFLICT(${quoteCol(pk)}) DO UPDATE SET ${setClauses}
         WHERE excluded.version > ${table}.version OR ${table}.version IS NULL`;
 
       statements.push(db.prepare(sql).bind(...values));
@@ -242,7 +263,7 @@ sync.post("/push", async (c) => {
       const values = columns.map((col) => record[col]);
 
       // For relation tables, use INSERT OR REPLACE
-      const sql = `INSERT OR REPLACE INTO ${table} (${columns.join(", ")}) VALUES (${placeholders})`;
+      const sql = `INSERT OR REPLACE INTO ${table} (${columns.map(quoteCol).join(", ")}) VALUES (${placeholders})`;
       statements.push(db.prepare(sql).bind(...values));
       pushCount++;
     }
@@ -260,14 +281,14 @@ sync.post("/push", async (c) => {
       const placeholders = columns.map((_, i) => `?${i + 1}`).join(", ");
       const values = columns.map((col) => record[col]);
 
-      const sql = `INSERT OR REPLACE INTO ${table} (${columns.join(", ")}) VALUES (${placeholders})`;
+      const sql = `INSERT OR REPLACE INTO ${table} (${columns.map(quoteCol).join(", ")}) VALUES (${placeholders})`;
       statements.push(db.prepare(sql).bind(...values));
       pushCount++;
     }
   }
 
   // Execute all in a batch (D1 transaction)
-  if (statements.length > 0) {
+  if (pushCount > 0) {
     await db.batch(statements);
   }
 
@@ -284,6 +305,39 @@ sync.post("/push", async (c) => {
 /** Convert snake_case to camelCase */
 function toCamelCase(s: string): string {
   return s.replace(/_([a-z])/g, (_, letter: string) => letter.toUpperCase());
+}
+
+/**
+ * Topologically sort rows so that any row referenced by another row's
+ * `parentCol` appears earlier in the returned array. Rows whose parent is not
+ * in the input (orphans) or is null fall into the first group.
+ */
+function topoSortByParent(
+  rows: Record<string, unknown>[],
+  parentCol: string,
+): Record<string, unknown>[] {
+  const byId = new Map<string, Record<string, unknown>>();
+  for (const r of rows) {
+    const id = r.id as string | undefined;
+    if (id) byId.set(id, r);
+  }
+
+  const visited = new Set<string>();
+  const result: Record<string, unknown>[] = [];
+
+  const visit = (row: Record<string, unknown>) => {
+    const id = row.id as string | undefined;
+    if (!id || visited.has(id)) return;
+    visited.add(id);
+    const parentId = row[parentCol] as string | null | undefined;
+    if (parentId && byId.has(parentId) && !visited.has(parentId)) {
+      visit(byId.get(parentId)!);
+    }
+    result.push(row);
+  };
+
+  for (const r of rows) visit(r);
+  return result;
 }
 
 export { sync };

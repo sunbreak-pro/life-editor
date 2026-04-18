@@ -189,6 +189,16 @@ fn row_to_json(row: &rusqlite::Row, col_names: &[String]) -> Value {
     Value::Object(map)
 }
 
+/// Query the target table's actual column set (used to filter remote payload
+/// keys that don't exist locally — prevents schema drift between devices from
+/// breaking sync).
+fn table_columns(conn: &Connection, table: &str) -> Result<Vec<String>, rusqlite::Error> {
+    let sql = format!("PRAGMA table_info(\"{table}\")");
+    let mut stmt = conn.prepare(&sql)?;
+    let rows = stmt.query_map([], |row| row.get::<_, String>(1))?;
+    rows.collect()
+}
+
 /// UPSERT versioned rows: only apply if remote version > local version.
 fn upsert_versioned(
     conn: &Connection,
@@ -196,13 +206,20 @@ fn upsert_versioned(
     pk: &str,
     rows: &[Value],
 ) -> Result<usize, rusqlite::Error> {
+    if rows.is_empty() {
+        return Ok(0);
+    }
+    let local_cols: std::collections::HashSet<String> =
+        table_columns(conn, table)?.into_iter().collect();
+
     let mut count = 0;
     for row in rows {
         let obj = match row.as_object() {
             Some(o) => o,
             None => continue,
         };
-        let columns: Vec<&String> = obj.keys().collect();
+        // Only keep columns the local schema actually has
+        let columns: Vec<&String> = obj.keys().filter(|k| local_cols.contains(*k)).collect();
         if columns.is_empty() {
             continue;
         }
@@ -247,13 +264,19 @@ fn insert_or_replace(
     table: &str,
     rows: &[Value],
 ) -> Result<usize, rusqlite::Error> {
+    if rows.is_empty() {
+        return Ok(0);
+    }
+    let local_cols: std::collections::HashSet<String> =
+        table_columns(conn, table)?.into_iter().collect();
+
     let mut count = 0;
     for row in rows {
         let obj = match row.as_object() {
             Some(o) => o,
             None => continue,
         };
-        let columns: Vec<&String> = obj.keys().collect();
+        let columns: Vec<&String> = obj.keys().filter(|k| local_cols.contains(*k)).collect();
         if columns.is_empty() {
             continue;
         }

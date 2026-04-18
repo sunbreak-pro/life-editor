@@ -1,11 +1,13 @@
 # Plan: createOptionalContextHook Introduction（S-6 実装、ADR-0007 準拠）
 
-**Status:** PLANNED
+**Status:** COMPLETED (2026-04-18)
 **Created:** 2026-04-18
 **Project:** /Users/newlife/dev/apps/life-editor
 **Verdict source:** `.claude/archive/2026-04-18-deferred-items-reevaluation.md` Item 5 (S-6)
 **ADR:** [`ADR-0007-mobile-provider-strategy.md`](../docs/adr/ADR-0007-mobile-provider-strategy.md)
 **Related requirements:** CLAUDE.md §5 Platform Strategy / §9.2 Pattern A
+
+**完了メモ:** `createOptionalContextHook` を新設 (単体テスト 2/2 pass)。6 Optional hook (`useAudioContextOptional` / `useScreenLockContextOptional` / `useFileExplorerContextOptional` / `useCalendarTagsContextOptional` / `useWikiTagsOptional` / `useShortcutConfigOptional`) を追加。現状 Mobile から 6 hook への到達経路はゼロ（Mobile views は MobileCalendarView / MobileSettingsView 等の専用コンポーネント、Desktop-only View は Mobile 到達せず）のため既存 hook 呼び出しの書換は不要だが、共有コンポーネントが将来追加される際の安全装置として Optional インフラを配備済み。CLAUDE.md §9.2 に Optional バリアント規約を追記。全 189/189 pass / tsc クリーン。
 
 ---
 

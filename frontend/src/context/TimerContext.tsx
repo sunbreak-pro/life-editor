@@ -13,6 +13,7 @@ import { getDataService } from "../services";
 import { isTauriMobile } from "../services/bridge";
 import { timerReducer, createInitialState, getDuration } from "./timerReducer";
 import { playEffectSound } from "../utils/playEffectSound";
+import { useServiceErrorHandler } from "../hooks/useServiceErrorHandler";
 
 function sendNotification(body: string) {
   if (
@@ -35,6 +36,7 @@ export function TimerProvider({ children }: { children: ReactNode }) {
   const [autoStartBreaks, setAutoStartBreaksState] = useState(false);
   const [targetSessions, setTargetSessionsState] = useState(4);
   const [activeRoutineId, setActiveRoutineId] = useState<string | null>(null);
+  const { handle: handleError } = useServiceErrorHandler();
 
   // Load settings from DataService on mount
   useEffect(() => {
@@ -55,11 +57,13 @@ export function TimerProvider({ children }: { children: ReactNode }) {
         setAutoStartBreaksState(!!settings.autoStartBreaks);
         setTargetSessionsState(settings.targetSessions ?? 4);
       })
-      .catch((e) => console.warn("[Timer] fetch settings:", e.message));
+      .catch((e) =>
+        handleError(e, "errors.timer.fetchSettingsFailed", { silent: true }),
+      );
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [handleError]);
 
   const totalDuration = getDuration(state.sessionType, state.config);
   const progress =
@@ -77,11 +81,11 @@ export function TimerProvider({ children }: { children: ReactNode }) {
       if (currentSessionIdRef.current !== null) {
         getDataService()
           .endTimerSession(currentSessionIdRef.current, duration, completed)
-          .catch((e) => console.warn("[Timer] end session:", e.message));
+          .catch((e) => handleError(e, "errors.timer.sessionEndFailed"));
         currentSessionIdRef.current = null;
       }
     },
-    [],
+    [handleError],
   );
 
   const advanceSession = useCallback(() => {
@@ -162,8 +166,8 @@ export function TimerProvider({ children }: { children: ReactNode }) {
       .then((session) => {
         currentSessionIdRef.current = session.id;
       })
-      .catch((e) => console.warn("[Timer] start session:", e.message));
-  }, [state.sessionType, state.activeTask]);
+      .catch((e) => handleError(e, "errors.timer.sessionStartFailed"));
+  }, [state.sessionType, state.activeTask, handleError]);
 
   const pause = useCallback(() => {
     dispatch({ type: "PAUSE" });
@@ -204,9 +208,9 @@ export function TimerProvider({ children }: { children: ReactNode }) {
         .then((session) => {
           currentSessionIdRef.current = session.id;
         })
-        .catch((e) => console.warn("[Timer] start session:", e.message));
+        .catch((e) => handleError(e, "errors.timer.sessionStartFailed"));
     },
-    [clearTimer, endCurrentSession, state.config.workDuration],
+    [clearTimer, endCurrentSession, state.config.workDuration, handleError],
   );
 
   const openForTask = useCallback(
@@ -240,9 +244,9 @@ export function TimerProvider({ children }: { children: ReactNode }) {
           longBreakDuration: lb,
           sessionsBeforeLongBreak: s,
         })
-        .catch((e) => console.warn("[Timer] sync settings:", e.message));
+        .catch((e) => handleError(e, "errors.timer.updateSettingsFailed"));
     },
-    [],
+    [handleError],
   );
 
   const workDurationMinutes = state.config.workDuration / 60;
@@ -319,9 +323,9 @@ export function TimerProvider({ children }: { children: ReactNode }) {
         .then((session) => {
           currentSessionIdRef.current = session.id;
         })
-        .catch((e) => console.warn("[Timer] start session:", e.message));
+        .catch((e) => handleError(e, "errors.timer.sessionStartFailed"));
     },
-    [state.activeTask],
+    [state.activeTask, handleError],
   );
 
   const startRest = useCallback(() => {
@@ -334,31 +338,38 @@ export function TimerProvider({ children }: { children: ReactNode }) {
       .then((session) => {
         currentSessionIdRef.current = session.id;
       })
-      .catch((e) => console.warn("[Timer] start session:", e.message));
+      .catch((e) => handleError(e, "errors.timer.sessionStartFailed"));
   }, [
     state.completedSessions,
     state.config.sessionsBeforeLongBreak,
     state.activeTask,
+    handleError,
   ]);
 
   const dismissCompletionModal = useCallback(() => {
     dispatch({ type: "DISMISS_COMPLETION_MODAL" });
   }, []);
 
-  const setAutoStartBreaks = useCallback((enabled: boolean) => {
-    setAutoStartBreaksState(enabled);
-    getDataService()
-      .updateTimerSettings({ autoStartBreaks: enabled })
-      .catch((e) => console.warn("[Timer] update autoStartBreaks:", e.message));
-  }, []);
+  const setAutoStartBreaks = useCallback(
+    (enabled: boolean) => {
+      setAutoStartBreaksState(enabled);
+      getDataService()
+        .updateTimerSettings({ autoStartBreaks: enabled })
+        .catch((e) => handleError(e, "errors.timer.updateSettingsFailed"));
+    },
+    [handleError],
+  );
 
-  const setTargetSessions = useCallback((count: number) => {
-    const clamped = Math.max(1, Math.min(20, count));
-    setTargetSessionsState(clamped);
-    getDataService()
-      .updateTimerSettings({ targetSessions: clamped })
-      .catch((e) => console.warn("[Timer] update targetSessions:", e.message));
-  }, []);
+  const setTargetSessions = useCallback(
+    (count: number) => {
+      const clamped = Math.max(1, Math.min(20, count));
+      setTargetSessionsState(clamped);
+      getDataService()
+        .updateTimerSettings({ targetSessions: clamped })
+        .catch((e) => handleError(e, "errors.timer.updateSettingsFailed"));
+    },
+    [handleError],
+  );
 
   const adjustRemainingSeconds = useCallback(
     (delta: number) => {
@@ -385,9 +396,9 @@ export function TimerProvider({ children }: { children: ReactNode }) {
         .then((session) => {
           currentSessionIdRef.current = session.id;
         })
-        .catch((e) => console.warn("[Timer] start session:", e.message));
+        .catch((e) => handleError(e, "errors.timer.sessionStartFailed"));
     },
-    [clearTimer, endCurrentSession, state.config.workDuration],
+    [clearTimer, endCurrentSession, state.config.workDuration, handleError],
   );
 
   const value = useMemo(

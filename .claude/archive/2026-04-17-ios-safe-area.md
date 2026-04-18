@@ -1,9 +1,11 @@
 # Plan: iOS Safe Area 対応（ステータスバー・ホームインジケーター）
 
-**Status:** PLANNED
+**Status:** COMPLETED (2026-04-18)
 **Created:** 2026-04-17
 **Task:** iOS Safe Area 対応（MEMORY.md）
 **Project:** /Users/newlife/dev/apps/life-editor
+
+**完了メモ:** Step 1-3（MobileLayout の header/nav safe area padding + FAB mb）を実装し、iOS シミュレータで全タブ + ダーク/ライトモードの表示確認完了。Step 4 (CSS 変数フォールバック) は未発生のため不要と判断し Skip。
 
 ---
 

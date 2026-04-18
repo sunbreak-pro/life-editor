@@ -22,15 +22,16 @@
 
 ### 関連ドキュメント
 
-| ディレクトリ                     | 用途                                                   |
-| -------------------------------- | ------------------------------------------------------ |
-| `.claude/MEMORY.md`              | タスクトラッカー（進行中 / 直近の完了 / 予定）         |
-| `.claude/HISTORY.md`             | 変更履歴（セッション単位の詳細記録）                   |
-| `.claude/feature_plans/`         | 実装プラン（PLANNED / IN_PROGRESS）                    |
-| `.claude/archive/`               | 完了済み・廃案プラン / アーカイブ ADR                  |
-| `.claude/docs/adr/`              | アーキテクチャ決定記録（PROPOSED / Accepted のみ残置） |
-| `.claude/docs/requirements/`     | Tier 1-3 機能要件定義（本ファイル章 11 の詳細版）      |
-| `.claude/docs/code-explanation/` | 機能別コード解説（学習教材、参照のみ）                 |
+| ディレクトリ                     | 用途                                                                                   |
+| -------------------------------- | -------------------------------------------------------------------------------------- |
+| `.claude/MEMORY.md`              | タスクトラッカー（進行中 / 直近の完了 / 予定）                                         |
+| `.claude/HISTORY.md`             | 変更履歴（セッション単位の詳細記録）                                                   |
+| `.claude/feature_plans/`         | 実装プラン（PLANNED / IN_PROGRESS）                                                    |
+| `.claude/archive/`               | 完了済み・廃案プラン / アーカイブ ADR                                                  |
+| `.claude/docs/adr/`              | アーキテクチャ決定記録（PROPOSED / Accepted のみ残置）                                 |
+| `.claude/docs/requirements/`     | Tier 1-3 機能要件定義（本ファイル章 11 の詳細版）                                      |
+| `.claude/docs/known-issues/`     | 未解決 Issue + 解決済みバグの Root Cause 記録（[INDEX](./docs/known-issues/INDEX.md)） |
+| `.claude/docs/code-explanation/` | 機能別コード解説（学習教材、参照のみ）                                                 |
 
 ライフサイクル: `feature_plans/` → `archive/`（完了時 Status を COMPLETED に更新後 archive へ移動）
 
@@ -247,10 +248,11 @@ React Router なし。`App.tsx` の `activeSection` で画面切替。
 
 ## 7. Data Model
 
-### 7.1 SQLite v59 テーブル一覧
+### 7.1 SQLite v60 テーブル一覧
 
 スキーマは `src-tauri/src/db/migrations.rs` が正。WAL モード。
-最新バージョンで扱う ~45 テーブル：
+V60 で旧 task_tags / note_tags / ai_settings / routine_logs など孤児テーブルを撤去（WikiTags へ完全移行）。
+最新バージョンで扱う ~40 テーブル：
 
 **コアドメイン**: `tasks` / `memos` / `notes` / `time_memos`
 
@@ -448,6 +450,15 @@ life-editor 既存の MCP Server / SQLite / アプリ内ターミナルを基盤
 #### 例外（単一ファイル構成）
 
 他 Provider が依存しない・ContextValue 型が他 Context から参照されない・実装が自己完結している場合は単一ファイル許容（例: `ToastContext`, `AnalyticsFilterContext`）
+
+#### Mobile 省略 Provider は Optional バリアントを用意（ADR-0007）
+
+§5 Platform Strategy で Mobile 省略対象の 6 Provider（Audio / ScreenLock / FileExplorer / CalendarTags / WikiTag / ShortcutConfig）は、通常の必須 hook (`createContextHook`) に加えて Optional 版 (`createOptionalContextHook`) を `hooks/useFooContextOptional.ts` として用意する。
+
+- **必須 hook**（既存）: Provider 外で throw → Desktop コンポーネントでデフォルト使用
+- **Optional hook**: Provider 外で `null` を返す → Mobile 到達可能な共有コンポーネントで `const ctx = useFooContextOptional(); if (!ctx) return null;` ガードに使用
+
+6 Optional hook ファイル: `useAudioContextOptional` / `useScreenLockContextOptional` / `useFileExplorerContextOptional` / `useCalendarTagsContextOptional` / `useWikiTagsOptional` / `useShortcutConfigOptional`（いずれも `frontend/src/hooks/` 配下、`createOptionalContextHook` 経由）
 
 ### 9.3 共有コンポーネント配置規約
 
@@ -737,6 +748,7 @@ sqlite3 ~/Library/Application\ Support/life-editor/life-editor.db "PRAGMA user_v
 | `.claude/archive/adr/*.md`           | アーカイブ ADR（Superseded / 統合済み）                                                       | 永続保存（参照のみ）                     |
 | `.claude/docs/adr/*.md`              | アクティブな ADR（PROPOSED / Accepted のみ）                                                  | Accepted → 統合可能なら CLAUDE.md へ吸収 |
 | `.claude/docs/requirements/*.md`     | Tier 1-3 機能要件定義（本ファイル §11 の詳細版）                                              | 機能変更時に更新                         |
+| `.claude/docs/known-issues/*.md`     | 未解決 Issue + 解決済みバグの Root Cause 記録（[INDEX](./docs/known-issues/INDEX.md)）        | 発見時 / 解決時に更新                    |
 | `.claude/docs/code-explanation/*.md` | 機能別コード解説（学習教材）                                                                  | 大規模リファクタ時に更新                 |
 
 ### ADR ライフサイクル
@@ -758,6 +770,17 @@ sqlite3 ~/Library/Application\ Support/life-editor/life-editor.db "PRAGMA user_v
 - archive 移動後も番号は再利用しない
 - Phase A 完了時点で 0001-0004 が archive、0005 がアクティブ → 次の新規 ADR は 0006
 
+### Known Issue ライフサイクル
+
+`.claude/docs/known-issues/` は **MEMORY.md（やることリスト）や HISTORY.md（やったこと）では拾えない「壊れている／壊れていた箇所の Root Cause と再発防止知見」** を置く場所。
+
+1. **発見時**: `docs/known-issues/NNN-<slug>.md` を `_TEMPLATE.md` ベースで作成、Status=Active、INDEX.md にも追記
+2. **対応着手**: 必要なら `feature_plans/` にプラン起票し、Issue ファイルから相互リンク
+3. **解決時**: Issue ファイルの Status を Fixed に、Resolved 日付 / 修正箇所 / Lessons Learned を追記、INDEX.md の Active → Fixed セクションへ移動
+4. **Monitoring**: すぐ対処しないが将来の落とし穴になりうる構造的問題は Status=Monitoring で保持
+
+類似のバグ・症状に再び遭遇したときに、まず `INDEX.md` を `grep` / スキャンして過去知見を探すのが基本運用。
+
 ---
 
 ## 13. Roadmap & Status
@@ -766,14 +789,14 @@ sqlite3 ~/Library/Application\ Support/life-editor/life-editor.db "PRAGMA user_v
 
 > 詳細は `.claude/MEMORY.md` 参照
 
-- **iOS Safe Area 対応**（着手: 2026-04-17）— `.claude/feature_plans/2026-04-17-ios-safe-area.md`
-- **アプリ再定義ロードマップ v2 実装**（着手: 2026-04-18）— `.claude/feature_plans/2026-04-18-integrated-design-roadmap.md`
+- （なし）
 
 ### 直近の完了
 
 > 詳細は `.claude/HISTORY.md` 参照
 
-- 2026-04-18: アプリ再定義ロードマップ v2 策定（本プラン作成）
+- 2026-04-18: Phase C Execution — S-5 実装 / S-6 実装 / I-1 計測 → Drop / S-4 計測 → Drop / iOS Safe Area & TitleBar archive
+- 2026-04-18: アプリ再定義ロードマップ v2 策定 + Phase A+B+C 完遂
 - 2026-04-18: Rust 警告 24 件修正
 - 2026-04-18: コードレビュー + Blocking/Important バグ修正
 - 2026-04-15: Tauri 2.0 移行完了
@@ -788,15 +811,11 @@ sqlite3 ~/Library/Application\ Support/life-editor/life-editor.db "PRAGMA user_v
 - ✅ Polish & Enhancement — `archive/003-polish-enhancement.md`
 - ✅ ドキュメント同期 — `archive/003-documentation-sync.md`
 
-### 保留中（Phase C で再評価予定）
+### 保留中（将来再評価）
 
-- **I-1**: `db_tasks_fetch_by_scheduled_range` Rust 新コマンド
-- **S-2**: Tauri IPC naming 方針（typed input struct 移行）
-- **S-4**: `computeFolderProgress` パフォーマンス
-- **S-5**: `useServiceErrorHandler` 共通ヘルパ
-- **S-6**: `createContextHook` optional バリアント（Mobile 対応）
+- **S-2**: Tauri IPC naming 方針（typed input struct 移行）— ADR-0006 で規約のみ採択、一括移行は未着手
 
-詳細: `.claude/feature_plans/2026-04-18-deferred-items-reevaluation.md`
+（2026-04-18 に I-1 / S-4 は計測で Drop、S-5 / S-6 は実装で解消）
 
 ### 完了履歴の詳細
 

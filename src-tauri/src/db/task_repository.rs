@@ -299,3 +299,100 @@ pub fn restore(conn: &Connection, id: &str) -> rusqlite::Result<()> {
 pub fn permanent_delete(conn: &Connection, id: &str) -> rusqlite::Result<()> {
     helpers::permanent_delete(conn, "tasks", id)
 }
+
+#[cfg(test)]
+mod fetch_tree_benchmark {
+    use super::*;
+    use rusqlite::Connection;
+    use std::time::Instant;
+
+    fn setup_tasks_schema(conn: &Connection) {
+        conn.execute_batch(
+            "CREATE TABLE IF NOT EXISTS tasks (
+                id TEXT PRIMARY KEY,
+                type TEXT,
+                title TEXT DEFAULT '',
+                parent_id TEXT,
+                \"order\" INTEGER DEFAULT 0,
+                status TEXT,
+                is_expanded INTEGER DEFAULT 0,
+                is_deleted INTEGER DEFAULT 0,
+                deleted_at TEXT,
+                created_at TEXT NOT NULL,
+                completed_at TEXT,
+                scheduled_at TEXT,
+                content TEXT,
+                work_duration_minutes INTEGER,
+                color TEXT,
+                due_date TEXT,
+                scheduled_end_at TEXT,
+                is_all_day INTEGER DEFAULT 0,
+                time_memo TEXT DEFAULT NULL,
+                version INTEGER DEFAULT 1,
+                updated_at TEXT,
+                folder_type TEXT DEFAULT NULL,
+                original_parent_id TEXT DEFAULT NULL,
+                priority INTEGER DEFAULT NULL,
+                reminder_enabled INTEGER DEFAULT 0,
+                reminder_offset INTEGER,
+                icon TEXT
+            );",
+        )
+        .unwrap();
+    }
+
+    fn insert_dummy_tasks(conn: &Connection, n: usize) {
+        let tx = conn.unchecked_transaction().unwrap();
+        for i in 0..n {
+            tx.execute(
+                "INSERT INTO tasks (id, type, title, \"order\", status, created_at, updated_at) \
+                 VALUES (?1, 'task', ?2, ?3, 'NOT_STARTED', '2026-04-18T00:00:00Z', '2026-04-18T00:00:00Z')",
+                params![format!("task-{}", i), format!("Task #{}", i), i as i64],
+            )
+            .unwrap();
+        }
+        tx.commit().unwrap();
+    }
+
+    fn measure_fetch_tree(n: usize, runs: usize) -> (f64, f64) {
+        let conn = Connection::open_in_memory().unwrap();
+        setup_tasks_schema(&conn);
+        insert_dummy_tasks(&conn, n);
+
+        // Warm-up run (populate SQLite caches)
+        let _ = fetch_tree(&conn).unwrap();
+
+        let mut total_ms = 0.0;
+        let mut max_ms = 0.0f64;
+        for _ in 0..runs {
+            let start = Instant::now();
+            let result = fetch_tree(&conn).unwrap();
+            let elapsed_ms = start.elapsed().as_secs_f64() * 1000.0;
+            assert_eq!(result.len(), n);
+            total_ms += elapsed_ms;
+            if elapsed_ms > max_ms {
+                max_ms = elapsed_ms;
+            }
+        }
+        (total_ms / runs as f64, max_ms)
+    }
+
+    #[test]
+    #[ignore] // Run manually: cargo test --release --lib db::task_repository::fetch_tree_benchmark -- --ignored --nocapture
+    fn bench_fetch_tree() {
+        let sizes = [500usize, 1000, 3000];
+        let runs = 10;
+        println!(
+            "\n=== fetch_tree benchmark (release build recommended, {} runs each) ===",
+            runs
+        );
+        for n in sizes.iter() {
+            let (avg_ms, max_ms) = measure_fetch_tree(*n, runs);
+            println!(
+                "  n = {:>5}  avg = {:>7.2} ms   max = {:>7.2} ms",
+                n, avg_ms, max_ms
+            );
+        }
+        println!("=== end ===\n");
+    }
+}

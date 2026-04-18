@@ -1,10 +1,12 @@
 # Plan: Service Error Handler Hook（S-5）
 
-**Status:** PLANNED
+**Status:** COMPLETED (2026-04-18)
 **Created:** 2026-04-18
 **Project:** /Users/newlife/dev/apps/life-editor
 **Verdict source:** `.claude/archive/2026-04-18-deferred-items-reevaluation.md` Item 4 (S-5)
 **Related requirements:** [`tier-2-supporting.md`](../docs/requirements/tier-2-supporting.md) §Toast Known Issues
+
+**完了メモ:** `useServiceErrorHandler()` フック + `errors.timer.*` / `errors.sync.*` / `errors.schedule.*` i18n + TimerContext (10 catch) / SyncContext (reportError 統合) / MobileCalendarView (7 catch) の全移行完了。単体テスト 6/6 pass、全体 187/187 pass、tsc --noEmit クリーン。
 
 ---
 

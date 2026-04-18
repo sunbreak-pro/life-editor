@@ -2,7 +2,7 @@
   "$schema": "https://raw.githubusercontent.com/nicerdicer/tauri/dev/crates/tauri-config-schema/schema.json",
   "productName": "Life Editor",
   "version": "1.0.0",
-  "identifier": "com.lifeEditor.app",
+  "identifier": "com.lifeEditor.app.newlife",
   "build": {
     "frontendDist": "../frontend/dist",
     "devUrl": "http://localhost:5173",

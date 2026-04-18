@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { getDataService } from "../../services/dataServiceFactory";
 import { useSyncContext } from "../../hooks/useSyncContext";
+import { useServiceErrorHandler } from "../../hooks/useServiceErrorHandler";
 import type { ScheduleItem } from "../../types/schedule";
 import type { TaskNode } from "../../types/taskTree";
 import {
@@ -483,6 +484,7 @@ export function MobileCalendarView() {
   const [loading, setLoading] = useState(true);
   const [formOpen, setFormOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<ScheduleItem | null>(null);
+  const { handle: handleError } = useServiceErrorHandler();
 
   const ds = getDataService();
 
@@ -496,12 +498,12 @@ export function MobileCalendarView() {
           result.sort((a, b) => a.startTime.localeCompare(b.startTime)),
         );
       } catch (e) {
-        console.error("Failed to load schedule:", e);
+        handleError(e, "errors.schedule.loadFailed");
       } finally {
         setLoading(false);
       }
     },
-    [ds],
+    [ds, handleError],
   );
 
   // Load tasks (all, then filter by scheduled date)
@@ -510,9 +512,9 @@ export function MobileCalendarView() {
       const tree = await ds.fetchTaskTree();
       setTasks(tree.filter((t) => t.type === "task" && !t.isDeleted));
     } catch (e) {
-      console.error("Failed to load tasks:", e);
+      handleError(e, "errors.schedule.loadTasksFailed");
     }
-  }, [ds]);
+  }, [ds, handleError]);
 
   // Load month items for dot indicators
   const loadMonthItems = useCallback(
@@ -527,10 +529,10 @@ export function MobileCalendarView() {
         );
         setMonthItems(result);
       } catch (e) {
-        console.error("Failed to load month items:", e);
+        handleError(e, "errors.schedule.loadMonthFailed");
       }
     },
-    [ds],
+    [ds, handleError],
   );
 
   // Date-scoped fetches: re-run when the user selects a different date.
@@ -589,10 +591,10 @@ export function MobileCalendarView() {
         await loadDayItems(selectedDate);
         await loadMonthItems(selectedDate);
       } catch (e) {
-        console.error("Failed to toggle:", e);
+        handleError(e, "errors.schedule.toggleFailed");
       }
     },
-    [ds, selectedDate, loadDayItems, loadMonthItems],
+    [ds, selectedDate, loadDayItems, loadMonthItems, handleError],
   );
 
   const handleToggleTask = useCallback(
@@ -613,10 +615,10 @@ export function MobileCalendarView() {
         });
         await loadTasks();
       } catch (e) {
-        console.error("Failed to toggle task:", e);
+        handleError(e, "errors.schedule.toggleTaskFailed");
       }
     },
-    [ds, loadTasks],
+    [ds, loadTasks, handleError],
   );
 
   const handleSave = useCallback(
@@ -648,10 +650,10 @@ export function MobileCalendarView() {
         await loadDayItems(selectedDate);
         await loadMonthItems(selectedDate);
       } catch (e) {
-        console.error("Failed to save schedule item:", e);
+        handleError(e, "errors.schedule.saveFailed");
       }
     },
-    [ds, editingItem, selectedDate, loadDayItems, loadMonthItems],
+    [ds, editingItem, selectedDate, loadDayItems, loadMonthItems, handleError],
   );
 
   const handleDelete = useCallback(
@@ -663,10 +665,10 @@ export function MobileCalendarView() {
         await loadDayItems(selectedDate);
         await loadMonthItems(selectedDate);
       } catch (e) {
-        console.error("Failed to delete schedule item:", e);
+        handleError(e, "errors.schedule.deleteFailed");
       }
     },
-    [ds, selectedDate, loadDayItems, loadMonthItems],
+    [ds, selectedDate, loadDayItems, loadMonthItems, handleError],
   );
 
   const formattedDate = useMemo(() => {

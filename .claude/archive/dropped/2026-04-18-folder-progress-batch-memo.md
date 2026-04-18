@@ -1,6 +1,6 @@
 # Plan: Folder Progress Batch Memoization（S-4、計測前提）
 
-**Status:** PLANNED (measurement-first)
+**Status:** DROPPED (2026-04-18 — 計測しきい値未達、Compiler 不要で Drop)
 **Created:** 2026-04-18
 **Project:** /Users/newlife/dev/apps/life-editor
 **Verdict source:** `.claude/archive/2026-04-18-deferred-items-reevaluation.md` Item 3 (S-4)
@@ -42,11 +42,34 @@
   - `computeFolderProgress` の共通化テスト追加
 - [ ] S5. Drop / Compiler 解決の場合: 本ファイルに Status: Dropped マーク → archive/dropped/ へ移動
 
-## 計測結果（S1/S2 実行後に記入）
+## 計測結果
 
-- ベースライン: _TBD_
-- Compiler 有効化後: _TBD_
-- 判定: _TBD_
+**環境**: macOS (Apple Silicon), Node 20, Vitest microbenchmark（`src/utils/folderProgress.bench.test.ts`）。全フォルダを 1 レンダリングサイクル分再計算（最悪ケース）、20 runs/size の avg と max。
+
+| F (folders) | T (tasks/folder) | 総ノード | avg (ms) | max (ms) |
+| ----------- | ---------------- | -------- | -------- | -------- |
+| 50          | 10               | 550      | 0.27     | 0.85     |
+| 100         | 20               | 2100     | 1.87     | 1.94     |
+| 200         | 10               | 2200     | 3.33     | 3.35     |
+| 100         | 50               | 5100     | 4.31     | 4.58     |
+| 50          | 100              | 5050     | 2.08     | 2.12     |
+
+- **ベースライン (React Compiler 未有効)**: F=100, T=50 で max 4.58ms — しきい値 50ms の 1/10 未満
+- **Compiler 有効化後**: 未測定（ベースラインが既にしきい値大幅下回りのため不要）
+
+**判定**: Drop (baseline で十分高速、React Compiler も不要)
+
+### 再計測トリガー
+
+以下の条件で再計測推奨:
+
+- 総ノード数が 10,000 を超えた場合
+- TaskTreeNode 側で新たな副作用計算が追加され、再レンダが重くなった場合
+- Profiler で TaskTree 再レンダが 50ms を超えた場合
+
+### React Compiler 有効化について
+
+本プラン S4-2 / S4-9 で提案された「vite.config.ts への babel-plugin-react-compiler 追加」は、S-4 の Drop 判定により本プランの範疇外に移す。Compiler 有効化は TaskTree 以外のコンポーネントにもメリットがあるが、全体に影響する変更のため別プランで扱うのが適切。
 
 ## Verification
 

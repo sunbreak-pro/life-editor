@@ -56,8 +56,8 @@
 
 ### Known Issues / Tech Debt
 
-- 保留 S-4: `computeFolderProgress` パフォーマンス（O(n²) 気味、Phase C で再評価）
-- 保留 I-1: 数百件超の scheduled range 取得が全件 fetch になる → Mobile で Sync 完了時に遅延の懸念（Phase C で計測 → 新コマンド化判断）
+- ~~保留 S-4: `computeFolderProgress` パフォーマンス~~ → **Drop (2026-04-18)**: F=100 × T=50 (5100 nodes) で全フォルダ再計算 max 4.58ms。全サイズで 50ms しきい値を大幅に下回るため Compiler 有効化も不要。再計測トリガーは `.claude/archive/dropped/2026-04-18-folder-progress-batch-memo.md` 参照
+- ~~保留 I-1: 数百件超の scheduled range 取得が全件 fetch になる~~ → **Drop (2026-04-18)**: `fetch_tree` を n=500/1000/3000 で計測、release ビルドで avg 3-19ms / max 3-25ms（M1 Mac）。iOS 5x 補正 + IPC/JS parse 込みでも 500ms しきい値未達。再計測トリガーは `.claude/archive/dropped/2026-04-18-tasks-fetch-by-range.md` 参照
 
 ### Future Enhancements
 
@@ -66,7 +66,7 @@
 
 ### Related Plans
 
-- PLANNED（Phase C 起票）: `.claude/feature_plans/2026-04-18-tasks-fetch-by-range.md`（I-1, measurement-first）/ `.claude/feature_plans/2026-04-18-folder-progress-batch-memo.md`（S-4, measurement-first）
+- DROPPED: `.claude/archive/dropped/2026-04-18-tasks-fetch-by-range.md`（I-1, 計測結果で Drop）/ `.claude/archive/dropped/2026-04-18-folder-progress-batch-memo.md`（S-4, 計測結果で Drop）
 - COMPLETED: `.claude/archive/024-task-memo-tree-refactor.md`
 
 ---

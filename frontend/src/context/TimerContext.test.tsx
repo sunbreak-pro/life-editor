@@ -2,10 +2,15 @@ import { renderHook, act, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { TimerProvider } from "./TimerContext";
 import { TimerContext } from "./TimerContextValue";
+import { ToastProvider } from "./ToastContext";
 import { useContext } from "react";
 import { createMockDataService } from "../test/mockDataService";
 import { setDataServiceForTest } from "../services/dataServiceFactory";
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
+
+vi.mock("react-i18next", () => ({
+  useTranslation: () => ({ t: (key: string) => key }),
+}));
 
 function useTimerTest() {
   const ctx = useContext(TimerContext);
@@ -14,7 +19,11 @@ function useTimerTest() {
 }
 
 function wrapper({ children }: { children: ReactNode }) {
-  return <TimerProvider>{children}</TimerProvider>;
+  return (
+    <ToastProvider>
+      <TimerProvider>{children}</TimerProvider>
+    </ToastProvider>
+  );
 }
 
 function setupMock() {

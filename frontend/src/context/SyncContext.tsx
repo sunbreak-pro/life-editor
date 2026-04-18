@@ -13,7 +13,7 @@ import {
 } from "./SyncContextValue";
 import { getDataService } from "../services/dataServiceFactory";
 import { emitSyncComplete } from "../services/events";
-import { useToast } from "./ToastContext";
+import { useServiceErrorHandler } from "../hooks/useServiceErrorHandler";
 import type { SyncResult, SyncStatus } from "../types/sync";
 
 const SYNC_INTERVAL_MS = 30_000;
@@ -37,17 +37,19 @@ export function SyncProvider({ children }: { children: ReactNode }) {
   const isSyncingRef = useRef(false);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const abortRef = useRef<AbortController | null>(null);
-  const { showToast } = useToast();
+  const { handle: handleError } = useServiceErrorHandler();
   const ds = getDataService();
 
   const reportError = useCallback(
-    (message: string, opts: { toast?: boolean } = { toast: true }) => {
-      setLastError({ message, at: Date.now() });
-      if (opts.toast) {
-        showToast("error", message);
-      }
+    (
+      i18nKey: string,
+      err: unknown,
+      opts: { toast?: boolean } = { toast: true },
+    ) => {
+      setLastError({ message: toErrorMessage(err), at: Date.now() });
+      handleError(err, i18nKey, { silent: !opts.toast });
     },
-    [showToast],
+    [handleError],
   );
 
   const clearError = useCallback(() => setLastError(null), []);
@@ -57,7 +59,7 @@ export function SyncProvider({ children }: { children: ReactNode }) {
     ds.syncGetStatus()
       .then(setStatus)
       .catch((e) => {
-        reportError(toErrorMessage(e), { toast: false });
+        reportError("errors.sync.loadStatusFailed", e, { toast: false });
       });
   }, [ds, reportError]);
 
@@ -90,7 +92,9 @@ export function SyncProvider({ children }: { children: ReactNode }) {
         return result;
       } catch (e) {
         if (controller.signal.aborted) return null;
-        reportError(toErrorMessage(e), { toast: opts.notifyOnError });
+        reportError("errors.sync.operationFailed", e, {
+          toast: opts.notifyOnError,
+        });
         return null;
       } finally {
         isSyncingRef.current = false;
@@ -119,7 +123,7 @@ export function SyncProvider({ children }: { children: ReactNode }) {
         await runSync(() => ds.syncTrigger(), { notifyOnError: true });
         return true;
       } catch (e) {
-        reportError(toErrorMessage(e));
+        reportError("errors.sync.configureFailed", e);
         return false;
       }
     },
@@ -143,7 +147,7 @@ export function SyncProvider({ children }: { children: ReactNode }) {
       setLastSyncResult(null);
       setLastError(null);
     } catch (e) {
-      reportError(toErrorMessage(e));
+      reportError("errors.sync.disconnectFailed", e);
     }
   }, [ds, reportError]);
 

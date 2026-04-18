@@ -1845,5 +1845,28 @@
     "selectTemplate": "テンプレートを選択してください",
     "defaultNoteShort": "ノートデフォルト",
     "defaultDailyShort": "デイリーデフォルト"
+  },
+  "errors": {
+    "timer": {
+      "fetchSettingsFailed": "タイマー設定の読み込みに失敗しました",
+      "sessionStartFailed": "タイマーセッションの開始に失敗しました",
+      "sessionEndFailed": "タイマーセッションの終了に失敗しました",
+      "updateSettingsFailed": "タイマー設定の更新に失敗しました"
+    },
+    "sync": {
+      "loadStatusFailed": "同期ステータスの読み込みに失敗しました",
+      "operationFailed": "同期に失敗しました: {{error}}",
+      "configureFailed": "同期の設定に失敗しました: {{error}}",
+      "disconnectFailed": "切断に失敗しました: {{error}}"
+    },
+    "schedule": {
+      "loadFailed": "スケジュールの読み込みに失敗しました",
+      "loadTasksFailed": "タスクの読み込みに失敗しました",
+      "loadMonthFailed": "月次データの読み込みに失敗しました",
+      "toggleFailed": "スケジュールアイテムの切替に失敗しました",
+      "toggleTaskFailed": "タスクの切替に失敗しました",
+      "saveFailed": "スケジュールアイテムの保存に失敗しました",
+      "deleteFailed": "スケジュールアイテムの削除に失敗しました"
+    }
   }
 }
