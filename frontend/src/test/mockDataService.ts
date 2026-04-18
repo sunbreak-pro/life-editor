@@ -291,7 +291,9 @@ export function createMockDataService(): DataService & {
     updateRoutine: vi.fn().mockResolvedValue({}),
     deleteRoutine: vi.fn().mockResolvedValue(undefined),
     fetchDeletedRoutines: vi.fn().mockResolvedValue([]),
-    softDeleteRoutine: vi.fn().mockResolvedValue(undefined),
+    softDeleteRoutine: vi
+      .fn()
+      .mockResolvedValue({ deletedScheduleItemIds: [] }),
     restoreRoutine: vi.fn().mockResolvedValue(undefined),
     permanentDeleteRoutine: vi.fn().mockResolvedValue(undefined),
 

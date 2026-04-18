@@ -94,7 +94,16 @@ export function ScheduleSidebarContent({
     scheduleItemsVersion,
     reconcileRoutineScheduleItems,
     groupForRoutine,
+    removeScheduleItemsByIds,
   } = useScheduleContext();
+
+  const handleDeleteRoutine = useCallback(
+    async (id: string) => {
+      const { deletedScheduleItemIds } = await deleteRoutine(id);
+      removeScheduleItemsByIds(deletedScheduleItemIds);
+    },
+    [deleteRoutine, removeScheduleItemsByIds],
+  );
 
   const [editTarget, setEditTarget] = useState<EditTarget | null>(null);
   const [editPosition, setEditPosition] = useState<{
@@ -442,7 +451,7 @@ export function ScheduleSidebarContent({
           tagAssignments={tagAssignments}
           onCreateRoutine={createRoutine}
           onUpdateRoutine={updateRoutine}
-          onDeleteRoutine={deleteRoutine}
+          onDeleteRoutine={handleDeleteRoutine}
           setTagsForRoutine={setTagsForRoutine}
           getCompletionRate={getRoutineCompletionRate}
           onCreateRoutineTag={createRoutineTag}

@@ -671,6 +671,15 @@ export function RoutineManagementOverlay({
               ? (tagAssignments.get(editDialog.id) ?? [])
               : []
           }
+          belongingGroups={
+            editDialog !== "new"
+              ? routineGroups.filter((g) =>
+                  (routinesByGroup.get(g.id) ?? []).some(
+                    (r) => r.id === editDialog.id,
+                  ),
+                )
+              : []
+          }
           onSubmit={handleEditSubmit}
           onCreateTag={onCreateRoutineTag}
           onClose={() => setEditDialog(null)}

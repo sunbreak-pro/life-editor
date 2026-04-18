@@ -180,7 +180,6 @@ interface CalendarViewProps {
   searchQuery?: string;
   onDateSelect?: (date: Date) => void;
   onOpenRoutineManagement?: () => void;
-  onNavigateToEventsTab?: () => void;
   typeOrder?: string[];
 }
 
@@ -203,7 +202,6 @@ export function CalendarView({
   searchQuery,
   onDateSelect,
   onOpenRoutineManagement,
-  onNavigateToEventsTab,
   typeOrder,
 }: CalendarViewProps) {
   const {
@@ -875,14 +873,6 @@ export function CalendarView({
           onUpdateTitle={(title) =>
             updateScheduleItem(scheduleItemPreview.item.id, { title })
           }
-          onOpenDetail={
-            onNavigateToEventsTab
-              ? () => {
-                  setScheduleItemPreview(null);
-                  onNavigateToEventsTab();
-                }
-              : undefined
-          }
         />
       )}
 
@@ -1032,6 +1022,7 @@ export function CalendarView({
           routine={editRoutineDialog}
           tags={routineTags}
           initialTagIds={tagAssignments.get(editRoutineDialog.id) ?? []}
+          belongingGroups={groupForRoutine.get(editRoutineDialog.id) ?? []}
           onSubmit={async (
             title,
             startTime,

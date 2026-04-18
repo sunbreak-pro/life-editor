@@ -691,7 +691,6 @@ export function ScheduleSection({
             searchQuery={sidebarSearchQuery}
             onDateSelect={handleCalendarDateSelect}
             onOpenRoutineManagement={() => setShowRoutineManagement(true)}
-            onNavigateToEventsTab={() => handleSetActiveTab("events")}
             typeOrder={typeOrder}
           />
         ) : activeTab === "tasks" ? (
@@ -718,7 +717,6 @@ export function ScheduleSection({
             onStartTimer={handleStartTimer}
             onToggleDualColumn={toggleDualColumn}
             onSetTaskStatus={handleSetTaskStatus}
-            onNavigateToEventsTab={() => handleSetActiveTab("events")}
           />
         ) : (
           <OneDaySchedule
@@ -744,7 +742,6 @@ export function ScheduleSection({
             isDualColumn={isDualColumn}
             onToggleDualColumn={toggleDualColumn}
             onSetTaskStatus={handleSetTaskStatus}
-            onNavigateToEventsTab={() => handleSetActiveTab("events")}
           />
         )}
       </div>

@@ -21,9 +21,9 @@
 
 ## 直近の完了
 
+- Routine Calendar 改善（Preview Edit 修正・Tag color picker・削除カスケード・Group sort/頻度同期） ✅（2026-04-18）
 - アプリ再定義ロードマップ v2 Phase A 完了（CLAUDE.md 13章統合 / ADR・rules・life-editor-v2・TODO archive 移動 / README 簡素化） ✅（2026-04-18）
 - アプリ再定義ロードマップ策定（3 プラン作成: 戦略/定義書雛形/保留項目再評価） ✅（2026-04-18）
-- コードレビュー + Blocking/Important バグ修正（SyncContext / soft-delete / TagAssignment snake_case） ✅（2026-04-18）
 
 ## 予定
 

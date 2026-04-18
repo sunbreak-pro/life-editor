@@ -81,7 +81,6 @@ interface OneDayScheduleProps {
   isDualColumn?: boolean;
   onToggleDualColumn?: () => void;
   onSetTaskStatus?: (taskId: string, status: TaskStatus) => void;
-  onNavigateToEventsTab?: () => void;
 }
 
 export function OneDaySchedule({
@@ -106,7 +105,6 @@ export function OneDaySchedule({
   isDualColumn,
   onToggleDualColumn,
   onSetTaskStatus,
-  onNavigateToEventsTab,
 }: OneDayScheduleProps) {
   const {
     scheduleItems,
@@ -739,7 +737,6 @@ export function OneDaySchedule({
                 updateNode(taskId, { isAllDay })
               }
               onSetTaskStatus={onSetTaskStatus}
-              onNavigateToEventsTab={onNavigateToEventsTab}
             />
           </div>
         </div>
@@ -916,6 +913,7 @@ export function OneDaySchedule({
             routine={editRoutineDialog}
             tags={routineTags}
             initialTagIds={tagAssignments.get(editRoutineDialog.id) ?? []}
+            belongingGroups={groupForRoutine.get(editRoutineDialog.id) ?? []}
             onSubmit={async (
               title,
               startTime,
@@ -1096,14 +1094,6 @@ export function OneDaySchedule({
             onUpdateTitle={(title) =>
               updateScheduleItem(allDaySchedulePreview.item.id, { title })
             }
-            onOpenDetail={
-              onNavigateToEventsTab
-                ? () => {
-                    setAllDaySchedulePreview(null);
-                    onNavigateToEventsTab();
-                  }
-                : undefined
-            }
             onClose={() => setAllDaySchedulePreview(null)}
           />
         )}
@@ -1165,6 +1155,7 @@ export function OneDaySchedule({
 
               setEditGroupDialog(null);
             }}
+            onUpdateRoutine={(id, updates) => updateRoutine(id, updates)}
             onClose={() => setEditGroupDialog(null)}
           />
         )}

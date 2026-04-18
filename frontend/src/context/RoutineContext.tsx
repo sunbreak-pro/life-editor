@@ -26,11 +26,11 @@ export function RoutineProvider({ children }: { children: ReactNode }) {
 
   // Wrap deleteRoutine to also remove tag assignments + push composite undo
   const deleteRoutine = useCallback(
-    (id: string) => {
+    async (id: string): Promise<{ deletedScheduleItemIds: string[] }> => {
       const target = routinesState.routines.find((r) => r.id === id);
       const prevTagIds = tagAssignmentsState.tagAssignments.get(id) ?? [];
 
-      routinesState.deleteRoutine(id, { skipUndo: true });
+      const result = await routinesState.deleteRoutine(id, { skipUndo: true });
       tagAssignmentsState.removeRoutineAssignments(id);
 
       if (target) {
@@ -43,11 +43,13 @@ export function RoutineProvider({ children }: { children: ReactNode }) {
             }
           },
           redo: () => {
-            routinesState.deleteRoutine(id, { skipUndo: true });
+            void routinesState.deleteRoutine(id, { skipUndo: true });
             tagAssignmentsState.removeRoutineAssignments(id);
           },
         });
       }
+
+      return result;
     },
     [routinesState, tagAssignmentsState, push],
   );

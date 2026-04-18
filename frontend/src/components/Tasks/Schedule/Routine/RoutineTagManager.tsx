@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { Pencil, Trash2, Check, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import type { RoutineTag } from "../../../../types/routineTag";
@@ -32,6 +33,10 @@ export function RoutineTagManager({
   const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null);
   const [newName, setNewName] = useState("");
   const [newColor, setNewColor] = useState<string>(DEFAULT_PRESET_COLORS[0]);
+  const [colorPickerOpen, setColorPickerOpen] = useState<{
+    tagId: number;
+    anchor: HTMLElement;
+  } | null>(null);
 
   const startEdit = (tag: RoutineTag) => {
     setEditingId(tag.id);
@@ -127,9 +132,17 @@ export function RoutineTagManager({
                 </div>
               ) : (
                 <>
-                  <span
-                    className="w-3 h-3 rounded-full shrink-0"
+                  <button
+                    type="button"
+                    onClick={(e) =>
+                      setColorPickerOpen({
+                        tagId: tag.id,
+                        anchor: e.currentTarget,
+                      })
+                    }
+                    className="w-3 h-3 rounded-full shrink-0 hover:ring-2 hover:ring-notion-border transition-all"
                     style={{ backgroundColor: tag.color }}
+                    title={t("colorPicker.backgroundColor", "Color")}
                   />
                   <span className="flex-1 text-sm text-notion-text">
                     {tag.name}
@@ -188,6 +201,77 @@ export function RoutineTagManager({
           </div>
         </div>
       </div>
+      {colorPickerOpen && (
+        <ColorPickerPopover
+          anchor={colorPickerOpen.anchor}
+          color={
+            tags.find((t) => t.id === colorPickerOpen.tagId)?.color ??
+            DEFAULT_PRESET_COLORS[0]
+          }
+          onChange={(color) => {
+            onUpdateTag(colorPickerOpen.tagId, { color });
+            setColorPickerOpen(null);
+          }}
+          onClose={() => setColorPickerOpen(null)}
+        />
+      )}
     </div>
+  );
+}
+
+interface ColorPickerPopoverProps {
+  anchor: HTMLElement;
+  color: string;
+  onChange: (color: string) => void;
+  onClose: () => void;
+}
+
+function ColorPickerPopover({
+  anchor,
+  color,
+  onChange,
+  onClose,
+}: ColorPickerPopoverProps) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [position] = useState(() => {
+    const rect = anchor.getBoundingClientRect();
+    const width = 208;
+    const height = 280;
+    let top = rect.bottom + 4;
+    let left = rect.left;
+    if (left + width > window.innerWidth - 8) {
+      left = window.innerWidth - width - 8;
+    }
+    left = Math.max(8, left);
+    if (top + height > window.innerHeight - 8) {
+      top = Math.max(8, rect.top - height - 4);
+    }
+    return { top, left };
+  });
+
+  useEffect(() => {
+    const handleMouseDown = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) {
+        onClose();
+      }
+    };
+    document.addEventListener("mousedown", handleMouseDown);
+    return () => document.removeEventListener("mousedown", handleMouseDown);
+  }, [onClose]);
+
+  return createPortal(
+    <div
+      ref={ref}
+      className="fixed z-[10000] bg-notion-bg border border-notion-border rounded-lg shadow-lg w-52 overflow-hidden"
+      style={{ top: position.top, left: position.left }}
+    >
+      <UnifiedColorPicker
+        color={color}
+        onChange={onChange}
+        mode="preset-full"
+        inline
+      />
+    </div>,
+    document.body,
   );
 }

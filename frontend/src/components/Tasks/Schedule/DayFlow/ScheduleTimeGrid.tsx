@@ -247,9 +247,7 @@ interface ScheduleTimeGridProps {
   onUpdateScheduleItemDate?: (id: string, date: string) => void;
   onUpdateScheduleItemAllDay?: (id: string, isAllDay: boolean) => void;
   onUpdateTaskAllDay?: (taskId: string, isAllDay: boolean) => void;
-  // Status / detail navigation
   onSetTaskStatus?: (taskId: string, status: TaskStatus) => void;
-  onNavigateToEventsTab?: () => void;
 }
 
 export function ScheduleTimeGrid({
@@ -289,7 +287,6 @@ export function ScheduleTimeGrid({
   onUpdateScheduleItemAllDay,
   onUpdateTaskAllDay,
   onSetTaskStatus,
-  onNavigateToEventsTab,
 }: ScheduleTimeGridProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const mainColumnRef = useRef<HTMLDivElement>(null);
@@ -1098,14 +1095,6 @@ export function ScheduleTimeGrid({
             onUpdateScheduleItemTitle
               ? (title) =>
                   onUpdateScheduleItemTitle(schedulePreview.item.id, title)
-              : undefined
-          }
-          onOpenDetail={
-            onNavigateToEventsTab
-              ? () => {
-                  setSchedulePreview(null);
-                  onNavigateToEventsTab();
-                }
               : undefined
           }
           onClose={() => setSchedulePreview(null)}

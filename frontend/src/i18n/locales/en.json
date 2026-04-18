@@ -637,6 +637,7 @@
     "createTag": "Create",
     "tagName": "Tag name...",
     "deleteTagConfirm": "Delete \"{{name}}\"?",
+    "removeFromDay": "Remove from day",
     "manageTags": "Manage Tags",
     "filterTags": "Filter by tags",
     "searchTags": "Search tags...",
@@ -1549,7 +1550,8 @@
     "timeRange": "Time Range",
     "slideHint": "Changing start time slides all member routines",
     "memberRoutines": "Member Routines",
-    "noTimeSet": "no time set"
+    "noTimeSet": "no time set",
+    "frequencyOverrideWarning": "Belongs to group {{groups}}. The group's frequency setting will overwrite this on next group save."
   },
   "statusBar": {
     "terminal": "Terminal",

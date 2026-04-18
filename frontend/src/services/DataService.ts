@@ -271,7 +271,7 @@ export interface DataService {
   ): Promise<RoutineNode>;
   deleteRoutine(id: string): Promise<void>;
   fetchDeletedRoutines(): Promise<RoutineNode[]>;
-  softDeleteRoutine(id: string): Promise<void>;
+  softDeleteRoutine(id: string): Promise<{ deletedScheduleItemIds: string[] }>;
   restoreRoutine(id: string): Promise<void>;
   permanentDeleteRoutine(id: string): Promise<void>;
 

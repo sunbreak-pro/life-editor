@@ -48,6 +48,7 @@ export interface ScheduleItemsContextValue {
     id: string,
     options?: { skipUndo?: boolean },
   ) => void;
+  removeScheduleItemsByIds: (ids: string[]) => void;
   deletedScheduleItems: ScheduleItem[];
   loadDeletedScheduleItems: () => Promise<void>;
   restoreScheduleItem: (id: string) => void;

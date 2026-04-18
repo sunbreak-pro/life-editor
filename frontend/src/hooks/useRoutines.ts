@@ -177,7 +177,10 @@ export function useRoutines() {
   );
 
   const deleteRoutine = useCallback(
-    (id: string, options?: { skipUndo?: boolean }) => {
+    async (
+      id: string,
+      options?: { skipUndo?: boolean },
+    ): Promise<{ deletedScheduleItemIds: string[] }> => {
       const target = routinesRef.current.find((r) => r.id === id);
       if (target) {
         const deleted: RoutineNode = {
@@ -188,9 +191,15 @@ export function useRoutines() {
         setDeletedRoutines((d) => [deleted, ...d]);
       }
       setRoutines((prev) => prev.filter((r) => r.id !== id));
-      getDataService()
-        .softDeleteRoutine(id)
-        .catch((e) => logServiceError("Routines", "softDelete", e));
+
+      let result: { deletedScheduleItemIds: string[] } = {
+        deletedScheduleItemIds: [],
+      };
+      try {
+        result = await getDataService().softDeleteRoutine(id);
+      } catch (e) {
+        logServiceError("Routines", "softDelete", e);
+      }
 
       if (target && !options?.skipUndo) {
         push("routine", {
@@ -218,6 +227,8 @@ export function useRoutines() {
           },
         });
       }
+
+      return result;
     },
     [push],
   );

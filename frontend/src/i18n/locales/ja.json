@@ -637,6 +637,7 @@
     "createTag": "作成",
     "tagName": "タグ名...",
     "deleteTagConfirm": "「{{name}}」を削除しますか？",
+    "removeFromDay": "外す",
     "manageTags": "タグ管理",
     "filterTags": "タグでフィルター",
     "searchTags": "タグを検索...",
@@ -1549,7 +1550,8 @@
     "timeRange": "時間帯",
     "slideHint": "開始時間を変更するとメンバー全ルーティンがシフトします",
     "memberRoutines": "メンバールーティン",
-    "noTimeSet": "時間未設定"
+    "noTimeSet": "時間未設定",
+    "frequencyOverrideWarning": "グループ {{groups}} に所属しています。次回のグループ保存時にこの頻度設定はグループの設定で上書きされます。"
   },
   "statusBar": {
     "terminal": "ターミナル",

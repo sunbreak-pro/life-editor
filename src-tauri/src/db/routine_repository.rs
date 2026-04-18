@@ -195,13 +195,32 @@ pub fn fetch_deleted(conn: &Connection) -> rusqlite::Result<Vec<RoutineNode>> {
     rows.collect()
 }
 
-pub fn soft_delete(conn: &Connection, id: &str) -> rusqlite::Result<()> {
-    conn.execute(
+pub fn soft_delete(conn: &mut Connection, id: &str) -> rusqlite::Result<Vec<String>> {
+    let tx = conn.transaction()?;
+
+    let deleted_schedule_item_ids: Vec<String> = {
+        let mut select_stmt = tx.prepare(
+            "SELECT id FROM schedule_items WHERE routine_id = ?1 AND completed = 0",
+        )?;
+        let rows = select_stmt.query_map([id], |row| row.get::<_, String>(0))?;
+        rows.collect::<rusqlite::Result<Vec<_>>>()?
+    };
+
+    if !deleted_schedule_item_ids.is_empty() {
+        tx.execute(
+            "DELETE FROM schedule_items WHERE routine_id = ?1 AND completed = 0",
+            [id],
+        )?;
+    }
+
+    tx.execute(
         "UPDATE routines SET is_deleted = 1, deleted_at = datetime('now'), \
          version = version + 1, updated_at = datetime('now') WHERE id = ?1",
         [id],
     )?;
-    Ok(())
+
+    tx.commit()?;
+    Ok(deleted_schedule_item_ids)
 }
 
 pub fn restore(conn: &Connection, id: &str) -> rusqlite::Result<()> {

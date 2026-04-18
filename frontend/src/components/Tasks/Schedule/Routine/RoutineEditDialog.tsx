@@ -1,8 +1,9 @@
 import { useState, useEffect, useRef } from "react";
-import { X } from "lucide-react";
+import { X, Info } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import type { RoutineNode, FrequencyType } from "../../../../types/routine";
 import type { RoutineTag } from "../../../../types/routineTag";
+import type { RoutineGroup } from "../../../../types/routineGroup";
 import { TimeInput } from "../../../shared/TimeInput";
 import { RoutineTagSelector } from "./RoutineTagSelector";
 import { FrequencySelector } from "./FrequencySelector";
@@ -32,6 +33,7 @@ interface RoutineEditDialogProps {
     reminderOffset?: number,
   ) => void;
   onCreateTag?: (name: string, color: string) => Promise<RoutineTag>;
+  belongingGroups?: RoutineGroup[];
   onClose: () => void;
 }
 
@@ -41,6 +43,7 @@ export function RoutineEditDialog({
   initialTagIds,
   onSubmit,
   onCreateTag,
+  belongingGroups,
   onClose,
 }: RoutineEditDialogProps) {
   const { t } = useTranslation();
@@ -174,6 +177,23 @@ export function RoutineEditDialog({
               />
             </div>
           </div>
+
+          {belongingGroups && belongingGroups.length > 0 && (
+            <div className="flex items-start gap-1.5 px-2 py-1.5 rounded-md bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/30 text-[11px] text-amber-800 dark:text-amber-200">
+              <Info size={12} className="shrink-0 mt-px" />
+              <span>
+                {t(
+                  "routineGroup.frequencyOverrideWarning",
+                  "Belongs to group {{groups}}. The group's frequency setting will overwrite this on next group save.",
+                  {
+                    groups: belongingGroups
+                      .map((g) => `"${g.name}"`)
+                      .join(", "),
+                  },
+                )}
+              </span>
+            </div>
+          )}
 
           <FrequencySelector
             frequencyType={frequencyType}

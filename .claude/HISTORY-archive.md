@@ -1,3 +1,21 @@
+### 2026-04-18 - TypeScript build エラー 109 件修正
+
+#### 概要
+
+`cargo tauri build` が TypeScript 109 件のエラーで失敗していた問題を全て解消。React 19 / Recharts / lucide-react の型厳格化に起因する機械的修正に加え、`OneDaySchedule.tsx` の picker state 欠落 / `RoutineNode`・`RoutineGroup` 更新型の Pick 欠落 / `UpdaterStatus` 型の重複定義といった構造的問題も修正。DayFlow の Routine / Note picker をデスクトップ版で復活させた。
+
+#### 変更点
+
+- **構造修復**: `OneDaySchedule.tsx` に `routinePicker` / `notePicker` state を復活し、`RoutinePickerPanel` / `NoteSchedulePanel` を JSX レンダリング。`TimeGridClickMenu` に「Select Note」オプションを追加
+- **型定義修正**: `UpdaterStatus` を `types/updater.ts` に一本化（`services/events.ts` のローカル重複定義を削除）、`useTaskDetailHandlers.setScheduleTab` を `Dispatch<SetStateAction<ScheduleTab>>` に修正、`RoutineManagementOverlay` の `onUpdateRoutine` / `onUpdateRoutineGroup` Pick に `isVisible` 追加、`DualDayFlowLayout.DualColumn` の props に `onSetTaskStatus` / `onNavigateToEventsTab` 追加
+- **TaskNode / WikiTag 型**: `buildCompletedTree.ts` の `sortOrder` → `order` へ置換、`wikiTag.textColor` / `UnifiedColorPicker.textColor` を `string | null` 許容化、`SettingsInitialTab` に `"mobile"` を追加、`ToastVariant` に `"info"` を追加（アイコン実装込み）、`SearchSuggestionIconType` に `"board"` 追加
+- **Recharts / React 19 / lucide-react 対応**: `formatter` コールバックの `value` / `name` を `undefined` 許容に広げる（5ファイル）、`useRef<T>()` → `useRef<T | undefined>(undefined)`（3ファイル）、`useDebouncedCallback` を `TArgs` ジェネリクスに刷新、lucide-react Icon の `title` prop を `<span title>` 親要素にラップ（4箇所）
+- **null → undefined 統一**: `scheduledAt: null` を `undefined` に変更し（6箇所）、`parseScheduledAt` のシグネチャを `string | null | undefined` に拡張
+- **ConnectionMode / prop 名修正**: `connectionMode="loose"` を `ConnectionMode.Loose` enum に置換、`onIsAllDayChange` → `onAllDayChange` にリネーム（NoteSchedulePanel / RoutinePickerPanel）
+- **MiniTodayFlow / ScheduleTimeGrid**: discriminated union の type guard 追加（`entry.type !== "task"` で narrowing）、`shouldRoutineRunOnDate` 呼び出しで `date: Date` → `dateKey: string` に修正
+- **未使用変数削除**: TS6133 エラー約 25 件を単純削除または destructure から除外（Sidebar / Paper / Settings / Schedule / Tasks 系の複数ファイル）
+- **その他**: `TimeGridTaskBlock` に `onClick` prop 追加（`WeeklyTimeGrid` で silently drop されていた callback を有効化）、`TipTap` の `fileUploadPlaceholder` extension storage を型アサーションで参照、`WorkMusicContent.togglePreview(id, url)` で `audio.soundSources` から URL 解決、`MaterialsView` の未使用 props を削除
+
 ### 2026-04-18 - Cloud Sync UI リフレッシュ修正
 
 #### 概要

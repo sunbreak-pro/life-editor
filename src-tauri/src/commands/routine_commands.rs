@@ -70,9 +70,12 @@ pub fn db_routines_fetch_deleted(state: State<'_, DbState>) -> Result<Value, Str
 }
 
 #[tauri::command]
-pub fn db_routines_soft_delete(state: State<'_, DbState>, id: String) -> Result<(), String> {
-    let conn = state.conn.lock().map_err(|e| e.to_string())?;
-    routine_repository::soft_delete(&conn, &id).map_err(|e| e.to_string())
+pub fn db_routines_soft_delete(
+    state: State<'_, DbState>,
+    id: String,
+) -> Result<Vec<String>, String> {
+    let mut conn = state.conn.lock().map_err(|e| e.to_string())?;
+    routine_repository::soft_delete(&mut conn, &id).map_err(|e| e.to_string())
 }
 
 #[tauri::command]

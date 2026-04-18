@@ -30,7 +30,17 @@ interface RoutineGroupEditDialogProps {
   onSlideGroupEndTime?: (offsetMinutes: number) => void;
   onUpdateRoutine?: (
     id: string,
-    updates: Partial<Pick<RoutineNode, "startTime" | "endTime">>,
+    updates: Partial<
+      Pick<
+        RoutineNode,
+        | "startTime"
+        | "endTime"
+        | "frequencyType"
+        | "frequencyDays"
+        | "frequencyInterval"
+        | "frequencyStartDate"
+      >
+    >,
   ) => void;
   allRoutines?: RoutineNode[];
   allTagAssignments?: Map<string, number[]>;
@@ -71,14 +81,26 @@ export function RoutineGroupEditDialog({
 
   // Compute displayed member routines (edit: from prop, create: from selected tags)
   const displayedRoutines = useMemo(() => {
-    if (group) return memberRoutines;
-    if (!allRoutines || !allTagAssignments || selectedTagIds.length === 0)
-      return [];
-    const tagSet = new Set(selectedTagIds);
-    return allRoutines.filter((r) => {
-      if (r.isArchived || r.isDeleted) return false;
-      const routineTags = allTagAssignments.get(r.id) ?? [];
-      return routineTags.some((tid) => tagSet.has(tid));
+    const base = group
+      ? memberRoutines
+      : !allRoutines || !allTagAssignments || selectedTagIds.length === 0
+        ? []
+        : (() => {
+            const tagSet = new Set(selectedTagIds);
+            return allRoutines.filter((r) => {
+              if (r.isArchived || r.isDeleted) return false;
+              const routineTags = allTagAssignments.get(r.id) ?? [];
+              return routineTags.some((tid) => tagSet.has(tid));
+            });
+          })();
+    return [...base].sort((a, b) => {
+      const aMin = a.startTime ? timeToMinutes(a.startTime) : null;
+      const bMin = b.startTime ? timeToMinutes(b.startTime) : null;
+      if (aMin === null && bMin === null) return a.title.localeCompare(b.title);
+      if (aMin === null) return 1;
+      if (bMin === null) return -1;
+      if (aMin !== bMin) return aMin - bMin;
+      return a.title.localeCompare(b.title);
     });
   }, [group, memberRoutines, allRoutines, allTagAssignments, selectedTagIds]);
 
@@ -89,21 +111,37 @@ export function RoutineGroupEditDialog({
 
   const handleSubmit = useCallback(() => {
     if (!name.trim()) return;
+    const groupFrequencyDays =
+      frequencyType === "weekdays" ? frequencyDays : [];
+    const groupFrequencyInterval =
+      frequencyType === "interval" ? frequencyInterval : null;
+    const groupFrequencyStartDate =
+      frequencyType === "interval" ? frequencyStartDate : null;
+
     onSubmit(
       name.trim(),
       color,
       selectedTagIds,
       frequencyType,
-      frequencyType === "weekdays" ? frequencyDays : [],
-      frequencyType === "interval" ? frequencyInterval : null,
-      frequencyType === "interval" ? frequencyStartDate : null,
+      groupFrequencyDays,
+      groupFrequencyInterval,
+      groupFrequencyStartDate,
     );
+
     if (onUpdateRoutine) {
-      for (const [routineId, times] of routineTimeEdits.entries()) {
-        onUpdateRoutine(routineId, {
-          startTime: times.startTime,
-          endTime: times.endTime,
-        });
+      for (const routine of displayedRoutines) {
+        const times = routineTimeEdits.get(routine.id);
+        const updates: Parameters<typeof onUpdateRoutine>[1] = {
+          frequencyType,
+          frequencyDays: groupFrequencyDays,
+          frequencyInterval: groupFrequencyInterval,
+          frequencyStartDate: groupFrequencyStartDate,
+        };
+        if (times) {
+          updates.startTime = times.startTime;
+          updates.endTime = times.endTime;
+        }
+        onUpdateRoutine(routine.id, updates);
       }
     }
     onClose();
@@ -119,6 +157,7 @@ export function RoutineGroupEditDialog({
     onClose,
     onUpdateRoutine,
     routineTimeEdits,
+    displayedRoutines,
   ]);
 
   const handleSlide = useCallback(

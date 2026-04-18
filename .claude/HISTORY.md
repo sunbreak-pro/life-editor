@@ -1,5 +1,26 @@
 # HISTORY.md - 変更履歴
 
+### 2026-04-18 - Routine Calendar 改善（Preview/Tag/削除カスケード + Group sort/頻度同期）
+
+#### 概要
+
+Routine Calendar まわりのユーザー要件 7 件を 1 セッションで実装。Calendar 上の Routine インスタンス preview popup の Edit ボタン無反応バグ修正と「詳細を開く」廃止、削除ボタンの「外す」ラベル化、`RoutineTagManager` のタグ色変更 UI 改善（色丸クリックで Portal ベースのカラーピッカー）、Rust 側の `routine_repository::soft_delete` を transaction 化して未完了 schedule_items のカスケード削除を実装。さらに Group Edit の Member Routines を startTime 昇順ソート、Group 保存時に member の頻度を Group の頻度で強制上書き、`RoutineEditDialog` に所属 Group の警告バナーを追加。計画書: `~/.claude/plans/routine-calendar-1-routine-edit-edito-ro-dreamy-crown.md`。
+
+#### 変更点
+
+- **ScheduleItemPreviewPopup 改修**: `onOpenDetail` prop と「詳細を開く」ボタン削除、Edit ボタン onClick の `onEditRoutine()` → `onClose()` 順序入替で state 更新競合の無反応バグを解消、削除ボタンを Routine インスタンス時のみ「外す」(`schedule.removeFromDay`)に条件分岐
+- **onOpenDetail / onNavigateToEventsTab 連鎖削除**: CalendarView / OneDaySchedule / ScheduleTimeGrid / DualDayFlowLayout / ScheduleSection の各 prop / 受け渡しを一括除去（dead-code 化）
+- **RoutineTagManager 色丸クリック対応**: 通常表示の色丸を `<button>` 化、`createPortal` + `getBoundingClientRect()` ベースの `ColorPickerPopover` を新設し `UnifiedColorPicker mode="preset-full" inline` をラップ。色選択即時反映＋自動クローズ、outside-click でも閉じる
+- **Rust 削除カスケード**: `routine_repository::soft_delete` を `&mut Connection` + `conn.transaction()` 化し、`SELECT id FROM schedule_items WHERE routine_id = ?1 AND completed = 0` で取得した ID を DELETE。返り値を `Result<Vec<String>>` に変更し削除した schedule_item ID を返却。`db_routines_soft_delete` Tauri command も `Result<Vec<String>, String>` に変更
+- **DataService 3点同期**: `DataService.softDeleteRoutine` 戻り型を `Promise<{ deletedScheduleItemIds: string[] }>` に変更、`TauriDataService` 実装と `mockDataService` モック追従
+- **フロント state 同期**: `useScheduleItemsCore` に `removeScheduleItemsByIds(ids)` 追加（applyToLists で local state 一括除去 + bumpVersion）、`useScheduleItems` / `ScheduleItemsContextValue` に export、`useRoutines.deleteRoutine` を async 化して結果を返却、`RoutineContext.deleteRoutine` ラッパーで propagate、`ScheduleSidebarContent.handleDeleteRoutine` で削除→ローカル state 除去の連鎖を実装
+- **Group Member Routine sort (G1)**: `useRoutineGroupComputed` で `memberRoutines` を `startTime` 昇順ソート（未設定は末尾、同時刻は title で tiebreak）。`RoutineGroupEditDialog.displayedRoutines` も create/edit 両モードで同様にソート
+- **Group 頻度強制同期 (G2)**: `RoutineGroupEditDialog.handleSubmit` で Group 保存と同時に `displayedRoutines` 全員に `updateRoutine(id, { frequencyType, frequencyDays, frequencyInterval, frequencyStartDate })` を発火。`onUpdateRoutine` prop の Pick 型に frequency フィールドを追加。OneDaySchedule の Group dialog 利用箇所に欠けていた `onUpdateRoutine` を追加
+- **Routine 個別編集の警告バナー (G3)**: `RoutineEditDialog` に `belongingGroups?: RoutineGroup[]` prop を追加し、所属 Group がある場合は FrequencySelector の上に amber トーンの情報バナー（`Info` icon + 所属 Group 名のリスト + 「次回の Group 保存で上書きされる」旨）を表示。CalendarView / OneDaySchedule は `groupForRoutine.get(id)`、RoutineManagementOverlay は `routinesByGroup` から逆引きで渡す
+- **i18n 追加**: `schedule.removeFromDay`（en: "Remove from day" / ja: "外す"）、`routineGroup.frequencyOverrideWarning`（{{groups}} 補間付き）を en.json / ja.json 両方に追加
+- **テスト追加**: `useRoutineGroupComputed.test.ts` を新設し 6 ケース（startTime 昇順 / 未設定末尾 / title tiebreak / archived/deleted 除外 / groupForRoutine 複数所属 / groupTimeRange min/max）。全 181 件 pass
+- **Lint 修正**: `RoutineTagManager.ColorPickerPopover` の `useEffect`+`setPosition` を `useState` lazy initializer に置換し `react-hooks/set-state-in-effect` 警告を解消
+
 ### 2026-04-18 - アプリ再定義ロードマップ v2 Phase A 完了
 
 #### 概要
@@ -57,24 +78,6 @@ Electron → Tauri 2.0 移行とモバイル対応追加後の保守性・バグ
 - **未使用 import 削除**: `Manager`（custom_sound_commands, attachment_commands, claude_commands）、`MenuItemKind`（menu.rs）、`super::helpers`（routine_repository, routine_tag_repository, routine_group_repository）
 - **未使用変数**: custom_sound_commands の全 `app` 引数を `_app` に、attachment_commands の全 `app` を `_app` に、claude_commands の `setup_life_editor_dir` の `app` を `_app` に
 - **dead code 削除**: `helpers.rs` の `fetch_deleted_json`, `next_order_index`, `next_sort_order`、`claude_detector.rs` の `get_state` メソッド
-
-### 2026-04-18 - TypeScript build エラー 109 件修正
-
-#### 概要
-
-`cargo tauri build` が TypeScript 109 件のエラーで失敗していた問題を全て解消。React 19 / Recharts / lucide-react の型厳格化に起因する機械的修正に加え、`OneDaySchedule.tsx` の picker state 欠落 / `RoutineNode`・`RoutineGroup` 更新型の Pick 欠落 / `UpdaterStatus` 型の重複定義といった構造的問題も修正。DayFlow の Routine / Note picker をデスクトップ版で復活させた。
-
-#### 変更点
-
-- **構造修復**: `OneDaySchedule.tsx` に `routinePicker` / `notePicker` state を復活し、`RoutinePickerPanel` / `NoteSchedulePanel` を JSX レンダリング。`TimeGridClickMenu` に「Select Note」オプションを追加
-- **型定義修正**: `UpdaterStatus` を `types/updater.ts` に一本化（`services/events.ts` のローカル重複定義を削除）、`useTaskDetailHandlers.setScheduleTab` を `Dispatch<SetStateAction<ScheduleTab>>` に修正、`RoutineManagementOverlay` の `onUpdateRoutine` / `onUpdateRoutineGroup` Pick に `isVisible` 追加、`DualDayFlowLayout.DualColumn` の props に `onSetTaskStatus` / `onNavigateToEventsTab` 追加
-- **TaskNode / WikiTag 型**: `buildCompletedTree.ts` の `sortOrder` → `order` へ置換、`wikiTag.textColor` / `UnifiedColorPicker.textColor` を `string | null` 許容化、`SettingsInitialTab` に `"mobile"` を追加、`ToastVariant` に `"info"` を追加（アイコン実装込み）、`SearchSuggestionIconType` に `"board"` 追加
-- **Recharts / React 19 / lucide-react 対応**: `formatter` コールバックの `value` / `name` を `undefined` 許容に広げる（5ファイル）、`useRef<T>()` → `useRef<T \| undefined>(undefined)`（3ファイル）、`useDebouncedCallback` を `TArgs` ジェネリクスに刷新、lucide-react Icon の `title` prop を `<span title>` 親要素にラップ（4箇所）
-- **null → undefined 統一**: `scheduledAt: null` を `undefined` に変更し（6箇所）、`parseScheduledAt` のシグネチャを `string \| null \| undefined` に拡張
-- **ConnectionMode / prop 名修正**: `connectionMode="loose"` を `ConnectionMode.Loose` enum に置換、`onIsAllDayChange` → `onAllDayChange` にリネーム（NoteSchedulePanel / RoutinePickerPanel）
-- **MiniTodayFlow / ScheduleTimeGrid**: discriminated union の type guard 追加（`entry.type !== "task"` で narrowing）、`shouldRoutineRunOnDate` 呼び出しで `date: Date` → `dateKey: string` に修正
-- **未使用変数削除**: TS6133 エラー約 25 件を単純削除または destructure から除外（Sidebar / Paper / Settings / Schedule / Tasks 系の複数ファイル）
-- **その他**: `TimeGridTaskBlock` に `onClick` prop 追加（`WeeklyTimeGrid` で silently drop されていた callback を有効化）、`TipTap` の `fileUploadPlaceholder` extension storage を型アサーションで参照、`WorkMusicContent.togglePreview(id, url)` で `audio.soundSources` から URL 解決、`MaterialsView` の未使用 props を削除
 
 - 2026-04-17: [途中] iOS Safe Area 対応 — 計画書 `.claude/feature_plans/2026-04-17-ios-safe-area.md` 作成完了。MobileLayout.tsx の header/footer に `env(safe-area-inset-*)` padding を追加する方針。実装は次セッション
 

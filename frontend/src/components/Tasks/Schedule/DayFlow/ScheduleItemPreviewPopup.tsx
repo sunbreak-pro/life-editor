@@ -1,11 +1,4 @@
-import {
-  ExternalLink,
-  Trash2,
-  Pencil,
-  Clock,
-  StickyNote,
-  CalendarDays,
-} from "lucide-react";
+import { Trash2, Pencil, Clock, StickyNote, CalendarDays } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import type { ScheduleItem } from "../../../../types/schedule";
 import { CALENDAR_ITEM_COLORS } from "../../../../types/calendarItem";
@@ -34,7 +27,6 @@ interface ScheduleItemPreviewPopupProps {
   onUpdateAllDay?: (isAllDay: boolean) => void;
   onUpdateTitle?: (title: string) => void;
   onReminderChange?: (enabled: boolean, offset?: number) => void;
-  onOpenDetail?: () => void;
 }
 
 export function ScheduleItemPreviewPopup({
@@ -52,7 +44,6 @@ export function ScheduleItemPreviewPopup({
   onUpdateAllDay,
   onUpdateTitle,
   onReminderChange,
-  onOpenDetail,
 }: ScheduleItemPreviewPopupProps) {
   const { t } = useTranslation();
 
@@ -93,24 +84,12 @@ export function ScheduleItemPreviewPopup({
       bottomClearance={320}
       footer={
         <>
-          {onOpenDetail && (
-            <>
-              <button
-                onClick={onOpenDetail}
-                className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-xs text-blue-500 hover:bg-blue-500/5 transition-colors"
-              >
-                <ExternalLink size={12} />
-                {t("calendar.openDetail")}
-              </button>
-              <div className="w-px bg-notion-border" />
-            </>
-          )}
           {item.routineId && onEditRoutine && (
             <>
               <button
                 onClick={() => {
-                  onClose();
                   onEditRoutine();
+                  onClose();
                 }}
                 className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-xs text-notion-text-secondary hover:bg-notion-hover hover:text-notion-text transition-colors"
               >
@@ -125,7 +104,9 @@ export function ScheduleItemPreviewPopup({
             className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-xs text-red-500 hover:bg-red-500/5 transition-colors"
           >
             <Trash2 size={12} />
-            {t("common.delete")}
+            {item.routineId
+              ? t("schedule.removeFromDay", "Remove from day")
+              : t("common.delete")}
           </button>
         </>
       }

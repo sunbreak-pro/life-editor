@@ -56,6 +56,17 @@ export function useRoutineGroupComputed({
         }
       }
 
+      memberRoutines.sort((a, b) => {
+        const aMin = timeToMinutes(a.startTime ?? null);
+        const bMin = timeToMinutes(b.startTime ?? null);
+        if (aMin === null && bMin === null)
+          return a.title.localeCompare(b.title);
+        if (aMin === null) return 1;
+        if (bMin === null) return -1;
+        if (aMin !== bMin) return aMin - bMin;
+        return a.title.localeCompare(b.title);
+      });
+
       routinesByGroup.set(group.id, memberRoutines);
 
       // Compute time range from member routines

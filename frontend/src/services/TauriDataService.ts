@@ -514,8 +514,11 @@ export class TauriDataService implements DataService {
   fetchDeletedRoutines(): Promise<RoutineNode[]> {
     return tauriInvoke("db_routines_fetch_deleted");
   }
-  softDeleteRoutine(id: string): Promise<void> {
-    return tauriInvoke("db_routines_soft_delete", { id });
+  async softDeleteRoutine(
+    id: string,
+  ): Promise<{ deletedScheduleItemIds: string[] }> {
+    const ids = await tauriInvoke<string[]>("db_routines_soft_delete", { id });
+    return { deletedScheduleItemIds: ids };
   }
   restoreRoutine(id: string): Promise<void> {
     return tauriInvoke("db_routines_restore", { id });

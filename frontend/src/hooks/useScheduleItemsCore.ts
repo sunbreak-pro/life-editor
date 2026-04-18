@@ -497,6 +497,16 @@ export function useScheduleItemsCore(
       .catch((e) => logServiceError("ScheduleItems", "permanentDelete", e));
   }, []);
 
+  const removeScheduleItemsByIds = useCallback(
+    (ids: string[]) => {
+      if (ids.length === 0) return;
+      const set = new Set(ids);
+      applyToLists((prev) => prev.filter((item) => !set.has(item.id)));
+      bumpVersion();
+    },
+    [applyToLists, bumpVersion],
+  );
+
   // ---- Handles for sub-hooks ----
   const _handles: ScheduleItemsCoreHandles = {
     scheduleItemsRef,
@@ -519,6 +529,7 @@ export function useScheduleItemsCore(
     updateScheduleItem,
     deleteScheduleItem,
     softDeleteScheduleItem,
+    removeScheduleItemsByIds,
     dismissScheduleItem,
     undismissScheduleItem,
     toggleComplete,
