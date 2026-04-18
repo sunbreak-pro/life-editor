@@ -1,3 +1,32 @@
+### 2026-04-18 - アプリ再定義ロードマップ v2 Phase B 完了（Tier 1-3 全 26 機能要件定義）
+
+#### 概要
+
+同日 B-1 完了に続けて Phase B-2 / B-3 を連続実施し、全 Tier の要件定義を完遂。Tier 2（12 機能 / AC 各 3-6 件）と Tier 3（6 機能 / Verdict 付き）を記入し、CLAUDE.md §11 に相互リンク（markdown link）+ Verdict 反映を行った。CLAUDE.md §11 機能数 = requirements/ 機能数 = 26 で差分ゼロを確認。Phase C（実装プラン群の整理 + 保留 5 件再評価）は次セッション以降。
+
+#### 変更点
+
+- **tier-2-supporting.md（364 → 495 行）**: 全 12 機能の Purpose / Boundary / AC 3-6 件 / Dependencies を記入。プレースホルダ残存ゼロを grep 確認
+- **Audio Mixer**: AC 5 件（on/off + ボリューム、magic bytes 検証、プリセット、タグ、AudioContext resume）
+- **Playlist**: AC 5 件（DnD reorder、タイマー連動自動開始、シャッフル / リピート、Pause 追従）
+- **Pomodoro Timer**: AC 6 件（プリセット、完了フロー、3 箇所残り時間同期、±5m 調整、timer_sessions 記録、sessionsBeforeLongBreak）
+- **WikiTags**: AC 5 件（横断付与、sync_inline_tags、CRUD + 色ピッカー、接続の有向グラフ、MCP tag_entity）+ IPC 21 件列挙
+- **File Explorer**: AC 5 件（ルート選択、パストラバーサル検証、FileEditor 永続化、attachment_save、Mobile 省略）+ IPC 17 件列挙
+- **Templates**: AC 4 件（JSON 保存、新規 ID 展開、ソフトデリート、rename）+ `task_templates` レガシーテーブル残留を Known Issues に記録（実コード調査発見）
+- **UndoRedo / Theme / i18n / Shortcuts / Toast / Trash**: AC 3-5 件ずつ記入（ドメイン別スタック / 10 段階フォント / en/ja / 29 shortcuts / 4 種トースト / 7 ドメイン復元）
+- **tier-3-experimental.md（173 行）**: 6 機能に Verdict ラベル付与
+  - **Paper Boards**: 凍結継続（13 commits、2026-04-12 で機能追加停止、Notes / WikiTag Connections で代替可）
+  - **Analytics**: 凍結継続 + ADR-0005 Phase 4 統合予定（17 commits、2026-02-25 で機能追加停止）
+  - **NotebookLM / Google Calendar / Google Drive**: 未着手（Claude 経由代替 / ICS 購読 Phase 1 / google-drive MCP で各対応）
+  - **Cognitive Architecture (ADR-0005)**: PROPOSED 維持（Phase 1 から段階着手）
+- **CLAUDE.md §11 更新**: tier-1/2/3 リンクを markdown link 化、各 Tier 冒頭の「（Phase B-X で作成予定）」を「（N 機能、各 AC X-Y 件、Phase B-X 完了）」に変更、Tier 3 の Paper Boards / Analytics 等に Verdict ラベルを反映
+- **計画書更新**: §Phase B-2（Steps 3 件 + Verification 3 件）と §Phase B-3（Steps 6 件 + Verification 2 件）を全て `[x]` に
+- **MEMORY.md 更新**: 直近完了を「Phase B 完了」に集約、予定を Phase C に書換（起点ファイル / 準備済みデータ / 最初のアクションを具体化）
+- **実コード整合の発見と記録**:
+  - Templates の `task_templates` はレガシー残留（migrations.rs で CREATE するが CRUD コマンドなし、data_io_commands リセット時のみ DELETE 対象）→ Known Issues 記録
+  - Paper Boards の Owner Provider パスは `frontend/src/components/Ideas/Connect/Paper/`（骨格の `PaperBoards/` は誤り）→ 正しいパスに修正
+- **機能数サマリー**: Tier 1: 8 / Tier 2: 12 / Tier 3: 6 = 合計 **26 機能**（CLAUDE.md §11 と差分ゼロ）
+
 ### 2026-04-18 - アプリ再定義ロードマップ v2 Phase B-1 完了（Tier 1 全 8 機能要件定義）
 
 #### 概要

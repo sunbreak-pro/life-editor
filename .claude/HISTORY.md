@@ -1,5 +1,33 @@
 # HISTORY.md - 変更履歴
 
+### 2026-04-18 - .claude/ 構造モダナイゼーション（CLAUDE.md 軽量化 + ADR 廃止 + グローバルスキル整合）
+
+#### 概要
+
+life-editor の `.claude/` を全面再編し、同時にグローバルスキル（/project-setter / task-tracker / session-verifier / session-loader）を新構造に整合させた。CLAUDE.md を 805 → 345 行に圧縮しコンテキスト効率を改善。ADR 方式を廃止し、設計原則を `docs/vision/` に一元化する運用に切替。全プロジェクト共通の運用ルールを `~/.claude/CLAUDE.md` に明文化。
+
+#### 変更点
+
+- **life-editor CLAUDE.md 軽量化**: 805 行 → 345 行（-56%）。ビジョン系 §1-5 / AI 詳細 §8.3-8.4 / デバッグ詳細 §10.5 / Review Checklist §10.6 / 実装済み機能リスト §11 補足 / Roadmap 完了履歴を削除、抽象構想は `docs/vision/` に分離
+
+- **docs/vision/ 新設**: `README.md` / `core.md`（Core Identity / Target User / Value Props / Non-Goals / Platform Strategy 詳細）/ `ai-integration.md`（Cognitive Architecture 要旨 + 利用シナリオ）/ `coding-principles.md`（旧 ADR-0002/0003/0004/0006/0007 の要旨統合）
+
+- **ADR 廃止**: `docs/adr/` (ADR-0005/0006/0007) と `archive/adr/` (0001-0004) を全削除。設計原則は vision/coding-principles.md に集約し、時点判断ではなく「現在から未来に向けた継続更新される指針」として運用
+
+- **feature_plans/ 廃止**: `2026-04-18-app-redefinition-roadmap.md` → `archive/`、`2026-04-17-daily-life-hub-requirements.md` / `application-definition-template.md` → `docs/vision/`、ディレクトリ自体を削除。実装プラン命名規則は `.claude/YYYY-MM-DD-<slug>.md`（直下配置）に統一
+
+- **/project-setter 全面更新**: SKILL.md に新構造マッピング表と設計思想（400 行上限 / ADR 不使用 / vision 一元化）を追記。Software / Novel / Research 全 3 タイプで `vision/` + `known-issues/` + `requirements/` (Software のみ) のテンプレート追加、旧 `adr-template.md.tmpl` / `operations.md.tmpl` / `coding.md.tmpl` / `writing.md.tmpl` / `methodology.md.tmpl` を削除。`~/.claude/skills/project-setter` にシンボリックリンク作成
+
+- **グローバル `~/.claude/CLAUDE.md` 拡張**: 13 行 → 54 行。Project Documentation Structure セクション追加（ファイル階層 / 運用原則 / CLAUDE.md 標準 9 章構成）。全プロジェクト共通のルール（400 行上限、ADR 不使用、実装プラン命名規則、known-issues 運用）を明文化
+
+- **task-tracker 更新**: 計画書パスを `.claude/docs/feature_plans/` → `.claude/` 直下に、アーカイブ先を `.claude/docs/archive/` → `.claude/archive/` に変更。ヘッダーコメントから廃止済み `rules/operations.md` 参照を削除
+
+- **session-verifier 汎用化**: Gate 0 のプロジェクト固有 electron パス分類を汎用カテゴリ（Frontend / Backend / Database / IPC / Tests / Config）に変更。Gate 5 の参照先を `.claude/rules/` → `.claude/docs/vision/coding-principles.md` に更新、known-issues/INDEX.md 参照を追記
+
+- **session-loader グローバル化**: `~/.claude/skills/session-loader` を新設（標準構造前提の Step 1-5）。life-editor プロジェクト固有版は Step 6-7 で追加読込を担う構成に更新、旧 `docs/life-editor-v2/00-vision.md` / `docs/adr/0001-tech-stack.md` 参照を削除
+
+- **skill-catalog.md 更新**: Software 推奨スキルに session-loader / session-verifier を追加、Novel / Research 推奨にも session-loader 追加
+
 ### 2026-04-18 - iOS 実機ビルド + Cloud Sync 有効化 + Known Issues ディレクトリ新設
 
 #### 概要
@@ -163,34 +191,5 @@ Phase B に続いて Phase C を完遂。事前データ表（calendar plan §Ph
   - `.claude/docs/adr/` Active: 3 件（ADR-0005 PROPOSED / ADR-0006 Accepted / ADR-0007 Accepted）
   - `.claude/archive/dropped/` 新設: 5 件（Electron 前提 Plan + Capacitor）
   - `.claude/archive/` Merge 4 件追加
-
-### 2026-04-18 - アプリ再定義ロードマップ v2 Phase B 完了（Tier 1-3 全 26 機能要件定義）
-
-#### 概要
-
-同日 B-1 完了に続けて Phase B-2 / B-3 を連続実施し、全 Tier の要件定義を完遂。Tier 2（12 機能 / AC 各 3-6 件）と Tier 3（6 機能 / Verdict 付き）を記入し、CLAUDE.md §11 に相互リンク（markdown link）+ Verdict 反映を行った。CLAUDE.md §11 機能数 = requirements/ 機能数 = 26 で差分ゼロを確認。Phase C（実装プラン群の整理 + 保留 5 件再評価）は次セッション以降。
-
-#### 変更点
-
-- **tier-2-supporting.md（364 → 495 行）**: 全 12 機能の Purpose / Boundary / AC 3-6 件 / Dependencies を記入。プレースホルダ残存ゼロを grep 確認
-- **Audio Mixer**: AC 5 件（on/off + ボリューム、magic bytes 検証、プリセット、タグ、AudioContext resume）
-- **Playlist**: AC 5 件（DnD reorder、タイマー連動自動開始、シャッフル / リピート、Pause 追従）
-- **Pomodoro Timer**: AC 6 件（プリセット、完了フロー、3 箇所残り時間同期、±5m 調整、timer_sessions 記録、sessionsBeforeLongBreak）
-- **WikiTags**: AC 5 件（横断付与、sync_inline_tags、CRUD + 色ピッカー、接続の有向グラフ、MCP tag_entity）+ IPC 21 件列挙
-- **File Explorer**: AC 5 件（ルート選択、パストラバーサル検証、FileEditor 永続化、attachment_save、Mobile 省略）+ IPC 17 件列挙
-- **Templates**: AC 4 件（JSON 保存、新規 ID 展開、ソフトデリート、rename）+ `task_templates` レガシーテーブル残留を Known Issues に記録（実コード調査発見）
-- **UndoRedo / Theme / i18n / Shortcuts / Toast / Trash**: AC 3-5 件ずつ記入（ドメイン別スタック / 10 段階フォント / en/ja / 29 shortcuts / 4 種トースト / 7 ドメイン復元）
-- **tier-3-experimental.md（173 行）**: 6 機能に Verdict ラベル付与
-  - **Paper Boards**: 凍結継続（13 commits、2026-04-12 で機能追加停止、Notes / WikiTag Connections で代替可）
-  - **Analytics**: 凍結継続 + ADR-0005 Phase 4 統合予定（17 commits、2026-02-25 で機能追加停止）
-  - **NotebookLM / Google Calendar / Google Drive**: 未着手（Claude 経由代替 / ICS 購読 Phase 1 / google-drive MCP で各対応）
-  - **Cognitive Architecture (ADR-0005)**: PROPOSED 維持（Phase 1 から段階着手）
-- **CLAUDE.md §11 更新**: tier-1/2/3 リンクを markdown link 化、各 Tier 冒頭の「（Phase B-X で作成予定）」を「（N 機能、各 AC X-Y 件、Phase B-X 完了）」に変更、Tier 3 の Paper Boards / Analytics 等に Verdict ラベルを反映
-- **計画書更新**: §Phase B-2（Steps 3 件 + Verification 3 件）と §Phase B-3（Steps 6 件 + Verification 2 件）を全て `[x]` に
-- **MEMORY.md 更新**: 直近完了を「Phase B 完了」に集約、予定を Phase C に書換（起点ファイル / 準備済みデータ / 最初のアクションを具体化）
-- **実コード整合の発見と記録**:
-  - Templates の `task_templates` はレガシー残留（migrations.rs で CREATE するが CRUD コマンドなし、data_io_commands リセット時のみ DELETE 対象）→ Known Issues 記録
-  - Paper Boards の Owner Provider パスは `frontend/src/components/Ideas/Connect/Paper/`（骨格の `PaperBoards/` は誤り）→ 正しいパスに修正
-- **機能数サマリー**: Tier 1: 8 / Tier 2: 12 / Tier 3: 6 = 合計 **26 機能**（CLAUDE.md §11 と差分ゼロ）
 
 <!-- older entries archived to HISTORY-archive.md -->
