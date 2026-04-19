@@ -6,9 +6,9 @@
 
 ## 直近の完了
 
+- Obsidian Phase 1 フォローアップ（記法分離 `@`化 + アイコン表示 + Daily Memo→Notes 遷移 + sync fix）✅（2026-04-19） — WikiTag トリガを `#` → `@` に変更（NoteLink `[[` と明確分離）+ `WikiTag` / `NoteLink` の NodeView を「括弧/記号なし、lucide Tag/Link アイコン + 名前のみ」に刷新 + Daily Memo 内リンクのクリックで `life-editor:navigate-to-note` CustomEvent 発火 → App.tsx が Materials タブ + Notes サブタブに自動切替して該当ノートを開く + `routine_groups.version` 列欠落による Cloud Sync UPSERT 失敗を防御的 ALTER で修正（V42 世代 DB からの上位互換）。i18n en/ja 同期、cargo test 5 件 pass、Vitest 222 pass。
+- TerminalPanel 直上 Tips セクション追加 ✅（2026-04-19） — Claude 起動ボタン直上に activeSection 連動の折りたたみ式 Tips パネル（`components/shared/TipsPanel.tsx`）。Schedule / Work / Materials / Connect の 4 セクション × 各 4 Tips を lucide アイコン付きで表示、localStorage `TIPS_COLLAPSED` で開閉永続化、i18n en/ja 同期。analytics / settings では非表示、docsPath があれば「詳細を見る」リンクを条件表示。
 - Mobile DayFlow 完了 UI / 長押し DnD / フォーム & Settings コンパクト化 ✅（2026-04-19） — `MobileDayflowBlock` 新規（color rail 6px タップで完了トグル、Task 3-state cycle、Routine / Event / Task 別の完了表現）+ `useMobileLongPressDrag` hook（450ms 長押し + 5 分スナップ + `DragPreview` 半透明ブロック + ライブ時刻ピル + navigator.vibrate）+ `MobileScheduleItemForm` を Date/Start/End 1 行 3 列 grid 化 + Settings を `MobileSettingsPrimitives` に分離してコンパクト化 + FontSize / Timer / Notifications / Trash の 4 セクション新規追加 + i18n en/ja 同期。計画書: 外部 `~/.claude/plans/mobile-task-event-routine-ui-ux-elegant-hinton.md`。Vitest 222/222 pass、tsc / eslint クリーン。
-- Notes / Memos Obsidian 風知識結晶化 Phase 1 ✅（2026-04-19） — DB V61 (`note_links` / `note_aliases`) + Rust repository/commands（IPC 4 点同期済）+ TipTap `NoteLink` Extension + `[[` auto-complete + `BacklinksPane`（ノート単位 + Unlinked Mentions タブ）+ WikiTag 記法分離（`[[…]]` → `#…`）+ i18n en/ja 同期。計画書: 外部 `~/.claude/plans/1-notes-memos-notes-2-binary-muffin.md`。Phase 2+（Properties / Embed / BlockRef / LocalGraph / MCP 5 ツール / V62-V64）は次セッション以降。Vitest 213 / Cargo test 8 全 pass。
-- vision/ 整理 + Mobile 移植計画ドキュメント化 ✅（2026-04-19） — `.claude/docs/vision/` を「設計原則 + 次フェーズ計画」の 4 ファイル（coding-principles / core / mobile-porting / desktop-followup）に再編。Cognitive 構想（ai-integration.md）と役目終了テンプレを削除し、主戦場の Mobile 移植計画と Desktop 残課題メモを新設。CLAUDE.md の陳腐化参照を同時整理（341 行、400 行上限内）。
 
 ## 予定
 
