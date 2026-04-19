@@ -1,3 +1,66 @@
+### 2026-04-18 - Phase C Execution 完遂（S-5 / S-6 実装 + I-1 / S-4 計測 → Drop）
+
+#### 概要
+
+MEMORY.md 優先順位に沿って Phase C の 4 件を一括実行。実装系 2 件 (S-5 / S-6) を完遂し、計測系 2 件 (I-1 / S-4) を計測結果で Drop 判定 → `archive/dropped/` へ移動。計画書: `/Users/newlife/.claude/plans/memory-md-mossy-micali.md`
+
+#### 変更点
+
+##### S-5: Service Error Handler Hook（実装完了）
+
+- 新規: `frontend/src/hooks/useServiceErrorHandler.ts` + `.test.ts` (6/6 pass)
+  - シグネチャ: `() => { handle(err, i18nKey, { silent?, rateLimitMs? }) }`
+  - 既定: toast + DEV 時 console.error + 5s 同一 key dedup
+- i18n: `errors.timer.*` / `errors.sync.*` / `errors.schedule.*` を en/ja 両方に追加
+- 移行: `TimerContext.tsx` (10 catch → hook 経由) / `SyncContext.tsx` (reportError を hook 経由に統一) / `MobileCalendarView.tsx` (7 console.error → hook 経由)
+- `tier-2-supporting.md` §Toast Known Issues S-5 を「解消」に更新
+- archive: `.claude/archive/2026-04-18-service-error-handler-hook.md`
+
+##### S-6: Optional Context Hook インフラ（実装完了）
+
+- 新規: `frontend/src/hooks/createOptionalContextHook.ts` + `.test.tsx` (2/2 pass)
+- 新規: 6 Optional hook (`useAudioContextOptional` / `useScreenLockContextOptional` / `useFileExplorerContextOptional` / `useCalendarTagsContextOptional` / `useWikiTagsOptional` / `useShortcutConfigOptional`)
+- 現状 Mobile から 6 hook への到達経路はゼロのため既存 hook 書換は不要、将来の共有コンポーネント向け安全装置として配備
+- `CLAUDE.md` §9.2 Pattern A に「Mobile 省略 Provider は Optional バリアントを用意」ルール追記
+- archive: `.claude/archive/2026-04-18-context-hook-optional.md`
+
+##### I-1: Tasks Fetch by Range（計測 → Drop）
+
+- Rust bench 追加: `src-tauri/src/db/task_repository.rs` の `fetch_tree_benchmark` (`#[ignore]`、`cargo test --release --lib db::task_repository::fetch_tree_benchmark -- --ignored --nocapture`)
+- 計測結果（M1 Mac, in-memory SQLite, release build, 10 runs/size）:
+  - n=500: avg 3.17ms / max 3.65ms
+  - n=1000: avg 6.11ms / max 6.35ms
+  - n=3000: avg 19.42ms / max 25.03ms
+- iOS 5x 補正 + IPC/JS parse 込みでも 500ms しきい値未達 → **Drop**
+- `tier-1-core.md` §Tasks Known Issues I-1 を「Drop」に更新
+- archive: `.claude/archive/dropped/2026-04-18-tasks-fetch-by-range.md`
+
+##### S-4: Folder Progress Batch Memo（計測 → Drop）
+
+- Vitest bench 追加: `frontend/src/utils/folderProgress.bench.test.ts`
+- 計測結果（M1 Mac, Node 20, 20 runs/size, 全フォルダ 1 サイクル再計算 = 最悪ケース）:
+  - F=50 × T=10 (550 nodes): avg 0.27ms / max 0.85ms
+  - F=100 × T=20 (2100 nodes): avg 1.87ms / max 1.94ms
+  - F=200 × T=10 (2200 nodes): avg 3.33ms / max 3.35ms
+  - F=100 × T=50 (5100 nodes): avg 4.31ms / max 4.58ms
+  - F=50 × T=100 (5050 nodes): avg 2.08ms / max 2.12ms
+- 全サイズで 50ms しきい値の 1/10 未満 → **Drop**（Compiler 有効化も不要と判断、別プラン送り）
+- `tier-1-core.md` §Tasks Known Issues S-4 を「Drop」に更新
+- archive: `.claude/archive/dropped/2026-04-18-folder-progress-batch-memo.md`
+
+##### ドキュメント同期
+
+- `CLAUDE.md` §13 Roadmap: 現在進行中を空に、保留中から I-1 / S-4 / S-5 / S-6 を除去（S-2 のみ残）
+- `MEMORY.md`: 進行中を空に、直近の完了に Phase C 成果を追記、予定から 4 件 plan を除去
+
+#### 計測・テスト結果
+
+- フロントエンド: `npx vitest run` — 22 files / 190 tests pass（S-5 で +6、S-6 で +2、S-4 bench で +1）
+- Rust: `cargo test --release` — 問題なし
+- TypeScript: `tsc --noEmit` クリーン
+
+---
+
 ### 2026-04-18 - iOS Safe Area + TitleBar ドラッグ修復 完了（進行中 2 件 archive 移動）
 
 #### 概要

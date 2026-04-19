@@ -6,9 +6,9 @@
 
 ## 直近の完了
 
+- ディスク容量削減（12GB → 3.7GB / -69%）✅（2026-04-19） — 孤立ワークツリー `jovial-shannon`（別プロジェクト sonic-flow 残骸 886MB）削除、`git gc` で loose 5547 個を pack 化（117MB → 79MB）、`src-tauri/target/{debug,release}`（7.0GB）と全 node_modules 削除 → frontend + mcp-server のみ再インストール。iOS target（aarch64-apple-ios + gen/apple 3.3GB）は保持。全操作をゴミ箱経由で実施し復元可能。
 - Mobile UI/UX 改善 第 2 弾 ✅（2026-04-19） — Daycell チップ復元（max 3 + "+N more"）、Note/Memo 詳細の seed バグ修正（keyed sub-component）、`<` `>` 月ナビ修正（viewDate を親に昇格）、新規スケジュール memo 永続化、`dvh → svh` + overscroll-behavior で iOS pixel jitter 軽減。tsc/lint/vitest 200 pass。
 - Mobile Schedule & Work リデザイン（コード一式）✅（2026-04-18） — claude.ai/design バンドル準拠で Schedule タブ改名、月カレンダー inline chip + bottom sheet、Dayflow timegrid、Work を session pill + ring + halo + session dots + control dock に刷新。chip kind 用 CSS tokens 追加、`dayItem.ts` + test。全 200 テスト pass、tsc/lint/build clean。
-- グローバルスキル整合（/project-setter 新構造対応、task-tracker パス更新、session-verifier 汎用化、session-loader グローバル化 + life-editor 版更新、グローバル CLAUDE.md 運用ルール追加、ADR 廃止して vision/coding-principles.md に統合）✅（2026-04-18）
 
 ## 予定
 
