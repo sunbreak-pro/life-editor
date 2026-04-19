@@ -1,3 +1,37 @@
+### 2026-04-18 - Mobile Schedule & Work リデザイン（claude.ai/design バンドル準拠）（計画書: archive/2026-04-18-mobile-schedule-work-redesign.md）
+
+#### 概要
+
+Claude Design で作成された HTML/JSX プロトタイプ（`gysUUHAKNxXSabDTE32e1Q`）を基に、モバイル版 Schedule（旧 Calendar）と Work 画面を全面刷新。ユーザーがチャットで挙げた要件（DayCell 内アイテム chip + 下スワイプボトムシート、chip ellipsis truncation、Dayflow timegrid、タブ 4 統合）をコードに移植。全 200 テスト pass / tsc / lint / build clean。
+
+#### 変更点
+
+- **タブ構造刷新**: `MobileTab` を `"calendar"` → `"schedule"` に改名、順序を **Schedule / Work / Materials / Settings** に並び替え（`MobileLayout.tsx` / `MobileApp.tsx`）。初期 activeTab も `schedule` に変更。
+
+- **Schedule Monthly 全面書き換え**: `MobileMonthlyCalendar`（`MobileCalendarView.tsx` 内）で各 DayCell に最大 3 件の inline event chip を表示、+4 件目は `+N件` overflow。均等 grid 保持のため `min-width:0` / `max-width:100%` / `overflow:hidden` を cell と chip container に適用し、長いタイトルでも列幅が崩れない。今日 = accent 丸塗り、選択日 = accent リング + tint bg、土日色分け（red-400/500）。月ヘッダーに search/today/prev/next ボタン追加。
+
+- **Bottom sheet 新規**: `schedule/MobileDaySheet.tsx` を追加。drag handle（touch+mouse 両対応）、`38dvh ↔ 80dvh` 切替、±40px しきい値、`cubic-bezier(.2,.8,.2,1)` 280ms アニメ。タイムライン行は `{start}/{end}` カラム + 左 rail + card（check + icon + title + kind ラベル）構成。Strict Mode 対策として drag-end の副作用を state updater 外へ。
+
+- **Dayflow timegrid 新規**: `schedule/MobileDayflowGrid.tsx` を追加。5:00–24:00 の 1 カラム時刻グリッド（54px/hour）、30 分ごと破線、イベントブロックを start/end から絶対配置、左 3px rail（kind 色）、title ellipsis。今日のみ赤い now ライン + 丸（30 秒ごと位置更新）。マウント時・日付切替時に current hour（today）または 8:00 へ auto-scroll。Dayflow ヘッダー（月日 + 曜日 + TODAY バッジ + prev/today/next）を `MobileCalendarView` 内に追加。
+
+- **Work 画面全面書き換え**: `MobileWorkView.tsx` を以下で再構成 —— `WorkSessionTabs`（集中/休憩/長休憩 + duration 分数、active 時 pill 内白背景 + shadow）、`WorkActiveTaskChip`（4px 左 rail + `取り組み中` ラベル + タスク名 ellipsis + chevron）、`TimerRing`（280px SVG、二重 stroke + gradient + blur(8px) halo、running で opacity 1）、`SessionDots`（done = 18px rounded rect、未完 = 6px dot）、`ControlDock`（Reset 52px / Play-Pause 76px / Skip 52px、session color で shadow）。ambient 音楽カードはスコープ外として未実装（AudioProvider がモバイル非対応）。
+
+- **データ層純関数追加**: `schedule/dayItem.ts` で `DayItem` discriminated union（`routine` / `event` / `task`）と `buildDayItems` / `buildMonthItemMap`。判定ルール: `ScheduleItem.routineId` → routine / 他の ScheduleItem → event / `TaskNode.scheduledAt` → task。`dayItem.test.ts` に 10 ケース（kind 判定、all-day、filter、sort、soft-delete、month grouping）。
+
+- **Chip kind 用 CSS vars**: `index.css` の `:root` と `[data-theme="dark"]` に `--color-chip-{routine,event,task}-{bg,fg,dot}` を合計 9 個追加。Light/dark 両テーマで可読性を担保。
+
+- **Tailwind token 誤用修正**: 新規コードで `bg-notion-bg-primary` / `text-notion-text-primary`（CSS var 未定義で no-op）を正しい `bg-notion-bg` / `text-notion-text` に統一。既存モバイルコードの誤用は変更範囲外として保留。
+
+- **i18n キー追加（en/ja 両方）**: `mobile.tabs.schedule`, `mobile.schedule.subTab.*`, `mobile.schedule.daySheet.*`, `mobile.schedule.dayflow.*`, `mobile.work.focusTitle`, `mobile.work.activeTaskLabel`, `mobile.work.sessionLabel.*`, `mobile.work.session.*`, `mobile.work.sessionSub.*`, `mobile.work.remaining`, `mobile.work.dotsProgress`, `mobile.work.controls.*`。旧 `mobile.tabs.calendar` は削除（参照残存なし確認済）。
+
+- **react-hooks/set-state-in-effect 違反修正**: `MobileMonthlyCalendar` の `useEffect(setViewDate)` を render-time 補正パターンに変更（React 公式の「props から state を調整」パターン、収束判定により無限ループなし）。
+
+- **react-refresh/only-export-components 違反修正**: `kindPalette` ユーティリティを `MobileEventChip.tsx` から `schedule/chipPalette.ts` に分離。`MobileDaySheet` / `MobileDayflowGrid` の import 先も更新。
+
+- **自動検証全通過**: `npx tsc --noEmit` 0 エラー / `npx eslint` 0 エラー（変更ファイル）/ `npx vitest run` 24 files 200 tests pass / `npm run build` 13.1s 成功。
+
+---
+
 ### 2026-04-18 - .claude/ 構造モダナイゼーション（CLAUDE.md 軽量化 + ADR 廃止 + グローバルスキル整合）
 
 #### 概要

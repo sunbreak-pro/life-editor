@@ -1818,6 +1818,11 @@
         "today": "Today",
         "now": "Now",
         "todayBadge": "TODAY"
+      },
+      "form": {
+        "dateLabel": "Date",
+        "startLabel": "Start",
+        "endLabel": "End"
       }
     },
     "memo": {
@@ -1867,7 +1872,30 @@
       "disconnected": "Not connected",
       "disconnect": "Disconnect",
       "theme": "Theme",
-      "language": "Language"
+      "language": "Language",
+      "fontSize": "Font size",
+      "notifications": {
+        "title": "Notifications",
+        "enable": "Enable notifications",
+        "permissionBlocked": "Notifications blocked by system",
+        "unsupported": "Not supported on this device",
+        "routineReminders": "Routine reminders",
+        "taskDeadlineReminders": "Task deadline reminders"
+      },
+      "timer": {
+        "title": "Timer defaults",
+        "workDuration": "Work",
+        "breakDuration": "Break",
+        "longBreakDuration": "Long break",
+        "runningNote": "Stop the timer to adjust defaults."
+      },
+      "trash": {
+        "title": "Trash",
+        "empty": "Nothing in trash",
+        "restore": "Restore",
+        "permanentDelete": "Delete permanently",
+        "truncatedNote": "Showing latest 100 — manage more on desktop."
+      }
     },
     "connection": {
       "subtitle": "Connect to your desktop app",

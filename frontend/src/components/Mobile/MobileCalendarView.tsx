@@ -25,6 +25,7 @@ import {
 import { MobileEventChip } from "./schedule/MobileEventChip";
 import { MobileDaySheet, type SheetMode } from "./schedule/MobileDaySheet";
 import { MobileDayflowGrid } from "./schedule/MobileDayflowGrid";
+import type { LongPressDragEnd } from "../../hooks/useMobileLongPressDrag";
 
 // --- Utilities ---
 
@@ -588,6 +589,36 @@ export function MobileCalendarView() {
     [ds, loadTasks, handleError],
   );
 
+  const handleReschedule = useCallback(
+    async (payload: LongPressDragEnd) => {
+      try {
+        if (payload.kind === "task") {
+          const task =
+            payload.item.kind === "task" ? payload.item.source : null;
+          if (!task) return;
+          // Keep the original date; swap time portion.
+          const dateStr = task.scheduledAt?.slice(0, 10) ?? selectedDate;
+          const newScheduledAt = `${dateStr}T${payload.newStart}:00`;
+          const newScheduledEndAt = `${dateStr}T${payload.newEnd}:00`;
+          await ds.updateTask(task.id, {
+            scheduledAt: newScheduledAt,
+            scheduledEndAt: newScheduledEndAt,
+          });
+          await loadTasks();
+        } else {
+          await ds.updateScheduleItem(payload.id, {
+            startTime: payload.newStart,
+            endTime: payload.newEnd,
+          });
+          await loadMonthItems(viewDate.year, viewDate.month);
+        }
+      } catch (e) {
+        handleError(e, "errors.schedule.rescheduleFailed");
+      }
+    },
+    [ds, selectedDate, viewDate, loadMonthItems, loadTasks, handleError],
+  );
+
   const handleEditEvent = useCallback((item: DayItem) => {
     // Only ScheduleItem-backed items are editable via the form
     if (item.kind === "routine" || item.kind === "event") {
@@ -707,6 +738,9 @@ export function MobileCalendarView() {
             dateStr={selectedDate}
             items={dayItems}
             onEditEvent={handleEditEvent}
+            onToggleScheduleComplete={handleToggleScheduleComplete}
+            onToggleTask={handleToggleTask}
+            onReschedule={handleReschedule}
           />
         </div>
       )}

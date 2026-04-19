@@ -27,3 +27,13 @@ const kindStyle: Record<DayItemKind, ChipPalette> = {
 export function kindPalette(kind: DayItemKind): ChipPalette {
   return kindStyle[kind];
 }
+
+const completedStyle: ChipPalette = {
+  bg: "var(--color-chip-completed-bg)",
+  fg: "var(--color-chip-completed-fg)",
+  dot: "var(--color-chip-completed-dot)",
+};
+
+export function completedPalette(): ChipPalette {
+  return completedStyle;
+}

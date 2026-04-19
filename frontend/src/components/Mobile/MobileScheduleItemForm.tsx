@@ -132,7 +132,7 @@ export function MobileScheduleItemForm({
         </div>
 
         {/* Form */}
-        <div className="space-y-4 px-4 pb-2">
+        <div className="space-y-3 px-4 pb-2">
           {/* Title */}
           <input
             ref={titleRef}
@@ -141,20 +141,52 @@ export function MobileScheduleItemForm({
             onChange={(e) => setTitle(e.target.value)}
             onKeyDown={handleKeyDown}
             placeholder={t("mobile.schedule.titlePlaceholder", "Title")}
-            className="w-full rounded-lg border border-notion-border bg-notion-bg-secondary px-3 py-2.5 text-sm text-notion-text placeholder:text-notion-text-secondary/50 focus:border-notion-accent focus:outline-none"
+            className="w-full rounded-lg border border-notion-border bg-notion-bg-secondary px-3 py-2 text-sm text-notion-text placeholder:text-notion-text-secondary/50 focus:border-notion-accent focus:outline-none"
           />
 
-          {/* Date */}
-          <div>
-            <label className="mb-1 block text-xs font-medium text-notion-text-secondary">
-              {t("mobile.schedule.date", "Date")}
-            </label>
-            <input
-              type="date"
-              value={date}
-              onChange={(e) => setDate(e.target.value)}
-              className="w-full rounded-lg border border-notion-border bg-notion-bg-secondary px-3 py-2.5 text-sm text-notion-text focus:border-notion-accent focus:outline-none"
-            />
+          {/* Date + time row (collapses to just date when all-day) */}
+          <div
+            className={
+              isAllDay ? "" : "grid grid-cols-[1.3fr_1fr_1fr] items-end gap-1.5"
+            }
+          >
+            <div className="min-w-0">
+              <label className="mb-0.5 block text-[10px] font-medium uppercase tracking-wider text-notion-text-secondary">
+                {t("mobile.schedule.form.dateLabel", "Date")}
+              </label>
+              <input
+                type="date"
+                value={date}
+                onChange={(e) => setDate(e.target.value)}
+                className="w-full min-w-0 rounded-lg border border-notion-border bg-notion-bg-secondary px-2 py-1.5 text-[13px] text-notion-text focus:border-notion-accent focus:outline-none"
+              />
+            </div>
+            {!isAllDay && (
+              <>
+                <div className="min-w-0">
+                  <label className="mb-0.5 block text-[10px] font-medium uppercase tracking-wider text-notion-text-secondary">
+                    {t("mobile.schedule.form.startLabel", "Start")}
+                  </label>
+                  <input
+                    type="time"
+                    value={startTime}
+                    onChange={(e) => setStartTime(e.target.value)}
+                    className="w-full min-w-0 rounded-lg border border-notion-border bg-notion-bg-secondary px-2 py-1.5 text-[13px] text-notion-text focus:border-notion-accent focus:outline-none"
+                  />
+                </div>
+                <div className="min-w-0">
+                  <label className="mb-0.5 block text-[10px] font-medium uppercase tracking-wider text-notion-text-secondary">
+                    {t("mobile.schedule.form.endLabel", "End")}
+                  </label>
+                  <input
+                    type="time"
+                    value={endTime}
+                    onChange={(e) => setEndTime(e.target.value)}
+                    className="w-full min-w-0 rounded-lg border border-notion-border bg-notion-bg-secondary px-2 py-1.5 text-[13px] text-notion-text focus:border-notion-accent focus:outline-none"
+                  />
+                </div>
+              </>
+            )}
           </div>
 
           {/* All-day toggle */}
@@ -163,52 +195,24 @@ export function MobileScheduleItemForm({
               role="switch"
               aria-checked={isAllDay}
               onClick={() => setIsAllDay(!isAllDay)}
-              className={`relative h-7 w-12 shrink-0 cursor-pointer rounded-full transition-colors ${
+              className={`relative h-6 w-11 shrink-0 cursor-pointer rounded-full transition-colors ${
                 isAllDay ? "bg-notion-accent" : "bg-notion-text-secondary/30"
               }`}
             >
               <div
-                className={`absolute top-0.5 h-6 w-6 rounded-full bg-white shadow transition-transform ${
+                className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform ${
                   isAllDay ? "translate-x-5" : "translate-x-0.5"
                 }`}
               />
             </div>
-            <span className="text-sm text-notion-text">
+            <span className="text-[13px] text-notion-text">
               {t("mobile.schedule.allDay", "All day")}
             </span>
           </label>
 
-          {/* Time pickers */}
-          {!isAllDay && (
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="mb-1 block text-xs font-medium text-notion-text-secondary">
-                  {t("mobile.schedule.startTime", "Start")}
-                </label>
-                <input
-                  type="time"
-                  value={startTime}
-                  onChange={(e) => setStartTime(e.target.value)}
-                  className="w-full rounded-lg border border-notion-border bg-notion-bg-secondary px-3 py-2.5 text-sm text-notion-text focus:border-notion-accent focus:outline-none"
-                />
-              </div>
-              <div>
-                <label className="mb-1 block text-xs font-medium text-notion-text-secondary">
-                  {t("mobile.schedule.endTime", "End")}
-                </label>
-                <input
-                  type="time"
-                  value={endTime}
-                  onChange={(e) => setEndTime(e.target.value)}
-                  className="w-full rounded-lg border border-notion-border bg-notion-bg-secondary px-3 py-2.5 text-sm text-notion-text focus:border-notion-accent focus:outline-none"
-                />
-              </div>
-            </div>
-          )}
-
           {/* Memo */}
           <div>
-            <label className="mb-1 block text-xs font-medium text-notion-text-secondary">
+            <label className="mb-0.5 block text-[10px] font-medium uppercase tracking-wider text-notion-text-secondary">
               {t("mobile.schedule.memo", "Memo")}
             </label>
             <textarea
@@ -219,26 +223,26 @@ export function MobileScheduleItemForm({
                 "mobile.schedule.memoPlaceholder",
                 "Add a note...",
               )}
-              className="w-full resize-none rounded-lg border border-notion-border bg-notion-bg-secondary px-3 py-2.5 text-sm text-notion-text placeholder:text-notion-text-secondary/50 focus:border-notion-accent focus:outline-none"
+              className="w-full resize-none rounded-lg border border-notion-border bg-notion-bg-secondary px-3 py-2 text-sm text-notion-text placeholder:text-notion-text-secondary/50 focus:border-notion-accent focus:outline-none"
             />
           </div>
         </div>
 
         {/* Actions */}
-        <div className="flex gap-2 px-4 pt-2 pb-8">
+        <div className="flex gap-2 px-4 pt-1.5 pb-6">
           {isEditing && onDelete && (
             <>
               {showDeleteConfirm ? (
                 <button
                   onClick={onDelete}
-                  className="rounded-lg bg-notion-danger px-4 py-2.5 text-sm font-medium text-white active:opacity-80"
+                  className="rounded-lg bg-notion-danger px-3.5 py-2 text-sm font-medium text-white active:opacity-80"
                 >
                   {t("mobile.schedule.confirmDelete", "Confirm")}
                 </button>
               ) : (
                 <button
                   onClick={() => setShowDeleteConfirm(true)}
-                  className="rounded-lg border border-notion-danger px-4 py-2.5 text-sm font-medium text-notion-danger active:opacity-80"
+                  className="rounded-lg border border-notion-danger px-3.5 py-2 text-sm font-medium text-notion-danger active:opacity-80"
                 >
                   {t("common.delete", "Delete")}
                 </button>
@@ -248,7 +252,7 @@ export function MobileScheduleItemForm({
           <button
             onClick={handleSubmit}
             disabled={!title.trim()}
-            className="ml-auto rounded-lg bg-notion-accent px-6 py-2.5 text-sm font-medium text-white disabled:opacity-40 active:opacity-80"
+            className="ml-auto rounded-lg bg-notion-accent px-5 py-2 text-sm font-medium text-white disabled:opacity-40 active:opacity-80"
           >
             {isEditing
               ? t("common.save", "Save")

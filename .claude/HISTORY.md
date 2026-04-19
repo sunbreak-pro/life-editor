@@ -1,5 +1,34 @@
 # HISTORY.md - 変更履歴
 
+### 2026-04-19 - Mobile DayFlow 完了 UI / 長押し DnD / フォーム & Settings コンパクト化（計画書: 外部 `~/.claude/plans/mobile-task-event-routine-ui-ux-elegant-hinton.md`）
+
+#### 概要
+
+Mobile 版の DayFlow グリッドを「読み取り専用」から「完了操作 + 時間帯 DnD 可能」に昇格し、Edit Item フォームを 1 行 3 列 grid に再構成、Settings を 4 セクション（FontSize / Notifications / Timer / Trash）追加しつつ Export/Import ボタンをコンパクト化。データ層は既存の `toggleScheduleItemComplete` / `updateScheduleItem` / `updateTask` を再利用し IPC 層の変更なし。Vitest 222/222 pass、tsc 0 / eslint 0。
+
+#### 変更点
+
+- **DayFlow 完了 UI**: `MobileDayflowBlock.tsx` 新規。ブロックを「左端 6px color rail（タップで完了トグル）+ 右 content（タップで編集フォーム / 長押しで DnD）」の 2 ボタン構造に分割。Task は 3-state サイクル（NOT_STARTED → IN_PROGRESS → DONE）、IN_PROGRESS は rail を `repeating-linear-gradient` で破線表示して区別。完了時は `opacity:0.4` + `line-through` + 完了パレット背景
+- **chipPalette 拡張**: `completedPalette()` 追加（`--color-chip-completed-{bg,fg,dot}` を light/dark 両方で定義）
+- **DaySheet アニメ**: `DaySheetRow` のチェックボックスに `animate-check-in`（150ms scale pop、`@keyframes check-in` を `index.css` に追加）+ `navigator.vibrate?.(30)` + 完了時 `line-through`。花吹雪等の派手な演出は不要（ユーザー指示）
+- **長押し DnD**: `useMobileLongPressDrag.ts` 新規フック。450ms 長押し + 8px moveTolerance + 5 分スナップ + スナップ境界越え時 vibrate。container に `touch-action:none` を動的適用してページスクロールを抑制。`dragStateRef` で最新 state を ref に保持し window listener の毎フレーム再バインドを回避
+- **スナップ util**: `utils/mobileSnapTime.ts` に `hhmmToMinutes` / `minutesToHHMM` / `snapMinutes` / `topPxToMinutes` / `computeShiftedTimes`。duration を維持したまま start/end を同時スナップし 24h 境界でクランプ。9 件の unit test (`mobileSnapTime.test.ts`)
+- **DragPreview**: `components/Mobile/schedule/DragPreview.tsx` 新規。半透明ブロック + スナップラインピル（開始/終了時刻のライブ表示）。ドラッグ中の元ブロックは `opacity:0.3`
+- **MobileDayflowGrid 統合**: `gridRef` を追加し `useMobileLongPressDrag` を呼び出し。props に `onToggleScheduleComplete` / `onToggleTask` / `onReschedule` を追加
+- **MobileCalendarView 配線**: `handleReschedule` を追加し `kind === "task"` のとき `updateTask({ scheduledAt, scheduledEndAt })`、それ以外は `updateScheduleItem({ startTime, endTime })` に分岐。Mobile は TaskTreeProvider を使わないため `loadTasks()` / `loadMonthItems()` で再取得
+- **Edit Item フォームコンパクト化**: `MobileScheduleItemForm.tsx` で Date + Start + End を `grid-cols-[1.3fr_1fr_1fr]` の 1 行 3 列化（isAllDay 時は Date のみ）。label を `text-[10px] uppercase tracking-wider`、input を `py-1.5 px-2 text-[13px]`、section 間 `space-y-3`、action ボタン `py-2 px-3.5`
+- **Settings primitives**: `components/Mobile/settings/MobileSettingsPrimitives.tsx` 新規。`SettingsSection` / `PillOption` / `ToggleSwitch` / `CompactButton` を共通化
+- **Settings コンパクト化**: Export/Import ボタンを `py-2.5 border-2 rounded-xl text-sm` → `py-2 border rounded-lg text-xs gap-1.5`、Theme/Language pill を `py-3 gap-2` → `py-2.5 gap-1.5`。`MobileSyncSection` も `CompactButton` を使用
+- **FontSize セクション**: `MobileFontSizeSection.tsx` 新規。`useTheme.setFontSize(1-10)` を S=3 / M=5 / L=7 / XL=9 の 4 段階 pill に圧縮。`nearestPreset()` で最近傍判定
+- **Notifications セクション**: `MobileNotificationsSection.tsx` 新規。`STORAGE_KEYS.NOTIFICATIONS_ENABLED` + Routine / Task deadline リマインダー flag。`window.Notification.requestPermission()` ゲート付き。未対応環境は disabled + "Not supported on this device" 表示。**実通知配信は別 PR**（plugin-notification 未導入）
+- **Timer セクション**: `MobileTimerSection.tsx` 新規。`useTimerContext` の work/break/longBreak を range slider で編集、`isRunning` 時 disabled + 補足メッセージ
+- **Trash セクション**: `MobileTrashSection.tsx` 新規。`fetchDeletedScheduleItems` + `fetchDeletedTasks` を並列取得して統合リスト（schedule/task ラベル付き、最大 100 件、`deletedAt` 降順）。Restore / 完全削除 2 ボタン
+- **i18n**: `mobile.schedule.form.{dateLabel,startLabel,endLabel}` / `mobile.settings.{fontSize,notifications.*,timer.*,trash.*}` を en/ja 両方に追加
+- **バグパターン修正**: session-verifier Gate 6 で `useMobileLongPressDrag` の `endDrag` が `dragState.previewTop` に依存して毎フレーム window listener を再バインドする問題を発見 → `dragStateRef` + `updateDragState` 経由で ref から最新 state を読む形にリファクタ。deps に含めて exhaustive-deps 警告も解消
+- **検証**: `npx tsc --noEmit` EXIT=0 / `npx eslint` EXIT=0（変更範囲）/ `npx vitest run` 222/222 pass
+
+---
+
 ### 2026-04-19 - Notes / Memos Obsidian 風知識結晶化 Phase 1（計画書: 外部 `~/.claude/plans/1-notes-memos-notes-2-binary-muffin.md`）
 
 #### 概要
@@ -91,37 +120,5 @@ Mobile 版の UX 問題 9 件をユーザーフィードバックに沿って段
 - **i18n**: `en.json` の `mobile.calendar.moreCount` を `"+{{count}}"` → `"+{{count}} more"` に更新（要件準拠）。ja は既存の `"+{{count}}件"` を維持
 
 - **削除**: `MobileEventChip.tsx` を第 1 段で削除 → 第 2 段で再作成（同内容）。`MobileDayDots.tsx` は第 1 段で作成 → 第 2 段で削除
-
-### 2026-04-18 - Mobile Schedule & Work リデザイン（claude.ai/design バンドル準拠）（計画書: archive/2026-04-18-mobile-schedule-work-redesign.md）
-
-#### 概要
-
-Claude Design で作成された HTML/JSX プロトタイプ（`gysUUHAKNxXSabDTE32e1Q`）を基に、モバイル版 Schedule（旧 Calendar）と Work 画面を全面刷新。ユーザーがチャットで挙げた要件（DayCell 内アイテム chip + 下スワイプボトムシート、chip ellipsis truncation、Dayflow timegrid、タブ 4 統合）をコードに移植。全 200 テスト pass / tsc / lint / build clean。
-
-#### 変更点
-
-- **タブ構造刷新**: `MobileTab` を `"calendar"` → `"schedule"` に改名、順序を **Schedule / Work / Materials / Settings** に並び替え（`MobileLayout.tsx` / `MobileApp.tsx`）。初期 activeTab も `schedule` に変更。
-
-- **Schedule Monthly 全面書き換え**: `MobileMonthlyCalendar`（`MobileCalendarView.tsx` 内）で各 DayCell に最大 3 件の inline event chip を表示、+4 件目は `+N件` overflow。均等 grid 保持のため `min-width:0` / `max-width:100%` / `overflow:hidden` を cell と chip container に適用し、長いタイトルでも列幅が崩れない。今日 = accent 丸塗り、選択日 = accent リング + tint bg、土日色分け（red-400/500）。月ヘッダーに search/today/prev/next ボタン追加。
-
-- **Bottom sheet 新規**: `schedule/MobileDaySheet.tsx` を追加。drag handle（touch+mouse 両対応）、`38dvh ↔ 80dvh` 切替、±40px しきい値、`cubic-bezier(.2,.8,.2,1)` 280ms アニメ。タイムライン行は `{start}/{end}` カラム + 左 rail + card（check + icon + title + kind ラベル）構成。Strict Mode 対策として drag-end の副作用を state updater 外へ。
-
-- **Dayflow timegrid 新規**: `schedule/MobileDayflowGrid.tsx` を追加。5:00–24:00 の 1 カラム時刻グリッド（54px/hour）、30 分ごと破線、イベントブロックを start/end から絶対配置、左 3px rail（kind 色）、title ellipsis。今日のみ赤い now ライン + 丸（30 秒ごと位置更新）。マウント時・日付切替時に current hour（today）または 8:00 へ auto-scroll。Dayflow ヘッダー（月日 + 曜日 + TODAY バッジ + prev/today/next）を `MobileCalendarView` 内に追加。
-
-- **Work 画面全面書き換え**: `MobileWorkView.tsx` を以下で再構成 —— `WorkSessionTabs`（集中/休憩/長休憩 + duration 分数、active 時 pill 内白背景 + shadow）、`WorkActiveTaskChip`（4px 左 rail + `取り組み中` ラベル + タスク名 ellipsis + chevron）、`TimerRing`（280px SVG、二重 stroke + gradient + blur(8px) halo、running で opacity 1）、`SessionDots`（done = 18px rounded rect、未完 = 6px dot）、`ControlDock`（Reset 52px / Play-Pause 76px / Skip 52px、session color で shadow）。ambient 音楽カードはスコープ外として未実装（AudioProvider がモバイル非対応）。
-
-- **データ層純関数追加**: `schedule/dayItem.ts` で `DayItem` discriminated union（`routine` / `event` / `task`）と `buildDayItems` / `buildMonthItemMap`。判定ルール: `ScheduleItem.routineId` → routine / 他の ScheduleItem → event / `TaskNode.scheduledAt` → task。`dayItem.test.ts` に 10 ケース（kind 判定、all-day、filter、sort、soft-delete、month grouping）。
-
-- **Chip kind 用 CSS vars**: `index.css` の `:root` と `[data-theme="dark"]` に `--color-chip-{routine,event,task}-{bg,fg,dot}` を合計 9 個追加。Light/dark 両テーマで可読性を担保。
-
-- **Tailwind token 誤用修正**: 新規コードで `bg-notion-bg-primary` / `text-notion-text-primary`（CSS var 未定義で no-op）を正しい `bg-notion-bg` / `text-notion-text` に統一。既存モバイルコードの誤用は変更範囲外として保留。
-
-- **i18n キー追加（en/ja 両方）**: `mobile.tabs.schedule`, `mobile.schedule.subTab.*`, `mobile.schedule.daySheet.*`, `mobile.schedule.dayflow.*`, `mobile.work.focusTitle`, `mobile.work.activeTaskLabel`, `mobile.work.sessionLabel.*`, `mobile.work.session.*`, `mobile.work.sessionSub.*`, `mobile.work.remaining`, `mobile.work.dotsProgress`, `mobile.work.controls.*`。旧 `mobile.tabs.calendar` は削除（参照残存なし確認済）。
-
-- **react-hooks/set-state-in-effect 違反修正**: `MobileMonthlyCalendar` の `useEffect(setViewDate)` を render-time 補正パターンに変更（React 公式の「props から state を調整」パターン、収束判定により無限ループなし）。
-
-- **react-refresh/only-export-components 違反修正**: `kindPalette` ユーティリティを `MobileEventChip.tsx` から `schedule/chipPalette.ts` に分離。`MobileDaySheet` / `MobileDayflowGrid` の import 先も更新。
-
-- **自動検証全通過**: `npx tsc --noEmit` 0 エラー / `npx eslint` 0 エラー（変更ファイル）/ `npx vitest run` 24 files 200 tests pass / `npm run build` 13.1s 成功。
 
 <!-- older entries archived to HISTORY-archive.md -->

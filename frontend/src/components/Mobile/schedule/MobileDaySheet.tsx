@@ -341,10 +341,21 @@ interface DaySheetRowProps {
 function DaySheetRow({ item, onEdit, onToggleComplete }: DaySheetRowProps) {
   const palette = kindPalette(item.kind);
   const done = item.kind === "task" ? item.status === "DONE" : item.completed;
+  const inProgress = item.kind === "task" && item.status === "IN_PROGRESS";
   const isAllDay = item.kind === "event" && item.isAllDay;
+  const [checkAnim, setCheckAnim] = useState(0);
+  const handleToggle = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (typeof navigator !== "undefined" && "vibrate" in navigator) {
+      navigator.vibrate?.(30);
+    }
+    setCheckAnim((n) => n + 1);
+    onToggleComplete();
+  };
   return (
     <div
       className="flex items-stretch gap-3 px-[18px] py-2"
+      style={{ opacity: done ? 0.6 : 1 }}
       onClick={() => onEdit(item)}
     >
       {/* Time column */}
@@ -362,7 +373,11 @@ function DaySheetRow({ item, onEdit, onToggleComplete }: DaySheetRowProps) {
       {/* Color rail */}
       <div
         className="my-1.5 w-[3px] shrink-0 rounded-[2px]"
-        style={{ background: palette.dot }}
+        style={{
+          background: inProgress
+            ? `repeating-linear-gradient(180deg, ${palette.dot} 0 4px, transparent 4px 7px)`
+            : palette.dot,
+        }}
       />
 
       {/* Card */}
@@ -371,11 +386,8 @@ function DaySheetRow({ item, onEdit, onToggleComplete }: DaySheetRowProps) {
         style={{ background: palette.bg }}
       >
         <button
-          onClick={(e) => {
-            e.stopPropagation();
-            onToggleComplete();
-          }}
-          className={`flex h-[22px] w-[22px] shrink-0 items-center justify-center rounded-[6px] border-[1.5px] transition-colors ${
+          onClick={handleToggle}
+          className={`flex h-[22px] w-[22px] shrink-0 items-center justify-center rounded-[6px] border-[1.5px] transition-colors active:scale-90 ${
             done ? "border-notion-accent bg-notion-accent" : ""
           }`}
           style={{
@@ -384,7 +396,14 @@ function DaySheetRow({ item, onEdit, onToggleComplete }: DaySheetRowProps) {
           aria-label="Toggle complete"
         >
           {done && (
-            <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+            <svg
+              key={checkAnim}
+              width="14"
+              height="14"
+              viewBox="0 0 14 14"
+              fill="none"
+              className="animate-check-in"
+            >
               <path
                 d="M3 7L6 10L11 4"
                 stroke="white"
@@ -396,7 +415,14 @@ function DaySheetRow({ item, onEdit, onToggleComplete }: DaySheetRowProps) {
           )}
         </button>
         <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-1 text-sm font-medium text-notion-text">
+          <div
+            className="flex items-center gap-1 text-sm font-medium text-notion-text"
+            style={
+              done
+                ? { textDecoration: "line-through", opacity: 0.7 }
+                : undefined
+            }
+          >
             {item.kind === "routine" && (
               <Repeat size={11} style={{ color: palette.dot }} />
             )}

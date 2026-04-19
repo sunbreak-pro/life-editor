@@ -16,6 +16,15 @@ import {
   Upload,
 } from "lucide-react";
 import type { Language } from "../../context/ThemeContextValue";
+import {
+  CompactButton,
+  PillOption,
+  SettingsSection,
+} from "./settings/MobileSettingsPrimitives";
+import { MobileFontSizeSection } from "./settings/MobileFontSizeSection";
+import { MobileTimerSection } from "./settings/MobileTimerSection";
+import { MobileNotificationsSection } from "./settings/MobileNotificationsSection";
+import { MobileTrashSection } from "./settings/MobileTrashSection";
 
 export function MobileSettingsView() {
   const { t } = useTranslation();
@@ -25,15 +34,15 @@ export function MobileSettingsView() {
     <div className="flex h-full flex-col overflow-y-auto">
       {/* Theme */}
       <SettingsSection title={t("mobile.settings.theme", "Theme")}>
-        <div className="flex gap-3 px-4 py-3">
-          <ThemeOption
-            icon={<Sun size={18} />}
+        <div className="flex gap-2 px-4 py-2.5">
+          <PillOption
+            icon={<Sun size={14} />}
             label={t("settings.theme.light", "Light")}
             isActive={theme === "light"}
             onClick={() => setTheme("light")}
           />
-          <ThemeOption
-            icon={<Moon size={18} />}
+          <PillOption
+            icon={<Moon size={14} />}
             label={t("settings.theme.dark", "Dark")}
             isActive={theme === "dark"}
             onClick={() => setTheme("dark")}
@@ -41,15 +50,20 @@ export function MobileSettingsView() {
         </div>
       </SettingsSection>
 
+      {/* Font Size */}
+      <MobileFontSizeSection />
+
       {/* Language */}
       <SettingsSection title={t("mobile.settings.language", "Language")}>
-        <div className="flex gap-3 px-4 py-3">
-          <LanguageOption
+        <div className="flex gap-2 px-4 py-2.5">
+          <PillOption
+            icon={<Globe size={14} />}
             label="English"
             isActive={language === "en"}
             onClick={() => setLanguage("en" as Language)}
           />
-          <LanguageOption
+          <PillOption
+            icon={<Globe size={14} />}
             label="日本語"
             isActive={language === "ja"}
             onClick={() => setLanguage("ja" as Language)}
@@ -57,11 +71,20 @@ export function MobileSettingsView() {
         </div>
       </SettingsSection>
 
+      {/* Notifications */}
+      <MobileNotificationsSection />
+
+      {/* Timer defaults */}
+      <MobileTimerSection />
+
       {/* Cloud Sync */}
       <MobileSyncSection />
 
       {/* Data Management */}
       <MobileDataSection />
+
+      {/* Trash */}
+      <MobileTrashSection />
 
       {/* App info */}
       <div className="mt-auto px-4 py-6 text-center">
@@ -108,50 +131,54 @@ function MobileSyncSection() {
 
   return (
     <SettingsSection title={t("sync.title", "Cloud Sync")}>
-      <div className="px-4 py-3 space-y-3">
+      <div className="space-y-2 px-4 py-2.5">
         {isConnected ? (
           <>
             <div className="flex items-center gap-2">
-              <div className="w-2 h-2 rounded-full bg-green-500" />
-              <span className="text-sm text-notion-text">
+              <div className="h-2 w-2 rounded-full bg-green-500" />
+              <span className="text-[13px] text-notion-text">
                 {t("sync.connected", "Connected")}
               </span>
             </div>
             {status?.lastSyncedAt && (
-              <p className="text-xs text-notion-text-secondary">
+              <p className="text-[11px] text-notion-text-secondary">
                 {t("sync.lastSynced", "Last synced")}:{" "}
                 {new Date(status.lastSyncedAt).toLocaleString()}
               </p>
             )}
             {lastSyncResult && (
-              <p className="text-xs text-notion-text-secondary">
+              <p className="text-[11px] text-notion-text-secondary">
                 {lastSyncResult.pushed} pushed, {lastSyncResult.pulled} pulled
               </p>
             )}
             {lastError && (
-              <p className="text-xs text-notion-danger">
+              <p className="text-[11px] text-notion-danger">
                 {t("sync.lastError", "Last error")}: {lastError.message}
               </p>
             )}
-            <div className="flex gap-2">
-              <button
+            <div className="flex gap-1.5">
+              <CompactButton
+                icon={
+                  <RefreshCw
+                    size={12}
+                    className={isSyncing ? "animate-spin" : ""}
+                  />
+                }
+                label={
+                  isSyncing
+                    ? t("sync.syncing", "Syncing...")
+                    : t("sync.syncNow", "Sync Now")
+                }
                 onClick={triggerSync}
                 disabled={isSyncing}
-                className="flex flex-1 items-center justify-center gap-2 rounded-xl border-2 border-notion-accent bg-notion-accent/10 py-2.5 text-sm font-medium text-notion-accent disabled:opacity-50"
-              >
-                <RefreshCw
-                  size={14}
-                  className={isSyncing ? "animate-spin" : ""}
-                />
-                {isSyncing
-                  ? t("sync.syncing", "Syncing...")
-                  : t("sync.syncNow", "Sync Now")}
-              </button>
+                variant="accent"
+              />
               <button
                 onClick={disconnect}
-                className="flex items-center justify-center gap-2 rounded-xl border-2 border-notion-border px-4 py-2.5 text-sm text-notion-text-secondary active:bg-notion-hover"
+                aria-label={t("sync.disconnect", "Disconnect")}
+                className="flex items-center justify-center rounded-lg border border-notion-border px-3 py-2 text-notion-text-secondary active:bg-notion-hover"
               >
-                <Unplug size={14} />
+                <Unplug size={12} />
               </button>
             </div>
           </>
@@ -162,7 +189,7 @@ function MobileSyncSection() {
               value={url}
               onChange={(e) => setUrl(e.target.value)}
               placeholder={t("sync.cloudUrl", "Cloud URL")}
-              className="w-full rounded-lg border border-notion-border bg-notion-bg px-3 py-2 text-sm text-notion-text"
+              className="w-full rounded-lg border border-notion-border bg-notion-bg px-3 py-2 text-[13px] text-notion-text"
             />
             <div className="relative">
               <input
@@ -170,28 +197,29 @@ function MobileSyncSection() {
                 value={token}
                 onChange={(e) => setToken(e.target.value)}
                 placeholder={t("sync.token", "Sync Token")}
-                className="w-full rounded-lg border border-notion-border bg-notion-bg px-3 py-2 pr-10 text-sm text-notion-text"
+                className="w-full rounded-lg border border-notion-border bg-notion-bg px-3 py-2 pr-10 text-[13px] text-notion-text"
               />
               <button
                 onClick={() => setShowToken(!showToken)}
                 className="absolute right-2 top-1/2 -translate-y-1/2 text-notion-text-secondary"
               >
-                {showToken ? <EyeOff size={16} /> : <Eye size={16} />}
+                {showToken ? <EyeOff size={14} /> : <Eye size={14} />}
               </button>
             </div>
             {configError && (
-              <p className="text-xs text-notion-danger">{configError}</p>
+              <p className="text-[11px] text-notion-danger">{configError}</p>
             )}
-            <button
+            <CompactButton
+              icon={<Cloud size={12} />}
+              label={
+                isConfiguring
+                  ? t("sync.connecting", "Connecting...")
+                  : t("sync.connect", "Connect")
+              }
               onClick={handleConnect}
               disabled={isConfiguring || !url || !token}
-              className="flex w-full items-center justify-center gap-2 rounded-xl border-2 border-notion-accent bg-notion-accent/10 py-2.5 text-sm font-medium text-notion-accent disabled:opacity-50"
-            >
-              <Cloud size={14} />
-              {isConfiguring
-                ? t("sync.connecting", "Connecting...")
-                : t("sync.connect", "Connect")}
-            </button>
+              variant="accent"
+            />
           </>
         )}
       </div>
@@ -239,105 +267,30 @@ function MobileDataSection() {
 
   return (
     <SettingsSection title={t("data.title", "Data")}>
-      <div className="px-4 py-3 space-y-3">
-        <div className="flex gap-2">
-          <button
+      <div className="space-y-2 px-4 py-2.5">
+        <div className="flex gap-1.5">
+          <CompactButton
+            icon={<Download size={12} />}
+            label={t("data.export", "Export")}
             onClick={handleExport}
-            className="flex flex-1 items-center justify-center gap-2 rounded-xl border-2 border-notion-border py-2.5 text-sm text-notion-text-secondary active:bg-notion-hover"
-          >
-            <Download size={14} />
-            {t("data.export", "Export")}
-          </button>
-          <button
+          />
+          <CompactButton
+            icon={<Upload size={12} />}
+            label={t("data.import", "Import")}
             onClick={handleImport}
-            className="flex flex-1 items-center justify-center gap-2 rounded-xl border-2 border-notion-border py-2.5 text-sm text-notion-text-secondary active:bg-notion-hover"
-          >
-            <Upload size={14} />
-            {t("data.import", "Import")}
-          </button>
+          />
         </div>
-        <p className="text-xs text-notion-text-secondary/60">
+        <p className="text-[10px] text-notion-text-secondary/60">
           {t("data.importWarning", "Import will replace all existing data.")}
         </p>
         {status && (
           <p
-            className={`text-xs ${isError ? "text-notion-danger" : "text-green-500"}`}
+            className={`text-[11px] ${isError ? "text-notion-danger" : "text-green-500"}`}
           >
             {status}
           </p>
         )}
       </div>
     </SettingsSection>
-  );
-}
-
-// --- Sub-components ---
-
-function SettingsSection({
-  title,
-  children,
-}: {
-  title: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <div className="border-b border-notion-border">
-      <div className="px-4 pt-4 pb-1">
-        <span className="text-[11px] font-medium uppercase tracking-wider text-notion-text-secondary">
-          {title}
-        </span>
-      </div>
-      {children}
-    </div>
-  );
-}
-
-function ThemeOption({
-  icon,
-  label,
-  isActive,
-  onClick,
-}: {
-  icon: React.ReactNode;
-  label: string;
-  isActive: boolean;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      onClick={onClick}
-      className={`flex flex-1 items-center justify-center gap-2 rounded-xl border-2 py-3 text-sm font-medium transition-colors ${
-        isActive
-          ? "border-notion-accent bg-notion-accent/10 text-notion-accent"
-          : "border-notion-border text-notion-text-secondary active:bg-notion-hover"
-      }`}
-    >
-      {icon}
-      {label}
-    </button>
-  );
-}
-
-function LanguageOption({
-  label,
-  isActive,
-  onClick,
-}: {
-  label: string;
-  isActive: boolean;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      onClick={onClick}
-      className={`flex flex-1 items-center justify-center gap-2 rounded-xl border-2 py-3 text-sm font-medium transition-colors ${
-        isActive
-          ? "border-notion-accent bg-notion-accent/10 text-notion-accent"
-          : "border-notion-border text-notion-text-secondary active:bg-notion-hover"
-      }`}
-    >
-      <Globe size={16} />
-      {label}
-    </button>
   );
 }

@@ -1,11 +1,15 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Repeat } from "lucide-react";
 import type { DayItem } from "./dayItem";
-import { kindPalette } from "./chipPalette";
+import { MobileDayflowBlock } from "./MobileDayflowBlock";
+import { DragPreview } from "./DragPreview";
 import { GroupFrame } from "../../Tasks/Schedule/DayFlow/GroupFrame";
 import { useRoutineContext } from "../../../hooks/useRoutineContext";
 import { shouldRoutineRunOnDate } from "../../../utils/routineFrequency";
 import type { RoutineGroup } from "../../../types/routineGroup";
+import {
+  useMobileLongPressDrag,
+  type LongPressDragEnd,
+} from "../../../hooks/useMobileLongPressDrag";
 
 const HOUR_PX = 54;
 const DAY_START = 5;
@@ -100,14 +104,28 @@ interface MobileDayflowGridProps {
   dateStr: string;
   items: DayItem[];
   onEditEvent: (item: DayItem) => void;
+  onToggleScheduleComplete: (id: string) => void;
+  onToggleTask: (item: DayItem) => void;
+  onReschedule: (payload: LongPressDragEnd) => void;
 }
 
 export function MobileDayflowGrid({
   dateStr,
   items,
   onEditEvent,
+  onToggleScheduleComplete,
+  onToggleTask,
+  onReschedule,
 }: MobileDayflowGridProps) {
   const scrollRef = useRef<HTMLDivElement | null>(null);
+  const gridRef = useRef<HTMLDivElement | null>(null);
+
+  const { dragState, getBlockPointerDown } = useMobileLongPressDrag({
+    containerRef: gridRef,
+    hourPx: HOUR_PX,
+    dayStartHour: DAY_START,
+    onDragEnd: onReschedule,
+  });
   const todayStr = useMemo(() => formatDate(new Date()), []);
   const isToday = dateStr === todayStr;
   const { routineGroups, groupForRoutine } = useRoutineContext();
@@ -239,6 +257,7 @@ export function MobileDayflowGrid({
       className="relative flex-1 overflow-y-auto bg-notion-bg"
     >
       <div
+        ref={gridRef}
         className="relative"
         style={{
           height: gridHeight,
@@ -281,7 +300,6 @@ export function MobileDayflowGrid({
 
         {/* Event blocks with column layout */}
         {placedItems.map((p) => {
-          const palette = kindPalette(p.item.kind);
           // Column width/left inside the grid's padded area
           const colLeftPct =
             p.totalColumns === 1 ? 0 : (p.column / p.totalColumns) * 100;
@@ -289,38 +307,38 @@ export function MobileDayflowGrid({
           // Use 2px gutters between columns
           const colLeft = `calc(${colLeftPct}% + 2px)`;
           const colWidth = `calc(${colWidthPct}% - 4px)`;
+          const isDragSource = dragState.draggingId === p.item.id;
           return (
-            <button
+            <MobileDayflowBlock
               key={p.item.id}
-              onClick={() => onEditEvent(p.item)}
-              className="absolute flex cursor-pointer flex-col overflow-hidden rounded-lg text-left"
-              style={{
-                left: colLeft,
-                width: colWidth,
-                top: p.top,
-                height: p.height,
-                background: palette.bg,
-                borderLeft: `3px solid ${palette.dot}`,
-                padding: "4px 6px 4px 7px",
-                zIndex: 2,
-              }}
-            >
-              <div className="flex min-w-0 items-center gap-1 text-[11px] font-semibold text-notion-text">
-                {p.item.kind === "routine" && (
-                  <Repeat size={10} style={{ color: palette.dot }} />
-                )}
-                <span className="min-w-0 flex-1 overflow-hidden text-ellipsis whitespace-nowrap">
-                  {p.item.title}
-                </span>
-              </div>
-              {p.height > 34 && (
-                <div className="overflow-hidden text-ellipsis whitespace-nowrap text-[9.5px] font-medium text-notion-text-secondary">
-                  {p.item.start} – {p.item.end}
-                </div>
-              )}
-            </button>
+              item={p.item}
+              top={p.top}
+              height={p.height}
+              left={colLeft}
+              width={colWidth}
+              isDragging={false}
+              isDragSource={isDragSource}
+              onEdit={() => onEditEvent(p.item)}
+              onToggleComplete={() =>
+                p.item.kind === "task"
+                  ? onToggleTask(p.item)
+                  : onToggleScheduleComplete(p.item.id)
+              }
+              onBlockPointerDown={getBlockPointerDown(p.item, p.top, p.height)}
+            />
           );
         })}
+
+        {/* Drag preview overlay */}
+        {dragState.draggingId && (
+          <DragPreview
+            top={dragState.previewTop}
+            height={dragState.previewHeight}
+            startLabel={dragState.snappedStart}
+            endLabel={dragState.snappedEnd}
+            gutterLeft={GUTTER_LEFT}
+          />
+        )}
 
         {showNow && (
           <div
