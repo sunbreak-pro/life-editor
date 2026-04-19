@@ -1,6 +1,9 @@
-import { useState, useRef, lazy, Suspense } from "react";
+import { useState, useRef, useEffect, lazy, Suspense } from "react";
 import { Layout } from "./components/Layout";
-import type { LayoutHandle } from "./components/Layout";
+import type {
+  LayoutHandle,
+  TerminalCommandHandle,
+} from "./components/Layout/Layout";
 import { ScheduleSection } from "./components/Schedule/ScheduleSection";
 import type { ScheduleTab } from "./components/Schedule/ScheduleSection";
 import { useLocalStorage } from "./hooks/useLocalStorage";
@@ -36,6 +39,10 @@ import { useNoteContext } from "./hooks/useNoteContext";
 import { useReminderListener } from "./hooks/useReminderListener";
 import type { SectionId } from "./types/taskTree";
 import { STORAGE_KEYS } from "./constants/storageKeys";
+import {
+  NAVIGATE_TO_NOTE_EVENT,
+  type NavigateToNoteDetail,
+} from "./constants/events";
 
 function App() {
   const [activeSection, setActiveSection] = useState<SectionId>(() => {
@@ -60,6 +67,7 @@ function App() {
     { serialize: (v) => v ?? "", deserialize: (v) => v || null },
   );
   const layoutRef = useRef<LayoutHandle | null>(null);
+  const terminalCommandRef = useRef<TerminalCommandHandle | null>(null);
   const timer = useTimerContext();
   const {
     nodes,
@@ -107,6 +115,18 @@ function App() {
 
   useUndoRedoKeyboard();
   useReminderListener();
+
+  useEffect(() => {
+    const handler = (event: Event) => {
+      const { detail } = event as CustomEvent<NavigateToNoteDetail>;
+      if (!detail?.noteId) return;
+      localStorage.setItem(STORAGE_KEYS.MATERIALS_TAB, "notes");
+      setActiveSection("materials");
+      setSelectedNoteId(detail.noteId);
+    };
+    window.addEventListener(NAVIGATE_TO_NOTE_EVENT, handler);
+    return () => window.removeEventListener(NAVIGATE_TO_NOTE_EVENT, handler);
+  }, [setSelectedNoteId]);
 
   useAppKeyboardShortcuts({
     timer,
@@ -181,6 +201,8 @@ function App() {
             <Settings initialTab={settingsInitialTab} />
           </Suspense>
         );
+      case "terminal":
+        return null;
       default:
         return null;
     }
@@ -198,6 +220,7 @@ function App() {
         activeSection={activeSection}
         onSectionChange={setActiveSection}
         handleRef={layoutRef}
+        terminalCommandRef={terminalCommandRef}
       >
         {renderContent()}
       </Layout>

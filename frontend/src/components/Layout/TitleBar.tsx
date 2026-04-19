@@ -1,10 +1,12 @@
 import { useRef, useEffect, useCallback } from "react";
-import { PanelLeft, PanelRight } from "lucide-react";
+import { PanelLeft, PanelRight, Terminal as TerminalIcon } from "lucide-react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { isMac } from "../../utils/platform";
 import type { SectionId } from "../../types/taskTree";
 import { UndoRedoButtons } from "../shared/UndoRedo";
 import type { UndoDomain } from "../shared/UndoRedo";
+import type { LayoutHandle } from "./Layout";
+import { useTranslation } from "react-i18next";
 
 const SECTION_UNDO_DOMAINS: Partial<Record<SectionId, UndoDomain[]>> = {
   schedule: ["scheduleItem", "routine", "taskTree", "calendar"],
@@ -21,6 +23,8 @@ interface TitleBarProps {
   activeSection: SectionId;
   rightSidebarOpen: boolean;
   onToggleRightSidebar: () => void;
+  onSectionChange: (section: SectionId) => void;
+  layoutRef: React.RefObject<LayoutHandle | null>;
 }
 
 export function TitleBar({
@@ -30,8 +34,11 @@ export function TitleBar({
   activeSection,
   rightSidebarOpen,
   onToggleRightSidebar,
+  onSectionChange,
+  layoutRef,
 }: TitleBarProps) {
   const portalRef = useRef<HTMLDivElement>(null);
+  const { t } = useTranslation();
 
   useEffect(() => {
     onPortalTarget(portalRef.current);
@@ -39,6 +46,7 @@ export function TitleBar({
   }, [onPortalTarget]);
 
   const sectionDomains = SECTION_UNDO_DOMAINS[activeSection] ?? null;
+  const isTerminalActive = activeSection === "terminal";
 
   const handleDragStart = useCallback((e: React.MouseEvent) => {
     if ((e.target as HTMLElement).closest("button, a, input, select, textarea"))
@@ -46,6 +54,16 @@ export function TitleBar({
     e.preventDefault();
     getCurrentWindow().startDragging();
   }, []);
+
+  const handleClaudeClick = useCallback(() => {
+    if (isTerminalActive) {
+      // Already in terminal — just (re)launch claude
+      void layoutRef.current?.launchClaude();
+    } else {
+      onSectionChange("terminal");
+      void layoutRef.current?.launchClaude();
+    }
+  }, [isTerminalActive, onSectionChange, layoutRef]);
 
   return (
     <div
@@ -77,6 +95,19 @@ export function TitleBar({
         />
         {/* Fixed right area */}
         <div className="flex items-center gap-1 px-2 shrink-0">
+          <button
+            onClick={handleClaudeClick}
+            className={`p-1.5 rounded transition-colors ${
+              isTerminalActive
+                ? "text-notion-accent hover:text-notion-text bg-notion-hover"
+                : "text-notion-text-secondary hover:text-notion-text"
+            }`}
+            title={t("sidebar.launchClaude")}
+            aria-label={t("sidebar.launchClaude")}
+          >
+            <TerminalIcon size={16} />
+          </button>
+          <div className="mx-1 h-5 w-px bg-notion-border" />
           {sectionDomains ? (
             <UndoRedoButtons domains={sectionDomains} />
           ) : (

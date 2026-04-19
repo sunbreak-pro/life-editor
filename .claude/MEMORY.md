@@ -6,9 +6,9 @@
 
 ## 直近の完了
 
+- Connect Canvas UX 改善（WikiTag 軽量化 + Connect モード + Link エッジ + 矩形選択）✅（2026-04-19） — `.memo-editor .wiki-tag-modern` の padding/背景/枠を line-height 内に収めて本文に馴染ませる + `CanvasControls` に 5 つ目の Spline アイコンボタン追加 → TagGraphView で `connectMode` 時にノードドラッグで `ConnectPanel` 起動（新規タグ作成 or 既存選択 + 両側に必ず付与） + `useNoteLinksGraph` hook を新設し `note_links` を破線 emerald エッジで描画（Filter パネルに「ノートリンク」ON/OFF トグル） + Node/Board 両 Canvas を `panOnDrag=false` / `selectionOnDrag` / `panOnScroll` / `zoomOnPinch` に変更して「空白ドラッグ = 矩形選択（青色）」「二本指スワイプ = Pan」「Delete/Backspace で一括ソフト削除」に刷新。Vitest 227/227 pass（新規 5 件追加）、tsc / eslint（本 PR 範囲）クリーン。計画書: 外部 `~/.claude/plans/1-wikitags-block-line-height-tags-paddin-curried-bachman.md`。
 - Obsidian Phase 1 フォローアップ（記法分離 `@`化 + アイコン表示 + Daily Memo→Notes 遷移 + sync fix）✅（2026-04-19） — WikiTag トリガを `#` → `@` に変更（NoteLink `[[` と明確分離）+ `WikiTag` / `NoteLink` の NodeView を「括弧/記号なし、lucide Tag/Link アイコン + 名前のみ」に刷新 + Daily Memo 内リンクのクリックで `life-editor:navigate-to-note` CustomEvent 発火 → App.tsx が Materials タブ + Notes サブタブに自動切替して該当ノートを開く + `routine_groups.version` 列欠落による Cloud Sync UPSERT 失敗を防御的 ALTER で修正（V42 世代 DB からの上位互換）。i18n en/ja 同期、cargo test 5 件 pass、Vitest 222 pass。
 - TerminalPanel 直上 Tips セクション追加 ✅（2026-04-19） — Claude 起動ボタン直上に activeSection 連動の折りたたみ式 Tips パネル（`components/shared/TipsPanel.tsx`）。Schedule / Work / Materials / Connect の 4 セクション × 各 4 Tips を lucide アイコン付きで表示、localStorage `TIPS_COLLAPSED` で開閉永続化、i18n en/ja 同期。analytics / settings では非表示、docsPath があれば「詳細を見る」リンクを条件表示。
-- Mobile DayFlow 完了 UI / 長押し DnD / フォーム & Settings コンパクト化 ✅（2026-04-19） — `MobileDayflowBlock` 新規（color rail 6px タップで完了トグル、Task 3-state cycle、Routine / Event / Task 別の完了表現）+ `useMobileLongPressDrag` hook（450ms 長押し + 5 分スナップ + `DragPreview` 半透明ブロック + ライブ時刻ピル + navigator.vibrate）+ `MobileScheduleItemForm` を Date/Start/End 1 行 3 列 grid 化 + Settings を `MobileSettingsPrimitives` に分離してコンパクト化 + FontSize / Timer / Notifications / Trash の 4 セクション新規追加 + i18n en/ja 同期。計画書: 外部 `~/.claude/plans/mobile-task-event-routine-ui-ux-elegant-hinton.md`。Vitest 222/222 pass、tsc / eslint クリーン。
 
 ## 予定
 

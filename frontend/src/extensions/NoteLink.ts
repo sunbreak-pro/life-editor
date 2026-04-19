@@ -71,15 +71,7 @@ export const NoteLink = Node.create({
   renderHTML({ HTMLAttributes }) {
     const title = HTMLAttributes["data-display-title"] ?? "";
     const alias = HTMLAttributes["data-alias"];
-    const heading = HTMLAttributes["data-heading"];
-    const blockId = HTMLAttributes["data-block-id"];
-    const isEmbed = HTMLAttributes["data-embed"] === "true";
-
-    let suffix = "";
-    if (heading) suffix += `#${heading}`;
-    if (blockId) suffix += `#^${blockId}`;
-    const inner = alias ? `${title}${suffix}|${alias}` : `${title}${suffix}`;
-    const bracket = isEmbed ? `![[${inner}]]` : `[[${inner}]]`;
+    const label = alias || title;
 
     return [
       "span",
@@ -87,7 +79,7 @@ export const NoteLink = Node.create({
         "data-note-link": "",
         class: "note-link",
       }),
-      bracket,
+      label,
     ];
   },
 

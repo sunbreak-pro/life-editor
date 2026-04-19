@@ -32,7 +32,7 @@ export function useWikiTagSuggestion(
   const [query, setQuery] = useState("");
   const [position, setPosition] = useState({ top: 0, left: 0 });
   const [selectedIndex, setSelectedIndex] = useState(0);
-  // Position of the `#` that opened the suggestion.
+  // Position of the `@` that opened the suggestion.
   const triggerPosRef = useRef<number | null>(null);
 
   const filteredTags = useMemo(() => {
@@ -60,7 +60,7 @@ export function useWikiTagSuggestion(
   const deleteTriggerText = useCallback(() => {
     if (triggerPosRef.current !== null) {
       const from = triggerPosRef.current;
-      // +1 for "#", then query length
+      // +1 for "@", then query length
       const to = from + 1 + query.length;
       editor.chain().focus().deleteRange({ from, to }).run();
     }
@@ -88,7 +88,7 @@ export function useWikiTagSuggestion(
     ],
   );
 
-  // Detect `#query` and drive the suggestion menu.
+  // Detect `@query` and drive the suggestion menu.
   useEffect(() => {
     const handleTransaction = () => {
       try {
@@ -104,12 +104,12 @@ export function useWikiTagSuggestion(
       const { $head } = state.selection;
       const textBefore = $head.parent.textContent.slice(0, $head.parentOffset);
 
-      // Match `#query` where query has no whitespace or nested `#`.
-      // Require start-of-block or whitespace before `#` so mid-word `#`s don't trigger.
-      const match = textBefore.match(/(?:^|\s)#([^\s#]*)$/);
+      // Match `@query` where query has no whitespace or nested `@`.
+      // Require start-of-block or whitespace before `@` so mid-word `@`s don't trigger.
+      const match = textBefore.match(/(?:^|\s)@([^\s@]*)$/);
       if (match) {
         const rawQuery = match[1];
-        // `#` position: end of textBefore minus rawQuery.length minus 1 for the `#` itself,
+        // `@` position: end of textBefore minus rawQuery.length minus 1 for the `@` itself,
         // mapped into the doc by parent offset.
         try {
           const coords = editor.view.coordsAtPos($head.pos);

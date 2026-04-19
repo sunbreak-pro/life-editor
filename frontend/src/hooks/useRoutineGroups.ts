@@ -4,8 +4,10 @@ import type { FrequencyType } from "../types/routine";
 import { getDataService } from "../services";
 import { logServiceError } from "../utils/logError";
 import { useUndoRedo } from "../components/shared/UndoRedo";
+import { useSyncContext } from "./useSyncContext";
 
 export function useRoutineGroups() {
+  const { syncVersion } = useSyncContext();
   const { push } = useUndoRedo();
   const [routineGroups, setRoutineGroups] = useState<RoutineGroup[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -27,7 +29,7 @@ export function useRoutineGroups() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [syncVersion]);
 
   const createRoutineGroup = useCallback(
     async (

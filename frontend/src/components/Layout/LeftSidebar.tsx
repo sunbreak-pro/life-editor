@@ -7,10 +7,8 @@ import {
   Settings,
   Pencil,
   BookOpen,
-  Terminal,
 } from "lucide-react";
 import type { SectionId } from "../../types/taskTree";
-import type { LayoutHandle } from "./Layout";
 import { useTimerContext } from "../../hooks/useTimerContext";
 import { useTranslation } from "react-i18next";
 
@@ -18,7 +16,8 @@ interface SidebarProps {
   width: number;
   activeSection: SectionId;
   onSectionChange: (section: SectionId) => void;
-  layoutRef: React.RefObject<LayoutHandle | null>;
+  onToggleTips: () => void;
+  tipsOpen: boolean;
 }
 
 const mainMenuItems: {
@@ -33,11 +32,15 @@ const mainMenuItems: {
   { id: "analytics", labelKey: "sidebar.analytics", icon: BarChart3 },
 ];
 
+const ICON_SIZE = 18;
+const TEXT_PX = 16; // icon - 2px
+
 export function LeftSidebar({
   width,
   activeSection,
   onSectionChange,
-  layoutRef,
+  onToggleTips,
+  tipsOpen,
 }: SidebarProps) {
   const timer = useTimerContext();
   const { t } = useTranslation();
@@ -48,7 +51,7 @@ export function LeftSidebar({
       className="h-full bg-notion-bg-subsidebar border-r border-notion-border flex flex-col transition-colors"
       style={{ width }}
     >
-      <nav className="flex-1 p-3 pt-5 space-y-2 overflow-y-auto">
+      <nav className="flex-1 p-2 pt-1.5 space-y-0.5 overflow-y-auto">
         {mainMenuItems.map((item) => {
           const Icon = item.icon;
           const isActive = activeSection === item.id;
@@ -56,27 +59,34 @@ export function LeftSidebar({
             <div key={item.id}>
               <button
                 onClick={() => onSectionChange(item.id)}
-                className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-scaling-sm transition-all duration-200 ${
+                className={`w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-md transition-all duration-200 ${
                   isActive
                     ? "bg-notion-hover text-notion-text font-medium"
                     : "text-notion-text-secondary hover:bg-notion-hover/80 hover:text-notion-text"
                 }`}
+                style={{ fontSize: TEXT_PX, lineHeight: 1.25 }}
               >
                 <Icon
-                  size={18}
+                  size={ICON_SIZE}
                   className={`transition-colors ${isActive ? "text-notion-accent" : ""}`}
                 />
                 <span>{t(item.labelKey)}</span>
               </button>
 
               {item.id === "work" && showTimer && (
-                <div className="ml-3 mr-2 mb-2 mt-1 px-3 py-2.5 rounded-lg bg-notion-hover/50">
+                <div className="ml-2.5 mr-1.5 mb-1.5 mt-0.5 px-2.5 py-1.5 rounded-md bg-notion-hover/50">
                   <div className="flex items-center justify-between gap-2">
                     <div className="flex-1 min-w-0">
-                      <p className="text-scaling-xs text-notion-text-secondary truncate">
+                      <p
+                        className="text-notion-text-secondary truncate"
+                        style={{ fontSize: TEXT_PX - 3, lineHeight: 1.2 }}
+                      >
                         {timer.activeTask?.title ?? t("sidebar.freeSession")}
                       </p>
-                      <p className="text-scaling-sm font-mono font-medium tabular-nums text-notion-accent mt-0.5">
+                      <p
+                        className="font-mono font-medium tabular-nums text-notion-accent mt-0.5"
+                        style={{ fontSize: TEXT_PX - 1, lineHeight: 1.2 }}
+                      >
                         {timer.formatTime(timer.remainingSeconds)}
                       </p>
                     </div>
@@ -93,25 +103,34 @@ export function LeftSidebar({
           );
         })}
       </nav>
-      <div className="px-3 pb-2 border-t border-notion-border pt-2">
+      <div className="p-2 pt-0 space-y-0.5">
         <button
-          onClick={() => layoutRef.current?.launchClaude()}
-          className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-scaling-sm text-notion-text-secondary hover:bg-notion-hover/80 hover:text-notion-text transition-all duration-200"
+          onClick={onToggleTips}
+          className={`w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-md transition-all duration-200 ${
+            tipsOpen
+              ? "bg-notion-hover text-notion-text font-medium"
+              : "text-notion-text-secondary hover:bg-notion-hover/80 hover:text-notion-text"
+          }`}
+          style={{ fontSize: TEXT_PX, lineHeight: 1.25 }}
+          title={t("tips.panel.title")}
+          aria-pressed={tipsOpen}
         >
-          <Terminal size={18} />
-          <span>{t("sidebar.launchClaude")}</span>
+          <Lightbulb
+            size={ICON_SIZE}
+            className={tipsOpen ? "text-notion-accent" : ""}
+          />
+          <span>{t("sidebar.tipsButton")}</span>
         </button>
-      </div>
-      <div className="p-3 border-t border-notion-border">
         <button
           onClick={() => onSectionChange("settings")}
-          className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-scaling-sm transition-all duration-200 ${
+          className={`w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-md transition-all duration-200 ${
             activeSection === "settings"
               ? "bg-notion-hover text-notion-text font-medium"
               : "text-notion-text-secondary hover:bg-notion-hover/80 hover:text-notion-text"
           }`}
+          style={{ fontSize: TEXT_PX, lineHeight: 1.25 }}
         >
-          <Settings size={18} />
+          <Settings size={ICON_SIZE} />
           <span>{t("sidebar.settings")}</span>
         </button>
       </div>

@@ -1883,6 +1883,16 @@ fn run_incremental_migrations(conn: &Connection, current_version: i32) -> rusqli
         exec_ignore(conn, "ALTER TABLE schedule_items ADD COLUMN template_id TEXT");
     }
 
+    // Defensive: routine_groups was created in V42 without a `version` column.
+    // sync_engine's UPSERT references `excluded.version`, so upgraders from
+    // V42-V61 fail with "no such column: excluded.version". Add it if missing.
+    if !has_column(conn, "routine_groups", "version") {
+        exec_ignore(
+            conn,
+            "ALTER TABLE routine_groups ADD COLUMN version INTEGER DEFAULT 1",
+        );
+    }
+
     Ok(())
 }
 
@@ -2004,5 +2014,31 @@ mod tests {
         run_migrations(&conn).unwrap();
         assert_eq!(user_version(&conn), version_after_first);
         assert_eq!(user_version(&conn), 61);
+    }
+
+    #[test]
+    fn routine_groups_version_column_backfilled_on_upgrade() {
+        // Simulate DB where V42-era routine_groups was created without the
+        // `version` column (which sync_engine's UPSERT requires).
+        let conn = Connection::open_in_memory().unwrap();
+        conn.execute_batch(
+            "CREATE TABLE routine_groups (
+                id TEXT PRIMARY KEY,
+                name TEXT NOT NULL DEFAULT '',
+                color TEXT NOT NULL DEFAULT '#6B7280',
+                \"order\" INTEGER NOT NULL DEFAULT 0,
+                created_at TEXT NOT NULL DEFAULT (datetime('now')),
+                updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+            );",
+        )
+        .unwrap();
+        conn.pragma_update(None, "user_version", &61i32).unwrap();
+
+        run_migrations(&conn).unwrap();
+
+        assert!(
+            has_column(&conn, "routine_groups", "version"),
+            "defensive ALTER must add version column to routine_groups"
+        );
     }
 }

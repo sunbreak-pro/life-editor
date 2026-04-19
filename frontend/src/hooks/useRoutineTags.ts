@@ -3,8 +3,10 @@ import type { RoutineTag } from "../types/routineTag";
 import { getDataService } from "../services";
 import { logServiceError } from "../utils/logError";
 import { useUndoRedo } from "../components/shared/UndoRedo";
+import { useSyncContext } from "./useSyncContext";
 
 export function useRoutineTags() {
+  const { syncVersion } = useSyncContext();
   const { push } = useUndoRedo();
   const [routineTags, setRoutineTags] = useState<RoutineTag[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -26,7 +28,7 @@ export function useRoutineTags() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [syncVersion]);
 
   const createRoutineTag = useCallback(
     async (name: string, color: string): Promise<RoutineTag> => {

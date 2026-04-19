@@ -1,16 +1,24 @@
 import { useReactFlow } from "@xyflow/react";
-import { ZoomIn, ZoomOut, Scan, Filter } from "lucide-react";
+import { ZoomIn, ZoomOut, Scan, Filter, Spline } from "lucide-react";
 
 interface CanvasControlsProps {
   showFilter?: boolean;
   filterCount?: number;
   onFilterClick?: () => void;
+  showConnect?: boolean;
+  connectMode?: boolean;
+  onToggleConnectMode?: () => void;
+  connectLabel?: string;
 }
 
 export function CanvasControls({
   showFilter = false,
   filterCount = 0,
   onFilterClick,
+  showConnect = false,
+  connectMode = false,
+  onToggleConnectMode,
+  connectLabel,
 }: CanvasControlsProps) {
   const { zoomIn, zoomOut, fitView } = useReactFlow();
 
@@ -45,6 +53,21 @@ export function CanvasControls({
               {filterCount}
             </span>
           )}
+        </button>
+      )}
+      {showConnect && (
+        <button
+          onClick={() => onToggleConnectMode?.()}
+          title={connectLabel}
+          aria-label={connectLabel}
+          aria-pressed={connectMode}
+          className={
+            connectMode
+              ? "p-1.5 rounded border border-notion-accent bg-notion-accent text-white shadow-sm"
+              : "p-1.5 rounded bg-notion-bg border border-notion-border text-notion-text-secondary hover:bg-notion-hover"
+          }
+        >
+          <Spline size={14} />
         </button>
       )}
     </div>

@@ -415,7 +415,7 @@ export function IdeasView({ onNavigateToNote }: IdeasViewProps) {
         return <NotesView />;
       case "node":
         return (
-          <ReactFlowProvider>
+          <ReactFlowProvider key="ideas-node">
             <TagGraphView
               tags={tags}
               assignments={assignments}
@@ -437,7 +437,7 @@ export function IdeasView({ onNavigateToNote }: IdeasViewProps) {
         );
       case "board":
         return (
-          <ReactFlowProvider>
+          <ReactFlowProvider key="ideas-board">
             <PaperCanvasView
               board={paper.activeBoard}
               paperNodes={paper.nodes}

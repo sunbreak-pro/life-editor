@@ -12,7 +12,8 @@
     "connect": "コネクト",
     "trash": "ゴミ箱",
     "freeSession": "フリーセッション",
-    "launchClaude": "Claude起動"
+    "launchClaude": "Claude起動",
+    "tipsButton": "Tips"
   },
   "settings": {
     "title": "設定",
@@ -564,7 +565,18 @@
     "copyPath": "パスをコピー"
   },
   "connect": {
-    "title": "コネクト"
+    "title": "コネクト",
+    "toggleConnectMode": "Connectモード: ノード間をドラッグして繋ぐ",
+    "linkEdges": "ノートリンク",
+    "panel": {
+      "title": "2つを繋ぐ",
+      "searchPlaceholder": "タグを検索 / 新規タグ名を入力...",
+      "createNew": "「{{name}}」を新規タグとして作成",
+      "connect": "繋ぐ",
+      "cancel": "キャンセル",
+      "alreadyLinked": "両方に付与済み",
+      "noTags": "タグがまだありません"
+    }
   },
   "ideas": {
     "title": "コネクト",
@@ -927,273 +939,856 @@
     }
   },
   "tips": {
-    "title": "ヒント",
-    "shortcuts": "ショートカット",
-    "tasks": "タスク",
-    "timer": "タイマー",
-    "schedule": "スケジュール",
-    "memo": "メモ",
-    "ideas": "アイデア",
-    "analytics": "分析",
-    "editor": "エディタ",
-    "showMac": "macOS",
-    "showWin": "Windows",
-    "shortcutsTab": {
-      "global": "グローバル",
-      "navigation": "ナビゲーション",
-      "view": "レイアウト",
-      "taskTree": "タスクツリー",
-      "timer": "タイマー",
-      "schedule": "スケジュール",
-      "openCommandPalette": "コマンドパレットを開く",
-      "openSettings": "設定を開く",
-      "toggleTimerModal": "タイマーモーダルの切り替え",
-      "playPauseTimer": "タイマーの再生/一時停止（入力中以外）",
-      "createNewTask": "新しいタスクを作成（入力中以外）",
-      "resetTimer": "タイマーをリセット（入力中以外）",
-      "closeModal": "モーダル/ダイアログを閉じる",
-      "goToMemo": "メモへ移動",
-      "goToIdeas": "アイデアへ移動",
-      "goToWork": "ワークへ移動",
-      "goToSchedule": "スケジュールへ移動",
-      "goToAnalytics": "分析へ移動",
-      "goToMaterials": "素材へ移動",
-      "toggleTerminal": "ターミナル切り替え",
-      "toggleLeftSidebar": "左サイドバーの切り替え",
-      "toggleRightSidebar": "右サイドバーの切り替え",
-      "expandFolder": "フォルダを展開",
-      "collapseFolder": "フォルダを折りたたむ",
-      "toggleTaskCompletion": "タスク完了の切り替え",
-      "indent": "インデント（前のフォルダに移動）",
-      "outdent": "アウトデント（親レベルに移動）",
-      "undoTaskTree": "タスクツリー操作を元に戻す",
-      "redoTaskTree": "タスクツリー操作をやり直す",
-      "dragDrop": "並べ替えまたはフォルダに移動",
-      "togglePlayPause": "再生/一時停止の切り替え",
-      "nextMonthWeek": "次の期間（月/週/日）",
-      "prevMonthWeek": "前の期間（月/週/日）",
-      "jumpToToday": "今日にジャンプ",
-      "toggleMonthWeek": "月/週/日表示を順に切り替え",
-      "calendar": "カレンダー",
-      "terminal": "ターミナル",
-      "terminalNewTab": "新しいターミナルタブ（ターミナル内）",
-      "terminalClosePane": "ターミナルペインを閉じる（ターミナル内）",
-      "terminalSplitVertical": "垂直分割（ターミナル内）",
-      "terminalSplitHorizontal": "水平分割（ターミナル内）",
-      "switchNextTab": "次のタブに切り替え",
-      "switchPrevTab": "前のタブに切り替え",
-      "sidebarItemDown": "次のアイテムに移動",
-      "sidebarItemUp": "前のアイテムに移動",
-      "sidebarToggle": "フォルダの展開/折りたたみ切り替え"
+    "panel": {
+      "title": "Tips",
+      "showDetails": "詳細を見る",
+      "open": "Tipsを開く",
+      "close": "Tipsを閉じる",
+      "noTips": "このセクションのTipsはまだありません。"
     },
-    "tasksTab": {
-      "creating": "タスクとフォルダの作成",
-      "creatingList1": "サブサイドバー上部の<strong>+アイコン</strong>をクリックして、新しいタスクまたはフォルダを作成します。",
-      "creatingList2": "<kbd>n</kbd>キー（入力中以外）を押すと、インボックスに新しいタスクをすばやく追加できます。",
-      "creatingList3": "フォルダは制限なくネストできます。タスクはどこにでも配置できます。",
-      "organizing": "ドラッグ＆ドロップで整理",
-      "organizingList1": "<strong>並べ替え</strong>：タスク/フォルダをドラッグして兄弟間の位置を変更します。",
-      "organizingList2": "<strong>フォルダに移動</strong>：タスクをフォルダにドラッグしてネストします。",
-      "organizingList3": "循環参照は自動的に防止されます。",
-      "details": "タスクの詳細",
-      "detailsList1": "タスクをクリックすると、右側に詳細パネルが表示されます。",
-      "detailsList2": "タイトルをインラインで編集、リッチテキストメモの追加、スケジュール日の設定、作業時間の調整ができます。",
-      "detailsList3": "<strong>再生ボタン</strong>を押すと、そのタスクの集中タイマーセッションが開始されます。",
-      "detailsList4": "<kbd>{{mod}} + Enter</kbd>を押すと、タスクの完了/未完了を切り替えられます。",
-      "detailsList5": "<kbd>Tab</kbd> / <kbd>{{shift}} + Tab</kbd>でタスクのインデント/アウトデントができます。",
-      "folders": "フォルダと色",
-      "foldersList1": "フォルダで関連タスクをグループ化できます。フォルダを選択して色を変更できます。",
-      "foldersList2": "フォルダの色はカレンダーと分析ビューで子タスクに継承されます。",
-      "softDelete": "ソフト削除とゴミ箱",
-      "softDeleteList1": "タスクを削除するとゴミ箱に移動します（ソフト削除）。",
-      "softDeleteList2": "<strong>設定 → ゴミ箱</strong>からアイテムを復元または完全に削除できます。",
-      "contextMenu": "コンテキストメニュー",
-      "contextMenuList1": "タスクツリーでタスクまたはフォルダを右クリックしてコンテキストメニューを開きます。",
-      "contextMenuList2": "利用可能なアクション：<strong>名前変更</strong>、<strong>タスク追加</strong>、<strong>フォルダ追加</strong>、<strong>タイマー開始</strong>、<strong>ルートに移動</strong>、<strong>削除</strong>。",
-      "tags": "タグ",
-      "tagsList1": "<strong>設定 → タグマネージャー</strong>でタグを作成・管理できます（名前＋色）。",
-      "tagsList2": "タスクの詳細パネルからタスクにタグを割り当てます。",
-      "tagsList3": "タスクツリー上部のタグフィルターを使用して、一致するタスクのみを表示できます。"
+    "buttonLabel": "Tips",
+    "schedule": {
+      "header": "スケジュールのヒント",
+      "tabs": {
+        "calendar": {
+          "label": "カレンダー",
+          "items": {
+            "viewSwitch": {
+              "title": "月 / 週ビューを切替",
+              "description": "カレンダー上部のトグルで「月」と「週」を切り替えます。"
+            },
+            "openDay": {
+              "title": "日付をクリック",
+              "description": "日付セルをクリックすると、右サイドバーがその日の表示に切り替わります。"
+            },
+            "rightSidebar": {
+              "title": "右サイドバーで当日表示",
+              "description": "カレンダー表示中は、右サイドバーに選択日のタスク・ルーティン・予定が並びます。"
+            },
+            "folderFilter": {
+              "title": "フォルダで絞り込み",
+              "description": "タスクツリーでフォルダを選択すると、そのフォルダ配下のタスクだけが表示されます。"
+            },
+            "contentFilter": {
+              "title": "種類で絞り込み",
+              "description": "右サイドバーで Routine / Tasks / Events / Daily / Notes をオンオフして表示量を調整します。"
+            },
+            "holidays": {
+              "title": "祝日表示",
+              "description": "祝日設定をオンにすると、国民の祝日が赤色で表示されます。"
+            },
+            "folderColor": {
+              "title": "フォルダの色を継承",
+              "description": "タスクは所属フォルダの色を引き継ぐため、プロジェクトが一目でわかります。"
+            },
+            "addRoutineFromCell": {
+              "title": "日付からルーティン追加",
+              "description": "日付セルにホバーするとリピートアイコンが現れ、その日を起点にルーティン管理画面が開きます。"
+            },
+            "switchTab": {
+              "title": "日ビューは Day Flow タブで",
+              "description": "カレンダーには日ビューがありません。1日単位で見たいときは Day Flow タブに切り替えます。"
+            }
+          }
+        },
+        "routine": {
+          "label": "ルーティン",
+          "items": {
+            "createFromCalendar": {
+              "title": "カレンダーから追加",
+              "description": "カレンダーで日付にホバー → リピートアイコンをクリックするとルーティン管理が開き、+ New Routine から作成できます。"
+            },
+            "createFromSidebar": {
+              "title": "右サイドバーから追加",
+              "description": "右サイドバー下部の Achievement パネルにある + ボタンからもルーティンを追加できます。"
+            },
+            "frequencyDaily": {
+              "title": "毎日",
+              "description": "頻度を「Daily」にすると毎日繰り返します。"
+            },
+            "frequencyWeekdays": {
+              "title": "曜日指定",
+              "description": "「Weekdays」を選び、走らせたい曜日（月〜日）をチェックします。"
+            },
+            "frequencyInterval": {
+              "title": "N 日ごと",
+              "description": "「Interval」では開始日と間隔（2 日以上）を指定して周期を設定します。"
+            },
+            "edit": {
+              "title": "編集",
+              "description": "ルーティン行の鉛筆アイコンからタイトル・時刻・頻度・タグなどを変更できます。"
+            },
+            "dismiss": {
+              "title": "今日はスキップ",
+              "description": "Dismiss でその日の表示だけ非表示にできます。翌日には自動的に再登場します。"
+            },
+            "archive": {
+              "title": "アーカイブ",
+              "description": "削除せず一時的に外したいときは Archive を使用。Archived タブから復帰可能です。"
+            },
+            "delete": {
+              "title": "完全削除",
+              "description": "ゴミ箱アイコンで完全削除。削除確認ダイアログから Archive も選べます。"
+            },
+            "tags": {
+              "title": "タグ付け",
+              "description": "タグを付けると、タグフィルタや Connect ビューに登場するようになります。"
+            }
+          }
+        },
+        "dayflow": {
+          "label": "Day Flow",
+          "items": {
+            "openTab": {
+              "title": "Day Flow タブを開く",
+              "description": "Schedule 内の Day Flow タブで、1日を時間別に並べたタイムラインを表示します。"
+            },
+            "dragTime": {
+              "title": "ドラッグで時刻変更",
+              "description": "ブロックを縦にドラッグすると、開始時刻が変更されます。"
+            },
+            "dualColumn": {
+              "title": "デュアルカラム",
+              "description": "2 日分を並べて見たいときはデュアルカラムをオンにします。"
+            },
+            "contextAdd": {
+              "title": "空き時間をクリック",
+              "description": "空き時間枠をクリックすると Routine / Task / Note を追加できます。"
+            },
+            "rightClickEdit": {
+              "title": "右クリックで編集",
+              "description": "ブロックを右クリックすると、15 分単位の延長 / 短縮、複製、時刻コピーが行えます。"
+            },
+            "todayButton": {
+              "title": "Today ボタン",
+              "description": "ヘッダーの Today を押すと、現在時刻までスクロールが戻ります。"
+            },
+            "syncCalendar": {
+              "title": "カレンダーと同期",
+              "description": "Calendar タブで日付を選ぶと、Day Flow に表示される日も連動します。"
+            },
+            "filterTypes": {
+              "title": "種類フィルタ",
+              "description": "右サイドバーのフィルタで非表示にしたい種類を切り替えられます。"
+            },
+            "addNote": {
+              "title": "メモを時間に紐付ける",
+              "description": "枠から Note を追加すると、その時刻に紐付いた Daily メモエントリが作成されます。"
+            }
+          }
+        },
+        "stats": {
+          "label": "実績",
+          "items": {
+            "achievementPanel": {
+              "title": "右サイドバーの Achievement",
+              "description": "ルーティンの達成状況は右サイドバー下部の Achievement パネルに表示されます。"
+            },
+            "daysCount": {
+              "title": "Days",
+              "description": "ルーティンを 1 つ以上達成した日数をカウントします。"
+            },
+            "currentStreak": {
+              "title": "Current Streak",
+              "description": "現在の連続達成日数。"
+            },
+            "longestStreak": {
+              "title": "Longest Streak",
+              "description": "これまでの最長連続記録。モチベーション維持に役立ちます。"
+            },
+            "details": {
+              "title": "Details で詳細",
+              "description": "Details リンクをクリックすると、ルーティン別の達成率を表示するオーバーレイが開きます。"
+            },
+            "perGroup": {
+              "title": "ルーティン別の内訳",
+              "description": "Details オーバーレイで、各ルーティンの達成率を個別に確認できます。"
+            },
+            "moreInAnalytics": {
+              "title": "チャートは Analytics へ",
+              "description": "トレンドや長期間のチャートは Analytics セクションで確認できます。"
+            }
+          }
+        }
+      }
     },
-    "timerTab": {
-      "pomodoro": "ポモドーロセッション",
-      "pomodoroList1": "タイマーは<strong>WORK → BREAK → LONG BREAK</strong>サイクルに従います。",
-      "pomodoroList2": "デフォルト：作業25分、休憩5分、4セッション後にロング休憩15分。",
-      "pomodoroList3": "<strong>設定</strong>で時間をカスタマイズできます。",
-      "starting": "セッションの開始",
-      "startingList1": "任意のタスクの<strong>再生ボタン</strong>をクリックして集中セッションを開始します。",
-      "startingList2": "または<strong>ワーク</strong>画面でフリー（タスク未紐付け）タイマーを使用します。",
-      "startingList3": "<kbd>Space</kbd>キーで入力中以外に再生/一時停止を切り替えます。",
-      "startingList4": "<kbd>r</kbd>キーで入力中以外にタイマーをリセットします。",
-      "modal": "タイマーモーダルとバックグラウンド",
-      "modalList1": "タイマーは任意の画面の上に<strong>モーダルオーバーレイ</strong>として実行されます。",
-      "modalList2": "<kbd>Escape</kbd>でモーダルを閉じても、タイマーはバックグラウンドで動き続けます。",
-      "modalList3": "<kbd>{{mod}} + {{shift}} + T</kbd>でどの画面からでもタイマーモーダルを切り替えられます。",
-      "modalList4": "アクティブ中は左サイドバーにミニタイマーウィジェットが表示されます。",
-      "soundMixer": "サウンドミキサー",
-      "soundMixerList1": "ワーク画面にはアンビエント<strong>サウンドミキサー</strong>が含まれています。",
-      "soundMixerList2": "複数のバックグラウンドサウンド（雨、カフェなど）を個別の音量コントロールでミックスできます。",
-      "soundMixerList3": "サウンド設定はデータベースに保存され、セッション間で保持されます。",
-      "notifications": "通知",
-      "notificationsList1": "設定でブラウザ通知を有効にすると、セッション終了時にアラートを受け取れます。",
-      "notificationsList2": "通知許可はトグル時に一度だけリクエストされます。"
+    "work": {
+      "header": "ワークのヒント",
+      "tabs": {
+        "taskSelect": {
+          "label": "タスク",
+          "items": {
+            "openSelector": {
+              "title": "上部のタスクセレクタ",
+              "description": "Work 画面上部のタスクセレクタをクリックして、集中するタスクを選びます。"
+            },
+            "search": {
+              "title": "名前で検索",
+              "description": "入力するとタスク名で絞り込まれます。"
+            },
+            "folderSearch": {
+              "title": "フォルダ/タスク 形式の検索",
+              "description": "「フォルダ名/タスク名」と入力すると、特定フォルダ内に検索を限定できます。"
+            },
+            "freeSession": {
+              "title": "フリーセッション",
+              "description": "タスクを選ばずに自由なフォーカスセッションを実行できます。"
+            },
+            "startFromTree": {
+              "title": "タスクツリーから開始",
+              "description": "タスクツリーで再生ボタン（▶）をクリックすると、そのタスクを選択した状態で Work へ移動します。"
+            },
+            "switchTask": {
+              "title": "途中で切替",
+              "description": "セッション中に別のタスクを選択すると、タイマーをリセットせずにフォーカスが切り替わります。"
+            },
+            "completionPrompt": {
+              "title": "完了モーダル",
+              "description": "セッション終了時にモーダルが開き、タスクを完了にしたり次のセッションを開始できます。"
+            }
+          }
+        },
+        "timer": {
+          "label": "タイマー",
+          "items": {
+            "click": {
+              "title": "円形をクリック",
+              "description": "中央の円形タイマーをクリックして開始 / 一時停止します。"
+            },
+            "spaceShortcut": {
+              "title": "Space で再生 / 停止",
+              "description": "入力中以外は Space キーでどこからでもタイマーをトグルできます。"
+            },
+            "resetR": {
+              "title": "R でリセット",
+              "description": "入力中以外は R キーで現在のセグメントをフル時間にリセットします。"
+            },
+            "modalToggle": {
+              "title": "Cmd / Ctrl + Shift + T",
+              "description": "Cmd / Ctrl + Shift + T で他画面からも Work へジャンプできます。"
+            },
+            "miniWidget": {
+              "title": "サイドバーミニ表示",
+              "description": "稼働中は左サイドバーに実行中タスクと残り時間が表示されます。"
+            },
+            "extend": {
+              "title": "+5 分延長",
+              "description": "一時停止中に表示される +5m ボタンで現在のセグメントを延長します。"
+            },
+            "shorten": {
+              "title": "-5 分短縮",
+              "description": "一時停止中に表示される -5m ボタンで現在のセグメントを短縮します。"
+            },
+            "sessionComplete": {
+              "title": "セッションを終了",
+              "description": "Session Complete を押すと、現在のセグメントを即座に終了して次へ進めます。"
+            }
+          }
+        },
+        "pomodoro": {
+          "label": "ポモドーロ",
+          "items": {
+            "sidebarLocation": {
+              "title": "設定は右サイドバー",
+              "description": "ポモドーロの時間や設定は Work 画面の右サイドバーにあります。"
+            },
+            "durations": {
+              "title": "時間カスタム",
+              "description": "作業 / 短い休憩 / 長い休憩の分数を自由に設定できます。"
+            },
+            "longBreakRule": {
+              "title": "長休憩の頻度",
+              "description": "N セッション後に長休憩が入ります（既定 4）。"
+            },
+            "autoBreak": {
+              "title": "自動開始",
+              "description": "Auto-start をオンにすると、休憩や次の作業ブロックが 3 秒のカウントダウン後に自動で始まります。"
+            },
+            "sessionStructure": {
+              "title": "セッションカウンター",
+              "description": "「1/4」と進捗ドットで現在のサイクルの位置がわかります。"
+            },
+            "completionEffects": {
+              "title": "完了演出",
+              "description": "セッション中にタスクを完了すると、コンフェッティと効果音が再生されます。"
+            }
+          }
+        },
+        "audio": {
+          "label": "オーディオ",
+          "items": {
+            "musicTab": {
+              "title": "Music タブ",
+              "description": "Work 画面には Timer と Music の 2 タブがあり、Music で再生関連を管理します。"
+            },
+            "playlist": {
+              "title": "プレイリスト選択",
+              "description": "ポップオーバーからプレイリストを選択。タイマー稼働中はループ再生されます。"
+            },
+            "nowPlaying": {
+              "title": "右サイドバーの Now Playing",
+              "description": "右サイドバーの Now Playing カードに現在の曲とクイックコントロールが並びます。"
+            },
+            "customSounds": {
+              "title": "カスタム音源を追加",
+              "description": "+ Add Custom Sound から自分の音声ファイルをアップロードできます。"
+            },
+            "soundTags": {
+              "title": "音源にタグ付け",
+              "description": "Sound Tags を開くと、カスタム音源にタグを付けて整理できます。"
+            },
+            "soundFilter": {
+              "title": "タグで音源を絞り込み",
+              "description": "Sound Tag フィルタでムードやジャンル別に音源を絞り込めます。"
+            },
+            "previewVolume": {
+              "title": "プレビュー音量",
+              "description": "各音源行のプレビュースライダーで、登録前に音量を確認できます。"
+            }
+          }
+        }
+      }
     },
-    "calendarTab": {
-      "views": "カレンダービュー",
-      "viewsList1": "ヘッダーのトグルで<strong>月表示</strong>、<strong>週表示</strong>、<strong>日表示</strong>を切り替えます。",
-      "viewsList2": "矢印ボタンで月/週をナビゲートします。",
-      "viewsList3": "<strong>今日</strong>をクリックして現在の日付に戻ります。",
-      "creating": "カレンダーからタスクを作成",
-      "creatingList1": "任意の日セルをクリックして、その日付にスケジュールされたタスクを作成します。",
-      "creatingList2": "タスクはインボックスに追加され、タイマーセッションが自動的に開きます。",
-      "display": "タスクの表示",
-      "displayList1": "<strong>scheduledAt</strong>日付のあるタスクはカレンダーの該当日に表示されます。",
-      "displayList2": "タスクの色は親フォルダの色から継承されます。",
-      "displayList3": "タスクチップをクリックすると、そのタスクが選択されたタスクビューに移動します。",
-      "weekView": "週表示タイムグリッド",
-      "weekViewList1": "週表示は時間ごとの行を持つタイムグリッドを表示します。",
-      "weekViewList2": "タスクはスケジュールされた時間に基づいて配置されます。",
-      "weekViewList3": "終日または時間未指定のタスクは上部セクションに表示されます。",
-      "filtering": "フィルタリング",
-      "filteringList1": "フォルダタグと色を使用して、タスクカテゴリを視覚的に区別します。",
-      "filteringList2": "削除されていないスケジュール済みタスクのみがカレンダーに表示されます。",
-      "dayView": "日表示（スケジュール）",
-      "dayViewList1": "日表示では左側に終日タイムグリッド（0:00〜24:00）、右側にタブパネルが表示されます。",
-      "dayViewList2": "<strong>Today Flow</strong>タブでは、スケジュール進行状況を縦型フローチャートで表示します。",
-      "dayViewList3": "<strong>ルーティン</strong>タブでは、タグと達成統計を使って定期ルーティンを管理します。",
-      "routines": "ルーティン",
-      "routinesList1": "タイトルと時間範囲でルーティンを作成し、<strong>タグ</strong>を割り当てて整理します。",
-      "routinesList2": "タグ付きルーティンは日付を表示すると自動的にスケジュールに挿入されます。",
-      "routinesList3": "統計カードで連続達成日数やルーティンごとの完了状況を確認できます。",
-      "shortcuts": "キーボードショートカット",
-      "shortcutsList1": "<kbd>j</kbd> — 次の期間にナビゲート。",
-      "shortcutsList2": "<kbd>k</kbd> — 前の期間にナビゲート。",
-      "shortcutsList3": "<kbd>t</kbd> — 今日にジャンプ。",
-      "shortcutsList4": "<kbd>m</kbd> — 月/週/日表示を順に切り替え。"
+    "materials": {
+      "header": "マテリアルのヒント",
+      "tabs": {
+        "dailyMemo": {
+          "label": "日記",
+          "items": {
+            "openTab": {
+              "title": "Daily タブを開く",
+              "description": "Materials 内の Daily タブで、日々のジャーナルを書き始めます。"
+            },
+            "pickDate": {
+              "title": "リストから日付選択",
+              "description": "左のリストに月別の日付が並ぶので、クリックでその日を開きます。"
+            },
+            "searchDate": {
+              "title": "日付検索",
+              "description": "リスト上部の検索ボックスから特定の日付に直接ジャンプできます。"
+            },
+            "richEditor": {
+              "title": "リッチエディタ",
+              "description": "見出し・リスト・コード・コールアウトなどに対応。Markdown 記法も入力時に変換されます。"
+            },
+            "autoSave": {
+              "title": "自動保存",
+              "description": "入力と同時に保存されるので、保存ボタンは不要です。"
+            },
+            "templates": {
+              "title": "テンプレート",
+              "description": "Settings で Daily の既定テンプレートを設定すると、新しい日が決まった構成で始まります。"
+            },
+            "linkInline": {
+              "title": "ノートリンク [[",
+              "description": "[[ を入力するとノート選択ポップアップが開き、選んだノートへのリンクが挿入されます。"
+            },
+            "tagInline": {
+              "title": "タグ @",
+              "description": "@ を入力するとタグ候補が出ます。"
+            }
+          }
+        },
+        "notes": {
+          "label": "ノート",
+          "items": {
+            "create": {
+              "title": "ノート作成",
+              "description": "ノートリスト上部の + ボタンから新規ノートを追加します。"
+            },
+            "folders": {
+              "title": "フォルダ整理",
+              "description": "ノートをフォルダに分類できます。フォルダはネスト可能です。"
+            },
+            "drag": {
+              "title": "ドラッグで並び替え",
+              "description": "ツリー内でドラッグすると順序変更やフォルダ移動ができます。"
+            },
+            "search": {
+              "title": "ノート検索",
+              "description": "ツリー上部の検索ボックスでタイトル検索できます。"
+            },
+            "color": {
+              "title": "フォルダの色",
+              "description": "フォルダを右クリック（またはメニュー）→ 色ピッカーで色を設定。"
+            },
+            "iconCustom": {
+              "title": "アイコン設定",
+              "description": "アイコンピッカーから、ノートやフォルダに好みのアイコンを設定できます。"
+            },
+            "softDelete": {
+              "title": "ソフトデリート",
+              "description": "削除したノートはゴミ箱に入り、後から復元できます。"
+            },
+            "restore": {
+              "title": "ゴミ箱から復元",
+              "description": "Settings → Trash で復元または完全削除を行えます。"
+            }
+          }
+        },
+        "linkSyntax": {
+          "label": "リンクとタグ",
+          "items": {
+            "noteLink": {
+              "title": "[[ でノートリンク",
+              "description": "ノート内や Daily で [[ を入力すると、別ノートへのリンクを挿入できます。"
+            },
+            "tag": {
+              "title": "@ でタグ",
+              "description": "@ を入力するとタグ候補が表示。選択するか新規作成できます。"
+            },
+            "completion": {
+              "title": "キーボード補完",
+              "description": "サジェストポップアップ内では ↑ / ↓ + Enter で確定できます。"
+            },
+            "click": {
+              "title": "クリックで開く",
+              "description": "ノートリンクをクリックすると、同じビューに対象ノートが開きます。"
+            },
+            "rename": {
+              "title": "自動リネーム",
+              "description": "ノート名を変更すると、参照元のリンク表示も自動的に更新されます。"
+            },
+            "graphLink": {
+              "title": "グラフに反映",
+              "description": "リンクされたノートとタグは Connect のグラフ上で繋がって表示されます。"
+            }
+          }
+        },
+        "files": {
+          "label": "ファイル",
+          "items": {
+            "rootFolder": {
+              "title": "ルートフォルダ設定",
+              "description": "Settings からルートフォルダを設定するとファイルツリーが使えます。"
+            },
+            "tree": {
+              "title": "ツリー表示",
+              "description": "Finder のように折りたたみ可能なツリーでファイルを参照します。"
+            },
+            "search": {
+              "title": "ファイル名検索",
+              "description": "検索ボックスでツリーをファイル名フィルタできます。"
+            },
+            "openOs": {
+              "title": "OS で開く",
+              "description": "右クリック → Reveal in Finder / Explorer で OS で開けます。"
+            },
+            "createNew": {
+              "title": "ファイル / フォルダ作成",
+              "description": "+ ボタンで選択フォルダ内にファイルやフォルダを作成できます。"
+            },
+            "rename": {
+              "title": "インラインリネーム",
+              "description": "右クリック → Rename でその場で名前変更できます。"
+            },
+            "delete": {
+              "title": "安全な削除",
+              "description": "削除は OS のゴミ箱経由なので、間違えても復元可能です。"
+            }
+          }
+        }
+      }
     },
-    "memoTab": {
-      "daily": "デイリーメモ",
-      "dailyList1": "各日には独自のメモがあります — 日付ごとに1つのメモが自動的に作成されます。",
-      "dailyList2": "日記、クイックノート、会議ログとして使用できます。",
-      "dailyList3": "メモはデータベースに保存され、セッション間で保持されます。",
-      "navigation": "日付ナビゲーション",
-      "navigationList1": "左パネルには既存のメモがある日付のリストが表示されます。",
-      "navigationList2": "日付をクリックして、その日のメモを表示または編集します。",
-      "navigationList3": "<strong>今日</strong>ボタンをクリックして、今日のメモにジャンプします。",
-      "navigationList4": "<strong>+</strong>ボタンを使用して、今日のメモがない場合に新しく作成します。",
-      "editor": "リッチテキストエディタ",
-      "editorList1": "メモはタスク詳細と同じ<strong>TipTap</strong>リッチテキストエディタを使用します。",
-      "editorList2": "<kbd>/</kbd>を入力してスラッシュコマンド（見出し、リスト、コードブロックなど）を開きます。",
-      "editorList3": "スラッシュコマンドとフォーマットの完全なリストは<strong>エディタ</strong>タブを参照してください。",
-      "calendarIntegration": "カレンダー連携",
-      "calendarIntegrationList1": "メモがある日はカレンダービューにインジケータードットが表示されます。",
-      "calendarIntegrationList2": "カレンダーのメモインジケーターをクリックすると、そのメモに移動します。",
-      "deleting": "メモの削除",
-      "deletingList1": "メモ日付の横にある<strong>ゴミ箱アイコン</strong>をクリックして削除します。",
-      "deletingList2": "メモの削除は<strong>永久</strong>です — 削除されたメモは復元できません。",
-      "notes": "ノート",
-      "notesList1": "<strong>ノート</strong>タブに切り替えて、デイリーメモとは別のフリーフォームノートを作成できます。",
-      "notesList2": "ノートは左パネルに一覧表示されます。クリックして表示・編集できます。",
-      "notesList3": "削除されたノートは<strong>設定 → ゴミ箱</strong>から復元できます。"
+    "connect": {
+      "header": "コネクトのヒント",
+      "tabs": {
+        "graph": {
+          "label": "グラフ",
+          "items": {
+            "view": {
+              "title": "グラフを開く",
+              "description": "Connect 内の Nodes タブで、ノートとタグをグラフ表示します。"
+            },
+            "drag": {
+              "title": "ノードをドラッグ",
+              "description": "ノードはドラッグでキャンバス上の位置を変更できます。"
+            },
+            "zoom": {
+              "title": "ズーム / パン",
+              "description": "ピンチ / スクロールでズーム、空きキャンバスをドラッグでパンします。"
+            },
+            "focusNode": {
+              "title": "ノートにフォーカス",
+              "description": "サイドバーでノートを選ぶと、グラフがそのノートを中心に表示されます。"
+            },
+            "color": {
+              "title": "タグ色を反映",
+              "description": "ノードはタグマネージャで設定した支配的タグの色を採用します。"
+            },
+            "savePosition": {
+              "title": "配置を記憶",
+              "description": "手動で動かした位置は保存され、再読み込み後もリセットされません。"
+            },
+            "fromNote": {
+              "title": "ノートを開く",
+              "description": "ノートのノードをクリックすると Notes ビューでそのノートが開きます。"
+            }
+          }
+        },
+        "tags": {
+          "label": "タグ",
+          "items": {
+            "assign": {
+              "title": "タグを付与",
+              "description": "ノートやメモ内で @タグ名 を入力するとタグが付きます。"
+            },
+            "create": {
+              "title": "新規タグ作成",
+              "description": "未知のタグ名を確定すると、その場で新しいタグが作成されます。"
+            },
+            "rename": {
+              "title": "安全にリネーム",
+              "description": "タグの名前を変更すると、参照しているすべての場所に反映されます。"
+            },
+            "color": {
+              "title": "色を設定",
+              "description": "タグマネージャで色を設定すると、グラフにも反映されます。"
+            },
+            "filter": {
+              "title": "タグでフィルタ",
+              "description": "タグフィルタオーバーレイで、1 つまたは複数のタグに絞り込めます。"
+            },
+            "manageInSettings": {
+              "title": "タグマネージャ",
+              "description": "Settings からすべてのタグを管理（リネーム・色変更・削除）できます。"
+            },
+            "graphCluster": {
+              "title": "タグでクラスタ化",
+              "description": "同じタグを持つノートはグラフで近くに集まります。"
+            }
+          }
+        },
+        "backlinks": {
+          "label": "Backlinks",
+          "items": {
+            "show": {
+              "title": "右ペインに表示",
+              "description": "ノート表示中、右ペインにそのノートを参照している他ノートが並びます。"
+            },
+            "unlinked": {
+              "title": "Unlinked Mentions",
+              "description": "Unlinked タブには、リンクされていないがタイトルで言及されている箇所が並びます。"
+            },
+            "click": {
+              "title": "クリックでジャンプ",
+              "description": "Backlink 行をクリックすると参照元のノートが開きます。"
+            },
+            "context": {
+              "title": "周辺テキスト",
+              "description": "各 Backlink には参照されている段落のスニペットが表示されます。"
+            },
+            "count": {
+              "title": "Backlink 数",
+              "description": "ノートツリーの各ノート横に被リンク数が表示されます。"
+            },
+            "navigate": {
+              "title": "ノート間ナビ",
+              "description": "Backlinks を辿れば、グラフを使わずに関連ノート間を移動できます。"
+            }
+          }
+        },
+        "filter": {
+          "label": "フィルタ",
+          "items": {
+            "search": {
+              "title": "検索バー",
+              "description": "Connect サイドバーの検索バーで、自由テキストでフィルタできます。"
+            },
+            "byTag": {
+              "title": "タグフィルタ",
+              "description": "タグフィルタを適用すると、一致するノート / メモのみ残ります。"
+            },
+            "noteType": {
+              "title": "ノートのみ",
+              "description": "種類フィルタを Notes に切り替えると、メモが非表示になります。"
+            },
+            "memoType": {
+              "title": "メモのみ",
+              "description": "種類フィルタを Memos に切り替えると、ノートが非表示になります。"
+            },
+            "viewMode": {
+              "title": "ビューモード切替",
+              "description": "グラフ表示とリスト表示を切り替えられます。フィルタはどちらでも有効です。"
+            },
+            "persisted": {
+              "title": "フィルタを記憶",
+              "description": "アクティブなタブとビューモードはリロード後も保持されます。"
+            }
+          }
+        }
+      }
     },
-    "analyticsTab": {
-      "overview": "概要メトリクス",
-      "overviewList1": "分析ダッシュボードはタスクに関する主要な統計を表示します。",
-      "overviewList2": "メトリクスには<strong>全タスク</strong>、<strong>完了</strong>、<strong>進行中</strong>、<strong>フォルダ数</strong>が含まれます。",
-      "overviewList3": "タスクの作成、完了、削除に応じてリアルタイムで更新されます。",
-      "completion": "完了率",
-      "completionList1": "<strong>全体の完了率</strong>をパーセンテージとプログレスバーで表示します。",
-      "completionList2": "別の<strong>今日の完了率</strong>が日々の進捗を追跡します。",
-      "completionList3": "これらのメトリクスを使用して、生産性の傾向を監視しましょう。",
-      "workTime": "作業時間",
-      "workTimeList1": "<strong>棒グラフ</strong>で日・週・月ごとの作業時間データを表示します。",
-      "workTimeList2": "別の<strong>タスク別棒グラフ</strong>でタスクごとの作業時間を確認できます。",
-      "workTimeList3": "サマリーカードで総作業時間、セッション数、日平均を表示します。",
-      "accessing": "分析へのアクセス",
-      "accessingList1": "<kbd>{{mod}} + 3</kbd>を押すと、どの画面からでも分析にジャンプできます。",
-      "accessingList2": "または左サイドバーの<strong>分析</strong>をクリックします。",
-      "accessingList3": "コマンドパレット（<kbd>{{mod}} + K</kbd> → 「分析」）からもアクセスできます。"
+    "terminal": {
+      "header": "ターミナルのヒント",
+      "tabs": {
+        "claude": {
+          "label": "Claude",
+          "items": {
+            "launchTitleBar": {
+              "title": "タイトルバーから起動",
+              "description": "タイトルバーのターミナルアイコン（Undo / Redo の左隣）をクリックすると、ターミナルセクションを開いて Claude が起動します。"
+            },
+            "shortcut": {
+              "title": "Cmd / Ctrl + J",
+              "description": "Cmd / Ctrl + J でターミナルセクションの開閉ができます。"
+            },
+            "mcpAutoConnect": {
+              "title": "MCP 自動接続",
+              "description": "起動時に life-editor MCP サーバーへ自動接続されます。"
+            },
+            "naturalQuery": {
+              "title": "自然言語で依頼",
+              "description": "「明日のタスクを追加」「今日のメモを要約」のように普通の言葉で依頼できます。"
+            },
+            "exitSession": {
+              "title": "セッションを抜ける",
+              "description": "exit または Ctrl + D で Claude REPL を終了できます。ターミナル自体は残ります。"
+            },
+            "switchSection": {
+              "title": "セクション切替も自由",
+              "description": "他のセクションに切り替えても、ターミナルセッションはバックグラウンドで維持されます。"
+            },
+            "aiSettings": {
+              "title": "設定",
+              "description": "Claude / MCP 関連は Settings → Claude Code から調整できます。"
+            }
+          }
+        },
+        "shortcuts": {
+          "label": "ショートカット",
+          "items": {
+            "newTab": {
+              "title": "新規タブ",
+              "description": "ターミナルにフォーカスがあるとき、Cmd / Ctrl + T で新しいタブを開きます。"
+            },
+            "closePane": {
+              "title": "ペインを閉じる",
+              "description": "Cmd / Ctrl + W でフォーカス中のペインを閉じます。"
+            },
+            "splitVertical": {
+              "title": "縦分割",
+              "description": "Cmd / Ctrl + D で縦に分割（左右に並ぶ）します。"
+            },
+            "splitHorizontal": {
+              "title": "横分割",
+              "description": "Cmd / Ctrl + Shift + D で横に分割（上下に並ぶ）します。"
+            },
+            "togglePanel": {
+              "title": "パネル開閉",
+              "description": "Cmd / Ctrl + J でセッションを保持したままターミナルセクションを開閉できます。"
+            }
+          }
+        },
+        "panes": {
+          "label": "ペイン",
+          "items": {
+            "addTab": {
+              "title": "タブ追加",
+              "description": "ターミナルヘッダの + ボタンでタブを追加できます（最大 4）。"
+            },
+            "splitV": {
+              "title": "縦分割",
+              "description": "1 タブにつき最大 4 ペインまで横並びに置けます。"
+            },
+            "splitH": {
+              "title": "横分割",
+              "description": "ログとコマンドを分けたいときは縦に積みます。"
+            },
+            "maxPanes": {
+              "title": "最大 4 ペイン",
+              "description": "1 タブあたり 4 ペインを超える分割はブロックされます。"
+            },
+            "resizeDrag": {
+              "title": "サイズ変更",
+              "description": "ペイン間のディバイダをドラッグでサイズを変えられます。"
+            },
+            "focus": {
+              "title": "クリックでフォーカス",
+              "description": "ペインをクリックするとアクティブになり、ショートカットの対象になります。"
+            },
+            "closePane": {
+              "title": "ペインを閉じる",
+              "description": "タブの最後のペインを閉じるとタブも閉じます。"
+            },
+            "tabBar": {
+              "title": "タブバー",
+              "description": "タブバーで起動中のタブを切り替えられます。"
+            }
+          }
+        },
+        "mcp": {
+          "label": "MCP",
+          "items": {
+            "registerServer": {
+              "title": "MCP サーバー登録",
+              "description": "Settings → Claude Code → Register MCP Server を開くと、データへのアクセスが有効になります。"
+            },
+            "tools": {
+              "title": "30 以上のツール",
+              "description": "タスク・ノート・スケジュール・タグ・ファイル・検索などをカバーします。"
+            },
+            "createTask": {
+              "title": "タスクを自然言語で作成",
+              "description": "「明日 10 時に銀行へ電話するタスクを作って」のように依頼できます。"
+            },
+            "queryNotes": {
+              "title": "ノート操作",
+              "description": "ノートの一覧化・要約・更新を依頼できます。"
+            },
+            "tagOps": {
+              "title": "タグ操作",
+              "description": "エンティティへのタグ付けやタグ検索が組み込みツールで可能です。"
+            },
+            "fileOps": {
+              "title": "ファイル操作",
+              "description": "設定したルートフォルダ配下のファイル読み書きが可能です。"
+            },
+            "schedule": {
+              "title": "スケジュール",
+              "description": "予定の一覧 / 作成 / 更新 / 完了切替が MCP 経由で行えます。"
+            },
+            "claudeMd": {
+              "title": "CLAUDE.md",
+              "description": "Settings → Claude Code → CLAUDE.md でプロジェクト指示を編集できます。"
+            },
+            "skills": {
+              "title": "Skills",
+              "description": "Claude Code Skills を ~/life-editor/.claude/skills/ にインストールできます。"
+            }
+          }
+        }
+      }
     },
-    "editorTab": {
-      "slashCommands": "スラッシュコマンド",
-      "slashCommandsDesc": "エディタで<kbd>/</kbd>を入力してコマンドメニューを開きます。入力してコマンドをフィルターできます。",
-      "command": "コマンド",
-      "description": "説明",
-      "heading1": "見出し1",
-      "heading1Desc": "大きなセクション見出し",
-      "heading2": "見出し2",
-      "heading2Desc": "中くらいのセクション見出し",
-      "heading3": "見出し3",
-      "heading3Desc": "小さなセクション見出し",
-      "bulletList": "箇条書きリスト",
-      "bulletListDesc": "順序なしの箇条書きリスト",
-      "orderedList": "番号付きリスト",
-      "orderedListDesc": "番号付きリスト",
-      "codeBlock": "コードブロック",
-      "codeBlockDesc": "フェンス付きコードブロック",
-      "blockquote": "引用",
-      "blockquoteDesc": "インデント付き引用ブロック",
-      "horizontalRule": "水平線",
-      "horizontalRuleDesc": "区切り線",
-      "taskList": "タスクリスト",
-      "taskListDesc": "チェックボックス付きチェックリスト",
-      "toggleList": "トグルリスト",
-      "toggleListDesc": "折りたたみ可能なコンテンツブロック",
-      "table": "テーブル",
-      "tableDesc": "ヘッダー行付き3×3テーブル",
-      "callout": "コールアウト",
-      "calloutDesc": "絵文字付きハイライトコールアウトボックス",
-      "image": "画像",
-      "imageDesc": "URLから画像を挿入",
-      "markdownShortcuts": "Markdownショートカット",
-      "markdownShortcutsDesc": "エディタは入力時にMarkdownスタイルのフォーマットをサポートします。",
-      "syntax": "構文",
-      "result": "結果",
-      "bold": "太字テキスト",
-      "italic": "斜体テキスト",
-      "inlineCode": "インラインコード",
-      "strikethrough": "取り消し線",
-      "horizontalRuleMd": "水平線",
-      "blockquoteMd": "引用",
-      "codeBlockMd": "コードブロック",
-      "sharedUsageNote": "このエディタはタスク詳細・メモ・ノートで共通です。"
-    },
-    "pomodoroTab": {
-      "settings": "ポモドーロ設定",
-      "settingsList1": "ワーク画面の<strong>ポモドーロ</strong>タブで時間を設定します。",
-      "settingsList2": "デフォルト：作業25分、休憩5分、ロング休憩15分、1サイクル4セッション。",
-      "settingsList3": "タイマー実行中は設定を変更できません。",
-      "settingsList4": "現在の設定サマリーが左パネルに表示されます。",
-      "presets": "プリセット",
-      "presetsList1": "現在の設定を名前付きプリセットとして保存し、すばやく切り替えられます。",
-      "presetsList2": "保存したプリセットを適用して、時間とセッション数を即座にロードします。",
-      "presetsList3": "不要になったプリセットはプリセット一覧から削除できます。",
-      "autoStart": "自動休憩開始",
-      "autoStartList1": "自動開始トグルを有効にすると、作業終了時に自動的に休憩が開始されます。",
-      "autoStartList2": "無効の場合、各休憩セッションを手動で開始する必要があります。"
-    },
-    "musicTab": {
-      "sounds": "サウンドライブラリ",
-      "soundsList1": "ミュージックタブで利用可能なすべてのアンビエントサウンドを閲覧できます。",
-      "soundsList2": "検索バーでサウンド名をフィルターできます。",
-      "soundsList3": "プレビューボタンをクリックして、プレイリストに追加する前に試聴できます。",
-      "soundsList4": "タグでサウンドをフィルターして、すばやく見つけられます。",
-      "playlists": "プレイリスト",
-      "playlistsList1": "お気に入りのアンビエントサウンドをプレイリストにまとめて管理できます。",
-      "playlistsList2": "サウンドブラウザからプレイリストにサウンドを追加します。",
-      "playlistsList3": "<strong>シャッフル</strong>と<strong>リピート</strong>コントロールで再生バリエーションを楽しめます。",
-      "playlistsList4": "トラックをドラッグしてプレイリスト内の順序を変更できます。",
-      "tags": "サウンドタグ",
-      "tagsList1": "<strong>設定 → タグマネージャー</strong>でタグを作成し、サウンドを分類します。",
-      "tagsList2": "タグでサウンドライブラリをフィルターして、必要なものをすばやく見つけられます。",
-      "customSounds": "カスタムサウンド",
-      "customSoundsList1": "独自のオーディオファイル（MP3、WAV、OGG）をカスタムサウンドとしてアップロードできます。",
-      "customSoundsList2": "サウンドブラウザのコンテキストメニューからカスタムサウンドの名前変更や削除ができます。",
-      "timerPlaylist": "タイマープレイリスト",
-      "timerPlaylistList1": "ワーク画面で<strong>バックグラウンドプレイリスト</strong>を選択し、タイマーセッション中に再生します。",
-      "timerPlaylistList2": "タイマー開始時に自動的に再生が始まり、停止時に一時停止します。"
-    },
-    "work": "ワーク"
+    "analytics": {
+      "header": "アナリティクスのヒント",
+      "tabs": {
+        "overview": {
+          "label": "概要",
+          "items": {
+            "openSection": {
+              "title": "Analytics を開く",
+              "description": "Analytics セクションでクロスドメインのダッシュボードを確認できます。"
+            },
+            "todayDashboard": {
+              "title": "今日のダッシュボード",
+              "description": "Overview 上部に本日のフォーカス時間・完了タスク・ポモドーロ数が並びます。"
+            },
+            "periodSelector": {
+              "title": "右サイドバーの期間",
+              "description": "右サイドバーの期間セレクタで Day / Week / Month を選びます。"
+            },
+            "datePresets": {
+              "title": "日付プリセット",
+              "description": "7 日 / 30 日 / 今月 / 3 ヶ月 / 全期間といったクイックプリセットが揃っています。"
+            },
+            "weeklySummary": {
+              "title": "週次サマリ",
+              "description": "週次サマリカードで、今週と前週を ↑ ↓ で比較できます。"
+            },
+            "streak": {
+              "title": "ストリーク（日数）",
+              "description": "現在の連続日数と最長記録を表示します。"
+            },
+            "switchTabs": {
+              "title": "6 つのタブ",
+              "description": "Overview / Tasks / Schedule / Materials / Work / Connect を切り替えて分析を絞れます。"
+            }
+          }
+        },
+        "tasks": {
+          "label": "タスク",
+          "items": {
+            "completionTrend": {
+              "title": "完了トレンド",
+              "description": "選択期間における完了 / 作成タスク数を追えます。"
+            },
+            "stagnation": {
+              "title": "停滞チャート",
+              "description": "進捗のないオープンタスクを長期順に表示します。"
+            },
+            "byProject": {
+              "title": "プロジェクト別作業時間",
+              "description": "フォルダ / プロジェクト別の集中時間を比較できます。"
+            },
+            "workTime": {
+              "title": "タスク別作業時間",
+              "description": "どのタスクに最も時間を使ったかを把握できます。"
+            },
+            "filterPeriod": {
+              "title": "期間フィルタ",
+              "description": "タスク分析は右サイドバーの期間セレクタに従います。"
+            },
+            "tabFocus": {
+              "title": "タスクに集中",
+              "description": "Tasks タブはクロスドメインのノイズを抑え、タスク指標だけを表示します。"
+            }
+          }
+        },
+        "time": {
+          "label": "時間",
+          "items": {
+            "workChart": {
+              "title": "作業時間チャート",
+              "description": "日別フォーカス作業時間の棒グラフ。"
+            },
+            "heatmap": {
+              "title": "作業ヒートマップ",
+              "description": "曜日 × 時間帯のヒートマップで集中している時間が可視化されます。"
+            },
+            "balance": {
+              "title": "作業 / 休憩バランス",
+              "description": "作業時間と休憩時間を一目で比較できます。"
+            },
+            "pomodoroRate": {
+              "title": "ポモドーロ達成率",
+              "description": "計画したポモドーロのうち、どれだけ完了できたかを追えます。"
+            },
+            "dailyTimeline": {
+              "title": "デイリータイムライン",
+              "description": "選択した日のセッションを 24 時間タイムラインで可視化します。"
+            },
+            "scheduleTab": {
+              "title": "Schedule タブ",
+              "description": "Schedule 解析タブはイベントとルーティンの達成にフォーカスしています。"
+            },
+            "eventDistribution": {
+              "title": "イベント分布",
+              "description": "時間帯別のイベント分布を表示します。"
+            }
+          }
+        },
+        "knowledge": {
+          "label": "ナレッジ",
+          "items": {
+            "noteCreation": {
+              "title": "ノート作成トレンド",
+              "description": "日別のノート作成数で執筆ペースを把握できます。"
+            },
+            "memoHeatmap": {
+              "title": "メモヒートマップ",
+              "description": "Daily メモのヒートマップで欠落日を可視化します。"
+            },
+            "byFolder": {
+              "title": "フォルダ別ノート",
+              "description": "フォルダ別の分布を見て、どのプロジェクトが多いかを把握できます。"
+            },
+            "tagUsage": {
+              "title": "タグ使用頻度",
+              "description": "頻出タグをカウント付きで表示します。"
+            },
+            "tagEntityType": {
+              "title": "タグ × 種別",
+              "description": "タグの付与をエンティティ種別（ノート / メモ / タスク）で分類します。"
+            },
+            "connectSummary": {
+              "title": "コネクトサマリ",
+              "description": "Connect ビューから集約されたエンティティ間の接続数を表示します。"
+            }
+          }
+        }
+      }
+    }
   },
   "calendar": {
     "incomplete": "未完了",
@@ -1589,7 +2184,7 @@
   },
   "wikiTags": {
     "title": "タグ",
-    "description": "タスク・メモ・ノート全体で使用するウィキタグを管理します。エディタで #タグ名 と入力するとインラインタグを作成できます。",
+    "description": "タスク・メモ・ノート全体で使用するウィキタグを管理します。エディタで @タグ名 と入力するとインラインタグを作成できます。",
     "selectOrCreate": "タグを選択または作成",
     "createNew": "作成",
     "create": "作成",
@@ -1597,7 +2192,7 @@
     "searchPlaceholder": "タグを検索...",
     "tagNamePlaceholder": "タグ名...",
     "noResults": "タグが見つかりません",
-    "empty": "タグはまだありません。エディタで #タグ名 と入力して作成できます。",
+    "empty": "タグはまだありません。エディタで @タグ名 と入力して作成できます。",
     "deleteConfirm": "「{{name}}」を削除しますか？",
     "merge": "統合",
     "mergeSelectTarget": "統合先のタグをクリックしてください",

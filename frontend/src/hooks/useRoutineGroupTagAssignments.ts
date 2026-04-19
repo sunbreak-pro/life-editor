@@ -2,8 +2,17 @@ import { useState, useCallback, useEffect, useMemo } from "react";
 import { getDataService } from "../services";
 import { logServiceError } from "../utils/logError";
 import { useUndoRedo } from "../components/shared/UndoRedo";
+import { useSyncContext } from "./useSyncContext";
+
+function sameTagSet(a: number[], b: number[]): boolean {
+  if (a.length !== b.length) return false;
+  const setA = new Set(a);
+  for (const x of b) if (!setA.has(x)) return false;
+  return true;
+}
 
 export function useRoutineGroupTagAssignments() {
+  const { syncVersion } = useSyncContext();
   const { push } = useUndoRedo();
   const [assignmentsMap, setAssignmentsMap] = useState<Map<string, number[]>>(
     new Map(),
@@ -34,11 +43,24 @@ export function useRoutineGroupTagAssignments() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [syncVersion]);
 
   const setTagsForGroup = useCallback(
     (groupId: string, tagIds: number[]) => {
+      // Guard: block writes during initial load — prevents dialogs from
+      // wiping group tags with [] when assignments haven't loaded yet.
+      if (isLoading) {
+        logServiceError(
+          "RoutineGroupTagAssignments",
+          "setTags",
+          new Error(
+            `Blocked setTagsForGroup during initial load (groupId=${groupId})`,
+          ),
+        );
+        return;
+      }
       const prevTagIds = assignmentsMap.get(groupId) ?? [];
+      if (sameTagSet(prevTagIds, tagIds)) return;
 
       setAssignmentsMap((prev) => {
         const next = new Map(prev);
@@ -91,7 +113,7 @@ export function useRoutineGroupTagAssignments() {
         },
       });
     },
-    [assignmentsMap, push],
+    [assignmentsMap, isLoading, push],
   );
 
   const getTagIdsForGroup = useCallback(

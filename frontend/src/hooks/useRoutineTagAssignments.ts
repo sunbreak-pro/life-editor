@@ -2,8 +2,17 @@ import { useState, useCallback, useEffect, useMemo } from "react";
 import { getDataService } from "../services";
 import { logServiceError } from "../utils/logError";
 import { useUndoRedo } from "../components/shared/UndoRedo";
+import { useSyncContext } from "./useSyncContext";
+
+function sameTagSet(a: number[], b: number[]): boolean {
+  if (a.length !== b.length) return false;
+  const setA = new Set(a);
+  for (const x of b) if (!setA.has(x)) return false;
+  return true;
+}
 
 export function useRoutineTagAssignments() {
+  const { syncVersion } = useSyncContext();
   const { push } = useUndoRedo();
   const [assignmentsMap, setAssignmentsMap] = useState<Map<string, number[]>>(
     new Map(),
@@ -33,11 +42,25 @@ export function useRoutineTagAssignments() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [syncVersion]);
 
   const setTagsForRoutine = useCallback(
     (routineId: string, tagIds: number[]) => {
+      // Guard: block writes during initial load — assignmentsMap is empty,
+      // so callers reading `initialTagIds` would pass [] and wipe real data.
+      if (isLoading) {
+        logServiceError(
+          "RoutineTagAssignments",
+          "setTags",
+          new Error(
+            `Blocked setTagsForRoutine during initial load (routineId=${routineId})`,
+          ),
+        );
+        return;
+      }
       const prevTagIds = assignmentsMap.get(routineId) ?? [];
+      // No-op if membership is unchanged
+      if (sameTagSet(prevTagIds, tagIds)) return;
 
       // Optimistic update
       setAssignmentsMap((prev) => {
@@ -89,7 +112,7 @@ export function useRoutineTagAssignments() {
         },
       });
     },
-    [assignmentsMap, push],
+    [assignmentsMap, isLoading, push],
   );
 
   const getTagIdsForRoutine = useCallback(

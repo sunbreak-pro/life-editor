@@ -628,6 +628,12 @@ export function PaperCanvasView({
         onSelectionChange={handleSelectionChange}
         deleteKeyCode={["Delete", "Backspace"]}
         multiSelectionKeyCode="Shift"
+        panOnDrag={false}
+        selectionOnDrag
+        selectNodesOnDrag={false}
+        panOnScroll
+        zoomOnScroll={false}
+        zoomOnPinch
         proOptions={{ hideAttribution: true }}
         fitView={
           !board.viewportX && !board.viewportY && board.viewportZoom === 1

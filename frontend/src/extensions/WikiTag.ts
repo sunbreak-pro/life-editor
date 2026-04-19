@@ -41,7 +41,7 @@ export const WikiTag = Node.create({
         "data-wiki-tag": "",
         class: "wiki-tag",
       }),
-      `#${HTMLAttributes["data-tag-name"]}`,
+      HTMLAttributes["data-tag-name"] ?? "",
     ];
   },
 

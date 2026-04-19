@@ -4,7 +4,8 @@ export type SectionId =
   | "connect"
   | "work"
   | "analytics"
-  | "settings";
+  | "settings"
+  | "terminal";
 
 export type NodeType = "folder" | "task";
 export type TaskStatus = "NOT_STARTED" | "IN_PROGRESS" | "DONE";

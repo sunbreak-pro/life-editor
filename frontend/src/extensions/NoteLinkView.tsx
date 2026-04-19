@@ -1,10 +1,12 @@
 import { useMemo } from "react";
 import { NodeViewWrapper } from "@tiptap/react";
 import type { NodeViewProps } from "@tiptap/react";
+import { Link as LinkIcon } from "lucide-react";
 import { useNoteContext } from "../hooks/useNoteContext";
+import { NAVIGATE_TO_NOTE_EVENT } from "../constants/events";
 
 export function NoteLinkView({ node }: NodeViewProps) {
-  const { notes, setSelectedNoteId } = useNoteContext();
+  const { notes } = useNoteContext();
   const targetNoteId: string | null = node.attrs.targetNoteId;
   const displayTitle: string = node.attrs.displayTitle || "";
   const alias: string | null = node.attrs.alias;
@@ -20,13 +22,17 @@ export function NoteLinkView({ node }: NodeViewProps) {
   const broken = targetNoteId != null && targetNote == null;
   const label = alias ?? displayTitle;
   const suffix =
-    (heading ? `#${heading}` : "") + (blockId ? `#^${blockId}` : "");
+    (heading ? ` #${heading}` : "") + (blockId ? ` ^${blockId}` : "");
 
   const handleClick = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
     if (targetNoteId && targetNote) {
-      setSelectedNoteId(targetNoteId);
+      window.dispatchEvent(
+        new CustomEvent(NAVIGATE_TO_NOTE_EVENT, {
+          detail: { noteId: targetNoteId },
+        }),
+      );
     }
   };
 
@@ -41,12 +47,11 @@ export function NoteLinkView({ node }: NodeViewProps) {
       onClick={handleClick}
       title={broken ? "Note not found" : (targetNote?.title ?? displayTitle)}
     >
-      <span className="note-link-bracket">{isEmbed ? "![[" : "[["}</span>
+      <LinkIcon size={12} className="note-link-icon" />
       <span className="note-link-text">
         {label}
         {suffix && <span className="note-link-suffix">{suffix}</span>}
       </span>
-      <span className="note-link-bracket">]]</span>
     </NodeViewWrapper>
   );
 }

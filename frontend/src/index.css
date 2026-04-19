@@ -363,35 +363,46 @@ body {
   padding-top: 0.25rem;
 }
 
-/* Wiki Tag Modern (Badge Style) */
+/* Tag Graph Connect Mode — crosshair cursor on nodes while connecting */
+.tag-graph-connect-mode .react-flow__node {
+  cursor: crosshair !important;
+}
+.tag-graph-connect-mode .react-flow__pane {
+  cursor: default;
+}
+
+/* Wiki Tag Modern (Inline, fits within line-height) */
 .memo-editor .wiki-tag-modern {
   display: inline-flex;
-  align-items: center;
+  align-items: baseline;
   gap: 2px;
-  padding: 0.15rem 0.4rem;
-  margin: 0 0.15rem;
-  border-radius: 4px;
-  background-color: var(--color-hover);
+  padding: 0 0.25rem;
+  margin: 0 0.1rem;
+  border-radius: 3px;
+  background-color: color-mix(in srgb, var(--color-hover) 55%, transparent);
   color: var(--color-text-primary);
   font-weight: 500;
-  font-size: 0.85em;
+  font-size: 0.88em;
+  line-height: inherit;
   cursor: pointer;
   transition:
-    filter 0.1s ease,
+    background-color 0.1s ease,
+    color 0.1s ease,
     opacity 0.1s ease;
   white-space: nowrap;
-  vertical-align: middle;
-  border: 1px solid transparent;
+  vertical-align: baseline;
+  border: none;
   position: relative;
 }
 
 .memo-editor .wiki-tag-modern:hover {
-  filter: brightness(0.92);
+  background-color: var(--color-hover);
+  color: var(--color-accent, var(--color-text-primary));
 }
 
-.memo-editor .wiki-tag-symbol {
-  font-size: 0.9em;
-  font-weight: 600;
+.memo-editor .wiki-tag-icon {
+  flex-shrink: 0;
+  opacity: 0.85;
 }
 
 .memo-editor .wiki-tag-edit-popup {
@@ -411,16 +422,19 @@ body {
   filter: none;
 }
 
-/* Note Link (Obsidian-style [[...]]) */
+/* Note Link (icon + name display) */
 .memo-editor .note-link {
-  display: inline;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
   color: var(--color-accent);
   cursor: pointer;
-  padding: 0 0.15rem;
-  border-radius: 3px;
+  padding: 0 0.3rem;
+  border-radius: 4px;
   transition:
     background-color 0.1s ease,
     color 0.1s ease;
+  vertical-align: baseline;
 }
 
 .memo-editor .note-link:hover {
@@ -428,9 +442,9 @@ body {
   text-decoration: underline;
 }
 
-.memo-editor .note-link-bracket {
-  opacity: 0.4;
-  font-weight: 300;
+.memo-editor .note-link-icon {
+  flex-shrink: 0;
+  opacity: 0.8;
 }
 
 .memo-editor .note-link-text {

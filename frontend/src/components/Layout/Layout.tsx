@@ -7,7 +7,8 @@ import { TitleBar } from "./TitleBar";
 import { HeaderPortalContext } from "./HeaderPortalContext";
 import { MainContent } from "./MainContent";
 import { RightSidebar } from "./RightSidebar";
-import { TerminalPanel } from "../Terminal/TerminalPanel";
+import { TipsPanel } from "../shared/TipsPanel";
+import { TerminalSection } from "../Terminal/TerminalSection";
 
 import { STORAGE_KEYS } from "../../constants/storageKeys";
 import { useLocalStorage } from "../../hooks/useLocalStorage";
@@ -23,10 +24,6 @@ import {
   RightSidebarContext,
   type RightSidebarContextValue,
 } from "../../context/RightSidebarContext";
-
-const TERMINAL_DEFAULT_HEIGHT = 300;
-const TERMINAL_DEFAULT_WIDTH = 400;
-const TERMINAL_MIN_WIDTH = 250;
 
 const LEFT_MIN_WIDTH = 165;
 const LEFT_MAX_WIDTH = 250;
@@ -47,8 +44,8 @@ function deserializeBool(raw: string): boolean {
   return raw !== "false";
 }
 
-function deserializeDock(raw: string): "bottom" | "right" {
-  return raw === "right" ? "right" : "bottom";
+function deserializeBoolFalse(raw: string): boolean {
+  return raw === "true";
 }
 
 export interface TerminalCommandHandle {
@@ -68,6 +65,7 @@ interface LayoutProps {
   activeSection: SectionId;
   onSectionChange: (section: SectionId) => void;
   handleRef?: React.MutableRefObject<LayoutHandle | null>;
+  terminalCommandRef?: React.MutableRefObject<TerminalCommandHandle | null>;
 }
 
 export function Layout({
@@ -75,6 +73,7 @@ export function Layout({
   activeSection,
   onSectionChange,
   handleRef,
+  terminalCommandRef,
 }: LayoutProps) {
   const [leftSidebarOpen, setLeftSidebarOpen] = useLocalStorage<boolean>(
     STORAGE_KEYS.LEFT_SIDEBAR_OPEN,
@@ -119,94 +118,79 @@ export function Layout({
   const isResizingRight = useRef(false);
   const [dragRightWidth, setDragRightWidth] = useState<number | null>(null);
 
-  // Terminal state
-  const [terminalOpen, setTerminalOpen] = useLocalStorage<boolean>(
-    STORAGE_KEYS.TERMINAL_OPEN,
+  // Tips panel
+  const [tipsOpen, setTipsOpen] = useLocalStorage<boolean>(
+    STORAGE_KEYS.TIPS_OPEN,
     false,
-    { serialize: String, deserialize: deserializeBool },
+    { serialize: String, deserialize: deserializeBoolFalse },
   );
-  const [terminalHeight, setTerminalHeight] = useLocalStorage<number>(
-    STORAGE_KEYS.TERMINAL_HEIGHT,
-    TERMINAL_DEFAULT_HEIGHT,
-    {
-      serialize: String,
-      deserialize: deserializeWidth(150, 2000, TERMINAL_DEFAULT_HEIGHT),
-    },
-  );
-  const [terminalDock, setTerminalDock] = useLocalStorage<"bottom" | "right">(
-    STORAGE_KEYS.TERMINAL_DOCK,
-    "bottom",
-    { serialize: String, deserialize: deserializeDock },
-  );
-  const [terminalWidth, setTerminalWidth] = useLocalStorage<number>(
-    STORAGE_KEYS.TERMINAL_WIDTH,
-    TERMINAL_DEFAULT_WIDTH,
-    {
-      serialize: String,
-      deserialize: deserializeWidth(
-        TERMINAL_MIN_WIDTH,
-        2000,
-        TERMINAL_DEFAULT_WIDTH,
-      ),
-    },
-  );
+  const handleToggleTips = useCallback(() => {
+    setTipsOpen((prev) => !prev);
+  }, [setTipsOpen]);
+  const handleCloseTips = useCallback(() => {
+    setTipsOpen(false);
+  }, [setTipsOpen]);
 
-  const [terminalMinimized, setTerminalMinimized] = useState(false);
-  const terminalCommandRef = useRef<TerminalCommandHandle | null>(null);
+  const previousSectionRef = useRef<SectionId>(activeSection);
 
-  // Poll for external DB changes when terminal is open
+  // Poll for external DB changes when terminal section is active
   const { refetch } = useTaskTreeContext();
-  useExternalDataSync(terminalOpen, refetch);
+  useExternalDataSync(activeSection === "terminal", refetch);
   const { matchEvent } = useShortcutConfig();
+
+  const launchClaudeImpl = useCallback(async () => {
+    // Wait for active session (terminal may need to initialize)
+    let sessionId: string | null = null;
+    for (let i = 0; i < 30; i++) {
+      sessionId = terminalCommandRef?.current?.getActiveSessionId() ?? null;
+      if (sessionId) break;
+      await new Promise((r) => setTimeout(r, 100));
+    }
+    if (!sessionId) return;
+
+    const currentState = await terminalClaudeState(sessionId);
+
+    if (currentState === "inactive") {
+      await terminalWrite(sessionId, "claude\n");
+    }
+  }, [terminalCommandRef]);
 
   useEffect(() => {
     if (handleRef) {
       handleRef.current = {
         toggleLeftSidebar: () => setLeftSidebarOpen((prev) => !prev),
         toggleTerminal: () => {
-          if (terminalOpen && terminalMinimized) {
-            setTerminalMinimized(false);
+          if (activeSection === "terminal") {
+            const prev = previousSectionRef.current;
+            onSectionChange(prev !== "terminal" ? prev : "schedule");
           } else {
-            setTerminalOpen((prev) => !prev);
+            previousSectionRef.current = activeSection;
+            onSectionChange("terminal");
           }
         },
         toggleRightSidebar: () => setRightSidebarOpen((prev) => !prev),
         openTerminal: () => {
-          if (!terminalOpen) setTerminalOpen(true);
-          if (terminalMinimized) setTerminalMinimized(false);
+          if (activeSection !== "terminal") {
+            previousSectionRef.current = activeSection;
+            onSectionChange("terminal");
+          }
         },
         launchClaude: async () => {
-          // Open terminal if needed
-          if (!terminalOpen) setTerminalOpen(true);
-          if (terminalMinimized) setTerminalMinimized(false);
-
-          // Wait for active session (terminal may need to initialize)
-          let sessionId: string | null = null;
-          for (let i = 0; i < 30; i++) {
-            sessionId =
-              terminalCommandRef.current?.getActiveSessionId() ?? null;
-            if (sessionId) break;
-            await new Promise((r) => setTimeout(r, 100));
+          if (activeSection !== "terminal") {
+            previousSectionRef.current = activeSection;
+            onSectionChange("terminal");
           }
-          if (!sessionId) return;
-
-          // Check current Claude state via IPC
-          const currentState = await terminalClaudeState(sessionId);
-
-          if (currentState === "inactive") {
-            // Claude not running - launch it
-            await terminalWrite(sessionId, "claude\n");
-          }
+          await launchClaudeImpl();
         },
       };
     }
   }, [
     handleRef,
     setLeftSidebarOpen,
-    setTerminalOpen,
     setRightSidebarOpen,
-    terminalOpen,
-    terminalMinimized,
+    activeSection,
+    onSectionChange,
+    launchClaudeImpl,
   ]);
 
   useEffect(() => {
@@ -217,10 +201,12 @@ export function Layout({
       }
       if (matchEvent(e, "view:toggle-terminal")) {
         e.preventDefault();
-        if (terminalOpen && terminalMinimized) {
-          setTerminalMinimized(false);
+        if (activeSection === "terminal") {
+          const prev = previousSectionRef.current;
+          onSectionChange(prev !== "terminal" ? prev : "schedule");
         } else {
-          setTerminalOpen((prev) => !prev);
+          previousSectionRef.current = activeSection;
+          onSectionChange("terminal");
         }
       }
       if (matchEvent(e, "view:toggle-right-sidebar")) {
@@ -232,11 +218,10 @@ export function Layout({
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [
     setLeftSidebarOpen,
-    setTerminalOpen,
     setRightSidebarOpen,
     matchEvent,
-    terminalOpen,
-    terminalMinimized,
+    activeSection,
+    onSectionChange,
   ]);
 
   // Left sidebar resize
@@ -329,6 +314,9 @@ export function Layout({
     ) {
       setRightSidebarOpen(true);
     }
+    if (activeSection === "terminal") {
+      setRightSidebarOpen(false);
+    }
   }, [activeSection, setRightSidebarOpen]);
 
   const handleToggleSidebar = useCallback(() => {
@@ -339,11 +327,17 @@ export function Layout({
     setRightSidebarOpen((prev) => !prev);
   }, [setRightSidebarOpen]);
 
-  const handleDockChange = useCallback(
-    (dock: "bottom" | "right") => {
-      setTerminalDock(dock);
+  const handleSectionChange = useCallback(
+    (section: SectionId) => {
+      if (section !== "terminal" && activeSection !== "terminal") {
+        previousSectionRef.current = activeSection;
+      }
+      if (section === "terminal" && activeSection !== "terminal") {
+        previousSectionRef.current = activeSection;
+      }
+      onSectionChange(section);
     },
-    [setTerminalDock],
+    [activeSection, onSectionChange],
   );
 
   return (
@@ -357,6 +351,8 @@ export function Layout({
             activeSection={activeSection}
             rightSidebarOpen={rightSidebarOpen}
             onToggleRightSidebar={handleToggleRightSidebar}
+            onSectionChange={handleSectionChange}
+            layoutRef={handleRef ?? { current: null }}
           />
           <div className="flex flex-1 min-h-0">
             <div
@@ -367,48 +363,65 @@ export function Layout({
               }`}
               style={{ width: leftSidebarOpen ? currentLeftWidth : 48 }}
             >
-              {leftSidebarOpen ? (
-                <>
-                  <LeftSidebar
-                    width={currentLeftWidth}
-                    activeSection={activeSection}
-                    onSectionChange={onSectionChange}
-                    layoutRef={handleRef ?? { current: null }}
-                  />
-                  <div
-                    onMouseDown={handleLeftMouseDown}
-                    className="absolute top-0 right-0 w-1.5 h-full cursor-col-resize hover:bg-notion-accent/30 transition-colors z-10"
-                  />
-                </>
-              ) : (
+              <div
+                className={`absolute inset-0 transition-opacity duration-200 ease-out ${
+                  leftSidebarOpen
+                    ? "opacity-100"
+                    : "opacity-0 pointer-events-none"
+                }`}
+              >
+                <LeftSidebar
+                  width={currentLeftWidth}
+                  activeSection={activeSection}
+                  onSectionChange={handleSectionChange}
+                  onToggleTips={handleToggleTips}
+                  tipsOpen={tipsOpen}
+                />
+                <div
+                  onMouseDown={handleLeftMouseDown}
+                  className="absolute top-0 right-0 w-1.5 h-full cursor-col-resize hover:bg-notion-accent/30 transition-colors z-10"
+                />
+              </div>
+              <div
+                className={`absolute inset-0 transition-opacity duration-200 ease-out ${
+                  leftSidebarOpen
+                    ? "opacity-0 pointer-events-none"
+                    : "opacity-100"
+                }`}
+              >
                 <CollapsedSidebar
                   activeSection={activeSection}
-                  onSectionChange={onSectionChange}
-                  layoutRef={handleRef ?? { current: null }}
+                  onSectionChange={handleSectionChange}
+                  onToggleTips={handleToggleTips}
+                  tipsOpen={tipsOpen}
                 />
-              )}
+              </div>
             </div>
             {/* Center area */}
-            <div
-              className={`flex flex-1 min-w-0 ${
-                terminalDock === "right" ? "flex-row" : "flex-col"
-              }`}
-            >
-              <div className="flex flex-col flex-1 min-w-0 min-h-0">
+            <div className="relative flex flex-col flex-1 min-w-0 min-h-0">
+              <div
+                className="flex flex-col flex-1 min-w-0 min-h-0"
+                style={{
+                  display: activeSection === "terminal" ? "none" : "flex",
+                }}
+              >
                 <MainContent>{children}</MainContent>
               </div>
-              <TerminalPanel
-                isOpen={terminalOpen}
-                dock={terminalDock}
-                height={terminalHeight}
-                width={terminalWidth}
-                onHeightChange={setTerminalHeight}
-                onWidthChange={setTerminalWidth}
-                onClose={() => setTerminalOpen(false)}
-                onDockChange={handleDockChange}
-                isMinimized={terminalMinimized}
-                onMinimizedChange={setTerminalMinimized}
-                commandRef={terminalCommandRef}
+              <div
+                className="flex flex-col flex-1 min-w-0 min-h-0"
+                style={{
+                  display: activeSection === "terminal" ? "flex" : "none",
+                }}
+              >
+                <TerminalSection
+                  isActive={activeSection === "terminal"}
+                  commandRef={terminalCommandRef}
+                />
+              </div>
+              <TipsPanel
+                isOpen={tipsOpen}
+                onClose={handleCloseTips}
+                activeSection={activeSection}
               />
             </div>
             <div

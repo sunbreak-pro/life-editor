@@ -3,6 +3,7 @@ import type { Editor } from "@tiptap/react";
 import { getDataService } from "../services";
 import { logServiceError } from "../utils/logError";
 import { extractNoteLinksFromTiptapJson } from "../utils/noteLinkExtractor";
+import { dispatchNoteLinksChanged } from "./useNoteLinksGraph";
 import type { NoteLinkPayload } from "../types/noteLink";
 
 type Source =
@@ -41,6 +42,7 @@ export function useNoteLinkSync(editor: Editor | null, source: Source) {
       } else {
         await ds.upsertNoteLinksForMemo(source.memoDate, links);
       }
+      dispatchNoteLinksChanged();
     } catch (err) {
       logServiceError("useNoteLinkSync", "upsert", err);
       // Retry on next update by clearing the cache

@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { NodeViewWrapper } from "@tiptap/react";
 import type { NodeViewProps } from "@tiptap/react";
+import { Tag as TagIcon } from "lucide-react";
 import { useWikiTags } from "../hooks/useWikiTags";
 import { UnifiedColorPicker } from "../components/shared/UnifiedColorPicker";
 import { useTranslation } from "react-i18next";
@@ -88,12 +89,11 @@ export function WikiTagView({ node }: NodeViewProps) {
       style={{ ...style, ...(editing ? { zIndex: 100 } : {}) }}
       onClick={handleClick}
     >
-      <span
-        className="wiki-tag-symbol"
-        style={color ? { color: textColor, opacity: 0.8 } : undefined}
-      >
-        #
-      </span>
+      <TagIcon
+        size={12}
+        className="wiki-tag-icon"
+        style={color ? { color: textColor } : undefined}
+      />
       <span className="wiki-tag-text">{tag?.name || tagName}</span>
       {editing && (
         <span

@@ -14,6 +14,7 @@ import { useNoteContext } from "../../hooks/useNoteContext";
 import { useWikiTags } from "../../hooks/useWikiTags";
 import { useNoteConnections } from "../../hooks/useNoteConnections";
 import { useConnectSearch } from "../../hooks/useConnectSearch";
+import { useNoteLinksGraph } from "../../hooks/useNoteLinksGraph";
 import { usePaperBoard } from "../../hooks/usePaperBoard";
 import { useUndoRedo } from "../shared/UndoRedo";
 import { STORAGE_KEYS } from "../../constants/storageKeys";
@@ -52,14 +53,15 @@ export function ConnectView({
   const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState<ConnectTab>(loadConnectTab);
 
-  const { memos, setSelectedDate } = useMemoContext();
+  const { memos, setSelectedDate, deleteMemo } = useMemoContext();
   const { notes, setSelectedNoteId, createNote, softDeleteNote, updateNote } =
     useNoteContext();
-  const { assignments, tags, setTagsForEntity } = useWikiTags();
+  const { assignments, tags, setTagsForEntity, createTag } = useWikiTags();
 
   const { setActiveDomain } = useUndoRedo();
   const { noteConnections, createNoteConnection, deleteNoteConnectionByPair } =
     useNoteConnections();
+  const { noteLinks } = useNoteLinksGraph();
   const paper = usePaperBoard();
 
   const [connectQuery, setConnectQuery] = useState("");
@@ -122,6 +124,44 @@ export function ConnectView({
       await deleteNoteConnectionByPair(sourceNoteId, targetNoteId);
     },
     [deleteNoteConnectionByPair],
+  );
+
+  const handleConnectViaTag = useCallback(
+    async (req: {
+      tagId: string | null;
+      newTagName: string | null;
+      newTagColor: string;
+      sourceEntityType: "note" | "memo";
+      sourceEntityId: string;
+      targetEntityType: "note" | "memo";
+      targetEntityId: string;
+      sourceTagIds: string[];
+      targetTagIds: string[];
+    }) => {
+      let tagId = req.tagId;
+      if (!tagId && req.newTagName) {
+        const created = await createTag(req.newTagName, req.newTagColor);
+        tagId = created.id;
+      }
+      if (!tagId) return;
+      const nextSourceIds = req.sourceTagIds.includes(tagId)
+        ? req.sourceTagIds
+        : [...req.sourceTagIds, tagId];
+      const nextTargetIds = req.targetTagIds.includes(tagId)
+        ? req.targetTagIds
+        : [...req.targetTagIds, tagId];
+      await setTagsForEntity(
+        req.sourceEntityId,
+        req.sourceEntityType,
+        nextSourceIds,
+      );
+      await setTagsForEntity(
+        req.targetEntityId,
+        req.targetEntityType,
+        nextTargetIds,
+      );
+    },
+    [createTag, setTagsForEntity],
   );
 
   const handleCreateNoteForConnect = useCallback(
@@ -234,15 +274,19 @@ export function ConnectView({
     switch (activeTab) {
       case "node":
         return (
-          <ReactFlowProvider>
+          <ReactFlowProvider key="connect-node">
             <TagGraphView
               tags={tags}
               assignments={assignments}
               noteConnections={noteConnections}
+              noteLinks={noteLinks}
               selectedTagId={selectedTagId}
               onSelectTag={setSelectedTagId}
               onCreateNoteConnection={handleCreateNoteConnection}
               onDeleteNoteConnection={handleDeleteNoteConnection}
+              onConnectViaTag={handleConnectViaTag}
+              onDeleteNoteEntity={softDeleteNote}
+              onDeleteMemoEntity={deleteMemo}
               notes={notes}
               memos={memos}
               onNavigateToNote={handleNavigateToNote}
@@ -256,7 +300,7 @@ export function ConnectView({
         );
       case "board":
         return (
-          <ReactFlowProvider>
+          <ReactFlowProvider key="connect-board">
             <PaperCanvasView
               board={paper.activeBoard}
               paperNodes={paper.nodes}

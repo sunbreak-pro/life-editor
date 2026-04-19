@@ -20,11 +20,13 @@ import {
   GitBranch,
   StickyNote,
   BookOpen,
+  Link2,
 } from "lucide-react";
 import { applyPolygonLayout, applyLineLayout } from "./layoutTemplates";
 import { useReactFlow, ConnectionMode } from "@xyflow/react";
 import { UnifiedColorPicker } from "../../shared/UnifiedColorPicker";
 import { CanvasControls } from "./CanvasControls";
+import { ConnectPanel } from "./ConnectPanel";
 import { getContentPreview } from "../../../utils/tiptapText";
 import { NoteNodeComponent } from "./NoteNodeComponent";
 import { MemoNodeComponent } from "./MemoNodeComponent";
@@ -36,6 +38,7 @@ import type {
   NoteConnection,
 } from "../../../types/wikiTag";
 import type { NoteNode } from "../../../types/note";
+import type { NoteLink } from "../../../types/noteLink";
 import type { FilterItem } from "../../../types/filterItem";
 import {
   ENTITY_FILTER_NOTE_ID,
@@ -55,14 +58,30 @@ const edgeTypes = {
   curved: CurvedEdge,
 };
 
+interface ConnectRequest {
+  tagId: string | null;
+  newTagName: string | null;
+  newTagColor: string;
+  sourceEntityType: "note" | "memo";
+  sourceEntityId: string;
+  targetEntityType: "note" | "memo";
+  targetEntityId: string;
+  sourceTagIds: string[];
+  targetTagIds: string[];
+}
+
 interface TagGraphViewProps {
   tags: WikiTag[];
   assignments: WikiTagAssignment[];
   noteConnections: NoteConnection[];
+  noteLinks: NoteLink[];
   selectedTagId: string | null;
   onSelectTag: (tagId: string | null) => void;
   onCreateNoteConnection: (sourceNoteId: string, targetNoteId: string) => void;
   onDeleteNoteConnection: (sourceNoteId: string, targetNoteId: string) => void;
+  onConnectViaTag: (req: ConnectRequest) => Promise<void>;
+  onDeleteNoteEntity: (noteId: string) => void;
+  onDeleteMemoEntity: (memoDate: string) => void;
   notes: NoteNode[];
   memos: MemoNode[];
   onNavigateToNote?: (noteId: string) => void;
@@ -72,6 +91,8 @@ interface TagGraphViewProps {
   onFocusComplete?: () => void;
   sidebarSelectedItemId: string | null;
 }
+
+const VIRTUAL_LINK_EDGES_HIDDEN_ID = "__virtual:link-edges-hidden";
 
 function loadPositions(): Record<string, { x: number; y: number }> {
   try {
@@ -113,10 +134,14 @@ export function TagGraphView({
   tags,
   assignments,
   noteConnections,
+  noteLinks,
   selectedTagId,
   onSelectTag,
   onCreateNoteConnection,
   onDeleteNoteConnection,
+  onConnectViaTag,
+  onDeleteNoteEntity,
+  onDeleteMemoEntity,
   notes,
   memos,
   onNavigateToNote,
@@ -136,8 +161,28 @@ export function TagGraphView({
     color?: string;
   } | null>(null);
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
+  const [connectMode, setConnectMode] = useState(false);
+  const [pendingConnection, setPendingConnection] = useState<{
+    sourceId: string;
+    sourceType: "note" | "memo";
+    sourceTitle: string;
+    targetId: string;
+    targetType: "note" | "memo";
+    targetTitle: string;
+  } | null>(null);
 
   const sidebarMode = sidebarSelectedItemId != null;
+
+  const resolveNodeInfo = useCallback(
+    (id: string): { type: "note" | "memo"; title: string } | null => {
+      const note = notes.find((n) => n.id === id);
+      if (note) return { type: "note", title: note.title || "Untitled" };
+      const memo = memos.find((m) => m.id === id);
+      if (memo) return { type: "memo", title: memo.date };
+      return null;
+    },
+    [notes, memos],
+  );
 
   // Filter state (normal mode only) — multi-select, supports tag/entity/virtual IDs
   const [activeFilterIds, setActiveFilterIds] = useState<Set<string>>(
@@ -195,6 +240,8 @@ export function TagGraphView({
         entityTypes.add(id);
       } else if (id === VIRTUAL_UNTAGGED_ID) {
         hasUntagged = true;
+      } else if (id === VIRTUAL_LINK_EDGES_HIDDEN_ID) {
+        // handled separately via linkEdgesHidden
       } else {
         realTagIds.add(id);
       }
@@ -272,8 +319,19 @@ export function TagGraphView({
       });
     }
 
+    // Virtual "hide link edges" toggle (selected = hidden)
+    items.push({
+      id: VIRTUAL_LINK_EDGES_HIDDEN_ID,
+      kind: "virtual-tag",
+      name: t("connect.linkEdges"),
+      icon: Link2,
+      textColor: "#10b981",
+    });
+
     return items;
   }, [displayTags, untaggedEntityIds, t]);
+
+  const linkEdgesHidden = activeFilterIds.has(VIRTUAL_LINK_EDGES_HIDDEN_ID);
 
   // Build tag dots data for notes
   const noteTagDots = useMemo(() => {
@@ -742,6 +800,8 @@ export function TagGraphView({
     sidebarMode,
     sidebarSelectedItemId,
     noteConnections,
+    noteLinks,
+    linkEdgesHidden,
     tags,
     assignments,
     visibleNoteIds,
@@ -839,7 +899,57 @@ export function TagGraphView({
       }
     }
 
-    return [...manualEdges, ...tagEdges];
+    // Note Link-based edges (dashed, emerald). Hidden when linkEdgesHidden.
+    const linkEdges: Edge[] = [];
+    if (!linkEdgesHidden) {
+      const seenLinkPairs = new Set<string>();
+      for (const link of noteLinks) {
+        const sourceId =
+          link.sourceNoteId ??
+          (link.sourceMemoDate ? `memo-${link.sourceMemoDate}` : null);
+        const targetId = link.targetNoteId;
+        if (!sourceId || !targetId) continue;
+        if (sourceId === targetId) continue;
+        if (!visibleNodeIds.has(sourceId) || !visibleNodeIds.has(targetId)) {
+          continue;
+        }
+
+        const basePairKey = `${sourceId < targetId ? sourceId : targetId}---${sourceId < targetId ? targetId : sourceId}`;
+        const dedupKey = `link-${basePairKey}`;
+        if (seenLinkPairs.has(dedupKey)) continue;
+        seenLinkPairs.add(dedupKey);
+
+        const idx = pairEdgeCount.get(basePairKey) ?? 0;
+        pairEdgeCount.set(basePairKey, idx + 1);
+        const curveOffset =
+          idx === 0 ? 0 : (idx % 2 === 1 ? 1 : -1) * Math.ceil(idx / 2) * 20;
+
+        const shouldDim =
+          relatedNodeIds != null &&
+          (!relatedNodeIds.has(sourceId) || !relatedNodeIds.has(targetId));
+        linkEdges.push({
+          id: dedupKey,
+          source: sourceId,
+          target: targetId,
+          sourceHandle: "center-source",
+          targetHandle: "center-target",
+          type: "curved",
+          style: {
+            stroke: "#10b981",
+            strokeWidth: 1.5,
+            strokeDasharray: "5 3",
+            opacity: shouldDim ? 0.08 : 0.75,
+          },
+          data: {
+            connectionType: "link",
+            linkId: link.id,
+            curveOffset,
+          },
+        });
+      }
+    }
+
+    return [...manualEdges, ...tagEdges, ...linkEdges];
   }
 
   function buildSplitViewEdges(): Edge[] {
@@ -971,14 +1081,70 @@ export function TagGraphView({
   const handleConnect = useCallback(
     (connection: Connection) => {
       if (
-        connection.source &&
-        connection.target &&
-        connection.source !== connection.target
+        !connection.source ||
+        !connection.target ||
+        connection.source === connection.target
       ) {
-        onCreateNoteConnection(connection.source, connection.target);
+        return;
+      }
+      if (connectMode) {
+        const srcInfo = resolveNodeInfo(connection.source);
+        const tgtInfo = resolveNodeInfo(connection.target);
+        if (!srcInfo || !tgtInfo) return;
+        setPendingConnection({
+          sourceId: connection.source,
+          sourceType: srcInfo.type,
+          sourceTitle: srcInfo.title,
+          targetId: connection.target,
+          targetType: tgtInfo.type,
+          targetTitle: tgtInfo.title,
+        });
+        return;
+      }
+      onCreateNoteConnection(connection.source, connection.target);
+    },
+    [connectMode, onCreateNoteConnection, resolveNodeInfo],
+  );
+
+  const handleNodesDelete = useCallback(
+    (deletedNodes: Node[]) => {
+      for (const node of deletedNodes) {
+        if (node.type === "noteNode") {
+          onDeleteNoteEntity(node.id);
+        } else if (node.type === "memoNode") {
+          const date = node.id.startsWith("memo-")
+            ? node.id.slice("memo-".length)
+            : node.id;
+          onDeleteMemoEntity(date);
+        }
       }
     },
-    [onCreateNoteConnection],
+    [onDeleteNoteEntity, onDeleteMemoEntity],
+  );
+
+  const handleConfirmConnect = useCallback(
+    async (payload: {
+      tagId: string | null;
+      newTagName: string | null;
+      sourceTagIds: string[];
+      targetTagIds: string[];
+      newTagColor: string;
+    }) => {
+      if (!pendingConnection) return;
+      await onConnectViaTag({
+        tagId: payload.tagId,
+        newTagName: payload.newTagName,
+        newTagColor: payload.newTagColor,
+        sourceEntityType: pendingConnection.sourceType,
+        sourceEntityId: pendingConnection.sourceId,
+        targetEntityType: pendingConnection.targetType,
+        targetEntityId: pendingConnection.targetId,
+        sourceTagIds: payload.sourceTagIds,
+        targetTagIds: payload.targetTagIds,
+      });
+      setPendingConnection(null);
+    },
+    [pendingConnection, onConnectViaTag],
   );
 
   const handleEdgeClick = useCallback(
@@ -1100,7 +1266,11 @@ export function TagGraphView({
   }
 
   return (
-    <div className="h-full w-full">
+    <div
+      className={
+        "h-full w-full" + (connectMode ? " tag-graph-connect-mode" : "")
+      }
+    >
       <ReactFlow
         nodes={nodes}
         edges={edges}
@@ -1115,6 +1285,17 @@ export function TagGraphView({
         nodeTypes={nodeTypes}
         edgeTypes={edgeTypes}
         connectionMode={ConnectionMode.Loose}
+        nodesConnectable={connectMode && !sidebarMode}
+        nodesDraggable={!connectMode}
+        panOnDrag={false}
+        selectionOnDrag={!connectMode}
+        panOnScroll
+        zoomOnScroll={false}
+        zoomOnPinch
+        selectNodesOnDrag={false}
+        deleteKeyCode={connectMode ? null : ["Delete", "Backspace"]}
+        multiSelectionKeyCode="Shift"
+        onNodesDelete={handleNodesDelete}
         elevateNodesOnSelect
         defaultViewport={savedViewport ?? { x: 50, y: 50, zoom: 1 }}
         fitView={!savedViewport}
@@ -1156,6 +1337,10 @@ export function TagGraphView({
               showFilter
               filterCount={activeFilterIds.size}
               onFilterClick={() => setShowCanvasFilter((v) => !v)}
+              showConnect={!sidebarMode}
+              connectMode={connectMode}
+              onToggleConnectMode={() => setConnectMode((v) => !v)}
+              connectLabel={t("connect.toggleConnectMode")}
             />
             {showCanvasFilter && (
               <div className="relative">
@@ -1239,6 +1424,20 @@ export function TagGraphView({
           </div>,
           document.body,
         )}
+      {pendingConnection && (
+        <ConnectPanel
+          sourceEntityType={pendingConnection.sourceType}
+          sourceEntityId={pendingConnection.sourceId}
+          sourceTitle={pendingConnection.sourceTitle}
+          targetEntityType={pendingConnection.targetType}
+          targetEntityId={pendingConnection.targetId}
+          targetTitle={pendingConnection.targetTitle}
+          tags={tags}
+          assignments={assignments}
+          onCancel={() => setPendingConnection(null)}
+          onConnect={handleConfirmConnect}
+        />
+      )}
     </div>
   );
 }

@@ -12,7 +12,8 @@
     "connect": "Connect",
     "trash": "Trash",
     "freeSession": "Free Session",
-    "launchClaude": "Launch Claude"
+    "launchClaude": "Launch Claude",
+    "tipsButton": "Tips"
   },
   "settings": {
     "title": "Settings",
@@ -564,7 +565,18 @@
     "copyPath": "Copy Path"
   },
   "connect": {
-    "title": "Connect"
+    "title": "Connect",
+    "toggleConnectMode": "Connect mode: drag between nodes to link",
+    "linkEdges": "Note links",
+    "panel": {
+      "title": "Link these two",
+      "searchPlaceholder": "Search tags or type a new name...",
+      "createNew": "Create \"{{name}}\" as a new tag",
+      "connect": "Connect",
+      "cancel": "Cancel",
+      "alreadyLinked": "already on both",
+      "noTags": "No tags yet"
+    }
   },
   "ideas": {
     "title": "Connect",
@@ -927,273 +939,856 @@
     }
   },
   "tips": {
-    "title": "Tips",
-    "shortcuts": "Shortcuts",
-    "tasks": "Tasks",
-    "timer": "Timer",
-    "schedule": "Schedule",
-    "memo": "Memo",
-    "ideas": "Ideas",
-    "analytics": "Analytics",
-    "editor": "Editor",
-    "showMac": "macOS",
-    "showWin": "Windows",
-    "shortcutsTab": {
-      "global": "Global",
-      "navigation": "Navigation",
-      "view": "Layout",
-      "taskTree": "Task Tree",
-      "timer": "Timer",
-      "schedule": "Schedule",
-      "openCommandPalette": "Open command palette",
-      "openSettings": "Open Settings",
-      "toggleTimerModal": "Toggle timer modal",
-      "playPauseTimer": "Play / Pause timer (when not typing)",
-      "createNewTask": "Create new task (when not typing)",
-      "resetTimer": "Reset timer (when not typing)",
-      "closeModal": "Close modal / dialog",
-      "goToMemo": "Go to Memo",
-      "goToIdeas": "Go to Ideas",
-      "goToWork": "Go to Work",
-      "goToSchedule": "Go to Schedule",
-      "goToAnalytics": "Go to Analytics",
-      "goToMaterials": "Go to Materials",
-      "toggleTerminal": "Toggle terminal",
-      "toggleLeftSidebar": "Toggle left sidebar",
-      "toggleRightSidebar": "Toggle right sidebar",
-      "expandFolder": "Expand folder",
-      "collapseFolder": "Collapse folder",
-      "toggleTaskCompletion": "Toggle task completion",
-      "indent": "Indent (move into previous folder)",
-      "outdent": "Outdent (move to parent level)",
-      "undoTaskTree": "Undo task tree action",
-      "redoTaskTree": "Redo task tree action",
-      "dragDrop": "Reorder or move into folders",
-      "togglePlayPause": "Toggle play / pause",
-      "nextMonthWeek": "Next period (month / week / day)",
-      "prevMonthWeek": "Previous period (month / week / day)",
-      "jumpToToday": "Jump to today",
-      "toggleMonthWeek": "Cycle through month / week / day views",
-      "calendar": "Calendar",
-      "terminal": "Terminal",
-      "terminalNewTab": "New terminal tab (in terminal)",
-      "terminalClosePane": "Close terminal pane (in terminal)",
-      "terminalSplitVertical": "Split vertically (in terminal)",
-      "terminalSplitHorizontal": "Split horizontally (in terminal)",
-      "switchNextTab": "Switch to next tab",
-      "switchPrevTab": "Switch to previous tab",
-      "sidebarItemDown": "Move to next item",
-      "sidebarItemUp": "Move to previous item",
-      "sidebarToggle": "Toggle folder expand/collapse"
+    "panel": {
+      "title": "Tips",
+      "showDetails": "View details",
+      "open": "Open tips",
+      "close": "Close tips",
+      "noTips": "No tips for this section yet."
     },
-    "tasksTab": {
-      "creating": "Creating Tasks & Folders",
-      "creatingList1": "Click the <strong>+ icons</strong> at the top of the sub-sidebar to create a new task or folder.",
-      "creatingList2": "Press <kbd>n</kbd> (when not typing) to quickly add a new task to the Inbox.",
-      "creatingList3": "Folders can be nested without depth limits. Tasks can be placed anywhere.",
-      "organizing": "Organizing with Drag & Drop",
-      "organizingList1": "<strong>Reorder</strong>: Drag a task/folder to change its position among siblings.",
-      "organizingList2": "<strong>Move into folder</strong>: Drag a task onto a folder to nest it inside.",
-      "organizingList3": "Circular references are prevented automatically.",
-      "details": "Task Details",
-      "detailsList1": "Click a task to view its detail panel on the right.",
-      "detailsList2": "Edit the title inline, add a rich-text memo, set a scheduled date, or adjust the work duration.",
-      "detailsList3": "The <strong>play button</strong> starts a focused timer session for that task.",
-      "detailsList4": "Press <kbd>{{mod}} + Enter</kbd> to toggle a task between completed and incomplete.",
-      "detailsList5": "Use <kbd>Tab</kbd> / <kbd>{{shift}} + Tab</kbd> to indent or outdent a task in the tree.",
-      "folders": "Folders & Colors",
-      "foldersList1": "Folders group related tasks. Select a folder to change its color.",
-      "foldersList2": "Folder colors are inherited by child tasks in Calendar and Analytics views.",
-      "softDelete": "Soft Delete & Trash",
-      "softDeleteList1": "Deleting a task moves it to the trash (soft delete).",
-      "softDeleteList2": "Go to <strong>Settings → Trash</strong> to restore or permanently delete items.",
-      "contextMenu": "Context Menu",
-      "contextMenuList1": "Right-click a task or folder in the tree to open the context menu.",
-      "contextMenuList2": "Available actions: <strong>Rename</strong>, <strong>Add Task</strong>, <strong>Add Folder</strong>, <strong>Start Timer</strong>, <strong>Move to Root</strong>, <strong>Delete</strong>.",
-      "tags": "Tags",
-      "tagsList1": "Create and manage tags in <strong>Settings → Tag Manager</strong> (name + color).",
-      "tagsList2": "Assign tags to tasks from the task detail panel.",
-      "tagsList3": "Use the tag filter at the top of the task tree to show only matching tasks."
+    "buttonLabel": "Tips",
+    "schedule": {
+      "header": "Schedule tips",
+      "tabs": {
+        "calendar": {
+          "label": "Calendar",
+          "items": {
+            "viewSwitch": {
+              "title": "Switch month / week",
+              "description": "Use the toggle in the calendar header to switch between the monthly and weekly views."
+            },
+            "openDay": {
+              "title": "Click a date",
+              "description": "Click any date cell to set the focused date for the right sidebar's day view."
+            },
+            "rightSidebar": {
+              "title": "Right sidebar shows the day",
+              "description": "The right sidebar shows that day's tasks, routines, and events while the calendar is open."
+            },
+            "folderFilter": {
+              "title": "Filter by folder",
+              "description": "Pick a folder from the task tree to show only tasks from that folder on the calendar."
+            },
+            "contentFilter": {
+              "title": "Filter content types",
+              "description": "Toggle Routines / Tasks / Events / Daily / Notes from the right sidebar to hide what you don't need."
+            },
+            "holidays": {
+              "title": "Holidays",
+              "description": "National holidays show with a red tint when the holiday option is enabled."
+            },
+            "folderColor": {
+              "title": "Folder color",
+              "description": "Tasks inherit their folder's color so projects are easy to spot at a glance."
+            },
+            "addRoutineFromCell": {
+              "title": "Add a routine from a date",
+              "description": "Hover a date cell and click the repeat icon to open the routine manager for that day."
+            },
+            "switchTab": {
+              "title": "Day view via Day Flow",
+              "description": "There is no day view inside the calendar — switch to the Day Flow tab for a per-hour layout."
+            }
+          }
+        },
+        "routine": {
+          "label": "Routine",
+          "items": {
+            "createFromCalendar": {
+              "title": "Create from a calendar cell",
+              "description": "Hover a date in the calendar and click the repeat icon — the routine manager opens with a + New Routine button."
+            },
+            "createFromSidebar": {
+              "title": "Create from the right sidebar",
+              "description": "In the right sidebar's achievement panel, click the + button to add a routine without leaving the current view."
+            },
+            "frequencyDaily": {
+              "title": "Daily",
+              "description": "Set frequency to Daily to repeat every single day."
+            },
+            "frequencyWeekdays": {
+              "title": "Specific weekdays",
+              "description": "Pick the weekdays (Mon–Sun) the routine should run on."
+            },
+            "frequencyInterval": {
+              "title": "Every N days",
+              "description": "Pick a start date and an interval (≥ 2 days) to space out the routine."
+            },
+            "edit": {
+              "title": "Edit a routine",
+              "description": "Click the pencil icon next to a routine to change title, time, frequency, or tags."
+            },
+            "dismiss": {
+              "title": "Dismiss for today",
+              "description": "Hide a single occurrence with Dismiss — the routine reappears the next day."
+            },
+            "archive": {
+              "title": "Archive",
+              "description": "Archive a routine to hide it from the schedule without deleting; restore later from the Archived list."
+            },
+            "delete": {
+              "title": "Delete permanently",
+              "description": "Use the trash icon to remove a routine; the confirmation dialog also offers archive instead."
+            },
+            "tags": {
+              "title": "Tag routines",
+              "description": "Assign tags so routines appear in tag filters and the Connect view."
+            }
+          }
+        },
+        "dayflow": {
+          "label": "Day Flow",
+          "items": {
+            "openTab": {
+              "title": "Open the Day Flow tab",
+              "description": "Switch to the Day Flow tab inside Schedule for an hourly timeline of one day."
+            },
+            "dragTime": {
+              "title": "Drag to change time",
+              "description": "Grab a task or routine block and drag it vertically to change its start time."
+            },
+            "dualColumn": {
+              "title": "Dual-column layout",
+              "description": "Toggle dual-column to view two days side by side."
+            },
+            "contextAdd": {
+              "title": "Click an empty slot",
+              "description": "Click an empty time slot to add a routine, task, or note at that time."
+            },
+            "rightClickEdit": {
+              "title": "Right-click for actions",
+              "description": "Right-click a block to extend / shorten by 15 minutes, duplicate, or copy its time."
+            },
+            "todayButton": {
+              "title": "Today button",
+              "description": "Press Today in the header to scroll back to the current day and time."
+            },
+            "syncCalendar": {
+              "title": "Stays in sync with the calendar",
+              "description": "Picking a date in the Calendar tab updates the day shown here too."
+            },
+            "filterTypes": {
+              "title": "Type filter",
+              "description": "Use the right sidebar filters to hide event types you don't want to see."
+            },
+            "addNote": {
+              "title": "Add a note inline",
+              "description": "Adding a note from a slot creates a daily memo entry pinned to that time."
+            }
+          }
+        },
+        "stats": {
+          "label": "Achievement",
+          "items": {
+            "achievementPanel": {
+              "title": "Right sidebar panel",
+              "description": "Routine progress lives in the achievement panel at the bottom of the right sidebar."
+            },
+            "daysCount": {
+              "title": "Days completed",
+              "description": "Counts the days you've completed at least one routine."
+            },
+            "currentStreak": {
+              "title": "Current streak",
+              "description": "How many consecutive days you've kept the routine going."
+            },
+            "longestStreak": {
+              "title": "Longest streak",
+              "description": "Your all-time best streak — useful for motivation."
+            },
+            "details": {
+              "title": "Open the details",
+              "description": "Click Details on the panel to open the per-routine breakdown overlay."
+            },
+            "perGroup": {
+              "title": "Per-routine breakdown",
+              "description": "The details overlay shows completion rate for each individual routine."
+            },
+            "moreInAnalytics": {
+              "title": "Charts in Analytics",
+              "description": "For trend charts and longer-range views switch to the Analytics section."
+            }
+          }
+        }
+      }
     },
-    "timerTab": {
-      "pomodoro": "Pomodoro Sessions",
-      "pomodoroList1": "The timer follows a <strong>WORK → BREAK → LONG BREAK</strong> cycle.",
-      "pomodoroList2": "Default: 25 min work, 5 min break, 15 min long break after 4 sessions.",
-      "pomodoroList3": "Customize durations in <strong>Settings</strong>.",
-      "starting": "Starting a Session",
-      "startingList1": "Click the <strong>play button</strong> on any task to start a focused session.",
-      "startingList2": "Or go to the <strong>Work</strong> screen for a free (untied) timer.",
-      "startingList3": "Press <kbd>Space</kbd> to toggle play/pause when not typing.",
-      "startingList4": "Press <kbd>r</kbd> to reset the timer when not typing.",
-      "modal": "Timer Modal & Background",
-      "modalList1": "The timer runs as a <strong>modal overlay</strong> on top of any screen.",
-      "modalList2": "Close the modal with <kbd>Escape</kbd> — the timer keeps running in the background.",
-      "modalList3": "Press <kbd>{{mod}} + {{shift}} + T</kbd> to toggle the timer modal from any screen.",
-      "modalList4": "A mini timer widget appears in the left sidebar while active.",
-      "soundMixer": "Sound Mixer",
-      "soundMixerList1": "The Work screen includes an ambient <strong>Sound Mixer</strong>.",
-      "soundMixerList2": "Mix multiple background sounds (rain, cafe, etc.) with individual volume controls.",
-      "soundMixerList3": "Sound settings are saved to the database and persist across sessions.",
-      "notifications": "Notifications",
-      "notificationsList1": "Enable browser notifications in Settings to get alerted when a session ends.",
-      "notificationsList2": "Notification permission is requested once on toggle."
+    "work": {
+      "header": "Work tips",
+      "tabs": {
+        "taskSelect": {
+          "label": "Task",
+          "items": {
+            "openSelector": {
+              "title": "Pick a task at the top",
+              "description": "The task selector sits at the top of the Work screen; click to choose what you'll focus on."
+            },
+            "search": {
+              "title": "Search by name",
+              "description": "Start typing to filter tasks by title."
+            },
+            "folderSearch": {
+              "title": "Folder/Task search",
+              "description": "Type FolderName/TaskName to limit the search to a specific folder."
+            },
+            "freeSession": {
+              "title": "Free session",
+              "description": "Skip task selection to run a free, untied focus session."
+            },
+            "startFromTree": {
+              "title": "Start from the task tree",
+              "description": "Click the play button next to any task in the task tree to jump into Work with it selected."
+            },
+            "switchTask": {
+              "title": "Switch mid-session",
+              "description": "Selecting a different task while the timer is running switches focus instantly without resetting it."
+            },
+            "completionPrompt": {
+              "title": "Completion modal",
+              "description": "When a session ends a modal lets you mark the task done or start the next session."
+            }
+          }
+        },
+        "timer": {
+          "label": "Timer",
+          "items": {
+            "click": {
+              "title": "Click the circle",
+              "description": "Click the circular timer to start or pause the current session."
+            },
+            "spaceShortcut": {
+              "title": "Space to play / pause",
+              "description": "Press Space (when not typing) to toggle play / pause from any screen."
+            },
+            "resetR": {
+              "title": "R to reset",
+              "description": "Press R (when not typing) to reset the current segment back to its full duration."
+            },
+            "modalToggle": {
+              "title": "Cmd / Ctrl + Shift + T",
+              "description": "Jump to the Work screen from anywhere with Cmd / Ctrl + Shift + T."
+            },
+            "miniWidget": {
+              "title": "Sidebar mini timer",
+              "description": "While a session is active the left sidebar shows the running task and remaining time."
+            },
+            "extend": {
+              "title": "Add 5 minutes",
+              "description": "Use the +5m button (visible while paused) to extend the current segment."
+            },
+            "shorten": {
+              "title": "Subtract 5 minutes",
+              "description": "Use the -5m button (visible while paused) to shorten the current segment."
+            },
+            "sessionComplete": {
+              "title": "Skip the session",
+              "description": "Press Session Complete to end the current segment immediately and move on."
+            }
+          }
+        },
+        "pomodoro": {
+          "label": "Pomodoro",
+          "items": {
+            "sidebarLocation": {
+              "title": "Settings live in the right sidebar",
+              "description": "Pomodoro durations and settings are in the right sidebar of the Work screen."
+            },
+            "durations": {
+              "title": "Custom durations",
+              "description": "Set your own work / short break / long break minutes."
+            },
+            "longBreakRule": {
+              "title": "Long break cadence",
+              "description": "After N work sessions a long break kicks in (default 4)."
+            },
+            "autoBreak": {
+              "title": "Auto-start breaks",
+              "description": "Enable auto-start so breaks (and the next work block) begin after a 3-second countdown."
+            },
+            "sessionStructure": {
+              "title": "Session counter",
+              "description": "The 1/4 counter and progress dots show where you are in the current cycle."
+            },
+            "completionEffects": {
+              "title": "Completion celebration",
+              "description": "Confetti and a sound effect fire when you finish a task during a session."
+            }
+          }
+        },
+        "audio": {
+          "label": "Audio",
+          "items": {
+            "musicTab": {
+              "title": "Music tab",
+              "description": "Inside Work there are two tabs: Timer and Music. Switch to Music to manage playback."
+            },
+            "playlist": {
+              "title": "Pick a playlist",
+              "description": "Choose a playlist from the popover; tracks loop while the timer runs."
+            },
+            "nowPlaying": {
+              "title": "Now Playing in the right sidebar",
+              "description": "The right sidebar's Now Playing card shows the current track and quick controls."
+            },
+            "customSounds": {
+              "title": "Add a custom sound",
+              "description": "Use + Add Custom Sound to upload your own audio file."
+            },
+            "soundTags": {
+              "title": "Tag your sounds",
+              "description": "Open Sound Tags to label custom sounds so they're easier to find later."
+            },
+            "soundFilter": {
+              "title": "Filter sounds by tag",
+              "description": "Use the sound tag filter to narrow the picker to a single mood or genre."
+            },
+            "previewVolume": {
+              "title": "Preview volume",
+              "description": "Each sound row has a preview slider to check volume without committing."
+            }
+          }
+        }
+      }
     },
-    "calendarTab": {
-      "views": "Calendar Views",
-      "viewsList1": "Switch between <strong>Month</strong>, <strong>Week</strong>, and <strong>Day</strong> views using the header toggle.",
-      "viewsList2": "Navigate months/weeks with the arrow buttons.",
-      "viewsList3": "Click <strong>Today</strong> to jump back to the current date.",
-      "creating": "Creating Tasks from Calendar",
-      "creatingList1": "Click on any day cell to create a new task scheduled for that date.",
-      "creatingList2": "The task is added to the Inbox and a timer session opens automatically.",
-      "display": "Task Display",
-      "displayList1": "Tasks with a <strong>scheduledAt</strong> date appear on their calendar day.",
-      "displayList2": "Task colors are inherited from their parent folder's color.",
-      "displayList3": "Click a task chip to navigate to the Tasks view with that task selected.",
-      "weekView": "Week View Time Grid",
-      "weekViewList1": "The week view shows a time grid with hourly rows.",
-      "weekViewList2": "Tasks are positioned based on their scheduled time.",
-      "weekViewList3": "All-day or unscheduled-time tasks appear in the top section.",
-      "filtering": "Filtering",
-      "filteringList1": "Use folder tags and colors to visually distinguish task categories.",
-      "filteringList2": "Only non-deleted tasks with scheduled dates appear on the calendar.",
-      "dayView": "Day View (Schedule)",
-      "dayViewList1": "The Day view shows a full-day time grid (0:00–24:00) on the left and a tab panel on the right.",
-      "dayViewList2": "The <strong>Today Flow</strong> tab displays a vertical flowchart of your schedule progress.",
-      "dayViewList3": "The <strong>Routines</strong> tab manages recurring routines with tags and achievement stats.",
-      "routines": "Routines",
-      "routinesList1": "Create routines with a title and time range, then assign <strong>tags</strong> to organize them.",
-      "routinesList2": "Tagged routines are auto-inserted into the schedule when viewing a date.",
-      "routinesList3": "View your streak and per-routine completion stats in the stats card.",
-      "shortcuts": "Keyboard Shortcuts",
-      "shortcutsList1": "<kbd>j</kbd> — Navigate to the next period.",
-      "shortcutsList2": "<kbd>k</kbd> — Navigate to the previous period.",
-      "shortcutsList3": "<kbd>t</kbd> — Jump to today.",
-      "shortcutsList4": "<kbd>m</kbd> — Cycle through month / week / day views."
+    "materials": {
+      "header": "Materials tips",
+      "tabs": {
+        "dailyMemo": {
+          "label": "Daily",
+          "items": {
+            "openTab": {
+              "title": "Open the Daily tab",
+              "description": "Inside Materials, switch to the Daily tab to write per-day journal entries."
+            },
+            "pickDate": {
+              "title": "Pick a day from the list",
+              "description": "The left list shows recent days grouped by month — click one to open it."
+            },
+            "searchDate": {
+              "title": "Search by date",
+              "description": "Use the search box at the top of the day list to jump to a specific date."
+            },
+            "richEditor": {
+              "title": "Rich editor",
+              "description": "Headings, lists, code, callouts and more — the editor handles markdown shortcuts as you type."
+            },
+            "autoSave": {
+              "title": "Auto save",
+              "description": "Edits save as soon as you type; there is no save button."
+            },
+            "templates": {
+              "title": "Daily templates",
+              "description": "Set a default daily template in Settings so each new day starts with your structure."
+            },
+            "linkInline": {
+              "title": "Link a note inline",
+              "description": "Type [[ to open a note picker — selecting one inserts a wiki-style link."
+            },
+            "tagInline": {
+              "title": "Tag inline",
+              "description": "Type @ to insert a tag suggestion."
+            }
+          }
+        },
+        "notes": {
+          "label": "Notes",
+          "items": {
+            "create": {
+              "title": "Create a note",
+              "description": "Click the + button at the top of the notes list to add a new note."
+            },
+            "folders": {
+              "title": "Folders",
+              "description": "Group notes into folders, including nested folders."
+            },
+            "drag": {
+              "title": "Drag to reorder",
+              "description": "Drag notes within the tree to reorder or move them into folders."
+            },
+            "search": {
+              "title": "Search notes",
+              "description": "Use the search box above the tree to find notes by title."
+            },
+            "color": {
+              "title": "Color a folder",
+              "description": "Right-click a folder (or use its menu) to pick a color from the color picker."
+            },
+            "iconCustom": {
+              "title": "Custom icon",
+              "description": "Open the icon picker to pick a custom icon for any note or folder."
+            },
+            "softDelete": {
+              "title": "Soft delete",
+              "description": "Deleted notes go to the trash and can be restored later."
+            },
+            "restore": {
+              "title": "Restore from trash",
+              "description": "Open Settings → Trash to restore or permanently delete."
+            }
+          }
+        },
+        "linkSyntax": {
+          "label": "Links & tags",
+          "items": {
+            "noteLink": {
+              "title": "Note link with [[",
+              "description": "Type [[ inside any note or daily entry to insert a link to another note."
+            },
+            "tag": {
+              "title": "Tag with @",
+              "description": "Type @ to assign a tag — pick from the suggestions or create a new one."
+            },
+            "completion": {
+              "title": "Keyboard completion",
+              "description": "Use ↑ / ↓ then Enter inside the suggestion popover to confirm."
+            },
+            "click": {
+              "title": "Click to open",
+              "description": "Clicking a wiki link opens the target note in the same view."
+            },
+            "rename": {
+              "title": "Auto-rename",
+              "description": "Renaming a note updates the visible label of inbound wiki links automatically."
+            },
+            "graphLink": {
+              "title": "Shows up in the graph",
+              "description": "Linked notes and tags appear connected in the Connect graph view."
+            }
+          }
+        },
+        "files": {
+          "label": "Files",
+          "items": {
+            "rootFolder": {
+              "title": "Set a root folder",
+              "description": "Choose a root folder in Settings to make the file tree usable."
+            },
+            "tree": {
+              "title": "Tree view",
+              "description": "Browse files with collapsible folders, just like Finder."
+            },
+            "search": {
+              "title": "Search filenames",
+              "description": "Use the search box to filter the tree by filename."
+            },
+            "openOs": {
+              "title": "Open in your OS",
+              "description": "Right-click a file and choose Reveal in Finder / Explorer to open it natively."
+            },
+            "createNew": {
+              "title": "Create file or folder",
+              "description": "Use the + button to create a new file or folder inside the selected folder."
+            },
+            "rename": {
+              "title": "Rename inline",
+              "description": "Right-click → Rename for inline editing."
+            },
+            "delete": {
+              "title": "Delete safely",
+              "description": "Deletion goes through your OS trash, so files can be recovered if needed."
+            }
+          }
+        }
+      }
     },
-    "memoTab": {
-      "daily": "Daily Memo",
-      "dailyList1": "Each day has its own memo — one memo per date, automatically created.",
-      "dailyList2": "Use it as a daily journal, quick notes, or meeting log.",
-      "dailyList3": "Memos are saved to the database and persist across sessions.",
-      "navigation": "Date Navigation",
-      "navigationList1": "The left panel shows a list of dates with existing memos.",
-      "navigationList2": "Click a date to view or edit that day's memo.",
-      "navigationList3": "Click the <strong>Today</strong> button to jump to today's memo.",
-      "navigationList4": "Use the <strong>+</strong> button to create a new memo for today if none exists.",
-      "editor": "Rich Text Editor",
-      "editorList1": "Memos use the same <strong>TipTap</strong> rich text editor as task details.",
-      "editorList2": "Type <kbd>/</kbd> to open slash commands (headings, lists, code blocks, etc.).",
-      "editorList3": "See the <strong>Editor</strong> tab for the full list of slash commands and formatting.",
-      "calendarIntegration": "Calendar Integration",
-      "calendarIntegrationList1": "Days with memos show an indicator dot on the Calendar view.",
-      "calendarIntegrationList2": "Click a memo indicator on the calendar to navigate to that memo.",
-      "deleting": "Deleting Memos",
-      "deletingList1": "Click the <strong>trash icon</strong> next to a memo date to delete it.",
-      "deletingList2": "Memo deletion is <strong>permanent</strong> — deleted memos cannot be restored.",
-      "notes": "Notes",
-      "notesList1": "Switch to the <strong>Notes</strong> tab to create free-form notes separate from daily memos.",
-      "notesList2": "Notes are listed in the left panel. Click to view or edit.",
-      "notesList3": "Deleted notes can be restored from <strong>Settings → Trash</strong>."
+    "connect": {
+      "header": "Connect tips",
+      "tabs": {
+        "graph": {
+          "label": "Graph",
+          "items": {
+            "view": {
+              "title": "Open the graph",
+              "description": "Switch to the Nodes tab in Connect to see notes and tags as a graph."
+            },
+            "drag": {
+              "title": "Drag nodes",
+              "description": "Drag any node to reposition it on the canvas."
+            },
+            "zoom": {
+              "title": "Zoom & pan",
+              "description": "Pinch / scroll to zoom and drag the empty canvas to pan around."
+            },
+            "focusNode": {
+              "title": "Focus a note",
+              "description": "Selecting a note in the sidebar centers the graph on it."
+            },
+            "color": {
+              "title": "Tag color",
+              "description": "Nodes adopt the color of their dominant tag, set in the tag manager."
+            },
+            "savePosition": {
+              "title": "Layout is remembered",
+              "description": "Your manual placements are saved so the layout doesn't reset on reload."
+            },
+            "fromNote": {
+              "title": "Jump to the source note",
+              "description": "Click a note node to open it in the Notes view."
+            }
+          }
+        },
+        "tags": {
+          "label": "Tags",
+          "items": {
+            "assign": {
+              "title": "Assign a tag",
+              "description": "Type @tagname inside a note or memo to attach a tag."
+            },
+            "create": {
+              "title": "Create new tags",
+              "description": "Confirming a typed tag that doesn't exist creates it on the fly."
+            },
+            "rename": {
+              "title": "Rename safely",
+              "description": "Renaming a tag updates every place it's referenced."
+            },
+            "color": {
+              "title": "Set a color",
+              "description": "Pick a color in the tag manager — it carries through to the graph."
+            },
+            "filter": {
+              "title": "Filter by tag",
+              "description": "Use the tag filter overlay to narrow the view to one or more tags."
+            },
+            "manageInSettings": {
+              "title": "Tag manager",
+              "description": "Open Settings to manage all tags (rename, recolor, delete)."
+            },
+            "graphCluster": {
+              "title": "Tags cluster the graph",
+              "description": "Notes that share tags appear closer together in the graph."
+            }
+          }
+        },
+        "backlinks": {
+          "label": "Backlinks",
+          "items": {
+            "show": {
+              "title": "Right pane lists backlinks",
+              "description": "While viewing a note, the right pane lists which other notes link to it."
+            },
+            "unlinked": {
+              "title": "Unlinked mentions",
+              "description": "The unlinked tab shows places where the note's title is mentioned without a link."
+            },
+            "click": {
+              "title": "Click to jump",
+              "description": "Click any backlink entry to open the source note."
+            },
+            "context": {
+              "title": "Surrounding text",
+              "description": "Each backlink shows a snippet of the paragraph it appeared in."
+            },
+            "count": {
+              "title": "Backlink count",
+              "description": "The note tree shows the number of inbound links next to each note."
+            },
+            "navigate": {
+              "title": "Quick navigation",
+              "description": "Use backlinks to walk between related notes without the graph."
+            }
+          }
+        },
+        "filter": {
+          "label": "Filter",
+          "items": {
+            "search": {
+              "title": "Search bar",
+              "description": "The Connect sidebar's search bar filters the view by free-text query."
+            },
+            "byTag": {
+              "title": "Tag filter",
+              "description": "Apply tag filters to keep only matching notes / memos."
+            },
+            "noteType": {
+              "title": "Notes only",
+              "description": "Switch the type filter to Notes to hide memos."
+            },
+            "memoType": {
+              "title": "Memos only",
+              "description": "Switch the type filter to Memos to hide notes."
+            },
+            "viewMode": {
+              "title": "Switch view mode",
+              "description": "Toggle between graph and list views — both honor the active filter."
+            },
+            "persisted": {
+              "title": "Filters persist",
+              "description": "Your active tab and view mode are remembered across reloads."
+            }
+          }
+        }
+      }
     },
-    "analyticsTab": {
-      "overview": "Overview Metrics",
-      "overviewList1": "The Analytics dashboard shows key statistics about your tasks.",
-      "overviewList2": "Metrics include: <strong>total tasks</strong>, <strong>completed</strong>, <strong>in progress</strong>, and <strong>folder count</strong>.",
-      "overviewList3": "Data updates in real time as you create, complete, or delete tasks.",
-      "completion": "Completion Rates",
-      "completionList1": "View your <strong>overall completion rate</strong> as a percentage with a progress bar.",
-      "completionList2": "A separate <strong>today's completion rate</strong> tracks daily progress.",
-      "completionList3": "Use these metrics to monitor your productivity trends.",
-      "workTime": "Work Time",
-      "workTimeList1": "View your work time data in a <strong>bar chart</strong> broken down by day, week, or month.",
-      "workTimeList2": "A separate <strong>task bar chart</strong> shows work time per task.",
-      "workTimeList3": "Summary cards display total work time, session count, and daily average.",
-      "accessing": "Accessing Analytics",
-      "accessingList1": "Press <kbd>{{mod}} + 3</kbd> to jump to Analytics from any screen.",
-      "accessingList2": "Or click <strong>Analytics</strong> in the left sidebar.",
-      "accessingList3": "Also available via the command palette (<kbd>{{mod}} + K</kbd> → \"Analytics\")."
+    "terminal": {
+      "header": "Terminal tips",
+      "tabs": {
+        "claude": {
+          "label": "Claude",
+          "items": {
+            "launchTitleBar": {
+              "title": "Launch from the title bar",
+              "description": "Click the terminal icon in the title bar (just left of Undo / Redo) to open the terminal section and start Claude."
+            },
+            "shortcut": {
+              "title": "Cmd / Ctrl + J",
+              "description": "Open or close the terminal section with Cmd / Ctrl + J."
+            },
+            "mcpAutoConnect": {
+              "title": "MCP auto-connect",
+              "description": "On launch Claude automatically connects to the life-editor MCP server."
+            },
+            "naturalQuery": {
+              "title": "Natural-language requests",
+              "description": "Ask in plain language: \"add a task for tomorrow\", \"summarise today's memo\"."
+            },
+            "exitSession": {
+              "title": "Exit a session",
+              "description": "Type exit or press Ctrl + D to leave the Claude REPL while keeping the terminal open."
+            },
+            "switchSection": {
+              "title": "Switch sections freely",
+              "description": "Switching to another section keeps the terminal session alive in the background."
+            },
+            "aiSettings": {
+              "title": "Configure",
+              "description": "Tune Claude / MCP options from Settings → Claude Code."
+            }
+          }
+        },
+        "shortcuts": {
+          "label": "Shortcuts",
+          "items": {
+            "newTab": {
+              "title": "New tab",
+              "description": "Cmd / Ctrl + T opens a new terminal tab when the terminal is focused."
+            },
+            "closePane": {
+              "title": "Close pane",
+              "description": "Cmd / Ctrl + W closes the focused pane."
+            },
+            "splitVertical": {
+              "title": "Split vertically",
+              "description": "Cmd / Ctrl + D splits the focused pane vertically (side by side)."
+            },
+            "splitHorizontal": {
+              "title": "Split horizontally",
+              "description": "Cmd / Ctrl + Shift + D splits the focused pane horizontally (stacked)."
+            },
+            "togglePanel": {
+              "title": "Toggle the panel",
+              "description": "Cmd / Ctrl + J toggles the terminal section without losing the session."
+            }
+          }
+        },
+        "panes": {
+          "label": "Panes",
+          "items": {
+            "addTab": {
+              "title": "Add a tab",
+              "description": "Click the + button in the terminal header to add a tab (max 4)."
+            },
+            "splitV": {
+              "title": "Vertical split",
+              "description": "Each tab can hold up to 4 panes side by side."
+            },
+            "splitH": {
+              "title": "Horizontal split",
+              "description": "Stack panes vertically to keep logs and commands separate."
+            },
+            "maxPanes": {
+              "title": "Max 4 panes",
+              "description": "Splits beyond 4 panes per tab are blocked."
+            },
+            "resizeDrag": {
+              "title": "Resize splits",
+              "description": "Drag the divider between panes to change their sizes."
+            },
+            "focus": {
+              "title": "Click to focus",
+              "description": "Click any pane to make it active; shortcuts target the active pane."
+            },
+            "closePane": {
+              "title": "Close a pane",
+              "description": "Closing the last pane in a tab also closes the tab."
+            },
+            "tabBar": {
+              "title": "Tab bar",
+              "description": "The tab bar shows running tabs and lets you switch between them."
+            }
+          }
+        },
+        "mcp": {
+          "label": "MCP",
+          "items": {
+            "registerServer": {
+              "title": "Register MCP server",
+              "description": "Open Settings → Claude Code → Register MCP Server to enable data access."
+            },
+            "tools": {
+              "title": "30+ tools available",
+              "description": "Tools cover tasks, notes, schedule, tags, files, and search."
+            },
+            "createTask": {
+              "title": "Create tasks naturally",
+              "description": "Ask: \"Create a task to call the bank tomorrow at 10am\" — it's wired end-to-end."
+            },
+            "queryNotes": {
+              "title": "Work with notes",
+              "description": "Ask Claude to list, summarise, or update notes."
+            },
+            "tagOps": {
+              "title": "Tag operations",
+              "description": "Tag entities or search by tag with built-in tools."
+            },
+            "fileOps": {
+              "title": "File operations",
+              "description": "Claude can read and write files inside the configured root folder."
+            },
+            "schedule": {
+              "title": "Schedule items",
+              "description": "List, create, update, and toggle schedule items via MCP."
+            },
+            "claudeMd": {
+              "title": "CLAUDE.md",
+              "description": "Edit project instructions in Settings → Claude Code → CLAUDE.md."
+            },
+            "skills": {
+              "title": "Skills",
+              "description": "Install Claude Code skills under ~/life-editor/.claude/skills/."
+            }
+          }
+        }
+      }
     },
-    "editorTab": {
-      "slashCommands": "Slash Commands",
-      "slashCommandsDesc": "Type <kbd>/</kbd> in the editor to open the command menu. Start typing to filter commands.",
-      "command": "Command",
-      "description": "Description",
-      "heading1": "Heading 1",
-      "heading1Desc": "Large section heading",
-      "heading2": "Heading 2",
-      "heading2Desc": "Medium section heading",
-      "heading3": "Heading 3",
-      "heading3Desc": "Small section heading",
-      "bulletList": "Bullet List",
-      "bulletListDesc": "Unordered bullet list",
-      "orderedList": "Ordered List",
-      "orderedListDesc": "Numbered list",
-      "codeBlock": "Code Block",
-      "codeBlockDesc": "Fenced code block",
-      "blockquote": "Blockquote",
-      "blockquoteDesc": "Indented quote block",
-      "horizontalRule": "Horizontal Rule",
-      "horizontalRuleDesc": "Divider line",
-      "taskList": "Task List",
-      "taskListDesc": "Checklist with checkboxes",
-      "toggleList": "Toggle List",
-      "toggleListDesc": "Collapsible content block",
-      "table": "Table",
-      "tableDesc": "3×3 table with header row",
-      "callout": "Callout",
-      "calloutDesc": "Highlighted callout box with emoji",
-      "image": "Image",
-      "imageDesc": "Insert image from URL",
-      "markdownShortcuts": "Markdown Shortcuts",
-      "markdownShortcutsDesc": "The editor supports Markdown-style formatting as you type.",
-      "syntax": "Syntax",
-      "result": "Result",
-      "bold": "Bold text",
-      "italic": "Italic text",
-      "inlineCode": "Inline code",
-      "strikethrough": "Strikethrough",
-      "horizontalRuleMd": "Horizontal rule",
-      "blockquoteMd": "Blockquote",
-      "codeBlockMd": "Code block",
-      "sharedUsageNote": "This editor is shared across Task Details, Memo, and Notes."
-    },
-    "pomodoroTab": {
-      "settings": "Pomodoro Settings",
-      "settingsList1": "Configure durations in the <strong>Pomodoro</strong> tab on the Work screen.",
-      "settingsList2": "Defaults: 25 min work, 5 min break, 15 min long break, 4 sessions per cycle.",
-      "settingsList3": "Settings cannot be changed while a timer is running.",
-      "settingsList4": "A summary of the current settings is displayed in the left panel.",
-      "presets": "Presets",
-      "presetsList1": "Save the current configuration as a named preset for quick switching.",
-      "presetsList2": "Apply a saved preset to instantly load its durations and session count.",
-      "presetsList3": "Delete presets you no longer need from the preset list.",
-      "autoStart": "Auto-Start Breaks",
-      "autoStartList1": "Enable the auto-start toggle to automatically begin breaks when work ends.",
-      "autoStartList2": "When disabled, you must manually start each break session."
-    },
-    "musicTab": {
-      "sounds": "Sounds Library",
-      "soundsList1": "Browse all available ambient sounds in the Music tab.",
-      "soundsList2": "Use the search bar to filter sounds by name.",
-      "soundsList3": "Click the preview button to listen before adding to a playlist.",
-      "soundsList4": "Sounds can be filtered by tags for quick discovery.",
-      "playlists": "Playlists",
-      "playlistsList1": "Create playlists to organize your favorite ambient sounds.",
-      "playlistsList2": "Add sounds to a playlist from the sound browser.",
-      "playlistsList3": "Use <strong>Shuffle</strong> and <strong>Repeat</strong> controls for playback variety.",
-      "playlistsList4": "Drag tracks to reorder them within a playlist.",
-      "tags": "Sound Tags",
-      "tagsList1": "Create tags in <strong>Settings → Tag Manager</strong> to categorize sounds.",
-      "tagsList2": "Filter the sound library by tags to quickly find what you need.",
-      "customSounds": "Custom Sounds",
-      "customSoundsList1": "Upload your own audio files (MP3, WAV, OGG) as custom sounds.",
-      "customSoundsList2": "Rename or delete custom sounds from the sound browser context menu.",
-      "timerPlaylist": "Timer Playlist",
-      "timerPlaylistList1": "Select a <strong>Background Playlist</strong> on the Work screen to play during timer sessions.",
-      "timerPlaylistList2": "Playback starts automatically when the timer begins and pauses when it stops."
-    },
-    "work": "Work"
+    "analytics": {
+      "header": "Analytics tips",
+      "tabs": {
+        "overview": {
+          "label": "Overview",
+          "items": {
+            "openSection": {
+              "title": "Open Analytics",
+              "description": "Switch to the Analytics section to see cross-domain dashboards."
+            },
+            "todayDashboard": {
+              "title": "Today dashboard",
+              "description": "The top of Overview shows today's totals: focus time, completed tasks, and pomodoro count."
+            },
+            "periodSelector": {
+              "title": "Right sidebar period",
+              "description": "Pick day / week / month from the period selector in the right sidebar."
+            },
+            "datePresets": {
+              "title": "Date presets",
+              "description": "Quick presets cover 7 / 30 days, this month, 3 months, and all time."
+            },
+            "weeklySummary": {
+              "title": "Weekly summary",
+              "description": "The weekly summary card compares this week against the previous one with up / down arrows."
+            },
+            "streak": {
+              "title": "Streak (days)",
+              "description": "Streak counters show current and longest consecutive days."
+            },
+            "switchTabs": {
+              "title": "Six tabs",
+              "description": "Switch between Overview / Tasks / Schedule / Materials / Work / Connect for focused views."
+            }
+          }
+        },
+        "tasks": {
+          "label": "Tasks",
+          "items": {
+            "completionTrend": {
+              "title": "Completion trend",
+              "description": "Track completed and created tasks across the chosen period."
+            },
+            "stagnation": {
+              "title": "Stagnation chart",
+              "description": "Highlights tasks that have been open the longest without progress."
+            },
+            "byProject": {
+              "title": "Project work time",
+              "description": "Compare focused time across folders / projects."
+            },
+            "workTime": {
+              "title": "Per-task work time",
+              "description": "Spot which individual tasks consumed the most focused time."
+            },
+            "filterPeriod": {
+              "title": "Period filter",
+              "description": "All task analytics respect the period selector in the right sidebar."
+            },
+            "tabFocus": {
+              "title": "Focused view",
+              "description": "The Tasks tab strips away cross-domain noise and focuses on task metrics."
+            }
+          }
+        },
+        "time": {
+          "label": "Time",
+          "items": {
+            "workChart": {
+              "title": "Work time chart",
+              "description": "Daily focused work time as a bar chart."
+            },
+            "heatmap": {
+              "title": "Work heatmap",
+              "description": "Day-of-week × hour-of-day heatmap reveals when you actually focus."
+            },
+            "balance": {
+              "title": "Work / break balance",
+              "description": "Compare work time vs break time at a glance."
+            },
+            "pomodoroRate": {
+              "title": "Pomodoro completion rate",
+              "description": "Track how often planned pomodoros are completed."
+            },
+            "dailyTimeline": {
+              "title": "Daily timeline",
+              "description": "Visualises sessions on a 24-hour timeline for the chosen day."
+            },
+            "scheduleTab": {
+              "title": "Schedule tab",
+              "description": "The Schedule analytics tab focuses on event and routine completion."
+            },
+            "eventDistribution": {
+              "title": "Event distribution",
+              "description": "See how events are distributed across hours of the day."
+            }
+          }
+        },
+        "knowledge": {
+          "label": "Knowledge",
+          "items": {
+            "noteCreation": {
+              "title": "Note creation trend",
+              "description": "Daily note creation chart shows your writing cadence."
+            },
+            "memoHeatmap": {
+              "title": "Memo heatmap",
+              "description": "Surface missed days in your daily memo with the heatmap."
+            },
+            "byFolder": {
+              "title": "Notes by folder",
+              "description": "See note distribution across folders to spot dominant projects."
+            },
+            "tagUsage": {
+              "title": "Tag usage",
+              "description": "Top tags by frequency, with counts."
+            },
+            "tagEntityType": {
+              "title": "Tag × entity type",
+              "description": "Breaks tag assignments down by entity type (note / memo / task)."
+            },
+            "connectSummary": {
+              "title": "Connection summary",
+              "description": "Summary of cross-entity connections drawn from the Connect view."
+            }
+          }
+        }
+      }
+    }
   },
   "calendar": {
     "incomplete": "Incomplete",
@@ -1589,7 +2184,7 @@
   },
   "wikiTags": {
     "title": "Tags",
-    "description": "Manage wiki tags used across tasks, memos, and notes. Type #tag in any editor to create inline tags.",
+    "description": "Manage wiki tags used across tasks, memos, and notes. Type @tag in any editor to create inline tags.",
     "selectOrCreate": "Select or create a tag",
     "createNew": "Create",
     "create": "Create",
@@ -1597,7 +2192,7 @@
     "searchPlaceholder": "Search tags...",
     "tagNamePlaceholder": "Tag name...",
     "noResults": "No tags found",
-    "empty": "No tags yet. Type #tag in an editor to create one.",
+    "empty": "No tags yet. Type @tag in an editor to create one.",
     "deleteConfirm": "Delete \"{{name}}\"?",
     "merge": "Merge",
     "mergeSelectTarget": "Click another tag to merge into",

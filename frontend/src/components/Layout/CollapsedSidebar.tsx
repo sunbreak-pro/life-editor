@@ -6,16 +6,15 @@ import {
   BarChart3,
   Settings,
   BookOpen,
-  Terminal,
 } from "lucide-react";
 import type { SectionId } from "../../types/taskTree";
-import type { LayoutHandle } from "./Layout";
 import { useTranslation } from "react-i18next";
 
 interface CollapsedSidebarProps {
   activeSection: SectionId;
   onSectionChange: (section: SectionId) => void;
-  layoutRef: React.RefObject<LayoutHandle | null>;
+  onToggleTips: () => void;
+  tipsOpen: boolean;
 }
 
 const mainItems: {
@@ -33,13 +32,14 @@ const mainItems: {
 export function CollapsedSidebar({
   activeSection,
   onSectionChange,
-  layoutRef,
+  onToggleTips,
+  tipsOpen,
 }: CollapsedSidebarProps) {
   const { t } = useTranslation();
 
   return (
-    <div className="h-full bg-notion-bg-secondary border-r border-notion-border flex flex-col items-center py-2 shrink-0 w-12">
-      <nav className="flex-1 flex flex-col items-center gap-1">
+    <div className="h-full bg-notion-bg-subsidebar border-r border-notion-border flex flex-col items-center py-2 shrink-0 w-12">
+      <nav className="flex-1 flex flex-col items-center gap-0.5">
         {mainItems.map((item) => {
           const Icon = item.icon;
           const isActive = activeSection === item.id;
@@ -59,13 +59,18 @@ export function CollapsedSidebar({
           );
         })}
       </nav>
-      <div className="flex flex-col items-center gap-1 border-t border-notion-border pt-2">
+      <div className="flex flex-col items-center gap-0.5 border-t border-notion-border pt-2">
         <button
-          title={t("sidebar.launchClaude")}
-          onClick={() => layoutRef.current?.launchClaude()}
-          className="p-2 rounded-md transition-colors text-notion-text-secondary hover:text-notion-text hover:bg-notion-hover"
+          title={t("tips.panel.title")}
+          onClick={onToggleTips}
+          aria-pressed={tipsOpen}
+          className={`p-2 rounded-md transition-colors ${
+            tipsOpen
+              ? "bg-notion-hover text-notion-text"
+              : "text-notion-text-secondary hover:text-notion-text hover:bg-notion-hover"
+          }`}
         >
-          <Terminal size={18} />
+          <Lightbulb size={18} />
         </button>
         <button
           title={t("sidebar.settings")}
