@@ -26,6 +26,9 @@
   --color-chip-task-bg: #e0f4fb;
   --color-chip-task-fg: #0e7490;
   --color-chip-task-dot: #2eaadc;
+  --color-chip-completed-bg: #ecfdf5;
+  --color-chip-completed-fg: #047857;
+  --color-chip-completed-dot: #10b981;
   --font-size-base: 16px;
 }
 
@@ -55,6 +58,9 @@
   --color-chip-task-bg: #0c3a4a;
   --color-chip-task-fg: #7dd3fc;
   --color-chip-task-dot: #38bdf8;
+  --color-chip-completed-bg: #052e1f;
+  --color-chip-completed-fg: #6ee7b7;
+  --color-chip-completed-dot: #34d399;
 }
 
 @theme {
@@ -405,6 +411,57 @@ body {
   filter: none;
 }
 
+/* Note Link (Obsidian-style [[...]]) */
+.memo-editor .note-link {
+  display: inline;
+  color: var(--color-accent);
+  cursor: pointer;
+  padding: 0 0.15rem;
+  border-radius: 3px;
+  transition:
+    background-color 0.1s ease,
+    color 0.1s ease;
+}
+
+.memo-editor .note-link:hover {
+  background-color: var(--color-hover);
+  text-decoration: underline;
+}
+
+.memo-editor .note-link-bracket {
+  opacity: 0.4;
+  font-weight: 300;
+}
+
+.memo-editor .note-link-text {
+  font-weight: 500;
+}
+
+.memo-editor .note-link-suffix {
+  opacity: 0.7;
+  font-size: 0.85em;
+  margin-left: 0.1rem;
+}
+
+.memo-editor .note-link-broken {
+  color: var(--color-text-secondary);
+  text-decoration: line-through;
+  opacity: 0.7;
+}
+
+.memo-editor .note-link-broken:hover {
+  background-color: var(--color-hover);
+  text-decoration: line-through underline;
+}
+
+.memo-editor .note-link-embed {
+  display: block;
+  padding: 0.5rem 0.75rem;
+  margin: 0.25rem 0;
+  border-left: 3px solid var(--color-accent);
+  background-color: var(--color-hover);
+}
+
 /* Callout */
 .memo-editor .callout {
   display: flex;
@@ -745,6 +802,23 @@ body {
 
 .routine-check-animate {
   animation: routine-check 400ms ease-out;
+}
+
+/* Mobile DaySheet check-in animation (compact, no ripple) */
+@keyframes check-in {
+  0% {
+    transform: scale(0.8);
+  }
+  60% {
+    transform: scale(1.15);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+.animate-check-in {
+  animation: check-in 150ms ease-out;
 }
 
 /* Slide up animation for milestone toast */

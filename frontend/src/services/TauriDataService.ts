@@ -36,6 +36,12 @@ import type {
   WikiTagGroupMember,
   NoteConnection,
 } from "../types/wikiTag";
+import type {
+  NoteLink,
+  NoteLinkPayload,
+  BacklinkHit,
+  UnlinkedMention,
+} from "../types/noteLink";
 import type { TimeMemo } from "../types/timeMemo";
 import type { PaperBoard, PaperNode, PaperEdge } from "../types/paperBoard";
 import type { AttachmentMeta } from "../types/attachment";
@@ -928,6 +934,41 @@ export class TauriDataService implements DataService {
       sourceNoteId,
       targetNoteId,
     });
+  }
+
+  // --- Note Links (Obsidian-style [[...]] syntax) ---
+  fetchAllNoteLinks(): Promise<NoteLink[]> {
+    return tauriInvoke("db_note_links_fetch_all");
+  }
+  fetchForwardLinksForNote(sourceNoteId: string): Promise<NoteLink[]> {
+    return tauriInvoke("db_note_links_fetch_forward", { sourceNoteId });
+  }
+  fetchBacklinksForNote(targetNoteId: string): Promise<BacklinkHit[]> {
+    return tauriInvoke("db_note_links_fetch_backlinks", { targetNoteId });
+  }
+  upsertNoteLinksForNote(
+    sourceNoteId: string,
+    links: NoteLinkPayload[],
+  ): Promise<void> {
+    return tauriInvoke("db_note_links_upsert_for_note", {
+      sourceNoteId,
+      links,
+    });
+  }
+  upsertNoteLinksForMemo(
+    sourceMemoDate: string,
+    links: NoteLinkPayload[],
+  ): Promise<void> {
+    return tauriInvoke("db_note_links_upsert_for_memo", {
+      sourceMemoDate,
+      links,
+    });
+  }
+  deleteNoteLinksForNote(sourceNoteId: string): Promise<void> {
+    return tauriInvoke("db_note_links_delete_for_note", { sourceNoteId });
+  }
+  fetchUnlinkedMentions(sourceNoteId: string): Promise<UnlinkedMention[]> {
+    return tauriInvoke("db_note_links_unlinked_mentions", { sourceNoteId });
   }
 
   // --- Time Memos ---

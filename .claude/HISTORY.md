@@ -1,5 +1,33 @@
 # HISTORY.md - 変更履歴
 
+### 2026-04-19 - Notes / Memos Obsidian 風知識結晶化 Phase 1（計画書: 外部 `~/.claude/plans/1-notes-memos-notes-2-binary-muffin.md`）
+
+#### 概要
+
+Obsidian の「ノート間直接リンク / Backlinks / 記法分離」を Life Editor の Notes / Memos に移植する Phase 1 基礎実装。`[[NoteName]]` = Note Link（新規）、`#tag` = WikiTag（既存データ流用）に記法を分離し、DB V61 で `note_links` / `note_aliases` テーブルを追加、TipTap Extension + 自動補完 + Backlinks ペインを Desktop の NotesView に統合した。計画書の 8 週工程のうち Phase 1（Week 1-4 相当）を完了。Phase 2+（Properties / Embed / BlockRef / LocalGraph / MCP 5 ツール / V62-V64）は次セッション以降。
+
+#### 変更点
+
+- **DB V61 新規**: `note_links`（id/source_note_id/source_memo_date/target_note_id/target_heading/target_block_id/alias/link_type CHECK(inline|embed)/timestamps/version/soft-delete）+ `note_aliases`（UNIQUE alias レジストリ）。`create_full_schema` + 増分マイグレーション両対応、`PRAGMA user_version` を 61 に、インデックス 7 本追加。V61 専用テストと既存 V60 テスト 3 件を V61 対応に更新
+- **Rust Backend（3 ファイル）**: `note_link_repository.rs`（fetch_all / fetch_forward_links / fetch_backlinks with JOIN notes / upsert_links_for_note / upsert_links_for_memo / delete_links_for_note / fetch_unlinked_mentions）+ 4 単体テスト。`note_link_commands.rs` で Tauri command 7 本。`lib.rs` の `generate_handler![]` に 7 コマンド登録（IPC 4 点同期）
+- **DataService / TauriDataService**: 7 メソッド追加（`fetchAllNoteLinks` / `fetchForwardLinksForNote` / `fetchBacklinksForNote` / `upsertNoteLinksForNote` / `upsertNoteLinksForMemo` / `deleteNoteLinksForNote` / `fetchUnlinkedMentions`）。`types/noteLink.ts` 新規（NoteLink / NoteLinkPayload / BacklinkHit / UnlinkedMention）
+- **TipTap `NoteLink` Extension**: `extensions/NoteLink.ts` + `NoteLinkView.tsx`。`[[NoteName]]` / `[[Note|alias]]` / `[[Note#Heading]]` / `[[Note#^block-id]]` / `![[…]]`（embed）を atom inline node として実装。broken 表示（targetNote 不在時は line-through）対応
+- **Auto-complete**: `useNoteLinkSuggestion.ts`（`[[` または `![[` 検出 → `parseNoteLinkRaw` で `note#heading#^block|alias` 構造化 → ノートタイトル曖昧検索、`]]` 入力で自動確定）+ `NoteLinkSuggestionMenu.tsx`（MemoEditor 下に floating）
+- **TipTap → DB 同期**: `useNoteLinkSync.ts` が編集内容から `extractNoteLinksFromTiptapJson` で NoteLinkPayload 抽出 → `upsertNoteLinksForNote` / `upsertNoteLinksForMemo` を editor update 毎に呼び出し（payloadKey diff で無駄な往復を排除）。`useWikiTagSync` と同一の debounce 相当パターン
+- **Backlinks ペイン**: `useBacklinks.ts`（noteId + syncVersion に連動して backlinks + unlinkedMentions を並列 fetch）+ `components/Ideas/BacklinksPane.tsx`（Backlinks / Unlinked Mentions タブ切替、ソース単位グループ化 + heading/block suffix 表示、未リンク言及クリックで該当 Note 遷移）。`NotesView.tsx` の MemoEditor 直下に統合
+- **WikiTag 記法分離（案 A: DB 無改修）**: `extensions/WikiTag.ts:44` の `renderHTML` を `[[${tagName}]]` → `#${tagName}` に変更（parseHTML と nodeType `wikiTag` は互換維持、DB 内 TipTap JSON を破壊しない）。`useWikiTagSuggestion` のトリガを `[[…]]` → `#…`（行頭 or 空白後のみ起動、ESC で閉じる）に書き換え。`useWikiTagSync` は触らず既存エンティティ割当ロジックを再利用
+- **CSS**: `index.css` に `.note-link` / `.note-link-bracket` / `.note-link-text` / `.note-link-suffix` / `.note-link-broken` / `.note-link-embed` スタイル追加（accent color、embed は左 border + hover underline）
+- **i18n（en/ja 同期）**: `noteLinks.{linkToNote,embedNote,noResults}` + `backlinks.{title,unlinkedMentions,empty,noUnlinkedMentions,loading}` 追加。`wikiTags.description` と `wikiTags.empty` の `[[タグ名]]` 表記を `#タグ名` に統一
+- **テスト**: Vitest 13 件追加（`parseNoteLinkRaw` 8 件 / `extractNoteLinksFromTiptapJson` 5 件）+ Rust 6 件追加（migrations 3 件 / note_link_repository 4 件うち既存と重複なし）。全 Vitest 213 pass / Cargo test 8 pass / `tsc --noEmit` / `cargo check` クリーン
+
+#### スコープ外（次フェーズに持ち越し）
+
+- Phase 2: V62 `entity_properties` / `note_blocks` / TipTap `EmbedNote` / `BlockRef` / `PropertiesProvider` / `PropertiesPanel` / `LocalGraphView` / Global Graph 拡張 / Search 演算子 / Mobile ボタン式 UI
+- Phase 3+: Slash Command / Nested Tags UI / Dataview-lite / Canvas 再検討
+- MCP Server 5 ツール（`find_related_notes` / `summarize_by_tag` / `compose_from_notes` / `suggest_backlinks` / `find_zettelkasten_chain`）
+
+---
+
 ### 2026-04-19 - vision/ 整理 + Mobile 移植計画ドキュメント化
 
 #### 概要
@@ -95,33 +123,5 @@ Claude Design で作成された HTML/JSX プロトタイプ（`gysUUHAKNxXSabDT
 - **react-refresh/only-export-components 違反修正**: `kindPalette` ユーティリティを `MobileEventChip.tsx` から `schedule/chipPalette.ts` に分離。`MobileDaySheet` / `MobileDayflowGrid` の import 先も更新。
 
 - **自動検証全通過**: `npx tsc --noEmit` 0 エラー / `npx eslint` 0 エラー（変更ファイル）/ `npx vitest run` 24 files 200 tests pass / `npm run build` 13.1s 成功。
-
-### 2026-04-18 - .claude/ 構造モダナイゼーション（CLAUDE.md 軽量化 + ADR 廃止 + グローバルスキル整合）
-
-#### 概要
-
-life-editor の `.claude/` を全面再編し、同時にグローバルスキル（/project-setter / task-tracker / session-verifier / session-loader）を新構造に整合させた。CLAUDE.md を 805 → 345 行に圧縮しコンテキスト効率を改善。ADR 方式を廃止し、設計原則を `docs/vision/` に一元化する運用に切替。全プロジェクト共通の運用ルールを `~/.claude/CLAUDE.md` に明文化。
-
-#### 変更点
-
-- **life-editor CLAUDE.md 軽量化**: 805 行 → 345 行（-56%）。ビジョン系 §1-5 / AI 詳細 §8.3-8.4 / デバッグ詳細 §10.5 / Review Checklist §10.6 / 実装済み機能リスト §11 補足 / Roadmap 完了履歴を削除、抽象構想は `docs/vision/` に分離
-
-- **docs/vision/ 新設**: `README.md` / `core.md`（Core Identity / Target User / Value Props / Non-Goals / Platform Strategy 詳細）/ `ai-integration.md`（Cognitive Architecture 要旨 + 利用シナリオ）/ `coding-principles.md`（旧 ADR-0002/0003/0004/0006/0007 の要旨統合）
-
-- **ADR 廃止**: `docs/adr/` (ADR-0005/0006/0007) と `archive/adr/` (0001-0004) を全削除。設計原則は vision/coding-principles.md に集約し、時点判断ではなく「現在から未来に向けた継続更新される指針」として運用
-
-- **feature_plans/ 廃止**: `2026-04-18-app-redefinition-roadmap.md` → `archive/`、`2026-04-17-daily-life-hub-requirements.md` / `application-definition-template.md` → `docs/vision/`、ディレクトリ自体を削除。実装プラン命名規則は `.claude/YYYY-MM-DD-<slug>.md`（直下配置）に統一
-
-- **/project-setter 全面更新**: SKILL.md に新構造マッピング表と設計思想（400 行上限 / ADR 不使用 / vision 一元化）を追記。Software / Novel / Research 全 3 タイプで `vision/` + `known-issues/` + `requirements/` (Software のみ) のテンプレート追加、旧 `adr-template.md.tmpl` / `operations.md.tmpl` / `coding.md.tmpl` / `writing.md.tmpl` / `methodology.md.tmpl` を削除。`~/.claude/skills/project-setter` にシンボリックリンク作成
-
-- **グローバル `~/.claude/CLAUDE.md` 拡張**: 13 行 → 54 行。Project Documentation Structure セクション追加（ファイル階層 / 運用原則 / CLAUDE.md 標準 9 章構成）。全プロジェクト共通のルール（400 行上限、ADR 不使用、実装プラン命名規則、known-issues 運用）を明文化
-
-- **task-tracker 更新**: 計画書パスを `.claude/docs/feature_plans/` → `.claude/` 直下に、アーカイブ先を `.claude/docs/archive/` → `.claude/archive/` に変更。ヘッダーコメントから廃止済み `rules/operations.md` 参照を削除
-
-- **session-verifier 汎用化**: Gate 0 のプロジェクト固有 electron パス分類を汎用カテゴリ（Frontend / Backend / Database / IPC / Tests / Config）に変更。Gate 5 の参照先を `.claude/rules/` → `.claude/docs/vision/coding-principles.md` に更新、known-issues/INDEX.md 参照を追記
-
-- **session-loader グローバル化**: `~/.claude/skills/session-loader` を新設（標準構造前提の Step 1-5）。life-editor プロジェクト固有版は Step 6-7 で追加読込を担う構成に更新、旧 `docs/life-editor-v2/00-vision.md` / `docs/adr/0001-tech-stack.md` 参照を削除
-
-- **skill-catalog.md 更新**: Software 推奨スキルに session-loader / session-verifier を追加、Novel / Research 推奨にも session-loader 追加
 
 <!-- older entries archived to HISTORY-archive.md -->

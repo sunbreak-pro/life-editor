@@ -32,14 +32,14 @@ export function useWikiTagSuggestion(
   const [query, setQuery] = useState("");
   const [position, setPosition] = useState({ top: 0, left: 0 });
   const [selectedIndex, setSelectedIndex] = useState(0);
-  const bracketPosRef = useRef<number | null>(null);
+  // Position of the `#` that opened the suggestion.
+  const triggerPosRef = useRef<number | null>(null);
 
   const filteredTags = useMemo(() => {
     const q = query.toLowerCase();
     return tags.filter((tag) => tag.name.toLowerCase().includes(q));
   }, [tags, query]);
 
-  // Include "create new" option if query doesn't exactly match
   const hasExactMatch = useMemo(
     () =>
       query.length > 0 &&
@@ -54,14 +54,14 @@ export function useWikiTagSuggestion(
     setIsOpen(false);
     setQuery("");
     setSelectedIndex(0);
-    bracketPosRef.current = null;
+    triggerPosRef.current = null;
   }, []);
 
-  const deleteBracketText = useCallback(() => {
-    if (bracketPosRef.current !== null) {
-      const from = bracketPosRef.current;
-      // +2 for "[[", then query length
-      const to = from + 2 + query.length;
+  const deleteTriggerText = useCallback(() => {
+    if (triggerPosRef.current !== null) {
+      const from = triggerPosRef.current;
+      // +1 for "#", then query length
+      const to = from + 1 + query.length;
       editor.chain().focus().deleteRange({ from, to }).run();
     }
   }, [editor, query]);
@@ -70,11 +70,10 @@ export function useWikiTagSuggestion(
     (index: number) => {
       if (index < filteredTags.length) {
         const tag = filteredTags[index];
-        deleteBracketText();
+        deleteTriggerText();
         onInsertTag(tag);
       } else {
-        // Create new tag
-        deleteBracketText();
+        deleteTriggerText();
         onCreateAndInsertTag(query);
       }
       close();
@@ -82,14 +81,14 @@ export function useWikiTagSuggestion(
     [
       filteredTags,
       query,
-      deleteBracketText,
+      deleteTriggerText,
       onInsertTag,
       onCreateAndInsertTag,
       close,
     ],
   );
 
-  // Handle ]] auto-confirm
+  // Detect `#query` and drive the suggestion menu.
   useEffect(() => {
     const handleTransaction = () => {
       try {
@@ -99,46 +98,26 @@ export function useWikiTagSuggestion(
       }
 
       const isComposing = editor.view.composing;
+      if (isComposing) return;
 
       const { state } = editor;
       const { $head } = state.selection;
       const textBefore = $head.parent.textContent.slice(0, $head.parentOffset);
 
-      // Check for ]] auto-confirm (when user types closing brackets)
-      if (!isComposing && textBefore.endsWith("]]")) {
-        // Extract the tag name between [[ and ]]
-        const match = textBefore.match(/\[\[([^\]]+)\]\]$/);
-        if (match) {
-          const name = match[1];
-          // Delete the entire [[name]] text
-          const from = $head.pos - match[0].length;
-          const to = $head.pos;
-          editor.chain().focus().deleteRange({ from, to }).run();
-
-          // Find existing tag or create
-          const existing = tags.find(
-            (t) => t.name.toLowerCase() === name.toLowerCase(),
-          );
-          if (existing) {
-            onInsertTag(existing);
-          } else {
-            onCreateAndInsertTag(name);
-          }
-          close();
-          return;
-        }
-      }
-
-      // Detect [[ pattern
-      const bracketMatch = textBefore.match(/\[\[([^\]]*?)$/);
-      if (bracketMatch) {
+      // Match `#query` where query has no whitespace or nested `#`.
+      // Require start-of-block or whitespace before `#` so mid-word `#`s don't trigger.
+      const match = textBefore.match(/(?:^|\s)#([^\s#]*)$/);
+      if (match) {
+        const rawQuery = match[1];
+        // `#` position: end of textBefore minus rawQuery.length minus 1 for the `#` itself,
+        // mapped into the doc by parent offset.
         try {
           const coords = editor.view.coordsAtPos($head.pos);
           const editorRect = editor.view.dom.getBoundingClientRect();
           setPosition(calcMenuPosition(coords, editorRect));
-          setQuery(bracketMatch[1]);
+          setQuery(rawQuery);
           setSelectedIndex(0);
-          bracketPosRef.current = $head.pos - bracketMatch[0].length;
+          triggerPosRef.current = $head.pos - rawQuery.length - 1;
           setIsOpen(true);
         } catch {
           if (isOpen) close();

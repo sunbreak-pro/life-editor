@@ -1575,9 +1575,21 @@
     "updated": "更新日",
     "loadingEditor": "エディタを読み込み中..."
   },
+  "noteLinks": {
+    "linkToNote": "ノートへのリンク",
+    "embedNote": "ノートを埋め込み",
+    "noResults": "該当するノートがありません"
+  },
+  "backlinks": {
+    "title": "被リンク",
+    "unlinkedMentions": "未リンク言及",
+    "empty": "このノートへのリンクはまだありません。",
+    "noUnlinkedMentions": "未リンクの言及はありません。",
+    "loading": "読み込み中..."
+  },
   "wikiTags": {
     "title": "タグ",
-    "description": "タスク・メモ・ノート全体で使用するウィキタグを管理します。エディタで [[タグ名]] と入力するとインラインタグを作成できます。",
+    "description": "タスク・メモ・ノート全体で使用するウィキタグを管理します。エディタで #タグ名 と入力するとインラインタグを作成できます。",
     "selectOrCreate": "タグを選択または作成",
     "createNew": "作成",
     "create": "作成",
@@ -1585,7 +1597,7 @@
     "searchPlaceholder": "タグを検索...",
     "tagNamePlaceholder": "タグ名...",
     "noResults": "タグが見つかりません",
-    "empty": "タグはまだありません。エディタで [[タグ名]] と入力して作成できます。",
+    "empty": "タグはまだありません。エディタで #タグ名 と入力して作成できます。",
     "deleteConfirm": "「{{name}}」を削除しますか？",
     "merge": "統合",
     "mergeSelectTarget": "統合先のタグをクリックしてください",

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useCallback, useState } from "react";
+import { useEffect, useRef, useCallback, useState, useMemo } from "react";
 import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Bold from "@tiptap/extension-bold";
@@ -27,6 +27,7 @@ import { Callout } from "../../../extensions/Callout";
 import { CustomHeading } from "../../../extensions/CustomHeading";
 import { CustomInputRules } from "../../../extensions/InputRules";
 import { WikiTag } from "../../../extensions/WikiTag";
+import { NoteLink } from "../../../extensions/NoteLink";
 import { PdfAttachment } from "../../../extensions/PdfAttachment";
 import { FileUploadPlaceholder } from "../../../extensions/FileUploadPlaceholder";
 import { DatabaseBlock } from "../../../extensions/DatabaseBlock";
@@ -34,7 +35,9 @@ import { BlockBackground } from "../../../extensions/BlockBackground";
 import { BubbleToolbar } from "./BubbleToolbar";
 import { BlockContextMenu } from "./BlockContextMenu";
 import { WikiTagSuggestionMenu } from "../../WikiTags/WikiTagSuggestionMenu";
+import { NoteLinkSuggestionMenu } from "../../shared/NoteLinkSuggestionMenu";
 import { useWikiTagSync } from "../../../hooks/useWikiTagSync";
+import { useNoteLinkSync } from "../../../hooks/useNoteLinkSync";
 import { useAttachments } from "../../../hooks/useAttachments";
 import { setStoredHeadingFontSize } from "../../../utils/headingFontSize";
 import { isValidUrl } from "../../../utils/urlValidation";
@@ -248,6 +251,7 @@ export function MemoEditor({
         ToggleContent,
         Callout,
         WikiTag,
+        NoteLink,
         PdfAttachment,
         FileUploadPlaceholder,
         DatabaseBlock,
@@ -480,6 +484,18 @@ export function MemoEditor({
 
   useWikiTagSync(editor, syncEntityId ?? taskId, entityType);
 
+  const noteLinkSource = useMemo(() => {
+    const id = syncEntityId ?? taskId;
+    if (entityType === "note") {
+      return { kind: "note" as const, noteId: id };
+    }
+    if (entityType === "memo") {
+      return { kind: "memo" as const, memoDate: id };
+    }
+    return null;
+  }, [entityType, syncEntityId, taskId]);
+  useNoteLinkSync(editor, noteLinkSource);
+
   // Monitor heading fontSize changes and persist to localStorage
   const handleHeadingFontSizeChange = useCallback(() => {
     if (!editor) return;
@@ -535,6 +551,7 @@ export function MemoEditor({
     <div className="relative mx-auto max-w-[760px] pl-10">
       <EditorContent editor={editor} />
       {editor && <BubbleToolbar editor={editor} />}
+      {editor && <NoteLinkSuggestionMenu editor={editor} />}
       {editor && <WikiTagSuggestionMenu editor={editor} />}
       {editor && contextMenu && (
         <BlockContextMenu

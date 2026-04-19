@@ -1,17 +1,17 @@
 use rusqlite::Connection;
 
-/// Run database migrations to bring the schema up to V60.
+/// Run database migrations to bring the schema up to V61.
 ///
-/// - Fresh databases (version 0): creates all tables in their final V60 state.
+/// - Fresh databases (version 0): creates all tables in their final V61 state.
 /// - Existing databases: runs incremental migrations from current version.
 pub fn run_migrations(conn: &Connection) -> rusqlite::Result<()> {
     let current_version: i32 =
         conn.pragma_query_value(None, "user_version", |row| row.get(0))?;
 
     if current_version < 1 {
-        // Fresh database — create consolidated V60 schema
+        // Fresh database — create consolidated V61 schema
         create_full_schema(conn)?;
-        conn.pragma_update(None, "user_version", &60i32)?;
+        conn.pragma_update(None, "user_version", &61i32)?;
         return Ok(());
     }
 
@@ -361,6 +361,35 @@ fn create_full_schema(conn: &Connection) -> rusqlite::Result<()> {
             UNIQUE(source_note_id, target_note_id)
         );
 
+        -- ===== Note Links (Obsidian-style [[...]] syntax) =====
+        CREATE TABLE IF NOT EXISTS note_links (
+            id TEXT PRIMARY KEY,
+            source_note_id TEXT,
+            source_memo_date TEXT,
+            target_note_id TEXT NOT NULL,
+            target_heading TEXT,
+            target_block_id TEXT,
+            alias TEXT,
+            link_type TEXT NOT NULL DEFAULT 'inline'
+                CHECK(link_type IN ('inline','embed')),
+            created_at TEXT NOT NULL,
+            updated_at TEXT,
+            version INTEGER DEFAULT 1,
+            is_deleted INTEGER DEFAULT 0,
+            deleted_at TEXT,
+            FOREIGN KEY (target_note_id) REFERENCES notes(id) ON DELETE CASCADE
+        );
+
+        -- ===== Note Aliases (for [[Note|alias]] / frontmatter aliases) =====
+        CREATE TABLE IF NOT EXISTS note_aliases (
+            id TEXT PRIMARY KEY,
+            note_id TEXT NOT NULL,
+            alias TEXT NOT NULL,
+            created_at TEXT NOT NULL,
+            UNIQUE(alias),
+            FOREIGN KEY (note_id) REFERENCES notes(id) ON DELETE CASCADE
+        );
+
         -- ===== Paper Boards =====
         CREATE TABLE IF NOT EXISTS paper_boards (
             id TEXT PRIMARY KEY,
@@ -561,6 +590,13 @@ fn create_full_schema(conn: &Connection) -> rusqlite::Result<()> {
         CREATE INDEX IF NOT EXISTS idx_nc_source ON note_connections(source_note_id);
         CREATE INDEX IF NOT EXISTS idx_nc_target ON note_connections(target_note_id);
         CREATE INDEX IF NOT EXISTS idx_note_connections_updated_at ON note_connections(updated_at);
+        CREATE INDEX IF NOT EXISTS idx_note_links_source ON note_links(source_note_id);
+        CREATE INDEX IF NOT EXISTS idx_note_links_target ON note_links(target_note_id);
+        CREATE INDEX IF NOT EXISTS idx_note_links_source_memo ON note_links(source_memo_date);
+        CREATE INDEX IF NOT EXISTS idx_note_links_updated_at ON note_links(updated_at);
+        CREATE INDEX IF NOT EXISTS idx_note_links_deleted ON note_links(is_deleted);
+        CREATE INDEX IF NOT EXISTS idx_note_aliases_note ON note_aliases(note_id);
+        CREATE INDEX IF NOT EXISTS idx_note_aliases_alias ON note_aliases(alias);
         CREATE INDEX IF NOT EXISTS idx_pb_note ON paper_boards(linked_note_id);
         CREATE INDEX IF NOT EXISTS idx_pn_board ON paper_nodes(board_id);
         CREATE INDEX IF NOT EXISTS idx_pn_parent ON paper_nodes(parent_node_id);
@@ -1796,6 +1832,50 @@ fn run_incremental_migrations(conn: &Connection, current_version: i32) -> rusqli
         conn.pragma_update(None, "user_version", &60i32)?;
     }
 
+    // V61: Obsidian-style Note Links + Note Aliases
+    // - note_links: [[NoteName]] / [[Note|alias]] / [[Note#Heading]] / [[Note#^block-id]] / ![[Note]]
+    // - note_aliases: frontmatter aliases + [[Note|alias]] display text registry
+    if current_version < 61 {
+        eprintln!("V61: adding note_links + note_aliases tables");
+        exec_ignore(
+            conn,
+            "CREATE TABLE IF NOT EXISTS note_links (
+                id TEXT PRIMARY KEY,
+                source_note_id TEXT,
+                source_memo_date TEXT,
+                target_note_id TEXT NOT NULL,
+                target_heading TEXT,
+                target_block_id TEXT,
+                alias TEXT,
+                link_type TEXT NOT NULL DEFAULT 'inline'
+                    CHECK(link_type IN ('inline','embed')),
+                created_at TEXT NOT NULL,
+                updated_at TEXT,
+                version INTEGER DEFAULT 1,
+                is_deleted INTEGER DEFAULT 0,
+                deleted_at TEXT,
+                FOREIGN KEY (target_note_id) REFERENCES notes(id) ON DELETE CASCADE
+            );
+            CREATE INDEX IF NOT EXISTS idx_note_links_source ON note_links(source_note_id);
+            CREATE INDEX IF NOT EXISTS idx_note_links_target ON note_links(target_note_id);
+            CREATE INDEX IF NOT EXISTS idx_note_links_source_memo ON note_links(source_memo_date);
+            CREATE INDEX IF NOT EXISTS idx_note_links_updated_at ON note_links(updated_at);
+            CREATE INDEX IF NOT EXISTS idx_note_links_deleted ON note_links(is_deleted);
+
+            CREATE TABLE IF NOT EXISTS note_aliases (
+                id TEXT PRIMARY KEY,
+                note_id TEXT NOT NULL,
+                alias TEXT NOT NULL,
+                created_at TEXT NOT NULL,
+                UNIQUE(alias),
+                FOREIGN KEY (note_id) REFERENCES notes(id) ON DELETE CASCADE
+            );
+            CREATE INDEX IF NOT EXISTS idx_note_aliases_note ON note_aliases(note_id);
+            CREATE INDEX IF NOT EXISTS idx_note_aliases_alias ON note_aliases(alias);",
+        );
+        conn.pragma_update(None, "user_version", &61i32)?;
+    }
+
     // Defensive: ensure schedule_items.template_id exists. Fresh DBs created
     // before the initial schema was fixed (v59-) lack this column, which
     // breaks Cloud Sync when pulling data from other devices.
@@ -1825,11 +1905,11 @@ mod tests {
     }
 
     #[test]
-    fn fresh_db_reaches_v60_without_orphan_tables() {
+    fn fresh_db_reaches_v61_without_orphan_tables() {
         let conn = Connection::open_in_memory().unwrap();
         run_migrations(&conn).unwrap();
 
-        assert_eq!(user_version(&conn), 60);
+        assert_eq!(user_version(&conn), 61);
         for orphan in [
             "ai_settings",
             "routine_logs",
@@ -1840,9 +1920,36 @@ mod tests {
         ] {
             assert!(
                 !table_exists(&conn, orphan),
-                "orphan table {orphan} should not exist in fresh V60 schema"
+                "orphan table {orphan} should not exist in fresh V61 schema"
             );
         }
+        assert!(
+            table_exists(&conn, "note_links"),
+            "note_links table should exist in fresh V61 schema"
+        );
+        assert!(
+            table_exists(&conn, "note_aliases"),
+            "note_aliases table should exist in fresh V61 schema"
+        );
+    }
+
+    #[test]
+    fn v60_db_upgrades_to_v61_with_note_links_tables() {
+        let conn = Connection::open_in_memory().unwrap();
+        create_full_schema(&conn).unwrap();
+        // Simulate a V60 DB by forcing version back and dropping the V61 tables.
+        conn.pragma_update(None, "user_version", &60i32).unwrap();
+        conn.execute_batch(
+            "DROP TABLE IF EXISTS note_links;
+             DROP TABLE IF EXISTS note_aliases;",
+        )
+        .unwrap();
+
+        run_migrations(&conn).unwrap();
+
+        assert_eq!(user_version(&conn), 61);
+        assert!(table_exists(&conn, "note_links"));
+        assert!(table_exists(&conn, "note_aliases"));
     }
 
     #[test]
@@ -1866,7 +1973,7 @@ mod tests {
 
         run_migrations(&conn).unwrap();
 
-        assert_eq!(user_version(&conn), 60);
+        assert_eq!(user_version(&conn), 61);
         for dropped in [
             "ai_settings",
             "routine_logs",
@@ -1890,12 +1997,12 @@ mod tests {
     }
 
     #[test]
-    fn v60_migration_is_idempotent() {
+    fn v61_migration_is_idempotent() {
         let conn = Connection::open_in_memory().unwrap();
         run_migrations(&conn).unwrap();
         let version_after_first = user_version(&conn);
         run_migrations(&conn).unwrap();
         assert_eq!(user_version(&conn), version_after_first);
-        assert_eq!(user_version(&conn), 60);
+        assert_eq!(user_version(&conn), 61);
     }
 }

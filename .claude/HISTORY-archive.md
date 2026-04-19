@@ -1,3 +1,33 @@
+### 2026-04-18 - .claude/ 構造モダナイゼーション（CLAUDE.md 軽量化 + ADR 廃止 + グローバルスキル整合）
+
+#### 概要
+
+life-editor の `.claude/` を全面再編し、同時にグローバルスキル（/project-setter / task-tracker / session-verifier / session-loader）を新構造に整合させた。CLAUDE.md を 805 → 345 行に圧縮しコンテキスト効率を改善。ADR 方式を廃止し、設計原則を `docs/vision/` に一元化する運用に切替。全プロジェクト共通の運用ルールを `~/.claude/CLAUDE.md` に明文化。
+
+#### 変更点
+
+- **life-editor CLAUDE.md 軽量化**: 805 行 → 345 行（-56%）。ビジョン系 §1-5 / AI 詳細 §8.3-8.4 / デバッグ詳細 §10.5 / Review Checklist §10.6 / 実装済み機能リスト §11 補足 / Roadmap 完了履歴を削除、抽象構想は `docs/vision/` に分離
+
+- **docs/vision/ 新設**: `README.md` / `core.md`（Core Identity / Target User / Value Props / Non-Goals / Platform Strategy 詳細）/ `ai-integration.md`（Cognitive Architecture 要旨 + 利用シナリオ）/ `coding-principles.md`（旧 ADR-0002/0003/0004/0006/0007 の要旨統合）
+
+- **ADR 廃止**: `docs/adr/` (ADR-0005/0006/0007) と `archive/adr/` (0001-0004) を全削除。設計原則は vision/coding-principles.md に集約し、時点判断ではなく「現在から未来に向けた継続更新される指針」として運用
+
+- **feature_plans/ 廃止**: `2026-04-18-app-redefinition-roadmap.md` → `archive/`、`2026-04-17-daily-life-hub-requirements.md` / `application-definition-template.md` → `docs/vision/`、ディレクトリ自体を削除。実装プラン命名規則は `.claude/YYYY-MM-DD-<slug>.md`（直下配置）に統一
+
+- **/project-setter 全面更新**: SKILL.md に新構造マッピング表と設計思想（400 行上限 / ADR 不使用 / vision 一元化）を追記。Software / Novel / Research 全 3 タイプで `vision/` + `known-issues/` + `requirements/` (Software のみ) のテンプレート追加、旧 `adr-template.md.tmpl` / `operations.md.tmpl` / `coding.md.tmpl` / `writing.md.tmpl` / `methodology.md.tmpl` を削除。`~/.claude/skills/project-setter` にシンボリックリンク作成
+
+- **グローバル `~/.claude/CLAUDE.md` 拡張**: 13 行 → 54 行。Project Documentation Structure セクション追加（ファイル階層 / 運用原則 / CLAUDE.md 標準 9 章構成）。全プロジェクト共通のルール（400 行上限、ADR 不使用、実装プラン命名規則、known-issues 運用）を明文化
+
+- **task-tracker 更新**: 計画書パスを `.claude/docs/feature_plans/` → `.claude/` 直下に、アーカイブ先を `.claude/docs/archive/` → `.claude/archive/` に変更。ヘッダーコメントから廃止済み `rules/operations.md` 参照を削除
+
+- **session-verifier 汎用化**: Gate 0 のプロジェクト固有 electron パス分類を汎用カテゴリ（Frontend / Backend / Database / IPC / Tests / Config）に変更。Gate 5 の参照先を `.claude/rules/` → `.claude/docs/vision/coding-principles.md` に更新、known-issues/INDEX.md 参照を追記
+
+- **session-loader グローバル化**: `~/.claude/skills/session-loader` を新設（標準構造前提の Step 1-5）。life-editor プロジェクト固有版は Step 6-7 で追加読込を担う構成に更新、旧 `docs/life-editor-v2/00-vision.md` / `docs/adr/0001-tech-stack.md` 参照を削除
+
+- **skill-catalog.md 更新**: Software 推奨スキルに session-loader / session-verifier を追加、Novel / Research 推奨にも session-loader 追加
+
+---
+
 ### 2026-04-18 - iOS 実機ビルド + Cloud Sync 有効化 + Known Issues ディレクトリ新設
 
 #### 概要

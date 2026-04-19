@@ -15,6 +15,7 @@ import { useScreenLockContext } from "../../hooks/useScreenLockContext";
 import { formatDateTime } from "../../utils/formatRelativeDate";
 import { LazyMemoEditor as MemoEditor } from "../Tasks/TaskDetail/LazyMemoEditor";
 import { WikiTagList } from "../WikiTags/WikiTagList";
+import { BacklinksPane } from "./BacklinksPane";
 import { UnifiedColorPicker } from "../shared/UnifiedColorPicker";
 import { FOLDER_COLORS } from "../../constants/folderColors";
 import {
@@ -325,6 +326,9 @@ export function NotesView() {
                   editable={!isEditLocked}
                 />
               </Suspense>
+              {selectedNote.type === "note" && (
+                <BacklinksPane noteId={selectedNote.id} />
+              )}
             </div>
           </div>
 

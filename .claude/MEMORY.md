@@ -6,9 +6,9 @@
 
 ## 直近の完了
 
+- Notes / Memos Obsidian 風知識結晶化 Phase 1 ✅（2026-04-19） — DB V61 (`note_links` / `note_aliases`) + Rust repository/commands（IPC 4 点同期済）+ TipTap `NoteLink` Extension + `[[` auto-complete + `BacklinksPane`（ノート単位 + Unlinked Mentions タブ）+ WikiTag 記法分離（`[[…]]` → `#…`）+ i18n en/ja 同期。計画書: 外部 `~/.claude/plans/1-notes-memos-notes-2-binary-muffin.md`。Phase 2+（Properties / Embed / BlockRef / LocalGraph / MCP 5 ツール / V62-V64）は次セッション以降。Vitest 213 / Cargo test 8 全 pass。
 - vision/ 整理 + Mobile 移植計画ドキュメント化 ✅（2026-04-19） — `.claude/docs/vision/` を「設計原則 + 次フェーズ計画」の 4 ファイル（coding-principles / core / mobile-porting / desktop-followup）に再編。Cognitive 構想（ai-integration.md）と役目終了テンプレを削除し、主戦場の Mobile 移植計画と Desktop 残課題メモを新設。CLAUDE.md の陳腐化参照を同時整理（341 行、400 行上限内）。
 - ディスク容量削減（12GB → 3.7GB / -69%）✅（2026-04-19） — 孤立ワークツリー `jovial-shannon`（別プロジェクト sonic-flow 残骸 886MB）削除、`git gc` で loose 5547 個を pack 化（117MB → 79MB）、`src-tauri/target/{debug,release}`（7.0GB）と全 node_modules 削除 → frontend + mcp-server のみ再インストール。iOS target（aarch64-apple-ios + gen/apple 3.3GB）は保持。全操作をゴミ箱経由で実施し復元可能。
-- Mobile UI/UX 改善 第 2 弾 ✅（2026-04-19） — Daycell チップ復元（max 3 + "+N more"）、Note/Memo 詳細の seed バグ修正（keyed sub-component）、`<` `>` 月ナビ修正（viewDate を親に昇格）、新規スケジュール memo 永続化、`dvh → svh` + overscroll-behavior で iOS pixel jitter 軽減。tsc/lint/vitest 200 pass。
 
 ## 予定
 

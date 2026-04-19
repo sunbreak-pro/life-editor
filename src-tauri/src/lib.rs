@@ -286,6 +286,14 @@ pub fn run() {
             commands::note_connection_commands::db_note_connections_create,
             commands::note_connection_commands::db_note_connections_delete,
             commands::note_connection_commands::db_note_connections_delete_by_note_pair,
+            // Note Links (Obsidian-style [[...]])
+            commands::note_link_commands::db_note_links_fetch_all,
+            commands::note_link_commands::db_note_links_fetch_forward,
+            commands::note_link_commands::db_note_links_fetch_backlinks,
+            commands::note_link_commands::db_note_links_upsert_for_note,
+            commands::note_link_commands::db_note_links_upsert_for_memo,
+            commands::note_link_commands::db_note_links_delete_for_note,
+            commands::note_link_commands::db_note_links_unlinked_mentions,
             // Time Memos
             commands::time_memo_commands::db_time_memos_fetch_by_date,
             commands::time_memo_commands::db_time_memos_upsert,

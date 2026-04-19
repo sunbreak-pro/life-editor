@@ -15,6 +15,7 @@ pub mod wiki_tag_commands;
 pub mod wiki_tag_group_commands;
 pub mod wiki_tag_connection_commands;
 pub mod note_connection_commands;
+pub mod note_link_commands;
 pub mod time_memo_commands;
 pub mod paper_board_commands;
 pub mod pomodoro_preset_commands;

@@ -17,6 +17,7 @@ pub mod wiki_tag_repository;
 pub mod wiki_tag_group_repository;
 pub mod wiki_tag_connection_repository;
 pub mod note_connection_repository;
+pub mod note_link_repository;
 pub mod time_memo_repository;
 pub mod paper_board_repository;
 pub mod pomodoro_preset_repository;

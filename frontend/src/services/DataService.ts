@@ -36,6 +36,12 @@ import type {
   NoteConnection,
 } from "../types/wikiTag";
 import type { TimeMemo } from "../types/timeMemo";
+import type {
+  NoteLink,
+  NoteLinkPayload,
+  BacklinkHit,
+  UnlinkedMention,
+} from "../types/noteLink";
 import type { PaperBoard, PaperNode, PaperEdge } from "../types/paperBoard";
 import type { AttachmentMeta } from "../types/attachment";
 import type { FileEntry, FileInfo } from "../types/fileExplorer";
@@ -470,6 +476,21 @@ export interface DataService {
     sourceNoteId: string,
     targetNoteId: string,
   ): Promise<void>;
+
+  // Note Links (Obsidian-style [[...]] syntax)
+  fetchAllNoteLinks(): Promise<NoteLink[]>;
+  fetchForwardLinksForNote(sourceNoteId: string): Promise<NoteLink[]>;
+  fetchBacklinksForNote(targetNoteId: string): Promise<BacklinkHit[]>;
+  upsertNoteLinksForNote(
+    sourceNoteId: string,
+    links: NoteLinkPayload[],
+  ): Promise<void>;
+  upsertNoteLinksForMemo(
+    sourceMemoDate: string,
+    links: NoteLinkPayload[],
+  ): Promise<void>;
+  deleteNoteLinksForNote(sourceNoteId: string): Promise<void>;
+  fetchUnlinkedMentions(sourceNoteId: string): Promise<UnlinkedMention[]>;
 
   // Time Memos
   fetchTimeMemosByDate(date: string): Promise<TimeMemo[]>;
