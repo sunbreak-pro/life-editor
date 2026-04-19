@@ -20,7 +20,7 @@
 | -------------------------------- | ------------------------------------------------------------------------------------------------------------- |
 | `.claude/MEMORY.md`              | タスクトラッカー（進行中 / 直近完了 / 予定）                                                                  |
 | `.claude/HISTORY.md`             | 変更履歴（セッション単位）                                                                                    |
-| `.claude/docs/vision/`           | 設計原則 + 次フェーズ計画（`core.md` / `coding-principles.md` / `mobile-porting.md` / `desktop-followup.md`） |
+| `.claude/docs/vision/`           | 設計原則 + 次フェーズ計画（`core.md` / `coding-principles.md` / `mobile-porting.md` / `ios-everywhere-sync.md` / `desktop-followup.md`） |
 | `.claude/docs/requirements/`     | Tier 1-3 機能要件定義                                                                                         |
 | `.claude/docs/known-issues/`     | 未解決 Issue + Root Cause 記録（[INDEX](./docs/known-issues/INDEX.md)）                                       |
 | `.claude/docs/code-explanation/` | 機能別コード解説（学習教材）                                                                                  |
@@ -305,6 +305,7 @@ type: `feat` / `fix` / `docs` / `style` / `refactor` / `test` / `chore`
 ### 次フェーズ計画
 
 - [`vision/mobile-porting.md`](./docs/vision/mobile-porting.md) — Desktop → iOS 移植 + Cloud Sync 連携（主戦場）
+- [`vision/ios-everywhere-sync.md`](./docs/vision/ios-everywhere-sync.md) — Apple Developer Program 不加入での iOS 常時インストール運用（無料署名 + 週次再署名）
 - [`vision/desktop-followup.md`](./docs/vision/desktop-followup.md) — Desktop 残課題（Materials File タブ / Notes / Board）
 
 ---

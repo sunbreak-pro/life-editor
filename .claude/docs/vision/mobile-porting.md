@@ -48,6 +48,10 @@ Audio / ScreenLock / FileExplorer / CalendarTags / WikiTag / ShortcutConfig
    - `tasks.updated_at` NULL on creation
 4. 移植順ロードマップ策定（想定順: Daily → Note → Schedule → Database）
 
+## 関連 Vision
+
+- [`ios-everywhere-sync.md`](./ios-everywhere-sync.md) — iPhone へのインストール手段（無料 Apple ID + Xcode / SideStore）と週次再署名の運用
+
 ## 個別実装プランの運用
 
 本ファイルは方針のみ。具体的な着手は `.claude/YYYY-MM-DD-<slug>.md` を作成し、本ファイルから相互リンクする（CLAUDE.md §9）。
