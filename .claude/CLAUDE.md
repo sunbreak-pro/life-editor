@@ -16,15 +16,15 @@
 
 ### 関連ドキュメント
 
-| パス                             | 用途                                                                         |
-| -------------------------------- | ---------------------------------------------------------------------------- |
-| `.claude/MEMORY.md`              | タスクトラッカー（進行中 / 直近完了 / 予定）                                 |
-| `.claude/HISTORY.md`             | 変更履歴（セッション単位）                                                   |
-| `.claude/docs/vision/`           | 抽象構想・設計原則（Core Identity, Value Props, AI 詳細, Coding Principles） |
-| `.claude/docs/requirements/`     | Tier 1-3 機能要件定義                                                        |
-| `.claude/docs/known-issues/`     | 未解決 Issue + Root Cause 記録（[INDEX](./docs/known-issues/INDEX.md)）      |
-| `.claude/docs/code-explanation/` | 機能別コード解説（学習教材）                                                 |
-| `.claude/archive/`               | 完了済みプラン                                                               |
+| パス                             | 用途                                                                                                          |
+| -------------------------------- | ------------------------------------------------------------------------------------------------------------- |
+| `.claude/MEMORY.md`              | タスクトラッカー（進行中 / 直近完了 / 予定）                                                                  |
+| `.claude/HISTORY.md`             | 変更履歴（セッション単位）                                                                                    |
+| `.claude/docs/vision/`           | 設計原則 + 次フェーズ計画（`core.md` / `coding-principles.md` / `mobile-porting.md` / `desktop-followup.md`） |
+| `.claude/docs/requirements/`     | Tier 1-3 機能要件定義                                                                                         |
+| `.claude/docs/known-issues/`     | 未解決 Issue + Root Cause 記録（[INDEX](./docs/known-issues/INDEX.md)）                                       |
+| `.claude/docs/code-explanation/` | 機能別コード解説（学習教材）                                                                                  |
+| `.claude/archive/`               | 完了済みプラン                                                                                                |
 
 ---
 
@@ -91,7 +91,7 @@ React Router なし。`App.tsx` の `activeSection` で切替: `schedule` / `mat
 
 - **Terminal**: `portable-pty` (Rust) + `xterm.js` (Frontend)、Ctrl+`` ` `` 開閉、Catppuccin Mocha
 - **Audio Mixer**: 6 種環境音 + カスタムサウンド。`AudioContext` は `suspended` → ユーザー操作後 `resume()` 必須
-- **Sync (Cloud)**: バージョンカラム + last-write-wins。life-editor 全テーブル + 将来の `claude_*` テーブル（ADR-0005）対象
+- **Sync (Cloud)**: バージョンカラム + last-write-wins。life-editor 全テーブル対象
 - **Theme**: ダーク/ライト、フォントサイズ 10 段階（12-25px）、Tailwind `notion-*` デザイントークン
 
 ---
@@ -130,7 +130,7 @@ React Router なし。`App.tsx` の `activeSection` で切替: `schedule` / `mat
 
 **実装済み**: text / number / select / date / checkbox
 
-**優先度**（詳細は `docs/vision/2026-04-17-daily-life-hub-requirements.md`）:
+**優先度**:
 
 | 型              | 用途                                    | 優先度 |
 | --------------- | --------------------------------------- | ------ |
@@ -145,8 +145,6 @@ React Router なし。`App.tsx` の `activeSection` で切替: `schedule` / `mat
 ---
 
 ## 5. AI Integration
-
-> 詳細は [`.claude/docs/vision/ai-integration.md`](./docs/vision/ai-integration.md)
 
 ### 5.1 MCP Server（30 ツール）
 
@@ -166,13 +164,6 @@ React Router なし。`App.tsx` の `activeSection` で切替: `schedule` / `mat
 ### 5.2 アプリ内ターミナル + Claude Code
 
 アプリ内ターミナル（portable-pty）から `claude` 起動 → MCP Server (`life-editor`) 自動接続 → 自然言語でデータ操作。
-
-### 5.3 Cognitive Architecture（構想中）
-
-- 同一 SQLite に `claude_*` テーブル群（episodes / memories / safeguards / preferences / reflections）
-- 新 MCP Server `mcp-server-cognitive/` で内省・分析・記憶管理
-- Claude Code プロセスラッピングで Max サブスク内 $0
-- 4 フェーズ計画。詳細は `vision/ai-integration.md`
 
 ---
 
@@ -309,7 +300,12 @@ type: `feat` / `fix` / `docs` / `style` / `refactor` / `test` / `chore`
 
 ### Tier 3: 実験 / 凍結候補
 
-[`tier-3-experimental.md`](./docs/requirements/tier-3-experimental.md)（6 機能）: Paper Boards（凍結継続）/ Analytics（凍結、Cognitive Phase 4 統合予定）/ NotebookLM 連携（未着手）/ Google Calendar 連携（ICS 購読 Phase 1 検討）/ Google Drive 連携（MCP で代替）/ Cognitive Architecture（構想、Phase 1 着手予定 — vision/ai-integration.md）
+[`tier-3-experimental.md`](./docs/requirements/tier-3-experimental.md)（6 機能）: Paper Boards（凍結継続）/ Analytics（凍結）/ NotebookLM 連携（未着手）/ Google Calendar 連携（ICS 購読 Phase 1 検討）/ Google Drive 連携（MCP で代替）/ Cognitive Architecture（当面凍結）
+
+### 次フェーズ計画
+
+- [`vision/mobile-porting.md`](./docs/vision/mobile-porting.md) — Desktop → iOS 移植 + Cloud Sync 連携（主戦場）
+- [`vision/desktop-followup.md`](./docs/vision/desktop-followup.md) — Desktop 残課題（Materials File タブ / Notes / Board）
 
 ---
 

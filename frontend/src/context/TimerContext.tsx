@@ -157,23 +157,32 @@ export function TimerProvider({ children }: { children: ReactNode }) {
   }, [state.remainingSeconds, state.isRunning]);
 
   const start = useCallback(() => {
-    if (state.sessionType === "WORK") {
-      playEffectSound("/sounds/session_start_sound.mp3", "sessionStart");
-    }
     dispatch({ type: "START" });
-    getDataService()
-      .startTimerSession(state.sessionType, state.activeTask?.id)
-      .then((session) => {
-        currentSessionIdRef.current = session.id;
-      })
-      .catch((e) => handleError(e, "errors.timer.sessionStartFailed"));
+    const sessionType = state.sessionType;
+    const taskId = state.activeTask?.id;
+    queueMicrotask(() => {
+      if (sessionType === "WORK") {
+        playEffectSound("/sounds/session_start_sound.mp3", "sessionStart");
+      }
+      getDataService()
+        .startTimerSession(sessionType, taskId)
+        .then((session) => {
+          currentSessionIdRef.current = session.id;
+        })
+        .catch((e) => handleError(e, "errors.timer.sessionStartFailed"));
+    });
   }, [state.sessionType, state.activeTask, handleError]);
 
   const pause = useCallback(() => {
     dispatch({ type: "PAUSE" });
+    clearTimer();
     const total = getDuration(state.sessionType, state.config);
-    endCurrentSession(total - state.remainingSeconds, false);
+    const elapsed = total - state.remainingSeconds;
+    queueMicrotask(() => {
+      endCurrentSession(elapsed, false);
+    });
   }, [
+    clearTimer,
     endCurrentSession,
     state.sessionType,
     state.config,

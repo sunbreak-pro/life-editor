@@ -75,18 +75,7 @@ iOS クライアントは Desktop の Provider の一部（Audio / ScreenLock / 
 
 ---
 
-## 5. Cognitive Architecture（旧 ADR-0005 要旨）
-
-詳細は `vision/ai-integration.md` 参照。要点のみ再掲:
-
-- 記憶ストレージ: life-editor と同一 SQLite に `claude_*` プレフィックスのテーブル群（`claude_memories` / `claude_episodes` / `claude_safeguards` / `claude_preferences` / `claude_reflections`）
-- MCP Server 分離: 既存 `mcp-server/`（CRUD）とは別に `mcp-server-cognitive/`（分析・内省・記憶管理）を新設
-- Claude Code プロセスラッピング方式で Max サブスク内 $0 実現
-- Phase 1-4 段階着手計画
-
----
-
-## 6. 設計原則の更新フロー
+## 5. 設計原則の更新フロー
 
 1. 新しい設計判断が必要 → 本ファイル該当章への追記 or 新章作成を検討
 2. 実装規約になったもの → CLAUDE.md §6-7 に移す（本ファイルには「なぜ」を残す）
