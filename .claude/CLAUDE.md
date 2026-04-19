@@ -322,7 +322,7 @@ type: `feat` / `fix` / `docs` / `style` / `refactor` / `test` / `chore`
 
 - ADR は「時点の判断」を記録するため、時間経過で古い情報を参照してしまうリスクがある
 - vision/ は「現在から未来に向けた設計原則」として継続更新されるため、常に最新の意思決定を反映
-- 過去の却下案・判断理由は vision/coding-principles.md §6 の更新フローに従って残す
+- 過去の却下案・判断理由は vision/coding-principles.md §5 の更新フローに従って残す
 
 ### Known Issue ライフサイクル
 

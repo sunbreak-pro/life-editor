@@ -6,16 +6,11 @@
 
 ## 直近の完了
 
+- vision/ 整理 + Mobile 移植計画ドキュメント化 ✅（2026-04-19） — `.claude/docs/vision/` を「設計原則 + 次フェーズ計画」の 4 ファイル（coding-principles / core / mobile-porting / desktop-followup）に再編。Cognitive 構想（ai-integration.md）と役目終了テンプレを削除し、主戦場の Mobile 移植計画と Desktop 残課題メモを新設。CLAUDE.md の陳腐化参照を同時整理（341 行、400 行上限内）。
 - ディスク容量削減（12GB → 3.7GB / -69%）✅（2026-04-19） — 孤立ワークツリー `jovial-shannon`（別プロジェクト sonic-flow 残骸 886MB）削除、`git gc` で loose 5547 個を pack 化（117MB → 79MB）、`src-tauri/target/{debug,release}`（7.0GB）と全 node_modules 削除 → frontend + mcp-server のみ再インストール。iOS target（aarch64-apple-ios + gen/apple 3.3GB）は保持。全操作をゴミ箱経由で実施し復元可能。
 - Mobile UI/UX 改善 第 2 弾 ✅（2026-04-19） — Daycell チップ復元（max 3 + "+N more"）、Note/Memo 詳細の seed バグ修正（keyed sub-component）、`<` `>` 月ナビ修正（viewDate を親に昇格）、新規スケジュール memo 永続化、`dvh → svh` + overscroll-behavior で iOS pixel jitter 軽減。tsc/lint/vitest 200 pass。
-- Mobile Schedule & Work リデザイン（コード一式）✅（2026-04-18） — claude.ai/design バンドル準拠で Schedule タブ改名、月カレンダー inline chip + bottom sheet、Dayflow timegrid、Work を session pill + ring + halo + session dots + control dock に刷新。chip kind 用 CSS tokens 追加、`dayItem.ts` + test。全 200 テスト pass、tsc/lint/build clean。
 
 ## 予定
-
-### CLAUDE.md ビジョン素案レビュー（任意、いつでも可）
-
-**対象**: `.claude/docs/vision/core.md` / `docs/vision/ai-integration.md`（「素案 — ユーザーレビュー待ち」マーク付与済み、CLAUDE.md §1/§5 から参照）
-**レビュー観点**: Core Identity / Target User / Value Propositions / Non-Goals / AI Integration シナリオ
 
 ### Mobile Schedule & Work リデザイン 手動 UI 検証
 

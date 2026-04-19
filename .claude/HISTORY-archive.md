@@ -1,3 +1,44 @@
+### 2026-04-18 - iOS 実機ビルド + Cloud Sync 有効化 + Known Issues ディレクトリ新設
+
+#### 概要
+
+1 セッションで 3 つの関連作業を完遂:
+(1) Life Editor を実機 iPhone にデプロイできる環境を構築（Xcode 署名、Tauri CLI、Life Editor Note に手順保存）、
+(2) Cloudflare Workers + D1 ベースの Cloud Sync を実アクティベート（Workers/Rust 側の複数バグを発見・修正し、Mac ↔ iPhone 双方向同期まで動作確認）、
+(3) 本セッションで得た Root Cause 知見と未解決 Structural 問題を記録する新設ディレクトリ `.claude/docs/known-issues/` を立ち上げ、CLAUDE.md §0/§12 に参照を明記。計画書: `~/.claude/plans/xcode-xcode-life-editor-note-rosy-yeti.md`（2 回書き換え）。
+
+#### 変更点
+
+- **iOS 実機ビルド環境構築**: Xcode Personal Team での署名設定、iPhone 側デベロッパモード ON + 信頼設定、Vite dev server LAN 公開（`frontend/vite.config.ts` に `host: true` 追加）。Bundle ID を `com.lifeEditor.app` → `com.lifeEditor.app.newlife` に変更（ユニーク性確保）。Life Editor に「iOS 実機ビルド手順（Xcode + Tauri）」Note を MCP `create_note` 経由で保存（note-1776486115347）
+
+- **`project.yml` 恒久修正**: `src-tauri/gen/apple/project.yml` の `settingGroups.app.base` に `PRODUCT_BUNDLE_IDENTIFIER: com.lifeEditor.app.newlife` / `DEVELOPMENT_TEAM: 542QHWHN37` / `CODE_SIGN_STYLE: Automatic` を追加。`cargo tauri ios dev` の XcodeGen 再生成で Xcode UI の手動設定が飛ぶ問題を解消（Known Issue 007）
+
+- **Cloud Sync Workers バグ修正**（`cloud/src/routes/sync.ts`）:
+  - SQL 予約語 `order` を `"order"` でエスケープする `quoteCol()` ヘルパー追加（Known Issue 001）
+  - `VERSIONED_TABLES` を FK 依存順に並び替え: `routines, tasks, memos, notes, wiki_tags, time_memos, templates, routine_groups, schedule_items, calendars`（Known Issue 002）
+  - `tasks.parent_id` 自己参照用の `topoSortByParent()` 関数追加
+  - `PRAGMA defer_foreign_keys = ON` を batch 先頭に挿入（belt-and-suspenders）
+  - `life-editor-sync` を 2 回デプロイ（version `9387c11f...` → `f118169f...`）
+
+- **Cloud Sync Rust 側修正**（`src-tauri/src/sync/sync_engine.rs`）: `table_columns()` ヘルパー追加。`upsert_versioned` / `insert_or_replace` で `PRAGMA table_info` の結果から payload キーをフィルタし、ローカルに存在しないカラムは silently 捨てる。これで新機能追加時の schema drift に対して sync が壊れなくなる（Known Issue 003）
+
+- **初期スキーマ + 防御的 ALTER**（`src-tauri/src/db/migrations.rs`）: fresh DB 用 `CREATE TABLE schedule_items`（line 293）に抜けていた `template_id TEXT` カラムを追加。既存 DB 用に `has_column` ガード付きの `ALTER TABLE schedule_items ADD COLUMN template_id TEXT` を migration 末尾に追加（Known Issue 003）
+
+- **tasks.updated_at バックフィル**: Mac の DB で 120/120 件が NULL だったため、`UPDATE tasks SET updated_at = strftime('%Y-%m-%dT%H:%M:%S.000Z', 'now')` で暫定対応。根本原因（task 作成パスが updated_at を set していない）は未解決 → Known Issue 005 として追跡
+
+- **`tauri.conf.json` identifier 更新**: `com.lifeEditor.app` → `com.lifeEditor.app.newlife`
+
+- **Cloud Sync 動作確認**: D1 に `tasks 120 / notes 34 / memos 29 / schedule_items 757 / routines 12 / wiki_tags 19 / templates 1` が同期完了。iPhone 側 Full Download で Mac のデータが反映されることを確認
+
+- **Known Issues ディレクトリ新設**（`.claude/docs/known-issues/`）: `_TEMPLATE.md` + `INDEX.md` + 7 件の Issue ファイル作成
+  - Fixed (4 件): 001 SQL 予約語 / 002 FK 順序 / 003 schema drift / 007 XcodeGen 再生成
+  - Active (2 件): 004 sync_last_synced_at 未保存 / 005 tasks.updated_at NULL
+  - Monitoring (1 件): 006 Desktop app_data_dir bundle ID 分裂
+
+- **CLAUDE.md 更新**: §0 Meta 関連ドキュメントテーブルに `known-issues/` 行（INDEX 直リンク付き）追加。§12 Document System 詳細テーブルに同行追加 + 「Known Issue ライフサイクル」節を新設し、発見 / 着手 / 解決 / Monitoring の運用フローを明記
+
+---
+
 ### 2026-04-18 - Phase C Execution 完遂（S-5 / S-6 実装 + I-1 / S-4 計測 → Drop）
 
 #### 概要
