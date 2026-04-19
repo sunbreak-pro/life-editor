@@ -1,14 +1,12 @@
-import { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import {
   Plus,
-  Repeat,
-  Clock,
-  Trash2,
   ChevronLeft,
   ChevronRight,
   CalendarDays,
   List,
+  Search,
 } from "lucide-react";
 import { getDataService } from "../../services/dataServiceFactory";
 import { useSyncContext } from "../../hooks/useSyncContext";
@@ -19,6 +17,15 @@ import {
   MobileScheduleItemForm,
   type ScheduleItemFormData,
 } from "./MobileScheduleItemForm";
+import { MobileCalendarStrip } from "./MobileCalendarStrip";
+import {
+  buildDayItems,
+  buildMonthItemMap,
+  type DayItem,
+} from "./schedule/dayItem";
+import { MobileEventChip } from "./schedule/MobileEventChip";
+import { MobileDaySheet } from "./schedule/MobileDaySheet";
+import { MobileDayflowGrid } from "./schedule/MobileDayflowGrid";
 
 // --- Utilities ---
 
@@ -43,115 +50,22 @@ function addDays(date: Date, days: number): Date {
   return d;
 }
 
-// --- Swipeable delete ---
+const MAX_CHIPS_PER_CELL = 3;
 
-const SWIPE_DELETE_THRESHOLD = 80;
+// --- Monthly calendar (inline chips per cell + design-accurate grid) ---
 
-function SwipeableItem({
-  children,
-  onDelete,
-}: {
-  children: React.ReactNode;
-  onDelete: () => void;
-}) {
-  const [offsetX, setOffsetX] = useState(0);
-  const [isTransitioning, setIsTransitioning] = useState(false);
-  const touchRef = useRef<{
-    startX: number;
-    startY: number;
-    locked: boolean | null;
-  }>({ startX: 0, startY: 0, locked: null });
-
-  const handleTouchStart = useCallback((e: React.TouchEvent) => {
-    const touch = e.touches[0];
-    touchRef.current = {
-      startX: touch.clientX,
-      startY: touch.clientY,
-      locked: null,
-    };
-    setIsTransitioning(false);
-  }, []);
-
-  const handleTouchMove = useCallback((e: React.TouchEvent) => {
-    const touch = e.touches[0];
-    const deltaX = touch.clientX - touchRef.current.startX;
-    const deltaY = touch.clientY - touchRef.current.startY;
-
-    if (touchRef.current.locked === null) {
-      if (Math.abs(deltaX) > 10 || Math.abs(deltaY) > 10) {
-        touchRef.current.locked = Math.abs(deltaX) > Math.abs(deltaY);
-      }
-      return;
-    }
-
-    if (!touchRef.current.locked) return;
-    const clampedX = Math.min(0, Math.max(-120, deltaX));
-    setOffsetX(clampedX);
-  }, []);
-
-  const handleTouchEnd = useCallback(() => {
-    if (touchRef.current.locked !== true) return;
-    setIsTransitioning(true);
-    if (Math.abs(offsetX) > SWIPE_DELETE_THRESHOLD) {
-      setOffsetX(-120);
-    } else {
-      setOffsetX(0);
-    }
-    touchRef.current.locked = null;
-  }, [offsetX]);
-
-  const resetSwipe = useCallback(() => {
-    setIsTransitioning(true);
-    setOffsetX(0);
-  }, []);
-
-  return (
-    <div className="relative overflow-hidden">
-      <div className="absolute inset-y-0 right-0 flex w-[120px] items-center justify-center bg-notion-danger">
-        <button
-          onClick={() => {
-            onDelete();
-            resetSwipe();
-          }}
-          className="flex flex-col items-center gap-1 text-white"
-        >
-          <Trash2 size={18} />
-          <span className="text-xs">Delete</span>
-        </button>
-      </div>
-      <div
-        className="relative bg-notion-bg"
-        style={{
-          transform: `translateX(${offsetX}px)`,
-          transition: isTransitioning ? "transform 200ms ease-out" : "none",
-        }}
-        onTouchStart={handleTouchStart}
-        onTouchMove={handleTouchMove}
-        onTouchEnd={handleTouchEnd}
-        onClick={() => {
-          if (Math.abs(offsetX) > 10) resetSwipe();
-        }}
-      >
-        {children}
-      </div>
-    </div>
-  );
+interface MobileMonthlyCalendarProps {
+  selectedDate: string;
+  onDateSelect: (dateStr: string) => void;
+  itemsByDate: Map<string, DayItem[]>;
 }
-
-// --- Monthly Mini Calendar ---
 
 function MobileMonthlyCalendar({
   selectedDate,
   onDateSelect,
-  itemCountByDate,
-  taskCountByDate,
-}: {
-  selectedDate: string;
-  onDateSelect: (date: string) => void;
-  itemCountByDate: Map<string, number>;
-  taskCountByDate: Map<string, number>;
-}) {
-  const { i18n } = useTranslation();
+  itemsByDate,
+}: MobileMonthlyCalendarProps) {
+  const { t, i18n } = useTranslation();
   const lang = i18n.language;
 
   const dayLabels =
@@ -164,12 +78,24 @@ function MobileMonthlyCalendar({
     return { year: d.getFullYear(), month: d.getMonth() };
   });
 
+  // Keep month in sync when user picks a date outside current month.
+  // React permits setState during render when adjusting state to props —
+  // the next render will converge (no loop).
+  const selectedObj = new Date(selectedDate + "T00:00:00");
+  if (
+    selectedObj.getFullYear() !== viewDate.year ||
+    selectedObj.getMonth() !== viewDate.month
+  ) {
+    setViewDate({
+      year: selectedObj.getFullYear(),
+      month: selectedObj.getMonth(),
+    });
+  }
+
   const todayString = useMemo(() => formatDateStr(new Date()), []);
 
   const monthLabel = useMemo(() => {
-    if (lang === "ja") {
-      return `${viewDate.year}年${viewDate.month + 1}月`;
-    }
+    if (lang === "ja") return `${viewDate.year}年${viewDate.month + 1}月`;
     const d = new Date(viewDate.year, viewDate.month, 1);
     return d.toLocaleDateString("en-US", { year: "numeric", month: "long" });
   }, [viewDate, lang]);
@@ -178,31 +104,23 @@ function MobileMonthlyCalendar({
     const firstDay = new Date(viewDate.year, viewDate.month, 1);
     const lastDay = new Date(viewDate.year, viewDate.month + 1, 0);
 
-    // Day of week for first day (0=Sun, adjust to Mon=0)
     let startDow = firstDay.getDay() - 1;
     if (startDow < 0) startDow = 6;
 
     const days: Array<{ date: Date; inMonth: boolean }> = [];
-
-    // Previous month padding
     for (let i = startDow - 1; i >= 0; i--) {
       days.push({ date: addDays(firstDay, -i - 1), inMonth: false });
     }
-
-    // Current month
     for (let d = 1; d <= lastDay.getDate(); d++) {
       days.push({
         date: new Date(viewDate.year, viewDate.month, d),
         inMonth: true,
       });
     }
-
-    // Next month padding (fill to complete the grid row)
     while (days.length % 7 !== 0) {
       const lastDate = days[days.length - 1].date;
       days.push({ date: addDays(lastDate, 1), inMonth: false });
     }
-
     return days;
   }, [viewDate]);
 
@@ -221,100 +139,83 @@ function MobileMonthlyCalendar({
     });
   }, []);
 
+  const goToToday = useCallback(() => {
+    const now = new Date();
+    setViewDate({ year: now.getFullYear(), month: now.getMonth() });
+    onDateSelect(formatDateStr(now));
+  }, [onDateSelect]);
+
   return (
-    <div className="border-b border-notion-border bg-notion-bg px-2 pb-2">
+    <div className="flex flex-col border-b border-notion-border bg-notion-bg">
       {/* Month header */}
-      <div className="flex items-center justify-between px-2 py-2">
-        <button
-          onClick={() => navigateMonth(-1)}
-          className="flex h-8 w-8 items-center justify-center rounded-full active:bg-notion-hover"
-        >
-          <ChevronLeft size={18} className="text-notion-text-secondary" />
-        </button>
-        <button
-          onClick={() => {
-            const now = new Date();
-            setViewDate({ year: now.getFullYear(), month: now.getMonth() });
-            onDateSelect(formatDateStr(now));
-          }}
-          className="text-sm font-semibold text-notion-text active:opacity-60"
-        >
+      <div className="flex items-center justify-between px-3.5 pb-2 pt-2.5">
+        <div className="text-[22px] font-bold tracking-tight text-notion-text">
           {monthLabel}
-        </button>
-        <button
-          onClick={() => navigateMonth(1)}
-          className="flex h-8 w-8 items-center justify-center rounded-full active:bg-notion-hover"
-        >
-          <ChevronRight size={18} className="text-notion-text-secondary" />
-        </button>
+        </div>
+        <div className="flex items-center gap-0.5">
+          <button
+            aria-label={t("mobile.calendar.search", "Search")}
+            className="flex h-[34px] w-[34px] items-center justify-center rounded-lg active:bg-notion-hover"
+          >
+            <Search size={18} className="text-notion-text-secondary" />
+          </button>
+          <button
+            onClick={goToToday}
+            aria-label={t("mobile.calendar.today", "Today")}
+            className="flex h-[34px] w-[34px] items-center justify-center rounded-lg active:bg-notion-hover"
+          >
+            <CalendarDays size={18} className="text-notion-text-secondary" />
+          </button>
+          <button
+            onClick={() => navigateMonth(-1)}
+            aria-label="Previous month"
+            className="flex h-[34px] w-[34px] items-center justify-center rounded-lg active:bg-notion-hover"
+          >
+            <ChevronLeft size={18} className="text-notion-text-secondary" />
+          </button>
+          <button
+            onClick={() => navigateMonth(1)}
+            aria-label="Next month"
+            className="flex h-[34px] w-[34px] items-center justify-center rounded-lg active:bg-notion-hover"
+          >
+            <ChevronRight size={18} className="text-notion-text-secondary" />
+          </button>
+        </div>
       </div>
 
-      {/* Day labels */}
-      <div className="grid grid-cols-7">
-        {dayLabels.map((label, i) => (
+      {/* Weekday labels */}
+      <div className="grid grid-cols-7 border-y border-notion-border bg-notion-bg-secondary">
+        {dayLabels.map((l, i) => (
           <div
-            key={label}
-            className={`py-0.5 text-center text-[10px] font-medium ${
-              i >= 5
-                ? "text-notion-text-secondary/60"
-                : "text-notion-text-secondary"
+            key={l}
+            className={`border-r border-notion-border py-1.5 text-center text-[11px] font-semibold last:border-r-0 ${
+              i === 6
+                ? "text-red-500"
+                : i === 5
+                  ? "text-red-400"
+                  : "text-notion-text-secondary"
             }`}
           >
-            {label}
+            {l}
           </div>
         ))}
       </div>
 
-      {/* Calendar grid */}
-      <div className="grid grid-cols-7">
+      {/* Month grid */}
+      <div className="grid grid-cols-7 border-l border-notion-border">
         {calendarDays.map(({ date, inMonth }) => {
           const dateStr = formatDateStr(date);
-          const isSelected = dateStr === selectedDate;
-          const isToday = dateStr === todayString;
-          const scheduleCount = itemCountByDate.get(dateStr) ?? 0;
-          const taskCount = taskCountByDate.get(dateStr) ?? 0;
-          const hasItems = scheduleCount > 0 || taskCount > 0;
-
+          const items = itemsByDate.get(dateStr) ?? [];
           return (
-            <button
+            <DayCell
               key={dateStr}
-              onClick={() => onDateSelect(dateStr)}
-              className={`flex flex-col items-center py-0.5 ${
-                !inMonth ? "opacity-30" : ""
-              }`}
-            >
-              <div
-                className={`flex h-8 w-8 items-center justify-center rounded-full text-xs font-medium ${
-                  isSelected
-                    ? "bg-notion-accent text-white"
-                    : isToday
-                      ? "border border-notion-accent text-notion-accent"
-                      : "text-notion-text"
-                }`}
-              >
-                {date.getDate()}
-              </div>
-              <div className="flex h-1.5 items-center gap-0.5">
-                {hasItems && (
-                  <>
-                    {scheduleCount > 0 && (
-                      <span
-                        className={`h-1 w-1 rounded-full ${
-                          isSelected ? "bg-white/60" : "bg-notion-accent"
-                        }`}
-                      />
-                    )}
-                    {taskCount > 0 && (
-                      <span
-                        className={`h-1 w-1 rounded-full ${
-                          isSelected ? "bg-white/60" : "bg-notion-success"
-                        }`}
-                      />
-                    )}
-                  </>
-                )}
-              </div>
-            </button>
+              date={date}
+              inMonth={inMonth}
+              isToday={dateStr === todayString}
+              isSelected={dateStr === selectedDate}
+              items={items}
+              onTap={() => onDateSelect(dateStr)}
+            />
           );
         })}
       </div>
@@ -322,201 +223,255 @@ function MobileMonthlyCalendar({
   );
 }
 
-// --- Schedule item row ---
+// --- Day cell ---
 
-function ScheduleItemRow({
-  item,
-  onToggle,
-  onEdit,
-  showTime,
-}: {
-  item: ScheduleItem;
-  onToggle: (id: string) => void;
-  onEdit: (item: ScheduleItem) => void;
-  showTime: boolean;
-}) {
-  const isRoutine = !!item.routineId;
-  const isDone = item.completed;
+interface DayCellProps {
+  date: Date;
+  inMonth: boolean;
+  isToday: boolean;
+  isSelected: boolean;
+  items: DayItem[];
+  onTap: () => void;
+}
+
+function DayCell({
+  date,
+  inMonth,
+  isToday,
+  isSelected,
+  items,
+  onTap,
+}: DayCellProps) {
+  const { t } = useTranslation();
+  const day = date.getDate();
+  const dow = date.getDay();
+  const isSun = dow === 0;
+  const isSat = dow === 6;
+
+  const visible = items.slice(0, MAX_CHIPS_PER_CELL);
+  const more = Math.max(0, items.length - MAX_CHIPS_PER_CELL);
+
+  const monthLabel =
+    day === 1 ? date.toLocaleDateString("en-US", { month: "short" }) : null;
+
+  const numColor = !inMonth
+    ? "text-notion-text-secondary/60"
+    : isSun
+      ? "text-red-500"
+      : isSat
+        ? "text-red-400"
+        : "text-notion-text";
 
   return (
-    <div
-      className="flex items-center gap-3 border-b border-notion-border px-4 py-3 active:bg-notion-hover"
-      onClick={() => onEdit(item)}
+    <button
+      onClick={onTap}
+      className={`relative flex min-h-[78px] w-full min-w-0 max-w-full flex-col overflow-hidden border-b border-r border-notion-border px-[3px] pb-[3px] pt-1 text-left ${
+        isSelected
+          ? "bg-notion-accent/10"
+          : inMonth
+            ? "bg-notion-bg"
+            : "bg-notion-bg-secondary/60"
+      } ${inMonth ? "" : "opacity-85"}`}
+      style={{ boxSizing: "border-box" }}
     >
-      <button
-        onClick={(e) => {
-          e.stopPropagation();
-          onToggle(item.id);
-        }}
-        className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-md border-2 transition-colors ${
-          isDone
-            ? "border-notion-accent bg-notion-accent"
-            : isRoutine
-              ? "border-notion-success"
-              : "border-notion-border"
-        }`}
-        style={{ minWidth: 28, minHeight: 28 }}
-      >
-        {isDone && (
-          <svg
-            width="14"
-            height="14"
-            viewBox="0 0 14 14"
-            fill="none"
-            className="text-white"
-          >
-            <path
-              d="M3 7L6 10L11 4"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </svg>
+      {isSelected && (
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-0"
+          style={{ boxShadow: "inset 0 0 0 1.5px var(--color-notion-accent)" }}
+        />
+      )}
+      {/* Date row */}
+      <div className="flex items-center justify-between px-0.5 pb-0.5">
+        {monthLabel ? (
+          <span className="text-[9px] font-semibold uppercase tracking-wider text-notion-text-secondary">
+            {monthLabel}
+          </span>
+        ) : (
+          <span />
         )}
-      </button>
-      <div className="min-w-0 flex-1">
-        <div className="flex items-center gap-1.5">
-          {isRoutine && (
-            <Repeat size={12} className="shrink-0 text-notion-success" />
-          )}
+        {isToday ? (
+          <div
+            className="flex h-[18px] w-[18px] items-center justify-center rounded-full bg-notion-accent text-[11px] font-semibold text-white"
+            style={{ fontVariantNumeric: "tabular-nums" }}
+          >
+            {day}
+          </div>
+        ) : (
           <span
-            className={`truncate text-sm ${
-              isDone
-                ? "text-notion-text-secondary line-through"
-                : "text-notion-text"
+            className={`px-0.5 text-[11.5px] tabular-nums ${numColor} ${
+              isSelected ? "font-bold" : "font-medium"
             }`}
           >
-            {item.title}
-          </span>
-        </div>
-        {showTime && (
-          <span className="mt-0.5 block text-xs text-notion-text-secondary">
-            {item.startTime} - {item.endTime}
-          </span>
-        )}
-        {item.memo && (
-          <span className="mt-0.5 block truncate text-xs text-notion-text-secondary/70">
-            {item.memo}
+            {day}
           </span>
         )}
       </div>
-    </div>
+
+      {/* Chips */}
+      <div className="flex min-w-0 flex-col gap-[1.5px] overflow-hidden px-px">
+        {visible.map((item) => (
+          <MobileEventChip key={item.id} item={item} dimmed={!inMonth} />
+        ))}
+        {more > 0 && (
+          <div className="mt-px pl-[5px] text-[9px] font-medium text-notion-text-secondary">
+            {t("mobile.calendar.moreCount", "+{{count}}", { count: more })}
+          </div>
+        )}
+      </div>
+    </button>
   );
 }
 
-// --- Task row (for scheduled tasks) ---
+// --- Dayflow header ---
 
-function TaskRow({
-  task,
-  onToggle,
-}: {
-  task: TaskNode;
-  onToggle: (task: TaskNode) => void;
-}) {
-  const isDone = task.status === "DONE";
-  const isInProgress = task.status === "IN_PROGRESS";
+interface MobileDayflowHeaderProps {
+  selectedDate: string;
+  onDateSelect: (dateStr: string) => void;
+}
+
+function MobileDayflowHeader({
+  selectedDate,
+  onDateSelect,
+}: MobileDayflowHeaderProps) {
+  const { t, i18n } = useTranslation();
+  const lang = i18n.language;
+  const d = new Date(selectedDate + "T00:00:00");
+  const todayString = useMemo(() => formatDateStr(new Date()), []);
+  const isToday = selectedDate === todayString;
+  const dayLabels =
+    lang === "ja"
+      ? ["日", "月", "火", "水", "木", "金", "土"]
+      : ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+  const dow = d.getDay();
+  const dowColor =
+    dow === 0
+      ? "text-red-500"
+      : dow === 6
+        ? "text-red-400"
+        : "text-notion-text";
+
+  const navDay = (delta: number) => {
+    onDateSelect(formatDateStr(addDays(d, delta)));
+  };
+
+  const title =
+    lang === "ja"
+      ? `${d.getMonth() + 1}月${d.getDate()}日`
+      : d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
 
   return (
-    <div className="flex items-center gap-3 border-b border-notion-border px-4 py-3">
-      <button
-        onClick={() => onToggle(task)}
-        className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-md border-2 transition-colors ${
-          isDone
-            ? "border-notion-accent bg-notion-accent"
-            : isInProgress
-              ? "border-notion-warning bg-notion-warning/20"
-              : "border-notion-border"
-        }`}
-        style={{ minWidth: 28, minHeight: 28 }}
-      >
-        {isDone && (
-          <svg
-            width="14"
-            height="14"
-            viewBox="0 0 14 14"
-            fill="none"
-            className="text-white"
-          >
-            <path
-              d="M3 7L6 10L11 4"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </svg>
-        )}
-      </button>
-      <div className="min-w-0 flex-1">
-        <span
-          className={`truncate text-sm ${
-            isDone
-              ? "text-notion-text-secondary line-through"
-              : "text-notion-text"
+    <div className="flex items-center justify-between bg-notion-bg-secondary px-3.5 pb-2 pt-2.5">
+      <div className="flex items-baseline gap-2.5">
+        <div
+          className={`text-[22px] font-bold tracking-tight ${
+            isToday ? "text-notion-accent" : "text-notion-text"
           }`}
         >
-          {task.title}
-        </span>
-        {task.scheduledAt && (
-          <span className="mt-0.5 block text-xs text-notion-text-secondary">
-            {task.scheduledAt.slice(11, 16)}
-            {task.scheduledEndAt && ` - ${task.scheduledEndAt.slice(11, 16)}`}
+          {title}
+        </div>
+        <div className={`text-[13px] font-semibold ${dowColor}`}>
+          {dayLabels[dow]}
+        </div>
+        {isToday && (
+          <span className="rounded-[10px] bg-notion-accent px-[7px] py-0.5 text-[10px] font-semibold uppercase tracking-wider text-white">
+            {t("mobile.schedule.dayflow.todayBadge", "TODAY")}
           </span>
         )}
+      </div>
+      <div className="flex items-center gap-1">
+        <button
+          onClick={() => navDay(-1)}
+          aria-label="Previous day"
+          className="flex h-[30px] w-[30px] items-center justify-center rounded-lg active:bg-notion-hover"
+        >
+          <ChevronLeft size={16} className="text-notion-text-secondary" />
+        </button>
+        <button
+          onClick={() => onDateSelect(formatDateStr(new Date()))}
+          className="flex h-[30px] items-center justify-center rounded-lg px-2.5 text-xs font-semibold text-notion-accent active:bg-notion-hover"
+        >
+          {t("mobile.schedule.dayflow.today", "Today")}
+        </button>
+        <button
+          onClick={() => navDay(1)}
+          aria-label="Next day"
+          className="flex h-[30px] w-[30px] items-center justify-center rounded-lg active:bg-notion-hover"
+        >
+          <ChevronRight size={16} className="text-notion-text-secondary" />
+        </button>
       </div>
     </div>
   );
 }
 
-// --- Main Calendar View ---
+// --- Sub-tabs (Calendar / Dayflow) ---
 
 type CalendarSubTab = "monthly" | "dayflow";
+
+function ScheduleSubTabs({
+  active,
+  onChange,
+}: {
+  active: CalendarSubTab;
+  onChange: (tab: CalendarSubTab) => void;
+}) {
+  const { t } = useTranslation();
+  const tabs: Array<{
+    id: CalendarSubTab;
+    label: string;
+    Icon: typeof CalendarDays;
+  }> = [
+    {
+      id: "monthly",
+      label: t("mobile.schedule.subTab.calendar", "Calendar"),
+      Icon: CalendarDays,
+    },
+    {
+      id: "dayflow",
+      label: t("mobile.schedule.subTab.dayflow", "Day Flow"),
+      Icon: List,
+    },
+  ];
+  return (
+    <div className="flex shrink-0 border-b border-notion-border bg-notion-bg">
+      {tabs.map(({ id, label, Icon }) => {
+        const on = id === active;
+        return (
+          <button
+            key={id}
+            onClick={() => onChange(id)}
+            className={`flex flex-1 items-center justify-center gap-1.5 py-2.5 text-sm font-medium transition-colors ${
+              on
+                ? "border-b-2 border-notion-accent text-notion-accent"
+                : "text-notion-text-secondary"
+            }`}
+          >
+            <Icon size={14} />
+            {label}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+// --- Main view ---
 
 export function MobileCalendarView() {
   const { t } = useTranslation();
   const { syncVersion } = useSyncContext();
   const [selectedDate, setSelectedDate] = useState(todayStr);
   const [subTab, setSubTab] = useState<CalendarSubTab>("monthly");
-  const [scheduleItems, setScheduleItems] = useState<ScheduleItem[]>([]);
+  const [sheetExpanded, setSheetExpanded] = useState(false);
   const [monthItems, setMonthItems] = useState<ScheduleItem[]>([]);
   const [tasks, setTasks] = useState<TaskNode[]>([]);
-  const [loading, setLoading] = useState(true);
   const [formOpen, setFormOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<ScheduleItem | null>(null);
   const { handle: handleError } = useServiceErrorHandler();
-
   const ds = getDataService();
 
-  // Load schedule items for selected date
-  const loadDayItems = useCallback(
-    async (date: string) => {
-      setLoading(true);
-      try {
-        const result = await ds.fetchScheduleItemsByDate(date);
-        setScheduleItems(
-          result.sort((a, b) => a.startTime.localeCompare(b.startTime)),
-        );
-      } catch (e) {
-        handleError(e, "errors.schedule.loadFailed");
-      } finally {
-        setLoading(false);
-      }
-    },
-    [ds, handleError],
-  );
-
-  // Load tasks (all, then filter by scheduled date)
-  const loadTasks = useCallback(async () => {
-    try {
-      const tree = await ds.fetchTaskTree();
-      setTasks(tree.filter((t) => t.type === "task" && !t.isDeleted));
-    } catch (e) {
-      handleError(e, "errors.schedule.loadTasksFailed");
-    }
-  }, [ds, handleError]);
-
-  // Load month items for dot indicators
+  // Load month schedule items for the month containing selectedDate.
   const loadMonthItems = useCallback(
     async (date: string) => {
       try {
@@ -535,83 +490,89 @@ export function MobileCalendarView() {
     [ds, handleError],
   );
 
-  // Date-scoped fetches: re-run when the user selects a different date.
-  useEffect(() => {
-    loadDayItems(selectedDate);
-    loadMonthItems(selectedDate);
-  }, [selectedDate, loadDayItems, loadMonthItems]);
+  const loadTasks = useCallback(async () => {
+    try {
+      const tree = await ds.fetchTaskTree();
+      setTasks(tree.filter((t) => t.type === "task" && !t.isDeleted));
+    } catch (e) {
+      handleError(e, "errors.schedule.loadTasksFailed");
+    }
+  }, [ds, handleError]);
 
-  // Full task list is expensive. Reload only on mount and when sync pulls
-  // new data — not on every date change.
+  useEffect(() => {
+    loadMonthItems(selectedDate);
+  }, [selectedDate, loadMonthItems]);
+
   useEffect(() => {
     loadTasks();
   }, [loadTasks, syncVersion]);
 
-  // After a sync pull, refresh the currently-visible date's schedule items.
   useEffect(() => {
     if (syncVersion === 0) return;
-    loadDayItems(selectedDate);
     loadMonthItems(selectedDate);
-    // selectedDate intentionally omitted — this effect handles the post-sync refresh;
-    // date-change refresh is handled by the first effect above.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [syncVersion, loadDayItems, loadMonthItems]);
+  }, [syncVersion, loadMonthItems]);
 
-  // Aggregate counts for calendar dots
-  const itemCountByDate = useMemo(() => {
-    const map = new Map<string, number>();
-    for (const item of monthItems) {
-      map.set(item.date, (map.get(item.date) ?? 0) + 1);
-    }
-    return map;
-  }, [monthItems]);
-
-  const taskCountByDate = useMemo(() => {
-    const map = new Map<string, number>();
-    for (const task of tasks) {
-      if (task.scheduledAt) {
-        const dateStr = task.scheduledAt.split("T")[0];
-        map.set(dateStr, (map.get(dateStr) ?? 0) + 1);
-      }
-    }
-    return map;
-  }, [tasks]);
-
-  // Tasks scheduled for the selected date
-  const dayTasks = useMemo(
-    () => tasks.filter((t) => t.scheduledAt?.startsWith(selectedDate)),
-    [tasks, selectedDate],
+  // Unified items map (per-date DayItem[]) for both month cells and sheet.
+  const itemsByDate = useMemo(
+    () => buildMonthItemMap(monthItems, tasks),
+    [monthItems, tasks],
   );
 
+  // Strip count map (used by MobileCalendarStrip in Dayflow mode)
+  const itemCountByDate = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const [date, list] of itemsByDate) m.set(date, list.length);
+    return m;
+  }, [itemsByDate]);
+
+  const dayItems = useMemo(
+    () => buildDayItems(monthItems, tasks, selectedDate),
+    [monthItems, tasks, selectedDate],
+  );
+
+  const todayString = useMemo(() => formatDateStr(new Date()), []);
+  const isToday = selectedDate === todayString;
+
   // Handlers
-  const handleToggleSchedule = useCallback(
+  const handleSelectDate = useCallback(
+    (ds: string) => {
+      // Tapping the same day in Monthly mode toggles the sheet.
+      if (ds === selectedDate && subTab === "monthly") {
+        setSheetExpanded((e) => !e);
+      } else {
+        setSelectedDate(ds);
+      }
+    },
+    [selectedDate, subTab],
+  );
+
+  const handleToggleScheduleComplete = useCallback(
     async (id: string) => {
       try {
         await ds.toggleScheduleItemComplete(id);
-        await loadDayItems(selectedDate);
         await loadMonthItems(selectedDate);
       } catch (e) {
         handleError(e, "errors.schedule.toggleFailed");
       }
     },
-    [ds, selectedDate, loadDayItems, loadMonthItems, handleError],
+    [ds, selectedDate, loadMonthItems, handleError],
   );
 
   const handleToggleTask = useCallback(
-    async (task: TaskNode) => {
-      const statusCycle: Record<string, string> = {
+    async (item: DayItem) => {
+      if (item.kind !== "task") return;
+      const statusCycle: Record<string, TaskNode["status"]> = {
         NOT_STARTED: "IN_PROGRESS",
         IN_PROGRESS: "DONE",
         DONE: "NOT_STARTED",
       };
-      const currentStatus = task.status ?? "NOT_STARTED";
-      const newStatus = (statusCycle[currentStatus] ??
-        "NOT_STARTED") as TaskNode["status"];
+      const current = item.status;
+      const next = statusCycle[current] ?? "NOT_STARTED";
       try {
-        await ds.updateTask(task.id, {
-          status: newStatus,
-          completedAt:
-            newStatus === "DONE" ? new Date().toISOString() : undefined,
+        await ds.updateTask(item.source.id, {
+          status: next,
+          completedAt: next === "DONE" ? new Date().toISOString() : undefined,
         });
         await loadTasks();
       } catch (e) {
@@ -620,6 +581,14 @@ export function MobileCalendarView() {
     },
     [ds, loadTasks, handleError],
   );
+
+  const handleEditEvent = useCallback((item: DayItem) => {
+    // Only ScheduleItem-backed items are editable via the form
+    if (item.kind === "routine" || item.kind === "event") {
+      setEditingItem(item.source);
+      setFormOpen(true);
+    }
+  }, []);
 
   const handleSave = useCallback(
     async (data: ScheduleItemFormData) => {
@@ -647,13 +616,12 @@ export function MobileCalendarView() {
         }
         setFormOpen(false);
         setEditingItem(null);
-        await loadDayItems(selectedDate);
         await loadMonthItems(selectedDate);
       } catch (e) {
         handleError(e, "errors.schedule.saveFailed");
       }
     },
-    [ds, editingItem, selectedDate, loadDayItems, loadMonthItems, handleError],
+    [ds, editingItem, selectedDate, loadMonthItems, handleError],
   );
 
   const handleDelete = useCallback(
@@ -662,201 +630,83 @@ export function MobileCalendarView() {
         await ds.softDeleteScheduleItem(id);
         setFormOpen(false);
         setEditingItem(null);
-        await loadDayItems(selectedDate);
         await loadMonthItems(selectedDate);
       } catch (e) {
         handleError(e, "errors.schedule.deleteFailed");
       }
     },
-    [ds, selectedDate, loadDayItems, loadMonthItems, handleError],
+    [ds, selectedDate, loadMonthItems, handleError],
   );
 
-  const formattedDate = useMemo(() => {
-    const d = new Date(selectedDate + "T00:00:00");
-    return d.toLocaleDateString(undefined, {
-      weekday: "short",
-      month: "short",
-      day: "numeric",
-    });
-  }, [selectedDate]);
+  const openAddForm = useCallback(() => {
+    setEditingItem(null);
+    setFormOpen(true);
+  }, []);
 
-  const allDayItems = scheduleItems.filter((i) => i.isAllDay);
-  const timedItems = scheduleItems.filter((i) => !i.isAllDay);
-  const totalDayItems = scheduleItems.length + dayTasks.length;
+  // FAB positioning — in Monthly mode it sits above the collapsed/expanded sheet.
+  const fabBottomClass =
+    subTab === "monthly"
+      ? sheetExpanded
+        ? "bottom-[calc(80dvh+12px)]"
+        : "bottom-[calc(38dvh+12px)]"
+      : "bottom-4";
 
   return (
-    <div className="flex h-full flex-col">
-      {/* Sub-tab: Monthly / DayFlow */}
-      <div className="flex shrink-0 border-b border-notion-border">
-        <button
-          onClick={() => setSubTab("monthly")}
-          className={`flex flex-1 items-center justify-center gap-1.5 py-2.5 text-sm font-medium transition-colors ${
-            subTab === "monthly"
-              ? "border-b-2 border-notion-accent text-notion-accent"
-              : "text-notion-text-secondary"
-          }`}
-        >
-          <CalendarDays size={14} />
-          {t("mobile.calendar.monthly", "Monthly")}
-        </button>
-        <button
-          onClick={() => setSubTab("dayflow")}
-          className={`flex flex-1 items-center justify-center gap-1.5 py-2.5 text-sm font-medium transition-colors ${
-            subTab === "dayflow"
-              ? "border-b-2 border-notion-accent text-notion-accent"
-              : "text-notion-text-secondary"
-          }`}
-        >
-          <List size={14} />
-          {t("mobile.calendar.dayflow", "Day Flow")}
-        </button>
-      </div>
+    <div className="relative flex h-full flex-col overflow-hidden">
+      <ScheduleSubTabs active={subTab} onChange={setSubTab} />
 
-      {/* Calendar header (Monthly shows full calendar, DayFlow shows strip) */}
       {subTab === "monthly" ? (
-        <MobileMonthlyCalendar
-          selectedDate={selectedDate}
-          onDateSelect={setSelectedDate}
-          itemCountByDate={itemCountByDate}
-          taskCountByDate={taskCountByDate}
-        />
+        <div className="relative min-h-0 flex-1 overflow-hidden">
+          <div className="h-full overflow-y-auto">
+            <MobileMonthlyCalendar
+              selectedDate={selectedDate}
+              onDateSelect={handleSelectDate}
+              itemsByDate={itemsByDate}
+            />
+          </div>
+          <MobileDaySheet
+            dateStr={selectedDate}
+            items={dayItems}
+            expanded={sheetExpanded}
+            isToday={isToday}
+            onToggle={() => setSheetExpanded((e) => !e)}
+            onExpand={() => setSheetExpanded(true)}
+            onCollapse={() => setSheetExpanded(false)}
+            onEditEvent={handleEditEvent}
+            onToggleScheduleComplete={handleToggleScheduleComplete}
+            onToggleTask={handleToggleTask}
+            onAddItem={openAddForm}
+          />
+        </div>
       ) : (
-        <MobileCalendarStrip
-          selectedDate={selectedDate}
-          onDateSelect={setSelectedDate}
-          itemCountByDate={itemCountByDate}
-        />
+        <div className="flex min-h-0 flex-1 flex-col">
+          <MobileDayflowHeader
+            selectedDate={selectedDate}
+            onDateSelect={setSelectedDate}
+          />
+          <MobileCalendarStrip
+            selectedDate={selectedDate}
+            onDateSelect={setSelectedDate}
+            itemCountByDate={itemCountByDate}
+          />
+          <MobileDayflowGrid
+            dateStr={selectedDate}
+            items={dayItems}
+            onEditEvent={handleEditEvent}
+          />
+        </div>
       )}
 
-      {/* Day header */}
-      <div className="flex items-center justify-between border-b border-notion-border px-4 py-2">
-        <span className="text-sm font-medium text-notion-text">
-          {formattedDate}
-        </span>
-        <span className="text-xs text-notion-text-secondary">
-          {totalDayItems > 0
-            ? t("mobile.calendar.itemCount", "{{count}} items", {
-                count: totalDayItems,
-              })
-            : ""}
-        </span>
-      </div>
+      {/* FAB */}
+      <button
+        onClick={openAddForm}
+        className={`absolute right-4 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-notion-accent shadow-lg transition-[bottom] duration-300 ease-out active:opacity-80 ${fabBottomClass}`}
+        style={{ marginBottom: "env(safe-area-inset-bottom)" }}
+        aria-label={t("mobile.schedule.create", "New Item")}
+      >
+        <Plus size={24} className="text-white" />
+      </button>
 
-      {/* Day content list */}
-      <div className="flex-1 overflow-y-auto">
-        {loading ? (
-          <div className="p-8 text-center text-sm text-notion-text-secondary">
-            {t("common.loading", "Loading...")}
-          </div>
-        ) : totalDayItems === 0 ? (
-          <div className="flex flex-col items-center gap-3 p-12">
-            <Clock size={32} className="text-notion-text-secondary/40" />
-            <p className="text-sm text-notion-text-secondary">
-              {t("mobile.calendar.empty", "No items for this day")}
-            </p>
-            <button
-              onClick={() => {
-                setEditingItem(null);
-                setFormOpen(true);
-              }}
-              className="mt-2 rounded-lg bg-notion-accent px-4 py-2 text-sm font-medium text-white active:opacity-80"
-            >
-              {t("mobile.schedule.addFirst", "Add item")}
-            </button>
-          </div>
-        ) : (
-          <div>
-            {/* Scheduled tasks */}
-            {dayTasks.length > 0 && (
-              <div className="border-b border-notion-border/50 pb-1">
-                <div className="px-4 pt-2 pb-1">
-                  <span className="text-[11px] font-medium uppercase tracking-wider text-notion-text-secondary">
-                    {t("mobile.calendar.tasks", "Tasks")}
-                  </span>
-                </div>
-                {dayTasks.map((task) => (
-                  <TaskRow
-                    key={task.id}
-                    task={task}
-                    onToggle={handleToggleTask}
-                  />
-                ))}
-              </div>
-            )}
-
-            {/* All-day schedule items */}
-            {allDayItems.length > 0 && (
-              <div className="border-b border-notion-border/50 px-4 py-2">
-                <span className="text-[11px] font-medium uppercase tracking-wider text-notion-text-secondary">
-                  {t("mobile.schedule.allDay", "All day")}
-                </span>
-                {allDayItems.map((item) => (
-                  <SwipeableItem
-                    key={item.id}
-                    onDelete={() => handleDelete(item.id)}
-                  >
-                    <ScheduleItemRow
-                      item={item}
-                      onToggle={handleToggleSchedule}
-                      onEdit={(i) => {
-                        setEditingItem(i);
-                        setFormOpen(true);
-                      }}
-                      showTime={false}
-                    />
-                  </SwipeableItem>
-                ))}
-              </div>
-            )}
-
-            {/* Timed schedule items */}
-            {timedItems.length > 0 && (
-              <div>
-                {scheduleItems.length > 0 &&
-                  (allDayItems.length > 0 || dayTasks.length > 0) && (
-                    <div className="px-4 pt-2 pb-1">
-                      <span className="text-[11px] font-medium uppercase tracking-wider text-notion-text-secondary">
-                        {t("mobile.calendar.schedule", "Schedule")}
-                      </span>
-                    </div>
-                  )}
-                {timedItems.map((item) => (
-                  <SwipeableItem
-                    key={item.id}
-                    onDelete={() => handleDelete(item.id)}
-                  >
-                    <ScheduleItemRow
-                      item={item}
-                      onToggle={handleToggleSchedule}
-                      onEdit={(i) => {
-                        setEditingItem(i);
-                        setFormOpen(true);
-                      }}
-                      showTime
-                    />
-                  </SwipeableItem>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
-      </div>
-
-      {/* FAB - Create schedule item */}
-      {totalDayItems > 0 && (
-        <button
-          onClick={() => {
-            setEditingItem(null);
-            setFormOpen(true);
-          }}
-          className="absolute right-4 bottom-20 z-30 mb-[env(safe-area-inset-bottom)] flex h-14 w-14 items-center justify-center rounded-full bg-notion-accent shadow-lg active:opacity-80"
-          aria-label={t("mobile.schedule.create", "New Item")}
-        >
-          <Plus size={24} className="text-white" />
-        </button>
-      )}
-
-      {/* Schedule item form */}
       <MobileScheduleItemForm
         open={formOpen}
         onClose={() => {
@@ -868,129 +718,6 @@ export function MobileCalendarView() {
         editingItem={editingItem}
         defaultDate={selectedDate}
       />
-    </div>
-  );
-}
-
-// --- Inline calendar strip for DayFlow sub-tab ---
-
-function MobileCalendarStrip({
-  selectedDate,
-  onDateSelect,
-  itemCountByDate,
-}: {
-  selectedDate: string;
-  onDateSelect: (date: string) => void;
-  itemCountByDate: Map<string, number>;
-}) {
-  const { t, i18n } = useTranslation();
-  const lang = i18n.language;
-  const dayLabels =
-    lang === "ja"
-      ? ["月", "火", "水", "木", "金", "土", "日"]
-      : ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-
-  const todayString = useMemo(() => formatDateStr(new Date()), []);
-  const selectedDateObj = useMemo(
-    () => new Date(selectedDate + "T00:00:00"),
-    [selectedDate],
-  );
-
-  function getMonday(date: Date): Date {
-    const d = new Date(date);
-    const day = d.getDay();
-    const diff = day === 0 ? -6 : 1 - day;
-    d.setDate(d.getDate() + diff);
-    d.setHours(0, 0, 0, 0);
-    return d;
-  }
-
-  const [weekMonday, setWeekMonday] = useState<Date>(() =>
-    getMonday(selectedDateObj),
-  );
-
-  const weekDates = useMemo(
-    () => Array.from({ length: 7 }, (_, i) => addDays(weekMonday, i)),
-    [weekMonday],
-  );
-
-  const navigateWeek = useCallback((direction: -1 | 1) => {
-    setWeekMonday((prev) => addDays(prev, direction * 7));
-  }, []);
-
-  return (
-    <div className="border-b border-notion-border bg-notion-bg px-2 pb-2">
-      <div className="flex items-center justify-between px-2 py-1.5">
-        <button
-          onClick={() => navigateWeek(-1)}
-          className="flex h-8 w-8 items-center justify-center rounded-full active:bg-notion-hover"
-        >
-          <ChevronLeft size={16} className="text-notion-text-secondary" />
-        </button>
-        <button
-          onClick={() => {
-            const now = new Date();
-            setWeekMonday(getMonday(now));
-            onDateSelect(formatDateStr(now));
-          }}
-          className="text-xs font-medium text-notion-text-secondary active:opacity-60"
-        >
-          {t("mobile.calendar.today", "Today")}
-        </button>
-        <button
-          onClick={() => navigateWeek(1)}
-          className="flex h-8 w-8 items-center justify-center rounded-full active:bg-notion-hover"
-        >
-          <ChevronRight size={16} className="text-notion-text-secondary" />
-        </button>
-      </div>
-
-      <div className="grid grid-cols-7">
-        {weekDates.map((date, i) => {
-          const dateStr = formatDateStr(date);
-          const isSelected = dateStr === selectedDate;
-          const isToday = dateStr === todayString;
-          const count = itemCountByDate.get(dateStr) ?? 0;
-
-          return (
-            <button
-              key={dateStr}
-              onClick={() => onDateSelect(dateStr)}
-              className="flex flex-col items-center gap-0.5 py-1"
-            >
-              <span
-                className={`text-[10px] ${
-                  i >= 5
-                    ? "text-notion-text-secondary/60"
-                    : "text-notion-text-secondary"
-                }`}
-              >
-                {dayLabels[i]}
-              </span>
-              <div
-                className={`flex h-9 w-9 items-center justify-center rounded-full text-sm font-medium ${
-                  isSelected
-                    ? "bg-notion-accent text-white"
-                    : isToday
-                      ? "border border-notion-accent text-notion-accent"
-                      : "text-notion-text"
-                }`}
-              >
-                {date.getDate()}
-              </div>
-              <div className="flex h-1 items-center">
-                {count > 0 && (
-                  <span
-                    className={`h-1 w-1 rounded-full ${
-                      isSelected ? "bg-white/60" : "bg-notion-accent"
-                    }`}
-                  />
-                )}
-              </div>
-            </button>
-          );
-        })}
-      </div>
     </div>
   );
 }

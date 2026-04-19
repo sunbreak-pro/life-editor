@@ -1,3 +1,51 @@
+### 2026-04-18 - アプリ再定義ロードマップ v2 Phase C 完了（feature_plan 棚卸し + 保留 5 件 Verdict 確定）（計画書: archive/2026-04-18-integrated-design-roadmap.md）
+
+#### 概要
+
+Phase B に続いて Phase C を完遂。事前データ表（calendar plan §Phase C）をベースに既存 feature_plan 9 件を Merge / Drop 判定で archive へ移動し、保留 5 件（I-1 / S-2 / S-4 / S-5 / S-6）の Verdict を確定。Keep 判定の 4 件を新規 plan、Modify / Option A 決定の 2 件を新規 ADR として起票。これで Life Editor プロジェクトの SSOT（CLAUDE.md 13 章 + requirements/ 26 機能）と、アクティブ plan 群（4 件の具体的な実装候補）が一貫した状態で整った。
+
+#### 変更点
+
+- **feature_plan 9 件の archive 移動**:
+  - Drop 5 件 → `.claude/archive/dropped/`:
+    - `019-phase1-security-critical-fixes.md`（Electron 前提、2026-02-22 作成 3 ヶ月放置）
+    - `020-phase2-data-integrity.md` / `021-phase3-architecture-improvement.md` / `022-phase4-quality-optimization.md`（同上、Tauri 2.0 migration で対象コード消失）
+    - `2026-04-14-capacitor-ios-standalone.md`（Tauri Mobile 採用で不要）
+  - Merge 4 件 → `.claude/archive/`:
+    - `023-cmux-terminal-features.md` → Terminal Future Enhancements（分割ペインのみ採用、Socket API は Boundary と矛盾で不採用）
+    - `025-life-editor-ui-ux-refactor.md` → CLAUDE.md §1-5 + tier-2-supporting の Theme / Shortcuts に吸収済
+    - `2026-03-16-mobile-phase2-realtime-sync.md` → Cloud Sync Future Enhancements（WebSocket / SSE リアルタイム push）
+    - `2026-03-16-mobile-phase3-offline-standalone.md` → Cloud Sync Known Issues + Future（オフラインキュー / conflict resolution / claude\_\* テーブル対応）
+  - 各ファイルに `Status: DROPPED (reason)` または `Status: MERGED (target + reason)` マークを追記
+
+- **保留 5 件の Verdict 確定と後続ファイル起票**:
+  - **I-1 (Rust `db_tasks_fetch_by_scheduled_range`)**: Keep (measurement-first) → `.claude/feature_plans/2026-04-18-tasks-fetch-by-range.md` 起票（iOS で 500 / 1000 / 3000 件計測 → しきい値 500ms 以上なら実装）
+  - **S-2 (Tauri IPC naming policy)**: Modify (ADR-only) → `.claude/docs/adr/ADR-0006-tauri-ipc-naming-policy.md` 起票。規約明文化のみ、150 コマンド全件 typed struct 化は不採用
+  - **S-4 (computeFolderProgress batch memo)**: Keep (measurement-first) → `.claude/feature_plans/2026-04-18-folder-progress-batch-memo.md` 起票（React Compiler 有効化後再計測、Profiler で 150ms 超なら一括 Map 計算に切替）
+  - **S-5 (useServiceErrorHandler)**: Keep (immediate) → `.claude/feature_plans/2026-04-18-service-error-handler-hook.md` 起票。V2「信頼できるデータ」を silent failure が直接損なうため即時実装可
+  - **S-6 (Mobile Provider strategy)**: Keep Option A → `.claude/docs/adr/ADR-0007-mobile-provider-strategy.md` で Optional hook 採用決定 + `.claude/feature_plans/2026-04-18-context-hook-optional.md` 実装 plan 起票。Stub Provider（Option B）は Mobile バンドル膨張のため不採用
+
+- **deferred-items-reevaluation.md**: Status: Consumed (Phase C 完了) に更新 + 冒頭に Verdict 集約表を追加 → `.claude/archive/` に移動
+
+- **requirements/ の Related Plans 更新**:
+  - §Tasks Related Plans: I-1 / S-4 の新規 plan リンク追加
+  - §Schedule Related Plans: Schedule 3 Provider ADR のリンクは archive 維持（変更なし）
+  - §Cloud Sync Related Plans: MERGED 2 件を archive リンクに書換 + 吸収済 note 追記
+  - §Terminal Related Plans: MERGED 023 を archive リンクに書換 + Boundary 矛盾 note 追記
+  - §Toast Known Issues: S-5 の新規 plan リンク追加 + Related Plans セクション新設
+
+- **計画書更新**: §Phase C-1（Steps 5 件 + Verification 3 件）と §Phase C-2（Steps 6 件 + Verification 4 件）を全て `[x]` に
+
+- **MEMORY.md 更新**: 直近完了に Phase C 追加、予定を「Phase C 起票の新規 plan 4 件（優先度順）」に書換。1. S-5 即時実装可 / 2. S-6 Option A 実装 / 3. I-1 計測 first / 4. S-4 計測 first の順
+
+- **最終状態サマリー**:
+  - `.claude/feature_plans/` PLANNED: 4 件（Phase C 起票、他は Consumed/Superseded/IN_PROGRESS）
+  - `.claude/docs/adr/` Active: 3 件（ADR-0005 PROPOSED / ADR-0006 Accepted / ADR-0007 Accepted）
+  - `.claude/archive/dropped/` 新設: 5 件（Electron 前提 Plan + Capacitor）
+  - `.claude/archive/` Merge 4 件追加
+
+---
+
 ### 2026-04-18 - アプリ再定義ロードマップ v2 Phase B 完了（Tier 1-3 全 26 機能要件定義）
 
 #### 概要

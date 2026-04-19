@@ -17,6 +17,15 @@
   --color-schedule-other-bg: #f1f2f4;
   --color-schedule-event-bg: #f3e8ff;
   --color-schedule-event-border: #8b5cf6;
+  --color-chip-routine-bg: #ebf0fe;
+  --color-chip-routine-fg: #3b5bdb;
+  --color-chip-routine-dot: #5b6cdb;
+  --color-chip-event-bg: #f3e8ff;
+  --color-chip-event-fg: #6d28d9;
+  --color-chip-event-dot: #8b5cf6;
+  --color-chip-task-bg: #e0f4fb;
+  --color-chip-task-fg: #0e7490;
+  --color-chip-task-dot: #2eaadc;
   --font-size-base: 16px;
 }
 
@@ -37,6 +46,15 @@
   --color-schedule-other-bg: #1f2937;
   --color-schedule-event-bg: #2e1065;
   --color-schedule-event-border: #a78bfa;
+  --color-chip-routine-bg: #1e2a48;
+  --color-chip-routine-fg: #93c5fd;
+  --color-chip-routine-dot: #818cf8;
+  --color-chip-event-bg: #2e1065;
+  --color-chip-event-fg: #c4b5fd;
+  --color-chip-event-dot: #a78bfa;
+  --color-chip-task-bg: #0c3a4a;
+  --color-chip-task-fg: #7dd3fc;
+  --color-chip-task-dot: #38bdf8;
 }
 
 @theme {

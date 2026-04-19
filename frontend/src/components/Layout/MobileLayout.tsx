@@ -2,7 +2,7 @@ import { type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { FileText, Calendar, Timer, Settings } from "lucide-react";
 
-export type MobileTab = "materials" | "calendar" | "work" | "settings";
+export type MobileTab = "schedule" | "work" | "materials" | "settings";
 
 interface MobileLayoutProps {
   children: ReactNode;
@@ -23,16 +23,16 @@ export function MobileLayout({
     icon: typeof FileText;
   }> = [
     {
+      id: "schedule",
+      label: t("mobile.tabs.schedule", "Schedule"),
+      icon: Calendar,
+    },
+    { id: "work", label: t("mobile.tabs.work", "Work"), icon: Timer },
+    {
       id: "materials",
       label: t("mobile.tabs.materials", "Materials"),
       icon: FileText,
     },
-    {
-      id: "calendar",
-      label: t("mobile.tabs.calendar", "Calendar"),
-      icon: Calendar,
-    },
-    { id: "work", label: t("mobile.tabs.work", "Work"), icon: Timer },
     {
       id: "settings",
       label: t("mobile.tabs.settings", "Settings"),

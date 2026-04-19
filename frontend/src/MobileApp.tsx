@@ -6,16 +6,16 @@ import { MobileWorkView } from "./components/Mobile/MobileWorkView";
 import { MobileSettingsView } from "./components/Mobile/MobileSettingsView";
 
 export function MobileApp() {
-  const [activeTab, setActiveTab] = useState<MobileTab>("materials");
+  const [activeTab, setActiveTab] = useState<MobileTab>("schedule");
 
   const renderContent = () => {
     switch (activeTab) {
-      case "materials":
-        return <MobileMaterialsView />;
-      case "calendar":
+      case "schedule":
         return <MobileCalendarView />;
       case "work":
         return <MobileWorkView />;
+      case "materials":
+        return <MobileMaterialsView />;
       case "settings":
         return <MobileSettingsView />;
       default:

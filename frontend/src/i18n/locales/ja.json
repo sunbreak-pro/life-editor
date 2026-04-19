@@ -1770,7 +1770,7 @@
   "mobile": {
     "tabs": {
       "materials": "マテリアル",
-      "calendar": "カレンダー",
+      "schedule": "スケジュール",
       "work": "作業",
       "settings": "設定",
       "memos": "メモ",
@@ -1783,14 +1783,30 @@
       "tasks": "タスク",
       "schedule": "スケジュール",
       "empty": "この日の予定はありません",
-      "itemCount": "{{count}}件"
+      "itemCount": "{{count}}件",
+      "moreCount": "+{{count}}件",
+      "search": "検索"
     },
     "schedule": {
       "allDay": "終日",
       "addFirst": "追加する",
       "create": "新規追加",
       "itemCount": "{{count}}件",
-      "empty": "スケジュールはありません"
+      "empty": "スケジュールはありません",
+      "subTab": {
+        "calendar": "カレンダー",
+        "dayflow": "デイフロー"
+      },
+      "daySheet": {
+        "edit": "編集",
+        "empty": "予定はありません",
+        "todayPrefix": "今日 · "
+      },
+      "dayflow": {
+        "today": "今日",
+        "now": "現在",
+        "todayBadge": "今日"
+      }
     },
     "memo": {
       "today": "今日",
@@ -1808,7 +1824,30 @@
       "selectTask": "タスクを選択...",
       "searchTask": "タスクを検索...",
       "clearTask": "タスク選択を解除",
-      "noTasks": "タスクが見つかりません"
+      "noTasks": "タスクが見つかりません",
+      "focusTitle": "フォーカス",
+      "activeTaskLabel": "取り組み中",
+      "sessionLabel": {
+        "work": "集中セッション",
+        "break": "休憩",
+        "longBreak": "長休憩"
+      },
+      "session": {
+        "work": "集中",
+        "break": "休憩",
+        "longBreak": "長休憩"
+      },
+      "sessionSub": {
+        "work": "{{minutes}}分",
+        "break": "{{minutes}}分",
+        "longBreak": "{{minutes}}分"
+      },
+      "remaining": "残り {{minutes}} 分 {{seconds}} 秒",
+      "dotsProgress": "今日 {{done}} / {{total}} セッション完了",
+      "controls": {
+        "reset": "リセット",
+        "skip": "スキップ"
+      }
     },
     "settings": {
       "connection": "接続",

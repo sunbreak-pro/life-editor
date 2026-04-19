@@ -6,11 +6,9 @@
 
 ## 直近の完了
 
+- Mobile Schedule & Work リデザイン（コード一式）✅（2026-04-18） — claude.ai/design バンドル準拠で Schedule タブ改名、月カレンダー inline chip + bottom sheet、Dayflow timegrid、Work を session pill + ring + halo + session dots + control dock に刷新。chip kind 用 CSS tokens 追加、`dayItem.ts` + test。全 200 テスト pass、tsc/lint/build clean。
 - グローバルスキル整合（/project-setter 新構造対応、task-tracker パス更新、session-verifier 汎用化、session-loader グローバル化 + life-editor 版更新、グローバル CLAUDE.md 運用ルール追加、ADR 廃止して vision/coding-principles.md に統合）✅（2026-04-18）
 - CLAUDE.md 軽量化（805 → 349 行、`docs/vision/` 新設、`feature_plans/` 廃止して vision/ + archive/ に再配置）✅（2026-04-18）
-- Known Issues ディレクトリ新設（7 件 seed + CLAUDE.md §0/§12 参照追記、`.claude/docs/known-issues/` 運用開始）✅（2026-04-18）
-- Cloud Sync 有効化完了（Workers/Rust の複数バグ修正 + Mac↔iPhone 双方向同期動作確認、Known Issues 001-007 として記録）✅（2026-04-18）
-- iOS 実機ビルド対応完了（Xcode 署名 + Tauri CLI デプロイ + 手順 Note 保存 / `project.yml` 恒久修正）✅（2026-04-18）
 
 ## 予定
 
@@ -18,6 +16,12 @@
 
 **対象**: `.claude/docs/vision/core.md` / `docs/vision/ai-integration.md`（「素案 — ユーザーレビュー待ち」マーク付与済み、CLAUDE.md §1/§5 から参照）
 **レビュー観点**: Core Identity / Target User / Value Propositions / Non-Goals / AI Integration シナリオ
+
+### Mobile Schedule & Work リデザイン 手動 UI 検証
+
+**対象**: iPhone シミュレータ / Tauri build で Schedule 月カレンダー / Dayflow / Work 全項目を目視検証
+**参照**: `.claude/archive/2026-04-18-mobile-schedule-work-redesign.md` §Verification
+**観点**: DayCell の chip 均等 grid / bottom sheet drag / FAB 位置アニメ / Dayflow now line / Work session pill + halo
 
 ### Known Issues Active 2 件の調査
 

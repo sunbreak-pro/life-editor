@@ -1770,7 +1770,7 @@
   "mobile": {
     "tabs": {
       "materials": "Materials",
-      "calendar": "Calendar",
+      "schedule": "Schedule",
       "work": "Work",
       "settings": "Settings",
       "memos": "Memos",
@@ -1783,14 +1783,30 @@
       "tasks": "Tasks",
       "schedule": "Schedule",
       "empty": "No items for this day",
-      "itemCount": "{{count}} items"
+      "itemCount": "{{count}} items",
+      "moreCount": "+{{count}}",
+      "search": "Search"
     },
     "schedule": {
       "allDay": "All day",
       "addFirst": "Add item",
       "create": "New Item",
       "itemCount": "{{count}} items",
-      "empty": "No schedule items"
+      "empty": "No schedule items",
+      "subTab": {
+        "calendar": "Calendar",
+        "dayflow": "Day Flow"
+      },
+      "daySheet": {
+        "edit": "Edit",
+        "empty": "No events for this day",
+        "todayPrefix": "Today · "
+      },
+      "dayflow": {
+        "today": "Today",
+        "now": "Now",
+        "todayBadge": "TODAY"
+      }
     },
     "memo": {
       "today": "Today",
@@ -1808,7 +1824,30 @@
       "selectTask": "Select a task...",
       "searchTask": "Search tasks...",
       "clearTask": "Clear selected task",
-      "noTasks": "No tasks found"
+      "noTasks": "No tasks found",
+      "focusTitle": "Focus",
+      "activeTaskLabel": "IN PROGRESS",
+      "sessionLabel": {
+        "work": "FOCUS SESSION",
+        "break": "BREAK",
+        "longBreak": "LONG BREAK"
+      },
+      "session": {
+        "work": "Focus",
+        "break": "Break",
+        "longBreak": "Long break"
+      },
+      "sessionSub": {
+        "work": "{{minutes}} min",
+        "break": "{{minutes}} min",
+        "longBreak": "{{minutes}} min"
+      },
+      "remaining": "{{minutes}} min {{seconds}} sec left",
+      "dotsProgress": "Today {{done}} / {{total}} sessions",
+      "controls": {
+        "reset": "Reset",
+        "skip": "Skip"
+      }
     },
     "settings": {
       "connection": "Connection",
