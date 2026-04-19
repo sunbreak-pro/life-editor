@@ -6,9 +6,9 @@
 
 ## 直近の完了
 
+- Mobile UI/UX 改善 第 2 弾 ✅（2026-04-19） — Daycell チップ復元（max 3 + "+N more"）、Note/Memo 詳細の seed バグ修正（keyed sub-component）、`<` `>` 月ナビ修正（viewDate を親に昇格）、新規スケジュール memo 永続化、`dvh → svh` + overscroll-behavior で iOS pixel jitter 軽減。tsc/lint/vitest 200 pass。
 - Mobile Schedule & Work リデザイン（コード一式）✅（2026-04-18） — claude.ai/design バンドル準拠で Schedule タブ改名、月カレンダー inline chip + bottom sheet、Dayflow timegrid、Work を session pill + ring + halo + session dots + control dock に刷新。chip kind 用 CSS tokens 追加、`dayItem.ts` + test。全 200 テスト pass、tsc/lint/build clean。
 - グローバルスキル整合（/project-setter 新構造対応、task-tracker パス更新、session-verifier 汎用化、session-loader グローバル化 + life-editor 版更新、グローバル CLAUDE.md 運用ルール追加、ADR 廃止して vision/coding-principles.md に統合）✅（2026-04-18）
-- CLAUDE.md 軽量化（805 → 349 行、`docs/vision/` 新設、`feature_plans/` 廃止して vision/ + archive/ に再配置）✅（2026-04-18）
 
 ## 予定
 

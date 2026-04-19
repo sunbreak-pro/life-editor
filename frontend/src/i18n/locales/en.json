@@ -1784,7 +1784,7 @@
       "schedule": "Schedule",
       "empty": "No items for this day",
       "itemCount": "{{count}} items",
-      "moreCount": "+{{count}}",
+      "moreCount": "+{{count}} more",
       "search": "Search"
     },
     "schedule": {

@@ -6,7 +6,6 @@ import {
   ChevronRight,
   CalendarDays,
   List,
-  Search,
 } from "lucide-react";
 import { getDataService } from "../../services/dataServiceFactory";
 import { useSyncContext } from "../../hooks/useSyncContext";
@@ -24,7 +23,7 @@ import {
   type DayItem,
 } from "./schedule/dayItem";
 import { MobileEventChip } from "./schedule/MobileEventChip";
-import { MobileDaySheet } from "./schedule/MobileDaySheet";
+import { MobileDaySheet, type SheetMode } from "./schedule/MobileDaySheet";
 import { MobileDayflowGrid } from "./schedule/MobileDayflowGrid";
 
 // --- Utilities ---
@@ -57,12 +56,16 @@ const MAX_CHIPS_PER_CELL = 3;
 interface MobileMonthlyCalendarProps {
   selectedDate: string;
   onDateSelect: (dateStr: string) => void;
+  viewDate: { year: number; month: number };
+  onViewDateChange: (vd: { year: number; month: number }) => void;
   itemsByDate: Map<string, DayItem[]>;
 }
 
 function MobileMonthlyCalendar({
   selectedDate,
   onDateSelect,
+  viewDate,
+  onViewDateChange,
   itemsByDate,
 }: MobileMonthlyCalendarProps) {
   const { t, i18n } = useTranslation();
@@ -72,25 +75,6 @@ function MobileMonthlyCalendar({
     lang === "ja"
       ? ["月", "火", "水", "木", "金", "土", "日"]
       : ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-
-  const [viewDate, setViewDate] = useState(() => {
-    const d = new Date(selectedDate + "T00:00:00");
-    return { year: d.getFullYear(), month: d.getMonth() };
-  });
-
-  // Keep month in sync when user picks a date outside current month.
-  // React permits setState during render when adjusting state to props —
-  // the next render will converge (no loop).
-  const selectedObj = new Date(selectedDate + "T00:00:00");
-  if (
-    selectedObj.getFullYear() !== viewDate.year ||
-    selectedObj.getMonth() !== viewDate.month
-  ) {
-    setViewDate({
-      year: selectedObj.getFullYear(),
-      month: selectedObj.getMonth(),
-    });
-  }
 
   const todayString = useMemo(() => formatDateStr(new Date()), []);
 
@@ -124,10 +108,10 @@ function MobileMonthlyCalendar({
     return days;
   }, [viewDate]);
 
-  const navigateMonth = useCallback((direction: -1 | 1) => {
-    setViewDate((prev) => {
-      let newMonth = prev.month + direction;
-      let newYear = prev.year;
+  const navigateMonth = useCallback(
+    (direction: -1 | 1) => {
+      let newMonth = viewDate.month + direction;
+      let newYear = viewDate.year;
       if (newMonth < 0) {
         newMonth = 11;
         newYear--;
@@ -135,15 +119,16 @@ function MobileMonthlyCalendar({
         newMonth = 0;
         newYear++;
       }
-      return { year: newYear, month: newMonth };
-    });
-  }, []);
+      onViewDateChange({ year: newYear, month: newMonth });
+    },
+    [viewDate, onViewDateChange],
+  );
 
   const goToToday = useCallback(() => {
     const now = new Date();
-    setViewDate({ year: now.getFullYear(), month: now.getMonth() });
+    onViewDateChange({ year: now.getFullYear(), month: now.getMonth() });
     onDateSelect(formatDateStr(now));
-  }, [onDateSelect]);
+  }, [onDateSelect, onViewDateChange]);
 
   return (
     <div className="flex flex-col border-b border-notion-border bg-notion-bg">
@@ -153,12 +138,6 @@ function MobileMonthlyCalendar({
           {monthLabel}
         </div>
         <div className="flex items-center gap-0.5">
-          <button
-            aria-label={t("mobile.calendar.search", "Search")}
-            className="flex h-[34px] w-[34px] items-center justify-center rounded-lg active:bg-notion-hover"
-          >
-            <Search size={18} className="text-notion-text-secondary" />
-          </button>
           <button
             onClick={goToToday}
             aria-label={t("mobile.calendar.today", "Today")}
@@ -308,14 +287,14 @@ function DayCell({
         )}
       </div>
 
-      {/* Chips */}
+      {/* Chips: title list, max 3 + "+N more" */}
       <div className="flex min-w-0 flex-col gap-[1.5px] overflow-hidden px-px">
         {visible.map((item) => (
           <MobileEventChip key={item.id} item={item} dimmed={!inMonth} />
         ))}
         {more > 0 && (
           <div className="mt-px pl-[5px] text-[9px] font-medium text-notion-text-secondary">
-            {t("mobile.calendar.moreCount", "+{{count}}", { count: more })}
+            {t("mobile.calendar.moreCount", "+{{count}} more", { count: more })}
           </div>
         )}
       </div>
@@ -463,7 +442,11 @@ export function MobileCalendarView() {
   const { syncVersion } = useSyncContext();
   const [selectedDate, setSelectedDate] = useState(todayStr);
   const [subTab, setSubTab] = useState<CalendarSubTab>("monthly");
-  const [sheetExpanded, setSheetExpanded] = useState(false);
+  const [sheetMode, setSheetMode] = useState<SheetMode>("hidden");
+  const [viewDate, setViewDate] = useState(() => {
+    const d = new Date(todayStr() + "T00:00:00");
+    return { year: d.getFullYear(), month: d.getMonth() };
+  });
   const [monthItems, setMonthItems] = useState<ScheduleItem[]>([]);
   const [tasks, setTasks] = useState<TaskNode[]>([]);
   const [formOpen, setFormOpen] = useState(false);
@@ -471,13 +454,24 @@ export function MobileCalendarView() {
   const { handle: handleError } = useServiceErrorHandler();
   const ds = getDataService();
 
-  // Load month schedule items for the month containing selectedDate.
+  // Keep viewDate synced with selectedDate (so tapping a day in the strip or
+  // switching sub-tabs lands in the right month). Navigating via < / > updates
+  // viewDate directly without changing selectedDate.
+  useEffect(() => {
+    const d = new Date(selectedDate + "T00:00:00");
+    setViewDate((prev) =>
+      prev.year === d.getFullYear() && prev.month === d.getMonth()
+        ? prev
+        : { year: d.getFullYear(), month: d.getMonth() },
+    );
+  }, [selectedDate]);
+
+  // Load month schedule items for the currently-viewed month.
   const loadMonthItems = useCallback(
-    async (date: string) => {
+    async (year: number, month: number) => {
       try {
-        const d = new Date(date + "T00:00:00");
-        const firstDay = new Date(d.getFullYear(), d.getMonth(), 1);
-        const lastDay = new Date(d.getFullYear(), d.getMonth() + 1, 0);
+        const firstDay = new Date(year, month, 1);
+        const lastDay = new Date(year, month + 1, 0);
         const result = await ds.fetchScheduleItemsByDateRange(
           formatDateStr(firstDay),
           formatDateStr(lastDay),
@@ -500,8 +494,8 @@ export function MobileCalendarView() {
   }, [ds, handleError]);
 
   useEffect(() => {
-    loadMonthItems(selectedDate);
-  }, [selectedDate, loadMonthItems]);
+    loadMonthItems(viewDate.year, viewDate.month);
+  }, [viewDate, loadMonthItems]);
 
   useEffect(() => {
     loadTasks();
@@ -509,7 +503,7 @@ export function MobileCalendarView() {
 
   useEffect(() => {
     if (syncVersion === 0) return;
-    loadMonthItems(selectedDate);
+    loadMonthItems(viewDate.year, viewDate.month);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [syncVersion, loadMonthItems]);
 
@@ -537,26 +531,38 @@ export function MobileCalendarView() {
   // Handlers
   const handleSelectDate = useCallback(
     (ds: string) => {
-      // Tapping the same day in Monthly mode toggles the sheet.
-      if (ds === selectedDate && subTab === "monthly") {
-        setSheetExpanded((e) => !e);
-      } else {
+      if (subTab !== "monthly") {
         setSelectedDate(ds);
+        return;
       }
+      // Monthly mode behavior:
+      //   - hidden: open to half with the tapped date
+      //   - same date at half: promote to full
+      //   - same date at full: demote to half
+      //   - different date: select it, demote full → half, promote hidden → half
+      if (ds === selectedDate) {
+        if (sheetMode === "hidden") setSheetMode("half");
+        else if (sheetMode === "half") setSheetMode("full");
+        else setSheetMode("half");
+        return;
+      }
+      setSelectedDate(ds);
+      if (sheetMode === "hidden") setSheetMode("half");
+      else if (sheetMode === "full") setSheetMode("half");
     },
-    [selectedDate, subTab],
+    [selectedDate, subTab, sheetMode],
   );
 
   const handleToggleScheduleComplete = useCallback(
     async (id: string) => {
       try {
         await ds.toggleScheduleItemComplete(id);
-        await loadMonthItems(selectedDate);
+        await loadMonthItems(viewDate.year, viewDate.month);
       } catch (e) {
         handleError(e, "errors.schedule.toggleFailed");
       }
     },
-    [ds, selectedDate, loadMonthItems, handleError],
+    [ds, viewDate, loadMonthItems, handleError],
   );
 
   const handleToggleTask = useCallback(
@@ -602,8 +608,9 @@ export function MobileCalendarView() {
             isAllDay: data.isAllDay,
           });
         } else {
+          const newId = generateId();
           await ds.createScheduleItem(
-            generateId(),
+            newId,
             data.date,
             data.title,
             data.isAllDay ? "00:00" : data.startTime,
@@ -613,15 +620,20 @@ export function MobileCalendarView() {
             undefined,
             data.isAllDay,
           );
+          // createScheduleItem has no memo parameter; apply it in a follow-up
+          // update so the memo entered in the form is persisted.
+          if (data.memo) {
+            await ds.updateScheduleItem(newId, { memo: data.memo });
+          }
         }
         setFormOpen(false);
         setEditingItem(null);
-        await loadMonthItems(selectedDate);
+        await loadMonthItems(viewDate.year, viewDate.month);
       } catch (e) {
         handleError(e, "errors.schedule.saveFailed");
       }
     },
-    [ds, editingItem, selectedDate, loadMonthItems, handleError],
+    [ds, editingItem, viewDate, loadMonthItems, handleError],
   );
 
   const handleDelete = useCallback(
@@ -630,12 +642,12 @@ export function MobileCalendarView() {
         await ds.softDeleteScheduleItem(id);
         setFormOpen(false);
         setEditingItem(null);
-        await loadMonthItems(selectedDate);
+        await loadMonthItems(viewDate.year, viewDate.month);
       } catch (e) {
         handleError(e, "errors.schedule.deleteFailed");
       }
     },
-    [ds, selectedDate, loadMonthItems, handleError],
+    [ds, viewDate, loadMonthItems, handleError],
   );
 
   const openAddForm = useCallback(() => {
@@ -643,12 +655,14 @@ export function MobileCalendarView() {
     setFormOpen(true);
   }, []);
 
-  // FAB positioning — in Monthly mode it sits above the collapsed/expanded sheet.
+  // FAB positioning — in Monthly mode it sits above the sheet when shown.
   const fabBottomClass =
     subTab === "monthly"
-      ? sheetExpanded
-        ? "bottom-[calc(80dvh+12px)]"
-        : "bottom-[calc(38dvh+12px)]"
+      ? sheetMode === "full"
+        ? "bottom-[calc(70svh+12px)]"
+        : sheetMode === "half"
+          ? "bottom-[calc(38svh+12px)]"
+          : "bottom-4"
       : "bottom-4";
 
   return (
@@ -661,17 +675,17 @@ export function MobileCalendarView() {
             <MobileMonthlyCalendar
               selectedDate={selectedDate}
               onDateSelect={handleSelectDate}
+              viewDate={viewDate}
+              onViewDateChange={setViewDate}
               itemsByDate={itemsByDate}
             />
           </div>
           <MobileDaySheet
             dateStr={selectedDate}
             items={dayItems}
-            expanded={sheetExpanded}
+            mode={sheetMode}
             isToday={isToday}
-            onToggle={() => setSheetExpanded((e) => !e)}
-            onExpand={() => setSheetExpanded(true)}
-            onCollapse={() => setSheetExpanded(false)}
+            onChangeMode={setSheetMode}
             onEditEvent={handleEditEvent}
             onToggleScheduleComplete={handleToggleScheduleComplete}
             onToggleTask={handleToggleTask}

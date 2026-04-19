@@ -1,15 +1,33 @@
-import { useState, useEffect, useCallback } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { getDataService } from "../../services/dataServiceFactory";
 import { useSyncContext } from "../../hooks/useSyncContext";
 import type { MemoNode } from "../../types/memo";
+import { MobileRichEditor } from "./shared/MobileRichEditor";
+
+function extractPlainText(content: string): string {
+  try {
+    const parsed = JSON.parse(content);
+    if (parsed?.content) {
+      return parsed.content
+        .map(
+          (block: { content?: Array<{ text?: string }> }) =>
+            block.content?.map((c) => c.text || "").join("") || "",
+        )
+        .join(" ")
+        .slice(0, 120);
+    }
+  } catch {
+    // plain text
+  }
+  return content?.slice(0, 120) || "";
+}
 
 export function MobileMemoView() {
   const { t } = useTranslation();
   const { syncVersion } = useSyncContext();
   const [memos, setMemos] = useState<MemoNode[]>([]);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
-  const [editContent, setEditContent] = useState("");
   const [loading, setLoading] = useState(true);
 
   const ds = getDataService();
@@ -29,59 +47,26 @@ export function MobileMemoView() {
     loadMemos();
   }, [loadMemos, syncVersion]);
 
-  useEffect(() => {
-    if (selectedDate) {
-      const memo = memos.find((m) => m.date === selectedDate);
-      setEditContent(memo?.content || "");
-    }
-  }, [selectedDate, memos]);
-
-  async function handleSave() {
-    if (!selectedDate) return;
-    try {
-      await ds.upsertMemo(selectedDate, editContent);
-      await loadMemos();
-    } catch (e) {
-      console.error("Failed to save memo:", e);
-    }
-  }
-
   function handleNewMemo() {
     const today = new Date().toISOString().split("T")[0];
     setSelectedDate(today);
-    if (!memos.find((m) => m.date === today)) {
-      setEditContent("");
-    }
   }
+
+  const selectedMemo = selectedDate
+    ? (memos.find((m) => m.date === selectedDate) ?? null)
+    : null;
 
   if (selectedDate) {
     return (
-      <div className="flex h-full flex-col">
-        <div className="flex items-center gap-2 border-b border-notion-border px-4 py-3">
-          <button
-            onClick={() => setSelectedDate(null)}
-            className="text-sm text-notion-accent"
-          >
-            &larr; {t("common.back", "Back")}
-          </button>
-          <span className="text-sm font-medium text-notion-text-primary">
-            {selectedDate}
-          </span>
-          <button
-            onClick={handleSave}
-            className="ml-auto rounded bg-notion-accent px-3 py-1 text-xs text-white"
-          >
-            {t("common.save", "Save")}
-          </button>
-        </div>
-        <textarea
-          value={editContent}
-          onChange={(e) => setEditContent(e.target.value)}
-          className="min-h-0 flex-1 resize-none bg-notion-bg-primary p-4 text-sm text-notion-text-primary focus:outline-none"
-          placeholder={t("mobile.memo.placeholder", "Write your thoughts...")}
-          autoFocus
-        />
-      </div>
+      <MobileMemoDetail
+        key={selectedDate}
+        date={selectedDate}
+        memo={selectedMemo}
+        onBack={async () => {
+          setSelectedDate(null);
+          await loadMemos();
+        }}
+      />
     );
   }
 
@@ -135,20 +120,45 @@ export function MobileMemoView() {
   );
 }
 
-function extractPlainText(content: string): string {
-  try {
-    const parsed = JSON.parse(content);
-    if (parsed?.content) {
-      return parsed.content
-        .map(
-          (block: { content?: Array<{ text?: string }> }) =>
-            block.content?.map((c) => c.text || "").join("") || "",
-        )
-        .join(" ")
-        .slice(0, 120);
-    }
-  } catch {
-    // plain text
-  }
-  return content?.slice(0, 120) || "";
+interface MobileMemoDetailProps {
+  date: string;
+  memo: MemoNode | null;
+  onBack: () => void | Promise<void>;
+}
+
+function MobileMemoDetail({ date, memo, onBack }: MobileMemoDetailProps) {
+  const { t } = useTranslation();
+  const ds = getDataService();
+
+  const handleContentChange = useCallback(
+    async (content: string) => {
+      try {
+        await ds.upsertMemo(date, content);
+      } catch (e) {
+        console.error("Failed to save memo:", e);
+      }
+    },
+    [date, ds],
+  );
+
+  return (
+    <div className="flex h-full flex-col">
+      <div className="flex items-center gap-2 border-b border-notion-border px-4 py-3">
+        <button onClick={onBack} className="text-sm text-notion-accent">
+          &larr; {t("common.back", "Back")}
+        </button>
+        <span className="text-sm font-medium text-notion-text-primary">
+          {date}
+        </span>
+      </div>
+      <div className="flex min-h-0 flex-1 flex-col overflow-y-auto bg-notion-bg-primary p-4">
+        <MobileRichEditor
+          entityId={date}
+          initialContent={memo?.content ?? ""}
+          onChange={handleContentChange}
+          placeholder={t("mobile.memo.placeholder", "Write your thoughts...")}
+        />
+      </div>
+    </div>
+  );
 }

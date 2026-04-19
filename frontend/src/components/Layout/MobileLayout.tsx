@@ -41,7 +41,10 @@ export function MobileLayout({
   ];
 
   return (
-    <div className="flex h-dvh flex-col bg-notion-bg-primary pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)]">
+    <div
+      className="flex h-[100svh] flex-col bg-notion-bg-primary pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)]"
+      style={{ overscrollBehavior: "none" }}
+    >
       {/* Header */}
       <header
         className="flex shrink-0 items-center border-b border-notion-border px-4 pt-[env(safe-area-inset-top)]"
@@ -53,7 +56,12 @@ export function MobileLayout({
       </header>
 
       {/* Main content */}
-      <main className="min-h-0 flex-1 overflow-y-auto">{children}</main>
+      <main
+        className="min-h-0 flex-1 overflow-y-auto"
+        style={{ overscrollBehavior: "contain" }}
+      >
+        {children}
+      </main>
 
       {/* Bottom tab bar */}
       <nav className="flex shrink-0 border-t border-notion-border bg-notion-bg-primary pb-[env(safe-area-inset-bottom)]">

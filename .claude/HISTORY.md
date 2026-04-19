@@ -1,5 +1,31 @@
 # HISTORY.md - 変更履歴
 
+### 2026-04-19 - Mobile UI/UX 改善 第 2 弾（Calendar / Sheet / Routine Group / Note/Memo TipTap / ジッター軽減）
+
+#### 概要
+
+Mobile 版の UX 問題 9 件をユーザーフィードバックに沿って段階実装。第 1 弾で Schedule 全アイテム表示 / 3-mode bottom sheet / Routine グループ化 / Note・Memo の TipTap 化を実装し、第 2 弾で Daycell をチップ形式に戻し、Note/Memo 詳細の seed バグと月ナビゲーションバグを修正、新規スケジュール項目の memo 永続化、viewport 単位を `svh` に置換して iOS での pixel jitter を軽減。`tsc` 0 / `eslint` 0 / `vitest` 200/200 pass。
+
+#### 変更点
+
+- **Daycell 表示刷新 → 復元**: 第 1 段でドット表示に変更したが、ユーザー要望で**タイトル付きチップ + 最大 3 件 + `+N more`** のデスクトップ踏襲デザインに復元（`MobileEventChip.tsx` を再作成、`MobileDayDots.tsx` 削除）。セル幅超過時は ellipsis で切り詰め。全 item 種（tasks / events / routines）が対象で `buildMonthItemMap` を活用
+
+- **Bottom Sheet 3-mode 化**: `MobileDaySheet.tsx` の `expanded: boolean` を `mode: "hidden" | "half" | "full"` に変更。half=38svh / full=70svh。drag down で段階的に縮小（full→half→hidden）、X ボタンで即時クローズ、ハンドルタップで half↔full トグル。full 時は上 30svh のカレンダーが見え Daycell タップで日付切替可能
+
+- **Routine グループ UI**: `MobileDayflowGrid.tsx` を全面書き換え。`assignColumns()` で同時間帯アイテムのカラム分割（デスクトップ `ScheduleTimeGrid` のアルゴリズム移植）、タイトル ellipsis、デスクトップの `GroupFrame.tsx` を再利用してルーチングループを視覚化。`MobileDaySheet` にもグループ別 Accordion を追加（`ChevronDown` で開閉、グループ色で枠 + 背景着色）
+
+- **Note/Memo TipTap 化**: `shared/MobileRichEditor.tsx` を新規作成（StarterKit + Placeholder、400ms debounce 自動保存、unmount / beforeunload で pending flush）。`MobileNoteView.tsx` / `MobileMemoView.tsx` の textarea を置換し保存ボタン削除。詳細画面は親で `key={selectedId|date}` を付けた keyed sub-component（`MobileNoteDetail` / `MobileMemoDetail`）に分離し、「初回選択で本文空表示」「2 回目に前回内容が表示される」 seed バグを解消
+
+- **Calendar 月ナビゲーション修正**: `<` `>` ボタンで次月/前月へ遷移するバグ（viewDate を render 中に setState で上書きし元の月に戻る）を修正。`viewDate` state を `MobileCalendarView` 親に昇格し、`useEffect` で selectedDate 変更時のみ同期する形に変更。月データ fetch を viewDate ベースに切替。Search アイコンは将来実装まで非表示
+
+- **新規スケジュール項目の memo 永続化**: `createScheduleItem` シグネチャに memo パラメータが存在しないため、create 直後に `updateScheduleItem({ memo })` を follow-up する形で保存（`MobileCalendarView.handleSave`）。既存 edit パスは変更なし
+
+- **iOS pixel jitter 軽減**: `h-dvh` / `38dvh` / `70dvh` を全て `svh` (Small Viewport Height) に置換 —— `MobileLayout.tsx` / `MobileDaySheet.tsx` / `MobileCalendarView.tsx` (FAB) / `MobileWorkView.tsx`。加えて root に `overscroll-behavior: none` / main に `contain` を設定。URL バー・safe area 変動に伴う数 px の再計算を抑制
+
+- **i18n**: `en.json` の `mobile.calendar.moreCount` を `"+{{count}}"` → `"+{{count}} more"` に更新（要件準拠）。ja は既存の `"+{{count}}件"` を維持
+
+- **削除**: `MobileEventChip.tsx` を第 1 段で削除 → 第 2 段で再作成（同内容）。`MobileDayDots.tsx` は第 1 段で作成 → 第 2 段で削除
+
 ### 2026-04-18 - Mobile Schedule & Work リデザイン（claude.ai/design バンドル準拠）（計画書: archive/2026-04-18-mobile-schedule-work-redesign.md）
 
 #### 概要
@@ -163,17 +189,5 @@ MEMORY.md 優先順位に沿って Phase C の 4 件を一括実行。実装系 
 - TypeScript: `tsc --noEmit` クリーン
 
 ---
-
-### 2026-04-18 - iOS Safe Area + TitleBar ドラッグ修復 完了（進行中 2 件 archive 移動）
-
-#### 概要
-
-MEMORY.md 進行中の 2 件をユーザー動作確認（両件 OK）経由で完了 → archive 移動。Phase C 新規 plan 4 件（S-5 / S-6 / I-1 / S-4）の実行前クリーンアップ。
-
-#### 変更点
-
-- `.claude/feature_plans/2026-04-17-ios-safe-area.md` → Status: COMPLETED + `archive/` 移動（Step 1-3 実装済、Step 4 は不要判断で Skip）
-- TitleBar ドラッグ修復は plan 書類なし、MEMORY.md「進行中」除去のみ（実装は `TitleBar.tsx` / `platform.ts` / `capabilities/default.json` のコミット済）
-- `.claude/MEMORY.md`: 進行中 2 件を除去、直近の完了に追記、進行中に Phase C 実行を追加
 
 <!-- older entries archived to HISTORY-archive.md -->

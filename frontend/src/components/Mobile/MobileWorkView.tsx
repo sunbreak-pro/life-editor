@@ -5,9 +5,11 @@ import {
   Pause,
   RotateCcw,
   SkipForward,
-  ChevronRight,
   Zap,
   Check,
+  ClipboardList,
+  Folder,
+  X,
 } from "lucide-react";
 import { useTimerContext } from "../../hooks/useTimerContext";
 import { getDataService } from "../../services/dataServiceFactory";
@@ -86,38 +88,117 @@ function SessionTabs({
   );
 }
 
-// --- Active task chip (card) ---
+// --- Folder breadcrumb helper ---
 
-function ActiveTaskChip({
-  title,
-  onChange,
+function buildFolderPath(
+  taskId: string | null,
+  nodeMap: Map<string, TaskNode>,
+): string[] {
+  if (!taskId) return [];
+  const path: string[] = [];
+  const current = nodeMap.get(taskId);
+  let parentId = current?.parentId ?? null;
+  while (parentId) {
+    const parent = nodeMap.get(parentId);
+    if (!parent) break;
+    path.unshift(parent.title);
+    parentId = parent.parentId;
+  }
+  return path;
+}
+
+function FolderBreadcrumb({
+  path,
+  className = "",
 }: {
-  title: string | null;
-  onChange: () => void;
+  path: string[];
+  className?: string;
 }) {
-  const { t } = useTranslation();
+  if (path.length === 0) return null;
   return (
-    <button
-      onClick={onChange}
-      className="flex w-[calc(100%-32px)] max-w-[360px] items-center gap-2.5 rounded-xl border border-notion-border bg-notion-bg px-3.5 py-2 text-left shadow-[0_1px_2px_rgba(15,23,42,0.04)]"
+    <div
+      className={`flex items-center gap-1 text-[10px] font-medium text-notion-text-secondary ${className}`}
     >
-      <div className="w-1 self-stretch rounded-[2px] bg-notion-accent" />
-      <div className="flex min-w-0 flex-1 flex-col items-start gap-px">
-        <div className="text-[10px] font-medium uppercase tracking-wider text-notion-text-secondary">
-          {t("mobile.work.activeTaskLabel", "IN PROGRESS")}
-        </div>
-        <div className="max-w-full overflow-hidden text-ellipsis whitespace-nowrap text-sm font-semibold text-notion-text">
-          {title ?? t("mobile.work.selectTask", "Select a task...")}
-        </div>
-      </div>
-      <ChevronRight size={14} className="shrink-0 text-notion-text-secondary" />
-    </button>
+      <Folder size={10} className="shrink-0" />
+      <span className="truncate">{path.join(" › ")}</span>
+    </div>
   );
 }
 
-// --- Timer ring ---
+// --- Active task chip (Free default / Task selected) ---
 
-interface TimerRingProps {
+interface ActiveTaskChipProps {
+  title: string | null;
+  folderPath: string[];
+  onOpenPicker: () => void;
+  onClear: () => void;
+}
+
+function ActiveTaskChip({
+  title,
+  folderPath,
+  onOpenPicker,
+  onClear,
+}: ActiveTaskChipProps) {
+  const { t } = useTranslation();
+  const hasTask = title !== null;
+  const accentColor = hasTask
+    ? "var(--color-notion-accent)"
+    : "var(--color-notion-text-secondary)";
+
+  return (
+    <div className="flex w-[calc(100%-32px)] max-w-[360px] items-center gap-2.5 rounded-xl border border-notion-border bg-notion-bg px-3.5 py-2 shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
+      <div
+        className="w-1 self-stretch rounded-[2px]"
+        style={{ background: accentColor }}
+      />
+      <button
+        onClick={onOpenPicker}
+        aria-label={t("mobile.work.selectTaskAria", "Select task")}
+        className="flex min-w-0 flex-1 flex-col items-start gap-px text-left active:opacity-70"
+      >
+        {hasTask ? (
+          <>
+            <FolderBreadcrumb path={folderPath} className="max-w-full" />
+            <div className="max-w-full overflow-hidden text-ellipsis whitespace-nowrap text-sm font-semibold text-notion-text">
+              {title}
+            </div>
+          </>
+        ) : (
+          <>
+            <div className="text-[10px] font-medium uppercase tracking-wider text-notion-text-secondary">
+              {t("mobile.work.freeSessionLabel", "FREE SESSION")}
+            </div>
+            <div className="text-sm font-semibold text-notion-text">
+              {t("mobile.work.freeSessionTitle", "Focus only")}
+            </div>
+          </>
+        )}
+      </button>
+      {hasTask ? (
+        <button
+          onClick={onClear}
+          aria-label={t("mobile.work.clearTaskAria", "Clear task")}
+          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-notion-text-secondary active:bg-notion-hover"
+        >
+          <X size={16} />
+        </button>
+      ) : (
+        <button
+          onClick={onOpenPicker}
+          aria-label={t("mobile.work.selectTaskAria", "Select task")}
+          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-notion-text-secondary active:bg-notion-hover"
+        >
+          <ClipboardList size={18} />
+        </button>
+      )}
+    </div>
+  );
+}
+
+// --- Timer arc (270° fan, matches desktop TimerCircularProgress) ---
+
+interface TimerArcProps {
   progress: number; // 0..1
   size?: number;
   strokeColor: string;
@@ -125,16 +206,23 @@ interface TimerRingProps {
   children: React.ReactNode;
 }
 
-function TimerRing({
+const ARC_ANGLE = 270;
+const START_ROTATION = 135;
+
+function TimerArc({
   progress,
   size = 280,
   strokeColor,
   running,
   children,
-}: TimerRingProps) {
-  const r = (size - 12) / 2;
-  const c = 2 * Math.PI * r;
-  const off = c * (1 - progress);
+}: TimerArcProps) {
+  const r = (size - 24) / 2;
+  const circumference = 2 * Math.PI * r;
+  const arcLength = (ARC_ANGLE / 360) * circumference;
+  const gapLength = circumference - arcLength;
+  const clamped = Math.min(1, Math.max(0, progress));
+  const progressLength = clamped * arcLength;
+
   return (
     <div
       className="relative flex items-center justify-center"
@@ -161,8 +249,11 @@ function TimerRing({
           r={r}
           fill="none"
           strokeWidth={6}
+          strokeLinecap="round"
           className="text-notion-border"
           stroke="currentColor"
+          strokeDasharray={`${arcLength} ${gapLength}`}
+          transform={`rotate(${START_ROTATION} ${size / 2} ${size / 2})`}
         />
         <circle
           cx={size / 2}
@@ -172,10 +263,8 @@ function TimerRing({
           stroke={strokeColor}
           strokeWidth={8}
           strokeLinecap="round"
-          strokeDasharray={c}
-          strokeDashoffset={off}
-          transform={`rotate(-90 ${size / 2} ${size / 2})`}
-          style={{ transition: "stroke-dashoffset 1s linear" }}
+          strokeDasharray={`${progressLength} ${circumference - progressLength}`}
+          transform={`rotate(${START_ROTATION} ${size / 2} ${size / 2})`}
         />
       </svg>
       <div className="relative z-10 flex flex-col items-center">{children}</div>
@@ -271,6 +360,31 @@ export function MobileWorkView() {
   const { t, i18n } = useTranslation();
   const timer = useTimerContext();
   const [taskSelectorOpen, setTaskSelectorOpen] = useState(false);
+  const [taskTree, setTaskTree] = useState<TaskNode[]>([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    getDataService()
+      .fetchTaskTree()
+      .then((tree) => {
+        if (!cancelled) setTaskTree(tree);
+      })
+      .catch((e) => console.error("Failed to load task tree:", e));
+    return () => {
+      cancelled = true;
+    };
+  }, [taskSelectorOpen]);
+
+  const nodeMap = useMemo(() => {
+    const map = new Map<string, TaskNode>();
+    for (const node of taskTree) map.set(node.id, node);
+    return map;
+  }, [taskTree]);
+
+  const activeFolderPath = useMemo(
+    () => buildFolderPath(timer.activeTask?.id ?? null, nodeMap),
+    [timer.activeTask?.id, nodeMap],
+  );
 
   const sessionColor =
     timer.sessionType === "WORK"
@@ -363,14 +477,16 @@ export function MobileWorkView() {
       <div className="flex shrink-0 justify-center pt-3.5">
         <ActiveTaskChip
           title={timer.activeTask?.title ?? null}
-          onChange={() => setTaskSelectorOpen(true)}
+          folderPath={activeFolderPath}
+          onOpenPicker={() => setTaskSelectorOpen(true)}
+          onClear={() => timer.clearTask()}
         />
       </div>
 
       {/* Timer */}
       <div className="relative flex flex-1 flex-col items-center justify-center pt-2">
-        <TimerRing
-          progress={timer.progress}
+        <TimerArc
+          progress={timer.progress / 100}
           strokeColor={sessionColor as string}
           running={timer.isRunning}
         >
@@ -390,7 +506,7 @@ export function MobileWorkView() {
           <div className="mt-2 text-xs font-medium text-notion-text-secondary">
             {remainingLabel}
           </div>
-        </TimerRing>
+        </TimerArc>
 
         <div className="mt-6">
           <SessionDots
@@ -439,6 +555,8 @@ export function MobileWorkView() {
       {/* Task selector bottom sheet */}
       {taskSelectorOpen && (
         <MobileTaskSelector
+          tree={taskTree}
+          nodeMap={nodeMap}
           activeTaskId={timer.activeTask?.id ?? null}
           onSelect={(task) => {
             timer.startForTask(task.id, task.title);
@@ -523,54 +641,45 @@ function MobileSessionCompletionModal({
   );
 }
 
-// --- Task selector bottom sheet (unchanged from previous version) ---
+// --- Task selector bottom sheet ---
 
 function MobileTaskSelector({
+  tree,
+  nodeMap,
   activeTaskId,
   onSelect,
   onClear,
   onClose,
 }: {
+  tree: TaskNode[];
+  nodeMap: Map<string, TaskNode>;
   activeTaskId: string | null;
   onSelect: (task: TaskNode) => void;
   onClear: () => void;
   onClose: () => void;
 }) {
   const { t } = useTranslation();
-  const [tasks, setTasks] = useState<TaskNode[]>([]);
-  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
 
-  const ds = getDataService();
-
-  useEffect(() => {
-    (async () => {
-      try {
-        const tree = await ds.fetchTaskTree();
-        setTasks(
-          tree.filter(
-            (t) => t.type === "task" && !t.isDeleted && t.status !== "DONE",
-          ),
-        );
-      } catch (e) {
-        console.error("Failed to load tasks:", e);
-      } finally {
-        setLoading(false);
-      }
-    })();
-  }, [ds]);
+  const tasks = useMemo(
+    () =>
+      tree.filter(
+        (n) => n.type === "task" && !n.isDeleted && n.status !== "DONE",
+      ),
+    [tree],
+  );
 
   const filtered = useMemo(() => {
     if (!search) return tasks;
     const q = search.toLowerCase();
-    return tasks.filter((t) => t.title.toLowerCase().includes(q));
+    return tasks.filter((n) => n.title.toLowerCase().includes(q));
   }, [tasks, search]);
 
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40">
       <div
         className="flex w-full max-w-lg flex-col rounded-t-2xl bg-notion-bg"
-        style={{ maxHeight: "70dvh" }}
+        style={{ maxHeight: "70svh" }}
       >
         <div className="flex items-center justify-between border-b border-notion-border px-4 py-3">
           <h3 className="text-sm font-semibold text-notion-text">
@@ -596,37 +705,57 @@ function MobileTaskSelector({
         </div>
 
         <div className="flex-1 overflow-y-auto">
-          {activeTaskId && (
-            <button
-              onClick={onClear}
-              className="flex w-full items-center gap-3 border-b border-notion-border px-4 py-3 text-left text-sm text-notion-text-secondary active:bg-notion-hover"
-            >
-              {t("mobile.work.clearTask", "Clear selected task")}
-            </button>
-          )}
-          {loading ? (
-            <div className="p-4 text-center text-sm text-notion-text-secondary">
-              {t("common.loading", "Loading...")}
+          <button
+            onClick={onClear}
+            className="flex w-full items-center gap-3 border-b border-notion-border px-4 py-3 text-left active:bg-notion-hover"
+          >
+            <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-notion-bg-secondary">
+              <Zap size={14} className="text-notion-text-secondary" />
             </div>
-          ) : filtered.length === 0 ? (
+            <div className="min-w-0 flex-1">
+              <div className="text-sm font-medium text-notion-text">
+                {t("mobile.work.freeSessionOption", "Free Session")}
+              </div>
+              <div className="text-[11px] text-notion-text-secondary">
+                {t(
+                  "mobile.work.freeSessionHint",
+                  "Focus without a specific task",
+                )}
+              </div>
+            </div>
+            {activeTaskId === null && (
+              <Check size={16} className="shrink-0 text-notion-accent" />
+            )}
+          </button>
+          {filtered.length === 0 ? (
             <div className="p-8 text-center text-sm text-notion-text-secondary">
               {t("mobile.work.noTasks", "No tasks found")}
             </div>
           ) : (
-            filtered.map((task) => (
-              <button
-                key={task.id}
-                onClick={() => onSelect(task)}
-                className="flex w-full items-center gap-3 border-b border-notion-border px-4 py-3 text-left active:bg-notion-hover"
-              >
-                <span className="min-w-0 flex-1 truncate text-sm text-notion-text">
-                  {task.title}
-                </span>
-                {task.id === activeTaskId && (
-                  <Check size={16} className="shrink-0 text-notion-accent" />
-                )}
-              </button>
-            ))
+            filtered.map((task) => {
+              const path = buildFolderPath(task.id, nodeMap);
+              const selected = task.id === activeTaskId;
+              return (
+                <button
+                  key={task.id}
+                  onClick={() => onSelect(task)}
+                  className="flex w-full items-start gap-3 border-b border-notion-border px-4 py-3 text-left active:bg-notion-hover"
+                >
+                  <div className="min-w-0 flex-1">
+                    <FolderBreadcrumb path={path} className="mb-0.5" />
+                    <div className="truncate text-sm text-notion-text">
+                      {task.title}
+                    </div>
+                  </div>
+                  {selected && (
+                    <Check
+                      size={16}
+                      className="mt-0.5 shrink-0 text-notion-accent"
+                    />
+                  )}
+                </button>
+              );
+            })
           )}
         </div>
       </div>

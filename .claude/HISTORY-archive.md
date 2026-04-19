@@ -1,3 +1,17 @@
+### 2026-04-18 - iOS Safe Area + TitleBar ドラッグ修復 完了（進行中 2 件 archive 移動）
+
+#### 概要
+
+MEMORY.md 進行中の 2 件をユーザー動作確認（両件 OK）経由で完了 → archive 移動。Phase C 新規 plan 4 件（S-5 / S-6 / I-1 / S-4）の実行前クリーンアップ。
+
+#### 変更点
+
+- `.claude/feature_plans/2026-04-17-ios-safe-area.md` → Status: COMPLETED + `archive/` 移動（Step 1-3 実装済、Step 4 は不要判断で Skip）
+- TitleBar ドラッグ修復は plan 書類なし、MEMORY.md「進行中」除去のみ（実装は `TitleBar.tsx` / `platform.ts` / `capabilities/default.json` のコミット済）
+- `.claude/MEMORY.md`: 進行中 2 件を除去、直近の完了に追記、進行中に Phase C 実行を追加
+
+---
+
 ### 2026-04-18 - アプリ再定義ロードマップ v2 Phase C 完了（feature_plan 棚卸し + 保留 5 件 Verdict 確定）（計画書: archive/2026-04-18-integrated-design-roadmap.md）
 
 #### 概要
