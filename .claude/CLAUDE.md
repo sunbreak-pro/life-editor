@@ -20,7 +20,8 @@
 | -------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
 | `.claude/MEMORY.md`              | タスクトラッカー（進行中 / 直近完了 / 予定）                                                                                             |
 | `.claude/HISTORY.md`             | 変更履歴（セッション単位）                                                                                                               |
-| `.claude/docs/vision/`           | 設計原則 + 次フェーズ計画（`core.md` / `coding-principles.md` / `mobile-porting.md` / `ios-everywhere-sync.md` / `desktop-followup.md`） |
+| `.claude/docs/vision/`           | 設計原則 + 次フェーズ計画（`core.md` / `coding-principles.md` / `mobile-porting.md` / `mobile-data-parity.md` / `ios-everywhere-sync.md` / `desktop-followup.md`） |
+| `.claude/docs/vision/plans/`     | Vision を実装着手レベルに落とした個別プラン（`YYYY-MM-DD-<slug>.md`、[README](./docs/vision/plans/README.md)）                           |
 | `.claude/docs/requirements/`     | Tier 1-3 機能要件定義                                                                                                                    |
 | `.claude/docs/known-issues/`     | 未解決 Issue + Root Cause 記録（[INDEX](./docs/known-issues/INDEX.md)）                                                                  |
 | `.claude/docs/code-explanation/` | 機能別コード解説（学習教材）                                                                                                             |
@@ -315,9 +316,9 @@ type: `feat` / `fix` / `docs` / `style` / `refactor` / `test` / `chore`
 
 ### Vision → 実装プラン → 統合 フロー
 
-1. **Vision**（抽象・設計原則）: `docs/vision/` に記述。ADR は作らず vision/ に一元化
-2. **実装プラン**（具体）: `.claude/YYYY-MM-DD-<slug>.md` 作成 → Vision から相互リンク
-3. **完了**: 該当プランを `archive/` に移動、実装規約は CLAUDE.md に統合、背景・判断理由は vision/coding-principles.md 等に残す
+1. **Vision**（抽象・設計原則）: `docs/vision/` 直下に記述。ADR は作らず vision/ に一元化
+2. **実装プラン**（具体）: `docs/vision/plans/YYYY-MM-DD-<slug>.md` 作成 → 対応する vision ドキュメントから相互リンク（旧 `.claude/YYYY-MM-DD-<slug>.md` 配置は廃止、`docs/vision/plans/README.md` 参照）
+3. **完了**: 該当プランを `.claude/archive/` に移動、実装規約は CLAUDE.md に統合、背景・判断理由は vision/coding-principles.md 等に残す
 4. **MEMORY.md / HISTORY.md**: セッション単位で同期
 
 ### なぜ ADR を使わないか

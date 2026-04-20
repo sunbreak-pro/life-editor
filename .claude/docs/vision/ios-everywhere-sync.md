@@ -212,4 +212,4 @@ create_note({
 
 ## 個別実装プランの運用
 
-本ファイルは方針のみ。初回セットアップ手順の詳細化・スクリプト化・Known Issue 解消は `.claude/YYYY-MM-DD-<slug>.md` プランで扱う（CLAUDE.md §9）。
+本ファイルは方針のみ。初回セットアップ手順の詳細化・スクリプト化・Known Issue 解消は `plans/YYYY-MM-DD-<slug>.md` プランで扱う（CLAUDE.md §9）。

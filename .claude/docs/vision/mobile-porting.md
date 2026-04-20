@@ -55,4 +55,4 @@ Audio / ScreenLock / FileExplorer / CalendarTags / WikiTag / ShortcutConfig
 
 ## 個別実装プランの運用
 
-本ファイルは方針のみ。具体的な着手は `.claude/YYYY-MM-DD-<slug>.md` を作成し、本ファイルから相互リンクする（CLAUDE.md §9）。
+本ファイルは方針のみ。具体的な着手は `plans/YYYY-MM-DD-<slug>.md` を作成し、本ファイルから相互リンクする（CLAUDE.md §9）。

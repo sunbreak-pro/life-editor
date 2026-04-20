@@ -134,6 +134,6 @@ CLAUDE.md §6.5 で `RoutineProvider` / `ScheduleItemsProvider` / `CalendarTagsP
 
 ## 8. 個別実装プランの運用
 
-本ファイルは **方針と原則** のみ記述する。具体的な着手は CLAUDE.md §9 に従い `.claude/YYYY-MM-DD-mobile-data-parity-phaseX.md` を作成し、本ファイルから相互リンクする。
+本ファイルは **方針と原則** のみ記述する。具体的な着手は CLAUDE.md §9 に従い `plans/YYYY-MM-DD-mobile-data-parity-phaseX.md` を作成し、本ファイルから相互リンクする。
 
 最初の実装プランは Phase A（観測）から。Phase B 以降は Phase A で定量化した差分をもとに優先順位を決める。
