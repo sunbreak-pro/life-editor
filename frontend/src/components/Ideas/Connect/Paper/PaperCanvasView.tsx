@@ -46,6 +46,34 @@ const edgeTypes: EdgeTypes = {
   paperEdge: PaperCustomEdge as any,
 };
 
+// In ConnectionMode.Loose, users can start a drag from a target-type handle
+// (e.g. "top-target"), which React Flow stores as the edge's sourceHandle.
+// React Flow's source handle lookup only searches source-type handles, so
+// such edges trigger an "error008" warning at render time. Swap source/target
+// when sourceHandle is a -target handle so the source side always points to a
+// real source-type handle.
+function normalizeEdgeHandles<
+  T extends {
+    sourceNodeId: string;
+    targetNodeId: string;
+    sourceHandle: string | null | undefined;
+    targetHandle: string | null | undefined;
+  },
+>(edge: T): T {
+  const sh = edge.sourceHandle;
+  const th = edge.targetHandle;
+  const sourceIsTarget = !!sh && sh.endsWith("-target");
+  const targetIsSource = !!th && th.endsWith("-source");
+  if (!sourceIsTarget && !targetIsSource) return edge;
+  return {
+    ...edge,
+    sourceNodeId: edge.targetNodeId,
+    targetNodeId: edge.sourceNodeId,
+    sourceHandle: th,
+    targetHandle: sh,
+  };
+}
+
 interface PaperCanvasViewProps {
   board: PaperBoard | null;
   paperNodes: PaperNodeDB[];
@@ -277,15 +305,23 @@ export function PaperCanvasView({
 
   // Convert DB edges → ReactFlow edges
   const rfEdges: Edge[] = useMemo(() => {
-    return paperEdges.map((pe) => ({
-      id: pe.id,
-      source: pe.sourceNodeId,
-      target: pe.targetNodeId,
-      sourceHandle: pe.sourceHandle || undefined,
-      targetHandle: pe.targetHandle || undefined,
-      type: "paperEdge",
-      data: { onDelete: handleEdgeDelete },
-    }));
+    return paperEdges.map((pe) => {
+      const normalized = normalizeEdgeHandles({
+        sourceNodeId: pe.sourceNodeId,
+        targetNodeId: pe.targetNodeId,
+        sourceHandle: pe.sourceHandle,
+        targetHandle: pe.targetHandle,
+      });
+      return {
+        id: pe.id,
+        source: normalized.sourceNodeId,
+        target: normalized.targetNodeId,
+        sourceHandle: normalized.sourceHandle || undefined,
+        targetHandle: normalized.targetHandle || undefined,
+        type: "paperEdge",
+        data: { onDelete: handleEdgeDelete },
+      };
+    });
   }, [paperEdges, handleEdgeDelete]);
 
   const [flowNodes, setFlowNodes, onNodesChange] = useNodesState(rfNodes);
@@ -467,12 +503,18 @@ export function PaperCanvasView({
   const handleConnect: OnConnect = useCallback(
     (connection) => {
       if (!board || !connection.source || !connection.target) return;
-      onCreateEdge({
-        boardId: board.id,
+      const normalized = normalizeEdgeHandles({
         sourceNodeId: connection.source,
         targetNodeId: connection.target,
         sourceHandle: connection.sourceHandle,
         targetHandle: connection.targetHandle,
+      });
+      onCreateEdge({
+        boardId: board.id,
+        sourceNodeId: normalized.sourceNodeId,
+        targetNodeId: normalized.targetNodeId,
+        sourceHandle: normalized.sourceHandle,
+        targetHandle: normalized.targetHandle,
       });
     },
     [board, onCreateEdge],
