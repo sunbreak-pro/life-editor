@@ -6,22 +6,35 @@
 
 ## 直近の完了
 
-- Tipsパネル再設計 + Terminalセクション化 + LeftSidebar コンパクト化 ✅（2026-04-19） — Tips を LeftSidebar 下部のトグルボタン + 中央エリア下部の半透明オーバーレイ（1 カラム縦スクロール）に刷新し、サブカテゴリタブで 6 セクション × 4 タブ × 6〜10 件の Tips を切替表示。Terminal は dock/resize/minimize を全削除して SectionId に `terminal` 追加 → TitleBar の Undo/Redo 左隣の Terminal アイコンから全画面セクションに切替（Cmd/Ctrl+J）し、TerminalSection を Layout に永続マウントしてセッション維持。LeftSidebar はフォント 16px 固定 + py-1.5 + space-y-0.5 でコンパクト化。Tips コンテンツは実装調査エージェント 3 並列で全面検証 → 未実装機能（タグフィルタ / 完了非表示 / プリセット / 環境音 6 種ミキサー / Cmd+F / CSV 出力 等）を削除し、わかりやすい言葉（右サイドバー / 鉛筆アイコン / ▶ ボタン 等）に統一。Analytics 専用 Tips も追加。en/ja 完全一致 (382 keys 各)、tsc / eslint（本セッション範囲）クリーン、Vitest 227 pass。計画書: 外部 `~/.claude/plans/leftsidebar-font-size-2px-rosy-beaver.md`。
-- Connect Canvas UX 改善（WikiTag 軽量化 + Connect モード + Link エッジ + 矩形選択）✅（2026-04-19）
-- Obsidian Phase 1 フォローアップ（記法分離 `@`化 + アイコン表示 + Daily Memo→Notes 遷移 + sync fix）✅（2026-04-19）
+- Cloud Sync ブロッカー 3 件解消（Known Issues 004 / 005 / 008）✅（2026-04-20） — 004 は `sync_commands.rs` に empty-timestamp 防御ガード、005 は V62 migration で 10 versioned テーブルの NULL updated*at backfill + tasks INSERT トリガー追加 + fresh DB でも V62 が走るよう runner 修正、008 は 3 箇所の `set_tags_for*\*`(routine/group/schedule_item) に親`updated_at + version`bump を追加 +`shouldCreateRoutineItem`のタグ必須フィルタを削除して fail-safe 化。根本原因: relation テーブルの delta sync が親 updated_at に依存していたが親を bump していなかったため、タグ付け替えが sync に乗らず Desktop の routine_tag_assignments が空に →`ensureRoutineItemsForDateRange` が未来の schedule_items を削除。cargo test 10 pass / Vitest 227 pass / tsc 0。Known Issues INDEX 更新、CLAUDE.md の DB version を v60 → v62 に更新。
+- iOS 4G 同期準備：Xcode 署名状態検証 ✅（2026-04-20） — codesign で既存 `.ipa` / `.xcarchive` を検証し、Bundle ID `com.lifeEditor.app.newlife` / Team `542QHWHN37` / Provisioning Profile（期限 2026/04/25）が完全一致することを確認。`project.yml` には Known Issue 007 対策の `DEVELOPMENT_TEAM` / `CODE_SIGN_STYLE` が既に設定済みのため再生成しても安全。
+- Notes Mobile 編集空表示の根本原因特定 ✅（2026-04-20）— 診断のみ、修正は未実施。`MobileRichEditor` が StarterKit + Placeholder のみで、Desktop の CustomHeading / BlockBackground / Callout / ToggleList / WikiTag / NoteLink / DatabaseBlock / PdfAttachment 等のカスタム node を解釈できず TipTap が document を空に fallback する。list preview が見えるのは `extractPlainText` が schema を介さず JSON walk するため。修正方針（案 A: 全拡張 import / 案 B: read-only fallback / 案 C: 軽量拡張のみ追加）は検討中。
 
 ## 予定
+
+### Notes Mobile 編集空表示の修正実装
+
+**対象**: `frontend/src/components/Mobile/shared/MobileRichEditor.tsx`
+**背景**: 2026-04-20 セッションで根本原因特定済み（Mobile が Desktop の TipTap カスタム拡張を持たないため）
+**観点**: 案 A/B/C のいずれを採用するか決定 → 選択した方針で実装 → iOS 実機で表示確認
+
+### Cloud Sync データ復旧作業（タグ情報 iOS → Desktop）
+
+**対象**: iOS / Desktop の Settings → Full Re-sync 実行
+**背景**: 008 修正コードは着地したが、Desktop の `routine_tag_assignments` は空のまま。iOS の正データを Cloud 経由で取り戻す必要あり
+**手順**: iOS で Full Re-sync → Desktop アプリ再起動（V62 migration 適用）→ Desktop で Full Re-sync → `sqlite3 ... "SELECT COUNT(*) FROM routine_tag_assignments;"` で復旧確認
+
+### iOS 4G 同期検証
+
+**対象**: iPhone 実機 / 4G 環境
+**前提**: 004/005/008 修正完了 + V62 migration 適用 + タグ復旧完了
+**手順**: Release build を Xcode 実機 Run → USB を外す → Wi-Fi OFF / 4G のみで Notes / Routine / Task の双方向 sync 確認
 
 ### Mobile Schedule & Work リデザイン 手動 UI 検証
 
 **対象**: iPhone シミュレータ / Tauri build で Schedule 月カレンダー / Dayflow / Work 全項目を目視検証
 **参照**: `.claude/archive/2026-04-18-mobile-schedule-work-redesign.md` §Verification
 **観点**: DayCell の chip 均等 grid / bottom sheet drag / FAB 位置アニメ / Dayflow now line / Work session pill + halo
-
-### Known Issues Active 2 件の調査
-
-- **004 sync_last_synced_at が保存されない** — delta sync が機能せず毎回フル push。`src-tauri/src/commands/sync_commands.rs:87` 調査
-- **005 tasks.updated_at NULL on creation** — task 作成パスで updated_at を set していない根本バグ。`src-tauri/src/db/task_repository.rs` 周辺調査
 
 ### 保留（将来再評価）
 

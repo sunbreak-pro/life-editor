@@ -1,5 +1,34 @@
 # HISTORY.md - 変更履歴
 
+### 2026-04-20 - Cloud Sync ブロッカー 3 件解消 + iOS 署名検証 + Notes Mobile 空表示の根本原因特定
+
+#### 概要
+
+iOS を 4G 環境でリモート同期させるための下準備として、Known Issues 004（`sync_last_synced_at` 未保存）/ 005（`tasks.updated_at` NULL）/ 008（routine-group-calendar tag_assignments が delta sync に乗らない）の 3 件を解消。既存 `.ipa` を codesign で検証し署名状態が健康（Bundle ID `com.lifeEditor.app.newlife` / Team `542QHWHN37` / Provisioning Profile 期限 2026/04/25）であることを確認、再生成不要と判定。並行して Notes の Mobile 詳細タップ時に本文が空になる症状の根本原因を特定（診断のみ、修正は次セッションへ）。cargo test 10 pass / Vitest 227 pass / tsc 0 / eslint clean。
+
+#### 変更点
+
+- **Known Issue 004 修正（防御ガード）**: `src-tauri/src/commands/sync_commands.rs` の `sync_trigger` read path に `.filter(|s| !s.is_empty())` を挟み空文字列を 1970 fallback 扱いに、`sync_trigger` と `sync_full_download` の write path に `if !remote.timestamp.is_empty()` ガードを追加。Cloud Workers は常に ISO timestamp を返すため実害は低いが、Workers 側に異常があっても `sync_last_synced_at` が空文字列で汚染されて `since=""` が全件マッチする事故を防ぐ
+- **Known Issue 005 修正（V62 migration）**: `src-tauri/src/db/migrations.rs` に V62 ブロックを追加 — 10 versioned テーブル（tasks / memos / notes / schedule_items / routines / wiki_tags / time_memos / calendars / templates / routine_groups）の NULL `updated_at` を `strftime('%Y-%m-%dT%H:%M:%S.000Z', 'now')` で backfill + `tasks_updated_at_insert` トリガー（`AFTER INSERT ON tasks FOR EACH ROW WHEN NEW.updated_at IS NULL`）で INSERT 時の自動補完を保証
+- **Migration runner 修正**: Fresh DB が `create_full_schema` → `user_version = 61` で early return して V62+ がスキップされる問題を発見 → `if current_version < 1` ブロックで `start_version = 61` として `run_incremental_migrations(conn, 61)` に合流する構造に変更。これで fresh DB でもトリガー・backfill が確実に適用される
+- **Migration テスト追加**: `v62_migration_is_idempotent` / `v62_backfills_null_updated_at_and_installs_trigger`（NULL updated*at の task を 2 件 INSERT → migration で backfill + INSERT トリガーの動作検証）を追加、既存 `fresh_db_reaches_v61*_`を`fresh*db_reaches_latest*_`にリネームして期待値を 62 に更新、他 3 件の期待値も 61 → 62 に修正。cargo test`--lib db::migrations` 6 件 pass
+- **Known Issue 008 修正（delta sync 親 bump）**: 3 箇所の `set_tags_for_*` 関数に親エンティティの `updated_at + version` bump を追加
+  - `src-tauri/src/db/routine_tag_repository.rs::set_tags_for_routine` → `UPDATE routines SET updated_at = datetime('now'), version = version + 1`
+  - `src-tauri/src/db/routine_group_repository.rs::set_tags_for_group` → `UPDATE routine_groups SET ...`
+  - `src-tauri/src/db/calendar_tag_repository.rs::set_tags_for_schedule_item` → `UPDATE schedule_items SET ...`
+  - これで sync_engine の delta query `WHERE r.updated_at > ?1` / `WHERE rg.updated_at > ?1` / `WHERE si.updated_at > ?1` がタグ付け替えを検知できるようになる
+- **Known Issue 008 修正（fail-safe フィルタ緩和）**: `frontend/src/utils/routineScheduleSync.ts::shouldCreateRoutineItem` からタグ必須条件（`if (!routineTagIds || routineTagIds.length === 0) return false`）を削除。これまではタグ 0 件の routine を「削除対象」と判定し `ensureRoutineItemsForDateRange` が未来の schedule_items を消していたが、この過敏な挙動を止めてタグフィルタは表示層のみで行う設計に変更。引数 `tagAssignments` は call-site 互換のため `_tagAssignments` として残置
+- **Known Issue 008 新規起票**: `.claude/docs/known-issues/008-routine-tag-assignments-delta-sync-invisible.md` を作成。症状（Desktop DB で `routine_tag_assignments` 0 件 / `routine_group_tag_assignments` 0 件 / 今日の routine schedule_items 0 件）、Root Cause（relation テーブルの delta sync が親 updated_at に依存するが親を bump していなかった）、Fix（3 箇所の bump + フィルタ緩和）、Lessons Learned（「relation + 親依存」は delta sync で壊れやすい、書き込み判定は読み取り判定より保守的に）を記録
+- **Known Issue 004 / 005 Fixed 化**: INDEX.md の Active 2 件を Fixed に移動し Resolved 日付 2026-04-20 を付与、Status 集計を Active:0 / Fixed:7 に更新。Category 別索引に `Sync: 008` を追加
+- **Vision ドキュメント更新**: `.claude/docs/vision/ios-everywhere-sync.md` §同期設計の「ブロッカー」記述を「2026-04-20 に解消」へ書き換え、CLAUDE.md §4.1 の DB 現行 version を v60 → v62 に更新（V62 要約を 1 行追加）
+- **Notes Mobile 空表示の根本原因特定（診断のみ）**: DB の `notes.content` を直接観測して Desktop 保存データに `callout` / カスタム `heading` attrs (`backgroundColor`, `fontSize`) / カスタム `paragraph` attrs (`backgroundColor`) / `toggle*` 等のカスタム node が含まれることを確認。`MobileRichEditor` は StarterKit + Placeholder のみで、Desktop の `CustomHeading` / `BlockBackground` / `Callout` / `ToggleList` / `WikiTag` / `NoteLink` / `DatabaseBlock` / `PdfAttachment` / `ResizableImage` / `Table*` / `TaskList*` / `TextStyle` / `Color` / `Highlight` / `Link` を持たない → ProseMirror の schema 解釈で未知 node に遭遇し document 全体を空の `{type:"doc", content:[]}` に fallback。list preview が見えるのは `extractPlainText` が schema を介さず JSON を walk するため。修正案 A（全拡張 import） / 案 B（read-only fallback） / 案 C（軽量拡張のみ追加）は次セッションで決定
+- **Routine Desktop 非表示の根本原因特定 + 修正**: DB 観測で Desktop の `routine_tag_assignments` が 0 件 / 今日の routine schedule_items が 0 件（将来 164 件は月グリッド範囲外で残存）と判明。バグの連鎖: (1) `set_tags_for_routine` が親 updated_at を bump しない → (2) sync の delta query が拾えない → (3) Desktop の tagAssignments 空 → (4) `shouldCreateRoutineItem` が false → (5) `ensureRoutineItemsForDateRange` が未来の schedule_items を削除 → (6) `MiniTodayFlow` が `if (!scheduleItem) continue;` で routine 自体を非表示化。iOS で見えていたのは Mobile UI が `shouldCreateRoutineItem` フィルタを通さず `ensureRoutineItemsForDateRange` の削除も走らないため
+- **iOS Xcode 署名状態の検証**: 既存 `src-tauri/gen/apple/build/life-editor_iOS.xcarchive/Products/Applications/Life Editor.app` に対して `codesign -dvv` を実行、Bundle ID / Team ID / 証明書（`Apple Development: 2201akonayu@gmail.com (FVMH4L98Q3)` 有効期限 2027/04/18） / Provisioning Profile（`5ee1134c-...` 有効期限 2026/04/25、`~/Library/Developer/Xcode/UserData/Provisioning Profiles/` にインストール済み） が `project.yml` / `tauri.conf.json` と完全一致することを確認。Bundle ID は 1 回しか登録しておらず 10 App ID/7 日枠の消費ゼロ、Known Issue 007 対策の `DEVELOPMENT_TEAM` / `CODE_SIGN_STYLE` も既に project.yml 内に記入済みのため XcodeGen 再生成も安全。再署名までの残日数 5 日、本週中に 4G 検証を完了する方針
+- **残タスク**: (a) アプリ再起動して V62 migration を実 DB に適用 → `PRAGMA user_version` が 62 / `tasks_updated_at_insert` トリガー存在の確認、(b) iOS で Full Re-sync → Cloud にタグ情報を押し戻す → Desktop で Full Re-sync して `routine_tag_assignments` を復元、(c) Wi-Fi で Desktop ↔ iOS の双方向 sync 検証、(d) 4G に切り替えて再検証、(e) Notes Mobile 空表示の修正方針決定 + 実装
+- **検証**: `cargo check` 0 / `cargo test --lib` 10 pass / `cd frontend && npx vitest run` 227 pass / `npx tsc --noEmit` 0
+
+---
+
 ### 2026-04-19 - Tipsパネル再設計 + Terminalセクション化 + LeftSidebar コンパクト化（計画書: 外部 `~/.claude/plans/leftsidebar-font-size-2px-rosy-beaver.md`）
 
 #### 概要
@@ -88,33 +117,3 @@ Claude 起動ボタン直上（Layout center column の MainContent と Terminal
 - **Phase 2 余地**: `docsPath` をフィールドとして残したため、`.claude/docs/code-explanation/` に Schedule / Work / Materials / Connect 向け解説を追加すれば自動でリンク表示される設計
 
 ---
-
-### 2026-04-19 - Mobile DayFlow 完了 UI / 長押し DnD / フォーム & Settings コンパクト化（計画書: 外部 `~/.claude/plans/mobile-task-event-routine-ui-ux-elegant-hinton.md`）
-
-#### 概要
-
-Mobile 版の DayFlow グリッドを「読み取り専用」から「完了操作 + 時間帯 DnD 可能」に昇格し、Edit Item フォームを 1 行 3 列 grid に再構成、Settings を 4 セクション（FontSize / Notifications / Timer / Trash）追加しつつ Export/Import ボタンをコンパクト化。データ層は既存の `toggleScheduleItemComplete` / `updateScheduleItem` / `updateTask` を再利用し IPC 層の変更なし。Vitest 222/222 pass、tsc 0 / eslint 0。
-
-#### 変更点
-
-- **DayFlow 完了 UI**: `MobileDayflowBlock.tsx` 新規。ブロックを「左端 6px color rail（タップで完了トグル）+ 右 content（タップで編集フォーム / 長押しで DnD）」の 2 ボタン構造に分割。Task は 3-state サイクル（NOT_STARTED → IN_PROGRESS → DONE）、IN_PROGRESS は rail を `repeating-linear-gradient` で破線表示して区別。完了時は `opacity:0.4` + `line-through` + 完了パレット背景
-- **chipPalette 拡張**: `completedPalette()` 追加（`--color-chip-completed-{bg,fg,dot}` を light/dark 両方で定義）
-- **DaySheet アニメ**: `DaySheetRow` のチェックボックスに `animate-check-in`（150ms scale pop、`@keyframes check-in` を `index.css` に追加）+ `navigator.vibrate?.(30)` + 完了時 `line-through`。花吹雪等の派手な演出は不要（ユーザー指示）
-- **長押し DnD**: `useMobileLongPressDrag.ts` 新規フック。450ms 長押し + 8px moveTolerance + 5 分スナップ + スナップ境界越え時 vibrate。container に `touch-action:none` を動的適用してページスクロールを抑制。`dragStateRef` で最新 state を ref に保持し window listener の毎フレーム再バインドを回避
-- **スナップ util**: `utils/mobileSnapTime.ts` に `hhmmToMinutes` / `minutesToHHMM` / `snapMinutes` / `topPxToMinutes` / `computeShiftedTimes`。duration を維持したまま start/end を同時スナップし 24h 境界でクランプ。9 件の unit test (`mobileSnapTime.test.ts`)
-- **DragPreview**: `components/Mobile/schedule/DragPreview.tsx` 新規。半透明ブロック + スナップラインピル（開始/終了時刻のライブ表示）。ドラッグ中の元ブロックは `opacity:0.3`
-- **MobileDayflowGrid 統合**: `gridRef` を追加し `useMobileLongPressDrag` を呼び出し。props に `onToggleScheduleComplete` / `onToggleTask` / `onReschedule` を追加
-- **MobileCalendarView 配線**: `handleReschedule` を追加し `kind === "task"` のとき `updateTask({ scheduledAt, scheduledEndAt })`、それ以外は `updateScheduleItem({ startTime, endTime })` に分岐。Mobile は TaskTreeProvider を使わないため `loadTasks()` / `loadMonthItems()` で再取得
-- **Edit Item フォームコンパクト化**: `MobileScheduleItemForm.tsx` で Date + Start + End を `grid-cols-[1.3fr_1fr_1fr]` の 1 行 3 列化（isAllDay 時は Date のみ）。label を `text-[10px] uppercase tracking-wider`、input を `py-1.5 px-2 text-[13px]`、section 間 `space-y-3`、action ボタン `py-2 px-3.5`
-- **Settings primitives**: `components/Mobile/settings/MobileSettingsPrimitives.tsx` 新規。`SettingsSection` / `PillOption` / `ToggleSwitch` / `CompactButton` を共通化
-- **Settings コンパクト化**: Export/Import ボタンを `py-2.5 border-2 rounded-xl text-sm` → `py-2 border rounded-lg text-xs gap-1.5`、Theme/Language pill を `py-3 gap-2` → `py-2.5 gap-1.5`。`MobileSyncSection` も `CompactButton` を使用
-- **FontSize セクション**: `MobileFontSizeSection.tsx` 新規。`useTheme.setFontSize(1-10)` を S=3 / M=5 / L=7 / XL=9 の 4 段階 pill に圧縮。`nearestPreset()` で最近傍判定
-- **Notifications セクション**: `MobileNotificationsSection.tsx` 新規。`STORAGE_KEYS.NOTIFICATIONS_ENABLED` + Routine / Task deadline リマインダー flag。`window.Notification.requestPermission()` ゲート付き。未対応環境は disabled + "Not supported on this device" 表示。**実通知配信は別 PR**（plugin-notification 未導入）
-- **Timer セクション**: `MobileTimerSection.tsx` 新規。`useTimerContext` の work/break/longBreak を range slider で編集、`isRunning` 時 disabled + 補足メッセージ
-- **Trash セクション**: `MobileTrashSection.tsx` 新規。`fetchDeletedScheduleItems` + `fetchDeletedTasks` を並列取得して統合リスト（schedule/task ラベル付き、最大 100 件、`deletedAt` 降順）。Restore / 完全削除 2 ボタン
-- **i18n**: `mobile.schedule.form.{dateLabel,startLabel,endLabel}` / `mobile.settings.{fontSize,notifications.*,timer.*,trash.*}` を en/ja 両方に追加
-- **バグパターン修正**: session-verifier Gate 6 で `useMobileLongPressDrag` の `endDrag` が `dragState.previewTop` に依存して毎フレーム window listener を再バインドする問題を発見 → `dragStateRef` + `updateDragState` 経由で ref から最新 state を読む形にリファクタ。deps に含めて exhaustive-deps 警告も解消
-- **検証**: `npx tsc --noEmit` EXIT=0 / `npx eslint` EXIT=0（変更範囲）/ `npx vitest run` 222/222 pass
-
----
-

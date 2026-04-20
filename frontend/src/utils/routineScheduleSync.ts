@@ -86,18 +86,24 @@ export function diffRoutineScheduleItems(
 
 /**
  * Check whether a routine should produce a schedule item for a given date.
- * Handles archived/invisible filtering, tag assignment, and frequency
- * (group frequency takes precedence over the routine's own).
+ * Handles archived/invisible filtering and frequency (group frequency takes
+ * precedence over the routine's own).
+ *
+ * Tag assignments are intentionally NOT used as a hard filter: Cloud Sync's
+ * delta query once missed tag-only edits (since relation tables lack their
+ * own updated_at), which left Desktop with empty tagAssignments and silently
+ * deleted all routine schedule_items via ensureRoutineItemsForDateRange.
+ * Tag filtering now happens at the display layer only — a routine without
+ * tags still materializes its items so it stays visible as a fail-safe.
+ * `tagAssignments` is kept in the signature for call-site compatibility.
  */
 export function shouldCreateRoutineItem(
   routine: RoutineNode,
   dateKey: string,
-  tagAssignments: Map<string, number[]>,
+  _tagAssignments: Map<string, number[]>,
   groupForRoutine?: Map<string, RoutineGroup[]>,
 ): boolean {
   if (routine.isArchived || !routine.isVisible) return false;
-  const routineTagIds = tagAssignments.get(routine.id);
-  if (!routineTagIds || routineTagIds.length === 0) return false;
 
   const groups = groupForRoutine?.get(routine.id);
   if (groups && groups.length > 0) {

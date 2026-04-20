@@ -16,15 +16,15 @@
 
 ### 関連ドキュメント
 
-| パス                             | 用途                                                                                                          |
-| -------------------------------- | ------------------------------------------------------------------------------------------------------------- |
-| `.claude/MEMORY.md`              | タスクトラッカー（進行中 / 直近完了 / 予定）                                                                  |
-| `.claude/HISTORY.md`             | 変更履歴（セッション単位）                                                                                    |
+| パス                             | 用途                                                                                                                                     |
+| -------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| `.claude/MEMORY.md`              | タスクトラッカー（進行中 / 直近完了 / 予定）                                                                                             |
+| `.claude/HISTORY.md`             | 変更履歴（セッション単位）                                                                                                               |
 | `.claude/docs/vision/`           | 設計原則 + 次フェーズ計画（`core.md` / `coding-principles.md` / `mobile-porting.md` / `ios-everywhere-sync.md` / `desktop-followup.md`） |
-| `.claude/docs/requirements/`     | Tier 1-3 機能要件定義                                                                                         |
-| `.claude/docs/known-issues/`     | 未解決 Issue + Root Cause 記録（[INDEX](./docs/known-issues/INDEX.md)）                                       |
-| `.claude/docs/code-explanation/` | 機能別コード解説（学習教材）                                                                                  |
-| `.claude/archive/`               | 完了済みプラン                                                                                                |
+| `.claude/docs/requirements/`     | Tier 1-3 機能要件定義                                                                                                                    |
+| `.claude/docs/known-issues/`     | 未解決 Issue + Root Cause 記録（[INDEX](./docs/known-issues/INDEX.md)）                                                                  |
+| `.claude/docs/code-explanation/` | 機能別コード解説（学習教材）                                                                                                             |
+| `.claude/archive/`               | 完了済みプラン                                                                                                                           |
 
 ---
 
@@ -101,9 +101,10 @@ React Router なし。`App.tsx` の `activeSection` で切替: `schedule` / `mat
 ### 4.1 SQLite スキーマ
 
 - 正本: `src-tauri/src/db/migrations.rs`（WAL）
-- 現行 v60、約 40 テーブル
+- 現行 v62、約 40 テーブル
 - ドメイン: tasks / memos / notes / time*memos / schedule_items / calendars / routines / timer*\_ / sound\_\_ / playlists / wiki_tags / task_tags / note_tags / task_templates / paper_boards / databases（汎用 DB: properties / rows / cells）
 - V60 で旧 task_tags / note_tags / ai_settings / routine_logs など孤児テーブルを撤去（WikiTags へ完全移行）
+- V62 で versioned テーブルの NULL updated_at バックフィル + tasks 用 INSERT トリガー追加（Cloud Sync blocker 修正）
 
 ### 4.2 特化 vs 汎用 DB の境界
 

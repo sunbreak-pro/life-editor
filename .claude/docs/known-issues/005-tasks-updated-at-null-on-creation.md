@@ -1,9 +1,10 @@
 # 005: tasks 全件で updated_at が NULL（Cloud Sync 対象から除外される）
 
-**Status**: Active
+**Status**: Fixed
 **Category**: Bug / Schema
 **Severity**: Important
 **Discovered**: 2026-04-18
+**Resolved**: 2026-04-20
 
 ## Symptom
 
@@ -40,12 +41,16 @@ UPDATE tasks SET updated_at = strftime('%Y-%m-%dT%H:%M:%S.000Z', 'now') WHERE up
 
 で全件バックフィル済み。しかしこれは一時対応であり、**新規作成するタスクでは同じ問題が再発する**。
 
-**本対応（未実施）**:
+**本対応（2026-04-20 実施）**:
 
-1. `task_repository.rs` の INSERT / UPDATE 文で `updated_at = datetime('now')` を毎回セット
-2. もしくは SQLite トリガーを追加: `CREATE TRIGGER tasks_updated_at AFTER UPDATE ON tasks ...`
-3. 初期スキーマと migration に `updated_at TEXT NOT NULL DEFAULT (strftime(...))` 制約追加検討
-4. 他の特化テーブル（memos / notes / routines 等）も同じ脆弱性が無いか一斉確認
+1. ✓ `task_repository.rs` の `create` / `update` / `sync_tree` がいずれも `updated_at = datetime('now')` / `&helpers::now()` をセットしていることを再確認（既に正しかった）
+2. ✓ **V62 migration** を追加（`src-tauri/src/db/migrations.rs`）:
+   - 既存 NULL 行のバックフィル: `tasks` / `memos` / `notes` / `schedule_items` / `routines` / `wiki_tags` / `time_memos` / `calendars` / `templates` / `routine_groups` の 10 versioned テーブル
+   - `tasks_updated_at_insert` トリガー: `AFTER INSERT ON tasks FOR EACH ROW WHEN NEW.updated_at IS NULL` → 自動で ISO-8601 UTC をセット
+3. ✓ V62 migration テスト追加（`v62_backfills_null_updated_at_and_installs_trigger` / `v62_migration_is_idempotent`）
+4. 他テーブルへのトリガー拡大は保留（現状これら特化テーブルの repository は updated_at をセットしており、tasks のような歴史的 NULL 蓄積は観測されていない）
+
+**Migration runner の修正（副次的）**: Fresh DB でも V62 のトリガー/バックフィルが確実に走るよう、`create_full_schema` 後に `run_incremental_migrations(conn, 61)` を通す構造に変更。
 
 ## References
 

@@ -50,6 +50,7 @@ pub async fn sync_trigger(state: State<'_, DbState>) -> Result<SyncResult, Strin
             .ok_or_else(|| SyncError::NotConfigured.to_string())?;
         let last = app_settings_repository::get(&conn, "sync_last_synced_at")
             .map_err(|e| e.to_string())?
+            .filter(|s| !s.is_empty())
             .unwrap_or_else(|| "1970-01-01T00:00:00.000Z".to_string());
         let device = app_settings_repository::get(&conn, "sync_device_id")
             .map_err(|e| e.to_string())?
@@ -83,9 +84,12 @@ pub async fn sync_trigger(state: State<'_, DbState>) -> Result<SyncResult, Strin
         let count =
             sync_engine::apply_remote_changes(&conn, &remote_changes).map_err(|e| e.to_string())?;
 
-        // Update last_synced_at
-        app_settings_repository::set(&conn, "sync_last_synced_at", &remote_changes.timestamp)
-            .map_err(|e| e.to_string())?;
+        // Update last_synced_at. Skip if cloud returned an empty timestamp —
+        // otherwise we'd persist "" and the next `since` query matches every row.
+        if !remote_changes.timestamp.is_empty() {
+            app_settings_repository::set(&conn, "sync_last_synced_at", &remote_changes.timestamp)
+                .map_err(|e| e.to_string())?;
+        }
 
         count
     };
@@ -168,8 +172,10 @@ pub async fn sync_full_download(state: State<'_, DbState>) -> Result<SyncResult,
         let conn = state.conn.lock().map_err(|e| e.to_string())?;
         let count =
             sync_engine::apply_remote_changes(&conn, &remote).map_err(|e| e.to_string())?;
-        app_settings_repository::set(&conn, "sync_last_synced_at", &remote.timestamp)
-            .map_err(|e| e.to_string())?;
+        if !remote.timestamp.is_empty() {
+            app_settings_repository::set(&conn, "sync_last_synced_at", &remote.timestamp)
+                .map_err(|e| e.to_string())?;
+        }
         count
     };
 

@@ -1,9 +1,10 @@
 # 004: sync_last_synced_at が app_settings に保存されず毎回 1970 からフル push
 
-**Status**: Active
+**Status**: Fixed
 **Category**: Bug
 **Severity**: Important
 **Discovered**: 2026-04-18
+**Resolved**: 2026-04-20
 
 ## Symptom
 
@@ -36,16 +37,14 @@ sync_enabled|true
 
 ## Fix / Workaround
 
-未実施。調査手順:
+**2026-04-20 検証結果**: 現行コードでは `sync_last_synced_at` が 30 秒 auto-sync ごとに正しく更新されていた（DB 観測で `2026-04-20T13:37:27.850Z` が 31 秒ごとにインクリメント）。Cloud Workers (`cloud/src/routes/sync.ts:85,195,297`) は常に `new Date().toISOString()` を返すため、通常動作では空タイムスタンプにならない。
 
-1. `remote_changes.timestamp` に何が入っているか log 追加して確認
-2. `app_settings_repository` の `set` が実際に INSERT/UPDATE しているか確認（`sqlite3 life-editor.db "SELECT * FROM app_settings WHERE key LIKE 'sync_%';"` で観測）
-3. Mac 実機 + iOS 実機の両方で再現確認
+**Root cause は特定困難**（初回フル同期や一時的な Workers エラー時のエッジケースが最有力候補）。将来の再発防止として **防御的ガード** を追加:
 
-修正後 verify:
+1. `sync_commands.rs::sync_trigger` / `sync_full_download`: `remote.timestamp` が空文字列のときは `set("sync_last_synced_at", ...)` を **呼ばない**（空文字列を保存して次回 `since=""` が全件マッチするのを防ぐ）
+2. `sync_commands.rs::sync_trigger` の read path: `sync_last_synced_at` が Some("") の場合も 1970-01-01 fallback を使う（`.filter(|s| !s.is_empty())`）
 
-- `sync_last_synced_at` が更新後に SELECT で見える
-- 2 回目以降の `/sync/changes` リクエストの `since` が epoch でなく前回 timestamp
+これで、仮に Workers が壊れたレスポンスを返しても key が empty のまま汚染されず、次回ちゃんとした timestamp を受けた時点で上書きできる。
 
 ## References
 

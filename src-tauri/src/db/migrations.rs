@@ -1,22 +1,24 @@
 use rusqlite::Connection;
 
-/// Run database migrations to bring the schema up to V61.
+/// Run database migrations to bring the schema up to the latest version.
 ///
-/// - Fresh databases (version 0): creates all tables in their final V61 state.
+/// - Fresh databases (version 0): creates tables in consolidated V61 state,
+///   then falls through to incremental migrations so V62+ (triggers, backfills)
+///   apply consistently.
 /// - Existing databases: runs incremental migrations from current version.
 pub fn run_migrations(conn: &Connection) -> rusqlite::Result<()> {
     let current_version: i32 =
         conn.pragma_query_value(None, "user_version", |row| row.get(0))?;
 
-    if current_version < 1 {
-        // Fresh database — create consolidated V61 schema
+    let start_version = if current_version < 1 {
         create_full_schema(conn)?;
         conn.pragma_update(None, "user_version", &61i32)?;
-        return Ok(());
-    }
+        61
+    } else {
+        current_version
+    };
 
-    // Incremental migrations for existing databases
-    run_incremental_migrations(conn, current_version)?;
+    run_incremental_migrations(conn, start_version)?;
 
     Ok(())
 }
@@ -1876,6 +1878,32 @@ fn run_incremental_migrations(conn: &Connection, current_version: i32) -> rusqli
         conn.pragma_update(None, "user_version", &61i32)?;
     }
 
+    if current_version < 62 {
+        eprintln!("V62: backfill NULL updated_at for versioned tables + tasks trigger (sync blocker fix)");
+        exec_ignore(
+            conn,
+            "UPDATE tasks           SET updated_at = strftime('%Y-%m-%dT%H:%M:%S.000Z', 'now') WHERE updated_at IS NULL;
+             UPDATE memos           SET updated_at = strftime('%Y-%m-%dT%H:%M:%S.000Z', 'now') WHERE updated_at IS NULL;
+             UPDATE notes           SET updated_at = strftime('%Y-%m-%dT%H:%M:%S.000Z', 'now') WHERE updated_at IS NULL;
+             UPDATE schedule_items  SET updated_at = strftime('%Y-%m-%dT%H:%M:%S.000Z', 'now') WHERE updated_at IS NULL;
+             UPDATE routines        SET updated_at = strftime('%Y-%m-%dT%H:%M:%S.000Z', 'now') WHERE updated_at IS NULL;
+             UPDATE wiki_tags       SET updated_at = strftime('%Y-%m-%dT%H:%M:%S.000Z', 'now') WHERE updated_at IS NULL;
+             UPDATE time_memos      SET updated_at = strftime('%Y-%m-%dT%H:%M:%S.000Z', 'now') WHERE updated_at IS NULL;
+             UPDATE calendars       SET updated_at = strftime('%Y-%m-%dT%H:%M:%S.000Z', 'now') WHERE updated_at IS NULL;
+             UPDATE templates       SET updated_at = strftime('%Y-%m-%dT%H:%M:%S.000Z', 'now') WHERE updated_at IS NULL;
+             UPDATE routine_groups  SET updated_at = strftime('%Y-%m-%dT%H:%M:%S.000Z', 'now') WHERE updated_at IS NULL;
+
+             DROP TRIGGER IF EXISTS tasks_updated_at_insert;
+             CREATE TRIGGER tasks_updated_at_insert
+                 AFTER INSERT ON tasks
+                 FOR EACH ROW WHEN NEW.updated_at IS NULL
+             BEGIN
+                 UPDATE tasks SET updated_at = strftime('%Y-%m-%dT%H:%M:%S.000Z', 'now') WHERE id = NEW.id;
+             END;",
+        );
+        conn.pragma_update(None, "user_version", &62i32)?;
+    }
+
     // Defensive: ensure schedule_items.template_id exists. Fresh DBs created
     // before the initial schema was fixed (v59-) lack this column, which
     // breaks Cloud Sync when pulling data from other devices.
@@ -1915,11 +1943,11 @@ mod tests {
     }
 
     #[test]
-    fn fresh_db_reaches_v61_without_orphan_tables() {
+    fn fresh_db_reaches_latest_without_orphan_tables() {
         let conn = Connection::open_in_memory().unwrap();
         run_migrations(&conn).unwrap();
 
-        assert_eq!(user_version(&conn), 61);
+        assert_eq!(user_version(&conn), 62);
         for orphan in [
             "ai_settings",
             "routine_logs",
@@ -1957,7 +1985,7 @@ mod tests {
 
         run_migrations(&conn).unwrap();
 
-        assert_eq!(user_version(&conn), 61);
+        assert_eq!(user_version(&conn), 62);
         assert!(table_exists(&conn, "note_links"));
         assert!(table_exists(&conn, "note_aliases"));
     }
@@ -1983,7 +2011,7 @@ mod tests {
 
         run_migrations(&conn).unwrap();
 
-        assert_eq!(user_version(&conn), 61);
+        assert_eq!(user_version(&conn), 62);
         for dropped in [
             "ai_settings",
             "routine_logs",
@@ -2007,13 +2035,60 @@ mod tests {
     }
 
     #[test]
-    fn v61_migration_is_idempotent() {
+    fn v62_migration_is_idempotent() {
         let conn = Connection::open_in_memory().unwrap();
         run_migrations(&conn).unwrap();
         let version_after_first = user_version(&conn);
         run_migrations(&conn).unwrap();
         assert_eq!(user_version(&conn), version_after_first);
-        assert_eq!(user_version(&conn), 61);
+        assert_eq!(user_version(&conn), 62);
+    }
+
+    #[test]
+    fn v62_backfills_null_updated_at_and_installs_trigger() {
+        let conn = Connection::open_in_memory().unwrap();
+        // Simulate pre-V62 schema with a NULL updated_at task.
+        create_full_schema(&conn).unwrap();
+        conn.pragma_update(None, "user_version", &61i32).unwrap();
+        conn.execute(
+            "INSERT INTO tasks (id, type, title, created_at, updated_at) \
+             VALUES ('task-legacy', 'task', 'legacy', '2026-04-18T00:00:00Z', NULL)",
+            [],
+        )
+        .unwrap();
+
+        run_migrations(&conn).unwrap();
+
+        let legacy_updated_at: Option<String> = conn
+            .query_row(
+                "SELECT updated_at FROM tasks WHERE id = 'task-legacy'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert!(
+            legacy_updated_at.is_some(),
+            "V62 must backfill NULL updated_at for existing tasks"
+        );
+
+        // Insert a fresh task without updated_at → trigger should auto-set it.
+        conn.execute(
+            "INSERT INTO tasks (id, type, title, created_at) \
+             VALUES ('task-new', 'task', 'new', '2026-04-20T00:00:00Z')",
+            [],
+        )
+        .unwrap();
+        let new_updated_at: Option<String> = conn
+            .query_row(
+                "SELECT updated_at FROM tasks WHERE id = 'task-new'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert!(
+            new_updated_at.is_some(),
+            "V62 trigger must auto-set updated_at on INSERT"
+        );
     }
 
     #[test]

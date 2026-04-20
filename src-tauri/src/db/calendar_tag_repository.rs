@@ -120,5 +120,11 @@ pub fn set_tags_for_schedule_item(
             params![schedule_item_id, tag_id],
         )?;
     }
+    // Bump parent schedule_item's updated_at + version so Cloud Sync's delta
+    // query (WHERE si.updated_at > ?1) carries this tag assignment change.
+    tx.execute(
+        "UPDATE schedule_items SET updated_at = datetime('now'), version = version + 1 WHERE id = ?1",
+        [schedule_item_id],
+    )?;
     tx.commit()
 }

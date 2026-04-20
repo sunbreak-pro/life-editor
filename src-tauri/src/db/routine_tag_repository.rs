@@ -121,5 +121,12 @@ pub fn set_tags_for_routine(
             params![routine_id, tag_id],
         )?;
     }
+    // Bump parent routine's updated_at + version so Cloud Sync's delta query
+    // (sync_engine: WHERE r.updated_at > ?1) picks up this tag assignment
+    // change. Without this bump, tag edits are invisible to both push & pull.
+    tx.execute(
+        "UPDATE routines SET updated_at = datetime('now'), version = version + 1 WHERE id = ?1",
+        [routine_id],
+    )?;
     tx.commit()
 }

@@ -181,5 +181,11 @@ pub fn set_tags_for_group(
             params![group_id, tag_id],
         )?;
     }
+    // Bump parent group's updated_at + version so Cloud Sync's delta query
+    // (WHERE rg.updated_at > ?1) carries this tag assignment change.
+    tx.execute(
+        "UPDATE routine_groups SET updated_at = datetime('now'), version = version + 1 WHERE id = ?1",
+        [group_id],
+    )?;
     tx.commit()
 }
