@@ -51,6 +51,7 @@ Audio / ScreenLock / FileExplorer / CalendarTags / WikiTag / ShortcutConfig
 ## 関連 Vision
 
 - [`ios-everywhere-sync.md`](./ios-everywhere-sync.md) — iPhone へのインストール手段（無料 Apple ID + Xcode / SideStore）と週次再署名の運用
+- [`mobile-data-parity.md`](./mobile-data-parity.md) — Desktop / Mobile でのデータ取得経路の非対称性（Provider バイパス問題）の是正方針
 
 ## 個別実装プランの運用
 
