@@ -2,21 +2,28 @@
 
 ## 進行中
 
-（なし）
+### 🔧 Notes 表示整合性の統合修正 Part B（マルチインスタンス DB 同期）（着手日: 2026-04-21）
+
+**対象**: `src-tauri/src/db_watcher.rs`（新規） / `frontend/src/context/SyncContext.tsx`
+**計画書**: `.claude/2026-04-20-mobile-editor-schema-parity.md`
+
+- 前回: Part A（Mobile/Desktop エディタ統合 + レスポンシブ対応）完了
+- 現在: Part B 未着手
+- 次: Rust 側で `life-editor.db-wal` を `notify` 監視 → `db-changed` emit / SyncContext で `db-changed` listen + ポーリング 30s → 7s
 
 ## 直近の完了
 
+- Notes Mobile/Desktop エディタ統合 Part A（Phase A）✅（2026-04-21）— 当初案（Mobile 専用 schema-only 拡張）では Callout 等の NodeView 欠落で構造が崩れたため、Desktop の `MemoEditor` を Mobile でも直接使用する方針に切替。`useIsTouchDevice` フック（`(hover: none) and (pointer: coarse)`）を新設、`MemoEditor` の `BlockContextMenu` を `!isTouch` で条件マウント、ルート div を responsive padding（`max-w-full px-2 md:max-w-[760px] md:pl-10 md:pr-0`）に変更、両エディタに `enableContentCheck: true` + `onContentError` を追加。`MobileNoteView` / `MobileMemoView` を `LazyMemoEditor` 直接使用に差替え。旧 `MobileRichEditor.tsx` と `frontend/src/extensions/mobile/`（schema-only 8 ファイル）を削除。`useIsTouchDevice.test.ts` 新規追加（4 cases）。tsc 0 / Vitest 28 files 231 pass（+4）/ ESLint 変更行クリーン。
 - Cloud Sync ブロッカー 3 件解消（Known Issues 004 / 005 / 008）✅（2026-04-20） — 004 は `sync_commands.rs` に empty-timestamp 防御ガード、005 は V62 migration で 10 versioned テーブルの NULL updated*at backfill + tasks INSERT トリガー追加 + fresh DB でも V62 が走るよう runner 修正、008 は 3 箇所の `set_tags_for*\*`(routine/group/schedule_item) に親`updated_at + version`bump を追加 +`shouldCreateRoutineItem`のタグ必須フィルタを削除して fail-safe 化。根本原因: relation テーブルの delta sync が親 updated_at に依存していたが親を bump していなかったため、タグ付け替えが sync に乗らず Desktop の routine_tag_assignments が空に →`ensureRoutineItemsForDateRange` が未来の schedule_items を削除。cargo test 10 pass / Vitest 227 pass / tsc 0。Known Issues INDEX 更新、CLAUDE.md の DB version を v60 → v62 に更新。
 - iOS 4G 同期準備：Xcode 署名状態検証 ✅（2026-04-20） — codesign で既存 `.ipa` / `.xcarchive` を検証し、Bundle ID `com.lifeEditor.app.newlife` / Team `542QHWHN37` / Provisioning Profile（期限 2026/04/25）が完全一致することを確認。`project.yml` には Known Issue 007 対策の `DEVELOPMENT_TEAM` / `CODE_SIGN_STYLE` が既に設定済みのため再生成しても安全。
-- Notes Mobile 編集空表示の根本原因特定 ✅（2026-04-20）— 診断のみ、修正は未実施。`MobileRichEditor` が StarterKit + Placeholder のみで、Desktop の CustomHeading / BlockBackground / Callout / ToggleList / WikiTag / NoteLink / DatabaseBlock / PdfAttachment 等のカスタム node を解釈できず TipTap が document を空に fallback する。list preview が見えるのは `extractPlainText` が schema を介さず JSON walk するため。修正方針（案 A: 全拡張 import / 案 B: read-only fallback / 案 C: 軽量拡張のみ追加）は検討中。
 
 ## 予定
 
-### Notes Mobile 編集空表示の修正実装
+### Part A 手動受入テスト（iOS 実機）
 
-**対象**: `frontend/src/components/Mobile/shared/MobileRichEditor.tsx`
-**背景**: 2026-04-20 セッションで根本原因特定済み（Mobile が Desktop の TipTap カスタム拡張を持たないため）
-**観点**: 案 A/B/C のいずれを採用するか決定 → 選択した方針で実装 → iOS 実機で表示確認
+**対象**: iPhone 実機での Materials Notes 表示確認
+**背景**: Phase A コード変更は品質ゲート通過済み、iOS 実機での NodeView レンダリング確認が未実施
+**観点**: Callout / ToggleList / WikiTag / NoteLink / Table / TaskList が Desktop と同一構造で表示されること、Touch デバイスで BubbleToolbar / Suggestion menu が動作すること、BlockContextMenu が非表示であること
 
 ### Cloud Sync データ復旧作業（タグ情報 iOS → Desktop）
 

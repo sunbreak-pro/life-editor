@@ -1,3 +1,25 @@
+### 2026-04-19 - TerminalPanel 直上 Tips セクション追加（Schedule / Work / Materials / Connect の 4 セクション × 4 Tips）
+
+#### 概要
+
+Claude 起動ボタン直上（Layout center column の MainContent と TerminalPanel の間）に activeSection 連動の折りたたみ式 Tips パネルを新設。4 セクションそれぞれに「主要操作 + lucide アイコン + 1-2 文説明」の Tips を 4 件ずつ掲載し、折りたたみ状態を localStorage に永続化。Tier 1 コア機能の使い方を初見でも拾えるようにするオンボーディング補助。`analytics` / `settings` では自動非表示。
+
+#### 変更点
+
+- **新規**: `types/tips.ts`（TipDefinition + TipsSectionId 型）/ `config/sectionTips.ts`（4 セクション × 4 Tips の lucide アイコン付き定義、docsPath は任意）/ `components/shared/TipsPanel.tsx`（activeSection prop 受け取り、折りたたみ UI、`useLocalStorage(TIPS_COLLAPSED)` で永続化、2 カラム grid レイアウト + docsPath 存在時のみ「詳細を見る」リンク）/ `constants/events.ts`（後続 PR で NoteLink 遷移にも利用）
+- **STORAGE_KEYS 追加**: `TIPS_COLLAPSED: "life-editor-tips-collapsed"`（`constants/storageKeys.ts`）
+- **Layout.tsx 統合**: center column 内の `<MainContent>` と `<TerminalPanel>` の間に `<TipsPanel activeSection={activeSection} />` を挿入。dock="bottom" 時は Terminal 直上、dock="right" 時も MainContent 直下に残る自然配置
+- **Tips 内容（12 セクション × 各 4 = 16 Tips）**:
+  - Schedule: 月/週/日切替（m/w/d キー）/ ルーティン追加（頻度指定）/ Day Flow 時系列表示 / 達成率追跡（90 日ヒートマップ）
+  - Work: タスク選択 or フリーセッション / タイマー操作（Space/R）/ ポモドーロ設定・プリセット / 6 種環境音ミックス
+  - Materials: 日記の自動保存 / ノート作成・フォルダ階層 / `[[` と `@` のリンク記法 / ファイル参照
+  - Connect: グラフ可視化 / `@タグ名` で関連付け / Backlinks + Unlinked Mentions / 検索・フィルター
+- **i18n**: en/ja 両方に `tips.{panel,schedule,work,materials,connect}.*` を追加（各セクション header + 4 Tips × {title, description} + panel 操作ラベル 3 件）。既存 `sidebar.tips="ヒント"` と区別
+- **検証**: tsc clean / eslint clean / Vitest 222/222 pass
+- **Phase 2 余地**: `docsPath` をフィールドとして残したため、`.claude/docs/code-explanation/` に Schedule / Work / Materials / Connect 向け解説を追加すれば自動でリンク表示される設計
+
+---
+
 ### 2026-04-19 - Mobile DayFlow 完了 UI / 長押し DnD / フォーム & Settings コンパクト化（計画書: 外部 `~/.claude/plans/mobile-task-event-routine-ui-ux-elegant-hinton.md`）
 
 #### 概要

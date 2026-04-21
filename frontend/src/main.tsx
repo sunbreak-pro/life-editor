@@ -44,7 +44,9 @@ createRoot(document.getElementById("root")!).render(
                           <RoutineProvider>
                             <ScheduleItemsProvider>
                               <TimerProvider>
-                                <MobileApp />
+                                <WikiTagProvider>
+                                  <MobileApp />
+                                </WikiTagProvider>
                               </TimerProvider>
                             </ScheduleItemsProvider>
                           </RoutineProvider>

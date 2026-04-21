@@ -1,9 +1,9 @@
-import { useCallback, useEffect, useState } from "react";
+import { Suspense, useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { getDataService } from "../../services/dataServiceFactory";
 import { useSyncContext } from "../../hooks/useSyncContext";
 import type { MemoNode } from "../../types/memo";
-import { MobileRichEditor } from "./shared/MobileRichEditor";
+import { LazyMemoEditor as MemoEditor } from "../Tasks/TaskDetail/LazyMemoEditor";
 
 function extractPlainText(content: string): string {
   try {
@@ -152,12 +152,21 @@ function MobileMemoDetail({ date, memo, onBack }: MobileMemoDetailProps) {
         </span>
       </div>
       <div className="flex min-h-0 flex-1 flex-col overflow-y-auto bg-notion-bg-primary p-4">
-        <MobileRichEditor
-          entityId={date}
-          initialContent={memo?.content ?? ""}
-          onChange={handleContentChange}
-          placeholder={t("mobile.memo.placeholder", "Write your thoughts...")}
-        />
+        <Suspense
+          fallback={
+            <div className="text-sm text-notion-text-secondary">
+              {t("common.loading", "Loading...")}
+            </div>
+          }
+        >
+          <MemoEditor
+            taskId={date}
+            initialContent={memo?.content ?? ""}
+            onUpdate={handleContentChange}
+            entityType="memo"
+            syncEntityId={memo?.id}
+          />
+        </Suspense>
       </div>
     </div>
   );

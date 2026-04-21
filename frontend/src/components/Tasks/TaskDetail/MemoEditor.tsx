@@ -46,6 +46,7 @@ import { getDataService } from "../../../services";
 import { NodeSelection } from "@tiptap/pm/state";
 import type { WikiTagEntityType } from "../../../types/wikiTag";
 import type { Node as PmNode } from "@tiptap/pm/model";
+import { useIsTouchDevice } from "../../../hooks/useIsTouchDevice";
 
 interface ContextMenuState {
   x: number;
@@ -164,6 +165,7 @@ export function MemoEditor({
   const resolvingRef = useRef(false);
   const imageUploadRef = useRef<(file: File) => void>(() => {});
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
+  const isTouch = useIsTouchDevice();
   const {
     resolveAttachmentUrls,
     uploadImage,
@@ -261,6 +263,13 @@ export function MemoEditor({
       ],
       editable,
       content: initialContent ? tryParseJSON(initialContent) : undefined,
+      enableContentCheck: true,
+      onContentError: ({ error }) => {
+        console.warn("[MemoEditor] TipTap content schema error", error, {
+          taskId,
+          entityType,
+        });
+      },
       onUpdate: ({ editor }) => {
         if (resolvingRef.current) return;
         if (debounceRef.current) {
@@ -548,12 +557,12 @@ export function MemoEditor({
   }, [editor]);
 
   return (
-    <div className="relative mx-auto max-w-[760px] pl-10">
+    <div className="relative mx-auto w-full max-w-full px-2 md:max-w-[760px] md:pl-10 md:pr-0">
       <EditorContent editor={editor} />
       {editor && <BubbleToolbar editor={editor} />}
       {editor && <NoteLinkSuggestionMenu editor={editor} />}
       {editor && <WikiTagSuggestionMenu editor={editor} />}
-      {editor && contextMenu && (
+      {editor && !isTouch && contextMenu && (
         <BlockContextMenu
           x={contextMenu.x}
           y={contextMenu.y}
