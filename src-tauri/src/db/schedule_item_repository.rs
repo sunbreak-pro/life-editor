@@ -79,7 +79,7 @@ pub fn fetch_by_date_range(
 ) -> rusqlite::Result<Vec<ScheduleItem>> {
     let mut stmt = conn.prepare(
         "SELECT * FROM schedule_items \
-         WHERE date BETWEEN ?1 AND ?2 AND is_deleted = 0 \
+         WHERE date BETWEEN ?1 AND ?2 AND is_deleted = 0 AND is_dismissed = 0 \
          ORDER BY date, start_time",
     )?;
     let rows = stmt.query_map(params![start, end], |row| row_to_schedule_item(row))?;
@@ -100,6 +100,27 @@ pub fn create(
     content: Option<&str>,
 ) -> rusqlite::Result<ScheduleItem> {
     let now = helpers::now();
+
+    // (routine_id, date) 複合キーでの重複を防ぐ: routine 由来 item が同一
+    // (routine_id, date) で既に存在する場合は新規作成せず既存を返す。
+    // bulk_create と同じ契約。V63 で UNIQUE INDEX が張られるので、このガード
+    // がなければ制約違反エラーになる。
+    if let Some(rid) = routine_id {
+        let existing_id: Option<String> = conn
+            .query_row(
+                "SELECT id FROM schedule_items \
+                 WHERE routine_id = ?1 AND date = ?2 AND is_deleted = 0 \
+                 LIMIT 1",
+                params![rid, date],
+                |row| row.get(0),
+            )
+            .ok();
+        if let Some(existing) = existing_id {
+            let mut stmt = conn.prepare("SELECT * FROM schedule_items WHERE id = ?1")?;
+            return stmt.query_row([existing], |row| row_to_schedule_item(row));
+        }
+    }
+
     conn.execute(
         "INSERT INTO schedule_items \
          (id, date, title, start_time, end_time, completed, routine_id, \
@@ -285,12 +306,16 @@ pub fn bulk_create(conn: &Connection, items: &[Value]) -> rusqlite::Result<()> {
         let is_all_day = item.get("isAllDay").and_then(|v| v.as_bool()).unwrap_or(false);
         let content = item.get("content").and_then(|v| v.as_str());
 
-        // Skip if an item with same routine_id+date already exists
+        // Skip if an active (non-deleted) item with same routine_id+date
+        // already exists. V63 adds a partial UNIQUE index on
+        // (routine_id, date) WHERE is_deleted = 0 which would otherwise raise
+        // a constraint violation here. Soft-deleted rows are intentionally
+        // excluded so that re-creation after trash is allowed.
         if let Some(rid) = routine_id {
             let exists: bool = tx
                 .query_row(
                     "SELECT COUNT(*) > 0 FROM schedule_items \
-                     WHERE routine_id = ?1 AND date = ?2",
+                     WHERE routine_id = ?1 AND date = ?2 AND is_deleted = 0",
                     params![rid, date],
                     |row| row.get(0),
                 )

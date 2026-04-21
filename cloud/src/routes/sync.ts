@@ -227,6 +227,66 @@ sync.post("/push", async (c) => {
       rows = topoSortByParent(rows as Record<string, unknown>[], "parent_id");
     }
 
+    // schedule_items routine rows share (routine_id, date) as a logical
+    // uniqueness key. Different devices may push rows with different ids for
+    // the same (routine_id, date) pair; accepting all of them accumulates
+    // duplicates in D1 (see known-issue 011). Pre-filter incoming routine rows
+    // against existing D1 rows with the same (routine_id, date) and drop those
+    // whose id differs from the canonical existing id — the existing row wins.
+    if (table === "schedule_items") {
+      const routineRows = (rows as Record<string, unknown>[]).filter(
+        (r) =>
+          r.routine_id !== null &&
+          r.routine_id !== undefined &&
+          r.routine_id !== "" &&
+          Number(r.is_deleted ?? 0) === 0,
+      );
+      const keepIds = new Set<string>(
+        (rows as Record<string, unknown>[])
+          .filter(
+            (r) =>
+              r.routine_id === null ||
+              r.routine_id === undefined ||
+              r.routine_id === "" ||
+              Number(r.is_deleted ?? 0) !== 0,
+          )
+          .map((r) => String(r.id)),
+      );
+      if (routineRows.length > 0) {
+        // Query existing canonical ids for each (routine_id, date) pair.
+        const pairs = Array.from(
+          new Set(routineRows.map((r) => `${r.routine_id}|${r.date}`)),
+        );
+        for (const pair of pairs) {
+          const [rid, d] = pair.split("|");
+          const existing = await db
+            .prepare(
+              `SELECT id FROM schedule_items
+               WHERE routine_id = ?1 AND date = ?2 AND is_deleted = 0
+               LIMIT 1`,
+            )
+            .bind(rid, d)
+            .first<{ id: string }>();
+          const incoming = routineRows.filter(
+            (r) => r.routine_id === rid && r.date === d,
+          );
+          if (existing) {
+            // Accept only the row whose id matches existing. Drop others.
+            for (const r of incoming) {
+              if (r.id === existing.id) keepIds.add(String(r.id));
+            }
+          } else {
+            // No canonical row yet: accept the first incoming and drop duplicates.
+            const first = incoming[0];
+            if (first) keepIds.add(String(first.id));
+          }
+        }
+        rows = (rows as Record<string, unknown>[]).filter((r) =>
+          keepIds.has(String(r.id)),
+        );
+      }
+    }
+
     for (const row of rows) {
       const record = row as Record<string, unknown>;
       const columns = Object.keys(record);

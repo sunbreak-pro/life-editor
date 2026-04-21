@@ -27,14 +27,15 @@
 | 005 | [tasks.updated_at が NULL](./005-tasks-updated-at-null-on-creation.md)                                                           | Bug/Schema        | 2026-04-20 |
 | 007 | [XcodeGen 再生成で pbxproj 設定が消える](./007-xcodegen-pbxproj-config-drift.md)                                                 | Tooling           | 2026-04-18 |
 | 008 | [routine/group tag_assignments が delta sync に乗らず Desktop から消える](./008-routine-tag-assignments-delta-sync-invisible.md) | Bug/Sync          | 2026-04-20 |
+| 011 | [schedule_items の (routine_id, date) 重複が Cloud D1 に蓄積](./011-schedule-items-routine-date-duplication.md)                  | Bug/Schema/Sync   | 2026-04-21 |
 
 ---
 
 ## Category 別インデックス
 
-- **Bug**: 001, 002, 004, 005, 008
-- **Schema**: 001, 002, 003, 005
-- **Sync**: 008
+- **Bug**: 001, 002, 004, 005, 008, 011
+- **Schema**: 001, 002, 003, 005, 011
+- **Sync**: 008, 011
 - **Structural**: 003, 006
 - **Tooling**: 007
 
@@ -42,8 +43,8 @@
 
 - Active: 0 件
 - Monitoring: 1 件
-- Fixed: 7 件
-- 合計: 8 件
+- Fixed: 8 件
+- 合計: 9 件
 
 ---
 

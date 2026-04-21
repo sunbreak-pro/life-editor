@@ -278,6 +278,11 @@ CREATE INDEX IF NOT EXISTS idx_si_date ON schedule_items(date);
 CREATE INDEX IF NOT EXISTS idx_si_routine ON schedule_items(routine_id);
 CREATE INDEX IF NOT EXISTS idx_schedule_items_updated_at ON schedule_items(updated_at);
 CREATE INDEX IF NOT EXISTS idx_schedule_items_deleted ON schedule_items(is_deleted);
+-- Partial UNIQUE: one active routine row per (routine_id, date). Mirrors the
+-- V63 migration on the Desktop / iOS SQLite side.
+CREATE UNIQUE INDEX IF NOT EXISTS idx_si_routine_date
+  ON schedule_items(routine_id, date)
+  WHERE routine_id IS NOT NULL AND is_deleted = 0;
 CREATE INDEX IF NOT EXISTS idx_wiki_tags_updated_at ON wiki_tags(updated_at);
 CREATE INDEX IF NOT EXISTS idx_wta_entity ON wiki_tag_assignments(entity_id);
 CREATE INDEX IF NOT EXISTS idx_wta_tag ON wiki_tag_assignments(tag_id);

@@ -34,11 +34,21 @@ export function diffRoutineScheduleItems(
   date: string,
   groupForRoutine?: Map<string, RoutineGroup[]>,
 ): { toCreate: RoutineSyncCreate[]; toUpdate: RoutineSyncUpdate[] } {
-  const existingByRoutineId = new Map(
-    existingItems
-      .filter((i) => i.routineId)
-      .map((i) => [i.routineId, i] as const),
-  );
+  // Key by (routineId, date). Although this function is called per-date and a
+  // single routineId key would usually suffice, keying by the compound pair
+  // tolerates multi-date existing lists being passed in and makes the dedup
+  // match the DB's partial UNIQUE (routine_id, date) constraint exactly.
+  const existingByKey = new Map<string, ScheduleItem>();
+  for (const item of existingItems) {
+    if (!item.routineId) continue;
+    const key = `${item.routineId}:${item.date}`;
+    const prev = existingByKey.get(key);
+    // Prefer the earliest-created row as the canonical survivor, matching the
+    // V63 migration's tie-breaking rule.
+    if (!prev || item.updatedAt < prev.updatedAt) {
+      existingByKey.set(key, item);
+    }
+  }
 
   const toCreate: RoutineSyncCreate[] = [];
   const toUpdate: RoutineSyncUpdate[] = [];
@@ -49,7 +59,7 @@ export function diffRoutineScheduleItems(
     )
       continue;
 
-    const existingItem = existingByRoutineId.get(routine.id);
+    const existingItem = existingByKey.get(`${routine.id}:${date}`);
     if (existingItem) {
       const newTitle = routine.title;
       const newStart = routine.startTime ?? "09:00";

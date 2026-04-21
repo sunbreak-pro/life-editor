@@ -218,6 +218,48 @@ fn upsert_versioned(
             Some(o) => o,
             None => continue,
         };
+
+        // schedule_items routine rows have a compound UNIQUE(routine_id, date)
+        // (partial, WHERE is_deleted=0) added in V63. Remote rows from an older
+        // device may carry a different id for the same (routine_id, date) pair.
+        // Skip those here to avoid constraint violations and to keep a single
+        // canonical row per (routine_id, date).
+        if table == "schedule_items" {
+            let routine_id = obj
+                .get("routine_id")
+                .and_then(|v| v.as_str())
+                .map(|s| s.to_string());
+            let date = obj
+                .get("date")
+                .and_then(|v| v.as_str())
+                .map(|s| s.to_string());
+            let incoming_id = obj.get("id").and_then(|v| v.as_str()).map(|s| s.to_string());
+            let is_deleted = obj
+                .get("is_deleted")
+                .and_then(|v| v.as_i64())
+                .unwrap_or(0);
+            if let (Some(rid), Some(d), Some(iid)) = (routine_id, date, incoming_id) {
+                if is_deleted == 0 {
+                    let existing_id: Option<String> = conn
+                        .query_row(
+                            "SELECT id FROM schedule_items \
+                             WHERE routine_id = ?1 AND date = ?2 AND is_deleted = 0 \
+                             LIMIT 1",
+                            rusqlite::params![&rid, &d],
+                            |r| r.get(0),
+                        )
+                        .ok();
+                    if let Some(existing) = existing_id {
+                        if existing != iid {
+                            // A different id already owns (routine_id, date).
+                            // Prefer the existing local row; skip remote insert.
+                            continue;
+                        }
+                    }
+                }
+            }
+        }
+
         // Only keep columns the local schema actually has
         let columns: Vec<&String> = obj.keys().filter(|k| local_cols.contains(*k)).collect();
         if columns.is_empty() {

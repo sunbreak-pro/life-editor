@@ -227,12 +227,30 @@ export function useScheduleItemsRoutineSync(handles: ScheduleItemsCoreHandles) {
           start.setTime(end.getTime() - maxMs);
         }
 
+        // Build existingSet so we skip (routine_id, date) pairs that already
+        // exist. Without this, short-window multi-invocation (app relaunch,
+        // StrictMode double-effect) could push new rows with fresh ids for the
+        // same logical slot and accumulate duplicates on Cloud.
+        const rangeStartKey = formatDateKey(start);
+        const rangeEndKey = formatDateKey(end);
+        const existing = await getDataService().fetchScheduleItemsByDateRange(
+          rangeStartKey,
+          rangeEndKey,
+        );
+        const existingSet = new Set<string>();
+        for (const item of existing) {
+          if (item.routineId) {
+            existingSet.add(`${item.routineId}:${item.date}`);
+          }
+        }
+
         const toCreate = collectRoutineItemsForDates(
           start,
           end,
           routines,
           tagAssignments,
           groupForRoutine,
+          existingSet,
         );
 
         if (toCreate.length > 0) {

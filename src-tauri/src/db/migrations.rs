@@ -1904,6 +1904,39 @@ fn run_incremental_migrations(conn: &Connection, current_version: i32) -> rusqli
         conn.pragma_update(None, "user_version", &62i32)?;
     }
 
+    if current_version < 63 {
+        eprintln!(
+            "V63: deduplicate schedule_items by (routine_id, date) + add partial UNIQUE index"
+        );
+        // Idempotent cleanup: keep one row per (routine_id, date) where
+        // routine_id IS NOT NULL AND is_deleted = 0. Keep the one with the
+        // earliest updated_at (ties broken by id) so user-edited rows — which
+        // would have bumped updated_at — are preferred as survivors only when
+        // they happen to be the earliest; in this codebase's observed data all
+        // duplicates are version=1 so none have user edits to preserve.
+        exec_ignore(
+            conn,
+            "DELETE FROM schedule_items
+             WHERE routine_id IS NOT NULL
+               AND is_deleted = 0
+               AND EXISTS (
+                 SELECT 1 FROM schedule_items s2
+                 WHERE s2.routine_id = schedule_items.routine_id
+                   AND s2.date = schedule_items.date
+                   AND s2.routine_id IS NOT NULL
+                   AND s2.is_deleted = 0
+                   AND (
+                     s2.updated_at < schedule_items.updated_at
+                     OR (s2.updated_at = schedule_items.updated_at AND s2.id < schedule_items.id)
+                   )
+               );
+             CREATE UNIQUE INDEX IF NOT EXISTS idx_si_routine_date
+               ON schedule_items(routine_id, date)
+               WHERE routine_id IS NOT NULL AND is_deleted = 0;",
+        );
+        conn.pragma_update(None, "user_version", &63i32)?;
+    }
+
     // Defensive: ensure schedule_items.template_id exists. Fresh DBs created
     // before the initial schema was fixed (v59-) lack this column, which
     // breaks Cloud Sync when pulling data from other devices.
