@@ -1,5 +1,35 @@
 # HISTORY.md - 変更履歴
 
+### 2026-04-22 - Routine schedule_items 重複の根本修正 + Cloud sync initial-pull truncation 暫定対応（Known Issues 011 / 012）（計画書: archive/2026-04-21-routine-dup-fix.md）
+
+#### 概要
+
+iOS Mobile の Schedule で同一 Routine が最大 8 コピー重複表示される問題 (Known Issue 011) の根本原因を **4 層の構造的欠陥** に分解して修正: (1) `schedule_items` に `UNIQUE(routine_id, date)` 制約欠落 / (2) sync 衝突解決が `id` 単独で異 id × 同 (routine_id, date) を全 INSERT / (3) Frontend `existingByRoutineId` Map が `routineId` 単独キーで既存重複検知に失敗 / (4) Rust `schedule_item_repository::create()` に重複ガード無し(`bulk_create` と非対称)。V63 migration + create() ガード + sync_engine 特別扱い + Cloud Worker pre-dedup + 複合キー `${routineId}:${date}` + backfill existingSet で根治。Cloud D1 の既存 1,181 行を dry-run preview 付きで destructive DELETE、partial UNIQUE index `idx_si_routine_date` を SQLite/D1 両端に張り恒久化。iOS 再インストール過程で 4 件の派生トラブル(Xcode PATH / dead code IdeasView / 未使用 useEffect / Cloud Worker `/sync/changes` LIMIT=500 truncation)を解消し Known Issue 012 として LIMIT=5000 bump の暫定対応を着地。本命 fix(client pagination loop on `hasMore`)は別セッション。cargo check 0 / frontend build 11.15s / vitest 231 pass / cloud tsc 0 / eslint(session 変更範囲) 0。
+
+#### 変更点
+
+- **V63 migration**: `src-tauri/src/db/migrations.rs` に V63 ブロック追加。`schedule_items` の (routine_id, date) 重複を `MIN(updated_at)` 保持で idempotent DELETE + `CREATE UNIQUE INDEX IF NOT EXISTS idx_si_routine_date ON schedule_items(routine_id, date) WHERE routine_id IS NOT NULL AND is_deleted = 0` を張る。部分 UNIQUE により soft-delete 行は制約対象外となり再作成可能
+- **Rust `create()` ガード**: `src-tauri/src/db/schedule_item_repository.rs` の `create()` に (routine_id, date, is_deleted=0) 存在チェックを追加し、既存行があれば新規作成せず既存を返す。`bulk_create` と対称な契約に。`bulk_create` の exists 検査にも `is_deleted=0` 条件を追加し、soft-delete 後の再作成を可能に
+- **sync_engine 特別扱い**: `src-tauri/src/sync/sync_engine.rs::upsert_versioned` で `schedule_items` を分岐し、異なる id × 同 (routine_id, date) が既存なら push 時に skip。id 単独の LWW を複合キー対応に拡張
+- **Cloud Worker pre-dedup**: `cloud/src/routes/sync.ts::/sync/push` で schedule_items routine 行を push 時に (routine_id, date) で既存 canonical id を参照し、incoming id が不一致なら drop。異端末からの重複 push を D1 への書き込み前に弾く
+- **Cloud schema 整合**: `cloud/db/schema.sql` に同 UNIQUE index を追加(新規プロビジョン時のため)
+- **Frontend 複合キー**: `frontend/src/utils/routineScheduleSync.ts` の `existingByRoutineId` Map を `existingByKey = new Map<string, ScheduleItem>()` に変更、キーは `${routineId}:${date}`。`collectRoutineItemsForDates` の `existingSet` 引数も同じ複合キー形式に
+- **Frontend backfill 堅牢化**: `frontend/src/hooks/useScheduleItemsRoutineSync.ts::backfillMissedRoutineItems` に `existingSet` build 処理を追加(従来は渡さず `collectRoutineItemsForDates` が既存を参照できなかった)。`ensureRoutineItemsForWeek` / `ensureRoutineItemsForDateRange` と対称化
+- **Cloud D1 運用クリーンアップ**: wrangler から destructive 作業を段階実行 — dry-run SELECT で to_delete=1,181(事前診断と +1 誤差) → DELETE 実行(duration 93ms) → UNIQUE index 作成 → 検証 SELECT で重複 0 確認。total 1,937 → 756 / active 1,936 → 755 で Desktop SQLite と完全一致
+- **Cloud Worker デプロイ**: `wrangler deploy` 2 回(pre-dedup 初回 `df98e207-...` + LIMIT bump 二回目 `5b967394-...`)
+- **Known Issue 012 発見 + 暫定対応**: iOS fresh install の `/sync/changes` 初回 pull が LIMIT=500 per table で打ち切られ、`updated_at > 2026-04-11 07:58:44` の 296 行(4/14〜4/22 の routine / notes / memos 編集)が欠落していた。原因は (a) Worker が `hasMore: true` を返すが cursor 無し / (b) Rust client `types.rs:50::has_more` field は定義されるが参照箇所 0 件 = 無視。暫定で LIMIT 500 → 5000 に bump(現行データ量でカバー可)、本命 fix(cursor + client loop)は Known Issue 012 として起票
+- **孤児コード削除**: `frontend/src/components/Ideas/IdeasView.tsx` を削除。commit `82ef226` で `ConnectView` に置換された際に旧ファイルが残置されており、`TagGraphView` interface 拡張で tsc -b が落ちていた(Xcode 実機 build が落ちて初めて露見)
+- **MobileNoteView 未使用 import 除去**: `frontend/src/components/Mobile/MobileNoteView.tsx` から `useEffect` を import から削除。noUnusedLocals の TS6133 エラーが iOS build を阻害していた
+- **ドキュメント整備**: `.claude/docs/known-issues/011-schedule-items-routine-date-duplication.md` + `012-sync-changes-limit-500-truncates-large-initial-pull.md` 新規、INDEX.md 更新。`.claude/docs/vision/realtime-sync.md` 新規(Phase 1: foreground 可変 polling + mutation-triggered push / Phase 2: CF Durable Objects WebSocket の 2 段階構想)
+- **計画書完了 + archive**: `.claude/2026-04-21-routine-dup-fix.md` を Status `COMPLETED` に更新し `.claude/archive/` へ移動
+- **未コミット refactor の stash 退避**: iOS build を通すため、作業開始時点で未コミットだった Memo→Daily rename(types/memo.ts → daily.ts 他 30+ ファイル) + Mobile parity + 009/010 known-issues docs を `git stash push -u -m "WIP: Memo->Daily refactor + Mobile parity + known-issues 009/010 (paused for iOS routine-dup verify on 2026-04-22)"` で退避。iOS 検証優先のため本 session では unstash 見送り、次 session で再開
+- **システム状態変更**: Xcode GUI 起動時に NVM 管理の `/Users/newlife/.cargo/bin/cargo` が PATH に無い問題を `/usr/local/bin/{cargo,rustc,rustup}` の sudo symlink で解消(ユーザー手動実行、git 外の永続変更)
+- **iOS 端末手順**: Developer Mode ON + VPN とデバイス管理でプロファイル信頼 + Xcode Devices and Simulators から `.ipa` 手動インストール(`cargo tauri build` は install しない仕様のため)+ iOS Settings > Cloud Sync で URL/Token 設定 → Disconnect/Reconnect で since=1970 強制 → LIMIT=5000 Worker から 796+ rows pull。4/14-4/22 の routine 表示復活を確認
+- **検証**: `cargo check` 0 / `npm run build`(frontend) ✓ built in 11.15s / `npm run test`(vitest) 231 pass / `npx tsc --noEmit`(cloud) 0 / ESLint session 変更範囲 0(既存 116 problems は scope 外の技術債)
+- **派生して発見した脆弱性(詳細は MEMORY.md §バグの温床)**: 論理一意性を持つ他テーブルの UNIQUE 制約欠落 / sync 衝突解決 id 単独設計の他テーブル波及 / pagination 半実装(5000 で逃げても成長で再発) / client/server 分散 flag(`hasMore`) の扱い / Mobile UI の Full Re-sync ボタン不在 / `tsc --noEmit` at frontend root が solution-style tsconfig で無意味 / Xcode GUI ⌘R が Tauri 2.x で動かない / Desktop パッケージ版と HEAD 実装の乖離
+
+---
+
 ### 2026-04-21 - Notes Mobile/Desktop エディタ統合 Phase A（`MemoEditor` 共有 + レスポンシブ対応）
 
 #### 概要
@@ -94,24 +124,3 @@ Connect セクション Node タブ (`TagGraphView`) での「ノード関連付
 - **テスト**: `src/hooks/useNoteLinksGraph.test.ts` を新規追加（fetches on mount / filters soft-deleted / refetches on dispatch event / cleans up listener on unmount / logs `console.warn` on fetch error、計 5 件）。`createMockDataService` は `fetchAllNoteLinks` を持たないためテスト内でランタイム上書き（mockDataService 自体は `tsconfig.app.json` の exclude 下にあり tsc 対象外）
 - **CSS**: `.tag-graph-connect-mode .react-flow__node:hover { cursor: crosshair !important; }` を追加
 - **検証**: `npx tsc --noEmit` 0 / `npx eslint` 本 PR 範囲クリーン（`PaperCanvasView.tsx` の既存 `isDescendant` / `getMaxSubtreeDepth` の React Compiler immutability / use-before-declared 警告 6 件は commit `aced45ed` 由来でセッション範囲外）/ `npx vitest run` 27 files → 28 files, 222 → 227 pass
-
----
-
-### 2026-04-19 - Obsidian Phase 1 フォローアップ（記法分離 `@`化 / アイコン表示 / Daily Memo→Notes 遷移 / routine_groups.version sync fix）
-
-#### 概要
-
-Phase 1 リリース後にユーザーから挙がった 3 件の不具合・UX 課題を一括対応。`[[NoteName]]` NoteLink と `#tag` WikiTag が同じ `#` キーを奪い合っていた問題を「`[[` = Note Link / `@` = WikiTag」の完全分離に変更し、両者の表示を「括弧・記号なし、lucide アイコン + 名前のみ」に刷新。Daily Memo 中のノートリンクをクリックしても遷移しなかった問題を CustomEvent → App.tsx の useEffect リスナー経由で Materials タブ + Notes サブタブに自動切替する形で解決。さらに Cloud Sync の UPSERT が `excluded.version > ...` を参照する一方で V42 世代 DB の `routine_groups` に `version` 列が無かったバグを防御的 ALTER で修正。cargo migration tests 5 件 pass、Vitest 222 pass、tsc / eslint クリーン。
-
-#### 変更点
-
-- **WikiTag トリガ `#` → `@`**: `hooks/useWikiTagSuggestion.ts` の正規表現を `/(?:^|\s)@([^\s@]*)$/` に変更。NoteLink (`[[`) と明確に分離し、どちらのサジェストも競合なく起動
-- **WikiTag 表示刷新**: `extensions/WikiTag.ts` の renderHTML から `#` プレフィックスを除去（`tagName` のみ出力）。`extensions/WikiTagView.tsx` で `<span>#</span>` を `<Tag />` lucide アイコン（size=12）に置換し、`.wiki-tag-symbol` CSS を `.wiki-tag-icon` に刷新（`index.css`）
-- **NoteLink 表示刷新**: `extensions/NoteLink.ts` の renderHTML から `[[...]]` 括弧を完全撤去（`label = alias ?? title` のみ）。`extensions/NoteLinkView.tsx` で `note-link-bracket` span 群を `<Link />` lucide アイコンに置換し、heading/blockId suffix は半角スペース区切りの ` #Heading ^block` 表記に変更（可読性向上）。`.note-link` スタイルを `inline-flex + gap:3px + align-items:center` に切替
-- **Daily Memo → Notes 遷移**: `constants/events.ts` 新規（`NAVIGATE_TO_NOTE_EVENT` + `NavigateToNoteDetail` 型）。`NoteLinkView` の onClick で `setSelectedNoteId` 直接呼び出しを廃止し `window.dispatchEvent(CustomEvent)` に変更。`App.tsx` に useEffect リスナーを追加し、受信時に `localStorage.MATERIALS_TAB='notes'` + `setActiveSection('materials')` + `setSelectedNoteId(detail.noteId)` を連動実行
-- **routine_groups.version sync 修正**: `src-tauri/src/db/migrations.rs` 末尾の defensive block に `has_column('routine_groups','version')` ガード付き ALTER を追加。V42 で作成された DB は `version` 列が無く `sync_engine.upsert_versioned` の UPSERT（`excluded.version > "routine_groups".version`）が `no such column: excluded.version` で失敗していた。既存の `schedule_items.template_id` 防御パターンを踏襲
-- **テスト追加**: Rust `routine_groups_version_column_backfilled_on_upgrade` 新規（V42 世代スキーマを in-memory 再現し `run_migrations` 後に `version` 列が存在することを検証）。既存 4 件と合わせて cargo test `--lib migrations` 5 件 pass
-- **i18n 更新**: en/ja の `wikiTags.description` / `wikiTags.empty` を `#tag` → `@tag` に更新。Tips `materials.linkSyntax` の説明文を「`[[` でノートリンク、`@` でタグ付与。確定後はアイコン + 名前のみ表示」に、Tips `connect.tags` の説明を「`@タグ名` で WikiTag を付与」に変更
-- **互換性**: WikiTag Node の `name="wikiTag"` と parseHTML は維持。既存 TipTap JSON 内の `wikiTag` ノードと DB 内の `wiki_tag_assignments` は一切触らず、見た目だけ自動で新スタイルに切り替わる。NoteLink も同様（parseHTML 互換）
-
----
