@@ -18,33 +18,34 @@
 
 ## Fixed（Root Cause 参考、将来の再発防止用）
 
-| ID  | Title                                                                                                                            | Category          | Resolved   |
-| --- | -------------------------------------------------------------------------------------------------------------------------------- | ----------------- | ---------- |
-| 001 | [Cloud Sync SQL 予約語 `order` エスケープ漏れ](./001-cloud-sync-sql-reserved-word.md)                                            | Bug/Schema        | 2026-04-18 |
-| 002 | [Cloud Sync FK 制約違反（テーブル依存順）](./002-cloud-sync-fk-constraint-ordering.md)                                           | Bug/Schema        | 2026-04-18 |
-| 003 | [schedule_items.template_id の schema drift](./003-schedule-items-template-id-schema-drift.md)                                   | Schema/Structural | 2026-04-18 |
-| 004 | [sync_last_synced_at が保存されない](./004-sync-last-synced-at-not-persisted.md)                                                 | Bug               | 2026-04-20 |
-| 005 | [tasks.updated_at が NULL](./005-tasks-updated-at-null-on-creation.md)                                                           | Bug/Schema        | 2026-04-20 |
-| 007 | [XcodeGen 再生成で pbxproj 設定が消える](./007-xcodegen-pbxproj-config-drift.md)                                                 | Tooling           | 2026-04-18 |
-| 008 | [routine/group tag_assignments が delta sync に乗らず Desktop から消える](./008-routine-tag-assignments-delta-sync-invisible.md) | Bug/Sync          | 2026-04-20 |
-| 011 | [schedule_items の (routine_id, date) 重複が Cloud D1 に蓄積](./011-schedule-items-routine-date-duplication.md)                  | Bug/Schema/Sync   | 2026-04-21 |
+| ID  | Title                                                                                                                                     | Category          | Resolved   |
+| --- | ----------------------------------------------------------------------------------------------------------------------------------------- | ----------------- | ---------- |
+| 001 | [Cloud Sync SQL 予約語 `order` エスケープ漏れ](./001-cloud-sync-sql-reserved-word.md)                                                     | Bug/Schema        | 2026-04-18 |
+| 002 | [Cloud Sync FK 制約違反（テーブル依存順）](./002-cloud-sync-fk-constraint-ordering.md)                                                    | Bug/Schema        | 2026-04-18 |
+| 003 | [schedule_items.template_id の schema drift](./003-schedule-items-template-id-schema-drift.md)                                            | Schema/Structural | 2026-04-18 |
+| 004 | [sync_last_synced_at が保存されない](./004-sync-last-synced-at-not-persisted.md)                                                          | Bug               | 2026-04-20 |
+| 005 | [tasks.updated_at が NULL](./005-tasks-updated-at-null-on-creation.md)                                                                    | Bug/Schema        | 2026-04-20 |
+| 007 | [XcodeGen 再生成で pbxproj 設定が消える](./007-xcodegen-pbxproj-config-drift.md)                                                          | Tooling           | 2026-04-18 |
+| 008 | [routine/group tag_assignments が delta sync に乗らず Desktop から消える](./008-routine-tag-assignments-delta-sync-invisible.md)          | Bug/Sync          | 2026-04-20 |
+| 011 | [schedule_items の (routine_id, date) 重複が Cloud D1 に蓄積](./011-schedule-items-routine-date-duplication.md)                           | Bug/Schema/Sync   | 2026-04-21 |
+| 012 | [/sync/changes の LIMIT=500 と client hasMore 未処理で初回 pull が途切れる](./012-sync-changes-limit-500-truncates-large-initial-pull.md) | Bug/Sync          | 2026-04-22 |
 
 ---
 
 ## Category 別インデックス
 
-- **Bug**: 001, 002, 004, 005, 008, 011
+- **Bug**: 001, 002, 004, 005, 008, 011, 012
 - **Schema**: 001, 002, 003, 005, 011
-- **Sync**: 008, 011
+- **Sync**: 008, 011, 012
 - **Structural**: 003, 006
 - **Tooling**: 007
 
 ## Status 集計
 
 - Active: 0 件
-- Monitoring: 1 件
+- Monitoring: 2 件(006, 012)
 - Fixed: 8 件
-- 合計: 9 件
+- 合計: 10 件
 
 ---
 

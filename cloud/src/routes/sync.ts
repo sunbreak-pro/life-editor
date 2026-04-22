@@ -99,7 +99,11 @@ sync.get("/changes", async (c) => {
   const db = c.env.DB;
   const result: Record<string, unknown[]> = {};
   let hasMore = false;
-  const LIMIT = 500;
+  // Temporary bump from 500 to 5000 to unblock clients that do not loop on
+  // hasMore (Rust sync client receives the flag but ignores it — Known Issue
+  // 012). With current data volume (<1k active rows per table) 5000 covers
+  // all legitimate bulk syncs. Proper fix: client-side pagination loop.
+  const LIMIT = 5000;
 
   // Delta for versioned tables
   for (const table of VERSIONED_TABLES) {
