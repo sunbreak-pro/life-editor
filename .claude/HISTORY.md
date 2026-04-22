@@ -1,5 +1,25 @@
 # HISTORY.md - 変更履歴
 
+### 2026-04-23 - TaskTree + Folder DetailPanel ヘッダー簡素化（アイコン同期 / Move to folder 廃止 / Complete フォルダ展開）
+
+#### 概要
+
+TaskTree 行と Folder DetailPanel のヘッダー UI を 5 観点で簡素化。(1) TaskTree のフォルダ行がフォルダの `node.icon` に追従するようになり DetailPanel と完全同期、(2) Folder DetailPanel のアイコンピッカーをタイトル左横にインライン配置して独立ブロックを撤去、(3) Task DetailPanel の「Move to folder」機能と `FolderMovePicker.tsx` を完全廃止（手動 DnD で代替）、(4) パスの祖先アイコン反映は既存コードで対応済みを確認、(5) Complete フォルダ選択時に TaskTree 側で展開ドロップダウン / DetailPanel 側で DONE タスク一覧が見えるよう `activeChildren` / `children` useMemo フィルタを緩和。変更 6 ファイル / 削除 1 / Vitest 29 files 231 tests pass / `tsc -b` 私の編集ファイルにエラーなし / ESLint 6 件は react-hooks/refs の既存パターン（`git stash push -- TaskDetailPanel.tsx` で編集前同一を確認済みスコープ外）。
+
+#### 変更点
+
+- **TaskNodeCheckbox (`frontend/src/components/Tasks/TaskTree/TaskNodeCheckbox.tsx`)**: `icon?: string` prop を追加、`renderIcon(icon, { size: 14 })` でフォルダの `node.icon` を優先描画（未設定時は従来の `FolderOpen` / `Folder` を展開状態に応じて切替）
+- **TaskTreeNode (`frontend/src/components/Tasks/TaskTree/TaskTreeNode.tsx`)**: `<TaskNodeCheckbox>` へ `icon={node.icon}` を伝搬。`activeChildren` useMemo を `isSystemFolder ? rawChildren : rawChildren.filter((c) => c.status !== "DONE" || c.folderType === "complete")` に分岐して Complete フォルダ直下の DONE タスクが `node.isExpanded` 時に表示されるよう修正。`useMemo` 依存配列に `isSystemFolder` を追加
+- **TaskDetailPanel Task 側 (`frontend/src/components/Tasks/TaskDetail/TaskDetailPanel.tsx`)**: `FolderMovePicker` 使用箇所（breadcrumb 行の「Move to folder」trigger）を削除し breadcrumb 行は ancestors 表示のみに整理。不要になった import / props / callback を一括除去（`FolderMovePicker` / `FolderOpen` / `MoveResult` / `MoveRejectionReason` / `useToast` / `moveNodeInto` / `moveToRoot` / `onMoveRejected` / `handleMove`）
+- **TaskDetailPanel Folder 側**: タイトル下の独立 Icon Picker ブロック（`folderIcon` ラベル付きボタン）を撤去し、タイトル行の左側にアイコンボタン（`size=20`）をインライン統合。Complete フォルダ時は `FolderCheck size={20}` を読み取り専用で表示。`children` useMemo に `node.folderType === "complete"` 分岐を追加し自身が Complete フォルダ時は DONE 子を全件含める（下流の `childTasks` フロー経由で TaskStatusIcon = DONE として表示される）
+- **FolderMovePicker 削除**: `frontend/src/components/Tasks/Folder/FolderMovePicker.tsx` を削除（他参照 0 件で grep 確認）。`FolderDropdown` / `flattenFolders` は `ScheduleSidebarContent` / `TaskTreeHeader` / `FolderList` / `NewTaskTab` から引続き使用中のため維持
+- **Storage Key 削除**: `FOLDER_MOVE_CONFIRM_SKIP` を `frontend/src/constants/storageKeys.ts` から除去（`FolderMovePicker` 専用だったため）
+- **i18n 同期削除（working tree のみ、本コミットには含めず）**: `en.json` / `ja.json` の `taskDetailSidebar.moveToFolder` と `taskDetailSidebar.moveFolderConfirm` は working tree では削除済みだが、同じ 2 ファイルに並行進行中の memos→daily refactor の変更が entangle しているため本コミットから意図的に除外（別セッションで memos→daily 着地時に合流予定）。残った dead i18n key は runtime 影響なし。`folderIcon` は Folder DetailPanel のアイコンボタン `title` 属性（tooltip）で継続使用のため元々残置、`dontShowAgain` は `ConfirmDialog` 他で使用中
+- **検証**: `npx tsc -b --force`（frontend）私の編集 4 ファイルに型エラーなし — 他 20+ 件の型エラーは並行進行中の memos→daily refactor 起因で別スコープ / `npx vitest run` 29 files / 231 tests pass / `npx eslint` 私の編集 TSX に 6 件の `react-hooks/refs` error、`git stash push -- TaskDetailPanel.tsx FolderMovePicker.tsx` で編集前 HEAD にも同 6 件存在を確認しプリ既存と判定（`ancestor.map` 内条件 ref 代入と `folderIconRef.current?.getBoundingClientRect()` のレンダー中アクセス — コードベース全体で同パターン多数、別セッションで一括対処）
+- **手動テスト**: UI の実機動作確認は未実施（次セッションで iOS 実機含め実施予定）
+
+---
+
 ### 2026-04-22 - Routine schedule_items 重複の根本修正 + Cloud sync initial-pull truncation 暫定対応（Known Issues 011 / 012）（計画書: archive/2026-04-21-routine-dup-fix.md）
 
 #### 概要
@@ -100,27 +120,3 @@ Tips を「画面下部固定 / セクション 4 件のみ」から「LeftSideb
 - **App.tsx**: `terminalCommandRef` を Layout に渡すよう更新、`renderContent()` の switch に `case "terminal": return null` 追加（実体は Layout 内に永続マウント）
 - **i18n**: en/ja 両方で `tips.*` ブロックを完全置換（370 参照キー、382 公開キー、両言語完全一致）。`sidebar.tipsButton`, `sidebar.launchClaude` 維持。jq でマージして JSON 整合性を確認
 - **検証**: `tsc --noEmit -p tsconfig.app.json`（本セッション範囲エラーなし、pre-existing 2 件は IdeasView / MobileRichEditor）/ `npm run lint`（本セッション範囲エラーなし）/ `vitest run` 27 → 28 ファイル、222 → 227 pass
-
----
-
-### 2026-04-19 - Connect Canvas UX 改善（WikiTag インライン軽量化 / Connect モード + ConnectPanel / Link エッジ / 矩形選択 Pan/Select 切替）（計画書: 外部 `~/.claude/plans/1-wikitags-block-line-height-tags-paddin-curried-bachman.md`）
-
-#### 概要
-
-Connect セクション Node タブ (`TagGraphView`) での「ノード関連付け」体験を 3 点一括改善。(1) 本文中の WikiTag (`.wiki-tag-modern`) の padding-block / 背景 / 枠を削って line-height 内に収まる軽量デザインへ、(2) CanvasControls の 4 ボタン (ZoomIn / ZoomOut / FitView / Filter) に 5 つ目として Connect トグルを追加し、ON 時はノード間ドラッグで `ConnectPanel` を開く新規タグ作成 / 既存タグ選択 → 両 Node へ必ず付与する接続操作を実装、(3) V61 の `note_links` テーブルを TagGraphView のエッジ描画に取り込み、既存タグエッジ（solid）と区別するため破線 emerald（`strokeDasharray: "5 3"`）で表示し Filter パネルに「ノートリンク」ON/OFF トグルを追加。併せてユーザー要望に応じて、Node / Board 両 Canvas の Pan / 選択モードを反転 —— 空白ドラッグは青色矩形選択、二本指スワイプで Pan、Delete/Backspace で選択ノードを一括ソフト削除、ピンチで Zoom。Connect モード中は矩形選択と Delete キーを停止して接続ドラッグとの衝突を回避。Vitest 227/227 pass（新規 5 件）/ `tsc --noEmit` 0 / ESLint（本 PR 範囲）クリーン。
-
-#### 変更点
-
-- **WikiTag インライン軽量化**: `index.css` の `.memo-editor .wiki-tag-modern` を `padding: 0.15rem 0.4rem` + `background: var(--color-hover)` + `border: 1px solid transparent` + `font-size: 0.85em` → `padding: 0 0.25rem` + `background: color-mix(in srgb, var(--color-hover) 55%, transparent)` + `border: none` + `font-size: 0.88em` + `line-height: inherit` + `vertical-align: baseline` に刷新。hover は背景をフル不透明度に切替 + `color: var(--color-accent)` で状態変化を示す。`WikiTagChip` バッジ表示は意図的に手つかず
-- **Connect モードボタン**: `CanvasControls.tsx` に `showConnect` / `connectMode` / `onToggleConnectMode` / `connectLabel` プロップスを追加し、Spline アイコンの 5 つ目トグルボタンを追加。`aria-pressed` + `connectMode` 時 `bg-notion-accent text-white` でアクティブ表示。`showConnect={!sidebarMode}` で Split View 時には非表示
-- **ConnectPanel 新規**: `components/Ideas/Connect/ConnectPanel.tsx`。`createPortal` で overlay + 420px モーダル、Search 入力 / タグリスト（両側に既割当のタグは disabled + `alreadyLinked` バッジ）/ クエリが既存タグ名と完全一致しない && 非空時に「"{name}" を新規タグとして作成」項目、Connect は `selectedTagId || query.trim()` が無い時 disabled、Cancel / Esc で閉じる / Enter で確定。IME 対応 (`e.nativeEvent.isComposing`)
-- **TagGraphView 配線**: `connectMode` / `pendingConnection` state 追加。`handleConnect` は `connectMode` 時に `resolveNodeInfo` で Note/Memo 種別を判定して ConnectPanel を開き、通常時は既存 `noteConnection` 作成へフォールバック。`handleConfirmConnect` が `onConnectViaTag` prop を経由して「必要なら新規タグ作成 → 両 Node に `setTagsForEntity`」を実行。Connect モード時のみ `nodesConnectable={true}` + `nodesDraggable={false}` + CSS `tag-graph-connect-mode` でノード hover カーソルを crosshair 化
-- **ConnectView handler**: `useWikiTags().createTag` を追加取得し `handleConnectViaTag` を新設（新規タグなら `createTag(name, color)` → 両 Node 分 `setTagsForEntity`）。既存 `handleCreateNoteConnection` の manual noteConnection フローは互換のため残置
-- **Link エッジ描画**: `useNoteLinksGraph.ts` 新規（`getDataService().fetchAllNoteLinks()` を mount 時に呼び、`isDeleted=0` のみ state 保持、`life-editor:note-links-changed` CustomEvent を購読して自動再 fetch）+ `dispatchNoteLinksChanged()` export。`useNoteLinkSync.ts` の upsert 成功後に `dispatchNoteLinksChanged()` を呼んで Canvas を同期。`TagGraphView.buildNormalEdges()` の末尾に linkEdges 合成を追加（`source_memo_date` のケースは `memo-YYYY-MM-DD` に組み立て、`pairEdgeCount` と共有して同ペアの tag / manual / link エッジが曲率オフセットで重ならない）。スタイルは `stroke: #10b981` / `strokeDasharray: "5 3"` / `strokeWidth: 1.5` / `opacity: 0.75`
-- **Filter: Note Links トグル**: `displayFilterItems` 末尾に `VIRTUAL_LINK_EDGES_HIDDEN_ID` の仮想フィルタを常設。`activeFilterIds.has(VIRTUAL_LINK_EDGES_HIDDEN_ID)` が true の時 `linkEdges = []` として描画を抑止。`activeFilterResult` の decompose で同 ID を `realTagIds` に混入させない分岐を追加
-- **Pan / 選択モード切替**: `TagGraphView` と `PaperCanvasView` 両方の `<ReactFlow>` に `panOnDrag={false}` / `selectionOnDrag={!connectMode}`（Paper は常時 true）/ `selectNodesOnDrag={false}` / `panOnScroll` / `zoomOnScroll={false}` / `zoomOnPinch` を追加。二本指トラックパッドスワイプが scroll event として Pan に変換され、ピンチズームは維持。マウスホイール直接ズームは無効化（ズームはピンチ / zoom ボタン / fitView で対応）
-- **一括ソフト削除**: `TagGraphView` に `deleteKeyCode={connectMode ? null : ["Delete", "Backspace"]}` + `multiSelectionKeyCode="Shift"` + `onNodesDelete={handleNodesDelete}` を追加。`handleNodesDelete` は削除対象ノードを `node.type === "noteNode"` / `"memoNode"` で分岐し、Memo は `node.id.startsWith("memo-")` から日付を復元して `deleteMemo(date)` を、Note は `softDeleteNote(noteId)` を呼び出す。`ConnectView` 側で `useMemoContext().deleteMemo` / `useNoteContext().softDeleteNote` を `onDeleteMemoEntity` / `onDeleteNoteEntity` として TagGraphView に渡す。`PaperCanvasView` は既存の `deleteKeyCode` + `handleDeleteSelected` を流用
-- **i18n**: en / ja 両方に `connect.toggleConnectMode` / `connect.linkEdges` / `connect.panel.{title, searchPlaceholder, createNew, connect, cancel, alreadyLinked, noTags}` を追加
-- **テスト**: `src/hooks/useNoteLinksGraph.test.ts` を新規追加（fetches on mount / filters soft-deleted / refetches on dispatch event / cleans up listener on unmount / logs `console.warn` on fetch error、計 5 件）。`createMockDataService` は `fetchAllNoteLinks` を持たないためテスト内でランタイム上書き（mockDataService 自体は `tsconfig.app.json` の exclude 下にあり tsc 対象外）
-- **CSS**: `.tag-graph-connect-mode .react-flow__node:hover { cursor: crosshair !important; }` を追加
-- **検証**: `npx tsc --noEmit` 0 / `npx eslint` 本 PR 範囲クリーン（`PaperCanvasView.tsx` の既存 `isDescendant` / `getMaxSubtreeDepth` の React Compiler immutability / use-before-declared 警告 6 件は commit `aced45ed` 由来でセッション範囲外）/ `npx vitest run` 27 files → 28 files, 222 → 227 pass

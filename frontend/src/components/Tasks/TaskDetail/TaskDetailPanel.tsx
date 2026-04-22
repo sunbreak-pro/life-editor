@@ -3,7 +3,6 @@ import type { KeyboardEvent } from "react";
 import {
   Calendar,
   Trash2,
-  FolderOpen,
   Folder,
   FolderCheck,
   ChevronRight,
@@ -14,11 +13,6 @@ import { TaskStatusIcon } from "../TaskTree/TaskStatusIcon";
 import { useTranslation } from "react-i18next";
 import { useTaskTreeContext } from "../../../hooks/useTaskTreeContext";
 import type { TaskNode, TaskStatus } from "../../../types/taskTree";
-import type {
-  MoveResult,
-  MoveRejectionReason,
-} from "../../../types/moveResult";
-import { useToast } from "../../../context/ToastContext";
 import { RoleSwitcher } from "../Schedule/shared/RoleSwitcher";
 import {
   useRoleConversion,
@@ -26,7 +20,6 @@ import {
   type ConversionRole,
 } from "../../../hooks/useRoleConversion";
 import { formatDateKey } from "../../../utils/dateKey";
-import { FolderMovePicker } from "../Folder/FolderMovePicker";
 import { MiniCalendarGrid } from "../../shared/MiniCalendarGrid";
 import { TaskDetailEmpty } from "./TaskDetailEmpty";
 import { WikiTagList } from "../../WikiTags/WikiTagList";
@@ -50,17 +43,8 @@ export function TaskDetailPanel({
   onPlayTask,
   onSelectTask,
 }: TaskDetailPanelProps) {
-  const {
-    nodes,
-    updateNode,
-    moveNodeInto,
-    moveToRoot,
-    softDelete,
-    toggleTaskStatus,
-    setTaskStatus,
-  } = useTaskTreeContext();
-  const { t } = useTranslation();
-  const { showToast } = useToast();
+  const { nodes, updateNode, softDelete, toggleTaskStatus, setTaskStatus } =
+    useTaskTreeContext();
 
   const node = selectedNodeId
     ? (nodes.find((n) => n.id === selectedNodeId) ?? null)
@@ -77,17 +61,10 @@ export function TaskDetailPanel({
               node={node}
               nodes={nodes}
               updateNode={updateNode}
-              moveNodeInto={moveNodeInto}
-              moveToRoot={moveToRoot}
               softDelete={softDelete}
               onPlayTask={onPlayTask}
               toggleTaskStatus={toggleTaskStatus}
               setTaskStatus={setTaskStatus}
-              onMoveRejected={(reason) => {
-                if (reason === "circular_reference") {
-                  showToast("warning", t("taskTree.move.circularReference"));
-                }
-              }}
             />
           ) : (
             <FolderSidebarContent
@@ -111,11 +88,8 @@ interface TaskSidebarContentProps {
   node: TaskNode;
   nodes: TaskNode[];
   updateNode: (id: string, updates: Partial<TaskNode>) => void;
-  moveNodeInto: (activeId: string, targetFolderId: string) => MoveResult;
-  moveToRoot: (id: string) => MoveResult;
   softDelete: (id: string) => void;
   onPlayTask?: (node: TaskNode) => void;
-  onMoveRejected?: (reason: MoveRejectionReason) => void;
   toggleTaskStatus: (id: string) => void;
   setTaskStatus: (id: string, status: TaskStatus) => void;
 }
@@ -124,10 +98,7 @@ function TaskSidebarContent({
   node,
   nodes,
   updateNode,
-  moveNodeInto,
-  moveToRoot,
   softDelete,
-  onMoveRejected,
   toggleTaskStatus,
   setTaskStatus,
 }: TaskSidebarContentProps) {
@@ -136,38 +107,12 @@ function TaskSidebarContent({
   const iconBtnRef = useRef<HTMLButtonElement>(null);
   const ancestors = getAncestors(node.id, nodes);
 
-  const handleMove = useCallback(
-    (newFolderId: string | null) => {
-      const result =
-        newFolderId === null
-          ? moveToRoot(node.id)
-          : moveNodeInto(node.id, newFolderId);
-      if (!result.success && onMoveRejected) {
-        onMoveRejected(result.reason);
-      }
-    },
-    [node.id, moveNodeInto, moveToRoot, onMoveRejected],
-  );
-
   return (
     <div className="flex flex-col h-full">
       {/* Header section */}
       <div className="space-y-3 pb-4 border-b border-notion-border mb-4">
         {/* Row 1: Breadcrumb */}
         <div className="flex items-center gap-2 min-h-8">
-          <FolderMovePicker
-            currentFolderId={node.parentId}
-            onMove={handleMove}
-            trigger={
-              <span
-                className="inline-flex items-center gap-1 px-2 py-1 text-xs text-notion-text-secondary hover:text-notion-text hover:bg-notion-hover rounded-md transition-colors cursor-pointer"
-                title={t("taskDetailSidebar.moveToFolder")}
-              >
-                <FolderOpen size={14} />
-                <span>{t("taskDetailSidebar.moveToFolder")}</span>
-              </span>
-            }
-          />
           <div className="flex items-center gap-1 text-sm text-notion-text-secondary flex-1 min-w-0 overflow-x-auto">
             {ancestors.length > 0 ? (
               ancestors.map((ancestor, i) => (
@@ -385,13 +330,13 @@ function FolderSidebarContent({
 
   const children = useMemo(
     () =>
-      nodes.filter(
-        (n) =>
-          n.parentId === node.id &&
-          !n.isDeleted &&
-          (n.status !== "DONE" || n.folderType === "complete"),
-      ),
-    [nodes, node.id],
+      nodes.filter((n) => {
+        if (n.parentId !== node.id || n.isDeleted) return false;
+        // For Complete folders, show all DONE children
+        if (node.folderType === "complete") return true;
+        return n.status !== "DONE" || n.folderType === "complete";
+      }),
+    [nodes, node.id, node.folderType],
   );
   const childFolders = useMemo(
     () =>
@@ -534,36 +479,35 @@ function FolderSidebarContent({
         )}
       </div>
 
-      {/* Title */}
+      {/* Title with inline icon picker */}
       {node.folderType === "complete" ? (
-        <h2 className="text-lg font-bold text-notion-text">
-          {t("taskTree.completeFolder")}
-        </h2>
+        <div className="flex items-center gap-2">
+          <FolderCheck size={20} className="shrink-0 text-green-500" />
+          <h2 className="text-lg font-bold text-notion-text">
+            {t("taskTree.completeFolder")}
+          </h2>
+        </div>
       ) : (
-        <EditableTitle
-          key={node.id}
-          value={node.title}
-          onSave={(title) => updateNode(node.id, { title })}
-        />
-      )}
-
-      {/* Icon picker */}
-      {node.folderType !== "complete" && (
-        <div className="relative">
+        <div className="flex items-center gap-2 relative">
           <button
             ref={folderIconRef}
             onClick={() => setShowIconPicker(!showIconPicker)}
-            className="flex items-center gap-2 hover:bg-notion-hover rounded px-1.5 py-1 transition-colors"
+            className="shrink-0 flex items-center justify-center hover:bg-notion-hover rounded p-1 transition-colors"
+            title={t("taskDetailSidebar.folderIcon")}
           >
             {node.icon ? (
-              renderIcon(node.icon, { size: 18 })
+              renderIcon(node.icon, { size: 20 })
             ) : (
-              <Folder size={18} className="text-notion-text-secondary" />
+              <Folder size={20} className="text-notion-text-secondary" />
             )}
-            <span className="text-xs text-notion-text-secondary">
-              {t("taskDetailSidebar.folderIcon")}
-            </span>
           </button>
+          <div className="flex-1 min-w-0">
+            <EditableTitle
+              key={node.id}
+              value={node.title}
+              onSave={(title) => updateNode(node.id, { title })}
+            />
+          </div>
           {showIconPicker && (
             <IconPicker
               value={node.icon}

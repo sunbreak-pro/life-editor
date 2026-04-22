@@ -1,3 +1,27 @@
+### 2026-04-19 - Connect Canvas UX 改善（WikiTag インライン軽量化 / Connect モード + ConnectPanel / Link エッジ / 矩形選択 Pan/Select 切替）（計画書: 外部 `~/.claude/plans/1-wikitags-block-line-height-tags-paddin-curried-bachman.md`）
+
+#### 概要
+
+Connect セクション Node タブ (`TagGraphView`) での「ノード関連付け」体験を 3 点一括改善。(1) 本文中の WikiTag (`.wiki-tag-modern`) の padding-block / 背景 / 枠を削って line-height 内に収まる軽量デザインへ、(2) CanvasControls の 4 ボタン (ZoomIn / ZoomOut / FitView / Filter) に 5 つ目として Connect トグルを追加し、ON 時はノード間ドラッグで `ConnectPanel` を開く新規タグ作成 / 既存タグ選択 → 両 Node へ必ず付与する接続操作を実装、(3) V61 の `note_links` テーブルを TagGraphView のエッジ描画に取り込み、既存タグエッジ（solid）と区別するため破線 emerald（`strokeDasharray: "5 3"`）で表示し Filter パネルに「ノートリンク」ON/OFF トグルを追加。併せてユーザー要望に応じて、Node / Board 両 Canvas の Pan / 選択モードを反転 —— 空白ドラッグは青色矩形選択、二本指スワイプで Pan、Delete/Backspace で選択ノードを一括ソフト削除、ピンチで Zoom。Connect モード中は矩形選択と Delete キーを停止して接続ドラッグとの衝突を回避。Vitest 227/227 pass（新規 5 件）/ `tsc --noEmit` 0 / ESLint（本 PR 範囲）クリーン。
+
+#### 変更点
+
+- **WikiTag インライン軽量化**: `index.css` の `.memo-editor .wiki-tag-modern` を `padding: 0.15rem 0.4rem` + `background: var(--color-hover)` + `border: 1px solid transparent` + `font-size: 0.85em` → `padding: 0 0.25rem` + `background: color-mix(in srgb, var(--color-hover) 55%, transparent)` + `border: none` + `font-size: 0.88em` + `line-height: inherit` + `vertical-align: baseline` に刷新。hover は背景をフル不透明度に切替 + `color: var(--color-accent)` で状態変化を示す。`WikiTagChip` バッジ表示は意図的に手つかず
+- **Connect モードボタン**: `CanvasControls.tsx` に `showConnect` / `connectMode` / `onToggleConnectMode` / `connectLabel` プロップスを追加し、Spline アイコンの 5 つ目トグルボタンを追加。`aria-pressed` + `connectMode` 時 `bg-notion-accent text-white` でアクティブ表示。`showConnect={!sidebarMode}` で Split View 時には非表示
+- **ConnectPanel 新規**: `components/Ideas/Connect/ConnectPanel.tsx`。`createPortal` で overlay + 420px モーダル、Search 入力 / タグリスト（両側に既割当のタグは disabled + `alreadyLinked` バッジ）/ クエリが既存タグ名と完全一致しない && 非空時に「"{name}" を新規タグとして作成」項目、Connect は `selectedTagId || query.trim()` が無い時 disabled、Cancel / Esc で閉じる / Enter で確定。IME 対応 (`e.nativeEvent.isComposing`)
+- **TagGraphView 配線**: `connectMode` / `pendingConnection` state 追加。`handleConnect` は `connectMode` 時に `resolveNodeInfo` で Note/Memo 種別を判定して ConnectPanel を開き、通常時は既存 `noteConnection` 作成へフォールバック。`handleConfirmConnect` が `onConnectViaTag` prop を経由して「必要なら新規タグ作成 → 両 Node に `setTagsForEntity`」を実行。Connect モード時のみ `nodesConnectable={true}` + `nodesDraggable={false}` + CSS `tag-graph-connect-mode` でノード hover カーソルを crosshair 化
+- **ConnectView handler**: `useWikiTags().createTag` を追加取得し `handleConnectViaTag` を新設（新規タグなら `createTag(name, color)` → 両 Node 分 `setTagsForEntity`）。既存 `handleCreateNoteConnection` の manual noteConnection フローは互換のため残置
+- **Link エッジ描画**: `useNoteLinksGraph.ts` 新規（`getDataService().fetchAllNoteLinks()` を mount 時に呼び、`isDeleted=0` のみ state 保持、`life-editor:note-links-changed` CustomEvent を購読して自動再 fetch）+ `dispatchNoteLinksChanged()` export。`useNoteLinkSync.ts` の upsert 成功後に `dispatchNoteLinksChanged()` を呼んで Canvas を同期。`TagGraphView.buildNormalEdges()` の末尾に linkEdges 合成を追加（`source_memo_date` のケースは `memo-YYYY-MM-DD` に組み立て、`pairEdgeCount` と共有して同ペアの tag / manual / link エッジが曲率オフセットで重ならない）。スタイルは `stroke: #10b981` / `strokeDasharray: "5 3"` / `strokeWidth: 1.5` / `opacity: 0.75`
+- **Filter: Note Links トグル**: `displayFilterItems` 末尾に `VIRTUAL_LINK_EDGES_HIDDEN_ID` の仮想フィルタを常設。`activeFilterIds.has(VIRTUAL_LINK_EDGES_HIDDEN_ID)` が true の時 `linkEdges = []` として描画を抑止。`activeFilterResult` の decompose で同 ID を `realTagIds` に混入させない分岐を追加
+- **Pan / 選択モード切替**: `TagGraphView` と `PaperCanvasView` 両方の `<ReactFlow>` に `panOnDrag={false}` / `selectionOnDrag={!connectMode}`（Paper は常時 true）/ `selectNodesOnDrag={false}` / `panOnScroll` / `zoomOnScroll={false}` / `zoomOnPinch` を追加。二本指トラックパッドスワイプが scroll event として Pan に変換され、ピンチズームは維持。マウスホイール直接ズームは無効化（ズームはピンチ / zoom ボタン / fitView で対応）
+- **一括ソフト削除**: `TagGraphView` に `deleteKeyCode={connectMode ? null : ["Delete", "Backspace"]}` + `multiSelectionKeyCode="Shift"` + `onNodesDelete={handleNodesDelete}` を追加。`handleNodesDelete` は削除対象ノードを `node.type === "noteNode"` / `"memoNode"` で分岐し、Memo は `node.id.startsWith("memo-")` から日付を復元して `deleteMemo(date)` を、Note は `softDeleteNote(noteId)` を呼び出す。`ConnectView` 側で `useMemoContext().deleteMemo` / `useNoteContext().softDeleteNote` を `onDeleteMemoEntity` / `onDeleteNoteEntity` として TagGraphView に渡す。`PaperCanvasView` は既存の `deleteKeyCode` + `handleDeleteSelected` を流用
+- **i18n**: en / ja 両方に `connect.toggleConnectMode` / `connect.linkEdges` / `connect.panel.{title, searchPlaceholder, createNew, connect, cancel, alreadyLinked, noTags}` を追加
+- **テスト**: `src/hooks/useNoteLinksGraph.test.ts` を新規追加（fetches on mount / filters soft-deleted / refetches on dispatch event / cleans up listener on unmount / logs `console.warn` on fetch error、計 5 件）。`createMockDataService` は `fetchAllNoteLinks` を持たないためテスト内でランタイム上書き（mockDataService 自体は `tsconfig.app.json` の exclude 下にあり tsc 対象外）
+- **CSS**: `.tag-graph-connect-mode .react-flow__node:hover { cursor: crosshair !important; }` を追加
+- **検証**: `npx tsc --noEmit` 0 / `npx eslint` 本 PR 範囲クリーン（`PaperCanvasView.tsx` の既存 `isDescendant` / `getMaxSubtreeDepth` の React Compiler immutability / use-before-declared 警告 6 件は commit `aced45ed` 由来でセッション範囲外）/ `npx vitest run` 27 files → 28 files, 222 → 227 pass
+
+---
+
 ### 2026-04-19 - Obsidian Phase 1 フォローアップ（記法分離 `@`化 / アイコン表示 / Daily Memo→Notes 遷移 / routine_groups.version sync fix）
 
 #### 概要

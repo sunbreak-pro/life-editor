@@ -14,9 +14,9 @@
 
 ## 直近の完了
 
+- TaskTree + Folder DetailPanel ヘッダー簡素化 ✅（2026-04-23）— TaskTree フォルダ行が `node.icon` に追従（`TaskNodeCheckbox` に `icon` prop 追加 + `renderIcon` 描画） / Folder DetailPanel のアイコンピッカーをタイトル左横にインライン統合（独立 Icon Picker ブロック撤去）/ Task DetailPanel の「Move to folder」機能と `FolderMovePicker.tsx` を完全廃止（手動 DnD 代替） / Complete フォルダ選択時に TaskTree 展開ドロップダウン + DetailPanel DONE 一覧表示（`activeChildren` / `children` useMemo を `isSystemFolder` / `folderType === "complete"` で分岐）。`FOLDER_MOVE_CONFIRM_SKIP` storage key 同期削除。i18n の `moveToFolder` / `moveFolderConfirm` は working tree 上は削除済みだが memos→daily refactor と entangle しているため本コミットから意図的に除外（別セッションで合流予定）。Vitest 231 pass / tsc -b 編集 4 ファイル 0 error / eslint 6 件は編集前既存の `react-hooks/refs`（`git stash push -- TaskDetailPanel.tsx` で同エラー確認済、スコープ外）
 - Routine schedule_items 重複の根本修正 + Cloud sync initial-pull 500 件 cap 暫定対応(Known Issues 011 / 012)✅（2026-04-22）— 4 層欠陥(DB UNIQUE 制約欠落 / sync 衝突解決が id 単独 / Frontend Map キー単独 / Rust `create()` ガード欠如)を `V63` migration + `schedule_item_repository::create()` の (routine_id, date) ガード + `sync_engine::upsert_versioned` の schedule_items 特別扱い + `cloud/src/routes/sync.ts::push` の pre-dedup + 複合キー `${routineId}:${date}` + backfill existingSet で根治。Cloud D1 の既存 1,181 行を dry-run preview 付きで DELETE、partial UNIQUE index を SQLite/D1 両端に張り恒久化。iOS 再インストール過程で (a) Xcode PATH 問題(`/usr/local/bin` へ cargo/rustc/rustup を symlink で解消) (b) dead code `IdeasView.tsx` 削除 (c) `MobileNoteView.tsx` の未使用 useEffect 除去 (d) Cloud Worker `/sync/changes` LIMIT=500 が 4/14-4/22 の routine を切り落とす Known Issue 012 を LIMIT=5000 へ bump + 暫定対応で解消。本命 fix(client pagination)は別セッション。`cargo check` 0 / frontend build 11.15s / vitest 231 pass / cloud tsc 0
 - Notes Mobile/Desktop エディタ統合 Part A（Phase A）✅（2026-04-21）— Desktop `MemoEditor` を Mobile でも直接使用、`useIsTouchDevice` フック新設、ルート div レスポンシブ化、旧 `MobileRichEditor` と `extensions/mobile/` 削除、`useIsTouchDevice.test.ts` 4 件追加
-- Cloud Sync ブロッカー 3 件解消（Known Issues 004 / 005 / 008）✅（2026-04-20）— V62 migration + `tasks_updated_at_insert` トリガー + `set_tags_for_*` 3 箇所に親 bump + `shouldCreateRoutineItem` タグ必須フィルタ撤去
 
 ## 予定
 

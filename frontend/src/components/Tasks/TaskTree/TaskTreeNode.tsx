@@ -109,10 +109,13 @@ export const TaskTreeNode = memo(function TaskTreeNode({
       );
       return sortTaskNodes(children, sortMode, sortDirection);
     }
-    // Include Complete system folders (they hold DONE tasks but aren't DONE themselves)
-    const active = rawChildren.filter(
-      (c) => c.status !== "DONE" || c.folderType === "complete",
-    );
+    // Complete system folder: show all DONE children inside it
+    // Normal folder: exclude DONE except Complete sub-folders
+    const active = isSystemFolder
+      ? rawChildren
+      : rawChildren.filter(
+          (c) => c.status !== "DONE" || c.folderType === "complete",
+        );
     const sorted = sortTaskNodes(active, sortMode, sortDirection);
     if (isSearching && searchMatchIds) {
       return sorted.filter((c) => searchMatchIds.has(c.id));
@@ -126,6 +129,7 @@ export const TaskTreeNode = memo(function TaskTreeNode({
     searchMatchIds,
     isInCompletedTree,
     completedTreeContainerIds,
+    isSystemFolder,
   ]);
 
   const childIds = useMemo(
@@ -295,6 +299,7 @@ export const TaskTreeNode = memo(function TaskTreeNode({
               isExpanded={node.isExpanded}
               isDragging={isDragging}
               color={node.color}
+              icon={node.icon}
               isCompletedItem={showAsCompleted}
               onToggleExpand={handleToggleExpand}
               onToggleStatus={

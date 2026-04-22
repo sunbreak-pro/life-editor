@@ -16,7 +16,6 @@ export const STORAGE_KEYS = {
   TIMER_PLAYLIST_ID: "life-editor-timer-playlist-id",
   ACTIVE_PLAYLIST_ID: "life-editor-active-playlist-id",
   ROUTINE_TIME_SLOTS: "life-editor-routine-time-slots",
-  FOLDER_MOVE_CONFIRM_SKIP: "life-editor-folder-move-confirm-skip",
   SHORTCUT_CONFIG: "life-editor-shortcut-config",
   RIGHT_SIDEBAR_OPEN: "life-editor-right-sidebar-open",
   RIGHT_SIDEBAR_WIDTH: "life-editor-right-sidebar-width",
