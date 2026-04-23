@@ -306,6 +306,7 @@ type: `feat` / `fix` / `docs` / `style` / `refactor` / `test` / `chore`
 ### 次フェーズ計画
 
 - [`vision/mobile-porting.md`](./docs/vision/mobile-porting.md) — Desktop → iOS 移植 + Cloud Sync 連携（主戦場）
+- [`requirements/ios-additions.md`](./docs/requirements/ios-additions.md) — iOS 限定の上乗せ要件（Global / Per-section）
 - [`vision/ios-everywhere-sync.md`](./docs/vision/ios-everywhere-sync.md) — Apple Developer Program 不加入での iOS 常時インストール運用（無料署名 + 週次再署名）
 - [`vision/desktop-followup.md`](./docs/vision/desktop-followup.md) — Desktop 残課題（Materials File タブ / Notes / Board）
 
