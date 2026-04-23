@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, useMemo } from "react";
 import type { TaskNode } from "../../../../types/taskTree";
-import type { MemoNode } from "../../../../types/memo";
+import type { DailyNode } from "../../../../types/daily";
 import { TIME_GRID } from "../../../../constants/timeGrid";
 import { TimeGridTaskBlock } from "../shared/TimeGridTaskBlock";
 import { formatDateKey } from "../../../../utils/dateKey";
@@ -28,7 +28,7 @@ interface WeeklyTimeGridProps {
   onCreateTask?: (date: Date, event: React.MouseEvent) => void;
   getTaskColor?: (taskId: string) => string | undefined;
   getFolderTag?: (taskId: string) => string;
-  memosByDate?: Map<string, MemoNode>;
+  memosByDate?: Map<string, DailyNode>;
   onSelectMemo?: (date: string) => void;
   getRoutineCompletion?: (
     date: string,

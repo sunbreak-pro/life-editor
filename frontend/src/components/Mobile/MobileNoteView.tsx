@@ -14,7 +14,7 @@ import {
 } from "lucide-react";
 import type { NoteNode } from "../../types/note";
 import { useNoteContext } from "../../hooks/useNoteContext";
-import { LazyMemoEditor as MemoEditor } from "../Tasks/TaskDetail/LazyMemoEditor";
+import { LazyRichTextEditor as RichTextEditor } from "../shared/LazyRichTextEditor";
 import { MobileNoteTree } from "./materials/MobileNoteTree";
 import { MobileNoteTreeItem } from "./materials/MobileNoteTreeItem";
 import {
@@ -499,7 +499,7 @@ function MobileNoteDetail({ note, onBack, onUpdate }: MobileNoteDetailProps) {
             </div>
           }
         >
-          <MemoEditor
+          <RichTextEditor
             taskId={note.id}
             initialContent={note.content || ""}
             onUpdate={handleContentChange}

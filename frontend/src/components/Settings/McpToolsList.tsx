@@ -80,14 +80,14 @@ const TOOL_CATEGORIES: ToolCategory[] = [
     ],
   },
   {
-    key: "memos",
+    key: "dailies",
     tools: [
       {
-        name: "get_memo",
+        name: "get_daily",
         params: [{ name: "date", type: "string (YYYY-MM-DD)", required: true }],
       },
       {
-        name: "upsert_memo",
+        name: "upsert_daily",
         params: [
           { name: "date", type: "string (YYYY-MM-DD)", required: true },
           { name: "content", type: "string", required: true },
@@ -169,7 +169,7 @@ const TOOL_CATEGORIES: ToolCategory[] = [
           { name: "query", type: "string", required: true },
           {
             name: "domains",
-            type: "array (tasks | memos | notes)",
+            type: "array (tasks | dailies | notes)",
             required: false,
           },
           { name: "limit", type: "number", required: false },

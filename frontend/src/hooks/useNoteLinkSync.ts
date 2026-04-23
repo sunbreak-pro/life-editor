@@ -8,7 +8,7 @@ import type { NoteLinkPayload } from "../types/noteLink";
 
 type Source =
   | { kind: "note"; noteId: string }
-  | { kind: "memo"; memoDate: string }
+  | { kind: "daily"; dailyDate: string }
   | null;
 
 function payloadKey(p: NoteLinkPayload): string {
@@ -40,7 +40,7 @@ export function useNoteLinkSync(editor: Editor | null, source: Source) {
       if (source.kind === "note") {
         await ds.upsertNoteLinksForNote(source.noteId, links);
       } else {
-        await ds.upsertNoteLinksForMemo(source.memoDate, links);
+        await ds.upsertNoteLinksForDaily(source.dailyDate, links);
       }
       dispatchNoteLinksChanged();
     } catch (err) {

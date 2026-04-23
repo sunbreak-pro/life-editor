@@ -9,7 +9,7 @@ import { TagGraphView } from "./Connect/TagGraphView";
 import { ConnectSidebar } from "./Connect/ConnectSidebar";
 import { PaperCanvasView } from "./Connect/Paper/PaperCanvasView";
 import { PaperSidebar } from "./Connect/Paper/PaperSidebar";
-import { useMemoContext } from "../../hooks/useMemoContext";
+import { useDailyContext } from "../../hooks/useDailyContext";
 import { useNoteContext } from "../../hooks/useNoteContext";
 import { useWikiTags } from "../../hooks/useWikiTags";
 import { useNoteConnections } from "../../hooks/useNoteConnections";
@@ -53,7 +53,7 @@ export function ConnectView({
   const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState<ConnectTab>(loadConnectTab);
 
-  const { memos, setSelectedDate, deleteMemo } = useMemoContext();
+  const { dailies, setSelectedDate, deleteDaily } = useDailyContext();
   const { notes, setSelectedNoteId, createNote, softDeleteNote, updateNote } =
     useNoteContext();
   const { assignments, tags, setTagsForEntity, createTag } = useWikiTags();
@@ -230,7 +230,7 @@ export function ConnectView({
             tags={tags}
             assignments={assignments}
             notes={notes}
-            memos={memos}
+            dailies={dailies}
             onSelectTag={setSelectedTagId}
             onNavigateToNote={handleNavigateToNote}
             onCreateNote={handleCreateNoteForConnect}
@@ -286,9 +286,9 @@ export function ConnectView({
               onDeleteNoteConnection={handleDeleteNoteConnection}
               onConnectViaTag={handleConnectViaTag}
               onDeleteNoteEntity={softDeleteNote}
-              onDeleteMemoEntity={deleteMemo}
+              onDeleteDailyEntity={deleteDaily}
               notes={notes}
-              memos={memos}
+              dailies={dailies}
               onNavigateToNote={handleNavigateToNote}
               onNavigateToMemo={handleNavigateToMemo}
               onUpdateNoteColor={handleUpdateNoteColor}
@@ -306,7 +306,7 @@ export function ConnectView({
               paperNodes={paper.nodes}
               paperEdges={paper.edges}
               notes={notes}
-              memos={memos}
+              dailies={dailies}
               onCreateNode={paper.createNode}
               onUpdateNode={paper.updateNode}
               onBulkUpdatePositions={paper.bulkUpdatePositions}

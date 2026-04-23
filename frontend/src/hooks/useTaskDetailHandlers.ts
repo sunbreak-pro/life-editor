@@ -21,7 +21,7 @@ interface UseTaskDetailHandlersParams {
   setSelectedTaskId: (id: string | null) => void;
   setActiveSection: (section: SectionId) => void;
   setScheduleTab?: React.Dispatch<React.SetStateAction<ScheduleTab>>;
-  setMemoDate: (date: string) => void;
+  setDailyDate: (date: string) => void;
   createNote?: (title?: string) => string;
   setSelectedNoteId?: (id: string | null) => void;
 }
@@ -37,7 +37,7 @@ export function useTaskDetailHandlers({
   setSelectedTaskId,
   setActiveSection,
   setScheduleTab,
-  setMemoDate,
+  setDailyDate,
   createNote,
   setSelectedNoteId,
 }: UseTaskDetailHandlersParams) {
@@ -207,10 +207,10 @@ export function useTaskDetailHandlers({
   const handleCalendarSelectMemo = useCallback(
     (date: string) => {
       localStorage.setItem(STORAGE_KEYS.MATERIALS_TAB, "daily");
-      setMemoDate(date);
+      setDailyDate(date);
       setActiveSection("materials");
     },
-    [setMemoDate, setActiveSection],
+    [setDailyDate, setActiveSection],
   );
 
   const handleCalendarSelectNote = useCallback(

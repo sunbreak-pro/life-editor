@@ -7,7 +7,7 @@ use crate::db::helpers;
 /// Versioned tables: have `version`, `updated_at` columns.
 const VERSIONED_TABLES: &[(&str, &str)] = &[
     ("tasks", "id"),
-    ("memos", "id"),
+    ("dailies", "id"),
     ("notes", "id"),
     ("schedule_items", "id"),
     ("routines", "id"),
@@ -37,7 +37,7 @@ pub fn collect_local_changes(
 
     // Versioned tables
     payload.tasks = query_changed(conn, "tasks", since)?;
-    payload.memos = query_changed(conn, "memos", since)?;
+    payload.dailies = query_changed(conn, "dailies", since)?;
     payload.notes = query_changed(conn, "notes", since)?;
     payload.schedule_items = query_changed(conn, "schedule_items", since)?;
     payload.routines = query_changed(conn, "routines", since)?;
@@ -368,7 +368,7 @@ fn json_to_sql(val: &Value) -> Box<dyn rusqlite::types::ToSql> {
 fn get_payload_field<'a>(payload: &'a SyncPayload, table: &str) -> &'a [Value] {
     match table {
         "tasks" => &payload.tasks,
-        "memos" => &payload.memos,
+        "dailies" => &payload.dailies,
         "notes" => &payload.notes,
         "schedule_items" => &payload.schedule_items,
         "routines" => &payload.routines,
@@ -388,7 +388,7 @@ fn get_payload_field<'a>(payload: &'a SyncPayload, table: &str) -> &'a [Value] {
 fn set_payload_field(payload: &mut SyncPayload, table: &str, rows: Vec<Value>) {
     match table {
         "tasks" => payload.tasks = rows,
-        "memos" => payload.memos = rows,
+        "dailies" => payload.dailies = rows,
         "notes" => payload.notes = rows,
         "schedule_items" => payload.schedule_items = rows,
         "routines" => payload.routines = rows,

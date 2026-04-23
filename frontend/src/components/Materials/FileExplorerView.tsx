@@ -2,7 +2,7 @@ import { useState, useCallback, useEffect, useRef } from "react";
 import { getDataService } from "../../services/dataServiceFactory";
 import { useToast } from "../../context/ToastContext";
 import { useNoteContext } from "../../hooks/useNoteContext";
-import { useMemoContext } from "../../hooks/useMemoContext";
+import { useDailyContext } from "../../hooks/useDailyContext";
 import { DatePickerDialog } from "../shared/DatePickerDialog";
 import {
   ChevronRight,
@@ -201,7 +201,7 @@ export function FileExplorerView() {
   const gridRef = useRef<HTMLDivElement>(null);
   const { showToast } = useToast();
   const { createNote, updateNote } = useNoteContext();
-  const { upsertMemo } = useMemoContext();
+  const { upsertDaily } = useDailyContext();
 
   const handleCopyToNote = useCallback(
     async (entry: FileEntry) => {
@@ -235,7 +235,7 @@ export function FileExplorerView() {
         const { content } = await ds.convertFileToTiptap(
           datePickerEntry.relativePath,
         );
-        upsertMemo(date, content);
+        upsertDaily(date, content);
         showToast("success", t("copy.copiedToMemo", { date }));
       } catch (e) {
         showToast(
@@ -246,7 +246,7 @@ export function FileExplorerView() {
         setDatePickerEntry(null);
       }
     },
-    [datePickerEntry, upsertMemo, showToast, t],
+    [datePickerEntry, upsertDaily, showToast, t],
   );
 
   const handleOpen = useCallback(

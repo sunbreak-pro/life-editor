@@ -1,5 +1,5 @@
 import type { TaskNode } from "./taskTree";
-import type { MemoNode } from "./memo";
+import type { DailyNode } from "./daily";
 import type { NoteNode } from "./note";
 import type { ScheduleItem } from "./schedule";
 import type { RoutineGroup } from "./routineGroup";
@@ -25,7 +25,7 @@ export interface CalendarItem {
   title: string;
   color: string;
   task?: TaskNode;
-  memo?: MemoNode;
+  daily?: DailyNode;
   note?: NoteNode;
   scheduleItem?: ScheduleItem;
   routineGroup?: RoutineGroup;

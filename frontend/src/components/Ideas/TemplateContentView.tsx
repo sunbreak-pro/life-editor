@@ -3,7 +3,7 @@ import { FileText, Star, Trash2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useTemplateContext } from "../../hooks/useTemplateContext";
 import { formatDateTime } from "../../utils/formatRelativeDate";
-import { LazyMemoEditor as MemoEditor } from "../Tasks/TaskDetail/LazyMemoEditor";
+import { LazyRichTextEditor as RichTextEditor } from "../shared/LazyRichTextEditor";
 
 export function TemplateContentView() {
   const { t } = useTranslation();
@@ -146,7 +146,7 @@ export function TemplateContentView() {
             </div>
           }
         >
-          <MemoEditor
+          <RichTextEditor
             taskId={selectedTemplate.id}
             initialContent={selectedTemplate.content}
             onUpdate={handleContentUpdate}

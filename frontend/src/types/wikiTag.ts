@@ -15,7 +15,7 @@ export interface WikiTagAssignment {
   createdAt: string;
 }
 
-export type WikiTagEntityType = "task" | "memo" | "note";
+export type WikiTagEntityType = "task" | "daily" | "note";
 
 export interface WikiTagConnection {
   id: string;

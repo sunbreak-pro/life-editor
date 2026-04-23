@@ -15,7 +15,7 @@ import { ScheduleSidebarContent } from "./ScheduleSidebarContent";
 import { useTaskTreeContext } from "../../hooks/useTaskTreeContext";
 import { useCalendar } from "../../hooks/useCalendar";
 import { useScheduleContext } from "../../hooks/useScheduleContext";
-import { useMemoContext } from "../../hooks/useMemoContext";
+import { useDailyContext } from "../../hooks/useDailyContext";
 import { useNoteContext } from "../../hooks/useNoteContext";
 import { formatDateKey } from "../../utils/dateKey";
 import { RightSidebarContext } from "../../context/RightSidebarContext";
@@ -154,7 +154,7 @@ export function ScheduleSection({
   const { nodes, getTaskColor, getFolderTagForTask, updateNode, softDelete } =
     useTaskTreeContext();
   const { push: pushUndo } = useUndoRedo();
-  const { memos } = useMemoContext();
+  const { dailies } = useDailyContext();
   const { notes } = useNoteContext();
 
   const { tasksByDate } = useCalendar(
@@ -425,7 +425,7 @@ export function ScheduleSection({
     const otherCompleted = otherItems.filter((i) => i.completed).length;
 
     // Daily: memo exists for this date → 1/1, otherwise 0/0
-    const hasDailyMemo = memos.some(
+    const hasDailyMemo = dailies.some(
       (m) => m.date === calendarProgressDateKey && !m.isDeleted,
     );
     const dailyTotal = hasDailyMemo ? 1 : 0;
@@ -466,7 +466,7 @@ export function ScheduleSection({
     calendarTasksByDate,
     allTasksByDate,
     calendarProgressDateKey,
-    memos,
+    dailies,
     notes,
   ]);
 

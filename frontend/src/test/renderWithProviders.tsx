@@ -7,7 +7,7 @@ import { UndoRedoProvider } from "../context/UndoRedoContext";
 import { ScreenLockProvider } from "../context/ScreenLockContext";
 import { TaskTreeProvider } from "../context/TaskTreeContext";
 import { CalendarProvider } from "../context/CalendarContext";
-import { MemoProvider } from "../context/MemoContext";
+import { DailyProvider } from "../context/DailyContext";
 import { NoteProvider } from "../context/NoteContext";
 import { FileExplorerProvider } from "../context/FileExplorerContext";
 import { RoutineProvider } from "../context/RoutineContext";
@@ -28,7 +28,7 @@ function AllProviders({ children }: { children: ReactNode }) {
             <TaskTreeProvider>
               <CalendarProvider>
                 <TemplateProvider>
-                  <MemoProvider>
+                  <DailyProvider>
                     <NoteProvider>
                       <FileExplorerProvider>
                         <RoutineProvider>
@@ -48,7 +48,7 @@ function AllProviders({ children }: { children: ReactNode }) {
                         </RoutineProvider>
                       </FileExplorerProvider>
                     </NoteProvider>
-                  </MemoProvider>
+                  </DailyProvider>
                 </TemplateProvider>
               </CalendarProvider>
             </TaskTreeProvider>

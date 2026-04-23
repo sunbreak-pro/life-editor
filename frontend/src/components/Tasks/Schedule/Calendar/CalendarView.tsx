@@ -4,7 +4,7 @@ import { useTranslation } from "react-i18next";
 import type { TaskNode } from "../../../../types/taskTree";
 import { useTaskTreeContext } from "../../../../hooks/useTaskTreeContext";
 import { useCalendarContext } from "../../../../hooks/useCalendarContext";
-import { useMemoContext } from "../../../../hooks/useMemoContext";
+import { useDailyContext } from "../../../../hooks/useDailyContext";
 import { useNoteContext } from "../../../../hooks/useNoteContext";
 import { useCalendar } from "../../../../hooks/useCalendar";
 import {
@@ -38,7 +38,7 @@ import {
   type ConversionRole,
   type ConversionSource,
 } from "../../../../hooks/useRoleConversion";
-import type { MemoNode } from "../../../../types/memo";
+import type { DailyNode } from "../../../../types/daily";
 import type { NoteNode } from "../../../../types/note";
 
 function GroupPreviewPopup({
@@ -214,7 +214,7 @@ export function CalendarView({
     setTaskStatus,
   } = useTaskTreeContext();
   const { activeCalendar } = useCalendarContext();
-  const { memos, upsertMemo } = useMemoContext();
+  const { dailies, upsertDaily } = useDailyContext();
   const { language } = useTheme();
   const [showHolidays, setShowHolidays] = useLocalStorage<boolean>(
     STORAGE_KEYS.CALENDAR_SHOW_HOLIDAYS,
@@ -304,7 +304,7 @@ export function CalendarView({
     onOpenDetail: () => void;
     noteId?: string;
     date: string;
-    memoNode?: MemoNode;
+    dailyNode?: DailyNode;
     noteNode?: NoteNode;
   } | null>(null);
   const [scheduleItemPreview, setScheduleItemPreview] = useState<{
@@ -357,7 +357,7 @@ export function CalendarView({
     month,
     filter,
     weekStartDate,
-    memos,
+    dailies,
     notes,
     contentFilters,
     monthlyScheduleItems,
@@ -546,21 +546,21 @@ export function CalendarView({
           taskId: item.id,
           position: { x: e.clientX, y: e.clientY },
         });
-      } else if (item.type === "daily" && item.memo) {
+      } else if (item.type === "daily" && item.daily) {
         setPreviewPopup(null);
         setScheduleItemPreview(null);
-        const memo = item.memo;
+        const daily = item.daily;
         setMemoPreview({
           kind: "daily",
-          title: memo.date,
-          content: memo.content,
+          title: daily.date,
+          content: daily.content,
           position: { x: e.clientX, y: e.clientY },
           onOpenDetail: () => {
-            onSelectMemo?.(memo.date);
+            onSelectMemo?.(daily.date);
             setMemoPreview(null);
           },
-          date: memo.date,
-          memoNode: memo,
+          date: daily.date,
+          dailyNode: daily,
         });
       } else if (item.type === "note" && item.note) {
         setPreviewPopup(null);
@@ -619,7 +619,7 @@ export function CalendarView({
 
   // Check if a daily exists for the note-create date
   const noteCreateDateHasDaily = noteCreatePopover
-    ? memos.some((m) => {
+    ? dailies.some((m) => {
         const dateKey = formatDateKey(noteCreatePopover.date);
         return m.date === dateKey && !m.isDeleted;
       })
@@ -719,7 +719,7 @@ export function CalendarView({
             setNoteCreatePopover(null);
           }}
           onCreateDaily={(dateKey) => {
-            upsertMemo(dateKey, "");
+            upsertDaily(dateKey, "");
             setNoteCreatePopover(null);
           }}
           onOpenExistingDaily={() => {
@@ -754,13 +754,13 @@ export function CalendarView({
           }}
           onSelectDaily={() => {
             const dateKey = formatDateKey(createMenuPopover.date);
-            const hasDaily = memos.some(
+            const hasDaily = dailies.some(
               (m) => m.date === dateKey && !m.isDeleted,
             );
             if (hasDaily) {
               onSelectMemo?.(dateKey);
             } else {
-              upsertMemo(dateKey, "");
+              upsertDaily(dateKey, "");
             }
             setCreateMenuPopover(null);
           }}
@@ -971,7 +971,7 @@ export function CalendarView({
           onConvertRole={(targetRole) => {
             const source: ConversionSource = {
               role: memoPreview.kind,
-              memo: memoPreview.memoNode,
+              daily: memoPreview.dailyNode,
               note: memoPreview.noteNode,
               date: memoPreview.date,
             };
@@ -981,7 +981,7 @@ export function CalendarView({
           }}
           disabledRoles={getDisabledRoles({
             role: memoPreview.kind,
-            memo: memoPreview.memoNode,
+            daily: memoPreview.dailyNode,
             note: memoPreview.noteNode,
             date: memoPreview.date,
           })}

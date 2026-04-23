@@ -638,6 +638,14 @@ fn has_column(conn: &Connection, table: &str, column: &str) -> bool {
     false
 }
 
+/// Helper: check if a table exists in the database.
+fn has_table(conn: &Connection, table: &str) -> bool {
+    let mut stmt = conn
+        .prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name = ?1 LIMIT 1")
+        .unwrap();
+    stmt.query_row([table], |_| Ok(())).is_ok()
+}
+
 fn run_incremental_migrations(conn: &Connection, current_version: i32) -> rusqlite::Result<()> {
     // V2: Tags (unified) + task_templates
     if current_version < 2 {
@@ -1937,6 +1945,97 @@ fn run_incremental_migrations(conn: &Connection, current_version: i32) -> rusqli
         conn.pragma_update(None, "user_version", &63i32)?;
     }
 
+    if current_version < 64 {
+        eprintln!(
+            "V64: rename memos → dailies (incl. note_links.source_memo_date → source_daily_date)"
+        );
+
+        // 1) Create new `dailies` table (same shape as `memos`)
+        exec_ignore(
+            conn,
+            "CREATE TABLE IF NOT EXISTS dailies (
+                 id TEXT PRIMARY KEY,
+                 date TEXT NOT NULL UNIQUE,
+                 content TEXT DEFAULT '',
+                 created_at TEXT NOT NULL,
+                 updated_at TEXT NOT NULL,
+                 is_deleted INTEGER DEFAULT 0,
+                 deleted_at TEXT,
+                 is_pinned INTEGER DEFAULT 0,
+                 password_hash TEXT DEFAULT NULL,
+                 is_edit_locked INTEGER DEFAULT 0,
+                 version INTEGER DEFAULT 1
+             );",
+        );
+
+        // 2) Copy rows from `memos` with id transform
+        //    memo-YYYY-MM-DD → daily-YYYY-MM-DD (substr(id, 6) strips "memo-")
+        //    Guarded with has_table so rerun / fresh-install paths stay idempotent.
+        if has_table(conn, "memos") {
+            exec_ignore(
+                conn,
+                "INSERT OR IGNORE INTO dailies
+                     (id, date, content, created_at, updated_at,
+                      is_deleted, deleted_at, is_pinned,
+                      password_hash, is_edit_locked, version)
+                 SELECT 'daily-' || substr(id, 6),
+                        date, content, created_at, updated_at,
+                        is_deleted, deleted_at, is_pinned,
+                        password_hash, is_edit_locked, version
+                 FROM memos;",
+            );
+        }
+
+        // 3) Rename note_links column: source_memo_date → source_daily_date
+        //    (SQLite 3.25+ supports RENAME COLUMN; rusqlite bundled ships ≥3.40)
+        if has_column(conn, "note_links", "source_memo_date") {
+            exec_ignore(
+                conn,
+                "ALTER TABLE note_links RENAME COLUMN source_memo_date TO source_daily_date;",
+            );
+        }
+
+        // 3b) Update wiki_tag_assignments: rewrite entity_type 'memo' → 'daily'
+        //     and transform entity_id from memo-YYYY-MM-DD to daily-YYYY-MM-DD.
+        exec_ignore(
+            conn,
+            "UPDATE wiki_tag_assignments
+                 SET entity_type = 'daily',
+                     entity_id   = 'daily-' || substr(entity_id, 6)
+                 WHERE entity_type = 'memo';",
+        );
+
+        // 3c) Update paper_nodes.ref_entity_type/ref_entity_id the same way.
+        exec_ignore(
+            conn,
+            "UPDATE paper_nodes
+                 SET ref_entity_type = 'daily',
+                     ref_entity_id   = 'daily-' || substr(ref_entity_id, 6)
+                 WHERE ref_entity_type = 'memo';",
+        );
+
+        // 4) Drop old `memos` table
+        exec_ignore(conn, "DROP TABLE IF EXISTS memos;");
+
+        // 5) Rebuild indexes
+        exec_ignore(conn, "CREATE INDEX IF NOT EXISTS idx_dailies_date ON dailies(date);");
+        exec_ignore(
+            conn,
+            "CREATE INDEX IF NOT EXISTS idx_dailies_deleted ON dailies(is_deleted);",
+        );
+        exec_ignore(
+            conn,
+            "CREATE INDEX IF NOT EXISTS idx_dailies_updated_at ON dailies(updated_at);",
+        );
+        exec_ignore(conn, "DROP INDEX IF EXISTS idx_note_links_source_memo;");
+        exec_ignore(
+            conn,
+            "CREATE INDEX IF NOT EXISTS idx_note_links_source_daily ON note_links(source_daily_date);",
+        );
+
+        conn.pragma_update(None, "user_version", &64i32)?;
+    }
+
     // Defensive: ensure schedule_items.template_id exists. Fresh DBs created
     // before the initial schema was fixed (v59-) lack this column, which
     // breaks Cloud Sync when pulling data from other devices.
@@ -1980,7 +2079,7 @@ mod tests {
         let conn = Connection::open_in_memory().unwrap();
         run_migrations(&conn).unwrap();
 
-        assert_eq!(user_version(&conn), 62);
+        assert_eq!(user_version(&conn), 64);
         for orphan in [
             "ai_settings",
             "routine_logs",
@@ -2018,7 +2117,7 @@ mod tests {
 
         run_migrations(&conn).unwrap();
 
-        assert_eq!(user_version(&conn), 62);
+        assert_eq!(user_version(&conn), 64);
         assert!(table_exists(&conn, "note_links"));
         assert!(table_exists(&conn, "note_aliases"));
     }
@@ -2044,7 +2143,7 @@ mod tests {
 
         run_migrations(&conn).unwrap();
 
-        assert_eq!(user_version(&conn), 62);
+        assert_eq!(user_version(&conn), 64);
         for dropped in [
             "ai_settings",
             "routine_logs",
@@ -2062,7 +2161,7 @@ mod tests {
             );
         }
         // Live tables remain intact.
-        for live in ["tasks", "notes", "memos", "routines", "wiki_tags", "schedule_items"] {
+        for live in ["tasks", "notes", "dailies", "routines", "wiki_tags", "schedule_items"] {
             assert!(table_exists(&conn, live), "live table {live} must remain");
         }
     }
@@ -2074,7 +2173,7 @@ mod tests {
         let version_after_first = user_version(&conn);
         run_migrations(&conn).unwrap();
         assert_eq!(user_version(&conn), version_after_first);
-        assert_eq!(user_version(&conn), 62);
+        assert_eq!(user_version(&conn), 64);
     }
 
     #[test]
@@ -2122,6 +2221,83 @@ mod tests {
             new_updated_at.is_some(),
             "V62 trigger must auto-set updated_at on INSERT"
         );
+    }
+
+    #[test]
+    fn v64_renames_memos_to_dailies_and_transforms_ids() {
+        // Simulate pre-V64 schema: create_full_schema yields `memos` table.
+        let conn = Connection::open_in_memory().unwrap();
+        create_full_schema(&conn).unwrap();
+        conn.pragma_update(None, "user_version", &63i32).unwrap();
+
+        // Seed two memo rows + a note_links row referencing source_memo_date +
+        // a wiki_tag_assignments row of entity_type='memo' + a paper_nodes row
+        // with ref_entity_type='memo'.
+        conn.execute_batch(
+            "INSERT INTO memos (id, date, content, created_at, updated_at, version)
+                 VALUES ('memo-2026-01-01', '2026-01-01', 'jan 1', '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z', 1);
+             INSERT INTO memos (id, date, content, created_at, updated_at, version, is_pinned)
+                 VALUES ('memo-2026-02-02', '2026-02-02', 'feb 2', '2026-02-02T00:00:00Z', '2026-02-02T00:00:00Z', 3, 1);
+             INSERT INTO notes (id, title, content, created_at, updated_at, version, is_deleted)
+                 VALUES ('note-target', 'Target', '', '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z', 1, 0);
+             INSERT INTO note_links
+                 (id, source_note_id, source_memo_date, target_note_id, target_heading,
+                  target_block_id, alias, link_type, created_at, updated_at, version, is_deleted)
+                 VALUES ('nl-1', NULL, '2026-01-01', 'note-target', NULL, NULL, NULL, 'inline',
+                         '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z', 1, 0);
+             INSERT INTO wiki_tags (id, name, color, created_at, updated_at, version)
+                 VALUES ('tag-1', 'Tag1', '#000', '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z', 1);
+             INSERT INTO wiki_tag_assignments (tag_id, entity_id, entity_type, source, created_at)
+                 VALUES ('tag-1', 'memo-2026-01-01', 'memo', 'inline', '2026-01-01T00:00:00Z');",
+        )
+        .unwrap();
+
+        // Run migrations (V64 will fire).
+        run_migrations(&conn).unwrap();
+
+        // dailies table exists; memos table is gone.
+        assert!(table_exists(&conn, "dailies"), "dailies table must exist");
+        assert!(!table_exists(&conn, "memos"), "memos table must be dropped");
+
+        // Rows preserved with id transform.
+        let (new_id1, content1): (String, String) = conn
+            .query_row(
+                "SELECT id, content FROM dailies WHERE date = '2026-01-01'",
+                [],
+                |row| Ok((row.get(0)?, row.get(1)?)),
+            )
+            .unwrap();
+        assert_eq!(new_id1, "daily-2026-01-01");
+        assert_eq!(content1, "jan 1");
+
+        let (new_id2, version2, is_pinned2): (String, i64, i64) = conn
+            .query_row(
+                "SELECT id, version, is_pinned FROM dailies WHERE date = '2026-02-02'",
+                [],
+                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+            )
+            .unwrap();
+        assert_eq!(new_id2, "daily-2026-02-02");
+        assert_eq!(version2, 3, "version column preserved");
+        assert_eq!(is_pinned2, 1, "is_pinned column preserved");
+
+        // note_links column renamed to source_daily_date.
+        assert!(has_column(&conn, "note_links", "source_daily_date"));
+        assert!(!has_column(&conn, "note_links", "source_memo_date"));
+
+        // wiki_tag_assignments row was rewritten.
+        let (new_entity_id, new_entity_type): (String, String) = conn
+            .query_row(
+                "SELECT entity_id, entity_type FROM wiki_tag_assignments WHERE tag_id = 'tag-1'",
+                [],
+                |row| Ok((row.get(0)?, row.get(1)?)),
+            )
+            .unwrap();
+        assert_eq!(new_entity_id, "daily-2026-01-01");
+        assert_eq!(new_entity_type, "daily");
+
+        // user_version bumped to 64.
+        assert_eq!(user_version(&conn), 64);
     }
 
     #[test]

@@ -14,7 +14,7 @@ const sync = new Hono<{ Bindings: Env }>();
 const VERSIONED_TABLES = [
   "routines",
   "tasks",
-  "memos",
+  "dailies",
   "notes",
   "wiki_tags",
   "time_memos",
@@ -47,7 +47,7 @@ type RelationTableWithUpdatedAt =
 // Column that serves as the primary key for each versioned table
 const PRIMARY_KEYS: Record<VersionedTable, string> = {
   tasks: "id",
-  memos: "id",
+  dailies: "id",
   notes: "id",
   schedule_items: "id",
   routines: "id",

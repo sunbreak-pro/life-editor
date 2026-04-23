@@ -2072,9 +2072,7 @@
     "schedule": "スケジュール",
     "duration": "作業時間",
     "noSelection": "タスクまたはフォルダを選択して詳細を表示",
-    "moveFolderConfirm": "このアイテムを「{{folder}}」に移動しますか？",
-    "dontShowAgain": "今後表示しない",
-    "moveToFolder": "フォルダに移動"
+    "dontShowAgain": "今後表示しない"
   },
   "folderContents": {
     "title": "コンテンツ",
@@ -2380,7 +2378,7 @@
       "schedule": "スケジュール",
       "work": "作業",
       "settings": "設定",
-      "memos": "メモ",
+      "daily": "日記",
       "notes": "ノート"
     },
     "calendar": {
@@ -2420,9 +2418,9 @@
         "endLabel": "終了"
       }
     },
-    "memo": {
+    "daily": {
       "today": "今日",
-      "empty": "メモはまだありません",
+      "empty": "まだ日記がありません",
       "placeholder": "自由に書いてください..."
     },
     "note": {

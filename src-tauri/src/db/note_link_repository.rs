@@ -8,7 +8,7 @@ use super::helpers;
 pub struct NoteLink {
     pub id: String,
     pub source_note_id: Option<String>,
-    pub source_memo_date: Option<String>,
+    pub source_daily_date: Option<String>,
     pub target_note_id: String,
     pub target_heading: Option<String>,
     pub target_block_id: Option<String>,
@@ -51,7 +51,7 @@ fn row_to_note_link(row: &rusqlite::Row) -> rusqlite::Result<NoteLink> {
     Ok(NoteLink {
         id: row.get("id")?,
         source_note_id: row.get("source_note_id")?,
-        source_memo_date: row.get("source_memo_date")?,
+        source_daily_date: row.get("source_daily_date")?,
         target_note_id: row.get("target_note_id")?,
         target_heading: row.get("target_heading")?,
         target_block_id: row.get("target_block_id")?,
@@ -135,7 +135,7 @@ pub fn upsert_links_for_note(
         let link_type = link.link_type.unwrap_or_else(|| "inline".to_string());
         conn.execute(
             "INSERT INTO note_links \
-             (id, source_note_id, source_memo_date, target_note_id, target_heading, \
+             (id, source_note_id, source_daily_date, target_note_id, target_heading, \
               target_block_id, alias, link_type, created_at, updated_at, version, is_deleted) \
              VALUES (?1, ?2, NULL, ?3, ?4, ?5, ?6, ?7, ?8, ?8, 1, 0)",
             params![
@@ -153,10 +153,10 @@ pub fn upsert_links_for_note(
     Ok(())
 }
 
-/// Same as above but keyed by a memo date (YYYY-MM-DD).
-pub fn upsert_links_for_memo(
+/// Same as above but keyed by a daily date (YYYY-MM-DD).
+pub fn upsert_links_for_daily(
     conn: &Connection,
-    source_memo_date: &str,
+    source_daily_date: &str,
     links: Vec<NoteLinkPayload>,
 ) -> rusqlite::Result<()> {
     let now = helpers::now();
@@ -164,8 +164,8 @@ pub fn upsert_links_for_memo(
     conn.execute(
         "UPDATE note_links SET is_deleted = 1, deleted_at = ?2, \
          updated_at = ?2, version = version + 1 \
-         WHERE source_memo_date = ?1 AND is_deleted = 0",
-        params![source_memo_date, &now],
+         WHERE source_daily_date = ?1 AND is_deleted = 0",
+        params![source_daily_date, &now],
     )?;
 
     for link in links {
@@ -173,12 +173,12 @@ pub fn upsert_links_for_memo(
         let link_type = link.link_type.unwrap_or_else(|| "inline".to_string());
         conn.execute(
             "INSERT INTO note_links \
-             (id, source_note_id, source_memo_date, target_note_id, target_heading, \
+             (id, source_note_id, source_daily_date, target_note_id, target_heading, \
               target_block_id, alias, link_type, created_at, updated_at, version, is_deleted) \
              VALUES (?1, NULL, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?8, 1, 0)",
             params![
                 &id,
-                source_memo_date,
+                source_daily_date,
                 link.target_note_id,
                 link.target_heading,
                 link.target_block_id,

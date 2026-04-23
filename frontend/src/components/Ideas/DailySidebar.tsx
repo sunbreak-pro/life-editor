@@ -1,14 +1,14 @@
 import { useState, useMemo, useRef, useEffect, useCallback } from "react";
 import { Heart, BookOpen, Trash2, Filter, Pencil } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import type { MemoNode } from "../../types/memo";
+import type { DailyNode } from "../../types/daily";
 import type { WikiTagAssignment, WikiTag } from "../../types/wikiTag";
 import {
   formatDisplayDate,
   formatMonthLabel,
   getTodayKey,
 } from "../../utils/dateKey";
-import { groupMemosByMonth } from "../../utils/memoGrouping";
+import { groupDailiesByMonth } from "../../utils/dailyGrouping";
 import { MonthGroup } from "../shared/MonthGroup";
 import { getContentPreview } from "../../utils/tiptapText";
 import { SearchBar, type SearchSuggestion } from "../shared/SearchBar";
@@ -18,7 +18,7 @@ import { ItemEditPopover } from "./Connect/ItemEditPopover";
 import { TemplateManager } from "./TemplateManager";
 
 interface DailySidebarProps {
-  memos: MemoNode[];
+  dailies: DailyNode[];
   assignments: WikiTagAssignment[];
   tags: WikiTag[];
   selectedDate: string | null;
@@ -56,7 +56,7 @@ function saveSectionsState(state: SectionsState): void {
 }
 
 export function DailySidebar({
-  memos,
+  dailies,
   assignments,
   tags,
   selectedDate,
@@ -105,7 +105,7 @@ export function DailySidebar({
   const suggestions = useMemo<SearchSuggestion[]>(() => {
     const items: SearchSuggestion[] = [];
     const todayKey = getTodayKey();
-    const hasTodayMemo = memos.some((m) => m.date === todayKey);
+    const hasTodayMemo = dailies.some((m) => m.date === todayKey);
     if (!hasTodayMemo) {
       items.push({
         id: `memo-${todayKey}`,
@@ -113,7 +113,7 @@ export function DailySidebar({
         icon: "memo",
       });
     }
-    const sorted = [...memos]
+    const sorted = [...dailies]
       .sort((a, b) => b.date.localeCompare(a.date))
       .slice(0, 10);
     for (const m of sorted) {
@@ -127,11 +127,11 @@ export function DailySidebar({
       return items.filter((i) => i.label.toLowerCase().includes(lowerQuery));
     }
     return items;
-  }, [memos, isSearching, lowerQuery]);
+  }, [dailies, isSearching, lowerQuery]);
 
   const handleSuggestionSelect = useCallback(
     (id: string) => {
-      const memo = memos.find((m) => m.id === id);
+      const memo = dailies.find((m) => m.id === id);
       if (memo) {
         onSelectDate(memo.date);
       } else if (id.startsWith("memo-")) {
@@ -139,7 +139,7 @@ export function DailySidebar({
         onSelectDate(id.replace("memo-", ""));
       }
     },
-    [memos, onSelectDate],
+    [dailies, onSelectDate],
   );
 
   // Tag dot lookup
@@ -156,16 +156,16 @@ export function DailySidebar({
     return map;
   }, [assignments, tags]);
 
-  const pinnedMemos = useMemo(() => memos.filter((m) => m.isPinned), [memos]);
+  const pinnedMemos = useMemo(() => dailies.filter((m) => m.isPinned), [dailies]);
 
   const filteredMemos = useMemo(() => {
-    if (!isSearching) return memos;
-    return memos.filter(
+    if (!isSearching) return dailies;
+    return dailies.filter(
       (m) =>
         m.date.includes(lowerQuery) ||
         getContentPreview(m.content, 200).toLowerCase().includes(lowerQuery),
     );
-  }, [memos, isSearching, lowerQuery]);
+  }, [dailies, isSearching, lowerQuery]);
 
   const isDailySelected = (date: string) => selectedDate === date;
 
@@ -185,10 +185,10 @@ export function DailySidebar({
     );
   };
 
-  const isVirtualMemo = (memo: MemoNode) =>
-    !memos.some((m) => m.date === memo.date);
+  const isVirtualMemo = (memo: DailyNode) =>
+    !dailies.some((m) => m.date === memo.date);
 
-  const renderMemoItem = (memo: MemoNode) => (
+  const renderMemoItem = (memo: DailyNode) => (
     <div
       key={memo.id}
       data-sidebar-item
@@ -265,27 +265,27 @@ export function DailySidebar({
   }, [assignments]);
 
   const tagFilteredMemos = useMemo(() => {
-    if (!hasTagFilter) return memos;
-    return memos.filter((m) => {
+    if (!hasTagFilter) return dailies;
+    return dailies.filter((m) => {
       const memoTagSet = entityTagIds.get(m.id);
       if (!memoTagSet) return false;
       return [...filterTagIds].some((tid) => memoTagSet.has(tid));
     });
-  }, [memos, hasTagFilter, filterTagIds, entityTagIds]);
+  }, [dailies, hasTagFilter, filterTagIds, entityTagIds]);
 
   // Insert virtual today entry if today's memo doesn't exist
   const memosWithToday = useMemo(() => {
     const todayKey = getTodayKey();
-    if (memos.some((m) => m.date === todayKey)) return memos;
-    const virtualMemo: MemoNode = {
+    if (dailies.some((m) => m.date === todayKey)) return dailies;
+    const virtualMemo: DailyNode = {
       id: `memo-${todayKey}`,
       date: todayKey,
       content: "",
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };
-    return [virtualMemo, ...memos];
-  }, [memos]);
+    return [virtualMemo, ...dailies];
+  }, [dailies]);
 
   const displayMemos = hasTagFilter ? tagFilteredMemos : memosWithToday;
   const displayPinnedMemos = hasTagFilter
@@ -314,7 +314,7 @@ export function DailySidebar({
         {editingEntityId && editButtonRefs.current.get(editingEntityId) && (
           <ItemEditPopover
             entityId={editingEntityId}
-            entityType="memo"
+            entityType="daily"
             onClose={() => setEditingEntityId(null)}
             anchorEl={editButtonRefs.current.get(editingEntityId)!}
           />
@@ -385,17 +385,17 @@ export function DailySidebar({
         >
           {displayMemos.length === 0 ? (
             <p className="text-xs text-notion-text-secondary px-2 py-2">
-              {hasTagFilter ? t("ideas.noSearchResults") : "No memos yet"}
+              {hasTagFilter ? t("ideas.noSearchResults") : "No dailies yet"}
             </p>
           ) : (
-            groupMemosByMonth(displayMemos).map((group, groupIndex) => (
+            groupDailiesByMonth(displayMemos).map((group, groupIndex) => (
               <MonthGroup
                 key={group.monthKey}
                 monthLabel={formatMonthLabel(group.monthKey, lang)}
-                itemCount={group.memos.length}
+                itemCount={group.dailies.length}
                 defaultOpen={groupIndex === 0}
               >
-                {group.memos.map(renderMemoItem)}
+                {group.dailies.map(renderMemoItem)}
               </MonthGroup>
             ))
           )}
@@ -411,7 +411,7 @@ export function DailySidebar({
       {editingEntityId && editButtonRefs.current.get(editingEntityId) && (
         <ItemEditPopover
           entityId={editingEntityId}
-          entityType="memo"
+          entityType="daily"
           onClose={() => setEditingEntityId(null)}
           anchorEl={editButtonRefs.current.get(editingEntityId)!}
         />

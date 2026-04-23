@@ -10,7 +10,7 @@ import { useTranslation } from "react-i18next";
 
 const SECTION_UNDO_DOMAINS: Partial<Record<SectionId, UndoDomain[]>> = {
   schedule: ["scheduleItem", "routine", "taskTree", "calendar"],
-  materials: ["memo", "note", "wikiTag"],
+  materials: ["daily", "note", "wikiTag"],
   connect: ["wikiTag"],
   work: ["playlist", "sound"],
   settings: ["settings"],

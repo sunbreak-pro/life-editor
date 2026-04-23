@@ -9,7 +9,7 @@ import { ErrorBoundary } from "./components/shared/ErrorBoundary";
 import { ThemeProvider } from "./context/ThemeContext";
 import { UndoRedoProvider } from "./context/UndoRedoContext";
 import { TaskTreeProvider } from "./context/TaskTreeContext";
-import { MemoProvider } from "./context/MemoContext";
+import { DailyProvider } from "./context/DailyContext";
 import { TimerProvider } from "./context/TimerContext";
 import { AudioProvider } from "./context/AudioContext";
 import { NoteProvider } from "./context/NoteContext";
@@ -39,7 +39,7 @@ createRoot(document.getElementById("root")!).render(
                 <TaskTreeProvider>
                   <CalendarProvider>
                     <TemplateProvider>
-                      <MemoProvider>
+                      <DailyProvider>
                         <NoteProvider>
                           <RoutineProvider>
                             <ScheduleItemsProvider>
@@ -51,7 +51,7 @@ createRoot(document.getElementById("root")!).render(
                             </ScheduleItemsProvider>
                           </RoutineProvider>
                         </NoteProvider>
-                      </MemoProvider>
+                      </DailyProvider>
                     </TemplateProvider>
                   </CalendarProvider>
                 </TaskTreeProvider>
@@ -62,7 +62,7 @@ createRoot(document.getElementById("root")!).render(
                   <TaskTreeProvider>
                     <CalendarProvider>
                       <TemplateProvider>
-                        <MemoProvider>
+                        <DailyProvider>
                           <NoteProvider>
                             <FileExplorerProvider>
                               <RoutineProvider>
@@ -82,7 +82,7 @@ createRoot(document.getElementById("root")!).render(
                               </RoutineProvider>
                             </FileExplorerProvider>
                           </NoteProvider>
-                        </MemoProvider>
+                        </DailyProvider>
                       </TemplateProvider>
                     </CalendarProvider>
                   </TaskTreeProvider>

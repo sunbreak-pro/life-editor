@@ -1,3 +1,3 @@
 export { ConnectView } from "./ConnectView";
-export { DailyMemoView } from "./DailyMemoView";
+export { DailyView } from "./DailyView";
 export { NotesView } from "./NotesView";

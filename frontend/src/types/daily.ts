@@ -1,5 +1,5 @@
-export interface MemoNode {
-  id: string; // "memo-YYYY-MM-DD"
+export interface DailyNode {
+  id: string; // "daily-YYYY-MM-DD"
   date: string; // "YYYY-MM-DD"
   content: string; // TipTap JSON string
   isPinned?: boolean;

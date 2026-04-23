@@ -1,5 +1,5 @@
 import type { TaskNode } from "./taskTree";
-import type { MemoNode } from "./memo";
+import type { DailyNode } from "./daily";
 import type { NoteNode } from "./note";
 import type { ScheduleItem } from "./schedule";
 import type { RoutineNode } from "./routine";
@@ -14,7 +14,7 @@ import type { CalendarNode } from "./calendar";
 
 export type SyncEntityType =
   | "task"
-  | "memo"
+  | "daily"
   | "note"
   | "scheduleItem"
   | "routine"
@@ -65,7 +65,7 @@ export interface SyncBatchResponse {
 
 export interface SyncFullResponse {
   tasks: TaskNode[];
-  memos: MemoNode[];
+  dailies: DailyNode[];
   notes: NoteNode[];
   scheduleItems: ScheduleItem[];
   routines: RoutineNode[];
@@ -80,7 +80,7 @@ export interface SyncFullResponse {
 
 export interface SyncChangesResponse {
   tasks: TaskNode[];
-  memos: MemoNode[];
+  dailies: DailyNode[];
   notes: NoteNode[];
   scheduleItems: ScheduleItem[];
   routines: RoutineNode[];

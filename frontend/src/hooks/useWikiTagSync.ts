@@ -31,7 +31,7 @@ function extractWikiTagNames(editor: Editor): string[] {
 export function useWikiTagSync(
   editor: Editor | null,
   entityId: string,
-  entityType: "task" | "memo" | "note",
+  entityType: "task" | "daily" | "note",
 ) {
   const { syncInlineTags } = useWikiTags();
   const lastSyncedRef = useRef<string>("");
@@ -45,7 +45,7 @@ export function useWikiTagSync(
     syncInlineTags(entityId, entityType, names);
   }, [editor, entityId, entityType, syncInlineTags]);
 
-  // Sync on editor content changes (debounced via MemoEditor's onUpdate)
+  // Sync on editor content changes (debounced via RichTextEditor's onUpdate)
   useEffect(() => {
     if (!editor) return;
 

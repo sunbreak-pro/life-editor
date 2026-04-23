@@ -13,7 +13,7 @@ import { useTranslation } from "react-i18next";
 import { useNoteContext } from "../../hooks/useNoteContext";
 import { useScreenLockContext } from "../../hooks/useScreenLockContext";
 import { formatDateTime } from "../../utils/formatRelativeDate";
-import { LazyMemoEditor as MemoEditor } from "../Tasks/TaskDetail/LazyMemoEditor";
+import { LazyRichTextEditor as RichTextEditor } from "../shared/LazyRichTextEditor";
 import { WikiTagList } from "../WikiTags/WikiTagList";
 import { BacklinksPane } from "./BacklinksPane";
 import { UnifiedColorPicker } from "../shared/UnifiedColorPicker";
@@ -318,7 +318,7 @@ export function NotesView() {
                   </div>
                 }
               >
-                <MemoEditor
+                <RichTextEditor
                   taskId={selectedNote.id}
                   initialContent={selectedNote.content}
                   onUpdate={handleContentUpdate}

@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import type { TaskNode } from "../types/taskTree";
-import type { MemoNode } from "../types/memo";
+import type { DailyNode } from "../types/daily";
 import type { NoteNode } from "../types/note";
 import type { ScheduleItem } from "../types/schedule";
 import type { RoutineGroup } from "../types/routineGroup";
@@ -16,7 +16,7 @@ export function useCalendar(
   month: number,
   filter: "incomplete" | "completed",
   weekStartDate?: Date,
-  memos?: MemoNode[],
+  dailies?: DailyNode[],
   notes?: NoteNode[],
   contentFilters?: Set<string>,
   scheduleItems?: ScheduleItem[],
@@ -79,17 +79,17 @@ export function useCalendar(
       }
     }
 
-    // Dailies (MemoNode)
-    if (has("daily") && memos) {
-      for (const memo of memos) {
-        if (memo.isDeleted) continue;
-        const dateKey = memo.date;
+    // Dailies (DailyNode)
+    if (has("daily") && dailies) {
+      for (const daily of dailies) {
+        if (daily.isDeleted) continue;
+        const dateKey = daily.date;
         const item: CalendarItem = {
-          id: memo.id,
+          id: daily.id,
           type: "daily",
-          title: memo.date,
+          title: daily.date,
           color: CALENDAR_ITEM_COLORS.daily,
-          memo,
+          daily,
         };
         const existing = map.get(dateKey);
         if (existing) existing.push(item);
@@ -250,7 +250,7 @@ export function useCalendar(
     return map;
   }, [
     tasksByDate,
-    memos,
+    dailies,
     notes,
     contentFilters,
     scheduleItems,

@@ -1,5 +1,5 @@
 export type { CustomSoundMeta } from "./customSound";
-export type { MemoNode } from "./memo";
+export type { DailyNode } from "./daily";
 export type { NoteNode, NoteSortMode } from "./note";
 export type { SectionId } from "./taskTree";
 export type { SoundSettings, SoundPreset, SoundSettingsMap } from "./sound";

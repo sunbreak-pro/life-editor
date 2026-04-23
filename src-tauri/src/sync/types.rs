@@ -9,7 +9,7 @@ pub struct SyncPayload {
     #[serde(default)]
     pub tasks: Vec<Value>,
     #[serde(default)]
-    pub memos: Vec<Value>,
+    pub dailies: Vec<Value>,
     #[serde(default)]
     pub notes: Vec<Value>,
     #[serde(default)]

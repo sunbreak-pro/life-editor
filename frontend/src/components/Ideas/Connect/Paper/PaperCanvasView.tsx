@@ -30,7 +30,7 @@ import type {
   PaperBoard,
 } from "../../../../types/paperBoard";
 import type { NoteNode } from "../../../../types/note";
-import type { MemoNode } from "../../../../types/memo";
+import type { DailyNode } from "../../../../types/daily";
 import { formatDisplayDate } from "../../../../utils/dateKey";
 import { getContentPreview } from "../../../../utils/tiptapText";
 import { CanvasControls } from "../CanvasControls";
@@ -79,7 +79,7 @@ interface PaperCanvasViewProps {
   paperNodes: PaperNodeDB[];
   paperEdges: PaperEdgeDB[];
   notes: NoteNode[];
-  memos: MemoNode[];
+  dailies: DailyNode[];
   onCreateNode: (params: {
     boardId: string;
     nodeType: "card" | "text" | "frame";
@@ -139,7 +139,7 @@ export function PaperCanvasView({
   paperNodes,
   paperEdges,
   notes,
-  memos,
+  dailies,
   onCreateNode,
   onUpdateNode,
   onBulkUpdatePositions,
@@ -168,10 +168,10 @@ export function PaperCanvasView({
   }, [notes]);
 
   const memoMap = useMemo(() => {
-    const m = new Map<string, MemoNode>();
-    for (const memo of memos) m.set(memo.id, memo);
+    const m = new Map<string, DailyNode>();
+    for (const memo of dailies) m.set(memo.id, memo);
     return m;
-  }, [memos]);
+  }, [dailies]);
 
   // Existing ref entity IDs
   const existingRefIds = useMemo(() => {
@@ -700,7 +700,7 @@ export function PaperCanvasView({
       {showAddDialog && (
         <PaperAddItemDialog
           notes={notes}
-          memos={memos}
+          dailies={dailies}
           existingRefIds={existingRefIds}
           onSelect={handleItemSelect}
           onClose={() => setShowAddDialog(false)}

@@ -1,10 +1,10 @@
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import type { MemoNode } from "../../types/memo";
-import { aggregateMemoActivity } from "../../utils/analyticsAggregation";
+import type { DailyNode } from "../../types/daily";
+import { aggregateDailyActivity } from "../../utils/analyticsAggregation";
 
-interface MemoActivityHeatmapProps {
-  memos: MemoNode[];
+interface DailyActivityHeatmapProps {
+  dailies: DailyNode[];
 }
 
 function getColor(hasContent: boolean): string {
@@ -12,7 +12,7 @@ function getColor(hasContent: boolean): string {
   return "rgba(139, 92, 246, 0.6)";
 }
 
-export function MemoActivityHeatmap({ memos }: MemoActivityHeatmapProps) {
+export function DailyActivityHeatmap({ dailies }: DailyActivityHeatmapProps) {
   const { t } = useTranslation();
   const [tooltip, setTooltip] = useState<{
     x: number;
@@ -20,12 +20,12 @@ export function MemoActivityHeatmap({ memos }: MemoActivityHeatmapProps) {
     text: string;
   } | null>(null);
 
-  const cells = useMemo(() => aggregateMemoActivity(memos, 90), [memos]);
+  const cells = useMemo(() => aggregateDailyActivity(dailies, 90), [dailies]);
 
   // Group into weeks (columns), starting from Monday
-  const weeks: MemoActivityHeatmapCell[][] = useMemo(() => {
-    const result: MemoActivityHeatmapCell[][] = [];
-    let currentWeek: MemoActivityHeatmapCell[] = [];
+  const weeks: DailyActivityHeatmapCell[][] = useMemo(() => {
+    const result: DailyActivityHeatmapCell[][] = [];
+    let currentWeek: DailyActivityHeatmapCell[] = [];
 
     for (const cell of cells) {
       const d = new Date(cell.date);
@@ -109,7 +109,7 @@ export function MemoActivityHeatmap({ memos }: MemoActivityHeatmapProps) {
   );
 }
 
-interface MemoActivityHeatmapCell {
+interface DailyActivityHeatmapCell {
   date: string;
   hasContent: boolean;
   dayIndex: number;

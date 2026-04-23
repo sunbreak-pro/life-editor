@@ -16,7 +16,7 @@ import { FolderDropdown } from "../Tasks/Folder/FolderDropdown";
 import { Filter, ChevronDown, BookOpen, StickyNote } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useNoteContext } from "../../hooks/useNoteContext";
-import { useMemoContext } from "../../hooks/useMemoContext";
+import { useDailyContext } from "../../hooks/useDailyContext";
 import { SearchBar, type SearchSuggestion } from "../shared/SearchBar";
 
 interface ScheduleSidebarContentProps {
@@ -113,7 +113,7 @@ export function ScheduleSidebarContent({
 
   const { nodes, updateNode, setTaskStatus } = useTaskTreeContext();
   const { notes } = useNoteContext();
-  const { memos } = useMemoContext();
+  const { dailies } = useDailyContext();
 
   const handleDismissItem = useCallback(
     (scheduleItemId: string) => {
@@ -272,8 +272,8 @@ export function ScheduleSidebarContent({
   );
 
   const memoForDate = useMemo(
-    () => memos.find((m) => m.date === miniFlowDateKey && !m.isDeleted),
-    [memos, miniFlowDateKey],
+    () => dailies.find((m) => m.date === miniFlowDateKey && !m.isDeleted),
+    [dailies, miniFlowDateKey],
   );
 
   // Optimistic toggle: update sidebar items immediately, then persist via context

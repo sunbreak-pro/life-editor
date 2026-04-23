@@ -2,12 +2,12 @@ import { useState, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { StickyNote, BookOpen, Search, X } from "lucide-react";
 import type { NoteNode } from "../../../../types/note";
-import type { MemoNode } from "../../../../types/memo";
+import type { DailyNode } from "../../../../types/daily";
 import { formatDisplayDate } from "../../../../utils/dateKey";
 
 interface PaperAddItemDialogProps {
   notes: NoteNode[];
-  memos: MemoNode[];
+  dailies: DailyNode[];
   existingRefIds: Set<string>;
   onSelect: (entityId: string, entityType: "note" | "memo") => void;
   onClose: () => void;
@@ -15,7 +15,7 @@ interface PaperAddItemDialogProps {
 
 export function PaperAddItemDialog({
   notes,
-  memos,
+  dailies,
   existingRefIds,
   onSelect,
   onClose,
@@ -35,13 +35,13 @@ export function PaperAddItemDialog({
 
   const filteredMemos = useMemo(() => {
     const q = query.toLowerCase();
-    return memos
+    return dailies
       .filter((m) => !m.isDeleted)
       .filter(
         (m) => !q || m.date.includes(q) || m.content.toLowerCase().includes(q),
       )
       .slice(0, 50);
-  }, [memos, query]);
+  }, [dailies, query]);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30">

@@ -3,11 +3,11 @@ import { getDataService } from "../../services/dataServiceFactory";
 import { useToast } from "../../context/ToastContext";
 import { Heart, BookOpen, Lock, MoreHorizontal, PenOff } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { useMemoContext } from "../../hooks/useMemoContext";
+import { useDailyContext } from "../../hooks/useDailyContext";
 import { useScreenLockContext } from "../../hooks/useScreenLockContext";
 import { formatDateTime } from "../../utils/formatRelativeDate";
 import { formatDateHeading } from "../../utils/dateKey";
-import { LazyMemoEditor as MemoEditor } from "../Tasks/TaskDetail/LazyMemoEditor";
+import { LazyRichTextEditor as RichTextEditor } from "../shared/LazyRichTextEditor";
 import { WikiTagList } from "../WikiTags/WikiTagList";
 import {
   PasswordDialog,
@@ -22,17 +22,17 @@ import {
 } from "../../hooks/useRoleConversion";
 import { useTemplateContext } from "../../hooks/useTemplateContext";
 
-export function DailyMemoView() {
+export function DailyView() {
   const {
     selectedDate,
-    selectedMemo,
-    upsertMemo,
+    selectedDaily,
+    upsertDaily,
     togglePin,
-    setMemoPassword,
-    removeMemoPassword,
-    verifyMemoPassword,
+    setDailyPassword,
+    removeDailyPassword,
+    verifyDailyPassword,
     toggleEditLock,
-  } = useMemoContext();
+  } = useDailyContext();
   const { isUnlocked, unlock } = useScreenLockContext();
   const { getDefaultDailyContent } = useTemplateContext();
   const { t, i18n } = useTranslation();
@@ -48,50 +48,50 @@ export function DailyMemoView() {
       const ds = getDataService();
       const dir = await ds.selectFolder();
       if (!dir) return;
-      const filePath = await ds.copyMemoToFile(selectedDate, dir);
+      const filePath = await ds.copyDailyToFile(selectedDate, dir);
       showToast("success", t("copy.copiedToFile", { path: filePath }));
     } catch (e) {
       showToast("error", e instanceof Error ? e.message : t("copy.copyFailed"));
     }
   }, [selectedDate, showToast, t]);
 
-  const memoId = selectedMemo?.id ?? `memo-${selectedDate}`;
-  const isLocked = !!selectedMemo?.hasPassword && !isUnlocked(memoId);
-  const isEditLocked = !!selectedMemo?.isEditLocked;
+  const dailyId = selectedDaily?.id ?? `memo-${selectedDate}`;
+  const isLocked = !!selectedDaily?.hasPassword && !isUnlocked(dailyId);
+  const isEditLocked = !!selectedDaily?.isEditLocked;
 
   const handleUpdate = useCallback(
     (content: string) => {
-      upsertMemo(selectedDate, content);
+      upsertDaily(selectedDate, content);
     },
-    [selectedDate, upsertMemo],
+    [selectedDate, upsertDaily],
   );
 
   const handlePasswordSubmit = useCallback(
     async (password: string, newPassword?: string): Promise<boolean> => {
       try {
         if (passwordDialogMode === "set") {
-          await setMemoPassword(selectedDate, password);
+          await setDailyPassword(selectedDate, password);
           setPasswordDialogMode(null);
           return true;
         }
         if (passwordDialogMode === "verify") {
-          const ok = await verifyMemoPassword(selectedDate, password);
+          const ok = await verifyDailyPassword(selectedDate, password);
           if (ok) {
-            unlock(memoId);
+            unlock(dailyId);
             setPasswordDialogMode(null);
           }
           return ok;
         }
         if (passwordDialogMode === "change") {
-          const ok = await verifyMemoPassword(selectedDate, password);
+          const ok = await verifyDailyPassword(selectedDate, password);
           if (!ok) return false;
-          await removeMemoPassword(selectedDate, password);
-          await setMemoPassword(selectedDate, newPassword!);
+          await removeDailyPassword(selectedDate, password);
+          await setDailyPassword(selectedDate, newPassword!);
           setPasswordDialogMode(null);
           return true;
         }
         if (passwordDialogMode === "remove") {
-          await removeMemoPassword(selectedDate, password);
+          await removeDailyPassword(selectedDate, password);
           setPasswordDialogMode(null);
           return true;
         }
@@ -102,11 +102,11 @@ export function DailyMemoView() {
     },
     [
       selectedDate,
-      memoId,
+      dailyId,
       passwordDialogMode,
-      setMemoPassword,
-      removeMemoPassword,
-      verifyMemoPassword,
+      setDailyPassword,
+      removeDailyPassword,
+      verifyDailyPassword,
       unlock,
     ],
   );
@@ -119,21 +119,21 @@ export function DailyMemoView() {
           <h2 className="text-lg font-semibold text-notion-text flex-1">
             {formatDateHeading(selectedDate, i18n.language)}
           </h2>
-          {selectedMemo && (
+          {selectedDaily && (
             <button
               onClick={() => !isEditLocked && togglePin(selectedDate)}
               className={`p-1.5 rounded transition-colors ${isEditLocked ? "cursor-not-allowed opacity-50" : ""} ${
-                selectedMemo.isPinned
+                selectedDaily.isPinned
                   ? "text-red-500 hover:text-red-400"
                   : "text-notion-text-secondary hover:text-notion-text"
               }`}
               title={
-                selectedMemo.isPinned
+                selectedDaily.isPinned
                   ? t("notesView.unfavorite")
                   : t("notesView.favorite")
               }
             >
-              {selectedMemo.isPinned ? (
+              {selectedDaily.isPinned ? (
                 <Heart size={16} className="fill-current" />
               ) : (
                 <Heart size={16} />
@@ -158,13 +158,13 @@ export function DailyMemoView() {
           </button>
           {showOptionsMenu && (
             <ItemOptionsMenu
-              hasPassword={!!selectedMemo?.hasPassword}
+              hasPassword={!!selectedDaily?.hasPassword}
               isEditLocked={isEditLocked}
               onSetPassword={() => setPasswordDialogMode("set")}
               onChangePassword={() => setPasswordDialogMode("change")}
               onRemovePassword={() => setPasswordDialogMode("remove")}
               onToggleEditLock={() => toggleEditLock(selectedDate)}
-              onCopyToFiles={selectedMemo ? handleCopyToFiles : undefined}
+              onCopyToFiles={selectedDaily ? handleCopyToFiles : undefined}
               onClose={() => setShowOptionsMenu(false)}
               anchorRef={moreButtonRef}
             />
@@ -199,21 +199,21 @@ export function DailyMemoView() {
               isLocked ? "blur-md pointer-events-none select-none" : ""
             }
           >
-            {selectedMemo?.updatedAt && (
+            {selectedDaily?.updatedAt && (
               <p className="text-[11px] text-notion-text-secondary/60 mb-4">
                 {t("dateTime.updated")}:{" "}
-                {formatDateTime(selectedMemo.updatedAt)}
+                {formatDateTime(selectedDaily.updatedAt)}
               </p>
             )}
-            {!selectedMemo?.updatedAt && <div className="mb-4" />}
-            {selectedMemo && (
+            {!selectedDaily?.updatedAt && <div className="mb-4" />}
+            {selectedDaily && (
               <div className="mb-3">
-                <WikiTagList entityId={selectedMemo.id} entityType="memo" />
+                <WikiTagList entityId={selectedDaily.id} entityType="daily" />
               </div>
             )}
-            {selectedMemo && (
+            {selectedDaily && (
               <div className="mb-3">
-                <DailyRoleSwitcher date={selectedDate} memo={selectedMemo} />
+                <DailyRoleSwitcher date={selectedDate} memo={selectedDaily} />
               </div>
             )}
             <Suspense
@@ -223,14 +223,16 @@ export function DailyMemoView() {
                 </div>
               }
             >
-              <MemoEditor
+              <RichTextEditor
                 taskId={selectedDate}
                 initialContent={
-                  selectedMemo?.content || getDefaultDailyContent() || undefined
+                  selectedDaily?.content ||
+                  getDefaultDailyContent() ||
+                  undefined
                 }
                 onUpdate={handleUpdate}
-                entityType="memo"
-                syncEntityId={selectedMemo?.id}
+                entityType="daily"
+                syncEntityId={selectedDaily?.id}
                 editable={!isEditLocked}
               />
             </Suspense>
@@ -259,7 +261,7 @@ function DailyRoleSwitcher({
   const { convert, canConvert } = useRoleConversion();
   const source: ConversionSource = {
     role: "daily",
-    memo: memo as ConversionSource["memo"],
+    daily: memo as ConversionSource["daily"],
     date,
   };
   const roles: ConversionRole[] = ["task", "event", "note", "daily"];

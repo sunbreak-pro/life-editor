@@ -3,10 +3,10 @@ import { useTranslation } from "react-i18next";
 import type { TaskNode } from "../types/taskTree";
 import type { ScheduleItem } from "../types/schedule";
 import type { NoteNode } from "../types/note";
-import type { MemoNode } from "../types/memo";
+import type { DailyNode } from "../types/daily";
 import { useTaskTreeContext } from "./useTaskTreeContext";
 import { useScheduleItemsContext } from "./useScheduleItemsContext";
-import { useMemoContext } from "./useMemoContext";
+import { useDailyContext } from "./useDailyContext";
 import { useNoteContext } from "./useNoteContext";
 import { useToast } from "../context/ToastContext";
 import { useUndoRedo } from "../components/shared/UndoRedo";
@@ -22,7 +22,7 @@ export interface ConversionSource {
   task?: TaskNode;
   scheduleItem?: ScheduleItem;
   note?: NoteNode;
-  memo?: MemoNode;
+  daily?: DailyNode;
   date: string; // YYYY-MM-DD
 }
 
@@ -71,7 +71,7 @@ export function useRoleConversion(
     deleteScheduleItem,
     bumpEventsVersion,
   } = useScheduleItemsContext();
-  const { memos, upsertMemo, deleteMemo } = useMemoContext();
+  const { dailies, upsertDaily, deleteDaily } = useDailyContext();
   const { createNote, updateNote, softDeleteNote } = useNoteContext();
   const { showToast } = useToast();
   const { push } = useUndoRedo();
@@ -79,9 +79,9 @@ export function useRoleConversion(
 
   const hasDailyForDate = useCallback(
     (date: string): boolean => {
-      return memos.some((m) => m.date === date && !m.isDeleted);
+      return dailies.some((m) => m.date === date && !m.isDeleted);
     },
-    [memos],
+    [dailies],
   );
 
   const canConvert = useCallback(
@@ -213,17 +213,17 @@ export function useRoleConversion(
         const task = source.task;
         const date = source.date;
         const merged = mergeContentWithMemo(task.content, task.timeMemo);
-        upsertMemo(date, merged || "", SKIP);
+        upsertDaily(date, merged || "", SKIP);
         softDelete(task.id, SKIP);
 
         push("scheduleItem", {
           label: "convertTaskToDaily",
           undo: () => {
-            deleteMemo(date, SKIP);
+            deleteDaily(date, SKIP);
             restoreNode(task.id, SKIP);
           },
           redo: () => {
-            upsertMemo(date, merged || "", SKIP);
+            upsertDaily(date, merged || "", SKIP);
             softDelete(task.id, SKIP);
           },
         });
@@ -335,14 +335,14 @@ export function useRoleConversion(
         const date = item.date;
         const content =
           item.content || (item.memo ? wrapTextAsTipTap(item.memo) : "");
-        upsertMemo(date, content, SKIP);
+        upsertDaily(date, content, SKIP);
         deleteScheduleItem(item.id, SKIP);
         bumpEventsVersion();
 
         push("scheduleItem", {
           label: "convertEventToDaily",
           undo: () => {
-            deleteMemo(date, SKIP);
+            deleteDaily(date, SKIP);
             createScheduleItem(
               date,
               item.title,
@@ -358,7 +358,7 @@ export function useRoleConversion(
             bumpEventsVersion();
           },
           redo: () => {
-            upsertMemo(date, content, SKIP);
+            upsertDaily(date, content, SKIP);
             deleteScheduleItem(item.id, SKIP);
             bumpEventsVersion();
           },
@@ -450,17 +450,17 @@ export function useRoleConversion(
       if (source.role === "note" && source.note && targetRole === "daily") {
         const note = source.note;
         const date = source.date;
-        upsertMemo(date, note.content || "", SKIP);
+        upsertDaily(date, note.content || "", SKIP);
         softDeleteNote(note.id, SKIP);
 
         push("scheduleItem", {
           label: "convertNoteToDaily",
           undo: () => {
-            deleteMemo(date, SKIP);
+            deleteDaily(date, SKIP);
             createNote(note.title, SKIP);
           },
           redo: () => {
-            upsertMemo(date, note.content || "", SKIP);
+            upsertDaily(date, note.content || "", SKIP);
             softDeleteNote(note.id, SKIP);
           },
         });
@@ -470,8 +470,8 @@ export function useRoleConversion(
       }
 
       // --- Daily → Task ---
-      if (source.role === "daily" && source.memo && targetRole === "task") {
-        const memo = source.memo;
+      if (source.role === "daily" && source.daily && targetRole === "task") {
+        const memo = source.daily;
         const date = memo.date;
         const scheduledAt = buildISOFromDateAndTime(date, "09:00");
         const taskNode = addNode("task", null, memo.date, {
@@ -479,18 +479,18 @@ export function useRoleConversion(
           isAllDay: true,
           skipUndo: true,
         });
-        deleteMemo(memo.date, SKIP);
+        deleteDaily(memo.date, SKIP);
         const taskId = taskNode?.id ?? "";
 
         push("scheduleItem", {
           label: "convertDailyToTask",
           undo: () => {
             if (taskId) softDelete(taskId, SKIP);
-            upsertMemo(date, memo.content || "", SKIP);
+            upsertDaily(date, memo.content || "", SKIP);
           },
           redo: () => {
             if (taskId) restoreNode(taskId, SKIP);
-            deleteMemo(memo.date, SKIP);
+            deleteDaily(memo.date, SKIP);
           },
         });
 
@@ -499,8 +499,8 @@ export function useRoleConversion(
       }
 
       // --- Daily → Event ---
-      if (source.role === "daily" && source.memo && targetRole === "event") {
-        const memo = source.memo;
+      if (source.role === "daily" && source.daily && targetRole === "event") {
+        const memo = source.daily;
         const date = memo.date;
         const id = createScheduleItem(
           date,
@@ -514,14 +514,14 @@ export function useRoleConversion(
           memo.content ?? undefined,
           SKIP,
         );
-        deleteMemo(memo.date, SKIP);
+        deleteDaily(memo.date, SKIP);
         bumpEventsVersion();
 
         push("scheduleItem", {
           label: "convertDailyToEvent",
           undo: () => {
             deleteScheduleItem(id, SKIP);
-            upsertMemo(date, memo.content || "", SKIP);
+            upsertDaily(date, memo.content || "", SKIP);
             bumpEventsVersion();
           },
           redo: () => {
@@ -537,7 +537,7 @@ export function useRoleConversion(
               memo.content ?? undefined,
               SKIP,
             );
-            deleteMemo(memo.date, SKIP);
+            deleteDaily(memo.date, SKIP);
             bumpEventsVersion();
           },
         });
@@ -547,22 +547,22 @@ export function useRoleConversion(
       }
 
       // --- Daily → Note ---
-      if (source.role === "daily" && source.memo && targetRole === "note") {
-        const memo = source.memo;
+      if (source.role === "daily" && source.daily && targetRole === "note") {
+        const memo = source.daily;
         const noteId = createNote(memo.date, SKIP);
         if (memo.content) updateNote(noteId, { content: memo.content });
-        deleteMemo(memo.date, SKIP);
+        deleteDaily(memo.date, SKIP);
 
         push("scheduleItem", {
           label: "convertDailyToNote",
           undo: () => {
             softDeleteNote(noteId, SKIP);
-            upsertMemo(memo.date, memo.content || "", SKIP);
+            upsertDaily(memo.date, memo.content || "", SKIP);
           },
           redo: () => {
             createNote(memo.date, SKIP);
             if (memo.content) updateNote(noteId, { content: memo.content });
-            deleteMemo(memo.date, SKIP);
+            deleteDaily(memo.date, SKIP);
           },
         });
 
@@ -586,8 +586,8 @@ export function useRoleConversion(
       updateScheduleItem,
       deleteScheduleItem,
       bumpEventsVersion,
-      upsertMemo,
-      deleteMemo,
+      upsertDaily,
+      deleteDaily,
       createNote,
       updateNote,
       softDeleteNote,

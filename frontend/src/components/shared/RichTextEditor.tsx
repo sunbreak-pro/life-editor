@@ -15,38 +15,38 @@ import { Table } from "@tiptap/extension-table";
 import { TableRow } from "@tiptap/extension-table-row";
 import { TableCell } from "@tiptap/extension-table-cell";
 import { TableHeader } from "@tiptap/extension-table-header";
-import { ResizableImage } from "../../../extensions/ResizableImage";
+import { ResizableImage } from "../../extensions/ResizableImage";
 import TaskList from "@tiptap/extension-task-list";
 import TaskItem from "@tiptap/extension-task-item";
 import {
   ToggleList,
   ToggleSummary,
   ToggleContent,
-} from "../../../extensions/ToggleList";
-import { Callout } from "../../../extensions/Callout";
-import { CustomHeading } from "../../../extensions/CustomHeading";
-import { CustomInputRules } from "../../../extensions/InputRules";
-import { WikiTag } from "../../../extensions/WikiTag";
-import { NoteLink } from "../../../extensions/NoteLink";
-import { PdfAttachment } from "../../../extensions/PdfAttachment";
-import { FileUploadPlaceholder } from "../../../extensions/FileUploadPlaceholder";
-import { DatabaseBlock } from "../../../extensions/DatabaseBlock";
-import { BlockBackground } from "../../../extensions/BlockBackground";
-import { BubbleToolbar } from "./BubbleToolbar";
-import { BlockContextMenu } from "./BlockContextMenu";
-import { WikiTagSuggestionMenu } from "../../WikiTags/WikiTagSuggestionMenu";
-import { NoteLinkSuggestionMenu } from "../../shared/NoteLinkSuggestionMenu";
-import { useWikiTagSync } from "../../../hooks/useWikiTagSync";
-import { useNoteLinkSync } from "../../../hooks/useNoteLinkSync";
-import { useAttachments } from "../../../hooks/useAttachments";
-import { setStoredHeadingFontSize } from "../../../utils/headingFontSize";
-import { isValidUrl } from "../../../utils/urlValidation";
-import { resolveTopLevelBlock } from "../../../utils/prosemirrorHelpers";
-import { getDataService } from "../../../services";
+} from "../../extensions/ToggleList";
+import { Callout } from "../../extensions/Callout";
+import { CustomHeading } from "../../extensions/CustomHeading";
+import { CustomInputRules } from "../../extensions/InputRules";
+import { WikiTag } from "../../extensions/WikiTag";
+import { NoteLink } from "../../extensions/NoteLink";
+import { PdfAttachment } from "../../extensions/PdfAttachment";
+import { FileUploadPlaceholder } from "../../extensions/FileUploadPlaceholder";
+import { DatabaseBlock } from "../../extensions/DatabaseBlock";
+import { BlockBackground } from "../../extensions/BlockBackground";
+import { BubbleToolbar } from "../Tasks/TaskDetail/BubbleToolbar";
+import { BlockContextMenu } from "../Tasks/TaskDetail/BlockContextMenu";
+import { WikiTagSuggestionMenu } from "../WikiTags/WikiTagSuggestionMenu";
+import { NoteLinkSuggestionMenu } from "./NoteLinkSuggestionMenu";
+import { useWikiTagSync } from "../../hooks/useWikiTagSync";
+import { useNoteLinkSync } from "../../hooks/useNoteLinkSync";
+import { useAttachments } from "../../hooks/useAttachments";
+import { setStoredHeadingFontSize } from "../../utils/headingFontSize";
+import { isValidUrl } from "../../utils/urlValidation";
+import { resolveTopLevelBlock } from "../../utils/prosemirrorHelpers";
+import { getDataService } from "../../services";
 import { NodeSelection } from "@tiptap/pm/state";
-import type { WikiTagEntityType } from "../../../types/wikiTag";
+import type { WikiTagEntityType } from "../../types/wikiTag";
 import type { Node as PmNode } from "@tiptap/pm/model";
-import { useIsTouchDevice } from "../../../hooks/useIsTouchDevice";
+import { useIsTouchDevice } from "../../hooks/useIsTouchDevice";
 
 interface ContextMenuState {
   x: number;
@@ -83,7 +83,7 @@ const BlockquoteNoInputRules = Blockquote.extend({
   },
 });
 
-interface MemoEditorProps {
+interface RichTextEditorProps {
   taskId: string;
   initialContent?: string;
   onUpdate: (content: string) => void;
@@ -151,14 +151,14 @@ function sanitizeContentForSave(
   return walk(json) ?? { type: "doc", content: [] };
 }
 
-export function MemoEditor({
+export function RichTextEditor({
   taskId,
   initialContent,
   onUpdate,
   entityType = "task",
   syncEntityId,
   editable = true,
-}: MemoEditorProps) {
+}: RichTextEditorProps) {
   const debounceRef = useRef<number | null>(null);
   const onUpdateRef = useRef(onUpdate);
   const latestContentRef = useRef<string | null>(null);
@@ -265,7 +265,7 @@ export function MemoEditor({
       content: initialContent ? tryParseJSON(initialContent) : undefined,
       enableContentCheck: true,
       onContentError: ({ error }) => {
-        console.warn("[MemoEditor] TipTap content schema error", error, {
+        console.warn("[RichTextEditor] TipTap content schema error", error, {
           taskId,
           entityType,
         });
@@ -498,8 +498,8 @@ export function MemoEditor({
     if (entityType === "note") {
       return { kind: "note" as const, noteId: id };
     }
-    if (entityType === "memo") {
-      return { kind: "memo" as const, memoDate: id };
+    if (entityType === "daily") {
+      return { kind: "daily" as const, dailyDate: id };
     }
     return null;
   }, [entityType, syncEntityId, taskId]);

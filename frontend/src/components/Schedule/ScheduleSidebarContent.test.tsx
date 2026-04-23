@@ -115,8 +115,8 @@ vi.mock("../../hooks/useNoteContext", () => ({
   useNoteContext: () => ({ notes: [] }),
 }));
 
-vi.mock("../../hooks/useMemoContext", () => ({
-  useMemoContext: () => ({ memos: [] }),
+vi.mock("../../hooks/useDailyContext", () => ({
+  useDailyContext: () => ({ dailies: [] }),
 }));
 
 vi.mock("react-i18next", () => ({

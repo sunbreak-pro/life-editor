@@ -2072,9 +2072,7 @@
     "schedule": "Schedule",
     "duration": "Duration",
     "noSelection": "Select a task or folder to view details",
-    "moveFolderConfirm": "Move this item to \"{{folder}}\"?",
-    "dontShowAgain": "Don't show again",
-    "moveToFolder": "Move to folder"
+    "dontShowAgain": "Don't show again"
   },
   "folderContents": {
     "title": "Contents",
@@ -2380,7 +2378,7 @@
       "schedule": "Schedule",
       "work": "Work",
       "settings": "Settings",
-      "memos": "Memos",
+      "daily": "Daily",
       "notes": "Notes"
     },
     "calendar": {
@@ -2420,9 +2418,9 @@
         "endLabel": "End"
       }
     },
-    "memo": {
+    "daily": {
       "today": "Today",
-      "empty": "No memos yet",
+      "empty": "No entries yet",
       "placeholder": "Write your thoughts..."
     },
     "note": {

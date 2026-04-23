@@ -1,6 +1,6 @@
 pub mod task_commands;
 pub mod timer_commands;
-pub mod memo_commands;
+pub mod daily_commands;
 pub mod note_commands;
 pub mod sound_commands;
 pub mod custom_sound_commands;

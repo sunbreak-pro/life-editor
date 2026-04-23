@@ -6,9 +6,9 @@ export { CalendarProvider } from "./CalendarContext";
 export { CalendarContext } from "./CalendarContextValue";
 export type { CalendarContextValue } from "./CalendarContextValue";
 
-export { MemoProvider } from "./MemoContext";
-export { MemoContext } from "./MemoContextValue";
-export type { MemoContextValue } from "./MemoContextValue";
+export { DailyProvider } from "./DailyContext";
+export { DailyContext } from "./DailyContextValue";
+export type { DailyContextValue } from "./DailyContextValue";
 
 export { NoteProvider } from "./NoteContext";
 export { NoteContext } from "./NoteContextValue";

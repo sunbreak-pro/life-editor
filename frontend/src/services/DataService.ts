@@ -11,7 +11,7 @@ import type {
   SoundTag,
   SoundDisplayMeta,
 } from "../types/sound";
-import type { MemoNode } from "../types/memo";
+import type { DailyNode } from "../types/daily";
 import type { CustomSoundMeta } from "../types/customSound";
 import type { NoteNode } from "../types/note";
 
@@ -136,19 +136,22 @@ export interface DataService {
   >;
   setWorkscreenSelections(soundIds: string[]): Promise<void>;
 
-  // Memo
-  fetchAllMemos(): Promise<MemoNode[]>;
-  fetchMemoByDate(date: string): Promise<MemoNode | null>;
-  upsertMemo(date: string, content: string): Promise<MemoNode>;
-  deleteMemo(date: string): Promise<void>;
-  fetchDeletedMemos(): Promise<MemoNode[]>;
-  restoreMemo(date: string): Promise<void>;
-  permanentDeleteMemo(date: string): Promise<void>;
-  toggleMemoPin(date: string): Promise<MemoNode>;
-  setMemoPassword(date: string, password: string): Promise<MemoNode>;
-  removeMemoPassword(date: string, currentPassword: string): Promise<MemoNode>;
-  verifyMemoPassword(date: string, password: string): Promise<boolean>;
-  toggleMemoEditLock(date: string): Promise<MemoNode>;
+  // Daily
+  fetchAllDailies(): Promise<DailyNode[]>;
+  fetchDailyByDate(date: string): Promise<DailyNode | null>;
+  upsertDaily(date: string, content: string): Promise<DailyNode>;
+  deleteDaily(date: string): Promise<void>;
+  fetchDeletedDailies(): Promise<DailyNode[]>;
+  restoreDaily(date: string): Promise<void>;
+  permanentDeleteDaily(date: string): Promise<void>;
+  toggleDailyPin(date: string): Promise<DailyNode>;
+  setDailyPassword(date: string, password: string): Promise<DailyNode>;
+  removeDailyPassword(
+    date: string,
+    currentPassword: string,
+  ): Promise<DailyNode>;
+  verifyDailyPassword(date: string, password: string): Promise<boolean>;
+  toggleDailyEditLock(date: string): Promise<DailyNode>;
 
   // Notes
   fetchAllNotes(): Promise<NoteNode[]>;
@@ -485,8 +488,8 @@ export interface DataService {
     sourceNoteId: string,
     links: NoteLinkPayload[],
   ): Promise<void>;
-  upsertNoteLinksForMemo(
-    sourceMemoDate: string,
+  upsertNoteLinksForDaily(
+    sourceDailyDate: string,
     links: NoteLinkPayload[],
   ): Promise<void>;
   deleteNoteLinksForNote(sourceNoteId: string): Promise<void>;
@@ -714,9 +717,9 @@ export interface DataService {
   deleteFile(relativePath: string): Promise<void>;
   openFileInSystem(relativePath: string): Promise<void>;
 
-  // Copy (Notes/Memos <-> Files)
+  // Copy (Notes/Dailies <-> Files)
   copyNoteToFile(noteId: string, directoryPath: string): Promise<string>;
-  copyMemoToFile(memoDate: string, directoryPath: string): Promise<string>;
+  copyDailyToFile(dailyDate: string, directoryPath: string): Promise<string>;
   convertFileToTiptap(
     relativeFilePath: string,
   ): Promise<{ title: string; content: string }>;

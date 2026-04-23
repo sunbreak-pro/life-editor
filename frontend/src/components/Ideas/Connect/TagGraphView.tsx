@@ -29,9 +29,9 @@ import { CanvasControls } from "./CanvasControls";
 import { ConnectPanel } from "./ConnectPanel";
 import { getContentPreview } from "../../../utils/tiptapText";
 import { NoteNodeComponent } from "./NoteNodeComponent";
-import { MemoNodeComponent } from "./MemoNodeComponent";
+import { DailyNodeComponent } from "./DailyNodeComponent";
 import { CurvedEdge } from "./CurvedEdge";
-import type { MemoNode } from "../../../types/memo";
+import type { DailyNode } from "../../../types/daily";
 import type {
   WikiTag,
   WikiTagAssignment,
@@ -51,7 +51,7 @@ import { computeForceLayout } from "./forceLayout";
 
 const nodeTypes = {
   noteNode: NoteNodeComponent,
-  memoNode: MemoNodeComponent,
+  dailyNode: DailyNodeComponent,
 };
 
 const edgeTypes = {
@@ -81,9 +81,9 @@ interface TagGraphViewProps {
   onDeleteNoteConnection: (sourceNoteId: string, targetNoteId: string) => void;
   onConnectViaTag: (req: ConnectRequest) => Promise<void>;
   onDeleteNoteEntity: (noteId: string) => void;
-  onDeleteMemoEntity: (memoDate: string) => void;
+  onDeleteDailyEntity: (dailyDate: string) => void;
   notes: NoteNode[];
-  memos: MemoNode[];
+  dailies: DailyNode[];
   onNavigateToNote?: (noteId: string) => void;
   onNavigateToMemo?: (date: string) => void;
   onUpdateNoteColor?: (noteId: string, color: string) => void;
@@ -141,9 +141,9 @@ export function TagGraphView({
   onDeleteNoteConnection,
   onConnectViaTag,
   onDeleteNoteEntity,
-  onDeleteMemoEntity,
+  onDeleteDailyEntity,
   notes,
-  memos,
+  dailies,
   onNavigateToNote,
   onNavigateToMemo,
   onUpdateNoteColor,
@@ -177,11 +177,11 @@ export function TagGraphView({
     (id: string): { type: "note" | "memo"; title: string } | null => {
       const note = notes.find((n) => n.id === id);
       if (note) return { type: "note", title: note.title || "Untitled" };
-      const memo = memos.find((m) => m.id === id);
+      const memo = dailies.find((m) => m.id === id);
       if (memo) return { type: "memo", title: memo.date };
       return null;
     },
-    [notes, memos],
+    [notes, dailies],
   );
 
   // Filter state (normal mode only) — multi-select, supports tag/entity/virtual IDs
@@ -259,17 +259,17 @@ export function TagGraphView({
     return set;
   }, [assignments]);
 
-  // Untagged entity IDs (notes and memos without any tag)
+  // Untagged entity IDs (notes and dailies without any tag)
   const untaggedEntityIds = useMemo(() => {
     const set = new Set<string>();
     for (const n of notes) {
       if (!n.isDeleted && !taggedEntityIds.has(n.id)) set.add(n.id);
     }
-    for (const m of memos) {
+    for (const m of dailies) {
       if (!m.isDeleted && !taggedEntityIds.has(m.id)) set.add(m.id);
     }
     return set;
-  }, [notes, memos, taggedEntityIds]);
+  }, [notes, dailies, taggedEntityIds]);
 
   const displayTags = useMemo(
     () =>
@@ -362,7 +362,7 @@ export function TagGraphView({
     return map;
   }, [assignments, tags, notes, t]);
 
-  // Build tag dots data for memos
+  // Build tag dots data for dailies
   const memoTagDots = useMemo(() => {
     const map = new Map<
       string,
@@ -376,8 +376,8 @@ export function TagGraphView({
       existing.push({ id: tag.id, name: tag.name, color: tag.color });
       map.set(a.entityId, existing);
     }
-    // Add virtual untagged dot for memos without tags
-    for (const m of memos) {
+    // Add virtual untagged dot for dailies without tags
+    for (const m of dailies) {
       if (!m.isDeleted && !map.has(m.id)) {
         map.set(m.id, [
           {
@@ -389,7 +389,7 @@ export function TagGraphView({
       }
     }
     return map;
-  }, [assignments, tags, memos, t]);
+  }, [assignments, tags, dailies, t]);
 
   // Visible IDs: all non-deleted entities (no filter)
   const visibleNoteIds = useMemo(
@@ -397,9 +397,9 @@ export function TagGraphView({
     [notes],
   );
 
-  const visibleMemoIds = useMemo(
-    () => new Set(memos.filter((m) => !m.isDeleted).map((m) => m.id)),
-    [memos],
+  const visibleDailyIds = useMemo(
+    () => new Set(dailies.filter((m) => !m.isDeleted).map((m) => m.id)),
+    [dailies],
   );
 
   const filteredNotes = useMemo(
@@ -408,8 +408,8 @@ export function TagGraphView({
   );
 
   const filteredMemos = useMemo(
-    () => memos.filter((m) => !m.isDeleted && visibleMemoIds.has(m.id)),
-    [memos, visibleMemoIds],
+    () => dailies.filter((m) => !m.isDeleted && visibleDailyIds.has(m.id)),
+    [dailies, visibleDailyIds],
   );
 
   // Compute related node IDs for selection-based dimming (normal mode only)
@@ -484,7 +484,7 @@ export function TagGraphView({
     noteTagDots,
     memoTagDots,
     notes,
-    memos,
+    dailies,
     assignments,
     selectedTagId,
     relatedNodeIds,
@@ -580,12 +580,12 @@ export function TagGraphView({
       const dimmed = relatedNodeIds ? !relatedNodeIds.has(memo.id) : false;
       return {
         id: memo.id,
-        type: "memoNode",
+        type: "dailyNode",
         position: pos,
         data: {
           date: memo.date,
           contentPreview: getContentPreview(memo.content),
-          memoId: memo.id,
+          dailyId: memo.id,
           tagDots: dots,
           highlighted,
           dimmed,
@@ -599,8 +599,8 @@ export function TagGraphView({
   function buildSplitViewNodes(): Node[] {
     const selectedId = sidebarSelectedItemId!;
     const selectedNote = notes.find((n) => n.id === selectedId && !n.isDeleted);
-    const selectedMemo = memos.find((m) => m.id === selectedId && !m.isDeleted);
-    if (!selectedNote && !selectedMemo) return [];
+    const selectedDaily = dailies.find((m) => m.id === selectedId && !m.isDeleted);
+    if (!selectedNote && !selectedDaily) return [];
 
     const allTags = selectedNote
       ? noteTagDots.get(selectedId) || []
@@ -637,13 +637,13 @@ export function TagGraphView({
       }
       return [
         {
-          id: selectedMemo!.id,
-          type: "memoNode",
+          id: selectedDaily!.id,
+          type: "dailyNode",
           position: { x: 0, y: 0 },
           data: {
-            date: selectedMemo!.date,
-            contentPreview: getContentPreview(selectedMemo!.content),
-            memoId: selectedMemo!.id,
+            date: selectedDaily!.date,
+            contentPreview: getContentPreview(selectedDaily!.content),
+            dailyId: selectedDaily!.id,
             tagDots: allTags,
             highlighted: false,
             dimmed: false,
@@ -679,12 +679,12 @@ export function TagGraphView({
       }
       return {
         id: splitId,
-        type: "memoNode",
+        type: "dailyNode",
         position: splitPositions[splitId],
         data: {
-          date: selectedMemo!.date,
-          contentPreview: getContentPreview(selectedMemo!.content),
-          memoId: selectedMemo!.id,
+          date: selectedDaily!.date,
+          contentPreview: getContentPreview(selectedDaily!.content),
+          dailyId: selectedDaily!.id,
           tagDots: [tag],
           highlighted: false,
           dimmed: false,
@@ -702,10 +702,10 @@ export function TagGraphView({
           const noteExists = notes.some(
             (n) => n.id === a.entityId && !n.isDeleted,
           );
-          const memoExists = memos.some(
+          const dailyExists = dailies.some(
             (m) => m.id === a.entityId && !m.isDeleted,
           );
-          if (noteExists || memoExists) {
+          if (noteExists || dailyExists) {
             related.push(a.entityId);
           }
         }
@@ -743,7 +743,7 @@ export function TagGraphView({
       for (const entityId of unplacedRelated) {
         placedNodes.add(entityId);
         const note = notes.find((n) => n.id === entityId && !n.isDeleted);
-        const memo = memos.find((m) => m.id === entityId && !m.isDeleted);
+        const memo = dailies.find((m) => m.id === entityId && !m.isDeleted);
 
         if (note) {
           relatedNodes.push({
@@ -763,12 +763,12 @@ export function TagGraphView({
         } else if (memo) {
           relatedNodes.push({
             id: memo.id,
-            type: "memoNode",
+            type: "dailyNode",
             position: relatedPositions[memo.id],
             data: {
               date: memo.date,
               contentPreview: getContentPreview(memo.content),
-              memoId: memo.id,
+              dailyId: memo.id,
               tagDots: memoTagDots.get(memo.id) || [],
               highlighted: false,
               dimmed: false,
@@ -1111,15 +1111,15 @@ export function TagGraphView({
       for (const node of deletedNodes) {
         if (node.type === "noteNode") {
           onDeleteNoteEntity(node.id);
-        } else if (node.type === "memoNode") {
+        } else if (node.type === "dailyNode") {
           const date = node.id.startsWith("memo-")
             ? node.id.slice("memo-".length)
             : node.id;
-          onDeleteMemoEntity(date);
+          onDeleteDailyEntity(date);
         }
       }
     },
-    [onDeleteNoteEntity, onDeleteMemoEntity],
+    [onDeleteNoteEntity, onDeleteDailyEntity],
   );
 
   const handleConfirmConnect = useCallback(
@@ -1166,7 +1166,7 @@ export function TagGraphView({
         entityId: node.data.noteId as string,
         color: node.data.color as string | undefined,
       });
-    } else if (node.type === "memoNode") {
+    } else if (node.type === "dailyNode") {
       setNodeContextMenu({
         x: event.clientX,
         y: event.clientY,
@@ -1195,7 +1195,7 @@ export function TagGraphView({
   const applyLayout = useCallback(
     (type: "polygon" | "line" | "force") => {
       const visibleNodes = nodesRef.current.filter(
-        (n) => n.type === "noteNode" || n.type === "memoNode",
+        (n) => n.type === "noteNode" || n.type === "dailyNode",
       );
       if (visibleNodes.length === 0) return;
       const ids = visibleNodes.map((n) => n.id);

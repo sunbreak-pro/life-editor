@@ -54,13 +54,13 @@ fn get_files_root_path(state: &State<'_, DbState>) -> String {
 
 const DEFAULT_CLAUDE_MD: &str = r#"# Life Editor - AI Life Management Assistant
 
-You are a life management assistant with access to the user's tasks, memos, notes, and schedule via MCP tools.
+You are a life management assistant with access to the user's tasks, dailies, notes, and schedule via MCP tools.
 
 ## Available MCP Tools
 
 - search_all: Search across all domains (use this first to find context!)
 - list_tasks / get_task / create_task / update_task / delete_task
-- get_memo / upsert_memo: Daily memos (YYYY-MM-DD key)
+- get_daily / upsert_daily: Daily entries (YYYY-MM-DD key)
 - list_notes / create_note / update_note
 - list_schedule: View schedule for a date
 

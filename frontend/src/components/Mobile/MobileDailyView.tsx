@@ -2,8 +2,8 @@ import { Suspense, useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { getDataService } from "../../services/dataServiceFactory";
 import { useSyncContext } from "../../hooks/useSyncContext";
-import type { MemoNode } from "../../types/memo";
-import { LazyMemoEditor as MemoEditor } from "../Tasks/TaskDetail/LazyMemoEditor";
+import type { DailyNode } from "../../types/daily";
+import { LazyRichTextEditor as RichTextEditor } from "../shared/LazyRichTextEditor";
 
 function extractPlainText(content: string): string {
   try {
@@ -23,10 +23,10 @@ function extractPlainText(content: string): string {
   return content?.slice(0, 120) || "";
 }
 
-export function MobileMemoView() {
+export function MobileDailyView() {
   const { t } = useTranslation();
   const { syncVersion } = useSyncContext();
-  const [memos, setMemos] = useState<MemoNode[]>([]);
+  const [dailies, setMemos] = useState<DailyNode[]>([]);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -34,10 +34,10 @@ export function MobileMemoView() {
 
   const loadMemos = useCallback(async () => {
     try {
-      const all = await ds.fetchAllMemos();
+      const all = await ds.fetchAllDailies();
       setMemos(all.sort((a, b) => b.date.localeCompare(a.date)));
     } catch (e) {
-      console.error("Failed to load memos:", e);
+      console.error("Failed to load dailies:", e);
     } finally {
       setLoading(false);
     }
@@ -52,8 +52,8 @@ export function MobileMemoView() {
     setSelectedDate(today);
   }
 
-  const selectedMemo = selectedDate
-    ? (memos.find((m) => m.date === selectedDate) ?? null)
+  const selectedDaily = selectedDate
+    ? (dailies.find((m) => m.date === selectedDate) ?? null)
     : null;
 
   if (selectedDate) {
@@ -61,7 +61,7 @@ export function MobileMemoView() {
       <MobileMemoDetail
         key={selectedDate}
         date={selectedDate}
-        memo={selectedMemo}
+        memo={selectedDaily}
         onBack={async () => {
           setSelectedDate(null);
           await loadMemos();
@@ -74,13 +74,13 @@ export function MobileMemoView() {
     <div className="flex h-full flex-col">
       <div className="flex items-center justify-between border-b border-notion-border px-4 py-3">
         <h2 className="text-sm font-medium text-notion-text-primary">
-          {t("mobile.tabs.memos", "Memos")}
+          {t("mobile.tabs.daily", "Daily")}
         </h2>
         <button
           onClick={handleNewMemo}
           className="rounded bg-notion-accent px-3 py-1 text-xs text-white"
         >
-          + {t("mobile.memo.today", "Today")}
+          + {t("mobile.daily.today", "Today")}
         </button>
       </div>
       <div className="flex-1 overflow-y-auto">
@@ -88,13 +88,13 @@ export function MobileMemoView() {
           <div className="p-4 text-center text-sm text-notion-text-secondary">
             {t("common.loading", "Loading...")}
           </div>
-        ) : memos.length === 0 ? (
+        ) : dailies.length === 0 ? (
           <div className="p-8 text-center text-sm text-notion-text-secondary">
-            {t("mobile.memo.empty", "No memos yet")}
+            {t("mobile.daily.empty", "No entries yet")}
           </div>
         ) : (
           <ul>
-            {memos.map((memo) => (
+            {dailies.map((memo) => (
               <li
                 key={memo.date}
                 onClick={() => setSelectedDate(memo.date)}
@@ -122,7 +122,7 @@ export function MobileMemoView() {
 
 interface MobileMemoDetailProps {
   date: string;
-  memo: MemoNode | null;
+  memo: DailyNode | null;
   onBack: () => void | Promise<void>;
 }
 
@@ -133,7 +133,7 @@ function MobileMemoDetail({ date, memo, onBack }: MobileMemoDetailProps) {
   const handleContentChange = useCallback(
     async (content: string) => {
       try {
-        await ds.upsertMemo(date, content);
+        await ds.upsertDaily(date, content);
       } catch (e) {
         console.error("Failed to save memo:", e);
       }
@@ -159,11 +159,11 @@ function MobileMemoDetail({ date, memo, onBack }: MobileMemoDetailProps) {
             </div>
           }
         >
-          <MemoEditor
+          <RichTextEditor
             taskId={date}
             initialContent={memo?.content ?? ""}
             onUpdate={handleContentChange}
-            entityType="memo"
+            entityType="daily"
             syncEntityId={memo?.id}
           />
         </Suspense>

@@ -7,14 +7,14 @@ import { useTranslation } from "react-i18next";
 import { LAYOUT } from "../../constants/layout";
 import type { TabItem } from "../shared/SectionTabs";
 import { SectionHeader } from "../shared/SectionHeader";
-import { DailyMemoView } from "../Ideas/DailyMemoView";
+import { DailyView } from "../Ideas/DailyView";
 import { NotesView } from "../Ideas/NotesView";
 import { TemplateContentView } from "../Ideas/TemplateContentView";
 import { DailySidebar } from "../Ideas/DailySidebar";
 import { MaterialsSidebar } from "../Ideas/MaterialsSidebar";
 import { FileExplorerSidebar } from "./FileExplorerSidebar";
 import { FileExplorerView } from "./FileExplorerView";
-import { useMemoContext } from "../../hooks/useMemoContext";
+import { useDailyContext } from "../../hooks/useDailyContext";
 import { useNoteContext } from "../../hooks/useNoteContext";
 import { useTemplateContext } from "../../hooks/useTemplateContext";
 import { useWikiTags } from "../../hooks/useWikiTags";
@@ -51,8 +51,8 @@ export function MaterialsView() {
   const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState<MaterialsTab>(loadMaterialsTab);
 
-  const { memos, selectedDate, setSelectedDate, upsertMemo, deleteMemo } =
-    useMemoContext();
+  const { dailies, selectedDate, setSelectedDate, upsertDaily, deleteDaily } =
+    useDailyContext();
   const {
     notes,
     flattenedNotes,
@@ -80,11 +80,11 @@ export function MaterialsView() {
     (date: string) => {
       setSelectedDate(date);
       setSelectedTemplateId(null);
-      if (!memos.some((m) => m.date === date)) {
-        upsertMemo(date, "");
+      if (!dailies.some((m) => m.date === date)) {
+        upsertDaily(date, "");
       }
     },
-    [setSelectedDate, setSelectedTemplateId, memos, upsertMemo],
+    [setSelectedDate, setSelectedTemplateId, dailies, upsertDaily],
   );
 
   const handleSelectMaterialsNote = useCallback(
@@ -171,12 +171,12 @@ export function MaterialsView() {
       case "daily":
         return (
           <DailySidebar
-            memos={memos}
+            dailies={dailies}
             assignments={assignments}
             tags={tags}
             selectedDate={selectedDate}
             onSelectDate={handleSelectDailyDate}
-            onDeleteMemo={deleteMemo}
+            onDeleteMemo={deleteDaily}
             onSelectTemplate={setSelectedTemplateId}
             selectedTemplateId={selectedTemplateId}
           />
@@ -220,7 +220,7 @@ export function MaterialsView() {
     }
     switch (activeTab) {
       case "daily":
-        return <DailyMemoView />;
+        return <DailyView />;
       case "notes":
         return <NotesView />;
       case "files":

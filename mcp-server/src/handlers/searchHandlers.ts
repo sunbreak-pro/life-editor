@@ -1,7 +1,7 @@
 import { getDb } from "../db.js";
 import { getContentPreview } from "../utils/tiptapText.js";
 
-const VALID_DOMAINS = ["tasks", "memos", "notes"] as const;
+const VALID_DOMAINS = ["tasks", "dailies", "notes"] as const;
 type Domain = (typeof VALID_DOMAINS)[number];
 
 interface TaskRow {
@@ -12,7 +12,7 @@ interface TaskRow {
   content: string | null;
 }
 
-interface MemoRow {
+interface DailyRow {
   date: string;
   content: string;
 }
@@ -60,15 +60,15 @@ export function searchAll(args: {
     totalHits += rows.length;
   }
 
-  if (domains.includes("memos")) {
+  if (domains.includes("dailies")) {
     const rows = db
       .prepare(
-        `SELECT date, content FROM memos
+        `SELECT date, content FROM dailies
          WHERE is_deleted = 0 AND content LIKE @query
          ORDER BY date DESC LIMIT @limit`,
       )
-      .all({ query: pattern, limit }) as MemoRow[];
-    result.memos = rows.map((r) => ({
+      .all({ query: pattern, limit }) as DailyRow[];
+    result.dailies = rows.map((r) => ({
       date: r.date,
       contentPreview: getContentPreview(r.content),
     }));

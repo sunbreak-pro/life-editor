@@ -2,21 +2,13 @@
 
 ## 進行中
 
-### ⏸️ Memo → Daily 大規模 rename refactor + Mobile parity Phase B（中断: 2026-04-22）
-
-**対象**: `types/memo.ts → daily.ts` 他 30+ ファイル(rename + 関連 context/hook 更新)、`frontend/src/components/Mobile/*` 複数
-**計画書**: なし(旧 vision/mobile-porting.md 系)
-**stash**: `stash@{0}: WIP: Memo->Daily refactor + Mobile parity + known-issues 009/010 (paused for iOS routine-dup verify on 2026-04-22)`
-
-- 前回: types/memo.ts を daily.ts へ rename、context/hooks 一部を Memo\* → Daily\* へ改名、Mobile View 系のレスポンシブ改修着手
-- 現在: refactor 未完了。`DataService.ts` / `useCalendar.ts` / `useRoleConversion.ts` / `analyticsAggregation.ts` が旧 `../types/memo` を参照したまま、`useDaily.ts` が DataService に存在しない `toggleDailyPin` / `setDailyPassword` / `verifyDailyPassword` 等を呼んでおり tsc -b で 20+ エラー
-- 次: stash pop → 壊れた import を一斉修正(DataService に新メソッド群を追加 or rename)、あわせて Mobile parity Phase B のビュー改修を完了させる
+（なし）
 
 ## 直近の完了
 
-- TaskTree + Folder DetailPanel ヘッダー簡素化 ✅（2026-04-23）— TaskTree フォルダ行が `node.icon` に追従（`TaskNodeCheckbox` に `icon` prop 追加 + `renderIcon` 描画） / Folder DetailPanel のアイコンピッカーをタイトル左横にインライン統合（独立 Icon Picker ブロック撤去）/ Task DetailPanel の「Move to folder」機能と `FolderMovePicker.tsx` を完全廃止（手動 DnD 代替） / Complete フォルダ選択時に TaskTree 展開ドロップダウン + DetailPanel DONE 一覧表示（`activeChildren` / `children` useMemo を `isSystemFolder` / `folderType === "complete"` で分岐）。`FOLDER_MOVE_CONFIRM_SKIP` storage key 同期削除。i18n の `moveToFolder` / `moveFolderConfirm` は working tree 上は削除済みだが memos→daily refactor と entangle しているため本コミットから意図的に除外（別セッションで合流予定）。Vitest 231 pass / tsc -b 編集 4 ファイル 0 error / eslint 6 件は編集前既存の `react-hooks/refs`（`git stash push -- TaskDetailPanel.tsx` で同エラー確認済、スコープ外）
-- Routine schedule_items 重複の根本修正 + Cloud sync initial-pull 500 件 cap 暫定対応(Known Issues 011 / 012)✅（2026-04-22）— 4 層欠陥(DB UNIQUE 制約欠落 / sync 衝突解決が id 単独 / Frontend Map キー単独 / Rust `create()` ガード欠如)を `V63` migration + `schedule_item_repository::create()` の (routine_id, date) ガード + `sync_engine::upsert_versioned` の schedule_items 特別扱い + `cloud/src/routes/sync.ts::push` の pre-dedup + 複合キー `${routineId}:${date}` + backfill existingSet で根治。Cloud D1 の既存 1,181 行を dry-run preview 付きで DELETE、partial UNIQUE index を SQLite/D1 両端に張り恒久化。iOS 再インストール過程で (a) Xcode PATH 問題(`/usr/local/bin` へ cargo/rustc/rustup を symlink で解消) (b) dead code `IdeasView.tsx` 削除 (c) `MobileNoteView.tsx` の未使用 useEffect 除去 (d) Cloud Worker `/sync/changes` LIMIT=500 が 4/14-4/22 の routine を切り落とす Known Issue 012 を LIMIT=5000 へ bump + 暫定対応で解消。本命 fix(client pagination)は別セッション。`cargo check` 0 / frontend build 11.15s / vitest 231 pass / cloud tsc 0
-- Notes Mobile/Desktop エディタ統合 Part A（Phase A）✅（2026-04-21）— Desktop `MemoEditor` を Mobile でも直接使用、`useIsTouchDevice` フック新設、ルート div レスポンシブ化、旧 `MobileRichEditor` と `extensions/mobile/` 削除、`useIsTouchDevice.test.ts` 4 件追加
+- Memos → Daily 全層 rename + MemoEditor → RichTextEditor 中立分離 ✅（2026-04-23）— DB v63→v64 migration で `memos` → `dailies` リネーム（`memo-YYYY-MM-DD` → `daily-YYYY-MM-DD` の id 形式変換、`note_links.source_memo_date` → `source_daily_date` カラム rename、`wiki_tag_assignments` / `paper_nodes` の `entity_type='memo'` → `'daily'` 更新、既存データ保持）+ Rust backend 全層 rename（`memo_repository` / `memo_commands` → `daily_*`、12 IPC handler、`sync_engine` VERSIONED_TABLES、`SyncPayload.memos` → `.dailies`、`data_io_commands` / `diagnostics_commands` / `claude_commands` / `note_link_commands` / `copy_commands`）+ MCP Server（`get_memo` / `upsert_memo` → `get_daily` / `upsert_daily` の Hard break、`memoHandlers` → `dailyHandlers`、`contentHandlers` / `searchHandlers` / `wikiTagHandlers` の target/domain enum 更新）+ Frontend（`types/memo` → `daily`、Pattern A 3-file `DailyContextValue` / `DailyContext` / `useDailyContext` / `useDaily`、`DataService` + `TauriDataService` 12 メソッド rename、32 consumer 自動置換、`MobileMemoView` → `MobileDailyView` / `DailyMemoView` → `DailyView` / `MemoActivityHeatmap` → `DailyActivityHeatmap` / `MemoNodeComponent` → `DailyNodeComponent` / `memoGrouping` → `dailyGrouping`、`UndoDomain` / `ConversionSource` / `WikiTagEntityType` / `useWikiTagSync` / `useNoteLinkSync` の "memo" → "daily" 型更新、`memoId` / `memoDate` / `onDeleteMemoEntity` 等変数 rename、`McpToolsList.tsx` の tool name 文字列更新）+ Cloud Sync（`cloud/db/schema.sql` 更新 + `0002_rename_memos_to_dailies.sql` migration 新規 + `cloud/src/routes/sync.ts` VERSIONED_TABLES / PRIMARY_KEYS）+ i18n（`mobile.tabs.memos` → `mobile.tabs.daily`、`mobile.memo.*` → `mobile.daily.*`、en: "Daily" / ja: "日記" 統一）+ MemoEditor TipTap（589 行）を `components/shared/RichTextEditor.tsx` に移動＋改名し汎用エディタとして再配置、6 consumers の import path を 2 levels 調整、`LazyMemoEditor` → `LazyRichTextEditor` + CLAUDE.md §2/§4.1-4.4/§5.1/§6.2/§8 を全面更新。検証: cargo test 11/11（V64 migration test 新規追加で data 変換・note_links column rename・wiki_tag_assignments 更新を検証）/ cargo build --release 成功 / Vitest 231 pass / Frontend `npm run build` 成功 / MCP `npm run build` 成功。`time_memos` テーブルは別概念のため本 rename から意図的に除外
+- TaskTree + Folder DetailPanel ヘッダー簡素化 ✅（2026-04-23）— TaskTree フォルダ行が `node.icon` に追従 / Folder DetailPanel のアイコンピッカーをタイトル左横にインライン統合 / Task DetailPanel の「Move to folder」機能と `FolderMovePicker.tsx` を完全廃止 / Complete フォルダ選択時の展開ドロップダウン + DONE 一覧表示。`FOLDER_MOVE_CONFIRM_SKIP` storage key 削除。Vitest 231 pass / tsc -b 編集 4 ファイル 0 error
+- Routine schedule_items 重複の根本修正 + Cloud sync initial-pull 500 件 cap 暫定対応(Known Issues 011 / 012)✅（2026-04-22）— 4 層欠陥(DB UNIQUE 制約欠落 / sync 衝突解決が id 単独 / Frontend Map キー単独 / Rust `create()` ガード欠如)を `V63` migration + create() ガード + sync_engine 特別扱い + Cloud Worker pre-dedup + 複合キー `${routineId}:${date}` で根治。Cloud D1 既存 1,181 行を DELETE、partial UNIQUE index を SQLite/D1 両端に張り恒久化。Known Issue 012 を LIMIT=5000 bump で暫定対応
 
 ## 予定
 
@@ -72,7 +64,6 @@
 
 ### 保留（将来再評価）
 
-- **Memo→Daily refactor**: 途中で中断した大規模 rename(stash@{0} 保持)。復旧に型整合作業が相当量必要
 - **S-2**: Tauri IPC naming 方針 — ADR-0006 で規約のみ採択、150 コマンド一括 typed struct 移行は未着手
 - **React Compiler 有効化**: S-4 Drop 判定時に切り離し
 
@@ -88,5 +79,5 @@
 - **`tsc --noEmit` at frontend root は無意味**: `tsconfig.json` が solution-style(`files: []` + references のみ)なので実際の型チェックが走らない。Phase 0 verification では `tsc -b` または `npm run build` を使うべき(session-verifier skill には記録済)
 - **Xcode GUI ⌘R は Tauri 2.x で動かない**: `cargo tauri ios xcode-script` は親プロセスが立てる JSON-RPC サーバに依存。Xcode 単独起動では `ConnectionRefused` で落ちる。必ず `cargo tauri ios build` or `dev --host` をターミナルから実行
 - **Xcode の PATH に NVM / cargo が無い**: `/usr/local/bin/` への symlink(cargo/rustc/rustup)で解消済だが、他のマシンでセットアップする際に再発する。`ios-everywhere-sync.md` vision 更新案件
-- **Memo→Daily refactor の未完了 stash**: 現在 stash@{0} に 30+ ファイルの大規模 rename が眠っており、時間経過で復元困難化する。優先的に再開推奨
-- **Desktop パッケージ版と HEAD 実装の乖離**: V63 migration は DB に適用済だが、`/Applications/Life Editor.app` の Rust バイナリは旧版。Routine 作成時のエラーパスに脆弱性が残存(稀だが発火可能)
+- **Desktop パッケージ版と HEAD 実装の乖離**: V64 migration は DB に適用される必要あり、`/Applications/Life Editor.app` の Rust バイナリは旧版のままだと Daily テーブル未対応で起動時 migration 走行 → dailies への rename を経験する。新規ビルドを置換推奨
+- **Cloud D1 migration 未適用**: `cloud/db/migrations/0002_rename_memos_to_dailies.sql` は新規追加済みだが D1 本番への wrangler 実行は未実施。Desktop/iOS app の V64 デプロイと協調して `wrangler d1 execute life-editor --file=cloud/db/migrations/0002_rename_memos_to_dailies.sql` を実行する必要あり

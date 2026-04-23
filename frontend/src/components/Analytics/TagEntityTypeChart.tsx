@@ -33,7 +33,7 @@ export function TagEntityTypeChart({
             : d.tagName,
         tasks: d.taskCount,
         notes: d.noteCount,
-        memos: d.memoCount,
+        dailies: d.dailyCount,
       })),
     [tags, assignments],
   );
@@ -95,7 +95,7 @@ export function TagEntityTypeChart({
               fill="#8b5cf6"
             />
             <Bar
-              dataKey="memos"
+              dataKey="dailies"
               name={t("analytics.connect.byEntityType.memo")}
               stackId="a"
               fill="#f59e0b"

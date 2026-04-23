@@ -12,7 +12,7 @@ import {
 import { useTranslation } from "react-i18next";
 import type { WikiTag, WikiTagAssignment } from "../../../types/wikiTag";
 import type { NoteNode } from "../../../types/note";
-import type { MemoNode } from "../../../types/memo";
+import type { DailyNode } from "../../../types/daily";
 import type { FilterItem } from "../../../types/filterItem";
 import { VIRTUAL_UNTAGGED_ID } from "../../../types/filterItem";
 import { WikiTagChip } from "../../WikiTags/WikiTagChip";
@@ -22,7 +22,7 @@ import { TagFilterOverlay } from "../../shared/TagFilterOverlay";
 import { ItemEditPopover } from "./ItemEditPopover";
 import { STORAGE_KEYS } from "../../../constants/storageKeys";
 import { formatDisplayDate } from "../../../utils/dateKey";
-import { groupMemosByMonth } from "../../../utils/memoGrouping";
+import { groupDailiesByMonth } from "../../../utils/dailyGrouping";
 import { formatMonthLabel } from "../../../utils/dateKey";
 import { MonthGroup } from "../../shared/MonthGroup";
 
@@ -41,7 +41,7 @@ interface ConnectSidebarProps {
   tags: WikiTag[];
   assignments: WikiTagAssignment[];
   notes: NoteNode[];
-  memos: MemoNode[];
+  dailies: DailyNode[];
   onSelectTag: (tagId: string | null) => void;
   onNavigateToNote?: (noteId: string) => void;
   onCreateNote: (title: string, tagId?: string) => void;
@@ -91,7 +91,7 @@ export function ConnectSidebar({
   tags,
   assignments,
   notes,
-  memos,
+  dailies,
   onSelectTag,
   onNavigateToNote,
   onCreateNote,
@@ -160,7 +160,7 @@ export function ConnectSidebar({
   }, [assignments]);
 
   // Memo tag filter
-  const memoTagMap = useMemo(() => {
+  const dailyTagMap = useMemo(() => {
     const map = new Map<string, Set<string>>();
     for (const a of assignments) {
       if (a.entityType !== "memo") continue;
@@ -183,11 +183,11 @@ export function ConnectSidebar({
   // Untagged memo IDs
   const untaggedMemoIds = useMemo(() => {
     const set = new Set<string>();
-    for (const m of memos) {
-      if (!memoTagMap.has(m.id)) set.add(m.id);
+    for (const m of dailies) {
+      if (!dailyTagMap.has(m.id)) set.add(m.id);
     }
     return set;
-  }, [memos, memoTagMap]);
+  }, [dailies, dailyTagMap]);
 
   // Build filter items for Notes section
   const noteFilterItems = useMemo<FilterItem[]>(() => {
@@ -278,9 +278,9 @@ export function ConnectSidebar({
   }, [notes, sidebarFilterTagIds, noteTagMap, untaggedNoteIds]);
 
   const filteredMemos = useMemo(() => {
-    if (dailyFilterTagIds.length === 0) return memos;
-    return memos.filter((m) => {
-      const tagSet = memoTagMap.get(m.id);
+    if (dailyFilterTagIds.length === 0) return dailies;
+    return dailies.filter((m) => {
+      const tagSet = dailyTagMap.get(m.id);
       const matchesRealTag = dailyFilterTagIds.some(
         (tid) => tid !== VIRTUAL_UNTAGGED_ID && tagSet?.has(tid),
       );
@@ -289,7 +289,7 @@ export function ConnectSidebar({
         untaggedMemoIds.has(m.id);
       return matchesRealTag || matchesUntagged;
     });
-  }, [memos, dailyFilterTagIds, memoTagMap, untaggedMemoIds]);
+  }, [dailies, dailyFilterTagIds, dailyTagMap, untaggedMemoIds]);
 
   const toggleSidebarFilterTag = useCallback((tagId: string) => {
     setSidebarFilterTagIds((prev) =>
@@ -349,7 +349,7 @@ export function ConnectSidebar({
         icon: "note",
       });
     }
-    const sortedMemos = [...memos]
+    const sortedMemos = [...dailies]
       .sort((a, b) => b.date.localeCompare(a.date))
       .slice(0, 4);
     for (const m of sortedMemos) {
@@ -364,7 +364,7 @@ export function ConnectSidebar({
       return items.filter((i) => i.label.toLowerCase().includes(q));
     }
     return items;
-  }, [notes, memos, query, isSearching, t]);
+  }, [notes, dailies, query, isSearching, t]);
 
   const handleSuggestionSelect = useCallback(
     (id: string) => {
@@ -374,9 +374,9 @@ export function ConnectSidebar({
   );
 
   // Determine entity type for editing
-  const getEntityType = (id: string): "note" | "memo" => {
+  const getEntityType = (id: string): "note" | "daily" => {
     if (notes.some((n) => n.id === id)) return "note";
-    return "memo";
+    return "daily";
   };
 
   const getEntityTitle = (id: string): string | undefined => {
@@ -467,7 +467,7 @@ export function ConnectSidebar({
     );
   };
 
-  const renderMemoItem = (memo: MemoNode) => (
+  const renderMemoItem = (memo: DailyNode) => (
     <div
       key={memo.id}
       data-sidebar-item
@@ -733,17 +733,17 @@ export function ConnectSidebar({
               <p className="text-xs text-notion-text-secondary px-2 py-2">
                 {dailyFilterTagIds.length > 0
                   ? t("ideas.noSearchResults")
-                  : "No memos yet"}
+                  : "No dailies yet"}
               </p>
             ) : (
-              groupMemosByMonth(filteredMemos).map((group, groupIndex) => (
+              groupDailiesByMonth(filteredMemos).map((group, groupIndex) => (
                 <MonthGroup
                   key={group.monthKey}
                   monthLabel={formatMonthLabel(group.monthKey)}
-                  itemCount={group.memos.length}
+                  itemCount={group.dailies.length}
                   defaultOpen={groupIndex === 0}
                 >
-                  {group.memos.map((memo) => renderMemoItem(memo))}
+                  {group.dailies.map((memo) => renderMemoItem(memo))}
                 </MonthGroup>
               ))
             )}

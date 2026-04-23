@@ -210,10 +210,10 @@ export function searchByTag(args: { tag_name: string; entity_type?: string }) {
         )
         .get(a.entity_id) as Record<string, unknown> | undefined;
       entity = row ?? null;
-    } else if (a.entity_type === "memo") {
+    } else if (a.entity_type === "daily") {
       const row = db
         .prepare(
-          `SELECT id, date, created_at FROM memos WHERE id = ? AND is_deleted = 0`,
+          `SELECT id, date, created_at FROM dailies WHERE id = ? AND is_deleted = 0`,
         )
         .get(a.entity_id) as Record<string, unknown> | undefined;
       entity = row ?? null;

@@ -51,7 +51,7 @@
 
 | 機能                                                                         | Desktop | iOS | Cloud Sync | 備考                         |
 | ---------------------------------------------------------------------------- | :-----: | :-: | :--------: | ---------------------------- |
-| Tasks / Schedule / Notes / Memo                                              |    ✓    |  ✓  |     ✓      | コア                         |
+| Tasks / Schedule / Notes / Daily                                             |    ✓    |  ✓  |     ✓      | コア                         |
 | Pomodoro Timer                                                               |    ✓    |  ✓  |     -      |                              |
 | Materials / Calendar Tags / Audio / WikiTags / Shortcut Config / Screen Lock |    ✓    |  -  |     -      | Mobile 省略 Provider（§6.2） |
 | Terminal + Claude + MCP Server                                               |    ✓    |  -  |     -      | Desktop 専用（PTY 不可）     |
@@ -101,14 +101,16 @@ React Router なし。`App.tsx` の `activeSection` で切替: `schedule` / `mat
 ### 4.1 SQLite スキーマ
 
 - 正本: `src-tauri/src/db/migrations.rs`（WAL）
-- 現行 v62、約 40 テーブル
-- ドメイン: tasks / memos / notes / time*memos / schedule_items / calendars / routines / timer*\_ / sound\_\_ / playlists / wiki_tags / task_tags / note_tags / task_templates / paper_boards / databases（汎用 DB: properties / rows / cells）
+- 現行 v64、約 40 テーブル
+- ドメイン: tasks / dailies / notes / time*memos / schedule_items / calendars / routines / timer*\_ / sound\_\_ / playlists / wiki_tags / task_tags / note_tags / task_templates / paper_boards / databases（汎用 DB: properties / rows / cells）
 - V60 で旧 task_tags / note_tags / ai_settings / routine_logs など孤児テーブルを撤去（WikiTags へ完全移行）
 - V62 で versioned テーブルの NULL updated_at バックフィル + tasks 用 INSERT トリガー追加（Cloud Sync blocker 修正）
+- V63 で schedule_items (routine_id, date) 重複排除 + partial UNIQUE index
+- V64 で `memos` テーブルを `dailies` にリネーム（id 形式 `memo-YYYY-MM-DD` → `daily-YYYY-MM-DD`、`note_links.source_memo_date` → `source_daily_date`、`wiki_tag_assignments` / `paper_nodes` の entity_type='memo' → 'daily' 更新）。`time_memos` は別概念のため対象外
 
 ### 4.2 特化 vs 汎用 DB の境界
 
-**特化テーブル**（スキーマ固定）: `tasks` / `routines` / `schedule_items` / `notes` / `memos` / `pomodoro_presets` / `timer_sessions`
+**特化テーブル**（スキーマ固定）: `tasks` / `routines` / `schedule_items` / `notes` / `dailies` / `pomodoro_presets` / `timer_sessions`
 
 **汎用 Database で表現**: 家計簿 / 読書記録 / 習慣トラッカー / 連絡先 / 学習進捗 など
 
@@ -120,12 +122,13 @@ React Router なし。`App.tsx` の `activeSection` で切替: `schedule` / `mat
 ### 4.3 ID 戦略
 
 - **TaskNode**: `"<type>-<timestamp+counter>"`（例: `task-1710201234566`）
+- **DailyNode**: `"daily-<YYYY-MM-DD>"`（日付キー1エントリ）
 - **その他**: `generateId(prefix)` で `"<prefix>-<uuid>"`
 - 全て String 型
 
 ### 4.4 ソフトデリート
 
-`is_deleted` + `deleted_at` カラム → TrashView から復元可能。対象: Tasks / Notes / Memos / Routines / Databases / Templates。CustomSounds はファイルベース管理。
+`is_deleted` + `deleted_at` カラム → TrashView から復元可能。対象: Tasks / Notes / Dailies / Routines / Databases / Templates。CustomSounds はファイルベース管理。
 
 ### 4.5 PropertyType 拡張方針
 
@@ -154,7 +157,7 @@ React Router なし。`App.tsx` の `activeSection` で切替: `schedule` / `mat
 | ドメイン  | ツール                                                                                                                  |
 | --------- | ----------------------------------------------------------------------------------------------------------------------- |
 | Tasks     | `list_tasks` / `get_task` / `create_task` / `update_task` / `delete_task` / `get_task_tree`                             |
-| Memos     | `get_memo` / `upsert_memo`                                                                                              |
+| Dailies   | `get_daily` / `upsert_daily`                                                                                            |
 | Notes     | `list_notes` / `create_note` / `update_note`                                                                            |
 | Schedule  | `list_schedule` / `create_schedule_item` / `update_schedule_item` / `delete_schedule_item` / `toggle_schedule_complete` |
 | Wiki Tags | `list_wiki_tags` / `tag_entity` / `search_by_tag` / `get_entity_tags`                                                   |
@@ -184,7 +187,7 @@ Frontend は ESLint 設定に従う。コメントは必要最小限。
 
 ### 6.2 Provider 順序（依存制約）
 
-- **Desktop**（外→内）: ErrorBoundary → Theme → Toast → UndoRedo → ScreenLock → TaskTree → Calendar → Template → Memo → Note → FileExplorer → Routine → ScheduleItems → CalendarTags → Timer → Audio → WikiTag → ShortcutConfig
+- **Desktop**（外→内）: ErrorBoundary → Theme → Toast → UndoRedo → ScreenLock → TaskTree → Calendar → Template → Daily → Note → FileExplorer → Routine → ScheduleItems → CalendarTags → Timer → Audio → WikiTag → ShortcutConfig
 - **Mobile**（省略）: ScreenLock / FileExplorer / CalendarTags / Audio / WikiTag / ShortcutConfig を省く
 - 制約: 内側 Provider は外側 Context に依存可（逆不可）。ScheduleItemsProvider → RoutineProvider、AudioProvider → TimerProvider
 
@@ -293,7 +296,7 @@ type: `feat` / `fix` / `docs` / `style` / `refactor` / `test` / `chore`
 
 ### Tier 1: コア（Value Proposition を直接支える）
 
-[`tier-1-core.md`](./docs/requirements/tier-1-core.md)（8 機能）: Tasks (TaskTree) / Schedule (Routine + ScheduleItems + CalendarTags) / Notes / Memo / Database (Notion 風) / MCP Server / Cloud Sync / Terminal + Claude Code
+[`tier-1-core.md`](./docs/requirements/tier-1-core.md)（8 機能）: Tasks (TaskTree) / Schedule (Routine + ScheduleItems + CalendarTags) / Notes / Daily / Database (Notion 風) / MCP Server / Cloud Sync / Terminal + Claude Code
 
 ### Tier 2: 補助（あると価値が大幅増）
 

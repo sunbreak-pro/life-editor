@@ -108,23 +108,23 @@ export function createMockDataService(): DataService & {
     fetchWorkscreenSelections: vi.fn().mockResolvedValue([]),
     setWorkscreenSelections: vi.fn().mockResolvedValue(undefined),
 
-    // Memo
-    fetchAllMemos: vi.fn().mockResolvedValue([]),
-    fetchMemoByDate: vi.fn().mockResolvedValue(null),
-    upsertMemo: vi.fn().mockImplementation((date, content) =>
+    // Daily
+    fetchAllDailies: vi.fn().mockResolvedValue([]),
+    fetchDailyByDate: vi.fn().mockResolvedValue(null),
+    upsertDaily: vi.fn().mockImplementation((date, content) =>
       Promise.resolve({
-        id: `memo-${date}`,
+        id: `daily-${date}`,
         date,
         content,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       }),
     ),
-    deleteMemo: vi.fn().mockResolvedValue(undefined),
-    fetchDeletedMemos: vi.fn().mockResolvedValue([]),
-    restoreMemo: vi.fn().mockResolvedValue(undefined),
-    permanentDeleteMemo: vi.fn().mockResolvedValue(undefined),
-    toggleMemoPin: vi.fn().mockResolvedValue({
+    deleteDaily: vi.fn().mockResolvedValue(undefined),
+    fetchDeletedDailies: vi.fn().mockResolvedValue([]),
+    restoreDaily: vi.fn().mockResolvedValue(undefined),
+    permanentDeleteDaily: vi.fn().mockResolvedValue(undefined),
+    toggleDailyPin: vi.fn().mockResolvedValue({
       id: "memo-mock",
       date: "2026-01-01",
       content: "",
@@ -132,7 +132,7 @@ export function createMockDataService(): DataService & {
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     }),
-    setMemoPassword: vi.fn().mockResolvedValue({
+    setDailyPassword: vi.fn().mockResolvedValue({
       id: "memo-mock",
       date: "2026-01-01",
       content: "",
@@ -140,7 +140,7 @@ export function createMockDataService(): DataService & {
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     }),
-    removeMemoPassword: vi.fn().mockResolvedValue({
+    removeDailyPassword: vi.fn().mockResolvedValue({
       id: "memo-mock",
       date: "2026-01-01",
       content: "",
@@ -148,8 +148,8 @@ export function createMockDataService(): DataService & {
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     }),
-    verifyMemoPassword: vi.fn().mockResolvedValue(true),
-    toggleMemoEditLock: vi.fn().mockResolvedValue({
+    verifyDailyPassword: vi.fn().mockResolvedValue(true),
+    toggleDailyEditLock: vi.fn().mockResolvedValue({
       id: "memo-mock",
       date: "2026-01-01",
       content: "",
@@ -511,7 +511,7 @@ export function createMockDataService(): DataService & {
     deleteFile: vi.fn().mockResolvedValue(undefined),
     openFileInSystem: vi.fn().mockResolvedValue(undefined),
     copyNoteToFile: vi.fn().mockResolvedValue("/mock/path/note.md"),
-    copyMemoToFile: vi.fn().mockResolvedValue("/mock/path/memo.md"),
+    copyDailyToFile: vi.fn().mockResolvedValue("/mock/path/daily.md"),
     convertFileToTiptap: vi.fn().mockResolvedValue({
       title: "Mock",
       content: '{"type":"doc","content":[{"type":"paragraph"}]}',

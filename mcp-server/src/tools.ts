@@ -7,7 +7,7 @@ import {
   updateTask,
   deleteTask,
 } from "./handlers/taskHandlers.js";
-import { getMemo, upsertMemo } from "./handlers/memoHandlers.js";
+import { getDaily, upsertDaily } from "./handlers/dailyHandlers.js";
 import { listNotes, createNote, updateNote } from "./handlers/noteHandlers.js";
 import {
   listSchedule,
@@ -140,8 +140,8 @@ export const TOOLS: Tool[] = [
     },
   },
   {
-    name: "get_memo",
-    description: "Get the daily memo for a specific date.",
+    name: "get_daily",
+    description: "Get the daily entry for a specific date.",
     inputSchema: {
       type: "object" as const,
       properties: {
@@ -154,9 +154,9 @@ export const TOOLS: Tool[] = [
     },
   },
   {
-    name: "upsert_memo",
+    name: "upsert_daily",
     description:
-      "Create or update a daily memo. Content is plain text and will be converted to TipTap JSON.",
+      "Create or update a daily entry. Content is plain text and will be converted to TipTap JSON.",
     inputSchema: {
       type: "object" as const,
       properties: {
@@ -332,7 +332,7 @@ export const TOOLS: Tool[] = [
   {
     name: "search_all",
     description:
-      "Search across tasks, memos, and notes. Use this to find information across all domains.",
+      "Search across tasks, dailies, and notes. Use this to find information across all domains.",
     inputSchema: {
       type: "object" as const,
       properties: {
@@ -344,7 +344,7 @@ export const TOOLS: Tool[] = [
           type: "array",
           items: {
             type: "string",
-            enum: ["tasks", "memos", "notes"],
+            enum: ["tasks", "dailies", "notes"],
           },
           description:
             "Domains to search (default: all). Example: ['tasks', 'notes']",
@@ -360,24 +360,24 @@ export const TOOLS: Tool[] = [
   {
     name: "generate_content",
     description:
-      "PREFERRED tool for creating rich content in notes, memos, or schedule items. Supports headings, lists, toggle lists, callouts, code blocks, tables, and nested structures. Use this instead of create_note/upsert_memo when you need formatted output.",
+      "PREFERRED tool for creating rich content in notes, dailies, or schedule items. Supports headings, lists, toggle lists, callouts, code blocks, tables, and nested structures. Use this instead of create_note/upsert_daily when you need formatted output.",
     inputSchema: {
       type: "object" as const,
       properties: {
         target: {
           type: "string",
-          enum: ["note", "memo", "schedule"],
+          enum: ["note", "daily", "schedule"],
           description:
             "Target entity type (schedule: updates content column of a schedule item)",
         },
         target_id: {
           type: "string",
           description:
-            "Existing note/memo/schedule-item ID to update (omit to create new note/memo)",
+            "Existing note/daily/schedule-item ID to update (omit to create new note/daily)",
         },
         target_date: {
           type: "string",
-          description: "Date for memo (YYYY-MM-DD). Defaults to today.",
+          description: "Date for daily (YYYY-MM-DD). Defaults to today.",
         },
         title: {
           type: "string",
@@ -485,7 +485,7 @@ export const TOOLS: Tool[] = [
   {
     name: "list_wiki_tags",
     description:
-      "List all wiki tags. Tags are cross-domain labels that connect tasks, memos, and notes.",
+      "List all wiki tags. Tags are cross-domain labels that connect tasks, dailies, and notes.",
     inputSchema: {
       type: "object" as const,
       properties: {
@@ -499,7 +499,7 @@ export const TOOLS: Tool[] = [
   {
     name: "tag_entity",
     description:
-      "Assign a wiki tag to a task, memo, or note. Creates the tag if it doesn't exist.",
+      "Assign a wiki tag to a task, daily, or note. Creates the tag if it doesn't exist.",
     inputSchema: {
       type: "object" as const,
       properties: {
@@ -507,7 +507,7 @@ export const TOOLS: Tool[] = [
         entity_id: { type: "string", description: "Entity ID" },
         entity_type: {
           type: "string",
-          enum: ["task", "memo", "note"],
+          enum: ["task", "daily", "note"],
           description: "Entity type",
         },
       },
@@ -516,14 +516,14 @@ export const TOOLS: Tool[] = [
   },
   {
     name: "search_by_tag",
-    description: "Search for tasks, memos, and notes by wiki tag name.",
+    description: "Search for tasks, dailies, and notes by wiki tag name.",
     inputSchema: {
       type: "object" as const,
       properties: {
         tag_name: { type: "string", description: "Tag name to search" },
         entity_type: {
           type: "string",
-          enum: ["task", "memo", "note"],
+          enum: ["task", "daily", "note"],
           description: "Filter by entity type (optional)",
         },
       },
@@ -558,13 +558,13 @@ export const TOOLS: Tool[] = [
   {
     name: "get_entity_tags",
     description:
-      "Get all wiki tags assigned to a specific entity (task, memo, or note).",
+      "Get all wiki tags assigned to a specific entity (task, daily, or note).",
     inputSchema: {
       type: "object" as const,
       properties: {
         entity_id: {
           type: "string",
-          description: "Entity ID (task, memo, or note)",
+          description: "Entity ID (task, daily, or note)",
         },
       },
       required: ["entity_id"],
@@ -676,13 +676,13 @@ export const TOOLS: Tool[] = [
   {
     name: "format_content",
     description:
-      "Read and restructure existing note/memo/schedule-item content. Supports wrapping in callout/toggle, adding headings, inserting blocks, or replacing all content.",
+      "Read and restructure existing note/daily/schedule-item content. Supports wrapping in callout/toggle, adding headings, inserting blocks, or replacing all content.",
     inputSchema: {
       type: "object" as const,
       properties: {
         target: {
           type: "string",
-          enum: ["note", "memo", "schedule"],
+          enum: ["note", "daily", "schedule"],
           description: "Target entity type",
         },
         target_id: {
@@ -691,7 +691,7 @@ export const TOOLS: Tool[] = [
         },
         target_date: {
           type: "string",
-          description: "Memo date (YYYY-MM-DD)",
+          description: "Daily date (YYYY-MM-DD)",
         },
         operations: {
           type: "array",
@@ -766,11 +766,11 @@ export function callTool(
     case "delete_task":
       result = deleteTask(args as Parameters<typeof deleteTask>[0]);
       break;
-    case "get_memo":
-      result = getMemo(args as Parameters<typeof getMemo>[0]);
+    case "get_daily":
+      result = getDaily(args as Parameters<typeof getDaily>[0]);
       break;
-    case "upsert_memo":
-      result = upsertMemo(args as Parameters<typeof upsertMemo>[0]);
+    case "upsert_daily":
+      result = upsertDaily(args as Parameters<typeof upsertDaily>[0]);
       break;
     case "list_notes":
       result = listNotes(args as Parameters<typeof listNotes>[0]);

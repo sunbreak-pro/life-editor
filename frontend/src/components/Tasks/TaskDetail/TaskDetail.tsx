@@ -3,7 +3,7 @@ import type { TaskNode } from "../../../types/taskTree";
 import type { Priority } from "../../../types/priority";
 import { TaskDetailHeader } from "./TaskDetailHeader";
 import { EmptyState } from "./EmptyState";
-import { LazyMemoEditor as MemoEditor } from "./LazyMemoEditor";
+import { LazyRichTextEditor as RichTextEditor } from "../../shared/LazyRichTextEditor";
 
 interface TaskDetailProps {
   task: TaskNode | null;
@@ -65,7 +65,7 @@ export function TaskDetail({
         />
         <div className="mt-6">
           <Suspense fallback={<div className="min-h-50" />}>
-            <MemoEditor
+            <RichTextEditor
               key={task.id}
               taskId={task.id}
               initialContent={task.content}

@@ -9,18 +9,18 @@ import {
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useNoteContext } from "../../hooks/useNoteContext";
-import { useMemoContext } from "../../hooks/useMemoContext";
+import { useDailyContext } from "../../hooks/useDailyContext";
 import { useAnalyticsFilter } from "../../context/AnalyticsFilterContext";
 import { formatDateKey } from "../../utils/dateKey";
 import { AnalyticsStatCard } from "./AnalyticsStatCard";
 import { NoteCreationTrend } from "./NoteCreationTrend";
-import { MemoActivityHeatmap } from "./MemoActivityHeatmap";
+import { DailyActivityHeatmap } from "./DailyActivityHeatmap";
 import { NotesByFolderChart } from "./NotesByFolderChart";
 
 export function MaterialsTab() {
   const { t } = useTranslation();
   const { notes } = useNoteContext();
-  const { memos } = useMemoContext();
+  const { dailies } = useDailyContext();
   const { dateRange, visibleCharts } = useAnalyticsFilter();
 
   const stats = useMemo(() => {
@@ -37,8 +37,8 @@ export function MaterialsTab() {
       return d >= startStr && d <= endStr;
     });
 
-    const activeMemos = memos.filter((m) => !m.isDeleted);
-    const memosInPeriod = activeMemos.filter((m) => {
+    const activeDailies = dailies.filter((m) => !m.isDeleted);
+    const memosInPeriod = activeDailies.filter((m) => {
       return m.date >= startStr && m.date <= endStr;
     });
 
@@ -47,10 +47,10 @@ export function MaterialsTab() {
       noteFolders: noteFolders.length,
       pinnedNotes: pinnedNotes.length,
       createdInPeriod: createdInPeriod.length,
-      totalMemos: activeMemos.length,
+      totalMemos: activeDailies.length,
       memosInPeriod: memosInPeriod.length,
     };
-  }, [notes, memos, dateRange]);
+  }, [notes, dailies, dateRange]);
 
   const days = Math.max(
     1,
@@ -118,7 +118,7 @@ export function MaterialsTab() {
       )}
 
       {visibleCharts.has("memoActivityHeatmap") && (
-        <MemoActivityHeatmap memos={memos} />
+        <DailyActivityHeatmap dailies={dailies} />
       )}
 
       {visibleCharts.has("notesByFolder") && (

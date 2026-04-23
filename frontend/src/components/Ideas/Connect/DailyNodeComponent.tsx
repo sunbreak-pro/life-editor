@@ -4,10 +4,10 @@ import { BookOpen } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { formatDisplayDate } from "../../../utils/dateKey";
 
-type MemoNodeType = {
+type DailyNodeType = {
   date: string;
   contentPreview: string;
-  memoId: string;
+  dailyId: string;
   tagDots?: Array<{ id: string; name: string; color: string }>;
   highlighted?: boolean;
   focused?: boolean;
@@ -15,7 +15,7 @@ type MemoNodeType = {
   splitTag?: { id: string; name: string; color: string };
 };
 
-function MemoNodeInner({ data }: NodeProps & { data: MemoNodeType }) {
+function DailyNodeInner({ data }: NodeProps & { data: DailyNodeType }) {
   const { i18n } = useTranslation();
   const [hovered, setHovered] = useState(false);
   const tagDots = data.tagDots || [];
@@ -102,4 +102,4 @@ function MemoNodeInner({ data }: NodeProps & { data: MemoNodeType }) {
   );
 }
 
-export const MemoNodeComponent = memo(MemoNodeInner);
+export const DailyNodeComponent = memo(DailyNodeInner);

@@ -102,7 +102,7 @@ function buildDoc(structure: ContentBlock[]): TipTapDoc {
 /* ===== generate_content ===== */
 
 interface GenerateContentArgs {
-  target: "note" | "memo" | "schedule";
+  target: "note" | "daily" | "schedule";
   target_id?: string;
   target_date?: string;
   title?: string;
@@ -162,15 +162,15 @@ export function generateContent(args: GenerateContentArgs) {
     ).run({ id: args.target_id, content: contentJson });
     return { id: args.target_id, target: "schedule", content: tiptapDoc };
   } else {
-    // memo
+    // daily
     const date = args.target_date ?? new Date().toISOString().slice(0, 10);
-    const id = args.target_id ?? `memo-${date}`;
+    const id = args.target_id ?? `daily-${date}`;
     db.prepare(
-      `INSERT INTO memos (id, date, content, created_at, updated_at)
+      `INSERT INTO dailies (id, date, content, created_at, updated_at)
        VALUES (@id, @date, @content, datetime('now'), datetime('now'))
        ON CONFLICT(date) DO UPDATE SET content = @content, updated_at = datetime('now')`,
     ).run({ id, date, content: contentJson });
-    return { id, date, target: "memo", content: tiptapDoc };
+    return { id, date, target: "daily", content: tiptapDoc };
   }
 }
 
@@ -199,7 +199,7 @@ interface FormatOperation {
 }
 
 interface FormatContentArgs {
-  target: "note" | "memo" | "schedule";
+  target: "note" | "daily" | "schedule";
   target_id?: string;
   target_date?: string;
   operations: FormatOperation[];
@@ -235,10 +235,10 @@ export function formatContent(args: FormatContentArgs) {
     const date = args.target_date ?? new Date().toISOString().slice(0, 10);
     const row = db
       .prepare(
-        "SELECT id, content FROM memos WHERE date = ? AND is_deleted = 0",
+        "SELECT id, content FROM dailies WHERE date = ? AND is_deleted = 0",
       )
       .get(date) as { id: string; content: string } | undefined;
-    if (!row) throw new Error(`Memo not found for date: ${date}`);
+    if (!row) throw new Error(`Daily not found for date: ${date}`);
     contentJson = row.content;
     entityId = row.id;
   }
@@ -309,7 +309,7 @@ export function formatContent(args: FormatContentArgs) {
     ).run({ id: entityId, content: updatedJson });
   } else {
     db.prepare(
-      "UPDATE memos SET content = @content, updated_at = datetime('now') WHERE id = @id",
+      "UPDATE dailies SET content = @content, updated_at = datetime('now') WHERE id = @id",
     ).run({ id: entityId, content: updatedJson });
   }
 

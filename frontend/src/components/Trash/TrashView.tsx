@@ -13,7 +13,7 @@ import { useTranslation } from "react-i18next";
 import { useTaskTreeContext } from "../../hooks/useTaskTreeContext";
 import { useNoteContext } from "../../hooks/useNoteContext";
 import { useAudioContext } from "../../hooks/useAudioContext";
-import { useMemoContext } from "../../hooks/useMemoContext";
+import { useDailyContext } from "../../hooks/useDailyContext";
 import { useRoutineContext } from "../../hooks/useRoutineContext";
 import { useScheduleItemsContext } from "../../hooks/useScheduleItemsContext";
 import { getDataService } from "../../services";
@@ -33,8 +33,8 @@ export function TrashView({ activeTab, searchQuery }: TrashViewProps) {
   const { deletedNodes, restoreNode, permanentDelete } = useTaskTreeContext();
   const { deletedNotes, loadDeletedNotes, restoreNote, permanentDeleteNote } =
     useNoteContext();
-  const { deletedMemos, loadDeletedMemos, restoreMemo, permanentDeleteMemo } =
-    useMemoContext();
+  const { deletedDailies, loadDeletedDailies, restoreDaily, permanentDeleteDaily } =
+    useDailyContext();
   const {
     deletedRoutines,
     loadDeletedRoutines,
@@ -54,12 +54,12 @@ export function TrashView({ activeTab, searchQuery }: TrashViewProps) {
 
   useEffect(() => {
     loadDeletedNotes();
-    loadDeletedMemos();
+    loadDeletedDailies();
     loadDeletedRoutines();
     loadDeletedScheduleItems();
   }, [
     loadDeletedNotes,
-    loadDeletedMemos,
+    loadDeletedDailies,
     loadDeletedRoutines,
     loadDeletedScheduleItems,
   ]);
@@ -280,7 +280,7 @@ export function TrashView({ activeTab, searchQuery }: TrashViewProps) {
   };
 
   const renderMaterialsTab = () => {
-    const filteredMemos = deletedMemos.filter((m) => matchesSearch(m.date));
+    const filteredMemos = deletedDailies.filter((m) => matchesSearch(m.date));
     const filteredNotes = deletedNotes.filter((n) => matchesSearch(n.title));
     const isEmpty = filteredMemos.length === 0 && filteredNotes.length === 0;
     if (isEmpty)
@@ -303,7 +303,7 @@ export function TrashView({ activeTab, searchQuery }: TrashViewProps) {
                 FileText,
                 memo.date,
                 t("trash.memo"),
-                () => restoreMemo(memo.date),
+                () => restoreDaily(memo.date),
                 () =>
                   setDeleteTarget({
                     type: "memo",
@@ -396,7 +396,7 @@ export function TrashView({ activeTab, searchQuery }: TrashViewProps) {
             } else if (deleteTarget.type === "routine") {
               permanentDeleteRoutine(deleteTarget.id);
             } else if (deleteTarget.type === "memo") {
-              permanentDeleteMemo(deleteTarget.id);
+              permanentDeleteDaily(deleteTarget.id);
             } else if (deleteTarget.type === "scheduleItem") {
               permanentDeleteScheduleItem(deleteTarget.id);
             } else {

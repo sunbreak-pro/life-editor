@@ -29,7 +29,7 @@ const ConnectView = lazy(() =>
 );
 import { useTimerContext } from "./hooks/useTimerContext";
 import { useTaskTreeContext } from "./hooks/useTaskTreeContext";
-import { useMemoContext } from "./hooks/useMemoContext";
+import { useDailyContext } from "./hooks/useDailyContext";
 import { useAppCommands } from "./hooks/useAppCommands";
 import { useAppKeyboardShortcuts } from "./hooks/useAppKeyboardShortcuts";
 import { useMenuActions } from "./hooks/useMenuActions";
@@ -77,7 +77,7 @@ function App() {
     toggleTaskStatus,
     persistError,
   } = useTaskTreeContext();
-  const { setSelectedDate: setMemoDate } = useMemoContext();
+  const { setSelectedDate: setDailyDate } = useDailyContext();
   const { createNote, setSelectedNoteId } = useNoteContext();
 
   const selectedTask = selectedTaskId
@@ -95,7 +95,7 @@ function App() {
     setSelectedTaskId,
     setActiveSection,
     setScheduleTab,
-    setMemoDate,
+    setDailyDate,
     createNote,
     setSelectedNoteId,
   });

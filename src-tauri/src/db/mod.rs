@@ -2,7 +2,7 @@ pub mod migrations;
 pub mod helpers;
 pub mod task_repository;
 pub mod timer_repository;
-pub mod memo_repository;
+pub mod daily_repository;
 pub mod note_repository;
 pub mod sound_repository;
 pub mod custom_sound_repository;

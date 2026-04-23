@@ -34,8 +34,8 @@ CREATE TABLE IF NOT EXISTS tasks (
     FOREIGN KEY (parent_id) REFERENCES tasks(id)
 );
 
--- ===== Memos =====
-CREATE TABLE IF NOT EXISTS memos (
+-- ===== Dailies =====
+CREATE TABLE IF NOT EXISTS dailies (
     id TEXT PRIMARY KEY,
     date TEXT NOT NULL UNIQUE,
     content TEXT DEFAULT '',
@@ -266,9 +266,9 @@ CREATE TABLE IF NOT EXISTS sync_devices (
 CREATE INDEX IF NOT EXISTS idx_tasks_parent ON tasks(parent_id);
 CREATE INDEX IF NOT EXISTS idx_tasks_deleted ON tasks(is_deleted);
 CREATE INDEX IF NOT EXISTS idx_tasks_updated_at ON tasks(updated_at);
-CREATE INDEX IF NOT EXISTS idx_memos_date ON memos(date);
-CREATE INDEX IF NOT EXISTS idx_memos_deleted ON memos(is_deleted);
-CREATE INDEX IF NOT EXISTS idx_memos_updated_at ON memos(updated_at);
+CREATE INDEX IF NOT EXISTS idx_dailies_date ON dailies(date);
+CREATE INDEX IF NOT EXISTS idx_dailies_deleted ON dailies(is_deleted);
+CREATE INDEX IF NOT EXISTS idx_dailies_updated_at ON dailies(updated_at);
 CREATE INDEX IF NOT EXISTS idx_notes_deleted ON notes(is_deleted);
 CREATE INDEX IF NOT EXISTS idx_notes_updated_at ON notes(updated_at);
 CREATE INDEX IF NOT EXISTS idx_calendars_updated_at ON calendars(updated_at);

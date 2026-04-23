@@ -42,13 +42,13 @@ pub fn db_note_links_upsert_for_note(
 }
 
 #[tauri::command]
-pub fn db_note_links_upsert_for_memo(
+pub fn db_note_links_upsert_for_daily(
     state: State<'_, DbState>,
-    source_memo_date: String,
+    source_daily_date: String,
     links: Vec<NoteLinkPayload>,
 ) -> Result<(), String> {
     let conn = state.conn.lock().map_err(|e| e.to_string())?;
-    note_link_repository::upsert_links_for_memo(&conn, &source_memo_date, links)
+    note_link_repository::upsert_links_for_daily(&conn, &source_daily_date, links)
         .map_err(|e| e.to_string())
 }
 

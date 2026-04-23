@@ -2,7 +2,7 @@ import type { TimerSession } from "../types/timer";
 import type { TaskNode } from "../types/taskTree";
 import type { ScheduleItem } from "../types/schedule";
 import type { NoteNode } from "../types/note";
-import type { MemoNode } from "../types/memo";
+import type { DailyNode } from "../types/daily";
 import type { RoutineNode } from "../types/routine";
 import type {
   WikiTag,
@@ -664,31 +664,31 @@ export function aggregateNoteCreationByDay(
   return Array.from(map.values()).sort((a, b) => a.date.localeCompare(b.date));
 }
 
-export interface MemoActivityCell {
+export interface DailyActivityCell {
   date: string;
   hasContent: boolean;
 }
 
-/** Memo activity: which days have memos */
-export function aggregateMemoActivity(
-  memos: MemoNode[],
+/** Memo activity: which days have dailies */
+export function aggregateDailyActivity(
+  dailies: DailyNode[],
   days: number,
-): MemoActivityCell[] {
+): DailyActivityCell[] {
   const now = new Date();
   const cutoff = new Date(now);
   cutoff.setDate(cutoff.getDate() - days + 1);
   cutoff.setHours(0, 0, 0, 0);
 
-  const memoDateSet = new Set(
-    memos.filter((m) => !m.isDeleted).map((m) => m.date),
+  const dailyDateSet = new Set(
+    dailies.filter((m) => !m.isDeleted).map((m) => m.date),
   );
 
-  const cells: MemoActivityCell[] = [];
+  const cells: DailyActivityCell[] = [];
   for (let i = 0; i < days; i++) {
     const d = new Date(cutoff);
     d.setDate(d.getDate() + i);
     const key = toDateStr(d);
-    cells.push({ date: key, hasContent: memoDateSet.has(key) });
+    cells.push({ date: key, hasContent: dailyDateSet.has(key) });
   }
 
   return cells;
@@ -771,7 +771,7 @@ export interface TagEntityTypeBucket {
   tagColor: string;
   taskCount: number;
   noteCount: number;
-  memoCount: number;
+  dailyCount: number;
 }
 
 /** Tag usage broken down by entity type */
@@ -803,15 +803,15 @@ export function aggregateTagByEntityType(
         tagColor: tag?.color ?? "#808080",
         taskCount: counts.task,
         noteCount: counts.note,
-        memoCount: counts.memo,
+        dailyCount: counts.memo,
       };
     })
     .sort(
       (a, b) =>
         b.taskCount +
         b.noteCount +
-        b.memoCount -
-        (a.taskCount + a.noteCount + a.memoCount),
+        b.dailyCount -
+        (a.taskCount + a.noteCount + a.dailyCount),
     )
     .slice(0, limit);
 }

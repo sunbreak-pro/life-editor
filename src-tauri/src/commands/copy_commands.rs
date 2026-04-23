@@ -7,8 +7,8 @@ pub fn copy_note_to_file(note_id: String, directory_path: String) -> Result<Stri
 }
 
 #[tauri::command]
-pub fn copy_memo_to_file(memo_date: String, directory_path: String) -> Result<String, String> {
-    let _ = (memo_date, directory_path);
+pub fn copy_daily_to_file(daily_date: String, directory_path: String) -> Result<String, String> {
+    let _ = (daily_date, directory_path);
     Err("Not implemented yet".to_string())
 }
 

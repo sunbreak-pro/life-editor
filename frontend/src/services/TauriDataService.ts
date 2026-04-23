@@ -12,7 +12,7 @@ import type {
   SoundTag,
   SoundDisplayMeta,
 } from "../types/sound";
-import type { MemoNode } from "../types/memo";
+import type { DailyNode } from "../types/daily";
 import type { CustomSoundMeta } from "../types/customSound";
 import type { NoteNode } from "../types/note";
 
@@ -231,45 +231,48 @@ export class TauriDataService implements DataService {
     });
   }
 
-  // --- Memo ---
-  fetchAllMemos(): Promise<MemoNode[]> {
-    return tauriInvoke("db_memo_fetch_all");
+  // --- Daily ---
+  fetchAllDailies(): Promise<DailyNode[]> {
+    return tauriInvoke("db_daily_fetch_all");
   }
-  fetchMemoByDate(date: string): Promise<MemoNode | null> {
-    return tauriInvoke("db_memo_fetch_by_date", { date });
+  fetchDailyByDate(date: string): Promise<DailyNode | null> {
+    return tauriInvoke("db_daily_fetch_by_date", { date });
   }
-  upsertMemo(date: string, content: string): Promise<MemoNode> {
-    return tauriInvoke("db_memo_upsert", { date, content });
+  upsertDaily(date: string, content: string): Promise<DailyNode> {
+    return tauriInvoke("db_daily_upsert", { date, content });
   }
-  deleteMemo(date: string): Promise<void> {
-    return tauriInvoke("db_memo_delete", { date });
+  deleteDaily(date: string): Promise<void> {
+    return tauriInvoke("db_daily_delete", { date });
   }
-  fetchDeletedMemos(): Promise<MemoNode[]> {
-    return tauriInvoke("db_memo_fetch_deleted");
+  fetchDeletedDailies(): Promise<DailyNode[]> {
+    return tauriInvoke("db_daily_fetch_deleted");
   }
-  restoreMemo(date: string): Promise<void> {
-    return tauriInvoke("db_memo_restore", { date });
+  restoreDaily(date: string): Promise<void> {
+    return tauriInvoke("db_daily_restore", { date });
   }
-  permanentDeleteMemo(date: string): Promise<void> {
-    return tauriInvoke("db_memo_permanent_delete", { date });
+  permanentDeleteDaily(date: string): Promise<void> {
+    return tauriInvoke("db_daily_permanent_delete", { date });
   }
-  toggleMemoPin(date: string): Promise<MemoNode> {
-    return tauriInvoke("db_memo_toggle_pin", { date });
+  toggleDailyPin(date: string): Promise<DailyNode> {
+    return tauriInvoke("db_daily_toggle_pin", { date });
   }
-  setMemoPassword(date: string, password: string): Promise<MemoNode> {
-    return tauriInvoke("db_memo_set_password", { date, password });
+  setDailyPassword(date: string, password: string): Promise<DailyNode> {
+    return tauriInvoke("db_daily_set_password", { date, password });
   }
-  removeMemoPassword(date: string, currentPassword: string): Promise<MemoNode> {
-    return tauriInvoke("db_memo_remove_password", {
+  removeDailyPassword(
+    date: string,
+    currentPassword: string,
+  ): Promise<DailyNode> {
+    return tauriInvoke("db_daily_remove_password", {
       date,
       currentPassword,
     });
   }
-  verifyMemoPassword(date: string, password: string): Promise<boolean> {
-    return tauriInvoke("db_memo_verify_password", { date, password });
+  verifyDailyPassword(date: string, password: string): Promise<boolean> {
+    return tauriInvoke("db_daily_verify_password", { date, password });
   }
-  toggleMemoEditLock(date: string): Promise<MemoNode> {
-    return tauriInvoke("db_memo_toggle_edit_lock", { date });
+  toggleDailyEditLock(date: string): Promise<DailyNode> {
+    return tauriInvoke("db_daily_toggle_edit_lock", { date });
   }
 
   // --- Notes ---
@@ -955,12 +958,12 @@ export class TauriDataService implements DataService {
       links,
     });
   }
-  upsertNoteLinksForMemo(
-    sourceMemoDate: string,
+  upsertNoteLinksForDaily(
+    sourceDailyDate: string,
     links: NoteLinkPayload[],
   ): Promise<void> {
-    return tauriInvoke("db_note_links_upsert_for_memo", {
-      sourceMemoDate,
+    return tauriInvoke("db_note_links_upsert_for_daily", {
+      sourceDailyDate,
       links,
     });
   }
@@ -1410,16 +1413,16 @@ export class TauriDataService implements DataService {
     });
   }
 
-  // --- Copy (Notes/Memos <-> Files) ---
+  // --- Copy (Notes/Dailies <-> Files) ---
   copyNoteToFile(noteId: string, directoryPath: string): Promise<string> {
     return tauriInvoke("copy_note_to_file", {
       noteId,
       directoryPath,
     });
   }
-  copyMemoToFile(memoDate: string, directoryPath: string): Promise<string> {
-    return tauriInvoke("copy_memo_to_file", {
-      memoDate,
+  copyDailyToFile(dailyDate: string, directoryPath: string): Promise<string> {
+    return tauriInvoke("copy_daily_to_file", {
+      dailyDate,
       directoryPath,
     });
   }

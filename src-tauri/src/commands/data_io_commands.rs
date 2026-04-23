@@ -59,7 +59,7 @@ pub async fn data_export(
             "timerSessions": safe_query_all(&conn, "SELECT * FROM timer_sessions"),
             "soundSettings": safe_query_all(&conn, "SELECT * FROM sound_settings"),
             "soundPresets": safe_query_all(&conn, "SELECT * FROM sound_presets"),
-            "memos": safe_query_all(&conn, "SELECT * FROM memos"),
+            "dailies": safe_query_all(&conn, "SELECT * FROM dailies"),
             "notes": safe_query_all(&conn, "SELECT * FROM notes"),
             "soundTagDefinitions": safe_query_all(&conn, "SELECT * FROM sound_tag_definitions"),
             "soundTagAssignments": safe_query_all(&conn, "SELECT * FROM sound_tag_assignments"),
@@ -136,7 +136,7 @@ pub async fn data_import(
              DELETE FROM timer_sessions;
              DELETE FROM sound_settings;
              DELETE FROM sound_presets;
-             DELETE FROM memos;
+             DELETE FROM dailies;
              DELETE FROM tasks;",
         )
         .map_err(|e| e.to_string())?;
@@ -186,8 +186,8 @@ pub async fn data_import(
             "id", "name", "settings_json", "created_at",
         ])?;
 
-        // Import memos
-        import_array(&conn, &data["memos"], "memos", &[
+        // Import dailies
+        import_array(&conn, &data["dailies"], "dailies", &[
             "id", "date", "content", "created_at", "updated_at",
         ])?;
 
@@ -291,7 +291,7 @@ fn validate_import_data(imported: &Value) -> Result<(), String> {
         "timerSessions",
         "soundSettings",
         "soundPresets",
-        "memos",
+        "dailies",
         "notes",
         "soundTagDefinitions",
         "soundTagAssignments",
@@ -472,7 +472,7 @@ pub async fn data_reset(state: State<'_, DbState>) -> Result<bool, String> {
              DELETE FROM pomodoro_presets;
              DELETE FROM sound_settings;
              DELETE FROM sound_presets;
-             DELETE FROM memos;
+             DELETE FROM dailies;
              DELETE FROM time_memos;
              DELETE FROM paper_edges;
              DELETE FROM paper_nodes;

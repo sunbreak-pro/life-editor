@@ -1,6 +1,6 @@
 export type UndoDomain =
   | "taskTree"
-  | "memo"
+  | "daily"
   | "note"
   | "calendar"
   | "routine"

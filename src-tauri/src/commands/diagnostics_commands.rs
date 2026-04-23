@@ -121,7 +121,7 @@ pub fn diagnostics_fetch_system_info(state: State<'_, DbState>) -> Result<Value,
         "tasks",
         "timer_sessions",
         "sound_settings",
-        "memos",
+        "dailies",
         "notes",
         "routines",
     ];
