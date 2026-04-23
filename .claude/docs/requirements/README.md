@@ -9,6 +9,7 @@ CLAUDE.md §11 Feature Tier Map の詳細版。各機能の Purpose / Boundary /
 | `tier-1-core.md`         | Value Proposition を直接支えるコア機能（推定 8-10 機能）       | ~2000 行 |
 | `tier-2-supporting.md`   | 補助機能 / Tier 1 の補完（推定 10-12 機能）                    | ~1500 行 |
 | `tier-3-experimental.md` | 実験 / 凍結候補 / 半年以上未利用ならドロップ判断対象（5-8 件） | ~800 行  |
+| `ios-additions.md`       | iOS 限定の上乗せ要件（元 note「iOS追加機能要件」の SSOT 化）   | 可変     |
 
 ## Tier 分類の判定基準
 
