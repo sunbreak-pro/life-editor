@@ -12,9 +12,10 @@
 
 ## Monitoring（すぐ対処しないが監視）
 
-| ID  | Title                                                                                     | Category   | Since      |
-| --- | ----------------------------------------------------------------------------------------- | ---------- | ---------- |
-| 006 | [Desktop app_data_dir が bundle ID で分裂](./006-desktop-data-dir-bundle-id-migration.md) | Structural | 2026-04-18 |
+| ID  | Title                                                                                                                         | Category            | Since      |
+| --- | ----------------------------------------------------------------------------------------------------------------------------- | ------------------- | ---------- |
+| 006 | [Desktop app_data_dir が bundle ID で分裂](./006-desktop-data-dir-bundle-id-migration.md)                                     | Structural          | 2026-04-18 |
+| 014 | [delta sync が updated_at の非単調性に対応できず高 version 行が pull から漏れる](./014-delta-sync-nonmonotonic-updated-at.md) | Bug/Sync/Structural | 2026-04-23 |
 
 ## Fixed（Root Cause 参考、将来の再発防止用）
 
@@ -29,23 +30,24 @@
 | 008 | [routine/group tag_assignments が delta sync に乗らず Desktop から消える](./008-routine-tag-assignments-delta-sync-invisible.md)          | Bug/Sync          | 2026-04-20 |
 | 011 | [schedule_items の (routine_id, date) 重複が Cloud D1 に蓄積](./011-schedule-items-routine-date-duplication.md)                           | Bug/Schema/Sync   | 2026-04-21 |
 | 012 | [/sync/changes の LIMIT=500 と client hasMore 未処理で初回 pull が途切れる](./012-sync-changes-limit-500-truncates-large-initial-pull.md) | Bug/Sync          | 2026-04-22 |
+| 013 | [updated_at の timestamp 形式混在で delta sync が同日編集を凍結する](./013-timestamp-format-mismatch-delta-sync-freeze.md)                | Bug/Sync/Schema   | 2026-04-23 |
 
 ---
 
 ## Category 別インデックス
 
-- **Bug**: 001, 002, 004, 005, 008, 011, 012
-- **Schema**: 001, 002, 003, 005, 011
-- **Sync**: 008, 011, 012
-- **Structural**: 003, 006
+- **Bug**: 001, 002, 004, 005, 008, 011, 012, 013, 014
+- **Schema**: 001, 002, 003, 005, 011, 013
+- **Sync**: 008, 011, 012, 013, 014
+- **Structural**: 003, 006, 014
 - **Tooling**: 007
 
 ## Status 集計
 
 - Active: 0 件
-- Monitoring: 2 件(006, 012)
-- Fixed: 8 件
-- 合計: 10 件
+- Monitoring: 3 件(006, 012, 014)
+- Fixed: 9 件
+- 合計: 12 件
 
 ---
 

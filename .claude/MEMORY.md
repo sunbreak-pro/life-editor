@@ -6,9 +6,9 @@
 
 ## 直近の完了
 
-- Memos → Daily 全層 rename + MemoEditor → RichTextEditor 中立分離 ✅（2026-04-23）— DB v63→v64 migration で `memos` → `dailies` リネーム（`memo-YYYY-MM-DD` → `daily-YYYY-MM-DD` の id 形式変換、`note_links.source_memo_date` → `source_daily_date` カラム rename、`wiki_tag_assignments` / `paper_nodes` の `entity_type='memo'` → `'daily'` 更新、既存データ保持）+ Rust backend 全層 rename（`memo_repository` / `memo_commands` → `daily_*`、12 IPC handler、`sync_engine` VERSIONED_TABLES、`SyncPayload.memos` → `.dailies`、`data_io_commands` / `diagnostics_commands` / `claude_commands` / `note_link_commands` / `copy_commands`）+ MCP Server（`get_memo` / `upsert_memo` → `get_daily` / `upsert_daily` の Hard break、`memoHandlers` → `dailyHandlers`、`contentHandlers` / `searchHandlers` / `wikiTagHandlers` の target/domain enum 更新）+ Frontend（`types/memo` → `daily`、Pattern A 3-file `DailyContextValue` / `DailyContext` / `useDailyContext` / `useDaily`、`DataService` + `TauriDataService` 12 メソッド rename、32 consumer 自動置換、`MobileMemoView` → `MobileDailyView` / `DailyMemoView` → `DailyView` / `MemoActivityHeatmap` → `DailyActivityHeatmap` / `MemoNodeComponent` → `DailyNodeComponent` / `memoGrouping` → `dailyGrouping`、`UndoDomain` / `ConversionSource` / `WikiTagEntityType` / `useWikiTagSync` / `useNoteLinkSync` の "memo" → "daily" 型更新、`memoId` / `memoDate` / `onDeleteMemoEntity` 等変数 rename、`McpToolsList.tsx` の tool name 文字列更新）+ Cloud Sync（`cloud/db/schema.sql` 更新 + `0002_rename_memos_to_dailies.sql` migration 新規 + `cloud/src/routes/sync.ts` VERSIONED_TABLES / PRIMARY_KEYS）+ i18n（`mobile.tabs.memos` → `mobile.tabs.daily`、`mobile.memo.*` → `mobile.daily.*`、en: "Daily" / ja: "日記" 統一）+ MemoEditor TipTap（589 行）を `components/shared/RichTextEditor.tsx` に移動＋改名し汎用エディタとして再配置、6 consumers の import path を 2 levels 調整、`LazyMemoEditor` → `LazyRichTextEditor` + CLAUDE.md §2/§4.1-4.4/§5.1/§6.2/§8 を全面更新。検証: cargo test 11/11（V64 migration test 新規追加で data 変換・note_links column rename・wiki_tag_assignments 更新を検証）/ cargo build --release 成功 / Vitest 231 pass / Frontend `npm run build` 成功 / MCP `npm run build` 成功。`time_memos` テーブルは別概念のため本 rename から意図的に除外
+- Cloud Sync timestamp 整合性修正（Known Issues 013 / 014）+ DB 規約 vision 新設 ✅（2026-04-24）— Mobile → Desktop 同期不達を 3 層で解消: (1) `cloud/db/migrations/0002_rename_memos_to_dailies.sql` を Cloud schema 準拠に書き直し（note_links/paper_nodes 除去 + wiki_tag_assignments PK 衝突の 2 段回避）+ 本番適用、(2) sync delta query のスペース区切り vs ISO 8601 混在バグ（ASCII 順 space<T で同日行凍結）を `sync_engine.rs` / `cloud/src/routes/sync.ts` の全 delta query に `datetime()` 正規化を適用（013 Fixed + regression test 2 本）、(3) delta sync が updated_at 単調性に依存する構造的制約（Mobile 高 version 古 updated_at 行が pull 不能）を Full Re-sync 緊急弁で暫定対応し 014 Monitoring 起票。Worker 再 deploy（Version 04d24d88...）。並行して `docs/vision/db-conventions.md` 新設（timestamp / version / sync protocol / UPSERT / migration / multi-language write / 禁止事項 9 章）、CLAUDE.md / MEMORY.md / auto-memory / known-issues INDEX 全整合更新。cargo test 11→13 pass / tsc 0 / clippy 新規 warning 0
+- Memos → Daily 全層 rename + MemoEditor → RichTextEditor 中立分離 ✅（2026-04-23）— DB v63→v64 migration で `memos` → `dailies` リネーム + Rust backend 全層（12 IPC handler / sync_engine / data_io / diagnostics / claude / note_link / copy）+ MCP Server（`get_memo`/`upsert_memo` Hard break）+ Frontend 32 consumer 自動置換 + Pattern A 3-file（`DailyContextValue`/`DailyContext`/`useDailyContext`/`useDaily`）+ Cloud Sync（schema / migration 0002 / VERSIONED_TABLES）+ i18n + MemoEditor TipTap を `components/shared/RichTextEditor.tsx` に中立化。cargo test 11/11 / Vitest 231 pass / Frontend + MCP build 成功
 - TaskTree + Folder DetailPanel ヘッダー簡素化 ✅（2026-04-23）— TaskTree フォルダ行が `node.icon` に追従 / Folder DetailPanel のアイコンピッカーをタイトル左横にインライン統合 / Task DetailPanel の「Move to folder」機能と `FolderMovePicker.tsx` を完全廃止 / Complete フォルダ選択時の展開ドロップダウン + DONE 一覧表示。`FOLDER_MOVE_CONFIRM_SKIP` storage key 削除。Vitest 231 pass / tsc -b 編集 4 ファイル 0 error
-- Routine schedule_items 重複の根本修正 + Cloud sync initial-pull 500 件 cap 暫定対応(Known Issues 011 / 012)✅（2026-04-22）— 4 層欠陥(DB UNIQUE 制約欠落 / sync 衝突解決が id 単独 / Frontend Map キー単独 / Rust `create()` ガード欠如)を `V63` migration + create() ガード + sync_engine 特別扱い + Cloud Worker pre-dedup + 複合キー `${routineId}:${date}` で根治。Cloud D1 既存 1,181 行を DELETE、partial UNIQUE index を SQLite/D1 両端に張り恒久化。Known Issue 012 を LIMIT=5000 bump で暫定対応
 
 ## 予定
 
@@ -67,9 +67,26 @@
 - **S-2**: Tauri IPC naming 方針 — ADR-0006 で規約のみ採択、150 コマンド一括 typed struct 移行は未着手
 - **React Compiler 有効化**: S-4 Drop 判定時に切り離し
 
-## バグの温床 / 今後の注意点(2026-04-22 時点)
+## バグの温床 / 今後の注意点(2026-04-23 更新)
 
-以下は本 session で顕在化した構造的な脆弱性。同類のバグが再発する可能性が高い領域として記録:
+以下は本 session で顕在化した構造的な脆弱性。同類のバグが再発する可能性が高い領域として記録。DB 系の再発防止ルールは [`docs/vision/db-conventions.md`](./docs/vision/db-conventions.md) に集約:
+
+- **timestamp 形式混在（Known Issue 013）**: SQL 内 `datetime('now')` と `new Date().toISOString()` / `helpers::now()` が同じテーブルに書き込まれ、スペース区切り vs ISO 8601 の混在で sync 文字列比較が壊れる。ASCII 順 space(0x20) < T(0x54) のため一度 since が ISO になると同日 space 行が永久に push から漏れる。暫定対応は sync query の `datetime()` 正規化、恒久対応は書き込み側を ISO 8601 に統一
+- **delta sync が updated_at 単調性に依存（Known Issue 014）**: Mobile 11:50 編集 v=372 と Desktop 13:30 編集 v=228 のような高 version + 古 updated_at が Cloud に居座ると `WHERE updated_at > since` では永久に pull されない。Full Re-sync が緊急弁。本命は Cloud D1 に `server_updated_at` 列を追加して delta cursor をそちらへ切り替え
+- **Cloud D1 migration が Desktop migration と同一テーブル前提になりがち**: 0002 を流用しようとしたら `note_links` / `paper_nodes` が D1 に無く失敗。Desktop schema は superset、Cloud は subset という認識を migration 作成時に徹底
+- **Cloud deploy と D1 migration の tai-ming**: Worker を deploy すると新 schema を前提に push INSERT を試み、D1 が未 migration だと batch 全ロールバック → sync 全体が silent に停止。deploy と migration を必ずセットで運用
+- **論理的一意性を持つテーブルの UNIQUE 制約**: schedule_items で発覚したが、tasks / dailies / notes / routines も同じ「`id` PK のみで論理キー UNIQUE 無し」。特に `routine_tag_assignments (routine_id, tag_id)` のような複合キー relation は要再点検
+- **sync 衝突解決が ID 単独**: `ON CONFLICT(id)` + version 比較の LWW は複合キー衝突(異 id 同 payload)を検知できない。今回は schedule_items に特別扱いを足したが、他の relation テーブルが同じ罠に嵌る可能性
+- **pagination 半実装**: `/sync/changes` の LIMIT + `hasMore` は cursor が伴わず、client ループにも対応していない。暫定 LIMIT=5000 は応急措置で、テーブル成長で再発
+- **D1 の compound SELECT 制限**: `UNION ALL` は 5 本まで。診断 SQL で 6 本以上繋ぐと `too many terms` エラー。個別 `--command` で回す
+- **wrangler d1 execute の引数**: 相対パスは CWD 基準 / 長いコマンドを `\` で改行するとシェルによっては `--file=` 以降が別コマンド扱いで Unknown argument。1 行で書くのが確実
+- **client / server 分散 flag**: `has_more` のように片方だけが使っている field は気づかず古びていく。片側更新時はもう片側の参照箇所を grep で確認する運用が必要
+- **Mobile UI の機能欠落(Full Re-sync)**: Desktop SyncSettings と Mobile MobileSyncSection で実装差分があり、障害時の workaround が Mobile で取れない。014 のような状況で詰む
+- **`tsc --noEmit` at frontend root は無意味**: `tsconfig.json` が solution-style(`files: []` + references のみ)なので実際の型チェックが走らない。Phase 0 verification では `tsc -b` または `npm run build` を使うべき(session-verifier skill には記録済)
+- **Xcode GUI ⌘R は Tauri 2.x で動かない**: `cargo tauri ios xcode-script` は親プロセスが立てる JSON-RPC サーバに依存。Xcode 単独起動では `ConnectionRefused` で落ちる。必ず `cargo tauri ios build` or `dev --host` をターミナルから実行
+- **Xcode の PATH に NVM / cargo が無い**: `/usr/local/bin/` への symlink(cargo/rustc/rustup)で解消済だが、他のマシンでセットアップする際に再発する。`ios-everywhere-sync.md` vision 更新案件
+- **Desktop パッケージ版と HEAD 実装の乖離**: V64 migration は DB に適用される必要あり、`/Applications/Life Editor.app` の Rust バイナリは旧版のままだと Daily テーブル未対応で起動時 migration 走行 → dailies への rename を経験する。新規ビルドを置換推奨
+- **iOS binary と Cloud schema の三者不整合**: Desktop / iOS / Cloud のどれか 1 つでも古いまま運用すると sync が silent に壊れる。V64 のような rename 系 migration は 3 端末同時更新が前提
 
 - **論理的一意性を持つテーブルの UNIQUE 制約**: schedule_items で発覚したが、tasks / memos / notes / routines も同じ「`id` PK のみで論理キー UNIQUE 無し」。特に `routine_tag_assignments (routine_id, tag_id)` のような複合キー relation は要再点検
 - **sync 衝突解決が ID 単独**: `ON CONFLICT(id)` + version 比較の LWW は複合キー衝突(異 id 同 payload)を検知できない。今回は schedule_items に特別扱いを足したが、他の relation テーブルが同じ罠に嵌る可能性

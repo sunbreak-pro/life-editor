@@ -16,15 +16,15 @@
 
 ### 関連ドキュメント
 
-| パス                             | 用途                                                                                                                                     |
-| -------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
-| `.claude/MEMORY.md`              | タスクトラッカー（進行中 / 直近完了 / 予定）                                                                                             |
-| `.claude/HISTORY.md`             | 変更履歴（セッション単位）                                                                                                               |
-| `.claude/docs/vision/`           | 設計原則 + 次フェーズ計画（`core.md` / `coding-principles.md` / `mobile-porting.md` / `ios-everywhere-sync.md` / `desktop-followup.md`） |
-| `.claude/docs/requirements/`     | Tier 1-3 機能要件定義                                                                                                                    |
-| `.claude/docs/known-issues/`     | 未解決 Issue + Root Cause 記録（[INDEX](./docs/known-issues/INDEX.md)）                                                                  |
-| `.claude/docs/code-explanation/` | 機能別コード解説（学習教材）                                                                                                             |
-| `.claude/archive/`               | 完了済みプラン                                                                                                                           |
+| パス                             | 用途                                                                                                                                                           |
+| -------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `.claude/MEMORY.md`              | タスクトラッカー（進行中 / 直近完了 / 予定）                                                                                                                   |
+| `.claude/HISTORY.md`             | 変更履歴（セッション単位）                                                                                                                                     |
+| `.claude/docs/vision/`           | 設計原則 + 次フェーズ計画（`core.md` / `coding-principles.md` / `db-conventions.md` / `mobile-porting.md` / `ios-everywhere-sync.md` / `desktop-followup.md`） |
+| `.claude/docs/requirements/`     | Tier 1-3 機能要件定義                                                                                                                                          |
+| `.claude/docs/known-issues/`     | 未解決 Issue + Root Cause 記録（[INDEX](./docs/known-issues/INDEX.md)）                                                                                        |
+| `.claude/docs/code-explanation/` | 機能別コード解説（学習教材）                                                                                                                                   |
+| `.claude/archive/`               | 完了済みプラン                                                                                                                                                 |
 
 ---
 
@@ -97,6 +97,8 @@ React Router なし。`App.tsx` の `activeSection` で切替: `schedule` / `mat
 ---
 
 ## 4. Data Model
+
+> **write / sync / migration の規約詳細は [`.claude/docs/vision/db-conventions.md`](./docs/vision/db-conventions.md) を必ず参照**（timestamp 形式・version 管理・LWW ルール・D1 制約・multi-language write の統一ルール）
 
 ### 4.1 SQLite スキーマ
 
