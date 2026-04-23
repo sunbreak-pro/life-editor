@@ -1,5 +1,6 @@
 -- Rename memos table to dailies, transforming id "memo-YYYY-MM-DD" → "daily-YYYY-MM-DD".
--- Also rewrites any references (wiki_tag_assignments, paper_nodes, note_links column).
+-- Cloud D1 version: only touches tables that exist in cloud/db/schema.sql.
+-- note_links / paper_nodes are Desktop-only and are migrated by Rust V64 separately.
 -- Apply with: wrangler d1 execute <DB> --file=cloud/db/migrations/0002_rename_memos_to_dailies.sql
 
 -- 1) Create dailies with same shape as memos
@@ -28,28 +29,30 @@ SELECT 'daily-' || substr(id, 6),
        password_hash, is_edit_locked, version
 FROM memos;
 
--- 3) Rename note_links.source_memo_date → source_daily_date (if column exists)
--- SQLite 3.25+ supports RENAME COLUMN; Cloudflare D1 runs a recent enough SQLite.
-ALTER TABLE note_links RENAME COLUMN source_memo_date TO source_daily_date;
+-- 3a) Drop memo-tag rows whose daily counterpart already exists (pushed by
+--     devices that already ran Desktop V64). Desktop's daily version wins.
+DELETE FROM wiki_tag_assignments
+ WHERE rowid IN (
+   SELECT w1.rowid
+     FROM wiki_tag_assignments w1
+    WHERE w1.entity_type = 'memo'
+      AND EXISTS (
+        SELECT 1 FROM wiki_tag_assignments w2
+         WHERE w2.tag_id = w1.tag_id
+           AND w2.entity_id = 'daily-' || substr(w1.entity_id, 6)
+      )
+ );
 
--- 4) Rewrite wiki_tag_assignments rows that targeted memos
+-- 3b) Rewrite remaining memo-tag rows in place
 UPDATE wiki_tag_assignments
    SET entity_type = 'daily',
        entity_id   = 'daily-' || substr(entity_id, 6)
  WHERE entity_type = 'memo';
 
--- 5) Rewrite paper_nodes rows
-UPDATE paper_nodes
-   SET ref_entity_type = 'daily',
-       ref_entity_id   = 'daily-' || substr(ref_entity_id, 6)
- WHERE ref_entity_type = 'memo';
-
--- 6) Drop old memos table
+-- 4) Drop old memos table
 DROP TABLE IF EXISTS memos;
 
--- 7) Rebuild indexes
+-- 5) Rebuild indexes for dailies
 CREATE INDEX IF NOT EXISTS idx_dailies_date ON dailies(date);
 CREATE INDEX IF NOT EXISTS idx_dailies_deleted ON dailies(is_deleted);
 CREATE INDEX IF NOT EXISTS idx_dailies_updated_at ON dailies(updated_at);
-DROP INDEX IF EXISTS idx_note_links_source_memo;
-CREATE INDEX IF NOT EXISTS idx_note_links_source_daily ON note_links(source_daily_date);

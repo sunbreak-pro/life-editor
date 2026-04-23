@@ -52,26 +52,27 @@ pub fn collect_local_changes(
     payload.wiki_tag_connections = query_changed(conn, "wiki_tag_connections", since)?;
     payload.note_connections = query_changed(conn, "note_connections", since)?;
 
-    // Relation tables without updated_at: fetch via parent join
+    // Relation tables without updated_at: fetch via parent join.
+    // datetime() wrap mirrors query_changed's normalization (ISO vs space formats).
     payload.calendar_tag_assignments = helpers::query_all_json_with_params(
         conn,
         "SELECT cta.* FROM calendar_tag_assignments cta \
          INNER JOIN schedule_items si ON cta.schedule_item_id = si.id \
-         WHERE si.updated_at > ?1",
+         WHERE datetime(si.updated_at) > datetime(?1)",
         &[&since],
     )?;
     payload.routine_tag_assignments = helpers::query_all_json_with_params(
         conn,
         "SELECT rta.* FROM routine_tag_assignments rta \
          INNER JOIN routines r ON rta.routine_id = r.id \
-         WHERE r.updated_at > ?1",
+         WHERE datetime(r.updated_at) > datetime(?1)",
         &[&since],
     )?;
     payload.routine_group_tag_assignments = helpers::query_all_json_with_params(
         conn,
         "SELECT rgta.* FROM routine_group_tag_assignments rgta \
          INNER JOIN routine_groups rg ON rgta.group_id = rg.id \
-         WHERE rg.updated_at > ?1",
+         WHERE datetime(rg.updated_at) > datetime(?1)",
         &[&since],
     )?;
 
@@ -159,8 +160,13 @@ fn query_changed(
     table: &str,
     since: &str,
 ) -> Result<Vec<Value>, rusqlite::Error> {
+    // Use datetime() to normalize both ISO 8601 ("2026-04-23T12:42:12.496Z")
+    // and SQLite default ("2026-04-23 12:37:31") formats. Without this wrap,
+    // raw string comparison treats space (0x20) < T (0x54), so space-formatted
+    // rows on the same date as an ISO-formatted `since` never satisfy `>`.
     let sql = format!(
-        "SELECT * FROM \"{table}\" WHERE updated_at > ?1 ORDER BY updated_at ASC"
+        "SELECT * FROM \"{table}\" WHERE datetime(updated_at) > datetime(?1) \
+         ORDER BY datetime(updated_at) ASC"
     );
     let mut stmt = conn.prepare(&sql)?;
     let col_count = stmt.column_count();
@@ -401,5 +407,93 @@ fn set_payload_field(payload: &mut SyncPayload, table: &str, rows: Vec<Value>) {
         "wiki_tag_connections" => payload.wiki_tag_connections = rows,
         "note_connections" => payload.note_connections = rows,
         _ => {}
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::db::migrations::run_migrations;
+
+    /// Regression test for Known Issue 013: timestamp format mismatch.
+    ///
+    /// Before fix: `WHERE updated_at > ?1` did raw string compare. Space (0x20)
+    /// sorts before 'T' (0x54), so a note with `updated_at = '2026-04-23 12:37:31'`
+    /// would NOT satisfy `> '2026-04-23T10:00:00.000Z'` despite being 2 hours
+    /// later clock-wise. Delta push silently dropped same-day space-format rows.
+    ///
+    /// After fix: `datetime(updated_at) > datetime(?1)` normalizes both sides,
+    /// so the row IS captured.
+    #[test]
+    fn collect_local_changes_catches_space_format_rows_with_iso_since() {
+        let conn = Connection::open_in_memory().unwrap();
+        run_migrations(&conn).unwrap();
+
+        // Space-format updated_at (what SQL `datetime('now')` produces and what
+        // many existing rows in the wild have).
+        conn.execute(
+            "INSERT INTO notes (id, title, content, created_at, updated_at, version) \
+             VALUES ('note-space', 'space-ts', '', ?1, ?2, 1)",
+            rusqlite::params!["2026-04-23 10:00:00", "2026-04-23 12:37:31"],
+        )
+        .unwrap();
+
+        // ISO 8601 updated_at (what `helpers::now()` and `new Date().toISOString()`
+        // produce — the canonical form).
+        conn.execute(
+            "INSERT INTO notes (id, title, content, created_at, updated_at, version) \
+             VALUES ('note-iso', 'iso-ts', '', ?1, ?2, 1)",
+            rusqlite::params![
+                "2026-04-23T10:00:00.000Z",
+                "2026-04-23T12:37:31.500Z"
+            ],
+        )
+        .unwrap();
+
+        // Since an ISO timestamp earlier in the same day. Raw string compare
+        // would exclude the space-format row (space < T at position 10).
+        let since = "2026-04-23T10:00:00.000Z";
+        let payload = collect_local_changes(&conn, since).unwrap();
+
+        let note_ids: Vec<String> = payload
+            .notes
+            .iter()
+            .filter_map(|v| v.get("id").and_then(|i| i.as_str()).map(String::from))
+            .collect();
+
+        assert!(
+            note_ids.contains(&"note-space".to_string()),
+            "space-format row must be captured after datetime() normalization; \
+             got ids: {note_ids:?}"
+        );
+        assert!(
+            note_ids.contains(&"note-iso".to_string()),
+            "iso-format row must also be captured; got ids: {note_ids:?}"
+        );
+    }
+
+    /// A row with updated_at strictly earlier than `since` must NOT be returned.
+    /// Guards against accidentally making datetime() always-true.
+    #[test]
+    fn collect_local_changes_excludes_older_rows() {
+        let conn = Connection::open_in_memory().unwrap();
+        run_migrations(&conn).unwrap();
+
+        conn.execute(
+            "INSERT INTO notes (id, title, content, created_at, updated_at, version) \
+             VALUES ('note-old', 'old', '', ?1, ?2, 1)",
+            rusqlite::params!["2026-04-22 10:00:00", "2026-04-22 10:00:00"],
+        )
+        .unwrap();
+
+        let since = "2026-04-23T00:00:00.000Z";
+        let payload = collect_local_changes(&conn, since).unwrap();
+
+        assert!(
+            payload.notes.is_empty(),
+            "row from 2026-04-22 must not be returned when since is 2026-04-23; \
+             got {:?}",
+            payload.notes
+        );
     }
 }

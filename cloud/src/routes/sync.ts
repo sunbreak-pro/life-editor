@@ -105,11 +105,14 @@ sync.get("/changes", async (c) => {
   // all legitimate bulk syncs. Proper fix: client-side pagination loop.
   const LIMIT = 5000;
 
-  // Delta for versioned tables
+  // Delta for versioned tables.
+  // datetime() wrap normalizes ISO 8601 ("2026-04-23T12:42:12.496Z") vs SQLite
+  // default ("2026-04-23 12:37:31") formats. Raw string comparison puts
+  // space (0x20) < T (0x54), so same-date space rows never match an ISO since.
   for (const table of VERSIONED_TABLES) {
     const { results } = await db
       .prepare(
-        `SELECT * FROM ${table} WHERE updated_at > ?1 ORDER BY updated_at ASC LIMIT ?2`,
+        `SELECT * FROM ${table} WHERE datetime(updated_at) > datetime(?1) ORDER BY datetime(updated_at) ASC LIMIT ?2`,
       )
       .bind(since, LIMIT + 1)
       .all();
@@ -126,7 +129,7 @@ sync.get("/changes", async (c) => {
   for (const table of RELATION_TABLES_WITH_UPDATED_AT) {
     const { results } = await db
       .prepare(
-        `SELECT * FROM ${table} WHERE updated_at > ?1 ORDER BY updated_at ASC LIMIT ?2`,
+        `SELECT * FROM ${table} WHERE datetime(updated_at) > datetime(?1) ORDER BY datetime(updated_at) ASC LIMIT ?2`,
       )
       .bind(since, LIMIT)
       .all();
@@ -140,7 +143,7 @@ sync.get("/changes", async (c) => {
       .prepare(
         `SELECT cta.* FROM calendar_tag_assignments cta
          INNER JOIN schedule_items si ON cta.schedule_item_id = si.id
-         WHERE si.updated_at > ?1`,
+         WHERE datetime(si.updated_at) > datetime(?1)`,
       )
       .bind(since)
       .all();
@@ -153,7 +156,7 @@ sync.get("/changes", async (c) => {
       .prepare(
         `SELECT rta.* FROM routine_tag_assignments rta
          INNER JOIN routines r ON rta.routine_id = r.id
-         WHERE r.updated_at > ?1`,
+         WHERE datetime(r.updated_at) > datetime(?1)`,
       )
       .bind(since)
       .all();
@@ -166,7 +169,7 @@ sync.get("/changes", async (c) => {
       .prepare(
         `SELECT rgta.* FROM routine_group_tag_assignments rgta
          INNER JOIN routine_groups rg ON rgta.group_id = rg.id
-         WHERE rg.updated_at > ?1`,
+         WHERE datetime(rg.updated_at) > datetime(?1)`,
       )
       .bind(since)
       .all();
