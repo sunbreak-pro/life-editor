@@ -2,6 +2,26 @@
 
 ---
 
+### 2026-04-21 - Notes Mobile/Desktop エディタ統合 Phase A（`MemoEditor` 共有 + レスポンシブ対応）
+
+#### 概要
+
+Materials Notes で Desktop と iOS の表示が食い違う問題の根本対策として、Mobile 専用の TipTap エディタ（`MobileRichEditor`）を廃止し、Desktop の `MemoEditor` を単一コンポーネントとして共有する構造に刷新。当初案（Mobile 用 schema-only 拡張 8 ファイル）では NodeView 欠落で Callout 等が「ただの div」に崩れるため棄却し、レスポンシブ CSS + touch 環境検出で UI/UX を分岐する方向へ転換。Part B（マルチインスタンス DB 同期）は計画書に残り Phase A のみ先行着地。tsc 0 / Vitest 231 pass（+4 hooks test）/ ESLint 変更行クリーン。
+
+#### 変更点
+
+- **`useIsTouchDevice` フック新設**: `frontend/src/hooks/useIsTouchDevice.ts` — `window.matchMedia("(hover: none) and (pointer: coarse)")` で touch デバイスを判定。初期 state は同期評価、`MediaQueryList.addEventListener("change", ...)` で実行時変更にも追従（cleanup 済）。4 ケースの Vitest（初期 true/false / change 伝播 / unmount 時 listener removal）を `useIsTouchDevice.test.ts` に追加
+- **`MemoEditor` を Mobile でも直接使用**: `frontend/src/components/Tasks/TaskDetail/MemoEditor.tsx` に `const isTouch = useIsTouchDevice()` を導入し、`BlockContextMenu` を `!isTouch && contextMenu &&` で条件マウント（hover 前提 UI のため）。ルート div の className を `relative mx-auto w-full max-w-full px-2 md:max-w-[760px] md:pl-10 md:pr-0` に変更（Mobile で横余白を縮小、`md:` 以上で従来どおりの 760px + pl-10）
+- **`enableContentCheck` + `onContentError` 追加**: `MemoEditor` / `MobileRichEditor`（削除前）の `useEditor` オプションに `enableContentCheck: true` と `onContentError` を追加し、schema 不整合が発生した場合は `console.warn("[MemoEditor] TipTap content schema error", ...)` で可視化。従来のサイレントクリアを廃止
+- **Mobile ビューを LazyMemoEditor 直接使用に差替え**: `MobileNoteView.tsx` / `MobileMemoView.tsx` から `MobileRichEditor` を撤去し、`LazyMemoEditor as MemoEditor` を `Suspense` 付きで使用。`entityType="note"` / `entityType="memo"` + `syncEntityId={memo?.id}` を渡して WikiTag / NoteLink 同期を有効化
+- **旧 Mobile 専用アセット削除**: `frontend/src/components/Mobile/shared/MobileRichEditor.tsx`（約 160 行）を削除。`frontend/src/extensions/mobile/` ディレクトリ一式（MobileCallout / MobileToggleList / MobileWikiTag / MobileNoteLink / MobileDatabaseBlock / MobilePdfAttachment / MobileResizableImage + index.ts、約 350 行）を削除
+- **Provider 整合性**: `main.tsx` の Mobile provider tree に既に `WikiTagProvider` が含まれていることを確認（`useWikiTagSync` が Mobile でも動作）。`NoteLinkSuggestionMenu` は `useNoteContext`（Mobile tree 内）依存のため追加不要。Suggestion メニュー（WikiTag/NoteLink の `@#` 補完）は user 指定により Mobile でも有効化
+- **計画書更新**: `.claude/2026-04-20-mobile-editor-schema-parity.md` の Status を `IN PROGRESS (Part A 完了)` に更新、Part A の章を「旧方針（schema-only）→ 新方針（MemoEditor 共有）」に書き直して Steps A.1-A.5 を完了マーク。Part B（マルチインスタンス DB 同期）は変更なし
+- **手動検証（未実施）**: iOS 実機で Callout / ToggleList / WikiTag / NoteLink / Table / TaskList の構造込みレンダリング確認 / Touch デバイスで BlockContextMenu が非表示・Bubble toolbar / Suggestion menu が動作することの確認
+- **検証**: `npx tsc --noEmit` 0 / `npm run test -- --run` 28 files 231 pass / `npx eslint` 変更ファイル 0 errors（MemoEditor:437 の `react-hooks/immutability` 既存警告は commit `6c148b4` 由来で本セッション外）
+
+---
+
 ### 2026-04-20 - Cloud Sync ブロッカー 3 件解消 + iOS 署名検証 + Notes Mobile 空表示の根本原因特定
 
 #### 概要

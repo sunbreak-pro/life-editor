@@ -109,6 +109,7 @@ React Router なし。`App.tsx` の `activeSection` で切替: `schedule` / `mat
 - V62 で versioned テーブルの NULL updated_at バックフィル + tasks 用 INSERT トリガー追加（Cloud Sync blocker 修正）
 - V63 で schedule_items (routine_id, date) 重複排除 + partial UNIQUE index
 - V64 で `memos` テーブルを `dailies` にリネーム（id 形式 `memo-YYYY-MM-DD` → `daily-YYYY-MM-DD`、`note_links.source_memo_date` → `source_daily_date`、`wiki_tag_assignments` / `paper_nodes` の entity_type='memo' → 'daily' 更新）。`time_memos` は別概念のため対象外
+- Cloud D1 側は 2026-04-24 に migration 0003 で `server_updated_at` 列を追加（delta sync cursor 用）。Desktop SQLite には存在しない Cloud 専用列。詳細は `docs/known-issues/014-*.md` / `docs/vision/db-conventions.md §3`
 
 ### 4.2 特化 vs 汎用 DB の境界
 

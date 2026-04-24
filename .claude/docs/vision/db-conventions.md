@@ -88,32 +88,50 @@ WHERE datetime(updated_at) > datetime(?)
 
 ## 3. 同期プロトコルの制約
 
-### delta sync の既知の限界（Known Issue 014）
+### delta sync cursor は `server_updated_at`（2026-04-24 から）
 
-`/sync/changes` の `WHERE updated_at > since` は **updated_at が全デバイス横断で単調増加する前提** に立っている。実際には:
+`/sync/changes` は **Cloud D1 側が stamp する `server_updated_at` を cursor に使う**。client の content `updated_at` は UI / ソート用途に残すが、sync cursor としては使わない。
+
+- `server_updated_at` は Worker `/sync/push` が受信のたびに **`serverNow = new Date().toISOString()` で必ず上書き**する
+- version LWW で UPDATE が棄却された場合でも、2 文構成（UPSERT 直後に `UPDATE ... SET server_updated_at = ?serverNow WHERE <pk>`）で stamp は必ず進む
+- delta query: `SELECT * FROM <table> WHERE datetime(server_updated_at) > datetime(?since) ORDER BY datetime(server_updated_at) ASC`
+
+### この設計が必要だった理由（Known Issue 014）
+
+以前の `WHERE updated_at > since` は **updated_at が全デバイス横断で単調増加する前提** に立っており、以下で破綻した:
 
 - Mobile が古い時刻（11:50）で大量 write → v=372 を Cloud に push
 - Desktop が新しい時刻（13:30）で 1 回 write → v=228 を Cloud に push
 - Cloud は version 比較で Mobile が勝ち、row は v=372, updated_at=11:50 で固定
 - Desktop の次回 pull の since=13:31 は Cloud row の 11:50 より新しい → **永久に pull されない**
 
-`datetime()` 正規化（Issue 013）を適用しても解消しない別層の問題。
+`datetime()` 正規化（Issue 013）を適用しても解消しない別層の問題。server_updated_at は「棄却された push」でも進むため、「Desktop が自分の push を棄却されたあとの次回 pull」で Cloud の最新 row（v=372）が降ってくるようになる。
 
-### 対策と運用ルール
+### 運用ルール
 
-1. **Full Re-sync は緊急弁として常に用意する**
+1. **push 時の server_updated_at stamp は落とさない**
+   - 新しいテーブルを versioned に追加したら、`/sync/push` の stamp ロジックに必ず含める
+   - relation-with-updated_at テーブルも同様
+   - `ON CONFLICT DO UPDATE ... WHERE excluded.version > ...` は WHERE が false のとき UPDATE 丸ごとスキップするので、2 文方式を崩さない
+
+2. **Full Re-sync は緊急弁として常に用意する**
    - Desktop SyncSettings に Full Re-sync ボタン存在 ✓
    - Mobile Settings にも Full Re-sync ボタンを追加する（MEMORY.md 予定）
-   - Desktop/Mobile どちらからでも「何かおかしい」と感じた時に全行同期できるよう
-
-2. **本命対策（未実装）**: Cloud D1 側に `server_updated_at` カラムを追加し、UPSERT 時に Worker が `new Date().toISOString()` で書き換える。delta query はこれを since と比較する。client の updated_at とは独立の「Cloud 上で最後に受け取った時刻」。
+   - server_updated_at 導入後も「Cloud と client の cursor がどこかで乖離した」時のための保険として残す
 
 3. **sync の健全性チェック**は「両端の COUNT 一致」ではなく「両端の (id, version) セット一致」で判定する:
+
    ```sql
    -- 両端で差分検査
    SELECT id, version FROM notes WHERE is_deleted=0 ORDER BY id
    ```
+
    これを diff して完全一致すれば OK。
+
+4. **新規 relation テーブル追加時の server_updated_at backfill に注意**
+   - ALTER TABLE ADD COLUMN + `UPDATE SET server_updated_at = updated_at` で backfill すると、元々 `updated_at` が NULL だった行は NULL のまま残る
+   - NULL 行は delta query の datetime 比較で false となり pull から漏れる
+   - 追加の `UPDATE ... SET server_updated_at = '1970-01-01T00:00:00.000Z' WHERE server_updated_at IS NULL` を必ず続けること
 
 ### 関連制約（Known Issue 012）
 
@@ -253,7 +271,10 @@ cd cloud && npx wrangler d1 execute life-editor-sync --remote --command="SELECT 
 優先度順:
 
 1. **timestamp 統一 (013 根本対応)**: `datetime('now')` 使用箇所を全てヘルパ経由に置換。既存 space 形式データを `UPDATE ... SET updated_at = replace(replace(updated_at, ' ', 'T'), ...)` でバックフィル
-2. **server_updated_at 導入 (014 本命対応)**: Cloud D1 に列追加、Worker 側で UPSERT 時に書き込み、delta query を切り替え
-3. **Mobile Full Re-sync ボタン追加**: 緊急弁を Mobile にも
-4. **Sync pagination 本命実装 (012)**: `nextSince` cursor + client loop
-5. **Schema drift CI チェック**: Desktop migrations.rs と cloud/db/schema.sql の乖離を PR で検出
+2. **Mobile Full Re-sync ボタン追加**: 緊急弁を Mobile にも
+3. **Sync pagination 本命実装 (012)**: `nextSince` cursor + client loop
+4. **Schema drift CI チェック**: Desktop migrations.rs と cloud/db/schema.sql の乖離を PR で検出
+
+### 完了済み（履歴）
+
+- **server_updated_at 導入 (014 本命対応)** — 2026-04-24 完了。Cloud D1 に列追加、Worker `/sync/push` 2 文方式で stamp、`/sync/changes` を cursor 切替。詳細は `known-issues/014-*.md`

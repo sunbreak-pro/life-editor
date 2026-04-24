@@ -31,6 +31,7 @@ CREATE TABLE IF NOT EXISTS tasks (
     reminder_enabled INTEGER DEFAULT 0,
     reminder_offset INTEGER,
     icon TEXT,
+    server_updated_at TEXT,
     FOREIGN KEY (parent_id) REFERENCES tasks(id)
 );
 
@@ -46,7 +47,8 @@ CREATE TABLE IF NOT EXISTS dailies (
     is_pinned INTEGER DEFAULT 0,
     password_hash TEXT DEFAULT NULL,
     is_edit_locked INTEGER DEFAULT 0,
-    version INTEGER DEFAULT 1
+    version INTEGER DEFAULT 1,
+    server_updated_at TEXT
 );
 
 -- ===== Notes =====
@@ -66,7 +68,8 @@ CREATE TABLE IF NOT EXISTS notes (
     password_hash TEXT DEFAULT NULL,
     is_edit_locked INTEGER DEFAULT 0,
     icon TEXT DEFAULT NULL,
-    version INTEGER DEFAULT 1
+    version INTEGER DEFAULT 1,
+    server_updated_at TEXT
 );
 
 -- ===== Calendars =====
@@ -78,6 +81,7 @@ CREATE TABLE IF NOT EXISTS calendars (
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL,
     version INTEGER DEFAULT 1,
+    server_updated_at TEXT,
     FOREIGN KEY (folder_id) REFERENCES tasks(id) ON DELETE CASCADE
 );
 
@@ -100,7 +104,8 @@ CREATE TABLE IF NOT EXISTS routines (
     start_time TEXT,
     end_time TEXT,
     reminder_enabled INTEGER DEFAULT 0,
-    reminder_offset INTEGER
+    reminder_offset INTEGER,
+    server_updated_at TEXT
 );
 
 -- ===== Schedule Items =====
@@ -126,6 +131,7 @@ CREATE TABLE IF NOT EXISTS schedule_items (
     reminder_offset INTEGER,
     is_deleted INTEGER DEFAULT 0,
     deleted_at TEXT,
+    server_updated_at TEXT,
     FOREIGN KEY (routine_id) REFERENCES routines(id) ON DELETE SET NULL
 );
 
@@ -137,7 +143,8 @@ CREATE TABLE IF NOT EXISTS wiki_tags (
     text_color TEXT DEFAULT NULL,
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL,
-    version INTEGER DEFAULT 1
+    version INTEGER DEFAULT 1,
+    server_updated_at TEXT
 );
 
 -- ===== Time Memos =====
@@ -149,6 +156,7 @@ CREATE TABLE IF NOT EXISTS time_memos (
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL,
     version INTEGER DEFAULT 1,
+    server_updated_at TEXT,
     UNIQUE(date, hour)
 );
 
@@ -161,7 +169,8 @@ CREATE TABLE IF NOT EXISTS templates (
     deleted_at TEXT,
     version INTEGER DEFAULT 1,
     created_at TEXT NOT NULL,
-    updated_at TEXT NOT NULL
+    updated_at TEXT NOT NULL,
+    server_updated_at TEXT
 );
 
 -- ===== Routine Groups =====
@@ -177,7 +186,8 @@ CREATE TABLE IF NOT EXISTS routine_groups (
     frequency_days TEXT DEFAULT '[]',
     frequency_interval INTEGER DEFAULT NULL,
     frequency_start_date TEXT DEFAULT NULL,
-    is_visible INTEGER DEFAULT 1
+    is_visible INTEGER DEFAULT 1,
+    server_updated_at TEXT
 );
 
 -- ===== Relation Tables =====
@@ -189,6 +199,7 @@ CREATE TABLE IF NOT EXISTS wiki_tag_assignments (
     source TEXT DEFAULT 'inline',
     created_at TEXT NOT NULL,
     updated_at TEXT,
+    server_updated_at TEXT,
     PRIMARY KEY (tag_id, entity_id),
     FOREIGN KEY (tag_id) REFERENCES wiki_tags(id) ON DELETE CASCADE
 );
@@ -199,6 +210,7 @@ CREATE TABLE IF NOT EXISTS wiki_tag_connections (
     target_tag_id TEXT NOT NULL,
     created_at TEXT NOT NULL,
     updated_at TEXT,
+    server_updated_at TEXT,
     UNIQUE(source_tag_id, target_tag_id),
     FOREIGN KEY (source_tag_id) REFERENCES wiki_tags(id) ON DELETE CASCADE,
     FOREIGN KEY (target_tag_id) REFERENCES wiki_tags(id) ON DELETE CASCADE
@@ -210,6 +222,7 @@ CREATE TABLE IF NOT EXISTS note_connections (
     target_note_id TEXT NOT NULL,
     created_at TEXT NOT NULL,
     updated_at TEXT,
+    server_updated_at TEXT,
     FOREIGN KEY (source_note_id) REFERENCES notes(id) ON DELETE CASCADE,
     FOREIGN KEY (target_note_id) REFERENCES notes(id) ON DELETE CASCADE,
     UNIQUE(source_note_id, target_note_id)
@@ -291,3 +304,18 @@ CREATE INDEX IF NOT EXISTS idx_wiki_tag_connections_updated_at ON wiki_tag_conne
 CREATE INDEX IF NOT EXISTS idx_note_connections_updated_at ON note_connections(updated_at);
 CREATE INDEX IF NOT EXISTS idx_time_memos_date ON time_memos(date);
 CREATE INDEX IF NOT EXISTS idx_time_memos_updated_at ON time_memos(updated_at);
+
+-- server_updated_at indexes (delta cursor, Known Issue #014 fix)
+CREATE INDEX IF NOT EXISTS idx_tasks_server_updated_at           ON tasks(server_updated_at);
+CREATE INDEX IF NOT EXISTS idx_dailies_server_updated_at         ON dailies(server_updated_at);
+CREATE INDEX IF NOT EXISTS idx_notes_server_updated_at           ON notes(server_updated_at);
+CREATE INDEX IF NOT EXISTS idx_calendars_server_updated_at       ON calendars(server_updated_at);
+CREATE INDEX IF NOT EXISTS idx_routines_server_updated_at        ON routines(server_updated_at);
+CREATE INDEX IF NOT EXISTS idx_schedule_items_server_updated_at  ON schedule_items(server_updated_at);
+CREATE INDEX IF NOT EXISTS idx_wiki_tags_server_updated_at       ON wiki_tags(server_updated_at);
+CREATE INDEX IF NOT EXISTS idx_time_memos_server_updated_at      ON time_memos(server_updated_at);
+CREATE INDEX IF NOT EXISTS idx_templates_server_updated_at       ON templates(server_updated_at);
+CREATE INDEX IF NOT EXISTS idx_routine_groups_server_updated_at  ON routine_groups(server_updated_at);
+CREATE INDEX IF NOT EXISTS idx_wiki_tag_assignments_server_updated_at  ON wiki_tag_assignments(server_updated_at);
+CREATE INDEX IF NOT EXISTS idx_wiki_tag_connections_server_updated_at  ON wiki_tag_connections(server_updated_at);
+CREATE INDEX IF NOT EXISTS idx_note_connections_server_updated_at      ON note_connections(server_updated_at);

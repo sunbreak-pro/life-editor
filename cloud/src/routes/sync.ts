@@ -58,6 +58,14 @@ const PRIMARY_KEYS: Record<VersionedTable, string> = {
   routine_groups: "id",
 };
 
+// PK columns for relation tables with updated_at (used for the
+// server_updated_at stamp UPDATE statement, Known Issue #014).
+const RELATION_PK_COLS: Record<RelationTableWithUpdatedAt, string[]> = {
+  wiki_tag_assignments: ["tag_id", "entity_id"],
+  wiki_tag_connections: ["id"],
+  note_connections: ["id"],
+};
+
 // ---------------------------------------------------------------------------
 // GET /sync/full — Initial full download
 // ---------------------------------------------------------------------------
@@ -106,13 +114,17 @@ sync.get("/changes", async (c) => {
   const LIMIT = 5000;
 
   // Delta for versioned tables.
+  // Cursor: server_updated_at (Known Issue #014). This is stamped by /sync/push
+  // on every UPSERT attempt — including version-LWW rejections — so rows that
+  // get "overshot" by a client's since (because another device's push carried
+  // an older content updated_at but a higher version) still show up here.
   // datetime() wrap normalizes ISO 8601 ("2026-04-23T12:42:12.496Z") vs SQLite
   // default ("2026-04-23 12:37:31") formats. Raw string comparison puts
   // space (0x20) < T (0x54), so same-date space rows never match an ISO since.
   for (const table of VERSIONED_TABLES) {
     const { results } = await db
       .prepare(
-        `SELECT * FROM ${table} WHERE datetime(updated_at) > datetime(?1) ORDER BY datetime(updated_at) ASC LIMIT ?2`,
+        `SELECT * FROM ${table} WHERE datetime(server_updated_at) > datetime(?1) ORDER BY datetime(server_updated_at) ASC LIMIT ?2`,
       )
       .bind(since, LIMIT + 1)
       .all();
@@ -125,25 +137,27 @@ sync.get("/changes", async (c) => {
     }
   }
 
-  // Delta for relation tables with updated_at
+  // Delta for relation tables with updated_at (server_updated_at cursor)
   for (const table of RELATION_TABLES_WITH_UPDATED_AT) {
     const { results } = await db
       .prepare(
-        `SELECT * FROM ${table} WHERE datetime(updated_at) > datetime(?1) ORDER BY datetime(updated_at) ASC LIMIT ?2`,
+        `SELECT * FROM ${table} WHERE datetime(server_updated_at) > datetime(?1) ORDER BY datetime(server_updated_at) ASC LIMIT ?2`,
       )
       .bind(since, LIMIT)
       .all();
     result[toCamelCase(table)] = results;
   }
 
-  // Relation tables without updated_at: fetch all that relate to changed parents
+  // Relation tables without updated_at: fetch all that relate to changed parents.
+  // Uses parent's server_updated_at so a version-LWW rejection on the parent
+  // (which still re-stamps server_updated_at) still flushes its relation rows.
   // calendar_tag_assignments -> schedule_items
   {
     const { results } = await db
       .prepare(
         `SELECT cta.* FROM calendar_tag_assignments cta
          INNER JOIN schedule_items si ON cta.schedule_item_id = si.id
-         WHERE datetime(si.updated_at) > datetime(?1)`,
+         WHERE datetime(si.server_updated_at) > datetime(?1)`,
       )
       .bind(since)
       .all();
@@ -156,7 +170,7 @@ sync.get("/changes", async (c) => {
       .prepare(
         `SELECT rta.* FROM routine_tag_assignments rta
          INNER JOIN routines r ON rta.routine_id = r.id
-         WHERE datetime(r.updated_at) > datetime(?1)`,
+         WHERE datetime(r.server_updated_at) > datetime(?1)`,
       )
       .bind(since)
       .all();
@@ -169,7 +183,7 @@ sync.get("/changes", async (c) => {
       .prepare(
         `SELECT rgta.* FROM routine_group_tag_assignments rgta
          INNER JOIN routine_groups rg ON rgta.group_id = rg.id
-         WHERE datetime(rg.updated_at) > datetime(?1)`,
+         WHERE datetime(rg.server_updated_at) > datetime(?1)`,
       )
       .bind(since)
       .all();
@@ -210,6 +224,12 @@ sync.get("/changes", async (c) => {
 sync.post("/push", async (c) => {
   const body = await c.req.json<Record<string, unknown[]>>();
   const db = c.env.DB;
+
+  // Single server-assigned timestamp for every row touched in this batch.
+  // This is the cursor that /sync/changes queries against (Known Issue #014).
+  // Stamping per-row with independent Date.now() calls would break ordering
+  // within a large batch; one snapshot is correct.
+  const serverNow = new Date().toISOString();
 
   const statements: D1PreparedStatement[] = [
     // Defer FK checks to transaction commit so parents/children can be inserted
@@ -313,6 +333,18 @@ sync.post("/push", async (c) => {
         WHERE excluded.version > ${table}.version OR ${table}.version IS NULL`;
 
       statements.push(db.prepare(sql).bind(...values));
+
+      // Always stamp server_updated_at, even when the version-LWW UPDATE
+      // above is a no-op. This is the Known Issue #014 fix: delta cursor
+      // advances so the next /sync/changes pulls the newest row back to
+      // the device whose push was rejected.
+      statements.push(
+        db
+          .prepare(
+            `UPDATE ${table} SET server_updated_at = ?1 WHERE ${quoteCol(pk)} = ?2`,
+          )
+          .bind(serverNow, record[pk]),
+      );
       pushCount++;
     }
   }
@@ -323,6 +355,8 @@ sync.post("/push", async (c) => {
     const rows = body[camelKey];
     if (!Array.isArray(rows) || rows.length === 0) continue;
 
+    const pkCols = RELATION_PK_COLS[table];
+
     for (const row of rows) {
       const record = row as Record<string, unknown>;
       const columns = Object.keys(record);
@@ -332,6 +366,21 @@ sync.post("/push", async (c) => {
       // For relation tables, use INSERT OR REPLACE
       const sql = `INSERT OR REPLACE INTO ${table} (${columns.map(quoteCol).join(", ")}) VALUES (${placeholders})`;
       statements.push(db.prepare(sql).bind(...values));
+
+      // Stamp server_updated_at (Known Issue #014). INSERT OR REPLACE always
+      // rewrites the row, but explicit stamping keeps parity with versioned
+      // tables and lets /sync/changes query a single consistent cursor.
+      const whereClause = pkCols
+        .map((col, i) => `${quoteCol(col)} = ?${i + 2}`)
+        .join(" AND ");
+      const pkValues = pkCols.map((col) => record[col]);
+      statements.push(
+        db
+          .prepare(
+            `UPDATE ${table} SET server_updated_at = ?1 WHERE ${whereClause}`,
+          )
+          .bind(serverNow, ...pkValues),
+      );
       pushCount++;
     }
   }
