@@ -10,6 +10,8 @@ interface FrequencySelectorProps {
   onFrequencyDaysChange: (days: number[]) => void;
   onFrequencyIntervalChange: (interval: number) => void;
   onFrequencyStartDateChange: (date: string) => void;
+  /** Hide the "group" option (used by Group edit dialog — a Group cannot itself defer to a Group). */
+  hideGroupOption?: boolean;
 }
 
 const DAY_KEYS = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"] as const;
@@ -23,6 +25,7 @@ export function FrequencySelector({
   onFrequencyDaysChange,
   onFrequencyIntervalChange,
   onFrequencyStartDateChange,
+  hideGroupOption,
 }: FrequencySelectorProps) {
   const { t } = useTranslation();
 
@@ -34,6 +37,10 @@ export function FrequencySelector({
     }
   };
 
+  const typeOptions = hideGroupOption
+    ? (["daily", "weekdays", "interval"] as const)
+    : (["daily", "weekdays", "interval", "group"] as const);
+
   return (
     <div className="space-y-2">
       <label className="text-[11px] text-notion-text-secondary uppercase tracking-wide block">
@@ -42,7 +49,7 @@ export function FrequencySelector({
 
       {/* Frequency type selector */}
       <div className="flex gap-1 flex-wrap">
-        {(["daily", "weekdays", "interval", "group"] as const).map((type) => (
+        {typeOptions.map((type) => (
           <button
             key={type}
             type="button"

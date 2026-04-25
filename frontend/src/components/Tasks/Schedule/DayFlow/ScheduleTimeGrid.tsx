@@ -219,7 +219,10 @@ interface ScheduleTimeGridProps {
   externalScroll?: boolean;
   onToggleTaskStatus?: (taskId: string) => void;
   onDeleteScheduleItem?: (id: string) => void;
-  onRequestRoutineDelete?: (item: ScheduleItem, e: React.MouseEvent) => void;
+  onRequestRoutineDelete?: (
+    item: ScheduleItem,
+    position: { x: number; y: number },
+  ) => void;
   onUnscheduleTask?: (taskId: string) => void;
   onNavigateTask?: (taskId: string, e: React.MouseEvent) => void;
   onUpdateTaskTimeMemo?: (taskId: string, memo: string | null) => void;
@@ -1047,9 +1050,10 @@ export function ScheduleTimeGrid({
           }
           onDelete={() => {
             const item = liveSchedulePreviewItem;
+            const previewPos = schedulePreview.position;
             setSchedulePreview(null);
             if (item.routineId && onRequestRoutineDelete) {
-              onRequestRoutineDelete(item, {} as React.MouseEvent);
+              onRequestRoutineDelete(item, previewPos);
             } else {
               onDeleteScheduleItem?.(item.id);
             }
@@ -1138,10 +1142,7 @@ export function ScheduleTimeGrid({
         onDelete={() => {
           if (contextMenu.itemType === "schedule") {
             if (contextScheduleItem?.routineId && onRequestRoutineDelete) {
-              onRequestRoutineDelete(
-                contextScheduleItem,
-                {} as React.MouseEvent,
-              );
+              onRequestRoutineDelete(contextScheduleItem, contextMenu.position);
             } else {
               onDeleteScheduleItem?.(contextMenu.itemId);
             }

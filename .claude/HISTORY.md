@@ -1,5 +1,54 @@
 # HISTORY.md - 変更履歴
 
+### 2026-04-25 - UnifiedColorPicker 共通化 + UI 透明度ポリシー策定 + Routine UI 群修正
+
+#### 概要
+
+ユーザー要望ベースの一連の UI/UX クリーンアップを 1 セッションで実施。実装計画書なしのアドホック修正群。フェーズは (a) Routine 4 バグ修正 → (b) Routine 削除時 ErrorBoundary クラッシュの根本原因 (`bulkCreateScheduleItems` 戻り値型不一致) 修正 → (c) CalendarTags のカラーピッカーを共通化 → (d) ユーザーから「CalendarTags の元実装ベースで全 UnifiedColorPicker 利用箇所を共通化、Mac 標準のコンパクト感、WikiTags の textColor タブも含める」要件追加で `UnifiedColorPicker.tsx` を全面書き換え (API 互換維持で 12 利用箇所は変更不要) → (e) ユーザー指摘から「主要 UI コンテナ背景に透明度を使わない」ポリシーを vision/CLAUDE.md に明文化 + 透明 UI 5 箇所修正、の流れ。session-verifier 全 6 ゲート PASS。
+
+#### 変更点
+
+- **Routine UI 4 バグ修正**:
+  - `frontend/src/components/Tasks/Schedule/Routine/FrequencySelector.tsx` に `hideGroupOption?: boolean` prop 追加。`RoutineGroupEditDialog.tsx` で `hideGroupOption` を渡し、Group 自身は frequency=group を選べない（Group 自体が Group に入ることはできない仕様の UI 反映）。個別 Routine 編集側 (`RoutineEditDialog`) では従来通り "Group" 選択可能を維持
+  - `frontend/src/components/Schedule/ScheduleSidebarContent.tsx` の Calendar 右サイドバーで `SearchTrigger` と `FolderDropdown` を縦並び 2 ブロックから flex 1 ブロックに統合 (検索アイコン + 残り幅で flex-1 のフォルダドロップダウン)
+  - `frontend/src/components/Schedule/CalendarTagsPanel.tsx` のタイトルを `t("calendarTags.title", "Tags")` から `t("calendarTags.scheduleTitle", "Schedule Tags")` に変更、新規追加インライン UI のはみ出しを `flex-1 min-w-0` + 各ボタン/swatch に `shrink-0` で防止 + gap を `gap-1.5` → `gap-1` に圧縮
+- **Routine 削除時 ErrorBoundary クラッシュの真因修正**:
+  - 症状: Dayflow 内 Routine を「今回だけ削除」しただけで `Try again` 画面に落ちる。`NaN is an invalid value for the left css style property` + `Spread syntax requires ...iterable not be null or undefined — useScheduleItemsRoutineSync.ts:74` が連続発生
+  - 真因: Rust 側 `db_schedule_items_bulk_create` は `Result<(), String>` を返すのに、TS 側 `DataService.bulkCreateScheduleItems` は `Promise<ScheduleItem[]>` と宣言していた。`await bulkCreate()` が undefined を返し → `[...prev, ...undefined]` で Spread エラー → `ScheduleItemsProvider` が ErrorBoundary 行き → 副次的に NaN left CSS エラーも発生
+  - 修正: `frontend/src/services/DataService.ts` と `frontend/src/services/TauriDataService.ts` の `bulkCreateScheduleItems` 戻り値型を `Promise<void>` に変更。`frontend/src/hooks/useScheduleItemsRoutineSync.ts:71` と `frontend/src/hooks/useDayFlowColumn.ts:106` で `await bulkCreate(toCreate)` 後にローカルで `toCreate.map(c => ({ id, date, title, startTime, endTime, completed: false, completedAt: null, routineId: c.routineId, templateId: null, memo: null, noteId: null, content: null, isDeleted: false, isDismissed: false, reminderEnabled: c.reminderEnabled ?? false, reminderOffset: c.reminderOffset, createdAt: nowIso, updatedAt: nowIso }))` で `ScheduleItem[]` を組み立てて state に追加
+- **Routine 削除 ContextMenu の NaN left CSS 修正 (前段)**:
+  - 症状: Dayflow Timegrid アイテムの右クリック → 削除でダイアログ position が NaN になり描画失敗
+  - 原因: `onRequestRoutineDelete(item, {} as React.MouseEvent)` で空オブジェクトを渡しており `e.clientX/Y` が undefined → `setRoutineDeleteTarget({ position: { x: undefined, y: undefined } })` → `RoutineDeleteConfirmDialog` の `style.left = Math.min(undefined, ...) = NaN`
+  - 修正: 4 ファイル (`ScheduleItemBlock.tsx` / `ScheduleTimeGrid.tsx` / `OneDaySchedule.tsx` / `DualDayFlowLayout.tsx`) で `onRequestRoutineDelete` のシグネチャを `(item, e: React.MouseEvent)` から `(item, position: { x: number; y: number })` に変更。context menu 経由削除時は `contextMenu.position`、preview popup 経由は `schedulePreview.position`、swipe action 経由は `{ x: e.clientX, y: e.clientY }` を渡す
+- **`UnifiedColorPicker.tsx` 全面書き換え**:
+  - 旧: `react-colorful` の `HexColorPicker` (大型カラー領域) + Hex 入力 + プリセット + tab 切替 + debounced onChange (`useDebouncedCallback` 500ms)
+  - 新: CalendarTags 元実装ベースの preset 円形 grid (12 色 6 列 × 2 行 / w-6 h-6 / ring-1 + Check on selected) + native `<input type="color">` (Custom 色) + showTextColor 時の Background/Text タブ + click-outside auto close
+  - API 完全互換 (`color` / `onChange` / `mode "preset-only" | "preset-full"` / `presets` / `showTextColor` / `textColor` / `effectiveTextColor` / `onTextColorChange` / `inline` / `onClose` 維持) で利用側 12 箇所 (`PaperFrameNode` / `CalendarTagsPanel` / `RoutineGroupEditDialog` / `RoutineEditDialog` / `BubbleToolbar` / `SoundTagEditor` / `SoundTagManager` / `NotesView` / `WikiTagView` / `WikiTagList` / `TagGraphView` 等) は変更不要
+  - 透明度修正: `bg-notion-bg-popover` (CSS 変数未定義 → 透明落ち) → `bg-notion-bg` (定義済み不透明)
+  - 幅: `w-[156px]` (preset 重なり) → `w-[190px]` (w-6 + gap-1.5 + p-2 で重なり解消)
+  - preset: 18 色 9 列 → 12 色 6 列 × 2 行 にスリム化 (red/orange/amber/lime/emerald/cyan/blue/indigo/violet/pink/rose/slate)
+- **UI 透明度ポリシー策定**:
+  - `.claude/docs/vision/coding-principles.md §5` 新設: 規約 (主要 UI コンテナ背景は完全不透明) / 許容例外 (ホバー feedback / モーダルバックドロップ / アクセント薄塗り / 装飾線 / disabled / 影) / 禁止例 (`bg-notion-bg-popover` / 半透明本体 + backdrop-blur) / 修正パターン表 / 検出 grep コマンド
+  - `.claude/CLAUDE.md §6.4` の設計規約一文に「主要 UI コンテナ背景に透明度禁止」追記 + vision §5 リンク (auto-load されるため将来のセッションで自動適用)
+  - 透明 UI 5 箇所修正:
+    - `frontend/src/components/Layout/SidebarLinkItem.tsx:103` (leftSidebar 3点メニュー Edit/Delete、ユーザー指摘) — `bg-notion-bg-popover` → `bg-notion-bg`
+    - `frontend/src/components/Schedule/CalendarTagSelector.tsx:76` (Calendar Tag セレクタドロップダウン) — 同上
+    - `frontend/src/components/Schedule/CalendarTagsPanel.tsx:112` (Schedule Tags の Rename/Delete メニュー) — 同上
+    - `frontend/src/components/Work/FreeSessionSaveDialog.tsx:195` (フリーセッション保存の親タスク検索結果) — 同上
+    - `frontend/src/components/shared/TipsPanel.tsx:61` (Tips パネル本体) — `bg-notion-bg-secondary/70 backdrop-blur-sm` → `bg-notion-bg-secondary` (完全不透明 + backdrop blur 削除)
+- **CalendarTagsPanel 一時実装の差し戻し**: 一連の作業途中でユーザーから「元の独自実装に戻し、それを共通化して使い回す」要件が出たため、CalendarTagsPanel に一時的に追加していた DEFAULT_NEW_TAG_COLOR / startAdd の独自 popover ロジックは UnifiedColorPicker の API 互換書き換えで実質的に共通版へ統合された (CalendarTagsPanel は内部で UnifiedColorPicker を呼ぶだけになり、見た目は元の grid + native picker、実装は共通)
+- **Verification**: `tsc -b` 0 error / vitest 35 files / 284 tests / 0 failed (前回比 +1 file = `lucideIconRegistry.test.ts`、+1 test) / 既存 lint 102 errors はすべて変更前から残存 (私の修正行で新規エラー 0、`useDebouncedCallback.ts` / `useDragOverIndicator.ts` / `usePaperBoard.ts` 等の MEMORY.md 既知 finding) / session-verifier 全 6 ゲート PASS
+
+#### 残課題
+
+- **D1 migration 0007 + Worker deploy は前セッション残課題のまま** (本セッションでは触らず)
+- **手動 UI 検証**: (a) Routine UI 4 件の動作確認 / (b) Dayflow Routine 削除「今回だけ」「ルーティン全体」両方でクラッシュしないこと / (c) UnifiedColorPicker の見た目を 12 利用箇所すべてで目視確認 (CalendarTags / WikiTags textColor タブ / BubbleToolbar / SoundTags / Notes 色 / PaperFrame / TagGraph / RoutineGroup color など) / (d) leftSidebar の 3 点メニュー / Calendar Tag セレクタ / Schedule Tags メニュー / FreeSession 親タスク検索 / TipsPanel が完全不透明になっていること
+- **既存 Tier 3 の透明度判断を保留**: `Ideas/DailyView.tsx:194` / `Ideas/NotesView.tsx:324` のロックオーバーレイ (`backdrop-blur-sm bg-notion-bg/30`) は ScreenLock 機能の意図的半透明として残置 / `MiniTodayFlow.tsx` / `Toast.tsx` の `bg-white/XX` ホバーは方針上 OK (notion-hover 統一余地あり、別タスク化)
+- **i18n 既存問題**: `calendarTags.*` キー群は元から ja/en に未登録でフォールバック値運用。今回追加した `calendarTags.scheduleTitle` も同パターン踏襲 (新規違反なし、既存問題)
+- **mockDataService.ts:343** の `bulkCreateScheduleItems: vi.fn().mockResolvedValue([])` は新シグネチャ `Promise<void>` に対し `[]` を返すが型上互換、tests pass のため放置 (clean にするなら `mockResolvedValue(undefined)`)
+
+---
+
 ### 2026-04-25 - Routine 削除のゴースト復活問題 + DayFlow 時間変更の Undo/Redo 全日付対応
 
 #### 概要
@@ -159,24 +208,3 @@ Routine の Tag 機能（`routine_tag_definitions` / `routine_tag_assignments` /
 - **D1 migration 0007 適用 + Worker deploy**: `cd cloud && npx wrangler d1 execute life-editor-sync --remote --file=./db/migrations/0007_drop_routine_tags_add_group_assignments.sql` → `npm run deploy` の順序で本番反映（逆順だと旧 schema に新 Worker が当たり 500）。
 - **手動 UI 検証**: Desktop で V69 自動 apply 確認（`PRAGMA user_version` = 69 / `routine_tag_*` テーブル消失 / `routine_group_assignments` 新設）→ 既存 Routine が表示される（Tag UI 消失）→ frequencyType=Group 選択 + 既存 Group 多重選択保存でカレンダーに正しく出現 → 「+ 新規 Group 作成」flow で inline 作成 + 自動選択 → Cloud Sync で iOS と双方向に伝搬。
 - **ユーザー並行作業の TS エラー解消**: 別コミットで対応（CommandPalette / SearchTrigger / SectionCommands 関連の `sidebarSearchQuery` undefined / 未使用変数）。
-
----
-
-### 2026-04-25 - Materials/iOS Notes アイテム名表示クリーンアップ
-
-#### 概要
-
-ユーザー報告 2 件の単発バグ修正。(1) Desktop Materials 右サイドバーで、ノートのアイテム名が「タイトル名」と「本文中の最初の見出し」の混在表示になっていた → 常に title を使う形に統一。(2) iOS Notes リストで Tag 名のピルや Pin (Heart) アイコンがタイトル名を圧迫していた → Pin を Note アイコン位置に移動 (Desktop と同パターン)、Tag ピルを撤去して `+N` バッジのみ残しタイトルとの隣接を回避、Lock アイコンは右端に再配置、Favorites セクションの本文プレビュー (24 文字) を撤去。実装計画書を伴わない小規模 UI 修正、検証は session-verifier 全 6 ゲート PASS。
-
-#### 変更点
-
-- **Desktop `frontend/src/components/Ideas/NoteTreeNode.tsx`** — タイトル span 内の `(node.type !== "folder" && extractFirstHeading(node.content)) || node.title || "Untitled"` を `node.title || "Untitled"` に簡略化 (本文先頭見出しのフォールバックを撤去)。未使用となった `extractFirstHeading` import を削除。`utils/tiptapText.ts::extractFirstHeading` の export 自体は test 利用があるため残置 (production 参照は 0)
-- **iOS `frontend/src/components/Mobile/materials/MobileNoteTreeItem.tsx` 全面再構成** — Note/Folder アイコン部 (`isFolder ? Folder : StickyNote`) を `isFolder ? Folder : isPinned ? Heart : StickyNote` の三項に変更し Pin (Heart) を icon position に移動 (Desktop の `NoteTreeNode.tsx` と同パターン) / 旧 visibleTags (最大 2 件) のピルレンダリング `tags.slice(0, 2).map(...)` を撤去し、`tagCount = wikiCtx?.getTagsForEntity(node.id).length ?? 0` を計算して `+{tagCount}` バッジ 1 つのみタイトル後ろに表示 / Lock アイコンを右端に再配置 (renderExtra 自体を削除したため実質 li 末尾) / `renderExtra?: (node) => ReactNode` prop と `{renderExtra?.(node)}` 呼び出しを撤去
-- **`frontend/src/components/Mobile/materials/MobileNoteTree.tsx`** — `renderExtra` prop を Props インターフェースから削除 + 子 `MobileNoteTreeItem` および再帰 `MobileNoteTree` への伝播を撤去
-- **`frontend/src/components/Mobile/MobileNoteView.tsx`** — Favorites セクション (`pinnedNotes.map`) で `MobileNoteTreeItem` に渡していた `renderExtra={() => <span>{extractPlainText(note.content).slice(0, 24)}</span>}` を完全削除 / 同ファイル内 private 関数 `extractPlainText(content: string): string` (try parse JSON → block.content[].text join → slice 120) を不要になったため削除
-- **検証**: tsc -b 0 error / vitest 268/268 pass / 自セッション 4 ファイルの ESLint 0 error。残 4 件の lint error はすべて `NoteTreeNode.tsx:293` の既存 `iconRef.current?.getBoundingClientRect()` (IconPicker anchorRect 用、react-hooks/refs `Cannot access refs during render`) で MEMORY.md「Frontend 既存 lint 116 問題の一括解消」既知 finding。session-verifier 全 6 ゲート PASS
-
-#### 残課題
-
-- **手動 UI 検証**: iOS シミュレータ / Tauri build で Materials サイドバーと Mobile Notes リストの表示を目視確認 (アイコン位置・タグバッジ・Lock 配置・タイトル切り取り挙動)
-- **アンステージ変更の取り扱い**: 別セッション由来の `Layout/SidebarLinkAddDialog.tsx` / `Layout/SidebarLinkItem.tsx` / `Layout/lucideIconRegistry.ts` (新規) が working tree に残存。本セッションでは触らず (Q2 Phase D の続きと推測)、別 commit で扱う想定

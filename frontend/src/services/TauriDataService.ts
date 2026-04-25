@@ -640,7 +640,7 @@ export class TauriDataService implements DataService {
       reminderEnabled?: boolean;
       reminderOffset?: number;
     }>,
-  ): Promise<ScheduleItem[]> {
+  ): Promise<void> {
     return tauriInvoke("db_schedule_items_bulk_create", { items });
   }
   updateFutureScheduleItemsByRoutine(

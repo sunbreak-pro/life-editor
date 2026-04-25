@@ -1,5 +1,26 @@
 # HISTORY-archive.md - 変更履歴アーカイブ
 
+### 2026-04-25 - Materials/iOS Notes アイテム名表示クリーンアップ
+
+#### 概要
+
+ユーザー報告 2 件の単発バグ修正。(1) Desktop Materials 右サイドバーで、ノートのアイテム名が「タイトル名」と「本文中の最初の見出し」の混在表示になっていた → 常に title を使う形に統一。(2) iOS Notes リストで Tag 名のピルや Pin (Heart) アイコンがタイトル名を圧迫していた → Pin を Note アイコン位置に移動 (Desktop と同パターン)、Tag ピルを撤去して `+N` バッジのみ残しタイトルとの隣接を回避、Lock アイコンは右端に再配置、Favorites セクションの本文プレビュー (24 文字) を撤去。実装計画書を伴わない小規模 UI 修正、検証は session-verifier 全 6 ゲート PASS。
+
+#### 変更点
+
+- **Desktop `frontend/src/components/Ideas/NoteTreeNode.tsx`** — タイトル span 内の `(node.type !== "folder" && extractFirstHeading(node.content)) || node.title || "Untitled"` を `node.title || "Untitled"` に簡略化 (本文先頭見出しのフォールバックを撤去)。未使用となった `extractFirstHeading` import を削除。`utils/tiptapText.ts::extractFirstHeading` の export 自体は test 利用があるため残置 (production 参照は 0)
+- **iOS `frontend/src/components/Mobile/materials/MobileNoteTreeItem.tsx` 全面再構成** — Note/Folder アイコン部 (`isFolder ? Folder : StickyNote`) を `isFolder ? Folder : isPinned ? Heart : StickyNote` の三項に変更し Pin (Heart) を icon position に移動 (Desktop の `NoteTreeNode.tsx` と同パターン) / 旧 visibleTags (最大 2 件) のピルレンダリング `tags.slice(0, 2).map(...)` を撤去し、`tagCount = wikiCtx?.getTagsForEntity(node.id).length ?? 0` を計算して `+{tagCount}` バッジ 1 つのみタイトル後ろに表示 / Lock アイコンを右端に再配置 (renderExtra 自体を削除したため実質 li 末尾) / `renderExtra?: (node) => ReactNode` prop と `{renderExtra?.(node)}` 呼び出しを撤去
+- **`frontend/src/components/Mobile/materials/MobileNoteTree.tsx`** — `renderExtra` prop を Props インターフェースから削除 + 子 `MobileNoteTreeItem` および再帰 `MobileNoteTree` への伝播を撤去
+- **`frontend/src/components/Mobile/MobileNoteView.tsx`** — Favorites セクション (`pinnedNotes.map`) で `MobileNoteTreeItem` に渡していた `renderExtra={() => <span>{extractPlainText(note.content).slice(0, 24)}</span>}` を完全削除 / 同ファイル内 private 関数 `extractPlainText(content: string): string` (try parse JSON → block.content[].text join → slice 120) を不要になったため削除
+- **検証**: tsc -b 0 error / vitest 268/268 pass / 自セッション 4 ファイルの ESLint 0 error。残 4 件の lint error はすべて `NoteTreeNode.tsx:293` の既存 `iconRef.current?.getBoundingClientRect()` (IconPicker anchorRect 用、react-hooks/refs `Cannot access refs during render`) で MEMORY.md「Frontend 既存 lint 116 問題の一括解消」既知 finding。session-verifier 全 6 ゲート PASS
+
+#### 残課題
+
+- **手動 UI 検証**: iOS シミュレータ / Tauri build で Materials サイドバーと Mobile Notes リストの表示を目視確認 (アイコン位置・タグバッジ・Lock 配置・タイトル切り取り挙動)
+- **アンステージ変更の取り扱い**: 別セッション由来の `Layout/SidebarLinkAddDialog.tsx` / `Layout/SidebarLinkItem.tsx` / `Layout/lucideIconRegistry.ts` (新規) が working tree に残存。本セッションでは触らず (Q2 Phase D の続きと推測)、別 commit で扱う想定
+
+---
+
 ### 2026-04-25 - Cloud Sync 本番 deploy + D1 migration 全適用 + 0006 hotfix で `calendar_tag_assignments` legacy schema 解消
 
 #### 概要

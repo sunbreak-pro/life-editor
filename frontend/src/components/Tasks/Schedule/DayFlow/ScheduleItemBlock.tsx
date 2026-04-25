@@ -19,7 +19,10 @@ interface ScheduleItemBlockProps {
   onToggleComplete: (id: string) => void;
   onUpdateMemo?: (id: string, memo: string | null) => void;
   onDelete?: (id: string) => void;
-  onRequestRoutineDelete?: (item: ScheduleItem, e: React.MouseEvent) => void;
+  onRequestRoutineDelete?: (
+    item: ScheduleItem,
+    position: { x: number; y: number },
+  ) => void;
   dragHandlers?: DragHandlers;
   resizeTopHandlers?: DragHandlers;
   resizeBottomHandlers?: DragHandlers;
@@ -116,7 +119,10 @@ export function ScheduleItemBlock({
                 e.stopPropagation();
                 close();
                 if (item.routineId && onRequestRoutineDelete) {
-                  onRequestRoutineDelete(item, e);
+                  onRequestRoutineDelete(item, {
+                    x: e.clientX,
+                    y: e.clientY,
+                  });
                 } else {
                   onDelete(item.id);
                 }

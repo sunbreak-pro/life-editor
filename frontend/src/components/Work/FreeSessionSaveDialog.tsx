@@ -192,7 +192,7 @@ export function FreeSessionSaveDialog({
                 />
               </div>
               {parentSearch.trim() !== "" && !selectedParent && (
-                <div className="mt-1 max-h-32 overflow-y-auto bg-notion-bg-popover border border-notion-border rounded-md">
+                <div className="mt-1 max-h-32 overflow-y-auto bg-notion-bg border border-notion-border rounded-md">
                   {taskCandidates.length === 0 ? (
                     <div className="px-2 py-1 text-[11px] text-notion-text-secondary italic">
                       {t("freeSession.noTasks", "No matching task")}

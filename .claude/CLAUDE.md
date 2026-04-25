@@ -167,7 +167,7 @@ ESLint 設定に従う。コメントは必要最小限。
 | Schedule 共通 | `frontend/src/components/Tasks/Schedule/shared/` |
 | UndoRedo      | `frontend/src/utils/undoRedo/`                   |
 
-設計規約: Tailwind `notion-*` トークン使用（ハードコード禁止）/ i18n テキストは props 経由（フック内で `useTranslation()` を呼ばない）/ ジェネリクスでエンティティ型を外部化（`useDataFetch<T>(fetcher)`）/ DataService 依存はコールバックで注入（フック内で直接 `getDataService()` を呼ばない）
+設計規約: Tailwind `notion-*` トークン使用（ハードコード禁止）/ i18n テキストは props 経由（フック内で `useTranslation()` を呼ばない）/ ジェネリクスでエンティティ型を外部化（`useDataFetch<T>(fetcher)`）/ DataService 依存はコールバックで注入（フック内で直接 `getDataService()` を呼ばない）/ **主要 UI コンテナ（ポップオーバー / ドロップダウン / メニュー / ダイアログ / パネル）の背景に透明度禁止**（`bg-notion-bg` 等の不透明トークンを使用、`bg-notion-bg-popover` のような未定義クラスは silent fail で透明落ちするため不可）— 詳細・例外規定 → `vision/coding-principles.md §5`
 
 ### 6.5 Schedule 3 分割
 

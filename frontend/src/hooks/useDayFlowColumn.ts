@@ -102,9 +102,29 @@ export function useDayFlowColumn({ initialDate }: UseDayFlowColumnOptions) {
         }
 
         if (toCreate.length > 0) {
-          const created =
-            await getDataService().bulkCreateScheduleItems(toCreate);
+          await getDataService().bulkCreateScheduleItems(toCreate);
           if (cancelled) return;
+          const nowIso = new Date().toISOString();
+          const created: ScheduleItem[] = toCreate.map((c) => ({
+            id: c.id,
+            date: c.date,
+            title: c.title,
+            startTime: c.startTime,
+            endTime: c.endTime,
+            completed: false,
+            completedAt: null,
+            routineId: c.routineId,
+            templateId: null,
+            memo: null,
+            noteId: null,
+            content: null,
+            isDeleted: false,
+            isDismissed: false,
+            reminderEnabled: c.reminderEnabled ?? false,
+            reminderOffset: c.reminderOffset,
+            createdAt: nowIso,
+            updatedAt: nowIso,
+          }));
           setScheduleItems((prev) =>
             [...prev, ...created].sort((a, b) =>
               a.startTime.localeCompare(b.startTime),

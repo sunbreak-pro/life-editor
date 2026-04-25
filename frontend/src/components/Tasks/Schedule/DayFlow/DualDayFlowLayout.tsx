@@ -182,10 +182,10 @@ function DualColumn({
   } | null>(null);
 
   const handleRequestRoutineDelete = useCallback(
-    (item: ScheduleItem, e: React.MouseEvent) => {
+    (item: ScheduleItem, position: { x: number; y: number }) => {
       setRoutineDeleteTarget({
         item,
-        position: { x: e.clientX, y: e.clientY },
+        position,
       });
     },
     [],

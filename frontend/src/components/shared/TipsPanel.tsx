@@ -58,7 +58,7 @@ export function TipsPanel({ isOpen, onClose, activeSection }: TipsPanelProps) {
 
   return (
     <div
-      className="absolute inset-x-0 bottom-0 z-40 max-h-[55vh] flex flex-col border-t border-notion-border bg-notion-bg-secondary/70 backdrop-blur-sm shadow-2xl"
+      className="absolute inset-x-0 bottom-0 z-40 max-h-[55vh] flex flex-col border-t border-notion-border bg-notion-bg-secondary shadow-2xl"
       role="region"
       aria-label={t("tips.panel.title")}
     >

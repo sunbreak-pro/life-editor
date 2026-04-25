@@ -221,13 +221,11 @@ export function RoutineGroupEditDialog({
             frequencyDays={frequencyDays}
             frequencyInterval={frequencyInterval}
             frequencyStartDate={frequencyStartDate}
-            onFrequencyTypeChange={(type) => {
-              // Group cannot recurse to a "group" frequency.
-              setFrequencyType(type === "group" ? "daily" : type);
-            }}
+            onFrequencyTypeChange={setFrequencyType}
             onFrequencyDaysChange={setFrequencyDays}
             onFrequencyIntervalChange={setFrequencyInterval}
             onFrequencyStartDateChange={setFrequencyStartDate}
+            hideGroupOption
           />
 
           {group && groupTimeRange && onSlideGroup && (

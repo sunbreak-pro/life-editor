@@ -1,13 +1,26 @@
-import { useState, useRef, useCallback, useEffect } from "react";
-import { HexColorPicker, HexColorInput } from "react-colorful";
-import { DEFAULT_PRESET_COLORS } from "../../constants/folderColors";
-import { useClickOutside } from "../../hooks/useClickOutside";
-import { useDebouncedCallback } from "../../hooks/useDebouncedCallback";
+import { useState, useRef, useEffect } from "react";
+import { Check } from "lucide-react";
 import { useTranslation } from "react-i18next";
+
+const TAG_PRESET_COLORS = [
+  "#ef4444", // red
+  "#f97316", // orange
+  "#f59e0b", // amber
+  "#84cc16", // lime
+  "#10b981", // emerald
+  "#06b6d4", // cyan
+  "#3b82f6", // blue
+  "#6366f1", // indigo
+  "#8b5cf6", // violet
+  "#ec4899", // pink
+  "#f43f5e", // rose
+  "#64748b", // slate
+] as const;
 
 interface UnifiedColorPickerProps {
   color: string;
   onChange: (color: string) => void;
+  /** Kept for API compatibility. "preset-only" hides the custom native picker. */
   mode?: "preset-only" | "preset-full";
   presets?: readonly string[];
   showTextColor?: boolean;
@@ -24,7 +37,7 @@ export function UnifiedColorPicker({
   color,
   onChange,
   mode = "preset-full",
-  presets = DEFAULT_PRESET_COLORS,
+  presets = TAG_PRESET_COLORS,
   showTextColor = false,
   textColor,
   effectiveTextColor,
@@ -36,218 +49,131 @@ export function UnifiedColorPicker({
   const ref = useRef<HTMLDivElement>(null);
   const [activeTab, setActiveTab] = useState<ColorTab>("background");
 
-  // Local state for responsive UI during drag
-  const [localBgColor, setLocalBgColor] = useState(color);
-  const [localTextColor, setLocalTextColor] = useState(textColor);
-
-  // Track user interaction to prevent prop→state sync feedback loop
-  const isInteractingRef = useRef(false);
-
-  // Sync from external props (skip during user interaction)
   useEffect(() => {
-    if (!isInteractingRef.current) {
-      setLocalBgColor(color);
-    }
-  }, [color]);
-  useEffect(() => {
-    if (!isInteractingRef.current) {
-      setLocalTextColor(textColor);
-    }
-  }, [textColor]);
+    if (inline || !onClose) return;
+    const onClickOutside = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) {
+        onClose();
+      }
+    };
+    document.addEventListener("mousedown", onClickOutside);
+    return () => document.removeEventListener("mousedown", onClickOutside);
+  }, [inline, onClose]);
 
-  // Debounced external callbacks (500ms delay for drag operations)
-  const debouncedOnChange = useDebouncedCallback((c: string) => {
-    onChange(c);
-    requestAnimationFrame(() => {
-      isInteractingRef.current = false;
-    });
-  }, 500);
-  const debouncedOnTextColorChange = useDebouncedCallback((c: string) => {
-    onTextColorChange?.(c);
-    requestAnimationFrame(() => {
-      isInteractingRef.current = false;
-    });
-  }, 500);
-
-  useClickOutside(
-    ref,
-    () => {
-      // Flush pending changes before closing
-      debouncedOnChange.flush();
-      debouncedOnTextColorChange.flush();
-      onClose?.();
-    },
-    !inline && !!onClose,
-  );
-
+  const showCustom = mode !== "preset-only";
   const activeColor =
     activeTab === "background"
-      ? localBgColor
-      : (localTextColor ?? effectiveTextColor ?? "");
+      ? color
+      : (textColor ?? effectiveTextColor ?? "");
 
-  // Drag handler: update local state immediately, debounce external callback
-  const handleColorChange = useCallback(
-    (newColor: string) => {
-      isInteractingRef.current = true;
-      if (activeTab === "background") {
-        setLocalBgColor(newColor);
-        debouncedOnChange(newColor);
-      } else {
-        setLocalTextColor(newColor);
-        debouncedOnTextColorChange(newColor);
-      }
-    },
-    [activeTab, debouncedOnChange, debouncedOnTextColorChange],
-  );
-
-  // Preset click: update immediately (flush debounce)
-  const handlePresetClick = useCallback(
-    (preset: string) => {
-      if (activeTab === "background") {
-        setLocalBgColor(preset);
-        debouncedOnChange.cancel();
-        onChange(preset);
-      } else {
-        setLocalTextColor(preset);
-        debouncedOnTextColorChange.cancel();
-        onTextColorChange?.(preset);
-      }
-    },
-    [
-      activeTab,
-      onChange,
-      onTextColorChange,
-      debouncedOnChange,
-      debouncedOnTextColorChange,
-    ],
-  );
-
-  if (mode === "preset-only") {
-    return (
-      <div className="flex items-center gap-1 p-1">
-        <button
-          type="button"
-          onClick={() => onChange("")}
-          className={`w-5 h-5 rounded-full border border-notion-border flex items-center justify-center text-[9px] font-medium text-notion-text-secondary ${
-            !color ? "ring-1 ring-notion-text" : ""
-          }`}
-          title={t("colorPicker.default")}
-        >
-          A
-        </button>
-        {presets.map((preset) => (
-          <button
-            key={preset}
-            type="button"
-            onClick={() => onChange(preset)}
-            className={`w-5 h-5 rounded-full transition-transform ${
-              color === preset ? "ring-1 ring-notion-text" : ""
-            }`}
-            style={{ backgroundColor: preset }}
-          />
-        ))}
-      </div>
-    );
-  }
+  const handleSelect = (c: string) => {
+    if (activeTab === "background") onChange(c);
+    else onTextColorChange?.(c);
+  };
 
   const content = (
-    <div className="unified-color-picker">
+    <div className="p-2">
       {showTextColor && (
-        <div className="border-b border-notion-border">
-          <div className="flex">
-            <button
-              type="button"
-              onClick={() => setActiveTab("background")}
-              className={`flex-1 py-1.5 text-[11px] font-medium transition-colors ${
-                activeTab === "background"
-                  ? "text-notion-accent border-b-2 border-notion-accent"
-                  : "text-notion-text-secondary hover:text-notion-text"
-              }`}
-            >
-              {t("colorPicker.backgroundColor")}
-            </button>
-            <button
-              type="button"
-              onClick={() => setActiveTab("text")}
-              className={`flex-1 py-1.5 text-[11px] font-medium transition-colors ${
-                activeTab === "text"
-                  ? "text-notion-accent border-b-2 border-notion-accent"
-                  : "text-notion-text-secondary hover:text-notion-text"
-              }`}
-            >
-              {t("colorPicker.textColor")}
-            </button>
-          </div>
+        <div className="flex border-b border-notion-border -mx-2 -mt-2 mb-1.5 px-2">
+          <button
+            type="button"
+            onClick={() => setActiveTab("background")}
+            className={`flex-1 py-1 text-[10px] font-medium transition-colors ${
+              activeTab === "background"
+                ? "text-notion-accent border-b-2 border-notion-accent -mb-px"
+                : "text-notion-text-secondary hover:text-notion-text"
+            }`}
+          >
+            {t("colorPicker.backgroundColor", "Background")}
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab("text")}
+            className={`flex-1 py-1 text-[10px] font-medium transition-colors ${
+              activeTab === "text"
+                ? "text-notion-accent border-b-2 border-notion-accent -mb-px"
+                : "text-notion-text-secondary hover:text-notion-text"
+            }`}
+          >
+            {t("colorPicker.textColor", "Text")}
+          </button>
         </div>
       )}
 
-      <div className="flex items-center gap-1.5 px-2 pt-2 pb-1">
+      <div className="grid grid-cols-6 gap-1.5">
         {presets.map((preset) => (
           <button
             key={preset}
             type="button"
-            onClick={() => handlePresetClick(preset)}
-            className={`w-5 h-5 rounded-full transition-transform hover:scale-110 ${
-              activeColor === preset
-                ? "ring-2 ring-notion-text ring-offset-1 ring-offset-notion-bg"
-                : ""
-            }`}
+            onClick={() => handleSelect(preset)}
+            className="relative w-6 h-6 rounded-full ring-1 ring-notion-border hover:scale-110 transition-transform"
             style={{ backgroundColor: preset }}
-          />
+            aria-label={preset}
+          >
+            {activeColor === preset && (
+              <Check
+                size={14}
+                className="absolute inset-0 m-auto text-white"
+                strokeWidth={3}
+              />
+            )}
+          </button>
         ))}
       </div>
 
-      <div className="px-2 pt-1.5 pb-2">
-        <HexColorPicker
-          color={activeColor || "#808080"}
-          onChange={handleColorChange}
-        />
-      </div>
+      {(showCustom ||
+        (showTextColor && activeTab === "text" && !!textColor)) && (
+        <div className="flex items-center justify-between gap-2 mt-1.5 pt-1.5 border-t border-notion-border">
+          {showCustom ? (
+            <label className="flex items-center gap-1.5 cursor-pointer">
+              <input
+                type="color"
+                value={
+                  activeColor && /^#[0-9a-fA-F]{6}$/.test(activeColor)
+                    ? activeColor
+                    : "#808080"
+                }
+                onChange={(e) => handleSelect(e.target.value)}
+                className="w-5 h-5 rounded cursor-pointer border border-notion-border"
+                aria-label={t("colorPicker.custom", "Custom")}
+              />
+              <span className="text-[10px] text-notion-text-secondary">
+                {t("colorPicker.custom", "Custom")}
+              </span>
+            </label>
+          ) : (
+            <span />
+          )}
 
-      <div className="flex items-center gap-2 px-2 pb-2">
-        <span className="text-[10px] text-notion-text-secondary font-medium">
-          {t("colorPicker.hexLabel")}
-        </span>
-        <div className="flex items-center gap-1.5 flex-1">
-          <div
-            className="w-4 h-4 rounded border border-notion-border shrink-0"
-            style={{ backgroundColor: activeColor || "#808080" }}
-          />
-          <HexColorInput
-            color={activeColor || "#808080"}
-            onChange={handleColorChange}
-            prefixed
-            className="w-full text-xs bg-notion-bg-secondary border border-notion-border rounded px-1.5 py-0.5 text-notion-text font-mono outline-none focus:border-notion-accent"
-          />
-        </div>
-      </div>
-
-      {showTextColor && activeTab === "text" && localTextColor && (
-        <div className="px-2 pb-2">
-          <button
-            type="button"
-            onClick={() => {
-              debouncedOnTextColorChange.cancel();
-              setLocalTextColor(undefined);
-              onTextColorChange?.(undefined);
-            }}
-            className="text-[10px] text-notion-text-secondary hover:text-notion-text"
-          >
-            {t("colorPicker.default")}
-          </button>
+          {showTextColor && activeTab === "text" && textColor && (
+            <button
+              type="button"
+              onClick={() => onTextColorChange?.(undefined)}
+              className="text-[10px] text-notion-text-secondary hover:text-notion-text"
+            >
+              {t("colorPicker.default", "Default")}
+            </button>
+          )}
         </div>
       )}
     </div>
   );
 
   if (inline) {
-    return <div ref={ref}>{content}</div>;
+    return (
+      <div
+        ref={ref}
+        className="bg-notion-bg border border-notion-border rounded-md shadow-sm w-[190px]"
+      >
+        {content}
+      </div>
+    );
   }
 
   return (
     <div
       ref={ref}
-      className="absolute top-full left-0 mt-1 z-[9999] bg-notion-bg border border-notion-border rounded-lg shadow-lg w-52 overflow-hidden opacity-100"
+      className="absolute top-full left-0 mt-1 z-[9999] bg-notion-bg border border-notion-border rounded-md shadow-lg w-[190px]"
     >
       {content}
     </div>

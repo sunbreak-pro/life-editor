@@ -352,7 +352,7 @@ export interface DataService {
       reminderEnabled?: boolean;
       reminderOffset?: number;
     }>,
-  ): Promise<ScheduleItem[]>;
+  ): Promise<void>;
   updateFutureScheduleItemsByRoutine(
     routineId: string,
     updates: { title?: string; startTime?: string; endTime?: string },

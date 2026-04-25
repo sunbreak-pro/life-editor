@@ -75,7 +75,58 @@ iOS クライアントは Desktop の Provider の一部（Audio / ScreenLock / 
 
 ---
 
-## 5. 設計原則の更新フロー
+## 5. UI 透明度ポリシー
+
+### 規約
+
+**主要 UI コンテナの背景に透明度は使わない。** ポップオーバー / ドロップダウン / メニュー / ダイアログ / カード / パネル等の本体背景は完全不透明とする。
+
+### 許容する透明度（例外）
+
+以下は方針例外として継続使用する:
+
+- **ホバーフィードバック**: `hover:bg-notion-hover` 等の薄い feedback（インタラクション認知のため）
+- **モーダル背後のバックドロップ**: `bg-black/30` 等のオーバーレイ層（フォーカス誘導のため）
+- **アクセントカラーの薄塗り**: `bg-notion-accent/10` 等のチップ選択状態 / 強調（カラー意匠）
+- **ボーダー / リング**: `border-notion-border/60`、`ring-notion-accent/40` 等の装飾線
+- **disabled / dragging**: `opacity-50`、`opacity-30`（状態表現のため）
+- **影**: `shadow-*`（透明度ベースだが視認性に貢献するため許容）
+
+### 禁止例
+
+- ❌ `bg-notion-bg-popover`（CSS 変数未定義 → 透明落ち）
+- ❌ ポップオーバー本体に `bg-*\/70` `bg-*\/80`（コントラスト不足）
+- ❌ メインコンテナの `backdrop-blur-*`（OS 半透過効果は不採用）
+
+### 背景
+
+- ガラス風 UI は macOS ネイティブ App でも使い分けが難しい。多用すると下地依存で可読性が低下
+- Tailwind の未定義カラークラスは silent fail で透明落ちする → `bg-notion-bg` 等の **定義済み変数のみ** を使う
+- ホバー / オーバーレイ / アクセント等、**意味のある透明** は意匠として残す（全廃ではない）
+
+### 修正パターン
+
+| Before                                       | After                                    | 場面                                |
+| -------------------------------------------- | ---------------------------------------- | ----------------------------------- |
+| `bg-notion-bg-popover`                       | `bg-notion-bg`                           | ポップオーバー / ドロップダウン本体 |
+| `bg-notion-bg-secondary/70 backdrop-blur-sm` | `bg-notion-bg-secondary`                 | パネル本体                          |
+| `bg-white/20 hover:bg-white/30`              | `bg-notion-hover hover:bg-notion-active` | ホバー feedback（white ベース廃止） |
+
+### 検出コマンド
+
+```bash
+# ポップオーバー / メニューで透明背景になりうる箇所
+grep -rn "bg-notion-bg-popover\|bg-.*\/[0-9]\+ backdrop-blur" frontend/src --include='*.tsx'
+
+# 未定義 Tailwind カラー（CSS 変数を確認）
+grep -rn "bg-notion-bg-[a-z]" frontend/src --include='*.tsx' | sort -u
+```
+
+新しく未定義の `bg-notion-bg-*` を導入する場合は `frontend/src/index.css` で必ず CSS 変数を定義する。
+
+---
+
+## 6. 設計原則の更新フロー
 
 1. 新しい設計判断が必要 → 本ファイル該当章への追記 or 新章作成を検討
 2. 実装規約になったもの → CLAUDE.md §6-7 に移す（本ファイルには「なぜ」を残す）

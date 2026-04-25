@@ -287,34 +287,36 @@ export function ScheduleSidebarContent({
 
   return (
     <div className="flex flex-col h-full">
-      {showSearchTrigger && (
-        <SearchTrigger className="px-3 pt-2 pb-1 shrink-0" />
-      )}
-      {onFilterFolderChange && (
-        <div className="px-3 pt-2 pb-1 shrink-0">
-          <FolderDropdown
-            selectedId={filterFolderId ?? null}
-            onSelect={onFilterFolderChange}
-            rootLabel={t("calendar.all")}
-            panelMinWidth="min-w-44"
-            trigger={
-              <button
-                className={`flex items-center gap-1.5 w-full px-2 py-1.5 text-xs rounded-md border transition-colors ${
-                  filterFolderId
-                    ? "border-notion-accent/30 bg-notion-accent/10 text-notion-accent"
-                    : "border-notion-border text-notion-text-secondary hover:bg-notion-hover"
-                }`}
-              >
-                <Filter size={12} />
-                <span className="truncate flex-1 text-left">
-                  {filterFolderId && folderName
-                    ? folderName
-                    : t("calendar.folder")}
-                </span>
-                <ChevronDown size={11} />
-              </button>
-            }
-          />
+      {(showSearchTrigger || onFilterFolderChange) && (
+        <div className="flex items-center gap-2 px-3 pt-2 pb-1 shrink-0">
+          {showSearchTrigger && <SearchTrigger />}
+          {onFilterFolderChange && (
+            <div className="flex-1 min-w-0">
+              <FolderDropdown
+                selectedId={filterFolderId ?? null}
+                onSelect={onFilterFolderChange}
+                rootLabel={t("calendar.all")}
+                panelMinWidth="min-w-44"
+                trigger={
+                  <button
+                    className={`flex items-center gap-1.5 w-full px-2 py-1.5 text-xs rounded-md border transition-colors ${
+                      filterFolderId
+                        ? "border-notion-accent/30 bg-notion-accent/10 text-notion-accent"
+                        : "border-notion-border text-notion-text-secondary hover:bg-notion-hover"
+                    }`}
+                  >
+                    <Filter size={12} />
+                    <span className="truncate flex-1 text-left">
+                      {filterFolderId && folderName
+                        ? folderName
+                        : t("calendar.folder")}
+                    </span>
+                    <ChevronDown size={11} />
+                  </button>
+                }
+              />
+            </div>
+          )}
         </div>
       )}
       <div className="flex-1 min-h-0 overflow-y-auto">

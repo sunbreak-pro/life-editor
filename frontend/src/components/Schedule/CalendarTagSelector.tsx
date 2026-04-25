@@ -73,7 +73,7 @@ export function CalendarTagSelector({
       </button>
 
       {open && (
-        <div className="absolute left-0 right-0 top-full mt-1 z-30 bg-notion-bg-popover border border-notion-border rounded-md shadow-lg max-h-48 overflow-y-auto py-1">
+        <div className="absolute left-0 right-0 top-full mt-1 z-30 bg-notion-bg border border-notion-border rounded-md shadow-lg max-h-48 overflow-y-auto py-1">
           <button
             type="button"
             onClick={() => {
