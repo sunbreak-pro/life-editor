@@ -1,5 +1,28 @@
 # HISTORY-archive.md - 変更履歴アーカイブ
 
+### 2026-04-24 - Cloud Sync 014 本命修正 — server_updated_at cursor 導入（計画書: archive/2026-04-24-014-server-updated-at-cursor.md）
+
+#### 概要
+
+delta sync が updated_at の非単調性で破綻する構造バグ（Known Issue 014）を Option A で根本解消。Cloud D1 に `server_updated_at` 列を追加し、Worker `/sync/push` は版 LWW で UPSERT が棄却されても必ず stamp を進める 2 文方式に改修、`/sync/changes` は全 delta query を `server_updated_at` cursor に切替。これで「Mobile 11:50 編集 v=372 + Desktop 13:30 編集 v=228」のような高 version + 古 updated_at 行でも、棄却された push 側のデバイスが次回 pull で Cloud の最新版を確実に受け取れる。Client（Rust / Frontend）は無変更で API 契約維持。Production D1 migration 適用（39 queries / 2174 rows backfilled）+ Worker 再 deploy（Version `38987e73-677c-43e9-9fab-52cb0ea7ca49`）。014 を Monitoring → Fixed 化し db-conventions §3 を全面更新。cloud tsc 0 error。
+
+#### 変更点
+
+- **Cloud D1 migration 0003**: `cloud/db/migrations/0003_add_server_updated_at.sql` 新規作成。versioned 10 テーブル（tasks / dailies / notes / calendars / routines / schedule*items / wiki_tags / time_memos / templates / routine_groups）と relation-with-updated_at 3 テーブル（wiki_tag_assignments / wiki_tag_connections / note_connections）に `server_updated_at TEXT` を ALTER TABLE ADD COLUMN、`UPDATE ... SET server_updated_at = updated_at WHERE server_updated_at IS NULL` で既存行を backfill（初回 /sync/changes の過剰噴出を防ぐため updated_at 値をそのまま移植）、`CREATE INDEX IF NOT EXISTS idx*<table>\_server_updated_at` 13 本を追加
+- **Cloud schema.sql 整合**: `cloud/db/schema.sql` の CREATE TABLE 13 個と末尾 index ブロックに `server_updated_at TEXT` + 13 index を追記、migration 後の最終形と同一に維持
+- **Worker `/sync/push` 2 文方式（014 本命）**: `cloud/src/routes/sync.ts::sync.post("/push")` で `serverNow = new Date().toISOString()` を batch 先頭で 1 回決定し、versioned tables の UPSERT 文の直後に `UPDATE <table> SET server_updated_at = ?serverNow WHERE <pk> = ?` を必ず push。relation-with-updated_at 3 テーブルも同様（複合 PK `wiki_tag_assignments (tag_id, entity_id)` に対応する `RELATION_PK_COLS` map を新設）。これにより `ON CONFLICT(id) DO UPDATE ... WHERE excluded.version > table.version` で UPDATE が丸ごと棄却される版 LWW ケースでも cursor だけは確実に進む
+- **Worker `/sync/changes` cursor 切替**: 同ファイルの versioned / relation-with-updated_at / 親 join 3 箇所（calendar_tag_assignments→schedule_items / routine_tag_assignments→routines / routine_group_tag_assignments→routine_groups）全てで `WHERE datetime(updated_at) > datetime(?since)` を `WHERE datetime(server_updated_at) > datetime(?since)` に置換、`ORDER BY` も `datetime(server_updated_at) ASC` に統一。`datetime()` wrap は 013 修正で入れた ISO/space 両形式対応をそのまま維持
+- **Production D1 migration 適用**: `npx wrangler d1 execute life-editor-sync --remote --file=./db/migrations/0003_add_server_updated_at.sql` で 39 queries 成功 / 2174 rows 書き込み / 全主要テーブル null_cnt=0 を UNION ALL 診断で確認。唯一 `wiki_tag_assignments` に元々 `updated_at` が NULL だった 14 行が残ったため `UPDATE SET server_updated_at = '1970-01-01T00:00:00.000Z' WHERE server_updated_at IS NULL` で追加補修
+- **Worker 再 deploy**: `npx wrangler deploy` で Version `38987e73-677c-43e9-9fab-52cb0ea7ca49` を公開。401 応答（認証前）で endpoint 正常性を確認
+- **Known Issue 014 Fixed 化**: `.claude/docs/known-issues/014-delta-sync-nonmonotonic-updated-at.md` の Status を Monitoring → Fixed、Resolved=2026-04-24、Fix セクションを「migration 0003 / 2 文方式 / cursor 切替 / Deploy 順序」の 4 ブロックで全面書き換え。Lessons Learned に「棄却された push こそ server_updated_at を進めなければならない」「relation テーブルの NULL updated_at バックフィルの罠」「Migration → Worker deploy 逆不可」の 3 項目を追加
+- **INDEX.md 更新**: 014 を Monitoring table から削除し Fixed table に追加（Resolved 2026-04-24）、Status 集計を Monitoring 1 件(006) / Fixed 11 件 / 合計 12 件に修正（012 を Monitoring に誤計上していた旧集計も訂正）
+- **db-conventions.md §3 全面書き換え**: 「delta sync cursor は `server_updated_at`（2026-04-24 から）」として新設計を正面に据える構成に変更。`push 時の stamp を落とさない` / `Full Re-sync を緊急弁として残す` / `両端 (id, version) 一致判定` / `relation backfill の NULL 罠` の 4 運用ルールを詳述。§9 今後の作業から 014 を削除し「完了済み（履歴）」サブセクションに移動
+- **CLAUDE.md §4.1 更新**: V64 migration 履歴の直後に「Cloud D1 側は 2026-04-24 に migration 0003 で `server_updated_at` 列を追加（delta sync cursor 用）。Desktop SQLite には存在しない Cloud 専用列」の 1 行を追加、known-issues/014 と db-conventions.md §3 への誘導リンクを明記
+- **Session-verifier 実行**: Gate 1 Types（tsc --noEmit exit=0） / Gate 2 Lint（cloud/ に script なしスキップ） / Gate 3 Tests（cloud/ にテストインフラなしスキップ） / Gate 5 Structural（DB 命名 / migration ルール準拠） / Gate 6 Bug Scan（serverNow は batch 先頭で固定 / 2 文目 UPDATE は INSERT 直後で pk ヒット保証 / SQL パラメータは全て `.bind()`）全 PASS
+- **残課題（別セッション、db-conventions §9 優先度順）**: (1) `datetime('now')` 使用箇所を `helpers::now()` / `new Date().toISOString()` 経由に全置換（013 恒久）/ (2) Mobile Settings に Full Re-sync ボタン追加 / (3) `/sync/changes` cursor-based pagination 本命実装（012 本命）/ (4) Desktop `migrations.rs` と `cloud/db/schema.sql` の drift 検出 CI
+
+---
+
 ### 2026-04-24 - Cloud Sync timestamp 整合性修正（Known Issues 013 / 014）+ DB 規約 vision 新設
 
 #### 概要
