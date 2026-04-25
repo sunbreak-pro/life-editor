@@ -1,5 +1,28 @@
 # HISTORY.md - 変更履歴
 
+### 2026-04-25 - Cloud Sync 本番 deploy + D1 migration 全適用 + 0006 hotfix で `calendar_tag_assignments` legacy schema 解消
+
+#### 概要
+
+前セッションで作成された 0006 hotfix migration の適用と、Worker 04-17 deploy → 最新化を含む Cloud Sync 本番反映を 1 セッションで実施。Desktop UI で `Connection failed` を発端に、Cloudflare の知識整理 → SYNC_TOKEN ローテーション (`wrangler secret put`) → curl POST /auth/verify で 200 確認 → D1 migration 0003/0004/0005 順次 apply → `npm run deploy` で Worker を 8 commits 分最新化 (auth timing-safe / sync routes split / Known Issues 011-014 修正反映)。Sync Now 実行で 500 を観測、`wrangler tail` で `D1_ERROR: no such column: server_updated_at at offset 63` を捕捉、`pragma_table_info` 一括検証で sync 対象 15 テーブル中 `calendar_tag_assignments` のみ legacy schema 残存と特定。0006 を適用し V65 shape (`id PK + entity_type + entity_id + tag_id + updated_at + server_updated_at`) に rebuild 完了。原因（D1 transactional rollback 保証下での部分適用）は特定不能、Known Issue 016 起票候補。本セッションでのコード変更は `cloud/db/migrations/0006_fix_cta_server_updated_at.sql` の rebuild 版書き換え 1 ファイルのみ、他は本番 state の修復作業。
+
+#### 変更点
+
+- **`cloud/db/migrations/0006_fix_cta_server_updated_at.sql` 書き換え** — 前セッションで作成された ALTER 単独版を rebuild 完全版に書き換え。`PRAGMA table_info` で 旧 schema (`schedule_item_id, tag_id` 複合 PK + `updated_at` 列なし) と判明したため、ALTER ベースの修復は不可能。0004 の `_v2` rebuild セクション（CREATE TABLE IF NOT EXISTS + INSERT OR IGNORE FROM old + DROP + RENAME + 3 INDEX）を独立 migration として抽出
+- **本番 D1 migration 適用**: `cd cloud && npx wrangler d1 execute life-editor-sync --remote --file=./db/migrations/{0003,0004,0005,0006}.sql` を順次実行。検証 `pragma_table_info` 一括クエリで sync 対象 15 テーブル全てに `server_updated_at` 列が揃ったことを確認 (0006 適用後)
+- **本番 Worker 最新化**: `npm run deploy` で 04-17 → 最新 (`599133e refactor(cloud): split sync.ts ...` 含む 8 commits) を反映。auth が timing-safe SHA-256 化、sync routes が `versioned.ts` / `relations.ts` / `shared.ts` に分割、`calendar_tag_assignments` の `RELATION_TABLES_WITH_UPDATED_AT` 昇格などが反映
+- **SYNC_TOKEN ローテーション**: 旧 token 不明のため `wrangler secret put SYNC_TOKEN` で新規 hex 64 文字を再投入。curl POST `/auth/verify` で `{"valid":true,"serverTime":...}` 確認後、Desktop UI 側にも同 token を貼って Connect 成功
+- **副次: Cloudflare 知識整理** — 本セッションの初動で「Cloudflare の役割が分からない」要件あり、web-researcher で 2025-2026 最新情報を調査・要約 (Workers / D1 / KV / R2 / DO / Queues / Wrangler / 料金 free vs paid / Smart Placement / Containers Beta / Pages 統合)。本リポジトリには未保存（チャット内のみ）
+- **Verification**: 0006 適用後に `pragma_table_info('calendar_tag_assignments')` で 7 列 (id / entity_type / entity_id / tag_id / created_at / updated_at / server_updated_at) を確認 / Worker tail で 500 が止むことを確認 (Sync Now 実走による最終確認は user 側で残課題)
+
+#### 残課題
+
+- **手動 UI 検証**: Desktop で Sync Now → Last error が消えること、Connected 表示で sidebar_links / calendar_tag_assignments / dailies / notes が iOS と双方向に伝搬すること
+- **Known Issue 016 起票候補**: D1 0004 multi-statement migration が transactional rollback 下で部分適用された原因の調査・記録。再現条件不明、`docs/known-issues/_TEMPLATE.md` ベースで Active 起票が妥当。session 中に特定できた事実: (a) 0004 の calendar_tag_definitions ALTER 部分は適用された / (b) calendar_tag_assignments rebuild 部分は未適用のまま残った / (c) wrangler の transactional rollback 保証メッセージと矛盾する状態
+- **計画書アーカイブなし**: 本セッションは production state 修復のみで実装計画書を伴わない作業
+
+---
+
 ### 2026-04-25 - Work UX 補強（History タブ + 完了 Toast）+ V68 FREE CHECK バグ修正 + D1 0004 apply
 
 #### 概要
@@ -112,44 +135,3 @@
 - **Phase 2-2 TauriDataService.ts 分割**: 1481 行 / 257 メソッドの class を `services/data/{tasks,timer,notes,daily,schedule,wikitags,...}.ts` に分割。class → composition pattern (object spread) の設計判断 + `dataServiceFactory.ts` の `new TauriDataService()` 経由参照箇所への影響評価が必要
 - **Phase 2-3b/c/d 巨大コンポーネント残**: ScheduleTimeGrid (1220) / OneDaySchedule (1165) / TagGraphView (1443) — 1 セッション 1 ファイル + 手動 UI 検証
 - **Phase 2-4 Calendar Mobile-Desktop 統合**: `useCalendarViewLogic` + `components/Calendar/shared/` 新設
-
----
-
-### 2026-04-25 - Q2 機能パッチ Phase A/B/C 実装（CalendarTags 1:1+Task / Pomodoro Free / WikiTag 未登録 + Events ソート）
-
-#### 概要
-
-ユーザー要件 4 件のうち 3 件 (CalendarTags 単数化 + Task 対応 + Schedule rightSidebar UI / Pomodoro Free モード + 保存ダイアログ / WikiTag 未登録フィルタ + Events リスト排他的ソート) を 1 セッションで実装。Phase D (Sidebar Links + Browser/App 起動) と Phase A の Cloud Sync は次セッション以降。tsc -b clean / Vitest 257/257 / 変更ファイル lint clean / cargo check pass。28 modified + 6 new files。**過去ドキュメントの誤記修正**として `tier-1-core.md` / `tier-2-supporting.md` から「Tasks に WikiTag 付与可」という記述を削除し、「Tasks は CalendarTags 担当 / WikiTags 対象外（RichTextEditor 非搭載）」を明記。計画書: `.claude/2026-04-25-sidebar-tags-free-pomodoro.md`（Phase A/B/C COMPLETED, Phase D PENDING）。
-
-#### 変更点
-
-- **Phase A — CalendarTags 1:1 + Task 対応**:
-  - **DB V65**: `calendar_tag_assignments` を `(id PK, entity_type CHECK in 'task'|'schedule_item', entity_id, tag_id)` + `UNIQUE(entity_type, entity_id)` で再構築。旧複合 PK の multi-tag は `MIN(tag_id)` で 1:1 に collapse。`calendar_tag_definitions` に `created_at / updated_at / version / is_deleted / deleted_at` カラム追加（Cloud Sync 用）
-  - **Rust**: `calendar_tag_repository::set_tag_for_entity(entity_type, entity_id, Option<i64>)` を新規追加 / 旧 `set_tags_for_schedule_item` は後方互換 shim として `MIN(tag_ids)` で `set_tag_for_entity` 呼び出しに統一 / `delete` は soft delete + cascade clear 対応 / 親エンティティの `updated_at + version` を bump して Cloud Sync delta が拾えるよう保証
-  - **IPC**: 新規コマンド `db_calendar_tags_set_tag_for_entity` を `lib.rs` に登録 + DataService interface に `setTagForEntity(entityType, entityId, tagId | null)` + `fetchAllCalendarTagAssignments` の戻り値を `{entityType, entityId, tagId}` 形式に変更
-  - **Frontend**: `useCalendarTagAssignments` を `Map<entityKey, number>` 1:1 化（後方互換 shim 維持）/ `useCalendarTagFilter` 新規（`number | "untagged" | null` を localStorage `calendarTagFilter` に永続化）/ `CalendarTagsContext` に filter state を統合 / `CalendarTagsPanel.tsx` 新規（タグ管理 + 色変更 + 削除 + 「すべて」「未登録」フィルタチップ） / `CalendarTagSelector.tsx` 新規（単一選択 dropdown） / `ScheduleSidebarContent.tsx` で `CalendarTagsPanel` を全 4 タブ常時表示に / `ScheduleItemEditPopup.tsx` の event/task 詳細にタグセレクター追加 / `useCalendarTagsContextOptional` で Provider 外でも null 安全
-- **Phase B — Pomodoro Free モード + 保存ダイアログ**:
-  - **DB V66**: `timer_sessions` に `label TEXT` カラム追加
-  - **Rust**: `end_session_with_label` repository fn + `db_timer_end_session_with_label` IPC コマンド追加 / `lib.rs` に handler 登録
-  - **TimerContext**: SessionType に `"FREE"` 追加 / `timerReducer` に `START_FREE` action + FREE モード TICK +1 (count up) / `pause` で FREE 時は `pendingFreeSave: { sessionId, elapsedSeconds }` を state にセット / `startFreeSession` / `saveFreeSession({label, role, parentTaskId, calendarTagId})` / `discardFreeSession` を Context に追加。Task 保存時は `createTask({status: 'DONE', parentId, completedAt, workDurationMinutes})` で完了済タスクとして TaskTree に挿入、Event 保存時は `createScheduleItem(routineId=null)` + `setTagForEntity` で完了済イベントを Calendar に挿入
-  - **Frontend**: `FreeSessionSaveDialog.tsx` 新規（label 入力 / Role=Task → TaskTree autocomplete 検索 / Role=Event → CalendarTagSelector / 「次回から表示しない」localStorage 永続化）/ `WorkScreen.tsx` に「Free セッション開始」ボタン追加 + `pendingFreeSave` 監視で SaveDialog 自動表示 + `freeSessionSaveDialogEnabled === false` 時の auto-discard / `TimerSettings.tsx` に「Pomodoro 有効/無効」「保存ダイアログ表示」トグル / `pomodoroSettings.ts` 新規（react-refresh の `only-export-components` 制約回避で 4 つの localStorage 関数を分離）
-- **Phase C — WikiTag 未登録 + Events ソート**:
-  - **TagFilterOverlay**: `UNTAGGED_FILTER_ID = "__untagged__"` sentinel + `showUntaggedOption` prop 追加。tags モード時に「(Untagged)」エントリを最上部に表示
-  - **DailySidebar / MaterialsSidebar**: `tagFilteredMemos` / `tagFilteredNotes` で `UNTAGGED_FILTER_ID` 選択時はタグ assign 0 件のみ抽出する分岐を追加 / 各 TagFilterOverlay 呼び出しに `showUntaggedOption` prop を付与
-  - **EventList**: 全面再実装で排他的ソート 4 軸（`date-desc / date-asc / title-asc / tag`）を localStorage `eventsListSort` に永続化 / `tag` モードでは CalendarTag.order 順でグルーピング表示 + 末尾に Untagged バケツ / CalendarTag フィルタ連動（`activeFilterTagId`: number → 該当タグ / "untagged" → 未登録のみ） / 行内に CalendarTag のドット表示
-- **過去ドキュメント修正**:
-  - `tier-1-core.md` Tasks セクションから V60 で撤去済の `task_tags / task_tag_definitions` 言及を削除 + 他機能連携の `WikiTags（タグ付与・検索）` を `CalendarTags（単一タグ付与・フィルタ）` に置換 + 「**WikiTags は対象外**（Task は RichTextEditor を持たないため UI 経由のタグ付与経路がない）」を明記 / Cloud Sync 未対応テーブル一覧から `task_tags` を削除
-  - `tier-2-supporting.md` WikiTags Purpose / Boundary / AC1 / Dependencies から Tasks を除外し、「タグ管理は CalendarTags が担当」を明記
-- **新規ファイル**: `frontend/src/components/Schedule/CalendarTagsPanel.tsx` / `CalendarTagSelector.tsx` / `frontend/src/components/Work/FreeSessionSaveDialog.tsx` / `frontend/src/hooks/useCalendarTagFilter.ts` / `frontend/src/utils/pomodoroSettings.ts` / `.claude/2026-04-25-sidebar-tags-free-pomodoro.md`（実装プラン、Phase A/B/C 完了 / Phase D 未着手で IN_PROGRESS）
-- **Verification**: `cd frontend && npx tsc -b` 0 errors / `npm run test` 257/257 passed（CalendarTagsPanel / EventList の Optional Provider 化により従来テストが Provider なしでも動作） / `cd src-tauri && cargo check` 通過 / 変更 22 ファイル + 新規 5 コードファイル + 1 プランファイル に対する eslint clean
-- **session-verifier で発見・修正したパターン**:
-  - `react-refresh/only-export-components` 違反 → `pomodoroSettings.ts` への関数 export 分離で解消
-  - `react-hooks/set-state-in-effect` 違反 → `useState(() => ...)` 初期化に置換 / 不要な `useEffect(() => setName(tag.name))` の削除
-  - 未使用 `useEffect` import / `react-hooks/refs` ルール対応
-
-#### 残課題
-
-- **Phase D — Sidebar Links**: V67 migration / `sidebar_links` table / system_commands (browser detect / app launch / /Applications enumerate) / LeftSidebar UI（Analytics と Settings の間に表示） / Add Dialog（URL or App 選択 + 絵文字） / Settings ブラウザ選択 / Mobile Drawer 統合（`kind='app'` はグレーアウト） / Cloud Sync (D1 0005)
-- **Phase A 残 — CalendarTags Cloud Sync**: `cloud/db/migrations/0004_calendar_tags.sql` + Workers VERSIONED_TABLES / RELATION_TABLES_WITH_UPDATED_AT 追加 / Desktop ↔ iOS 双方向同期検証
-- **手動 UI 確認**: `cargo tauri dev` で Schedule rightSidebar に「Tags」パネル表示 / Event/Task 詳細で 1:1 タグ選択 / Free セッション開始 → 停止 → SaveDialog 表示 → Task または Event として保存 → TaskTree / Calendar に出現を確認
-- **i18n**: 新規 UI テキストは `t("...", "fallback")` の fallback 付きで動作するが、`ja.json` / `en.json` への明示的キー追加は別タスクで実施
