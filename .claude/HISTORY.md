@@ -1,5 +1,29 @@
 # HISTORY.md - 変更履歴
 
+### 2026-04-25 - Calendar Events パネル UX 修正 + DayCell Routine アイコン整理
+
+#### 概要
+
+ユーザー報告 3 件の Calendar UI バグ・UX 改善を 1 セッションで対応。(1) Events アイテムクリック時の `ScheduleItemPreviewPopup` で「終日」トグルを切り替えるたびパネルが閉じる問題を修正。(2) 終日 OFF 後の時間変更が反映されないように見える根本原因が `TimeDropdown` のポータル経由クリックで親 `BasePreviewPopup` の `useClickOutside` が誤発火する仕様だったため、ポータル側で native mousedown を `stopPropagation()`。(3) DayCell 右上の Routine (Repeat) アイコンボタンを撤去し、`+` ボタンの "Routine" メニューから既存の `RoutineManagementOverlay` を直接開く形に再配線（旧仕様: `createRoutine("Untitled routine")` で無条件作成された routine が全カレンダーセルに散らばっていた）。実装計画書を伴わない小規模 UX 修正、session-verifier 全 6 ゲート PASS。
+
+#### 変更点
+
+- **Issue #1 — Events パネル閉鎖防止** — `frontend/src/components/Tasks/Schedule/Calendar/CalendarView.tsx::onUpdateAllDay` から `setScheduleItemPreview(null)` を撤去 (line 866-869)。`updateScheduleItem(scheduleItemPreview.item.id, { isAllDay })` の optimistic update が `monthlyScheduleItems` を更新 → `liveScheduleItem` が新 item を解決 → `<ScheduleItemPreviewPopup>` が re-render するだけで、トグル後もパネルは開いたまま。後続の time picker 表示確認が同セッション内で可能になる
+- **Issue #2 — TimeDropdown ポータルでのクリックアウト誤発火回避** — `frontend/src/components/shared/TimeDropdown.tsx` のドロップダウン (`createPortal(<div ref={dropdownRef}>...</div>, document.body)`) は React tree 上は親 popup 配下だが DOM tree 上は body 直下のため、`BasePreviewPopup::useClickOutside` (document mousedown listener + `ref.current.contains(target)` 判定) が portal 内クリックを「外」と誤判定して親パネルを閉じていた。`isOpen=true` 時のみ `dropdownRef.current` に native `addEventListener("mousedown", e => e.stopPropagation())` を仕込む `useEffect` を追加し、cleanup で `removeEventListener`。document までバブルしないため click-outside listener 自体が発火しない。WHY コメント (4 行) を添付し portal の React-tree vs DOM-tree 乖離を明記
+- **Issue #3 — DayCell Routine アイコン削除 + `+` メニューから RoutineManagementOverlay へ再配線**:
+  - `frontend/src/components/Tasks/Schedule/Calendar/DayCell.tsx`: `Repeat` import / `onOpenRoutineManagement?: () => void` prop / セル右上の Routine ボタン (`<button title="Routine"><Repeat size={12} /></button>`) を撤去。残るのは `+` ボタンと day number と routineCompletion バー
+  - `frontend/src/components/Tasks/Schedule/Calendar/MonthlyView.tsx`: `onOpenRoutineManagement` prop と DayCell への pass-through を削除（DayCell が必要としないため）
+  - `frontend/src/components/Tasks/Schedule/Calendar/CalendarView.tsx`: `useScheduleContext()` の destructure から未使用化した `createRoutine` を削除 / `<MonthlyView>` への `onOpenRoutineManagement` 渡しを削除 / `<CreateItemPopover onSelectRoutine={...}>` を `createRoutine("Untitled routine")` 直接呼びから `onOpenRoutineManagement?.()` 起動に変更。`onOpenRoutineManagement` 未提供時は三項で `undefined` を渡し、`CreateItemPopover.BASE_ITEMS.filter(({ key }) => handlers[key] !== undefined)` の既存仕様で "Routine" 項目自体が非表示になる一貫性を保つ
+- **Verification**: `cd frontend && npx tsc -b` 0 error / `npx vitest run` 35 files / 283 tests / 0 failed / 変更 4 ファイルの ESLint 新規エラー 0（TimeDropdown line 138 の `react-hooks/refs "Cannot access refs during render"` は私の変更前から既存、`git stash` で baseline を確認: 旧 line 125 で同一エラー） / session-verifier 全 6 ゲート PASS
+
+#### 残課題
+
+- **手動 UI 検証**: Calendar Events 終日トグル → 連続的にトグル ON/OFF してもパネルが閉じない / 終日 OFF 後に start/end TimeDropdown を選択してもパネルが閉じず時刻が反映される / DayCell の `+` ボタン → "Routine" → `RoutineManagementOverlay` が開く
+- **既存の "Untitled routine" 行**: 旧仕様で DB に既に作成された Untitled routine 行は手動で trash へ送る必要あり（生成経路は塞いだだけで、既存データには触れない）
+- **アンステージ変更の取り扱い**: 別セッション由来の `Layout/SidebarLink*.tsx` / `Mobile/materials/MobileNoteTree*.tsx` / `Schedule/CalendarTagsPanel.tsx` 他 ~17 ファイルが working tree に残存。本コミットは Calendar UX 関連 4 ファイル + .claude/ のみに絞る
+
+---
+
 ### 2026-04-25 - Cmd+K コマンドパレット統合（セクション動的アイテム + Sidebar Links + UI 拡大）
 
 #### 概要
@@ -139,40 +163,3 @@ Routine の Tag 機能（`routine_tag_definitions` / `routine_tag_assignments` /
 - **手動 UI 検証**: Desktop で Sync Now → Last error が消えること、Connected 表示で sidebar_links / calendar_tag_assignments / dailies / notes が iOS と双方向に伝搬すること
 - **Known Issue 016 起票候補**: D1 0004 multi-statement migration が transactional rollback 下で部分適用された原因の調査・記録。再現条件不明、`docs/known-issues/_TEMPLATE.md` ベースで Active 起票が妥当。session 中に特定できた事実: (a) 0004 の calendar_tag_definitions ALTER 部分は適用された / (b) calendar_tag_assignments rebuild 部分は未適用のまま残った / (c) wrangler の transactional rollback 保証メッセージと矛盾する状態
 - **計画書アーカイブなし**: 本セッションは production state 修復のみで実装計画書を伴わない作業
-
----
-
-### 2026-04-25 - Work UX 補強（History タブ + 完了 Toast）+ V68 FREE CHECK バグ修正 + D1 0004 apply
-
-#### 概要
-
-ユーザー報告「Work で作業時間を記録する UI/UX がない」に対する Explore 調査で、`timer_sessions` への保存は機能しているが「保存されたセッションを見る場所が無い」のが本質的不足と判明。Work タブに History タブを追加し、Pomodoro 完了時の Toast を実装。さらに Free session ボタンが `CHECK constraint failed` で起動不能だった既存バグ (Phase B 計画書では CHECK 制約 "元々無し" と誤認していたが full_schema.rs に存在) を V68 migration で修正。Sync 500 の原因は D1 の `calendar_tag_assignments` が旧スキーマ (schedule_item_id, tag_id PK) のまま残っており、新クライアントの新スキーマ push が失敗していたため、修復用 migration `0006_fix_cta_server_updated_at.sql` を作成 + `0004` を D1 remote に apply 完了。Worker deploy は user 実行待ち。検証: cargo test 21 passed / vitest 268 passed / tsc -b + cargo check + 変更ファイル ESLint 全 clean。
-
-#### 変更点
-
-- **🐛 V68 migration: timer_sessions.session_type CHECK に 'FREE' 追加**:
-  - `src-tauri/src/db/migrations/v61_plus.rs` に V68 ブロック追加 — `sqlite_master.sql` を読んで `'FREE'` を含むかで `needs_rebuild` 判定 (冪等)、必要なら `timer_sessions_v2` を新 CHECK で create → `INSERT SELECT` で全行コピー → `DROP` + `RENAME` + `idx_timer_sessions_task` 再作成
-  - `src-tauri/src/db/migrations/full_schema.rs` の `timer_sessions.session_type CHECK` 行を `('WORK','BREAK','LONG_BREAK','FREE')` に同期 (fresh DB は full_schema → V61 jump → V66 (label) → V68 (CHECK 確認 = skip) を通る)
-  - `src-tauri/src/db/migrations/mod.rs` の `LATEST_USER_VERSION = 67 → 68` バンプ + 統合テスト 2 件追加 (`v68_allows_free_session_type`: FREE での INSERT が CHECK を通る / `v68_preserves_existing_timer_sessions_during_rebuild`: V65 状態の DB に WORK 行を仕込んで migration 後に row 保持を確認)
-  - **背景**: Phase B で TS / Rust に "FREE" を追加したが DB 側 CHECK の更新を見落とし、Free session ボタンを押した瞬間に `CHECK constraint failed: session_type IN ('WORK','BREAK','LONG_BREAK')` で起動不能だった
-- **A: Work History タブ**:
-  - `frontend/src/components/Work/WorkHistoryContent.tsx` 新規 — `getDataService().fetchTimerSessions()` を mount 時 1 回 fetch (cancelled flag で cleanup)、`useTaskTreeContext().nodes` から task 名を解決、直近 14 日の `WORK` / `FREE` 完了セッションを日別バケットに集計 (date desc + within-day time desc)、各日に「件数 · 合計時間」表示、セッション行に sessionType 色ドット + task title (or label or "Free session") + `HH:MM · sessionTypeLabel` + `formatDuration(sec)`、上部に「Last 7 days: {合計}」サマリーカード、空時 placeholder 表示
-  - `frontend/src/components/Work/WorkScreen.tsx` — `WORK_TABS` に `{ id: "history", labelKey: "work.tabHistory", icon: HistoryIcon }` を Timer と Music の間に追加、`activeTab === "history"` の分岐で `<WorkHistoryContent />` を render
-- **C: Pomodoro 完了 Toast**:
-  - `frontend/src/hooks/useSessionCompletionToast.ts` 新規 — `useTimerContext().completedSessions` を `useRef` で前回値保持 + useEffect で増加検出 (timerReducer は WORK 完了時のみ increment するので WORK 限定で発火)、`useToast().showToast("success", "✓ Recorded {min}min to {task}")` を呼ぶ。task title 不在時は `"✓ Recorded {min}min"`。Strict Mode の double effect でも prevRef 書き戻しが冪等
-  - `WorkScreen.tsx` / `frontend/src/components/Mobile/MobileWorkView.tsx` の両方で `useSessionCompletionToast()` を呼ぶ
-  - `frontend/src/hooks/useSessionCompletionToast.test.ts` 新規 (4 cases: 初回レンダーで発火しない / 増加で task 名付き Toast / activeTask null で task 名なし Toast / 同値で発火しない)
-- **🐛 Sync 500 対処 (D1 schema 不整合)**:
-  - 原因: D1 remote に `sidebar_links` は前回作成済だが、`calendar_tag_assignments` が旧 PK スキーマ (schedule_item_id, tag_id) のまま残っており、最新 client の `INSERT INTO calendar_tag_assignments (id, entity_type, entity_id, ...)` が `no such column` で失敗 → batch 全ロールバック → 500
-  - `cloud/db/migrations/0006_fix_cta_server_updated_at.sql` 新規 — 0004 の CTA rebuild セクションだけを独立 migration として抽出 (CREATE `_v2` → `INSERT OR IGNORE SELECT` で旧行を MIN(tag_id) collapse + `entity_type='schedule_item'` 移行 → DROP/RENAME → 3 INDEX)。`CREATE TABLE IF NOT EXISTS` で安全側
-  - `wrangler d1 execute life-editor-sync --remote --file=./db/migrations/0004_calendar_tags_v65.sql` を実行 → `changed_db: true / rows_written: 40` で apply 成功
-  - **Worker deploy は user 実行待ち** (`cd cloud && npm run deploy`)。最新 `syncTables.ts` は CTA を `RELATION_TABLES_WITH_UPDATED_AT` に昇格しているため deploy しないと D1 修復後も誤動作する可能性
-- **i18n**: `work.tabHistory` (`History` / `履歴`) / `work.history.{last7Days, empty}` / `work.toast.{recordedToTask, recordedFreeWork}` を `en.json` + `ja.json` 両方に追加
-- **Verification**: `cd src-tauri && cargo test` 21 passed / 1 ignored / 0 failed (新規 V68 統合テスト 2 件含む) / `cd frontend && npx vitest run` 268 passed / 0 failed (32→33 test files、新規 useSessionCompletionToast.test.ts 4 件) / `cd frontend && npx tsc -b` 0 error / `cd src-tauri && cargo check` clean / 変更ファイル ESLint 0 error / session-verifier 全 6 ゲート PASS
-
-#### 残課題
-
-- **Worker deploy 未実行**: `cd cloud && npm run deploy` は user 実行待ち (D1 への直接 apply は許可ポリシーで拒否されるため)。deploy しないと最新 `syncTables.ts` の `RELATION_TABLES_WITH_UPDATED_AT` 昇格が反映されず、D1 0004/0006 適用後も誤動作の可能性
-- **Desktop パッケージ版 V68 未到達**: `/Applications/Life Editor.app` は dev binary でなければ古い CHECK 制約のまま。Free session を試すには `cargo tauri dev` か `cargo tauri build` で更新が必要
-- **手動 UI 検証**: Work タブ History 画面で過去セッション一覧表示 / Pomodoro 25min 完了で右下に Toast 出る / Free session 開始 → 停止 → SaveDialog 表示 (CHECK 制約エラー無し) を確認
-

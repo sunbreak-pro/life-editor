@@ -1,5 +1,41 @@
 # HISTORY-archive.md - 変更履歴アーカイブ
 
+### 2026-04-25 - Work UX 補強（History タブ + 完了 Toast）+ V68 FREE CHECK バグ修正 + D1 0004 apply
+
+#### 概要
+
+ユーザー報告「Work で作業時間を記録する UI/UX がない」に対する Explore 調査で、`timer_sessions` への保存は機能しているが「保存されたセッションを見る場所が無い」のが本質的不足と判明。Work タブに History タブを追加し、Pomodoro 完了時の Toast を実装。さらに Free session ボタンが `CHECK constraint failed` で起動不能だった既存バグ (Phase B 計画書では CHECK 制約 "元々無し" と誤認していたが full_schema.rs に存在) を V68 migration で修正。Sync 500 の原因は D1 の `calendar_tag_assignments` が旧スキーマ (schedule_item_id, tag_id PK) のまま残っており、新クライアントの新スキーマ push が失敗していたため、修復用 migration `0006_fix_cta_server_updated_at.sql` を作成 + `0004` を D1 remote に apply 完了。Worker deploy は user 実行待ち。検証: cargo test 21 passed / vitest 268 passed / tsc -b + cargo check + 変更ファイル ESLint 全 clean。
+
+#### 変更点
+
+- **🐛 V68 migration: timer_sessions.session_type CHECK に 'FREE' 追加**:
+  - `src-tauri/src/db/migrations/v61_plus.rs` に V68 ブロック追加 — `sqlite_master.sql` を読んで `'FREE'` を含むかで `needs_rebuild` 判定 (冪等)、必要なら `timer_sessions_v2` を新 CHECK で create → `INSERT SELECT` で全行コピー → `DROP` + `RENAME` + `idx_timer_sessions_task` 再作成
+  - `src-tauri/src/db/migrations/full_schema.rs` の `timer_sessions.session_type CHECK` 行を `('WORK','BREAK','LONG_BREAK','FREE')` に同期 (fresh DB は full_schema → V61 jump → V66 (label) → V68 (CHECK 確認 = skip) を通る)
+  - `src-tauri/src/db/migrations/mod.rs` の `LATEST_USER_VERSION = 67 → 68` バンプ + 統合テスト 2 件追加 (`v68_allows_free_session_type`: FREE での INSERT が CHECK を通る / `v68_preserves_existing_timer_sessions_during_rebuild`: V65 状態の DB に WORK 行を仕込んで migration 後に row 保持を確認)
+  - **背景**: Phase B で TS / Rust に "FREE" を追加したが DB 側 CHECK の更新を見落とし、Free session ボタンを押した瞬間に `CHECK constraint failed: session_type IN ('WORK','BREAK','LONG_BREAK')` で起動不能だった
+- **A: Work History タブ**:
+  - `frontend/src/components/Work/WorkHistoryContent.tsx` 新規 — `getDataService().fetchTimerSessions()` を mount 時 1 回 fetch (cancelled flag で cleanup)、`useTaskTreeContext().nodes` から task 名を解決、直近 14 日の `WORK` / `FREE` 完了セッションを日別バケットに集計 (date desc + within-day time desc)、各日に「件数 · 合計時間」表示、セッション行に sessionType 色ドット + task title (or label or "Free session") + `HH:MM · sessionTypeLabel` + `formatDuration(sec)`、上部に「Last 7 days: {合計}」サマリーカード、空時 placeholder 表示
+  - `frontend/src/components/Work/WorkScreen.tsx` — `WORK_TABS` に `{ id: "history", labelKey: "work.tabHistory", icon: HistoryIcon }` を Timer と Music の間に追加、`activeTab === "history"` の分岐で `<WorkHistoryContent />` を render
+- **C: Pomodoro 完了 Toast**:
+  - `frontend/src/hooks/useSessionCompletionToast.ts` 新規 — `useTimerContext().completedSessions` を `useRef` で前回値保持 + useEffect で増加検出 (timerReducer は WORK 完了時のみ increment するので WORK 限定で発火)、`useToast().showToast("success", "✓ Recorded {min}min to {task}")` を呼ぶ。task title 不在時は `"✓ Recorded {min}min"`。Strict Mode の double effect でも prevRef 書き戻しが冪等
+  - `WorkScreen.tsx` / `frontend/src/components/Mobile/MobileWorkView.tsx` の両方で `useSessionCompletionToast()` を呼ぶ
+  - `frontend/src/hooks/useSessionCompletionToast.test.ts` 新規 (4 cases: 初回レンダーで発火しない / 増加で task 名付き Toast / activeTask null で task 名なし Toast / 同値で発火しない)
+- **🐛 Sync 500 対処 (D1 schema 不整合)**:
+  - 原因: D1 remote に `sidebar_links` は前回作成済だが、`calendar_tag_assignments` が旧 PK スキーマ (schedule_item_id, tag_id) のまま残っており、最新 client の `INSERT INTO calendar_tag_assignments (id, entity_type, entity_id, ...)` が `no such column` で失敗 → batch 全ロールバック → 500
+  - `cloud/db/migrations/0006_fix_cta_server_updated_at.sql` 新規 — 0004 の CTA rebuild セクションだけを独立 migration として抽出 (CREATE `_v2` → `INSERT OR IGNORE SELECT` で旧行を MIN(tag_id) collapse + `entity_type='schedule_item'` 移行 → DROP/RENAME → 3 INDEX)。`CREATE TABLE IF NOT EXISTS` で安全側
+  - `wrangler d1 execute life-editor-sync --remote --file=./db/migrations/0004_calendar_tags_v65.sql` を実行 → `changed_db: true / rows_written: 40` で apply 成功
+  - **Worker deploy は user 実行待ち** (`cd cloud && npm run deploy`)。最新 `syncTables.ts` は CTA を `RELATION_TABLES_WITH_UPDATED_AT` に昇格しているため deploy しないと D1 修復後も誤動作する可能性
+- **i18n**: `work.tabHistory` (`History` / `履歴`) / `work.history.{last7Days, empty}` / `work.toast.{recordedToTask, recordedFreeWork}` を `en.json` + `ja.json` 両方に追加
+- **Verification**: `cd src-tauri && cargo test` 21 passed / 1 ignored / 0 failed (新規 V68 統合テスト 2 件含む) / `cd frontend && npx vitest run` 268 passed / 0 failed (32→33 test files、新規 useSessionCompletionToast.test.ts 4 件) / `cd frontend && npx tsc -b` 0 error / `cd src-tauri && cargo check` clean / 変更ファイル ESLint 0 error / session-verifier 全 6 ゲート PASS
+
+#### 残課題
+
+- **Worker deploy 未実行**: `cd cloud && npm run deploy` は user 実行待ち (D1 への直接 apply は許可ポリシーで拒否されるため)。deploy しないと最新 `syncTables.ts` の `RELATION_TABLES_WITH_UPDATED_AT` 昇格が反映されず、D1 0004/0006 適用後も誤動作の可能性
+- **Desktop パッケージ版 V68 未到達**: `/Applications/Life Editor.app` は dev binary でなければ古い CHECK 制約のまま。Free session を試すには `cargo tauri dev` か `cargo tauri build` で更新が必要
+- **手動 UI 検証**: Work タブ History 画面で過去セッション一覧表示 / Pomodoro 25min 完了で右下に Toast 出る / Free session 開始 → 停止 → SaveDialog 表示 (CHECK 制約エラー無し) を確認
+
+---
+
 ### 2026-04-25 - Q2 機能パッチ Phase D 完了 + Phase A Cloud Sync 着地（Sidebar Links + CalendarTags D1 追従）
 
 #### 概要
@@ -32,6 +68,7 @@
 
 - **deploy & 手動 UI 検証**: 上記 Rollout 順序の実行 / Desktop で V67 自動 apply 確認 / LeftSidebar の Links セクション表示 + `+` で URL/App リンク追加 + 既定ブラウザ切替で起動先が変わる / `/Applications/*.app` 一覧から登録できる / iOS Drawer で `kind='app'` がグレーアウト + Toast 出る / Desktop ↔ iOS 双方向 sync で sidebar_links / calendar_tag_assignments が伝搬する
 - **計画書アーカイブ済**: archive/2026-04-25-sidebar-tags-free-pomodoro.md
+
 ---
 
 ### 2026-04-25 - sync_engine V65 follow-up fix（calendar_tag_assignments delta query を新スキーマ対応）
