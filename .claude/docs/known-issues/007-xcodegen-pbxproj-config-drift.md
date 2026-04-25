@@ -1,4 +1,4 @@
-# 007: cargo tauri ios dev の XcodeGen 再生成で Xcode UI の手動設定が消える
+# 007: cargo tauri ios dev の XcodeGen 再生成で Xcode UI 設定が消える
 
 **Status**: Fixed
 **Category**: Tooling / Structural
@@ -8,34 +8,26 @@
 
 ## Symptom
 
-初回 iOS ビルド成功後に `cargo tauri ios dev --host` を再実行すると、以下のエラー:
+初回 iOS ビルド成功後の `cargo tauri ios dev --host` 再実行で:
 
 ```
 Failed to load provisioning paramter list due to error:
 Error Domain=com.apple.dt.CoreDeviceError Code=1002 "No provider was found."
 ```
 
-Xcode UI で設定した Team や Bundle Identifier が消えていて、provisioning profile が見つからない状態になっていた。
+Xcode UI で設定した Team / Bundle Identifier が消え、provisioning profile 不発。
 
 ## Root Cause
 
-`cargo tauri ios dev` は毎回 XcodeGen 経由で `life-editor.xcodeproj/project.pbxproj` を **`project.yml` から再生成** する。
-
-問題は `project.yml` に以下の設定が欠けていたこと:
+`cargo tauri ios dev` は毎回 XcodeGen で `life-editor.xcodeproj/project.pbxproj` を **`project.yml` から再生成**。`project.yml` に以下が欠けていた:
 
 - `DEVELOPMENT_TEAM` 未指定
 - `CODE_SIGN_STYLE` 未指定
-- `PRODUCT_BUNDLE_IDENTIFIER` が古い `com.lifeEditor.app`（Xcode UI では `.newlife` に変更済みだった）
+- `PRODUCT_BUNDLE_IDENTIFIER` が古い `com.lifeEditor.app`
 
-結果として pbxproj 再生成時に Team が抜け、Bundle ID が `com.lifeEditor.app`（ユーザーの Personal Team が所有していない ID）に戻り、provisioning profile が見つからず "No provider was found"。
+→ pbxproj 再生成時に Team が抜け、Bundle ID が Personal Team 未所有の値に戻り、profile 不発。
 
-## Impact
-
-- Rust コード変更後の再ビルドが壊れる（設定変更の都度 Xcode で手動再設定が必要）
-- iOS チーム開発時に各開発者が同じ罠を踏む
-- 将来 Bundle ID / Team / Sign Style を変更するとき `project.yml` を更新しないと必ず再発
-
-## Fix / Workaround
+## Fix
 
 `src-tauri/gen/apple/project.yml` の `settingGroups.app.base` に 3 項目追加:
 
@@ -44,23 +36,19 @@ settingGroups:
   app:
     base:
       PRODUCT_NAME: Life Editor
-      PRODUCT_BUNDLE_IDENTIFIER: com.lifeEditor.app.newlife # ← 更新
-      DEVELOPMENT_TEAM: 542QHWHN37 # ← 追加
-      CODE_SIGN_STYLE: Automatic # ← 追加
+      PRODUCT_BUNDLE_IDENTIFIER: com.lifeEditor.app.newlife # 更新
+      DEVELOPMENT_TEAM: 542QHWHN37 # 追加
+      CODE_SIGN_STYLE: Automatic # 追加
 ```
-
-これで `cargo tauri ios dev` が XcodeGen で pbxproj を再生成しても、Signing 設定が保持される。
 
 ## References
 
-- 修正ファイル: `src-tauri/gen/apple/project.yml`
-- 関連: `src-tauri/tauri.conf.json` の `identifier` も `.newlife` に揃える必要あり
-- Xcode UI 上の変更は **エフェメラル** — Source of Truth は `project.yml`
-- 関連 Issue: なし（独立した Tooling 問題）
+- `src-tauri/gen/apple/project.yml` / `src-tauri/tauri.conf.json::identifier`
+- Xcode UI 上の変更は **エフェメラル** — SoT は `project.yml`
 
 ## Lessons Learned
 
-- `cargo tauri ios dev` のビルドは `project.yml` → XcodeGen → `project.pbxproj` の一方向パイプライン。pbxproj を直接編集しても次回再生成で消える
-- iOS 署名関連 3 設定（`PRODUCT_BUNDLE_IDENTIFIER` / `DEVELOPMENT_TEAM` / `CODE_SIGN_STYLE`）は常に `project.yml` 側に書く
-- "No provider was found" の根本的な意味は「この Bundle ID + Team の組み合わせに対応する provisioning profile が無い」
-- 検索キーワード: `XcodeGen regenerate pbxproj`, `No provider was found`, `DEVELOPMENT_TEAM project.yml`, `cargo tauri ios signing`
+- ビルドは `project.yml` → XcodeGen → `project.pbxproj` の一方向。pbxproj 直接編集は次回再生成で消える
+- 署名 3 設定（`PRODUCT_BUNDLE_IDENTIFIER` / `DEVELOPMENT_TEAM` / `CODE_SIGN_STYLE`）は常に `project.yml` 側に書く
+- "No provider was found" の意味は「この Bundle ID + Team 組み合わせの profile が無い」
+- 検索: `XcodeGen regenerate pbxproj`, `No provider was found`, `DEVELOPMENT_TEAM project.yml`

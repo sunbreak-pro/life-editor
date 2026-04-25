@@ -1,38 +1,22 @@
 # CLAUDE.md — Life Editor 統合定義書
 
-> Life Editor のアーキテクチャ・規約・運用ガイドの SSOT（Single Source of Truth）。
-> ビジョン・構想は `.claude/docs/vision/` に分離。Claude Code は起動時に本ファイルを auto-load する。
+> 設計判断・実装規約の SSOT。ビジョン・抽象構想は `.claude/docs/vision/` に分離。Claude Code 起動時に auto-load。
 
 ---
 
 ## 0. Meta
 
-### 役割と更新ルール
-
-- **役割**: 現状の設計判断・実装規約の唯一の参照点（400 行以下を目標に保つ）
-- **抽象的・未具体化の構想 / 設計原則**: `.claude/docs/vision/` 参照（本ファイルに持ち込まない、ADR は作らない）
-- **実装変更を伴う変更**: コードと同一 PR で本ファイル更新
-- **新機能追加**: §8 Feature Tier Map に追記 + `.claude/docs/requirements/` に詳細記入
-
-### 関連ドキュメント
-
-| パス                             | 用途                                                                                                                                                           |
-| -------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `.claude/MEMORY.md`              | タスクトラッカー（進行中 / 直近完了 / 予定）                                                                                                                   |
-| `.claude/HISTORY.md`             | 変更履歴（セッション単位）                                                                                                                                     |
-| `.claude/docs/vision/`           | 設計原則 + 次フェーズ計画（`core.md` / `coding-principles.md` / `db-conventions.md` / `mobile-porting.md` / `ios-everywhere-sync.md` / `desktop-followup.md`） |
-| `.claude/docs/requirements/`     | Tier 1-3 機能要件定義                                                                                                                                          |
-| `.claude/docs/known-issues/`     | 未解決 Issue + Root Cause 記録（[INDEX](./docs/known-issues/INDEX.md)）                                                                                        |
-| `.claude/docs/code-explanation/` | 機能別コード解説（学習教材）                                                                                                                                   |
-| `.claude/archive/`               | 完了済みプラン                                                                                                                                                 |
+- **役割**: 現状の実装規約 / 設計判断の参照点（400 行以下を目標）。抽象的・未具体化の構想 / 設計原則 は `docs/vision/` を参照（ADR は作らない）
+- **更新規則**: 実装変更を伴う変更はコードと同一 PR で更新。新機能は §8 + `docs/requirements/` に記入
+- **関連ドキュメント**: `MEMORY.md`(タスク) / `HISTORY.md`(履歴) / `docs/vision/`(設計原則) / `docs/requirements/`(Tier 1-3) / `docs/known-issues/`(Root Cause [INDEX](./docs/known-issues/INDEX.md)) / `docs/code-explanation/` / `archive/`
 
 ---
 
 ## 1. Vision（要約）
 
-> 詳細は [`.claude/docs/vision/core.md`](./docs/vision/core.md)
+詳細 → [`docs/vision/core.md`](./docs/vision/core.md)
 
-- **1-line**: 「AI と会話しながら生活を設計・記録・運用するパーソナル OS」
+- **1-line**: AI と会話しながら生活を設計・記録・運用するパーソナル OS
 - **Primary user**: 作者本人（N=1）、macOS + iOS、Claude Code 日常利用の開発者
 - **Value**: (V1) MCP 経由で AI が全データ操作 $0 / (V2) ローカル SQLite SSOT + オフライン完全動作 / (V3) 特化テーブル + Notion 的汎用 DB の両立
 - **Non-Goals**: マルチテナント / Web UI / 特化専用アプリ / Claude API 直課金 / モバイル単独起動
@@ -41,13 +25,11 @@
 
 ## 2. Platform
 
-### 役割定義
-
-- **Desktop (Tauri 2.0 on macOS/Windows/Linux)**: Primary creation。全機能揃う
+- **Desktop (Tauri 2.0)**: Primary creation、全機能
 - **iOS (Tauri 2.0)**: Consumption + Quick capture
 - **Cloud (Cloudflare Workers + D1)**: Desktop ↔ iOS 双方向同期のみ（Web UI なし）
 
-### 機能差分マトリクス
+### 機能差分
 
 | 機能                                                                         | Desktop | iOS | Cloud Sync | 備考                         |
 | ---------------------------------------------------------------------------- | :-----: | :-: | :--------: | ---------------------------- |
@@ -56,7 +38,7 @@
 | Materials / Calendar Tags / Audio / WikiTags / Shortcut Config / Screen Lock |    ✓    |  -  |     -      | Mobile 省略 Provider（§6.2） |
 | Terminal + Claude + MCP Server                                               |    ✓    |  -  |     -      | Desktop 専用（PTY 不可）     |
 
-モバイル省略 Provider: Audio / ScreenLock / FileExplorer / CalendarTags / WikiTag / ShortcutConfig
+Mobile 省略 Provider: Audio / ScreenLock / FileExplorer / CalendarTags / WikiTag / ShortcutConfig
 
 ---
 
@@ -65,89 +47,60 @@
 ### 3.1 全体構成
 
 ```
-Renderer (React 19 + Vite)
-   ↓ Tauri IPC (@tauri-apps/api)
-Rust Backend (src-tauri/)
-   ↓ rusqlite (WAL)
-SQLite (~/Library/Application Support/life-editor/life-editor.db)
-       ↑
-MCP Server (mcp-server/, 独立 Node.js プロセス, stdio, better-sqlite3)
-       ↑
-Cloud Sync (Cloudflare Workers + D1, 双方向)
+Renderer (React 19 + Vite) ─IPC→ Rust Backend (src-tauri/) ─rusqlite WAL→ SQLite (~/Library/Application Support/life-editor/life-editor.db)
+                                                                             ↑
+                                       MCP Server (Node.js, stdio, better-sqlite3)
+                                                                             ↑
+                                         Cloud Sync (Cloudflare Workers + D1, 双方向)
 ```
 
 ### 3.2 DataService 抽象化（重要）
 
-- フロントエンドは `getDataService()` 経由でデータアクセス。**コンポーネントから直接 `invoke()` を呼ばない**
-- インターフェース: `frontend/src/services/DataService.ts` / 実装: `TauriDataService.ts`
-- ファクトリ: `dataServiceFactory.ts`
+フロントエンドは `getDataService()` 経由でデータアクセス。**コンポーネントから直接 `invoke()` を呼ばない**。`frontend/src/services/{DataService.ts, TauriDataService.ts, dataServiceFactory.ts}`。
 
 ### 3.3 Section Routing（6 SectionId）
 
-React Router なし。`App.tsx` の `activeSection` で切替: `schedule` / `materials` / `connect` / `work` / `analytics` / `settings`。
-`TerminalPanel` は全画面共通の下部パネル（VSCode 方式）。
+React Router なし。`App.tsx::activeSection` で切替: `schedule` / `materials` / `connect` / `work` / `analytics` / `settings`。`TerminalPanel` は全画面共通の下部パネル（VSCode 方式）。
 
 ### 3.4 サブシステム
 
-- **Terminal**: `portable-pty` (Rust) + `xterm.js` (Frontend)、Ctrl+`` ` `` 開閉、Catppuccin Mocha
-- **Audio Mixer**: 6 種環境音 + カスタムサウンド。`AudioContext` は `suspended` → ユーザー操作後 `resume()` 必須
-- **Sync (Cloud)**: バージョンカラム + last-write-wins。life-editor 全テーブル対象
-- **Theme**: ダーク/ライト、フォントサイズ 10 段階（12-25px）、Tailwind `notion-*` デザイントークン
+- **Terminal**: `portable-pty` (Rust) + `xterm.js`、Ctrl+`` ` `` 開閉、Catppuccin Mocha
+- **Audio Mixer**: 6 種環境音 + カスタム。`AudioContext` は `suspended` → ユーザー操作後 `resume()` 必須
+- **Sync**: バージョンカラム + last-write-wins。全テーブル対象
+- **Theme**: ダーク/ライト、フォントサイズ 10 段階（12-25px）、Tailwind `notion-*` トークン
 
 ---
 
 ## 4. Data Model
 
-> **write / sync / migration の規約詳細は [`.claude/docs/vision/db-conventions.md`](./docs/vision/db-conventions.md) を必ず参照**（timestamp 形式・version 管理・LWW ルール・D1 制約・multi-language write の統一ルール）
+> write / sync / migration 規約詳細 → [`docs/vision/db-conventions.md`](./docs/vision/db-conventions.md)（timestamp 形式・version 管理・LWW・D1 制約・multi-language write）
 
 ### 4.1 SQLite スキーマ
 
-- 正本: `src-tauri/src/db/migrations.rs`（WAL）
-- 現行 v64、約 40 テーブル
-- ドメイン: tasks / dailies / notes / time*memos / schedule_items / calendars / routines / timer*\_ / sound\_\_ / playlists / wiki_tags / task_tags / note_tags / task_templates / paper_boards / databases（汎用 DB: properties / rows / cells）
-- V60 で旧 task_tags / note_tags / ai_settings / routine_logs など孤児テーブルを撤去（WikiTags へ完全移行）
-- V62 で versioned テーブルの NULL updated_at バックフィル + tasks 用 INSERT トリガー追加（Cloud Sync blocker 修正）
-- V63 で schedule_items (routine_id, date) 重複排除 + partial UNIQUE index
-- V64 で `memos` テーブルを `dailies` にリネーム（id 形式 `memo-YYYY-MM-DD` → `daily-YYYY-MM-DD`、`note_links.source_memo_date` → `source_daily_date`、`wiki_tag_assignments` / `paper_nodes` の entity_type='memo' → 'daily' 更新）。`time_memos` は別概念のため対象外
-- Cloud D1 側は 2026-04-24 に migration 0003 で `server_updated_at` 列を追加（delta sync cursor 用）。Desktop SQLite には存在しない Cloud 専用列。詳細は `docs/known-issues/014-*.md` / `docs/vision/db-conventions.md §3`
+- 正本: `src-tauri/src/db/migrations.rs`（WAL）/ 現行 v64、約 40 テーブル
+- ドメイン: tasks / dailies / notes / time*memos / schedule_items / calendars / routines / timer*_ / sound\__ / playlists / wiki_tags / task_templates / paper_boards / databases（汎用 DB: properties / rows / cells）
+- 直近 migration: V60(孤児テーブル撤去 → WikiTags 完全移行) / V62(NULL updated*at backfill + tasks INSERT トリガー) / V63(schedule_items 重複排除 + partial UNIQUE) / V64(`memos` → `dailies` rename。id 形式 / `note_links.source*\*`/`wiki_tag_assignments` の entity_type 全移行。`time_memos` は別概念で対象外)
+- Cloud D1 専用: 2026-04-24 適用 migration 0003 で `server_updated_at` 列追加（delta sync cursor 用、Desktop SQLite には無い）。詳細 → `docs/known-issues/013-*.md` / `docs/vision/db-conventions.md §3`
 
 ### 4.2 特化 vs 汎用 DB の境界
 
-**特化テーブル**（スキーマ固定）: `tasks` / `routines` / `schedule_items` / `notes` / `dailies` / `pomodoro_presets` / `timer_sessions`
-
-**汎用 Database で表現**: 家計簿 / 読書記録 / 習慣トラッカー / 連絡先 / 学習進捗 など
-
-**判断基準**:
-
-- 特化 UI が必要（DnD / カレンダー表示 / ルーチン生成 / リマインダー連動）→ 特化テーブル
-- 単純な「型付きフィールド + フィルタ + 集計」で済む → 汎用 Database
+- **特化テーブル**（スキーマ固定）: `tasks` / `routines` / `schedule_items` / `notes` / `dailies` / `pomodoro_presets` / `timer_sessions`
+- **汎用 Database で表現**: 家計簿 / 読書記録 / 習慣 / 連絡先 / 学習進捗 等
+- **判断**: 特化 UI（DnD / カレンダー / ルーチン生成 / リマインダー）が必要 → 特化テーブル。型付きフィールド + フィルタ + 集計で済む → 汎用 Database
 
 ### 4.3 ID 戦略
 
-- **TaskNode**: `"<type>-<timestamp+counter>"`（例: `task-1710201234566`）
-- **DailyNode**: `"daily-<YYYY-MM-DD>"`（日付キー1エントリ）
-- **その他**: `generateId(prefix)` で `"<prefix>-<uuid>"`
-- 全て String 型
+- TaskNode: `<type>-<timestamp+counter>`（例: `task-1710201234566`）
+- DailyNode: `daily-<YYYY-MM-DD>`（日付キー 1 エントリ）
+- その他: `generateId(prefix)` で `<prefix>-<uuid>`。全 String
 
 ### 4.4 ソフトデリート
 
-`is_deleted` + `deleted_at` カラム → TrashView から復元可能。対象: Tasks / Notes / Dailies / Routines / Databases / Templates。CustomSounds はファイルベース管理。
+`is_deleted` + `deleted_at` → TrashView から復元可。対象: Tasks / Notes / Dailies / Routines / Databases / Templates。CustomSounds はファイルベース。
 
 ### 4.5 PropertyType 拡張方針
 
-**実装済み**: text / number / select / date / checkbox
-
-**優先度**:
-
-| 型              | 用途                                    | 優先度 |
-| --------------- | --------------------------------------- | ------ |
-| `relation`      | DB 間リレーション（支出 → カテゴリ DB） | 高     |
-| `formula`       | 月次合計の自動計算、予算残高            | 高     |
-| `rollup`        | リレーション先の集計                    | 中     |
-| ビュー切替      | Board / Gallery / Calendar 表示         | 中     |
-| `url` / `email` | 連絡先 DB                               | 低     |
-
-新 PropertyType 追加時は MCP ツール（`query_database` / `add_database_row` / `update_database_cell`）も同時更新。
+実装済み: text / number / select / date / checkbox。優先度: relation(高、DB 間リレーション) / formula(高) / rollup(中) / ビュー切替 Board・Gallery・Calendar(中) / url・email(低)。新型追加時は MCP ツール（`query_database` / `add_database_row` / `update_database_cell`）も同時更新。
 
 ---
 
@@ -155,22 +108,19 @@ React Router なし。`App.tsx` の `activeSection` で切替: `schedule` / `mat
 
 ### 5.1 MCP Server（30 ツール）
 
-独立 Node.js プロセス。Claude Code が stdio 経由で呼び出し、同一 SQLite DB を直接操作。
+独立 Node.js プロセス。Claude Code が stdio 経由で呼び出し、同一 SQLite DB を直接操作。ドメイン別:
 
-| ドメイン  | ツール                                                                                                                  |
-| --------- | ----------------------------------------------------------------------------------------------------------------------- |
-| Tasks     | `list_tasks` / `get_task` / `create_task` / `update_task` / `delete_task` / `get_task_tree`                             |
-| Dailies   | `get_daily` / `upsert_daily`                                                                                            |
-| Notes     | `list_notes` / `create_note` / `update_note`                                                                            |
-| Schedule  | `list_schedule` / `create_schedule_item` / `update_schedule_item` / `delete_schedule_item` / `toggle_schedule_complete` |
-| Wiki Tags | `list_wiki_tags` / `tag_entity` / `search_by_tag` / `get_entity_tags`                                                   |
-| Content   | `generate_content` / `format_content`                                                                                   |
-| Search    | `search_all`                                                                                                            |
-| File      | `list_files` / `read_file` / `write_file` / `create_directory` / `rename_file` / `delete_file` / `search_files`         |
+- **Tasks**: list / get / create / update / delete / get_tree
+- **Dailies**: get / upsert
+- **Notes**: list / create / update
+- **Schedule**: list / create / update / delete / toggle_complete
+- **Wiki Tags**: list / tag_entity / search_by_tag / get_entity_tags
+- **Content / Search**: generate_content / format_content / search_all
+- **File**: list / read / write / create_directory / rename / delete / search
 
 ### 5.2 アプリ内ターミナル + Claude Code
 
-アプリ内ターミナル（portable-pty）から `claude` 起動 → MCP Server (`life-editor`) 自動接続 → 自然言語でデータ操作。
+`portable-pty` 経由で `claude` 起動 → MCP Server 自動接続 → 自然言語でデータ操作。
 
 ---
 
@@ -186,13 +136,13 @@ React Router なし。`App.tsx` の `activeSection` で切替: `schedule` / `mat
 | 定数             | SCREAMING_SNAKE_CASE   | `API_BASE_URL`         |
 | Context Value 型 | PascalCase             | `AudioContextValue.ts` |
 
-Frontend は ESLint 設定に従う。コメントは必要最小限。
+ESLint 設定に従う。コメントは必要最小限。
 
 ### 6.2 Provider 順序（依存制約）
 
 - **Desktop**（外→内）: ErrorBoundary → Theme → Toast → UndoRedo → ScreenLock → TaskTree → Calendar → Template → Daily → Note → FileExplorer → Routine → ScheduleItems → CalendarTags → Timer → Audio → WikiTag → ShortcutConfig
-- **Mobile**（省略）: ScreenLock / FileExplorer / CalendarTags / Audio / WikiTag / ShortcutConfig を省く
-- 制約: 内側 Provider は外側 Context に依存可（逆不可）。ScheduleItemsProvider → RoutineProvider、AudioProvider → TimerProvider
+- **Mobile**: ScreenLock / FileExplorer / CalendarTags / Audio / WikiTag / ShortcutConfig を省く
+- 内側 Provider は外側 Context に依存可（逆不可）。例: ScheduleItemsProvider → RoutineProvider、AudioProvider → TimerProvider
 
 ### 6.3 Pattern A（Context/Provider 標準 — 3 ファイル構成）
 
@@ -202,12 +152,9 @@ Frontend は ESLint 設定に従う。コメントは必要最小限。
 
 `context/index.ts` に Provider / Context / ContextValue type を export 追加。
 
-**例外**: 他 Provider が依存しない・実装が自己完結している場合は単一ファイル可（例: `ToastContext`）。
+**例外**: 他 Provider が依存しない・自己完結している場合は単一ファイル可（例: `ToastContext`）。
 
-**Mobile 省略 Provider は Optional バリアント必須**（原則詳細は `vision/coding-principles.md` §4）:
-
-- 必須 hook: Provider 外で throw
-- Optional hook (`useFooContextOptional`): `null` を返す → Mobile 到達可能な共有コンポーネントで `if (!ctx) return null` ガード
+**Mobile 省略 Provider は Optional バリアント必須**（詳細 → `vision/coding-principles.md §4`）: 必須 hook は Provider 外で throw / Optional hook (`useFooContextOptional`) は `null` を返し共有コンポーネントで `if (!ctx) return null` ガード。
 
 ### 6.4 共有コンポーネント配置
 
@@ -220,25 +167,18 @@ Frontend は ESLint 設定に従う。コメントは必要最小限。
 | Schedule 共通 | `frontend/src/components/Tasks/Schedule/shared/` |
 | UndoRedo      | `frontend/src/utils/undoRedo/`                   |
 
-**設計規約**:
-
-- Tailwind デザイントークン（`notion-*`）使用、ハードコード禁止
-- i18n テキストは props 経由（コンポーネント内で `useTranslation()` を呼ばない）
-- ジェネリクスでエンティティ型を外部化: `useDataFetch<T>(fetcher)`
-- DataService 依存はコールバックで注入（フック内で直接 `getDataService()` を呼ばない）
+設計規約: Tailwind `notion-*` トークン使用（ハードコード禁止）/ i18n テキストは props 経由（フック内で `useTranslation()` を呼ばない）/ ジェネリクスでエンティティ型を外部化（`useDataFetch<T>(fetcher)`）/ DataService 依存はコールバックで注入（フック内で直接 `getDataService()` を呼ばない）
 
 ### 6.5 Schedule 3 分割
 
-`RoutineProvider` / `ScheduleItemsProvider` / `CalendarTagsProvider` の 3 分割。`useScheduleContext()` は後方互換ファサード。新コードでは個別 hook (`useRoutineContext()` / `useScheduleItemsContext()` / `useCalendarTagsContext()`) 直接使用推奨。
-
-Calendar / DayFlow / Routine の 2 つ以上から参照されるものは `Schedule/shared/` に配置。背景は `vision/coding-principles.md` §3。
+`RoutineProvider` / `ScheduleItemsProvider` / `CalendarTagsProvider`。`useScheduleContext()` は後方互換ファサード。新コードは個別 hook 直接使用推奨。Calendar / DayFlow / Routine の 2 つ以上から参照されるものは `Schedule/shared/` に配置。背景 → `vision/coding-principles.md §3`。
 
 ### 6.6 その他規約
 
-- **i18n**: `react-i18next`。en / ja。`frontend/src/i18n/locales/` の両方に追加
-- **IME 対応**: `e.nativeEvent.isComposing` チェック必須
+- **i18n**: `react-i18next`（en / ja、`frontend/src/i18n/locales/` 両方に追加）
+- **IME**: `e.nativeEvent.isComposing` チェック必須
 - **リッチテキスト**: TipTap (`@tiptap/react`)
-- **DnD**: `@dnd-kit`。`moveNode`（並び替え）と `moveNodeInto`（階層移動）は別操作
+- **DnD**: `@dnd-kit`。`moveNode`(並び替え) と `moveNodeInto`(階層移動) は別操作
 
 ---
 
@@ -260,61 +200,42 @@ cd mcp-server && npm run build                          # MCP Server ビルド
 3. `frontend/src/services/DataService.ts` インターフェースにメソッド定義
 4. `frontend/src/services/TauriDataService.ts` に実装追加
 
-Tauri IPC は `serde` でシリアライズ。Rust 引数名と `invoke()` 引数名を一致させる。`Date` は文字列化、`undefined` は消失するので `null` を使う。
+`serde` シリアライズ。Rust 引数名と `invoke()` 引数名を一致させる。`Date` は文字列化、`undefined` は消失するので `null` を使う。
 
 ### 7.3 DB マイグレーション
 
-- テーブル / カラム追加は `IF NOT EXISTS` 使用
-- `PRAGMA user_version` を正しくインクリメント
-- カラム名: DB=`snake_case` / JS=`camelCase`（Repository の `rowToModel` で変換）
+- カラム追加は `IF NOT EXISTS` / `PRAGMA user_version` を正しくインクリメント
+- カラム名: DB=snake_case / JS=camelCase（`rowToModel` で変換）
 - 正本: `src-tauri/src/db/migrations.rs`
-
-診断:
-
-```bash
-sqlite3 ~/Library/Application\ Support/life-editor/life-editor.db ".tables"
-sqlite3 ~/Library/Application\ Support/life-editor/life-editor.db "PRAGMA user_version"
-```
+- 診断: `sqlite3 ~/Library/Application\ Support/life-editor/life-editor.db ".tables"` / `... "PRAGMA user_version"`
 
 ### 7.4 コミット規約
 
-```
-<type>: <subject>
-```
-
-type: `feat` / `fix` / `docs` / `style` / `refactor` / `test` / `chore`
+`<type>: <subject>` — type: `feat` / `fix` / `docs` / `style` / `refactor` / `test` / `chore`
 
 ### 7.5 デバッグ要点
 
 - **IPC 未登録**: §7.2 の 4 点同期を確認
-- **Context null エラー**: 対応 Provider の外で使用されている。§6.2 の順序を確認
-- **Audio 無音**: `AudioContext.state === 'suspended'` → ユーザー操作後 `resume()` 必要
-- **類似バグの既知解決策**: まず `.claude/docs/known-issues/INDEX.md` を grep
+- **Context null エラー**: 対応 Provider の外で使用 → §6.2 の順序確認
+- **Audio 無音**: `AudioContext.state === 'suspended'` → ユーザー操作後 `resume()`
+- **類似バグ**: まず `docs/known-issues/INDEX.md` を grep
 
 ---
 
 ## 8. Feature Tier Map
 
-> 詳細は `.claude/docs/requirements/` 参照（Tier 1/2/3、計 26 機能、Phase B 完了済み）
+詳細 → `docs/requirements/`（Tier 1/2/3、計 26 機能、Phase B 完了済み）
 
-### Tier 1: コア（Value Proposition を直接支える）
-
-[`tier-1-core.md`](./docs/requirements/tier-1-core.md)（8 機能）: Tasks (TaskTree) / Schedule (Routine + ScheduleItems + CalendarTags) / Notes / Daily / Database (Notion 風) / MCP Server / Cloud Sync / Terminal + Claude Code
-
-### Tier 2: 補助（あると価値が大幅増）
-
-[`tier-2-supporting.md`](./docs/requirements/tier-2-supporting.md)（12 機能）: Audio Mixer / Playlist / Pomodoro Timer / WikiTags / File Explorer / Templates / UndoRedo / Theme / i18n / Shortcuts / Toast / Trash
-
-### Tier 3: 実験 / 凍結候補
-
-[`tier-3-experimental.md`](./docs/requirements/tier-3-experimental.md)（6 機能）: Paper Boards（凍結継続）/ Analytics（凍結）/ NotebookLM 連携（未着手）/ Google Calendar 連携（ICS 購読 Phase 1 検討）/ Google Drive 連携（MCP で代替）/ Cognitive Architecture（当面凍結）
+- **Tier 1 コア**: [`tier-1-core.md`](./docs/requirements/tier-1-core.md)（8 機能）— Tasks (TaskTree) / Schedule (Routine + ScheduleItems + CalendarTags) / Notes / Daily / Database / MCP Server / Cloud Sync / Terminal + Claude Code
+- **Tier 2 補助**: [`tier-2-supporting.md`](./docs/requirements/tier-2-supporting.md)（12 機能）— Audio Mixer / Playlist / Pomodoro / WikiTags / File Explorer / Templates / UndoRedo / Theme / i18n / Shortcuts / Toast / Trash
+- **Tier 3 実験 / 凍結**: [`tier-3-experimental.md`](./docs/requirements/tier-3-experimental.md)（6 機能）— Paper Boards(凍結) / Analytics(凍結) / NotebookLM(未着手) / Google Calendar(ICS 検討) / Google Drive(MCP 代替) / Cognitive Architecture(凍結)
 
 ### 次フェーズ計画
 
 - [`vision/mobile-porting.md`](./docs/vision/mobile-porting.md) — Desktop → iOS 移植 + Cloud Sync 連携（主戦場）
-- [`requirements/ios-additions.md`](./docs/requirements/ios-additions.md) — iOS 限定の上乗せ要件（Global / Per-section）
-- [`vision/ios-everywhere-sync.md`](./docs/vision/ios-everywhere-sync.md) — Apple Developer Program 不加入での iOS 常時インストール運用（無料署名 + 週次再署名）
-- [`vision/desktop-followup.md`](./docs/vision/desktop-followup.md) — Desktop 残課題（Materials File タブ / Notes / Board）
+- [`requirements/ios-additions.md`](./docs/requirements/ios-additions.md) — iOS 限定の上乗せ要件
+- [`vision/ios-everywhere-sync.md`](./docs/vision/ios-everywhere-sync.md) — Apple Developer Program 不加入運用（無料署名 + 週次再署名）
+- [`vision/desktop-followup.md`](./docs/vision/desktop-followup.md) — Desktop 残課題
 
 ---
 
@@ -322,29 +243,25 @@ type: `feat` / `fix` / `docs` / `style` / `refactor` / `test` / `chore`
 
 ### Vision → 実装プラン → 統合 フロー
 
-1. **Vision**（抽象・設計原則）: `docs/vision/` に記述。ADR は作らず vision/ に一元化
-2. **実装プラン**（具体）: `.claude/YYYY-MM-DD-<slug>.md` 作成 → Vision から相互リンク
-3. **完了**: 該当プランを `archive/` に移動、実装規約は CLAUDE.md に統合、背景・判断理由は vision/coding-principles.md 等に残す
-4. **MEMORY.md / HISTORY.md**: セッション単位で同期
+1. **Vision**（抽象 / 設計原則）: `docs/vision/` に記述。ADR は作らず vision/ に一元化
+2. **実装プラン**: `.claude/YYYY-MM-DD-<slug>.md` に作成 → Vision と相互リンク
+3. **完了**: プランを `archive/` 移動、実装規約は本ファイルに統合、判断理由は `vision/coding-principles.md` 等に残す
+4. **MEMORY.md / HISTORY.md** はセッション単位で同期
 
-### なぜ ADR を使わないか
-
-- ADR は「時点の判断」を記録するため、時間経過で古い情報を参照してしまうリスクがある
-- vision/ は「現在から未来に向けた設計原則」として継続更新されるため、常に最新の意思決定を反映
-- 過去の却下案・判断理由は vision/coding-principles.md §5 の更新フローに従って残す
+ADR を使わない理由: 「時点の判断」は時間経過で古い情報を参照するリスク。vision/ は「現在から未来に向けた設計原則」として継続更新。却下案・判断理由は `vision/coding-principles.md §5` に残す。
 
 ### Known Issue ライフサイクル
 
-`docs/known-issues/` は **壊れている／壊れていた箇所の Root Cause と再発防止知見** を置く場所（MEMORY.md / HISTORY.md では拾えないもの）。
+`docs/known-issues/` は **壊れている／壊れていた箇所の Root Cause + 再発防止知見** を蓄積（MEMORY.md / HISTORY.md では拾えないもの）。
 
-1. **発見時**: `NNN-<slug>.md` を `_TEMPLATE.md` ベースで作成、Status=Active、INDEX.md 更新
-2. **解決時**: Status=Fixed、Resolved 日付 / 修正箇所 / Lessons Learned 追記、INDEX.md の Active → Fixed 移動
-3. **Monitoring**: 将来の落とし穴になりうる構造的問題は Monitoring で保持
+1. **発見時**: `_TEMPLATE.md` ベースで `NNN-<slug>.md` 作成、Status=Active、INDEX.md 更新
+2. **解決時**: Status=Fixed + Resolved 日付 + Lessons Learned 追記、INDEX 移動
+3. **Monitoring**: 構造的に再発しうる問題は Monitoring で保持
 
 類似バグ遭遇時はまず `INDEX.md` を grep が基本運用。
 
 ### 作業時の注意点
 
-- 機能追加・削除時は §8 Feature Tier Map を更新（README.md 自体は概要のみ）
+- 機能追加・削除時は §8 を更新（README.md は概要のみ）
 - 音源ファイルはコミット禁止（`public/sounds/` は `.gitignore` 対象）
 - API キーはフロントエンドに直接記載しない
