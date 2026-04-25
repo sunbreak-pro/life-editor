@@ -99,6 +99,7 @@ export function shouldCreateRoutineItem(
   dateKey: string,
   groupForRoutine?: Map<string, RoutineGroup[]>,
 ): boolean {
+  if (routine.isDeleted) return false;
   if (routine.isArchived || !routine.isVisible) return false;
 
   if (routine.frequencyType === "group") {

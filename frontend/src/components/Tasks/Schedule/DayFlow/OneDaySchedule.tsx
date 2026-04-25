@@ -6,6 +6,7 @@ import { useAutoInProgress } from "../../../../hooks/useAutoInProgress";
 import { useTaskTreeContext } from "../../../../hooks/useTaskTreeContext";
 import { formatDateKey } from "../../../../utils/dateKey";
 import { getDataService } from "../../../../services";
+import { logServiceError } from "../../../../utils/logError";
 import { CompactDateNav } from "./CompactDateNav";
 import { ScheduleTimeGrid } from "./ScheduleTimeGrid";
 import {
@@ -39,6 +40,7 @@ import {
   type ConversionRole,
   type ConversionSource,
 } from "../../../../hooks/useRoleConversion";
+import { useUndoRedo } from "../../../shared/UndoRedo";
 
 export type DayFlowFilterTab =
   | "all"
@@ -132,6 +134,7 @@ export function OneDaySchedule({
   const { addNode, updateNode } = useTaskTreeContext();
   const { t } = useTranslation();
   const { convert, canConvert } = useRoleConversion();
+  const { push } = useUndoRedo();
   const dateKey = formatDateKey(date);
 
   const getDisabledRoles = (source: ConversionSource): ConversionRole[] => {
@@ -198,10 +201,10 @@ export function OneDaySchedule({
   } | null>(null);
 
   const handleRequestRoutineDelete = useCallback(
-    (item: ScheduleItem, e: React.MouseEvent) => {
+    (item: ScheduleItem, position: { x: number; y: number }) => {
       setRoutineDeleteTarget({
         item,
-        position: { x: e.clientX, y: e.clientY },
+        position,
       });
     },
     [],
@@ -431,8 +434,11 @@ export function OneDaySchedule({
     endTime: string,
   ) => {
     const item = filteredScheduleItems.find((i) => i.id === id);
-    updateScheduleItem(id, { startTime, endTime });
-    // If this is a routine item, show confirmation dialog
+    // For routine items, defer the undo push until the dialog choice is made:
+    // "this only" pushes a scheduleItem-scoped undo, "apply to routine" pushes
+    // a grouped undo covering routine + all future items.
+    const isRoutineItem = !!item?.routineId;
+    updateScheduleItem(id, { startTime, endTime }, { skipUndo: isRoutineItem });
     if (item?.routineId) {
       const routine = routines.find((r) => r.id === item.routineId);
       if (routine) {
@@ -844,29 +850,171 @@ export function OneDaySchedule({
             routineTitle={routineTimeChange.routineTitle}
             newStartTime={routineTimeChange.startTime}
             newEndTime={routineTimeChange.endTime}
-            onThisOnly={() => setRoutineTimeChange(null)}
-            onApplyToRoutine={() => {
-              updateRoutine(routineTimeChange.routineId, {
-                startTime: routineTimeChange.startTime,
-                endTime: routineTimeChange.endTime,
+            onThisOnly={() => {
+              // The current-day item update was applied with skipUndo in
+              // handleUpdateScheduleItemTime. Push the equivalent undo entry now.
+              const change = routineTimeChange;
+              push("scheduleItem", {
+                label: "updateScheduleItem",
+                undo: () => {
+                  updateScheduleItem(
+                    change.itemId,
+                    {
+                      startTime: change.prevStartTime,
+                      endTime: change.prevEndTime,
+                    },
+                    { skipUndo: true },
+                  );
+                },
+                redo: () => {
+                  updateScheduleItem(
+                    change.itemId,
+                    {
+                      startTime: change.startTime,
+                      endTime: change.endTime,
+                    },
+                    { skipUndo: true },
+                  );
+                },
               });
-              getDataService()
-                .updateFutureScheduleItemsByRoutine(
-                  routineTimeChange.routineId,
-                  {
-                    startTime: routineTimeChange.startTime,
-                    endTime: routineTimeChange.endTime,
-                  },
-                  dateKey,
+              setRoutineTimeChange(null);
+            }}
+            onApplyToRoutine={async () => {
+              const change = routineTimeChange;
+              const fromDate = dateKey;
+              // Snapshot future items BEFORE applying the routine update so
+              // undo can revert each one to its pre-change time. Use the
+              // current-day item's pre-drag values from `change` since the
+              // optimistic update on local state has already advanced.
+              let allItems: ScheduleItem[] = [];
+              try {
+                allItems = await getDataService().fetchScheduleItemsByRoutineId(
+                  change.routineId,
+                );
+              } catch (e) {
+                logServiceError("ScheduleItems", "fetchByRoutine", e);
+              }
+              const futureSnapshot = allItems
+                .filter(
+                  (i) => i.date >= fromDate && !i.completed && !i.isDeleted,
                 )
-                .catch(() => {});
+                .map((i) => ({
+                  id: i.id,
+                  startTime:
+                    i.id === change.itemId ? change.prevStartTime : i.startTime,
+                  endTime:
+                    i.id === change.itemId ? change.prevEndTime : i.endTime,
+                }));
+
+              const prevRoutine = routines.find(
+                (r) => r.id === change.routineId,
+              );
+              const prevRoutineStart = prevRoutine?.startTime ?? "09:00";
+              const prevRoutineEnd = prevRoutine?.endTime ?? "09:30";
+
+              // Apply forward (no individual undo entries)
+              updateRoutine(
+                change.routineId,
+                {
+                  startTime: change.startTime,
+                  endTime: change.endTime,
+                },
+                { skipUndo: true },
+              );
+              try {
+                await getDataService().updateFutureScheduleItemsByRoutine(
+                  change.routineId,
+                  {
+                    startTime: change.startTime,
+                    endTime: change.endTime,
+                  },
+                  fromDate,
+                );
+              } catch (e) {
+                logServiceError("ScheduleItems", "updateFutureByRoutine", e);
+              }
+
+              // Push a single grouped undo entry covering all 3 forward writes.
+              push("routine", {
+                label: "Apply routine time change",
+                undo: async () => {
+                  updateRoutine(
+                    change.routineId,
+                    {
+                      startTime: prevRoutineStart,
+                      endTime: prevRoutineEnd,
+                    },
+                    { skipUndo: true },
+                  );
+                  // Revert current-day item locally so the open view updates.
+                  updateScheduleItem(
+                    change.itemId,
+                    {
+                      startTime: change.prevStartTime,
+                      endTime: change.prevEndTime,
+                    },
+                    { skipUndo: true },
+                  );
+                  // Revert each future item via direct IPC. They aren't in
+                  // current local state lists for non-current dates, so a
+                  // local list update isn't needed; the next loadItemsForDate
+                  // / loadScheduleItemsForMonth will pick up the reverted DB.
+                  for (const fi of futureSnapshot) {
+                    if (fi.id === change.itemId) continue; // handled above
+                    try {
+                      await getDataService().updateScheduleItem(fi.id, {
+                        startTime: fi.startTime,
+                        endTime: fi.endTime,
+                      });
+                    } catch (e) {
+                      logServiceError("ScheduleItems", "undoFutureRevert", e);
+                    }
+                  }
+                },
+                redo: async () => {
+                  updateRoutine(
+                    change.routineId,
+                    {
+                      startTime: change.startTime,
+                      endTime: change.endTime,
+                    },
+                    { skipUndo: true },
+                  );
+                  updateScheduleItem(
+                    change.itemId,
+                    {
+                      startTime: change.startTime,
+                      endTime: change.endTime,
+                    },
+                    { skipUndo: true },
+                  );
+                  try {
+                    await getDataService().updateFutureScheduleItemsByRoutine(
+                      change.routineId,
+                      {
+                        startTime: change.startTime,
+                        endTime: change.endTime,
+                      },
+                      fromDate,
+                    );
+                  } catch (e) {
+                    logServiceError("ScheduleItems", "redoFutureUpdate", e);
+                  }
+                },
+              });
               setRoutineTimeChange(null);
             }}
             onCancel={() => {
-              updateScheduleItem(routineTimeChange.itemId, {
-                startTime: routineTimeChange.prevStartTime,
-                endTime: routineTimeChange.prevEndTime,
-              });
+              // The drag was applied with skipUndo, so cancellation simply
+              // reverts visually + in DB without a new undo entry.
+              updateScheduleItem(
+                routineTimeChange.itemId,
+                {
+                  startTime: routineTimeChange.prevStartTime,
+                  endTime: routineTimeChange.prevEndTime,
+                },
+                { skipUndo: true },
+              );
               setRoutineTimeChange(null);
             }}
           />

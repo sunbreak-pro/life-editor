@@ -68,8 +68,28 @@ export function useScheduleItemsRoutineSync(handles: ScheduleItemsCoreHandles) {
 
       if (toCreate.length > 0) {
         try {
-          const created =
-            await getDataService().bulkCreateScheduleItems(toCreate);
+          await getDataService().bulkCreateScheduleItems(toCreate);
+          const nowIso = new Date().toISOString();
+          const created: ScheduleItem[] = toCreate.map((c) => ({
+            id: c.id,
+            date: c.date,
+            title: c.title,
+            startTime: c.startTime,
+            endTime: c.endTime,
+            completed: false,
+            completedAt: null,
+            routineId: c.routineId,
+            templateId: null,
+            memo: null,
+            noteId: null,
+            content: null,
+            isDeleted: false,
+            isDismissed: false,
+            reminderEnabled: c.reminderEnabled ?? false,
+            reminderOffset: c.reminderOffset,
+            createdAt: nowIso,
+            updatedAt: nowIso,
+          }));
           const addCreated = (prev: ScheduleItem[]) =>
             [...prev, ...created].sort((a, b) =>
               a.startTime.localeCompare(b.startTime),
@@ -255,7 +275,7 @@ export function useScheduleItemsRoutineSync(handles: ScheduleItemsCoreHandles) {
       const updated = scheduleItemsRef.current.map((item) => {
         if (!item.routineId) return item;
         const routine = routineMap.get(item.routineId);
-        if (!routine) return item;
+        if (!routine || routine.isDeleted) return item;
         const newTitle = routine.title;
         const newStart = routine.startTime ?? "09:00";
         const newEnd = routine.endTime ?? "09:30";

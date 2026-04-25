@@ -126,6 +126,7 @@ export function useRoutines() {
           | "reminderOffset"
         >
       >,
+      options?: { skipUndo?: boolean },
     ) => {
       const prev = routinesRef.current.find((r) => r.id === id);
       setRoutines((p) =>
@@ -139,7 +140,7 @@ export function useRoutines() {
         .updateRoutine(id, updates)
         .catch((e) => logServiceError("Routines", "update", e));
 
-      if (prev) {
+      if (prev && !options?.skipUndo) {
         const prevValues: typeof updates = {};
         for (const key of Object.keys(updates) as Array<keyof typeof updates>) {
           (prevValues as Record<string, unknown>)[key] = prev[key];

@@ -133,6 +133,28 @@ describe("shouldCreateRoutineItem (V69 group semantics)", () => {
     expect(shouldCreateRoutineItem(hidden, "2026-04-25")).toBe(false);
   });
 
+  it("soft-deleted routines never fire (defensive guard against ghost regeneration)", () => {
+    const deleted = makeRoutine({
+      isDeleted: true,
+      deletedAt: "2026-04-25T00:00:00.000Z",
+    });
+    expect(shouldCreateRoutineItem(deleted, "2026-04-25")).toBe(false);
+    // Even with a matching group assignment, isDeleted overrides.
+    const deletedGroupRoutine = makeRoutine({
+      isDeleted: true,
+      frequencyType: "group",
+    });
+    const dailyGroup = makeGroup({ frequencyType: "daily" });
+    const groupForRoutine = new Map([["routine-1", [dailyGroup]]]);
+    expect(
+      shouldCreateRoutineItem(
+        deletedGroupRoutine,
+        "2026-04-25",
+        groupForRoutine,
+      ),
+    ).toBe(false);
+  });
+
   it("interval routine ignores group memberships", () => {
     const routine = makeRoutine({
       frequencyType: "interval",

@@ -194,6 +194,7 @@ export function useScheduleItemsCore(
           | "isAllDay"
         >
       >,
+      options?: { skipUndo?: boolean },
     ) => {
       const prev = scheduleItemsRef.current.find((item) => item.id === id);
       const dateChanged = updates.date && prev && updates.date !== prev.date;
@@ -214,7 +215,7 @@ export function useScheduleItemsCore(
         .updateScheduleItem(id, updates)
         .catch((e) => logServiceError("ScheduleItems", "update", e));
 
-      if (prev) {
+      if (prev && !options?.skipUndo) {
         const prevValues: typeof updates = {};
         for (const key of Object.keys(updates) as Array<keyof typeof updates>) {
           (prevValues as Record<string, unknown>)[key] = prev[key];

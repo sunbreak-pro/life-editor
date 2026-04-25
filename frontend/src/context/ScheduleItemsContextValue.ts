@@ -42,6 +42,7 @@ export interface ScheduleItemsContextValue {
         | "isAllDay"
       >
     >,
+    options?: { skipUndo?: boolean },
   ) => void;
   deleteScheduleItem: (id: string, options?: { skipUndo?: boolean }) => void;
   softDeleteScheduleItem: (

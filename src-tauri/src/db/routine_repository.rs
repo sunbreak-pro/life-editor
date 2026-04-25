@@ -198,9 +198,14 @@ pub fn fetch_deleted(conn: &Connection) -> rusqlite::Result<Vec<RoutineNode>> {
 pub fn soft_delete(conn: &mut Connection, id: &str) -> rusqlite::Result<Vec<String>> {
     let tx = conn.transaction()?;
 
+    // Soft-delete (not physical DELETE) so the change propagates to Cloud Sync
+    // and other devices via the standard `is_deleted=1 + version+1 + updated_at`
+    // delta path. Physical DELETE leaves no row to push, so other devices keep
+    // pushing the items back, causing "ghost" items to reappear after deletion.
     let deleted_schedule_item_ids: Vec<String> = {
         let mut select_stmt = tx.prepare(
-            "SELECT id FROM schedule_items WHERE routine_id = ?1 AND completed = 0",
+            "SELECT id FROM schedule_items \
+             WHERE routine_id = ?1 AND completed = 0 AND is_deleted = 0",
         )?;
         let rows = select_stmt.query_map([id], |row| row.get::<_, String>(0))?;
         rows.collect::<rusqlite::Result<Vec<_>>>()?
@@ -208,7 +213,10 @@ pub fn soft_delete(conn: &mut Connection, id: &str) -> rusqlite::Result<Vec<Stri
 
     if !deleted_schedule_item_ids.is_empty() {
         tx.execute(
-            "DELETE FROM schedule_items WHERE routine_id = ?1 AND completed = 0",
+            "UPDATE schedule_items \
+             SET is_deleted = 1, deleted_at = datetime('now'), \
+                 version = version + 1, updated_at = datetime('now') \
+             WHERE routine_id = ?1 AND completed = 0 AND is_deleted = 0",
             [id],
         )?;
     }
@@ -238,4 +246,159 @@ pub fn permanent_delete(conn: &Connection, id: &str) -> rusqlite::Result<()> {
         [id],
     )?;
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::db::migrations::run_migrations;
+    use crate::db::schedule_item_repository;
+
+    fn fresh_conn() -> Connection {
+        let conn = Connection::open_in_memory().unwrap();
+        run_migrations(&conn).unwrap();
+        conn
+    }
+
+    #[test]
+    fn soft_delete_marks_routine_and_uncompleted_schedule_items_without_physical_delete() {
+        let mut conn = fresh_conn();
+        create(
+            &conn,
+            "r-1",
+            "Morning routine",
+            Some("09:00"),
+            Some("09:30"),
+            Some("daily"),
+            None,
+            None,
+            None,
+            false,
+            None,
+        )
+        .unwrap();
+        // Two future uncompleted schedule_items belonging to this routine.
+        schedule_item_repository::create(
+            &conn,
+            "si-1",
+            "2026-04-26",
+            "Morning routine",
+            "09:00",
+            "09:30",
+            Some("r-1"),
+            None,
+            None,
+            None,
+            None,
+        )
+        .unwrap();
+        schedule_item_repository::create(
+            &conn,
+            "si-2",
+            "2026-04-27",
+            "Morning routine",
+            "09:00",
+            "09:30",
+            Some("r-1"),
+            None,
+            None,
+            None,
+            None,
+        )
+        .unwrap();
+
+        let deleted_ids = soft_delete(&mut conn, "r-1").unwrap();
+        assert_eq!(deleted_ids.len(), 2, "should report both deleted ids");
+
+        // Routine is soft-deleted, not physically removed.
+        let still_present: i64 = conn
+            .query_row("SELECT COUNT(*) FROM routines WHERE id = ?1", ["r-1"], |row| {
+                row.get(0)
+            })
+            .unwrap();
+        assert_eq!(still_present, 1);
+        let is_deleted: i64 = conn
+            .query_row(
+                "SELECT is_deleted FROM routines WHERE id = ?1",
+                ["r-1"],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(is_deleted, 1);
+
+        // schedule_items are soft-deleted (rows still exist with is_deleted=1).
+        // This is the critical fix: physical DELETE leaves no Cloud Sync delta,
+        // so other devices push items back. Soft-delete propagates correctly.
+        for sid in &["si-1", "si-2"] {
+            let row_count: i64 = conn
+                .query_row(
+                    "SELECT COUNT(*) FROM schedule_items WHERE id = ?1",
+                    [sid],
+                    |row| row.get(0),
+                )
+                .unwrap();
+            assert_eq!(row_count, 1, "schedule_item {} should still exist", sid);
+            let is_del: i64 = conn
+                .query_row(
+                    "SELECT is_deleted FROM schedule_items WHERE id = ?1",
+                    [sid],
+                    |row| row.get(0),
+                )
+                .unwrap();
+            assert_eq!(is_del, 1, "schedule_item {} must be soft-deleted", sid);
+        }
+    }
+
+    #[test]
+    fn soft_delete_preserves_completed_schedule_items() {
+        let mut conn = fresh_conn();
+        create(
+            &conn,
+            "r-1",
+            "Morning routine",
+            Some("09:00"),
+            Some("09:30"),
+            Some("daily"),
+            None,
+            None,
+            None,
+            false,
+            None,
+        )
+        .unwrap();
+        schedule_item_repository::create(
+            &conn,
+            "si-done",
+            "2026-04-20",
+            "Morning routine",
+            "09:00",
+            "09:30",
+            Some("r-1"),
+            None,
+            None,
+            None,
+            None,
+        )
+        .unwrap();
+        // Mark as completed manually.
+        conn.execute(
+            "UPDATE schedule_items SET completed = 1, completed_at = datetime('now') WHERE id = ?1",
+            ["si-done"],
+        )
+        .unwrap();
+
+        let deleted_ids = soft_delete(&mut conn, "r-1").unwrap();
+        assert!(
+            deleted_ids.is_empty(),
+            "completed items must not be reported as deleted"
+        );
+        let is_del: i64 = conn
+            .query_row(
+                "SELECT is_deleted FROM schedule_items WHERE id = ?1",
+                ["si-done"],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(is_del, 0, "completed item must not be soft-deleted");
+    }
 }
