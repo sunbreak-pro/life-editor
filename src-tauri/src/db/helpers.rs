@@ -1,6 +1,7 @@
 use rusqlite::Connection;
-use rusqlite::types::ValueRef;
 use serde_json::Value;
+
+use super::row_converter::row_to_json;
 
 /// Execute a soft-delete: set is_deleted=1, deleted_at=NOW, bump version
 pub fn soft_delete(conn: &Connection, table: &str, id: &str) -> rusqlite::Result<()> {
@@ -126,26 +127,12 @@ pub fn query_one_json(conn: &Connection, sql: &str) -> rusqlite::Result<Option<V
     }
 }
 
-/// Convert a single database row to a JSON Value using column names
-fn row_to_json(row: &rusqlite::Row, col_names: &[String]) -> Value {
-    let mut map = serde_json::Map::new();
-    for (i, name) in col_names.iter().enumerate() {
-        let val = match row.get_ref(i) {
-            Ok(ValueRef::Null) => Value::Null,
-            Ok(ValueRef::Integer(n)) => Value::from(n),
-            Ok(ValueRef::Real(f)) => Value::from(f),
-            Ok(ValueRef::Text(s)) => {
-                Value::String(String::from_utf8_lossy(s).to_string())
-            }
-            Ok(ValueRef::Blob(_)) => Value::Null,
-            Err(_) => Value::Null,
-        };
-        map.insert(name.clone(), val);
-    }
-    Value::Object(map)
-}
-
-/// Get the next order value for a table
+/// Get the next order value for a table.
+///
+/// SAFETY: `table` is interpolated into raw SQL. Callers MUST pass a static
+/// table-name literal (or one sourced from a compile-time whitelist). All
+/// existing call sites in `*_repository.rs` use static literals; never feed
+/// this function an HTTP request body or any other untrusted string.
 pub fn next_order(conn: &Connection, table: &str) -> rusqlite::Result<i64> {
     let sql = format!("SELECT COALESCE(MAX(\"order\"), -1) FROM \"{table}\"");
     let max: i64 = conn.query_row(&sql, [], |row| row.get(0))?;

@@ -3,6 +3,7 @@ use serde_json::Value;
 
 use super::types::SyncPayload;
 use crate::db::helpers;
+use crate::db::row_converter::row_to_json;
 
 /// Versioned tables: have `version`, `updated_at` columns.
 const VERSIONED_TABLES: &[(&str, &str)] = &[
@@ -90,12 +91,17 @@ pub fn collect_all(conn: &Connection) -> Result<SyncPayload, rusqlite::Error> {
     let mut payload = SyncPayload::default();
 
     for &(table, _) in VERSIONED_TABLES {
+        // SAFETY: `table` is iterated from the const VERSIONED_TABLES slice
+        // (file-top), never from caller input. Identifier interpolation into
+        // SQL is safe.
         let rows =
             helpers::query_all_json(conn, &format!("SELECT * FROM \"{table}\""))?;
         set_payload_field(&mut payload, table, rows);
     }
 
     for &table in RELATION_TABLES_WITH_UPDATED_AT {
+        // SAFETY: `table` is iterated from the const RELATION_TABLES_WITH_UPDATED_AT
+        // slice (file-top). Same justification as above.
         let rows =
             helpers::query_all_json(conn, &format!("SELECT * FROM \"{table}\""))?;
         set_payload_field(&mut payload, table, rows);
@@ -176,23 +182,6 @@ fn query_changed(
 
     let rows = stmt.query_map([since], |row| Ok(row_to_json(row, &col_names)))?;
     rows.collect()
-}
-
-fn row_to_json(row: &rusqlite::Row, col_names: &[String]) -> Value {
-    use rusqlite::types::ValueRef;
-    let mut map = serde_json::Map::new();
-    for (i, name) in col_names.iter().enumerate() {
-        let val = match row.get_ref(i) {
-            Ok(ValueRef::Null) => Value::Null,
-            Ok(ValueRef::Integer(n)) => Value::from(n),
-            Ok(ValueRef::Real(f)) => Value::from(f),
-            Ok(ValueRef::Text(s)) => Value::String(String::from_utf8_lossy(s).to_string()),
-            Ok(ValueRef::Blob(_)) => Value::Null,
-            Err(_) => Value::Null,
-        };
-        map.insert(name.clone(), val);
-    }
-    Value::Object(map)
 }
 
 /// Query the target table's actual column set (used to filter remote payload

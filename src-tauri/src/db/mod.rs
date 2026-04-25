@@ -1,5 +1,6 @@
 pub mod migrations;
 pub mod helpers;
+pub mod row_converter;
 pub mod task_repository;
 pub mod timer_repository;
 pub mod daily_repository;
