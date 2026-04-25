@@ -31,6 +31,7 @@ import { useTimerContext } from "./hooks/useTimerContext";
 import { useTaskTreeContext } from "./hooks/useTaskTreeContext";
 import { useDailyContext } from "./hooks/useDailyContext";
 import { useAppCommands } from "./hooks/useAppCommands";
+import { useSectionCommands } from "./hooks/useSectionCommands";
 import { useAppKeyboardShortcuts } from "./hooks/useAppKeyboardShortcuts";
 import { useMenuActions } from "./hooks/useMenuActions";
 import { useTaskDetailHandlers } from "./hooks/useTaskDetailHandlers";
@@ -41,6 +42,7 @@ import type { SectionId } from "./types/taskTree";
 import { STORAGE_KEYS } from "./constants/storageKeys";
 import {
   NAVIGATE_TO_NOTE_EVENT,
+  OPEN_COMMAND_PALETTE_EVENT,
   type NavigateToNoteDetail,
 } from "./constants/events";
 
@@ -100,7 +102,7 @@ function App() {
     setSelectedNoteId,
   });
 
-  const commands = useAppCommands({
+  const baseCommands = useAppCommands({
     setActiveSection,
     setSettingsInitialTab,
     addNode,
@@ -112,6 +114,18 @@ function App() {
     nodes,
     selectedTaskId,
   });
+
+  const sectionCommands = useSectionCommands({
+    activeSection,
+    scheduleTab,
+    setActiveSection,
+    setScheduleTab,
+    setSelectedTaskId,
+    setSelectedNoteId,
+    setDailyDate,
+  });
+
+  const commands = [...sectionCommands, ...baseCommands];
 
   useUndoRedoKeyboard();
   useReminderListener();
@@ -127,6 +141,13 @@ function App() {
     window.addEventListener(NAVIGATE_TO_NOTE_EVENT, handler);
     return () => window.removeEventListener(NAVIGATE_TO_NOTE_EVENT, handler);
   }, [setSelectedNoteId]);
+
+  useEffect(() => {
+    const handler = () => setIsCommandPaletteOpen(true);
+    window.addEventListener(OPEN_COMMAND_PALETTE_EVENT, handler);
+    return () =>
+      window.removeEventListener(OPEN_COMMAND_PALETTE_EVENT, handler);
+  }, []);
 
   useAppKeyboardShortcuts({
     timer,

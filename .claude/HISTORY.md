@@ -1,5 +1,42 @@
 # HISTORY.md - 変更履歴
 
+### 2026-04-25 - Cmd+K コマンドパレット統合（セクション動的アイテム + Sidebar Links + UI 拡大）
+
+#### 概要
+
+ユーザー要件「現在の検索フィールドや Component / hooks を Cmd+K で開くコマンドパレットと統合したい」に対する実装。要件は (1) 必ず表示するのは 6 セクション + 追加した Sidebar リンクアイテム、(2) 各セクションを開いているものに応じた動的アイテムを上乗せ、(3) パネルを大きく中央寄りに、(4) RightSidebar の検索フィールドは削除しアイコンのみ残す、の 4 点。事前確認（Q1: 既存コマンド「そのまま残す」/ Q2: 一気に全 6 セクション対応 / Q3: 680px×480px×pt-12vh で OK / Q4: 検索アイコンを Cmd+K トリガに変更）に基づき、UI 拡大 → Sidebar Links 注入 → セクション別動的コマンド hook 新設 → 10 箇所の `<SearchBar>` を `<SearchTrigger>` に置換 の 4 段階で実装。`tsc -b` 0 error / vitest 283/283 pass / `npm run build` 成功。本実装は実装計画書を伴わず、事前 Q&A での合意ベースで進行。
+
+#### 変更点
+
+- **CommandPalette UI 拡大** — `frontend/src/components/CommandPalette/CommandPalette.tsx` のパネル `max-w-[520px]` → `max-w-[680px]` (約 +30% 幅)、コマンドリスト `max-h-[320px]` → `max-h-[480px]` (約 +50% 高)、起動位置 `pt-[15vh]` → `pt-[12vh]` で中央寄り。検索 input / カテゴリ見出し / アイテム配色等は既存維持。
+
+- **Sidebar Links を Links カテゴリに動的注入** — `frontend/src/hooks/useAppCommands.ts` で `useSidebarLinksContext()` を購読し、`!isDeleted` リンクを Navigation 直後（Settings deep links より前）に挿入: `id: \`sidebar-link-${link.id}\``/`title: link.emoji ? "{emoji} {name}" : link.name`/`category: "Links"`/`icon: link.kind === "app" ? AppWindow : LinkIcon`/`action: () => void openLink(link)`。`useMemo`の deps に`sidebarLinks, openLink` を追加。既存 6 セクション (Schedule/Materials/Connect/Work/Analytics/Settings) + Settings deep links 8 件 + Task / Timer / View commands は要件通りそのまま残置。
+
+- **セクション別動的アイテム hook を新設** — `frontend/src/hooks/useSectionCommands.ts` 新規。`{ activeSection, scheduleTab, setActiveSection, setScheduleTab, setSelectedTaskId, setSelectedNoteId, setDailyDate }` を引数に取り、`useTaskTreeContext().nodes` / `useDailyContext().dailies` / `useNoteContext().notes` / `useScheduleContext().routines + scheduleItems` を集約して動的 Command[] を返す。`MAX_ITEMS_PER_GROUP = 30`。**Schedule + tasks**: `nodes.filter(task && !isDeleted && scheduledAt).sort(scheduledAt desc).slice(0, 30)` で `category: "Schedule · Tasks"` / icon: CheckSquare / action: section=schedule + tab=tasks + selectedTaskId をセット。**Schedule + events**: `scheduleItems.filter(!routineId).sort(date desc)` で `category: "Schedule · Events"` / icon: CalendarClock / action: section=schedule + tab=events。**Schedule + calendar/dayflow**: routines + non-routine events + scheduled tasks の合算（各最大 30、`category: "Schedule · Calendar"`）。**Materials**: `notes.filter(!isDeleted).sort(updatedAt desc)` を `category: "Materials · Notes"` / icon: StickyNote / action: `localStorage.MATERIALS_TAB="notes"` + section=materials + setSelectedNoteId、`dailies.filter(!isDeleted).sort(date desc)` を `category: "Materials · Daily"` / icon: BookOpen / action: `localStorage.MATERIALS_TAB="daily"` + section=materials + `setDailyDate(d.date)`（DailyContext の `setSelectedDate` は `string` を取るため `dateKey` をそのまま渡す）。Connect / Work / Analytics / Settings は今回パスし既存ナビ + Settings deep links + Sidebar Links に集約。
+
+- **App.tsx で baseCommands と sectionCommands を統合** — `frontend/src/App.tsx` で `useAppCommands(...)` を `baseCommands` に rename、`useSectionCommands({ activeSection, scheduleTab, setActiveSection, setScheduleTab, setSelectedTaskId, setSelectedNoteId, setDailyDate })` を呼び `const commands = [...sectionCommands, ...baseCommands]` で結合。動的セクション群を上に置くため、Cmd+K 直後にコンテキスト依存のアイテムが先頭表示される。
+
+- **RightSidebar の検索フィールドを Cmd+K トリガに置換** — 新規 `frontend/src/components/shared/SearchTrigger.tsx`: Search アイコン (lucide-react) + tooltip / aria-label に `commandPalette.openSearch` (fallback "Search (⌘K)") を持つ 28px のボタン。クリックで `window.dispatchEvent(new CustomEvent(OPEN_COMMAND_PALETTE_EVENT))` のみ実行。新規 `frontend/src/constants/events.ts::OPEN_COMMAND_PALETTE_EVENT = "life-editor:open-command-palette"`。`App.tsx` に `useEffect(() => { const handler = () => setIsCommandPaletteOpen(true); window.addEventListener(OPEN_COMMAND_PALETTE_EVENT, handler); return () => window.removeEventListener(OPEN_COMMAND_PALETTE_EVENT, handler); }, [])` を追加。
+
+- **10 箇所の `<SearchBar>` 置換 + dead code 整理** — `<SearchBar value={searchQuery} onChange={setSearchQuery} ... />` を `<SearchTrigger className="px-3 pt-2 pb-1" />` に置換した上で、対応する dead code を削除:
+  - `frontend/src/components/Schedule/ScheduleSidebarContent.tsx`: SearchBar 1 箇所 → SearchTrigger。Props `searchQuery` / `onSearchQueryChange` / `searchPlaceholder` / `searchSuggestions` / `onSearchSuggestionSelect` を削除し `showSearchTrigger?: boolean` 1 つに集約
+  - `frontend/src/components/Schedule/ScheduleSection.tsx`: `sidebarSearchQuery` state / `setSidebarSearchQuery` / `searchPlaceholder useMemo` / `searchSuggestions useMemo (~100 行)` / `handleSearchSuggestionSelect useCallback` を全削除。`<ScheduleSidebarContent showSearchTrigger>` に変更、子の `CalendarView` には `searchQuery=""` 固定、`ScheduleTasksContent` / `ScheduleEventsContent` には `sidebarSearchQuery=""` 固定（中身の filter は no-op になり実質的に Cmd+K に集約）。`SearchSuggestion` import も削除
+  - `frontend/src/components/Ideas/DailySidebar.tsx`: SearchBar 2 箇所（searching / default 分岐）→ SearchTrigger。`setSearchQuery` を destructure 落とし、`suggestions useMemo` + `handleSuggestionSelect useCallback` 削除、`useCallback` / `SearchSuggestion` import も削除
+  - `frontend/src/components/Ideas/MaterialsSidebar.tsx`: SearchBar 2 箇所 → SearchTrigger。同パターンで `setSearchQuery` 落とし + `suggestions` + `handleSuggestionSelect` 削除 + 関連 import 整理
+  - `frontend/src/components/Ideas/Connect/ConnectSidebar.tsx`: SearchBar 1 箇所 → SearchTrigger。Props `onQueryChange` (interface には残置、destructure から除外) + `suggestions useMemo` + `handleSuggestionSelect useCallback` 削除
+  - `frontend/src/components/Ideas/Connect/Paper/PaperSidebar.tsx`: SearchBar 2 箇所 → SearchTrigger。同パターン
+  - `frontend/src/components/Work/WorkMusicContent.tsx`: SearchBar 1 箇所（`rightAction={SortDropdown}` 持ち）→ `<div className="flex items-center gap-2">` で `<SearchTrigger />` + spacer + `<SortDropdown />` の横並び再構成。`searchQuery` state 全削除（filter / soundSuggestions useMemo の dead code 一掃）+ `handleSuggestionSelect` 削除 + `SearchSuggestion` import 削除
+  - `frontend/src/components/Settings/Settings.tsx`: SearchBar 2 箇所 (trash 検索 / 一般 sidebar 検索) → SearchTrigger。`searchQuery` state / `setTrashSearchQuery` を destructure 落とし。`useSettingsSearch` 呼び出し / `settingsNavigators useMemo` / `handleSettingsSearchSelect useCallback` を削除し import からも `useSettingsSearch` / `useMemo` を撤去（Cmd+K の Settings deep links 8 件で代替）
+- **検証**: `cd frontend && npx tsc --noEmit` Exit 0 / `cd frontend && npm run test -- --run` 35 test files / 283 tests / 0 failures / `cd frontend && npm run build` Exit 0 (`tsc -b && vite build`)。session-verifier は本セッションでは未実行（次のセッションで走らせる）
+
+#### 残課題
+
+- **手動 UI 検証**: Cmd+K で 6 セクション + Sidebar Links + Schedule タブ別動的アイテム + Materials の最近のノート / Daily が表示・遷移できるか / RightSidebar の Search アイコンクリックでパレットが開くか / 拡大したパネルサイズ・位置の見栄えを確認
+- **Connect / Work / Analytics / Settings の動的アイテム**: 今回は基本ナビ + Settings deep links のみで、各セクション固有の動的アイテム (Tags / Boards / Pomodoro presets 等) は未対応。要望が出たら `useSectionCommands` の switch を拡張
+- **Routine Tag → Group 移行との並行**: 同セッションタイミングで別の作業者が Routine Tag→Group 移行（V69 + D1 0007）を進めており、その変更が working tree に未コミット状態で残っている。本コミットは Cmd+K 関連 14 ファイルに絞り、Routine 関連の 30+ ファイル変更には触らない
+
+---
+
 ### 2026-04-25 - Routine Tag 廃止 + Group 中心の再設計（V69 + D1 0007）
 
 #### 概要
@@ -139,37 +176,3 @@ Routine の Tag 機能（`routine_tag_definitions` / `routine_tag_assignments` /
 - **Desktop パッケージ版 V68 未到達**: `/Applications/Life Editor.app` は dev binary でなければ古い CHECK 制約のまま。Free session を試すには `cargo tauri dev` か `cargo tauri build` で更新が必要
 - **手動 UI 検証**: Work タブ History 画面で過去セッション一覧表示 / Pomodoro 25min 完了で右下に Toast 出る / Free session 開始 → 停止 → SaveDialog 表示 (CHECK 制約エラー無し) を確認
 
----
-
-### 2026-04-25 - Q2 機能パッチ Phase D 完了 + Phase A Cloud Sync 着地（Sidebar Links + CalendarTags D1 追従）
-
-#### 概要
-
-計画書 `.claude/2026-04-25-sidebar-tags-free-pomodoro.md` の最終 2 タスクを 1 セッションで実装し、計画書を archive へ移動。Phase A 残 (CalendarTags Cloud Sync) は D1 migration 0004 で `calendar_tag_definitions` を Cloud Sync 対応 (created_at/updated_at/version/is_deleted/server_updated_at) + `calendar_tag_assignments` を新スキーマに rebuild、`syncTables.ts` で `RELATION_TABLES_WITH_UPDATED_AT` に昇格 (entity_type が task/schedule_item の二択で単一親 JOIN が一意でないため`RELATION_PARENT_JOINS` から削除)。Phase D (Sidebar Links) は V67 migration で `sidebar_links` テーブル新設、Rust 側 repository / commands / system_commands 拡張 / lib.rs handler 登録、Frontend は Pattern A 4 ファイル + 2 component (Item / AddDialog) + LeftSidebar 統合 + BrowserSettings + MobileApp Drawer 統合 + Cloud Sync 7 接点 (sync_engine / VERSIONED_TABLES / D1 0005)。検証: cargo test 19/19 / vitest 257→264 (新規 useSidebarLinks.test.ts 7 test) / tsc -b + cargo check + cloud tsc 全 clean。**全 Phase 完了** (`COMPLETED 2026-04-25` で archive 移動)。
-
-#### 変更点
-
-- **Phase A 残 — CalendarTags Cloud Sync**:
-  - `cloud/db/migrations/0004_calendar_tags_v65.sql` 新規 — `calendar_tag_definitions` に `created_at/updated_at/version/is_deleted/deleted_at/server_updated_at` を nullable で ALTER ADD + UPDATE 経由 backfill (D1 の ALTER は constant default のみのため二段階)、`calendar_tag_assignments` を `_v2` 経由で `id PK / entity_type CHECK / entity_id / tag_id / updated_at / server_updated_at` に rebuild、旧 schedule_item 行は `MIN(tag_id)` で 1:1 collapse + `entity_type='schedule_item'` で migrate、INDEX 4 本再構築
-  - `cloud/src/config/syncTables.ts` — `calendar_tag_assignments` を `RELATION_TABLES_NO_UPDATED_AT` から `RELATION_TABLES_WITH_UPDATED_AT` に移し、`RELATION_PK_COLS` に `["id"]` 追加、`RELATION_PARENT_JOINS` から `calendar_tag_assignments` を削除 (entity_type が task/schedule_item の二択で単一親 JOIN が一意でない構造的事情を意図コメントで明記)
-- **Phase D — Sidebar Links + Browser/App settings**:
-  - **DB V67**: `src-tauri/src/db/migrations/v61_plus.rs` に `sidebar_links` テーブル新設 (id PK + kind('url'\|'app') CHECK + name + target + emoji + sort_order + version + LWW columns + 3 INDEX) / `migrations/mod.rs` の `LATEST_USER_VERSION = 67` にバンプ + `v67_creates_sidebar_links_table` 統合テスト追加
-  - **Rust**: `src-tauri/src/db/sidebar_link_repository.rs` 新規 (CRUD + reorder, 5 unit test) / `src-tauri/src/commands/sidebar_link_commands.rs` 新規 (5 IPC: fetch_all / create / update / delete / reorder) / `src-tauri/src/commands/system_commands.rs` 拡張で `BROWSER_CANDIDATES` const (Chrome/Safari/Firefox/Edge/Arc/Brave) + `system_list_browsers` (`/Applications/*.app` 存在チェックで installed のみ返却) + `system_list_applications` (`/Applications` 列挙、ソート済) + `system_open_url(url, browser_id?)` (browser_id 指定時は `open -a path url`、未指定/未インストール時は `open::that` で system default に fallback) + `system_open_app(app_path)` を追加。すべて `#[cfg(target_os = "macos")]` ガード、iOS では空配列 / `Err("Launching applications is only supported on macOS")` 返却 / `lib.rs` handler に 9 件登録 / `commands/mod.rs` + `db/mod.rs` に新 module 追加
-  - **Cloud Sync**: `src-tauri/src/sync/types.rs` の `SyncPayload` に `sidebar_links` field 追加、`src-tauri/src/sync/sync_engine.rs` の `VERSIONED_TABLES` に `("sidebar_links", "id")` 追加 + `collect_local_changes` に `query_changed("sidebar_links")` 行追加 + `get_payload_field` / `set_payload_field` の match arm 追加 / `cloud/db/migrations/0005_sidebar_links.sql` 新規 (server_updated_at + 4 INDEX) / `cloud/src/config/syncTables.ts` の `VERSIONED_TABLES` + `PRIMARY_KEYS` に `sidebar_links` 追加
-  - **Frontend types & DataService**: `frontend/src/types/sidebarLink.ts` 新規 (SidebarLink / SidebarLinkKind / SidebarLinkUpdate / BrowserInfo / InstalledApp) / `frontend/src/services/DataService.ts` interface に 9 メソッド追加 (fetchSidebarLinks / createSidebarLink / updateSidebarLink / deleteSidebarLink / reorderSidebarLinks / listBrowsers / listApplications / systemOpenUrl / systemOpenApp) / `frontend/src/services/TauriDataService.ts` に invoke ブリッジ実装
-  - **Frontend Context (Pattern A)**: `frontend/src/hooks/useSidebarLinks.ts` 新規 (DB-backed hook + browser preference 管理 + optimistic UI で createLink/updateLink/deleteLink/reorderLinks をロールバック付き実装、saved browser id が未インストール時に `null` fallback、setDefaultBrowserId は `defaultBrowser` キーに setAppSetting/removeAppSetting 経由永続化) / `SidebarLinksContextValue.ts` (createContext + UseSidebarLinksValue 型 alias) / `SidebarLinksContext.tsx` (Provider) / `useSidebarLinksContext.ts` (createContextHook) / `context/index.ts` に 3 export 追加
-  - **Components**: `frontend/src/components/Layout/SidebarLinkItem.tsx` 新規 (emoji or fallback Globe/AppWindow icon + name truncate + ホバー時 `⋯` 右クリックメニュー (edit/delete) + disabled prop で iOS グレーアウト対応) / `SidebarLinkAddDialog.tsx` 新規 (kind トグル + name input + URL/App 切替で動的 input、App モード時のみ `listApplications` を遅延 fetch + 検索フィルタ + 選択時に target+name 自動補完、emoji input 4 文字制限、createPortal で modal 描画) / `LeftSidebar.tsx` 統合 (mainMenuItems の下に「Links」セクション + ホバー時 `+` ボタン、空時は「No links yet」placeholder、dialog state は `mode='closed'|'add'|'edit'` で管理)
-  - **Settings**: `frontend/src/components/Settings/BrowserSettings.tsx` 新規 (検出ブラウザのみラジオ表示、「System default」も選択肢として並列、未検出時は説明 message のみ) / `SystemSettings.tsx` の Tray の下に `<BrowserSettings />` を組み込み
-  - **Mobile**: `frontend/src/MobileApp.tsx` の `MobileLeftDrawer` 直下に常時セクション追加 (`sidebarLinks.length > 0` の条件付き)、`SidebarLinkItem` を再利用 (`disabled={link.kind === 'app'}` で App はグレーアウト)、URL クリック時は `openLink` → `setDrawerOpen(false)`、App クリック時は Toast「iOS では起動できません」、edit/delete もデスクトップ案内の Toast を表示
-  - **Provider 階層**: `DesktopProviders` の `ShortcutConfigProvider` 内側に `SidebarLinksProvider` / `MobileProviders` の `WikiTagProvider` 内側に `SidebarLinksProvider` / `test/renderWithProviders.tsx` の `ShortcutConfigProvider` 内側にも追加 (Vitest が Provider を要求するため)
-  - **i18n**: `ja.json` / `en.json` 両方に `sidebarLinks.*` (sectionTitle / add / addTitle / editTitle / empty / kindLabel / kindUrl / kindApp / nameLabel / namePlaceholderUrl / namePlaceholderApp / urlLabel / appLabel / appSearchPlaceholder / appNoResults / emojiLabel / itemMenu / iosAppUnsupported / editOnDesktop) 19 keys + `settings.browser.*` (title / description / systemDefault / none) 4 keys を追加
-  - **CLAUDE.md 更新**: §2 機能差分表の Mobile 省略 Provider 行を「Audio / ScreenLock / FileExplorer / CalendarTags / ShortcutConfig（WikiTag / SidebarLinks は Mobile でも有効）」に修正 (旧記述では WikiTag が省略扱いだったが実コードと不整合) / §4.1 直近 migration 行に `V67(sidebar_links 新規)` 追記 + 現行 v66 → v67 / §4.1 Cloud D1 専用行に `2026-04-25 適用 migration 0004 で V65 に追従` + `2026-04-25 適用 migration 0005 で V67 に追従` を追加 / §6.2 Provider 順序を Sync 追加 + `→ SidebarLinks` を末尾に追記、Mobile 省略 Provider のリストも修正
-  - **新規テスト**: `frontend/src/hooks/useSidebarLinks.test.ts` 新規 (vi.mock で DataService をスタブ、7 cases: 初期化で links/browsers/saved browser を読み込む / saved browser が未インストール時に null fallback / createLink で state 追加 / openLink('url') が systemOpenUrl を defaultBrowserId 付きで呼ぶ / openLink('app') が systemOpenApp を呼ぶ / setDefaultBrowserId(null) で removeAppSetting / deleteLink がエラー時にロールバック)
-- **計画書 archive**: `.claude/2026-04-25-sidebar-tags-free-pomodoro.md` の Status を `COMPLETED 2026-04-25 (Phase A/B/C/D all done)` に更新、Phase D 全 18 step を `[x]` チェック、Status Updates に Phase A 残 + Phase D 完了行を追記してから `.claude/archive/` へ移動
-- **Verification**: `cd src-tauri && cargo test` 19 passed / 1 ignored / 0 failed (新規 v67_creates_sidebar_links_table + 5 sidebar_link_repository test 含む) / `cd frontend && npx vitest run` 264 passed / 0 failed (32 test files) / `cd frontend && npx tsc -b` 0 error / `cd cloud && npx tsc --noEmit` 0 error / `cd src-tauri && cargo check` clean / `npm run lint` 変更ファイル 0 error
-- **Rollout 順序 (重要)**: D1 migration を Worker deploy より先に適用すること。逆順だと旧 schema に新 Worker が当たり sidebar_links / calendar_tag_assignments delta が 500。`cd cloud && npx wrangler d1 execute life-editor-sync --remote --file=./db/migrations/0004_calendar_tags_v65.sql` → `--file=./db/migrations/0005_sidebar_links.sql` → `npm run deploy`
-
-#### 残課題
-
-- **deploy & 手動 UI 検証**: 上記 Rollout 順序の実行 / Desktop で V67 自動 apply 確認 / LeftSidebar の Links セクション表示 + `+` で URL/App リンク追加 + 既定ブラウザ切替で起動先が変わる / `/Applications/*.app` 一覧から登録できる / iOS Drawer で `kind='app'` がグレーアウト + Toast 出る / Desktop ↔ iOS 双方向 sync で sidebar_links / calendar_tag_assignments が伝搬する
-- **計画書アーカイブ済**: archive/2026-04-25-sidebar-tags-free-pomodoro.md

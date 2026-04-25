@@ -117,7 +117,7 @@ export function CommandPalette({
 
   return (
     <div
-      className="fixed inset-0 z-[999] flex items-start justify-center pt-[15vh]"
+      className="fixed inset-0 z-[999] flex items-start justify-center pt-[12vh]"
       onMouseDown={onClose}
     >
       {/* Backdrop */}
@@ -125,16 +125,13 @@ export function CommandPalette({
 
       {/* Panel */}
       <div
-        className="relative w-full max-w-[520px] rounded-xl border border-notion-border bg-notion-bg overflow-hidden shadow-2xl"
+        className="relative w-full max-w-[680px] rounded-xl border border-notion-border bg-notion-bg overflow-hidden shadow-2xl"
         onMouseDown={(e) => e.stopPropagation()}
         onKeyDown={handleKeyDown}
       >
         {/* Search input */}
         <div className="flex items-center gap-3 px-4 py-3 border-b border-notion-border">
-          <Search
-            size={16}
-            className="text-notion-text-secondary shrink-0"
-          />
+          <Search size={16} className="text-notion-text-secondary shrink-0" />
           <input
             ref={inputRef}
             type="text"
@@ -149,7 +146,7 @@ export function CommandPalette({
         </div>
 
         {/* Command list */}
-        <div ref={listRef} className="max-h-[320px] overflow-y-auto py-2">
+        <div ref={listRef} className="max-h-[480px] overflow-y-auto py-2">
           {filtered.length === 0 && (
             <div className="px-4 py-6 text-center text-sm text-notion-text-secondary">
               {t("commandPalette.noResults")}
@@ -169,7 +166,9 @@ export function CommandPalette({
                     key={cmd.id}
                     data-command-index={idx}
                     className={`w-full flex items-center gap-3 px-4 py-2 text-sm transition-colors text-notion-text ${
-                      idx === selectedIndex ? "bg-notion-hover" : "bg-transparent"
+                      idx === selectedIndex
+                        ? "bg-notion-hover"
+                        : "bg-transparent"
                     }`}
                     onMouseEnter={() => setSelectedIndex(idx)}
                     onMouseDown={(e) => {

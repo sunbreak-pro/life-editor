@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef, useEffect, useCallback } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
 import { Heart, BookOpen, Trash2, Filter, Pencil } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import type { DailyNode } from "../../types/daily";
@@ -11,7 +11,7 @@ import {
 import { groupDailiesByMonth } from "../../utils/dailyGrouping";
 import { MonthGroup } from "../shared/MonthGroup";
 import { getContentPreview } from "../../utils/tiptapText";
-import { SearchBar, type SearchSuggestion } from "../shared/SearchBar";
+import { SearchTrigger } from "../shared/SearchTrigger";
 import { CollapsibleSection } from "../shared/CollapsibleSection";
 import {
   TagFilterOverlay,
@@ -71,7 +71,7 @@ export function DailySidebar({
   const { t, i18n } = useTranslation();
   const lang = i18n.language;
   const [sections, setSections] = useState<SectionsState>(loadSectionsState);
-  const [searchQuery, setSearchQuery] = useState("");
+  const [searchQuery] = useState("");
   const [debouncedQuery, setDebouncedQuery] = useState("");
   const debounceRef = useRef<number | null>(null);
 
@@ -103,47 +103,6 @@ export function DailySidebar({
 
   const isSearching = debouncedQuery.trim().length > 0;
   const lowerQuery = debouncedQuery.toLowerCase();
-
-  // Suggestions (include today even if no memo exists)
-  const suggestions = useMemo<SearchSuggestion[]>(() => {
-    const items: SearchSuggestion[] = [];
-    const todayKey = getTodayKey();
-    const hasTodayMemo = dailies.some((m) => m.date === todayKey);
-    if (!hasTodayMemo) {
-      items.push({
-        id: `memo-${todayKey}`,
-        label: formatDisplayDate(todayKey, lang),
-        icon: "memo",
-      });
-    }
-    const sorted = [...dailies]
-      .sort((a, b) => b.date.localeCompare(a.date))
-      .slice(0, 10);
-    for (const m of sorted) {
-      items.push({
-        id: m.id,
-        label: formatDisplayDate(m.date, lang),
-        icon: "memo",
-      });
-    }
-    if (isSearching) {
-      return items.filter((i) => i.label.toLowerCase().includes(lowerQuery));
-    }
-    return items;
-  }, [dailies, isSearching, lowerQuery]);
-
-  const handleSuggestionSelect = useCallback(
-    (id: string) => {
-      const memo = dailies.find((m) => m.id === id);
-      if (memo) {
-        onSelectDate(memo.date);
-      } else if (id.startsWith("memo-")) {
-        // Virtual today entry
-        onSelectDate(id.replace("memo-", ""));
-      }
-    },
-    [dailies, onSelectDate],
-  );
 
   // Tag dot lookup
   const entityTagColors = useMemo(() => {
@@ -309,13 +268,7 @@ export function DailySidebar({
   if (isSearching) {
     return (
       <div className="h-full flex flex-col">
-        <SearchBar
-          value={searchQuery}
-          onChange={setSearchQuery}
-          placeholder={t("ideas.searchMaterials")}
-          suggestions={suggestions}
-          onSuggestionSelect={handleSuggestionSelect}
-        />
+        <SearchTrigger className="px-3 pt-2 pb-1" />
         <div className="flex-1 overflow-y-auto p-1">
           {filteredMemos.length === 0 && (
             <p className="text-xs text-notion-text-secondary text-center py-4">
@@ -338,13 +291,7 @@ export function DailySidebar({
 
   return (
     <div className="h-full flex flex-col">
-      <SearchBar
-        value={searchQuery}
-        onChange={setSearchQuery}
-        placeholder={t("ideas.searchMaterials")}
-        suggestions={suggestions}
-        onSuggestionSelect={handleSuggestionSelect}
-      />
+      <SearchTrigger className="px-3 pt-2 pb-1" />
 
       <div className="flex-1 overflow-y-auto">
         {/* Favorites */}

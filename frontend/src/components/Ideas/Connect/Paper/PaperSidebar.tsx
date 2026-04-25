@@ -12,7 +12,7 @@ import {
 } from "lucide-react";
 import type { PaperBoard, PaperNode } from "../../../../types/paperBoard";
 import type { NoteNode } from "../../../../types/note";
-import { SearchBar, type SearchSuggestion } from "../../../shared/SearchBar";
+import { SearchTrigger } from "../../../shared/SearchTrigger";
 import { CollapsibleSection } from "../../../shared/CollapsibleSection";
 import { BoardCreateDialog } from "./BoardCreateDialog";
 import { PaperLayersPanel } from "./PaperLayersPanel";
@@ -105,7 +105,7 @@ export function PaperSidebar({
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState("");
   const [showCreateDialog, setShowCreateDialog] = useState(false);
-  const [searchQuery, setSearchQuery] = useState("");
+  const [searchQuery] = useState("");
   const [debouncedQuery, setDebouncedQuery] = useState("");
   const debounceRef = useRef<number | null>(null);
 
@@ -151,38 +151,6 @@ export function PaperSidebar({
       );
     });
   }, [notes, linkedBoards, boardNodeCounts, activeBoardId]);
-
-  // Search suggestions
-  const suggestions = useMemo<SearchSuggestion[]>(() => {
-    const items: SearchSuggestion[] = [];
-    for (const b of customBoards) {
-      items.push({ id: b.id, label: b.name, icon: "board" });
-    }
-    for (const note of notes.filter((n) => !n.isDeleted).slice(0, 20)) {
-      items.push({
-        id: `note:${note.id}`,
-        label: note.title || "Untitled",
-        icon: "note",
-      });
-    }
-    if (isSearching) {
-      return items.filter((i) => i.label.toLowerCase().includes(lowerQuery));
-    }
-    return items;
-  }, [customBoards, notes, isSearching, lowerQuery]);
-
-  const handleSuggestionSelect = useCallback(
-    (id: string) => {
-      if (id.startsWith("note:")) {
-        const noteId = id.replace("note:", "");
-        const note = notes.find((n) => n.id === noteId);
-        if (note) onOpenNoteBoard(note.id, note.title);
-      } else {
-        onSelectBoard(id);
-      }
-    },
-    [notes, onSelectBoard, onOpenNoteBoard],
-  );
 
   // Search filter
   const searchFilteredCustomBoards = useMemo(() => {
@@ -299,13 +267,7 @@ export function PaperSidebar({
       searchFilteredNotes.length === 0;
     return (
       <div className="h-full flex flex-col">
-        <SearchBar
-          value={searchQuery}
-          onChange={setSearchQuery}
-          placeholder={t("ideas.searchBoards")}
-          suggestions={suggestions}
-          onSuggestionSelect={handleSuggestionSelect}
-        />
+        <SearchTrigger className="px-3 pt-2 pb-1" />
         <div className="flex-1 overflow-y-auto p-1">
           {noResults && (
             <p className="text-xs text-notion-text-secondary text-center py-4">
@@ -323,13 +285,7 @@ export function PaperSidebar({
 
   return (
     <div className="h-full flex flex-col">
-      <SearchBar
-        value={searchQuery}
-        onChange={setSearchQuery}
-        placeholder={t("ideas.searchBoards")}
-        suggestions={suggestions}
-        onSuggestionSelect={handleSuggestionSelect}
-      />
+      <SearchTrigger className="px-3 pt-2 pb-1" />
 
       <div className="flex-1 overflow-y-auto">
         {/* Boards */}

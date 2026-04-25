@@ -16,7 +16,7 @@ import type { DailyNode } from "../../../types/daily";
 import type { FilterItem } from "../../../types/filterItem";
 import { VIRTUAL_UNTAGGED_ID } from "../../../types/filterItem";
 import { WikiTagChip } from "../../WikiTags/WikiTagChip";
-import { SearchBar, type SearchSuggestion } from "../../shared/SearchBar";
+import { SearchTrigger } from "../../shared/SearchTrigger";
 import { CollapsibleSection } from "../../shared/CollapsibleSection";
 import { TagFilterOverlay } from "../../shared/TagFilterOverlay";
 import { ItemEditPopover } from "./ItemEditPopover";
@@ -84,7 +84,6 @@ function saveSectionsState(state: SectionsState): void {
 
 export function ConnectSidebar({
   query,
-  onQueryChange,
   matchingTags,
   matchingNotes,
   selectedTagId,
@@ -333,46 +332,6 @@ export function ConnectSidebar({
 
   const isSearching = query.trim().length > 0;
 
-  // Search suggestions
-  const suggestions = useMemo<SearchSuggestion[]>(() => {
-    const items: SearchSuggestion[] = [];
-    const sortedNotes = [...notes]
-      .sort(
-        (a, b) =>
-          new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
-      )
-      .slice(0, 6);
-    for (const n of sortedNotes) {
-      items.push({
-        id: n.id,
-        label: n.title || t("notes.untitled"),
-        icon: "note",
-      });
-    }
-    const sortedMemos = [...dailies]
-      .sort((a, b) => b.date.localeCompare(a.date))
-      .slice(0, 4);
-    for (const m of sortedMemos) {
-      items.push({
-        id: m.id,
-        label: formatDisplayDate(m.date, lang),
-        icon: "memo",
-      });
-    }
-    if (isSearching) {
-      const q = query.toLowerCase();
-      return items.filter((i) => i.label.toLowerCase().includes(q));
-    }
-    return items;
-  }, [notes, dailies, query, isSearching, t]);
-
-  const handleSuggestionSelect = useCallback(
-    (id: string) => {
-      handleItemClick(id);
-    },
-    [handleItemClick],
-  );
-
   // Determine entity type for editing
   const getEntityType = (id: string): "note" | "daily" => {
     if (notes.some((n) => n.id === id)) return "note";
@@ -522,13 +481,7 @@ export function ConnectSidebar({
 
   return (
     <div className="h-full flex flex-col">
-      <SearchBar
-        value={query}
-        onChange={onQueryChange}
-        placeholder={t("ideas.searchTagsAndNotes")}
-        suggestions={suggestions}
-        onSuggestionSelect={handleSuggestionSelect}
-      />
+      <SearchTrigger className="px-3 pt-2 pb-1" />
 
       <div className="px-2 py-1">
         <button

@@ -2,7 +2,7 @@ import { useState, useMemo, useEffect, useCallback } from "react";
 import { Volume2, Plus, Check } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { SortDropdown } from "../shared/SortDropdown";
-import { SearchBar, type SearchSuggestion } from "../shared/SearchBar";
+import { SearchTrigger } from "../shared/SearchTrigger";
 import { useAudioContext } from "../../hooks/useAudioContext";
 import { useSoundTags } from "../../hooks/useSoundTags";
 import { useAudioFileUpload } from "../../hooks/useAudioFileUpload";
@@ -27,7 +27,6 @@ export function WorkMusicContent() {
   const soundTagState = useSoundTags();
   const preview = usePreviewAudio();
 
-  const [searchQuery, setSearchQuery] = useState("");
   const [sortMode, setSortMode] = useState<SoundSortMode>("default");
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
   const [selectedPlaylistId, setSelectedPlaylistId] = useState<string | null>(
@@ -71,57 +70,13 @@ export function WorkMusicContent() {
       filtered = filtered.filter((s) => soundTagState.soundPassesFilter(s.id));
     }
 
-    // Search by name or tag
-    const search = searchQuery.toLowerCase().trim();
-    if (search) {
-      filtered = filtered.filter((s) => {
-        const displayName = soundTagState.getDisplayName(s.id) || s.label;
-        const tags = soundTagState.getTagsForSound(s.id);
-        const tagMatch = tags.some((tag) =>
-          tag.name.toLowerCase().includes(search),
-        );
-        return displayName.toLowerCase().includes(search) || tagMatch;
-      });
-    }
-
     return sortSounds(
       filtered,
       sortMode,
       soundTagState.getDisplayName,
       sortDirection,
     );
-  }, [allItems, searchQuery, sortMode, sortDirection, soundTagState]);
-
-  // Search suggestions: sounds + playlists
-  const soundSuggestions = useMemo<SearchSuggestion[]>(() => {
-    const items: SearchSuggestion[] = [];
-    const sounds = allItems.slice(0, 8).map((s) => ({
-      id: `sound:${s.id}`,
-      label: soundTagState.getDisplayName(s.id) || s.label,
-      icon: "sound" as const,
-    }));
-    items.push(...sounds);
-    for (const p of audio.playlistData.playlists) {
-      const count = audio.playlistData.itemsByPlaylist[p.id]?.length ?? 0;
-      items.push({
-        id: `playlist:${p.id}`,
-        label: p.name,
-        icon: "playlist" as const,
-        sublabel: `${count} sounds`,
-      });
-    }
-    if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase();
-      return items.filter((i) => i.label.toLowerCase().includes(q));
-    }
-    return items;
-  }, [
-    allItems,
-    audio.playlistData.playlists,
-    audio.playlistData.itemsByPlaylist,
-    searchQuery,
-    soundTagState,
-  ]);
+  }, [allItems, sortMode, sortDirection, soundTagState]);
 
   // Currently selected playlist's existing sound IDs
   const existingSoundIdsInPlaylist = useMemo(() => {
@@ -183,23 +138,6 @@ export function WorkMusicContent() {
     [exitAddMode],
   );
 
-  const handleSuggestionSelect = useCallback(
-    (compositeId: string) => {
-      if (compositeId.startsWith("playlist:")) {
-        const id = compositeId.slice("playlist:".length);
-        handleSelectPlaylist(id);
-      } else if (compositeId.startsWith("sound:")) {
-        const id = compositeId.slice("sound:".length);
-        const url =
-          audio.soundSources[id] ||
-          SOUND_TYPES.find((s) => s.id === id)?.file ||
-          "";
-        if (url) preview.togglePreview(id, url);
-      }
-    },
-    [handleSelectPlaylist, preview, audio.soundSources],
-  );
-
   const handleBack = useCallback(() => {
     setRightPanelView("list");
     exitAddMode();
@@ -227,27 +165,20 @@ export function WorkMusicContent() {
           </button>
 
           {/* Search + Sort */}
-          <SearchBar
-            value={searchQuery}
-            onChange={setSearchQuery}
-            placeholder={t("music.searchAll")}
-            showSuggestionsOnFocus={false}
-            suggestions={soundSuggestions}
-            onSuggestionSelect={handleSuggestionSelect}
-            className=""
-            rightAction={
-              <SortDropdown<SoundSortMode>
-                sortMode={sortMode}
-                onSortChange={setSortMode}
-                options={SOUND_SORT_OPTIONS}
-                labelMap={soundSortLabelMap}
-                defaultMode="default"
-                sortDirection={sortDirection}
-                onDirectionChange={setSortDirection}
-                noDirectionModes={["default"]}
-              />
-            }
-          />
+          <div className="flex items-center gap-2">
+            <SearchTrigger />
+            <div className="flex-1" />
+            <SortDropdown<SoundSortMode>
+              sortMode={sortMode}
+              onSortChange={setSortMode}
+              options={SOUND_SORT_OPTIONS}
+              labelMap={soundSortLabelMap}
+              defaultMode="default"
+              sortDirection={sortDirection}
+              onDirectionChange={setSortDirection}
+              noDirectionModes={["default"]}
+            />
+          </div>
 
           {/* Tag Filter */}
           <SoundTagFilter soundTagState={soundTagState} />

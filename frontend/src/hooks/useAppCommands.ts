@@ -5,6 +5,7 @@ import type { TaskNode } from "../types/taskTree";
 import type { SectionId } from "../types/taskTree";
 import type { SettingsInitialTab } from "../components/Settings/Settings";
 import { useShortcutConfig } from "./useShortcutConfig";
+import { useSidebarLinksContext } from "./useSidebarLinksContext";
 import {
   Calendar,
   Lightbulb,
@@ -25,6 +26,8 @@ import {
   Database,
   Smartphone,
   Wrench,
+  Link as LinkIcon,
+  AppWindow,
 } from "lucide-react";
 
 interface UseAppCommandsParams {
@@ -62,6 +65,7 @@ export function useAppCommands({
   selectedTaskId,
 }: UseAppCommandsParams): Command[] {
   const { getDisplayString } = useShortcutConfig();
+  const { links: sidebarLinks, openLink } = useSidebarLinksContext();
 
   return useMemo(() => {
     const navigateToSettings = (tab?: SettingsInitialTab) => {
@@ -182,6 +186,18 @@ export function useAppCommands({
         icon: Trash2,
         action: () => navigateToSettings("data"),
       },
+      // --- Sidebar Links (user-added URL / app shortcuts) ---
+      ...sidebarLinks
+        .filter((l) => !l.isDeleted)
+        .map((link) => ({
+          id: `sidebar-link-${link.id}`,
+          title: link.emoji ? `${link.emoji}  ${link.name}` : link.name,
+          category: "Links",
+          icon: link.kind === "app" ? AppWindow : LinkIcon,
+          action: () => {
+            void openLink(link);
+          },
+        })),
       // --- Task ---
       {
         id: "task-create",
@@ -262,5 +278,7 @@ export function useAppCommands({
     getDisplayString,
     nodes,
     selectedTaskId,
+    sidebarLinks,
+    openLink,
   ]);
 }

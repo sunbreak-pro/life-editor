@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef, useEffect, useCallback } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
 import {
   Heart,
   StickyNote,
@@ -24,7 +24,7 @@ import type { WikiTagAssignment, WikiTag } from "../../types/wikiTag";
 import { SortDropdown, type SortDirection } from "../shared/SortDropdown";
 import { getContentPreview } from "../../utils/tiptapText";
 import { STORAGE_KEYS } from "../../constants/storageKeys";
-import { SearchBar, type SearchSuggestion } from "../shared/SearchBar";
+import { SearchTrigger } from "../shared/SearchTrigger";
 import { CollapsibleSection } from "../shared/CollapsibleSection";
 import {
   TagFilterOverlay,
@@ -126,7 +126,7 @@ export function MaterialsSidebar({
 }: MaterialsSidebarProps) {
   const { t } = useTranslation();
   const [sections, setSections] = useState<SectionsState>(loadSectionsState);
-  const [searchQuery, setSearchQuery] = useState("");
+  const [searchQuery] = useState("");
   const [debouncedQuery, setDebouncedQuery] = useState("");
   const debounceRef = useRef<number | null>(null);
 
@@ -185,39 +185,6 @@ export function MaterialsSidebar({
 
   const isSearching = debouncedQuery.trim().length > 0;
   const lowerQuery = debouncedQuery.toLowerCase();
-
-  // Search suggestions: recent notes
-  const suggestions = useMemo<SearchSuggestion[]>(() => {
-    const items: SearchSuggestion[] = [];
-    const sortedNotes = [...notes]
-      .filter((n) => n.type === "note")
-      .sort(
-        (a, b) =>
-          new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
-      )
-      .slice(0, 10);
-    for (const n of sortedNotes) {
-      items.push({
-        id: n.id,
-        label: n.title || t("notes.untitled"),
-        icon: "note",
-      });
-    }
-    if (isSearching) {
-      return items.filter((i) => i.label.toLowerCase().includes(lowerQuery));
-    }
-    return items;
-  }, [notes, isSearching, lowerQuery, t]);
-
-  const handleSuggestionSelect = useCallback(
-    (id: string) => {
-      const note = notes.find((n) => n.id === id);
-      if (note) {
-        onSelectNote(note.id);
-      }
-    },
-    [notes, onSelectNote],
-  );
 
   // Pinned notes only
   const pinnedNotes = useMemo(
@@ -341,13 +308,7 @@ export function MaterialsSidebar({
   if (isSearching) {
     return (
       <div className="h-full flex flex-col">
-        <SearchBar
-          value={searchQuery}
-          onChange={setSearchQuery}
-          placeholder={t("ideas.searchMaterials")}
-          suggestions={suggestions}
-          onSuggestionSelect={handleSuggestionSelect}
-        />
+        <SearchTrigger className="px-3 pt-2 pb-1" />
         <div className="flex-1 overflow-y-auto p-1">
           {filteredNotes.length === 0 && (
             <p className="text-xs text-notion-text-secondary text-center py-4">
@@ -376,13 +337,7 @@ export function MaterialsSidebar({
 
   return (
     <div className="h-full flex flex-col">
-      <SearchBar
-        value={searchQuery}
-        onChange={setSearchQuery}
-        placeholder={t("ideas.searchMaterials")}
-        suggestions={suggestions}
-        onSuggestionSelect={handleSuggestionSelect}
-      />
+      <SearchTrigger className="px-3 pt-2 pb-1" />
 
       <div className="flex-1 overflow-y-auto">
         {/* Favorites */}

@@ -1,4 +1,4 @@
-import { useState, useEffect, useContext, useCallback, useMemo } from "react";
+import { useState, useEffect, useContext, useCallback } from "react";
 import { createPortal } from "react-dom";
 import {
   Settings2,
@@ -55,8 +55,7 @@ import { SyncSettings } from "./SyncSettings";
 import { RightSidebarContext } from "../../context/RightSidebarContext";
 import type { ShortcutCategory } from "../../types/shortcut";
 import { useSettingsHistory } from "../../hooks/useSettingsHistory";
-import { useSettingsSearch } from "../../hooks/useSettingsSearch";
-import { SearchBar } from "../shared/SearchBar";
+import { SearchTrigger } from "../shared/SearchTrigger";
 import { TrashView } from "../Trash/TrashView";
 import { getDataService } from "../../services";
 import { ConfirmDialog } from "../shared/ConfirmDialog";
@@ -214,25 +213,10 @@ export function Settings({ initialTab }: SettingsProps) {
   const [shortcutsSub, setShortcutsSub] = useState<ShortcutsSub>("global");
   const [trashSub, setTrashSub] = useState<TrashSub>("tasks");
   const [settingsKey, setSettingsKey] = useState(0);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [trashSearchQuery, setTrashSearchQuery] = useState("");
+  const [trashSearchQuery] = useState("");
   const [showResetConfirm, setShowResetConfirm] = useState(false);
   const [resetStatus, setResetStatus] = useState<string | null>(null);
   const [resetIsError, setResetIsError] = useState(false);
-
-  const settingsNavigators = useMemo(
-    () => ({
-      setActiveTab,
-      setGeneralSub: (sub: string) => setGeneralSub(sub as GeneralSub),
-      setAdvancedSub: (sub: string) => setAdvancedSub(sub as AdvancedSub),
-      setClaudeSub: (sub: string) => setClaudeSub(sub as ClaudeSub),
-      setShortcutsSub: (sub: string) => setShortcutsSub(sub as ShortcutsSub),
-    }),
-    [],
-  );
-
-  const { suggestions: settingsSearchSuggestions, navigateTo } =
-    useSettingsSearch(searchQuery, settingsNavigators);
 
   const handleHistoryApply = useCallback(() => {
     setSettingsKey((k) => k + 1);
@@ -322,12 +306,7 @@ export function Settings({ initialTab }: SettingsProps) {
                 </p>
               )}
             </div>
-            <SearchBar
-              value={trashSearchQuery}
-              onChange={setTrashSearchQuery}
-              placeholder={t("search.searchTrash")}
-              showSuggestionsOnFocus={false}
-            />
+            <SearchTrigger className="px-3 pt-2 pb-1" />
             <div className="flex-1 overflow-y-auto">
               <VerticalNavList
                 items={TRASH_SUBS}
@@ -454,27 +433,12 @@ export function Settings({ initialTab }: SettingsProps) {
 
   const sidebarContent = renderSidebarContent();
 
-  const handleSettingsSearchSelect = useCallback(
-    (id: string) => {
-      navigateTo(id);
-      setSearchQuery("");
-    },
-    [navigateTo],
-  );
-
   const sidebarPortalContent = sidebarContent ? (
     activeTab === "trash" ? (
       sidebarContent
     ) : (
       <div className="flex flex-col h-full">
-        <SearchBar
-          value={searchQuery}
-          onChange={setSearchQuery}
-          placeholder={t("search.searchSettings")}
-          showSuggestionsOnFocus={false}
-          suggestions={settingsSearchSuggestions}
-          onSuggestionSelect={handleSettingsSearchSelect}
-        />
+        <SearchTrigger className="px-3 pt-2 pb-1" />
         <div className="flex-1 overflow-y-auto">{sidebarContent}</div>
       </div>
     )
