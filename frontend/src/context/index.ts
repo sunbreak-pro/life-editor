@@ -26,9 +26,6 @@ export { CalendarTagsProvider } from "./CalendarTagsContext";
 export { CalendarTagsContext } from "./CalendarTagsContextValue";
 export type { CalendarTagsContextValue } from "./CalendarTagsContextValue";
 
-/** @deprecated Use RoutineContextValue & ScheduleItemsContextValue & CalendarTagsContextValue */
-export type { ScheduleContextValue } from "./ScheduleContextValue";
-
 export { ShortcutConfigProvider } from "./ShortcutConfigContext";
 export { ShortcutConfigContext } from "./ShortcutConfigContextValue";
 export type { ShortcutConfigContextValue } from "./ShortcutConfigContextValue";

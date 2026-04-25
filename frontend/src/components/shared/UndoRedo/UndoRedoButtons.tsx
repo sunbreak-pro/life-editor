@@ -5,12 +5,10 @@ import { useUndoRedo } from "../../../hooks/useUndoRedo";
 import type { UndoDomain } from "../../../utils/undoRedo/types";
 
 interface UndoRedoButtonsProps {
-  /** @deprecated Use `domains` instead */
-  domain?: UndoDomain;
   domains?: UndoDomain[];
 }
 
-export function UndoRedoButtons({ domain, domains }: UndoRedoButtonsProps) {
+export function UndoRedoButtons({ domains }: UndoRedoButtonsProps) {
   const { t } = useTranslation();
   const {
     undo,
@@ -26,7 +24,7 @@ export function UndoRedoButtons({ domain, domains }: UndoRedoButtonsProps) {
     getActiveEditor,
   } = useUndoRedo();
 
-  const resolvedDomains = domains ?? (domain ? [domain] : []);
+  const resolvedDomains = domains ?? [];
   const isMulti = resolvedDomains.length > 1;
 
   const activeEditor = getActiveEditor();
