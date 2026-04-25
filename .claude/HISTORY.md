@@ -1,5 +1,45 @@
 # HISTORY.md - 変更履歴
 
+### 2026-04-25 - Routine 削除のゴースト復活問題 + DayFlow 時間変更の Undo/Redo 全日付対応
+
+#### 概要
+
+ユーザー報告 2 件の Routine 関連バグ。(1) "Untitled routine" を削除しても他の日付で残ったり、削除ボタンを押していないのに突然消える。(2) DayFlow TimeGrid で routine bar をドラッグして時間変更し「ルーティンテンプレート更新」を押した後、Undo/Redo が現在表示中の日付しか戻さない。ユーザーが「根本原因が同じかも」と直感した通り、**両方とも routine の変更が複数日付の `schedule_items` に正しく伝播しない**という共通テーマだが、メカニズムは別系統（症状 A は Cloud Sync delta path 不整合、症状 B は UndoRedoManager の domain 単位 pop と未登録 IPC アクション）と判明。Rust DB layer + Frontend hooks/UI/型/テスト 9 ファイルを 1 セッションで対応。session-verifier 全 6 ゲート PASS。実装計画書を伴わない小規模バグ修正。
+
+#### 変更点
+
+- **症状 A 真因 — `routine_repository::soft_delete` が schedule_items を物理 DELETE していた**:
+  - `src-tauri/src/db/routine_repository.rs::soft_delete` を `DELETE FROM schedule_items WHERE routine_id = ?1 AND completed = 0` から `UPDATE schedule_items SET is_deleted = 1, deleted_at = datetime('now'), version = version + 1, updated_at = datetime('now') WHERE routine_id = ?1 AND completed = 0 AND is_deleted = 0` に書き換え。物理 DELETE は Cloud Sync の `is_deleted=1 + version+1 + updated_at` delta path に乗らないため → Cloud に delete マーカーが残らない → iOS が依然として items を保持し続け Cloud に push し続ける → Desktop が pull で resurrect → ゴースト item が他の日付に出現。後から iOS が遅れて soft-delete を処理した際に「突然消える」現象も同源。`AND is_deleted = 0` 条件追加は再実行時の version 二重 bump 防止
+  - `src-tauri/src/db/routine_repository.rs` 末尾に `#[cfg(test)] mod tests` 新設。`soft_delete_marks_routine_and_uncompleted_schedule_items_without_physical_delete`（routine + 2 件の uncompleted item を作って soft_delete → 全 row が DB 上に残り `is_deleted=1` になっていることを確認）と `soft_delete_preserves_completed_schedule_items`（completed item は soft-delete されず deleted_ids に含まれないことを確認）の 2 件追加。`fresh_conn() = Connection::open_in_memory() + run_migrations` の sidebar_link_repository pattern 踏襲
+- **症状 A 防御層 — frontend 側の defensive guard**:
+  - `frontend/src/utils/routineScheduleSync.ts::shouldCreateRoutineItem` 冒頭に `if (routine.isDeleted) return false;` を追加（既存の `isArchived || !isVisible` ガードより前）。万が一 sync 中の race で `isDeleted=true` の routine が `routines` 配列に紛れ込んでも再生成されない
+  - `frontend/src/hooks/useScheduleItemsRoutineSync.ts::syncScheduleItemsWithRoutines` で `routineMap.get(item.routineId)` lookup 後の guard を `if (!routine) return item;` から `if (!routine || routine.isDeleted) return item;` に拡張
+  - `frontend/src/utils/routineScheduleSync.test.ts` に `soft-deleted routines never fire (defensive guard against ghost regeneration)` を追加（`isDeleted: true` の routine が daily / group 両方で fire しないことを確認）
+- **症状 B 真因 — 3 アクションが独立 push されており UndoRedoManager の domain 単位 pop で 1 ドメインしか戻らない**:
+  - `OneDaySchedule.tsx::handleUpdateScheduleItemTime` → `RoutineTimeChangeDialog::onApplyToRoutine` の流れで「現在日 scheduleItem 更新（push: scheduleItem ドメイン）」「routine 自体の更新（push: routine ドメイン）」「`updateFutureScheduleItemsByRoutine` IPC 直叩き（**undo 未登録**）」が独立して実行されており、`UndoRedoManager.undoLatest(["scheduleItem","routine"])` は `_seq` 最大の 1 ドメインしか pop しない仕様のため未来日更新は永久に戻らない
+- **症状 B 修正 — skipUndo オプション追加 + 1 つの grouped undo entry に統合**:
+  - `frontend/src/hooks/useScheduleItemsCore.ts::updateScheduleItem` に `options?: { skipUndo?: boolean }` 引数追加（既存の `deleteScheduleItem` と同パターン）。`if (prev)` を `if (prev && !options?.skipUndo)` に変更
+  - `frontend/src/hooks/useRoutines.ts::updateRoutine` に同様の `options?: { skipUndo?: boolean }` 追加
+  - `frontend/src/context/ScheduleItemsContextValue.ts` の `updateScheduleItem` シグネチャに `options?: { skipUndo?: boolean }` を反映（RoutineContextValue は `ReturnType<typeof useRoutines>` で自動継承）
+  - `frontend/src/components/Tasks/Schedule/DayFlow/OneDaySchedule.tsx`:
+    - `useUndoRedo` import + `const { push } = useUndoRedo();` 追加 / `logServiceError` import 追加
+    - `handleUpdateScheduleItemTime`: routine item の場合のみ `updateScheduleItem(id, { startTime, endTime }, { skipUndo: isRoutineItem })` で適用（dialog 選択待ち。drag 自体の undo entry は dialog 選択後に push）
+    - `RoutineTimeChangeDialog::onApplyToRoutine` を全面書き換え。`fetchScheduleItemsByRoutineId(routineId)` で全 routine items を取得 → `i.date >= fromDate && !i.completed && !i.isDeleted` で未来日のみ filter → 当日 item の値は `change.prevStartTime/prevEndTime` で上書きして **before snapshot** 配列を作成。`updateRoutine(skipUndo:true)` + `updateFutureScheduleItemsByRoutine` IPC を順次実行後、`push("routine", { label: "Apply routine time change", undo, redo })` で 1 件の grouped entry を登録。undo は `updateRoutine(prev, skipUndo:true)` + `updateScheduleItem(itemId, prev, skipUndo:true)`（当日 item は local state に存在するので revert で UI 反映）+ snapshot 内の各未来日 item に対し `getDataService().updateScheduleItem(fi.id, fi)` IPC を for-await で順次 revert（未来日 item は current 表示外なので local state 更新不要、次の loadItemsForDate / loadScheduleItemsForMonth が DB から最新を取得）。redo は forward 3 アクションの再実行
+    - `onThisOnly`: drag は skipUndo で適用済みなので、対応する scheduleItem entry を `push("scheduleItem", { undo: → updateScheduleItem(prev,skipUndo), redo: → updateScheduleItem(new,skipUndo) })` で後追い登録
+    - `onCancel`: `updateScheduleItem(prev, skipUndo:true)` で local + DB を pre-drag 値に戻すだけ。push なし（drag 自体「無かったこと」に）
+- **検証**: `tsc -b` 0 error / `cargo check` clean / `vitest run` 35 files / 284 tests / 0 failed (新規 1 件) / `cargo test --lib` 25 passed (新規 2 件) / 変更 7 ファイルの ESLint 新規エラー 0（OneDaySchedule.tsx の `react-refresh/only-export-components` は git stash baseline で line 51→53 shift のみと確認、本変更で発生せず）/ session-verifier 全 6 ゲート PASS
+
+#### 残課題
+
+- **Desktop パッケージ版の更新**: Rust 側 `routine_repository::soft_delete` の振る舞いが変わったため、`/Applications/Life Editor.app` を `cargo tauri build` の出力で置換しないと旧 binary は依然として物理 DELETE する。session-verifier 完了済みなのでビルド/置換は次セッションで実施
+- **手動 UI 検証**:
+  - **症状 A**: Desktop で routine 削除 → 全日付 Calendar / DayFlow から即座に消える / iOS と sync しても再出現しない（D1 / Cloud Sync が `is_deleted=1 + version+1` を伝播するか）
+  - **症状 B**: DayFlow TimeGrid で routine bar をドラッグ → "Apply to routine" → 別日付に移動して時刻反映確認 → 元日付に戻って Undo → **全日付**で元の時刻に戻る / Redo で再適用される
+- **既存 DB の "Untitled routine" 行**: 旧仕様で生成された Untitled routine は手動で trash 送り必要（生成経路は塞いだだけで、既存データには触れない）
+- **アンステージ変更の取り扱い**: 別セッション由来の `Layout/SidebarLink*.tsx` / `Mobile/materials/*.tsx` / `Schedule/CalendarTagsPanel.tsx` 他 ~17 ファイルが working tree に残存。本コミットは Routine bug fix 関連 9 ファイル + .claude/ のみに絞る
+
+---
+
 ### 2026-04-25 - Calendar Events パネル UX 修正 + DayCell Routine アイコン整理
 
 #### 概要
@@ -140,26 +180,3 @@ Routine の Tag 機能（`routine_tag_definitions` / `routine_tag_assignments` /
 
 - **手動 UI 検証**: iOS シミュレータ / Tauri build で Materials サイドバーと Mobile Notes リストの表示を目視確認 (アイコン位置・タグバッジ・Lock 配置・タイトル切り取り挙動)
 - **アンステージ変更の取り扱い**: 別セッション由来の `Layout/SidebarLinkAddDialog.tsx` / `Layout/SidebarLinkItem.tsx` / `Layout/lucideIconRegistry.ts` (新規) が working tree に残存。本セッションでは触らず (Q2 Phase D の続きと推測)、別 commit で扱う想定
-
----
-
-### 2026-04-25 - Cloud Sync 本番 deploy + D1 migration 全適用 + 0006 hotfix で `calendar_tag_assignments` legacy schema 解消
-
-#### 概要
-
-前セッションで作成された 0006 hotfix migration の適用と、Worker 04-17 deploy → 最新化を含む Cloud Sync 本番反映を 1 セッションで実施。Desktop UI で `Connection failed` を発端に、Cloudflare の知識整理 → SYNC_TOKEN ローテーション (`wrangler secret put`) → curl POST /auth/verify で 200 確認 → D1 migration 0003/0004/0005 順次 apply → `npm run deploy` で Worker を 8 commits 分最新化 (auth timing-safe / sync routes split / Known Issues 011-014 修正反映)。Sync Now 実行で 500 を観測、`wrangler tail` で `D1_ERROR: no such column: server_updated_at at offset 63` を捕捉、`pragma_table_info` 一括検証で sync 対象 15 テーブル中 `calendar_tag_assignments` のみ legacy schema 残存と特定。0006 を適用し V65 shape (`id PK + entity_type + entity_id + tag_id + updated_at + server_updated_at`) に rebuild 完了。原因（D1 transactional rollback 保証下での部分適用）は特定不能、Known Issue 016 起票候補。本セッションでのコード変更は `cloud/db/migrations/0006_fix_cta_server_updated_at.sql` の rebuild 版書き換え 1 ファイルのみ、他は本番 state の修復作業。
-
-#### 変更点
-
-- **`cloud/db/migrations/0006_fix_cta_server_updated_at.sql` 書き換え** — 前セッションで作成された ALTER 単独版を rebuild 完全版に書き換え。`PRAGMA table_info` で 旧 schema (`schedule_item_id, tag_id` 複合 PK + `updated_at` 列なし) と判明したため、ALTER ベースの修復は不可能。0004 の `_v2` rebuild セクション（CREATE TABLE IF NOT EXISTS + INSERT OR IGNORE FROM old + DROP + RENAME + 3 INDEX）を独立 migration として抽出
-- **本番 D1 migration 適用**: `cd cloud && npx wrangler d1 execute life-editor-sync --remote --file=./db/migrations/{0003,0004,0005,0006}.sql` を順次実行。検証 `pragma_table_info` 一括クエリで sync 対象 15 テーブル全てに `server_updated_at` 列が揃ったことを確認 (0006 適用後)
-- **本番 Worker 最新化**: `npm run deploy` で 04-17 → 最新 (`599133e refactor(cloud): split sync.ts ...` 含む 8 commits) を反映。auth が timing-safe SHA-256 化、sync routes が `versioned.ts` / `relations.ts` / `shared.ts` に分割、`calendar_tag_assignments` の `RELATION_TABLES_WITH_UPDATED_AT` 昇格などが反映
-- **SYNC_TOKEN ローテーション**: 旧 token 不明のため `wrangler secret put SYNC_TOKEN` で新規 hex 64 文字を再投入。curl POST `/auth/verify` で `{"valid":true,"serverTime":...}` 確認後、Desktop UI 側にも同 token を貼って Connect 成功
-- **副次: Cloudflare 知識整理** — 本セッションの初動で「Cloudflare の役割が分からない」要件あり、web-researcher で 2025-2026 最新情報を調査・要約 (Workers / D1 / KV / R2 / DO / Queues / Wrangler / 料金 free vs paid / Smart Placement / Containers Beta / Pages 統合)。本リポジトリには未保存（チャット内のみ）
-- **Verification**: 0006 適用後に `pragma_table_info('calendar_tag_assignments')` で 7 列 (id / entity_type / entity_id / tag_id / created_at / updated_at / server_updated_at) を確認 / Worker tail で 500 が止むことを確認 (Sync Now 実走による最終確認は user 側で残課題)
-
-#### 残課題
-
-- **手動 UI 検証**: Desktop で Sync Now → Last error が消えること、Connected 表示で sidebar_links / calendar_tag_assignments / dailies / notes が iOS と双方向に伝搬すること
-- **Known Issue 016 起票候補**: D1 0004 multi-statement migration が transactional rollback 下で部分適用された原因の調査・記録。再現条件不明、`docs/known-issues/_TEMPLATE.md` ベースで Active 起票が妥当。session 中に特定できた事実: (a) 0004 の calendar_tag_definitions ALTER 部分は適用された / (b) calendar_tag_assignments rebuild 部分は未適用のまま残った / (c) wrangler の transactional rollback 保証メッセージと矛盾する状態
-- **計画書アーカイブなし**: 本セッションは production state 修復のみで実装計画書を伴わない作業
