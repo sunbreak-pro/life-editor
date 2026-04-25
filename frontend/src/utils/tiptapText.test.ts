@@ -47,6 +47,27 @@ describe("getContentPreview", () => {
   it("falls back to HTML stripping when JSON parse fails", () => {
     expect(getContentPreview("<p>plain</p>")).toBe("plain");
   });
+
+  it("decodes HTML entities in fallback path", () => {
+    // DOMParser-based fallback should resolve &amp;/&lt;/&gt; to their chars.
+    expect(getContentPreview("<p>foo &amp; bar &lt;baz&gt;</p>")).toBe(
+      "foo & bar <baz>",
+    );
+  });
+
+  it("does not execute embedded scripts in fallback path", () => {
+    // The previous innerHTML-based fallback could trigger <img onerror>; the
+    // DOMParser path must keep the document inert. Use a marker to detect
+    // any accidental side effect during preview extraction.
+    type WithMarker = typeof window & { __TIPTAP_PREVIEW_XSS__?: number };
+    const w = window as WithMarker;
+    delete w.__TIPTAP_PREVIEW_XSS__;
+    const malicious =
+      '<img src="x" onerror="window.__TIPTAP_PREVIEW_XSS__=1">hello';
+    const result = getContentPreview(malicious);
+    expect(w.__TIPTAP_PREVIEW_XSS__).toBeUndefined();
+    expect(result).toContain("hello");
+  });
 });
 
 describe("extractFirstHeading", () => {
