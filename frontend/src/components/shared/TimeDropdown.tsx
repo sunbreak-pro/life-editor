@@ -119,6 +119,19 @@ export function TimeDropdown({
     return () => document.removeEventListener("mousedown", onMouseDown);
   }, [isOpen]);
 
+  // Prevent ancestor popups (rendered above us in the React tree but not in
+  // the DOM tree, since we render through a portal) from treating clicks
+  // inside the dropdown as "outside" clicks. Without this, document-level
+  // click-outside listeners on those popups fire and close them.
+  useEffect(() => {
+    if (!isOpen) return;
+    const div = dropdownRef.current;
+    if (!div) return;
+    const stop = (e: MouseEvent) => e.stopPropagation();
+    div.addEventListener("mousedown", stop);
+    return () => div.removeEventListener("mousedown", stop);
+  }, [isOpen]);
+
   const textClass = size === "sm" ? "text-xs" : "text-sm";
 
   const dropdownContent = isOpen

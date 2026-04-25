@@ -14,7 +14,6 @@ interface MonthlyViewProps {
   days: { date: Date; isCurrentMonth: boolean }[];
   itemsByDate: Map<string, CalendarItem[]>;
   onSelectItem: (item: CalendarItem, event: React.MouseEvent) => void;
-  onOpenRoutineManagement?: () => void;
   onOpenCreateMenu?: (date: Date, event: React.MouseEvent) => void;
   getTaskColor?: (taskId: string) => string | undefined;
   getRoutineCompletion?: (date: string) => { completed: number; total: number };
@@ -25,7 +24,6 @@ export const MonthlyView = memo(function MonthlyView({
   days,
   itemsByDate,
   onSelectItem,
-  onOpenRoutineManagement,
   onOpenCreateMenu,
   getTaskColor,
   getRoutineCompletion,
@@ -56,7 +54,6 @@ export const MonthlyView = memo(function MonthlyView({
               isToday={key === todayKey}
               items={itemsByDate.get(key) ?? EMPTY_ITEMS}
               onSelectItem={onSelectItem}
-              onOpenRoutineManagement={onOpenRoutineManagement}
               onOpenCreateMenu={onOpenCreateMenu}
               getTaskColor={getTaskColor}
               routineCompletion={getRoutineCompletion?.(key)}

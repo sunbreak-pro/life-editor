@@ -249,7 +249,6 @@ export function CalendarView({
     setGroupsForRoutine,
     routinesByGroup,
     groupTimeRange,
-    createRoutine,
     createRoutineGroup,
     reconcileRoutineScheduleItems,
     dismissScheduleItem,
@@ -636,7 +635,6 @@ export function CalendarView({
             days={calendarDays}
             itemsByDate={filteredItemsByDate}
             onSelectItem={handleItemClick}
-            onOpenRoutineManagement={onOpenRoutineManagement}
             onOpenCreateMenu={handleOpenCreateMenu}
             getTaskColor={getTaskColor}
             getRoutineCompletion={getRoutineCompletionByDate}
@@ -760,12 +758,14 @@ export function CalendarView({
             setCreateMenuPopover(null);
             handleRequestCreateEvent(date, position);
           }}
-          onSelectRoutine={() => {
-            setCreateMenuPopover(null);
-            // Create a routine with default daily frequency; user can refine
-            // in ScheduleSidebarContent → routine management.
-            createRoutine("Untitled routine");
-          }}
+          onSelectRoutine={
+            onOpenRoutineManagement
+              ? () => {
+                  setCreateMenuPopover(null);
+                  onOpenRoutineManagement();
+                }
+              : undefined
+          }
           onClose={() => setCreateMenuPopover(null)}
         />
       )}
@@ -865,7 +865,6 @@ export function CalendarView({
           }}
           onUpdateAllDay={(isAllDay) => {
             updateScheduleItem(scheduleItemPreview.item.id, { isAllDay });
-            setScheduleItemPreview(null);
           }}
           onUpdateTitle={(title) =>
             updateScheduleItem(scheduleItemPreview.item.id, { title })
