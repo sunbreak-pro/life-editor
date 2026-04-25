@@ -17,7 +17,7 @@ import { Filter, ChevronDown, BookOpen, StickyNote } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useNoteContext } from "../../hooks/useNoteContext";
 import { useDailyContext } from "../../hooks/useDailyContext";
-import { SearchBar, type SearchSuggestion } from "../shared/SearchBar";
+import { SearchTrigger } from "../shared/SearchTrigger";
 import { CalendarTagsPanel } from "./CalendarTagsPanel";
 
 interface ScheduleSidebarContentProps {
@@ -30,11 +30,7 @@ interface ScheduleSidebarContentProps {
   onSelectTask?: (taskId: string) => void;
   filterFolderId?: string | null;
   onFilterFolderChange?: (folderId: string | null) => void;
-  searchQuery?: string;
-  onSearchQueryChange?: (query: string) => void;
-  searchPlaceholder?: string;
-  searchSuggestions?: SearchSuggestion[];
-  onSearchSuggestionSelect?: (id: string) => void;
+  showSearchTrigger?: boolean;
   onSelectMemo?: (date: string) => void;
   onSelectNote?: (noteId: string) => void;
 }
@@ -49,11 +45,7 @@ export function ScheduleSidebarContent({
   onSelectTask,
   filterFolderId,
   onFilterFolderChange,
-  searchQuery,
-  onSearchQueryChange,
-  searchPlaceholder,
-  searchSuggestions,
-  onSearchSuggestionSelect,
+  showSearchTrigger,
   onSelectMemo,
   onSelectNote,
 }: ScheduleSidebarContentProps) {
@@ -74,24 +66,18 @@ export function ScheduleSidebarContent({
     toggleComplete,
     dismissScheduleItem,
     undismissScheduleItem,
-    routineTags,
-    tagAssignments,
+    routineGroupAssignments,
     createRoutine,
     updateRoutine,
     deleteRoutine,
-    setTagsForRoutine,
+    setGroupsForRoutine,
     getRoutineCompletionRate,
-    createRoutineTag,
-    updateRoutineTag,
-    deleteRoutineTag,
     routineGroups,
-    groupTagAssignments,
     routinesByGroup,
     groupTimeRange,
     createRoutineGroup,
     updateRoutineGroup,
     deleteRoutineGroup,
-    setTagsForGroup,
     scheduleItemsVersion,
     reconcileRoutineScheduleItems,
     groupForRoutine,
@@ -301,18 +287,8 @@ export function ScheduleSidebarContent({
 
   return (
     <div className="flex flex-col h-full">
-      {onSearchQueryChange && (
-        <SearchBar
-          value={searchQuery ?? ""}
-          onChange={onSearchQueryChange}
-          placeholder={
-            searchPlaceholder ??
-            t("calendar.searchPlaceholder", "Search items...")
-          }
-          suggestions={searchSuggestions}
-          onSuggestionSelect={onSearchSuggestionSelect}
-          className="px-3 pt-2 pb-1 shrink-0"
-        />
+      {showSearchTrigger && (
+        <SearchTrigger className="px-3 pt-2 pb-1 shrink-0" />
       )}
       {onFilterFolderChange && (
         <div className="px-3 pt-2 pb-1 shrink-0">
@@ -427,10 +403,7 @@ export function ScheduleSidebarContent({
           routines={routines}
           scheduleItems={sidebarScheduleItems}
           tasks={dateTasks}
-          routineTags={routineTags}
-          tagAssignments={tagAssignments}
           onUpdateRoutine={updateRoutine}
-          onSetTagsForRoutine={setTagsForRoutine}
           onUpdateScheduleItem={(id, updates) => {
             setSidebarScheduleItems((prev) =>
               prev.map((item) =>
@@ -442,31 +415,24 @@ export function ScheduleSidebarContent({
           onUpdateTask={(taskId, updates) => {
             updateNode(taskId, updates);
           }}
-          onCreateRoutineTag={createRoutineTag}
         />
       )}
 
       {showManagement && (
         <RoutineManagementOverlay
           routines={routines}
-          routineTags={routineTags}
-          tagAssignments={tagAssignments}
+          routineGroupAssignments={routineGroupAssignments}
           onCreateRoutine={createRoutine}
           onUpdateRoutine={updateRoutine}
           onDeleteRoutine={handleDeleteRoutine}
-          setTagsForRoutine={setTagsForRoutine}
+          setGroupsForRoutine={setGroupsForRoutine}
           getCompletionRate={getRoutineCompletionRate}
-          onCreateRoutineTag={createRoutineTag}
-          onUpdateRoutineTag={updateRoutineTag}
-          onDeleteRoutineTag={deleteRoutineTag}
           routineGroups={routineGroups}
-          groupTagAssignments={groupTagAssignments}
           routinesByGroup={routinesByGroup}
           groupTimeRange={groupTimeRange}
           onCreateRoutineGroup={createRoutineGroup}
           onUpdateRoutineGroup={updateRoutineGroup}
           onDeleteRoutineGroup={deleteRoutineGroup}
-          setTagsForGroup={setTagsForGroup}
           onReconcileRoutineScheduleItems={reconcileRoutineScheduleItems}
           onClose={() => setShowManagement(false)}
         />

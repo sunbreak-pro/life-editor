@@ -15,9 +15,6 @@ interface UseDayFlowColumnOptions {
 export function useDayFlowColumn({ initialDate }: UseDayFlowColumnOptions) {
   const [date, setDate] = useState(initialDate);
   const [filterTab, setFilterTab] = useState<DayFlowFilterTab>("all");
-  const [selectedFilterTagIds, setSelectedFilterTagIds] = useState<number[]>(
-    [],
-  );
   const [selectedFilterGroupIds, setSelectedFilterGroupIds] = useState<
     string[]
   >([]);
@@ -26,8 +23,6 @@ export function useDayFlowColumn({ initialDate }: UseDayFlowColumnOptions) {
 
   const {
     routines,
-    routineTags,
-    tagAssignments,
     routineGroups,
     groupForRoutine,
     scheduleItemsVersion,
@@ -79,8 +74,8 @@ export function useDayFlowColumn({ initialDate }: UseDayFlowColumnOptions) {
         const { toCreate, toUpdate } = diffRoutineScheduleItems(
           items,
           routines,
-          tagAssignments,
           dateKey,
+          groupForRoutine,
         );
 
         if (toUpdate.length > 0) {
@@ -124,7 +119,7 @@ export function useDayFlowColumn({ initialDate }: UseDayFlowColumnOptions) {
     return () => {
       cancelled = true;
     };
-  }, [dateKey, refreshKey, routines, tagAssignments, scheduleItemsVersion]);
+  }, [dateKey, refreshKey, routines, groupForRoutine, scheduleItemsVersion]);
 
   const refresh = useCallback(() => {
     setRefreshKey((k) => k + 1);
@@ -137,15 +132,6 @@ export function useDayFlowColumn({ initialDate }: UseDayFlowColumnOptions) {
       return formatDateKey(new Date(t.scheduledAt)) === dateKey;
     });
   }, [nodes, dateKey]);
-
-  // Routine tag map
-  const routineTagMap = useMemo(() => {
-    const map = new Map<string, number[]>();
-    for (const [routineId, tagIds] of tagAssignments) {
-      map.set(routineId, tagIds);
-    }
-    return map;
-  }, [tagAssignments]);
 
   // Filtered data
   const filteredScheduleItems = useMemo(() => {
@@ -160,13 +146,6 @@ export function useDayFlowColumn({ initialDate }: UseDayFlowColumnOptions) {
       case "tasks":
         return [];
     }
-    if (selectedFilterTagIds.length > 0) {
-      items = items.filter((i) => {
-        if (!i.routineId) return false;
-        const rTagIds = routineTagMap.get(i.routineId) ?? [];
-        return selectedFilterTagIds.some((id) => rTagIds.includes(id));
-      });
-    }
     if (selectedFilterGroupIds.length > 0) {
       items = items.filter((i) => {
         if (!i.routineId) return false;
@@ -177,14 +156,7 @@ export function useDayFlowColumn({ initialDate }: UseDayFlowColumnOptions) {
       });
     }
     return items;
-  }, [
-    scheduleItems,
-    filterTab,
-    selectedFilterTagIds,
-    routineTagMap,
-    selectedFilterGroupIds,
-    groupForRoutine,
-  ]);
+  }, [scheduleItems, filterTab, selectedFilterGroupIds, groupForRoutine]);
 
   const filteredDayTasks = useMemo(() => {
     if (filterTab === "routine" || filterTab === "events") return [];
@@ -273,8 +245,6 @@ export function useDayFlowColumn({ initialDate }: UseDayFlowColumnOptions) {
     isToday,
     filterTab,
     setFilterTab,
-    selectedFilterTagIds,
-    setSelectedFilterTagIds,
     selectedFilterGroupIds,
     setSelectedFilterGroupIds,
     goToPrev,
@@ -285,8 +255,6 @@ export function useDayFlowColumn({ initialDate }: UseDayFlowColumnOptions) {
     filteredDayTasks,
     allDayTasks,
     existingTaskIds,
-    routineTags,
-    routineTagMap,
     routineGroups,
     groupForRoutine,
     createScheduleItem,

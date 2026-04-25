@@ -6,19 +6,16 @@ import {
   Archive,
   X,
   Layers,
-  Tag,
   Eye,
   EyeOff,
 } from "lucide-react";
 import { IconButton } from "../../../shared/IconButton";
 import { useTranslation } from "react-i18next";
 import type { RoutineNode, FrequencyType } from "../../../../types/routine";
-import type { RoutineTag } from "../../../../types/routineTag";
 import type { RoutineGroup } from "../../../../types/routineGroup";
 import { RoutineEditDialog } from "./RoutineEditDialog";
 import { RoutineGroupEditDialog } from "./RoutineGroupEditDialog";
 import { RoutineTimeChangeDialog } from "../shared/RoutineTimeChangeDialog";
-import { RoutineTagManager } from "./RoutineTagManager";
 import { getTextColorForBg } from "../../../../constants/folderColors";
 import {
   minutesToTimeString,
@@ -27,8 +24,8 @@ import {
 
 interface RoutineManagementOverlayProps {
   routines: RoutineNode[];
-  routineTags: RoutineTag[];
-  tagAssignments: Map<string, number[]>;
+  /** V69: Map<routineId, groupId[]> — direct membership replaces tag overlap. */
+  routineGroupAssignments: Map<string, string[]>;
   onCreateRoutine: (
     title: string,
     startTime?: string,
@@ -60,20 +57,12 @@ interface RoutineManagementOverlayProps {
     >,
   ) => void;
   onDeleteRoutine: (id: string) => void;
-  setTagsForRoutine: (routineId: string, tagIds: number[]) => void;
+  setGroupsForRoutine: (routineId: string, groupIds: string[]) => void;
   getCompletionRate: (routineId: string) => {
     completed: number;
     total: number;
   };
-  onCreateRoutineTag: (name: string, color: string) => Promise<RoutineTag>;
-  onUpdateRoutineTag: (
-    id: number,
-    updates: Partial<Pick<RoutineTag, "name" | "color">>,
-  ) => void;
-  onDeleteRoutineTag: (id: number) => void;
-  // Routine Groups
   routineGroups: RoutineGroup[];
-  groupTagAssignments: Map<string, number[]>;
   routinesByGroup: Map<string, RoutineNode[]>;
   groupTimeRange: Map<string, { startTime: string; endTime: string }>;
   onCreateRoutineGroup: (
@@ -102,7 +91,6 @@ interface RoutineManagementOverlayProps {
     >,
   ) => void;
   onDeleteRoutineGroup: (id: string) => void;
-  setTagsForGroup: (groupId: string, tagIds: number[]) => void;
   onReconcileRoutineScheduleItems?: (
     routine: RoutineNode,
     group?: RoutineGroup,
@@ -112,24 +100,18 @@ interface RoutineManagementOverlayProps {
 
 export function RoutineManagementOverlay({
   routines,
-  routineTags,
-  tagAssignments,
+  routineGroupAssignments,
   onCreateRoutine,
   onUpdateRoutine,
   onDeleteRoutine,
-  setTagsForRoutine,
+  setGroupsForRoutine,
   getCompletionRate,
-  onCreateRoutineTag,
-  onUpdateRoutineTag,
-  onDeleteRoutineTag,
   routineGroups,
-  groupTagAssignments,
   routinesByGroup,
   groupTimeRange,
   onCreateRoutineGroup,
   onUpdateRoutineGroup,
   onDeleteRoutineGroup,
-  setTagsForGroup,
   onReconcileRoutineScheduleItems,
   onClose,
 }: RoutineManagementOverlayProps) {
@@ -140,9 +122,7 @@ export function RoutineManagementOverlay({
   const [groupEditDialog, setGroupEditDialog] = useState<
     RoutineGroup | "new" | null
   >(null);
-  const [showTagManager, setShowTagManager] = useState(false);
 
-  // Pending time change confirmation
   const [pendingTimeChange, setPendingTimeChange] = useState<{
     routineId: string;
     routineTitle: string;
@@ -165,18 +145,41 @@ export function RoutineManagementOverlay({
     [routines],
   );
 
+  const handleCreateGroupInline = useCallback(
+    async (
+      name: string,
+      color: string,
+      frequencyType: FrequencyType,
+      frequencyDays: number[],
+      frequencyInterval: number | null,
+      frequencyStartDate: string | null,
+    ): Promise<RoutineGroup> => {
+      const id = `rgroup-${crypto.randomUUID()}`;
+      return onCreateRoutineGroup(
+        id,
+        name,
+        color,
+        frequencyType,
+        frequencyDays,
+        frequencyInterval,
+        frequencyStartDate,
+      );
+    },
+    [onCreateRoutineGroup],
+  );
+
   const handleEditSubmit = useCallback(
     (
       title: string,
-      startTime?: string,
-      endTime?: string,
-      tagIds?: number[],
-      frequencyType?: FrequencyType,
-      frequencyDays?: number[],
-      frequencyInterval?: number | null,
-      frequencyStartDate?: string | null,
-      reminderEnabled?: boolean,
-      reminderOffset?: number,
+      startTime: string | undefined,
+      endTime: string | undefined,
+      groupIds: string[],
+      frequencyType: FrequencyType,
+      frequencyDays: number[],
+      frequencyInterval: number | null,
+      frequencyStartDate: string | null,
+      reminderEnabled: boolean,
+      reminderOffset: number,
     ) => {
       if (editDialog === "new") {
         const id = onCreateRoutine(
@@ -190,9 +193,7 @@ export function RoutineManagementOverlay({
           reminderEnabled,
           reminderOffset,
         );
-        if (tagIds && tagIds.length > 0) {
-          setTagsForRoutine(id, tagIds);
-        }
+        setGroupsForRoutine(id, groupIds);
       } else if (editDialog) {
         const timeChanged =
           (startTime !== undefined &&
@@ -220,16 +221,12 @@ export function RoutineManagementOverlay({
         };
 
         if (timeChanged) {
-          // Update title, frequency, reminder, and tags immediately
           onUpdateRoutine(editDialog.id, {
             title,
             ...freqUpdates,
             ...reminderUpdates,
           });
-          if (tagIds !== undefined) {
-            setTagsForRoutine(editDialog.id, tagIds);
-          }
-          // Defer time update to confirmation dialog
+          setGroupsForRoutine(editDialog.id, groupIds);
           setPendingTimeChange({
             routineId: editDialog.id,
             routineTitle: title,
@@ -244,28 +241,20 @@ export function RoutineManagementOverlay({
             ...freqUpdates,
             ...reminderUpdates,
           });
-          if (tagIds !== undefined) {
-            setTagsForRoutine(editDialog.id, tagIds);
-          }
+          setGroupsForRoutine(editDialog.id, groupIds);
         }
 
-        // Reconcile schedule items after frequency change
         if (freqChanged && onReconcileRoutineScheduleItems) {
           const updatedRoutine: RoutineNode = {
             ...editDialog,
             title,
             startTime: startTime ?? editDialog.startTime,
             endTime: endTime ?? editDialog.endTime,
-            frequencyType: frequencyType ?? editDialog.frequencyType,
-            frequencyDays: frequencyDays ?? editDialog.frequencyDays,
-            frequencyInterval:
-              frequencyInterval !== undefined
-                ? frequencyInterval
-                : editDialog.frequencyInterval,
-            frequencyStartDate:
-              frequencyStartDate !== undefined
-                ? frequencyStartDate
-                : editDialog.frequencyStartDate,
+            frequencyType,
+            frequencyDays,
+            frequencyInterval,
+            frequencyStartDate,
+            groupIds,
           };
           onReconcileRoutineScheduleItems(updatedRoutine);
         }
@@ -275,7 +264,7 @@ export function RoutineManagementOverlay({
       editDialog,
       onCreateRoutine,
       onUpdateRoutine,
-      setTagsForRoutine,
+      setGroupsForRoutine,
       onReconcileRoutineScheduleItems,
     ],
   );
@@ -284,16 +273,13 @@ export function RoutineManagementOverlay({
     async (
       name: string,
       color: string,
-      tagIds: number[],
-      frequencyType?: FrequencyType,
-      frequencyDays?: number[],
-      frequencyInterval?: number | null,
-      frequencyStartDate?: string | null,
+      frequencyType: FrequencyType,
+      frequencyDays: number[],
+      frequencyInterval: number | null,
+      frequencyStartDate: string | null,
     ) => {
       if (groupEditDialog === "new") {
-        const id = `rgroup-${crypto.randomUUID()}`;
-        const group = await onCreateRoutineGroup(
-          id,
+        await handleCreateGroupInline(
           name,
           color,
           frequencyType,
@@ -301,9 +287,6 @@ export function RoutineManagementOverlay({
           frequencyInterval,
           frequencyStartDate,
         );
-        if (tagIds.length > 0) {
-          setTagsForGroup(group.id, tagIds);
-        }
       } else if (groupEditDialog) {
         const freqChanged =
           frequencyType !== groupEditDialog.frequencyType ||
@@ -320,24 +303,16 @@ export function RoutineManagementOverlay({
           frequencyInterval,
           frequencyStartDate,
         });
-        setTagsForGroup(groupEditDialog.id, tagIds);
 
-        // Reconcile schedule items after group frequency change
         if (freqChanged && onReconcileRoutineScheduleItems) {
           const updatedGroup = {
             ...groupEditDialog,
             name,
             color,
-            frequencyType: frequencyType ?? groupEditDialog.frequencyType,
-            frequencyDays: frequencyDays ?? groupEditDialog.frequencyDays,
-            frequencyInterval:
-              frequencyInterval !== undefined
-                ? frequencyInterval
-                : groupEditDialog.frequencyInterval,
-            frequencyStartDate:
-              frequencyStartDate !== undefined
-                ? frequencyStartDate
-                : groupEditDialog.frequencyStartDate,
+            frequencyType,
+            frequencyDays,
+            frequencyInterval,
+            frequencyStartDate,
           };
           const members = routinesByGroup.get(groupEditDialog.id) ?? [];
           for (const routine of members) {
@@ -348,9 +323,8 @@ export function RoutineManagementOverlay({
     },
     [
       groupEditDialog,
-      onCreateRoutineGroup,
+      handleCreateGroupInline,
       onUpdateRoutineGroup,
-      setTagsForGroup,
       onReconcileRoutineScheduleItems,
       routinesByGroup,
     ],
@@ -406,17 +380,11 @@ export function RoutineManagementOverlay({
       }}
     >
       <div className="bg-notion-bg border border-notion-border rounded-lg shadow-xl w-[700px] max-h-[80vh] flex flex-col">
-        {/* Header */}
         <div className="flex items-center justify-between px-4 py-3 border-b border-notion-border shrink-0">
           <h3 className="text-base font-semibold text-notion-text">
             {t("dayFlow.routineManagement", "Routine Management")}
           </h3>
           <div className="flex items-center gap-1">
-            <IconButton
-              icon={<Tag size={16} />}
-              label={t("dayFlow.manageTags", "Manage Tags")}
-              onClick={() => setShowTagManager(true)}
-            />
             <IconButton
               icon={<X size={16} />}
               label="Close"
@@ -425,9 +393,7 @@ export function RoutineManagementOverlay({
           </div>
         </div>
 
-        {/* Content - 2 columns */}
         <div className="flex flex-1 min-h-0">
-          {/* Left column: Routines */}
           <div className="flex-1 overflow-y-auto p-3 border-r border-notion-border">
             <div className="flex items-center justify-between mb-2">
               <span className="text-[11px] text-notion-text-secondary uppercase tracking-wide font-medium">
@@ -450,7 +416,8 @@ export function RoutineManagementOverlay({
             <div className="space-y-0.5">
               {activeRoutines.map((routine) => {
                 const rate = getCompletionRate(routine.id);
-                const routineTagIds = tagAssignments.get(routine.id) ?? [];
+                const memberGroupIds =
+                  routineGroupAssignments.get(routine.id) ?? [];
                 return (
                   <div
                     key={routine.id}
@@ -462,18 +429,18 @@ export function RoutineManagementOverlay({
                         <span className="text-sm text-notion-text truncate">
                           {routine.title}
                         </span>
-                        {routineTagIds.map((tagId) => {
-                          const tag = routineTags.find((t) => t.id === tagId);
-                          return tag ? (
+                        {memberGroupIds.map((gid) => {
+                          const g = routineGroups.find((rg) => rg.id === gid);
+                          return g ? (
                             <span
-                              key={tag.id}
+                              key={g.id}
                               className="inline-flex items-center px-1.5 py-0 text-[10px] rounded-full shrink-0"
                               style={{
-                                backgroundColor: tag.color,
-                                color: getTextColorForBg(tag.color),
+                                backgroundColor: g.color,
+                                color: getTextColorForBg(g.color),
                               }}
                             >
-                              {tag.name}
+                              {g.name}
                             </span>
                           ) : null;
                         })}
@@ -539,9 +506,7 @@ export function RoutineManagementOverlay({
             </div>
           </div>
 
-          {/* Right column: Groups + Archived */}
           <div className="w-[280px] shrink-0 overflow-y-auto p-3">
-            {/* Groups */}
             <div>
               <div className="flex items-center justify-between mb-2">
                 <span className="text-[11px] text-notion-text-secondary uppercase tracking-wide font-medium flex items-center gap-1">
@@ -629,7 +594,6 @@ export function RoutineManagementOverlay({
               </div>
             </div>
 
-            {/* Archived */}
             {archivedRoutines.length > 0 && (
               <details className="mt-3">
                 <summary className="text-[11px] text-notion-text-secondary cursor-pointer hover:text-notion-text transition-colors">
@@ -665,23 +629,14 @@ export function RoutineManagementOverlay({
       {editDialog && (
         <RoutineEditDialog
           routine={editDialog === "new" ? undefined : editDialog}
-          tags={routineTags}
-          initialTagIds={
+          routineGroups={routineGroups}
+          initialGroupIds={
             editDialog !== "new"
-              ? (tagAssignments.get(editDialog.id) ?? [])
-              : []
-          }
-          belongingGroups={
-            editDialog !== "new"
-              ? routineGroups.filter((g) =>
-                  (routinesByGroup.get(g.id) ?? []).some(
-                    (r) => r.id === editDialog.id,
-                  ),
-                )
+              ? (routineGroupAssignments.get(editDialog.id) ?? [])
               : []
           }
           onSubmit={handleEditSubmit}
-          onCreateTag={onCreateRoutineTag}
+          onCreateGroup={handleCreateGroupInline}
           onClose={() => setEditDialog(null)}
         />
       )}
@@ -689,12 +644,6 @@ export function RoutineManagementOverlay({
       {groupEditDialog && (
         <RoutineGroupEditDialog
           group={groupEditDialog === "new" ? undefined : groupEditDialog}
-          tags={routineTags}
-          initialTagIds={
-            groupEditDialog !== "new"
-              ? (groupTagAssignments.get(groupEditDialog.id) ?? [])
-              : []
-          }
           memberRoutines={
             groupEditDialog !== "new"
               ? (routinesByGroup.get(groupEditDialog.id) ?? [])
@@ -717,19 +666,7 @@ export function RoutineManagementOverlay({
               : undefined
           }
           onUpdateRoutine={(id, updates) => onUpdateRoutine(id, updates)}
-          allRoutines={routines}
-          allTagAssignments={tagAssignments}
           onClose={() => setGroupEditDialog(null)}
-        />
-      )}
-
-      {showTagManager && (
-        <RoutineTagManager
-          tags={routineTags}
-          onCreateTag={onCreateRoutineTag}
-          onUpdateTag={onUpdateRoutineTag}
-          onDeleteTag={onDeleteRoutineTag}
-          onClose={() => setShowTagManager(false)}
         />
       )}
 
@@ -740,7 +677,6 @@ export function RoutineManagementOverlay({
           newEndTime={pendingTimeChange.endTime ?? "?"}
           zIndex={60}
           onThisOnly={() => {
-            // Update routine time (sync will propagate to future items)
             onUpdateRoutine(pendingTimeChange.routineId, {
               startTime: pendingTimeChange.startTime,
               endTime: pendingTimeChange.endTime,
@@ -748,7 +684,6 @@ export function RoutineManagementOverlay({
             setPendingTimeChange(null);
           }}
           onApplyToRoutine={() => {
-            // Update routine time and let sync propagate to schedule items
             onUpdateRoutine(pendingTimeChange.routineId, {
               startTime: pendingTimeChange.startTime,
               endTime: pendingTimeChange.endTime,

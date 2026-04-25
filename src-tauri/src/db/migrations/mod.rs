@@ -71,7 +71,7 @@ mod tests {
     /// Latest schema user_version. Bump every time a new V_N block is added
     /// to `v61_plus.rs` so the cross-cutting tests (fresh DB / upgrade /
     /// idempotency) stay in sync without per-test edits.
-    const LATEST_USER_VERSION: i32 = 68;
+    const LATEST_USER_VERSION: i32 = 69;
 
     fn table_exists(conn: &Connection, name: &str) -> bool {
         conn.query_row(
@@ -100,10 +100,14 @@ mod tests {
             "task_tag_definitions",
             "note_tags",
             "note_tag_definitions",
+            // V69: dropped along with the Routine Tag concept.
+            "routine_tag_definitions",
+            "routine_tag_assignments",
+            "routine_group_tag_assignments",
         ] {
             assert!(
                 !table_exists(&conn, orphan),
-                "orphan table {orphan} should not exist in fresh V61 schema"
+                "orphan table {orphan} should not exist in fresh schema"
             );
         }
         assert!(
@@ -378,6 +382,60 @@ mod tests {
                 "sidebar_links missing column {col}"
             );
         }
+    }
+
+    #[test]
+    fn v69_drops_routine_tag_tables_and_creates_group_assignments() {
+        let conn = Connection::open_in_memory().unwrap();
+        run_migrations(&conn).unwrap();
+
+        assert!(!table_exists(&conn, "routine_tag_assignments"));
+        assert!(!table_exists(&conn, "routine_tag_definitions"));
+        assert!(!table_exists(&conn, "routine_group_tag_assignments"));
+        assert!(table_exists(&conn, "routine_group_assignments"));
+        for col in [
+            "id",
+            "routine_id",
+            "group_id",
+            "created_at",
+            "updated_at",
+            "is_deleted",
+            "deleted_at",
+        ] {
+            assert!(
+                has_column(&conn, "routine_group_assignments", col),
+                "routine_group_assignments missing column {col}"
+            );
+        }
+    }
+
+    #[test]
+    fn v69_upgrade_path_drops_seeded_routine_tag_data() {
+        // Simulate a pre-V69 DB by forcing version back and reinserting the
+        // V61-baseline routine tag tables that V69 must drop.
+        let conn = Connection::open_in_memory().unwrap();
+        create_full_schema(&conn).unwrap();
+        conn.pragma_update(None, "user_version", &68i32).unwrap();
+        // Seed a routine + tag + assignment to confirm V69 wipes them.
+        conn.execute_batch(
+            "INSERT INTO routines (id, title, frequency_type, created_at, updated_at, version)
+                 VALUES ('routine-1', 'r1', 'daily', '2026-04-25T00:00:00.000Z', '2026-04-25T00:00:00.000Z', 1);
+             INSERT INTO routine_tag_assignments (routine_id, tag_id) VALUES ('routine-1', 1);",
+        )
+        .unwrap();
+
+        run_migrations(&conn).unwrap();
+
+        assert_eq!(user_version(&conn), LATEST_USER_VERSION);
+        assert!(!table_exists(&conn, "routine_tag_assignments"));
+        assert!(!table_exists(&conn, "routine_group_tag_assignments"));
+        assert!(!table_exists(&conn, "routine_tag_definitions"));
+        assert!(table_exists(&conn, "routine_group_assignments"));
+        // Routine itself survives.
+        let routine_count: i64 = conn
+            .query_row("SELECT COUNT(*) FROM routines WHERE id = 'routine-1'", [], |r| r.get(0))
+            .unwrap();
+        assert_eq!(routine_count, 1);
     }
 
     #[test]

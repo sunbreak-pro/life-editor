@@ -5,13 +5,11 @@ import { useClickOutside } from "../../hooks/useClickOutside";
 import { useClampedPosition } from "../../hooks/useClampedPosition";
 import { formatTime } from "../../utils/timeGridUtils";
 import { TimeDropdown } from "../shared/TimeDropdown";
-import { RoutineTagSelector } from "../Tasks/Schedule/Routine/RoutineTagSelector";
 import { CalendarTagSelector } from "./CalendarTagSelector";
 import { useCalendarTagsContext } from "../../hooks/useCalendarTagsContext";
 import type { RoutineNode } from "../../types/routine";
 import type { ScheduleItem } from "../../types/schedule";
 import type { TaskNode } from "../../types/taskTree";
-import type { RoutineTag } from "../../types/routineTag";
 import { useTranslation } from "react-i18next";
 
 export type EditTarget =
@@ -26,13 +24,10 @@ interface ScheduleItemEditPopupProps {
   routines: RoutineNode[];
   scheduleItems: ScheduleItem[];
   tasks: TaskNode[];
-  routineTags: RoutineTag[];
-  tagAssignments: Map<string, number[]>;
   onUpdateRoutine: (
     id: string,
     updates: Partial<Pick<RoutineNode, "title" | "startTime" | "endTime">>,
   ) => void;
-  onSetTagsForRoutine: (routineId: string, tagIds: number[]) => void;
   onUpdateScheduleItem: (
     id: string,
     updates: Partial<Pick<ScheduleItem, "title" | "startTime" | "endTime">>,
@@ -43,7 +38,6 @@ interface ScheduleItemEditPopupProps {
       Pick<TaskNode, "title" | "scheduledAt" | "scheduledEndAt">
     >,
   ) => void;
-  onCreateRoutineTag?: (name: string, color: string) => Promise<RoutineTag>;
 }
 
 function parseTime(time: string | null): { hour: number; minute: number } {
@@ -78,13 +72,9 @@ export function ScheduleItemEditPopup({
   routines,
   scheduleItems,
   tasks,
-  routineTags,
-  tagAssignments,
   onUpdateRoutine,
-  onSetTagsForRoutine,
   onUpdateScheduleItem,
   onUpdateTask,
-  onCreateRoutineTag,
 }: ScheduleItemEditPopupProps) {
   const { t } = useTranslation();
   const popupRef = useRef<HTMLDivElement>(null);
@@ -112,7 +102,6 @@ export function ScheduleItemEditPopup({
         title: routine.title,
         startTime: scheduleItem?.startTime ?? routine.startTime,
         endTime: scheduleItem?.endTime ?? routine.endTime,
-        tagIds: tagAssignments.get(routine.id) ?? [],
         scheduleItemId: target.scheduleItemId,
       };
     }
@@ -136,14 +125,13 @@ export function ScheduleItemEditPopup({
       scheduledAt: task.scheduledAt,
       scheduledEndAt: task.scheduledEndAt,
     };
-  }, [target, routines, scheduleItems, tasks, tagAssignments]);
+  }, [target, routines, scheduleItems, tasks]);
 
   const [title, setTitle] = useState("");
   const [startHour, setStartHour] = useState(9);
   const [startMinute, setStartMinute] = useState(0);
   const [endHour, setEndHour] = useState(10);
   const [endMinute, setEndMinute] = useState(0);
-  const [selectedTagIds, setSelectedTagIds] = useState<number[]>([]);
 
   // Initialize form from item data
   useEffect(() => {
@@ -163,9 +151,6 @@ export function ScheduleItemEditPopup({
       const end = parseTime(itemData.endTime);
       setEndHour(end.hour);
       setEndMinute(end.minute);
-    }
-    if (itemData.type === "routine") {
-      setSelectedTagIds(itemData.tagIds);
     }
   }, [itemData]);
 
@@ -188,9 +173,6 @@ export function ScheduleItemEditPopup({
           startTime: newStart,
           endTime: newEnd,
         });
-      }
-      if (JSON.stringify(selectedTagIds) !== JSON.stringify(itemData.tagIds)) {
-        onSetTagsForRoutine(itemData.id, selectedTagIds);
       }
     } else if (itemData.type === "event") {
       onUpdateScheduleItem(itemData.id, {
@@ -221,11 +203,9 @@ export function ScheduleItemEditPopup({
     startMinute,
     endHour,
     endMinute,
-    selectedTagIds,
     onUpdateRoutine,
     onUpdateScheduleItem,
     onUpdateTask,
-    onSetTagsForRoutine,
     onClose,
   ]);
 
@@ -319,21 +299,6 @@ export function ScheduleItemEditPopup({
             />
           </div>
         </div>
-
-        {/* Tags (routine only) */}
-        {itemData.type === "routine" && (
-          <div>
-            <label className="block text-[10px] text-notion-text-secondary mb-1">
-              {t("schedule.routineTag", "Tags")}
-            </label>
-            <RoutineTagSelector
-              tags={routineTags}
-              selectedTagIds={selectedTagIds}
-              onSelect={setSelectedTagIds}
-              onCreateTag={onCreateRoutineTag}
-            />
-          </div>
-        )}
 
         {/* Calendar Tag (event / task) — single selection */}
         {(itemData.type === "event" || itemData.type === "task") && (

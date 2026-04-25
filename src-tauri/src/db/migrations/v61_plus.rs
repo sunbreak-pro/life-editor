@@ -401,5 +401,42 @@ pub(super) fn apply(conn: &Connection, current_version: i32) -> rusqlite::Result
         conn.pragma_update(None, "user_version", &68i32)?;
     }
 
+    // V69: drop the Routine Tag concept entirely. Replace with a direct
+    // Routine ↔ RoutineGroup junction (routine_group_assignments) used by
+    // the new `frequencyType="group"` Routine — those Routines inherit their
+    // belonging Group's daily/weekdays/interval frequency (OR'd across
+    // multiple Group memberships). Junction follows the V65 CalendarTag
+    // pattern: id PK + updated_at + soft-delete, registered under
+    // RELATION_TABLES_WITH_UPDATED_AT for delta sync.
+    if current_version < 69 {
+        eprintln!("V69: drop routine_tag* tables, add routine_group_assignments");
+        exec_ignore(
+            conn,
+            "DROP INDEX IF EXISTS idx_rta_routine;
+             DROP INDEX IF EXISTS idx_rta_tag;
+             DROP INDEX IF EXISTS idx_rgta_group;
+             DROP INDEX IF EXISTS idx_rgta_tag;
+             DROP TABLE IF EXISTS routine_tag_assignments;
+             DROP TABLE IF EXISTS routine_group_tag_assignments;
+             DROP TABLE IF EXISTS routine_tag_definitions;
+             CREATE TABLE IF NOT EXISTS routine_group_assignments (
+                 id TEXT PRIMARY KEY,
+                 routine_id TEXT NOT NULL,
+                 group_id TEXT NOT NULL,
+                 created_at TEXT NOT NULL,
+                 updated_at TEXT NOT NULL,
+                 is_deleted INTEGER NOT NULL DEFAULT 0,
+                 deleted_at TEXT,
+                 UNIQUE(routine_id, group_id),
+                 FOREIGN KEY (routine_id) REFERENCES routines(id) ON DELETE CASCADE,
+                 FOREIGN KEY (group_id) REFERENCES routine_groups(id) ON DELETE CASCADE
+             );
+             CREATE INDEX IF NOT EXISTS idx_rga_routine ON routine_group_assignments(routine_id);
+             CREATE INDEX IF NOT EXISTS idx_rga_group ON routine_group_assignments(group_id);
+             CREATE INDEX IF NOT EXISTS idx_rga_updated_at ON routine_group_assignments(updated_at);",
+        );
+        conn.pragma_update(None, "user_version", &69i32)?;
+    }
+
     Ok(())
 }

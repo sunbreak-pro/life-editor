@@ -33,14 +33,12 @@ export function useScheduleItemsRoutineSync(handles: ScheduleItemsCoreHandles) {
     async (
       date: string,
       routines: RoutineNode[],
-      tagAssignments: Map<string, number[]>,
       groupForRoutine?: Map<string, RoutineGroup[]>,
     ) => {
       const existing = await getDataService().fetchScheduleItemsByDate(date);
       const { toCreate, toUpdate } = diffRoutineScheduleItems(
         existing,
         routines,
-        tagAssignments,
         date,
         groupForRoutine,
       );
@@ -92,7 +90,6 @@ export function useScheduleItemsRoutineSync(handles: ScheduleItemsCoreHandles) {
   const ensureRoutineItemsForWeek = useCallback(
     async (
       routines: RoutineNode[],
-      tagAssignments: Map<string, number[]>,
       groupForRoutine?: Map<string, RoutineGroup[]>,
     ) => {
       try {
@@ -120,7 +117,6 @@ export function useScheduleItemsRoutineSync(handles: ScheduleItemsCoreHandles) {
           today,
           endDay,
           routines,
-          tagAssignments,
           groupForRoutine,
           existingSet,
         );
@@ -141,7 +137,6 @@ export function useScheduleItemsRoutineSync(handles: ScheduleItemsCoreHandles) {
       startDate: string,
       endDate: string,
       routines: RoutineNode[],
-      tagAssignments: Map<string, number[]>,
       groupForRoutine?: Map<string, RoutineGroup[]>,
     ) => {
       try {
@@ -160,14 +155,7 @@ export function useScheduleItemsRoutineSync(handles: ScheduleItemsCoreHandles) {
           if (item.completed || item.date < today) continue;
           const routine = routineMap.get(item.routineId);
           if (!routine) continue;
-          if (
-            !shouldCreateRoutineItem(
-              routine,
-              item.date,
-              tagAssignments,
-              groupForRoutine,
-            )
-          ) {
+          if (!shouldCreateRoutineItem(routine, item.date, groupForRoutine)) {
             toDeleteIds.add(item.id);
           }
         }
@@ -188,7 +176,6 @@ export function useScheduleItemsRoutineSync(handles: ScheduleItemsCoreHandles) {
           new Date(startDate + "T00:00:00"),
           new Date(endDate + "T00:00:00"),
           routines,
-          tagAssignments,
           groupForRoutine,
           existingSet,
         );
@@ -209,7 +196,6 @@ export function useScheduleItemsRoutineSync(handles: ScheduleItemsCoreHandles) {
   const backfillMissedRoutineItems = useCallback(
     async (
       routines: RoutineNode[],
-      tagAssignments: Map<string, number[]>,
       groupForRoutine?: Map<string, RoutineGroup[]>,
     ) => {
       try {
@@ -248,7 +234,6 @@ export function useScheduleItemsRoutineSync(handles: ScheduleItemsCoreHandles) {
           start,
           end,
           routines,
-          tagAssignments,
           groupForRoutine,
           existingSet,
         );

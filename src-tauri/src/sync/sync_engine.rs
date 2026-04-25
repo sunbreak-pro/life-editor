@@ -27,6 +27,11 @@ const RELATION_TABLES_WITH_UPDATED_AT: &[&str] = &[
     "note_connections",
 ];
 
+/// Relation tables that own a (routine_id, group_id) UNIQUE — same shape as
+/// CalendarTag (id PK + own updated_at), but kept out of the iterator above
+/// so the soft-delete-aware delta query can be inlined alongside CTA.
+const ROUTINE_GROUP_ASSIGNMENTS_TABLE: &str = "routine_group_assignments";
+
 // ---------------------------------------------------------------------------
 // Collect local changes since a given timestamp
 // ---------------------------------------------------------------------------
@@ -55,36 +60,23 @@ pub fn collect_local_changes(
     payload.wiki_tag_connections = query_changed(conn, "wiki_tag_connections", since)?;
     payload.note_connections = query_changed(conn, "note_connections", since)?;
 
-    // Relation tables without updated_at: fetch via parent join.
-    // datetime() wrap mirrors query_changed's normalization (ISO vs space formats).
-    // calendar_tag_assignments has its own updated_at (V65 rebuild), so delta
-    // against the CTA row itself rather than its parent. The CTA may belong
-    // to either a schedule_item or a task (entity_type), and a JOIN-based
-    // query can no longer key off a single parent table.
+    // Relation tables with their own updated_at — delta against the row itself
+    // rather than a parent JOIN. calendar_tag_assignments was rebuilt this way
+    // in V65; routine_group_assignments was created this way in V69.
     payload.calendar_tag_assignments = helpers::query_all_json_with_params(
         conn,
         "SELECT * FROM calendar_tag_assignments \
          WHERE datetime(updated_at) > datetime(?1)",
         &[&since],
     )?;
-    payload.routine_tag_assignments = helpers::query_all_json_with_params(
+    payload.routine_group_assignments = helpers::query_all_json_with_params(
         conn,
-        "SELECT rta.* FROM routine_tag_assignments rta \
-         INNER JOIN routines r ON rta.routine_id = r.id \
-         WHERE datetime(r.updated_at) > datetime(?1)",
-        &[&since],
-    )?;
-    payload.routine_group_tag_assignments = helpers::query_all_json_with_params(
-        conn,
-        "SELECT rgta.* FROM routine_group_tag_assignments rgta \
-         INNER JOIN routine_groups rg ON rgta.group_id = rg.id \
-         WHERE datetime(rg.updated_at) > datetime(?1)",
+        "SELECT * FROM routine_group_assignments \
+         WHERE datetime(updated_at) > datetime(?1)",
         &[&since],
     )?;
 
     // Tag definitions: always include all (small tables)
-    payload.routine_tag_definitions =
-        helpers::query_all_json(conn, "SELECT * FROM routine_tag_definitions")?;
     payload.calendar_tag_definitions =
         helpers::query_all_json(conn, "SELECT * FROM calendar_tag_definitions")?;
 
@@ -114,12 +106,8 @@ pub fn collect_all(conn: &Connection) -> Result<SyncPayload, rusqlite::Error> {
 
     payload.calendar_tag_assignments =
         helpers::query_all_json(conn, "SELECT * FROM calendar_tag_assignments")?;
-    payload.routine_tag_assignments =
-        helpers::query_all_json(conn, "SELECT * FROM routine_tag_assignments")?;
-    payload.routine_group_tag_assignments =
-        helpers::query_all_json(conn, "SELECT * FROM routine_group_tag_assignments")?;
-    payload.routine_tag_definitions =
-        helpers::query_all_json(conn, "SELECT * FROM routine_tag_definitions")?;
+    payload.routine_group_assignments =
+        helpers::query_all_json(conn, "SELECT * FROM routine_group_assignments")?;
     payload.calendar_tag_definitions =
         helpers::query_all_json(conn, "SELECT * FROM calendar_tag_definitions")?;
 
@@ -151,11 +139,10 @@ pub fn apply_remote_changes(
         applied += insert_or_replace(&tx, table, rows)?;
     }
 
-    // Relation tables without updated_at: INSERT OR REPLACE
+    // Self-updated_at relation tables (CalendarTag-style): INSERT OR REPLACE
     applied += insert_or_replace(&tx, "calendar_tag_assignments", &payload.calendar_tag_assignments)?;
-    applied += insert_or_replace(&tx, "routine_tag_assignments", &payload.routine_tag_assignments)?;
-    applied += insert_or_replace(&tx, "routine_group_tag_assignments", &payload.routine_group_tag_assignments)?;
-    applied += insert_or_replace(&tx, "routine_tag_definitions", &payload.routine_tag_definitions)?;
+    applied += insert_or_replace(&tx, ROUTINE_GROUP_ASSIGNMENTS_TABLE, &payload.routine_group_assignments)?;
+    // Tag definition tables (small, full-replace).
     applied += insert_or_replace(&tx, "calendar_tag_definitions", &payload.calendar_tag_definitions)?;
 
     tx.commit()?;

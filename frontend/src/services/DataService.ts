@@ -17,10 +17,12 @@ import type { NoteNode } from "../types/note";
 
 import type { CalendarNode } from "../types/calendar";
 import type { RoutineNode } from "../types/routine";
-import type { RoutineTag } from "../types/routineTag";
 import type { CalendarTag } from "../types/calendarTag";
 import type { ScheduleItem } from "../types/schedule";
-import type { RoutineGroup } from "../types/routineGroup";
+import type {
+  RoutineGroup,
+  RoutineGroupAssignment,
+} from "../types/routineGroup";
 import type { Playlist, PlaylistItem } from "../types/playlist";
 import type {
   LogEntry,
@@ -223,21 +225,6 @@ export interface DataService {
   ): Promise<CalendarNode>;
   deleteCalendar(id: string): Promise<void>;
 
-  // Routine Tags
-  fetchRoutineTags(): Promise<RoutineTag[]>;
-  createRoutineTag(name: string, color: string): Promise<RoutineTag>;
-  updateRoutineTag(
-    id: number,
-    updates: Partial<
-      Pick<RoutineTag, "name" | "color" | "textColor" | "order">
-    >,
-  ): Promise<RoutineTag>;
-  deleteRoutineTag(id: number): Promise<void>;
-  fetchAllRoutineTagAssignments(): Promise<
-    Array<{ routineId: string; tagId: number }>
-  >;
-  setTagsForRoutine(routineId: string, tagIds: number[]): Promise<void>;
-
   // Calendar Tags
   fetchCalendarTags(): Promise<CalendarTag[]>;
   createCalendarTag(name: string, color: string): Promise<CalendarTag>;
@@ -403,10 +390,10 @@ export interface DataService {
     >,
   ): Promise<RoutineGroup>;
   deleteRoutineGroup(id: string): Promise<void>;
-  fetchAllRoutineGroupTagAssignments(): Promise<
-    Array<{ groupId: string; tagId: number }>
-  >;
-  setTagsForRoutineGroup(groupId: string, tagIds: number[]): Promise<void>;
+  // V69: Routine ↔ RoutineGroup membership. Replaces the legacy Tag-based
+  // assignment. Soft-deleted rows are filtered out by the repository.
+  fetchAllRoutineGroupAssignments(): Promise<RoutineGroupAssignment[]>;
+  setGroupsForRoutine(routineId: string, groupIds: string[]): Promise<void>;
 
   // Playlists
   fetchPlaylists(): Promise<Playlist[]>;

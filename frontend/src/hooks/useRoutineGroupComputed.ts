@@ -5,8 +5,8 @@ import type { RoutineNode } from "../types/routine";
 interface UseRoutineGroupComputedParams {
   routineGroups: RoutineGroup[];
   routines: RoutineNode[];
-  groupTagAssignments: Map<string, number[]>;
-  tagAssignments: Map<string, number[]>;
+  /** V69: Map<routineId, groupId[]>. Replaces the prior tag-set intersection. */
+  routineGroupAssignments: Map<string, string[]>;
 }
 
 function timeToMinutes(time: string | null): number | null {
@@ -18,44 +18,42 @@ function timeToMinutes(time: string | null): number | null {
 export function useRoutineGroupComputed({
   routineGroups,
   routines,
-  groupTagAssignments,
-  tagAssignments,
+  routineGroupAssignments,
 }: UseRoutineGroupComputedParams) {
   return useMemo(() => {
-    // Map<groupId, RoutineNode[]>
     const routinesByGroup = new Map<string, RoutineNode[]>();
-    // Map<routineId, RoutineGroup[]>
     const groupForRoutine = new Map<string, RoutineGroup[]>();
-    // Map<groupId, { startTime: string; endTime: string }>
     const groupTimeRange = new Map<
       string,
       { startTime: string; endTime: string }
     >();
 
     for (const group of routineGroups) {
-      const groupTagIds = groupTagAssignments.get(group.id) ?? [];
-      if (groupTagIds.length === 0) {
-        routinesByGroup.set(group.id, []);
-        continue;
-      }
+      routinesByGroup.set(group.id, []);
+    }
 
-      const groupTagSet = new Set(groupTagIds);
-      const memberRoutines: RoutineNode[] = [];
+    for (const routine of routines) {
+      if (routine.isArchived || routine.isDeleted) continue;
+      const groupIds = routineGroupAssignments.get(routine.id) ?? [];
+      if (groupIds.length === 0) continue;
 
-      for (const routine of routines) {
-        if (routine.isArchived || routine.isDeleted) continue;
-        const routineTagIds = tagAssignments.get(routine.id) ?? [];
-        if (routineTagIds.some((tid) => groupTagSet.has(tid))) {
-          memberRoutines.push(routine);
-          const existing = groupForRoutine.get(routine.id);
-          if (existing) {
-            existing.push(group);
-          } else {
-            groupForRoutine.set(routine.id, [group]);
-          }
+      for (const groupId of groupIds) {
+        const group = routineGroups.find((g) => g.id === groupId);
+        if (!group) continue;
+        const list = routinesByGroup.get(groupId);
+        if (list) list.push(routine);
+
+        const existing = groupForRoutine.get(routine.id);
+        if (existing) {
+          existing.push(group);
+        } else {
+          groupForRoutine.set(routine.id, [group]);
         }
       }
+    }
 
+    for (const group of routineGroups) {
+      const memberRoutines = routinesByGroup.get(group.id) ?? [];
       memberRoutines.sort((a, b) => {
         const aMin = timeToMinutes(a.startTime ?? null);
         const bMin = timeToMinutes(b.startTime ?? null);
@@ -67,9 +65,6 @@ export function useRoutineGroupComputed({
         return a.title.localeCompare(b.title);
       });
 
-      routinesByGroup.set(group.id, memberRoutines);
-
-      // Compute time range from member routines
       let minStart = Infinity;
       let maxEnd = -Infinity;
       for (const r of memberRoutines) {
@@ -95,5 +90,5 @@ export function useRoutineGroupComputed({
     }
 
     return { routinesByGroup, groupForRoutine, groupTimeRange };
-  }, [routineGroups, routines, groupTagAssignments, tagAssignments]);
+  }, [routineGroups, routines, routineGroupAssignments]);
 }

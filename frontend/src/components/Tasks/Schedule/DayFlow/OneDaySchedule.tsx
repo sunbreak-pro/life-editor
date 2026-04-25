@@ -111,8 +111,7 @@ export function OneDaySchedule({
     loadItemsForDate,
     toggleComplete,
     routines,
-    routineTags,
-    tagAssignments,
+    routineGroupAssignments,
     ensureRoutineItemsForDate,
     updateScheduleItem,
     softDeleteScheduleItem,
@@ -123,13 +122,11 @@ export function OneDaySchedule({
     routinesByGroup,
     groupForRoutine,
     createScheduleItem,
-    setTagsForRoutine,
-    createRoutineTag,
+    createRoutineGroup,
+    setGroupsForRoutine,
     reconcileRoutineScheduleItems,
     updateRoutineGroup,
     deleteRoutineGroup,
-    groupTagAssignments,
-    setTagsForGroup,
     groupTimeRange,
   } = useScheduleContext();
   const { addNode, updateNode } = useTaskTreeContext();
@@ -142,9 +139,6 @@ export function OneDaySchedule({
     return roles.filter((r) => !canConvert(source, r));
   };
   const isToday = dateKey === formatDateKey(new Date());
-  const [selectedFilterTagIds, setSelectedFilterTagIds] = useState<number[]>(
-    [],
-  );
   const [selectedFilterGroupIds, setSelectedFilterGroupIds] = useState<
     string[]
   >([]);
@@ -155,13 +149,6 @@ export function OneDaySchedule({
   );
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  const routineTagMap = useMemo(() => {
-    const map = new Map<string, number[]>();
-    for (const [routineId, tagIds] of tagAssignments) {
-      map.set(routineId, tagIds);
-    }
-    return map;
-  }, [tagAssignments]);
   const [allDayTaskPreview, setAllDayTaskPreview] = useState<{
     task: TaskNode;
     position: { x: number; y: number };
@@ -238,23 +225,12 @@ export function OneDaySchedule({
     loadItemsForDate(dateKey);
   }, [dateKey, loadItemsForDate]);
 
-  // Auto-insert routine items when date/routines/tags change
+  // Auto-insert routine items when date/routines change
   useEffect(() => {
     if (routines.length > 0) {
-      ensureRoutineItemsForDate(
-        dateKey,
-        routines,
-        tagAssignments,
-        groupForRoutine,
-      );
+      ensureRoutineItemsForDate(dateKey, routines, groupForRoutine);
     }
-  }, [
-    dateKey,
-    routines,
-    tagAssignments,
-    groupForRoutine,
-    ensureRoutineItemsForDate,
-  ]);
+  }, [dateKey, routines, groupForRoutine, ensureRoutineItemsForDate]);
 
   // Load routine stats on mount and when routines change
   useEffect(() => {
@@ -304,13 +280,6 @@ export function OneDaySchedule({
         });
       }
     }
-    if (selectedFilterTagIds.length > 0) {
-      items = items.filter((i) => {
-        if (!i.routineId) return false;
-        const rTagIds = routineTagMap.get(i.routineId) ?? [];
-        return selectedFilterTagIds.some((id) => rTagIds.includes(id));
-      });
-    }
     if (selectedFilterGroupIds.length > 0) {
       items = items.filter((i) => {
         if (!i.routineId) return false;
@@ -325,8 +294,6 @@ export function OneDaySchedule({
     scheduleItems,
     showAll,
     activeFilters,
-    selectedFilterTagIds,
-    routineTagMap,
     selectedFilterGroupIds,
     groupForRoutine,
   ]);
@@ -507,9 +474,6 @@ export function OneDaySchedule({
         onToday={onToday}
         filterTab={activeFilters.size === 1 ? [...activeFilters][0] : "all"}
         onFilterTabChange={(tab) => onSetExclusiveFilter?.(tab)}
-        selectedFilterTagIds={selectedFilterTagIds}
-        onSelectedFilterTagIdsChange={setSelectedFilterTagIds}
-        routineTags={routineTags}
         isDualColumn={isDualColumn}
         onToggleDualColumn={onToggleDualColumn}
         routineGroups={routineGroups}
@@ -911,14 +875,15 @@ export function OneDaySchedule({
         {editRoutineDialog && (
           <RoutineEditDialog
             routine={editRoutineDialog}
-            tags={routineTags}
-            initialTagIds={tagAssignments.get(editRoutineDialog.id) ?? []}
-            belongingGroups={groupForRoutine.get(editRoutineDialog.id) ?? []}
+            routineGroups={routineGroups}
+            initialGroupIds={
+              routineGroupAssignments.get(editRoutineDialog.id) ?? []
+            }
             onSubmit={async (
               title,
               startTime,
               endTime,
-              tagIds,
+              groupIds,
               frequencyType,
               frequencyDays,
               frequencyInterval,
@@ -937,9 +902,7 @@ export function OneDaySchedule({
                 reminderEnabled,
                 reminderOffset,
               });
-              if (tagIds !== undefined) {
-                setTagsForRoutine(editRoutineDialog.id, tagIds);
-              }
+              setGroupsForRoutine(editRoutineDialog.id, groupIds);
               const freqChanged =
                 frequencyType !== editRoutineDialog.frequencyType ||
                 JSON.stringify(frequencyDays) !==
@@ -952,29 +915,39 @@ export function OneDaySchedule({
                   title,
                   startTime: startTime ?? editRoutineDialog.startTime,
                   endTime: endTime ?? editRoutineDialog.endTime,
-                  frequencyType:
-                    frequencyType ?? editRoutineDialog.frequencyType,
-                  frequencyDays:
-                    frequencyDays ?? editRoutineDialog.frequencyDays,
-                  frequencyInterval:
-                    frequencyInterval !== undefined
-                      ? frequencyInterval
-                      : editRoutineDialog.frequencyInterval,
-                  frequencyStartDate:
-                    frequencyStartDate !== undefined
-                      ? frequencyStartDate
-                      : editRoutineDialog.frequencyStartDate,
+                  frequencyType,
+                  frequencyDays,
+                  frequencyInterval,
+                  frequencyStartDate,
+                  groupIds,
                 };
-                const groups = groupForRoutine.get(editRoutineDialog.id);
-                await reconcileRoutineScheduleItems(
-                  updatedRoutine,
-                  groups?.[0],
-                );
+                const firstGroup = groupIds
+                  .map((id) => routineGroups.find((g) => g.id === id))
+                  .find((g): g is RoutineGroup => Boolean(g));
+                await reconcileRoutineScheduleItems(updatedRoutine, firstGroup);
                 await loadItemsForDate(dateKey);
               }
               setEditRoutineDialog(null);
             }}
-            onCreateTag={createRoutineTag}
+            onCreateGroup={async (
+              name,
+              color,
+              freqType,
+              freqDays,
+              freqInterval,
+              freqStartDate,
+            ) => {
+              const id = `rgroup-${crypto.randomUUID()}`;
+              return createRoutineGroup(
+                id,
+                name,
+                color,
+                freqType,
+                freqDays,
+                freqInterval,
+                freqStartDate,
+              );
+            }}
             onClose={() => setEditRoutineDialog(null)}
           />
         )}
@@ -1101,14 +1074,11 @@ export function OneDaySchedule({
         {editGroupDialog && (
           <RoutineGroupEditDialog
             group={editGroupDialog}
-            tags={routineTags}
-            initialTagIds={groupTagAssignments.get(editGroupDialog.id) ?? []}
             memberRoutines={routinesByGroup.get(editGroupDialog.id) ?? []}
             groupTimeRange={groupTimeRange.get(editGroupDialog.id)}
             onSubmit={async (
               name,
               color,
-              tagIds,
               frequencyType,
               frequencyDays,
               frequencyInterval,
@@ -1122,7 +1092,6 @@ export function OneDaySchedule({
                 frequencyInterval,
                 frequencyStartDate,
               });
-              setTagsForGroup(editGroupDialog.id, tagIds);
 
               const freqChanged =
                 frequencyType !== editGroupDialog.frequencyType ||
@@ -1135,16 +1104,10 @@ export function OneDaySchedule({
                   ...editGroupDialog,
                   name,
                   color,
-                  frequencyType: frequencyType ?? editGroupDialog.frequencyType,
-                  frequencyDays: frequencyDays ?? editGroupDialog.frequencyDays,
-                  frequencyInterval:
-                    frequencyInterval !== undefined
-                      ? frequencyInterval
-                      : editGroupDialog.frequencyInterval,
-                  frequencyStartDate:
-                    frequencyStartDate !== undefined
-                      ? frequencyStartDate
-                      : editGroupDialog.frequencyStartDate,
+                  frequencyType,
+                  frequencyDays,
+                  frequencyInterval,
+                  frequencyStartDate,
                 };
                 const members = routinesByGroup.get(editGroupDialog.id) ?? [];
                 for (const routine of members) {

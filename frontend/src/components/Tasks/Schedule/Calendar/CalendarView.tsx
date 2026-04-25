@@ -242,17 +242,15 @@ export function CalendarView({
     monthlyScheduleItems,
     groupForRoutine,
     routines,
-    routineTags,
-    tagAssignments,
+    routineGroups,
+    routineGroupAssignments,
     updateRoutine,
     updateRoutineGroup,
-    setTagsForRoutine,
+    setGroupsForRoutine,
     routinesByGroup,
     groupTimeRange,
-    groupTagAssignments,
-    setTagsForGroup,
-    createRoutineTag,
     createRoutine,
+    createRoutineGroup,
     reconcileRoutineScheduleItems,
     dismissScheduleItem,
     scheduleItemsVersion,
@@ -340,17 +338,9 @@ export function CalendarView({
       formatDateKey(gridStart),
       formatDateKey(gridEnd),
       routines,
-      tagAssignments,
       groupForRoutine,
     );
-  }, [
-    year,
-    month,
-    routines,
-    tagAssignments,
-    groupForRoutine,
-    ensureRoutineItemsForDateRange,
-  ]);
+  }, [year, month, routines, groupForRoutine, ensureRoutineItemsForDateRange]);
 
   const { tasksByDate, itemsByDate, calendarDays, weekDays } = useCalendar(
     filteredNodes,
@@ -1027,14 +1017,15 @@ export function CalendarView({
       {editRoutineDialog && (
         <RoutineEditDialog
           routine={editRoutineDialog}
-          tags={routineTags}
-          initialTagIds={tagAssignments.get(editRoutineDialog.id) ?? []}
-          belongingGroups={groupForRoutine.get(editRoutineDialog.id) ?? []}
+          routineGroups={routineGroups}
+          initialGroupIds={
+            routineGroupAssignments.get(editRoutineDialog.id) ?? []
+          }
           onSubmit={async (
             title,
             startTime,
             endTime,
-            tagIds,
+            groupIds,
             frequencyType,
             frequencyDays,
             frequencyInterval,
@@ -1053,9 +1044,7 @@ export function CalendarView({
               reminderEnabled,
               reminderOffset,
             });
-            if (tagIds !== undefined) {
-              setTagsForRoutine(editRoutineDialog.id, tagIds);
-            }
+            setGroupsForRoutine(editRoutineDialog.id, groupIds);
             const freqChanged =
               frequencyType !== editRoutineDialog.frequencyType ||
               JSON.stringify(frequencyDays) !==
@@ -1068,23 +1057,20 @@ export function CalendarView({
                 title,
                 startTime: startTime ?? editRoutineDialog.startTime,
                 endTime: endTime ?? editRoutineDialog.endTime,
-                frequencyType: frequencyType ?? editRoutineDialog.frequencyType,
-                frequencyDays: frequencyDays ?? editRoutineDialog.frequencyDays,
-                frequencyInterval:
-                  frequencyInterval !== undefined
-                    ? frequencyInterval
-                    : editRoutineDialog.frequencyInterval,
-                frequencyStartDate:
-                  frequencyStartDate !== undefined
-                    ? frequencyStartDate
-                    : editRoutineDialog.frequencyStartDate,
+                frequencyType,
+                frequencyDays,
+                frequencyInterval,
+                frequencyStartDate,
+                groupIds,
               };
-              const groups = groupForRoutine.get(editRoutineDialog.id);
+              const firstGroup = groupIds
+                .map((id) => routineGroups.find((g) => g.id === id))
+                .find((g): g is RoutineGroup => Boolean(g));
               const gridStart = new Date(year, month, 1);
               gridStart.setDate(gridStart.getDate() - gridStart.getDay());
               const gridEnd = new Date(gridStart);
               gridEnd.setDate(gridEnd.getDate() + 41);
-              await reconcileRoutineScheduleItems(updatedRoutine, groups?.[0], {
+              await reconcileRoutineScheduleItems(updatedRoutine, firstGroup, {
                 startDate: formatDateKey(gridStart),
                 endDate: formatDateKey(gridEnd),
               });
@@ -1092,7 +1078,25 @@ export function CalendarView({
             }
             setEditRoutineDialog(null);
           }}
-          onCreateTag={createRoutineTag}
+          onCreateGroup={async (
+            name,
+            color,
+            freqType,
+            freqDays,
+            freqInterval,
+            freqStartDate,
+          ) => {
+            const id = `rgroup-${crypto.randomUUID()}`;
+            return createRoutineGroup(
+              id,
+              name,
+              color,
+              freqType,
+              freqDays,
+              freqInterval,
+              freqStartDate,
+            );
+          }}
           onClose={() => setEditRoutineDialog(null)}
         />
       )}
@@ -1100,14 +1104,11 @@ export function CalendarView({
       {editGroupDialog && (
         <RoutineGroupEditDialog
           group={editGroupDialog}
-          tags={routineTags}
-          initialTagIds={groupTagAssignments.get(editGroupDialog.id) ?? []}
           memberRoutines={routinesByGroup.get(editGroupDialog.id) ?? []}
           groupTimeRange={groupTimeRange.get(editGroupDialog.id)}
           onSubmit={async (
             name,
             color,
-            tagIds,
             frequencyType,
             frequencyDays,
             frequencyInterval,
@@ -1121,7 +1122,6 @@ export function CalendarView({
               frequencyInterval,
               frequencyStartDate,
             });
-            setTagsForGroup(editGroupDialog.id, tagIds);
 
             const freqChanged =
               frequencyType !== editGroupDialog.frequencyType ||
@@ -1134,16 +1134,10 @@ export function CalendarView({
                 ...editGroupDialog,
                 name,
                 color,
-                frequencyType: frequencyType ?? editGroupDialog.frequencyType,
-                frequencyDays: frequencyDays ?? editGroupDialog.frequencyDays,
-                frequencyInterval:
-                  frequencyInterval !== undefined
-                    ? frequencyInterval
-                    : editGroupDialog.frequencyInterval,
-                frequencyStartDate:
-                  frequencyStartDate !== undefined
-                    ? frequencyStartDate
-                    : editGroupDialog.frequencyStartDate,
+                frequencyType,
+                frequencyDays,
+                frequencyInterval,
+                frequencyStartDate,
               };
               const gridStart = new Date(year, month, 1);
               gridStart.setDate(gridStart.getDate() - gridStart.getDay());

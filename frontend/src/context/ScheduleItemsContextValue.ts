@@ -80,24 +80,20 @@ export interface ScheduleItemsContextValue {
   ensureRoutineItemsForDate: (
     date: string,
     routines: RoutineNode[],
-    tagAssignments: Map<string, number[]>,
     groupForRoutine?: Map<string, RoutineGroup[]>,
   ) => Promise<void>;
   ensureRoutineItemsForWeek: (
     routines: RoutineNode[],
-    tagAssignments: Map<string, number[]>,
     groupForRoutine?: Map<string, RoutineGroup[]>,
   ) => Promise<void>;
   ensureRoutineItemsForDateRange: (
     startDate: string,
     endDate: string,
     routines: RoutineNode[],
-    tagAssignments: Map<string, number[]>,
     groupForRoutine?: Map<string, RoutineGroup[]>,
   ) => Promise<void>;
   backfillMissedRoutineItems: (
     routines: RoutineNode[],
-    tagAssignments: Map<string, number[]>,
     groupForRoutine?: Map<string, RoutineGroup[]>,
   ) => Promise<void>;
   syncScheduleItemsWithRoutines: (routines: RoutineNode[]) => void;

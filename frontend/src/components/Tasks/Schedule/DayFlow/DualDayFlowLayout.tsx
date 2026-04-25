@@ -273,9 +273,6 @@ function DualColumn({
         onToday={column.goToToday}
         filterTab={column.filterTab}
         onFilterTabChange={column.setFilterTab}
-        selectedFilterTagIds={column.selectedFilterTagIds}
-        onSelectedFilterTagIdsChange={column.setSelectedFilterTagIds}
-        routineTags={column.routineTags}
         isDualColumn={isDualColumn}
         onToggleDualColumn={onToggleDualColumn}
         routineGroups={column.routineGroups}

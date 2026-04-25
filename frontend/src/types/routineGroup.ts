@@ -14,7 +14,15 @@ export interface RoutineGroup {
   updatedAt: string;
 }
 
-export interface RoutineGroupTagAssignment {
+// V69: junction row for Routine ↔ RoutineGroup membership.
+// Soft-delete carried in `isDeleted`/`deletedAt` so unassign replicates via
+// Cloud Sync. UI consumers should ignore is_deleted=true rows.
+export interface RoutineGroupAssignment {
+  id: string; // "rga-<uuid>"
+  routineId: string;
   groupId: string;
-  tagId: number;
+  createdAt: string;
+  updatedAt: string;
+  isDeleted: boolean;
+  deletedAt: string | null;
 }

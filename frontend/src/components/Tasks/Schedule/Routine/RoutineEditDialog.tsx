@@ -1,11 +1,9 @@
 import { useState, useEffect, useRef } from "react";
-import { X, Info } from "lucide-react";
+import { X, Plus, Check } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import type { RoutineNode, FrequencyType } from "../../../../types/routine";
-import type { RoutineTag } from "../../../../types/routineTag";
 import type { RoutineGroup } from "../../../../types/routineGroup";
 import { TimeInput } from "../../../shared/TimeInput";
-import { RoutineTagSelector } from "./RoutineTagSelector";
 import { FrequencySelector } from "./FrequencySelector";
 import { useConfirmableSubmit } from "../../../../hooks/useConfirmableSubmit";
 import {
@@ -15,35 +13,46 @@ import {
 } from "../../../../utils/timeGridUtils";
 import { getTodayKey } from "../../../../utils/dateKey";
 import { ReminderToggle } from "../../../shared/ReminderToggle";
+import { UnifiedColorPicker } from "../../../shared/UnifiedColorPicker";
+import { getTextColorForBg } from "../../../../constants/folderColors";
 
 interface RoutineEditDialogProps {
   routine?: RoutineNode;
-  tags: RoutineTag[];
-  initialTagIds?: number[];
+  routineGroups: RoutineGroup[];
+  initialGroupIds?: string[];
   onSubmit: (
     title: string,
-    startTime?: string,
-    endTime?: string,
-    tagIds?: number[],
-    frequencyType?: FrequencyType,
-    frequencyDays?: number[],
-    frequencyInterval?: number | null,
-    frequencyStartDate?: string | null,
-    reminderEnabled?: boolean,
-    reminderOffset?: number,
+    startTime: string | undefined,
+    endTime: string | undefined,
+    groupIds: string[],
+    frequencyType: FrequencyType,
+    frequencyDays: number[],
+    frequencyInterval: number | null,
+    frequencyStartDate: string | null,
+    reminderEnabled: boolean,
+    reminderOffset: number,
   ) => void;
-  onCreateTag?: (name: string, color: string) => Promise<RoutineTag>;
-  belongingGroups?: RoutineGroup[];
+  /**
+   * Inline-create a Group from inside the dialog. The created group is added
+   * to the dialog's selected set so the routine immediately joins it.
+   */
+  onCreateGroup?: (
+    name: string,
+    color: string,
+    frequencyType: FrequencyType,
+    frequencyDays: number[],
+    frequencyInterval: number | null,
+    frequencyStartDate: string | null,
+  ) => Promise<RoutineGroup>;
   onClose: () => void;
 }
 
 export function RoutineEditDialog({
   routine,
-  tags,
-  initialTagIds,
+  routineGroups,
+  initialGroupIds,
   onSubmit,
-  onCreateTag,
-  belongingGroups,
+  onCreateGroup,
   onClose,
 }: RoutineEditDialogProps) {
   const { t } = useTranslation();
@@ -51,7 +60,6 @@ export function RoutineEditDialog({
   const [startTime, setStartTime] = useState(routine?.startTime ?? "");
   const [endTime, setEndTime] = useState(routine?.endTime ?? "");
   const prevStartRef = useRef(startTime);
-  const [tagIds, setTagIds] = useState<number[]>(initialTagIds ?? []);
   const [frequencyType, setFrequencyType] = useState<FrequencyType>(
     routine?.frequencyType ?? "daily",
   );
@@ -70,18 +78,71 @@ export function RoutineEditDialog({
   const [reminderOffset, setReminderOffset] = useState(
     routine?.reminderOffset ?? 30,
   );
+  const [groupIds, setGroupIds] = useState<string[]>(initialGroupIds ?? []);
+  const [creatingGroup, setCreatingGroup] = useState(false);
+  const [newGroupName, setNewGroupName] = useState("");
+  const [newGroupColor, setNewGroupColor] = useState("#6B7280");
+  const [newGroupFrequencyType, setNewGroupFrequencyType] =
+    useState<FrequencyType>("daily");
+  const [newGroupFrequencyDays, setNewGroupFrequencyDays] = useState<number[]>(
+    [],
+  );
+  const [newGroupFrequencyInterval, setNewGroupFrequencyInterval] = useState(2);
+  const [newGroupFrequencyStartDate, setNewGroupFrequencyStartDate] =
+    useState(getTodayKey());
+  const [showColorPicker, setShowColorPicker] = useState(false);
+  const [creatingError, setCreatingError] = useState<string | null>(null);
+
+  const toggleGroup = (groupId: string) => {
+    setGroupIds((prev) =>
+      prev.includes(groupId)
+        ? prev.filter((g) => g !== groupId)
+        : [...prev, groupId],
+    );
+  };
+
+  const handleCreateGroupSubmit = async () => {
+    if (!onCreateGroup || !newGroupName.trim()) return;
+    setCreatingError(null);
+    try {
+      const created = await onCreateGroup(
+        newGroupName.trim(),
+        newGroupColor,
+        newGroupFrequencyType,
+        newGroupFrequencyType === "weekdays" ? newGroupFrequencyDays : [],
+        newGroupFrequencyType === "interval" ? newGroupFrequencyInterval : null,
+        newGroupFrequencyType === "interval"
+          ? newGroupFrequencyStartDate
+          : null,
+      );
+      setGroupIds((prev) =>
+        prev.includes(created.id) ? prev : [...prev, created.id],
+      );
+      setCreatingGroup(false);
+      setNewGroupName("");
+      setNewGroupColor("#6B7280");
+      setNewGroupFrequencyType("daily");
+      setNewGroupFrequencyDays([]);
+    } catch (e) {
+      setCreatingError(e instanceof Error ? e.message : String(e));
+    }
+  };
 
   const handleSubmit = () => {
     if (!title.trim()) return;
+    // For frequencyType="group" the routine inherits day-of evaluation from
+    // its assigned Groups — its own frequencyDays/Interval/StartDate become
+    // moot. Persist them as null/[] so re-opening doesn't show stale values.
+    const isGroup = frequencyType === "group";
     onSubmit(
       title.trim(),
       startTime || undefined,
       endTime || undefined,
-      tagIds,
+      groupIds,
       frequencyType,
-      frequencyType === "weekdays" ? frequencyDays : [],
-      frequencyType === "interval" ? frequencyInterval : null,
-      frequencyType === "interval" ? frequencyStartDate : null,
+      isGroup ? [] : frequencyType === "weekdays" ? frequencyDays : [],
+      isGroup ? null : frequencyType === "interval" ? frequencyInterval : null,
+      isGroup ? null : frequencyType === "interval" ? frequencyStartDate : null,
       reminderEnabled,
       reminderOffset,
     );
@@ -97,7 +158,7 @@ export function RoutineEditDialog({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30">
-      <div className="bg-notion-bg border border-notion-border rounded-lg shadow-xl p-4 w-80">
+      <div className="bg-notion-bg border border-notion-border rounded-lg shadow-xl p-4 w-96 max-h-[85vh] overflow-y-auto">
         <div className="flex items-center justify-between mb-3">
           <h3 className="text-base font-semibold text-notion-text">
             {routine
@@ -178,23 +239,6 @@ export function RoutineEditDialog({
             </div>
           </div>
 
-          {belongingGroups && belongingGroups.length > 0 && (
-            <div className="flex items-start gap-1.5 px-2 py-1.5 rounded-md bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/30 text-[11px] text-amber-800 dark:text-amber-200">
-              <Info size={12} className="shrink-0 mt-px" />
-              <span>
-                {t(
-                  "routineGroup.frequencyOverrideWarning",
-                  "Belongs to group {{groups}}. The group's frequency setting will overwrite this on next group save.",
-                  {
-                    groups: belongingGroups
-                      .map((g) => `"${g.name}"`)
-                      .join(", "),
-                  },
-                )}
-              </span>
-            </div>
-          )}
-
           <FrequencySelector
             frequencyType={frequencyType}
             frequencyDays={frequencyDays}
@@ -206,6 +250,137 @@ export function RoutineEditDialog({
             onFrequencyStartDateChange={setFrequencyStartDate}
           />
 
+          {frequencyType === "group" && (
+            <div className="space-y-2 rounded-md border border-notion-border bg-notion-bg-secondary p-2">
+              <div className="flex items-center justify-between">
+                <label className="text-[11px] text-notion-text-secondary uppercase tracking-wide">
+                  {t("routineGroup.assignToGroup", "Assigned Groups")}
+                </label>
+                {onCreateGroup && !creatingGroup && (
+                  <button
+                    type="button"
+                    onClick={() => setCreatingGroup(true)}
+                    className="flex items-center gap-1 px-1.5 py-0.5 text-[11px] rounded text-notion-text-secondary hover:text-notion-text hover:bg-notion-hover transition-colors"
+                  >
+                    <Plus size={11} />
+                    {t("routineGroup.createNew", "New Group")}
+                  </button>
+                )}
+              </div>
+
+              {routineGroups.length === 0 && !creatingGroup && (
+                <p className="text-[11px] text-notion-text-secondary py-1">
+                  {t(
+                    "routineGroup.noGroupsHint",
+                    "No groups yet — create one above.",
+                  )}
+                </p>
+              )}
+
+              <div className="flex flex-wrap gap-1">
+                {routineGroups.map((g) => {
+                  const selected = groupIds.includes(g.id);
+                  return (
+                    <button
+                      key={g.id}
+                      type="button"
+                      onClick={() => toggleGroup(g.id)}
+                      className={`flex items-center gap-1 px-2 py-1 text-[11px] rounded-full border transition-colors ${
+                        selected
+                          ? "border-transparent"
+                          : "border-notion-border bg-notion-bg hover:bg-notion-hover"
+                      }`}
+                      style={
+                        selected
+                          ? {
+                              backgroundColor: g.color,
+                              color: getTextColorForBg(g.color),
+                            }
+                          : undefined
+                      }
+                    >
+                      {selected && <Check size={10} />}
+                      {g.name || t("routineGroup.untitled", "Untitled")}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {creatingGroup && (
+                <div className="space-y-2 rounded-md border border-notion-border bg-notion-bg p-2">
+                  <input
+                    type="text"
+                    value={newGroupName}
+                    onChange={(e) => setNewGroupName(e.target.value)}
+                    placeholder={t(
+                      "routineGroup.namePlaceholder",
+                      "e.g. Morning Routine",
+                    )}
+                    className="w-full px-2 py-1 text-sm bg-notion-bg-secondary border border-notion-border rounded focus:outline-none focus:ring-1 focus:ring-notion-accent text-notion-text"
+                  />
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setShowColorPicker((v) => !v)}
+                      className="w-6 h-6 rounded-md border border-notion-border"
+                      style={{ backgroundColor: newGroupColor }}
+                    />
+                    <span className="text-[11px] text-notion-text-secondary">
+                      {newGroupColor}
+                    </span>
+                  </div>
+                  {showColorPicker && (
+                    <UnifiedColorPicker
+                      color={newGroupColor}
+                      onChange={setNewGroupColor}
+                      mode="preset-only"
+                      inline
+                    />
+                  )}
+                  <FrequencySelector
+                    frequencyType={newGroupFrequencyType}
+                    frequencyDays={newGroupFrequencyDays}
+                    frequencyInterval={newGroupFrequencyInterval}
+                    frequencyStartDate={newGroupFrequencyStartDate}
+                    onFrequencyTypeChange={(type) => {
+                      // Group itself cannot recurse to "group", so coerce.
+                      setNewGroupFrequencyType(
+                        type === "group" ? "daily" : type,
+                      );
+                    }}
+                    onFrequencyDaysChange={setNewGroupFrequencyDays}
+                    onFrequencyIntervalChange={setNewGroupFrequencyInterval}
+                    onFrequencyStartDateChange={setNewGroupFrequencyStartDate}
+                  />
+                  {creatingError && (
+                    <p className="text-[11px] text-red-500">{creatingError}</p>
+                  )}
+                  <div className="flex justify-end gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setCreatingGroup(false);
+                        setNewGroupName("");
+                        setCreatingError(null);
+                      }}
+                      className="px-2 py-1 text-[11px] text-notion-text-secondary hover:text-notion-text rounded transition-colors"
+                    >
+                      {t("common.cancel", "Cancel")}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleCreateGroupSubmit}
+                      disabled={!newGroupName.trim()}
+                      className="px-2 py-1 text-[11px] bg-notion-accent text-white rounded hover:bg-notion-accent/90 transition-colors disabled:opacity-50"
+                    >
+                      {t("routineGroup.create", "Create Group")}
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
           <div>
             <label className="text-[11px] text-notion-text-secondary uppercase tracking-wide mb-1 block">
               {t("reminders.itemReminderToggle", "Reminder")}
@@ -215,18 +390,6 @@ export function RoutineEditDialog({
               offset={reminderOffset}
               onEnabledChange={setReminderEnabled}
               onOffsetChange={setReminderOffset}
-            />
-          </div>
-
-          <div>
-            <label className="text-[11px] text-notion-text-secondary uppercase tracking-wide mb-1 block">
-              {t("schedule.routineTag", "Tags")}
-            </label>
-            <RoutineTagSelector
-              tags={tags}
-              selectedTagIds={tagIds}
-              onSelect={setTagIds}
-              onCreateTag={onCreateTag}
             />
           </div>
         </div>

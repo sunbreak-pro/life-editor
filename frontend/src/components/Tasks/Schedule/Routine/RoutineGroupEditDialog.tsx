@@ -2,10 +2,8 @@ import { useState, useCallback, useMemo } from "react";
 import { X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import type { RoutineGroup } from "../../../../types/routineGroup";
-import type { RoutineTag } from "../../../../types/routineTag";
 import type { RoutineNode, FrequencyType } from "../../../../types/routine";
 import { UnifiedColorPicker } from "../../../shared/UnifiedColorPicker";
-import { RoutineGroupTagPicker } from "./RoutineGroupTagPicker";
 import { FrequencySelector } from "./FrequencySelector";
 import { TimeInput } from "../../../shared/TimeInput";
 import { formatTime, timeToMinutes } from "../../../../utils/timeGridUtils";
@@ -13,61 +11,45 @@ import { getTodayKey } from "../../../../utils/dateKey";
 
 interface RoutineGroupEditDialogProps {
   group?: RoutineGroup;
-  tags: RoutineTag[];
-  initialTagIds: number[];
+  /** Routines currently assigned to this group via routine_group_assignments. */
   memberRoutines: RoutineNode[];
   groupTimeRange?: { startTime: string; endTime: string };
   onSubmit: (
     name: string,
     color: string,
-    tagIds: number[],
-    frequencyType?: FrequencyType,
-    frequencyDays?: number[],
-    frequencyInterval?: number | null,
-    frequencyStartDate?: string | null,
+    frequencyType: FrequencyType,
+    frequencyDays: number[],
+    frequencyInterval: number | null,
+    frequencyStartDate: string | null,
   ) => void;
   onSlideGroup?: (offsetMinutes: number) => void;
   onSlideGroupEndTime?: (offsetMinutes: number) => void;
   onUpdateRoutine?: (
     id: string,
-    updates: Partial<
-      Pick<
-        RoutineNode,
-        | "startTime"
-        | "endTime"
-        | "frequencyType"
-        | "frequencyDays"
-        | "frequencyInterval"
-        | "frequencyStartDate"
-      >
-    >,
+    updates: Partial<Pick<RoutineNode, "startTime" | "endTime">>,
   ) => void;
-  allRoutines?: RoutineNode[];
-  allTagAssignments?: Map<string, number[]>;
   onClose: () => void;
 }
 
 export function RoutineGroupEditDialog({
   group,
-  tags,
-  initialTagIds,
   memberRoutines,
   groupTimeRange,
   onSubmit,
   onSlideGroup,
   onSlideGroupEndTime,
   onUpdateRoutine,
-  allRoutines,
-  allTagAssignments,
   onClose,
 }: RoutineGroupEditDialogProps) {
   const { t } = useTranslation();
   const [name, setName] = useState(group?.name ?? "");
   const [color, setColor] = useState(group?.color ?? "#6B7280");
-  const [selectedTagIds, setSelectedTagIds] = useState<number[]>(initialTagIds);
   const [showColorPicker, setShowColorPicker] = useState(false);
   const [frequencyType, setFrequencyType] = useState<FrequencyType>(
-    group?.frequencyType ?? "daily",
+    // A Group cannot itself defer to a Group — coerce legacy values.
+    group?.frequencyType === "group"
+      ? "daily"
+      : (group?.frequencyType ?? "daily"),
   );
   const [frequencyDays, setFrequencyDays] = useState<number[]>(
     group?.frequencyDays ?? [],
@@ -79,21 +61,8 @@ export function RoutineGroupEditDialog({
     group?.frequencyStartDate ?? getTodayKey(),
   );
 
-  // Compute displayed member routines (edit: from prop, create: from selected tags)
-  const displayedRoutines = useMemo(() => {
-    const base = group
-      ? memberRoutines
-      : !allRoutines || !allTagAssignments || selectedTagIds.length === 0
-        ? []
-        : (() => {
-            const tagSet = new Set(selectedTagIds);
-            return allRoutines.filter((r) => {
-              if (r.isArchived || r.isDeleted) return false;
-              const routineTags = allTagAssignments.get(r.id) ?? [];
-              return routineTags.some((tid) => tagSet.has(tid));
-            });
-          })();
-    return [...base].sort((a, b) => {
+  const sortedMemberRoutines = useMemo(() => {
+    return [...memberRoutines].sort((a, b) => {
       const aMin = a.startTime ? timeToMinutes(a.startTime) : null;
       const bMin = b.startTime ? timeToMinutes(b.startTime) : null;
       if (aMin === null && bMin === null) return a.title.localeCompare(b.title);
@@ -102,9 +71,8 @@ export function RoutineGroupEditDialog({
       if (aMin !== bMin) return aMin - bMin;
       return a.title.localeCompare(b.title);
     });
-  }, [group, memberRoutines, allRoutines, allTagAssignments, selectedTagIds]);
+  }, [memberRoutines]);
 
-  // Track per-routine time edits
   const [routineTimeEdits, setRoutineTimeEdits] = useState<
     Map<string, { startTime: string; endTime: string }>
   >(new Map());
@@ -121,7 +89,6 @@ export function RoutineGroupEditDialog({
     onSubmit(
       name.trim(),
       color,
-      selectedTagIds,
       frequencyType,
       groupFrequencyDays,
       groupFrequencyInterval,
@@ -129,26 +96,20 @@ export function RoutineGroupEditDialog({
     );
 
     if (onUpdateRoutine) {
-      for (const routine of displayedRoutines) {
+      for (const routine of sortedMemberRoutines) {
         const times = routineTimeEdits.get(routine.id);
-        const updates: Parameters<typeof onUpdateRoutine>[1] = {
-          frequencyType,
-          frequencyDays: groupFrequencyDays,
-          frequencyInterval: groupFrequencyInterval,
-          frequencyStartDate: groupFrequencyStartDate,
-        };
         if (times) {
-          updates.startTime = times.startTime;
-          updates.endTime = times.endTime;
+          onUpdateRoutine(routine.id, {
+            startTime: times.startTime,
+            endTime: times.endTime,
+          });
         }
-        onUpdateRoutine(routine.id, updates);
       }
     }
     onClose();
   }, [
     name,
     color,
-    selectedTagIds,
     frequencyType,
     frequencyDays,
     frequencyInterval,
@@ -157,7 +118,7 @@ export function RoutineGroupEditDialog({
     onClose,
     onUpdateRoutine,
     routineTimeEdits,
-    displayedRoutines,
+    sortedMemberRoutines,
   ]);
 
   const handleSlide = useCallback(
@@ -209,7 +170,6 @@ export function RoutineGroupEditDialog({
         </div>
 
         <div className="p-4 space-y-3 overflow-y-auto">
-          {/* Name */}
           <div>
             <label className="text-[11px] text-notion-text-secondary font-medium block mb-1">
               {t("routineGroup.name", "Group Name")}
@@ -230,7 +190,6 @@ export function RoutineGroupEditDialog({
             />
           </div>
 
-          {/* Color */}
           <div>
             <label className="text-[11px] text-notion-text-secondary font-medium block mb-1">
               {t("routineGroup.color", "Color")}
@@ -257,26 +216,20 @@ export function RoutineGroupEditDialog({
             )}
           </div>
 
-          {/* Tag assignment */}
-          <RoutineGroupTagPicker
-            tags={tags}
-            selectedTagIds={selectedTagIds}
-            onChange={setSelectedTagIds}
-          />
-
-          {/* Frequency */}
           <FrequencySelector
             frequencyType={frequencyType}
             frequencyDays={frequencyDays}
             frequencyInterval={frequencyInterval}
             frequencyStartDate={frequencyStartDate}
-            onFrequencyTypeChange={setFrequencyType}
+            onFrequencyTypeChange={(type) => {
+              // Group cannot recurse to a "group" frequency.
+              setFrequencyType(type === "group" ? "daily" : type);
+            }}
             onFrequencyDaysChange={setFrequencyDays}
             onFrequencyIntervalChange={setFrequencyInterval}
             onFrequencyStartDateChange={setFrequencyStartDate}
           />
 
-          {/* Group slide (edit mode only) */}
           {group && groupTimeRange && onSlideGroup && (
             <div>
               <label className="text-[11px] text-notion-text-secondary font-medium block mb-1">
@@ -330,15 +283,14 @@ export function RoutineGroupEditDialog({
             </div>
           )}
 
-          {/* Member Routines */}
-          {displayedRoutines.length > 0 && (
+          {sortedMemberRoutines.length > 0 && (
             <div>
               <label className="text-[11px] text-notion-text-secondary font-medium block mb-1">
                 {t("routineGroup.memberRoutines", "Member Routines")}
-                <span className="ml-1">({displayedRoutines.length})</span>
+                <span className="ml-1">({sortedMemberRoutines.length})</span>
               </label>
               <div className="space-y-1.5 max-h-40 overflow-y-auto">
-                {displayedRoutines.map((routine) => {
+                {sortedMemberRoutines.map((routine) => {
                   const edited = routineTimeEdits.get(routine.id);
                   const startTime =
                     edited?.startTime ?? routine.startTime ?? "09:00";

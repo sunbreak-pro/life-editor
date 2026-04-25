@@ -41,8 +41,8 @@ export function FrequencySelector({
       </label>
 
       {/* Frequency type selector */}
-      <div className="flex gap-1">
-        {(["daily", "weekdays", "interval"] as const).map((type) => (
+      <div className="flex gap-1 flex-wrap">
+        {(["daily", "weekdays", "interval", "group"] as const).map((type) => (
           <button
             key={type}
             type="button"

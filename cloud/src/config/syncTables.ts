@@ -44,12 +44,14 @@ export const RELATION_TABLES_WITH_UPDATED_AT = [
   // is the relation's own server_updated_at — entity_type may be 'task' or
   // 'schedule_item', so a single parent JOIN is no longer expressive.
   "calendar_tag_assignments",
+  // V69: Routine ↔ RoutineGroup junction. Same shape as calendar_tag_assignments
+  // (id PK + own updated_at/server_updated_at + soft-delete). Delta cursor is
+  // its own server_updated_at; soft-deleted rows replicate so other devices
+  // can see the unassign.
+  "routine_group_assignments",
 ] as const;
 
 export const RELATION_TABLES_NO_UPDATED_AT = [
-  "routine_tag_assignments",
-  "routine_group_tag_assignments",
-  "routine_tag_definitions",
   "calendar_tag_definitions",
 ] as const;
 
@@ -83,6 +85,7 @@ export const RELATION_PK_COLS: Record<RelationTableWithUpdatedAt, string[]> = {
   wiki_tag_connections: ["id"],
   note_connections: ["id"],
   calendar_tag_assignments: ["id"],
+  routine_group_assignments: ["id"],
 };
 
 /**
@@ -90,34 +93,19 @@ export const RELATION_PK_COLS: Record<RelationTableWithUpdatedAt, string[]> = {
  * versioned table's `server_updated_at`. This map declares each
  * (relation, parent, FK column on relation, parent PK) tuple.
  *
- * `tag_definitions` tables are excluded — they are small and pulled in full
- * on every /sync/changes call.
+ * After V69 (which dropped routine_tag_assignments / routine_group_tag_assignments)
+ * no relation table needs a parent-join delta any more — calendar_tag_definitions
+ * is small enough to pull in full each cycle.
  */
 export const RELATION_PARENT_JOINS: ReadonlyArray<{
   table: RelationTableNoUpdatedAt;
   parent: VersionedTable;
   fk: string;
   parentPk: string;
-}> = [
-  {
-    table: "routine_tag_assignments",
-    parent: "routines",
-    fk: "routine_id",
-    parentPk: "id",
-  },
-  {
-    table: "routine_group_tag_assignments",
-    parent: "routine_groups",
-    fk: "group_id",
-    parentPk: "id",
-  },
-];
+}> = [];
 
 /** Definition tables fetched in full on every delta sync (small, rarely change). */
-export const TAG_DEFINITION_TABLES = [
-  "routine_tag_definitions",
-  "calendar_tag_definitions",
-] as const;
+export const TAG_DEFINITION_TABLES = ["calendar_tag_definitions"] as const;
 
 /**
  * /sync/changes pagination LIMIT.

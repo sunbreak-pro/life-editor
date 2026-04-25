@@ -50,19 +50,17 @@ describe("useRoutineGroupComputed", () => {
         makeRoutine({ id: "r-b", title: "B", startTime: "09:15" }),
       ];
       const groups = [makeGroup({ id: "g-1" })];
-      const groupTagAssignments = new Map<string, number[]>([["g-1", [1]]]);
-      const tagAssignments = new Map<string, number[]>([
-        ["r-a", [1]],
-        ["r-b", [1]],
-        ["r-c", [1]],
+      const routineGroupAssignments = new Map<string, string[]>([
+        ["r-a", ["g-1"]],
+        ["r-b", ["g-1"]],
+        ["r-c", ["g-1"]],
       ]);
 
       const { result } = renderHook(() =>
         useRoutineGroupComputed({
           routineGroups: groups,
           routines,
-          groupTagAssignments,
-          tagAssignments,
+          routineGroupAssignments,
         }),
       );
 
@@ -76,18 +74,16 @@ describe("useRoutineGroupComputed", () => {
         makeRoutine({ id: "r-early", title: "E", startTime: "07:00" }),
       ];
       const groups = [makeGroup({ id: "g-1" })];
-      const groupTagAssignments = new Map<string, number[]>([["g-1", [1]]]);
-      const tagAssignments = new Map<string, number[]>([
-        ["r-no-time", [1]],
-        ["r-early", [1]],
+      const routineGroupAssignments = new Map<string, string[]>([
+        ["r-no-time", ["g-1"]],
+        ["r-early", ["g-1"]],
       ]);
 
       const { result } = renderHook(() =>
         useRoutineGroupComputed({
           routineGroups: groups,
           routines,
-          groupTagAssignments,
-          tagAssignments,
+          routineGroupAssignments,
         }),
       );
 
@@ -102,19 +98,17 @@ describe("useRoutineGroupComputed", () => {
         makeRoutine({ id: "r-m", title: "Mango", startTime: "09:00" }),
       ];
       const groups = [makeGroup({ id: "g-1" })];
-      const groupTagAssignments = new Map<string, number[]>([["g-1", [1]]]);
-      const tagAssignments = new Map<string, number[]>([
-        ["r-z", [1]],
-        ["r-a", [1]],
-        ["r-m", [1]],
+      const routineGroupAssignments = new Map<string, string[]>([
+        ["r-z", ["g-1"]],
+        ["r-a", ["g-1"]],
+        ["r-m", ["g-1"]],
       ]);
 
       const { result } = renderHook(() =>
         useRoutineGroupComputed({
           routineGroups: groups,
           routines,
-          groupTagAssignments,
-          tagAssignments,
+          routineGroupAssignments,
         }),
       );
 
@@ -139,19 +133,17 @@ describe("useRoutineGroupComputed", () => {
         }),
       ];
       const groups = [makeGroup({ id: "g-1" })];
-      const groupTagAssignments = new Map<string, number[]>([["g-1", [1]]]);
-      const tagAssignments = new Map<string, number[]>([
-        ["r-active", [1]],
-        ["r-archived", [1]],
-        ["r-deleted", [1]],
+      const routineGroupAssignments = new Map<string, string[]>([
+        ["r-active", ["g-1"]],
+        ["r-archived", ["g-1"]],
+        ["r-deleted", ["g-1"]],
       ]);
 
       const { result } = renderHook(() =>
         useRoutineGroupComputed({
           routineGroups: groups,
           routines,
-          groupTagAssignments,
-          tagAssignments,
+          routineGroupAssignments,
         }),
       );
 
@@ -167,18 +159,15 @@ describe("useRoutineGroupComputed", () => {
         makeGroup({ id: "g-morning" }),
         makeGroup({ id: "g-work" }),
       ];
-      const groupTagAssignments = new Map<string, number[]>([
-        ["g-morning", [1]],
-        ["g-work", [2]],
+      const routineGroupAssignments = new Map<string, string[]>([
+        ["r-1", ["g-morning", "g-work"]],
       ]);
-      const tagAssignments = new Map<string, number[]>([["r-1", [1, 2]]]);
 
       const { result } = renderHook(() =>
         useRoutineGroupComputed({
           routineGroups: groups,
           routines,
-          groupTagAssignments,
-          tagAssignments,
+          routineGroupAssignments,
         }),
       );
 
@@ -198,19 +187,17 @@ describe("useRoutineGroupComputed", () => {
         makeRoutine({ id: "r-3", startTime: "18:30", endTime: "19:00" }),
       ];
       const groups = [makeGroup({ id: "g-1" })];
-      const groupTagAssignments = new Map<string, number[]>([["g-1", [1]]]);
-      const tagAssignments = new Map<string, number[]>([
-        ["r-1", [1]],
-        ["r-2", [1]],
-        ["r-3", [1]],
+      const routineGroupAssignments = new Map<string, string[]>([
+        ["r-1", ["g-1"]],
+        ["r-2", ["g-1"]],
+        ["r-3", ["g-1"]],
       ]);
 
       const { result } = renderHook(() =>
         useRoutineGroupComputed({
           routineGroups: groups,
           routines,
-          groupTagAssignments,
-          tagAssignments,
+          routineGroupAssignments,
         }),
       );
 

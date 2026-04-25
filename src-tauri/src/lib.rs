@@ -195,13 +195,6 @@ pub fn run() {
             commands::calendar_commands::db_calendars_create,
             commands::calendar_commands::db_calendars_update,
             commands::calendar_commands::db_calendars_delete,
-            // Routine Tags
-            commands::routine_tag_commands::db_routine_tags_fetch_all,
-            commands::routine_tag_commands::db_routine_tags_create,
-            commands::routine_tag_commands::db_routine_tags_update,
-            commands::routine_tag_commands::db_routine_tags_delete,
-            commands::routine_tag_commands::db_routine_tags_fetch_all_assignments,
-            commands::routine_tag_commands::db_routine_tags_set_tags_for_routine,
             // Calendar Tags
             commands::calendar_tag_commands::db_calendar_tags_fetch_all,
             commands::calendar_tag_commands::db_calendar_tags_create,
@@ -244,8 +237,9 @@ pub fn run() {
             commands::routine_group_commands::db_routine_groups_create,
             commands::routine_group_commands::db_routine_groups_update,
             commands::routine_group_commands::db_routine_groups_delete,
-            commands::routine_group_commands::db_routine_groups_fetch_all_tag_assignments,
-            commands::routine_group_commands::db_routine_groups_set_tags_for_group,
+            // Routine ↔ Group Assignments (V69)
+            commands::routine_group_assignment_commands::db_routine_group_assignments_fetch_all,
+            commands::routine_group_assignment_commands::db_routine_group_assignments_set_for_routine,
             // Playlists
             commands::playlist_commands::db_playlists_fetch_all,
             commands::playlist_commands::db_playlists_create,

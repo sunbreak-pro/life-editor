@@ -38,11 +38,7 @@ pub struct SyncPayload {
     #[serde(default)]
     pub calendar_tag_assignments: Vec<Value>,
     #[serde(default)]
-    pub routine_tag_assignments: Vec<Value>,
-    #[serde(default)]
-    pub routine_group_tag_assignments: Vec<Value>,
-    #[serde(default)]
-    pub routine_tag_definitions: Vec<Value>,
+    pub routine_group_assignments: Vec<Value>,
     #[serde(default)]
     pub calendar_tag_definitions: Vec<Value>,
     // Metadata

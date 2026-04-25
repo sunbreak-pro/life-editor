@@ -1,25 +1,19 @@
 import { createContext } from "react";
 import type { useRoutines } from "../hooks/useRoutines";
-import type { useRoutineTagAssignments } from "../hooks/useRoutineTagAssignments";
-import type { useRoutineTags } from "../hooks/useRoutineTags";
 import type { useRoutineGroups } from "../hooks/useRoutineGroups";
-import type { useRoutineGroupTagAssignments } from "../hooks/useRoutineGroupTagAssignments";
+import type { useRoutineGroupAssignments } from "../hooks/useRoutineGroupAssignments";
 import type { useRoutineGroupComputed } from "../hooks/useRoutineGroupComputed";
 
 type RoutinesState = ReturnType<typeof useRoutines>;
-type TagAssignmentsState = ReturnType<typeof useRoutineTagAssignments>;
-type RoutineTagsState = ReturnType<typeof useRoutineTags>;
 type RoutineGroupsState = ReturnType<typeof useRoutineGroups>;
-type RoutineGroupTagAssignmentsState = ReturnType<
-  typeof useRoutineGroupTagAssignments
+type RoutineGroupAssignmentsState = ReturnType<
+  typeof useRoutineGroupAssignments
 >;
 type RoutineGroupComputedState = ReturnType<typeof useRoutineGroupComputed>;
 
 export type RoutineContextValue = RoutinesState &
-  TagAssignmentsState &
-  RoutineTagsState &
   RoutineGroupsState &
-  RoutineGroupTagAssignmentsState &
+  RoutineGroupAssignmentsState &
   RoutineGroupComputedState;
 
 export const RoutineContext = createContext<RoutineContextValue | null>(null);

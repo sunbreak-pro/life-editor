@@ -9,10 +9,8 @@ import {
 } from "lucide-react";
 import { formatDayFlowDate } from "../../../../utils/dateKey";
 import { useClickOutside } from "../../../../hooks/useClickOutside";
-import { getTextColorForBg } from "../../../../constants/folderColors";
 import type { DayFlowFilterTab } from "./OneDaySchedule";
 import { DAY_FLOW_FILTER_TABS } from "./OneDaySchedule";
-import type { RoutineTag } from "../../../../types/routineTag";
 import type { RoutineGroup } from "../../../../types/routineGroup";
 
 interface CompactDateNavProps {
@@ -23,9 +21,6 @@ interface CompactDateNavProps {
   onToday: () => void;
   filterTab: DayFlowFilterTab;
   onFilterTabChange: (tab: DayFlowFilterTab) => void;
-  selectedFilterTagIds: number[];
-  onSelectedFilterTagIdsChange: (ids: number[]) => void;
-  routineTags: RoutineTag[];
   isDualColumn?: boolean;
   onToggleDualColumn?: () => void;
   routineGroups?: RoutineGroup[];
@@ -41,9 +36,6 @@ export function CompactDateNav({
   onToday,
   filterTab,
   onFilterTabChange,
-  selectedFilterTagIds,
-  onSelectedFilterTagIdsChange,
-  routineTags,
   isDualColumn,
   onToggleDualColumn,
   routineGroups,
@@ -100,12 +92,7 @@ export function CompactDateNav({
             {DAY_FLOW_FILTER_TABS.map((tab) => (
               <button
                 key={tab.id}
-                onClick={() => {
-                  onFilterTabChange(tab.id);
-                  if (tab.id !== "all" && tab.id !== "routine") {
-                    onSelectedFilterTagIdsChange([]);
-                  }
-                }}
+                onClick={() => onFilterTabChange(tab.id)}
                 className={`w-full flex items-center gap-2 px-3 py-1.5 text-xs text-left transition-colors ${
                   filterTab === tab.id
                     ? "text-notion-accent bg-notion-accent/5"
@@ -120,55 +107,6 @@ export function CompactDateNav({
                 {t(tab.labelKey)}
               </button>
             ))}
-            {(filterTab === "all" || filterTab === "routine") &&
-              routineTags.length > 0 && (
-                <>
-                  <div className="border-t border-notion-border my-1" />
-                  <div className="flex items-center gap-1 flex-wrap px-3 py-1.5">
-                    <button
-                      onClick={() => onSelectedFilterTagIdsChange([])}
-                      className={`text-[10px] px-1.5 py-0.5 rounded-full transition-colors ${
-                        selectedFilterTagIds.length === 0
-                          ? "bg-notion-text text-notion-bg"
-                          : "bg-notion-hover text-notion-text-secondary hover:text-notion-text"
-                      }`}
-                    >
-                      All
-                    </button>
-                    {routineTags.map((tag) => (
-                      <button
-                        key={tag.id}
-                        onClick={() =>
-                          onSelectedFilterTagIdsChange(
-                            selectedFilterTagIds.includes(tag.id)
-                              ? selectedFilterTagIds.filter(
-                                  (id) => id !== tag.id,
-                                )
-                              : [...selectedFilterTagIds, tag.id],
-                          )
-                        }
-                        className={`flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-full transition-colors ${
-                          selectedFilterTagIds.includes(tag.id)
-                            ? "ring-1 ring-notion-text"
-                            : "hover:opacity-80"
-                        }`}
-                        style={{
-                          backgroundColor: tag.color + "E6",
-                          color: getTextColorForBg(tag.color),
-                          fontWeight: "bold",
-                        }}
-                      >
-                        <span
-                          className="w-2 h-2 rounded-full"
-                          style={{ backgroundColor: tag.color }}
-                        />
-                        {tag.name}
-                      </button>
-                    ))}
-                  </div>
-                </>
-              )}
-            {/* Group filter pills */}
             {(filterTab === "all" || filterTab === "routine") &&
               routineGroups &&
               routineGroups.length > 0 &&

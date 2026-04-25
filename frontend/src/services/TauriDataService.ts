@@ -18,7 +18,7 @@ import type { NoteNode } from "../types/note";
 
 import type { CalendarNode } from "../types/calendar";
 import type { RoutineNode } from "../types/routine";
-import type { RoutineTag } from "../types/routineTag";
+import type { RoutineGroupAssignment } from "../types/routineGroup";
 import type { CalendarTag } from "../types/calendarTag";
 import type { ScheduleItem } from "../types/schedule";
 import type { RoutineGroup } from "../types/routineGroup";
@@ -422,36 +422,6 @@ export class TauriDataService implements DataService {
     return tauriInvoke("db_calendars_delete", { id });
   }
 
-  // --- Routine Tags ---
-  fetchRoutineTags(): Promise<RoutineTag[]> {
-    return tauriInvoke("db_routine_tags_fetch_all");
-  }
-  createRoutineTag(name: string, color: string): Promise<RoutineTag> {
-    return tauriInvoke("db_routine_tags_create", { name, color });
-  }
-  updateRoutineTag(
-    id: number,
-    updates: Partial<
-      Pick<RoutineTag, "name" | "color" | "textColor" | "order">
-    >,
-  ): Promise<RoutineTag> {
-    return tauriInvoke("db_routine_tags_update", { id, updates });
-  }
-  deleteRoutineTag(id: number): Promise<void> {
-    return tauriInvoke("db_routine_tags_delete", { id });
-  }
-  fetchAllRoutineTagAssignments(): Promise<
-    Array<{ routineId: string; tagId: number }>
-  > {
-    return tauriInvoke("db_routine_tags_fetch_all_assignments");
-  }
-  setTagsForRoutine(routineId: string, tagIds: number[]): Promise<void> {
-    return tauriInvoke("db_routine_tags_set_tags_for_routine", {
-      routineId,
-      tagIds,
-    });
-  }
-
   // --- Calendar Tags ---
   fetchCalendarTags(): Promise<CalendarTag[]> {
     return tauriInvoke("db_calendar_tags_fetch_all");
@@ -740,15 +710,13 @@ export class TauriDataService implements DataService {
   deleteRoutineGroup(id: string): Promise<void> {
     return tauriInvoke("db_routine_groups_delete", { id });
   }
-  fetchAllRoutineGroupTagAssignments(): Promise<
-    Array<{ groupId: string; tagId: number }>
-  > {
-    return tauriInvoke("db_routine_groups_fetch_all_tag_assignments");
+  fetchAllRoutineGroupAssignments(): Promise<RoutineGroupAssignment[]> {
+    return tauriInvoke("db_routine_group_assignments_fetch_all");
   }
-  setTagsForRoutineGroup(groupId: string, tagIds: number[]): Promise<void> {
-    return tauriInvoke("db_routine_groups_set_tags_for_group", {
-      groupId,
-      tagIds,
+  setGroupsForRoutine(routineId: string, groupIds: string[]): Promise<void> {
+    return tauriInvoke("db_routine_group_assignments_set_for_routine", {
+      routineId,
+      groupIds,
     });
   }
 

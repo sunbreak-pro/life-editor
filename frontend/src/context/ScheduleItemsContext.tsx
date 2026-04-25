@@ -6,8 +6,7 @@ import { useSyncContext } from "../hooks/useSyncContext";
 import { ScheduleItemsContext } from "./ScheduleItemsContextValue";
 
 export function ScheduleItemsProvider({ children }: { children: ReactNode }) {
-  const { routines, isLoading, tagAssignments, groupForRoutine } =
-    useRoutineContext();
+  const { routines, isLoading, groupForRoutine } = useRoutineContext();
   const { syncVersion } = useSyncContext();
   const scheduleItemsState = useScheduleItems();
 
@@ -23,16 +22,15 @@ export function ScheduleItemsProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (backfillDoneRef.current || isLoading || routines.length === 0) return;
     backfillDoneRef.current = true;
-    const ta = tagAssignments;
     const r = routines;
     const gfr = groupForRoutine;
-    scheduleItemsState.backfillMissedRoutineItems(r, ta, gfr).then(() => {
-      scheduleItemsState.ensureRoutineItemsForWeek(r, ta, gfr);
+    scheduleItemsState.backfillMissedRoutineItems(r, gfr).then(() => {
+      scheduleItemsState.ensureRoutineItemsForWeek(r, gfr);
     });
   }, [
     routines,
     isLoading,
-    tagAssignments,
+    groupForRoutine,
     scheduleItemsState.backfillMissedRoutineItems,
     scheduleItemsState.ensureRoutineItemsForWeek,
   ]);

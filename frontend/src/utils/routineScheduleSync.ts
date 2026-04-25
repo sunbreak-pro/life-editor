@@ -30,21 +30,14 @@ export interface RoutineSyncUpdate {
 export function diffRoutineScheduleItems(
   existingItems: ScheduleItem[],
   routines: RoutineNode[],
-  tagAssignments: Map<string, number[]>,
   date: string,
   groupForRoutine?: Map<string, RoutineGroup[]>,
 ): { toCreate: RoutineSyncCreate[]; toUpdate: RoutineSyncUpdate[] } {
-  // Key by (routineId, date). Although this function is called per-date and a
-  // single routineId key would usually suffice, keying by the compound pair
-  // tolerates multi-date existing lists being passed in and makes the dedup
-  // match the DB's partial UNIQUE (routine_id, date) constraint exactly.
   const existingByKey = new Map<string, ScheduleItem>();
   for (const item of existingItems) {
     if (!item.routineId) continue;
     const key = `${item.routineId}:${item.date}`;
     const prev = existingByKey.get(key);
-    // Prefer the earliest-created row as the canonical survivor, matching the
-    // V63 migration's tie-breaking rule.
     if (!prev || item.updatedAt < prev.updatedAt) {
       existingByKey.set(key, item);
     }
@@ -54,10 +47,7 @@ export function diffRoutineScheduleItems(
   const toUpdate: RoutineSyncUpdate[] = [];
 
   for (const routine of routines) {
-    if (
-      !shouldCreateRoutineItem(routine, date, tagAssignments, groupForRoutine)
-    )
-      continue;
+    if (!shouldCreateRoutineItem(routine, date, groupForRoutine)) continue;
 
     const existingItem = existingByKey.get(`${routine.id}:${date}`);
     if (existingItem) {
@@ -96,27 +86,24 @@ export function diffRoutineScheduleItems(
 
 /**
  * Check whether a routine should produce a schedule item for a given date.
- * Handles archived/invisible filtering and frequency (group frequency takes
- * precedence over the routine's own).
  *
- * Tag assignments are intentionally NOT used as a hard filter: Cloud Sync's
- * delta query once missed tag-only edits (since relation tables lack their
- * own updated_at), which left Desktop with empty tagAssignments and silently
- * deleted all routine schedule_items via ensureRoutineItemsForDateRange.
- * Tag filtering now happens at the display layer only — a routine without
- * tags still materializes its items so it stays visible as a fail-safe.
- * `tagAssignments` is kept in the signature for call-site compatibility.
+ * V69 semantics:
+ * - frequencyType="group" → defer to assigned Groups; the routine fires on
+ *   any day at least one of its Groups says yes (OR). With zero Groups
+ *   assigned, the routine never fires.
+ * - frequencyType in {"daily", "weekdays", "interval"} → use the routine's
+ *   own frequency settings; Group memberships are ignored for scheduling.
  */
 export function shouldCreateRoutineItem(
   routine: RoutineNode,
   dateKey: string,
-  _tagAssignments: Map<string, number[]>,
   groupForRoutine?: Map<string, RoutineGroup[]>,
 ): boolean {
   if (routine.isArchived || !routine.isVisible) return false;
 
-  const groups = groupForRoutine?.get(routine.id);
-  if (groups && groups.length > 0) {
+  if (routine.frequencyType === "group") {
+    const groups = groupForRoutine?.get(routine.id) ?? [];
+    if (groups.length === 0) return false;
     return groups.some(
       (g) =>
         g.isVisible &&
@@ -129,6 +116,7 @@ export function shouldCreateRoutineItem(
         ),
     );
   }
+
   return shouldRoutineRunOnDate(
     routine.frequencyType,
     routine.frequencyDays,
@@ -146,7 +134,6 @@ export function collectRoutineItemsForDates(
   start: Date,
   end: Date,
   routines: RoutineNode[],
-  tagAssignments: Map<string, number[]>,
   groupForRoutine?: Map<string, RoutineGroup[]>,
   existingSet?: Set<string>,
 ): RoutineSyncCreate[] {
@@ -155,10 +142,7 @@ export function collectRoutineItemsForDates(
   while (cursor <= end) {
     const dk = formatDateKey(cursor);
     for (const routine of routines) {
-      if (
-        !shouldCreateRoutineItem(routine, dk, tagAssignments, groupForRoutine)
-      )
-        continue;
+      if (!shouldCreateRoutineItem(routine, dk, groupForRoutine)) continue;
       if (existingSet?.has(`${routine.id}:${dk}`)) continue;
       result.push({
         id: generateId("si"),
