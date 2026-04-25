@@ -1,5 +1,41 @@
 # HISTORY-archive.md - 変更履歴アーカイブ
 
+### 2026-04-24 - iOS 追加機能要件の Phase 0〜4 / 6.1 / 6.3(Desktop) / 7 実装（計画書: ~/.claude/plans/life-editor-note-ios-calm-moth.md）
+
+#### 概要
+
+Note「iOS追加機能要件」(4 セクション 16 項目) の全フェーズ計画を起こし、Global (G-1/G-3/G-5)、Materials (M-5)、Calendar (C-1 / C-3 Desktop)、Work (W-1/W-2/W-3) を完遂。Phase 2.3 は初期スタブ実装からユーザー要件「ハンバーガー = Desktop rightSidebar の中身 / iOS main = 本文」に合わせて Redo。UndoRedoContext に TipTap editor 連携を追加し Mobile ヘッダー Undo/Redo が本文編集にも効くように。Title 編集の 1 文字単位 undo を 500ms debounce で 1 バーストにコアレス。Known Issue 015 として Mobile 全体の `notion-*-primary` サフィックス誤用による背景透明化バグを発見・修正（27 箇所 / 10 ファイル）。残タスク（M-1 行スワイプ / M-2/M-3 TipTap slash / C-2 filter / Mobile 5-role form）は次セッション継続。`tsc -b` 通過、Vitest 231 passed。
+
+#### 変更点
+
+- **Phase 0 要件 SSOT 同期**: `docs/requirements/ios-additions.md` に Materials (M-1〜M-5) / Calendar (C-1〜C-3) / Work (W-1〜W-3) セクション追記 + G-2 Status Done 化（ユーザー運用で Wi-Fi/Cellular 双方同期成功を確認）。完了したすべての AC チェック済
+- **Phase 1 Global header**: `MobileLayout.tsx` のヘッダー左に `Menu` アイコン + 右に `UndoRedoButtons` 配置。`components/shared/UndoRedo/sectionDomains.ts` を新設し Desktop TitleBar と共通化、Mobile 省略 domain（playlist / sound / settings）は `getMobileUndoDomains` で自動除外
+- **Phase 2 左ドロワー + 戻るジェスチャー**: `MobileLeftDrawer.tsx` / `useSectionHistory.ts` / `useEdgeSwipeBack.ts` 新設。左スライドイン、背景タップ / 左スワイプで閉じる、左端 24px 起点右スワイプで `activeSection` スタックを pop（ProseMirror / `data-no-edge-swipe` でガード）
+- **Phase 2.3-Redo (ユーザー要件反映)**: MobileApp を「main = `DailyView`/`NotesView`/`MobileCalendarView`/`MobileWorkView`、drawer = `DailySidebar`/`MaterialsSidebar`/`WorkSidebarInfo`」の 2 スロット構造に再構成。Desktop sidebar コンポーネントを props 直接供給で Mobile drawer に埋め込み、各 Context を MobileApp が consume して選択状態を下流へ。drawer で note/date タップ → drawer 自動クローズ → main がエディタ表示。Navigation リストはユーザー要望で削除
+- **Provider Optional 化**: `DailyView` / `NotesView` の `useScreenLockContext` → `Optional` + null fallback `{ isUnlocked: () => true, unlock: () => {} }`。`WorkSidebarInfo` の `useAudioContext` → `Optional` + Audio セクション（Now Playing / PlaylistSelectPopover）を null ガード。Desktop 挙動は fallback 値で従来通り（Provider が null でないため）
+- **UndoRedoContext に editor 連携追加**: `setActiveEditor` / `getActiveEditor` API を `UndoRedoContextValue` に追加、`RichTextEditor` が `onFocus` で自身を登録し unmount 時に解除（自分が active のときのみ）。`UndoRedoButtons` はアクティブ editor が存在 + `can().undo()` なら `editor.commands.undo()` を優先、それ以外は domain スタック。Desktop の Cmd+Z は従来通り、Mobile ヘッダー Undo が本文編集にも効く
+- **NotesView タイトル 500ms debounce**: `handleTitleChange` を local `titleDraft` state + `window.setTimeout(..., 500)` で debounce。note 切替時は `titleDraftNoteIdRef` で resync、onBlur で即時フラッシュ。1 文字単位の undo エントリ量産を解消
+- **Phase 4 M-5**: `utils/tiptapText.ts` に `extractFirstHeading(content)` 追加（再帰的に heading ノードを探索）。`NoteTreeNode` の表示タイトル導出を「本文先頭 heading → `note.title` → "Untitled"」の順に変更（Desktop / Mobile 共通反映）
+- **Phase 6 C-1**: `MobileCalendarView` の月グリッドに `onTouchStart/Move/End` を実装、60px threshold で前月/翌月へ。Chevron ボタンと併存、中央スワイプのみ検知で G-5 Edge Swipe と衝突なし
+- **Phase 6 C-3 (Desktop)**: `CreateItemPopover` に Routine 項目追加（`onSelectRoutine` prop、未提供時は自動非表示の安全設計）。`CalendarView` が `createRoutine("Untitled routine")` を呼ぶようワイヤリング。i18n `calendar.createRoutine` / `newRoutinePlaceholder` 追加。Mobile `MobileScheduleItemForm` への 5-role 化は別 PR（現状 event 専用フォーム）
+- **Phase 7 W-1**: Task Picker 背景は Known Issue 015 の `bg-notion-bg-primary` → `bg-notion-bg` 置換で既に solid 化済（Note の不透明化要件を自動達成）
+- **Phase 7 W-2**: `timerReducer` に `SET_SESSION_TYPE` action 追加（isRunning=false / sessionType 切替 / remainingSeconds を新タイプの duration に reset）。`TimerContext` に `setSessionType` API 追加。`MobileWorkView.onSwitchSession` を `timer.setSessionType(next)` に置換。タブタップは sessionType 切替のみで start/stop はトリガーしない → Long Break 再タップ後のトグルループを解消
+- **Phase 7 W-3**: `SessionTabs` をコンパクト版（ラベルのみ、sub-minutes 削除）にリファクタし、トップバー右寄せに移動。Timer Arc 真上の占有を解消
+- **Phase 8 ドキュメント**: `ios-additions.md` の各 AC を Done/Partial に更新、HISTORY.md にセッションサマリ追加、MEMORY.md に「Mobile notion-\*-primary 罠」メモ追加
+- **Known Issue 015 起票**: `docs/known-issues/015-mobile-invalid-tailwind-primary-suffix.md` — 10 ファイル 27 箇所で存在しない Tailwind class `bg-notion-bg-primary` / `text-notion-text-primary` を使用、Tailwind v4 は未定義クラスを silent skip するため透明化・既定テキスト色にフォールバックしていた。Index.md に Fixed 1 件追加、Category Styling 新設
+- **プランファイル更新**: `~/.claude/plans/life-editor-note-ios-calm-moth.md` の Phase 1 / 2 / 2.3-Redo を完了マーク、残タスク（M-1 / M-2/M-3 / C-2 / Mobile 5-role）は Pending として継続
+- **Verification**: `npx tsc -b --force` 通過、`npx vitest run` 231 passed (29 files)。実機 iOS で G-1/G-3/G-5 および Materials drawer → editor 切替、タイトル debounce、本文 undo ともユーザー確認済
+
+#### 残課題
+
+- **M-1 行スワイプ**: NoteTreeNode の既存 DnD / hover UI と touch スワイプが干渉するため touch-UX 専用設計が必要。別 PR
+- **M-2 / M-3 TipTap slash command**: `@tiptap/suggestion` 依存追加 + ポップオーバー UI 新規実装が必要。別 PR
+- **C-2 Calendar filter / sort**: role multi-select + sort UI の design が必要。drawer 内 filter sheet として実装予定
+- **Mobile 5-role 対応 (C-3)**: `MobileScheduleItemForm` を role 選択対応にリファクタ（現状 event 専用）
+- **Mobile M-1 行スワイプ**: 現行 drawer で使う `MaterialsSidebar` / `DailySidebar` の行コンポーネントに右→左スワイプで edit/pin/delete 表示を追加
+
+---
+
 ### 2026-04-24 - Cloud Sync 014 本命修正 — server_updated_at cursor 導入（計画書: archive/2026-04-24-014-server-updated-at-cursor.md）
 
 #### 概要
