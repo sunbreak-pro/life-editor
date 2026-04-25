@@ -1,5 +1,32 @@
 # HISTORY.md - 変更履歴
 
+### 2026-04-25 - リファクタリング Phase 0 完了（@deprecated 整理 + formatTime 統合 + tiptap XSS 緩和 + MEMORY.md 整理）
+
+#### 概要
+
+3 subsystem (Frontend / Rust / Cloud) を中粒度で並列分析し、4-Phase の段階的リファクタリング計画を策定。Phase 0 (Quick Wins) として @deprecated 4 件削除 / formatTime 真の重複 1 箇所統合 / tiptapText.ts の innerHTML XSS 経路の DOMParser 化 / MEMORY.md §バグの温床の重複行削除を実行。動作影響ゼロ、検証は `tsc -b` 通過 / Vitest 255 passed (31 files) / `@deprecated` grep 0 件。-58 行 / 7 ファイル変更 / 5 commits（origin/main から 5 commits ahead、push 未実施）。当初 Frontend Explore agent が報告した「formatTime 重複 18+ 箇所」は実態 1 箇所のみで、4 シグネチャの責務違い別関数が並存しているだけと精査で判明し、agent ベースの DRY 検出はシグネチャ照合をしないため過剰検出する旨を `code-inventory.md §3.1` と `refactoring-plan.md` Phase 0-2 に記録。
+
+#### 変更点
+
+- **新規 doc 2 ファイル**: `.claude/2026-04-25-refactoring-plan.md`（Phase 0-3 実行計画 / Status: IN_PROGRESS / Phase 0 完了マーク + 規模感テーブルに実績反映）+ `.claude/docs/code-inventory.md`（Active / Frozen / Duplicate / Risk Hotspot 棚卸し / Active Issue 0 / Monitoring 1 / Fixed 8 を反映、§3.1 で formatter 統合の見積もり乖離を記録）
+- **Phase 0-1 @deprecated 4 件削除**: `frontend/src/context/ScheduleContextValue.ts` を完全削除（参照ゼロ確認後）+ `context/index.ts` re-export 削除 / `components/Tasks/Schedule/DayFlow/GroupFrame.tsx` の `onDoubleClick` prop と関連 onDoubleClick handler を削除（caller `ScheduleTimeGrid.tsx` / `MobileDayflowGrid.tsx` ともに onClick のみ使用）/ `components/shared/UndoRedo/UndoRedoButtons.tsx` の `domain` prop 削除（caller `TitleBar.tsx` / `MobileLayout.tsx` 双方とも `domains` 複数形のみ使用）。grep で `@deprecated` 4→0 件
+- **Phase 0-2 formatTime ローカル関数統合**: `components/Schedule/ScheduleItemEditPopup.tsx:52` のローカル `formatTime(h, m)` を削除し `utils/timeGridUtils.ts::formatTime` から import に置換。当初計画「dateFormat.ts 新設で 18+ 箇所統合」は精査結果（4 シグネチャの別関数並存: `(dateStr)` / `(h, m)` / `(seconds)` / Pomodoro Context method）により縮小、真の重複 1 箇所のみ統合
+- **Phase 0-3 tiptapText.ts XSS 緩和**: `utils/tiptapText.ts::getContentPreview` の JSON parse 失敗時 fallback を `tmp.innerHTML = content` から `DOMParser.parseFromString(content, "text/html")` ベースに変更。`<img onerror>` / `<script>` / `<iframe>` 経由の attribute / inline JS 経路を inert document 化で除去。well-formed legacy HTML の動作は不変
+- **Phase 0-4 MEMORY.md §バグの温床 整理**: 旧行 102-112 を削除（行 103-111 は行 90-100 の単純重複コピー、行 112 「Cloud D1 migration 未適用」は 2026-04-24 の migration 0003 適用済で陳腐化）。17 → 16 ユニーク項目に
+- **Verification**: `npx tsc -b` 通過 / `npm run test` 255/255 pass (31 files、`tiptapText.test.ts` 13 件 / `sectionDomains.test.ts` 8 件 / `timerReducer.test.ts` 32 件含む既存テストすべて) / `grep @deprecated frontend/src` 0 件 / 手動 UI 確認は次セッション dev 起動時
+- **commits（5 本）**: `76c6591` docs(plan + inventory) +562 行 / `991b5bf` refactor(@deprecated 削除) -44 行 / `36b2de7` refactor(formatTime 統合) -3 行 / `cd8d59e` fix(tiptapText XSS) +0/-0 / `4f2d552` docs(MEMORY.md dedup) -11 行
+- **教訓 (`code-inventory.md §3.1` / `refactoring-plan.md` Phase 0-2 に記録)**: agent ベースの DRY 違反検出はシグネチャまで照合しないため過剰検出する。formatTime「18+ 箇所」と Frontend Explore agent が報告したが、実態は 4 シグネチャの責務違い別関数並存で **真の重複は 1 箇所のみ**だった。リファクタリング計画は実装着手時に必ず精査する運用が要る
+
+#### 残課題
+
+- **Phase 1 (別セッション)**: Cloud `routes/sync.ts` 責務分割（Issue 012 cursor pagination の前提地ならし）/ `frontend/src/main.tsx` Provider tree 共通化（`<DesktopProviders>` / `<MobileProviders>` 抽出）/ Rust `helpers.rs` と `sync_engine.rs:177` の `row_to_json` 重複統合 (`db/row_converter.rs` 新設) / SQL injection whitelist の SAFETY コメント明示化（推定 -500〜-800 行）
+- **Phase 2-3 (中長期)**: `migrations.rs` (2328 行) を V1-V30 / V31-V60 / V61-V64 に 3 分割 / `TauriDataService.ts` (1453 行) を domain ごとに分割 / 巨大コンポーネント 4 件（ScheduleTimeGrid / OneDaySchedule / TagGraphView / TaskDetailPanel）を index + サブコンポーネント構造に / Calendar Mobile-Desktop 統合（`useCalendarViewLogic` + shared component）/ Rust 27 repository の `row_to_model` 統一 trait 化 / 012 cursor pagination 本実装 / `Schedule/` → `ScheduleList/` rename / 論理キー UNIQUE migration（V65+）
+- **手動 UI 確認**: Schedule UI / Mobile Calendar / Timer 表示で時刻フォーマット崩れなし確認（次回 `cargo tauri dev` 時）
+- **既存 lint 116 問題の解消**: 別セッションで対応継続（本 Phase スコープ外）
+- **`git push`**: ユーザー判断で未実施（origin/main から 5 commits ahead）
+
+---
+
 ### 2026-04-25 - Known Issues 統合（13→9）+ CLAUDE.md / rules ディレクトリのコンパクト化
 
 #### 概要
@@ -95,30 +122,5 @@ delta sync が updated_at の非単調性で破綻する構造バグ（Known Iss
 - **CLAUDE.md §4.1 更新**: V64 migration 履歴の直後に「Cloud D1 側は 2026-04-24 に migration 0003 で `server_updated_at` 列を追加（delta sync cursor 用）。Desktop SQLite には存在しない Cloud 専用列」の 1 行を追加、known-issues/014 と db-conventions.md §3 への誘導リンクを明記
 - **Session-verifier 実行**: Gate 1 Types（tsc --noEmit exit=0） / Gate 2 Lint（cloud/ に script なしスキップ） / Gate 3 Tests（cloud/ にテストインフラなしスキップ） / Gate 5 Structural（DB 命名 / migration ルール準拠） / Gate 6 Bug Scan（serverNow は batch 先頭で固定 / 2 文目 UPDATE は INSERT 直後で pk ヒット保証 / SQL パラメータは全て `.bind()`）全 PASS
 - **残課題（別セッション、db-conventions §9 優先度順）**: (1) `datetime('now')` 使用箇所を `helpers::now()` / `new Date().toISOString()` 経由に全置換（013 恒久）/ (2) Mobile Settings に Full Re-sync ボタン追加 / (3) `/sync/changes` cursor-based pagination 本命実装（012 本命）/ (4) Desktop `migrations.rs` と `cloud/db/schema.sql` の drift 検出 CI
-
----
-
-### 2026-04-24 - Cloud Sync timestamp 整合性修正（Known Issues 013 / 014）+ DB 規約 vision 新設
-
-#### 概要
-
-Mobile からの Note 書き込みが Desktop に届かない症状を調査し、3 層の根本原因を解消。(1) Cloud D1 未 migration で Worker だけ新コードに deploy され batch 全 rollback で silent 失敗していた状態を、`cloud/db/migrations/0002_rename_memos_to_dailies.sql` を Cloud schema に合わせて書き直し本番適用。(2) sync 比較が raw string `>` でスペース区切り (`2026-04-23 12:37:31`) と ISO 8601 (`2026-04-23T12:42:12.496Z`) の混在により ASCII 順 space(0x20) < T(0x54) の罠で同日 space 行が delta から凍結していた問題を、`sync_engine.rs` / `cloud/src/routes/sync.ts` の delta query 全てを `datetime(...)` 正規化し Known Issue 013 として Fixed 起票 + regression test 2 本追加。(3) delta sync が updated_at 単調性に依存、Mobile 高 version 古 updated_at 行が pull 不能になる構造的制約は Full Re-sync を緊急弁とする暫定対応で Known Issue 014 (Monitoring) として起票（本命は Cloud D1 `server_updated_at` 列追加で別セッション）。並行して DB 操作規約 `docs/vision/db-conventions.md` を新設し、CLAUDE.md / MEMORY.md / auto-memory / known-issues INDEX も整合更新。cargo test 11 → 13 pass / Cloud tsc 0 / clippy 新規 warning 0 / Worker 再 deploy（Version `04d24d88-3e16-4abd-9322-7d2377c22991`）。
-
-#### 変更点
-
-- **Cloud D1 本番 migration 適用**: `cloud/db/migrations/0002_rename_memos_to_dailies.sql` を Cloud schema に存在しない `note_links` / `paper_nodes` 参照を除去し、`wiki_tag_assignments` の PK `(tag_id, entity_id)` 衝突（Desktop V64 済み端末が既に push していた `daily-*` 行と migration が `memo-*` から生成する `daily-*` の重複）を `DELETE ... WHERE EXISTS` で先に潰してから UPDATE する 2 段構成に書き直し、`wrangler d1 execute life-editor-sync --remote --file=...` で本番 D1 に適用成功
-- **Cloud Worker 再 deploy**: `cloud/src/routes/sync.ts` の `/sync/changes` delta query 全てに `datetime()` 正規化適用 + `wrangler deploy`（Version `04d24d88-3e16-4abd-9322-7d2377c22991`）。ISO 8601 と SQLite スペース区切りの string 比較不整合を受け側で吸収
-- **Rust sync_engine datetime() 正規化**: `src-tauri/src/sync/sync_engine.rs::query_changed` と 3 つの親 join query（`calendar_tag_assignments` / `routine_tag_assignments` / `routine_group_tag_assignments`）の `WHERE updated_at > ?1` を `WHERE datetime(updated_at) > datetime(?1)` に、`ORDER BY` も `datetime(updated_at) ASC` に統一
-- **Rust regression test 追加**: `src-tauri/src/sync/sync_engine.rs` に `#[cfg(test)] mod tests` 新設。`collect_local_changes_catches_space_format_rows_with_iso_since` は space と ISO 両形式の notes を INSERT して ISO `since` で両方 capture されることを保証、`collect_local_changes_excludes_older_rows` は `datetime()` wrap が always-true にならないことを保証。`run_migrations()` を介して本番 schema で検証。cargo test 11 → 13 pass
-- **Known Issue 013 起票**: `.claude/docs/known-issues/013-timestamp-format-mismatch-delta-sync-freeze.md` — `updated_at` の timestamp 形式混在で delta sync が同日編集を凍結する。Status=Fixed（暫定対応、書き込み側 ISO 8601 統一は別セッション）、Category=Bug/Sync/Schema、Severity=Blocking。Root Cause（ASCII 順 space<T） / Impact（silent failure で last_synced_at だけ前進）/ Fix 手順 / Lessons Learned を詳述
-- **Known Issue 014 起票**: `.claude/docs/known-issues/014-delta-sync-nonmonotonic-updated-at.md` — delta sync が updated_at の非単調性に対応できず高 version 行が pull から漏れる。Status=Monitoring、Category=Bug/Sync/Structural、Severity=Important。Root Cause（Mobile が古時刻で v=372 push → Cloud 固定 → Desktop since が追い越し永久 desync）/ Impact / Workaround（Full Re-sync / Disconnect+Reconnect）/ 本命 3 案（A: server_updated_at 列 B: cursor 変更 C: Full Re-sync auto 化）を整理
-- **INDEX.md 更新**: Monitoring に 014 追加、Fixed に 013 追加。Category 別索引（Bug/Sync/Schema/Structural）と Status 集計（Monitoring 3 / Fixed 9 / 合計 12）を更新
-- **DB 規約 vision 新設**: `.claude/docs/vision/db-conventions.md` 9 章（背景 / §1 timestamp canonical form / §2 updated_at と version の役割分担 / §3 同期プロトコル制約 / §4 UPSERT と衝突解決 / §5 マイグレーション / §6 multi-language write / §7 禁止事項 / §8 関連ドキュメント / §9 今後の作業）。Rust `helpers::now()` と TS `new Date().toISOString()` を canonical、SQL 内 `datetime('now')` / `CURRENT_TIMESTAMP` / `chrono::Utc::now().to_rfc3339()` を禁止、LWW は `excluded.version > ...` のみで判定、D1 の `SQLITE_LIMIT_COMPOUND_SELECT=5` 制限、migration 3 点同期（Desktop ↔ Cloud ↔ Mobile）を集約
-- **CLAUDE.md 更新**: §0 関連ドキュメント表に `db-conventions.md` 追加、§4 Data Model 冒頭に「write / sync / migration の規約詳細は `docs/vision/db-conventions.md` を必ず参照」の必読誘導を明記
-- **MEMORY.md バグの温床更新**: 2026-04-22 時点 → 2026-04-23 更新版に改題し、013 / 014 / Cloud D1 migration が Desktop migration をそのまま流用すると失敗する罠 / Cloud deploy と D1 migration のタイミング / D1 compound SELECT 5 本制限 / wrangler d1 execute の `--file=` 引数の罠 / iOS binary と Cloud schema の三者不整合を追加。既存 8 項目 + 新規 6 項目 = 合計 14 項目
-- **auto-memory 更新**: `~/.claude/projects/-Users-newlife-dev-apps-life-editor/memory/project_sync_architecture_weaknesses.md` を 4 点 → 6 点に拡充。description も「timestamp 形式混在・非単調 updated_at」を含めて最新化。検索キーワードに `datetime format mismatch` / `space vs T updated_at` / `non-monotonic updated_at delta freeze` / `server_updated_at cursor` を追加
-- **session-verifier 実行（Gate 0-6 全 PASS）**: Scope 6 変更 + 3 新規 / Types: cargo check / tsc 0 / Lint: clippy 新規 warning 0（既存 209 件は本件無関係）/ Tests: cargo test 13 pass / Coverage: 013 regression test 2 本追加 / Structural: db-conventions.md §1 暫定対応ルールと整合 / Bug Scan: 高リスクパターンなし
-- **ユーザー観測の補足**: 「Desktop → iOS の反映には iOS 側 Disconnect/Reconnect が必要」という現行挙動は Known Issue 014 の構造的制約の顕在化。iOS binary 旧版 (datetime() fix 未搭載) + Mobile に Full Re-sync ボタン欠落（MEMORY 既存予定）の合わせ技。本命解消は 014 本命 3 案と Mobile Full Re-sync 実装待ち
-- **残課題（別セッション、db-conventions.md §9 に優先度順で記載）**: (1) `datetime('now')` 使用箇所を `helpers::now()` / `new Date().toISOString()` 経由の ISO 8601 に全置換 + 既存 space 形式データのバックフィル（013 恒久対応）/ (2) Cloud D1 に `server_updated_at` 列追加 + Worker UPSERT 時に書き込み + delta query 切替（014 本命）/ (3) Mobile Settings に Full Re-sync ボタン追加（014 暫定緊急弁 / MEMORY 既存）/ (4) `/sync/changes` cursor-based pagination 実装（012 本命）/ (5) Desktop `migrations.rs` と `cloud/db/schema.sql` の drift 検出 CI
 
 ---
