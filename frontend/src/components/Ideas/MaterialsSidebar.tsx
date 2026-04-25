@@ -26,7 +26,10 @@ import { getContentPreview } from "../../utils/tiptapText";
 import { STORAGE_KEYS } from "../../constants/storageKeys";
 import { SearchBar, type SearchSuggestion } from "../shared/SearchBar";
 import { CollapsibleSection } from "../shared/CollapsibleSection";
-import { TagFilterOverlay } from "../shared/TagFilterOverlay";
+import {
+  TagFilterOverlay,
+  UNTAGGED_FILTER_ID,
+} from "../shared/TagFilterOverlay";
 import { ItemEditPopover } from "./Connect/ItemEditPopover";
 import { NoteTreeNode } from "./NoteTreeNode";
 import {
@@ -294,11 +297,18 @@ export function MaterialsSidebar({
 
   const tagFilteredNotes = useMemo(() => {
     if (!hasTagFilter) return flattenedNotes;
+    const wantsUntagged = filterTagIds.has(UNTAGGED_FILTER_ID);
+    const realTagIds = [...filterTagIds].filter(
+      (id) => id !== UNTAGGED_FILTER_ID,
+    );
     return flattenedNotes.filter((n) => {
       if (n.type === "folder") return true;
       const noteTagSet = entityTagIds.get(n.id);
+      const isUntagged = !noteTagSet || noteTagSet.size === 0;
+      if (wantsUntagged && isUntagged) return true;
+      if (realTagIds.length === 0) return false;
       if (!noteTagSet) return false;
-      return [...filterTagIds].some((tid) => noteTagSet.has(tid));
+      return realTagIds.some((tid) => noteTagSet.has(tid));
     });
   }, [flattenedNotes, hasTagFilter, filterTagIds, entityTagIds]);
 
@@ -434,6 +444,7 @@ export function MaterialsSidebar({
                       selectedTagIds={Array.from(filterTagIds)}
                       onToggle={toggleTagFilter}
                       onClose={() => setShowNoteFilter(false)}
+                      showUntaggedOption
                     />
                   </div>
                 )}

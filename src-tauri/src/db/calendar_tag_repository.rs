@@ -24,7 +24,8 @@ fn row_to_tag(row: &rusqlite::Row) -> rusqlite::Result<CalendarTag> {
 
 pub fn fetch_all(conn: &Connection) -> rusqlite::Result<Vec<CalendarTag>> {
     let mut stmt = conn.prepare(
-        "SELECT * FROM calendar_tag_definitions ORDER BY \"order\" ASC, id ASC",
+        "SELECT id, name, color, text_color, \"order\" FROM calendar_tag_definitions \
+         WHERE is_deleted = 0 ORDER BY \"order\" ASC, id ASC",
     )?;
     let rows = stmt.query_map([], |row| row_to_tag(row))?;
     rows.collect()
@@ -37,11 +38,14 @@ pub fn create(conn: &Connection, name: &str, color: &str) -> rusqlite::Result<Ca
         |row| row.get(0),
     )?;
     conn.execute(
-        "INSERT INTO calendar_tag_definitions (name, color, \"order\") VALUES (?1, ?2, ?3)",
+        "INSERT INTO calendar_tag_definitions (name, color, \"order\", created_at, updated_at, version) \
+         VALUES (?1, ?2, ?3, strftime('%Y-%m-%dT%H:%M:%S.000Z', 'now'), strftime('%Y-%m-%dT%H:%M:%S.000Z', 'now'), 1)",
         params![name, color, max_order + 1],
     )?;
     let id = conn.last_insert_rowid();
-    let mut stmt = conn.prepare("SELECT * FROM calendar_tag_definitions WHERE id = ?1")?;
+    let mut stmt = conn.prepare(
+        "SELECT id, name, color, text_color, \"order\" FROM calendar_tag_definitions WHERE id = ?1",
+    )?;
     stmt.query_row([id], |row| row_to_tag(row))
 }
 
@@ -67,9 +71,14 @@ pub fn update(conn: &Connection, id: i64, updates: &Value) -> rusqlite::Result<C
     }
 
     if sets.is_empty() {
-        let mut stmt = conn.prepare("SELECT * FROM calendar_tag_definitions WHERE id = ?1")?;
+        let mut stmt = conn.prepare(
+            "SELECT id, name, color, text_color, \"order\" FROM calendar_tag_definitions WHERE id = ?1",
+        )?;
         return stmt.query_row([id], |row| row_to_tag(row));
     }
+
+    sets.push("updated_at = strftime('%Y-%m-%dT%H:%M:%S.000Z', 'now')");
+    sets.push("version = version + 1");
 
     values.push(Box::new(id));
 
@@ -80,51 +89,114 @@ pub fn update(conn: &Connection, id: i64, updates: &Value) -> rusqlite::Result<C
     let params: Vec<&dyn rusqlite::types::ToSql> = values.iter().map(|v| v.as_ref()).collect();
     conn.execute(&sql, params.as_slice())?;
 
-    let mut stmt = conn.prepare("SELECT * FROM calendar_tag_definitions WHERE id = ?1")?;
+    let mut stmt = conn.prepare(
+        "SELECT id, name, color, text_color, \"order\" FROM calendar_tag_definitions WHERE id = ?1",
+    )?;
     stmt.query_row([id], |row| row_to_tag(row))
 }
 
 pub fn delete(conn: &Connection, id: i64) -> rusqlite::Result<()> {
-    conn.execute("DELETE FROM calendar_tag_definitions WHERE id = ?1", [id])?;
-    Ok(())
+    // Soft delete + cascade-clear all assignments for this tag
+    let tx = conn.unchecked_transaction()?;
+    tx.execute(
+        "UPDATE calendar_tag_definitions \
+         SET is_deleted = 1, \
+             deleted_at = strftime('%Y-%m-%dT%H:%M:%S.000Z', 'now'), \
+             updated_at = strftime('%Y-%m-%dT%H:%M:%S.000Z', 'now'), \
+             version = version + 1 \
+         WHERE id = ?1",
+        [id],
+    )?;
+    // Bump entity updated_at so Cloud Sync delta picks up the cleared assignment
+    tx.execute(
+        "UPDATE schedule_items SET updated_at = datetime('now'), version = version + 1 \
+         WHERE id IN (SELECT entity_id FROM calendar_tag_assignments \
+                      WHERE entity_type = 'schedule_item' AND tag_id = ?1)",
+        [id],
+    )?;
+    tx.execute(
+        "UPDATE tasks SET updated_at = datetime('now'), version = version + 1 \
+         WHERE id IN (SELECT entity_id FROM calendar_tag_assignments \
+                      WHERE entity_type = 'task' AND tag_id = ?1)",
+        [id],
+    )?;
+    tx.execute(
+        "DELETE FROM calendar_tag_assignments WHERE tag_id = ?1",
+        [id],
+    )?;
+    tx.commit()
 }
 
 pub fn fetch_all_assignments(conn: &Connection) -> rusqlite::Result<Vec<Value>> {
-    let mut stmt =
-        conn.prepare("SELECT schedule_item_id, tag_id FROM calendar_tag_assignments")?;
+    let mut stmt = conn.prepare(
+        "SELECT entity_type, entity_id, tag_id FROM calendar_tag_assignments",
+    )?;
     let rows = stmt.query_map([], |row| {
-        let schedule_item_id: String = row.get("schedule_item_id")?;
+        let entity_type: String = row.get("entity_type")?;
+        let entity_id: String = row.get("entity_id")?;
         let tag_id: i64 = row.get("tag_id")?;
         Ok(serde_json::json!({
-            "scheduleItemId": schedule_item_id,
+            "entityType": entity_type,
+            "entityId": entity_id,
             "tagId": tag_id,
         }))
     })?;
     rows.collect()
 }
 
+/// Set a single tag for an entity (1:1). Pass tag_id = None to clear.
+pub fn set_tag_for_entity(
+    conn: &Connection,
+    entity_type: &str,
+    entity_id: &str,
+    tag_id: Option<i64>,
+) -> rusqlite::Result<()> {
+    if entity_type != "task" && entity_type != "schedule_item" {
+        return Err(rusqlite::Error::InvalidQuery);
+    }
+
+    let tx = conn.unchecked_transaction()?;
+
+    // Clear any existing assignment first (UNIQUE on entity_type+entity_id enforces 1:1)
+    tx.execute(
+        "DELETE FROM calendar_tag_assignments WHERE entity_type = ?1 AND entity_id = ?2",
+        params![entity_type, entity_id],
+    )?;
+
+    if let Some(tid) = tag_id {
+        // hex(randomblob(8)) → 16 hex chars; combined with entity_type+entity_id stays unique
+        tx.execute(
+            "INSERT INTO calendar_tag_assignments \
+                (id, entity_type, entity_id, tag_id, created_at, updated_at) \
+             VALUES ('cta-' || lower(hex(randomblob(8))), ?1, ?2, ?3, \
+                     strftime('%Y-%m-%dT%H:%M:%S.000Z', 'now'), \
+                     strftime('%Y-%m-%dT%H:%M:%S.000Z', 'now'))",
+            params![entity_type, entity_id, tid],
+        )?;
+    }
+
+    // Bump parent entity's updated_at + version so Cloud Sync delta query picks it up
+    let bump_sql = match entity_type {
+        "schedule_item" => {
+            "UPDATE schedule_items SET updated_at = datetime('now'), version = version + 1 WHERE id = ?1"
+        }
+        "task" => {
+            "UPDATE tasks SET updated_at = datetime('now'), version = version + 1 WHERE id = ?1"
+        }
+        _ => unreachable!(),
+    };
+    tx.execute(bump_sql, [entity_id])?;
+
+    tx.commit()
+}
+
+/// Backwards-compat shim: existing UI calls set_tags_for_schedule_item with an array.
+/// We collapse to first element (or clear if empty) since CalendarTags are now 1:1.
 pub fn set_tags_for_schedule_item(
     conn: &Connection,
     schedule_item_id: &str,
     tag_ids: &[i64],
 ) -> rusqlite::Result<()> {
-    let tx = conn.unchecked_transaction()?;
-    tx.execute(
-        "DELETE FROM calendar_tag_assignments WHERE schedule_item_id = ?1",
-        [schedule_item_id],
-    )?;
-    for tag_id in tag_ids {
-        tx.execute(
-            "INSERT OR IGNORE INTO calendar_tag_assignments (schedule_item_id, tag_id) \
-             VALUES (?1, ?2)",
-            params![schedule_item_id, tag_id],
-        )?;
-    }
-    // Bump parent schedule_item's updated_at + version so Cloud Sync's delta
-    // query (WHERE si.updated_at > ?1) carries this tag assignment change.
-    tx.execute(
-        "UPDATE schedule_items SET updated_at = datetime('now'), version = version + 1 WHERE id = ?1",
-        [schedule_item_id],
-    )?;
-    tx.commit()
+    let single = tag_ids.first().copied();
+    set_tag_for_entity(conn, "schedule_item", schedule_item_id, single)
 }

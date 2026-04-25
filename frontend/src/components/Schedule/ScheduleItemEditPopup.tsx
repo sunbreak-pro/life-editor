@@ -6,6 +6,8 @@ import { useClampedPosition } from "../../hooks/useClampedPosition";
 import { formatTime } from "../../utils/timeGridUtils";
 import { TimeDropdown } from "../shared/TimeDropdown";
 import { RoutineTagSelector } from "../Tasks/Schedule/Routine/RoutineTagSelector";
+import { CalendarTagSelector } from "./CalendarTagSelector";
+import { useCalendarTagsContext } from "../../hooks/useCalendarTagsContext";
 import type { RoutineNode } from "../../types/routine";
 import type { ScheduleItem } from "../../types/schedule";
 import type { TaskNode } from "../../types/taskTree";
@@ -89,6 +91,12 @@ export function ScheduleItemEditPopup({
   const clamped = useClampedPosition(popupRef, position);
 
   useClickOutside(popupRef, onClose);
+
+  const {
+    calendarTags,
+    getTagForEntity,
+    setTagForEntity: setCalendarTagForEntity,
+  } = useCalendarTagsContext();
 
   // Resolve the item data
   const itemData = useMemo(() => {
@@ -323,6 +331,29 @@ export function ScheduleItemEditPopup({
               selectedTagIds={selectedTagIds}
               onSelect={setSelectedTagIds}
               onCreateTag={onCreateRoutineTag}
+            />
+          </div>
+        )}
+
+        {/* Calendar Tag (event / task) — single selection */}
+        {(itemData.type === "event" || itemData.type === "task") && (
+          <div>
+            <label className="block text-[10px] text-notion-text-secondary mb-1">
+              {t("calendarTags.title", "Tag")}
+            </label>
+            <CalendarTagSelector
+              tags={calendarTags}
+              selectedTagId={getTagForEntity(
+                itemData.type === "event" ? "schedule_item" : "task",
+                itemData.id,
+              )}
+              onSelect={(tagId) =>
+                setCalendarTagForEntity(
+                  itemData.type === "event" ? "schedule_item" : "task",
+                  itemData.id,
+                  tagId,
+                )
+              }
             />
           </div>
         )}

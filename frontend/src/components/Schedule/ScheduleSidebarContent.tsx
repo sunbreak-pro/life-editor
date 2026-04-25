@@ -18,6 +18,7 @@ import { useTranslation } from "react-i18next";
 import { useNoteContext } from "../../hooks/useNoteContext";
 import { useDailyContext } from "../../hooks/useDailyContext";
 import { SearchBar, type SearchSuggestion } from "../shared/SearchBar";
+import { CalendarTagsPanel } from "./CalendarTagsPanel";
 
 interface ScheduleSidebarContentProps {
   routineStats: RoutineStats | null;
@@ -343,6 +344,7 @@ export function ScheduleSidebarContent({
       <div className="flex-1 min-h-0 overflow-y-auto">
         {children}
         <div className="px-3 py-2 space-y-2">
+          <CalendarTagsPanel />
           <MiniTodayFlow
             date={miniFlowDate}
             routines={routines}

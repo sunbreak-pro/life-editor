@@ -37,6 +37,11 @@ export function TimerProvider({ children }: { children: ReactNode }) {
   const [autoStartBreaks, setAutoStartBreaksState] = useState(false);
   const [targetSessions, setTargetSessionsState] = useState(4);
   const [activeRoutineId, setActiveRoutineId] = useState<string | null>(null);
+  const [pendingFreeSave, setPendingFreeSave] = useState<{
+    sessionId: number;
+    elapsedSeconds: number;
+  } | null>(null);
+  const freeStartedAtRef = useRef<string | null>(null);
   const { handle: handleError } = useServiceErrorHandler();
 
   // Load settings from DataService on mount
@@ -139,12 +144,21 @@ export function TimerProvider({ children }: { children: ReactNode }) {
     return clearTimer;
   }, [state.isRunning, clearTimer]);
 
-  // Watch for timer reaching zero
+  // Watch for timer reaching zero (FREE mode counts up so it's exempt)
   useEffect(() => {
-    if (state.isRunning && state.remainingSeconds <= 0) {
+    if (
+      state.isRunning &&
+      state.sessionType !== "FREE" &&
+      state.remainingSeconds <= 0
+    ) {
       advanceSession();
     }
-  }, [state.remainingSeconds, state.isRunning, advanceSession]);
+  }, [
+    state.remainingSeconds,
+    state.isRunning,
+    state.sessionType,
+    advanceSession,
+  ]);
 
   // Update tray timer display (desktop only — mobile has no system tray)
   useEffect(() => {
@@ -177,6 +191,16 @@ export function TimerProvider({ children }: { children: ReactNode }) {
   const pause = useCallback(() => {
     dispatch({ type: "PAUSE" });
     clearTimer();
+    if (state.sessionType === "FREE") {
+      // Free mode: remainingSeconds is the elapsed counter. Defer DB write to
+      // saveFreeSession / discardFreeSession via the dialog.
+      const elapsed = state.remainingSeconds;
+      const sessionId = currentSessionIdRef.current;
+      if (sessionId !== null) {
+        setPendingFreeSave({ sessionId, elapsedSeconds: elapsed });
+      }
+      return;
+    }
     const total = getDuration(state.sessionType, state.config);
     const elapsed = total - state.remainingSeconds;
     queueMicrotask(() => {
@@ -393,6 +417,115 @@ export function TimerProvider({ children }: { children: ReactNode }) {
     [state.remainingSeconds],
   );
 
+  const startFreeSession = useCallback(() => {
+    clearTimer();
+    endCurrentSession(0, false);
+    setPendingFreeSave(null);
+    freeStartedAtRef.current = new Date().toISOString();
+    dispatch({ type: "START_FREE" });
+    getDataService()
+      .startTimerSession("FREE")
+      .then((session) => {
+        currentSessionIdRef.current = session.id;
+      })
+      .catch((e) => handleError(e, "errors.timer.sessionStartFailed"));
+  }, [clearTimer, endCurrentSession, handleError]);
+
+  const saveFreeSession = useCallback(
+    async (input: {
+      label: string;
+      role: "task" | "event" | null;
+      parentTaskId?: string | null;
+      calendarTagId?: number | null;
+    }) => {
+      if (!pendingFreeSave) return;
+      const { sessionId, elapsedSeconds } = pendingFreeSave;
+      const startedAt = freeStartedAtRef.current ?? new Date().toISOString();
+      const completedAt = new Date().toISOString();
+      const labelTrimmed = input.label.trim();
+
+      try {
+        await getDataService().endTimerSessionWithLabel(
+          sessionId,
+          elapsedSeconds,
+          true,
+          labelTrimmed || null,
+        );
+
+        if (input.role === "task" && labelTrimmed) {
+          // New completed Task under the selected parent (or root if null)
+          const newId = `task-${Date.now()}`;
+          await getDataService().createTask({
+            id: newId,
+            type: "task",
+            title: labelTrimmed,
+            parentId: input.parentTaskId ?? null,
+            order: 0,
+            status: "DONE",
+            isExpanded: false,
+            isDeleted: false,
+            completedAt,
+            createdAt: startedAt,
+            updatedAt: completedAt,
+            workDurationMinutes: Math.round(elapsedSeconds / 60),
+          });
+        } else if (input.role === "event" && labelTrimmed) {
+          // New completed schedule_item with started/completed timestamps
+          const dateKey = startedAt.substring(0, 10);
+          const startTime = startedAt.substring(11, 16);
+          const endTime = completedAt.substring(11, 16);
+          const newId = `event-${Date.now()}`;
+          const created = await getDataService().createScheduleItem(
+            newId,
+            dateKey,
+            labelTrimmed,
+            startTime,
+            endTime,
+            undefined,
+            undefined,
+            undefined,
+            false,
+          );
+          if (input.calendarTagId != null && created?.id) {
+            await getDataService().setTagForEntity(
+              "schedule_item",
+              created.id,
+              input.calendarTagId,
+            );
+          }
+          // Mark as completed since the time has already passed
+          if (created?.id) {
+            await getDataService().updateScheduleItem(created.id, {
+              completed: true,
+              completedAt,
+            });
+          }
+        }
+      } catch (e) {
+        handleError(e, "errors.timer.saveFreeSessionFailed");
+      } finally {
+        currentSessionIdRef.current = null;
+        freeStartedAtRef.current = null;
+        setPendingFreeSave(null);
+      }
+    },
+    [pendingFreeSave, handleError],
+  );
+
+  const discardFreeSession = useCallback(async () => {
+    if (!pendingFreeSave) return;
+    const { sessionId, elapsedSeconds } = pendingFreeSave;
+    try {
+      await getDataService().endTimerSession(sessionId, elapsedSeconds, false);
+    } catch (e) {
+      handleError(e, "errors.timer.sessionEndFailed");
+    } finally {
+      currentSessionIdRef.current = null;
+      freeStartedAtRef.current = null;
+      setPendingFreeSave(null);
+    }
+  }, [pendingFreeSave, handleError]);
+
   const startRoutineTimer = useCallback(
     (routineId: string, title: string, durationMinutes?: number) => {
       clearTimer();
@@ -453,6 +586,10 @@ export function TimerProvider({ children }: { children: ReactNode }) {
       adjustRemainingSeconds,
       activeRoutineId,
       startRoutineTimer,
+      startFreeSession,
+      pendingFreeSave,
+      saveFreeSession,
+      discardFreeSession,
     }),
     [
       state.sessionType,
@@ -491,6 +628,10 @@ export function TimerProvider({ children }: { children: ReactNode }) {
       adjustRemainingSeconds,
       activeRoutineId,
       startRoutineTimer,
+      startFreeSession,
+      pendingFreeSave,
+      saveFreeSession,
+      discardFreeSession,
     ],
   );
 

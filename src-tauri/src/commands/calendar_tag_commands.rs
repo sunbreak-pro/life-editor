@@ -51,6 +51,20 @@ pub fn db_calendar_tags_fetch_all_assignments(
         .and_then(|v| serde_json::to_value(v).map_err(|e| e.to_string()))
 }
 
+/// New 1:1 API. Pass tag_id = null to clear.
+#[tauri::command]
+pub fn db_calendar_tags_set_tag_for_entity(
+    state: State<'_, DbState>,
+    entity_type: String,
+    entity_id: String,
+    tag_id: Option<i64>,
+) -> Result<(), String> {
+    let conn = state.conn.lock().map_err(|e| e.to_string())?;
+    calendar_tag_repository::set_tag_for_entity(&conn, &entity_type, &entity_id, tag_id)
+        .map_err(|e| e.to_string())
+}
+
+/// Backwards-compat: collapse list to first element (CalendarTags are now 1:1).
 #[tauri::command]
 pub fn db_calendar_tags_set_tags_for_schedule_item(
     state: State<'_, DbState>,

@@ -1,4 +1,4 @@
-export type SessionType = "WORK" | "BREAK" | "LONG_BREAK";
+export type SessionType = "WORK" | "BREAK" | "LONG_BREAK" | "FREE";
 
 export interface TimerSettings {
   id: number;
@@ -19,6 +19,7 @@ export interface TimerSession {
   completedAt: Date | null;
   duration: number | null;
   completed: boolean;
+  label: string | null;
 }
 
 export interface PomodoroPreset {

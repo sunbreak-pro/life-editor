@@ -13,7 +13,10 @@ import { MonthGroup } from "../shared/MonthGroup";
 import { getContentPreview } from "../../utils/tiptapText";
 import { SearchBar, type SearchSuggestion } from "../shared/SearchBar";
 import { CollapsibleSection } from "../shared/CollapsibleSection";
-import { TagFilterOverlay } from "../shared/TagFilterOverlay";
+import {
+  TagFilterOverlay,
+  UNTAGGED_FILTER_ID,
+} from "../shared/TagFilterOverlay";
 import { ItemEditPopover } from "./Connect/ItemEditPopover";
 import { TemplateManager } from "./TemplateManager";
 
@@ -156,7 +159,10 @@ export function DailySidebar({
     return map;
   }, [assignments, tags]);
 
-  const pinnedMemos = useMemo(() => dailies.filter((m) => m.isPinned), [dailies]);
+  const pinnedMemos = useMemo(
+    () => dailies.filter((m) => m.isPinned),
+    [dailies],
+  );
 
   const filteredMemos = useMemo(() => {
     if (!isSearching) return dailies;
@@ -266,10 +272,17 @@ export function DailySidebar({
 
   const tagFilteredMemos = useMemo(() => {
     if (!hasTagFilter) return dailies;
+    const wantsUntagged = filterTagIds.has(UNTAGGED_FILTER_ID);
+    const realTagIds = [...filterTagIds].filter(
+      (id) => id !== UNTAGGED_FILTER_ID,
+    );
     return dailies.filter((m) => {
       const memoTagSet = entityTagIds.get(m.id);
+      const isUntagged = !memoTagSet || memoTagSet.size === 0;
+      if (wantsUntagged && isUntagged) return true;
+      if (realTagIds.length === 0) return false;
       if (!memoTagSet) return false;
-      return [...filterTagIds].some((tid) => memoTagSet.has(tid));
+      return realTagIds.some((tid) => memoTagSet.has(tid));
     });
   }, [dailies, hasTagFilter, filterTagIds, entityTagIds]);
 
@@ -377,6 +390,7 @@ export function DailySidebar({
                     selectedTagIds={Array.from(filterTagIds)}
                     onToggle={toggleTagFilter}
                     onClose={() => setShowFilter(false)}
+                    showUntaggedOption
                   />
                 </div>
               )}

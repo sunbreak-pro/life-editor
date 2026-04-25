@@ -2036,6 +2036,109 @@ fn run_incremental_migrations(conn: &Connection, current_version: i32) -> rusqli
         conn.pragma_update(None, "user_version", &64i32)?;
     }
 
+    // V65: CalendarTags single-tag + Task support
+    //  - calendar_tag_definitions: add created_at / updated_at / version / is_deleted / deleted_at for Cloud Sync
+    //  - calendar_tag_assignments: rebuild with (entity_type, entity_id, tag_id) + UNIQUE(entity_type, entity_id) for 1:1
+    //  - Migrate existing rows: pick smallest tag_id per schedule_item_id (collapse multi-tag → single-tag)
+    if current_version < 65 {
+        eprintln!("V65: CalendarTags single-tag + Task support");
+
+        // 1) Augment calendar_tag_definitions for Cloud Sync
+        if !has_column(conn, "calendar_tag_definitions", "created_at") {
+            exec_ignore(
+                conn,
+                "ALTER TABLE calendar_tag_definitions ADD COLUMN created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%S.000Z', 'now'))",
+            );
+        }
+        if !has_column(conn, "calendar_tag_definitions", "updated_at") {
+            exec_ignore(
+                conn,
+                "ALTER TABLE calendar_tag_definitions ADD COLUMN updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%S.000Z', 'now'))",
+            );
+        }
+        if !has_column(conn, "calendar_tag_definitions", "version") {
+            exec_ignore(
+                conn,
+                "ALTER TABLE calendar_tag_definitions ADD COLUMN version INTEGER NOT NULL DEFAULT 1",
+            );
+        }
+        if !has_column(conn, "calendar_tag_definitions", "is_deleted") {
+            exec_ignore(
+                conn,
+                "ALTER TABLE calendar_tag_definitions ADD COLUMN is_deleted INTEGER NOT NULL DEFAULT 0",
+            );
+        }
+        if !has_column(conn, "calendar_tag_definitions", "deleted_at") {
+            exec_ignore(
+                conn,
+                "ALTER TABLE calendar_tag_definitions ADD COLUMN deleted_at TEXT",
+            );
+        }
+
+        // 2) Rebuild calendar_tag_assignments with new shape
+        //    Old PK: (schedule_item_id, tag_id) — allows multiple tags per item
+        //    New shape: id PK + entity_type + entity_id + tag_id, UNIQUE(entity_type, entity_id)
+        let needs_rebuild = !has_column(conn, "calendar_tag_assignments", "entity_type");
+        if needs_rebuild {
+            exec_ignore(
+                conn,
+                "CREATE TABLE IF NOT EXISTS calendar_tag_assignments_v2 (
+                    id TEXT PRIMARY KEY,
+                    entity_type TEXT NOT NULL CHECK(entity_type IN ('task','schedule_item')),
+                    entity_id TEXT NOT NULL,
+                    tag_id INTEGER NOT NULL REFERENCES calendar_tag_definitions(id) ON DELETE CASCADE,
+                    created_at TEXT NOT NULL,
+                    updated_at TEXT NOT NULL,
+                    UNIQUE(entity_type, entity_id)
+                );",
+            );
+
+            // Collapse multi-tag rows: pick MIN(tag_id) per schedule_item_id
+            // ID format: 'cta-' || hex(randomblob(8)) (16 hex chars) — collision-resistant within migration scope
+            if has_table(conn, "calendar_tag_assignments") {
+                exec_ignore(
+                    conn,
+                    "INSERT OR IGNORE INTO calendar_tag_assignments_v2
+                        (id, entity_type, entity_id, tag_id, created_at, updated_at)
+                     SELECT
+                        'cta-' || lower(hex(randomblob(8))),
+                        'schedule_item',
+                        schedule_item_id,
+                        MIN(tag_id),
+                        strftime('%Y-%m-%dT%H:%M:%S.000Z', 'now'),
+                        strftime('%Y-%m-%dT%H:%M:%S.000Z', 'now')
+                     FROM calendar_tag_assignments
+                     GROUP BY schedule_item_id;",
+                );
+                exec_ignore(conn, "DROP TABLE calendar_tag_assignments;");
+            }
+            exec_ignore(
+                conn,
+                "ALTER TABLE calendar_tag_assignments_v2 RENAME TO calendar_tag_assignments;",
+            );
+
+            exec_ignore(
+                conn,
+                "CREATE INDEX IF NOT EXISTS idx_cta_entity ON calendar_tag_assignments(entity_type, entity_id);",
+            );
+            exec_ignore(
+                conn,
+                "CREATE INDEX IF NOT EXISTS idx_cta_tag ON calendar_tag_assignments(tag_id);",
+            );
+        }
+
+        conn.pragma_update(None, "user_version", &65i32)?;
+    }
+
+    // V66: timer_sessions.label for Free-mode session naming on save
+    if current_version < 66 {
+        eprintln!("V66: timer_sessions.label for Free-mode session naming");
+        if !has_column(conn, "timer_sessions", "label") {
+            exec_ignore(conn, "ALTER TABLE timer_sessions ADD COLUMN label TEXT");
+        }
+        conn.pragma_update(None, "user_version", &66i32)?;
+    }
+
     // Defensive: ensure schedule_items.template_id exists. Fresh DBs created
     // before the initial schema was fixed (v59-) lack this column, which
     // breaks Cloud Sync when pulling data from other devices.

@@ -34,7 +34,8 @@ export type TimerAction =
   | { type: "SET_CONFIG"; config: Partial<TimerConfig> }
   | { type: "OPEN_FOR_TASK"; task: ActiveTask; durationSeconds: number }
   | { type: "START_FOR_TASK"; task: ActiveTask; durationSeconds: number }
-  | { type: "SET_REMAINING"; seconds: number };
+  | { type: "SET_REMAINING"; seconds: number }
+  | { type: "START_FREE" };
 
 export function getDuration(
   sessionType: SessionType,
@@ -47,6 +48,9 @@ export function getDuration(
       return config.breakDuration;
     case "LONG_BREAK":
       return config.longBreakDuration;
+    case "FREE":
+      // Free mode is unbounded; remainingSeconds is reused as elapsed counter.
+      return 0;
   }
 }
 
@@ -77,6 +81,10 @@ export function timerReducer(
 ): TimerState {
   switch (action.type) {
     case "TICK": {
+      // Free mode: count up indefinitely. remainingSeconds doubles as elapsed counter.
+      if (state.sessionType === "FREE") {
+        return { ...state, remainingSeconds: state.remainingSeconds + 1 };
+      }
       if (state.remainingSeconds <= 1) {
         // Timer reached zero — handled externally via ADVANCE_SESSION
         return { ...state, remainingSeconds: 0 };
@@ -204,6 +212,16 @@ export function timerReducer(
 
     case "SET_REMAINING":
       return { ...state, remainingSeconds: action.seconds };
+
+    case "START_FREE":
+      return {
+        ...state,
+        isRunning: true,
+        sessionType: "FREE",
+        remainingSeconds: 0,
+        showCompletionModal: false,
+        completedSessionType: null,
+      };
 
     default:
       return state;

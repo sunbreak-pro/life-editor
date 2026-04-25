@@ -47,6 +47,17 @@ export interface TimerContextValue {
     title: string,
     durationMinutes?: number,
   ) => void;
+  // Free mode (unbounded count-up stopwatch)
+  startFreeSession: () => void;
+  /** Pending save info populated when a Free session is paused. Cleared by saveFreeSession/discardFreeSession. */
+  pendingFreeSave: { sessionId: number; elapsedSeconds: number } | null;
+  saveFreeSession: (input: {
+    label: string;
+    role: "task" | "event" | null;
+    parentTaskId?: string | null;
+    calendarTagId?: number | null;
+  }) => Promise<void>;
+  discardFreeSession: () => Promise<void>;
 }
 
 export const TimerContext = createContext<TimerContextValue | null>(null);

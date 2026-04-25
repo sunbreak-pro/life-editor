@@ -123,6 +123,19 @@ export class TauriDataService implements DataService {
   ): Promise<TimerSession> {
     return tauriInvoke("db_timer_end_session", { id, duration, completed });
   }
+  endTimerSessionWithLabel(
+    id: number,
+    duration: number,
+    completed: boolean,
+    label: string | null,
+  ): Promise<TimerSession> {
+    return tauriInvoke("db_timer_end_session_with_label", {
+      id,
+      duration,
+      completed,
+      label,
+    });
+  }
   fetchTimerSessions(): Promise<TimerSession[]> {
     return tauriInvoke("db_timer_fetch_sessions");
   }
@@ -452,9 +465,24 @@ export class TauriDataService implements DataService {
     return tauriInvoke("db_calendar_tags_delete", { id });
   }
   fetchAllCalendarTagAssignments(): Promise<
-    Array<{ scheduleItemId: string; tagId: number }>
+    Array<{
+      entityType: "task" | "schedule_item";
+      entityId: string;
+      tagId: number;
+    }>
   > {
     return tauriInvoke("db_calendar_tags_fetch_all_assignments");
+  }
+  setTagForEntity(
+    entityType: "task" | "schedule_item",
+    entityId: string,
+    tagId: number | null,
+  ): Promise<void> {
+    return tauriInvoke("db_calendar_tags_set_tag_for_entity", {
+      entityType,
+      entityId,
+      tagId,
+    });
   }
   setTagsForScheduleItem(
     scheduleItemId: string,

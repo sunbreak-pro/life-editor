@@ -128,6 +128,7 @@ pub fn run() {
             commands::timer_commands::db_timer_update_settings,
             commands::timer_commands::db_timer_start_session,
             commands::timer_commands::db_timer_end_session,
+            commands::timer_commands::db_timer_end_session_with_label,
             commands::timer_commands::db_timer_fetch_sessions,
             commands::timer_commands::db_timer_fetch_sessions_by_task_id,
             // Pomodoro Presets
@@ -208,6 +209,7 @@ pub fn run() {
             commands::calendar_tag_commands::db_calendar_tags_delete,
             commands::calendar_tag_commands::db_calendar_tags_fetch_all_assignments,
             commands::calendar_tag_commands::db_calendar_tags_set_tags_for_schedule_item,
+            commands::calendar_tag_commands::db_calendar_tags_set_tag_for_entity,
             // Routines
             commands::routine_commands::db_routines_fetch_all,
             commands::routine_commands::db_routines_create,

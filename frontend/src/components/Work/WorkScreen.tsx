@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState, useContext } from "react";
 import { createPortal } from "react-dom";
-import { CheckCircle2, Music, SkipForward, Timer } from "lucide-react";
+import { CheckCircle2, Music, Play, SkipForward, Timer } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useTimerContext } from "../../hooks/useTimerContext";
 
@@ -13,6 +13,8 @@ import { TimerCircularProgress } from "./TimerCircularProgress";
 import { TaskSelector } from "./TaskSelector";
 import { TodaySessionSummary } from "./TodaySessionSummary";
 import { WorkMusicContent } from "./WorkMusicContent";
+import { FreeSessionSaveDialog } from "./FreeSessionSaveDialog";
+import { isFreeSessionSaveDialogEnabled } from "../../utils/pomodoroSettings";
 
 import { ConfirmDialog } from "../shared/ConfirmDialog";
 import { WorkSidebarInfo } from "./WorkSidebarInfo";
@@ -95,6 +97,14 @@ export function WorkScreen({ onCompleteTask }: WorkScreenProps) {
     setConfirmAction(null);
   }, [onCompleteTask]);
 
+  // Auto-discard when the user has opted out of the save dialog
+  useEffect(() => {
+    if (!timer.pendingFreeSave) return;
+    if (!isFreeSessionSaveDialogEnabled()) {
+      timer.discardFreeSession();
+    }
+  }, [timer.pendingFreeSave, timer.discardFreeSession, timer]);
+
   return (
     <>
       {rightSidebarTarget &&
@@ -116,6 +126,15 @@ export function WorkScreen({ onCompleteTask }: WorkScreenProps) {
               <div className="flex items-center justify-between py-3 border-b border-notion-border">
                 <TaskSelector currentTitle={title} />
                 <div className="flex items-center gap-2">
+                  {!timer.isRunning && timer.sessionType !== "FREE" && (
+                    <button
+                      onClick={timer.startFreeSession}
+                      className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-notion-accent hover:bg-notion-accent/10 rounded-lg transition-colors"
+                    >
+                      <Play size={14} />
+                      {t("work.startFreeSession", "Free session")}
+                    </button>
+                  )}
                   {timer.sessionType === "WORK" && (
                     <button
                       onClick={handleCompleteSession}
@@ -189,6 +208,15 @@ export function WorkScreen({ onCompleteTask }: WorkScreenProps) {
           onConfirm={handleConfirmTask}
           onCancel={() => setConfirmAction(null)}
           variant="green"
+        />
+      )}
+
+      {/* Free session save dialog */}
+      {timer.pendingFreeSave && isFreeSessionSaveDialogEnabled() && (
+        <FreeSessionSaveDialog
+          elapsedSeconds={timer.pendingFreeSave.elapsedSeconds}
+          onSave={timer.saveFreeSession}
+          onDiscard={timer.discardFreeSession}
         />
       )}
     </>

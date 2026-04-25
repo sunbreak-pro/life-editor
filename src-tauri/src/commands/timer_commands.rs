@@ -41,6 +41,19 @@ pub fn db_timer_end_session(
 }
 
 #[tauri::command]
+pub fn db_timer_end_session_with_label(
+    state: State<'_, DbState>,
+    id: i64,
+    duration: i64,
+    completed: bool,
+    label: Option<String>,
+) -> Result<TimerSession, String> {
+    let conn = state.conn.lock().map_err(|e| e.to_string())?;
+    timer_repository::end_session_with_label(&conn, id, duration, completed, label.as_deref())
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
 pub fn db_timer_fetch_sessions(state: State<'_, DbState>) -> Result<Vec<TimerSession>, String> {
     let conn = state.conn.lock().map_err(|e| e.to_string())?;
     timer_repository::fetch_sessions(&conn).map_err(|e| e.to_string())

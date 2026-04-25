@@ -25,6 +25,7 @@ pub struct TimerSession {
     pub completed_at: Option<String>,
     pub duration: Option<i64>,
     pub completed: bool,
+    pub label: Option<String>,
 }
 
 fn row_to_settings(row: &rusqlite::Row) -> rusqlite::Result<TimerSettings> {
@@ -49,7 +50,25 @@ fn row_to_session(row: &rusqlite::Row) -> rusqlite::Result<TimerSession> {
         completed_at: row.get("completed_at")?,
         duration: row.get("duration")?,
         completed: row.get::<_, i64>("completed")? != 0,
+        label: row.get::<_, Option<String>>("label").unwrap_or(None),
     })
+}
+
+pub fn end_session_with_label(
+    conn: &Connection,
+    id: i64,
+    duration: i64,
+    completed: bool,
+    label: Option<&str>,
+) -> rusqlite::Result<TimerSession> {
+    conn.execute(
+        "UPDATE timer_sessions \
+         SET completed_at = datetime('now'), duration = ?1, completed = ?2, label = ?3 \
+         WHERE id = ?4",
+        params![duration, completed as i64, label, id],
+    )?;
+    let mut stmt = conn.prepare("SELECT * FROM timer_sessions WHERE id = ?1")?;
+    stmt.query_row([id], |row| row_to_session(row))
 }
 
 pub fn fetch_settings(conn: &Connection) -> rusqlite::Result<TimerSettings> {

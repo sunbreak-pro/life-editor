@@ -3,8 +3,14 @@ import { getDataService } from "../services";
 import { logServiceError } from "../utils/logError";
 import { useUndoRedo } from "../components/shared/UndoRedo";
 
+export type CalendarTagEntityType = "task" | "schedule_item";
+
+const entityKey = (type: CalendarTagEntityType, id: string): string =>
+  `${type}:${id}`;
+
 export function useCalendarTagAssignments() {
-  const [assignmentsMap, setAssignmentsMap] = useState<Map<string, number[]>>(
+  // Map<entityKey, tagId>. 1:1: each entity has at most one tag.
+  const [assignmentsMap, setAssignmentsMap] = useState<Map<string, number>>(
     new Map(),
   );
   const [isLoading, setIsLoading] = useState(true);
@@ -16,11 +22,9 @@ export function useCalendarTagAssignments() {
       try {
         const data = await getDataService().fetchAllCalendarTagAssignments();
         if (!cancelled) {
-          const map = new Map<string, number[]>();
-          for (const { scheduleItemId, tagId } of data) {
-            const existing = map.get(scheduleItemId) ?? [];
-            existing.push(tagId);
-            map.set(scheduleItemId, existing);
+          const map = new Map<string, number>();
+          for (const { entityType, entityId, tagId } of data) {
+            map.set(entityKey(entityType, entityId), tagId);
           }
           setAssignmentsMap(map);
           setIsLoading(false);
@@ -35,66 +39,58 @@ export function useCalendarTagAssignments() {
     };
   }, []);
 
-  const setTagsForScheduleItem = useCallback(
-    (scheduleItemId: string, tagIds: number[]) => {
-      const prevTagIds = assignmentsMap.get(scheduleItemId) ?? [];
+  const setTagForEntity = useCallback(
+    (
+      entityType: CalendarTagEntityType,
+      entityId: string,
+      tagId: number | null,
+    ) => {
+      const key = entityKey(entityType, entityId);
+      const prevTagId = assignmentsMap.get(key) ?? null;
 
-      setAssignmentsMap((prev) => {
-        const next = new Map(prev);
-        if (tagIds.length === 0) {
-          next.delete(scheduleItemId);
-        } else {
-          next.set(scheduleItemId, tagIds);
-        }
-        return next;
-      });
+      if (prevTagId === tagId) return;
+
+      const applyState = (next: number | null) => {
+        setAssignmentsMap((prev) => {
+          const map = new Map(prev);
+          if (next === null) map.delete(key);
+          else map.set(key, next);
+          return map;
+        });
+      };
+
+      applyState(tagId);
       getDataService()
-        .setTagsForScheduleItem(scheduleItemId, tagIds)
+        .setTagForEntity(entityType, entityId, tagId)
         .catch((e) => {
-          logServiceError("CalendarTagAssignments", "setTags", e);
-          setAssignmentsMap((prev) => {
-            const rollback = new Map(prev);
-            if (prevTagIds.length === 0) {
-              rollback.delete(scheduleItemId);
-            } else {
-              rollback.set(scheduleItemId, prevTagIds);
-            }
-            return rollback;
-          });
+          logServiceError("CalendarTagAssignments", "setTagForEntity", e);
+          applyState(prevTagId);
         });
 
       push("calendar", {
-        label: "setTagsForScheduleItem",
+        label: "setTagForEntity",
         undo: () => {
-          setAssignmentsMap((prev) => {
-            const next = new Map(prev);
-            if (prevTagIds.length === 0) {
-              next.delete(scheduleItemId);
-            } else {
-              next.set(scheduleItemId, prevTagIds);
-            }
-            return next;
-          });
+          applyState(prevTagId);
           getDataService()
-            .setTagsForScheduleItem(scheduleItemId, prevTagIds)
+            .setTagForEntity(entityType, entityId, prevTagId)
             .catch((e) =>
-              logServiceError("CalendarTagAssignments", "undoSetTags", e),
+              logServiceError(
+                "CalendarTagAssignments",
+                "undoSetTagForEntity",
+                e,
+              ),
             );
         },
         redo: () => {
-          setAssignmentsMap((prev) => {
-            const next = new Map(prev);
-            if (tagIds.length === 0) {
-              next.delete(scheduleItemId);
-            } else {
-              next.set(scheduleItemId, tagIds);
-            }
-            return next;
-          });
+          applyState(tagId);
           getDataService()
-            .setTagsForScheduleItem(scheduleItemId, tagIds)
+            .setTagForEntity(entityType, entityId, tagId)
             .catch((e) =>
-              logServiceError("CalendarTagAssignments", "redoSetTags", e),
+              logServiceError(
+                "CalendarTagAssignments",
+                "redoSetTagForEntity",
+                e,
+              ),
             );
         },
       });
@@ -102,9 +98,28 @@ export function useCalendarTagAssignments() {
     [assignmentsMap, push],
   );
 
+  const getTagForEntity = useCallback(
+    (entityType: CalendarTagEntityType, entityId: string): number | null => {
+      return assignmentsMap.get(entityKey(entityType, entityId)) ?? null;
+    },
+    [assignmentsMap],
+  );
+
+  // Backwards-compat helpers (existing UI code calls these)
+  const setTagsForScheduleItem = useCallback(
+    (scheduleItemId: string, tagIds: number[]) => {
+      const next = tagIds[0] ?? null;
+      setTagForEntity("schedule_item", scheduleItemId, next);
+    },
+    [setTagForEntity],
+  );
+
   const getTagIdsForScheduleItem = useCallback(
     (scheduleItemId: string): number[] => {
-      return assignmentsMap.get(scheduleItemId) ?? [];
+      const tagId = assignmentsMap.get(
+        entityKey("schedule_item", scheduleItemId),
+      );
+      return tagId == null ? [] : [tagId];
     },
     [assignmentsMap],
   );
@@ -113,12 +128,16 @@ export function useCalendarTagAssignments() {
     () => ({
       calendarTagAssignments: assignmentsMap,
       isCalendarTagAssignmentsLoading: isLoading,
+      setTagForEntity,
+      getTagForEntity,
       setTagsForScheduleItem,
       getTagIdsForScheduleItem,
     }),
     [
       assignmentsMap,
       isLoading,
+      setTagForEntity,
+      getTagForEntity,
       setTagsForScheduleItem,
       getTagIdsForScheduleItem,
     ],

@@ -1,7 +1,10 @@
 import { useState } from "react";
-import { Search, X, Check } from "lucide-react";
+import { Search, X, Check, Slash } from "lucide-react";
 import type { WikiTag } from "../../types/wikiTag";
 import type { FilterItem } from "../../types/filterItem";
+
+/** Sentinel id used by the "(Untagged)" filter entry. Caller treats it as a special filter. */
+export const UNTAGGED_FILTER_ID = "__untagged__";
 
 interface TagFilterOverlayProps {
   tags: WikiTag[];
@@ -9,6 +12,8 @@ interface TagFilterOverlayProps {
   onToggle: (tagId: string) => void;
   onClose: () => void;
   items?: FilterItem[];
+  /** When true, renders an "(Untagged)" entry at the top of the tag list. Caller filters items with no tag assignments when this id is selected. */
+  showUntaggedOption?: boolean;
 }
 
 export function TagFilterOverlay({
@@ -17,6 +22,7 @@ export function TagFilterOverlay({
   onToggle,
   onClose,
   items,
+  showUntaggedOption = false,
 }: TagFilterOverlayProps) {
   const [search, setSearch] = useState("");
 
@@ -61,6 +67,26 @@ export function TagFilterOverlay({
         </button>
       </div>
       <div className="max-h-48 overflow-y-auto space-y-0.5">
+        {showUntaggedOption &&
+          !useItems &&
+          (search.trim() === "" ||
+            "untagged".includes(search.toLowerCase())) && (
+            <button
+              onClick={() => onToggle(UNTAGGED_FILTER_ID)}
+              className="w-full flex items-center gap-2 px-2 py-1 rounded hover:bg-notion-hover transition-colors text-left"
+            >
+              <Slash
+                size={11}
+                className="shrink-0 text-notion-text-secondary"
+              />
+              <span className="flex-1 text-xs text-notion-text-secondary italic truncate">
+                (Untagged)
+              </span>
+              {selectedTagIds.includes(UNTAGGED_FILTER_ID) && (
+                <Check size={12} className="text-notion-accent shrink-0" />
+              )}
+            </button>
+          )}
         {useItems &&
           filteredItems!.map((item) => {
             const isSelected = selectedTagIds.includes(item.id);

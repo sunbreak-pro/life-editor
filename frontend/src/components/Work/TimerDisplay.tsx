@@ -19,6 +19,7 @@ const SESSION_LABEL_KEYS: Record<SessionType, string> = {
   WORK: "timer.work",
   BREAK: "timer.rest",
   LONG_BREAK: "timer.longRest",
+  FREE: "timer.free",
 };
 
 export function TimerDisplay({
@@ -50,7 +51,10 @@ export function TimerDisplay({
             disabled={remainingSeconds <= 5 * 60}
             className="px-2 py-1 text-xs rounded-md text-notion-text-secondary hover:text-notion-text hover:bg-notion-hover transition-colors disabled:opacity-30"
           >
-            <span className="flex items-center gap-0.5"><Minus size={12} />5m</span>
+            <span className="flex items-center gap-0.5">
+              <Minus size={12} />
+              5m
+            </span>
           </button>
         )}
 
@@ -63,7 +67,10 @@ export function TimerDisplay({
             onClick={() => onAdjustTime(5 * 60)}
             className="px-2 py-1 text-xs rounded-md text-notion-text-secondary hover:text-notion-text hover:bg-notion-hover transition-colors"
           >
-            <span className="flex items-center gap-0.5"><Plus size={12} />5m</span>
+            <span className="flex items-center gap-0.5">
+              <Plus size={12} />
+              5m
+            </span>
           </button>
         )}
       </div>
@@ -94,17 +101,20 @@ export function TimerDisplay({
       </div>
 
       <div className="flex items-center gap-2 text-sm text-notion-text-secondary">
-        <span className="tabular-nums">{currentSession}/{sessionsBeforeLongBreak}</span>
+        <span className="tabular-nums">
+          {currentSession}/{sessionsBeforeLongBreak}
+        </span>
         <div className="flex gap-1">
           {Array.from({ length: sessionsBeforeLongBreak }, (_, i) => (
             <span
               key={i}
               className={`w-2 h-2 rounded-full ${
-                i < (completedSessions % sessionsBeforeLongBreak)
-                  ? 'bg-notion-accent'
-                  : i === (completedSessions % sessionsBeforeLongBreak) && sessionType === 'WORK'
-                    ? 'bg-notion-accent/40'
-                    : 'bg-notion-border'
+                i < completedSessions % sessionsBeforeLongBreak
+                  ? "bg-notion-accent"
+                  : i === completedSessions % sessionsBeforeLongBreak &&
+                      sessionType === "WORK"
+                    ? "bg-notion-accent/40"
+                    : "bg-notion-border"
               }`}
             />
           ))}

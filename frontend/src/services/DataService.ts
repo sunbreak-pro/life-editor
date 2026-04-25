@@ -91,6 +91,12 @@ export interface DataService {
     duration: number,
     completed: boolean,
   ): Promise<TimerSession>;
+  endTimerSessionWithLabel(
+    id: number,
+    duration: number,
+    completed: boolean,
+    label: string | null,
+  ): Promise<TimerSession>;
   fetchTimerSessions(): Promise<TimerSession[]>;
   fetchSessionsByTaskId(taskId: string): Promise<TimerSession[]>;
 
@@ -237,8 +243,19 @@ export interface DataService {
   ): Promise<CalendarTag>;
   deleteCalendarTag(id: number): Promise<void>;
   fetchAllCalendarTagAssignments(): Promise<
-    Array<{ scheduleItemId: string; tagId: number }>
+    Array<{
+      entityType: "task" | "schedule_item";
+      entityId: string;
+      tagId: number;
+    }>
   >;
+  /** New 1:1 API. Pass `tagId = null` to clear. */
+  setTagForEntity(
+    entityType: "task" | "schedule_item",
+    entityId: string,
+    tagId: number | null,
+  ): Promise<void>;
+  /** @deprecated Use `setTagForEntity`. Multi-tag is no longer supported (CalendarTags are 1:1). */
   setTagsForScheduleItem(
     scheduleItemId: string,
     tagIds: number[],

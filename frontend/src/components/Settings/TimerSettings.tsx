@@ -1,5 +1,12 @@
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useTimerContext } from "../../hooks/useTimerContext";
+import {
+  isPomodoroEnabled,
+  setPomodoroEnabled,
+  isFreeSessionSaveDialogEnabled,
+  setFreeSessionSaveDialogEnabled,
+} from "../../utils/pomodoroSettings";
 
 export function TimerSettings() {
   const { t } = useTranslation();
@@ -19,6 +26,23 @@ export function TimerSettings() {
     setTargetSessions,
   } = useTimerContext();
 
+  const [pomodoroEnabled, setPomodoroEnabledState] = useState(() =>
+    isPomodoroEnabled(),
+  );
+  const [freeSaveDialogEnabled, setFreeSaveDialogEnabledState] = useState(() =>
+    isFreeSessionSaveDialogEnabled(),
+  );
+
+  const handleTogglePomodoro = (enabled: boolean) => {
+    setPomodoroEnabledState(enabled);
+    setPomodoroEnabled(enabled);
+  };
+
+  const handleToggleSaveDialog = (enabled: boolean) => {
+    setFreeSaveDialogEnabledState(enabled);
+    setFreeSessionSaveDialogEnabled(enabled);
+  };
+
   return (
     <div className="space-y-6" data-section-id="timer">
       <h3 className="text-lg font-semibold text-notion-text">
@@ -32,6 +56,51 @@ export function TimerSettings() {
           </p>
         </div>
       )}
+
+      {/* Pomodoro on/off */}
+      <label className="flex items-center justify-between gap-4 cursor-pointer">
+        <div>
+          <p className="text-sm font-medium text-notion-text">
+            {t("timerSettings.pomodoroEnabled", "Enable Pomodoro")}
+          </p>
+          <p className="text-xs text-notion-text-secondary mt-0.5">
+            {t(
+              "timerSettings.pomodoroEnabledDesc",
+              "When off, only the free stopwatch session is available.",
+            )}
+          </p>
+        </div>
+        <input
+          type="checkbox"
+          checked={pomodoroEnabled}
+          onChange={(e) => handleTogglePomodoro(e.target.checked)}
+          className="cursor-pointer"
+        />
+      </label>
+
+      {/* Free session save dialog on/off */}
+      <label className="flex items-center justify-between gap-4 cursor-pointer">
+        <div>
+          <p className="text-sm font-medium text-notion-text">
+            {t(
+              "timerSettings.freeSaveDialogEnabled",
+              "Show save dialog after free session",
+            )}
+          </p>
+          <p className="text-xs text-notion-text-secondary mt-0.5">
+            {t(
+              "timerSettings.freeSaveDialogEnabledDesc",
+              "Re-enable the dialog if you previously chose 'Don't show again'.",
+            )}
+          </p>
+        </div>
+        <input
+          type="checkbox"
+          checked={freeSaveDialogEnabled}
+          onChange={(e) => handleToggleSaveDialog(e.target.checked)}
+          className="cursor-pointer"
+        />
+      </label>
 
       <div className="space-y-5">
         {/* Work Duration */}
