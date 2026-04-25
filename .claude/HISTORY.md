@@ -1,5 +1,40 @@
 # HISTORY.md - 変更履歴
 
+### 2026-04-25 - Q2 機能パッチ Phase D 完了 + Phase A Cloud Sync 着地（Sidebar Links + CalendarTags D1 追従）
+
+#### 概要
+
+計画書 `.claude/2026-04-25-sidebar-tags-free-pomodoro.md` の最終 2 タスクを 1 セッションで実装し、計画書を archive へ移動。Phase A 残 (CalendarTags Cloud Sync) は D1 migration 0004 で `calendar_tag_definitions` を Cloud Sync 対応 (created_at/updated_at/version/is_deleted/server_updated_at) + `calendar_tag_assignments` を新スキーマに rebuild、`syncTables.ts` で `RELATION_TABLES_WITH_UPDATED_AT` に昇格 (entity_type が task/schedule_item の二択で単一親 JOIN が一意でないため`RELATION_PARENT_JOINS` から削除)。Phase D (Sidebar Links) は V67 migration で `sidebar_links` テーブル新設、Rust 側 repository / commands / system_commands 拡張 / lib.rs handler 登録、Frontend は Pattern A 4 ファイル + 2 component (Item / AddDialog) + LeftSidebar 統合 + BrowserSettings + MobileApp Drawer 統合 + Cloud Sync 7 接点 (sync_engine / VERSIONED_TABLES / D1 0005)。検証: cargo test 19/19 / vitest 257→264 (新規 useSidebarLinks.test.ts 7 test) / tsc -b + cargo check + cloud tsc 全 clean。**全 Phase 完了** (`COMPLETED 2026-04-25` で archive 移動)。
+
+#### 変更点
+
+- **Phase A 残 — CalendarTags Cloud Sync**:
+  - `cloud/db/migrations/0004_calendar_tags_v65.sql` 新規 — `calendar_tag_definitions` に `created_at/updated_at/version/is_deleted/deleted_at/server_updated_at` を nullable で ALTER ADD + UPDATE 経由 backfill (D1 の ALTER は constant default のみのため二段階)、`calendar_tag_assignments` を `_v2` 経由で `id PK / entity_type CHECK / entity_id / tag_id / updated_at / server_updated_at` に rebuild、旧 schedule_item 行は `MIN(tag_id)` で 1:1 collapse + `entity_type='schedule_item'` で migrate、INDEX 4 本再構築
+  - `cloud/src/config/syncTables.ts` — `calendar_tag_assignments` を `RELATION_TABLES_NO_UPDATED_AT` から `RELATION_TABLES_WITH_UPDATED_AT` に移し、`RELATION_PK_COLS` に `["id"]` 追加、`RELATION_PARENT_JOINS` から `calendar_tag_assignments` を削除 (entity_type が task/schedule_item の二択で単一親 JOIN が一意でない構造的事情を意図コメントで明記)
+- **Phase D — Sidebar Links + Browser/App settings**:
+  - **DB V67**: `src-tauri/src/db/migrations/v61_plus.rs` に `sidebar_links` テーブル新設 (id PK + kind('url'\|'app') CHECK + name + target + emoji + sort_order + version + LWW columns + 3 INDEX) / `migrations/mod.rs` の `LATEST_USER_VERSION = 67` にバンプ + `v67_creates_sidebar_links_table` 統合テスト追加
+  - **Rust**: `src-tauri/src/db/sidebar_link_repository.rs` 新規 (CRUD + reorder, 5 unit test) / `src-tauri/src/commands/sidebar_link_commands.rs` 新規 (5 IPC: fetch_all / create / update / delete / reorder) / `src-tauri/src/commands/system_commands.rs` 拡張で `BROWSER_CANDIDATES` const (Chrome/Safari/Firefox/Edge/Arc/Brave) + `system_list_browsers` (`/Applications/*.app` 存在チェックで installed のみ返却) + `system_list_applications` (`/Applications` 列挙、ソート済) + `system_open_url(url, browser_id?)` (browser_id 指定時は `open -a path url`、未指定/未インストール時は `open::that` で system default に fallback) + `system_open_app(app_path)` を追加。すべて `#[cfg(target_os = "macos")]` ガード、iOS では空配列 / `Err("Launching applications is only supported on macOS")` 返却 / `lib.rs` handler に 9 件登録 / `commands/mod.rs` + `db/mod.rs` に新 module 追加
+  - **Cloud Sync**: `src-tauri/src/sync/types.rs` の `SyncPayload` に `sidebar_links` field 追加、`src-tauri/src/sync/sync_engine.rs` の `VERSIONED_TABLES` に `("sidebar_links", "id")` 追加 + `collect_local_changes` に `query_changed("sidebar_links")` 行追加 + `get_payload_field` / `set_payload_field` の match arm 追加 / `cloud/db/migrations/0005_sidebar_links.sql` 新規 (server_updated_at + 4 INDEX) / `cloud/src/config/syncTables.ts` の `VERSIONED_TABLES` + `PRIMARY_KEYS` に `sidebar_links` 追加
+  - **Frontend types & DataService**: `frontend/src/types/sidebarLink.ts` 新規 (SidebarLink / SidebarLinkKind / SidebarLinkUpdate / BrowserInfo / InstalledApp) / `frontend/src/services/DataService.ts` interface に 9 メソッド追加 (fetchSidebarLinks / createSidebarLink / updateSidebarLink / deleteSidebarLink / reorderSidebarLinks / listBrowsers / listApplications / systemOpenUrl / systemOpenApp) / `frontend/src/services/TauriDataService.ts` に invoke ブリッジ実装
+  - **Frontend Context (Pattern A)**: `frontend/src/hooks/useSidebarLinks.ts` 新規 (DB-backed hook + browser preference 管理 + optimistic UI で createLink/updateLink/deleteLink/reorderLinks をロールバック付き実装、saved browser id が未インストール時に `null` fallback、setDefaultBrowserId は `defaultBrowser` キーに setAppSetting/removeAppSetting 経由永続化) / `SidebarLinksContextValue.ts` (createContext + UseSidebarLinksValue 型 alias) / `SidebarLinksContext.tsx` (Provider) / `useSidebarLinksContext.ts` (createContextHook) / `context/index.ts` に 3 export 追加
+  - **Components**: `frontend/src/components/Layout/SidebarLinkItem.tsx` 新規 (emoji or fallback Globe/AppWindow icon + name truncate + ホバー時 `⋯` 右クリックメニュー (edit/delete) + disabled prop で iOS グレーアウト対応) / `SidebarLinkAddDialog.tsx` 新規 (kind トグル + name input + URL/App 切替で動的 input、App モード時のみ `listApplications` を遅延 fetch + 検索フィルタ + 選択時に target+name 自動補完、emoji input 4 文字制限、createPortal で modal 描画) / `LeftSidebar.tsx` 統合 (mainMenuItems の下に「Links」セクション + ホバー時 `+` ボタン、空時は「No links yet」placeholder、dialog state は `mode='closed'|'add'|'edit'` で管理)
+  - **Settings**: `frontend/src/components/Settings/BrowserSettings.tsx` 新規 (検出ブラウザのみラジオ表示、「System default」も選択肢として並列、未検出時は説明 message のみ) / `SystemSettings.tsx` の Tray の下に `<BrowserSettings />` を組み込み
+  - **Mobile**: `frontend/src/MobileApp.tsx` の `MobileLeftDrawer` 直下に常時セクション追加 (`sidebarLinks.length > 0` の条件付き)、`SidebarLinkItem` を再利用 (`disabled={link.kind === 'app'}` で App はグレーアウト)、URL クリック時は `openLink` → `setDrawerOpen(false)`、App クリック時は Toast「iOS では起動できません」、edit/delete もデスクトップ案内の Toast を表示
+  - **Provider 階層**: `DesktopProviders` の `ShortcutConfigProvider` 内側に `SidebarLinksProvider` / `MobileProviders` の `WikiTagProvider` 内側に `SidebarLinksProvider` / `test/renderWithProviders.tsx` の `ShortcutConfigProvider` 内側にも追加 (Vitest が Provider を要求するため)
+  - **i18n**: `ja.json` / `en.json` 両方に `sidebarLinks.*` (sectionTitle / add / addTitle / editTitle / empty / kindLabel / kindUrl / kindApp / nameLabel / namePlaceholderUrl / namePlaceholderApp / urlLabel / appLabel / appSearchPlaceholder / appNoResults / emojiLabel / itemMenu / iosAppUnsupported / editOnDesktop) 19 keys + `settings.browser.*` (title / description / systemDefault / none) 4 keys を追加
+  - **CLAUDE.md 更新**: §2 機能差分表の Mobile 省略 Provider 行を「Audio / ScreenLock / FileExplorer / CalendarTags / ShortcutConfig（WikiTag / SidebarLinks は Mobile でも有効）」に修正 (旧記述では WikiTag が省略扱いだったが実コードと不整合) / §4.1 直近 migration 行に `V67(sidebar_links 新規)` 追記 + 現行 v66 → v67 / §4.1 Cloud D1 専用行に `2026-04-25 適用 migration 0004 で V65 に追従` + `2026-04-25 適用 migration 0005 で V67 に追従` を追加 / §6.2 Provider 順序を Sync 追加 + `→ SidebarLinks` を末尾に追記、Mobile 省略 Provider のリストも修正
+  - **新規テスト**: `frontend/src/hooks/useSidebarLinks.test.ts` 新規 (vi.mock で DataService をスタブ、7 cases: 初期化で links/browsers/saved browser を読み込む / saved browser が未インストール時に null fallback / createLink で state 追加 / openLink('url') が systemOpenUrl を defaultBrowserId 付きで呼ぶ / openLink('app') が systemOpenApp を呼ぶ / setDefaultBrowserId(null) で removeAppSetting / deleteLink がエラー時にロールバック)
+- **計画書 archive**: `.claude/2026-04-25-sidebar-tags-free-pomodoro.md` の Status を `COMPLETED 2026-04-25 (Phase A/B/C/D all done)` に更新、Phase D 全 18 step を `[x]` チェック、Status Updates に Phase A 残 + Phase D 完了行を追記してから `.claude/archive/` へ移動
+- **Verification**: `cd src-tauri && cargo test` 19 passed / 1 ignored / 0 failed (新規 v67_creates_sidebar_links_table + 5 sidebar_link_repository test 含む) / `cd frontend && npx vitest run` 264 passed / 0 failed (32 test files) / `cd frontend && npx tsc -b` 0 error / `cd cloud && npx tsc --noEmit` 0 error / `cd src-tauri && cargo check` clean / `npm run lint` 変更ファイル 0 error
+- **Rollout 順序 (重要)**: D1 migration を Worker deploy より先に適用すること。逆順だと旧 schema に新 Worker が当たり sidebar_links / calendar_tag_assignments delta が 500。`cd cloud && npx wrangler d1 execute life-editor-sync --remote --file=./db/migrations/0004_calendar_tags_v65.sql` → `--file=./db/migrations/0005_sidebar_links.sql` → `npm run deploy`
+
+#### 残課題
+
+- **deploy & 手動 UI 検証**: 上記 Rollout 順序の実行 / Desktop で V67 自動 apply 確認 / LeftSidebar の Links セクション表示 + `+` で URL/App リンク追加 + 既定ブラウザ切替で起動先が変わる / `/Applications/*.app` 一覧から登録できる / iOS Drawer で `kind='app'` がグレーアウト + Toast 出る / Desktop ↔ iOS 双方向 sync で sidebar_links / calendar_tag_assignments が伝搬する
+- **計画書アーカイブ済**: archive/2026-04-25-sidebar-tags-free-pomodoro.md
+
+---
+
 ### 2026-04-25 - sync_engine V65 follow-up fix（calendar_tag_assignments delta query を新スキーマ対応）
 
 #### 概要
@@ -108,31 +143,3 @@ Phase 2 の最初の巨大コンポーネント分割。`frontend/src/components
 - **Phase 2-3d TagGraphView** (1443 行) — force layout + canvas 描画 + interaction が混在
 - **Phase 2-1 migrations.rs / 2-2 TauriDataService.ts**: WIP（sidebar-tags-free-pomodoro）が両ファイルに +103 / +30 行追加中で衝突するため、WIP commit 後でないと着手不可
 - **手動 UI 確認**: TaskDetail サイドバーの 6 機能（task 編集 / folder 編集 / breadcrumb 先祖アイコン編集 / inline title / RoleSwitcher 変換 / 子フォルダ展開）が次回 `cargo tauri dev` で回帰なしか確認
-
----
-
-### 2026-04-25 - リファクタリング Phase 1 完了（Cloud sync split / Provider tree 抽出 / row_to_json 統合 / SAFETY コメント）
-
-#### 概要
-
-Phase 0 完了直後に Phase 1 を 1 セッションで全 4 step（1-1〜1-4）完遂。Cloud Worker の責務分離 + セキュリティ強化、Frontend Provider tree 抽出、Rust 側の row→JSON 重複統合と SQL 識別子補間の SAFETY コメント明示化。3 commits（cloud / frontend / rust）。`tsc -b` 通過 / `cargo check --lib` 通過 / `wrangler deploy --dry-run` で bundle 199.95 KiB / 38.82 KiB gzip / Vitest 257/257 pass（pre-existing sidebar-tags WIP を stash した clean state で確認）。動作影響ゼロのリファクタ。
-
-#### 変更点
-
-- **Phase 1-1 Cloud sync.ts 責務分割**: `cloud/src/routes/sync.ts` 459 行を `routes/sync/index.ts`（Hono オーケストレータ）/ `routes/sync/shared.ts`（toCamelCase / quoteCol / topoSortByParent / `buildStampStatement` ヘルパ）/ `routes/sync/versioned.ts`（VERSIONED*TABLES の pull/push + schedule_items 重複排除 / tasks topo sort）/ `routes/sync/relations.ts`（relation tables の pull/push、`RELATION_PARENT_JOINS` table-driven config 化）+ `cloud/src/config/syncTables.ts`（VERSIONED_TABLES / PRIMARY_KEYS / RELATION*\*\_TABLES / RELATION_PARENT_JOINS / SYNC_PAGE_SIZE 集約）+ `cloud/src/utils/schema.ts`（zod `PushBodySchema` で /sync/push body 検証）の 6 ファイル分割。`buildStampStatement` で versioned / relation の両 push 経路に重複していた server_updated_at UPDATE 文の組み立てを 1 箇所に集約
-- **Phase 1-1 セキュリティ強化**: `cloud/src/middleware/auth.ts` の Bearer token 比較を `===` から SHA-256 + `crypto.subtle.timingSafeEqual` に置換。タイミング攻撃で SYNC_TOKEN の長さや先頭一致バイトが漏洩する経路を遮断。raw-SQL 識別子補間箇所すべて（`SELECT * FROM ${table}` / `INSERT INTO ${table}` / 等）に `// SAFETY:` コメントで whitelist source を明記
-- **Phase 1-2 Provider tree 抽出**: `frontend/src/main.tsx` 97→38 行。新設 `frontend/src/providers/DesktopProviders.tsx`（15 層）/ `MobileProviders.tsx`（10 層）に Provider 木を移送、外殻（ErrorBoundary / Theme / Toast / Sync）のみ main.tsx に残置。両ファイルに「order is load-bearing — see CLAUDE.md §6.2」と Provider 順依存性を明記。**ドキュメント乖離発見**: CLAUDE.md §6.2 では「Mobile は WikiTag を省く」と記載されているが、実コード（旧 main.tsx 含む）は Mobile でも WikiTagProvider を含む。今回は既存挙動踏襲（=テスト 257/257 維持）、CLAUDE.md 修正は別タスクで処理予定
-- **Phase 1-3 Rust row_to_json 統合**: `src-tauri/src/db/row_converter.rs` を新設し `pub fn row_to_json(row, col_names) -> serde_json::Value` を集約。`db/helpers.rs:130` と `sync/sync_engine.rs:181` の byte-equivalent な local fn を削除し re-import に切替。NULL/INTEGER/REAL/TEXT/BLOB → JSON Value のマッピング契約を 1 箇所で文書化
-- **Phase 1-4 SQL injection 防御の明示化**: `sync_engine.rs::collect_all` の VERSIONED_TABLES / RELATION_TABLES_WITH_UPDATED_AT 反復ループ直前に `// SAFETY: const slice 反復、never from caller input` コメント追加（lines 94 / 100 周辺）。`db/helpers.rs::next_order` の doc-comment に「callers MUST pass a static table-name literal」契約を明記。`debug_assert!(is_known_table)` は構造的に冗長（呼出元はすべて const slice or repository 内静的リテラル）と判断し不採用
-- **Verification**: `cloud && npx tsc --noEmit` 通過 / `cloud && wrangler deploy --dry-run` bundle 成功（199.95 KiB / gzip 38.82 KiB） / `frontend && npx tsc -b` 通過 / `frontend && npm run test` 257/257 pass（CalendarTagsPanel 関連の 10 件失敗は pre-existing sidebar-tags WIP 由来 → WIP stash 後 clean state で全件 pass 確認） / `src-tauri && cargo check --lib` 通過
-- **commits（3 本）**: `599133e refactor(cloud): split sync.ts into versioned/relations/shared + zod + timing-safe auth` (10 files / +759/-462) / `ecbc192 refactor(frontend): extract DesktopProviders / MobileProviders from main.tsx` (3 files / +122/-68) / `63799a6 refactor(rust): consolidate row_to_json into db::row_converter + SAFETY comments` (4 files / +60/-38)
-- **計画書見立てとの乖離記録**: 当初計画 -500〜-800 行に対し実績 +373 行。理由は (1) zod / timing-safe / 6 ファイル分割の各先頭に module purpose / SAFETY コメント追加 / RELATION_PARENT_JOINS の table-driven 化で増加 (2) `buildStampStatement` の重複解消は -10 行程度のみ。LOC 増加と引き換えに型 + SAFETY 契約 + 単一責任の三点が明文化されたため、減ではなく構造改善として受領
-
-#### 残課題
-
-- **Phase 2 (中期 4-6 セッション、推定 -1500〜-2500 行)**: `migrations.rs` (2328 行) を V1-V30 / V31-V60 / V61-V64 の 3 分割 / `TauriDataService.ts` (1453 行) を domain ごとに分割 / 巨大コンポーネント 4 件分割 / Calendar Mobile-Desktop 統合
-- **Phase 3 (長期 6-10 セッション、推定 -2000〜-4000 行)**: Rust 27 repository の `row_to_model` 統一 trait 化 / Issue 012 cursor pagination 本実装 / `Schedule/` rename / 論理キー UNIQUE migration（V65+）
-- **手動 UI 確認**: `cargo tauri dev` 起動で Provider tree 抽出後の Desktop / Mobile 両方の動作確認（Schedule / Calendar / Timer / Audio / WikiTag）
-- **既存 lint 116 問題**: 別セッションで対応継続
-- **CLAUDE.md §6.2 と実コードの WikiTag 乖離**: 別タスクで「文書を実コードに合わせる or 実コードを文書に合わせる」を判定
-

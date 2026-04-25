@@ -1,3 +1,4 @@
+import { useState } from "react";
 import {
   CheckSquare,
   Calendar,
@@ -7,10 +8,15 @@ import {
   Settings,
   Pencil,
   BookOpen,
+  Plus,
 } from "lucide-react";
 import type { SectionId } from "../../types/taskTree";
 import { useTimerContext } from "../../hooks/useTimerContext";
+import { useSidebarLinksContext } from "../../hooks/useSidebarLinksContext";
 import { useTranslation } from "react-i18next";
+import { SidebarLinkItem } from "./SidebarLinkItem";
+import { SidebarLinkAddDialog } from "./SidebarLinkAddDialog";
+import type { SidebarLink } from "../../types/sidebarLink";
 
 interface SidebarProps {
   width: number;
@@ -45,6 +51,12 @@ export function LeftSidebar({
   const timer = useTimerContext();
   const { t } = useTranslation();
   const showTimer = timer.activeTask !== null || timer.isRunning;
+
+  const { links, createLink, updateLink, deleteLink, openLink } =
+    useSidebarLinksContext();
+  const [dialogState, setDialogState] = useState<
+    { mode: "closed" } | { mode: "add" } | { mode: "edit"; link: SidebarLink }
+  >({ mode: "closed" });
 
   return (
     <aside
@@ -102,6 +114,51 @@ export function LeftSidebar({
             </div>
           );
         })}
+
+        {/* Sidebar Links section */}
+        <div className="group/section pt-2 mt-2 border-t border-notion-border/60">
+          <div className="flex items-center justify-between px-2.5 pb-1">
+            <span
+              className="uppercase tracking-wider text-notion-text-secondary"
+              style={{ fontSize: 10 }}
+            >
+              {t("sidebarLinks.sectionTitle", "Links")}
+            </span>
+            <button
+              type="button"
+              onClick={() => setDialogState({ mode: "add" })}
+              aria-label={t("sidebarLinks.add", "Add link")}
+              className="p-0.5 rounded text-notion-text-secondary opacity-0 group-hover/section:opacity-100 hover:bg-notion-hover hover:text-notion-text transition-opacity"
+            >
+              <Plus size={12} />
+            </button>
+          </div>
+          {links.map((link) => (
+            <SidebarLinkItem
+              key={link.id}
+              link={link}
+              iconSize={ICON_SIZE}
+              textPx={TEXT_PX}
+              onClick={(l) => {
+                openLink(l).catch(() => {
+                  /* errors logged in useSidebarLinks */
+                });
+              }}
+              onEdit={(l) => setDialogState({ mode: "edit", link: l })}
+              onDelete={(l) => {
+                deleteLink(l.id);
+              }}
+            />
+          ))}
+          {links.length === 0 && (
+            <div
+              className="px-2.5 py-1 text-notion-text-secondary/60 italic"
+              style={{ fontSize: TEXT_PX - 3 }}
+            >
+              {t("sidebarLinks.empty", "No links yet")}
+            </div>
+          )}
+        </div>
       </nav>
       <div className="p-2 pt-0 space-y-0.5">
         <button
@@ -134,6 +191,20 @@ export function LeftSidebar({
           <span>{t("sidebar.settings")}</span>
         </button>
       </div>
+
+      {dialogState.mode !== "closed" && (
+        <SidebarLinkAddDialog
+          initial={dialogState.mode === "edit" ? dialogState.link : null}
+          onClose={() => setDialogState({ mode: "closed" })}
+          onSubmit={async (input) => {
+            if (dialogState.mode === "edit") {
+              await updateLink(dialogState.link.id, input);
+            } else {
+              await createLink(input);
+            }
+          }}
+        />
+      )}
     </aside>
   );
 }

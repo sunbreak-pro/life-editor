@@ -72,3 +72,7 @@ export type { TemplateContextValue } from "./TemplateContextValue";
 export { SyncProvider } from "./SyncContext";
 export { SyncContext } from "./SyncContextValue";
 export type { SyncContextValue } from "./SyncContextValue";
+
+export { SidebarLinksProvider } from "./SidebarLinksContext";
+export { SidebarLinksContext } from "./SidebarLinksContextValue";
+export type { SidebarLinksContextValue } from "./SidebarLinksContextValue";

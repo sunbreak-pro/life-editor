@@ -17,6 +17,9 @@ import { useDailyContext } from "./hooks/useDailyContext";
 import { useNoteContext } from "./hooks/useNoteContext";
 import { useWikiTags } from "./hooks/useWikiTags";
 import { useTemplateContext } from "./hooks/useTemplateContext";
+import { useSidebarLinksContext } from "./hooks/useSidebarLinksContext";
+import { useToast } from "./context/ToastContext";
+import { SidebarLinkItem } from "./components/Layout/SidebarLinkItem";
 
 type MaterialsSubTab = "daily" | "notes";
 
@@ -45,6 +48,8 @@ export function MobileApp() {
   const { assignments, tags } = useWikiTags();
   const { getDefaultNoteContent, selectedTemplateId, setSelectedTemplateId } =
     useTemplateContext();
+  const { links: sidebarLinks, openLink } = useSidebarLinksContext();
+  const { showToast } = useToast();
 
   const handleTabChange = useCallback(
     (tab: MobileTab) => history.push(tab),
@@ -251,6 +256,66 @@ export function MobileApp() {
         <div className="flex min-h-0 flex-1 flex-col">
           {renderDrawerSection()}
         </div>
+
+        {sidebarLinks.length > 0 && (
+          <div className="shrink-0 border-t border-notion-border px-2 py-2">
+            <p className="px-2.5 pb-1 text-[10px] uppercase tracking-wider text-notion-text-secondary">
+              {t("sidebarLinks.sectionTitle", "Links")}
+            </p>
+            <div className="space-y-0.5">
+              {sidebarLinks.map((link) => (
+                <SidebarLinkItem
+                  key={link.id}
+                  link={link}
+                  iconSize={18}
+                  textPx={14}
+                  disabled={link.kind === "app"}
+                  disabledReason={t(
+                    "sidebarLinks.iosAppUnsupported",
+                    "Apps cannot be launched on iOS",
+                  )}
+                  onClick={(l) => {
+                    if (l.kind === "app") {
+                      showToast(
+                        "info",
+                        t(
+                          "sidebarLinks.iosAppUnsupported",
+                          "Apps cannot be launched on iOS",
+                        ),
+                      );
+                      return;
+                    }
+                    openLink(l)
+                      .then(() => {
+                        setDrawerOpen(false);
+                      })
+                      .catch(() => {
+                        /* error logged in useSidebarLinks */
+                      });
+                  }}
+                  onEdit={() => {
+                    showToast(
+                      "info",
+                      t(
+                        "sidebarLinks.editOnDesktop",
+                        "Edit links from the desktop app",
+                      ),
+                    );
+                  }}
+                  onDelete={() => {
+                    showToast(
+                      "info",
+                      t(
+                        "sidebarLinks.editOnDesktop",
+                        "Edit links from the desktop app",
+                      ),
+                    );
+                  }}
+                />
+              ))}
+            </div>
+          </div>
+        )}
       </MobileLeftDrawer>
     </>
   );

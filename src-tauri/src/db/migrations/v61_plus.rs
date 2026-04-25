@@ -307,5 +307,42 @@ pub(super) fn apply(conn: &Connection, current_version: i32) -> rusqlite::Result
         conn.pragma_update(None, "user_version", &66i32)?;
     }
 
+    // V67: sidebar_links — user-defined quick links in LeftSidebar
+    //  - kind='url': open in selected default browser (or system default)
+    //  - kind='app': launch a macOS .app via `open -a` (Desktop only; iOS grays out)
+    //  - Cloud Sync: versioned table (version + LWW), syncs across devices.
+    if current_version < 67 {
+        eprintln!("V67: sidebar_links");
+        exec_ignore(
+            conn,
+            "CREATE TABLE IF NOT EXISTS sidebar_links (
+                id TEXT PRIMARY KEY,
+                kind TEXT NOT NULL CHECK(kind IN ('url','app')),
+                name TEXT NOT NULL,
+                target TEXT NOT NULL,
+                emoji TEXT,
+                sort_order INTEGER NOT NULL DEFAULT 0,
+                is_deleted INTEGER NOT NULL DEFAULT 0,
+                deleted_at TEXT,
+                version INTEGER NOT NULL DEFAULT 1,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            );",
+        );
+        exec_ignore(
+            conn,
+            "CREATE INDEX IF NOT EXISTS idx_sidebar_links_deleted ON sidebar_links(is_deleted);",
+        );
+        exec_ignore(
+            conn,
+            "CREATE INDEX IF NOT EXISTS idx_sidebar_links_sort_order ON sidebar_links(sort_order);",
+        );
+        exec_ignore(
+            conn,
+            "CREATE INDEX IF NOT EXISTS idx_sidebar_links_updated_at ON sidebar_links(updated_at);",
+        );
+        conn.pragma_update(None, "user_version", &67i32)?;
+    }
+
     Ok(())
 }

@@ -38,7 +38,7 @@
 | Materials / Calendar Tags / Audio / WikiTags / Shortcut Config / Screen Lock |    ✓    |  -  |     -      | Mobile 省略 Provider（§6.2） |
 | Terminal + Claude + MCP Server                                               |    ✓    |  -  |     -      | Desktop 専用（PTY 不可）     |
 
-Mobile 省略 Provider: Audio / ScreenLock / FileExplorer / CalendarTags / WikiTag / ShortcutConfig
+Mobile 省略 Provider: Audio / ScreenLock / FileExplorer / CalendarTags / ShortcutConfig（WikiTag / SidebarLinks は Mobile でも有効）
 
 ---
 
@@ -77,10 +77,10 @@ React Router なし。`App.tsx::activeSection` で切替: `schedule` / `material
 
 ### 4.1 SQLite スキーマ
 
-- 正本: `src-tauri/src/db/migrations.rs`（WAL）/ 現行 v64、約 40 テーブル
-- ドメイン: tasks / dailies / notes / time*memos / schedule_items / calendars / routines / timer*_ / sound\__ / playlists / wiki_tags / task_templates / paper_boards / databases（汎用 DB: properties / rows / cells）
-- 直近 migration: V60(孤児テーブル撤去 → WikiTags 完全移行) / V62(NULL updated*at backfill + tasks INSERT トリガー) / V63(schedule_items 重複排除 + partial UNIQUE) / V64(`memos` → `dailies` rename。id 形式 / `note_links.source*\*`/`wiki_tag_assignments` の entity_type 全移行。`time_memos` は別概念で対象外)
-- Cloud D1 専用: 2026-04-24 適用 migration 0003 で `server_updated_at` 列追加（delta sync cursor 用、Desktop SQLite には無い）。詳細 → `docs/known-issues/013-*.md` / `docs/vision/db-conventions.md §3`
+- 正本: `src-tauri/src/db/migrations.rs`（WAL）/ 現行 v67、約 40 テーブル
+- ドメイン: tasks / dailies / notes / time*memos / schedule_items / calendars / routines / timer*\_ / sound\_\_ / playlists / wiki_tags / task_templates / paper_boards / databases（汎用 DB: properties / rows / cells）
+- 直近 migration: V60(孤児テーブル撤去 → WikiTags 完全移行) / V62(NULL updated*at backfill + tasks INSERT トリガー) / V63(schedule_items 重複排除 + partial UNIQUE) / V64(`memos` → `dailies` rename。id 形式 / `note_links.source*\*`/`wiki_tag_assignments` の entity_type 全移行。`time_memos`は別概念で対象外) / V65(CalendarTags 1:1 化:`calendar_tag_definitions`に Cloud Sync 列追加 +`calendar_tag_assignments`を`id PK / entity_type / entity_id / tag_id` に rebuild) / V66(`timer_sessions.label` 追加: Pomodoro Free セッションの命名保存用) / V67(`sidebar_links` 新規: LeftSidebar 用 URL/Mac アプリ快速リンク。version + LWW で Cloud Sync 対象)
+- Cloud D1 専用: 2026-04-24 適用 migration 0003 で `server_updated_at` 列追加（delta sync cursor 用、Desktop SQLite には無い）/ 2026-04-25 適用 migration 0004 で V65 に追従（`calendar_tag_definitions` の sync 用列追加 + `calendar_tag_assignments` rebuild、`calendar_tag_assignments` は `RELATION_TABLES_WITH_UPDATED_AT` に昇格）/ 2026-04-25 適用 migration 0005 で V67 に追従（`sidebar_links` 新設、`VERSIONED_TABLES` に追加）。詳細 → `docs/known-issues/013-*.md` / `docs/vision/db-conventions.md §3`
 
 ### 4.2 特化 vs 汎用 DB の境界
 
@@ -140,8 +140,8 @@ ESLint 設定に従う。コメントは必要最小限。
 
 ### 6.2 Provider 順序（依存制約）
 
-- **Desktop**（外→内）: ErrorBoundary → Theme → Toast → UndoRedo → ScreenLock → TaskTree → Calendar → Template → Daily → Note → FileExplorer → Routine → ScheduleItems → CalendarTags → Timer → Audio → WikiTag → ShortcutConfig
-- **Mobile**: ScreenLock / FileExplorer / CalendarTags / Audio / WikiTag / ShortcutConfig を省く
+- **Desktop**（外→内）: ErrorBoundary → Theme → Toast → Sync → UndoRedo → ScreenLock → TaskTree → Calendar → Template → Daily → Note → FileExplorer → Routine → ScheduleItems → CalendarTags → Timer → Audio → WikiTag → ShortcutConfig → SidebarLinks
+- **Mobile**: ScreenLock / FileExplorer / CalendarTags / Audio / ShortcutConfig を省く（SidebarLinks / WikiTag は両方で有効）
 - 内側 Provider は外側 Context に依存可（逆不可）。例: ScheduleItemsProvider → RoutineProvider、AudioProvider → TimerProvider
 
 ### 6.3 Pattern A（Context/Provider 標準 — 3 ファイル構成）

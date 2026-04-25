@@ -15,6 +15,27 @@
     "launchClaude": "Claude起動",
     "tipsButton": "Tips"
   },
+  "sidebarLinks": {
+    "sectionTitle": "リンク",
+    "add": "リンクを追加",
+    "addTitle": "リンクを追加",
+    "editTitle": "リンクを編集",
+    "empty": "リンク未登録",
+    "kindLabel": "種別",
+    "kindUrl": "URL",
+    "kindApp": "アプリ (macOS)",
+    "nameLabel": "表示名",
+    "namePlaceholderUrl": "Anthropic",
+    "namePlaceholderApp": "Slack",
+    "urlLabel": "URL",
+    "appLabel": "アプリケーション",
+    "appSearchPlaceholder": "/Applications を検索...",
+    "appNoResults": "該当するアプリがありません",
+    "emojiLabel": "絵文字（任意）",
+    "itemMenu": "メニュー",
+    "iosAppUnsupported": "iOS ではアプリを起動できません",
+    "editOnDesktop": "リンクの編集はデスクトップで行ってください"
+  },
   "settings": {
     "title": "設定",
     "general": "一般",
@@ -288,6 +309,12 @@
     "startMinimizedDesc": "ウィンドウを表示せずバックグラウンドで起動する",
     "trayIcon": "システムトレイアイコン",
     "trayIconDesc": "システムトレイにアイコンとタイマー表示を追加",
+    "browser": {
+      "title": "サイドバーリンクのデフォルトブラウザ",
+      "description": "サイドバーから開く URL リンクで使うブラウザ。未選択時はシステムデフォルトを使用します。",
+      "systemDefault": "システムデフォルト",
+      "none": "/Applications に対応ブラウザが検出されませんでした。システムデフォルトを使用します。"
+    },
     "globalShortcuts": "グローバルショートカット",
     "globalShortcutsDesc": "アプリが非アクティブでも動作するキーボードショートカット",
     "toggleTimerShortcut": "タイマー切替",

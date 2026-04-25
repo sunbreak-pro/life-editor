@@ -71,7 +71,7 @@ mod tests {
     /// Latest schema user_version. Bump every time a new V_N block is added
     /// to `v61_plus.rs` so the cross-cutting tests (fresh DB / upgrade /
     /// idempotency) stay in sync without per-test edits.
-    const LATEST_USER_VERSION: i32 = 66;
+    const LATEST_USER_VERSION: i32 = 67;
 
     fn table_exists(conn: &Connection, name: &str) -> bool {
         conn.query_row(
@@ -311,6 +311,31 @@ mod tests {
 
         // user_version bumped to 64.
         assert_eq!(user_version(&conn), LATEST_USER_VERSION);
+    }
+
+    #[test]
+    fn v67_creates_sidebar_links_table() {
+        let conn = Connection::open_in_memory().unwrap();
+        run_migrations(&conn).unwrap();
+        assert!(table_exists(&conn, "sidebar_links"));
+        for col in [
+            "id",
+            "kind",
+            "name",
+            "target",
+            "emoji",
+            "sort_order",
+            "is_deleted",
+            "deleted_at",
+            "version",
+            "created_at",
+            "updated_at",
+        ] {
+            assert!(
+                has_column(&conn, "sidebar_links", col),
+                "sidebar_links missing column {col}"
+            );
+        }
     }
 
     #[test]

@@ -17,6 +17,7 @@ const VERSIONED_TABLES: &[(&str, &str)] = &[
     ("calendars", "id"),
     ("templates", "id"),
     ("routine_groups", "id"),
+    ("sidebar_links", "id"),
 ];
 
 /// Relation tables that have `updated_at`.
@@ -47,6 +48,7 @@ pub fn collect_local_changes(
     payload.calendars = query_changed(conn, "calendars", since)?;
     payload.templates = query_changed(conn, "templates", since)?;
     payload.routine_groups = query_changed(conn, "routine_groups", since)?;
+    payload.sidebar_links = query_changed(conn, "sidebar_links", since)?;
 
     // Relation tables with updated_at
     payload.wiki_tag_assignments = query_changed(conn, "wiki_tag_assignments", since)?;
@@ -375,6 +377,7 @@ fn get_payload_field<'a>(payload: &'a SyncPayload, table: &str) -> &'a [Value] {
         "calendars" => &payload.calendars,
         "templates" => &payload.templates,
         "routine_groups" => &payload.routine_groups,
+        "sidebar_links" => &payload.sidebar_links,
         "wiki_tag_assignments" => &payload.wiki_tag_assignments,
         "wiki_tag_connections" => &payload.wiki_tag_connections,
         "note_connections" => &payload.note_connections,
@@ -395,6 +398,7 @@ fn set_payload_field(payload: &mut SyncPayload, table: &str, rows: Vec<Value>) {
         "calendars" => payload.calendars = rows,
         "templates" => payload.templates = rows,
         "routine_groups" => payload.routine_groups = rows,
+        "sidebar_links" => payload.sidebar_links = rows,
         "wiki_tag_assignments" => payload.wiki_tag_assignments = rows,
         "wiki_tag_connections" => payload.wiki_tag_connections = rows,
         "note_connections" => payload.note_connections = rows,

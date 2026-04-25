@@ -26,6 +26,8 @@ pub struct SyncPayload {
     pub templates: Vec<Value>,
     #[serde(default)]
     pub routine_groups: Vec<Value>,
+    #[serde(default)]
+    pub sidebar_links: Vec<Value>,
     // Relation tables
     #[serde(default)]
     pub wiki_tag_assignments: Vec<Value>,

@@ -33,16 +33,20 @@ export const VERSIONED_TABLES = [
   "routine_groups",
   "schedule_items",
   "calendars",
+  "sidebar_links",
 ] as const;
 
 export const RELATION_TABLES_WITH_UPDATED_AT = [
   "wiki_tag_assignments",
   "wiki_tag_connections",
   "note_connections",
+  // V65: rebuilt with own id PK + updated_at + server_updated_at. Delta cursor
+  // is the relation's own server_updated_at — entity_type may be 'task' or
+  // 'schedule_item', so a single parent JOIN is no longer expressive.
+  "calendar_tag_assignments",
 ] as const;
 
 export const RELATION_TABLES_NO_UPDATED_AT = [
-  "calendar_tag_assignments",
   "routine_tag_assignments",
   "routine_group_tag_assignments",
   "routine_tag_definitions",
@@ -67,6 +71,7 @@ export const PRIMARY_KEYS: Record<VersionedTable, string> = {
   calendars: "id",
   templates: "id",
   routine_groups: "id",
+  sidebar_links: "id",
 };
 
 /**
@@ -77,6 +82,7 @@ export const RELATION_PK_COLS: Record<RelationTableWithUpdatedAt, string[]> = {
   wiki_tag_assignments: ["tag_id", "entity_id"],
   wiki_tag_connections: ["id"],
   note_connections: ["id"],
+  calendar_tag_assignments: ["id"],
 };
 
 /**
@@ -93,12 +99,6 @@ export const RELATION_PARENT_JOINS: ReadonlyArray<{
   fk: string;
   parentPk: string;
 }> = [
-  {
-    table: "calendar_tag_assignments",
-    parent: "schedule_items",
-    fk: "schedule_item_id",
-    parentPk: "id",
-  },
   {
     table: "routine_tag_assignments",
     parent: "routines",

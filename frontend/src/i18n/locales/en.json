@@ -15,6 +15,27 @@
     "launchClaude": "Launch Claude",
     "tipsButton": "Tips"
   },
+  "sidebarLinks": {
+    "sectionTitle": "Links",
+    "add": "Add link",
+    "addTitle": "Add Link",
+    "editTitle": "Edit Link",
+    "empty": "No links yet",
+    "kindLabel": "Type",
+    "kindUrl": "URL",
+    "kindApp": "App (macOS)",
+    "nameLabel": "Display name",
+    "namePlaceholderUrl": "Anthropic",
+    "namePlaceholderApp": "Slack",
+    "urlLabel": "URL",
+    "appLabel": "Application",
+    "appSearchPlaceholder": "Search /Applications…",
+    "appNoResults": "No apps found",
+    "emojiLabel": "Emoji (optional)",
+    "itemMenu": "Options",
+    "iosAppUnsupported": "Apps cannot be launched on iOS",
+    "editOnDesktop": "Edit links from the desktop app"
+  },
   "settings": {
     "title": "Settings",
     "general": "General",
@@ -288,6 +309,12 @@
     "startMinimizedDesc": "Launch the app in the background without showing the window",
     "trayIcon": "System Tray Icon",
     "trayIconDesc": "Show an icon in the system tray with timer display",
+    "browser": {
+      "title": "Default browser for sidebar links",
+      "description": "URL links from the sidebar open in this browser. Falls back to the system default when none is selected.",
+      "systemDefault": "System default",
+      "none": "No supported browsers detected in /Applications. The system default will be used."
+    },
     "globalShortcuts": "Global Shortcuts",
     "globalShortcutsDesc": "Keyboard shortcuts that work even when the app is not focused",
     "toggleTimerShortcut": "Toggle Timer",

@@ -55,6 +55,12 @@ import type {
 } from "../types/database";
 import type { Template } from "../types/template";
 import type { SyncResult, SyncStatus } from "../types/sync";
+import type {
+  SidebarLink,
+  SidebarLinkUpdate,
+  BrowserInfo,
+  InstalledApp,
+} from "../types/sidebarLink";
 export interface DataService {
   // Tasks
   fetchTaskTree(): Promise<TaskNode[]>;
@@ -714,6 +720,26 @@ export interface DataService {
     remaining: string;
     isRunning: boolean;
   }): Promise<void>;
+  listBrowsers(): Promise<BrowserInfo[]>;
+  listApplications(): Promise<InstalledApp[]>;
+  systemOpenUrl(url: string, browserId?: string | null): Promise<void>;
+  systemOpenApp(appPath: string): Promise<void>;
+
+  // Sidebar Links
+  fetchSidebarLinks(): Promise<SidebarLink[]>;
+  createSidebarLink(input: {
+    id: string;
+    kind: "url" | "app";
+    name: string;
+    target: string;
+    emoji?: string | null;
+  }): Promise<SidebarLink>;
+  updateSidebarLink(
+    id: string,
+    updates: SidebarLinkUpdate,
+  ): Promise<SidebarLink>;
+  deleteSidebarLink(id: string): Promise<void>;
+  reorderSidebarLinks(ids: string[]): Promise<void>;
 
   // Reminders
   getReminderSettings(): Promise<Record<string, string>>;

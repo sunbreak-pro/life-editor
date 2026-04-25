@@ -359,6 +359,16 @@ pub fn run() {
             commands::system_commands::system_set_global_shortcuts,
             commands::system_commands::system_reregister_global_shortcuts,
             commands::system_commands::tray_update_timer,
+            commands::system_commands::system_list_browsers,
+            commands::system_commands::system_list_applications,
+            commands::system_commands::system_open_url,
+            commands::system_commands::system_open_app,
+            // Sidebar Links
+            commands::sidebar_link_commands::db_sidebar_links_fetch_all,
+            commands::sidebar_link_commands::db_sidebar_links_create,
+            commands::sidebar_link_commands::db_sidebar_links_update,
+            commands::sidebar_link_commands::db_sidebar_links_delete,
+            commands::sidebar_link_commands::db_sidebar_links_reorder,
             // Reminders
             commands::reminder_commands::reminder_get_settings,
             commands::reminder_commands::reminder_set_settings,

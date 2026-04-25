@@ -34,3 +34,4 @@ pub mod updater_commands;
 pub mod claude_commands;
 pub mod terminal_commands;
 pub mod sync_commands;
+pub mod sidebar_link_commands;

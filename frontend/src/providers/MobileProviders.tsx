@@ -4,6 +4,7 @@ import { DailyProvider } from "../context/DailyContext";
 import { NoteProvider } from "../context/NoteContext";
 import { RoutineProvider } from "../context/RoutineContext";
 import { ScheduleItemsProvider } from "../context/ScheduleItemsContext";
+import { SidebarLinksProvider } from "../context/SidebarLinksContext";
 import { TaskTreeProvider } from "../context/TaskTreeContext";
 import { TemplateProvider } from "../context/TemplateContext";
 import { TimerProvider } from "../context/TimerContext";
@@ -36,7 +37,9 @@ export function MobileProviders({ children }: { children: ReactNode }) {
                 <RoutineProvider>
                   <ScheduleItemsProvider>
                     <TimerProvider>
-                      <WikiTagProvider>{children}</WikiTagProvider>
+                      <WikiTagProvider>
+                        <SidebarLinksProvider>{children}</SidebarLinksProvider>
+                      </WikiTagProvider>
                     </TimerProvider>
                   </ScheduleItemsProvider>
                 </RoutineProvider>

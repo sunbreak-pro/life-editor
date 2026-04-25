@@ -17,6 +17,7 @@ import { TimerProvider } from "../context/TimerContext";
 import { AudioProvider } from "../context/AudioContext";
 import { WikiTagProvider } from "../context/WikiTagContext";
 import { ShortcutConfigProvider } from "../context/ShortcutConfigContext";
+import { SidebarLinksProvider } from "../context/SidebarLinksContext";
 import { TemplateProvider } from "../context/TemplateContext";
 
 function AllProviders({ children }: { children: ReactNode }) {
@@ -38,7 +39,9 @@ function AllProviders({ children }: { children: ReactNode }) {
                                 <AudioProvider>
                                   <WikiTagProvider>
                                     <ShortcutConfigProvider>
-                                      {children}
+                                      <SidebarLinksProvider>
+                                        {children}
+                                      </SidebarLinksProvider>
                                     </ShortcutConfigProvider>
                                   </WikiTagProvider>
                                 </AudioProvider>

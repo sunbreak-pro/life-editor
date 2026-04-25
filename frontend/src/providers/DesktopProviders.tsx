@@ -9,6 +9,7 @@ import { RoutineProvider } from "../context/RoutineContext";
 import { ScheduleItemsProvider } from "../context/ScheduleItemsContext";
 import { ScreenLockProvider } from "../context/ScreenLockContext";
 import { ShortcutConfigProvider } from "../context/ShortcutConfigContext";
+import { SidebarLinksProvider } from "../context/SidebarLinksContext";
 import { TaskTreeProvider } from "../context/TaskTreeContext";
 import { TemplateProvider } from "../context/TemplateContext";
 import { TimerProvider } from "../context/TimerContext";
@@ -43,7 +44,9 @@ export function DesktopProviders({ children }: { children: ReactNode }) {
                             <AudioProvider>
                               <WikiTagProvider>
                                 <ShortcutConfigProvider>
-                                  {children}
+                                  <SidebarLinksProvider>
+                                    {children}
+                                  </SidebarLinksProvider>
                                 </ShortcutConfigProvider>
                               </WikiTagProvider>
                             </AudioProvider>

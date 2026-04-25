@@ -3,6 +3,7 @@ import { Power, Minimize2, AppWindow } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { getDataService } from "../../services/dataServiceFactory";
 import { ToggleSwitch } from "../shared/ToggleSwitch";
+import { BrowserSettings } from "./BrowserSettings";
 
 export function SystemSettings() {
   const { t } = useTranslation();
@@ -89,6 +90,9 @@ export function SystemSettings() {
       >
         <ToggleSwitch checked={trayEnabled} onChange={handleTrayToggle} />
       </SettingRow>
+
+      {/* Default browser for sidebar links */}
+      <BrowserSettings />
     </div>
   );
 }

@@ -56,6 +56,12 @@ import type {
 } from "../types/database";
 import type { Template } from "../types/template";
 import type { SyncResult, SyncStatus } from "../types/sync";
+import type {
+  SidebarLink,
+  SidebarLinkUpdate,
+  BrowserInfo,
+  InstalledApp,
+} from "../types/sidebarLink";
 import { tauriInvoke } from "./bridge";
 
 export class TauriDataService implements DataService {
@@ -1371,6 +1377,53 @@ export class TauriDataService implements DataService {
     isRunning: boolean;
   }): Promise<void> {
     return tauriInvoke("tray_update_timer", { state });
+  }
+  listBrowsers(): Promise<BrowserInfo[]> {
+    return tauriInvoke("system_list_browsers");
+  }
+  listApplications(): Promise<InstalledApp[]> {
+    return tauriInvoke("system_list_applications");
+  }
+  systemOpenUrl(url: string, browserId?: string | null): Promise<void> {
+    return tauriInvoke("system_open_url", {
+      url,
+      browserId: browserId ?? null,
+    });
+  }
+  systemOpenApp(appPath: string): Promise<void> {
+    return tauriInvoke("system_open_app", { appPath });
+  }
+
+  // --- Sidebar Links ---
+  fetchSidebarLinks(): Promise<SidebarLink[]> {
+    return tauriInvoke("db_sidebar_links_fetch_all");
+  }
+  createSidebarLink(input: {
+    id: string;
+    kind: "url" | "app";
+    name: string;
+    target: string;
+    emoji?: string | null;
+  }): Promise<SidebarLink> {
+    return tauriInvoke("db_sidebar_links_create", {
+      id: input.id,
+      kind: input.kind,
+      name: input.name,
+      target: input.target,
+      emoji: input.emoji ?? null,
+    });
+  }
+  updateSidebarLink(
+    id: string,
+    updates: SidebarLinkUpdate,
+  ): Promise<SidebarLink> {
+    return tauriInvoke("db_sidebar_links_update", { id, updates });
+  }
+  deleteSidebarLink(id: string): Promise<void> {
+    return tauriInvoke("db_sidebar_links_delete", { id });
+  }
+  reorderSidebarLinks(ids: string[]): Promise<void> {
+    return tauriInvoke("db_sidebar_links_reorder", { ids });
   }
 
   // --- Reminders ---

@@ -26,6 +26,7 @@ pub mod attachment_repository;
 pub mod database_repository;
 pub mod app_settings_repository;
 pub mod template_repository;
+pub mod sidebar_link_repository;
 
 use rusqlite::Connection;
 use std::sync::Mutex;
