@@ -141,6 +141,57 @@ describe("timerReducer", () => {
     });
   });
 
+  describe("SET_SESSION_TYPE", () => {
+    it("switches sessionType and resets remainingSeconds without starting", () => {
+      const state = makeState({
+        sessionType: "WORK",
+        remainingSeconds: 120,
+        isRunning: true,
+      });
+      const next = timerReducer(state, {
+        type: "SET_SESSION_TYPE",
+        sessionType: "LONG_BREAK",
+      });
+      expect(next.sessionType).toBe("LONG_BREAK");
+      expect(next.isRunning).toBe(false);
+      expect(next.remainingSeconds).toBe(DEFAULT_CONFIG.longBreakDuration);
+    });
+
+    it("clears any pending completion modal", () => {
+      const state = makeState({
+        sessionType: "WORK",
+        showCompletionModal: true,
+        completedSessionType: "WORK",
+      });
+      const next = timerReducer(state, {
+        type: "SET_SESSION_TYPE",
+        sessionType: "BREAK",
+      });
+      expect(next.showCompletionModal).toBe(false);
+      expect(next.completedSessionType).toBe(null);
+      expect(next.remainingSeconds).toBe(DEFAULT_CONFIG.breakDuration);
+    });
+
+    it("does not toggle isRunning when re-tapping the same sessionType", () => {
+      // Regression test for W-2: re-tap on active LONG_BREAK tab must not start/stop
+      // (the calling component is expected to short-circuit before dispatch when
+      // next === current, but the reducer also stays safe under direct dispatch).
+      const state = makeState({
+        sessionType: "LONG_BREAK",
+        isRunning: true,
+        remainingSeconds: 60,
+      });
+      const next = timerReducer(state, {
+        type: "SET_SESSION_TYPE",
+        sessionType: "LONG_BREAK",
+      });
+      expect(next.sessionType).toBe("LONG_BREAK");
+      expect(next.isRunning).toBe(false);
+      // Resets to full duration of that session type
+      expect(next.remainingSeconds).toBe(DEFAULT_CONFIG.longBreakDuration);
+    });
+  });
+
   describe("DISMISS_COMPLETION_MODAL", () => {
     it("hides the modal", () => {
       const state = makeState({ showCompletionModal: true });

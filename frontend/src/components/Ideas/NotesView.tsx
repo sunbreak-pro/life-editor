@@ -11,7 +11,13 @@ import {
 import { renderIcon } from "../../utils/iconRenderer";
 import { useTranslation } from "react-i18next";
 import { useNoteContext } from "../../hooks/useNoteContext";
-import { useScreenLockContext } from "../../hooks/useScreenLockContext";
+import { useScreenLockContextOptional } from "../../hooks/useScreenLockContextOptional";
+
+// Stable fallback for Mobile (where ScreenLockProvider is omitted)
+const SCREEN_LOCK_FALLBACK = {
+  isUnlocked: () => true,
+  unlock: () => {},
+} as const;
 import { formatDateTime } from "../../utils/formatRelativeDate";
 import { LazyRichTextEditor as RichTextEditor } from "../shared/LazyRichTextEditor";
 import { WikiTagList } from "../WikiTags/WikiTagList";
@@ -44,7 +50,8 @@ export function NotesView() {
     verifyNotePassword,
     toggleEditLock,
   } = useNoteContext();
-  const { isUnlocked, unlock } = useScreenLockContext();
+  const screenLock = useScreenLockContextOptional();
+  const { isUnlocked, unlock } = screenLock ?? SCREEN_LOCK_FALLBACK;
 
   const [showColorPicker, setShowColorPicker] = useState(false);
   const [showOptionsMenu, setShowOptionsMenu] = useState(false);
@@ -114,14 +121,60 @@ export function NotesView() {
     ],
   );
 
+  // Title buffer with debounced flush to updateNote.
+  // Typing coalesces into a single undo entry per burst (500ms idle → one push).
+  // We use the React-recommended "adjust state on prop change during render"
+  // pattern instead of a useEffect+setState (which would trigger cascading renders).
+  const currentNoteId = selectedNote?.id ?? null;
+  const [titleDraft, setTitleDraft] = useState<string>(
+    selectedNote?.title ?? "",
+  );
+  const [titleDraftNoteId, setTitleDraftNoteId] = useState<string | null>(
+    currentNoteId,
+  );
+  const titleFlushTimer = useRef<number | null>(null);
+
+  if (titleDraftNoteId !== currentNoteId) {
+    // Note switched — reset draft to the new note's title. Any pending timer
+    // from the previous note will still fire correctly because its closure
+    // captured the previous noteId / value.
+    setTitleDraftNoteId(currentNoteId);
+    setTitleDraft(selectedNote?.title ?? "");
+  }
+
+  const flushTitle = useCallback(() => {
+    if (titleFlushTimer.current !== null) {
+      window.clearTimeout(titleFlushTimer.current);
+      titleFlushTimer.current = null;
+    }
+    if (!selectedNote) return;
+    if (selectedNote.title === titleDraft) return;
+    updateNote(selectedNote.id, { title: titleDraft });
+  }, [selectedNote, titleDraft, updateNote]);
+
   const handleTitleChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
-      if (selectedNote) {
-        updateNote(selectedNote.id, { title: e.target.value });
+      const value = e.target.value;
+      setTitleDraft(value);
+      if (titleFlushTimer.current !== null) {
+        window.clearTimeout(titleFlushTimer.current);
       }
+      const noteId = selectedNote?.id;
+      if (!noteId) return;
+      titleFlushTimer.current = window.setTimeout(() => {
+        const note = notes.find((n) => n.id === noteId);
+        titleFlushTimer.current = null;
+        if (!note) return;
+        if (note.title === value) return;
+        updateNote(noteId, { title: value });
+      }, 500);
     },
-    [selectedNote, updateNote],
+    [notes, selectedNote?.id, updateNote],
   );
+
+  const handleTitleBlur = useCallback(() => {
+    flushTitle();
+  }, [flushTitle]);
 
   const handleContentUpdate = useCallback(
     (content: string) => {
@@ -200,8 +253,9 @@ export function NotesView() {
             </div>
             <input
               type="text"
-              value={selectedNote.title}
+              value={titleDraft}
               onChange={handleTitleChange}
+              onBlur={handleTitleBlur}
               readOnly={isEditLocked}
               placeholder={t("notesView.untitled")}
               className={`flex-1 text-lg font-semibold text-notion-text bg-transparent border-none outline-none placeholder:text-notion-text-secondary ${isEditLocked ? "cursor-not-allowed" : ""}`}

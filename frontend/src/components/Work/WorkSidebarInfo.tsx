@@ -12,7 +12,7 @@ import {
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useTimerContext } from "../../hooks/useTimerContext";
-import { useAudioContext } from "../../hooks/useAudioContext";
+import { useAudioContextOptional } from "../../hooks/useAudioContextOptional";
 import { getDataService } from "../../services";
 
 import { PlaylistSelectPopover } from "./PlaylistSelectPopover";
@@ -20,7 +20,7 @@ import { PlaylistSelectPopover } from "./PlaylistSelectPopover";
 export function WorkSidebarInfo() {
   const { t } = useTranslation();
   const timer = useTimerContext();
-  const audio = useAudioContext();
+  const audio = useAudioContextOptional();
 
   // Today's sessions
   const [todaySummary, setTodaySummary] = useState({
@@ -61,17 +61,20 @@ export function WorkSidebarInfo() {
   const [showPlaylistPopover, setShowPlaylistPopover] = useState(false);
   const playlistBtnRef = useRef<HTMLButtonElement>(null);
 
-  const { playlistPlayer, playlistData } = audio;
-  const activePlaylist = playlistData.playlists.find(
-    (p) => p.id === playlistPlayer.activePlaylistId,
+  const playlistPlayer = audio?.playlistPlayer ?? null;
+  const playlistData = audio?.playlistData ?? null;
+  const activePlaylist = playlistData?.playlists.find(
+    (p) => p.id === playlistPlayer?.activePlaylistId,
   );
   const currentTrack =
-    playlistPlayer.activePlaylistItems[playlistPlayer.currentTrackIndex];
-  const currentTrackName = currentTrack
-    ? (audio.getDisplayName(currentTrack.soundId) ?? currentTrack.soundId)
-    : null;
+    playlistPlayer?.activePlaylistItems[playlistPlayer.currentTrackIndex];
+  const currentTrackName =
+    currentTrack && audio
+      ? (audio.getDisplayName(currentTrack.soundId) ?? currentTrack.soundId)
+      : null;
 
   const handlePlaylistSelect = (id: string | null) => {
+    if (!audio || !playlistPlayer) return;
     audio.setTimerPlaylistId(id);
     if (id && timer.isRunning) {
       playlistPlayer.setActivePlaylistId(id);
@@ -88,61 +91,63 @@ export function WorkSidebarInfo() {
 
   return (
     <div className="p-3 space-y-4">
-      {/* Section 1: Now Playing */}
-      <div className="space-y-2">
-        <h4 className="flex items-center gap-1.5 font-semibold text-notion-text-secondary text-scaling-xs uppercase tracking-wider px-1 opacity-80">
-          <Music size={14} className="opacity-70" />
-          {t("work.sidebar.nowPlaying")}
-          <button
-            ref={playlistBtnRef}
-            onClick={() => setShowPlaylistPopover((v) => !v)}
-            className="ml-auto p-0.5 text-notion-text-secondary hover:text-notion-text rounded transition-colors"
-            title={t("work.sidebar.selectPlaylist")}
-          >
-            <ListMusic size={14} />
-          </button>
-        </h4>
-        {activePlaylist ? (
-          <div className="space-y-1.5 bg-notion-hover/30 rounded-lg p-2.5">
-            <p className="font-medium text-notion-text text-scaling-sm px-1 truncate">
-              {activePlaylist.name}
-            </p>
-            {currentTrackName && (
-              <p className="text-notion-text-secondary text-scaling-xs px-1 truncate opacity-75">
-                {currentTrackName}
+      {/* Section 1: Now Playing (hidden on Mobile where AudioProvider is omitted) */}
+      {audio && playlistPlayer && playlistData && (
+        <div className="space-y-2">
+          <h4 className="flex items-center gap-1.5 font-semibold text-notion-text-secondary text-scaling-xs uppercase tracking-wider px-1 opacity-80">
+            <Music size={14} className="opacity-70" />
+            {t("work.sidebar.nowPlaying")}
+            <button
+              ref={playlistBtnRef}
+              onClick={() => setShowPlaylistPopover((v) => !v)}
+              className="ml-auto p-0.5 text-notion-text-secondary hover:text-notion-text rounded transition-colors"
+              title={t("work.sidebar.selectPlaylist")}
+            >
+              <ListMusic size={14} />
+            </button>
+          </h4>
+          {activePlaylist ? (
+            <div className="space-y-1.5 bg-notion-hover/30 rounded-lg p-2.5">
+              <p className="font-medium text-notion-text text-scaling-sm px-1 truncate">
+                {activePlaylist.name}
               </p>
-            )}
-            <div className="flex items-center gap-1 px-1">
-              <button
-                onClick={
-                  playlistPlayer.isPlaying
-                    ? playlistPlayer.pause
-                    : playlistPlayer.play
-                }
-                className="p-1 text-notion-text-secondary hover:text-notion-text rounded transition-colors"
-              >
-                {playlistPlayer.isPlaying ? (
-                  <Pause size={14} />
-                ) : (
-                  <Play size={14} />
-                )}
-              </button>
-              <button
-                onClick={playlistPlayer.next}
-                className="p-1 text-notion-text-secondary hover:text-notion-text rounded transition-colors"
-              >
-                <SkipForward size={14} />
-              </button>
+              {currentTrackName && (
+                <p className="text-notion-text-secondary text-scaling-xs px-1 truncate opacity-75">
+                  {currentTrackName}
+                </p>
+              )}
+              <div className="flex items-center gap-1 px-1">
+                <button
+                  onClick={
+                    playlistPlayer.isPlaying
+                      ? playlistPlayer.pause
+                      : playlistPlayer.play
+                  }
+                  className="p-1 text-notion-text-secondary hover:text-notion-text rounded transition-colors"
+                >
+                  {playlistPlayer.isPlaying ? (
+                    <Pause size={14} />
+                  ) : (
+                    <Play size={14} />
+                  )}
+                </button>
+                <button
+                  onClick={playlistPlayer.next}
+                  className="p-1 text-notion-text-secondary hover:text-notion-text rounded transition-colors"
+                >
+                  <SkipForward size={14} />
+                </button>
+              </div>
             </div>
-          </div>
-        ) : (
-          <p className="text-notion-text-secondary text-scaling-xs px-2 py-1.5 bg-notion-hover/30 rounded-lg opacity-75">
-            {t("work.sidebar.noPlaylist")}
-          </p>
-        )}
-      </div>
+          ) : (
+            <p className="text-notion-text-secondary text-scaling-xs px-2 py-1.5 bg-notion-hover/30 rounded-lg opacity-75">
+              {t("work.sidebar.noPlaylist")}
+            </p>
+          )}
+        </div>
+      )}
 
-      {showPlaylistPopover && (
+      {audio && playlistPlayer && playlistData && showPlaylistPopover && (
         <PlaylistSelectPopover
           anchorRef={playlistBtnRef}
           onClose={() => setShowPlaylistPopover(false)}
@@ -152,7 +157,7 @@ export function WorkSidebarInfo() {
         />
       )}
 
-      <div className="border-t border-notion-border" />
+      {audio && <div className="border-t border-notion-border" />}
 
       {/* Section 2: Pomodoro Settings (inline editable) */}
       <div className="space-y-2">

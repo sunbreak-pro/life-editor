@@ -1829,6 +1829,8 @@
     "createNote": "ノート",
     "createDaily": "日記",
     "createEvent": "予定を作成",
+    "createRoutine": "ルーチン",
+    "newRoutinePlaceholder": "名前なしのルーチン",
     "eventTitle": "タイトル",
     "eventMemo": "メモ",
     "calendarTags": "カレンダータグ",
@@ -2373,6 +2375,15 @@
     "remove": "削除"
   },
   "mobile": {
+    "header": {
+      "menu": "メニューを開く"
+    },
+    "drawer": {
+      "title": "メニュー",
+      "navigation": "ナビゲーション",
+      "sectionContent": "セクションの内容",
+      "sectionContentEmpty": "このセクションには追加の内容はありません。"
+    },
     "tabs": {
       "materials": "マテリアル",
       "schedule": "スケジュール",

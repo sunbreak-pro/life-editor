@@ -1,5 +1,55 @@
 # HISTORY-archive.md - 変更履歴アーカイブ
 
+### 2026-04-23 - TaskTree + Folder DetailPanel ヘッダー簡素化（アイコン同期 / Move to folder 廃止 / Complete フォルダ展開）
+
+#### 概要
+
+TaskTree 行と Folder DetailPanel のヘッダー UI を 5 観点で簡素化。(1) TaskTree のフォルダ行がフォルダの `node.icon` に追従するようになり DetailPanel と完全同期、(2) Folder DetailPanel のアイコンピッカーをタイトル左横にインライン配置して独立ブロックを撤去、(3) Task DetailPanel の「Move to folder」機能と `FolderMovePicker.tsx` を完全廃止(手動 DnD で代替)、(4) パスの祖先アイコン反映は既存コードで対応済みを確認、(5) Complete フォルダ選択時に TaskTree 側で展開ドロップダウン / DetailPanel 側で DONE タスク一覧が見えるよう `activeChildren` / `children` useMemo フィルタを緩和。変更 6 ファイル / 削除 1 / Vitest 29 files 231 tests pass / `tsc -b` 私の編集ファイルにエラーなし / ESLint 6 件は react-hooks/refs の既存パターン(`git stash push -- TaskDetailPanel.tsx` で編集前同一を確認済みスコープ外)。
+
+#### 変更点
+
+- **TaskNodeCheckbox (`frontend/src/components/Tasks/TaskTree/TaskNodeCheckbox.tsx`)**: `icon?: string` prop を追加、`renderIcon(icon, { size: 14 })` でフォルダの `node.icon` を優先描画(未設定時は従来の `FolderOpen` / `Folder` を展開状態に応じて切替)
+- **TaskTreeNode (`frontend/src/components/Tasks/TaskTree/TaskTreeNode.tsx`)**: `<TaskNodeCheckbox>` へ `icon={node.icon}` を伝搬。`activeChildren` useMemo を `isSystemFolder ? rawChildren : rawChildren.filter((c) => c.status !== "DONE" || c.folderType === "complete")` に分岐して Complete フォルダ直下の DONE タスクが `node.isExpanded` 時に表示されるよう修正。`useMemo` 依存配列に `isSystemFolder` を追加
+- **TaskDetailPanel Task 側 (`frontend/src/components/Tasks/TaskDetail/TaskDetailPanel.tsx`)**: `FolderMovePicker` 使用箇所(breadcrumb 行の「Move to folder」trigger)を削除し breadcrumb 行は ancestors 表示のみに整理。不要になった import / props / callback を一括除去(`FolderMovePicker` / `FolderOpen` / `MoveResult` / `MoveRejectionReason` / `useToast` / `moveNodeInto` / `moveToRoot` / `onMoveRejected` / `handleMove`)
+- **TaskDetailPanel Folder 側**: タイトル下の独立 Icon Picker ブロック(`folderIcon` ラベル付きボタン)を撤去し、タイトル行の左側にアイコンボタン(`size=20`)をインライン統合。Complete フォルダ時は `FolderCheck size={20}` を読み取り専用で表示。`children` useMemo に `node.folderType === "complete"` 分岐を追加し自身が Complete フォルダ時は DONE 子を全件含める(下流の `childTasks` フロー経由で TaskStatusIcon = DONE として表示される)
+- **FolderMovePicker 削除**: `frontend/src/components/Tasks/Folder/FolderMovePicker.tsx` を削除(他参照 0 件で grep 確認)。`FolderDropdown` / `flattenFolders` は `ScheduleSidebarContent` / `TaskTreeHeader` / `FolderList` / `NewTaskTab` から引続き使用中のため維持
+- **Storage Key 削除**: `FOLDER_MOVE_CONFIRM_SKIP` を `frontend/src/constants/storageKeys.ts` から除去(`FolderMovePicker` 専用だったため)
+- **i18n 同期削除(working tree のみ、本コミットには含めず)**: `en.json` / `ja.json` の `taskDetailSidebar.moveToFolder` と `taskDetailSidebar.moveFolderConfirm` は working tree では削除済みだが、同じ 2 ファイルに並行進行中の memos→daily refactor の変更が entangle しているため本コミットから意図的に除外(別セッションで memos→daily 着地時に合流予定)。残った dead i18n key は runtime 影響なし。`folderIcon` は Folder DetailPanel のアイコンボタン `title` 属性(tooltip)で継続使用のため元々残置、`dontShowAgain` は `ConfirmDialog` 他で使用中
+- **検証**: `npx tsc -b --force`(frontend)私の編集 4 ファイルに型エラーなし — 他 20+ 件の型エラーは並行進行中の memos→daily refactor 起因で別スコープ / `npx vitest run` 29 files / 231 tests pass / `npx eslint` 私の編集 TSX に 6 件の `react-hooks/refs` error、`git stash push -- TaskDetailPanel.tsx FolderMovePicker.tsx` で編集前 HEAD にも同 6 件存在を確認しプリ既存と判定(`ancestor.map` 内条件 ref 代入と `folderIconRef.current?.getBoundingClientRect()` のレンダー中アクセス — コードベース全体で同パターン多数、別セッションで一括対処)
+- **手動テスト**: UI の実機動作確認は未実施(次セッションで iOS 実機含め実施予定)
+
+---
+
+### 2026-04-22 - Routine schedule_items 重複の根本修正 + Cloud sync initial-pull truncation 暫定対応（Known Issues 011 / 012）（計画書: archive/2026-04-21-routine-dup-fix.md）
+
+#### 概要
+
+iOS Mobile の Schedule で同一 Routine が最大 8 コピー重複表示される問題 (Known Issue 011) の根本原因を **4 層の構造的欠陥** に分解して修正: (1) `schedule_items` に `UNIQUE(routine_id, date)` 制約欠落 / (2) sync 衝突解決が `id` 単独で異 id × 同 (routine_id, date) を全 INSERT / (3) Frontend `existingByRoutineId` Map が `routineId` 単独キーで既存重複検知に失敗 / (4) Rust `schedule_item_repository::create()` に重複ガード無し(`bulk_create` と非対称)。V63 migration + create() ガード + sync_engine 特別扱い + Cloud Worker pre-dedup + 複合キー `${routineId}:${date}` + backfill existingSet で根治。Cloud D1 の既存 1,181 行を dry-run preview 付きで destructive DELETE、partial UNIQUE index `idx_si_routine_date` を SQLite/D1 両端に張り恒久化。iOS 再インストール過程で 4 件の派生トラブル(Xcode PATH / dead code IdeasView / 未使用 useEffect / Cloud Worker `/sync/changes` LIMIT=500 truncation)を解消し Known Issue 012 として LIMIT=5000 bump の暫定対応を着地。本命 fix(client pagination loop on `hasMore`)は別セッション。cargo check 0 / frontend build 11.15s / vitest 231 pass / cloud tsc 0 / eslint(session 変更範囲) 0。
+
+#### 変更点
+
+- **V63 migration**: `src-tauri/src/db/migrations.rs` に V63 ブロック追加。`schedule_items` の (routine_id, date) 重複を `MIN(updated_at)` 保持で idempotent DELETE + `CREATE UNIQUE INDEX IF NOT EXISTS idx_si_routine_date ON schedule_items(routine_id, date) WHERE routine_id IS NOT NULL AND is_deleted = 0` を張る。部分 UNIQUE により soft-delete 行は制約対象外となり再作成可能
+- **Rust `create()` ガード**: `src-tauri/src/db/schedule_item_repository.rs` の `create()` に (routine_id, date, is_deleted=0) 存在チェックを追加し、既存行があれば新規作成せず既存を返す。`bulk_create` と対称な契約に。`bulk_create` の exists 検査にも `is_deleted=0` 条件を追加し、soft-delete 後の再作成を可能に
+- **sync_engine 特別扱い**: `src-tauri/src/sync/sync_engine.rs::upsert_versioned` で `schedule_items` を分岐し、異なる id × 同 (routine_id, date) が既存なら push 時に skip。id 単独の LWW を複合キー対応に拡張
+- **Cloud Worker pre-dedup**: `cloud/src/routes/sync.ts::/sync/push` で schedule_items routine 行を push 時に (routine_id, date) で既存 canonical id を参照し、incoming id が不一致なら drop。異端末からの重複 push を D1 への書き込み前に弾く
+- **Cloud schema 整合**: `cloud/db/schema.sql` に同 UNIQUE index を追加(新規プロビジョン時のため)
+- **Frontend 複合キー**: `frontend/src/utils/routineScheduleSync.ts` の `existingByRoutineId` Map を `existingByKey = new Map<string, ScheduleItem>()` に変更、キーは `${routineId}:${date}`。`collectRoutineItemsForDates` の `existingSet` 引数も同じ複合キー形式に
+- **Frontend backfill 堅牢化**: `frontend/src/hooks/useScheduleItemsRoutineSync.ts::backfillMissedRoutineItems` に `existingSet` build 処理を追加(従来は渡さず `collectRoutineItemsForDates` が既存を参照できなかった)。`ensureRoutineItemsForWeek` / `ensureRoutineItemsForDateRange` と対称化
+- **Cloud D1 運用クリーンアップ**: wrangler から destructive 作業を段階実行 — dry-run SELECT で to_delete=1,181(事前診断と +1 誤差) → DELETE 実行(duration 93ms) → UNIQUE index 作成 → 検証 SELECT で重複 0 確認。total 1,937 → 756 / active 1,936 → 755 で Desktop SQLite と完全一致
+- **Cloud Worker デプロイ**: `wrangler deploy` 2 回(pre-dedup 初回 `df98e207-...` + LIMIT bump 二回目 `5b967394-...`)
+- **Known Issue 012 発見 + 暫定対応**: iOS fresh install の `/sync/changes` 初回 pull が LIMIT=500 per table で打ち切られ、`updated_at > 2026-04-11 07:58:44` の 296 行(4/14〜4/22 の routine / notes / memos 編集)が欠落していた。原因は (a) Worker が `hasMore: true` を返すが cursor 無し / (b) Rust client `types.rs:50::has_more` field は定義されるが参照箇所 0 件 = 無視。暫定で LIMIT 500 → 5000 に bump(現行データ量でカバー可)、本命 fix(cursor + client loop)は Known Issue 012 として起票
+- **孤児コード削除**: `frontend/src/components/Ideas/IdeasView.tsx` を削除。commit `82ef226` で `ConnectView` に置換された際に旧ファイルが残置されており、`TagGraphView` interface 拡張で tsc -b が落ちていた(Xcode 実機 build が落ちて初めて露見)
+- **MobileNoteView 未使用 import 除去**: `frontend/src/components/Mobile/MobileNoteView.tsx` から `useEffect` を import から削除。noUnusedLocals の TS6133 エラーが iOS build を阻害していた
+- **ドキュメント整備**: `.claude/docs/known-issues/011-schedule-items-routine-date-duplication.md` + `012-sync-changes-limit-500-truncates-large-initial-pull.md` 新規、INDEX.md 更新。`.claude/docs/vision/realtime-sync.md` 新規(Phase 1: foreground 可変 polling + mutation-triggered push / Phase 2: CF Durable Objects WebSocket の 2 段階構想)
+- **計画書完了 + archive**: `.claude/2026-04-21-routine-dup-fix.md` を Status `COMPLETED` に更新し `.claude/archive/` へ移動
+- **未コミット refactor の stash 退避**: iOS build を通すため、作業開始時点で未コミットだった Memo→Daily rename(types/memo.ts → daily.ts 他 30+ ファイル) + Mobile parity + 009/010 known-issues docs を `git stash push -u -m "WIP: Memo->Daily refactor + Mobile parity + known-issues 009/010 (paused for iOS routine-dup verify on 2026-04-22)"` で退避。iOS 検証優先のため本 session では unstash 見送り、次 session で再開
+- **システム状態変更**: Xcode GUI 起動時に NVM 管理の `/Users/newlife/.cargo/bin/cargo` が PATH に無い問題を `/usr/local/bin/{cargo,rustc,rustup}` の sudo symlink で解消(ユーザー手動実行、git 外の永続変更)
+- **iOS 端末手順**: Developer Mode ON + VPN とデバイス管理でプロファイル信頼 + Xcode Devices and Simulators から `.ipa` 手動インストール(`cargo tauri build` は install しない仕様のため)+ iOS Settings > Cloud Sync で URL/Token 設定 → Disconnect/Reconnect で since=1970 強制 → LIMIT=5000 Worker から 796+ rows pull。4/14-4/22 の routine 表示復活を確認
+- **検証**: `cargo check` 0 / `npm run build`(frontend) ✓ built in 11.15s / `npm run test`(vitest) 231 pass / `npx tsc --noEmit`(cloud) 0 / ESLint session 変更範囲 0(既存 116 problems は scope 外の技術債)
+- **派生して発見した脆弱性(詳細は MEMORY.md §バグの温床)**: 論理一意性を持つ他テーブルの UNIQUE 制約欠落 / sync 衝突解決 id 単独設計の他テーブル波及 / pagination 半実装(5000 で逃げても成長で再発) / client/server 分散 flag(`hasMore`) の扱い / Mobile UI の Full Re-sync ボタン不在 / `tsc --noEmit` at frontend root が solution-style tsconfig で無意味 / Xcode GUI ⌘R が Tauri 2.x で動かない / Desktop パッケージ版と HEAD 実装の乖離
+---
+
+
 ---
 
 ### 2026-04-21 - Notes Mobile/Desktop エディタ統合 Phase A（`MemoEditor` 共有 + レスポンシブ対応）

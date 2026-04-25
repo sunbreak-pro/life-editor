@@ -34,6 +34,7 @@ export interface TimerContextValue {
   setSessionsBeforeLongBreak: (count: number) => void;
   extendWork: (minutes: number) => void;
   startRest: () => void;
+  setSessionType: (type: SessionType) => void;
   dismissCompletionModal: () => void;
   autoStartBreaks: boolean;
   setAutoStartBreaks: (enabled: boolean) => void;

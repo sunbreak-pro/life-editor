@@ -8,6 +8,7 @@ import {
 } from "react";
 import type { ReactNode } from "react";
 import { TimerContext } from "./TimerContextValue";
+import type { SessionType } from "../types/timer";
 import { STORAGE_KEYS } from "../constants/storageKeys";
 import { getDataService } from "../services";
 import { isTauriMobile } from "../services/bridge";
@@ -359,6 +360,10 @@ export function TimerProvider({ children }: { children: ReactNode }) {
     dispatch({ type: "DISMISS_COMPLETION_MODAL" });
   }, []);
 
+  const setSessionType = useCallback((type: SessionType) => {
+    dispatch({ type: "SET_SESSION_TYPE", sessionType: type });
+  }, []);
+
   const setAutoStartBreaks = useCallback(
     (enabled: boolean) => {
       setAutoStartBreaksState(enabled);
@@ -439,6 +444,7 @@ export function TimerProvider({ children }: { children: ReactNode }) {
       setSessionsBeforeLongBreak,
       extendWork,
       startRest,
+      setSessionType,
       dismissCompletionModal,
       autoStartBreaks,
       setAutoStartBreaks,
@@ -476,6 +482,7 @@ export function TimerProvider({ children }: { children: ReactNode }) {
       setSessionsBeforeLongBreak,
       extendWork,
       startRest,
+      setSessionType,
       dismissCompletionModal,
       autoStartBreaks,
       setAutoStartBreaks,

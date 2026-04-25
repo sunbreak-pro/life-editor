@@ -6,9 +6,9 @@
 
 ## 直近の完了
 
+- iOS 追加機能要件 Phase 0〜4 / 6.1 / 6.3(Desktop) / 7 実装 + 品質ゲート ✅（2026-04-24 / 2026-04-25）— Note「iOS追加機能要件」16 項目のうち Global (G-1/G-3/G-5)・Materials M-5・Calendar C-1/C-3(Desktop)・Work W-1/W-2/W-3 を完遂。`MobileLayout` ヘッダーにハンバーガー + UndoRedoButtons、`MobileLeftDrawer` + `useSectionHistory` + `useEdgeSwipeBack` 新設、Phase 2.3-Redo で drawer=Desktop sidebar / main=DailyView/NotesView の 2 スロット構造に再構成。`DailyView`/`NotesView`/`WorkSidebarInfo` を Mobile 省略 Provider 向け Optional 化。UndoRedoContext に `setActiveEditor` 追加で Mobile ヘッダー Undo が TipTap 本文編集にも効くように、NotesView タイトル 500ms debounce で 1 文字 undo 量産を解消。`utils/tiptapText.ts` に `extractFirstHeading` 追加、`NoteTreeNode` 表示タイトルを本文先頭 heading 優先に。`MobileCalendarView` 月グリッド横スワイプ (60px threshold)、Desktop `CreateItemPopover` に Routine 追加。`timerReducer` `SET_SESSION_TYPE` で Long Break 再タップの start/stop ループ解消、`MobileWorkView` SessionTabs をトップバー右寄せ。Known Issue 015 として `notion-*-primary` サフィックス誤用 (Tailwind v4 は未定義 class silent skip) による Mobile 全体 27 箇所の背景透明化バグを発見・修正。2026-04-25 session-verifier で React Compiler 起因の lint error 4 件 (`screenLock?.unlock ?? (() => {})` の不安定参照、setState in effect、mount/unmount setTimeout pattern) を修正、`useEdgeSwipeBack` の listener 再登録を ref 化で回避、`tiptapText.test.ts` (13) / `sectionDomains.test.ts` (8) / `timerReducer.test.ts` SET_SESSION_TYPE (3) の計 24 テスト追加。プランファイル `~/.claude/plans/life-editor-note-ios-calm-moth.md`。tsc -b 通過 / Vitest 255 passed (31 files)。残: M-1 行スワイプ / M-2/M-3 TipTap slash / C-2 filter / Mobile 5-role form（次セッション）
 - Cloud Sync 014 本命修正 — server*updated_at cursor 導入 ✅（2026-04-24）— delta sync の非単調 updated_at 問題（Mobile v=372/11:50 と Desktop v=228/13:30 の組で高 version 行が永久に pull されない構造バグ）を Option A で解消: Cloud D1 に migration 0003 で versioned 10 + relation-with-updated_at 3 テーブルへ `server_updated_at TEXT` 追加 + `idx*\*\_server_updated_at`13 本 + 既存 updated_at からの backfill。Worker`/sync/push`を 2 文方式（UPSERT + 常時`UPDATE SET server_updated_at = ?serverNow WHERE pk = ?`）に変更し、版 LWW で棄却された push でも cursor stamp は必ず進むよう保証。`/sync/changes`は versioned / relation-with-updated_at / 親 join 3 箇所を全て`WHERE datetime(server_updated_at) > datetime(?since)`に切替。Production D1 migration 適用済み（39 queries / 2174 rows backfilled / wiki_tag_assignments の updated_at NULL 14 行は`1970-01-01T00:00:00.000Z`sentinel で追加補修）+ Worker 再 deploy（Version`38987e73-677c-43e9-9fab-52cb0ea7ca49`）。014.md Fixed 化 + INDEX.md 集計修正 + db-conventions.md §3 全面書き換え + §9 完了済み履歴移動 + CLAUDE.md §4.1 に Cloud 専用列の注記追加。client (Rust/Frontend) は無変更で API 契約維持。cloud tsc 0 error
 - Cloud Sync timestamp 整合性修正（Known Issues 013 / 014）+ DB 規約 vision 新設 ✅（2026-04-24）— Mobile → Desktop 同期不達を 3 層で解消: (1) `cloud/db/migrations/0002_rename_memos_to_dailies.sql` を Cloud schema 準拠に書き直し（note_links/paper_nodes 除去 + wiki_tag_assignments PK 衝突の 2 段回避）+ 本番適用、(2) sync delta query のスペース区切り vs ISO 8601 混在バグ（ASCII 順 space<T で同日行凍結）を `sync_engine.rs` / `cloud/src/routes/sync.ts` の全 delta query に `datetime()` 正規化を適用（013 Fixed + regression test 2 本）、(3) delta sync が updated_at 単調性に依存する構造的制約（Mobile 高 version 古 updated_at 行が pull 不能）を Full Re-sync 緊急弁で暫定対応し 014 Monitoring 起票。Worker 再 deploy（Version 04d24d88...）。並行して `docs/vision/db-conventions.md` 新設（timestamp / version / sync protocol / UPSERT / migration / multi-language write / 禁止事項 9 章）、CLAUDE.md / MEMORY.md / auto-memory / known-issues INDEX 全整合更新。cargo test 11→13 pass / tsc 0 / clippy 新規 warning 0
-- Memos → Daily 全層 rename + MemoEditor → RichTextEditor 中立分離 ✅（2026-04-23）— DB v63→v64 migration で `memos` → `dailies` リネーム + Rust backend 全層（12 IPC handler / sync_engine / data_io / diagnostics / claude / note_link / copy）+ MCP Server（`get_memo`/`upsert_memo` Hard break）+ Frontend 32 consumer 自動置換 + Pattern A 3-file（`DailyContextValue`/`DailyContext`/`useDailyContext`/`useDaily`）+ Cloud Sync（schema / migration 0002 / VERSIONED_TABLES）+ i18n + MemoEditor TipTap を `components/shared/RichTextEditor.tsx` に中立化。cargo test 11/11 / Vitest 231 pass / Frontend + MCP build 成功
 
 ## 予定
 
@@ -56,6 +56,18 @@
 ### Mobile Schedule & Work リデザイン 手動 UI 検証
 
 **対象**: iPhone シミュレータ / Tauri build で Schedule 月カレンダー / Dayflow / Work 全項目を目視検証
+
+### iOS 追加機能要件の残タスク（Phase 4 M-1 / Phase 5 / Phase 6.2 / Mobile C-3）
+
+**対象**: `NoteTreeNode` (行スワイプ) / `components/Notes/extensions/SlashCommand.ts` (新規) / `MobileCalendarView` の filter UI / `MobileScheduleItemForm` (5-role 対応)
+**背景**: 2026-04-24 Phase 8 完了時点で以下を次セッションに繰越:
+
+- **M-1 行スワイプ (edit / pin / delete)**: 既存 `NoteTreeNode` が DnD + hover UI を抱えるため touch-UX 再設計が必要
+- **M-2 / M-3 TipTap slash command + empty line hint**: `@tiptap/suggestion` 依存追加 + ポップオーバー UI 新規実装
+- **C-2 Calendar filter / sort**: role multi-select + sort UI 設計が必要（drawer 内 filter sheet として実装予定）
+- **Mobile C-3**: `MobileScheduleItemForm` を event 専用から 5-role 選択対応にリファクタ
+
+**参照**: `~/.claude/plans/life-editor-note-ios-calm-moth.md` Phase 4-6
 
 ### Frontend 既存 lint 116 問題の一括解消
 

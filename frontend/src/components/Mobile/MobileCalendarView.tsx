@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import {
   Plus,
@@ -61,6 +61,8 @@ interface MobileMonthlyCalendarProps {
   onViewDateChange: (vd: { year: number; month: number }) => void;
   itemsByDate: Map<string, DayItem[]>;
 }
+
+const MONTH_SWIPE_THRESHOLD = 60;
 
 function MobileMonthlyCalendar({
   selectedDate,
@@ -125,6 +127,46 @@ function MobileMonthlyCalendar({
     [viewDate, onViewDateChange],
   );
 
+  // Swipe grid horizontally to navigate between months
+  const swipeRef = useRef<{
+    startX: number;
+    startY: number;
+    locked: "h" | "v" | null;
+  }>({ startX: 0, startY: 0, locked: null });
+  const [swipeDx, setSwipeDx] = useState(0);
+
+  const handleGridTouchStart = useCallback((e: React.TouchEvent) => {
+    const t = e.touches[0];
+    swipeRef.current = {
+      startX: t.clientX,
+      startY: t.clientY,
+      locked: null,
+    };
+    setSwipeDx(0);
+  }, []);
+
+  const handleGridTouchMove = useCallback((e: React.TouchEvent) => {
+    const t = e.touches[0];
+    const dx = t.clientX - swipeRef.current.startX;
+    const dy = t.clientY - swipeRef.current.startY;
+    if (swipeRef.current.locked === null) {
+      if (Math.abs(dx) > 10 || Math.abs(dy) > 10) {
+        swipeRef.current.locked = Math.abs(dx) > Math.abs(dy) ? "h" : "v";
+      }
+      return;
+    }
+    if (swipeRef.current.locked !== "h") return;
+    setSwipeDx(dx);
+  }, []);
+
+  const handleGridTouchEnd = useCallback(() => {
+    const dx = swipeDx;
+    swipeRef.current.locked = null;
+    setSwipeDx(0);
+    if (Math.abs(dx) < MONTH_SWIPE_THRESHOLD) return;
+    navigateMonth(dx < 0 ? 1 : -1);
+  }, [swipeDx, navigateMonth]);
+
   const goToToday = useCallback(() => {
     const now = new Date();
     onViewDateChange({ year: now.getFullYear(), month: now.getMonth() });
@@ -181,8 +223,18 @@ function MobileMonthlyCalendar({
         ))}
       </div>
 
-      {/* Month grid */}
-      <div className="grid grid-cols-7 border-l border-notion-border">
+      {/* Month grid (horizontal swipe navigates between months) */}
+      <div
+        onTouchStart={handleGridTouchStart}
+        onTouchMove={handleGridTouchMove}
+        onTouchEnd={handleGridTouchEnd}
+        onTouchCancel={handleGridTouchEnd}
+        className="grid grid-cols-7 border-l border-notion-border"
+        style={{
+          transform: swipeDx !== 0 ? `translateX(${swipeDx}px)` : undefined,
+          transition: swipeDx === 0 ? "transform 200ms ease-out" : undefined,
+        }}
+      >
         {calendarDays.map(({ date, inMonth }) => {
           const dateStr = formatDateStr(date);
           const items = itemsByDate.get(dateStr) ?? [];

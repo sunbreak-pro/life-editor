@@ -31,7 +31,7 @@ export function MobileActionSheet({
       onClick={onClose}
     >
       <div
-        className="rounded-t-2xl bg-notion-bg-primary pb-[env(safe-area-inset-bottom)]"
+        className="rounded-t-2xl bg-notion-bg pb-[env(safe-area-inset-bottom)]"
         onClick={(e) => e.stopPropagation()}
       >
         {title && (
@@ -51,7 +51,7 @@ export function MobileActionSheet({
                   onClose();
                 }}
                 className={`flex w-full items-center gap-3 border-b border-notion-border px-4 py-3.5 text-left text-sm transition-colors active:bg-notion-hover disabled:opacity-40 ${
-                  item.destructive ? "text-red-500" : "text-notion-text-primary"
+                  item.destructive ? "text-red-500" : "text-notion-text"
                 }`}
               >
                 {item.icon && (

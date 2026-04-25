@@ -1829,6 +1829,8 @@
     "createNote": "Note",
     "createDaily": "Daily",
     "createEvent": "Create Event",
+    "createRoutine": "Routine",
+    "newRoutinePlaceholder": "Untitled routine",
     "eventTitle": "Title",
     "eventMemo": "Memo",
     "calendarTags": "Calendar Tags",
@@ -2373,6 +2375,15 @@
     "remove": "Remove"
   },
   "mobile": {
+    "header": {
+      "menu": "Open menu"
+    },
+    "drawer": {
+      "title": "Menu",
+      "navigation": "Navigation",
+      "sectionContent": "Section content",
+      "sectionContentEmpty": "No additional content for this section."
+    },
     "tabs": {
       "materials": "Materials",
       "schedule": "Schedule",

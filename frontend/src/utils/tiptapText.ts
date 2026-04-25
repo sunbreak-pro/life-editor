@@ -19,3 +19,35 @@ export function getContentPreview(content: string, maxLength = 100): string {
     return (tmp.textContent || tmp.innerText || "").slice(0, maxLength);
   }
 }
+
+function findFirstHeadingNode(node: unknown): unknown | null {
+  if (!node || typeof node !== "object") return null;
+  const n = node as Record<string, unknown>;
+  if (n.type === "heading") return n;
+  if (Array.isArray(n.content)) {
+    for (const child of n.content) {
+      const found = findFirstHeadingNode(child);
+      if (found) return found;
+    }
+  }
+  return null;
+}
+
+/**
+ * Extract the plain text of the first heading node (h1/h2/h3) in a TipTap JSON
+ * document. Returns null if no heading is found or content is empty/invalid.
+ * Used by list views that want to surface a document's "title"
+ * from its first heading instead of the stored note.title field.
+ */
+export function extractFirstHeading(content: string): string | null {
+  if (!content) return null;
+  try {
+    const parsed = JSON.parse(content);
+    const heading = findFirstHeadingNode(parsed);
+    if (!heading) return null;
+    const text = extractTextFromTipTap(heading).trim();
+    return text || null;
+  } catch {
+    return null;
+  }
+}

@@ -3,18 +3,9 @@ import { PanelLeft, PanelRight, Terminal as TerminalIcon } from "lucide-react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { isMac } from "../../utils/platform";
 import type { SectionId } from "../../types/taskTree";
-import { UndoRedoButtons } from "../shared/UndoRedo";
-import type { UndoDomain } from "../shared/UndoRedo";
+import { UndoRedoButtons, SECTION_UNDO_DOMAINS } from "../shared/UndoRedo";
 import type { LayoutHandle } from "./Layout";
 import { useTranslation } from "react-i18next";
-
-const SECTION_UNDO_DOMAINS: Partial<Record<SectionId, UndoDomain[]>> = {
-  schedule: ["scheduleItem", "routine", "taskTree", "calendar"],
-  materials: ["daily", "note", "wikiTag"],
-  connect: ["wikiTag"],
-  work: ["playlist", "sound"],
-  settings: ["settings"],
-};
 
 interface TitleBarProps {
   sidebarOpen: boolean;

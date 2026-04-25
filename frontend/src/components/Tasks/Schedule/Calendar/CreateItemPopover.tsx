@@ -1,5 +1,11 @@
 import { useRef } from "react";
-import { ListTodo, FileText, BookOpen, CalendarClock } from "lucide-react";
+import {
+  ListTodo,
+  FileText,
+  BookOpen,
+  CalendarClock,
+  Repeat,
+} from "lucide-react";
 import { useClickOutside } from "../../../../hooks/useClickOutside";
 import { useClampedPosition } from "../../../../hooks/useClampedPosition";
 import { useTranslation } from "react-i18next";
@@ -10,14 +16,16 @@ interface CreateItemPopoverProps {
   onSelectNote: () => void;
   onSelectDaily: () => void;
   onSelectEvent: () => void;
+  onSelectRoutine?: () => void;
   onClose: () => void;
 }
 
-const ITEMS = [
+const BASE_ITEMS = [
   { key: "task", icon: ListTodo, labelKey: "calendar.createTask" },
+  { key: "event", icon: CalendarClock, labelKey: "calendar.createEvent" },
+  { key: "routine", icon: Repeat, labelKey: "calendar.createRoutine" },
   { key: "note", icon: FileText, labelKey: "calendar.createNote" },
   { key: "daily", icon: BookOpen, labelKey: "calendar.createDaily" },
-  { key: "event", icon: CalendarClock, labelKey: "calendar.createEvent" },
 ] as const;
 
 export function CreateItemPopover({
@@ -26,6 +34,7 @@ export function CreateItemPopover({
   onSelectNote,
   onSelectDaily,
   onSelectEvent,
+  onSelectRoutine,
   onClose,
 }: CreateItemPopoverProps) {
   const { t } = useTranslation();
@@ -33,12 +42,15 @@ export function CreateItemPopover({
   const adjusted = useClampedPosition(ref, position);
   useClickOutside(ref, onClose, true);
 
-  const handlers: Record<string, () => void> = {
+  const handlers: Record<string, (() => void) | undefined> = {
     task: onSelectTask,
     note: onSelectNote,
     daily: onSelectDaily,
     event: onSelectEvent,
+    routine: onSelectRoutine,
   };
+
+  const ITEMS = BASE_ITEMS.filter(({ key }) => handlers[key] !== undefined);
 
   return (
     <div
@@ -50,7 +62,7 @@ export function CreateItemPopover({
         <button
           key={key}
           onClick={() => {
-            handlers[key]();
+            handlers[key]?.();
             onClose();
           }}
           className="w-full flex items-center gap-2 px-3 py-1.5 text-sm text-notion-text hover:bg-notion-hover transition-colors"

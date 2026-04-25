@@ -107,7 +107,7 @@ export const MobileNoteTreeItem = memo(function MobileNoteTreeItem({
         {isFolder ? <Folder size={16} /> : <StickyNote size={16} />}
       </span>
 
-      <span className="flex-1 truncate text-sm text-notion-text-primary">
+      <span className="flex-1 truncate text-sm text-notion-text">
         {node.title || "Untitled"}
       </span>
 

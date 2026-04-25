@@ -4,7 +4,14 @@ import { useToast } from "../../context/ToastContext";
 import { Heart, BookOpen, Lock, MoreHorizontal, PenOff } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useDailyContext } from "../../hooks/useDailyContext";
-import { useScreenLockContext } from "../../hooks/useScreenLockContext";
+import { useScreenLockContextOptional } from "../../hooks/useScreenLockContextOptional";
+
+// Stable fallback for Mobile (where ScreenLockProvider is omitted) — kept at
+// module scope so the reference never changes and useCallback deps stay stable.
+const SCREEN_LOCK_FALLBACK = {
+  isUnlocked: () => true,
+  unlock: () => {},
+} as const;
 import { formatDateTime } from "../../utils/formatRelativeDate";
 import { formatDateHeading } from "../../utils/dateKey";
 import { LazyRichTextEditor as RichTextEditor } from "../shared/LazyRichTextEditor";
@@ -33,7 +40,8 @@ export function DailyView() {
     verifyDailyPassword,
     toggleEditLock,
   } = useDailyContext();
-  const { isUnlocked, unlock } = useScreenLockContext();
+  const screenLock = useScreenLockContextOptional();
+  const { isUnlocked, unlock } = screenLock ?? SCREEN_LOCK_FALLBACK;
   const { getDefaultDailyContent } = useTemplateContext();
   const { t, i18n } = useTranslation();
   const { showToast } = useToast();

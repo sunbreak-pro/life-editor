@@ -26,6 +26,7 @@ export type TimerAction =
   | { type: "RESET" }
   | { type: "ADVANCE_SESSION" }
   | { type: "START_REST" }
+  | { type: "SET_SESSION_TYPE"; sessionType: SessionType }
   | { type: "EXTEND_WORK"; minutes: number }
   | { type: "DISMISS_COMPLETION_MODAL" }
   | { type: "SET_ACTIVE_TASK"; task: ActiveTask | null }
@@ -133,6 +134,16 @@ export function timerReducer(
           : state.config.breakDuration,
       };
     }
+
+    case "SET_SESSION_TYPE":
+      return {
+        ...state,
+        isRunning: false,
+        sessionType: action.sessionType,
+        remainingSeconds: getDuration(action.sessionType, state.config),
+        showCompletionModal: false,
+        completedSessionType: null,
+      };
 
     case "EXTEND_WORK":
       return {

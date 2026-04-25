@@ -68,7 +68,7 @@ export function MobileTagPicker({
   };
 
   return createPortal(
-    <div className="fixed inset-0 z-50 flex flex-col bg-notion-bg-primary pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]">
+    <div className="fixed inset-0 z-50 flex flex-col bg-notion-bg pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]">
       <div className="flex items-center justify-between border-b border-notion-border px-4 py-3">
         <button
           type="button"
@@ -78,7 +78,7 @@ export function MobileTagPicker({
         >
           <X size={20} />
         </button>
-        <h2 className="text-sm font-semibold text-notion-text-primary">
+        <h2 className="text-sm font-semibold text-notion-text">
           {t("mobile.tags.title", "Tags")}
         </h2>
         <span className="w-5" />
@@ -92,7 +92,7 @@ export function MobileTagPicker({
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder={t("mobile.tags.search", "Search or create tag")}
-            className="flex-1 bg-transparent text-sm text-notion-text-primary placeholder:text-notion-text-secondary focus:outline-none"
+            className="flex-1 bg-transparent text-sm text-notion-text placeholder:text-notion-text-secondary focus:outline-none"
             autoFocus
           />
         </div>
@@ -133,7 +133,7 @@ export function MobileTagPicker({
                     className="h-3 w-3 rounded-full"
                     style={{ backgroundColor: tag.color }}
                   />
-                  <span className="flex-1 text-sm text-notion-text-primary">
+                  <span className="flex-1 text-sm text-notion-text">
                     {tag.name}
                   </span>
                   {active && <Check size={16} className="text-notion-accent" />}

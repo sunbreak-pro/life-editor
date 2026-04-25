@@ -252,6 +252,7 @@ export function CalendarView({
     groupTagAssignments,
     setTagsForGroup,
     createRoutineTag,
+    createRoutine,
     reconcileRoutineScheduleItems,
     dismissScheduleItem,
     scheduleItemsVersion,
@@ -768,6 +769,12 @@ export function CalendarView({
             const { date, position } = createMenuPopover;
             setCreateMenuPopover(null);
             handleRequestCreateEvent(date, position);
+          }}
+          onSelectRoutine={() => {
+            setCreateMenuPopover(null);
+            // Create a routine with default daily frequency; user can refine
+            // in ScheduleSidebarContent → routine management.
+            createRoutine("Untitled routine");
           }}
           onClose={() => setCreateMenuPopover(null)}
         />

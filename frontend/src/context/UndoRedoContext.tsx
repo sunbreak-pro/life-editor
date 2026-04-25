@@ -1,5 +1,6 @@
 import { useRef, useState, useCallback, useMemo } from "react";
 import type { ReactNode } from "react";
+import type { Editor } from "@tiptap/react";
 import type { UndoDomain, UndoCommand } from "../utils/undoRedo/types";
 import { UndoRedoManager } from "../utils/undoRedo/UndoRedoManager";
 import { UndoRedoContext } from "./UndoRedoContextValue";
@@ -9,6 +10,7 @@ export function UndoRedoProvider({ children }: { children: ReactNode }) {
   const managerRef = useRef<UndoRedoManager | null>(null);
   const activeDomainRef = useRef<UndoDomain | null>(null);
   const activeDomainsRef = useRef<UndoDomain[] | null>(null);
+  const activeEditorRef = useRef<Editor | null>(null);
   const [version, setVersion] = useState(0);
 
   if (!managerRef.current) {
@@ -94,6 +96,13 @@ export function UndoRedoProvider({ children }: { children: ReactNode }) {
 
   const getActiveDomains = useCallback(() => activeDomainsRef.current, []);
 
+  const setActiveEditor = useCallback((editor: Editor | null) => {
+    activeEditorRef.current = editor;
+    setVersion((v) => v + 1);
+  }, []);
+
+  const getActiveEditor = useCallback(() => activeEditorRef.current, []);
+
   const value = useMemo<UndoRedoContextValue>(
     () => ({
       push,
@@ -110,6 +119,8 @@ export function UndoRedoProvider({ children }: { children: ReactNode }) {
       canRedoAny,
       setActiveDomains,
       getActiveDomains,
+      setActiveEditor,
+      getActiveEditor,
     }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [
@@ -127,6 +138,8 @@ export function UndoRedoProvider({ children }: { children: ReactNode }) {
       canRedoAny,
       setActiveDomains,
       getActiveDomains,
+      setActiveEditor,
+      getActiveEditor,
       version,
     ],
   );

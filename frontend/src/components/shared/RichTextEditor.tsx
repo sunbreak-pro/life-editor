@@ -47,6 +47,7 @@ import { NodeSelection } from "@tiptap/pm/state";
 import type { WikiTagEntityType } from "../../types/wikiTag";
 import type { Node as PmNode } from "@tiptap/pm/model";
 import { useIsTouchDevice } from "../../hooks/useIsTouchDevice";
+import { useUndoRedo } from "../../hooks/useUndoRedo";
 
 interface ContextMenuState {
   x: number;
@@ -166,6 +167,7 @@ export function RichTextEditor({
   const imageUploadRef = useRef<(file: File) => void>(() => {});
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
   const isTouch = useIsTouchDevice();
+  const { setActiveEditor, getActiveEditor } = useUndoRedo();
   const {
     resolveAttachmentUrls,
     uploadImage,
@@ -190,6 +192,8 @@ export function RichTextEditor({
       }
     };
   }, []);
+
+  // Clear active editor reference when this instance unmounts if it was the active one
 
   // Flush pending debounce on window close
   useEffect(() => {
@@ -269,6 +273,11 @@ export function RichTextEditor({
           taskId,
           entityType,
         });
+      },
+      onFocus: ({ editor }) => {
+        if (editor.isEditable) {
+          setActiveEditor(editor);
+        }
       },
       onUpdate: ({ editor }) => {
         if (resolvingRef.current) return;
@@ -382,6 +391,16 @@ export function RichTextEditor({
   useEffect(() => {
     if (editor) editor.setEditable(editable);
   }, [editor, editable]);
+
+  // Clear active editor on unmount if this instance is currently active
+  useEffect(() => {
+    if (!editor) return;
+    return () => {
+      if (getActiveEditor() === editor) {
+        setActiveEditor(null);
+      }
+    };
+  }, [editor, getActiveEditor, setActiveEditor]);
 
   // Upload image and insert into editor
   const handleImageUpload = useCallback(

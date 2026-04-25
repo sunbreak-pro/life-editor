@@ -10,3 +10,4 @@ export { UndoRedoProvider } from "../../../context/UndoRedoContext";
 export { useUndoRedo } from "../../../hooks/useUndoRedo";
 export { useUndoRedoKeyboard } from "./useUndoRedoKeyboard";
 export { UndoRedoButtons } from "./UndoRedoButtons";
+export { SECTION_UNDO_DOMAINS, getMobileUndoDomains } from "./sectionDomains";

@@ -23,21 +23,31 @@ export function UndoRedoButtons({ domain, domains }: UndoRedoButtonsProps) {
     canUndoAny,
     canRedoAny,
     setActiveDomains,
+    getActiveEditor,
   } = useUndoRedo();
 
   const resolvedDomains = domains ?? (domain ? [domain] : []);
   const isMulti = resolvedDomains.length > 1;
 
-  const hasUndo = isMulti
+  const activeEditor = getActiveEditor();
+  const editorActive =
+    activeEditor && !activeEditor.isDestroyed && activeEditor.isEditable;
+  const editorCanUndo = editorActive ? activeEditor.can().undo() : false;
+  const editorCanRedo = editorActive ? activeEditor.can().redo() : false;
+
+  const domainHasUndo = isMulti
     ? canUndoAny(resolvedDomains)
     : resolvedDomains.length === 1
       ? canUndo(resolvedDomains[0])
       : false;
-  const hasRedo = isMulti
+  const domainHasRedo = isMulti
     ? canRedoAny(resolvedDomains)
     : resolvedDomains.length === 1
       ? canRedo(resolvedDomains[0])
       : false;
+
+  const hasUndo = editorCanUndo || domainHasUndo;
+  const hasRedo = editorCanRedo || domainHasRedo;
 
   useEffect(() => {
     if (isMulti) {
@@ -52,6 +62,16 @@ export function UndoRedoButtons({ domain, domains }: UndoRedoButtonsProps) {
   }, [resolvedDomains.join(","), setActiveDomain, setActiveDomains]);
 
   const handleUndo = () => {
+    const editor = getActiveEditor();
+    if (
+      editor &&
+      !editor.isDestroyed &&
+      editor.isEditable &&
+      editor.can().undo()
+    ) {
+      editor.commands.undo();
+      return;
+    }
     if (isMulti) {
       undoLatest(resolvedDomains);
     } else if (resolvedDomains.length === 1) {
@@ -60,6 +80,16 @@ export function UndoRedoButtons({ domain, domains }: UndoRedoButtonsProps) {
   };
 
   const handleRedo = () => {
+    const editor = getActiveEditor();
+    if (
+      editor &&
+      !editor.isDestroyed &&
+      editor.isEditable &&
+      editor.can().redo()
+    ) {
+      editor.commands.redo();
+      return;
+    }
     if (isMulti) {
       redoLatest(resolvedDomains);
     } else if (resolvedDomains.length === 1) {

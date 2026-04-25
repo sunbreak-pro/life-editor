@@ -1,6 +1,7 @@
 import { type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
-import { FileText, Calendar, Timer, Settings } from "lucide-react";
+import { FileText, Calendar, Timer, Settings, Menu } from "lucide-react";
+import { UndoRedoButtons, getMobileUndoDomains } from "../shared/UndoRedo";
 
 export type MobileTab = "schedule" | "work" | "materials" | "settings";
 
@@ -8,12 +9,14 @@ interface MobileLayoutProps {
   children: ReactNode;
   activeTab: MobileTab;
   onTabChange: (tab: MobileTab) => void;
+  onOpenDrawer?: () => void;
 }
 
 export function MobileLayout({
   children,
   activeTab,
   onTabChange,
+  onOpenDrawer,
 }: MobileLayoutProps) {
   const { t } = useTranslation();
 
@@ -40,19 +43,30 @@ export function MobileLayout({
     },
   ];
 
+  const undoDomains = getMobileUndoDomains(activeTab);
+
   return (
     <div
-      className="flex h-[100svh] flex-col bg-notion-bg-primary pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)]"
+      className="flex h-[100svh] flex-col bg-notion-bg pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)]"
       style={{ overscrollBehavior: "none" }}
     >
       {/* Header */}
       <header
-        className="flex shrink-0 items-center border-b border-notion-border px-4 pt-[env(safe-area-inset-top)]"
+        className="flex shrink-0 items-center gap-1 border-b border-notion-border pr-2 pt-[env(safe-area-inset-top)]"
         style={{ minHeight: "calc(3rem + env(safe-area-inset-top, 0px))" }}
       >
-        <h1 className="text-lg font-semibold text-notion-text-primary">
+        <button
+          type="button"
+          onClick={onOpenDrawer}
+          aria-label={t("mobile.header.menu", "Menu")}
+          className="flex h-11 w-11 items-center justify-center text-notion-text-secondary active:bg-notion-hover active:text-notion-text"
+        >
+          <Menu size={20} />
+        </button>
+        <h1 className="flex-1 truncate text-lg font-semibold text-notion-text">
           Life Editor
         </h1>
+        {undoDomains.length > 0 && <UndoRedoButtons domains={undoDomains} />}
       </header>
 
       {/* Main content */}
@@ -64,7 +78,7 @@ export function MobileLayout({
       </main>
 
       {/* Bottom tab bar */}
-      <nav className="flex shrink-0 border-t border-notion-border bg-notion-bg-primary pb-[env(safe-area-inset-bottom)]">
+      <nav className="flex shrink-0 border-t border-notion-border bg-notion-bg pb-[env(safe-area-inset-bottom)]">
         {tabs.map((tab) => {
           const Icon = tab.icon;
           const isActive = activeTab === tab.id;

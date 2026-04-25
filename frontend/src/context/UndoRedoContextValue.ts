@@ -1,4 +1,5 @@
 import { createContext } from "react";
+import type { Editor } from "@tiptap/react";
 import type { UndoDomain, UndoCommand } from "../utils/undoRedo/types";
 
 export interface UndoRedoContextValue {
@@ -17,6 +18,9 @@ export interface UndoRedoContextValue {
   canRedoAny: (domains: UndoDomain[]) => boolean;
   setActiveDomains: (domains: UndoDomain[] | null) => void;
   getActiveDomains: () => UndoDomain[] | null;
+  /* TipTap editor integration — header Undo can route to active editor's own history */
+  setActiveEditor: (editor: Editor | null) => void;
+  getActiveEditor: () => Editor | null;
 }
 
 export const UndoRedoContext = createContext<UndoRedoContextValue | null>(null);

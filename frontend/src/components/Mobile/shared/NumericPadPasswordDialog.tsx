@@ -117,7 +117,7 @@ export function NumericPadPasswordDialog({
   };
 
   return createPortal(
-    <div className="fixed inset-0 z-50 flex flex-col bg-notion-bg-primary pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]">
+    <div className="fixed inset-0 z-50 flex flex-col bg-notion-bg pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]">
       <div className="flex items-center justify-between border-b border-notion-border px-4 py-3">
         <button
           type="button"
@@ -126,7 +126,7 @@ export function NumericPadPasswordDialog({
         >
           {t("common.cancel", "Cancel")}
         </button>
-        <h2 className="text-sm font-semibold text-notion-text-primary">
+        <h2 className="text-sm font-semibold text-notion-text">
           {title}
         </h2>
         <span className="w-12" />
@@ -144,7 +144,7 @@ export function NumericPadPasswordDialog({
                 key={i}
                 className={`h-3 w-3 rounded-full transition-colors ${
                   filled
-                    ? "bg-notion-text-primary"
+                    ? "bg-notion-text"
                     : "border border-notion-border bg-transparent"
                 }`}
               />
@@ -162,7 +162,7 @@ export function NumericPadPasswordDialog({
             type="button"
             onClick={() => handleDigit(String(n))}
             disabled={loading}
-            className="h-14 rounded-lg bg-notion-hover text-2xl font-light text-notion-text-primary active:bg-notion-border disabled:opacity-50"
+            className="h-14 rounded-lg bg-notion-hover text-2xl font-light text-notion-text active:bg-notion-border disabled:opacity-50"
           >
             {n}
           </button>
@@ -181,7 +181,7 @@ export function NumericPadPasswordDialog({
           type="button"
           onClick={() => handleDigit("0")}
           disabled={loading}
-          className="h-14 rounded-lg bg-notion-hover text-2xl font-light text-notion-text-primary active:bg-notion-border disabled:opacity-50"
+          className="h-14 rounded-lg bg-notion-hover text-2xl font-light text-notion-text active:bg-notion-border disabled:opacity-50"
         >
           0
         </button>
@@ -189,7 +189,7 @@ export function NumericPadPasswordDialog({
           type="button"
           onClick={handleDelete}
           disabled={loading || activeDigits.length === 0}
-          className="flex h-14 items-center justify-center rounded-lg text-notion-text-primary disabled:opacity-40"
+          className="flex h-14 items-center justify-center rounded-lg text-notion-text disabled:opacity-40"
         >
           <Delete size={22} />
         </button>

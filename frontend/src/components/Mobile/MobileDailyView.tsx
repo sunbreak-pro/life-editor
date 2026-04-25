@@ -73,7 +73,7 @@ export function MobileDailyView() {
   return (
     <div className="flex h-full flex-col">
       <div className="flex items-center justify-between border-b border-notion-border px-4 py-3">
-        <h2 className="text-sm font-medium text-notion-text-primary">
+        <h2 className="text-sm font-medium text-notion-text">
           {t("mobile.tabs.daily", "Daily")}
         </h2>
         <button
@@ -101,7 +101,7 @@ export function MobileDailyView() {
                 className="cursor-pointer border-b border-notion-border px-4 py-3 active:bg-notion-hover"
               >
                 <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium text-notion-text-primary">
+                  <span className="text-sm font-medium text-notion-text">
                     {memo.date}
                   </span>
                   {memo.isPinned && (
@@ -147,11 +147,11 @@ function MobileMemoDetail({ date, memo, onBack }: MobileMemoDetailProps) {
         <button onClick={onBack} className="text-sm text-notion-accent">
           &larr; {t("common.back", "Back")}
         </button>
-        <span className="text-sm font-medium text-notion-text-primary">
+        <span className="text-sm font-medium text-notion-text">
           {date}
         </span>
       </div>
-      <div className="flex min-h-0 flex-1 flex-col overflow-y-auto bg-notion-bg-primary p-4">
+      <div className="flex min-h-0 flex-1 flex-col overflow-y-auto bg-notion-bg p-4">
         <Suspense
           fallback={
             <div className="text-sm text-notion-text-secondary">

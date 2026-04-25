@@ -300,7 +300,7 @@ export function MobileNoteView() {
   return (
     <div className="flex h-full flex-col">
       <div className="flex items-center justify-between border-b border-notion-border px-4 py-3">
-        <h2 className="text-sm font-medium text-notion-text-primary">
+        <h2 className="text-sm font-medium text-notion-text">
           {t("mobile.tabs.notes", "Notes")}
         </h2>
         <button
@@ -488,7 +488,7 @@ function MobileNoteDetail({ note, onBack, onUpdate }: MobileNoteDetailProps) {
           value={title}
           onChange={(e) => handleTitleChange(e.target.value)}
           disabled={isLocked}
-          className="mb-2 w-full border-b border-notion-border bg-transparent pb-2 text-lg font-semibold text-notion-text-primary focus:outline-none disabled:opacity-70"
+          className="mb-2 w-full border-b border-notion-border bg-transparent pb-2 text-lg font-semibold text-notion-text focus:outline-none disabled:opacity-70"
           placeholder={t("mobile.note.titlePlaceholder", "Title")}
         />
         <MobileNoteTagsBar entityId={note.id} readOnly={isLocked} />

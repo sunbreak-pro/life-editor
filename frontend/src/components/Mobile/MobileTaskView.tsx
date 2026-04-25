@@ -84,7 +84,7 @@ export function MobileTaskView() {
             className={`min-w-0 flex-1 truncate text-sm ${
               task.status === "DONE"
                 ? "text-notion-text-secondary line-through"
-                : "text-notion-text-primary"
+                : "text-notion-text"
             }`}
           >
             {task.title}
@@ -98,7 +98,7 @@ export function MobileTaskView() {
   return (
     <div className="flex h-full flex-col">
       <div className="flex items-center justify-between border-b border-notion-border px-4 py-3">
-        <h2 className="text-sm font-medium text-notion-text-primary">
+        <h2 className="text-sm font-medium text-notion-text">
           {t("mobile.tabs.tasks", "Tasks")}
         </h2>
       </div>

@@ -16,6 +16,7 @@ import {
 import type { NoteNode } from "../../types/note";
 import { useNoteDragOverIndicator } from "../../hooks/useNoteDragOverIndicator";
 import { renderIcon } from "../../utils/iconRenderer";
+import { extractFirstHeading } from "../../utils/tiptapText";
 import { NoteNodeContextMenu } from "./NoteNodeContextMenu";
 import { IconPicker } from "../common/IconPicker";
 
@@ -204,7 +205,10 @@ export const NoteTreeNode = memo(function NoteTreeNode({
           />
         ) : (
           <span className="truncate flex-1 min-w-0">
-            {node.title || "Untitled"}
+            {/* Prefer first heading from body content; fall back to title, then "Untitled" */}
+            {(node.type !== "folder" && extractFirstHeading(node.content)) ||
+              node.title ||
+              "Untitled"}
           </span>
         )}
 
