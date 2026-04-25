@@ -55,11 +55,14 @@ pub fn collect_local_changes(
 
     // Relation tables without updated_at: fetch via parent join.
     // datetime() wrap mirrors query_changed's normalization (ISO vs space formats).
+    // calendar_tag_assignments has its own updated_at (V65 rebuild), so delta
+    // against the CTA row itself rather than its parent. The CTA may belong
+    // to either a schedule_item or a task (entity_type), and a JOIN-based
+    // query can no longer key off a single parent table.
     payload.calendar_tag_assignments = helpers::query_all_json_with_params(
         conn,
-        "SELECT cta.* FROM calendar_tag_assignments cta \
-         INNER JOIN schedule_items si ON cta.schedule_item_id = si.id \
-         WHERE datetime(si.updated_at) > datetime(?1)",
+        "SELECT * FROM calendar_tag_assignments \
+         WHERE datetime(updated_at) > datetime(?1)",
         &[&since],
     )?;
     payload.routine_tag_assignments = helpers::query_all_json_with_params(
