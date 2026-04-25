@@ -59,7 +59,7 @@ pub(super) fn create_full_schema(conn: &Connection) -> rusqlite::Result<()> {
         CREATE TABLE IF NOT EXISTS timer_sessions (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             task_id TEXT,
-            session_type TEXT CHECK(session_type IN ('WORK','BREAK','LONG_BREAK')),
+            session_type TEXT CHECK(session_type IN ('WORK','BREAK','LONG_BREAK','FREE')),
             started_at TEXT NOT NULL,
             completed_at TEXT,
             duration INTEGER,

@@ -1,8 +1,16 @@
 import { useCallback, useEffect, useState, useContext } from "react";
 import { createPortal } from "react-dom";
-import { CheckCircle2, Music, Play, SkipForward, Timer } from "lucide-react";
+import {
+  CheckCircle2,
+  History as HistoryIcon,
+  Music,
+  Play,
+  SkipForward,
+  Timer,
+} from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useTimerContext } from "../../hooks/useTimerContext";
+import { useSessionCompletionToast } from "../../hooks/useSessionCompletionToast";
 
 import { getDataService } from "../../services";
 import { LAYOUT } from "../../constants/layout";
@@ -13,6 +21,7 @@ import { TimerCircularProgress } from "./TimerCircularProgress";
 import { TaskSelector } from "./TaskSelector";
 import { TodaySessionSummary } from "./TodaySessionSummary";
 import { WorkMusicContent } from "./WorkMusicContent";
+import { WorkHistoryContent } from "./WorkHistoryContent";
 import { FreeSessionSaveDialog } from "./FreeSessionSaveDialog";
 import { isFreeSessionSaveDialogEnabled } from "../../utils/pomodoroSettings";
 
@@ -20,10 +29,11 @@ import { ConfirmDialog } from "../shared/ConfirmDialog";
 import { WorkSidebarInfo } from "./WorkSidebarInfo";
 import { RightSidebarContext } from "../../context/RightSidebarContext";
 
-type WorkTab = "timer" | "music";
+type WorkTab = "timer" | "history" | "music";
 
 const WORK_TABS: readonly TabItem<WorkTab>[] = [
   { id: "timer", labelKey: "work.tabTimer", icon: Timer },
+  { id: "history", labelKey: "work.tabHistory", icon: HistoryIcon },
   { id: "music", labelKey: "work.tabMusic", icon: Music },
 ];
 
@@ -34,6 +44,7 @@ interface WorkScreenProps {
 export function WorkScreen({ onCompleteTask }: WorkScreenProps) {
   const { t } = useTranslation();
   const timer = useTimerContext();
+  useSessionCompletionToast();
 
   const { portalTarget: rightSidebarTarget } = useContext(RightSidebarContext);
   const [activeTab, setActiveTab] = useState<WorkTab>("timer");
@@ -182,6 +193,8 @@ export function WorkScreen({ onCompleteTask }: WorkScreenProps) {
               </div>
             </div>
           )}
+
+          {activeTab === "history" && <WorkHistoryContent />}
 
           {activeTab === "music" && <WorkMusicContent />}
         </div>

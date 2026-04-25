@@ -485,6 +485,15 @@
     "tabTimer": "タイマー",
     "tabPomodoro": "ポモドーロ",
     "tabMusic": "ミュージック",
+    "tabHistory": "履歴",
+    "history": {
+      "last7Days": "直近 7 日間",
+      "empty": "セッション記録はまだありません。Pomodoro か Free セッションを開始してください。"
+    },
+    "toast": {
+      "recordedToTask": "✓ {{task}} に {{minutes}}分 を記録",
+      "recordedFreeWork": "✓ {{minutes}}分 を記録"
+    },
     "setBackgroundSound": "バックグラウンドサウンドを設定する",
     "noPlaylist": "プレイリスト未選択（無音）",
     "backgroundPlaylist": "バックグラウンドプレイリスト",

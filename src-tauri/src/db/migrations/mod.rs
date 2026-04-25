@@ -71,7 +71,7 @@ mod tests {
     /// Latest schema user_version. Bump every time a new V_N block is added
     /// to `v61_plus.rs` so the cross-cutting tests (fresh DB / upgrade /
     /// idempotency) stay in sync without per-test edits.
-    const LATEST_USER_VERSION: i32 = 67;
+    const LATEST_USER_VERSION: i32 = 68;
 
     fn table_exists(conn: &Connection, name: &str) -> bool {
         conn.query_row(
@@ -311,6 +311,48 @@ mod tests {
 
         // user_version bumped to 64.
         assert_eq!(user_version(&conn), LATEST_USER_VERSION);
+    }
+
+    #[test]
+    fn v68_allows_free_session_type() {
+        let conn = Connection::open_in_memory().unwrap();
+        run_migrations(&conn).unwrap();
+        // V68 must rebuild timer_sessions so 'FREE' is accepted.
+        conn.execute(
+            "INSERT INTO timer_sessions (task_id, session_type, started_at, completed) \
+             VALUES (NULL, 'FREE', '2026-04-25T00:00:00.000Z', 0)",
+            [],
+        )
+        .expect("'FREE' session_type must be allowed after V68");
+    }
+
+    #[test]
+    fn v68_preserves_existing_timer_sessions_during_rebuild() {
+        // Simulate a pre-V68 DB: full_schema with the legacy CHECK + V66 label
+        // backfill, then a row inserted under the old constraint.
+        let conn = Connection::open_in_memory().unwrap();
+        create_full_schema(&conn).unwrap();
+        conn.pragma_update(None, "user_version", &65i32).unwrap();
+        // Bypass the legacy CHECK by inserting a 'WORK' row that V68 must keep.
+        conn.execute(
+            "INSERT INTO timer_sessions (id, task_id, session_type, started_at, duration, completed) \
+             VALUES (42, 'task-x', 'WORK', '2026-04-20T00:00:00.000Z', 1500, 1)",
+            [],
+        )
+        .unwrap();
+
+        run_migrations(&conn).unwrap();
+
+        let (id, st, dur): (i64, String, i64) = conn
+            .query_row(
+                "SELECT id, session_type, duration FROM timer_sessions WHERE id = 42",
+                [],
+                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+            )
+            .expect("legacy row must survive V68 rebuild");
+        assert_eq!(id, 42);
+        assert_eq!(st, "WORK");
+        assert_eq!(dur, 1500);
     }
 
     #[test]

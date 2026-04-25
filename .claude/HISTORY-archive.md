@@ -1,5 +1,31 @@
 # HISTORY-archive.md - 変更履歴アーカイブ
 
+### 2026-04-25 - リファクタリング Phase 2-3a TaskDetailPanel 分割完了（4 sibling files 抽出）
+
+#### 概要
+
+Phase 2 の最初の巨大コンポーネント分割。`frontend/src/components/Tasks/TaskDetail/TaskDetailPanel.tsx` を 947→55 行に縮約し、内部の 4 サブコンポーネントを sibling ファイルに抽出。`InlineEditableHeading` は `components/shared/EditableTitle`（controlled input）と用途違いのため別名で sibling 化、外部の 3 import 経路（`TaskTreeView`, `ScheduleTasksContent`）は path 不変。動作影響ゼロ、`tsc -b` 通過 + Vitest 257/257（pre-existing sidebar-tags + free-pomodoro WIP を stash した clean state で確認）。1 commit (`661b370`)。Phase 2-3 残 3 コンポーネント (ScheduleTimeGrid 1220 / OneDaySchedule 1165 / TagGraphView 1443) は次セッション以降、1 セッション 1 ファイル + 手動 UI 検証必須。
+
+#### 変更点
+
+- **InlineEditableHeading.tsx**(76 行) 新設 — 旧 local `EditableTitle` (TaskDetailPanel.tsx 内部関数) を抽出、`shared/EditableTitle.tsx`（controlled input）との用途違いを明示するため rename。click-to-edit で `<h2>` ↔ `<input>` を内部 state で切替するヘディングコンポーネント。Enter/blur 保存、Escape キャンセル、trim 後空文字なら revert
+- **DebouncedTextarea.tsx**(62 行) 新設 — 旧 local `DebouncedTextarea`（500ms debounce + on-unmount flush）を抽出。Task / Folder 両エディタの description 入力で共有
+- **TaskSidebarContent.tsx**(244 行) 新設 — 旧 local `TaskSidebarContent` を抽出。breadcrumb（先祖アイコン編集）/ status icon / inline title / WikiTagList / RoleSwitcher（task↔event/note/daily 変換）/ priority / DateTimeRange / reminder / time memo / 削除ボタン。`TaskRoleSwitcherRow` は使用箇所 1 つのため file 内 inline 維持
+- **FolderSidebarContent.tsx**(536 行) 新設 — 旧 local `FolderSidebarContent` を抽出。breadcrumb + folder icon picker / inline title / Schedule トグル / MiniCalendarGrid / DebouncedTextarea (memo) / 3-tier 子ノード一覧（child folders → child tasks → complete folders）。Complete folder の子は line-through 装飾、子の status トグルで confetti + sound effect
+- **TaskDetailPanel.tsx** 947 → 55 行 — `useTaskTreeContext` から最低限の data + handlers を取得し、`!node` → TaskDetailEmpty / `node.type === "task"` → TaskSidebarContent / else → FolderSidebarContent にディスパッチするだけ。外部 import 不変（`TaskTreeView.tsx:7` / `ScheduleTasksContent.tsx:6` の path `./TaskDetail/TaskDetailPanel` が引き続き有効）
+- **行数推移**: 947 → 55 + 76 + 62 + 244 + 536 = 973 行（+26 行は doc コメント + 各ファイルの import 重複分。型 / 責任 / テスト容易性のトレードで受領）
+- **Verification**: `cd frontend && npx tsc -b` exit 0 / `npm run test` 257/257 passed（CalendarTagsPanel 関連 13 失敗は事前検証で sidebar-tags WIP 由来と確認、stash 後 clean state で全件 pass）
+
+#### 残課題
+
+- **Phase 2-3b ScheduleTimeGrid** (1220 行) — DnD + grid layer 多数、最も複雑。`ScheduleTimeGrid/{index,GridLayer,EventLayer,DragHandlers,Hooks}.tsx` の sub-directory 構造を計画
+- **Phase 2-3c OneDaySchedule** (1165 行) — 1 関数内に多数の useState/useCallback。`useDayFlowFilters` / `useDayFlowDialogs` カスタムフック抽出 + render 専念 component の構造に
+- **Phase 2-3d TagGraphView** (1443 行) — force layout + canvas 描画 + interaction が混在
+- **Phase 2-1 migrations.rs / 2-2 TauriDataService.ts**: WIP（sidebar-tags-free-pomodoro）が両ファイルに +103 / +30 行追加中で衝突するため、WIP commit 後でないと着手不可
+- **手動 UI 確認**: TaskDetail サイドバーの 6 機能（task 編集 / folder 編集 / breadcrumb 先祖アイコン編集 / inline title / RoleSwitcher 変換 / 子フォルダ展開）が次回 `cargo tauri dev` で回帰なしか確認
+
+---
+
 ### 2026-04-25 - リファクタリング Phase 1 完了（Cloud sync split / Provider tree 抽出 / row_to_json 統合 / SAFETY コメント）
 
 #### 概要

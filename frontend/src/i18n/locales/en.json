@@ -485,6 +485,15 @@
     "tabTimer": "Timer",
     "tabPomodoro": "Pomodoro",
     "tabMusic": "Music",
+    "tabHistory": "History",
+    "history": {
+      "last7Days": "Last 7 days",
+      "empty": "No recorded sessions yet. Start a Pomodoro or Free session to begin."
+    },
+    "toast": {
+      "recordedToTask": "✓ Recorded {{minutes}}min to {{task}}",
+      "recordedFreeWork": "✓ Recorded {{minutes}}min"
+    },
     "setBackgroundSound": "Set Background Sound",
     "noPlaylist": "No playlist (silent)",
     "backgroundPlaylist": "Background Playlist",

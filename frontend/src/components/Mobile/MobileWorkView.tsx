@@ -12,6 +12,7 @@ import {
   X,
 } from "lucide-react";
 import { useTimerContext } from "../../hooks/useTimerContext";
+import { useSessionCompletionToast } from "../../hooks/useSessionCompletionToast";
 import { getDataService } from "../../services/dataServiceFactory";
 import type { TaskNode } from "../../types/taskTree";
 import type { SessionType } from "../../types/timer";
@@ -323,6 +324,7 @@ function ControlDock({
 export function MobileWorkView() {
   const { t, i18n } = useTranslation();
   const timer = useTimerContext();
+  useSessionCompletionToast();
   const [taskSelectorOpen, setTaskSelectorOpen] = useState(false);
   const [taskTree, setTaskTree] = useState<TaskNode[]>([]);
 

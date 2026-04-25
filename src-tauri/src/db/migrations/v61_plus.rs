@@ -344,5 +344,62 @@ pub(super) fn apply(conn: &Connection, current_version: i32) -> rusqlite::Result
         conn.pragma_update(None, "user_version", &67i32)?;
     }
 
+    // V68: timer_sessions.session_type CHECK now includes 'FREE'
+    //  - Phase B added Free-mode counts-up sessions on the TS / Rust side, but
+    //    the original CHECK constraint (full_schema.rs) only allowed
+    //    'WORK' / 'BREAK' / 'LONG_BREAK'. INSERT INTO timer_sessions(... 'FREE')
+    //    therefore failed with `CHECK constraint failed` the moment a user
+    //    pressed the Free Session button.
+    //  - SQLite cannot ALTER a CHECK; the only fix is rebuild via _v2 + RENAME.
+    //  - Idempotent: skips when sqlite_master already shows 'FREE' in the table SQL.
+    if current_version < 68 {
+        eprintln!("V68: timer_sessions CHECK includes 'FREE'");
+        let table_sql: Option<String> = conn
+            .query_row(
+                "SELECT sql FROM sqlite_master WHERE type='table' AND name='timer_sessions'",
+                [],
+                |row| row.get::<_, Option<String>>(0),
+            )
+            .unwrap_or(None);
+        let needs_rebuild = table_sql
+            .as_deref()
+            .map(|s| !s.contains("'FREE'"))
+            .unwrap_or(true);
+
+        if needs_rebuild {
+            exec_ignore(
+                conn,
+                "CREATE TABLE timer_sessions_v2 (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    task_id TEXT,
+                    session_type TEXT CHECK(session_type IN ('WORK','BREAK','LONG_BREAK','FREE')),
+                    started_at TEXT NOT NULL,
+                    completed_at TEXT,
+                    duration INTEGER,
+                    completed INTEGER DEFAULT 0,
+                    label TEXT
+                );",
+            );
+            exec_ignore(
+                conn,
+                "INSERT INTO timer_sessions_v2
+                    (id, task_id, session_type, started_at, completed_at, duration, completed, label)
+                  SELECT id, task_id, session_type, started_at, completed_at, duration, completed, label
+                    FROM timer_sessions;",
+            );
+            exec_ignore(conn, "DROP TABLE timer_sessions;");
+            exec_ignore(
+                conn,
+                "ALTER TABLE timer_sessions_v2 RENAME TO timer_sessions;",
+            );
+            exec_ignore(
+                conn,
+                "CREATE INDEX IF NOT EXISTS idx_timer_sessions_task ON timer_sessions(task_id);",
+            );
+        }
+
+        conn.pragma_update(None, "user_version", &68i32)?;
+    }
+
     Ok(())
 }
