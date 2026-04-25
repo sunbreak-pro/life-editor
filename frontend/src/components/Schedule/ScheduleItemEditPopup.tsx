@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import { X } from "lucide-react";
 import { useClickOutside } from "../../hooks/useClickOutside";
 import { useClampedPosition } from "../../hooks/useClampedPosition";
+import { formatTime } from "../../utils/timeGridUtils";
 import { TimeDropdown } from "../shared/TimeDropdown";
 import { RoutineTagSelector } from "../Tasks/Schedule/Routine/RoutineTagSelector";
 import type { RoutineNode } from "../../types/routine";
@@ -47,10 +48,6 @@ function parseTime(time: string | null): { hour: number; minute: number } {
   if (!time) return { hour: 9, minute: 0 };
   const [h, m] = time.split(":").map(Number);
   return { hour: h ?? 9, minute: m ?? 0 };
-}
-
-function formatTime(h: number, m: number): string {
-  return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
 }
 
 function parseScheduledAt(scheduledAt: string | null | undefined): {
