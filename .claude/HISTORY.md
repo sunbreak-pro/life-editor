@@ -1,5 +1,37 @@
 # HISTORY.md - 変更履歴
 
+### 2026-04-26 - Connect/Board の React Flow #008 警告解消 + Node/Board パフォーマンス改善
+
+#### 概要
+
+ユーザー報告 1「Node や Board のキャンバスを動かすと `[React Flow]: Couldn't create edge for source handle id: "left-target" ...` (#008) が頻発」+ 報告 2「Node Tab の Connect モードがオンのとき接続が繋がらない」+ 報告 3「Node や Board の動作がもっさりしている」を Auto mode で 1 セッション完遂。実装計画書なしのアドホック修正群。**警告原因**: PaperCard/Text の Handle が方向別 type 分け (`left-target` = target 専用 / `right-source` = source 専用) で、`ConnectionMode.Loose` 下でユーザーが target 起点でドラッグした自己ループ edge (DB 確認: `top-target`→`left-target` の card 内自己ループ 1 件) が `normalizeEdgeHandles` の swap でも target→target 組み合わせを救えず、React Flow の source-side lookup が `.source` クラスのハンドルから `left-target` を見つけられない。**Connect モード接続不可原因**: NoteNode/DailyNode の Handle が `!w-0 !h-0 !min-w-0 !min-h-0` で当たり判定ゼロ、`nodesDraggable={!connectMode}` のため Connect モード時はドット全体ドラッグ不可でハンドル経由しか繋げず詰む。**もっさり原因**: (a) `usePaperBoard` の `deleteNode`/`deleteEdge`/`duplicateNode`/`toggleNodeHidden` が `[nodes, edges]` 依存で毎ノード/エッジ更新ごとに identity 変動 → 親 `handleEdgeDelete` 再生成 → 全エッジ data 新規 → memo edge 全再描画 / (b) `PaperCanvasView::rfNodes` が `noteMap`/`memoMap` 経由で全ノート購読、無関係ノート編集で全カード再構築 / (c) `TagGraphView::initialNodes` が `selectedTagId`/`relatedNodeIds` 依存で、ノードクリックの dim/highlight 切替だけで全ノード再構築 / (d) 両ビューの `setFlowNodes(rfNodes)` useEffect が drag stop 後の往復で全ノード identity 上書き → React Flow 全 diff・全 re-measure / (e) `noteTagDots`/`memoTagDots` で `tags.find()` を per-assignment 呼び O(A × T) / (f) `buildNormalEdges` で per-tag `assignments.filter()` で O(T × A)。session-verifier 全 6 ゲート PASS、新規テスト 17 件追加、tsc -b 0 / vitest 42 files 376/376 pass。
+
+#### 変更点
+
+- **警告 #008 修正 — 双方向 Handle**:
+  - `frontend/src/components/Ideas/Connect/Paper/PaperCardNode.tsx` / `PaperTextNode.tsx`: 各 Position に **同じ id で `type="source"` と `type="target"` の Handle を重ねて配置** (例: `left-target` の元 target Handle に対し source-type の duplicate を追加、`bg-transparent border-0 pointer-events-none` で視覚と当たり判定を抑制)。React Flow 公式の bidirectional パターンに沿う形で、DB に `sourceHandle: "left-target"` が残っていても `.source` クエリで該当 handle が見つかり #008 警告が止まる。`PaperCanvasView::normalizeEdgeHandles` のコメントを更新し、役割を「警告抑止」から「ベジェの見た目を素直に source→target 方向に揃える整形」に再定義
+- **Connect モード接続不可修正 — Handle に当たり判定 + scoped pointer-events**:
+  - `frontend/src/components/Ideas/Connect/NoteNodeComponent.tsx` / `DailyNodeComponent.tsx`: ハンドルを `width: 16, height: 16, minWidth/Height: 16, transform: translate(-50%, -50%), borderRadius: 50%` でドット中心に重ね、視覚は `!opacity-0`/`background: transparent` で維持
+  - `frontend/src/index.css`: `.react-flow__node-noteNode .react-flow__handle` / `.react-flow__node-dailyNode .react-flow__handle` をデフォルト `pointer-events: none`、`.tag-graph-connect-mode` 配下でのみ `pointer-events: auto` に上書き。通常モードのドットクリック・ドラッグ・ホバーをハンドルに奪われない
+- **パフォーマンス改善**:
+  - `frontend/src/hooks/usePaperBoard.ts`: `nodesRef`/`edgesRef`/`boardsRef` を `useLayoutEffect` で同期 (lint `react-hooks/refs` 違反解消も兼ねる)、`deleteNode`/`deleteEdge`/`duplicateNode`/`toggleNodeHidden` の deps を `[nodes, edges]` から `[push]` のみに縮減して identity 安定化
+  - `frontend/src/components/Ideas/Connect/Paper/PaperCanvasView.tsx`: edge `data: { onDelete }` を `useMemo` で全エッジ共有化 (memo edge component の不要 invalidation 解消)。card data から `label`/`contentPreview`/`isDeleted` を排除し `refEntityId`/`refEntityType` のみ渡す形に簡素化、`noteMap`/`memoMap` 削除 → `rfNodes` useMemo deps から `notes`/`dailies` を排除
+  - `frontend/src/components/Ideas/Connect/Paper/PaperCardNode.tsx`: `useNoteContext`/`useDailyContext` を card 内で直接購読、`label`/`contentPreview`/`isDeleted` を `useMemo` で算出。無関係なノート編集が全カード rebuild を引き起こさず、対象カードのみが context 経由で再描画
+  - **新規 `frontend/src/components/Ideas/Connect/TagGraphSelectionContext.ts`** (selectedTagId + relatedNodeIds を保持する view-local context、CLAUDE.md §6.3 例外規定に該当する単一ファイル形式)
+  - `frontend/src/components/Ideas/Connect/NoteNodeComponent.tsx` / `DailyNodeComponent.tsx`: data から `highlighted`/`dimmed` を除去、`useTagGraphSelection()` 経由で各ノード内に算出。クリック時の dim/highlight 切替で `initialNodes` 再構築を avoid
+  - `frontend/src/components/Ideas/Connect/TagGraphView.tsx`: `initialNodes` useMemo deps から `selectedTagId`/`relatedNodeIds` を除外、`buildNormalNodes`/`buildSplitViewNodes` 全箇所の data から `highlighted: false`/`dimmed: false` を削除。`<TagGraphSelectionContext.Provider>` で ReactFlow を包む。**O(1) lookup**: `tagsById: Map<id, WikiTag>` 導入で `tags.find()` を排除 (noteTagDots/memoTagDots の O(A × T) → O(A))、`noteEntityIdsByTag: Map<tagId, entityId[]>` 導入で `buildNormalEdges` の per-tag `assignments.filter` を排除 (O(T × A) → O(T + A))
+  - **新規 `frontend/src/components/Ideas/Connect/reactFlowMerge.ts`** (146 行): `mergeNodes` / `mergeEdges` 純粋ユーティリティ。id 同一かつ position/parent/hidden/zIndex/style.{w,h}/data shallow が等価なら既存 object identity を維持。`tagDots` のような content-equivalent な配列は `deepArrayDataKeys` 指定で item-wise 比較。両ビューの `setFlowNodes(rfNodes)` useEffect を merge 化し、drag stop 後の paperNodes 往復で全ノード identity 上書き → React Flow 全 diff を回避
+  - 新規テスト `frontend/src/components/Ideas/Connect/reactFlowMerge.test.ts` 17 件: identity preservation / position・data・style 変更検出 / 削除・追加・並べ替え検出 / `deepArrayDataKeys` (tagDots 同値判定) / edge data ref 変更検出
+- **Verification**: `cd frontend && npx tsc -b` 0 error / `npm run test` 42 files / 376/376 pass (前回 359 + 新規 17 = `reactFlowMerge.test.ts`) / session-verifier 全 6 ゲート PASS
+
+#### 残課題
+
+- **手動 UI 検証**: dev server 完全再起動 + ブラウザ完全リロード (Cmd+Shift+R) 必須 — React Flow の `node.internals.handleBounds` はノード寸法不変の場合再計測されないため、HMR で Handle を増やしただけだと古いキャッシュが残る。再起動後に (a) Board でノードを動かしても #008 警告が出ないこと、(b) Node Tab の Connect モードでドット同士をドラッグして繋がること、(c) Board でノートを編集しても他カードがチラつかないこと、(d) Node Tab でノードクリックの dim/highlight が瞬時に反映されること を確認
+- **pre-existing lint 違反**: 本セッションでは触れず: `PaperTextNode.tsx:21` setText-in-effect / `PaperCanvasView.tsx:351` `isDescendant` 自己再帰 useCallback / `usePaperBoard.ts:77` 旧 useEffect の `activeBoardId` missing dep warning。いずれも別セッションで一括対応候補
+- **アンステージ変更**: 別セッション由来の `Layout/SidebarLink*.tsx` / `Mobile/materials/MobileNoteTree*.tsx` / `Mobile/MobileNoteView.tsx` / `Ideas/NoteTreeNode.tsx` / `WikiTags/WikiTagList.tsx` / `shared/UnifiedColorPicker.tsx` / `extensions/WikiTagView.tsx` / `commands/claude_commands.rs` / `terminal/pty_manager.rs` 他 + Mobile 新規 9 ファイル / lucideIconRegistry 等が working tree に残存。本コミットは Connect/Board 関連 11 ファイル + .claude/ のみに絞る
+
+---
+
 ### 2026-04-26 - CLAUDE.md / 各種設定の最新化 + コンパクト化
 
 #### 概要
@@ -117,49 +149,3 @@
 - **手動 UI 検証** (verification plan §S-2〜S-6): Desktop/iOS 実機での 11 ドメイン IPC fetch / Cloud Sync 5000 行超 round-trip / Calendar Mobile (Monday 始まり / スワイプ / chip / Today) / Calendar Desktop (Sunday 始まり / 6 行固定 / Weekly Grid) / Schedule View (週 dots / 月跨ぎラベル / 4 タブ)
 - **完了後の docs 整理**: `docs/known-issues/INDEX.md` で formatter / SQL whitelist / row_to_model 重複 を削除候補マーク / `docs/code-inventory.md` の Active/Duplicate セクション更新 (UI 検証完了後に実施推奨)
 - **clippy 既存 83 警告**: pre-existing で本検証外、別セッションで cleanup 候補 (migrations / reminder / repository `create()` シグネチャ)
-
----
-
-### 2026-04-26 - リファクタリング計画 Phase 2-4 / 3-1 / 3-4 完遂 + 検証用実装計画書作成
-
-#### 概要
-
-ユーザー要望「`.claude/2026-04-25-refactoring-plan.md` を読み込んで未実装のリファクタリングを実装して。またその後にリファクタリング検証のための実装計画書も作成して」を受け、前セッションで deferred とされた 3 Phase を Auto mode で 1 セッション内に完遂。**Phase 3-1** (Rust 26 ファイル) は FromRow trait + query_all/query_one helpers を導入し 33+ の `fn row_to_X` を `impl FromRow for X` に移行 — 4 並列 sub-agent で機械的書き換えを高速実行。**Phase 2-4 / 3-4** は Mobile/Desktop の Context vs Service層差で完全 UI 統合は regression リスク高と判定し、純粋ロジックのみ抽出する保守的アプローチに変更（Phase 2-3b/d と同方針）— `utils/calendarGrid.ts` 新設で `buildCalendarGrid` / `addDays` / `getMondayOf` / `getWeekDates` を共通化、4 ファイル (Mobile 3 + useCalendar) の duplicate 関数群を削除。検証用実装計画書 `.claude/2026-04-26-refactoring-verification-plan.md` を 9 ステップ + 6 リスク + 段階的 rollback 手順で作成。実装プラン `2026-04-25-refactoring-plan.md` は全 Phase 完了に伴い `.claude/archive/` へ移動。session-verifier 全 6 ゲート PASS。
-
-#### 変更点
-
-- **Phase 3-1 — FromRow trait + 26 repository 移行 (Rust)**:
-  - `src-tauri/src/db/row_converter.rs`: `FromRow` trait (`fn from_row(&Row) -> Result<Self>`) + `query_all<T: FromRow, P: Params>` + `query_one<T: FromRow, P: Params>` ヘルパを追加。`row_to_json` (column-agnostic JSON converter) は既存維持
-  - 24 repository ファイル + sidebar_link を移行: `calendar_repository.rs` / `calendar_tag_repository.rs` / `daily_repository.rs` / `database_repository.rs` (4 model) / `note_connection_repository.rs` / `note_link_repository.rs` / `note_repository.rs` / `paper_board_repository.rs` (3 model) / `playlist_repository.rs` (2 model) / `pomodoro_preset_repository.rs` / `routine_group_assignment_repository.rs` / `routine_group_repository.rs` / `routine_repository.rs` / `schedule_item_repository.rs` / `sidebar_link_repository.rs` / `sound_repository.rs` (4 model) / `task_repository.rs` / `template_repository.rs` / `time_memo_repository.rs` / `timer_repository.rs` / `wiki_tag_connection_repository.rs` / `wiki_tag_group_repository.rs` (2 model) / `wiki_tag_repository.rs` (2 model)
-  - 各ファイル: `fn row_to_X(&Row) -> Result<X> { ... body ... }` → `impl FromRow for X { fn from_row(...) -> Result<Self> { ... 既存 body 完全保持 ... } }` に置換、callers の `prepare → query_map → collect` を `query_all(conn, sql, params)` に / `prepare → query_row` を `query_one(conn, sql, params)` に / Option 返却の match 付きパターンを `match query_one::<T, _>(conn, sql, params) { ... }` に変換
-  - エッジケース: `note_link_repository::fetch_backlinks` は query_map 内で `BacklinkHit` 組立カスタムロジックがあるため closure 内で `NoteLink::from_row(row)?` 置換のみ (closure pattern 4) / transaction 内 (`tx.query_map`) は SQL 経由のため対象外で保持 / SQL 文字列・パラメータ・ロジックは全件無変更
-  - SQL injection 観点不変: `prepare_cached` 化は性能劣化検証時の対応として verification plan §R-1 / S-8 に記載
-- **Phase 2-4 — Calendar 共通ロジック抽出**:
-  - `frontend/src/utils/calendarGrid.ts` 新設 (59 行): `buildCalendarGrid({year, month, weekStartsOn: 0|1, fixedRows?})` で月グリッド計算を統一 (Sunday 始まり / Monday 始まり両対応、`fixedRows: 6` で 42 セル固定 or 自動 7 倍数 padding) / `addDays(date, days)` / 補助 export `CalendarGridDay` / `CalendarGridOptions`
-  - `frontend/src/utils/calendarGrid.test.ts` 新設 (8 tests): Sunday/Monday 始まり両モード / fixedRows 有無 / 月境界 (2026 年 2 月 = 月初 Sun, 28 日) / うるう年 / addDays 月跨ぎ
-  - `frontend/src/hooks/useCalendar.ts`: 30 行の `calendarDays` useMemo (Sunday 始まり、6 行 padding) を `buildCalendarGrid({year, month, weekStartsOn: 0, fixedRows: 6})` 1 行呼び出しに置換
-  - `frontend/src/components/Mobile/MobileCalendarView.tsx`: 12 行の inline `calendarDays` (Monday 始まり、`{date, inMonth}`) を `buildCalendarGrid({year, month, weekStartsOn: 1})` に置換、destructure rename `{date, isCurrentMonth: inMonth}` で内部 prop 互換維持。等価性検証: dow=0(Sun) → 旧 startDow=-1→6 / 新 startPad=(0+6)%7=6 ✅ / dow=1 / dow=6 全て一致
-- **Phase 3-4 — Schedule 共通 hook 抽出**:
-  - `calendarGrid.ts` に `getMondayOf(date)` (Mon = 月曜、Sun → 6 日前へ) / `getWeekDates(monday)` (7 日 array) を追加
-  - `MobileCalendarStrip.tsx`: local `getMonday` / `formatDateStr` / `addDays` / `getWeekDates` 4 関数 (約 24 行) を削除、共有版 import に置換
-  - `MobileScheduleView.tsx`: `loadWeekItems` の inline week-range 計算 (15 行) を `const monday = getMondayOf(...); const sunday = addDays(monday, 6)` 2 行に圧縮、local `todayStr()` 削除して `getTodayKey` lazy init pattern に
-  - `MobileCalendarView.tsx`: local `todayStr()` 削除、`getTodayKey` 直接利用
-  - `formatDateStr` (3 ファイルの duplicate) → `formatDateKey` (utils/dateKey.ts の正規版) に統一
-- **検証用実装計画書 `.claude/2026-04-26-refactoring-verification-plan.md` 作成 (9 Steps + 6 Risks)**:
-  - **S-1〜S-3**: Rust 単体 (cargo build/test/clippy) → IPC 統合 (11 ドメインの fetch 経路) → Cloud Sync round-trip (5000 行超 pagination 確認)
-  - **S-4〜S-6**: Calendar Mobile (Monday 始まり / スワイプ / chip) / Calendar Desktop (Sunday 始まり / 6 行固定 / Weekly Grid) / Schedule View (週 dots / 月跨ぎラベル / 4 タブ)
-  - **S-7**: buildCalendarGrid 境界ケース (月初 Sun/Mon/Sat / うるう年 / getMondayOf(日曜) → 6 日前)
-  - **S-8**: 性能 spot-check (`query_all` の prepare 毎回呼び出し → 1000 ノード fetch_tree benchmark / Calendar 月遷移体感)
-  - **S-9**: ドキュメント更新 + plan archive
-  - **R-1〜R-6**: 性能劣化リスク (prepare_cached 化で対応) / 週初日混乱 / hidden caller / Cloud Sync 副次破壊 / 例外パターン許容 / 境界ケース見落とし
-  - 各 Phase 独立 rollback 手順 + DB migration 不要のため schema rollback 不要
-- **計画書アーカイブ**:
-  - `.claude/2026-04-25-refactoring-plan.md` の Status を `IN_PROGRESS (...)` から `COMPLETED (Phase 0-3 全完了 2026-04-26)` に更新、Phase 2-4 / 3-1 / 3-4 の `[ ]` を `[x]` に + 完了内容を追記
-  - `.claude/archive/` に移動 (`mv ./2026-04-25-refactoring-plan.md ./archive/`)
-- **Verification**: `cd frontend && npx tsc -b` 0 error / `npm run test` 40 files / 332/332 tests pass (前回 324 + 新規 8 = `calendarGrid.test.ts`) / `cd frontend && npm run build` Vite production 7.9s clean / `cd src-tauri && cargo build --lib` 0 warnings / `cargo test --lib` 25/25 pass (1 ignored bench) / `cargo clippy --lib` 私の変更ファイルで新規警告 0 (3 件の `too_many_arguments` は `pub fn create()` の既存シグネチャに対する pre-existing 警告、本セッション関与なし) / Frontend ESLint 0 / session-verifier 全 6 ゲート PASS
-
-#### 残課題
-
-- **手動 UI 検証**: 検証用実装計画書 `2026-04-26-refactoring-verification-plan.md` の S-2〜S-6 を実機で実施 (a) IPC 経由 11 ドメイン fetch / (b) Cloud Sync round-trip 5000 行超 / (c) Calendar Mobile (Monday 始まり / スワイプ / chip) / (d) Calendar Desktop (Sunday 始まり / 6 行) / (e) Schedule View (週 dots / 月跨ぎラベル / 4 タブ)
-- **性能 spot-check**: `query_all` / `query_one` で毎回 `conn.prepare()` を呼ぶため、大量データで劣化の可能性。劣化確認時は `prepare_cached` 化で API 互換のまま対応 (検証 plan §R-1 / S-8)
-- **アンステージ変更**: 別セッション由来の `Layout/SidebarLink*.tsx` / `Mobile/materials/MobileNoteTree*.tsx` / `Mobile/MobileNoteView.tsx` / `Ideas/NoteTreeNode.tsx` / `WikiTags/WikiTagList.tsx` / `shared/UnifiedColorPicker.tsx` / `extensions/WikiTagView.tsx` / `commands/claude_commands.rs` / `terminal/pty_manager.rs` 他 ~13 ファイルが working tree に残存。本コミットは Phase 2-4 / 3-1 / 3-4 関連 33 ファイル (Rust 26 + Frontend 7) + .claude/ のみに絞る

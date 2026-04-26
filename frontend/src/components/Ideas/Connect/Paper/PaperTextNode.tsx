@@ -53,11 +53,18 @@ function PaperTextNodeInner({
         lineClassName="!border-notion-accent"
         handleClassName="!w-2 !h-2 !bg-notion-accent !border-notion-accent"
       />
+      {/* See PaperCardNode.tsx for the bidirectional-handle rationale. */}
       <Handle
         type="source"
         position={Position.Right}
         id="right-source"
         className="!w-2 !h-2 !bg-notion-accent !border-notion-accent"
+      />
+      <Handle
+        type="target"
+        position={Position.Right}
+        id="right-source"
+        className="!w-2 !h-2 !bg-transparent !border-0 !pointer-events-none"
       />
       <Handle
         type="target"
@@ -67,15 +74,33 @@ function PaperTextNodeInner({
       />
       <Handle
         type="source"
+        position={Position.Left}
+        id="left-target"
+        className="!w-2 !h-2 !bg-transparent !border-0 !pointer-events-none"
+      />
+      <Handle
+        type="source"
         position={Position.Bottom}
         id="bottom-source"
         className="!w-2 !h-2 !bg-notion-accent !border-notion-accent"
       />
       <Handle
         type="target"
+        position={Position.Bottom}
+        id="bottom-source"
+        className="!w-2 !h-2 !bg-transparent !border-0 !pointer-events-none"
+      />
+      <Handle
+        type="target"
         position={Position.Top}
         id="top-target"
         className="!w-2 !h-2 !bg-notion-accent !border-notion-accent"
+      />
+      <Handle
+        type="source"
+        position={Position.Top}
+        id="top-target"
+        className="!w-2 !h-2 !bg-transparent !border-0 !pointer-events-none"
       />
       <div
         className="bg-notion-bg/80 border border-dashed border-notion-border rounded p-2 h-full cursor-grab active:cursor-grabbing"

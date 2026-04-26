@@ -1,5 +1,51 @@
 # HISTORY-archive.md - 変更履歴アーカイブ
 
+### 2026-04-26 - リファクタリング計画 Phase 2-4 / 3-1 / 3-4 完遂 + 検証用実装計画書作成
+
+#### 概要
+
+ユーザー要望「`.claude/2026-04-25-refactoring-plan.md` を読み込んで未実装のリファクタリングを実装して。またその後にリファクタリング検証のための実装計画書も作成して」を受け、前セッションで deferred とされた 3 Phase を Auto mode で 1 セッション内に完遂。**Phase 3-1** (Rust 26 ファイル) は FromRow trait + query_all/query_one helpers を導入し 33+ の `fn row_to_X` を `impl FromRow for X` に移行 — 4 並列 sub-agent で機械的書き換えを高速実行。**Phase 2-4 / 3-4** は Mobile/Desktop の Context vs Service層差で完全 UI 統合は regression リスク高と判定し、純粋ロジックのみ抽出する保守的アプローチに変更（Phase 2-3b/d と同方針）— `utils/calendarGrid.ts` 新設で `buildCalendarGrid` / `addDays` / `getMondayOf` / `getWeekDates` を共通化、4 ファイル (Mobile 3 + useCalendar) の duplicate 関数群を削除。検証用実装計画書 `.claude/2026-04-26-refactoring-verification-plan.md` を 9 ステップ + 6 リスク + 段階的 rollback 手順で作成。実装プラン `2026-04-25-refactoring-plan.md` は全 Phase 完了に伴い `.claude/archive/` へ移動。session-verifier 全 6 ゲート PASS。
+
+#### 変更点
+
+- **Phase 3-1 — FromRow trait + 26 repository 移行 (Rust)**:
+  - `src-tauri/src/db/row_converter.rs`: `FromRow` trait (`fn from_row(&Row) -> Result<Self>`) + `query_all<T: FromRow, P: Params>` + `query_one<T: FromRow, P: Params>` ヘルパを追加。`row_to_json` (column-agnostic JSON converter) は既存維持
+  - 24 repository ファイル + sidebar_link を移行: `calendar_repository.rs` / `calendar_tag_repository.rs` / `daily_repository.rs` / `database_repository.rs` (4 model) / `note_connection_repository.rs` / `note_link_repository.rs` / `note_repository.rs` / `paper_board_repository.rs` (3 model) / `playlist_repository.rs` (2 model) / `pomodoro_preset_repository.rs` / `routine_group_assignment_repository.rs` / `routine_group_repository.rs` / `routine_repository.rs` / `schedule_item_repository.rs` / `sidebar_link_repository.rs` / `sound_repository.rs` (4 model) / `task_repository.rs` / `template_repository.rs` / `time_memo_repository.rs` / `timer_repository.rs` / `wiki_tag_connection_repository.rs` / `wiki_tag_group_repository.rs` (2 model) / `wiki_tag_repository.rs` (2 model)
+  - 各ファイル: `fn row_to_X(&Row) -> Result<X> { ... body ... }` → `impl FromRow for X { fn from_row(...) -> Result<Self> { ... 既存 body 完全保持 ... } }` に置換、callers の `prepare → query_map → collect` を `query_all(conn, sql, params)` に / `prepare → query_row` を `query_one(conn, sql, params)` に / Option 返却の match 付きパターンを `match query_one::<T, _>(conn, sql, params) { ... }` に変換
+  - エッジケース: `note_link_repository::fetch_backlinks` は query_map 内で `BacklinkHit` 組立カスタムロジックがあるため closure 内で `NoteLink::from_row(row)?` 置換のみ (closure pattern 4) / transaction 内 (`tx.query_map`) は SQL 経由のため対象外で保持 / SQL 文字列・パラメータ・ロジックは全件無変更
+  - SQL injection 観点不変: `prepare_cached` 化は性能劣化検証時の対応として verification plan §R-1 / S-8 に記載
+- **Phase 2-4 — Calendar 共通ロジック抽出**:
+  - `frontend/src/utils/calendarGrid.ts` 新設 (59 行): `buildCalendarGrid({year, month, weekStartsOn: 0|1, fixedRows?})` で月グリッド計算を統一 (Sunday 始まり / Monday 始まり両対応、`fixedRows: 6` で 42 セル固定 or 自動 7 倍数 padding) / `addDays(date, days)` / 補助 export `CalendarGridDay` / `CalendarGridOptions`
+  - `frontend/src/utils/calendarGrid.test.ts` 新設 (8 tests): Sunday/Monday 始まり両モード / fixedRows 有無 / 月境界 (2026 年 2 月 = 月初 Sun, 28 日) / うるう年 / addDays 月跨ぎ
+  - `frontend/src/hooks/useCalendar.ts`: 30 行の `calendarDays` useMemo (Sunday 始まり、6 行 padding) を `buildCalendarGrid({year, month, weekStartsOn: 0, fixedRows: 6})` 1 行呼び出しに置換
+  - `frontend/src/components/Mobile/MobileCalendarView.tsx`: 12 行の inline `calendarDays` (Monday 始まり、`{date, inMonth}`) を `buildCalendarGrid({year, month, weekStartsOn: 1})` に置換、destructure rename `{date, isCurrentMonth: inMonth}` で内部 prop 互換維持。等価性検証: dow=0(Sun) → 旧 startDow=-1→6 / 新 startPad=(0+6)%7=6 ✅ / dow=1 / dow=6 全て一致
+- **Phase 3-4 — Schedule 共通 hook 抽出**:
+  - `calendarGrid.ts` に `getMondayOf(date)` (Mon = 月曜、Sun → 6 日前へ) / `getWeekDates(monday)` (7 日 array) を追加
+  - `MobileCalendarStrip.tsx`: local `getMonday` / `formatDateStr` / `addDays` / `getWeekDates` 4 関数 (約 24 行) を削除、共有版 import に置換
+  - `MobileScheduleView.tsx`: `loadWeekItems` の inline week-range 計算 (15 行) を `const monday = getMondayOf(...); const sunday = addDays(monday, 6)` 2 行に圧縮、local `todayStr()` 削除して `getTodayKey` lazy init pattern に
+  - `MobileCalendarView.tsx`: local `todayStr()` 削除、`getTodayKey` 直接利用
+  - `formatDateStr` (3 ファイルの duplicate) → `formatDateKey` (utils/dateKey.ts の正規版) に統一
+- **検証用実装計画書 `.claude/2026-04-26-refactoring-verification-plan.md` 作成 (9 Steps + 6 Risks)**:
+  - **S-1〜S-3**: Rust 単体 (cargo build/test/clippy) → IPC 統合 (11 ドメインの fetch 経路) → Cloud Sync round-trip (5000 行超 pagination 確認)
+  - **S-4〜S-6**: Calendar Mobile (Monday 始まり / スワイプ / chip) / Calendar Desktop (Sunday 始まり / 6 行固定 / Weekly Grid) / Schedule View (週 dots / 月跨ぎラベル / 4 タブ)
+  - **S-7**: buildCalendarGrid 境界ケース (月初 Sun/Mon/Sat / うるう年 / getMondayOf(日曜) → 6 日前)
+  - **S-8**: 性能 spot-check (`query_all` の prepare 毎回呼び出し → 1000 ノード fetch_tree benchmark / Calendar 月遷移体感)
+  - **S-9**: ドキュメント更新 + plan archive
+  - **R-1〜R-6**: 性能劣化リスク (prepare_cached 化で対応) / 週初日混乱 / hidden caller / Cloud Sync 副次破壊 / 例外パターン許容 / 境界ケース見落とし
+  - 各 Phase 独立 rollback 手順 + DB migration 不要のため schema rollback 不要
+- **計画書アーカイブ**:
+  - `.claude/2026-04-25-refactoring-plan.md` の Status を `IN_PROGRESS (...)` から `COMPLETED (Phase 0-3 全完了 2026-04-26)` に更新、Phase 2-4 / 3-1 / 3-4 の `[ ]` を `[x]` に + 完了内容を追記
+  - `.claude/archive/` に移動 (`mv ./2026-04-25-refactoring-plan.md ./archive/`)
+- **Verification**: `cd frontend && npx tsc -b` 0 error / `npm run test` 40 files / 332/332 tests pass (前回 324 + 新規 8 = `calendarGrid.test.ts`) / `cd frontend && npm run build` Vite production 7.9s clean / `cd src-tauri && cargo build --lib` 0 warnings / `cargo test --lib` 25/25 pass (1 ignored bench) / `cargo clippy --lib` 私の変更ファイルで新規警告 0 (3 件の `too_many_arguments` は `pub fn create()` の既存シグネチャに対する pre-existing 警告、本セッション関与なし) / Frontend ESLint 0 / session-verifier 全 6 ゲート PASS
+
+#### 残課題
+
+- **手動 UI 検証**: 検証用実装計画書 `2026-04-26-refactoring-verification-plan.md` の S-2〜S-6 を実機で実施 (a) IPC 経由 11 ドメイン fetch / (b) Cloud Sync round-trip 5000 行超 / (c) Calendar Mobile (Monday 始まり / スワイプ / chip) / (d) Calendar Desktop (Sunday 始まり / 6 行) / (e) Schedule View (週 dots / 月跨ぎラベル / 4 タブ)
+- **性能 spot-check**: `query_all` / `query_one` で毎回 `conn.prepare()` を呼ぶため、大量データで劣化の可能性。劣化確認時は `prepare_cached` 化で API 互換のまま対応 (検証 plan §R-1 / S-8)
+- **アンステージ変更**: 別セッション由来の `Layout/SidebarLink*.tsx` / `Mobile/materials/MobileNoteTree*.tsx` / `Mobile/MobileNoteView.tsx` / `Ideas/NoteTreeNode.tsx` / `WikiTags/WikiTagList.tsx` / `shared/UnifiedColorPicker.tsx` / `extensions/WikiTagView.tsx` / `commands/claude_commands.rs` / `terminal/pty_manager.rs` 他 ~13 ファイルが working tree に残存。本コミットは Phase 2-4 / 3-1 / 3-4 関連 33 ファイル (Rust 26 + Frontend 7) + .claude/ のみに絞る
+
+---
+
 ### 2026-04-26 - リファクタリング計画 Phase 2-2/2-3b/2-3c/2-3d/3-2/3-3/3-5 集中実施
 
 #### 概要
@@ -53,7 +99,6 @@
 - **手動 UI 検証**: (a) Schedule (DayFlow / Calendar / Routine) の操作回帰なし / (b) Cmd+K / Sidebar Links 等の関連経路 / (c) Cloud Sync の cursor pagination 動作 (Worker deploy 後、5000 行超のテーブルがあれば実走確認)
 - **Worker deploy 必須**: Phase 3-2 のサーバー側変更 (cloud/src/routes/sync/{index,versioned}.ts) は本番反映が必要。`cd cloud && npm run deploy`
 - **アンステージ変更**: 別セッション由来の `Layout/SidebarLink*.tsx` / `Mobile/materials/MobileNoteTree*.tsx` / `Ideas/NoteTreeNode.tsx` / `WikiTags/WikiTagList.tsx` 他 ~13 ファイルが working tree に残存。本一連の commit は refactoring 関連 + `.claude/` のみに絞っている
-
 
 ### 2026-04-26 - WikiTag カラーピッカー文字色/プリセット即閉鎖バグ + ネスト枠 UI 修正
 

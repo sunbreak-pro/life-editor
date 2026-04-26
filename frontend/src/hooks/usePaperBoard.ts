@@ -1,4 +1,10 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import {
+  useState,
+  useEffect,
+  useCallback,
+  useRef,
+  useLayoutEffect,
+} from "react";
 import type {
   PaperBoard,
   PaperNode,
@@ -24,7 +30,20 @@ export function usePaperBoard() {
   const [error, setError] = useState<string | null>(null);
   const loadedBoardRef = useRef<string | null>(null);
   const nodesRef = useRef(nodes);
-  nodesRef.current = nodes;
+  // Mirror edges/nodes in refs so callbacks that need the current arrays
+  // (deleteNode, deleteEdge, duplicateNode, toggleNodeHidden) can stay
+  // referentially stable across renders. Without this, every node/edge
+  // mutation invalidates these callbacks and cascades into rebuilding
+  // rfEdges/rfNodes in PaperCanvasView, re-rendering every node and edge
+  // for unrelated mutations.
+  // Use useLayoutEffect so the ref reflects the latest committed state
+  // before any subsequent effect/handler reads it (and so we satisfy the
+  // react-hooks/refs lint rule against mutating refs during render).
+  const edgesRef = useRef(edges);
+  useLayoutEffect(() => {
+    nodesRef.current = nodes;
+    edgesRef.current = edges;
+  }, [nodes, edges]);
 
   // Persist active board id
   useEffect(() => {
@@ -115,7 +134,9 @@ export function usePaperBoard() {
   );
 
   const boardsRef = useRef(boards);
-  boardsRef.current = boards;
+  useLayoutEffect(() => {
+    boardsRef.current = boards;
+  }, [boards]);
 
   const deleteBoard = useCallback(async (id: string) => {
     const ds = getDataService();
@@ -303,15 +324,17 @@ export function usePaperBoard() {
   const deleteNode = useCallback(
     async (id: string) => {
       const ds = getDataService();
-      const deletedNode = nodes.find((n) => n.id === id);
+      const currentNodes = nodesRef.current;
+      const currentEdges = edgesRef.current;
+      const deletedNode = currentNodes.find((n) => n.id === id);
       if (!deletedNode) return;
 
       // Capture connected edges for undo
-      const connectedEdges = edges.filter(
+      const connectedEdges = currentEdges.filter(
         (e) => e.sourceNodeId === id || e.targetNodeId === id,
       );
       // Capture child nodes (for frame deletion)
-      const childNodes = nodes.filter((n) => n.parentNodeId === id);
+      const childNodes = currentNodes.filter((n) => n.parentNodeId === id);
 
       await ds.deletePaperNode(id);
       setNodes((prev) => prev.filter((n) => n.id !== id));
@@ -398,7 +421,7 @@ export function usePaperBoard() {
         },
       });
     },
-    [nodes, edges, push],
+    [push],
   );
 
   // --- Edge CRUD ---
@@ -436,7 +459,7 @@ export function usePaperBoard() {
   const deleteEdge = useCallback(
     async (id: string) => {
       const ds = getDataService();
-      const target = edges.find((e) => e.id === id);
+      const target = edgesRef.current.find((e) => e.id === id);
       await ds.deletePaperEdge(id);
       setEdges((prev) => prev.filter((e) => e.id !== id));
 
@@ -462,7 +485,7 @@ export function usePaperBoard() {
         });
       }
     },
-    [edges, push],
+    [push],
   );
 
   // --- Note link board ---
@@ -645,7 +668,7 @@ export function usePaperBoard() {
 
   const duplicateNode = useCallback(
     async (nodeId: string) => {
-      const original = nodes.find((n) => n.id === nodeId);
+      const original = nodesRef.current.find((n) => n.id === nodeId);
       if (!original) return;
       const newNode = await createNode({
         boardId: original.boardId,
@@ -665,16 +688,16 @@ export function usePaperBoard() {
       });
       return newNode;
     },
-    [nodes, createNode],
+    [createNode],
   );
 
   const toggleNodeHidden = useCallback(
     async (nodeId: string) => {
-      const node = nodes.find((n) => n.id === nodeId);
+      const node = nodesRef.current.find((n) => n.id === nodeId);
       if (!node) return;
       await updateNode(nodeId, { hidden: !node.hidden });
     },
-    [nodes, updateNode],
+    [updateNode],
   );
 
   // Reload board data (after switching)

@@ -1,6 +1,7 @@
 import { memo, useState } from "react";
 import { Handle, Position, type NodeProps } from "@xyflow/react";
 import { StickyNote } from "lucide-react";
+import { useTagGraphSelection } from "./TagGraphSelectionContext";
 
 type NoteNodeType = {
   title: string;
@@ -8,43 +9,76 @@ type NoteNodeType = {
   noteId: string;
   color?: string;
   tagDots?: Array<{ id: string; name: string; color: string }>;
-  highlighted?: boolean;
   focused?: boolean;
-  dimmed?: boolean;
   splitTag?: { id: string; name: string; color: string };
 };
 
-function NoteNodeInner({ data }: NodeProps & { data: NoteNodeType }) {
+function NoteNodeInner({ id, data }: NodeProps & { data: NoteNodeType }) {
   const [hovered, setHovered] = useState(false);
   const tagDots = data.tagDots || [];
 
+  // highlighted/dimmed are derived from the small selection context instead of
+  // baked into data, so changing selection doesn't rebuild the entire rfNodes
+  // array and force React Flow to re-diff every node. Each node component just
+  // re-renders with new highlighted/dimmed values.
+  const { selectedTagId, relatedNodeIds } = useTagGraphSelection();
+  const highlighted =
+    !!selectedTagId && tagDots.some((d) => d.id === selectedTagId);
+  const dimmed = relatedNodeIds ? !relatedNodeIds.has(id) : false;
+  const focused = !!data.focused;
+
   return (
     <div
-      className={`relative transition-opacity ${data.dimmed ? "opacity-10" : ""}`}
+      className={`relative transition-opacity ${dimmed ? "opacity-10" : ""}`}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
     >
+      {/*
+        Handles are sized to cover the dot (and a small grab margin) so users can
+        drag connections from anywhere on the dot in connect mode. Visually hidden
+        but pointer-events remain enabled.
+      */}
       <Handle
         type="source"
         position={Position.Top}
         id="center-source"
-        className="!opacity-0 !w-0 !h-0 !min-w-0 !min-h-0 !border-0 !p-0"
-        style={{ left: "50%", top: "5px" }}
+        className="!opacity-0 !border-0"
+        style={{
+          width: 16,
+          height: 16,
+          minWidth: 16,
+          minHeight: 16,
+          left: "50%",
+          top: "50%",
+          transform: "translate(-50%, -50%)",
+          borderRadius: "50%",
+          background: "transparent",
+        }}
       />
       <Handle
         type="target"
         position={Position.Top}
         id="center-target"
-        className="!opacity-0 !w-0 !h-0 !min-w-0 !min-h-0 !border-0 !p-0"
-        style={{ left: "50%", top: "5px" }}
+        className="!opacity-0 !border-0"
+        style={{
+          width: 16,
+          height: 16,
+          minWidth: 16,
+          minHeight: 16,
+          left: "50%",
+          top: "50%",
+          transform: "translate(-50%, -50%)",
+          borderRadius: "50%",
+          background: "transparent",
+        }}
       />
       {/* Dot */}
       <div className="relative flex flex-col items-center w-2.5 cursor-grab active:cursor-grabbing">
         <span
           className={`w-2.5 h-2.5 rounded-full bg-yellow-400 dark:bg-yellow-500 ${
-            data.focused
+            focused
               ? "ring-2 ring-blue-400/50"
-              : data.highlighted
+              : highlighted
                 ? "ring-2 ring-notion-accent/50"
                 : ""
           }`}

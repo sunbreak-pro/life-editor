@@ -3,50 +3,78 @@ import { Handle, Position, type NodeProps } from "@xyflow/react";
 import { BookOpen } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { formatDisplayDate } from "../../../utils/dateKey";
+import { useTagGraphSelection } from "./TagGraphSelectionContext";
 
 type DailyNodeType = {
   date: string;
   contentPreview: string;
   dailyId: string;
   tagDots?: Array<{ id: string; name: string; color: string }>;
-  highlighted?: boolean;
   focused?: boolean;
-  dimmed?: boolean;
   splitTag?: { id: string; name: string; color: string };
 };
 
-function DailyNodeInner({ data }: NodeProps & { data: DailyNodeType }) {
+function DailyNodeInner({ id, data }: NodeProps & { data: DailyNodeType }) {
   const { i18n } = useTranslation();
   const [hovered, setHovered] = useState(false);
   const tagDots = data.tagDots || [];
 
+  // See NoteNodeComponent: selection lives in context so changing selection
+  // doesn't force the parent to rebuild the whole node array.
+  const { selectedTagId, relatedNodeIds } = useTagGraphSelection();
+  const highlighted =
+    !!selectedTagId && tagDots.some((d) => d.id === selectedTagId);
+  const dimmed = relatedNodeIds ? !relatedNodeIds.has(id) : false;
+  const focused = !!data.focused;
+
   return (
     <div
-      className={`relative transition-opacity ${data.dimmed ? "opacity-10" : ""}`}
+      className={`relative transition-opacity ${dimmed ? "opacity-10" : ""}`}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
     >
+      {/* See NoteNodeComponent.tsx for the handle-sizing rationale. */}
       <Handle
         type="source"
         position={Position.Top}
         id="center-source"
-        className="!opacity-0 !w-0 !h-0 !min-w-0 !min-h-0 !border-0 !p-0"
-        style={{ left: "50%", top: "5px" }}
+        className="!opacity-0 !border-0"
+        style={{
+          width: 16,
+          height: 16,
+          minWidth: 16,
+          minHeight: 16,
+          left: "50%",
+          top: "50%",
+          transform: "translate(-50%, -50%)",
+          borderRadius: "50%",
+          background: "transparent",
+        }}
       />
       <Handle
         type="target"
         position={Position.Top}
         id="center-target"
-        className="!opacity-0 !w-0 !h-0 !min-w-0 !min-h-0 !border-0 !p-0"
-        style={{ left: "50%", top: "5px" }}
+        className="!opacity-0 !border-0"
+        style={{
+          width: 16,
+          height: 16,
+          minWidth: 16,
+          minHeight: 16,
+          left: "50%",
+          top: "50%",
+          transform: "translate(-50%, -50%)",
+          borderRadius: "50%",
+          background: "transparent",
+        }}
       />
       {/* Dot */}
       <div className="relative flex flex-col items-center w-2.5 cursor-grab active:cursor-grabbing">
         <span
           className={`w-2.5 h-2.5 rounded-full bg-blue-400 dark:bg-blue-500 ${
-            data.focused
+            focused
               ? "ring-2 ring-blue-400/50"
-              : data.highlighted
+              : highlighted
                 ? "ring-2 ring-notion-accent/50"
                 : ""
           }`}

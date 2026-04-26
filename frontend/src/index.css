@@ -371,6 +371,20 @@ body {
   cursor: default;
 }
 
+/*
+  NoteNode / DailyNode handles cover the dot for easy grabbing in connect mode,
+  but outside connect mode they should be transparent to pointer events so they
+  don't steal click/drag from the node itself (selection, hover popup, drag).
+*/
+.react-flow__node-noteNode .react-flow__handle,
+.react-flow__node-dailyNode .react-flow__handle {
+  pointer-events: none;
+}
+.tag-graph-connect-mode .react-flow__node-noteNode .react-flow__handle,
+.tag-graph-connect-mode .react-flow__node-dailyNode .react-flow__handle {
+  pointer-events: auto;
+}
+
 /* Wiki Tag Modern (Inline, fits within line-height) */
 .memo-editor .wiki-tag-modern {
   display: inline-flex;

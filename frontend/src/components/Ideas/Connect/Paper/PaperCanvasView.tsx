@@ -31,9 +31,8 @@ import type {
 } from "../../../../types/paperBoard";
 import type { NoteNode } from "../../../../types/note";
 import type { DailyNode } from "../../../../types/daily";
-import { formatDisplayDate } from "../../../../utils/dateKey";
-import { getContentPreview } from "../../../../utils/tiptapText";
 import { CanvasControls } from "../CanvasControls";
+import { mergeNodes, mergeEdges } from "../reactFlowMerge";
 import { useEffect } from "react";
 
 const nodeTypes: NodeTypes = {
@@ -48,10 +47,11 @@ const edgeTypes: EdgeTypes = {
 
 // In ConnectionMode.Loose, users can start a drag from a target-type handle
 // (e.g. "top-target"), which React Flow stores as the edge's sourceHandle.
-// React Flow's source handle lookup only searches source-type handles, so
-// such edges trigger an "error008" warning at render time. Swap source/target
-// when sourceHandle is a -target handle so the source side always points to a
-// real source-type handle.
+// PaperCardNode / PaperTextNode now render bidirectional handles (both source
+// and target Handle components share each id), so React Flow no longer emits
+// error #008 even when sourceHandle ends with "-target". This swap is purely
+// cosmetic: it keeps the bezier curve flowing naturally (right→left, bottom→top)
+// instead of routing through an unexpected side.
 function normalizeEdgeHandles<
   T extends {
     sourceNodeId: string;
@@ -150,8 +150,7 @@ export function PaperCanvasView({
   onNavigateToNote,
   onSelectionChanged,
 }: PaperCanvasViewProps) {
-  const { t, i18n } = useTranslation();
-  const lang = i18n.language;
+  const { t } = useTranslation();
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [selectedNodeIds, setSelectedNodeIds] = useState<string[]>([]);
   const [isDragging, setIsDragging] = useState(false);
@@ -159,19 +158,6 @@ export function PaperCanvasView({
     undefined,
   );
   const { screenToFlowPosition } = useReactFlow();
-
-  // Build note/memo lookup
-  const noteMap = useMemo(() => {
-    const m = new Map<string, NoteNode>();
-    for (const n of notes) m.set(n.id, n);
-    return m;
-  }, [notes]);
-
-  const memoMap = useMemo(() => {
-    const m = new Map<string, DailyNode>();
-    for (const memo of dailies) m.set(memo.id, memo);
-    return m;
-  }, [dailies]);
 
   // Existing ref entity IDs
   const existingRefIds = useMemo(() => {
@@ -218,6 +204,13 @@ export function PaperCanvasView({
     [onDeleteEdge],
   );
 
+  // Share a single `data` reference across all edges so the edge component's
+  // memo doesn't invalidate every edge whenever rfEdges rebuilds.
+  const sharedEdgeData = useMemo(
+    () => ({ onDelete: handleEdgeDelete }),
+    [handleEdgeDelete],
+  );
+
   // Convert DB nodes → ReactFlow nodes
   // ReactFlow requires parent nodes to appear before children in the array
   const rfNodes: Node[] = useMemo(() => {
@@ -240,24 +233,11 @@ export function PaperCanvasView({
 
       if (pn.nodeType === "card") {
         type = "paperCard";
-        const note = pn.refEntityId ? noteMap.get(pn.refEntityId) : null;
-        const memo = pn.refEntityId ? memoMap.get(pn.refEntityId) : null;
-        const entity = note || memo;
-        const isDeleted = pn.refEntityId ? !entity : false;
+        // Card looks up entity content itself via NoteContext / DailyContext;
+        // see PaperCardNode. This keeps rfNodes stable across unrelated note edits.
         data = {
-          label: note
-            ? note.title
-            : memo
-              ? formatDisplayDate(memo.date, lang)
-              : "Unknown",
-          contentPreview: note
-            ? getContentPreview(note.content, 100)
-            : memo
-              ? getContentPreview(memo.content, 100)
-              : "",
           refEntityId: pn.refEntityId,
           refEntityType: pn.refEntityType,
-          deleted: isDeleted,
         } satisfies PaperCardData;
       } else if (pn.nodeType === "text") {
         type = "paperText";
@@ -295,8 +275,6 @@ export function PaperCanvasView({
     });
   }, [
     paperNodes,
-    noteMap,
-    memoMap,
     handleTextChange,
     handleNodeResize,
     handleFrameLabelChange,
@@ -319,21 +297,25 @@ export function PaperCanvasView({
         sourceHandle: normalized.sourceHandle || undefined,
         targetHandle: normalized.targetHandle || undefined,
         type: "paperEdge",
-        data: { onDelete: handleEdgeDelete },
+        data: sharedEdgeData,
       };
     });
-  }, [paperEdges, handleEdgeDelete]);
+  }, [paperEdges, sharedEdgeData]);
 
   const [flowNodes, setFlowNodes, onNodesChange] = useNodesState(rfNodes);
   const [flowEdges, setFlowEdges, onEdgesChange] = useEdgesState(rfEdges);
 
-  // Keep flow state in sync with DB data
+  // Diff-merge sync: when rfNodes/rfEdges rebuild (e.g. after drag stop, edge
+  // create, etc.), reuse the existing flowNode/flowEdge object identity for
+  // entries whose content is unchanged. Without this, every rebuild gives every
+  // node/edge a new identity and React Flow re-runs internal measurement and
+  // re-renders all of them, even though most haven't changed.
   useEffect(() => {
-    setFlowNodes(rfNodes);
+    setFlowNodes((prev) => mergeNodes(prev, rfNodes));
   }, [rfNodes, setFlowNodes]);
 
   useEffect(() => {
-    setFlowEdges(rfEdges);
+    setFlowEdges((prev) => mergeEdges(prev, rfEdges));
   }, [rfEdges, setFlowEdges]);
 
   // --- Frame nesting helpers ---

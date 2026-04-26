@@ -55,6 +55,13 @@ import {
   savePositions,
   saveViewport,
 } from "./tagGraphStorage";
+import { TagGraphSelectionContext } from "./TagGraphSelectionContext";
+import { mergeNodes, mergeEdges } from "./reactFlowMerge";
+
+// tagDots arrays get a fresh identity on every rebuild but are usually
+// content-identical; comparing item-wise lets the merge preserve node identity
+// across selection clicks and unrelated note/daily edits.
+const TAG_GRAPH_NODE_ARRAY_KEYS = new Set(["tagDots"]);
 
 const nodeTypes = {
   noteNode: NoteNodeComponent,
@@ -302,6 +309,14 @@ export function TagGraphView({
 
   const linkEdgesHidden = activeFilterIds.has(VIRTUAL_LINK_EDGES_HIDDEN_ID);
 
+  // O(1) tag lookup. Without this, noteTagDots/memoTagDots/buildNormalEdges
+  // would each call tags.find(...) per assignment → O(A * T) per render.
+  const tagsById = useMemo(() => {
+    const map = new Map<string, WikiTag>();
+    for (const tag of tags) map.set(tag.id, tag);
+    return map;
+  }, [tags]);
+
   // Build tag dots data for notes
   const noteTagDots = useMemo(() => {
     const map = new Map<
@@ -310,7 +325,7 @@ export function TagGraphView({
     >();
     for (const a of assignments) {
       if (a.entityType !== "note") continue;
-      const tag = tags.find((t) => t.id === a.tagId);
+      const tag = tagsById.get(a.tagId);
       if (!tag) continue;
       const existing = map.get(a.entityId) || [];
       existing.push({ id: tag.id, name: tag.name, color: tag.color });
@@ -329,7 +344,7 @@ export function TagGraphView({
       }
     }
     return map;
-  }, [assignments, tags, notes, t]);
+  }, [assignments, tagsById, notes, t]);
 
   // Build tag dots data for dailies
   const memoTagDots = useMemo(() => {
@@ -339,7 +354,7 @@ export function TagGraphView({
     >();
     for (const a of assignments) {
       if (a.entityType !== "memo") continue;
-      const tag = tags.find((t) => t.id === a.tagId);
+      const tag = tagsById.get(a.tagId);
       if (!tag) continue;
       const existing = map.get(a.entityId) || [];
       existing.push({ id: tag.id, name: tag.name, color: tag.color });
@@ -358,7 +373,20 @@ export function TagGraphView({
       }
     }
     return map;
-  }, [assignments, tags, dailies, t]);
+  }, [assignments, tagsById, dailies, t]);
+
+  // O(1) per-tag entity lookup (notes only) for buildNormalEdges. Replaces
+  // the per-tag assignments.filter() that turned the inner loop into O(T * A).
+  const noteEntityIdsByTag = useMemo(() => {
+    const map = new Map<string, string[]>();
+    for (const a of assignments) {
+      if (a.entityType !== "note") continue;
+      const arr = map.get(a.tagId);
+      if (arr) arr.push(a.entityId);
+      else map.set(a.tagId, [a.entityId]);
+    }
+    return map;
+  }, [assignments]);
 
   // Visible IDs: all non-deleted entities (no filter)
   const visibleNoteIds = useMemo(
@@ -455,10 +483,18 @@ export function TagGraphView({
     notes,
     dailies,
     assignments,
-    selectedTagId,
-    relatedNodeIds,
     activeFilterIds,
   ]);
+
+  // Stable selection-state value for descendants. selectedTagId and
+  // relatedNodeIds drive node highlighted/dimmed flags, which are now read
+  // from this context inside NoteNodeComponent / DailyNodeComponent. Pulling
+  // these out of node data lets initialNodes stay stable across selection
+  // changes and avoids React Flow re-diffing every node on click.
+  const selectionContextValue = useMemo(
+    () => ({ selectedTagId, relatedNodeIds }),
+    [selectedTagId, relatedNodeIds],
+  );
 
   function buildNormalNodes(): Node[] {
     const saved = positionsRef.current;
@@ -519,12 +555,10 @@ export function TagGraphView({
       savePositions(positionsRef.current);
     }
 
+    // highlighted/dimmed are computed inside the node components via
+    // TagGraphSelectionContext; do not bake them into data here.
     const noteNodes: Node[] = visibleNotes.map((note) => {
       const pos = saved[note.id] ?? forcePositions[note.id] ?? { x: 0, y: 0 };
-      const dots = noteTagDots.get(note.id) || [];
-      const highlighted =
-        !!selectedTagId && dots.some((d) => d.id === selectedTagId);
-      const dimmed = relatedNodeIds ? !relatedNodeIds.has(note.id) : false;
       return {
         id: note.id,
         type: "noteNode",
@@ -534,19 +568,13 @@ export function TagGraphView({
           contentPreview: getContentPreview(note.content),
           noteId: note.id,
           color: note.color,
-          tagDots: dots,
-          highlighted,
-          dimmed,
+          tagDots: noteTagDots.get(note.id) || [],
         },
       };
     });
 
     const memoNodes: Node[] = visibleMemosList.map((memo) => {
       const pos = saved[memo.id] ?? forcePositions[memo.id] ?? { x: 0, y: 0 };
-      const dots = memoTagDots.get(memo.id) || [];
-      const highlighted =
-        !!selectedTagId && dots.some((d) => d.id === selectedTagId);
-      const dimmed = relatedNodeIds ? !relatedNodeIds.has(memo.id) : false;
       return {
         id: memo.id,
         type: "dailyNode",
@@ -555,9 +583,7 @@ export function TagGraphView({
           date: memo.date,
           contentPreview: getContentPreview(memo.content),
           dailyId: memo.id,
-          tagDots: dots,
-          highlighted,
-          dimmed,
+          tagDots: memoTagDots.get(memo.id) || [],
         },
       };
     });
@@ -600,8 +626,6 @@ export function TagGraphView({
               noteId: selectedNote.id,
               color: selectedNote.color,
               tagDots: allTags,
-              highlighted: false,
-              dimmed: false,
             },
           },
         ];
@@ -616,8 +640,6 @@ export function TagGraphView({
             contentPreview: getContentPreview(selectedDaily!.content),
             dailyId: selectedDaily!.id,
             tagDots: allTags,
-            highlighted: false,
-            dimmed: false,
           },
         },
       ];
@@ -642,8 +664,6 @@ export function TagGraphView({
             noteId: selectedNote.id,
             color: selectedNote.color,
             tagDots: [tag],
-            highlighted: false,
-            dimmed: false,
             splitTag: tag,
           },
         };
@@ -657,8 +677,6 @@ export function TagGraphView({
           contentPreview: getContentPreview(selectedDaily!.content),
           dailyId: selectedDaily!.id,
           tagDots: [tag],
-          highlighted: false,
-          dimmed: false,
           splitTag: tag,
         },
       };
@@ -727,8 +745,6 @@ export function TagGraphView({
               noteId: note.id,
               color: note.color,
               tagDots: noteTagDots.get(note.id) || [],
-              highlighted: false,
-              dimmed: false,
             },
           });
         } else if (memo) {
@@ -741,8 +757,6 @@ export function TagGraphView({
               contentPreview: getContentPreview(memo.content),
               dailyId: memo.id,
               tagDots: memoTagDots.get(memo.id) || [],
-              highlighted: false,
-              dimmed: false,
             },
           });
         }
@@ -828,10 +842,11 @@ export function TagGraphView({
     const seenPairs = new Set<string>();
     for (const tag of tags) {
       if (realActiveTagIds.size > 0 && !realActiveTagIds.has(tag.id)) continue;
-      const noteIdsForTag = assignments
-        .filter((a) => a.tagId === tag.id && a.entityType === "note")
-        .map((a) => a.entityId)
-        .filter((id) => visibleNodeIds.has(id));
+      const taggedNoteIds = noteEntityIdsByTag.get(tag.id);
+      if (!taggedNoteIds) continue;
+      const noteIdsForTag = taggedNoteIds.filter((id) =>
+        visibleNodeIds.has(id),
+      );
 
       for (let i = 0; i < noteIdsForTag.length; i++) {
         for (let j = i + 1; j < noteIdsForTag.length; j++) {
@@ -971,13 +986,20 @@ export function TagGraphView({
   nodesRef.current = nodes;
   const { setCenter } = useReactFlow();
 
-  // Sync nodes/edges when data changes
+  // Diff-merge sync: see comment on the same pattern in PaperCanvasView.
+  // Without preserving identity for unchanged entries, every initialNodes
+  // rebuild forces React Flow to re-diff and re-render every node, which is
+  // the dominant cost when many nodes are visible.
   useEffect(() => {
-    setNodes(initialNodes);
+    setNodes((prev) =>
+      mergeNodes(prev, initialNodes, {
+        deepArrayDataKeys: TAG_GRAPH_NODE_ARRAY_KEYS,
+      }),
+    );
   }, [initialNodes, setNodes]);
 
   useEffect(() => {
-    setEdges(initialEdges);
+    setEdges((prev) => mergeEdges(prev, initialEdges));
   }, [initialEdges, setEdges]);
 
   // Focus on a specific note node
@@ -1237,178 +1259,180 @@ export function TagGraphView({
   }
 
   return (
-    <div
-      className={
-        "h-full w-full" + (connectMode ? " tag-graph-connect-mode" : "")
-      }
-    >
-      <ReactFlow
-        nodes={nodes}
-        edges={edges}
-        onNodesChange={handleNodesChange}
-        onEdgesChange={handleEdgesChange}
-        onConnect={handleConnect}
-        onEdgeClick={handleEdgeClick}
-        onNodeClick={handleNodeClick}
-        onNodeDoubleClick={handleNodeDoubleClick}
-        onPaneClick={handlePaneClick}
-        onMoveEnd={(_event, viewport) => saveViewport(viewport)}
-        nodeTypes={nodeTypes}
-        edgeTypes={edgeTypes}
-        connectionMode={ConnectionMode.Loose}
-        nodesConnectable={connectMode && !sidebarMode}
-        nodesDraggable={!connectMode}
-        panOnDrag={false}
-        selectionOnDrag={!connectMode}
-        panOnScroll
-        zoomOnScroll={false}
-        zoomOnPinch
-        selectNodesOnDrag={false}
-        deleteKeyCode={connectMode ? null : ["Delete", "Backspace"]}
-        multiSelectionKeyCode="Shift"
-        onNodesDelete={handleNodesDelete}
-        elevateNodesOnSelect
-        defaultViewport={savedViewport ?? { x: 50, y: 50, zoom: 1 }}
-        fitView={!savedViewport}
-        fitViewOptions={{ padding: 0.3 }}
-        minZoom={0.2}
-        maxZoom={3}
-        proOptions={{ hideAttribution: true }}
-        className="bg-notion-bg"
+    <TagGraphSelectionContext.Provider value={selectionContextValue}>
+      <div
+        className={
+          "h-full w-full" + (connectMode ? " tag-graph-connect-mode" : "")
+        }
       >
-        <Background gap={20} size={1} color="var(--notion-border)" />
-        <Panel position="top-left">
-          <div className="flex gap-1">
-            <button
-              onClick={() => applyLayout("polygon")}
-              className="p-1.5 rounded bg-notion-bg border border-notion-border text-notion-text-secondary hover:bg-notion-hover"
-              title={t("ideas.layoutPolygon")}
-            >
-              <Hexagon size={14} />
-            </button>
-            <button
-              onClick={() => applyLayout("line")}
-              className="p-1.5 rounded bg-notion-bg border border-notion-border text-notion-text-secondary hover:bg-notion-hover"
-              title={t("ideas.layoutLine")}
-            >
-              <AlignHorizontalSpaceBetween size={14} />
-            </button>
-            <button
-              onClick={() => applyLayout("force")}
-              className="p-1.5 rounded bg-notion-bg border border-notion-border text-notion-text-secondary hover:bg-notion-hover"
-              title={t("ideas.layoutForce")}
-            >
-              <GitBranch size={14} />
-            </button>
-          </div>
-        </Panel>
-        <Panel position="top-right">
-          <div className="flex flex-col gap-1 items-end">
-            <CanvasControls
-              showFilter
-              filterCount={activeFilterIds.size}
-              onFilterClick={() => setShowCanvasFilter((v) => !v)}
-              showConnect={!sidebarMode}
-              connectMode={connectMode}
-              onToggleConnectMode={() => setConnectMode((v) => !v)}
-              connectLabel={t("connect.toggleConnectMode")}
-            />
-            {showCanvasFilter && (
-              <div className="relative">
-                <div className="absolute right-0 top-0 z-20">
-                  <TagFilterOverlay
-                    tags={displayTags}
-                    selectedTagIds={[...activeFilterIds]}
-                    onToggle={(id) =>
-                      setActiveFilterIds((prev) => {
-                        const next = new Set(prev);
-                        if (next.has(id)) {
-                          next.delete(id);
-                        } else {
-                          next.add(id);
-                        }
-                        return next;
-                      })
-                    }
-                    onClose={() => setShowCanvasFilter(false)}
-                    items={displayFilterItems}
-                  />
+        <ReactFlow
+          nodes={nodes}
+          edges={edges}
+          onNodesChange={handleNodesChange}
+          onEdgesChange={handleEdgesChange}
+          onConnect={handleConnect}
+          onEdgeClick={handleEdgeClick}
+          onNodeClick={handleNodeClick}
+          onNodeDoubleClick={handleNodeDoubleClick}
+          onPaneClick={handlePaneClick}
+          onMoveEnd={(_event, viewport) => saveViewport(viewport)}
+          nodeTypes={nodeTypes}
+          edgeTypes={edgeTypes}
+          connectionMode={ConnectionMode.Loose}
+          nodesConnectable={connectMode && !sidebarMode}
+          nodesDraggable={!connectMode}
+          panOnDrag={false}
+          selectionOnDrag={!connectMode}
+          panOnScroll
+          zoomOnScroll={false}
+          zoomOnPinch
+          selectNodesOnDrag={false}
+          deleteKeyCode={connectMode ? null : ["Delete", "Backspace"]}
+          multiSelectionKeyCode="Shift"
+          onNodesDelete={handleNodesDelete}
+          elevateNodesOnSelect
+          defaultViewport={savedViewport ?? { x: 50, y: 50, zoom: 1 }}
+          fitView={!savedViewport}
+          fitViewOptions={{ padding: 0.3 }}
+          minZoom={0.2}
+          maxZoom={3}
+          proOptions={{ hideAttribution: true }}
+          className="bg-notion-bg"
+        >
+          <Background gap={20} size={1} color="var(--notion-border)" />
+          <Panel position="top-left">
+            <div className="flex gap-1">
+              <button
+                onClick={() => applyLayout("polygon")}
+                className="p-1.5 rounded bg-notion-bg border border-notion-border text-notion-text-secondary hover:bg-notion-hover"
+                title={t("ideas.layoutPolygon")}
+              >
+                <Hexagon size={14} />
+              </button>
+              <button
+                onClick={() => applyLayout("line")}
+                className="p-1.5 rounded bg-notion-bg border border-notion-border text-notion-text-secondary hover:bg-notion-hover"
+                title={t("ideas.layoutLine")}
+              >
+                <AlignHorizontalSpaceBetween size={14} />
+              </button>
+              <button
+                onClick={() => applyLayout("force")}
+                className="p-1.5 rounded bg-notion-bg border border-notion-border text-notion-text-secondary hover:bg-notion-hover"
+                title={t("ideas.layoutForce")}
+              >
+                <GitBranch size={14} />
+              </button>
+            </div>
+          </Panel>
+          <Panel position="top-right">
+            <div className="flex flex-col gap-1 items-end">
+              <CanvasControls
+                showFilter
+                filterCount={activeFilterIds.size}
+                onFilterClick={() => setShowCanvasFilter((v) => !v)}
+                showConnect={!sidebarMode}
+                connectMode={connectMode}
+                onToggleConnectMode={() => setConnectMode((v) => !v)}
+                connectLabel={t("connect.toggleConnectMode")}
+              />
+              {showCanvasFilter && (
+                <div className="relative">
+                  <div className="absolute right-0 top-0 z-20">
+                    <TagFilterOverlay
+                      tags={displayTags}
+                      selectedTagIds={[...activeFilterIds]}
+                      onToggle={(id) =>
+                        setActiveFilterIds((prev) => {
+                          const next = new Set(prev);
+                          if (next.has(id)) {
+                            next.delete(id);
+                          } else {
+                            next.add(id);
+                          }
+                          return next;
+                        })
+                      }
+                      onClose={() => setShowCanvasFilter(false)}
+                      items={displayFilterItems}
+                    />
+                  </div>
                 </div>
-              </div>
-            )}
-          </div>
-        </Panel>
-      </ReactFlow>
-      {nodeContextMenu &&
-        createPortal(
-          <div
-            className="fixed inset-0 z-[9999]"
-            onClick={() => setNodeContextMenu(null)}
-            onContextMenu={(e) => {
-              e.preventDefault();
-              setNodeContextMenu(null);
-            }}
-          >
+              )}
+            </div>
+          </Panel>
+        </ReactFlow>
+        {nodeContextMenu &&
+          createPortal(
             <div
-              className="absolute bg-notion-bg border border-notion-border rounded-lg shadow-lg p-2 w-52"
-              style={{ left: nodeContextMenu.x, top: nodeContextMenu.y }}
-              onClick={(e) => e.stopPropagation()}
+              className="fixed inset-0 z-[9999]"
+              onClick={() => setNodeContextMenu(null)}
+              onContextMenu={(e) => {
+                e.preventDefault();
+                setNodeContextMenu(null);
+              }}
             >
-              {nodeContextMenu.nodeType === "note" ? (
-                <>
+              <div
+                className="absolute bg-notion-bg border border-notion-border rounded-lg shadow-lg p-2 w-52"
+                style={{ left: nodeContextMenu.x, top: nodeContextMenu.y }}
+                onClick={(e) => e.stopPropagation()}
+              >
+                {nodeContextMenu.nodeType === "note" ? (
+                  <>
+                    <button
+                      className="w-full text-left px-2 py-1.5 text-xs rounded hover:bg-notion-hover text-notion-text"
+                      onClick={() => {
+                        onNavigateToNote?.(nodeContextMenu.entityId);
+                        setNodeContextMenu(null);
+                      }}
+                    >
+                      {t("ideas.openNote")}
+                    </button>
+                    <div className="border-t border-notion-border my-1" />
+                    <div className="px-2 py-1">
+                      <p className="text-[10px] text-notion-text-secondary mb-1.5">
+                        {t("ideas.noteColor")}
+                      </p>
+                      <UnifiedColorPicker
+                        color={nodeContextMenu.color || "#D5E8F5"}
+                        onChange={(color) => {
+                          onUpdateNoteColor?.(nodeContextMenu.entityId, color);
+                        }}
+                        mode="preset-full"
+                        inline
+                      />
+                    </div>
+                  </>
+                ) : (
                   <button
                     className="w-full text-left px-2 py-1.5 text-xs rounded hover:bg-notion-hover text-notion-text"
                     onClick={() => {
-                      onNavigateToNote?.(nodeContextMenu.entityId);
+                      onNavigateToMemo?.(nodeContextMenu.entityId);
                       setNodeContextMenu(null);
                     }}
                   >
-                    {t("ideas.openNote")}
+                    {t("ideas.openMemo")}
                   </button>
-                  <div className="border-t border-notion-border my-1" />
-                  <div className="px-2 py-1">
-                    <p className="text-[10px] text-notion-text-secondary mb-1.5">
-                      {t("ideas.noteColor")}
-                    </p>
-                    <UnifiedColorPicker
-                      color={nodeContextMenu.color || "#D5E8F5"}
-                      onChange={(color) => {
-                        onUpdateNoteColor?.(nodeContextMenu.entityId, color);
-                      }}
-                      mode="preset-full"
-                      inline
-                    />
-                  </div>
-                </>
-              ) : (
-                <button
-                  className="w-full text-left px-2 py-1.5 text-xs rounded hover:bg-notion-hover text-notion-text"
-                  onClick={() => {
-                    onNavigateToMemo?.(nodeContextMenu.entityId);
-                    setNodeContextMenu(null);
-                  }}
-                >
-                  {t("ideas.openMemo")}
-                </button>
-              )}
-            </div>
-          </div>,
-          document.body,
+                )}
+              </div>
+            </div>,
+            document.body,
+          )}
+        {pendingConnection && (
+          <ConnectPanel
+            sourceEntityType={pendingConnection.sourceType}
+            sourceEntityId={pendingConnection.sourceId}
+            sourceTitle={pendingConnection.sourceTitle}
+            targetEntityType={pendingConnection.targetType}
+            targetEntityId={pendingConnection.targetId}
+            targetTitle={pendingConnection.targetTitle}
+            tags={tags}
+            assignments={assignments}
+            onCancel={() => setPendingConnection(null)}
+            onConnect={handleConfirmConnect}
+          />
         )}
-      {pendingConnection && (
-        <ConnectPanel
-          sourceEntityType={pendingConnection.sourceType}
-          sourceEntityId={pendingConnection.sourceId}
-          sourceTitle={pendingConnection.sourceTitle}
-          targetEntityType={pendingConnection.targetType}
-          targetEntityId={pendingConnection.targetId}
-          targetTitle={pendingConnection.targetTitle}
-          tags={tags}
-          assignments={assignments}
-          onCancel={() => setPendingConnection(null)}
-          onConnect={handleConfirmConnect}
-        />
-      )}
-    </div>
+      </div>
+    </TagGraphSelectionContext.Provider>
   );
 }
