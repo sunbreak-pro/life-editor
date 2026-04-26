@@ -1862,8 +1862,8 @@
     "createNote": "ノート",
     "createDaily": "日記",
     "createEvent": "予定を作成",
-    "createRoutine": "ルーチン",
-    "newRoutinePlaceholder": "名前なしのルーチン",
+    "createRoutine": "ルーティン",
+    "newRoutinePlaceholder": "名前なしのルーティン",
     "eventTitle": "タイトル",
     "eventMemo": "メモ",
     "calendarTags": "カレンダータグ",
@@ -1895,7 +1895,9 @@
     "comingSoon": "Coming Soon",
     "undo": "元に戻す",
     "redo": "やり直す",
-    "create": "作成"
+    "create": "作成",
+    "edit": "編集",
+    "openManagement": "管理画面を開く"
   },
   "tasks": {
     "title": "Tasks"
@@ -2517,7 +2519,7 @@
         "enable": "通知を有効にする",
         "permissionBlocked": "システムで通知がブロックされています",
         "unsupported": "この端末では利用できません",
-        "routineReminders": "ルーチンのリマインダー",
+        "routineReminders": "ルーティンのリマインダー",
         "taskDeadlineReminders": "タスク期限のリマインダー"
       },
       "timer": {

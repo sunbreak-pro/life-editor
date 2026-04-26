@@ -1895,7 +1895,9 @@
     "comingSoon": "Coming Soon",
     "undo": "Undo",
     "redo": "Redo",
-    "create": "Create"
+    "create": "Create",
+    "edit": "Edit",
+    "openManagement": "Open Management"
   },
   "tasks": {
     "title": "Tasks"

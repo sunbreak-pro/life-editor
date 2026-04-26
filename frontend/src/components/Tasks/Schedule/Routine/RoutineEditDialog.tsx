@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { X, Plus, Check } from "lucide-react";
+import { X, Plus, Check, Settings } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import type { RoutineNode, FrequencyType } from "../../../../types/routine";
 import type { RoutineGroup } from "../../../../types/routineGroup";
@@ -44,6 +44,11 @@ interface RoutineEditDialogProps {
     frequencyInterval: number | null,
     frequencyStartDate: string | null,
   ) => Promise<RoutineGroup>;
+  /**
+   * Optional: navigate to the full Routine management overlay. When provided,
+   * the dialog renders a header button that closes itself and opens the panel.
+   */
+  onOpenManagement?: () => void;
   onClose: () => void;
 }
 
@@ -53,6 +58,7 @@ export function RoutineEditDialog({
   initialGroupIds,
   onSubmit,
   onCreateGroup,
+  onOpenManagement,
   onClose,
 }: RoutineEditDialogProps) {
   const { t } = useTranslation();
@@ -165,12 +171,28 @@ export function RoutineEditDialog({
               ? t("schedule.editRoutine", "Edit Routine")
               : t("schedule.newRoutine", "New Routine")}
           </h3>
-          <button
-            onClick={onClose}
-            className="p-1 text-notion-text-secondary hover:text-notion-text rounded transition-colors"
-          >
-            <X size={16} />
-          </button>
+          <div className="flex items-center gap-1">
+            {onOpenManagement && (
+              <button
+                type="button"
+                onClick={() => {
+                  onOpenManagement();
+                  onClose();
+                }}
+                className="flex items-center gap-1 px-2 py-1 text-[11px] text-notion-text-secondary hover:text-notion-text hover:bg-notion-hover rounded transition-colors"
+                title={t("common.openManagement", "Open Management")}
+              >
+                <Settings size={12} />
+                <span>{t("common.openManagement", "Open Management")}</span>
+              </button>
+            )}
+            <button
+              onClick={onClose}
+              className="p-1 text-notion-text-secondary hover:text-notion-text rounded transition-colors"
+            >
+              <X size={16} />
+            </button>
+          </div>
         </div>
 
         <div className="space-y-3">

@@ -164,7 +164,6 @@ export function ScheduleItemPreviewPopup({
                 const newDate = `${y}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
                 if (newDate !== item.date) {
                   onUpdateDate(newDate);
-                  onClose();
                 }
               }}
               size="sm"

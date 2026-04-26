@@ -861,7 +861,6 @@ export function CalendarView({
           }
           onUpdateDate={(date) => {
             updateScheduleItem(scheduleItemPreview.item.id, { date });
-            setScheduleItemPreview(null);
           }}
           onUpdateAllDay={(isAllDay) => {
             updateScheduleItem(scheduleItemPreview.item.id, { isAllDay });
@@ -933,7 +932,6 @@ export function CalendarView({
           }
           onUpdateAllDay={(isAllDay) => {
             updateNode(previewTask.id, { isAllDay });
-            setPreviewPopup(null);
           }}
           onUpdateTimeMemo={(memo) =>
             updateNode(previewTask.id, {
@@ -1096,6 +1094,7 @@ export function CalendarView({
               freqStartDate,
             );
           }}
+          onOpenManagement={onOpenRoutineManagement}
           onClose={() => setEditRoutineDialog(null)}
         />
       )}

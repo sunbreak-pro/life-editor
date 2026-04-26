@@ -1,9 +1,11 @@
-import { useEffect, useMemo, useRef, useCallback } from "react";
+import { useEffect, useMemo, useRef, useCallback, useState } from "react";
 import type { TaskNode, TaskStatus } from "../../../../types/taskTree";
 import type { ScheduleItem } from "../../../../types/schedule";
+import type { TimerSession } from "../../../../types/timer";
 import { useScheduleContext } from "../../../../hooks/useScheduleContext";
 import { useAutoInProgress } from "../../../../hooks/useAutoInProgress";
 import { useTaskTreeContext } from "../../../../hooks/useTaskTreeContext";
+import { useTimerContext } from "../../../../hooks/useTimerContext";
 import { formatDateKey } from "../../../../utils/dateKey";
 import { getDataService } from "../../../../services";
 import { logServiceError } from "../../../../utils/logError";
@@ -121,7 +123,30 @@ export function OneDaySchedule({
   const { t } = useTranslation();
   const { convert, canConvert } = useRoleConversion();
   const { push } = useUndoRedo();
+  const { completedSessions, isRunning } = useTimerContext();
   const dateKey = formatDateKey(date);
+
+  // Timer sessions for this date (Work integration → DayFlow overlay)
+  const [timerSessions, setTimerSessions] = useState<TimerSession[]>([]);
+  useEffect(() => {
+    let cancelled = false;
+    getDataService()
+      .fetchTimerSessions()
+      .then((sessions) => {
+        if (cancelled) return;
+        const filtered = sessions.filter((s) => {
+          if (!s.startedAt) return false;
+          const startKey = String(s.startedAt).substring(0, 10);
+          return startKey === dateKey;
+        });
+        setTimerSessions(filtered);
+      })
+      .catch((e) => logServiceError("Timer", "fetchSessions", e));
+    return () => {
+      cancelled = true;
+    };
+    // Refetch when date changes or when a session ends/starts
+  }, [dateKey, completedSessions, isRunning]);
 
   const getDisabledRoles = (source: ConversionSource): ConversionRole[] => {
     const roles: ConversionRole[] = ["task", "event", "note", "daily"];
@@ -603,6 +628,7 @@ export function OneDaySchedule({
                 updateNode(taskId, { isAllDay })
               }
               onSetTaskStatus={onSetTaskStatus}
+              timerSessions={timerSessions}
             />
           </div>
         </div>

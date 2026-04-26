@@ -3,11 +3,13 @@ import type { TaskNode, TaskStatus } from "../../../../types/taskTree";
 import type { ScheduleItem } from "../../../../types/schedule";
 import type { RoutineGroup } from "../../../../types/routineGroup";
 import type { ConversionRole } from "../../../../hooks/useRoleConversion";
+import type { TimerSession } from "../../../../types/timer";
 import { TIME_GRID } from "../../../../constants/timeGrid";
 import { TimeGridTaskBlock } from "../shared/TimeGridTaskBlock";
 import { TaskPreviewPopup } from "../Calendar/TaskPreviewPopup";
 import { ScheduleItemBlock } from "./ScheduleItemBlock";
 import { ScheduleItemPreviewPopup } from "./ScheduleItemPreviewPopup";
+import { SessionBlock } from "./SessionBlock";
 import { GroupFrame } from "./GroupFrame";
 import { GroupContextMenu } from "./GroupContextMenu";
 import { TimeGridContextMenu } from "./TimeGridContextMenu";
@@ -91,6 +93,8 @@ interface ScheduleTimeGridProps {
   onUpdateScheduleItemAllDay?: (id: string, isAllDay: boolean) => void;
   onUpdateTaskAllDay?: (taskId: string, isAllDay: boolean) => void;
   onSetTaskStatus?: (taskId: string, status: TaskStatus) => void;
+  // Timer sessions to overlay on the grid (Work integration)
+  timerSessions?: TimerSession[];
 }
 
 export function ScheduleTimeGrid({
@@ -130,6 +134,7 @@ export function ScheduleTimeGrid({
   onUpdateScheduleItemAllDay,
   onUpdateTaskAllDay,
   onSetTaskStatus,
+  timerSessions,
 }: ScheduleTimeGridProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const mainColumnRef = useRef<HTMLDivElement>(null);
@@ -419,6 +424,24 @@ export function ScheduleTimeGrid({
             }}
           />
         ))}
+
+        {/* Timer session overlay (Work integration) */}
+        {timerSessions && timerSessions.length > 0 && (
+          <div className="absolute inset-y-0 left-0 w-1 z-10">
+            {timerSessions.map((session) => {
+              const task = session.taskId
+                ? tasks.find((t) => t.id === session.taskId)
+                : undefined;
+              return (
+                <SessionBlock
+                  key={session.id}
+                  session={session}
+                  taskTitle={task?.title}
+                />
+              );
+            })}
+          </div>
+        )}
 
         {/* Current time indicator */}
         {isToday && (
@@ -728,7 +751,6 @@ export function ScheduleTimeGrid({
             onUpdateTaskAllDay
               ? (isAllDay) => {
                   onUpdateTaskAllDay(taskPreview.task.id, isAllDay);
-                  setTaskPreview(null);
                 }
               : undefined
           }
@@ -796,7 +818,6 @@ export function ScheduleTimeGrid({
             onUpdateScheduleItemAllDay
               ? (isAllDay) => {
                   onUpdateScheduleItemAllDay(schedulePreview.item.id, isAllDay);
-                  setSchedulePreview(null);
                 }
               : undefined
           }

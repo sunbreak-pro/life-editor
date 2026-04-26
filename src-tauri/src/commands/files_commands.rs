@@ -40,7 +40,17 @@ fn get_root_path_from_db(state: &State<'_, DbState>) -> Result<Option<String>, S
 }
 
 fn validate_path(root: &str, relative_path: &str) -> Result<PathBuf, String> {
-    let root = PathBuf::from(root).canonicalize().map_err(|e| e.to_string())?;
+    let root_pb = PathBuf::from(root);
+    let root = root_pb.canonicalize().map_err(|e| {
+        if e.kind() == std::io::ErrorKind::NotFound {
+            format!(
+                "Configured root folder not found: {}. Please reconfigure in Settings.",
+                root_pb.display()
+            )
+        } else {
+            format!("Cannot access root folder: {}", e)
+        }
+    })?;
     let resolved = root.join(relative_path);
     // Canonicalize parent if path doesn't exist yet, or full path if it does
     let check_path = if resolved.exists() {
