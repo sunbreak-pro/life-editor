@@ -260,7 +260,7 @@ export function OneDaySchedule({
       createScheduleItem(dateKey, routine.title, st, et, routine.id);
       setRoutinePicker(null);
     },
-    [dateKey, createScheduleItem],
+    [dateKey, createScheduleItem, setRoutinePicker],
   );
 
   const handleSelectGroupForSchedule = useCallback(
@@ -282,7 +282,7 @@ export function OneDaySchedule({
       }
       setRoutinePicker(null);
     },
-    [dateKey, createScheduleItem],
+    [dateKey, createScheduleItem, setRoutinePicker],
   );
 
   const handleSelectExistingNote = useCallback(
@@ -298,7 +298,7 @@ export function OneDaySchedule({
       );
       setNotePicker(null);
     },
-    [dateKey, createScheduleItem],
+    [dateKey, createScheduleItem, setNotePicker],
   );
 
   const handleCreateNewNote = useCallback(
@@ -317,7 +317,7 @@ export function OneDaySchedule({
       );
       setNotePicker(null);
     },
-    [dateKey, createScheduleItem],
+    [dateKey, createScheduleItem, setNotePicker],
   );
 
   const handleUpdateMemo = (id: string, memo: string | null) => {

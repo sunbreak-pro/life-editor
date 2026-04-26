@@ -1,7 +1,6 @@
 import type { DataService } from "./DataService";
-import { TauriDataService } from "./TauriDataService";
+import { tauriDataService } from "./TauriDataService";
 
-let instance: DataService | null = null;
 let testOverride: DataService | null = null;
 
 export function setDataServiceForTest(service: DataService): void {
@@ -13,9 +12,5 @@ export function resetDataService(): void {
 }
 
 export function getDataService(): DataService {
-  if (testOverride) return testOverride;
-  if (!instance) {
-    instance = new TauriDataService();
-  }
-  return instance;
+  return testOverride ?? tauriDataService;
 }

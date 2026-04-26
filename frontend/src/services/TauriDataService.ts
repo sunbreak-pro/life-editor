@@ -19,7 +19,16 @@ import { timeMemosApi } from "./data/timeMemos";
 import { timerApi } from "./data/timer";
 import { wikiTagsApi } from "./data/wikiTags";
 
-const composed: DataService = {
+/**
+ * Composition root for the Tauri-backed DataService implementation.
+ *
+ * Each domain bridge (`./data/*.ts`) exports a typed const object of
+ * `tauriInvoke` wrappers; this file spreads them into a single singleton
+ * that satisfies `DataService`. The factory (`dataServiceFactory.ts`)
+ * imports `tauriDataService` directly — there is no class wrapper, which
+ * keeps the type system honest (no class/interface declaration merging).
+ */
+export const tauriDataService: DataService = {
   ...tasksApi,
   ...timerApi,
   ...soundApi,
@@ -40,13 +49,3 @@ const composed: DataService = {
   ...syncApi,
   ...miscApi,
 };
-
-export class TauriDataService {
-  constructor() {
-    Object.assign(this, composed);
-  }
-}
-// Declaration merge — instance gains all DataService methods at runtime
-// via Object.assign in the constructor.
-// eslint-disable-next-line @typescript-eslint/no-empty-object-type
-export interface TauriDataService extends DataService {}
