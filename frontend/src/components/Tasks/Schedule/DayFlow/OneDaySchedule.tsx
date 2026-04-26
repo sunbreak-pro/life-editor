@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef, useCallback } from "react";
+import { useEffect, useMemo, useRef, useCallback } from "react";
 import type { TaskNode, TaskStatus } from "../../../../types/taskTree";
 import type { ScheduleItem } from "../../../../types/schedule";
 import { useScheduleContext } from "../../../../hooks/useScheduleContext";
@@ -9,10 +9,7 @@ import { getDataService } from "../../../../services";
 import { logServiceError } from "../../../../utils/logError";
 import { CompactDateNav } from "./CompactDateNav";
 import { ScheduleTimeGrid } from "./ScheduleTimeGrid";
-import {
-  TaskSchedulePanel,
-  type PanelTab,
-} from "../../../shared/TaskSchedulePanel";
+import { TaskSchedulePanel } from "../../../shared/TaskSchedulePanel";
 import { TimeGridClickMenu } from "./TimeGridClickMenu";
 import { RoutineDeleteConfirmDialog } from "./RoutineDeleteConfirmDialog";
 import { RoutineEditDialog } from "../Routine/RoutineEditDialog";
@@ -24,9 +21,11 @@ import { TaskPreviewPopup } from "../Calendar/TaskPreviewPopup";
 import { ScheduleItemPreviewPopup } from "./ScheduleItemPreviewPopup";
 import { RoutinePickerPanel } from "./RoutinePickerPanel";
 import { NoteSchedulePanel } from "../../../shared/NoteSchedulePanel/NoteSchedulePanel";
-import type { TabItem } from "../../../shared/SectionTabs";
 import { TIME_GRID } from "../../../../constants/timeGrid";
 import type { NoteNode } from "../../../../types/note";
+import { useDayFlowFilters } from "./useDayFlowFilters";
+import { useDayFlowDialogs } from "./useDayFlowDialogs";
+import { DAY_FLOW_FILTER_TABS, type DayFlowFilterTab } from "./dayFlowFilters";
 import {
   CalendarClock,
   CalendarMinus,
@@ -42,20 +41,7 @@ import {
 } from "../../../../hooks/useRoleConversion";
 import { useUndoRedo } from "../../../shared/UndoRedo";
 
-export type DayFlowFilterTab =
-  | "all"
-  | "routine"
-  | "tasks"
-  | "events"
-  | "daily"
-  | "notes";
-
-export const DAY_FLOW_FILTER_TABS: readonly TabItem<DayFlowFilterTab>[] = [
-  { id: "all", labelKey: "dayFlow.filterAll" },
-  { id: "routine", labelKey: "dayFlow.filterRoutine" },
-  { id: "tasks", labelKey: "dayFlow.filterTasks" },
-  { id: "events", labelKey: "dayFlow.filterEvents" },
-];
+export { DAY_FLOW_FILTER_TABS, type DayFlowFilterTab };
 
 interface OneDayScheduleProps {
   date: Date;
@@ -142,86 +128,37 @@ export function OneDaySchedule({
     return roles.filter((r) => !canConvert(source, r));
   };
   const isToday = dateKey === formatDateKey(new Date());
-  const [selectedFilterGroupIds, setSelectedFilterGroupIds] = useState<
-    string[]
-  >([]);
-  const [editRoutineDialog, setEditRoutineDialog] =
-    useState<RoutineNode | null>(null);
-  const [editGroupDialog, setEditGroupDialog] = useState<RoutineGroup | null>(
-    null,
-  );
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  const [allDayTaskPreview, setAllDayTaskPreview] = useState<{
-    task: TaskNode;
-    position: { x: number; y: number };
-  } | null>(null);
-  const [allDaySchedulePreview, setAllDaySchedulePreview] = useState<{
-    item: ScheduleItem;
-    position: { x: number; y: number };
-  } | null>(null);
-
-  const [clickMenu, setClickMenu] = useState<{
-    startTime: string;
-    endTime: string;
-    position: { x: number; y: number };
-  } | null>(null);
-  const [createPopover, setCreatePopover] = useState<{
-    startTime: string;
-    endTime: string;
-    position: { x: number; y: number };
-    defaultTab?: PanelTab;
-  } | null>(null);
-
-  const [routineDeleteTarget, setRoutineDeleteTarget] = useState<{
-    item: ScheduleItem;
-    position: { x: number; y: number };
-  } | null>(null);
-
-  const [routineTimeChange, setRoutineTimeChange] = useState<{
-    itemId: string;
-    routineId: string;
-    routineTitle: string;
-    startTime: string;
-    endTime: string;
-    prevStartTime: string;
-    prevEndTime: string;
-  } | null>(null);
-
-  const [routinePicker, setRoutinePicker] = useState<{
-    startTime: string;
-    endTime: string;
-    position: { x: number; y: number };
-  } | null>(null);
-
-  const [notePicker, setNotePicker] = useState<{
-    startTime: string;
-    endTime: string;
-    position: { x: number; y: number };
-  } | null>(null);
-
-  const handleRequestRoutineDelete = useCallback(
-    (item: ScheduleItem, position: { x: number; y: number }) => {
-      setRoutineDeleteTarget({
-        item,
-        position,
-      });
-    },
-    [],
-  );
-
-  const handleDismissOnly = useCallback(() => {
-    if (!routineDeleteTarget) return;
-    dismissScheduleItem(routineDeleteTarget.item.id);
-    setRoutineDeleteTarget(null);
-  }, [routineDeleteTarget, dismissScheduleItem]);
-
-  const handleArchiveRoutine = useCallback(() => {
-    if (!routineDeleteTarget?.item.routineId) return;
-    updateRoutine(routineDeleteTarget.item.routineId, { isArchived: true });
-    softDeleteScheduleItem(routineDeleteTarget.item.id);
-    setRoutineDeleteTarget(null);
-  }, [routineDeleteTarget, updateRoutine, softDeleteScheduleItem]);
+  const {
+    editRoutineDialog,
+    setEditRoutineDialog,
+    editGroupDialog,
+    setEditGroupDialog,
+    allDayTaskPreview,
+    setAllDayTaskPreview,
+    allDaySchedulePreview,
+    setAllDaySchedulePreview,
+    clickMenu,
+    setClickMenu,
+    createPopover,
+    setCreatePopover,
+    routineDeleteTarget,
+    setRoutineDeleteTarget,
+    routineTimeChange,
+    setRoutineTimeChange,
+    routinePicker,
+    setRoutinePicker,
+    notePicker,
+    setNotePicker,
+    handleRequestRoutineDelete,
+    handleDismissOnly,
+    handleArchiveRoutine,
+  } = useDayFlowDialogs({
+    dismissScheduleItem,
+    updateRoutine,
+    softDeleteScheduleItem,
+  });
 
   // Load schedule items when date changes
   useEffect(() => {
@@ -267,62 +204,21 @@ export function OneDaySchedule({
   // Auto-set NOT_STARTED tasks to IN_PROGRESS for today
   useAutoInProgress(dayTasks, isToday);
 
-  // Filtered data based on active filters (multi-select; empty = all)
-  const showAll = activeFilters.size === 0;
-  const filteredScheduleItems = useMemo(() => {
-    let items = scheduleItems;
-    if (!showAll) {
-      const showRoutine = activeFilters.has("routine");
-      const showEvents = activeFilters.has("events");
-      if (!showRoutine && !showEvents) {
-        items = [];
-      } else {
-        items = items.filter((i) => {
-          const isRoutine = i.routineId !== null;
-          return isRoutine ? showRoutine : showEvents;
-        });
-      }
-    }
-    if (selectedFilterGroupIds.length > 0) {
-      items = items.filter((i) => {
-        if (!i.routineId) return false;
-        const groups = groupForRoutine.get(i.routineId);
-        return groups
-          ? groups.some((g) => selectedFilterGroupIds.includes(g.id))
-          : false;
-      });
-    }
-    return items;
-  }, [
-    scheduleItems,
-    showAll,
-    activeFilters,
+  const {
     selectedFilterGroupIds,
+    setSelectedFilterGroupIds,
+    filteredScheduleItems,
+    filteredDayTasks,
+    allDayTasks2,
+    allDayScheduleItems,
+    timedScheduleItems,
+    hasAllDayItems,
+  } = useDayFlowFilters({
+    scheduleItems,
+    allDayTasks,
+    activeFilters,
     groupForRoutine,
-  ]);
-
-  const filteredDayTasks = useMemo(() => {
-    if (!showAll && !activeFilters.has("tasks")) return [];
-    return allDayTasks;
-  }, [allDayTasks, showAll, activeFilters]);
-
-  const allDayTasks2 = useMemo(
-    () => filteredDayTasks.filter((t) => t.isAllDay),
-    [filteredDayTasks],
-  );
-
-  const allDayScheduleItems = useMemo(
-    () => filteredScheduleItems.filter((si) => si.isAllDay),
-    [filteredScheduleItems],
-  );
-
-  const timedScheduleItems = useMemo(
-    () => filteredScheduleItems.filter((si) => !si.isAllDay),
-    [filteredScheduleItems],
-  );
-
-  const hasAllDayItems =
-    allDayTasks2.length > 0 || allDayScheduleItems.length > 0;
+  });
 
   // Task IDs already scheduled for this date (for task picker exclusion)
   const existingTaskIds = useMemo(() => {
