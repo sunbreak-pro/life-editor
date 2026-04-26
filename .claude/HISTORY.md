@@ -1,5 +1,91 @@
 # HISTORY.md - 変更履歴
 
+### 2026-04-26 - リファクタリング計画 Phase 2-2/2-3b/2-3c/2-3d/3-2/3-3/3-5 集中実施
+
+#### 概要
+
+ユーザー要望「.claude/2026-04-25-refactoring-plan.md の未完了タスクを完了させて」を受け、Auto mode で 1 セッション内に Phase 2-2 (TauriDataService 分割) / 2-3b (ScheduleTimeGrid pure logic 抽出) / 2-3c (OneDaySchedule hook 抽出) / 2-3d (TagGraphView storage 抽出) / 3-3 (Schedule → ScheduleList rename) / 3-2 (cursor pagination 本実装、Issue #012) / 3-5 (UNIQUE 制約 audit) を完了。手動 UI 検証必須の Phase 2-4 (Calendar 統合) / Phase 3-4 (Schedule View 統合)、および 27 ファイルにわたる大規模 trait 化の Phase 3-1 (Rust row_to_model) は本セッションでは見送り。session-verifier 全 6 ゲート PASS、324/324 vitest tests pass (新規 36 件追加)、cargo build / test clean。実装計画書は IN_PROGRESS のままで archive せず継続。
+
+#### 変更点
+
+- **Phase 2-2 — TauriDataService 1502 → 52 行 + 19 ドメインモジュール** (`0f49dc5`):
+  - `frontend/src/services/data/{tasks,timer,sound,daily,notes,calendars,routines,scheduleItems,playlists,wikiTags,timeMemos,paper,databases,files,sidebar,system,templates,sync,misc}.ts` を 19 モジュールに分割。各モジュールは const オブジェクトで `tauriInvoke` ラッパーを export
+  - `TauriDataService.ts` は composition root として spread + `Object.assign(this, composed)` + class/interface declaration merging で `DataService` 型互換維持。後方互換: `dataServiceFactory.ts` の `new TauriDataService()` 50+ consumer は無改変
+  - session-verifier の Gate 2 で `@typescript-eslint/no-unsafe-declaration-merging` 検出 → class 自体を撤去し `tauriDataService` const singleton に置換 (`8149fd6`)。`dataServiceFactory.ts` は const を直接参照、`services/index.ts` は const を re-export
+- **Phase 2-3b — ScheduleTimeGrid 1221 → 926 行** (`b3e7a21`):
+  - 純粋ロジック (`layoutAllItems` / `rangesOverlap` / `computeGroupFrames` / `detectRoutineTaskSplit` / `adjustItemsForRoutineSplit`、型 `UnifiedItem` / `ComputedGroupFrame`、定数 `HOURS` / `GUTTER_WIDTH` / `MIN_ITEM_HEIGHT` / `GROUP_HEADER_HEIGHT`) を `scheduleTimeGridLayout.ts` (326 行) に抽出
+  - 当初計画の JSX サブディレクトリ分割 (GridLayer/EventLayer/DragHandlers/Hooks) は手動 UI 検証必須のため見送り、純粋関数のみ抽出する保守的アプローチ
+- **Phase 2-3c — OneDaySchedule 1276 → 1172 行 + hook 2 件抽出** (`70b7b14`):
+  - `useDayFlowFilters.ts` (97 行): フィルタ state + `filteredScheduleItems` / `filteredDayTasks` / `allDayTasks2` / `allDayScheduleItems` / `timedScheduleItems` / `hasAllDayItems` の memoized 派生
+  - `useDayFlowDialogs.ts` (223 行): 8 つの popover/preview/menu state + 3 つのハンドラ (`handleRequestRoutineDelete` / `handleDismissOnly` / `handleArchiveRoutine`)。依存 mutation は引数で注入
+  - `dayFlowFilters.ts` (16 行): `DAY_FLOW_FILTER_TABS` / `DayFlowFilterTab` 定数を分離。`OneDaySchedule.tsx` から re-export し `ScheduleSection.tsx` の既存 import path 維持
+  - session-verifier で `setRoutinePicker` / `setNotePicker` の 4 件 missing-deps 警告検出 → useCallback の deps 配列に setter を追加 (state setter は安定だが、destructured オブジェクト経由のため ESLint が安定性を判定できず) (`8149fd6`)
+- **Phase 2-3d — TagGraphView 1443 → 1414 行** (`865cc77`):
+  - localStorage helpers (`loadPositions` / `savePositions` / `loadViewport` / `saveViewport` / `isSpecialFilterId` / `VIRTUAL_LINK_EDGES_HIDDEN_ID` 定数) を `tagGraphStorage.ts` (45 行) に抽出
+  - React Flow 内部と密結合の JSX サブディレクトリ分割 (ForceLayout/Renderer/Interactions/Hooks) は手動 UI 検証必須のため見送り
+- **Phase 3-3 — components/Schedule → ScheduleList rename** (`550e55f`):
+  - `git mv frontend/src/components/Schedule frontend/src/components/ScheduleList` で 13 ファイル一括 rename
+  - 外部 import 4 箇所更新: `App.tsx` (×2) / `useTaskDetailHandlers.ts` / `useSectionCommands.ts` / `Work/FreeSessionSaveDialog.tsx`
+  - `Tasks/TaskDetail/*` の `../Schedule/shared/` import は `Tasks/Schedule/` を参照する別ディレクトリのため変更不要
+  - Plan の "alias re-export 1 週間維持" は省略 — 端末 / claude history 等の外部参照は確認した限り無し
+- **Phase 3-2 — cursor pagination 本実装 (Issue #012)** (`62d144f`):
+  - Server (`cloud/src/routes/sync/versioned.ts`): `pullVersionedDelta` が batch 内の最大 `server_updated_at` を `nextSince` として返却 (戻り値型に `nextSince: string` を追加)。`/sync/changes` のレスポンスに同梱
+  - Client (`src-tauri/src/commands/sync_commands.rs::sync_trigger`): 単発 fetch を `loop { fetch_changes(cursor); apply; if !has_more break; cursor = next_since; }` ループ化。`sync_last_synced_at` は全 page 完了後にのみ永続化 (中断時の再開保証)
+  - `SyncPayload` (`src-tauri/src/sync/types.rs`) に `next_since: String` 追加 (旧サーバ互換: `#[serde(default)]` で空文字 fallback、空時は break して安全に終了)
+  - 多重 break ガード: `has_more=false` / `next_since` 空 / cursor 進行なし のいずれかで終了 (無限ループ防止)
+  - LIMIT=5000 (`SYNC_PAGE_SIZE`) は Phase 1-1 で既に `cloud/src/config/syncTables.ts` に切り出し済
+- **Phase 3-5 — UNIQUE 制約 audit (no migration needed)** (`7645d2d`):
+  - `src-tauri/src/db/migrations/full_schema.rs` 全 relation テーブルを audit。`sound_tag_assignments` / `routine_tag_assignments` / `wiki_tag_assignments` / `wiki_tag_group_members` / `routine_group_tag_assignments` / `calendar_tag_assignments` は全て `PRIMARY KEY` 複合キーで重複防止済、`wiki_tag_connections (source_tag_id, target_tag_id)` / `note_connections (source_note_id, target_note_id)` / `time_memos (date, hour)` / `database_cells (row_id, property_id)` / `note_aliases.alias` / `dailies.date` / 各 `*_definitions.name` は UNIQUE 既存
+  - 唯一未制約な箇所は `note_links` (source/target/heading/block_id/link_type) だが、「同一ノート間に異なる heading を指す複数リンク」が正当ユースケースのため UNIQUE 化は要件 vague で見送り (V63 の schedule_items のように具体的問題発見時に別途対処)
+  - 結論: Plan の「関連テーブルが UNIQUE 不足」前提が古い情報 (Phase 1 / Phase 2-1 の migration v60〜v67 で既に網羅されていた)。**migration 追加不要**
+- **session-verifier 検出修正 + 新規テスト** (`8149fd6`):
+  - TauriDataService class → const 化 (declaration merging 解消)
+  - OneDaySchedule の useCallback deps に `setRoutinePicker` / `setNotePicker` 追加 (4 箇所)
+  - 新規テスト 36 件: `scheduleTimeGridLayout.test.ts` (19 件: rangesOverlap / layoutAllItems / computeGroupFrames / detectRoutineTaskSplit / adjustItemsForRoutineSplit) / `tagGraphStorage.test.ts` (9 件: localStorage round-trips + isSpecialFilterId) / `useDayFlowFilters.test.ts` (8 件: フィルタ state + memoized 派生 via @testing-library/react)
+- **計画書 (`.claude/2026-04-25-refactoring-plan.md`) 更新**: Status 行を `IN_PROGRESS (Phase 0 ✅ / Phase 1 ✅ / Phase 2-1 ✅ / Phase 2-2 ✅ / Phase 2-3a-d ✅ / Phase 3-2 ✅ / Phase 3-3 ✅ / Phase 3-5 ✅ AUDIT / Phase 2-4, 3-1, 3-4 deferred)` に更新。各 Phase の完了内容を Files / Verification / Notes として追記。**実装プランは Phase 2-4 / 3-1 / 3-4 が pending のため archive せず継続**
+- **Verification**: `cd frontend && npx tsc -b` 0 error / `cd frontend && npm run test` 39 files / 324 passed (前回 288 + 新規 36) / `cd cloud && npx tsc --noEmit` clean / `cd src-tauri && cargo build --lib` clean / `cargo test --lib sync` 2/2 passed / 私の変更行で新規 lint 0 (残 114 lint problems は全て本セッション未触の既存問題、b860d04 baseline 同等) / session-verifier 全 6 ゲート PASS
+
+#### 残課題
+
+- **Phase 2-4 (Calendar Mobile/Desktop 統合)**: `CalendarView.tsx` (1168 行、month/week 両モード、多数の Context 依存) と `MobileCalendarView.tsx` (823 行、独自 UI) の差分大、Plan 自身が iOS 実機テスト必須と明記。手動 UI 検証なしでは regression 不可避のため別セッションで実施
+- **Phase 3-1 (Rust row_to_model RowConverter trait)**: 27 ファイルにわたる個別 row*to*\* fn を trait impl に移行する大規模 refactoring (推定 -1500 行 = Plan 自身も "6-10 セッション" 想定の中核作業)。各 repo に微妙な差異 (joins / JSON serialize / snake↔camel) があり、機械的置換不可
+- **Phase 3-4 (Schedule View Mobile/Desktop 統合)**: 2-4 と同じ UI 検証問題のため別セッションで実施
+- **手動 UI 検証**: (a) Schedule (DayFlow / Calendar / Routine) の操作回帰なし / (b) Cmd+K / Sidebar Links 等の関連経路 / (c) Cloud Sync の cursor pagination 動作 (Worker deploy 後、5000 行超のテーブルがあれば実走確認)
+- **Worker deploy 必須**: Phase 3-2 のサーバー側変更 (cloud/src/routes/sync/{index,versioned}.ts) は本番反映が必要。`cd cloud && npm run deploy`
+- **アンステージ変更**: 別セッション由来の `Layout/SidebarLink*.tsx` / `Mobile/materials/MobileNoteTree*.tsx` / `Ideas/NoteTreeNode.tsx` / `WikiTags/WikiTagList.tsx` 他 ~13 ファイルが working tree に残存。本一連の commit は refactoring 関連 + `.claude/` のみに絞っている
+
+---
+
+### 2026-04-26 - WikiTag カラーピッカー文字色/プリセット即閉鎖バグ + ネスト枠 UI 修正
+
+#### 概要
+
+ユーザー報告: WikiTag (TipTap inline / WikiTagList chip) の編集パネルでカラーピッカーのプリセット色 / 文字色タブをクリックすると色が変わらず即パネルが閉じる + ピッカーの幅が固定 (190px) で WikiTag 編集パネル (208px) と合わず二重枠の不格好 UI。**真因 (バグ)**: `WikiTagList.tsx` / `WikiTagView.tsx` の編集パネル上部入力 `<input autoFocus>` が `onBlur` で `handleEditSave` → `setEditing(false)` を呼ぶ。macOS WebKit では `<button>` クリックで focus が button に移らず `e.relatedTarget = null`、`editRef.current.contains(null)` が false → 即 save → panel 閉じる → click event は to なし。実装計画書を伴わない小規模バグ修正。session-verifier 全 6 ゲート PASS。
+
+#### 変更点
+
+- **`UnifiedColorPicker.tsx` バグ修正 + UI prop 追加** — `frontend/src/components/shared/UnifiedColorPicker.tsx`:
+  - 全 interactive ボタン (Background/Text タブ 2 個・12 プリセット色・"Default" リセット) に `onMouseDown={(e) => e.preventDefault()}` を追加。`<input autoFocus>` を持つ親パネル (WikiTagList / WikiTagView) でクリック時に input が blur せず `handleEditSave` 経由の panel 閉鎖が発生しない。macOS WebKit が `<button>` クリックで focus を移さない仕様 (`e.relatedTarget = null`) に対する標準対処パターン
+  - `embedded?: boolean` prop 新設。`inline + embedded=true` 時は picker 自身の `bg-notion-bg border border-notion-border rounded-md shadow-sm w-[190px]` 固定スタイルを捨て `w-full` で親コンテナいっぱいに伸長。親が既に bordered container を提供している場合の二重枠を解消
+  - preset grid に `justify-items-center` を追加。embedded で grid 幅が拡大した際もボタンが各セル内で中央寄せされる
+- **WikiTag 編集パネル 2 箇所で `embedded` 適用**:
+  - `frontend/src/components/WikiTags/WikiTagList.tsx`: chip クリック時の編集ポップアップ内 `<UnifiedColorPicker inline embedded />` で外枠 `w-52 + p-2` の中にピッカーがフィット
+  - `frontend/src/extensions/WikiTagView.tsx`: TipTap inline WikiTag クリック時の `wiki-tag-edit-popup` (CSS で 13rem) 内 `<UnifiedColorPicker inline embedded />` 同様
+- **新規テスト** — `frontend/src/components/shared/UnifiedColorPicker.test.tsx` (4 件):
+  - "calls onChange when a preset color is clicked" — `userEvent.click(getByLabelText("#3b82f6"))` で `onChange("#3b82f6")` が呼ばれる
+  - "preset button mousedown calls preventDefault so a focused input above does not blur" — `dispatchEvent(new MouseEvent("mousedown"))` 後に `event.defaultPrevented === true`
+  - "text-color reset button (Default) preventDefault on mousedown" — Text タブ + Default ボタン両方の mousedown で preventDefault
+  - "embedded mode drops the wrapping border/background and uses w-full" — `inline` のみと `inline embedded` で `firstChild.className` が `border + w-[190px]` ↔ `w-full` 切替を assert
+- **検証**: `cd frontend && npx tsc -b` 0 error / `npx vitest run` 35 files / 288 tests / 0 failed (新規 4 件) / 変更ファイル 3 件のうち WikiTagList.tsx:68 の `react-hooks/purity` `Math.random` lint 警告は既存コード (commit d9ebdff0, 2026-03-09) で本セッション未触の handleCreate イベントハンドラ false positive 寄り (event handler は render path 外のため実害なし) / session-verifier 全 6 ゲート PASS
+
+#### 残課題
+
+- **手動 UI 検証**: (a) note 内 inline WikiTag をクリック → 編集ポップアップでプリセット色 12 個 / Background タブ / Text タブ / Default リセットボタン全てクリックで panel 開いたまま色変化 / (b) WikiTag chip 同じく / (c) ピッカーが panel 幅いっぱいに広がり二重枠が消える
+- **アンステージ変更の取り扱い**: 別セッション由来の `Layout/SidebarLink*.tsx` / `Mobile/materials/MobileNoteTree*.tsx` / `Mobile/MobileNoteView.tsx` / `Ideas/NoteTreeNode.tsx` / `claude_commands.rs` / `pty_manager.rs` 他 ~7 ファイルが working tree に残存。本コミットは UnifiedColorPicker 4 ファイル (実装 1 + 新規テスト 1 + WikiTag 2) + .claude/ のみに絞る
+- **WikiTagList.tsx:68 既存 lint 警告**: 別タスクで一括対応 (event handler 内の Math.random は実害なし、purity rule false positive)
+
+---
+
 ### 2026-04-25 - UnifiedColorPicker 共通化 + UI 透明度ポリシー策定 + Routine UI 群修正
 
 #### 概要
@@ -111,100 +197,3 @@
 - **既存の "Untitled routine" 行**: 旧仕様で DB に既に作成された Untitled routine 行は手動で trash へ送る必要あり（生成経路は塞いだだけで、既存データには触れない）
 - **アンステージ変更の取り扱い**: 別セッション由来の `Layout/SidebarLink*.tsx` / `Mobile/materials/MobileNoteTree*.tsx` / `Schedule/CalendarTagsPanel.tsx` 他 ~17 ファイルが working tree に残存。本コミットは Calendar UX 関連 4 ファイル + .claude/ のみに絞る
 
----
-
-### 2026-04-25 - Cmd+K コマンドパレット統合（セクション動的アイテム + Sidebar Links + UI 拡大）
-
-#### 概要
-
-ユーザー要件「現在の検索フィールドや Component / hooks を Cmd+K で開くコマンドパレットと統合したい」に対する実装。要件は (1) 必ず表示するのは 6 セクション + 追加した Sidebar リンクアイテム、(2) 各セクションを開いているものに応じた動的アイテムを上乗せ、(3) パネルを大きく中央寄りに、(4) RightSidebar の検索フィールドは削除しアイコンのみ残す、の 4 点。事前確認（Q1: 既存コマンド「そのまま残す」/ Q2: 一気に全 6 セクション対応 / Q3: 680px×480px×pt-12vh で OK / Q4: 検索アイコンを Cmd+K トリガに変更）に基づき、UI 拡大 → Sidebar Links 注入 → セクション別動的コマンド hook 新設 → 10 箇所の `<SearchBar>` を `<SearchTrigger>` に置換 の 4 段階で実装。`tsc -b` 0 error / vitest 283/283 pass / `npm run build` 成功。本実装は実装計画書を伴わず、事前 Q&A での合意ベースで進行。
-
-#### 変更点
-
-- **CommandPalette UI 拡大** — `frontend/src/components/CommandPalette/CommandPalette.tsx` のパネル `max-w-[520px]` → `max-w-[680px]` (約 +30% 幅)、コマンドリスト `max-h-[320px]` → `max-h-[480px]` (約 +50% 高)、起動位置 `pt-[15vh]` → `pt-[12vh]` で中央寄り。検索 input / カテゴリ見出し / アイテム配色等は既存維持。
-
-- **Sidebar Links を Links カテゴリに動的注入** — `frontend/src/hooks/useAppCommands.ts` で `useSidebarLinksContext()` を購読し、`!isDeleted` リンクを Navigation 直後（Settings deep links より前）に挿入: `id: \`sidebar-link-${link.id}\``/`title: link.emoji ? "{emoji} {name}" : link.name`/`category: "Links"`/`icon: link.kind === "app" ? AppWindow : LinkIcon`/`action: () => void openLink(link)`。`useMemo`の deps に`sidebarLinks, openLink` を追加。既存 6 セクション (Schedule/Materials/Connect/Work/Analytics/Settings) + Settings deep links 8 件 + Task / Timer / View commands は要件通りそのまま残置。
-
-- **セクション別動的アイテム hook を新設** — `frontend/src/hooks/useSectionCommands.ts` 新規。`{ activeSection, scheduleTab, setActiveSection, setScheduleTab, setSelectedTaskId, setSelectedNoteId, setDailyDate }` を引数に取り、`useTaskTreeContext().nodes` / `useDailyContext().dailies` / `useNoteContext().notes` / `useScheduleContext().routines + scheduleItems` を集約して動的 Command[] を返す。`MAX_ITEMS_PER_GROUP = 30`。**Schedule + tasks**: `nodes.filter(task && !isDeleted && scheduledAt).sort(scheduledAt desc).slice(0, 30)` で `category: "Schedule · Tasks"` / icon: CheckSquare / action: section=schedule + tab=tasks + selectedTaskId をセット。**Schedule + events**: `scheduleItems.filter(!routineId).sort(date desc)` で `category: "Schedule · Events"` / icon: CalendarClock / action: section=schedule + tab=events。**Schedule + calendar/dayflow**: routines + non-routine events + scheduled tasks の合算（各最大 30、`category: "Schedule · Calendar"`）。**Materials**: `notes.filter(!isDeleted).sort(updatedAt desc)` を `category: "Materials · Notes"` / icon: StickyNote / action: `localStorage.MATERIALS_TAB="notes"` + section=materials + setSelectedNoteId、`dailies.filter(!isDeleted).sort(date desc)` を `category: "Materials · Daily"` / icon: BookOpen / action: `localStorage.MATERIALS_TAB="daily"` + section=materials + `setDailyDate(d.date)`（DailyContext の `setSelectedDate` は `string` を取るため `dateKey` をそのまま渡す）。Connect / Work / Analytics / Settings は今回パスし既存ナビ + Settings deep links + Sidebar Links に集約。
-
-- **App.tsx で baseCommands と sectionCommands を統合** — `frontend/src/App.tsx` で `useAppCommands(...)` を `baseCommands` に rename、`useSectionCommands({ activeSection, scheduleTab, setActiveSection, setScheduleTab, setSelectedTaskId, setSelectedNoteId, setDailyDate })` を呼び `const commands = [...sectionCommands, ...baseCommands]` で結合。動的セクション群を上に置くため、Cmd+K 直後にコンテキスト依存のアイテムが先頭表示される。
-
-- **RightSidebar の検索フィールドを Cmd+K トリガに置換** — 新規 `frontend/src/components/shared/SearchTrigger.tsx`: Search アイコン (lucide-react) + tooltip / aria-label に `commandPalette.openSearch` (fallback "Search (⌘K)") を持つ 28px のボタン。クリックで `window.dispatchEvent(new CustomEvent(OPEN_COMMAND_PALETTE_EVENT))` のみ実行。新規 `frontend/src/constants/events.ts::OPEN_COMMAND_PALETTE_EVENT = "life-editor:open-command-palette"`。`App.tsx` に `useEffect(() => { const handler = () => setIsCommandPaletteOpen(true); window.addEventListener(OPEN_COMMAND_PALETTE_EVENT, handler); return () => window.removeEventListener(OPEN_COMMAND_PALETTE_EVENT, handler); }, [])` を追加。
-
-- **10 箇所の `<SearchBar>` 置換 + dead code 整理** — `<SearchBar value={searchQuery} onChange={setSearchQuery} ... />` を `<SearchTrigger className="px-3 pt-2 pb-1" />` に置換した上で、対応する dead code を削除:
-  - `frontend/src/components/Schedule/ScheduleSidebarContent.tsx`: SearchBar 1 箇所 → SearchTrigger。Props `searchQuery` / `onSearchQueryChange` / `searchPlaceholder` / `searchSuggestions` / `onSearchSuggestionSelect` を削除し `showSearchTrigger?: boolean` 1 つに集約
-  - `frontend/src/components/Schedule/ScheduleSection.tsx`: `sidebarSearchQuery` state / `setSidebarSearchQuery` / `searchPlaceholder useMemo` / `searchSuggestions useMemo (~100 行)` / `handleSearchSuggestionSelect useCallback` を全削除。`<ScheduleSidebarContent showSearchTrigger>` に変更、子の `CalendarView` には `searchQuery=""` 固定、`ScheduleTasksContent` / `ScheduleEventsContent` には `sidebarSearchQuery=""` 固定（中身の filter は no-op になり実質的に Cmd+K に集約）。`SearchSuggestion` import も削除
-  - `frontend/src/components/Ideas/DailySidebar.tsx`: SearchBar 2 箇所（searching / default 分岐）→ SearchTrigger。`setSearchQuery` を destructure 落とし、`suggestions useMemo` + `handleSuggestionSelect useCallback` 削除、`useCallback` / `SearchSuggestion` import も削除
-  - `frontend/src/components/Ideas/MaterialsSidebar.tsx`: SearchBar 2 箇所 → SearchTrigger。同パターンで `setSearchQuery` 落とし + `suggestions` + `handleSuggestionSelect` 削除 + 関連 import 整理
-  - `frontend/src/components/Ideas/Connect/ConnectSidebar.tsx`: SearchBar 1 箇所 → SearchTrigger。Props `onQueryChange` (interface には残置、destructure から除外) + `suggestions useMemo` + `handleSuggestionSelect useCallback` 削除
-  - `frontend/src/components/Ideas/Connect/Paper/PaperSidebar.tsx`: SearchBar 2 箇所 → SearchTrigger。同パターン
-  - `frontend/src/components/Work/WorkMusicContent.tsx`: SearchBar 1 箇所（`rightAction={SortDropdown}` 持ち）→ `<div className="flex items-center gap-2">` で `<SearchTrigger />` + spacer + `<SortDropdown />` の横並び再構成。`searchQuery` state 全削除（filter / soundSuggestions useMemo の dead code 一掃）+ `handleSuggestionSelect` 削除 + `SearchSuggestion` import 削除
-  - `frontend/src/components/Settings/Settings.tsx`: SearchBar 2 箇所 (trash 検索 / 一般 sidebar 検索) → SearchTrigger。`searchQuery` state / `setTrashSearchQuery` を destructure 落とし。`useSettingsSearch` 呼び出し / `settingsNavigators useMemo` / `handleSettingsSearchSelect useCallback` を削除し import からも `useSettingsSearch` / `useMemo` を撤去（Cmd+K の Settings deep links 8 件で代替）
-- **検証**: `cd frontend && npx tsc --noEmit` Exit 0 / `cd frontend && npm run test -- --run` 35 test files / 283 tests / 0 failures / `cd frontend && npm run build` Exit 0 (`tsc -b && vite build`)。session-verifier は本セッションでは未実行（次のセッションで走らせる）
-
-#### 残課題
-
-- **手動 UI 検証**: Cmd+K で 6 セクション + Sidebar Links + Schedule タブ別動的アイテム + Materials の最近のノート / Daily が表示・遷移できるか / RightSidebar の Search アイコンクリックでパレットが開くか / 拡大したパネルサイズ・位置の見栄えを確認
-- **Connect / Work / Analytics / Settings の動的アイテム**: 今回は基本ナビ + Settings deep links のみで、各セクション固有の動的アイテム (Tags / Boards / Pomodoro presets 等) は未対応。要望が出たら `useSectionCommands` の switch を拡張
-- **Routine Tag → Group 移行との並行**: 同セッションタイミングで別の作業者が Routine Tag→Group 移行（V69 + D1 0007）を進めており、その変更が working tree に未コミット状態で残っている。本コミットは Cmd+K 関連 14 ファイルに絞り、Routine 関連の 30+ ファイル変更には触らない
-
----
-
-### 2026-04-25 - Routine Tag 廃止 + Group 中心の再設計（V69 + D1 0007）
-
-#### 概要
-
-Routine の Tag 機能（`routine_tag_definitions` / `routine_tag_assignments` / `routine_group_tag_assignments`）を完全廃止し、Routine ↔ RoutineGroup を直接 junction で結ぶ新モデルに移行。Routine の `frequencyType` に `"group"` を追加し、`group` を選んだ Routine は所属 Group の frequency 設定（daily / weekdays / interval）を OR で継承する。EditRoutineDialog で frequency=group を選択時、既存 Group 多重選択 + その場で新規 Group 作成（name + color + frequency 全部入力）を inline で行えるように実装。Backend / Cloud Sync / UI / i18n / テストを 8 Phase で完了。計画書 `.claude/2026-04-25-routine-group-migration.md` を archive 移動。
-
-#### 変更点
-
-- **Phase 1 — DB Migration V69 / D1 0007**:
-  - `src-tauri/src/db/migrations/v61_plus.rs` に V69 ブロック追加: `DROP TABLE IF EXISTS routine_tag_definitions / routine_tag_assignments / routine_group_tag_assignments` + `CREATE TABLE routine_group_assignments(id PK / routine_id FK CASCADE / group_id FK CASCADE / created_at / updated_at NOT NULL / is_deleted / deleted_at, UNIQUE(routine_id, group_id))` + 3 INDEX (`idx_rga_routine` / `idx_rga_group` / `idx_rga_updated_at`)。CalendarTag V65 と同じ pattern（id PK + own updated_at + soft-delete）。
-  - `src-tauri/src/db/migrations/mod.rs::LATEST_USER_VERSION` を 68 → 69 に更新、orphan list に `routine_tag_definitions` / `routine_tag_assignments` / `routine_group_tag_assignments` を追加、`v69_drops_routine_tag_tables_and_creates_group_assignments` + `v69_upgrade_path_drops_seeded_routine_tag_data` の 2 統合テスト追加。
-  - `cloud/db/migrations/0007_drop_routine_tags_add_group_assignments.sql` 新規 — D1 側 mirror、`server_updated_at` 列付き + 4 INDEX。Apply 順序: migration FIRST → Worker deploy SECOND。
-- **Phase 2 — Backend DB Layer**:
-  - 削除: `src-tauri/src/db/routine_tag_repository.rs` 全廃。
-  - 修正: `src-tauri/src/db/routine_group_repository.rs` から `fetch_all_tag_assignments` / `set_tags_for_group` 削除。
-  - 新規: `src-tauri/src/db/routine_group_assignment_repository.rs` — `fetch_all` (`is_deleted=0` のみ返却) / `set_groups_for_routine(conn, routine_id, group_ids[])` (差分 upsert + soft-delete 復活 + parent routine の version+1 / updated_at bump) を `helpers::now()` + `new_uuid()` で実装。CalendarTag pattern 踏襲。
-  - `src-tauri/src/db/mod.rs` の mod 宣言を入れ替え。
-- **Phase 3 — Backend Commands & lib.rs**:
-  - 削除: `src-tauri/src/commands/routine_tag_commands.rs` 全廃。
-  - 修正: `src-tauri/src/commands/routine_group_commands.rs` から `db_routine_groups_fetch_all_tag_assignments` / `db_routine_groups_set_tags_for_group` 削除。
-  - 新規: `src-tauri/src/commands/routine_group_assignment_commands.rs` — `db_routine_group_assignments_fetch_all` + `db_routine_group_assignments_set_for_routine(routine_id, group_ids)`。
-  - `src-tauri/src/commands/mod.rs` mod 宣言入れ替え + `src-tauri/src/lib.rs::generate_handler!` から routine*tag*_ 6 個 + routine*groups の tag 関連 2 個を削除、新規 routine_group_assignment*_ 2 個を追加（IPC 4 点同期完了）。
-- **Phase 4 — Cloud Sync 同期対象更新**:
-  - `src-tauri/src/sync/types.rs::SyncPayload` から `routine_tag_assignments` / `routine_group_tag_assignments` / `routine_tag_definitions` フィールド削除、`routine_group_assignments: Vec<Value>` 追加。
-  - `src-tauri/src/sync/sync_engine.rs` の delta query / collect_all / apply 各箇所から旧 3 テーブルを削除し `routine_group_assignments` を CalendarTag と同じく自己 `updated_at` ベースの delta query で扱う。`ROUTINE_GROUP_ASSIGNMENTS_TABLE` const + `insert_or_replace` 経由で apply。
-  - `cloud/src/config/syncTables.ts` の `RELATION_TABLES_WITH_UPDATED_AT` に `routine_group_assignments` 追加、`RELATION_TABLES_NO_UPDATED_AT` から旧 3 テーブルを削除し `calendar_tag_definitions` のみ残す。`RELATION_PK_COLS` に `routine_group_assignments: ["id"]` 追加。`RELATION_PARENT_JOINS` を空配列化（routine*tag*\* 廃止に伴い parent-join 経路自体が不要に）。`TAG_DEFINITION_TABLES` から `routine_tag_definitions` 削除。
-- **Phase 5-6 — Types / Service**:
-  - 削除: `frontend/src/types/routineTag.ts` 全廃。
-  - `frontend/src/types/routine.ts::FrequencyType` に `"group"` 追加、`RoutineNode` に `groupIds?: string[]` フィールド追加（DB 上は junction、frontend 上は導出フィールド）。
-  - `frontend/src/types/routineGroup.ts` から `RoutineGroupTagAssignment` 削除、`RoutineGroupAssignment` interface 新設（id / routineId / groupId / createdAt / updatedAt / isDeleted / deletedAt）。
-  - `frontend/src/services/DataService.ts` interface から `fetchRoutineTags` / `createRoutineTag` / `updateRoutineTag` / `deleteRoutineTag` / `fetchAllRoutineTagAssignments` / `setTagsForRoutine` / `fetchAllRoutineGroupTagAssignments` / `setTagsForRoutineGroup` の 8 メソッド削除、`fetchAllRoutineGroupAssignments() / setGroupsForRoutine(routineId, groupIds)` の 2 メソッド追加。
-  - `frontend/src/services/TauriDataService.ts` を同シグネチャに更新（invoke ブリッジ）。
-- **Phase 7 — Hook / Context**:
-  - 削除: `frontend/src/hooks/useRoutineTags.ts` / `useRoutineTagAssignments.ts` / `useRoutineGroupTagAssignments.ts` の 3 hook 全廃。
-  - 新規: `frontend/src/hooks/useRoutineGroupAssignments.ts` — `Map<routineId, groupId[]>` 管理 + `setGroupsForRoutine` (optimistic update + UndoRedo + DataService 永続化) + `getGroupIdsForRoutine` / `getRoutineIdsForGroup` / `removeRoutineAssignments`。初期ロード中の書き込みガード + cancelled flag による async cleanup。
-  - `frontend/src/hooks/useRoutineGroupComputed.ts` を `routineGroupAssignments: Map<string, string[]>` を直接消費する形に書き換え（旧: tag set intersection → 新: 直接メンバーシップ参照）。
-  - `frontend/src/context/RoutineContextValue.ts` / `RoutineContext.tsx` の Provider 構成を新 hook で組み直し、`deleteRoutine` のラッパー（undo で prevGroupIds を復元）も新 API に追従。
-  - `frontend/src/utils/routineScheduleSync.ts::shouldCreateRoutineItem` を新セマンティクス（`frequencyType==="group"` 時に Group 群の frequency を OR 評価、Group 未割当なら fire しない / それ以外は routine 自体の frequency を使い group は無視）に書き換え + `tagAssignments` 引数を全シグネチャから除去。`useScheduleItemsRoutineSync.ts` 全 callsite を追従。
-- **Phase 8 — UI**:
-  - 削除: `frontend/src/components/Tasks/Schedule/Routine/{RoutineTagManager, RoutineTagEditPopover, RoutineTagSelector, RoutineGroupTagPicker}.tsx` 4 ファイル全廃。
-  - `FrequencySelector.tsx` のタイプ切替ボタンに `"group"` を追加（`flex-wrap` で折り返し対応）。
-  - `RoutineEditDialog.tsx` を全面書き換え: `tags` / `initialTagIds` / `onCreateTag` props を撤去し、`routineGroups` / `initialGroupIds` / `onCreateGroup` を受け取る形に変更。`frequencyType==="group"` 選択時に inline サブパネルが展開され、(a) 既存 Group をピル UI で多重選択 / (b) 「+ 新規 Group 作成」で同 Dialog 内に Group 作成フォーム（name / color picker / frequency selector）が展開され、作成成功時に自動選択。"group" の Routine 保存時は frequencyDays/Interval/StartDate を null/[] で永続化。
-  - `RoutineGroupEditDialog.tsx` から tag picker 完全撤去、メンバー一覧は `memberRoutines` prop からのみ取得（旧: 選択 tag からの動的計算は廃止）。Group 自体の `frequencyType` が `"group"` を取らないよう coerce。
-  - `RoutineManagementOverlay.tsx` から「Tag 管理」ボタン + RoutineTagManager + tag 関連 props 全撤去、Routine 行の tag chips を group chips に置換、`onCreateRoutineGroup` を inline 引数で受け取り `onCreateGroup` callback として RoutineEditDialog に渡す。
-  - `Schedule/ScheduleSidebarContent.tsx` / `Schedule/ScheduleItemEditPopup.tsx` / `Tasks/Schedule/Calendar/CalendarView.tsx` / `Tasks/Schedule/DayFlow/{OneDaySchedule, CompactDateNav, DualDayFlowLayout}.tsx` / `hooks/useDayFlowColumn.ts` / `context/ScheduleItemsContext.tsx` の 8 ファイルから `routineTags` / `tagAssignments` / `setTagsForRoutine` / `createRoutineTag` 等の参照を一掃し、`routineGroupAssignments` / `setGroupsForRoutine` / `createRoutineGroup` を新 API として接続。filter UI も tag chips → group chips 一本化。
-- **Phase 9-11 — i18n / Tests / 検証**:
-  - `frontend/src/i18n/locales/en.json` / `ja.json` から `schedule.routineTag` / `noTaggedRoutines` / `manageTags` / `createTag` / `tagName` / `deleteTagConfirm` / `routineGroup.assignedTags` / `routineGroup.noTags` / `routineGroup.frequencyOverrideWarning` 等の tag 関連キーを削除し、`schedule.frequencyGroup` / `routineGroup.assignToGroup` / `routineGroup.createNew` / `routineGroup.noGroupsHint` / `routineGroup.untitled` / `routineGroup.create` を ja+en に追加。
-  - `frontend/src/hooks/useRoutineGroupComputed.test.ts` を新 API（`routineGroupAssignments: Map<string, string[]>`）に追従、6 ケース更新。
-  - 新規: `frontend/src/utils/routineScheduleSync.test.ts` — `shouldCreateRoutineItem` の V69 group セマンティクスに対する 7 ケース（daily / weekdays が group 影響受けない / group OR / no groups で fire しない / hidden group skip / archived 不発火 / interval が group 無視）。
-- **Verification**: `cd src-tauri && cargo test --lib` 23 passed (`v69_*` 2 件含む) / `cd frontend && npx vitest run` 283 passed (新規 routineScheduleSync.test.ts 7 + 既存 276) / `tsc -b` (frontend) は私の変更ファイルで 0 error / `npx tsc --noEmit` (cloud) clean / `cargo check` clean / 変更ファイル ESLint 0 error。session-verifier 全 6 ゲート PASS。
-- **計画書 archive**: `.claude/2026-04-25-routine-group-migration.md` の Status を `COMPLETED` に更新後、`.claude/archive/` へ移動。
-- **コミット範囲分離**: ユーザーの並行作業（CommandPalette / SearchTrigger / Sidebar 検索 refactor 関連の TS6133 / TS2304 が `App.tsx` / `ScheduleSection.tsx` / `Settings.tsx` / `*Sidebar.tsx` 等に残存）は本セッション範囲外のため未ステージ。本コミットは Routine Tag→Group 移行の 41 ファイル + plan archive に限定。
-
-#### 残課題
-
-- **D1 migration 0007 適用 + Worker deploy**: `cd cloud && npx wrangler d1 execute life-editor-sync --remote --file=./db/migrations/0007_drop_routine_tags_add_group_assignments.sql` → `npm run deploy` の順序で本番反映（逆順だと旧 schema に新 Worker が当たり 500）。
-- **手動 UI 検証**: Desktop で V69 自動 apply 確認（`PRAGMA user_version` = 69 / `routine_tag_*` テーブル消失 / `routine_group_assignments` 新設）→ 既存 Routine が表示される（Tag UI 消失）→ frequencyType=Group 選択 + 既存 Group 多重選択保存でカレンダーに正しく出現 → 「+ 新規 Group 作成」flow で inline 作成 + 自動選択 → Cloud Sync で iOS と双方向に伝搬。
-- **ユーザー並行作業の TS エラー解消**: 別コミットで対応（CommandPalette / SearchTrigger / SectionCommands 関連の `sidebarSearchQuery` undefined / 未使用変数）。
