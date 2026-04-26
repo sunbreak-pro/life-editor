@@ -9,6 +9,7 @@ import {
   Pencil,
   BookOpen,
   Plus,
+  Link2,
 } from "lucide-react";
 import type { SectionId } from "../../types/taskTree";
 import { useTimerContext } from "../../hooks/useTimerContext";
@@ -116,12 +117,10 @@ export function LeftSidebar({
         })}
 
         {/* Sidebar Links section */}
-        <div className="group/section pt-2 mt-2 border-t border-notion-border/60">
-          <div className="flex items-center justify-between px-2.5 pb-1">
-            <span
-              className="uppercase tracking-wider text-notion-text-secondary"
-              style={{ fontSize: 10 }}
-            >
+        <div className="group/section pt-3 mt-2 border-t border-notion-border">
+          <div className="flex items-center justify-between px-2.5 pb-1.5">
+            <span className="flex items-center gap-1.5 uppercase tracking-wider text-notion-text-secondary font-semibold text-[11px]">
+              <Link2 size={13} />
               {t("sidebarLinks.sectionTitle", "Links")}
             </span>
             <button
@@ -160,7 +159,7 @@ export function LeftSidebar({
           )}
         </div>
       </nav>
-      <div className="p-2 pt-0 space-y-0.5">
+      <div className="p-2 pt-2 space-y-0.5 border-t border-notion-border">
         <button
           onClick={onToggleTips}
           className={`w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-md transition-all duration-200 ${

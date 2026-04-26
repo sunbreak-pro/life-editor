@@ -1,5 +1,66 @@
 # HISTORY-archive.md - 変更履歴アーカイブ
 
+### 2026-04-26 - WikiTag カラーピッカー文字色/プリセット即閉鎖バグ + ネスト枠 UI 修正
+
+#### 概要
+
+ユーザー報告: WikiTag (TipTap inline / WikiTagList chip) の編集パネルでカラーピッカーのプリセット色 / 文字色タブをクリックすると色が変わらず即パネルが閉じる + ピッカーの幅が固定 (190px) で WikiTag 編集パネル (208px) と合わず二重枠の不格好 UI。**真因 (バグ)**: `WikiTagList.tsx` / `WikiTagView.tsx` の編集パネル上部入力 `<input autoFocus>` が `onBlur` で `handleEditSave` → `setEditing(false)` を呼ぶ。macOS WebKit では `<button>` クリックで focus が button に移らず `e.relatedTarget = null`、`editRef.current.contains(null)` が false → 即 save → panel 閉じる → click event は to なし。実装計画書を伴わない小規模バグ修正。session-verifier 全 6 ゲート PASS。
+
+#### 変更点
+
+- **`UnifiedColorPicker.tsx` バグ修正 + UI prop 追加** — `frontend/src/components/shared/UnifiedColorPicker.tsx`:
+  - 全 interactive ボタン (Background/Text タブ 2 個・12 プリセット色・"Default" リセット) に `onMouseDown={(e) => e.preventDefault()}` を追加。`<input autoFocus>` を持つ親パネル (WikiTagList / WikiTagView) でクリック時に input が blur せず `handleEditSave` 経由の panel 閉鎖が発生しない。macOS WebKit が `<button>` クリックで focus を移さない仕様 (`e.relatedTarget = null`) に対する標準対処パターン
+  - `embedded?: boolean` prop 新設。`inline + embedded=true` 時は picker 自身の `bg-notion-bg border border-notion-border rounded-md shadow-sm w-[190px]` 固定スタイルを捨て `w-full` で親コンテナいっぱいに伸長。親が既に bordered container を提供している場合の二重枠を解消
+  - preset grid に `justify-items-center` を追加。embedded で grid 幅が拡大した際もボタンが各セル内で中央寄せされる
+- **WikiTag 編集パネル 2 箇所で `embedded` 適用**:
+  - `frontend/src/components/WikiTags/WikiTagList.tsx`: chip クリック時の編集ポップアップ内 `<UnifiedColorPicker inline embedded />` で外枠 `w-52 + p-2` の中にピッカーがフィット
+  - `frontend/src/extensions/WikiTagView.tsx`: TipTap inline WikiTag クリック時の `wiki-tag-edit-popup` (CSS で 13rem) 内 `<UnifiedColorPicker inline embedded />` 同様
+- **新規テスト** — `frontend/src/components/shared/UnifiedColorPicker.test.tsx` (4 件):
+  - "calls onChange when a preset color is clicked" — `userEvent.click(getByLabelText("#3b82f6"))` で `onChange("#3b82f6")` が呼ばれる
+  - "preset button mousedown calls preventDefault so a focused input above does not blur" — `dispatchEvent(new MouseEvent("mousedown"))` 後に `event.defaultPrevented === true`
+  - "text-color reset button (Default) preventDefault on mousedown" — Text タブ + Default ボタン両方の mousedown で preventDefault
+  - "embedded mode drops the wrapping border/background and uses w-full" — `inline` のみと `inline embedded` で `firstChild.className` が `border + w-[190px]` ↔ `w-full` 切替を assert
+- **検証**: `cd frontend && npx tsc -b` 0 error / `npx vitest run` 35 files / 288 tests / 0 failed (新規 4 件) / 変更ファイル 3 件のうち WikiTagList.tsx:68 の `react-hooks/purity` `Math.random` lint 警告は既存コード (commit d9ebdff0, 2026-03-09) で本セッション未触の handleCreate イベントハンドラ false positive 寄り (event handler は render path 外のため実害なし) / session-verifier 全 6 ゲート PASS
+
+#### 残課題
+
+- **手動 UI 検証**: (a) note 内 inline WikiTag をクリック → 編集ポップアップでプリセット色 12 個 / Background タブ / Text タブ / Default リセットボタン全てクリックで panel 開いたまま色変化 / (b) WikiTag chip 同じく / (c) ピッカーが panel 幅いっぱいに広がり二重枠が消える
+- **アンステージ変更の取り扱い**: 別セッション由来の `Layout/SidebarLink*.tsx` / `Mobile/materials/MobileNoteTree*.tsx` / `Mobile/MobileNoteView.tsx` / `Ideas/NoteTreeNode.tsx` / `claude_commands.rs` / `pty_manager.rs` 他 ~7 ファイルが working tree に残存。本コミットは UnifiedColorPicker 4 ファイル (実装 1 + 新規テスト 1 + WikiTag 2) + .claude/ のみに絞る
+- **WikiTagList.tsx:68 既存 lint 警告**: 別タスクで一括対応 (event handler 内の Math.random は実害なし、purity rule false positive)
+
+---
+
+### 2026-04-25 - UnifiedColorPicker 共通化 + UI 透明度ポリシー策定 + Routine UI 群修正
+
+#### 概要
+
+ユーザー要望ベースの一連の UI/UX クリーンアップを 1 セッションで実施。実装計画書なしのアドホック修正群。フェーズは (a) Routine 4 バグ修正 → (b) Routine 削除時 ErrorBoundary クラッシュの根本原因 (`bulkCreateScheduleItems` 戻り値型不一致) 修正 → (c) CalendarTags のカラーピッカーを共通化 → (d) ユーザーから「CalendarTags の元実装ベースで全 UnifiedColorPicker 利用箇所を共通化、Mac 標準のコンパクト感、WikiTags の textColor タブも含める」要件追加で `UnifiedColorPicker.tsx` を全面書き換え (API 互換維持で 12 利用箇所は変更不要) → (e) ユーザー指摘から「主要 UI コンテナ背景に透明度を使わない」ポリシーを vision/CLAUDE.md に明文化 + 透明 UI 5 箇所修正、の流れ。session-verifier 全 6 ゲート PASS。
+
+#### 変更点
+
+- **Routine UI 4 バグ修正**:
+  - `frontend/src/components/Tasks/Schedule/Routine/FrequencySelector.tsx` に `hideGroupOption?: boolean` prop 追加。`RoutineGroupEditDialog.tsx` で `hideGroupOption` を渡し、Group 自身は frequency=group を選べない（Group 自体が Group に入ることはできない仕様の UI 反映）。個別 Routine 編集側 (`RoutineEditDialog`) では従来通り "Group" 選択可能を維持
+  - `frontend/src/components/Schedule/ScheduleSidebarContent.tsx` の Calendar 右サイドバーで `SearchTrigger` と `FolderDropdown` を縦並び 2 ブロックから flex 1 ブロックに統合 (検索アイコン + 残り幅で flex-1 のフォルダドロップダウン)
+  - `frontend/src/components/Schedule/CalendarTagsPanel.tsx` のタイトルを `t("calendarTags.title", "Tags")` から `t("calendarTags.scheduleTitle", "Schedule Tags")` に変更、新規追加インライン UI のはみ出しを `flex-1 min-w-0` + 各ボタン/swatch に `shrink-0` で防止 + gap を `gap-1.5` → `gap-1` に圧縮
+- **Routine 削除時 ErrorBoundary クラッシュの真因修正**:
+  - 症状: Dayflow 内 Routine を「今回だけ削除」しただけで `Try again` 画面に落ちる。`NaN is an invalid value for the left css style property` + `Spread syntax requires ...iterable not be null or undefined — useScheduleItemsRoutineSync.ts:74` が連続発生
+  - 真因: Rust 側 `db_schedule_items_bulk_create` は `Result<(), String>` を返すのに、TS 側 `DataService.bulkCreateScheduleItems` は `Promise<ScheduleItem[]>` と宣言していた。`await bulkCreate()` が undefined を返し → `[...prev, ...undefined]` で Spread エラー → `ScheduleItemsProvider` が ErrorBoundary 行き → 副次的に NaN left CSS エラーも発生
+  - 修正: `frontend/src/services/DataService.ts` と `frontend/src/services/TauriDataService.ts` の `bulkCreateScheduleItems` 戻り値型を `Promise<void>` に変更。`useScheduleItemsRoutineSync.ts:71` と `useDayFlowColumn.ts:106` で `await bulkCreate(toCreate)` 後にローカルで `ScheduleItem[]` を組み立てて state に追加
+- **Routine 削除 ContextMenu の NaN left CSS 修正 (前段)**: 4 ファイルで `onRequestRoutineDelete` のシグネチャを `(item, e: React.MouseEvent)` から `(item, position: { x: number; y: number })` に変更
+- **`UnifiedColorPicker.tsx` 全面書き換え**: 旧 `react-colorful` HexColorPicker → CalendarTags 元実装ベースの preset 円形 grid (12 色) + native `<input type="color">` + showTextColor 時の Background/Text タブ。API 完全互換で 12 利用箇所変更不要。透明度修正 `bg-notion-bg-popover` → `bg-notion-bg`、幅 156→190px、preset 18→12 色
+- **UI 透明度ポリシー策定**: `.claude/docs/vision/coding-principles.md §5` 新設、CLAUDE.md §6.4 に「主要 UI コンテナ背景に透明度禁止」追記、透明 UI 5 箇所修正 (SidebarLinkItem / CalendarTagSelector / CalendarTagsPanel / FreeSessionSaveDialog / TipsPanel)
+- **Verification**: `tsc -b` 0 error / vitest 35 files / 284 tests pass / session-verifier 全 6 ゲート PASS
+
+#### 残課題
+
+- **D1 migration 0007 + Worker deploy は前セッション残課題のまま** (本セッションでは触らず)
+- **手動 UI 検証**: Routine UI 4 件 / Dayflow Routine 削除クラッシュ / UnifiedColorPicker 12 利用箇所 / 透明度修正 5 箇所
+- **既存 Tier 3 の透明度判断を保留**: ScreenLock オーバーレイは意図的半透明
+- **i18n 既存問題**: `calendarTags.*` キー群は元から ja/en に未登録でフォールバック値運用
+- **mockDataService.ts:343**: `bulkCreateScheduleItems: vi.fn().mockResolvedValue([])` は型上互換のため放置
+
+---
+
 ### 2026-04-25 - Routine 削除のゴースト復活問題 + DayFlow 時間変更の Undo/Redo 全日付対応
 
 #### 概要

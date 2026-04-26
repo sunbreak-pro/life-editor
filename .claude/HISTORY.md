@@ -1,5 +1,65 @@
 # HISTORY.md - 変更履歴
 
+### 2026-04-26 - LeftSidebar Links セクション UI 改善 + Collapsed ポップオーバー化
+
+#### 概要
+
+ユーザー要望「(1) 開いた状態でも Tips 上の白線を表示 / (2) リンクフィールドの header をもう少し大きくフィールド境界を視覚化 / (3) リンクアイコンを header 横と Collapsed Sidebar に追加し、Collapsed のリンクアイコンクリックでリンク一覧をダイアログ表示」+ 追加要望「(4) 一覧ダイアログを画面中央モーダル → リンクアイコン横の吹き出し（ポップオーバー）形式に変更、編集アイコンクリック時のダイアログは中央のまま、ただし縦長すぎるので 2 カラム化」を Auto mode で実装。実装計画書なしの UI/UX 改善 4 ファイル。session-verifier 全 6 ゲート PASS。
+
+#### 変更点
+
+- **`Layout/LeftSidebar.tsx`**: Links section header に `Link2` アイコン併置 + フォントサイズ 10px → 11px + `font-semibold` + 上 border `border-notion-border/60` → 不透明 `border-notion-border` + `pt-2 mt-2` → `pt-3 mt-2` で区切り強化。フッター div に `border-t border-notion-border` 追加で開いた状態でも Tips 上の境界線が表示されるよう CollapsedSidebar と統一
+- **新規 `Layout/SidebarLinksListDialog.tsx`** (234 行): `anchorRect: DOMRect | null` prop を受け取り、`position:fixed` の `top/left` 計算で anchor の右側 8px に配置。矢印テイル (`bg-notion-bg` + `border-l border-b` + `rotate(45deg)`) を anchor 中央に追従、`useLayoutEffect` で popoverHeight 実測 → viewport clamp。外クリック / ESC で `onClose`、**編集モーダル open 中は mousedown/keydown listener 解除**で誤 close 防止。内部 Add/Edit/Delete + リンク open 動線 (open 後は `onClose` で閉じる)、Add/Edit は子の `SidebarLinkAddDialog` を Fragment 内で portal 開く（中央モーダルのまま維持）
+- **`Layout/CollapsedSidebar.tsx`**: main items 下に `Link2` ボタン + 件数バッジ (`min-w-[14px] h-[14px]` notion-accent 円形 + 99+ 折返し) を追加。`useRef<HTMLButtonElement>` でリンクアイコンの `getBoundingClientRect()` を click 時に取得して `SidebarLinksListDialog` に渡す。ボタンと Tips の間に `border-t border-notion-border` 区切り
+- **`Layout/SidebarLinkAddDialog.tsx`**: 幅 `w-96` (384px) → `w-[600px] max-w-[92vw]` に拡大。body を `space-y-3` → `grid grid-cols-2 gap-x-4 gap-y-3` に変更。左カラム=Type / Display name / Target (URL or App search) / 右カラム=Icon (Emoji or Lucide grid)。error は `col-span-2` で全幅エラー表示。縦長すぎるダイアログを横方向に展開
+- **検証**: `tsc -b` 0 error / vitest 40 files 344/344 pass / `eslint <変更4ファイル>` 0 error / session-verifier 全 6 ゲート PASS
+
+#### 残課題
+
+- **手動 UI 検証**: (a) サイドバー開閉時に Tips 上の境界線が常時表示 / (b) Links ヘッダーの視認性向上 (Link2 アイコン + フォント強化) / (c) Collapsed のリンクアイコン → 吹き出しが anchor 右に出て矢印が中央 / (d) 外クリック・ESC で閉じる、ただし編集モーダル open 中はポップオーバーが残る / (e) ポップオーバー内編集アイコン → 中央 2 カラム Add/Edit ダイアログ / (f) 画面下端付近にアイコンがある場合の clamp
+- **`useLayoutEffect` の deps**: `[links.length]` のみで popoverHeight 再計算するため、リンク件数を変えない編集 (name のみ変更) で高さが古いまま。実害は出にくい (高さ ≈ アイテム数 × 行高) が、念のため記録
+- **Test カバレッジ**: 新規ダイアログのインタラクションテストは Provider 設定コスト過大のため別セッションで一括対応 (mockDataService 拡張 + `renderWithProviders`)
+
+---
+
+### 2026-04-26 - Calendar/DayFlow UX 改善 5 件 + Materials エラー改善
+
+#### 概要
+
+ユーザー報告の 5 件 (Materials の `No such file or directory (os error 2)` 原因 / Calendar 「ルーチン」→「ルーティン」i18n / Routine アイテム Edit 導線 + 管理画面遷移ボタン / Work セッションの DayFlow 表示 / 編集パネルが終日トグル/時間変更で消える UX 問題) を Auto mode で 1 セッション完遂。実装計画書なしのアドホック修正群。session-verifier 全 6 ゲート PASS、新規テスト 15 件追加 (SessionBlock.test.tsx)、既存 344 tests 全合格、cargo check / tsc -b clean。
+
+#### 変更点
+
+- **Task 1 — Materials os error 2 真因 + エラーメッセージ改善** (`src-tauri/src/commands/files_commands.rs`):
+  - 真因: `app_settings_repository` 保存の `files_root_path` がディスク上に存在しない／移動・リネーム済み・権限不足の場合、`validate_path::root.canonicalize()` が ENOENT(2) で失敗し、`os error 2` がそのままフロントの error バナーに表示
+  - 修正: `validate_path` で `e.kind() == NotFound` を判別し `"Configured root folder not found: {path}. Please reconfigure in Settings."` に変換、それ以外の IO エラーも `"Cannot access root folder: {e}"` で文脈を補完
+- **Task 2 — Calendar 「ルーチン」→「ルーティン」i18n** (`frontend/src/i18n/locales/ja.json`):
+  - `calendar.createRoutine` "ルーチン" → "ルーティン" / `calendar.newRoutinePlaceholder` "名前なしのルーチン" → "名前なしのルーティン" / `notifications.routineReminders` "ルーチンのリマインダー" → "ルーティンのリマインダー"
+- **Task 3 — Routine アイテム編集導線**:
+  - i18n: `common.edit: "編集" / "Edit"` + `common.openManagement: "管理画面を開く" / "Open Management"` を ja.json / en.json 両方に追加。これにより `ScheduleItemPreviewPopup` の `t("common.edit", "Edit")` ボタンが「編集」表示になる (ユーザー「Edit押した後何も起きない」の主因はテキストが英語のままだった可能性大、編集ダイアログ自体は元々開いていた)
+  - `RoutineEditDialog.tsx` に `onOpenManagement?` prop 追加、ヘッダーに Settings アイコン + 「管理画面を開く」ボタン (`text-notion-text-secondary hover:text-notion-text hover:bg-notion-hover` 標準トークン)。クリックで `onOpenManagement()` → `onClose()` の順で発火
+  - `CalendarView.tsx` の RoutineEditDialog 利用箇所に `onOpenManagement={onOpenRoutineManagement}` を渡す (既存 prop を再利用、Edit → 編集ダイアログ → 管理画面 のワンクリック導線)
+- **Task 4 — Work セッションを DayFlow に表示**:
+  - `frontend/src/components/Tasks/Schedule/DayFlow/SessionBlock.tsx` 新規 (74 行): `startedAt` / `duration` から `top` / `height` を計算 (`(hr*60+min)/60 * SLOT_HEIGHT(60)`)、`sessionType` 別 4 色 (WORK=rose-400/45 / BREAK=emerald-400/35 / LONG_BREAK=sky-400/35 / FREE=violet-400/35)、duration null の場合は `completedAt - startedAt` フォールバック、最小高さ 4px、ISO string 入力にも対応、`title` 属性で `label/タスク名/sessionType表示 • 開始時刻 • N分` を表示
+  - `ScheduleTimeGrid.tsx` に `timerSessions?: TimerSession[]` prop 追加、main column 左端 4px 幅レーン (z-10) に SessionBlock を絶対配置 — 既存アイテム (left:4px 以降) と干渉しない、taskId に対応する title を tasks prop から lookup
+  - `OneDaySchedule.tsx` に `useTimerContext().completedSessions / isRunning` 購読、useState で `timerSessions: TimerSession[]` 管理、`useEffect([dateKey, completedSessions, isRunning])` で `getDataService().fetchTimerSessions()` + 日付フィルタ (`String(s.startedAt).substring(0,10) === dateKey`)、`cancelled` flag でレース防止、`logServiceError("Timer", "fetchSessions", e)` でエラー記録
+- **Task 5 — 編集パネル維持**:
+  - 真因 (3 箇所の explicit close): (a) `ScheduleItemPreviewPopup.tsx::DateInput.onChange` 内の `onClose()` / (b) `CalendarView.tsx::onUpdateDate` の `setScheduleItemPreview(null)` / (c) `CalendarView.tsx::TaskPreview onUpdateAllDay` の `setPreviewPopup(null)` / (d) `ScheduleTimeGrid.tsx::TaskPreview onUpdateAllDay` の `setTaskPreview(null)` / (e) `ScheduleTimeGrid.tsx::SchedulePreview onUpdateAllDay` の `setSchedulePreview(null)`
+  - 修正: 上記 5 箇所の close 呼び出しを削除。これで終日トグル / 時間変更 / 日付変更すべてでパネルは開きっぱなし。完了切替 / 削除 / ロール変換は意図的に閉じる仕様を維持
+- **新規テスト** (`frontend/src/components/Tasks/Schedule/DayFlow/SessionBlock.test.tsx`, 15 件):
+  - null startedAt / duration+completedAt 両方欠落時の null 返却 / top 位置計算 / duration 由来 height / completedAt フォールバック / 最小高さ 4px clamp / 4 sessionType 別色クラス / label > taskTitle > sessionType 名のフォールバック順 / ISO string startedAt parse / tooltip に start time / duration min 含有
+- **Verification**: `npx tsc -b --force` exit 0 / `npm run test` 40 files / 344 tests 全合格 + 新規 15 = 359 / `cargo check` exit 0 / lint: 私の変更箇所はクリーン (CalendarView の既存 `react-hooks/preserve-manual-memoization` 3 errors + `exhaustive-deps` 1 warning は line 360/375/390/481 の useCallback で本セッション無関与、別タスク化)
+
+#### 残課題
+
+- **手動 UI 検証**: (a) Materials の root path 削除→「Configured root folder not found」表示確認 / (b) Calendar daycell + ボタン → 「ルーティン」表示 / (c) Calendar daycell の routine item → 「編集」ボタン → RoutineEditDialog → 「管理画面を開く」ボタン → RoutineManagementOverlay 遷移 / (d) DayFlow に Pomodoro セッションの色付き左端ストライプ表示 / (e) Calendar/DayFlow の編集パネルで終日トグル / 時間変更 / 日付変更してもパネルが消えないこと
+- **TimeDropdown ポータル click-outside 追加対策の保留**: Task 5 の修正後もまだパネルが消える場合は、TimeDropdown の `e.stopPropagation()` listener が `BasePreviewPopup::useClickOutside` を捉えきれていない可能性。手動検証で再現したら `disableClickOutside` の動的制御 or 共通 lookup 経路の見直しを検討
+- **OneDaySchedule の RoutineEditDialog (line 919) には onOpenManagement 未配線**: DayFlow パスの routine item Edit から管理画面遷移は別タスク (本セッションは Calendar 経路のみ対応)
+- **SessionBlock のオプション拡張**: 現状 4px 幅で hover ツールチップのみ。ユーザーから "もっと目立たせたい" or "クリック動作が欲しい" 等の要望が出れば次セッションで拡張
+- **アンステージ変更**: 別セッション由来の `Layout/CollapsedSidebar.tsx` (lint 3 errors + 1 warning) / `LeftSidebar.tsx` / `SidebarLinkAddDialog.tsx` / `Mobile/MobileNoteView.tsx` / `Mobile/materials/MobileNoteTree*.tsx` / `Ideas/NoteTreeNode.tsx` / `WikiTags/WikiTagList.tsx` / `shared/UnifiedColorPicker.tsx` / `extensions/WikiTagView.tsx` / `claude_commands.rs` / `terminal/pty_manager.rs` / 各 db/\*\_repository.rs (前セッション Phase 3-1 の旧版残骸) が working tree に残存。本コミットは Task 1-5 関連 9 ファイル + .claude/ のみに絞る
+
+---
+
 ### 2026-04-26 - リファクタリング検証 (Phase 2-4 / 3-1 / 3-4) 自動検証完遂
 
 #### 概要
@@ -134,82 +194,3 @@
 - **手動 UI 検証**: (a) Schedule (DayFlow / Calendar / Routine) の操作回帰なし / (b) Cmd+K / Sidebar Links 等の関連経路 / (c) Cloud Sync の cursor pagination 動作 (Worker deploy 後、5000 行超のテーブルがあれば実走確認)
 - **Worker deploy 必須**: Phase 3-2 のサーバー側変更 (cloud/src/routes/sync/{index,versioned}.ts) は本番反映が必要。`cd cloud && npm run deploy`
 - **アンステージ変更**: 別セッション由来の `Layout/SidebarLink*.tsx` / `Mobile/materials/MobileNoteTree*.tsx` / `Ideas/NoteTreeNode.tsx` / `WikiTags/WikiTagList.tsx` 他 ~13 ファイルが working tree に残存。本一連の commit は refactoring 関連 + `.claude/` のみに絞っている
-
----
-
-### 2026-04-26 - WikiTag カラーピッカー文字色/プリセット即閉鎖バグ + ネスト枠 UI 修正
-
-#### 概要
-
-ユーザー報告: WikiTag (TipTap inline / WikiTagList chip) の編集パネルでカラーピッカーのプリセット色 / 文字色タブをクリックすると色が変わらず即パネルが閉じる + ピッカーの幅が固定 (190px) で WikiTag 編集パネル (208px) と合わず二重枠の不格好 UI。**真因 (バグ)**: `WikiTagList.tsx` / `WikiTagView.tsx` の編集パネル上部入力 `<input autoFocus>` が `onBlur` で `handleEditSave` → `setEditing(false)` を呼ぶ。macOS WebKit では `<button>` クリックで focus が button に移らず `e.relatedTarget = null`、`editRef.current.contains(null)` が false → 即 save → panel 閉じる → click event は to なし。実装計画書を伴わない小規模バグ修正。session-verifier 全 6 ゲート PASS。
-
-#### 変更点
-
-- **`UnifiedColorPicker.tsx` バグ修正 + UI prop 追加** — `frontend/src/components/shared/UnifiedColorPicker.tsx`:
-  - 全 interactive ボタン (Background/Text タブ 2 個・12 プリセット色・"Default" リセット) に `onMouseDown={(e) => e.preventDefault()}` を追加。`<input autoFocus>` を持つ親パネル (WikiTagList / WikiTagView) でクリック時に input が blur せず `handleEditSave` 経由の panel 閉鎖が発生しない。macOS WebKit が `<button>` クリックで focus を移さない仕様 (`e.relatedTarget = null`) に対する標準対処パターン
-  - `embedded?: boolean` prop 新設。`inline + embedded=true` 時は picker 自身の `bg-notion-bg border border-notion-border rounded-md shadow-sm w-[190px]` 固定スタイルを捨て `w-full` で親コンテナいっぱいに伸長。親が既に bordered container を提供している場合の二重枠を解消
-  - preset grid に `justify-items-center` を追加。embedded で grid 幅が拡大した際もボタンが各セル内で中央寄せされる
-- **WikiTag 編集パネル 2 箇所で `embedded` 適用**:
-  - `frontend/src/components/WikiTags/WikiTagList.tsx`: chip クリック時の編集ポップアップ内 `<UnifiedColorPicker inline embedded />` で外枠 `w-52 + p-2` の中にピッカーがフィット
-  - `frontend/src/extensions/WikiTagView.tsx`: TipTap inline WikiTag クリック時の `wiki-tag-edit-popup` (CSS で 13rem) 内 `<UnifiedColorPicker inline embedded />` 同様
-- **新規テスト** — `frontend/src/components/shared/UnifiedColorPicker.test.tsx` (4 件):
-  - "calls onChange when a preset color is clicked" — `userEvent.click(getByLabelText("#3b82f6"))` で `onChange("#3b82f6")` が呼ばれる
-  - "preset button mousedown calls preventDefault so a focused input above does not blur" — `dispatchEvent(new MouseEvent("mousedown"))` 後に `event.defaultPrevented === true`
-  - "text-color reset button (Default) preventDefault on mousedown" — Text タブ + Default ボタン両方の mousedown で preventDefault
-  - "embedded mode drops the wrapping border/background and uses w-full" — `inline` のみと `inline embedded` で `firstChild.className` が `border + w-[190px]` ↔ `w-full` 切替を assert
-- **検証**: `cd frontend && npx tsc -b` 0 error / `npx vitest run` 35 files / 288 tests / 0 failed (新規 4 件) / 変更ファイル 3 件のうち WikiTagList.tsx:68 の `react-hooks/purity` `Math.random` lint 警告は既存コード (commit d9ebdff0, 2026-03-09) で本セッション未触の handleCreate イベントハンドラ false positive 寄り (event handler は render path 外のため実害なし) / session-verifier 全 6 ゲート PASS
-
-#### 残課題
-
-- **手動 UI 検証**: (a) note 内 inline WikiTag をクリック → 編集ポップアップでプリセット色 12 個 / Background タブ / Text タブ / Default リセットボタン全てクリックで panel 開いたまま色変化 / (b) WikiTag chip 同じく / (c) ピッカーが panel 幅いっぱいに広がり二重枠が消える
-- **アンステージ変更の取り扱い**: 別セッション由来の `Layout/SidebarLink*.tsx` / `Mobile/materials/MobileNoteTree*.tsx` / `Mobile/MobileNoteView.tsx` / `Ideas/NoteTreeNode.tsx` / `claude_commands.rs` / `pty_manager.rs` 他 ~7 ファイルが working tree に残存。本コミットは UnifiedColorPicker 4 ファイル (実装 1 + 新規テスト 1 + WikiTag 2) + .claude/ のみに絞る
-- **WikiTagList.tsx:68 既存 lint 警告**: 別タスクで一括対応 (event handler 内の Math.random は実害なし、purity rule false positive)
-
----
-
-### 2026-04-25 - UnifiedColorPicker 共通化 + UI 透明度ポリシー策定 + Routine UI 群修正
-
-#### 概要
-
-ユーザー要望ベースの一連の UI/UX クリーンアップを 1 セッションで実施。実装計画書なしのアドホック修正群。フェーズは (a) Routine 4 バグ修正 → (b) Routine 削除時 ErrorBoundary クラッシュの根本原因 (`bulkCreateScheduleItems` 戻り値型不一致) 修正 → (c) CalendarTags のカラーピッカーを共通化 → (d) ユーザーから「CalendarTags の元実装ベースで全 UnifiedColorPicker 利用箇所を共通化、Mac 標準のコンパクト感、WikiTags の textColor タブも含める」要件追加で `UnifiedColorPicker.tsx` を全面書き換え (API 互換維持で 12 利用箇所は変更不要) → (e) ユーザー指摘から「主要 UI コンテナ背景に透明度を使わない」ポリシーを vision/CLAUDE.md に明文化 + 透明 UI 5 箇所修正、の流れ。session-verifier 全 6 ゲート PASS。
-
-#### 変更点
-
-- **Routine UI 4 バグ修正**:
-  - `frontend/src/components/Tasks/Schedule/Routine/FrequencySelector.tsx` に `hideGroupOption?: boolean` prop 追加。`RoutineGroupEditDialog.tsx` で `hideGroupOption` を渡し、Group 自身は frequency=group を選べない（Group 自体が Group に入ることはできない仕様の UI 反映）。個別 Routine 編集側 (`RoutineEditDialog`) では従来通り "Group" 選択可能を維持
-  - `frontend/src/components/Schedule/ScheduleSidebarContent.tsx` の Calendar 右サイドバーで `SearchTrigger` と `FolderDropdown` を縦並び 2 ブロックから flex 1 ブロックに統合 (検索アイコン + 残り幅で flex-1 のフォルダドロップダウン)
-  - `frontend/src/components/Schedule/CalendarTagsPanel.tsx` のタイトルを `t("calendarTags.title", "Tags")` から `t("calendarTags.scheduleTitle", "Schedule Tags")` に変更、新規追加インライン UI のはみ出しを `flex-1 min-w-0` + 各ボタン/swatch に `shrink-0` で防止 + gap を `gap-1.5` → `gap-1` に圧縮
-- **Routine 削除時 ErrorBoundary クラッシュの真因修正**:
-  - 症状: Dayflow 内 Routine を「今回だけ削除」しただけで `Try again` 画面に落ちる。`NaN is an invalid value for the left css style property` + `Spread syntax requires ...iterable not be null or undefined — useScheduleItemsRoutineSync.ts:74` が連続発生
-  - 真因: Rust 側 `db_schedule_items_bulk_create` は `Result<(), String>` を返すのに、TS 側 `DataService.bulkCreateScheduleItems` は `Promise<ScheduleItem[]>` と宣言していた。`await bulkCreate()` が undefined を返し → `[...prev, ...undefined]` で Spread エラー → `ScheduleItemsProvider` が ErrorBoundary 行き → 副次的に NaN left CSS エラーも発生
-  - 修正: `frontend/src/services/DataService.ts` と `frontend/src/services/TauriDataService.ts` の `bulkCreateScheduleItems` 戻り値型を `Promise<void>` に変更。`frontend/src/hooks/useScheduleItemsRoutineSync.ts:71` と `frontend/src/hooks/useDayFlowColumn.ts:106` で `await bulkCreate(toCreate)` 後にローカルで `toCreate.map(c => ({ id, date, title, startTime, endTime, completed: false, completedAt: null, routineId: c.routineId, templateId: null, memo: null, noteId: null, content: null, isDeleted: false, isDismissed: false, reminderEnabled: c.reminderEnabled ?? false, reminderOffset: c.reminderOffset, createdAt: nowIso, updatedAt: nowIso }))` で `ScheduleItem[]` を組み立てて state に追加
-- **Routine 削除 ContextMenu の NaN left CSS 修正 (前段)**:
-  - 症状: Dayflow Timegrid アイテムの右クリック → 削除でダイアログ position が NaN になり描画失敗
-  - 原因: `onRequestRoutineDelete(item, {} as React.MouseEvent)` で空オブジェクトを渡しており `e.clientX/Y` が undefined → `setRoutineDeleteTarget({ position: { x: undefined, y: undefined } })` → `RoutineDeleteConfirmDialog` の `style.left = Math.min(undefined, ...) = NaN`
-  - 修正: 4 ファイル (`ScheduleItemBlock.tsx` / `ScheduleTimeGrid.tsx` / `OneDaySchedule.tsx` / `DualDayFlowLayout.tsx`) で `onRequestRoutineDelete` のシグネチャを `(item, e: React.MouseEvent)` から `(item, position: { x: number; y: number })` に変更。context menu 経由削除時は `contextMenu.position`、preview popup 経由は `schedulePreview.position`、swipe action 経由は `{ x: e.clientX, y: e.clientY }` を渡す
-- **`UnifiedColorPicker.tsx` 全面書き換え**:
-  - 旧: `react-colorful` の `HexColorPicker` (大型カラー領域) + Hex 入力 + プリセット + tab 切替 + debounced onChange (`useDebouncedCallback` 500ms)
-  - 新: CalendarTags 元実装ベースの preset 円形 grid (12 色 6 列 × 2 行 / w-6 h-6 / ring-1 + Check on selected) + native `<input type="color">` (Custom 色) + showTextColor 時の Background/Text タブ + click-outside auto close
-  - API 完全互換 (`color` / `onChange` / `mode "preset-only" | "preset-full"` / `presets` / `showTextColor` / `textColor` / `effectiveTextColor` / `onTextColorChange` / `inline` / `onClose` 維持) で利用側 12 箇所 (`PaperFrameNode` / `CalendarTagsPanel` / `RoutineGroupEditDialog` / `RoutineEditDialog` / `BubbleToolbar` / `SoundTagEditor` / `SoundTagManager` / `NotesView` / `WikiTagView` / `WikiTagList` / `TagGraphView` 等) は変更不要
-  - 透明度修正: `bg-notion-bg-popover` (CSS 変数未定義 → 透明落ち) → `bg-notion-bg` (定義済み不透明)
-  - 幅: `w-[156px]` (preset 重なり) → `w-[190px]` (w-6 + gap-1.5 + p-2 で重なり解消)
-  - preset: 18 色 9 列 → 12 色 6 列 × 2 行 にスリム化 (red/orange/amber/lime/emerald/cyan/blue/indigo/violet/pink/rose/slate)
-- **UI 透明度ポリシー策定**:
-  - `.claude/docs/vision/coding-principles.md §5` 新設: 規約 (主要 UI コンテナ背景は完全不透明) / 許容例外 (ホバー feedback / モーダルバックドロップ / アクセント薄塗り / 装飾線 / disabled / 影) / 禁止例 (`bg-notion-bg-popover` / 半透明本体 + backdrop-blur) / 修正パターン表 / 検出 grep コマンド
-  - `.claude/CLAUDE.md §6.4` の設計規約一文に「主要 UI コンテナ背景に透明度禁止」追記 + vision §5 リンク (auto-load されるため将来のセッションで自動適用)
-  - 透明 UI 5 箇所修正:
-    - `frontend/src/components/Layout/SidebarLinkItem.tsx:103` (leftSidebar 3点メニュー Edit/Delete、ユーザー指摘) — `bg-notion-bg-popover` → `bg-notion-bg`
-    - `frontend/src/components/Schedule/CalendarTagSelector.tsx:76` (Calendar Tag セレクタドロップダウン) — 同上
-    - `frontend/src/components/Schedule/CalendarTagsPanel.tsx:112` (Schedule Tags の Rename/Delete メニュー) — 同上
-    - `frontend/src/components/Work/FreeSessionSaveDialog.tsx:195` (フリーセッション保存の親タスク検索結果) — 同上
-    - `frontend/src/components/shared/TipsPanel.tsx:61` (Tips パネル本体) — `bg-notion-bg-secondary/70 backdrop-blur-sm` → `bg-notion-bg-secondary` (完全不透明 + backdrop blur 削除)
-- **CalendarTagsPanel 一時実装の差し戻し**: 一連の作業途中でユーザーから「元の独自実装に戻し、それを共通化して使い回す」要件が出たため、CalendarTagsPanel に一時的に追加していた DEFAULT_NEW_TAG_COLOR / startAdd の独自 popover ロジックは UnifiedColorPicker の API 互換書き換えで実質的に共通版へ統合された (CalendarTagsPanel は内部で UnifiedColorPicker を呼ぶだけになり、見た目は元の grid + native picker、実装は共通)
-- **Verification**: `tsc -b` 0 error / vitest 35 files / 284 tests / 0 failed (前回比 +1 file = `lucideIconRegistry.test.ts`、+1 test) / 既存 lint 102 errors はすべて変更前から残存 (私の修正行で新規エラー 0、`useDebouncedCallback.ts` / `useDragOverIndicator.ts` / `usePaperBoard.ts` 等の MEMORY.md 既知 finding) / session-verifier 全 6 ゲート PASS
-
-#### 残課題
-
-- **D1 migration 0007 + Worker deploy は前セッション残課題のまま** (本セッションでは触らず)
-- **手動 UI 検証**: (a) Routine UI 4 件の動作確認 / (b) Dayflow Routine 削除「今回だけ」「ルーティン全体」両方でクラッシュしないこと / (c) UnifiedColorPicker の見た目を 12 利用箇所すべてで目視確認 (CalendarTags / WikiTags textColor タブ / BubbleToolbar / SoundTags / Notes 色 / PaperFrame / TagGraph / RoutineGroup color など) / (d) leftSidebar の 3 点メニュー / Calendar Tag セレクタ / Schedule Tags メニュー / FreeSession 親タスク検索 / TipsPanel が完全不透明になっていること
-- **既存 Tier 3 の透明度判断を保留**: `Ideas/DailyView.tsx:194` / `Ideas/NotesView.tsx:324` のロックオーバーレイ (`backdrop-blur-sm bg-notion-bg/30`) は ScreenLock 機能の意図的半透明として残置 / `MiniTodayFlow.tsx` / `Toast.tsx` の `bg-white/XX` ホバーは方針上 OK (notion-hover 統一余地あり、別タスク化)
-- **i18n 既存問題**: `calendarTags.*` キー群は元から ja/en に未登録でフォールバック値運用。今回追加した `calendarTags.scheduleTitle` も同パターン踏襲 (新規違反なし、既存問題)
-- **mockDataService.ts:343** の `bulkCreateScheduleItems: vi.fn().mockResolvedValue([])` は新シグネチャ `Promise<void>` に対し `[]` を返すが型上互換、tests pass のため放置 (clean にするなら `mockResolvedValue(undefined)`)
