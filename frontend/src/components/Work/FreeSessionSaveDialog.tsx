@@ -4,7 +4,7 @@ import { useTranslation } from "react-i18next";
 import { X, Check, Search } from "lucide-react";
 import { useTaskTreeContext } from "../../hooks/useTaskTreeContext";
 import { useCalendarTagsContext } from "../../hooks/useCalendarTagsContext";
-import { CalendarTagSelector } from "../Schedule/CalendarTagSelector";
+import { CalendarTagSelector } from "../ScheduleList/CalendarTagSelector";
 import { setFreeSessionSaveDialogEnabled } from "../../utils/pomodoroSettings";
 
 interface FreeSessionSaveDialogProps {

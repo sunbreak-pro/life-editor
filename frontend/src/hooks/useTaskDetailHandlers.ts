@@ -2,7 +2,7 @@ import { useCallback } from "react";
 import type { TaskNode, SectionId } from "../types/taskTree";
 import type { TimerContextValue } from "../context/TimerContextValue";
 import type { Priority } from "../types/priority";
-import type { ScheduleTab } from "../components/Schedule/ScheduleSection";
+import type { ScheduleTab } from "../components/ScheduleList/ScheduleSection";
 import { STORAGE_KEYS } from "../constants/storageKeys";
 
 interface UseTaskDetailHandlersParams {

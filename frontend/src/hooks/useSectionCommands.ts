@@ -9,7 +9,7 @@ import {
 } from "lucide-react";
 import type { Command } from "../components/CommandPalette/CommandPalette";
 import type { SectionId } from "../types/taskTree";
-import type { ScheduleTab } from "../components/Schedule/ScheduleSection";
+import type { ScheduleTab } from "../components/ScheduleList/ScheduleSection";
 import { useTaskTreeContext } from "./useTaskTreeContext";
 import { useDailyContext } from "./useDailyContext";
 import { useNoteContext } from "./useNoteContext";

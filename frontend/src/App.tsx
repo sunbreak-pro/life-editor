@@ -4,8 +4,8 @@ import type {
   LayoutHandle,
   TerminalCommandHandle,
 } from "./components/Layout/Layout";
-import { ScheduleSection } from "./components/Schedule/ScheduleSection";
-import type { ScheduleTab } from "./components/Schedule/ScheduleSection";
+import { ScheduleSection } from "./components/ScheduleList/ScheduleSection";
+import type { ScheduleTab } from "./components/ScheduleList/ScheduleSection";
 import { useLocalStorage } from "./hooks/useLocalStorage";
 import { SessionCompletionModal } from "./components/Work/SessionCompletionModal";
 import type { SettingsInitialTab } from "./components/Settings";
