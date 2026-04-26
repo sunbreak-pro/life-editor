@@ -25,20 +25,35 @@
 
 ## 2. Platform
 
-- **Desktop (Tauri 2.0)**: Primary creation、全機能
-- **iOS (Tauri 2.0)**: Consumption + Quick capture
-- **Cloud (Cloudflare Workers + D1)**: Desktop ↔ iOS 双方向同期のみ（Web UI なし）
+- **Desktop (Tauri 2.0, macOS / Windows)**: Primary creation、全機能。macOS は作者主機、Windows は WebView2 ベースで UTM (ARM) + 友達 PC 検証
+- **Mobile (Tauri 2.0, iOS / Android)**: Consumption + Quick capture。Mobile 省略 Provider を iOS / Android 共通適用
+- **Cloud (Cloudflare Workers + D1)**: 作者本人のみ運用。**友達向け配布ビルドでは feature flag で同期機能を無効化**（§9 の multi-tenant 計画で将来対応）
 
 ### 機能差分
 
-| 機能                                                                         | Desktop | iOS | Cloud Sync | 備考                         |
-| ---------------------------------------------------------------------------- | :-----: | :-: | :--------: | ---------------------------- |
-| Tasks / Schedule / Notes / Daily                                             |    ✓    |  ✓  |     ✓      | コア                         |
-| Pomodoro Timer                                                               |    ✓    |  ✓  |     -      |                              |
-| Materials / Calendar Tags / Audio / WikiTags / Shortcut Config / Screen Lock |    ✓    |  -  |     -      | Mobile 省略 Provider（§6.2） |
-| Terminal + Claude + MCP Server                                               |    ✓    |  -  |     -      | Desktop 専用（PTY 不可）     |
+| 機能                                                                         | macOS | Windows | iOS | Android |  Cloud Sync  | 備考                               |
+| ---------------------------------------------------------------------------- | :---: | :-----: | :-: | :-----: | :----------: | ---------------------------------- |
+| Tasks / Schedule / Notes / Daily                                             |   ✓   |    ✓    |  ✓  |    ✓    | ✓ (作者のみ) | コア                               |
+| Pomodoro Timer                                                               |   ✓   |    ✓    |  ✓  |    ✓    |      -       |                                    |
+| Materials / Calendar Tags / Audio / WikiTags / Shortcut Config / Screen Lock |   ✓   |    ✓    |  -  |    -    |      -       | Mobile 省略 Provider（§6.2）       |
+| Terminal + Claude + MCP Server                                               |   ✓   |    ✓    |  -  |    -    |      -       | Desktop 専用（PTY / Node.js 不可） |
 
-Mobile 省略 Provider: Audio / ScreenLock / FileExplorer / CalendarTags / ShortcutConfig（WikiTag / SidebarLinks は Mobile でも有効）
+Mobile 省略 Provider: Audio / ScreenLock / FileExplorer / CalendarTags / ShortcutConfig（iOS / Android 共通省略。WikiTag / SidebarLinks は Mobile でも有効）
+
+### 配布方針
+
+- **macOS**: 作者本人のみ（無加入運用、自家ビルド）
+- **iOS**: 作者本人のみ（無料署名 + 週次再署名、`ios-everywhere-sync.md` 参照）
+- **Windows**: **友達向け配布**。未署名 NSIS インストーラ + Tauri Updater 自動更新（SmartScreen 警告許容）
+- **Android**: **友達向け配布**。未署名 APK 直配布（"提供元不明" 許可）+ Tauri Updater 自動更新
+
+### 検証戦略
+
+作者は Windows / Android 実機を保有しないため、検証は以下の組み合わせで代替する:
+
+- **Windows**: UTM + Windows 11 ARM Insider Preview（macOS M3 ネイティブ実行）+ 友達フィードバック
+- **Android**: Android Studio aarch64 AVD（macOS M3 ネイティブ実行）+ 友達フィードバック
+- **共通**: Sentry 無料枠 + ローカルログ吸い上げ機構で、再現できないバグを友達経由で把握する
 
 ---
 
@@ -47,12 +62,14 @@ Mobile 省略 Provider: Audio / ScreenLock / FileExplorer / CalendarTags / Short
 ### 3.1 全体構成
 
 ```
-Renderer (React 19 + Vite) ─IPC→ Rust Backend (src-tauri/) ─rusqlite WAL→ SQLite (~/Library/Application Support/life-editor/life-editor.db)
+Renderer (React 19 + Vite) ─IPC→ Rust Backend (src-tauri/) ─rusqlite WAL→ SQLite (app_data_dir/life-editor.db)
                                                                              ↑
                                        MCP Server (Node.js, stdio, better-sqlite3)
                                                                              ↑
                                          Cloud Sync (Cloudflare Workers + D1, 双方向)
 ```
+
+`app_data_dir` は OS / bundle ID 依存。bundle ID は `com.lifeEditor.app.newlife`（`src-tauri/tauri.conf.json`）。macOS: `~/Library/Application Support/com.lifeEditor.app.newlife/`（Known Issue 006 — bundle ID 変更で path が分裂する罠あり）。Windows: `%APPDATA%/com.lifeEditor.app.newlife/`。iOS: アプリサンドボックス。
 
 ### 3.2 DataService 抽象化（重要）
 
@@ -77,14 +94,15 @@ React Router なし。`App.tsx::activeSection` で切替: `schedule` / `material
 
 ### 4.1 SQLite スキーマ
 
-- 正本: `src-tauri/src/db/migrations.rs`（WAL）/ 現行 v67、約 40 テーブル
-- ドメイン: tasks / dailies / notes / time*memos / schedule_items / calendars / routines / timer*\_ / sound\_\_ / playlists / wiki_tags / task_templates / paper_boards / databases（汎用 DB: properties / rows / cells）
-- 直近 migration: V60(孤児テーブル撤去 → WikiTags 完全移行) / V62(NULL updated*at backfill + tasks INSERT トリガー) / V63(schedule_items 重複排除 + partial UNIQUE) / V64(`memos` → `dailies` rename。id 形式 / `note_links.source*\*`/`wiki_tag_assignments` の entity_type 全移行。`time_memos`は別概念で対象外) / V65(CalendarTags 1:1 化:`calendar_tag_definitions`に Cloud Sync 列追加 +`calendar_tag_assignments`を`id PK / entity_type / entity_id / tag_id` に rebuild) / V66(`timer_sessions.label` 追加: Pomodoro Free セッションの命名保存用) / V67(`sidebar_links` 新規: LeftSidebar 用 URL/Mac アプリ快速リンク。version + LWW で Cloud Sync 対象)
-- Cloud D1 専用: 2026-04-24 適用 migration 0003 で `server_updated_at` 列追加（delta sync cursor 用、Desktop SQLite には無い）/ 2026-04-25 適用 migration 0004 で V65 に追従（`calendar_tag_definitions` の sync 用列追加 + `calendar_tag_assignments` rebuild、`calendar_tag_assignments` は `RELATION_TABLES_WITH_UPDATED_AT` に昇格）/ 2026-04-25 適用 migration 0005 で V67 に追従（`sidebar_links` 新設、`VERSIONED_TABLES` に追加）。詳細 → `docs/known-issues/013-*.md` / `docs/vision/db-conventions.md §3`
+- 正本: `src-tauri/src/db/migrations/`（WAL）/ 現行 `LATEST_USER_VERSION = 69`、約 40 テーブル。Fresh DB は `full_schema.rs` で V60 相当を一括作成 → V61+ を逐次適用
+- ドメイン: `tasks` / `dailies` / `notes` / `time_memos` / `schedule_items` / `calendars` / `routines` / `routine_groups` / `routine_group_assignments` / `timer_sessions` / `sounds` / `playlists` / `wiki_tags` / `wiki_tag_assignments` / `wiki_tag_connections` / `task_templates` / `paper_boards` / `sidebar_links` / `databases`（汎用 DB: properties / rows / cells）
+- 直近 migration: V63(`schedule_items` 重複排除 + partial UNIQUE) / V64(`memos` → `dailies` rename + `note_links.source_*` / `wiki_tag_assignments` の entity_type 全移行。`time_memos` は別概念で対象外) / V65(CalendarTags 1:1 化: `calendar_tag_assignments` を `id PK / entity_type / entity_id / tag_id` に rebuild) / V66(`timer_sessions.label` 追加: Pomodoro Free セッション命名用) / V67(`sidebar_links` 新規: LeftSidebar の URL/Mac アプリ快速リンク) / V68(`timer_sessions.session_type` CHECK に `'FREE'` 追加: Free モード INSERT 失敗の修正) / V69(Routine Tag 概念を全削除 → `routine_group_assignments` 新設で Routine ↔ RoutineGroup 直接 junction 化、`frequencyType="group"` 用)
+- Cloud D1 専用: 0003(`server_updated_at` 列追加 = delta sync cursor、Desktop SQLite には無い) / 0004(V65 追従) / 0005(V67 追従: `sidebar_links` 新設) / 0006(`calendar_tag_assignments.server_updated_at` の取りこぼし修正) / 0007(V69 追従: routine tag テーブル削除 + `routine_group_assignments` 新設)
+- Sync 制御定数（`src-tauri/src/sync/sync_engine.rs`）: `VERSIONED_TABLES`(11) = tasks / dailies / notes / schedule_items / routines / wiki_tags / time_memos / calendars / templates / routine_groups / sidebar_links。`RELATION_TABLES_WITH_UPDATED_AT` = wiki_tag_assignments / wiki_tag_connections / note_connections。`calendar_tag_assignments` と `routine_group_assignments` は inline で個別ハンドリング（soft-delete-aware delta query）。詳細 → `docs/known-issues/013-*.md` / `docs/vision/db-conventions.md §3`
 
 ### 4.2 特化 vs 汎用 DB の境界
 
-- **特化テーブル**（スキーマ固定）: `tasks` / `routines` / `schedule_items` / `notes` / `dailies` / `pomodoro_presets` / `timer_sessions`
+- **特化テーブル**（スキーマ固定）: `tasks` / `routines` / `routine_groups` / `schedule_items` / `notes` / `dailies` / `pomodoro_presets` / `timer_sessions` / `sidebar_links`
 - **汎用 Database で表現**: 家計簿 / 読書記録 / 習慣 / 連絡先 / 学習進捗 等
 - **判断**: 特化 UI（DnD / カレンダー / ルーチン生成 / リマインダー）が必要 → 特化テーブル。型付きフィールド + フィルタ + 集計で済む → 汎用 Database
 
@@ -204,10 +222,10 @@ cd mcp-server && npm run build                          # MCP Server ビルド
 
 ### 7.3 DB マイグレーション
 
-- カラム追加は `IF NOT EXISTS` / `PRAGMA user_version` を正しくインクリメント
-- カラム名: DB=snake_case / JS=camelCase（`rowToModel` で変換）
-- 正本: `src-tauri/src/db/migrations.rs`
-- 診断: `sqlite3 ~/Library/Application\ Support/life-editor/life-editor.db ".tables"` / `... "PRAGMA user_version"`
+- 追加は `src-tauri/src/db/migrations/v61_plus.rs` の末尾に新ブロック → `LATEST_USER_VERSION` を bump（mod.rs テスト定数）
+- カラム追加は `IF NOT EXISTS` / `PRAGMA user_version` を正しくインクリメント。各 V_N ブロックは idempotent
+- カラム名: DB=snake_case / JS=camelCase（Rust 側 `FromRow` trait + `row_to_json` で変換）
+- 診断: `sqlite3 "$(find ~/Library/Application\ Support -name 'life-editor.db' | head -1)" ".tables"` / `... "PRAGMA user_version"`
 
 ### 7.4 コミット規約
 
@@ -232,10 +250,13 @@ cd mcp-server && npm run build                          # MCP Server ビルド
 
 ### 次フェーズ計画
 
-- [`vision/mobile-porting.md`](./docs/vision/mobile-porting.md) — Desktop → iOS 移植 + Cloud Sync 連携（主戦場）
-- [`requirements/ios-additions.md`](./docs/requirements/ios-additions.md) — iOS 限定の上乗せ要件
+- [`vision/mobile-porting.md`](./docs/vision/mobile-porting.md) — Desktop → iOS 移植 + Cloud Sync 連携
+- [`vision/mobile-data-parity.md`](./docs/vision/mobile-data-parity.md) — Mobile / Desktop データ整合性ガイド
+- [`vision/realtime-sync.md`](./docs/vision/realtime-sync.md) — Phase 1: foreground 可変 polling + 変更イベント駆動 push
 - [`vision/ios-everywhere-sync.md`](./docs/vision/ios-everywhere-sync.md) — Apple Developer Program 不加入運用（無料署名 + 週次再署名）
 - [`vision/desktop-followup.md`](./docs/vision/desktop-followup.md) — Desktop 残課題
+- [`requirements/ios-additions.md`](./docs/requirements/ios-additions.md) — iOS 限定の上乗せ要件
+- `.claude/2026-04-26-windows-android-port.md` — Windows / Android 友達向け配布の実装計画
 
 ---
 

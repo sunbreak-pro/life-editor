@@ -1,5 +1,60 @@
 # HISTORY-archive.md - 変更履歴アーカイブ
 
+### 2026-04-26 - リファクタリング計画 Phase 2-2/2-3b/2-3c/2-3d/3-2/3-3/3-5 集中実施
+
+#### 概要
+
+ユーザー要望「.claude/2026-04-25-refactoring-plan.md の未完了タスクを完了させて」を受け、Auto mode で 1 セッション内に Phase 2-2 (TauriDataService 分割) / 2-3b (ScheduleTimeGrid pure logic 抽出) / 2-3c (OneDaySchedule hook 抽出) / 2-3d (TagGraphView storage 抽出) / 3-3 (Schedule → ScheduleList rename) / 3-2 (cursor pagination 本実装、Issue #012) / 3-5 (UNIQUE 制約 audit) を完了。手動 UI 検証必須の Phase 2-4 (Calendar 統合) / Phase 3-4 (Schedule View 統合)、および 27 ファイルにわたる大規模 trait 化の Phase 3-1 (Rust row_to_model) は本セッションでは見送り。session-verifier 全 6 ゲート PASS、324/324 vitest tests pass (新規 36 件追加)、cargo build / test clean。実装計画書は IN_PROGRESS のままで archive せず継続。
+
+#### 変更点
+
+- **Phase 2-2 — TauriDataService 1502 → 52 行 + 19 ドメインモジュール** (`0f49dc5`):
+  - `frontend/src/services/data/{tasks,timer,sound,daily,notes,calendars,routines,scheduleItems,playlists,wikiTags,timeMemos,paper,databases,files,sidebar,system,templates,sync,misc}.ts` を 19 モジュールに分割。各モジュールは const オブジェクトで `tauriInvoke` ラッパーを export
+  - `TauriDataService.ts` は composition root として spread + `Object.assign(this, composed)` + class/interface declaration merging で `DataService` 型互換維持。後方互換: `dataServiceFactory.ts` の `new TauriDataService()` 50+ consumer は無改変
+  - session-verifier の Gate 2 で `@typescript-eslint/no-unsafe-declaration-merging` 検出 → class 自体を撤去し `tauriDataService` const singleton に置換 (`8149fd6`)。`dataServiceFactory.ts` は const を直接参照、`services/index.ts` は const を re-export
+- **Phase 2-3b — ScheduleTimeGrid 1221 → 926 行** (`b3e7a21`):
+  - 純粋ロジック (`layoutAllItems` / `rangesOverlap` / `computeGroupFrames` / `detectRoutineTaskSplit` / `adjustItemsForRoutineSplit`、型 `UnifiedItem` / `ComputedGroupFrame`、定数 `HOURS` / `GUTTER_WIDTH` / `MIN_ITEM_HEIGHT` / `GROUP_HEADER_HEIGHT`) を `scheduleTimeGridLayout.ts` (326 行) に抽出
+  - 当初計画の JSX サブディレクトリ分割 (GridLayer/EventLayer/DragHandlers/Hooks) は手動 UI 検証必須のため見送り、純粋関数のみ抽出する保守的アプローチ
+- **Phase 2-3c — OneDaySchedule 1276 → 1172 行 + hook 2 件抽出** (`70b7b14`):
+  - `useDayFlowFilters.ts` (97 行): フィルタ state + `filteredScheduleItems` / `filteredDayTasks` / `allDayTasks2` / `allDayScheduleItems` / `timedScheduleItems` / `hasAllDayItems` の memoized 派生
+  - `useDayFlowDialogs.ts` (223 行): 8 つの popover/preview/menu state + 3 つのハンドラ (`handleRequestRoutineDelete` / `handleDismissOnly` / `handleArchiveRoutine`)。依存 mutation は引数で注入
+  - `dayFlowFilters.ts` (16 行): `DAY_FLOW_FILTER_TABS` / `DayFlowFilterTab` 定数を分離。`OneDaySchedule.tsx` から re-export し `ScheduleSection.tsx` の既存 import path 維持
+  - session-verifier で `setRoutinePicker` / `setNotePicker` の 4 件 missing-deps 警告検出 → useCallback の deps 配列に setter を追加 (state setter は安定だが、destructured オブジェクト経由のため ESLint が安定性を判定できず) (`8149fd6`)
+- **Phase 2-3d — TagGraphView 1443 → 1414 行** (`865cc77`):
+  - localStorage helpers (`loadPositions` / `savePositions` / `loadViewport` / `saveViewport` / `isSpecialFilterId` / `VIRTUAL_LINK_EDGES_HIDDEN_ID` 定数) を `tagGraphStorage.ts` (45 行) に抽出
+  - React Flow 内部と密結合の JSX サブディレクトリ分割 (ForceLayout/Renderer/Interactions/Hooks) は手動 UI 検証必須のため見送り
+- **Phase 3-3 — components/Schedule → ScheduleList rename** (`550e55f`):
+  - `git mv frontend/src/components/Schedule frontend/src/components/ScheduleList` で 13 ファイル一括 rename
+  - 外部 import 4 箇所更新: `App.tsx` (×2) / `useTaskDetailHandlers.ts` / `useSectionCommands.ts` / `Work/FreeSessionSaveDialog.tsx`
+  - `Tasks/TaskDetail/*` の `../Schedule/shared/` import は `Tasks/Schedule/` を参照する別ディレクトリのため変更不要
+  - Plan の "alias re-export 1 週間維持" は省略 — 端末 / claude history 等の外部参照は確認した限り無し
+- **Phase 3-2 — cursor pagination 本実装 (Issue #012)** (`62d144f`):
+  - Server (`cloud/src/routes/sync/versioned.ts`): `pullVersionedDelta` が batch 内の最大 `server_updated_at` を `nextSince` として返却 (戻り値型に `nextSince: string` を追加)。`/sync/changes` のレスポンスに同梱
+  - Client (`src-tauri/src/commands/sync_commands.rs::sync_trigger`): 単発 fetch を `loop { fetch_changes(cursor); apply; if !has_more break; cursor = next_since; }` ループ化。`sync_last_synced_at` は全 page 完了後にのみ永続化 (中断時の再開保証)
+  - `SyncPayload` (`src-tauri/src/sync/types.rs`) に `next_since: String` 追加 (旧サーバ互換: `#[serde(default)]` で空文字 fallback、空時は break して安全に終了)
+  - 多重 break ガード: `has_more=false` / `next_since` 空 / cursor 進行なし のいずれかで終了 (無限ループ防止)
+  - LIMIT=5000 (`SYNC_PAGE_SIZE`) は Phase 1-1 で既に `cloud/src/config/syncTables.ts` に切り出し済
+- **Phase 3-5 — UNIQUE 制約 audit (no migration needed)** (`7645d2d`):
+  - `src-tauri/src/db/migrations/full_schema.rs` 全 relation テーブルを audit。`sound_tag_assignments` / `routine_tag_assignments` / `wiki_tag_assignments` / `wiki_tag_group_members` / `routine_group_tag_assignments` / `calendar_tag_assignments` は全て `PRIMARY KEY` 複合キーで重複防止済、`wiki_tag_connections (source_tag_id, target_tag_id)` / `note_connections (source_note_id, target_note_id)` / `time_memos (date, hour)` / `database_cells (row_id, property_id)` / `note_aliases.alias` / `dailies.date` / 各 `*_definitions.name` は UNIQUE 既存
+  - 唯一未制約な箇所は `note_links` (source/target/heading/block_id/link_type) だが、「同一ノート間に異なる heading を指す複数リンク」が正当ユースケースのため UNIQUE 化は要件 vague で見送り (V63 の schedule_items のように具体的問題発見時に別途対処)
+  - 結論: Plan の「関連テーブルが UNIQUE 不足」前提が古い情報 (Phase 1 / Phase 2-1 の migration v60〜v67 で既に網羅されていた)。**migration 追加不要**
+- **session-verifier 検出修正 + 新規テスト** (`8149fd6`):
+  - TauriDataService class → const 化 (declaration merging 解消)
+  - OneDaySchedule の useCallback deps に `setRoutinePicker` / `setNotePicker` 追加 (4 箇所)
+  - 新規テスト 36 件: `scheduleTimeGridLayout.test.ts` (19 件: rangesOverlap / layoutAllItems / computeGroupFrames / detectRoutineTaskSplit / adjustItemsForRoutineSplit) / `tagGraphStorage.test.ts` (9 件: localStorage round-trips + isSpecialFilterId) / `useDayFlowFilters.test.ts` (8 件: フィルタ state + memoized 派生 via @testing-library/react)
+- **計画書 (`.claude/2026-04-25-refactoring-plan.md`) 更新**: Status 行を `IN_PROGRESS (Phase 0 ✅ / Phase 1 ✅ / Phase 2-1 ✅ / Phase 2-2 ✅ / Phase 2-3a-d ✅ / Phase 3-2 ✅ / Phase 3-3 ✅ / Phase 3-5 ✅ AUDIT / Phase 2-4, 3-1, 3-4 deferred)` に更新。各 Phase の完了内容を Files / Verification / Notes として追記。**実装プランは Phase 2-4 / 3-1 / 3-4 が pending のため archive せず継続**
+- **Verification**: `cd frontend && npx tsc -b` 0 error / `cd frontend && npm run test` 39 files / 324 passed (前回 288 + 新規 36) / `cd cloud && npx tsc --noEmit` clean / `cd src-tauri && cargo build --lib` clean / `cargo test --lib sync` 2/2 passed / 私の変更行で新規 lint 0 (残 114 lint problems は全て本セッション未触の既存問題、b860d04 baseline 同等) / session-verifier 全 6 ゲート PASS
+
+#### 残課題
+
+- **Phase 2-4 (Calendar Mobile/Desktop 統合)**: `CalendarView.tsx` (1168 行、month/week 両モード、多数の Context 依存) と `MobileCalendarView.tsx` (823 行、独自 UI) の差分大、Plan 自身が iOS 実機テスト必須と明記。手動 UI 検証なしでは regression 不可避のため別セッションで実施
+- **Phase 3-1 (Rust row_to_model RowConverter trait)**: 27 ファイルにわたる個別 row*to*\* fn を trait impl に移行する大規模 refactoring (推定 -1500 行 = Plan 自身も "6-10 セッション" 想定の中核作業)。各 repo に微妙な差異 (joins / JSON serialize / snake↔camel) があり、機械的置換不可
+- **Phase 3-4 (Schedule View Mobile/Desktop 統合)**: 2-4 と同じ UI 検証問題のため別セッションで実施
+- **手動 UI 検証**: (a) Schedule (DayFlow / Calendar / Routine) の操作回帰なし / (b) Cmd+K / Sidebar Links 等の関連経路 / (c) Cloud Sync の cursor pagination 動作 (Worker deploy 後、5000 行超のテーブルがあれば実走確認)
+- **Worker deploy 必須**: Phase 3-2 のサーバー側変更 (cloud/src/routes/sync/{index,versioned}.ts) は本番反映が必要。`cd cloud && npm run deploy`
+- **アンステージ変更**: 別セッション由来の `Layout/SidebarLink*.tsx` / `Mobile/materials/MobileNoteTree*.tsx` / `Ideas/NoteTreeNode.tsx` / `WikiTags/WikiTagList.tsx` 他 ~13 ファイルが working tree に残存。本一連の commit は refactoring 関連 + `.claude/` のみに絞っている
+
+
 ### 2026-04-26 - WikiTag カラーピッカー文字色/プリセット即閉鎖バグ + ネスト枠 UI 修正
 
 #### 概要
