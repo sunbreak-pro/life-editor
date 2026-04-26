@@ -6,9 +6,9 @@
 
 ## 直近の完了
 
+- リファクタリング検証 (Phase 2-4 / 3-1 / 3-4) 自動検証完遂 ✅（2026-04-26）— 検証用実装計画書 `.claude/2026-04-26-refactoring-verification-plan.md` の自動部分 (S-1 / S-7 / S-8 / S-9) を Auto mode で完遂。コード変更は前セッション commit `ab84b85` に着地済のため検証ゲート通過確認に専念。**S-1 Rust 単体**: `cargo build --lib` 0 warn / `cargo test --lib` 25/25 (1 ignored bench) / `grep row_to_` → `row_to_json` のみ ✓ / clippy 83 警告は全件 pre-existing (migrations 68 / reminder 6 / sync_engine 2 / claude_commands 1 / repository 3 = `too_many_arguments` on 11-arg `create()`)、Phase 3-1 起因 0。**S-7 境界ケース完全自動化**: `calendarGrid.test.ts` を 8 → 20 tests に拡張 (+12 = うるう年 2024/2 両モード / 月初 Sat (2026/8) / 月初 Mon (2026/6) / `addDays` 年跨ぎ前後進 / `getMondayOf` 日曜→6 日前・同曜・水曜・時刻正規化・非破壊 / `getWeekDates`)、20/20 pass。手動境界確認は不要に。**S-8 性能 spot-check**: `cargo test --release fetch_tree_benchmark --ignored --nocapture` で n=500: 3.14ms / n=1000: 6.55ms / n=3000: 18.37ms (基準 100ms の 6.6%-18.5%)、**`prepare_cached` 移行不要**確定 (R-1 不発)。**S-9**: 検証 plan の Status を `AUTOMATED COMPLETE / MANUAL PENDING` に / S-1/S-7/S-8/S-9 chk 反映 / Related リンク archive 修正。**frontend 再検証**: `npx tsc -b` 0 / vitest 40 files 344/344 pass / `npm run build` clean。**残課題**: 手動 UI 検証 (S-2〜S-6) のみ
 - リファクタリング計画 Phase 2-4 / 3-1 / 3-4 完遂 + 検証用実装計画書作成 ✅（2026-04-26）— ユーザー要望「2026-04-25-refactoring-plan.md を読み込んで未実装のリファクタリングを実装して。またその後にリファクタリング検証のための実装計画書も作成して」を受け前セッション deferred の 3 Phase を 1 セッション完遂。**Phase 3-1**: `db/row_converter.rs` に FromRow trait + query_all/query_one helpers 追加、26 repository (24 mod + sidebar_link + row_converter) で 33+ の `fn row_to_X` を `impl FromRow for X` に移行 (4 並列 sub-agent で高速実行)。SQL/params/ロジック完全保持。`note_link_repository::fetch_backlinks` のみ closure 内 from_row 置換 (BacklinkHit 組立カスタムロジックのため)。**Phase 2-4**: `frontend/src/utils/calendarGrid.ts` 新設 (`buildCalendarGrid` Sunday/Monday 両モード + fixedRows / `addDays`)、Desktop `useCalendar.ts:265` 30 行の inline calendarDays を 1 行 helper 化、Mobile `MobileCalendarView.tsx` 12 行の inline calendarDays を helper 化 + `{date,isCurrentMonth: inMonth}` destructure rename で内部互換維持。等価性 dow=0/1/6 全モード一致確認済。**Phase 3-4**: `getMondayOf` / `getWeekDates` を calendarGrid.ts に追加、`MobileCalendarStrip.tsx` の local 4 関数 (約 24 行) と `MobileScheduleView.tsx` の inline week-range 計算 (15 行→2 行) を共有版に集約、`formatDateStr` 3 ファイル duplicate を `formatDateKey` に統一、`todayStr` 削除して `getTodayKey` lazy init。**完全 UI 統合は見送り** (Context vs Service 層差で regression リスク高、Phase 2-3b/d と同方針)。**検証用実装計画書 `.claude/2026-04-26-refactoring-verification-plan.md` 作成**: 9 Steps (S-1 cargo build/test/clippy → S-2 IPC 経由 11 ドメイン fetch → S-3 Cloud Sync round-trip 5000 行超 pagination → S-4 Calendar Mobile (Monday/スワイプ/chip) → S-5 Calendar Desktop (Sunday/6 行/Weekly Grid) → S-6 Schedule View (週 dots/月跨ぎラベル/4 タブ) → S-7 buildCalendarGrid 境界ケース → S-8 性能 spot-check / S-9 ドキュメント更新) + 6 Risks (R-1 prepare_cached 化対応 / R-2 週初日混乱 / R-3 hidden caller / R-4 Cloud Sync 副次破壊 / R-5 例外パターン許容 / R-6 境界ケース見落とし) + 各 Phase 独立 rollback 手順。**実装プラン archive**: `.claude/2026-04-25-refactoring-plan.md` の Status を `IN_PROGRESS` → `COMPLETED (Phase 0-3 全完了 2026-04-26)` に更新、`.claude/archive/` へ移動。**検証**: `cd frontend && npx tsc -b` 0 / vitest 40 files 332/332 pass (前回 324 + 新規 8 calendarGrid.test.ts) / `npm run build` Vite 7.9s clean / `cargo build --lib` 0 warn / `cargo test --lib` 25/25 (1 ignored bench) / cargo clippy 私の変更ファイルで新規警告 0 (`too_many_arguments` 3 件は pre-existing シグネチャ) / Frontend ESLint 0 / session-verifier 全 6 ゲート PASS。**残課題**: 手動 UI 検証 (verification plan §S-2〜S-6) / `query_all` の prepare 毎回呼び出し性能 spot-check (劣化時 prepare_cached 化で API 互換対応)
 - リファクタリング計画 Phase 2-2/2-3b/2-3c/2-3d/3-2/3-3/3-5 集中実施 ✅（2026-04-26）— 前セッションで Phase 2-2 (TauriDataService 1502→52 行 + 19 ドメインモジュール) / 2-3b (ScheduleTimeGrid 1221→926 + `scheduleTimeGridLayout.ts` 326 行) / 2-3c (OneDaySchedule 1276→1172 + `useDayFlowFilters.ts` 97 + `useDayFlowDialogs.ts` 223 + `dayFlowFilters.ts` 16) / 2-3d (TagGraphView 1443→1414 + `tagGraphStorage.ts` 45) / 3-3 (Schedule → ScheduleList rename 13 ファイル) / 3-2 (cursor pagination 本実装 Issue #012、server `nextSince` + client loop + 全 page 完了後 cursor 永続化 + 3-way break ガード) / 3-5 (UNIQUE 制約 audit: Plan の前提が古かったと判明、migration 追加不要) を 1 セッション完遂。**残**: 当時 Phase 2-4 / 3-1 / 3-4 は deferred (本セッションで完遂済) / Worker deploy 必須 (Phase 3-2 server 側) / 手動 UI 検証
-- WikiTag カラーピッカー文字色/プリセット即閉鎖バグ + ネスト枠 UI 修正 ✅（2026-04-26）— `WikiTagList.tsx` / `WikiTagView.tsx` の編集パネル `<input autoFocus>` が `onBlur` 経由で panel 閉鎖していた macOS WebKit `e.relatedTarget = null` 問題を `UnifiedColorPicker.tsx` の全 interactive ボタンに `onMouseDown={(e) => e.preventDefault()}` 追加で修正。`embedded?: boolean` prop 新設で WikiTag 編集パネルの二重枠解消 (w-full + 親 border 利用)。新規テスト 4 件
 
 ## 予定
 
@@ -44,20 +44,17 @@
 
 ### リファクタリング Phase 2-4 / 3-1 / 3-4 検証用実装計画の手動実施
 
-**対象**: Desktop / iOS 実機での UI 回帰検証 + Cloud Sync round-trip + 性能 spot-check
-**計画書**: `.claude/2026-04-26-refactoring-verification-plan.md`
-**前提**: Phase 2-4 / 3-1 / 3-4 のコード変更は本セッションで着地済 (FromRow trait 26 ファイル + calendarGrid.ts 共通化 4 ファイル)。自動検証 (cargo build/test、vitest 332/332、tsc -b、Vite build) は全 pass、手動 UI 検証 + 性能観察が未実施
+**対象**: Desktop / iOS 実機での UI 回帰検証 + Cloud Sync round-trip
+**計画書**: `.claude/2026-04-26-refactoring-verification-plan.md` (Status: AUTOMATED COMPLETE / MANUAL PENDING)
+**前提**: 自動検証 (S-1 Rust build/test / S-7 calendarGrid 境界ケース 20/20 / S-8 fetch_tree benchmark 100ms 基準内 / S-9 plan ファイル反映) は 2026-04-26 完遂済。残るは手動 UI / Cloud Sync / docs 整理のみ
 **手順**:
 
-1. **S-1 Rust 単体**: `cargo build --lib` warnings=0 / `cargo test --lib` 25/25 / `cargo clippy --lib -- -D warnings`
-2. **S-2 IPC 統合**: Desktop 起動 → Tasks / Notes / Dailies / Schedule / Routines / Database / Wiki Tags / Paper Boards / Sound / Templates / Sidebar Links 全 11 ドメインの fetch 経路でエラー無し
-3. **S-3 Cloud Sync round-trip**: 5 ドメイン変更 → push → 別端末 pull → 完走 + 5000 行超で `nextSince` cursor 進行確認
-4. **S-4 Calendar Mobile**: Monday 始まり / 月遷移スワイプ / chip 表示 / Today ハイライト / 月境界 item
-5. **S-5 Calendar Desktop**: Sunday 始まり / 6 行固定 / WeeklyTimeGrid / DayCell 描画 / Routine ハイライト
-6. **S-6 Schedule View**: MobileScheduleView 週 dots / 週遷移 (`getMondayOf` 基準) / 月跨ぎラベル / Desktop ScheduleSection 4 タブ / DualColumn toggle
-7. **S-7 buildCalendarGrid 境界ケース**: 月初 Sun/Mon/Sat / うるう年 / `getMondayOf(日曜)` → 6 日前
-8. **S-8 性能 spot-check**: `task_repository::fetch_tree` 1000 ノード 100ms 以内 / Calendar 月遷移体感維持 / sync push 5000 行劣化なし。劣化時は `query_all`/`query_one` 内部を `prepare_cached` に切替 (API 互換)
-9. **S-9 ドキュメント更新**: MEMORY.md §バグの温床 から関連 3 項目 (formatter / SQL whitelist / row_to_model 重複) 削除候補マーク / `code-inventory.md` 更新
+1. **S-2 IPC 統合**: Desktop 起動 → Tasks / Notes / Dailies / Schedule / Routines / Database / Wiki Tags / Paper Boards / Sound / Templates / Sidebar Links 全 11 ドメインの fetch 経路でエラー無し
+2. **S-3 Cloud Sync round-trip**: 5 ドメイン変更 → push → 別端末 pull → 完走 + 5000 行超で `nextSince` cursor 進行確認
+3. **S-4 Calendar Mobile**: Monday 始まり / 月遷移スワイプ / chip 表示 / Today ハイライト / 月境界 item
+4. **S-5 Calendar Desktop**: Sunday 始まり / 6 行固定 / WeeklyTimeGrid / DayCell 描画 / Routine ハイライト
+5. **S-6 Schedule View**: MobileScheduleView 週 dots / 週遷移 (`getMondayOf` 基準) / 月跨ぎラベル / Desktop ScheduleSection 4 タブ / DualColumn toggle
+6. **S-9 docs 整理 (UI 検証完了後)**: `docs/known-issues/INDEX.md` で formatter / SQL whitelist / row_to_model 重複 を削除候補マーク / `docs/code-inventory.md` の Active/Duplicate セクション更新
 
 ### Realtime Sync Phase 1 実装 — foreground 可変 polling + 変更イベント駆動 push
 

@@ -1,5 +1,31 @@
 # HISTORY-archive.md - 変更履歴アーカイブ
 
+### 2026-04-25 - Routine 削除のゴースト復活問題 + DayFlow 時間変更の Undo/Redo 全日付対応
+
+#### 概要
+
+ユーザー報告 2 件の Routine 関連バグ。(1) "Untitled routine" を削除しても他の日付で残ったり、削除ボタンを押していないのに突然消える。(2) DayFlow TimeGrid で routine bar をドラッグして時間変更し「ルーティンテンプレート更新」を押した後、Undo/Redo が現在表示中の日付しか戻さない。ユーザーが「根本原因が同じかも」と直感した通り、**両方とも routine の変更が複数日付の `schedule_items` に正しく伝播しない**という共通テーマだが、メカニズムは別系統（症状 A は Cloud Sync delta path 不整合、症状 B は UndoRedoManager の domain 単位 pop と未登録 IPC アクション）と判明。Rust DB layer + Frontend hooks/UI/型/テスト 9 ファイルを 1 セッションで対応。session-verifier 全 6 ゲート PASS。実装計画書を伴わない小規模バグ修正。
+
+#### 変更点
+
+- **症状 A 真因 — `routine_repository::soft_delete` が schedule_items を物理 DELETE していた**:
+  - `src-tauri/src/db/routine_repository.rs::soft_delete` を `DELETE FROM schedule_items WHERE routine_id = ?1 AND completed = 0` から `UPDATE schedule_items SET is_deleted = 1, deleted_at = datetime('now'), version = version + 1, updated_at = datetime('now') WHERE routine_id = ?1 AND completed = 0 AND is_deleted = 0` に書き換え。物理 DELETE は Cloud Sync の `is_deleted=1 + version+1 + updated_at` delta path に乗らないため → Cloud に delete マーカーが残らない → iOS が依然として items を保持し続け Cloud に push し続ける → Desktop が pull で resurrect → ゴースト item が他の日付に出現
+- **症状 A 防御層 — frontend 側の defensive guard**:
+  - `frontend/src/utils/routineScheduleSync.ts::shouldCreateRoutineItem` 冒頭に `if (routine.isDeleted) return false;` 追加
+  - `frontend/src/hooks/useScheduleItemsRoutineSync.ts` の `routineMap.get` lookup で `routine.isDeleted` チェック追加
+- **症状 B 修正 — skipUndo オプション + grouped undo entry**:
+  - `useScheduleItemsCore.ts` / `useRoutines.ts` の `updateScheduleItem` / `updateRoutine` に `options?: { skipUndo?: boolean }` 追加
+  - `RoutineTimeChangeDialog::onApplyToRoutine` を全面書き換え、`push("routine", { label: "Apply routine time change", undo, redo })` で grouped entry 化。undo は当日 item revert + snapshot 内未来日 item を `getDataService().updateScheduleItem(fi.id, fi)` で順次 revert
+- **検証**: `tsc -b` 0 error / vitest 35 files / 284 tests / cargo test --lib 25 passed / session-verifier 全 6 ゲート PASS
+
+#### 残課題
+
+- Desktop パッケージ版の更新 (cargo tauri build → /Applications 置換)
+- 手動 UI 検証 (症状 A: routine 削除全日付 / 症状 B: DayFlow 時間変更 Undo/Redo)
+- 既存 DB の "Untitled routine" 行は手動で trash 送り
+
+---
+
 ### 2026-04-25 - Calendar Events パネル UX 修正 + DayCell Routine アイコン整理
 
 #### 概要
