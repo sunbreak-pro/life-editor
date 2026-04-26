@@ -2,6 +2,7 @@ use rusqlite::{params, Connection};
 use serde::{Deserialize, Serialize};
 
 use super::helpers;
+use super::row_converter::{query_all, query_one, FromRow};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
@@ -13,21 +14,24 @@ pub struct WikiTagConnection {
     pub updated_at: String,
 }
 
-fn row_to_wiki_tag_connection(row: &rusqlite::Row) -> rusqlite::Result<WikiTagConnection> {
-    Ok(WikiTagConnection {
-        id: row.get("id")?,
-        source_tag_id: row.get("source_tag_id")?,
-        target_tag_id: row.get("target_tag_id")?,
-        created_at: row.get("created_at")?,
-        updated_at: row.get("updated_at")?,
-    })
+impl FromRow for WikiTagConnection {
+    fn from_row(row: &rusqlite::Row) -> rusqlite::Result<Self> {
+        Ok(WikiTagConnection {
+            id: row.get("id")?,
+            source_tag_id: row.get("source_tag_id")?,
+            target_tag_id: row.get("target_tag_id")?,
+            created_at: row.get("created_at")?,
+            updated_at: row.get("updated_at")?,
+        })
+    }
 }
 
 pub fn fetch_all(conn: &Connection) -> rusqlite::Result<Vec<WikiTagConnection>> {
-    let mut stmt =
-        conn.prepare("SELECT * FROM wiki_tag_connections ORDER BY created_at")?;
-    let rows = stmt.query_map([], |row| row_to_wiki_tag_connection(row))?;
-    rows.collect()
+    query_all(
+        conn,
+        "SELECT * FROM wiki_tag_connections ORDER BY created_at",
+        [],
+    )
 }
 
 pub fn create(
@@ -43,8 +47,7 @@ pub fn create(
         params![&id, source_tag_id, target_tag_id, &now, &now],
     )?;
 
-    let mut stmt = conn.prepare("SELECT * FROM wiki_tag_connections WHERE id = ?1")?;
-    stmt.query_row([&id], |row| row_to_wiki_tag_connection(row))
+    query_one(conn, "SELECT * FROM wiki_tag_connections WHERE id = ?1", [&id])
 }
 
 pub fn delete(conn: &Connection, id: &str) -> rusqlite::Result<()> {

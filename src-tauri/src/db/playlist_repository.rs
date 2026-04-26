@@ -2,6 +2,8 @@ use rusqlite::{params, Connection};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
+use super::row_converter::{query_all, query_one, FromRow};
+
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct Playlist {
@@ -23,33 +25,37 @@ pub struct PlaylistItem {
     pub sort_order: i64,
 }
 
-fn row_to_playlist(row: &rusqlite::Row) -> rusqlite::Result<Playlist> {
-    Ok(Playlist {
-        id: row.get("id")?,
-        name: row.get("name")?,
-        sort_order: row.get("sort_order")?,
-        repeat_mode: row.get("repeat_mode")?,
-        is_shuffle: row.get::<_, i64>("is_shuffle")? != 0,
-        created_at: row.get("created_at")?,
-        updated_at: row.get("updated_at")?,
-    })
+impl FromRow for Playlist {
+    fn from_row(row: &rusqlite::Row) -> rusqlite::Result<Self> {
+        Ok(Playlist {
+            id: row.get("id")?,
+            name: row.get("name")?,
+            sort_order: row.get("sort_order")?,
+            repeat_mode: row.get("repeat_mode")?,
+            is_shuffle: row.get::<_, i64>("is_shuffle")? != 0,
+            created_at: row.get("created_at")?,
+            updated_at: row.get("updated_at")?,
+        })
+    }
 }
 
-fn row_to_item(row: &rusqlite::Row) -> rusqlite::Result<PlaylistItem> {
-    Ok(PlaylistItem {
-        id: row.get("id")?,
-        playlist_id: row.get("playlist_id")?,
-        sound_id: row.get("sound_id")?,
-        sort_order: row.get("sort_order")?,
-    })
+impl FromRow for PlaylistItem {
+    fn from_row(row: &rusqlite::Row) -> rusqlite::Result<Self> {
+        Ok(PlaylistItem {
+            id: row.get("id")?,
+            playlist_id: row.get("playlist_id")?,
+            sound_id: row.get("sound_id")?,
+            sort_order: row.get("sort_order")?,
+        })
+    }
 }
 
 pub fn fetch_all(conn: &Connection) -> rusqlite::Result<Vec<Playlist>> {
-    let mut stmt = conn.prepare(
+    query_all(
+        conn,
         "SELECT * FROM playlists ORDER BY sort_order ASC, created_at ASC",
-    )?;
-    let rows = stmt.query_map([], |row| row_to_playlist(row))?;
-    rows.collect()
+        [],
+    )
 }
 
 pub fn create(conn: &Connection, id: &str, name: &str) -> rusqlite::Result<Playlist> {
@@ -65,8 +71,7 @@ pub fn create(conn: &Connection, id: &str, name: &str) -> rusqlite::Result<Playl
         params![id, name, max_order + 1],
     )?;
 
-    let mut stmt = conn.prepare("SELECT * FROM playlists WHERE id = ?1")?;
-    stmt.query_row([id], |row| row_to_playlist(row))
+    query_one(conn, "SELECT * FROM playlists WHERE id = ?1", [id])
 }
 
 pub fn update(conn: &Connection, id: &str, updates: &Value) -> rusqlite::Result<Playlist> {
@@ -91,8 +96,7 @@ pub fn update(conn: &Connection, id: &str, updates: &Value) -> rusqlite::Result<
     }
 
     if sets.is_empty() {
-        let mut stmt = conn.prepare("SELECT * FROM playlists WHERE id = ?1")?;
-        return stmt.query_row([id], |row| row_to_playlist(row));
+        return query_one(conn, "SELECT * FROM playlists WHERE id = ?1", [id]);
     }
 
     sets.push("updated_at = datetime('now')");
@@ -105,8 +109,7 @@ pub fn update(conn: &Connection, id: &str, updates: &Value) -> rusqlite::Result<
     let params: Vec<&dyn rusqlite::types::ToSql> = values.iter().map(|v| v.as_ref()).collect();
     conn.execute(&sql, params.as_slice())?;
 
-    let mut stmt = conn.prepare("SELECT * FROM playlists WHERE id = ?1")?;
-    stmt.query_row([id], |row| row_to_playlist(row))
+    query_one(conn, "SELECT * FROM playlists WHERE id = ?1", [id])
 }
 
 pub fn delete(conn: &Connection, id: &str) -> rusqlite::Result<()> {
@@ -115,19 +118,19 @@ pub fn delete(conn: &Connection, id: &str) -> rusqlite::Result<()> {
 }
 
 pub fn fetch_items(conn: &Connection, playlist_id: &str) -> rusqlite::Result<Vec<PlaylistItem>> {
-    let mut stmt = conn.prepare(
+    query_all(
+        conn,
         "SELECT * FROM playlist_items WHERE playlist_id = ?1 ORDER BY sort_order ASC",
-    )?;
-    let rows = stmt.query_map([playlist_id], |row| row_to_item(row))?;
-    rows.collect()
+        [playlist_id],
+    )
 }
 
 pub fn fetch_all_items(conn: &Connection) -> rusqlite::Result<Vec<PlaylistItem>> {
-    let mut stmt = conn.prepare(
+    query_all(
+        conn,
         "SELECT * FROM playlist_items ORDER BY playlist_id, sort_order ASC",
-    )?;
-    let rows = stmt.query_map([], |row| row_to_item(row))?;
-    rows.collect()
+        [],
+    )
 }
 
 pub fn add_item(

@@ -3,6 +3,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 use super::helpers;
+use super::row_converter::{query_all, query_one, FromRow};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
@@ -21,31 +22,36 @@ pub struct WikiTagGroupMember {
     pub note_id: String,
 }
 
-fn row_to_group(row: &rusqlite::Row) -> rusqlite::Result<WikiTagGroup> {
-    let filter_tags_raw: String = row.get("filter_tags")?;
-    let filter_tags: Vec<String> =
-        serde_json::from_str(&filter_tags_raw).unwrap_or_default();
-    Ok(WikiTagGroup {
-        id: row.get("id")?,
-        name: row.get("name")?,
-        filter_tags,
-        created_at: row.get("created_at")?,
-        updated_at: row.get("updated_at")?,
-    })
+impl FromRow for WikiTagGroup {
+    fn from_row(row: &rusqlite::Row) -> rusqlite::Result<Self> {
+        let filter_tags_raw: String = row.get("filter_tags")?;
+        let filter_tags: Vec<String> =
+            serde_json::from_str(&filter_tags_raw).unwrap_or_default();
+        Ok(WikiTagGroup {
+            id: row.get("id")?,
+            name: row.get("name")?,
+            filter_tags,
+            created_at: row.get("created_at")?,
+            updated_at: row.get("updated_at")?,
+        })
+    }
 }
 
-fn row_to_member(row: &rusqlite::Row) -> rusqlite::Result<WikiTagGroupMember> {
-    Ok(WikiTagGroupMember {
-        group_id: row.get("group_id")?,
-        note_id: row.get("note_id")?,
-    })
+impl FromRow for WikiTagGroupMember {
+    fn from_row(row: &rusqlite::Row) -> rusqlite::Result<Self> {
+        Ok(WikiTagGroupMember {
+            group_id: row.get("group_id")?,
+            note_id: row.get("note_id")?,
+        })
+    }
 }
 
 pub fn fetch_all(conn: &Connection) -> rusqlite::Result<Vec<WikiTagGroup>> {
-    let mut stmt =
-        conn.prepare("SELECT * FROM wiki_tag_groups ORDER BY created_at ASC")?;
-    let rows = stmt.query_map([], |row| row_to_group(row))?;
-    rows.collect()
+    query_all(
+        conn,
+        "SELECT * FROM wiki_tag_groups ORDER BY created_at ASC",
+        [],
+    )
 }
 
 pub fn create(
@@ -72,8 +78,7 @@ pub fn create(
     }
     tx.commit()?;
 
-    let mut stmt = conn.prepare("SELECT * FROM wiki_tag_groups WHERE id = ?1")?;
-    stmt.query_row([&id], |row| row_to_group(row))
+    query_one(conn, "SELECT * FROM wiki_tag_groups WHERE id = ?1", [&id])
 }
 
 pub fn update(conn: &Connection, id: &str, updates: &Value) -> rusqlite::Result<WikiTagGroup> {
@@ -91,8 +96,7 @@ pub fn update(conn: &Connection, id: &str, updates: &Value) -> rusqlite::Result<
     }
 
     if sets.is_empty() {
-        let mut stmt = conn.prepare("SELECT * FROM wiki_tag_groups WHERE id = ?1")?;
-        return stmt.query_row([id], |row| row_to_group(row));
+        return query_one(conn, "SELECT * FROM wiki_tag_groups WHERE id = ?1", [id]);
     }
 
     sets.push("updated_at = ?");
@@ -106,8 +110,7 @@ pub fn update(conn: &Connection, id: &str, updates: &Value) -> rusqlite::Result<
     let params: Vec<&dyn rusqlite::types::ToSql> = values.iter().map(|v| v.as_ref()).collect();
     conn.execute(&sql, params.as_slice())?;
 
-    let mut stmt = conn.prepare("SELECT * FROM wiki_tag_groups WHERE id = ?1")?;
-    stmt.query_row([id], |row| row_to_group(row))
+    query_one(conn, "SELECT * FROM wiki_tag_groups WHERE id = ?1", [id])
 }
 
 pub fn delete(conn: &Connection, id: &str) -> rusqlite::Result<()> {
@@ -116,10 +119,11 @@ pub fn delete(conn: &Connection, id: &str) -> rusqlite::Result<()> {
 }
 
 pub fn fetch_all_members(conn: &Connection) -> rusqlite::Result<Vec<WikiTagGroupMember>> {
-    let mut stmt =
-        conn.prepare("SELECT * FROM wiki_tag_group_members ORDER BY group_id")?;
-    let rows = stmt.query_map([], |row| row_to_member(row))?;
-    rows.collect()
+    query_all(
+        conn,
+        "SELECT * FROM wiki_tag_group_members ORDER BY group_id",
+        [],
+    )
 }
 
 pub fn set_members(

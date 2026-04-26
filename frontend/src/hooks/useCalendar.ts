@@ -6,6 +6,7 @@ import type { ScheduleItem } from "../types/schedule";
 import type { RoutineGroup } from "../types/routineGroup";
 import type { CalendarItem } from "../types/calendarItem";
 import { CALENDAR_ITEM_COLORS } from "../types/calendarItem";
+import { buildCalendarGrid } from "../utils/calendarGrid";
 import { formatDateKey } from "../utils/dateKey";
 import { getHolidayName } from "../utils/holidays";
 import { shouldRoutineRunOnDate } from "../utils/routineFrequency";
@@ -262,36 +263,10 @@ export function useCalendar(
     typeOrder,
   ]);
 
-  const calendarDays = useMemo(() => {
-    const firstDay = new Date(year, month, 1);
-    const startDayOfWeek = firstDay.getDay(); // 0=Sun
-    const daysInMonth = new Date(year, month + 1, 0).getDate();
-
-    const days: { date: Date; isCurrentMonth: boolean }[] = [];
-
-    // Previous month padding
-    for (let i = startDayOfWeek - 1; i >= 0; i--) {
-      const d = new Date(year, month, -i);
-      days.push({ date: d, isCurrentMonth: false });
-    }
-
-    // Current month
-    for (let d = 1; d <= daysInMonth; d++) {
-      days.push({ date: new Date(year, month, d), isCurrentMonth: true });
-    }
-
-    // Next month padding to fill 6 rows
-    while (days.length < 42) {
-      const d = new Date(
-        year,
-        month + 1,
-        days.length - daysInMonth - startDayOfWeek + 1,
-      );
-      days.push({ date: d, isCurrentMonth: false });
-    }
-
-    return days;
-  }, [year, month]);
+  const calendarDays = useMemo(
+    () => buildCalendarGrid({ year, month, weekStartsOn: 0, fixedRows: 6 }),
+    [year, month],
+  );
 
   const weekDays = useMemo(() => {
     const anchor = weekStartDate ?? new Date();

@@ -2,6 +2,8 @@ use rusqlite::{params, Connection};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
+use super::row_converter::{query_all, query_one, FromRow};
+
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct PomodoroPreset {
@@ -14,23 +16,22 @@ pub struct PomodoroPreset {
     pub created_at: String,
 }
 
-fn row_to_preset(row: &rusqlite::Row) -> rusqlite::Result<PomodoroPreset> {
-    Ok(PomodoroPreset {
-        id: row.get("id")?,
-        name: row.get("name")?,
-        work_duration: row.get("work_duration")?,
-        break_duration: row.get("break_duration")?,
-        long_break_duration: row.get("long_break_duration")?,
-        sessions_before_long_break: row.get("sessions_before_long_break")?,
-        created_at: row.get("created_at")?,
-    })
+impl FromRow for PomodoroPreset {
+    fn from_row(row: &rusqlite::Row) -> rusqlite::Result<Self> {
+        Ok(PomodoroPreset {
+            id: row.get("id")?,
+            name: row.get("name")?,
+            work_duration: row.get("work_duration")?,
+            break_duration: row.get("break_duration")?,
+            long_break_duration: row.get("long_break_duration")?,
+            sessions_before_long_break: row.get("sessions_before_long_break")?,
+            created_at: row.get("created_at")?,
+        })
+    }
 }
 
 pub fn fetch_all(conn: &Connection) -> rusqlite::Result<Vec<PomodoroPreset>> {
-    let mut stmt =
-        conn.prepare("SELECT * FROM pomodoro_presets ORDER BY id ASC")?;
-    let rows = stmt.query_map([], |row| row_to_preset(row))?;
-    rows.collect()
+    query_all(conn, "SELECT * FROM pomodoro_presets ORDER BY id ASC", [])
 }
 
 pub fn create(conn: &Connection, preset: &Value) -> rusqlite::Result<PomodoroPreset> {
@@ -61,8 +62,7 @@ pub fn create(conn: &Connection, preset: &Value) -> rusqlite::Result<PomodoroPre
     )?;
 
     let id = conn.last_insert_rowid();
-    let mut stmt = conn.prepare("SELECT * FROM pomodoro_presets WHERE id = ?1")?;
-    stmt.query_row([id], |row| row_to_preset(row))
+    query_one(conn, "SELECT * FROM pomodoro_presets WHERE id = ?1", [id])
 }
 
 pub fn update(conn: &Connection, id: i64, updates: &Value) -> rusqlite::Result<PomodoroPreset> {
@@ -91,8 +91,7 @@ pub fn update(conn: &Connection, id: i64, updates: &Value) -> rusqlite::Result<P
     }
 
     if sets.is_empty() {
-        let mut stmt = conn.prepare("SELECT * FROM pomodoro_presets WHERE id = ?1")?;
-        return stmt.query_row([id], |row| row_to_preset(row));
+        return query_one(conn, "SELECT * FROM pomodoro_presets WHERE id = ?1", [id]);
     }
 
     values.push(Box::new(id));
@@ -104,8 +103,7 @@ pub fn update(conn: &Connection, id: i64, updates: &Value) -> rusqlite::Result<P
     let params: Vec<&dyn rusqlite::types::ToSql> = values.iter().map(|v| v.as_ref()).collect();
     conn.execute(&sql, params.as_slice())?;
 
-    let mut stmt = conn.prepare("SELECT * FROM pomodoro_presets WHERE id = ?1")?;
-    stmt.query_row([id], |row| row_to_preset(row))
+    query_one(conn, "SELECT * FROM pomodoro_presets WHERE id = ?1", [id])
 }
 
 pub fn delete(conn: &Connection, id: i64) -> rusqlite::Result<()> {

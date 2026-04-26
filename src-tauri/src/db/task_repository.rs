@@ -3,6 +3,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 use super::helpers;
+use super::row_converter::{query_all, query_one, FromRow};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
@@ -37,50 +38,54 @@ pub struct TaskNode {
     pub reminder_offset: Option<i64>,
 }
 
-fn row_to_node(row: &rusqlite::Row) -> rusqlite::Result<TaskNode> {
-    Ok(TaskNode {
-        id: row.get("id")?,
-        node_type: row.get("type")?,
-        title: row.get("title")?,
-        parent_id: row.get("parent_id")?,
-        order: row.get("order")?,
-        status: row.get("status")?,
-        is_expanded: row.get::<_, Option<i64>>("is_expanded")?.map(|v| v != 0),
-        is_deleted: row.get::<_, Option<i64>>("is_deleted")?.map(|v| v != 0),
-        deleted_at: row.get("deleted_at")?,
-        created_at: row.get("created_at")?,
-        completed_at: row.get("completed_at")?,
-        scheduled_at: row.get("scheduled_at")?,
-        scheduled_end_at: row.get("scheduled_end_at")?,
-        is_all_day: row.get::<_, Option<i64>>("is_all_day")?.map(|v| v != 0),
-        content: row.get("content")?,
-        work_duration_minutes: row.get("work_duration_minutes")?,
-        color: row.get("color")?,
-        icon: row.get("icon")?,
-        due_date: row.get("due_date")?,
-        time_memo: row.get("time_memo")?,
-        updated_at: row.get("updated_at")?,
-        version: row.get("version")?,
-        folder_type: row.get("folder_type")?,
-        original_parent_id: row.get("original_parent_id")?,
-        priority: row.get("priority")?,
-        reminder_enabled: row.get::<_, Option<i64>>("reminder_enabled")?.map(|v| v != 0),
-        reminder_offset: row.get("reminder_offset")?,
-    })
+impl FromRow for TaskNode {
+    fn from_row(row: &rusqlite::Row) -> rusqlite::Result<Self> {
+        Ok(TaskNode {
+            id: row.get("id")?,
+            node_type: row.get("type")?,
+            title: row.get("title")?,
+            parent_id: row.get("parent_id")?,
+            order: row.get("order")?,
+            status: row.get("status")?,
+            is_expanded: row.get::<_, Option<i64>>("is_expanded")?.map(|v| v != 0),
+            is_deleted: row.get::<_, Option<i64>>("is_deleted")?.map(|v| v != 0),
+            deleted_at: row.get("deleted_at")?,
+            created_at: row.get("created_at")?,
+            completed_at: row.get("completed_at")?,
+            scheduled_at: row.get("scheduled_at")?,
+            scheduled_end_at: row.get("scheduled_end_at")?,
+            is_all_day: row.get::<_, Option<i64>>("is_all_day")?.map(|v| v != 0),
+            content: row.get("content")?,
+            work_duration_minutes: row.get("work_duration_minutes")?,
+            color: row.get("color")?,
+            icon: row.get("icon")?,
+            due_date: row.get("due_date")?,
+            time_memo: row.get("time_memo")?,
+            updated_at: row.get("updated_at")?,
+            version: row.get("version")?,
+            folder_type: row.get("folder_type")?,
+            original_parent_id: row.get("original_parent_id")?,
+            priority: row.get("priority")?,
+            reminder_enabled: row.get::<_, Option<i64>>("reminder_enabled")?.map(|v| v != 0),
+            reminder_offset: row.get("reminder_offset")?,
+        })
+    }
 }
 
 pub fn fetch_tree(conn: &Connection) -> rusqlite::Result<Vec<TaskNode>> {
-    let mut stmt =
-        conn.prepare("SELECT * FROM tasks WHERE is_deleted = 0 ORDER BY \"order\" ASC")?;
-    let rows = stmt.query_map([], |row| row_to_node(row))?;
-    rows.collect()
+    query_all(
+        conn,
+        "SELECT * FROM tasks WHERE is_deleted = 0 ORDER BY \"order\" ASC",
+        [],
+    )
 }
 
 pub fn fetch_deleted(conn: &Connection) -> rusqlite::Result<Vec<TaskNode>> {
-    let mut stmt =
-        conn.prepare("SELECT * FROM tasks WHERE is_deleted = 1 ORDER BY deleted_at DESC")?;
-    let rows = stmt.query_map([], |row| row_to_node(row))?;
-    rows.collect()
+    query_all(
+        conn,
+        "SELECT * FROM tasks WHERE is_deleted = 1 ORDER BY deleted_at DESC",
+        [],
+    )
 }
 
 pub fn create(conn: &Connection, node: &TaskNode) -> rusqlite::Result<TaskNode> {
@@ -120,8 +125,7 @@ pub fn create(conn: &Connection, node: &TaskNode) -> rusqlite::Result<TaskNode> 
         ],
     )?;
 
-    let mut stmt = conn.prepare("SELECT * FROM tasks WHERE id = ?1")?;
-    stmt.query_row([&node.id], |row| row_to_node(row))
+    query_one(conn, "SELECT * FROM tasks WHERE id = ?1", [&node.id])
 }
 
 pub fn update(conn: &Connection, id: &str, updates: &Value) -> rusqlite::Result<TaskNode> {
@@ -210,8 +214,7 @@ pub fn update(conn: &Connection, id: &str, updates: &Value) -> rusqlite::Result<
     }
 
     if sets.is_empty() {
-        let mut stmt = conn.prepare("SELECT * FROM tasks WHERE id = ?1")?;
-        return stmt.query_row([id], |row| row_to_node(row));
+        return query_one(conn, "SELECT * FROM tasks WHERE id = ?1", [id]);
     }
 
     sets.push("version = version + 1");
@@ -225,8 +228,7 @@ pub fn update(conn: &Connection, id: &str, updates: &Value) -> rusqlite::Result<
     let params: Vec<&dyn rusqlite::types::ToSql> = values.iter().map(|v| v.as_ref()).collect();
     conn.execute(&sql, params.as_slice())?;
 
-    let mut stmt = conn.prepare("SELECT * FROM tasks WHERE id = ?1")?;
-    stmt.query_row([id], |row| row_to_node(row))
+    query_one(conn, "SELECT * FROM tasks WHERE id = ?1", [id])
 }
 
 pub fn sync_tree(conn: &Connection, nodes: &[TaskNode]) -> rusqlite::Result<()> {

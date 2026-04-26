@@ -3,6 +3,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 use super::helpers;
+use super::row_converter::{query_all, query_one, FromRow};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
@@ -46,94 +47,97 @@ pub struct DatabaseCell {
     pub value: Option<String>,
 }
 
-fn row_to_database(row: &rusqlite::Row) -> rusqlite::Result<DatabaseEntity> {
-    Ok(DatabaseEntity {
-        id: row.get("id")?,
-        title: row.get("title")?,
-        is_deleted: row.get::<_, i64>("is_deleted")? != 0,
-        deleted_at: row.get("deleted_at")?,
-        created_at: row.get("created_at")?,
-        updated_at: row.get("updated_at")?,
-    })
+impl FromRow for DatabaseEntity {
+    fn from_row(row: &rusqlite::Row) -> rusqlite::Result<Self> {
+        Ok(DatabaseEntity {
+            id: row.get("id")?,
+            title: row.get("title")?,
+            is_deleted: row.get::<_, i64>("is_deleted")? != 0,
+            deleted_at: row.get("deleted_at")?,
+            created_at: row.get("created_at")?,
+            updated_at: row.get("updated_at")?,
+        })
+    }
 }
 
-fn row_to_property(row: &rusqlite::Row) -> rusqlite::Result<DatabaseProperty> {
-    let config_json: Option<String> = row.get("config_json")?;
-    let config = config_json
-        .and_then(|s| serde_json::from_str(&s).ok())
-        .unwrap_or(Value::Null);
+impl FromRow for DatabaseProperty {
+    fn from_row(row: &rusqlite::Row) -> rusqlite::Result<Self> {
+        let config_json: Option<String> = row.get("config_json")?;
+        let config = config_json
+            .and_then(|s| serde_json::from_str(&s).ok())
+            .unwrap_or(Value::Null);
 
-    Ok(DatabaseProperty {
-        id: row.get("id")?,
-        database_id: row.get("database_id")?,
-        name: row.get("name")?,
-        property_type: row.get("type")?,
-        order: row.get("order_index")?,
-        config,
-        created_at: row.get("created_at")?,
-    })
+        Ok(DatabaseProperty {
+            id: row.get("id")?,
+            database_id: row.get("database_id")?,
+            name: row.get("name")?,
+            property_type: row.get("type")?,
+            order: row.get("order_index")?,
+            config,
+            created_at: row.get("created_at")?,
+        })
+    }
 }
 
-fn row_to_row(row: &rusqlite::Row) -> rusqlite::Result<DatabaseRow> {
-    Ok(DatabaseRow {
-        id: row.get("id")?,
-        database_id: row.get("database_id")?,
-        order: row.get("order_index")?,
-        created_at: row.get("created_at")?,
-    })
+impl FromRow for DatabaseRow {
+    fn from_row(row: &rusqlite::Row) -> rusqlite::Result<Self> {
+        Ok(DatabaseRow {
+            id: row.get("id")?,
+            database_id: row.get("database_id")?,
+            order: row.get("order_index")?,
+            created_at: row.get("created_at")?,
+        })
+    }
 }
 
-fn row_to_cell(row: &rusqlite::Row) -> rusqlite::Result<DatabaseCell> {
-    Ok(DatabaseCell {
-        id: row.get("id")?,
-        row_id: row.get("row_id")?,
-        property_id: row.get("property_id")?,
-        value: row.get("value")?,
-    })
+impl FromRow for DatabaseCell {
+    fn from_row(row: &rusqlite::Row) -> rusqlite::Result<Self> {
+        Ok(DatabaseCell {
+            id: row.get("id")?,
+            row_id: row.get("row_id")?,
+            property_id: row.get("property_id")?,
+            value: row.get("value")?,
+        })
+    }
 }
 
 // --- Database CRUD ---
 
 pub fn fetch_all(conn: &Connection) -> rusqlite::Result<Vec<DatabaseEntity>> {
-    let mut stmt = conn.prepare(
+    query_all(
+        conn,
         "SELECT * FROM databases WHERE is_deleted = 0 ORDER BY updated_at DESC",
-    )?;
-    let rows = stmt.query_map([], |row| row_to_database(row))?;
-    rows.collect()
+        [],
+    )
 }
 
 pub fn fetch_full(conn: &Connection, id: &str) -> rusqlite::Result<Option<Value>> {
-    let database: DatabaseEntity = match conn
-        .prepare("SELECT * FROM databases WHERE id = ?1")?
-        .query_row([id], |row| row_to_database(row))
-    {
-        Ok(db) => db,
-        Err(rusqlite::Error::QueryReturnedNoRows) => return Ok(None),
-        Err(e) => return Err(e),
-    };
+    let database: DatabaseEntity =
+        match query_one::<DatabaseEntity, _>(conn, "SELECT * FROM databases WHERE id = ?1", [id]) {
+            Ok(db) => db,
+            Err(rusqlite::Error::QueryReturnedNoRows) => return Ok(None),
+            Err(e) => return Err(e),
+        };
 
-    let mut prop_stmt = conn.prepare(
+    let properties: Vec<DatabaseProperty> = query_all(
+        conn,
         "SELECT * FROM database_properties WHERE database_id = ?1 ORDER BY order_index ASC",
+        [id],
     )?;
-    let properties: Vec<DatabaseProperty> = prop_stmt
-        .query_map([id], |row| row_to_property(row))?
-        .collect::<rusqlite::Result<Vec<_>>>()?;
 
-    let mut row_stmt = conn.prepare(
+    let db_rows: Vec<DatabaseRow> = query_all(
+        conn,
         "SELECT * FROM database_rows WHERE database_id = ?1 ORDER BY order_index ASC",
+        [id],
     )?;
-    let db_rows: Vec<DatabaseRow> = row_stmt
-        .query_map([id], |row| row_to_row(row))?
-        .collect::<rusqlite::Result<Vec<_>>>()?;
 
-    let mut cell_stmt = conn.prepare(
+    let cells: Vec<DatabaseCell> = query_all(
+        conn,
         "SELECT c.* FROM database_cells c \
          INNER JOIN database_rows r ON c.row_id = r.id \
          WHERE r.database_id = ?1",
+        [id],
     )?;
-    let cells: Vec<DatabaseCell> = cell_stmt
-        .query_map([id], |row| row_to_cell(row))?
-        .collect::<rusqlite::Result<Vec<_>>>()?;
 
     Ok(Some(serde_json::json!({
         "database": serde_json::to_value(&database).unwrap_or(Value::Null),
@@ -155,8 +159,7 @@ pub fn create(
         params![id, title, &now, &now],
     )?;
 
-    let mut stmt = conn.prepare("SELECT * FROM databases WHERE id = ?1")?;
-    stmt.query_row([id], |row| row_to_database(row))
+    query_one(conn, "SELECT * FROM databases WHERE id = ?1", [id])
 }
 
 pub fn update(
@@ -170,8 +173,7 @@ pub fn update(
         params![title, &now, id],
     )?;
 
-    let mut stmt = conn.prepare("SELECT * FROM databases WHERE id = ?1")?;
-    stmt.query_row([id], |row| row_to_database(row))
+    query_one(conn, "SELECT * FROM databases WHERE id = ?1", [id])
 }
 
 pub fn soft_delete(conn: &Connection, id: &str) -> rusqlite::Result<()> {
@@ -212,8 +214,7 @@ pub fn add_property(
         params![&now, database_id],
     )?;
 
-    let mut stmt = conn.prepare("SELECT * FROM database_properties WHERE id = ?1")?;
-    stmt.query_row([id], |row| row_to_property(row))
+    query_one(conn, "SELECT * FROM database_properties WHERE id = ?1", [id])
 }
 
 pub fn update_property(
@@ -243,8 +244,7 @@ pub fn update_property(
     }
 
     if sets.is_empty() {
-        let mut stmt = conn.prepare("SELECT * FROM database_properties WHERE id = ?1")?;
-        return stmt.query_row([id], |row| row_to_property(row));
+        return query_one(conn, "SELECT * FROM database_properties WHERE id = ?1", [id]);
     }
 
     values.push(Box::new(id.to_string()));
@@ -256,8 +256,7 @@ pub fn update_property(
     let params: Vec<&dyn rusqlite::types::ToSql> = values.iter().map(|v| v.as_ref()).collect();
     conn.execute(&sql, params.as_slice())?;
 
-    let mut stmt = conn.prepare("SELECT * FROM database_properties WHERE id = ?1")?;
-    stmt.query_row([id], |row| row_to_property(row))
+    query_one(conn, "SELECT * FROM database_properties WHERE id = ?1", [id])
 }
 
 pub fn remove_property(conn: &Connection, id: &str) -> rusqlite::Result<()> {
@@ -286,8 +285,7 @@ pub fn add_row(
         params![&now, database_id],
     )?;
 
-    let mut stmt = conn.prepare("SELECT * FROM database_rows WHERE id = ?1")?;
-    stmt.query_row([id], |row| row_to_row(row))
+    query_one(conn, "SELECT * FROM database_rows WHERE id = ?1", [id])
 }
 
 pub fn reorder_rows(conn: &Connection, row_ids: &[String]) -> rusqlite::Result<()> {
@@ -325,8 +323,9 @@ pub fn upsert_cell(
         params![id, row_id, property_id, value],
     )?;
 
-    let mut stmt = conn.prepare(
+    query_one(
+        conn,
         "SELECT * FROM database_cells WHERE row_id = ?1 AND property_id = ?2",
-    )?;
-    stmt.query_row(params![row_id, property_id], |row| row_to_cell(row))
+        params![row_id, property_id],
+    )
 }

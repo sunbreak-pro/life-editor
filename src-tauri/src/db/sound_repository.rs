@@ -3,6 +3,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 use super::helpers;
+use super::row_converter::{query_all, query_one, FromRow};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
@@ -39,47 +40,53 @@ pub struct SoundDisplayMeta {
     pub display_name: String,
 }
 
-fn row_to_sound_settings(row: &rusqlite::Row) -> rusqlite::Result<SoundSettings> {
-    Ok(SoundSettings {
-        id: row.get("id")?,
-        sound_type: row.get("sound_type")?,
-        volume: row.get("volume")?,
-        enabled: row.get::<_, i64>("enabled")? != 0,
-        updated_at: row.get("updated_at")?,
-    })
+impl FromRow for SoundSettings {
+    fn from_row(row: &rusqlite::Row) -> rusqlite::Result<Self> {
+        Ok(SoundSettings {
+            id: row.get("id")?,
+            sound_type: row.get("sound_type")?,
+            volume: row.get("volume")?,
+            enabled: row.get::<_, i64>("enabled")? != 0,
+            updated_at: row.get("updated_at")?,
+        })
+    }
 }
 
-fn row_to_sound_preset(row: &rusqlite::Row) -> rusqlite::Result<SoundPreset> {
-    Ok(SoundPreset {
-        id: row.get("id")?,
-        name: row.get("name")?,
-        settings_json: row.get("settings_json")?,
-        created_at: row.get("created_at")?,
-    })
+impl FromRow for SoundPreset {
+    fn from_row(row: &rusqlite::Row) -> rusqlite::Result<Self> {
+        Ok(SoundPreset {
+            id: row.get("id")?,
+            name: row.get("name")?,
+            settings_json: row.get("settings_json")?,
+            created_at: row.get("created_at")?,
+        })
+    }
 }
 
-fn row_to_sound_tag(row: &rusqlite::Row) -> rusqlite::Result<SoundTag> {
-    Ok(SoundTag {
-        id: row.get("id")?,
-        name: row.get("name")?,
-        color: row.get("color")?,
-        text_color: row.get("text_color")?,
-    })
+impl FromRow for SoundTag {
+    fn from_row(row: &rusqlite::Row) -> rusqlite::Result<Self> {
+        Ok(SoundTag {
+            id: row.get("id")?,
+            name: row.get("name")?,
+            color: row.get("color")?,
+            text_color: row.get("text_color")?,
+        })
+    }
 }
 
-fn row_to_sound_display_meta(row: &rusqlite::Row) -> rusqlite::Result<SoundDisplayMeta> {
-    Ok(SoundDisplayMeta {
-        sound_id: row.get("sound_id")?,
-        display_name: row.get("display_name")?,
-    })
+impl FromRow for SoundDisplayMeta {
+    fn from_row(row: &rusqlite::Row) -> rusqlite::Result<Self> {
+        Ok(SoundDisplayMeta {
+            sound_id: row.get("sound_id")?,
+            display_name: row.get("display_name")?,
+        })
+    }
 }
 
 // --- Sound Settings ---
 
 pub fn fetch_settings(conn: &Connection) -> rusqlite::Result<Vec<SoundSettings>> {
-    let mut stmt = conn.prepare("SELECT * FROM sound_settings")?;
-    let rows = stmt.query_map([], |row| row_to_sound_settings(row))?;
-    rows.collect()
+    query_all(conn, "SELECT * FROM sound_settings", [])
 }
 
 pub fn update_setting(
@@ -97,18 +104,21 @@ pub fn update_setting(
         params![sound_type, volume, enabled as i64, &now],
     )?;
 
-    let mut stmt =
-        conn.prepare("SELECT * FROM sound_settings WHERE sound_type = ?1")?;
-    stmt.query_row([sound_type], |row| row_to_sound_settings(row))
+    query_one(
+        conn,
+        "SELECT * FROM sound_settings WHERE sound_type = ?1",
+        [sound_type],
+    )
 }
 
 // --- Sound Presets ---
 
 pub fn fetch_presets(conn: &Connection) -> rusqlite::Result<Vec<SoundPreset>> {
-    let mut stmt =
-        conn.prepare("SELECT * FROM sound_presets ORDER BY created_at DESC")?;
-    let rows = stmt.query_map([], |row| row_to_sound_preset(row))?;
-    rows.collect()
+    query_all(
+        conn,
+        "SELECT * FROM sound_presets ORDER BY created_at DESC",
+        [],
+    )
 }
 
 pub fn create_preset(
@@ -124,8 +134,7 @@ pub fn create_preset(
     )?;
 
     let id = conn.last_insert_rowid();
-    let mut stmt = conn.prepare("SELECT * FROM sound_presets WHERE id = ?1")?;
-    stmt.query_row([id], |row| row_to_sound_preset(row))
+    query_one(conn, "SELECT * FROM sound_presets WHERE id = ?1", [id])
 }
 
 pub fn delete_preset(conn: &Connection, id: i64) -> rusqlite::Result<()> {
@@ -136,9 +145,7 @@ pub fn delete_preset(conn: &Connection, id: i64) -> rusqlite::Result<()> {
 // --- Sound Tags ---
 
 pub fn fetch_all_sound_tags(conn: &Connection) -> rusqlite::Result<Vec<SoundTag>> {
-    let mut stmt = conn.prepare("SELECT * FROM sound_tag_definitions")?;
-    let rows = stmt.query_map([], |row| row_to_sound_tag(row))?;
-    rows.collect()
+    query_all(conn, "SELECT * FROM sound_tag_definitions", [])
 }
 
 pub fn create_sound_tag(
@@ -152,8 +159,7 @@ pub fn create_sound_tag(
     )?;
 
     let id = conn.last_insert_rowid();
-    let mut stmt = conn.prepare("SELECT * FROM sound_tag_definitions WHERE id = ?1")?;
-    stmt.query_row([id], |row| row_to_sound_tag(row))
+    query_one(conn, "SELECT * FROM sound_tag_definitions WHERE id = ?1", [id])
 }
 
 pub fn update_sound_tag(
@@ -178,8 +184,7 @@ pub fn update_sound_tag(
     }
 
     if sets.is_empty() {
-        let mut stmt = conn.prepare("SELECT * FROM sound_tag_definitions WHERE id = ?1")?;
-        return stmt.query_row([id], |row| row_to_sound_tag(row));
+        return query_one(conn, "SELECT * FROM sound_tag_definitions WHERE id = ?1", [id]);
     }
 
     values.push(Box::new(id));
@@ -191,8 +196,7 @@ pub fn update_sound_tag(
     let params: Vec<&dyn rusqlite::types::ToSql> = values.iter().map(|v| v.as_ref()).collect();
     conn.execute(&sql, params.as_slice())?;
 
-    let mut stmt = conn.prepare("SELECT * FROM sound_tag_definitions WHERE id = ?1")?;
-    stmt.query_row([id], |row| row_to_sound_tag(row))
+    query_one(conn, "SELECT * FROM sound_tag_definitions WHERE id = ?1", [id])
 }
 
 pub fn delete_sound_tag(conn: &Connection, id: i64) -> rusqlite::Result<()> {
@@ -205,13 +209,13 @@ pub fn fetch_tags_for_sound(
     conn: &Connection,
     sound_id: &str,
 ) -> rusqlite::Result<Vec<SoundTag>> {
-    let mut stmt = conn.prepare(
+    query_all(
+        conn,
         "SELECT d.* FROM sound_tag_definitions d \
          INNER JOIN sound_tag_assignments a ON d.id = a.tag_id \
          WHERE a.sound_id = ?1",
-    )?;
-    let rows = stmt.query_map([sound_id], |row| row_to_sound_tag(row))?;
-    rows.collect()
+        [sound_id],
+    )
 }
 
 pub fn set_tags_for_sound(
@@ -254,9 +258,7 @@ pub fn fetch_all_sound_tag_assignments(conn: &Connection) -> rusqlite::Result<Ve
 pub fn fetch_all_sound_display_meta(
     conn: &Connection,
 ) -> rusqlite::Result<Vec<SoundDisplayMeta>> {
-    let mut stmt = conn.prepare("SELECT * FROM sound_display_meta")?;
-    let rows = stmt.query_map([], |row| row_to_sound_display_meta(row))?;
-    rows.collect()
+    query_all(conn, "SELECT * FROM sound_display_meta", [])
 }
 
 pub fn update_sound_display_meta(
@@ -271,9 +273,11 @@ pub fn update_sound_display_meta(
         params![sound_id, display_name],
     )?;
 
-    let mut stmt =
-        conn.prepare("SELECT * FROM sound_display_meta WHERE sound_id = ?1")?;
-    stmt.query_row([sound_id], |row| row_to_sound_display_meta(row))
+    query_one(
+        conn,
+        "SELECT * FROM sound_display_meta WHERE sound_id = ?1",
+        [sound_id],
+    )
 }
 
 // --- Workscreen Selections ---

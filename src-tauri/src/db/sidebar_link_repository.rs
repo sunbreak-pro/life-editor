@@ -3,6 +3,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 use super::helpers;
+use super::row_converter::{query_all, query_one, FromRow};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
@@ -20,29 +21,31 @@ pub struct SidebarLink {
     pub updated_at: String,
 }
 
-fn row_to_link(row: &rusqlite::Row) -> rusqlite::Result<SidebarLink> {
-    Ok(SidebarLink {
-        id: row.get("id")?,
-        kind: row.get("kind")?,
-        name: row.get("name")?,
-        target: row.get("target")?,
-        emoji: row.get("emoji")?,
-        sort_order: row.get("sort_order")?,
-        is_deleted: row.get::<_, i64>("is_deleted").map(|v| v != 0)?,
-        deleted_at: row.get("deleted_at")?,
-        version: row.get("version")?,
-        created_at: row.get("created_at")?,
-        updated_at: row.get("updated_at")?,
-    })
+impl FromRow for SidebarLink {
+    fn from_row(row: &rusqlite::Row) -> rusqlite::Result<Self> {
+        Ok(SidebarLink {
+            id: row.get("id")?,
+            kind: row.get("kind")?,
+            name: row.get("name")?,
+            target: row.get("target")?,
+            emoji: row.get("emoji")?,
+            sort_order: row.get("sort_order")?,
+            is_deleted: row.get::<_, i64>("is_deleted").map(|v| v != 0)?,
+            deleted_at: row.get("deleted_at")?,
+            version: row.get("version")?,
+            created_at: row.get("created_at")?,
+            updated_at: row.get("updated_at")?,
+        })
+    }
 }
 
 pub fn fetch_all(conn: &Connection) -> rusqlite::Result<Vec<SidebarLink>> {
-    let mut stmt = conn.prepare(
+    query_all(
+        conn,
         "SELECT * FROM sidebar_links WHERE is_deleted = 0 \
          ORDER BY sort_order ASC, created_at ASC",
-    )?;
-    let rows = stmt.query_map([], |row| row_to_link(row))?;
-    rows.collect()
+        [],
+    )
 }
 
 pub fn create(
@@ -70,8 +73,7 @@ pub fn create(
          VALUES (?1, ?2, ?3, ?4, ?5, ?6, 0, 1, ?7, ?7)",
         params![id, kind, name, target, emoji, next_order, &now],
     )?;
-    let mut stmt = conn.prepare("SELECT * FROM sidebar_links WHERE id = ?1")?;
-    stmt.query_row([id], |row| row_to_link(row))
+    query_one(conn, "SELECT * FROM sidebar_links WHERE id = ?1", [id])
 }
 
 pub fn update(conn: &Connection, id: &str, updates: &Value) -> rusqlite::Result<SidebarLink> {
@@ -105,8 +107,7 @@ pub fn update(conn: &Connection, id: &str, updates: &Value) -> rusqlite::Result<
     }
 
     if sets.is_empty() {
-        let mut stmt = conn.prepare("SELECT * FROM sidebar_links WHERE id = ?1")?;
-        return stmt.query_row([id], |row| row_to_link(row));
+        return query_one(conn, "SELECT * FROM sidebar_links WHERE id = ?1", [id]);
     }
 
     sets.push("version = version + 1");
@@ -118,8 +119,7 @@ pub fn update(conn: &Connection, id: &str, updates: &Value) -> rusqlite::Result<
     let params: Vec<&dyn rusqlite::types::ToSql> = values.iter().map(|v| v.as_ref()).collect();
     conn.execute(&sql, params.as_slice())?;
 
-    let mut stmt = conn.prepare("SELECT * FROM sidebar_links WHERE id = ?1")?;
-    stmt.query_row([id], |row| row_to_link(row))
+    query_one(conn, "SELECT * FROM sidebar_links WHERE id = ?1", [id])
 }
 
 pub fn soft_delete(conn: &Connection, id: &str) -> rusqlite::Result<()> {

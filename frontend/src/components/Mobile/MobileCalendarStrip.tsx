@@ -1,6 +1,8 @@
 import { useState, useRef, useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { ChevronLeft, ChevronRight } from "lucide-react";
+import { addDays, getMondayOf, getWeekDates } from "../../utils/calendarGrid";
+import { formatDateKey } from "../../utils/dateKey";
 
 interface MobileCalendarStripProps {
   selectedDate: string;
@@ -10,32 +12,6 @@ interface MobileCalendarStripProps {
 
 const DAY_LABELS_EN = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const DAY_LABELS_JA = ["月", "火", "水", "木", "金", "土", "日"];
-
-function getMonday(date: Date): Date {
-  const d = new Date(date);
-  const day = d.getDay();
-  const diff = day === 0 ? -6 : 1 - day;
-  d.setDate(d.getDate() + diff);
-  d.setHours(0, 0, 0, 0);
-  return d;
-}
-
-function formatDateStr(date: Date): string {
-  const y = date.getFullYear();
-  const m = String(date.getMonth() + 1).padStart(2, "0");
-  const d = String(date.getDate()).padStart(2, "0");
-  return `${y}-${m}-${d}`;
-}
-
-function addDays(date: Date, days: number): Date {
-  const d = new Date(date);
-  d.setDate(d.getDate() + days);
-  return d;
-}
-
-function getWeekDates(monday: Date): Date[] {
-  return Array.from({ length: 7 }, (_, i) => addDays(monday, i));
-}
 
 function getMonthLabel(dates: Date[], lang: string): string {
   const first = dates[0];
@@ -85,14 +61,14 @@ export function MobileCalendarStrip({
   const lang = i18n.language;
   const dayLabels = lang === "ja" ? DAY_LABELS_JA : DAY_LABELS_EN;
 
-  const todayStr = useMemo(() => formatDateStr(new Date()), []);
+  const todayStr = useMemo(() => formatDateKey(new Date()), []);
 
   const selectedDateObj = useMemo(
     () => new Date(selectedDate + "T00:00:00"),
     [selectedDate],
   );
   const [weekMonday, setWeekMonday] = useState<Date>(() =>
-    getMonday(selectedDateObj),
+    getMondayOf(selectedDateObj),
   );
 
   const weekDates = useMemo(() => getWeekDates(weekMonday), [weekMonday]);
@@ -176,8 +152,8 @@ export function MobileCalendarStrip({
 
   const goToToday = useCallback(() => {
     const today = new Date();
-    setWeekMonday(getMonday(today));
-    onDateSelect(formatDateStr(today));
+    setWeekMonday(getMondayOf(today));
+    onDateSelect(formatDateKey(today));
   }, [onDateSelect]);
 
   return (
@@ -239,7 +215,7 @@ export function MobileCalendarStrip({
           }}
         >
           {weekDates.map((date) => {
-            const dateStr = formatDateStr(date);
+            const dateStr = formatDateKey(date);
             const isSelected = dateStr === selectedDate;
             const isToday = dateStr === todayStr;
             const itemCount = itemCountByDate?.get(dateStr) ?? 0;

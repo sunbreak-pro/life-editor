@@ -2,7 +2,7 @@ use rusqlite::{params, Connection};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
-
+use super::row_converter::{query_all, query_one, FromRow};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
@@ -20,32 +20,34 @@ pub struct RoutineGroup {
     pub updated_at: Option<String>,
 }
 
-fn row_to_group(row: &rusqlite::Row) -> rusqlite::Result<RoutineGroup> {
-    let frequency_days_raw: String = row.get("frequency_days")?;
-    let frequency_days: Value =
-        serde_json::from_str(&frequency_days_raw).unwrap_or(Value::Array(vec![]));
-    Ok(RoutineGroup {
-        id: row.get("id")?,
-        name: row.get("name")?,
-        color: row.get("color")?,
-        order: row.get("order")?,
-        is_visible: row.get::<_, i64>("is_visible")? != 0,
-        frequency_type: row.get::<_, Option<String>>("frequency_type")?
-            .unwrap_or_else(|| "daily".to_string()),
-        frequency_days,
-        frequency_interval: row.get("frequency_interval")?,
-        frequency_start_date: row.get("frequency_start_date")?,
-        created_at: row.get("created_at")?,
-        updated_at: row.get("updated_at")?,
-    })
+impl FromRow for RoutineGroup {
+    fn from_row(row: &rusqlite::Row) -> rusqlite::Result<Self> {
+        let frequency_days_raw: String = row.get("frequency_days")?;
+        let frequency_days: Value =
+            serde_json::from_str(&frequency_days_raw).unwrap_or(Value::Array(vec![]));
+        Ok(RoutineGroup {
+            id: row.get("id")?,
+            name: row.get("name")?,
+            color: row.get("color")?,
+            order: row.get("order")?,
+            is_visible: row.get::<_, i64>("is_visible")? != 0,
+            frequency_type: row.get::<_, Option<String>>("frequency_type")?
+                .unwrap_or_else(|| "daily".to_string()),
+            frequency_days,
+            frequency_interval: row.get("frequency_interval")?,
+            frequency_start_date: row.get("frequency_start_date")?,
+            created_at: row.get("created_at")?,
+            updated_at: row.get("updated_at")?,
+        })
+    }
 }
 
 pub fn fetch_all(conn: &Connection) -> rusqlite::Result<Vec<RoutineGroup>> {
-    let mut stmt = conn.prepare(
+    query_all(
+        conn,
         "SELECT * FROM routine_groups ORDER BY \"order\" ASC, created_at ASC",
-    )?;
-    let rows = stmt.query_map([], |row| row_to_group(row))?;
-    rows.collect()
+        [],
+    )
 }
 
 pub fn create(
@@ -84,8 +86,7 @@ pub fn create(
         ],
     )?;
 
-    let mut stmt = conn.prepare("SELECT * FROM routine_groups WHERE id = ?1")?;
-    stmt.query_row([id], |row| row_to_group(row))
+    query_one(conn, "SELECT * FROM routine_groups WHERE id = ?1", [id])
 }
 
 pub fn update(conn: &Connection, id: &str, updates: &Value) -> rusqlite::Result<RoutineGroup> {
@@ -127,8 +128,7 @@ pub fn update(conn: &Connection, id: &str, updates: &Value) -> rusqlite::Result<
     }
 
     if sets.is_empty() {
-        let mut stmt = conn.prepare("SELECT * FROM routine_groups WHERE id = ?1")?;
-        return stmt.query_row([id], |row| row_to_group(row));
+        return query_one(conn, "SELECT * FROM routine_groups WHERE id = ?1", [id]);
     }
 
     sets.push("updated_at = datetime('now')");
@@ -141,8 +141,7 @@ pub fn update(conn: &Connection, id: &str, updates: &Value) -> rusqlite::Result<
     let params: Vec<&dyn rusqlite::types::ToSql> = values.iter().map(|v| v.as_ref()).collect();
     conn.execute(&sql, params.as_slice())?;
 
-    let mut stmt = conn.prepare("SELECT * FROM routine_groups WHERE id = ?1")?;
-    stmt.query_row([id], |row| row_to_group(row))
+    query_one(conn, "SELECT * FROM routine_groups WHERE id = ?1", [id])
 }
 
 pub fn delete(conn: &Connection, id: &str) -> rusqlite::Result<()> {

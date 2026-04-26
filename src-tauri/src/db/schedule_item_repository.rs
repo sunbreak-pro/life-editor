@@ -3,6 +3,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 use super::helpers;
+use super::row_converter::{query_all, query_one, FromRow};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
@@ -28,48 +29,50 @@ pub struct ScheduleItem {
     pub updated_at: String,
 }
 
-fn row_to_schedule_item(row: &rusqlite::Row) -> rusqlite::Result<ScheduleItem> {
-    Ok(ScheduleItem {
-        id: row.get("id")?,
-        date: row.get("date")?,
-        title: row.get("title")?,
-        start_time: row.get("start_time")?,
-        end_time: row.get("end_time")?,
-        completed: row.get::<_, i64>("completed")? != 0,
-        completed_at: row.get("completed_at")?,
-        routine_id: row.get("routine_id")?,
-        memo: row.get("memo")?,
-        note_id: row.get("note_id")?,
-        content: row.get("content")?,
-        is_deleted: row.get::<_, i64>("is_deleted")? != 0,
-        deleted_at: row.get("deleted_at")?,
-        is_dismissed: row.get::<_, i64>("is_dismissed")? != 0,
-        is_all_day: row.get::<_, i64>("is_all_day")? != 0,
-        reminder_enabled: row.get::<_, i64>("reminder_enabled")? != 0,
-        reminder_offset: row.get("reminder_offset")?,
-        created_at: row.get("created_at")?,
-        updated_at: row.get("updated_at")?,
-    })
+impl FromRow for ScheduleItem {
+    fn from_row(row: &rusqlite::Row) -> rusqlite::Result<Self> {
+        Ok(ScheduleItem {
+            id: row.get("id")?,
+            date: row.get("date")?,
+            title: row.get("title")?,
+            start_time: row.get("start_time")?,
+            end_time: row.get("end_time")?,
+            completed: row.get::<_, i64>("completed")? != 0,
+            completed_at: row.get("completed_at")?,
+            routine_id: row.get("routine_id")?,
+            memo: row.get("memo")?,
+            note_id: row.get("note_id")?,
+            content: row.get("content")?,
+            is_deleted: row.get::<_, i64>("is_deleted")? != 0,
+            deleted_at: row.get("deleted_at")?,
+            is_dismissed: row.get::<_, i64>("is_dismissed")? != 0,
+            is_all_day: row.get::<_, i64>("is_all_day")? != 0,
+            reminder_enabled: row.get::<_, i64>("reminder_enabled")? != 0,
+            reminder_offset: row.get("reminder_offset")?,
+            created_at: row.get("created_at")?,
+            updated_at: row.get("updated_at")?,
+        })
+    }
 }
 
 pub fn fetch_by_date(conn: &Connection, date: &str) -> rusqlite::Result<Vec<ScheduleItem>> {
-    let mut stmt = conn.prepare(
+    query_all(
+        conn,
         "SELECT * FROM schedule_items \
          WHERE date = ?1 AND is_deleted = 0 AND is_dismissed = 0 \
          ORDER BY start_time",
-    )?;
-    let rows = stmt.query_map([date], |row| row_to_schedule_item(row))?;
-    rows.collect()
+        [date],
+    )
 }
 
 pub fn fetch_by_date_all(conn: &Connection, date: &str) -> rusqlite::Result<Vec<ScheduleItem>> {
-    let mut stmt = conn.prepare(
+    query_all(
+        conn,
         "SELECT * FROM schedule_items \
          WHERE date = ?1 AND is_deleted = 0 \
          ORDER BY start_time",
-    )?;
-    let rows = stmt.query_map([date], |row| row_to_schedule_item(row))?;
-    rows.collect()
+        [date],
+    )
 }
 
 pub fn fetch_by_date_range(
@@ -77,13 +80,13 @@ pub fn fetch_by_date_range(
     start: &str,
     end: &str,
 ) -> rusqlite::Result<Vec<ScheduleItem>> {
-    let mut stmt = conn.prepare(
+    query_all(
+        conn,
         "SELECT * FROM schedule_items \
          WHERE date BETWEEN ?1 AND ?2 AND is_deleted = 0 AND is_dismissed = 0 \
          ORDER BY date, start_time",
-    )?;
-    let rows = stmt.query_map(params![start, end], |row| row_to_schedule_item(row))?;
-    rows.collect()
+        params![start, end],
+    )
 }
 
 pub fn create(
@@ -116,8 +119,7 @@ pub fn create(
             )
             .ok();
         if let Some(existing) = existing_id {
-            let mut stmt = conn.prepare("SELECT * FROM schedule_items WHERE id = ?1")?;
-            return stmt.query_row([existing], |row| row_to_schedule_item(row));
+            return query_one(conn, "SELECT * FROM schedule_items WHERE id = ?1", [existing]);
         }
     }
 
@@ -143,8 +145,7 @@ pub fn create(
         ],
     )?;
 
-    let mut stmt = conn.prepare("SELECT * FROM schedule_items WHERE id = ?1")?;
-    stmt.query_row([id], |row| row_to_schedule_item(row))
+    query_one(conn, "SELECT * FROM schedule_items WHERE id = ?1", [id])
 }
 
 pub fn update(
@@ -193,8 +194,7 @@ pub fn update(
     }
 
     if sets.is_empty() {
-        let mut stmt = conn.prepare("SELECT * FROM schedule_items WHERE id = ?1")?;
-        return stmt.query_row([id], |row| row_to_schedule_item(row));
+        return query_one(conn, "SELECT * FROM schedule_items WHERE id = ?1", [id]);
     }
 
     sets.push("updated_at = datetime('now')");
@@ -207,8 +207,7 @@ pub fn update(
     let params: Vec<&dyn rusqlite::types::ToSql> = values.iter().map(|v| v.as_ref()).collect();
     conn.execute(&sql, params.as_slice())?;
 
-    let mut stmt = conn.prepare("SELECT * FROM schedule_items WHERE id = ?1")?;
-    stmt.query_row([id], |row| row_to_schedule_item(row))
+    query_one(conn, "SELECT * FROM schedule_items WHERE id = ?1", [id])
 }
 
 pub fn delete(conn: &Connection, id: &str) -> rusqlite::Result<()> {
@@ -229,11 +228,11 @@ pub fn permanent_delete(conn: &Connection, id: &str) -> rusqlite::Result<()> {
 }
 
 pub fn fetch_deleted(conn: &Connection) -> rusqlite::Result<Vec<ScheduleItem>> {
-    let mut stmt = conn.prepare(
+    query_all(
+        conn,
         "SELECT * FROM schedule_items WHERE is_deleted = 1 ORDER BY deleted_at DESC",
-    )?;
-    let rows = stmt.query_map([], |row| row_to_schedule_item(row))?;
-    rows.collect()
+        [],
+    )
 }
 
 pub fn toggle_complete(conn: &Connection, id: &str) -> rusqlite::Result<ScheduleItem> {
@@ -257,8 +256,7 @@ pub fn toggle_complete(conn: &Connection, id: &str) -> rusqlite::Result<Schedule
         )?;
     }
 
-    let mut stmt = conn.prepare("SELECT * FROM schedule_items WHERE id = ?1")?;
-    stmt.query_row([id], |row| row_to_schedule_item(row))
+    query_one(conn, "SELECT * FROM schedule_items WHERE id = ?1", [id])
 }
 
 pub fn dismiss(conn: &Connection, id: &str) -> rusqlite::Result<()> {
@@ -406,13 +404,13 @@ pub fn fetch_by_routine_id(
     conn: &Connection,
     routine_id: &str,
 ) -> rusqlite::Result<Vec<ScheduleItem>> {
-    let mut stmt = conn.prepare(
+    query_all(
+        conn,
         "SELECT * FROM schedule_items \
          WHERE routine_id = ?1 AND is_deleted = 0 \
          ORDER BY date, start_time",
-    )?;
-    let rows = stmt.query_map([routine_id], |row| row_to_schedule_item(row))?;
-    rows.collect()
+        [routine_id],
+    )
 }
 
 pub fn bulk_delete(conn: &Connection, ids: &[String]) -> rusqlite::Result<usize> {
@@ -429,11 +427,11 @@ pub fn bulk_delete(conn: &Connection, ids: &[String]) -> rusqlite::Result<usize>
 }
 
 pub fn fetch_events(conn: &Connection) -> rusqlite::Result<Vec<ScheduleItem>> {
-    let mut stmt = conn.prepare(
+    query_all(
+        conn,
         "SELECT * FROM schedule_items \
          WHERE routine_id IS NULL AND is_deleted = 0 \
          ORDER BY date, start_time",
-    )?;
-    let rows = stmt.query_map([], |row| row_to_schedule_item(row))?;
-    rows.collect()
+        [],
+    )
 }

@@ -3,6 +3,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 use super::helpers;
+use super::row_converter::{query_all, query_one, FromRow};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
@@ -25,39 +26,42 @@ pub struct WikiTagAssignment {
     pub created_at: String,
 }
 
-fn row_to_wiki_tag(row: &rusqlite::Row) -> rusqlite::Result<WikiTag> {
-    Ok(WikiTag {
-        id: row.get("id")?,
-        name: row.get("name")?,
-        color: row.get("color")?,
-        text_color: row.get("text_color")?,
-        created_at: row.get("created_at")?,
-        updated_at: row.get("updated_at")?,
-    })
+impl FromRow for WikiTag {
+    fn from_row(row: &rusqlite::Row) -> rusqlite::Result<Self> {
+        Ok(WikiTag {
+            id: row.get("id")?,
+            name: row.get("name")?,
+            color: row.get("color")?,
+            text_color: row.get("text_color")?,
+            created_at: row.get("created_at")?,
+            updated_at: row.get("updated_at")?,
+        })
+    }
 }
 
-fn row_to_assignment(row: &rusqlite::Row) -> rusqlite::Result<WikiTagAssignment> {
-    Ok(WikiTagAssignment {
-        tag_id: row.get("tag_id")?,
-        entity_id: row.get("entity_id")?,
-        entity_type: row.get("entity_type")?,
-        source: row.get("source")?,
-        created_at: row.get("created_at")?,
-    })
+impl FromRow for WikiTagAssignment {
+    fn from_row(row: &rusqlite::Row) -> rusqlite::Result<Self> {
+        Ok(WikiTagAssignment {
+            tag_id: row.get("tag_id")?,
+            entity_id: row.get("entity_id")?,
+            entity_type: row.get("entity_type")?,
+            source: row.get("source")?,
+            created_at: row.get("created_at")?,
+        })
+    }
 }
 
 pub fn fetch_all(conn: &Connection) -> rusqlite::Result<Vec<WikiTag>> {
-    let mut stmt = conn.prepare("SELECT * FROM wiki_tags ORDER BY name")?;
-    let rows = stmt.query_map([], |row| row_to_wiki_tag(row))?;
-    rows.collect()
+    query_all(conn, "SELECT * FROM wiki_tags ORDER BY name", [])
 }
 
 pub fn search(conn: &Connection, query: &str) -> rusqlite::Result<Vec<WikiTag>> {
     let pattern = format!("%{}%", query);
-    let mut stmt =
-        conn.prepare("SELECT * FROM wiki_tags WHERE name LIKE ?1 ORDER BY name")?;
-    let rows = stmt.query_map([&pattern], |row| row_to_wiki_tag(row))?;
-    rows.collect()
+    query_all(
+        conn,
+        "SELECT * FROM wiki_tags WHERE name LIKE ?1 ORDER BY name",
+        [&pattern],
+    )
 }
 
 pub fn create(conn: &Connection, name: &str, color: &str) -> rusqlite::Result<WikiTag> {
@@ -78,8 +82,7 @@ pub fn create_with_id(
         params![id, name, color, &now, &now],
     )?;
 
-    let mut stmt = conn.prepare("SELECT * FROM wiki_tags WHERE id = ?1")?;
-    stmt.query_row([id], |row| row_to_wiki_tag(row))
+    query_one(conn, "SELECT * FROM wiki_tags WHERE id = ?1", [id])
 }
 
 pub fn update(conn: &Connection, id: &str, updates: &Value) -> rusqlite::Result<WikiTag> {
@@ -100,8 +103,7 @@ pub fn update(conn: &Connection, id: &str, updates: &Value) -> rusqlite::Result<
     }
 
     if sets.is_empty() {
-        let mut stmt = conn.prepare("SELECT * FROM wiki_tags WHERE id = ?1")?;
-        return stmt.query_row([id], |row| row_to_wiki_tag(row));
+        return query_one(conn, "SELECT * FROM wiki_tags WHERE id = ?1", [id]);
     }
 
     sets.push("updated_at = datetime('now')");
@@ -111,8 +113,7 @@ pub fn update(conn: &Connection, id: &str, updates: &Value) -> rusqlite::Result<
     let params: Vec<&dyn rusqlite::types::ToSql> = values.iter().map(|v| v.as_ref()).collect();
     conn.execute(&sql, params.as_slice())?;
 
-    let mut stmt = conn.prepare("SELECT * FROM wiki_tags WHERE id = ?1")?;
-    stmt.query_row([id], |row| row_to_wiki_tag(row))
+    query_one(conn, "SELECT * FROM wiki_tags WHERE id = ?1", [id])
 }
 
 pub fn delete(conn: &Connection, id: &str) -> rusqlite::Result<()> {
@@ -147,22 +148,21 @@ pub fn merge(
 
     tx.commit()?;
 
-    let mut stmt = conn.prepare("SELECT * FROM wiki_tags WHERE id = ?1")?;
-    stmt.query_row([target_id], |row| row_to_wiki_tag(row))
+    query_one(conn, "SELECT * FROM wiki_tags WHERE id = ?1", [target_id])
 }
 
 pub fn fetch_tags_for_entity(
     conn: &Connection,
     entity_id: &str,
 ) -> rusqlite::Result<Vec<WikiTag>> {
-    let mut stmt = conn.prepare(
+    query_all(
+        conn,
         "SELECT t.* FROM wiki_tags t \
          INNER JOIN wiki_tag_assignments a ON t.id = a.tag_id \
          WHERE a.entity_id = ?1 \
          ORDER BY t.name",
-    )?;
-    let rows = stmt.query_map([entity_id], |row| row_to_wiki_tag(row))?;
-    rows.collect()
+        [entity_id],
+    )
 }
 
 pub fn set_tags_for_entity(
@@ -246,11 +246,11 @@ pub fn sync_inline_tags(
 }
 
 pub fn fetch_all_assignments(conn: &Connection) -> rusqlite::Result<Vec<WikiTagAssignment>> {
-    let mut stmt = conn.prepare(
+    query_all(
+        conn,
         "SELECT * FROM wiki_tag_assignments ORDER BY created_at",
-    )?;
-    let rows = stmt.query_map([], |row| row_to_assignment(row))?;
-    rows.collect()
+        [],
+    )
 }
 
 pub fn restore_assignment(

@@ -2,6 +2,8 @@ use rusqlite::{params, Connection};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
+use super::row_converter::{query_all, query_one, FromRow};
+
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct TimerSettings {
@@ -28,30 +30,34 @@ pub struct TimerSession {
     pub label: Option<String>,
 }
 
-fn row_to_settings(row: &rusqlite::Row) -> rusqlite::Result<TimerSettings> {
-    Ok(TimerSettings {
-        id: row.get("id")?,
-        work_duration: row.get("work_duration")?,
-        break_duration: row.get("break_duration")?,
-        long_break_duration: row.get("long_break_duration")?,
-        sessions_before_long_break: row.get("sessions_before_long_break")?,
-        auto_start_breaks: row.get::<_, i64>("auto_start_breaks")? != 0,
-        target_sessions: row.get("target_sessions")?,
-        updated_at: row.get("updated_at")?,
-    })
+impl FromRow for TimerSettings {
+    fn from_row(row: &rusqlite::Row) -> rusqlite::Result<Self> {
+        Ok(TimerSettings {
+            id: row.get("id")?,
+            work_duration: row.get("work_duration")?,
+            break_duration: row.get("break_duration")?,
+            long_break_duration: row.get("long_break_duration")?,
+            sessions_before_long_break: row.get("sessions_before_long_break")?,
+            auto_start_breaks: row.get::<_, i64>("auto_start_breaks")? != 0,
+            target_sessions: row.get("target_sessions")?,
+            updated_at: row.get("updated_at")?,
+        })
+    }
 }
 
-fn row_to_session(row: &rusqlite::Row) -> rusqlite::Result<TimerSession> {
-    Ok(TimerSession {
-        id: row.get("id")?,
-        task_id: row.get("task_id")?,
-        session_type: row.get("session_type")?,
-        started_at: row.get("started_at")?,
-        completed_at: row.get("completed_at")?,
-        duration: row.get("duration")?,
-        completed: row.get::<_, i64>("completed")? != 0,
-        label: row.get::<_, Option<String>>("label").unwrap_or(None),
-    })
+impl FromRow for TimerSession {
+    fn from_row(row: &rusqlite::Row) -> rusqlite::Result<Self> {
+        Ok(TimerSession {
+            id: row.get("id")?,
+            task_id: row.get("task_id")?,
+            session_type: row.get("session_type")?,
+            started_at: row.get("started_at")?,
+            completed_at: row.get("completed_at")?,
+            duration: row.get("duration")?,
+            completed: row.get::<_, i64>("completed")? != 0,
+            label: row.get::<_, Option<String>>("label").unwrap_or(None),
+        })
+    }
 }
 
 pub fn end_session_with_label(
@@ -67,13 +73,11 @@ pub fn end_session_with_label(
          WHERE id = ?4",
         params![duration, completed as i64, label, id],
     )?;
-    let mut stmt = conn.prepare("SELECT * FROM timer_sessions WHERE id = ?1")?;
-    stmt.query_row([id], |row| row_to_session(row))
+    query_one(conn, "SELECT * FROM timer_sessions WHERE id = ?1", [id])
 }
 
 pub fn fetch_settings(conn: &Connection) -> rusqlite::Result<TimerSettings> {
-    let mut stmt = conn.prepare("SELECT * FROM timer_settings WHERE id = 1")?;
-    stmt.query_row([], |row| row_to_settings(row))
+    query_one(conn, "SELECT * FROM timer_settings WHERE id = 1", [])
 }
 
 pub fn update_settings(conn: &Connection, updates: &Value) -> rusqlite::Result<TimerSettings> {
@@ -132,8 +136,7 @@ pub fn start_session(
         params![task_id, session_type],
     )?;
     let id = conn.last_insert_rowid();
-    let mut stmt = conn.prepare("SELECT * FROM timer_sessions WHERE id = ?1")?;
-    stmt.query_row([id], |row| row_to_session(row))
+    query_one(conn, "SELECT * FROM timer_sessions WHERE id = ?1", [id])
 }
 
 pub fn end_session(
@@ -147,24 +150,24 @@ pub fn end_session(
          WHERE id = ?3",
         params![duration, completed as i64, id],
     )?;
-    let mut stmt = conn.prepare("SELECT * FROM timer_sessions WHERE id = ?1")?;
-    stmt.query_row([id], |row| row_to_session(row))
+    query_one(conn, "SELECT * FROM timer_sessions WHERE id = ?1", [id])
 }
 
 pub fn fetch_sessions(conn: &Connection) -> rusqlite::Result<Vec<TimerSession>> {
-    let mut stmt =
-        conn.prepare("SELECT * FROM timer_sessions ORDER BY started_at DESC")?;
-    let rows = stmt.query_map([], |row| row_to_session(row))?;
-    rows.collect()
+    query_all(
+        conn,
+        "SELECT * FROM timer_sessions ORDER BY started_at DESC",
+        [],
+    )
 }
 
 pub fn fetch_sessions_by_task_id(
     conn: &Connection,
     task_id: &str,
 ) -> rusqlite::Result<Vec<TimerSession>> {
-    let mut stmt = conn.prepare(
+    query_all(
+        conn,
         "SELECT * FROM timer_sessions WHERE task_id = ?1 ORDER BY started_at DESC",
-    )?;
-    let rows = stmt.query_map([task_id], |row| row_to_session(row))?;
-    rows.collect()
+        [task_id],
+    )
 }

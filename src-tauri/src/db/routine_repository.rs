@@ -2,7 +2,7 @@ use rusqlite::{params, Connection};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
-
+use super::row_converter::{query_all, query_one, FromRow};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
@@ -26,39 +26,42 @@ pub struct RoutineNode {
     pub updated_at: Option<String>,
 }
 
-fn row_to_routine(row: &rusqlite::Row) -> rusqlite::Result<RoutineNode> {
-    let frequency_days_raw: String = row.get("frequency_days")?;
-    let frequency_days: Value =
-        serde_json::from_str(&frequency_days_raw).unwrap_or(Value::Array(vec![]));
-    Ok(RoutineNode {
-        id: row.get("id")?,
-        title: row.get("title")?,
-        start_time: row.get("start_time")?,
-        end_time: row.get("end_time")?,
-        is_archived: row.get::<_, i64>("is_archived")? != 0,
-        is_visible: row.get::<_, i64>("is_visible")? != 0,
-        is_deleted: row.get::<_, i64>("is_deleted")? != 0,
-        deleted_at: row.get("deleted_at")?,
-        order: row.get("order")?,
-        frequency_type: row.get::<_, Option<String>>("frequency_type")?
-            .unwrap_or_else(|| "daily".to_string()),
-        frequency_days,
-        frequency_interval: row.get("frequency_interval")?,
-        frequency_start_date: row.get("frequency_start_date")?,
-        reminder_enabled: row.get::<_, i64>("reminder_enabled")? != 0,
-        reminder_offset: row.get("reminder_offset")?,
-        created_at: row.get("created_at")?,
-        updated_at: row.get("updated_at")?,
-    })
+impl FromRow for RoutineNode {
+    fn from_row(row: &rusqlite::Row) -> rusqlite::Result<Self> {
+        let frequency_days_raw: String = row.get("frequency_days")?;
+        let frequency_days: Value =
+            serde_json::from_str(&frequency_days_raw).unwrap_or(Value::Array(vec![]));
+        Ok(RoutineNode {
+            id: row.get("id")?,
+            title: row.get("title")?,
+            start_time: row.get("start_time")?,
+            end_time: row.get("end_time")?,
+            is_archived: row.get::<_, i64>("is_archived")? != 0,
+            is_visible: row.get::<_, i64>("is_visible")? != 0,
+            is_deleted: row.get::<_, i64>("is_deleted")? != 0,
+            deleted_at: row.get("deleted_at")?,
+            order: row.get("order")?,
+            frequency_type: row
+                .get::<_, Option<String>>("frequency_type")?
+                .unwrap_or_else(|| "daily".to_string()),
+            frequency_days,
+            frequency_interval: row.get("frequency_interval")?,
+            frequency_start_date: row.get("frequency_start_date")?,
+            reminder_enabled: row.get::<_, i64>("reminder_enabled")? != 0,
+            reminder_offset: row.get("reminder_offset")?,
+            created_at: row.get("created_at")?,
+            updated_at: row.get("updated_at")?,
+        })
+    }
 }
 
 pub fn fetch_all(conn: &Connection) -> rusqlite::Result<Vec<RoutineNode>> {
-    let mut stmt = conn.prepare(
+    query_all(
+        conn,
         "SELECT * FROM routines WHERE is_archived = 0 AND is_deleted = 0 \
          ORDER BY \"order\" ASC, created_at ASC",
-    )?;
-    let rows = stmt.query_map([], |row| row_to_routine(row))?;
-    rows.collect()
+        [],
+    )
 }
 
 pub fn create(
@@ -104,8 +107,7 @@ pub fn create(
         ],
     )?;
 
-    let mut stmt = conn.prepare("SELECT * FROM routines WHERE id = ?1")?;
-    stmt.query_row([id], |row| row_to_routine(row))
+    query_one(conn, "SELECT * FROM routines WHERE id = ?1", [id])
 }
 
 pub fn update(conn: &Connection, id: &str, updates: &Value) -> rusqlite::Result<RoutineNode> {
@@ -163,8 +165,7 @@ pub fn update(conn: &Connection, id: &str, updates: &Value) -> rusqlite::Result<
     }
 
     if sets.is_empty() {
-        let mut stmt = conn.prepare("SELECT * FROM routines WHERE id = ?1")?;
-        return stmt.query_row([id], |row| row_to_routine(row));
+        return query_one(conn, "SELECT * FROM routines WHERE id = ?1", [id]);
     }
 
     sets.push("version = version + 1");
@@ -178,8 +179,7 @@ pub fn update(conn: &Connection, id: &str, updates: &Value) -> rusqlite::Result<
     let params: Vec<&dyn rusqlite::types::ToSql> = values.iter().map(|v| v.as_ref()).collect();
     conn.execute(&sql, params.as_slice())?;
 
-    let mut stmt = conn.prepare("SELECT * FROM routines WHERE id = ?1")?;
-    stmt.query_row([id], |row| row_to_routine(row))
+    query_one(conn, "SELECT * FROM routines WHERE id = ?1", [id])
 }
 
 pub fn delete(conn: &Connection, id: &str) -> rusqlite::Result<()> {
@@ -188,11 +188,11 @@ pub fn delete(conn: &Connection, id: &str) -> rusqlite::Result<()> {
 }
 
 pub fn fetch_deleted(conn: &Connection) -> rusqlite::Result<Vec<RoutineNode>> {
-    let mut stmt = conn.prepare(
+    query_all(
+        conn,
         "SELECT * FROM routines WHERE is_deleted = 1 ORDER BY deleted_at DESC",
-    )?;
-    let rows = stmt.query_map([], |row| row_to_routine(row))?;
-    rows.collect()
+        [],
+    )
 }
 
 pub fn soft_delete(conn: &mut Connection, id: &str) -> rusqlite::Result<Vec<String>> {

@@ -3,6 +3,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 use super::helpers;
+use super::row_converter::{query_all, query_one, FromRow};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
@@ -15,23 +16,25 @@ pub struct CalendarNode {
     pub updated_at: String,
 }
 
-fn row_to_calendar(row: &rusqlite::Row) -> rusqlite::Result<CalendarNode> {
-    Ok(CalendarNode {
-        id: row.get("id")?,
-        title: row.get("title")?,
-        folder_id: row.get("folder_id")?,
-        order: row.get("order")?,
-        created_at: row.get("created_at")?,
-        updated_at: row.get("updated_at")?,
-    })
+impl FromRow for CalendarNode {
+    fn from_row(row: &rusqlite::Row) -> rusqlite::Result<Self> {
+        Ok(CalendarNode {
+            id: row.get("id")?,
+            title: row.get("title")?,
+            folder_id: row.get("folder_id")?,
+            order: row.get("order")?,
+            created_at: row.get("created_at")?,
+            updated_at: row.get("updated_at")?,
+        })
+    }
 }
 
 pub fn fetch_all(conn: &Connection) -> rusqlite::Result<Vec<CalendarNode>> {
-    let mut stmt = conn.prepare(
+    query_all(
+        conn,
         "SELECT * FROM calendars ORDER BY \"order\" ASC, created_at ASC",
-    )?;
-    let rows = stmt.query_map([], |row| row_to_calendar(row))?;
-    rows.collect()
+        [],
+    )
 }
 
 pub fn create(
@@ -48,8 +51,7 @@ pub fn create(
         params![id, title, folder_id, order, &now, &now],
     )?;
 
-    let mut stmt = conn.prepare("SELECT * FROM calendars WHERE id = ?1")?;
-    stmt.query_row([id], |row| row_to_calendar(row))
+    query_one(conn, "SELECT * FROM calendars WHERE id = ?1", [id])
 }
 
 pub fn update(conn: &Connection, id: &str, updates: &Value) -> rusqlite::Result<CalendarNode> {
@@ -70,8 +72,7 @@ pub fn update(conn: &Connection, id: &str, updates: &Value) -> rusqlite::Result<
     }
 
     if sets.is_empty() {
-        let mut stmt = conn.prepare("SELECT * FROM calendars WHERE id = ?1")?;
-        return stmt.query_row([id], |row| row_to_calendar(row));
+        return query_one(conn, "SELECT * FROM calendars WHERE id = ?1", [id]);
     }
 
     sets.push("version = version + 1");
@@ -85,8 +86,7 @@ pub fn update(conn: &Connection, id: &str, updates: &Value) -> rusqlite::Result<
     let params: Vec<&dyn rusqlite::types::ToSql> = values.iter().map(|v| v.as_ref()).collect();
     conn.execute(&sql, params.as_slice())?;
 
-    let mut stmt = conn.prepare("SELECT * FROM calendars WHERE id = ?1")?;
-    stmt.query_row([id], |row| row_to_calendar(row))
+    query_one(conn, "SELECT * FROM calendars WHERE id = ?1", [id])
 }
 
 pub fn delete(conn: &Connection, id: &str) -> rusqlite::Result<()> {

@@ -2,6 +2,8 @@ use rusqlite::{params, Connection};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
+use super::row_converter::{query_all, query_one, FromRow};
+
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct CalendarTag {
@@ -12,23 +14,25 @@ pub struct CalendarTag {
     pub order: i64,
 }
 
-fn row_to_tag(row: &rusqlite::Row) -> rusqlite::Result<CalendarTag> {
-    Ok(CalendarTag {
-        id: row.get("id")?,
-        name: row.get("name")?,
-        color: row.get("color")?,
-        text_color: row.get("text_color")?,
-        order: row.get("order")?,
-    })
+impl FromRow for CalendarTag {
+    fn from_row(row: &rusqlite::Row) -> rusqlite::Result<Self> {
+        Ok(CalendarTag {
+            id: row.get("id")?,
+            name: row.get("name")?,
+            color: row.get("color")?,
+            text_color: row.get("text_color")?,
+            order: row.get("order")?,
+        })
+    }
 }
 
 pub fn fetch_all(conn: &Connection) -> rusqlite::Result<Vec<CalendarTag>> {
-    let mut stmt = conn.prepare(
+    query_all(
+        conn,
         "SELECT id, name, color, text_color, \"order\" FROM calendar_tag_definitions \
          WHERE is_deleted = 0 ORDER BY \"order\" ASC, id ASC",
-    )?;
-    let rows = stmt.query_map([], |row| row_to_tag(row))?;
-    rows.collect()
+        [],
+    )
 }
 
 pub fn create(conn: &Connection, name: &str, color: &str) -> rusqlite::Result<CalendarTag> {
@@ -43,10 +47,11 @@ pub fn create(conn: &Connection, name: &str, color: &str) -> rusqlite::Result<Ca
         params![name, color, max_order + 1],
     )?;
     let id = conn.last_insert_rowid();
-    let mut stmt = conn.prepare(
+    query_one(
+        conn,
         "SELECT id, name, color, text_color, \"order\" FROM calendar_tag_definitions WHERE id = ?1",
-    )?;
-    stmt.query_row([id], |row| row_to_tag(row))
+        [id],
+    )
 }
 
 pub fn update(conn: &Connection, id: i64, updates: &Value) -> rusqlite::Result<CalendarTag> {
@@ -71,10 +76,11 @@ pub fn update(conn: &Connection, id: i64, updates: &Value) -> rusqlite::Result<C
     }
 
     if sets.is_empty() {
-        let mut stmt = conn.prepare(
+        return query_one(
+            conn,
             "SELECT id, name, color, text_color, \"order\" FROM calendar_tag_definitions WHERE id = ?1",
-        )?;
-        return stmt.query_row([id], |row| row_to_tag(row));
+            [id],
+        );
     }
 
     sets.push("updated_at = strftime('%Y-%m-%dT%H:%M:%S.000Z', 'now')");
@@ -89,10 +95,11 @@ pub fn update(conn: &Connection, id: i64, updates: &Value) -> rusqlite::Result<C
     let params: Vec<&dyn rusqlite::types::ToSql> = values.iter().map(|v| v.as_ref()).collect();
     conn.execute(&sql, params.as_slice())?;
 
-    let mut stmt = conn.prepare(
+    query_one(
+        conn,
         "SELECT id, name, color, text_color, \"order\" FROM calendar_tag_definitions WHERE id = ?1",
-    )?;
-    stmt.query_row([id], |row| row_to_tag(row))
+        [id],
+    )
 }
 
 pub fn delete(conn: &Connection, id: i64) -> rusqlite::Result<()> {

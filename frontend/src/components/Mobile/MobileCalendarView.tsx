@@ -10,6 +10,8 @@ import {
 import { getDataService } from "../../services/dataServiceFactory";
 import { useSyncContext } from "../../hooks/useSyncContext";
 import { useServiceErrorHandler } from "../../hooks/useServiceErrorHandler";
+import { addDays, buildCalendarGrid } from "../../utils/calendarGrid";
+import { formatDateKey, getTodayKey } from "../../utils/dateKey";
 import type { ScheduleItem } from "../../types/schedule";
 import type { TaskNode } from "../../types/taskTree";
 import {
@@ -29,25 +31,8 @@ import type { LongPressDragEnd } from "../../hooks/useMobileLongPressDrag";
 
 // --- Utilities ---
 
-function todayStr(): string {
-  return new Date().toISOString().split("T")[0];
-}
-
 function generateId(): string {
   return `schedule-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
-}
-
-function formatDateStr(date: Date): string {
-  const y = date.getFullYear();
-  const m = String(date.getMonth() + 1).padStart(2, "0");
-  const d = String(date.getDate()).padStart(2, "0");
-  return `${y}-${m}-${d}`;
-}
-
-function addDays(date: Date, days: number): Date {
-  const d = new Date(date);
-  d.setDate(d.getDate() + days);
-  return d;
 }
 
 const MAX_CHIPS_PER_CELL = 3;
@@ -79,7 +64,7 @@ function MobileMonthlyCalendar({
       ? ["月", "火", "水", "木", "金", "土", "日"]
       : ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
-  const todayString = useMemo(() => formatDateStr(new Date()), []);
+  const todayString = useMemo(() => formatDateKey(new Date()), []);
 
   const monthLabel = useMemo(() => {
     if (lang === "ja") return `${viewDate.year}年${viewDate.month + 1}月`;
@@ -87,29 +72,15 @@ function MobileMonthlyCalendar({
     return d.toLocaleDateString("en-US", { year: "numeric", month: "long" });
   }, [viewDate, lang]);
 
-  const calendarDays = useMemo(() => {
-    const firstDay = new Date(viewDate.year, viewDate.month, 1);
-    const lastDay = new Date(viewDate.year, viewDate.month + 1, 0);
-
-    let startDow = firstDay.getDay() - 1;
-    if (startDow < 0) startDow = 6;
-
-    const days: Array<{ date: Date; inMonth: boolean }> = [];
-    for (let i = startDow - 1; i >= 0; i--) {
-      days.push({ date: addDays(firstDay, -i - 1), inMonth: false });
-    }
-    for (let d = 1; d <= lastDay.getDate(); d++) {
-      days.push({
-        date: new Date(viewDate.year, viewDate.month, d),
-        inMonth: true,
-      });
-    }
-    while (days.length % 7 !== 0) {
-      const lastDate = days[days.length - 1].date;
-      days.push({ date: addDays(lastDate, 1), inMonth: false });
-    }
-    return days;
-  }, [viewDate]);
+  const calendarDays = useMemo(
+    () =>
+      buildCalendarGrid({
+        year: viewDate.year,
+        month: viewDate.month,
+        weekStartsOn: 1,
+      }),
+    [viewDate],
+  );
 
   const navigateMonth = useCallback(
     (direction: -1 | 1) => {
@@ -170,7 +141,7 @@ function MobileMonthlyCalendar({
   const goToToday = useCallback(() => {
     const now = new Date();
     onViewDateChange({ year: now.getFullYear(), month: now.getMonth() });
-    onDateSelect(formatDateStr(now));
+    onDateSelect(formatDateKey(now));
   }, [onDateSelect, onViewDateChange]);
 
   return (
@@ -235,8 +206,8 @@ function MobileMonthlyCalendar({
           transition: swipeDx === 0 ? "transform 200ms ease-out" : undefined,
         }}
       >
-        {calendarDays.map(({ date, inMonth }) => {
-          const dateStr = formatDateStr(date);
+        {calendarDays.map(({ date, isCurrentMonth: inMonth }) => {
+          const dateStr = formatDateKey(date);
           const items = itemsByDate.get(dateStr) ?? [];
           return (
             <DayCell
@@ -369,7 +340,7 @@ function MobileDayflowHeader({
   const { t, i18n } = useTranslation();
   const lang = i18n.language;
   const d = new Date(selectedDate + "T00:00:00");
-  const todayString = useMemo(() => formatDateStr(new Date()), []);
+  const todayString = useMemo(() => formatDateKey(new Date()), []);
   const isToday = selectedDate === todayString;
   const dayLabels =
     lang === "ja"
@@ -384,7 +355,7 @@ function MobileDayflowHeader({
         : "text-notion-text";
 
   const navDay = (delta: number) => {
-    onDateSelect(formatDateStr(addDays(d, delta)));
+    onDateSelect(formatDateKey(addDays(d, delta)));
   };
 
   const title =
@@ -420,7 +391,7 @@ function MobileDayflowHeader({
           <ChevronLeft size={16} className="text-notion-text-secondary" />
         </button>
         <button
-          onClick={() => onDateSelect(formatDateStr(new Date()))}
+          onClick={() => onDateSelect(formatDateKey(new Date()))}
           className="flex h-[30px] items-center justify-center rounded-lg px-2.5 text-xs font-semibold text-notion-accent active:bg-notion-hover"
         >
           {t("mobile.schedule.dayflow.today", "Today")}
@@ -493,11 +464,11 @@ function ScheduleSubTabs({
 export function MobileCalendarView() {
   const { t } = useTranslation();
   const { syncVersion } = useSyncContext();
-  const [selectedDate, setSelectedDate] = useState(todayStr);
+  const [selectedDate, setSelectedDate] = useState(getTodayKey);
   const [subTab, setSubTab] = useState<CalendarSubTab>("monthly");
   const [sheetMode, setSheetMode] = useState<SheetMode>("hidden");
   const [viewDate, setViewDate] = useState(() => {
-    const d = new Date(todayStr() + "T00:00:00");
+    const d = new Date(getTodayKey() + "T00:00:00");
     return { year: d.getFullYear(), month: d.getMonth() };
   });
   const [monthItems, setMonthItems] = useState<ScheduleItem[]>([]);
@@ -526,8 +497,8 @@ export function MobileCalendarView() {
         const firstDay = new Date(year, month, 1);
         const lastDay = new Date(year, month + 1, 0);
         const result = await ds.fetchScheduleItemsByDateRange(
-          formatDateStr(firstDay),
-          formatDateStr(lastDay),
+          formatDateKey(firstDay),
+          formatDateKey(lastDay),
         );
         setMonthItems(result);
       } catch (e) {
@@ -578,7 +549,7 @@ export function MobileCalendarView() {
     [monthItems, tasks, selectedDate],
   );
 
-  const todayString = useMemo(() => formatDateStr(new Date()), []);
+  const todayString = useMemo(() => formatDateKey(new Date()), []);
   const isToday = selectedDate === todayString;
 
   // Handlers

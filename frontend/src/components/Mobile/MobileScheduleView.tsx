@@ -9,10 +9,8 @@ import {
   MobileScheduleItemForm,
   type ScheduleItemFormData,
 } from "./MobileScheduleItemForm";
-
-function todayStr(): string {
-  return new Date().toISOString().split("T")[0];
-}
+import { addDays, getMondayOf } from "../../utils/calendarGrid";
+import { formatDateKey, getTodayKey } from "../../utils/dateKey";
 
 function generateId(): string {
   return `schedule-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
@@ -125,7 +123,7 @@ function SwipeableItem({ children, onDelete }: SwipeableItemProps) {
 export function MobileScheduleView() {
   const { t } = useTranslation();
   const { syncVersion } = useSyncContext();
-  const [selectedDate, setSelectedDate] = useState(todayStr);
+  const [selectedDate, setSelectedDate] = useState(getTodayKey);
   const [items, setItems] = useState<ScheduleItem[]>([]);
   const [weekItems, setWeekItems] = useState<ScheduleItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -156,25 +154,11 @@ export function MobileScheduleView() {
   const loadWeekItems = useCallback(
     async (date: string) => {
       try {
-        // Get the Monday of the week containing the selected date
-        const d = new Date(date + "T00:00:00");
-        const day = d.getDay();
-        const diff = day === 0 ? -6 : 1 - day;
-        const monday = new Date(d);
-        monday.setDate(d.getDate() + diff);
-        const sunday = new Date(monday);
-        sunday.setDate(monday.getDate() + 6);
-
-        const fmt = (dt: Date) => {
-          const y = dt.getFullYear();
-          const m = String(dt.getMonth() + 1).padStart(2, "0");
-          const dd = String(dt.getDate()).padStart(2, "0");
-          return `${y}-${m}-${dd}`;
-        };
-
+        const monday = getMondayOf(new Date(date + "T00:00:00"));
+        const sunday = addDays(monday, 6);
         const result = await ds.fetchScheduleItemsByDateRange(
-          fmt(monday),
-          fmt(sunday),
+          formatDateKey(monday),
+          formatDateKey(sunday),
         );
         setWeekItems(result);
       } catch (e) {

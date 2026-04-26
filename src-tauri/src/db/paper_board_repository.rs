@@ -3,6 +3,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 use super::helpers;
+use super::row_converter::{query_all, query_one, FromRow};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
@@ -55,73 +56,78 @@ pub struct PaperEdge {
     pub created_at: String,
 }
 
-fn row_to_board(row: &rusqlite::Row) -> rusqlite::Result<PaperBoard> {
-    Ok(PaperBoard {
-        id: row.get("id")?,
-        name: row.get("name")?,
-        linked_note_id: row.get("linked_note_id")?,
-        viewport_x: row.get("viewport_x")?,
-        viewport_y: row.get("viewport_y")?,
-        viewport_zoom: row.get("viewport_zoom")?,
-        order: row.get("\"order\"").or_else(|_| row.get("order"))?,
-        created_at: row.get("created_at")?,
-        updated_at: row.get("updated_at")?,
-    })
+impl FromRow for PaperBoard {
+    fn from_row(row: &rusqlite::Row) -> rusqlite::Result<Self> {
+        Ok(PaperBoard {
+            id: row.get("id")?,
+            name: row.get("name")?,
+            linked_note_id: row.get("linked_note_id")?,
+            viewport_x: row.get("viewport_x")?,
+            viewport_y: row.get("viewport_y")?,
+            viewport_zoom: row.get("viewport_zoom")?,
+            order: row.get("\"order\"").or_else(|_| row.get("order"))?,
+            created_at: row.get("created_at")?,
+            updated_at: row.get("updated_at")?,
+        })
+    }
 }
 
-fn row_to_node(row: &rusqlite::Row) -> rusqlite::Result<PaperNode> {
-    Ok(PaperNode {
-        id: row.get("id")?,
-        board_id: row.get("board_id")?,
-        node_type: row.get("node_type")?,
-        position_x: row.get("position_x")?,
-        position_y: row.get("position_y")?,
-        width: row.get("width")?,
-        height: row.get("height")?,
-        z_index: row.get("z_index")?,
-        parent_node_id: row.get("parent_node_id")?,
-        ref_entity_id: row.get("ref_entity_id")?,
-        ref_entity_type: row.get("ref_entity_type")?,
-        text_content: row.get("text_content")?,
-        frame_color: row.get("frame_color")?,
-        frame_label: row.get("frame_label")?,
-        label: row.get("label")?,
-        hidden: row.get::<_, i64>("hidden")? != 0,
-        created_at: row.get("created_at")?,
-        updated_at: row.get("updated_at")?,
-    })
+impl FromRow for PaperNode {
+    fn from_row(row: &rusqlite::Row) -> rusqlite::Result<Self> {
+        Ok(PaperNode {
+            id: row.get("id")?,
+            board_id: row.get("board_id")?,
+            node_type: row.get("node_type")?,
+            position_x: row.get("position_x")?,
+            position_y: row.get("position_y")?,
+            width: row.get("width")?,
+            height: row.get("height")?,
+            z_index: row.get("z_index")?,
+            parent_node_id: row.get("parent_node_id")?,
+            ref_entity_id: row.get("ref_entity_id")?,
+            ref_entity_type: row.get("ref_entity_type")?,
+            text_content: row.get("text_content")?,
+            frame_color: row.get("frame_color")?,
+            frame_label: row.get("frame_label")?,
+            label: row.get("label")?,
+            hidden: row.get::<_, i64>("hidden")? != 0,
+            created_at: row.get("created_at")?,
+            updated_at: row.get("updated_at")?,
+        })
+    }
 }
 
-fn row_to_edge(row: &rusqlite::Row) -> rusqlite::Result<PaperEdge> {
-    Ok(PaperEdge {
-        id: row.get("id")?,
-        board_id: row.get("board_id")?,
-        source_node_id: row.get("source_node_id")?,
-        target_node_id: row.get("target_node_id")?,
-        source_handle: row.get("source_handle")?,
-        target_handle: row.get("target_handle")?,
-        label: row.get("label")?,
-        style_json: row.get("style_json")?,
-        created_at: row.get("created_at")?,
-    })
+impl FromRow for PaperEdge {
+    fn from_row(row: &rusqlite::Row) -> rusqlite::Result<Self> {
+        Ok(PaperEdge {
+            id: row.get("id")?,
+            board_id: row.get("board_id")?,
+            source_node_id: row.get("source_node_id")?,
+            target_node_id: row.get("target_node_id")?,
+            source_handle: row.get("source_handle")?,
+            target_handle: row.get("target_handle")?,
+            label: row.get("label")?,
+            style_json: row.get("style_json")?,
+            created_at: row.get("created_at")?,
+        })
+    }
 }
 
 // --- Board functions ---
 
 pub fn fetch_all_boards(conn: &Connection) -> rusqlite::Result<Vec<PaperBoard>> {
-    let mut stmt =
-        conn.prepare("SELECT * FROM paper_boards ORDER BY \"order\" ASC")?;
-    let rows = stmt.query_map([], |row| row_to_board(row))?;
-    rows.collect()
+    query_all(
+        conn,
+        "SELECT * FROM paper_boards ORDER BY \"order\" ASC",
+        [],
+    )
 }
 
 pub fn fetch_board_by_id(
     conn: &Connection,
     id: &str,
 ) -> rusqlite::Result<Option<PaperBoard>> {
-    let mut stmt = conn.prepare("SELECT * FROM paper_boards WHERE id = ?1")?;
-    let result = stmt.query_row([id], |row| row_to_board(row));
-    match result {
+    match query_one::<PaperBoard, _>(conn, "SELECT * FROM paper_boards WHERE id = ?1", [id]) {
         Ok(board) => Ok(Some(board)),
         Err(rusqlite::Error::QueryReturnedNoRows) => Ok(None),
         Err(e) => Err(e),
@@ -132,10 +138,11 @@ pub fn fetch_board_by_note_id(
     conn: &Connection,
     note_id: &str,
 ) -> rusqlite::Result<Option<PaperBoard>> {
-    let mut stmt =
-        conn.prepare("SELECT * FROM paper_boards WHERE linked_note_id = ?1")?;
-    let result = stmt.query_row([note_id], |row| row_to_board(row));
-    match result {
+    match query_one::<PaperBoard, _>(
+        conn,
+        "SELECT * FROM paper_boards WHERE linked_note_id = ?1",
+        [note_id],
+    ) {
         Ok(board) => Ok(Some(board)),
         Err(rusqlite::Error::QueryReturnedNoRows) => Ok(None),
         Err(e) => Err(e),
@@ -159,8 +166,7 @@ pub fn create_board(
         params![&id, name, linked_note_id, order, &now, &now],
     )?;
 
-    let mut stmt = conn.prepare("SELECT * FROM paper_boards WHERE id = ?1")?;
-    stmt.query_row([&id], |row| row_to_board(row))
+    query_one(conn, "SELECT * FROM paper_boards WHERE id = ?1", [&id])
 }
 
 pub fn update_board(
@@ -197,8 +203,7 @@ pub fn update_board(
     }
 
     if sets.is_empty() {
-        let mut stmt = conn.prepare("SELECT * FROM paper_boards WHERE id = ?1")?;
-        return stmt.query_row([id], |row| row_to_board(row));
+        return query_one(conn, "SELECT * FROM paper_boards WHERE id = ?1", [id]);
     }
 
     sets.push("updated_at = datetime('now')");
@@ -211,8 +216,7 @@ pub fn update_board(
     let params: Vec<&dyn rusqlite::types::ToSql> = values.iter().map(|v| v.as_ref()).collect();
     conn.execute(&sql, params.as_slice())?;
 
-    let mut stmt = conn.prepare("SELECT * FROM paper_boards WHERE id = ?1")?;
-    stmt.query_row([id], |row| row_to_board(row))
+    query_one(conn, "SELECT * FROM paper_boards WHERE id = ?1", [id])
 }
 
 pub fn delete_board(conn: &Connection, id: &str) -> rusqlite::Result<()> {
@@ -246,12 +250,12 @@ pub fn fetch_nodes_by_board(
     conn: &Connection,
     board_id: &str,
 ) -> rusqlite::Result<Vec<PaperNode>> {
-    let mut stmt = conn.prepare(
+    query_all(
+        conn,
         "SELECT * FROM paper_nodes WHERE board_id = ?1 \
          ORDER BY CASE WHEN parent_node_id IS NULL THEN 0 ELSE 1 END, z_index ASC",
-    )?;
-    let rows = stmt.query_map([board_id], |row| row_to_node(row))?;
-    rows.collect()
+        [board_id],
+    )
 }
 
 pub fn create_node(
@@ -308,8 +312,7 @@ pub fn create_node(
         ],
     )?;
 
-    let mut stmt = conn.prepare("SELECT * FROM paper_nodes WHERE id = ?1")?;
-    stmt.query_row([&id], |row| row_to_node(row))
+    query_one(conn, "SELECT * FROM paper_nodes WHERE id = ?1", [&id])
 }
 
 pub fn update_node(
@@ -378,8 +381,7 @@ pub fn update_node(
     }
 
     if sets.is_empty() {
-        let mut stmt = conn.prepare("SELECT * FROM paper_nodes WHERE id = ?1")?;
-        return stmt.query_row([id], |row| row_to_node(row));
+        return query_one(conn, "SELECT * FROM paper_nodes WHERE id = ?1", [id]);
     }
 
     sets.push("updated_at = datetime('now')");
@@ -392,8 +394,7 @@ pub fn update_node(
     let params: Vec<&dyn rusqlite::types::ToSql> = values.iter().map(|v| v.as_ref()).collect();
     conn.execute(&sql, params.as_slice())?;
 
-    let mut stmt = conn.prepare("SELECT * FROM paper_nodes WHERE id = ?1")?;
-    stmt.query_row([id], |row| row_to_node(row))
+    query_one(conn, "SELECT * FROM paper_nodes WHERE id = ?1", [id])
 }
 
 pub fn bulk_update_positions(
@@ -456,11 +457,11 @@ pub fn fetch_edges_by_board(
     conn: &Connection,
     board_id: &str,
 ) -> rusqlite::Result<Vec<PaperEdge>> {
-    let mut stmt = conn.prepare(
+    query_all(
+        conn,
         "SELECT * FROM paper_edges WHERE board_id = ?1 ORDER BY created_at",
-    )?;
-    let rows = stmt.query_map([board_id], |row| row_to_edge(row))?;
-    rows.collect()
+        [board_id],
+    )
 }
 
 pub fn create_edge(
@@ -499,8 +500,7 @@ pub fn create_edge(
         ],
     )?;
 
-    let mut stmt = conn.prepare("SELECT * FROM paper_edges WHERE id = ?1")?;
-    stmt.query_row([&id], |row| row_to_edge(row))
+    query_one(conn, "SELECT * FROM paper_edges WHERE id = ?1", [&id])
 }
 
 pub fn delete_edge(conn: &Connection, id: &str) -> rusqlite::Result<()> {

@@ -1,6 +1,7 @@
 use rusqlite::{params, Connection};
 use serde::{Deserialize, Serialize};
 
+use super::row_converter::{query_all, FromRow};
 use crate::db::helpers::{new_uuid, now};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -15,26 +16,28 @@ pub struct RoutineGroupAssignment {
     pub deleted_at: Option<String>,
 }
 
-fn row_to_assignment(row: &rusqlite::Row) -> rusqlite::Result<RoutineGroupAssignment> {
-    Ok(RoutineGroupAssignment {
-        id: row.get("id")?,
-        routine_id: row.get("routine_id")?,
-        group_id: row.get("group_id")?,
-        created_at: row.get("created_at")?,
-        updated_at: row.get("updated_at")?,
-        is_deleted: row.get::<_, i64>("is_deleted")? != 0,
-        deleted_at: row.get("deleted_at")?,
-    })
+impl FromRow for RoutineGroupAssignment {
+    fn from_row(row: &rusqlite::Row) -> rusqlite::Result<Self> {
+        Ok(RoutineGroupAssignment {
+            id: row.get("id")?,
+            routine_id: row.get("routine_id")?,
+            group_id: row.get("group_id")?,
+            created_at: row.get("created_at")?,
+            updated_at: row.get("updated_at")?,
+            is_deleted: row.get::<_, i64>("is_deleted")? != 0,
+            deleted_at: row.get("deleted_at")?,
+        })
+    }
 }
 
 /// Returns currently-active assignments only. Soft-deleted rows are kept in
 /// the table for Cloud Sync delta replication but hidden from UI consumers.
 pub fn fetch_all(conn: &Connection) -> rusqlite::Result<Vec<RoutineGroupAssignment>> {
-    let mut stmt = conn.prepare(
+    query_all(
+        conn,
         "SELECT * FROM routine_group_assignments WHERE is_deleted = 0",
-    )?;
-    let rows = stmt.query_map([], |row| row_to_assignment(row))?;
-    rows.collect()
+        [],
+    )
 }
 
 /// Replace the assignment set for a single routine. Existing rows that are

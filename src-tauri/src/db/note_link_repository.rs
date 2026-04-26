@@ -2,6 +2,7 @@ use rusqlite::{params, Connection};
 use serde::{Deserialize, Serialize};
 
 use super::helpers;
+use super::row_converter::{query_all, FromRow};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
@@ -47,43 +48,45 @@ pub struct UnlinkedMention {
     pub match_text: String,
 }
 
-fn row_to_note_link(row: &rusqlite::Row) -> rusqlite::Result<NoteLink> {
-    Ok(NoteLink {
-        id: row.get("id")?,
-        source_note_id: row.get("source_note_id")?,
-        source_daily_date: row.get("source_daily_date")?,
-        target_note_id: row.get("target_note_id")?,
-        target_heading: row.get("target_heading")?,
-        target_block_id: row.get("target_block_id")?,
-        alias: row.get("alias")?,
-        link_type: row.get("link_type")?,
-        created_at: row.get("created_at")?,
-        updated_at: row.get("updated_at")?,
-        version: row.get("version")?,
-        is_deleted: row.get("is_deleted")?,
-        deleted_at: row.get("deleted_at")?,
-    })
+impl FromRow for NoteLink {
+    fn from_row(row: &rusqlite::Row) -> rusqlite::Result<Self> {
+        Ok(NoteLink {
+            id: row.get("id")?,
+            source_note_id: row.get("source_note_id")?,
+            source_daily_date: row.get("source_daily_date")?,
+            target_note_id: row.get("target_note_id")?,
+            target_heading: row.get("target_heading")?,
+            target_block_id: row.get("target_block_id")?,
+            alias: row.get("alias")?,
+            link_type: row.get("link_type")?,
+            created_at: row.get("created_at")?,
+            updated_at: row.get("updated_at")?,
+            version: row.get("version")?,
+            is_deleted: row.get("is_deleted")?,
+            deleted_at: row.get("deleted_at")?,
+        })
+    }
 }
 
 pub fn fetch_all(conn: &Connection) -> rusqlite::Result<Vec<NoteLink>> {
-    let mut stmt = conn.prepare(
+    query_all(
+        conn,
         "SELECT * FROM note_links WHERE is_deleted = 0 ORDER BY created_at",
-    )?;
-    let rows = stmt.query_map([], |row| row_to_note_link(row))?;
-    rows.collect()
+        [],
+    )
 }
 
 pub fn fetch_forward_links(
     conn: &Connection,
     source_note_id: &str,
 ) -> rusqlite::Result<Vec<NoteLink>> {
-    let mut stmt = conn.prepare(
+    query_all(
+        conn,
         "SELECT * FROM note_links \
          WHERE source_note_id = ?1 AND is_deleted = 0 \
          ORDER BY created_at",
-    )?;
-    let rows = stmt.query_map([source_note_id], |row| row_to_note_link(row))?;
-    rows.collect()
+        [source_note_id],
+    )
 }
 
 /// Links into `target_note_id` with source Note title/preview joined in.
@@ -103,7 +106,7 @@ pub fn fetch_backlinks(
     let rows = stmt.query_map([target_note_id], |row| {
         let source_title: Option<String> = row.get("__source_title").ok();
         let source_preview: Option<String> = row.get("__source_preview").ok();
-        let link = row_to_note_link(row)?;
+        let link = NoteLink::from_row(row)?;
         Ok(BacklinkHit {
             link,
             source_title,

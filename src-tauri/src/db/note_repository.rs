@@ -3,6 +3,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 use super::helpers;
+use super::row_converter::{query_all, query_one, FromRow};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
@@ -25,40 +26,43 @@ pub struct NoteNode {
     pub updated_at: Option<String>,
 }
 
-fn row_to_note(row: &rusqlite::Row) -> rusqlite::Result<NoteNode> {
-    let password_hash: Option<String> = row.get("password_hash")?;
-    Ok(NoteNode {
-        id: row.get("id")?,
-        note_type: row.get::<_, Option<String>>("type")?.unwrap_or_else(|| "note".to_string()),
-        title: row.get("title")?,
-        content: row.get("content")?,
-        parent_id: row.get("parent_id")?,
-        order: row.get("order_index")?,
-        is_pinned: row.get::<_, i64>("is_pinned")? != 0,
-        has_password: password_hash.is_some(),
-        is_edit_locked: row.get::<_, i64>("is_edit_locked")? != 0,
-        is_deleted: row.get::<_, i64>("is_deleted")? != 0,
-        deleted_at: row.get("deleted_at")?,
-        color: row.get("color")?,
-        icon: row.get("icon")?,
-        created_at: row.get("created_at")?,
-        updated_at: row.get("updated_at")?,
-    })
+impl FromRow for NoteNode {
+    fn from_row(row: &rusqlite::Row) -> rusqlite::Result<Self> {
+        let password_hash: Option<String> = row.get("password_hash")?;
+        Ok(NoteNode {
+            id: row.get("id")?,
+            note_type: row.get::<_, Option<String>>("type")?.unwrap_or_else(|| "note".to_string()),
+            title: row.get("title")?,
+            content: row.get("content")?,
+            parent_id: row.get("parent_id")?,
+            order: row.get("order_index")?,
+            is_pinned: row.get::<_, i64>("is_pinned")? != 0,
+            has_password: password_hash.is_some(),
+            is_edit_locked: row.get::<_, i64>("is_edit_locked")? != 0,
+            is_deleted: row.get::<_, i64>("is_deleted")? != 0,
+            deleted_at: row.get("deleted_at")?,
+            color: row.get("color")?,
+            icon: row.get("icon")?,
+            created_at: row.get("created_at")?,
+            updated_at: row.get("updated_at")?,
+        })
+    }
 }
 
 pub fn fetch_all(conn: &Connection) -> rusqlite::Result<Vec<NoteNode>> {
-    let mut stmt = conn.prepare(
+    query_all(
+        conn,
         "SELECT * FROM notes WHERE is_deleted = 0 ORDER BY order_index ASC, updated_at DESC",
-    )?;
-    let rows = stmt.query_map([], |row| row_to_note(row))?;
-    rows.collect()
+        [],
+    )
 }
 
 pub fn fetch_deleted(conn: &Connection) -> rusqlite::Result<Vec<NoteNode>> {
-    let mut stmt =
-        conn.prepare("SELECT * FROM notes WHERE is_deleted = 1 ORDER BY deleted_at DESC")?;
-    let rows = stmt.query_map([], |row| row_to_note(row))?;
-    rows.collect()
+    query_all(
+        conn,
+        "SELECT * FROM notes WHERE is_deleted = 1 ORDER BY deleted_at DESC",
+        [],
+    )
 }
 
 pub fn create(
@@ -73,8 +77,7 @@ pub fn create(
          VALUES (?1, 'note', ?2, '', ?3, 0, 0, 0, datetime('now'), datetime('now'))",
         params![id, title, parent_id],
     )?;
-    let mut stmt = conn.prepare("SELECT * FROM notes WHERE id = ?1")?;
-    stmt.query_row([id], |row| row_to_note(row))
+    query_one(conn, "SELECT * FROM notes WHERE id = ?1", [id])
 }
 
 pub fn create_folder(
@@ -89,8 +92,7 @@ pub fn create_folder(
          VALUES (?1, 'folder', ?2, '', ?3, 0, 0, 0, datetime('now'), datetime('now'))",
         params![id, title, parent_id],
     )?;
-    let mut stmt = conn.prepare("SELECT * FROM notes WHERE id = ?1")?;
-    stmt.query_row([id], |row| row_to_note(row))
+    query_one(conn, "SELECT * FROM notes WHERE id = ?1", [id])
 }
 
 pub fn update(conn: &Connection, id: &str, updates: &Value) -> rusqlite::Result<NoteNode> {
@@ -119,8 +121,7 @@ pub fn update(conn: &Connection, id: &str, updates: &Value) -> rusqlite::Result<
     }
 
     if sets.is_empty() {
-        let mut stmt = conn.prepare("SELECT * FROM notes WHERE id = ?1")?;
-        return stmt.query_row([id], |row| row_to_note(row));
+        return query_one(conn, "SELECT * FROM notes WHERE id = ?1", [id]);
     }
 
     sets.push("version = version + 1");
@@ -131,8 +132,7 @@ pub fn update(conn: &Connection, id: &str, updates: &Value) -> rusqlite::Result<
     let params: Vec<&dyn rusqlite::types::ToSql> = values.iter().map(|v| v.as_ref()).collect();
     conn.execute(&sql, params.as_slice())?;
 
-    let mut stmt = conn.prepare("SELECT * FROM notes WHERE id = ?1")?;
-    stmt.query_row([id], |row| row_to_note(row))
+    query_one(conn, "SELECT * FROM notes WHERE id = ?1", [id])
 }
 
 pub fn sync_tree(conn: &Connection, items: &[Value]) -> rusqlite::Result<()> {
@@ -163,13 +163,13 @@ pub fn permanent_delete(conn: &Connection, id: &str) -> rusqlite::Result<()> {
 
 pub fn search(conn: &Connection, query: &str) -> rusqlite::Result<Vec<NoteNode>> {
     let pattern = format!("%{}%", query);
-    let mut stmt = conn.prepare(
+    query_all(
+        conn,
         "SELECT * FROM notes WHERE is_deleted = 0 \
          AND (title LIKE ?1 OR content LIKE ?1) \
          ORDER BY updated_at DESC",
-    )?;
-    let rows = stmt.query_map([&pattern], |row| row_to_note(row))?;
-    rows.collect()
+        [&pattern],
+    )
 }
 
 pub fn set_password(conn: &Connection, id: &str, hash: &str) -> rusqlite::Result<NoteNode> {
@@ -178,8 +178,7 @@ pub fn set_password(conn: &Connection, id: &str, hash: &str) -> rusqlite::Result
          WHERE id = ?2",
         params![hash, id],
     )?;
-    let mut stmt = conn.prepare("SELECT * FROM notes WHERE id = ?1")?;
-    stmt.query_row([id], |row| row_to_note(row))
+    query_one(conn, "SELECT * FROM notes WHERE id = ?1", [id])
 }
 
 pub fn remove_password(conn: &Connection, id: &str) -> rusqlite::Result<NoteNode> {
@@ -188,8 +187,7 @@ pub fn remove_password(conn: &Connection, id: &str) -> rusqlite::Result<NoteNode
          WHERE id = ?1",
         [id],
     )?;
-    let mut stmt = conn.prepare("SELECT * FROM notes WHERE id = ?1")?;
-    stmt.query_row([id], |row| row_to_note(row))
+    query_one(conn, "SELECT * FROM notes WHERE id = ?1", [id])
 }
 
 pub fn verify_password(conn: &Connection, id: &str, password: &str) -> rusqlite::Result<bool> {
@@ -207,6 +205,5 @@ pub fn toggle_edit_lock(conn: &Connection, id: &str) -> rusqlite::Result<NoteNod
          version = version + 1, updated_at = datetime('now') WHERE id = ?1",
         [id],
     )?;
-    let mut stmt = conn.prepare("SELECT * FROM notes WHERE id = ?1")?;
-    stmt.query_row([id], |row| row_to_note(row))
+    query_one(conn, "SELECT * FROM notes WHERE id = ?1", [id])
 }

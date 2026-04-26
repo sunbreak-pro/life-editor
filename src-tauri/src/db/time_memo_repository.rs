@@ -2,6 +2,7 @@ use rusqlite::{params, Connection};
 use serde::{Deserialize, Serialize};
 
 use super::helpers;
+use super::row_converter::{query_all, query_one, FromRow};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
@@ -14,22 +15,25 @@ pub struct TimeMemo {
     pub updated_at: String,
 }
 
-fn row_to_time_memo(row: &rusqlite::Row) -> rusqlite::Result<TimeMemo> {
-    Ok(TimeMemo {
-        id: row.get("id")?,
-        date: row.get("date")?,
-        hour: row.get("hour")?,
-        content: row.get("content")?,
-        created_at: row.get("created_at")?,
-        updated_at: row.get("updated_at")?,
-    })
+impl FromRow for TimeMemo {
+    fn from_row(row: &rusqlite::Row) -> rusqlite::Result<Self> {
+        Ok(TimeMemo {
+            id: row.get("id")?,
+            date: row.get("date")?,
+            hour: row.get("hour")?,
+            content: row.get("content")?,
+            created_at: row.get("created_at")?,
+            updated_at: row.get("updated_at")?,
+        })
+    }
 }
 
 pub fn fetch_by_date(conn: &Connection, date: &str) -> rusqlite::Result<Vec<TimeMemo>> {
-    let mut stmt =
-        conn.prepare("SELECT * FROM time_memos WHERE date = ?1 ORDER BY hour ASC")?;
-    let rows = stmt.query_map([date], |row| row_to_time_memo(row))?;
-    rows.collect()
+    query_all(
+        conn,
+        "SELECT * FROM time_memos WHERE date = ?1 ORDER BY hour ASC",
+        [date],
+    )
 }
 
 pub fn upsert(
@@ -48,9 +52,11 @@ pub fn upsert(
         params![id, date, hour, content, &now, &now],
     )?;
 
-    let mut stmt =
-        conn.prepare("SELECT * FROM time_memos WHERE date = ?1 AND hour = ?2")?;
-    stmt.query_row(params![date, hour], |row| row_to_time_memo(row))
+    query_one(
+        conn,
+        "SELECT * FROM time_memos WHERE date = ?1 AND hour = ?2",
+        params![date, hour],
+    )
 }
 
 pub fn delete(conn: &Connection, id: &str) -> rusqlite::Result<()> {
