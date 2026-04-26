@@ -49,17 +49,29 @@ export async function pullVersionedFull(
  * formats — raw string comparison puts space (0x20) < T (0x54), so without
  * normalisation a since=ISO would never match space-formatted rows.
  *
- * Returns `hasMore: true` when any single table reaches SYNC_PAGE_SIZE so the
- * client can decide to drop into a paginated catch-up. Note: Known Issue #012
- * — the Rust client currently ignores `hasMore`; SYNC_PAGE_SIZE is sized to
- * cover all current data while pagination is unimplemented.
+ * Returns `hasMore: true` when any single table reaches SYNC_PAGE_SIZE.
+ * `nextSince` is the maximum `server_updated_at` actually included across all
+ * tables in this batch — the client uses it as the next-call cursor. When all
+ * tables are drained (`hasMore = false`), `nextSince` is the empty string and
+ * the caller should fall back to the wall-clock response timestamp.
+ *
+ * Edge case: if multiple rows share the exact same `server_updated_at` and
+ * SYNC_PAGE_SIZE cuts in the middle, the next `>` query would skip the tail.
+ * Mitigation: SYNC_PAGE_SIZE is large enough (5000) that real-world same-ms
+ * collisions are rare; rows are stamped from `serverNow` (one per /sync/push
+ * batch) so the same timestamp only repeats within a single push.
  */
 export async function pullVersionedDelta(
   db: D1Database,
   since: string,
-): Promise<{ data: Record<string, unknown[]>; hasMore: boolean }> {
+): Promise<{
+  data: Record<string, unknown[]>;
+  hasMore: boolean;
+  nextSince: string;
+}> {
   const data: Record<string, unknown[]> = {};
   let hasMore = false;
+  let maxServerUpdatedAt = "";
 
   for (const table of VERSIONED_TABLES) {
     // SAFETY: table is whitelisted via VERSIONED_TABLES.
@@ -73,15 +85,25 @@ export async function pullVersionedDelta(
       .bind(since, SYNC_PAGE_SIZE + 1)
       .all();
 
+    let returned: unknown[];
     if (results.length > SYNC_PAGE_SIZE) {
       hasMore = true;
-      data[toCamelCase(table)] = results.slice(0, SYNC_PAGE_SIZE);
+      returned = results.slice(0, SYNC_PAGE_SIZE);
     } else {
-      data[toCamelCase(table)] = results;
+      returned = results;
+    }
+    data[toCamelCase(table)] = returned;
+
+    if (returned.length > 0) {
+      const last = returned[returned.length - 1] as Record<string, unknown>;
+      const ts = last.server_updated_at;
+      if (typeof ts === "string" && ts > maxServerUpdatedAt) {
+        maxServerUpdatedAt = ts;
+      }
     }
   }
 
-  return { data, hasMore };
+  return { data, hasMore, nextSince: maxServerUpdatedAt };
 }
 
 /**

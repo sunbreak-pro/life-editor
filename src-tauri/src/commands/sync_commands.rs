@@ -73,31 +73,49 @@ pub async fn sync_trigger(state: State<'_, DbState>) -> Result<SyncResult, Strin
         .await
         .map_err(|e| e.to_string())?;
 
-    let remote_changes = client
-        .fetch_changes(&last_synced_at, &device_id)
-        .await
-        .map_err(|e| e.to_string())?;
+    // Pull loop (Known Issue #012): keep calling /sync/changes with the
+    // server-supplied `next_since` cursor until `has_more = false`. Each batch
+    // is applied immediately so a long pull can be partially observed; the
+    // persisted `sync_last_synced_at` is updated only at the very end so an
+    // interrupted pull restarts from the last fully-completed sync.
+    let mut cursor = last_synced_at.clone();
+    let mut pulled_total = 0usize;
+    let final_timestamp;
+    loop {
+        let remote_changes = client
+            .fetch_changes(&cursor, &device_id)
+            .await
+            .map_err(|e| e.to_string())?;
 
-    // Apply remote changes (hold lock briefly)
-    let pulled = {
-        let conn = state.conn.lock().map_err(|e| e.to_string())?;
-        let count =
-            sync_engine::apply_remote_changes(&conn, &remote_changes).map_err(|e| e.to_string())?;
+        let count = {
+            let conn = state.conn.lock().map_err(|e| e.to_string())?;
+            sync_engine::apply_remote_changes(&conn, &remote_changes)
+                .map_err(|e| e.to_string())?
+        };
+        pulled_total += count;
 
-        // Update last_synced_at. Skip if cloud returned an empty timestamp —
-        // otherwise we'd persist "" and the next `since` query matches every row.
-        if !remote_changes.timestamp.is_empty() {
-            app_settings_repository::set(&conn, "sync_last_synced_at", &remote_changes.timestamp)
-                .map_err(|e| e.to_string())?;
+        if !remote_changes.has_more
+            || remote_changes.next_since.is_empty()
+            || remote_changes.next_since == cursor
+        {
+            // Last batch — server drained, returned no cursor (pre-3-2 server),
+            // or cursor failed to advance (defensive guard against an infinite loop).
+            final_timestamp = remote_changes.timestamp;
+            break;
         }
+        cursor = remote_changes.next_since;
+    }
 
-        count
-    };
+    if !final_timestamp.is_empty() {
+        let conn = state.conn.lock().map_err(|e| e.to_string())?;
+        app_settings_repository::set(&conn, "sync_last_synced_at", &final_timestamp)
+            .map_err(|e| e.to_string())?;
+    }
 
     Ok(SyncResult {
         pushed: push_result.pushed,
-        pulled,
-        timestamp: remote_changes.timestamp,
+        pulled: pulled_total,
+        timestamp: final_timestamp,
     })
 }
 

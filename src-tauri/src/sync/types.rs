@@ -46,6 +46,10 @@ pub struct SyncPayload {
     pub timestamp: String,
     #[serde(default)]
     pub has_more: bool,
+    /// Cursor for the next /sync/changes call when `has_more` is true.
+    /// Empty string when the server has drained all tables.
+    #[serde(default)]
+    pub next_since: String,
 }
 
 /// Result returned to the frontend after a sync cycle.

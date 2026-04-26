@@ -47,7 +47,11 @@ sync.get("/changes", async (c) => {
   }
 
   const db = c.env.DB;
-  const { data: versioned, hasMore } = await pullVersionedDelta(db, since);
+  const {
+    data: versioned,
+    hasMore,
+    nextSince,
+  } = await pullVersionedDelta(db, since);
   const relations = await pullRelationsDelta(db, since);
 
   if (deviceId) {
@@ -66,6 +70,7 @@ sync.get("/changes", async (c) => {
     ...relations,
     timestamp: new Date().toISOString(),
     hasMore,
+    nextSince,
   });
 });
 
