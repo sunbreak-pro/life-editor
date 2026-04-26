@@ -45,9 +45,16 @@ import {
   ENTITY_FILTER_MEMO_ID,
   VIRTUAL_UNTAGGED_ID,
 } from "../../../types/filterItem";
-import { STORAGE_KEYS } from "../../../constants/storageKeys";
 import { TagFilterOverlay } from "../../shared/TagFilterOverlay";
 import { computeForceLayout } from "./forceLayout";
+import {
+  VIRTUAL_LINK_EDGES_HIDDEN_ID,
+  isSpecialFilterId,
+  loadPositions,
+  loadViewport,
+  savePositions,
+  saveViewport,
+} from "./tagGraphStorage";
 
 const nodeTypes = {
   noteNode: NoteNodeComponent,
@@ -90,44 +97,6 @@ interface TagGraphViewProps {
   focusedNoteId?: string | null;
   onFocusComplete?: () => void;
   sidebarSelectedItemId: string | null;
-}
-
-const VIRTUAL_LINK_EDGES_HIDDEN_ID = "__virtual:link-edges-hidden";
-
-function loadPositions(): Record<string, { x: number; y: number }> {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEYS.TAG_GRAPH_POSITIONS);
-    return raw ? JSON.parse(raw) : {};
-  } catch {
-    return {};
-  }
-}
-
-function savePositions(positions: Record<string, { x: number; y: number }>) {
-  localStorage.setItem(
-    STORAGE_KEYS.TAG_GRAPH_POSITIONS,
-    JSON.stringify(positions),
-  );
-}
-
-function loadViewport(): { x: number; y: number; zoom: number } | null {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEYS.TAG_GRAPH_VIEWPORT);
-    return raw ? JSON.parse(raw) : null;
-  } catch {
-    return null;
-  }
-}
-
-function saveViewport(viewport: { x: number; y: number; zoom: number }) {
-  localStorage.setItem(
-    STORAGE_KEYS.TAG_GRAPH_VIEWPORT,
-    JSON.stringify(viewport),
-  );
-}
-
-function isSpecialFilterId(id: string): boolean {
-  return id.startsWith("__");
 }
 
 export function TagGraphView({
@@ -599,7 +568,9 @@ export function TagGraphView({
   function buildSplitViewNodes(): Node[] {
     const selectedId = sidebarSelectedItemId!;
     const selectedNote = notes.find((n) => n.id === selectedId && !n.isDeleted);
-    const selectedDaily = dailies.find((m) => m.id === selectedId && !m.isDeleted);
+    const selectedDaily = dailies.find(
+      (m) => m.id === selectedId && !m.isDeleted,
+    );
     if (!selectedNote && !selectedDaily) return [];
 
     const allTags = selectedNote
