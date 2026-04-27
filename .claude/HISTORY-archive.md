@@ -1,5 +1,40 @@
 # HISTORY-archive.md - 変更履歴アーカイブ
 
+### 2026-04-26 - リファクタリング検証 (Phase 2-4 / 3-1 / 3-4) 自動検証完遂
+
+#### 概要
+
+ユーザー要望「`.claude/2026-04-26-refactoring-verification-plan.md` の内容を読み込んでやるべきことをさらに分析した上で実装」を受け、verification plan の自動検証部分 (S-1 / S-7 / S-8 / S-9) を Auto mode で完遂。コード変更は前セッションで commit `ab84b85` に着地済 (FromRow trait 26 ファイル + calendarGrid.ts 共通化 4 ファイル) のため、本セッションは検証ゲート通過の確認 + 境界ケース自動化 + 性能 spot-check に専念。**結論**: Phase 3-1 起因の新規 clippy 警告 0、`prepare_cached` 移行不要 (R-1 リスク不発)、境界ケース 12 件追加で完全自動化。残課題は手動 UI 検証 (S-2〜S-6) のみ。
+
+#### 変更点
+
+- **S-1 Rust 単体検証**:
+  - `cargo build --lib` 0 warnings / `cargo test --lib` 25/25 pass (1 ignored = `bench_fetch_tree`)
+  - `grep -rnE "fn row_to_" src-tauri/src/db/` → `row_to_json` のみ ✓ (Phase 3-1 で全 free fn 削除済み確認)
+  - `grep -rnE "row_to_[a-z_]+\(row" src-tauri/src/` → `helpers.rs::row_to_json` (3 箇所) + `sync_engine.rs::row_to_json` (1 箇所) のみ ✓
+  - `cargo clippy --lib -- -D warnings`: 83 件警告 = **全件 pre-existing** (内訳: migrations/v2_v30.rs 29 + v31_v60.rs 30 + v61_plus.rs 9 = 68 / reminder.rs 6 / sync_engine.rs 2 (`field_reassign_with_default`) / claude_commands.rs 1 (`manual_flatten`) / repository 系 3 件はいずれも `too_many_arguments` on 11-arg `create()`)。Phase 3-1 の FromRow 移行起因は 0、別セッションで cleanup 必要
+- **S-7 境界ケース完全自動化** (`frontend/src/utils/calendarGrid.test.ts` 8 → 20 tests):
+  - 追加 12 件: うるう年 2024/2 (Sun/Mon 両モード) / 月初 Sat (2026/8) / 月初 Mon (2026/6) / `addDays` 年跨ぎ前進・後退 / `getMondayOf` 日曜→6 日前・同曜・水曜・時刻正規化・非破壊 / `getWeekDates` 7 日 array
+  - `npx vitest run src/utils/calendarGrid.test.ts` 20/20 pass。verification plan §S-7 の境界ケース全項目自動化済 (旧 plan は手動補足を想定していたが本セッションで全て test 化)
+- **S-8 性能 spot-check** (`cargo test --release --lib db::task_repository::fetch_tree_benchmark -- --ignored --nocapture`):
+  - 結果 (10 runs avg): n=500: 3.14ms / n=1000: 6.55ms / n=3000: 18.37ms
+  - 基準 100ms に対し最大でも 18.5% — `query_all` の `prepare()` 毎回呼び出しによる劣化は実質無視可能
+  - **`prepare_cached` 移行不要**を確定 (R-1 リスク不発)
+- **S-9 検証 plan ファイル更新** (`.claude/2026-04-26-refactoring-verification-plan.md`):
+  - Status を `PENDING` → `AUTOMATED COMPLETE / MANUAL PENDING` に更新
+  - S-1 / S-7 / S-8 / S-9 のチェックボックスを実績で `[x]` または `[~]` (S-1 clippy のみ部分) に
+  - Done 定義セクションも更新
+  - Related リンクを `.claude/archive/2026-04-25-refactoring-plan.md` に修正 (前セッションで archive 済み)
+- **frontend 再検証**: `npx tsc -b` 0 / `npm run test` 40 files / 344/344 pass (前回 332 + 私が追加した 12) / `npm run build` Vite production clean
+
+#### 残課題
+
+- **手動 UI 検証** (verification plan §S-2〜S-6): Desktop/iOS 実機での 11 ドメイン IPC fetch / Cloud Sync 5000 行超 round-trip / Calendar Mobile (Monday 始まり / スワイプ / chip / Today) / Calendar Desktop (Sunday 始まり / 6 行固定 / Weekly Grid) / Schedule View (週 dots / 月跨ぎラベル / 4 タブ)
+- **完了後の docs 整理**: `docs/known-issues/INDEX.md` で formatter / SQL whitelist / row_to_model 重複 を削除候補マーク / `docs/code-inventory.md` の Active/Duplicate セクション更新 (UI 検証完了後に実施推奨)
+- **clippy 既存 83 警告**: pre-existing で本検証外、別セッションで cleanup 候補 (migrations / reminder / repository `create()` シグネチャ)
+
+---
+
 ### 2026-04-26 - リファクタリング計画 Phase 2-4 / 3-1 / 3-4 完遂 + 検証用実装計画書作成
 
 #### 概要

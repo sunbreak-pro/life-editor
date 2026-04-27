@@ -2,6 +2,8 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { X } from "lucide-react";
 import type { ScheduleItem } from "../../types/schedule";
+import { TimeDropdown } from "../shared/TimeDropdown";
+import { formatTime } from "../../utils/timeGridUtils";
 
 interface MobileScheduleItemFormProps {
   open: boolean;
@@ -167,22 +169,24 @@ export function MobileScheduleItemForm({
                   <label className="mb-0.5 block text-[10px] font-medium uppercase tracking-wider text-notion-text-secondary">
                     {t("mobile.schedule.form.startLabel", "Start")}
                   </label>
-                  <input
-                    type="time"
-                    value={startTime}
-                    onChange={(e) => setStartTime(e.target.value)}
-                    className="w-full min-w-0 rounded-lg border border-notion-border bg-notion-bg-secondary px-2 py-1.5 text-[13px] text-notion-text focus:border-notion-accent focus:outline-none"
+                  <TimeDropdown
+                    hour={parseInt(startTime.split(":")[0] || "0", 10)}
+                    minute={parseInt(startTime.split(":")[1] || "0", 10)}
+                    onChange={(h, m) => setStartTime(formatTime(h, m))}
+                    minuteStep={5}
+                    className="w-full justify-center px-2 py-1.5"
                   />
                 </div>
                 <div className="min-w-0">
                   <label className="mb-0.5 block text-[10px] font-medium uppercase tracking-wider text-notion-text-secondary">
                     {t("mobile.schedule.form.endLabel", "End")}
                   </label>
-                  <input
-                    type="time"
-                    value={endTime}
-                    onChange={(e) => setEndTime(e.target.value)}
-                    className="w-full min-w-0 rounded-lg border border-notion-border bg-notion-bg-secondary px-2 py-1.5 text-[13px] text-notion-text focus:border-notion-accent focus:outline-none"
+                  <TimeDropdown
+                    hour={parseInt(endTime.split(":")[0] || "0", 10)}
+                    minute={parseInt(endTime.split(":")[1] || "0", 10)}
+                    onChange={(h, m) => setEndTime(formatTime(h, m))}
+                    minuteStep={5}
+                    className="w-full justify-center px-2 py-1.5"
                   />
                 </div>
               </>

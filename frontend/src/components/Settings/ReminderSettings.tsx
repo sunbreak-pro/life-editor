@@ -2,6 +2,8 @@ import { useState, useCallback, useEffect } from "react";
 import { Bell, Clock, CalendarCheck } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { getDataService } from "../../services/dataServiceFactory";
+import { TimeDropdown } from "../shared/TimeDropdown";
+import { formatTime } from "../../utils/timeGridUtils";
 
 const OFFSET_OPTIONS = [5, 10, 15, 30, 60, 120, 1440];
 
@@ -55,8 +57,8 @@ export function ReminderSettings() {
   }, [dailyReviewEnabled, save]);
 
   const handleTimeChange = useCallback(
-    (e: React.ChangeEvent<HTMLInputElement>) => {
-      const val = e.target.value;
+    (h: number, m: number) => {
+      const val = formatTime(h, m);
       setDailyReviewTime(val);
       save({ dailyReviewTime: val });
     },
@@ -154,11 +156,11 @@ export function ReminderSettings() {
           <p className="text-sm text-notion-text">
             {t("reminders.dailyReviewTime")}
           </p>
-          <input
-            type="time"
-            value={dailyReviewTime}
+          <TimeDropdown
+            hour={parseInt(dailyReviewTime.split(":")[0] || "0", 10)}
+            minute={parseInt(dailyReviewTime.split(":")[1] || "0", 10)}
             onChange={handleTimeChange}
-            className="text-sm bg-notion-bg-secondary border border-notion-border rounded-md px-3 py-1.5 text-notion-text"
+            minuteStep={15}
           />
         </div>
       )}

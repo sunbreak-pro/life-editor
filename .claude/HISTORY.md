@@ -1,5 +1,29 @@
 # HISTORY.md - 変更履歴
 
+### 2026-04-27 - 時間帯選択 UI を TimeDropdown に統一（Routine / RoutineGroup / EventDetail / ReminderSettings / MobileScheduleItemForm）
+
+#### 概要
+
+ユーザー要望「Routine アイテムや RoutineGroup の時間帯を手動で打たずドロップダウンで選べるようにしてほしい。Tasks の時間帯調整で既に整っている UI/UX を利用し、共通コンポーネント/フックがなければ作成。それ以外にも時間調整 UI があるため全て置き換え」を Auto mode で実施。実装プランなしの UI 統一リファクタリング。**調査**: Explore agent (very thorough) で全時間 UI を洗い出し、`shared/TimeDropdown` (Calendar / DayFlow / ScheduleItemEditPopup / TaskSchedulePanel / MiniCalendarGrid で既に使用中) がリファレンス実装と判明。新規共通コンポーネントの作成は不要 — TimeDropdown と既存 `shared/TimeInput` の props (`hour, minute, onChange(h, m), minuteStep, size, className`) が完全一致するため、Routine 系 / EventDetail はコンポーネント名置換のみで完了。Native `<input type="time">` は (h, m) ベースに onChange を書き換えて移行。**5 ファイル / 11 箇所** を統一、不要となった `shared/TimeInput.tsx` (231 行) を削除。session-verifier 全 6 ゲート PASS、tsc -b 0 / vitest 42 files / 376/376 pass。
+
+#### 変更点
+
+- **`Tasks/Schedule/Routine/RoutineEditDialog.tsx`**: `TimeInput` import を `TimeDropdown` に変更。Routine 開始/終了の TimeInput x2 (minuteStep=1) を TimeDropdown に置換。`adjustEndTimeForStartChange` / `clampEndTimeAfterStart` の呼出ロジックは onChange 内で維持
+- **`Tasks/Schedule/Routine/RoutineGroupEditDialog.tsx`**: `TimeInput` import を `TimeDropdown` に変更。Group 時間範囲 (start/end x2, minuteStep=5, size=sm) + メンバールーチン時刻 (start/end x2, minuteStep=5, size=sm) の計 4 箇所を TimeDropdown に置換。`handleSlide` / `handleSlideEnd` (group 範囲の offset スライド) と `routineTimeEdits` Map 更新ロジックは維持
+- **`ScheduleList/EventDetailPanel.tsx`**: `TimeInput` import を `TimeDropdown` に変更。Event 開始/終了の TimeInput x2 (minuteStep=5, size=sm) を TimeDropdown に置換。`handleStartTimeChange` の `adjustEndTimeForStartChange` 呼出は不変
+- **`Settings/ReminderSettings.tsx`**: native `<input type="time">` (Daily Review 時刻設定) を TimeDropdown (minuteStep=15) に置換。`handleTimeChange` のシグネチャを `(e: ChangeEvent) => string` から `(h: number, m: number) => formatTime(h, m)` に書き換え、`utils/timeGridUtils::formatTime` を import
+- **`Mobile/MobileScheduleItemForm.tsx`**: native `<input type="time">` x2 (start / end, mobile bottom sheet 内) を TimeDropdown (minuteStep=5) に置換。`utils/timeGridUtils::formatTime` を import、onChange は `(h, m) => setStartTime(formatTime(h, m))` のインライン arrow。`className="w-full justify-center px-2 py-1.5"` でグリッドレイアウト (`grid-cols-[1.3fr_1fr_1fr]`) に追従。**bg 不一致の意図的回避**: 当初 `bg-notion-bg-secondary` を className 経由で override したが、本プロジェクトは `tailwind-merge` 未導入のため Tailwind JIT の CSS 出力順依存で override 結果が不安定 → デフォルトの `bg-notion-bg` のまま (date input と僅かに色違いだがドロップダウンパネル本体とは一致)
+- **削除**: `frontend/src/components/shared/TimeInput.tsx` (231 行) — 上記 5 ファイルが移行完了して callers 0。barrel export / テストも無し (grep で `TimeInput` の残参照は変数名 `dateTimeInputs` のみ確認済)
+- **Verification**: `npx tsc -b` exit 0 / `npm run test` 42 files / 376/376 pass / `npx eslint <変更5ファイル>` 1 error (= MobileScheduleItemForm:64 useEffect 内 setState、git stash で pre-existing と確認、本セッション無関与) / session-verifier 全 6 ゲート PASS
+
+#### 残課題
+
+- **手動 UI 検証**: (a) RoutineEditDialog 開始/終了の Clock アイコン付きドロップダウン表示・選択動作 / (b) RoutineGroupEditDialog の group 範囲スライド (start 変更で member 全員シフト) / (c) EventDetailPanel の event 時刻ドロップダウン (parent panel `useClickOutside` と portal dropdown の干渉なし確認) / (d) ReminderSettings の Daily Review 時刻が 15 分刻みドロップダウンで保存されること / (e) MobileScheduleItemForm の bottom sheet 内ドロップダウン操作 (z-index 9999 portal がモバイル bottom sheet z-50 を超えること、grid 幅 fit、タップで開閉)
+- **Mobile UX 評価**: native picker から TimeDropdown への切替は要モバイル実機検証。タッチデバイスでスクロール選択が想定通り機能しない場合は条件分岐 (touch device 時のみ native picker 復活) を検討候補
+- **アンステージ変更**: 別セッション由来の `Layout/{LeftSidebar,TitleBar}.tsx` / `Mobile/MobileNoteView.tsx` / `Mobile/materials/MobileNoteTree*.tsx` / `Ideas/NoteTreeNode.tsx` / `WikiTags/WikiTagList.tsx` / `shared/UnifiedColorPicker.tsx` / `shared/UndoRedo/UndoRedoButtons.tsx` / `extensions/WikiTagView.tsx` / `i18n/locales/{en,ja}.json` / `src-tauri/{Cargo.toml, lib.rs, claude_commands.rs, terminal/pty_manager.rs}` / `.claude/CLAUDE.md` が working tree に残存。本コミットは TimeDropdown 統一 5 ファイル + TimeInput.tsx 削除 + .claude/ のみに絞る
+
+---
+
 ### 2026-04-26 - Connect/Board の React Flow #008 警告解消 + Node/Board パフォーマンス改善
 
 #### 概要
@@ -114,38 +138,3 @@
 - **OneDaySchedule の RoutineEditDialog (line 919) には onOpenManagement 未配線**: DayFlow パスの routine item Edit から管理画面遷移は別タスク (本セッションは Calendar 経路のみ対応)
 - **SessionBlock のオプション拡張**: 現状 4px 幅で hover ツールチップのみ。ユーザーから "もっと目立たせたい" or "クリック動作が欲しい" 等の要望が出れば次セッションで拡張
 - **アンステージ変更**: 別セッション由来の `Layout/CollapsedSidebar.tsx` (lint 3 errors + 1 warning) / `LeftSidebar.tsx` / `SidebarLinkAddDialog.tsx` / `Mobile/MobileNoteView.tsx` / `Mobile/materials/MobileNoteTree*.tsx` / `Ideas/NoteTreeNode.tsx` / `WikiTags/WikiTagList.tsx` / `shared/UnifiedColorPicker.tsx` / `extensions/WikiTagView.tsx` / `claude_commands.rs` / `terminal/pty_manager.rs` / 各 db/\*\_repository.rs (前セッション Phase 3-1 の旧版残骸) が working tree に残存。本コミットは Task 1-5 関連 9 ファイル + .claude/ のみに絞る
-
----
-
-### 2026-04-26 - リファクタリング検証 (Phase 2-4 / 3-1 / 3-4) 自動検証完遂
-
-#### 概要
-
-ユーザー要望「`.claude/2026-04-26-refactoring-verification-plan.md` の内容を読み込んでやるべきことをさらに分析した上で実装」を受け、verification plan の自動検証部分 (S-1 / S-7 / S-8 / S-9) を Auto mode で完遂。コード変更は前セッションで commit `ab84b85` に着地済 (FromRow trait 26 ファイル + calendarGrid.ts 共通化 4 ファイル) のため、本セッションは検証ゲート通過の確認 + 境界ケース自動化 + 性能 spot-check に専念。**結論**: Phase 3-1 起因の新規 clippy 警告 0、`prepare_cached` 移行不要 (R-1 リスク不発)、境界ケース 12 件追加で完全自動化。残課題は手動 UI 検証 (S-2〜S-6) のみ。
-
-#### 変更点
-
-- **S-1 Rust 単体検証**:
-  - `cargo build --lib` 0 warnings / `cargo test --lib` 25/25 pass (1 ignored = `bench_fetch_tree`)
-  - `grep -rnE "fn row_to_" src-tauri/src/db/` → `row_to_json` のみ ✓ (Phase 3-1 で全 free fn 削除済み確認)
-  - `grep -rnE "row_to_[a-z_]+\(row" src-tauri/src/` → `helpers.rs::row_to_json` (3 箇所) + `sync_engine.rs::row_to_json` (1 箇所) のみ ✓
-  - `cargo clippy --lib -- -D warnings`: 83 件警告 = **全件 pre-existing** (内訳: migrations/v2_v30.rs 29 + v31_v60.rs 30 + v61_plus.rs 9 = 68 / reminder.rs 6 / sync_engine.rs 2 (`field_reassign_with_default`) / claude_commands.rs 1 (`manual_flatten`) / repository 系 3 件はいずれも `too_many_arguments` on 11-arg `create()`)。Phase 3-1 の FromRow 移行起因は 0、別セッションで cleanup 必要
-- **S-7 境界ケース完全自動化** (`frontend/src/utils/calendarGrid.test.ts` 8 → 20 tests):
-  - 追加 12 件: うるう年 2024/2 (Sun/Mon 両モード) / 月初 Sat (2026/8) / 月初 Mon (2026/6) / `addDays` 年跨ぎ前進・後退 / `getMondayOf` 日曜→6 日前・同曜・水曜・時刻正規化・非破壊 / `getWeekDates` 7 日 array
-  - `npx vitest run src/utils/calendarGrid.test.ts` 20/20 pass。verification plan §S-7 の境界ケース全項目自動化済 (旧 plan は手動補足を想定していたが本セッションで全て test 化)
-- **S-8 性能 spot-check** (`cargo test --release --lib db::task_repository::fetch_tree_benchmark -- --ignored --nocapture`):
-  - 結果 (10 runs avg): n=500: 3.14ms / n=1000: 6.55ms / n=3000: 18.37ms
-  - 基準 100ms に対し最大でも 18.5% — `query_all` の `prepare()` 毎回呼び出しによる劣化は実質無視可能
-  - **`prepare_cached` 移行不要**を確定 (R-1 リスク不発)
-- **S-9 検証 plan ファイル更新** (`.claude/2026-04-26-refactoring-verification-plan.md`):
-  - Status を `PENDING` → `AUTOMATED COMPLETE / MANUAL PENDING` に更新
-  - S-1 / S-7 / S-8 / S-9 のチェックボックスを実績で `[x]` または `[~]` (S-1 clippy のみ部分) に
-  - Done 定義セクションも更新
-  - Related リンクを `.claude/archive/2026-04-25-refactoring-plan.md` に修正 (前セッションで archive 済み)
-- **frontend 再検証**: `npx tsc -b` 0 / `npm run test` 40 files / 344/344 pass (前回 332 + 私が追加した 12) / `npm run build` Vite production clean
-
-#### 残課題
-
-- **手動 UI 検証** (verification plan §S-2〜S-6): Desktop/iOS 実機での 11 ドメイン IPC fetch / Cloud Sync 5000 行超 round-trip / Calendar Mobile (Monday 始まり / スワイプ / chip / Today) / Calendar Desktop (Sunday 始まり / 6 行固定 / Weekly Grid) / Schedule View (週 dots / 月跨ぎラベル / 4 タブ)
-- **完了後の docs 整理**: `docs/known-issues/INDEX.md` で formatter / SQL whitelist / row_to_model 重複 を削除候補マーク / `docs/code-inventory.md` の Active/Duplicate セクション更新 (UI 検証完了後に実施推奨)
-- **clippy 既存 83 警告**: pre-existing で本検証外、別セッションで cleanup 候補 (migrations / reminder / repository `create()` シグネチャ)

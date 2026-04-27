@@ -5,7 +5,7 @@ import type { RoutineGroup } from "../../../../types/routineGroup";
 import type { RoutineNode, FrequencyType } from "../../../../types/routine";
 import { UnifiedColorPicker } from "../../../shared/UnifiedColorPicker";
 import { FrequencySelector } from "./FrequencySelector";
-import { TimeInput } from "../../../shared/TimeInput";
+import { TimeDropdown } from "../../../shared/TimeDropdown";
 import { formatTime, timeToMinutes } from "../../../../utils/timeGridUtils";
 import { getTodayKey } from "../../../../utils/dateKey";
 
@@ -234,7 +234,7 @@ export function RoutineGroupEditDialog({
                 {t("routineGroup.timeRange", "Time Range")}
               </label>
               <div className="flex items-center gap-2 text-sm text-notion-text">
-                <TimeInput
+                <TimeDropdown
                   hour={parseInt(
                     groupTimeRange.startTime.split(":")[0] || "0",
                     10,
@@ -250,7 +250,7 @@ export function RoutineGroupEditDialog({
                   size="sm"
                 />
                 <span className="text-notion-text-secondary">-</span>
-                <TimeInput
+                <TimeDropdown
                   hour={parseInt(
                     groupTimeRange.endTime.split(":")[0] || "0",
                     10,
@@ -309,7 +309,7 @@ export function RoutineGroupEditDialog({
                           </span>
                         )}
                       </span>
-                      <TimeInput
+                      <TimeDropdown
                         hour={startH}
                         minute={startM}
                         onChange={(h, m) => {
@@ -328,7 +328,7 @@ export function RoutineGroupEditDialog({
                         size="sm"
                       />
                       <span className="text-notion-text-secondary">-</span>
-                      <TimeInput
+                      <TimeDropdown
                         hour={endH}
                         minute={endM}
                         onChange={(h, m) => {

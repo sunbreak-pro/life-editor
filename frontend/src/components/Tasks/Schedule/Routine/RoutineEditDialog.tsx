@@ -3,7 +3,7 @@ import { X, Plus, Check, Settings } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import type { RoutineNode, FrequencyType } from "../../../../types/routine";
 import type { RoutineGroup } from "../../../../types/routineGroup";
-import { TimeInput } from "../../../shared/TimeInput";
+import { TimeDropdown } from "../../../shared/TimeDropdown";
 import { FrequencySelector } from "./FrequencySelector";
 import { useConfirmableSubmit } from "../../../../hooks/useConfirmableSubmit";
 import {
@@ -221,7 +221,7 @@ export function RoutineEditDialog({
               <label className="text-[11px] text-notion-text-secondary uppercase tracking-wide mb-1 block">
                 {t("schedule.start", "Start")}
               </label>
-              <TimeInput
+              <TimeDropdown
                 hour={parseInt(startTime.split(":")[0] || "0", 10)}
                 minute={parseInt(startTime.split(":")[1] || "0", 10)}
                 onChange={(h, m) => {
@@ -245,7 +245,7 @@ export function RoutineEditDialog({
               <label className="text-[11px] text-notion-text-secondary uppercase tracking-wide mb-1 block">
                 {t("schedule.end", "End")}
               </label>
-              <TimeInput
+              <TimeDropdown
                 hour={parseInt(endTime.split(":")[0] || "0", 10)}
                 minute={parseInt(endTime.split(":")[1] || "0", 10)}
                 onChange={(h, m) => {

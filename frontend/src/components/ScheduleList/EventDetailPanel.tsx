@@ -4,7 +4,7 @@ import { Trash2, Clock, CalendarDays, StickyNote } from "lucide-react";
 import { RoundedCheckbox } from "../shared/RoundedCheckbox";
 import { useTranslation } from "react-i18next";
 import { useScheduleItemsContext } from "../../hooks/useScheduleItemsContext";
-import { TimeInput } from "../shared/TimeInput";
+import { TimeDropdown } from "../shared/TimeDropdown";
 import { ConfirmDialog } from "../shared/ConfirmDialog";
 import {
   formatTime,
@@ -159,7 +159,7 @@ function EventDetailContent({
         {!event.isAllDay && (
           <div className="flex items-center gap-2">
             <Clock size={14} className="text-notion-text-secondary shrink-0" />
-            <TimeInput
+            <TimeDropdown
               hour={parseInt(editStartTime.split(":")[0], 10)}
               minute={parseInt(editStartTime.split(":")[1], 10)}
               onChange={handleStartTimeChange}
@@ -167,7 +167,7 @@ function EventDetailContent({
               size="sm"
             />
             <span className="text-xs text-notion-text-secondary">-</span>
-            <TimeInput
+            <TimeDropdown
               hour={parseInt(editEndTime.split(":")[0], 10)}
               minute={parseInt(editEndTime.split(":")[1], 10)}
               onChange={handleEndTimeChange}
