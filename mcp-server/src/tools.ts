@@ -15,6 +15,8 @@ import {
   updateScheduleItem,
   deleteScheduleItem,
   toggleScheduleComplete,
+  dismissScheduleItem,
+  undismissScheduleItem,
 } from "./handlers/scheduleHandlers.js";
 import { searchAll } from "./handlers/searchHandlers.js";
 import { generateContent, formatContent } from "./handlers/contentHandlers.js";
@@ -321,6 +323,30 @@ export const TOOLS: Tool[] = [
   {
     name: "toggle_schedule_complete",
     description: "Toggle the completion status of a schedule item.",
+    inputSchema: {
+      type: "object" as const,
+      properties: {
+        id: { type: "string", description: "Schedule item ID" },
+      },
+      required: ["id"],
+    },
+  },
+  {
+    name: "dismiss_schedule_item",
+    description:
+      "Hide a schedule item from list/calendar views without deleting it. Used to skip routine occurrences for a given day.",
+    inputSchema: {
+      type: "object" as const,
+      properties: {
+        id: { type: "string", description: "Schedule item ID" },
+      },
+      required: ["id"],
+    },
+  },
+  {
+    name: "undismiss_schedule_item",
+    description:
+      "Restore a previously dismissed schedule item so it appears in views again.",
     inputSchema: {
       type: "object" as const,
       properties: {
@@ -802,6 +828,16 @@ export function callTool(
     case "toggle_schedule_complete":
       result = toggleScheduleComplete(
         args as Parameters<typeof toggleScheduleComplete>[0],
+      );
+      break;
+    case "dismiss_schedule_item":
+      result = dismissScheduleItem(
+        args as Parameters<typeof dismissScheduleItem>[0],
+      );
+      break;
+    case "undismiss_schedule_item":
+      result = undismissScheduleItem(
+        args as Parameters<typeof undismissScheduleItem>[0],
       );
       break;
     case "search_all":

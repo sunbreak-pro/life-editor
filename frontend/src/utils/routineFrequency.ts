@@ -24,6 +24,9 @@ export function shouldRoutineRunOnDate(
       return diffDays >= 0 && diffDays % frequencyInterval === 0;
     }
     default:
-      return true;
+      // "group" or unknown: caller must resolve via the routine's RoutineGroups
+      // and pass the group's frequency in. Falling through here would match
+      // every date and cause runaway schedule_item creation in reconcile.
+      return false;
   }
 }

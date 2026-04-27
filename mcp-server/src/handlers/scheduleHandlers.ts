@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { getDb } from "../db.js";
 
 interface ScheduleItemRow {
@@ -15,6 +16,10 @@ interface ScheduleItemRow {
   content: string | null;
   is_dismissed: number;
   is_all_day: number;
+  is_deleted: number;
+  deleted_at: string | null;
+  reminder_enabled: number;
+  reminder_offset: number | null;
   created_at: string;
   updated_at: string;
 }
@@ -35,6 +40,10 @@ function formatItem(row: ScheduleItemRow) {
     content: row.content ?? null,
     isDismissed: row.is_dismissed === 1,
     isAllDay: row.is_all_day === 1,
+    isDeleted: row.is_deleted === 1,
+    deletedAt: row.deleted_at,
+    reminderEnabled: row.reminder_enabled === 1,
+    reminderOffset: row.reminder_offset,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -51,7 +60,7 @@ export function listSchedule(args: {
   if (args.start_date && args.end_date) {
     const rows = db
       .prepare(
-        `SELECT * FROM schedule_items WHERE date >= ? AND date <= ? AND is_dismissed = 0
+        `SELECT * FROM schedule_items WHERE date >= ? AND date <= ? AND is_dismissed = 0 AND is_deleted = 0
          ORDER BY date ASC, start_time ASC, created_at ASC`,
       )
       .all(args.start_date, args.end_date) as ScheduleItemRow[];
@@ -89,7 +98,7 @@ export function listSchedule(args: {
   const date = args.date ?? new Date().toISOString().slice(0, 10);
   const rows = db
     .prepare(
-      `SELECT * FROM schedule_items WHERE date = ? AND is_dismissed = 0
+      `SELECT * FROM schedule_items WHERE date = ? AND is_dismissed = 0 AND is_deleted = 0
        ORDER BY start_time ASC, created_at ASC`,
     )
     .all(date) as ScheduleItemRow[];
@@ -133,7 +142,7 @@ export function createScheduleItem(args: {
   content?: string;
 }) {
   const db = getDb();
-  const id = `si-${Date.now()}`;
+  const id = `si-${randomUUID()}`;
 
   db.prepare(
     `INSERT INTO schedule_items (id, date, title, start_time, end_time, completed, completed_at, routine_id, template_id, note_id, is_all_day, content, created_at, updated_at)
@@ -206,6 +215,44 @@ export function updateScheduleItem(args: {
   db.prepare(
     `UPDATE schedule_items SET ${updates.join(", ")} WHERE id = @id`,
   ).run(params);
+
+  const row = db
+    .prepare("SELECT * FROM schedule_items WHERE id = ?")
+    .get(args.id) as ScheduleItemRow;
+  return formatItem(row);
+}
+
+export function dismissScheduleItem(args: { id: string }) {
+  const db = getDb();
+
+  const existing = db
+    .prepare("SELECT id FROM schedule_items WHERE id = ?")
+    .get(args.id) as { id: string } | undefined;
+  if (!existing) throw new Error(`Schedule item not found: ${args.id}`);
+
+  db.prepare(
+    `UPDATE schedule_items SET is_dismissed = 1, version = version + 1,
+     updated_at = datetime('now') WHERE id = ?`,
+  ).run(args.id);
+
+  const row = db
+    .prepare("SELECT * FROM schedule_items WHERE id = ?")
+    .get(args.id) as ScheduleItemRow;
+  return formatItem(row);
+}
+
+export function undismissScheduleItem(args: { id: string }) {
+  const db = getDb();
+
+  const existing = db
+    .prepare("SELECT id FROM schedule_items WHERE id = ?")
+    .get(args.id) as { id: string } | undefined;
+  if (!existing) throw new Error(`Schedule item not found: ${args.id}`);
+
+  db.prepare(
+    `UPDATE schedule_items SET is_dismissed = 0, version = version + 1,
+     updated_at = datetime('now') WHERE id = ?`,
+  ).run(args.id);
 
   const row = db
     .prepare("SELECT * FROM schedule_items WHERE id = ?")
