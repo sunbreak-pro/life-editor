@@ -1,0 +1,1 @@
+/Users/newlife/dev/Claude/agents-lib/projects/life-editor/life-editor-ipc-validator.md

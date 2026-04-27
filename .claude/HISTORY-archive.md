@@ -1,5 +1,30 @@
 # HISTORY-archive.md - 変更履歴アーカイブ
 
+### 2026-04-26 - CLAUDE.md / 各種設定の最新化 + コンパクト化
+
+#### 概要
+
+ユーザー要望「CLAUDE.md と各種設定を現在のコードを分析して最新化、不要・重複部分を削除してコンパクト化」を Auto mode で実施。実装プランなしのドキュメント整備。コードを直接 grep してスキーマ / Provider 順序 / MCP ツール数を実測 → CLAUDE.md の事実不整合（schema 版数の遅延、`RELATION_TABLES_WITH_UPDATED_AT` の誤った記述、markdown フォーマッタによる italic 混入）を全て修正。`settings.local.json` から旧プロジェクト由来の stale エントリ約 46% を除去。Known Issues INDEX に欠落していた 009/010 を追加。
+
+#### 変更点
+
+- **`.claude/CLAUDE.md` §3.1 (Architecture)**: SQLite path を bundle ID に依存しない `app_data_dir/life-editor.db` に汎化。実 bundle ID `com.lifeEditor.app.newlife`（`tauri.conf.json` 由来）を明示し、Known Issue 006（bundle ID 分裂）への参照を追加
+- **`.claude/CLAUDE.md` §4.1 (SQLite スキーマ)**: schema を v67 → **v69** に更新。正本パスを単一 `migrations.rs` → モジュール構成 `migrations/`（`v61_plus.rs` + `full_schema.rs` + `mod.rs::LATEST_USER_VERSION`）に追従。V68（`timer_sessions.session_type` CHECK に `'FREE'` 追加）/ V69（Routine Tag 概念を全削除し `routine_group_assignments` 新設、`frequencyType="group"` 用）を追記。Cloud D1 0006（CTA `server_updated_at` 取りこぼし修正）/ 0007（V69 追従）を追記。markdown フォーマッタで italic 化されていたテーブル名（`time*memos`、`sound\_\_`、`wiki*tags` 等）を全て backtick で保護。`VERSIONED_TABLES`(11) と `RELATION_TABLES_WITH_UPDATED_AT`(3) の最新内訳を `sync_engine.rs` から実測して追記。`calendar_tag_assignments` は inline ハンドリングであり「`RELATION_TABLES_WITH_UPDATED_AT` に昇格」という旧記述は誤りだったため訂正
+- **`.claude/CLAUDE.md` §4.2 (特化 vs 汎用 DB)**: 特化テーブル一覧に `routine_groups` / `sidebar_links` を追加
+- **`.claude/CLAUDE.md` §7.3 (DB マイグレーション)**: 追加手順を `v61_plus.rs` 末尾 + `LATEST_USER_VERSION` bump に明示。カラム名変換の主体を旧 `rowToModel` から実装の `FromRow` trait + `row_to_json` に修正。診断コマンドを bundle ID 直書きから `find` 経由に変更
+- **`.claude/CLAUDE.md` §8 (次フェーズ計画)**: `vision/mobile-data-parity.md` / `vision/realtime-sync.md` / `2026-04-26-windows-android-port.md` への参照を追加
+- **`.claude/docs/known-issues/INDEX.md`**: Fixed セクションに 009（Mobile Provider バイパス、Structural、2026-04-20 Resolved）/ 010（Notes/Memos delta sync 脱落、Bug/Sync、2026-04-20 Resolved）を追加。Category 別インデックスと Status 集計を 8 → 10 件に更新
+- **`.claude/settings.local.json` (98 → 53 行、約 46% 削減)**: 旧 `notion-timer` 絶対パス権限を全削除。廃止済 `feature_plans/` への mv コマンド・shell 制御フラグメント（`do if [ -f` / `then echo` / `else echo` / `fi` / `done` 単体）・無意味な echo 重複（`echo ''` / `echo '. "$HOME/.cargo/env"'`）を削除。残存権限を ABC 順に整理
+- **HISTORY ローリングアーカイブ**: 5 件 → 6 件に達するため、最古エントリ「リファクタリング計画 Phase 2-2/2-3b/2-3c/2-3d/3-2/3-3/3-5 集中実施」を `HISTORY-archive.md` 先頭に移動（HISTORY.md は最新 5 件保持）
+
+#### 残課題
+
+- **MEMORY.md 整理**: `バグの温床 / 今後の注意点(2026-04-23 更新)` セクションは task-tracker 標準形式の 3 セクション構成（進行中 / 直近の完了 / 予定）から外れる。本セッションでは触らず、次回 task-tracker 起動時に判断
+- **コードと未整合な vision ドキュメント**: 本セッションでは `docs/vision/*.md` に手を入れていない。`db-conventions.md` / `coding-principles.md` 等が現コードと乖離している可能性は別タスクで監査推奨
+- **frontend skills の最新化**: `.claude/skills/` 配下（add-component / add-feature 等）の手順書はコード変更（DataService 19 モジュール分割、Provider 階層更新）に追従しているか未検証
+
+---
+
 ### 2026-04-26 - LeftSidebar Links セクション UI 改善 + Collapsed ポップオーバー化
 
 #### 概要
