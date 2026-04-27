@@ -1,5 +1,10 @@
 import { useRef, useEffect, useCallback } from "react";
-import { PanelLeft, PanelRight, Terminal as TerminalIcon } from "lucide-react";
+import {
+  PanelLeft,
+  PanelRight,
+  RefreshCw,
+  Terminal as TerminalIcon,
+} from "lucide-react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { isMac } from "../../utils/platform";
 import type { SectionId } from "../../types/taskTree";
@@ -45,6 +50,21 @@ export function TitleBar({
     e.preventDefault();
     getCurrentWindow().startDragging();
   }, []);
+
+  const handleReloadApp = useCallback(() => {
+    window.location.reload();
+  }, []);
+
+  const reloadButton = (
+    <button
+      onClick={handleReloadApp}
+      className="p-1.5 rounded transition-colors text-notion-text-secondary hover:text-notion-text hover:bg-notion-hover"
+      title={t("common.reloadApp")}
+      aria-label={t("common.reloadApp")}
+    >
+      <RefreshCw size={16} />
+    </button>
+  );
 
   const handleClaudeClick = useCallback(() => {
     if (isTerminalActive) {
@@ -100,12 +120,16 @@ export function TitleBar({
           </button>
           <div className="mx-1 h-5 w-px bg-notion-border" />
           {sectionDomains ? (
-            <UndoRedoButtons domains={sectionDomains} />
+            <UndoRedoButtons
+              domains={sectionDomains}
+              middleSlot={reloadButton}
+            />
           ) : (
             <div className="flex items-center gap-1">
               <span className="p-1.5 opacity-30 cursor-default">
                 <svg width="16" height="16" />
               </span>
+              {reloadButton}
               <span className="p-1.5 opacity-30 cursor-default">
                 <svg width="16" height="16" />
               </span>

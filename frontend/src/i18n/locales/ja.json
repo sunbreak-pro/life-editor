@@ -1895,6 +1895,7 @@
     "comingSoon": "Coming Soon",
     "undo": "元に戻す",
     "redo": "やり直す",
+    "reloadApp": "アプリを再読み込み",
     "create": "作成",
     "edit": "編集",
     "openManagement": "管理画面を開く"

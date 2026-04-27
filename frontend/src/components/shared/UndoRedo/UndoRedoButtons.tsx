@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, type ReactNode } from "react";
 import { Undo2, Redo2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useUndoRedo } from "../../../hooks/useUndoRedo";
@@ -6,9 +6,10 @@ import type { UndoDomain } from "../../../utils/undoRedo/types";
 
 interface UndoRedoButtonsProps {
   domains?: UndoDomain[];
+  middleSlot?: ReactNode;
 }
 
-export function UndoRedoButtons({ domains }: UndoRedoButtonsProps) {
+export function UndoRedoButtons({ domains, middleSlot }: UndoRedoButtonsProps) {
   const { t } = useTranslation();
   const {
     undo,
@@ -109,6 +110,7 @@ export function UndoRedoButtons({ domains }: UndoRedoButtonsProps) {
       >
         <Undo2 size={16} />
       </button>
+      {middleSlot}
       <button
         onClick={handleRedo}
         disabled={!hasRedo}

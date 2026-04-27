@@ -1,5 +1,43 @@
 # HISTORY-archive.md - 変更履歴アーカイブ
 
+### 2026-04-26 - Calendar/DayFlow UX 改善 5 件 + Materials エラー改善
+
+#### 概要
+
+ユーザー報告の 5 件 (Materials の `No such file or directory (os error 2)` 原因 / Calendar 「ルーチン」→「ルーティン」i18n / Routine アイテム Edit 導線 + 管理画面遷移ボタン / Work セッションの DayFlow 表示 / 編集パネルが終日トグル/時間変更で消える UX 問題) を Auto mode で 1 セッション完遂。実装計画書なしのアドホック修正群。session-verifier 全 6 ゲート PASS、新規テスト 15 件追加 (SessionBlock.test.tsx)、既存 344 tests 全合格、cargo check / tsc -b clean。
+
+#### 変更点
+
+- **Task 1 — Materials os error 2 真因 + エラーメッセージ改善** (`src-tauri/src/commands/files_commands.rs`):
+  - 真因: `app_settings_repository` 保存の `files_root_path` がディスク上に存在しない／移動・リネーム済み・権限不足の場合、`validate_path::root.canonicalize()` が ENOENT(2) で失敗し、`os error 2` がそのままフロントの error バナーに表示
+  - 修正: `validate_path` で `e.kind() == NotFound` を判別し `"Configured root folder not found: {path}. Please reconfigure in Settings."` に変換、それ以外の IO エラーも `"Cannot access root folder: {e}"` で文脈を補完
+- **Task 2 — Calendar 「ルーチン」→「ルーティン」i18n** (`frontend/src/i18n/locales/ja.json`):
+  - `calendar.createRoutine` "ルーチン" → "ルーティン" / `calendar.newRoutinePlaceholder` "名前なしのルーチン" → "名前なしのルーティン" / `notifications.routineReminders` "ルーチンのリマインダー" → "ルーティンのリマインダー"
+- **Task 3 — Routine アイテム編集導線**:
+  - i18n: `common.edit: "編集" / "Edit"` + `common.openManagement: "管理画面を開く" / "Open Management"` を ja.json / en.json 両方に追加。これにより `ScheduleItemPreviewPopup` の `t("common.edit", "Edit")` ボタンが「編集」表示になる (ユーザー「Edit押した後何も起きない」の主因はテキストが英語のままだった可能性大、編集ダイアログ自体は元々開いていた)
+  - `RoutineEditDialog.tsx` に `onOpenManagement?` prop 追加、ヘッダーに Settings アイコン + 「管理画面を開く」ボタン (`text-notion-text-secondary hover:text-notion-text hover:bg-notion-hover` 標準トークン)。クリックで `onOpenManagement()` → `onClose()` の順で発火
+  - `CalendarView.tsx` の RoutineEditDialog 利用箇所に `onOpenManagement={onOpenRoutineManagement}` を渡す (既存 prop を再利用、Edit → 編集ダイアログ → 管理画面 のワンクリック導線)
+- **Task 4 — Work セッションを DayFlow に表示**:
+  - `frontend/src/components/Tasks/Schedule/DayFlow/SessionBlock.tsx` 新規 (74 行): `startedAt` / `duration` から `top` / `height` を計算 (`(hr*60+min)/60 * SLOT_HEIGHT(60)`)、`sessionType` 別 4 色 (WORK=rose-400/45 / BREAK=emerald-400/35 / LONG_BREAK=sky-400/35 / FREE=violet-400/35)、duration null の場合は `completedAt - startedAt` フォールバック、最小高さ 4px、ISO string 入力にも対応、`title` 属性で `label/タスク名/sessionType表示 • 開始時刻 • N分` を表示
+  - `ScheduleTimeGrid.tsx` に `timerSessions?: TimerSession[]` prop 追加、main column 左端 4px 幅レーン (z-10) に SessionBlock を絶対配置 — 既存アイテム (left:4px 以降) と干渉しない、taskId に対応する title を tasks prop から lookup
+  - `OneDaySchedule.tsx` に `useTimerContext().completedSessions / isRunning` 購読、useState で `timerSessions: TimerSession[]` 管理、`useEffect([dateKey, completedSessions, isRunning])` で `getDataService().fetchTimerSessions()` + 日付フィルタ (`String(s.startedAt).substring(0,10) === dateKey`)、`cancelled` flag でレース防止、`logServiceError("Timer", "fetchSessions", e)` でエラー記録
+- **Task 5 — 編集パネル維持**:
+  - 真因 (3 箇所の explicit close): (a) `ScheduleItemPreviewPopup.tsx::DateInput.onChange` 内の `onClose()` / (b) `CalendarView.tsx::onUpdateDate` の `setScheduleItemPreview(null)` / (c) `CalendarView.tsx::TaskPreview onUpdateAllDay` の `setPreviewPopup(null)` / (d) `ScheduleTimeGrid.tsx::TaskPreview onUpdateAllDay` の `setTaskPreview(null)` / (e) `ScheduleTimeGrid.tsx::SchedulePreview onUpdateAllDay` の `setSchedulePreview(null)`
+  - 修正: 上記 5 箇所の close 呼び出しを削除。これで終日トグル / 時間変更 / 日付変更すべてでパネルは開きっぱなし。完了切替 / 削除 / ロール変換は意図的に閉じる仕様を維持
+- **新規テスト** (`frontend/src/components/Tasks/Schedule/DayFlow/SessionBlock.test.tsx`, 15 件):
+  - null startedAt / duration+completedAt 両方欠落時の null 返却 / top 位置計算 / duration 由来 height / completedAt フォールバック / 最小高さ 4px clamp / 4 sessionType 別色クラス / label > taskTitle > sessionType 名のフォールバック順 / ISO string startedAt parse / tooltip に start time / duration min 含有
+- **Verification**: `npx tsc -b --force` exit 0 / `npm run test` 40 files / 344 tests 全合格 + 新規 15 = 359 / `cargo check` exit 0 / lint: 私の変更箇所はクリーン (CalendarView の既存 `react-hooks/preserve-manual-memoization` 3 errors + `exhaustive-deps` 1 warning は line 360/375/390/481 の useCallback で本セッション無関与、別タスク化)
+
+#### 残課題
+
+- **手動 UI 検証**: (a) Materials の root path 削除→「Configured root folder not found」表示確認 / (b) Calendar daycell + ボタン → 「ルーティン」表示 / (c) Calendar daycell の routine item → 「編集」ボタン → RoutineEditDialog → 「管理画面を開く」ボタン → RoutineManagementOverlay 遷移 / (d) DayFlow に Pomodoro セッションの色付き左端ストライプ表示 / (e) Calendar/DayFlow の編集パネルで終日トグル / 時間変更 / 日付変更してもパネルが消えないこと
+- **TimeDropdown ポータル click-outside 追加対策の保留**: Task 5 の修正後もまだパネルが消える場合は、TimeDropdown の `e.stopPropagation()` listener が `BasePreviewPopup::useClickOutside` を捉えきれていない可能性。手動検証で再現したら `disableClickOutside` の動的制御 or 共通 lookup 経路の見直しを検討
+- **OneDaySchedule の RoutineEditDialog (line 919) には onOpenManagement 未配線**: DayFlow パスの routine item Edit から管理画面遷移は別タスク (本セッションは Calendar 経路のみ対応)
+- **SessionBlock のオプション拡張**: 現状 4px 幅で hover ツールチップのみ。ユーザーから "もっと目立たせたい" or "クリック動作が欲しい" 等の要望が出れば次セッションで拡張
+- **アンステージ変更**: 別セッション由来の `Layout/CollapsedSidebar.tsx` (lint 3 errors + 1 warning) / `LeftSidebar.tsx` / `SidebarLinkAddDialog.tsx` / `Mobile/MobileNoteView.tsx` / `Mobile/materials/MobileNoteTree*.tsx` / `Ideas/NoteTreeNode.tsx` / `WikiTags/WikiTagList.tsx` / `shared/UnifiedColorPicker.tsx` / `extensions/WikiTagView.tsx` / `claude_commands.rs` / `terminal/pty_manager.rs` / 各 db/\*\_repository.rs (前セッション Phase 3-1 の旧版残骸) が working tree に残存。本コミットは Task 1-5 関連 9 ファイル + .claude/ のみに絞る
+
+---
+
 ### 2026-04-26 - リファクタリング検証 (Phase 2-4 / 3-1 / 3-4) 自動検証完遂
 
 #### 概要

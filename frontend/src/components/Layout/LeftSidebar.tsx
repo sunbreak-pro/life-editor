@@ -3,6 +3,7 @@ import {
   CheckSquare,
   Calendar,
   Lightbulb,
+  Merge,
   Play,
   BarChart3,
   Settings,
@@ -34,7 +35,7 @@ const mainMenuItems: {
 }[] = [
   { id: "schedule", labelKey: "sidebar.schedule", icon: Calendar },
   { id: "materials", labelKey: "sidebar.materials", icon: BookOpen },
-  { id: "connect", labelKey: "sidebar.connect", icon: Lightbulb },
+  { id: "connect", labelKey: "sidebar.connect", icon: Merge },
   { id: "work", labelKey: "sidebar.work", icon: Play },
   { id: "analytics", labelKey: "sidebar.analytics", icon: BarChart3 },
 ];
