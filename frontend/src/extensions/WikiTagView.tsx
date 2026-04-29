@@ -131,6 +131,7 @@ export function WikiTagView({ node }: NodeViewProps) {
               effectiveTextColor={color ? getTextColorForBg(color) : undefined}
               onTextColorChange={handleTextColorChange}
               inline
+              embedded
             />
           </div>
         </span>

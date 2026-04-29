@@ -185,6 +185,7 @@ export function WikiTagList({ entityId, entityType }: WikiTagListProps) {
                   }
                   onTextColorChange={handleEditTextColorChange}
                   inline
+                  embedded
                 />
               </div>
             </div>

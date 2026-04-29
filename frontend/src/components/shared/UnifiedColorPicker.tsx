@@ -29,6 +29,12 @@ interface UnifiedColorPickerProps {
   onTextColorChange?: (color: string | undefined) => void;
   onClose?: () => void;
   inline?: boolean;
+  /**
+   * With `inline=true`, drops the picker's own border/bg/shadow and lets the
+   * grid stretch to fill the parent. Use when the consumer already provides
+   * a bordered container so we don't render nested boxes.
+   */
+  embedded?: boolean;
 }
 
 type ColorTab = "background" | "text";
@@ -44,6 +50,7 @@ export function UnifiedColorPicker({
   onTextColorChange,
   onClose,
   inline = false,
+  embedded = false,
 }: UnifiedColorPickerProps) {
   const { t } = useTranslation();
   const ref = useRef<HTMLDivElement>(null);
@@ -77,6 +84,7 @@ export function UnifiedColorPicker({
         <div className="flex border-b border-notion-border -mx-2 -mt-2 mb-1.5 px-2">
           <button
             type="button"
+            onMouseDown={(e) => e.preventDefault()}
             onClick={() => setActiveTab("background")}
             className={`flex-1 py-1 text-[10px] font-medium transition-colors ${
               activeTab === "background"
@@ -88,6 +96,7 @@ export function UnifiedColorPicker({
           </button>
           <button
             type="button"
+            onMouseDown={(e) => e.preventDefault()}
             onClick={() => setActiveTab("text")}
             className={`flex-1 py-1 text-[10px] font-medium transition-colors ${
               activeTab === "text"
@@ -100,11 +109,12 @@ export function UnifiedColorPicker({
         </div>
       )}
 
-      <div className="grid grid-cols-6 gap-1.5">
+      <div className="grid grid-cols-6 gap-1.5 justify-items-center">
         {presets.map((preset) => (
           <button
             key={preset}
             type="button"
+            onMouseDown={(e) => e.preventDefault()}
             onClick={() => handleSelect(preset)}
             className="relative w-6 h-6 rounded-full ring-1 ring-notion-border hover:scale-110 transition-transform"
             style={{ backgroundColor: preset }}
@@ -148,6 +158,7 @@ export function UnifiedColorPicker({
           {showTextColor && activeTab === "text" && textColor && (
             <button
               type="button"
+              onMouseDown={(e) => e.preventDefault()}
               onClick={() => onTextColorChange?.(undefined)}
               className="text-[10px] text-notion-text-secondary hover:text-notion-text"
             >
@@ -163,7 +174,11 @@ export function UnifiedColorPicker({
     return (
       <div
         ref={ref}
-        className="bg-notion-bg border border-notion-border rounded-md shadow-sm w-[190px]"
+        className={
+          embedded
+            ? "w-full"
+            : "bg-notion-bg border border-notion-border rounded-md shadow-sm w-[190px]"
+        }
       >
         {content}
       </div>
