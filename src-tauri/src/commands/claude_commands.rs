@@ -11,7 +11,7 @@ fn home_dir() -> PathBuf {
 }
 
 fn life_editor_dir() -> PathBuf {
-    home_dir().join("life-editor")
+    home_dir().join("life-editor-workspace")
 }
 
 fn claude_md_path() -> PathBuf {
@@ -45,30 +45,106 @@ fn get_files_root_path(state: &State<'_, DbState>) -> String {
     conn.and_then(|c| app_settings_repository::get(&c, "files_root_path").ok().flatten())
         .unwrap_or_else(|| {
             home_dir()
-                .join("life-editor")
+                .join("life-editor-workspace")
                 .join("files")
                 .to_string_lossy()
                 .to_string()
         })
 }
 
-const DEFAULT_CLAUDE_MD: &str = r#"# Life Editor - AI Life Management Assistant
+const DEFAULT_CLAUDE_MD: &str = r#"# Life Editor — AI Life Management Assistant
 
-You are a life management assistant with access to the user's tasks, dailies, notes, and schedule via MCP tools.
+あなたは Life Editor の作業エージェント。ユーザーの **tasks / dailies / notes / schedule / wiki_tags / files** を `mcp__life-editor__*` 経由で直接編集できる。GUI は補助、データ操作の主役は MCP。
 
-## Available MCP Tools
+## 0. 最優先ルール
 
-- search_all: Search across all domains (use this first to find context!)
-- list_tasks / get_task / create_task / update_task / delete_task
-- get_daily / upsert_daily: Daily entries (YYYY-MM-DD key)
-- list_notes / create_note / update_note
-- list_schedule: View schedule for a date
+- 応答は **日本語**
+- 何かを作る前に必ず `search_all` で重複・関連を確認
+- 日付は **JST**、形式 `YYYY-MM-DD`
+- 破壊操作 (`delete_*`) は実行前にユーザー確認
+- 失敗したらユーザーに報告し、勝手に再試行しない
 
-## Guidelines
+## 1. MCP ツール早見表 (30 種)
 
-- Always respond in Japanese
-- Use search_all before creating to avoid duplicates
-- When creating tasks, ask about scheduling if not specified
+### Search & Content (まず使う)
+- `search_all(query)` — tasks / notes / dailies / schedule 横断検索
+- `search_files(query)` / `list_files(path)` / `read_file` / `write_file` / `create_directory` / `rename_file` / `delete_file`
+- `generate_content(prompt)` / `format_content(text)`
+
+### Tasks
+- `list_tasks(filters?)` / `get_task(id)` / `get_task_tree(rootId?)`
+- `create_task({title, parentId?, dueDate?, ...})`
+- `update_task(id, patch)` / `delete_task(id)`
+
+### Dailies (1 日 1 エントリ、key=`daily-YYYY-MM-DD`)
+- `get_daily(date)` / `upsert_daily(date, content)`
+
+### Notes
+- `list_notes(filters?)` / `create_note({title, content})` / `update_note(id, patch)`
+
+### Schedule
+- `list_schedule(date)` / `create_schedule_item({date, time, title, ...})`
+- `update_schedule_item(id, patch)` / `delete_schedule_item(id)` / `toggle_schedule_complete(id)`
+
+### Wiki Tags (横断タグ)
+- `list_wiki_tags()` / `tag_entity(entityType, entityId, tagId)`
+- `search_by_tag(tagId)` / `get_entity_tags(entityType, entityId)`
+
+## 2. 典型ワークフロー
+
+### A. 朝のセッション開始
+1. `get_daily(today)` で今日のエントリ確認 → 無ければ `upsert_daily` で雛形作成
+2. `list_schedule(today)` で予定確認
+3. `list_tasks({status:"todo", dueBefore:today+1})` で今日やるタスク確認
+4. ユーザーに 1 行サマリで提示
+
+### B. 「〜について記録して」と言われたら
+1. `search_all(キーワード)` で既存エントリ確認
+2. 既存があれば `update_*`、無ければ `create_*` / `upsert_daily`
+3. 関連があれば `tag_entity` でタグ付け
+
+### C. 「タスク追加」と言われたら
+1. `search_all` で重複確認
+2. 親タスク・期日が曖昧なら **1 回だけ** 質問（即時実行が明示されていれば質問せず推測）
+3. `create_task` 実行 → 作成 ID をユーザーに返す
+
+### D. ノート間リンク・整理
+- `[[タイトル]]` 記法でノート間リンク（Life Editor 側で自動解決）
+- 複数ノートにまたがる概念は wiki_tag で束ねる
+
+## 3. データモデル要点
+
+- **特化テーブル**: tasks / routines / schedule_items / notes / dailies / pomodoro_presets / timer_sessions
+- **汎用 Database** で表すもの: 家計簿 / 読書記録 / 習慣 / 連絡先 / 学習進捗
+- 判断基準: 特化 UI（DnD / カレンダー / リマインダー）が要る → 特化テーブル。型付きフィールドで足りる → 汎用 Database
+- ID 形式: `task-<ts+counter>` / `daily-YYYY-MM-DD` / その他は `<prefix>-<uuid>`
+- ソフトデリート: `is_deleted` + `deleted_at`、TrashView から復元可
+
+## 4. ファイル操作の境界
+
+- `files_*` ツールは **`FILES_ROOT_PATH`** （Settings → Files で設定したフォルダ。デフォルト `~/life-editor-workspace/files`）配下のみ
+- ルート外への書き込みは拒否される — エラーが出たら Settings 経由でルート変更を提案
+
+## 5. 禁止事項
+
+- ✗ DB に直接 SQL を書く（必ず MCP ツール経由）
+- ✗ 確認なしの一括 `delete_*`
+- ✗ 推測で日付・タスク ID を作る（必ず `list_*` か `search_all` で実在確認）
+- ✗ 英語応答（コード・コミットメッセージは英語、対話は日本語）
+
+## 6. Skills
+
+`.claude/skills/` 配下のスキルが有効。Settings → Claude Code → Skills でインストール / 無効化。よく使うもの:
+
+- `task-tracker` — MEMORY.md / HISTORY.md でタスク進捗追跡
+- `life-editor-mcp` — このワークスペースの MCP 操作パターン集
+- `git-workflow` — コミット規約・ブランチ運用
+
+## 7. トラブルシュート
+
+- MCP が接続されない → Settings → Claude Code → 「MCP Server を再登録」
+- ツール呼び出しでエラー → `search_all` → `list_*` で対象が実在するか確認
+- ファイル書込み拒否 → `FILES_ROOT_PATH` 配下か確認
 "#;
 
 fn setup_life_editor_dir(_app: &AppHandle, state: &State<'_, DbState>) {
@@ -150,7 +226,7 @@ pub fn claude_register_mcp(
         });
     }
 
-    // Setup ~/life-editor/ directory
+    // Setup ~/life-editor-workspace/ directory
     setup_life_editor_dir(&app, &state);
 
     // Clean up stale mcpServers from ~/.claude/settings.json
@@ -248,6 +324,15 @@ pub struct SkillInfo {
 }
 
 fn read_description_from_dir(dir_path: &std::path::Path) -> String {
+    // Prefer SKILL.md frontmatter (standard format), fall back to instructions.md / README.md.
+    let skill_md = dir_path.join("SKILL.md");
+    if skill_md.exists() {
+        if let Ok(content) = fs::read_to_string(&skill_md) {
+            if let Some(desc) = parse_frontmatter_field(&content, "description") {
+                return desc.chars().take(200).collect();
+            }
+        }
+    }
     for filename in &["instructions.md", "README.md"] {
         let file_path = dir_path.join(filename);
         if file_path.exists() {
@@ -255,7 +340,7 @@ fn read_description_from_dir(dir_path: &std::path::Path) -> String {
                 for line in content.lines() {
                     let trimmed = line.trim();
                     if !trimmed.is_empty() && !trimmed.starts_with('#') {
-                        return trimmed.chars().take(120).collect();
+                        return trimmed.chars().take(200).collect();
                     }
                 }
             }
@@ -264,18 +349,35 @@ fn read_description_from_dir(dir_path: &std::path::Path) -> String {
     String::new()
 }
 
+fn parse_frontmatter_field(content: &str, key: &str) -> Option<String> {
+    let mut lines = content.lines();
+    if lines.next()?.trim() != "---" {
+        return None;
+    }
+    let prefix = format!("{}:", key);
+    for line in lines {
+        let trimmed = line.trim();
+        if trimmed == "---" {
+            return None;
+        }
+        if let Some(rest) = trimmed.strip_prefix(&prefix) {
+            return Some(rest.trim().trim_matches('"').trim_matches('\'').to_string());
+        }
+    }
+    None
+}
+
 #[tauri::command]
 pub fn claude_list_available_skills() -> Result<Vec<SkillInfo>, String> {
     let mut skills = Vec::new();
     let home = home_dir();
 
+    // Skills are managed in ~/dev/Claude/skill-lib/ per the user's skill-management rule.
+    // Symlinks under ~/.claude/skills/ and project .claude/skills/ point here.
     let dirs = [
+        (home.join("dev/Claude/skill-lib/global"), "global"),
         (
-            home.join("dev/Claude/original-skills-storage/skills/custom/global"),
-            "global",
-        ),
-        (
-            home.join("dev/Claude/original-skills-storage/skills/custom/projects/life-editor"),
+            home.join("dev/Claude/skill-lib/projects/life-editor"),
             "project",
         ),
     ];

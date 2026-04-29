@@ -63,9 +63,9 @@ impl PtyState {
         let shell =
             std::env::var("SHELL").unwrap_or_else(|_| "/bin/zsh".to_string());
         let home = dirs::home_dir().unwrap_or_default();
-        let life_editor_dir = home.join("life-editor");
-        let cwd = if life_editor_dir.exists() {
-            life_editor_dir
+        let workspace_dir = home.join("life-editor-workspace");
+        let cwd = if workspace_dir.exists() {
+            workspace_dir
         } else {
             home
         };
