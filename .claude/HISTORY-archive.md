@@ -1,5 +1,37 @@
 # HISTORY-archive.md - 変更履歴アーカイブ
 
+### 2026-04-26 - Connect/Board の React Flow #008 警告解消 + Node/Board パフォーマンス改善
+
+#### 概要
+
+ユーザー報告 1「Node や Board のキャンバスを動かすと `[React Flow]: Couldn't create edge for source handle id: "left-target" ...` (#008) が頻発」+ 報告 2「Node Tab の Connect モードがオンのとき接続が繋がらない」+ 報告 3「Node や Board の動作がもっさりしている」を Auto mode で 1 セッション完遂。実装計画書なしのアドホック修正群。**警告原因**: PaperCard/Text の Handle が方向別 type 分け (`left-target` = target 専用 / `right-source` = source 専用) で、`ConnectionMode.Loose` 下でユーザーが target 起点でドラッグした自己ループ edge (DB 確認: `top-target`→`left-target` の card 内自己ループ 1 件) が `normalizeEdgeHandles` の swap でも target→target 組み合わせを救えず、React Flow の source-side lookup が `.source` クラスのハンドルから `left-target` を見つけられない。**Connect モード接続不可原因**: NoteNode/DailyNode の Handle が `!w-0 !h-0 !min-w-0 !min-h-0` で当たり判定ゼロ、`nodesDraggable={!connectMode}` のため Connect モード時はドット全体ドラッグ不可でハンドル経由しか繋げず詰む。**もっさり原因**: (a) `usePaperBoard` の `deleteNode`/`deleteEdge`/`duplicateNode`/`toggleNodeHidden` が `[nodes, edges]` 依存で毎ノード/エッジ更新ごとに identity 変動 → 親 `handleEdgeDelete` 再生成 → 全エッジ data 新規 → memo edge 全再描画 / (b) `PaperCanvasView::rfNodes` が `noteMap`/`memoMap` 経由で全ノート購読、無関係ノート編集で全カード再構築 / (c) `TagGraphView::initialNodes` が `selectedTagId`/`relatedNodeIds` 依存で、ノードクリックの dim/highlight 切替だけで全ノード再構築 / (d) 両ビューの `setFlowNodes(rfNodes)` useEffect が drag stop 後の往復で全ノード identity 上書き → React Flow 全 diff・全 re-measure / (e) `noteTagDots`/`memoTagDots` で `tags.find()` を per-assignment 呼び O(A × T) / (f) `buildNormalEdges` で per-tag `assignments.filter()` で O(T × A)。session-verifier 全 6 ゲート PASS、新規テスト 17 件追加、tsc -b 0 / vitest 42 files 376/376 pass。
+
+#### 変更点
+
+- **警告 #008 修正 — 双方向 Handle**:
+  - `frontend/src/components/Ideas/Connect/Paper/PaperCardNode.tsx` / `PaperTextNode.tsx`: 各 Position に **同じ id で `type="source"` と `type="target"` の Handle を重ねて配置** (例: `left-target` の元 target Handle に対し source-type の duplicate を追加、`bg-transparent border-0 pointer-events-none` で視覚と当たり判定を抑制)。React Flow 公式の bidirectional パターンに沿う形で、DB に `sourceHandle: "left-target"` が残っていても `.source` クエリで該当 handle が見つかり #008 警告が止まる。`PaperCanvasView::normalizeEdgeHandles` のコメントを更新し、役割を「警告抑止」から「ベジェの見た目を素直に source→target 方向に揃える整形」に再定義
+- **Connect モード接続不可修正 — Handle に当たり判定 + scoped pointer-events**:
+  - `frontend/src/components/Ideas/Connect/NoteNodeComponent.tsx` / `DailyNodeComponent.tsx`: ハンドルを `width: 16, height: 16, minWidth/Height: 16, transform: translate(-50%, -50%), borderRadius: 50%` でドット中心に重ね、視覚は `!opacity-0`/`background: transparent` で維持
+  - `frontend/src/index.css`: `.react-flow__node-noteNode .react-flow__handle` / `.react-flow__node-dailyNode .react-flow__handle` をデフォルト `pointer-events: none`、`.tag-graph-connect-mode` 配下でのみ `pointer-events: auto` に上書き。通常モードのドットクリック・ドラッグ・ホバーをハンドルに奪われない
+- **パフォーマンス改善**:
+  - `frontend/src/hooks/usePaperBoard.ts`: `nodesRef`/`edgesRef`/`boardsRef` を `useLayoutEffect` で同期 (lint `react-hooks/refs` 違反解消も兼ねる)、`deleteNode`/`deleteEdge`/`duplicateNode`/`toggleNodeHidden` の deps を `[nodes, edges]` から `[push]` のみに縮減して identity 安定化
+  - `frontend/src/components/Ideas/Connect/Paper/PaperCanvasView.tsx`: edge `data: { onDelete }` を `useMemo` で全エッジ共有化 (memo edge component の不要 invalidation 解消)。card data から `label`/`contentPreview`/`isDeleted` を排除し `refEntityId`/`refEntityType` のみ渡す形に簡素化、`noteMap`/`memoMap` 削除 → `rfNodes` useMemo deps から `notes`/`dailies` を排除
+  - `frontend/src/components/Ideas/Connect/Paper/PaperCardNode.tsx`: `useNoteContext`/`useDailyContext` を card 内で直接購読、`label`/`contentPreview`/`isDeleted` を `useMemo` で算出。無関係なノート編集が全カード rebuild を引き起こさず、対象カードのみが context 経由で再描画
+  - **新規 `frontend/src/components/Ideas/Connect/TagGraphSelectionContext.ts`** (selectedTagId + relatedNodeIds を保持する view-local context、CLAUDE.md §6.3 例外規定に該当する単一ファイル形式)
+  - `frontend/src/components/Ideas/Connect/NoteNodeComponent.tsx` / `DailyNodeComponent.tsx`: data から `highlighted`/`dimmed` を除去、`useTagGraphSelection()` 経由で各ノード内に算出。クリック時の dim/highlight 切替で `initialNodes` 再構築を avoid
+  - `frontend/src/components/Ideas/Connect/TagGraphView.tsx`: `initialNodes` useMemo deps から `selectedTagId`/`relatedNodeIds` を除外、`buildNormalNodes`/`buildSplitViewNodes` 全箇所の data から `highlighted: false`/`dimmed: false` を削除。`<TagGraphSelectionContext.Provider>` で ReactFlow を包む。**O(1) lookup**: `tagsById: Map<id, WikiTag>` 導入で `tags.find()` を排除 (noteTagDots/memoTagDots の O(A × T) → O(A))、`noteEntityIdsByTag: Map<tagId, entityId[]>` 導入で `buildNormalEdges` の per-tag `assignments.filter` を排除 (O(T × A) → O(T + A))
+  - **新規 `frontend/src/components/Ideas/Connect/reactFlowMerge.ts`** (146 行): `mergeNodes` / `mergeEdges` 純粋ユーティリティ。id 同一かつ position/parent/hidden/zIndex/style.{w,h}/data shallow が等価なら既存 object identity を維持。`tagDots` のような content-equivalent な配列は `deepArrayDataKeys` 指定で item-wise 比較。両ビューの `setFlowNodes(rfNodes)` useEffect を merge 化し、drag stop 後の paperNodes 往復で全ノード identity 上書き → React Flow 全 diff を回避
+  - 新規テスト `frontend/src/components/Ideas/Connect/reactFlowMerge.test.ts` 17 件: identity preservation / position・data・style 変更検出 / 削除・追加・並べ替え検出 / `deepArrayDataKeys` (tagDots 同値判定) / edge data ref 変更検出
+- **Verification**: `cd frontend && npx tsc -b` 0 error / `npm run test` 42 files / 376/376 pass (前回 359 + 新規 17 = `reactFlowMerge.test.ts`) / session-verifier 全 6 ゲート PASS
+
+#### 残課題
+
+- **手動 UI 検証**: dev server 完全再起動 + ブラウザ完全リロード (Cmd+Shift+R) 必須 — React Flow の `node.internals.handleBounds` はノード寸法不変の場合再計測されないため、HMR で Handle を増やしただけだと古いキャッシュが残る。再起動後に (a) Board でノードを動かしても #008 警告が出ないこと、(b) Node Tab の Connect モードでドット同士をドラッグして繋がること、(c) Board でノートを編集しても他カードがチラつかないこと、(d) Node Tab でノードクリックの dim/highlight が瞬時に反映されること を確認
+- **pre-existing lint 違反**: 本セッションでは触れず: `PaperTextNode.tsx:21` setText-in-effect / `PaperCanvasView.tsx:351` `isDescendant` 自己再帰 useCallback / `usePaperBoard.ts:77` 旧 useEffect の `activeBoardId` missing dep warning。いずれも別セッションで一括対応候補
+- **アンステージ変更**: 別セッション由来の `Layout/SidebarLink*.tsx` / `Mobile/materials/MobileNoteTree*.tsx` / `Mobile/MobileNoteView.tsx` / `Ideas/NoteTreeNode.tsx` / `WikiTags/WikiTagList.tsx` / `shared/UnifiedColorPicker.tsx` / `extensions/WikiTagView.tsx` / `commands/claude_commands.rs` / `terminal/pty_manager.rs` 他 + Mobile 新規 9 ファイル / lucideIconRegistry 等が working tree に残存。本コミットは Connect/Board 関連 11 ファイル + .claude/ のみに絞る
+
+---
+
 ### 2026-04-26 - CLAUDE.md / 各種設定の最新化 + コンパクト化
 
 #### 概要
