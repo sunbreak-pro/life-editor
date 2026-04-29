@@ -28,7 +28,7 @@ regex = "1"
 tokio = { version = "1", features = ["time", "sync"] }
 reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
 
-[target.'cfg(not(target_os = "ios"))'.dependencies]
+[target.'cfg(not(any(target_os = "ios", target_os = "android")))'.dependencies]
 tauri = { version = "2", features = ["tray-icon"] }
 tauri-plugin-window-state = "2"
 tauri-plugin-global-shortcut = "2"

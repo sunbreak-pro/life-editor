@@ -37,10 +37,20 @@ pub fn run() {
 
     builder
         .setup(|app| {
-            // Use the same data directory as the Electron version
+            // Resolve data directory:
+            // - Desktop: keep Electron-era path (~/Library/Application Support/life-editor/)
+            //   to preserve existing DBs across the macOS author install base.
+            // - Mobile: use Tauri's app_data_dir (Scoped Storage on Android, sandbox on iOS).
+            #[cfg(desktop)]
             let data_dir = dirs::data_dir()
                 .expect("failed to resolve data dir")
                 .join("life-editor");
+            #[cfg(mobile)]
+            let data_dir = app
+                .path()
+                .app_data_dir()
+                .expect("failed to resolve app data dir");
+
             let conn =
                 db::init_database(&data_dir).expect("failed to initialize database");
             app.manage(DbState {
