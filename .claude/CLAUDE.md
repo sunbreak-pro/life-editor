@@ -44,16 +44,16 @@ Mobile 省略 Provider: Audio / ScreenLock / FileExplorer / CalendarTags / Short
 
 - **macOS**: 作者本人のみ（無加入運用、自家ビルド）
 - **iOS**: 作者本人のみ（無料署名 + 週次再署名、`ios-everywhere-sync.md` 参照）
-- **Windows**: **友達向け配布**。未署名 NSIS インストーラ + Tauri Updater 自動更新（SmartScreen 警告許容）
-- **Android**: **友達向け配布**。未署名 APK 直配布（"提供元不明" 許可）+ Tauri Updater 自動更新
+- **Windows**: **友達向け MVP 配布**。未署名 NSIS インストーラを GitHub Actions Artifacts から DL → 手渡し（SmartScreen 警告許容、自動更新は将来 `distribution-hardening.md` で導入）
+- **Android**: **友達向け MVP 配布**。未署名 APK を手渡し（"提供元不明" 許可、自動更新は将来）
 
 ### 検証戦略
 
-作者は Windows / Android 実機を保有しないため、検証は以下の組み合わせで代替する:
+作者は Windows / Android 実機を保有しないため、以下で代替する:
 
-- **Windows**: UTM + Windows 11 ARM Insider Preview（macOS M3 ネイティブ実行）+ 友達フィードバック
 - **Android**: Android Studio aarch64 AVD（macOS M3 ネイティブ実行）+ 友達フィードバック
-- **共通**: Sentry 無料枠 + ローカルログ吸い上げ機構で、再現できないバグを友達経由で把握する
+- **Windows**: GitHub Actions `windows-latest` ビルド成否のみ（ローカル VM なし、Insider Preview 入手不可のため）+ 友達 PC での動作確認
+- **共通**: 当面は口頭フィードバックで凌ぐ。Sentry / ログ吸い上げは将来 `distribution-hardening.md` で導入
 
 ---
 
