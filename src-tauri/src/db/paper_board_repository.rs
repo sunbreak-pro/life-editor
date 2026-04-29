@@ -206,7 +206,7 @@ pub fn update_board(
         return query_one(conn, "SELECT * FROM paper_boards WHERE id = ?1", [id]);
     }
 
-    sets.push("updated_at = datetime('now')");
+    sets.push("updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')");
     values.push(Box::new(id.to_string()));
 
     let sql = format!(
@@ -384,7 +384,7 @@ pub fn update_node(
         return query_one(conn, "SELECT * FROM paper_nodes WHERE id = ?1", [id]);
     }
 
-    sets.push("updated_at = datetime('now')");
+    sets.push("updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')");
     values.push(Box::new(id.to_string()));
 
     let sql = format!(
@@ -410,7 +410,7 @@ pub fn bulk_update_positions(
 
         tx.execute(
             "UPDATE paper_nodes SET position_x = ?1, position_y = ?2, \
-             updated_at = datetime('now') WHERE id = ?3",
+             updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now') WHERE id = ?3",
             params![position_x, position_y, id],
         )?;
     }
@@ -429,7 +429,7 @@ pub fn bulk_update_z_indices(
         let z_index = update.get("zIndex").and_then(|v| v.as_i64()).unwrap_or(0);
 
         tx.execute(
-            "UPDATE paper_nodes SET z_index = ?1, updated_at = datetime('now') WHERE id = ?2",
+            "UPDATE paper_nodes SET z_index = ?1, updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now') WHERE id = ?2",
             params![z_index, id],
         )?;
     }

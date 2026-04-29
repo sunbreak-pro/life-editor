@@ -3,6 +3,7 @@ import { cors } from "hono/cors";
 import { authMiddleware } from "./middleware/auth";
 import { auth } from "./routes/auth";
 import { sync } from "./routes/sync";
+import { v2 } from "./routes/api/v2";
 
 export interface Env {
   DB: D1Database;
@@ -32,8 +33,10 @@ app.get("/health", (c) => c.json({ status: "ok" }));
 // All API routes require auth
 app.use("/auth/*", authMiddleware);
 app.use("/sync/*", authMiddleware);
+app.use("/api/v2/*", authMiddleware);
 
 app.route("/auth", auth);
 app.route("/sync", sync);
+app.route("/api/v2", v2);
 
 export default app;

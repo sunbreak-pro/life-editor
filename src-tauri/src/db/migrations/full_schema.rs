@@ -53,7 +53,7 @@ pub(super) fn create_full_schema(conn: &Connection) -> rusqlite::Result<()> {
             target_sessions INTEGER DEFAULT 4,
             updated_at TEXT NOT NULL
         );
-        INSERT OR IGNORE INTO timer_settings (id, updated_at) VALUES (1, datetime('now'));
+        INSERT OR IGNORE INTO timer_settings (id, updated_at) VALUES (1, strftime('%Y-%m-%dT%H:%M:%fZ', 'now'));
 
         -- ===== Timer Sessions =====
         CREATE TABLE IF NOT EXISTS timer_sessions (
@@ -432,8 +432,8 @@ pub(super) fn create_full_schema(conn: &Connection) -> rusqlite::Result<()> {
             name TEXT DEFAULT '',
             color TEXT DEFAULT '#6B7280',
             \"order\" INTEGER DEFAULT 0,
-            created_at TEXT DEFAULT (datetime('now')),
-            updated_at TEXT DEFAULT (datetime('now')),
+            created_at TEXT DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+            updated_at TEXT DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
             version INTEGER DEFAULT 1,
             frequency_type TEXT DEFAULT 'daily',
             frequency_days TEXT DEFAULT '[]',
@@ -515,7 +515,7 @@ pub(super) fn create_full_schema(conn: &Connection) -> rusqlite::Result<()> {
         CREATE TABLE IF NOT EXISTS app_settings (
             key TEXT PRIMARY KEY,
             value TEXT NOT NULL,
-            updated_at TEXT DEFAULT (datetime('now'))
+            updated_at TEXT DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
         );
 
         -- ===== Templates =====

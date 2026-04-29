@@ -257,8 +257,8 @@ pub(super) fn apply(conn: &Connection, current_version: i32) -> rusqlite::Result
                 name TEXT NOT NULL DEFAULT '',
                 color TEXT NOT NULL DEFAULT '#6B7280',
                 \"order\" INTEGER NOT NULL DEFAULT 0,
-                created_at TEXT NOT NULL DEFAULT (datetime('now')),
-                updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+                created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+                updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
             );
             CREATE TABLE IF NOT EXISTS routine_group_tag_assignments (
                 group_id TEXT NOT NULL REFERENCES routine_groups(id) ON DELETE CASCADE,
@@ -437,7 +437,7 @@ pub(super) fn apply(conn: &Connection, current_version: i32) -> rusqlite::Result
             "CREATE TABLE IF NOT EXISTS app_settings (
                 key TEXT PRIMARY KEY,
                 value TEXT NOT NULL,
-                updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+                updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
             );",
         );
         conn.pragma_update(None, "user_version", &53i32)?;

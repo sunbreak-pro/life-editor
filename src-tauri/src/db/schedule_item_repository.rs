@@ -199,7 +199,7 @@ pub fn update(
         return query_one(conn, "SELECT * FROM schedule_items WHERE id = ?1", [id]);
     }
 
-    sets.push("updated_at = datetime('now')");
+    sets.push("updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')");
     values.push(Box::new(id.to_string()));
 
     let sql = format!(
@@ -247,13 +247,13 @@ pub fn toggle_complete(conn: &Connection, id: &str) -> rusqlite::Result<Schedule
     if current_completed != 0 {
         conn.execute(
             "UPDATE schedule_items SET completed = 0, completed_at = NULL, \
-             updated_at = datetime('now') WHERE id = ?1",
+             updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now') WHERE id = ?1",
             [id],
         )?;
     } else {
         conn.execute(
-            "UPDATE schedule_items SET completed = 1, completed_at = datetime('now'), \
-             updated_at = datetime('now') WHERE id = ?1",
+            "UPDATE schedule_items SET completed = 1, completed_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now'), \
+             updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now') WHERE id = ?1",
             [id],
         )?;
     }
@@ -263,7 +263,7 @@ pub fn toggle_complete(conn: &Connection, id: &str) -> rusqlite::Result<Schedule
 
 pub fn dismiss(conn: &Connection, id: &str) -> rusqlite::Result<()> {
     conn.execute(
-        "UPDATE schedule_items SET is_dismissed = 1, updated_at = datetime('now') WHERE id = ?1",
+        "UPDATE schedule_items SET is_dismissed = 1, updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now') WHERE id = ?1",
         [id],
     )?;
     Ok(())
@@ -271,7 +271,7 @@ pub fn dismiss(conn: &Connection, id: &str) -> rusqlite::Result<()> {
 
 pub fn undismiss(conn: &Connection, id: &str) -> rusqlite::Result<()> {
     conn.execute(
-        "UPDATE schedule_items SET is_dismissed = 0, updated_at = datetime('now') WHERE id = ?1",
+        "UPDATE schedule_items SET is_dismissed = 0, updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now') WHERE id = ?1",
         [id],
     )?;
     Ok(())
@@ -390,7 +390,7 @@ pub fn update_future_by_routine(
         return Ok(0);
     }
 
-    sets.push("updated_at = datetime('now')");
+    sets.push("updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')");
     values.push(Box::new(routine_id.to_string()));
 
     let sql = format!(

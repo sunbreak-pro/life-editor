@@ -51,7 +51,7 @@ pub fn create(conn: &Connection, preset: &Value) -> rusqlite::Result<PomodoroPre
         "INSERT INTO pomodoro_presets \
          (name, work_duration, break_duration, long_break_duration, \
           sessions_before_long_break, created_at) \
-         VALUES (?1, ?2, ?3, ?4, ?5, datetime('now'))",
+         VALUES (?1, ?2, ?3, ?4, ?5, strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))",
         params![
             name,
             work_duration,

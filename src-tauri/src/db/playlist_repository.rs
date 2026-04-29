@@ -67,7 +67,7 @@ pub fn create(conn: &Connection, id: &str, name: &str) -> rusqlite::Result<Playl
     conn.execute(
         "INSERT INTO playlists (id, name, sort_order, repeat_mode, is_shuffle, \
          created_at, updated_at) \
-         VALUES (?1, ?2, ?3, 'all', 0, datetime('now'), datetime('now'))",
+         VALUES (?1, ?2, ?3, 'all', 0, strftime('%Y-%m-%dT%H:%M:%fZ', 'now'), strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))",
         params![id, name, max_order + 1],
     )?;
 
@@ -99,7 +99,7 @@ pub fn update(conn: &Connection, id: &str, updates: &Value) -> rusqlite::Result<
         return query_one(conn, "SELECT * FROM playlists WHERE id = ?1", [id]);
     }
 
-    sets.push("updated_at = datetime('now')");
+    sets.push("updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')");
     values.push(Box::new(id.to_string()));
 
     let sql = format!(

@@ -91,7 +91,7 @@ pub fn create(
          \"order\", frequency_type, frequency_days, frequency_interval, frequency_start_date, \
          reminder_enabled, reminder_offset, created_at, updated_at) \
          VALUES (?1, ?2, ?3, ?4, 0, 1, ?5, ?6, ?7, ?8, ?9, ?10, ?11, \
-         datetime('now'), datetime('now'))",
+         strftime('%Y-%m-%dT%H:%M:%fZ', 'now'), strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))",
         params![
             id,
             title,
@@ -169,7 +169,7 @@ pub fn update(conn: &Connection, id: &str, updates: &Value) -> rusqlite::Result<
     }
 
     sets.push("version = version + 1");
-    sets.push("updated_at = datetime('now')");
+    sets.push("updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')");
     values.push(Box::new(id.to_string()));
 
     let sql = format!(
@@ -214,16 +214,16 @@ pub fn soft_delete(conn: &mut Connection, id: &str) -> rusqlite::Result<Vec<Stri
     if !deleted_schedule_item_ids.is_empty() {
         tx.execute(
             "UPDATE schedule_items \
-             SET is_deleted = 1, deleted_at = datetime('now'), \
-                 version = version + 1, updated_at = datetime('now') \
+             SET is_deleted = 1, deleted_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now'), \
+                 version = version + 1, updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now') \
              WHERE routine_id = ?1 AND completed = 0 AND is_deleted = 0",
             [id],
         )?;
     }
 
     tx.execute(
-        "UPDATE routines SET is_deleted = 1, deleted_at = datetime('now'), \
-         version = version + 1, updated_at = datetime('now') WHERE id = ?1",
+        "UPDATE routines SET is_deleted = 1, deleted_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now'), \
+         version = version + 1, updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now') WHERE id = ?1",
         [id],
     )?;
 
@@ -234,7 +234,7 @@ pub fn soft_delete(conn: &mut Connection, id: &str) -> rusqlite::Result<Vec<Stri
 pub fn restore(conn: &Connection, id: &str) -> rusqlite::Result<()> {
     conn.execute(
         "UPDATE routines SET is_deleted = 0, deleted_at = NULL, \
-         version = version + 1, updated_at = datetime('now') WHERE id = ?1",
+         version = version + 1, updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now') WHERE id = ?1",
         [id],
     )?;
     Ok(())
@@ -382,7 +382,7 @@ mod tests {
         .unwrap();
         // Mark as completed manually.
         conn.execute(
-            "UPDATE schedule_items SET completed = 1, completed_at = datetime('now') WHERE id = ?1",
+            "UPDATE schedule_items SET completed = 1, completed_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now') WHERE id = ?1",
             ["si-done"],
         )
         .unwrap();

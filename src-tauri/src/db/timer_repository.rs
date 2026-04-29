@@ -69,7 +69,7 @@ pub fn end_session_with_label(
 ) -> rusqlite::Result<TimerSession> {
     conn.execute(
         "UPDATE timer_sessions \
-         SET completed_at = datetime('now'), duration = ?1, completed = ?2, label = ?3 \
+         SET completed_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now'), duration = ?1, completed = ?2, label = ?3 \
          WHERE id = ?4",
         params![duration, completed as i64, label, id],
     )?;
@@ -113,7 +113,7 @@ pub fn update_settings(conn: &Connection, updates: &Value) -> rusqlite::Result<T
         return fetch_settings(conn);
     }
 
-    sets.push("updated_at = datetime('now')");
+    sets.push("updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')");
 
     let sql = format!(
         "UPDATE timer_settings SET {} WHERE id = 1",
@@ -132,7 +132,7 @@ pub fn start_session(
 ) -> rusqlite::Result<TimerSession> {
     conn.execute(
         "INSERT INTO timer_sessions (task_id, session_type, started_at, completed) \
-         VALUES (?1, ?2, datetime('now'), 0)",
+         VALUES (?1, ?2, strftime('%Y-%m-%dT%H:%M:%fZ', 'now'), 0)",
         params![task_id, session_type],
     )?;
     let id = conn.last_insert_rowid();
@@ -146,7 +146,7 @@ pub fn end_session(
     completed: bool,
 ) -> rusqlite::Result<TimerSession> {
     conn.execute(
-        "UPDATE timer_sessions SET completed_at = datetime('now'), duration = ?1, completed = ?2 \
+        "UPDATE timer_sessions SET completed_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now'), duration = ?1, completed = ?2 \
          WHERE id = ?3",
         params![duration, completed as i64, id],
     )?;

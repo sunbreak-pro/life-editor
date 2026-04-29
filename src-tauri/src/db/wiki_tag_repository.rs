@@ -106,7 +106,7 @@ pub fn update(conn: &Connection, id: &str, updates: &Value) -> rusqlite::Result<
         return query_one(conn, "SELECT * FROM wiki_tags WHERE id = ?1", [id]);
     }
 
-    sets.push("updated_at = datetime('now')");
+    sets.push("updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')");
     values.push(Box::new(id.to_string()));
 
     let sql = format!("UPDATE wiki_tags SET {} WHERE id = ?", sets.join(", "));

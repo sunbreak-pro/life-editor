@@ -146,7 +146,7 @@ export function createScheduleItem(args: {
 
   db.prepare(
     `INSERT INTO schedule_items (id, date, title, start_time, end_time, completed, completed_at, routine_id, template_id, note_id, is_all_day, content, created_at, updated_at)
-     VALUES (@id, @date, @title, @start_time, @end_time, 0, NULL, NULL, NULL, @note_id, @is_all_day, @content, datetime('now'), datetime('now'))`,
+     VALUES (@id, @date, @title, @start_time, @end_time, 0, NULL, NULL, NULL, @note_id, @is_all_day, @content, strftime('%Y-%m-%dT%H:%M:%fZ', 'now'), strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))`,
   ).run({
     id,
     date: args.date,
@@ -211,7 +211,7 @@ export function updateScheduleItem(args: {
   if (updates.length === 0) return formatItem(existing);
 
   updates.push("version = version + 1");
-  updates.push("updated_at = datetime('now')");
+  updates.push("updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')");
   db.prepare(
     `UPDATE schedule_items SET ${updates.join(", ")} WHERE id = @id`,
   ).run(params);
@@ -232,7 +232,7 @@ export function dismissScheduleItem(args: { id: string }) {
 
   db.prepare(
     `UPDATE schedule_items SET is_dismissed = 1, version = version + 1,
-     updated_at = datetime('now') WHERE id = ?`,
+     updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now') WHERE id = ?`,
   ).run(args.id);
 
   const row = db
@@ -251,7 +251,7 @@ export function undismissScheduleItem(args: { id: string }) {
 
   db.prepare(
     `UPDATE schedule_items SET is_dismissed = 0, version = version + 1,
-     updated_at = datetime('now') WHERE id = ?`,
+     updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now') WHERE id = ?`,
   ).run(args.id);
 
   const row = db
@@ -285,7 +285,7 @@ export function toggleScheduleComplete(args: { id: string }) {
 
   db.prepare(
     `UPDATE schedule_items SET completed = @completed, completed_at = @completed_at,
-     version = version + 1, updated_at = datetime('now') WHERE id = @id`,
+     version = version + 1, updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now') WHERE id = @id`,
   ).run({
     id: args.id,
     completed: newCompleted,

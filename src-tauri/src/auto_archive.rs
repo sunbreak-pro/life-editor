@@ -44,7 +44,7 @@ fn run(app: &AppHandle) {
 
     match conn.execute(
         "UPDATE tasks
-         SET is_deleted = 1, deleted_at = datetime('now')
+         SET is_deleted = 1, deleted_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
          WHERE status = 'DONE'
            AND completed_at IS NOT NULL
            AND completed_at < datetime('now', '-' || ?1 || ' days')

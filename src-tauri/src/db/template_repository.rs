@@ -76,7 +76,7 @@ pub fn update(conn: &Connection, id: &str, updates: &Value) -> rusqlite::Result<
     }
 
     sets.push("version = version + 1");
-    sets.push("updated_at = datetime('now')");
+    sets.push("updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')");
     values.push(Box::new(id.to_string()));
 
     let sql = format!(

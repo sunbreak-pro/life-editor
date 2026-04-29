@@ -74,7 +74,7 @@ pub fn create(
     conn.execute(
         "INSERT INTO notes (id, type, title, content, parent_id, order_index, is_pinned, \
          is_deleted, created_at, updated_at) \
-         VALUES (?1, 'note', ?2, '', ?3, 0, 0, 0, datetime('now'), datetime('now'))",
+         VALUES (?1, 'note', ?2, '', ?3, 0, 0, 0, strftime('%Y-%m-%dT%H:%M:%fZ', 'now'), strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))",
         params![id, title, parent_id],
     )?;
     query_one(conn, "SELECT * FROM notes WHERE id = ?1", [id])
@@ -89,7 +89,7 @@ pub fn create_folder(
     conn.execute(
         "INSERT INTO notes (id, type, title, content, parent_id, order_index, is_pinned, \
          is_deleted, created_at, updated_at) \
-         VALUES (?1, 'folder', ?2, '', ?3, 0, 0, 0, datetime('now'), datetime('now'))",
+         VALUES (?1, 'folder', ?2, '', ?3, 0, 0, 0, strftime('%Y-%m-%dT%H:%M:%fZ', 'now'), strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))",
         params![id, title, parent_id],
     )?;
     query_one(conn, "SELECT * FROM notes WHERE id = ?1", [id])
@@ -125,7 +125,7 @@ pub fn update(conn: &Connection, id: &str, updates: &Value) -> rusqlite::Result<
     }
 
     sets.push("version = version + 1");
-    sets.push("updated_at = datetime('now')");
+    sets.push("updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')");
     values.push(Box::new(id.to_string()));
 
     let sql = format!("UPDATE notes SET {} WHERE id = ?", sets.join(", "));
@@ -174,7 +174,7 @@ pub fn search(conn: &Connection, query: &str) -> rusqlite::Result<Vec<NoteNode>>
 
 pub fn set_password(conn: &Connection, id: &str, hash: &str) -> rusqlite::Result<NoteNode> {
     conn.execute(
-        "UPDATE notes SET password_hash = ?1, version = version + 1, updated_at = datetime('now') \
+        "UPDATE notes SET password_hash = ?1, version = version + 1, updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now') \
          WHERE id = ?2",
         params![hash, id],
     )?;
@@ -183,7 +183,7 @@ pub fn set_password(conn: &Connection, id: &str, hash: &str) -> rusqlite::Result
 
 pub fn remove_password(conn: &Connection, id: &str) -> rusqlite::Result<NoteNode> {
     conn.execute(
-        "UPDATE notes SET password_hash = NULL, version = version + 1, updated_at = datetime('now') \
+        "UPDATE notes SET password_hash = NULL, version = version + 1, updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now') \
          WHERE id = ?1",
         [id],
     )?;
@@ -202,7 +202,7 @@ pub fn verify_password(conn: &Connection, id: &str, password: &str) -> rusqlite:
 pub fn toggle_edit_lock(conn: &Connection, id: &str) -> rusqlite::Result<NoteNode> {
     conn.execute(
         "UPDATE notes SET is_edit_locked = CASE WHEN is_edit_locked = 1 THEN 0 ELSE 1 END, \
-         version = version + 1, updated_at = datetime('now') WHERE id = ?1",
+         version = version + 1, updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now') WHERE id = ?1",
         [id],
     )?;
     query_one(conn, "SELECT * FROM notes WHERE id = ?1", [id])

@@ -57,7 +57,7 @@ fn insert_item(
         "INSERT INTO schedule_items (id, date, title, start_time, end_time, routine_id, \
          is_deleted, is_dismissed, created_at, updated_at) \
          VALUES (?1, ?2, 'Test', '09:00', '10:00', ?3, ?4, ?5, \
-         datetime('now'), datetime('now'))",
+         strftime('%Y-%m-%dT%H:%M:%fZ', 'now'), strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))",
         rusqlite::params![
             id,
             date,

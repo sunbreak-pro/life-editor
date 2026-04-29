@@ -13,7 +13,7 @@ pub fn get(conn: &Connection, key: &str) -> rusqlite::Result<Option<String>> {
 
 pub fn set(conn: &Connection, key: &str, value: &str) -> rusqlite::Result<()> {
     conn.execute(
-        "INSERT INTO app_settings (key, value, updated_at) VALUES (?1, ?2, datetime('now')) \
+        "INSERT INTO app_settings (key, value, updated_at) VALUES (?1, ?2, strftime('%Y-%m-%dT%H:%M:%fZ', 'now')) \
          ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at",
         params![key, value],
     )?;

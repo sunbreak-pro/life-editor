@@ -55,7 +55,7 @@ export function createNote(args: { title: string; content?: string }) {
 
   db.prepare(
     `INSERT INTO notes (id, title, content, is_pinned, is_deleted, created_at, updated_at)
-     VALUES (@id, @title, @content, 0, 0, datetime('now'), datetime('now'))`,
+     VALUES (@id, @title, @content, 0, 0, strftime('%Y-%m-%dT%H:%M:%fZ', 'now'), strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))`,
   ).run({ id, title: args.title, content: contentJson });
 
   const row = db.prepare("SELECT * FROM notes WHERE id = ?").get(id) as NoteRow;
@@ -93,7 +93,7 @@ export function updateNote(args: {
 
   if (updates.length === 0) return formatNote(existing);
 
-  updates.push("updated_at = datetime('now')");
+  updates.push("updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')");
   db.prepare(`UPDATE notes SET ${updates.join(", ")} WHERE id = @id`).run(
     params,
   );

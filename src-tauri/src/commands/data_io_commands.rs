@@ -494,7 +494,7 @@ pub async fn data_reset(state: State<'_, DbState>) -> Result<bool, String> {
              SET work_duration = 25, break_duration = 5,
                  long_break_duration = 15, sessions_before_long_break = 4,
                  auto_start_breaks = 0, target_sessions = 4,
-                 updated_at = datetime('now')
+                 updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
              WHERE id = 1",
             [],
         )

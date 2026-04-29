@@ -3,11 +3,17 @@ use serde_json::Value;
 
 use super::row_converter::row_to_json;
 
+/// SQL expression for the current time in ISO 8601 with milliseconds.
+/// Use this in raw SQL via `format!("... = {SQL_NOW_ISO} ...")` instead of
+/// the legacy space-format `datetime('now')`. Mixing the two formats causes
+/// the delta-sync cursor to freeze (Known Issue 013-A).
+pub const SQL_NOW_ISO: &str = "strftime('%Y-%m-%dT%H:%M:%fZ', 'now')";
+
 /// Execute a soft-delete: set is_deleted=1, deleted_at=NOW, bump version
 pub fn soft_delete(conn: &Connection, table: &str, id: &str) -> rusqlite::Result<()> {
     let sql = format!(
-        "UPDATE \"{table}\" SET is_deleted = 1, deleted_at = datetime('now'), \
-         version = version + 1, updated_at = datetime('now') WHERE id = ?1"
+        "UPDATE \"{table}\" SET is_deleted = 1, deleted_at = {SQL_NOW_ISO}, \
+         version = version + 1, updated_at = {SQL_NOW_ISO} WHERE id = ?1"
     );
     conn.execute(&sql, [id])?;
     Ok(())
@@ -17,7 +23,7 @@ pub fn soft_delete(conn: &Connection, table: &str, id: &str) -> rusqlite::Result
 pub fn restore(conn: &Connection, table: &str, id: &str) -> rusqlite::Result<()> {
     let sql = format!(
         "UPDATE \"{table}\" SET is_deleted = 0, deleted_at = NULL, \
-         version = version + 1, updated_at = datetime('now') WHERE id = ?1"
+         version = version + 1, updated_at = {SQL_NOW_ISO} WHERE id = ?1"
     );
     conn.execute(&sql, [id])?;
     Ok(())
@@ -54,7 +60,7 @@ pub fn soft_delete_by_key(
     key_val: &str,
 ) -> rusqlite::Result<()> {
     let sql = format!(
-        "UPDATE \"{table}\" SET is_deleted = 1, deleted_at = datetime('now') \
+        "UPDATE \"{table}\" SET is_deleted = 1, deleted_at = {SQL_NOW_ISO} \
          WHERE \"{key_col}\" = ?1"
     );
     conn.execute(&sql, [key_val])?;

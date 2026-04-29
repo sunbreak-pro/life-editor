@@ -235,9 +235,9 @@ pub(super) fn apply(conn: &Connection, current_version: i32) -> rusqlite::Result
             );
             INSERT INTO pomodoro_presets (name, work_duration, break_duration, long_break_duration, sessions_before_long_break, created_at)
             VALUES
-                ('Standard', 25, 5, 15, 4, datetime('now')),
-                ('Deep Work', 50, 10, 30, 3, datetime('now')),
-                ('Quick Sprint', 15, 3, 10, 4, datetime('now'));",
+                ('Standard', 25, 5, 15, 4, strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+                ('Deep Work', 50, 10, 30, 3, strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+                ('Quick Sprint', 15, 3, 10, 4, strftime('%Y-%m-%dT%H:%M:%fZ', 'now'));",
         );
         exec_ignore(conn, "ALTER TABLE timer_settings ADD COLUMN auto_start_breaks INTEGER DEFAULT 0");
         conn.pragma_update(None, "user_version", &12i32)?;

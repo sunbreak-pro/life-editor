@@ -38,8 +38,8 @@ export function upsertDaily(args: { date: string; content: string }) {
 
   db.prepare(
     `INSERT INTO dailies (id, date, content, created_at, updated_at)
-     VALUES (@id, @date, @content, datetime('now'), datetime('now'))
-     ON CONFLICT(date) DO UPDATE SET content = @content, updated_at = datetime('now')`,
+     VALUES (@id, @date, @content, strftime('%Y-%m-%dT%H:%M:%fZ', 'now'), strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+     ON CONFLICT(date) DO UPDATE SET content = @content, updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')`,
   ).run({
     id,
     date: args.date,

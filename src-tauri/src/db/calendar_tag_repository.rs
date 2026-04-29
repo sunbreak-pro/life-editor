@@ -116,13 +116,13 @@ pub fn delete(conn: &Connection, id: i64) -> rusqlite::Result<()> {
     )?;
     // Bump entity updated_at so Cloud Sync delta picks up the cleared assignment
     tx.execute(
-        "UPDATE schedule_items SET updated_at = datetime('now'), version = version + 1 \
+        "UPDATE schedule_items SET updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now'), version = version + 1 \
          WHERE id IN (SELECT entity_id FROM calendar_tag_assignments \
                       WHERE entity_type = 'schedule_item' AND tag_id = ?1)",
         [id],
     )?;
     tx.execute(
-        "UPDATE tasks SET updated_at = datetime('now'), version = version + 1 \
+        "UPDATE tasks SET updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now'), version = version + 1 \
          WHERE id IN (SELECT entity_id FROM calendar_tag_assignments \
                       WHERE entity_type = 'task' AND tag_id = ?1)",
         [id],
@@ -185,10 +185,10 @@ pub fn set_tag_for_entity(
     // Bump parent entity's updated_at + version so Cloud Sync delta query picks it up
     let bump_sql = match entity_type {
         "schedule_item" => {
-            "UPDATE schedule_items SET updated_at = datetime('now'), version = version + 1 WHERE id = ?1"
+            "UPDATE schedule_items SET updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now'), version = version + 1 WHERE id = ?1"
         }
         "task" => {
-            "UPDATE tasks SET updated_at = datetime('now'), version = version + 1 WHERE id = ?1"
+            "UPDATE tasks SET updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now'), version = version + 1 WHERE id = ?1"
         }
         _ => unreachable!(),
     };

@@ -73,7 +73,7 @@ pub fn create(
         "INSERT INTO routine_groups (id, name, color, is_visible, \"order\", \
          frequency_type, frequency_days, frequency_interval, frequency_start_date, \
          created_at, updated_at) \
-         VALUES (?1, ?2, ?3, 1, ?4, ?5, ?6, ?7, ?8, datetime('now'), datetime('now'))",
+         VALUES (?1, ?2, ?3, 1, ?4, ?5, ?6, ?7, ?8, strftime('%Y-%m-%dT%H:%M:%fZ', 'now'), strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))",
         params![
             id,
             name,
@@ -131,7 +131,7 @@ pub fn update(conn: &Connection, id: &str, updates: &Value) -> rusqlite::Result<
         return query_one(conn, "SELECT * FROM routine_groups WHERE id = ?1", [id]);
     }
 
-    sets.push("updated_at = datetime('now')");
+    sets.push("updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')");
     values.push(Box::new(id.to_string()));
 
     let sql = format!(

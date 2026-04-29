@@ -191,7 +191,7 @@ export function createTask(args: {
 
   db.prepare(
     `INSERT INTO tasks (id, type, title, parent_id, "order", status, is_expanded, is_deleted, created_at, scheduled_at, scheduled_end_at, is_all_day, content)
-     VALUES (@id, 'task', @title, @parent_id, @order, 'not_started', 0, 0, datetime('now'), @scheduled_at, @scheduled_end_at, @is_all_day, NULL)`,
+     VALUES (@id, 'task', @title, @parent_id, @order, 'not_started', 0, 0, strftime('%Y-%m-%dT%H:%M:%fZ', 'now'), @scheduled_at, @scheduled_end_at, @is_all_day, NULL)`,
   ).run({
     id,
     title: args.title,
@@ -232,7 +232,7 @@ export function updateTask(args: {
     updates.push("status = @status");
     params.status = args.status;
     if (args.status === "done") {
-      updates.push("completed_at = datetime('now')");
+      updates.push("completed_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')");
     }
   }
   if (args.scheduled_at !== undefined) {
@@ -271,7 +271,7 @@ export function deleteTask(args: { id: string }) {
   if (!existing) throw new Error(`Task not found: ${args.id}`);
 
   db.prepare(
-    "UPDATE tasks SET is_deleted = 1, deleted_at = datetime('now') WHERE id = ?",
+    "UPDATE tasks SET is_deleted = 1, deleted_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now') WHERE id = ?",
   ).run(args.id);
 
   return { success: true, id: args.id };

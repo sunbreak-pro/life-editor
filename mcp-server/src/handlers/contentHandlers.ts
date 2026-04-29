@@ -124,7 +124,7 @@ export function generateContent(args: GenerateContentArgs) {
 
       const updates: string[] = [
         "content = @content",
-        "updated_at = datetime('now')",
+        "updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')",
       ];
       const params: Record<string, unknown> = {
         id: args.target_id,
@@ -143,7 +143,7 @@ export function generateContent(args: GenerateContentArgs) {
       const id = `note-${Date.now()}`;
       db.prepare(
         `INSERT INTO notes (id, title, content, is_pinned, is_deleted, created_at, updated_at)
-         VALUES (@id, @title, @content, 0, 0, datetime('now'), datetime('now'))`,
+         VALUES (@id, @title, @content, 0, 0, strftime('%Y-%m-%dT%H:%M:%fZ', 'now'), strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))`,
       ).run({ id, title: args.title ?? "Untitled", content: contentJson });
       return { id, target: "note", content: tiptapDoc };
     }
@@ -158,7 +158,7 @@ export function generateContent(args: GenerateContentArgs) {
       throw new Error(`Schedule item not found: ${args.target_id}`);
 
     db.prepare(
-      `UPDATE schedule_items SET content = @content, version = version + 1, updated_at = datetime('now') WHERE id = @id`,
+      `UPDATE schedule_items SET content = @content, version = version + 1, updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now') WHERE id = @id`,
     ).run({ id: args.target_id, content: contentJson });
     return { id: args.target_id, target: "schedule", content: tiptapDoc };
   } else {
@@ -167,8 +167,8 @@ export function generateContent(args: GenerateContentArgs) {
     const id = args.target_id ?? `daily-${date}`;
     db.prepare(
       `INSERT INTO dailies (id, date, content, created_at, updated_at)
-       VALUES (@id, @date, @content, datetime('now'), datetime('now'))
-       ON CONFLICT(date) DO UPDATE SET content = @content, updated_at = datetime('now')`,
+       VALUES (@id, @date, @content, strftime('%Y-%m-%dT%H:%M:%fZ', 'now'), strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+       ON CONFLICT(date) DO UPDATE SET content = @content, updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')`,
     ).run({ id, date, content: contentJson });
     return { id, date, target: "daily", content: tiptapDoc };
   }
@@ -301,15 +301,15 @@ export function formatContent(args: FormatContentArgs) {
 
   if (args.target === "note") {
     db.prepare(
-      "UPDATE notes SET content = @content, updated_at = datetime('now') WHERE id = @id",
+      "UPDATE notes SET content = @content, updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now') WHERE id = @id",
     ).run({ id: entityId, content: updatedJson });
   } else if (args.target === "schedule") {
     db.prepare(
-      "UPDATE schedule_items SET content = @content, version = version + 1, updated_at = datetime('now') WHERE id = @id",
+      "UPDATE schedule_items SET content = @content, version = version + 1, updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now') WHERE id = @id",
     ).run({ id: entityId, content: updatedJson });
   } else {
     db.prepare(
-      "UPDATE dailies SET content = @content, updated_at = datetime('now') WHERE id = @id",
+      "UPDATE dailies SET content = @content, updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now') WHERE id = @id",
     ).run({ id: entityId, content: updatedJson });
   }
 

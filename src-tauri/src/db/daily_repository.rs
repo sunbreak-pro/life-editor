@@ -57,9 +57,9 @@ pub fn upsert(conn: &Connection, date: &str, content: &str) -> rusqlite::Result<
     let id = format!("daily-{}", date);
     conn.execute(
         "INSERT INTO dailies (id, date, content, created_at, updated_at) \
-         VALUES (?1, ?2, ?3, datetime('now'), datetime('now')) \
+         VALUES (?1, ?2, ?3, strftime('%Y-%m-%dT%H:%M:%fZ', 'now'), strftime('%Y-%m-%dT%H:%M:%fZ', 'now')) \
          ON CONFLICT(date) DO UPDATE SET \
-         content = ?3, version = version + 1, updated_at = datetime('now')",
+         content = ?3, version = version + 1, updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')",
         params![id, date, content],
     )?;
     query_one(conn, "SELECT * FROM dailies WHERE date = ?1", [date])
@@ -88,7 +88,7 @@ pub fn permanent_delete(conn: &Connection, date: &str) -> rusqlite::Result<()> {
 pub fn toggle_pin(conn: &Connection, date: &str) -> rusqlite::Result<DailyNode> {
     conn.execute(
         "UPDATE dailies SET is_pinned = CASE WHEN is_pinned = 1 THEN 0 ELSE 1 END, \
-         version = version + 1, updated_at = datetime('now') WHERE date = ?1",
+         version = version + 1, updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now') WHERE date = ?1",
         [date],
     )?;
     query_one(conn, "SELECT * FROM dailies WHERE date = ?1", [date])
@@ -96,7 +96,7 @@ pub fn toggle_pin(conn: &Connection, date: &str) -> rusqlite::Result<DailyNode> 
 
 pub fn set_password(conn: &Connection, date: &str, hash: &str) -> rusqlite::Result<DailyNode> {
     conn.execute(
-        "UPDATE dailies SET password_hash = ?1, version = version + 1, updated_at = datetime('now') \
+        "UPDATE dailies SET password_hash = ?1, version = version + 1, updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now') \
          WHERE date = ?2",
         params![hash, date],
     )?;
@@ -105,7 +105,7 @@ pub fn set_password(conn: &Connection, date: &str, hash: &str) -> rusqlite::Resu
 
 pub fn remove_password(conn: &Connection, date: &str) -> rusqlite::Result<DailyNode> {
     conn.execute(
-        "UPDATE dailies SET password_hash = NULL, version = version + 1, updated_at = datetime('now') \
+        "UPDATE dailies SET password_hash = NULL, version = version + 1, updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now') \
          WHERE date = ?1",
         [date],
     )?;
@@ -124,7 +124,7 @@ pub fn verify_password(conn: &Connection, date: &str, password: &str) -> rusqlit
 pub fn toggle_edit_lock(conn: &Connection, date: &str) -> rusqlite::Result<DailyNode> {
     conn.execute(
         "UPDATE dailies SET is_edit_locked = CASE WHEN is_edit_locked = 1 THEN 0 ELSE 1 END, \
-         version = version + 1, updated_at = datetime('now') WHERE date = ?1",
+         version = version + 1, updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now') WHERE date = ?1",
         [date],
     )?;
     query_one(conn, "SELECT * FROM dailies WHERE date = ?1", [date])

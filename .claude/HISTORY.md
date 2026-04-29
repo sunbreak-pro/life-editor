@@ -1,5 +1,36 @@
 # HISTORY.md - 変更履歴
 
+### 2026-04-29 - Server-Authoritative Sync 移行 Phase 0 + Phase 1（timestamp 統一 + UNIQUE 監査 + Worker v2 API 並走）
+
+#### 概要
+
+Notion / Obsidian / Local-first 業界の徹底調査（deep-web-research）から、現状の Cloud Sync「双方向 LWW + delta cursor」は N=1 個人開発で最も問題の出やすい象限と判明し、Notion 型 server-authoritative への 4 段階移行計画 `.claude/2026-04-29-server-authoritative-migration.md` を策定。本セッションでは Phase 0（保険的修正、計画頓挫しても無駄にならない範囲）と Phase 1（Worker v2 API 並走）を `feat/server-authoritative-sync-phase0-1` ブランチで実装。**Phase 0.1**: Known Issue 013-A の根因「`datetime('now')` (space 区切り) と `toISOString()` (T+Z) の混在で sync cursor が同日凍結する」を恒久対応。`datetime('now')` 65 箇所を `strftime('%Y-%m-%dT%H:%M:%fZ', 'now')` に sed 機械置換、`helpers.rs` に `pub const SQL_NOW_ISO` を追加して将来の規約化。**Phase 0.2**: VERSIONED_TABLES 11 + RELATION_TABLES_WITH_UPDATED_AT 5 の論理一意性を全件監査 → V63/V65/V69 で随時追加されており既に網羅、新規 V70 不要と確認。**Phase 1**: Cloudflare Workers に `/api/v2/{health,mutate,snapshot,since}` を mount。Worker が単一書き込み窓口（version 自動 increment + server_updated_at 一元 stamp）+ 楽観 concurrency（409 Conflict）+ soft delete（404 Not Found）+ next_cursor 必須返却で Known Issue 012 を根治。v1 `/sync/*` と完全並走で Phase 2-3 中の cutover 期間を確保。**実機検証手順**を計画書 §6 に詳細記載（Desktop SQLite の updated_at 形式目視 / wrangler dev + smoke-test 11 項目 / 本番デプロイ前チェックリスト / v1 regression 確認）。**未実施**: Phase 1.5 本番 wrangler deploy（ユーザー判断待ち）、Phase 2 Mobile thin client 化、Phase 3 Desktop 片方向 push、Phase 4 v1 撤去 + D1 schema 派生化。
+
+#### 変更点
+
+- **`.claude/2026-04-29-server-authoritative-migration.md`** (新規 / 約 600 行): Status=PLANNING の 4 段階移行計画。§1 Context（双方向 LWW 起因の構造的脆弱性 6 点 P1〜P6 + N=1 で server-authoritative で十分な根拠 + Non-Goals）/ §2 提案アーキテクチャ（Desktop SSOT、Worker = Single Writer Window、Mobile = thin client + MutationQueue、Conflict 解決の旧/新比較表、Worker v2 API 4 本、Mobile MutationQueue 設計、Desktop sync_engine 改修、D1 schema 派生化）/ §3 Steps Phase 0〜4 / §4 Files 影響 30+ 件 / §5 リスク + 緩和 / §6 Verification（実機検証手順 — Phase 0 静的検証 + Desktop SQLite 目視 + MCP 検証 + v1 regression / Phase 1 wrangler dev + smoke test + 個別 curl 7 種 + 本番デプロイ前チェックリスト + 本番 smoke test + クリーンアップ）/ §7 期待効果表 / §8 Open Questions
+- **`src-tauri/src/db/helpers.rs`**: `pub const SQL_NOW_ISO: &str = "strftime('%Y-%m-%dT%H:%M:%fZ', 'now')"` 追加 + soft_delete / restore / soft_delete_by_key の SQL を `format!("... = {SQL_NOW_ISO} ...")` に書き換え。コメントで Known Issue 013-A への根本対応であることを明記
+- **timestamp 機械置換**: `rg -l --type rust --type ts "datetime\\('now'\\)" | grep -v reminder.rs | grep -v sync_engine.rs | xargs sed -i '' "s/datetime('now')/strftime('%Y-%m-%dT%H:%M:%fZ', 'now')/g"` で Rust 24 ファイル + TS 5 ファイルの計 29 ファイルを更新（合計 65 箇所置換）。`reminder.rs:99` (WHERE 比較、両側同形式で問題なし) と `sync_engine.rs:415` (コメント) は除外
+- **`cloud/src/routes/api/v2/shared.ts`** (新規): table allowlist (`validateTable` で VERSIONED_TABLES + RELATION_TABLES_WITH_UPDATED_AT を validate → 任意 string を 400 で弾く) + `isVersioned` 判定 + `getPkCols` (versioned は `PRIMARY_KEYS[table]`、relation は `RELATION_PK_COLS[table]`) + `nowIso` / `toCamelCase` / `quoteCol`
+- **`cloud/src/routes/api/v2/mutate.ts`** (新規): `POST /:table` で op=upsert/delete を受理。multi-PK relation は `multi_pk_unsupported` で 400（v1 並走中の暫定）。upsert は existing 行を SELECT し expected_version 不一致なら `version_conflict` 409 + `current_row` 返却、新規なら version=1、更新なら version+1 で `INSERT OR REPLACE`、Worker が `created_at`/`updated_at`/`server_updated_at`/`version` を強制上書き。delete は existing 不在で 404、versioned のみ soft delete (`is_deleted=1, deleted_at, updated_at, version+1, server_updated_at`)、relation は `delete_unsupported_on_relation` で 400
+- **`cloud/src/routes/api/v2/snapshot.ts`** (新規): `GET /` で `VERSIONED_TABLES` + `RELATION_TABLES_WITH_UPDATED_AT` 計 16 テーブルを camelCase キーで一括返却 + `server_now` ISO timestamp。Mobile bootstrap / Desktop disaster recovery / 検証用
+- **`cloud/src/routes/api/v2/since.ts`** (新規): `GET /?cursor=ISO` で `WHERE datetime(server_updated_at) > datetime(?)` の delta を全 16 テーブルから収集、SYNC_PAGE_SIZE=5000 LIMIT、**`next_cursor` を必ず返す**（returned 行の MAX(server_updated_at)、空なら入力 cursor をそのまま返す）。クライアントは `next_cursor === input cursor` まで再呼出で drain。Known Issue 012 根治
+- **`cloud/src/routes/api/v2/health.ts`** (新規): `GET /` で `{status, server_now, api_version: "v2"}`。authMiddleware 越しなので Mobile thin client が SYNC_TOKEN の生死とサーバー到達性を 1 リクエストで確認できる
+- **`cloud/src/routes/api/v2/index.ts`** (新規): 4 ルートを Hono router に集約
+- **`cloud/src/index.ts`**: `app.use("/api/v2/*", authMiddleware)` 追加 + `app.route("/api/v2", v2)` mount。v1 `/sync/*` と完全並走
+- **`cloud/scripts/smoke-test-v2.sh`** (新規 / 実行権限付与): bash + curl + python3 で v2 を 11 項目検証（health 200 / upsert insert 200 / upsert update with correct version 200 / 409 stale version / 400 unknown table / 400 invalid op / snapshot contains row / since past cursor advances / 400 missing cursor / delete 200 / 404 delete missing）。BASE_URL + SYNC_TOKEN 環境変数で local / 本番両対応
+- **Verification**: `cd src-tauri && cargo test --lib` 25/25 pass / `cd cloud && npx tsc --noEmit` clean / `cd mcp-server && npx tsc --noEmit` clean / `rg "datetime\\('now'\\)"` で reminder.rs / sync_engine.rs:415 / 旧 v2_v30 seed INSERT 以外ゼロ件
+
+#### 残課題
+
+- **Phase 1.5 本番デプロイ未実行**: `cd cloud && wrangler deploy` はユーザー判断待ち。デプロイ後は本番 URL に対し `BASE_URL=... SYNC_TOKEN=本番値 bash scripts/smoke-test-v2.sh` で 11/11 PASS 確認 → 残留 smoke-note クリーンアップ → Desktop / iOS 実機で v1 sync regression が無いことを Sync Now で確認
+- **`src-tauri/tests/schedule_item_path_parity.rs` の失敗**: `life_editor_lib::db` が private で integration test がビルド失敗。本セッション以前から存在する問題で、ファイル自体が untracked。本タスク無関係（lib.rs で `mod db;` を `pub mod db;` に変更すれば解消するが別セッションで判断）
+- **multi-PK relation の v2 mutate 未対応**: `wiki_tag_assignments`（PRIMARY KEY (tag_id, entity_id)）は Phase 2 で必要に応じ拡張（現状は v1 batch path で動く）
+- **MCP Server 側の v2 経路未対応**: 本 Phase は client コードを一切変更していないので MCP は引き続き Desktop SQLite 直書き → v1 sync で Cloud に流れる。Phase 3 で `mutation_log` trigger を入れる際に MCP も自動的に拾う設計
+- **アンステージ変更（並行作業）**: 本ブランチは初期 main からの分岐で working tree がクリーンだったため、別セッション由来のアンステージ変更との衝突なし。本コミットは Phase 0 timestamp 機械置換 + Phase 1 v2 API 新規ファイル + .claude/ plan + tracker のみ
+
+---
+
 ### 2026-04-29 - Routine Tag 廃止 + Group 化 の手動 UI 検証 + Cloud D1 0007 適用 + Worker deploy（タスク完了確認）
 
 #### 概要
@@ -86,27 +117,3 @@
 - **手動 UI 検証**: (a) Header に `RefreshCw` icon が Undo/Redo の間に表示され、クリックで `window.location.reload()` が走ること / (b) tooltip / aria-label が ja で「アプリを再読み込み」/ en で「Reload application」/ (c) section domains が無いセクション (例: terminal) でも reload icon が表示位置を維持 / (d) LeftSidebar の Connect 項目アイコンが `Lightbulb` から `Merge` (Y 字) に変わること / (e) 下部 Tips ボタンの Lightbulb は引き続き電球であること
 - **`window.location.reload()` の挙動**: Tauri 2.x WebView2 / WKWebView ともに正常動作する想定だが、ターミナル PTY や WebSocket 接続を持つ場合の cleanup タイミングは未検証。Connect モードでドラッグ中のロスト state がある場合は IndexedDB 経由で復元される (元々のオフライン設計) ため実害は限定的
 - **アンステージ変更**: 別セッション由来の `Mobile/MobileNoteView.tsx` / `Mobile/materials/MobileNoteTree*.tsx` / `Ideas/NoteTreeNode.tsx` / `WikiTags/WikiTagList.tsx` / `shared/UnifiedColorPicker.tsx` / `extensions/WikiTagView.tsx` / `Mobile/MobileScheduleItemForm.tsx` / `src-tauri/{Cargo.toml, lib.rs, claude_commands.rs, terminal/pty_manager.rs}` / `.claude/CLAUDE.md` 等が working tree に残存。本コミットは UI 調整 5 ファイル + .claude/ tracker のみに絞る
-
----
-
-### 2026-04-27 - 時間帯選択 UI を TimeDropdown に統一（Routine / RoutineGroup / EventDetail / ReminderSettings / MobileScheduleItemForm）
-
-#### 概要
-
-ユーザー要望「Routine アイテムや RoutineGroup の時間帯を手動で打たずドロップダウンで選べるようにしてほしい。Tasks の時間帯調整で既に整っている UI/UX を利用し、共通コンポーネント/フックがなければ作成。それ以外にも時間調整 UI があるため全て置き換え」を Auto mode で実施。実装プランなしの UI 統一リファクタリング。**調査**: Explore agent (very thorough) で全時間 UI を洗い出し、`shared/TimeDropdown` (Calendar / DayFlow / ScheduleItemEditPopup / TaskSchedulePanel / MiniCalendarGrid で既に使用中) がリファレンス実装と判明。新規共通コンポーネントの作成は不要 — TimeDropdown と既存 `shared/TimeInput` の props (`hour, minute, onChange(h, m), minuteStep, size, className`) が完全一致するため、Routine 系 / EventDetail はコンポーネント名置換のみで完了。Native `<input type="time">` は (h, m) ベースに onChange を書き換えて移行。**5 ファイル / 11 箇所** を統一、不要となった `shared/TimeInput.tsx` (231 行) を削除。session-verifier 全 6 ゲート PASS、tsc -b 0 / vitest 42 files / 376/376 pass。
-
-#### 変更点
-
-- **`Tasks/Schedule/Routine/RoutineEditDialog.tsx`**: `TimeInput` import を `TimeDropdown` に変更。Routine 開始/終了の TimeInput x2 (minuteStep=1) を TimeDropdown に置換。`adjustEndTimeForStartChange` / `clampEndTimeAfterStart` の呼出ロジックは onChange 内で維持
-- **`Tasks/Schedule/Routine/RoutineGroupEditDialog.tsx`**: `TimeInput` import を `TimeDropdown` に変更。Group 時間範囲 (start/end x2, minuteStep=5, size=sm) + メンバールーチン時刻 (start/end x2, minuteStep=5, size=sm) の計 4 箇所を TimeDropdown に置換。`handleSlide` / `handleSlideEnd` (group 範囲の offset スライド) と `routineTimeEdits` Map 更新ロジックは維持
-- **`ScheduleList/EventDetailPanel.tsx`**: `TimeInput` import を `TimeDropdown` に変更。Event 開始/終了の TimeInput x2 (minuteStep=5, size=sm) を TimeDropdown に置換。`handleStartTimeChange` の `adjustEndTimeForStartChange` 呼出は不変
-- **`Settings/ReminderSettings.tsx`**: native `<input type="time">` (Daily Review 時刻設定) を TimeDropdown (minuteStep=15) に置換。`handleTimeChange` のシグネチャを `(e: ChangeEvent) => string` から `(h: number, m: number) => formatTime(h, m)` に書き換え、`utils/timeGridUtils::formatTime` を import
-- **`Mobile/MobileScheduleItemForm.tsx`**: native `<input type="time">` x2 (start / end, mobile bottom sheet 内) を TimeDropdown (minuteStep=5) に置換。`utils/timeGridUtils::formatTime` を import、onChange は `(h, m) => setStartTime(formatTime(h, m))` のインライン arrow。`className="w-full justify-center px-2 py-1.5"` でグリッドレイアウト (`grid-cols-[1.3fr_1fr_1fr]`) に追従。**bg 不一致の意図的回避**: 当初 `bg-notion-bg-secondary` を className 経由で override したが、本プロジェクトは `tailwind-merge` 未導入のため Tailwind JIT の CSS 出力順依存で override 結果が不安定 → デフォルトの `bg-notion-bg` のまま (date input と僅かに色違いだがドロップダウンパネル本体とは一致)
-- **削除**: `frontend/src/components/shared/TimeInput.tsx` (231 行) — 上記 5 ファイルが移行完了して callers 0。barrel export / テストも無し (grep で `TimeInput` の残参照は変数名 `dateTimeInputs` のみ確認済)
-- **Verification**: `npx tsc -b` exit 0 / `npm run test` 42 files / 376/376 pass / `npx eslint <変更5ファイル>` 1 error (= MobileScheduleItemForm:64 useEffect 内 setState、git stash で pre-existing と確認、本セッション無関与) / session-verifier 全 6 ゲート PASS
-
-#### 残課題
-
-- **手動 UI 検証**: (a) RoutineEditDialog 開始/終了の Clock アイコン付きドロップダウン表示・選択動作 / (b) RoutineGroupEditDialog の group 範囲スライド (start 変更で member 全員シフト) / (c) EventDetailPanel の event 時刻ドロップダウン (parent panel `useClickOutside` と portal dropdown の干渉なし確認) / (d) ReminderSettings の Daily Review 時刻が 15 分刻みドロップダウンで保存されること / (e) MobileScheduleItemForm の bottom sheet 内ドロップダウン操作 (z-index 9999 portal がモバイル bottom sheet z-50 を超えること、grid 幅 fit、タップで開閉)
-- **Mobile UX 評価**: native picker から TimeDropdown への切替は要モバイル実機検証。タッチデバイスでスクロール選択が想定通り機能しない場合は条件分岐 (touch device 時のみ native picker 復活) を検討候補
-- **アンステージ変更**: 別セッション由来の `Layout/{LeftSidebar,TitleBar}.tsx` / `Mobile/MobileNoteView.tsx` / `Mobile/materials/MobileNoteTree*.tsx` / `Ideas/NoteTreeNode.tsx` / `WikiTags/WikiTagList.tsx` / `shared/UnifiedColorPicker.tsx` / `shared/UndoRedo/UndoRedoButtons.tsx` / `extensions/WikiTagView.tsx` / `i18n/locales/{en,ja}.json` / `src-tauri/{Cargo.toml, lib.rs, claude_commands.rs, terminal/pty_manager.rs}` / `.claude/CLAUDE.md` が working tree に残存。本コミットは TimeDropdown 統一 5 ファイル + TimeInput.tsx 削除 + .claude/ のみに絞る
