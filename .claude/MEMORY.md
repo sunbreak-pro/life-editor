@@ -84,15 +84,10 @@
 **背景**: 2026-04-21 Phase A コード変更は品質ゲート通過済み、iOS 実機での NodeView レンダリング確認が未実施
 **観点**: Callout / ToggleList / WikiTag / NoteLink / Table / TaskList が Desktop と同一構造で表示されること
 
-### Cloud Sync データ復旧作業（タグ情報 iOS → Desktop）
-
-**対象**: iOS / Desktop の `routine_tag_assignments` 復旧
-**背景**: 008 修正コードは着地したが、Desktop の `routine_tag_assignments` は空のまま。iOS の正データを Cloud 経由で取り戻す必要あり。2026-04-22 の iOS 再接続 + Sync Now で一部は復旧している可能性、要確認
-
 ### iOS 4G 同期検証
 
 **対象**: iPhone 実機 / 4G 環境
-**前提**: 004/005/008 修正完了 + V62 migration 適用 + タグ復旧完了
+**前提**: 004/005/008 修正完了 + V62 migration 適用
 
 ### Mobile Schedule & Work リデザイン 手動 UI 検証
 
