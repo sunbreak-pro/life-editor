@@ -17,7 +17,6 @@ interface MobileNoteTreeItemProps {
   onSelect: (node: NoteNode) => void;
   onToggleExpand: (id: string) => void;
   onLongPress: (node: NoteNode, anchor: { x: number; y: number }) => void;
-  renderExtra?: (node: NoteNode) => React.ReactNode;
 }
 
 const LONG_PRESS_MS = 500;
@@ -29,16 +28,14 @@ export const MobileNoteTreeItem = memo(function MobileNoteTreeItem({
   onSelect,
   onToggleExpand,
   onLongPress,
-  renderExtra,
 }: MobileNoteTreeItemProps) {
   const timerRef = useRef<number | null>(null);
   const anchorRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
   const triggeredRef = useRef(false);
   const isFolder = node.type === "folder";
   const wikiCtx = useWikiTagsOptional();
-  const tags = !isFolder && wikiCtx ? wikiCtx.getTagsForEntity(node.id) : [];
-  const visibleTags = tags.slice(0, 2);
-  const extraTagCount = Math.max(0, tags.length - visibleTags.length);
+  const tagCount =
+    !isFolder && wikiCtx ? wikiCtx.getTagsForEntity(node.id).length : 0;
 
   const startLongPress = (x: number, y: number) => {
     anchorRef.current = { x, y };
@@ -103,39 +100,29 @@ export const MobileNoteTreeItem = memo(function MobileNoteTreeItem({
         <span className="h-5 w-5 shrink-0" />
       )}
 
-      <span className="shrink-0 text-notion-text-secondary">
-        {isFolder ? <Folder size={16} /> : <StickyNote size={16} />}
+      <span className="shrink-0">
+        {isFolder ? (
+          <Folder size={16} className="text-notion-text-secondary" />
+        ) : node.isPinned ? (
+          <Heart size={16} className="fill-red-400 text-red-400" />
+        ) : (
+          <StickyNote size={16} className="text-notion-text-secondary" />
+        )}
       </span>
 
       <span className="flex-1 truncate text-sm text-notion-text">
         {node.title || "Untitled"}
       </span>
 
-      {visibleTags.map((tag) => (
-        <span
-          key={tag.id}
-          className="shrink-0 rounded-full px-1.5 py-0.5 text-[10px]"
-          style={{
-            backgroundColor: tag.color + "22",
-            color: tag.textColor || tag.color,
-          }}
-        >
-          {tag.name}
-        </span>
-      ))}
-      {extraTagCount > 0 && (
+      {tagCount > 0 && (
         <span className="shrink-0 text-[10px] text-notion-text-secondary">
-          +{extraTagCount}
+          +{tagCount}
         </span>
       )}
 
       {node.hasPassword && (
         <Lock size={14} className="shrink-0 text-notion-text-secondary" />
       )}
-      {node.isPinned && (
-        <Heart size={14} className="shrink-0 fill-red-400 text-red-400" />
-      )}
-      {renderExtra?.(node)}
     </li>
   );
 });

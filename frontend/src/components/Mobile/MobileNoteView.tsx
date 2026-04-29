@@ -27,24 +27,6 @@ import {
 } from "./shared/NumericPadPasswordDialog";
 import { MobileNoteTagsBar } from "./materials/MobileNoteTagsBar";
 
-function extractPlainText(content: string): string {
-  try {
-    const parsed = JSON.parse(content);
-    if (parsed?.content) {
-      return parsed.content
-        .map(
-          (block: { content?: Array<{ text?: string }> }) =>
-            block.content?.map((c) => c.text || "").join("") || "",
-        )
-        .join(" ")
-        .slice(0, 120);
-    }
-  } catch {
-    // plain text
-  }
-  return content?.slice(0, 120) || "";
-}
-
 const STORAGE_FAVORITES_OPEN = "mobile-note-favorites-open";
 
 export function MobileNoteView() {
@@ -347,11 +329,6 @@ export function MobileNoteView() {
                 onSelect={openNote}
                 onToggleExpand={() => undefined}
                 onLongPress={(n) => setContextNode(n)}
-                renderExtra={() => (
-                  <span className="shrink-0 text-[10px] text-notion-text-secondary">
-                    {extractPlainText(note.content).slice(0, 24)}
-                  </span>
-                )}
               />
             ))}
           </ul>

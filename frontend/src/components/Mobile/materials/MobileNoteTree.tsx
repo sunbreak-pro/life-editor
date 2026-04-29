@@ -10,7 +10,6 @@ interface MobileNoteTreeProps {
   onSelect: (node: NoteNode) => void;
   onToggleExpand: (id: string) => void;
   onLongPress: (node: NoteNode, anchor: { x: number; y: number }) => void;
-  renderExtra?: (node: NoteNode) => React.ReactNode;
 }
 
 export const MobileNoteTree = memo(function MobileNoteTree({
@@ -21,7 +20,6 @@ export const MobileNoteTree = memo(function MobileNoteTree({
   onSelect,
   onToggleExpand,
   onLongPress,
-  renderExtra,
 }: MobileNoteTreeProps) {
   const children = notes
     .filter((n) => n.parentId === parentId && !n.isDeleted)
@@ -46,7 +44,6 @@ export const MobileNoteTree = memo(function MobileNoteTree({
               onSelect={onSelect}
               onToggleExpand={onToggleExpand}
               onLongPress={onLongPress}
-              renderExtra={renderExtra}
             />
             {node.type === "folder" && isExpanded && (
               <MobileNoteTree
@@ -57,7 +54,6 @@ export const MobileNoteTree = memo(function MobileNoteTree({
                 onSelect={onSelect}
                 onToggleExpand={onToggleExpand}
                 onLongPress={onLongPress}
-                renderExtra={renderExtra}
               />
             )}
           </div>
