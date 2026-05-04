@@ -16,7 +16,6 @@ interface FolderDropdownProps {
   fontSizeClass?: string;
   indentPx?: (depth: number) => number;
   depthIndicator?: (depth: number) => ReactNode;
-  showColor?: boolean;
 }
 
 export function FolderDropdown({
@@ -30,7 +29,6 @@ export function FolderDropdown({
   fontSizeClass,
   indentPx,
   depthIndicator,
-  showColor,
 }: FolderDropdownProps) {
   const { nodes } = useTaskTreeContext();
   const [isOpen, setIsOpen] = useState(false);
@@ -65,7 +63,6 @@ export function FolderDropdown({
             fontSizeClass={fontSizeClass}
             indentPx={indentPx}
             depthIndicator={depthIndicator}
-            showColor={showColor}
           />
         </div>
       )}

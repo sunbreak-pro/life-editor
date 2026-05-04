@@ -19,6 +19,7 @@ import { fireTaskCompleteConfetti } from "../../../utils/confetti";
 import { formatDateKey } from "../../../utils/dateKey";
 import { renderIcon } from "../../../utils/iconRenderer";
 import { playEffectSound } from "../../../utils/playEffectSound";
+import { DebouncedTextarea } from "./DebouncedTextarea";
 import { InlineEditableHeading } from "./InlineEditableHeading";
 
 interface TaskSidebarContentProps {
@@ -220,6 +221,19 @@ export function TaskSidebarContent({
             <Trash2 size={14} />
           </button>
         </div>
+      </div>
+
+      {/* Memo textarea (parity with folder detail) */}
+      <div>
+        <p className="text-xs font-medium text-notion-text-secondary mb-1">
+          {t("taskDetailSidebar.memo")}
+        </p>
+        <DebouncedTextarea
+          key={node.id}
+          initialValue={node.content ?? ""}
+          onSave={(content) => updateNode(node.id, { content })}
+          placeholder={t("taskDetailSidebar.memoPlaceholder")}
+        />
       </div>
     </div>
   );

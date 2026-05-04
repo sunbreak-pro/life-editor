@@ -37,14 +37,14 @@ export const TaskNodeContent = memo(function TaskNodeContent({
       onDoubleClick={() => {
         onStartEditing();
       }}
-      className={`flex-1 text-[15px] cursor-pointer truncate flex items-center gap-1 ${
+      className={`flex-1 min-w-0 text-[15px] cursor-pointer flex items-center gap-1 ${
         isDone ? "line-through text-notion-text-secondary" : "text-notion-text"
       } ${isFolder ? "font-medium" : ""}`}
     >
       {!isFolder && priority && <PriorityBadge priority={priority} size={12} />}
-      {title}
+      <span className="truncate">{title}</span>
       {isFolder && progress && progress.total > 0 && (
-        <span className="ml-1.5 text-xs text-notion-text-secondary font-normal">
+        <span className="ml-1.5 text-xs text-notion-text-secondary font-normal shrink-0">
           {progress.completed}/{progress.total}
         </span>
       )}

@@ -49,7 +49,6 @@ interface OneDayScheduleProps {
   date: Date;
   tasksByDate: Map<string, TaskNode[]>;
   allTasksByDate: Map<string, TaskNode[]>;
-  getTaskColor?: (taskId: string) => string | undefined;
   getFolderTag?: (taskId: string) => string;
   onUpdateTaskTime?: (
     taskId: string,
@@ -77,7 +76,6 @@ export function OneDaySchedule({
   date,
   tasksByDate,
   allTasksByDate,
-  getTaskColor,
   getFolderTag,
   onUpdateTaskTime,
   onPrevDate,
@@ -525,7 +523,6 @@ export function OneDaySchedule({
               tasks={filteredDayTasks}
               onToggleComplete={toggleComplete}
               onCreateItem={handleCreateItem}
-              getTaskColor={getTaskColor}
               getFolderTag={getFolderTag}
               onUpdateMemo={handleUpdateMemo}
               onUpdateScheduleItemTime={handleUpdateScheduleItemTime}
@@ -1027,7 +1024,6 @@ export function OneDaySchedule({
           <TaskPreviewPopup
             task={allDayTaskPreview.task}
             position={allDayTaskPreview.position}
-            color={getTaskColor?.(allDayTaskPreview.task.id)}
             folderTag={getFolderTag?.(allDayTaskPreview.task.id)}
             onOpenDetail={() => {
               const taskId = allDayTaskPreview.task.id;

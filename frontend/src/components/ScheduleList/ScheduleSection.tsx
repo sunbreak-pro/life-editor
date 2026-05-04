@@ -146,7 +146,7 @@ export function ScheduleSection({
     [],
   );
 
-  const { nodes, getTaskColor, getFolderTagForTask, updateNode, softDelete } =
+  const { nodes, getFolderTagForTask, updateNode, softDelete } =
     useTaskTreeContext();
   const { push: pushUndo } = useUndoRedo();
   const { dailies } = useDailyContext();
@@ -569,7 +569,6 @@ export function ScheduleSection({
           <ScheduleEventsContent sidebarSearchQuery="" />
         ) : isDualColumn ? (
           <DualDayFlowLayout
-            getTaskColor={getTaskColor}
             getFolderTag={getFolderTagForTask}
             onUpdateTaskTime={handleUpdateTaskTime}
             onToggleTaskStatus={handleToggleTaskStatus}
@@ -586,7 +585,6 @@ export function ScheduleSection({
             date={dayFlowDate}
             tasksByDate={tasksByDate}
             allTasksByDate={allTasksByDate}
-            getTaskColor={getTaskColor}
             getFolderTag={getFolderTagForTask}
             onUpdateTaskTime={handleUpdateTaskTime}
             onPrevDate={goToPrev}

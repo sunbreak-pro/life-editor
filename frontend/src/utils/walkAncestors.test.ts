@@ -1,6 +1,5 @@
 import { describe, it, expect } from "vitest";
 import { walkAncestors } from "./walkAncestors";
-import { resolveTaskColor } from "./folderColor";
 import { getFolderTag } from "./folderTag";
 import type { TaskNode } from "../types/taskTree";
 
@@ -45,23 +44,7 @@ describe("walkAncestors", () => {
   });
 });
 
-describe("folderColor / folderTag — cycle safety", () => {
-  it("resolveTaskColor terminates on circular parentId", () => {
-    const nodes = [
-      makeNode({
-        id: "a",
-        type: "folder",
-        color: "#ff0000",
-        parentId: "b",
-      }),
-      makeNode({ id: "b", type: "folder", parentId: "a" }),
-    ];
-    const map = new Map(nodes.map((n) => [n.id, n]));
-    // Must not hang.
-    const color = resolveTaskColor("a", map);
-    expect(color).toBe("#ff0000");
-  });
-
+describe("folderTag — cycle safety", () => {
   it("getFolderTag terminates on circular parentId", () => {
     const nodes = [
       makeNode({ id: "a", type: "folder", title: "A", parentId: "b" }),

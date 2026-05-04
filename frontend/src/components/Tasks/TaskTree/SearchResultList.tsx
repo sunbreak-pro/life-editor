@@ -59,7 +59,6 @@ const SearchResultItem = memo(function SearchResultItem({
         isFolder={isFolder}
         isDone={isDone}
         isExpanded={node.isExpanded}
-        color={node.color}
         onToggleExpand={handleToggleExpand}
         onToggleStatus={handleToggleStatus}
       />

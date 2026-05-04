@@ -10,18 +10,15 @@ import {
 } from "lucide-react";
 import type { CalendarItem } from "../../../../types/calendarItem";
 import { CALENDAR_ITEM_COLORS } from "../../../../types/calendarItem";
-import { getTextColorForBg } from "../../../../constants/folderColors";
 
 interface CalendarItemChipProps {
   item: CalendarItem;
   onSelectItem: (item: CalendarItem, e: React.MouseEvent) => void;
-  taskColor?: string;
 }
 
 export const CalendarItemChip = memo(function CalendarItemChip({
   item,
   onSelectItem,
-  taskColor,
 }: CalendarItemChipProps) {
   const onClick = (e: React.MouseEvent) => onSelectItem(item, e);
   if (item.type === "holiday") {
@@ -41,8 +38,6 @@ export const CalendarItemChip = memo(function CalendarItemChip({
 
   if (item.type === "task" && item.task) {
     const isDone = item.task.status === "DONE";
-    const color = taskColor;
-    const textColor = color ? getTextColorForBg(color) : undefined;
 
     return (
       <button
@@ -50,15 +45,8 @@ export const CalendarItemChip = memo(function CalendarItemChip({
         className={`w-full text-left px-1.5 py-1 rounded text-xs truncate transition-colors flex items-center gap-1 ${
           isDone
             ? "text-notion-text-secondary line-through bg-notion-hover/50"
-            : color
-              ? "hover:opacity-80"
-              : "text-notion-text bg-notion-accent/10 hover:bg-notion-accent/20"
+            : "text-notion-text bg-notion-accent/10 hover:bg-notion-accent/20"
         }`}
-        style={
-          !isDone && color
-            ? { backgroundColor: color, color: textColor }
-            : undefined
-        }
       >
         <CheckSquare size={10} className="shrink-0" />
         <span className="truncate">{item.title}</span>

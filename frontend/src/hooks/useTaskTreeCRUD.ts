@@ -1,6 +1,5 @@
 import { useCallback } from "react";
 import type { TaskNode, NodeType, TaskStatus } from "../types/taskTree";
-import { getColorByIndex } from "../constants/folderColors";
 import { STORAGE_KEYS } from "../constants/storageKeys";
 
 interface AddNodeOptions {
@@ -41,12 +40,6 @@ export function useTaskTreeCRUD(
       const siblings = nodes.filter(
         (n) => !n.isDeleted && n.parentId === effectiveParentId,
       );
-      const folderColor =
-        type === "folder"
-          ? getColorByIndex(
-              nodes.filter((n) => n.type === "folder" && !n.isDeleted).length,
-            )
-          : undefined;
 
       let newOrder: number;
       let updatedNodes = nodes;
@@ -77,7 +70,6 @@ export function useTaskTreeCRUD(
         scheduledAt: type === "task" ? options?.scheduledAt : undefined,
         scheduledEndAt: type === "task" ? options?.scheduledEndAt : undefined,
         isAllDay: type === "task" ? options?.isAllDay : undefined,
-        color: folderColor,
       };
       if (options?.skipUndo) {
         persistSilent([...updatedNodes, newNode]);

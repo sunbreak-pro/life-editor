@@ -19,7 +19,6 @@ import {
 } from "../../../../hooks/useRoleConversion";
 
 interface DualDayFlowLayoutProps {
-  getTaskColor?: (taskId: string) => string | undefined;
   getFolderTag?: (taskId: string) => string;
   onUpdateTaskTime?: (
     taskId: string,
@@ -44,7 +43,6 @@ function tomorrow(): Date {
 }
 
 export function DualDayFlowLayout({
-  getTaskColor,
   getFolderTag,
   onUpdateTaskTime,
   onToggleTaskStatus,
@@ -75,7 +73,6 @@ export function DualDayFlowLayout({
     <div className="flex h-full gap-2 p-3">
       <DualColumn
         column={left}
-        getTaskColor={getTaskColor}
         getFolderTag={getFolderTag}
         onUpdateTaskTime={onUpdateTaskTime}
         onToggleTaskStatus={onToggleTaskStatus}
@@ -92,7 +89,6 @@ export function DualDayFlowLayout({
       />
       <DualColumn
         column={right}
-        getTaskColor={getTaskColor}
         getFolderTag={getFolderTag}
         onUpdateTaskTime={onUpdateTaskTime}
         onToggleTaskStatus={onToggleTaskStatus}
@@ -111,7 +107,6 @@ export function DualDayFlowLayout({
 
 interface DualColumnProps {
   column: ReturnType<typeof useDayFlowColumn>;
-  getTaskColor?: (taskId: string) => string | undefined;
   getFolderTag?: (taskId: string) => string;
   onUpdateTaskTime?: (
     taskId: string,
@@ -133,7 +128,6 @@ interface DualColumnProps {
 
 function DualColumn({
   column,
-  getTaskColor,
   getFolderTag,
   onUpdateTaskTime,
   onToggleTaskStatus,
@@ -289,7 +283,6 @@ function DualColumn({
             onMutate?.();
           }}
           onCreateItem={handleCreateItem}
-          getTaskColor={getTaskColor}
           getFolderTag={getFolderTag}
           onUpdateMemo={handleUpdateMemo}
           onUpdateScheduleItemTime={handleUpdateScheduleItemTime}

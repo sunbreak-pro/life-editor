@@ -35,7 +35,7 @@ export const TaskNodeActions = memo(function TaskNodeActions({
 }: TaskNodeActionsProps) {
   const { t } = useTranslation();
   return (
-    <div className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity">
+    <div className="absolute right-1 top-1/2 -translate-y-1/2 flex items-center bg-notion-hover rounded-md pl-2 opacity-0 group-hover:opacity-100 transition-opacity">
       {node.type === "folder" && onCompleteFolder && (
         <button
           onClick={onCompleteFolder}

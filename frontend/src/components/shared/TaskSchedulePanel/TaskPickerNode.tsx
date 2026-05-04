@@ -68,12 +68,6 @@ export function TaskPickerNode({
               className="shrink-0 text-notion-text-secondary"
             />
           )}
-          {node.color && (
-            <span
-              className="w-2 h-2 rounded-full shrink-0"
-              style={{ backgroundColor: node.color }}
-            />
-          )}
           {isExpanded ? (
             <FolderOpen
               size={12}

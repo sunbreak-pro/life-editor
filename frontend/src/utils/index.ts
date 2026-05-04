@@ -3,7 +3,6 @@ export { fireTaskCompleteConfetti } from "./confetti";
 export { formatDateKey } from "./dateKey";
 export { formatDuration } from "./duration";
 export { flattenFolders } from "./flattenFolders";
-export { resolveTaskColor } from "./folderColor";
 export { computeFolderProgress } from "./folderProgress";
 export { getFolderTag } from "./folderTag";
 export {

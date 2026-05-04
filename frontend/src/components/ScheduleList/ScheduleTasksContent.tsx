@@ -3,7 +3,7 @@ import { ListChecks, CheckCircle2 } from "lucide-react";
 import type { TaskNode } from "../../types/taskTree";
 import { TaskTree } from "../Tasks/TaskTree/TaskTree";
 import { TaskTreeHeader } from "../Tasks/TaskTree/TaskTreeHeader";
-import { TaskDetailPanel } from "../Tasks/TaskDetail/TaskDetailPanel";
+import { TaskDetailContent } from "../Tasks/TaskDetail/TaskDetailContent";
 import { SectionTabs } from "../shared/SectionTabs";
 import type { TabItem } from "../shared/SectionTabs";
 import { useLocalStorage } from "../../hooks/useLocalStorage";
@@ -105,7 +105,7 @@ export function ScheduleTasksContent({
 
       {/* Right column: Detail */}
       <div className="flex-1 min-w-0 overflow-y-auto">
-        <TaskDetailPanel
+        <TaskDetailContent
           selectedNodeId={selectedTaskId}
           onPlayTask={onPlayTask}
           onSelectTask={onSelectTask}

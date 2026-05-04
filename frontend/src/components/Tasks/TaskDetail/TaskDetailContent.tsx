@@ -4,17 +4,17 @@ import { FolderSidebarContent } from "./FolderSidebarContent";
 import { TaskDetailEmpty } from "./TaskDetailEmpty";
 import { TaskSidebarContent } from "./TaskSidebarContent";
 
-interface TaskDetailPanelProps {
+interface TaskDetailContentProps {
   selectedNodeId: string | null;
   onPlayTask?: (node: TaskNode) => void;
   onSelectTask?: (id: string) => void;
 }
 
-export function TaskDetailPanel({
+export function TaskDetailContent({
   selectedNodeId,
   onPlayTask,
   onSelectTask,
-}: TaskDetailPanelProps) {
+}: TaskDetailContentProps) {
   const { nodes, updateNode, softDelete, toggleTaskStatus, setTaskStatus } =
     useTaskTreeContext();
 

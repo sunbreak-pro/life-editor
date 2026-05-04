@@ -1,5 +1,34 @@
 # HISTORY.md - 変更履歴
 
+### 2026-05-04 - Schedule > Task フォルダ残タスク 6 件 + Calendar/DayFlow タスク継承色の全廃
+
+#### 概要
+
+ユーザー要望「現在の life-editor フォルダ内 Tasks フォルダにある未完了タスクを実装」を Auto mode で実施。MCP `list_tasks` / `get_task` / `get_task_tree` で Schedule > Task フォルダの未完了 7 件を読み出し、各タスクの content が全て null（タイトルのみ）だったため要件解釈一覧を提示しユーザーと内容確認後に着手。**6 件を実装、1 件は MCP 権限拒否で手動委譲（後にユーザーが完了報告）**。続けて第 2 ターンの要望「Calendar 系がタスクから流用しているカラーも廃止してほしい」で `getTaskColor` / `resolveTaskColor` の prop drilling を Calendar / DayFlow チェーン全段（11 ファイル）から完全撤去。session-verifier 全 6 ゲート PASS（lint findings 13 errors / 3 warnings は全て pre-existing で本変更の編集行外、別タスク扱い）、`tsc -b` 0、`npm test` 43 files / 385 tests pass。本ブランチは `refactor/web-first-v2`（Web ファースト移行ブランチ）上での作業のため、commit は当該作業ブランチに帰属。
+
+#### 変更点
+
+- **TaskTree カラー全廃 (#7)**: `node.color` 由来の row bgStyle / TaskNodeCheckbox の icon color / 新規 folder 作成時の `getColorByIndex` 自動付与をすべて削除（`useTaskTreeCRUD.ts:1-5,40-46,70` 編集 + `frontend/src/utils/folderColor.ts` ファイル削除 + `frontend/src/utils/index.ts` の `resolveTaskColor` re-export 削除 + `walkAncestors.test.ts` の `resolveTaskColor` 用 describe ブロック削除）
+- **Calendar/DayFlow 色 prop drilling 撤去 (続編)**: `useTaskTreeAPI.ts` から `getTaskColor` export 削除（`resolveTaskColor` import / `getTaskColor` useCallback / return 値・deps 配列計 4 箇所）→ `ScheduleSection.tsx:149,571,588` の context 取得・prop 渡し → `CalendarView.tsx:209,639,660,878` の prop 渡し・`previewTask.id` 経由の color 取得 → `MonthlyView.tsx:18,28,58` / `DayCell.tsx:15,29,87,98,125` / `CalendarItemChip.tsx:13,18,24,44-61`（task chip の動的 backgroundColor / textColor を除去し `bg-notion-accent/10` 系の固定 fallback を残置）→ `WeeklyTimeGrid.tsx:29,127,275-277,357`（all-day chip と TimeGridTaskBlock 渡し、動的色を `#E0E7FF` / `#4338CA` 固定に）→ `TimeGridTaskBlock.tsx:1-67`（color prop / `getTextColorForBg` import を撤去、`bgColor` / `textColor` を固定値に）→ `TaskPreviewPopup.tsx:13-19,52-55,114-117`（`color` prop と `barColor` 渡しを撤去）→ `OneDaySchedule.tsx:52,80,528,1030` / `DualDayFlowLayout.tsx:22,47,78,95,114,136,292` / `ScheduleTimeGrid.tsx:47,106,566,690` の prop 鎖を全段で削除
+- **周辺 color 表示の撤去**: `TaskPickerNode.tsx:71-76` の folder color dot 削除 / `FolderSidebarContent.tsx:355-362,388-398` の child / grandchild folder icon の inline `style={{ color: folder.color ?? "#9CA3AF" }}` を `text-notion-text-secondary` に置換 / `FolderList.tsx:14,30,59-64` と `FolderDropdown.tsx:19,33,68` の `showColor` prop を全廃（呼び出し側で値を渡している箇所がないことを grep 確認）
+- **TaskTree タイトル truncate 改善 (#6 / #2)**: `TaskTreeNode.tsx:265` の row container に `relative` 追加、`TaskNodeActions.tsx:38` を `absolute right-1 top-1/2 -translate-y-1/2 flex items-center bg-notion-hover rounded-md pl-2 opacity-0 group-hover:opacity-100` に変更し非 hover 時に幅を奪わない設計に。`TaskNodeContent.tsx:40-50` を `flex-1 min-w-0 ... flex items-center gap-1` + 子 `<span className="truncate">{title}</span>` 形式に修正（flex 子に truncate を直接書くと効かない問題への対応）。folder/task 両方で Trash アイコンが行右端に揃うため #2 も同時解消
+- **TaskDetail メモフィールド (#3)**: `TaskSidebarContent.tsx:22,222-235` に folder と同じ `DebouncedTextarea` 形式の memo セクションを追加、`node.content` 経由（既存の TaskNode 型に `content?: string` 既存）。i18n キー `taskDetailSidebar.memo` / `taskDetailSidebar.memoPlaceholder` は en/ja 既存。TipTap は導入しない（ユーザー指定）
+- **作成→詳細自動 open (#5)**: `TaskTree.tsx:344-353` root `InlineCreateInput` の onSubmit / `TaskTreeNode.tsx:204-218` の `handleMakeFolder` / `handleMakeTask` / 同 384-399 の context menu `onAddTask` / `onAddFolder` の **5 経路全て**で `addNode().id` の戻り値を捕捉し `onSelectTask?.()` に渡すように配線。`useTaskTreeCRUD.ts::addNode` は元々 `return newNode` していたため設計変更なし
+- **`TaskDetailPanel` → `TaskDetailContent` リネーム (#4)**: `frontend/src/components/Tasks/TaskDetail/TaskDetailPanel.tsx` を `mv` で `TaskDetailContent.tsx` にリネーム + ファイル内の interface 名 / 関数名 / TaskDetailPanelProps すべて置換 + `frontend/src/components/Tasks/TaskTreeView.tsx`（2 箇所）/ `frontend/src/components/ScheduleList/ScheduleTasksContent.tsx`（1 箇所）の import / JSX を全更新。残置していた vim swap `.TaskDetailPanel.tsx.swp` も削除（rename と同期取れなくなるため）
+- **#1 空 New Task (`task-1777823455650`)**: MCP `delete_task` 呼出が hooks の権限制御で拒否（外部 state mutation の安全策）。ユーザーに手動削除を依頼 → ユーザーが完了報告
+- **Verification**: `cd frontend && npx tsc -b` exit 0 / `cd frontend && npm test` 43 files / 385 tests pass / `cd frontend && npx eslint <変更ファイル>` 13 errors 3 warnings — **全て pre-existing で本変更の編集行外**（CalendarView.tsx:359/374/389/480 の `react-hooks/preserve-manual-memoization` + `exhaustive-deps` / DualDayFlowLayout.tsx:63,69 の `refreshOther` 同種 / TimeGridTaskBlock.tsx:68 の `set-state-in-effect` / FolderSidebarContent.tsx:157,247 と TaskSidebarContent.tsx:56 の `react-hooks/refs` ref-during-render / useTaskTreeCRUD.ts:19,81 の `persistSilent` 欠落、すべて `git show HEAD:<file>` で本セッション前から存在することを確認済）/ session-verifier 全 6 ゲート PASS
+
+#### 残課題
+
+- **手動 UI 検証**: (a) TaskTree の hover 時 Trash 位置が folder/task 両方で右端に揃う / (b) Calendar 月ビュー / 週ビュー / DayFlow で task chip が固定の `#E0E7FF` 背景 + `#4338CA` 文字色になっていること（既存 folder で color を設定していた場合も含めて差が消えていること）/ (c) TaskTree で新規 task/folder 作成直後に詳細パネルが選択状態になり名前編集モードに入ること（root + nested + context menu の 3 系統）/ (d) Task Detail のメモフィールドで入力 → 500ms debounce で persist / 別 task 切替時に flush
+- **既存 lint findings の一括対応（別タスク）**: `CalendarView.tsx` の `handlePrev/Next/Today` メモ化警告 / `DualDayFlowLayout.tsx::refreshOther` / `TimeGridTaskBlock.tsx::useEffect` setState / `FolderSidebarContent.tsx` と `TaskSidebarContent.tsx` の ref-during-render / `useTaskTreeCRUD.ts::addNode` の `persistSilent` 欠落。本変更とは無関係に蓄積していた lint 116 問題（MEMORY.md「予定」に既登録）の一部。本セッションで触ると scope creep
+- **`getFolderTagForTask` は残置**: タスクの folder 階層 breadcrumb path **文字列**を返すユーティリティで、色とは別概念。Calendar / DayFlow で chip 周辺の sub-label として使用中。色廃止のスコープ外
+- **既存 folder の DB 上 `color` 値**: `tasks.color` カラムには物理データが残存。UI で参照されないため見た目では消失するが、Cloud Sync を経由しても消えない。将来 schema slim 時に DROP するかは別判断。Web ファースト移行で SQLite → Postgres 切替時に同時整理可能
+- **Calendar 系 `taskColor` を撤去したことで動的色が失われた影響**: 元々 folder.color 由来で task ごとに異なる色を出していた箇所が固定色に統一された。視認性低下を感じた場合は別の手段（例: status 別 / priority 別の色付け）で代替検討
+- **アンステージ変更（無関係、別セッション由来）**: `.claude/2026-04-29-web-first-migration.md` の削除 + `.claude/archive/2026-04-29-web-first-migration.md` 新規 + `.claude/2026-05-04-cross-platform-migration.md` 新規（auto-memory 更新で別セッションが Web ファースト → クロスプラットフォーム再設計に切替えた痕跡）。本コミットには含めない
+
+---
+
 ### 2026-04-29 - Web ファースト大規模移行の方針決定 + 計画策定 + ブランチ運用整備
 
 #### 概要
@@ -91,25 +120,3 @@
 - **MCP Server lint 設定欠落**: `mcp-server/` には `eslint.config.(js|mjs|cjs)` がなく ESLint 9 系で実行不可。本セッションでは tsc 通過のみで合格扱い、lint config 整備は別タスク
 - **アンステージ変更**: 別セッション由来の `Layout/{LeftSidebar,TitleBar}.tsx` 系 / `Mobile/MobileNoteView.tsx` / `Mobile/materials/MobileNoteTree*.tsx` / `Ideas/NoteTreeNode.tsx` / `WikiTags/WikiTagList.tsx` / `shared/UnifiedColorPicker.tsx` / `extensions/WikiTagView.tsx` / `src-tauri/{Cargo.toml, lib.rs, claude_commands.rs, terminal/pty_manager.rs}` / `.claude/CLAUDE.md` 等が working tree に残存。本コミットは Schedule バグ修正 5 ファイル（Rust 1 / Frontend 2 / MCP 2）+ .claude/ tracker のみに絞る
 
----
-
-### 2026-04-27 - Header にアプリリロードボタン追加 + Connect アイコンを Lightbulb → Merge
-
-#### 概要
-
-ユーザー要望「(1) アプリ全体のリロード機能が不完全に感じる + リロードアイコンが無いので、Header の Terminal アイコン / Undo / Redo / rightSidebar が並んでいる場所の **Redo の左側** に配置 / (2) Connect セクションの電球アイコンを **mergeアイコン** に変えて『繋ぐ』を視覚的に捉えやすく」を Auto mode で実装。実装プランなしの小規模 UI 調整 5 ファイル。`shared/UndoRedo/UndoRedoButtons.tsx` に optional `middleSlot` prop を追加し Mobile usage (MobileLayout.tsx) は無指定で後方互換維持、TitleBar 側で `RefreshCw` icon の reload ボタンを `middleSlot` 経由で Undo と Redo の間に挿入。Connect icon は lucide-react の `Merge` (Y 字合流形状) に置換。session-verifier 全 6 ゲート PASS、`tsc -b` 0 / UndoRedo tests 8/8 / eslint 変更ファイル 0。
-
-#### 変更点
-
-- **`frontend/src/components/shared/UndoRedo/UndoRedoButtons.tsx`**: `middleSlot?: ReactNode` prop を `UndoRedoButtonsProps` に追加。Undo `<button>` と Redo `<button>` の間に `{middleSlot}` を render。`MobileLayout.tsx::69` の `<UndoRedoButtons domains={undoDomains} />` は `middleSlot` 未指定 → 既存挙動維持
-- **`frontend/src/components/Layout/TitleBar.tsx`**: lucide import に `RefreshCw` を追加。`handleReloadApp = useCallback(() => window.location.reload(), [])` と reloadButton JSX (size=16, `text-notion-text-secondary hover:text-notion-text hover:bg-notion-hover` notion-\* トークン使用、`title`/`aria-label` に `t("common.reloadApp")`) を定義。`<UndoRedoButtons domains={sectionDomains} middleSlot={reloadButton} />` で渡す。section domains 無し時のフォールバック分岐 (`<svg width="16" height="16" />` x2 のプレースホルダ) でも reloadButton を中央に配置して位置一貫性を保つ
-- **`frontend/src/components/Layout/LeftSidebar.tsx`**: lucide import に `Merge` を追加。`mainMenuItems` の `{ id: "connect", labelKey: "sidebar.connect", icon: Lightbulb }` を `icon: Merge` に変更。同ファイル下部 (line 174) の Tips ボタンの `Lightbulb` は意図的に維持 — 「ヒント」アイコンとして適切
-- **`frontend/src/i18n/locales/en.json`**: `common.reloadApp: "Reload application"` を `common.redo` の直後に追加
-- **`frontend/src/i18n/locales/ja.json`**: `common.reloadApp: "アプリを再読み込み"` を `common.redo` の直後に追加
-- **Verification**: `cd frontend && npx tsc -b` exit 0 / `npx vitest run src/components/shared/UndoRedo` 1 file 8/8 pass (sectionDomains.test.ts) / `npx eslint src/components/Layout/TitleBar.tsx src/components/Layout/LeftSidebar.tsx src/components/shared/UndoRedo/UndoRedoButtons.tsx` clean / session-verifier 全 6 ゲート PASS
-
-#### 残課題
-
-- **手動 UI 検証**: (a) Header に `RefreshCw` icon が Undo/Redo の間に表示され、クリックで `window.location.reload()` が走ること / (b) tooltip / aria-label が ja で「アプリを再読み込み」/ en で「Reload application」/ (c) section domains が無いセクション (例: terminal) でも reload icon が表示位置を維持 / (d) LeftSidebar の Connect 項目アイコンが `Lightbulb` から `Merge` (Y 字) に変わること / (e) 下部 Tips ボタンの Lightbulb は引き続き電球であること
-- **`window.location.reload()` の挙動**: Tauri 2.x WebView2 / WKWebView ともに正常動作する想定だが、ターミナル PTY や WebSocket 接続を持つ場合の cleanup タイミングは未検証。Connect モードでドラッグ中のロスト state がある場合は IndexedDB 経由で復元される (元々のオフライン設計) ため実害は限定的
-- **アンステージ変更**: 別セッション由来の `Mobile/MobileNoteView.tsx` / `Mobile/materials/MobileNoteTree*.tsx` / `Ideas/NoteTreeNode.tsx` / `WikiTags/WikiTagList.tsx` / `shared/UnifiedColorPicker.tsx` / `extensions/WikiTagView.tsx` / `Mobile/MobileScheduleItemForm.tsx` / `src-tauri/{Cargo.toml, lib.rs, claude_commands.rs, terminal/pty_manager.rs}` / `.claude/CLAUDE.md` 等が working tree に残存。本コミットは UI 調整 5 ファイル + .claude/ tracker のみに絞る
