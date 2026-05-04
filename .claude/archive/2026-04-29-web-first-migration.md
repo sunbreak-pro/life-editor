@@ -1,13 +1,16 @@
 ---
-Status: ACTIVE — Phase 0 開始前
+Status: SUPERSEDED — 2026-05-04 に [2026-05-04-cross-platform-migration.md](../2026-05-04-cross-platform-migration.md) で置換
 Created: 2026-04-29
+Superseded: 2026-05-04
 Task: 大規模技術移行 — Tauri / Cloudflare 構成 → Vite + React + TS + Supabase + Capacitor
 Project path: /Users/newlife/dev/apps/life-editor
 Branch: refactor/web-first-v2
+Reason for supersession: ユーザー要件再確認(2026-05-04) で「Desktop 主 / Mobile 従 / Web 公開も OK / オフライン不要」が確定。Web URL 単体配信から、Electron Desktop + Capacitor Mobile + Web URL の 3 包装構成へ拡張。Electron 採用に伴うデメリット明記とプロジェクト構造再設計のため、新プランへ全面移行。
 Related:
-  - [CLAUDE.md](./CLAUDE.md) — 移行完了後に全面改訂(Tauri / SQLite / Cloud D1 / Cloud Sync 章を削除)
-  - [docs/vision/core.md](./docs/vision/core.md) — Vision の "Web UI 否定" は反転される
-  - [.claude/archive/2026-04-29-claude-desktop-style-chat-ui.md](./archive/2026-04-29-claude-desktop-style-chat-ui.md) — 旧 Vision 前提のため archive
+  - [../2026-05-04-cross-platform-migration.md](../2026-05-04-cross-platform-migration.md) — 後継プラン（SSOT）
+  - [../CLAUDE.md](../CLAUDE.md) — 移行完了後に全面改訂(Tauri / SQLite / Cloud D1 / Cloud Sync 章を削除)
+  - [../docs/vision/core.md](../docs/vision/core.md) — Vision の "Web UI 否定" は反転される
+  - [./2026-04-29-claude-desktop-style-chat-ui.md](./2026-04-29-claude-desktop-style-chat-ui.md) — 旧 Vision 前提のため archive
 ---
 
 # Plan: Web ファーストへの大規模技術移行
