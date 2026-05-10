@@ -1,5 +1,28 @@
 # HISTORY-archive.md - 変更履歴アーカイブ
 
+### 2026-04-27 - Schedule 系 3 件のバグ修正（templateId 往復ロス / routineFrequency 暴走 / MCP dismiss 欠落）
+
+#### 概要
+
+ユーザーが triage 結果として提示したエラー報告 3 件（重要度: 中・低〜中・低）の正当性を検証してから全件修正。実装プランなしの bug fix。（1）`frontend/src/types/schedule.ts:10` で `templateId: string | null` が必須宣言されているが Rust struct に `template_id` 欠落 → ラウンドトリップごとに templateId が脱落するデータロス。（2）`routineFrequency.ts` の switch default が `return true` で `frequencyType="group"` フォールバック時に全日マッチ → `bulkCreateScheduleItems` 暴走の理論的経路。（3）`mcp-server/src/handlers/scheduleHandlers.ts` に `dismiss`/`undismiss` ハンドラなし、ID 生成が `si-${Date.now()}` で Tauri 側 `si-<uuid>` と相違。session-verifier 全 6 ゲート PASS、cargo check 0 / mcp tsc 0 / frontend tsc -b 0 / vitest 386/386 / cargo test --lib 25/25。
+
+#### 変更点
+
+- **`src-tauri/src/db/schedule_item_repository.rs`**: `ScheduleItem` struct に `pub template_id: Option<String>` 追加、`from_row` で `template_id: row.get("template_id")?` 追加。`#[serde(rename_all = "camelCase")]` で JSON 上 `templateId` 公開、frontend 型と一致
+- **`frontend/src/utils/routineFrequency.ts`**: switch default を `return true` → `return false` に変更し WHY コメント追記。他の呼び出し元 6 箇所を全て確認、副作用なし
+- **新規 `frontend/src/utils/routineFrequency.test.ts`** (84 行): 10 tests — group デフォルト false の回帰ガード含む
+- **`mcp-server/src/handlers/scheduleHandlers.ts`**: `randomUUID` 採用、`is_deleted` フィルタ追加、`dismissScheduleItem`/`undismissScheduleItem` 新規 export
+- **`mcp-server/src/tools.ts`**: `dismiss_schedule_item` / `undismiss_schedule_item` ツール追加 — 3 点同期完了
+- **Verification**: cargo check 0 / mcp tsc 0 / frontend tsc -b 0 / vitest 386/386 / cargo test --lib 25/25 / session-verifier 全 6 ゲート PASS
+
+#### 残課題
+
+- **手動 UI 検証**: (a) Routine から作成された schedule_item の templateId が round-trip 保持されること / (b) frequencyType="group" + group dangling での暴増防止 / (c) MCP dismiss/undismiss 動作 / (d) MCP create item の `si-<uuid>` 生成
+- **MCP Server lint 設定欠落**: `mcp-server/` に `eslint.config` なし、別タスクで整備
+- **アンステージ変更**: 別セッション由来の各種 frontend / src-tauri 変更が working tree に残存。本コミットは Schedule バグ修正 5 ファイル + .claude/ tracker のみに絞る
+
+---
+
 ### 2026-04-27 - Header にアプリリロードボタン追加 + Connect アイコンを Lightbulb → Merge
 
 #### 概要
