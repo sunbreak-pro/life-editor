@@ -44,7 +44,6 @@ interface ScheduleTimeGridProps {
     endTime: string,
     e: React.MouseEvent,
   ) => void;
-  getTaskColor?: (taskId: string) => string | undefined;
   getFolderTag?: (taskId: string) => string;
   onUpdateMemo?: (id: string, memo: string | null) => void;
   onUpdateScheduleItemTime?: (
@@ -103,7 +102,6 @@ export function ScheduleTimeGrid({
   tasks,
   onToggleComplete,
   onCreateItem,
-  getTaskColor,
   getFolderTag,
   onUpdateMemo,
   onUpdateScheduleItemTime,
@@ -563,7 +561,6 @@ export function ScheduleTimeGrid({
                 height={item.height}
                 left={colLeft}
                 width={colWidth}
-                color={getTaskColor?.(item.task.id)}
                 tag={getFolderTag?.(item.task.id)}
                 dragHandlers={getDragHandlers(
                   item.task.id,
@@ -687,7 +684,6 @@ export function ScheduleTimeGrid({
         <TaskPreviewPopup
           task={taskPreview.task}
           position={taskPreview.position}
-          color={getTaskColor?.(taskPreview.task.id)}
           onOpenDetail={() => {
             const taskId = taskPreview.task.id;
             setTaskPreview(null);

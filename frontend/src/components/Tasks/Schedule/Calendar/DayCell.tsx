@@ -12,7 +12,6 @@ interface DayCellProps {
   items: CalendarItem[];
   onSelectItem: (item: CalendarItem, event: React.MouseEvent) => void;
   onOpenCreateMenu?: (date: Date, event: React.MouseEvent) => void;
-  getTaskColor?: (taskId: string) => string | undefined;
   routineCompletion?: { completed: number; total: number };
   onDateSelect?: (date: Date) => void;
 }
@@ -26,7 +25,6 @@ export const DayCell = memo(function DayCell({
   items,
   onSelectItem,
   onOpenCreateMenu,
-  getTaskColor,
   routineCompletion,
   onDateSelect,
 }: DayCellProps) {
@@ -83,9 +81,6 @@ export const DayCell = memo(function DayCell({
             key={item.id}
             item={item}
             onSelectItem={onSelectItem}
-            taskColor={
-              item.type === "task" ? getTaskColor?.(item.id) : undefined
-            }
           />
         ))}
         {remainingCount === 1 && (
@@ -93,11 +88,6 @@ export const DayCell = memo(function DayCell({
             key={hiddenItems[0].id}
             item={hiddenItems[0]}
             onSelectItem={onSelectItem}
-            taskColor={
-              hiddenItems[0].type === "task"
-                ? getTaskColor?.(hiddenItems[0].id)
-                : undefined
-            }
           />
         )}
         {remainingCount >= 2 && (
@@ -121,9 +111,6 @@ export const DayCell = memo(function DayCell({
                       onSelectItem(selectedItem, e);
                       setShowMore(false);
                     }}
-                    taskColor={
-                      item.type === "task" ? getTaskColor?.(item.id) : undefined
-                    }
                   />
                 ))}
               </div>

@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
 import { ArrowUpRight, Check, StickyNote, X } from "lucide-react";
 import type { TaskNode } from "../../../../types/taskTree";
-import { getTextColorForBg } from "../../../../constants/folderColors";
 import { formatTimeRangeCompact } from "../../../../utils/formatSchedule";
 import { InlineMemoInput } from "../DayFlow/InlineMemoInput";
 import { useSwipeAction } from "../../../../hooks/useSwipeAction";
@@ -17,7 +16,6 @@ interface TimeGridTaskBlockProps {
   height: number;
   left: string;
   width: string;
-  color?: string;
   tag?: string;
   dragHandlers?: DragHandlers;
   resizeTopHandlers?: DragHandlers;
@@ -42,7 +40,6 @@ export function TimeGridTaskBlock({
   height,
   left,
   width,
-  color,
   dragHandlers,
   resizeTopHandlers,
   resizeBottomHandlers,
@@ -58,12 +55,8 @@ export function TimeGridTaskBlock({
   onContextMenu,
 }: TimeGridTaskBlockProps) {
   const isCompleted = task.status === "DONE";
-  const bgColor = isCompleted ? "rgba(156,163,175,0.15)" : (color ?? "#E0E7FF");
-  const textColor = isCompleted
-    ? "#9CA3AF"
-    : color
-      ? getTextColorForBg(color)
-      : "#4338CA";
+  const bgColor = isCompleted ? "rgba(156,163,175,0.15)" : "#E0E7FF";
+  const textColor = isCompleted ? "#9CA3AF" : "#4338CA";
   const borderColor = isCompleted ? "#9CA3AF" : textColor;
   const isCompact = height < 40;
   const isTiny = height < 28;

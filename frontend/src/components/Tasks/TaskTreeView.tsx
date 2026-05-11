@@ -4,7 +4,7 @@ import { ListChecks, CheckCircle2 } from "lucide-react";
 import type { TaskNode } from "../../types/taskTree";
 import { TaskTree } from "./TaskTree";
 import { TaskTreeHeader } from "./TaskTree/TaskTreeHeader";
-import { TaskDetailPanel } from "./TaskDetail/TaskDetailPanel";
+import { TaskDetailContent } from "./TaskDetail/TaskDetailContent";
 import { RightSidebarContext } from "../../context/RightSidebarContext";
 import { SectionTabs } from "../shared/SectionTabs";
 import type { TabItem } from "../shared/SectionTabs";
@@ -99,7 +99,7 @@ export function TaskTreeView({
           {treePanel}
         </div>
         <div className="flex-1 min-w-100 overflow-y-auto">
-          <TaskDetailPanel
+          <TaskDetailContent
             selectedNodeId={selectedTaskId}
             onPlayTask={onPlayTask}
             onSelectTask={onSelectTask}
@@ -113,7 +113,7 @@ export function TaskTreeView({
     <div className="h-full flex min-h-0">
       {sidebarContent}
       <div className="flex-1 overflow-y-auto">
-        <TaskDetailPanel
+        <TaskDetailContent
           selectedNodeId={selectedTaskId}
           onPlayTask={onPlayTask}
           onSelectTask={onSelectTask}

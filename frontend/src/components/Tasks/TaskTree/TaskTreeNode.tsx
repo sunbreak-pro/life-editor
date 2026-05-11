@@ -7,7 +7,6 @@ import type { TaskNode } from "../../../types/taskTree";
 import { useTaskTreeContext } from "../../../hooks/useTaskTreeContext";
 import { useTimerContext } from "../../../hooks/useTimerContext";
 import { useDragOverIndicator } from "../../../hooks/useDragOverIndicator";
-import { resolveTaskColor } from "../../../utils/folderColor";
 
 import { TaskNodeIndent } from "./TaskNodeIndent";
 import { TaskNodeCheckbox } from "./TaskNodeCheckbox";
@@ -39,7 +38,6 @@ interface TaskTreeNodeProps {
   isSearching?: boolean;
   activeTargetFolderId?: string | null;
   isCompletedItem?: boolean;
-  completedFolderColor?: string;
   isStructureContainer?: boolean;
   completedTreeContainerIds?: Set<string>;
 }
@@ -57,13 +55,11 @@ export const TaskTreeNode = memo(function TaskTreeNode({
   isSearching,
   activeTargetFolderId,
   isCompletedItem,
-  completedFolderColor,
   isStructureContainer,
   completedTreeContainerIds,
 }: TaskTreeNodeProps) {
   const {
     nodes,
-    nodeMap,
     getChildren,
     updateNode,
     toggleExpanded,
@@ -147,36 +143,9 @@ export const TaskTreeNode = memo(function TaskTreeNode({
     [isFolder, node.id, nodes],
   );
 
-  const inheritedColor = useMemo(
-    () => (!isFolder ? resolveTaskColor(node.id, nodeMap) : undefined),
-    [isFolder, node.id, nodeMap],
-  );
-
   const transformStyle = useMemo(
     () => ({ opacity: isDragging ? 0 : 1 }),
     [isDragging],
-  );
-
-  const bgStyle = useMemo(
-    () => ({
-      ...(isFolder && node.color && !isSelected
-        ? { backgroundColor: `${node.color}30` }
-        : {}),
-      ...(!isFolder && inheritedColor && !isSelected
-        ? { backgroundColor: `${inheritedColor}18` }
-        : {}),
-      ...(isCompletedItem && completedFolderColor && !isSelected
-        ? { backgroundColor: `${completedFolderColor}30` }
-        : {}),
-    }),
-    [
-      isFolder,
-      node.color,
-      isSelected,
-      inheritedColor,
-      isCompletedItem,
-      completedFolderColor,
-    ],
   );
 
   const handleContextMenu = useCallback((e: React.MouseEvent) => {
@@ -233,13 +202,19 @@ export const TaskTreeNode = memo(function TaskTreeNode({
   const handleStartEditing = useCallback(() => setIsEditing(true), []);
 
   const handleMakeFolder = useCallback(
-    (n: TaskNode) => addNode("folder", n.id, t("taskTree.newFolderDefault")),
-    [addNode, t],
+    (n: TaskNode) => {
+      const created = addNode("folder", n.id, t("taskTree.newFolderDefault"));
+      onSelectTask?.(created.id);
+    },
+    [addNode, t, onSelectTask],
   );
 
   const handleMakeTask = useCallback(
-    (n: TaskNode) => addNode("task", n.id, t("taskTree.newTaskDefault")),
-    [addNode, t],
+    (n: TaskNode) => {
+      const created = addNode("task", n.id, t("taskTree.newTaskDefault"));
+      onSelectTask?.(created.id);
+    },
+    [addNode, t, onSelectTask],
   );
 
   const handleDelete = useCallback(
@@ -262,8 +237,7 @@ export const TaskTreeNode = memo(function TaskTreeNode({
         <div
           data-sidebar-item
           data-sidebar-active={isSelected || undefined}
-          className={`group flex items-center gap-0.5 py-1 rounded-md hover:bg-notion-hover transition-colors border-l-2 ${isSelected ? "bg-notion-hover border-l-notion-accent" : "border-l-transparent"} ${isFolder && dropPosition === "inside" && !isDragging && !isInCompletedTree ? "ring-2 ring-notion-accent bg-notion-accent/5" : ""} ${isDone || isFolderDone ? "opacity-60 hover:opacity-90" : ""} ${isCreateTarget && !isSelected ? "ring-1 ring-notion-accent/30" : ""}`}
-          style={bgStyle}
+          className={`group relative flex items-center gap-0.5 py-1 rounded-md hover:bg-notion-hover transition-colors border-l-2 ${isSelected ? "bg-notion-hover border-l-notion-accent" : "border-l-transparent"} ${isFolder && dropPosition === "inside" && !isDragging && !isInCompletedTree ? "ring-2 ring-notion-accent bg-notion-accent/5" : ""} ${isDone || isFolderDone ? "opacity-60 hover:opacity-90" : ""} ${isCreateTarget && !isSelected ? "ring-1 ring-notion-accent/30" : ""}`}
           onClick={() => onSelectTask?.(node.id)}
           onContextMenu={
             isStructureContainer || isSystemFolder
@@ -298,7 +272,6 @@ export const TaskTreeNode = memo(function TaskTreeNode({
               isDone={isDone}
               isExpanded={node.isExpanded}
               isDragging={isDragging}
-              color={node.color}
               icon={node.icon}
               isCompletedItem={showAsCompleted}
               onToggleExpand={handleToggleExpand}
@@ -380,12 +353,22 @@ export const TaskTreeNode = memo(function TaskTreeNode({
           isFolderDone={isFolderDone}
           hasParent={node.parentId !== null}
           onRename={handleStartEditing}
-          onAddTask={() =>
-            addNode("task", node.id, t("taskTree.newTaskDefault"))
-          }
-          onAddFolder={() =>
-            addNode("folder", node.id, t("taskTree.newFolderDefault"))
-          }
+          onAddTask={() => {
+            const created = addNode(
+              "task",
+              node.id,
+              t("taskTree.newTaskDefault"),
+            );
+            onSelectTask?.(created.id);
+          }}
+          onAddFolder={() => {
+            const created = addNode(
+              "folder",
+              node.id,
+              t("taskTree.newFolderDefault"),
+            );
+            onSelectTask?.(created.id);
+          }}
           onStartTimer={() => onPlayTask?.(node)}
           onMoveToRoot={() => moveToRoot(node.id)}
           onCompleteFolder={isFolder ? handleCompleteFolder : undefined}
@@ -446,7 +429,6 @@ export const TaskTreeNode = memo(function TaskTreeNode({
                   completedTreeContainerIds?.has(child.id) ?? false
                 }
                 completedTreeContainerIds={completedTreeContainerIds}
-                completedFolderColor={node.color || inheritedColor}
               />
             ))}
           </div>

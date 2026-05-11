@@ -11,7 +11,6 @@ interface FolderListProps {
   fontSizeClass?: string;
   indentPx?: (depth: number) => number;
   depthIndicator?: (depth: number) => ReactNode;
-  showColor?: boolean;
   bordered?: boolean;
 }
 
@@ -27,7 +26,6 @@ export function FolderList({
     d > 0 ? (
       <ChevronRight size={10} className="mr-1 text-notion-text-secondary/50" />
     ) : null,
-  showColor = true,
   bordered = false,
 }: FolderListProps) {
   const selectedStyle = "bg-notion-accent/10 text-notion-accent font-medium";
@@ -56,12 +54,6 @@ export function FolderList({
           style={{ paddingLeft: `${indentPx(f.depth)}px`, paddingRight: 12 }}
         >
           {depthIndicator?.(f.depth)}
-          {showColor && f.color && (
-            <span
-              className="w-2 h-2 rounded-full mr-1.5 shrink-0"
-              style={{ backgroundColor: f.color }}
-            />
-          )}
           <span className="truncate">{f.title}</span>
         </button>
       ))}

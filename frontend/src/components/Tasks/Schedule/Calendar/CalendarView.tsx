@@ -206,7 +206,6 @@ export function CalendarView({
 }: CalendarViewProps) {
   const {
     nodes,
-    getTaskColor,
     getFolderTagForTask,
     softDelete,
     updateNode,
@@ -636,7 +635,6 @@ export function CalendarView({
             itemsByDate={filteredItemsByDate}
             onSelectItem={handleItemClick}
             onOpenCreateMenu={handleOpenCreateMenu}
-            getTaskColor={getTaskColor}
             getRoutineCompletion={getRoutineCompletionByDate}
             onDateSelect={onDateSelect}
           />
@@ -657,7 +655,6 @@ export function CalendarView({
               )
             }
             onCreateTask={onCreateTask ? handleRequestCreate : undefined}
-            getTaskColor={getTaskColor}
             getFolderTag={getFolderTagForTask}
             onUpdateTimeMemo={(taskId, memo) =>
               updateNode(taskId, { timeMemo: memo ?? undefined })
@@ -875,7 +872,6 @@ export function CalendarView({
         <TaskPreviewPopup
           task={previewTask}
           position={previewPopup.position}
-          color={getTaskColor(previewTask.id)}
           folderTag={getFolderTagForTask(previewTask.id)}
           onOpenDetail={() => {
             onSelectTask(previewTask.id);

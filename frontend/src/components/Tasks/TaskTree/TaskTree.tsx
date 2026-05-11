@@ -342,15 +342,16 @@ export function TaskTree({
                             ? t("taskTree.newTask")
                             : t("taskTree.newFolder")
                         }
-                        onSubmit={(title) =>
-                          addNode(
+                        onSubmit={(title) => {
+                          const created = addNode(
                             isCreatingRootItem!,
                             isCreatingRootItem === "folder"
                               ? (filterFolderId ?? null)
                               : null,
                             title,
-                          )
-                        }
+                          );
+                          onSelectTask?.(created.id);
+                        }}
                         onCancel={() => setIsCreatingRootItem(null)}
                       />
                     )}

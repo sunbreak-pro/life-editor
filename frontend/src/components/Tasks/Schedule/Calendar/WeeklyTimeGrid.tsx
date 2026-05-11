@@ -26,7 +26,6 @@ interface WeeklyTimeGridProps {
   tasksByDate: Map<string, TaskNode[]>;
   onSelectTask: (taskId: string, event: React.MouseEvent) => void;
   onCreateTask?: (date: Date, event: React.MouseEvent) => void;
-  getTaskColor?: (taskId: string) => string | undefined;
   getFolderTag?: (taskId: string) => string;
   memosByDate?: Map<string, DailyNode>;
   onSelectMemo?: (date: string) => void;
@@ -124,7 +123,6 @@ export function WeeklyTimeGrid({
   tasksByDate,
   onSelectTask,
   onCreateTask,
-  getTaskColor,
   getFolderTag,
   memosByDate,
   onSelectMemo,
@@ -272,8 +270,8 @@ export function WeeklyTimeGrid({
                     onClick={(e) => onSelectTask(task.id, e)}
                     className="w-full text-left px-1.5 py-0.5 rounded text-[10px] truncate mb-0.5 hover:opacity-80 transition-opacity"
                     style={{
-                      backgroundColor: getTaskColor?.(task.id) ?? "#E0E7FF",
-                      color: getTaskColor?.(task.id) ? "#fff" : "#4338CA",
+                      backgroundColor: "#E0E7FF",
+                      color: "#4338CA",
                     }}
                   >
                     {task.title}
@@ -354,7 +352,6 @@ export function WeeklyTimeGrid({
                     height={p.height}
                     left={`${(p.column / p.totalColumns) * 100}%`}
                     width={`${(1 / p.totalColumns) * 100}%`}
-                    color={getTaskColor?.(p.task.id)}
                     tag={getFolderTag?.(p.task.id)}
                     onClick={(e) => onSelectTask(p.task.id, e)}
                     onUpdateTimeMemo={onUpdateTimeMemo}

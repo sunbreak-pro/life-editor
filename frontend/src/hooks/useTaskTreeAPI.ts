@@ -5,7 +5,6 @@ import { useTaskTreeDeletion } from "./useTaskTreeDeletion";
 import { useTaskTreeMovement } from "./useTaskTreeMovement";
 import { useTaskTreeHistory } from "./useTaskTreeHistory";
 import { logServiceError } from "../utils/logError";
-import { resolveTaskColor } from "../utils/folderColor";
 import { getFolderTag } from "../utils/folderTag";
 import { getDataService } from "../services";
 import { useSyncContext } from "./useSyncContext";
@@ -143,10 +142,6 @@ export function useTaskTreeAPI() {
     guardedPersistWithHistory,
   );
 
-  const getTaskColor = useCallback(
-    (taskId: string) => resolveTaskColor(taskId, nodeMap),
-    [nodeMap],
-  );
   const getFolderTagForTask = useCallback(
     (taskId: string) => getFolderTag(taskId, nodeMap),
     [nodeMap],
@@ -161,7 +156,6 @@ export function useTaskTreeAPI() {
       isLoading,
       error,
       persistError,
-      getTaskColor,
       getFolderTagForTask,
       refetch,
       undo,
@@ -190,7 +184,6 @@ export function useTaskTreeAPI() {
       isLoading,
       error,
       persistError,
-      getTaskColor,
       getFolderTagForTask,
       refetch,
       undo,

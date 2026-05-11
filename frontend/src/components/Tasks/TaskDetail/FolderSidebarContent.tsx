@@ -357,8 +357,7 @@ export function FolderSidebarContent({
                           ) : (
                             <Folder
                               size={14}
-                              className="shrink-0"
-                              style={{ color: folder.color ?? "#9CA3AF" }}
+                              className="shrink-0 text-notion-text-secondary"
                             />
                           )}
                           <span className="truncate flex-1">
@@ -391,10 +390,7 @@ export function FolderSidebarContent({
                                 ) : (
                                   <Folder
                                     size={13}
-                                    className="shrink-0"
-                                    style={{
-                                      color: grandchild.color ?? "#9CA3AF",
-                                    }}
+                                    className="shrink-0 text-notion-text-secondary"
                                   />
                                 )
                               ) : (

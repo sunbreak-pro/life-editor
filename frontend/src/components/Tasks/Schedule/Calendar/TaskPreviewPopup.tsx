@@ -16,7 +16,6 @@ import { ReminderToggle } from "../../../shared/ReminderToggle";
 interface TaskPreviewPopupProps {
   task: TaskNode;
   position: { x: number; y: number };
-  color?: string;
   folderTag?: string;
   onOpenDetail: () => void;
   onStartTimer?: () => void;
@@ -52,7 +51,6 @@ function applyTimeToDate(iso: string, time: string): string {
 export function TaskPreviewPopup({
   task,
   position,
-  color,
   onOpenDetail,
   onClearSchedule,
   onClose,
@@ -114,7 +112,6 @@ export function TaskPreviewPopup({
   return (
     <BasePreviewPopup
       position={position}
-      barColor={color}
       onClose={onClose}
       disableClickOutside={showDeleteConfirm || isEditing}
       footer={
