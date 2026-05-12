@@ -1,5 +1,31 @@
 # HISTORY.md - 変更履歴
 
+### 2026-05-13 - Calendar 表示整合性 A+B（useCalendar isDeleted filter + Calendar Progress 月単位集計）
+
+#### 概要
+
+ユーザー報告「DB から消したのに Task / Event / Routine が Calendar に残る + Task が見えているのに RightSidebar の進捗フィルタが 0/0 表示」を受けて根因 2 軸を修正。**(A)** `useCalendar.ts::tasksByDate` の filter に `!n.isDeleted` を追加し、soft-delete 後も Calendar に表示され続けるバグを解消（`ScheduleSection.allTasksByDate` は元々 isDeleted を除外しており Calendar 表示とサイドバー集計が食い違っていた）。**(B)** `ScheduleSection.calendarCategoryProgress` を月単位集計に再設計し、Calendar の月表示と Progress の旧日次集計の temporal scope ズレを解消。**(C)** Routine も含めた一括削除導線は role-engineer サブエージェントが worktree (`.claude/worktrees/agent-a4355e07a4a31d835`) で並行実装中で本コミット対象外、完了後に統合予定。実装計画書 `.claude/docs/vision/plans/2026-05-12-calendar-display-integrity.md` は前ターン (2026-05-12) で作成済み、本ターンで A+B を着手・完了。session-verifier 6 ゲート全て PASS (tsc -b 0 / eslint 0 / vitest 60 pass / coverage +2 / structural OK / bug scan OK)。ブランチは `refactor/web-first-v2` (Web ファースト移行ブランチ)。ユーザー指示により push 保留 (C 完了後にまとめて整理する想定)。
+
+#### 変更点
+
+- **`frontend/src/hooks/useCalendar.ts` (Gate A の本命修正)**: `tasksByDate` の useMemo 内 filter を `nodes.filter((n) => n.type === "task" && n.status === "DONE")` → `nodes.filter((n) => n.type === "task" && n.status === "DONE" && !n.isDeleted)` に拡張、incomplete 分岐も同様。これにより `softDelete` で in-memory `isDeleted=true` になった task が `tasksByDate` (および派生する `itemsByDate`) に出続けるバグを解消。Rust 側 `task_repository::fetch_tree` は元から `WHERE is_deleted = 0` で正しく fetch していたが、frontend の in-memory mutation 経路 (`useTaskTreeDeletion::softDelete`) が `nodes` を再 fetch せず `{ ...n, isDeleted: true }` でローカル変更していたため、Calendar 側 hook がそれを拾えていなかった
+- **`frontend/src/hooks/useCalendar.test.ts`**: 「soft-deleted task は `tasksByDate` に出ない」テストを incomplete / completed 両 filter で 2 ケース追加 (16→18 tests pass)。`isDeleted: true` + `deletedAt: ...` を持つ task を入力して `dateTasks.length === 1` (alive のみ) を assertion
+- **`frontend/src/components/Tasks/Schedule/shared/ProgressSection.tsx`**: `scope?: "day" | "month"` prop 追加 (デフォルト `"day"`)。`dateLabel` を `scope === "month" ? "${year}/${month + 1}" : "${month + 1}/${date}"` に分岐。Calendar 経由は月ラベル、DayFlow 経由は従来通り日ラベル
+- **`frontend/src/components/Tasks/Schedule/DayFlow/DayFlowSidebarContent.tsx`**: `scope?: "day" | "month"` を `ProgressSection` に passthrough
+- **`frontend/src/components/ScheduleList/ScheduleSection.tsx`**: (1) `useScheduleContext()` の destructure に `monthlyScheduleItems` + `loadScheduleItemsForMonth` を追加、不要になった `loadItemsForDate` を削除。(2) `calendarCategoryProgress` を月単位集計に書き換え — `monthStart` / `monthEnd` を `calendarProgressYear/Month` から計算、`dateInMonth(key)` 述語で `monthlyScheduleItems` から routine / events を、`allTasksByDate` から tasks を、`dailies` / `notes` から月内の各種データを抽出。完了数は `i.completed` / `t.status === "DONE"` で算出。(3) Calendar tab active 時の useEffect を `loadItemsForDate(calendarProgressDateKey)` → `void loadScheduleItemsForMonth(calendarProgressYear, calendarProgressMonth)` に変更し、月遷移で確実に該当月の schedule_items を fetch。(4) JSX で `<DayFlowSidebarContent scope="month">` を Calendar 側に明示、DayFlow 側は scope 指定なし (= デフォルト `"day"`)
+- **計画書配置**: `.claude/docs/vision/plans/2026-05-12-calendar-display-integrity.md` (前ターン 2026-05-12 作成、本ターン A+B を完了)。Status は A+B 完了 / C 進行中。C 完了後に Status=COMPLETED にして `archive/` 移動予定
+- **Verification**: `cd frontend && npx tsc -b` exit 0 / `npx eslint <5 files>` exit 0 / `npx vitest run src/hooks/useCalendar.test.ts src/components/Tasks/Schedule` 60 tests pass / session-verifier 全 6 ゲート PASS
+- **並行作業**: role-engineer サブエージェントが worktree `.claude/worktrees/agent-a4355e07a4a31d835` 上で C (Settings Danger Zone + bulk soft-delete IPC + Rust トランザクション) を独立実装中。背景プロセス起動済、本セッション中の完了通知待ち
+
+#### 残課題
+
+- **C (Routine 一括削除導線) の統合**: role-engineer worktree の完了通知を受領後、worktree のブランチを `refactor/web-first-v2` に merge / rebase 検討。worktree 側で実装される `db_bulk_soft_delete_calendar_data` コマンド (1 トランザクション + `routine_repository::soft_delete` の cascade 利用 + version+1/updated_at bump) と Settings Danger Zone UI を取り込む
+- **`src-tauri/src/commands/data_io_commands.rs` の衝突解決**: 本セッション開始時点で main 側 working tree に +449 行の未コミット変更 (前セッションの「calendar wipe」関連の置き土産と推定) が残存。C worktree は本ファイルにも変更を加える計画のため、worktree 完了時に内容を diff 比較 → どちらが先着でどちらが後着かを判定して取り込み戦略を決める必要あり
+- **ブランチ整理**: ユーザー指示で push 保留中。C 完了 + 衝突解決後にまとめて push、PR 作成は git-orchestrator に委譲予定
+- **手動 UI 検証**: (a) Calendar で task を右クリック → 削除 → Calendar から即座に消える / (b) DayFlow の Progress 表示が日次のまま (例: 3/8) / (c) Calendar の Progress 表示が月次に変わる (例: 12/45) / (d) `M/D` 表記 → `YYYY/M` 表記の切替が正しく行われる / (e) 月遷移で Progress 集計が更新される。`cargo tauri dev` 起動が必要なため未実施
+
+---
+
 ### 2026-05-12 - ad-hoc メンテナンス: Calendar DB ワイプ + statusLine UI 拡張（Mobile 設計方針メモは CLAUDE.md 書き込み後に消失）
 
 #### 概要
