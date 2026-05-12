@@ -30,8 +30,12 @@ export function useCalendar(
     const map = new Map<string, TaskNode[]>();
     const filtered =
       filter === "completed"
-        ? nodes.filter((n) => n.type === "task" && n.status === "DONE")
-        : nodes.filter((n) => n.type === "task" && n.status !== "DONE");
+        ? nodes.filter(
+            (n) => n.type === "task" && n.status === "DONE" && !n.isDeleted,
+          )
+        : nodes.filter(
+            (n) => n.type === "task" && n.status !== "DONE" && !n.isDeleted,
+          );
 
     for (const task of filtered) {
       if (!task.scheduledAt) continue;
