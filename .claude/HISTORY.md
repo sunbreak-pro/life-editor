@@ -1,5 +1,29 @@
 # HISTORY.md - 変更履歴
 
+### 2026-05-12 - Code Explanation ディレクトリの Section 別再構成
+
+#### 概要
+
+ユーザー要望「現状のScheduleセクションに関わっている主要なComponent, hookを教えて」に続いて「同様にWork, Materials, Analyticsも探索・調査し、`.claude/docs/code-explanation/` に分割してまとめておいてほしい。古いドキュメントは全て削除して良い」を受け実施。旧 16 ファイル（Task / Timer / Sound にユースケース単位で分散していた）を全削除し、CLAUDE.md §3.3 の Section ID（schedule / materials / connect / work / analytics / settings）に沿った構成に再編。各 Section ドキュメントは feature-files スキル準拠の構成（概要 → ファイル表 → Context/Hook → データ層 → 主要関数 → 副作用）で統一し、Mobile 省略 Provider・Web 移行影響・Cloud Sync 対象判定の注意点を併記。コード変更なし、ドキュメント再構成のみ。本ブランチは `feat/richeditor-events-ui-batch` 上での作業で、本コミットは `.claude/docs/code-explanation/` 系の再構成と task-tracker 更新に限定（他セッション由来の RichEditor / Events / TaskDetail バッチ実装やプラン移動は含めない）。
+
+#### 変更点
+
+- **新規 `.claude/docs/code-explanation/00-index.md`**（旧 00-index を全面書き換え）: Section ID → ドキュメント対応表、横串前提（DataService 抽象化 / Provider 順序 / 右サイドバー Portal / タブ永続化）、Connect ビューが Materials 配下扱いである旨、触る前のチェックリスト 4 項目
+- **新規 `.claude/docs/code-explanation/10-schedule.md`**: Calendar / DayFlow / Tasks / Events 4 タブ + Routine 管理 + 3 分割 Context（Routine / ScheduleItems / CalendarTags） + Calendar Context + 関連 hook 約 20 個（`useScheduleItemsCore` / `useScheduleItemsRoutineSync` / `useRoutineGroupComputed` ほか） + V69 routine_group_assignments / `VERSIONED_TABLES` / inline ハンドリングの Sync 注意点 + `useScheduleContext` 後方互換ファサードへの言及
+- **新規 `.claude/docs/code-explanation/11-materials.md`**: Daily / Notes / Files 3 タブ + Connect ビュー（`TagGraphView` + React Flow 系 + `reactFlowMerge.ts` / `forceLayout.ts`） + 5 Context（Daily / Note / Template / WikiTag / FileExplorer） + Note 本文中 `[[wikiLink]]` 同期の `useNoteLinkSync` 注意点 + UndoRedo / Mobile FileExplorer 省略
+- **新規 `.claude/docs/code-explanation/12-work.md`**: Timer / History / Music 3 タブ + Pomodoro state machine（`timerReducer`） + Audio/Playlist 連動（`AudioProvider` が `timer.isRunning` を観測） + `AudioContext.suspended` 落とし穴 + V68 `session_type='FREE'` 経緯 + V66 `timer_sessions.label` + `timer_sessions` / `sounds` / `playlists` / `pomodoro_presets` が **Sync 非対象**である点を明示
+- **新規 `.claude/docs/code-explanation/13-analytics.md`**: Overview / Tasks / Schedule / Materials / Work / Connect 6 タブ + 約 30 個のチャートコンポーネント + `AnalyticsFilterContext`（`DatePreset = 7d / 30d / thisMonth / 3m / all`） + `analyticsAggregation.ts` 純粋関数 + `readyTab` で 1 frame 遅延する Recharts `ResponsiveContainer` measurement quirks 対策の解説 + Tier 3 凍結扱いである旨
+- **削除 16 ファイル**: `01-architecture-overview.md` / `02-infrastructure.md` / `10-task-create.md` / `11-task-edit-title.md` / `12-task-toggle-status.md` / `13-task-delete.md` / `14-task-view-lists.md` / `15-task-focus-mode.md` / `20-timer-settings.md` / `21-timer-start-session.md` / `22-timer-countdown-and-stop.md` / `23-timer-session-history.md` / `30-sound-settings.md` / `31-sound-preset-crud.md`（task / timer / sound にユースケース単位で分散していた旧構造を破棄）
+
+#### 残課題
+
+- **Settings セクション**: 個別ドキュメント未作成。`Settings.tsx` 配下を直接読む方針として 00-index.md に明記済。今後分量が増えたら `14-settings.md` を起こす
+- **Mobile 専用画面**: `MobileScheduleView` / `MobileNoteView` / `MobileSettingsView` 等は本ドキュメント群の対象外。Desktop の Section ID と完全一致しないため別 doc が必要だが現状は MEMORY「予定」の Mobile 関連タスク進行待ち
+- **Web 移行 Phase 5 後の再仕分け**: 各ドキュメントの「データ層 / バックエンド」節で `TauriDataService.ts` / `src-tauri/src/commands/` を参照しているが、Electron + Capacitor + Supabase 移行完了時に置換が必要。各ファイル末尾に「Web 移行」注記を入れて将来作業のフックを残置
+- **アンステージ変更**: 他セッション由来の RichEditor バッチ実装（frontend / src-tauri 大量） + `.claude/CLAUDE.md` 更新 + plan ファイル移動 + agents/subagent-coordinator 新規 + RichEditor プラン未 archive 等が working tree に残存。本コミットは `.claude/docs/code-explanation/` + `.claude/MEMORY.md` + `.claude/HISTORY.md` に限定
+
+---
+
 ### 2026-05-12 - RichEditor / Events / TaskDetail UI 改修 5 件バッチ（計画書: archive/2026-05-11-richeditor-events-ui-improvements.md）
 
 #### 概要
@@ -114,23 +138,3 @@
 - **`feat/server-authoritative-sync-phase0-1` ブランチ**: Cloud D1 + 自前 sync_engine 関連の進行中コミット（`1b15bbd feat(sync): Server-Authoritative migration Phase 0 + Phase 1`）が残存。Phase 5 の旧スタック削除タイミングで `archive/` 行き or 削除判断
 - **MEMORY.md 予定リスト**: 旧 Tauri アーキテクチャ前提のタスクが多数（Q2 機能パッチ手動 UI 検証 / リファクタリング Phase 2-4 検証 / Realtime Sync Phase 1 / Mobile Settings 改修 / Desktop パッケージ更新 / 旧バンドル DB クリーンアップ / iOS 4G 同期検証 / Mobile Schedule 検証 / iOS 追加機能要件残タスク / lint 116 問題解消）。本移行で大半が deprecated になるが、本セッションでは触らず維持し、移行 Phase 1-2 進行時に再評価
 - **アンステージ変更**: 別セッション由来の各種 frontend / src-tauri 変更が working tree に残存。本コミットは `.claude/MEMORY.md` + `.claude/HISTORY.md` + `.claude/HISTORY-archive.md` のみに絞る
-
----
-
-### 2026-04-29 - Routine Tag 廃止 + Group 化 の手動 UI 検証 + Cloud D1 0007 適用 + Worker deploy（タスク完了確認）
-
-#### 概要
-
-ユーザー指摘「予定リスト先頭の本タスクは既に実装・確認済みだと思う、調査してタスク更新」を受けて静的検証を実施。**結論: 5 項目すべて完遂済み**で、予定リストから直近の完了へ移動。コード変更なし、検証のみのセッション。**(1) Desktop V69 自動 apply**: アクティブ DB `~/Library/Application Support/life-editor/life-editor.db` で `PRAGMA user_version=69` 確認、`routine_group_assignments` 存在、旧 `routine_tag_definitions` / `routine_tag_assignments` / `routine_group_tag_assignments` 全消失。**(2) Cloud D1 0007 適用**: `wrangler d1 execute life-editor-sync --remote --command "SELECT name FROM sqlite_master WHERE type='table' AND name LIKE '%routine%'"` で `routine_group_assignments` / `routine_groups` / `routines` のみ確認、旧 routine*tag*\* 系全消失。`PRAGMA table_info(routine_group_assignments)` で id/routine_id/group_id/created_at/updated_at/is_deleted/deleted_at/server_updated_at の 8 列を確認。**(3) Worker deploy**: `wrangler deployments list` で 9 件確認、最新 deploy 2026-04-25 12:14:36 UTC (=21:14 JST) は V69/D1 0007 commit `1edc530` (21:05 JST) の **9 分後**でデプロイ済み。**(4) Routine UI 検証**: `RoutineEditDialog.tsx:275` で `frequencyType === "group"` 分岐 + inline new group 作成 form (`newGroupFrequencyType` / `newGroupFrequencyDays` / `newGroupFrequencyInterval` / `newGroupFrequencyStartDate` の 4 state、Line 91-97 / 117-131 / 363) が実装済み。**(5) Cloud Sync 双方向**: コードレベルで `cloud/src/config/syncTables.ts:51,88` に `routine_group_assignments` を sync 対象登録済み。実機 Desktop ↔ iOS 双方向動作はユーザー確認済み。**関連 commit**: `1edc530 feat(routines): drop Tag concept, add Group-based frequency (V69 + D1 0007)`。
-
-#### 変更点
-
-- **`.claude/MEMORY.md`**: 直近の完了の先頭に「Routine Tag 廃止 + Group 化 の手動 UI 検証 + Cloud D1 0007 適用 + Worker deploy ✅（2026-04-29）」を追加。検証結果 5 項目を **(1)〜(5)** で列挙し各項目の確認エビデンス（DB path / `PRAGMA user_version=69` / D1 schema / Worker deploy 時刻と commit 時刻の差分 9 分 / RoutineEditDialog.tsx:275 行番号 / cloud/src/config/syncTables.ts:51,88 行番号）を残置。最古の「Header にアプリリロード ✅（2026-04-27）」を 3 件保持ルールで drop。予定セクション先頭の「Routine Tag 廃止 + Group 化…」エントリ（タイトル + 対象 + 前提 + 手順 5 項目）を全削除
-- **`.claude/HISTORY.md`**: 本エントリを先頭追記。最古の「2026-04-26 - Connect/Board の React Flow #008 警告解消…」(line 96-124) を `HISTORY-archive.md` 先頭にロール（5 件保持ルール）
-- **`.claude/HISTORY-archive.md`**: 上記ロールアウトエントリを既存先頭「2026-04-26 - CLAUDE.md / 各種設定の最新化…」の前に prepend
-- **コード変更なし**: 本セッションは検証のみ。実装は commit `1edc530`（2026-04-25）で完了済み
-
-#### 残課題
-
-- **古い DB パスの残置**: 共存する `~/Library/Application Support/com.lifeEditor.app/life-editor.db` は `user_version=59` で旧 routine_tag_definitions / routine_tag_assignments / routine_group_tag_assignments を保持、もうひとつ `~/Library/Application Support/sonic-flow/life-editor.db`（user_version=0、空）も残置。Known Issue 006（bundle ID 変更による path 分裂）の遺産。現在の app は `~/Library/Application Support/life-editor/` 側を使用するため実害なし。クリーンアップは別タスクで判断
-- **アンステージ変更**: 別セッション由来の `Mobile/{MobileNoteView,materials/MobileNoteTree*,MobileScheduleItemForm}.tsx` / `Ideas/NoteTreeNode.tsx` / `WikiTags/WikiTagList.tsx` / `shared/UnifiedColorPicker.tsx` / `extensions/WikiTagView.tsx` / `src-tauri/{Cargo.toml, lib.rs, claude_commands.rs, terminal/pty_manager.rs}` / `.claude/CLAUDE.md` 等が working tree に残存。本コミットは `.claude/MEMORY.md` + `.claude/HISTORY.md` + `.claude/HISTORY-archive.md` のみに絞る
