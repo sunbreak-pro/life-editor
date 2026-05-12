@@ -12,6 +12,7 @@ import {
   Highlighter,
   X,
   Check,
+  Type,
 } from "lucide-react";
 import { isMac } from "../../../utils/platform";
 import { isValidUrl } from "../../../utils/urlValidation";
@@ -38,8 +39,19 @@ export function BubbleToolbar({ editor }: BubbleToolbarProps) {
   const [linkError, setLinkError] = useState("");
   const [showColorPicker, setShowColorPicker] = useState(false);
   const [showHighlightPicker, setShowHighlightPicker] = useState(false);
+  const [turnIntoOpen, setTurnIntoOpen] = useState(false);
 
   const slash = useSlashCommand(editor, PANEL_COMMANDS);
+
+  const handleTurnIntoExecute = useCallback(
+    (index: number) => {
+      const cmd = PANEL_COMMANDS[index];
+      if (!cmd) return;
+      cmd.action(editor);
+      setTurnIntoOpen(false);
+    },
+    [editor],
+  );
 
   const shouldShow = useCallback(
     ({
@@ -142,6 +154,7 @@ export function BubbleToolbar({ editor }: BubbleToolbarProps) {
     setLinkError("");
     setShowColorPicker(false);
     setShowHighlightPicker(false);
+    setTurnIntoOpen(false);
   };
 
   // --- Slash mode: portal-based CommandPanel ---
@@ -236,6 +249,21 @@ export function BubbleToolbar({ editor }: BubbleToolbarProps) {
             setShowHighlightPicker(false);
           }}
         >
+          <button
+            className={`bubble-toolbar-btn ${turnIntoOpen ? "is-active" : ""}`}
+            onMouseDown={(e) => {
+              e.preventDefault();
+              setShowColorPicker(false);
+              setShowHighlightPicker(false);
+              setTurnIntoOpen((v) => !v);
+            }}
+            title="Turn into"
+          >
+            <Type size={14} />
+          </button>
+
+          <div className="bubble-toolbar-divider" />
+
           <button
             className={`bubble-toolbar-btn ${editor.isActive("bold") ? "is-active" : ""}`}
             onMouseDown={(e) => {
@@ -356,6 +384,22 @@ export function BubbleToolbar({ editor }: BubbleToolbarProps) {
             </div>
           )}
         </div>
+        {turnIntoOpen && (
+          <div
+            className="bubble-toolbar-turn-into"
+            onMouseDown={(e) => e.preventDefault()}
+          >
+            <CommandPanel
+              editor={editor}
+              commands={PANEL_COMMANDS}
+              mode="selection"
+              selectedIndex={-1}
+              filterQuery=""
+              onExecute={handleTurnIntoExecute}
+              onClose={() => setTurnIntoOpen(false)}
+            />
+          </div>
+        )}
       </div>
     </BubbleMenu>
   );

@@ -234,11 +234,32 @@ export function TimerProvider({ children }: { children: ReactNode }) {
       const durationSeconds = state.config.workDuration;
       dispatch({
         type: "START_FOR_TASK",
-        task: { id, title },
+        task: { id, title, kind: "task" },
         durationSeconds,
       });
       getDataService()
         .startTimerSession("WORK", id)
+        .then((session) => {
+          currentSessionIdRef.current = session.id;
+        })
+        .catch((e) => handleError(e, "errors.timer.sessionStartFailed"));
+    },
+    [clearTimer, endCurrentSession, state.config.workDuration, handleError],
+  );
+
+  const startForEvent = useCallback(
+    (id: string, title: string) => {
+      clearTimer();
+      endCurrentSession(0, false);
+      playEffectSound("/sounds/session_start_sound.mp3", "sessionStart");
+      const durationSeconds = state.config.workDuration;
+      dispatch({
+        type: "START_FOR_TASK",
+        task: { id, title, kind: "event" },
+        durationSeconds,
+      });
+      getDataService()
+        .startTimerSession("WORK", undefined, id)
         .then((session) => {
           currentSessionIdRef.current = session.id;
         })
@@ -568,6 +589,7 @@ export function TimerProvider({ children }: { children: ReactNode }) {
       reset,
       formatTime,
       startForTask,
+      startForEvent,
       openForTask,
       clearTask,
       updateActiveTaskTitle,
@@ -610,6 +632,7 @@ export function TimerProvider({ children }: { children: ReactNode }) {
       reset,
       formatTime,
       startForTask,
+      startForEvent,
       openForTask,
       clearTask,
       updateActiveTaskTitle,

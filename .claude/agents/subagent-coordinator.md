@@ -1,0 +1,1 @@
+/Users/newlife/dev/Claude/agents-lib/projects/life-editor/subagent-coordinator.md

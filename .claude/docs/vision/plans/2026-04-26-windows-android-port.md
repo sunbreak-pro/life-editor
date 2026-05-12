@@ -5,9 +5,9 @@ Updated: 2026-04-26 (v3: MVP 配布優先にスコープ縮小、Sentry/Updater/
 Task: 新規 — Windows + Android MVP 配布 (友達向け)
 Project path: /Users/newlife/dev/apps/life-editor
 Related:
-  - [docs/vision/mobile-porting.md](./docs/vision/mobile-porting.md) — Desktop → Mobile 移植方針 (iOS 主軸)
-  - [docs/vision/desktop-followup.md](./docs/vision/desktop-followup.md) — Desktop 残課題
-  - [CLAUDE.md §2 Platform](./CLAUDE.md) — 機能差分マトリクス（更新済 2026-04-26）
+  - [docs/vision/mobile-porting.md](../mobile-porting.md) — Desktop → Mobile 移植方針 (iOS 主軸)
+  - [docs/vision/desktop-followup.md](../desktop-followup.md) — Desktop 残課題
+  - [CLAUDE.md §2 Platform](../../../CLAUDE.md) — 機能差分マトリクス（更新済 2026-04-26）
   - 後続計画 (未起票): `docs/vision/distribution-hardening.md` — Sentry / Updater / Sync 分離 / Store 申請
 ---
 

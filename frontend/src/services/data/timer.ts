@@ -28,10 +28,12 @@ export const timerApi = {
   startTimerSession(
     sessionType: SessionType,
     taskId?: string,
+    eventId?: string,
   ): Promise<TimerSession> {
     return tauriInvoke("db_timer_start_session", {
       sessionType,
       taskId: taskId ?? null,
+      eventId: eventId ?? null,
     });
   },
   endTimerSession(

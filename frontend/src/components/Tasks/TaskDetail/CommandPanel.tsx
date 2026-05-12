@@ -47,7 +47,6 @@ export function CommandPanel({
         const level = headingMatch
           ? (parseInt(headingMatch[1]) as 1 | 2 | 3)
           : 1;
-        deleteSlashText?.();
         setCustomFontSizeLevel(level);
         setCustomFontSizeInput(true);
         setCustomFontSize("");
@@ -82,6 +81,7 @@ export function CommandPanel({
               e.preventDefault();
               const size = parseInt(customFontSize);
               if (size >= 8 && size <= 200) {
+                deleteSlashText?.();
                 setStoredHeadingFontSize(customFontSizeLevel, `${size}px`);
                 editor
                   .chain()
@@ -98,6 +98,7 @@ export function CommandPanel({
               e.preventDefault();
               setCustomFontSizeInput(false);
               setCustomFontSize("");
+              onClose();
             }
           }}
           autoFocus

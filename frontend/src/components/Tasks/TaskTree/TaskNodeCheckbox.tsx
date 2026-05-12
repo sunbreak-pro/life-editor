@@ -1,12 +1,7 @@
 import { memo } from "react";
-import {
-  ChevronRight,
-  ChevronDown,
-  Folder,
-  FolderOpen,
-  CheckCircle2,
-} from "lucide-react";
+import { ChevronRight, ChevronDown, Folder, FolderOpen } from "lucide-react";
 import { renderIcon } from "../../../utils/iconRenderer";
+import { RoundedCheckbox } from "../../shared/RoundedCheckbox";
 
 interface TaskNodeCheckboxProps {
   isFolder: boolean;
@@ -29,17 +24,6 @@ export const TaskNodeCheckbox = memo(function TaskNodeCheckbox({
   onToggleExpand,
   onToggleStatus,
 }: TaskNodeCheckboxProps) {
-  if (isCompletedItem) {
-    return (
-      <button
-        onClick={onToggleStatus}
-        className="text-green-500 hover:text-notion-text-secondary"
-      >
-        <CheckCircle2 size={14} />
-      </button>
-    );
-  }
-
   if (isFolder) {
     return (
       <>
@@ -68,17 +52,11 @@ export const TaskNodeCheckbox = memo(function TaskNodeCheckbox({
   }
 
   return (
-    <label
-      onClick={(e) => e.stopPropagation()}
-      className="flex items-center shrink-0"
-    >
-      <input
-        type="checkbox"
-        checked={isDone}
-        onChange={onToggleStatus}
-        className="w-3.5 h-3.5 cursor-pointer"
-        style={{ accentColor: "var(--color-accent)" }}
-      />
-    </label>
+    <RoundedCheckbox
+      checked={isDone}
+      onChange={onToggleStatus}
+      size={14}
+      ariaLabel={isCompletedItem ? "Mark incomplete" : "Mark complete"}
+    />
   );
 });

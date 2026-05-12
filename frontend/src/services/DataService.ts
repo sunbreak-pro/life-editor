@@ -93,6 +93,7 @@ export interface DataService {
   startTimerSession(
     sessionType: SessionType,
     taskId?: string,
+    eventId?: string,
   ): Promise<TimerSession>;
   endTimerSession(
     id: number,
@@ -338,6 +339,10 @@ export interface DataService {
   toggleScheduleItemComplete(id: string): Promise<ScheduleItem>;
   dismissScheduleItem(id: string): Promise<void>;
   undismissScheduleItem(id: string): Promise<void>;
+  incrementScheduleItemActualMinutes(
+    id: string,
+    minutes: number,
+  ): Promise<ScheduleItem>;
   fetchLastRoutineDate(): Promise<string | null>;
   bulkCreateScheduleItems(
     items: Array<{

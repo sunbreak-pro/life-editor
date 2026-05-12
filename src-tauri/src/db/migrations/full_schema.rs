@@ -59,6 +59,7 @@ pub(super) fn create_full_schema(conn: &Connection) -> rusqlite::Result<()> {
         CREATE TABLE IF NOT EXISTS timer_sessions (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             task_id TEXT,
+            event_id TEXT,
             session_type TEXT CHECK(session_type IN ('WORK','BREAK','LONG_BREAK','FREE')),
             started_at TEXT NOT NULL,
             completed_at TEXT,
@@ -240,6 +241,7 @@ pub(super) fn create_full_schema(conn: &Connection) -> rusqlite::Result<()> {
             version INTEGER DEFAULT 1,
             reminder_enabled INTEGER DEFAULT 0,
             reminder_offset INTEGER,
+            actual_time_minutes INTEGER NOT NULL DEFAULT 0,
             is_deleted INTEGER DEFAULT 0,
             deleted_at TEXT,
             FOREIGN KEY (routine_id) REFERENCES routines(id) ON DELETE SET NULL

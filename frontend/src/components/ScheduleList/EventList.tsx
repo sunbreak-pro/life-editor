@@ -1,10 +1,18 @@
 import { useEffect, useMemo, useState } from "react";
-import { CalendarClock, ArrowDownAZ, ArrowUpAZ, Tag } from "lucide-react";
+import {
+  CalendarClock,
+  ArrowDownAZ,
+  ArrowUpAZ,
+  Tag,
+  Play,
+  Trash2,
+} from "lucide-react";
 import { RoundedCheckbox } from "../shared/RoundedCheckbox";
 import { useTranslation } from "react-i18next";
 import type { ScheduleItem } from "../../types/schedule";
 import { useScheduleItemsContext } from "../../hooks/useScheduleItemsContext";
 import { useCalendarTagsContextOptional } from "../../hooks/useCalendarTagsContextOptional";
+import { useTimerContext } from "../../hooks/useTimerContext";
 
 type SortAxis = "date-desc" | "date-asc" | "title-asc" | "tag";
 
@@ -80,8 +88,14 @@ export function EventList({
   searchQuery,
 }: EventListProps) {
   const { t } = useTranslation();
-  const { events, loadEvents, eventsVersion, toggleComplete } =
-    useScheduleItemsContext();
+  const {
+    events,
+    loadEvents,
+    eventsVersion,
+    toggleComplete,
+    softDeleteScheduleItem,
+  } = useScheduleItemsContext();
+  const { startForEvent } = useTimerContext();
   const calendarCtx = useCalendarTagsContextOptional();
   const calendarTags = calendarCtx?.calendarTags ?? [];
   const getTagForEntity = useMemo(
@@ -238,7 +252,7 @@ export function EventList({
                       onSelectEvent(event.id);
                     }
                   }}
-                  className={`w-full text-left px-3 py-2 flex items-center gap-2 text-sm transition-colors border-l-2 cursor-pointer ${
+                  className={`group relative w-full text-left px-3 py-2 flex items-center gap-2 text-sm transition-colors border-l-2 cursor-pointer ${
                     selectedEventId === event.id
                       ? "bg-notion-accent/5 border-l-notion-accent"
                       : "border-l-transparent hover:bg-notion-hover"
@@ -276,10 +290,36 @@ export function EventList({
                     {event.title}
                   </span>
                   {!event.isAllDay && (
-                    <span className="text-[10px] text-notion-text-secondary shrink-0">
+                    <span className="text-[10px] text-notion-text-secondary shrink-0 group-hover:opacity-0 transition-opacity">
                       {event.startTime}
                     </span>
                   )}
+                  <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity bg-notion-hover rounded">
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        startForEvent(event.id, event.title);
+                      }}
+                      className="p-1 rounded hover:bg-notion-bg-secondary text-notion-text-secondary hover:text-notion-accent"
+                      title={t("events.work", "Work on this event")}
+                      aria-label="Work on this event"
+                    >
+                      <Play size={13} />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        softDeleteScheduleItem(event.id);
+                      }}
+                      className="p-1 rounded hover:bg-notion-bg-secondary text-notion-text-secondary hover:text-red-500"
+                      title={t("events.delete", "Delete event")}
+                      aria-label="Delete event"
+                    >
+                      <Trash2 size={13} />
+                    </button>
+                  </div>
                 </div>
               ))}
             </div>

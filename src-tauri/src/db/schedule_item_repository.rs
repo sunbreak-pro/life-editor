@@ -26,6 +26,7 @@ pub struct ScheduleItem {
     pub is_all_day: bool,
     pub reminder_enabled: bool,
     pub reminder_offset: Option<i64>,
+    pub actual_time_minutes: i64,
     pub created_at: String,
     pub updated_at: String,
 }
@@ -51,6 +52,10 @@ impl FromRow for ScheduleItem {
             is_all_day: row.get::<_, i64>("is_all_day")? != 0,
             reminder_enabled: row.get::<_, i64>("reminder_enabled")? != 0,
             reminder_offset: row.get("reminder_offset")?,
+            actual_time_minutes: row
+                .get::<_, Option<i64>>("actual_time_minutes")
+                .unwrap_or(None)
+                .unwrap_or(0),
             created_at: row.get("created_at")?,
             updated_at: row.get("updated_at")?,
         })
@@ -275,6 +280,22 @@ pub fn undismiss(conn: &Connection, id: &str) -> rusqlite::Result<()> {
         [id],
     )?;
     Ok(())
+}
+
+pub fn increment_actual_minutes(
+    conn: &Connection,
+    id: &str,
+    minutes: i64,
+) -> rusqlite::Result<ScheduleItem> {
+    conn.execute(
+        "UPDATE schedule_items \
+         SET actual_time_minutes = COALESCE(actual_time_minutes, 0) + ?2, \
+             updated_at = datetime('now'), \
+             version = version + 1 \
+         WHERE id = ?1",
+        rusqlite::params![id, minutes],
+    )?;
+    query_one(conn, "SELECT * FROM schedule_items WHERE id = ?1", [id])
 }
 
 pub fn fetch_last_routine_date(conn: &Connection) -> rusqlite::Result<Option<String>> {

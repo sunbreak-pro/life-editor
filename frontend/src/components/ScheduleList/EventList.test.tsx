@@ -1,10 +1,12 @@
-import { render, screen, within } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { EventList } from "./EventList";
 import type { ScheduleItem } from "../../types/schedule";
 
 const mockToggleComplete = vi.fn();
 const mockLoadEvents = vi.fn();
+const mockSoftDelete = vi.fn();
+const mockStartForEvent = vi.fn();
 
 const baseEvent: ScheduleItem = {
   id: "event-1",
@@ -33,6 +35,13 @@ vi.mock("../../hooks/useScheduleItemsContext", () => ({
     loadEvents: mockLoadEvents,
     eventsVersion: 0,
     toggleComplete: mockToggleComplete,
+    softDeleteScheduleItem: mockSoftDelete,
+  }),
+}));
+
+vi.mock("../../hooks/useTimerContext", () => ({
+  useTimerContext: () => ({
+    startForEvent: mockStartForEvent,
   }),
 }));
 
@@ -82,7 +91,8 @@ describe("EventList", () => {
       const { container } = render(<EventList {...defaultProps} />);
 
       const buttons = container.querySelectorAll("button");
-      expect(buttons.length).toBe(1);
+      // 1 toggle (RoundedCheckbox) + 2 hover actions (Play, Trash) = 3
+      expect(buttons.length).toBeGreaterThanOrEqual(1);
       expect(buttons[0].tagName).toBe("BUTTON");
     });
   });

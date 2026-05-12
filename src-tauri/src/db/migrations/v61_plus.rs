@@ -438,5 +438,25 @@ pub(super) fn apply(conn: &Connection, current_version: i32) -> rusqlite::Result
         conn.pragma_update(None, "user_version", &69i32)?;
     }
 
+    // V70: Pomodoro Timer の対象を Task だけでなく Event (schedule_items)
+    // にも拡張する。`timer_sessions.event_id` を追加して多態化、
+    // `schedule_items.actual_time_minutes` で Event ごとの実績時間を累積。
+    if current_version < 70 {
+        eprintln!("V70: timer_sessions.event_id + schedule_items.actual_time_minutes");
+        if !has_column(conn, "timer_sessions", "event_id") {
+            exec_ignore(
+                conn,
+                "ALTER TABLE timer_sessions ADD COLUMN event_id TEXT",
+            );
+        }
+        if !has_column(conn, "schedule_items", "actual_time_minutes") {
+            exec_ignore(
+                conn,
+                "ALTER TABLE schedule_items ADD COLUMN actual_time_minutes INTEGER NOT NULL DEFAULT 0",
+            );
+        }
+        conn.pragma_update(None, "user_version", &70i32)?;
+    }
+
     Ok(())
 }

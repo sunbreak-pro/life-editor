@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
-import { Check, StickyNote, Trash2 } from "lucide-react";
+import { StickyNote, Trash2 } from "lucide-react";
+import { RoundedCheckbox } from "../../../shared/RoundedCheckbox";
 import type { ScheduleItem } from "../../../../types/schedule";
 import { InlineMemoInput } from "./InlineMemoInput";
 import { useSwipeAction } from "../../../../hooks/useSwipeAction";
@@ -209,19 +210,14 @@ export function ScheduleItemBlock({
         />
 
         <div className="flex items-start gap-1.5 px-1.5 py-0.5 h-full">
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              onToggleComplete(item.id);
-            }}
-            className={`shrink-0 mt-0.5 w-4 h-4 rounded border flex items-center justify-center transition-colors ${
-              item.completed
-                ? "bg-green-500 border-green-500"
-                : "border-notion-accent hover:bg-notion-accent/10"
-            }`}
-          >
-            {item.completed && <Check size={10} className="text-white" />}
-          </button>
+          <div className="mt-0.5">
+            <RoundedCheckbox
+              checked={item.completed}
+              onChange={() => onToggleComplete(item.id)}
+              size={14}
+              ariaLabel={item.completed ? "Mark incomplete" : "Mark complete"}
+            />
+          </div>
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-0.5">
               <span

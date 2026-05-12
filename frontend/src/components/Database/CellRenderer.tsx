@@ -1,4 +1,4 @@
-import { Check } from "lucide-react";
+import { RoundedCheckbox } from "../shared/RoundedCheckbox";
 import type {
   PropertyType,
   SelectOption,
@@ -24,13 +24,14 @@ export function CellRenderer({
     case "checkbox":
       return (
         <div className="flex items-center justify-center h-full">
-          {value === "true" ? (
-            <div className="w-4 h-4 rounded bg-notion-accent flex items-center justify-center">
-              <Check size={12} className="text-white" />
-            </div>
-          ) : (
-            <div className="w-4 h-4 rounded border border-notion-border" />
-          )}
+          <RoundedCheckbox
+            checked={value === "true"}
+            onChange={() => {}}
+            size={16}
+            variant="accent"
+            disabled
+            ariaLabel="Checkbox property"
+          />
         </div>
       );
 

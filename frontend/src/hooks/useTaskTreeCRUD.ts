@@ -99,6 +99,27 @@ export function useTaskTreeCRUD(
     [nodes, persistSilent],
   );
 
+  const expandToNode = useCallback(
+    (targetId: string) => {
+      const nodeById = new Map(nodes.map((n) => [n.id, n]));
+      const idsToExpand = new Set<string>();
+      let cursor = nodeById.get(targetId);
+      while (cursor) {
+        if (cursor.type === "folder" && !cursor.isExpanded) {
+          idsToExpand.add(cursor.id);
+        }
+        cursor = cursor.parentId ? nodeById.get(cursor.parentId) : undefined;
+      }
+      if (idsToExpand.size === 0) return;
+      persistSilent(
+        nodes.map((n) =>
+          idsToExpand.has(n.id) ? { ...n, isExpanded: true } : n,
+        ),
+      );
+    },
+    [nodes, persistSilent],
+  );
+
   /** Apply a status change with Complete-folder auto-management */
   const applyStatusChange = useCallback(
     (id: string, newStatus: TaskStatus) => {
@@ -333,6 +354,7 @@ export function useTaskTreeCRUD(
     addNode,
     updateNode,
     toggleExpanded,
+    expandToNode,
     toggleTaskStatus,
     setTaskStatus,
     completeFolderWithChildren,

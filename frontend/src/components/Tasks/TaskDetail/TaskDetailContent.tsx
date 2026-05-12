@@ -35,6 +35,7 @@ export function TaskDetailContent({
               updateNode={updateNode}
               softDelete={softDelete}
               onPlayTask={onPlayTask}
+              onSelectTask={onSelectTask}
               toggleTaskStatus={toggleTaskStatus}
               setTaskStatus={setTaskStatus}
             />

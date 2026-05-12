@@ -14,6 +14,7 @@ export interface TimerSettings {
 export interface TimerSession {
   id: number;
   taskId: string | null;
+  eventId: string | null;
   sessionType: SessionType;
   startedAt: Date;
   completedAt: Date | null;

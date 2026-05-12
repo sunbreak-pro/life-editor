@@ -4,6 +4,8 @@ import type { SessionType } from "../types/timer";
 export interface ActiveTask {
   id: string;
   title: string;
+  /** Kind of subject being timed. Defaults to 'task' for back-compat with existing callers. */
+  kind?: "task" | "event";
 }
 
 export interface TimerContextValue {
@@ -25,6 +27,7 @@ export interface TimerContextValue {
   reset: () => void;
   formatTime: (seconds: number) => string;
   startForTask: (id: string, title: string) => void;
+  startForEvent: (id: string, title: string) => void;
   openForTask: (id: string, title: string, durationMinutes?: number) => void;
   clearTask: () => void;
   updateActiveTaskTitle: (title: string) => void;

@@ -65,7 +65,7 @@ Tier 1: 5 件以上 / Tier 2: 3-5 件 / Tier 3: 1-3 件（簡略版）
 
 ### Related Plans
 
-- `.claude/feature_plans/YYYY-MM-DD-<slug>.md`（IN_PROGRESS）
+- `.claude/docs/vision/plans/YYYY-MM-DD-<slug>.md`（IN_PROGRESS）
 - `.claude/archive/<file>`（COMPLETED）
 ```
 

@@ -31,8 +31,7 @@
 ## References
 
 - 関連ファイル: `path/to/file.rs:LINE`
-- 関連 ADR: `.claude/docs/adr/XXXX-*.md`
-- 関連 plan: `.claude/feature_plans/YYYY-MM-DD-*.md`
+- 関連 plan: `.claude/docs/vision/plans/YYYY-MM-DD-*.md`
 - 関連 HISTORY: `.claude/HISTORY.md` の該当セッション日付
 
 ## Lessons Learned

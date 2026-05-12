@@ -2,6 +2,7 @@ import { useRef, useState } from "react";
 import { ChevronRight, Folder, StickyNote, Trash2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { IconPicker } from "../../common/IconPicker";
+import { useTaskTreeContext } from "../../../hooks/useTaskTreeContext";
 import { DateTimeRangePicker } from "../Schedule/shared/DateTimeRangePicker";
 import { RoleSwitcher } from "../Schedule/shared/RoleSwitcher";
 import { PriorityPicker } from "../../shared/PriorityPicker";
@@ -28,6 +29,7 @@ interface TaskSidebarContentProps {
   updateNode: (id: string, updates: Partial<TaskNode>) => void;
   softDelete: (id: string) => void;
   onPlayTask?: (node: TaskNode) => void;
+  onSelectTask?: (id: string) => void;
   toggleTaskStatus: (id: string) => void;
   setTaskStatus: (id: string, status: TaskStatus) => void;
 }
@@ -37,13 +39,29 @@ export function TaskSidebarContent({
   nodes,
   updateNode,
   softDelete,
+  onSelectTask,
   toggleTaskStatus,
   setTaskStatus,
 }: TaskSidebarContentProps) {
   const { t } = useTranslation();
+  const { expandToNode } = useTaskTreeContext();
   const [iconPickerNodeId, setIconPickerNodeId] = useState<string | null>(null);
   const iconBtnRef = useRef<HTMLButtonElement>(null);
   const ancestors = getAncestors(node.id, nodes);
+
+  const handleAncestorClick = (ancestorId: string) => {
+    expandToNode(ancestorId);
+    onSelectTask?.(ancestorId);
+  };
+
+  const handleAncestorContextMenu = (
+    e: React.MouseEvent<HTMLButtonElement>,
+    ancestorId: string,
+  ) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIconPickerNodeId(iconPickerNodeId === ancestorId ? null : ancestorId);
+  };
 
   return (
     <div className="flex flex-col h-full">
@@ -70,11 +88,13 @@ export function TaskSidebarContent({
                     }
                     onClick={(e) => {
                       e.stopPropagation();
-                      setIconPickerNodeId(
-                        iconPickerNodeId === ancestor.id ? null : ancestor.id,
-                      );
+                      handleAncestorClick(ancestor.id);
                     }}
+                    onContextMenu={(e) =>
+                      handleAncestorContextMenu(e, ancestor.id)
+                    }
                     className="flex items-center gap-1 px-1.5 py-0.5 rounded hover:bg-notion-hover transition-colors"
+                    title="Click: open folder / Right-click: change icon"
                   >
                     {ancestor.icon ? (
                       renderIcon(ancestor.icon, { size: 13 })

@@ -85,6 +85,15 @@ export const scheduleItemsApi = {
   undismissScheduleItem(id: string): Promise<void> {
     return tauriInvoke("db_schedule_items_undismiss", { id });
   },
+  incrementScheduleItemActualMinutes(
+    id: string,
+    minutes: number,
+  ): Promise<ScheduleItem> {
+    return tauriInvoke("db_schedule_items_increment_actual_minutes", {
+      id,
+      minutes,
+    });
+  },
   fetchLastRoutineDate(): Promise<string | null> {
     return tauriInvoke("db_schedule_items_fetch_last_routine_date");
   },

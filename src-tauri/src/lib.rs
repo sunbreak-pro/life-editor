@@ -236,6 +236,7 @@ pub fn run() {
             commands::schedule_item_commands::db_schedule_items_toggle_complete,
             commands::schedule_item_commands::db_schedule_items_dismiss,
             commands::schedule_item_commands::db_schedule_items_undismiss,
+            commands::schedule_item_commands::db_schedule_items_increment_actual_minutes,
             commands::schedule_item_commands::db_schedule_items_fetch_last_routine_date,
             commands::schedule_item_commands::db_schedule_items_bulk_create,
             commands::schedule_item_commands::db_schedule_items_update_future_by_routine,

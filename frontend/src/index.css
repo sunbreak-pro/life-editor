@@ -233,27 +233,24 @@ body {
   padding-left: 0;
 }
 
-.memo-editor ul[data-type="taskList"] li {
+.memo-editor li.custom-task-item {
   display: flex;
   align-items: flex-start;
   gap: 0.5rem;
 }
 
-.memo-editor ul[data-type="taskList"] li > label {
+.memo-editor .custom-task-item-checkbox {
   flex: 0 0 auto;
+  padding-top: 0.125rem;
   user-select: none;
 }
 
-.memo-editor ul[data-type="taskList"] li > label input[type="checkbox"] {
-  cursor: pointer;
-  accent-color: var(--color-accent);
-}
-
-.memo-editor ul[data-type="taskList"] li > div {
+.memo-editor .custom-task-item-content {
   flex: 1 1 auto;
+  min-width: 0;
 }
 
-.memo-editor ul[data-type="taskList"] li[data-checked="true"] > div {
+.memo-editor .custom-task-item-content.is-checked {
   text-decoration: line-through;
   opacity: 0.6;
 }
@@ -1027,6 +1024,19 @@ body {
 }
 
 /* Bubble Toolbar Slash Mode Wrapper */
+.bubble-toolbar-turn-into {
+  border-top: 1px solid var(--color-border);
+  max-height: 320px;
+  overflow-y: auto;
+}
+
+.bubble-toolbar-turn-into .command-panel-inline {
+  background-color: transparent;
+  border: none;
+  box-shadow: none;
+  max-height: none;
+}
+
 .bubble-toolbar-slash-wrapper {
   position: absolute;
   z-index: 50;

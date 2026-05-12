@@ -17,7 +17,7 @@ import { TableCell } from "@tiptap/extension-table-cell";
 import { TableHeader } from "@tiptap/extension-table-header";
 import { ResizableImage } from "../../extensions/ResizableImage";
 import TaskList from "@tiptap/extension-task-list";
-import TaskItem from "@tiptap/extension-task-item";
+import { CustomTaskItem } from "../../extensions/CustomTaskItem";
 import {
   ToggleList,
   ToggleSummary,
@@ -251,7 +251,7 @@ export function RichTextEditor({
         TableHeader,
         ResizableImage,
         TaskList,
-        TaskItem.configure({ nested: true }),
+        CustomTaskItem.configure({ nested: true }),
         ToggleList,
         ToggleSummary,
         ToggleContent,

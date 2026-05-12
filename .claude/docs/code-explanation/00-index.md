@@ -1,71 +1,35 @@
-# Life Editor コード説明ドキュメント
+# Code Explanation — Section 別マップ
 
-## 目的
+このディレクトリは「画面のあのセクション」を直したいときに、どのファイル・コンポーネント・hook を触ればいいかを引くための辞書。CLAUDE.md §3 の Section Routing (6 SectionId) に沿って 1 セクション 1 ファイルでまとめる。
 
-このドキュメント群は、Life Editor のコードベース全体を**ユースケース起点**で説明する。
-UI操作 → 状態更新 → localStorage永続化の流れを追跡できる構成になっている。
+> ⚠️ Web 移行 (`refactor/web-first-v2` / 2026-05-04 開始) で Tauri 2 → Electron+Capacitor+Web+Supabase に大規模移行中。**フロントの React コンポーネント / Context / hook 階層はおおむね残る**が、`TauriDataService.ts` 経由の IPC 部分は書き換わる予定。各ドキュメントの「データ層 / バックエンド」節は移行 Phase 5 で再仕分け。
 
-## 想定読者
+## セクション別
 
-- Life Editor に初めて触れる開発者
-- アーキテクチャの全体像を把握したい人
-- 特定機能の実装詳細を確認したい人
+| Section ID  | ドキュメント                                       | 主な役割                                                                                |
+| ----------- | -------------------------------------------------- | --------------------------------------------------------------------------------------- |
+| `schedule`  | [`10-schedule.md`](./10-schedule.md)               | カレンダー / DayFlow / Tasks / Events の 4 タブ。Routine + ScheduleItems + CalendarTags |
+| `materials` | [`11-materials.md`](./11-materials.md)             | Daily / Notes / Files の 3 タブ。Note ツリー + Template + WikiTags + FileExplorer       |
+| `work`      | [`12-work.md`](./12-work.md)                       | Timer / History / Music の 3 タブ。Pomodoro + Audio Mixer + Playlist                    |
+| `analytics` | [`13-analytics.md`](./13-analytics.md)             | Overview / Tasks / Schedule / Materials / Work / Connect の 6 タブ。集計と Recharts     |
+| `connect`   | (本ファイル下部参照、Materials のサブ画面扱い)     | Note ↔ WikiTag ↔ Daily の関係グラフ                                                     |
+| `settings`  | (個別ドキュメント未作成 — Settings 配下を直接読む) | テーマ / フォント / ショートカット / 同期設定                                           |
 
-## 推奨読み順
+## 横串の重要な前提
 
-1. **[01-architecture-overview.md](./01-architecture-overview.md)** — フロントエンド中心アーキテクチャを把握
-2. **[02-infrastructure.md](./02-infrastructure.md)** — エントリポイント・設定・共通基盤を理解
-3. **興味のある機能フローへ** — 以下の一覧から選択
+- **DataService 抽象化** (CLAUDE.md §3.2): コンポーネントから `invoke()` を直呼びしない。`getDataService()` 経由。共通実装 → `frontend/src/services/{DataService.ts, TauriDataService.ts, dataServiceFactory.ts}`
+- **Provider 順序** (CLAUDE.md §6.2): Desktop は ErrorBoundary → Theme → Toast → Sync → UndoRedo → ScreenLock → TaskTree → Calendar → Template → Daily → Note → FileExplorer → Routine → ScheduleItems → CalendarTags → Timer → Audio → WikiTag → ShortcutConfig → SidebarLinks。Mobile では Audio / ScreenLock / FileExplorer / CalendarTags / ShortcutConfig を省略 (Optional Provider)
+- **Section Routing**: React Router を使わず `App.tsx::activeSection` の `switch` で切替。各 Section は単一の Top-level コンポーネント (`ScheduleSection` / `MaterialsView` / `WorkScreen` / `AnalyticsView`) を返す
+- **右サイドバー**: 各 Section は `RightSidebarContext.portalTarget` に `createPortal` してサイドバーを差し込む。サイドバー切替は localStorage キー (`STORAGE_KEYS.*`) で永続化
+- **タブ永続化**: 各 Section 内のタブ選択は `STORAGE_KEYS.*` で localStorage に保存 / 復元される
 
-## ファイル一覧
+## Connect ビュー (Materials 配下)
 
-### 基盤
+`activeSection === "connect"` は `frontend/src/components/Ideas/ConnectView.tsx` を直接 mount する。Materials の WikiTag / NoteConnection のグラフビューで、本体は `frontend/src/components/Ideas/Connect/` 配下の `TagGraphView` / `ConnectPanel` / `ConnectSidebar` / `reactFlowMerge.ts` / `forceLayout.ts`。中身は Materials のデータ層 (Note / Daily / WikiTag) に依存するため、Materials を直すついでに見るのが筋。
 
-| ファイル                                                     | 対象 | 概要                                                 |
-| ------------------------------------------------------------ | ---- | ---------------------------------------------------- |
-| [01-architecture-overview.md](./01-architecture-overview.md) | 全体 | フロントエンド中心アーキテクチャ + バックエンド概要  |
-| [02-infrastructure.md](./02-infrastructure.md)               | 基盤 | エントリポイント・Context Provider・レイアウト・CORS |
+## 触る前のチェックリスト
 
-### タスク管理（localStorage + TaskTree）
-
-| ファイル                                               | 対象ユースケース | 概要                                                   |
-| ------------------------------------------------------ | ---------------- | ------------------------------------------------------ |
-| [10-task-create.md](./10-task-create.md)               | タスク作成       | TaskTreeInput → useTaskTree.addNode → localStorage保存 |
-| [11-task-edit-title.md](./11-task-edit-title.md)       | タイトル編集     | インライン編集 → updateNode → localStorage保存         |
-| [12-task-toggle-status.md](./12-task-toggle-status.md) | ステータス切替   | TODO/DONE切替 → completedAt管理                        |
-| [13-task-delete.md](./13-task-delete.md)               | タスク削除       | ソフトデリート (isDeleted) → ゴミ箱から復元可能        |
-| [14-task-view-lists.md](./14-task-view-lists.md)       | 一覧表示         | ツリー構造表示 (Inbox/Projects/Completed)              |
-| [15-task-focus-mode.md](./15-task-focus-mode.md)       | WorkScreen       | タイマー + サウンドミキサー統合画面                    |
-
-### タイマー（TimerContext + localStorage）
-
-| ファイル                                                           | 対象ユースケース     | 概要                                |
-| ------------------------------------------------------------------ | -------------------- | ----------------------------------- |
-| [20-timer-settings.md](./20-timer-settings.md)                     | 設定管理             | TimerContext + localStorage永続化   |
-| [21-timer-start-session.md](./21-timer-start-session.md)           | セッション開始       | startTimer → setInterval開始        |
-| [22-timer-countdown-and-stop.md](./22-timer-countdown-and-stop.md) | カウントダウン＋停止 | interval制御 + WORK→BREAK遷移       |
-| [23-timer-session-history.md](./23-timer-session-history.md)       | 履歴表示             | 未実装（Backend再統合時に実装予定） |
-
-### サウンド（localStorage + useLocalSoundMixer）
-
-| ファイル                                             | 対象ユースケース | 概要                              |
-| ---------------------------------------------------- | ---------------- | --------------------------------- |
-| [30-sound-settings.md](./30-sound-settings.md)       | 設定管理         | useLocalSoundMixer + localStorage |
-| [31-sound-preset-crud.md](./31-sound-preset-crud.md) | プリセット管理   | localStorage保存・復元            |
-
-## 実装状況マトリクス
-
-| 機能領域              | フロントエンド UI |   フロントエンド State    |     バックエンド API     | 接続状態  |
-| --------------------- | :---------------: | :-----------------------: | :----------------------: | :-------: |
-| タスク管理 (TaskTree) |        ✅         |      ✅ localStorage      | ✅ (Phase 1 Task Entity) | ❌ 未接続 |
-| タイマー              |        ✅         | ✅ Context + localStorage |            ✅            | ❌ 未接続 |
-| サウンド              |       ✅ UI       |      ✅ localStorage      |            ✅            | ❌ 未接続 |
-| サウンド再生          |        ❌         |            ❌             |            —             |     —     |
-| AI コーチ             |        ❌         |            ❌             |            ❌            |     —     |
-| 設定画面              |        ✅         |      ✅ localStorage      |            —             |     —     |
-
-## 表記規約
-
-- ファイルパスは `frontend/src/...` または `backend/src/main/java/com/lifeeditor/...` の相対形式
-- 行番号は `ファイルパス:行番号` 形式（例: `App.tsx:8`）
-- シーケンス図はテキストベースの矢印表記
+1. 該当セクションのドキュメントを開く
+2. 「主要関数」節で対象の hook / コンポーネントを当たりつける
+3. 「副作用」節で他セクション・他 Provider への波及を確認
+4. 必要なら CLAUDE.md §6 (Coding Standards) と §7.2 (IPC 追加時の 4 点同期) を参照

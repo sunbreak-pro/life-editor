@@ -140,6 +140,18 @@ pub fn db_schedule_items_undismiss(state: State<'_, DbState>, id: String) -> Res
 }
 
 #[tauri::command]
+pub fn db_schedule_items_increment_actual_minutes(
+    state: State<'_, DbState>,
+    id: String,
+    minutes: i64,
+) -> Result<Value, String> {
+    let conn = state.conn.lock().map_err(|e| e.to_string())?;
+    schedule_item_repository::increment_actual_minutes(&conn, &id, minutes)
+        .map_err(|e| e.to_string())
+        .and_then(|v| serde_json::to_value(v).map_err(|e| e.to_string()))
+}
+
+#[tauri::command]
 pub fn db_schedule_items_fetch_last_routine_date(
     state: State<'_, DbState>,
 ) -> Result<Option<String>, String> {

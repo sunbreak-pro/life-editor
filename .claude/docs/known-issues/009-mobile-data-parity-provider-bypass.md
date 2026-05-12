@@ -106,7 +106,7 @@ Mobile が使う `fetch_by_date_range` は `is_dismissed` を見ないため、D
   - `frontend/src/components/Mobile/schedule/dayItem.ts:111-137`（`isDismissed` 未フィルタ）
 - 関連 Vision: `.claude/docs/vision/mobile-data-parity.md`
 - 関連 Plan: `.claude/docs/vision/plans/2026-04-20-mobile-data-parity-phase-a-b.md`
-- 関連 Plan（並走）: `.claude/2026-04-21-mobile-materials-parity.md`（Notes の Provider 移行はこちらで完了済み）
+- 関連 Plan（並走）: `.claude/docs/vision/plans/2026-04-21-mobile-materials-parity.md`（Notes の Provider 移行はこちらで完了済み）
 - 関連 Plan（Phase C+D 完了）: `.claude/archive/2026-04-21-ios-refactor-phase-c-d.md`（残 Mobile 画面の Provider 化 / Repository 命名整理 / ESLint ルール / 経路差分統合テスト）
 
 ## Lessons Learned

@@ -10,6 +10,7 @@ import { useTranslation } from "react-i18next";
 import { IconPicker } from "../../common/IconPicker";
 import { MiniCalendarGrid } from "../../shared/MiniCalendarGrid";
 import { TaskStatusIcon } from "../TaskTree/TaskStatusIcon";
+import { useTaskTreeContext } from "../../../hooks/useTaskTreeContext";
 import type { TaskNode, TaskStatus } from "../../../types/taskTree";
 import { getAncestors } from "../../../utils/breadcrumb";
 import { fireTaskCompleteConfetti } from "../../../utils/confetti";
@@ -36,6 +37,7 @@ export function FolderSidebarContent({
   setTaskStatus,
 }: FolderSidebarContentProps) {
   const { t } = useTranslation();
+  const { expandToNode } = useTaskTreeContext();
   const [showIconPicker, setShowIconPicker] = useState(false);
   const folderIconRef = useRef<HTMLButtonElement>(null);
   const [showSchedule, setShowSchedule] = useState(node.scheduledAt != null);
@@ -170,11 +172,18 @@ export function FolderSidebarContent({
                 }
                 onClick={(e) => {
                   e.stopPropagation();
+                  expandToNode(ancestor.id);
+                  onSelectTask?.(ancestor.id);
+                }}
+                onContextMenu={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
                   setIconPickerAncestorId(
                     iconPickerAncestorId === ancestor.id ? null : ancestor.id,
                   );
                 }}
                 className="flex items-center gap-1 px-1.5 py-0.5 rounded hover:bg-notion-hover transition-colors"
+                title="Click: open folder / Right-click: change icon"
               >
                 {ancestor.icon ? (
                   renderIcon(ancestor.icon, { size: 13 })

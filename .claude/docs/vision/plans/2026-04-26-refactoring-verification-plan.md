@@ -4,7 +4,7 @@ Created: 2026-04-26
 Updated: 2026-04-26 (自動検証セクション S-1 / S-7 / S-8 完遂、ドキュメント反映済)
 Task: MEMORY.md §直近完了（リファクタリング Phase 2-4 / 3-1 / 3-4 検証）
 Project path: /Users/newlife/dev/apps/life-editor
-Related: [.claude/archive/2026-04-25-refactoring-plan.md](./archive/2026-04-25-refactoring-plan.md) — 本計画書の対象となる実装プラン (archive 済み、Status: COMPLETED)
+Related: [.claude/archive/2026-04-25-refactoring-plan.md](../../../archive/2026-04-25-refactoring-plan.md) — 本計画書の対象となる実装プラン (archive 済み、Status: COMPLETED)
 ---
 
 # Plan: Phase 2-4 / 3-1 / 3-4 リファクタリング検証

@@ -22,6 +22,7 @@ pub struct TimerSettings {
 pub struct TimerSession {
     pub id: i64,
     pub task_id: Option<String>,
+    pub event_id: Option<String>,
     pub session_type: String,
     pub started_at: String,
     pub completed_at: Option<String>,
@@ -50,6 +51,7 @@ impl FromRow for TimerSession {
         Ok(TimerSession {
             id: row.get("id")?,
             task_id: row.get("task_id")?,
+            event_id: row.get::<_, Option<String>>("event_id").unwrap_or(None),
             session_type: row.get("session_type")?,
             started_at: row.get("started_at")?,
             completed_at: row.get("completed_at")?,
@@ -129,11 +131,12 @@ pub fn start_session(
     conn: &Connection,
     session_type: &str,
     task_id: Option<&str>,
+    event_id: Option<&str>,
 ) -> rusqlite::Result<TimerSession> {
     conn.execute(
-        "INSERT INTO timer_sessions (task_id, session_type, started_at, completed) \
-         VALUES (?1, ?2, datetime('now'), 0)",
-        params![task_id, session_type],
+        "INSERT INTO timer_sessions (task_id, event_id, session_type, started_at, completed) \
+         VALUES (?1, ?2, ?3, datetime('now'), 0)",
+        params![task_id, event_id, session_type],
     )?;
     let id = conn.last_insert_rowid();
     query_one(conn, "SELECT * FROM timer_sessions WHERE id = ?1", [id])

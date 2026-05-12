@@ -23,10 +23,16 @@ pub fn db_timer_start_session(
     state: State<'_, DbState>,
     session_type: String,
     task_id: Option<String>,
+    event_id: Option<String>,
 ) -> Result<TimerSession, String> {
     let conn = state.conn.lock().map_err(|e| e.to_string())?;
-    timer_repository::start_session(&conn, &session_type, task_id.as_deref())
-        .map_err(|e| e.to_string())
+    timer_repository::start_session(
+        &conn,
+        &session_type,
+        task_id.as_deref(),
+        event_id.as_deref(),
+    )
+    .map_err(|e| e.to_string())
 }
 
 #[tauri::command]

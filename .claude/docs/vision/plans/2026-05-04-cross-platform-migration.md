@@ -5,12 +5,12 @@ Task: クロスプラットフォーム移行 — Tauri / Cloudflare 構成 → 
 Project path: /Users/newlife/dev/apps/life-editor
 Branch: refactor/web-first-v2
 Supersedes:
-  - [.claude/archive/2026-04-29-web-first-migration.md](./archive/2026-04-29-web-first-migration.md) — Web First 単体構成（Electron 不採用）から本プランへ統合
+  - [.claude/archive/2026-04-29-web-first-migration.md](../../../archive/2026-04-29-web-first-migration.md) — Web First 単体構成（Electron 不採用）から本プランへ統合
 Related:
-  - [CLAUDE.md](./CLAUDE.md) — 移行完了後に全面改訂(Tauri / SQLite / Cloud D1 / Cloud Sync 章を削除)
-  - [docs/vision/core.md](./docs/vision/core.md) — Vision の "Web UI 否定" / "Desktop ネイティブのみ" を反転
-  - [.claude/archive/2026-04-29-claude-desktop-style-chat-ui.md](./archive/2026-04-29-claude-desktop-style-chat-ui.md) — 旧 Vision 前提のため archive 済
-  - [.claude/2026-04-26-windows-android-port.md](./2026-04-26-windows-android-port.md) — Tauri ベースの Windows/Android 配布計画。本プランで完全に置換される
+  - [CLAUDE.md](../../../CLAUDE.md) — 移行完了後に全面改訂(Tauri / SQLite / Cloud D1 / Cloud Sync 章を削除)
+  - [docs/vision/core.md](../core.md) — Vision の "Web UI 否定" / "Desktop ネイティブのみ" を反転
+  - [.claude/archive/2026-04-29-claude-desktop-style-chat-ui.md](../../../archive/2026-04-29-claude-desktop-style-chat-ui.md) — 旧 Vision 前提のため archive 済
+  - [.claude/docs/vision/plans/2026-04-26-windows-android-port.md](./2026-04-26-windows-android-port.md) — Tauri ベースの Windows/Android 配布計画。本プランで完全に置換される
 ---
 
 # Plan: クロスプラットフォーム移行（Electron / Capacitor / Web）
@@ -385,7 +385,7 @@ life-editor/
 - [ ] CLAUDE.md 全面改訂(アーキテクチャ章を新スタック前提に書き換え)
 - [ ] `docs/vision/core.md` の Web UI 否定 / Desktop ネイティブのみ を反転
 - [ ] `docs/known-issues/` の Tauri 関連項目を archive
-- [ ] `.claude/2026-04-26-windows-android-port.md` を archive（本プランで完全に置換）
+- [ ] `.claude/docs/vision/plans/2026-04-26-windows-android-port.md` を archive（本プランで完全に置換）
 - [ ] README.md 更新
 
 #### Phase 5 完了判定
