@@ -4,6 +4,7 @@ import type {
   LogEntry,
   SystemInfo,
 } from "../../types/diagnostics";
+import type { BulkSoftDeleteResult, CalendarDataKind } from "../DataService";
 import { tauriInvoke } from "../bridge";
 
 export const miscApi = {
@@ -15,6 +16,11 @@ export const miscApi = {
   },
   resetData(): Promise<boolean> {
     return tauriInvoke("data_reset");
+  },
+  bulkSoftDeleteCalendarData(
+    kinds: CalendarDataKind[],
+  ): Promise<BulkSoftDeleteResult> {
+    return tauriInvoke("db_bulk_soft_delete_calendar_data", { kinds });
   },
   fetchLogs(options?: { level?: string; limit?: number }): Promise<LogEntry[]> {
     return tauriInvoke("diagnostics_fetch_logs", { options });
