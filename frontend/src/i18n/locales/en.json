@@ -48,6 +48,26 @@
     "dataTab": "Data",
     "advancedTab": "Advanced",
     "shortcutsTab": "Shortcuts",
+    "calendarReset": {
+      "title": "Bulk delete calendar data",
+      "description": "Soft-delete the selected calendar data. Routine deletion also removes derived schedule items. All deletions are reversible from Trash.",
+      "openButton": "Open bulk delete",
+      "selectAll": "Select all",
+      "deselectAll": "Clear selection",
+      "confirm": "Delete selected",
+      "cancel": "Cancel",
+      "footnote": "Soft-deleted items remain in Trash and can be restored later.",
+      "success": "Deleted: tasks {{tasks}} · events {{events}} · routines {{routines}} (+{{cascaded}} schedule items) · dailies {{dailies}} · notes {{notes}}",
+      "failed": "Bulk delete failed: {{error}}",
+      "noSelection": "Select at least one kind to delete.",
+      "kinds": {
+        "tasks": "Scheduled tasks",
+        "events": "Events",
+        "routines": "Routines (cascades to derived schedule items)",
+        "dailies": "Dailies",
+        "notes": "Notes"
+      }
+    },
     "claude": {
       "title": "Claude Code",
       "description": "Register the MCP Server so Claude Code can access your tasks, schedules, and memos via natural language.",

@@ -380,6 +380,7 @@ pub fn run() {
             commands::data_io_commands::data_export,
             commands::data_io_commands::data_import,
             commands::data_io_commands::data_reset,
+            commands::data_io_commands::db_bulk_soft_delete_calendar_data,
             // Diagnostics
             commands::diagnostics_commands::diagnostics_fetch_logs,
             commands::diagnostics_commands::diagnostics_open_log_folder,

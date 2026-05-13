@@ -63,6 +63,34 @@ import type {
   BrowserInfo,
   InstalledApp,
 } from "../types/sidebarLink";
+
+/**
+ * Kinds of calendar-displayed data the user can bulk soft-delete from
+ * Settings → Data → "Calendar データ一括削除".
+ *
+ * - "tasks":    scheduled tasks (type='task' AND scheduled_at IS NOT NULL)
+ * - "events":   schedule_items with no routine_id (manual events)
+ * - "routines": routines + their non-completed derived schedule_items (cascade)
+ * - "dailies":  dailies rows
+ * - "notes":    notes rows
+ */
+export type CalendarDataKind =
+  | "tasks"
+  | "events"
+  | "routines"
+  | "dailies"
+  | "notes";
+
+export interface BulkSoftDeleteResult {
+  tasks: number;
+  events: number;
+  routines: number;
+  /** Routine-derived schedule_items removed by the routine cascade. */
+  cascadedScheduleItems: number;
+  dailies: number;
+  notes: number;
+}
+
 export interface DataService {
   // Tasks
   fetchTaskTree(): Promise<TaskNode[]>;
@@ -613,6 +641,9 @@ export interface DataService {
   exportData(): Promise<boolean>;
   importData(): Promise<boolean>;
   resetData(): Promise<boolean>;
+  bulkSoftDeleteCalendarData(
+    kinds: CalendarDataKind[],
+  ): Promise<BulkSoftDeleteResult>;
 
   // Diagnostics
   fetchLogs(options?: { level?: string; limit?: number }): Promise<LogEntry[]>;

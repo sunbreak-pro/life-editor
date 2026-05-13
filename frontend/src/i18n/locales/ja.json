@@ -48,6 +48,26 @@
     "dataTab": "データ",
     "advancedTab": "詳細",
     "shortcutsTab": "ショートカット",
+    "calendarReset": {
+      "title": "Calendar データ一括削除",
+      "description": "選択したカレンダー関連データをソフト削除します。Routine を選ぶと派生する Schedule Items も連動して削除されます。すべてゴミ箱から復元できます。",
+      "openButton": "一括削除を開く",
+      "selectAll": "全選択",
+      "deselectAll": "全解除",
+      "confirm": "選択したものを削除",
+      "cancel": "キャンセル",
+      "footnote": "ソフト削除のためゴミ箱から復元できます。",
+      "success": "削除しました: tasks {{tasks}} · events {{events}} · routines {{routines}} (+{{cascaded}} schedule items) · dailies {{dailies}} · notes {{notes}}",
+      "failed": "一括削除に失敗しました: {{error}}",
+      "noSelection": "削除対象を 1 つ以上選択してください。",
+      "kinds": {
+        "tasks": "予定された Tasks",
+        "events": "Events (単発予定)",
+        "routines": "Routines (派生 Schedule Items も連動削除)",
+        "dailies": "Dailies",
+        "notes": "Notes"
+      }
+    },
     "claude": {
       "title": "Claude Code",
       "description": "MCP Server を登録すると、Claude Code から自然言語でタスク・スケジュール・メモを操作できます。",

@@ -1,8 +1,9 @@
 ---
-Status: Draft
+Status: COMPLETED
 Created: 2026-05-12
+Completed: 2026-05-13
 Project: /Users/newlife/dev/apps/life-editor
-Task: (MEMORY.md にリンク予定)
+Task: Calendar 表示整合性の修正 A+B+C
 ---
 
 # Plan: Calendar 表示整合性の修正（isDeleted filter / Routine 同期削除 / Progress 月次集計）
