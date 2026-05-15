@@ -36,6 +36,7 @@ import type { TabItem } from "../shared/SectionTabs";
 import { SectionHeader } from "../shared/SectionHeader";
 import { VerticalNavList } from "../shared/VerticalNavList";
 import { LAYOUT } from "../../constants/layout";
+import { getErrorMessage } from "../../utils/logError";
 import { AppearanceSettings } from "./AppearanceSettings";
 import { LanguageSettings } from "./LanguageSettings";
 import { NotificationSettings } from "./NotificationSettings";
@@ -235,7 +236,7 @@ export function Settings({ initialTab }: SettingsProps) {
       setResetIsError(true);
       setResetStatus(
         t("data.resetFailed", {
-          error: e instanceof Error ? e.message : t("data.unknownError"),
+          error: getErrorMessage(e, t("data.unknownError")),
         }),
       );
     }

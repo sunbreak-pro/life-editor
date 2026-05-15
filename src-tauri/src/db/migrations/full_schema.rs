@@ -246,6 +246,13 @@ pub(super) fn create_full_schema(conn: &Connection) -> rusqlite::Result<()> {
         );
 
         -- ===== Routine Tag Definitions =====
+        -- NOTE: routine_tag_definitions / routine_tag_assignments /
+        -- routine_group_tag_assignments are intentionally created here because
+        -- this file is the historical V60 snapshot. The V69 migration drops all
+        -- three (v61_plus.rs); a fresh DB therefore ends up WITHOUT them. This
+        -- create-then-drop is by design — do not delete these as dead schema
+        -- (it would make full_schema diverge from the real V60 schema). The
+        -- `fresh_db_reaches_latest_without_orphan_tables` test guards the end state.
         CREATE TABLE IF NOT EXISTS routine_tag_definitions (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             name TEXT NOT NULL UNIQUE,

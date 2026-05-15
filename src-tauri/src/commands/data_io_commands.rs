@@ -67,8 +67,6 @@ pub async fn data_export(
             "soundDisplayMeta": safe_query_all(&conn, "SELECT * FROM sound_display_meta"),
             "calendars": safe_query_all(&conn, "SELECT * FROM calendars"),
             "routines": safe_query_all(&conn, "SELECT * FROM routines"),
-            "routineTagAssignments": safe_query_all(&conn, "SELECT * FROM routine_tag_assignments"),
-            "routineTagDefinitions": safe_query_all(&conn, "SELECT * FROM routine_tag_definitions"),
             "scheduleItems": safe_query_all(&conn, "SELECT * FROM schedule_items"),
         }
     });
@@ -127,7 +125,6 @@ pub async fn data_import(
         // Clear existing data (FK-safe order)
         conn.execute_batch(
             "DELETE FROM schedule_items;
-             DELETE FROM routine_tag_assignments;
              DELETE FROM routines;
              DELETE FROM calendars;
              DELETE FROM notes;
@@ -224,16 +221,6 @@ pub async fn data_import(
             "created_at", "updated_at",
         ])?;
 
-        // Import routine tag assignments (INSERT OR IGNORE)
-        import_array_or_ignore(&conn, &data["routineTagAssignments"], "routine_tag_assignments", &[
-            "routine_id", "tag_id",
-        ])?;
-
-        // Import routine tag definitions (INSERT OR IGNORE)
-        import_array_or_ignore(&conn, &data["routineTagDefinitions"], "routine_tag_definitions", &[
-            "id", "name", "color", "order",
-        ])?;
-
         // Import schedule items
         import_array(&conn, &data["scheduleItems"], "schedule_items", &[
             "id", "date", "title", "start_time", "end_time", "completed",
@@ -299,8 +286,6 @@ fn validate_import_data(imported: &Value) -> Result<(), String> {
         "soundDisplayMeta",
         "calendars",
         "routines",
-        "routineTagAssignments",
-        "routineTagDefinitions",
         "scheduleItems",
     ];
     for field in &array_fields {
@@ -348,16 +333,6 @@ fn import_array(
     columns: &[&str],
 ) -> Result<(), String> {
     do_import_array(conn, json_val, table, columns, false)
-}
-
-/// Import a JSON array with INSERT OR IGNORE
-fn import_array_or_ignore(
-    conn: &Connection,
-    json_val: &Value,
-    table: &str,
-    columns: &[&str],
-) -> Result<(), String> {
-    do_import_array(conn, json_val, table, columns, true)
 }
 
 fn do_import_array(
@@ -449,13 +424,11 @@ pub async fn data_reset(state: State<'_, DbState>) -> Result<bool, String> {
         conn.execute_batch(
             "DELETE FROM calendar_tag_assignments;
              DELETE FROM calendar_tag_definitions;
-             DELETE FROM routine_group_tag_assignments;
+             DELETE FROM routine_group_assignments;
              DELETE FROM routine_groups;
              DELETE FROM playlist_items;
              DELETE FROM playlists;
              DELETE FROM schedule_items;
-             DELETE FROM routine_tag_assignments;
-             DELETE FROM routine_tag_definitions;
              DELETE FROM routines;
              DELETE FROM calendars;
              DELETE FROM wiki_tag_group_members;
@@ -463,6 +436,8 @@ pub async fn data_reset(state: State<'_, DbState>) -> Result<bool, String> {
              DELETE FROM wiki_tag_connections;
              DELETE FROM wiki_tag_assignments;
              DELETE FROM wiki_tags;
+             DELETE FROM note_aliases;
+             DELETE FROM note_links;
              DELETE FROM note_connections;
              DELETE FROM notes;
              DELETE FROM sound_tag_assignments;
@@ -484,6 +459,8 @@ pub async fn data_reset(state: State<'_, DbState>) -> Result<bool, String> {
              DELETE FROM databases;
              DELETE FROM templates;
              DELETE FROM task_templates;
+             DELETE FROM sidebar_links;
+             DELETE FROM timer_settings;
              DELETE FROM app_settings;
              DELETE FROM tasks;",
         )
