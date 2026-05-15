@@ -14,6 +14,7 @@ interface DayFlowSidebarContentProps {
   categoryProgress: Record<DayFlowFilterTab, CategoryProgress>;
   tabs?: readonly TabItem<DayFlowFilterTab>[];
   onReorderTabs?: (newOrder: DayFlowFilterTab[]) => void;
+  scope?: "day" | "month";
 }
 
 export function DayFlowSidebarContent({
@@ -23,6 +24,7 @@ export function DayFlowSidebarContent({
   categoryProgress,
   tabs,
   onReorderTabs,
+  scope = "day",
 }: DayFlowSidebarContentProps) {
   return (
     <div className="flex flex-col gap-3">
@@ -33,6 +35,7 @@ export function DayFlowSidebarContent({
         onToggleFilter={onToggleFilter}
         tabs={tabs}
         onReorderTabs={onReorderTabs}
+        scope={scope}
       />
     </div>
   );

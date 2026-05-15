@@ -1,4 +1,5 @@
 use crate::db::helpers;
+use crate::db::routine_repository;
 use crate::db::DbState;
 use rusqlite::Connection;
 use serde_json::Value;
@@ -527,4 +528,447 @@ pub async fn data_reset(state: State<'_, DbState>) -> Result<bool, String> {
     }
 
     Ok(true)
+}
+
+// ─── Bulk soft-delete Calendar data ────────────────────────────────────────────
+
+/// Soft-delete the calendar-related data the user selects from the Settings
+/// "Calendar データ一括削除" dialog.
+///
+/// Accepted `kinds`:
+///   - "tasks":    scheduled tasks (tasks.type='task' AND scheduled_at IS NOT NULL)
+///   - "events":   schedule_items with routine_id IS NULL (= manually created events)
+///   - "routines": routines + their non-completed derived schedule_items (cascade)
+///   - "dailies":  dailies rows
+///   - "notes":    notes rows
+///
+/// All updates run inside a single transaction. The function bumps `version` and
+/// updates `updated_at` so the Cloud Sync delta path picks them up.
+///
+/// Returns a JSON object whose keys mirror the requested kinds with the number
+/// of rows soft-deleted, plus a "cascaded_schedule_items" count for routines.
+#[tauri::command]
+pub fn db_bulk_soft_delete_calendar_data(
+    state: State<'_, DbState>,
+    kinds: Vec<String>,
+) -> Result<Value, String> {
+    let mut conn = state.conn.lock().map_err(|e| e.to_string())?;
+
+    let wants_tasks = kinds.iter().any(|k| k == "tasks");
+    let wants_events = kinds.iter().any(|k| k == "events");
+    let wants_routines = kinds.iter().any(|k| k == "routines");
+    let wants_dailies = kinds.iter().any(|k| k == "dailies");
+    let wants_notes = kinds.iter().any(|k| k == "notes");
+
+    if !(wants_tasks || wants_events || wants_routines || wants_dailies || wants_notes) {
+        return Ok(serde_json::json!({
+            "tasks": 0,
+            "events": 0,
+            "routines": 0,
+            "cascadedScheduleItems": 0,
+            "dailies": 0,
+            "notes": 0,
+        }));
+    }
+
+    // Collect routine ids first (outside the cascade transaction) so we can
+    // reuse the existing `routine_repository::soft_delete` which itself opens
+    // its own transaction. We then perform the rest of the soft-deletes inside
+    // one transaction for atomicity.
+    let routine_ids: Vec<String> = if wants_routines {
+        let mut stmt = conn
+            .prepare("SELECT id FROM routines WHERE is_deleted = 0")
+            .map_err(|e| e.to_string())?;
+        let rows = stmt
+            .query_map([], |row| row.get::<_, String>(0))
+            .map_err(|e| e.to_string())?;
+        rows.collect::<rusqlite::Result<Vec<_>>>()
+            .map_err(|e| e.to_string())?
+    } else {
+        Vec::new()
+    };
+
+    // Phase 1: routines (each call is its own transaction; cascades schedule_items).
+    let mut cascaded_schedule_items: usize = 0;
+    let mut deleted_routines: usize = 0;
+    for rid in &routine_ids {
+        let cascaded =
+            routine_repository::soft_delete(&mut conn, rid).map_err(|e| e.to_string())?;
+        cascaded_schedule_items += cascaded.len();
+        deleted_routines += 1;
+    }
+
+    // Phase 2: the remaining tables in a single transaction.
+    let tx = conn.transaction().map_err(|e| e.to_string())?;
+
+    let mut deleted_tasks: usize = 0;
+    let mut deleted_events: usize = 0;
+    let mut deleted_dailies: usize = 0;
+    let mut deleted_notes: usize = 0;
+
+    if wants_tasks {
+        deleted_tasks = tx
+            .execute(
+                "UPDATE tasks \
+                 SET is_deleted = 1, deleted_at = datetime('now'), \
+                     version = version + 1, updated_at = datetime('now') \
+                 WHERE type = 'task' AND scheduled_at IS NOT NULL AND is_deleted = 0",
+                [],
+            )
+            .map_err(|e| e.to_string())?;
+    }
+
+    if wants_events {
+        // "Events" = schedule_items that are not routine-derived. Routine-derived
+        // items are handled by the routine cascade above.
+        deleted_events = tx
+            .execute(
+                "UPDATE schedule_items \
+                 SET is_deleted = 1, deleted_at = datetime('now'), \
+                     version = version + 1, updated_at = datetime('now') \
+                 WHERE routine_id IS NULL AND is_deleted = 0",
+                [],
+            )
+            .map_err(|e| e.to_string())?;
+    }
+
+    if wants_dailies {
+        deleted_dailies = tx
+            .execute(
+                "UPDATE dailies \
+                 SET is_deleted = 1, deleted_at = datetime('now'), \
+                     version = version + 1, updated_at = datetime('now') \
+                 WHERE is_deleted = 0",
+                [],
+            )
+            .map_err(|e| e.to_string())?;
+    }
+
+    if wants_notes {
+        deleted_notes = tx
+            .execute(
+                "UPDATE notes \
+                 SET is_deleted = 1, deleted_at = datetime('now'), \
+                     version = version + 1, updated_at = datetime('now') \
+                 WHERE is_deleted = 0",
+                [],
+            )
+            .map_err(|e| e.to_string())?;
+    }
+
+    tx.commit().map_err(|e| e.to_string())?;
+
+    Ok(serde_json::json!({
+        "tasks": deleted_tasks,
+        "events": deleted_events,
+        "routines": deleted_routines,
+        "cascadedScheduleItems": cascaded_schedule_items,
+        "dailies": deleted_dailies,
+        "notes": deleted_notes,
+    }))
+}
+
+#[cfg(test)]
+mod bulk_soft_delete_tests {
+    use crate::db::migrations::run_migrations;
+    use crate::db::{routine_repository, schedule_item_repository};
+    use rusqlite::Connection;
+
+    fn fresh_conn() -> Connection {
+        let conn = Connection::open_in_memory().unwrap();
+        run_migrations(&conn).unwrap();
+        conn
+    }
+
+    /// Replicates the SQL of `db_bulk_soft_delete_calendar_data` without
+    /// requiring tauri's `State<DbState>` so we can unit-test the soft-delete
+    /// behaviour directly against an in-memory database.
+    fn bulk_soft_delete(
+        conn: &mut Connection,
+        kinds: &[&str],
+    ) -> (usize, usize, usize, usize, usize, usize) {
+        let wants = |k: &str| kinds.iter().any(|&x| x == k);
+
+        let routine_ids: Vec<String> = if wants("routines") {
+            let mut stmt = conn
+                .prepare("SELECT id FROM routines WHERE is_deleted = 0")
+                .unwrap();
+            stmt.query_map([], |row| row.get::<_, String>(0))
+                .unwrap()
+                .map(|r| r.unwrap())
+                .collect()
+        } else {
+            Vec::new()
+        };
+
+        let mut cascaded = 0usize;
+        let mut deleted_routines = 0usize;
+        for rid in &routine_ids {
+            cascaded += routine_repository::soft_delete(conn, rid).unwrap().len();
+            deleted_routines += 1;
+        }
+
+        let tx = conn.transaction().unwrap();
+        let mut deleted_tasks = 0usize;
+        let mut deleted_events = 0usize;
+        let mut deleted_dailies = 0usize;
+        let mut deleted_notes = 0usize;
+
+        if wants("tasks") {
+            deleted_tasks = tx
+                .execute(
+                    "UPDATE tasks \
+                     SET is_deleted = 1, deleted_at = datetime('now'), \
+                         version = version + 1, updated_at = datetime('now') \
+                     WHERE type = 'task' AND scheduled_at IS NOT NULL AND is_deleted = 0",
+                    [],
+                )
+                .unwrap();
+        }
+        if wants("events") {
+            deleted_events = tx
+                .execute(
+                    "UPDATE schedule_items \
+                     SET is_deleted = 1, deleted_at = datetime('now'), \
+                         version = version + 1, updated_at = datetime('now') \
+                     WHERE routine_id IS NULL AND is_deleted = 0",
+                    [],
+                )
+                .unwrap();
+        }
+        if wants("dailies") {
+            deleted_dailies = tx
+                .execute(
+                    "UPDATE dailies \
+                     SET is_deleted = 1, deleted_at = datetime('now'), \
+                         version = version + 1, updated_at = datetime('now') \
+                     WHERE is_deleted = 0",
+                    [],
+                )
+                .unwrap();
+        }
+        if wants("notes") {
+            deleted_notes = tx
+                .execute(
+                    "UPDATE notes \
+                     SET is_deleted = 1, deleted_at = datetime('now'), \
+                         version = version + 1, updated_at = datetime('now') \
+                     WHERE is_deleted = 0",
+                    [],
+                )
+                .unwrap();
+        }
+        tx.commit().unwrap();
+
+        (
+            deleted_tasks,
+            deleted_events,
+            deleted_routines,
+            cascaded,
+            deleted_dailies,
+            deleted_notes,
+        )
+    }
+
+    fn seed_task_scheduled(conn: &Connection, id: &str) {
+        conn.execute(
+            "INSERT INTO tasks (id, type, title, parent_id, \"order\", status, \
+             is_expanded, is_deleted, created_at, scheduled_at, version) \
+             VALUES (?1, 'task', 'T', NULL, 0, 'NOT_STARTED', 0, 0, datetime('now'), datetime('now'), 1)",
+            [id],
+        )
+        .unwrap();
+    }
+
+    fn seed_task_unscheduled(conn: &Connection, id: &str) {
+        conn.execute(
+            "INSERT INTO tasks (id, type, title, parent_id, \"order\", status, \
+             is_expanded, is_deleted, created_at, version) \
+             VALUES (?1, 'task', 'T', NULL, 0, 'NOT_STARTED', 0, 0, datetime('now'), 1)",
+            [id],
+        )
+        .unwrap();
+    }
+
+    fn seed_routine(conn: &Connection, id: &str) {
+        routine_repository::create(
+            conn,
+            id,
+            "R",
+            Some("09:00"),
+            Some("09:30"),
+            Some("daily"),
+            None,
+            None,
+            None,
+            false,
+            None,
+        )
+        .unwrap();
+    }
+
+    #[test]
+    fn tasks_only_soft_deletes_scheduled_tasks() {
+        let mut conn = fresh_conn();
+        seed_task_scheduled(&conn, "task-1");
+        seed_task_unscheduled(&conn, "task-2");
+
+        let (deleted_tasks, _, _, _, _, _) = bulk_soft_delete(&mut conn, &["tasks"]);
+        assert_eq!(deleted_tasks, 1);
+
+        let scheduled_state: i64 = conn
+            .query_row(
+                "SELECT is_deleted FROM tasks WHERE id = 'task-1'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        let unscheduled_state: i64 = conn
+            .query_row(
+                "SELECT is_deleted FROM tasks WHERE id = 'task-2'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(scheduled_state, 1, "scheduled task should be soft-deleted");
+        assert_eq!(unscheduled_state, 0, "unscheduled task must remain");
+    }
+
+    #[test]
+    fn events_only_soft_deletes_non_routine_schedule_items() {
+        let mut conn = fresh_conn();
+        seed_routine(&conn, "r-1");
+        // event (no routine_id)
+        schedule_item_repository::create(
+            &conn, "ev-1", "2026-05-12", "Event", "10:00", "11:00", None, None, None, None, None,
+        )
+        .unwrap();
+        // routine-derived item
+        schedule_item_repository::create(
+            &conn,
+            "si-1",
+            "2026-05-12",
+            "Routine",
+            "09:00",
+            "09:30",
+            Some("r-1"),
+            None,
+            None,
+            None,
+            None,
+        )
+        .unwrap();
+
+        let (_, deleted_events, _, _, _, _) = bulk_soft_delete(&mut conn, &["events"]);
+        assert_eq!(deleted_events, 1);
+
+        let ev_state: i64 = conn
+            .query_row(
+                "SELECT is_deleted FROM schedule_items WHERE id = 'ev-1'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        let si_state: i64 = conn
+            .query_row(
+                "SELECT is_deleted FROM schedule_items WHERE id = 'si-1'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(ev_state, 1);
+        assert_eq!(si_state, 0, "routine-derived items must NOT be touched");
+    }
+
+    #[test]
+    fn routines_only_cascades_to_derived_schedule_items() {
+        let mut conn = fresh_conn();
+        seed_routine(&conn, "r-1");
+        schedule_item_repository::create(
+            &conn,
+            "si-1",
+            "2026-05-12",
+            "Routine",
+            "09:00",
+            "09:30",
+            Some("r-1"),
+            None,
+            None,
+            None,
+            None,
+        )
+        .unwrap();
+        schedule_item_repository::create(
+            &conn, "ev-1", "2026-05-12", "Event", "10:00", "11:00", None, None, None, None, None,
+        )
+        .unwrap();
+
+        let (_, _, deleted_routines, cascaded, _, _) =
+            bulk_soft_delete(&mut conn, &["routines"]);
+        assert_eq!(deleted_routines, 1);
+        assert_eq!(cascaded, 1, "one routine-derived schedule_item should cascade");
+
+        let routine_state: i64 = conn
+            .query_row(
+                "SELECT is_deleted FROM routines WHERE id = 'r-1'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        let si_state: i64 = conn
+            .query_row(
+                "SELECT is_deleted FROM schedule_items WHERE id = 'si-1'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        let ev_state: i64 = conn
+            .query_row(
+                "SELECT is_deleted FROM schedule_items WHERE id = 'ev-1'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(routine_state, 1);
+        assert_eq!(si_state, 1, "derived schedule_item should cascade-delete");
+        assert_eq!(ev_state, 0, "manual event must remain");
+    }
+
+    #[test]
+    fn version_is_bumped_for_sync_delta() {
+        let mut conn = fresh_conn();
+        seed_task_scheduled(&conn, "task-1");
+        let before: i64 = conn
+            .query_row(
+                "SELECT version FROM tasks WHERE id = 'task-1'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+
+        bulk_soft_delete(&mut conn, &["tasks"]);
+
+        let after: i64 = conn
+            .query_row(
+                "SELECT version FROM tasks WHERE id = 'task-1'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert!(after > before, "version must be bumped for Cloud Sync delta");
+    }
+
+    #[test]
+    fn empty_kinds_returns_zero_counts() {
+        let mut conn = fresh_conn();
+        seed_task_scheduled(&conn, "task-1");
+        let (tasks, events, routines, cascaded, dailies, notes) =
+            bulk_soft_delete(&mut conn, &[]);
+        assert_eq!(tasks, 0);
+        assert_eq!(events, 0);
+        assert_eq!(routines, 0);
+        assert_eq!(cascaded, 0);
+        assert_eq!(dailies, 0);
+        assert_eq!(notes, 0);
+    }
 }

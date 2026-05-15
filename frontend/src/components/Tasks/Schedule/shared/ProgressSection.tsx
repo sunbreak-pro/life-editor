@@ -28,6 +28,7 @@ interface ProgressSectionProps {
   onToggleFilter: (tab: DayFlowFilterTab) => void;
   tabs?: readonly TabItem<DayFlowFilterTab>[];
   onReorderTabs?: (newOrder: DayFlowFilterTab[]) => void;
+  scope?: "day" | "month";
 }
 
 function SortableProgressItem({
@@ -125,9 +126,13 @@ export function ProgressSection({
   onToggleFilter,
   tabs,
   onReorderTabs,
+  scope = "day",
 }: ProgressSectionProps) {
   const { t } = useTranslation();
-  const dateLabel = `${date.getMonth() + 1}/${date.getDate()}`;
+  const dateLabel =
+    scope === "month"
+      ? `${date.getFullYear()}/${date.getMonth() + 1}`
+      : `${date.getMonth() + 1}/${date.getDate()}`;
 
   const allTabs = tabs ?? DAY_FLOW_FILTER_TABS;
   const reorderable = !!onReorderTabs;

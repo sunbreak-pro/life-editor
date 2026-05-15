@@ -196,7 +196,8 @@ export function ScheduleSection({
     routines,
     routineStats,
     scheduleItems,
-    loadItemsForDate,
+    monthlyScheduleItems,
+    loadScheduleItemsForMonth,
     refreshRoutineStats,
   } = useScheduleContext();
 
@@ -251,39 +252,57 @@ export function ScheduleSection({
     };
   }, [scheduleItems, tasksByDate, allTasksByDate, dateKey]);
 
-  // Calendar progress: load items for calendarProgressDate and compute progress
-  const calendarProgressDateKey = formatDateKey(calendarProgressDate);
+  // Calendar progress: month-wide aggregation anchored to calendarProgressDate
+  const calendarProgressYear = calendarProgressDate.getFullYear();
+  const calendarProgressMonth = calendarProgressDate.getMonth();
 
-  // Calendar progress uses its own date for tasks lookup
-  const { tasksByDate: calendarTasksByDate } = useCalendar(
-    nodes,
-    calendarProgressDate.getFullYear(),
-    calendarProgressDate.getMonth(),
-    "incomplete",
-    calendarProgressDate,
-  );
-
-  // Load schedule items for calendar progress date (only when calendar tab active)
+  // Ensure the displayed month's schedule items are loaded when Calendar tab is active
   useEffect(() => {
     if (activeTab === "calendar") {
-      loadItemsForDate(calendarProgressDateKey);
+      void loadScheduleItemsForMonth(
+        calendarProgressYear,
+        calendarProgressMonth,
+      );
     }
-  }, [activeTab, calendarProgressDateKey, loadItemsForDate]);
+  }, [
+    activeTab,
+    calendarProgressYear,
+    calendarProgressMonth,
+    loadScheduleItemsForMonth,
+  ]);
 
   const calendarCategoryProgress = useMemo((): Record<
     DayFlowFilterTab,
     CategoryProgress
   > => {
-    const routineItems = scheduleItems.filter((i) => i.routineId !== null);
-    const otherItems = scheduleItems.filter((i) => i.routineId === null);
-    const dayTasks = calendarTasksByDate.get(calendarProgressDateKey) ?? [];
-    const allDayTasks = allTasksByDate.get(calendarProgressDateKey) ?? [];
+    const monthStart = new Date(calendarProgressYear, calendarProgressMonth, 1);
+    const monthEnd = new Date(
+      calendarProgressYear,
+      calendarProgressMonth + 1,
+      0,
+    );
+    const monthStartKey = formatDateKey(monthStart);
+    const monthEndKey = formatDateKey(monthEnd);
+    const dateInMonth = (key: string) =>
+      key >= monthStartKey && key <= monthEndKey;
+
+    const routineItems = monthlyScheduleItems.filter(
+      (i) => i.routineId !== null && dateInMonth(i.date),
+    );
+    const otherItems = monthlyScheduleItems.filter(
+      (i) => i.routineId === null && dateInMonth(i.date),
+    );
+
+    // Aggregate all non-deleted scheduled tasks falling inside this month
     const taskIdSet = new Set<string>();
     const taskItems: TaskNode[] = [];
-    for (const t of [...dayTasks, ...allDayTasks]) {
-      if (!taskIdSet.has(t.id)) {
-        taskIdSet.add(t.id);
-        taskItems.push(t);
+    for (const [dateKey, dayTasks] of allTasksByDate) {
+      if (!dateInMonth(dateKey)) continue;
+      for (const t of dayTasks) {
+        if (!taskIdSet.has(t.id)) {
+          taskIdSet.add(t.id);
+          taskItems.push(t);
+        }
       }
     }
     const completedTasks = taskItems.filter((t) => t.status === "DONE").length;
@@ -291,20 +310,18 @@ export function ScheduleSection({
     const routineCompleted = routineItems.filter((i) => i.completed).length;
     const otherCompleted = otherItems.filter((i) => i.completed).length;
 
-    // Daily: memo exists for this date → 1/1, otherwise 0/0
-    const hasDailyMemo = dailies.some(
-      (m) => m.date === calendarProgressDateKey && !m.isDeleted,
+    // Dailies: any non-deleted daily whose date falls in this month
+    const monthDailies = dailies.filter(
+      (m) => !m.isDeleted && dateInMonth(m.date),
     );
-    const dailyTotal = hasDailyMemo ? 1 : 0;
+    const dailyTotal = monthDailies.length;
     const dailyCompleted = dailyTotal;
 
-    // Notes: count non-deleted notes created on this date
-    const notesForDate = notes.filter(
-      (n) =>
-        !n.isDeleted &&
-        formatDateKey(new Date(n.createdAt)) === calendarProgressDateKey,
+    // Notes: any non-deleted note created within this month
+    const monthNotes = notes.filter(
+      (n) => !n.isDeleted && dateInMonth(formatDateKey(new Date(n.createdAt))),
     );
-    const notesTotal = notesForDate.length;
+    const notesTotal = monthNotes.length;
     const notesCompleted = notesTotal;
 
     const allTotal =
@@ -329,10 +346,10 @@ export function ScheduleSection({
       notes: { completed: notesCompleted, total: notesTotal },
     };
   }, [
-    scheduleItems,
-    calendarTasksByDate,
+    monthlyScheduleItems,
     allTasksByDate,
-    calendarProgressDateKey,
+    calendarProgressYear,
+    calendarProgressMonth,
     dailies,
     notes,
   ]);
@@ -531,6 +548,7 @@ export function ScheduleSection({
                 }
                 tabs={orderedCalendarTabs}
                 onReorderTabs={reorderTabs}
+                scope="month"
               />
             )}
           </ScheduleSidebarContent>,

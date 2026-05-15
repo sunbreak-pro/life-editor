@@ -102,6 +102,52 @@ describe("useCalendar", () => {
       expect(result.current.tasksByDate.size).toBe(0);
     });
 
+    it("excludes soft-deleted tasks (incomplete filter)", () => {
+      const tasks = [
+        makeTask({
+          id: "task-alive",
+          status: "NOT_STARTED",
+          scheduledAt: "2026-01-15T10:00:00.000Z",
+        }),
+        makeTask({
+          id: "task-deleted",
+          status: "NOT_STARTED",
+          scheduledAt: "2026-01-15T11:00:00.000Z",
+          isDeleted: true,
+          deletedAt: "2026-01-15T12:00:00.000Z",
+        }),
+      ];
+      const { result } = renderHook(() =>
+        useCalendar(tasks, 2026, 0, "incomplete"),
+      );
+      const dateTasks = result.current.tasksByDate.get("2026-01-15") ?? [];
+      expect(dateTasks.length).toBe(1);
+      expect(dateTasks[0].id).toBe("task-alive");
+    });
+
+    it("excludes soft-deleted tasks (completed filter)", () => {
+      const tasks = [
+        makeTask({
+          id: "task-done-alive",
+          status: "DONE",
+          scheduledAt: "2026-01-15T10:00:00.000Z",
+        }),
+        makeTask({
+          id: "task-done-deleted",
+          status: "DONE",
+          scheduledAt: "2026-01-15T11:00:00.000Z",
+          isDeleted: true,
+          deletedAt: "2026-01-15T12:00:00.000Z",
+        }),
+      ];
+      const { result } = renderHook(() =>
+        useCalendar(tasks, 2026, 0, "completed"),
+      );
+      const dateTasks = result.current.tasksByDate.get("2026-01-15") ?? [];
+      expect(dateTasks.length).toBe(1);
+      expect(dateTasks[0].id).toBe("task-done-alive");
+    });
+
     it("shows multi-day task on all dates in range", () => {
       const task = makeTask({
         id: "task-multi",
