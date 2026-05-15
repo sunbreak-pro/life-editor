@@ -1,7 +1,17 @@
 # Core Vision
 
 > CLAUDE.md §1-5 の詳細版。Core Identity / Target User / Value Propositions / Non-Goals / Platform Strategy。
-> **素案（Phase A-2）— ユーザーレビュー待ち**
+
+> ⚠️ **失効中の章あり（2026-05-14 時点）** — 本ファイルは Tauri 2 + Cloudflare D1 + SQLite SSOT 前提で書かれている。`refactor/web-first-v2` 移行で以下は **既に反転済み**：
+>
+> - §1 Elevator pitch の「Tauri アプリ / SQLite ローカル SSOT / オフライン完全動作」 → **Electron + Capacitor + Web + Supabase / 常時オンライン前提**
+> - §1 意図的に外した「Web UI」 → **Web URL も配布対象**
+> - §3 V2「オフライン完全動作」 → **オンライン前提**（編集中バナーで圏外通知）
+> - §4 NG-2「Web UI 提供しない」 → **撤回**
+> - §4 NG-5「モバイル単独起動サポートしない」 → **撤回**（Capacitor で Mobile 単独も配布）
+> - §5 Platform Strategy「Tauri 2.0」「Cloudflare Workers + D1」 → **新スタックへ全置換予定**
+>
+> 現行 SSOT は [`.claude/2026-05-04-cross-platform-migration.md`](../../2026-05-04-cross-platform-migration.md)。本ファイルは移行 Phase 5 完了時に全面改訂する。それまでは SSOT を優先参照すること。
 
 ---
 

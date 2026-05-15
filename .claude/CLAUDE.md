@@ -2,7 +2,9 @@
 
 > 設計判断・実装規約の SSOT。ビジョン・抽象構想は `.claude/docs/vision/` に分離。Claude Code 起動時に auto-load。
 
-> ⚠️ **Active Migration (2026-05-04 開始)** — `refactor/web-first-v2` ブランチで Tauri 2 + Cloudflare D1 + portable-pty → **Electron + Capacitor + Web + Supabase** への大規模移行が進行中。SSOT は [`.claude/2026-05-04-cross-platform-migration.md`](./2026-05-04-cross-platform-migration.md)。本ファイル §1-7 は現行 Tauri 構成を記述しており、Phase 5 完了時に全面改訂される。現在は Phase 0（学習スパイク `~/dev/learning/applications/_spikes/web-first-spike-1/`）。
+> ⚠️ **Active Migration (2026-05-04 開始 / 2026-05-14 方針更新)** — `refactor/web-first-v2` ブランチで Tauri 2 + Cloudflare D1 + portable-pty → **Electron + Capacitor + Web + Supabase** への大規模移行が進行中。SSOT は [`.claude/2026-05-04-cross-platform-migration.md`](./2026-05-04-cross-platform-migration.md)。本ファイル §1-7 は現行 Tauri 構成を記述しており、Phase 5 完了時に全面改訂される。
+>
+> **新方針 (2026-05-14)**: ①学習スパイク廃止 → life-editor 本体で動かしながら学ぶ ②学習用 Markdown ログ廃止 ③Phase 5 完了 = 完成までコスト $0 厳守（Apple Developer Program / Supabase Pro / 署名証明書 は完成後判断）。現在は **Phase 1 着手準備中**。
 
 ---
 

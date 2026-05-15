@@ -3,6 +3,15 @@
 > SQLite + Cloud D1 + Sync Engine にまたがる DB 操作の規約集。設計原則（なぜ）と遵守ルール（どう書くか）の両方を保持する。
 > 実装コードの規約部分（どう書くか）は CLAUDE.md §4, §7 の SSOT 章からもリンクされる。
 
+> ⚠️ **失効予定（2026-05-14 時点）** — 本ファイル全体が **現行 Tauri SQLite + Cloud D1 構成**を前提とした規約。`refactor/web-first-v2` で **Supabase Postgres + RLS + Realtime** に全面置換されると、以下はすべて意味を失う:
+>
+> - SQLite WAL / rusqlite / better-sqlite3 / MCP 3-runtime write rule
+> - Cloud D1 専用 migration 0003-0007（server_updated_at 等）
+> - `sync_engine.rs` の VERSIONED_TABLES / RELATION_TABLES_WITH_UPDATED_AT / inline ハンドリング
+> - バージョンカラム + Last-Write-Wins 同期ロジック
+>
+> 並立期間中（Phase 1-4）は現行 frontend/ + src-tauri/ + cloud/ コードに対して **このファイルの規約はそのまま有効**。一方で新規の shared/ + supabase/ コードには Postgres + RLS 規約（Phase 5 で本ファイルに統合 or 別ファイル化）を適用する。現行 SSOT: [`.claude/2026-05-04-cross-platform-migration.md`](../../2026-05-04-cross-platform-migration.md)
+
 ---
 
 ## 0. 背景
