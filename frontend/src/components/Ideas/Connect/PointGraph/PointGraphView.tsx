@@ -1,3 +1,6 @@
+import { useCallback, useMemo, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
+import { Filter } from "lucide-react";
 import type {
   WikiTag,
   WikiTagAssignment,
@@ -5,11 +8,15 @@ import type {
 } from "../../../../types/wikiTag";
 import type { NoteNode } from "../../../../types/note";
 import type { DailyNode } from "../../../../types/daily";
-import { useState } from "react";
 import type { NoteLink } from "../../../../types/noteLink";
 import { usePointGraphModel } from "./hooks/usePointGraphModel";
+import { useGraphFilters } from "./hooks/useGraphFilters";
 import { GraphCanvas } from "./components/GraphCanvas";
-import { DEFAULT_FORCES } from "./hooks/usePointGraphSimulation";
+import { GraphTopBar } from "./components/GraphTopBar";
+import { GraphControlPanel } from "./components/GraphControlPanel";
+import { SelectedNodeCard } from "./components/SelectedNodeCard";
+import { buildAdjacency } from "./lib/graph-render";
+import { isTagNodeId } from "./lib/graph-types";
 
 interface ConnectRequest {
   tagId: string | null;
@@ -56,7 +63,11 @@ export function PointGraphView({
   assignments,
   noteConnections,
   noteLinks,
+  onNavigateToNote,
+  onNavigateToMemo,
 }: PointGraphViewProps) {
+  const { t } = useTranslation();
+
   const snapshot = usePointGraphModel({
     notes,
     dailies,
@@ -67,17 +78,148 @@ export function PointGraphView({
   });
 
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [alpha, setAlpha] = useState(0);
+  const [fps, setFps] = useState(0);
+  const [zoomK, setZoomK] = useState(1);
+  const apiRef = useRef<{ reheat: () => void; resetView: () => void } | null>(
+    null,
+  );
+
+  const filters = useGraphFilters(snapshot, selectedId);
+
+  // Adjacency over the full graph so the selected card lists every neighbor
+  // even when filtered out of the canvas.
+  const adjacency = useMemo(
+    () => buildAdjacency(snapshot.nodes, snapshot.links),
+    [snapshot],
+  );
+  const nodeById = useMemo(() => {
+    const m = new Map(snapshot.nodes.map((n) => [n.id, n]));
+    return m;
+  }, [snapshot]);
+
+  const selectedNode = selectedId ? (nodeById.get(selectedId) ?? null) : null;
+  const neighbors = useMemo(() => {
+    if (!selectedId) return [];
+    const ids = adjacency.get(selectedId);
+    if (!ids) return [];
+    return [...ids]
+      .filter((id) => id !== selectedId)
+      .map((id) => nodeById.get(id))
+      .filter((n): n is NonNullable<typeof n> => n != null);
+  }, [selectedId, adjacency, nodeById]);
+
+  const typeCounts = useMemo(() => {
+    const c: Record<string, number> = {};
+    for (const n of filters.filtered.nodes) c[n.type] = (c[n.type] || 0) + 1;
+    return c;
+  }, [filters.filtered]);
+  const totalTypeCounts = useMemo(() => {
+    const c: Record<string, number> = {};
+    for (const n of snapshot.nodes) c[n.type] = (c[n.type] || 0) + 1;
+    return c;
+  }, [snapshot]);
+
+  const handleActivate = useCallback(
+    (id: string) => {
+      if (isTagNodeId(id)) return;
+      const node = nodeById.get(id);
+      if (!node) return;
+      if (node.type === "daily") {
+        onNavigateToMemo?.(node.label);
+      } else {
+        onNavigateToNote?.(id);
+      }
+    },
+    [nodeById, onNavigateToNote, onNavigateToMemo],
+  );
 
   return (
-    <div className="h-full w-full">
+    <div className="relative h-full w-full">
       <GraphCanvas
-        snapshot={snapshot}
-        forces={DEFAULT_FORCES}
-        showLabels
-        searchMatchSet={null}
+        snapshot={filters.filtered}
+        forces={filters.forces}
+        showLabels={filters.showLabels}
+        searchMatchSet={filters.searchMatchSet}
         selectedId={selectedId}
         onSelectedIdChange={setSelectedId}
+        onActivate={handleActivate}
+        onApiReady={(api) => {
+          apiRef.current = api;
+        }}
+        onZoomChange={setZoomK}
+        onAlpha={setAlpha}
+        onFps={setFps}
       />
+
+      <GraphTopBar
+        alpha={alpha}
+        fps={fps}
+        zoomPct={Math.round(zoomK * 100)}
+        nodeCount={filters.filtered.nodes.length}
+        totalCount={snapshot.nodes.length}
+        edgeCount={filters.filtered.links.length}
+        activeFilterCount={filters.activeFilterCount}
+        panelOpen={filters.panelOpen}
+        onClearFilters={filters.clearAll}
+        onReheat={() => apiRef.current?.reheat()}
+        onResetView={() => apiRef.current?.resetView()}
+        onTogglePanel={filters.togglePanel}
+      />
+
+      {snapshot.nodes.length > 0 && filters.filtered.nodes.length === 0 && (
+        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+          <div className="text-center space-y-2 text-notion-text-secondary">
+            <Filter size={32} className="mx-auto opacity-50" />
+            <div className="text-[13px]">{t("connect.graph.noMatch")}</div>
+            <button
+              type="button"
+              onClick={filters.clearAll}
+              className="mt-2 px-3 py-1 rounded text-[11px] pointer-events-auto bg-notion-bg border border-notion-border text-notion-text hover:bg-notion-hover"
+            >
+              {t("connect.graph.clearFilters")}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {snapshot.nodes.length === 0 && (
+        <div className="absolute inset-0 flex items-center justify-center text-sm text-notion-text-secondary">
+          {t("ideas.graphEmpty")}
+        </div>
+      )}
+
+      {selectedNode && (
+        <SelectedNodeCard
+          node={selectedNode}
+          neighbors={neighbors}
+          localDepth={filters.filter.localDepth}
+          onLocalDepthChange={filters.setLocalDepth}
+          onSelect={setSelectedId}
+          onClose={() => setSelectedId(null)}
+          onActivate={handleActivate}
+        />
+      )}
+
+      {filters.panelOpen && (
+        <GraphControlPanel
+          filter={filters.filter}
+          onSearchChange={filters.setSearch}
+          onToggleType={filters.toggleType}
+          onToggleTag={filters.toggleTag}
+          onClearTags={filters.clearTags}
+          onLocalDepthChange={filters.setLocalDepth}
+          showLabels={filters.showLabels}
+          onShowLabelsChange={filters.setShowLabels}
+          onShowOrphansChange={filters.setShowOrphans}
+          forces={filters.forces}
+          onForcesChange={filters.setForces}
+          tags={tags}
+          typeCounts={typeCounts}
+          totalTypeCounts={totalTypeCounts}
+          selectedLabel={selectedNode ? selectedNode.label : null}
+        />
+      )}
     </div>
   );
 }

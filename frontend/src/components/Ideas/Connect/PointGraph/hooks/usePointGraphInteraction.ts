@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import type { Simulation } from "d3-force";
 import type { Quadtree } from "d3-quadtree";
 import { select } from "d3-selection";
@@ -28,6 +28,8 @@ interface Args {
   onSelect: (id: string | null) => void;
   /** double-click / "open" intent on a node */
   onActivate?: (id: string) => void;
+  /** reports the current zoom scale (k) on zoom gestures */
+  onZoom?: (k: number) => void;
 }
 
 export function usePointGraphInteraction({
@@ -42,7 +44,8 @@ export function usePointGraphInteraction({
   onHover,
   onSelect,
   onActivate,
-}: Args): void {
+  onZoom,
+}: Args): { resetView: () => void } {
   const zoomRef = useRef<ZoomBehavior<HTMLCanvasElement, unknown> | null>(null);
   const draggedRef = useRef<GraphNode | null>(null);
   const hoveredRef = useRef<GraphNode | null>(null);
@@ -86,6 +89,7 @@ export function usePointGraphInteraction({
       .on("zoom", (event) => {
         const tr = event.transform;
         transformRef.current = { x: tr.x, y: tr.y, k: tr.k };
+        onZoom?.(tr.k);
         drawRef.current?.();
       })
       .on("end", () => {
@@ -241,4 +245,16 @@ export function usePointGraphInteraction({
     });
     return () => cancelAnimationFrame(raf);
   }, [selectedId, size.w, size.h, canvasRef, graphRef]);
+
+  const resetView = useCallback(() => {
+    const canvas = canvasRef.current;
+    const zoomBehavior = zoomRef.current;
+    if (!canvas || !zoomBehavior) return;
+    select(canvas)
+      .transition()
+      .duration(400)
+      .call(zoomBehavior.transform, zoomIdentity);
+  }, [canvasRef]);
+
+  return { resetView };
 }

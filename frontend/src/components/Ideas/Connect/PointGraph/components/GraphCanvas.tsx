@@ -28,8 +28,9 @@ interface GraphCanvasProps {
   onSelectedIdChange: (id: string | null) => void;
   /** double-click a node ("open" intent) */
   onActivate?: (id: string) => void;
-  /** exposes imperative actions (reheat) once the canvas is ready */
-  onApiReady?: (api: { reheat: () => void }) => void;
+  /** exposes imperative actions once the canvas is ready */
+  onApiReady?: (api: { reheat: () => void; resetView: () => void }) => void;
+  onZoomChange?: (k: number) => void;
   onAlpha?: (a: number) => void;
   onFps?: (fps: number) => void;
 }
@@ -43,6 +44,7 @@ export function GraphCanvas({
   onSelectedIdChange,
   onActivate,
   onApiReady,
+  onZoomChange,
   onAlpha,
   onFps,
 }: GraphCanvasProps) {
@@ -140,7 +142,7 @@ export function GraphCanvas({
     }
   }, [hoveredId, selectedId, showLabels, searchMatchSet, palette]);
 
-  usePointGraphInteraction({
+  const { resetView } = usePointGraphInteraction({
     canvasRef,
     transformRef,
     simRef,
@@ -152,11 +154,12 @@ export function GraphCanvas({
     onHover: setHoveredId,
     onSelect: (id) => onSelectedIdChange(id === selectedId ? null : id),
     onActivate,
+    onZoom: onZoomChange,
   });
 
   useEffect(() => {
-    onApiReady?.({ reheat });
-  }, [onApiReady, reheat]);
+    onApiReady?.({ reheat, resetView });
+  }, [onApiReady, reheat, resetView]);
 
   return (
     <div ref={wrapRef} className="relative h-full w-full bg-notion-bg">
