@@ -191,6 +191,16 @@ SQL
   expect_qual "B7 (true) no auth.uid()" 1 '(true)'
   expect_qual "B8 (org_id = current_org()) no auth.uid()" 1 \
     '(org_id = current_org())'
+
+  # B9-B10 (Phase 2 S1-1): the EXACT qual Postgres stores for the
+  # 0003_tasks_full_schema.sql owner policies. `using (auth.uid() =
+  # user_id)` is normalised by PG to `(auth.uid() = user_id)`; the INSERT
+  # policy's WITH CHECK is the same shape. Both must PASS (0) so 0003
+  # clears the gate with NO allowlist entry.
+  expect_qual "B9 0003 tasks_select/update/delete qual" 0 \
+    '(auth.uid() = user_id)'
+  expect_qual "B10 0003 tasks_insert with_check" 0 \
+    '(auth.uid() = user_id)'
 fi
 
 # ---------------------------------------------------------------------------
@@ -203,6 +213,45 @@ if grep -qF '___RLS_GATE_OK___' "${GATE_SQL}" \
   ok "C1 SQL retains sentinel + compound allowlist join + SEC-High-1 clause"
 else
   bad "C1 SQL missing sentinel / compound join / SEC-High-1 clause"
+fi
+
+# ---------------------------------------------------------------------------
+# C2 (Phase 2 S1-1): 0003_tasks_full_schema.sql must, in ONE file, enable
+# RLS and attach all four owner-only policies with a clean `auth.uid() =
+# user_id` equality (no `or true` short-circuit). This is a static
+# structural assertion against the migration text — it does not contact a
+# DB, but proves the file would clear the gate's detectors.
+# ---------------------------------------------------------------------------
+MIG_0003="${SCRIPT_DIR}/../migrations/0003_tasks_full_schema.sql"
+if [[ -f "${MIG_0003}" ]]; then
+  c2_ok=1
+  # Evaluate EXECUTABLE SQL only: strip `--` line comments (the gate's
+  # detectors run on pg_catalog, never on comment text — so must we).
+  MIG_0003_SQL="$(sed -e 's/--.*$//' "${MIG_0003}")"
+  grep -qiE 'enable[[:space:]]+row[[:space:]]+level[[:space:]]+security' \
+    <<<"${MIG_0003_SQL}" || c2_ok=0
+  for p in tasks_select_own tasks_insert_own tasks_update_own \
+           tasks_delete_own; do
+    grep -qF "create policy ${p}" <<<"${MIG_0003_SQL}" || c2_ok=0
+  done
+  # Clean owner equality present, and NO `or true` / `true or` short-circuit
+  # anywhere in the executable SQL (which would trip has_qual_no_authuid
+  # case 3).
+  grep -qiE 'auth\.uid\(\)[[:space:]]*=[[:space:]]*user_id' \
+    <<<"${MIG_0003_SQL}" || c2_ok=0
+  grep -qiE '\bto[[:space:]]+authenticated\b' <<<"${MIG_0003_SQL}" \
+    || c2_ok=0
+  if grep -qiE '(true[[:space:]]+or|or[[:space:]]+true)' \
+       <<<"${MIG_0003_SQL}"; then
+    c2_ok=0
+  fi
+  if [[ "${c2_ok}" -eq 1 ]]; then
+    ok "C2 0003 has RLS enable + 4 owner policies + clean auth.uid()=user_id"
+  else
+    bad "C2 0003 missing RLS enable / a policy / clean owner equality"
+  fi
+else
+  bad "C2 0003_tasks_full_schema.sql not found"
 fi
 
 echo

@@ -7,11 +7,11 @@
 **対象**: `supabase/migrations/0003+`（ドメイン別本格スキーマ）/ `supabase/scripts/`（RLS ゲート）/ `shared/src/{components,context,hooks,i18n}/`（frontend から Tauri 非依存を移植）/ `web/`（配線）。`frontend/` `src-tauri/` `cloud/` 不可侵維持
 **計画書**: `.claude/docs/vision/plans/2026-05-16-phase2-core-migration.md`
 
-- 前回: S0 完了 — S0(a) RLS 漏れ検出ゲート（check-rls.sql/sh/selftest、全開 policy 検出、番兵行で接続失敗を安全側 exit2、self-test 15/15。security Critical-1/High-1/High-2 + QA 全 CLOSED）/ S0(b) tsconfig（shared composite + web project references 化、frontend `tsc -b`=0 非破壊）
-- 現在: S1 Tasks 移植 着手準備（0003 tasks 本格スキーマ = id 型 text §4.3 準拠 + RLS 4 policy / `SupabaseDataService` tasks 9 メソッド拡張 / `frontend/src/components/Tasks/` Tauri 非依存を `shared/` へ）
-- 次: S2 Daily → S3 Notes → S4 Schedule → S5 WikiTags → S6 横断(context/hooks/i18n) → S7 オフラインバナー → S8 Realtime → S9 Mobile レスポンシブ
+- 前回: S1 完了 — 0003 tasks 破壊的 rebuild（text id §4.3 / CHECK 制約化 / RLS owner-only 4 policy）/ `SupabaseDataService` tasks 9 メソッド全列実装 + `taskMapper.ts` で型詐称撤廃 / shared へ TaskTree hooks/context/utils 依存注入移植 + web @dnd-kit TaskTree UI / shared React 化。監査 QA=APPROVE W/C・security=SECURE W/REC、Important-1(folder_type CHECK) 解消、self-test 18/18・round-trip 8/8・frontend tsc -b=0 非破壊
+- 現在: S2 Daily 移植 着手準備（`dailies` 単一テーブル UPSERT 中心 `daily-<YYYY-MM-DD>` キー / DataService daily / `Daily/` 移植）
+- 次: S3 Notes → S4 Schedule → S5 WikiTags → S6 横断(context/hooks/i18n) → S7 オフラインバナー → S8 Realtime → S9 Mobile レスポンシブ
 
-**S0 申し送り（S1 で対処/留意）**: ①`check-rls` の `%true%or%`/`%or%true%` over-report — 共有系 policy（`is_public OR owner`）誤 BLOCK、allowlist 1 行で回避（実害なし）、共有テーブル設計時に周知 ②実接続検証は `SUPABASE_DB_URL` 未提供でブロック中、最初の新テーブル push 直前に `npm run db:check-rls` green を 1 回必須（README 運用化済）③Phase1 検証残骸（`rls.a/b@gmail.com`・"A-task"）はユーザー手動掃除（S1-1 適用前）④id 型=text 確定 ⑤`migrateTasksToBackend` は Web で no-op stub ⑥`useSyncContext` は Web 用 no-op Provider 暫定（S8 Realtime で正式置換）
+**S1 申し送り（S2 以降で対処/留意）**: ①**[要ユーザー対応] SUPABASE_DB_URL パース失敗** — pooler 接続文字列のパスワード未エンコード（`net/url: invalid userinfo`）。RLS ゲートは exit2 で正しく fail-safe。0003 push 前にパスワード URL エンコード or Session pooler/Direct connection 文字列へ要修正 ②**[S1-9 未実施]** SUPABASE_DB_URL 修正 → `npm run db:check-rls` green → `npx supabase db push`(ユーザー確認) → 実ブラウザ CRUD/DnD/soft-delete + RLS 実証。S8 まで他タブ非反映は想定挙動 ③**[S8 申し送り] M1**: softDelete/restore/update が version 非増分（LWW 乖離）→ S8 同期実装で対処 ④M2 mutation 0行サイレント / L1 0003 再適用 runbook / L2 parent_id FK on delete / Suggestion(Proxy Symbol ガード, created_at) → S2 以降 ⑤**[要判断]** `.claude/HISTORY-archive.md.bak`(269KB) が working tree に残留（archive 圧縮の原本退避と判明、別チャット由来の可能性）— 削除/保持はユーザー判断 ⑥計画書 Files 表に shared React 化追記要 ⑦S0 申し送り: `check-rls` over-report は共有テーブル設計時に周知 / `migrateTasksToBackend`=no-op / `useSyncContext`=no-op Provider（S8 で正式置換）
 **サブエージェント分担**: 設計=role-pm / 実装=role-engineer / 監査=role-qa+security-reviewer / 統括=メイン
 
 ## 直近の完了

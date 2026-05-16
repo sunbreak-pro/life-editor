@@ -10,7 +10,8 @@
     "forceConsistentCasingInFileNames": true,
     "isolatedModules": true,
     "verbatimModuleSyntax": true,
-    "types": [],
+    "jsx": "react-jsx",
+    "types": ["react"],
 
     /* Composite project: built once into dist/, consumed by web/ (and
        later desktop/mobile) via a `references` edge + .d.ts, not by
