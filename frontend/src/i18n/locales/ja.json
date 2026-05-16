@@ -641,6 +641,38 @@
       "cancel": "キャンセル",
       "alreadyLinked": "両方に付与済み",
       "noTags": "タグがまだありません"
+    },
+    "graph": {
+      "search": "ノードを検索...",
+      "nodeTypes": "ノード種別",
+      "tags": "タグ",
+      "localGraph": "ローカルグラフ",
+      "display": "表示",
+      "forces": "物理",
+      "showOrphans": "孤立ノードを表示",
+      "showLabels": "ラベルを表示",
+      "repel": "反発",
+      "linkDistance": "リンク距離",
+      "center": "中心引力",
+      "collide": "衝突半径",
+      "clearFilters": "フィルタ解除",
+      "noMatch": "条件に一致するノードがありません",
+      "reheat": "再配置",
+      "resetView": "ビューをリセット",
+      "togglePanel": "パネル切替",
+      "depth": "深さ",
+      "off": "オフ",
+      "connections": "接続",
+      "selectNodeHint": "キャンバスでノードを選択するとローカルグラフが有効になります",
+      "tapHint": "ノードをタップで中央へ。ドラッグで移動。ピンチ / スクロールでズーム。",
+      "links": "リンク",
+      "tagsShort": "タグ",
+      "match_one": "{{count}} 件一致",
+      "match_other": "{{count}} 件一致",
+      "typeProject": "プロジェクト",
+      "typeNote": "ノート",
+      "typeDaily": "デイリー",
+      "typeTag": "タグ"
     }
   },
   "ideas": {
@@ -694,14 +726,6 @@
     "searchBoards": "ボードを検索..."
   },
   "schedule": {
-    "bulkDelete": {
-      "events": "全Eventを削除",
-      "routines": "全Routineを削除",
-      "tasks": "全タスクを削除",
-      "confirm": "もう一度押すと削除（ゴミ箱へ）",
-      "deleting": "削除中...",
-      "failed": "削除失敗: {{error}}"
-    },
     "todayFlow": "Today Flow",
     "noItems": "この日のアイテムはありません",
     "complete": "完了",

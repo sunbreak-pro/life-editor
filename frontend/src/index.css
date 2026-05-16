@@ -1466,3 +1466,25 @@ body {
   border-radius: 3px;
   flex-shrink: 0;
 }
+
+.point-graph-slider::-webkit-slider-thumb {
+  appearance: none;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--color-bg-primary);
+  cursor: pointer;
+  border: 2px solid var(--color-accent);
+  transition: box-shadow 0.15s;
+}
+.point-graph-slider::-webkit-slider-thumb:hover {
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--color-accent) 30%, transparent);
+}
+.point-graph-slider::-moz-range-thumb {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--color-bg-primary);
+  cursor: pointer;
+  border: 2px solid var(--color-accent);
+}

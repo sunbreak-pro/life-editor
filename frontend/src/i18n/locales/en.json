@@ -641,6 +641,38 @@
       "cancel": "Cancel",
       "alreadyLinked": "already on both",
       "noTags": "No tags yet"
+    },
+    "graph": {
+      "search": "Search nodes...",
+      "nodeTypes": "Node Types",
+      "tags": "Tags",
+      "localGraph": "Local Graph",
+      "display": "Display",
+      "forces": "Forces",
+      "showOrphans": "Show orphans",
+      "showLabels": "Show labels",
+      "repel": "Repel",
+      "linkDistance": "Link distance",
+      "center": "Center",
+      "collide": "Collide",
+      "clearFilters": "Clear filters",
+      "noMatch": "No nodes match the current filters",
+      "reheat": "Reheat",
+      "resetView": "Reset view",
+      "togglePanel": "Toggle panel",
+      "depth": "Depth",
+      "off": "off",
+      "connections": "Connections",
+      "selectNodeHint": "Select a node on the canvas to enable Local Graph",
+      "tapHint": "Tap a node to center it. Drag to move. Pinch / scroll to zoom.",
+      "links": "links",
+      "tagsShort": "tags",
+      "match_one": "{{count}} match",
+      "match_other": "{{count}} matches",
+      "typeProject": "Project",
+      "typeNote": "Note",
+      "typeDaily": "Daily",
+      "typeTag": "Tag"
     }
   },
   "ideas": {
@@ -694,14 +726,6 @@
     "searchBoards": "Search boards..."
   },
   "schedule": {
-    "bulkDelete": {
-      "events": "Delete all Events",
-      "routines": "Delete all Routines",
-      "tasks": "Delete all Tasks",
-      "confirm": "Click again to delete (to Trash)",
-      "deleting": "Deleting...",
-      "failed": "Delete failed: {{error}}"
-    },
     "todayFlow": "Today Flow",
     "noItems": "No items for this day",
     "complete": "Complete",
