@@ -67,7 +67,9 @@ export function usePointGraphSimulation({
   onAlpha,
   onFps,
 }: Args): { reheat: () => void } {
-  graphRef.current = graph;
+  useEffect(() => {
+    graphRef.current = graph;
+  }, [graph, graphRef]);
 
   // Recenter cached + live positions when the viewport size changes so the
   // cloud doesn't drift off-center when a panel opens/closes (plan §4.5).
@@ -129,6 +131,20 @@ export function usePointGraphSimulation({
     }
     drawRef.current = draw;
 
+    // Restore cached positions so the layout continues from where it was
+    // instead of scattering on every rebuild (plan §4.4). Reading the ref
+    // here is safe — we are inside an effect, not render.
+    const cache = positionCacheRef.current;
+    for (const n of graph.nodes) {
+      const c = cache[n.id];
+      if (c) {
+        n.x = c.x;
+        n.y = c.y;
+        n.vx = 0;
+        n.vy = 0;
+      }
+    }
+
     const hasCachedPositions = graph.nodes.some((n) => n.x != null);
 
     const sim = forceSimulation<GraphNode, GraphLink>(graph.nodes)
@@ -164,7 +180,6 @@ export function usePointGraphSimulation({
       .alphaDecay(0.03)
       .velocityDecay(0.45)
       .on("tick", () => {
-        const cache = positionCacheRef.current;
         for (const n of graph.nodes) {
           if (n.x != null && n.y != null) {
             cache[n.id] = { x: n.x, y: n.y };
@@ -190,13 +205,13 @@ export function usePointGraphSimulation({
     draw();
 
     const persist = window.setInterval(() => {
-      savePositions(positionCacheRef.current);
+      savePositions(cache);
     }, 4000);
 
     return () => {
       sim.stop();
       window.clearInterval(persist);
-      savePositions(positionCacheRef.current);
+      savePositions(cache);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [graph, size.w, size.h]);

@@ -17,6 +17,7 @@ import {
   usePointGraphSimulation,
   type ForceParams,
 } from "../hooks/usePointGraphSimulation";
+import { usePointGraphInteraction } from "../hooks/usePointGraphInteraction";
 
 interface GraphCanvasProps {
   snapshot: GraphSnapshot;
@@ -25,6 +26,10 @@ interface GraphCanvasProps {
   searchMatchSet: Set<string> | null;
   selectedId: string | null;
   onSelectedIdChange: (id: string | null) => void;
+  /** double-click a node ("open" intent) */
+  onActivate?: (id: string) => void;
+  /** exposes imperative actions (reheat) once the canvas is ready */
+  onApiReady?: (api: { reheat: () => void }) => void;
   onAlpha?: (a: number) => void;
   onFps?: (fps: number) => void;
 }
@@ -36,6 +41,8 @@ export function GraphCanvas({
   searchMatchSet,
   selectedId,
   onSelectedIdChange,
+  onActivate,
+  onApiReady,
   onAlpha,
   onFps,
 }: GraphCanvasProps) {
@@ -79,18 +86,15 @@ export function GraphCanvas({
     [snapshot],
   );
 
-  // Working graph: clone so d3 can mutate, restore cached positions so the
-  // layout continues instead of scattering on every rebuild (plan §4.4).
-  const workingGraph = useMemo<GraphSnapshot>(() => {
-    const cache = positionCacheRef.current;
-    return {
-      nodes: snapshot.nodes.map((n) => {
-        const c = cache[n.id];
-        return c ? { ...n, x: c.x, y: c.y, vx: 0, vy: 0 } : { ...n };
-      }),
+  // Working graph: clone so d3 can mutate. Cached-position restore happens
+  // inside the simulation effect (refs must not be read during render).
+  const workingGraph = useMemo<GraphSnapshot>(
+    () => ({
+      nodes: snapshot.nodes.map((n) => ({ ...n })),
       links: snapshot.links.map((l) => ({ ...l })),
-    };
-  }, [snapshot]);
+    }),
+    [snapshot],
+  );
 
   const renderStateRef = useRef<
     Omit<RenderState, "nodes" | "links" | "transform" | "size">
@@ -102,14 +106,16 @@ export function GraphCanvas({
     searchMatchSet,
     showLabels,
   });
-  renderStateRef.current = {
-    palette,
-    hoveredId,
-    selectedId,
-    adjacency,
-    searchMatchSet,
-    showLabels,
-  };
+  useEffect(() => {
+    renderStateRef.current = {
+      palette,
+      hoveredId,
+      selectedId,
+      adjacency,
+      searchMatchSet,
+      showLabels,
+    };
+  }, [palette, hoveredId, selectedId, adjacency, searchMatchSet, showLabels]);
 
   const { reheat } = usePointGraphSimulation({
     graph: workingGraph,
@@ -134,11 +140,23 @@ export function GraphCanvas({
     }
   }, [hoveredId, selectedId, showLabels, searchMatchSet, palette]);
 
-  // S5 will attach zoom/drag/hit-test here. Temporary click-to-clear so the
-  // canvas is interactive enough to verify rendering in S4.
-  void reheat;
-  void setHoveredId;
-  void onSelectedIdChange;
+  usePointGraphInteraction({
+    canvasRef,
+    transformRef,
+    simRef,
+    quadtreeRef,
+    graphRef,
+    drawRef,
+    size,
+    selectedId,
+    onHover: setHoveredId,
+    onSelect: (id) => onSelectedIdChange(id === selectedId ? null : id),
+    onActivate,
+  });
+
+  useEffect(() => {
+    onApiReady?.({ reheat });
+  }, [onApiReady, reheat]);
 
   return (
     <div ref={wrapRef} className="relative h-full w-full bg-notion-bg">
