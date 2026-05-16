@@ -1,15 +1,10 @@
 export { getAncestors } from "./breadcrumb";
 export { fireTaskCompleteConfetti } from "./confetti";
-export { formatDateKey } from "./dateKey";
 export { formatDuration } from "./duration";
 export { flattenFolders } from "./flattenFolders";
 export { computeFolderProgress } from "./folderProgress";
 export { getFolderTag } from "./folderTag";
-export {
-  formatRelativeDate,
-  formatDateTime,
-  formatTime,
-} from "./formatRelativeDate";
+export { formatRelativeDate, formatDateTime } from "./formatRelativeDate";
 export { formatScheduleRange, formatTimeRangeCompact } from "./formatSchedule";
 export { getDescendantTasks } from "./getDescendantTasks";
 export { logServiceError } from "./logError";

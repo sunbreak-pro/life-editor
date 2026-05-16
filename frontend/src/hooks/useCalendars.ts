@@ -155,14 +155,26 @@ export function useCalendars() {
     }
   }, []);
 
-  return {
-    calendars,
-    activeCalendarId: validActiveCalendarId,
-    activeCalendar,
-    setActiveCalendarId,
-    createCalendar,
-    updateCalendar,
-    deleteCalendar,
-    refreshCalendars,
-  };
+  return useMemo(
+    () => ({
+      calendars,
+      activeCalendarId: validActiveCalendarId,
+      activeCalendar,
+      setActiveCalendarId,
+      createCalendar,
+      updateCalendar,
+      deleteCalendar,
+      refreshCalendars,
+    }),
+    [
+      calendars,
+      validActiveCalendarId,
+      activeCalendar,
+      setActiveCalendarId,
+      createCalendar,
+      updateCalendar,
+      deleteCalendar,
+      refreshCalendars,
+    ],
+  );
 }
