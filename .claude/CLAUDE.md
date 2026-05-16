@@ -12,7 +12,7 @@
 
 - **役割**: 現状の実装規約 / 設計判断の参照点（400 行以下を目標）。抽象的・未具体化の構想 / 設計原則 は `docs/vision/` を参照（ADR は作らない）
 - **更新規則**: 実装変更を伴う変更はコードと同一 PR で更新。新機能は §8 + `docs/requirements/` に記入
-- **関連ドキュメント**: `MEMORY.md`(タスク) / `HISTORY.md`(履歴) / [`2026-05-04-cross-platform-migration.md`](./2026-05-04-cross-platform-migration.md)(移行 SSOT) / `docs/vision/`(設計原則) / `docs/requirements/`(Tier 1-3) / `docs/known-issues/`(Root Cause [INDEX](./docs/known-issues/INDEX.md)) / `docs/code-explanation/` / `archive/`
+- **関連ドキュメント**: `MEMORY.md`(タスク) / `HISTORY.md`(履歴) / [`2026-05-04-cross-platform-migration.md`](./2026-05-04-cross-platform-migration.md)(移行 SSOT) / `docs/vision/`(設計原則) / `docs/vision/plans/`(実装計画書の正式置き場) / `docs/requirements/`(Tier 1-3) / `docs/known-issues/`(Root Cause [INDEX](./docs/known-issues/INDEX.md)) / `docs/code-explanation/` / `archive/`
 
 ---
 
@@ -267,7 +267,7 @@ cd mcp-server && npm run build                          # MCP Server ビルド
 ### Vision → 実装プラン → 統合 フロー
 
 1. **Vision**（抽象 / 設計原則）: `docs/vision/` に記述。ADR は作らず vision/ に一元化
-2. **実装プラン**: `.claude/YYYY-MM-DD-<slug>.md` に作成 → Vision と相互リンク
+2. **実装プラン**: **`.claude/docs/vision/plans/YYYY-MM-DD-<slug>.md`** に作成（計画書の正式置き場。`.claude/` 直下の `YYYY-MM-DD-<slug>.md` は移行 SSOT 等の既存大型プランのみ、新規は plans/ へ）→ Vision と相互リンク
 3. **完了**: プランを `archive/` 移動、実装規約は本ファイルに統合、判断理由は `vision/coding-principles.md` 等に残す
 4. **MEMORY.md / HISTORY.md** はセッション単位で同期
 
