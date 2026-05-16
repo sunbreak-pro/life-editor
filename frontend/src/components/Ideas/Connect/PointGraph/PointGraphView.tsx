@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Filter } from "lucide-react";
 import type {
@@ -16,7 +16,7 @@ import { GraphTopBar } from "./components/GraphTopBar";
 import { GraphControlPanel } from "./components/GraphControlPanel";
 import { SelectedNodeCard } from "./components/SelectedNodeCard";
 import { buildAdjacency } from "./lib/graph-render";
-import { isTagNodeId } from "./lib/graph-types";
+import { isTagNodeId, tagNodeId } from "./lib/graph-types";
 
 interface ConnectRequest {
   tagId: string | null;
@@ -63,8 +63,13 @@ export function PointGraphView({
   assignments,
   noteConnections,
   noteLinks,
+  selectedTagId,
+  onSelectTag,
   onNavigateToNote,
   onNavigateToMemo,
+  focusedNoteId,
+  onFocusComplete,
+  sidebarSelectedItemId,
 }: PointGraphViewProps) {
   const { t } = useTranslation();
 
@@ -97,6 +102,50 @@ export function PointGraphView({
     const m = new Map(snapshot.nodes.map((n) => [n.id, n]));
     return m;
   }, [snapshot]);
+
+  // Graph-driven selection: reconcile the ConnectSidebar tag selection.
+  // Selecting a tag node sets selectedTagId; anything else clears it.
+  const handleSelectedIdChange = useCallback(
+    (id: string | null) => {
+      setSelectedId(id);
+      if (id && isTagNodeId(id)) {
+        const node = nodeById.get(id);
+        onSelectTag(node?.entityId ?? null);
+      } else {
+        onSelectTag(null);
+      }
+    },
+    [nodeById, onSelectTag],
+  );
+
+  // Sync external selection drivers (ConnectSidebar focus / tag selection /
+  // focusedNoteId) into selectedId using React's "adjust state when a prop
+  // changes" pattern — guarded setState during render, no effect (avoids
+  // cascading-render lint and is the officially recommended approach).
+  const [prevSidebar, setPrevSidebar] = useState(sidebarSelectedItemId);
+  if (sidebarSelectedItemId !== prevSidebar) {
+    setPrevSidebar(sidebarSelectedItemId);
+    if (sidebarSelectedItemId) setSelectedId(sidebarSelectedItemId);
+  }
+
+  const [prevTag, setPrevTag] = useState(selectedTagId);
+  if (selectedTagId !== prevTag) {
+    setPrevTag(selectedTagId);
+    if (selectedTagId) setSelectedId(tagNodeId(selectedTagId));
+  }
+
+  const [prevFocus, setPrevFocus] = useState(focusedNoteId ?? null);
+  if ((focusedNoteId ?? null) !== prevFocus) {
+    setPrevFocus(focusedNoteId ?? null);
+    if (focusedNoteId) setSelectedId(focusedNoteId);
+  }
+
+  // The only true side-effect: clear the focus highlight after a beat.
+  useEffect(() => {
+    if (!focusedNoteId) return;
+    const timer = window.setTimeout(() => onFocusComplete?.(), 2500);
+    return () => window.clearTimeout(timer);
+  }, [focusedNoteId, onFocusComplete]);
 
   const selectedNode = selectedId ? (nodeById.get(selectedId) ?? null) : null;
   const neighbors = useMemo(() => {
@@ -142,7 +191,7 @@ export function PointGraphView({
         showLabels={filters.showLabels}
         searchMatchSet={filters.searchMatchSet}
         selectedId={selectedId}
-        onSelectedIdChange={setSelectedId}
+        onSelectedIdChange={handleSelectedIdChange}
         onActivate={handleActivate}
         onApiReady={(api) => {
           apiRef.current = api;
@@ -195,8 +244,8 @@ export function PointGraphView({
           neighbors={neighbors}
           localDepth={filters.filter.localDepth}
           onLocalDepthChange={filters.setLocalDepth}
-          onSelect={setSelectedId}
-          onClose={() => setSelectedId(null)}
+          onSelect={handleSelectedIdChange}
+          onClose={() => handleSelectedIdChange(null)}
           onActivate={handleActivate}
         />
       )}
