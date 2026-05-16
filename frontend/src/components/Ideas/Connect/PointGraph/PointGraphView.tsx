@@ -15,8 +15,20 @@ import { GraphCanvas } from "./components/GraphCanvas";
 import { GraphTopBar } from "./components/GraphTopBar";
 import { GraphControlPanel } from "./components/GraphControlPanel";
 import { SelectedNodeCard } from "./components/SelectedNodeCard";
+import { ConnectPanel } from "../ConnectPanel";
 import { buildAdjacency } from "./lib/graph-render";
 import { isTagNodeId, tagNodeId } from "./lib/graph-types";
+
+type ConnectEntityType = "note" | "memo";
+
+interface PendingConnection {
+  sourceId: string;
+  sourceType: ConnectEntityType;
+  sourceTitle: string;
+  targetId: string;
+  targetType: ConnectEntityType;
+  targetTitle: string;
+}
 
 interface ConnectRequest {
   tagId: string | null;
@@ -65,8 +77,13 @@ export function PointGraphView({
   noteLinks,
   selectedTagId,
   onSelectTag,
+  onConnectViaTag,
+  onDeleteNoteConnection,
+  onDeleteNoteEntity,
+  onDeleteDailyEntity,
   onNavigateToNote,
   onNavigateToMemo,
+  onUpdateNoteColor,
   focusedNoteId,
   onFocusComplete,
   sidebarSelectedItemId,
@@ -86,6 +103,10 @@ export function PointGraphView({
   const [alpha, setAlpha] = useState(0);
   const [fps, setFps] = useState(0);
   const [zoomK, setZoomK] = useState(1);
+  const [connectMode, setConnectMode] = useState(false);
+  const [connectSource, setConnectSource] = useState<string | null>(null);
+  const [pendingConnection, setPendingConnection] =
+    useState<PendingConnection | null>(null);
   const apiRef = useRef<{ reheat: () => void; resetView: () => void } | null>(
     null,
   );
@@ -183,6 +204,92 @@ export function PointGraphView({
     [nodeById, onNavigateToNote, onNavigateToMemo],
   );
 
+  // Connect mode: click a source node, then a target node -> ConnectPanel.
+  // Tag nodes can't be connected.
+  const handleCanvasSelect = useCallback(
+    (id: string | null) => {
+      if (!connectMode) {
+        handleSelectedIdChange(id);
+        return;
+      }
+      if (!id || isTagNodeId(id)) {
+        setConnectSource(null);
+        return;
+      }
+      if (!connectSource) {
+        setConnectSource(id);
+        return;
+      }
+      if (connectSource === id) {
+        setConnectSource(null);
+        return;
+      }
+      const src = nodeById.get(connectSource);
+      const tgt = nodeById.get(id);
+      setConnectSource(null);
+      if (!src || !tgt || isTagNodeId(src.id)) return;
+      setPendingConnection({
+        sourceId: src.id,
+        sourceType: src.type === "daily" ? "memo" : "note",
+        sourceTitle: src.label,
+        targetId: tgt.id,
+        targetType: tgt.type === "daily" ? "memo" : "note",
+        targetTitle: tgt.label,
+      });
+    },
+    [connectMode, connectSource, nodeById, handleSelectedIdChange],
+  );
+
+  const handleConfirmConnect = useCallback(
+    async (payload: {
+      tagId: string | null;
+      newTagName: string | null;
+      sourceTagIds: string[];
+      targetTagIds: string[];
+      newTagColor: string;
+    }) => {
+      if (!pendingConnection) return;
+      await onConnectViaTag({
+        tagId: payload.tagId,
+        newTagName: payload.newTagName,
+        newTagColor: payload.newTagColor,
+        sourceEntityType: pendingConnection.sourceType,
+        sourceEntityId: pendingConnection.sourceId,
+        targetEntityType: pendingConnection.targetType,
+        targetEntityId: pendingConnection.targetId,
+        sourceTagIds: payload.sourceTagIds,
+        targetTagIds: payload.targetTagIds,
+      });
+      setPendingConnection(null);
+    },
+    [pendingConnection, onConnectViaTag],
+  );
+
+  // Delete key removes the selected entity (soft delete to Trash, mirrors the
+  // old React Flow behavior). Tag nodes are not deletable here.
+  useEffect(() => {
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key !== "Delete" && e.key !== "Backspace") return;
+      const tgt = e.target as HTMLElement | null;
+      if (
+        tgt &&
+        (tgt.tagName === "INPUT" ||
+          tgt.tagName === "TEXTAREA" ||
+          tgt.isContentEditable)
+      ) {
+        return;
+      }
+      if (!selectedId) return;
+      const node = nodeById.get(selectedId);
+      if (!node || node.type === "tag") return;
+      if (node.type === "daily") onDeleteDailyEntity(node.label);
+      else onDeleteNoteEntity(node.id);
+      setSelectedId(null);
+    }
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [selectedId, nodeById, onDeleteNoteEntity, onDeleteDailyEntity]);
+
   return (
     <div className="relative h-full w-full">
       <GraphCanvas
@@ -191,8 +298,9 @@ export function PointGraphView({
         showLabels={filters.showLabels}
         searchMatchSet={filters.searchMatchSet}
         selectedId={selectedId}
-        onSelectedIdChange={handleSelectedIdChange}
+        onSelectedIdChange={handleCanvasSelect}
         onActivate={handleActivate}
+        onManualEdgeClick={onDeleteNoteConnection}
         onApiReady={(api) => {
           apiRef.current = api;
         }}
@@ -210,6 +318,11 @@ export function PointGraphView({
         edgeCount={filters.filtered.links.length}
         activeFilterCount={filters.activeFilterCount}
         panelOpen={filters.panelOpen}
+        connectMode={connectMode}
+        onToggleConnectMode={() => {
+          setConnectMode((v) => !v);
+          setConnectSource(null);
+        }}
         onClearFilters={filters.clearAll}
         onReheat={() => apiRef.current?.reheat()}
         onResetView={() => apiRef.current?.resetView()}
@@ -247,6 +360,7 @@ export function PointGraphView({
           onSelect={handleSelectedIdChange}
           onClose={() => handleSelectedIdChange(null)}
           onActivate={handleActivate}
+          onColorChange={onUpdateNoteColor}
         />
       )}
 
@@ -267,6 +381,21 @@ export function PointGraphView({
           typeCounts={typeCounts}
           totalTypeCounts={totalTypeCounts}
           selectedLabel={selectedNode ? selectedNode.label : null}
+        />
+      )}
+
+      {pendingConnection && (
+        <ConnectPanel
+          sourceEntityType={pendingConnection.sourceType}
+          sourceEntityId={pendingConnection.sourceId}
+          sourceTitle={pendingConnection.sourceTitle}
+          targetEntityType={pendingConnection.targetType}
+          targetEntityId={pendingConnection.targetId}
+          targetTitle={pendingConnection.targetTitle}
+          tags={tags}
+          assignments={assignments}
+          onCancel={() => setPendingConnection(null)}
+          onConnect={handleConfirmConnect}
         />
       )}
     </div>

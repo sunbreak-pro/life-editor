@@ -28,6 +28,8 @@ interface GraphCanvasProps {
   onSelectedIdChange: (id: string | null) => void;
   /** double-click a node ("open" intent) */
   onActivate?: (id: string) => void;
+  /** click on a manual edge (delete affordance) */
+  onManualEdgeClick?: (sourceId: string, targetId: string) => void;
   /** exposes imperative actions once the canvas is ready */
   onApiReady?: (api: { reheat: () => void; resetView: () => void }) => void;
   onZoomChange?: (k: number) => void;
@@ -43,6 +45,7 @@ export function GraphCanvas({
   selectedId,
   onSelectedIdChange,
   onActivate,
+  onManualEdgeClick,
   onApiReady,
   onZoomChange,
   onAlpha,
@@ -155,6 +158,7 @@ export function GraphCanvas({
     onSelect: (id) => onSelectedIdChange(id === selectedId ? null : id),
     onActivate,
     onZoom: onZoomChange,
+    onManualEdgeClick,
   });
 
   useEffect(() => {

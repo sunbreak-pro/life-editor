@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import type { GraphNode, GraphNodeType } from "../lib/graph-types";
 import { isTagNodeId } from "../lib/graph-types";
+import { UnifiedColorPicker } from "../../../../shared/UnifiedColorPicker";
 
 const TYPE_ICON: Record<GraphNodeType, LucideIcon> = {
   project: Folder,
@@ -28,6 +29,8 @@ interface SelectedNodeCardProps {
   onClose: () => void;
   /** double-click / open intent (note/daily navigation) */
   onActivate?: (id: string) => void;
+  /** change note/project color (omitted for daily/tag) */
+  onColorChange?: (id: string, color: string) => void;
 }
 
 export function SelectedNodeCard({
@@ -38,9 +41,12 @@ export function SelectedNodeCard({
   onSelect,
   onClose,
   onActivate,
+  onColorChange,
 }: SelectedNodeCardProps) {
   const { t } = useTranslation();
   const Icon = TYPE_ICON[node.type];
+  const canRecolor =
+    !!onColorChange && (node.type === "note" || node.type === "project");
   const linkCount = neighbors.filter((n) => !isTagNodeId(n.id)).length;
   const tagCount = neighbors.filter((n) => isTagNodeId(n.id)).length;
 
@@ -106,6 +112,20 @@ export function SelectedNodeCard({
           </button>
         ))}
       </div>
+
+      {canRecolor && (
+        <div className="space-y-1 pt-1 border-t border-notion-border">
+          <div className="text-[10px] uppercase tracking-wider text-notion-text-secondary">
+            {t("ideas.noteColor")}
+          </div>
+          <UnifiedColorPicker
+            color={node.color || "#D5E8F5"}
+            onChange={(c) => onColorChange?.(node.id, c)}
+            mode="preset-full"
+            inline
+          />
+        </div>
+      )}
 
       {neighbors.length > 0 && (
         <div className="space-y-1">

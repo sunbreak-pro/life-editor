@@ -1,5 +1,13 @@
 import { useTranslation } from "react-i18next";
-import { RotateCcw, Maximize2, Settings2, X, Filter, Cpu } from "lucide-react";
+import {
+  RotateCcw,
+  Maximize2,
+  Settings2,
+  X,
+  Filter,
+  Cpu,
+  Spline,
+} from "lucide-react";
 import { IconButton } from "./primitives/IconButton";
 
 interface GraphTopBarProps {
@@ -11,6 +19,8 @@ interface GraphTopBarProps {
   edgeCount: number;
   activeFilterCount: number;
   panelOpen: boolean;
+  connectMode: boolean;
+  onToggleConnectMode: () => void;
   onClearFilters: () => void;
   onReheat: () => void;
   onResetView: () => void;
@@ -26,6 +36,8 @@ export function GraphTopBar({
   edgeCount,
   activeFilterCount,
   panelOpen,
+  connectMode,
+  onToggleConnectMode,
   onClearFilters,
   onReheat,
   onResetView,
@@ -72,6 +84,13 @@ export function GraphTopBar({
       </div>
 
       <div className="pointer-events-auto flex gap-1.5">
+        <IconButton
+          onClick={onToggleConnectMode}
+          title={t("connect.toggleConnectMode")}
+          active={connectMode}
+        >
+          <Spline size={14} />
+        </IconButton>
         <IconButton onClick={onReheat} title={t("connect.graph.reheat")}>
           <RotateCcw size={14} />
         </IconButton>
