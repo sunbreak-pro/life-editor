@@ -1,14 +1,4 @@
-export function hhmmToMinutes(hm: string): number {
-  const [h, m] = hm.split(":").map(Number);
-  return h * 60 + (m || 0);
-}
-
-export function minutesToHHMM(total: number): string {
-  const clamped = Math.max(0, Math.min(24 * 60, total));
-  const h = Math.floor(clamped / 60);
-  const m = clamped % 60;
-  return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
-}
+import { minutesToTimeString } from "./timeGridUtils";
 
 export function snapMinutes(minutes: number, snap: number): number {
   if (snap <= 0) return minutes;
@@ -45,8 +35,8 @@ export function computeShiftedTimes(params: {
   startMin = Math.max(0, Math.min(24 * 60 - durationMinutes, startMin));
   const endMin = Math.min(24 * 60, startMin + durationMinutes);
   return {
-    start: minutesToHHMM(startMin),
-    end: minutesToHHMM(endMin),
+    start: minutesToTimeString(startMin),
+    end: minutesToTimeString(endMin),
     snappedStartMin: startMin,
   };
 }

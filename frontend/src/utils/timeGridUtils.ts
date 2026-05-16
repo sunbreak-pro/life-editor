@@ -18,8 +18,11 @@ export function topToMinutes(top: number): number {
 }
 
 export function timeToMinutes(time: string): number {
+  // `m || 0` ガードは旧 mobileSnapTime.hhmmToMinutes 由来。両実装統合のため
+  // timeGridUtils 側へ吸収（"12" のような MM 欠落入力は NaN ではなく 720 に
+  // なる）。`h` が NaN になる入力（"abc"）は従来どおり NaN を伝播する。
   const [h, m] = time.split(":").map(Number);
-  return h * 60 + m;
+  return h * 60 + (m || 0);
 }
 
 /** When startTime changes, adjust endTime to maintain the same duration. */

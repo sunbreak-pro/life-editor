@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import { TaskPickerTree } from "./TaskPickerTree";
 import { TimeSettingsInline } from "./TimeSettingsInline";
 import type { TaskNode } from "../../../types/taskTree";
+import { formatTime } from "../../../utils/timeGridUtils";
 
 interface ScheduleParams {
   scheduledAt: string;
@@ -45,16 +46,12 @@ export function ExistingTaskTab({
       setStartTime(`${h}:${m}`);
       if (task.scheduledEndAt) {
         const de = new Date(task.scheduledEndAt);
-        setEndTime(
-          `${String(de.getHours()).padStart(2, "0")}:${String(de.getMinutes()).padStart(2, "0")}`,
-        );
+        setEndTime(formatTime(de.getHours(), de.getMinutes()));
         setHasEndTime(true);
       } else {
         const dur = task.workDurationMinutes ?? 25;
         const endDate = new Date(d.getTime() + dur * 60000);
-        setEndTime(
-          `${String(endDate.getHours()).padStart(2, "0")}:${String(endDate.getMinutes()).padStart(2, "0")}`,
-        );
+        setEndTime(formatTime(endDate.getHours(), endDate.getMinutes()));
         setHasEndTime(true);
       }
       setIsAllDay(false);

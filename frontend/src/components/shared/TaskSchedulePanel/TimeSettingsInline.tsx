@@ -6,6 +6,7 @@ import {
   adjustEndTimeForStartChange,
   clampEndTimeAfterStart,
   defaultEndTimeForStart,
+  formatTime,
 } from "../../../utils/timeGridUtils";
 
 interface TimeSettingsInlineProps {
@@ -40,7 +41,7 @@ export function TimeSettingsInline({
   };
 
   const handleStartTimeChange = (h: number, m: number) => {
-    const newStart = `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+    const newStart = formatTime(h, m);
     if (hasEndTime && prevStartRef.current && endTime) {
       onEndTimeChange(
         adjustEndTimeForStartChange(prevStartRef.current, newStart, endTime),
@@ -51,7 +52,7 @@ export function TimeSettingsInline({
   };
 
   const handleEndTimeChange = (h: number, m: number) => {
-    const newEnd = `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+    const newEnd = formatTime(h, m);
     onEndTimeChange(
       startTime ? clampEndTimeAfterStart(startTime, newEnd) : newEnd,
     );

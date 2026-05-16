@@ -1,0 +1,158 @@
+# Plan: Frontend 脆弱性リファクタ（移行前安全網 + コンパクト化）
+
+- **Status**: Draft
+- **Created**: 2026-05-16
+- **Task**: MEMORY.md `project_web_first_migration.md` 関連（移行前の負債清算レーン）
+- **Project path**: /Users/newlife/dev/apps/life-editor
+
+## Context
+
+### 動機
+
+6 並列エージェント監査（read-only）で `frontend/src/` + `web/` の脆弱性・整合性・可読性・可用性を再洗い出し。Tauri→Electron+Capacitor+Web+Supabase 移行で **削除予定の `src-tauri/` `cloud/` は対象外**（生存コードのみ）。
+
+### 制約（厳守）
+
+- **テスト追加が唯一許可された新規要素**。それ以外は「削除 / 統合 / 既存への集約」= 行数が減る方向のみ。
+- 新ライブラリ・新抽象レイヤー・新機能・新デザインシステムの追加禁止（コンパクト性・複雑性を増やさない）。
+- 共有プリミティブ新設（Modal シェル等）は「重複を 1 つに寄せて正味削減」になる場合のみ、かつ **Phase 5 として要ユーザー承認で隔離**。
+
+### Non-goals
+
+- `src-tauri/` `cloud/` `mcp-server/` のリファクタ（移行で消滅）。
+- 巨大コンポーネントの「分割」による新ファイル純増（責務抽出は既存 shared/既存フックへの集約のみ）。
+- A4/A5（`TitleBar` の `@tauri-apps/api/window` 直 import / Settings Claude 系 `tauriInvoke` 直呼び）= **移行作業そのもの**。本計画スコープ外、移行 Phase で `isTauri()` 分離。
+
+### 監査で確認できた良好点（触らない）
+
+- データ CRUD は 100% `getDataService()` 経由（抽象漏れは TitleBar/Settings Claude 系のみ）。
+- Provider 順序・循環参照は規約準拠。`any` 濫用ほぼ皆無。
+- `dataServiceFactory.ts` は Supabase 切替の単一スイッチ点として良好。
+
+---
+
+## Steps
+
+### Phase 0 — 安全網テスト（リファクタ前提・唯一の追加要素）
+
+- [x] 0-1. `utils/dateKey.ts` 残り6関数の JST/年跨ぎ境界テスト（+24件）
+- [x] 0-2. `utils/getDescendantTasks.ts`（17 pass / 4 skip = OOM 既存バグ記録）
+- [x] 0-3. `utils/timeGridUtils.ts` 全9 export（32件）
+- [x] 0-4. `utils/buildCompletedTree.ts`（11件、循環は内部 visited guard で安全終了確認）
+- [x] 0-5. `utils/folderProgress.ts`（9件、bench とは別の正当性検証）
+- [x] 0-6. `utils/databaseFilter.ts`（26件。`evaluateFilter` は private のため `applyFilters` 経由）
+- [x] 0-7. `hooks/useScheduleItemsCore.ts` ソート不変条件（5件）
+- 完了: 計134テスト追加（519 pass / 4 skip / 0 fail）、`npm run build` PASS。QA 判定 PASS-with-fixes
+
+### Phase 0+ — QA 指摘の安全網補強（テスト追加のみ・制約内）
+
+- [x] 0+1. (Mid) `useScheduleItemsCore.test.ts` toggleComplete events 伝播テスト（+1、create 非呼出も固定）
+- [x] 0+2. (Low) `timeGridUtils.test.ts` NaN 伝播 characterization（+1）
+- [x] 0+3. (Low) `databaseFilter.test.ts` 未知 operator フォールスルー（+1）
+- [x] 0+4. (Low) `folderProgress.test.ts` 循環 parentId 記録（+2 skip）
+- [x] 0+5. (Low) `vitest.config.ts` `test.env.TZ='Asia/Tokyo'` 固定（既存テスト落ちなし）
+- [x] 0+6. KI **016** `016-task-tree-traversal-cycle-oom.md` 作成 + `INDEX.md` 更新（Status=Active）
+- 完了: 522 pass / 6 skip / 0 fail、`npm run build` PASS
+
+### Phase 1 — ゼロリスク削除・1行安全化（即効）
+
+- [x] 1-1. `hooks/useScreenLockContext.ts` 削除（必須版 production 参照0を再検証）
+- [x] 1-2. `formatRelativeDate.ts` `formatTime` 削除 + `index.ts` export 除去 + 当該 test 削除
+- [x] 1-3. `index.ts` `formatDateKey` barrel 再export 削除
+- [x] 1-4. `.ChaosContext.tsx.swp` 削除（gitignore 済・git 無影響）
+- [x] 1-5. `createContextHook.ts` `if (!value)` → `if (value == null)`（17 Context 全 null 統一を確認）
+- [x] 1-6. `ThemeContext`/`ToastContext` value useMemo 化（依存配列 1:1、toggleTheme/setLanguage を useCallback 化）。`useLocalStorage` 改修はスコープ外として据え置き（QA 妥当判定）
+- [x] 1-7. `useCalendars`/`useTemplates`/`useFileExplorer` return useMemo 化（useFileExplorer は breadcrumbs も useMemo 化）
+- 完了: 521 pass / 6 skip / 0 fail（−1 = formatTime test 削除のみ）、`npm run build` PASS。QA 判定 **PASS**（挙動完全不変・Blocker ゼロ）
+
+### Phase 2 — 重複ロジック統合（純粋関数・Phase 0 で保護済み）
+
+- [x] 2-1. TaskID 統合（R1）: `generateTaskId(type="task")` に拡張、`useTaskTreeAPI` ローカル削除。挙動不変（QA 確認）
+- [x] 2-2. 時刻変換統合（R2/R3）: `timeToMinutes` に `m||0` ガード吸収（`"12"`→NaN から 720 へ意図的変更、`"HH"` 経路は型コントラクト上不在を QA 立証＝実害ゼロ）。`mobileSnapTime` 重複2関数削除
+- [x] 2-3. `HH:MM` 手書き 12箇所→`formatTime`（TimerContext MM:SS 2箇所は意味的にスキップ）
+- [x] 2-4. `useScheduleItemsCore` today キー→`getTodayKey()`（出力完全一致）
+- [x] 2-5. ID ヘルパ集約（R6）: `useAttachments`/`useSidebarLinks` → `generateId`(uuid)。形式依存箇所ゼロを QA grep 立証、既存データ不変・衝突確率改善
+- [x] 2-6. OOM 欠陥修復: 4関数に visited ガード追加（非循環パス副作用ゼロを QA 論理検証）。skip 6件→循環安全終了の回帰テスト化。KI 016 → Fixed（§9 準拠）
+- 完了: **525 pass / 0 skip / 0 fail**、`npm run build` PASS。QA 判定 **PASS**（意図的変更3件すべて実害ゼロ立証・Blocker ゼロ）
+- 残課題(Low/将来 Phase 3): `useRoutineGroupComputed.ts` のローカル `timeToMinutes`(string|null 版) は計画スコープ外で未統合
+
+### Phase 3 — 型単一ソース化（移行の本丸 / 論理バグ予備軍の解消）
+
+- [ ] 3-1. **【最優先】WikiTag entityType 衝突解消（D3）**: `types/wikiTag.ts` の `WikiTagAssignment.entityType` を `WikiTagEntityType`(`task|daily|note`) に統一、`memo` リテラルを排除（V64 移行の型負債、Supabase 自動生成型と衝突する温床）
+- [ ] 3-2. 型重複の単一ソース集約: `ScheduleItemUpdate`(D2 — `Partial<Pick<ScheduleItem,...>>` 二重手書きを `types/schedule.ts` へ) / `TaskNode.priority` を `Priority|null` 参照に(D4) / `SyncChangesResponse extends SyncFullResponse`(D5)
+- [ ] 3-3. `shared/src/types/` 23ファイルを SSOT 化、`frontend/src/types/*` を `export * from "@life-editor/shared"` re-export スタブ化（D1 — 物理コピー二重管理の解消、型は同一なので破壊リスク低）
+- [ ] 3-4. `frontend/package.json` に `@life-editor/shared` 依存追加 + `DataService.ts`(794行) を shared 由来 re-export に一本化（A1/A3 — Supabase 移行の起点）
+
+### Phase 4 — 規約準拠の最小整合（Mobile Optional バリアント）
+
+- [ ] 4-1. `useFileExplorerContextOptional` 追加（C6 — 既存 `createOptionalContextHook` 利用、§6.3 規約違反解消、Capacitor 移行後も Mobile 分岐は残るため自動解消しない）
+- [ ] 4-2. `ShortcutConfig` Optional バリアント or `Layout.tsx:139` ガード（C7 — 潜在リスク、低優先）
+
+### Phase 5 — 巨大コンポーネント整理（要ユーザー承認・複雑性トレードオフあり）
+
+> 共有 Modal シェル新設は「1ファイル増 vs 28箇所手書き削除」で正味大幅減だが、抽象追加の是非があるため**着手前に個別承認**。
+
+- [ ] 5-1. （要承認）共有 `ModalShell`（backdrop+Escape+`role="dialog"`+focus trap）に 28 ファイルの手書き backdrop / 53 箇所の Escape 処理を集約（a11y 欠落・透明落ち・cleanup 漏れ一掃）
+- [ ] 5-2. `shared/RichTextEditor.tsx`(607行) の 11 useEffect を `useEditorDomEvents` フックに集約（cleanup/依存漏れを単一箇所に閉込）
+- [ ] 5-3. `CalendarView`(C2) と `MobileCalendarView`(C6) の日付/週計算を `calendarViewModel.ts` 純粋関数へ一本化（Desktop/Mobile ドリフトバグ防止）
+- [ ] 5-4. `OneDaySchedule.tsx`(1194行/props23) のダイアログ・データ取得を既存 `useDayFlowDialogs`/`useDayFlowFilters` へ集約（行数純増なし）
+- [ ] 5-5. `ScheduleTimeGrid.tsx`(C3) の contextMenu/preview 4 useState を discriminated union 1 state へ + 既存 `scheduleTimeGridLayout.ts` へ計算集約
+
+---
+
+## Files
+
+| File                                                          | Operation           | Notes                                       |
+| ------------------------------------------------------------- | ------------------- | ------------------------------------------- |
+| `frontend/src/utils/dateKey.test.ts`                          | Add tests           | 0-1（既存ファイル拡張）                     |
+| `frontend/src/utils/getDescendantTasks.test.ts`               | Create (test)       | 0-2                                         |
+| `frontend/src/utils/timeGridUtils.test.ts`                    | Create (test)       | 0-3                                         |
+| `frontend/src/utils/buildCompletedTree.test.ts`               | Create (test)       | 0-4                                         |
+| `frontend/src/utils/folderProgress.test.ts`                   | Create (test)       | 0-5（bench とは別）                         |
+| `frontend/src/utils/databaseFilter.test.ts`                   | Create (test)       | 0-6                                         |
+| `frontend/src/hooks/useScheduleItemsCore.test.ts`             | Create (test)       | 0-7                                         |
+| `frontend/src/hooks/useScreenLockContext.ts`                  | Delete              | 1-1 デッド                                  |
+| `frontend/src/utils/formatRelativeDate.ts`                    | Edit (削除)         | 1-2 `formatTime` 除去                       |
+| `frontend/src/utils/index.ts`                                 | Edit (削除)         | 1-2/1-3 export 行除去                       |
+| `frontend/src/context/.ChaosContext.tsx.swp`                  | Delete              | 1-4 ゴミ                                    |
+| `frontend/src/hooks/createContextHook.ts`                     | Edit (1行)          | 1-5 null 安全化                             |
+| `frontend/src/context/ThemeContext.tsx`                       | Edit                | 1-6 useMemo                                 |
+| `frontend/src/context/ToastContext.tsx`                       | Edit                | 1-6 useMemo                                 |
+| `frontend/src/hooks/useCalendars.ts`                          | Edit                | 1-7 return useMemo                          |
+| `frontend/src/hooks/useTemplates.ts`                          | Edit                | 1-7 return useMemo                          |
+| `frontend/src/hooks/useFileExplorer.ts`                       | Edit                | 1-7 return useMemo                          |
+| `frontend/src/hooks/useTaskTreeAPI.ts`                        | Edit (削除)         | 2-1 ローカル generateId 除去                |
+| `frontend/src/utils/generateTaskId.ts`                        | Edit (1行拡張)      | 2-1 type 接頭辞対応                         |
+| `frontend/src/utils/mobileSnapTime.ts`                        | Delete or 縮小      | 2-2 重複除去                                |
+| `frontend/src/utils/timeGridUtils.ts`                         | Edit                | 2-2 統合先（ガード移植）                    |
+| `frontend/src/components/**`（R4 8+箇所）                     | Edit                | 2-3 formatTime 置換                         |
+| `frontend/src/hooks/useScheduleItemsCore.ts`                  | Edit                | 2-4 getTodayKey                             |
+| `frontend/src/hooks/useAttachments.ts` / `useSidebarLinks.ts` | Edit (削除)         | 2-5 generateId 集約                         |
+| `frontend/src/types/wikiTag.ts`                               | Edit                | 3-1 entityType 統一                         |
+| `frontend/src/types/schedule.ts` `taskTree.ts` `sync.ts`      | Edit                | 3-2 型集約                                  |
+| `frontend/src/types/*.ts`（23ファイル）                       | Replace → re-export | 3-3 SSOT スタブ化                           |
+| `frontend/src/services/DataService.ts`                        | Replace → re-export | 3-4                                         |
+| `frontend/package.json`                                       | Edit                | 3-4 `@life-editor/shared` 依存追加          |
+| `frontend/src/hooks/useFileExplorerContextOptional.ts`        | Create              | 4-1（規約準拠の最小追加、新抽象なし）       |
+| Phase 5 関連                                                  | 要承認後に確定      | backdrop 28 / Escape 53 / RichTextEditor 等 |
+
+---
+
+## Verification
+
+- [ ] Phase 0: `cd frontend && npm run test` 全 green（新規テストが既存挙動を pass = 安全網確立）
+- [ ] 各 Phase 後: `cd frontend && npm run build`（`tsc -b` 相当、`--noEmit` は solution-style で無効なので不可）+ `npm run test` green
+- [ ] Phase 1: バンドル/挙動不変。React DevTools で Theme/Toast 変更時の不要再描画が消えること（任意）
+- [ ] Phase 2: 重複統合後、削除関数の参照ゼロを grep で再確認
+- [ ] Phase 3-3/3-4: `frontend/src/types` re-export 化後も型エラーゼロ（shared と現時点バイト一致が前提条件）。`@life-editor/shared` 接続で循環参照が出ないこと
+- [ ] Phase 3-1: `memo` リテラル全消滅を grep（`entityType.*memo` 0 件）
+- [ ] 全 Phase: `git diff --stat` で正味行数が**減少**（テスト追加分を除く）= 制約「コンパクト化」の客観信号
+- [ ] Phase 5: 着手前にユーザー承認。承認後、置換ファイル全てで a11y（`role="dialog"`）が付与され手書き backdrop がゼロになること
+
+---
+
+## 依存順・並列性メモ
+
+- Phase 0 → 1 → 2 は厳密な依存（テスト無しにロジック統合しない）。Phase 1 内 1-1〜1-5 は相互独立で並列可。
+- Phase 3 は Phase 0-2 と独立（型レイヤーのため別レーンで並行可）。ただし 3-3/3-4 は移行 Phase 2 の `shared` 接続作業と衝突しうるため、**移行担当チャットと調整**してから着手（並行チャット競合の温床）。
+- Phase 5 は他と独立だが工数 L かつ要承認。最後 or 別ブランチ。

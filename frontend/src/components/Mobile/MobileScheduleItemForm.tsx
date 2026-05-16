@@ -31,13 +31,13 @@ function roundToNext15(time?: string): string {
   if (minutes >= 60) {
     now.setHours(now.getHours() + 1, 0, 0, 0);
   }
-  return `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
+  return formatTime(now.getHours(), now.getMinutes());
 }
 
 function addHour(time: string): string {
   const [h, m] = time.split(":").map(Number);
   const newH = Math.min(23, h + 1);
-  return `${String(newH).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+  return formatTime(newH, m);
 }
 
 export function MobileScheduleItemForm({

@@ -4,7 +4,7 @@ import { MiniCalendarGrid } from "../shared/MiniCalendarGrid";
 import { TimeSettingsInline } from "../shared/TaskSchedulePanel/TimeSettingsInline";
 import { useScheduleItemsContext } from "../../hooks/useScheduleItemsContext";
 import { formatDateKey } from "../../utils/dateKey";
-import { defaultEndTimeForStart } from "../../utils/timeGridUtils";
+import { defaultEndTimeForStart, formatTime } from "../../utils/timeGridUtils";
 
 interface EventQuickCreatePopoverProps {
   onClose: () => void;
@@ -15,7 +15,7 @@ function roundToNearest5Min(): string {
   const minutes = Math.ceil(now.getMinutes() / 5) * 5;
   const h = minutes === 60 ? now.getHours() + 1 : now.getHours();
   const m = minutes === 60 ? 0 : minutes;
-  return `${String(h % 24).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+  return formatTime(h % 24, m);
 }
 
 export function EventQuickCreatePopover({

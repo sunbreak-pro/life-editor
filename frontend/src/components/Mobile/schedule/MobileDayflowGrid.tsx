@@ -5,6 +5,7 @@ import { DragPreview } from "./DragPreview";
 import { GroupFrame } from "../../Tasks/Schedule/DayFlow/GroupFrame";
 import { useRoutineContext } from "../../../hooks/useRoutineContext";
 import { shouldRoutineRunOnDate } from "../../../utils/routineFrequency";
+import { formatTime } from "../../../utils/timeGridUtils";
 import type { RoutineGroup } from "../../../types/routineGroup";
 import {
   useMobileLongPressDrag,
@@ -34,9 +35,7 @@ function timeToMin(hm: string): number {
 }
 
 function minToHHMM(total: number): string {
-  const h = Math.floor(total / 60);
-  const m = total % 60;
-  return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+  return formatTime(Math.floor(total / 60), total % 60);
 }
 
 function formatDate(d: Date): string {

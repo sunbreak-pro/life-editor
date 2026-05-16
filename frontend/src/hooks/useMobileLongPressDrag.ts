@@ -10,7 +10,8 @@ import type {
   DayItem,
   DayItemKind,
 } from "../components/Mobile/schedule/dayItem";
-import { computeShiftedTimes, hhmmToMinutes } from "../utils/mobileSnapTime";
+import { computeShiftedTimes } from "../utils/mobileSnapTime";
+import { timeToMinutes } from "../utils/timeGridUtils";
 
 export interface LongPressDragState {
   draggingId: string | null;
@@ -243,7 +244,7 @@ export function useMobileLongPressDrag(opts: UseMobileLongPressDragOptions): {
 
         const durationMinutes = Math.max(
           1,
-          hhmmToMinutes(item.end) - hhmmToMinutes(item.start),
+          timeToMinutes(item.end) - timeToMinutes(item.start),
         );
 
         const timer = window.setTimeout(() => {
@@ -254,7 +255,7 @@ export function useMobileLongPressDrag(opts: UseMobileLongPressDragOptions): {
           // Disable scroll on the grid while dragging
           prevTouchActionRef.current = container.style.touchAction;
           container.style.touchAction = "none";
-          const startMin = hhmmToMinutes(p.item.start);
+          const startMin = timeToMinutes(p.item.start);
           lastSnappedMinRef.current = startMin;
           updateDragState({
             draggingId: p.item.id,

@@ -6,13 +6,9 @@ import type {
 } from "../types/sidebarLink";
 import { getDataService } from "../services";
 import { logServiceError } from "../utils/logError";
+import { generateId } from "../utils/generateId";
 
 const DEFAULT_BROWSER_KEY = "defaultBrowser";
-
-function newId(): string {
-  const rand = Math.random().toString(36).slice(2, 10);
-  return `sl-${Date.now().toString(36)}${rand}`;
-}
 
 export interface UseSidebarLinksValue {
   links: SidebarLink[];
@@ -109,7 +105,7 @@ export function useSidebarLinks(): UseSidebarLinksValue {
     }): Promise<SidebarLink | null> => {
       try {
         const created = await getDataService().createSidebarLink({
-          id: newId(),
+          id: generateId("sl"),
           kind: input.kind,
           name: input.name,
           target: input.target,
