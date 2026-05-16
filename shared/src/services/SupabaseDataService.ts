@@ -1,6 +1,7 @@
-import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import { type SupabaseClient } from "@supabase/supabase-js";
 import type { TaskNode } from "../types/taskTree";
 import type { DataService } from "./DataService";
+import { getSupabaseClient } from "./supabaseClient";
 
 /*
  * Phase 1 Supabase implementation.
@@ -15,11 +16,6 @@ import type { DataService } from "./DataService";
  * rest with a throwing fallback. The Proxy result is asserted to
  * `DataService` so consumers keep full static typing.
  */
-
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string | undefined;
-const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY as
-  | string
-  | undefined;
 
 interface TaskRow {
   id: string;
@@ -109,12 +105,7 @@ const PHASE1_TASKS_METHODS = new Set<string>([
  * module does not crash builds before the Supabase project exists.
  */
 export function createSupabaseDataService(): DataService {
-  if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
-    throw new Error(
-      "Supabase credentials missing: set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in .env.local",
-    );
-  }
-  const client = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  const client = getSupabaseClient();
   const tasksService = new SupabaseTasksService(client);
 
   return new Proxy(tasksService, {

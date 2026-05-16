@@ -18,6 +18,11 @@ web/node_modules/
 web/dist/
 shared/node_modules/
 
+# Supabase CLI local state (never commit: link state, branch state, env)
+supabase/.temp/
+supabase/.branches/
+supabase/.env
+
 # Secrets — never commit env files (incl. Supabase anon key)
 .env
 .env.local
