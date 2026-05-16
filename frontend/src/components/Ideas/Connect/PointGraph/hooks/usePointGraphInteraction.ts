@@ -10,7 +10,12 @@ import {
 } from "d3-zoom";
 import { easeCubicInOut } from "d3-ease";
 import "d3-transition";
-import type { GraphLink, GraphNode, GraphSnapshot } from "../lib/graph-types";
+import {
+  linkEndId,
+  type GraphLink,
+  type GraphNode,
+  type GraphSnapshot,
+} from "../lib/graph-types";
 import { UNIFORM_NODE_SIZE, type Transform } from "../lib/graph-render";
 import { saveViewport } from "../lib/pointGraphStorage";
 
@@ -30,6 +35,8 @@ interface Args {
   onActivate?: (id: string) => void;
   /** reports the current zoom scale (k) on zoom gestures */
   onZoom?: (k: number) => void;
+  /** click on a manual edge requests its deletion (source/target ids) */
+  onManualEdgeClick?: (sourceId: string, targetId: string) => void;
 }
 
 export function usePointGraphInteraction({
@@ -45,6 +52,7 @@ export function usePointGraphInteraction({
   onSelect,
   onActivate,
   onZoom,
+  onManualEdgeClick,
 }: Args): { resetView: () => void } {
   const zoomRef = useRef<ZoomBehavior<HTMLCanvasElement, unknown> | null>(null);
   const draggedRef = useRef<GraphNode | null>(null);
@@ -177,7 +185,31 @@ export function usePointGraphInteraction({
         return;
       }
       const node = findNodeAt(e.clientX, e.clientY);
-      onSelect(node ? node.id : null);
+      if (node) {
+        onSelect(node.id);
+        return;
+      }
+      // No node — check for a manual edge under the click (delete affordance).
+      if (onManualEdgeClick) {
+        const rect = canvas!.getBoundingClientRect();
+        const t = transformRef.current;
+        const px = (e.clientX - rect.left - t.x) / t.k;
+        const py = (e.clientY - rect.top - t.y) / t.k;
+        const tol = 6 / t.k;
+        for (const l of graphRef.current.links) {
+          if (l.kind !== "manual") continue;
+          const s = l.source;
+          const tg = l.target;
+          if (typeof s !== "object" || typeof tg !== "object") continue;
+          if (s.x == null || s.y == null || tg.x == null || tg.y == null)
+            continue;
+          if (distToSegment(px, py, s.x, s.y, tg.x, tg.y) <= tol) {
+            onManualEdgeClick(linkEndId(l.source), linkEndId(l.target));
+            return;
+          }
+        }
+      }
+      onSelect(null);
     }
 
     function onCanvasDblClick(e: MouseEvent) {
@@ -257,4 +289,22 @@ export function usePointGraphInteraction({
   }, [canvasRef]);
 
   return { resetView };
+}
+
+function distToSegment(
+  px: number,
+  py: number,
+  x1: number,
+  y1: number,
+  x2: number,
+  y2: number,
+): number {
+  const dx = x2 - x1;
+  const dy = y2 - y1;
+  const lenSq = dx * dx + dy * dy;
+  let tt = lenSq === 0 ? 0 : ((px - x1) * dx + (py - y1) * dy) / lenSq;
+  tt = Math.max(0, Math.min(1, tt));
+  const cx = x1 + tt * dx;
+  const cy = y1 + tt * dy;
+  return Math.hypot(px - cx, py - cy);
 }

@@ -5,7 +5,7 @@ import { ReactFlowProvider } from "@xyflow/react";
 import { useTranslation } from "react-i18next";
 import type { TabItem } from "../shared/SectionTabs";
 import { SectionHeader } from "../shared/SectionHeader";
-import { TagGraphView } from "./Connect/TagGraphView";
+import { PointGraphView } from "./Connect/PointGraph";
 import { ConnectSidebar } from "./Connect/ConnectSidebar";
 import { PaperCanvasView } from "./Connect/Paper/PaperCanvasView";
 import { PaperSidebar } from "./Connect/Paper/PaperSidebar";
@@ -274,29 +274,27 @@ export function ConnectView({
     switch (activeTab) {
       case "node":
         return (
-          <ReactFlowProvider key="connect-node">
-            <TagGraphView
-              tags={tags}
-              assignments={assignments}
-              noteConnections={noteConnections}
-              noteLinks={noteLinks}
-              selectedTagId={selectedTagId}
-              onSelectTag={setSelectedTagId}
-              onCreateNoteConnection={handleCreateNoteConnection}
-              onDeleteNoteConnection={handleDeleteNoteConnection}
-              onConnectViaTag={handleConnectViaTag}
-              onDeleteNoteEntity={softDeleteNote}
-              onDeleteDailyEntity={deleteDaily}
-              notes={notes}
-              dailies={dailies}
-              onNavigateToNote={handleNavigateToNote}
-              onNavigateToMemo={handleNavigateToMemo}
-              onUpdateNoteColor={handleUpdateNoteColor}
-              focusedNoteId={focusedNoteId}
-              onFocusComplete={handleFocusComplete}
-              sidebarSelectedItemId={sidebarSelectedItemId}
-            />
-          </ReactFlowProvider>
+          <PointGraphView
+            tags={tags}
+            assignments={assignments}
+            noteConnections={noteConnections}
+            noteLinks={noteLinks}
+            selectedTagId={selectedTagId}
+            onSelectTag={setSelectedTagId}
+            onCreateNoteConnection={handleCreateNoteConnection}
+            onDeleteNoteConnection={handleDeleteNoteConnection}
+            onConnectViaTag={handleConnectViaTag}
+            onDeleteNoteEntity={softDeleteNote}
+            onDeleteDailyEntity={deleteDaily}
+            notes={notes}
+            dailies={dailies}
+            onNavigateToNote={handleNavigateToNote}
+            onNavigateToMemo={handleNavigateToMemo}
+            onUpdateNoteColor={handleUpdateNoteColor}
+            focusedNoteId={focusedNoteId}
+            onFocusComplete={handleFocusComplete}
+            sidebarSelectedItemId={sidebarSelectedItemId}
+          />
         );
       case "board":
         return (

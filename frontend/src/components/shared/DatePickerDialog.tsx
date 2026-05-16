@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
+import { getTodayKey } from "../../utils/dateKey";
 
 interface DatePickerDialogProps {
   defaultDate?: string;
@@ -14,9 +15,7 @@ export function DatePickerDialog({
   onCancel,
 }: DatePickerDialogProps) {
   const { t } = useTranslation();
-  const [date, setDate] = useState(
-    defaultDate ?? new Date().toISOString().slice(0, 10),
-  );
+  const [date, setDate] = useState(defaultDate ?? getTodayKey());
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {

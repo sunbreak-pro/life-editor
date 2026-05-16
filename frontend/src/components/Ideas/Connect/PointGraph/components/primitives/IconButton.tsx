@@ -5,6 +5,8 @@ interface IconButtonProps {
   onClick?: () => void;
   title: string;
   active?: boolean;
+  /** optional data-marker attribute (used for outside-click exclusion) */
+  marker?: string;
 }
 
 export function IconButton({
@@ -12,6 +14,7 @@ export function IconButton({
   onClick,
   title,
   active,
+  marker,
 }: IconButtonProps) {
   return (
     <button
@@ -20,6 +23,7 @@ export function IconButton({
       title={title}
       aria-label={title}
       aria-pressed={active}
+      data-marker={marker}
       className={
         "w-8 h-8 rounded-md flex items-center justify-center border border-notion-border transition-colors " +
         (active

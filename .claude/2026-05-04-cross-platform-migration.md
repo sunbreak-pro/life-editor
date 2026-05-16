@@ -258,13 +258,15 @@ life-editor/
 | `scripts/migrate-sqlite-to-supabase.ts`      | 任意      | データ移行（不要なら作らない）              |
 | `frontend/`, `src-tauri/`, `cloud/`          | 触らない  | 並立期間は維持                              |
 
-#### Phase 1 完了判定
+#### Phase 1 完了判定 — ✅ 全達成（2026-05-16）
 
-- [ ] `web/` で `npm run dev` が起動
-- [ ] Supabase に接続して signIn 可能
-- [ ] tasks テーブルに対する SupabaseDataService の CRUD が通る
-- [ ] RLS で他ユーザーのデータが見えないことを確認
-- [ ] `frontend/`(Tauri)は壊れていない
+- [x] `web/` で `npm run dev` が起動
+- [x] Supabase に接続して signIn 可能
+- [x] tasks テーブルに対する SupabaseDataService の CRUD が通る
+- [x] RLS で他ユーザーのデータが見えないことを確認（probe 実証: 未認証 0 行 / USER A 自分の 1 行 / USER B は A の行 0 件・削除 0 件）
+- [x] `frontend/`(Tauri)は壊れていない（role-qa 実測 `tsc -b`=0）
+
+> 実装: commit `d1abd8a`(R1 スキャフォールド) + `ce6a5cb`(R2 Auth/RLS/CRUD)。0001/0002 は Supabase SQL Editor で適用（CLI 非対話の制約回避、Phase 5 で CLI 管理へ移行する申し送り）。RLS は `to authenticated` で式評価 + ロール層の二重防御。Phase 2 申し送り: ①新テーブル RLS 漏れの CI 機械検証 ②tsconfig project references 化 ③signOut scope 堅牢化
 
 ---
 

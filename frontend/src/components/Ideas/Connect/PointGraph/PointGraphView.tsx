@@ -65,8 +65,12 @@ export function PointGraphView({
   noteLinks,
   selectedTagId,
   onSelectTag,
+  onDeleteNoteConnection,
+  onDeleteNoteEntity,
+  onDeleteDailyEntity,
   onNavigateToNote,
   onNavigateToMemo,
+  onUpdateNoteColor,
   focusedNoteId,
   onFocusComplete,
   sidebarSelectedItemId,
@@ -83,12 +87,11 @@ export function PointGraphView({
   });
 
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [alpha, setAlpha] = useState(0);
-  const [fps, setFps] = useState(0);
   const [zoomK, setZoomK] = useState(1);
   const apiRef = useRef<{ reheat: () => void; resetView: () => void } | null>(
     null,
   );
+  const searchInputRef = useRef<HTMLInputElement | null>(null);
 
   const filters = useGraphFilters(snapshot, selectedId);
 
@@ -183,6 +186,56 @@ export function PointGraphView({
     [nodeById, onNavigateToNote, onNavigateToMemo],
   );
 
+  // Keyboard shortcuts:
+  //  Delete/Backspace -> soft-delete selected note/daily (mirrors old behavior)
+  //  Esc              -> clear selection
+  //  Cmd/Ctrl+F       -> open panel + focus search
+  //  R                -> reheat simulation
+  useEffect(() => {
+    function isTypingTarget(t: EventTarget | null): boolean {
+      const el = t as HTMLElement | null;
+      return (
+        !!el &&
+        (el.tagName === "INPUT" ||
+          el.tagName === "TEXTAREA" ||
+          el.isContentEditable)
+      );
+    }
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape") {
+        handleSelectedIdChange(null);
+        return;
+      }
+      if ((e.metaKey || e.ctrlKey) && (e.key === "f" || e.key === "F")) {
+        e.preventDefault();
+        if (!filters.panelOpen) filters.togglePanel();
+        requestAnimationFrame(() => searchInputRef.current?.focus());
+        return;
+      }
+      if (isTypingTarget(e.target)) return;
+      if ((e.key === "r" || e.key === "R") && !e.metaKey && !e.ctrlKey) {
+        apiRef.current?.reheat();
+        return;
+      }
+      if (e.key !== "Delete" && e.key !== "Backspace") return;
+      if (!selectedId) return;
+      const node = nodeById.get(selectedId);
+      if (!node || node.type === "tag") return;
+      if (node.type === "daily") onDeleteDailyEntity(node.label);
+      else onDeleteNoteEntity(node.id);
+      setSelectedId(null);
+    }
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [
+    selectedId,
+    nodeById,
+    onDeleteNoteEntity,
+    onDeleteDailyEntity,
+    handleSelectedIdChange,
+    filters,
+  ]);
+
   return (
     <div className="relative h-full w-full">
       <GraphCanvas
@@ -193,17 +246,14 @@ export function PointGraphView({
         selectedId={selectedId}
         onSelectedIdChange={handleSelectedIdChange}
         onActivate={handleActivate}
+        onManualEdgeClick={onDeleteNoteConnection}
         onApiReady={(api) => {
           apiRef.current = api;
         }}
         onZoomChange={setZoomK}
-        onAlpha={setAlpha}
-        onFps={setFps}
       />
 
       <GraphTopBar
-        alpha={alpha}
-        fps={fps}
         zoomPct={Math.round(zoomK * 100)}
         nodeCount={filters.filtered.nodes.length}
         totalCount={snapshot.nodes.length}
@@ -247,6 +297,7 @@ export function PointGraphView({
           onSelect={handleSelectedIdChange}
           onClose={() => handleSelectedIdChange(null)}
           onActivate={handleActivate}
+          onColorChange={onUpdateNoteColor}
         />
       )}
 
@@ -267,6 +318,8 @@ export function PointGraphView({
           typeCounts={typeCounts}
           totalTypeCounts={totalTypeCounts}
           selectedLabel={selectedNode ? selectedNode.label : null}
+          searchInputRef={searchInputRef}
+          onClose={filters.closePanel}
         />
       )}
     </div>

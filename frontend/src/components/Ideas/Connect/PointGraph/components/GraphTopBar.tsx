@@ -1,10 +1,8 @@
 import { useTranslation } from "react-i18next";
-import { RotateCcw, Maximize2, Settings2, X, Filter, Cpu } from "lucide-react";
+import { RotateCcw, Maximize2, Settings2, X, Filter } from "lucide-react";
 import { IconButton } from "./primitives/IconButton";
 
 interface GraphTopBarProps {
-  alpha: number;
-  fps: number;
   zoomPct: number;
   nodeCount: number;
   totalCount: number;
@@ -18,8 +16,6 @@ interface GraphTopBarProps {
 }
 
 export function GraphTopBar({
-  alpha,
-  fps,
   zoomPct,
   nodeCount,
   totalCount,
@@ -32,16 +28,9 @@ export function GraphTopBar({
   onTogglePanel,
 }: GraphTopBarProps) {
   const { t } = useTranslation();
-  const live = alpha > 0.01;
   return (
     <div className="absolute top-3 left-3 right-3 flex items-center justify-between pointer-events-none">
       <div className="pointer-events-auto flex items-center gap-3 px-3 py-1.5 rounded-lg bg-notion-bg border border-notion-border">
-        <span
-          className="w-2 h-2 rounded-full"
-          style={{
-            background: live ? "var(--color-success)" : "var(--color-border)",
-          }}
-        />
         <span className="text-[12px] text-notion-text-secondary">
           {t("connect.title")}
         </span>
@@ -61,13 +50,7 @@ export function GraphTopBar({
           </button>
         )}
         <span className="text-[10px] font-mono text-notion-text-secondary">
-          α {alpha.toFixed(3)}
-        </span>
-        <span className="text-[10px] font-mono text-notion-text-secondary">
           {zoomPct}%
-        </span>
-        <span className="text-[10px] font-mono flex items-center gap-1 text-notion-text-secondary">
-          <Cpu size={10} /> {fps}
         </span>
       </div>
 
@@ -82,6 +65,7 @@ export function GraphTopBar({
           onClick={onTogglePanel}
           title={t("connect.graph.togglePanel")}
           active={panelOpen}
+          marker="panel-toggle"
         >
           {panelOpen ? <X size={14} /> : <Settings2 size={14} />}
         </IconButton>

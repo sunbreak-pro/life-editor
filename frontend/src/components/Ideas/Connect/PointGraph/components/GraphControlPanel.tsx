@@ -1,3 +1,4 @@
+import { useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import {
   Search,
@@ -46,6 +47,8 @@ interface GraphControlPanelProps {
   typeCounts: Record<string, number>;
   totalTypeCounts: Record<string, number>;
   selectedLabel: string | null;
+  searchInputRef?: React.RefObject<HTMLInputElement | null>;
+  onClose: () => void;
 }
 
 export function GraphControlPanel({
@@ -64,8 +67,27 @@ export function GraphControlPanel({
   typeCounts,
   totalTypeCounts,
   selectedLabel,
+  searchInputRef,
+  onClose,
 }: GraphControlPanelProps) {
   const { t } = useTranslation();
+  const panelRef = useRef<HTMLDivElement | null>(null);
+
+  // Close when clicking anywhere outside the panel (except the topbar toggle,
+  // which manages open/close itself and would otherwise immediately reopen).
+  useEffect(() => {
+    function onPointerDown(e: PointerEvent) {
+      const target = e.target as HTMLElement | null;
+      if (!target) return;
+      if (panelRef.current?.contains(target)) return;
+      if (target.closest('[data-marker="panel-toggle"]')) return;
+      onClose();
+    }
+    document.addEventListener("pointerdown", onPointerDown, true);
+    return () =>
+      document.removeEventListener("pointerdown", onPointerDown, true);
+  }, [onClose]);
+
   const typeLabel: Record<GraphNodeType, string> = {
     project: t("connect.graph.typeProject"),
     note: t("connect.graph.typeNote"),
@@ -74,7 +96,25 @@ export function GraphControlPanel({
   };
 
   return (
-    <aside className="absolute top-3 bottom-3 right-3 w-72 flex flex-col gap-5 p-4 overflow-y-auto rounded-lg bg-notion-bg border border-notion-border shadow-lg">
+    <aside
+      ref={panelRef}
+      className="absolute top-3 bottom-3 right-3 w-72 flex flex-col gap-5 p-4 overflow-y-auto rounded-lg bg-notion-bg border border-notion-border shadow-lg"
+    >
+      <div className="flex items-center justify-between -mb-1">
+        <span className="text-[10px] uppercase tracking-[0.18em] font-medium text-notion-text-secondary">
+          {t("connect.graph.togglePanel")}
+        </span>
+        <button
+          type="button"
+          onClick={onClose}
+          title={t("connect.graph.closePanel")}
+          aria-label={t("connect.graph.closePanel")}
+          className="w-6 h-6 rounded flex items-center justify-center text-notion-text-secondary hover:bg-notion-hover hover:text-notion-text"
+        >
+          <X size={14} />
+        </button>
+      </div>
+
       <Section title={t("connect.graph.search")} icon={Search}>
         <div className="relative">
           <Search
@@ -82,6 +122,7 @@ export function GraphControlPanel({
             className="absolute left-2.5 top-1/2 -translate-y-1/2 text-notion-text-secondary"
           />
           <input
+            ref={searchInputRef}
             type="text"
             value={filter.search}
             onChange={(e) => onSearchChange(e.target.value)}
