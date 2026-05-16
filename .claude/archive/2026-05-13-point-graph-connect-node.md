@@ -1,6 +1,6 @@
 # Plan: Connect / Node タブを Point Graph (d3-force Canvas) へ置換
 
-> Status: DRAFT（未着手・要レビュー）
+> Status: COMPLETED（2026-05-16 全12ステップ実装完了 + パネル閉じる/Connect廃止/perf HUD削除の追補）
 > Created: 2026-05-13
 > Project path: /Users/newlife/dev/apps/life-editor
 > Task: MEMORY.md 連携は task-tracker で別途登録
