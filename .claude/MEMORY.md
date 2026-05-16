@@ -7,7 +7,7 @@
 ## 直近の完了
 
 - クロスプラットフォーム移行 Phase 1 完了 ✅（2026-05-16）— サブエージェント分担（管理=multi-session-coordinator / 設計=role-pm / 実装=role-engineer / 監査=role-qa+security-reviewer / 統括=メイン）。新スタック土台 `web/`(Vite+React+TS+Tailwind4) / `shared/`(DataService+型23 verbatim + SupabaseDataService tasks) / `supabase/migrations/`(0001 tasks+RLS deny-all / 0002 owner-only 4 policy `to authenticated` + `user_id default auth.uid()`) / `supabaseClient.ts`(単一共有=Auth↔DataService 同一 JWT) / `SupabaseAuth.ts` / web/ session ゲート。**完了判定 5/5 達成**: probe 実証で 未認証 0 行 / USER A 自分の 1 行 CRUD / USER B は A の行 0 件・削除 0 件 / `frontend/`(Tauri) `tsc -b`=0 非破壊。0001/0002 は Supabase SQL Editor 適用（CLI 非対話制約回避、Phase5 で CLI 管理へ）。commit `d1abd8a`(R1) + `ce6a5cb`(R2) + tracker `ec540ec`、SSOT 完了判定チェック済。**Phase2 申し送り**: ①新テーブル RLS 漏れの CI 機械検証 ②tsconfig project references 化 ③signOut scope 堅牢化。ブランチ refactor/web-first-v2（別チャット Point Graph と同居・パス指定ステージで分離）
-- Connect/Node タブを Point Graph (Canvas+d3-force) へ全面置換 ✅（2026-05-16）— 別チャットで実装。React Flow `TagGraphView`(1438行) を Canvas2D+d3-force の `PointGraph/`（19 ファイル）に置換。props 同一 I/F で `ConnectView.tsx` 無改修スワップ。データは既存 props から `GraphSnapshot` をフロント合成（Rust/DB/MCP 不変・読取のみ）。notion-\* 解決でライト/ダーク追従。旧 Node 系 9 + 孤立 `ConnectPanel.tsx` 削除。tsc -b 0 / vite OK / graph-filters 8 + reactFlowMerge 17 pass。計画書 archive 済。ブランチ refactor/web-first-v2
+- Connect/Node タブを Point Graph (Canvas+d3-force) へ全面置換 ✅（2026-05-16）— 別チャットで実装。React Flow `TagGraphView`(1438行) を Canvas2D+d3-force の `PointGraph/`（19 ファイル）に置換。props 同一 I/F で `ConnectView.tsx` 無改修スワップ。データは既存 props から `GraphSnapshot` をフロント合成（Rust/DB/MCP 不変・読取のみ）。notion-\* 解決でライト/ダーク追従。旧 Node 系 9 + 孤立 `ConnectPanel.tsx` 削除。tsc -b 0 / vite OK / graph-filters 8 + reactFlowMerge 17 pass。**手動 UI 検証 OK（2026-05-16、バグ未検出）— 以後は継続使用で修正項目を洗い出す（下記「予定」参照）**。計画書 archive 済。ブランチ refactor/web-first-v2
 - Schedule/ゴミ箱 削除 UX 刷新 + 危険ボタン撤去 + 移行プラン再整理 ✅（2026-05-16）— **(1)** 移行プラン 2026-05-14 改訂（commit `567190d`、三原則・Phase 1-5 再構成）。**(2)** エラーマスキング修正 + V69 migration ドリフト修正（commit `463b28f`、`getErrorMessage()` 6 catch 統一 / `data_reset` 等の DROP 済 routine_tag 参照除去 + 取りこぼし 5 テーブル追加）。**(3)** 削除 UX 刷新（`BulkCategoryDeleteButton` 2 段階確認 + TrashView per-category + 危険な全消去ボタン撤去 + i18n 用語統一）。tsc -b 0 / 398+4 tests pass。ブランチ refactor/web-first-v2
 
 ## 予定
@@ -21,6 +21,16 @@
 **着手順**: S0 申し送り先行対処（RLS 漏れ検出ゲート + tsconfig project references 判断）→ S1 Tasks → S2 Daily → S3 Notes → S4 Schedule → S5 WikiTags → S6 横断(context/hooks/i18n) → S7 オフラインバナー → S8 Realtime → S9 Mobile レスポンシブ
 **Phase1 申し送り**: ①新テーブル RLS 漏れ CI 機械検証 ②tsconfig project references 化 ③signOut scope 堅牢化 ④status 型詐称解消 ⑤型23 二重保持の同期方針決定
 **サブエージェント分担**: 管理=multi-session-coordinator / 設計=role-pm / 実装=role-engineer / 監査=role-qa+security-reviewer / 統括=メイン
+
+### Point Graph (Connect/Node) 継続フィードバック反映
+
+**対象**: `frontend/src/components/Ideas/Connect/PointGraph/`
+**背景**: 2026-05-16 に Canvas+d3-force へ全面置換、手動 UI 検証ではバグ未検出。実運用で見つかる改善・不具合をここに集約する（都度起票せず本エントリに追記 → まとまったら 1 セッションで対処）
+**洗い出し対象の観点**: ライト/ダーク配色の見やすさ / ノード多数時の FPS・レイアウト密度 / ドラッグ・ピンチ・スムーズパンの体感 / フィルタパネル開閉 UX / ConnectSidebar 連動の取りこぼし / ノード→エディタ遷移 / ラベル可読性（ズーム閾値）/ タグノード化による情報過多の有無
+**未検出だが要観察**: keydown effect が `filters` 全体依存で毎レンダー再購読（機能影響なし・性能微）
+**収集メモ**:
+
+- （実運用で気づいた項目をここに追記）
 
 ### Mobile vs Desktop 設計方針の docs/vision/ への明文化
 
