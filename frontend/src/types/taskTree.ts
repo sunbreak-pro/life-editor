@@ -1,3 +1,5 @@
+import type { Priority } from "./priority";
+
 export type SectionId =
   | "schedule"
   | "materials"
@@ -36,7 +38,7 @@ export interface TaskNode {
   version?: number;
   folderType?: "normal" | "complete";
   originalParentId?: string | null;
-  priority?: 1 | 2 | 3 | 4 | null;
+  priority?: Priority | null;
   reminderEnabled?: boolean;
   reminderOffset?: number;
 }

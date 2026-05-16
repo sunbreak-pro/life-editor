@@ -781,17 +781,17 @@ export function aggregateTagByEntityType(
   limit: number = 10,
 ): TagEntityTypeBucket[] {
   const tagMap = new Map(tags.map((t) => [t.id, t]));
-  const map = new Map<string, { task: number; note: number; memo: number }>();
+  const map = new Map<string, { task: number; note: number; daily: number }>();
 
   for (const a of assignments) {
     let entry = map.get(a.tagId);
     if (!entry) {
-      entry = { task: 0, note: 0, memo: 0 };
+      entry = { task: 0, note: 0, daily: 0 };
       map.set(a.tagId, entry);
     }
     if (a.entityType === "task") entry.task += 1;
     else if (a.entityType === "note") entry.note += 1;
-    else if (a.entityType === "memo") entry.memo += 1;
+    else if (a.entityType === "daily") entry.daily += 1;
   }
 
   return Array.from(map.entries())
@@ -803,7 +803,7 @@ export function aggregateTagByEntityType(
         tagColor: tag?.color ?? "#808080",
         taskCount: counts.task,
         noteCount: counts.note,
-        dailyCount: counts.memo,
+        dailyCount: counts.daily,
       };
     })
     .sort(

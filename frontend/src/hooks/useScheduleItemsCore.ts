@@ -1,6 +1,6 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 import type { Dispatch, SetStateAction } from "react";
-import type { ScheduleItem } from "../types/schedule";
+import type { ScheduleItem, ScheduleItemUpdate } from "../types/schedule";
 import { getDataService } from "../services";
 import { logServiceError } from "../utils/logError";
 import { generateId } from "../utils/generateId";
@@ -177,20 +177,7 @@ export function useScheduleItemsCore(
   const updateScheduleItem = useCallback(
     (
       id: string,
-      updates: Partial<
-        Pick<
-          ScheduleItem,
-          | "title"
-          | "startTime"
-          | "endTime"
-          | "completed"
-          | "completedAt"
-          | "memo"
-          | "content"
-          | "date"
-          | "isAllDay"
-        >
-      >,
+      updates: ScheduleItemUpdate,
       options?: { skipUndo?: boolean },
     ) => {
       const prev = scheduleItemsRef.current.find((item) => item.id === id);

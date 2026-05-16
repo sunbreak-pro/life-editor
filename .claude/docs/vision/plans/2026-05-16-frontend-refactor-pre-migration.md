@@ -1,6 +1,6 @@
 # Plan: Frontend 脆弱性リファクタ（移行前安全網 + コンパクト化）
 
-- **Status**: Draft
+- **Status**: In-progress（Phase 0/0+/1/2 COMPLETE & committed c25a7d3/5e67b77/d62a2dc・origin 取込済 / Phase 3-1・3-2 着手 / 3-3・3-4 取り下げ）
 - **Created**: 2026-05-16
 - **Task**: MEMORY.md `project_web_first_migration.md` 関連（移行前の負債清算レーン）
 - **Project path**: /Users/newlife/dev/apps/life-editor
@@ -78,10 +78,12 @@
 
 ### Phase 3 — 型単一ソース化（移行の本丸 / 論理バグ予備軍の解消）
 
-- [ ] 3-1. **【最優先】WikiTag entityType 衝突解消（D3）**: `types/wikiTag.ts` の `WikiTagAssignment.entityType` を `WikiTagEntityType`(`task|daily|note`) に統一、`memo` リテラルを排除（V64 移行の型負債、Supabase 自動生成型と衝突する温床）
-- [ ] 3-2. 型重複の単一ソース集約: `ScheduleItemUpdate`(D2 — `Partial<Pick<ScheduleItem,...>>` 二重手書きを `types/schedule.ts` へ) / `TaskNode.priority` を `Priority|null` 参照に(D4) / `SyncChangesResponse extends SyncFullResponse`(D5)
-- [ ] 3-3. `shared/src/types/` 23ファイルを SSOT 化、`frontend/src/types/*` を `export * from "@life-editor/shared"` re-export スタブ化（D1 — 物理コピー二重管理の解消、型は同一なので破壊リスク低）
-- [ ] 3-4. `frontend/package.json` に `@life-editor/shared` 依存追加 + `DataService.ts`(794行) を shared 由来 re-export に一本化（A1/A3 — Supabase 移行の起点）
+- [x] 3-1. WikiTag entityType 衝突解消（D3）: `WikiTagAssignment.entityType`→`WikiTagEntityType` 統一、`memo` リテラル排除。副産物で V64 取り残し論理バグ2件修正（analytics dailyCount 常時0 / ConnectSidebar dailyTagMap 常時空 → V64 で DB は `daily` を書くため `==="memo"` は永遠 false だった死にコード）。i18n ラベル `byEntityType.memo`→`daily`（メモ→デイリー/Daily）も是正。回帰テスト2件追加。QA: V64 migration の決定的証拠で DB 残存 `memo` は構造的に存在しない（実害ゼロ完全立証）
+- [x] 3-2. 型重複集約（挙動完全不変・QA 契約完全同一確認）: `ScheduleItemUpdate` を `types/schedule.ts` に集約し3箇所参照(D2、部分集合2箇所は別 shape で非集約) / `TaskNode.priority`→`Priority|null`(D4) / `SyncChangesResponse extends SyncFullResponse`(D5)
+- 完了: **527 pass / 0 skip / 0 fail**、`npm run build` PASS、正味 -71行。QA 判定 **PASS-with-fixes**（Blocker ゼロ、i18n Low は本タスク内で是正済）
+- 申し送り(将来/migration Phase): DataService 層 `entityType: string` を `WikiTagEntityType` に締めると将来 `"memo"` 混入を型で防げる（現状は全呼出元実値が安全だが型強制は無い）
+- ~~3-3. shared/src/types SSOT 化~~ **取り下げ（2026-05-16）**: migration Phase 2 がドメイン単位（Tasks S1 / Daily S2 …）で shared 移植を有機的に実施中。本タスクでやると全面衝突するため migration に委譲
+- ~~3-4. DataService shared 一本化~~ **取り下げ（同上）**: A1/A3 は migration の SupabaseDataService 構築でカバーされる。重複作業回避
 
 ### Phase 4 — 規約準拠の最小整合（Mobile Optional バリアント）
 

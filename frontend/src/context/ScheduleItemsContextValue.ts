@@ -1,6 +1,10 @@
 import { createContext } from "react";
 import type { Dispatch, SetStateAction } from "react";
-import type { ScheduleItem, RoutineStats } from "../types/schedule";
+import type {
+  ScheduleItem,
+  RoutineStats,
+  ScheduleItemUpdate,
+} from "../types/schedule";
 import type { RoutineNode } from "../types/routine";
 import type { RoutineGroup } from "../types/routineGroup";
 
@@ -28,20 +32,7 @@ export interface ScheduleItemsContextValue {
   ) => string;
   updateScheduleItem: (
     id: string,
-    updates: Partial<
-      Pick<
-        ScheduleItem,
-        | "title"
-        | "startTime"
-        | "endTime"
-        | "completed"
-        | "completedAt"
-        | "memo"
-        | "content"
-        | "date"
-        | "isAllDay"
-      >
-    >,
+    updates: ScheduleItemUpdate,
     options?: { skipUndo?: boolean },
   ) => void;
   deleteScheduleItem: (id: string, options?: { skipUndo?: boolean }) => void;

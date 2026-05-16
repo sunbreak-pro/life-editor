@@ -158,11 +158,11 @@ export function ConnectSidebar({
     return map;
   }, [assignments]);
 
-  // Memo tag filter
+  // Daily tag filter
   const dailyTagMap = useMemo(() => {
     const map = new Map<string, Set<string>>();
     for (const a of assignments) {
-      if (a.entityType !== "memo") continue;
+      if (a.entityType !== "daily") continue;
       const existing = map.get(a.entityId) || new Set();
       existing.add(a.tagId);
       map.set(a.entityId, existing);

@@ -1,4 +1,4 @@
-import type { ScheduleItem } from "../../types/schedule";
+import type { ScheduleItem, ScheduleItemUpdate } from "../../types/schedule";
 import { tauriInvoke } from "../bridge";
 
 export const scheduleItemsApi = {
@@ -44,20 +44,7 @@ export const scheduleItemsApi = {
   },
   updateScheduleItem(
     id: string,
-    updates: Partial<
-      Pick<
-        ScheduleItem,
-        | "title"
-        | "startTime"
-        | "endTime"
-        | "completed"
-        | "completedAt"
-        | "memo"
-        | "isAllDay"
-        | "content"
-        | "date"
-      >
-    >,
+    updates: ScheduleItemUpdate,
   ): Promise<ScheduleItem> {
     return tauriInvoke("db_schedule_items_update", { id, updates });
   },
