@@ -1,0 +1,14 @@
+{
+  "name": "@life-editor/supabase",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Supabase migrations + the RLS leak detection gate (run db:check-rls before db:push).",
+  "scripts": {
+    "db:check-rls": "bash ./scripts/check-rls.sh",
+    "db:check-rls:selftest": "bash ./scripts/check-rls-selftest.sh",
+    "db:push": "npm run db:check-rls && npx supabase db push"
+  },
+  "devDependencies": {
+    "supabase": "^2.98.2"
+  }
+}

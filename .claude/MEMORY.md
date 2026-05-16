@@ -2,7 +2,17 @@
 
 ## 進行中
 
-（なし）
+### 🔧 クロスプラットフォーム移行 Phase 2 — コア機能のフロントエンド移植（着手日: 2026-05-16）
+
+**対象**: `supabase/migrations/0003+`（ドメイン別本格スキーマ）/ `supabase/scripts/`（RLS ゲート）/ `shared/src/{components,context,hooks,i18n}/`（frontend から Tauri 非依存を移植）/ `web/`（配線）。`frontend/` `src-tauri/` `cloud/` 不可侵維持
+**計画書**: `.claude/docs/vision/plans/2026-05-16-phase2-core-migration.md`
+
+- 前回: S0 完了 — S0(a) RLS 漏れ検出ゲート（check-rls.sql/sh/selftest、全開 policy 検出、番兵行で接続失敗を安全側 exit2、self-test 15/15。security Critical-1/High-1/High-2 + QA 全 CLOSED）/ S0(b) tsconfig（shared composite + web project references 化、frontend `tsc -b`=0 非破壊）
+- 現在: S1 Tasks 移植 着手準備（0003 tasks 本格スキーマ = id 型 text §4.3 準拠 + RLS 4 policy / `SupabaseDataService` tasks 9 メソッド拡張 / `frontend/src/components/Tasks/` Tauri 非依存を `shared/` へ）
+- 次: S2 Daily → S3 Notes → S4 Schedule → S5 WikiTags → S6 横断(context/hooks/i18n) → S7 オフラインバナー → S8 Realtime → S9 Mobile レスポンシブ
+
+**S0 申し送り（S1 で対処/留意）**: ①`check-rls` の `%true%or%`/`%or%true%` over-report — 共有系 policy（`is_public OR owner`）誤 BLOCK、allowlist 1 行で回避（実害なし）、共有テーブル設計時に周知 ②実接続検証は `SUPABASE_DB_URL` 未提供でブロック中、最初の新テーブル push 直前に `npm run db:check-rls` green を 1 回必須（README 運用化済）③Phase1 検証残骸（`rls.a/b@gmail.com`・"A-task"）はユーザー手動掃除（S1-1 適用前）④id 型=text 確定 ⑤`migrateTasksToBackend` は Web で no-op stub ⑥`useSyncContext` は Web 用 no-op Provider 暫定（S8 Realtime で正式置換）
+**サブエージェント分担**: 設計=role-pm / 実装=role-engineer / 監査=role-qa+security-reviewer / 統括=メイン
 
 ## 直近の完了
 
@@ -13,14 +23,6 @@
 ## 予定
 
 > **注**: 以下の予定タスクの大半は旧 Tauri / Cloudflare アーキテクチャ前提で書かれており、Web ファースト移行（refactor/web-first-v2）の進行に伴って **deprecated** になる可能性が高い。各タスクの存続判断は移行 Phase 1-2 進行時に再評価する。
-
-### 🚀 クロスプラットフォーム移行 Phase 2 — コア機能のフロントエンド移植（次セッション最優先）
-
-**対象**: `supabase/migrations/0003+`（ドメイン別本格スキーマ）/ `shared/src/{components,context,hooks,i18n}/`（frontend から Tauri 非依存を移植）/ `web/`（配線）。`frontend/` `src-tauri/` `cloud/` は不可侵維持
-**計画書**: `.claude/docs/vision/plans/2026-05-16-phase2-core-migration.md`（再開手順・S0-S9・完了判定を記載。次セッション開始時にこれと SSOT Phase 2 節を読む）
-**着手順**: S0 申し送り先行対処（RLS 漏れ検出ゲート + tsconfig project references 判断）→ S1 Tasks → S2 Daily → S3 Notes → S4 Schedule → S5 WikiTags → S6 横断(context/hooks/i18n) → S7 オフラインバナー → S8 Realtime → S9 Mobile レスポンシブ
-**Phase1 申し送り**: ①新テーブル RLS 漏れ CI 機械検証 ②tsconfig project references 化 ③signOut scope 堅牢化 ④status 型詐称解消 ⑤型23 二重保持の同期方針決定
-**サブエージェント分担**: 管理=multi-session-coordinator / 設計=role-pm / 実装=role-engineer / 監査=role-qa+security-reviewer / 統括=メイン
 
 ### Point Graph (Connect/Node) 継続フィードバック反映
 

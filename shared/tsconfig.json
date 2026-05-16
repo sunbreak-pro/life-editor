@@ -5,13 +5,23 @@
     "module": "ESNext",
     "moduleResolution": "bundler",
     "strict": true,
-    "noEmit": true,
     "skipLibCheck": true,
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,
     "isolatedModules": true,
     "verbatimModuleSyntax": true,
-    "types": []
+    "types": [],
+
+    /* Composite project: built once into dist/, consumed by web/ (and
+       later desktop/mobile) via a `references` edge + .d.ts, not by
+       re-typechecking shared/src inside every host's program. */
+    "composite": true,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "rootDir": "src",
+    "outDir": "dist",
+    "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.tsbuildinfo"
   },
   "include": ["src"]
 }

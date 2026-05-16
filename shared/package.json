@@ -3,9 +3,18 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "main": "src/index.ts",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
   "scripts": {
-    "typecheck": "tsc --noEmit"
+    "build": "tsc -b",
+    "_comment_typecheck": "composite project: `typecheck` runs `tsc -b` which ALSO emits dist (build side effect). It is intentionally an alias of `build`, not a pure --noEmit check, because project references require emitted .d.ts. Do not 'fix' it to `tsc --noEmit`.",
+    "typecheck": "tsc -b"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.45.0"
