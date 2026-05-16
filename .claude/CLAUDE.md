@@ -4,7 +4,7 @@
 
 > ⚠️ **Active Migration (2026-05-04 開始 / 2026-05-14 方針更新)** — `refactor/web-first-v2` ブランチで Tauri 2 + Cloudflare D1 + portable-pty → **Electron + Capacitor + Web + Supabase** への大規模移行が進行中。SSOT は [`.claude/2026-05-04-cross-platform-migration.md`](./2026-05-04-cross-platform-migration.md)。本ファイル §1-7 は現行 Tauri 構成を記述しており、Phase 5 完了時に全面改訂される。
 >
-> **新方針 (2026-05-14)**: ①学習スパイク廃止 → life-editor 本体で動かしながら学ぶ ②学習用 Markdown ログ廃止 ③Phase 5 完了 = 完成までコスト $0 厳守（Apple Developer Program / Supabase Pro / 署名証明書 は完成後判断）。現在は **Phase 1 着手準備中**。
+> **新方針 (2026-05-14)**: ①学習スパイク廃止 → life-editor 本体で動かしながら学ぶ ②学習用 Markdown ログ廃止 ③Phase 5 完了 = 完成までコスト $0 厳守（Apple Developer Program / Supabase Pro / 署名証明書 は完成後判断）。現在は **Phase 2 進行中**（Phase 1 完了 2026-05-16 / S0 完了 / S1 完了 / S2 着手準備中。詳細は移行 SSOT と MEMORY.md）。
 
 ---
 
@@ -128,14 +128,14 @@ React Router なし。`App.tsx::activeSection` で切替: `schedule` / `material
 
 ## 5. AI Integration
 
-### 5.1 MCP Server（30 ツール）
+### 5.1 MCP Server（32 ツール）
 
 独立 Node.js プロセス。Claude Code が stdio 経由で呼び出し、同一 SQLite DB を直接操作。ドメイン別:
 
 - **Tasks**: list / get / create / update / delete / get_tree
 - **Dailies**: get / upsert
 - **Notes**: list / create / update
-- **Schedule**: list / create / update / delete / toggle_complete
+- **Schedule**: list / create / update / delete / toggle_complete / dismiss / undismiss
 - **Wiki Tags**: list / tag_entity / search_by_tag / get_entity_tags
 - **Content / Search**: generate_content / format_content / search_all
 - **File**: list / read / write / create_directory / rename / delete / search
@@ -255,10 +255,10 @@ cd mcp-server && npm run build                          # MCP Server ビルド
 ### 次フェーズ計画
 
 - **🚀 [`2026-05-04-cross-platform-migration.md`](./2026-05-04-cross-platform-migration.md)** — **現行 SSOT**。Tauri 2 → Electron + Capacitor + Web + Supabase 大規模移行（Phase 0-5、3-4.5 ヶ月）。下記 Tauri/Cloud 系プランの大半を上書きする
-- [`vision/realtime-sync.md`](./docs/vision/realtime-sync.md) — Phase 1: foreground 可変 polling + 変更イベント駆動 push（Supabase Realtime 採用で再評価予定）
+- Realtime 同期方針 — 旧 `vision/realtime-sync.md` は 2026-05-16 削除。Supabase Realtime 採用で再評価予定。レイテンシ目標等の恒久知見は [`archive/SUMMARY.md`](./archive/SUMMARY.md)「vision-tauri 恒久知見」に圧縮
 - [`vision/desktop-followup.md`](./docs/vision/desktop-followup.md) — Desktop 残課題（Phase 5 で再仕分け）
 
-旧 Tauri 前提プランは移行 Phase 5 で archive 予定（参考のみ）: [`vision/mobile-porting.md`](./docs/vision/mobile-porting.md) / [`vision/mobile-data-parity.md`](./docs/vision/mobile-data-parity.md) / [`vision/ios-everywhere-sync.md`](./docs/vision/ios-everywhere-sync.md) / [`requirements/ios-additions.md`](./docs/requirements/ios-additions.md) / `.claude/2026-04-26-windows-android-port.md`
+旧 Tauri 前提 vision（`mobile-porting` / `mobile-data-parity` / `ios-everywhere-sync` / `realtime-sync`）は 2026-05-16 削除。アーキ非依存の恒久知見のみ [`archive/SUMMARY.md`](./archive/SUMMARY.md) に圧縮済み（逐語原文は git 履歴）。なお [`requirements/ios-additions.md`](./docs/requirements/ios-additions.md) / `.claude/2026-04-26-windows-android-port.md` は現存（Phase 5 で再仕分け）
 
 ---
 

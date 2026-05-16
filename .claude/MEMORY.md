@@ -16,9 +16,9 @@
 
 ## 直近の完了
 
+- .claude ドキュメント整理（archive 圧縮統合 / HISTORY-archive コンパクト化 / 矛盾修正 / known-issues 新規）✅（2026-05-16）— サブエージェント3並列（archive要約=general / HISTORY圧縮=general / 矛盾調査=general）。archive/ 50ファイル git rm（28プラン+TODO+docs/dropped/rules/vision-tauri）→ `archive/SUMMARY.md`(283行, 元601KB→22KB) に圧縮統合 + vision-tauri 恒久知見抽出。`HISTORY-archive.md` 1257→413行(69%減、`.bak` 退避・コミット対象外)。CLAUDE.md/MEMORY.md/移行SSOT/coding-principles の矛盾 Top3+#3 修正（vision-tauriリンク切れ→SUMMARY張替 / Phase1着手準備中→Phase2進行中 / IPC 3点→4点同期 / MCP 30→32ツール+dismiss系）。known-issues 017(calendar soft-delete/Routine再生成)・018(macOS WebKit button focus)・019(createPortal click-outside)新規 + INDEX更新。Claude Desktop に life-editor MCP 登録（config はリポジトリ外、node 絶対パス）。ブランチ refactor/web-first-v2、パス指定 `.claude/` のみコミット
 - クロスプラットフォーム移行 Phase 1 完了 ✅（2026-05-16）— サブエージェント分担（管理=multi-session-coordinator / 設計=role-pm / 実装=role-engineer / 監査=role-qa+security-reviewer / 統括=メイン）。新スタック土台 `web/`(Vite+React+TS+Tailwind4) / `shared/`(DataService+型23 verbatim + SupabaseDataService tasks) / `supabase/migrations/`(0001 tasks+RLS deny-all / 0002 owner-only 4 policy `to authenticated` + `user_id default auth.uid()`) / `supabaseClient.ts`(単一共有=Auth↔DataService 同一 JWT) / `SupabaseAuth.ts` / web/ session ゲート。**完了判定 5/5 達成**: probe 実証で 未認証 0 行 / USER A 自分の 1 行 CRUD / USER B は A の行 0 件・削除 0 件 / `frontend/`(Tauri) `tsc -b`=0 非破壊。0001/0002 は Supabase SQL Editor 適用（CLI 非対話制約回避、Phase5 で CLI 管理へ）。commit `d1abd8a`(R1) + `ce6a5cb`(R2) + tracker `ec540ec`、SSOT 完了判定チェック済。**Phase2 申し送り**: ①新テーブル RLS 漏れの CI 機械検証 ②tsconfig project references 化 ③signOut scope 堅牢化。ブランチ refactor/web-first-v2（別チャット Point Graph と同居・パス指定ステージで分離）
 - Connect/Node タブを Point Graph (Canvas+d3-force) へ全面置換 ✅（2026-05-16）— 別チャットで実装。React Flow `TagGraphView`(1438行) を Canvas2D+d3-force の `PointGraph/`（19 ファイル）に置換。props 同一 I/F で `ConnectView.tsx` 無改修スワップ。データは既存 props から `GraphSnapshot` をフロント合成（Rust/DB/MCP 不変・読取のみ）。notion-\* 解決でライト/ダーク追従。旧 Node 系 9 + 孤立 `ConnectPanel.tsx` 削除。tsc -b 0 / vite OK / graph-filters 8 + reactFlowMerge 17 pass。**手動 UI 検証 OK（2026-05-16、バグ未検出）— 以後は継続使用で修正項目を洗い出す（下記「予定」参照）**。計画書 archive 済。ブランチ refactor/web-first-v2
-- Schedule/ゴミ箱 削除 UX 刷新 + 危険ボタン撤去 + 移行プラン再整理 ✅（2026-05-16）— **(1)** 移行プラン 2026-05-14 改訂（commit `567190d`、三原則・Phase 1-5 再構成）。**(2)** エラーマスキング修正 + V69 migration ドリフト修正（commit `463b28f`、`getErrorMessage()` 6 catch 統一 / `data_reset` 等の DROP 済 routine_tag 参照除去 + 取りこぼし 5 テーブル追加）。**(3)** 削除 UX 刷新（`BulkCategoryDeleteButton` 2 段階確認 + TrashView per-category + 危険な全消去ボタン撤去 + i18n 用語統一）。tsc -b 0 / 398+4 tests pass。ブランチ refactor/web-first-v2
 
 ## 予定
 
@@ -83,7 +83,7 @@
 **対象**: `frontend/src/context/SyncContext.tsx` / DataService mutation 呼出層
 **背景**: 現状 30 秒間隔 polling で往復 60 秒ラグ。「DB 共有の実感」が薄い
 **手順**: Visibility API 観測 → フォアグラウンド 3-5s / 非アクティブ 60s、主要 mutation 後に debounced `triggerSync()`
-**参照**: `.claude/docs/vision/realtime-sync.md` Phase 1
+**参照**: `.claude/archive/SUMMARY.md`「vision-tauri 恒久知見 > Realtime 同期のレイテンシ目標」（旧 realtime-sync.md は 2026-05-16 削除、Supabase Realtime で再評価）
 
 ### Mobile Settings に Full Re-sync ボタン追加
 

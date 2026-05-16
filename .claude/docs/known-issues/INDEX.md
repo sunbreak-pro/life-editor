@@ -8,7 +8,7 @@
 
 ## Active（未解決）
 
-（なし）
+_現在 Active な Issue はありません。_
 
 ## Monitoring（すぐ対処しないが監視）
 
@@ -18,28 +18,32 @@
 
 ## Fixed（Root Cause 参考、再発防止用）
 
-| ID  | Title                                                                                                                                 | Category            | Resolved   |
-| --- | ------------------------------------------------------------------------------------------------------------------------------------- | ------------------- | ---------- |
-| 001 | [Cloud Sync 立ち上げ schema/FK 3 連戦（予約語 / FK 順序 / schema drift）](./001-cloud-sync-bootstrap-schema-fk.md)                    | Bug/Schema          | 2026-04-18 |
-| 004 | [sync_last_synced_at が空で毎回 1970 から fullpush](./004-sync-last-synced-at-not-persisted.md)                                       | Bug                 | 2026-04-20 |
-| 005 | [tasks.updated_at が NULL（Cloud Sync 対象除外）](./005-tasks-updated-at-null-on-creation.md)                                         | Bug/Schema          | 2026-04-20 |
-| 007 | [XcodeGen 再生成で pbxproj 設定が消える](./007-xcodegen-pbxproj-config-drift.md)                                                      | Tooling             | 2026-04-18 |
-| 008 | [routine/group tag_assignments が delta sync に乗らず Desktop から消える](./008-routine-tag-assignments-delta-sync-invisible.md)      | Bug/Sync            | 2026-04-20 |
-| 009 | [Mobile 画面が Provider をバイパスして DataService 直呼び（データ伝播が非対称）](./009-mobile-data-parity-provider-bypass.md)         | Structural          | 2026-04-20 |
-| 010 | [Notes 移動/並び替えと Memos 削除/復元が delta sync から脱落](./010-notes-memos-mutation-skipped-by-delta-sync.md)                    | Bug/Sync            | 2026-04-20 |
-| 011 | [schedule_items の (routine_id, date) 重複が Cloud D1 に蓄積](./011-schedule-items-routine-date-duplication.md)                       | Bug/Schema/Sync     | 2026-04-21 |
-| 012 | [/sync/changes LIMIT=500 + client hasMore 未処理で初回 pull が途切れる](./012-sync-changes-limit-500-truncates-large-initial-pull.md) | Bug/Sync            | 2026-04-22 |
-| 013 | [delta sync cursor の 2 根本欠陥（timestamp 形式混在 + 非単調 LWW）](./013-delta-sync-cursor-design-flaws.md)                         | Bug/Sync/Structural | 2026-04-24 |
-| 015 | [Mobile で `notion-*-primary` サフィックス誤用 / 27 箇所背景透明化](./015-mobile-invalid-tailwind-primary-suffix.md)                  | Bug/Styling         | 2026-04-24 |
+| ID  | Title                                                                                                                                     | Category            | Resolved   |
+| --- | ----------------------------------------------------------------------------------------------------------------------------------------- | ------------------- | ---------- |
+| 001 | [Cloud Sync 立ち上げ schema/FK 3 連戦（予約語 / FK 順序 / schema drift）](./001-cloud-sync-bootstrap-schema-fk.md)                        | Bug/Schema          | 2026-04-18 |
+| 004 | [sync_last_synced_at が空で毎回 1970 から fullpush](./004-sync-last-synced-at-not-persisted.md)                                           | Bug                 | 2026-04-20 |
+| 005 | [tasks.updated_at が NULL（Cloud Sync 対象除外）](./005-tasks-updated-at-null-on-creation.md)                                             | Bug/Schema          | 2026-04-20 |
+| 007 | [XcodeGen 再生成で pbxproj 設定が消える](./007-xcodegen-pbxproj-config-drift.md)                                                          | Tooling             | 2026-04-18 |
+| 008 | [routine/group tag_assignments が delta sync に乗らず Desktop から消える](./008-routine-tag-assignments-delta-sync-invisible.md)          | Bug/Sync            | 2026-04-20 |
+| 009 | [Mobile 画面が Provider をバイパスして DataService 直呼び（データ伝播が非対称）](./009-mobile-data-parity-provider-bypass.md)             | Structural          | 2026-04-20 |
+| 010 | [Notes 移動/並び替えと Memos 削除/復元が delta sync から脱落](./010-notes-memos-mutation-skipped-by-delta-sync.md)                        | Bug/Sync            | 2026-04-20 |
+| 011 | [schedule_items の (routine_id, date) 重複が Cloud D1 に蓄積](./011-schedule-items-routine-date-duplication.md)                           | Bug/Schema/Sync     | 2026-04-21 |
+| 012 | [/sync/changes LIMIT=500 + client hasMore 未処理で初回 pull が途切れる](./012-sync-changes-limit-500-truncates-large-initial-pull.md)     | Bug/Sync            | 2026-04-22 |
+| 013 | [delta sync cursor の 2 根本欠陥（timestamp 形式混在 + 非単調 LWW）](./013-delta-sync-cursor-design-flaws.md)                             | Bug/Sync/Structural | 2026-04-24 |
+| 015 | [Mobile で `notion-*-primary` サフィックス誤用 / 27 箇所背景透明化](./015-mobile-invalid-tailwind-primary-suffix.md)                      | Bug/Styling         | 2026-04-24 |
+| 016 | [タスクツリー走査が循環 parentId で無限ループ → V8 OOM](./016-task-tree-traversal-cycle-oom.md)                                           | Bug/Structural      | 2026-05-16 |
+| 017 | [カレンダーに削除済みタスクが残る / Routine 削除後も schedule_items 再生成](./017-calendar-soft-deleted-task-and-routine-regeneration.md) | Bug/Structural      | 2026-05-15 |
+| 018 | [macOS WebKit で button クリックが focus を奪わず autoFocus input の blur が先行](./018-macos-webkit-button-no-focus-shift.md)            | Bug/Structural      | 2026-04-26 |
+| 019 | [createPortal 配下 DOM 分離で click-outside 誤発火しパネル即閉じ](./019-createportal-clickoutside-misfire.md)                             | Bug/Structural      | 2026-04-26 |
 
 ---
 
 ## Category 別インデックス
 
-- **Bug**: 001, 004, 005, 008, 010, 011, 012, 013, 015
+- **Bug**: 001, 004, 005, 008, 010, 011, 012, 013, 015, 016, 017, 018, 019
 - **Schema**: 001, 005, 011, 013
 - **Sync**: 008, 010, 011, 012, 013
-- **Structural**: 001, 006, 009, 013
+- **Structural**: 001, 006, 009, 013, 016, 017, 018, 019
 - **Tooling**: 007
 - **Styling**: 015
 
@@ -47,8 +51,8 @@
 
 - Active: 0 件
 - Monitoring: 1 件 (006)
-- Fixed: 10 件
-- 合計: 11 件
+- Fixed: 14 件
+- 合計: 15 件
 
 ## 統合履歴
 
