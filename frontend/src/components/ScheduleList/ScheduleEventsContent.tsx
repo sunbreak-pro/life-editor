@@ -9,7 +9,6 @@ import { STORAGE_KEYS } from "../../constants/storageKeys";
 import { EventList } from "./EventList";
 import { EventDetailPanel } from "./EventDetailPanel";
 import { EventQuickCreatePopover } from "./EventQuickCreatePopover";
-import { BulkCategoryDeleteButton } from "./BulkCategoryDeleteButton";
 
 type EventFilterTab = "incomplete" | "completed";
 
@@ -64,7 +63,6 @@ export function ScheduleEventsContent({
             noBorder
           />
           <div className="ml-auto mr-2 flex items-center gap-2">
-            <BulkCategoryDeleteButton kind="events" compact />
             <button
               onClick={() => setShowCreatePopover(!showCreatePopover)}
               className="p-1 text-notion-text-secondary hover:text-notion-text hover:bg-notion-hover rounded-md transition-colors"
