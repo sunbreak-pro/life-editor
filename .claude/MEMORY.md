@@ -2,28 +2,13 @@
 
 ## 進行中
 
-### 🔧 クロスプラットフォーム移行 Phase 1 — 新スタック土台構築（着手日: 2026-05-16）
-
-**対象**: `web/`（新規 Vite+React+TS+Tailwind）/ `shared/`（新規・services から）/ `supabase/migrations/`（新規）/ `frontend/`・`src-tauri/`・`cloud/`（並立期間は触らない）
-**計画書**: `.claude/2026-05-04-cross-platform-migration.md`（SSOT / Status: ACTIVE）
-
-着手順序: 1.web/ 最小起動 → 2.Tailwind 4 → 3.Supabase 無料 PJ（**ユーザー作業**）→ 4.最小スキーマ(tasks) → 5.@supabase/supabase-js 接続 → 6.Auth(Email+PW) → 7.RLS → 8.shared/ 雛形(DataService コピー) → 9.SupabaseDataService(tasks) → 10.本格スキーマ(Tasks/Schedule/Notes/Daily/WikiTags) → 11.データ移行スクリプト(任意)
-
-完了判定: [ ] web/ npm run dev 起動 / [ ] Supabase signIn 可 / [ ] tasks CRUD 通過 / [ ] RLS で他ユーザー不可視 / [ ] frontend/(Tauri) 非破壊
-
-- 前回: 自走部スキャフォールド（commit `d1abd8a`）+ Auth/RLS/CRUD 配線コード完成（commit `ce6a5cb`）。0002_rls_tasks.sql(user_id default auth.uid() + 4 policy `to authenticated`) / supabaseClient.ts(単一共有=Auth↔DataService 同一 JWT) / SupabaseAuth.ts / web/ session ゲート。role-qa=PASS / security=Critical0,High0（Medium=Phase2 RLS漏れCI検証 / Low=signOut堅牢化 は Phase2 申し送り）
-- 現在: **ユーザー操作 2 ブロッカーで runtime 検証停止**。①`web/.env.local` の `VITE_SUPABASE_URL` がダッシュボードリンク形式（要 `https://<ref>.supabase.co`）②supabase CLI 未認証で 0001/0002 リモート未適用
-- 次: ユーザーが ①.env.local URL 修正 ②`npx supabase login`→`link --project-ref <ref>`→`db push` 実行 → `node supabase/.temp/probe.mjs`(gitignore済) で RLS 3点実証（認証=自分のみ/未認証 deny/他人不可視）→ 完了後 probe 削除 → Phase 1 完了判定クローズ → Phase 2(コア機能移植) へ。Phase2 着手 TODO: tsconfig project references 化 + RLS漏れ CI 検証 + signOut scope
-
-> 作業ツリーに Point Graph 関連の未コミット変更あり（本移行と無関係・保全対象、Phase 1 commit では新規ディレクトリのみ選択ステージ）
-
-（他に進行中タスクなし）
+（なし）
 
 ## 直近の完了
 
-- Connect/Node タブを Point Graph (Canvas+d3-force) へ全面置換 ✅（2026-05-16）— 別チャットで実装。React Flow `TagGraphView`(1438行) を Canvas2D+d3-force の `PointGraph/`（19 ファイル）に置換。props 同一 I/F で `ConnectView.tsx` 無改修スワップ、右サイドバー `ConnectSidebar` 維持。データは既存 props から `GraphSnapshot` をフロント合成（**Rust/DB/MCP 不変・読取のみ**）: folder→project / note→note / daily→daily / tag→独立ノード、5 kind エッジ。notion-\* トークン解決でライト/ダーク追従（Catppuccin ハードコード全廃 §6.4）。位置キャッシュ・スムーズパン・ホバー隣接強調・ズームゲートラベル・リセンタリング継承。既存機能保全（ダブルクリック遷移 / カラーピッカー / manual エッジ削除 / Delete soft-delete / ConnectSidebar 双方向 / focusedNoteId / 位置永続化）。ショートカット Esc/Cmd+F/R。**追補**: フィルタパネルに X 閉じる+外側 pointerdown 閉じ、Connect モード一式廃止、左 perf HUD(α/fps) 削除。旧 Node 系 9 ファイル + 孤立化した `ConnectPanel.tsx` 削除（`reactFlowMerge`/`CanvasControls` は Paper で継続使用のため保持）。**Verification**: tsc -b 0 / eslint(PointGraph+ConnectView) 0 / vite 本番ビルド OK / 新規 graph-filters.test 8 + reactFlowMerge 17 pass。計画書 archive 済 (`.claude/archive/2026-05-13-point-graph-connect-node.md`)。ブランチ: refactor/web-first-v2（別セッションと同居・パス指定ステージで分離）
-- Schedule/ゴミ箱 削除 UX 刷新 + 危険ボタン撤去 + 移行プラン再整理 ✅（2026-05-16）— 一連のセッション。**(1) 移行プラン 2026-05-14 改訂**（commit `567190d`）: 学習スパイク廃止 / 学習ログ廃止 / 完成まで $0 厳守の三原則、旧 Phase 0 削除・Phase 1-5 再構成、Tauri 失効 vision/ 4 ファイルを `archive/vision-tauri/` へ。**(2) エラーマスキング修正 + V69 migration ドリフト修正**（commit `463b28f`）: Tauri invoke は文字列 reject するため `e instanceof Error ? .message : unknownError` が常に「不明のエラー」化 → `getErrorMessage()` ヘルパー追加し 6 catch 統一。`data_reset`/`data_import`/`data_export` が V69 で DROP 済の `routine_tag*` 3 テーブルを参照しクラッシュ → 除去 + 取りこぼし 5 テーブル追加。`full_schema.rs` は V60 歴史スナップショットとして意図的に CREATE（V69 が drop、テスト保証）と判明しコメントのみ追加。**(3) 削除 UX 刷新**（未 commit→本コミット）: `BulkCategoryDeleteButton`（Events タブ + Routine 管理オーバーレイ、kind 別表記、2 段階確認、テスト 4 件）、TrashView に per-category「〜のゴミ箱をからにする」+ 確認ダイアログ、**ゴミ箱サイドバーの「すべてのデータをリセット」（実体は data_reset 全消去）を完全撤去**（誤配置・危険）+ Settings.tsx dead code/未使用 import 3 件除去、`settings.calendarReset` i18n を用語統一（Routine→ルーティン / Schedule items→生成された予定）。**Verification**: tsc -b 0 / eslint は Settings.tsx:225 set-state-in-effect の既存問題 1 件のみ（変更前から存在・行ずれonly）/ 全 398 tests + 新規 4 件 pass / i18n ja-en parity OK。ブランチ: refactor/web-first-v2
-- statusline 縦並び化 ✅（2026-05-16）— `~/.claude/statusline-command.sh` を横一行 → 3 行グループ化に改修（line1=`user@host  cwd` / line2=branch・ctx・cost を `|` 連結 / line3=`▶ active-task`）。各セグメント変数の行頭 `" | "` プレフィックス除去 + 末尾 `printf` を 3 行組み立てに置換、行ごと per-line dim ANSI、空行スキップ。取得ロジックは不変。AskUserQuestion で粒度 3 択（3 行 / 完全縦 / 2 行）から「3 行グループ化」をユーザー選択。dummy JSON 動作確認済。git repo 外（`~/.claude/` global）のため commit は `.claude/MEMORY.md` + `.claude/HISTORY.md` + `.claude/HISTORY-archive.md` のみ
+- クロスプラットフォーム移行 Phase 1 完了 ✅（2026-05-16）— サブエージェント分担（管理=multi-session-coordinator / 設計=role-pm / 実装=role-engineer / 監査=role-qa+security-reviewer / 統括=メイン）。新スタック土台 `web/`(Vite+React+TS+Tailwind4) / `shared/`(DataService+型23 verbatim + SupabaseDataService tasks) / `supabase/migrations/`(0001 tasks+RLS deny-all / 0002 owner-only 4 policy `to authenticated` + `user_id default auth.uid()`) / `supabaseClient.ts`(単一共有=Auth↔DataService 同一 JWT) / `SupabaseAuth.ts` / web/ session ゲート。**完了判定 5/5 達成**: probe 実証で 未認証 0 行 / USER A 自分の 1 行 CRUD / USER B は A の行 0 件・削除 0 件 / `frontend/`(Tauri) `tsc -b`=0 非破壊。0001/0002 は Supabase SQL Editor 適用（CLI 非対話制約回避、Phase5 で CLI 管理へ）。commit `d1abd8a`(R1) + `ce6a5cb`(R2) + tracker `ec540ec`、SSOT 完了判定チェック済。**Phase2 申し送り**: ①新テーブル RLS 漏れの CI 機械検証 ②tsconfig project references 化 ③signOut scope 堅牢化。ブランチ refactor/web-first-v2（別チャット Point Graph と同居・パス指定ステージで分離）
+- Connect/Node タブを Point Graph (Canvas+d3-force) へ全面置換 ✅（2026-05-16）— 別チャットで実装。React Flow `TagGraphView`(1438行) を Canvas2D+d3-force の `PointGraph/`（19 ファイル）に置換。props 同一 I/F で `ConnectView.tsx` 無改修スワップ。データは既存 props から `GraphSnapshot` をフロント合成（Rust/DB/MCP 不変・読取のみ）。notion-\* 解決でライト/ダーク追従。旧 Node 系 9 + 孤立 `ConnectPanel.tsx` 削除。tsc -b 0 / vite OK / graph-filters 8 + reactFlowMerge 17 pass。計画書 archive 済。ブランチ refactor/web-first-v2
+- Schedule/ゴミ箱 削除 UX 刷新 + 危険ボタン撤去 + 移行プラン再整理 ✅（2026-05-16）— **(1)** 移行プラン 2026-05-14 改訂（commit `567190d`、三原則・Phase 1-5 再構成）。**(2)** エラーマスキング修正 + V69 migration ドリフト修正（commit `463b28f`、`getErrorMessage()` 6 catch 統一 / `data_reset` 等の DROP 済 routine_tag 参照除去 + 取りこぼし 5 テーブル追加）。**(3)** 削除 UX 刷新（`BulkCategoryDeleteButton` 2 段階確認 + TrashView per-category + 危険な全消去ボタン撤去 + i18n 用語統一）。tsc -b 0 / 398+4 tests pass。ブランチ refactor/web-first-v2
 
 ## 予定
 
