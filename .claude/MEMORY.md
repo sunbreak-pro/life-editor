@@ -11,9 +11,9 @@
 
 完了判定: [ ] web/ npm run dev 起動 / [ ] Supabase signIn 可 / [ ] tasks CRUD 通過 / [ ] RLS で他ユーザー不可視 / [ ] frontend/(Tauri) 非破壊
 
-- 前回: サブエージェント分担で着手・自走部スキャフォールド完了（commit `d1abd8a`）。web/(Vite+React+TS+Tailwind4) / shared/(DataService+型23 verbatim コピー + SupabaseDataService tasks のみ Proxy) / supabase/0001_initial.sql(tasks, RLS deny-all fail-safe)。role-qa=PASS / security=Critical0・秘密情報非追跡。frontend/ 等は不可侵維持
-- 現在: **ユーザー手作業ブロック中** — 着手順序 #3（Supabase 無料 PJ 作成）#5-7,9-10（CRUD/Auth/RLS runtime 検証）が credentials 待ち
-- 次: ユーザーが Supabase PJ 作成 + `web/.env.local` 配置 + Email auth 有効化 → 0001 適用 → @supabase/supabase-js 接続検証 → step7 で RLS policy + `user_id default auth.uid()` 投入（QA/security 申し送り）
+- 前回: 自走部スキャフォールド（commit `d1abd8a`）+ Auth/RLS/CRUD 配線コード完成（commit `ce6a5cb`）。0002_rls_tasks.sql(user_id default auth.uid() + 4 policy `to authenticated`) / supabaseClient.ts(単一共有=Auth↔DataService 同一 JWT) / SupabaseAuth.ts / web/ session ゲート。role-qa=PASS / security=Critical0,High0（Medium=Phase2 RLS漏れCI検証 / Low=signOut堅牢化 は Phase2 申し送り）
+- 現在: **ユーザー操作 2 ブロッカーで runtime 検証停止**。①`web/.env.local` の `VITE_SUPABASE_URL` がダッシュボードリンク形式（要 `https://<ref>.supabase.co`）②supabase CLI 未認証で 0001/0002 リモート未適用
+- 次: ユーザーが ①.env.local URL 修正 ②`npx supabase login`→`link --project-ref <ref>`→`db push` 実行 → `node supabase/.temp/probe.mjs`(gitignore済) で RLS 3点実証（認証=自分のみ/未認証 deny/他人不可視）→ 完了後 probe 削除 → Phase 1 完了判定クローズ → Phase 2(コア機能移植) へ。Phase2 着手 TODO: tsconfig project references 化 + RLS漏れ CI 検証 + signOut scope
 
 > 作業ツリーに Point Graph 関連の未コミット変更あり（本移行と無関係・保全対象、Phase 1 commit では新規ディレクトリのみ選択ステージ）
 
