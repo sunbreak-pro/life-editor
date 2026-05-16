@@ -36,7 +36,6 @@ import type { TabItem } from "../shared/SectionTabs";
 import { SectionHeader } from "../shared/SectionHeader";
 import { VerticalNavList } from "../shared/VerticalNavList";
 import { LAYOUT } from "../../constants/layout";
-import { getErrorMessage } from "../../utils/logError";
 import { AppearanceSettings } from "./AppearanceSettings";
 import { LanguageSettings } from "./LanguageSettings";
 import { NotificationSettings } from "./NotificationSettings";
@@ -58,8 +57,6 @@ import type { ShortcutCategory } from "../../types/shortcut";
 import { useSettingsHistory } from "../../hooks/useSettingsHistory";
 import { SearchTrigger } from "../shared/SearchTrigger";
 import { TrashView } from "../Trash/TrashView";
-import { getDataService } from "../../services";
-import { ConfirmDialog } from "../shared/ConfirmDialog";
 
 // メインタブ（4つ）
 type SettingsTab = "general" | "advanced" | "claude" | "shortcuts" | "trash";
@@ -215,32 +212,10 @@ export function Settings({ initialTab }: SettingsProps) {
   const [trashSub, setTrashSub] = useState<TrashSub>("tasks");
   const [settingsKey, setSettingsKey] = useState(0);
   const [trashSearchQuery] = useState("");
-  const [showResetConfirm, setShowResetConfirm] = useState(false);
-  const [resetStatus, setResetStatus] = useState<string | null>(null);
-  const [resetIsError, setResetIsError] = useState(false);
 
   const handleHistoryApply = useCallback(() => {
     setSettingsKey((k) => k + 1);
   }, []);
-
-  const handleReset = useCallback(async () => {
-    setShowResetConfirm(false);
-    try {
-      const success = await getDataService().resetData();
-      if (success) {
-        setResetIsError(false);
-        setResetStatus(t("data.resetSuccess"));
-        setTimeout(() => window.location.reload(), 1000);
-      }
-    } catch (e) {
-      setResetIsError(true);
-      setResetStatus(
-        t("data.resetFailed", {
-          error: getErrorMessage(e, t("data.unknownError")),
-        }),
-      );
-    }
-  }, [t]);
 
   const { pushSnapshot } = useSettingsHistory(handleHistoryApply);
 
@@ -291,22 +266,6 @@ export function Settings({ initialTab }: SettingsProps) {
       case "trash":
         return (
           <div className="flex flex-col h-full">
-            <div className="p-3 border-b border-notion-border">
-              <button
-                onClick={() => setShowResetConfirm(true)}
-                className="flex items-center gap-2 w-full px-3 py-2 rounded-md text-sm bg-notion-danger/10 text-notion-danger hover:bg-notion-danger/20 transition-colors"
-              >
-                <Trash2 size={14} />
-                {t("data.reset")}
-              </button>
-              {resetStatus && (
-                <p
-                  className={`text-xs mt-2 ${resetIsError ? "text-notion-danger" : "text-notion-success"}`}
-                >
-                  {resetStatus}
-                </p>
-              )}
-            </div>
             <SearchTrigger className="px-3 pt-2 pb-1" />
             <div className="flex-1 overflow-y-auto">
               <VerticalNavList
@@ -465,14 +424,6 @@ export function Settings({ initialTab }: SettingsProps) {
           {renderContent()}
         </div>
       </div>
-
-      {showResetConfirm && (
-        <ConfirmDialog
-          message={t("data.resetConfirm")}
-          onConfirm={handleReset}
-          onCancel={() => setShowResetConfirm(false)}
-        />
-      )}
     </div>
   );
 }

@@ -49,23 +49,23 @@
     "advancedTab": "詳細",
     "shortcutsTab": "ショートカット",
     "calendarReset": {
-      "title": "Calendar データ一括削除",
-      "description": "選択したカレンダー関連データをソフト削除します。Routine を選ぶと派生する Schedule Items も連動して削除されます。すべてゴミ箱から復元できます。",
+      "title": "カレンダーデータの一括削除",
+      "description": "選択したデータをゴミ箱に移します（ソフト削除）。「ルーティン」を選ぶと、そのルーティンから生成された予定もまとめて削除されます。すべてゴミ箱からいつでも復元できます。",
       "openButton": "一括削除を開く",
       "selectAll": "全選択",
       "deselectAll": "全解除",
       "confirm": "選択したものを削除",
       "cancel": "キャンセル",
-      "footnote": "ソフト削除のためゴミ箱から復元できます。",
-      "success": "削除しました: tasks {{tasks}} · events {{events}} · routines {{routines}} (+{{cascaded}} schedule items) · dailies {{dailies}} · notes {{notes}}",
+      "footnote": "ソフト削除のため、ゴミ箱からいつでも復元できます。",
+      "success": "削除しました — タスク {{tasks}} 件 / イベント {{events}} 件 / ルーティン {{routines}} 件（生成された予定 {{cascaded}} 件を含む）/ デイリー {{dailies}} 件 / ノート {{notes}} 件",
       "failed": "一括削除に失敗しました: {{error}}",
       "noSelection": "削除対象を 1 つ以上選択してください。",
       "kinds": {
-        "tasks": "予定された Tasks",
-        "events": "Events (単発予定)",
-        "routines": "Routines (派生 Schedule Items も連動削除)",
-        "dailies": "Dailies",
-        "notes": "Notes"
+        "tasks": "予定付きタスク",
+        "events": "イベント（単発の予定）",
+        "routines": "ルーティン（生成された予定も削除）",
+        "dailies": "デイリー",
+        "notes": "ノート"
       }
     },
     "claude": {
@@ -441,6 +441,10 @@
   "trash": {
     "title": "ゴミ箱",
     "empty": "ゴミ箱は空です",
+    "emptyCategory": "{{category}}のゴミ箱をからにする",
+    "emptyCategoryConfirm": "「{{category}}」のゴミ箱を完全に空にします。{{count}} 件が完全に削除され、復元できません。実行しますか？",
+    "emptyCategoryDone": "{{category}}のゴミ箱を空にしました（{{count}} 件）",
+    "emptying": "削除中...",
     "tasks": "タスク",
     "notes": "ノート",
     "restore": "復元",
@@ -690,6 +694,14 @@
     "searchBoards": "ボードを検索..."
   },
   "schedule": {
+    "bulkDelete": {
+      "events": "全Eventを削除",
+      "routines": "全Routineを削除",
+      "tasks": "全タスクを削除",
+      "confirm": "もう一度押すと削除（ゴミ箱へ）",
+      "deleting": "削除中...",
+      "failed": "削除失敗: {{error}}"
+    },
     "todayFlow": "Today Flow",
     "noItems": "この日のアイテムはありません",
     "complete": "完了",

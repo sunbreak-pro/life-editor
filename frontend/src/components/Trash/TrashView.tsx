@@ -33,8 +33,12 @@ export function TrashView({ activeTab, searchQuery }: TrashViewProps) {
   const { deletedNodes, restoreNode, permanentDelete } = useTaskTreeContext();
   const { deletedNotes, loadDeletedNotes, restoreNote, permanentDeleteNote } =
     useNoteContext();
-  const { deletedDailies, loadDeletedDailies, restoreDaily, permanentDeleteDaily } =
-    useDailyContext();
+  const {
+    deletedDailies,
+    loadDeletedDailies,
+    restoreDaily,
+    permanentDeleteDaily,
+  } = useDailyContext();
   const {
     deletedRoutines,
     loadDeletedRoutines,
@@ -104,6 +108,9 @@ export function TrashView({ activeTab, searchQuery }: TrashViewProps) {
     name: string;
   } | null>(null);
 
+  const [emptyTarget, setEmptyTarget] = useState<TrashSub | null>(null);
+  const [emptying, setEmptying] = useState(false);
+
   const getSoundDisplayName = (sound: CustomSoundMeta): string => {
     const meta = displayMetas.find((m) => m.soundId === sound.id);
     return meta?.displayName || sound.label;
@@ -118,6 +125,85 @@ export function TrashView({ activeTab, searchQuery }: TrashViewProps) {
   const handlePermanentDeleteSound = async (id: string) => {
     await getDataService().permanentDeleteCustomSound(id);
     setDeletedSounds((prev) => prev.filter((s) => s.id !== id));
+  };
+
+  const categoryLabel = (cat: TrashSub): string => {
+    switch (cat) {
+      case "tasks":
+        return t("trash.tabTasks");
+      case "routine":
+        return t("trash.tabRoutine");
+      case "events":
+        return t("trash.tabEvents");
+      case "materials":
+        return t("trash.tabMaterials");
+      case "sounds":
+        return t("trash.tabSounds");
+    }
+  };
+
+  const categoryCount = (cat: TrashSub): number => {
+    switch (cat) {
+      case "tasks":
+        return deletedNodes.length;
+      case "routine":
+        return deletedRoutines.length;
+      case "events":
+        return deletedScheduleItems.length;
+      case "materials":
+        return deletedDailies.length + deletedNotes.length;
+      case "sounds":
+        return deletedSounds.length;
+    }
+  };
+
+  // Permanently delete every trashed item of the given category (ignores the
+  // search filter — "empty trash" clears the whole category, not just the
+  // visible subset). Irreversible; gated by a ConfirmDialog.
+  const handleEmptyCategory = async (cat: TrashSub) => {
+    setEmptying(true);
+    try {
+      if (cat === "tasks") {
+        for (const n of topLevelDeleted)
+          await Promise.resolve(permanentDelete(n.id));
+      } else if (cat === "routine") {
+        for (const r of deletedRoutines)
+          await Promise.resolve(permanentDeleteRoutine(r.id));
+      } else if (cat === "events") {
+        for (const e of deletedScheduleItems)
+          await Promise.resolve(permanentDeleteScheduleItem(e.id));
+      } else if (cat === "materials") {
+        for (const d of deletedDailies)
+          await Promise.resolve(permanentDeleteDaily(d.date));
+        for (const note of deletedNotes)
+          await Promise.resolve(permanentDeleteNote(note.id));
+      } else {
+        for (const s of [...deletedSounds])
+          await handlePermanentDeleteSound(s.id);
+      }
+    } finally {
+      setEmptying(false);
+      setEmptyTarget(null);
+    }
+  };
+
+  const renderEmptyHeader = (cat: TrashSub) => {
+    const count = categoryCount(cat);
+    return (
+      <div className="flex justify-end mb-3">
+        <button
+          type="button"
+          disabled={count === 0 || emptying}
+          onClick={() => setEmptyTarget(cat)}
+          className="flex items-center gap-1 px-2 py-1 text-xs rounded-md text-white bg-notion-danger/80 hover:bg-notion-danger disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+        >
+          <Trash2 size={13} aria-hidden="true" />
+          {emptying
+            ? t("trash.emptying")
+            : t("trash.emptyCategory", { category: categoryLabel(cat) })}
+        </button>
+      </div>
+    );
   };
 
   const renderItem = (
@@ -376,6 +462,7 @@ export function TrashView({ activeTab, searchQuery }: TrashViewProps) {
   return (
     <div className="h-full flex flex-col" data-section-id="trash">
       <div className="flex-1 overflow-y-auto">
+        {renderEmptyHeader(activeTab)}
         {activeTab === "tasks" && renderTasksTab()}
         {activeTab === "routine" && renderRoutineTab()}
         {activeTab === "events" && renderEventsTab()}
@@ -405,6 +492,17 @@ export function TrashView({ activeTab, searchQuery }: TrashViewProps) {
             setDeleteTarget(null);
           }}
           onCancel={() => setDeleteTarget(null)}
+        />
+      )}
+
+      {emptyTarget && (
+        <ConfirmDialog
+          message={t("trash.emptyCategoryConfirm", {
+            category: categoryLabel(emptyTarget),
+            count: categoryCount(emptyTarget),
+          })}
+          onConfirm={() => handleEmptyCategory(emptyTarget)}
+          onCancel={() => setEmptyTarget(null)}
         />
       )}
     </div>

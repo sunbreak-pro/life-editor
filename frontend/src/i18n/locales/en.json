@@ -50,20 +50,20 @@
     "shortcutsTab": "Shortcuts",
     "calendarReset": {
       "title": "Bulk delete calendar data",
-      "description": "Soft-delete the selected calendar data. Routine deletion also removes derived schedule items. All deletions are reversible from Trash.",
+      "description": "Move the selected data to Trash (soft delete). Choosing \"Routines\" also deletes the schedule entries generated from those routines. Everything can be restored from Trash at any time.",
       "openButton": "Open bulk delete",
       "selectAll": "Select all",
       "deselectAll": "Clear selection",
       "confirm": "Delete selected",
       "cancel": "Cancel",
       "footnote": "Soft-deleted items remain in Trash and can be restored later.",
-      "success": "Deleted: tasks {{tasks}} · events {{events}} · routines {{routines}} (+{{cascaded}} schedule items) · dailies {{dailies}} · notes {{notes}}",
+      "success": "Deleted — tasks {{tasks}} / events {{events}} / routines {{routines}} (incl. {{cascaded}} generated entries) / dailies {{dailies}} / notes {{notes}}",
       "failed": "Bulk delete failed: {{error}}",
       "noSelection": "Select at least one kind to delete.",
       "kinds": {
         "tasks": "Scheduled tasks",
         "events": "Events",
-        "routines": "Routines (cascades to derived schedule items)",
+        "routines": "Routines (also deletes generated entries)",
         "dailies": "Dailies",
         "notes": "Notes"
       }
@@ -441,6 +441,10 @@
   "trash": {
     "title": "Trash",
     "empty": "Trash is empty",
+    "emptyCategory": "Empty {{category}} trash",
+    "emptyCategoryConfirm": "Permanently empty the {{category}} trash. {{count}} item(s) will be deleted forever and cannot be restored. Proceed?",
+    "emptyCategoryDone": "Emptied {{category}} trash ({{count}} item(s))",
+    "emptying": "Deleting...",
     "tasks": "Tasks",
     "notes": "Notes",
     "restore": "Restore",
@@ -690,6 +694,14 @@
     "searchBoards": "Search boards..."
   },
   "schedule": {
+    "bulkDelete": {
+      "events": "Delete all Events",
+      "routines": "Delete all Routines",
+      "tasks": "Delete all Tasks",
+      "confirm": "Click again to delete (to Trash)",
+      "deleting": "Deleting...",
+      "failed": "Delete failed: {{error}}"
+    },
     "todayFlow": "Today Flow",
     "noItems": "No items for this day",
     "complete": "Complete",
