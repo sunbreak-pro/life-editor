@@ -10,22 +10,27 @@ import type { DailyNode } from "../types/daily";
  * PASSWORD CONTRACT (carried 1:1 from the Tauri backend,
  * src-tauri/src/db/daily_repository.rs): the raw `password_hash` column
  * is NEVER selected back to the client. The domain `DailyNode` exposes
- * only `hasPassword` — a boolean the SELECT derives server-side via the
- * computed projection `password_hash is not null as has_password`. So
- * `DailyRow` intentionally has NO `password_hash` field: it models the
- * SELECTED shape, not the physical table. (The plaintext-equality
- * weakness of the underlying column is pre-existing and out of S2 scope;
- * keeping the hash off the wire is the strongest mitigation available
- * without a crypto redesign.)
+ * only `hasPassword` — a boolean served by the `has_password` Postgres
+ * GENERATED column (`generated always as (password_hash is not null)
+ * stored`, see 0004_dailies_full_schema.sql). It is a real, read-only
+ * column so PostgREST can project it by plain name; PostgREST does NOT
+ * evaluate raw SQL expressions in `select=`, which is why this is a
+ * generated column and not an inline `password_hash is not null` alias.
+ * `DailyRow` therefore models the SELECTED shape and includes
+ * `has_password` but NEVER `password_hash`: the raw hash stays in
+ * Postgres. (The plaintext-equality weakness of the underlying column is
+ * pre-existing and out of S2 scope; keeping the hash off the wire is the
+ * strongest mitigation available without a crypto redesign.)
  */
 
 /**
  * SELECTED row shape of `public.dailies` (0004_dailies_full_schema.sql).
  * snake_case, nullable where the column is nullable. `user_id` is
  * server-derived (RLS default `auth.uid()`) — clients never write it.
- * `has_password` is NOT a stored column: it is the computed projection
- * `password_hash is not null` (see DAILY_SELECT_COLUMNS) so the raw hash
- * never leaves Postgres.
+ * `has_password` IS a real column, but a read-only Postgres GENERATED
+ * one (`generated always as (password_hash is not null) stored`): the
+ * client reads it like any column yet can never write it and never sees
+ * the raw `password_hash`.
  */
 export interface DailyRow {
   id: string;
@@ -45,7 +50,8 @@ export interface DailyRow {
 /**
  * Writable subset of a row. Excludes:
  *   - `user_id`     — RLS derives it from the JWT (server-derived).
- *   - `has_password`— a computed projection, not a real column; the
+ *   - `has_password`— a read-only Postgres GENERATED column; Postgres
+ *                     rejects a non-DEFAULT INSERT/UPSERT into it. The
  *                     password is mutated through the dedicated
  *                     set/remove paths writing `password_hash` directly.
  * Used for INSERT/UPSERT payloads.
@@ -53,13 +59,17 @@ export interface DailyRow {
 export type DailyWriteRow = Omit<DailyRow, "user_id" | "has_password">;
 
 /**
- * Column list for SELECTs. `password_hash` is projected ONLY as the
- * boolean `has_password` so the raw value never crosses the wire. Any
- * read path must use this exact list.
+ * Column list for SELECTs. `has_password` is the read-only Postgres
+ * GENERATED column (`generated always as (password_hash is not null)
+ * stored`) — selected by plain name, NOT an inline SQL expression
+ * (PostgREST does not evaluate expressions in `select=`; that produced a
+ * `column ... does not exist` 400). `password_hash` itself is never
+ * listed, so the raw value never crosses the wire. Any read path must
+ * use this exact list.
  */
 export const DAILY_SELECT_COLUMNS =
   "id, user_id, date, content, is_pinned, is_edit_locked, " +
-  "password_hash is not null as has_password, " +
+  "has_password, " +
   "is_deleted, deleted_at, created_at, updated_at, version";
 
 // --- Runtime validators (defence-in-depth; no `as` type lies) ---

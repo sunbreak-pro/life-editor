@@ -11,10 +11,11 @@
  * Property under test: for a row R produced from a DailyNode N,
  *   rowToDailyNode( {...dailyNodeToRow(N), user_id, has_password} )
  *   deep-equals the normalised N. `dailyNodeToRow` drops the
- *   server-derived `user_id` and the computed `has_password`, so the
- *   test re-attaches them exactly as Postgres / the SELECT would (RLS
- *   default + `password_hash is not null` projection) before reading
- *   back. The is_* flags and deleted_at are normalised to their
+ *   server-derived `user_id` and the read-only generated `has_password`,
+ *   so the test re-attaches them exactly as Postgres / the SELECT would
+ *   (RLS default + the `has_password` GENERATED column = `password_hash
+ *   is not null`) before reading back. The is_* flags and deleted_at are
+ *   normalised to their
  *   always-materialised values because `rowToDailyNode` always sets them
  *   (the DB columns are NOT NULL with defaults, or — deleted_at — always
  *   projected).
@@ -36,9 +37,9 @@ function reattachServerColumns(
   hasPassword: boolean,
 ): DailyRow {
   // What the SELECT adds back: user_id (RLS default auth.uid()) and
-  // has_password (computed `password_hash is not null`, never the raw
-  // hash). `has_password` defaults false here (no password set) — set it
-  // true to exercise the password-present path.
+  // has_password (the read-only GENERATED column = `password_hash is not
+  // null`, never the raw hash). `has_password` defaults false here (no
+  // password set) — set it true to exercise the password-present path.
   return {
     ...writeRow,
     user_id: "00000000-0000-0000-0000-000000000000",

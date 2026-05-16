@@ -22,6 +22,14 @@
 -- (src-tauri/src/db/migrations/v61_plus.rs V64 — `memos` renamed to
 -- `dailies`, identical shape) and the Rust `DailyNode` projection
 -- (src-tauri/src/db/daily_repository.rs). Postgres adaptations:
+--   * `has_password boolean generated always as (password_hash is not
+--     null) stored` — a Postgres GENERATED column (NOT a raw SQL
+--     expression in the PostgREST `select=`; PostgREST only accepts real
+--     column names, so the derived boolean must exist physically). This
+--     is what lets the mapper read `has_password` as a plain column while
+--     the raw `password_hash` is never selected back. It is read-only:
+--     the data layer must NEVER include it in an INSERT/UPSERT payload
+--     (Postgres rejects a non-DEFAULT write to a generated column).
 --   * `id TEXT PRIMARY KEY`  — client-generated `daily-<date>` string,
 --     NOT a uuid (CLAUDE.md §4.3 DailyNode id strategy).
 --   * `user_id uuid not null default auth.uid()` — server-derived owner,
@@ -37,11 +45,12 @@
 --     columns; deleted_at nullable.
 --   * `password_hash text` — kept exactly as the Tauri contract: the
 --     value the backend stores/compares verbatim. The domain DailyNode
---     deliberately exposes only `hasPassword` (= password_hash IS NOT
---     NULL); the hash itself is never selected back to the client by the
---     dailyMapper. (Pre-existing plaintext-equality weakness carried over
---     1:1 — NOT changed here, flagged for security review; the S2 plan
---     mandates parity, not a crypto redesign.)
+--     deliberately exposes only `hasPassword`; that boolean is served by
+--     the `has_password` GENERATED column above (= password_hash IS NOT
+--     NULL), so the raw hash itself is never selected back to the client
+--     by the dailyMapper. (Pre-existing plaintext-equality weakness
+--     carried over 1:1 — NOT changed here, flagged for security review;
+--     the S2 plan mandates parity, not a crypto redesign.)
 --   * `version integer not null default 1` — bumped on every mutation by
 --     the data layer, mirroring the SQLite `version = version + 1`.
 --
@@ -75,8 +84,17 @@ create table public.dailies (
 
   -- Optional password gate. Stored verbatim per the Tauri contract; the
   -- mapper NEVER projects this column back to the client (only the
-  -- derived `hasPassword = password_hash is not null`).
+  -- derived `has_password` GENERATED column just below).
   password_hash  text,
+
+  -- Derived, read-only owner-visible flag. A Postgres GENERATED column so
+  -- PostgREST can project it by plain name in `select=` (PostgREST does
+  -- NOT evaluate raw SQL expressions in `select=`). `stored` so it is
+  -- materialised + indexable. The raw `password_hash` is therefore never
+  -- selected back to the client. The data layer MUST NOT write this
+  -- column (Postgres rejects a non-DEFAULT INSERT/UPSERT into it); the
+  -- password is mutated only via `password_hash` set/remove paths.
+  has_password   boolean     generated always as (password_hash is not null) stored,
 
   -- Soft-delete (CLAUDE.md §4.4 — Dailies are TrashView-restorable).
   is_deleted     boolean     not null default false,

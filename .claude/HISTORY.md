@@ -1,5 +1,30 @@
 # HISTORY.md - 変更履歴
 
+### 2026-05-16 - クロスプラットフォーム移行 Phase 2 S2(Daily) 完了（PostgREST select バグ修正 + generated column 化 + 実機 parity 実証）
+
+#### 概要
+
+S2 は「コードのみ commit 済・実機未確認」だった。手動 parity 確認で本番ブロッカーを発見: `dailyMapper.ts` の `DAILY_SELECT_COLUMNS` に PostgREST 非対応の SQL 式 `password_hash is not null as has_password` が埋め込まれ、`column dailies.password_hashisnotnullashas_password does not exist` の 400 で Daily 全 read/upsert が全滅、本番 `public.dailies` は 0 行（fire-and-forget な upsertDaily がエラーを握り潰し optimistic state のみ生存→リロードで消失）。root cause を実機コンソールで確定後、サブエージェント分担で構造修正（実装=role-engineer / 監査=role-qa=APPROVE W/C + security-reviewer=PASS W/N、いずれも別コンテキスト）。0004 を本番 SQL Editor 再適用（MCP write は前提未達で凍結維持）、MCP read-only で RLS owner-only 4 policy + `has_password` generated column ALWAYS を実証、実機 parity green。password 設定 UI は web DailyView 意図的未実装のため S3 へ申し送り（ユーザー承認）。ブランチ refactor/web-first-v2、別チャット（frontend-refactor + doc 整理）同居でパス指定ステージ。
+
+#### 変更点
+
+- **root cause（PostgREST select の SQL 式不可）**: PostgREST `select=` はカラム名 or DB 側 generated column / computed field のみ受理し任意 SQL 式を評価しない。`password_hash is not null as has_password` がスペース詰めで存在しないカラム名として 400 化。`DAILY_SELECT_COLUMNS` を使う全 read/upsert（fetchAllDailies / fetchDailyByDate / fetchDeletedDailies / upsertDaily の .select / setDailyPassword / removeDailyPassword）が全滅していた。tasks は別 mapper のため無事
+- **修正（generated column 化）**: `0004_dailies_full_schema.sql` の `password_hash text` 直後に `has_password boolean generated always as (password_hash is not null) stored` を追加（raw hash 非投影のセキュリティ要件を維持しつつ PostgREST が素のカラム名で projection 可能に）。`dailyMapper.ts` の `DAILY_SELECT_COLUMNS` を SQL 式 → 素カラム名 `has_password` に修正、`DailyRow`/`DailyWriteRow`/各 docstring を generated column の事実へ整合更新。`dailyMapper.roundtrip.ts` はコメントのみ。0004 の idempotent `drop ... cascade`+create / RLS 4 policy / `enable row level security` / `user_id default auth.uid()` / `date not null unique` は不変
+- **本番再適用 + RLS 実証**: 0004 をユーザーが SQL Editor 再適用（idempotent・現状 0 行で損失なし）。MCP read-only で `rls_enabled=true` / `policy_count=4`（select/insert/update/delete 全 `to authenticated`+`auth.uid()=user_id`、UPDATE は USING+WITH CHECK）/ `has_password_is_generated=ALWAYS` / `generation_expression=(password_hash IS NOT NULL)` / `password_hash` 列存続を確認。`get_advisors(security)` のテーブル RLS lint 0
+- **実機 parity 実証**: pin parity を実機操作 + MCP 客観確認。`daily-2026-05-16` が content 再編集を繰り返し `version=9` まで `is_pinned=true` を保持（DEFAULT 潰れなし＝PostgREST merge-duplicates の partial-payload DO UPDATE が送信列のみ更新）、リロード永続化、`restoreDaily` も機能。`password_hash` は `is_pinned` と同一の upsert payload 非含有列で帰納的に parity 成立（role-qa が PostgREST セマンティクスで論理確認）
+- **監査**: role-qa=APPROVE WITH COMMENTS（Blocker0/Important0、全 write パス精読で generated column write 混入なしを独立再確認、round-trip 8/8 独立再現、frontend `tsc -b`=0 非破壊）/ security-reviewer=PASS WITH NOTES（Critical/High/Medium0、raw `password_hash` 非到達維持・むしろ改善、RLS 不変、インジェクション余地なし、plaintext-equality は既存債務で悪化なし、Low2 は将来提案）
+- **検証**: session-verifier 3 回 PASS（role-engineer / role-qa 独立再現 + メイン最終差分）— web `tsc -b`=0 / frontend(Tauri) `tsc -b`=0 非破壊 / dailyMapper round-trip 8/8
+- **commit**: パス指定ステージ（`shared/src/services/dailyMapper.ts` `dailyMapper.roundtrip.ts` `supabase/migrations/0004_dailies_full_schema.sql` + `.claude/MEMORY.md` `.claude/HISTORY.md`）。別チャット領域（`.claude/2026-*.md` 削除 / `.mcp.json` / `.claude/docs/*` / HISTORY-archive ロール）は `git add -A` 不使用で巻き込まず
+
+#### 残課題
+
+- **[再発防止知見]** PostgREST `select=` に任意 SQL 式不可（カラム名 or generated column / DB 関数のみ）。computed boolean は generated column 化が定石。S3+ の mapper でも厳守。known-issues 起票は別チャット doc 整理(`.claude/docs/known-issues/*`)衝突回避で見送り＝MEMORY が記録正本
+- **[軽微・別途修正候補]** 0004 冒頭コメントが「APPLY VIA SUPABASE MCP apply_migration — NOT manual SQL Editor paste」と実運用（MCP write 凍結＝SQL Editor 手動）に不整合
+- **[要ユーザー判断]** `get_advisors(security)` の `auth_leaked_password_protection` WARN（dailies 無関係の Supabase Auth 設定・HaveIBeenPwned 照合無効）。完成後/友達配布時判断
+- **[S3 申し送り]** password 設定/解除/lock UI は web DailyView 意図的未実装で S3(TipTap + password/lock dialog 横断)に移譲（ユーザー承認済）。upsertDaily payload 付近に partial-payload 意図コメント追記推奨(Suggestion) / plaintext-equality password の docs/known-issues 化は Phase 後段 / password verify の raw hash クライアント転送は既存債務(悪化なし・将来 RPC security invoker 化案)
+- **[未解消・要ユーザー]** PAT 露出インシデント止血継続（MCP write 昇格前提=専用組織/write時のみ token/直後 check-rls/破壊的 DDL 人間目視/版固定 未達のため write 凍結維持）/ upsert read-then-write LWW(S8) / SyncProvider 二重ラップ(S8) / `web/src/TasksScreen.tsx` dead code 要確認
+- **[別チャット同居]** `.claude/HISTORY-archive.md.bak`・frontend-refactor・doc 整理が混在。HISTORY-archive ロールは衝突回避で見送り継続（HISTORY.md は prepend のみ、6 エントリ許容）
+
 ### 2026-05-16 - クロスプラットフォーム移行 Phase 2 S2 コード完了 + Supabase MCP 採用 + token インシデント止血（0003 本番適用・RLS 実証）
 
 #### 概要
