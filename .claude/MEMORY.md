@@ -14,6 +14,14 @@
 
 > **注**: 以下の予定タスクの大半は旧 Tauri / Cloudflare アーキテクチャ前提で書かれており、Web ファースト移行（refactor/web-first-v2）の進行に伴って **deprecated** になる可能性が高い。各タスクの存続判断は移行 Phase 1-2 進行時に再評価する。
 
+### 🚀 クロスプラットフォーム移行 Phase 2 — コア機能のフロントエンド移植（次セッション最優先）
+
+**対象**: `supabase/migrations/0003+`（ドメイン別本格スキーマ）/ `shared/src/{components,context,hooks,i18n}/`（frontend から Tauri 非依存を移植）/ `web/`（配線）。`frontend/` `src-tauri/` `cloud/` は不可侵維持
+**計画書**: `.claude/docs/vision/plans/2026-05-16-phase2-core-migration.md`（再開手順・S0-S9・完了判定を記載。次セッション開始時にこれと SSOT Phase 2 節を読む）
+**着手順**: S0 申し送り先行対処（RLS 漏れ検出ゲート + tsconfig project references 判断）→ S1 Tasks → S2 Daily → S3 Notes → S4 Schedule → S5 WikiTags → S6 横断(context/hooks/i18n) → S7 オフラインバナー → S8 Realtime → S9 Mobile レスポンシブ
+**Phase1 申し送り**: ①新テーブル RLS 漏れ CI 機械検証 ②tsconfig project references 化 ③signOut scope 堅牢化 ④status 型詐称解消 ⑤型23 二重保持の同期方針決定
+**サブエージェント分担**: 管理=multi-session-coordinator / 設計=role-pm / 実装=role-engineer / 監査=role-qa+security-reviewer / 統括=メイン
+
 ### Mobile vs Desktop 設計方針の docs/vision/ への明文化
 
 **対象**: 新規 `.claude/docs/vision/mobile-design.md`（仮名）
