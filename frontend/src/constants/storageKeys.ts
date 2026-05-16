@@ -29,6 +29,8 @@ export const STORAGE_KEYS = {
   EDITOR_PADDING_INLINE: "life-editor-editor-padding-inline",
   TAG_GRAPH_POSITIONS: "life-editor-tag-graph-positions",
   TAG_GRAPH_VIEWPORT: "life-editor-tag-graph-viewport",
+  POINT_GRAPH_POSITIONS: "life-editor-point-graph-positions",
+  POINT_GRAPH_VIEWPORT: "life-editor-point-graph-viewport",
   MATERIALS_SECTIONS_STATE: "life-editor-materials-sections-state",
   MATERIALS_CONTENT_TYPE: "life-editor-materials-content-type",
   TASK_TREE_TAB: "life-editor-task-tree-tab",

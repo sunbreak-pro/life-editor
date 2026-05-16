@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { useTheme } from "../../hooks/useTheme";
 import { useSyncContext } from "../../hooks/useSyncContext";
 import { getDataService } from "../../services";
+import { getErrorMessage } from "../../utils/logError";
 import {
   Sun,
   Moon,
@@ -241,7 +242,7 @@ function MobileDataSection() {
       setIsError(true);
       setStatus(
         t("data.exportFailed", {
-          error: e instanceof Error ? e.message : t("data.unknownError"),
+          error: getErrorMessage(e, t("data.unknownError")),
         }),
       );
     }
@@ -259,7 +260,7 @@ function MobileDataSection() {
       setIsError(true);
       setStatus(
         t("data.importFailed", {
-          error: e instanceof Error ? e.message : t("data.unknownError"),
+          error: getErrorMessage(e, t("data.unknownError")),
         }),
       );
     }

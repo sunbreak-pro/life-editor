@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
 import { AlertTriangle } from "lucide-react";
 import { getDataService } from "../../services";
+import { getErrorMessage } from "../../utils/logError";
 import type {
   BulkSoftDeleteResult,
   CalendarDataKind,
@@ -112,7 +113,7 @@ export function CalendarDataResetDialog({
     } catch (e) {
       setError(
         t("settings.calendarReset.failed", {
-          error: e instanceof Error ? e.message : t("data.unknownError"),
+          error: getErrorMessage(e, t("data.unknownError")),
         }),
       );
     } finally {

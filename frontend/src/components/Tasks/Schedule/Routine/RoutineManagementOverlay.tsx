@@ -384,7 +384,7 @@ export function RoutineManagementOverlay({
           <h3 className="text-base font-semibold text-notion-text">
             {t("dayFlow.routineManagement", "Routine Management")}
           </h3>
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-2">
             <IconButton
               icon={<X size={16} />}
               label="Close"

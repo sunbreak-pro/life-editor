@@ -62,13 +62,15 @@ export function ScheduleEventsContent({
             size="sm"
             noBorder
           />
-          <button
-            onClick={() => setShowCreatePopover(!showCreatePopover)}
-            className="ml-auto mr-2 p-1 text-notion-text-secondary hover:text-notion-text hover:bg-notion-hover rounded-md transition-colors"
-            title={t("events.createEvent")}
-          >
-            <Plus size={14} />
-          </button>
+          <div className="ml-auto mr-2 flex items-center gap-2">
+            <button
+              onClick={() => setShowCreatePopover(!showCreatePopover)}
+              className="p-1 text-notion-text-secondary hover:text-notion-text hover:bg-notion-hover rounded-md transition-colors"
+              title={t("events.createEvent")}
+            >
+              <Plus size={14} />
+            </button>
+          </div>
           {showCreatePopover && (
             <EventQuickCreatePopover
               onClose={() => setShowCreatePopover(false)}

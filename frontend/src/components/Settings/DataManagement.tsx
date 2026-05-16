@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Download, Upload, AlertTriangle } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { getDataService } from "../../services";
+import { getErrorMessage } from "../../utils/logError";
 import { CalendarDataResetDialog } from "./CalendarDataResetDialog";
 import type { BulkSoftDeleteResult } from "../../services/DataService";
 
@@ -21,7 +22,7 @@ export function DataManagement() {
       setIsError(true);
       setStatus(
         t("data.exportFailed", {
-          error: e instanceof Error ? e.message : t("data.unknownError"),
+          error: getErrorMessage(e, t("data.unknownError")),
         }),
       );
     }
@@ -39,7 +40,7 @@ export function DataManagement() {
       setIsError(true);
       setStatus(
         t("data.importFailed", {
-          error: e instanceof Error ? e.message : t("data.unknownError"),
+          error: getErrorMessage(e, t("data.unknownError")),
         }),
       );
     }
