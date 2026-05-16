@@ -7,11 +7,11 @@
 **対象**: `supabase/migrations/0003+`（ドメイン別本格スキーマ）/ `supabase/scripts/`（RLS ゲート）/ `shared/src/{components,context,hooks,i18n}/`（frontend から Tauri 非依存を移植）/ `web/`（配線）。`frontend/` `src-tauri/` `cloud/` 不可侵維持
 **計画書**: `.claude/docs/vision/plans/2026-05-16-phase2-core-migration.md`
 
-- 前回: S1 完了 — 0003 tasks 破壊的 rebuild（text id §4.3 / CHECK 制約化 / RLS owner-only 4 policy）/ `SupabaseDataService` tasks 9 メソッド全列実装 + `taskMapper.ts` で型詐称撤廃 / shared へ TaskTree hooks/context/utils 依存注入移植 + web @dnd-kit TaskTree UI / shared React 化。監査 QA=APPROVE W/C・security=SECURE W/REC、Important-1(folder_type CHECK) 解消、self-test 18/18・round-trip 8/8・frontend tsc -b=0 非破壊
-- 現在: S2 Daily 移植 着手準備（`dailies` 単一テーブル UPSERT 中心 `daily-<YYYY-MM-DD>` キー / DataService daily / `Daily/` 移植）
-- 次: S3 Notes → S4 Schedule → S5 WikiTags → S6 横断(context/hooks/i18n) → S7 オフラインバナー → S8 Realtime → S9 Mobile レスポンシブ
+- 前回: S1 完了 + 0003 本番適用・RLS 実証（MCP advisor lints 0 + owner-only 4 policy）+ Supabase MCP 採用 + S2 Daily コード完了（QA=APPROVE W/C）
+- 現在: **S2 完了待ち（コードのみ commit 済、0004 本番適用は token インシデント解消まで凍結）**。MCP write(`apply_migration`) 凍結中
+- 次: token 解消 → 0004 適用 → 手動 upsert parity 確認で S2 完了 → S3 Notes → S4 Schedule → S5 WikiTags → S6 横断 → S7 バナー → S8 Realtime → S9 Mobile
 
-**S1 申し送り（S2 以降で対処/留意）**: ①**[要ユーザー対応] SUPABASE_DB_URL パース失敗** — pooler 接続文字列のパスワード未エンコード（`net/url: invalid userinfo`）。RLS ゲートは exit2 で正しく fail-safe。0003 push 前にパスワード URL エンコード or Session pooler/Direct connection 文字列へ要修正 ②**[S1-9 未実施]** SUPABASE_DB_URL 修正 → `npm run db:check-rls` green → `npx supabase db push`(ユーザー確認) → 実ブラウザ CRUD/DnD/soft-delete + RLS 実証。S8 まで他タブ非反映は想定挙動 ③**[S8 申し送り] M1**: softDelete/restore/update が version 非増分（LWW 乖離）→ S8 同期実装で対処 ④M2 mutation 0行サイレント / L1 0003 再適用 runbook / L2 parent_id FK on delete / Suggestion(Proxy Symbol ガード, created_at) → S2 以降 ⑤**[要判断]** `.claude/HISTORY-archive.md.bak`(269KB) が working tree に残留（archive 圧縮の原本退避と判明、別チャット由来の可能性）— 削除/保持はユーザー判断 ⑥計画書 Files 表に shared React 化追記要 ⑦S0 申し送り: `check-rls` over-report は共有テーブル設計時に周知 / `migrateTasksToBackend`=no-op / `useSyncContext`=no-op Provider（S8 で正式置換）
+**S2 申し送り（優先度順）**: ①**[Critical 要ユーザー] PAT ローテーション** — `sbp_2d4f...` 露出（会話ログ/`~/.zshrc`/監査ログ）。Supabase Dashboard で Revoke→再発行、新 token は `~/.zshrc`(`chmod 600`) のみ＝`.mcp.json` は間接参照済、`~/.zsh_history` 旧 token 削除。**完了まで MCP write 凍結＝0004 適用不可＝S2 未完** ②**[要ユーザー] MCP write 昇格前提**: 専用 Supabase 組織 / write 時のみ token・作業後 unset / `apply_migration` 直後 check-rls / 破壊的 DDL は人間目視 / `@latest`→版固定 ③**[S2 完了条件]** 0004 適用後に新規日→pin/password→本文再編集 blur→保持の手動 upsert parity 確認 ④**[申し送り]** password 平文保存・比較(Tauri 1:1・raw hash 非返却は確認済) / upsert read-then-write LWW(S8) / SyncProvider 二重ラップ(S8) / upsert payload id 除外 / `web/src/TasksScreen.tsx` dead code 要確認 / 計画書 Files 表に shared React 化・MCP 採用追記 ⑤**[別チャット同居]** `.claude/HISTORY-archive.md.bak` 等は削除/保持ユーザー判断、HISTORY-archive ロールは衝突回避で見送り中
 **サブエージェント分担**: 設計=role-pm / 実装=role-engineer / 監査=role-qa+security-reviewer / 統括=メイン
 
 ## 直近の完了

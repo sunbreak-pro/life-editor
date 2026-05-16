@@ -1,6 +1,26 @@
 # HISTORY.md - 変更履歴
 
-### 2026-05-16 - .claude ドキュメント整理（archive 圧縮統合 / HISTORY-archive コンパクト化 / 矛盾修正 / known-issues 新規）+ Claude Desktop MCP 設定
+### 2026-05-16 - クロスプラットフォーム移行 Phase 2 S2 コード完了 + Supabase MCP 採用 + token インシデント止血（0003 本番適用・RLS 実証）
+
+#### 概要
+
+S1 完了後: 0003 を本番適用（Phase1 同様 SQL Editor 経由＝`supabase db push` は履歴テーブル不在+非タイムスタンプ命名で不発の既知問題判明）、Supabase MCP read-only で **0003 RLS 実証**（advisor lints 0 + owner-only 4 policy 確認、42P05 pooler 問題を MCP で回避）。Supabase 接続の摩擦解消のため **Supabase MCP Server を Phase 2 migration/検証経路に採用**（公式パッケージ・`--read-only`・`--project-ref` スコープ・token は env 間接参照）。S2（Daily 移植）コード実装完了（role-engineer→role-qa=APPROVE W/C）。**セキュリティインシデント**: `.mcp.json` に PAT 平文ベタ書きを security-reviewer が検出（git tracked・未 commit で止血間に合い）、`${SUPABASE_ACCESS_TOKEN}` 間接参照へ修正。token ローテーション等はユーザー対応（下記残課題）。ブランチ refactor/web-first-v2、別チャット（frontend-refactor + doc 整理）と同居でパス指定ステージ。
+
+#### 変更点
+
+- **0003 本番適用 + RLS 実証**: tasks が text id・28列・CHECK(type/status/folder_type/priority)・FK・rows 0 で稼働。Supabase MCP `get_advisors(security)` lints 0 + `pg_policies` 4 owner-only policy（SELECT/INSERT/UPDATE/DELETE すべて `to authenticated` + `auth.uid()=user_id`、UPDATE は USING+WITH CHECK）を確認＝S1-9 の RLS/スキーマ検証完了（実ブラウザ CRUD は残）
+- **Supabase 接続知見**: `supabase db push` 不発（履歴テーブル無し+`0001_`命名）/ Transaction pooler 6543+`pgbouncer=true` は prepared stmt 非互換(`42P05`)/ パスワード percent-encode 必須。memory `project_supabase_migration_gotchas` に記録。解決＝MCP 採用
+- **Supabase MCP 採用**: `.mcp.json` に `@supabase/mcp-server-supabase@latest --read-only --project-ref=mcrfdnjplfmqwnwbcbol`、token は `${SUPABASE_ACCESS_TOKEN}` 間接参照。`supabase/scripts/db-push.sh` 新規（gate→`--db-url` push 1コマンド化、URL 手打ち全角スペース混入回避）+ `package.json db:push` 差し替え。`check-rls.sql` を Postgres compound ORDER BY 準拠に修正（派生テーブルラップ、self-test 20/20）
+- **S2 Daily コード**: `0004_dailies_full_schema.sql`（id text PK=`daily-<date>`/user_id default auth.uid()/soft-delete/version/RLS owner-only 4 policy、0003 と同形、冪等）/ `dailyMapper.ts`+`roundtrip.ts`（ランタイム検証・`Omit<...,"user_id">`・往復8/8）/ `SupabaseDataService` daily 12メソッド（`DAILY_SELECT_COLUMNS` は `password_hash is not null as has_password` 投影で raw hash 非返却）/ `DailyContext`(Pattern A)+`useDailyAPI`+`dateKey` / `web/src/MainScreen.tsx`(旧 TasksScreen rename)+`daily/DailyView.tsx`(plain textarea、TipTap は S3)。バグ3自己修正（App.tsx 参照漏れ/roundtrip コメント`*/`早期終了/DailyView setState-in-effect）
+- **検証**: session-verifier（engineer+QA 独立再現）PASS — shared/web/**frontend `tsc -b`=0 非破壊** / web vite build / eslint / dailyMapper round-trip 8/8 / check-rls self-test 20/20
+
+#### 残課題
+
+- **[Critical・要ユーザー] PAT ローテーション必須**: `sbp_2d4f...` が会話ログ・`~/.zshrc`・監査ログに露出。Supabase Dashboard で Revoke→再発行、新 token は `~/.zshrc`(`chmod 600`) のみ、`~/.zsh_history` の旧 token も削除。完了まで **MCP write(`apply_migration`) 凍結＝0004 本番適用不可＝S2 未完**
+- **[要ユーザー] MCP write 昇格前提（security High）**: 専用 Supabase 組織分離 / write 時のみ token 投入・作業後 unset / `apply_migration` 直後に同セッション check-rls 検証 / 破壊的 DDL は人間が SQL 目視 / `@latest`→バージョン固定
+- **[S2 完了条件] 0004 適用後の手動 upsert parity 確認**（QA High-1）: 新規日作成→pin/password 設定→本文再編集 blur→pin/password 保持を実機確認するまで S2 完了マークしない
+- **[申し送り] password 平文保存・平文比較**（Tauri 1:1 移植 pre-existing、raw hash 非返却は QA 確認済）/ upsert read-then-write LWW(S8) / SyncProvider 二重ラップ(S8 再構成) / upsert payload から id 除外(Suggestion) / `web/src/TasksScreen.tsx` 残存（MainScreen rename 後の dead code 要確認）
+- **[別チャット同居]** `.claude/HISTORY-archive.md.bak`・frontend-refactor の `frontend/**/*.test.*`・known-issues・doc 整理が混在。S2 commit はパス明示で巻き込まず（`git add -A` 禁止）。HISTORY-archive ロールは別チャット圧縮と衝突回避で見送り
 
 #### 概要
 

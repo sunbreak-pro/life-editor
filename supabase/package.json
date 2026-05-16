@@ -6,7 +6,7 @@
   "scripts": {
     "db:check-rls": "bash ./scripts/check-rls.sh",
     "db:check-rls:selftest": "bash ./scripts/check-rls-selftest.sh",
-    "db:push": "npm run db:check-rls && npx supabase db push"
+    "db:push": "bash ./scripts/db-push.sh"
   },
   "devDependencies": {
     "supabase": "^2.98.2"

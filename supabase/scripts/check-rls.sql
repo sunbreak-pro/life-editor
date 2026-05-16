@@ -248,36 +248,60 @@ with
       and p.has_any_authuid is not true
   )
 
+-- Postgres rejects an ORDER BY that references an expression (e.g. the
+-- sentinel-last CASE) or a sort-only column on a compound query
+-- (UNION/INTERSECT/EXCEPT): only output column names or ordinals are
+-- allowed there (SQLSTATE 0A000 — "invalid UNION/INTERSECT/EXCEPT ORDER
+-- BY clause"). SQLite is permissive and accepted the old form, which is
+-- why the self-test did not catch it. Fix: wrap the whole UNION ALL
+-- (offenders + sentinel) in a derived table and ORDER BY on the OUTSIDE.
+-- The outer query is a simple (non-compound) SELECT, so its ORDER BY may
+-- freely use a CASE expression over the derived table's output columns.
+-- The 4-column contract (table_name / reason / rls_enabled /
+-- policy_count), the sentinel-is-always-last property, the compound
+-- allowlist join, and every detector are byte-for-byte unchanged; only
+-- the ORDER BY placement moved out one level.
 select
-  o.table_name                                          as table_name,
-  case
-    -- Downgrade ONLY the specific (table, reason) offence that was
-    -- explicitly reviewed. A different offence on the same table keeps
-    -- its real (blocking) reason — no table-wide exemption.
-    when al.table_name is not null then 'allowlisted_review'
-    else o.reason
-  end                                                   as reason,
-  o.rls_enabled                                         as rls_enabled,
-  o.policy_count                                        as policy_count
-from _offenders o
-left join _rls_gate_allowlist al
-  on al.table_name = o.table_name
- and al.why_reason = o.reason
+  _gate_rows.table_name    as table_name,
+  _gate_rows.reason        as reason,
+  _gate_rows.rls_enabled   as rls_enabled,
+  _gate_rows.policy_count  as policy_count
+from (
+  select
+    o.table_name                                          as table_name,
+    case
+      -- Downgrade ONLY the specific (table, reason) offence that was
+      -- explicitly reviewed. A different offence on the same table keeps
+      -- its real (blocking) reason — no table-wide exemption.
+      when al.table_name is not null then 'allowlisted_review'
+      else o.reason
+    end                                                   as reason,
+    o.rls_enabled                                         as rls_enabled,
+    o.policy_count                                        as policy_count
+  from _offenders o
+  left join _rls_gate_allowlist al
+    on al.table_name = o.table_name
+   and al.why_reason = o.reason
 
-union all
+  union all
 
--- Sentinel: ALWAYS the last row. Its presence proves the query completed
--- end-to-end. The wrapper keys "query ran" off this marker, never off the
--- CLI exit code (the CLI can exit 0 on connection failure).
-select
-  '___RLS_GATE_OK___'::name,
-  null::text,
-  null::boolean,
-  null::bigint
+  -- Sentinel: ALWAYS the last row. Its presence proves the query
+  -- completed end-to-end. The wrapper keys "query ran" off this marker,
+  -- never off the CLI exit code (the CLI can exit 0 on connection
+  -- failure).
+  select
+    '___RLS_GATE_OK___'::name,
+    null::text,
+    null::boolean,
+    null::bigint
+) as _gate_rows
 
 order by
-  -- allowlisted_review rows are WARN-only; the wrapper filters them out of
-  -- the blocking set but still prints them. Sentinel sorts last.
-  case when table_name = '___RLS_GATE_OK___' then 1 else 0 end,
-  table_name,
-  reason;
+  -- Outer (non-compound) ORDER BY: references ONLY _gate_rows output
+  -- columns, so the sentinel-last CASE is legal under Postgres compound
+  -- query rules. allowlisted_review rows are WARN-only; the wrapper
+  -- filters them out of the blocking set but still prints them. Sentinel
+  -- sorts last.
+  case when _gate_rows.table_name = '___RLS_GATE_OK___' then 1 else 0 end,
+  _gate_rows.table_name,
+  _gate_rows.reason;

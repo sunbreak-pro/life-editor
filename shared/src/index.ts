@@ -13,6 +13,7 @@ export type { Session } from "@supabase/supabase-js";
 // Types
 export type { TaskNode, NodeType, TaskStatus } from "./types/taskTree";
 export type { MoveResult, MoveRejectionReason } from "./types/moveResult";
+export type { DailyNode } from "./types/daily";
 
 // Tasks domain — context (Pattern A) + hooks
 export {
@@ -37,6 +38,12 @@ export type {
   TaskTreeCRUDConfig,
   AddNodeOptions,
 } from "./hooks/useTaskTreeCRUD";
+
+// Daily domain — context (Pattern A) + hook (DI: dataService/undoRedo)
+export { DailyProvider } from "./context";
+export { DailyContext, type DailyContextValue } from "./context";
+export { useDailyContext } from "./hooks/useDailyContext";
+export { useDailyAPI, type UseDailyAPIOptions } from "./hooks/useDailyAPI";
 
 // Tasks domain — tree utilities (host UI builds on these)
 export {

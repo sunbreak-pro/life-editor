@@ -216,6 +216,52 @@ else
 fi
 
 # ---------------------------------------------------------------------------
+# C3 (Phase 2 S0a regression): the compound query (UNION ALL of offenders
+# + sentinel) MUST be wrapped in a derived table with the ORDER BY applied
+# on the OUTSIDE. A bare `... UNION ALL ... ORDER BY case when ...` is
+# rejected by REAL Postgres with SQLSTATE 0A000 ("invalid UNION/INTERSECT/
+# EXCEPT ORDER BY clause") because a compound query's ORDER BY may only
+# reference output column names / ordinals — never an expression or a
+# sort-only column.
+#
+# LIMITATION — why this is a STRUCTURAL assert, not a behavioural one:
+# there is no psql / Postgres / Docker available here (see this file's
+# header), and SQLite (the only engine we can run) is PERMISSIVE about
+# compound-query ORDER BY — it happily accepts the illegal form, so a
+# SQLite simulation CANNOT reproduce the 0A000 divergence. We therefore
+# regression-guard the FIX's structure statically: the derived-table wrap
+# `from (` + a single trailing outer `order by` + `as _gate_rows` alias +
+# terminating `;`. This catches a future edit that flattens the wrap back
+# to a bare compound ORDER BY (which would re-introduce the prod-only
+# 0A000 break) without needing a live Postgres.
+c3_ok=1
+# (i) the offenders+sentinel UNION ALL is enclosed in a derived table.
+grep -qF 'as _gate_rows' "${GATE_SQL}" || c3_ok=0
+grep -qE '^from \($' "${GATE_SQL}" || c3_ok=0
+# (ii) exactly ONE top-level `union all` inside the wrap (offenders vs
+#      sentinel). The detector UNION ALLs are indented inside _offenders;
+#      the wrap's separator is at column 2 ("  union all").
+[[ "$(grep -cE '^  union all$' "${GATE_SQL}")" -eq 1 ]] || c3_ok=0
+# (iii) the ORDER BY is OUTSIDE the wrap: it must reference the derived
+#       table alias, never bare `table_name`, and the sentinel-last CASE
+#       must be qualified with `_gate_rows.`.
+grep -qE 'order by' "${GATE_SQL}" || c3_ok=0
+grep -qF 'case when _gate_rows.table_name = ' "${GATE_SQL}" || c3_ok=0
+# (iv) exactly one statement terminator in EXECUTABLE SQL, at the very
+#      end. `--` line comments legitimately contain prose semicolons
+#      (e.g. "deny-all; surfaced"), so strip them first (same technique
+#      as C2) before counting — otherwise comment punctuation, not the
+#      SQL, drives the assertion.
+GATE_SQL_CODE="$(sed -e 's/--.*$//' "${GATE_SQL}")"
+[[ "$(grep -cF ';' <<<"${GATE_SQL_CODE}")" -eq 1 ]] || c3_ok=0
+[[ "$(tail -c 2 "${GATE_SQL}" | tr -d '\n')" == ';' ]] || c3_ok=0
+if [[ "${c3_ok}" -eq 1 ]]; then
+  ok "C3 compound query is derived-table-wrapped with outer ORDER BY (no bare UNION ORDER BY; prod 0A000 guard)"
+else
+  bad "C3 compound query NOT wrapped — bare UNION ALL ORDER BY would break on real Postgres (SQLSTATE 0A000)"
+fi
+
+# ---------------------------------------------------------------------------
 # C2 (Phase 2 S1-1): 0003_tasks_full_schema.sql must, in ONE file, enable
 # RLS and attach all four owner-only policies with a clean `auth.uid() =
 # user_id` equality (no `or true` short-circuit). This is a static
@@ -252,6 +298,46 @@ if [[ -f "${MIG_0003}" ]]; then
   fi
 else
   bad "C2 0003_tasks_full_schema.sql not found"
+fi
+
+# ---------------------------------------------------------------------------
+# C4 (Phase 2 S2-1): 0004_dailies_full_schema.sql must, in ONE file, enable
+# RLS and attach all four owner-only policies with a clean `auth.uid() =
+# user_id` equality (no `or true` short-circuit) — byte-identical detector
+# shape to 0003 (C2). Same static structural assertion (no DB contact); it
+# proves 0004 would clear every check-rls.sql detector with NO allowlist
+# entry (offenders = 0).
+# ---------------------------------------------------------------------------
+MIG_0004="${SCRIPT_DIR}/../migrations/0004_dailies_full_schema.sql"
+if [[ -f "${MIG_0004}" ]]; then
+  c4_ok=1
+  # Evaluate EXECUTABLE SQL only: strip `--` line comments (the gate's
+  # detectors run on pg_catalog, never on comment text — so must we).
+  MIG_0004_SQL="$(sed -e 's/--.*$//' "${MIG_0004}")"
+  grep -qiE 'enable[[:space:]]+row[[:space:]]+level[[:space:]]+security' \
+    <<<"${MIG_0004_SQL}" || c4_ok=0
+  for p in dailies_select_own dailies_insert_own dailies_update_own \
+           dailies_delete_own; do
+    grep -qF "create policy ${p}" <<<"${MIG_0004_SQL}" || c4_ok=0
+  done
+  # Clean owner equality present, `to authenticated` role gate present, and
+  # NO `or true` / `true or` short-circuit anywhere in the executable SQL
+  # (which would trip has_qual_no_authuid case 3).
+  grep -qiE 'auth\.uid\(\)[[:space:]]*=[[:space:]]*user_id' \
+    <<<"${MIG_0004_SQL}" || c4_ok=0
+  grep -qiE '\bto[[:space:]]+authenticated\b' <<<"${MIG_0004_SQL}" \
+    || c4_ok=0
+  if grep -qiE '(true[[:space:]]+or|or[[:space:]]+true)' \
+       <<<"${MIG_0004_SQL}"; then
+    c4_ok=0
+  fi
+  if [[ "${c4_ok}" -eq 1 ]]; then
+    ok "C4 0004 has RLS enable + 4 owner policies + clean auth.uid()=user_id"
+  else
+    bad "C4 0004 missing RLS enable / a policy / clean owner equality"
+  fi
+else
+  bad "C4 0004_dailies_full_schema.sql not found"
 fi
 
 echo

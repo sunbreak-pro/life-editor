@@ -9,3 +9,6 @@ export {
   TaskTreeContext,
   type TaskTreeContextValue,
 } from "./TaskTreeContextValue";
+
+export { DailyProvider } from "./DailyContext";
+export { DailyContext, type DailyContextValue } from "./DailyContextValue";
