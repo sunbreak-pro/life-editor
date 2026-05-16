@@ -17,6 +17,7 @@ interface UseGraphFiltersResult {
   setShowLabels: (v: boolean) => void;
   panelOpen: boolean;
   togglePanel: () => void;
+  closePanel: () => void;
   setSearch: (q: string) => void;
   toggleType: (type: GraphNodeType) => void;
   toggleTag: (tagNodeIdValue: string) => void;
@@ -88,6 +89,7 @@ export function useGraphFilters(
   }, []);
 
   const togglePanel = useCallback(() => setPanelOpen((v) => !v), []);
+  const closePanel = useCallback(() => setPanelOpen(false), []);
 
   const activeFilterCount = useMemo(
     () => countActive({ ...filter, localFocusId: selectedId }),
@@ -102,6 +104,7 @@ export function useGraphFilters(
     setShowLabels,
     panelOpen,
     togglePanel,
+    closePanel,
     setSearch: setSearchRaw,
     toggleType,
     toggleTag,
