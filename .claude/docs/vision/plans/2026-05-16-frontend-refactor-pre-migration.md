@@ -87,18 +87,13 @@
 
 ### Phase 4 — 規約準拠の最小整合（Mobile Optional バリアント）
 
-- [ ] 4-1. `useFileExplorerContextOptional` 追加（C6 — 既存 `createOptionalContextHook` 利用、§6.3 規約違反解消、Capacitor 移行後も Mobile 分岐は残るため自動解消しない）
-- [ ] 4-2. `ShortcutConfig` Optional バリアント or `Layout.tsx:139` ガード（C7 — 潜在リスク、低優先）
+- [x] 4-1. `useFileExplorerContextOptional` 追加（既存 `createOptionalContextHook` 利用、手本=useAudioContextOptional 等と完全同形・5行）
+- [x] 4-2. `useShortcutConfigOptional` 追加（同上。§6.3 準拠の予防的防護層、ゼロ参照は意図的=ユーザー承認済。Layout.tsx は Desktop 専用のため非改変）
+- 完了: **527 pass / 0 fail**（ロジックゼロのため pass 数不変が正常）、`npm run build` PASS。新規2ファイル(各5行)・既存改変ゼロ。手本と barrel 非登録範囲も一致
 
 ### Phase 5 — 巨大コンポーネント整理（要ユーザー承認・複雑性トレードオフあり）
 
-> 共有 Modal シェル新設は「1ファイル増 vs 28箇所手書き削除」で正味大幅減だが、抽象追加の是非があるため**着手前に個別承認**。
-
-- [ ] 5-1. （要承認）共有 `ModalShell`（backdrop+Escape+`role="dialog"`+focus trap）に 28 ファイルの手書き backdrop / 53 箇所の Escape 処理を集約（a11y 欠落・透明落ち・cleanup 漏れ一掃）
-- [ ] 5-2. `shared/RichTextEditor.tsx`(607行) の 11 useEffect を `useEditorDomEvents` フックに集約（cleanup/依存漏れを単一箇所に閉込）
-- [ ] 5-3. `CalendarView`(C2) と `MobileCalendarView`(C6) の日付/週計算を `calendarViewModel.ts` 純粋関数へ一本化（Desktop/Mobile ドリフトバグ防止）
-- [ ] 5-4. `OneDaySchedule.tsx`(1194行/props23) のダイアログ・データ取得を既存 `useDayFlowDialogs`/`useDayFlowFilters` へ集約（行数純増なし）
-- [ ] 5-5. `ScheduleTimeGrid.tsx`(C3) の contextMenu/preview 4 useState を discriminated union 1 state へ + 既存 `scheduleTimeGridLayout.ts` へ計算集約
+> **次回チャットへ持ち越し（2026-05-16）**。独立計画書に分離: [`2026-05-16-phase5-giant-component-decomposition.md`](./2026-05-16-phase5-giant-component-decomposition.md)。5-1 共有 ModalShell は要ユーザー承認ゲート。詳細 Steps / Files / Verification / 開始手順は当該ファイル参照。
 
 ---
 
