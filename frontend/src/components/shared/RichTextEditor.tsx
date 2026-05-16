@@ -518,7 +518,14 @@ export function RichTextEditor({
       return { kind: "note" as const, noteId: id };
     }
     if (entityType === "daily") {
-      return { kind: "daily" as const, dailyDate: id };
+      // note_links.source_daily_date is canonically the raw YYYY-MM-DD.
+      // DailyView/DailySidebar pass syncEntityId as the DailyNode id
+      // ("daily-YYYY-MM-DD"), so strip the prefix — otherwise PointGraph
+      // rebuilds it into a double-"daily-" id and the edge never resolves.
+      const dailyDate = id.startsWith("daily-")
+        ? id.slice("daily-".length)
+        : id;
+      return { kind: "daily" as const, dailyDate };
     }
     return null;
   }, [entityType, syncEntityId, taskId]);

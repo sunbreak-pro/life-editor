@@ -438,5 +438,22 @@ pub(super) fn apply(conn: &Connection, current_version: i32) -> rusqlite::Result
         conn.pragma_update(None, "user_version", &69i32)?;
     }
 
+    // V70: normalize note_links.source_daily_date. A renderer bug stored the
+    // DailyNode id ("daily-YYYY-MM-DD") instead of the canonical raw date;
+    // PointGraph then rebuilt it into a double-"daily-" id, so the Daily↔Note
+    // edge never resolved. Strip any leading "daily-" (substr is 1-indexed,
+    // "daily-" is 6 chars → start at 7). Idempotent: no row matches the LIKE
+    // afterwards, and a real YYYY-MM-DD date can never start with "daily-".
+    if current_version < 70 {
+        eprintln!("V70: strip leading 'daily-' from note_links.source_daily_date");
+        exec_ignore(
+            conn,
+            "UPDATE note_links
+                 SET source_daily_date = substr(source_daily_date, 7)
+                 WHERE source_daily_date LIKE 'daily-%';",
+        );
+        conn.pragma_update(None, "user_version", &70i32)?;
+    }
+
     Ok(())
 }
