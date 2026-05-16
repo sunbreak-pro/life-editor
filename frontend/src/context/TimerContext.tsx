@@ -14,6 +14,8 @@ import { getDataService } from "../services";
 import { isTauriMobile } from "../services/bridge";
 import { timerReducer, createInitialState, getDuration } from "./timerReducer";
 import { playEffectSound } from "../utils/playEffectSound";
+import { generateTaskId } from "../utils/generateTaskId";
+import { generateId } from "../utils/generateId";
 import { useServiceErrorHandler } from "../hooks/useServiceErrorHandler";
 
 function sendNotification(body: string) {
@@ -454,7 +456,7 @@ export function TimerProvider({ children }: { children: ReactNode }) {
 
         if (input.role === "task" && labelTrimmed) {
           // New completed Task under the selected parent (or root if null)
-          const newId = `task-${Date.now()}`;
+          const newId = generateTaskId();
           await getDataService().createTask({
             id: newId,
             type: "task",
@@ -474,7 +476,7 @@ export function TimerProvider({ children }: { children: ReactNode }) {
           const dateKey = startedAt.substring(0, 10);
           const startTime = startedAt.substring(11, 16);
           const endTime = completedAt.substring(11, 16);
-          const newId = `event-${Date.now()}`;
+          const newId = generateId("si");
           const created = await getDataService().createScheduleItem(
             newId,
             dateKey,

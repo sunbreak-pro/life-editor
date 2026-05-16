@@ -4,6 +4,7 @@ import { getDataService } from "../../services/dataServiceFactory";
 import { useSyncContext } from "../../hooks/useSyncContext";
 import type { DailyNode } from "../../types/daily";
 import { LazyRichTextEditor as RichTextEditor } from "../shared/LazyRichTextEditor";
+import { getTodayKey } from "../../utils/dateKey";
 
 function extractPlainText(content: string): string {
   try {
@@ -48,7 +49,7 @@ export function MobileDailyView() {
   }, [loadMemos, syncVersion]);
 
   function handleNewMemo() {
-    const today = new Date().toISOString().split("T")[0];
+    const today = getTodayKey();
     setSelectedDate(today);
   }
 
@@ -147,9 +148,7 @@ function MobileMemoDetail({ date, memo, onBack }: MobileMemoDetailProps) {
         <button onClick={onBack} className="text-sm text-notion-accent">
           &larr; {t("common.back", "Back")}
         </button>
-        <span className="text-sm font-medium text-notion-text">
-          {date}
-        </span>
+        <span className="text-sm font-medium text-notion-text">{date}</span>
       </div>
       <div className="flex min-h-0 flex-1 flex-col overflow-y-auto bg-notion-bg p-4">
         <Suspense

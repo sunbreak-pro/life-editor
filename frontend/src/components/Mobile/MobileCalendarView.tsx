@@ -12,6 +12,7 @@ import { useSyncContext } from "../../hooks/useSyncContext";
 import { useServiceErrorHandler } from "../../hooks/useServiceErrorHandler";
 import { addDays, buildCalendarGrid } from "../../utils/calendarGrid";
 import { formatDateKey, getTodayKey } from "../../utils/dateKey";
+import { generateId } from "../../utils/generateId";
 import type { ScheduleItem } from "../../types/schedule";
 import type { TaskNode } from "../../types/taskTree";
 import {
@@ -30,10 +31,6 @@ import { MobileDayflowGrid } from "./schedule/MobileDayflowGrid";
 import type { LongPressDragEnd } from "../../hooks/useMobileLongPressDrag";
 
 // --- Utilities ---
-
-function generateId(): string {
-  return `schedule-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
-}
 
 const MAX_CHIPS_PER_CELL = 3;
 
@@ -662,7 +659,7 @@ export function MobileCalendarView() {
             isAllDay: data.isAllDay,
           });
         } else {
-          const newId = generateId();
+          const newId = generateId("si");
           await ds.createScheduleItem(
             newId,
             data.date,
