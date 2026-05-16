@@ -13,6 +13,18 @@
 # Node (root)
 /node_modules/
 
+# Web-first migration (Phase 1: web/ + shared/ + supabase/)
+web/node_modules/
+web/dist/
+shared/node_modules/
+
+# Secrets — never commit env files (incl. Supabase anon key)
+.env
+.env.local
+.env.*.local
+**/.env.local
+**/.env.*.local
+
 # MCP Server
 mcp-server/dist/
 mcp-server/node_modules/

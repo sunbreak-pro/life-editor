@@ -2,7 +2,22 @@
 
 ## 進行中
 
-（なし）
+### 🔧 クロスプラットフォーム移行 Phase 1 — 新スタック土台構築（着手日: 2026-05-16）
+
+**対象**: `web/`（新規 Vite+React+TS+Tailwind）/ `shared/`（新規・services から）/ `supabase/migrations/`（新規）/ `frontend/`・`src-tauri/`・`cloud/`（並立期間は触らない）
+**計画書**: `.claude/2026-05-04-cross-platform-migration.md`（SSOT / Status: ACTIVE）
+
+着手順序: 1.web/ 最小起動 → 2.Tailwind 4 → 3.Supabase 無料 PJ（**ユーザー作業**）→ 4.最小スキーマ(tasks) → 5.@supabase/supabase-js 接続 → 6.Auth(Email+PW) → 7.RLS → 8.shared/ 雛形(DataService コピー) → 9.SupabaseDataService(tasks) → 10.本格スキーマ(Tasks/Schedule/Notes/Daily/WikiTags) → 11.データ移行スクリプト(任意)
+
+完了判定: [ ] web/ npm run dev 起動 / [ ] Supabase signIn 可 / [ ] tasks CRUD 通過 / [ ] RLS で他ユーザー不可視 / [ ] frontend/(Tauri) 非破壊
+
+- 前回: —
+- 現在: サブエージェント分担で着手（管理=multi-session-coordinator / 設計分解=role-pm / 実装=role-engineer / QA=role-qa）。Claude 自走可能部（web/ 雛形・Tailwind・shared/ DataService・supabase SQL）と user 作業部（Supabase アカウント）を切り分け
+- 次: role-pm の分解結果に基づき role-engineer で自走部スキャフォールド実装 → role-qa レビュー
+
+> 作業ツリーに Point Graph 関連の未コミット変更あり（本移行と無関係・保全対象、Phase 1 commit では新規ディレクトリのみ選択ステージ）
+
+（他に進行中タスクなし）
 
 ## 直近の完了
 
