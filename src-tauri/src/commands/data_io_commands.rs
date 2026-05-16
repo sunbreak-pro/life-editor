@@ -780,6 +780,7 @@ mod bulk_soft_delete_tests {
             None,
             false,
             None,
+            None,
         )
         .unwrap();
     }
@@ -818,6 +819,7 @@ mod bulk_soft_delete_tests {
         // event (no routine_id)
         schedule_item_repository::create(
             &conn, "ev-1", "2026-05-12", "Event", "10:00", "11:00", None, None, None, None, None,
+            false, None, None,
         )
         .unwrap();
         // routine-derived item
@@ -831,6 +833,9 @@ mod bulk_soft_delete_tests {
             Some("r-1"),
             None,
             None,
+            None,
+            None,
+            false,
             None,
             None,
         )
@@ -873,10 +878,14 @@ mod bulk_soft_delete_tests {
             None,
             None,
             None,
+            false,
+            None,
+            None,
         )
         .unwrap();
         schedule_item_repository::create(
             &conn, "ev-1", "2026-05-12", "Event", "10:00", "11:00", None, None, None, None, None,
+            false, None, None,
         )
         .unwrap();
 

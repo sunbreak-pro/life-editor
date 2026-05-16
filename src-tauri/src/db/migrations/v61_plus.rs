@@ -455,5 +455,29 @@ pub(super) fn apply(conn: &Connection, current_version: i32) -> rusqlite::Result
         conn.pragma_update(None, "user_version", &70i32)?;
     }
 
+    // V71: per-item reminder absolute time. `reminder_offset` covers "N minutes
+    // before the item's own time", but all-day Events / null-startTime Routines
+    // / dateless Tasks have no anchor clock — `reminder_time` ("HH:MM") is the
+    // explicit fire time the user picks for those. Nullable; the scheduler uses
+    // the inherent time when present and falls back to reminder_time otherwise.
+    // Auto-syncs to D1 (sync_engine is column-driven via SELECT * / table_info;
+    // D1 side gets the column in migration 0008).
+    if current_version < 71 {
+        eprintln!("V71: add reminder_time to tasks / schedule_items / routines");
+        if !has_column(conn, "tasks", "reminder_time") {
+            exec_ignore(conn, "ALTER TABLE tasks ADD COLUMN reminder_time TEXT");
+        }
+        if !has_column(conn, "schedule_items", "reminder_time") {
+            exec_ignore(
+                conn,
+                "ALTER TABLE schedule_items ADD COLUMN reminder_time TEXT",
+            );
+        }
+        if !has_column(conn, "routines", "reminder_time") {
+            exec_ignore(conn, "ALTER TABLE routines ADD COLUMN reminder_time TEXT");
+        }
+        conn.pragma_update(None, "user_version", &71i32)?;
+    }
+
     Ok(())
 }

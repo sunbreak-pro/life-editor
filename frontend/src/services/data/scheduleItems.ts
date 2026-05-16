@@ -28,6 +28,9 @@ export const scheduleItemsApi = {
     noteId?: string,
     isAllDay?: boolean,
     content?: string,
+    reminderEnabled?: boolean,
+    reminderOffset?: number,
+    reminderTime?: string | null,
   ): Promise<ScheduleItem> {
     return tauriInvoke("db_schedule_items_create", {
       id,
@@ -40,6 +43,9 @@ export const scheduleItemsApi = {
       noteId,
       isAllDay,
       content,
+      reminderEnabled,
+      reminderOffset,
+      reminderTime,
     });
   },
   updateScheduleItem(
@@ -56,6 +62,9 @@ export const scheduleItemsApi = {
         | "isAllDay"
         | "content"
         | "date"
+        | "reminderEnabled"
+        | "reminderOffset"
+        | "reminderTime"
       >
     >,
   ): Promise<ScheduleItem> {
