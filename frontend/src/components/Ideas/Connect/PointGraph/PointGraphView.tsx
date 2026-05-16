@@ -5,8 +5,11 @@ import type {
 } from "../../../../types/wikiTag";
 import type { NoteNode } from "../../../../types/note";
 import type { DailyNode } from "../../../../types/daily";
+import { useState } from "react";
 import type { NoteLink } from "../../../../types/noteLink";
 import { usePointGraphModel } from "./hooks/usePointGraphModel";
+import { GraphCanvas } from "./components/GraphCanvas";
+import { DEFAULT_FORCES } from "./hooks/usePointGraphSimulation";
 
 interface ConnectRequest {
   tagId: string | null;
@@ -63,21 +66,18 @@ export function PointGraphView({
     noteLinks,
   });
 
-  // S2 placeholder — counts only. Canvas lands in S4.
-  const byType = snapshot.nodes.reduce<Record<string, number>>((acc, n) => {
-    acc[n.type] = (acc[n.type] || 0) + 1;
-    return acc;
-  }, {});
-  const byKind = snapshot.links.reduce<Record<string, number>>((acc, l) => {
-    acc[l.kind] = (acc[l.kind] || 0) + 1;
-    return acc;
-  }, {});
+  const [selectedId, setSelectedId] = useState<string | null>(null);
 
   return (
-    <div className="h-full w-full flex items-center justify-center bg-notion-bg text-notion-text">
-      <pre className="text-xs leading-relaxed">
-        {`Point Graph (S2 scaffold)\n\nnodes: ${snapshot.nodes.length}\n${JSON.stringify(byType, null, 2)}\n\nlinks: ${snapshot.links.length}\n${JSON.stringify(byKind, null, 2)}`}
-      </pre>
+    <div className="h-full w-full">
+      <GraphCanvas
+        snapshot={snapshot}
+        forces={DEFAULT_FORCES}
+        showLabels
+        searchMatchSet={null}
+        selectedId={selectedId}
+        onSelectedIdChange={setSelectedId}
+      />
     </div>
   );
 }
