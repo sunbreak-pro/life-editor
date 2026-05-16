@@ -110,6 +110,7 @@ export function PointGraphView({
   const apiRef = useRef<{ reheat: () => void; resetView: () => void } | null>(
     null,
   );
+  const searchInputRef = useRef<HTMLInputElement | null>(null);
 
   const filters = useGraphFilters(snapshot, selectedId);
 
@@ -265,20 +266,40 @@ export function PointGraphView({
     [pendingConnection, onConnectViaTag],
   );
 
-  // Delete key removes the selected entity (soft delete to Trash, mirrors the
-  // old React Flow behavior). Tag nodes are not deletable here.
+  // Keyboard shortcuts:
+  //  Delete/Backspace -> soft-delete selected note/daily (mirrors old behavior)
+  //  Esc              -> clear selection / cancel connect
+  //  Cmd/Ctrl+F       -> open panel + focus search
+  //  R                -> reheat simulation
   useEffect(() => {
+    function isTypingTarget(t: EventTarget | null): boolean {
+      const el = t as HTMLElement | null;
+      return (
+        !!el &&
+        (el.tagName === "INPUT" ||
+          el.tagName === "TEXTAREA" ||
+          el.isContentEditable)
+      );
+    }
     function onKeyDown(e: KeyboardEvent) {
-      if (e.key !== "Delete" && e.key !== "Backspace") return;
-      const tgt = e.target as HTMLElement | null;
-      if (
-        tgt &&
-        (tgt.tagName === "INPUT" ||
-          tgt.tagName === "TEXTAREA" ||
-          tgt.isContentEditable)
-      ) {
+      if (e.key === "Escape") {
+        setConnectSource(null);
+        if (pendingConnection) setPendingConnection(null);
+        else handleSelectedIdChange(null);
         return;
       }
+      if ((e.metaKey || e.ctrlKey) && (e.key === "f" || e.key === "F")) {
+        e.preventDefault();
+        if (!filters.panelOpen) filters.togglePanel();
+        requestAnimationFrame(() => searchInputRef.current?.focus());
+        return;
+      }
+      if (isTypingTarget(e.target)) return;
+      if ((e.key === "r" || e.key === "R") && !e.metaKey && !e.ctrlKey) {
+        apiRef.current?.reheat();
+        return;
+      }
+      if (e.key !== "Delete" && e.key !== "Backspace") return;
       if (!selectedId) return;
       const node = nodeById.get(selectedId);
       if (!node || node.type === "tag") return;
@@ -288,7 +309,15 @@ export function PointGraphView({
     }
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [selectedId, nodeById, onDeleteNoteEntity, onDeleteDailyEntity]);
+  }, [
+    selectedId,
+    nodeById,
+    onDeleteNoteEntity,
+    onDeleteDailyEntity,
+    pendingConnection,
+    handleSelectedIdChange,
+    filters,
+  ]);
 
   return (
     <div className="relative h-full w-full">
@@ -381,6 +410,7 @@ export function PointGraphView({
           typeCounts={typeCounts}
           totalTypeCounts={totalTypeCounts}
           selectedLabel={selectedNode ? selectedNode.label : null}
+          searchInputRef={searchInputRef}
         />
       )}
 

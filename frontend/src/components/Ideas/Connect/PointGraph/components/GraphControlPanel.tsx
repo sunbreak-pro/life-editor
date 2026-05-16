@@ -46,6 +46,7 @@ interface GraphControlPanelProps {
   typeCounts: Record<string, number>;
   totalTypeCounts: Record<string, number>;
   selectedLabel: string | null;
+  searchInputRef?: React.RefObject<HTMLInputElement | null>;
 }
 
 export function GraphControlPanel({
@@ -64,6 +65,7 @@ export function GraphControlPanel({
   typeCounts,
   totalTypeCounts,
   selectedLabel,
+  searchInputRef,
 }: GraphControlPanelProps) {
   const { t } = useTranslation();
   const typeLabel: Record<GraphNodeType, string> = {
@@ -82,6 +84,7 @@ export function GraphControlPanel({
             className="absolute left-2.5 top-1/2 -translate-y-1/2 text-notion-text-secondary"
           />
           <input
+            ref={searchInputRef}
             type="text"
             value={filter.search}
             onChange={(e) => onSearchChange(e.target.value)}
