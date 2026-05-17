@@ -64,7 +64,7 @@ import {
  * `deleteNoteConnectionByPair` (eq id) route their interpolated values
  * through this single helper (DRY) so the escaping cannot drift apart.
  */
-function pgrstQuoteValue(value: string): string {
+export function pgrstQuoteValue(value: string): string {
   return `"${value.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`;
 }
 
@@ -499,15 +499,55 @@ class SupabaseNotesService {
       return rowToNoteNode(data as unknown as NoteRow);
     }
     // version = version + 1 cannot be expressed relatively in a single
-    // PostgREST update, so read-then-write the next version (same
-    // pattern as SupabaseDailyService.toggleBoolean / upsertDaily).
+    // PostgREST update, so read-then-write the next version.
+    // .maybeSingle() (NOT .single()): an optimistic createNote adds the
+    // node to local state and fires the INSERT fire-and-forget; a flush
+    // (e.g. RichTextEditor unmount) can call updateNote BEFORE that
+    // INSERT lands, so the version read legitimately sees 0 rows. With
+    // .single() that 0-row case is a PostgREST 406 ("Cannot coerce the
+    // result to a single JSON object") thrown into the caller. update is
+    // existence-presupposing here, so a not-yet-existing row is NOT an
+    // error: skip the DB write and return — local state already holds
+    // the edit and the next flush after the INSERT lands persists it (no
+    // data loss). A real read error (auth / network) still throws below;
+    // only the genuine 0-row race is the skip path. See known-issue 020.
     const { data: cur, error: readErr } = await this.client
       .from("notes")
       .select("version")
       .eq("id", id)
-      .single();
+      .maybeSingle();
     if (readErr) throw new Error(`updateNote failed: ${readErr.message}`);
-    const nextVersion = ((cur as { version: number }).version ?? 0) + 1;
+    const curRow = cur as { version: number } | null;
+    if (curRow == null) {
+      // Row not yet present (INSERT in flight). Local state is canonical
+      // and the post-INSERT flush persists this edit, so skip the DB
+      // write. The caller (useNotesAPI.updateNote) discards this return
+      // value (it only .catch()es), but the Promise<NoteNode> contract
+      // still needs a well-formed node — synthesize one from the patch
+      // with explicit column defaults (no `as`-cast type lie through
+      // rowToNoteNode, which assumes NOT-NULL columns are materialised).
+      const now = new Date().toISOString();
+      return rowToNoteNode({
+        id,
+        user_id: "",
+        type: "note",
+        title: patch.title ?? "",
+        content: patch.content ?? "",
+        parent_id: null,
+        order: patch.order ?? 0,
+        is_pinned: patch.is_pinned ?? false,
+        is_edit_locked: patch.is_edit_locked ?? false,
+        color: patch.color ?? null,
+        icon: patch.icon ?? null,
+        has_password: false,
+        is_deleted: false,
+        deleted_at: null,
+        created_at: now,
+        updated_at: now,
+        version: 0,
+      });
+    }
+    const nextVersion = (curRow.version ?? 0) + 1;
     const { data, error } = await this.client
       .from("notes")
       .update({

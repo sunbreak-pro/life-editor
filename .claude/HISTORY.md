@@ -1,5 +1,64 @@
 # HISTORY.md - 変更履歴
 
+### 2026-05-17 - shared+web セキュリティ監査 → H1 循環ガード退行修正 + 安全網テスト整備（pathspec commit/push 済）
+
+#### 概要
+
+ユーザーから 3 並行タスク（A=shared+web 脆弱性監査 / B=Phase 5 frontend リファクタ / C=未移植ドメイン安全網テスト）+「別チャットが Phase 4 Schedule 実行中なので注意」の要請。multi-session-coordinator 起動で**重要な誤認を是正**: 別チャット chat-refactor が進めるのは「frontend リファクタ計画の Phase 4」であり移行 SSOT の「Phase 4 = Schedule(S4) 移植」ではない（S4 は未着手・着手チャット無し）。chat-refactor は frontend リファクタ Phase 5 を「要承認」で保留中・MEMORY/HISTORY 不可侵宣言済＝本レーンが tracker 単独オーナー（並行 override 不要）。競合判定: A=Read のみ無衝突 / B=`frontend/src` が chat-refactor 専有書込レーン＝衝突確定 / C=`shared/`+`web/` 新規 `*.test.ts` 限定なら無衝突。ユーザー判断: B は chat-refactor レーンに委譲し本レーン非着手 / C は A の監査結果で対象決定（A→C 逐次）/ C スコープ=H1 修正+安全網テスト。lead-pipeline 中チェーン（security-reviewer 監査 → role-engineer 実装 → session-verifier → role-qa 別コンテキスト独立監査 → task-tracker）。
+
+#### 変更点
+
+- **multi-session-coordinator（状況是正）**: `.claude/active-sessions/` + `.claude/comm/outbox/chat-refactor.md` 照合で「Phase 4 Schedule 実行中」がユーザーの誤認（実体=frontend リファクタ Phase 4・commit 済 / Schedule S4 未着手）と判明。chat-refactor の forward-port 監査レポート（`.claude/reports/2026-05-17-shared-forward-port-audit.md`）を A の入力に活用、二重作業回避
+- **タスクA セキュリティ監査（security-reviewer・read-only）**: `shared/src` + `web/src` + `supabase/migrations|scripts` を 7 観点（PostgREST インジェクション/RLS 網羅/秘密情報/認証/XSS/DoS/ソフトデリート）で監査。判定 Critical0 High1 Med3 Low3 + 既知債務1(悪化なし)。レポート `.claude/reports/2026-05-17-shared-web-security-audit.md`。**負の結果を明示**: service_role/PAT 非露出・`.env*` gitignore・全出荷テーブル RLS owner-only 4policy 正・`pgrstQuoteValue` 文法ブレイクアウト遮断・`dangerouslySetInnerHTML` 皆無・Link protocol allowlist 適切・ソフトデリートフィルタ漏れ無し
+- **H1（新規 finding・forward-port 監査の盲点）**: `shared/src/hooks/useNoteTreeMovement.ts` のローカル `isDescendantOf` に循環ガード欠落。FP#1 は `getDescendantTasks.ts` の 3 関数だけ visited 化、forward-port 監査は本ヘルパを「判定対象外」と明記してスルー＝退行が残存。`parent_id` 循環で `moveNode`/`moveNodeInto` ドラッグ毎にメインスレッド凍結/OOM（KI-016 同型・別ファイル別ヘルパ）。0005 が自己参照 FK を許し Cloud Sync LWW で循環永続化しうる自己被害
+- **タスクC H1 修正（role-engineer）**: 正本 `getDescendantTasks.ts:90-124` の `isDescendantOf` と探索構造が完全同一だったため visited Set パターンを構造そのまま忠実移植（target match を guard より前に維持＝2 ノード循環でも直接到達子を即検出、非循環は挙動完全不変）。コメントで KI-016 参照
+- **タスクC 安全網テスト（role-engineer）**: shared に vitest `^4` 配備（`shared/vitest.config.ts`、`include:["tests/**"]`+node 環境）。**テストを `src/` 外の `shared/tests/` に分離**＝composite project（`include:["src"]`/`outDir:dist`）が dist にテストを emit し consumer 出荷する事故を構造回避（dist 非汚染を実確認）。A 監査 Top5 を新規 5 ファイル/30 テストでカバー（useNoteTreeMovement 循環停止+target-before-guard 不変条件 / pgrstQuoteValue 注入境界+M1 `%`/`_` ギャップを「修正でなく現状記録」と明示 / getDescendantTasks 3 関数 visited / noteUpdatesToPatch の password_hash・has_password・version 非混入 / walkAncestors 既存ガード pin）。可視性のみの最小 export 追加（`isDescendantOf` / `pgrstQuoteValue` を named export 化・ロジック不変）
+- **session-verifier**: scope=shared/ のみ（frontend/ 無変更を git status 確認）。Gate1 型=`tsc -b` EXIT0 / Gate2 lint=shared 未配備でスキップ / Gate3 テスト=30/30 PASS / Gate4 カバレッジ=Top5 全カバー新規 export 使用済 / Gate5 構造=コメント有・死コード無 / Gate6 バグスキャン=循環ガード正当性を自己参照/2 ノード/3 ノードで手動トレース確認。PASS
+- **role-qa 独立監査（別コンテキスト）**: APPROVE / Blocker0 Major0 Minor0。正本との 1 行照合・全循環パターン論理トレース・テスト実効性（修正前ハング入力を実投与+戻り値 assert）・バレル非汚染（`shared/src/index.ts` に未追加・テストは相対 import）・dist 非汚染（`find dist -name "*.test.*"` 空）・レーン制約（`git status --porcelain` で shared/ のみ）を実ファイル実証。security/sync/migration/ipc validator 追加起動は不要判定（防御強化+可視性のみ・スキーマ/IPC/sync 機構変更なし）
+- **タスクB（非着手・委譲）**: Phase 5 frontend リファクタは chat-refactor の専有書込レーン＋当人が保留中の当該作業のため本レーンで起動せず。ユーザー判断で chat-refactor レーンに委譲（こちらからの outbox 通知は専有レーン侵害回避で行わない）
+- **commit/push（task-tracker auto-git override）**: 計画書なし finding 起点だが実コード変更ありのため skill の「計画書なし→.claude/ のみ」ヒューリスティックを override。並行 chat-refactor frontend/ 同居のため `git add -A` 厳禁、パス明示指定（`shared/src/hooks/useNoteTreeMovement.ts` `shared/src/services/SupabaseDataService.ts` `shared/package.json` `shared/package-lock.json` `shared/vitest.config.ts` `shared/tests/` `.claude/reports/` 2 監査 `.claude/MEMORY.md` `.claude/HISTORY.md`）→ `refactor/web-first-v2` push（main 直 push 禁止維持）。`03_demo_mobile_redesign.html`（無関係 untracked）・`frontend/`・`.mcp.json` 除外
+- **次/Backlog**: M1（searchNotes LIKE `%`/`_` 非エスケープ）は申し送り④と整合の既知ギャップでテストにより挙動固定（未修正）/ M3 list 系 pagination 欠落は将来課題 / web 側 vitest は対象テストが web に出た時点で配備 / 次セッション S4 Schedule 移植は従前どおり
+
+### 2026-05-17 - Phase 2 S3 Notes PR1 正式クローズ（role-qa 独立監査 PASS）+ forward-port #1#2#3 適用（pathspec commit/push 済）
+
+#### 概要
+
+前セッションで実装・コミット済（02c9045）だが「未監査・計画書未クローズ」で宙吊りだった Notes Web PR1 を正式クローズ。並行チャット chat-refactor の handoff（`.claude/comm/outbox/chat-refactor.md` + `.claude/reports/2026-05-17-shared-forward-port-audit.md`、Critical 1 含む forward-port 5 件）と合流。lead-pipeline 重チェーン（role-pm 分解 → ユーザー判断 4 点 → role-engineer 実装 → role-qa 別コンテキスト統合監査 → 計画書クローズ → task-tracker）。role-pm が「次に進む」候補（PR1 QA / FP#1 / FP#2-5 / PR2 Backlog）を Tier 判定で分解し曖昧点 4 件を抽出。ユーザー判断: Q1=#1 先行→PR1 QA / Q2=FP #1+#2+#3 を今回（#4#5 はスコープ外）/ Q3=PR2 やらない / Q4=④ folder restore 子孫残存は既知制約として受容。FP#1#2#3 を shared/ に適用、PR1 を独立監査でクローズ。両監査とも Blocker0 Major0 PASS。chat-refactor は frontend/ レーンで MEMORY/HISTORY 非編集と handoff 明記、本レーンが tracker 通常管轄。
+
+#### 変更点
+
+- **role-pm 要件分解**: PR1 が 02c9045（前セッション）で①②③④実装済だが role-qa 未実施・計画書 [ ] のまま宙吊りと診断。「次」候補を Tier 化（FP#1=必須最優先・軽 / PR1 QA=必須・中 / FP#2#3=推奨・軽 / FP#4#5=任意 / PR2=任意・大）、曖昧点 4 件を AskUserQuestion で確認可能化。スコープクリープ警告（⑤を同 PR にしない / Q4(b) で PR1 再オープンしない / Critical 修正に UX 相乗りしない / #1 をついでにリファクタしない）
+- **ユーザー判断 4 点**: Q1=#1 先行→PR1 QA（OOM ブロッカー最優先）/ Q2=FP #1+#2+#3 を今回（Critical+High+1行、#4#5 は MEMORY 予定へ）/ Q3=PR2 今回やらない（UX 段階的方針）/ Q4=④ folder restore 単一ノード制約=既知制約受容（Backlog⑧、再オープンしない）
+- **FP#1 Critical（role-engineer）**: `shared/src/utils/getDescendantTasks.ts` の 3 関数（`getDescendantTasks`/`collectDescendantIds`/`isDescendantOf`）に visited ガード追加。`git show d62a2dc -- frontend/src/utils/getDescendantTasks.ts` の 3 hunk をそのまま適用（独自改変なし）。KI-016 同型 OOM（循環 parentId 無限ループ）を有限終了化、非循環入力で挙動完全不変。`shared/src/index.ts:63-67` 公開 export シグネチャ不変＝`useTaskTreeMovement`/`useTaskTreeDeletion` 経由の呼出側無改修
+- **FP#2 High（role-engineer）**: `shared/src/types/wikiTag.ts` の `entityType: "task"|"memo"|"note"` → `WikiTagEntityType`（`"task"|"daily"|"note"`）参照化、型エイリアスを `WikiTagAssignment` の前へ移動。同ファイル :18 との型矛盾解消（daily タグ集計の死にコード化を是正）
+- **FP#3 Mid（role-engineer）**: `shared/src/hooks/createContextHook.ts:9` `if (!value)` → `if (value == null)`（falsy だが non-null な Context value `0`/`""`/`false` の誤判定を排除、シグネチャ不変）
+- **role-qa 統合監査（別コンテキスト・2 監査）**: A=FP#1#2#3 → マージ可（#1 は適用元 d62a2dc とバイト一致・`isDescendantOf` の一致判定がガード前で 2 ノード循環も即検出・非循環不変、#2 は shared 内 `entityType:"memo"` 残存 grep 0、#3 は consumer 4 件すべて非 primitive Context で回帰なし）。B=PR1(02c9045) → クローズ可（Verification ①②③④ 全達成、最重点④は hook 層 post-order DFS 子カスケード+`seen` 循環ガードで孤児化防止・データ層は単一行据置の設計妥当、restore 単一ノード制約は Backlog⑧ 明文化済で受容）。Blocker0 Major0、Minor2/Nit1 はいずれも実害なし設計妥当。security/sync/migration/ipc validator いずれも不要判定（IPC/スキーマ/sync 機構変更なし）
+- **計画書クローズ（メイン）**: `2026-05-17-notes-web-parity.md` の Status を「PR1 COMPLETE（QA PASS）+ FP#1#2#3 適用済」へ、PR1 ①②③④ + Verification 全項目 + 新規 forward-port セクション #1#2#3 を [x] 化。FP#4#5 は [ ] スコープ外明記。Backlog⑤⑥⑦⑧ は据置
+- **commit/push（task-tracker auto-git override）**: 並行チャット chat-refactor の frontend/ レーン同居のため `git add -A` 厳禁、6 パス明示指定（`shared/src/utils/getDescendantTasks.ts` `shared/src/types/wikiTag.ts` `shared/src/hooks/createContextHook.ts` `.claude/docs/vision/plans/2026-05-17-notes-web-parity.md` `.claude/MEMORY.md` `.claude/HISTORY.md`）→ `refactor/web-first-v2` push（main 直 push 禁止維持）。`03_demo_mobile_redesign.html`（無関係 untracked）除外
+- **次/Backlog**: 次セッション S4 Schedule 移植（最大規模・着手前 role-pm 分解）。FP#4#5（型集約 Low・挙動不変）は別フェーズ。PR2 UX（⑤行内アクション収束/⑥drop indicator/⑦chevron 間隔）+⑧subtree restore は計画書 Backlog 記録済。HISTORY-archive ロールは並行チャット衝突回避で見送り継続（prepend のみ、エントリ数許容）
+
+### 2026-05-17 - Phase 2 S3 Notes ステップ2(0005 実DB検証) + PR1 バグ修正 + 406 A-1 修正 + 循環ガード + known-issue 020（pathspec commit/push 済）
+
+#### 概要
+
+S3 申し送り①「0005 本番未apply＝実機未確認」を解消。ユーザーが 0005 を手動 SQL Editor 適用済の前提で、実 Supabase に対し検証を実行: 3テーブル rowsecurity=true + 各4policy / S0 RLS gate `check-rls.sql` 全文を MCP `execute_sql` で実行し offender0(sentinel のみ＝public 全テーブル clean) / PostgREST FK名 `note_links_source_note_id_fkey` ほか3 FK が実DBデフォルト命名と一致 / get_advisors(security) RLS lint0(WARN は無関係の auth_leaked_password_protection のみ)。続いて実ブラウザ評価をユーザーが実施し7問題を報告→方針確認「バグ修正優先・UX 段階的」。旧来 Tauri 版 frontend を Explore 調査し根本原因を file:line で確定、計画書 `2026-05-17-notes-web-parity.md` 作成(PR1 スコープ + PR2/3 Backlog + ⑧)。PR1 を lead-pipeline 重チェーン（role-engineer 実装 → role-qa 別コンテキスト独立監査 PASS-with-fixes Blocker0 → 明文化適用）で完了。未commit・実ブラウザ確認待ち。並行チャット IME refactor が frontend/ に同居継続のためコミットはパス指定必須。
+
+#### 変更点
+
+- **ステップ2 実DB検証(コード変更なし)**: Supabase MCP `execute_sql` で post-apply 検証。`pg_policies`/`pg_class.relrowsecurity`/`pg_constraint` 照会で notes(4)/note_links(4)/note_connections(4) policy + RLS有効 + FK4本(note_links_source/target_note_id_fkey, note_connections_source/target_note_id_fkey)を実証。`check-rls.sql` 全文(allowlist 空)を実行し戻り値が `___RLS_GATE_OK___` 単独＝offender0。`get_advisors(security)` は RLS 系 lint ゼロ
+- **根本原因確定(Explore 調査)**: ①`NotesView.tsx:448` `key={id:title}` で debounce 保存→title 変化→input remount→focus 喪失(folder は prompt rename で無症状) ②`useNotesAPI.ts:486` `loadDeletedNotes()` 未呼出で `deletedNotes` 常時空→Trash `<details>` 非描画 ③unlock 状態管理不在で本文常時 full 描画・blur/overlay 無し ④folder はクリックで toggleExpand のみ→selectedNote 化せず右ペイン Delete 到達不能・行削除も無し
+- **PR1 実装(role-engineer / 2ファイル)**: ①`NoteTitleInput` の key を `selected.id` のみへ(title 除去) ②初回ロード effect(`[ds,syncVersion]`)に `fetchDeletedNotes` IIFE 追加 + `softDeleteNote` で subtree を `setDeletedNotes` ローカル push(`known` Set で二重防止)・undo/redo も subtree 整合 ③`useState<Set>` セッション unlock + `hasPassword && !unlocked` で `RichTextEditor` を `blur-md select-none pointer-events-none`+`aria-hidden`、クリック overlay→verify→成功で unlock 追加 ④`NoteRow` に `group`+ホバー Trash2(stopPropagation)、hook `softDeleteNote` で post-order DFS 子孫収集→subtree 単位 `ds.softDeleteNote` 多重呼び(旧来は単発でカスケード無し＝今回改善)
+- **独立監査(role-qa 別コンテキスト)**: PASS-with-fixes / Blocker0。Major1=② syncVersion 再ロードと楽観 push のレースは総置換 SSOT で最終収束(実害=Trash 件数一瞬チラつきのみ)・現状維持推奨。Minor=folder restore 非対称(子孫 Trash 残存)未明文化。検証 tsc/eslint/build 実出力で追認。security-reviewer/migration-validator/sync-auditor は不要判定(IPC/スキーマ変更なし・認証は既存 verifyNotePassword 委譲)
+- **明文化適用(メイン)**: `useNotesAPI.ts restoreNote` 直前に「restore は単一ノードのみ＝folder 子孫 Trash 残存(PR1 既知制約・Backlog⑧)」コメント追記。計画書 Backlog に「⑧ subtree restore」追加 + Verification④ を実態へ更新
+- **実ブラウザ確認(ユーザー手動)**: ①②③④ いずれも機能 OK。ただし本文編集/アンマウント時に別系統コンソールエラー `notes?select=version&id=eq... 406` → `updateNote failed: Cannot coerce the result to a single JSON object` を報告
+- **406 根本原因(debug-strategy)**: 楽観 create(`useNotesAPI.createNote` ローカル即追加 + fire-and-forget INSERT) × `SupabaseDataService.updateNote` の version read `.single()`(0行 throw)。INSERT 完了前の unmount flush→updateNote→未確定行 select 0行→PostgREST 406。データ破壊なし(ローカル state 保持・次 flush 救済)。MEMORY S8 申し送り「upsert read-then-write LWW」の前倒し顕在化。StrictMode 二重 invoke は増幅要因(一次でない)
+- **406 修正 案 A-1(role-engineer)**: `SupabaseDataService.ts` notes `updateNote` の version read を `.single()`→`.maybeSingle()`、0行は DB write skip + well-formed 合成 node return(戻り値は全呼出 `.catch` 終端で非消費を横断 grep 確認)、真エラー `if(readErr)throw` は維持し 0行と区別。横展開判断: `upsertDaily` は元から `.maybeSingle()`→INSERT 継続で無変更(skip 化すると Daily 保存回帰)、`toggleBoolean`/`nextVersion` は明示操作経路でレース通路でなく戻り値契約上 0行の正解非一意のため意図的現状維持(known-issue 020 残課題で追跡)
+- **循環ガード追加(メイン・軽)**: PR1 ④ の subtree `collect` に `seen: Set<string>` ガード。破損 parentId 循環での無限再帰(known-issues 016 タスクツリー OOM 同型)を有限打ち切り。正常木では発火せず post-order DFS 不変(統合 role-qa が正当性検証)
+- **known-issue 020 起票**: `docs/known-issues/020-supabase-readthenwrite-single-zero-row-race.md`(Root Cause/Impact/Fix/横展開判断/残課題=案B createNote await・案C flush 差分ガード・toggleBoolean/nextVersion 0行確定/Lessons=`.single()` 禁則・upsert vs update-only 分岐則) + INDEX 更新(Bug カテゴリ、Fixed 集計整合、grep キーワード)。Status=Fixed
+- **統合最終監査(role-qa 別コンテキスト)**: PASS / Blocker0 Major0。循環ガード正当(seen.add タイミング・leaf/通常木挙動不変・循環有限打ち切り)、A-1 正当(真エラー/0行区別・upsertDaily 回帰なし)、PR1 既知制約維持。検証 web/shared `tsc -b`+eslint+vite build 実出力 green、frontend/src-tauri/cloud diff0 非破壊、`.mcp.json` 参照プレースホルダ維持、§8 更新不要(Tier1 既存 Notes バグ修正)。security/sync/migration/ipc validator いずれも不要判定
+- **commit/push(メイン・task-tracker auto-git override)**: 並行チャット IME refactor(frontend/)同居のため `git add -A` 厳禁、QA 承認の 8 パス明示指定 commit(`shared/src/hooks/useNotesAPI.ts` `shared/src/services/SupabaseDataService.ts` `web/src/notes/NotesView.tsx` `.claude/docs/known-issues/020-*.md` `INDEX.md` `2026-05-17-notes-web-parity.md` `MEMORY.md` `HISTORY.md`)→ `refactor/web-first-v2` へ push(main 直 push 禁止維持)。`03_demo_mobile_redesign.html`(無関係 untracked)除外
+- **次/Backlog**: 次セッション S4 Schedule 移植(最大規模・着手前 role-pm 分解)。PR2 UX(⑤行内アクション収束/⑥drop indicator/⑦chevron 間隔)+⑧subtree restore は計画書 Backlog 記録済
+
 ### 2026-05-17 - クロスプラットフォーム移行 Phase 2 S3(Notes) コード完了（Option A 確定 + 0005 スキーマ + lean TipTap + password/lock UI）
 
 #### 概要

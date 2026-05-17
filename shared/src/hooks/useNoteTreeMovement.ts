@@ -12,7 +12,9 @@ import type { MoveResult } from "../types/moveResult";
  * S1/S2).
  */
 
-function isDescendantOf(
+// Exported for the cycle-safety regression test (KI-016 anchor). Behaviour
+// unchanged — visibility only.
+export function isDescendantOf(
   parentId: string,
   childId: string,
   nodes: NoteNode[],
@@ -28,6 +30,11 @@ function isDescendantOf(
     }
   }
 
+  // visited guard against cyclic / self-referential parentId chains, which
+  // would otherwise push the same node forever and OOM the worker (see
+  // known-issue 016). The target match is still checked BEFORE the guard so
+  // a directly-reachable child in a 2-node cycle is found immediately.
+  const visited = new Set<string>();
   const stack = [parentId];
   while (stack.length > 0) {
     const current = stack.pop()!;
@@ -35,6 +42,8 @@ function isDescendantOf(
     if (!children) continue;
     for (const id of children) {
       if (id === childId) return true;
+      if (visited.has(id)) continue;
+      visited.add(id);
       stack.push(id);
     }
   }
