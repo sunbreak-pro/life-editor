@@ -5,11 +5,13 @@ import {
   SyncProvider,
   TaskTreeProvider,
   DailyProvider,
+  NoteProvider,
   type DataService,
   type Session,
 } from "@life-editor/shared";
 import { TaskTreeView } from "./tasks/TaskTreeView";
 import { DailyView } from "./daily/DailyView";
+import { NotesView } from "./notes/NotesView";
 
 /*
  * Phase 2 S1+S2 host shell.
@@ -35,7 +37,7 @@ function getDataService(): DataService {
   return dataServiceSingleton;
 }
 
-type Section = "tasks" | "daily";
+type Section = "tasks" | "daily" | "notes";
 
 export function MainScreen({ session }: { session: Session }) {
   const ds = useMemo(() => getDataService(), []);
@@ -47,7 +49,7 @@ export function MainScreen({ session }: { session: Session }) {
         <header className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <nav className="flex gap-1" aria-label="Sections">
-              {(["tasks", "daily"] as const).map((s) => (
+              {(["tasks", "daily", "notes"] as const).map((s) => (
                 <button
                   key={s}
                   type="button"
@@ -78,17 +80,25 @@ export function MainScreen({ session }: { session: Session }) {
           </div>
         </header>
 
-        {section === "tasks" ? (
+        {section === "tasks" && (
           <SyncProvider>
             <TaskTreeProvider dataService={ds}>
               <TaskTreeView />
             </TaskTreeProvider>
           </SyncProvider>
-        ) : (
+        )}
+        {section === "daily" && (
           <SyncProvider>
             <DailyProvider dataService={ds}>
               <DailyView />
             </DailyProvider>
+          </SyncProvider>
+        )}
+        {section === "notes" && (
+          <SyncProvider>
+            <NoteProvider dataService={ds}>
+              <NotesView />
+            </NoteProvider>
           </SyncProvider>
         )}
       </div>

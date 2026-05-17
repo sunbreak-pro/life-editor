@@ -1,0 +1,8 @@
+{
+  "task": "クロスプラットフォーム移行 Phase 2 S3 Notes 移植",
+  "branch": "refactor/web-first-v2",
+  "started": "2026-05-16",
+  "scope": ["shared/src/components/Notes/", "shared/src/services/SupabaseDataService.ts", "shared/src/services/noteMapper.ts", "supabase/migrations/0005_notes*.sql", "web/src/notes/", "web/src/MainScreen.tsx", ".claude/MEMORY.md", ".claude/HISTORY.md"],
+  "do_not_touch": ["frontend/", "src-tauri/", "cloud/", ".claude/docs/known-issues/", ".claude/2026-*.md", ".mcp.json", ".claude/HISTORY-archive.md.bak", "frontend/src/components/Ideas/Connect/PointGraph/"],
+  "coordinator": "single-session (active-sessions was empty at start)"
+}

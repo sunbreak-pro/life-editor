@@ -12,3 +12,6 @@ export {
 
 export { DailyProvider } from "./DailyContext";
 export { DailyContext, type DailyContextValue } from "./DailyContextValue";
+
+export { NoteProvider } from "./NoteContext";
+export { NoteContext, type NoteContextValue } from "./NoteContextValue";

@@ -1,5 +1,30 @@
 # HISTORY.md - 変更履歴
 
+### 2026-05-17 - クロスプラットフォーム移行 Phase 2 S3(Notes) コード完了（Option A 確定 + 0005 スキーマ + lean TipTap + password/lock UI）
+
+#### 概要
+
+Phase 2 S3（Notes ドメイン Web 移植）をコード完了。lead-pipeline 重ティアのフルチェーン（session-manager START → role-pm 分解 → execution-router 戦略 → role-engineer 実装 → session-verifier → role-qa+security-reviewer+frontend-react-designer 並列独立監査 → 集中修正 → security 再確認 → task-tracker END）。8 サブタスクを Group A(並列: deps+schema) → B(backend) → C(frontend) で実装。**最重要のアーキ決定: Option A 確定**。計画書 SSOT の「`frontend/components/Notes → shared/components/Notes`」記述は S1/S2 実装が既に意図的逸脱しており実態と乖離（shared は UI フリー＝context/hooks/services/types のみ / web/src/<domain>/ に shared データ経路を叩く新規ミニ UI）。role-engineer が矛盾を検出しメイン差し戻し→ユーザー承認で Option A に統一、計画書文言も実態へ補正。Group A が投機的に shared へ追加した TipTap/@dnd-kit を web へ移動。3 監査いずれも Blocker/致命 AntiPattern ゼロ、PASS-with-fixes の安く高価値な指摘を集中修正パスで解消。**0005 本番未apply＝実ブラウザ動作確認は次セッション初手**。working tree に並行チャットの未コミット IME 安全化リファクタ(frontend/ ~30ファイル)が同居、frontend/ 全除外のパス指定ステージで完全分離。
+
+#### 変更点
+
+- **アーキ決定 Option A**: shared UI フリー維持（S1/S2 実態準拠）。`shared/src/context/NoteContext`(Pattern A 3ファイル) + `hooks/{useNoteContext,useNoteTreeMovement,useNotesAPI}.ts` + `utils/generateId.ts` のみ追加。UI は `web/src/notes/` に新規記述（移植でなく目的特化リーン実装）。TipTap/@dnd-kit/lucide-react は frontend lock 同バージョンで `web/package.json` へ（Group A が shared に追加→Option A 確定で web へ移動）。計画書 `2026-05-16-phase2-core-migration.md` の S0-S3 を [x] 化 + S3 に Option A 実態注記を追加（S4 以降も Option A 前提と明記）
+- **0005_notes_full_schema.sql**: `notes`(versioned: 階層 parent_id/order/soft-delete/version/`has_password` generated col `password_hash is not null`/`is_edit_locked`/password_hash 非SELECT) + `note_links`(versioned) + `note_connections`(relation: 最小列・実体削除)。3テーブル全て RLS enable + owner-only 4 policy(`to authenticated`+`auth.uid()=user_id`) + `user_id default auth.uid()`。0003/0004 と byte 一致パターン、S0 ゲートロジック機械シミュレートで 3テーブル CLEAN
+- **shared services**: `noteMapper.ts`/`noteLinkMapper.ts`(SELECT_COLUMNS 素カラム名のみ・password_hash 非選択・SQL 式混入ゼロ＝S2 再発防止知見遵守) + `noteMapper.roundtrip.ts`(10/10 PASS) / `SupabaseDataService.ts` notes/noteLink/noteConnection 系25メソッド本実装（Proxy throw 全置換、version read-then-write、plaintext-equality 踏襲+将来 RPC 化債務コメント3箇所）
+- **web/src/notes/**: `NotesView.tsx`(階層ツリー+DnD+pin/lock/password 配線+Loading/Error 状態) / `RichTextEditor.tsx`(lean TipTap=見出し/リスト/リンク/コード等、debounce 800ms+flush、Link protocols allowlist) / `NotePasswordDialog.tsx`(set/remove/verify、role=dialog+aria-modal+focus 管理+aria-invalid/describedby) / `useNoteTreeDnd.ts`(@dnd-kit→shared move glue)。`MainScreen.tsx` に NoteProvider(§6.2 順 Daily の後・Sync 内)+notes セクション、`index.css` に .note-editor notion トークンスタイル
+- **3監査並列(別コンテキスト)**: role-qa=PASS-with-fixes(Blocker0/要件6項目全達成/移植忠実性 frontend useNotes と制御フロー一致) / security-reviewer=Critical0 High0 Medium2(RLS 3テーブル clean 静的トレース実証・password plaintext 踏襲で悪化なし=0004 と同型・XSS 安全) / frontend-react-designer=致命AntiPattern0(notion トークン/IME/i18n props PASS、要修正は a11y/状態網羅)
+- **集中修正パス**: B1(password set 失敗が「required」と誤表示するバグ修正+NotesView Loading/Error 状態を S1 手本準拠で追加) / A2(dialog input aria-invalid+aria-describedby) / A3(全 interactive 要素 focus-visible リング定数化) / B2(title input を子コンポ+key 再マウントで debounce 化) / B3(submit aria-busy) / A1(focus trap 意図的延期コメント) / security Low-1(Link protocols allowlist) / **security Medium-1+qa Important**: `deleteNoteConnectionByPair` 未エスケープ補間 + `searchNotes` の不正エスケープを共通ヘルパ `pgrstQuoteValue`(PostgREST ダブルクオート囲み+`\`/`"` エスケープ)に統一(DRY)。security 再確認で「修正方式妥当・注入経路遮断・退行なし・Critical/High/Medium なし」
+- **検証**: session-verifier(Group B 後)PASS。全工程後 直接検証: shared `tsc -b`=0 / web `tsc -b`+eslint+vite build green / **frontend `tsc -b`=0(並立非破壊実測)** / noteMapper round-trip 10/10 / password_hash 非SELECT・SQL 式混入ゼロ grep。スコープ封じ込め確認(shared/web/supabase のみ、src-tauri/cloud 無変更)
+- **commit**: パス指定ステージ（shared/src の note 系9ファイル + SupabaseDataService + context/index.ts + index.ts + shared/package*.json / web/src/notes + MainScreen + index.css + web/package*.json / supabase/migrations/0005 + .claude tracker/plan/active-sessions）。**frontend/ 配下(並行チャット IME refactor ~30ファイル) は1ファイルも stage せず**、`.claude/2026-*.md`削除・`.mcp.json`・frontend-refactor plan の M も `git add -A` 不使用で完全分離
+
+#### 残課題
+
+- **[次セッション初手・最重要] 0005 本番未apply**: SQL Editor 手動 apply 後 (a)S0 RLS ゲート実DB実行 (b)PostgREST FK名 `note_links_source_note_id_fkey` デフォルト命名一致確認 (c)カンマ/括弧/`\` 入り検索 sanity (d)実ブラウザ Notes CRUD/階層DnD/lean TipTap/backlink/password・lock 動作確認
+- **[既存債務・悪化なし]** plaintext password の RPC security-invoker 化が将来の正攻法（コード/SQL コメント既設、Medium-2）。Low-A: searchNotes の LIKE メタ %/\_ 非リテラル化は Tauri SQLite LIKE 同挙動＝移植方針上現状維持が正
+- **[インフラ候補]** shared/web に vitest 未配備で Gate3-4 SKIP。Phase 2 横断で一括整備候補（最優先=noteMapper/noteLinkMapper 純粋関数, useNoteTreeMovement 循環ガード）。designer 改善: prefers-reduced-motion 一括無効化 / NotesView 英語直書きの i18n テーブル化(Settings S-step)
+- **[アーキ・S4 前提]** Option A 確定。S4 Schedule も shared UI フリー / web 新規ミニ UI、TipTap/dnd 等は web 側。計画書文言は補正済
+- **[別チャット同居]** working tree に並行チャット IME 安全化リファクタ(frontend/ ~30+imeSafe.ts/test+useSlashCommand.ts)が未コミット同居。S3 commit はパス明示で frontend/ 全除外、`git add -A` 厳禁。HISTORY-archive ロールは衝突回避で見送り継続(prepend のみ、エントリ数許容)
+
 ### 2026-05-16 - クロスプラットフォーム移行 Phase 2 S2(Daily) 完了（PostgREST select バグ修正 + generated column 化 + 実機 parity 実証）
 
 #### 概要

@@ -14,6 +14,7 @@ export type { Session } from "@supabase/supabase-js";
 export type { TaskNode, NodeType, TaskStatus } from "./types/taskTree";
 export type { MoveResult, MoveRejectionReason } from "./types/moveResult";
 export type { DailyNode } from "./types/daily";
+export type { NoteNode, NoteNodeType, NoteSortMode } from "./types/note";
 
 // Tasks domain — context (Pattern A) + hooks
 export {
@@ -44,6 +45,19 @@ export { DailyProvider } from "./context";
 export { DailyContext, type DailyContextValue } from "./context";
 export { useDailyContext } from "./hooks/useDailyContext";
 export { useDailyAPI, type UseDailyAPIOptions } from "./hooks/useDailyAPI";
+
+// Note domain — context (Pattern A) + hooks (DI: dataService/undoRedo).
+// Tree-move logic is a pure shared hook; the @dnd-kit pointer glue lives
+// in the host UI (web) so the shared package stays UI/dnd-free.
+export { NoteProvider } from "./context";
+export { NoteContext, type NoteContextValue } from "./context";
+export { useNoteContext } from "./hooks/useNoteContext";
+export {
+  useNotesAPI,
+  type UseNotesAPIOptions,
+  type NoteSortDirection,
+} from "./hooks/useNotesAPI";
+export { useNoteTreeMovement } from "./hooks/useNoteTreeMovement";
 
 // Tasks domain — tree utilities (host UI builds on these)
 export {
