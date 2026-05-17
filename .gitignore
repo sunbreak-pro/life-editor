@@ -7,6 +7,9 @@
 # Claude Code worktrees
 .claude/worktrees/
 
+# Claude HTML report views (derived, not tracked — md plans remain SSOT)
+.claude/reports/
+
 # Logs
 *.log
 
