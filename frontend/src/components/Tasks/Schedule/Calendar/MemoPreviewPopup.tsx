@@ -2,6 +2,7 @@ import { useState } from "react";
 import { ExternalLink, Trash2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { getContentPreview } from "../../../../utils/tiptapText";
+import { isImeComposing } from "../../../../utils/imeSafe";
 import { ConfirmDialog } from "../../../shared/ConfirmDialog";
 import { Button } from "../../../shared/Button";
 import { RoleSwitcher } from "../shared/RoleSwitcher";
@@ -108,6 +109,7 @@ export function MemoPreviewPopup({
             onChange={(e) => setEditValue(e.target.value)}
             onBlur={commitEdit}
             onKeyDown={(e) => {
+              if (isImeComposing(e)) return;
               if (e.key === "Enter") commitEdit();
               if (e.key === "Escape") {
                 setEditValue(title);

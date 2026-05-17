@@ -1,4 +1,4 @@
-import { useEffect, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, type ReactNode } from "react";
 import {
   ThemeContext,
   type Theme,
@@ -143,34 +143,57 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     el.style.setProperty("--editor-padding-inline", `${editorPaddingInline}px`);
   }, [editorFontSize, editorFontFamily, editorLineHeight, editorPaddingInline]);
 
-  const toggleTheme = () => setTheme(theme === "light" ? "dark" : "light");
+  const toggleTheme = useCallback(
+    () => setTheme(theme === "light" ? "dark" : "light"),
+    [theme, setTheme],
+  );
 
-  const setLanguage = (lang: Language) => {
-    setLanguageState(lang);
-    i18n.changeLanguage(lang);
-  };
+  const setLanguage = useCallback(
+    (lang: Language) => {
+      setLanguageState(lang);
+      i18n.changeLanguage(lang);
+    },
+    [setLanguageState],
+  );
+
+  const value = useMemo(
+    () => ({
+      theme,
+      fontSize,
+      toggleTheme,
+      setTheme,
+      setFontSize,
+      language,
+      setLanguage,
+      editorFontSize,
+      editorFontFamily,
+      editorLineHeight,
+      editorPaddingInline,
+      setEditorFontSize,
+      setEditorFontFamily,
+      setEditorLineHeight,
+      setEditorPaddingInline,
+    }),
+    [
+      theme,
+      fontSize,
+      toggleTheme,
+      setTheme,
+      setFontSize,
+      language,
+      setLanguage,
+      editorFontSize,
+      editorFontFamily,
+      editorLineHeight,
+      editorPaddingInline,
+      setEditorFontSize,
+      setEditorFontFamily,
+      setEditorLineHeight,
+      setEditorPaddingInline,
+    ],
+  );
 
   return (
-    <ThemeContext.Provider
-      value={{
-        theme,
-        fontSize,
-        toggleTheme,
-        setTheme,
-        setFontSize,
-        language,
-        setLanguage,
-        editorFontSize,
-        editorFontFamily,
-        editorLineHeight,
-        editorPaddingInline,
-        setEditorFontSize,
-        setEditorFontFamily,
-        setEditorLineHeight,
-        setEditorPaddingInline,
-      }}
-    >
-      {children}
-    </ThemeContext.Provider>
+    <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>
   );
 }

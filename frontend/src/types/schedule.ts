@@ -22,6 +22,27 @@ export interface ScheduleItem {
   updatedAt: string;
 }
 
+/**
+ * Mutable fields accepted by schedule-item update operations.
+ * Single source of truth for the `Partial<Pick<ScheduleItem, ...>>` shape
+ * previously hand-written across the context value, core hook, and
+ * DataService layer.
+ */
+export type ScheduleItemUpdate = Partial<
+  Pick<
+    ScheduleItem,
+    | "title"
+    | "startTime"
+    | "endTime"
+    | "completed"
+    | "completedAt"
+    | "memo"
+    | "content"
+    | "date"
+    | "isAllDay"
+  >
+>;
+
 export interface RoutineStats {
   totalCompletedDays: number;
   currentStreak: number;

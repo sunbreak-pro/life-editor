@@ -7,6 +7,9 @@
 # Claude Code worktrees
 .claude/worktrees/
 
+# Claude HTML report views (derived, not tracked — md plans remain SSOT)
+.claude/reports/
+
 # Logs
 *.log
 
@@ -17,8 +20,14 @@
 web/node_modules/
 web/dist/
 shared/node_modules/
+shared/dist/
+supabase/node_modules/
 
 # Supabase CLI local state (never commit: link state, branch state, env)
+# supabase/.env holds SUPABASE_DB_URL (DB password). Defence-in-depth:
+# (1) this ignore rule, (2) check-rls.sh never `source`s it (extracts only
+# the SUPABASE_DB_URL line), (3) error output is DSN-masked. Do not remove
+# any single layer assuming the others cover it.
 supabase/.temp/
 supabase/.branches/
 supabase/.env

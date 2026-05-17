@@ -8,6 +8,7 @@ import { DatabaseTable } from "./DatabaseTable";
 import { DatabaseFilterBar } from "./DatabaseFilterBar";
 import { DatabaseSortBar } from "./DatabaseSortBar";
 import type { DatabaseFilter, DatabaseSort } from "../../types/database";
+import { isImeComposing } from "../../utils/imeSafe";
 
 interface DatabaseViewProps {
   databaseId: string;
@@ -139,6 +140,7 @@ export function DatabaseView({
             onChange={(e) => setTitleDraft(e.target.value)}
             onBlur={commitTitle}
             onKeyDown={(e) => {
+              if (isImeComposing(e)) return;
               if (e.key === "Enter") commitTitle();
               if (e.key === "Escape") setIsEditingTitle(false);
               e.stopPropagation();

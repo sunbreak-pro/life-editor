@@ -1,5 +1,5 @@
 ---
-Status: ACTIVE — Phase 1 着手準備中（旧 Phase 0 学習スパイクは 2026-05-14 削除）
+Status: ACTIVE — Phase 2 進行中（Phase 1 完了 2026-05-16 / S0・S1 完了 / S2 着手準備中。旧 Phase 0 学習スパイクは 2026-05-14 削除）
 Created: 2026-05-04
 Updated: 2026-05-14
 Task: クロスプラットフォーム移行 — Tauri / Cloudflare 構成 → Vite + React + TS + Supabase + Electron + Capacitor
@@ -11,7 +11,7 @@ Related:
   - [CLAUDE.md](./CLAUDE.md) — 移行完了後に全面改訂(Tauri / SQLite / Cloud D1 / Cloud Sync 章を削除)
   - [docs/vision/core.md](./docs/vision/core.md) — 失効中の章あり、Phase 5 で全面改訂
   - [docs/vision/db-conventions.md](./docs/vision/db-conventions.md) — 並立期間は現行規約として有効、Phase 5 で Postgres + RLS 規約に置換
-  - [archive/vision-tauri/](./archive/vision-tauri/) — Tauri 前提で失効した旧 vision/ 4 ファイルを保管
+  - [archive/SUMMARY.md](./archive/SUMMARY.md) — Tauri 前提で失効した旧 vision/ 4 ファイル（vision-tauri/）は 2026-05-16 削除、恒久知見のみ本ファイルに圧縮（逐語原文は git 履歴）
   - [.claude/archive/2026-04-29-claude-desktop-style-chat-ui.md](./archive/2026-04-29-claude-desktop-style-chat-ui.md) — 旧 Vision 前提のため archive 済
   - [.claude/2026-04-26-windows-android-port.md](./2026-04-26-windows-android-port.md) — Tauri ベースの Windows/Android 配布計画。本プランで完全に置換される
 ---

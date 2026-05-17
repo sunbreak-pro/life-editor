@@ -17,6 +17,7 @@ import {
   EyeOff,
 } from "lucide-react";
 import type { PaperNode } from "../../../../types/paperBoard";
+import { isImeComposing } from "../../../../utils/imeSafe";
 import {
   usePaperLayersDnd,
   LayerDragOverStoreContext,
@@ -181,6 +182,7 @@ const LayerRow = memo(function LayerRow({
             value={renameValue}
             onChange={(e) => setRenameValue(e.target.value)}
             onKeyDown={(e) => {
+              if (isImeComposing(e)) return;
               if (e.key === "Enter") {
                 onFinishRename(node.id, renameValue);
               } else if (e.key === "Escape") {

@@ -898,6 +898,19 @@ body {
   animation: fade-out-toast 300ms ease-in forwards;
 }
 
+/* Respect prefers-reduced-motion (WCAG 2.3.3) — globally damp animation/transition.
+   Single global rule covers all keyframes + ~530 Tailwind transitions. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
 /* Bubble Toolbar Unified Wrapper */
 .bubble-toolbar-unified {
   background-color: var(--color-bg-primary);

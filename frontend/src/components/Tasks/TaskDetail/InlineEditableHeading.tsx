@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import type { KeyboardEvent } from "react";
+import { isImeComposing } from "../../../utils/imeSafe";
 
 /**
  * Click-to-edit heading. Renders as `<h2>` in read mode and switches to a
@@ -42,6 +43,7 @@ export function InlineEditableHeading({
   };
 
   const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
+    if (isImeComposing(e)) return;
     e.stopPropagation();
     if (e.key === "Enter") handleSave();
     if (e.key === "Escape") {

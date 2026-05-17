@@ -13,6 +13,7 @@ import {
   X,
   Check,
 } from "lucide-react";
+import { isImeComposing } from "../../../utils/imeSafe";
 import { isMac } from "../../../utils/platform";
 import { isValidUrl } from "../../../utils/urlValidation";
 import { useSlashCommand } from "../../../hooks/useSlashCommand";
@@ -108,6 +109,7 @@ export function BubbleToolbar({ editor }: BubbleToolbarProps) {
   };
 
   const handleLinkKeyDown = (e: React.KeyboardEvent) => {
+    if (isImeComposing(e)) return;
     if (e.key === "Enter") {
       e.preventDefault();
       handleLinkApply();

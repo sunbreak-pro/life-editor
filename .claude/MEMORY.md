@@ -2,25 +2,37 @@
 
 ## 進行中
 
-（なし）
+### 🔧 クロスプラットフォーム移行 Phase 2 — コア機能のフロントエンド移植（着手日: 2026-05-16）
+
+**対象**: `supabase/migrations/0003+`（ドメイン別本格スキーマ）/ `supabase/scripts/`（RLS ゲート）/ `shared/src/{components,context,hooks,i18n}/`（frontend から Tauri 非依存を移植）/ `web/`（配線）。`frontend/` `src-tauri/` `cloud/` 不可侵維持
+**計画書**: `.claude/docs/vision/plans/2026-05-16-phase2-core-migration.md`
+
+- 前回: **S3(Notes) コード完了**（Option A 採用）— notes/note_links(versioned)/note_connections(relation) スキーマ 0005 + RLS owner-only 4policy×3 + has_password generated col / SupabaseDataService notes系25メソッド + noteMapper/noteLinkMapper / NoteContext(Pattern A)+useNotesAPI/useNoteTreeMovement / web/src/notes/(NotesView+lean TipTap RichTextEditor+NotePasswordDialog+useNoteTreeDnd)+MainScreen 配線。**アーキ確定 Option A**: shared は UI フリー維持・web に新規ミニ UI（計画書文言「frontend→shared/components」は S1/S2 から既に逸脱、実態へ補正済）。監査 qa PASS-with-fixes(Blocker0)/security Critical0 High0 Medium2(RLS clean・password 悪化なし)/designer 致命0 → 集中修正(B1/A2/A3/B2/Medium-1/searchNotes pgrstQuoteValue/Link protocols) + security 再確認妥当。実装=role-engineer / 監査=role-qa+security+frontend-designer 並列
+- 現在: **0005 本番未apply ＝ S3 実機未確認**。次セッション初手で apply + post-apply 検証必須（下記申し送り①）
+- 次: **S4 Schedule 移植**（最大規模: routines/routine_groups/routine_group_assignments/schedule_items/calendars/calendar_tag_assignments + Schedule 3分割 Provider）→ S5 WikiTags → S6 横断 → S7 バナー → S8 Realtime → S9 Mobile。S4 以降も Option A 前提
+
+**S3/S4 申し送り（優先度順）**: ①**[次セッション初手・最重要] 0005 本番未apply**: apply 後に (a)S0 RLS ゲート実DB実行 (b)PostgREST FK名 `note_links_source_note_id_fkey` がデフォルト命名と一致するか (c)カンマ/括弧/バックスラッシュ入り検索クエリの sanity (d)実ブラウザ Notes CRUD/階層DnD/lean TipTap/backlink/password・lock の動作確認。MCP write 凍結のため SQL Editor 手動 apply ②**[再発防止知見・厳守]** PostgREST `select=` に任意 SQL 式不可（カラム名 or generated column / DB 関数のみ）。computed boolean は generated column 化が定石。S4+ mapper でも厳守 ③**[アーキ・S4 前提] Option A 確定**: shared は UI フリー（context/hooks/services/types のみ）/ web/src/<domain>/ に新規ミニ UI。計画書「frontend→shared/components」文言は不正確（S1/S2/S3 実態へ補正済）。S4 Schedule も Option A・TipTap/dnd 等は web 側 ④**[既存債務・悪化なし]** plaintext password は RPC security-invoker 化が将来の正攻法（コード/SQL コメント既設、Medium-2）。Low-A: searchNotes の LIKE メタ %/\_ 非リテラル化は Tauri SQLite LIKE 同挙動＝移植方針上現状維持が正 ⑤**[インフラ候補]** shared/web に vitest 未配備で Gate3-4 SKIP。Phase 2 横断で一括整備候補（最優先=noteMapper/noteLinkMapper 純粋関数, useNoteTreeMovement 循環ガード）。designer 改善: prefers-reduced-motion 一括無効化 / NotesView 英語直書きの i18n テーブル化(Settings S-step) ⑥**[未解消・要ユーザー]** PAT 露出止血継続（MCP write 昇格前提未達でwrite凍結・SQL Editor 手動）/ upsert read-then-write LWW(S8) / SyncProvider 二重ラップ(S8) / `web/src/TasksScreen.tsx` dead code 要確認 / `get_advisors` `auth_leaked_password_protection` WARN(完成後判断) ⑦**[別チャット同居]** working tree に並行チャットの未コミット IME 安全化リファクタ(frontend/ ~30ファイル+imeSafe.ts/test+useSlashCommand.ts 等)が同居。**commit は frontend/ 全除外のパス指定必須**(`git add -A` 厳禁)。`.claude/HISTORY-archive.md.bak`・`.claude/2026-*.md`削除・`.mcp.json`・frontend-refactor plan の M も巻き込まず
+**サブエージェント分担**: 設計=role-pm / 実装=role-engineer / 監査=role-qa+security-reviewer / 統括=メイン
 
 ## 直近の完了
 
-- クロスプラットフォーム移行 Phase 1 完了 ✅（2026-05-16）— サブエージェント分担（管理=multi-session-coordinator / 設計=role-pm / 実装=role-engineer / 監査=role-qa+security-reviewer / 統括=メイン）。新スタック土台 `web/`(Vite+React+TS+Tailwind4) / `shared/`(DataService+型23 verbatim + SupabaseDataService tasks) / `supabase/migrations/`(0001 tasks+RLS deny-all / 0002 owner-only 4 policy `to authenticated` + `user_id default auth.uid()`) / `supabaseClient.ts`(単一共有=Auth↔DataService 同一 JWT) / `SupabaseAuth.ts` / web/ session ゲート。**完了判定 5/5 達成**: probe 実証で 未認証 0 行 / USER A 自分の 1 行 CRUD / USER B は A の行 0 件・削除 0 件 / `frontend/`(Tauri) `tsc -b`=0 非破壊。0001/0002 は Supabase SQL Editor 適用（CLI 非対話制約回避、Phase5 で CLI 管理へ）。commit `d1abd8a`(R1) + `ce6a5cb`(R2) + tracker `ec540ec`、SSOT 完了判定チェック済。**Phase2 申し送り**: ①新テーブル RLS 漏れの CI 機械検証 ②tsconfig project references 化 ③signOut scope 堅牢化。ブランチ refactor/web-first-v2（別チャット Point Graph と同居・パス指定ステージで分離）
-- Connect/Node タブを Point Graph (Canvas+d3-force) へ全面置換 ✅（2026-05-16）— 別チャットで実装。React Flow `TagGraphView`(1438行) を Canvas2D+d3-force の `PointGraph/`（19 ファイル）に置換。props 同一 I/F で `ConnectView.tsx` 無改修スワップ。データは既存 props から `GraphSnapshot` をフロント合成（Rust/DB/MCP 不変・読取のみ）。notion-\* 解決でライト/ダーク追従。旧 Node 系 9 + 孤立 `ConnectPanel.tsx` 削除。tsc -b 0 / vite OK / graph-filters 8 + reactFlowMerge 17 pass。計画書 archive 済。ブランチ refactor/web-first-v2
-- Schedule/ゴミ箱 削除 UX 刷新 + 危険ボタン撤去 + 移行プラン再整理 ✅（2026-05-16）— **(1)** 移行プラン 2026-05-14 改訂（commit `567190d`、三原則・Phase 1-5 再構成）。**(2)** エラーマスキング修正 + V69 migration ドリフト修正（commit `463b28f`、`getErrorMessage()` 6 catch 統一 / `data_reset` 等の DROP 済 routine_tag 参照除去 + 取りこぼし 5 テーブル追加）。**(3)** 削除 UX 刷新（`BulkCategoryDeleteButton` 2 段階確認 + TrashView per-category + 危険な全消去ボタン撤去 + i18n 用語統一）。tsc -b 0 / 398+4 tests pass。ブランチ refactor/web-first-v2
+- クロスプラットフォーム移行 Phase 2 S3(Notes) コード完了 ✅（2026-05-17）— Option A（shared UI フリー / web 新規ミニ UI）で notes/note_links/note_connections 0005 スキーマ+RLS / SupabaseDataService notes系25メソッド+mapper / NoteContext+hooks / web/src/notes(lean TipTap+password/lock UI)+配線。3監査(qa PASS-with-fixes Blocker0 / security Critical0 High0 Medium2 RLS clean / designer 致命0)→集中修正(B1/A2/A3/B2/Medium-1+searchNotes pgrstQuoteValue/Link protocols)+security 再確認妥当。0005 本番未apply＝実機確認は次セッション初手。パス指定 commit。詳細 HISTORY 参照
+- クロスプラットフォーム移行 Phase 2 S2(Daily) 完了 ✅（2026-05-16）— DAILY_SELECT_COLUMNS の PostgREST 非対応 SQL 式が 400 を誘発し Daily 全 read/upsert 全滅・本番 dailies 0行だった root cause を 0004 generated column 化で構造解消。サブエージェント分担（実装=role-engineer / 監査=role-qa APPROVE W/C + security PASS W/N）。0004 本番再適用済・RLS+generated column MCP 実証・実機 parity green。パス指定 commit（shared dailyMapper / 0004 / .claude tracker）。詳細 HISTORY 参照
+- .claude ドキュメント整理（archive 圧縮統合 / HISTORY-archive コンパクト化 / 矛盾修正 / known-issues 新規）✅（2026-05-16）— サブエージェント3並列（archive要約=general / HISTORY圧縮=general / 矛盾調査=general）。archive/ 50ファイル git rm（28プラン+TODO+docs/dropped/rules/vision-tauri）→ `archive/SUMMARY.md`(283行, 元601KB→22KB) に圧縮統合 + vision-tauri 恒久知見抽出。`HISTORY-archive.md` 1257→413行(69%減、`.bak` 退避・コミット対象外)。CLAUDE.md/MEMORY.md/移行SSOT/coding-principles の矛盾 Top3+#3 修正（vision-tauriリンク切れ→SUMMARY張替 / Phase1着手準備中→Phase2進行中 / IPC 3点→4点同期 / MCP 30→32ツール+dismiss系）。known-issues 017(calendar soft-delete/Routine再生成)・018(macOS WebKit button focus)・019(createPortal click-outside)新規 + INDEX更新。Claude Desktop に life-editor MCP 登録（config はリポジトリ外、node 絶対パス）。ブランチ refactor/web-first-v2、パス指定 `.claude/` のみコミット
 
 ## 予定
 
 > **注**: 以下の予定タスクの大半は旧 Tauri / Cloudflare アーキテクチャ前提で書かれており、Web ファースト移行（refactor/web-first-v2）の進行に伴って **deprecated** になる可能性が高い。各タスクの存続判断は移行 Phase 1-2 進行時に再評価する。
 
-### 🚀 クロスプラットフォーム移行 Phase 2 — コア機能のフロントエンド移植（次セッション最優先）
+### Point Graph (Connect/Node) 継続フィードバック反映
 
-**対象**: `supabase/migrations/0003+`（ドメイン別本格スキーマ）/ `shared/src/{components,context,hooks,i18n}/`（frontend から Tauri 非依存を移植）/ `web/`（配線）。`frontend/` `src-tauri/` `cloud/` は不可侵維持
-**計画書**: `.claude/docs/vision/plans/2026-05-16-phase2-core-migration.md`（再開手順・S0-S9・完了判定を記載。次セッション開始時にこれと SSOT Phase 2 節を読む）
-**着手順**: S0 申し送り先行対処（RLS 漏れ検出ゲート + tsconfig project references 判断）→ S1 Tasks → S2 Daily → S3 Notes → S4 Schedule → S5 WikiTags → S6 横断(context/hooks/i18n) → S7 オフラインバナー → S8 Realtime → S9 Mobile レスポンシブ
-**Phase1 申し送り**: ①新テーブル RLS 漏れ CI 機械検証 ②tsconfig project references 化 ③signOut scope 堅牢化 ④status 型詐称解消 ⑤型23 二重保持の同期方針決定
-**サブエージェント分担**: 管理=multi-session-coordinator / 設計=role-pm / 実装=role-engineer / 監査=role-qa+security-reviewer / 統括=メイン
+**対象**: `frontend/src/components/Ideas/Connect/PointGraph/`
+**背景**: 2026-05-16 に Canvas+d3-force へ全面置換、手動 UI 検証ではバグ未検出。実運用で見つかる改善・不具合をここに集約する（都度起票せず本エントリに追記 → まとまったら 1 セッションで対処）
+**洗い出し対象の観点**: ライト/ダーク配色の見やすさ / ノード多数時の FPS・レイアウト密度 / ドラッグ・ピンチ・スムーズパンの体感 / フィルタパネル開閉 UX / ConnectSidebar 連動の取りこぼし / ノード→エディタ遷移 / ラベル可読性（ズーム閾値）/ タグノード化による情報過多の有無
+**未検出だが要観察**: keydown effect が `filters` 全体依存で毎レンダー再購読（機能影響なし・性能微）
+**収集メモ**:
+
+- （実運用で気づいた項目をここに追記）
 
 ### Mobile vs Desktop 設計方針の docs/vision/ への明文化
 
@@ -71,7 +83,7 @@
 **対象**: `frontend/src/context/SyncContext.tsx` / DataService mutation 呼出層
 **背景**: 現状 30 秒間隔 polling で往復 60 秒ラグ。「DB 共有の実感」が薄い
 **手順**: Visibility API 観測 → フォアグラウンド 3-5s / 非アクティブ 60s、主要 mutation 後に debounced `triggerSync()`
-**参照**: `.claude/docs/vision/realtime-sync.md` Phase 1
+**参照**: `.claude/archive/SUMMARY.md`「vision-tauri 恒久知見 > Realtime 同期のレイテンシ目標」（旧 realtime-sync.md は 2026-05-16 削除、Supabase Realtime で再評価）
 
 ### Mobile Settings に Full Re-sync ボタン追加
 

@@ -1014,7 +1014,7 @@
         "title": "Tags by Entity Type",
         "task": "Tasks",
         "note": "Notes",
-        "memo": "Memos"
+        "daily": "Daily"
       },
       "connections": {
         "title": "Connection Statistics",

@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useRef } from "react";
+import { useState, useCallback, useEffect, useMemo, useRef } from "react";
 import { getDataService } from "../services/dataServiceFactory";
 import { onFileChange } from "../services/events";
 import type { FileEntry, FileInfo } from "../types/fileExplorer";
@@ -254,41 +254,77 @@ export function useFileExplorer() {
   }, []);
 
   // Breadcrumb
-  const breadcrumbs = currentPath
-    ? currentPath.split("/").map((part, i, arr) => ({
-        name: part,
-        path: arr.slice(0, i + 1).join("/"),
-      }))
-    : [];
+  const breadcrumbs = useMemo(
+    () =>
+      currentPath
+        ? currentPath.split("/").map((part, i, arr) => ({
+            name: part,
+            path: arr.slice(0, i + 1).join("/"),
+          }))
+        : [],
+    [currentPath],
+  );
 
-  return {
-    rootPath,
-    setRootPath,
-    currentPath,
-    entries,
-    selectedEntry,
-    setSelectedEntry,
-    expandedFolders,
-    toggleExpanded,
-    isLoading,
-    error,
-    openFile,
-    isDirty,
-    breadcrumbs,
-    navigateTo,
-    navigateUp,
-    navigateToRoot,
-    refreshDirectory,
-    createFolder,
-    createFile,
-    renameEntry,
-    deleteEntry,
-    moveEntry,
-    openInSystem,
-    openTextFile,
-    openBinaryFile,
-    updateFileContent,
-    saveCurrentFile,
-    closeFile,
-  };
+  return useMemo(
+    () => ({
+      rootPath,
+      setRootPath,
+      currentPath,
+      entries,
+      selectedEntry,
+      setSelectedEntry,
+      expandedFolders,
+      toggleExpanded,
+      isLoading,
+      error,
+      openFile,
+      isDirty,
+      breadcrumbs,
+      navigateTo,
+      navigateUp,
+      navigateToRoot,
+      refreshDirectory,
+      createFolder,
+      createFile,
+      renameEntry,
+      deleteEntry,
+      moveEntry,
+      openInSystem,
+      openTextFile,
+      openBinaryFile,
+      updateFileContent,
+      saveCurrentFile,
+      closeFile,
+    }),
+    [
+      rootPath,
+      setRootPath,
+      currentPath,
+      entries,
+      selectedEntry,
+      setSelectedEntry,
+      expandedFolders,
+      toggleExpanded,
+      isLoading,
+      error,
+      openFile,
+      isDirty,
+      breadcrumbs,
+      navigateTo,
+      navigateUp,
+      navigateToRoot,
+      refreshDirectory,
+      createFolder,
+      createFile,
+      renameEntry,
+      deleteEntry,
+      moveEntry,
+      openInSystem,
+      openTextFile,
+      openBinaryFile,
+      updateFileContent,
+      saveCurrentFile,
+      closeFile,
+    ],
+  );
 }

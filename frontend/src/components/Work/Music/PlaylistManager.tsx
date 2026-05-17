@@ -3,6 +3,7 @@ import { Plus, Trash2, ListMusic, Check, X, Pencil } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import type { PlaylistDataResult } from "../../../hooks/usePlaylistData";
 import type { Playlist } from "../../../types/playlist";
+import { isImeComposing } from "../../../utils/imeSafe";
 
 interface PlaylistManagerProps {
   playlistData: PlaylistDataResult;
@@ -85,6 +86,7 @@ export function PlaylistManager({
                     value={editingName}
                     onChange={(e) => setEditingName(e.target.value)}
                     onKeyDown={(e) => {
+                      if (isImeComposing(e)) return;
                       if (e.key === "Enter") confirmRename();
                       if (e.key === "Escape") cancelRename();
                     }}

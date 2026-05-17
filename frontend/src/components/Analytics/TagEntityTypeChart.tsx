@@ -96,7 +96,7 @@ export function TagEntityTypeChart({
             />
             <Bar
               dataKey="dailies"
-              name={t("analytics.connect.byEntityType.memo")}
+              name={t("analytics.connect.byEntityType.daily")}
               stackId="a"
               fill="#f59e0b"
               radius={[4, 4, 0, 0]}

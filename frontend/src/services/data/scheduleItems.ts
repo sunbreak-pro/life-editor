@@ -1,4 +1,4 @@
-import type { ScheduleItem } from "../../types/schedule";
+import type { ScheduleItem, ScheduleItemUpdate } from "../../types/schedule";
 import { tauriInvoke } from "../bridge";
 
 export const scheduleItemsApi = {

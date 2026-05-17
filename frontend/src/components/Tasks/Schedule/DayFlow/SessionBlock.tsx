@@ -1,5 +1,6 @@
 import type { TimerSession } from "../../../../types/timer";
 import { TIME_GRID } from "../../../../constants/timeGrid";
+import { formatTime } from "../../../../utils/timeGridUtils";
 
 interface SessionBlockProps {
   session: TimerSession;
@@ -54,9 +55,7 @@ export function SessionBlock({ session, taskTitle }: SessionBlockProps) {
           ? "Long break"
           : "Free");
 
-  const startTimeStr = `${String(startedAt.getHours()).padStart(2, "0")}:${String(
-    startedAt.getMinutes(),
-  ).padStart(2, "0")}`;
+  const startTimeStr = formatTime(startedAt.getHours(), startedAt.getMinutes());
 
   return (
     <div

@@ -1,5 +1,5 @@
 import { useState, useCallback, useMemo, useEffect, useRef } from "react";
-import type { TaskNode, NodeType } from "../types/taskTree";
+import type { TaskNode } from "../types/taskTree";
 import { useTaskTreeCRUD } from "./useTaskTreeCRUD";
 import { useTaskTreeDeletion } from "./useTaskTreeDeletion";
 import { useTaskTreeMovement } from "./useTaskTreeMovement";
@@ -8,11 +8,7 @@ import { logServiceError } from "../utils/logError";
 import { getFolderTag } from "../utils/folderTag";
 import { getDataService } from "../services";
 import { useSyncContext } from "./useSyncContext";
-
-let idCounter = Date.now();
-function generateId(type: NodeType): string {
-  return `${type}-${++idCounter}`;
-}
+import { generateTaskId } from "../utils/generateTaskId";
 
 export function useTaskTreeAPI() {
   const [nodes, setNodes] = useState<TaskNode[]>([]);
@@ -129,7 +125,7 @@ export function useTaskTreeAPI() {
     nodes,
     guardedPersistWithHistory,
     guardedPersistSilent,
-    generateId,
+    generateTaskId,
   );
   const { softDelete, restoreNode, permanentDelete } = useTaskTreeDeletion(
     nodes,

@@ -1,6 +1,18 @@
+import { formatTime } from "./timeGridUtils";
+
 const MONTH_NAMES_SHORT = [
-  'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-  'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+  "Jan",
+  "Feb",
+  "Mar",
+  "Apr",
+  "May",
+  "Jun",
+  "Jul",
+  "Aug",
+  "Sep",
+  "Oct",
+  "Nov",
+  "Dec",
 ];
 
 function fmtDate(d: Date): string {
@@ -8,7 +20,7 @@ function fmtDate(d: Date): string {
 }
 
 function fmtTime(d: Date): string {
-  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+  return formatTime(d.getHours(), d.getMinutes());
 }
 
 function fmtCompactDate(d: Date): string {

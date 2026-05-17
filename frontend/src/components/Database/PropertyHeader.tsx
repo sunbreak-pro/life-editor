@@ -2,6 +2,7 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { Type, Hash, List, Calendar, CheckSquare, Trash2 } from "lucide-react";
 import type { PropertyType, DatabaseProperty } from "../../types/database";
+import { isImeComposing } from "../../utils/imeSafe";
 import { PropertyContextMenu } from "./PropertyContextMenu";
 
 const MIN_COL_WIDTH = 60;
@@ -137,6 +138,7 @@ export function PropertyHeader({
             }}
             onBlur={commit}
             onKeyDown={(e) => {
+              if (isImeComposing(e)) return;
               if (e.key === "Enter") commit();
               if (e.key === "Escape") {
                 setDraft(property.name);

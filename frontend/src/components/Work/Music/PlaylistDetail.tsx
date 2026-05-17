@@ -33,6 +33,7 @@ import { useAudioContext } from "../../../hooks/useAudioContext";
 import type { PlaylistDataResult } from "../../../hooks/usePlaylistData";
 import type { PlaylistPlayerResult } from "../../../hooks/usePlaylistPlayer";
 import type { PlaylistItem } from "../../../types/playlist";
+import { isImeComposing } from "../../../utils/imeSafe";
 import type { CustomSoundMeta } from "../../../types/customSound";
 
 interface PlaylistDetailProps {
@@ -110,6 +111,7 @@ function SortableItem({
   }, [editValue, soundId, soundTagState, onUpdateLabel]);
 
   const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
+    if (isImeComposing(e)) return;
     e.stopPropagation();
     if (e.key === "Enter") handleSave();
     if (e.key === "Escape") {

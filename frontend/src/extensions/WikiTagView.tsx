@@ -4,6 +4,7 @@ import type { NodeViewProps } from "@tiptap/react";
 import { Tag as TagIcon } from "lucide-react";
 import { useWikiTags } from "../hooks/useWikiTags";
 import { UnifiedColorPicker } from "../components/shared/UnifiedColorPicker";
+import { isImeComposing } from "../utils/imeSafe";
 import { useTranslation } from "react-i18next";
 import { getTextColorForBg } from "../constants/folderColors";
 
@@ -111,6 +112,7 @@ export function WikiTagView({ node }: NodeViewProps) {
               value={editName}
               onChange={(e) => setEditName(e.target.value)}
               onKeyDown={(e) => {
+                if (isImeComposing(e)) return;
                 e.stopPropagation();
                 if (e.key === "Enter") handleEditSave();
                 if (e.key === "Escape") setEditing(false);

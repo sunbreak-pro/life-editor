@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
 import { Type, Hash, List, Calendar, CheckSquare, Plus } from "lucide-react";
 import type { PropertyType } from "../../types/database";
+import { isImeComposing } from "../../utils/imeSafe";
 
 const PROPERTY_TYPES: {
   type: PropertyType;
@@ -121,6 +122,7 @@ export function AddPropertyPopover({
                   }}
                   placeholder={t("database.propertyNamePlaceholder")}
                   onKeyDown={(e) => {
+                    if (isImeComposing(e)) return;
                     if (e.key === "Enter") handleAdd("text");
                     if (e.key === "Escape") handleClose();
                     e.stopPropagation();

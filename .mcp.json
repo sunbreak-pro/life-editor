@@ -8,6 +8,19 @@
         "FILES_ROOT_PATH": "/Users/newlife/life-editor/files"
       },
       "type": "stdio"
+    },
+    "supabase": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@supabase/mcp-server-supabase@latest",
+        "--read-only",
+        "--project-ref=mcrfdnjplfmqwnwbcbol"
+      ],
+      "env": {
+        "SUPABASE_ACCESS_TOKEN": "${SUPABASE_ACCESS_TOKEN}"
+      },
+      "type": "stdio"
     }
   }
 }

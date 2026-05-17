@@ -6,7 +6,8 @@ export function createContextHook<T>(
 ): () => T {
   return () => {
     const value = useContext(context);
-    if (!value) throw new Error(`${name} must be used within its Provider`);
+    if (value == null)
+      throw new Error(`${name} must be used within its Provider`);
     return value;
   };
 }

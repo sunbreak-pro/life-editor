@@ -10,6 +10,7 @@ import {
   StickyNote,
   Layers,
 } from "lucide-react";
+import { isImeComposing } from "../../../../utils/imeSafe";
 import type { PaperBoard, PaperNode } from "../../../../types/paperBoard";
 import type { NoteNode } from "../../../../types/note";
 import { SearchTrigger } from "../../../shared/SearchTrigger";
@@ -198,6 +199,7 @@ export function PaperSidebar({
             value={renameValue}
             onChange={(e) => setRenameValue(e.target.value)}
             onKeyDown={(e) => {
+              if (isImeComposing(e)) return;
               if (e.key === "Enter") confirmRename();
               if (e.key === "Escape") setRenamingId(null);
             }}

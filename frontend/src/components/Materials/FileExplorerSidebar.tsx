@@ -12,6 +12,7 @@ import { useTranslation } from "react-i18next";
 import { useFileExplorerContext } from "../../hooks/useFileExplorerContext";
 import { getDataService } from "../../services/dataServiceFactory";
 import type { FileEntry } from "../../types/fileExplorer";
+import { isImeComposing } from "../../utils/imeSafe";
 import { getFileIcon } from "./fileIcons";
 
 function FileTreeNode({
@@ -252,6 +253,7 @@ export function FileExplorerSidebar() {
             value={newName}
             onChange={(e) => setNewName(e.target.value)}
             onKeyDown={(e) => {
+              if (isImeComposing(e)) return;
               if (e.key === "Enter") handleCreate();
               if (e.key === "Escape") {
                 setIsCreating(null);
