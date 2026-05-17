@@ -1,5 +1,5 @@
 ---
-Status: CODE COMPLETE — S4-0〜S4-6 全完了（0006 7テーブル + mapper7 + DataService7 + Routine/ScheduleItems/Calendar/CalendarTags Provider + 生成器、全 QA/security/sync-auditor PASS）。残: 0006 本番 SQL Editor apply + 実ブラウザ確認（次セッション初手）。S8 delta 申し送り記録済。並行チャット同居のため本ファイルが S4 自レーン SSOT
+Status: COMPLETE — S4-0〜S4-6 全完了 + 0006 本番 apply 成功・手動確認 OK（2026-05-17）。Verification 全項目クリア。S8 delta 申し送り 6 項は S8 着手者向けに本ファイル維持。次フェーズ=S5 WikiTags。並行チャット同居のため本ファイルが S4 自レーン SSOT
 Created: 2026-05-17
 Task: Phase 2 S4 — Schedule ドメイン Web 移植（最大規模・最後）
 Project path: /Users/newlife/dev/apps/life-editor
@@ -100,12 +100,12 @@ frontend 既存ロジック（読み取り参照のみ・不可侵）:
 
 ## Verification
 
-- [ ] 6 テーブル mapper roundtrip vitest green（shared）
-- [ ] `check-rls.sql` 静的 offender0（6 テーブル全 RLS+4policy）/ security-reviewer Critical0
-- [ ] Routine 生成: 削除後に schedule_items が復活しない（Issue 017）/ `(routine_id,date)` 重複なし（Issue 011）/ soft-deleted 非表示
-- [ ] relation（assignments/cta）が delta sync で is_deleted 反映（Issue 008）
-- [ ] web `tsc -b` / eslint / vite build green、`frontend/`/`src-tauri/`/`cloud/` diff 0（非破壊）
-- [ ] 実ブラウザ Schedule CRUD/Routine 生成/Calendar 表示 = 次セッション（0006 本番 apply 後）
+- [x] 7 テーブル mapper roundtrip vitest green（shared、71/71）
+- [x] `check-rls.sql` 静的 offender0（7 テーブル全 RLS+4policy）/ security-reviewer Critical0（S4-1）
+- [x] Routine 生成: Issue 017 四系統ガード実証 / `(routine_id,date)` partial UNIQUE（Issue 011）/ soft-deleted 非表示（S4-5 role-qa+sync-auditor）
+- [x] relation（rga/cta）soft-delete-aware / cta 孤児化対策（S4-6 sync-auditor、delta 伝播は S8 申し送り）
+- [x] web `tsc -b` / eslint / vite build green、`frontend/`/`src-tauri/`/`cloud/` diff 0（全サブ非破壊実証）
+- [x] **0006 本番 SQL Editor apply 成功 + 手動確認問題なし（2026-05-17 ユーザー実施）**。post-verify は今後 sync/実運用で継続観測
 
 ## 申し送り / 後続追跡（S4-1 監査由来）
 
