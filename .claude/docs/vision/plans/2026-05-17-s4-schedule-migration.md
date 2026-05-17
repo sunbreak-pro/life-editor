@@ -76,7 +76,7 @@ frontend 既存ロジック（読み取り参照のみ・不可侵）:
 - [x] **S4-0 調査**（role-engineer read-only・2026-05-17 完了）: スキーマ正本特定（SQLite full_schema+v61_plus V69 / D1 0001+0004+0007 / shared/src/types 既存 forward-port 済）。sync 区分 7 テーブル確定、is_deleted 非作成 2 テーブル、date/time text 厳守、updateScheduleItem 020 適用、CalendarTag integer identity、生成仕様 timezone/先読み/レース解消。ブロッカー無し（上記「S4-0 確定事項」に反映済）
 - [x] **S4-1 migration + mapper**（2026-05-17 完了）: 0006（7 テーブル + RLS 4policy×7 + partial UNIQUE、手動 SQL Editor ヘッダ）+ mapper 7 種 + roundtrip 16/16 + vitest 54/54。**role-qa PASS（Blocker0 Major0、Minor2/Nit1=申し送り反映済）+ security-reviewer PASS（Critical0 High0 Medium0、Low1=N=1 実害無）**。check-rls selftest 20/20・全述語照合 offender0。frontend/src-tauri/cloud diff0 非破壊
 - [x] **S4-2 SupabaseDataService**（2026-05-17 完了）: 7 テーブル Proxy throw → 実装（routines 8/groups 4/rga 2/schedule_items 19/calendars 4/ctd+cta 7 メソッド）+ barrel type export。Issue 020（updateScheduleItem 単一 patch）/008（rga unassign=is_deleted）/011（(routine_id,date) live ガード）/017（softDeleteRoutine 子 cascade）敷設。**role-qa PASS（Blocker0 Major0 Minor0 Nit0）**。engineer 申告 4 乖離（calendar folderId drop / version bump Tauri 乖離 / ctd full-replicate / cta IDOR）すべて文書化済の妥当な意図的乖離。vitest 54/54 非回帰・frontend/src-tauri/cloud diff0
-- [ ] **S4-3 RoutineProvider**: shared context(Pattern A)+hooks + web ミニ UI。Provider 依存順先頭。→ role-qa
+- [x] **S4-3 RoutineProvider**（2026-05-17 完了）: Pattern A 3 ファイル（RoutineContextValue/RoutineContext/useRoutineContext）+ `useRoutinesAPI`（routines/groups/rga CRUD、DataService 注入）+ `web/src/schedule/ScheduleView.tsx` リーン UI + MainScreen 配線（Sync 内側・トリオ先頭）。**role-qa PASS（Blocker0 Major0 Minor2 Nit2）**。生成器/schedule_items 未着手＝S4-4/S4-5 繰延を厳守。vitest 54/54 非回帰・非破壊
 - [ ] **S4-4 ScheduleItemsProvider**: schedule_items CRUD + 論理一意（Issue 011）。**Routine 生成は含めない**。→ role-qa
 - [ ] **S4-5 Routine 生成器**: 純粋関数 shared 移植 + 生成器フック。**Issue 017 両系統ガード専用 QA**。→ role-qa（017 再発を専用検証）
 - [ ] **S4-6 Calendar + CalendarTags**: calendars + **calendar_tag_definitions（本体・必須）** + calendar_tag_assignments（polymorphic）+ Mobile Optional バリアント（CalendarTags は Mobile 省略 Provider）。→ role-qa
@@ -113,6 +113,7 @@ frontend 既存ロジック（読み取り参照のみ・不可侵）:
 - **論理 UNIQUE が user_id 非包含（security Low 1）**: `uq_schedule_items_routine_date` / `cta UNIQUE(entity_type,entity_id)` / `ctd UNIQUE(name)` は user_id を含まずグローバル。N=1（作者のみ Cloud Sync、CLAUDE.md §1 Non-Goals マルチテナント）で実害ゼロ。将来マルチユーザー化時のみ `UNIQUE(user_id, ...)` 化 TODO（apply ブロッカーではない）
 - **ctd の sync full-replicate 整合（QA Minor 1）**: calendar_tag_definitions は VERSIONED_TABLES 外＝full-replicate 扱いのため Supabase 側で is_deleted 等を意図的 drop（0006 ヘッダに理由追記済）。S4-6（ctd 本体実装）の QA で full-replicate 経路の整合を再検証対象に
 - **0006 apply 後**: ヘッダ L24-40 の post-verify クエリ（7 テーブル×4policy 行 + relrowsecurity=true）を実 DB で必ず実行（次セッション・実ブラウザ確認時）
+- **S4-3 申し送り**: ① i18n は web 全体 Settings S-step で一括テーブル化（ScheduleView も英語のみ＝S3 NotesView 先例一貫、新規債務でない）② deleted ロード二重発火（useRoutinesAPI 初回 effect + ScheduleView mount、S3 同型・実害は冗長 fetch 1 回）は S4-4+ で host 側重複整理検討 ③ `frequencyStartDate` 編集 UI は S4-5 生成器配線時に追補（interval 起点日が必要） ④ createRoutineGroup はフック層で `Promise<RoutineGroup|null>`（DataService interface 署名は不変、S4-6 consumer は null ハンドリング）
 
 ## スコープ外（クリープ防止）
 

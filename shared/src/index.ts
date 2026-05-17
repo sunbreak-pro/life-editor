@@ -69,6 +69,17 @@ export {
 } from "./hooks/useNotesAPI";
 export { useNoteTreeMovement } from "./hooks/useNoteTreeMovement";
 
+// Routine domain — context (Pattern A) + hook (DI: dataService/undoRedo).
+// First of the Schedule trio (§6.2). routines + routine_groups +
+// routine_group_assignments CRUD only; the generator lands in S4-5.
+export { RoutineProvider } from "./context";
+export { RoutineContext, type RoutineContextValue } from "./context";
+export { useRoutineContext } from "./hooks/useRoutineContext";
+export {
+  useRoutinesAPI,
+  type UseRoutinesAPIOptions,
+} from "./hooks/useRoutinesAPI";
+
 // Tasks domain — tree utilities (host UI builds on these)
 export {
   getDescendantTasks,

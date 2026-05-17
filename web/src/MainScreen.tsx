@@ -6,12 +6,14 @@ import {
   TaskTreeProvider,
   DailyProvider,
   NoteProvider,
+  RoutineProvider,
   type DataService,
   type Session,
 } from "@life-editor/shared";
 import { TaskTreeView } from "./tasks/TaskTreeView";
 import { DailyView } from "./daily/DailyView";
 import { NotesView } from "./notes/NotesView";
+import { ScheduleView } from "./schedule/ScheduleView";
 
 /*
  * Phase 2 S1+S2 host shell.
@@ -37,7 +39,7 @@ function getDataService(): DataService {
   return dataServiceSingleton;
 }
 
-type Section = "tasks" | "daily" | "notes";
+type Section = "tasks" | "daily" | "notes" | "schedule";
 
 export function MainScreen({ session }: { session: Session }) {
   const ds = useMemo(() => getDataService(), []);
@@ -49,7 +51,7 @@ export function MainScreen({ session }: { session: Session }) {
         <header className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <nav className="flex gap-1" aria-label="Sections">
-              {(["tasks", "daily", "notes"] as const).map((s) => (
+              {(["tasks", "daily", "notes", "schedule"] as const).map((s) => (
                 <button
                   key={s}
                   type="button"
@@ -99,6 +101,19 @@ export function MainScreen({ session }: { session: Session }) {
             <NoteProvider dataService={ds}>
               <NotesView />
             </NoteProvider>
+          </SyncProvider>
+        )}
+        {/*
+         * Routine is the first of the Schedule trio (CLAUDE.md §6.2:
+         * … → Routine → ScheduleItems → CalendarTags → …). Only the
+         * Routine Provider is wired here — ScheduleItems / CalendarTags
+         * land in S4-4 / S4-6.
+         */}
+        {section === "schedule" && (
+          <SyncProvider>
+            <RoutineProvider dataService={ds}>
+              <ScheduleView />
+            </RoutineProvider>
           </SyncProvider>
         )}
       </div>

@@ -15,3 +15,9 @@ export { DailyContext, type DailyContextValue } from "./DailyContextValue";
 
 export { NoteProvider } from "./NoteContext";
 export { NoteContext, type NoteContextValue } from "./NoteContextValue";
+
+export { RoutineProvider } from "./RoutineContext";
+export {
+  RoutineContext,
+  type RoutineContextValue,
+} from "./RoutineContextValue";
