@@ -295,6 +295,7 @@ export interface DataService {
     frequencyStartDate?: string | null,
     reminderEnabled?: boolean,
     reminderOffset?: number,
+    reminderTime?: string | null,
   ): Promise<RoutineNode>;
   updateRoutine(
     id: string,
@@ -313,6 +314,7 @@ export interface DataService {
         | "frequencyStartDate"
         | "reminderEnabled"
         | "reminderOffset"
+        | "reminderTime"
       >
     >,
   ): Promise<RoutineNode>;
@@ -340,6 +342,9 @@ export interface DataService {
     noteId?: string,
     isAllDay?: boolean,
     content?: string,
+    reminderEnabled?: boolean,
+    reminderOffset?: number,
+    reminderTime?: string | null,
   ): Promise<ScheduleItem>;
   updateScheduleItem(
     id: string,
@@ -355,6 +360,9 @@ export interface DataService {
         | "isAllDay"
         | "content"
         | "date"
+        | "reminderEnabled"
+        | "reminderOffset"
+        | "reminderTime"
       >
     >,
   ): Promise<ScheduleItem>;
@@ -379,6 +387,7 @@ export interface DataService {
       noteId?: string;
       reminderEnabled?: boolean;
       reminderOffset?: number;
+      reminderTime?: string | null;
     }>,
   ): Promise<void>;
   updateFutureScheduleItemsByRoutine(

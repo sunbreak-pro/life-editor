@@ -116,12 +116,30 @@ fn check_task_reminders(app: &AppHandle, conn: &Connection) -> Result<(), String
     Ok(())
 }
 
+/// True when `now` is inside the firing window: from `offset_min` before the
+/// anchor up to (but not including) the anchor itself. Pure so it can be
+/// unit-tested without a running app / DB.
+fn should_fire(now_ms: i64, scheduled_ms: i64, offset_min: i64) -> bool {
+    let reminder_ms = scheduled_ms - offset_min * 60_000;
+    now_ms >= reminder_ms && now_ms < scheduled_ms
+}
+
+fn parse_dt_ms(s: &str) -> Option<i64> {
+    chrono::NaiveDateTime::parse_from_str(s, "%Y-%m-%dT%H:%M:%S")
+        .or_else(|_| chrono::NaiveDateTime::parse_from_str(s, "%Y-%m-%d %H:%M:%S"))
+        .or_else(|_| chrono::NaiveDateTime::parse_from_str(s, "%Y-%m-%dT%H:%M"))
+        .or_else(|_| chrono::NaiveDateTime::parse_from_str(s, "%Y-%m-%d %H:%M"))
+        .ok()
+        .map(|dt| dt.and_utc().timestamp_millis())
+}
+
 fn check_per_item_reminders(app: &AppHandle, conn: &Connection) -> Result<(), String> {
     let default_offset_str =
         get_setting(conn, "reminder_default_offset").unwrap_or("30".to_string());
     let default_offset: i64 = default_offset_str.parse().unwrap_or(30);
+    let now = chrono::Utc::now().timestamp_millis();
 
-    // Per-item task reminders
+    // Per-item task reminders (anchored on scheduled_at).
     let mut stmt = conn
         .prepare(
             "SELECT id, title, scheduled_at, reminder_offset
@@ -133,43 +151,48 @@ fn check_per_item_reminders(app: &AppHandle, conn: &Connection) -> Result<(), St
         )
         .map_err(|e| e.to_string())?;
 
-    let now = chrono::Utc::now().timestamp_millis();
-
     let rows = stmt
         .query_map([], |row| {
             Ok((
                 row.get::<_, String>(0)?,
                 row.get::<_, String>(1)?,
-                row.get::<_, String>(2)?,
+                row.get::<_, Option<String>>(2)?,
                 row.get::<_, Option<i64>>(3)?,
             ))
         })
         .map_err(|e| e.to_string())?;
 
     for row in rows {
-        if let Ok((id, title, scheduled_at, reminder_offset)) = row {
+        if let Ok((id, title, Some(anchor), reminder_offset)) = row {
             let offset = reminder_offset.unwrap_or(default_offset);
-            if let Ok(scheduled) = chrono::NaiveDateTime::parse_from_str(&scheduled_at, "%Y-%m-%d %H:%M:%S")
-                .or_else(|_| chrono::NaiveDateTime::parse_from_str(&scheduled_at, "%Y-%m-%dT%H:%M:%S"))
-            {
-                let scheduled_ms = scheduled.and_utc().timestamp_millis();
-                let reminder_ms = scheduled_ms - offset * 60_000;
-                if now >= reminder_ms && now < scheduled_ms {
+            if let Some(scheduled_ms) = parse_dt_ms(&anchor) {
+                if should_fire(now, scheduled_ms, offset) {
                     fire_reminder(app, &format!("task:{}", id), &title, "itemReminder");
                 }
             }
         }
     }
 
-    // Per-item schedule item reminders
+    // Per-item Event + Routine reminders. Routine reminders ride the
+    // already-generated routine-linked schedule_items (LEFT JOIN routines):
+    // a row fires if the item itself OR its parent routine has the reminder
+    // enabled, with the offset inherited from the routine when the item has
+    // none. No routine-frequency logic needed in Rust — each generated
+    // occurrence reminds at its own start_time. (All-day items anchor on
+    // reminder_time; deferred until the reminder_time picker UI exists so the
+    // fire-at semantics can be designed and tested together with it.)
     let mut stmt2 = conn
         .prepare(
-            "SELECT id, title, datetime(date || 'T' || start_time) as scheduled_datetime, reminder_offset
-             FROM schedule_items
-             WHERE reminder_enabled = 1
-               AND completed = 0
-               AND is_dismissed = 0
-               AND is_all_day = 0",
+            "SELECT si.id, si.title,
+                    datetime(si.date || 'T' || si.start_time) AS anchor,
+                    COALESCE(si.reminder_offset, r.reminder_offset) AS off
+             FROM schedule_items si
+             LEFT JOIN routines r
+                    ON si.routine_id = r.id AND r.is_deleted = 0
+             WHERE si.completed = 0
+               AND si.is_dismissed = 0
+               AND si.is_all_day = 0
+               AND (si.reminder_enabled = 1 OR COALESCE(r.reminder_enabled, 0) = 1)",
         )
         .map_err(|e| e.to_string())?;
 
@@ -178,22 +201,17 @@ fn check_per_item_reminders(app: &AppHandle, conn: &Connection) -> Result<(), St
             Ok((
                 row.get::<_, String>(0)?,
                 row.get::<_, String>(1)?,
-                row.get::<_, String>(2)?,
+                row.get::<_, Option<String>>(2)?,
                 row.get::<_, Option<i64>>(3)?,
             ))
         })
         .map_err(|e| e.to_string())?;
 
     for row in rows2 {
-        if let Ok((id, title, scheduled_datetime, reminder_offset)) = row {
+        if let Ok((id, title, Some(anchor), reminder_offset)) = row {
             let offset = reminder_offset.unwrap_or(default_offset);
-            if let Ok(scheduled) =
-                chrono::NaiveDateTime::parse_from_str(&scheduled_datetime, "%Y-%m-%dT%H:%M:%S")
-                    .or_else(|_| chrono::NaiveDateTime::parse_from_str(&scheduled_datetime, "%Y-%m-%d %H:%M:%S"))
-            {
-                let scheduled_ms = scheduled.and_utc().timestamp_millis();
-                let reminder_ms = scheduled_ms - offset * 60_000;
-                if now >= reminder_ms && now < scheduled_ms {
+            if let Some(scheduled_ms) = parse_dt_ms(&anchor) {
+                if should_fire(now, scheduled_ms, offset) {
                     fire_reminder(app, &format!("schedule:{}", id), &title, "itemReminder");
                 }
             }
@@ -201,6 +219,38 @@ fn check_per_item_reminders(app: &AppHandle, conn: &Connection) -> Result<(), St
     }
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::should_fire;
+
+    const MIN: i64 = 60_000;
+
+    #[test]
+    fn fires_inside_window_before_anchor() {
+        // anchor at t=100min, 30min offset → window [70min, 100min)
+        let anchor = 100 * MIN;
+        assert!(should_fire(70 * MIN, anchor, 30)); // window start (inclusive)
+        assert!(should_fire(99 * MIN, anchor, 30)); // just before anchor
+    }
+
+    #[test]
+    fn does_not_fire_before_window_or_at_after_anchor() {
+        let anchor = 100 * MIN;
+        assert!(!should_fire(69 * MIN, anchor, 30)); // before window
+        assert!(!should_fire(anchor, anchor, 30)); // at anchor (exclusive)
+        assert!(!should_fire(101 * MIN, anchor, 30)); // past anchor
+    }
+
+    #[test]
+    fn zero_offset_never_fires() {
+        // offset 0 → window [anchor, anchor) is empty: never fires (matches
+        // the pre-existing lead-up firing model).
+        let anchor = 100 * MIN;
+        assert!(!should_fire(anchor, anchor, 0));
+        assert!(!should_fire(anchor - 1, anchor, 0));
+    }
 }
 
 fn check_daily_review(app: &AppHandle, conn: &Connection) -> Result<(), String> {

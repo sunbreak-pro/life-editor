@@ -20,6 +20,7 @@ export const routinesApi = {
     frequencyStartDate?: string | null,
     reminderEnabled?: boolean,
     reminderOffset?: number,
+    reminderTime?: string | null,
   ): Promise<RoutineNode> {
     return tauriInvoke("db_routines_create", {
       id,
@@ -32,6 +33,7 @@ export const routinesApi = {
       frequencyStartDate,
       reminderEnabled,
       reminderOffset,
+      reminderTime,
     });
   },
   updateRoutine(
@@ -51,6 +53,7 @@ export const routinesApi = {
         | "frequencyStartDate"
         | "reminderEnabled"
         | "reminderOffset"
+        | "reminderTime"
       >
     >,
   ): Promise<RoutineNode> {

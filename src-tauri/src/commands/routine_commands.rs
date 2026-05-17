@@ -24,6 +24,7 @@ pub fn db_routines_create(
     frequency_start_date: Option<String>,
     reminder_enabled: Option<bool>,
     reminder_offset: Option<i64>,
+    reminder_time: Option<String>,
 ) -> Result<Value, String> {
     let conn = state.conn.lock().map_err(|e| e.to_string())?;
     routine_repository::create(
@@ -38,6 +39,7 @@ pub fn db_routines_create(
         frequency_start_date.as_deref(),
         reminder_enabled.unwrap_or(false),
         reminder_offset,
+        reminder_time.as_deref(),
     )
     .map_err(|e| e.to_string())
     .and_then(|v| serde_json::to_value(v).map_err(|e| e.to_string()))

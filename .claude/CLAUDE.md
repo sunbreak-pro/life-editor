@@ -8,9 +8,9 @@
 
 ## 0. Meta
 
-- **役割**: 現状の実装規約 / 設計判断の参照点（400 行以下目標）。抽象構想は `docs/vision/`（ADR は作らない）
-- **更新規則**: 実装変更はコードと同一 PR で更新。新機能は §8 + `docs/requirements/` に記入
-- **関連**: `MEMORY.md`(タスク) / `HISTORY.md`(履歴) / [移行 SSOT](./2026-05-04-cross-platform-migration.md) / `docs/vision/`(設計原則) / `docs/requirements/`(Tier) / `docs/known-issues/`([INDEX](./docs/known-issues/INDEX.md)) / `archive/`
+- **役割**: 現状の実装規約 / 設計判断の参照点（400 行以下を目標）。抽象的・未具体化の構想 / 設計原則 は `docs/vision/` を参照（ADR は作らない）
+- **更新規則**: 実装変更を伴う変更はコードと同一 PR で更新。新機能は §8 + `docs/requirements/` に記入
+- **関連ドキュメント**: `MEMORY.md`(タスク) / `HISTORY.md`(履歴) / [`2026-05-04-cross-platform-migration.md`](./2026-05-04-cross-platform-migration.md)(移行 SSOT) / `docs/vision/`(設計原則) / `docs/vision/plans/`(実装計画書の正式置き場) / `docs/requirements/`(Tier 1-3) / `docs/known-issues/`(Root Cause [INDEX](./docs/known-issues/INDEX.md)) / `docs/code-explanation/` / `archive/`
 
 ---
 

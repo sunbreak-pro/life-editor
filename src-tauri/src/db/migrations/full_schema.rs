@@ -38,6 +38,7 @@ pub(super) fn create_full_schema(conn: &Connection) -> rusqlite::Result<()> {
             priority INTEGER DEFAULT NULL,
             reminder_enabled INTEGER DEFAULT 0,
             reminder_offset INTEGER,
+            reminder_time TEXT,
             icon TEXT,
             FOREIGN KEY (parent_id) REFERENCES tasks(id)
         );
@@ -196,7 +197,8 @@ pub(super) fn create_full_schema(conn: &Connection) -> rusqlite::Result<()> {
             start_time TEXT,
             end_time TEXT,
             reminder_enabled INTEGER DEFAULT 0,
-            reminder_offset INTEGER
+            reminder_offset INTEGER,
+            reminder_time TEXT
         );
 
         -- ===== Playlists =====
@@ -240,6 +242,7 @@ pub(super) fn create_full_schema(conn: &Connection) -> rusqlite::Result<()> {
             version INTEGER DEFAULT 1,
             reminder_enabled INTEGER DEFAULT 0,
             reminder_offset INTEGER,
+            reminder_time TEXT,
             is_deleted INTEGER DEFAULT 0,
             deleted_at TEXT,
             FOREIGN KEY (routine_id) REFERENCES routines(id) ON DELETE SET NULL

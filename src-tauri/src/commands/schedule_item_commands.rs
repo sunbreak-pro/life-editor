@@ -50,6 +50,9 @@ pub fn db_schedule_items_create(
     note_id: Option<String>,
     is_all_day: Option<bool>,
     content: Option<String>,
+    reminder_enabled: Option<bool>,
+    reminder_offset: Option<i64>,
+    reminder_time: Option<String>,
 ) -> Result<Value, String> {
     let conn = state.conn.lock().map_err(|e| e.to_string())?;
     schedule_item_repository::create(
@@ -64,6 +67,9 @@ pub fn db_schedule_items_create(
         note_id.as_deref(),
         is_all_day,
         content.as_deref(),
+        reminder_enabled.unwrap_or(false),
+        reminder_offset,
+        reminder_time.as_deref(),
     )
     .map_err(|e| e.to_string())
     .and_then(|v| serde_json::to_value(v).map_err(|e| e.to_string()))
