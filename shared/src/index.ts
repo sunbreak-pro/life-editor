@@ -80,6 +80,21 @@ export {
   type UseRoutinesAPIOptions,
 } from "./hooks/useRoutinesAPI";
 
+// ScheduleItems domain — context (Pattern A) + hook (DI: dataService/
+// undoRedo). Second of the Schedule trio (§6.2), mounted inside
+// RoutineProvider. schedule_items CRUD only; the Routine→schedule_items
+// generator lands in S4-5 and is NOT wired here.
+export { ScheduleItemsProvider } from "./context";
+export {
+  ScheduleItemsContext,
+  type ScheduleItemsContextValue,
+} from "./context";
+export { useScheduleItemsContext } from "./hooks/useScheduleItemsContext";
+export {
+  useScheduleItemsAPI,
+  type UseScheduleItemsAPIOptions,
+} from "./hooks/useScheduleItemsAPI";
+
 // Tasks domain — tree utilities (host UI builds on these)
 export {
   getDescendantTasks,

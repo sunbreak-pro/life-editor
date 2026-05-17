@@ -21,3 +21,9 @@ export {
   RoutineContext,
   type RoutineContextValue,
 } from "./RoutineContextValue";
+
+export { ScheduleItemsProvider } from "./ScheduleItemsContext";
+export {
+  ScheduleItemsContext,
+  type ScheduleItemsContextValue,
+} from "./ScheduleItemsContextValue";

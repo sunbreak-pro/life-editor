@@ -7,6 +7,7 @@ import {
   DailyProvider,
   NoteProvider,
   RoutineProvider,
+  ScheduleItemsProvider,
   type DataService,
   type Session,
 } from "@life-editor/shared";
@@ -14,6 +15,7 @@ import { TaskTreeView } from "./tasks/TaskTreeView";
 import { DailyView } from "./daily/DailyView";
 import { NotesView } from "./notes/NotesView";
 import { ScheduleView } from "./schedule/ScheduleView";
+import { ScheduleItemsView } from "./schedule/ScheduleItemsView";
 
 /*
  * Phase 2 S1+S2 host shell.
@@ -104,15 +106,20 @@ export function MainScreen({ session }: { session: Session }) {
           </SyncProvider>
         )}
         {/*
-         * Routine is the first of the Schedule trio (CLAUDE.md §6.2:
-         * … → Routine → ScheduleItems → CalendarTags → …). Only the
-         * Routine Provider is wired here — ScheduleItems / CalendarTags
-         * land in S4-4 / S4-6.
+         * Schedule trio order (CLAUDE.md §6.2:
+         * … → Routine → ScheduleItems → CalendarTags → …). Routine +
+         * ScheduleItems are wired here (S4-3 / S4-4); ScheduleItems sits
+         * INSIDE RoutineProvider per the dependency order. CalendarTags
+         * lands in S4-6. The Routine→schedule_items generator is S4-5
+         * and is NOT wired here (no ensureRoutineItems* call exists).
          */}
         {section === "schedule" && (
           <SyncProvider>
             <RoutineProvider dataService={ds}>
-              <ScheduleView />
+              <ScheduleItemsProvider dataService={ds}>
+                <ScheduleView />
+                <ScheduleItemsView />
+              </ScheduleItemsProvider>
             </RoutineProvider>
           </SyncProvider>
         )}
