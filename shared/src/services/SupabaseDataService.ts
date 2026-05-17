@@ -1911,6 +1911,14 @@ class SupabaseScheduleItemsService {
 
   /** Tauri `delete`: physical DELETE by id. */
   async deleteScheduleItem(id: string): Promise<void> {
+    // Issue 017 cascade-cleanup applied to the polymorphic cta relation
+    // (sync-auditor High-2): cta has NO FK to schedule_items (0006 keeps
+    // the polymorphic side FK-free, entity_type CHECK only), so a
+    // physical delete here would orphan calendar_tag_assignments rows.
+    // Clear them BEFORE the row vanishes so Cloud Sync delta replicates
+    // the cleared tag (mirrors deleteCalendarTag's parent-bump-then-
+    // delete order — see SupabaseCalendarTagsService).
+    await this.purgeCalendarTagAssignments([id]);
     const { error } = await this.client
       .from("schedule_items")
       .delete()
@@ -1952,13 +1960,22 @@ class SupabaseScheduleItemsService {
 
   /** Tauri `permanent_delete` (helpers::permanent_delete): physical DELETE guarded by is_deleted=1. */
   async permanentDeleteScheduleItem(id: string): Promise<void> {
-    const { error } = await this.client
+    // Same cta orphan guard as deleteScheduleItem (sync-auditor High-2),
+    // but ORDER-FLIPPED: the delete is guarded by is_deleted=1, so it is
+    // a no-op for a live row. Clear cta only for rows that were actually
+    // removed (`.select("id")` returns the deleted rows) — otherwise a
+    // mistaken purge of a live item would also wipe its tag.
+    const { data, error } = await this.client
       .from("schedule_items")
       .delete()
       .eq("id", id)
-      .eq("is_deleted", true);
+      .eq("is_deleted", true)
+      .select("id");
     if (error)
       throw new Error(`permanentDeleteScheduleItem failed: ${error.message}`);
+    if ((data as Array<{ id: string }> | null)?.length) {
+      await this.purgeCalendarTagAssignments([id]);
+    }
   }
 
   async fetchDeletedScheduleItems(): Promise<ScheduleItem[]> {
@@ -2203,7 +2220,12 @@ class SupabaseScheduleItemsService {
       .select("id");
     if (error)
       throw new Error(`bulkDeleteScheduleItems failed: ${error.message}`);
-    return (data as Array<{ id: string }>).length;
+    const removed = (data as Array<{ id: string }>).map((r) => r.id);
+    // sync-auditor High-2 — the generator's bulk physical-delete path is
+    // the highest-volume cta orphan source (Routine cleanup deletes many
+    // rows at once). Clear cta for exactly the rows that were removed.
+    await this.purgeCalendarTagAssignments(removed);
+    return removed.length;
   }
 
   /** Tauri `fetch_events`: routine_id IS NULL + is_deleted=0 (manual events), ORDER BY date, start_time. */
@@ -2227,6 +2249,39 @@ class SupabaseScheduleItemsService {
       .single();
     if (error) throw new Error(`${label} failed: ${error.message}`);
     return ((data as { version: number }).version ?? 0) + 1;
+  }
+
+  /**
+   * sync-auditor High-2 — Issue 017's "clean up derived rows when the
+   * parent is destroyed" principle applied to the POLYMORPHIC cta
+   * relation. calendar_tag_assignments has NO FK to schedule_items (0006
+   * keeps the polymorphic side FK-free, entity_type CHECK only), so the
+   * DB cascade that protects e.g. routine_group_assignments does NOT
+   * fire here — a physically-deleted schedule_item would leave an
+   * orphan cta forever (it survives delta sync; fetchAll keeps returning
+   * it). This is the symmetric counterpart of
+   * SupabaseCalendarTagsService.deleteCalendarTag (which clears cta when
+   * the OTHER parent — the tag definition — is deleted).
+   *
+   * No version bump is needed on a deleted parent (the row is gone — a
+   * delta peer learns the deletion via the schedule_items full-replicate
+   * / version path). PostgREST has no transaction; clearing cta as a
+   * separate statement is the failure-safe order (a partial failure can
+   * leave an orphan cta but never loses the schedule_items deletion).
+   * `entity_type` is constrained so the (schedule_item, id) filter
+   * cannot collide with a same-id task row.
+   */
+  private async purgeCalendarTagAssignments(ids: string[]): Promise<void> {
+    if (ids.length === 0) return;
+    const { error } = await this.client
+      .from("calendar_tag_assignments")
+      .delete()
+      .eq("entity_type", "schedule_item")
+      .in("entity_id", ids);
+    if (error)
+      throw new Error(
+        `schedule_item cta orphan cleanup failed: ${error.message}`,
+      );
   }
 }
 

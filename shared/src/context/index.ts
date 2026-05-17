@@ -27,3 +27,17 @@ export {
   ScheduleItemsContext,
   type ScheduleItemsContextValue,
 } from "./ScheduleItemsContextValue";
+
+export { CalendarProvider } from "./CalendarContext";
+export {
+  CalendarContext,
+  type CalendarContextValue,
+} from "./CalendarContextValue";
+
+// CalendarTags is a Mobile 省略 Provider (CLAUDE.md §2) — the Optional
+// hook variant lives in hooks/ (vision/coding-principles.md §4).
+export { CalendarTagsProvider } from "./CalendarTagsContext";
+export {
+  CalendarTagsContext,
+  type CalendarTagsContextValue,
+} from "./CalendarTagsContextValue";

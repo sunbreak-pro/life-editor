@@ -1,5 +1,5 @@
 ---
-Status: IN PROGRESS — S4-0〜S4-5 完了（生成器含む、role-qa+sync-auditor PASS、High2/Med3 は S8 申し送り）。次 S4-6 Calendar+CalendarTags（最終サブ）。並行チャット同居のため本ファイルが S4 自レーン SSOT
+Status: CODE COMPLETE — S4-0〜S4-6 全完了（0006 7テーブル + mapper7 + DataService7 + Routine/ScheduleItems/Calendar/CalendarTags Provider + 生成器、全 QA/security/sync-auditor PASS）。残: 0006 本番 SQL Editor apply + 実ブラウザ確認（次セッション初手）。S8 delta 申し送り記録済。並行チャット同居のため本ファイルが S4 自レーン SSOT
 Created: 2026-05-17
 Task: Phase 2 S4 — Schedule ドメイン Web 移植（最大規模・最後）
 Project path: /Users/newlife/dev/apps/life-editor
@@ -79,7 +79,7 @@ frontend 既存ロジック（読み取り参照のみ・不可侵）:
 - [x] **S4-3 RoutineProvider**（2026-05-17 完了）: Pattern A 3 ファイル（RoutineContextValue/RoutineContext/useRoutineContext）+ `useRoutinesAPI`（routines/groups/rga CRUD、DataService 注入）+ `web/src/schedule/ScheduleView.tsx` リーン UI + MainScreen 配線（Sync 内側・トリオ先頭）。**role-qa PASS（Blocker0 Major0 Minor2 Nit2）**。生成器/schedule_items 未着手＝S4-4/S4-5 繰延を厳守。vitest 54/54 非回帰・非破壊
 - [x] **S4-4 ScheduleItemsProvider**（2026-05-17 完了）: Pattern A 3 ファイル + `useScheduleItemsAPI`（schedule_items CRUD、DataService 注入、effect deps `[ds,syncVersion,date]`）+ `web/src/schedule/ScheduleItemsView.tsx` + MainScreen 配線（RoutineProvider 内側）。**生成器 import/呼出 0 件（grep 実証）**、createScheduleItem は routine_id=null 固定。Issue 011/020 は S4-2 層単一（hook 非二重化）。**role-qa PASS（Blocker0 Major0 Minor1 Nit2）**。vitest 54/54 非回帰・非破壊
 - [x] **S4-5 Routine 生成器**（2026-05-17 完了）: `routineFrequency`/`routineScheduleSync` 純粋関数を frontend から**論理 diff ゼロ**で shared/src/utils へ移植（role-qa が実ファイル diff 実証）+ `useScheduleItemsRoutineSync`（DI: dataService/onChanged）+ `web/src/schedule/RoutineScheduleSync.tsx` headless トリガー + ScheduleView に frequencyStartDate UI（申し送り③解消）+ vitest 17 パリティ（71/71）。Issue 017 四系統ガード実証、Issue 020 非新設。**role-qa PASS（Blocker0 Major0 Minor1 Nit2）+ life-editor-sync-auditor（Critical0、High2/Medium3 は全て S8 申し送り＝現状非顕在）**。非破壊
-- [ ] **S4-6 Calendar + CalendarTags**: calendars + **calendar_tag_definitions（本体・必須）** + calendar_tag_assignments（polymorphic）+ Mobile Optional バリアント（CalendarTags は Mobile 省略 Provider）。→ role-qa
+- [x] **S4-6 Calendar + CalendarTags**（2026-05-17 完了）: Calendar 通常 Pattern A + CalendarTags Pattern A + **Mobile Optional バリアント**（`useCalendarTagsContextOptional` + `createOptionalContextHook`、frontend MobileProviders 構成と整合）+ `useCalendars/useCalendarTagsAPI`（DI）+ ctd integer-identity + `web/src/schedule/{CalendarView,CalendarTagsView}.tsx` + MainScreen 配線（Sync>Calendar>Routine>SI>CalendarTags）+ **cta 孤児化対策**（物理削除 3 パスに `purgeCalendarTagAssignments`）。**role-qa PASS（Blocker0 Major0 Minor1 Nit2）+ sync-auditor（Critical0、High-2 部分解決＝Cloud 残留解消・delta 伝播は S8 申し送り）**。vitest 71/71 非回帰・非破壊
 
 各サブステップ末: session-verifier（web `tsc -b`/eslint/vite build、shared `tsc -b`+vitest）→ pathspec commit。S4-3 以降は Provider 依存順のため直列（並列不可）。
 
@@ -115,7 +115,7 @@ frontend 既存ロジック（読み取り参照のみ・不可侵）:
 - **0006 apply 後**: ヘッダ L24-40 の post-verify クエリ（7 テーブル×4policy 行 + relrowsecurity=true）を実 DB で必ず実行（次セッション・実ブラウザ確認時）
 - **S8（Realtime/delta）必須申し送り（S4-5 sync-auditor 由来・S8 実装前に必読）**:
   1. **rga delta は「rga.updated_at 直接ページング」で確定**し、`setGroupsForRoutine`（SupabaseDataService L1658-1675）の親 routine version/updated_at bump を**削除**（Tauri 親 join 前提の遺物。rga は updated_at 有 relation＝note_connections 型。親 bump は LWW 非単調リスクのみ生む）。db-conventions §3「親 join delta」は updated_at 無し relation の話で rga には非適用と明記（High-1）
-  2. **cta delta は task / schedule_item の polymorphic 2 本親 join を両方実装**。schedule_item 物理削除時の cta 孤児化を S4-6 で塞ぐ（親 bump or 明示削除＝Issue 017 原則の polymorphic 適用）（High-2）
+  2. **cta 孤児化／delta 伝播（High-2、S4-6 で部分解決）**: schedule_item 物理削除時の **Cloud 本体 cta 残留は S4-6 で解決済**（`purgeCalendarTagAssignments` を物理削除 3 パスに配線、最大孤児源＝生成器 bulkDeleteScheduleItems カバー、permanentDelete は order-flip で live 行 tag 誤消去防止）。**未解決＝S8 持ち越し**: 物理 DELETE は `updated_at` ページング delta に乗らず「cta 削除」の他デバイス伝播ができない（Issue 008 同型構造）→ S8 で **cta tombstone 化（0006 に soft-delete 列追加 migration）or 親不在推論**が必須。**task 側 cta 孤児化は S4-6 未対処**（task soft-delete + web は permanentDeleteTask 未経路で現状非顕在）→ S8 の cta delta 設計で schedule_item 側と同一機構により一括対処。`SupabaseDataService.ts:1912` 付近 `deleteScheduleItem` は web 未使用・Tauri 契約専用＝将来呼ぶ場合 purge 順序を permanentDelete 同様に要変更（Medium-1）
   3. **0006 の 7 テーブル全てに server_updated_at 相当を後続 migration で追加** or Supabase Realtime 採用。Issue 013-B（LWW 棄却時 cursor 非前進）は updated_at では解決不能（Low-2）
   4. **delta pull は最初から cursor pagination（nextSince + client ループ）**。Issue 012 の LIMIT+hasMore 半実装を繰り返さない（PostgREST `.range()` で実装容易）
   5. **ctd は full-replicate＝S8 delta 対象外**。version 列があっても delta テーブル分類に入れない（Medium-1。S4-6 QA で明示検証）

@@ -8,6 +8,8 @@ import {
   NoteProvider,
   RoutineProvider,
   ScheduleItemsProvider,
+  CalendarProvider,
+  CalendarTagsProvider,
   type DataService,
   type Session,
 } from "@life-editor/shared";
@@ -17,6 +19,8 @@ import { NotesView } from "./notes/NotesView";
 import { ScheduleView } from "./schedule/ScheduleView";
 import { ScheduleItemsView } from "./schedule/ScheduleItemsView";
 import { RoutineScheduleSync } from "./schedule/RoutineScheduleSync";
+import { CalendarView } from "./schedule/CalendarView";
+import { CalendarTagsView } from "./schedule/CalendarTagsView";
 
 /*
  * Phase 2 S1+S2 host shell.
@@ -108,24 +112,40 @@ export function MainScreen({ session }: { session: Session }) {
         )}
         {/*
          * Schedule trio order (CLAUDE.md §6.2:
-         * … → Routine → ScheduleItems → CalendarTags → …). Routine +
-         * ScheduleItems are wired here (S4-3 / S4-4); ScheduleItems sits
-         * INSIDE RoutineProvider per the dependency order. CalendarTags
-         * lands in S4-6. The Routine→schedule_items generator (S4-5) is
-         * the headless RoutineScheduleSync, mounted inside BOTH trio
-         * Providers so it can read the live routine set + anchored date;
-         * it materialises the anchored day's rows and re-reads via
-         * loadDate (web syncVersion is a static no-op until S8).
+         * … → Routine → ScheduleItems → CalendarTags → …). All three
+         * are now wired (S4-3/4/6): each inner Provider may read the
+         * outer one, so ScheduleItems sits INSIDE Routine and
+         * CalendarTags INSIDE ScheduleItems (the §6.2 order, top-down).
+         *
+         * CalendarProvider is NOT part of the trio — frontend keeps it
+         * higher and enabled on Mobile (CLAUDE.md §2); it is mounted
+         * here just inside Sync (it only needs the DataService + Sync).
+         *
+         * Mobile note: CalendarTagsProvider is a Mobile 省略 Provider.
+         * The web build is Desktop-shaped so it IS mounted here; on
+         * iOS/Android it would be dropped and CalendarTagsView (which
+         * reads useCalendarTagsContextOptional) renders null instead of
+         * crashing. CalendarProvider stays on Mobile (Calendar is core).
+         *
+         * The Routine→schedule_items generator (S4-5) is the headless
+         * RoutineScheduleSync, mounted inside the Providers so it can
+         * read the live routine set + anchored date.
          */}
         {section === "schedule" && (
           <SyncProvider>
-            <RoutineProvider dataService={ds}>
-              <ScheduleItemsProvider dataService={ds}>
-                <RoutineScheduleSync dataService={ds} />
-                <ScheduleView />
-                <ScheduleItemsView />
-              </ScheduleItemsProvider>
-            </RoutineProvider>
+            <CalendarProvider dataService={ds}>
+              <RoutineProvider dataService={ds}>
+                <ScheduleItemsProvider dataService={ds}>
+                  <CalendarTagsProvider dataService={ds}>
+                    <RoutineScheduleSync dataService={ds} />
+                    <ScheduleView />
+                    <ScheduleItemsView />
+                    <CalendarView />
+                    <CalendarTagsView />
+                  </CalendarTagsProvider>
+                </ScheduleItemsProvider>
+              </RoutineProvider>
+            </CalendarProvider>
           </SyncProvider>
         )}
       </div>

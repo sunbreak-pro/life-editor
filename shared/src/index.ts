@@ -113,6 +113,33 @@ export {
   type UseScheduleItemsRoutineSyncOptions,
 } from "./hooks/useScheduleItemsRoutineSync";
 
+// Calendars domain (S4-6) — Pattern A + DI hook. VERSIONED but
+// PHYSICAL-delete (S4-0: 0006 omits is_deleted). Enabled on Mobile too,
+// so plain (throwing) context hook only — no Optional variant.
+export { CalendarProvider } from "./context";
+export { CalendarContext, type CalendarContextValue } from "./context";
+export { useCalendarContext } from "./hooks/useCalendarContext";
+export {
+  useCalendarsAPI,
+  type UseCalendarsAPIOptions,
+} from "./hooks/useCalendarsAPI";
+
+// CalendarTags domain (S4-6) — calendar_tag_definitions (full-replicate,
+// integer-identity id) + calendar_tag_assignments (relation, 1:1
+// polymorphic). THIRD/last of the Schedule trio (§6.2), mounted inside
+// ScheduleItemsProvider. CalendarTags is a Mobile 省略 Provider
+// (CLAUDE.md §2) so it ships BOTH the throwing context hook (Desktop)
+// and the Optional variant (Mobile — vision/coding-principles.md §4).
+export { CalendarTagsProvider } from "./context";
+export { CalendarTagsContext, type CalendarTagsContextValue } from "./context";
+export { useCalendarTagsContext } from "./hooks/useCalendarTagsContext";
+export { useCalendarTagsContextOptional } from "./hooks/useCalendarTagsContextOptional";
+export {
+  useCalendarTagsAPI,
+  type UseCalendarTagsAPIOptions,
+  type CalendarTagEntityType,
+} from "./hooks/useCalendarTagsAPI";
+
 // Tasks domain — tree utilities (host UI builds on these)
 export {
   getDescendantTasks,
