@@ -14,7 +14,7 @@
 - **自動変換依存**: serde の双方向自動変換を前提とする
 - **戻り値型**: 必ず `#[derive(Serialize)]` を付ける。Repository 層の `rowToModel` が `snake_case → camelCase` 変換することを PR レビューで確認
 - **複雑な引数構造体**（DTO）: Rust 側 `snake_case` + `#[serde(rename_all = "camelCase")]` 属性で整合
-- **3 点同期**: IPC 追加 / 変更時は `src-tauri/src/commands/` + `src-tauri/src/lib.rs` + `frontend/src/services/TauriDataService.ts` の整合を手動確認（CLAUDE.md §7.2）
+- **4 点同期**: IPC 追加 / 変更時は `src-tauri/src/commands/` + `src-tauri/src/lib.rs` + `frontend/src/services/DataService.ts`（インターフェース定義）+ `frontend/src/services/TauriDataService.ts`（実装）の整合を手動確認。**正本は CLAUDE.md §7.2**（点数・手順はそちらに従う）
 
 ### 背景
 

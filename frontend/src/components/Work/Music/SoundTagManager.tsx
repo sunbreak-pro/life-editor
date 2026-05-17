@@ -3,6 +3,7 @@ import { Pencil, Trash2, Check, X } from "lucide-react";
 import { UnifiedColorPicker } from "../../shared/UnifiedColorPicker";
 import type { useSoundTags } from "../../../hooks/useSoundTags";
 import { useConfirmableSubmit } from "../../../hooks/useConfirmableSubmit";
+import { isImeComposing } from "../../../utils/imeSafe";
 
 interface SoundTagManagerProps {
   soundTagState: ReturnType<typeof useSoundTags>;
@@ -86,6 +87,7 @@ export function SoundTagManager({ soundTagState }: SoundTagManagerProps) {
                   value={editName}
                   onChange={(e) => setEditName(e.target.value)}
                   onKeyDown={(e) => {
+                    if (isImeComposing(e)) return;
                     if (e.key === "Enter") saveEdit();
                     if (e.key === "Escape") setEditingId(null);
                   }}

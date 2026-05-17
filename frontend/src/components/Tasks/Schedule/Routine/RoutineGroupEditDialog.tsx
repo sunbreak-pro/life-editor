@@ -6,6 +6,7 @@ import type { RoutineNode, FrequencyType } from "../../../../types/routine";
 import { UnifiedColorPicker } from "../../../shared/UnifiedColorPicker";
 import { FrequencySelector } from "./FrequencySelector";
 import { TimeDropdown } from "../../../shared/TimeDropdown";
+import { isImeComposing } from "../../../../utils/imeSafe";
 import { formatTime, timeToMinutes } from "../../../../utils/timeGridUtils";
 import { getTodayKey } from "../../../../utils/dateKey";
 
@@ -185,6 +186,7 @@ export function RoutineGroupEditDialog({
               className="w-full px-2 py-1.5 text-sm bg-notion-bg-secondary border border-notion-border rounded focus:outline-none focus:ring-1 focus:ring-notion-accent text-notion-text"
               autoFocus
               onKeyDown={(e) => {
+                if (isImeComposing(e)) return;
                 if (e.key === "Enter") handleSubmit();
               }}
             />

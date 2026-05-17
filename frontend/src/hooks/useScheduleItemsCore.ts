@@ -1,11 +1,11 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 import type { Dispatch, SetStateAction } from "react";
-import type { ScheduleItem } from "../types/schedule";
+import type { ScheduleItem, ScheduleItemUpdate } from "../types/schedule";
 import { getDataService } from "../services";
 import { logServiceError } from "../utils/logError";
 import { generateId } from "../utils/generateId";
 import { useUndoRedo } from "../components/shared/UndoRedo";
-import { formatDateKey } from "../utils/dateKey";
+import { formatDateKey, getTodayKey } from "../utils/dateKey";
 import type { ScheduleItemsCoreHandles } from "./useScheduleItemsRoutineSync";
 
 export function useScheduleItemsCore(
@@ -17,10 +17,7 @@ export function useScheduleItemsCore(
     () => setScheduleItemsVersion((v) => v + 1),
     [],
   );
-  const [currentDate, setCurrentDate] = useState(
-    () =>
-      `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, "0")}-${String(new Date().getDate()).padStart(2, "0")}`,
-  );
+  const [currentDate, setCurrentDate] = useState(() => getTodayKey());
   const { push } = useUndoRedo();
   const scheduleItemsRef = useRef(scheduleItems);
   useEffect(() => {
@@ -180,20 +177,7 @@ export function useScheduleItemsCore(
   const updateScheduleItem = useCallback(
     (
       id: string,
-      updates: Partial<
-        Pick<
-          ScheduleItem,
-          | "title"
-          | "startTime"
-          | "endTime"
-          | "completed"
-          | "completedAt"
-          | "memo"
-          | "content"
-          | "date"
-          | "isAllDay"
-        >
-      >,
+      updates: ScheduleItemUpdate,
       options?: { skipUndo?: boolean },
     ) => {
       const prev = scheduleItemsRef.current.find((item) => item.id === id);

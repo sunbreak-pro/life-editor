@@ -6,6 +6,7 @@ import { WikiTagChip } from "./WikiTagChip";
 import { UnifiedColorPicker } from "../shared/UnifiedColorPicker";
 import type { WikiTagEntityType, WikiTag } from "../../types/wikiTag";
 import { FOLDER_COLORS, getTextColorForBg } from "../../constants/folderColors";
+import { isImeComposing } from "../../utils/imeSafe";
 
 interface WikiTagListProps {
   entityId: string;
@@ -160,6 +161,7 @@ export function WikiTagList({ entityId, entityType }: WikiTagListProps) {
                   value={editName}
                   onChange={(e) => setEditName(e.target.value)}
                   onKeyDown={(e) => {
+                    if (isImeComposing(e)) return;
                     e.stopPropagation();
                     if (e.key === "Enter") handleEditSave();
                     if (e.key === "Escape") setEditingTag(null);

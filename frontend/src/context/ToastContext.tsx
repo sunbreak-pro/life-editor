@@ -3,6 +3,7 @@ import {
   useContext,
   useState,
   useCallback,
+  useMemo,
   type ReactNode,
 } from "react";
 import { Toast } from "../components/shared/Toast";
@@ -71,8 +72,10 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     setToast(null);
   }, []);
 
+  const value = useMemo(() => ({ showToast }), [showToast]);
+
   return (
-    <ToastContext.Provider value={{ showToast }}>
+    <ToastContext.Provider value={value}>
       {children}
       {toast && (
         <Toast

@@ -20,6 +20,10 @@ export function getDescendantTasks(
   }
 
   const result: TaskNode[] = [];
+  // visited guard: a cyclic / self-referential parentId chain would otherwise
+  // push the same folder forever and OOM the worker (see known-issue 016).
+  // On a cycle we stop descending; whatever was collected so far is returned.
+  const visited = new Set<string>([folderId]);
   const stack = [folderId];
   while (stack.length > 0) {
     const parentId = stack.pop()!;
@@ -27,7 +31,8 @@ export function getDescendantTasks(
     if (!children) continue;
     for (const child of children) {
       result.push(child);
-      if (child.type === "folder") {
+      if (child.type === "folder" && !visited.has(child.id)) {
+        visited.add(child.id);
         stack.push(child.id);
       }
     }
@@ -62,6 +67,11 @@ export function collectDescendantIds(
     const children = childrenMap.get(parentId);
     if (!children) continue;
     for (const childId of children) {
+      // Reuse the `ids` Set as the visited guard: only descend into a child
+      // that has not been seen yet. A cyclic / self-referential parentId
+      // chain would otherwise loop forever and OOM the worker (known-issue
+      // 016). All reachable ids are still collected exactly once.
+      if (ids.has(childId)) continue;
       ids.add(childId);
       stack.push(childId);
     }
@@ -93,6 +103,11 @@ export function isDescendantOf(
     }
   }
 
+  // visited guard against cyclic / self-referential parentId chains, which
+  // would otherwise push the same node forever and OOM the worker (see
+  // known-issue 016). The target match is still checked BEFORE the guard so
+  // a directly-reachable child in a 2-node cycle is found immediately.
+  const visited = new Set<string>();
   const stack = [parentId];
   while (stack.length > 0) {
     const current = stack.pop()!;
@@ -100,6 +115,8 @@ export function isDescendantOf(
     if (!children) continue;
     for (const id of children) {
       if (id === childId) return true;
+      if (visited.has(id)) continue;
+      visited.add(id);
       stack.push(id);
     }
   }

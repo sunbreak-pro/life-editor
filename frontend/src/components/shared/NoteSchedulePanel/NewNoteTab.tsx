@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
+import { isImeComposing } from "../../../utils/imeSafe";
 
 interface NewNoteTabProps {
   onSubmit: (title: string) => void;
@@ -19,6 +20,7 @@ export function NewNoteTab({ onSubmit }: NewNoteTabProps) {
         className="w-full px-2 py-1.5 text-sm bg-notion-bg-secondary border border-notion-border rounded focus:outline-none focus:ring-1 focus:ring-notion-accent text-notion-text"
         autoFocus
         onKeyDown={(e) => {
+          if (isImeComposing(e)) return;
           if (e.key === "Enter" && title.trim()) {
             onSubmit(title.trim());
           }

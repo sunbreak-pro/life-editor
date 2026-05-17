@@ -1,26 +1,13 @@
 import { describe, it, expect } from "vitest";
 import {
   computeShiftedTimes,
-  hhmmToMinutes,
-  minutesToHHMM,
   snapMinutes,
   topPxToMinutes,
 } from "./mobileSnapTime";
 
-describe("hhmmToMinutes / minutesToHHMM", () => {
-  it("round-trips common values", () => {
-    expect(hhmmToMinutes("09:30")).toBe(570);
-    expect(minutesToHHMM(570)).toBe("09:30");
-    expect(hhmmToMinutes("00:00")).toBe(0);
-    expect(minutesToHHMM(0)).toBe("00:00");
-    expect(hhmmToMinutes("23:59")).toBe(23 * 60 + 59);
-  });
-
-  it("clamps minutesToHHMM to [0, 24:00]", () => {
-    expect(minutesToHHMM(-30)).toBe("00:00");
-    expect(minutesToHHMM(24 * 60 + 10)).toBe("24:00");
-  });
-});
+// hhmmToMinutes / minutesToHHMM were removed in refactor Phase 2-2 (merged into
+// timeGridUtils.timeToMinutes / minutesToTimeString). Their behavior is now
+// covered by timeGridUtils.test.ts.
 
 describe("snapMinutes", () => {
   it("rounds to the nearest snap boundary", () => {

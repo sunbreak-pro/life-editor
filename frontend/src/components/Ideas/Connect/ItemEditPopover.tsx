@@ -5,6 +5,7 @@ import { useTranslation } from "react-i18next";
 import { useWikiTags } from "../../../hooks/useWikiTags";
 import type { WikiTagEntityType } from "../../../types/wikiTag";
 import { FOLDER_COLORS } from "../../../constants/folderColors";
+import { isImeComposing } from "../../../utils/imeSafe";
 
 interface ItemEditPopoverProps {
   entityId: string;
@@ -68,6 +69,7 @@ export function ItemEditPopover({
   };
 
   const handleTitleKeyDown = (e: React.KeyboardEvent) => {
+    if (isImeComposing(e)) return;
     e.stopPropagation();
     if (e.key === "Enter") {
       (e.target as HTMLInputElement).blur();

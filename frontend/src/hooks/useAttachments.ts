@@ -1,6 +1,7 @@
 import { useRef, useCallback } from "react";
 import { getDataService } from "../services";
-import type { AttachmentMeta, AttachmentType } from "../types/attachment";
+import { generateId } from "../utils/generateId";
+import type { AttachmentMeta } from "../types/attachment";
 
 const MAX_IMAGE_SIZE = 10 * 1024 * 1024; // 10MB
 const MAX_PDF_SIZE = 50 * 1024 * 1024; // 50MB
@@ -42,10 +43,6 @@ function validatePdfBytes(buf: ArrayBuffer): boolean {
     bytes[2] === 0x44 &&
     bytes[3] === 0x46
   );
-}
-
-function generateId(type: AttachmentType): string {
-  return `${type}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
 export function useAttachments() {

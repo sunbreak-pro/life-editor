@@ -2,6 +2,7 @@ import { memo, useState, useCallback, useRef, useEffect } from "react";
 import { NodeResizer, type NodeProps } from "@xyflow/react";
 import { Pencil } from "lucide-react";
 import { UnifiedColorPicker } from "../../../shared/UnifiedColorPicker";
+import { isImeComposing } from "../../../../utils/imeSafe";
 
 export type PaperFrameData = {
   frameColor: string;
@@ -76,6 +77,7 @@ function PaperFrameNodeInner({
               onChange={(e) => setLabel(e.target.value)}
               onBlur={handleLabelBlur}
               onKeyDown={(e) => {
+                if (isImeComposing(e)) return;
                 if (e.key === "Enter" || e.key === "Escape") handleLabelBlur();
               }}
               className="text-[10px] font-medium bg-transparent outline-none text-notion-text nodrag px-0.5"

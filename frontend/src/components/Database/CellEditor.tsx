@@ -2,6 +2,7 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { Check, Plus } from "lucide-react";
 import type { PropertyType, SelectOption } from "../../types/database";
+import { isImeComposing } from "../../utils/imeSafe";
 
 export const SELECT_COLORS = [
   "#6366f1",
@@ -91,6 +92,7 @@ function TextEditor({
       onChange={(e) => setDraft(e.target.value)}
       onBlur={commit}
       onKeyDown={(e) => {
+        if (isImeComposing(e)) return;
         if (e.key === "Enter") commit();
         if (e.key === "Escape") onClose();
         e.stopPropagation();
@@ -130,6 +132,7 @@ function NumberEditor({
       onChange={(e) => setDraft(e.target.value)}
       onBlur={commit}
       onKeyDown={(e) => {
+        if (isImeComposing(e)) return;
         if (e.key === "Enter") commit();
         if (e.key === "Escape") onClose();
         e.stopPropagation();
@@ -236,6 +239,7 @@ function SelectEditor({
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           onKeyDown={(e) => {
+            if (isImeComposing(e)) return;
             if (e.key === "Enter" && showCreate) {
               handleCreate();
             } else if (e.key === "Escape") {

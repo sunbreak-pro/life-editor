@@ -1,4 +1,5 @@
 import { useState, useCallback, useRef } from "react";
+import { isImeComposing } from "../utils/imeSafe";
 
 interface ConfirmableSubmitOptions {
   singleEnter?: boolean;
@@ -22,7 +23,7 @@ export function useConfirmableSubmit(
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
-      if (e.nativeEvent.isComposing) return;
+      if (isImeComposing(e)) return;
       if (e.key === "Enter") {
         e.preventDefault();
         if (singleEnter || readyToSubmit) {

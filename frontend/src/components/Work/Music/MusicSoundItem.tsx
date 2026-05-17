@@ -4,6 +4,7 @@ import { Trash2, Pencil, Check, Play, Pause } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useAudioContext } from "../../../hooks/useAudioContext";
 import { SoundTagEditor } from "./SoundTagEditor";
+import { isImeComposing } from "../../../utils/imeSafe";
 import { SOUND_TYPES } from "../../../constants/sounds";
 import type { useSoundTags } from "../../../hooks/useSoundTags";
 
@@ -64,6 +65,7 @@ export function MusicSoundItem({
   }, [editValue, soundId, soundTagState, isCustom, audio]);
 
   const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
+    if (isImeComposing(e)) return;
     e.stopPropagation();
     if (e.key === "Enter") handleSave();
     if (e.key === "Escape") {

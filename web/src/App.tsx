@@ -5,11 +5,12 @@ import {
   type Session,
 } from "@life-editor/shared";
 import { AuthScreen } from "./AuthScreen";
-import { TasksScreen } from "./TasksScreen";
+import { MainScreen } from "./MainScreen";
 
 /*
- * Phase 1 root: session gate.
- * No session -> AuthScreen. Session -> TasksScreen (Supabase CRUD).
+ * Root: session gate.
+ * No session -> AuthScreen. Session -> MainScreen (Tasks + Daily over
+ * Supabase; section switch is local state per CLAUDE.md §3.2).
  */
 function App() {
   const [session, setSession] = useState<Session | null>(null);
@@ -39,7 +40,7 @@ function App() {
     );
   }
 
-  return session ? <TasksScreen session={session} /> : <AuthScreen />;
+  return session ? <MainScreen session={session} /> : <AuthScreen />;
 }
 
 export default App;

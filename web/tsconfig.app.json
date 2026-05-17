@@ -15,7 +15,7 @@
     "noEmit": true,
     "jsx": "react-jsx",
     "paths": {
-      "@life-editor/shared": ["../shared/src/index.ts"]
+      "@life-editor/shared": ["../shared/dist/index.d.ts"]
     },
 
     /* Linting */
@@ -24,5 +24,6 @@
     "erasableSyntaxOnly": true,
     "noFallthroughCasesInSwitch": true
   },
-  "include": ["src", "../shared/src"]
+  "references": [{ "path": "../shared" }],
+  "include": ["src"]
 }

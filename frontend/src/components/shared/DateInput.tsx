@@ -1,5 +1,6 @@
 import { useState, useRef, useCallback } from "react";
 import { useTranslation } from "react-i18next";
+import { isImeComposing } from "../../utils/imeSafe";
 
 interface DateInputProps {
   year: number;
@@ -86,6 +87,7 @@ export function DateInput({
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
+      if (isImeComposing(e)) return;
       if (!activeField) return;
 
       if (e.key === "Tab") {

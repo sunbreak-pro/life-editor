@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import type { Editor } from "@tiptap/react";
 import { MoreVertical } from "lucide-react";
 import { setStoredHeadingFontSize } from "../../../utils/headingFontSize";
+import { isImeComposing } from "../../../utils/imeSafe";
 import {
   type PanelCommand,
   type SubAction,
@@ -78,6 +79,7 @@ export function CommandPanel({
           value={customFontSize}
           onChange={(e) => setCustomFontSize(e.target.value)}
           onKeyDown={(e) => {
+            if (isImeComposing(e)) return;
             if (e.key === "Enter") {
               e.preventDefault();
               const size = parseInt(customFontSize);

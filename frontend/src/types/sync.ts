@@ -78,19 +78,7 @@ export interface SyncFullResponse {
   timestamp: string;
 }
 
-export interface SyncChangesResponse {
-  tasks: TaskNode[];
-  dailies: DailyNode[];
-  notes: NoteNode[];
-  scheduleItems: ScheduleItem[];
-  routines: RoutineNode[];
-  wikiTags: WikiTag[];
-  wikiTagAssignments: WikiTagAssignment[];
-  wikiTagConnections: WikiTagConnection[];
-  noteConnections: NoteConnection[];
-  timeMemos: TimeMemo[];
-  calendars: CalendarNode[];
-  timestamp: string;
+export interface SyncChangesResponse extends SyncFullResponse {
   hasMore: boolean;
 }
 
