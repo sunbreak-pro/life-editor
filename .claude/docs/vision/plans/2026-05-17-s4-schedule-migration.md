@@ -1,5 +1,5 @@
 ---
-Status: IN PROGRESS — S4-0 調査着手。並行チャット同居のため本ファイルが S4 自レーン SSOT
+Status: IN PROGRESS — S4-0 完了（7 テーブル確定）。次 S4-1 migration+mapper。並行チャット同居のため本ファイルが S4 自レーン SSOT
 Created: 2026-05-17
 Task: Phase 2 S4 — Schedule ドメイン Web 移植（最大規模・最後）
 Project path: /Users/newlife/dev/apps/life-editor
@@ -33,22 +33,32 @@ commit 中。本 S4 は子ブランチ `phase-2/schedule-migration` で隔離。
 - **Q5 実ブラウザは 0006 本番 apply 後＝次セッション**（S3 同フロー。migration ヘッダの apply 手順は現運用=手動 SQL Editor に合わせて記述）
 - **Q6 routine_groups/calendars のソフトデリート有無は S4-0 で frontend 実 schema 読み取りで確定**
 
-## sync 区分判定（軸 1、db-conventions §3-4 + S1/S3 前例）
+## sync 区分判定（軸 1、S4-0 で確定済）
 
-| テーブル                  | sync 区分                    | 要点                                                                                                           |
-| ------------------------- | ---------------------------- | -------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
-| routines                  | versioned                    | soft-delete + version + LWW。tasks/notes 同型                                                                  |
-| routine_groups            | versioned（暫定）            | 型に isDeleted 無し → S4-0 で実 schema 確定                                                                    |
-| routine_group_assignments | relation（soft-delete 付き） | junction。**soft-delete-aware delta 必須**（Issue 008 直系。親 updated_at で JOIN pull + is_deleted フィルタ） |
-| schedule_items            | versioned + 論理一意特別扱い | `(routine_id, date)` partial UNIQUE index `WHERE routine_id IS NOT NULL AND is_deleted=false`（Issue 011）     |
-| calendars                 | versioned（暫定）            | 型に isDeleted 無し → S4-0 で実 schema 確定                                                                    |
-| calendar_tag_assignments  | relation                     | polymorphic（entityType task                                                                                   | schedule_item）。**soft-delete-aware delta 必須**（Issue 008、db-conventions §4 例示テーブル）。task 側 entity は FK 張らず polymorphic |
+| テーブル                  | sync 区分（確定）                                             | 0006 での扱い                                                                                                                   |
+| ------------------------- | ------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| routines                  | versioned（soft-delete 完備）                                 | id PK + version + is_deleted/deleted_at                                                                                         |
+| routine_groups            | versioned（version 有 / **soft-delete 無 = 物理削除**）       | id PK + version。**is_deleted 列を作らない**（frontend schema 乖離防止）                                                        |
+| routine_group_assignments | relation + soft-delete（version 無）                          | id PK + updated_at + is_deleted/deleted_at。UNIQUE(routine_id,group_id)。soft-delete-aware delta（Issue 008）                   |
+| schedule_items            | versioned + 論理一意                                          | id PK + version + is_deleted。`(routine_id,date) WHERE routine_id IS NOT NULL AND is_deleted=false` partial UNIQUE（Issue 011） |
+| calendars                 | versioned（version 有 / **soft-delete 無 = 物理削除**）       | id PK + version。**is_deleted 列を作らない**。folder_id FK tasks(id)                                                            |
+| calendar_tag_definitions  | versioned（V65 で sync 列付与）                               | **id integer generated always as identity**（CalendarTag.id=number 契約、UUID 化不可）。S4-6 必須（cta FK 先）                  |
+| calendar_tag_assignments  | relation（version/soft-delete 共に無 = 物理削除 polymorphic） | id PK + updated_at。UNIQUE(entity_type,entity_id)=1:1。note_connections 同型 delta                                              |
 
-全テーブル RLS enable + owner-only 4policy + `user_id default auth.uid()` 必須（anon key 公開前提・S0 ゲート機械検証）。
+全テーブル RLS enable + owner-only 4policy + `user_id default auth.uid()` 必須（relation の rga/cta/definitions にも user_id 付与＝owner policy 成立、note_connections 同型）。
 
-## スキーマ依存順（軸 2）
+### S4-0 確定事項（S4-1 実装の前提・厳守）
 
-0006 内 CREATE 順（FK 先行）: 1.calendars → 2.routines → 3.routine_groups → 4.routine_group_assignments(→3,2) → 5.schedule_items(→2、partial UNIQUE index) → 6.calendar_tag_assignments(→5、task polymorphic)。各直後に RLS+4policy。drop は子→親逆順 cascade（0005 冪等パターン）。
+- **routine_groups / calendars に is_deleted/deleted_at を作らない**（frontend は version 有・物理削除のみ。soft-delete 列追加は schema 乖離 = S2/S3 の「frontend 型が正本」原則違反）
+- **date/start_time/end_time は `text` 厳守**（`date`/`timestamptz` 型は PostgREST が TZ 変換し JST 境界で日付ズレ。frontend 純粋関数は `new Date(d+"T00:00:00")`=ローカル一貫で UTC 変換無し）。created_at/updated_at は timestamptz 可。`routine.frequency_days` は DB text(JSON文字列) ↔ TS `number[]` を mapper 内 parse（roundtrip で JSON 配列往復を必ずカバー）
+- **`updateScheduleItem` は Issue 020 パターン適用**（read-then-write を単一 UPSERT-on-id LWW に置換、`noteUpdatesToPatch` whitelist patch 雛形）。生成器フック/純粋関数は改変禁止だが DataService 実装層（S4-2）で 020 を敷く
+- **CalendarTag.id は integer identity**（number 契約。UUID 化不可。mapper は number↔integer 素通し）
+- **0006 ヘッダ apply 運用 = 手動 SQL Editor**（MCP write 凍結中 = MEMORY 申し送り⑥。0005 ヘッダの「MCP apply」文言は陳腐化。0005 も実際は手動適用済）
+- `ensureRoutineItemsForDateRange` は件数上限無し（既存仕様・改変禁止）。冪等性の最終防波堤＝schedule_items partial UNIQUE。S4-5 QA で月高速連打時の生成件数を観測
+
+## スキーマ依存順（軸 2、S4-0 で 7 テーブルに修正）
+
+0006 内 CREATE 順（FK 先行）: 1.calendars → 2.routines → 3.routine_groups → 4.routine_group_assignments(→3,2 cascade) → 5.schedule_items(→2 SET NULL、partial UNIQUE) → 6.calendar_tag_definitions → 7.calendar_tag_assignments(→6 cascade、task/schedule_item polymorphic は FK 張らず entity_type CHECK)。各直後に RLS+4policy。drop は逆順 cascade（cta→definitions→schedule_items→rga→routine_groups→routines→calendars）。
 
 ## Routine 生成仕様（軸 3）
 
@@ -63,13 +73,13 @@ frontend 既存ロジック（読み取り参照のみ・不可侵）:
 
 ## Steps（サブステップ分割境界 = 1 PR に抱えない）
 
-- [ ] **S4-0 調査**（role-engineer read-only）: frontend 実 schema（rusqlite migrations / cloud schema）で routine_groups/calendars のソフトデリート列確定（Q6）/ 6 テーブル全列セット確定 / CalendarTag 本体テーブルの S4 内要否確定（Q3 補足）/ Routine 生成 timezone・先読み範囲・編集時 update レースの曖昧点を列挙。**書き込みなし**、結果をメインに返す
-- [ ] **S4-1 migration + mapper**: `supabase/migrations/0006_schedule_full_schema.sql`（6 テーブル + RLS 4policy×6 + schedule_items partial UNIQUE index、ヘッダは手動 SQL Editor 運用記述）+ mapper 6 種 + roundtrip テスト（shared vitest 利用）。→ role-qa + **security-reviewer 並列**（RLS naked/anon 流出 Critical、`check-rls.sql` offender0 静的保証）
+- [x] **S4-0 調査**（role-engineer read-only・2026-05-17 完了）: スキーマ正本特定（SQLite full_schema+v61_plus V69 / D1 0001+0004+0007 / shared/src/types 既存 forward-port 済）。sync 区分 7 テーブル確定、is_deleted 非作成 2 テーブル、date/time text 厳守、updateScheduleItem 020 適用、CalendarTag integer identity、生成仕様 timezone/先読み/レース解消。ブロッカー無し（上記「S4-0 確定事項」に反映済）
+- [ ] **S4-1 migration + mapper**: `supabase/migrations/0006_schedule_full_schema.sql`（**7 テーブル** + RLS 4policy×7 + schedule_items partial UNIQUE、ヘッダ=手動 SQL Editor）+ mapper 7 種 + roundtrip（shared `src/services/*.roundtrip.ts` + vitest `tests/*.test.ts`、frequency_days JSON 往復・updatesToPatch partial 安全を必ずカバー）。SELECT_COLUMNS は素カラム名のみ（S2 再発防止）。→ role-qa + **security-reviewer 並列**（RLS naked/anon 流出 Critical、`check-rls.sql` offender0 静的保証）
 - [ ] **S4-2 SupabaseDataService**: routines/groups/assignments/schedule_items/calendars/cta の Proxy throw 置換。relation の soft-delete-aware delta（Issue 008）。→ role-qa
 - [ ] **S4-3 RoutineProvider**: shared context(Pattern A)+hooks + web ミニ UI。Provider 依存順先頭。→ role-qa
 - [ ] **S4-4 ScheduleItemsProvider**: schedule_items CRUD + 論理一意（Issue 011）。**Routine 生成は含めない**。→ role-qa
 - [ ] **S4-5 Routine 生成器**: 純粋関数 shared 移植 + 生成器フック。**Issue 017 両系統ガード専用 QA**。→ role-qa（017 再発を専用検証）
-- [ ] **S4-6 Calendar + CalendarTags**: calendars + calendar_tag_assignments + Mobile Optional バリアント（CalendarTags は Mobile 省略 Provider）。→ role-qa
+- [ ] **S4-6 Calendar + CalendarTags**: calendars + **calendar_tag_definitions（本体・必須）** + calendar_tag_assignments（polymorphic）+ Mobile Optional バリアント（CalendarTags は Mobile 省略 Provider）。→ role-qa
 
 各サブステップ末: session-verifier（web `tsc -b`/eslint/vite build、shared `tsc -b`+vitest）→ pathspec commit。S4-3 以降は Provider 依存順のため直列（並列不可）。
 
