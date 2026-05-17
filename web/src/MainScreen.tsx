@@ -16,6 +16,7 @@ import { DailyView } from "./daily/DailyView";
 import { NotesView } from "./notes/NotesView";
 import { ScheduleView } from "./schedule/ScheduleView";
 import { ScheduleItemsView } from "./schedule/ScheduleItemsView";
+import { RoutineScheduleSync } from "./schedule/RoutineScheduleSync";
 
 /*
  * Phase 2 S1+S2 host shell.
@@ -110,13 +111,17 @@ export function MainScreen({ session }: { session: Session }) {
          * … → Routine → ScheduleItems → CalendarTags → …). Routine +
          * ScheduleItems are wired here (S4-3 / S4-4); ScheduleItems sits
          * INSIDE RoutineProvider per the dependency order. CalendarTags
-         * lands in S4-6. The Routine→schedule_items generator is S4-5
-         * and is NOT wired here (no ensureRoutineItems* call exists).
+         * lands in S4-6. The Routine→schedule_items generator (S4-5) is
+         * the headless RoutineScheduleSync, mounted inside BOTH trio
+         * Providers so it can read the live routine set + anchored date;
+         * it materialises the anchored day's rows and re-reads via
+         * loadDate (web syncVersion is a static no-op until S8).
          */}
         {section === "schedule" && (
           <SyncProvider>
             <RoutineProvider dataService={ds}>
               <ScheduleItemsProvider dataService={ds}>
+                <RoutineScheduleSync dataService={ds} />
                 <ScheduleView />
                 <ScheduleItemsView />
               </ScheduleItemsProvider>

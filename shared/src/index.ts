@@ -95,6 +95,24 @@ export {
   type UseScheduleItemsAPIOptions,
 } from "./hooks/useScheduleItemsAPI";
 
+// Routine→schedule_items generator (S4-5). Verbatim-ported pure
+// functions + DI generator hook. The pure functions are exported so the
+// host (and tests) can exercise the decision logic without React; the
+// hook injects DataService + an onChanged refresh signal (web
+// syncVersion is static — CLAUDE.md §6.4 DI, no module singleton).
+export { shouldRoutineRunOnDate } from "./utils/routineFrequency";
+export {
+  diffRoutineScheduleItems,
+  shouldCreateRoutineItem,
+  collectRoutineItemsForDates,
+  type RoutineSyncCreate,
+  type RoutineSyncUpdate,
+} from "./utils/routineScheduleSync";
+export {
+  useScheduleItemsRoutineSync,
+  type UseScheduleItemsRoutineSyncOptions,
+} from "./hooks/useScheduleItemsRoutineSync";
+
 // Tasks domain — tree utilities (host UI builds on these)
 export {
   getDescendantTasks,

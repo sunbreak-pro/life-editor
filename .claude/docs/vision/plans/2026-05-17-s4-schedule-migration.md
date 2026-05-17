@@ -1,5 +1,5 @@
 ---
-Status: IN PROGRESS — S4-0〜S4-4 完了（0006 + mapper7 + DataService7 + Routine/ScheduleItems Provider、全 QA PASS）。次 S4-5 Routine 生成器（Issue 017 専用 QA + sync-auditor 並列）。並行チャット同居のため本ファイルが S4 自レーン SSOT
+Status: IN PROGRESS — S4-0〜S4-5 完了（生成器含む、role-qa+sync-auditor PASS、High2/Med3 は S8 申し送り）。次 S4-6 Calendar+CalendarTags（最終サブ）。並行チャット同居のため本ファイルが S4 自レーン SSOT
 Created: 2026-05-17
 Task: Phase 2 S4 — Schedule ドメイン Web 移植（最大規模・最後）
 Project path: /Users/newlife/dev/apps/life-editor
@@ -78,7 +78,7 @@ frontend 既存ロジック（読み取り参照のみ・不可侵）:
 - [x] **S4-2 SupabaseDataService**（2026-05-17 完了）: 7 テーブル Proxy throw → 実装（routines 8/groups 4/rga 2/schedule_items 19/calendars 4/ctd+cta 7 メソッド）+ barrel type export。Issue 020（updateScheduleItem 単一 patch）/008（rga unassign=is_deleted）/011（(routine_id,date) live ガード）/017（softDeleteRoutine 子 cascade）敷設。**role-qa PASS（Blocker0 Major0 Minor0 Nit0）**。engineer 申告 4 乖離（calendar folderId drop / version bump Tauri 乖離 / ctd full-replicate / cta IDOR）すべて文書化済の妥当な意図的乖離。vitest 54/54 非回帰・frontend/src-tauri/cloud diff0
 - [x] **S4-3 RoutineProvider**（2026-05-17 完了）: Pattern A 3 ファイル（RoutineContextValue/RoutineContext/useRoutineContext）+ `useRoutinesAPI`（routines/groups/rga CRUD、DataService 注入）+ `web/src/schedule/ScheduleView.tsx` リーン UI + MainScreen 配線（Sync 内側・トリオ先頭）。**role-qa PASS（Blocker0 Major0 Minor2 Nit2）**。生成器/schedule_items 未着手＝S4-4/S4-5 繰延を厳守。vitest 54/54 非回帰・非破壊
 - [x] **S4-4 ScheduleItemsProvider**（2026-05-17 完了）: Pattern A 3 ファイル + `useScheduleItemsAPI`（schedule_items CRUD、DataService 注入、effect deps `[ds,syncVersion,date]`）+ `web/src/schedule/ScheduleItemsView.tsx` + MainScreen 配線（RoutineProvider 内側）。**生成器 import/呼出 0 件（grep 実証）**、createScheduleItem は routine_id=null 固定。Issue 011/020 は S4-2 層単一（hook 非二重化）。**role-qa PASS（Blocker0 Major0 Minor1 Nit2）**。vitest 54/54 非回帰・非破壊
-- [ ] **S4-5 Routine 生成器**: 純粋関数 shared 移植 + 生成器フック。**Issue 017 両系統ガード専用 QA**。→ role-qa（017 再発を専用検証）
+- [x] **S4-5 Routine 生成器**（2026-05-17 完了）: `routineFrequency`/`routineScheduleSync` 純粋関数を frontend から**論理 diff ゼロ**で shared/src/utils へ移植（role-qa が実ファイル diff 実証）+ `useScheduleItemsRoutineSync`（DI: dataService/onChanged）+ `web/src/schedule/RoutineScheduleSync.tsx` headless トリガー + ScheduleView に frequencyStartDate UI（申し送り③解消）+ vitest 17 パリティ（71/71）。Issue 017 四系統ガード実証、Issue 020 非新設。**role-qa PASS（Blocker0 Major0 Minor1 Nit2）+ life-editor-sync-auditor（Critical0、High2/Medium3 は全て S8 申し送り＝現状非顕在）**。非破壊
 - [ ] **S4-6 Calendar + CalendarTags**: calendars + **calendar_tag_definitions（本体・必須）** + calendar_tag_assignments（polymorphic）+ Mobile Optional バリアント（CalendarTags は Mobile 省略 Provider）。→ role-qa
 
 各サブステップ末: session-verifier（web `tsc -b`/eslint/vite build、shared `tsc -b`+vitest）→ pathspec commit。S4-3 以降は Provider 依存順のため直列（並列不可）。
@@ -113,6 +113,14 @@ frontend 既存ロジック（読み取り参照のみ・不可侵）:
 - **論理 UNIQUE が user_id 非包含（security Low 1）**: `uq_schedule_items_routine_date` / `cta UNIQUE(entity_type,entity_id)` / `ctd UNIQUE(name)` は user_id を含まずグローバル。N=1（作者のみ Cloud Sync、CLAUDE.md §1 Non-Goals マルチテナント）で実害ゼロ。将来マルチユーザー化時のみ `UNIQUE(user_id, ...)` 化 TODO（apply ブロッカーではない）
 - **ctd の sync full-replicate 整合（QA Minor 1）**: calendar_tag_definitions は VERSIONED_TABLES 外＝full-replicate 扱いのため Supabase 側で is_deleted 等を意図的 drop（0006 ヘッダに理由追記済）。S4-6（ctd 本体実装）の QA で full-replicate 経路の整合を再検証対象に
 - **0006 apply 後**: ヘッダ L24-40 の post-verify クエリ（7 テーブル×4policy 行 + relrowsecurity=true）を実 DB で必ず実行（次セッション・実ブラウザ確認時）
+- **S8（Realtime/delta）必須申し送り（S4-5 sync-auditor 由来・S8 実装前に必読）**:
+  1. **rga delta は「rga.updated_at 直接ページング」で確定**し、`setGroupsForRoutine`（SupabaseDataService L1658-1675）の親 routine version/updated_at bump を**削除**（Tauri 親 join 前提の遺物。rga は updated_at 有 relation＝note_connections 型。親 bump は LWW 非単調リスクのみ生む）。db-conventions §3「親 join delta」は updated_at 無し relation の話で rga には非適用と明記（High-1）
+  2. **cta delta は task / schedule_item の polymorphic 2 本親 join を両方実装**。schedule_item 物理削除時の cta 孤児化を S4-6 で塞ぐ（親 bump or 明示削除＝Issue 017 原則の polymorphic 適用）（High-2）
+  3. **0006 の 7 テーブル全てに server_updated_at 相当を後続 migration で追加** or Supabase Realtime 採用。Issue 013-B（LWW 棄却時 cursor 非前進）は updated_at では解決不能（Low-2）
+  4. **delta pull は最初から cursor pagination（nextSince + client ループ）**。Issue 012 の LIMIT+hasMore 半実装を繰り返さない（PostgREST `.range()` で実装容易）
+  5. **ctd は full-replicate＝S8 delta 対象外**。version 列があっても delta テーブル分類に入れない（Medium-1。S4-6 QA で明示検証）
+  6. Tauri→Supabase data import 経路で schedule_items version 振り直し or full-replace（Web 側 version+1 vs Tauri updated_at-only の非対称、Medium-2。移行 SSOT に追記推奨）
+- **S4-5 申し送り**: ① `ensureRoutineItemsForDate` の楽観 UI が frontend より縮退（onChanged→loadDate 再読込のみ、生成直後 1RT ちらつき可能性。永続化は同一）— 実ブラウザ確認(次セッション)で「月高速連打の生成件数 + 生成直後ちらつき/遅延」を観測項目に ② `RoutineScheduleSync` effect が routines 配列参照で毎回発火（冪等性は partial UNIQUE+per-row skip 担保、実害=冗長 fetch）
 - **S4-3 申し送り**: ① i18n は web 全体 Settings S-step で一括テーブル化（ScheduleView も英語のみ＝S3 NotesView 先例一貫、新規債務でない）② deleted ロード二重発火（useRoutinesAPI 初回 effect + ScheduleView mount、S3 同型・実害は冗長 fetch 1 回）は S4-4+ で host 側重複整理検討 ③ `frequencyStartDate` 編集 UI は S4-5 生成器配線時に追補（interval 起点日が必要） ④ createRoutineGroup はフック層で `Promise<RoutineGroup|null>`（DataService interface 署名は不変、S4-6 consumer は null ハンドリング）
 
 ## スコープ外（クリープ防止）

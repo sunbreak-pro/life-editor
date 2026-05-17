@@ -315,21 +315,45 @@ export function ScheduleView() {
               )}
 
               {r.frequencyType === "interval" && (
-                <label className="flex items-center gap-1 text-sm text-notion-text-secondary">
-                  Every
-                  <input
-                    type="number"
-                    min={1}
-                    value={r.frequencyInterval ?? 1}
-                    onChange={(e) =>
-                      updateRoutine(r.id, {
-                        frequencyInterval: Number(e.target.value) || 1,
-                      })
-                    }
-                    className="w-16 rounded-md border border-notion-border bg-notion-bg px-2 py-1 text-notion-text"
-                  />
-                  day(s)
-                </label>
+                <div className="flex flex-wrap items-center gap-3">
+                  <label className="flex items-center gap-1 text-sm text-notion-text-secondary">
+                    Every
+                    <input
+                      type="number"
+                      min={1}
+                      value={r.frequencyInterval ?? 1}
+                      onChange={(e) =>
+                        updateRoutine(r.id, {
+                          frequencyInterval: Number(e.target.value) || 1,
+                        })
+                      }
+                      className="w-16 rounded-md border border-notion-border bg-notion-bg px-2 py-1 text-notion-text"
+                    />
+                    day(s)
+                  </label>
+                  {/*
+                   * The interval generator counts whole days from this
+                   * anchor (routineFrequency.ts: diffDays % interval).
+                   * Without it `shouldRoutineRunOnDate` degrades to
+                   * "every day" — so the start date is required for a
+                   * meaningful interval routine (SSOT 申し送り③ / S4-3
+                   * Nit2). Stored as a local `YYYY-MM-DD` key (no UTC).
+                   */}
+                  <label className="flex items-center gap-1 text-sm text-notion-text-secondary">
+                    From
+                    <input
+                      type="date"
+                      value={r.frequencyStartDate ?? ""}
+                      onChange={(e) =>
+                        updateRoutine(r.id, {
+                          frequencyStartDate: e.target.value || null,
+                        })
+                      }
+                      aria-label={`Interval start date for ${r.title}`}
+                      className="rounded-md border border-notion-border bg-notion-bg px-2 py-1 text-notion-text"
+                    />
+                  </label>
+                </div>
               )}
 
               {r.frequencyType === "group" && routineGroups.length > 0 && (
