@@ -17,23 +17,13 @@
 
 ## 直近の完了
 
+- 移行 SSOT 復元 + MEMORY/CLAUDE ドキュメント陳腐化一掃 + orphan DB 削除 ✅（2026-05-17）— general-purpose で MEMORY 予定/保留/バグ温床を移行 SSOT・コード実体・git・KI INDEX と突合棚卸し。事故発見: 移行 SSOT `2026-05-04-cross-platform-migration.md`(495行) が commit 60f5f63 で誤削除→CLAUDE.md 5 リンク死 → git(60f5f63^)から完全復元(Status 行のみ現状化)。MEMORY 予定: 陳腐化 11 項目削除(Q2 Cloud Sync/リファクタ検証/Realtime frontend/Mobile Re-syncボタン/cargo tauri/iOS実機/iOS4G/Mobile手動検証/frontend lint/Point Graph/Tauri IPC)、[13]を Capacitor Mobile backlog へ統一、React Compiler 保留を再框組み。バグ温床 10 項目削除(Cloudflare D1/wrangler/Tauri-Xcode)。クロス参照ドリフト修正(KI-016 死参照除去・KI-014→013)。CLAUDE.md §8 windows-android-port デッドリンク統一。orphan DB: com.lifeEditor.app(v59,tasks1)を ~/Backups へ退避後削除 + sonic-flow/life-editor.db(空)削除、active(v70)/sonic-flow.db(別PJ)保持。f7738ac は並行 S4 ブランチ着地(据置・S4 マージ時トランクへ)。詳細 HISTORY 参照
 - shared+web セキュリティ監査 → H1 循環ガード退行修正 + 安全網テスト整備 ✅（2026-05-17）— 3 並行タスク要請のうち A=security-reviewer 監査(read-only, Critical0 High1 Med3 Low3、RLS/秘密情報/XSS 健全=負の結果明示)、C=H1 修正+テスト。H1=`useNoteTreeMovement` ローカル `isDescendantOf` 循環ガード欠落(KI-016 同型・FP#1 が触らず forward-port 監査が判定対象外と明記した別ヘルパ)を正本 `getDescendantTasks.ts` visited パターン忠実移植。shared に vitest 配備(src/外分離で dist 非汚染)+A 監査 Top5 安全網 30 テスト。session-verifier PASS / role-qa 独立監査 APPROVE(Blocker/Major/Minor 全0)。B=Phase5 frontend リファクタは chat-refactor レーンに委譲し本レーン非着手(衝突回避)。multi-session-coordinator で「別チャット=frontend リファクタ Phase4 であり移行 Schedule S4 ではない」誤認を是正。pathspec commit。詳細 HISTORY 参照
 - Phase 2 S3 Notes PR1 正式クローズ + forward-port #1#2#3 ✅（2026-05-17）— PR1(①②③④, 02c9045) を role-qa 別コンテキスト独立監査 PASS(Blocker0 Major0、④子カスケード最重点クリア)で正式クローズ。chat-refactor handoff の FP#1(getDescendantTasks visited ガード=KI-016 OOM 再発防止) /#2(wikiTag entityType "memo"除去) /#3(createContextHook null安全) を shared/ に適用、role-qa 統合監査 PASS(適用元 d62a2dc とバイト一致確認)。FP#4#5 はスコープ外。計画書 Status=PR1 COMPLETE。詳細 HISTORY 参照
-- クロスプラットフォーム移行 Phase 2 S3(Notes) コード完了 ✅（2026-05-17）— Option A（shared UI フリー / web 新規ミニ UI）で notes/note_links/note_connections 0005 スキーマ+RLS / SupabaseDataService notes系25メソッド+mapper / NoteContext+hooks / web/src/notes(lean TipTap+password/lock UI)+配線。3監査(qa PASS-with-fixes Blocker0 / security Critical0 High0 Medium2 RLS clean / designer 致命0)→集中修正(B1/A2/A3/B2/Medium-1+searchNotes pgrstQuoteValue/Link protocols)+security 再確認妥当。0005 本番未apply＝実機確認は次セッション初手。パス指定 commit。詳細 HISTORY 参照
 
 ## 予定
 
-> **注**: 以下の予定タスクの大半は旧 Tauri / Cloudflare アーキテクチャ前提で書かれており、Web ファースト移行（refactor/web-first-v2）の進行に伴って **deprecated** になる可能性が高い。各タスクの存続判断は移行 Phase 1-2 進行時に再評価する。
-
-### Point Graph (Connect/Node) 継続フィードバック反映
-
-**対象**: `frontend/src/components/Ideas/Connect/PointGraph/`
-**背景**: 2026-05-16 に Canvas+d3-force へ全面置換、手動 UI 検証ではバグ未検出。実運用で見つかる改善・不具合をここに集約する（都度起票せず本エントリに追記 → まとまったら 1 セッションで対処）
-**洗い出し対象の観点**: ライト/ダーク配色の見やすさ / ノード多数時の FPS・レイアウト密度 / ドラッグ・ピンチ・スムーズパンの体感 / フィルタパネル開閉 UX / ConnectSidebar 連動の取りこぼし / ノード→エディタ遷移 / ラベル可読性（ズーム閾値）/ タグノード化による情報過多の有無
-**未検出だが要観察**: keydown effect が `filters` 全体依存で毎レンダー再購読（機能影響なし・性能微）
-**収集メモ**:
-
-- （実運用で気づいた項目をここに追記）
+> **注**: 2026-05-17 に旧 Tauri / Cloudflare 前提の陳腐化タスクを一括削除済（Q2 Cloud Sync 検証 / リファクタ検証計画 / Realtime Phase1(frontend SyncContext) / Mobile Full Re-sync ボタン(frontend) / Desktop パッケージ更新(cargo tauri) / orphan DB(実施済) / iOS 実機受入 / iOS 4G / Mobile Schedule 手動検証(新リデザイン計画へ) / frontend lint 一括 / Point Graph 継続FB / Tauri IPC naming。逐語は git 履歴）。残置は移行後も有効なもののみ。
 
 ### Mobile vs Desktop 設計方針の docs/vision/ への明文化
 
@@ -47,103 +37,21 @@
 
 **手順**: `mobile-design.md` 新規作成 → CLAUDE.md §2 末尾に 1 行リンク追加 → `2026-05-04-cross-platform-migration.md` と相互リンク。並行チャットとの衝突回避のため、編集前に `.claude/comm/outbox/` で予告するか multi-session-coordinator でロック取得を検討
 
-### Q2 機能パッチ Phase D / Phase A Cloud Sync の手動 UI 検証
+### Mobile 追加機能要件の残タスク（Capacitor Mobile・要再仕分け）
 
-**対象**: macOS app launch / 既定ブラウザ選択 / iOS Drawer 表示 / 双方向同期の動作確認
-**前提**: D1 migration 0003/0004/0005/0006 全適用済 + Worker latest deploy 済 (2026-04-25 完了)
-**手順**:
+**性質**: Tauri-iOS 期に積んだ Mobile 機能要件。コンポーネント実体（旧 frontend `NoteTreeNode` 等）は移行で再実装されるため、**実装パスでなく「機能要件」だけを backlog として保持**。Capacitor Mobile 移行（移行 SSOT Phase 3）着手時に web/shared 文脈へ再仕分けする。
+**保持する機能要件**:
 
-1. Desktop で Sync Now 実走 → `Last error` が消えて Connected 表示が維持されることを確認
-2. Desktop V67 自動 apply 確認 → LeftSidebar に「Links」セクション表示 / `+` で URL/App リンク追加 / 既定ブラウザ切替で URL 起動先が変わる / `/Applications/*.app` 一覧から登録できる
-3. iOS シミュレータ Drawer に `kind='app'` がグレーアウト + Toast 出ることを確認
-4. Desktop ↔ iOS 双方向 sync で sidebar_links と calendar_tag_assignments が伝搬すること
+- **行スワイプ (edit / pin / delete)**: Notes ツリー行の touch-UX。DnD と両立する操作設計が必要
+- **TipTap slash command + empty line hint**: スラッシュコマンド + 空行ヒントのポップオーバー
+- **Calendar filter / sort**: role multi-select + sort（drawer 内 filter sheet 想定）
+- **ScheduleItemForm 5-role 対応**: event 専用から 5-role 選択対応へ
 
-> 注: 旧手順5「Known Issue 016 検討」は削除（当時の KI-016=D1 calendar_tag_assignments rollback は番号再利用され、現 INDEX の 016 は別物=タスクツリー循環 OOM。死参照のため除去 2026-05-17）。本項目自体は D1/Cloudflare 前提で移行により陳腐化（書換 or 削除はユーザー判断保留）
-
-### リファクタリング Phase 2-4 / 3-1 / 3-4 検証用実装計画の手動実施
-
-**対象**: Desktop / iOS 実機での UI 回帰検証 + Cloud Sync round-trip
-**計画書**: `.claude/2026-04-26-refactoring-verification-plan.md` (Status: AUTOMATED COMPLETE / MANUAL PENDING)
-**前提**: 自動検証 (S-1 Rust build/test / S-7 calendarGrid 境界ケース 20/20 / S-8 fetch_tree benchmark 100ms 基準内 / S-9 plan ファイル反映) は 2026-04-26 完遂済。残るは手動 UI / Cloud Sync / docs 整理のみ
-**手順**:
-
-1. **S-2 IPC 統合**: Desktop 起動 → Tasks / Notes / Dailies / Schedule / Routines / Database / Wiki Tags / Paper Boards / Sound / Templates / Sidebar Links 全 11 ドメインの fetch 経路でエラー無し
-2. **S-3 Cloud Sync round-trip**: 5 ドメイン変更 → push → 別端末 pull → 完走 + 5000 行超で `nextSince` cursor 進行確認
-3. **S-4 Calendar Mobile**: Monday 始まり / 月遷移スワイプ / chip 表示 / Today ハイライト / 月境界 item
-4. **S-5 Calendar Desktop**: Sunday 始まり / 6 行固定 / WeeklyTimeGrid / DayCell 描画 / Routine ハイライト
-5. **S-6 Schedule View**: MobileScheduleView 週 dots / 週遷移 (`getMondayOf` 基準) / 月跨ぎラベル / Desktop ScheduleSection 4 タブ / DualColumn toggle
-6. **S-9 docs 整理 (UI 検証完了後)**: `docs/known-issues/INDEX.md` で formatter / SQL whitelist / row_to_model 重複 を削除候補マーク / `docs/code-inventory.md` の Active/Duplicate セクション更新
-
-### Realtime Sync Phase 1 実装 — foreground 可変 polling + 変更イベント駆動 push
-
-**対象**: `frontend/src/context/SyncContext.tsx` / DataService mutation 呼出層
-**背景**: 現状 30 秒間隔 polling で往復 60 秒ラグ。「DB 共有の実感」が薄い
-**手順**: Visibility API 観測 → フォアグラウンド 3-5s / 非アクティブ 60s、主要 mutation 後に debounced `triggerSync()`
-**参照**: `.claude/archive/SUMMARY.md`「vision-tauri 恒久知見 > Realtime 同期のレイテンシ目標」（旧 realtime-sync.md は 2026-05-16 削除、Supabase Realtime で再評価）
-
-### Mobile Settings に Full Re-sync ボタン追加
-
-**対象**: `frontend/src/components/Mobile/MobileSettingsView.tsx::MobileSyncSection` (line 159-183)
-**背景**: Desktop `SyncSettings.tsx` には `fullDownload` ボタンがあるが Mobile 側は `triggerSync` + `disconnect` の 2 ボタンのみ。初回 pull が truncate した時に「Disconnect → Reconnect」の 3 手順が必要で UX が悪い
-
-### Desktop パッケージ版の更新
-
-**対象**: `/Applications/Life Editor.app`
-**背景**: 現在の /Applications 配下は session 前の Rust バイナリ(V63 migration / create() guard / sync_engine 特別扱いを含まない)。V63 は DB に既適用済なので実害は限定的だが、新規 Routine 作成時の (routine_id, date) UNIQUE 違反を graceful に握りつぶす guard が無い
-**手順**: `cargo tauri build` → `target/release/bundle/macos/Life Editor.app` を `/Applications/` 既存と置換
-
-### 旧バンドル DB の orphan クリーンアップ
-
-**対象**:
-
-- `~/Library/Application Support/com.lifeEditor.app/life-editor.db` (user_version=59、旧 routine_tag_definitions / routine_tag_assignments / routine_group_tag_assignments を保持)
-- `~/Library/Application Support/sonic-flow/life-editor.db` (user_version=0、空)
-
-**背景**: bundle ID 変遷（旧 `sonic-flow` → `com.lifeEditor.app` → 現行 `com.lifeEditor.app.newlife`）の遺産。Known Issue 006 関連。現在の app は `~/Library/Application Support/life-editor/life-editor.db` (user_version=69) を使うため上記 2 つは orphan。実害はないが (a) ストレージを浪費 / (b) 検証時に grep で誤って旧 DB を引いて混乱する（実際 2026-04-29 の Routine Tag 廃止検証の際に発生）
-**前提**: 削除前に rescue 価値のあるデータが無いことを確認。`sonic-flow/sonic-flow.db` は別プロジェクト(Sonic Flow アプリ本体)なので残す
-**手順**:
-
-1. `sqlite3 <旧 DB path> "SELECT COUNT(*) FROM routines WHERE is_deleted=0; SELECT COUNT(*) FROM tasks WHERE is_deleted=0; SELECT COUNT(*) FROM notes WHERE is_deleted=0"` で各テーブル行数を確認
-2. 行があれば `~/Backups/orphan-life-editor-<bundle_id>-$(date +%Y%m%d).db` に退避（rsync ではなく `cp` で WAL 含めず単一ファイル退避）
-3. `rm <旧 DB path>` （`life-editor.db-shm` / `life-editor.db-wal` も同時削除）
-4. アプリ再起動して動作影響なし + `find ~/Library/Application\ Support -name 'life-editor.db'` の結果が `~/Library/Application Support/life-editor/life-editor.db` の 1 件のみになることを確認
-
-### Part A 手動受入テスト（iOS 実機）
-
-**対象**: iPhone 実機での Materials Notes 表示確認
-**背景**: 2026-04-21 Phase A コード変更は品質ゲート通過済み、iOS 実機での NodeView レンダリング確認が未実施
-**観点**: Callout / ToggleList / WikiTag / NoteLink / Table / TaskList が Desktop と同一構造で表示されること
-
-### iOS 4G 同期検証
-
-**対象**: iPhone 実機 / 4G 環境
-**前提**: 004/005/008 修正完了 + V62 migration 適用
-
-### Mobile Schedule & Work リデザイン 手動 UI 検証
-
-**対象**: iPhone シミュレータ / Tauri build で Schedule 月カレンダー / Dayflow / Work 全項目を目視検証
-
-### iOS 追加機能要件の残タスク（Phase 4 M-1 / Phase 5 / Phase 6.2 / Mobile C-3）
-
-**対象**: `NoteTreeNode` (行スワイプ) / `components/Notes/extensions/SlashCommand.ts` (新規) / `MobileCalendarView` の filter UI / `MobileScheduleItemForm` (5-role 対応)
-**背景**: 2026-04-24 Phase 8 完了時点で以下を次セッションに繰越:
-
-- **M-1 行スワイプ (edit / pin / delete)**: 既存 `NoteTreeNode` が DnD + hover UI を抱えるため touch-UX 再設計が必要
-- **M-2 / M-3 TipTap slash command + empty line hint**: `@tiptap/suggestion` 依存追加 + ポップオーバー UI 新規実装
-- **C-2 Calendar filter / sort**: role multi-select + sort UI 設計が必要（drawer 内 filter sheet として実装予定）
-- **Mobile C-3**: `MobileScheduleItemForm` を event 専用から 5-role 選択対応にリファクタ
-
-**参照**: `~/.claude/plans/life-editor-note-ios-calm-moth.md` Phase 4-6
-
-### Frontend 既存 lint 116 問題の一括解消
-
-**対象**: `useTaskTreeCRUD.ts` / `databaseFilter.ts` / `holidays.ts` 他(session 外で蓄積)
-**背景**: 2026-04-22 session-verifier で検出。Unused underscore-prefixed vars / React Compiler memoization 不整合 / exhaustive-deps missing が混在。本 session の変更範囲外のため touching 見送り、別セッションで一括対応
+> 旧参照 `~/.claude/plans/life-editor-note-ios-calm-moth.md`（Tauri-iOS 期・user-global）は移行後の SSOT ではない。再仕分け時は移行 SSOT Phase 3 + `docs/vision/plans/` の Mobile リデザイン計画（01/02）に統合する。
 
 ### 保留（将来再評価）
 
-- **S-2**: Tauri IPC naming 方針 — ADR-0006 で規約のみ採択、150 コマンド一括 typed struct 移行は未着手
-- **React Compiler 有効化**: S-4 Drop 判定時に切り離し
+- **React Compiler 有効化**: アーキ非依存（React 19 + Vite は移行後も継続）。移行後 shared/web で有効化するかは独立の技術判断。旧「S-4 Drop 判定で切り離し」文脈は失効（旧リファクタ計画）
 
 ## バグの温床 / 今後の注意点(2026-04-23 更新)
 

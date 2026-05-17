@@ -1,5 +1,23 @@
 # HISTORY.md - 変更履歴
 
+### 2026-05-17 - 移行 SSOT 復元 + MEMORY/CLAUDE ドキュメント陳腐化一掃 + orphan DB 削除
+
+#### 概要
+
+ユーザー要請「MEMORY.md にすでに解決済み・矛盾があれば調査」→ general-purpose で MEMORY 予定/保留/バグ温床を移行 SSOT・コード実体・git・KI INDEX と突合棚卸し。調査中に**重大事故を発見**: 移行全体 SSOT `.claude/2026-05-04-cross-platform-migration.md`(495行) が commit `60f5f63`「docs: tidy migration Phase 2 planning docs」で*古い Tauri 期 docs 整理のついで*に巻き込まれ削除されており、CLAUDE.md が 5 箇所で参照する SSOT リンクが全てデッド。続くユーザー指示「陳腐化削除・orphan DB 削除・矛盾統一」に基づき復元と一掃を実施。並行 S4 チャットが共有作業ツリーを `phase-2/schedule-migration` へ切替済のため commit はそのブランチに着地（ユーザー判断で据置＝S4 マージ時トランクへ）。
+
+#### 変更点
+
+- **棚卸し（general-purpose・read-only）**: MEMORY 予定14+保留2+バグ温床16 を ✅解決済/🗑️陳腐化/🔄要リスコープ/✔️有効/❓ユーザー判断 で分類。frontend `npm run build`=green(予定[3]TSエラー解決確認)/`npm run lint`=109問題(未解消だが frontend は Phase5 drop)/orphan DB 実在/移行 SSOT デッドリンク を実証
+- **移行 SSOT 復元（事故修復）**: `git show 60f5f63^:.claude/2026-05-04-cross-platform-migration.md`(495行)を逐語復元。Status 行のみ「S0-S3 完了・次 S4・最新は MEMORY/plans 正本・60f5f63 で誤削除→復元」に現状化。内容は陳腐化なし(2026-05-14 方針更新含む)。CLAUDE.md L5/L13/L45/L203 の SSOT リンク復活
+- **MEMORY 予定 一掃**: 陳腐化 11 項目削除（[4]Q2 Cloud Sync検証/[5]リファクタ検証計画(デッドリンク)/[6]Realtime frontend SyncContext/[7]Mobile Re-syncボタン frontend/[8]Desktop cargo tauri build/[9]orphan DB(実施済)/[10]iOS実機受入/[11]iOS4G/[12]Mobile手動検証(新リデザイン計画へ)/[14]frontend lint 一括(Phase5 drop)/[1]Point Graph継続FB frontend）。[13]を「Capacitor Mobile 追加機能要件 backlog」へ統一(実装パスでなく機能要件のみ保持・Tauri-iOS/user-global plan 参照除去)。保留[15]Tauri IPC naming 削除・[16]React Compiler を「アーキ非依存・移行後判断」へ再框組み。[2]Mobile設計明文化は有効で保持。冒頭注記を「2026-05-17 一括削除済」へ更新
+- **バグの温床 一掃**: Cloudflare D1/wrangler/Tauri-Xcode 専用 10 項目削除（c/d/g/h/i/j/m/n/o/p）。整理メモ残置。残置 a/b/e/f/k/l は移行後有効な恒久知見、f/k は【Supabase 文脈へ書換候補・未着手】注記
+- **クロス参照ドリフト修正**: 予定[4]内「Known Issue 016 検討」死参照除去（016 は番号再利用され現 INDEX では別 issue=タスクツリー循環 OOM）/ バグ b「Known Issue 014」→「013(旧 014 統合分)」（014 は 2026-04-25 に 013 へ統合済の不在番号）。[4]自体は今回の陳腐化削除で消滅
+- **CLAUDE.md §8 統一**: `2026-04-26-windows-android-port.md` デッドリンク（同じ 60f5f63 で削除）を「Windows/Android 配布は移行 SSOT Phase 5 に統合済・逐語は git 履歴」へ書換。`requirements/ios-additions.md`(実在)は据置
+- **orphan DB 削除（破壊的・手順遵守）**: 削除前検証 — `com.lifeEditor.app/life-editor.db`(user_version=59, tasks=1/notes=1, 最終更新 2026-04-15＝旧バンドル残骸) を `~/Backups/orphan-life-editor-com.lifeEditor.app-20260517.db` へ単一ファイル退避後 rm（+shm/wal）。`sonic-flow/life-editor.db`(0byte/0table) は退避不要で rm。検証: `find` で `life-editor/life-editor.db`(active, user_version=70, tasks=2)のみ残存、別PJ `sonic-flow/sonic-flow.db` 保持を確認
+- **commit（並行 S4 ブランチ着地・据置判断）**: セッション開始時 `refactor/web-first-v2` だったが並行 S4 チャットが共有作業ツリーを `phase-2/schedule-migration` へ切替済。SSOT 復元+MEMORY 初回整理は `f7738ac` としてそのブランチに着地(push は upstream 無しで未実行＝リモート影響0)。ユーザー判断「S4 ブランチに据置・git 追加手術なし」＝S4 マージ時にトランクへ自然到達。本セッションの追加 docs 編集も同ブランチへ pathspec commit。shared/(S4 並行作業)・frontend/ 不可侵維持、`git add -A` 厳禁
+- **未着手（報告のみ）**: 🔄書換候補=バグ f/k(Supabase 文脈)・保留 React Compiler / ❓ユーザー判断=なし(Point Graph/[13] は今回整理で処置済、orphan DB 実施済) / 残デッドリンク=なし(windows-android-port は §8 統一済、refactoring-verification-plan は予定[5]ごと削除済)
+
 ### 2026-05-17 - shared+web セキュリティ監査 → H1 循環ガード退行修正 + 安全網テスト整備（pathspec commit/push 済）
 
 #### 概要
