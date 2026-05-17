@@ -1,5 +1,23 @@
 # HISTORY.md - 変更履歴
 
+### 2026-05-17 - Phase 2 S3 Notes PR1 正式クローズ（role-qa 独立監査 PASS）+ forward-port #1#2#3 適用（pathspec commit/push 済）
+
+#### 概要
+
+前セッションで実装・コミット済（02c9045）だが「未監査・計画書未クローズ」で宙吊りだった Notes Web PR1 を正式クローズ。並行チャット chat-refactor の handoff（`.claude/comm/outbox/chat-refactor.md` + `.claude/reports/2026-05-17-shared-forward-port-audit.md`、Critical 1 含む forward-port 5 件）と合流。lead-pipeline 重チェーン（role-pm 分解 → ユーザー判断 4 点 → role-engineer 実装 → role-qa 別コンテキスト統合監査 → 計画書クローズ → task-tracker）。role-pm が「次に進む」候補（PR1 QA / FP#1 / FP#2-5 / PR2 Backlog）を Tier 判定で分解し曖昧点 4 件を抽出。ユーザー判断: Q1=#1 先行→PR1 QA / Q2=FP #1+#2+#3 を今回（#4#5 はスコープ外）/ Q3=PR2 やらない / Q4=④ folder restore 子孫残存は既知制約として受容。FP#1#2#3 を shared/ に適用、PR1 を独立監査でクローズ。両監査とも Blocker0 Major0 PASS。chat-refactor は frontend/ レーンで MEMORY/HISTORY 非編集と handoff 明記、本レーンが tracker 通常管轄。
+
+#### 変更点
+
+- **role-pm 要件分解**: PR1 が 02c9045（前セッション）で①②③④実装済だが role-qa 未実施・計画書 [ ] のまま宙吊りと診断。「次」候補を Tier 化（FP#1=必須最優先・軽 / PR1 QA=必須・中 / FP#2#3=推奨・軽 / FP#4#5=任意 / PR2=任意・大）、曖昧点 4 件を AskUserQuestion で確認可能化。スコープクリープ警告（⑤を同 PR にしない / Q4(b) で PR1 再オープンしない / Critical 修正に UX 相乗りしない / #1 をついでにリファクタしない）
+- **ユーザー判断 4 点**: Q1=#1 先行→PR1 QA（OOM ブロッカー最優先）/ Q2=FP #1+#2+#3 を今回（Critical+High+1行、#4#5 は MEMORY 予定へ）/ Q3=PR2 今回やらない（UX 段階的方針）/ Q4=④ folder restore 単一ノード制約=既知制約受容（Backlog⑧、再オープンしない）
+- **FP#1 Critical（role-engineer）**: `shared/src/utils/getDescendantTasks.ts` の 3 関数（`getDescendantTasks`/`collectDescendantIds`/`isDescendantOf`）に visited ガード追加。`git show d62a2dc -- frontend/src/utils/getDescendantTasks.ts` の 3 hunk をそのまま適用（独自改変なし）。KI-016 同型 OOM（循環 parentId 無限ループ）を有限終了化、非循環入力で挙動完全不変。`shared/src/index.ts:63-67` 公開 export シグネチャ不変＝`useTaskTreeMovement`/`useTaskTreeDeletion` 経由の呼出側無改修
+- **FP#2 High（role-engineer）**: `shared/src/types/wikiTag.ts` の `entityType: "task"|"memo"|"note"` → `WikiTagEntityType`（`"task"|"daily"|"note"`）参照化、型エイリアスを `WikiTagAssignment` の前へ移動。同ファイル :18 との型矛盾解消（daily タグ集計の死にコード化を是正）
+- **FP#3 Mid（role-engineer）**: `shared/src/hooks/createContextHook.ts:9` `if (!value)` → `if (value == null)`（falsy だが non-null な Context value `0`/`""`/`false` の誤判定を排除、シグネチャ不変）
+- **role-qa 統合監査（別コンテキスト・2 監査）**: A=FP#1#2#3 → マージ可（#1 は適用元 d62a2dc とバイト一致・`isDescendantOf` の一致判定がガード前で 2 ノード循環も即検出・非循環不変、#2 は shared 内 `entityType:"memo"` 残存 grep 0、#3 は consumer 4 件すべて非 primitive Context で回帰なし）。B=PR1(02c9045) → クローズ可（Verification ①②③④ 全達成、最重点④は hook 層 post-order DFS 子カスケード+`seen` 循環ガードで孤児化防止・データ層は単一行据置の設計妥当、restore 単一ノード制約は Backlog⑧ 明文化済で受容）。Blocker0 Major0、Minor2/Nit1 はいずれも実害なし設計妥当。security/sync/migration/ipc validator いずれも不要判定（IPC/スキーマ/sync 機構変更なし）
+- **計画書クローズ（メイン）**: `2026-05-17-notes-web-parity.md` の Status を「PR1 COMPLETE（QA PASS）+ FP#1#2#3 適用済」へ、PR1 ①②③④ + Verification 全項目 + 新規 forward-port セクション #1#2#3 を [x] 化。FP#4#5 は [ ] スコープ外明記。Backlog⑤⑥⑦⑧ は据置
+- **commit/push（task-tracker auto-git override）**: 並行チャット chat-refactor の frontend/ レーン同居のため `git add -A` 厳禁、6 パス明示指定（`shared/src/utils/getDescendantTasks.ts` `shared/src/types/wikiTag.ts` `shared/src/hooks/createContextHook.ts` `.claude/docs/vision/plans/2026-05-17-notes-web-parity.md` `.claude/MEMORY.md` `.claude/HISTORY.md`）→ `refactor/web-first-v2` push（main 直 push 禁止維持）。`03_demo_mobile_redesign.html`（無関係 untracked）除外
+- **次/Backlog**: 次セッション S4 Schedule 移植（最大規模・着手前 role-pm 分解）。FP#4#5（型集約 Low・挙動不変）は別フェーズ。PR2 UX（⑤行内アクション収束/⑥drop indicator/⑦chevron 間隔）+⑧subtree restore は計画書 Backlog 記録済。HISTORY-archive ロールは並行チャット衝突回避で見送り継続（prepend のみ、エントリ数許容）
+
 ### 2026-05-17 - Phase 2 S3 Notes ステップ2(0005 実DB検証) + PR1 バグ修正 + 406 A-1 修正 + 循環ガード + known-issue 020（pathspec commit/push 済）
 
 #### 概要

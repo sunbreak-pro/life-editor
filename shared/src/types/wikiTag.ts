@@ -7,15 +7,15 @@ export interface WikiTag {
   updatedAt: string;
 }
 
+export type WikiTagEntityType = "task" | "daily" | "note";
+
 export interface WikiTagAssignment {
   tagId: string;
   entityId: string;
-  entityType: "task" | "memo" | "note";
+  entityType: WikiTagEntityType;
   source: "inline" | "manual";
   createdAt: string;
 }
-
-export type WikiTagEntityType = "task" | "daily" | "note";
 
 export interface WikiTagConnection {
   id: string;
