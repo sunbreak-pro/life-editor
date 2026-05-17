@@ -1,5 +1,24 @@
 # HISTORY.md - 変更履歴
 
+### 2026-05-17 - shared+web セキュリティ監査 → H1 循環ガード退行修正 + 安全網テスト整備（pathspec commit/push 済）
+
+#### 概要
+
+ユーザーから 3 並行タスク（A=shared+web 脆弱性監査 / B=Phase 5 frontend リファクタ / C=未移植ドメイン安全網テスト）+「別チャットが Phase 4 Schedule 実行中なので注意」の要請。multi-session-coordinator 起動で**重要な誤認を是正**: 別チャット chat-refactor が進めるのは「frontend リファクタ計画の Phase 4」であり移行 SSOT の「Phase 4 = Schedule(S4) 移植」ではない（S4 は未着手・着手チャット無し）。chat-refactor は frontend リファクタ Phase 5 を「要承認」で保留中・MEMORY/HISTORY 不可侵宣言済＝本レーンが tracker 単独オーナー（並行 override 不要）。競合判定: A=Read のみ無衝突 / B=`frontend/src` が chat-refactor 専有書込レーン＝衝突確定 / C=`shared/`+`web/` 新規 `*.test.ts` 限定なら無衝突。ユーザー判断: B は chat-refactor レーンに委譲し本レーン非着手 / C は A の監査結果で対象決定（A→C 逐次）/ C スコープ=H1 修正+安全網テスト。lead-pipeline 中チェーン（security-reviewer 監査 → role-engineer 実装 → session-verifier → role-qa 別コンテキスト独立監査 → task-tracker）。
+
+#### 変更点
+
+- **multi-session-coordinator（状況是正）**: `.claude/active-sessions/` + `.claude/comm/outbox/chat-refactor.md` 照合で「Phase 4 Schedule 実行中」がユーザーの誤認（実体=frontend リファクタ Phase 4・commit 済 / Schedule S4 未着手）と判明。chat-refactor の forward-port 監査レポート（`.claude/reports/2026-05-17-shared-forward-port-audit.md`）を A の入力に活用、二重作業回避
+- **タスクA セキュリティ監査（security-reviewer・read-only）**: `shared/src` + `web/src` + `supabase/migrations|scripts` を 7 観点（PostgREST インジェクション/RLS 網羅/秘密情報/認証/XSS/DoS/ソフトデリート）で監査。判定 Critical0 High1 Med3 Low3 + 既知債務1(悪化なし)。レポート `.claude/reports/2026-05-17-shared-web-security-audit.md`。**負の結果を明示**: service_role/PAT 非露出・`.env*` gitignore・全出荷テーブル RLS owner-only 4policy 正・`pgrstQuoteValue` 文法ブレイクアウト遮断・`dangerouslySetInnerHTML` 皆無・Link protocol allowlist 適切・ソフトデリートフィルタ漏れ無し
+- **H1（新規 finding・forward-port 監査の盲点）**: `shared/src/hooks/useNoteTreeMovement.ts` のローカル `isDescendantOf` に循環ガード欠落。FP#1 は `getDescendantTasks.ts` の 3 関数だけ visited 化、forward-port 監査は本ヘルパを「判定対象外」と明記してスルー＝退行が残存。`parent_id` 循環で `moveNode`/`moveNodeInto` ドラッグ毎にメインスレッド凍結/OOM（KI-016 同型・別ファイル別ヘルパ）。0005 が自己参照 FK を許し Cloud Sync LWW で循環永続化しうる自己被害
+- **タスクC H1 修正（role-engineer）**: 正本 `getDescendantTasks.ts:90-124` の `isDescendantOf` と探索構造が完全同一だったため visited Set パターンを構造そのまま忠実移植（target match を guard より前に維持＝2 ノード循環でも直接到達子を即検出、非循環は挙動完全不変）。コメントで KI-016 参照
+- **タスクC 安全網テスト（role-engineer）**: shared に vitest `^4` 配備（`shared/vitest.config.ts`、`include:["tests/**"]`+node 環境）。**テストを `src/` 外の `shared/tests/` に分離**＝composite project（`include:["src"]`/`outDir:dist`）が dist にテストを emit し consumer 出荷する事故を構造回避（dist 非汚染を実確認）。A 監査 Top5 を新規 5 ファイル/30 テストでカバー（useNoteTreeMovement 循環停止+target-before-guard 不変条件 / pgrstQuoteValue 注入境界+M1 `%`/`_` ギャップを「修正でなく現状記録」と明示 / getDescendantTasks 3 関数 visited / noteUpdatesToPatch の password_hash・has_password・version 非混入 / walkAncestors 既存ガード pin）。可視性のみの最小 export 追加（`isDescendantOf` / `pgrstQuoteValue` を named export 化・ロジック不変）
+- **session-verifier**: scope=shared/ のみ（frontend/ 無変更を git status 確認）。Gate1 型=`tsc -b` EXIT0 / Gate2 lint=shared 未配備でスキップ / Gate3 テスト=30/30 PASS / Gate4 カバレッジ=Top5 全カバー新規 export 使用済 / Gate5 構造=コメント有・死コード無 / Gate6 バグスキャン=循環ガード正当性を自己参照/2 ノード/3 ノードで手動トレース確認。PASS
+- **role-qa 独立監査（別コンテキスト）**: APPROVE / Blocker0 Major0 Minor0。正本との 1 行照合・全循環パターン論理トレース・テスト実効性（修正前ハング入力を実投与+戻り値 assert）・バレル非汚染（`shared/src/index.ts` に未追加・テストは相対 import）・dist 非汚染（`find dist -name "*.test.*"` 空）・レーン制約（`git status --porcelain` で shared/ のみ）を実ファイル実証。security/sync/migration/ipc validator 追加起動は不要判定（防御強化+可視性のみ・スキーマ/IPC/sync 機構変更なし）
+- **タスクB（非着手・委譲）**: Phase 5 frontend リファクタは chat-refactor の専有書込レーン＋当人が保留中の当該作業のため本レーンで起動せず。ユーザー判断で chat-refactor レーンに委譲（こちらからの outbox 通知は専有レーン侵害回避で行わない）
+- **commit/push（task-tracker auto-git override）**: 計画書なし finding 起点だが実コード変更ありのため skill の「計画書なし→.claude/ のみ」ヒューリスティックを override。並行 chat-refactor frontend/ 同居のため `git add -A` 厳禁、パス明示指定（`shared/src/hooks/useNoteTreeMovement.ts` `shared/src/services/SupabaseDataService.ts` `shared/package.json` `shared/package-lock.json` `shared/vitest.config.ts` `shared/tests/` `.claude/reports/` 2 監査 `.claude/MEMORY.md` `.claude/HISTORY.md`）→ `refactor/web-first-v2` push（main 直 push 禁止維持）。`03_demo_mobile_redesign.html`（無関係 untracked）・`frontend/`・`.mcp.json` 除外
+- **次/Backlog**: M1（searchNotes LIKE `%`/`_` 非エスケープ）は申し送り④と整合の既知ギャップでテストにより挙動固定（未修正）/ M3 list 系 pagination 欠落は将来課題 / web 側 vitest は対象テストが web に出た時点で配備 / 次セッション S4 Schedule 移植は従前どおり
+
 ### 2026-05-17 - Phase 2 S3 Notes PR1 正式クローズ（role-qa 独立監査 PASS）+ forward-port #1#2#3 適用（pathspec commit/push 済）
 
 #### 概要

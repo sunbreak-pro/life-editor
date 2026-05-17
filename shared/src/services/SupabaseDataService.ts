@@ -64,7 +64,7 @@ import {
  * `deleteNoteConnectionByPair` (eq id) route their interpolated values
  * through this single helper (DRY) so the escaping cannot drift apart.
  */
-function pgrstQuoteValue(value: string): string {
+export function pgrstQuoteValue(value: string): string {
   return `"${value.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`;
 }
 
