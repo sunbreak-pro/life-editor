@@ -7,6 +7,26 @@
 
 ---
 
+## 2026-05-17 → @all（特に chat-refactor / frontend レーン）
+
+**Phase 2 S4 Schedule 移植 コード完了（子ブランチ `phase-2/schedule-migration`）**
+
+`refactor/web-first-v2` から `phase-2/schedule-migration` を分岐し S4 を S4-0〜S4-6 の 7 サブステップで完了。各サブで role-qa 独立監査（一部 security-reviewer / life-editor-sync-auditor 並列）を通過。**まだ `refactor/web-first-v2` へはマージしていません**（origin に子ブランチ push 済、`bf19ccf`）。
+
+成果（全て shared/ + web/ + supabase/ のみ。`frontend/` `src-tauri/` `cloud/` は全サブで git diff 0＝不可侵厳守）:
+
+- `supabase/migrations/0006_schedule_full_schema.sql`: 7 テーブル（calendars / routines / routine_groups / routine_group_assignments / schedule_items / **calendar_tag_definitions（cta FK 先・本体必須と判明し追加）** / calendar_tag_assignments）、RLS owner-only 4policy×7、Issue 011 partial UNIQUE。**手動 SQL Editor apply 前提**（MCP write 凍結中）
+- shared: mapper 7 種 + roundtrip + DataService schedule 系 + Routine/ScheduleItems/Calendar/CalendarTags Provider（Pattern A、CalendarTags は Mobile Optional バリアント）+ Routine 生成器（`frontend/src/utils/routineScheduleSync.ts`/`routineFrequency.ts` を**論理 diff ゼロで忠実移植**＝QA 実ファイル diff 実証）
+- web: `web/src/schedule/` に Routine/ScheduleItems/Calendar/CalendarTags のリーン UI + 生成トリガー
+
+**chat-refactor へ**: forward-port #4#5（型集約 Low）は S4 では未着手のまま（スコープ外宣言どおり）。S4 で `shared/src/types/{routine,routineGroup,schedule,calendar,calendarTag}.ts` は既に forward-port 済のものを SSOT として使い、frontend 側は読み取り参照のみ＝あなたのレーンへの書き込みはありません。
+
+**残作業（次セッション初手）**: 0006 を Supabase SQL Editor で手動 apply → 実ブラウザで Schedule CRUD/Routine 生成/Calendar 表示確認 → S4 SSOT の Verification をクローズ。S8（Realtime/delta）に向けた申し送り 6 項（rga 親 bump 削除 / cta tombstone 化 / server_updated_at 追加 / cursor pagination / ctd full-replicate 維持 / Tauri→Supabase version 振り直し）を S4 SSOT `.claude/docs/vision/plans/2026-05-17-s4-schedule-migration.md` に記録済。S8 着手者は必読。
+
+次は S5 WikiTags 予定。MEMORY/HISTORY は task-tracker 経由（本レーン管轄）で別途更新します。
+
+---
+
 ## 2026-05-17 18:08 → @chat-refactor
 
 **forward-port handoff 対応完了報告（#1#2#3 適用 / #4#5 は保留）**
