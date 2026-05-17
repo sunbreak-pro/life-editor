@@ -1,5 +1,24 @@
 # HISTORY.md - 変更履歴
 
+### 2026-05-17 - Phase 2 S4 Schedule 移植 コード完了（子ブランチ phase-2/schedule-migration、7 サブステップ全 QA PASS）
+
+#### 概要
+
+Phase 2 最大規模ドメイン Schedule を子ブランチ `phase-2/schedule-migration`（`refactor/web-first-v2` の `c817c61` から分岐）で S4-0〜S4-6 の 7 サブステップに分割し、lead-pipeline 重チェーン（role-pm 分解 → ユーザー判断 → role-engineer 実装 → session-verifier → role-qa 独立監査、要所で security-reviewer / life-editor-sync-auditor 並列）で完了。アーキは Option A 厳守（shared UI フリー / web 新規ミニ UI）。`frontend/` `src-tauri/` `cloud/` は全サブで git diff 0＝不可侵厳守。並行チャット（移行 SSOT 復元・frontend リファクタ）が同一 working tree / 同一ブランチに同居したため全 commit を pathspec 指定（`git add -A` 厳禁、`.claude/MEMORY.md`/`HISTORY.md`/`CLAUDE.md` 不可侵）。0006 本番 apply（MCP write 凍結中＝手動 SQL Editor）と実ブラウザ確認は次セッション初手に持ち越し。S8（Realtime/delta）に向けた構造的申し送り 6 項を S4 SSOT に記録。
+
+#### 変更点
+
+- **S4-0 調査（role-engineer read-only）**: スキーマ正本特定（SQLite full_schema+v61_plus V69 / D1 0001+0004+0007 / shared/src/types 既存 forward-port 済）。sync 区分 7 テーブル確定（routine_groups/calendars は version 有・soft-delete 無＝物理削除 versioned、is_deleted 列を作らない）。date/start_time/end_time は text 厳守（timestamptz 化で JST 境界ズレ）。CalendarTag.id=integer identity。calendar_tag_definitions が cta FK 先で本体必須と判明→6→7 テーブルに修正
+- **S4-1 migration+mapper（role-qa+security-reviewer 並列 PASS）**: `0006_schedule_full_schema.sql`（7 テーブル単一・FK 先行 CREATE 順・RLS owner-only 4policy×7・Issue 011 partial UNIQUE `(routine_id,date) WHERE routine_id IS NOT NULL AND is_deleted=false`・冪等 drop cascade 逆順・手動 SQL Editor ヘッダ）+ mapper 7 種 + roundtrip 16/16 + vitest（frequency_days JSON↔number[] 往復 / updatesToPatch whitelist）。security: Critical0 High0 Medium0、check-rls selftest 20/20 offender0
+- **S4-2 SupabaseDataService（role-qa PASS Blocker0 Major0 Minor0）**: 7 テーブルの Proxy throw を実装置換。Issue 020（updateScheduleItem 単一 whitelist patch + maybeSingle 0行合成 return、read-then-write 排除）/ 008（rga unassign=is_deleted soft-delete-aware）/ 011（createScheduleItem (routine_id,date) live ガード）/ 017（softDeleteRoutine 子 schedule_items cascade soft-delete）
+- **S4-3 RoutineProvider（role-qa PASS）**: Pattern A 3 ファイル + `useRoutinesAPI`（routines/groups/rga CRUD、DataService 注入、初回ロードガードで membership `[]` 全消失防止）+ `web/src/schedule/ScheduleView.tsx` + MainScreen 配線（Sync 内側・トリオ先頭）
+- **S4-4 ScheduleItemsProvider（role-qa PASS）**: Pattern A + `useScheduleItemsAPI`（effect deps `[ds,syncVersion,date]`）+ `ScheduleItemsView.tsx` + RoutineProvider 内側配線。生成器 import/呼出 0 件（grep 実証）、createScheduleItem routine_id=null 固定
+- **S4-5 Routine 生成器（role-qa+sync-auditor PASS）**: `routineScheduleSync.ts`/`routineFrequency.ts` を frontend から**論理 diff ゼロ**で shared/src/utils へ忠実移植（QA が実ファイル diff 実証、`shouldCreateRoutineItem` 弾き順序厳密一致）+ `useScheduleItemsRoutineSync`（DI: dataService/onChanged）+ `RoutineScheduleSync.tsx` headless トリガー + frequencyStartDate UI 追補。Issue 017 四系統ガード実証、vitest 17 パリティ追加（71/71）。sync-auditor: Critical0、High2/Medium3 は全て S8 申し送り（現状非顕在）
+- **S4-6 Calendar+CalendarTags（role-qa+sync-auditor PASS）**: Calendar 通常 Pattern A + CalendarTags Pattern A + **Mobile Optional バリアント**（`useCalendarTagsContextOptional`+`createOptionalContextHook`、frontend MobileProviders 構成と整合）+ ctd integer-identity + web CalendarView/CalendarTagsView + 配線（Sync>Calendar>Routine>SI>CalendarTags）。**cta 孤児化対策**: `purgeCalendarTagAssignments` を物理削除 3 パスに配線（最大孤児源＝生成器 bulkDeleteScheduleItems カバー、permanentDelete は order-flip で live 行 tag 誤消去防止）。sync-auditor: Cloud 残留は解決済、cta 削除の delta 伝播は S8 持ち越し（tombstone or 親不在推論）
+- **S8 必須申し送り（S4 SSOT 記録）**: ①rga delta は updated_at 直接ページング確定し親 routine bump 削除 ②cta tombstone 化（0006 に soft-delete 列追加 migration）or 親不在推論、task 側も同機構で一括 ③7 テーブルに server_updated_at 相当 or Supabase Realtime ④delta pull は cursor pagination（Issue 012 半実装回避）⑤ctd は full-replicate＝delta 対象外 ⑥Tauri→Supabase data import で schedule_items version 振り直し
+- **commit/push**: S4-0〜S4-6 を 9 commit に分割（`567f860`→`d809f06`）、各 pathspec 指定で `phase-2/schedule-migration` へ push。親計画書 `2026-05-16-phase2-core-migration.md` の S4 を [x] 化（次=S5 WikiTags）、chat-web-migration outbox に S4 完了 + S8 申し送りをブロードキャスト
+- **残課題**: 0006 本番 SQL Editor apply + 実ブラウザ Schedule CRUD/Routine 生成/Calendar 表示確認（次セッション初手、ヘッダ post-verify クエリ実行）→ S4 SSOT Verification クローズ → 子ブランチを `refactor/web-first-v2` へマージ → S5 WikiTags。実ブラウザ観測項目: 月高速連打の生成件数 + 生成直後ちらつき / Calendar inline-edit version+1 連打 / Mobile build で CalendarTags Provider 不在時 CalendarTagsView=null
+
 ### 2026-05-17 - 移行 SSOT 復元 + MEMORY/CLAUDE ドキュメント陳腐化一掃 + orphan DB 削除
 
 #### 概要
