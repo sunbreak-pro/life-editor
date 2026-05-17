@@ -4,6 +4,7 @@ import { Tag, Plus, X, Check, MoreHorizontal, Trash2 } from "lucide-react";
 import { useCalendarTagsContextOptional } from "../../hooks/useCalendarTagsContextOptional";
 import type { CalendarTag } from "../../types/calendarTag";
 import { UnifiedColorPicker } from "../shared/UnifiedColorPicker";
+import { isImeComposing } from "../../utils/imeSafe";
 
 const DEFAULT_NEW_TAG_COLOR = "#3b82f6";
 
@@ -76,6 +77,7 @@ function TagRow({
           onChange={(e) => setName(e.target.value)}
           onBlur={commitRename}
           onKeyDown={(e) => {
+            if (isImeComposing(e)) return;
             if (e.key === "Enter") commitRename();
             if (e.key === "Escape") {
               setName(tag.name);
@@ -300,6 +302,7 @@ export function CalendarTagsPanel() {
             value={newName}
             onChange={(e) => setNewName(e.target.value)}
             onKeyDown={(e) => {
+              if (isImeComposing(e)) return;
               if (e.key === "Enter") submitAdd();
               if (e.key === "Escape") cancelAdd();
             }}

@@ -4,6 +4,7 @@ import { X } from "lucide-react";
 import type { ScheduleItem } from "../../types/schedule";
 import { TimeDropdown } from "../shared/TimeDropdown";
 import { formatTime } from "../../utils/timeGridUtils";
+import { isImeComposing } from "../../utils/imeSafe";
 
 interface MobileScheduleItemFormProps {
   open: boolean;
@@ -91,6 +92,7 @@ export function MobileScheduleItemForm({
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
+      if (isImeComposing(e)) return;
       if (e.key === "Enter" && !e.shiftKey) {
         e.preventDefault();
         handleSubmit();

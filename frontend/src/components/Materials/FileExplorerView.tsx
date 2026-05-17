@@ -15,6 +15,7 @@ import {
 import { useTranslation } from "react-i18next";
 import { useFileExplorerContext } from "../../hooks/useFileExplorerContext";
 import type { FileEntry } from "../../types/fileExplorer";
+import { isImeComposing } from "../../utils/imeSafe";
 import { getFileIcon, isTextFile, formatFileSize } from "./fileIcons";
 import { FileEditor } from "./FileEditor";
 import { FileContextMenu } from "./FileContextMenu";
@@ -140,6 +141,7 @@ function RenameDialog({
           value={name}
           onChange={(e) => setName(e.target.value)}
           onKeyDown={(e) => {
+            if (isImeComposing(e)) return;
             if (e.key === "Enter" && name.trim()) onConfirm(name.trim());
             if (e.key === "Escape") onCancel();
           }}
@@ -487,6 +489,7 @@ export function FileExplorerView() {
             value={newName}
             onChange={(e) => setNewName(e.target.value)}
             onKeyDown={(e) => {
+              if (isImeComposing(e)) return;
               if (e.key === "Enter") handleCreate();
               if (e.key === "Escape") {
                 setIsCreating(null);

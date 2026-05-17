@@ -1,5 +1,6 @@
 import { useState } from "react";
 import type { KeyboardEvent } from "react";
+import { isImeComposing } from "../../../utils/imeSafe";
 
 interface TaskTreeInputProps {
   onSubmit: (title: string) => void;
@@ -33,6 +34,7 @@ export function TaskTreeInput({
   };
 
   const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
+    if (isImeComposing(e)) return;
     if (e.key === "Enter") handleSubmit();
     if (e.key === "Escape") setValue("");
   };

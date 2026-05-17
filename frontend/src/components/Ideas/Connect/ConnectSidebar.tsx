@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import type { WikiTag, WikiTagAssignment } from "../../../types/wikiTag";
+import { isImeComposing } from "../../../utils/imeSafe";
 import type { NoteNode } from "../../../types/note";
 import type { DailyNode } from "../../../types/daily";
 import type { FilterItem } from "../../../types/filterItem";
@@ -355,6 +356,7 @@ export function ConnectSidebar({
             value={renameValue}
             onChange={(e) => setRenameValue(e.target.value)}
             onKeyDown={(e) => {
+              if (isImeComposing(e)) return;
               if (e.key === "Enter") confirmRename();
               if (e.key === "Escape") setRenamingId(null);
             }}

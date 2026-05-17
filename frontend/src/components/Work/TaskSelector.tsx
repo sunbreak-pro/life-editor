@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect, useMemo } from "react";
 import { EditableTitle } from "../shared/EditableTitle";
+import { isImeComposing } from "../../utils/imeSafe";
 import { ChevronDown, ChevronRight, Plus, Inbox, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useTaskTreeContext } from "../../hooks/useTaskTreeContext";
@@ -312,6 +313,7 @@ export function TaskSelector({ currentTitle }: TaskSelectorProps) {
               value={newTaskValue}
               onChange={(e) => setNewTaskValue(e.target.value)}
               onKeyDown={(e) => {
+                if (isImeComposing(e)) return;
                 if (e.key === "Enter") handleCreateTask();
                 if (e.key === "Escape") setIsOpen(false);
               }}

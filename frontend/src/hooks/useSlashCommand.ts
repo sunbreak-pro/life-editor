@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import type { Editor } from "@tiptap/react";
 import type { PanelCommand } from "../components/Tasks/TaskDetail/editorCommands";
+import { isImeComposing } from "../utils/imeSafe";
 
 const MENU_HEIGHT = 380;
 const MENU_WIDTH = 320;
@@ -75,6 +76,7 @@ export function useSlashCommand(
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (!isOpen) return;
+      if (isImeComposing(e)) return;
 
       if (e.key === "ArrowDown") {
         e.preventDefault();

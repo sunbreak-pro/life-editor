@@ -2,6 +2,7 @@ import { useState, useRef, useMemo, useEffect, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { Clock } from "lucide-react";
 import { formatTime } from "../../utils/timeGridUtils";
+import { isImeComposing } from "../../utils/imeSafe";
 
 interface TimeDropdownProps {
   hour: number;
@@ -82,6 +83,7 @@ export function TimeDropdown({
 
   const handleInputKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
+      if (isImeComposing(e)) return;
       if (e.key === "Enter") {
         e.preventDefault();
         handleInputConfirm();
