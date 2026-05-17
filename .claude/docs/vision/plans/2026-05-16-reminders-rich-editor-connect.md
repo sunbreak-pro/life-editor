@@ -1,6 +1,7 @@
 ---
-Status: NOT STARTED — 実装キックオフ計画
+Status: IN PROGRESS — 要件3完了 / 要件1バックエンド完了 / UI 系は designer スキル待ちで保留
 Created: 2026-05-16
+Updated: 2026-05-16（実装セッション。Progress 節参照）
 Task: ①Task/Event/Routine 個別リマインダー + アプリ通知 ②RichEditor リンク/タグ UX 改善 + リンク一覧を RightSidebar へ移設 ③RichEditor 由来の Daily↔Notes Connect 不具合修正
 Branch: claude/plan-reminders-editor-LzZ8E
 Stack: 現行 Tauri 2 (`frontend/` + `src-tauri/`)。Web/Supabase 移行との関係は「Migration interaction」節参照
@@ -137,3 +138,35 @@ CLAUDE.md 冒頭の通り Tauri → Electron/Capacitor/Web/Supabase 移行が進
 3. 要件3 から着手推奨（局所・低リスク）。`RichTextEditor.tsx:515` / `DailyView.tsx:234` / `usePointGraphModel.ts:117` を再確認し R3-1 を実装→`npm run test`
 4. UI ステップ着手時は `/frontend-react-designer` スキルの利用可否を確認（未登録なら手動で設計指針を本計画 R2-1/R1-2 に沿って適用）
 5. 要件1 のスケジューラは純粋関数（発火判定）を切り出して `cargo test` 可能にしてから配線
+
+---
+
+## Progress（2026-05-16 実装セッション）
+
+### スコープ補正（重要 — 計画前提が一部不正確だった）
+
+調査前提と異なり、リマインダー機能は **大部分が既に実装済み** だった:
+
+- `frontend/src/components/shared/ReminderToggle.tsx`（enabled トグル + offset セレクト、compact/full）が既存
+- `ReminderToggle` は **Task / Routine / Event 編集 UI に配線済み**（`TaskDetailHeader` / `TaskSidebarContent` / `TaskPreviewPopup` / `RoutineEditDialog` / `ScheduleItemPreviewPopup`）
+- `src-tauri/src/reminder.rs` にスケジューラ（60s tick / task + timed event / daily review / in-memory dedup）が既存
+- `frontend/src/hooks/useReminderListener.ts` が `reminder_notify` を受けて Toast 表示、`App.tsx:131` で mount 済み
+- `events.ts::onReminder` / `ReminderSettings.tsx` / `NotificationSettings.tsx` 既存
+
+→ 要件1 の「個別設定 UI」「Toast 配信」は **新規実装不要**（既存）。真の欠落は ①schedule_items の reminder 永続化漏れ ②Routine 経路がスケジューラに無い ③reminder_time（時刻なし項目）データ層+発火 だった。
+
+### 完了・push 済み（branch: claude/plan-reminders-editor-LzZ8E）
+
+- **要件3** `c1254a8` — Daily↔Notes Connect の二重 `daily-` プレフィックス修正（`RichTextEditor` 正規化 + V70 冪等クリーンアップ migration）。tsc + 18 noteLink テスト green。`note_links` は非同期テーブルのため D1 不要
+- **要件1 データ層** `284ae73` — schedule_items の reminder CRUD ギャップ閉鎖（create/update/bulk_create）+ V71 / full_schema / D1 `0008` で `reminder_time` 追加 + 3 構造体/FromRow/全 create 呼出更新 + TS 型/DataService。sync_engine は列駆動のため無変更。Rust lib 30 passed / tsc green
+- **要件1 Routine 発火** `23920f3` — `reminder.rs` に Routine 経路追加（生成済み routine 紐付き schedule_items へ `LEFT JOIN routines`、item or 親 routine 有効で発火・offset 継承、Rust 側 frequency ロジック不要）。`should_fire` 純粋関数抽出 + 単体テスト 3 件。Rust lib 33 passed
+
+### 残（保留 — `/frontend-react-designer` スキル有効化待ち）
+
+- **要件1 UI**: `ReminderToggle` への reminder_time（「何時に」HH:MM）picker 追加。データ層は ready。**スケジューラの全日/reminder_time 発火セマンティクスは picker UI と同時に設計・テストするため据え置き**（既存は lead-up window モデル、全日は「指定時刻に発火」で別モデルが要る）
+- **要件2 全体**: RichEditor リンク/タグ UX 改善 + `BacklinksPane` をエディタ下部から RightSidebar へ移設（`ConnectionsPanel` 新設、Note/Daily 両対応）。全面的に UI 設計を要すため未着手
+
+### 運用メモ（ユーザー作業）
+
+- D1 `0008_add_reminder_time.sql` は **remote D1 へ未適用**。`cd cloud && npx wrangler d1 execute life-editor-sync --remote --file=./db/migrations/0008_add_reminder_time.sql`（migration FIRST → Worker deploy SECOND の順厳守）
+- 検証環境に GTK/webkit system libs が無く `cargo` が通らなかったため実装中に `libgtk-3-dev libwebkit2gtk-4.1-dev 等` を導入済み（Web セッションのコンテナは ephemeral。再現には setup hook 検討余地）
