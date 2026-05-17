@@ -16,6 +16,16 @@ export type { MoveResult, MoveRejectionReason } from "./types/moveResult";
 export type { DailyNode } from "./types/daily";
 export type { NoteNode, NoteNodeType, NoteSortMode } from "./types/note";
 
+// Schedule domain types (S4-2 DataService surface; contexts land S4-3+)
+export type { RoutineNode, FrequencyType } from "./types/routine";
+export type {
+  RoutineGroup,
+  RoutineGroupAssignment,
+} from "./types/routineGroup";
+export type { ScheduleItem, RoutineStats } from "./types/schedule";
+export type { CalendarNode } from "./types/calendar";
+export type { CalendarTag } from "./types/calendarTag";
+
 // Tasks domain — context (Pattern A) + hooks
 export {
   SyncProvider,

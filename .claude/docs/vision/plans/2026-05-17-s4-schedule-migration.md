@@ -1,5 +1,5 @@
 ---
-Status: IN PROGRESS — S4-0/S4-1 完了（0006 7 テーブル + mapper 7 種、QA/security PASS）。次 S4-2 SupabaseDataService。並行チャット同居のため本ファイルが S4 自レーン SSOT
+Status: IN PROGRESS — S4-0/S4-1/S4-2 完了（0006 + mapper 7 + DataService 7 テーブル、全 QA PASS）。次 S4-3 RoutineProvider。並行チャット同居のため本ファイルが S4 自レーン SSOT
 Created: 2026-05-17
 Task: Phase 2 S4 — Schedule ドメイン Web 移植（最大規模・最後）
 Project path: /Users/newlife/dev/apps/life-editor
@@ -75,7 +75,7 @@ frontend 既存ロジック（読み取り参照のみ・不可侵）:
 
 - [x] **S4-0 調査**（role-engineer read-only・2026-05-17 完了）: スキーマ正本特定（SQLite full_schema+v61_plus V69 / D1 0001+0004+0007 / shared/src/types 既存 forward-port 済）。sync 区分 7 テーブル確定、is_deleted 非作成 2 テーブル、date/time text 厳守、updateScheduleItem 020 適用、CalendarTag integer identity、生成仕様 timezone/先読み/レース解消。ブロッカー無し（上記「S4-0 確定事項」に反映済）
 - [x] **S4-1 migration + mapper**（2026-05-17 完了）: 0006（7 テーブル + RLS 4policy×7 + partial UNIQUE、手動 SQL Editor ヘッダ）+ mapper 7 種 + roundtrip 16/16 + vitest 54/54。**role-qa PASS（Blocker0 Major0、Minor2/Nit1=申し送り反映済）+ security-reviewer PASS（Critical0 High0 Medium0、Low1=N=1 実害無）**。check-rls selftest 20/20・全述語照合 offender0。frontend/src-tauri/cloud diff0 非破壊
-- [ ] **S4-2 SupabaseDataService**: routines/groups/assignments/schedule_items/calendars/cta の Proxy throw 置換。relation の soft-delete-aware delta（Issue 008）。→ role-qa
+- [x] **S4-2 SupabaseDataService**（2026-05-17 完了）: 7 テーブル Proxy throw → 実装（routines 8/groups 4/rga 2/schedule_items 19/calendars 4/ctd+cta 7 メソッド）+ barrel type export。Issue 020（updateScheduleItem 単一 patch）/008（rga unassign=is_deleted）/011（(routine_id,date) live ガード）/017（softDeleteRoutine 子 cascade）敷設。**role-qa PASS（Blocker0 Major0 Minor0 Nit0）**。engineer 申告 4 乖離（calendar folderId drop / version bump Tauri 乖離 / ctd full-replicate / cta IDOR）すべて文書化済の妥当な意図的乖離。vitest 54/54 非回帰・frontend/src-tauri/cloud diff0
 - [ ] **S4-3 RoutineProvider**: shared context(Pattern A)+hooks + web ミニ UI。Provider 依存順先頭。→ role-qa
 - [ ] **S4-4 ScheduleItemsProvider**: schedule_items CRUD + 論理一意（Issue 011）。**Routine 生成は含めない**。→ role-qa
 - [ ] **S4-5 Routine 生成器**: 純粋関数 shared 移植 + 生成器フック。**Issue 017 両系統ガード専用 QA**。→ role-qa（017 再発を専用検証）
