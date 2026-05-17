@@ -1,5 +1,27 @@
 # HISTORY.md - 変更履歴
 
+### 2026-05-17 - Phase 2 S3 Notes ステップ2(0005 実DB検証) + PR1 バグ修正 + 406 A-1 修正 + 循環ガード + known-issue 020（pathspec commit/push 済）
+
+#### 概要
+
+S3 申し送り①「0005 本番未apply＝実機未確認」を解消。ユーザーが 0005 を手動 SQL Editor 適用済の前提で、実 Supabase に対し検証を実行: 3テーブル rowsecurity=true + 各4policy / S0 RLS gate `check-rls.sql` 全文を MCP `execute_sql` で実行し offender0(sentinel のみ＝public 全テーブル clean) / PostgREST FK名 `note_links_source_note_id_fkey` ほか3 FK が実DBデフォルト命名と一致 / get_advisors(security) RLS lint0(WARN は無関係の auth_leaked_password_protection のみ)。続いて実ブラウザ評価をユーザーが実施し7問題を報告→方針確認「バグ修正優先・UX 段階的」。旧来 Tauri 版 frontend を Explore 調査し根本原因を file:line で確定、計画書 `2026-05-17-notes-web-parity.md` 作成(PR1 スコープ + PR2/3 Backlog + ⑧)。PR1 を lead-pipeline 重チェーン（role-engineer 実装 → role-qa 別コンテキスト独立監査 PASS-with-fixes Blocker0 → 明文化適用）で完了。未commit・実ブラウザ確認待ち。並行チャット IME refactor が frontend/ に同居継続のためコミットはパス指定必須。
+
+#### 変更点
+
+- **ステップ2 実DB検証(コード変更なし)**: Supabase MCP `execute_sql` で post-apply 検証。`pg_policies`/`pg_class.relrowsecurity`/`pg_constraint` 照会で notes(4)/note_links(4)/note_connections(4) policy + RLS有効 + FK4本(note_links_source/target_note_id_fkey, note_connections_source/target_note_id_fkey)を実証。`check-rls.sql` 全文(allowlist 空)を実行し戻り値が `___RLS_GATE_OK___` 単独＝offender0。`get_advisors(security)` は RLS 系 lint ゼロ
+- **根本原因確定(Explore 調査)**: ①`NotesView.tsx:448` `key={id:title}` で debounce 保存→title 変化→input remount→focus 喪失(folder は prompt rename で無症状) ②`useNotesAPI.ts:486` `loadDeletedNotes()` 未呼出で `deletedNotes` 常時空→Trash `<details>` 非描画 ③unlock 状態管理不在で本文常時 full 描画・blur/overlay 無し ④folder はクリックで toggleExpand のみ→selectedNote 化せず右ペイン Delete 到達不能・行削除も無し
+- **PR1 実装(role-engineer / 2ファイル)**: ①`NoteTitleInput` の key を `selected.id` のみへ(title 除去) ②初回ロード effect(`[ds,syncVersion]`)に `fetchDeletedNotes` IIFE 追加 + `softDeleteNote` で subtree を `setDeletedNotes` ローカル push(`known` Set で二重防止)・undo/redo も subtree 整合 ③`useState<Set>` セッション unlock + `hasPassword && !unlocked` で `RichTextEditor` を `blur-md select-none pointer-events-none`+`aria-hidden`、クリック overlay→verify→成功で unlock 追加 ④`NoteRow` に `group`+ホバー Trash2(stopPropagation)、hook `softDeleteNote` で post-order DFS 子孫収集→subtree 単位 `ds.softDeleteNote` 多重呼び(旧来は単発でカスケード無し＝今回改善)
+- **独立監査(role-qa 別コンテキスト)**: PASS-with-fixes / Blocker0。Major1=② syncVersion 再ロードと楽観 push のレースは総置換 SSOT で最終収束(実害=Trash 件数一瞬チラつきのみ)・現状維持推奨。Minor=folder restore 非対称(子孫 Trash 残存)未明文化。検証 tsc/eslint/build 実出力で追認。security-reviewer/migration-validator/sync-auditor は不要判定(IPC/スキーマ変更なし・認証は既存 verifyNotePassword 委譲)
+- **明文化適用(メイン)**: `useNotesAPI.ts restoreNote` 直前に「restore は単一ノードのみ＝folder 子孫 Trash 残存(PR1 既知制約・Backlog⑧)」コメント追記。計画書 Backlog に「⑧ subtree restore」追加 + Verification④ を実態へ更新
+- **実ブラウザ確認(ユーザー手動)**: ①②③④ いずれも機能 OK。ただし本文編集/アンマウント時に別系統コンソールエラー `notes?select=version&id=eq... 406` → `updateNote failed: Cannot coerce the result to a single JSON object` を報告
+- **406 根本原因(debug-strategy)**: 楽観 create(`useNotesAPI.createNote` ローカル即追加 + fire-and-forget INSERT) × `SupabaseDataService.updateNote` の version read `.single()`(0行 throw)。INSERT 完了前の unmount flush→updateNote→未確定行 select 0行→PostgREST 406。データ破壊なし(ローカル state 保持・次 flush 救済)。MEMORY S8 申し送り「upsert read-then-write LWW」の前倒し顕在化。StrictMode 二重 invoke は増幅要因(一次でない)
+- **406 修正 案 A-1(role-engineer)**: `SupabaseDataService.ts` notes `updateNote` の version read を `.single()`→`.maybeSingle()`、0行は DB write skip + well-formed 合成 node return(戻り値は全呼出 `.catch` 終端で非消費を横断 grep 確認)、真エラー `if(readErr)throw` は維持し 0行と区別。横展開判断: `upsertDaily` は元から `.maybeSingle()`→INSERT 継続で無変更(skip 化すると Daily 保存回帰)、`toggleBoolean`/`nextVersion` は明示操作経路でレース通路でなく戻り値契約上 0行の正解非一意のため意図的現状維持(known-issue 020 残課題で追跡)
+- **循環ガード追加(メイン・軽)**: PR1 ④ の subtree `collect` に `seen: Set<string>` ガード。破損 parentId 循環での無限再帰(known-issues 016 タスクツリー OOM 同型)を有限打ち切り。正常木では発火せず post-order DFS 不変(統合 role-qa が正当性検証)
+- **known-issue 020 起票**: `docs/known-issues/020-supabase-readthenwrite-single-zero-row-race.md`(Root Cause/Impact/Fix/横展開判断/残課題=案B createNote await・案C flush 差分ガード・toggleBoolean/nextVersion 0行確定/Lessons=`.single()` 禁則・upsert vs update-only 分岐則) + INDEX 更新(Bug カテゴリ、Fixed 集計整合、grep キーワード)。Status=Fixed
+- **統合最終監査(role-qa 別コンテキスト)**: PASS / Blocker0 Major0。循環ガード正当(seen.add タイミング・leaf/通常木挙動不変・循環有限打ち切り)、A-1 正当(真エラー/0行区別・upsertDaily 回帰なし)、PR1 既知制約維持。検証 web/shared `tsc -b`+eslint+vite build 実出力 green、frontend/src-tauri/cloud diff0 非破壊、`.mcp.json` 参照プレースホルダ維持、§8 更新不要(Tier1 既存 Notes バグ修正)。security/sync/migration/ipc validator いずれも不要判定
+- **commit/push(メイン・task-tracker auto-git override)**: 並行チャット IME refactor(frontend/)同居のため `git add -A` 厳禁、QA 承認の 8 パス明示指定 commit(`shared/src/hooks/useNotesAPI.ts` `shared/src/services/SupabaseDataService.ts` `web/src/notes/NotesView.tsx` `.claude/docs/known-issues/020-*.md` `INDEX.md` `2026-05-17-notes-web-parity.md` `MEMORY.md` `HISTORY.md`)→ `refactor/web-first-v2` へ push(main 直 push 禁止維持)。`03_demo_mobile_redesign.html`(無関係 untracked)除外
+- **次/Backlog**: 次セッション S4 Schedule 移植(最大規模・着手前 role-pm 分解)。PR2 UX(⑤行内アクション収束/⑥drop indicator/⑦chevron 間隔)+⑧subtree restore は計画書 Backlog 記録済
+
 ### 2026-05-17 - クロスプラットフォーム移行 Phase 2 S3(Notes) コード完了（Option A 確定 + 0005 スキーマ + lean TipTap + password/lock UI）
 
 #### 概要

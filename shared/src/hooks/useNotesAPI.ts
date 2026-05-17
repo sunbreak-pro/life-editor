@@ -109,6 +109,18 @@ export function useNotesAPI(options: UseNotesAPIOptions) {
         if (!cancelled) setIsLoading(false);
       }
     })();
+    // Trash list is loaded alongside the active tree (same trigger:
+    // initial mount + every syncVersion bump) so the Trash section is
+    // populated without the host having to call loadDeletedNotes() —
+    // independent try/catch so a Trash failure never blocks the tree.
+    (async () => {
+      try {
+        const deleted = await ds.fetchDeletedNotes();
+        if (!cancelled) setDeletedNotes(deleted);
+      } catch (e) {
+        logServiceError("Notes", "fetchDeleted", e);
+      }
+    })();
     return () => {
       cancelled = true;
     };
@@ -399,25 +411,88 @@ export function useNotesAPI(options: UseNotesAPIOptions) {
 
   const softDeleteNote = useCallback(
     (id: string, opts?: { skipUndo?: boolean }) => {
-      const target = notesRef.current.find((n) => n.id === id);
-      setNotes((prev) => prev.filter((n) => n.id !== id));
-      if (selectedNoteIdRef.current === id) setSelectedNoteId(null);
-      ds.softDeleteNote(id).catch((e) => logServiceError("Notes", "delete", e));
+      // `ds.softDeleteNote` only flips is_deleted on the single row (true
+      // for both the Supabase and the legacy Tauri repo — verified). For
+      // a folder that would orphan every descendant note/folder, so we
+      // collect the whole subtree here and soft-delete it as a unit
+      // (deepest-first → DataService can stay single-row). For a leaf
+      // note `subtree` is just `[target]`, so leaf behaviour is unchanged.
+      const all = notesRef.current;
+      const target = all.find((n) => n.id === id);
+      if (!target) return;
 
-      if (target && !opts?.skipUndo) {
+      const childrenOf = new Map<string | null, NoteNode[]>();
+      for (const n of all) {
+        const list = childrenOf.get(n.parentId);
+        if (list) list.push(n);
+        else childrenOf.set(n.parentId, [n]);
+      }
+      const subtree: NoteNode[] = [];
+      // `seen` guards against a corrupted parentId cycle (e.g. a bad sync
+      // round-trip) causing unbounded recursion — same OOM class as the
+      // task-tree (known-issues 016). DnD (moveNodeInto) prevents cycles
+      // at write time, but data may still arrive cyclic from the server.
+      const seen = new Set<string>();
+      const collect = (nodeId: string) => {
+        if (seen.has(nodeId)) return;
+        seen.add(nodeId);
+        const self = all.find((n) => n.id === nodeId);
+        if (!self) return;
+        for (const child of childrenOf.get(nodeId) ?? []) collect(child.id);
+        subtree.push(self); // post-order: descendants before ancestor
+      };
+      collect(id);
+      const subtreeIds = new Set(subtree.map((n) => n.id));
+
+      setNotes((prev) => prev.filter((n) => !subtreeIds.has(n.id)));
+      if (
+        selectedNoteIdRef.current !== null &&
+        subtreeIds.has(selectedNoteIdRef.current)
+      ) {
+        setSelectedNoteId(null);
+      }
+      // Surface the removed nodes in Trash immediately (the deepest-first
+      // order keeps ancestors above descendants once prepended). restore /
+      // permanentDelete already keep deletedNotes locally consistent.
+      setDeletedNotes((prev) => {
+        const known = new Set(prev.map((n) => n.id));
+        const added = subtree
+          .filter((n) => !known.has(n.id))
+          .map((n) => ({ ...n, isDeleted: true }));
+        return [...added, ...prev];
+      });
+      for (const n of subtree) {
+        ds.softDeleteNote(n.id).catch((e) =>
+          logServiceError("Notes", "delete", e),
+        );
+      }
+
+      if (!opts?.skipUndo) {
         push("note", {
           label: "softDeleteNote",
           undo: () => {
-            setNotes((p) => [target, ...p]);
-            ds.restoreNote(id).catch((e) =>
-              logServiceError("Notes", "undoDelete", e),
-            );
+            setNotes((p) => [...subtree, ...p]);
+            setDeletedNotes((p) => p.filter((n) => !subtreeIds.has(n.id)));
+            for (const n of subtree) {
+              ds.restoreNote(n.id).catch((e) =>
+                logServiceError("Notes", "undoDelete", e),
+              );
+            }
           },
           redo: () => {
-            setNotes((p) => p.filter((n) => n.id !== id));
-            ds.softDeleteNote(id).catch((e) =>
-              logServiceError("Notes", "redoDelete", e),
-            );
+            setNotes((p) => p.filter((n) => !subtreeIds.has(n.id)));
+            setDeletedNotes((p) => {
+              const known = new Set(p.map((n) => n.id));
+              const added = subtree
+                .filter((n) => !known.has(n.id))
+                .map((n) => ({ ...n, isDeleted: true }));
+              return [...added, ...p];
+            });
+            for (const n of subtree) {
+              ds.softDeleteNote(n.id).catch((e) =>
+                logServiceError("Notes", "redoDelete", e),
+              );
+            }
           },
         });
       }
@@ -492,6 +567,12 @@ export function useNotesAPI(options: UseNotesAPIOptions) {
     }
   }, [ds]);
 
+  // PR1 known constraint: restore is single-node only. softDeleteNote
+  // cascades a folder's whole subtree into Trash, but restoring that
+  // folder here brings back only the folder row — descendants stay in
+  // Trash until restored individually (mirrors the legacy single-id
+  // restoreNote). Subtree restore is tracked as Backlog ⑧ in
+  // .claude/docs/vision/plans/2026-05-17-notes-web-parity.md.
   const restoreNote = useCallback(
     (id: string) => {
       const note = deletedNotes.find((n) => n.id === id);

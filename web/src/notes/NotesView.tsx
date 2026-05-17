@@ -78,12 +78,14 @@ function NoteRow({
   selected,
   onToggleExpand,
   onSelect,
+  onDelete,
 }: {
   row: FlatRow;
   expanded: boolean;
   selected: boolean;
   onToggleExpand: (id: string) => void;
   onSelect: (id: string) => void;
+  onDelete: (id: string) => void;
 }) {
   const { node, depth, hasChildren } = row;
   const {
@@ -106,7 +108,7 @@ function NoteRow({
     <li
       ref={setNodeRef}
       style={style}
-      className={`flex items-center gap-2 rounded-md border px-2 py-1.5 ${
+      className={`group flex items-center gap-2 rounded-md border px-2 py-1.5 ${
         selected
           ? "border-notion-accent bg-notion-hover"
           : "border-notion-border bg-notion-bg-secondary"
@@ -178,6 +180,22 @@ function NoteRow({
           />
         )}
       </button>
+
+      <button
+        type="button"
+        onClick={(e) => {
+          // Row click handles select/expand; the delete action must not
+          // bubble to it (and folders are not selectable at all).
+          e.stopPropagation();
+          onDelete(node.id);
+        }}
+        aria-label={`Delete ${
+          node.type === "folder" ? "folder" : "note"
+        } ${node.title || "untitled"}`}
+        className={`text-notion-text-secondary opacity-0 transition-opacity hover:text-notion-danger focus-visible:opacity-100 group-hover:opacity-100 ${FOCUS_RING}`}
+      >
+        <Trash2 size={14} aria-hidden />
+      </button>
     </li>
   );
 }
@@ -188,10 +206,13 @@ function NoteRow({
  * mid-IME-composition. This mirrors RichTextEditor's debounce-and-flush
  * pattern exactly: a local draft, a 300ms debounced persist, an
  * immediate flush on blur, and a final flush on unmount. The parent
- * remounts this via `key={`${id}:${title}`}` so a note switch (id
- * change) or an external rename (title change) re-seeds the draft
- * cleanly with no setState-in-effect / ref-in-render. The eventually-
- * persisted value is unchanged — only the write cadence differs.
+ * remounts this via `key={selected.id}` so a note switch (id change)
+ * re-seeds the draft cleanly with no setState-in-effect / ref-in-render.
+ * The key intentionally excludes `title`: the debounced persist mutates
+ * `selected.title`, and keying on it would remount mid-typing and steal
+ * focus (single-user app — an external rename re-seed is not needed).
+ * The eventually-persisted value is unchanged — only the write cadence
+ * differs.
  */
 function NoteTitleInput({
   noteId,
@@ -252,6 +273,10 @@ export function NotesView() {
     noteId: string;
   } | null>(null);
   const [moveError, setMoveError] = useState<string | null>(null);
+  // Session unlock set (no re-lock for the session — mirrors the legacy
+  // ScreenLockContext `unlockedIds: Set`). A correct verify adds the note
+  // id; switching notes and coming back keeps it unlocked.
+  const [unlocked, setUnlocked] = useState<Set<string>>(new Set());
 
   const dnd = useNoteTreeDnd({
     notes: notes.notes,
@@ -317,6 +342,11 @@ export function NotesView() {
     } else {
       const ok = await notes.verifyNotePassword(noteId, password);
       if (!ok) throw new Error("wrong-password");
+      setUnlocked((prev) => {
+        const next = new Set(prev);
+        next.add(noteId);
+        return next;
+      });
     }
   };
 
@@ -387,6 +417,7 @@ export function NotesView() {
                     selected={selected?.id === row.node.id}
                     onToggleExpand={notes.toggleExpanded}
                     onSelect={notes.setSelectedNoteId}
+                    onDelete={notes.softDeleteNote}
                   />
                 ))}
               </ul>
@@ -445,7 +476,7 @@ export function NotesView() {
           <>
             <div className="flex flex-wrap items-center gap-2">
               <NoteTitleInput
-                key={`${selected.id}:${selected.title}`}
+                key={selected.id}
                 noteId={selected.id}
                 initialTitle={selected.title}
                 onCommit={(id, title) => notes.updateNote(id, { title })}
@@ -517,13 +548,49 @@ export function NotesView() {
               </button>
             </div>
 
-            <RichTextEditor
-              key={selected.id}
-              noteId={selected.id}
-              initialContent={selected.content || undefined}
-              editable={!selected.isEditLocked}
-              onUpdate={(content) => notes.updateNote(selected.id, { content })}
-            />
+            {(() => {
+              const gated =
+                !!selected.hasPassword && !unlocked.has(selected.id);
+              return (
+                <div className="relative">
+                  <div
+                    className={
+                      gated
+                        ? "select-none blur-md pointer-events-none"
+                        : undefined
+                    }
+                    aria-hidden={gated}
+                  >
+                    <RichTextEditor
+                      key={selected.id}
+                      noteId={selected.id}
+                      initialContent={selected.content || undefined}
+                      editable={!selected.isEditLocked}
+                      onUpdate={(content) =>
+                        notes.updateNote(selected.id, { content })
+                      }
+                    />
+                  </div>
+                  {gated && (
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setPwDialog({ mode: "verify", noteId: selected.id })
+                      }
+                      className={`absolute inset-0 flex flex-col items-center justify-center gap-2 rounded-md border border-notion-border bg-notion-bg-secondary text-notion-text ${FOCUS_RING}`}
+                    >
+                      <Lock size={20} aria-hidden />
+                      <span className="text-sm">
+                        This note is password protected
+                      </span>
+                      <span className="text-xs text-notion-text-secondary">
+                        Click to unlock
+                      </span>
+                    </button>
+                  )}
+                </div>
+              );
+            })()}
             {selected.isEditLocked && (
               <p className="text-xs text-notion-text-secondary">
                 This note is edit-locked. Unlock it to make changes.
