@@ -1,0 +1,701 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Life Editor — Mobile Work セクション 拡張デモ</title>
+<style>
+  /* ===== Theme tokens (mirrors frontend/src/index.css) ===== */
+  :root{
+    --bg:#18181b; --bg2:#27272a; --bg3:#1f1f23;
+    --text:#f4f4f5; --text2:#a1a1aa;
+    --border:#3f3f46; --border2:#52525b;
+    --accent:#529cca; --success:#4dab9a; --danger:#ef4444;
+    --hover:#3f3f46;
+  }
+  body.light{
+    --bg:#ffffff; --bg2:#eef2f7; --bg3:#f7f9fc;
+    --text:#18181b; --text2:#71717a;
+    --border:#dbe1ea; --border2:#c0c8d2;
+    --accent:#2eaadc; --success:#0f7b6c; --danger:#e03e3e;
+    --hover:#e8edf4;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+  html,body{height:100%}
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+    background:radial-gradient(circle at 50% -10%, #2a2a30 0%, #0d0d0f 70%);
+    color:var(--text);
+    display:flex;flex-direction:column;align-items:center;
+    min-height:100vh;padding:32px 16px 56px;gap:18px;
+    transition:background .3s;
+  }
+  body.light{background:radial-gradient(circle at 50% -10%,#dfe7f1 0%,#aab6c6 80%)}
+  .page-head{text-align:center;color:#e6e8ee}
+  body.light .page-head{color:#1c2733}
+  .page-head h1{font-size:18px;font-weight:700;letter-spacing:-.02em}
+  .page-head p{font-size:12px;opacity:.7;margin-top:4px}
+  .toolbar{display:flex;gap:8px;flex-wrap:wrap;justify-content:center}
+  .toolbar button{
+    border:1px solid rgba(255,255,255,.18);background:rgba(255,255,255,.06);
+    color:inherit;font-size:12px;font-weight:600;padding:7px 13px;border-radius:9px;cursor:pointer;
+  }
+  body.light .toolbar button{border-color:rgba(0,0,0,.14);background:rgba(255,255,255,.5);color:#1c2733}
+  .toolbar button:active{opacity:.7}
+
+  /* ===== Phone frame ===== */
+  .phone{
+    width:390px;max-width:100%;height:780px;
+    background:var(--bg);border-radius:42px;
+    box-shadow:0 0 0 11px #0a0a0c, 0 30px 70px rgba(0,0,0,.55);
+    overflow:hidden;position:relative;display:flex;flex-direction:column;
+  }
+  .notch{
+    position:absolute;top:0;left:50%;transform:translateX(-50%);
+    width:140px;height:26px;background:#0a0a0c;border-radius:0 0 16px 16px;z-index:60;
+  }
+  .statusbar{
+    height:46px;display:flex;align-items:flex-end;justify-content:space-between;
+    padding:0 26px 6px;font-size:12px;font-weight:600;color:var(--text);flex-shrink:0;
+  }
+  .statusbar .icons{display:flex;gap:5px;align-items:center}
+  .screen{flex:1;display:flex;flex-direction:column;overflow:hidden;position:relative}
+
+  /* ===== Generic ===== */
+  .scroll{flex:1;overflow-y:auto;overflow-x:hidden}
+  .scroll::-webkit-scrollbar{width:0}
+  .muted{color:var(--text2)}
+  .center{display:flex;align-items:center;justify-content:center}
+
+  /* ===== Top bar ===== */
+  .topbar{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 18px 4px;flex-shrink:0}
+  .topbar .date{font-size:11px;font-weight:500;color:var(--text2)}
+  .topbar .title{font-size:20px;font-weight:700;letter-spacing:-.02em}
+  .seg{display:flex;gap:2px;background:var(--bg2);padding:2px;border-radius:8px}
+  .seg button{
+    border:none;background:transparent;color:var(--text2);
+    font-size:11px;font-weight:600;padding:5px 10px;border-radius:7px;cursor:pointer;
+  }
+  .seg button.on{background:var(--bg);color:var(--text);box-shadow:0 1px 2px rgba(0,0,0,.3)}
+
+  /* ===== Active task chip ===== */
+  .chipwrap{display:flex;justify-content:center;padding-top:14px;flex-shrink:0}
+  .chip{
+    width:calc(100% - 36px);max-width:360px;display:flex;align-items:center;gap:10px;
+    border:1px solid var(--border);background:var(--bg);border-radius:13px;padding:9px 14px;
+  }
+  .chip .bar{width:4px;align-self:stretch;border-radius:2px;background:var(--accent)}
+  .chip.free .bar{background:var(--text2)}
+  .chip .body{flex:1;min-width:0;text-align:left;cursor:pointer}
+  .chip .crumb{display:flex;align-items:center;gap:4px;font-size:10px;font-weight:500;color:var(--text2)}
+  .chip .name{font-size:14px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .chip .kicker{font-size:10px;font-weight:500;letter-spacing:.08em;color:var(--text2);text-transform:uppercase}
+  .chip .iconbtn{
+    width:42px;height:42px;border-radius:9px;border:none;background:transparent;color:var(--text2);
+    display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;
+  }
+  .chip .iconbtn:active{background:var(--hover)}
+
+  /* ===== Timer arc ===== */
+  .timerwrap{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding-top:6px}
+  .arc{position:relative;width:280px;height:280px;display:flex;align-items:center;justify-content:center}
+  .arc .glow{position:absolute;inset:-18px;border-radius:50%;filter:blur(10px);transition:opacity .5s}
+  .arc svg{position:absolute;inset:0}
+  .arc .face{position:relative;z-index:2;display:flex;flex-direction:column;align-items:center}
+  .arc .slabel{display:flex;align-items:center;gap:5px;font-size:11px;font-weight:600;letter-spacing:1px;text-transform:uppercase}
+  .arc .time{font-size:64px;font-weight:200;line-height:1;letter-spacing:-.03em;font-variant-numeric:tabular-nums;margin-top:8px}
+  .arc .sub{margin-top:8px;font-size:12px;font-weight:500;color:var(--text2)}
+  .dots{display:flex;gap:6px;justify-content:center;margin-top:24px}
+  .dots i{height:6px;border-radius:3px;background:var(--border);transition:all .2s}
+  .dots i.on{width:18px}
+  .dots i.off{width:6px}
+  .dotslabel{margin-top:6px;font-size:11px;color:var(--text2);text-align:center}
+
+  /* ===== Control dock ===== */
+  .dock{display:flex;align-items:center;justify-content:center;gap:22px;padding:6px 0 26px;flex-shrink:0}
+  .dock .small{
+    width:52px;height:52px;border-radius:50%;border:1px solid var(--border);background:var(--bg);
+    color:var(--text2);display:flex;align-items:center;justify-content:center;cursor:pointer;
+  }
+  .dock .small:active{opacity:.7}
+  .dock .play{
+    width:76px;height:76px;border-radius:50%;border:none;color:#fff;cursor:pointer;
+    display:flex;align-items:center;justify-content:center;
+  }
+
+  /* ===== Bottom tab bar ===== */
+  .tabbar{
+    display:flex;border-top:1px solid var(--border);background:var(--bg);
+    padding:8px 0 18px;flex-shrink:0;
+  }
+  .tabbar button{
+    flex:1;border:none;background:transparent;cursor:pointer;
+    display:flex;flex-direction:column;align-items:center;gap:3px;
+    font-size:10px;font-weight:600;color:var(--text2);
+  }
+  .tabbar button.on{color:var(--accent)}
+  .tabbar svg{display:block}
+
+  /* ===== History view ===== */
+  .vhead{padding:16px 18px 8px;flex-shrink:0}
+  .vhead h2{font-size:20px;font-weight:700;letter-spacing:-.02em}
+  .vhead p{font-size:12px;color:var(--text2);margin-top:2px}
+  .daygroup{padding:0 18px}
+  .dayhdr{display:flex;align-items:baseline;justify-content:space-between;margin:18px 0 8px}
+  .dayhdr .d{font-size:13px;font-weight:700}
+  .dayhdr .tot{font-size:12px;color:var(--text2);font-variant-numeric:tabular-nums}
+  .srow{
+    display:flex;align-items:center;gap:11px;padding:11px 12px;border-radius:11px;
+    background:var(--bg2);margin-bottom:7px;
+  }
+  .srow .ic{width:30px;height:30px;border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+  .srow .meta{flex:1;min-width:0}
+  .srow .meta .t{font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .srow .meta .s{font-size:11px;color:var(--text2);margin-top:1px}
+  .srow .dur{font-size:13px;font-weight:600;font-variant-numeric:tabular-nums;flex-shrink:0}
+  .badge{font-size:9px;font-weight:700;letter-spacing:.05em;padding:2px 7px;border-radius:999px;text-transform:uppercase}
+
+  /* ===== Insights / Settings ===== */
+  .card{background:var(--bg2);border:1px solid var(--border);border-radius:14px;padding:16px;margin:0 18px 14px}
+  .card h3{font-size:12px;font-weight:700;color:var(--text2);letter-spacing:.05em;text-transform:uppercase;margin-bottom:12px}
+  .kpis{display:flex;gap:12px}
+  .kpi{flex:1;text-align:center}
+  .kpi .n{font-size:30px;font-weight:300;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+  .kpi .l{font-size:11px;color:var(--text2);margin-top:3px}
+  .bars{display:flex;align-items:flex-end;gap:8px;height:96px;padding-top:8px}
+  .bars .col{flex:1;display:flex;flex-direction:column;align-items:center;gap:6px;height:100%}
+  .bars .track{flex:1;width:100%;display:flex;align-items:flex-end}
+  .bars .fill{width:100%;border-radius:6px 6px 3px 3px;background:linear-gradient(180deg,var(--accent),color-mix(in srgb,var(--accent) 55%,transparent));min-height:4px;transition:height .5s}
+  .bars .lab{font-size:10px;color:var(--text2)}
+  .setrow{display:flex;align-items:center;justify-content:space-between;padding:13px 0;border-bottom:1px solid var(--border)}
+  .setrow:last-child{border-bottom:none}
+  .setrow .lab{font-size:14px;font-weight:500}
+  .setrow .hint{font-size:11px;color:var(--text2);margin-top:2px}
+  .stepper{display:flex;align-items:center;gap:0;border:1px solid var(--border);border-radius:9px;overflow:hidden}
+  .stepper button{width:34px;height:34px;border:none;background:var(--bg);color:var(--text);font-size:18px;cursor:pointer}
+  .stepper button:active{background:var(--hover)}
+  .stepper .v{min-width:48px;text-align:center;font-size:14px;font-weight:600;font-variant-numeric:tabular-nums}
+  .switch{width:46px;height:27px;border-radius:999px;background:var(--border2);position:relative;cursor:pointer;transition:background .2s;flex-shrink:0}
+  .switch.on{background:var(--accent)}
+  .switch::after{content:"";position:absolute;top:3px;left:3px;width:21px;height:21px;border-radius:50%;background:#fff;transition:transform .2s}
+  .switch.on::after{transform:translateX(19px)}
+
+  /* ===== Bottom sheets / modal ===== */
+  .scrim{position:absolute;inset:0;background:rgba(0,0,0,.5);z-index:40;display:flex;align-items:flex-end;
+    opacity:0;pointer-events:none;transition:opacity .25s}
+  .scrim.show{opacity:1;pointer-events:auto}
+  .sheet{
+    width:100%;background:var(--bg);border-radius:20px 20px 0 0;padding:8px 0 26px;
+    transform:translateY(100%);transition:transform .28s cubic-bezier(.32,.72,0,1);max-height:88%;
+    display:flex;flex-direction:column;
+  }
+  .scrim.show .sheet{transform:translateY(0)}
+  .grip{width:38px;height:4px;border-radius:2px;background:var(--border2);margin:6px auto 10px;flex-shrink:0}
+  .sheet h3{font-size:17px;font-weight:700;text-align:center;padding:0 20px}
+  .sheet .sub{font-size:13px;color:var(--text2);text-align:center;margin-top:5px;padding:0 20px}
+  .sheet .body{padding:18px 20px 0;overflow-y:auto}
+  .btn{
+    width:100%;border:none;border-radius:13px;padding:14px;font-size:14px;font-weight:600;cursor:pointer;
+    margin-top:11px;
+  }
+  .btn.primary{background:var(--accent);color:#fff}
+  .btn.ghost{background:transparent;border:1px solid var(--border);color:var(--text)}
+  .btn.text{background:transparent;color:var(--text2);font-weight:500;margin-top:6px}
+  .btn:active{opacity:.8}
+  .field{margin-bottom:14px}
+  .field label{display:block;font-size:12px;font-weight:600;color:var(--text2);margin-bottom:6px}
+  .field input,.field select{
+    width:100%;border:1px solid var(--border);background:var(--bg2);color:var(--text);
+    border-radius:10px;padding:12px;font-size:14px;outline:none;
+  }
+  .field input:focus,.field select:focus{border-color:var(--accent)}
+  .roletoggle{display:flex;gap:8px}
+  .roletoggle button{
+    flex:1;border:1px solid var(--border);background:var(--bg2);color:var(--text2);
+    border-radius:10px;padding:11px;font-size:13px;font-weight:600;cursor:pointer;
+  }
+  .roletoggle button.on{border-color:var(--accent);color:var(--accent);background:color-mix(in srgb,var(--accent) 12%,transparent)}
+  .elapsed{text-align:center;font-size:13px;color:var(--text2);margin-top:4px}
+  .elapsed b{color:var(--text);font-variant-numeric:tabular-nums}
+  .cbrow{display:flex;align-items:center;gap:9px;font-size:13px;color:var(--text2);margin-top:14px;cursor:pointer}
+  .cbrow .box{width:18px;height:18px;border-radius:5px;border:1.5px solid var(--border2);display:flex;align-items:center;justify-content:center}
+  .cbrow .box.on{background:var(--accent);border-color:var(--accent)}
+
+  .tasklist{flex:1;overflow-y:auto}
+  .tasklist .ti{display:flex;align-items:flex-start;gap:11px;padding:13px 20px;border-bottom:1px solid var(--border);cursor:pointer;text-align:left}
+  .tasklist .ti:active{background:var(--hover)}
+  .tasklist .ti .av{width:28px;height:28px;border-radius:50%;background:var(--bg2);display:flex;align-items:center;justify-content:center;flex-shrink:0}
+  .searchbar{padding:10px 20px;border-bottom:1px solid var(--border)}
+  .searchbar input{width:100%;border:1px solid var(--border);background:var(--bg2);color:var(--text);border-radius:10px;padding:10px 12px;font-size:14px;outline:none}
+  .toast{
+    position:absolute;left:50%;bottom:96px;transform:translateX(-50%) translateY(20px);
+    background:var(--text);color:var(--bg);font-size:13px;font-weight:600;
+    padding:11px 18px;border-radius:11px;z-index:70;opacity:0;pointer-events:none;transition:all .3s;white-space:nowrap;
+  }
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+</style>
+</head>
+<body>
+  <div class="page-head">
+    <h1>Life Editor — モバイル Work セクション 拡張デモ</h1>
+    <p>セッション履歴 / フリーセッション保存 / タイマー設定・統計 を追加した提案モック（単体・非統合）</p>
+  </div>
+  <div class="toolbar">
+    <button onclick="document.body.classList.toggle('light')">テーマ切替</button>
+    <button onclick="setTab('timer')">タイマー</button>
+    <button onclick="setTab('history')">履歴</button>
+    <button onclick="setTab('insights')">統計 / 設定</button>
+    <button onclick="openSheet('free')">フリーセッション保存を見る</button>
+    <button onclick="toggleRun(true)">タイマー再生/一時停止</button>
+  </div>
+
+  <div class="phone">
+    <div class="notch"></div>
+    <div class="statusbar">
+      <span id="clock">9:41</span>
+      <span class="icons">
+        <svg width="17" height="11" viewBox="0 0 17 11" fill="currentColor"><rect x="0" y="6" width="3" height="5" rx="1"/><rect x="4.5" y="4" width="3" height="7" rx="1"/><rect x="9" y="2" width="3" height="9" rx="1"/><rect x="13.5" y="0" width="3" height="11" rx="1"/></svg>
+        <svg width="22" height="11" viewBox="0 0 22 11" fill="none"><rect x="1" y="1" width="17" height="9" rx="2.5" stroke="currentColor" stroke-opacity=".5"/><rect x="3" y="3" width="12" height="5" rx="1" fill="currentColor"/><rect x="19" y="4" width="2" height="3" rx="1" fill="currentColor" fill-opacity=".5"/></svg>
+      </span>
+    </div>
+    <div class="screen">
+
+      <!-- ===================== TIMER VIEW ===================== -->
+      <div id="view-timer" class="scroll" style="display:flex;flex-direction:column">
+        <div class="topbar">
+          <div>
+            <div class="date" id="todayDate">2026年5月18日 · 月</div>
+            <div class="title">Focus</div>
+          </div>
+          <div class="seg" id="seg">
+            <button class="on" data-s="WORK" onclick="setSession('WORK')">Focus</button>
+            <button data-s="BREAK" onclick="setSession('BREAK')">Break</button>
+            <button data-s="LONG_BREAK" onclick="setSession('LONG_BREAK')">Long</button>
+          </div>
+        </div>
+
+        <div class="chipwrap">
+          <div class="chip" id="chip" onclick="openSheet('picker')">
+            <div class="bar"></div>
+            <div class="body">
+              <div class="crumb" id="chipCrumb">
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
+                <span id="chipCrumbText">Product › v2 移行</span>
+              </div>
+              <div class="name" id="chipName">Mobile Work セクション拡張</div>
+            </div>
+            <button class="iconbtn" onclick="event.stopPropagation();clearTask()" id="chipClear">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+            </button>
+          </div>
+        </div>
+
+        <div class="timerwrap">
+          <div class="arc">
+            <div class="glow" id="glow"></div>
+            <svg width="280" height="280" viewBox="0 0 280 280">
+              <circle id="arcTrack" cx="140" cy="140" r="128" fill="none" stroke="var(--border)" stroke-width="6" stroke-linecap="round" transform="rotate(135 140 140)"/>
+              <circle id="arcFill" cx="140" cy="140" r="128" fill="none" stroke="var(--accent)" stroke-width="8" stroke-linecap="round" transform="rotate(135 140 140)"/>
+            </svg>
+            <div class="face">
+              <div class="slabel" id="slabel" style="color:var(--accent)">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M13 2L3 14h7l-1 8 10-12h-7z"/></svg>
+                <span>FOCUS SESSION</span>
+              </div>
+              <div class="time" id="time">25:00</div>
+              <div class="sub" id="sub">25 min 0 sec left</div>
+            </div>
+          </div>
+          <div class="dots" id="dots"></div>
+          <div class="dotslabel" id="dotsLabel">Today 2 / 4 sessions</div>
+        </div>
+
+        <div class="dock">
+          <button class="small" onclick="resetTimer()" aria-label="Reset">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg>
+          </button>
+          <button class="play" id="playBtn" onclick="toggleRun()" style="background:var(--accent);box-shadow:0 12px 28px rgba(82,156,202,.34)">
+            <svg id="playIcon" width="30" height="30" viewBox="0 0 24 24" fill="#fff" style="margin-left:3px"><path d="M7 4v16l13-8z"/></svg>
+          </button>
+          <button class="small" onclick="skipSession()" aria-label="Skip">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 4l10 8-10 8z"/><path d="M19 5v14"/></svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- ===================== HISTORY VIEW ===================== -->
+      <div id="view-history" class="scroll" style="display:none">
+        <div class="vhead">
+          <h2>履歴</h2>
+          <p>過去14日間のセッション</p>
+        </div>
+        <div class="card" style="display:flex;gap:12px;margin-top:4px">
+          <div class="kpi"><div class="n" style="color:var(--accent)">37</div><div class="l">合計セッション</div></div>
+          <div class="kpi"><div class="n">15<span style="font-size:15px;color:var(--text2)">h</span> 25<span style="font-size:15px;color:var(--text2)">m</span></div><div class="l">合計フォーカス</div></div>
+          <div class="kpi"><div class="n" style="color:var(--success)">9</div><div class="l">連続日数</div></div>
+        </div>
+        <div class="daygroup" id="historyList"></div>
+        <div style="height:24px"></div>
+      </div>
+
+      <!-- ===================== INSIGHTS / SETTINGS VIEW ===================== -->
+      <div id="view-insights" class="scroll" style="display:none">
+        <div class="vhead">
+          <h2>統計 & 設定</h2>
+          <p>今日の進捗とポモドーロ設定</p>
+        </div>
+
+        <div class="card">
+          <h3>今日のサマリー</h3>
+          <div class="kpis">
+            <div class="kpi"><div class="n" style="color:var(--accent)" id="kSess">2</div><div class="l">完了セッション</div></div>
+            <div class="kpi"><div class="n" id="kTime">50<span style="font-size:15px;color:var(--text2)">m</span></div><div class="l">フォーカス時間</div></div>
+            <div class="kpi"><div class="n" style="color:var(--success)">50<span style="font-size:15px;color:var(--text2)">%</span></div><div class="l">目標達成率</div></div>
+          </div>
+        </div>
+
+        <div class="card">
+          <h3>今週のフォーカス（分）</h3>
+          <div class="bars" id="weekBars"></div>
+        </div>
+
+        <div class="card">
+          <h3>タイマー設定</h3>
+          <div class="setrow">
+            <div><div class="lab">作業時間</div><div class="hint">1セッションの長さ</div></div>
+            <div class="stepper"><button onclick="step('work',-5)">−</button><div class="v"><span id="setWork">25</span>分</div><button onclick="step('work',5)">+</button></div>
+          </div>
+          <div class="setrow">
+            <div><div class="lab">休憩時間</div><div class="hint">短い休憩</div></div>
+            <div class="stepper"><button onclick="step('brk',-1)">−</button><div class="v"><span id="setBrk">5</span>分</div><button onclick="step('brk',1)">+</button></div>
+          </div>
+          <div class="setrow">
+            <div><div class="lab">長い休憩</div><div class="hint">サイクル完了後</div></div>
+            <div class="stepper"><button onclick="step('long',-5)">−</button><div class="v"><span id="setLong">15</span>分</div><button onclick="step('long',5)">+</button></div>
+          </div>
+          <div class="setrow">
+            <div><div class="lab">長い休憩まで</div><div class="hint">何セッションごと</div></div>
+            <div class="stepper"><button onclick="step('cyc',-1)">−</button><div class="v"><span id="setCyc">4</span></div><button onclick="step('cyc',1)">+</button></div>
+          </div>
+          <div class="setrow">
+            <div><div class="lab">1日の目標</div><div class="hint">目標セッション数</div></div>
+            <div class="stepper"><button onclick="step('tgt',-1)">−</button><div class="v"><span id="setTgt">4</span></div><button onclick="step('tgt',1)">+</button></div>
+          </div>
+        </div>
+
+        <div class="card">
+          <h3>動作</h3>
+          <div class="setrow">
+            <div><div class="lab">休憩を自動開始</div><div class="hint">セッション完了で自動的に休憩へ</div></div>
+            <div class="switch on" onclick="this.classList.toggle('on')"></div>
+          </div>
+          <div class="setrow">
+            <div><div class="lab">効果音</div><div class="hint">開始 / 完了時のサウンド</div></div>
+            <div class="switch on" onclick="this.classList.toggle('on')"></div>
+          </div>
+          <div class="setrow">
+            <div><div class="lab">通知</div><div class="hint">セッション完了を通知</div></div>
+            <div class="switch" onclick="this.classList.toggle('on')"></div>
+          </div>
+        </div>
+        <div style="height:24px"></div>
+      </div>
+
+      <!-- ===================== BOTTOM TAB BAR ===================== -->
+      <div class="tabbar" id="tabbar">
+        <button class="on" data-t="timer" onclick="setTab('timer')">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2 2M9 2h6M12 5V2"/></svg>
+          タイマー
+        </button>
+        <button data-t="history" onclick="setTab('history')">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5M12 7v5l3 3"/></svg>
+          履歴
+        </button>
+        <button data-t="insights" onclick="setTab('insights')">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19V10M10 19V5M16 19v-7M22 19H2"/></svg>
+          統計
+        </button>
+      </div>
+
+      <!-- ===================== SCRIM + SHEETS ===================== -->
+      <div class="scrim" id="scrim" onclick="if(event.target===this)closeSheet()">
+
+        <!-- Session complete -->
+        <div class="sheet" id="sheet-complete" style="display:none">
+          <div class="grip"></div>
+          <h3>Session Complete!</h3>
+          <div class="sub">作業お疲れさま。休憩しましょう</div>
+          <div class="body">
+            <button class="btn primary" onclick="closeSheet();setSession('BREAK');toggleRun(true)">休憩を開始</button>
+            <button class="btn ghost" onclick="extend()">+5分 延長</button>
+            <button class="btn text" onclick="closeSheet()">閉じる</button>
+          </div>
+        </div>
+
+        <!-- Free session save -->
+        <div class="sheet" id="sheet-free" style="display:none">
+          <div class="grip"></div>
+          <h3>フリーセッションを保存</h3>
+          <div class="elapsed">経過時間 <b id="freeElapsed">42:17</b></div>
+          <div class="body">
+            <div class="field">
+              <label>セッション名</label>
+              <input id="freeLabel" type="text" placeholder="例: 設計のラフ検討" value="設計のラフ検討" />
+            </div>
+            <div class="field">
+              <label>記録先</label>
+              <div class="roletoggle" id="roleToggle">
+                <button class="on" data-r="task" onclick="pickRole('task')">タスクとして</button>
+                <button data-r="event" onclick="pickRole('event')">予定として</button>
+                <button data-r="none" onclick="pickRole('none')">記録しない</button>
+              </div>
+            </div>
+            <div class="field" id="parentField">
+              <label>親タスク</label>
+              <select>
+                <option>（ルート）</option>
+                <option selected>Product › v2 移行</option>
+                <option>個人 › 学習</option>
+              </select>
+            </div>
+            <div class="field" id="tagField" style="display:none">
+              <label>カレンダータグ</label>
+              <select>
+                <option>仕事</option><option>個人</option><option>学習</option>
+              </select>
+            </div>
+            <div class="cbrow" onclick="this.querySelector('.box').classList.toggle('on')">
+              <div class="box"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3"><path d="M20 6L9 17l-5-5"/></svg></div>
+              次回から表示しない
+            </div>
+            <button class="btn primary" onclick="saveFree()">保存</button>
+            <button class="btn text" onclick="closeSheet()">破棄</button>
+          </div>
+        </div>
+
+        <!-- Task picker -->
+        <div class="sheet" id="sheet-picker" style="display:none;height:78%">
+          <div class="grip"></div>
+          <h3 style="text-align:left;padding:0 20px 12px;border-bottom:1px solid var(--border)">タスクを選択</h3>
+          <div class="searchbar"><input type="text" placeholder="タスクを検索..." /></div>
+          <div class="tasklist">
+            <div class="ti" onclick="pickTask(null,null)">
+              <div class="av"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M13 2L3 14h7l-1 8 10-12h-7z"/></svg></div>
+              <div style="flex:1"><div style="font-size:14px;font-weight:600">フリーセッション</div><div style="font-size:11px;color:var(--text2);margin-top:1px">特定のタスクなしで集中</div></div>
+            </div>
+            <div class="ti" onclick="pickTask('Mobile Work セクション拡張','Product › v2 移行')">
+              <div style="flex:1"><div class="crumb" style="margin-bottom:2px">Product › v2 移行</div><div style="font-size:14px">Mobile Work セクション拡張</div></div>
+            </div>
+            <div class="ti" onclick="pickTask('Supabase 同期の検証','Product › v2 移行')">
+              <div style="flex:1"><div class="crumb" style="margin-bottom:2px">Product › v2 移行</div><div style="font-size:14px">Supabase 同期の検証</div></div>
+            </div>
+            <div class="ti" onclick="pickTask('Rust 所有権の復習','個人 › 学習')">
+              <div style="flex:1"><div class="crumb" style="margin-bottom:2px">個人 › 学習</div><div style="font-size:14px">Rust 所有権の復習</div></div>
+            </div>
+            <div class="ti" onclick="pickTask('週次レビュー資料','仕事')">
+              <div style="flex:1"><div class="crumb" style="margin-bottom:2px">仕事</div><div style="font-size:14px">週次レビュー資料</div></div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <div class="toast" id="toast"></div>
+    </div>
+  </div>
+
+<script>
+/* ================= State ================= */
+const SESS = {
+  WORK:       {label:'FOCUS SESSION', color:'var(--accent)',  dur:25*60},
+  BREAK:      {label:'BREAK',         color:'var(--success)', dur:5*60},
+  LONG_BREAK: {label:'LONG BREAK',    color:'var(--success)', dur:15*60},
+};
+let cfg = {work:25,brk:5,long:15,cyc:4,tgt:4};
+let state = {type:'WORK', remain:25*60, total:25*60, running:false, done:2, tick:null};
+const R=128, C=2*Math.PI*R, ARC=0.75*C; // 270deg
+
+/* ================= Timer view ================= */
+function render(){
+  const s = SESS[state.type];
+  const m = Math.floor(state.remain/60), sec = state.remain%60;
+  document.getElementById('time').textContent = String(m).padStart(2,'0')+':'+String(sec).padStart(2,'0');
+  document.getElementById('sub').textContent = m+' min '+sec+' sec left';
+  const slbl = document.getElementById('slabel');
+  slbl.style.color = s.color; slbl.querySelector('span').textContent = s.label;
+  const prog = state.total ? 1-(state.remain/state.total) : 0;
+  const fill = document.getElementById('arcFill');
+  fill.setAttribute('stroke', s.color);
+  fill.setAttribute('stroke-dasharray', (prog*ARC)+' '+(C-prog*ARC));
+  document.getElementById('arcTrack').setAttribute('stroke-dasharray', ARC+' '+(C-ARC));
+  document.getElementById('glow').style.background =
+    `radial-gradient(circle, color-mix(in srgb, ${s.color} 32%, transparent) 0%, transparent 62%)`;
+  document.getElementById('glow').style.opacity = state.running ? 1 : .4;
+  // dots
+  const dots = document.getElementById('dots'); dots.innerHTML='';
+  for(let i=0;i<cfg.tgt;i++){
+    const d=document.createElement('i');
+    if(i<state.done){d.className='on';d.style.background=s.color;}
+    else{d.className='off';}
+    dots.appendChild(d);
+  }
+  document.getElementById('dotsLabel').textContent = `Today ${state.done} / ${cfg.tgt} sessions`;
+  // play btn
+  const pb=document.getElementById('playBtn'), pi=document.getElementById('playIcon');
+  if(state.running){
+    pb.style.background='var(--text)'; pb.style.boxShadow='0 8px 20px rgba(0,0,0,.3)';
+    pi.innerHTML='<rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/>';
+    pi.style.marginLeft='0';
+  }else{
+    pb.style.background=s.color; pb.style.boxShadow=`0 12px 28px color-mix(in srgb, ${s.color} 40%, transparent)`;
+    pi.innerHTML='<path d="M7 4v16l13-8z"/>'; pi.style.marginLeft='3px';
+  }
+  // seg
+  document.querySelectorAll('#seg button').forEach(b=>b.classList.toggle('on', b.dataset.s===state.type));
+}
+function setSession(type){
+  state.type=type; state.total=SESS[type].dur; state.remain=SESS[type].dur;
+  if(state.tick){clearInterval(state.tick);state.tick=null;} state.running=false; render();
+}
+function toggleRun(force){
+  state.running = force===true ? !state.running : !state.running;
+  if(state.running){
+    state.tick=setInterval(()=>{
+      if(state.remain>0){state.remain--;render();}
+      else{clearInterval(state.tick);state.tick=null;state.running=false;
+        if(state.type==='WORK'){state.done++;}
+        render(); openSheet('complete');}
+    },1000);
+  }else if(state.tick){clearInterval(state.tick);state.tick=null;}
+  render();
+}
+function resetTimer(){state.remain=state.total;if(state.tick){clearInterval(state.tick);state.tick=null;}state.running=false;render();}
+function skipSession(){
+  if(state.type==='WORK'){state.done++;setSession('BREAK');}
+  else{setSession('WORK');}
+  toast('スキップしました');
+}
+function extend(){state.remain+=5*60;state.total+=5*60;closeSheet();render();toast('+5分 延長');}
+function clearTask(){
+  const c=document.getElementById('chip'); c.classList.add('free');
+  document.getElementById('chipCrumb').style.display='none';
+  document.getElementById('chipName').textContent='Focus only';
+  const k=document.createElement('div');
+  document.getElementById('chipClear').style.display='none';
+  toast('フリーセッション');
+}
+
+/* ================= Tabs ================= */
+function setTab(t){
+  ['timer','history','insights'].forEach(v=>{
+    document.getElementById('view-'+v).style.display = v===t?'flex':'none';
+  });
+  document.querySelectorAll('#tabbar button').forEach(b=>b.classList.toggle('on', b.dataset.t===t));
+}
+
+/* ================= Sheets ================= */
+function openSheet(id){
+  ['complete','free','picker'].forEach(s=>document.getElementById('sheet-'+s).style.display = s===id?'flex':'none');
+  document.getElementById('sheet-'+id).style.flexDirection='column';
+  document.getElementById('scrim').classList.add('show');
+}
+function closeSheet(){document.getElementById('scrim').classList.remove('show');}
+function pickRole(r){
+  document.querySelectorAll('#roleToggle button').forEach(b=>b.classList.toggle('on',b.dataset.r===r));
+  document.getElementById('parentField').style.display = r==='task'?'block':'none';
+  document.getElementById('tagField').style.display = r==='event'?'block':'none';
+}
+function saveFree(){closeSheet();toast('フリーセッションを保存しました');}
+function pickTask(name,crumb){
+  const c=document.getElementById('chip');
+  if(name===null){clearTask();}
+  else{
+    c.classList.remove('free');
+    document.getElementById('chipClear').style.display='flex';
+    document.getElementById('chipCrumb').style.display = crumb?'flex':'none';
+    document.getElementById('chipCrumbText').textContent = crumb||'';
+    document.getElementById('chipName').textContent = name;
+  }
+  closeSheet(); setTab('timer'); toast(name?('「'+name+'」を選択'):'フリーセッション');
+}
+function toast(msg){
+  const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show');
+  clearTimeout(t._t); t._t=setTimeout(()=>t.classList.remove('show'),1800);
+}
+
+/* ================= Settings steppers ================= */
+const lim={work:[5,240,5],brk:[1,60,1],long:[1,60,1],cyc:[1,20,1],tgt:[1,20,1]};
+const elMap={work:'setWork',brk:'setBrk',long:'setLong',cyc:'setCyc',tgt:'setTgt'};
+function step(k,d){
+  const [mn,mx]=lim[k]; cfg[k]=Math.min(mx,Math.max(mn,cfg[k]+d));
+  document.getElementById(elMap[k]).textContent=cfg[k];
+  if(k==='work'){SESS.WORK.dur=cfg.work*60;}
+  if(k==='brk'){SESS.BREAK.dur=cfg.brk*60;}
+  if(k==='long'){SESS.LONG_BREAK.dur=cfg.long*60;}
+  if((k==='work'||k==='brk'||k==='long') && !state.running){
+    state.total=SESS[state.type].dur; state.remain=SESS[state.type].dur;
+  }
+  render();
+}
+
+/* ================= Mock history ================= */
+const TASKS=['Mobile Work セクション拡張','Supabase 同期の検証','Rust 所有権の復習','週次レビュー資料','読書: 設計原則'];
+function fmtMin(s){const m=Math.round(s/60);return m>=60?`${Math.floor(m/60)}h ${m%60}m`:`${m}m`;}
+function buildHistory(){
+  const wrap=document.getElementById('historyList'); wrap.innerHTML='';
+  const now=new Date(); const dows=['日','月','火','水','木','金','土'];
+  for(let di=0; di<6; di++){
+    const date=new Date(now); date.setDate(now.getDate()-di);
+    const cnt = di===0?2 : 2+Math.floor(Math.random()*4);
+    let tot=0; const rows=[];
+    for(let i=0;i<cnt;i++){
+      const isWork=Math.random()>0.32;
+      const dur=isWork?(20+Math.floor(Math.random()*6))*60:(Math.random()>0.7?15*60:5*60);
+      tot+=dur;
+      const h=9+Math.floor(Math.random()*9), mm=Math.floor(Math.random()*60);
+      rows.push({isWork,dur,task:TASKS[Math.floor(Math.random()*TASKS.length)],
+        time:`${String(h).padStart(2,'0')}:${String(mm).padStart(2,'0')}`,
+        long:!isWork&&dur>600});
+    }
+    const hdr=document.createElement('div'); hdr.className='dayhdr';
+    const lbl = di===0?'今日':di===1?'昨日':`${date.getMonth()+1}/${date.getDate()} (${dows[date.getDay()]})`;
+    hdr.innerHTML=`<span class="d">${lbl}</span><span class="tot">${rows.length} セッション · ${fmtMin(tot)}</span>`;
+    wrap.appendChild(hdr);
+    rows.forEach(r=>{
+      const acc = r.isWork?'var(--accent)':'var(--success)';
+      const badge = r.isWork?'WORK':(r.long?'LONG BREAK':'BREAK');
+      const el=document.createElement('div'); el.className='srow';
+      el.innerHTML=`
+        <div class="ic" style="background:color-mix(in srgb,${acc} 18%,transparent);color:${acc}">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M13 2L3 14h7l-1 8 10-12h-7z"/></svg>
+        </div>
+        <div class="meta">
+          <div class="t">${r.isWork?r.task:'休憩'}</div>
+          <div class="s">${r.time} · <span class="badge" style="background:color-mix(in srgb,${acc} 16%,transparent);color:${acc}">${badge}</span></div>
+        </div>
+        <div class="dur">${fmtMin(r.dur)}</div>`;
+      wrap.appendChild(el);
+    });
+  }
+}
+function buildWeek(){
+  const wrap=document.getElementById('weekBars'); wrap.innerHTML='';
+  const labs=['月','火','水','木','金','土','日']; const vals=[75,120,95,50,140,30,0]; const mx=150;
+  labs.forEach((l,i)=>{
+    const col=document.createElement('div'); col.className='col';
+    col.innerHTML=`<div class="track"><div class="fill" style="height:${Math.max(4,vals[i]/mx*100)}%"></div></div><div class="lab">${l}</div>`;
+    wrap.appendChild(col);
+  });
+}
+
+/* ================= Init ================= */
+(function(){
+  const d=new Date(), dows=['日','月','火','水','木','金','土'];
+  document.getElementById('todayDate').textContent=`${d.getFullYear()}年${d.getMonth()+1}月${d.getDate()}日 · ${dows[d.getDay()]}`;
+  const c=document.getElementById('clock');
+  setInterval(()=>{const n=new Date();c.textContent=`${n.getHours()}:${String(n.getMinutes()).padStart(2,'0')}`;},1000);
+  buildHistory(); buildWeek(); render();
+})();
+</script>
+</body>
+</html>
