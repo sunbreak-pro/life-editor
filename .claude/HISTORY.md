@@ -1,5 +1,22 @@
 # HISTORY.md - 変更履歴
 
+### 2026-05-19 - Phase 2 S4 完全クローズ（0006 本番 apply 成功 + 実ブラウザ 2 バグ修正）
+
+#### 概要
+
+S4 コード完了後、ユーザーが 0006 を Supabase SQL Editor で本番 apply。初回は `cloud/db/migrations/0006_*`（旧 Cloudflare D1 = SQLite 構文 `INSERT OR IGNORE`/`_v2`）を誤って貼り 42601 構文エラー → 正しい `supabase/migrations/0006_schedule_full_schema.sql`（純 PostgreSQL・SQLite 構文混入 0 件検証済）で再実行し成功・手動確認 OK。実ブラウザ確認で 2 実バグが顕在（S4 計画の「実ブラウザ確認」が機能）。lead-pipeline 中ティア（role-pm 分解 → ユーザー判断 → role-engineer 実装 → role-qa 独立監査 Issue 017 専用検証 → task-tracker）で修正。バグ3（RoutineGroup 空表示）はユーザー明示でデモにつき未修正・SSOT 既知制約 1 行記録のみ。
+
+#### 変更点
+
+- **0006 apply トラブルと解決**: `0006_` 番号が `supabase/migrations/`（Postgres）と `cloud/db/migrations/`（旧 D1 SQLite・廃止予定）で衝突。ユーザーが後者を誤貼り → `INSERT OR IGNORE INTO calendar_tag_assignments_v2` で PostgreSQL 42601。原因＝コードバグでなくファイル取り違えと特定、正ファイル（570 行・SQLite 構文 grep 0 件）を案内し再 apply 成功。S4 SSOT Verification 全項目 [x]・Status=COMPLETE 化
+- **バグ1（Calendar 作成 409 FK 違反）**: `calendars.folder_id` は `tasks(id)` NOT NULL FK だが web `CalendarView` が folderId を自由入力テキスト受け → 存在しない id で `calendars_folder_id_fkey` 409。修正＝`useTaskTreeContext` の `type==="folder"` task を `<select>` 選択化（value=task.id・title 表示）、`MainScreen` schedule セクションに `TaskTreeProvider` 追加（SyncProvider 直下・schedule trio 外側＝§6.2 整合・trio 依存順非破壊）。stale id ガード + folder 0 件時 Add UI 非表示の二重防御で 409 構造的に発生不能
+- **バグ2（Routine item が Delete forever で復活＝Issue 017 震源地）**: routine 生成 item を物理/soft-delete すると `createScheduleItem` の (routine_id,date) 重複ガード（`SupabaseDataService.ts:1771-1778` `.eq("is_deleted",false)`）をすり抜け、生成器が routine 在存中ゆえ再生成。修正＝`ScheduleItemsView` で `item.routineId` 真値の item から Delete（soft-delete）/ Trash の Delete-forever 導線を条件レンダリングで非表示、Dismiss を主導線化。Trash 一覧も `deletedManualItems = filter(!routineId)` で routine item 除外。Dismiss 行（is_deleted=false, is_dismissed=true）は重複ガードが拾い再生成阻止 + by-date クエリ（is_dismissed=false）で表示から消える＝frontend Rust モデル忠実。手動 item（routineId=null）は soft-delete/Restore/forever 非変更
+- **Routine 自体の削除（既存実装の検証）**: ユーザー回答「Routine のデリート関数を実装」に対し調査の結果 `useRoutinesAPI.deleteRoutine`（=`softDeleteRoutine` 子 schedule_items cascade）+ `ScheduleView:403` Delete ボタン + Trash は S4-2/S4-3 で実装済と判明。`softDeleteRoutine` が子 cascade soft-delete + routine.is_deleted=true、生成器 host が live routines のみ渡す + `shouldCreateRoutineItem` の routine.isDeleted short-circuit の二重ガードで「Routine 削除→既存生成 item も消え再生成なし」を role-qa がコードパス実証
+- **shared 非変更**: dedup ガードは frontend 忠実で正しいため未改変（git diff shared/ = 0）。UI 層で routine item を物理削除経路に流さない設計で Issue 017 を構造的に断つ
+- **独立監査（role-qa 別コンテキスト）**: PASS / Blocker0 Major0 Minor0。Issue 017 が UI 非表示 + DataService 重複ガードの二重防御でコードパス上遮断されたことを実証。Dismiss→生成器再生成なし / routine item の Delete/Trash 到達不能 / Routine 削除 cascade / 手動 item 回帰なし / バグ1 folder select FK 不能 を全トレース。security/ipc/migration/sync-auditor いずれも不要判定（新規攻撃面・IPC・migration・sync 区分変更なし）。frontend/src-tauri/cloud/shared/supabase diff 完全 0、vitest 71/71 非回帰
+- **commit**: `297ead6`（web 3 + S4 SSOT 1 行）pathspec 指定で `phase-2/schedule-migration` push。`03_demo_mobile_redesign.html`（無関係 untracked）除外
+- **次/申し送り**: `phase-2/schedule-migration` を `refactor/web-first-v2` へマージ判断（ブランチ戦略ユーザー確認待ち）→ S5 WikiTags。S8 申し送り 6 項は S4 SSOT 維持。CalendarView の folder 0 件ヒント文日本語は web i18n 一括テーブル化（Settings S-step）時に回収（既知債務群と同レーン、新規債務でない）
+
 ### 2026-05-17 - Phase 2 S4 Schedule 移植 コード完了（子ブランチ phase-2/schedule-migration、7 サブステップ全 QA PASS）
 
 #### 概要
