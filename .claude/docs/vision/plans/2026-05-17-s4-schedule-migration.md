@@ -122,6 +122,7 @@ frontend 既存ロジック（読み取り参照のみ・不可侵）:
   6. Tauri→Supabase data import 経路で schedule_items version 振り直し or full-replace（Web 側 version+1 vs Tauri updated_at-only の非対称、Medium-2。移行 SSOT に追記推奨）
 - **S4-5 申し送り**: ① `ensureRoutineItemsForDate` の楽観 UI が frontend より縮退（onChanged→loadDate 再読込のみ、生成直後 1RT ちらつき可能性。永続化は同一）— 実ブラウザ確認(次セッション)で「月高速連打の生成件数 + 生成直後ちらつき/遅延」を観測項目に ② `RoutineScheduleSync` effect が routines 配列参照で毎回発火（冪等性は partial UNIQUE+per-row skip 担保、実害=冗長 fetch）
 - **S4-3 申し送り**: ① i18n は web 全体 Settings S-step で一括テーブル化（ScheduleView も英語のみ＝S3 NotesView 先例一貫、新規債務でない）② deleted ロード二重発火（useRoutinesAPI 初回 effect + ScheduleView mount、S3 同型・実害は冗長 fetch 1 回）は S4-4+ で host 側重複整理検討 ③ `frequencyStartDate` 編集 UI は S4-5 生成器配線時に追補（interval 起点日が必要） ④ createRoutineGroup はフック層で `Promise<RoutineGroup|null>`（DataService interface 署名は不変、S4-6 consumer は null ハンドリング）
+- **既知制約: RoutineGroup 作成後 group 空表示（デモにつき未修正）**: 実ブラウザ確認で RoutineGroup 作成直後に group が空表示になる事象を確認。ユーザー明示でデモ対象につき本フェーズではコード未修正（後続フェーズで RoutineGroup UI 整備時に対処）
 
 ## スコープ外（クリープ防止）
 

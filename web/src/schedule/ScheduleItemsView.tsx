@@ -15,6 +15,20 @@ import { useScheduleItemsContext } from "@life-editor/shared";
  * here — every item created from this view is a MANUAL item
  * (routineId = null). Calendar / CalendarTags views land in S4-6.
  *
+ * bug2 fix (Issue 017 ghost-revival): a routine-generated item
+ * (routineId != null) must NOT be reachable via soft-delete or
+ * "Delete forever". While its routine is live the generator
+ * (RoutineScheduleSync) re-materialises (routine_id,date) every
+ * date/routine change, so a physical/soft delete just resurrects the
+ * row. The only routine-consistent way to remove an occurrence is
+ * Dismiss (is_dismissed=true, is_deleted=false) — the (routine_id,date)
+ * dedup guard in SupabaseDataService then keeps the generator from
+ * re-creating it. So for routine items we expose ONLY Dismiss, hide
+ * Delete + Delete-forever, and never list them in Trash. Manual items
+ * (routineId === null) keep the full soft-delete / Trash / forever
+ * lifecycle unchanged. (To delete every occurrence of a routine, delete
+ * the routine itself from ScheduleView — softDeleteRoutine cascades.)
+ *
  * i18n: the web build has no i18n table yet (a real one arrives with
  * the Settings S-step — same as DailyView / NotesView / ScheduleView).
  * English-only, matching the established web convention (S4-3 一貫).
@@ -52,6 +66,14 @@ export function ScheduleItemsView() {
   const sortedItems = useMemo(
     () => items.slice().sort((a, b) => a.startTime.localeCompare(b.startTime)),
     [items],
+  );
+
+  // bug2: routine items never enter the soft-delete lifecycle (Dismiss
+  // only), so they must not appear in Trash even if a stray soft-delete
+  // row exists. Only manual items (routineId === null) are restorable.
+  const deletedManualItems = useMemo(
+    () => deletedItems.filter((i) => !i.routineId),
+    [deletedItems],
   );
 
   const handleCreate = () => {
@@ -180,13 +202,20 @@ export function ScheduleItemsView() {
               >
                 {item.isDismissed ? "Undismiss" : "Dismiss"}
               </button>
-              <button
-                type="button"
-                onClick={() => deleteScheduleItem(item.id)}
-                className="rounded-md border border-notion-border px-2 py-0.5 text-xs text-notion-text hover:bg-notion-hover"
-              >
-                Delete
-              </button>
+              {/*
+               * Routine items (routineId != null) get Dismiss only —
+               * soft-delete would be undone by the generator while the
+               * routine is live (Issue 017). Manual items keep Delete.
+               */}
+              {!item.routineId && (
+                <button
+                  type="button"
+                  onClick={() => deleteScheduleItem(item.id)}
+                  className="rounded-md border border-notion-border px-2 py-0.5 text-xs text-notion-text hover:bg-notion-hover"
+                >
+                  Delete
+                </button>
+              )}
             </div>
           </li>
         ))}
@@ -197,13 +226,13 @@ export function ScheduleItemsView() {
         )}
       </ul>
 
-      {deletedItems.length > 0 && (
+      {deletedManualItems.length > 0 && (
         <div className="space-y-1">
           <h3 className="text-sm font-semibold text-notion-text">
-            Trash ({deletedItems.length})
+            Trash ({deletedManualItems.length})
           </h3>
           <ul className="space-y-1">
-            {deletedItems.map((item) => (
+            {deletedManualItems.map((item) => (
               <li
                 key={item.id}
                 className="flex items-center justify-between text-sm text-notion-text-secondary"

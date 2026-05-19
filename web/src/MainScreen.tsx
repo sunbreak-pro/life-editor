@@ -133,19 +133,29 @@ export function MainScreen({ session }: { session: Session }) {
          */}
         {section === "schedule" && (
           <SyncProvider>
-            <CalendarProvider dataService={ds}>
-              <RoutineProvider dataService={ds}>
-                <ScheduleItemsProvider dataService={ds}>
-                  <CalendarTagsProvider dataService={ds}>
-                    <RoutineScheduleSync dataService={ds} />
-                    <ScheduleView />
-                    <ScheduleItemsView />
-                    <CalendarView />
-                    <CalendarTagsView />
-                  </CalendarTagsProvider>
-                </ScheduleItemsProvider>
-              </RoutineProvider>
-            </CalendarProvider>
+            {/*
+             * TaskTreeProvider is mounted here so CalendarView can offer
+             * a folder-task <select> (bug1 fix): `calendars.folder_id`
+             * FKs tasks(id) with ON DELETE CASCADE — a free-text id hit
+             * a 409 calendars_folder_id_fkey. It sits just inside Sync
+             * (only needs DataService + Sync) and OUTSIDE the schedule
+             * trio, so the §6.2 trio dependency order is unchanged.
+             */}
+            <TaskTreeProvider dataService={ds}>
+              <CalendarProvider dataService={ds}>
+                <RoutineProvider dataService={ds}>
+                  <ScheduleItemsProvider dataService={ds}>
+                    <CalendarTagsProvider dataService={ds}>
+                      <RoutineScheduleSync dataService={ds} />
+                      <ScheduleView />
+                      <ScheduleItemsView />
+                      <CalendarView />
+                      <CalendarTagsView />
+                    </CalendarTagsProvider>
+                  </ScheduleItemsProvider>
+                </RoutineProvider>
+              </CalendarProvider>
+            </TaskTreeProvider>
           </SyncProvider>
         )}
       </div>
