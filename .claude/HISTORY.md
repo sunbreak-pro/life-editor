@@ -1,5 +1,21 @@
 # HISTORY.md - 変更履歴
 
+### 2026-05-23 - モバイルUIプロトタイプ環境 計画策定（要件定義書01 + 実装計画書02）+ Artifacts 原本隔離
+
+#### 概要
+
+Claude Artifacts 上で磨いてきた 3 つのモバイル版デモ TSX（Schedule 統合 / Work / Materials）を、本番 `frontend/` のビルド・データ層オーバーヘッドから切り離して実環境確認できるよう、純粋 Web の Vite 単体プロトタイプ環境を設計。ユーザー提供の要件定義書原稿（`~/dev/apps/01_要件定義書_プロトタイプ環境.md`）を `.claude/docs/vision/plans/01_要件定義書_プロトタイプ環境.md` として配置し、続いて Phase 0-4 の実装計画書 `02` を作成。実装（Vite 環境構築）は未着手で、本セッションは「計画策定 + 原本隔離（Phase 0）」がスコープ。
+
+#### 変更点
+
+- **配置判断（本セッションの核）**: ユーザーが当初 3 TSX を `.claude/docs/vision/plans/` に置いていたが、`.claude/` は本番ビルド対象外かつ「完了プランは archive 送り」運用のため動く部品の置き場として不適と指摘。専用ディレクトリは repo root の `prototype/`（要件定義書 §6 が既に指定）が正と判断
+- **要件定義書 01**: ユーザー原稿を逐語配置。UI/UX 工程と CRUD 工程の完全分離 / 独立起動（`/schedule` `/work` `/materials`）+ 統合プレビュー（`/unified` 下タブ）/ 依存最小（react / react-router-dom / lucide-react / vite / tailwind v3 のみ、Tauri・Electron・Capacitor・Supabase 禁止）/ 1ファイルTSX維持 / Catppuccin Mocha 固定 / Provider・Context 不使用 / 永続化なし
+- **実装計画書 02（新規作成）**: Phase 0（原本隔離）〜 Phase 4（README + マージ）を具体コマンド + 完了チェック + 想定工数付きで策定。オープン課題（要件定義 §11）への回答案: ブランチ=`prototype/mobile-ui` / フォルダ=`prototype/` / ルータ=HashRouter / Settings=プレースホルダ / 配色=`const C` JSオブジェクト方式（原本踏襲）
+- **要件定義との差分検出**: 要件定義 §2.3 は Catppuccin を `bg-[#xxxxxx]` arbitrary value 想定だが、原本実物は `const C = {...}` + インライン style 方式。移植差分最小化を優先し原本方式を採用、計画書 §3 / §8 に明記
+- **Phase 0 実行（原本隔離）**: `life editor unified demo.tsx` / `mobile work section demo.tsx` / `materials demo.tsx` の 3 点を `.claude/docs/vision/plans/` から `prototype/_artifacts/` へ移動（凍結原本＝以後改変せず Phase 2 移植元 + 不変要件マニフェスト MV-1〜SIDEBAR-1 の照合基準に）
+- **commit/push（今回のセッション分のみ）**: ユーザー明示の「今回のセッションのみ」に従い pathspec 指定（`git add -A` 厳禁）。対象=`01`/`02` 計画書 + `prototype/` + `.claude/MEMORY.md` / `HISTORY.md` / `HISTORY-archive.md`。ブランチは現状 `data-unification/items-meta-redesign`（計画書は本来 `prototype/mobile-ui` 想定だが、planning docs のため現ブランチに同居・ユーザーへ申し送り）
+- **HISTORY ローリングアーカイブ**: 6 件目追加に伴い最古エントリ（2026-05-17 shared+web セキュリティ監査）を `HISTORY-archive.md` へ移動、HISTORY は最新 5 件保持
+
 ### 2026-05-23 - Data Unification 親計画書策定（旧 Phase 3 → 改名）+ Phase 2 完全クローズ + ブランチ準備
 
 #### 概要
@@ -69,22 +85,3 @@ Phase 2 最大規模ドメイン Schedule を子ブランチ `phase-2/schedule-m
 - **orphan DB 削除（破壊的・手順遵守）**: 削除前検証 — `com.lifeEditor.app/life-editor.db`(user_version=59, tasks=1/notes=1, 最終更新 2026-04-15＝旧バンドル残骸) を `~/Backups/orphan-life-editor-com.lifeEditor.app-20260517.db` へ単一ファイル退避後 rm（+shm/wal）。`sonic-flow/life-editor.db`(0byte/0table) は退避不要で rm。検証: `find` で `life-editor/life-editor.db`(active, user_version=70, tasks=2)のみ残存、別PJ `sonic-flow/sonic-flow.db` 保持を確認
 - **commit（並行 S4 ブランチ着地・据置判断）**: セッション開始時 `refactor/web-first-v2` だったが並行 S4 チャットが共有作業ツリーを `phase-2/schedule-migration` へ切替済。SSOT 復元+MEMORY 初回整理は `f7738ac` としてそのブランチに着地(push は upstream 無しで未実行＝リモート影響0)。ユーザー判断「S4 ブランチに据置・git 追加手術なし」＝S4 マージ時にトランクへ自然到達。本セッションの追加 docs 編集も同ブランチへ pathspec commit。shared/(S4 並行作業)・frontend/ 不可侵維持、`git add -A` 厳禁
 - **未着手（報告のみ）**: 🔄書換候補=バグ f/k(Supabase 文脈)・保留 React Compiler / ❓ユーザー判断=なし(Point Graph/[13] は今回整理で処置済、orphan DB 実施済) / 残デッドリンク=なし(windows-android-port は §8 統一済、refactoring-verification-plan は予定[5]ごと削除済)
-
-### 2026-05-17 - shared+web セキュリティ監査 → H1 循環ガード退行修正 + 安全網テスト整備（pathspec commit/push 済）
-
-#### 概要
-
-ユーザーから 3 並行タスク（A=shared+web 脆弱性監査 / B=Phase 5 frontend リファクタ / C=未移植ドメイン安全網テスト）+「別チャットが Phase 4 Schedule 実行中なので注意」の要請。multi-session-coordinator 起動で**重要な誤認を是正**: 別チャット chat-refactor が進めるのは「frontend リファクタ計画の Phase 4」であり移行 SSOT の「Phase 4 = Schedule(S4) 移植」ではない（S4 は未着手・着手チャット無し）。chat-refactor は frontend リファクタ Phase 5 を「要承認」で保留中・MEMORY/HISTORY 不可侵宣言済＝本レーンが tracker 単独オーナー（並行 override 不要）。競合判定: A=Read のみ無衝突 / B=`frontend/src` が chat-refactor 専有書込レーン＝衝突確定 / C=`shared/`+`web/` 新規 `*.test.ts` 限定なら無衝突。ユーザー判断: B は chat-refactor レーンに委譲し本レーン非着手 / C は A の監査結果で対象決定（A→C 逐次）/ C スコープ=H1 修正+安全網テスト。lead-pipeline 中チェーン（security-reviewer 監査 → role-engineer 実装 → session-verifier → role-qa 別コンテキスト独立監査 → task-tracker）。
-
-#### 変更点
-
-- **multi-session-coordinator（状況是正）**: `.claude/active-sessions/` + `.claude/comm/outbox/chat-refactor.md` 照合で「Phase 4 Schedule 実行中」がユーザーの誤認（実体=frontend リファクタ Phase 4・commit 済 / Schedule S4 未着手）と判明。chat-refactor の forward-port 監査レポート（`.claude/reports/2026-05-17-shared-forward-port-audit.md`）を A の入力に活用、二重作業回避
-- **タスクA セキュリティ監査（security-reviewer・read-only）**: `shared/src` + `web/src` + `supabase/migrations|scripts` を 7 観点（PostgREST インジェクション/RLS 網羅/秘密情報/認証/XSS/DoS/ソフトデリート）で監査。判定 Critical0 High1 Med3 Low3 + 既知債務1(悪化なし)。レポート `.claude/reports/2026-05-17-shared-web-security-audit.md`。**負の結果を明示**: service_role/PAT 非露出・`.env*` gitignore・全出荷テーブル RLS owner-only 4policy 正・`pgrstQuoteValue` 文法ブレイクアウト遮断・`dangerouslySetInnerHTML` 皆無・Link protocol allowlist 適切・ソフトデリートフィルタ漏れ無し
-- **H1（新規 finding・forward-port 監査の盲点）**: `shared/src/hooks/useNoteTreeMovement.ts` のローカル `isDescendantOf` に循環ガード欠落。FP#1 は `getDescendantTasks.ts` の 3 関数だけ visited 化、forward-port 監査は本ヘルパを「判定対象外」と明記してスルー＝退行が残存。`parent_id` 循環で `moveNode`/`moveNodeInto` ドラッグ毎にメインスレッド凍結/OOM（KI-016 同型・別ファイル別ヘルパ）。0005 が自己参照 FK を許し Cloud Sync LWW で循環永続化しうる自己被害
-- **タスクC H1 修正（role-engineer）**: 正本 `getDescendantTasks.ts:90-124` の `isDescendantOf` と探索構造が完全同一だったため visited Set パターンを構造そのまま忠実移植（target match を guard より前に維持＝2 ノード循環でも直接到達子を即検出、非循環は挙動完全不変）。コメントで KI-016 参照
-- **タスクC 安全網テスト（role-engineer）**: shared に vitest `^4` 配備（`shared/vitest.config.ts`、`include:["tests/**"]`+node 環境）。**テストを `src/` 外の `shared/tests/` に分離**＝composite project（`include:["src"]`/`outDir:dist`）が dist にテストを emit し consumer 出荷する事故を構造回避（dist 非汚染を実確認）。A 監査 Top5 を新規 5 ファイル/30 テストでカバー（useNoteTreeMovement 循環停止+target-before-guard 不変条件 / pgrstQuoteValue 注入境界+M1 `%`/`_` ギャップを「修正でなく現状記録」と明示 / getDescendantTasks 3 関数 visited / noteUpdatesToPatch の password_hash・has_password・version 非混入 / walkAncestors 既存ガード pin）。可視性のみの最小 export 追加（`isDescendantOf` / `pgrstQuoteValue` を named export 化・ロジック不変）
-- **session-verifier**: scope=shared/ のみ（frontend/ 無変更を git status 確認）。Gate1 型=`tsc -b` EXIT0 / Gate2 lint=shared 未配備でスキップ / Gate3 テスト=30/30 PASS / Gate4 カバレッジ=Top5 全カバー新規 export 使用済 / Gate5 構造=コメント有・死コード無 / Gate6 バグスキャン=循環ガード正当性を自己参照/2 ノード/3 ノードで手動トレース確認。PASS
-- **role-qa 独立監査（別コンテキスト）**: APPROVE / Blocker0 Major0 Minor0。正本との 1 行照合・全循環パターン論理トレース・テスト実効性（修正前ハング入力を実投与+戻り値 assert）・バレル非汚染（`shared/src/index.ts` に未追加・テストは相対 import）・dist 非汚染（`find dist -name "*.test.*"` 空）・レーン制約（`git status --porcelain` で shared/ のみ）を実ファイル実証。security/sync/migration/ipc validator 追加起動は不要判定（防御強化+可視性のみ・スキーマ/IPC/sync 機構変更なし）
-- **タスクB（非着手・委譲）**: Phase 5 frontend リファクタは chat-refactor の専有書込レーン＋当人が保留中の当該作業のため本レーンで起動せず。ユーザー判断で chat-refactor レーンに委譲（こちらからの outbox 通知は専有レーン侵害回避で行わない）
-- **commit/push（task-tracker auto-git override）**: 計画書なし finding 起点だが実コード変更ありのため skill の「計画書なし→.claude/ のみ」ヒューリスティックを override。並行 chat-refactor frontend/ 同居のため `git add -A` 厳禁、パス明示指定（`shared/src/hooks/useNoteTreeMovement.ts` `shared/src/services/SupabaseDataService.ts` `shared/package.json` `shared/package-lock.json` `shared/vitest.config.ts` `shared/tests/` `.claude/reports/` 2 監査 `.claude/MEMORY.md` `.claude/HISTORY.md`）→ `refactor/web-first-v2` push（main 直 push 禁止維持）。`03_demo_mobile_redesign.html`（無関係 untracked）・`frontend/`・`.mcp.json` 除外
-- **次/Backlog**: M1（searchNotes LIKE `%`/`_` 非エスケープ）は申し送り④と整合の既知ギャップでテストにより挙動固定（未修正）/ M3 list 系 pagination 欠落は将来課題 / web 側 vitest は対象テストが web に出た時点で配備 / 次セッション S4 Schedule 移植は従前どおり

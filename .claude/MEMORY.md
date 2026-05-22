@@ -18,13 +18,25 @@
 
 ## 直近の完了
 
+- モバイルUIプロトタイプ環境 計画策定 ✅（2026-05-23）— 要件定義書 `01_要件定義書_プロトタイプ環境.md` + 実装計画書 `02_実装計画書_プロトタイプ環境.md`（Phase 0-4）を作成。Artifacts 原本3 TSX（unified/work/materials demo）を `.claude/docs/vision/plans` から `prototype/_artifacts/` へ隔離（Phase 0 完了）。Vite 環境構築（Phase 1-4）は未着手。`.claude/` はビルド対象外＝動く部品は repo root `prototype/` 配下が正、という配置判断が核。詳細 HISTORY 参照
 - Data Unification 親計画書策定（旧 Phase 3 改名）+ Phase 2 完全クローズ + ブランチ準備 ✅（2026-05-23）— Schedule 再設計の親計画書 v3 を lead-pipeline 重ティアフルチェーンで策定（role-qa 3 周監査 15+7+2 項全解消）。items_meta + payload ハイブリッド 13 テーブル / role 5 種統一 / Calendar 月+3 日 2 ビュー。Phase 2 を `refactor/web-first-v2` に FF マージ → 新ブランチ `data-unification/items-meta-redesign` 作成。計画書 `dcc8484` + HTML ビュー派生。実装未着手（DU-A 着手は破壊的 apply 二段承認後）。詳細 HISTORY 参照
 - Phase 2 S4 完全クローズ（0006 apply 成功 + 実ブラウザ 2 バグ修正）✅（2026-05-19）— 0006 本番 apply 成功・手動確認 OK。実ブラウザ判明の 2 バグ修正: バグ1=Calendar FK 違反を folder-type task select 化(TaskTreeProvider 追加)で構造解消 / バグ2=Routine item 復活(Issue 017)を Delete/Trash 導線非表示+Dismiss 主導線化で構造的遮断。role-qa PASS、保護領域 diff0、vitest 71/71 非回帰。`297ead6`。詳細 HISTORY 参照 **注: Data Unification に吸収（コード全捨て、Provider/UI 構造は実装パターンだけ参考）。**
-- Phase 2 S4 Schedule 移植 コード完了 ✅（2026-05-17）— 子ブランチ `phase-2/schedule-migration` で S4-0〜S4-6 の 7 サブステップ実装。0006(7テーブル)+mapper7+DataService7+Provider+Routine 生成器。各サブ role-qa PASS、vitest 71/71・非破壊。詳細 HISTORY 参照 **注: Data Unification に吸収（コード全捨て）。**
 
 ## 予定
 
 > **注**: 2026-05-17 に旧 Tauri / Cloudflare 前提の陳腐化タスクを一括削除済（Q2 Cloud Sync 検証 / リファクタ検証計画 / Realtime Phase1(frontend SyncContext) / Mobile Full Re-sync ボタン(frontend) / Desktop パッケージ更新(cargo tauri) / orphan DB(実施済) / iOS 実機受入 / iOS 4G / Mobile Schedule 手動検証(新リデザイン計画へ) / frontend lint 一括 / Point Graph 継続FB / Tauri IPC naming。逐語は git 履歴）。残置は移行後も有効なもののみ。
+
+### モバイルUIプロトタイプ環境の Vite 構築（Phase 1-4）
+
+**対象**: repo root `prototype/`（`prototype/src/` + `prototype/_artifacts/`（隔離済原本））
+**計画書**: `.claude/docs/vision/plans/02_実装計画書_プロトタイプ環境.md`（Phase 0 完了・Phase 1-4 未着手）
+**ブランチ**: 計画書は `refactor/web-first-v2` → `prototype/mobile-ui` を想定（現状の計画書 commit は `data-unification/items-meta-redesign` に同居）
+
+- Phase 1: Vite + React + Tailwind v3 初期セットアップ（依存は NFR-2 許可リストのみ・`server: { host: true }` で iPhone 実機確認）
+- Phase 2: `_artifacts` の 3 TSX を `src/screens/` へ作業コピー化 + 独立起動（`/schedule` `/work` `/materials`）
+- Phase 3: `/unified` 下タブ統合 + モックインタラクション（FR-4）
+- Phase 4: README 整備 + `refactor/web-first-v2` へマージ
+- **配置判断の核**: `.claude/` はビルド対象外のため、動く部品は repo root `prototype/` 配下に置く（生 TSX を plans/ に置くのは用途違い）
 
 ### Mobile vs Desktop 設計方針の docs/vision/ への明文化
 
