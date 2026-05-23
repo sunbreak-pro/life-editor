@@ -18,6 +18,7 @@ Data Unification DU-B-2 (Tasks role mapper 書き換え) を実装完了。role-
 - **R9 子計画書追加**: TaskNode フィールド追加 PR の責務として taskMapper.ts L228-230 / L324-327 同時編集を必須化
 - **DU-B-3 への引き継ぎ**: 新 5 値 + 6 型を SupabaseDataService.ts 末尾で再 export 済、`_pendingRewrite()` throw メッセージに「DU-B-3 SupabaseTasksService rewrite pending; 0008+0009 schema in place, mapper migrated in DU-B-2」とロードマップ明記
 - **次フェーズ**: DU-B-3 (SupabaseTasksService 9 メソッド書き換え、descendants 再帰削除 + try/catch hard delete + bump ヘルパー集約)
+- **DU-B-3 以降の詳細実装計画書策定**: `.claude/docs/vision/plans/2026-05-23-data-unification-b3-onwards-impl.md` (DU-B-3〜B-6 の 4 Step を SQL クエリレベルまで具体化)。次セッション着手時はチェックリスト「DU-B-2 まで完了の確認」を通してから着手。DU-B-3 は 9 メソッドそれぞれの実装方針 (SQL + try/catch + bump) を明示、DU-B-4 は vitest 必須 5 + 補強 1、DU-B-5 は golden path 7 段、DU-B-6 は CLAUDE.md / db-conventions.md / known-issues 4 件の更新案。次フェーズ DU-C/D/E/F 概要 + DU-B 完了時の archive 手順も含む
 
 ### 2026-05-23 - Data Unification DU-B-1 完了（0009 v3-rev2 + 差分 v3-rev3 + 0010 本番 apply + 検証 9 件クリア + PG 落とし穴 2 件解消）
 
