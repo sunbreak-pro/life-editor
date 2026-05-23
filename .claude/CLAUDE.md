@@ -212,6 +212,8 @@ cd frontend && npm run build                            # 型検証（tsc -b。-
 
 **Stop hook 連動**: `.claude/hooks/stop-check.sh` が応答終了時に frontend 変更を検知して裏で `npm run build` を走らせ、結果を `.claude/comm/outbox/<chat>/stop-report.md` に追記する。登録は `.claude/settings.json::hooks.Stop`。無効化は同ファイル削除。
 
+**SessionStart hook 連動**: `.claude/hooks/session-start-check.sh` が新規セッション開始時に `.claude/comm/.session-name` を 4 観点 (A 未宣言 / B `chat-` プレフィックス違反 / C allowlist 外文字 (`^[a-zA-Z0-9_-]+$`) / D `.session-name` の mtime が HEAD commit より 3 日以上古い) で検査し、警告があれば `.claude/comm/outbox/<chat>/session-start-warnings.md` に追記。**informational only でセッションは止めない**。登録は `.claude/settings.json::hooks.SessionStart`。per-chat 機構 (`.claude/memory/INDEX.md`) 不在の legacy プロジェクトでは無音 (即 exit 0)。
+
 ---
 
 ## 8. Feature Tier Map（詳細 → `docs/requirements/`）

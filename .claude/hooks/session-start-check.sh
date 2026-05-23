@@ -1,0 +1,93 @@
+#!/usr/bin/env bash
+#
+# SessionStart hook: .session-name 整合性検査（informational only・即 exit）
+#
+# 目的:
+#   - 新規チャット開始時に .claude/comm/.session-name が未宣言／前チャットの値を
+#     引き継いだ状態のまま作業が始まることを防ぐ
+#   - 不整合があれば warning を outbox + 標準出力に出すだけ。セッションは止めない
+#   - 警告を見たらユーザーは `echo <name> > .claude/comm/.session-name` で宣言する
+#
+# 検査ロジック:
+#   A. 空文字 → 未宣言
+#   B. "chat-" プレフィックス → task-tracker 仕様違反
+#   C. 英数字・ハイフン・アンダースコア (`^[a-zA-Z0-9_-]+$`) 以外を含む
+#      → 不正文字 / パストラバーサル (allowlist 方式)
+#   D. 上記いずれでもないが .session-name の mtime が HEAD commit より 3 日以上古い
+#      → 別チャット作業を引き継いだ可能性（要確認）
+#
+# 起動条件:
+#   .claude/settings.json の hooks.SessionStart に登録される
+#
+
+set -uo pipefail
+
+ROOT="/Users/newlife/dev/apps/life-editor"
+
+# per-chat 機構が有効か判定。無効なら警告対象外なので即終了
+if [ ! -d "${ROOT}/.claude/memory" ] || [ ! -f "${ROOT}/.claude/memory/INDEX.md" ]; then
+  exit 0
+fi
+
+SESSION_FILE="${ROOT}/.claude/comm/.session-name"
+SESSION_NAME=$(cat "${SESSION_FILE}" 2>/dev/null | tr -d '[:space:]' || true)
+
+WARNINGS=()
+
+# A: 空文字
+if [ -z "${SESSION_NAME}" ]; then
+  WARNINGS+=("A: \`.session-name\` 未宣言 — \`echo <name> > .claude/comm/.session-name\` で宣言してください")
+# B: chat- プレフィックス（task-tracker SKILL.md Step 0 と同じバリデーション）
+elif [[ "${SESSION_NAME}" == chat-* ]]; then
+  WARNINGS+=("B: \`chat-\` プレフィックス不要 — 現在値 \`${SESSION_NAME}\`。ファイル名側で \`chat-\` が付くため、ここでは素の名前（例 \`engineer\`）にしてください")
+# C: 不正な文字 / パストラバーサル (allowlist 方式)
+# deny-list だと `~root` / `$(whoami)` / `-rf` / 全角スラッシュ `／` 等を取り逃す
+elif [[ ! "${SESSION_NAME}" =~ ^[a-zA-Z0-9_-]+$ ]]; then
+  WARNINGS+=("C: 不正な文字 — 現在値 \`${SESSION_NAME}\`。英数字・ハイフン・アンダースコアのみ使用してください (allowlist: ^[a-zA-Z0-9_-]+\$)")
+else
+  # D: mtime と HEAD commit timestamp の比較
+  HEAD_TS=$(git -C "${ROOT}" log -1 --format=%ct 2>/dev/null || echo "")
+  if [ -n "${HEAD_TS}" ] && [ -f "${SESSION_FILE}" ]; then
+    # macOS / BSD stat 形式（life-editor は darwin 環境）
+    SESSION_MTIME=$(stat -f %m "${SESSION_FILE}" 2>/dev/null || echo "")
+    if [ -n "${SESSION_MTIME}" ]; then
+      DIFF_SEC=$((HEAD_TS - SESSION_MTIME))
+      THREE_DAYS=$((3 * 24 * 3600))
+      if [ "${DIFF_SEC}" -gt "${THREE_DAYS}" ]; then
+        WARNINGS+=("D: \`.session-name\` (\`${SESSION_NAME}\`) は最終 commit より 3 日以上古い — 別チャットの作業を引き継いだ可能性。\`cat .claude/comm/.session-name\` で念のため確認してください")
+      fi
+    fi
+  fi
+fi
+
+# 警告がなければ静かに終了
+if [ "${#WARNINGS[@]}" -eq 0 ]; then
+  exit 0
+fi
+
+# outbox 先のチャット名フォールバック
+# allowlist (英数字・ハイフン・アンダースコア) に合致しなければ unknown フォールバック
+# 警告 C と同じ判定式 — deny-list 取りこぼし対策
+if [[ ! "${SESSION_NAME}" =~ ^[a-zA-Z0-9_-]+$ ]]; then
+  OUTBOX_NAME="unknown"
+else
+  OUTBOX_NAME="${SESSION_NAME}"
+fi
+
+OUTBOX="${ROOT}/.claude/comm/outbox/${OUTBOX_NAME}"
+mkdir -p "${OUTBOX}"
+REPORT="${OUTBOX}/session-start-warnings.md"
+
+TS=$(date '+%Y-%m-%d %H:%M:%S')
+
+{
+  printf '\n## %s  SessionStart warnings\n' "${TS}"
+  for w in "${WARNINGS[@]}"; do
+    printf -- '- %s\n' "${w}"
+  done
+} >> "${REPORT}"
+
+# 標準出力（Claude が読む）— 1 行サマリ
+printf '⚠️ SessionStart: .session-name 検査で警告 — 詳細: .claude/comm/outbox/%s/session-start-warnings.md を参照\n' "${OUTBOX_NAME}"
+
+exit 0
