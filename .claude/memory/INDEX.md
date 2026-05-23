@@ -2,21 +2,26 @@
 
 > 各 `chat-*.md` の集約ビュー。task-tracker 実行時に再生成される。**SSOT は各 `chat-*.md` ファイル**。本ファイルは読み手向け要約。
 
-最終更新: (未生成 — 次回 task-tracker 起動時に各チャットから自動更新される。手動編集禁止)
+最終更新: 2026-05-23 (chat-main)
 
 ---
 
 ## 進行中 (across all chats)
 
-(なし)
+- [chat-main] （なし）
 
-## 直近の完了 (across all chats)
+## 直近の完了 (across all chats, 各チャット最大 3 件)
 
-(なし)
+- [chat-main] Schedule 無限ループ修正（RoutineScheduleSync no-op 化）✅ (2026-05-23)
+- [chat-main] DU-C/D pending stubs（8 services 一時 no-op）✅ (2026-05-23)
+- [chat-main] DU-B-6 partial（db-conventions §10 + known-issues 021-024）✅ (2026-05-23)
 
 ## 予定 (across all chats)
 
-(なし)
+- [chat-main] DU-C 本実装（Routines + RoutineGroups + ScheduleItems → items_meta + routines_payload / events_payload、RoutineScheduleSync 復活）
+- [chat-main] DU-D 本実装（Notes + Daily → items_meta + notes_payload / dailies_payload）
+- [chat-main] CLAUDE.md §4.3 一行追記（composite FK pattern、並行チャット同期後）
+- [chat-main] DU-B 子計画書 + 詳細計画書の archive 移動（DU-B 全体クローズ時）
 
 ---
 
