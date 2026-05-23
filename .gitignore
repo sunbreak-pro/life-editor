@@ -32,6 +32,11 @@ prototype/dist/
 .claude/comm/.watch-state/
 .claude/comm/.inbox-pending.md
 
+# Hook-generated outbox reports (per-session 動的データ; chat-*.md は task-tracker 経由
+# 人手管理なので追跡を維持。session-start-check.sh / stop-check.sh が吐く reports のみ無視)
+.claude/comm/outbox/*/session-start-warnings.md
+.claude/comm/outbox/*/stop-report.md
+
 # Supabase CLI local state (never commit: link state, branch state, env)
 # supabase/.env holds SUPABASE_DB_URL (DB password). Defence-in-depth:
 # (1) this ignore rule, (2) check-rls.sh never `source`s it (extracts only
