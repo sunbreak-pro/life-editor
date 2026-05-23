@@ -6,12 +6,21 @@ import {
   TaskTreeProvider,
   DailyProvider,
   NoteProvider,
+  RoutineProvider,
+  ScheduleItemsProvider,
+  CalendarProvider,
+  CalendarTagsProvider,
   type DataService,
   type Session,
 } from "@life-editor/shared";
 import { TaskTreeView } from "./tasks/TaskTreeView";
 import { DailyView } from "./daily/DailyView";
 import { NotesView } from "./notes/NotesView";
+import { ScheduleView } from "./schedule/ScheduleView";
+import { ScheduleItemsView } from "./schedule/ScheduleItemsView";
+import { RoutineScheduleSync } from "./schedule/RoutineScheduleSync";
+import { CalendarView } from "./schedule/CalendarView";
+import { CalendarTagsView } from "./schedule/CalendarTagsView";
 
 /*
  * Phase 2 S1+S2 host shell.
@@ -37,7 +46,7 @@ function getDataService(): DataService {
   return dataServiceSingleton;
 }
 
-type Section = "tasks" | "daily" | "notes";
+type Section = "tasks" | "daily" | "notes" | "schedule";
 
 export function MainScreen({ session }: { session: Session }) {
   const ds = useMemo(() => getDataService(), []);
@@ -49,7 +58,7 @@ export function MainScreen({ session }: { session: Session }) {
         <header className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <nav className="flex gap-1" aria-label="Sections">
-              {(["tasks", "daily", "notes"] as const).map((s) => (
+              {(["tasks", "daily", "notes", "schedule"] as const).map((s) => (
                 <button
                   key={s}
                   type="button"
@@ -99,6 +108,54 @@ export function MainScreen({ session }: { session: Session }) {
             <NoteProvider dataService={ds}>
               <NotesView />
             </NoteProvider>
+          </SyncProvider>
+        )}
+        {/*
+         * Schedule trio order (CLAUDE.md §6.2:
+         * … → Routine → ScheduleItems → CalendarTags → …). All three
+         * are now wired (S4-3/4/6): each inner Provider may read the
+         * outer one, so ScheduleItems sits INSIDE Routine and
+         * CalendarTags INSIDE ScheduleItems (the §6.2 order, top-down).
+         *
+         * CalendarProvider is NOT part of the trio — frontend keeps it
+         * higher and enabled on Mobile (CLAUDE.md §2); it is mounted
+         * here just inside Sync (it only needs the DataService + Sync).
+         *
+         * Mobile note: CalendarTagsProvider is a Mobile 省略 Provider.
+         * The web build is Desktop-shaped so it IS mounted here; on
+         * iOS/Android it would be dropped and CalendarTagsView (which
+         * reads useCalendarTagsContextOptional) renders null instead of
+         * crashing. CalendarProvider stays on Mobile (Calendar is core).
+         *
+         * The Routine→schedule_items generator (S4-5) is the headless
+         * RoutineScheduleSync, mounted inside the Providers so it can
+         * read the live routine set + anchored date.
+         */}
+        {section === "schedule" && (
+          <SyncProvider>
+            {/*
+             * TaskTreeProvider is mounted here so CalendarView can offer
+             * a folder-task <select> (bug1 fix): `calendars.folder_id`
+             * FKs tasks(id) with ON DELETE CASCADE — a free-text id hit
+             * a 409 calendars_folder_id_fkey. It sits just inside Sync
+             * (only needs DataService + Sync) and OUTSIDE the schedule
+             * trio, so the §6.2 trio dependency order is unchanged.
+             */}
+            <TaskTreeProvider dataService={ds}>
+              <CalendarProvider dataService={ds}>
+                <RoutineProvider dataService={ds}>
+                  <ScheduleItemsProvider dataService={ds}>
+                    <CalendarTagsProvider dataService={ds}>
+                      <RoutineScheduleSync dataService={ds} />
+                      <ScheduleView />
+                      <ScheduleItemsView />
+                      <CalendarView />
+                      <CalendarTagsView />
+                    </CalendarTagsProvider>
+                  </ScheduleItemsProvider>
+                </RoutineProvider>
+              </CalendarProvider>
+            </TaskTreeProvider>
           </SyncProvider>
         )}
       </div>

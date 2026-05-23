@@ -200,7 +200,7 @@ cd frontend && npm run build                            # 型検証（tsc -b。-
 - **Tier 1 コア**: [`tier-1-core.md`](./docs/requirements/tier-1-core.md)（8）— Tasks / Schedule / Notes / Daily / Database / MCP Server / Cloud Sync / Terminal
 - **Tier 2 補助**: [`tier-2-supporting.md`](./docs/requirements/tier-2-supporting.md)（12）— Audio / Playlist / Pomodoro / WikiTags / File Explorer / Templates / UndoRedo / Theme / i18n / Shortcuts / Toast / Trash
 - **Tier 3 実験/凍結**: [`tier-3-experimental.md`](./docs/requirements/tier-3-experimental.md)（6）— Paper Boards / Analytics / NotebookLM / Google Calendar / Google Drive / Cognitive Architecture
-- **次フェーズ**: [移行 SSOT](./2026-05-04-cross-platform-migration.md) が現行計画。旧 Tauri 前提 vision は 2026-05-16 削除済（恒久知見は [`archive/SUMMARY.md`](./archive/SUMMARY.md)、逐語は git 履歴）。`requirements/ios-additions.md` / `2026-04-26-windows-android-port.md` は Phase 5 で再仕分け
+- **次フェーズ**: [移行 SSOT](./2026-05-04-cross-platform-migration.md) が現行計画（Windows/Android 配布も移行 SSOT Phase 5 に統合済。旧 `2026-04-26-windows-android-port.md` は移行 SSOT が完全に置換し 2026-05-16 削除＝逐語は git 履歴）。旧 Tauri 前提 vision も 2026-05-16 削除済（恒久知見は [`archive/SUMMARY.md`](./archive/SUMMARY.md)）。`requirements/ios-additions.md` は Phase 5 で再仕分け
 
 ---
 
