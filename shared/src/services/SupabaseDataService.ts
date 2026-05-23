@@ -26,6 +26,7 @@ import {
 } from "./taskMapper";
 import { collectDescendantIds } from "../utils/getDescendantTasks";
 import { sortByDepthDesc } from "../utils/sortByDepthDesc";
+import { generateId } from "../utils/generateId";
 import {
   DAILY_SELECT_COLUMNS,
   rowToDailyNode,
@@ -69,11 +70,21 @@ import {
   rowToRoutineGroup,
   routineGroupUpdatesToPatch,
   type RoutineGroupRow,
+  // DU-C-4: V2 dedicated-table API (0008 sort_order + soft-delete columns)
+  ROUTINE_GROUPS_COLUMNS,
+  rowToRoutineGroupV2,
+  routineGroupToRowV2,
+  routineGroupUpdatesToPatchV2,
+  type RoutineGroupRowV2,
 } from "./routineGroupMapper";
 import {
   ROUTINE_GROUP_ASSIGNMENT_SELECT_COLUMNS,
   rowToRoutineGroupAssignment,
   type RoutineGroupAssignmentRow,
+  // DU-C-4: V2 (routine_item_id rename + no created_at)
+  ROUTINE_GROUP_ASSIGNMENTS_COLUMNS,
+  rowToRoutineGroupAssignmentV2,
+  type RoutineGroupAssignmentRowV2,
 } from "./routineGroupAssignmentMapper";
 import {
   SCHEDULE_ITEM_SELECT_COLUMNS,
@@ -1155,8 +1166,21 @@ class SupabaseRoutinesService {
   }
 }
 
+/*
+ * DU-C-4: SupabaseRoutineGroupsService over the 0008 dedicated
+ * routine_groups table (NOT a payload — groups are not items, so no
+ * items_meta row). VERSIONED with native is_deleted/deleted_at; the
+ * Phase 2 RoutineGroup domain type doesn't surface those (groups were
+ * physically deleted in 0006) so the SELECT path filters is_deleted=
+ * false at the query site.
+ *
+ * `deleteRoutineGroup` is the user-facing "delete" — a SOFT delete on
+ * the 0008 schema (the table now has is_deleted/deleted_at). A hard
+ * purge is not exposed to the UI yet.
+ */
 class SupabaseRoutineGroupsService {
   private readonly client: SupabaseClient;
+  // Keep legacy mapper imports statically referenced.
   private static readonly _unused_select = ROUTINE_GROUP_SELECT_COLUMNS;
   private static readonly _unused_mapper = rowToRoutineGroup;
   private static readonly _unused_patch = routineGroupUpdatesToPatch;
@@ -1164,33 +1188,74 @@ class SupabaseRoutineGroupsService {
 
   constructor(client: SupabaseClient) {
     this.client = client;
-    void this.client;
   }
 
+  /**
+   * Live routine groups. Filters is_deleted=false at the query site so
+   * the V2 mapper doesn't need a separate "trashed" view (frontend
+   * never surfaces trashed groups).
+   */
   async fetchRoutineGroups(): Promise<RoutineGroup[]> {
-    return [];
+    const { data, error } = await this.client
+      .from("routine_groups")
+      .select(ROUTINE_GROUPS_COLUMNS)
+      .eq("is_deleted", false)
+      .order("sort_order", { ascending: true })
+      .order("created_at", { ascending: true });
+    if (error) throw new Error(`fetchRoutineGroups: ${error.message}`);
+    const rows = (data as unknown as RoutineGroupRowV2[]) ?? [];
+    return rows.map(rowToRoutineGroupV2);
   }
+
+  /**
+   * INSERT with full row. Optional frequency fields default to "daily,
+   * no specific days, always visible" (Tauri parity). version=1,
+   * is_deleted=false on first INSERT.
+   */
   async createRoutineGroup(
-    _id: string,
-    _name: string,
-    _color: string,
-    _frequencyType?: string,
-    _frequencyDays?: number[],
-    _frequencyInterval?: number | null,
-    _frequencyStartDate?: string | null,
+    id: string,
+    name: string,
+    color: string,
+    frequencyType?: string,
+    frequencyDays?: number[],
+    frequencyInterval?: number | null,
+    frequencyStartDate?: string | null,
   ): Promise<RoutineGroup> {
-    void _id;
-    void _name;
-    void _color;
-    void _frequencyType;
-    void _frequencyDays;
-    void _frequencyInterval;
-    void _frequencyStartDate;
-    _pendingDuRewrite("createRoutineGroup", "routine_groups");
+    const now = new Date().toISOString();
+    const group: RoutineGroup = {
+      id,
+      name,
+      color,
+      isVisible: true,
+      order: 0,
+      frequencyType: (frequencyType ??
+        "daily") as RoutineGroup["frequencyType"],
+      frequencyDays: frequencyDays ?? [],
+      frequencyInterval: frequencyInterval ?? null,
+      frequencyStartDate: frequencyStartDate ?? null,
+      createdAt: now,
+      updatedAt: now,
+    };
+    const writeRow = routineGroupToRowV2(group);
+
+    const { data, error } = await this.client
+      .from("routine_groups")
+      .insert(writeRow)
+      .select(ROUTINE_GROUPS_COLUMNS)
+      .single();
+    if (error) throw new Error(`createRoutineGroup: ${error.message}`);
+    return rowToRoutineGroupV2(data as unknown as RoutineGroupRowV2);
   }
+
+  /**
+   * Mapper-driven UPDATE with DB-Q2 bump (updated_at always set). The
+   * patch covers name / color / visibility / order / all frequency_*
+   * fields. version bump is NOT issued here — LWW counter advances on
+   * full sync paths, not per-field UPDATE.
+   */
   async updateRoutineGroup(
-    _id: string,
-    _updates: Partial<
+    id: string,
+    updates: Partial<
       Pick<
         RoutineGroup,
         | "name"
@@ -1204,18 +1269,57 @@ class SupabaseRoutineGroupsService {
       >
     >,
   ): Promise<RoutineGroup> {
-    void _id;
-    void _updates;
-    _pendingDuRewrite("updateRoutineGroup", "routine_groups");
+    const now = new Date().toISOString();
+    const patch = routineGroupUpdatesToPatchV2(updates, now);
+
+    const { error: updErr } = await this.client
+      .from("routine_groups")
+      .update(patch)
+      .eq("id", id);
+    if (updErr) throw new Error(`updateRoutineGroup: ${updErr.message}`);
+
+    const { data, error: readErr } = await this.client
+      .from("routine_groups")
+      .select(ROUTINE_GROUPS_COLUMNS)
+      .eq("id", id)
+      .single();
+    if (readErr) throw new Error(`updateRoutineGroup read: ${readErr.message}`);
+    return rowToRoutineGroupV2(data as unknown as RoutineGroupRowV2);
   }
-  async deleteRoutineGroup(_id: string): Promise<void> {
-    void _id;
-    _pendingDuRewrite("deleteRoutineGroup", "routine_groups");
+
+  /**
+   * Soft-delete the group. The 0008 schema gives routine_groups
+   * is_deleted/deleted_at columns (unlike Phase 2). routine_group_
+   * assignments rows that reference this group are NOT soft-deleted
+   * here — the frontend filters them out at the consumer level via
+   * the `is_deleted=false` join. A purge path (hard delete + cascade
+   * on assignments via the 0008 FK) is intentionally not exposed.
+   */
+  async deleteRoutineGroup(id: string): Promise<void> {
+    const now = new Date().toISOString();
+    const { error } = await this.client
+      .from("routine_groups")
+      .update({ is_deleted: true, deleted_at: now, updated_at: now })
+      .eq("id", id);
+    if (error) throw new Error(`deleteRoutineGroup: ${error.message}`);
   }
 }
 
+/*
+ * DU-C-4: SupabaseRoutineGroupAssignmentsService over the 0008 schema
+ * (RELATION table — routine_item_id FK targets items_meta(id), not the
+ * legacy routines table; no created_at column).
+ *
+ * `setGroupsForRoutine` is the only mutator the frontend exposes — it
+ * computes the diff (add / remove) against the live join set and
+ * issues partial-UNIQUE-safe INSERT for new memberships + soft-delete
+ * UPDATE for removed ones. The partial UNIQUE (routine_item_id,
+ * group_id) WHERE is_deleted=false enforces "at most one live join"
+ * (Issue 008 same-pattern).
+ */
 class SupabaseRoutineGroupAssignmentsService {
   private readonly client: SupabaseClient;
+  // Keep legacy mapper imports statically referenced.
   private static readonly _unused_select =
     ROUTINE_GROUP_ASSIGNMENT_SELECT_COLUMNS;
   private static readonly _unused_mapper = rowToRoutineGroupAssignment;
@@ -1223,19 +1327,100 @@ class SupabaseRoutineGroupAssignmentsService {
 
   constructor(client: SupabaseClient) {
     this.client = client;
-    void this.client;
   }
 
+  /**
+   * All live (is_deleted=false) join rows for the current user. The
+   * RoutineProvider composes `groupIds` per routine by bucketing these
+   * client-side — keeps the read path simple and lets the join run
+   * once for the whole list view.
+   */
   async fetchAllRoutineGroupAssignments(): Promise<RoutineGroupAssignment[]> {
-    return [];
+    const { data, error } = await this.client
+      .from("routine_group_assignments")
+      .select(ROUTINE_GROUP_ASSIGNMENTS_COLUMNS)
+      .eq("is_deleted", false);
+    if (error)
+      throw new Error(`fetchAllRoutineGroupAssignments: ${error.message}`);
+    const rows = (data as unknown as RoutineGroupAssignmentRowV2[]) ?? [];
+    return rows.map(rowToRoutineGroupAssignmentV2);
   }
+
+  /**
+   * Replace the set of groups for a routine. Computes the diff against
+   * the CURRENT live joins so:
+   *   - groups in the new set but not currently joined → INSERT new row
+   *   - groups currently joined but not in the new set → soft-delete
+   *   - groups in both → leave untouched (no-op)
+   *
+   * partial-UNIQUE re-create: if a previously soft-deleted (group_id,
+   * routine_item_id) pair is re-added, the old row stays trashed and a
+   * NEW row is INSERTed with a fresh id. This matches Issue 008's
+   * "soft-deleted row stays for the delta, new live row uses a fresh
+   * id" contract — the partial UNIQUE allows it because the index
+   * filter only sees is_deleted=false rows.
+   */
   async setGroupsForRoutine(
-    _routineId: string,
-    _groupIds: string[],
+    routineId: string,
+    groupIds: string[],
   ): Promise<void> {
-    void _routineId;
-    void _groupIds;
-    _pendingDuRewrite("setGroupsForRoutine", "routine_group_assignments");
+    const now = new Date().toISOString();
+
+    // 1. Fetch current LIVE joins for this routine.
+    const { data: currentRows, error: fetchErr } = await this.client
+      .from("routine_group_assignments")
+      .select("id, group_id")
+      .eq("routine_item_id", routineId)
+      .eq("is_deleted", false);
+    if (fetchErr)
+      throw new Error(`setGroupsForRoutine fetch: ${fetchErr.message}`);
+    const current =
+      (currentRows as unknown as { id: string; group_id: string }[] | null) ??
+      [];
+    const currentGroupToId = new Map(current.map((r) => [r.group_id, r.id]));
+    const newSet = new Set(groupIds);
+
+    // 2. Diff: rows to INSERT (in new, not in current).
+    const toInsert: { group_id: string }[] = [];
+    for (const gid of newSet) {
+      if (!currentGroupToId.has(gid)) toInsert.push({ group_id: gid });
+    }
+
+    // 3. Diff: row ids to soft-delete (in current, not in new).
+    const toSoftDelete: string[] = [];
+    for (const [gid, rowId] of currentGroupToId) {
+      if (!newSet.has(gid)) toSoftDelete.push(rowId);
+    }
+
+    // 4. INSERT new joins (one row per group). Fresh id each, partial-
+    //    UNIQUE protects the live set.
+    if (toInsert.length > 0) {
+      const insertRows = toInsert.map((r) => ({
+        id: generateId("rga"),
+        routine_item_id: routineId,
+        group_id: r.group_id,
+        updated_at: now,
+        is_deleted: false,
+        deleted_at: null,
+      }));
+      const { error: insErr } = await this.client
+        .from("routine_group_assignments")
+        .insert(insertRows);
+      if (insErr)
+        throw new Error(`setGroupsForRoutine insert: ${insErr.message}`);
+    }
+
+    // 5. Soft-delete removed joins. Each row gets is_deleted=true +
+    //    deleted_at + updated_at bump so the delta sync replicates the
+    //    unassign (Issue 008 contract).
+    if (toSoftDelete.length > 0) {
+      const { error: delErr } = await this.client
+        .from("routine_group_assignments")
+        .update({ is_deleted: true, deleted_at: now, updated_at: now })
+        .in("id", toSoftDelete);
+      if (delErr)
+        throw new Error(`setGroupsForRoutine soft-delete: ${delErr.message}`);
+    }
   }
 }
 
