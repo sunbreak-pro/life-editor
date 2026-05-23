@@ -8,7 +8,10 @@
 
 ## Active（未解決）
 
-_現在 Active な Issue はありません。_
+| ID  | Title                                                                                                                              | Category   | Since      |
+| --- | ---------------------------------------------------------------------------------------------------------------------------------- | ---------- | ---------- |
+| 026 | [PostToolUse formatter が隣接する Markdown 見出しを削除する](./026-posttooluse-formatter-deletes-adjacent-heading.md)              | Tooling    | 2026-05-24 |
+| 025 | [prototype+mobile-ui worktree の CLAUDE.md が per-chat 化前のスナップショット](./025-prototype-worktree-claude-md-pre-per-chat.md) | Structural | 2026-05-23 |
 
 ## Monitoring（すぐ対処しないが監視）
 
@@ -36,24 +39,29 @@ _現在 Active な Issue はありません。_
 | 018 | [macOS WebKit で button クリックが focus を奪わず autoFocus input の blur が先行](./018-macos-webkit-button-no-focus-shift.md)             | Bug/Structural      | 2026-04-26 |
 | 019 | [createPortal 配下 DOM 分離で click-outside 誤発火しパネル即閉じ](./019-createportal-clickoutside-misfire.md)                              | Bug/Structural      | 2026-04-26 |
 | 020 | [Notes 保存で 406 Cannot coerce（楽観 create × `.single()` read-then-write レース）](./020-supabase-readthenwrite-single-zero-row-race.md) | Bug                 | 2026-05-17 |
+| 021 | [PG generated stored 列 + composite FK + SET NULL 不可](./021-pg-generated-composite-fk-set-null-forbidden.md)                             | Bug/Schema          | 2026-05-23 |
+| 022 | [Supabase SQL Editor の postgres role で auth.uid() が NULL](./022-supabase-sql-editor-postgres-role-auth-uid-null.md)                     | Tooling/Security    | 2026-05-23 |
+| 023 | [Supabase CLI v2.101 の check-rls 出力が CSV 化され流し直し不能](./023-supabase-cli-v2-101-check-rls-csv-output-rejected.md)               | Tooling             | 2026-05-23 |
+| 024 | [PG 2BP01 依存連鎖で migration 再 drop が止まる](./024-pg-2bp01-dependency-chain-on-redrop.md)                                             | Schema/Tooling      | 2026-05-23 |
 
 ---
 
 ## Category 別インデックス
 
-- **Bug**: 001, 004, 005, 008, 010, 011, 012, 013, 015, 016, 017, 018, 019, 020
-- **Schema**: 001, 005, 011, 013
+- **Bug**: 001, 004, 005, 008, 010, 011, 012, 013, 015, 016, 017, 018, 019, 020, 021
+- **Schema**: 001, 005, 011, 013, 021, 024
 - **Sync**: 008, 010, 011, 012, 013
-- **Structural**: 001, 006, 009, 013, 016, 017, 018, 019
-- **Tooling**: 007
+- **Structural**: 001, 006, 009, 013, 016, 017, 018, 019, 025
+- **Tooling**: 007, 022, 023, 024, 026
+- **Security**: 022
 - **Styling**: 015
 
 ## Status 集計
 
-- Active: 0 件
+- Active: 2 件 (025, 026)
 - Monitoring: 1 件 (006)
-- Fixed: 15 件
-- 合計: 16 件
+- Fixed: 19 件
+- 合計: 22 件
 
 ## 統合履歴
 

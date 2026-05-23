@@ -10,7 +10,12 @@
 
 - **役割**: 現状の実装規約 / 設計判断の参照点（400 行以下目標）。抽象構想は `docs/vision/`（ADR は作らない）
 - **更新規則**: 実装変更はコードと同一 PR で更新。新機能は §8 + `docs/requirements/` に記入
-- **関連**: `memory/INDEX.md`(タスク集約) / `history/INDEX.md`(履歴集約) / 旧 `MEMORY.md` / `HISTORY.md` (2026-05-23 凍結・参考保全) / [移行 SSOT](./2026-05-04-cross-platform-migration.md) / `docs/vision/`(設計原則) / `docs/requirements/`(Tier) / `docs/known-issues/`([INDEX](./docs/known-issues/INDEX.md)) / `archive/`
+- **関連**:
+  - 進捗 / 履歴: [`memory/INDEX.md`](./memory/INDEX.md) (タスク集約) / [`history/INDEX.md`](./history/INDEX.md) (履歴集約) — per-chat 機構の集約ビュー
+  - 凍結 / 参考保全: 旧 `MEMORY.md` / `HISTORY.md` / `HISTORY-archive.md` (2026-05-23 凍結・read-only)
+  - 移行: [移行 SSOT](./2026-05-04-cross-platform-migration.md)
+  - 設計: `docs/vision/` (設計原則) / `docs/requirements/` (Tier) / `docs/known-issues/` ([INDEX](./docs/known-issues/INDEX.md))
+  - アーカイブ: `archive/`
 
 ---
 
@@ -192,6 +197,20 @@ cd frontend && npm run build                            # 型検証（tsc -b。-
 ### 7.2 コミット規約
 
 `<type>: <subject>` — type: `feat` / `fix` / `docs` / `style` / `refactor` / `test` / `chore`（詳細・破壊的操作の境界は `git-workflow` スキル）
+
+### 7.3 Plan Gate Convention（計画書ゲート規約）
+
+並行作業の認知負荷を構造的に下げるため、新規・大改訂の計画書は [`docs/vision/plans/_TEMPLATE.md`](./docs/vision/plans/_TEMPLATE.md) をベースに作成し、以下を必須とする（既存計画書は触る時に移行、一括書き換えしない）。
+
+- **Scope 宣言**: 触ってよいパスを計画書冒頭に明示（scope drift 検出の根拠）
+- **Gate 列**: 各 Step を 🤖 自律 / 👀 目視 / 🛑 人手 で分類
+  - 🤖 自律 = Claude 完結。後追い検証で品質担保
+  - 👀 目視 = UI/体感/レイアウトでユーザー目視必須
+  - 🛑 人手 = DDL push / シークレット投入 / PR merge / 本番デプロイ
+- **Acceptance Criteria**: 機械検証可能な基準で完了条件を定義（`npm run build` exit 0 / vitest 緑 / Supabase に該当列存在 等）
+- **DB Migration Notes**: DDL 含む場合は「ローカルファイル先行 → ユーザー `supabase db push`」を明記（`apply_migration` MCP 単独使用禁止）
+
+**Stop hook 連動**: `.claude/hooks/stop-check.sh` が応答終了時に frontend 変更を検知して裏で `npm run build` を走らせ、結果を `.claude/comm/outbox/<chat>/stop-report.md` に追記する。登録は `.claude/settings.json::hooks.Stop`。無効化は同ファイル削除。
 
 ---
 
