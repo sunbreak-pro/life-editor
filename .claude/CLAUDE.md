@@ -2,7 +2,7 @@
 
 > 設計判断・実装規約の SSOT。**「変わらない事実」だけを持ち、手順はスキル/エージェントへ委譲**する。抽象構想・設計原則は `docs/vision/`。Claude Code 起動時に auto-load。
 >
-> ⚠️ **Active Migration**: Tauri 2 + D1 + portable-pty → **Electron + Capacitor + Web + Supabase** へ移行中（`refactor/web-first-v2`）。**現行スタック・Phase 状況・移行手順の SSOT は [`2026-05-04-cross-platform-migration.md`](./2026-05-04-cross-platform-migration.md) と `MEMORY.md`**。本ファイルの実装パス/コマンドはアーキ非依存に一般化済み（具体は移行 SSOT 参照）。方針: 学習ログ廃止 / 完成までコスト $0 厳守。
+> ⚠️ **Active Migration**: Tauri 2 + D1 + portable-pty → **Electron + Capacitor + Web + Supabase** へ移行中（`refactor/web-first-v2`）。**現行スタック・Phase 状況・移行手順の SSOT は [`2026-05-04-cross-platform-migration.md`](./2026-05-04-cross-platform-migration.md) と `memory/INDEX.md`** (旧 `MEMORY.md` は 2026-05-23 凍結、per-chat 化済 — §9 参照)。本ファイルの実装パス/コマンドはアーキ非依存に一般化済み（具体は移行 SSOT 参照）。方針: 学習ログ廃止 / 完成までコスト $0 厳守。
 
 ---
 
@@ -10,7 +10,7 @@
 
 - **役割**: 現状の実装規約 / 設計判断の参照点（400 行以下目標）。抽象構想は `docs/vision/`（ADR は作らない）
 - **更新規則**: 実装変更はコードと同一 PR で更新。新機能は §8 + `docs/requirements/` に記入
-- **関連**: `MEMORY.md`(タスク) / `HISTORY.md`(履歴) / [移行 SSOT](./2026-05-04-cross-platform-migration.md) / `docs/vision/`(設計原則) / `docs/requirements/`(Tier) / `docs/known-issues/`([INDEX](./docs/known-issues/INDEX.md)) / `archive/`
+- **関連**: `memory/INDEX.md`(タスク集約) / `history/INDEX.md`(履歴集約) / 旧 `MEMORY.md` / `HISTORY.md` (2026-05-23 凍結・参考保全) / [移行 SSOT](./2026-05-04-cross-platform-migration.md) / `docs/vision/`(設計原則) / `docs/requirements/`(Tier) / `docs/known-issues/`([INDEX](./docs/known-issues/INDEX.md)) / `archive/`
 
 ---
 
@@ -166,18 +166,18 @@ ESLint 設定に従う。コメントは必要最小限。
 
 手順は本ファイルに書かず、以下に委譲する。**実装タスクの起点は `lead-pipeline` スキル**（ティア判定 → 必要工程を采配）。
 
-| 局面                               | 委譲先                                                                         |
-| ---------------------------------- | ------------------------------------------------------------------------------ | --------------------- |
-| 実装タスク全体の采配               | `lead-pipeline` スキル（軽=直接 / 中=verifier→tracker / 重=フルチェーン）      |
-| 長時間・並列・条件達成型の実行戦略 | `execution-router` スキル（/goal・/batch・/loop・subagent 判断）               |
-| 要件分解 / 実装 / 独立監査         | `role-pm` → `role-engineer` → `role-qa`（メインが Agent 起動。再帰禁止）       |
-| セッション開始/中断/終了           | `session-manager`（→ session-loader / task-tracker / session-verifier）        |
-| 品質ゲート                         | `session-verifier`（commit 前）                                                |
-| 進捗記録                           | `task-tracker`（MEMORY.md / HISTORY.md）                                       |
-| branch / PR / merge                | `git-orchestrator`（→ git-workflow / git-branch-flow / git-conflict-resolver） |
-| IPC 追加                           | `add-ipc-channel` スキル ／ DB 変更                                            | `db-migration` スキル |
-| デバッグ                           | `debug-strategy` スキル + `docs/known-issues/INDEX.md` を grep                 |
-| life-editor 整合監査               | `life-editor-ipc-validator` / `-migration-validator` / `-sync-auditor`         |
+| 局面                               | 委譲先                                                                                                             |
+| ---------------------------------- | ------------------------------------------------------------------------------------------------------------------ | --------------------- |
+| 実装タスク全体の采配               | `lead-pipeline` スキル（軽=直接 / 中=verifier→tracker / 重=フルチェーン）                                          |
+| 長時間・並列・条件達成型の実行戦略 | `execution-router` スキル（/goal・/batch・/loop・subagent 判断）                                                   |
+| 要件分解 / 実装 / 独立監査         | `role-pm` → `role-engineer` → `role-qa`（メインが Agent 起動。再帰禁止）                                           |
+| セッション開始/中断/終了           | `session-manager`（→ session-loader / task-tracker / session-verifier）                                            |
+| 品質ゲート                         | `session-verifier`（commit 前）                                                                                    |
+| 進捗記録                           | `task-tracker`（per-chat: `memory/chat-<self>.md` + `history/chat-<self>.md` + INDEX 集約 / legacy fallback あり） |
+| branch / PR / merge                | `git-orchestrator`（→ git-workflow / git-branch-flow / git-conflict-resolver）                                     |
+| IPC 追加                           | `add-ipc-channel` スキル ／ DB 変更                                                                                | `db-migration` スキル |
+| デバッグ                           | `debug-strategy` スキル + `docs/known-issues/INDEX.md` を grep                                                     |
+| life-editor 整合監査               | `life-editor-ipc-validator` / `-migration-validator` / `-sync-auditor`                                             |
 
 ### 7.1 開発コマンド
 
@@ -206,7 +206,7 @@ cd frontend && npm run build                            # 型検証（tsc -b。-
 
 ## 9. Document System
 
-- **フロー**: Vision（`docs/vision/`、ADR 不使用）→ 実装プラン（`.claude/docs/vision/plans/YYYY-MM-DD-*.md`）→ 完了で `archive/` 移動・規約は本ファイルへ統合。MEMORY/HISTORY はセッション単位（task-tracker 経由）。ADR 不使用の理由・却下案は `vision/coding-principles.md §5`
+- **フロー**: Vision（`docs/vision/`、ADR 不使用）→ 実装プラン（`.claude/docs/vision/plans/YYYY-MM-DD-*.md`）→ 完了で `archive/` 移動・規約は本ファイルへ統合。**進捗 / 履歴はチャット別 (per-chat) ファイルに分割** — `.claude/memory/chat-<self>.md` + `.claude/history/chat-<self>.md`（task-tracker 経由）、集約は `memory/INDEX.md` + `history/INDEX.md`（自動再生成）。チャット名は `.claude/comm/.session-name` で宣言（FileChanged 監視レイヤーとも共有）。旧 `.claude/MEMORY.md` / `HISTORY.md` は 2026-05-23 凍結・参考保全。ADR 不使用の理由・却下案は `vision/coding-principles.md §5`
 - **Known Issue**: `docs/known-issues/` に Root Cause + 再発防止を蓄積。発見時 `_TEMPLATE.md` で `NNN-<slug>.md` 作成 + INDEX 更新、解決時 Status=Fixed。**類似バグはまず `INDEX.md` を grep**
 - **並行チャット通信**: `.claude/comm/` 経由（プロトコル → [`comm/README.md`](./comm/README.md)）。自分の Outbox にのみ append、他チャットは読み取り専用
 - **作業時の鉄則**: 機能追加/削除時は §8 更新 ／ 音源ファイルはコミット禁止（`public/sounds/` は `.gitignore`）／ API キーをフロントエンドに直書きしない ／ **`.mcp.json`（git 追跡対象）のトークンは `${SUPABASE_ACCESS_TOKEN}` 等の参照プレースホルダのまま維持。実トークン（`sbp_...` 等）へ平文展開禁止 — 平文化＝即リポジトリ流出。実値は shell 環境変数で供給。commit 前に参照形式か必須確認（2026-05-17 平文展開で GitHub Push Protection ブロック発生）**

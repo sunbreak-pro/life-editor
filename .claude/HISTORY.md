@@ -1,4 +1,11 @@
-# HISTORY.md - 変更履歴
+# HISTORY.md - 変更履歴 (FROZEN since 2026-05-23)
+
+> ⚠️ **このファイルは 2026-05-23 で凍結されました。read-only / 新規書き込み禁止**。
+> 新規エントリは [`history/`](./history/) 配下の `chat-<your-name>.md` へ書き込み、集約ビューは [`history/INDEX.md`](./history/INDEX.md) を参照してください。
+> 本ファイル + [`HISTORY-archive.md`](./HISTORY-archive.md) は履歴として保全。**ローリングアーカイブの移動は本ファイル間では発生しない** (per-chat 化以降は `history/archive/YYYY-MM/chat-<name>.md` を使用)。
+> 並行チャットへの通知は [`comm/outbox/chat-main.md`](./comm/outbox/chat-main.md) (2026-05-23 投稿) で実施済。
+
+---
 
 ### 2026-05-23 - Data Unification DU-B-2 完了（taskMapper 2 行分割 + roundtrip 20 アサーション + SupabaseTasksService stub）
 

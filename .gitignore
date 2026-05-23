@@ -27,6 +27,11 @@ supabase/node_modules/
 prototype/node_modules/
 prototype/dist/
 
+# Per-chat session identity & runtime state (FileChanged plan + per-chat MEMORY plan で共有)
+.claude/comm/.session-name
+.claude/comm/.watch-state/
+.claude/comm/.inbox-pending.md
+
 # Supabase CLI local state (never commit: link state, branch state, env)
 # supabase/.env holds SUPABASE_DB_URL (DB password). Defence-in-depth:
 # (1) this ignore rule, (2) check-rls.sh never `source`s it (extracts only

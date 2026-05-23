@@ -1,4 +1,11 @@
-# MEMORY.md - タスクトラッカー
+# MEMORY.md - タスクトラッカー (FROZEN since 2026-05-23)
+
+> ⚠️ **このファイルは 2026-05-23 で凍結されました。read-only / 新規書き込み禁止**。
+> 新規エントリは [`memory/`](./memory/) 配下の `chat-<your-name>.md` へ書き込み、集約ビューは [`memory/INDEX.md`](./memory/INDEX.md) を参照してください。
+> task-tracker は dual-mode（`.claude/memory/` + `INDEX.md` 存在時は per-chat / 不在時は本ファイル）で動作します。詳細は [`comm/README.md` §.session-name 節](./comm/README.md) と [計画書](./docs/vision/plans/2026-05-23-memory-history-per-chat-split.md) を参照。
+> **本ファイルは履歴として保全**。並行チャットへの通知は [`comm/outbox/chat-main.md`](./comm/outbox/chat-main.md) (2026-05-23 投稿) で実施済。
+
+---
 
 ## 進行中
 
