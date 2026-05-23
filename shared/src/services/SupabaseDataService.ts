@@ -91,6 +91,14 @@ import {
   rowToScheduleItem,
   scheduleItemUpdatesToPatch,
   type ScheduleItemRow,
+  // DU-C-5: 2-row API (items_meta + events_payload)
+  ITEMS_META_EVENT_COLUMNS,
+  EVENTS_PAYLOAD_COLUMNS,
+  rowsToScheduleItem,
+  scheduleItemToRows,
+  scheduleItemUpdatesToPatches,
+  type ItemsMetaEventRow,
+  type EventsPayloadRow,
 } from "./scheduleItemMapper";
 import {
   CALENDAR_SELECT_COLUMNS,
@@ -1424,8 +1432,30 @@ class SupabaseRoutineGroupAssignmentsService {
   }
 }
 
+/*
+ * DU-C-5: SupabaseScheduleItemsService over items_meta (role='event') +
+ * events_payload. Pure mapping lives in scheduleItemMapper.ts.
+ *
+ * KEY DIFFERENCES FROM SupabaseTasksService:
+ *   - The Issue-011 partial UNIQUE (routine_item_id, source_date)
+ *     WHERE routine_item_id IS NOT NULL AND is_deleted_cache=false
+ *     enforces "at most one LIVE routine-generated event per (routine,
+ *     date)". bulkCreate uses ON CONFLICT ignoreDuplicates to absorb
+ *     collisions when the generator over-shoots.
+ *   - softDelete/restore on items_meta auto-propagates to
+ *     events_payload.is_deleted_cache via the 0008 AFTER UPDATE
+ *     trigger — no app-layer cascade needed.
+ *   - The 0011 BEFORE INSERT trigger initialises is_deleted_cache
+ *     from items_meta.is_deleted (defence for the "soft-delete first,
+ *     then INSERT" edge case).
+ *   - reminder_at write is intentionally NULL — the mapper documents
+ *     that timezone math at the call site is required for absolute
+ *     reminders; the bulkCreate signature doesn't carry timezone info
+ *     so we drop reminderOffset on the floor.
+ */
 class SupabaseScheduleItemsService {
   private readonly client: SupabaseClient;
+  // Keep legacy mapper imports statically referenced.
   private static readonly _unused_select = SCHEDULE_ITEM_SELECT_COLUMNS;
   private static readonly _unused_mapper = rowToScheduleItem;
   private static readonly _unused_patch = scheduleItemUpdatesToPatch;
@@ -1433,52 +1463,218 @@ class SupabaseScheduleItemsService {
 
   constructor(client: SupabaseClient) {
     this.client = client;
-    void this.client;
   }
 
-  async fetchScheduleItemsByDate(_date: string): Promise<ScheduleItem[]> {
-    void _date;
-    return [];
+  private async getUserId(): Promise<string> {
+    const { data, error } = await this.client.auth.getUser();
+    if (error) throw new Error(`getUserId failed: ${error.message}`);
+    const uid = data.user?.id;
+    if (!uid) throw new Error("getUserId failed: not authenticated");
+    return uid;
   }
-  async fetchScheduleItemsByDateAll(_date: string): Promise<ScheduleItem[]> {
-    void _date;
-    return [];
-  }
-  async fetchScheduleItemsByDateRange(
-    _startDate: string,
-    _endDate: string,
+
+  /**
+   * In-app join of items_meta (WHERE role='event' AND meta.is_deleted=
+   * false) with events_payload by item_id. Used as the SELECT helper
+   * for every multi-row fetch.
+   *
+   * Note: events_payload.is_deleted_cache mirrors items_meta.is_deleted
+   * via the 0008 AFTER UPDATE trigger, so either column would work for
+   * the live filter. We filter on items_meta.is_deleted as the
+   * authority and treat the cache as a partial-UNIQUE optimisation
+   * only (per CLAUDE.md §4.4 SSOT rule).
+   */
+  private async fetchByPayloadFilter(
+    payloadFilter: (
+      // PostgrestFilterBuilder once `.select()` has been called — typed
+      // loosely as `any` because the @supabase/supabase-js generic
+      // surface for filter chaining is awkward to spell here. The lambda
+      // body is the type-narrowed surface (eq/gte/lte/in are all fine).
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      q: any,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    ) => any,
+    metaIsDeleted: boolean,
   ): Promise<ScheduleItem[]> {
-    void _startDate;
-    void _endDate;
-    return [];
+    // 1. payload first (filterable by start_at / routine_item_id etc.)
+    const pQuery = payloadFilter(
+      this.client.from("events_payload").select(EVENTS_PAYLOAD_COLUMNS),
+    );
+    const { data: payloads, error: pErr } = await pQuery;
+    if (pErr)
+      throw new Error(`fetchScheduleItems events_payload: ${pErr.message}`);
+    const payloadRows = (payloads as unknown as EventsPayloadRow[]) ?? [];
+    if (payloadRows.length === 0) return [];
+
+    // 2. metas (filter by role + is_deleted)
+    const ids = payloadRows.map((p) => p.item_id);
+    const { data: metas, error: mErr } = await this.client
+      .from("items_meta")
+      .select(ITEMS_META_EVENT_COLUMNS)
+      .eq("role", "event")
+      .eq("is_deleted", metaIsDeleted)
+      .in("id", ids);
+    if (mErr) throw new Error(`fetchScheduleItems items_meta: ${mErr.message}`);
+    const metaRows = (metas as unknown as ItemsMetaEventRow[]) ?? [];
+    const metaById = new Map<string, ItemsMetaEventRow>();
+    for (const m of metaRows) metaById.set(m.id, m);
+
+    // 3. Join in-app; skip orphans (payload without meta in the
+    //    requested is_deleted bucket).
+    const out: ScheduleItem[] = [];
+    for (const p of payloadRows) {
+      const m = metaById.get(p.item_id);
+      if (!m) continue;
+      out.push(rowsToScheduleItem(m, p));
+    }
+    return out;
   }
+
+  /** Live events on a specific date (excludes dismissed). */
+  async fetchScheduleItemsByDate(date: string): Promise<ScheduleItem[]> {
+    const all = await this.fetchByPayloadFilter(
+      (q) => q.eq("start_at", date).eq("is_dismissed", false),
+      false,
+    );
+    return all;
+  }
+
+  /** Live events on a specific date INCLUDING dismissed (Trash-adjacent UI). */
+  async fetchScheduleItemsByDateAll(date: string): Promise<ScheduleItem[]> {
+    return this.fetchByPayloadFilter((q) => q.eq("start_at", date), false);
+  }
+
+  /** Live events in a date range (inclusive). */
+  async fetchScheduleItemsByDateRange(
+    startDate: string,
+    endDate: string,
+  ): Promise<ScheduleItem[]> {
+    return this.fetchByPayloadFilter(
+      (q) =>
+        q
+          .gte("start_at", startDate)
+          .lte("start_at", endDate)
+          .eq("is_dismissed", false),
+      false,
+    );
+  }
+
+  /** Trashed events (Trash UI). */
+  async fetchDeletedScheduleItems(): Promise<ScheduleItem[]> {
+    return this.fetchByPayloadFilter((q) => q, true);
+  }
+
+  /** All live events (no date filter — used by analytics / sync). */
+  async fetchEvents(): Promise<ScheduleItem[]> {
+    return this.fetchByPayloadFilter((q) => q.eq("is_dismissed", false), false);
+  }
+
+  /** All live events for a specific routine (current + future). */
+  async fetchScheduleItemsByRoutineId(
+    routineId: string,
+  ): Promise<ScheduleItem[]> {
+    return this.fetchByPayloadFilter(
+      (q) => q.eq("routine_item_id", routineId).eq("is_dismissed", false),
+      false,
+    );
+  }
+
+  /**
+   * MAX(source_date) across routine-generated events. Used by the
+   * RoutineScheduleSync to decide whether to generate more days.
+   */
+  async fetchLastRoutineDate(): Promise<string | null> {
+    const { data, error } = await this.client
+      .from("events_payload")
+      .select("source_date")
+      .not("source_date", "is", null)
+      .not("routine_item_id", "is", null)
+      .order("source_date", { ascending: false })
+      .limit(1);
+    if (error) throw new Error(`fetchLastRoutineDate: ${error.message}`);
+    const rows = (data as unknown as { source_date: string }[]) ?? [];
+    return rows.length > 0 ? rows[0].source_date : null;
+  }
+
+  /**
+   * INSERT items_meta + events_payload with R2 hard-delete recovery.
+   * The frontend signature carries (id, date, title, startTime,
+   * endTime, optional routineId/templateId/noteId/isAllDay/content).
+   * templateId / noteId / content are NOT persisted (0008 events_
+   * payload drops them by design — see scheduleItemMapper header).
+   */
   async createScheduleItem(
-    _id: string,
-    _date: string,
-    _title: string,
-    _startTime: string,
-    _endTime: string,
-    _routineId?: string,
-    _templateId?: string,
-    _noteId?: string,
-    _isAllDay?: boolean,
-    _content?: string,
+    id: string,
+    date: string,
+    title: string,
+    startTime: string,
+    endTime: string,
+    routineId?: string,
+    templateId?: string,
+    noteId?: string,
+    isAllDay?: boolean,
+    content?: string,
   ): Promise<ScheduleItem> {
-    void _id;
-    void _date;
-    void _title;
-    void _startTime;
-    void _endTime;
-    void _routineId;
-    void _templateId;
-    void _noteId;
-    void _isAllDay;
-    void _content;
-    _pendingDuRewrite("createScheduleItem", "schedule_items");
+    void templateId; // dropped — no events_payload column
+    void noteId; // dropped — events<->notes use wiki_tag_connections
+    void content; // dropped — no events_payload column
+    const userId = await this.getUserId();
+    const now = new Date().toISOString();
+    const item: ScheduleItem = {
+      id,
+      date,
+      title,
+      startTime,
+      endTime,
+      completed: false,
+      completedAt: null,
+      routineId: routineId ?? null,
+      templateId: null,
+      memo: null,
+      noteId: null,
+      content: null,
+      isDeleted: false,
+      isDismissed: false,
+      isAllDay: isAllDay ?? false,
+      reminderEnabled: false,
+      createdAt: now,
+      updatedAt: now,
+    };
+    const { meta, payload } = scheduleItemToRows(item, userId);
+
+    const { data: metaRow, error: metaErr } = await this.client
+      .from("items_meta")
+      .insert(meta)
+      .select(ITEMS_META_EVENT_COLUMNS)
+      .single();
+    if (metaErr)
+      throw new Error(`createScheduleItem items_meta: ${metaErr.message}`);
+
+    try {
+      const { data: payloadRow, error: pErr } = await this.client
+        .from("events_payload")
+        .insert(payload)
+        .select(EVENTS_PAYLOAD_COLUMNS)
+        .single();
+      if (pErr)
+        throw new Error(`createScheduleItem events_payload: ${pErr.message}`);
+      return rowsToScheduleItem(
+        metaRow as unknown as ItemsMetaEventRow,
+        payloadRow as unknown as EventsPayloadRow,
+      );
+    } catch (err) {
+      await this.client.from("items_meta").delete().eq("id", meta.id);
+      throw err;
+    }
   }
+
+  /**
+   * Mapper-driven dual UPDATE with DB-Q2 bump. content/noteId/template
+   * Id/reminderOffset are silently dropped (no events_payload columns).
+   */
   async updateScheduleItem(
-    _id: string,
-    _updates: Partial<
+    id: string,
+    updates: Partial<
       Pick<
         ScheduleItem,
         | "title"
@@ -1493,46 +1689,223 @@ class SupabaseScheduleItemsService {
       >
     >,
   ): Promise<ScheduleItem> {
-    void _id;
-    void _updates;
-    _pendingDuRewrite("updateScheduleItem", "schedule_items");
+    const userId = await this.getUserId();
+    const now = new Date().toISOString();
+    const { metaPatch, payloadPatch } = scheduleItemUpdatesToPatches(
+      updates,
+      userId,
+      now,
+    );
+
+    const { error: metaErr } = await this.client
+      .from("items_meta")
+      .update(metaPatch)
+      .eq("id", id);
+    if (metaErr)
+      throw new Error(`updateScheduleItem items_meta: ${metaErr.message}`);
+
+    if (Object.keys(payloadPatch).length > 0) {
+      const { error: pErr } = await this.client
+        .from("events_payload")
+        .update(payloadPatch)
+        .eq("item_id", id);
+      if (pErr)
+        throw new Error(`updateScheduleItem events_payload: ${pErr.message}`);
+    }
+
+    const [
+      { data: metaRow, error: metaReadErr },
+      { data: payloadRow, error: payloadReadErr },
+    ] = await Promise.all([
+      this.client
+        .from("items_meta")
+        .select(ITEMS_META_EVENT_COLUMNS)
+        .eq("id", id)
+        .single(),
+      this.client
+        .from("events_payload")
+        .select(EVENTS_PAYLOAD_COLUMNS)
+        .eq("item_id", id)
+        .single(),
+    ]);
+    if (metaReadErr)
+      throw new Error(
+        `updateScheduleItem read items_meta: ${metaReadErr.message}`,
+      );
+    if (payloadReadErr)
+      throw new Error(
+        `updateScheduleItem read events_payload: ${payloadReadErr.message}`,
+      );
+    return rowsToScheduleItem(
+      metaRow as unknown as ItemsMetaEventRow,
+      payloadRow as unknown as EventsPayloadRow,
+    );
   }
-  async deleteScheduleItem(_id: string): Promise<void> {
-    void _id;
-    _pendingDuRewrite("deleteScheduleItem", "schedule_items");
+
+  /** Hard-delete via items_meta (events_payload cascades via 0008 FK). */
+  async deleteScheduleItem(id: string): Promise<void> {
+    const { error } = await this.client
+      .from("items_meta")
+      .delete()
+      .eq("id", id);
+    if (error) throw new Error(`deleteScheduleItem: ${error.message}`);
   }
-  async softDeleteScheduleItem(_id: string): Promise<void> {
-    void _id;
-    _pendingDuRewrite("softDeleteScheduleItem", "schedule_items");
+
+  /**
+   * Soft-delete: flip items_meta.is_deleted=true. The 0008 AFTER
+   * UPDATE trigger auto-propagates to events_payload.is_deleted_cache
+   * so the Issue-011 partial UNIQUE filter excludes the row from the
+   * "at most one live (routine, date) pair" constraint.
+   */
+  async softDeleteScheduleItem(id: string): Promise<void> {
+    const now = new Date().toISOString();
+    const { error } = await this.client
+      .from("items_meta")
+      .update({ is_deleted: true, deleted_at: now, updated_at: now })
+      .eq("id", id);
+    if (error) throw new Error(`softDeleteScheduleItem: ${error.message}`);
   }
-  async restoreScheduleItem(_id: string): Promise<void> {
-    void _id;
-    _pendingDuRewrite("restoreScheduleItem", "schedule_items");
+
+  /** Inverse of softDeleteScheduleItem. Trigger updates the cache mirror. */
+  async restoreScheduleItem(id: string): Promise<void> {
+    const now = new Date().toISOString();
+    const { error } = await this.client
+      .from("items_meta")
+      .update({ is_deleted: false, deleted_at: null, updated_at: now })
+      .eq("id", id);
+    if (error) throw new Error(`restoreScheduleItem: ${error.message}`);
   }
-  async permanentDeleteScheduleItem(_id: string): Promise<void> {
-    void _id;
-    _pendingDuRewrite("permanentDeleteScheduleItem", "schedule_items");
+
+  /** Hard purge (items_meta DELETE; events_payload cascades). */
+  async permanentDeleteScheduleItem(id: string): Promise<void> {
+    const { error } = await this.client
+      .from("items_meta")
+      .delete()
+      .eq("id", id);
+    if (error) throw new Error(`permanentDeleteScheduleItem: ${error.message}`);
   }
-  async fetchDeletedScheduleItems(): Promise<ScheduleItem[]> {
-    return [];
+
+  /**
+   * Toggle `done` (payload) + completed_at (payload) and bump
+   * items_meta.updated_at (DB-Q2). Single read-back returns the
+   * updated ScheduleItem.
+   */
+  async toggleScheduleItemComplete(id: string): Promise<ScheduleItem> {
+    // Read current done state to flip.
+    const { data: cur, error: curErr } = await this.client
+      .from("events_payload")
+      .select("done")
+      .eq("item_id", id)
+      .single();
+    if (curErr)
+      throw new Error(`toggleScheduleItemComplete read: ${curErr.message}`);
+    const wasDone = (cur as unknown as { done: boolean }).done;
+    const now = new Date().toISOString();
+
+    const { error: pErr } = await this.client
+      .from("events_payload")
+      .update({
+        done: !wasDone,
+        completed_at: !wasDone ? now : null,
+      })
+      .eq("item_id", id);
+    if (pErr)
+      throw new Error(
+        `toggleScheduleItemComplete events_payload: ${pErr.message}`,
+      );
+
+    const { error: mErr } = await this.client
+      .from("items_meta")
+      .update({ updated_at: now })
+      .eq("id", id);
+    if (mErr)
+      throw new Error(`toggleScheduleItemComplete items_meta: ${mErr.message}`);
+
+    // Read back combined.
+    const [
+      { data: metaRow, error: mReadErr },
+      { data: payloadRow, error: pReadErr },
+    ] = await Promise.all([
+      this.client
+        .from("items_meta")
+        .select(ITEMS_META_EVENT_COLUMNS)
+        .eq("id", id)
+        .single(),
+      this.client
+        .from("events_payload")
+        .select(EVENTS_PAYLOAD_COLUMNS)
+        .eq("item_id", id)
+        .single(),
+    ]);
+    if (mReadErr)
+      throw new Error(
+        `toggleScheduleItemComplete read meta: ${mReadErr.message}`,
+      );
+    if (pReadErr)
+      throw new Error(
+        `toggleScheduleItemComplete read payload: ${pReadErr.message}`,
+      );
+    return rowsToScheduleItem(
+      metaRow as unknown as ItemsMetaEventRow,
+      payloadRow as unknown as EventsPayloadRow,
+    );
   }
-  async toggleScheduleItemComplete(_id: string): Promise<ScheduleItem> {
-    void _id;
-    _pendingDuRewrite("toggleScheduleItemComplete", "schedule_items");
+
+  /**
+   * Flip is_dismissed=true on events_payload + bump items_meta.updated
+   * _at (DB-Q2). dismiss is the Issue-017 "user-removed-from-day"
+   * signal that the routine generator respects (it won't regenerate a
+   * dismissed routine-event on the same source_date).
+   */
+  async dismissScheduleItem(id: string): Promise<void> {
+    const now = new Date().toISOString();
+    const { error: pErr } = await this.client
+      .from("events_payload")
+      .update({ is_dismissed: true })
+      .eq("item_id", id);
+    if (pErr)
+      throw new Error(`dismissScheduleItem events_payload: ${pErr.message}`);
+    const { error: mErr } = await this.client
+      .from("items_meta")
+      .update({ updated_at: now })
+      .eq("id", id);
+    if (mErr)
+      throw new Error(`dismissScheduleItem items_meta: ${mErr.message}`);
   }
-  async dismissScheduleItem(_id: string): Promise<void> {
-    void _id;
-    _pendingDuRewrite("dismissScheduleItem", "schedule_items");
+
+  /** Inverse of dismissScheduleItem. */
+  async undismissScheduleItem(id: string): Promise<void> {
+    const now = new Date().toISOString();
+    const { error: pErr } = await this.client
+      .from("events_payload")
+      .update({ is_dismissed: false })
+      .eq("item_id", id);
+    if (pErr)
+      throw new Error(`undismissScheduleItem events_payload: ${pErr.message}`);
+    const { error: mErr } = await this.client
+      .from("items_meta")
+      .update({ updated_at: now })
+      .eq("id", id);
+    if (mErr)
+      throw new Error(`undismissScheduleItem items_meta: ${mErr.message}`);
   }
-  async undismissScheduleItem(_id: string): Promise<void> {
-    void _id;
-    _pendingDuRewrite("undismissScheduleItem", "schedule_items");
-  }
-  async fetchLastRoutineDate(): Promise<string | null> {
-    return null;
-  }
+
+  /**
+   * Bulk INSERT for the RoutineScheduleSync generator. Same R2 logic
+   * as createScheduleItem but in two batched UPSERTs. The events_
+   * payload INSERT uses upsert(..., { onConflict: 'routine_item_id,
+   * source_date', ignoreDuplicates: true }) — the Issue-011 partial
+   * UNIQUE filter means an existing LIVE generated row blocks the new
+   * INSERT silently, which is exactly the idempotency we want (don't
+   * generate "the same routine on the same date" twice).
+   *
+   * NOTE: the partial UNIQUE filter only matches WHERE routine_item_id
+   * IS NOT NULL AND is_deleted_cache = false. Manual events (no
+   * routineId) are never deduplicated; bulkCreate of manual events is
+   * an unusual path, but the upsert still works (no constraint to hit).
+   */
   async bulkCreateScheduleItems(
-    _items: Array<{
+    items: Array<{
       id: string;
       date: string;
       title: string;
@@ -1545,31 +1918,167 @@ class SupabaseScheduleItemsService {
       reminderOffset?: number;
     }>,
   ): Promise<void> {
-    void _items;
-    _pendingDuRewrite("bulkCreateScheduleItems", "schedule_items");
+    if (items.length === 0) return;
+    const userId = await this.getUserId();
+    const now = new Date().toISOString();
+
+    // Pre-build all 2-row pairs so we can issue two batched writes.
+    const pairs = items.map((it) => {
+      void it.templateId;
+      void it.noteId;
+      void it.reminderEnabled;
+      void it.reminderOffset;
+      const item: ScheduleItem = {
+        id: it.id,
+        date: it.date,
+        title: it.title,
+        startTime: it.startTime,
+        endTime: it.endTime,
+        completed: false,
+        completedAt: null,
+        routineId: it.routineId ?? null,
+        templateId: null,
+        memo: null,
+        noteId: null,
+        content: null,
+        isDeleted: false,
+        isDismissed: false,
+        isAllDay: false,
+        reminderEnabled: false,
+        createdAt: now,
+        updatedAt: now,
+      };
+      const { meta, payload } = scheduleItemToRows(item, userId);
+      return { meta, payload };
+    });
+
+    // 1. items_meta bulk INSERT. No onConflict — the generator is
+    //    expected to mint fresh ids each cycle. If a caller passes a
+    //    duplicate id we want a hard error.
+    const { error: metaErr } = await this.client
+      .from("items_meta")
+      .insert(pairs.map((p) => p.meta));
+    if (metaErr)
+      throw new Error(`bulkCreateScheduleItems items_meta: ${metaErr.message}`);
+
+    // 2. events_payload upsert WITH onConflict ignoreDuplicates on the
+    //    partial-UNIQUE filter. Any row that would violate the live
+    //    (routine_item_id, source_date) pair is dropped silently
+    //    (idempotent regenerate).
+    //
+    //    ⚠️ events_payload.source_date is populated from
+    //    `item.date` mirror — scheduleItemToRows leaves source_date as
+    //    null today (the mapper's INSERT path was DU-A pre-spec). We
+    //    PATCH it here so the partial UNIQUE is meaningful for the
+    //    routine-generated path. Manual creates pass routineId=null
+    //    and we leave source_date=null too.
+    const payloadRows = pairs.map((p) => ({
+      ...p.payload,
+      source_date:
+        p.payload.routine_item_id !== null ? p.payload.start_at : null,
+    }));
+    try {
+      const { error: pErr } = await this.client
+        .from("events_payload")
+        .upsert(payloadRows, {
+          onConflict: "routine_item_id,source_date",
+          ignoreDuplicates: true,
+        });
+      if (pErr)
+        throw new Error(
+          `bulkCreateScheduleItems events_payload: ${pErr.message}`,
+        );
+    } catch (err) {
+      // R2 cleanup: hard-delete the meta rows we just inserted. The
+      // partial-UNIQUE collision path goes through ignoreDuplicates so
+      // it does NOT raise — only a real PG/network failure lands here.
+      const ids = pairs.map((p) => p.meta.id);
+      await this.client.from("items_meta").delete().in("id", ids);
+      throw err;
+    }
   }
+
+  /**
+   * UPDATE all events generated by a routine on or after fromDate.
+   * Used when a routine's schedule (title / startTime / endTime)
+   * changes and the user opts to propagate forward. Returns the count
+   * of rows updated for UI feedback.
+   *
+   * The payload UPDATE is filtered by (routine_item_id, start_at >=
+   * fromDate, is_deleted_cache = false). items_meta.updated_at is
+   * bumped for every affected row so Cloud Sync's LWW cursor advances.
+   * Title is on items_meta; start_time/end_time are on events_payload.
+   */
   async updateFutureScheduleItemsByRoutine(
-    _routineId: string,
-    _updates: { title?: string; startTime?: string; endTime?: string },
-    _fromDate: string,
+    routineId: string,
+    updates: { title?: string; startTime?: string; endTime?: string },
+    fromDate: string,
   ): Promise<number> {
-    void _routineId;
-    void _updates;
-    void _fromDate;
-    _pendingDuRewrite("updateFutureScheduleItemsByRoutine", "schedule_items");
+    const now = new Date().toISOString();
+
+    // 1. Find affected rows.
+    const { data: rows, error: findErr } = await this.client
+      .from("events_payload")
+      .select("item_id")
+      .eq("routine_item_id", routineId)
+      .eq("is_deleted_cache", false)
+      .gte("start_at", fromDate);
+    if (findErr)
+      throw new Error(
+        `updateFutureScheduleItemsByRoutine find: ${findErr.message}`,
+      );
+    const ids =
+      (rows as unknown as { item_id: string }[] | null)?.map(
+        (r) => r.item_id,
+      ) ?? [];
+    if (ids.length === 0) return 0;
+
+    // 2. payload patch (start/end time).
+    const payloadPatch: { start_time?: string; end_time?: string } = {};
+    if (updates.startTime !== undefined)
+      payloadPatch.start_time = updates.startTime;
+    if (updates.endTime !== undefined) payloadPatch.end_time = updates.endTime;
+    if (Object.keys(payloadPatch).length > 0) {
+      const { error: pErr } = await this.client
+        .from("events_payload")
+        .update(payloadPatch)
+        .in("item_id", ids);
+      if (pErr)
+        throw new Error(
+          `updateFutureScheduleItemsByRoutine events_payload: ${pErr.message}`,
+        );
+    }
+
+    // 3. meta patch (title + updated_at bump for every row).
+    const metaPatch: { title?: string; updated_at: string } = {
+      updated_at: now,
+    };
+    if (updates.title !== undefined) metaPatch.title = updates.title;
+    const { error: mErr } = await this.client
+      .from("items_meta")
+      .update(metaPatch)
+      .in("id", ids);
+    if (mErr)
+      throw new Error(
+        `updateFutureScheduleItemsByRoutine items_meta: ${mErr.message}`,
+      );
+
+    return ids.length;
   }
-  async fetchScheduleItemsByRoutineId(
-    _routineId: string,
-  ): Promise<ScheduleItem[]> {
-    void _routineId;
-    return [];
-  }
-  async bulkDeleteScheduleItems(_ids: string[]): Promise<number> {
-    void _ids;
-    _pendingDuRewrite("bulkDeleteScheduleItems", "schedule_items");
-  }
-  async fetchEvents(): Promise<ScheduleItem[]> {
-    return [];
+
+  /**
+   * Bulk hard-delete (used by Cleanup tooling — not the user-facing
+   * trash path). Returns the count of rows actually deleted.
+   * events_payload cascades via the 0008 item_id FK.
+   */
+  async bulkDeleteScheduleItems(ids: string[]): Promise<number> {
+    if (ids.length === 0) return 0;
+    const { error } = await this.client
+      .from("items_meta")
+      .delete()
+      .in("id", ids);
+    if (error) throw new Error(`bulkDeleteScheduleItems: ${error.message}`);
+    return ids.length;
   }
 }
 
