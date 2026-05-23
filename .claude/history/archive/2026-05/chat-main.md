@@ -2,6 +2,17 @@
 
 ローリングアーカイブ: `history/chat-main.md` が 5 件超過した際に最古エントリをここへ移動。時系列降順。
 
+### 2026-05-23 - DU-B-4 taskMapper + sortByDepthDesc vitest
+
+#### 概要
+
+DU-B-3 で実装した `taskMapper` の 2 行分割 API と `sortByDepthDesc` ユーティリティに対する vitest を追加。子計画書 §DU-B-4 の 5 必須ケース（roundtrip 5 shape / DB-Q2 bump 3 sub-case / parent_item_role 型ガード / soft-delete patch shape / order ↔ sort_order 3 path）+ sortByDepthDesc 6 ケース（3-level tree leaf-first / sibling 安定性 / orphan / cycle 終端 / empty / single root）を追加。テスト数 71 → 91。
+
+#### 変更点
+
+- **Shared tests**: `shared/tests/taskMapper.test.ts`（14 case）/ `shared/tests/sortByDepthDesc.test.ts`（6 case）新規追加
+- **検証**: `npx tsc -b` 緑 / `npm test` 91/91 緑
+
 ### 2026-05-23 - DU-B-3 SupabaseTasksService 9 methods 本実装
 
 #### 概要

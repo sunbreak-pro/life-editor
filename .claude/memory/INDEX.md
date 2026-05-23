@@ -2,7 +2,7 @@
 
 > 各 `chat-*.md` の集約ビュー。task-tracker 実行時に再生成される。**SSOT は各 `chat-*.md` ファイル**。本ファイルは読み手向け要約。
 
-最終更新: 2026-05-23 (chat-main)
+最終更新: 2026-05-24 (chat-main)
 
 ---
 
@@ -12,9 +12,9 @@
 
 ## 直近の完了 (across all chats, 各チャット最大 3 件)
 
+- [chat-main] 並行作業基盤強化（Stop hook + Plan Gate Convention + 計画書テンプレ + CLAUDE.md §7.3）✅ (2026-05-24)
 - [chat-main] Schedule 無限ループ修正（RoutineScheduleSync no-op 化）✅ (2026-05-23)
 - [chat-main] DU-C/D pending stubs（8 services 一時 no-op）✅ (2026-05-23)
-- [chat-main] DU-B-6 partial（db-conventions §10 + known-issues 021-024）✅ (2026-05-23)
 
 ## 予定 (across all chats)
 

@@ -1,0 +1,15 @@
+{
+  "hooks": {
+    "Stop": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/Users/newlife/dev/apps/life-editor/.claude/hooks/stop-check.sh"
+          }
+        ]
+      }
+    ]
+  }
+}

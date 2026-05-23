@@ -198,6 +198,20 @@ cd frontend && npm run build                            # 型検証（tsc -b。-
 
 `<type>: <subject>` — type: `feat` / `fix` / `docs` / `style` / `refactor` / `test` / `chore`（詳細・破壊的操作の境界は `git-workflow` スキル）
 
+### 7.3 Plan Gate Convention（計画書ゲート規約）
+
+並行作業の認知負荷を構造的に下げるため、新規・大改訂の計画書は [`docs/vision/plans/_TEMPLATE.md`](./docs/vision/plans/_TEMPLATE.md) をベースに作成し、以下を必須とする（既存計画書は触る時に移行、一括書き換えしない）。
+
+- **Scope 宣言**: 触ってよいパスを計画書冒頭に明示（scope drift 検出の根拠）
+- **Gate 列**: 各 Step を 🤖 自律 / 👀 目視 / 🛑 人手 で分類
+  - 🤖 自律 = Claude 完結。後追い検証で品質担保
+  - 👀 目視 = UI/体感/レイアウトでユーザー目視必須
+  - 🛑 人手 = DDL push / シークレット投入 / PR merge / 本番デプロイ
+- **Acceptance Criteria**: 機械検証可能な基準で完了条件を定義（`npm run build` exit 0 / vitest 緑 / Supabase に該当列存在 等）
+- **DB Migration Notes**: DDL 含む場合は「ローカルファイル先行 → ユーザー `supabase db push`」を明記（`apply_migration` MCP 単独使用禁止）
+
+**Stop hook 連動**: `.claude/hooks/stop-check.sh` が応答終了時に frontend 変更を検知して裏で `npm run build` を走らせ、結果を `.claude/comm/outbox/<chat>/stop-report.md` に追記する。登録は `.claude/settings.json::hooks.Stop`。無効化は同ファイル削除。
+
 ---
 
 ## 8. Feature Tier Map（詳細 → `docs/requirements/`）

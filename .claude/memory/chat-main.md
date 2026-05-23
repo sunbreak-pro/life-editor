@@ -6,9 +6,9 @@
 
 ## 直近の完了
 
+- 並行作業基盤強化（Stop hook + Plan Gate Convention + 計画書テンプレ + CLAUDE.md §7.3）✅（2026-05-24）
 - Schedule 無限ループ修正（RoutineScheduleSync no-op 化）✅（2026-05-23）
 - DU-C/D pending stubs（8 services 一時 no-op）✅（2026-05-23）
-- DU-B-6 partial（db-conventions §10 + known-issues 021-024）✅（2026-05-23）
 
 ## 予定
 

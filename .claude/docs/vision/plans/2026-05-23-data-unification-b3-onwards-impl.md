@@ -29,7 +29,7 @@ DU-B-2 まで完了した状態 (mapper 2 行分割 + roundtrip 緑 + SupabaseTa
 - [x] `taskMapper.roundtrip.ts` 20 アサーション全 PASS
 - [x] `SupabaseTasksService` 9 メソッドは `_pendingRewrite` throw stub
 - [x] `cd shared && npx tsc -b` 緑 / vitest 71/71 緑
-- [ ] **DU-B-3 着手前ユーザー承認** (本詳細計画書のレビュー)
+- [x] **DU-B-3 着手前ユーザー承認** (本詳細計画書のレビュー)
 
 ---
 

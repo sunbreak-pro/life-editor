@@ -1,5 +1,20 @@
 # HISTORY (chat-main)
 
+### 2026-05-24 - 並行作業基盤強化（Stop hook + Plan Gate Convention + 計画書テンプレ）
+
+#### 概要
+
+並行 worktree / 複数チャット運用で「見てない隙の品質劣化」「Supabase 手動操作で計画書が止まる不安」「人手ゲートを置きたくない誘惑」が認知負荷を上げていた問題に対し、調査（Anthropic 公式 / Supabase 公式 / 個人開発者事例の triangulation）を踏まえて 3 つのメタ運用基盤を追加。計画書テンプレに Gate 列（🤖 自律 / 👀 目視 / 🛑 人手）を必須化し、Stop hook で per-chat outbox に build 結果スナップショットを蓄積する仕組み。frontend 実装は無変更。
+
+#### 変更点
+
+- **計画書テンプレ新設**: `.claude/docs/vision/plans/_TEMPLATE.md` を新規作成。Scope 宣言 / Gate 列 / 機械検証可能な Acceptance Criteria / DB Migration Notes（ローカルファイル先行 + ユーザー `supabase db push` ルール）を含む。新規・大改訂時に使用、既存 14 本は触る時に逐次移行
+- **Stop hook 新設**: `.claude/hooks/stop-check.sh` を新規作成（実行権限付与）。応答終了時に `git diff` で frontend 変更を検知し、バックグラウンドで `npm run build` を走らせ結果を `.claude/comm/outbox/<chat>/stop-report.md` に追記。ユーザー待ち時間 0（subshell + & + disown）
+- **settings.json 新設**: `.claude/settings.json` を新規作成し `hooks.Stop` に stop-check.sh を登録。auto-mode classifier が一度ブロックしたためユーザー明示承認を取得して再書き込み
+- **CLAUDE.md §7.3 追加**: 「Plan Gate Convention」小節を新設し、テンプレ・hook・Gate 凡例・DB Migration ルールを SSOT 化。session-verifier との役割分担も明示（verifier = commit 前明示呼び出し / Stop hook = 毎ターン自動スナップショット、重複しない）
+- **設計判断**: 「人手ゲートを減らす」のではなく「人手 1 コマンドで通せる形に圧縮する」方針を採用。`apply_migration` MCP 単独使用は schema drift を確定させるため禁止と明記
+- **検証**: hook dry run（frontend 変更なし → 即 exit 0）成功。本番動作は次回応答終了時から有効化
+
 ### 2026-05-23 - Schedule 無限ループ修正（RoutineScheduleSync no-op 化）
 
 #### 概要
@@ -50,15 +65,4 @@ DU-B-1 / B-2 / B-3 で得た知見を恒久ドキュメント化。`db-conventio
 - **Docs / known-issues**: 021/022/023/024 を新規追加 + `INDEX.md` の Fixed セクション + Category 別インデックス + Status 集計を更新（19 件 → 並行チャットの 025 追加で 20 件）
 - **保留**: CLAUDE.md §4.3 一行追記は並行チャットの CLAUDE.md 編集との干渉回避で別タイミング。計画書 archive 移動も DU-B 全体クローズ時に実施
 
-### 2026-05-23 - DU-B-4 taskMapper + sortByDepthDesc vitest
-
-#### 概要
-
-DU-B-3 で実装した `taskMapper` の 2 行分割 API と `sortByDepthDesc` ユーティリティに対する vitest を追加。子計画書 §DU-B-4 の 5 必須ケース（roundtrip 5 shape / DB-Q2 bump 3 sub-case / parent_item_role 型ガード / soft-delete patch shape / order ↔ sort_order 3 path）+ sortByDepthDesc 6 ケース（3-level tree leaf-first / sibling 安定性 / orphan / cycle 終端 / empty / single root）を追加。テスト数 71 → 91。
-
-#### 変更点
-
-- **Shared tests**: `shared/tests/taskMapper.test.ts`（14 case）/ `shared/tests/sortByDepthDesc.test.ts`（6 case）新規追加
-- **検証**: `npx tsc -b` 緑 / `npm test` 91/91 緑
-
-> 古いエントリは [`archive/2026-05/chat-main.md`](./archive/2026-05/chat-main.md) を参照（DU-B-3 SupabaseTasksService 9 methods 本実装 ほか）
+> 古いエントリは [`archive/2026-05/chat-main.md`](./archive/2026-05/chat-main.md) を参照（DU-B-4 taskMapper + sortByDepthDesc vitest / DU-B-3 SupabaseTasksService 9 methods 本実装 ほか）
