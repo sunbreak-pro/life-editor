@@ -1,5 +1,28 @@
 # HISTORY.md - 変更履歴
 
+### 2026-05-23 - Data Unification DU-B-1 完了（0009 v3-rev2 + 差分 v3-rev3 + 0010 本番 apply + 検証 9 件クリア + PG 落とし穴 2 件解消）
+
+#### 概要
+
+Data Unification DU-B-1 (DB schema + composite FK + policy hardening) を本番 Supabase に apply 完了。子計画書 v1 → 3 監査 (migration-validator / role-qa / security-reviewer) で v2 化 (Blocker 1 + Major 5 + High 2 + Medium 1 + Low 1 反映) → v3 apply 試行で **PG 制約に起因する apply エラーを 2 段階で解消**: (a) GENERATED 列 + composite FK に SET NULL 不可 (SQLSTATE 42601) を NO ACTION 化、(b) 全体再 apply で UNIQUE 依存連鎖 (2BP01) を差分 SQL 化。advisor 持ち込み WARN 2 件を v3-rev3 で initplan キャッシュ化 (`(select auth.uid())`)、さらに 0010 で DU-A 由来 6 policy も同型化 → items_meta + tasks_payload 範囲で auth_rls_initplan WARN 0。検証 9 件 (A-G SQL + RLS gate + advisor) すべてクリア。次フェーズ = DU-B-2 (taskMapper 2 行分割書き換え) 着手判断。
+
+#### 変更点
+
+- **DU-B 子計画書 v1 → v3-rev3**: `.claude/docs/vision/plans/2026-05-23-data-unification-b-tasks.md`。v1 で Recovery Playbook R1-R8 + ロールバック SQL 雛形 + 0009_rollback.sql 整合 + Risks 8 件網羅 + DoD 11 項目を確定 → v2 で 3 監査の Blocker-1 (softDelete → hard delete) + Major 1-5 + H1-2 + Medium-1 (parent EXISTS 追加) + Low-A (旧 index drop) を反映 → v3 で apply 試行 → v3-rev2 で ON DELETE NO ACTION 化 + v3-rev3 で initplan キャッシュ化、すべて経緯 SSOT として保存
+- **親計画書 v3 への DU-B 確定事項反映**: `parent_item_id 設計判断`「composite FK + ON DELETE NO ACTION」/ `Sync への影響`「mapper 側で updated_at bump 明示」/ `Migration 戦略`「0009 追加 + クライアント直列 atomicity」3 章を annotation 追記
+- **0009_tasks_payload_parent_fk.sql (260 行、v3-rev3 最終)**: items_meta `(id, role)` UNIQUE 追加 + tasks_payload composite FK (`parent_item_role` text generated always as ('task') stored + `(parent_item_id, parent_item_role) REFERENCES items_meta (id, role) MATCH SIMPLE ON DELETE NO ACTION`) + parent_item_id 側 EXISTS policy 強化 (security Medium-1) + 旧単独 index `idx_tasks_payload_parent` drop (Low-A) + 新規補助 index 2 本 + policy 内 `auth.uid()` を `(select auth.uid())` でラップ (initplan キャッシュ化、Supabase 公式 RLS ベストプラクティス)。POST-APPLY VERIFICATION A-I を末尾コメントに完備、F は NO ACTION 検証 (子がいる親 hard-delete 拒否 + 子先消し後の親消し成功) の 2 段
+- **0009_rollback.sql**: 7 操作対称巻き戻し (policy 復元 / composite FK drop / 列 drop / UNIQUE drop / 単独 FK 復元 / 補助 index drop / 旧単独 index 復元)、再 apply 前の cross-role 違反行確認 SQL を header に
+- **0010_du_b_initplan_cache.sql (94 行)**: DU-A 由来 items_meta 4 + tasks_payload 残 2 (select/delete) = 6 policy を `(select auth.uid())` 化。DU-B-1 ついで修正 + DU-D Notes で初版から踏襲する型を確立。0003-0006 由来 56 件は別 plan「initplan cleanup plan」へ申し送り
+- **check-rls-selftest 拡張**: B11/B12 ケース追加で 0008 payload の owner-eq + EXISTS 二重防衛 qual が gate に緑判定されることを実証 (22/22 緑、DU-A 申し送り④消化)
+- **DB-Q1/Q2/Q3 ユーザー確定**: (Q1) Atomicity = クライアント直列 2 回 invoke、createTask try/catch で **hard delete** (softDelete は Sync TrashView 汚染で v2 改訂) / (Q2) updated_at bump = mapper 側で明示 invoke (DB トリガ不採用) / (Q3) cross-role parent 防止 = composite FK 採択
+- **3 監査並列起動 → 全 APPROVE**: migration-validator (整合性) / role-qa (要件達成 + リスク + DoD) / security-reviewer (composite FK セキュリティ)。v2 改訂後の軽量再監査も APPROVE
+- **本番 apply 4 段階**: (1) 0009 v2 → 42601 で失敗 (transaction rollback で DB 無傷) (2) v3-rev2 (NO ACTION) → apply 成功 + A-G 検証クリア (SQL Editor は postgres role で auth.uid() = NULL のため user_id 明示が必要と判明) (3) v3-rev3 全体再 apply → 2BP01 で失敗 (UNIQUE drop が composite FK 依存で blocking) → 差分 SQL (policy 2 本だけ drop + create) で成功 (4) 0010 apply → 6 policy initplan キャッシュ化成功
+- **検証 9 件 (A-G + RLS gate + advisor) 全クリア**: A 1 row / B 2 row / C 'task' / D-G 全成功 / E と F-1 は期待通り FK violation / RLS gate `___RLS_GATE_OK___` sentinel + offender 0 / Security advisor 既知 WARN 1 件のみ / Performance advisor items_meta + tasks_payload で auth_rls_initplan WARN 0
+- **Known Issue 候補 4 件 (DU-B-6 で `docs/known-issues/` に記録予定)**: ①PG GENERATED 列含む composite FK に SET NULL 不可 (42601) ②Supabase SQL Editor は postgres role で `auth.uid() = NULL`、検証 INSERT は user_id 明示 ③`check-rls.sh` wrapper が Supabase CLI v2.101 `--output csv` 廃止で動作不能、`check-rls.sql` 単独 SQL Editor 実行で代替 ④再 apply で UNIQUE drop が composite FK 依存で 2BP01、差分 SQL or `drop ... cascade` で回避
+- **commit**: `a999489` (DU-B 子計画書 v2 + 0009 v2 + rollback + selftest 拡張) → `1ec2cca` (v3-rev2 NO ACTION) → `ba1b6f1` (v3-rev3 initplan キャッシュ化) → `7d164be` (0010 + child plan v3-rev3 反映)。data-unification ブランチに push 済み
+- **outbox 報告**: `.claude/comm/outbox/chat-web-migration.md` の先頭に DU-B-1 完了 + apply 履歴 + 検証結果 + Known Issue 候補 + DU-B-2 着手判断待ちを記録
+- **次フェーズ**: DU-B-2 (Tasks role mapper 移植) — `shared/src/services/taskMapper.ts` を items_meta + tasks_payload 2 行分割マッピングに書き換え → `taskMapper.roundtrip.ts` 更新 → `npm run -w shared build` 緑確認 → role-qa 監査 → DU-B-3 (SupabaseTasksService 9 メソッド書き換え)
+
 ### 2026-05-23 - Data Unification DU-A 完全完了（0007 drop + 0008 schema 本番 apply 成功 + 全 5 検証クリア）（計画書: archive/2026-05-23-data-unification-a-db-schema.md）
 
 #### 概要
