@@ -1,5 +1,13 @@
 # HISTORY.md - 変更履歴
 
+> **🧊 FROZEN since 2026-05-23 (worktree: prototype/mobile-ui)** — このファイルは read-only。新規エントリは `.claude/history/chat-<name>.md` (per-chat 機構) に書くこと。main worktree で per-chat 化が完了しており、本 worktree でも task-tracker は legacy モードへフォールバックするが、追記すると main マージ時に論理衝突する。
+>
+> **計画書の参照手段** (本 worktree からは直接参照不可。次のいずれかで読む):
+>
+> - main worktree 内から: `git show main:.claude/docs/vision/plans/2026-05-23-memory-history-per-chat-split.md`
+> - main worktree (`/Users/newlife/dev/apps/life-editor`) に `cd` して直接 open
+> - prototype 側で読みたい場合: 本 worktree から `git show main:.claude/docs/vision/plans/2026-05-23-memory-history-per-chat-split.md` で出力可能 (worktree は単一リポジトリの ref を共有するため `main` ref で到達)
+
 ### 2026-05-19 - Phase 2 S4 完全クローズ（0006 本番 apply 成功 + 実ブラウザ 2 バグ修正）
 
 #### 概要
