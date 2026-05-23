@@ -71,7 +71,7 @@ mod tests {
     /// Latest schema user_version. Bump every time a new V_N block is added
     /// to `v61_plus.rs` so the cross-cutting tests (fresh DB / upgrade /
     /// idempotency) stay in sync without per-test edits.
-    const LATEST_USER_VERSION: i32 = 69;
+    const LATEST_USER_VERSION: i32 = 71;
 
     fn table_exists(conn: &Connection, name: &str) -> bool {
         conn.query_row(

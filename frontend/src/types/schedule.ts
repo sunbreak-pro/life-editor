@@ -17,6 +17,7 @@ export interface ScheduleItem {
   isAllDay?: boolean;
   reminderEnabled?: boolean;
   reminderOffset?: number;
+  reminderTime?: string | null;
   createdAt: string;
   updatedAt: string;
 }
