@@ -1,5 +1,9 @@
 # Code Inventory — Life Editor
 
+> **Status (cleanup-and-consolidation Phase 4-1, 2026-05-24)**: ARCHIVED — 2026-04-25 時点の点スナップショット。Web 移行 (refactor/web-first-v2 → main マージ済) で frontend/src/services/data/ の 19 domain 分割、`shared/` `supabase/` `web/` ディレクトリ新設など実態が大きく変化。**現在の死コード探索は git + 自動ツール (knip / ts-prune) に委譲**。本ファイルはリファレンス。
+>
+> 削除対象の最新リストは [`../docs/vision/plans/2026-05-23-cleanup-and-consolidation-deletion-targets.md`](../docs/vision/plans/2026-05-23-cleanup-and-consolidation-deletion-targets.md) を参照（本ファイルは archive 移動済のためパスを修正）。
+>
 > 2026-04-25 作成。Frontend / Rust Backend / Cloud の **アクティブ / 凍結 / 重複 / 削除候補** を棚卸し。リファクタリング計画 → [`.claude/2026-04-25-refactoring-plan.md`](../2026-04-25-refactoring-plan.md)
 
 ---

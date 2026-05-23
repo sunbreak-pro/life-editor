@@ -171,3 +171,8 @@
 ### Related Plans
 
 - 関連 ADR: `.claude/docs/adr/ADR-0005-claude-cognitive-architecture.md`
+
+---
+
+> **末尾注記 (cleanup-and-consolidation Phase 3-3, 2026-05-24)**:
+> Cognitive Architecture は ADR-0005 の PROPOSED 状態を保持中。本プロジェクトは **ADR を作らない方針**（CLAUDE.md / vision/coding-principles.md 参照）に移行したため、ADR-0005 の継続的な更新は行わない。Phase C で「実装着手するか永続 Frozen にするか」を判定し、着手判定の場合は `.claude/docs/vision/cognitive-architecture.md` 等の独立ファイル化を検討する。

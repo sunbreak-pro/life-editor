@@ -1,5 +1,9 @@
 # iOS 追加機能要件
 
+> **Status (cleanup-and-consolidation Phase 3-4, 2026-05-24)**: **ALL DONE** — G-1 / G-2 / G-3 全要件は 2026-04-24 実装完了済。本ファイルは Tier 1/2 の Mobile 補完要件の SSOT として **archive せず保持**。Capacitor 移行 (移行 SSOT Phase 4) で再評価する。
+>
+> 関連 Tier への統合リンク: G-1 = UndoRedo (tier-2-supporting.md) / G-2 = Cloud Sync (tier-1-core.md) / G-3 = Schedule / Layout (tier-1-core.md / tier-2-supporting.md)
+>
 > ユーザー note「iOS追加機能要件」の SSOT 化。Mobile (iOS Tauri) 専用に追加で必要な機能要件を記録する。
 > 元 note: life-editor → ノート → iOS追加機能要件（2026-04-22 取得）
 > 関連: [`vision/mobile-porting.md`](../vision/mobile-porting.md) / [`vision/mobile-data-parity.md`](../vision/mobile-data-parity.md) / CLAUDE.md §2 Platform / §6.2 Provider 順序
