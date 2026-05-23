@@ -10,7 +10,12 @@
 
 - **役割**: 現状の実装規約 / 設計判断の参照点（400 行以下目標）。抽象構想は `docs/vision/`（ADR は作らない）
 - **更新規則**: 実装変更はコードと同一 PR で更新。新機能は §8 + `docs/requirements/` に記入
-- **関連**: `memory/INDEX.md`(タスク集約) / `history/INDEX.md`(履歴集約) / 旧 `MEMORY.md` / `HISTORY.md` (2026-05-23 凍結・参考保全) / [移行 SSOT](./2026-05-04-cross-platform-migration.md) / `docs/vision/`(設計原則) / `docs/requirements/`(Tier) / `docs/known-issues/`([INDEX](./docs/known-issues/INDEX.md)) / `archive/`
+- **関連**:
+  - 進捗 / 履歴: [`memory/INDEX.md`](./memory/INDEX.md) (タスク集約) / [`history/INDEX.md`](./history/INDEX.md) (履歴集約) — per-chat 機構の集約ビュー
+  - 凍結 / 参考保全: 旧 `MEMORY.md` / `HISTORY.md` / `HISTORY-archive.md` (2026-05-23 凍結・read-only)
+  - 移行: [移行 SSOT](./2026-05-04-cross-platform-migration.md)
+  - 設計: `docs/vision/` (設計原則) / `docs/requirements/` (Tier) / `docs/known-issues/` ([INDEX](./docs/known-issues/INDEX.md))
+  - アーカイブ: `archive/`
 
 ---
 
