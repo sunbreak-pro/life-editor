@@ -1,5 +1,36 @@
 # HISTORY (chat-main)
 
+### 2026-05-24 - DU-C 全 7 ステップ完了（Routines + RoutineGroups + Assignments + ScheduleItems 全 Service 本実装 + RoutineScheduleSync 復活）
+
+#### 概要
+
+DU-C/D pending stubs 投入後の実機検証で顕在化した「Routine 削除→key duplicate 警告→無限ループ」バグの根本治療として、DU-A (0008) で用意済の `items_meta + <role>_payload` スキーマに Routines / RoutineGroups / RoutineGroupAssignments / ScheduleItems の 4 ドメインを 2-row pattern で本実装。0011 migration で events_payload に composite FK + initplan-cache RLS を追加し、最後に RoutineScheduleSync の no-op 状態を解除して useScheduleItemsRoutineSync の notifyChanged を try ブロック内へ移動 (landmine 構造除去)。
+
+#### 変更点
+
+- **DB / migration 0011** (commit 564a4d8): `supabase/migrations/0011_du_c_events_payload_fk.sql` 新規。events_payload に `routine_item_role text GENERATED ALWAYS AS ('routine') STORED` + composite FK `(routine_item_id, routine_item_role) → items_meta(id, role)` NO ACTION。BEFORE INSERT trigger `trg_events_payload_init_cache` で is_deleted_cache 初期化 (UPDATE trigger は 0008 既存)。events_payload / routines_payload / routine_groups / routine_group_assignments の 16 RLS policy を `(select auth.uid())` initplan キャッシュ形式へ。本番 Supabase は SQL Editor 経由で apply (`supabase` CLI 不在 + MCP `--read-only` mode のため)、Acceptance Criteria A〜F 全件緑
+- **Shared mapper** (commit 5fd8574): routineMapper / routineGroupMapper / routineGroupAssignmentMapper / scheduleItemMapper を 2-row pattern に書き換え。legacy API は deprecated shim として並走。新規 vitest 2 ファイル合計 36 ケース (routineMapper 18 + scheduleItemMapper 18) — `shared npm test` 127/127 緑 (91 base + 36)。`RoutineNode` に `version?: number` を TaskNode 整合で追加
+- **SupabaseRoutinesService** (commit 6d02c1e): 8 methods 本実装。softDeleteRoutine が events_payload の routine_item_id 経由で由来 events を連動 soft-delete し `{ deletedScheduleItemIds }` を返す (trigger は単一行ミラーのみなのでアプリ層責務)。permanentDeleteRoutine は composite FK NO ACTION のため依存 events を先に hard-delete
+- **SupabaseRoutineGroupsService + AssignmentsService** (commit c22992e): 6 methods 本実装。`deleteRoutineGroup` は 0008 schema が is_deleted 列を持つので **soft-delete** に変更 (Phase 2 物理削除と挙動差)。`setGroupsForRoutine` は diff 計算 (current LIVE vs new set) → 新規 INSERT + 削除 soft-delete (Issue 008 contract)
+- **SupabaseScheduleItemsService** (commit 2c12119): 19 methods 本実装。`fetchByPayloadFilter` ヘルパで payload-first フィルタ + items_meta JOIN。`bulkCreateScheduleItems` は events_payload upsert ON CONFLICT (routine_item_id, source_date) ignoreDuplicates で Issue 011 partial UNIQUE 衝突を冪等吸収。`source_date` は routine_item_id 非 null の場合のみ start_at から patch (mapper INSERT path は DU-A pre-spec で null)
+- **RoutineScheduleSync 復活 + ハードニング** (commit 1ea4371): web/src/schedule/RoutineScheduleSync.tsx を Phase 2 (S4-5) 実装に復元。shared/src/hooks/useScheduleItemsRoutineSync.ts の `notifyChanged()` を try ブロック判定下へ移動し、`bulkCreateOk` フラグで bulkCreate 失敗時抑止を構造的保証 (2026-05-23 stub-throw 無限ループ landmine の構造除去)
+- **Docs** (commit fbc7cab): db-conventions.md §10.7 (events_payload 案 A 完成記録) + §10.8 (bulkCreate ON CONFLICT 戦略) 追加。子計画書を Status=COMPLETED + commit ハッシュ 6 件記録 + Worklog 時系列追記して `.claude/archive/` へ git mv
+
+#### 検証
+
+- shared `npx tsc -b`: exit 0 (全 commit 後)
+- shared `npm test`: 127/127 pass (91 base + routineMapper 18 + scheduleItemMapper 18)
+- web `npm run build`: exit 0
+- Supabase 0011 適用後 Acceptance Criteria A〜F: 全件緑 (composite FK / generated 列 / 同期 trigger 2 種 / 16 RLS policy initplan / advisor auth_rls_initplan WARN は DU-C 4 テーブルで 0 件)
+- 残: 👀 ユーザー実機確認 (Routine 作成/削除/復元 + 連続フリック / 月またぎで bulkCreate ループしないこと)
+
+#### 設計判断 / 残知見
+
+- **Supabase CLI 不在 + MCP `--read-only` mode**: `supabase db push` が使えない (CLI 未インストール + 過去 history table 不在で不発と判明) + MCP の write 系も `--read-only` でブロック → 確立パターンは **SQL Editor 直貼り** (0001-0008 と同じ経路)。MCP は read-only verification (execute_sql / get_advisors) に専念
+- **`apply_migration` MCP 単独使用禁止** (CLAUDE.md §7.3) はファイル先行ルールを意味し、ファイルがコミット済なら MCP push 自体は許容される — ただ `--read-only` モードでは blocked のため事実上 SQL Editor 経路一択
+- **Routine→Event cascade はアプリ層責務**: 0008/0011 の sync trigger は events_payload.item_id 単位でしかミラーしない。Routine soft-delete からの events 連動は `SupabaseRoutinesService.softDeleteRoutine` が `.in()` で一括 UPDATE
+- **`source_date` populate ルール**: routine 由来 event は `source_date = start_at` で partial UNIQUE 有効化。手動 event は source_date=null で partial UNIQUE 非発火 — 手動 event 同日同 routineId は重複可能 (routineId=null なので空集合)
+
 ### 2026-05-24 - 並行作業基盤強化（Stop hook + Plan Gate Convention + 計画書テンプレ）
 
 #### 概要
