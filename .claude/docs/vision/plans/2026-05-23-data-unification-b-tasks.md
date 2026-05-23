@@ -1,5 +1,5 @@
 ---
-Status: DRAFT — DU-B 子計画書 v3-rev2（2026-05-23 改訂）。v1 → v2 で 3 監査 (Blocker 1 / Major 5 / High 2 / Medium 1 / Low 1) 反映 → v3 で apply 試行 → PG 制約 (generated 列 + composite FK + SET NULL 不可、SQLSTATE 42601) で v3 失敗 → v3-rev2 で ON DELETE NO ACTION に変更（アプリ層 permanentDeleteTask が descendants 再帰削除責務、Tauri 同型）。本 v3-rev2 はユーザー承認待ち。
+Status: DRAFT — DU-B 子計画書 v3-rev3（2026-05-23 改訂）。v1 → v2 で 3 監査 (Blocker 1 / Major 5 / High 2 / Medium 1 / Low 1) 反映 → v3 で apply 試行 → PG 制約 (generated 列 + composite FK + SET NULL 不可、SQLSTATE 42601) で v3 失敗 → v3-rev2 で ON DELETE NO ACTION に変更 → v3-rev2 apply 成功 → A-G 検証緑 → advisor で `auth_rls_initplan` WARN 2 件検出 → v3-rev3 で policy 内 `auth.uid()` を `(select auth.uid())` でラップ（initplan キャッシュ化、Supabase 公式ベストプラクティス）。本 v3-rev3 はユーザー再 apply 待ち。
 Created: 2026-05-23
 Task: Data Unification DU-B — Tasks role 移植（items_meta + tasks_payload 経由）
 Project path: /Users/newlife/dev/apps/life-editor
@@ -90,19 +90,21 @@ drop index if exists public.idx_tasks_payload_parent;  -- 複合 index の prefi
 
 -- ⑤ tasks_payload insert/update policy に parent_item_id 側 EXISTS 追加
 --    （security-reviewer Medium-1 — 0008 時点の脆弱性を DU-B で同時解消、DU-D Notes 型として確立）
+--    v3-rev3 で auth.uid() を (select auth.uid()) でラップ
+--    （advisor auth_rls_initplan WARN 対策 / initplan キャッシュ化、Supabase 公式ベストプラクティス）
 drop policy if exists tasks_payload_insert_own on public.tasks_payload;
 create policy tasks_payload_insert_own on public.tasks_payload for insert to authenticated
   with check (
-    auth.uid() = user_id
+    (select auth.uid()) = user_id
     and exists (select 1 from public.items_meta
                 where items_meta.id = tasks_payload.item_id
-                  and items_meta.user_id = auth.uid())
+                  and items_meta.user_id = (select auth.uid()))
     and (tasks_payload.parent_item_id is null
          or exists (select 1 from public.items_meta
                     where items_meta.id = tasks_payload.parent_item_id
-                      and items_meta.user_id = auth.uid()))
+                      and items_meta.user_id = (select auth.uid())))
   );
--- update_own も同型の with check 拡張（using は 0008 と同じ user_id = auth.uid()）
+-- update_own も同型の with check 拡張（using は (select auth.uid()) = user_id）
 ```
 
 これにより、parent_item_id が指す items_meta の role が `task` 以外なら INSERT/UPDATE が **DB 側で失敗** する（composite FK 経由）+ parent_item_id が他ユーザー所有なら policy で **PostgREST 層で reject** される（owner EXISTS 経由 = side-channel も同時に閉じる）。アプリ層のバグや SQL 直叩きでも cross-role 親子も他人の id 経由の整合性違反も両方ブロックされる。

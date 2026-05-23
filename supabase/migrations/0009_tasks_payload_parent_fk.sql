@@ -144,24 +144,30 @@ drop index if exists public.idx_tasks_payload_parent;
 --
 -- DU-D Notes でも notes_payload に対して同パターンを必ず追加すること
 -- (子計画書 WAVE 節)。
+-- v3-rev3: `auth.uid()` を `(select auth.uid())` でラップ
+-- (Supabase advisor `auth_rls_initplan` WARN 対策 / initplan キャッシュ化)
+-- 素の `auth.uid()` は行ごとに再評価されるが、`(select ...)` で囲むと PG
+-- planner が initplan として 1 回だけ実行し全行で再利用 = ホットパス性能向上。
+-- Supabase 公式ベストプラクティス:
+--   https://supabase.com/docs/guides/database/postgres/row-level-security#call-functions-with-select
 drop policy if exists tasks_payload_insert_own on public.tasks_payload;
 create policy tasks_payload_insert_own
   on public.tasks_payload
   for insert
   to authenticated
   with check (
-    auth.uid() = user_id
+    (select auth.uid()) = user_id
     and exists (
       select 1 from public.items_meta
       where items_meta.id = tasks_payload.item_id
-        and items_meta.user_id = auth.uid()
+        and items_meta.user_id = (select auth.uid())
     )
     and (
       tasks_payload.parent_item_id is null
       or exists (
         select 1 from public.items_meta
         where items_meta.id = tasks_payload.parent_item_id
-          and items_meta.user_id = auth.uid()
+          and items_meta.user_id = (select auth.uid())
       )
     )
   );
@@ -171,20 +177,20 @@ create policy tasks_payload_update_own
   on public.tasks_payload
   for update
   to authenticated
-  using (auth.uid() = user_id)
+  using ((select auth.uid()) = user_id)
   with check (
-    auth.uid() = user_id
+    (select auth.uid()) = user_id
     and exists (
       select 1 from public.items_meta
       where items_meta.id = tasks_payload.item_id
-        and items_meta.user_id = auth.uid()
+        and items_meta.user_id = (select auth.uid())
     )
     and (
       tasks_payload.parent_item_id is null
       or exists (
         select 1 from public.items_meta
         where items_meta.id = tasks_payload.parent_item_id
-          and items_meta.user_id = auth.uid()
+          and items_meta.user_id = (select auth.uid())
       )
     )
   );
