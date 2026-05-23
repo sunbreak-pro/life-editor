@@ -55,6 +55,14 @@ import {
   rowToRoutine,
   routineUpdatesToPatch,
   type RoutineRow,
+  // DU-C-3: 2-row API (items_meta + routines_payload)
+  ITEMS_META_ROUTINE_COLUMNS,
+  ROUTINES_PAYLOAD_COLUMNS,
+  rowsToRoutineNode,
+  routineNodeToRows,
+  routineUpdatesToPatches,
+  type ItemsMetaRoutineRow,
+  type RoutinesPayloadRow,
 } from "./routineMapper";
 import {
   ROUTINE_GROUP_SELECT_COLUMNS,
@@ -756,8 +764,27 @@ class SupabaseNoteConnectionService {
   }
 }
 
+/*
+ * DU-C-3: SupabaseRoutinesService over items_meta (role='routine') +
+ * routines_payload. Same pattern as SupabaseTasksService — pure mapping
+ * lives in routineMapper.ts; this class is the I/O layer.
+ *
+ * NOT MODELLED HERE:
+ *   - The `groupIds` join (routine_group_assignments) is the
+ *     SupabaseRoutineGroupAssignmentsService's concern (DU-C-4). The
+ *     RoutineNode returned by these methods is the "lone" shape — the
+ *     RoutineProvider composes groupIds at the consumer level (Phase 2
+ *     parity).
+ *   - Routine-generated event materialisation lives in
+ *     SupabaseScheduleItemsService.bulkCreateScheduleItems (DU-C-5);
+ *     softDeleteRoutine here only cascades soft-deletes to the events
+ *     items_meta rows and returns the affected ids so the Schedule UI
+ *     can reconcile in-memory state.
+ */
 class SupabaseRoutinesService {
   private readonly client: SupabaseClient;
+  // Keep legacy mapper imports statically referenced (verbatimModuleSyntax)
+  // until DU-C cleanup deletes them.
   private static readonly _unused_select = ROUTINE_SELECT_COLUMNS;
   private static readonly _unused_mapper = rowToRoutine;
   private static readonly _unused_patch = routineUpdatesToPatch;
@@ -765,42 +792,164 @@ class SupabaseRoutinesService {
 
   constructor(client: SupabaseClient) {
     this.client = client;
-    void this.client;
   }
 
+  private async getUserId(): Promise<string> {
+    const { data, error } = await this.client.auth.getUser();
+    if (error) throw new Error(`getUserId failed: ${error.message}`);
+    const uid = data.user?.id;
+    if (!uid) throw new Error("getUserId failed: not authenticated");
+    return uid;
+  }
+
+  /**
+   * Live routines. Two SELECTs (items_meta WHERE role='routine' +
+   * routines_payload) joined in-app. Missing payload (R2 orphan) skipped.
+   */
   async fetchAllRoutines(): Promise<RoutineNode[]> {
-    return [];
+    const { data: metas, error: metaErr } = await this.client
+      .from("items_meta")
+      .select(ITEMS_META_ROUTINE_COLUMNS)
+      .eq("role", "routine")
+      .eq("is_deleted", false);
+    if (metaErr)
+      throw new Error(`fetchAllRoutines items_meta: ${metaErr.message}`);
+    const metaRows = (metas as unknown as ItemsMetaRoutineRow[]) ?? [];
+    if (metaRows.length === 0) return [];
+
+    const ids = metaRows.map((m) => m.id);
+    const { data: payloads, error: pErr } = await this.client
+      .from("routines_payload")
+      .select(ROUTINES_PAYLOAD_COLUMNS)
+      .in("item_id", ids);
+    if (pErr)
+      throw new Error(`fetchAllRoutines routines_payload: ${pErr.message}`);
+    const payloadRows = (payloads as unknown as RoutinesPayloadRow[]) ?? [];
+    const payloadById = new Map<string, RoutinesPayloadRow>();
+    for (const p of payloadRows) payloadById.set(p.item_id, p);
+
+    const out: RoutineNode[] = [];
+    for (const m of metaRows) {
+      const p = payloadById.get(m.id);
+      if (!p) continue; // R2 orphan — skip
+      out.push(rowsToRoutineNode(m, p));
+    }
+    return out;
   }
+
+  /** Trashed counterpart (Trash UI). */
   async fetchDeletedRoutines(): Promise<RoutineNode[]> {
-    return [];
+    const { data: metas, error: metaErr } = await this.client
+      .from("items_meta")
+      .select(ITEMS_META_ROUTINE_COLUMNS)
+      .eq("role", "routine")
+      .eq("is_deleted", true);
+    if (metaErr)
+      throw new Error(`fetchDeletedRoutines items_meta: ${metaErr.message}`);
+    const metaRows = (metas as unknown as ItemsMetaRoutineRow[]) ?? [];
+    if (metaRows.length === 0) return [];
+
+    const ids = metaRows.map((m) => m.id);
+    const { data: payloads, error: pErr } = await this.client
+      .from("routines_payload")
+      .select(ROUTINES_PAYLOAD_COLUMNS)
+      .in("item_id", ids);
+    if (pErr)
+      throw new Error(`fetchDeletedRoutines routines_payload: ${pErr.message}`);
+    const payloadRows = (payloads as unknown as RoutinesPayloadRow[]) ?? [];
+    const payloadById = new Map<string, RoutinesPayloadRow>();
+    for (const p of payloadRows) payloadById.set(p.item_id, p);
+
+    const out: RoutineNode[] = [];
+    for (const m of metaRows) {
+      const p = payloadById.get(m.id);
+      if (!p) continue;
+      out.push(rowsToRoutineNode(m, p));
+    }
+    return out;
   }
+
+  /**
+   * INSERT items_meta + routines_payload with R2 hard-delete recovery.
+   * Mirrors createTask (DU-B-3): if the payload INSERT fails, the meta
+   * orphan is hard-deleted to keep the 1:1 invariant.
+   *
+   * The frontend signature is (id, title, optional schedule + frequency
+   * fields). Optional fields default to a "daily, always visible, no
+   * reminder" routine — the Tauri / Phase 2 default.
+   */
   async createRoutine(
-    _id: string,
-    _title: string,
-    _startTime?: string,
-    _endTime?: string,
-    _frequencyType?: string,
-    _frequencyDays?: number[],
-    _frequencyInterval?: number | null,
-    _frequencyStartDate?: string | null,
-    _reminderEnabled?: boolean,
-    _reminderOffset?: number,
+    id: string,
+    title: string,
+    startTime?: string,
+    endTime?: string,
+    frequencyType?: string,
+    frequencyDays?: number[],
+    frequencyInterval?: number | null,
+    frequencyStartDate?: string | null,
+    reminderEnabled?: boolean,
+    reminderOffset?: number,
   ): Promise<RoutineNode> {
-    void _id;
-    void _title;
-    void _startTime;
-    void _endTime;
-    void _frequencyType;
-    void _frequencyDays;
-    void _frequencyInterval;
-    void _frequencyStartDate;
-    void _reminderEnabled;
-    void _reminderOffset;
-    _pendingDuRewrite("createRoutine", "routines");
+    const userId = await this.getUserId();
+    const now = new Date().toISOString();
+    // Build a RoutineNode shape so the mapper handles the 2-row split.
+    const node: RoutineNode = {
+      id,
+      title,
+      startTime: startTime ?? null,
+      endTime: endTime ?? null,
+      isArchived: false,
+      isVisible: true,
+      isDeleted: false,
+      deletedAt: null,
+      order: 0,
+      frequencyType: (frequencyType ?? "daily") as RoutineNode["frequencyType"],
+      frequencyDays: frequencyDays ?? [],
+      frequencyInterval: frequencyInterval ?? null,
+      frequencyStartDate: frequencyStartDate ?? null,
+      reminderEnabled: reminderEnabled ?? false,
+      reminderOffset: reminderOffset,
+      createdAt: now,
+      updatedAt: now,
+      version: 1,
+    };
+    const { meta, payload } = routineNodeToRows(node, userId);
+
+    const { data: metaRow, error: metaErr } = await this.client
+      .from("items_meta")
+      .insert(meta)
+      .select(ITEMS_META_ROUTINE_COLUMNS)
+      .single();
+    if (metaErr)
+      throw new Error(`createRoutine items_meta: ${metaErr.message}`);
+
+    try {
+      const { data: payloadRow, error: pErr } = await this.client
+        .from("routines_payload")
+        .insert(payload)
+        .select(ROUTINES_PAYLOAD_COLUMNS)
+        .single();
+      if (pErr)
+        throw new Error(`createRoutine routines_payload: ${pErr.message}`);
+      return rowsToRoutineNode(
+        metaRow as unknown as ItemsMetaRoutineRow,
+        payloadRow as unknown as RoutinesPayloadRow,
+      );
+    } catch (err) {
+      // R2 orphan recovery — same pattern as createTask.
+      await this.client.from("items_meta").delete().eq("id", meta.id);
+      throw err;
+    }
   }
+
+  /**
+   * Mapper-driven dual UPDATE. metaPatch ALWAYS carries updated_at
+   * (DB-Q2 enforcement is in routineUpdatesToPatches). Empty payload
+   * patch skips the no-op write.
+   */
   async updateRoutine(
-    _id: string,
-    _updates: Partial<
+    id: string,
+    updates: Partial<
       Pick<
         RoutineNode,
         | "title"
@@ -818,27 +967,191 @@ class SupabaseRoutinesService {
       >
     >,
   ): Promise<RoutineNode> {
-    void _id;
-    void _updates;
-    _pendingDuRewrite("updateRoutine", "routines");
+    const userId = await this.getUserId();
+    const now = new Date().toISOString();
+    const { metaPatch, payloadPatch } = routineUpdatesToPatches(
+      updates,
+      userId,
+      now,
+    );
+
+    const { error: metaErr } = await this.client
+      .from("items_meta")
+      .update(metaPatch)
+      .eq("id", id);
+    if (metaErr)
+      throw new Error(`updateRoutine items_meta: ${metaErr.message}`);
+
+    if (Object.keys(payloadPatch).length > 0) {
+      const { error: pErr } = await this.client
+        .from("routines_payload")
+        .update(payloadPatch)
+        .eq("item_id", id);
+      if (pErr)
+        throw new Error(`updateRoutine routines_payload: ${pErr.message}`);
+    }
+
+    const [
+      { data: metaRow, error: metaReadErr },
+      { data: payloadRow, error: payloadReadErr },
+    ] = await Promise.all([
+      this.client
+        .from("items_meta")
+        .select(ITEMS_META_ROUTINE_COLUMNS)
+        .eq("id", id)
+        .single(),
+      this.client
+        .from("routines_payload")
+        .select(ROUTINES_PAYLOAD_COLUMNS)
+        .eq("item_id", id)
+        .single(),
+    ]);
+    if (metaReadErr)
+      throw new Error(`updateRoutine read items_meta: ${metaReadErr.message}`);
+    if (payloadReadErr)
+      throw new Error(
+        `updateRoutine read routines_payload: ${payloadReadErr.message}`,
+      );
+    return rowsToRoutineNode(
+      metaRow as unknown as ItemsMetaRoutineRow,
+      payloadRow as unknown as RoutinesPayloadRow,
+    );
   }
-  async deleteRoutine(_id: string): Promise<void> {
-    void _id;
-    _pendingDuRewrite("deleteRoutine", "routines");
+
+  /**
+   * Hard-delete via items_meta (payload cascades via 0008 FK ON DELETE
+   * CASCADE). Legacy API kept for the DataService interface; the
+   * normal user-facing path is softDeleteRoutine -> restoreRoutine ->
+   * permanentDeleteRoutine.
+   */
+  async deleteRoutine(id: string): Promise<void> {
+    const { error } = await this.client
+      .from("items_meta")
+      .delete()
+      .eq("id", id);
+    if (error) throw new Error(`deleteRoutine: ${error.message}`);
   }
+
+  /**
+   * Soft-delete the routine AND cascade soft-delete to all routine-
+   * generated events that reference it. Returns the deleted event ids
+   * so the Schedule UI can reconcile in-memory state without re-
+   * fetching.
+   *
+   * Why aren't the 0008/0011 triggers enough? `trg_sync_event_deleted_
+   * cache` fires on items_meta UPDATE OF is_deleted WHERE the row's id
+   * == events_payload.item_id — i.e. it mirrors a single event's own
+   * meta-deletion into the partial-UNIQUE filter mirror. It does NOT
+   * cascade from a routine row to its generated events; that's a
+   * many-to-one structural deletion the app layer owns.
+   */
   async softDeleteRoutine(
-    _id: string,
+    id: string,
   ): Promise<{ deletedScheduleItemIds: string[] }> {
-    void _id;
-    _pendingDuRewrite("softDeleteRoutine", "routines");
+    const now = new Date().toISOString();
+
+    // 1. Find live routine-generated events (items_meta ids) that
+    //    point at this routine.
+    const { data: eventRows, error: findErr } = await this.client
+      .from("events_payload")
+      .select("item_id")
+      .eq("routine_item_id", id)
+      .eq("is_deleted_cache", false);
+    if (findErr)
+      throw new Error(`softDeleteRoutine find events: ${findErr.message}`);
+    const eventIds =
+      (eventRows as unknown as { item_id: string }[] | null)?.map(
+        (r) => r.item_id,
+      ) ?? [];
+
+    // 2. Soft-delete the routine itself (items_meta).
+    const { error: routineErr } = await this.client
+      .from("items_meta")
+      .update({ is_deleted: true, deleted_at: now, updated_at: now })
+      .eq("id", id);
+    if (routineErr)
+      throw new Error(`softDeleteRoutine routine: ${routineErr.message}`);
+
+    // 3. Soft-delete all derived events. The 0008 UPDATE-side trigger
+    //    propagates each row's is_deleted into events_payload.is_
+    //    deleted_cache so the partial-UNIQUE generator filter is in
+    //    sync. version bump is implicit via metaPatch on items_meta —
+    //    but here we're doing a direct UPDATE so we bump updated_at
+    //    explicitly.
+    if (eventIds.length > 0) {
+      const { error: eventErr } = await this.client
+        .from("items_meta")
+        .update({ is_deleted: true, deleted_at: now, updated_at: now })
+        .in("id", eventIds);
+      if (eventErr)
+        throw new Error(`softDeleteRoutine events: ${eventErr.message}`);
+    }
+
+    return { deletedScheduleItemIds: eventIds };
   }
-  async restoreRoutine(_id: string): Promise<void> {
-    void _id;
-    _pendingDuRewrite("restoreRoutine", "routines");
+
+  /**
+   * Inverse of softDeleteRoutine. Restores the routine; the events
+   * are intentionally NOT restored — the Schedule generator
+   * (RoutineScheduleSync) will re-generate them on the next sync cycle
+   * if the routine's frequency still matches. Mirrors Tauri behaviour:
+   * a restore is "wake the routine up", not "reinstate every past
+   * occurrence".
+   */
+  async restoreRoutine(id: string): Promise<void> {
+    const now = new Date().toISOString();
+    const { error } = await this.client
+      .from("items_meta")
+      .update({ is_deleted: false, deleted_at: null, updated_at: now })
+      .eq("id", id);
+    if (error) throw new Error(`restoreRoutine: ${error.message}`);
   }
-  async permanentDeleteRoutine(_id: string): Promise<void> {
-    void _id;
-    _pendingDuRewrite("permanentDeleteRoutine", "routines");
+
+  /**
+   * Physical purge. The 0011 composite FK on events_payload is ON
+   * DELETE NO ACTION, so PG would reject the routine items_meta DELETE
+   * while any event still references it via (routine_item_id,
+   * routine_item_role). Hard-delete the dependent events_payload-
+   * backed items_meta rows first (cascades to events_payload through
+   * the 0008 item_id FK), then the routine itself.
+   */
+  async permanentDeleteRoutine(id: string): Promise<void> {
+    // 1. Collect event items_meta ids that reference this routine
+    //    (live + trashed — the partial-UNIQUE filter on is_deleted_cache
+    //    excludes trashed events, but the composite FK does NOT, so we
+    //    must clear them too).
+    const { data: eventRows, error: findErr } = await this.client
+      .from("events_payload")
+      .select("item_id")
+      .eq("routine_item_id", id);
+    if (findErr)
+      throw new Error(`permanentDeleteRoutine find events: ${findErr.message}`);
+    const eventIds =
+      (eventRows as unknown as { item_id: string }[] | null)?.map(
+        (r) => r.item_id,
+      ) ?? [];
+
+    // 2. Hard-delete event items_meta rows. events_payload cascades via
+    //    the 0008 item_id FK. Done one-by-one to mirror the Tasks
+    //    descendants-first pattern (NO ACTION-friendly).
+    for (const eid of eventIds) {
+      const { error } = await this.client
+        .from("items_meta")
+        .delete()
+        .eq("id", eid);
+      if (error)
+        throw new Error(
+          `permanentDeleteRoutine event ${eid}: ${error.message}`,
+        );
+    }
+
+    // 3. Hard-delete the routine items_meta row. routines_payload
+    //    cascades via 0008 item_id FK.
+    const { error } = await this.client
+      .from("items_meta")
+      .delete()
+      .eq("id", id);
+    if (error) throw new Error(`permanentDeleteRoutine: ${error.message}`);
   }
 }
 
