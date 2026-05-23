@@ -2,25 +2,26 @@
 
 ## 進行中
 
-### 🔧 Data Unification — Schedule items_meta + payload 再設計（着手日: 2026-05-21、ステータス: PLANNING・親計画書 v3 承認済み）
+### 🔧 Data Unification — Schedule items_meta + payload 再設計（着手日: 2026-05-21、ステータス: **DU-A 完了・DU-B 着手判断待ち**）
 
-**対象**: `.claude/docs/vision/plans/2026-05-21-data-unification-items-meta.md`（親計画書 v3・承認済 `dcc8484`）/ 実装は `supabase/migrations/0007+`（0007_drop_legacy_item_tables + 0008_data_unification_schema）+ `shared/src/` + `web/src/`（DU-A 着手後）
-**計画書**: `.claude/docs/vision/plans/2026-05-21-data-unification-items-meta.md`（v3、role-qa 3 周監査済）
-**ブランチ**: `data-unification/items-meta-redesign`（`refactor/web-first-v2` から分岐・push 済）
+**対象**: `.claude/docs/vision/plans/2026-05-21-data-unification-items-meta.md`（親計画書 v3、`dcc8484`）+ `.claude/docs/vision/plans/2026-05-23-data-unification-a-db-schema.md`（DU-A 子計画書 v2、`5801341`）/ DU-B 以降は `shared/src/` + `web/src/`
+**計画書**: 親=`2026-05-21-data-unification-items-meta.md` / DU-A 子=`2026-05-23-data-unification-a-db-schema.md`
+**ブランチ**: `data-unification/items-meta-redesign`（`refactor/web-first-v2` から分岐・push 済、最新 HEAD `5801341` + tracker commit）
 
-- 前回: 親計画書 v3 完成（lead-pipeline 重ティアフルチェーン: session-manager→role-pm→計画書→role-qa 3 周監査 15+7+2 項全解消）+ Phase 2 を web-first-v2 に FF マージ + 新ブランチ作成
-- 現在: **計画書策定完了・実装未着手**。Q1-Q15 確定。DB=ハイブリッド（items_meta + 5 payload + 7 専用/relation = 13 テーブル）/ role 5 種厳守（task/event/routine/note/daily、変更不可）/ Calendar=月+3 日 2 ビュー（Dayflow 廃止）/ RoutineGroup・WikiTag・wiki_tag_groups=専用テーブル / 既存データ破壊的リセット（calendars 系 3 テーブルは Phase 2 維持）
-- 次: **DU-A（DB スキーマ apply）着手の最終承認**（= Supabase 破壊的 apply の二段承認）→ DU-A 子計画書を code-plan-editor で作成 → 実装。Phase 順: DU-A(DB)→DU-B(Tasks)/DU-C(Events+Routine)/DU-D(Notes+Daily)→DU-E(Calendar)→DU-F(WikiTag/Link)
+- 前回: 親計画書 v3 + DU-A 子計画書 + 0007/0008 SQL を 4 ラウンド独立監査 (migration-validator x2 / security-reviewer / role-qa x2) で全 APPROVE
+- 現在: **DU-A apply 成功** (Supabase 本番 SQL Editor でユーザー実施)。全 5 検証クリア — items_meta 行数=0 / 新規 13 テーブル全て作成 + RLS enabled / RLS policy 52 (新13×4) / partial unique 6 + トリガ 1 (security invoker + search_path) / calendars.folder_id FK が items_meta(id) を参照 (DD-2 案A 成立) / calendars 系 3 テーブル維持 (cta=0行 truncate成功・ctd=1行保持) / get_advisors 既知 WARN 1件のみ (auth_leaked_password_protection = 完成後判断)
+- 次: **DU-B (Tasks role 移植) 着手判断**。子計画書 (TasksProvider が items_meta + tasks_payload 経由 + ツリー DnD + 期限 + 3 ステータス、現行 frontend tasks 業務列マッパー、Pattern A 3 ファイル) を code-plan-editor で作成 → role-engineer 実装 → migration-validator / security-reviewer / role-qa 各層監査。Phase 順: DU-B → DU-C → DU-D → DU-E → DU-F
 
-**設計の核**: Schedule 系を unified-item モデルへ再設計。`items_meta`（共通メタ: id/role/title/timestamps/sync 列）+ 種別 payload（専用列厚く・JSONB は Notes/Daily content_json のみ）の 2 層。WikiTag/WikiLink を items_meta 上で一元グラフ化（Obsidian 思想）。Phase 2 S3/S4 コードは全捨て（Provider Pattern A 構造・routineFrequency/routineScheduleSync 純粋関数のみ流用）。
-**申し送り**: ①MCP Server 16 ツール書き換えは本計画では凍結（後続「MCP catch-up plan」）②WikiLink グラフ可視化 UI も別計画（backlink list のみ実装）③`origin/refactor/web-first-v2` push は保留（並行 chat-refactor 共有ブランチ要調整）④S8 Realtime/delta sync 申し送りは Data Unification でも継承
-**サブエージェント分担**: 設計=role-pm（計画書）→ code-plan-editor（子計画書ファイル化）/ 実装=role-engineer（Phase 進行時）/ 監査=role-qa+security-reviewer+life-editor-migration-validator（DU-A SQL 作成時）/ 統括=メイン
+**設計の核**: Schedule 系を unified-item モデルへ再設計。`items_meta`（共通メタ）+ 種別 payload（専用列厚く・JSONB は Notes/Daily content_json のみ）の 2 層。WikiTag/WikiLink を items_meta 上で一元グラフ化（Obsidian 思想）。Phase 2 S3/S4 コードは全捨て（Provider Pattern A 構造・routineFrequency/routineScheduleSync 純粋関数のみ流用）。
+**DU-A 確定事項**: DD-1 folder=task sub-type (task_type/folder_type) / DD-2 calendars データ truncate + folder_id FK → items_meta(id) / DD-3 note_links 廃止 → wiki_tag_connections 一元化 / events 列の意図的簡略化 (is_dismissed=Issue 017 防御 / content/note_id/reminder_enabled+offset/template_id ドロップ・後続 plan で必要なら復活) / トリガ SECURITY INVOKER + search_path 固定
+**申し送り**: ①MCP Server 16 ツール書き換えは本計画では凍結（後続「MCP catch-up plan」）②WikiLink グラフ可視化 UI も別計画（backlink list のみ実装）③`origin/refactor/web-first-v2` push は保留（並行 chat-refactor 共有ブランチ要調整）④S8 Realtime/delta sync 申し送りは Data Unification でも継承 ⑤is_deleted_cache の INSERT 経路同期 + payload 単独 mutation 時の items_meta.updated_at bump 責務は DU-B mapper で確定 ⑥check-rls-selftest に payload EXISTS ケース 1 件追加は B1 follow-up
+**サブエージェント分担**: 設計=role-pm（必要時）→ code-plan-editor（子計画書）/ 実装=role-engineer（Phase 進行時）/ 監査=role-qa+security-reviewer+life-editor-migration-validator / 統括=メイン
 
 ## 直近の完了
 
-- モバイルUIプロトタイプ環境 計画策定 ✅（2026-05-23）— 要件定義書 `01_要件定義書_プロトタイプ環境.md` + 実装計画書 `02_実装計画書_プロトタイプ環境.md`（Phase 0-4）を作成。Artifacts 原本3 TSX（unified/work/materials demo）を `.claude/docs/vision/plans` から `prototype/_artifacts/` へ隔離（Phase 0 完了）。Vite 環境構築（Phase 1-4）は未着手。`.claude/` はビルド対象外＝動く部品は repo root `prototype/` 配下が正、という配置判断が核。詳細 HISTORY 参照
-- Data Unification 親計画書策定（旧 Phase 3 改名）+ Phase 2 完全クローズ + ブランチ準備 ✅（2026-05-23）— Schedule 再設計の親計画書 v3 を lead-pipeline 重ティアフルチェーンで策定（role-qa 3 周監査 15+7+2 項全解消）。items_meta + payload ハイブリッド 13 テーブル / role 5 種統一 / Calendar 月+3 日 2 ビュー。Phase 2 を `refactor/web-first-v2` に FF マージ → 新ブランチ `data-unification/items-meta-redesign` 作成。計画書 `dcc8484` + HTML ビュー派生。実装未着手（DU-A 着手は破壊的 apply 二段承認後）。詳細 HISTORY 参照
-- Phase 2 S4 完全クローズ（0006 apply 成功 + 実ブラウザ 2 バグ修正）✅（2026-05-19）— 0006 本番 apply 成功・手動確認 OK。実ブラウザ判明の 2 バグ修正: バグ1=Calendar FK 違反を folder-type task select 化(TaskTreeProvider 追加)で構造解消 / バグ2=Routine item 復活(Issue 017)を Delete/Trash 導線非表示+Dismiss 主導線化で構造的遮断。role-qa PASS、保護領域 diff0、vitest 71/71 非回帰。`297ead6`。詳細 HISTORY 参照 **注: Data Unification に吸収（コード全捨て、Provider/UI 構造は実装パターンだけ参考）。**
+- Data Unification DU-A 完了 (0007 drop + 0008 schema 本番 apply 成功) ✅（2026-05-23）— 子計画書 v2 (DD-1/2/3 確定 + 監査15+7+2+5+2項反映) + 0007 (79行・9テーブルDROP + calendars FK外し + cta/calendars truncate) + 0008 (1033行・items_meta + 5 payload + 7 専用/relation = 13テーブル + 52 policy + 6 partial unique + 1 トリガ + calendars FK 再ターゲット)。4 ラウンド監査 PASS (migration-validator x2 + security-reviewer + role-qa x2、Critical/High 0)。Supabase 本番 SQL Editor で apply 成功・全 5 検証クリア (items_meta=0 / 13テーブル + RLS enabled / 52 policy / partial unique 6 + トリガ 1 / calendars.folder_id → items_meta(id) / advisor 既知WARN1のみ)。commit `5801341`。詳細 HISTORY 参照
+- モバイルUIプロトタイプ環境 計画策定 ✅（2026-05-23）— 要件定義書 `01_要件定義書_プロトタイプ環境.md` + 実装計画書 `02_実装計画書_プロトタイプ環境.md`（Phase 0-4）を作成。Artifacts 原本3 TSX を `prototype/_artifacts/` へ隔離（Phase 0 完了）。Vite 環境構築（Phase 1-4）は未着手。詳細 HISTORY 参照
+- Data Unification 親計画書策定（旧 Phase 3 改名）+ Phase 2 完全クローズ + ブランチ準備 ✅（2026-05-23）— Schedule 再設計の親計画書 v3 を lead-pipeline 重ティアフルチェーンで策定（role-qa 3 周監査 15+7+2 項全解消）。items_meta + payload ハイブリッド 13 テーブル / role 5 種統一 / Calendar 月+3 日 2 ビュー。Phase 2 を `refactor/web-first-v2` に FF マージ → 新ブランチ `data-unification/items-meta-redesign` 作成。計画書 `dcc8484`。詳細 HISTORY 参照
 
 ## 予定
 

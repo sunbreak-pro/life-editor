@@ -1,5 +1,5 @@
 ---
-Status: PLANNING — DU-A 子計画書 v2（2026-05-23）。DD-1/2/3 確定 + role-qa/migration-validator 監査反映（条件付き承認可 → B1/B2/C-1/C-2/H-1/H-2/H-3/M1-M4/m1-m2 全反映）。次工程=0007/0008 SQL 作成 → SQL 監査 → 破壊的 apply のユーザー最終承認。
+Status: COMPLETED — DU-A 子計画書 v2（2026-05-23 完了）。0007/0008 SQL 作成 + 4 ラウンド監査 PASS + Supabase 本番 SQL Editor で破壊的 apply 成功 + 全 5 検証クリア。後続=DU-B (Tasks role 移植)。
 Created: 2026-05-23
 Task: Data Unification DU-A — DB スキーマ設計 + apply（0007 drop + 0008 schema + RLS）
 Project path: /Users/newlife/dev/apps/life-editor

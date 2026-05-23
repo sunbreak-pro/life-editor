@@ -1,5 +1,25 @@
 # HISTORY.md - 変更履歴
 
+### 2026-05-23 - Data Unification DU-A 完全完了（0007 drop + 0008 schema 本番 apply 成功 + 全 5 検証クリア）（計画書: archive/2026-05-23-data-unification-a-db-schema.md）
+
+#### 概要
+
+Data Unification 第 1 フェーズ (DU-A: DB スキーマ設計 + apply) を完了。子計画書 v2 作成 → 0007/0008 SQL 実装 → 4 ラウンド独立監査 (migration-validator x2 / security-reviewer / role-qa x2) で全 APPROVE → Supabase 本番 SQL Editor で破壊的 apply 成功 (ユーザー実施、二段承認後)。9 テーブル DROP + 13 テーブル CREATE + 52 RLS policy + 6 partial unique + 1 トリガ + calendars FK 再ターゲット。全 5 検証クリアで items_meta 空状態の新スキーマが本番稼働開始。実装層 (mapper/Provider/UI) は未着手 = DU-B 以降。
+
+#### 変更点
+
+- **DU-A 子計画書 v2 作成**: `.claude/docs/vision/plans/2026-05-23-data-unification-a-db-schema.md`。親計画書 v3 の DU-A 章を SQL 直前まで具体化。DD-1/2/3 確定 (folder=task sub-type / calendars データ truncate + FK retarget / note_links 廃止 → wiki_tag_connections 一元化)。1 周目 role-qa が現行スキーマ実態 (calendars.folder_id NOT NULL → tasks ON CASCADE、note_links/note_connections の notes 依存) を発見 → 親計画書「DROP 7」→ **実際は 9 テーブル**に訂正
+- **0007_drop_legacy_item_tables.sql (79 行)**: FK 外し (calendars.folder_id) → truncate (cta + calendars のみ・ctd 不触) → 9 テーブル DROP cascade (schedule_items → rga → routine_groups → routines → note_connections → note_links → notes → dailies → tasks)。冪等性 = DROP は if exists、truncate 対象は維持テーブルゆえ常に存在
+- **0008_data_unification_schema.sql (1033 行)**: 13 テーブル CREATE (items_meta + 5 payload + routine_groups/rga + wiki_tags/groups/group_assignments/assignments/connections) + 52 RLS policy (4 × 13、全 `to authenticated` + owner equality + payload は EXISTS 二重防衛で items_meta.user_id = auth.uid()) + 6 partial UNIQUE (`uq_events_payload_routine_date` 含む) + 1 トリガ (`sync_event_deleted_cache`、SECURITY INVOKER + `set search_path = public, pg_temp`) + calendars.folder_id FK 再張り (items_meta(id) ON CASCADE)
+- **監査 4 ラウンド**: ①migration-validator v1 = Critical/High 0、Medium 2 (DU-B 層) ②security-reviewer = Critical/High 0、Medium 2 ③role-qa v1 = NEEDS REVISION (列移植欠落 Blocker 2 + Major 1 = notes_payload.note_type / events_payload の is_dismissed/completed_at/is_all_day / routines_payload.sort_order) → role-engineer が 5 列追加 + 意図的ドロップ列の根拠コメント追記 (+35 行) ④role-qa v2 + migration-validator v2 再監査 = 副作用なし APPROVE
+- **events_payload 列の意図的簡略化** (要件 4「簡素な ToDo・RichEditor 非搭載」遵守): is_dismissed (Issue 017 防御復活、commit 297ead6 の S4 dismiss-only 設計を保つ) / completed_at / is_all_day を**追加**。content (TipTap rich) / note_id (wiki_tag_connections に一元化) / reminder_enabled+offset (reminder_at 絶対時刻に一本化) / template_id (DU 後続計画) を**ドロップ**、根拠は SQL コメントに明記
+- **破壊的 apply 成功 (二段承認後)**: ユーザーが Supabase SQL Editor で 0007 → 0008 の順で apply。前回の S4 0006 apply で発生した `cloud/db/migrations/` 誤貼り事故を念頭に正本パス (`supabase/migrations/`) を明示案内。apply 後の Supabase MCP read-only 検証で 5 項目クリア: items_meta 行数=0 / 新規 13 テーブル全て作成 + RLS enabled / RLS policy 52 / partial unique 6 + トリガ 1 / calendars.folder_id FK が items_meta(id) を参照 (DD-2 案A 成立)。get_advisors 既知 WARN 1件のみ (auth_leaked_password_protection = 完成後判断、新規問題ゼロ)
+- **ブランチ運用**: `data-unification/items-meta-redesign` で作業。`refactor/web-first-v2` + `phase-2/schedule-migration` への push 漏れも本セッション冒頭で解消。並行チャット (chat-refactor / prototype レーン) が working tree を共有しているため commit は全て pathspec 指定 (`git add -A` 厳禁)
+- **commit/push**: `dcc8484` (親計画書 v3) → `987c79c` (tracker 整理 1st) → `5801341` (DU-A 成果物 = 子計画書 v2 + 0007 + 0008、3 ファイル) → 本 tracker commit。data-unification ブランチに push 済み
+- **HISTORY ローリングアーカイブ**: 13 エントリ蓄積していた HISTORY を最新 5 件保持に再整理 (前回 tracker END の整理が並行チャットの 62ddac0 merge で巻き戻されたため再実行)。S4 移植以前の 9 エントリ (2026-05-17 移行 SSOT 復元以降) を `HISTORY-archive.md` へ移動 (archive 47→58 件)
+- **次フェーズ**: DU-B (Tasks role 移植)。子計画書を code-plan-editor で作成 → TasksProvider が items_meta + tasks_payload 経由で動作 + ツリー DnD + 期限 + 3 ステータス + 現行 frontend tasks 業務列マッパー → 各層監査。順序: DU-B → DU-C (Events + Routine) → DU-D (Notes + Daily) → DU-E (Calendar 2 ビュー) → DU-F (WikiTag/WikiLink グラフ)
+- **申し送り (DU-B 着手前に確定)**: ①is_deleted_cache の INSERT 経路同期 (BEFORE INSERT トリガ or mapper 不変条件) ②payload 単独 mutation 時の items_meta.updated_at bump 責務 (mapper or トリガ) ③check-rls-selftest に payload EXISTS ケース 1 件追加で B1 緑実証 ④wtga の EXISTS 要否 (二重防衛非対称の設計判断) ⑤MCP Server 16 ツール書き換えは凍結継続、後続「MCP catch-up plan」で別計画化
+
 ### 2026-05-23 - モバイルUIプロトタイプ環境 計画策定（要件定義書01 + 実装計画書02）+ Artifacts 原本隔離
 
 #### 概要
@@ -67,21 +87,3 @@ Phase 2 最大規模ドメイン Schedule を子ブランチ `phase-2/schedule-m
 - **S8 必須申し送り（S4 SSOT 記録）**: ①rga delta は updated_at 直接ページング確定し親 routine bump 削除 ②cta tombstone 化（0006 に soft-delete 列追加 migration）or 親不在推論、task 側も同機構で一括 ③7 テーブルに server_updated_at 相当 or Supabase Realtime ④delta pull は cursor pagination（Issue 012 半実装回避）⑤ctd は full-replicate＝delta 対象外 ⑥Tauri→Supabase data import で schedule_items version 振り直し
 - **commit/push**: S4-0〜S4-6 を 9 commit に分割（`567f860`→`d809f06`）、各 pathspec 指定で `phase-2/schedule-migration` へ push。親計画書 `2026-05-16-phase2-core-migration.md` の S4 を [x] 化（次=S5 WikiTags）、chat-web-migration outbox に S4 完了 + S8 申し送りをブロードキャスト
 - **残課題**: 0006 本番 SQL Editor apply + 実ブラウザ Schedule CRUD/Routine 生成/Calendar 表示確認（次セッション初手、ヘッダ post-verify クエリ実行）→ S4 SSOT Verification クローズ → 子ブランチを `refactor/web-first-v2` へマージ → S5 WikiTags。実ブラウザ観測項目: 月高速連打の生成件数 + 生成直後ちらつき / Calendar inline-edit version+1 連打 / Mobile build で CalendarTags Provider 不在時 CalendarTagsView=null
-
-### 2026-05-17 - 移行 SSOT 復元 + MEMORY/CLAUDE ドキュメント陳腐化一掃 + orphan DB 削除
-
-#### 概要
-
-ユーザー要請「MEMORY.md にすでに解決済み・矛盾があれば調査」→ general-purpose で MEMORY 予定/保留/バグ温床を移行 SSOT・コード実体・git・KI INDEX と突合棚卸し。調査中に**重大事故を発見**: 移行全体 SSOT `.claude/2026-05-04-cross-platform-migration.md`(495行) が commit `60f5f63`「docs: tidy migration Phase 2 planning docs」で*古い Tauri 期 docs 整理のついで*に巻き込まれ削除されており、CLAUDE.md が 5 箇所で参照する SSOT リンクが全てデッド。続くユーザー指示「陳腐化削除・orphan DB 削除・矛盾統一」に基づき復元と一掃を実施。並行 S4 チャットが共有作業ツリーを `phase-2/schedule-migration` へ切替済のため commit はそのブランチに着地（ユーザー判断で据置＝S4 マージ時トランクへ）。
-
-#### 変更点
-
-- **棚卸し（general-purpose・read-only）**: MEMORY 予定14+保留2+バグ温床16 を ✅解決済/🗑️陳腐化/🔄要リスコープ/✔️有効/❓ユーザー判断 で分類。frontend `npm run build`=green(予定[3]TSエラー解決確認)/`npm run lint`=109問題(未解消だが frontend は Phase5 drop)/orphan DB 実在/移行 SSOT デッドリンク を実証
-- **移行 SSOT 復元（事故修復）**: `git show 60f5f63^:.claude/2026-05-04-cross-platform-migration.md`(495行)を逐語復元。Status 行のみ「S0-S3 完了・次 S4・最新は MEMORY/plans 正本・60f5f63 で誤削除→復元」に現状化。内容は陳腐化なし(2026-05-14 方針更新含む)。CLAUDE.md L5/L13/L45/L203 の SSOT リンク復活
-- **MEMORY 予定 一掃**: 陳腐化 11 項目削除（[4]Q2 Cloud Sync検証/[5]リファクタ検証計画(デッドリンク)/[6]Realtime frontend SyncContext/[7]Mobile Re-syncボタン frontend/[8]Desktop cargo tauri build/[9]orphan DB(実施済)/[10]iOS実機受入/[11]iOS4G/[12]Mobile手動検証(新リデザイン計画へ)/[14]frontend lint 一括(Phase5 drop)/[1]Point Graph継続FB frontend）。[13]を「Capacitor Mobile 追加機能要件 backlog」へ統一(実装パスでなく機能要件のみ保持・Tauri-iOS/user-global plan 参照除去)。保留[15]Tauri IPC naming 削除・[16]React Compiler を「アーキ非依存・移行後判断」へ再框組み。[2]Mobile設計明文化は有効で保持。冒頭注記を「2026-05-17 一括削除済」へ更新
-- **バグの温床 一掃**: Cloudflare D1/wrangler/Tauri-Xcode 専用 10 項目削除（c/d/g/h/i/j/m/n/o/p）。整理メモ残置。残置 a/b/e/f/k/l は移行後有効な恒久知見、f/k は【Supabase 文脈へ書換候補・未着手】注記
-- **クロス参照ドリフト修正**: 予定[4]内「Known Issue 016 検討」死参照除去（016 は番号再利用され現 INDEX では別 issue=タスクツリー循環 OOM）/ バグ b「Known Issue 014」→「013(旧 014 統合分)」（014 は 2026-04-25 に 013 へ統合済の不在番号）。[4]自体は今回の陳腐化削除で消滅
-- **CLAUDE.md §8 統一**: `2026-04-26-windows-android-port.md` デッドリンク（同じ 60f5f63 で削除）を「Windows/Android 配布は移行 SSOT Phase 5 に統合済・逐語は git 履歴」へ書換。`requirements/ios-additions.md`(実在)は据置
-- **orphan DB 削除（破壊的・手順遵守）**: 削除前検証 — `com.lifeEditor.app/life-editor.db`(user_version=59, tasks=1/notes=1, 最終更新 2026-04-15＝旧バンドル残骸) を `~/Backups/orphan-life-editor-com.lifeEditor.app-20260517.db` へ単一ファイル退避後 rm（+shm/wal）。`sonic-flow/life-editor.db`(0byte/0table) は退避不要で rm。検証: `find` で `life-editor/life-editor.db`(active, user_version=70, tasks=2)のみ残存、別PJ `sonic-flow/sonic-flow.db` 保持を確認
-- **commit（並行 S4 ブランチ着地・据置判断）**: セッション開始時 `refactor/web-first-v2` だったが並行 S4 チャットが共有作業ツリーを `phase-2/schedule-migration` へ切替済。SSOT 復元+MEMORY 初回整理は `f7738ac` としてそのブランチに着地(push は upstream 無しで未実行＝リモート影響0)。ユーザー判断「S4 ブランチに据置・git 追加手術なし」＝S4 マージ時にトランクへ自然到達。本セッションの追加 docs 編集も同ブランチへ pathspec commit。shared/(S4 並行作業)・frontend/ 不可侵維持、`git add -A` 厳禁
-- **未着手（報告のみ）**: 🔄書換候補=バグ f/k(Supabase 文脈)・保留 React Compiler / ❓ユーザー判断=なし(Point Graph/[13] は今回整理で処置済、orphan DB 実施済) / 残デッドリンク=なし(windows-android-port は §8 統一済、refactoring-verification-plan は予定[5]ごと削除済)
