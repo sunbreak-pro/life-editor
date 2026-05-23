@@ -23,6 +23,10 @@ shared/node_modules/
 shared/dist/
 supabase/node_modules/
 
+# Mobile UI prototype env (Vite, isolated from frontend/)
+prototype/node_modules/
+prototype/dist/
+
 # Supabase CLI local state (never commit: link state, branch state, env)
 # supabase/.env holds SUPABASE_DB_URL (DB password). Defence-in-depth:
 # (1) this ignore rule, (2) check-rls.sh never `source`s it (extracts only
