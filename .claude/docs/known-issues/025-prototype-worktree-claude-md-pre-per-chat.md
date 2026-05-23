@@ -1,9 +1,10 @@
 # 025: prototype+mobile-ui worktree の CLAUDE.md が per-chat 化前のスナップショット
 
-**Status**: Active (Workaround あり)
+**Status**: Fixed
 **Category**: Structural
 **Severity**: Minor
 **Discovered**: 2026-05-23
+**Resolved**: 2026-05-24
 
 ## Symptom
 
@@ -35,18 +36,19 @@ prototype worktree で新規 Claude セッションを開始するとき、CLAUD
 
 ## Fix / Workaround
 
-- **Workaround** (推奨): prototype 担当チャットが main を merge して CLAUDE.md を per-chat 対応版に揃える。同時に `.claude/memory/` / `.claude/history/` ディレクトリ + INDEX も取り込まれるので、prototype worktree でも per-chat 機構が起動する
-- **暫定**: prototype 担当が新規セッション開始時に「凍結マーカーが正、CLAUDE.md は旧版」と認識する運用 (本 known-issue を読むことで成立)
-- **恒久対応候補**: Phase 4 (worktree 横断・正本パス解決) で、CLAUDE.md 自体も main 正本を絶対パス参照する設計に統一する余地あり (例: prototype 側の `.claude/CLAUDE.md` を main の symbolic link / stub にする運用)
+- **採用された解** (2026-05-24): `prototype/mobile-ui` ブランチを PR #12 (commit `bc7d87d`) で main に merge → prototype worktree は削除 (`git worktree remove`)。さらに後続の cleanup PR #13 で main の `CLAUDE.md` も per-chat 機構を SSOT として明示する形に正式更新済 (L14/L15 で `memory/INDEX.md` / `history/INDEX.md` を関連節に明記、L181/L228 で task-tracker per-chat fallback を明記)
+- **副次効果**: 新しく追加された worktree (例: `cleanup-and-consolidation`) は merge 済の per-chat 対応 CLAUDE.md + `.claude/memory/` + `.claude/history/` + INDEX を最初から保持しているため、本件と同種のドリフトは構造的に再発しない
+- **恒久対応候補** (残課題): Phase 4 (worktree 横断・正本パス解決) で、CLAUDE.md 自体を main 正本に symlink / stub 化する設計は依然有効。新規 worktree が長期分岐したら同様の drift が発生し得るため、計画書 `2026-05-23-memory-history-per-chat-split.md` Phase 4 として継続検討
 
 ## References
 
 - 関連 plan: `.claude/docs/vision/plans/2026-05-23-memory-history-per-chat-split.md` (Phase 4 worktree 横断)
-- 関連 file:
-  - `.claude/worktrees/prototype+mobile-ui/.claude/CLAUDE.md` (旧版のまま)
-  - `.claude/worktrees/prototype+mobile-ui/.claude/MEMORY.md` (凍結マーカー追記済)
-  - `.claude/worktrees/prototype+mobile-ui/.claude/HISTORY.md` (凍結マーカー追記済)
-- 関連 commit: main の per-chat 化 (commit `4497606` 周辺、本作業含む)
+- 関連 file (削除済): `.claude/worktrees/prototype+mobile-ui/.claude/{CLAUDE,MEMORY,HISTORY}.md` (merge 後 worktree ごと削除)
+- 関連 commit:
+  - main の per-chat 化 (commit `4497606` 周辺)
+  - prototype 凍結マーカー追記 + 参照手段追加 (prototype 側 commit `e054b96`、本作業)
+  - prototype merge to main (PR #12, commit `bc7d87d`、2026-05-24)
+  - main CLAUDE.md 正式 per-chat 化 (cleanup PR #13, commit `9688632` 関連)
 
 ## Lessons Learned
 
