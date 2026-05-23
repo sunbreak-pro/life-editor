@@ -1,5 +1,6 @@
 ---
-Status: COMPLETE — S4-0〜S4-6 全完了 + 0006 本番 apply 成功・手動確認 OK（2026-05-17）。Verification 全項目クリア。S8 delta 申し送り 6 項は S8 着手者向けに本ファイル維持。次フェーズ=S5 WikiTags。並行チャット同居のため本ファイルが S4 自レーン SSOT
+Status: ARCHIVED — COMPLETE — S4-0〜S4-6 全完了 + 0006 本番 apply 成功・手動確認 OK（2026-05-17）。Verification 全項目クリア。S8 delta 申し送り 6 項は S8 着手者向けに本ファイル維持。次フェーズ=S5 WikiTags（DU 計画に吸収）。並行チャット同居のため本ファイルが S4 自レーン SSOT
+Archived: 2026-05-23 (by cleanup-and-consolidation Phase 1-2)
 Created: 2026-05-17
 Task: Phase 2 S4 — Schedule ドメイン Web 移植（最大規模・最後）
 Project path: /Users/newlife/dev/apps/life-editor
