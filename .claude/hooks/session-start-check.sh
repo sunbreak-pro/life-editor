@@ -11,7 +11,8 @@
 # 検査ロジック:
 #   A. 空文字 → 未宣言
 #   B. "chat-" プレフィックス → task-tracker 仕様違反
-#   C. "/", ".", "..", 空白を含む → パストラバーサル / 不正文字
+#   C. 英数字・ハイフン・アンダースコア (`^[a-zA-Z0-9_-]+$`) 以外を含む
+#      → 不正文字 / パストラバーサル (allowlist 方式)
 #   D. 上記いずれでもないが .session-name の mtime が HEAD commit より 3 日以上古い
 #      → 別チャット作業を引き継いだ可能性（要確認）
 #
@@ -39,9 +40,10 @@ if [ -z "${SESSION_NAME}" ]; then
 # B: chat- プレフィックス（task-tracker SKILL.md Step 0 と同じバリデーション）
 elif [[ "${SESSION_NAME}" == chat-* ]]; then
   WARNINGS+=("B: \`chat-\` プレフィックス不要 — 現在値 \`${SESSION_NAME}\`。ファイル名側で \`chat-\` が付くため、ここでは素の名前（例 \`engineer\`）にしてください")
-# C: 不正な文字 / パストラバーサル
-elif [[ "${SESSION_NAME}" == *"/"* ]] || [[ "${SESSION_NAME}" == *".."* ]] || [[ "${SESSION_NAME}" == "." ]] || [[ "${SESSION_NAME}" == *" "* ]]; then
-  WARNINGS+=("C: 不正な文字 / パストラバーサル — 現在値 \`${SESSION_NAME}\`。英数字・ハイフン・アンダースコアのみ使用してください")
+# C: 不正な文字 / パストラバーサル (allowlist 方式)
+# deny-list だと `~root` / `$(whoami)` / `-rf` / 全角スラッシュ `／` 等を取り逃す
+elif [[ ! "${SESSION_NAME}" =~ ^[a-zA-Z0-9_-]+$ ]]; then
+  WARNINGS+=("C: 不正な文字 — 現在値 \`${SESSION_NAME}\`。英数字・ハイフン・アンダースコアのみ使用してください (allowlist: ^[a-zA-Z0-9_-]+\$)")
 else
   # D: mtime と HEAD commit timestamp の比較
   HEAD_TS=$(git -C "${ROOT}" log -1 --format=%ct 2>/dev/null || echo "")
@@ -63,14 +65,13 @@ if [ "${#WARNINGS[@]}" -eq 0 ]; then
   exit 0
 fi
 
-# outbox 先のチャット名フォールバック（パストラバーサル防止のため安全な名前のみ採用）
-OUTBOX_NAME="${SESSION_NAME}"
-if [ -z "${OUTBOX_NAME}" ] || \
-   [[ "${OUTBOX_NAME}" == *"/"* ]] || \
-   [[ "${OUTBOX_NAME}" == *".."* ]] || \
-   [[ "${OUTBOX_NAME}" == "." ]] || \
-   [[ "${OUTBOX_NAME}" == *" "* ]]; then
+# outbox 先のチャット名フォールバック
+# allowlist (英数字・ハイフン・アンダースコア) に合致しなければ unknown フォールバック
+# 警告 C と同じ判定式 — deny-list 取りこぼし対策
+if [[ ! "${SESSION_NAME}" =~ ^[a-zA-Z0-9_-]+$ ]]; then
   OUTBOX_NAME="unknown"
+else
+  OUTBOX_NAME="${SESSION_NAME}"
 fi
 
 OUTBOX="${ROOT}/.claude/comm/outbox/${OUTBOX_NAME}"
