@@ -17,6 +17,8 @@
 
 ## 1. Core Identity
 
+> ⚠️ **§1 反転点**: Elevator pitch の「Tauri / SQLite ローカル SSOT / オフライン完全動作」記述は冒頭警告のとおり既に反転済み。新スタック向け Identity は Phase 5 で再定義。
+
 ### 1-line definition
 
 **「AI と会話しながら生活を設計・記録・運用するパーソナル OS」**
@@ -59,6 +61,8 @@
 
 ## 3. Core Value Propositions
 
+> ⚠️ **§3 V2 反転点**: 「オフライン完全動作」は新スタックでは「オンライン前提（編集中バナーで圏外通知）」に変更済。V1 / V3 の方向性は維持。
+
 ### V1: AI が自然言語で全データを操作できる（追加コスト $0）
 
 - **根拠**: MCP Server（30 ツール）+ アプリ内ターミナル（portable-pty）+ Claude Code Max サブスクのラッピング方式（ADR-0005）
@@ -78,6 +82,8 @@
 
 ## 4. Non-Goals
 
+> ⚠️ **§4 反転点**: NG-2 (Web UI 提供しない) / NG-5 (モバイル単独起動サポートしない) は移行で撤回済。NG-1 / NG-3 / NG-4 / NG-6 は維持。
+
 - **NG-1: マルチテナント / チームコラボ機能は持たない**（個人利用前提、共有・権限・コメントなし）
 - **NG-2: Web UI は提供しない**（Desktop / iOS のネイティブのみ。閲覧も含めて）
 - **NG-3: 特定用途特化アプリの直接実装はしない**（家計簿専用 UI / レシピ専用 UI などは作らず、汎用 Database で実現）
@@ -88,6 +94,8 @@
 ---
 
 ## 5. Platform Strategy
+
+> ⚠️ **§5 反転点**: 本章記載の Tauri 2.0 / Cloudflare Workers + D1 は新スタック (Electron + Capacitor + Web + Supabase) に全置換予定。Phase 5 完了時に本章を全面改訂する。並立期間中の実体は [移行 SSOT](../../2026-05-04-cross-platform-migration.md) を正本とする。
 
 ### 役割定義
 

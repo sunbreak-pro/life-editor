@@ -7,6 +7,8 @@
 
 ## 1. Tauri IPC 命名方針（旧 ADR-0006 要旨）
 
+> ⚠️ **Phase 5 で全削除予定**: 移行 SSOT に従い Tauri 削除後、本章全体（`src-tauri/` / `frontend/src/services/TauriDataService.ts` / `bridge.ts` / `events.ts` 依存）は不要になる。Electron IPC / Supabase RLS への置換に伴い、新規 IPC 規約は Phase 5 で別途確定。
+
 ### 規約
 
 - **Rust 側**: 引数 / 戻り値とも `snake_case`（Rust 慣習）
