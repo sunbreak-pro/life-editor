@@ -1,4 +1,7 @@
--- DU-B-1 ROLLBACK: 0009_tasks_payload_parent_fk.sql を巻き戻す (v2 対応版)。
+-- DU-B-1 ROLLBACK: 0009_tasks_payload_parent_fk.sql を巻き戻す (v3-rev2 対応版)。
+-- 注: 単独 FK 復元の ON DELETE 句省略は PG デフォルト NO ACTION 適用 =
+-- v3-rev2 の composite FK 動作と等価。v2 (SET NULL) からの巻き戻しでも
+-- v3-rev2 (NO ACTION) からの巻き戻しでも同じ rollback SQL で安全に動く。
 --
 -- 用途:
 --   * 0009 apply 後に DU-B-2 以降で致命的な不整合が見つかり、DB スキーマ

@@ -397,7 +397,7 @@ UNIQUE(from_item_id, to_item_id) WHERE is_deleted=false。CHECK (from_item_id <>
 - Tasks/Notes だけ **payload テーブル側に独自の parent_item_id** を持つ。
 - FK は items_meta(id) を参照、ただし同 role 内のみを参照することを SQL CHECK で強制 (DU-B 子計画書で実装パターン確定)。
 
-**DU-B 確定 (2026-05-23 / DB-Q3)**: 同 role 制約は **composite FK パターン** で実装する (CHECK は採らない)。具体: items_meta に `(id, role)` UNIQUE 追加 + payload に `parent_item_role` を generated stored 列として固定値追加 + `(parent_item_id, parent_item_role) REFERENCES items_meta (id, role)` の composite FK。DB スキーマで物理的に cross-role 親子を不可能化する。詳細は DU-B 子計画書 `2026-05-23-data-unification-b-tasks.md` の DB-Q3 補足。DU-D (Notes) も同パターンを踏襲する。
+**DU-B 確定 (2026-05-23 / DB-Q3)**: 同 role 制約は **composite FK パターン** で実装する (CHECK は採らない)。具体: items_meta に `(id, role)` UNIQUE 追加 + payload に `parent_item_role` を generated stored 列として固定値追加 + `(parent_item_id, parent_item_role) REFERENCES items_meta (id, role)` の composite FK + **ON DELETE NO ACTION**。DB スキーマで物理的に cross-role 親子を不可能化する。**ON DELETE 動作の確定経緯 (v3-rev2)**: SET NULL は PG 制約で不可 (SQLSTATE 42601) / CASCADE は items_meta 同士に FK 不在で子 items_meta 孤児化 / NO ACTION は子がいる親 hard-delete を PG が拒否 = アプリ層 (permanentDeleteTask) が descendants 再帰削除責務を持つ Tauri 同型に整合。詳細は DU-B 子計画書 `2026-05-23-data-unification-b-tasks.md` の DB-Q3 補足。DU-D (Notes) も同パターンを踏襲する。
 
 ### RLS 設計
 

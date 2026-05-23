@@ -80,10 +80,24 @@ alter table public.tasks_payload
 -- Composite FK: (parent_item_id, parent_item_role) -> items_meta (id, role)
 -- MATCH SIMPLE (デフォルト) = parent_item_id が NULL の場合は FK チェック
 -- をスキップする（ルート Task のため）。MATCH FULL は採らない。
--- ON DELETE SET NULL: 親 Task が hard-delete された場合、子 Task は孤児
--- 化せず parent_item_id だけ NULL にしてルート Task に昇格する。
+-- ON DELETE NO ACTION (DEFAULT; 明示): 子がいる親 Task の hard-delete は
+-- PG が FK violation で拒否する。アプリ層 (SupabaseTasksService.
+-- permanentDeleteTask) で descendants 再帰収集 → 子から順に DELETE する
+-- 責務を持つ (Tauri 同型)。
+--
+-- ON DELETE 動作の選択経緯 (v2 → v3 → v3-rev2):
+--   * v2 SET NULL: PG が GENERATED ALWAYS STORED 列を含む composite FK
+--     に SET NULL を許容せず apply エラー (SQLSTATE 42601)。
+--   * v3 CASCADE: tasks_payload は cascade されるが items_meta は items_meta
+--     同士に FK がないので子 items_meta が「payload なし孤児」として残留。
+--     1:1 invariant を破る。
+--   * v3-rev2 NO ACTION: DB-Q3 の本懐 (cross-role 防止) は FK 参照先 role
+--     一致で達成済、ON DELETE 動作は本質ではない。NO ACTION なら子がいる
+--     状態での親 DELETE は PG エラー = アプリのバグで孤児発生する余地が
+--     DB レベルでゼロ。アプリ層は子→親の順で削除する責務 (Tauri 同型)。
+--
 -- ※ items_meta の soft-delete (is_deleted=true) では FK は発火しない
--- （行は残るため）。
+-- （行は残るため）。permanentDelete (= Trash 完全消去) でのみ発火。
 alter table public.tasks_payload
   drop constraint if exists tasks_payload_parent_fk;
 
@@ -92,7 +106,7 @@ alter table public.tasks_payload
     foreign key (parent_item_id, parent_item_role)
     references public.items_meta (id, role)
     match simple
-    on delete set null;
+    on delete no action;
 
 -- ===========================================================================
 -- 3. 補助 index (DU-B 子計画書 R6 緩和 — items_meta JOIN tasks_payload の
@@ -217,21 +231,26 @@ commit;
 --    --         items_meta.role='note' for note-q3-test)
 --    delete from items_meta where id in ('task-q3-test', 'note-q3-test');
 --
--- F. ON DELETE SET NULL + generated 列の組合せ挙動確認
---    (migration-validator H1 — generated 列が FK SET NULL action 経由でも
---    'task' リテラルを保持し、MATCH SIMPLE で parent_item_id 単独 NULL を
---    許容する正しい組合せかを実機で 1 回確認)
+-- F. ON DELETE NO ACTION + generated 列の組合せ挙動確認 (v3-rev2)
+--    (子がいる親 Task の hard-delete は FK violation で拒否される。アプリ
+--    層が descendants を先に削除する責務を持つ Tauri 同型を実機確認)
 --    insert into items_meta (id, role, title) values ('task-parent-h1', 'task', 'P');
 --    insert into items_meta (id, role, title) values ('task-child-h1', 'task', 'C');
 --    insert into tasks_payload (item_id, task_type, status, parent_item_id)
 --      values ('task-parent-h1', 'task', 'NOT_STARTED', null);
 --    insert into tasks_payload (item_id, task_type, status, parent_item_id)
 --      values ('task-child-h1', 'task', 'NOT_STARTED', 'task-parent-h1');
+--    -- F-1: 子がいる親の hard-delete はエラーで拒否される
 --    delete from items_meta where id = 'task-parent-h1';
---    -- expect: task-child-h1 の parent_item_id = NULL, parent_item_role = 'task' のまま
---    select item_id, parent_item_id, parent_item_role
---      from tasks_payload where item_id = 'task-child-h1';
+--    -- expect: ERROR (FK violation: tasks_payload_parent_fk on task-child-h1)
+--    -- F-2: 子を先に消せば親も消せる (アプリ層が踏襲すべき順序)
 --    delete from items_meta where id = 'task-child-h1';
+--    delete from items_meta where id = 'task-parent-h1';
+--    -- expect: 両方成功 (0008 cascade で tasks_payload も自動削除)
+--    select count(*) from items_meta where id in ('task-parent-h1', 'task-child-h1');
+--    -- expect: 0
+--    select count(*) from tasks_payload where item_id in ('task-parent-h1', 'task-child-h1');
+--    -- expect: 0
 --
 -- G. parent_item_id 側 owner EXISTS の動作確認（security-reviewer Medium-1）
 --    -- 通常ケース: 自分所有の parent は INSERT 成功

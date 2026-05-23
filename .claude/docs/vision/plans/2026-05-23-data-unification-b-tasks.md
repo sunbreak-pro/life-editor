@@ -1,5 +1,5 @@
 ---
-Status: DRAFT — DU-B 子計画書 v2（2026-05-23 改訂）。v1 → v2 改訂で 3 監査の Blocker 1 / Major 5 / High 2 / Medium 1 / Low 1 を反映済。親計画書 v3 + DU-A 子計画書 v2 を継承。本 v2 はユーザー承認待ち。
+Status: DRAFT — DU-B 子計画書 v3-rev2（2026-05-23 改訂）。v1 → v2 で 3 監査 (Blocker 1 / Major 5 / High 2 / Medium 1 / Low 1) 反映 → v3 で apply 試行 → PG 制約 (generated 列 + composite FK + SET NULL 不可、SQLSTATE 42601) で v3 失敗 → v3-rev2 で ON DELETE NO ACTION に変更（アプリ層 permanentDeleteTask が descendants 再帰削除責務、Tauri 同型）。本 v3-rev2 はユーザー承認待ち。
 Created: 2026-05-23
 Task: Data Unification DU-B — Tasks role 移植（items_meta + tasks_payload 経由）
 Project path: /Users/newlife/dev/apps/life-editor
@@ -64,6 +64,12 @@ alter table public.tasks_payload
   add column parent_item_role text generated always as ('task') stored;
 
 -- ③ 0008 の単独 FK を drop し、composite FK に張り替え
+--    ON DELETE NO ACTION (v3-rev2 確定): PG は generated 列を含む composite
+--    FK に SET NULL を許容せず (SQLSTATE 42601) / CASCADE は items_meta 同士
+--    の親子 FK 不在のため子 items_meta が孤児化する。NO ACTION なら子がいる
+--    親の hard-delete は PG が拒否し、アプリ層 (permanentDeleteTask) が
+--    descendants 再帰削除を担う Tauri 同型に整合 (DB-Q3 の本懐 = cross-role
+--    防止は FK 参照先 role 一致で達成済、ON DELETE 動作は本質ではない)。
 alter table public.tasks_payload
   drop constraint if exists tasks_payload_parent_item_id_fkey;
 alter table public.tasks_payload
@@ -73,7 +79,7 @@ alter table public.tasks_payload
     foreign key (parent_item_id, parent_item_role)
     references public.items_meta (id, role)
     match simple
-    on delete set null;
+    on delete no action;
 
 -- ④ 補助 index 2 本（R6 緩和）+ 旧単独 index 整理（security-reviewer Low-A）
 create index if not exists items_meta_role_isdel_idx
@@ -150,14 +156,14 @@ create policy tasks_payload_insert_own on public.tasks_payload for insert to aut
 
 ## 作業段階（DU-B-1 〜 DU-B-6）
 
-| Step   | 内容                                                                                                                                                              | 検証                                                                                                                                                                                                                                                                                                                                                                                              | 規模 |
-| ------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---- |
-| DU-B-1 | `0009_tasks_payload_parent_fk.sql` 作成 + check-rls.sql に EXISTS ケース 1 件追加 + Supabase apply                                                                | **migration-validator H2 反映**: `\d tasks_payload` で composite FK 確認 / RLS gate selftest 緑 / advisor lint 0 / **0009 末尾 POST-APPLY VERIFICATION A-G 全件を SQL Editor で手動実行（特に E=cross-role parent INSERT 拒否、+ v2 追加分 H1=ON DELETE SET NULL 動作）し、結果を outbox に貼り付け**                                                                                             | S    |
-| DU-B-2 | `shared/src/services/taskMapper.ts` 2 行分割書き換え + `taskMapper.roundtrip.ts` 更新                                                                             | `npm run -w shared build` 緑 / roundtrip 自己実行 OK                                                                                                                                                                                                                                                                                                                                              | M    |
-| DU-B-3 | `shared/src/services/SupabaseDataService.ts` の SupabaseTasksService 9 メソッド書き換え（createTask の R2 try/catch hard delete + updateTask の updated_at bump） | **role-qa Major-1/3 反映**: shared build 緑 / **R2 検出 SQL (孤児 items_meta) = 0 行** を SQL Editor で確認（createTask 強制失敗テスト後）/ **updated_at bump 検証: updateTask 呼出前後で items_meta.updated_at が動くことを SQL Editor で確認** / **9 メソッド各 1 回実行後の items_meta ↔ tasks_payload 同期確認（updated_at 同時更新 + is_deleted 同時反転 + 孤児なし）** / smoke test（手動） | L    |
-| DU-B-4 | `shared/tests/taskMapper.test.ts` 新規追加（必須ケース: roundtrip 5 ステータス / updated_at bump / parent role guard / soft-delete）                              | `npm run -w shared test` 緑                                                                                                                                                                                                                                                                                                                                                                       | M    |
-| DU-B-5 | web/ Tasks タブで golden path 動作確認（CRUD + 階層 DnD + 期限 + 3 状態）                                                                                         | ユーザー手動確認 + console error 0                                                                                                                                                                                                                                                                                                                                                                | S    |
-| DU-B-6 | CLAUDE.md §4.3（id 戦略補足: composite FK パターン）+ `docs/vision/db-conventions.md`（payload mapper 規約 / updated_at bump 責務）更新                           | docs diff レビュー                                                                                                                                                                                                                                                                                                                                                                                | S    |
+| Step   | 内容                                                                                                                                                                                                                                                                                                                  | 検証                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         | 規模 |
+| ------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---- |
+| DU-B-1 | `0009_tasks_payload_parent_fk.sql` 作成 + check-rls.sql に EXISTS ケース 1 件追加 + Supabase apply                                                                                                                                                                                                                    | **migration-validator H2 反映**: `\d tasks_payload` で composite FK 確認 / RLS gate selftest 緑 / advisor lint 0 / **0009 末尾 POST-APPLY VERIFICATION A-I 全件を SQL Editor で手動実行（特に E=cross-role parent INSERT 拒否、F=ON DELETE NO ACTION 動作 (v3-rev2)、G=parent owner EXISTS）し、結果を outbox に貼り付け**                                                                                                                                                                                   | S    |
+| DU-B-2 | `shared/src/services/taskMapper.ts` 2 行分割書き換え + `taskMapper.roundtrip.ts` 更新                                                                                                                                                                                                                                 | `npm run -w shared build` 緑 / roundtrip 自己実行 OK                                                                                                                                                                                                                                                                                                                                                                                                                                                         | M    |
+| DU-B-3 | `shared/src/services/SupabaseDataService.ts` の SupabaseTasksService 9 メソッド書き換え（createTask の R2 try/catch hard delete + updateTask の updated_at bump + **permanentDeleteTask の descendants 再帰削除 = v3-rev2 NO ACTION 前提**: 子孫を `getDescendantIds` 等で集めて子から順に DELETE、Tauri 同型を踏襲） | **role-qa Major-1/3 反映**: shared build 緑 / **R2 検出 SQL (孤児 items_meta) = 0 行** を SQL Editor で確認（createTask 強制失敗テスト後）/ **updated_at bump 検証: updateTask 呼出前後で items_meta.updated_at が動くことを SQL Editor で確認** / **9 メソッド各 1 回実行後の items_meta ↔ tasks_payload 同期確認（updated_at 同時更新 + is_deleted 同時反転 + 孤児なし）** / **permanentDeleteTask で子のいる親を hard-delete しても FK violation で落ちず descendants 順削除で成功** / smoke test（手動） | L    |
+| DU-B-4 | `shared/tests/taskMapper.test.ts` 新規追加（必須ケース: roundtrip 5 ステータス / updated_at bump / parent role guard / soft-delete）                                                                                                                                                                                  | `npm run -w shared test` 緑                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  | M    |
+| DU-B-5 | web/ Tasks タブで golden path 動作確認（CRUD + 階層 DnD + 期限 + 3 状態）                                                                                                                                                                                                                                             | ユーザー手動確認 + console error 0                                                                                                                                                                                                                                                                                                                                                                                                                                                                           | S    |
+| DU-B-6 | CLAUDE.md §4.3（id 戦略補足: composite FK パターン）+ `docs/vision/db-conventions.md`（payload mapper 規約 / updated_at bump 責務）更新                                                                                                                                                                               | docs diff レビュー                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           | S    |
 
 ### Step 間の順序
 
@@ -296,7 +302,7 @@ delete from items_meta where id = 'task-test-r5';
 
 **復旧手順**（失敗した場合のみ）:
 
-- composite FK を `MATCH SIMPLE` 明示で再作成:
+- composite FK を `MATCH SIMPLE` 明示で再作成 (v3-rev2: NO ACTION):
   ```sql
   alter table public.tasks_payload drop constraint tasks_payload_parent_fk;
   alter table public.tasks_payload
@@ -304,7 +310,7 @@ delete from items_meta where id = 'task-test-r5';
     foreign key (parent_item_id, parent_item_role)
     references public.items_meta (id, role)
     match simple
-    on delete set null;
+    on delete no action;
   ```
 - 上記でも失敗する場合は、parent_item_role を generated でなく nullable 通常列に変更し、`parent_item_id IS NULL OR parent_item_role = 'task'` CHECK 制約で代替
 
