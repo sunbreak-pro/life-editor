@@ -2,15 +2,15 @@
 
 ## 進行中
 
-### 🔧 Data Unification — Schedule items_meta + payload 再設計（着手日: 2026-05-21、ステータス: **DU-B-1 完了・DU-B-2 着手判断待ち**）
+### 🔧 Data Unification — Schedule items_meta + payload 再設計（着手日: 2026-05-21、ステータス: **DU-B-2 完了・DU-B-3 着手判断待ち**）
 
-**対象**: `.claude/docs/vision/plans/2026-05-21-data-unification-items-meta.md`（親計画書 v3 + DU-B 確定追記済）+ `.claude/docs/vision/plans/2026-05-23-data-unification-b-tasks.md`（DU-B 子計画書 v3-rev3）/ `supabase/migrations/0009_*.sql` + `0010_du_b_initplan_cache.sql`（DU-B-1 apply 済）/ `shared/src/services/{taskMapper,SupabaseDataService}.ts`（DU-B-2/3）/ `shared/tests/taskMapper.test.ts`（DU-B-4 新規）
-**計画書**: 親=`2026-05-21-data-unification-items-meta.md` / DU-A 子=`archive/2026-05-23-data-unification-a-db-schema.md` / DU-B 子=`2026-05-23-data-unification-b-tasks.md`（v3-rev3）
-**ブランチ**: `data-unification/items-meta-redesign`（リモートと同期済 HEAD `7d164be`）
+**対象**: `.claude/docs/vision/plans/2026-05-21-data-unification-items-meta.md`（親計画書 v3 + DU-B 確定追記済）+ `.claude/docs/vision/plans/2026-05-23-data-unification-b-tasks.md`（DU-B 子計画書 v3-rev3 + R9 追加）/ `supabase/migrations/0009_*.sql` + `0010_du_b_initplan_cache.sql`（DU-B-1 apply 済）/ `shared/src/services/{taskMapper,taskMapper.roundtrip,SupabaseDataService}.ts`（DU-B-2 完了、SupabaseTasksService 9 メソッドは stub）/ `shared/tests/taskMapper.test.ts`（DU-B-4 新規）
+**計画書**: 親=`2026-05-21-data-unification-items-meta.md` / DU-A 子=`archive/2026-05-23-data-unification-a-db-schema.md` / DU-B 子=`2026-05-23-data-unification-b-tasks.md`（v3-rev3 + R9）
+**ブランチ**: `data-unification/items-meta-redesign`（リモートと同期済）
 
-- 前回: DU-B 子計画書 v1 DRAFT 作成 + DB-Q1/Q2/Q3 ユーザー確定 + 親計画書 v3 反映 + 3 監査 (migration-validator / role-qa / security-reviewer) 全 APPROVE (v2 で Blocker 1 + Major 5 + High 2 + Medium 1 + Low 1 反映)
-- 現在: **DU-B-1 完了** — 0009 v3-rev2 (composite FK + parent EXISTS) + v3-rev3 差分 (initplan キャッシュ化) + 0010 (DU-A 由来 6 policy も同型化) を本番 SQL Editor apply 成功。検証 A-G + RLS gate + advisor すべてクリア (items_meta + tasks_payload で WARN 0)。**v2→v3 transition で PG 制約に起因する apply エラーを 2 段階で解消**: (a) SET NULL 不可 (SQLSTATE 42601) → NO ACTION 化 (b) v3-rev3 全体再 apply で UNIQUE 依存連鎖 (2BP01) → 差分 SQL 化。Known Issue 候補 4 件を outbox に記録。最新 HEAD `7d164be`
-- 次: **DU-B-2 着手判断** — `shared/src/services/taskMapper.ts` の 2 行分割書き換え (items_meta + tasks_payload マッピング) + `taskMapper.roundtrip.ts` 更新 → `npm run -w shared build` 緑確認 → role-qa 監査 → DU-B-3 (SupabaseTasksService 9 メソッド書き換え) へ。Phase 順: DU-B-2 → DU-B-3 → DU-B-4 → DU-B-5 → DU-B-6 → DU-C/D/E/F
+- 前回: DU-B-1 完了 — 0009 v3-rev3 + 0010 本番 apply 成功、検証 9 件全クリア、Known Issue 候補 4 件記録。HEAD `f5fb2e4`
+- 現在: **DU-B-2 完了** — `shared/src/services/taskMapper.ts` (~370 行) を items_meta + tasks_payload 2 行分割 API に書き換え (`rowsToTaskNode` / `taskNodeToRows` / `taskUpdatesToPatches`)。`metaPatch.updated_at = now` を無条件注入で DB-Q2 を mapper 側 enforce、`TasksPayloadWriteRow` の型レベル `AssertNoParentRole` guard で generated 列書き込みを TS コンパイル時に阻止。`taskMapper.roundtrip.ts` (~390 行、20 アサーション全 PASS = 5 ステータス roundtrip + bump + parent guard + soft-delete + order rename)。`SupabaseTasksService` 9 メソッドは `_pendingRewrite()` throw stub に置換 (DU-B-3 で本実装)。`cd shared && npx tsc -b` 緑 / vitest 71/71 緑。role-qa APPROVE (Blocker/Major 0、Minor 4 件のうち R9 を子計画書 Risks に追加、残 3 件は DU-B-3 で判断)
+- 次: **DU-B-3 着手判断** — `shared/src/services/SupabaseDataService.ts` の `SupabaseTasksService` 9 メソッドを items_meta + tasks_payload 経由で本実装。**must-do**: (a) createTask の try/catch + 失敗時 items_meta hard delete (R2) / (b) updateTask で `taskUpdatesToPatches` 経由 + payload 単独でも items_meta.updated_at bump 連動 (DB-Q2) / (c) permanentDeleteTask で descendants 再帰削除 (composite FK NO ACTION 前提、Tauri 同型) / (d) bump ヘルパー集約で 9 メソッド全経路で必ず通る設計 (R3) / (e) DU-B-3 検証欄の 4 件 SQL チェック (孤児 0 / bump 確認 / 同期確認 / R8 マッピング不一致検出)。監査: security-reviewer (trans rollback / SQL 注入) + role-qa (9 メソッド契約遵守)
 
 **DU-B 子計画書 DoD 11 項目進捗**: [x] 0009 apply / [x] check-rls.sh 緑 (SQL Editor 経由・wrapper は CLI v2.101 で動作不能・既知 issue 候補) / [x] advisor lint 0 (items_meta + tasks_payload 範囲) / [ ] taskMapper 2 行分割 (DU-B-2) / [ ] roundtrip 緑 / [ ] SupabaseTasksService 9 メソッド書き換え (DU-B-3) / [ ] vitest 緑 (DU-B-4) / [ ] web golden path (DU-B-5) / [ ] docs 更新 (DU-B-6) / [x] 3 層監査 PASS (DU-B-1 範囲) / [ ] HISTORY+MEMORY 更新 (DU-B 完了時)
 **DU-A 確定事項**: DD-1 folder=task sub-type (task_type/folder_type) / DD-2 calendars データ truncate + folder_id FK → items_meta(id) / DD-3 note_links 廃止 → wiki_tag_connections 一元化 / events 列の意図的簡略化 / トリガ SECURITY INVOKER + search_path 固定

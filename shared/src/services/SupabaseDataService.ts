@@ -11,12 +11,25 @@ import type {
 import type { NoteConnection } from "../types/wikiTag";
 import type { DataService } from "./DataService";
 import { getSupabaseClient } from "./supabaseClient";
+// DU-B-2 transition: taskMapper migrated to items_meta + tasks_payload
+// 2-row split (new API: rowsToTaskNode / taskNodeToRows /
+// taskUpdatesToPatches). The SupabaseTasksService body is intentionally
+// stubbed in this commit — the full 9-method rewrite (items_meta first,
+// then tasks_payload with R2 orphan cleanup + DB-Q2 updated_at bump) is
+// DU-B-3 scope. Imports are re-exported at the bottom of this file so
+// host modules / round-trip harnesses keep one stable surface.
 import {
-  TASK_COLUMNS,
-  rowToTaskNode,
-  taskNodeToRow,
-  taskUpdatesToPatch,
-  type TaskRow,
+  ITEMS_META_TASK_COLUMNS,
+  TASKS_PAYLOAD_COLUMNS,
+  rowsToTaskNode,
+  taskNodeToRows,
+  taskUpdatesToPatches,
+  type ItemsMetaRow,
+  type TasksPayloadRow,
+  type ItemsMetaInsertRow,
+  type TasksPayloadWriteRow,
+  type ItemsMetaUpdatePatch,
+  type TasksPayloadUpdatePatch,
 } from "./taskMapper";
 import {
   DAILY_SELECT_COLUMNS,
@@ -115,85 +128,93 @@ export function pgrstQuoteValue(value: string): string {
   return `"${value.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`;
 }
 
+/*
+ * DU-B-2 transition stub.
+ *
+ * The legacy `public.tasks` (0003) implementation has been deleted; the
+ * full items_meta + tasks_payload 2-row rewrite lives in DU-B-3. Until
+ * then every CRUD method throws a clearly-labelled "not implemented yet
+ * (DU-B-3)" error so any accidental call surfaces immediately instead
+ * of silently hitting a dropped/renamed table. The fields below tagged
+ * `_unused_*` keep the new mapper symbols statically referenced (so
+ * `verbatimModuleSyntax` does not strip them) — they are removed in
+ * DU-B-3 when the real bodies arrive.
+ *
+ * NOTE: `migrateTasksToBackend` is intentionally a no-op (web is
+ * Supabase-native; nothing to migrate). Behaviour preserved across DU-B.
+ */
 class SupabaseTasksService {
   private readonly client: SupabaseClient;
+  // Keep the new mapper API symbols referenced so verbatimModuleSyntax
+  // (tsconfig.json) doesn't elide the imports while DU-B-3 is pending.
+  // Removed when the real method bodies land in DU-B-3.
+  private static readonly _unused_metaSelect = ITEMS_META_TASK_COLUMNS;
+  private static readonly _unused_payloadSelect = TASKS_PAYLOAD_COLUMNS;
+  private static readonly _unused_rowsToTaskNode = rowsToTaskNode;
+  private static readonly _unused_taskNodeToRows = taskNodeToRows;
+  private static readonly _unused_taskUpdatesToPatches = taskUpdatesToPatches;
+  // Type-only references — phantom fields kept `void`-prefixed in
+  // `_pendingRewrite()` below so tsc sees them as used. Same removal
+  // schedule as the value-level fields above (deleted in DU-B-3).
+  declare private _unused_meta: ItemsMetaRow;
+  declare private _unused_payload: TasksPayloadRow;
+  declare private _unused_metaInsert: ItemsMetaInsertRow;
+  declare private _unused_payloadWrite: TasksPayloadWriteRow;
+  declare private _unused_metaPatch: ItemsMetaUpdatePatch;
+  declare private _unused_payloadPatch: TasksPayloadUpdatePatch;
 
   constructor(client: SupabaseClient) {
     this.client = client;
   }
 
+  /** Marker thrower used by every transition stub below. */
+  private _pendingRewrite(method: string): never {
+    void this.client; // silence "unused private field" diagnostics
+    throw new Error(
+      `${method}: not implemented yet (DU-B-3 SupabaseTasksService rewrite pending; 0008+0009 schema in place, mapper migrated in DU-B-2)`,
+    );
+  }
+
   async fetchTaskTree(): Promise<TaskNode[]> {
-    const { data, error } = await this.client
-      .from("tasks")
-      .select(TASK_COLUMNS)
-      .eq("is_deleted", false)
-      .order("order", { ascending: true });
-    if (error) throw new Error(`fetchTaskTree failed: ${error.message}`);
-    return (data as unknown as TaskRow[]).map(rowToTaskNode);
+    this._pendingRewrite("fetchTaskTree");
   }
 
   async fetchDeletedTasks(): Promise<TaskNode[]> {
-    const { data, error } = await this.client
-      .from("tasks")
-      .select(TASK_COLUMNS)
-      .eq("is_deleted", true)
-      .order("deleted_at", { ascending: false });
-    if (error) throw new Error(`fetchDeletedTasks failed: ${error.message}`);
-    return (data as unknown as TaskRow[]).map(rowToTaskNode);
+    this._pendingRewrite("fetchDeletedTasks");
   }
 
-  async createTask(node: TaskNode): Promise<TaskNode> {
-    const { data, error } = await this.client
-      .from("tasks")
-      .insert(taskNodeToRow(node))
-      .select(TASK_COLUMNS)
-      .single();
-    if (error) throw new Error(`createTask failed: ${error.message}`);
-    return rowToTaskNode(data as unknown as TaskRow);
+  async createTask(_node: TaskNode): Promise<TaskNode> {
+    void _node;
+    this._pendingRewrite("createTask");
   }
 
-  async updateTask(id: string, updates: Partial<TaskNode>): Promise<TaskNode> {
-    const { data, error } = await this.client
-      .from("tasks")
-      .update(taskUpdatesToPatch(updates))
-      .eq("id", id)
-      .select(TASK_COLUMNS)
-      .single();
-    if (error) throw new Error(`updateTask failed: ${error.message}`);
-    return rowToTaskNode(data as unknown as TaskRow);
+  async updateTask(
+    _id: string,
+    _updates: Partial<TaskNode>,
+  ): Promise<TaskNode> {
+    void _id;
+    void _updates;
+    this._pendingRewrite("updateTask");
   }
 
-  async syncTaskTree(nodes: TaskNode[]): Promise<void> {
-    if (nodes.length === 0) return;
-    const rows = nodes.map(taskNodeToRow);
-    const { error } = await this.client
-      .from("tasks")
-      .upsert(rows, { onConflict: "id" });
-    if (error) throw new Error(`syncTaskTree failed: ${error.message}`);
+  async syncTaskTree(_nodes: TaskNode[]): Promise<void> {
+    void _nodes;
+    this._pendingRewrite("syncTaskTree");
   }
 
-  async softDeleteTask(id: string): Promise<void> {
-    const { error } = await this.client
-      .from("tasks")
-      .update({
-        is_deleted: true,
-        deleted_at: new Date().toISOString(),
-      })
-      .eq("id", id);
-    if (error) throw new Error(`softDeleteTask failed: ${error.message}`);
+  async softDeleteTask(_id: string): Promise<void> {
+    void _id;
+    this._pendingRewrite("softDeleteTask");
   }
 
-  async restoreTask(id: string): Promise<void> {
-    const { error } = await this.client
-      .from("tasks")
-      .update({ is_deleted: false, deleted_at: null })
-      .eq("id", id);
-    if (error) throw new Error(`restoreTask failed: ${error.message}`);
+  async restoreTask(_id: string): Promise<void> {
+    void _id;
+    this._pendingRewrite("restoreTask");
   }
 
-  async permanentDeleteTask(id: string): Promise<void> {
-    const { error } = await this.client.from("tasks").delete().eq("id", id);
-    if (error) throw new Error(`permanentDeleteTask failed: ${error.message}`);
+  async permanentDeleteTask(_id: string): Promise<void> {
+    void _id;
+    this._pendingRewrite("permanentDeleteTask");
   }
 
   /**
@@ -2889,8 +2910,24 @@ export function createSupabaseDataService(): DataService {
 }
 
 // Re-exported for round-trip unit testing + host convenience.
-export { rowToTaskNode, taskNodeToRow, taskUpdatesToPatch } from "./taskMapper";
-export type { TaskRow, TaskWriteRow } from "./taskMapper";
+// DU-B-2: 2-row API (items_meta + tasks_payload). Old single-row symbols
+// (rowToTaskNode / taskNodeToRow / taskUpdatesToPatch / TaskRow /
+// TaskWriteRow) are gone — call sites must migrate to the new API.
+export {
+  rowsToTaskNode,
+  taskNodeToRows,
+  taskUpdatesToPatches,
+  ITEMS_META_TASK_COLUMNS,
+  TASKS_PAYLOAD_COLUMNS,
+} from "./taskMapper";
+export type {
+  ItemsMetaRow,
+  TasksPayloadRow,
+  ItemsMetaInsertRow,
+  TasksPayloadWriteRow,
+  ItemsMetaUpdatePatch,
+  TasksPayloadUpdatePatch,
+} from "./taskMapper";
 export { rowToDailyNode, dailyNodeToRow } from "./dailyMapper";
 export type { DailyRow, DailyWriteRow } from "./dailyMapper";
 export {

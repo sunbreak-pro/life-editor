@@ -1,5 +1,24 @@
 # HISTORY.md - 変更履歴
 
+### 2026-05-23 - Data Unification DU-B-2 完了（taskMapper 2 行分割 + roundtrip 20 アサーション + SupabaseTasksService stub）
+
+#### 概要
+
+Data Unification DU-B-2 (Tasks role mapper 書き換え) を実装完了。role-engineer サブエージェントで `shared/src/services/taskMapper.ts` を items_meta + tasks_payload 2 行分割 API に書き換え、`taskMapper.roundtrip.ts` を新 API 対応 + 必須ケース 5 種に拡充。`SupabaseTasksService` 9 メソッドは DU-B-3 用 stub (`_pendingRewrite` throw) に置換し build 緑保持。role-qa 独立監査で APPROVE (Blocker/Major 0)、Minor 1 件 (将来 startAt/dueAt 追加時の silent loss) を子計画書 R9 として追加。
+
+#### 変更点
+
+- **taskMapper.ts 書き換え (~370 行)**: 新 3 関数 (`rowsToTaskNode` / `taskNodeToRows` / `taskUpdatesToPatches`)。TS `order` ↔ DB `sort_order` 変換 (m1 確定) / TS camelCase ↔ DB snake_case 全列 / items_meta (id/role/title/version/timestamps/soft-delete) と tasks_payload (業務列) の分離。`TasksPayloadWriteRow` から `parent_item_role` を型レベル除外 (`AssertNoParentRole` conditional type + `_PARENT_ROLE_GUARD` で TS コンパイル時に検証) + runtime `hasOwnProperty` 二重防衛。`TASK_COLUMNS` を `ITEMS_META_TASK_COLUMNS` + `TASKS_PAYLOAD_COLUMNS` に分割
+- **DB-Q2 mapper 側 enforcement**: `taskUpdatesToPatches(updates, userId, now)` が **どの updates でも必ず** `metaPatch.updated_at = now` を含める設計。payload 単独更新 (status のみ等) でも metaPatch が空にならず updated_at だけは入る。`now` は呼び出し側から注入 (副作用 0 + テスト可能性)
+- **taskMapper.roundtrip.ts 書き換え (~390 行、20 アサーション全 PASS)**: 5 ステータス roundtrip (NOT_STARTED/IN_PROGRESS/DONE/folder normal/folder complete) + idempotent x5 + bump enforcement (title 更新時 / status 単独更新時) + parent_item_role 型ガード + soft-delete + order rename 3 経路 (write/read/patch)。`node shared/dist/services/taskMapper.roundtrip.js` で自己実行 `taskMapper roundtrip OK`
+- **SupabaseTasksService 9 メソッド stub 化**: `fetchTaskTree` / `fetchDeletedTasks` / `createTask` / `updateTask` / `syncTaskTree` / `softDeleteTask` / `restoreTask` / `permanentDeleteTask` を `_pendingRewrite("methodName")` throw stub に置換 (DU-B-3 で本実装)。`migrateTasksToBackend` の no-op は web 既存挙動維持で温存。`_unused_*` phantom 参照で新 mapper API シンボルを `verbatimModuleSyntax` 下で「使用済み」化 (DU-B-3 で削除)
+- **DataService.ts interface 不変**: 9 メソッド signature / 戻り値型 (Promise<TaskNode[]> 等) すべて維持。DU-F での Provider 改名まで延期
+- **role-qa 独立監査 APPROVE**: Blocker 0 / Major 0 / Minor 4 / Nit 2。Minor-1 (将来予約列 silent loss) を子計画書 R9 として追加、Minor-2/3/4 + Nit は DU-B-3 着手者判断
+- **session-verifier PASS**: types (tsc -b) / tests (vitest 71/71 既存緑) / structural / bug scan すべて緑、coverage は DU-B-4 範囲のため DEFER
+- **R9 子計画書追加**: TaskNode フィールド追加 PR の責務として taskMapper.ts L228-230 / L324-327 同時編集を必須化
+- **DU-B-3 への引き継ぎ**: 新 5 値 + 6 型を SupabaseDataService.ts 末尾で再 export 済、`_pendingRewrite()` throw メッセージに「DU-B-3 SupabaseTasksService rewrite pending; 0008+0009 schema in place, mapper migrated in DU-B-2」とロードマップ明記
+- **次フェーズ**: DU-B-3 (SupabaseTasksService 9 メソッド書き換え、descendants 再帰削除 + try/catch hard delete + bump ヘルパー集約)
+
 ### 2026-05-23 - Data Unification DU-B-1 完了（0009 v3-rev2 + 差分 v3-rev3 + 0010 本番 apply + 検証 9 件クリア + PG 落とし穴 2 件解消）
 
 #### 概要
