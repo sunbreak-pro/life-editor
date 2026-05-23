@@ -62,3 +62,22 @@ where m.role = 'task' and p.item_id is null;
 | DB-Q1 | createX で payload INSERT 失敗時は items_meta を **hard delete**（孤児防止 / sync 汚染防止）                                                   |
 | DB-Q2 | `updated_at` bump は mapper の `typeUpdatesToPatches` で無条件注入。UPSERT 経路は caller 側 spread 補完が必須                                  |
 | DB-Q3 | composite FK は `ON DELETE NO ACTION`。`permanentDeleteX` は live + trashed 全 pool で descendants を集め、深さ降順 (子→親) で 1 件ずつ DELETE |
+
+### 10.7 events_payload 案 A 完成（DU-C-1 / 0011）
+
+`events_payload` に対する 2-row 化 + 同期 trigger 構成（案 A）が DU-C-1 (`supabase/migrations/0011_du_c_events_payload_fk.sql`) で完成。
+
+- **composite FK**: `(routine_item_id, routine_item_role)` → `items_meta(id, role)` を `routine_item_role text GENERATED ALWAYS AS ('routine') STORED` 列で実現。`routine_item_id` が指せるのは `role='routine'` の items_meta のみ。`ON DELETE NO ACTION`（KI-021 generated 列に SET NULL/CASCADE 不可）。
+- **同期トリガ 2 種**:
+  - `trg_sync_event_deleted_cache` (AFTER UPDATE OF is_deleted, 0008 既存): items_meta の `is_deleted` 変化を `events_payload.is_deleted_cache` に伝播。Issue 011 partial UNIQUE フィルタ用ミラーを維持。
+  - `trg_events_payload_init_cache` (BEFORE INSERT, 0011 新規): items_meta から現在の is_deleted を読んで cache 初期化。「soft-delete 済 items_meta → 後から events_payload INSERT」の保険。
+- **Routine→Event cascade はアプリ層責務**: trigger は events_payload.item_id 単位でしかミラーしない。Routine soft-delete → 由来 events 全体の soft-delete は `SupabaseRoutinesService.softDeleteRoutine` が events_payload WHERE routine_item_id=X の items_meta を `.in()` で一括 UPDATE。戻り値 `{ deletedScheduleItemIds }` で UI が in-memory 同期。
+
+### 10.8 bulkCreate ON CONFLICT 戦略（partial UNIQUE 系）
+
+partial UNIQUE 制約 (`uq_events_payload_routine_date` 等) を持つ relation/event テーブルへの bulk INSERT は、Supabase JS の `upsert(rows, { onConflict, ignoreDuplicates: true })` で冪等化する。
+
+- 対象: `events_payload` の `(routine_item_id, source_date) WHERE routine_item_id IS NOT NULL AND is_deleted_cache = false`
+- 動作: 既に live な (routine, date) ペアがあれば silent skip → 生成器が month-flip 連打しても duplicate を作らない (Issue 011 contract)
+- ⚠️ `source_date` は generator 経路でのみ populate (routine_item_id 非 null の時 `start_at` から patch)。手動 event は source_date=null で partial UNIQUE は発火しない
+- R2 cleanup: payload upsert が例外 (NW / RLS / unexpected) で throw した場合のみ、INSERT 済 items_meta 群を `.in("id", ids)` で hard delete (孤児防止)。ignoreDuplicates の silent skip は throw しないので cleanup 対象外

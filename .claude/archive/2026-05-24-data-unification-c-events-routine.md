@@ -1,10 +1,11 @@
 ---
-Status: Draft v1
+Status: COMPLETED 2026-05-24
 Created: 2026-05-24
 Branch: data-unification/items-meta-redesign
 Owner-chat: main
 Parent: .claude/docs/vision/plans/2026-05-21-data-unification-items-meta.md
 Previous: .claude/docs/vision/plans/2026-05-23-data-unification-b3-onwards-impl.md
+Commits: 564a4d8 (DU-C-1) / 5fd8574 (DU-C-2) / 6d02c1e (DU-C-3) / c22992e (DU-C-4) / 2c12119 (DU-C-5) / 1ea4371 (DU-C-6)
 ---
 
 # Plan: Data Unification — DU-C (Events role + Routine + RoutineGroup)
@@ -260,3 +261,10 @@ ALTER TABLE public.events_payload DROP COLUMN IF EXISTS routine_item_role;
 (実装中に判明した設計判断や、計画から逸脱した部分を時系列で追記。完了後に Known Issue 化すべき知見はここから docs/known-issues/ へ移送)
 
 - 2026-05-24: 子計画書 v1 ドラフト作成。DB の partial UNIQUE は既存 / composite FK と同期トリガと initplan-cache RLS が未適用と確認 → 0011 へ集約方針確定
+- 2026-05-24: DU-C-1 完了 (564a4d8)。0011 SQL ファイル作成 + 本番 Supabase apply (SQL Editor 経由 — `supabase` CLI 不在 + MCP `--read-only` のため SQL Editor 直貼り経路を採用)。Acceptance Criteria A〜F 全件緑 (composite FK / generated 列 / 同期 trigger 2 種 / 16 RLS policy initplan / advisor 0 件 on DU-C tables)
+- 2026-05-24: DU-C-2 完了 (5fd8574)。4 mapper の 2-row 化 + vitest 36 ケース新規 (routineMapper 18 + scheduleItemMapper 18)。`shared npm test` 127/127 緑 (91 base + 36)。`RoutineNode` に `version?: number` を TaskNode 整合で追加
+- 2026-05-24: DU-C-3 完了 (6d02c1e)。SupabaseRoutinesService 8 methods (fetchAll/Deleted/create/update/delete/softDelete/restore/permanentDelete) を items_meta + routines_payload 本実装に置換。softDeleteRoutine が events_payload routine_item_id 経由で由来 events を連動 soft-delete し `{ deletedScheduleItemIds }` を返す (trigger は単一行ミラーなのでアプリ層責務)
+- 2026-05-24: DU-C-4 完了 (c22992e)。SupabaseRoutineGroupsService 4 methods + RoutineGroupAssignmentsService 2 methods 本実装。`deleteRoutineGroup` は 0008 schema が is_deleted 列を持つので **soft-delete** に変更 (Phase 2 物理削除と挙動差)。`setGroupsForRoutine` は diff 計算で新規 INSERT + 削除 soft-delete (Issue 008 contract)
+- 2026-05-24: DU-C-5 完了 (2c12119)。SupabaseScheduleItemsService 19 methods 本実装。`fetchByPayloadFilter` ヘルパで payload-first フィルタ + items_meta JOIN。`bulkCreateScheduleItems` は events_payload upsert ON CONFLICT (routine_item_id, source_date) ignoreDuplicates で Issue 011 partial UNIQUE 衝突を冪等吸収。`source_date` は routine_item_id 非 null の場合のみ start_at から patch
+- 2026-05-24: DU-C-6 完了 (1ea4371)。RoutineScheduleSync の no-op 状態を解除 (Phase 2 effect wiring 復元)。`useScheduleItemsRoutineSync.ensureRoutineItemsForDate` の `notifyChanged()` を try ブロック判定下へ移動し、`bulkCreateOk` フラグで失敗時抑止を構造的保証 (2026-05-23 stub-throw 無限ループ landmine の構造除去)
+- 2026-05-24: db-conventions §10.7 (events_payload 案 A 完成記録) + §10.8 (bulkCreate ON CONFLICT 戦略) を追加。本計画書を Status=COMPLETED で `.claude/archive/` へ移動
