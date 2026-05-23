@@ -10,6 +10,7 @@
 
 | ID  | Title                                                                                                                              | Category   | Since      |
 | --- | ---------------------------------------------------------------------------------------------------------------------------------- | ---------- | ---------- |
+| 026 | [PostToolUse formatter が隣接する Markdown 見出しを削除する](./026-posttooluse-formatter-deletes-adjacent-heading.md)              | Tooling    | 2026-05-24 |
 | 025 | [prototype+mobile-ui worktree の CLAUDE.md が per-chat 化前のスナップショット](./025-prototype-worktree-claude-md-pre-per-chat.md) | Structural | 2026-05-23 |
 
 ## Monitoring（すぐ対処しないが監視）
@@ -51,16 +52,16 @@
 - **Schema**: 001, 005, 011, 013, 021, 024
 - **Sync**: 008, 010, 011, 012, 013
 - **Structural**: 001, 006, 009, 013, 016, 017, 018, 019, 025
-- **Tooling**: 007, 022, 023, 024
+- **Tooling**: 007, 022, 023, 024, 026
 - **Security**: 022
 - **Styling**: 015
 
 ## Status 集計
 
-- Active: 1 件 (025)
+- Active: 2 件 (025, 026)
 - Monitoring: 1 件 (006)
 - Fixed: 19 件
-- 合計: 21 件
+- 合計: 22 件
 
 ## 統合履歴
 
