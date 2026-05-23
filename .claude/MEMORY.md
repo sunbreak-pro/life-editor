@@ -2,20 +2,21 @@
 
 ## 進行中
 
-### 🔧 Data Unification — Schedule items_meta + payload 再設計（着手日: 2026-05-21、ステータス: **DU-A 完了・DU-B 着手判断待ち**）
+### 🔧 Data Unification — Schedule items_meta + payload 再設計（着手日: 2026-05-21、ステータス: **DU-B 着手中**）
 
-**対象**: `.claude/docs/vision/plans/2026-05-21-data-unification-items-meta.md`（親計画書 v3、`dcc8484`）+ `.claude/docs/vision/plans/2026-05-23-data-unification-a-db-schema.md`（DU-A 子計画書 v2、`5801341`）/ DU-B 以降は `shared/src/` + `web/src/`
-**計画書**: 親=`2026-05-21-data-unification-items-meta.md` / DU-A 子=`2026-05-23-data-unification-a-db-schema.md`
-**ブランチ**: `data-unification/items-meta-redesign`（`refactor/web-first-v2` から分岐・push 済、最新 HEAD `5801341` + tracker commit）
+**対象**: `.claude/docs/vision/plans/2026-05-21-data-unification-items-meta.md`（親計画書 v3 + DU-B 確定追記済）+ `.claude/docs/vision/plans/2026-05-23-data-unification-b-tasks.md`（DU-B 子計画書 v1 DRAFT）/ `supabase/migrations/0009_*.sql`（DU-B-1 着手用）/ `shared/src/services/{taskMapper,SupabaseDataService}.ts`（DU-B-2/3）/ `shared/tests/taskMapper.test.ts`（DU-B-4 新規）
+**計画書**: 親=`2026-05-21-data-unification-items-meta.md` / DU-A 子=`archive/2026-05-23-data-unification-a-db-schema.md` / DU-B 子=`2026-05-23-data-unification-b-tasks.md`
+**ブランチ**: `data-unification/items-meta-redesign`（現在チェックアウト中、リモートと同期済 HEAD `39270cf`）
 
-- 前回: 親計画書 v3 + DU-A 子計画書 + 0007/0008 SQL を 4 ラウンド独立監査 (migration-validator x2 / security-reviewer / role-qa x2) で全 APPROVE
-- 現在: **DU-A apply 成功** (Supabase 本番 SQL Editor でユーザー実施)。全 5 検証クリア — items_meta 行数=0 / 新規 13 テーブル全て作成 + RLS enabled / RLS policy 52 (新13×4) / partial unique 6 + トリガ 1 (security invoker + search_path) / calendars.folder_id FK が items_meta(id) を参照 (DD-2 案A 成立) / calendars 系 3 テーブル維持 (cta=0行 truncate成功・ctd=1行保持) / get_advisors 既知 WARN 1件のみ (auth_leaked_password_protection = 完成後判断)
-- 次: **DU-B (Tasks role 移植) 着手判断**。子計画書 (TasksProvider が items_meta + tasks_payload 経由 + ツリー DnD + 期限 + 3 ステータス、現行 frontend tasks 業務列マッパー、Pattern A 3 ファイル) を code-plan-editor で作成 → role-engineer 実装 → migration-validator / security-reviewer / role-qa 各層監査。Phase 順: DU-B → DU-C → DU-D → DU-E → DU-F
+- 前回: DU-A 完了 (0007 drop + 0008 schema 本番 apply 成功 + 全 5 検証クリア)。commit `5801341` + `39270cf`
+- 現在: **DU-B 子計画書 v1 DRAFT 作成**（Recovery Playbook R1-R7 復旧手順 + 0009_rollback.sql 雛形を明示）。親計画書 v3 の「parent_item_id 設計判断 / Sync への影響 / Migration 戦略」3 章に DU-B 確定事項 (DB-Q1=クライアント直列 2 回 invoke / DB-Q2=mapper 側で updated_at bump / DB-Q3=composite FK で cross-role 防止) を annotation 追記済。3 確定事項はユーザー対話で確定 (2026-05-23)
+- 次: **DU-B-1 着手** — (1) 0009 SQL 2 本ドラフト作成（`0009_tasks_payload_parent_fk.sql` 本体 + `0009_rollback.sql` 巻き戻し）→ (2) check-rls-selftest に payload EXISTS ケース 1 件追加（DU-A 申し送り④消化）→ (3) migration-validator 監査依頼 → (4) ユーザーに 0009 apply 最終承認 → (5) 本番 SQL Editor apply → (6) DU-B-2 (taskMapper 書き換え) へ
 
-**設計の核**: Schedule 系を unified-item モデルへ再設計。`items_meta`（共通メタ）+ 種別 payload（専用列厚く・JSONB は Notes/Daily content_json のみ）の 2 層。WikiTag/WikiLink を items_meta 上で一元グラフ化（Obsidian 思想）。Phase 2 S3/S4 コードは全捨て（Provider Pattern A 構造・routineFrequency/routineScheduleSync 純粋関数のみ流用）。
-**DU-A 確定事項**: DD-1 folder=task sub-type (task_type/folder_type) / DD-2 calendars データ truncate + folder_id FK → items_meta(id) / DD-3 note_links 廃止 → wiki_tag_connections 一元化 / events 列の意図的簡略化 (is_dismissed=Issue 017 防御 / content/note_id/reminder_enabled+offset/template_id ドロップ・後続 plan で必要なら復活) / トリガ SECURITY INVOKER + search_path 固定
-**申し送り**: ①MCP Server 16 ツール書き換えは本計画では凍結（後続「MCP catch-up plan」）②WikiLink グラフ可視化 UI も別計画（backlink list のみ実装）③`origin/refactor/web-first-v2` push は保留（並行 chat-refactor 共有ブランチ要調整）④S8 Realtime/delta sync 申し送りは Data Unification でも継承 ⑤is_deleted_cache の INSERT 経路同期 + payload 単独 mutation 時の items_meta.updated_at bump 責務は DU-B mapper で確定 ⑥check-rls-selftest に payload EXISTS ケース 1 件追加は B1 follow-up
-**サブエージェント分担**: 設計=role-pm（必要時）→ code-plan-editor（子計画書）/ 実装=role-engineer（Phase 進行時）/ 監査=role-qa+security-reviewer+life-editor-migration-validator / 統括=メイン
+**DU-B 子計画書 DoD 11 項目**: 0009 apply / check-rls.sh 緑 / advisor lint 0 / taskMapper 2 行分割 / roundtrip 緑 / SupabaseTasksService 9 メソッド書き換え / vitest 緑 (roundtrip + bump + parent role guard + soft-delete) / web golden path / docs 更新 / 3 層監査 PASS / HISTORY+MEMORY 更新
+**DU-A 確定事項**: DD-1 folder=task sub-type (task_type/folder_type) / DD-2 calendars データ truncate + folder_id FK → items_meta(id) / DD-3 note_links 廃止 → wiki_tag_connections 一元化 / events 列の意図的簡略化 / トリガ SECURITY INVOKER + search_path 固定
+**DU-B 確定事項 (2026-05-23)**: DB-Q1 Atomicity=クライアント直列 2 回 invoke (FK 順序強制) + createTask try/catch で失敗時 items_meta softDelete / DB-Q2 updated_at bump=mapper 側で明示 invoke (DB トリガ不採用) / DB-Q3 cross-role parent 防止=composite FK ((id, role) UNIQUE + parent_item_role generated 列)
+**申し送り**: ①MCP Server 16 ツール書き換えは本計画では凍結②WikiLink グラフ可視化 UI も別計画③`origin/refactor/web-first-v2` push は並行 chat-refactor 調整待ち④S8 Realtime/delta sync 申し送りは Data Unification でも継承⑤is_deleted_cache INSERT 経路は **events 専用 = Tasks 範囲外**（DU-C で扱う）⑥check-rls-selftest payload EXISTS ケース 1 件追加は DU-B-1 内で消化⑦DU-D Notes も composite FK パターン踏襲予定
+**サブエージェント分担**: 設計=role-pm（必要時）→ code-plan-editor（子計画書）/ 実装=role-engineer（DU-B-2/3/4）/ 監査=role-qa+security-reviewer+life-editor-migration-validator（各 Step）/ 統括=メイン
 
 ## 直近の完了
 

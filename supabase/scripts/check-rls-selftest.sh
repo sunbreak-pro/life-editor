@@ -201,6 +201,21 @@ SQL
     '(auth.uid() = user_id)'
   expect_qual "B10 0003 tasks_insert with_check" 0 \
     '(auth.uid() = user_id)'
+
+  # B11-B12 (DU-A 申し送り④ / DU-B-1): 0008 payload policies wrap the
+  # owner equality with an `AND EXISTS (SELECT 1 FROM items_meta WHERE
+  # items_meta.id = <payload>.item_id AND items_meta.user_id = auth.uid())`
+  # for H-2 二重防衛. Postgres normalises this WITH CHECK to a single
+  # AND-joined qual. The gate's `has_qual_no_authuid` heuristic must
+  # continue to PASS (0) on this composite shape because the owner-equality
+  # substring `auth.uid() = user_id` is preserved inside it — proving the
+  # 0008-style payloads clear the gate with NO allowlist entry. If a future
+  # edit re-orders the EXISTS first or drops the owner equality, the
+  # heuristic flips to BLOCK and we want to catch it here, not in prod.
+  expect_qual "B11 0008 tasks_payload insert_own composite (owner eq + EXISTS)" 0 \
+    '(auth.uid() = user_id and exists (select 1 from items_meta where items_meta.id = tasks_payload.item_id and items_meta.user_id = auth.uid()))'
+  expect_qual "B12 0008 tasks_payload update_own composite (owner eq + EXISTS, with_check shape)" 0 \
+    '(auth.uid() = user_id and exists (select 1 from items_meta where items_meta.id = tasks_payload.item_id and items_meta.user_id = auth.uid()))'
 fi
 
 # ---------------------------------------------------------------------------
