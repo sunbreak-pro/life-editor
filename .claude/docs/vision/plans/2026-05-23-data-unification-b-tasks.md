@@ -160,7 +160,7 @@ create policy tasks_payload_insert_own on public.tasks_payload for insert to aut
 
 | Step   | 内容                                                                                                                                                                                                                                                                                                                  | 検証                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         | 規模 |
 | ------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---- |
-| DU-B-1 | `0009_tasks_payload_parent_fk.sql` 作成 + check-rls.sql に EXISTS ケース 1 件追加 + Supabase apply                                                                                                                                                                                                                    | **migration-validator H2 反映**: `\d tasks_payload` で composite FK 確認 / RLS gate selftest 緑 / advisor lint 0 / **0009 末尾 POST-APPLY VERIFICATION A-I 全件を SQL Editor で手動実行（特に E=cross-role parent INSERT 拒否、F=ON DELETE NO ACTION 動作 (v3-rev2)、G=parent owner EXISTS）し、結果を outbox に貼り付け**                                                                                                                                                                                   | S    |
+| DU-B-1 | `0009_tasks_payload_parent_fk.sql` 作成 + `0010_du_b_initplan_cache.sql`（DU-A 由来 6 policy initplan キャッシュ化、advisor 連動）+ check-rls.sql に EXISTS ケース 1 件追加 + Supabase apply                                                                                                                          | **migration-validator H2 反映**: `\d tasks_payload` で composite FK 確認 / RLS gate selftest 緑 / advisor lint 0 / **0009 末尾 POST-APPLY VERIFICATION A-I 全件を SQL Editor で手動実行（特に E=cross-role parent INSERT 拒否、F=ON DELETE NO ACTION 動作 (v3-rev2)、G=parent owner EXISTS）し、結果を outbox に貼り付け**                                                                                                                                                                                   | S    |
 | DU-B-2 | `shared/src/services/taskMapper.ts` 2 行分割書き換え + `taskMapper.roundtrip.ts` 更新                                                                                                                                                                                                                                 | `npm run -w shared build` 緑 / roundtrip 自己実行 OK                                                                                                                                                                                                                                                                                                                                                                                                                                                         | M    |
 | DU-B-3 | `shared/src/services/SupabaseDataService.ts` の SupabaseTasksService 9 メソッド書き換え（createTask の R2 try/catch hard delete + updateTask の updated_at bump + **permanentDeleteTask の descendants 再帰削除 = v3-rev2 NO ACTION 前提**: 子孫を `getDescendantIds` 等で集めて子から順に DELETE、Tauri 同型を踏襲） | **role-qa Major-1/3 反映**: shared build 緑 / **R2 検出 SQL (孤児 items_meta) = 0 行** を SQL Editor で確認（createTask 強制失敗テスト後）/ **updated_at bump 検証: updateTask 呼出前後で items_meta.updated_at が動くことを SQL Editor で確認** / **9 メソッド各 1 回実行後の items_meta ↔ tasks_payload 同期確認（updated_at 同時更新 + is_deleted 同時反転 + 孤児なし）** / **permanentDeleteTask で子のいる親を hard-delete しても FK violation で落ちず descendants 順削除で成功** / smoke test（手動） | L    |
 | DU-B-4 | `shared/tests/taskMapper.test.ts` 新規追加（必須ケース: roundtrip 5 ステータス / updated_at bump / parent role guard / soft-delete）                                                                                                                                                                                  | `npm run -w shared test` 緑                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  | M    |
@@ -218,7 +218,12 @@ DU-B-2 と DU-B-4 は並列可だが、N=1 想定で順序実行を推奨。
 
 ### R1 復旧 — composite FK の 0009 apply 失敗
 
-**検出**: SQL Editor で 0009 apply 時に `ERROR: constraint "tasks_payload_parent_fk" violates foreign key constraint` または `ERROR: column "parent_item_role" already exists`
+**検出**: SQL Editor で 0009 apply 時に以下のいずれか:
+
+- `ERROR: 42601: invalid ON DELETE action ...` (v2 の SET NULL 由来、v3-rev2 で解消済)
+- `ERROR: constraint "tasks_payload_parent_fk" violates foreign key constraint` (既存 cross-role parent 行あり)
+- `ERROR: column "parent_item_role" already exists` (drop column → add column の冪等パターン以前の古い SQL)
+- **`ERROR: 2BP01: cannot drop constraint items_meta_id_role_uk ... because other objects depend on it`** (v3-rev3 で実機検出 / 再 apply 時の依存関係エラー — UNIQUE drop の前に composite FK を drop する必要がある、または `drop ... cascade` を使う)
 
 **復旧手順**:
 
@@ -234,6 +239,14 @@ DU-B-2 と DU-B-4 は並列可だが、N=1 想定で順序実行を推奨。
      foreign key (parent_item_id) references public.items_meta(id);
    ```
 3. apply エラーメッセージから根本原因を特定（既存 cross-role parent row が存在する場合は、`SELECT t.item_id, t.parent_item_id, m.role FROM tasks_payload t JOIN items_meta m ON m.id=t.parent_item_id WHERE m.role <> 'task';` で違反行を特定 → 違反行を NULL parent に修正してから 0009 を再 apply）
+
+**再 apply 時の依存関係エラー回避 (v3-rev3 で実機検出)**:
+
+- 0009 全体を再 apply すると、`drop constraint items_meta_id_role_uk` の瞬間に既存 composite FK `tasks_payload_parent_fk` が depend している (`2BP01`) で失敗する
+- 解決策 A (推奨): policy だけの差分など、最小限の変更だけを切り出して個別 SQL として実行 (0009 全体を流さない)
+- 解決策 B: `drop constraint items_meta_id_role_uk cascade` に書き換える (composite FK も一緒に消えるが、直後に再 create するので結果同じ)
+- 解決策 C: 0009_rollback.sql で完全に巻き戻してから v3-rev3 を新規 apply
+- **本子計画書では解決策 A を採用** (DU-B-1 v3-rev2→v3-rev3 transition で実体験済)。0009 本体の冪等性を「上書き再 apply」用に再設計する必要があれば DU-B-6 docs 更新時に検討
 
 ### R2 復旧 — 孤児 items_meta の検出と回収
 
