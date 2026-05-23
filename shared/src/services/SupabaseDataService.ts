@@ -481,1026 +481,326 @@ class SupabaseTasksService {
 }
 
 /*
- * Daily domain (S2). Single-table UPSERT-on-`date` model, `daily-<date>`
- * text id, soft-delete, versioned. Pure mapping lives in dailyMapper.ts;
- * this is the I/O layer only. The password column is mutated/compared
- * verbatim (Tauri contract, src-tauri/.../daily_repository.rs) — the raw
- * hash is NEVER selected back (DAILY_SELECT_COLUMNS projects only the
- * boolean `has_password`). `version` is bumped on every mutation,
- * mirroring the SQLite `version = version + 1`.
+ * DU-C/D pending stubs (2026-05-23). The legacy per-domain tables
+ * (`notes` / `dailies` / `routines` / `schedule_items` / `note_links` /
+ * `note_connections` / `routine_groups` / `routine_group_assignments`)
+ * were dropped by migration 0007 ahead of the unified items_meta +
+ * <role>_payload schema. The Postgres side has the new payload tables
+ * (`notes_payload` / `dailies_payload` / `routines_payload` /
+ * `events_payload`) ready, but the TypeScript mapper + 2-row I/O
+ * rewrite is scheduled for DU-C (Events + Routine + RoutineGroup) and
+ * DU-D (Notes + Daily). Until those land:
+ *
+ *   - fetch* methods return an empty array / null so the web UI loads
+ *     instead of crashing on PostgREST "Could not find the table
+ *     'public.<name>' in the schema cache".
+ *   - write* methods throw a clearly-labelled "pending DU-C/D rewrite"
+ *     error so a user action surfaces immediately instead of silently
+ *     hitting a dropped table or silently losing data.
+ *
+ * Replace each stub with the real items_meta + <role>_payload
+ * implementation in DU-C / DU-D — same pattern as DU-B-3
+ * SupabaseTasksService.
  */
+
+function _pendingDuRewrite(method: string, domain: string): never {
+  throw new Error(
+    `${method}: ${domain} pending DU-C/D rewrite to items_meta + <role>_payload (legacy public.${domain} was dropped by migration 0007; see .claude/docs/vision/plans/2026-05-21-data-unification-items-meta.md)`,
+  );
+}
+
 class SupabaseDailyService {
   private readonly client: SupabaseClient;
+  // Keep mapper imports statically referenced (verbatimModuleSyntax).
+  private static readonly _unused_select = DAILY_SELECT_COLUMNS;
+  private static readonly _unused_mapper = rowToDailyNode;
+  declare private _unused_row: DailyRow;
 
   constructor(client: SupabaseClient) {
     this.client = client;
+    void this.client;
   }
 
   async fetchAllDailies(): Promise<DailyNode[]> {
-    const { data, error } = await this.client
-      .from("dailies")
-      .select(DAILY_SELECT_COLUMNS)
-      .eq("is_deleted", false)
-      .order("date", { ascending: false });
-    if (error) throw new Error(`fetchAllDailies failed: ${error.message}`);
-    return (data as unknown as DailyRow[]).map(rowToDailyNode);
+    return [];
   }
-
-  async fetchDailyByDate(date: string): Promise<DailyNode | null> {
-    const { data, error } = await this.client
-      .from("dailies")
-      .select(DAILY_SELECT_COLUMNS)
-      .eq("date", date)
-      .maybeSingle();
-    if (error) throw new Error(`fetchDailyByDate failed: ${error.message}`);
-    return data ? rowToDailyNode(data as unknown as DailyRow) : null;
+  async fetchDailyByDate(_date: string): Promise<DailyNode | null> {
+    void _date;
+    return null;
   }
-
   async fetchDeletedDailies(): Promise<DailyNode[]> {
-    const { data, error } = await this.client
-      .from("dailies")
-      .select(DAILY_SELECT_COLUMNS)
-      .eq("is_deleted", true)
-      .order("deleted_at", { ascending: false });
-    if (error) throw new Error(`fetchDeletedDailies failed: ${error.message}`);
-    return (data as unknown as DailyRow[]).map(rowToDailyNode);
+    return [];
   }
-
-  /**
-   * UPSERT on the natural `date` key (the SQLite source did
-   * `ON CONFLICT(date) DO UPDATE SET content=?, version=version+1`).
-   * `version` cannot be a relative `version + 1` in a single PostgREST
-   * upsert, so it is read-then-written: fetch the current row, compute
-   * the next version, and upsert the full row. The `daily-<date>` id is
-   * client-generated (CLAUDE.md §4.3). `user_id` is RLS-derived and
-   * never sent.
-   */
-  async upsertDaily(date: string, content: string): Promise<DailyNode> {
-    const { data: existing, error: readErr } = await this.client
-      .from("dailies")
-      .select("version, created_at")
-      .eq("date", date)
-      .maybeSingle();
-    if (readErr) throw new Error(`upsertDaily failed: ${readErr.message}`);
-
-    const now = new Date().toISOString();
-    const existingRow = existing as {
-      version: number;
-      created_at: string;
-    } | null;
-    const payload = {
-      id: `daily-${date}`,
-      date,
-      content,
-      created_at: existingRow?.created_at ?? now,
-      updated_at: now,
-      version: (existingRow?.version ?? 0) + 1,
-    };
-
-    const { data, error } = await this.client
-      .from("dailies")
-      .upsert(payload, { onConflict: "date" })
-      .select(DAILY_SELECT_COLUMNS)
-      .single();
-    if (error) throw new Error(`upsertDaily failed: ${error.message}`);
-    return rowToDailyNode(data as unknown as DailyRow);
+  async upsertDaily(_date: string, _content: string): Promise<DailyNode> {
+    void _date;
+    void _content;
+    _pendingDuRewrite("upsertDaily", "dailies");
   }
-
-  async deleteDaily(date: string): Promise<void> {
-    const { error } = await this.client
-      .from("dailies")
-      .update({ is_deleted: true, deleted_at: new Date().toISOString() })
-      .eq("date", date);
-    if (error) throw new Error(`deleteDaily failed: ${error.message}`);
+  async deleteDaily(_date: string): Promise<void> {
+    void _date;
+    _pendingDuRewrite("deleteDaily", "dailies");
   }
-
-  async restoreDaily(date: string): Promise<void> {
-    const { error } = await this.client
-      .from("dailies")
-      .update({ is_deleted: false, deleted_at: null })
-      .eq("date", date);
-    if (error) throw new Error(`restoreDaily failed: ${error.message}`);
+  async restoreDaily(_date: string): Promise<void> {
+    void _date;
+    _pendingDuRewrite("restoreDaily", "dailies");
   }
-
-  async permanentDeleteDaily(date: string): Promise<void> {
-    const { error } = await this.client
-      .from("dailies")
-      .delete()
-      .eq("date", date);
-    if (error) throw new Error(`permanentDeleteDaily failed: ${error.message}`);
+  async permanentDeleteDaily(_date: string): Promise<void> {
+    void _date;
+    _pendingDuRewrite("permanentDeleteDaily", "dailies");
   }
-
-  /** Read-modify-write toggle (mirrors the SQLite CASE flip + version bump). */
-  async toggleDailyPin(date: string): Promise<DailyNode> {
-    return this.toggleBoolean(date, "is_pinned", "toggleDailyPin");
+  async toggleDailyPin(_date: string): Promise<DailyNode> {
+    void _date;
+    _pendingDuRewrite("toggleDailyPin", "dailies");
   }
-
-  async toggleDailyEditLock(date: string): Promise<DailyNode> {
-    return this.toggleBoolean(date, "is_edit_locked", "toggleDailyEditLock");
+  async setDailyPassword(_date: string, _password: string): Promise<DailyNode> {
+    void _date;
+    void _password;
+    _pendingDuRewrite("setDailyPassword", "dailies");
   }
-
-  private async toggleBoolean(
-    date: string,
-    column: "is_pinned" | "is_edit_locked",
-    label: string,
-  ): Promise<DailyNode> {
-    const { data: cur, error: readErr } = await this.client
-      .from("dailies")
-      .select(`${column}, version`)
-      .eq("date", date)
-      .single();
-    if (readErr) throw new Error(`${label} failed: ${readErr.message}`);
-    const row = cur as Record<string, unknown>;
-    const next = !(row[column] as boolean);
-    const { data, error } = await this.client
-      .from("dailies")
-      .update({
-        [column]: next,
-        version: (row.version as number) + 1,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("date", date)
-      .select(DAILY_SELECT_COLUMNS)
-      .single();
-    if (error) throw new Error(`${label} failed: ${error.message}`);
-    return rowToDailyNode(data as unknown as DailyRow);
-  }
-
-  /**
-   * Store the password verbatim into `password_hash` (Tauri contract:
-   * the backend stored/compared the value as-is — see
-   * daily_repository.rs `set_password`/`verify_password`). RLS already
-   * prevents any cross-user read; the raw value is never projected back
-   * (DAILY_SELECT_COLUMNS). NOTE: plaintext-equality is a pre-existing
-   * weakness carried over 1:1, not introduced here — flagged for
-   * security review (S2 mandates parity, not a crypto redesign).
-   */
-  async setDailyPassword(date: string, password: string): Promise<DailyNode> {
-    const { data, error } = await this.client
-      .from("dailies")
-      .update({ password_hash: password, updated_at: new Date().toISOString() })
-      .eq("date", date)
-      .select(DAILY_SELECT_COLUMNS)
-      .single();
-    if (error) throw new Error(`setDailyPassword failed: ${error.message}`);
-    return rowToDailyNode(data as unknown as DailyRow);
-  }
-
-  /**
-   * Verify `currentPassword` first, then NULL the hash (mirrors the
-   * Tauri command layer which rejected a wrong current password before
-   * `remove_password`).
-   */
   async removeDailyPassword(
-    date: string,
-    currentPassword: string,
+    _date: string,
+    _currentPassword: string,
   ): Promise<DailyNode> {
-    const valid = await this.verifyDailyPassword(date, currentPassword);
-    if (!valid) throw new Error("Invalid password");
-    const { data, error } = await this.client
-      .from("dailies")
-      .update({ password_hash: null, updated_at: new Date().toISOString() })
-      .eq("date", date)
-      .select(DAILY_SELECT_COLUMNS)
-      .single();
-    if (error) throw new Error(`removeDailyPassword failed: ${error.message}`);
-    return rowToDailyNode(data as unknown as DailyRow);
+    void _date;
+    void _currentPassword;
+    _pendingDuRewrite("removeDailyPassword", "dailies");
   }
-
-  /**
-   * Plaintext-equality compare (Tauri parity). Reads `password_hash`
-   * ONLY here, server-filtered to the owner's row by RLS, and never
-   * returns it — the boolean result is all the client sees.
-   */
-  async verifyDailyPassword(date: string, password: string): Promise<boolean> {
-    const { data, error } = await this.client
-      .from("dailies")
-      .select("password_hash")
-      .eq("date", date)
-      .maybeSingle();
-    if (error) throw new Error(`verifyDailyPassword failed: ${error.message}`);
-    const hash = (data as { password_hash: string | null } | null)
-      ?.password_hash;
-    return hash != null && hash === password;
+  async verifyDailyPassword(
+    _date: string,
+    _password: string,
+  ): Promise<boolean> {
+    void _date;
+    void _password;
+    return false;
+  }
+  async toggleDailyEditLock(_date: string): Promise<DailyNode> {
+    void _date;
+    _pendingDuRewrite("toggleDailyEditLock", "dailies");
   }
 }
 
-/*
- * Notes domain (S3-3). Hierarchical folder/note tree, soft-delete,
- * versioned, optional password gate. Pure mapping lives in noteMapper.ts;
- * this is the I/O layer only. Behaviour is a 1:1 port of the Tauri
- * src-tauri/src/db/note_repository.rs (+ note_commands.rs for the
- * remove_password verify-first ordering) — NOT a redesign.
- *
- * `version` is bumped on every mutation (mirrors the SQLite
- * `version = version + 1`). The raw `password_hash` is NEVER selected
- * back (NOTE_SELECT_COLUMNS projects only the generated boolean
- * `has_password`). PLAINTEXT-EQUALITY PASSWORD: carried verbatim from the
- * Tauri backend (note_repository.rs set_password/verify_password store &
- * compare the value as-is). This is a PRE-EXISTING weakness kept 1:1 per
- * the S3 parity mandate (user-confirmed: do not improve here, do not
- * regress). EXISTING DEBT — a future hardening should move set/verify
- * behind a `security invoker` RPC so the hash never leaves Postgres at
- * all (today verifyNotePassword still SELECTs it into the client process,
- * RLS-scoped to the owner row). Flagged for security review.
- */
 class SupabaseNotesService {
   private readonly client: SupabaseClient;
+  private static readonly _unused_select = NOTE_SELECT_COLUMNS;
+  private static readonly _unused_mapper = rowToNoteNode;
+  private static readonly _unused_patch = noteUpdatesToPatch;
+  declare private _unused_row: NoteRow;
 
   constructor(client: SupabaseClient) {
     this.client = client;
+    void this.client;
   }
 
-  /**
-   * Tauri parity: `fetch_all` is
-   * `is_deleted = 0 ORDER BY order_index ASC, updated_at DESC`. PostgREST
-   * stacks .order() calls in call order, so order asc then updated_at
-   * desc reproduces the SQLite ordering exactly.
-   */
   async fetchAllNotes(): Promise<NoteNode[]> {
-    const { data, error } = await this.client
-      .from("notes")
-      .select(NOTE_SELECT_COLUMNS)
-      .eq("is_deleted", false)
-      .order("order", { ascending: true })
-      .order("updated_at", { ascending: false });
-    if (error) throw new Error(`fetchAllNotes failed: ${error.message}`);
-    return (data as unknown as NoteRow[]).map(rowToNoteNode);
+    return [];
   }
-
   async fetchDeletedNotes(): Promise<NoteNode[]> {
-    const { data, error } = await this.client
-      .from("notes")
-      .select(NOTE_SELECT_COLUMNS)
-      .eq("is_deleted", true)
-      .order("deleted_at", { ascending: false });
-    if (error) throw new Error(`fetchDeletedNotes failed: ${error.message}`);
-    return (data as unknown as NoteRow[]).map(rowToNoteNode);
+    return [];
   }
-
-  /**
-   * Tauri `create`: type='note', content='', order_index=0,
-   * is_pinned=0, is_deleted=0, created_at=updated_at=now(). `user_id` is
-   * RLS-derived and never sent; `has_password`/`version` take their DB
-   * defaults (false / 1).
-   */
   async createNote(
-    id: string,
-    title: string,
-    parentId?: string | null,
+    _id: string,
+    _title: string,
+    _parentId?: string | null,
   ): Promise<NoteNode> {
-    return this.insertNode(id, "note", title, parentId ?? null);
+    void _id;
+    void _title;
+    void _parentId;
+    _pendingDuRewrite("createNote", "notes");
   }
-
-  /** Tauri `create_folder`: identical to create but type='folder'. */
   async createNoteFolder(
-    id: string,
-    title: string,
-    parentId: string | null,
+    _id: string,
+    _title: string,
+    _parentId: string | null,
   ): Promise<NoteNode> {
-    return this.insertNode(id, "folder", title, parentId);
+    void _id;
+    void _title;
+    void _parentId;
+    _pendingDuRewrite("createNoteFolder", "notes");
   }
-
-  private async insertNode(
-    id: string,
-    type: "note" | "folder",
-    title: string,
-    parentId: string | null,
-  ): Promise<NoteNode> {
-    const now = new Date().toISOString();
-    const payload = {
-      id,
-      type,
-      title,
-      content: "",
-      parent_id: parentId,
-      order: 0,
-      is_pinned: false,
-      is_edit_locked: false,
-      is_deleted: false,
-      created_at: now,
-      updated_at: now,
-      version: 1,
-    };
-    const { data, error } = await this.client
-      .from("notes")
-      .insert(payload)
-      .select(NOTE_SELECT_COLUMNS)
-      .single();
-    if (error)
-      throw new Error(
-        `create${type === "folder" ? "NoteFolder" : "Note"} failed: ${error.message}`,
-      );
-    return rowToNoteNode(data as unknown as NoteRow);
-  }
-
-  /**
-   * Tauri `update`: ONLY title/content/isPinned/color/icon are mutable
-   * (noteUpdatesToPatch enforces the same whitelist). If nothing maps,
-   * the Rust path just re-reads the row (no version bump) — replicated
-   * here. Otherwise bump `version` + `updated_at`. The patch never
-   * includes `password_hash`, so a content save cannot clobber a
-   * password (partial-payload safety, matching the Rust whitelist).
-   */
   async updateNote(
-    id: string,
-    updates: Partial<
+    _id: string,
+    _updates: Partial<
       Pick<NoteNode, "title" | "content" | "isPinned" | "color" | "icon">
     >,
   ): Promise<NoteNode> {
-    const patch = noteUpdatesToPatch(updates);
-    if (Object.keys(patch).length === 0) {
-      const { data, error } = await this.client
-        .from("notes")
-        .select(NOTE_SELECT_COLUMNS)
-        .eq("id", id)
-        .single();
-      if (error) throw new Error(`updateNote failed: ${error.message}`);
-      return rowToNoteNode(data as unknown as NoteRow);
-    }
-    // version = version + 1 cannot be expressed relatively in a single
-    // PostgREST update, so read-then-write the next version.
-    // .maybeSingle() (NOT .single()): an optimistic createNote adds the
-    // node to local state and fires the INSERT fire-and-forget; a flush
-    // (e.g. RichTextEditor unmount) can call updateNote BEFORE that
-    // INSERT lands, so the version read legitimately sees 0 rows. With
-    // .single() that 0-row case is a PostgREST 406 ("Cannot coerce the
-    // result to a single JSON object") thrown into the caller. update is
-    // existence-presupposing here, so a not-yet-existing row is NOT an
-    // error: skip the DB write and return — local state already holds
-    // the edit and the next flush after the INSERT lands persists it (no
-    // data loss). A real read error (auth / network) still throws below;
-    // only the genuine 0-row race is the skip path. See known-issue 020.
-    const { data: cur, error: readErr } = await this.client
-      .from("notes")
-      .select("version")
-      .eq("id", id)
-      .maybeSingle();
-    if (readErr) throw new Error(`updateNote failed: ${readErr.message}`);
-    const curRow = cur as { version: number } | null;
-    if (curRow == null) {
-      // Row not yet present (INSERT in flight). Local state is canonical
-      // and the post-INSERT flush persists this edit, so skip the DB
-      // write. The caller (useNotesAPI.updateNote) discards this return
-      // value (it only .catch()es), but the Promise<NoteNode> contract
-      // still needs a well-formed node — synthesize one from the patch
-      // with explicit column defaults (no `as`-cast type lie through
-      // rowToNoteNode, which assumes NOT-NULL columns are materialised).
-      const now = new Date().toISOString();
-      return rowToNoteNode({
-        id,
-        user_id: "",
-        type: "note",
-        title: patch.title ?? "",
-        content: patch.content ?? "",
-        parent_id: null,
-        order: patch.order ?? 0,
-        is_pinned: patch.is_pinned ?? false,
-        is_edit_locked: patch.is_edit_locked ?? false,
-        color: patch.color ?? null,
-        icon: patch.icon ?? null,
-        has_password: false,
-        is_deleted: false,
-        deleted_at: null,
-        created_at: now,
-        updated_at: now,
-        version: 0,
-      });
-    }
-    const nextVersion = (curRow.version ?? 0) + 1;
-    const { data, error } = await this.client
-      .from("notes")
-      .update({
-        ...patch,
-        version: nextVersion,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", id)
-      .select(NOTE_SELECT_COLUMNS)
-      .single();
-    if (error) throw new Error(`updateNote failed: ${error.message}`);
-    return rowToNoteNode(data as unknown as NoteRow);
+    void _id;
+    void _updates;
+    _pendingDuRewrite("updateNote", "notes");
   }
-
-  /**
-   * Tauri `sync_tree`: per-item UPDATE of parent_id + order_index, NO
-   * version bump (it is a structural move, not a content mutation —
-   * matching the Rust transaction which only sets parent_id/order_index).
-   */
   async syncNoteTree(
-    items: Array<{ id: string; parentId: string | null; order: number }>,
+    _items: Array<{ id: string; parentId: string | null; order: number }>,
   ): Promise<void> {
-    for (const item of items) {
-      const { error } = await this.client
-        .from("notes")
-        .update({ parent_id: item.parentId, order: item.order })
-        .eq("id", item.id);
-      if (error) throw new Error(`syncNoteTree failed: ${error.message}`);
-    }
+    void _items;
+    _pendingDuRewrite("syncNoteTree", "notes");
   }
-
-  async softDeleteNote(id: string): Promise<void> {
-    const { error } = await this.client
-      .from("notes")
-      .update({ is_deleted: true, deleted_at: new Date().toISOString() })
-      .eq("id", id);
-    if (error) throw new Error(`softDeleteNote failed: ${error.message}`);
+  async softDeleteNote(_id: string): Promise<void> {
+    void _id;
+    _pendingDuRewrite("softDeleteNote", "notes");
   }
-
-  async restoreNote(id: string): Promise<void> {
-    const { error } = await this.client
-      .from("notes")
-      .update({ is_deleted: false, deleted_at: null })
-      .eq("id", id);
-    if (error) throw new Error(`restoreNote failed: ${error.message}`);
+  async restoreNote(_id: string): Promise<void> {
+    void _id;
+    _pendingDuRewrite("restoreNote", "notes");
   }
-
-  async permanentDeleteNote(id: string): Promise<void> {
-    const { error } = await this.client.from("notes").delete().eq("id", id);
-    if (error) throw new Error(`permanentDeleteNote failed: ${error.message}`);
+  async permanentDeleteNote(_id: string): Promise<void> {
+    void _id;
+    _pendingDuRewrite("permanentDeleteNote", "notes");
   }
-
-  /**
-   * Tauri `search`: `is_deleted=0 AND (title LIKE %q% OR content LIKE
-   * %q%) ORDER BY updated_at DESC`. PostgREST `.or()` with `ilike`
-   * mirrors the SQLite case-insensitive LIKE (SQLite LIKE is
-   * case-insensitive for ASCII by default). The interpolated query is
-   * wrapped via `pgrstQuoteValue` so reserved chars (`,` `(` `)` `.`
-   * etc.) cannot break out of the or-filter grammar; the `%` wildcards
-   * stay OUTSIDE the quotes so they still act as LIKE wildcards while the
-   * user-supplied substring is treated literally.
-   */
-  async searchNotes(query: string): Promise<NoteNode[]> {
-    const safe = pgrstQuoteValue(query);
-    const { data, error } = await this.client
-      .from("notes")
-      .select(NOTE_SELECT_COLUMNS)
-      .eq("is_deleted", false)
-      .or(`title.ilike.%${safe}%,content.ilike.%${safe}%`)
-      .order("updated_at", { ascending: false });
-    if (error) throw new Error(`searchNotes failed: ${error.message}`);
-    return (data as unknown as NoteRow[]).map(rowToNoteNode);
+  async searchNotes(_query: string): Promise<NoteNode[]> {
+    void _query;
+    return [];
   }
-
-  /**
-   * Tauri `set_password`: store the value verbatim into `password_hash`,
-   * bump version + updated_at. PLAINTEXT (pre-existing weakness, kept 1:1
-   * — see class header / EXISTING DEBT note). RLS already blocks any
-   * cross-user read; the raw value is never projected back
-   * (NOTE_SELECT_COLUMNS).
-   */
-  async setNotePassword(id: string, password: string): Promise<NoteNode> {
-    const next = await this.nextVersion(id, "setNotePassword");
-    const { data, error } = await this.client
-      .from("notes")
-      .update({
-        password_hash: password,
-        version: next,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", id)
-      .select(NOTE_SELECT_COLUMNS)
-      .single();
-    if (error) throw new Error(`setNotePassword failed: ${error.message}`);
-    return rowToNoteNode(data as unknown as NoteRow);
+  async setNotePassword(_id: string, _password: string): Promise<NoteNode> {
+    void _id;
+    void _password;
+    _pendingDuRewrite("setNotePassword", "notes");
   }
-
-  /**
-   * Tauri parity (note_commands.rs `db_notes_remove_password`): verify
-   * the current password FIRST, reject on mismatch, THEN NULL the hash +
-   * bump version. Order matters — a wrong current password must not
-   * mutate the row.
-   */
   async removeNotePassword(
-    id: string,
-    currentPassword: string,
+    _id: string,
+    _currentPassword: string,
   ): Promise<NoteNode> {
-    const valid = await this.verifyNotePassword(id, currentPassword);
-    if (!valid) throw new Error("Invalid password");
-    const next = await this.nextVersion(id, "removeNotePassword");
-    const { data, error } = await this.client
-      .from("notes")
-      .update({
-        password_hash: null,
-        version: next,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", id)
-      .select(NOTE_SELECT_COLUMNS)
-      .single();
-    if (error) throw new Error(`removeNotePassword failed: ${error.message}`);
-    return rowToNoteNode(data as unknown as NoteRow);
+    void _id;
+    void _currentPassword;
+    _pendingDuRewrite("removeNotePassword", "notes");
   }
-
-  /**
-   * Tauri `verify_password`: plaintext equality, `false` when no hash.
-   * This is the ONLY path that SELECTs `password_hash`, server-filtered
-   * to the owner's row by RLS, and it never returns it — the boolean is
-   * all the client sees. EXISTING DEBT: ideally a `security invoker` RPC
-   * so the hash never enters the client process; kept as-is for S3
-   * parity (flagged for security review).
-   */
-  async verifyNotePassword(id: string, password: string): Promise<boolean> {
-    const { data, error } = await this.client
-      .from("notes")
-      .select("password_hash")
-      .eq("id", id)
-      .maybeSingle();
-    if (error) throw new Error(`verifyNotePassword failed: ${error.message}`);
-    const hash = (data as { password_hash: string | null } | null)
-      ?.password_hash;
-    return hash != null && hash === password;
+  async verifyNotePassword(_id: string, _password: string): Promise<boolean> {
+    void _id;
+    void _password;
+    return false;
   }
-
-  /**
-   * Tauri `toggle_edit_lock`: flip is_edit_locked, bump version +
-   * updated_at. Read-modify-write (PostgREST cannot express the SQLite
-   * `CASE WHEN ... END` flip in one statement).
-   */
-  async toggleNoteEditLock(id: string): Promise<NoteNode> {
-    const { data: cur, error: readErr } = await this.client
-      .from("notes")
-      .select("is_edit_locked, version")
-      .eq("id", id)
-      .single();
-    if (readErr)
-      throw new Error(`toggleNoteEditLock failed: ${readErr.message}`);
-    const row = cur as { is_edit_locked: boolean; version: number };
-    const { data, error } = await this.client
-      .from("notes")
-      .update({
-        is_edit_locked: !row.is_edit_locked,
-        version: (row.version ?? 0) + 1,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", id)
-      .select(NOTE_SELECT_COLUMNS)
-      .single();
-    if (error) throw new Error(`toggleNoteEditLock failed: ${error.message}`);
-    return rowToNoteNode(data as unknown as NoteRow);
-  }
-
-  /** Read current version, return version + 1 (LWW bump helper). */
-  private async nextVersion(id: string, label: string): Promise<number> {
-    const { data, error } = await this.client
-      .from("notes")
-      .select("version")
-      .eq("id", id)
-      .single();
-    if (error) throw new Error(`${label} failed: ${error.message}`);
-    return ((data as { version: number }).version ?? 0) + 1;
+  async toggleNoteEditLock(_id: string): Promise<NoteNode> {
+    void _id;
+    _pendingDuRewrite("toggleNoteEditLock", "notes");
   }
 }
 
-/*
- * Note Links domain (S3-3). VERSIONED (version + soft-delete), LWW on
- * `id`. 1:1 port of src-tauri/src/db/note_link_repository.rs. The Tauri
- * upsert/delete paths SOFT-delete stale rows (so Cloud Sync LWW
- * propagates removals) then INSERT fresh `nl-<uuid>` rows with version 1
- * — replicated exactly. `source_memo_date` is the 0005 canonical column
- * name for the daily-memo source (legacy SQLite name was
- * `source_daily_date`).
- */
 class SupabaseNoteLinkService {
   private readonly client: SupabaseClient;
+  private static readonly _unused_select = NOTE_LINK_SELECT_COLUMNS;
+  private static readonly _unused_mapper = rowToNoteLink;
+  declare private _unused_row: NoteLinkRow;
 
   constructor(client: SupabaseClient) {
     this.client = client;
+    void this.client;
   }
 
   async fetchAllNoteLinks(): Promise<NoteLink[]> {
-    const { data, error } = await this.client
-      .from("note_links")
-      .select(NOTE_LINK_SELECT_COLUMNS)
-      .eq("is_deleted", false)
-      .order("created_at", { ascending: true });
-    if (error) throw new Error(`fetchAllNoteLinks failed: ${error.message}`);
-    return (data as unknown as NoteLinkRow[]).map(rowToNoteLink);
+    return [];
   }
-
-  async fetchForwardLinksForNote(sourceNoteId: string): Promise<NoteLink[]> {
-    const { data, error } = await this.client
-      .from("note_links")
-      .select(NOTE_LINK_SELECT_COLUMNS)
-      .eq("source_note_id", sourceNoteId)
-      .eq("is_deleted", false)
-      .order("created_at", { ascending: true });
-    if (error)
-      throw new Error(`fetchForwardLinksForNote failed: ${error.message}`);
-    return (data as unknown as NoteLinkRow[]).map(rowToNoteLink);
+  async fetchForwardLinksForNote(_sourceNoteId: string): Promise<NoteLink[]> {
+    void _sourceNoteId;
+    return [];
   }
-
-  /**
-   * Tauri `fetch_backlinks`: links INTO target with the source note's
-   * title + a 200-char content preview joined in. PostgREST embeds the
-   * FK relation (note_links.source_note_id -> notes) and the mapper
-   * splits the embedded note off. The Rust query LEFT JOINs (a daily-memo
-   * source has no note row) so the embed is nullable here too. Preview is
-   * sliced to 200 chars client-side (mirrors the SQLite
-   * `substr(content,1,200)`).
-   */
-  async fetchBacklinksForNote(targetNoteId: string): Promise<BacklinkHit[]> {
-    const { data, error } = await this.client
-      .from("note_links")
-      .select(
-        `${NOTE_LINK_SELECT_COLUMNS}, source:notes!note_links_source_note_id_fkey(title, content)`,
-      )
-      .eq("target_note_id", targetNoteId)
-      .eq("is_deleted", false)
-      .order("created_at", { ascending: false });
-    if (error)
-      throw new Error(`fetchBacklinksForNote failed: ${error.message}`);
-    type EmbeddedRow = NoteLinkRow & {
-      source: { title: string | null; content: string | null } | null;
-    };
-    return (data as unknown as EmbeddedRow[]).map((r) => {
-      const { source, ...linkRow } = r;
-      return {
-        link: rowToNoteLink(linkRow),
-        sourceTitle: source?.title ?? null,
-        sourcePreview:
-          source?.content != null ? source.content.slice(0, 200) : null,
-      };
-    });
+  async fetchBacklinksForNote(_targetNoteId: string): Promise<BacklinkHit[]> {
+    void _targetNoteId;
+    return [];
   }
-
-  /**
-   * Tauri `upsert_links_for_note`: soft-delete every non-deleted link
-   * from this source (version + 1, is_deleted=1, deleted_at/updated_at
-   * now), then INSERT a fresh `nl-<uuid>` row per payload (version 1,
-   * link_type defaults to 'inline'). Replaces the full forward-link set.
-   */
   async upsertNoteLinksForNote(
-    sourceNoteId: string,
-    links: NoteLinkPayload[],
+    _sourceNoteId: string,
+    _links: NoteLinkPayload[],
   ): Promise<void> {
-    await this.replaceLinks("source_note_id", sourceNoteId, links, {
-      source_note_id: sourceNoteId,
-      source_memo_date: null,
-    });
+    void _sourceNoteId;
+    void _links;
+    _pendingDuRewrite("upsertNoteLinksForNote", "note_links");
   }
-
-  /** Same as upsertNoteLinksForNote but keyed by a daily-memo date. */
   async upsertNoteLinksForDaily(
-    sourceDailyDate: string,
-    links: NoteLinkPayload[],
+    _sourceDailyDate: string,
+    _links: NoteLinkPayload[],
   ): Promise<void> {
-    await this.replaceLinks("source_memo_date", sourceDailyDate, links, {
-      source_note_id: null,
-      source_memo_date: sourceDailyDate,
-    });
+    void _sourceDailyDate;
+    void _links;
+    _pendingDuRewrite("upsertNoteLinksForDaily", "note_links");
   }
-
-  /** Tauri `delete_links_for_note`: soft-delete all from this source. */
-  async deleteNoteLinksForNote(sourceNoteId: string): Promise<void> {
-    await this.softDeleteFrom("source_note_id", sourceNoteId);
+  async deleteNoteLinksForNote(_sourceNoteId: string): Promise<void> {
+    void _sourceNoteId;
+    _pendingDuRewrite("deleteNoteLinksForNote", "note_links");
   }
-
-  private async replaceLinks(
-    sourceColumn: "source_note_id" | "source_memo_date",
-    sourceValue: string,
-    links: NoteLinkPayload[],
-    sourceCols: {
-      source_note_id: string | null;
-      source_memo_date: string | null;
-    },
-  ): Promise<void> {
-    await this.softDeleteFrom(sourceColumn, sourceValue);
-    if (links.length === 0) return;
-    const now = new Date().toISOString();
-    const rows = links.map((link) => ({
-      id: `nl-${crypto.randomUUID()}`,
-      ...sourceCols,
-      target_note_id: link.targetNoteId,
-      target_heading: link.targetHeading ?? null,
-      target_block_id: link.targetBlockId ?? null,
-      alias: link.alias ?? null,
-      link_type: link.linkType ?? "inline",
-      created_at: now,
-      updated_at: now,
-      is_deleted: false,
-      deleted_at: null,
-      version: 1,
-    }));
-    const { error } = await this.client.from("note_links").insert(rows);
-    if (error) throw new Error(`upsertNoteLinks failed: ${error.message}`);
-  }
-
-  /**
-   * Soft-delete (NOT physical) every currently-live link from a source —
-   * version + 1 so Cloud Sync LWW propagates the removal (Tauri parity:
-   * the SQLite path sets is_deleted=1 + version=version+1, never DELETEs).
-   * version+1 is read-then-written per row because PostgREST has no
-   * relative `version + 1` in a bulk update.
-   */
-  private async softDeleteFrom(
-    sourceColumn: "source_note_id" | "source_memo_date",
-    sourceValue: string,
-  ): Promise<void> {
-    const { data: live, error: readErr } = await this.client
-      .from("note_links")
-      .select("id, version")
-      .eq(sourceColumn, sourceValue)
-      .eq("is_deleted", false);
-    if (readErr) throw new Error(`deleteNoteLinks failed: ${readErr.message}`);
-    const rows = (live as Array<{ id: string; version: number }>) ?? [];
-    if (rows.length === 0) return;
-    const now = new Date().toISOString();
-    for (const row of rows) {
-      const { error } = await this.client
-        .from("note_links")
-        .update({
-          is_deleted: true,
-          deleted_at: now,
-          updated_at: now,
-          version: (row.version ?? 0) + 1,
-        })
-        .eq("id", row.id);
-      if (error) throw new Error(`deleteNoteLinks failed: ${error.message}`);
-    }
-  }
-
-  /**
-   * Tauri `fetch_unlinked_mentions` (note_link_repository.rs) ported 1:1:
-   *  1. load the source note's content (is_deleted=0); empty -> [].
-   *  2. collect existing forward-link target ids to EXCLUDE
-   *     (source_note_id=?, is_deleted=0).
-   *  3. candidate pool = every OTHER non-deleted note with a non-empty
-   *     title; a title shorter than 2 chars is skipped (noise guard,
-   *     matching the Rust `title.len() < 2`).
-   *  4. emit a hit when the candidate title occurs verbatim in the
-   *     source content.
-   * The matching is done client-side (substring containment), exactly
-   * like the SQLite version's in-Rust loop — NOT a SQL LIKE — so the
-   * behaviour is byte-identical. NOTE: `String.length` counts UTF-16 code
-   * units while Rust `str::len()` counts UTF-8 bytes; for the 2-char
-   * noise guard this differs only for sub-2-codepoint non-ASCII titles,
-   * an acceptable parity gap for a heuristic (documented, not silently
-   * diverged).
-   */
   async fetchUnlinkedMentions(
-    sourceNoteId: string,
+    _sourceNoteId: string,
   ): Promise<UnlinkedMention[]> {
-    const { data: src, error: srcErr } = await this.client
-      .from("notes")
-      .select("content")
-      .eq("id", sourceNoteId)
-      .eq("is_deleted", false)
-      .maybeSingle();
-    if (srcErr)
-      throw new Error(`fetchUnlinkedMentions failed: ${srcErr.message}`);
-    const sourceContent = (src as { content: string } | null)?.content ?? "";
-    if (sourceContent.length === 0) return [];
-
-    const { data: linked, error: linkedErr } = await this.client
-      .from("note_links")
-      .select("target_note_id")
-      .eq("source_note_id", sourceNoteId)
-      .eq("is_deleted", false);
-    if (linkedErr)
-      throw new Error(`fetchUnlinkedMentions failed: ${linkedErr.message}`);
-    const linkedIds = new Set(
-      (linked as Array<{ target_note_id: string }>).map(
-        (r) => r.target_note_id,
-      ),
-    );
-
-    const { data: pool, error: poolErr } = await this.client
-      .from("notes")
-      .select("id, title")
-      .neq("id", sourceNoteId)
-      .eq("is_deleted", false)
-      .not("title", "is", null)
-      .neq("title", "");
-    if (poolErr)
-      throw new Error(`fetchUnlinkedMentions failed: ${poolErr.message}`);
-
-    const hits: UnlinkedMention[] = [];
-    for (const row of pool as Array<{ id: string; title: string }>) {
-      if (linkedIds.has(row.id)) continue;
-      if (row.title.length < 2) continue;
-      if (sourceContent.includes(row.title)) {
-        hits.push({
-          sourceNoteId,
-          sourceTitle: row.title,
-          matchText: row.title,
-        });
-      }
-    }
-    return hits;
+    void _sourceNoteId;
+    return [];
   }
 }
 
-/*
- * Note Connections domain (S3-3). RELATION table (no version, no
- * soft-delete) — physically deleted, exactly like the Tauri
- * src-tauri/src/db/note_connection_repository.rs (`DELETE FROM ...`).
- * The NoteConnection contract is minimal (id / sourceNoteId /
- * targetNoteId / createdAt — wikiTag.ts ~L40); the Rust struct also
- * carries an updated_at column but neither the TS type nor 0005 schema
- * expose it, so it is intentionally not modelled here.
- */
 class SupabaseNoteConnectionService {
   private readonly client: SupabaseClient;
 
   constructor(client: SupabaseClient) {
     this.client = client;
+    void this.client;
   }
 
   async fetchNoteConnections(): Promise<NoteConnection[]> {
-    const { data, error } = await this.client
-      .from("note_connections")
-      .select("id, source_note_id, target_note_id, created_at")
-      .order("created_at", { ascending: true });
-    if (error) throw new Error(`fetchNoteConnections failed: ${error.message}`);
-    return (
-      data as unknown as Array<{
-        id: string;
-        source_note_id: string;
-        target_note_id: string;
-        created_at: string;
-      }>
-    ).map((r) => ({
-      id: r.id,
-      sourceNoteId: r.source_note_id,
-      targetNoteId: r.target_note_id,
-      createdAt: r.created_at,
-    }));
+    return [];
   }
-
-  /** Tauri `create`: `nc-<uuid>` id, physical INSERT. */
   async createNoteConnection(
-    sourceNoteId: string,
-    targetNoteId: string,
+    _sourceNoteId: string,
+    _targetNoteId: string,
   ): Promise<NoteConnection> {
-    const id = `nc-${crypto.randomUUID()}`;
-    const { data, error } = await this.client
-      .from("note_connections")
-      .insert({
-        id,
-        source_note_id: sourceNoteId,
-        target_note_id: targetNoteId,
-        created_at: new Date().toISOString(),
-      })
-      .select("id, source_note_id, target_note_id, created_at")
-      .single();
-    if (error) throw new Error(`createNoteConnection failed: ${error.message}`);
-    const r = data as {
-      id: string;
-      source_note_id: string;
-      target_note_id: string;
-      created_at: string;
-    };
-    return {
-      id: r.id,
-      sourceNoteId: r.source_note_id,
-      targetNoteId: r.target_note_id,
-      createdAt: r.created_at,
-    };
+    void _sourceNoteId;
+    void _targetNoteId;
+    _pendingDuRewrite("createNoteConnection", "note_connections");
   }
-
-  /** Tauri `delete`: physical DELETE by id. */
-  async deleteNoteConnection(id: string): Promise<void> {
-    const { error } = await this.client
-      .from("note_connections")
-      .delete()
-      .eq("id", id);
-    if (error) throw new Error(`deleteNoteConnection failed: ${error.message}`);
+  async deleteNoteConnection(_id: string): Promise<void> {
+    void _id;
+    _pendingDuRewrite("deleteNoteConnection", "note_connections");
   }
-
-  /**
-   * Tauri `delete_by_note_pair`: physically delete BOTH directions of
-   * the pair ((s,t) OR (t,s)). PostgREST `.or()` with a paired
-   * `and(...)` reproduces the SQLite bidirectional WHERE. Both ids are
-   * routed through `pgrstQuoteValue` (the same helper `searchNotes` uses)
-   * so a crafted id cannot inject extra or-filter legs and widen the
-   * DELETE beyond the intended pair.
-   */
   async deleteNoteConnectionByPair(
-    sourceNoteId: string,
-    targetNoteId: string,
+    _sourceNoteId: string,
+    _targetNoteId: string,
   ): Promise<void> {
-    const s = pgrstQuoteValue(sourceNoteId);
-    const t = pgrstQuoteValue(targetNoteId);
-    const { error } = await this.client
-      .from("note_connections")
-      .delete()
-      .or(
-        `and(source_note_id.eq.${s},target_note_id.eq.${t}),` +
-          `and(source_note_id.eq.${t},target_note_id.eq.${s})`,
-      );
-    if (error)
-      throw new Error(`deleteNoteConnectionByPair failed: ${error.message}`);
+    void _sourceNoteId;
+    void _targetNoteId;
+    _pendingDuRewrite("deleteNoteConnectionByPair", "note_connections");
   }
 }
 
-/*
- * Routines domain (S4-2). VERSIONED + soft-delete (TrashView-restorable,
- * CLAUDE.md §4.4). 1:1 port of src-tauri/src/db/routine_repository.rs.
- *
- * `version` is bumped on every mutation (mirrors the SQLite
- * `version = version + 1`); PostgREST cannot express a relative
- * `version + 1` so it is read-then-written (same shape as the notes
- * domain). `softDeleteRoutine` is the Issue 017 anti-ghost path: it
- * SOFT-deletes the routine AND its non-completed derived schedule_items
- * in one logical operation and returns the cascaded ids (physical DELETE
- * would leave no Cloud Sync delta, so other devices would push the items
- * back — see routine_repository.rs `soft_delete` comment). `frequency_days`
- * is the JSON-array-string column; the mapper owns the parse/stringify.
- */
 class SupabaseRoutinesService {
   private readonly client: SupabaseClient;
+  private static readonly _unused_select = ROUTINE_SELECT_COLUMNS;
+  private static readonly _unused_mapper = rowToRoutine;
+  private static readonly _unused_patch = routineUpdatesToPatch;
+  declare private _unused_row: RoutineRow;
 
   constructor(client: SupabaseClient) {
     this.client = client;
+    void this.client;
   }
 
-  /**
-   * Tauri `fetch_all`: `is_archived = 0 AND is_deleted = 0
-   * ORDER BY "order" ASC, created_at ASC`. PostgREST stacks .order()
-   * calls in call order so the two-key sort is reproduced exactly.
-   */
   async fetchAllRoutines(): Promise<RoutineNode[]> {
-    const { data, error } = await this.client
-      .from("routines")
-      .select(ROUTINE_SELECT_COLUMNS)
-      .eq("is_archived", false)
-      .eq("is_deleted", false)
-      .order("order", { ascending: true })
-      .order("created_at", { ascending: true });
-    if (error) throw new Error(`fetchAllRoutines failed: ${error.message}`);
-    return (data as unknown as RoutineRow[]).map(rowToRoutine);
+    return [];
   }
-
   async fetchDeletedRoutines(): Promise<RoutineNode[]> {
-    const { data, error } = await this.client
-      .from("routines")
-      .select(ROUTINE_SELECT_COLUMNS)
-      .eq("is_deleted", true)
-      .order("deleted_at", { ascending: false });
-    if (error) throw new Error(`fetchDeletedRoutines failed: ${error.message}`);
-    return (data as unknown as RoutineRow[]).map(rowToRoutine);
+    return [];
   }
-
-  /**
-   * Tauri `create`: `"order"` = MAX("order") + 1 (global, not per-user —
-   * RLS already scopes the SELECT to the caller's rows), is_archived=0,
-   * is_visible=1, version default 1, frequency_type default 'daily',
-   * frequency_days default '[]'. `user_id` is RLS-derived and never sent.
-   */
   async createRoutine(
-    id: string,
-    title: string,
-    startTime?: string,
-    endTime?: string,
-    frequencyType?: string,
-    frequencyDays?: number[],
-    frequencyInterval?: number | null,
-    frequencyStartDate?: string | null,
-    reminderEnabled?: boolean,
-    reminderOffset?: number,
+    _id: string,
+    _title: string,
+    _startTime?: string,
+    _endTime?: string,
+    _frequencyType?: string,
+    _frequencyDays?: number[],
+    _frequencyInterval?: number | null,
+    _frequencyStartDate?: string | null,
+    _reminderEnabled?: boolean,
+    _reminderOffset?: number,
   ): Promise<RoutineNode> {
-    const nextOrder = await this.nextOrder();
-    const now = new Date().toISOString();
-    const payload = {
-      id,
-      title,
-      start_time: startTime ?? null,
-      end_time: endTime ?? null,
-      is_archived: false,
-      is_visible: true,
-      is_deleted: false,
-      deleted_at: null,
-      order: nextOrder,
-      version: 1,
-      frequency_type: frequencyType ?? "daily",
-      frequency_days: JSON.stringify(frequencyDays ?? []),
-      frequency_interval: frequencyInterval ?? null,
-      frequency_start_date: frequencyStartDate ?? null,
-      reminder_enabled: reminderEnabled ?? false,
-      reminder_offset: reminderOffset ?? null,
-      created_at: now,
-      updated_at: now,
-    };
-    const { data, error } = await this.client
-      .from("routines")
-      .insert(payload)
-      .select(ROUTINE_SELECT_COLUMNS)
-      .single();
-    if (error) throw new Error(`createRoutine failed: ${error.message}`);
-    return rowToRoutine(data as unknown as RoutineRow);
+    void _id;
+    void _title;
+    void _startTime;
+    void _endTime;
+    void _frequencyType;
+    void _frequencyDays;
+    void _frequencyInterval;
+    void _frequencyStartDate;
+    void _reminderEnabled;
+    void _reminderOffset;
+    _pendingDuRewrite("createRoutine", "routines");
   }
-
-  /**
-   * Tauri `update`: only the whitelisted columns mutate
-   * (routineUpdatesToPatch enforces the same surface). Empty patch =
-   * re-read with NO version bump (Rust `if sets.is_empty()` short
-   * circuit). Otherwise bump version + updated_at. version + 1 is
-   * read-then-written (PostgREST has no relative increment).
-   */
   async updateRoutine(
-    id: string,
-    updates: Partial<
+    _id: string,
+    _updates: Partial<
       Pick<
         RoutineNode,
         | "title"
@@ -1518,223 +818,66 @@ class SupabaseRoutinesService {
       >
     >,
   ): Promise<RoutineNode> {
-    const patch = routineUpdatesToPatch(updates);
-    if (Object.keys(patch).length === 0) {
-      const { data, error } = await this.client
-        .from("routines")
-        .select(ROUTINE_SELECT_COLUMNS)
-        .eq("id", id)
-        .single();
-      if (error) throw new Error(`updateRoutine failed: ${error.message}`);
-      return rowToRoutine(data as unknown as RoutineRow);
-    }
-    const next = await this.nextVersion(id, "updateRoutine");
-    const { data, error } = await this.client
-      .from("routines")
-      .update({
-        ...patch,
-        version: next,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", id)
-      .select(ROUTINE_SELECT_COLUMNS)
-      .single();
-    if (error) throw new Error(`updateRoutine failed: ${error.message}`);
-    return rowToRoutine(data as unknown as RoutineRow);
+    void _id;
+    void _updates;
+    _pendingDuRewrite("updateRoutine", "routines");
   }
-
-  /** Tauri `delete`: physical DELETE by id (hard, no soft-delete). */
-  async deleteRoutine(id: string): Promise<void> {
-    const { error } = await this.client.from("routines").delete().eq("id", id);
-    if (error) throw new Error(`deleteRoutine failed: ${error.message}`);
+  async deleteRoutine(_id: string): Promise<void> {
+    void _id;
+    _pendingDuRewrite("deleteRoutine", "routines");
   }
-
-  /**
-   * Tauri `soft_delete` (routine_repository.rs) ported 1:1 — the Issue
-   * 017 anti-ghost path. The Rust version runs a single transaction:
-   *  1. collect the ids of non-completed, non-deleted schedule_items
-   *     belonging to this routine,
-   *  2. SOFT-delete them (is_deleted=1, deleted_at, version+1,
-   *     updated_at) — NOT physical, so Cloud Sync LWW propagates the
-   *     removal and other devices do not push the items back,
-   *  3. SOFT-delete the routine itself (same shape).
-   * PostgREST has no multi-statement transaction; the ordering here
-   * (children first, then parent) keeps the invariant that a partial
-   * failure never leaves the routine deleted while its items linger
-   * visible. version+1 is read-then-written per row (no relative
-   * increment). Returns the cascaded schedule_item ids exactly like the
-   * Rust signature so the caller can prune local state (Issue 017 (b):
-   * the routine_id-matched items are explicitly removed, not left to
-   * resurrect).
-   */
   async softDeleteRoutine(
-    id: string,
+    _id: string,
   ): Promise<{ deletedScheduleItemIds: string[] }> {
-    const { data: live, error: readErr } = await this.client
-      .from("schedule_items")
-      .select("id, version")
-      .eq("routine_id", id)
-      .eq("completed", false)
-      .eq("is_deleted", false);
-    if (readErr)
-      throw new Error(`softDeleteRoutine failed: ${readErr.message}`);
-    const rows = (live as Array<{ id: string; version: number }>) ?? [];
-    const now = new Date().toISOString();
-    for (const row of rows) {
-      const { error } = await this.client
-        .from("schedule_items")
-        .update({
-          is_deleted: true,
-          deleted_at: now,
-          version: (row.version ?? 0) + 1,
-          updated_at: now,
-        })
-        .eq("id", row.id);
-      if (error) throw new Error(`softDeleteRoutine failed: ${error.message}`);
-    }
-    const next = await this.nextVersion(id, "softDeleteRoutine");
-    const { error: routineErr } = await this.client
-      .from("routines")
-      .update({
-        is_deleted: true,
-        deleted_at: now,
-        version: next,
-        updated_at: now,
-      })
-      .eq("id", id);
-    if (routineErr)
-      throw new Error(`softDeleteRoutine failed: ${routineErr.message}`);
-    return { deletedScheduleItemIds: rows.map((r) => r.id) };
+    void _id;
+    _pendingDuRewrite("softDeleteRoutine", "routines");
   }
-
-  /** Tauri `restore`: clear soft-delete + version+1 + updated_at. */
-  async restoreRoutine(id: string): Promise<void> {
-    const next = await this.nextVersion(id, "restoreRoutine");
-    const { error } = await this.client
-      .from("routines")
-      .update({
-        is_deleted: false,
-        deleted_at: null,
-        version: next,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", id);
-    if (error) throw new Error(`restoreRoutine failed: ${error.message}`);
+  async restoreRoutine(_id: string): Promise<void> {
+    void _id;
+    _pendingDuRewrite("restoreRoutine", "routines");
   }
-
-  /**
-   * Tauri `permanent_delete`: physical DELETE guarded by
-   * `is_deleted = 1` (only trashed routines can be purged).
-   */
-  async permanentDeleteRoutine(id: string): Promise<void> {
-    const { error } = await this.client
-      .from("routines")
-      .delete()
-      .eq("id", id)
-      .eq("is_deleted", true);
-    if (error)
-      throw new Error(`permanentDeleteRoutine failed: ${error.message}`);
-  }
-
-  /** MAX("order") + 1 across the caller's routines (RLS-scoped SELECT). */
-  private async nextOrder(): Promise<number> {
-    const { data, error } = await this.client
-      .from("routines")
-      .select('"order"')
-      .order("order", { ascending: false })
-      .limit(1)
-      .maybeSingle();
-    if (error) throw new Error(`createRoutine failed: ${error.message}`);
-    const max = (data as { order: number } | null)?.order;
-    return (max ?? -1) + 1;
-  }
-
-  /** Read current version, return version + 1 (LWW bump helper). */
-  private async nextVersion(id: string, label: string): Promise<number> {
-    const { data, error } = await this.client
-      .from("routines")
-      .select("version")
-      .eq("id", id)
-      .single();
-    if (error) throw new Error(`${label} failed: ${error.message}`);
-    return ((data as { version: number }).version ?? 0) + 1;
+  async permanentDeleteRoutine(_id: string): Promise<void> {
+    void _id;
+    _pendingDuRewrite("permanentDeleteRoutine", "routines");
   }
 }
 
-/*
- * Routine Groups domain (S4-2). VERSIONED but PHYSICAL-delete (0006
- * deliberately omits is_deleted — the frontend never soft-deletes a
- * group). 1:1 port of src-tauri/src/db/routine_group_repository.rs.
- * `version` is bumped on every update (read-then-written, no relative
- * increment). `deleteRoutineGroup` is a hard DELETE (no soft-delete API
- * to map; the rga child rows cascade via the 0006 FK).
- */
 class SupabaseRoutineGroupsService {
   private readonly client: SupabaseClient;
+  private static readonly _unused_select = ROUTINE_GROUP_SELECT_COLUMNS;
+  private static readonly _unused_mapper = rowToRoutineGroup;
+  private static readonly _unused_patch = routineGroupUpdatesToPatch;
+  declare private _unused_row: RoutineGroupRow;
 
   constructor(client: SupabaseClient) {
     this.client = client;
+    void this.client;
   }
 
-  /** Tauri `fetch_all`: `ORDER BY "order" ASC, created_at ASC`. */
   async fetchRoutineGroups(): Promise<RoutineGroup[]> {
-    const { data, error } = await this.client
-      .from("routine_groups")
-      .select(ROUTINE_GROUP_SELECT_COLUMNS)
-      .order("order", { ascending: true })
-      .order("created_at", { ascending: true });
-    if (error) throw new Error(`fetchRoutineGroups failed: ${error.message}`);
-    return (data as unknown as RoutineGroupRow[]).map(rowToRoutineGroup);
+    return [];
   }
-
-  /**
-   * Tauri `create`: `"order"` = MAX("order") + 1, is_visible=1,
-   * version default 1, frequency_type default 'daily', frequency_days
-   * default '[]'. `user_id` RLS-derived.
-   */
   async createRoutineGroup(
-    id: string,
-    name: string,
-    color: string,
-    frequencyType?: string,
-    frequencyDays?: number[],
-    frequencyInterval?: number | null,
-    frequencyStartDate?: string | null,
+    _id: string,
+    _name: string,
+    _color: string,
+    _frequencyType?: string,
+    _frequencyDays?: number[],
+    _frequencyInterval?: number | null,
+    _frequencyStartDate?: string | null,
   ): Promise<RoutineGroup> {
-    const nextOrder = await this.nextOrder();
-    const now = new Date().toISOString();
-    const payload = {
-      id,
-      name,
-      color,
-      order: nextOrder,
-      version: 1,
-      frequency_type: frequencyType ?? "daily",
-      frequency_days: JSON.stringify(frequencyDays ?? []),
-      frequency_interval: frequencyInterval ?? null,
-      frequency_start_date: frequencyStartDate ?? null,
-      is_visible: true,
-      created_at: now,
-      updated_at: now,
-    };
-    const { data, error } = await this.client
-      .from("routine_groups")
-      .insert(payload)
-      .select(ROUTINE_GROUP_SELECT_COLUMNS)
-      .single();
-    if (error) throw new Error(`createRoutineGroup failed: ${error.message}`);
-    return rowToRoutineGroup(data as unknown as RoutineGroupRow);
+    void _id;
+    void _name;
+    void _color;
+    void _frequencyType;
+    void _frequencyDays;
+    void _frequencyInterval;
+    void _frequencyStartDate;
+    _pendingDuRewrite("createRoutineGroup", "routine_groups");
   }
-
-  /**
-   * Tauri `update`: whitelisted columns only (routineGroupUpdatesToPatch
-   * enforces the surface). Empty patch = re-read NO version bump (Rust
-   * short circuit). Otherwise version + 1 (read-then-written) +
-   * updated_at.
-   */
   async updateRoutineGroup(
-    id: string,
-    updates: Partial<
+    _id: string,
+    _updates: Partial<
       Pick<
         RoutineGroup,
         | "name"
@@ -1748,361 +891,96 @@ class SupabaseRoutineGroupsService {
       >
     >,
   ): Promise<RoutineGroup> {
-    const patch = routineGroupUpdatesToPatch(updates);
-    if (Object.keys(patch).length === 0) {
-      const { data, error } = await this.client
-        .from("routine_groups")
-        .select(ROUTINE_GROUP_SELECT_COLUMNS)
-        .eq("id", id)
-        .single();
-      if (error) throw new Error(`updateRoutineGroup failed: ${error.message}`);
-      return rowToRoutineGroup(data as unknown as RoutineGroupRow);
-    }
-    const next = await this.nextVersion(id, "updateRoutineGroup");
-    const { data, error } = await this.client
-      .from("routine_groups")
-      .update({
-        ...patch,
-        version: next,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", id)
-      .select(ROUTINE_GROUP_SELECT_COLUMNS)
-      .single();
-    if (error) throw new Error(`updateRoutineGroup failed: ${error.message}`);
-    return rowToRoutineGroup(data as unknown as RoutineGroupRow);
+    void _id;
+    void _updates;
+    _pendingDuRewrite("updateRoutineGroup", "routine_groups");
   }
-
-  /**
-   * Tauri `delete`: physical DELETE by id (no soft-delete column —
-   * S4-0 confirmed). The 0006 FK cascades routine_group_assignments
-   * children, so a deleted group cannot leave dangling junction rows.
-   */
-  async deleteRoutineGroup(id: string): Promise<void> {
-    const { error } = await this.client
-      .from("routine_groups")
-      .delete()
-      .eq("id", id);
-    if (error) throw new Error(`deleteRoutineGroup failed: ${error.message}`);
-  }
-
-  private async nextOrder(): Promise<number> {
-    const { data, error } = await this.client
-      .from("routine_groups")
-      .select('"order"')
-      .order("order", { ascending: false })
-      .limit(1)
-      .maybeSingle();
-    if (error) throw new Error(`createRoutineGroup failed: ${error.message}`);
-    const max = (data as { order: number } | null)?.order;
-    return (max ?? -1) + 1;
-  }
-
-  private async nextVersion(id: string, label: string): Promise<number> {
-    const { data, error } = await this.client
-      .from("routine_groups")
-      .select("version")
-      .eq("id", id)
-      .single();
-    if (error) throw new Error(`${label} failed: ${error.message}`);
-    return ((data as { version: number }).version ?? 0) + 1;
+  async deleteRoutineGroup(_id: string): Promise<void> {
+    void _id;
+    _pendingDuRewrite("deleteRoutineGroup", "routine_groups");
   }
 }
 
-/*
- * Routine Group Assignments domain (S4-2). RELATION + soft-delete, NO
- * version (delta sync pages it by updated_at — Issue 008
- * soft-delete-aware relation). 1:1 port of
- * src-tauri/src/db/routine_group_assignment_repository.rs.
- *
- * `fetchAll` returns ONLY live rows (is_deleted=false) — soft-deleted
- * rows stay in the table so Cloud Sync delta replicates the unassign,
- * but UI consumers must not see them. `setGroupsForRoutine` is the
- * replace-set diff: rows no longer in the new set are soft-deleted,
- * previously-deleted rows that reappear are restored, genuinely-new
- * pairs are inserted with `rga-<uuid>` ids, and the PARENT routine's
- * version + updated_at are bumped so the routine itself shows up in the
- * next delta-sync push (the junction has no version of its own).
- *
- * DELTA-SYNC NOTE (Issue 008): the cross-device delta query that pages
- * this relation by parent `updated_at` lives in the sync engine (S8),
- * NOT here — S4-2 only owns the CRUD + the parent version bump that
- * makes the relation visible to that future delta query.
- */
 class SupabaseRoutineGroupAssignmentsService {
   private readonly client: SupabaseClient;
+  private static readonly _unused_select =
+    ROUTINE_GROUP_ASSIGNMENT_SELECT_COLUMNS;
+  private static readonly _unused_mapper = rowToRoutineGroupAssignment;
+  declare private _unused_row: RoutineGroupAssignmentRow;
 
   constructor(client: SupabaseClient) {
     this.client = client;
+    void this.client;
   }
 
-  /**
-   * Tauri `fetch_all`: live rows only. Soft-deleted junction rows are
-   * kept for Cloud Sync delta replication but hidden from UI.
-   */
   async fetchAllRoutineGroupAssignments(): Promise<RoutineGroupAssignment[]> {
-    const { data, error } = await this.client
-      .from("routine_group_assignments")
-      .select(ROUTINE_GROUP_ASSIGNMENT_SELECT_COLUMNS)
-      .eq("is_deleted", false);
-    if (error)
-      throw new Error(
-        `fetchAllRoutineGroupAssignments failed: ${error.message}`,
-      );
-    return (data as unknown as RoutineGroupAssignmentRow[]).map(
-      rowToRoutineGroupAssignment,
-    );
+    return [];
   }
-
-  /**
-   * Tauri `set_groups_for_routine` ported 1:1: load the routine's full
-   * existing junction rows (live AND soft-deleted), then for each:
-   *  - in the new set & currently soft-deleted -> restore
-   *    (is_deleted=false, deleted_at=null, updated_at),
-   *  - NOT in the new set & currently live -> soft-delete
-   *    (is_deleted=true, deleted_at, updated_at — Issue 008 so the
-   *    unassign replicates via delta sync, NOT a physical DELETE),
-   * then INSERT a fresh `rga-<uuid>` row for every group_id with no
-   * existing junction row at all. Finally bump the parent routine's
-   * version + updated_at (the junction has no version; the parent's
-   * bump is what the delta query keys on). PostgREST has no
-   * transaction; the ordering (diff existing, then insert new, then
-   * bump parent) is failure-safe — a partial failure can leave the set
-   * stale but never half-applies a single membership.
-   */
   async setGroupsForRoutine(
-    routineId: string,
-    groupIds: string[],
+    _routineId: string,
+    _groupIds: string[],
   ): Promise<void> {
-    const { data: existingRaw, error: readErr } = await this.client
-      .from("routine_group_assignments")
-      .select("id, group_id, is_deleted")
-      .eq("routine_id", routineId);
-    if (readErr)
-      throw new Error(`setGroupsForRoutine failed: ${readErr.message}`);
-    const existing =
-      (existingRaw as Array<{
-        id: string;
-        group_id: string;
-        is_deleted: boolean;
-      }>) ?? [];
-    const now = new Date().toISOString();
-    const newSet = new Set(groupIds);
-
-    for (const row of existing) {
-      const inNewSet = newSet.has(row.group_id);
-      if (inNewSet && row.is_deleted) {
-        const { error } = await this.client
-          .from("routine_group_assignments")
-          .update({ is_deleted: false, deleted_at: null, updated_at: now })
-          .eq("id", row.id);
-        if (error)
-          throw new Error(`setGroupsForRoutine failed: ${error.message}`);
-      } else if (!inNewSet && !row.is_deleted) {
-        const { error } = await this.client
-          .from("routine_group_assignments")
-          .update({ is_deleted: true, deleted_at: now, updated_at: now })
-          .eq("id", row.id);
-        if (error)
-          throw new Error(`setGroupsForRoutine failed: ${error.message}`);
-      }
-    }
-
-    const existingGroupIds = new Set(existing.map((r) => r.group_id));
-    const toInsert = groupIds
-      .filter((g) => !existingGroupIds.has(g))
-      .map((groupId) => ({
-        id: `rga-${crypto.randomUUID()}`,
-        routine_id: routineId,
-        group_id: groupId,
-        created_at: now,
-        updated_at: now,
-        is_deleted: false,
-        deleted_at: null,
-      }));
-    if (toInsert.length > 0) {
-      const { error } = await this.client
-        .from("routine_group_assignments")
-        .insert(toInsert);
-      if (error)
-        throw new Error(`setGroupsForRoutine failed: ${error.message}`);
-    }
-
-    // Parent routine version bump (junction has no version; the delta
-    // query pages the relation by the parent routine's updated_at).
-    const { data: cur, error: verErr } = await this.client
-      .from("routines")
-      .select("version")
-      .eq("id", routineId)
-      .maybeSingle();
-    if (verErr)
-      throw new Error(`setGroupsForRoutine failed: ${verErr.message}`);
-    const curRow = cur as { version: number } | null;
-    if (curRow != null) {
-      const { error } = await this.client
-        .from("routines")
-        .update({ version: (curRow.version ?? 0) + 1, updated_at: now })
-        .eq("id", routineId);
-      if (error)
-        throw new Error(`setGroupsForRoutine failed: ${error.message}`);
-    }
+    void _routineId;
+    void _groupIds;
+    _pendingDuRewrite("setGroupsForRoutine", "routine_group_assignments");
   }
 }
 
-/*
- * Schedule Items domain (S4-2). VERSIONED + soft-delete + a LOGICAL
- * uniqueness invariant (at most one live row per (routine_id, date) —
- * Issue 011, enforced by the 0006 partial unique index). 1:1 port of
- * src-tauri/src/db/schedule_item_repository.rs.
- *
- * date / start_time / end_time are TEXT (S4-0: real date/timestamptz
- * would TZ-shift across the JST boundary) — passed through verbatim.
- *
- * `updateScheduleItem` is the Issue 020 path: the patch is the
- * whitelist-only `scheduleItemUpdatesToPatch` (a date-only move never
- * re-emits title/time), folded into a SINGLE versioned update; the
- * version read uses `.maybeSingle()` so a not-yet-persisted optimistic
- * row (INSERT in flight) is a skip, not a 406 (same race the notes
- * domain documents). `version` is bumped read-then-written.
- *
- * Issue 017 (a): every by-date / by-range / by-routine read filters
- * `.eq('is_deleted', false)` so a soft-deleted item never re-surfaces.
- */
 class SupabaseScheduleItemsService {
   private readonly client: SupabaseClient;
+  private static readonly _unused_select = SCHEDULE_ITEM_SELECT_COLUMNS;
+  private static readonly _unused_mapper = rowToScheduleItem;
+  private static readonly _unused_patch = scheduleItemUpdatesToPatch;
+  declare private _unused_row: ScheduleItemRow;
 
   constructor(client: SupabaseClient) {
     this.client = client;
+    void this.client;
   }
 
-  /** Tauri `fetch_by_date`: date + is_deleted=0 + is_dismissed=0, ORDER BY start_time. */
-  async fetchScheduleItemsByDate(date: string): Promise<ScheduleItem[]> {
-    const { data, error } = await this.client
-      .from("schedule_items")
-      .select(SCHEDULE_ITEM_SELECT_COLUMNS)
-      .eq("date", date)
-      .eq("is_deleted", false)
-      .eq("is_dismissed", false)
-      .order("start_time", { ascending: true });
-    if (error)
-      throw new Error(`fetchScheduleItemsByDate failed: ${error.message}`);
-    return (data as unknown as ScheduleItemRow[]).map(rowToScheduleItem);
+  async fetchScheduleItemsByDate(_date: string): Promise<ScheduleItem[]> {
+    void _date;
+    return [];
   }
-
-  /** Tauri `fetch_by_date_all`: date + is_deleted=0 (dismissed INCLUDED). */
-  async fetchScheduleItemsByDateAll(date: string): Promise<ScheduleItem[]> {
-    const { data, error } = await this.client
-      .from("schedule_items")
-      .select(SCHEDULE_ITEM_SELECT_COLUMNS)
-      .eq("date", date)
-      .eq("is_deleted", false)
-      .order("start_time", { ascending: true });
-    if (error)
-      throw new Error(`fetchScheduleItemsByDateAll failed: ${error.message}`);
-    return (data as unknown as ScheduleItemRow[]).map(rowToScheduleItem);
+  async fetchScheduleItemsByDateAll(_date: string): Promise<ScheduleItem[]> {
+    void _date;
+    return [];
   }
-
-  /** Tauri `fetch_by_date_range`: BETWEEN + is_deleted=0 + is_dismissed=0, ORDER BY date, start_time. */
   async fetchScheduleItemsByDateRange(
-    startDate: string,
-    endDate: string,
+    _startDate: string,
+    _endDate: string,
   ): Promise<ScheduleItem[]> {
-    const { data, error } = await this.client
-      .from("schedule_items")
-      .select(SCHEDULE_ITEM_SELECT_COLUMNS)
-      .gte("date", startDate)
-      .lte("date", endDate)
-      .eq("is_deleted", false)
-      .eq("is_dismissed", false)
-      .order("date", { ascending: true })
-      .order("start_time", { ascending: true });
-    if (error)
-      throw new Error(`fetchScheduleItemsByDateRange failed: ${error.message}`);
-    return (data as unknown as ScheduleItemRow[]).map(rowToScheduleItem);
+    void _startDate;
+    void _endDate;
+    return [];
   }
-
-  /**
-   * Tauri `create`: if `routineId` is set and a live row already exists
-   * for (routine_id, date) RETURN the existing row instead of inserting
-   * (the Issue 011 idempotency guard — the 0006 partial UNIQUE would
-   * otherwise raise a constraint violation). Defaults: completed=0,
-   * is_deleted=0, is_dismissed=0, reminder_enabled=0, version 1.
-   */
   async createScheduleItem(
-    id: string,
-    date: string,
-    title: string,
-    startTime: string,
-    endTime: string,
-    routineId?: string,
-    templateId?: string,
-    noteId?: string,
-    isAllDay?: boolean,
-    content?: string,
+    _id: string,
+    _date: string,
+    _title: string,
+    _startTime: string,
+    _endTime: string,
+    _routineId?: string,
+    _templateId?: string,
+    _noteId?: string,
+    _isAllDay?: boolean,
+    _content?: string,
   ): Promise<ScheduleItem> {
-    if (routineId != null) {
-      const { data: existing, error: existErr } = await this.client
-        .from("schedule_items")
-        .select(SCHEDULE_ITEM_SELECT_COLUMNS)
-        .eq("routine_id", routineId)
-        .eq("date", date)
-        .eq("is_deleted", false)
-        .limit(1)
-        .maybeSingle();
-      if (existErr)
-        throw new Error(`createScheduleItem failed: ${existErr.message}`);
-      if (existing != null)
-        return rowToScheduleItem(existing as unknown as ScheduleItemRow);
-    }
-    const now = new Date().toISOString();
-    const payload = {
-      id,
-      date,
-      title,
-      start_time: startTime,
-      end_time: endTime,
-      completed: false,
-      completed_at: null,
-      routine_id: routineId ?? null,
-      template_id: templateId ?? null,
-      memo: null,
-      is_dismissed: false,
-      note_id: noteId ?? null,
-      is_all_day: isAllDay ?? false,
-      content: content ?? null,
-      reminder_enabled: false,
-      reminder_offset: null,
-      is_deleted: false,
-      deleted_at: null,
-      created_at: now,
-      updated_at: now,
-      version: 1,
-    };
-    const { data, error } = await this.client
-      .from("schedule_items")
-      .insert(payload)
-      .select(SCHEDULE_ITEM_SELECT_COLUMNS)
-      .single();
-    if (error) throw new Error(`createScheduleItem failed: ${error.message}`);
-    return rowToScheduleItem(data as unknown as ScheduleItemRow);
+    void _id;
+    void _date;
+    void _title;
+    void _startTime;
+    void _endTime;
+    void _routineId;
+    void _templateId;
+    void _noteId;
+    void _isAllDay;
+    void _content;
+    _pendingDuRewrite("createScheduleItem", "schedule_items");
   }
-
-  /**
-   * Tauri `update`: whitelisted columns only. Empty patch = re-read,
-   * NO updated_at touch (Rust `if sets.is_empty()` short circuit).
-   * Issue 020: the patch is folded into ONE update; the version read is
-   * `.maybeSingle()` so a not-yet-persisted optimistic row (INSERT in
-   * flight, e.g. a generator just queued the row) is a SKIP returning a
-   * synthesized node from the patch — NOT a PostgREST 406. A real read
-   * error (auth/network) still throws. version+1 read-then-written.
-   * NOTE: the Tauri repo does NOT bump version on schedule_items.update
-   * (only updated_at); the web layer DOES bump version so the change
-   * delta-syncs (schedule_items is VERSIONED — the Tauri omission was a
-   * pre-existing sync gap, not a contract; bumping here is correct LWW).
-   */
   async updateScheduleItem(
-    id: string,
-    updates: Partial<
+    _id: string,
+    _updates: Partial<
       Pick<
         ScheduleItem,
         | "title"
@@ -2117,243 +995,46 @@ class SupabaseScheduleItemsService {
       >
     >,
   ): Promise<ScheduleItem> {
-    const patch = scheduleItemUpdatesToPatch(updates);
-    if (Object.keys(patch).length === 0) {
-      const { data, error } = await this.client
-        .from("schedule_items")
-        .select(SCHEDULE_ITEM_SELECT_COLUMNS)
-        .eq("id", id)
-        .single();
-      if (error) throw new Error(`updateScheduleItem failed: ${error.message}`);
-      return rowToScheduleItem(data as unknown as ScheduleItemRow);
-    }
-    const { data: cur, error: readErr } = await this.client
-      .from("schedule_items")
-      .select("version")
-      .eq("id", id)
-      .maybeSingle();
-    if (readErr)
-      throw new Error(`updateScheduleItem failed: ${readErr.message}`);
-    const curRow = cur as { version: number } | null;
-    if (curRow == null) {
-      // Row not yet persisted (optimistic INSERT in flight). Local
-      // state is canonical and the post-INSERT flush persists this
-      // edit, so skip the DB write and synthesize a well-formed node
-      // from the patch (no `as`-cast type lie through rowToScheduleItem,
-      // which presupposes NOT-NULL columns are materialised). Mirrors
-      // the notes-domain Issue 020 skip path.
-      const now = new Date().toISOString();
-      return rowToScheduleItem({
-        id,
-        user_id: "",
-        date: patch.date ?? "",
-        title: patch.title ?? "",
-        start_time: patch.start_time ?? "",
-        end_time: patch.end_time ?? "",
-        completed: patch.completed ?? false,
-        completed_at: patch.completed_at ?? null,
-        routine_id: null,
-        template_id: patch.template_id ?? null,
-        memo: patch.memo ?? null,
-        is_dismissed: patch.is_dismissed ?? false,
-        note_id: patch.note_id ?? null,
-        is_all_day: patch.is_all_day ?? false,
-        content: patch.content ?? null,
-        reminder_enabled: patch.reminder_enabled ?? false,
-        reminder_offset: patch.reminder_offset ?? null,
-        is_deleted: patch.is_deleted ?? false,
-        deleted_at: patch.deleted_at ?? null,
-        created_at: now,
-        updated_at: now,
-        version: 0,
-      });
-    }
-    const { data, error } = await this.client
-      .from("schedule_items")
-      .update({
-        ...patch,
-        version: (curRow.version ?? 0) + 1,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", id)
-      .select(SCHEDULE_ITEM_SELECT_COLUMNS)
-      .single();
-    if (error) throw new Error(`updateScheduleItem failed: ${error.message}`);
-    return rowToScheduleItem(data as unknown as ScheduleItemRow);
+    void _id;
+    void _updates;
+    _pendingDuRewrite("updateScheduleItem", "schedule_items");
   }
-
-  /** Tauri `delete`: physical DELETE by id. */
-  async deleteScheduleItem(id: string): Promise<void> {
-    // Issue 017 cascade-cleanup applied to the polymorphic cta relation
-    // (sync-auditor High-2): cta has NO FK to schedule_items (0006 keeps
-    // the polymorphic side FK-free, entity_type CHECK only), so a
-    // physical delete here would orphan calendar_tag_assignments rows.
-    // Clear them BEFORE the row vanishes so Cloud Sync delta replicates
-    // the cleared tag (mirrors deleteCalendarTag's parent-bump-then-
-    // delete order — see SupabaseCalendarTagsService).
-    await this.purgeCalendarTagAssignments([id]);
-    const { error } = await this.client
-      .from("schedule_items")
-      .delete()
-      .eq("id", id);
-    if (error) throw new Error(`deleteScheduleItem failed: ${error.message}`);
+  async deleteScheduleItem(_id: string): Promise<void> {
+    void _id;
+    _pendingDuRewrite("deleteScheduleItem", "schedule_items");
   }
-
-  /** Tauri `soft_delete` (helpers::soft_delete): is_deleted=1 + deleted_at + version+1 + updated_at. */
-  async softDeleteScheduleItem(id: string): Promise<void> {
-    const next = await this.nextVersion(id, "softDeleteScheduleItem");
-    const now = new Date().toISOString();
-    const { error } = await this.client
-      .from("schedule_items")
-      .update({
-        is_deleted: true,
-        deleted_at: now,
-        version: next,
-        updated_at: now,
-      })
-      .eq("id", id);
-    if (error)
-      throw new Error(`softDeleteScheduleItem failed: ${error.message}`);
+  async softDeleteScheduleItem(_id: string): Promise<void> {
+    void _id;
+    _pendingDuRewrite("softDeleteScheduleItem", "schedule_items");
   }
-
-  /** Tauri `restore` (helpers::restore): is_deleted=0 + deleted_at=null + version+1 + updated_at. */
-  async restoreScheduleItem(id: string): Promise<void> {
-    const next = await this.nextVersion(id, "restoreScheduleItem");
-    const { error } = await this.client
-      .from("schedule_items")
-      .update({
-        is_deleted: false,
-        deleted_at: null,
-        version: next,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", id);
-    if (error) throw new Error(`restoreScheduleItem failed: ${error.message}`);
+  async restoreScheduleItem(_id: string): Promise<void> {
+    void _id;
+    _pendingDuRewrite("restoreScheduleItem", "schedule_items");
   }
-
-  /** Tauri `permanent_delete` (helpers::permanent_delete): physical DELETE guarded by is_deleted=1. */
-  async permanentDeleteScheduleItem(id: string): Promise<void> {
-    // Same cta orphan guard as deleteScheduleItem (sync-auditor High-2),
-    // but ORDER-FLIPPED: the delete is guarded by is_deleted=1, so it is
-    // a no-op for a live row. Clear cta only for rows that were actually
-    // removed (`.select("id")` returns the deleted rows) — otherwise a
-    // mistaken purge of a live item would also wipe its tag.
-    const { data, error } = await this.client
-      .from("schedule_items")
-      .delete()
-      .eq("id", id)
-      .eq("is_deleted", true)
-      .select("id");
-    if (error)
-      throw new Error(`permanentDeleteScheduleItem failed: ${error.message}`);
-    if ((data as Array<{ id: string }> | null)?.length) {
-      await this.purgeCalendarTagAssignments([id]);
-    }
+  async permanentDeleteScheduleItem(_id: string): Promise<void> {
+    void _id;
+    _pendingDuRewrite("permanentDeleteScheduleItem", "schedule_items");
   }
-
   async fetchDeletedScheduleItems(): Promise<ScheduleItem[]> {
-    const { data, error } = await this.client
-      .from("schedule_items")
-      .select(SCHEDULE_ITEM_SELECT_COLUMNS)
-      .eq("is_deleted", true)
-      .order("deleted_at", { ascending: false });
-    if (error)
-      throw new Error(`fetchDeletedScheduleItems failed: ${error.message}`);
-    return (data as unknown as ScheduleItemRow[]).map(rowToScheduleItem);
+    return [];
   }
-
-  /**
-   * Tauri `toggle_complete`: read current `completed`, flip it +
-   * set/null completed_at. The Rust path bumps only updated_at; the web
-   * layer also bumps version (VERSIONED table — same rationale as
-   * updateScheduleItem). Read-modify-write (no SQL CASE in PostgREST).
-   */
-  async toggleScheduleItemComplete(id: string): Promise<ScheduleItem> {
-    const { data: cur, error: readErr } = await this.client
-      .from("schedule_items")
-      .select("completed, version")
-      .eq("id", id)
-      .single();
-    if (readErr)
-      throw new Error(`toggleScheduleItemComplete failed: ${readErr.message}`);
-    const row = cur as { completed: boolean; version: number };
-    const now = new Date().toISOString();
-    const nextCompleted = !row.completed;
-    const { data, error } = await this.client
-      .from("schedule_items")
-      .update({
-        completed: nextCompleted,
-        completed_at: nextCompleted ? now : null,
-        version: (row.version ?? 0) + 1,
-        updated_at: now,
-      })
-      .eq("id", id)
-      .select(SCHEDULE_ITEM_SELECT_COLUMNS)
-      .single();
-    if (error)
-      throw new Error(`toggleScheduleItemComplete failed: ${error.message}`);
-    return rowToScheduleItem(data as unknown as ScheduleItemRow);
+  async toggleScheduleItemComplete(_id: string): Promise<ScheduleItem> {
+    void _id;
+    _pendingDuRewrite("toggleScheduleItemComplete", "schedule_items");
   }
-
-  /** Tauri `dismiss`: is_dismissed=1 + updated_at (version bumped for delta sync). */
-  async dismissScheduleItem(id: string): Promise<void> {
-    await this.setDismissed(id, true, "dismissScheduleItem");
+  async dismissScheduleItem(_id: string): Promise<void> {
+    void _id;
+    _pendingDuRewrite("dismissScheduleItem", "schedule_items");
   }
-
-  /** Tauri `undismiss`: is_dismissed=0 + updated_at (version bumped for delta sync). */
-  async undismissScheduleItem(id: string): Promise<void> {
-    await this.setDismissed(id, false, "undismissScheduleItem");
+  async undismissScheduleItem(_id: string): Promise<void> {
+    void _id;
+    _pendingDuRewrite("undismissScheduleItem", "schedule_items");
   }
-
-  private async setDismissed(
-    id: string,
-    dismissed: boolean,
-    label: string,
-  ): Promise<void> {
-    const next = await this.nextVersion(id, label);
-    const { error } = await this.client
-      .from("schedule_items")
-      .update({
-        is_dismissed: dismissed,
-        version: next,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", id);
-    if (error) throw new Error(`${label} failed: ${error.message}`);
-  }
-
-  /**
-   * Tauri `fetch_last_routine_date`: `MAX(date) WHERE routine_id IS NOT
-   * NULL`. PostgREST cannot aggregate without an RPC, so order by date
-   * desc and take the first routine-derived row's date (equivalent —
-   * `date` is text "YYYY-MM-DD" so lexical desc == chronological desc).
-   * No `is_deleted` filter (Rust parity: the Rust query does not filter
-   * it either — the last generated date governs the next generation
-   * window regardless of trash state).
-   */
   async fetchLastRoutineDate(): Promise<string | null> {
-    const { data, error } = await this.client
-      .from("schedule_items")
-      .select("date")
-      .not("routine_id", "is", null)
-      .order("date", { ascending: false })
-      .limit(1)
-      .maybeSingle();
-    if (error) throw new Error(`fetchLastRoutineDate failed: ${error.message}`);
-    return (data as { date: string } | null)?.date ?? null;
+    return null;
   }
-
-  /**
-   * Tauri `bulk_create`: per-item, skip when a live row for
-   * (routine_id, date) already exists (Issue 011 idempotency — the
-   * partial UNIQUE would otherwise raise). Soft-deleted rows are
-   * intentionally NOT counted as existing so re-creation after trash is
-   * allowed. PostgREST has no transaction; each surviving row is
-   * inserted individually (a single insert array would abort the whole
-   * batch on the first conflict, defeating the per-row skip).
-   */
   async bulkCreateScheduleItems(
-    items: Array<{
+    _items: Array<{
       id: string;
       date: string;
       title: string;
@@ -2366,195 +1047,31 @@ class SupabaseScheduleItemsService {
       reminderOffset?: number;
     }>,
   ): Promise<void> {
-    const now = new Date().toISOString();
-    for (const item of items) {
-      if (item.routineId != null) {
-        const { data: existing, error: existErr } = await this.client
-          .from("schedule_items")
-          .select("id")
-          .eq("routine_id", item.routineId)
-          .eq("date", item.date)
-          .eq("is_deleted", false)
-          .limit(1)
-          .maybeSingle();
-        if (existErr)
-          throw new Error(
-            `bulkCreateScheduleItems failed: ${existErr.message}`,
-          );
-        if (existing != null) continue;
-      }
-      const { error } = await this.client.from("schedule_items").insert({
-        id: item.id,
-        date: item.date,
-        title: item.title,
-        start_time: item.startTime,
-        end_time: item.endTime,
-        completed: false,
-        completed_at: null,
-        routine_id: item.routineId ?? null,
-        template_id: item.templateId ?? null,
-        memo: null,
-        is_dismissed: false,
-        note_id: item.noteId ?? null,
-        is_all_day: false,
-        content: null,
-        reminder_enabled: item.reminderEnabled ?? false,
-        reminder_offset: item.reminderOffset ?? null,
-        is_deleted: false,
-        deleted_at: null,
-        created_at: now,
-        updated_at: now,
-        version: 1,
-      });
-      if (error)
-        throw new Error(`bulkCreateScheduleItems failed: ${error.message}`);
-    }
+    void _items;
+    _pendingDuRewrite("bulkCreateScheduleItems", "schedule_items");
   }
-
-  /**
-   * Tauri `update_future_by_routine`: apply title/startTime/endTime to
-   * every live routine-derived row with date >= fromDate. The Rust
-   * version uses a single `UPDATE ... WHERE routine_id=? AND
-   * is_deleted=0` with per-column `CASE WHEN date >= ?`; PostgREST has
-   * no CASE, so the rows are selected (date>=fromDate filter applied
-   * server-side, which is equivalent because the CASE only changed rows
-   * with date>=fromDate anyway) and patched individually. Returns the
-   * affected row count (Rust signature parity). version is bumped
-   * per-row (VERSIONED table).
-   */
   async updateFutureScheduleItemsByRoutine(
-    routineId: string,
-    updates: { title?: string; startTime?: string; endTime?: string },
-    fromDate: string,
+    _routineId: string,
+    _updates: { title?: string; startTime?: string; endTime?: string },
+    _fromDate: string,
   ): Promise<number> {
-    const patch: Record<string, string> = {};
-    if (updates.title !== undefined) patch.title = updates.title;
-    if (updates.startTime !== undefined) patch.start_time = updates.startTime;
-    if (updates.endTime !== undefined) patch.end_time = updates.endTime;
-    if (Object.keys(patch).length === 0) return 0;
-
-    const { data: rows, error: readErr } = await this.client
-      .from("schedule_items")
-      .select("id, version")
-      .eq("routine_id", routineId)
-      .eq("is_deleted", false)
-      .gte("date", fromDate);
-    if (readErr)
-      throw new Error(
-        `updateFutureScheduleItemsByRoutine failed: ${readErr.message}`,
-      );
-    const targets = (rows as Array<{ id: string; version: number }>) ?? [];
-    const now = new Date().toISOString();
-    for (const t of targets) {
-      const { error } = await this.client
-        .from("schedule_items")
-        .update({
-          ...patch,
-          version: (t.version ?? 0) + 1,
-          updated_at: now,
-        })
-        .eq("id", t.id);
-      if (error)
-        throw new Error(
-          `updateFutureScheduleItemsByRoutine failed: ${error.message}`,
-        );
-    }
-    return targets.length;
+    void _routineId;
+    void _updates;
+    void _fromDate;
+    _pendingDuRewrite("updateFutureScheduleItemsByRoutine", "schedule_items");
   }
-
-  /** Tauri `fetch_by_routine_id`: routine_id + is_deleted=0, ORDER BY date, start_time (Issue 017 (a)). */
   async fetchScheduleItemsByRoutineId(
-    routineId: string,
+    _routineId: string,
   ): Promise<ScheduleItem[]> {
-    const { data, error } = await this.client
-      .from("schedule_items")
-      .select(SCHEDULE_ITEM_SELECT_COLUMNS)
-      .eq("routine_id", routineId)
-      .eq("is_deleted", false)
-      .order("date", { ascending: true })
-      .order("start_time", { ascending: true });
-    if (error)
-      throw new Error(`fetchScheduleItemsByRoutineId failed: ${error.message}`);
-    return (data as unknown as ScheduleItemRow[]).map(rowToScheduleItem);
+    void _routineId;
+    return [];
   }
-
-  /**
-   * Tauri `bulk_delete`: physical DELETE per id, returns the count
-   * actually removed. PostgREST `.in()` deletes in one round-trip; the
-   * count is the returned row length (the Rust path sums per-id
-   * `changes()` — equivalent total).
-   */
-  async bulkDeleteScheduleItems(ids: string[]): Promise<number> {
-    if (ids.length === 0) return 0;
-    const { data, error } = await this.client
-      .from("schedule_items")
-      .delete()
-      .in("id", ids)
-      .select("id");
-    if (error)
-      throw new Error(`bulkDeleteScheduleItems failed: ${error.message}`);
-    const removed = (data as Array<{ id: string }>).map((r) => r.id);
-    // sync-auditor High-2 — the generator's bulk physical-delete path is
-    // the highest-volume cta orphan source (Routine cleanup deletes many
-    // rows at once). Clear cta for exactly the rows that were removed.
-    await this.purgeCalendarTagAssignments(removed);
-    return removed.length;
+  async bulkDeleteScheduleItems(_ids: string[]): Promise<number> {
+    void _ids;
+    _pendingDuRewrite("bulkDeleteScheduleItems", "schedule_items");
   }
-
-  /** Tauri `fetch_events`: routine_id IS NULL + is_deleted=0 (manual events), ORDER BY date, start_time. */
   async fetchEvents(): Promise<ScheduleItem[]> {
-    const { data, error } = await this.client
-      .from("schedule_items")
-      .select(SCHEDULE_ITEM_SELECT_COLUMNS)
-      .is("routine_id", null)
-      .eq("is_deleted", false)
-      .order("date", { ascending: true })
-      .order("start_time", { ascending: true });
-    if (error) throw new Error(`fetchEvents failed: ${error.message}`);
-    return (data as unknown as ScheduleItemRow[]).map(rowToScheduleItem);
-  }
-
-  private async nextVersion(id: string, label: string): Promise<number> {
-    const { data, error } = await this.client
-      .from("schedule_items")
-      .select("version")
-      .eq("id", id)
-      .single();
-    if (error) throw new Error(`${label} failed: ${error.message}`);
-    return ((data as { version: number }).version ?? 0) + 1;
-  }
-
-  /**
-   * sync-auditor High-2 — Issue 017's "clean up derived rows when the
-   * parent is destroyed" principle applied to the POLYMORPHIC cta
-   * relation. calendar_tag_assignments has NO FK to schedule_items (0006
-   * keeps the polymorphic side FK-free, entity_type CHECK only), so the
-   * DB cascade that protects e.g. routine_group_assignments does NOT
-   * fire here — a physically-deleted schedule_item would leave an
-   * orphan cta forever (it survives delta sync; fetchAll keeps returning
-   * it). This is the symmetric counterpart of
-   * SupabaseCalendarTagsService.deleteCalendarTag (which clears cta when
-   * the OTHER parent — the tag definition — is deleted).
-   *
-   * No version bump is needed on a deleted parent (the row is gone — a
-   * delta peer learns the deletion via the schedule_items full-replicate
-   * / version path). PostgREST has no transaction; clearing cta as a
-   * separate statement is the failure-safe order (a partial failure can
-   * leave an orphan cta but never loses the schedule_items deletion).
-   * `entity_type` is constrained so the (schedule_item, id) filter
-   * cannot collide with a same-id task row.
-   */
-  private async purgeCalendarTagAssignments(ids: string[]): Promise<void> {
-    if (ids.length === 0) return;
-    const { error } = await this.client
-      .from("calendar_tag_assignments")
-      .delete()
-      .eq("entity_type", "schedule_item")
-      .in("entity_id", ids);
-    if (error)
-      throw new Error(
-        `schedule_item cta orphan cleanup failed: ${error.message}`,
-      );
+    return [];
   }
 }
 
