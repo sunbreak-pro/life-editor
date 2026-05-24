@@ -14,7 +14,7 @@ import {
   X,
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { NavLink, useNavigate } from "react-router-dom";
+import { NavLink, useNavigate, useSearchParams } from "react-router-dom";
 import { useMockStore } from "../hooks/useMockStore";
 import {
   addScheduleItem,
@@ -302,6 +302,7 @@ function WikiTagChip({
 
 export function ScheduleScreen() {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const allScheduleItems = useMockStore((s) => s.scheduleItems);
   const wikiTags = useMockStore((s) => s.wikiTags);
   const scheduleItems = useMemo(
@@ -317,6 +318,8 @@ export function ScheduleScreen() {
     const t = setInterval(() => setToday(new Date()), 60_000);
     return () => clearInterval(t);
   }, []);
+
+  const focusHandledRef = useRef<string | null>(null);
 
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarPanel, setSidebarPanel] = useState<"search" | "filter" | null>(
@@ -382,6 +385,28 @@ export function ScheduleScreen() {
 
   const openEdit = (item: ScheduleItem) => setModalDraft(draftFromItem(item));
 
+  useEffect(() => {
+    const focusId = searchParams.get("focus");
+    if (!focusId) {
+      focusHandledRef.current = null;
+      return;
+    }
+    if (focusHandledRef.current === focusId) return;
+    const target = scheduleItems.find((it) => it.id === focusId);
+    if (!target) return;
+    focusHandledRef.current = focusId;
+    const due = parseYmd(target.due);
+    if (due) {
+      setAnchorDate(due);
+    }
+    setView("three");
+    setSelectedDay(null);
+    setModalDraft(draftFromItem(target));
+    const next = new URLSearchParams(searchParams);
+    next.delete("focus");
+    setSearchParams(next, { replace: true });
+  }, [searchParams, scheduleItems, setSearchParams]);
+
   const handleSave = () => {
     if (!modalDraft) return;
     const title = modalDraft.title.trim();
@@ -446,33 +471,43 @@ export function ScheduleScreen() {
 
       <main className="flex-1 overflow-auto" style={{ background: C.base }}>
         {view === "month" && (
-          <MonthView
-            month={anchorDate}
-            cells={monthCells}
-            itemsByDay={itemsByDay}
-            today={today}
-            selectedDay={selectedDay}
-            onCellClick={(d) => {
-              if (d.getMonth() !== anchorDate.getMonth()) return;
-              setSelectedDay(d);
-            }}
-          />
+          <SwipePane
+            onSwipeLeft={() => setAnchorDate(addMonths(anchorDate, 1))}
+            onSwipeRight={() => setAnchorDate(addMonths(anchorDate, -1))}
+          >
+            <MonthView
+              month={anchorDate}
+              cells={monthCells}
+              itemsByDay={itemsByDay}
+              today={today}
+              selectedDay={selectedDay}
+              onCellClick={(d) => {
+                if (d.getMonth() !== anchorDate.getMonth()) return;
+                setSelectedDay(d);
+              }}
+            />
+          </SwipePane>
         )}
         {view === "three" && (
-          <ThreeDayView
-            days={threeDays}
-            itemsByDay={itemsByDay}
-            today={today}
-            onEventClick={(item) => openEdit(item)}
-            onSlotClick={(day, hour) =>
-              openCreate({
-                due: ymd(day),
-                time: `${String(hour).padStart(2, "0")}:00`,
-                endTime: `${String(Math.min(hour + 1, 23)).padStart(2, "0")}:00`,
-                type: "event",
-              })
-            }
-          />
+          <SwipePane
+            onSwipeLeft={() => setAnchorDate(addDays(anchorDate, 3))}
+            onSwipeRight={() => setAnchorDate(addDays(anchorDate, -3))}
+          >
+            <ThreeDayView
+              days={threeDays}
+              itemsByDay={itemsByDay}
+              today={today}
+              onEventClick={(item) => openEdit(item)}
+              onSlotClick={(day, hour) =>
+                openCreate({
+                  due: ymd(day),
+                  time: `${String(hour).padStart(2, "0")}:00`,
+                  endTime: `${String(Math.min(hour + 1, 23)).padStart(2, "0")}:00`,
+                  type: "event",
+                })
+              }
+            />
+          </SwipePane>
         )}
         {view === "list" && (
           <ListView
@@ -564,6 +599,150 @@ export function ScheduleScreen() {
           )
         }
       />
+    </div>
+  );
+}
+
+type SwipeMode = "idle" | "drag" | "commit-out" | "commit-in" | "snap-back";
+
+function SwipePane({
+  onSwipeLeft,
+  onSwipeRight,
+  children,
+}: {
+  onSwipeLeft: () => void;
+  onSwipeRight: () => void;
+  children: React.ReactNode;
+}) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const startRef = useRef<{
+    x: number;
+    y: number;
+    pid: number;
+    t: number;
+  } | null>(null);
+  const axisRef = useRef<"horizontal" | "vertical" | null>(null);
+  const [dragX, setDragX] = useState(0);
+  const [mode, setMode] = useState<SwipeMode>("idle");
+
+  const resetStart = () => {
+    startRef.current = null;
+    axisRef.current = null;
+  };
+
+  const handlePointerDown = (e: React.PointerEvent) => {
+    if (e.pointerType === "mouse" && e.button !== 0) return;
+    if (mode === "commit-out" || mode === "commit-in") return;
+    startRef.current = {
+      x: e.clientX,
+      y: e.clientY,
+      pid: e.pointerId,
+      t: Date.now(),
+    };
+    axisRef.current = null;
+    setMode("idle");
+    setDragX(0);
+  };
+
+  const handlePointerMove = (e: React.PointerEvent) => {
+    const s = startRef.current;
+    if (!s || s.pid !== e.pointerId) return;
+    const dx = e.clientX - s.x;
+    const dy = e.clientY - s.y;
+    if (axisRef.current === null) {
+      if (Math.abs(dx) < 8 && Math.abs(dy) < 8) return;
+      axisRef.current = Math.abs(dx) > Math.abs(dy) ? "horizontal" : "vertical";
+    }
+    if (axisRef.current === "vertical") {
+      resetStart();
+      if (mode !== "idle") {
+        setMode("snap-back");
+        setDragX(0);
+        window.setTimeout(() => setMode("idle"), 200);
+      }
+      return;
+    }
+    setMode("drag");
+    setDragX(dx);
+  };
+
+  const handlePointerUp = (e: React.PointerEvent) => {
+    const s = startRef.current;
+    resetStart();
+    if (!s || s.pid !== e.pointerId) return;
+    const dx = e.clientX - s.x;
+    const dt = Date.now() - s.t;
+    const width = containerRef.current?.offsetWidth ?? 320;
+    const distance = Math.abs(dx);
+    const isFastFlick = dt < 250 && distance > 30;
+    const shouldCommit = distance > width / 4 || isFastFlick;
+
+    if (!shouldCommit) {
+      setMode("snap-back");
+      setDragX(0);
+      window.setTimeout(() => setMode("idle"), 200);
+      return;
+    }
+
+    const direction = dx > 0 ? 1 : -1;
+    setMode("commit-out");
+    setDragX(direction * width);
+    window.setTimeout(() => {
+      if (direction > 0) onSwipeRight();
+      else onSwipeLeft();
+      setMode("idle");
+      setDragX(-direction * width);
+      window.requestAnimationFrame(() => {
+        setMode("commit-in");
+        setDragX(0);
+        window.setTimeout(() => setMode("idle"), 250);
+      });
+    }, 200);
+  };
+
+  const handlePointerCancel = (e: React.PointerEvent) => {
+    const s = startRef.current;
+    resetStart();
+    if (!s || s.pid !== e.pointerId) return;
+    setMode("snap-back");
+    setDragX(0);
+    window.setTimeout(() => setMode("idle"), 200);
+  };
+
+  const handleClickCapture = (e: React.MouseEvent) => {
+    if (
+      mode === "drag" ||
+      mode === "commit-out" ||
+      mode === "commit-in" ||
+      mode === "snap-back"
+    ) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+  };
+
+  const transition =
+    mode === "idle" || mode === "drag"
+      ? "none"
+      : "transform 220ms cubic-bezier(0.22, 0.61, 0.36, 1)";
+
+  return (
+    <div ref={containerRef} className="overflow-hidden">
+      <div
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={handlePointerUp}
+        onPointerCancel={handlePointerCancel}
+        onClickCapture={handleClickCapture}
+        style={{
+          transform: `translateX(${dragX}px)`,
+          transition,
+          touchAction: "pan-y",
+          willChange: mode === "idle" ? "auto" : "transform",
+        }}
+      >
+        {children}
+      </div>
     </div>
   );
 }
@@ -1154,11 +1333,11 @@ function DayDetailSheet({
         type="button"
         onClick={onClose}
         aria-label="閉じる"
-        className="absolute inset-0"
+        className="absolute inset-0 z-30"
         style={{ background: C.crust, opacity: 0.5 }}
       />
       <div
-        className="absolute left-0 right-0 bottom-0 h-1/2 flex flex-col rounded-t-xl shadow-2xl"
+        className="absolute left-0 right-0 bottom-0 h-1/2 z-30 flex flex-col rounded-t-xl shadow-2xl"
         style={{ background: C.base }}
       >
         <header
@@ -1275,7 +1454,7 @@ function AddEventModal({
 
   return (
     <div
-      className="absolute inset-0 flex flex-col"
+      className="absolute inset-0 z-50 flex flex-col"
       style={{ background: C.base }}
     >
       <header
@@ -1672,11 +1851,11 @@ function ConfirmModal({
         type="button"
         onClick={onCancel}
         aria-label="閉じる"
-        className="absolute inset-0"
+        className="absolute inset-0 z-[60]"
         style={{ background: C.crust, opacity: 0.7 }}
       />
       <div
-        className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[88%] rounded-xl p-4 flex flex-col gap-3"
+        className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[88%] z-[60] rounded-xl p-4 flex flex-col gap-3"
         style={{
           background: C.base,
           border: `1px solid ${C.surface1}`,
@@ -1751,7 +1930,7 @@ function Sidebar({
         onClick={onClose}
         aria-label="メニューを閉じる"
         aria-hidden={!open}
-        className="absolute inset-0 transition-opacity"
+        className="absolute inset-0 z-40 transition-opacity"
         style={{
           background: C.crust,
           opacity: open ? 0.5 : 0,
@@ -1760,7 +1939,7 @@ function Sidebar({
       />
       <aside
         aria-hidden={!open}
-        className="absolute top-0 bottom-0 left-0 w-[280px] flex flex-col transition-transform duration-300 ease-out"
+        className="absolute top-0 bottom-0 left-0 w-[280px] z-40 flex flex-col transition-transform duration-300 ease-out"
         style={{
           background: C.mantle,
           borderRight: `1px solid ${C.surface1}`,

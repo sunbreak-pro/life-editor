@@ -8,12 +8,10 @@
 
 ## 直近エントリ (across all chats, 時系列降順 5 件)
 
-- 2026-05-24 [chat-prototype-mobile] ユーザーテストで 3 件の発見事項を記録 (次セッション fix-pack 予定)
+- 2026-05-24 [chat-prototype-mobile] Phase 3.G fix-pack + Schedule swipe (animated drag + slide-in)
 - 2026-05-24 [chat-prototype-mobile] Phase 3.A〜F: prototype mock CRUD + 6 screens
 - 2026-05-24 [chat-main] DU-D scope-reduced 完了（Notes/Daily shared 2-row mapper + composite FK migration 0014）
 - 2026-05-24 [chat-main] .claude/ 配下整理（vision/plans 精査 + 学習教材削除 + 残骸クリーンアップ）
 - 2026-05-24 [chat-main] DU-C+ scope-reduced 完了（CalendarTag DROP + shared 層 WikiTag mapper/service/Provider 整備）
-- 2026-05-24 [chat-main] 並行作業基盤強化（Stop hook + Plan Gate Convention + 計画書テンプレ）
-- 2026-05-23 [chat-main] Schedule 無限ループ修正（RoutineScheduleSync no-op 化）
 
-古いエントリは `.claude/history/archive/2026-05/chat-main.md` 参照。
+古いエントリは各 `chat-*.md` または `.claude/history/archive/2026-05/chat-main.md` 参照。
