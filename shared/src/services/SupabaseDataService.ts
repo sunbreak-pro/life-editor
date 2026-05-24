@@ -2317,7 +2317,6 @@ class SupabaseCalendarsService {
   }
 }
 
-
 const PHASE2_TASKS_METHODS = new Set<string>([
   "fetchTaskTree",
   "fetchDeletedTasks",
@@ -2468,9 +2467,6 @@ export function createSupabaseDataService(): DataService {
     new SupabaseRoutineGroupAssignmentsService(client);
   const scheduleItemsService = new SupabaseScheduleItemsService(client);
   const calendarsService = new SupabaseCalendarsService(client);
-  const wikiTagsUnifiedService = new SupabaseWikiTagsUnifiedService(client);
-  const notesUnifiedService = new SupabaseNotesUnifiedService(client);
-  const dailiesUnifiedService = new SupabaseDailiesUnifiedService(client);
 
   // Dispatch table: method name -> the instance that implements it. The
   // Proxy's target is arbitrary (an empty object); routing is entirely
