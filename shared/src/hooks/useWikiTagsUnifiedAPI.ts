@@ -4,6 +4,8 @@ import type {
   WikiTag,
   WikiTagAssignment,
   WikiTagConnection,
+  WikiTagGroup,
+  WikiTagGroupAssignment,
 } from "../types/wikiTagUnified";
 import { generateId } from "../utils/generateId";
 import { useSyncContext } from "./useSyncContext";
@@ -31,13 +33,23 @@ export function useWikiTagsUnifiedAPI(options: UseWikiTagsUnifiedAPIOptions) {
   const { syncVersion } = useSyncContext();
 
   const [allTags, setAllTags] = useState<WikiTag[]>([]);
+  const [allGroups, setAllGroups] = useState<WikiTagGroup[]>([]);
+  const [allGroupAssignments, setAllGroupAssignments] = useState<
+    WikiTagGroupAssignment[]
+  >([]);
   const [loading, setLoading] = useState(true);
 
   const refresh = useCallback(async () => {
     setLoading(true);
     try {
-      const tags = await ds.listAllWikiTagsUnified();
+      const [tags, groups, groupAssignments] = await Promise.all([
+        ds.listAllWikiTagsUnified(),
+        ds.listAllWikiTagGroupsUnified(),
+        ds.listAllWikiTagGroupAssignments(),
+      ]);
       setAllTags(tags);
+      setAllGroups(groups);
+      setAllGroupAssignments(groupAssignments);
     } finally {
       setLoading(false);
     }
@@ -143,8 +155,69 @@ export function useWikiTagsUnifiedAPI(options: UseWikiTagsUnifiedAPIOptions) {
     [ds],
   );
 
+  // -- tag groups (DU-F Step 11) ------------------------------------------
+
+  const createGroup = useCallback(
+    async (name: string): Promise<WikiTagGroup> => {
+      const id = generateId("tag_group");
+      const group = await ds.createWikiTagGroupUnified(id, name);
+      setAllGroups((prev) =>
+        [...prev, group].sort((a, b) => a.name.localeCompare(b.name)),
+      );
+      return group;
+    },
+    [ds],
+  );
+
+  const renameGroup = useCallback(
+    async (id: string, name: string): Promise<WikiTagGroup> => {
+      const updated = await ds.updateWikiTagGroupUnified(id, { name });
+      setAllGroups((prev) =>
+        prev
+          .map((g) => (g.id === id ? updated : g))
+          .sort((a, b) => a.name.localeCompare(b.name)),
+      );
+      return updated;
+    },
+    [ds],
+  );
+
+  const deleteGroup = useCallback(
+    async (id: string): Promise<void> => {
+      await ds.softDeleteWikiTagGroupUnified(id);
+      setAllGroups((prev) => prev.filter((g) => g.id !== id));
+      // Memberships of the deleted group are no longer reachable; prune
+      // them from the cache so derived selectors stay consistent. The DB
+      // row itself stays alive (RLS-bound delete is async via DU-G).
+      setAllGroupAssignments((prev) => prev.filter((a) => a.groupId !== id));
+    },
+    [ds],
+  );
+
+  const assignTagToGroup = useCallback(
+    async (tagId: string, groupId: string): Promise<WikiTagGroupAssignment> => {
+      const id = generateId("tag_group_assign");
+      const created = await ds.assignTagToGroup(id, tagId, groupId);
+      setAllGroupAssignments((prev) => [...prev, created]);
+      return created;
+    },
+    [ds],
+  );
+
+  const unassignTagFromGroup = useCallback(
+    async (assignmentId: string): Promise<void> => {
+      await ds.unassignTagFromGroup(assignmentId);
+      setAllGroupAssignments((prev) =>
+        prev.filter((a) => a.id !== assignmentId),
+      );
+    },
+    [ds],
+  );
+
   return {
     allTags,
+    allGroups,
+    allGroupAssignments,
     loading,
     refresh,
     createTag,
@@ -157,5 +230,10 @@ export function useWikiTagsUnifiedAPI(options: UseWikiTagsUnifiedAPIOptions) {
     listLinksToItem,
     createItemLink,
     deleteItemLink,
+    createGroup,
+    renameGroup,
+    deleteGroup,
+    assignTagToGroup,
+    unassignTagFromGroup,
   };
 }

@@ -1,5 +1,6 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useDailyContext } from "@life-editor/shared";
+import { TagPicker, LinkPanel } from "../wikitag";
 
 /*
  * Web Daily UI (S2). The heavy Tauri Daily (TipTap rich editor,
@@ -56,6 +57,21 @@ export function DailyView() {
     setSyncedFrom({ date: selectedDate, content: selectedContent });
     setDraft(selectedContent);
   }
+
+  // Linkable candidates pool (DU-F Step 10): the visible dailies list.
+  // Cross-role links still need raw id paste — DU-G unifies items_meta.
+  const linkableItems = useMemo(
+    () =>
+      dailies.map((d) => ({
+        id: d.id,
+        label: `[daily] ${d.date}`,
+      })),
+    [dailies],
+  );
+  const resolveTitle = (id: string): string | undefined => {
+    const d = dailies.find((dd) => dd.id === id);
+    return d ? `[daily] ${d.date}` : undefined;
+  };
 
   useEffect(() => {
     void loadDeletedDailies();
@@ -125,6 +141,23 @@ export function DailyView() {
           Delete
         </button>
       </div>
+
+      {selectedDaily ? (
+        <div className="space-y-2 rounded-md border border-notion-border p-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <TagPicker itemId={selectedDaily.id} showLabel size="sm" />
+          </div>
+          <LinkPanel
+            itemId={selectedDaily.id}
+            resolveTitle={resolveTitle}
+            linkableItems={linkableItems}
+          />
+        </div>
+      ) : (
+        <p className="text-xs text-notion-text-secondary">
+          Save the daily first to add tags or links.
+        </p>
+      )}
 
       <section>
         <h2 className="mb-2 text-sm font-semibold text-notion-text">

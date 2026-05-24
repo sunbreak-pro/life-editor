@@ -20,6 +20,7 @@ import { ScheduleView } from "./schedule/ScheduleView";
 import { ScheduleItemsView } from "./schedule/ScheduleItemsView";
 import { RoutineScheduleSync } from "./schedule/RoutineScheduleSync";
 import { CalendarView } from "./schedule/CalendarView";
+import { WikiTagsManagementView } from "./wikitag";
 
 /*
  * Phase 2 S1+S2 host shell.
@@ -45,7 +46,7 @@ function getDataService(): DataService {
   return dataServiceSingleton;
 }
 
-type Section = "tasks" | "daily" | "notes" | "schedule";
+type Section = "tasks" | "daily" | "notes" | "schedule" | "tags";
 
 export function MainScreen({ session }: { session: Session }) {
   const ds = useMemo(() => getDataService(), []);
@@ -57,21 +58,23 @@ export function MainScreen({ session }: { session: Session }) {
         <header className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <nav className="flex gap-1" aria-label="Sections">
-              {(["tasks", "daily", "notes", "schedule"] as const).map((s) => (
-                <button
-                  key={s}
-                  type="button"
-                  onClick={() => setSection(s)}
-                  aria-current={section === s ? "page" : undefined}
-                  className={`rounded-md px-3 py-1.5 text-sm capitalize ${
-                    section === s
-                      ? "bg-notion-hover text-notion-text"
-                      : "text-notion-text-secondary hover:bg-notion-hover"
-                  }`}
-                >
-                  {s}
-                </button>
-              ))}
+              {(["tasks", "daily", "notes", "schedule", "tags"] as const).map(
+                (s) => (
+                  <button
+                    key={s}
+                    type="button"
+                    onClick={() => setSection(s)}
+                    aria-current={section === s ? "page" : undefined}
+                    className={`rounded-md px-3 py-1.5 text-sm capitalize ${
+                      section === s
+                        ? "bg-notion-hover text-notion-text"
+                        : "text-notion-text-secondary hover:bg-notion-hover"
+                    }`}
+                  >
+                    {s}
+                  </button>
+                ),
+              )}
             </nav>
           </div>
           <div className="flex items-center gap-3">
@@ -116,21 +119,15 @@ export function MainScreen({ session }: { session: Session }) {
           </SyncProvider>
         )}
         {/*
-         * Schedule trio order (CLAUDE.md §6.2:
-         * … → Routine → ScheduleItems → CalendarTags → …). All three
-         * are now wired (S4-3/4/6): each inner Provider may read the
-         * outer one, so ScheduleItems sits INSIDE Routine and
-         * CalendarTags INSIDE ScheduleItems (the §6.2 order, top-down).
+         * Schedule pair order (CLAUDE.md §6.2): Routine →
+         * ScheduleItems. Each inner Provider may read the outer one
+         * (ScheduleItems sits INSIDE Routine — §6.2 order, top-down).
+         * The historical calendar-tag layer was dropped in DU-C+/DU-F;
+         * WikiTagsUnified replaces it as the 5-role tag/link surface.
          *
-         * CalendarProvider is NOT part of the trio — frontend keeps it
-         * higher and enabled on Mobile (CLAUDE.md §2); it is mounted
-         * here just inside Sync (it only needs the DataService + Sync).
-         *
-         * Mobile note: CalendarTagsProvider is a Mobile 省略 Provider.
-         * The web build is Desktop-shaped so it IS mounted here; on
-         * iOS/Android it would be dropped and CalendarTagsView (which
-         * reads useCalendarTagsContextOptional) renders null instead of
-         * crashing. CalendarProvider stays on Mobile (Calendar is core).
+         * CalendarProvider is NOT part of the schedule pair — frontend
+         * keeps it higher and enabled on Mobile (CLAUDE.md §2); it is
+         * mounted here just inside Sync (only needs DataService + Sync).
          *
          * The Routine→schedule_items generator (S4-5) is the headless
          * RoutineScheduleSync, mounted inside the Providers so it can
@@ -144,13 +141,12 @@ export function MainScreen({ session }: { session: Session }) {
              * FKs tasks(id) with ON DELETE CASCADE — a free-text id hit
              * a 409 calendars_folder_id_fkey. It sits just inside Sync
              * (only needs DataService + Sync) and OUTSIDE the schedule
-             * trio, so the §6.2 trio dependency order is unchanged.
+             * pair, so the §6.2 dependency order is unchanged.
              *
              * WikiTagsUnifiedProvider sits next to TaskTreeProvider —
              * it only needs DataService + Sync and provides Tag/Link
              * surface for ScheduleItemsView (Event Tag/Link UI, DU-F
-             * Step 7). CalendarTagsProvider was removed in DU-F Step 3-4
-             * (DB DROPped in DU-C+ 0012; UI death-code purged here).
+             * Step 7).
              */}
             <TaskTreeProvider dataService={ds}>
               <WikiTagsUnifiedProvider dataService={ds}>
@@ -166,6 +162,20 @@ export function MainScreen({ session }: { session: Session }) {
                 </CalendarProvider>
               </WikiTagsUnifiedProvider>
             </TaskTreeProvider>
+          </SyncProvider>
+        )}
+        {/*
+         * Tags management (DU-F Step 11). Only needs Sync +
+         * WikiTagsUnifiedProvider — no role data, since this view edits
+         * the tag/group master itself. Lives in its own section so the
+         * row-level TagPicker (4 roles) and the master CRUD don't share
+         * UI surface.
+         */}
+        {section === "tags" && (
+          <SyncProvider>
+            <WikiTagsUnifiedProvider dataService={ds}>
+              <WikiTagsManagementView />
+            </WikiTagsUnifiedProvider>
           </SyncProvider>
         )}
       </div>

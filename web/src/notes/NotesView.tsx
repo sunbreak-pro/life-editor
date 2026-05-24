@@ -30,6 +30,7 @@ import {
   NotePasswordDialog,
   type NotePasswordMode,
 } from "./NotePasswordDialog";
+import { TagPicker, LinkPanel } from "../wikitag";
 
 /*
  * Web Notes UI (S3). New, purpose-built notion-token UI (NOT a port of
@@ -273,6 +274,26 @@ export function NotesView() {
     noteId: string;
   } | null>(null);
   const [moveError, setMoveError] = useState<string | null>(null);
+
+  // Linkable candidates pool for the LinkPanel (DU-F Step 9): active
+  // notes only. Cross-role links (note → task / event / daily) still
+  // need a raw id paste — DU-G removes this per-role wiring once
+  // items_meta resolver is unified.
+  const linkableItems = useMemo(
+    () =>
+      notes.notes
+        .filter((n) => !n.isDeleted)
+        .map((n) => ({
+          id: n.id,
+          label: `[${n.type}] ${n.title || "(untitled)"}`,
+        })),
+    [notes.notes],
+  );
+  const resolveTitle = (id: string): string | undefined => {
+    const n = notes.notes.find((nn) => nn.id === id);
+    if (!n) return undefined;
+    return `[${n.type}] ${n.title || "(untitled)"}`;
+  };
   // Session unlock set (no re-lock for the session — mirrors the legacy
   // ScreenLockContext `unlockedIds: Set`). A correct verify adds the note
   // id; switching notes and coming back keeps it unlocked.
@@ -547,6 +568,15 @@ export function NotesView() {
                 Delete
               </button>
             </div>
+
+            <div className="flex flex-wrap items-center gap-2">
+              <TagPicker itemId={selected.id} showLabel size="sm" />
+            </div>
+            <LinkPanel
+              itemId={selected.id}
+              resolveTitle={resolveTitle}
+              linkableItems={linkableItems}
+            />
 
             {(() => {
               const gated =

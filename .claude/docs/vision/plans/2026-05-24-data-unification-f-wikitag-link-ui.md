@@ -328,3 +328,9 @@ web/src/wikitag/
 実装中に判明した設計判断や、計画から逸脱した部分を時系列で記録。完了後に Known Issue 化すべき知見はここから `docs/known-issues/` へ移送。
 
 - **2026-05-24** — v2 リビジョン: v1 計画書 22 Step で Step 1-8 を着手しようとした時点で、`SupabaseNotesUnifiedService` が DU-D scope-reduced により最小 CRUD 6 メソッドのみ（folder / password / lock / syncTree / restore / permanentDelete が未実装）であることが判明。Notes/Daily 完全 Unified 切替は DU-G に分離。本計画は WikiTag/Link UI + CalendarTag 死削除 + wiki_tag_groups UI + 親 DoD 達成宣言に集中（Step 数 22 → 14、L 規模）
+- **2026-05-24 (Step 14 実機検証時)** — 隠れた前提崩れが顕在化:
+  - 想定: Notes/Daily の legacy write path は安定動作中 → 触らない
+  - 実態: migration 0007 で `public.notes` / `public.dailies` が DROP 済 → legacy `SupabaseNotesService` / `SupabaseDailyService` は **`_pendingDuRewrite` stub error** を throw（書き込み完全停止 / リロードで消える）
+  - 二次被害: `wiki_tag_assignments` INSERT policy が `exists (select 1 from items_meta where id = item_id)` を要求するため、Notes/Daily の id が items_meta に登録されない → Tag/Link UI が RLS 403
+  - **スコープ拡張で対応**: 既存 legacy class を変えずに、コンストラクタに Unified service 参照を渡して **bridge delegate** する形に最小改修（`fetchAllNotes` / `createNote` / `createNoteFolder` / `updateNote` / `syncNoteTree` / `softDeleteNote` / `fetchAllDailies` / `fetchDailyByDate` / `upsertDaily` / `deleteDaily` / `toggleDailyPin`）。`useNotesAPI` / `useDailyAPI` の UI surface は不変、書き込みのみ items_meta + payload に流す
+  - **未対応（DU-G 残置）**: password / lock / restore / permanentDelete / fetchDeletedNotes / searchNotes は依然 stub or 空配列。UI 上は trash 空 + パスワード dialog 触ると throw（UI から触らなければ無害）。これにより Notes/Daily の write path が完全 Unified に揃うのは DU-G で実施

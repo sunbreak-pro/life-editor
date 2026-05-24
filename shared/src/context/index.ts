@@ -34,9 +34,10 @@ export {
   type CalendarContextValue,
 } from "./CalendarContextValue";
 
-// DU-F note: CalendarTagsProvider was removed in DU-F Step 3-5 (DB DROPped
-// in DU-C+ 0012; UI + shared layer purged in cohort). WikiTagsUnified now
-// covers the same surface for the 5-role tag/link graph.
+// DU-F note: the legacy calendar-tag provider was removed in DU-F Step
+// 3-5 (DB DROPped in DU-C+ 0012; UI + shared layer purged in cohort).
+// WikiTagsUnified now covers the same surface for the 5-role tag/link
+// graph.
 
 // DU-C+ unified WikiTag Provider (items_meta-based tag/link, 5 roles).
 // Coexists with the legacy `frontend/src/context/WikiTagContext.tsx`

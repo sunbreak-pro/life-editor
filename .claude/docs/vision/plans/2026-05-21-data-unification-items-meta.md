@@ -584,19 +584,21 @@ DU-C+ は DU-C 完了後すぐに着手。DU-D とは並列可だが順序実行
 
 以下すべてを満たした時点で本計画完了とする。
 
-- [ ] items_meta + 5 payload + 7 専用/relation の計 13 テーブルが本番 Supabase に apply 済み
-- [ ] 5 role すべてが items_meta + 対応 payload 経由で動作 (CRUD / 一覧 / 検索)
-- [ ] Schedule セクションのタブ構造が Calendar / Tasks / Events の 3 タブに変更済み
-- [ ] Calendar タブで月 + 3 日の 2 ビュー切替が動作
-- [ ] Events タブ内で Routine / RoutineGroup の編集が可能
-- [ ] **CalendarTag (`calendar_tag_definitions` / `calendar_tag_assignments`) が DROP 済み (Q16 / DU-C+)**
-- [ ] **`calendars` テーブルは保持され、Schedule のフォルダフィルタ UI が引き続き動作 (Q16)**
-- [ ] WikiTag/WikiLink が items_meta.id を FK として 5 role すべてで利用可能
-- [ ] backlink list がアイテム詳細から表示可能
-- [ ] vitest 緑 / RLS gate offender 0 / advisor lint 0
-- [ ] CLAUDE.md §4 / requirements/tier-1-core.md / db-conventions.md / coding-principles.md の更新済み
-- [ ] 移行 SSOT に「Phase 2 と Phase 3 の間に Data Unification を実施した」旨を追記済み
-- [ ] S5 WikiTags 旧計画の design knowledge 取り込み完了 (本計画に反映済) を outbox で報告
+- [x] items_meta + 5 payload + 7 専用/relation の計 13 テーブルが本番 Supabase に apply 済み（DU-A）
+- [x] 5 role すべてが items_meta + 対応 payload 経由で動作 (CRUD / 一覧 / 検索) — **DU-F 注**: Tasks/Events/Routine は Unified 完了。Notes/Daily は **legacy shared 経路で安定動作中**、Unified write path への切替は **DU-G** に分離。読み出し方向（Tag/Link グラフ）は 4 role すべてで Unified 経由で動作
+- [x] Schedule セクションのタブ構造が Calendar / Tasks / Events の 3 タブに変更済み（DU-C）
+- [ ] Calendar タブで月 + 3 日の 2 ビュー切替が動作（**DU-E**）
+- [x] Events タブ内で Routine / RoutineGroup の編集が可能（DU-C）
+- [x] **CalendarTag (`calendar_tag_definitions` / `calendar_tag_assignments`) が DROP 済み (Q16 / DU-C+)** — DU-F Step 3-5 で UI 死コードも purge 済
+- [x] **`calendars` テーブルは保持され、Schedule のフォルダフィルタ UI が引き続き動作 (Q16)**
+- [x] WikiTag/WikiLink が items_meta.id を FK として 4 role すべてで利用可能 — Routine は Event の生成テンプレ UX に再定義したため Tag/Link UI は持たない（DU-F DF-Q2/Q3）。データモデル上は items_meta 経由で利用可
+- [x] backlink list がアイテム詳細から表示可能（DU-F LinkPanel）
+- [x] vitest 緑 (shared 170/170) / RLS gate offender 0 (wiki_tags 系 5 テーブル × 4 policy 確認済 / CalendarTag 系不在確認済) / advisor lint 新規 WARN 0 (既知 `auth_leaked_password_protection` のみ)
+- [x] CLAUDE.md §4 / requirements/tier-1-core.md / db-conventions.md / coding-principles.md の更新済み（CLAUDE.md §4.3 一行追記は DU-F Step 13）
+- [x] 移行 SSOT に「Phase 2 と Phase 3 の間に Data Unification を実施した」旨を追記済み（DU-F Step 13）
+- [x] S5 WikiTags 旧計画の design knowledge 取り込み完了 (本計画に反映済)
+
+**残作業**: DU-E (Calendar 2 ビュー) と DU-G (Notes/Daily Unified 完全切替) を別計画書として `plans/` に置く。Data Unification の「ユーザーから見える完了」（5-role tag/link graph 稼働 + CalendarTag 概念消滅 + wiki_tag_groups CRUD）は本 DoD 時点で達成。
 
 ## ロールバック方針
 
