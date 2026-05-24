@@ -571,9 +571,7 @@ class SupabaseDailyService {
     return this.unified.getDailyByDateUnified(date);
   }
   async fetchDeletedDailies(): Promise<DailyNode[]> {
-    // Unified service has no soft-deleted listing yet (DU-G). Returning
-    // [] keeps the UI's Trash section empty rather than throwing.
-    return [];
+    return this.unified.fetchDeletedDailiesUnified();
   }
   async upsertDaily(date: string, content: string): Promise<DailyNode> {
     return this.unified.upsertDailyByDateUnified(date, content);
@@ -583,13 +581,11 @@ class SupabaseDailyService {
     if (!existing) return;
     await this.unified.softDeleteDailyUnified(existing.id);
   }
-  async restoreDaily(_date: string): Promise<void> {
-    void _date;
-    _pendingDuRewrite("restoreDaily", "dailies");
+  async restoreDaily(date: string): Promise<void> {
+    await this.unified.restoreDailyUnified(`daily-${date}`);
   }
-  async permanentDeleteDaily(_date: string): Promise<void> {
-    void _date;
-    _pendingDuRewrite("permanentDeleteDaily", "dailies");
+  async permanentDeleteDaily(date: string): Promise<void> {
+    await this.unified.permanentDeleteDailyUnified(`daily-${date}`);
   }
   async toggleDailyPin(date: string): Promise<DailyNode> {
     // No atomic Unified toggle — fetch, flip, write. N=1 single-user app
@@ -602,30 +598,23 @@ class SupabaseDailyService {
       isPinned: !existing.isPinned,
     });
   }
-  async setDailyPassword(_date: string, _password: string): Promise<DailyNode> {
-    void _date;
-    void _password;
-    _pendingDuRewrite("setDailyPassword", "dailies");
+  async setDailyPassword(date: string, password: string): Promise<DailyNode> {
+    return this.unified.setDailyPasswordUnified(`daily-${date}`, password);
   }
   async removeDailyPassword(
-    _date: string,
-    _currentPassword: string,
+    date: string,
+    currentPassword: string,
   ): Promise<DailyNode> {
-    void _date;
-    void _currentPassword;
-    _pendingDuRewrite("removeDailyPassword", "dailies");
+    return this.unified.removeDailyPasswordUnified(
+      `daily-${date}`,
+      currentPassword,
+    );
   }
-  async verifyDailyPassword(
-    _date: string,
-    _password: string,
-  ): Promise<boolean> {
-    void _date;
-    void _password;
-    return false;
+  async verifyDailyPassword(date: string, password: string): Promise<boolean> {
+    return this.unified.verifyDailyPasswordUnified(`daily-${date}`, password);
   }
-  async toggleDailyEditLock(_date: string): Promise<DailyNode> {
-    void _date;
-    _pendingDuRewrite("toggleDailyEditLock", "dailies");
+  async toggleDailyEditLock(date: string): Promise<DailyNode> {
+    return this.unified.toggleDailyEditLockUnified(`daily-${date}`);
   }
 }
 
