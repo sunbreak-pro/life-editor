@@ -1,5 +1,19 @@
 # HISTORY (chat-prototype-mobile)
 
+### 2026-05-24 - Phase 3.I fix: swipe rebound 解消 + Materials アクセサリーバー追加
+
+#### 概要
+
+Phase 3.H 検証で「右スワイプすると左に瞬時に戻る (前々月にチラ見せ → 前月に戻る)」リバウンドと、「Materials のキーボード上書式ツールバーが iPhone 表示で見えない」の 2 件。前者は commit フローを 1 batch に統合して 1 frame 切替に、後者は textarea のまま focus 連動の半透明アクセサリーバーを追加し、Markdown 記法 (見出し / 太字 / 斜体 / リスト / 引用 / コード / [[link]] / #tag) を選択範囲もしくは現在行に挿入できるようにした。`npx tsc -b` exit 0、`npm run build` 386 KB / gzip 111 KB。
+
+#### 変更点
+
+- **[fix] Schedule swipe rebound**: SwipePane の commit フェーズで `onPrev/onNext` 呼び出し後に `requestAnimationFrame` を挟んで `setDragX(0) + setMode("idle")` を遅延していたのを、setTimeout コールバック内に統合。React 18 自動 batching により「新 anchorDate (= 新 3 ペーン)」「dragX = 0」「transition: none」が同 render に乗り、新中央 (= 旧前月) がそのまま中央に固定される。これまでは rAF 間に「anchorDate だけ更新 + dragX = width のまま」の中間 paint が 1 frame 入り、新「前々月」が中央に瞬時表示 → 次フレームで「前月」へジャンプ、というリバウンドが発生していた。
+- **[feature] Materials KeyboardAccessoryBar**: `MaterialsScreen.tsx` の `EditorView` に半透明 blur のキーボード追従バーを追加。textarea の onFocus/onBlur で focus 状態管理、`visualViewport.height/offsetTop` で iPhone Safari のキーボード上に追従、PC では画面下沿いに常時可視。ボタン群: H1 / H2 / Bold / Italic / List / Quote / Code / Link `[[ ]]` / Hash (= タグシート起動) + 閉じる。
+- **[design 判断] TipTap は導入せず textarea + Markdown 記法のまま**: 別 worktree (`prototype+mobile-ui`) では TipTap で全面置換したが、こちらの worktree は `[[link]]` 補完 / IME 補完 / suggestion 等 textarea ベースの固有機能が組み込まれており、TipTap 置換は副作用が大きい。代わりにアクセサリーバーから `wrapSelection("**","**")` / `toggleLinePrefix("# ")` 等で Markdown 文字列を挿入する設計に統一。既存の `handleBodyChange` を通すので [[link]] 補完も保たれる。
+- **[ux] textarea paddingBottom**: アクセサリーバーが下端に重なるので textarea の paddingBottom を 72px に増やし最終行が隠れないように。
+- **検証**: `npx tsc -b` exit 0、`npm run build` 386 KB / gzip 111 KB / 2.13s。dev server (PID 93066) HMR 経由で iPhone Safari に自動反映。
+
 ### 2026-05-24 - Phase 3.H fix: Schedule swipe を peeking 構造へ + DayDetailSheet タップ復活
 
 #### 概要

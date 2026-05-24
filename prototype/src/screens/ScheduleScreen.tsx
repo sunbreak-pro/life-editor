@@ -719,19 +719,19 @@ function SwipePane({
       return;
     }
 
-    // コミット: 隣ペーンが中央に来る位置まで持っていく → 親が anchorDate
-    // を更新 → 新しい 3 ペーンが描画されるので、同フレームで dragX を 0
-    // に戻すと中央が新しい当月になる
+    // コミット: 隣ペーンが中央に来る位置まで持っていく → アニメ完了と
+    // 同じ tick で「親の anchorDate 更新」「dragX = 0」「mode = idle」を
+    // 全部発火する。rAF を挟むと「anchorDate だけ更新されて dragX はまだ
+    // width のまま」の中間 paint が出てしまい、リバウンドして見える。
+    // React 18 の自動 batching で 1 つの render に統合される前提。
     const direction = dx > 0 ? 1 : -1;
     setDragX(direction * width);
     window.setTimeout(() => {
       if (direction > 0) onPrev();
       else onNext();
-      window.requestAnimationFrame(() => {
-        setDragX(0);
-        axisRef.current = null;
-        setMode("idle");
-      });
+      setMode("idle"); // transition: none に切替
+      setDragX(0); // 新中央が中央位置へ瞬時に
+      axisRef.current = null;
     }, 220);
   };
 

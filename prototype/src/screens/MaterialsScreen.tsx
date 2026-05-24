@@ -1,5 +1,6 @@
 import {
   ArrowUpDown,
+  Bold,
   BookOpen,
   Calendar as CalendarIcon,
   Check,
@@ -8,16 +9,23 @@ import {
   ChevronRight,
   ChevronUp,
   Clock,
+  Code,
   Copy,
   FileText,
   Filter as FilterIcon,
+  Hash,
+  Heading1,
+  Heading2,
+  Italic,
   LayoutGrid,
+  Link2,
   List as ListIcon,
   Menu,
   MoreHorizontal,
   Pin,
   PinOff,
   Plus,
+  Quote,
   Search,
   Settings as SettingsIcon,
   Share2,
@@ -949,6 +957,7 @@ function EditorView({
   >([]);
   const [composing, setComposing] = useState(false);
   const [backlinkOpen, setBacklinkOpen] = useState(true);
+  const [bodyFocused, setBodyFocused] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const debounceRef = useRef<number | null>(null);
   const noteIdRef = useRef(note.id);
@@ -1176,6 +1185,8 @@ function EditorView({
           ref={textareaRef}
           value={bodyDraft}
           onChange={(e) => handleBodyChange(e.target.value)}
+          onFocus={() => setBodyFocused(true)}
+          onBlur={() => setBodyFocused(false)}
           onCompositionStart={() => setComposing(true)}
           onCompositionEnd={(e) => {
             setComposing(false);
@@ -1197,6 +1208,7 @@ function EditorView({
             border: `1px solid ${C.surface1}`,
             background: C.crust,
             minHeight: 200,
+            paddingBottom: 72, // アクセサリバー高 (≈ 44) + 余白
             resize: "vertical",
           }}
         />
@@ -1351,6 +1363,232 @@ function EditorView({
               ))}
           </section>
         )}
+      </div>
+
+      {/* iOS 風キーボード追従アクセサリバー
+          Editor 表示中は常時可視、focus 中は visualViewport で
+          キーボード上に追従する */}
+      <KeyboardAccessoryBar
+        textareaRef={textareaRef}
+        focused={bodyFocused}
+        bodyDraft={bodyDraft}
+        onChangeBody={handleBodyChange}
+        onOpenTagSheet={onOpenTagSheet}
+      />
+    </div>
+  );
+}
+
+/**
+ * Editor 用キーボード追従ツールバー。
+ *
+ * - textarea のフォーカス時のみ visualViewport の上に追従。非フォーカス時は
+ *   画面下沿いに常時可視 (PC ブラウザでも見える)
+ * - 各ボタンは Markdown 記法を選択範囲または現在行に挿入する。`onChangeBody`
+ *   経由で既存の handleBodyChange を呼ぶので [[link]] 補完など既存機能を
+ *   保ったまま動く
+ * - onMouseDown=preventDefault でフォーカスを保持
+ */
+function KeyboardAccessoryBar({
+  textareaRef,
+  focused,
+  bodyDraft,
+  onChangeBody,
+  onOpenTagSheet,
+}: {
+  textareaRef: React.RefObject<HTMLTextAreaElement | null>;
+  focused: boolean;
+  bodyDraft: string;
+  onChangeBody: (v: string) => void;
+  onOpenTagSheet: () => void;
+}) {
+  const BAR_HEIGHT = 44;
+  const [bottom, setBottom] = useState(0);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const update = () => {
+      if (!focused) {
+        setBottom(0);
+        return;
+      }
+      const vv = window.visualViewport;
+      if (!vv) {
+        setBottom(0);
+        return;
+      }
+      const offset = window.innerHeight - vv.height - vv.offsetTop;
+      setBottom(offset > 1 ? offset : 0);
+    };
+    update();
+    const vv = window.visualViewport;
+    if (vv) {
+      vv.addEventListener("resize", update);
+      vv.addEventListener("scroll", update);
+      return () => {
+        vv.removeEventListener("resize", update);
+        vv.removeEventListener("scroll", update);
+      };
+    }
+    return undefined;
+  }, [focused]);
+
+  const guard = (e: React.MouseEvent) => e.preventDefault();
+
+  const applySelectionAndCursor = (
+    ta: HTMLTextAreaElement,
+    next: string,
+    cursorPos: number,
+  ) => {
+    onChangeBody(next);
+    window.setTimeout(() => {
+      ta.focus();
+      ta.setSelectionRange(cursorPos, cursorPos);
+    }, 0);
+  };
+
+  // 選択範囲を left + selected + right で囲む。選択なしならカーソル位置に
+  // left + right を挿入してカーソルを中間に。
+  const wrapSelection = (left: string, right: string) => {
+    const ta = textareaRef.current;
+    if (!ta) return;
+    const start = ta.selectionStart;
+    const end = ta.selectionEnd;
+    const before = bodyDraft.slice(0, start);
+    const selected = bodyDraft.slice(start, end);
+    const after = bodyDraft.slice(end);
+    const next = before + left + selected + right + after;
+    const cursor =
+      selected.length > 0
+        ? start + left.length + selected.length + right.length
+        : start + left.length;
+    applySelectionAndCursor(ta, next, cursor);
+  };
+
+  // 現在カーソル行の先頭に prefix を付ける。既に同じ prefix がついていれば
+  // 取り除く (トグル動作)。他の見出し / 引用 / リスト記号があれば置換。
+  const toggleLinePrefix = (prefix: string) => {
+    const ta = textareaRef.current;
+    if (!ta) return;
+    const start = ta.selectionStart;
+    const before = bodyDraft.slice(0, start);
+    const lineStart = before.lastIndexOf("\n") + 1;
+    const nextNL = bodyDraft.indexOf("\n", start);
+    const lineEnd = nextNL === -1 ? bodyDraft.length : nextNL;
+    const line = bodyDraft.slice(lineStart, lineEnd);
+    let newLine: string;
+    if (line.startsWith(prefix)) {
+      newLine = line.slice(prefix.length);
+    } else {
+      // 既存の `#`/`##`/`>`/`-` 始まりは剥がしてから上書き
+      const stripped = line.replace(/^(#{1,3}\s|>\s|-\s)/, "");
+      newLine = prefix + stripped;
+    }
+    const next =
+      bodyDraft.slice(0, lineStart) + newLine + bodyDraft.slice(lineEnd);
+    const cursor = start + (newLine.length - line.length);
+    applySelectionAndCursor(ta, next, Math.max(lineStart, cursor));
+  };
+
+  const items: {
+    key: string;
+    icon: React.ReactNode;
+    label: string;
+    onAction: () => void;
+  }[] = [
+    {
+      key: "h1",
+      icon: <Heading1 size={18} />,
+      label: "見出し1",
+      onAction: () => toggleLinePrefix("# "),
+    },
+    {
+      key: "h2",
+      icon: <Heading2 size={18} />,
+      label: "見出し2",
+      onAction: () => toggleLinePrefix("## "),
+    },
+    {
+      key: "bold",
+      icon: <Bold size={17} />,
+      label: "太字",
+      onAction: () => wrapSelection("**", "**"),
+    },
+    {
+      key: "italic",
+      icon: <Italic size={17} />,
+      label: "斜体",
+      onAction: () => wrapSelection("*", "*"),
+    },
+    {
+      key: "list",
+      icon: <ListIcon size={17} />,
+      label: "リスト",
+      onAction: () => toggleLinePrefix("- "),
+    },
+    {
+      key: "quote",
+      icon: <Quote size={17} />,
+      label: "引用",
+      onAction: () => toggleLinePrefix("> "),
+    },
+    {
+      key: "code",
+      icon: <Code size={17} />,
+      label: "コード",
+      onAction: () => wrapSelection("`", "`"),
+    },
+    {
+      key: "link",
+      icon: <Link2 size={17} />,
+      label: "リンク",
+      onAction: () => wrapSelection("[[", "]]"),
+    },
+    {
+      key: "tag",
+      icon: <Hash size={17} />,
+      label: "タグ",
+      onAction: onOpenTagSheet,
+    },
+  ];
+
+  return (
+    <div
+      className="absolute left-0 right-0 z-[60] transition-[bottom] duration-150 ease-out"
+      style={{ bottom, height: BAR_HEIGHT }}
+    >
+      <div
+        className="border-t px-2 py-1.5 flex items-center gap-0.5 overflow-x-auto h-full"
+        style={{
+          background: "rgba(24, 24, 37, 0.85)",
+          backdropFilter: "saturate(160%) blur(20px)",
+          WebkitBackdropFilter: "saturate(160%) blur(20px)",
+          borderColor: "rgba(255,255,255,0.08)",
+        }}
+      >
+        {items.map((b) => (
+          <button
+            key={b.key}
+            type="button"
+            onMouseDown={guard}
+            onClick={b.onAction}
+            className="p-2 rounded-md transition-colors flex-shrink-0 active:scale-95"
+            style={{ color: C.subtext1 }}
+            aria-label={b.label}
+          >
+            {b.icon}
+          </button>
+        ))}
+        <button
+          type="button"
+          onMouseDown={guard}
+          onClick={() => textareaRef.current?.blur()}
+          className="ml-auto p-2 rounded-md transition-colors flex-shrink-0"
+          style={{ color: C.subtext0 }}
+          aria-label="キーボードを閉じる"
+        >
+          <X size={17} />
+        </button>
       </div>
     </div>
   );
