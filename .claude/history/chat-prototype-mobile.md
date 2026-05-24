@@ -1,5 +1,18 @@
 # HISTORY (chat-prototype-mobile)
 
+### 2026-05-24 - ユーザーテストで 3 件の発見事項を記録 (次セッション fix-pack 予定)
+
+#### 概要
+
+Phase 3.A〜F 完了後、スマホ実機での目視確認中に 3 件の挙動問題を発見。修正範囲が広く絡む層も異なるため次セッションで Phase 3.G fix-pack として一括対応する方針を確定し、memory の予定セクションに詳細を記録。
+
+#### 変更点
+
+- **[bug] リンク遷移先ずれ**: Materials Editor の `[[link]]` や CrossSearch 結果行をクリックすると意図したアイテムではなく 5 月の Calendar ビューに着地する。原因は ScheduleScreen が URL query `?focus=<id>` を未実装で、month/day を id から逆引きしていないため。修正方針: ScheduleScreen / MaterialsScreen 双方で `useSearchParams` で受信 → 対象アイテム find → anchorDate を due に合わせて DayDetailSheet 起動 (or note なら Editor 直開き)
+- **[bug] ThreeDayView sticky header overlap**: ThreeDayView 上部の sticky 日付ヘッダーが AddEventModal のタイトル領域にオーバーレイし編集しにくい。原因は ThreeDayView の `sticky top-0 z-10` と modal の絶対配置の stacking context 競合。修正方針: AddEventModal を `fixed inset-0 z-50` で独立 stacking context にする
+- **[bug] iOS auto-zoom on input focus**: title input / body textarea フォーカスで自動拡大ズーム発生 (font-size < 16px が iOS Safari の trigger)。ユーザー方針「現在のスクリーンは拡大・縮小共にしない」。修正方針: `index.html` viewport meta に `maximum-scale=1, user-scalable=no` + 全 input/textarea font-size >= 16px に統一 (両方併用が安全)
+- **[plan] Phase 3.G fix-pack を次セッションスコープに確定**: 上記 3 件 + 残 visual check で見つかる追加項目を一括対応。完了後に Phase 3.F PR (`prototype/mobile-ui` → `refactor/web-first-v2`) 作成 (🛑 人手 Gate) の順序
+
 ### 2026-05-24 - Phase 3.A〜F: prototype mock CRUD + 6 screens
 
 #### 概要

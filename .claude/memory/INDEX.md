@@ -16,6 +16,7 @@
 
 ## 予定 (across all chats)
 
-- [chat-prototype-mobile] 👀 目視確認 (6 screens + リロード復元)
-- [chat-prototype-mobile] 🛑 PR 作成 (prototype/mobile-ui → refactor/web-first-v2)
+- [chat-prototype-mobile] 🐛 Phase 3.G fix-pack (次セッション): リンク遷移先ずれ / ThreeDayView sticky overlap / iOS auto-zoom 抑止
+- [chat-prototype-mobile] 👀 残: 6 screens の追加不具合洗い出し
+- [chat-prototype-mobile] 🛑 Phase 3.F PR 作成 (fix-pack 完了後): prototype/mobile-ui → refactor/web-first-v2
 - [chat-prototype-mobile] 別件: Supabase migration items_meta_id_role_uk drop 失敗 (別 worktree スコープ)
