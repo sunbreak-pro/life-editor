@@ -2,7 +2,7 @@
 
 > 各 `chat-*.md` の集約ビュー。task-tracker 実行時に再生成される。**SSOT は各 `chat-*.md` ファイル**。本ファイルは読み手向け要約。
 
-最終更新: 2026-05-24 (chat-main)
+最終更新: 2026-05-24 15:15 (chat-main)
 
 ---
 
@@ -12,9 +12,9 @@
 
 ## 直近の完了 (across all chats, 各チャット最大 3 件)
 
+- [chat-main] .claude/ 配下整理（vision/plans 精査 + 学習教材削除 + 残骸クリーンアップ + instructions archive 移動）✅ (2026-05-24)
 - [chat-main] DU-C+ scope-reduced 完了（DB migration 0012 + shared 層 WikiTag mapper/service/hook/Provider + 単体テスト 18 緑）✅ (2026-05-24)
 - [chat-main] DU-C 全 7 ステップ完了（Routines + RoutineGroups + Assignments + ScheduleItems 本実装 + 0011 migration 本番適用）✅ (2026-05-24)
-- [chat-main] 並行作業基盤強化（Stop hook + Plan Gate Convention + 計画書テンプレ + CLAUDE.md §7.3）✅ (2026-05-24)
 
 ## 予定 (across all chats)
 

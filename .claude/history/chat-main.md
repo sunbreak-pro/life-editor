@@ -1,5 +1,33 @@
 # HISTORY (chat-main)
 
+### 2026-05-24 - .claude/ 配下整理（vision/plans 精査 + 学習教材削除 + 残骸クリーンアップ）
+
+#### 概要
+
+`.claude/docs/vision/plans/` が 17 ファイルまで肥大したため整理。Status 確認 + 関連リンク追跡で「完了済」「放置」「規約違反」「単発実験の残滓」を分類し、削除 / archive 移動を実施。並行チャットが `shared/src/services/` で作業中だったため pathspec で self-owned のみを stage する方針を厳守。
+
+#### 変更点
+
+- **vision/plans 精査**: 17 → 15（テンプレ + 進行中 12 + プロトタイプ worktree 用 2）。削除 = `2026-04-25-point-view.md`（Tauri 前提・5/15 起票後動きなし）+ `2026-05-16-phase5-giant-component-decomposition.md`（Carry-over 未着手で 5/16 から放置）。残置判断 = `2026-05-16-phase2-core-migration.md` は S5〜S8 未着手のため進行中扱いで保留
+- **学習教材系削除**: `.claude/docs/code-explanation/` (15 files) + `.claude/docs/code-examples/PointGraphView.demo.jsx` (56KB)。CLAUDE.md は「任意」と書くが memory `feedback_no_learning_logs.md`「学習用 Markdown ログを書かない」方針と矛盾していたため整理
+- **残骸ファイル削除**: `HISTORY-archive.md.bak` (263KB, 5/16 バックアップ) / `LearningRoadmap/` (2 files, 学習ログ廃止方針違反) / `note-summaries/summary-2026-04-16.md` (4/16 単発実験) / `docs/code-inventory.md` (参照先 `2026-04-25-refactoring-plan.md` 消失で orphan)
+- **instructions archive 移動**: `.claude/instructions/2026-05-11-apply-release-docs.md` → `.claude/archive/`。1ファイルだけのディレクトリだったため空化 → ディレクトリ自体も消滅
+- **stale lock 除去**: `.git/index.lock` (0 bytes, 14:57 残骸) を pgrep で git プロセス不在を確認後に除去。原因不明（hooks 由来の可能性）
+- **scope-drift ガード**: 並行チャット由来の dirty file（`shared/src/services/{DataService,SupabaseDataService}.ts` 変更 / `shared/src/services/Supabase{Notes,Dailies}UnifiedService.ts` 等 untracked / `.claude/settings.json` 変更 / `.claude/hooks/session-start-check.sh` untracked / `.claude/scheduled_tasks.lock`）を stage しないよう pathspec で限定
+
+#### 検証
+
+- `ls .claude/docs/vision/plans/`: 15 ファイル（テンプレ + 進行中 + プロトタイプ用）
+- `ls .claude/archive/`: instructions 由来 1 件が増えて 8 ファイル + sessions/
+- `git status --porcelain | grep "^D\|^R"`: 削除 / 移動が想定通り
+- 並行チャット (chat-engineer 等) の作業ファイル群は stage 対象外を pathspec で担保
+
+#### 設計判断 / 残知見
+
+- **学習教材は memory フィードバック優先**: CLAUDE.md に「任意」と書かれた残骸ドキュメントでも、user 由来の `feedback_no_learning_logs.md` 方針があれば削除側に倒す（フィードバックが SSOT より上位）
+- **plans/ の整理判定基準**: Status が "Carry-over 未着手" のまま 1 週間以上動いていない / 移行方針と相容れない前提（Tauri 等）/ 参照先が消失 = 削除候補。"IN PROGRESS" でも残工程が明確なら残置（phase2-core S5〜S8）
+- **空ディレクトリ掃除**: `git rm` 後はディレクトリも自動で消えるため `rmdir` 明示不要
+
 ### 2026-05-24 - DU-C+ scope-reduced 完了（CalendarTag DROP + shared 層 WikiTag mapper/service/Provider 整備）
 
 #### 概要

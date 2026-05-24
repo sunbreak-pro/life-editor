@@ -13,9 +13,9 @@
 
 ## 直近の完了
 
+- .claude/ 配下整理（vision/plans 精査で point-view + phase5 削除 / 学習教材 code-explanation・code-examples 削除 / 残骸 LearningRoadmap・note-summaries・HISTORY-archive.bak・code-inventory 削除 / instructions の単発指示書を archive 移動）✅（2026-05-24）
 - DU-C+ scope-reduced 完了（DB migration 0012 + shared 層 WikiTag mapper/service/hook/Provider + 単体テスト 18 緑。Events UI / NoteProvider 置き換えは frontend↔shared 統合未達のため DU-F に統合）✅（2026-05-24）
 - DU-C 全 7 ステップ完了（Routines + RoutineGroups + Assignments + ScheduleItems 全 Service 本実装 + RoutineScheduleSync 復活 + 0011 migration 本番適用）✅（2026-05-24）
-- 並行作業基盤強化（Stop hook + Plan Gate Convention + 計画書テンプレ + CLAUDE.md §7.3）✅（2026-05-24）
 
 ## 予定
 
