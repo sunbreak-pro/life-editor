@@ -577,6 +577,17 @@ export interface DataService {
     updates: Partial<DailyNode>,
   ): Promise<DailyNode>;
   softDeleteDailyUnified(id: string): Promise<void>;
+  // DU-G G2 additions (Trash / password / lock; id-keyed).
+  fetchDeletedDailiesUnified(): Promise<DailyNode[]>;
+  restoreDailyUnified(id: string): Promise<void>;
+  permanentDeleteDailyUnified(id: string): Promise<void>;
+  setDailyPasswordUnified(id: string, password: string): Promise<DailyNode>;
+  removeDailyPasswordUnified(
+    id: string,
+    currentPassword: string,
+  ): Promise<DailyNode>;
+  verifyDailyPasswordUnified(id: string, password: string): Promise<boolean>;
+  toggleDailyEditLockUnified(id: string): Promise<DailyNode>;
 
   // Note Connections
   fetchNoteConnections(): Promise<NoteConnection[]>;
