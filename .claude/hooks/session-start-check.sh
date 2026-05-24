@@ -18,6 +18,9 @@
 #      → 別チャット作業を引き継いだ可能性（要確認）
 #   E. .claude/worktrees/*/ のいずれかに 24 時間以上 dirty 放置された worktree がある
 #      → 別チャットの未 commit 作業が滞留している可能性（持ち主確認）
+#   F. `.session-branch` が宣言されていて、現在の git branch と一致しない
+#      → "1 chat = 1 worktree = 1 branch" ルール違反（CLAUDE.md §7.4）
+#      → 担当 branch と異なる worktree で起動した可能性
 #
 # 起動条件:
 #   .claude/settings.json の hooks.SessionStart に登録される
@@ -25,7 +28,10 @@
 
 set -uo pipefail
 
-ROOT="/Users/newlife/dev/apps/life-editor"
+# ROOT を動的検出（worktree 対応）。git toplevel が取れなければ
+# main repo パスへフォールバック。これにより worktree 配下から
+# Claude 起動された場合に worktree の .session-name / .session-branch を読む
+ROOT=$(git rev-parse --show-toplevel 2>/dev/null || echo "/Users/newlife/dev/apps/life-editor")
 
 # per-chat 機構が有効か判定。無効なら警告対象外なので即終了
 if [ ! -d "${ROOT}/.claude/memory" ] || [ ! -f "${ROOT}/.claude/memory/INDEX.md" ]; then
@@ -93,6 +99,17 @@ if [ -d "${ROOT}/.claude/worktrees" ]; then
       fi
     fi
   done
+fi
+
+# F: .session-branch ↔ 現在の git branch 整合（CLAUDE.md §7.4 Multi-chat Worktree Policy）
+# opt-in: `.session-branch` が存在する場合のみ検査。未設置プロジェクト / 未宣言チャットは無音
+SESSION_BRANCH_FILE="${ROOT}/.claude/comm/.session-branch"
+if [ -f "${SESSION_BRANCH_FILE}" ]; then
+  DECLARED_BRANCH=$(cat "${SESSION_BRANCH_FILE}" 2>/dev/null | tr -d '[:space:]' || true)
+  CURRENT_BRANCH=$(git -C "${ROOT}" branch --show-current 2>/dev/null || echo "")
+  if [ -n "${DECLARED_BRANCH}" ] && [ -n "${CURRENT_BRANCH}" ] && [ "${DECLARED_BRANCH}" != "${CURRENT_BRANCH}" ]; then
+    WARNINGS+=("F: \`.session-branch\` (\`${DECLARED_BRANCH}\`) と現在の branch (\`${CURRENT_BRANCH}\`) が不一致 — 1 chat = 1 worktree = 1 branch ルール (CLAUDE.md §7.4) 違反の可能性。担当 worktree から起動し直すか、\`.session-branch\` を現状に合わせて更新してください")
+  fi
 fi
 
 # 警告がなければ静かに終了

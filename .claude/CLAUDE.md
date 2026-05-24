@@ -214,7 +214,24 @@ cd frontend && npm run build                            # 型検証（tsc -b。-
 
 **Stop hook 連動**: `.claude/hooks/stop-check.sh` が応答終了時に frontend 変更を検知して裏で `npm run build` を走らせ、結果を `.claude/comm/outbox/<chat>/stop-report.md` に追記する。登録は `.claude/settings.json::hooks.Stop`。無効化は同ファイル削除。
 
-**SessionStart hook 連動**: `.claude/hooks/session-start-check.sh` が新規セッション開始時に `.claude/comm/.session-name` を 4 観点 (A 未宣言 / B `chat-` プレフィックス違反 / C allowlist 外文字 (`^[a-zA-Z0-9_-]+$`) / D `.session-name` の mtime が HEAD commit より 3 日以上古い) で検査し、警告があれば `.claude/comm/outbox/<chat>/session-start-warnings.md` に追記。**informational only でセッションは止めない**。登録は `.claude/settings.json::hooks.SessionStart`。per-chat 機構 (`.claude/memory/INDEX.md`) 不在の legacy プロジェクトでは無音 (即 exit 0)。
+**SessionStart hook 連動**: `.claude/hooks/session-start-check.sh` が新規セッション開始時に `.claude/comm/.session-name` を 4 観点 (A 未宣言 / B `chat-` プレフィックス違反 / C allowlist 外文字 (`^[a-zA-Z0-9_-]+$`) / D `.session-name` の mtime が HEAD commit より 3 日以上古い) + worktree 検査 E (24h+ dirty / PR #22) + 検査 F (`pwd` ↔ `.session-branch` 整合 / §7.4) で検査し、警告があれば `.claude/comm/outbox/<chat>/session-start-warnings.md` に追記。**informational only でセッションは止めない**。登録は `.claude/settings.json::hooks.SessionStart`。per-chat 機構 (`.claude/memory/INDEX.md`) 不在の legacy プロジェクトでは無音 (即 exit 0)。
+
+### 7.4 Multi-chat Worktree Policy（並行チャット用 worktree 運用規約）
+
+並行 Claude チャット同士のブランチ切替干渉を構造的に防ぐため、**"1 chat = 1 worktree = 1 branch"** を運用規約とする（DU-F Step 14 中の事故 → 計画書 [`2026-05-24-multi-chat-worktree-policy.md`](./docs/vision/plans/2026-05-24-multi-chat-worktree-policy.md)）。
+
+| 場所                                            | 担当                 | 触ってよいブランチ                           |
+| ----------------------------------------------- | -------------------- | -------------------------------------------- |
+| `/Users/newlife/dev/apps/life-editor`（メイン） | chat-main 専有       | **`main` のみ**                              |
+| `.claude/worktrees/<slug>/`（worktree 配下）    | feature 作業チャット | 任意 feature branch（1 worktree = 1 branch） |
+
+- **メインで `git checkout <feature>` 禁止**。feature 作業は必ず worktree から行う
+- 起動: `claude --worktree <slug>` で Claude Code 公式の自動管理に乗る（[公式 doc](https://code.claude.com/docs/en/worktrees)）。既存 branch を触る場合は `git worktree add .claude/worktrees/<slug>/ <existing-branch>` 後にその path で起動
+- ブランチ宣言: `.claude/comm/.session-branch` に担当 branch を書き出す。SessionStart hook 検査 F が `pwd` の branch と照合し不一致なら outbox 警告
+- 同一ブランチの二重 checkout は git 仕様で不可（`--force` は破損リスク。Archon #1188）。1 branch = 1 worktree
+- 既知制約（許容前提）: worktree ごとに `npm install` 必要 / `.tsbuildinfo` 共有不可 / VSCode TS LS が N 倍プロセス化 → active worktree は 2-3 本に絞る
+- 古い worktree の prune: 検査 E (PR #22) + 定期 `git worktree prune`
+- 委譲先での明文化: `lead-pipeline` / `session-manager` (START) / `git-orchestrator` (branch 切替) が本規約を引用して誘導する
 
 ---
 
