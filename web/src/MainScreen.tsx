@@ -9,7 +9,7 @@ import {
   RoutineProvider,
   ScheduleItemsProvider,
   CalendarProvider,
-  CalendarTagsProvider,
+  WikiTagsUnifiedProvider,
   type DataService,
   type Session,
 } from "@life-editor/shared";
@@ -20,7 +20,6 @@ import { ScheduleView } from "./schedule/ScheduleView";
 import { ScheduleItemsView } from "./schedule/ScheduleItemsView";
 import { RoutineScheduleSync } from "./schedule/RoutineScheduleSync";
 import { CalendarView } from "./schedule/CalendarView";
-import { CalendarTagsView } from "./schedule/CalendarTagsView";
 
 /*
  * Phase 2 S1+S2 host shell.
@@ -91,23 +90,29 @@ export function MainScreen({ session }: { session: Session }) {
 
         {section === "tasks" && (
           <SyncProvider>
-            <TaskTreeProvider dataService={ds}>
-              <TaskTreeView />
-            </TaskTreeProvider>
+            <WikiTagsUnifiedProvider dataService={ds}>
+              <TaskTreeProvider dataService={ds}>
+                <TaskTreeView />
+              </TaskTreeProvider>
+            </WikiTagsUnifiedProvider>
           </SyncProvider>
         )}
         {section === "daily" && (
           <SyncProvider>
-            <DailyProvider dataService={ds}>
-              <DailyView />
-            </DailyProvider>
+            <WikiTagsUnifiedProvider dataService={ds}>
+              <DailyProvider dataService={ds}>
+                <DailyView />
+              </DailyProvider>
+            </WikiTagsUnifiedProvider>
           </SyncProvider>
         )}
         {section === "notes" && (
           <SyncProvider>
-            <NoteProvider dataService={ds}>
-              <NotesView />
-            </NoteProvider>
+            <WikiTagsUnifiedProvider dataService={ds}>
+              <NoteProvider dataService={ds}>
+                <NotesView />
+              </NoteProvider>
+            </WikiTagsUnifiedProvider>
           </SyncProvider>
         )}
         {/*
@@ -140,21 +145,26 @@ export function MainScreen({ session }: { session: Session }) {
              * a 409 calendars_folder_id_fkey. It sits just inside Sync
              * (only needs DataService + Sync) and OUTSIDE the schedule
              * trio, so the §6.2 trio dependency order is unchanged.
+             *
+             * WikiTagsUnifiedProvider sits next to TaskTreeProvider —
+             * it only needs DataService + Sync and provides Tag/Link
+             * surface for ScheduleItemsView (Event Tag/Link UI, DU-F
+             * Step 7). CalendarTagsProvider was removed in DU-F Step 3-4
+             * (DB DROPped in DU-C+ 0012; UI death-code purged here).
              */}
             <TaskTreeProvider dataService={ds}>
-              <CalendarProvider dataService={ds}>
-                <RoutineProvider dataService={ds}>
-                  <ScheduleItemsProvider dataService={ds}>
-                    <CalendarTagsProvider dataService={ds}>
+              <WikiTagsUnifiedProvider dataService={ds}>
+                <CalendarProvider dataService={ds}>
+                  <RoutineProvider dataService={ds}>
+                    <ScheduleItemsProvider dataService={ds}>
                       <RoutineScheduleSync dataService={ds} />
                       <ScheduleView />
                       <ScheduleItemsView />
                       <CalendarView />
-                      <CalendarTagsView />
-                    </CalendarTagsProvider>
-                  </ScheduleItemsProvider>
-                </RoutineProvider>
-              </CalendarProvider>
+                    </ScheduleItemsProvider>
+                  </RoutineProvider>
+                </CalendarProvider>
+              </WikiTagsUnifiedProvider>
             </TaskTreeProvider>
           </SyncProvider>
         )}

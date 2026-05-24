@@ -57,7 +57,6 @@ import {
 } from "./noteLinkMapper";
 import type { CalendarNode } from "../types/calendar";
 import type { RoutineNode } from "../types/routine";
-import type { CalendarTag } from "../types/calendarTag";
 import type { ScheduleItem } from "../types/schedule";
 import type {
   RoutineGroup,
@@ -118,17 +117,6 @@ import {
   calendarUpdatesToPatch,
   type CalendarRow,
 } from "./calendarMapper";
-import {
-  CALENDAR_TAG_DEFINITION_SELECT_COLUMNS,
-  rowToCalendarTag,
-  calendarTagUpdatesToPatch,
-  type CalendarTagDefinitionRow,
-} from "./calendarTagDefinitionMapper";
-import {
-  CALENDAR_TAG_ASSIGNMENT_SELECT_COLUMNS,
-  type CalendarTagAssignmentRow,
-} from "./calendarTagAssignmentMapper";
-
 /*
  * Phase 2 S1 Supabase implementation.
  *
@@ -2270,281 +2258,6 @@ class SupabaseCalendarsService {
   }
 }
 
-/*
- * Calendar Tags domain (S4-2): calendar_tag_definitions (the tag
- * dictionary) + calendar_tag_assignments (the polymorphic 1:1
- * junction). 1:1 port of src-tauri/src/db/calendar_tag_repository.rs.
- *
- * ctd ID CONTRACT (load-bearing): `id` is `integer generated always as
- * identity` — CalendarTag.id is a `number`. A create OMITS id (Postgres
- * assigns it) and reads the assigned row back. `version` is bumped on
- * mutation (read-then-written).
- *
- * ctd PHYSICAL-DELETE DIVERGENCE (documented, not silent): the Rust
- * `delete` SOFT-deletes the definition (is_deleted=1). But S4-0
- * confirmed 0006 deliberately OMITS is_deleted on
- * calendar_tag_definitions (the V65 sync columns there are
- * full-replicate, see the S4-1 申し送り "ctd full-replicate" note), so
- * the soft-delete API is mapped to a PHYSICAL DELETE here. The cascade
- * side-effects are preserved 1:1: before deleting the definition, every
- * cta row referencing this tag is physically removed AND its parent
- * entity (tasks / schedule_items) gets version+1 + updated_at so Cloud
- * Sync delta picks up the cleared assignment (Issue 008-adjacent).
- *
- * cta SYNC CLASS: RELATION, physical-delete, NO version/soft-delete.
- * UNIQUE(entity_type, entity_id) = 1:1. `setTagForEntity` clears the
- * existing assignment then inserts the new one (tagId=null = clear
- * only) and bumps the parent entity's version + updated_at.
- */
-class SupabaseCalendarTagsService {
-  private readonly client: SupabaseClient;
-
-  constructor(client: SupabaseClient) {
-    this.client = client;
-  }
-
-  /** Tauri `fetch_all`: ORDER BY "order" ASC, id ASC (is_deleted filter dropped — physical-delete). */
-  async fetchCalendarTags(): Promise<CalendarTag[]> {
-    const { data, error } = await this.client
-      .from("calendar_tag_definitions")
-      .select(CALENDAR_TAG_DEFINITION_SELECT_COLUMNS)
-      .order("order", { ascending: true })
-      .order("id", { ascending: true });
-    if (error) throw new Error(`fetchCalendarTags failed: ${error.message}`);
-    return (data as unknown as CalendarTagDefinitionRow[]).map(
-      rowToCalendarTag,
-    );
-  }
-
-  /**
-   * Tauri `create`: `"order"` = MAX("order") + 1, version 1. `id` is
-   * OMITTED (integer identity — Postgres assigns it); the inserted row
-   * is read back so the caller gets the server-assigned numeric id.
-   */
-  async createCalendarTag(name: string, color: string): Promise<CalendarTag> {
-    const nextOrder = await this.nextOrder();
-    const now = new Date().toISOString();
-    const payload = {
-      name,
-      color,
-      text_color: null,
-      order: nextOrder,
-      created_at: now,
-      updated_at: now,
-      version: 1,
-    };
-    const { data, error } = await this.client
-      .from("calendar_tag_definitions")
-      .insert(payload)
-      .select(CALENDAR_TAG_DEFINITION_SELECT_COLUMNS)
-      .single();
-    if (error) throw new Error(`createCalendarTag failed: ${error.message}`);
-    return rowToCalendarTag(data as unknown as CalendarTagDefinitionRow);
-  }
-
-  /**
-   * Tauri `update`: whitelisted columns (calendarTagUpdatesToPatch =
-   * name/color/textColor/order). Empty patch = re-read NO version bump.
-   * Otherwise version + 1 (read-then-written) + updated_at.
-   */
-  async updateCalendarTag(
-    id: number,
-    updates: Partial<
-      Pick<CalendarTag, "name" | "color" | "textColor" | "order">
-    >,
-  ): Promise<CalendarTag> {
-    const patch = calendarTagUpdatesToPatch(updates);
-    if (Object.keys(patch).length === 0) {
-      const { data, error } = await this.client
-        .from("calendar_tag_definitions")
-        .select(CALENDAR_TAG_DEFINITION_SELECT_COLUMNS)
-        .eq("id", id)
-        .single();
-      if (error) throw new Error(`updateCalendarTag failed: ${error.message}`);
-      return rowToCalendarTag(data as unknown as CalendarTagDefinitionRow);
-    }
-    const next = await this.nextVersion(id, "updateCalendarTag");
-    const { data, error } = await this.client
-      .from("calendar_tag_definitions")
-      .update({
-        ...patch,
-        version: next,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", id)
-      .select(CALENDAR_TAG_DEFINITION_SELECT_COLUMNS)
-      .single();
-    if (error) throw new Error(`updateCalendarTag failed: ${error.message}`);
-    return rowToCalendarTag(data as unknown as CalendarTagDefinitionRow);
-  }
-
-  /**
-   * Tauri `delete` cascade ported 1:1 EXCEPT the definition itself is
-   * PHYSICALLY deleted (S4-0: 0006 omits is_deleted on ctd — see class
-   * header). Order matters: first bump every parent entity referenced
-   * by a cta row for this tag (schedule_items + tasks, version+1 +
-   * updated_at) so Cloud Sync delta replicates the cleared assignment,
-   * then physically delete the cta rows, then the definition. PostgREST
-   * has no transaction; bumping parents BEFORE deleting cta is the
-   * failure-safe order (a partial failure can leave the tag but never
-   * loses the delta signal that the assignment changed).
-   */
-  async deleteCalendarTag(id: number): Promise<void> {
-    const { data: assigns, error: aErr } = await this.client
-      .from("calendar_tag_assignments")
-      .select("entity_type, entity_id")
-      .eq("tag_id", id);
-    if (aErr) throw new Error(`deleteCalendarTag failed: ${aErr.message}`);
-    const rows =
-      (assigns as Array<{ entity_type: string; entity_id: string }>) ?? [];
-    const scheduleIds = rows
-      .filter((r) => r.entity_type === "schedule_item")
-      .map((r) => r.entity_id);
-    const taskIds = rows
-      .filter((r) => r.entity_type === "task")
-      .map((r) => r.entity_id);
-    await this.bumpEntities("schedule_items", scheduleIds);
-    await this.bumpEntities("tasks", taskIds);
-
-    const { error: ctaErr } = await this.client
-      .from("calendar_tag_assignments")
-      .delete()
-      .eq("tag_id", id);
-    if (ctaErr) throw new Error(`deleteCalendarTag failed: ${ctaErr.message}`);
-
-    const { error } = await this.client
-      .from("calendar_tag_definitions")
-      .delete()
-      .eq("id", id);
-    if (error) throw new Error(`deleteCalendarTag failed: ${error.message}`);
-  }
-
-  async fetchAllCalendarTagAssignments(): Promise<
-    Array<{
-      entityType: "task" | "schedule_item";
-      entityId: string;
-      tagId: number;
-    }>
-  > {
-    const { data, error } = await this.client
-      .from("calendar_tag_assignments")
-      .select(CALENDAR_TAG_ASSIGNMENT_SELECT_COLUMNS);
-    if (error)
-      throw new Error(
-        `fetchAllCalendarTagAssignments failed: ${error.message}`,
-      );
-    return (data as unknown as CalendarTagAssignmentRow[]).map((r) => ({
-      entityType: r.entity_type as "task" | "schedule_item",
-      entityId: r.entity_id,
-      tagId: r.tag_id,
-    }));
-  }
-
-  /**
-   * Tauri `set_tag_for_entity` ported 1:1: DELETE any existing
-   * assignment for (entity_type, entity_id) (the UNIQUE enforces 1:1),
-   * then if `tagId` is non-null INSERT a fresh `cta-<uuid>` row, then
-   * bump the parent entity's version + updated_at so Cloud Sync delta
-   * picks up the (re)tag/clear. PostgREST has no transaction; the order
-   * (clear -> insert -> bump) keeps the 1:1 invariant and never leaves
-   * two live rows for one entity.
-   */
-  async setTagForEntity(
-    entityType: "task" | "schedule_item",
-    entityId: string,
-    tagId: number | null,
-  ): Promise<void> {
-    const { error: delErr } = await this.client
-      .from("calendar_tag_assignments")
-      .delete()
-      .eq("entity_type", entityType)
-      .eq("entity_id", entityId);
-    if (delErr) throw new Error(`setTagForEntity failed: ${delErr.message}`);
-
-    if (tagId != null) {
-      const now = new Date().toISOString();
-      const { error: insErr } = await this.client
-        .from("calendar_tag_assignments")
-        .insert({
-          id: `cta-${crypto.randomUUID()}`,
-          entity_type: entityType,
-          entity_id: entityId,
-          tag_id: tagId,
-          created_at: now,
-          updated_at: now,
-        });
-      if (insErr) throw new Error(`setTagForEntity failed: ${insErr.message}`);
-    }
-
-    const table = entityType === "schedule_item" ? "schedule_items" : "tasks";
-    await this.bumpEntities(table, [entityId]);
-  }
-
-  /**
-   * Tauri backwards-compat shim `set_tags_for_schedule_item`: collapse
-   * the array to its first element (or clear if empty) since
-   * CalendarTags are 1:1. Delegates to setTagForEntity.
-   */
-  async setTagsForScheduleItem(
-    scheduleItemId: string,
-    tagIds: number[],
-  ): Promise<void> {
-    const single = tagIds.length > 0 ? tagIds[0] : null;
-    await this.setTagForEntity("schedule_item", scheduleItemId, single);
-  }
-
-  /**
-   * Bump version + updated_at on the given parent rows so a cta change
-   * delta-syncs (mirrors the Rust `UPDATE ... SET version=version+1`).
-   * version+1 is read-then-written per row (no relative increment). A
-   * missing row is skipped (the cta may reference an already-deleted
-   * entity — not an error).
-   */
-  private async bumpEntities(
-    table: "schedule_items" | "tasks",
-    ids: string[],
-  ): Promise<void> {
-    if (ids.length === 0) return;
-    const { data, error } = await this.client
-      .from(table)
-      .select("id, version")
-      .in("id", ids);
-    if (error)
-      throw new Error(`calendar tag entity bump failed: ${error.message}`);
-    const rows = (data as Array<{ id: string; version: number }>) ?? [];
-    const now = new Date().toISOString();
-    for (const row of rows) {
-      const { error: upErr } = await this.client
-        .from(table)
-        .update({ version: (row.version ?? 0) + 1, updated_at: now })
-        .eq("id", row.id);
-      if (upErr)
-        throw new Error(`calendar tag entity bump failed: ${upErr.message}`);
-    }
-  }
-
-  private async nextOrder(): Promise<number> {
-    const { data, error } = await this.client
-      .from("calendar_tag_definitions")
-      .select('"order"')
-      .order("order", { ascending: false })
-      .limit(1)
-      .maybeSingle();
-    if (error) throw new Error(`createCalendarTag failed: ${error.message}`);
-    const max = (data as { order: number } | null)?.order;
-    return (max ?? -1) + 1;
-  }
-
-  private async nextVersion(id: number, label: string): Promise<number> {
-    const { data, error } = await this.client
-      .from("calendar_tag_definitions")
-      .select("version")
-      .eq("id", id)
-      .single();
-    if (error) throw new Error(`${label} failed: ${error.message}`);
-    return ((data as { version: number }).version ?? 0) + 1;
-  }
-}
 
 const PHASE2_TASKS_METHODS = new Set<string>([
   "fetchTaskTree",
@@ -2659,16 +2372,6 @@ const PHASE2_CALENDAR_METHODS = new Set<string>([
   "deleteCalendar",
 ]);
 
-const PHASE2_CALENDAR_TAG_METHODS = new Set<string>([
-  "fetchCalendarTags",
-  "createCalendarTag",
-  "updateCalendarTag",
-  "deleteCalendarTag",
-  "fetchAllCalendarTagAssignments",
-  "setTagForEntity",
-  "setTagsForScheduleItem",
-]);
-
 /**
  * Create a Phase 2 Supabase-backed DataService.
  *
@@ -2700,7 +2403,6 @@ export function createSupabaseDataService(): DataService {
     new SupabaseRoutineGroupAssignmentsService(client);
   const scheduleItemsService = new SupabaseScheduleItemsService(client);
   const calendarsService = new SupabaseCalendarsService(client);
-  const calendarTagsService = new SupabaseCalendarTagsService(client);
   const wikiTagsUnifiedService = new SupabaseWikiTagsUnifiedService(client);
   const notesUnifiedService = new SupabaseNotesUnifiedService(client);
   const dailiesUnifiedService = new SupabaseDailiesUnifiedService(client);
@@ -2720,7 +2422,6 @@ export function createSupabaseDataService(): DataService {
       return routineGroupAssignmentsService;
     if (PHASE2_SCHEDULE_ITEM_METHODS.has(prop)) return scheduleItemsService;
     if (PHASE2_CALENDAR_METHODS.has(prop)) return calendarsService;
-    if (PHASE2_CALENDAR_TAG_METHODS.has(prop)) return calendarTagsService;
     if (PHASE2_WIKI_TAGS_UNIFIED_METHODS.has(prop))
       return wikiTagsUnifiedService;
     if (PHASE2_NOTES_UNIFIED_METHODS.has(prop)) return notesUnifiedService;
@@ -2827,24 +2528,5 @@ export {
   calendarUpdatesToPatch,
 } from "./calendarMapper";
 export type { CalendarRow, CalendarWriteRow } from "./calendarMapper";
-export {
-  rowToCalendarTag,
-  calendarTagToRow,
-  calendarTagUpdatesToPatch,
-} from "./calendarTagDefinitionMapper";
-export type {
-  CalendarTagDefinitionRow,
-  CalendarTagDefinitionWriteRow,
-} from "./calendarTagDefinitionMapper";
-export {
-  rowToCalendarTagAssignment,
-  calendarTagAssignmentToRow,
-  calendarTagAssignmentUpdatesToPatch,
-  toCtaEntityType,
-} from "./calendarTagAssignmentMapper";
-export type {
-  CalendarTagAssignment,
-  CalendarTagAssignmentEntityType,
-  CalendarTagAssignmentRow,
-  CalendarTagAssignmentWriteRow,
-} from "./calendarTagAssignmentMapper";
+// CalendarTag mappers removed in DU-F Step 3-5 (DB DROPped in DU-C+ 0012;
+// shared layer purged in cohort with the UI death-code).

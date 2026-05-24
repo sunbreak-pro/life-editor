@@ -17,7 +17,6 @@ import type { NoteNode } from "../types/note";
 
 import type { CalendarNode } from "../types/calendar";
 import type { RoutineNode } from "../types/routine";
-import type { CalendarTag } from "../types/calendarTag";
 import type { ScheduleItem } from "../types/schedule";
 import type {
   RoutineGroup,
@@ -258,34 +257,8 @@ export interface DataService {
   ): Promise<CalendarNode>;
   deleteCalendar(id: string): Promise<void>;
 
-  // Calendar Tags
-  fetchCalendarTags(): Promise<CalendarTag[]>;
-  createCalendarTag(name: string, color: string): Promise<CalendarTag>;
-  updateCalendarTag(
-    id: number,
-    updates: Partial<
-      Pick<CalendarTag, "name" | "color" | "textColor" | "order">
-    >,
-  ): Promise<CalendarTag>;
-  deleteCalendarTag(id: number): Promise<void>;
-  fetchAllCalendarTagAssignments(): Promise<
-    Array<{
-      entityType: "task" | "schedule_item";
-      entityId: string;
-      tagId: number;
-    }>
-  >;
-  /** New 1:1 API. Pass `tagId = null` to clear. */
-  setTagForEntity(
-    entityType: "task" | "schedule_item",
-    entityId: string,
-    tagId: number | null,
-  ): Promise<void>;
-  /** @deprecated Use `setTagForEntity`. Multi-tag is no longer supported (CalendarTags are 1:1). */
-  setTagsForScheduleItem(
-    scheduleItemId: string,
-    tagIds: number[],
-  ): Promise<void>;
+  // Calendar Tags domain removed in DU-F Step 3-5 (DB DROPped in DU-C+
+  // 0012; replaced by WikiTags Unified for the 5-role tag/link graph).
 
   // Routines
   fetchAllRoutines(): Promise<RoutineNode[]>;
