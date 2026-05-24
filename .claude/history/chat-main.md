@@ -1,5 +1,36 @@
 # HISTORY (chat-main)
 
+### 2026-05-24 - subagent self-contained brief 規約 + worktree integrity 改善（Plan 一気通貫実装、PR #22）
+
+#### 概要
+
+「現在の Claude Code 使い方 vs 世間典型」調査（Anthropic 公式 + コミュニティ 12 ソース triangulation）で見つかった中優先 4 件（subagent context inheritance / worktree 散乱 / hook 拡張 / 公式 --worktree 棲み分け）を 1 計画書にまとめ、Plan モード承認後 Phase 1-5 順次実施。PR #22 (draft) で hook + 計画書のみ提出（agents-lib は git 管理外のため PR 外で同時実施）。
+
+#### 変更点
+
+- **subagent（PR 外、agents-lib 一元管理）**: role-pm / role-engineer / role-qa に「## メインから受け取る前提（self-contained ブリーフ必須）」セクション追加。各役割 5 項目（pm = ユーザー発言原文 + memory 抜粋 + 関連パス + 過去意思決定リンク + 期待フォーマット / engineer = pm サマリ + 編集対象絶対パス + 触禁止パス + 検証コマンド + 既存パターン参照 / qa = pm サマリ + engineer 出力 + 監査観点 hint + 並列起動候補 + 検証ログパス）。GH Issue #56068（parallel sub-agent が parent context 全継承で 100K tokens 浪費）対策
+- **git-orchestrator（PR 外）**: §2.4 worktree 命名規約（dir 名 = branch 名の `/` を `-` に置換 / `+` 禁止 / `worktree-` prefix 二重禁止 / cleanup 3 条件: PR MERGED + `log origin/main..HEAD` 空 + `status -s` 空）追加。§12「公式機能との棲み分け」（Claude Code v2.1.150 の `claude --worktree [name] --tmux` / `.worktreeinclude` との分担表 7 観点）追加。旧 §12 参考は §13 に繰り下げ
+- **SessionStart hook（PR 内）**: 検査 E（worktree dirty 24h+ 検知）追加。`ls-files -mo --exclude-standard` で各 worktree の dirty を列挙、`OLDEST_MTIME`（NEWEST だと「全部新しい」ケースで fire しない設計判断）が 24h 以上前なら警告。informational only、既存 A-D 検査と `set -uo pipefail` 維持。合成テスト（一時ファイル backdate）で 1288h 検出 → cleanup 確認
+- **worktree 整理**: `cleanup-and-consolidation` worktree + branch 削除（PR #15 MERGED 済の clean 状態を再確認後）。`prototype+mobile-ui` はユーザー指示で保留（深掘り再調査でも reflog はブランチ create のみ・PR 紐付け無し・最終 mtime 5/24 15:10 だったが、ユーザー認識を優先）
+- **MCP 整理（前タスクで実施）**: pencil 削除 + claude-in-chrome 無効化 + Linear は claude.ai Web UI 切断手順案内（`~/.claude.json` 編集 + バックアップ取得）
+- **計画書**: `.claude/docs/vision/plans/2026-05-24-subagent-worktree-improvements.md` 新規（Status COMPLETED 反映、Lessons Learned 5 項目 + 次の計画候補 5 項目記載）
+
+#### 検証
+
+- 全 4 symlink (`~/.claude/agents/role-*.md` + `git-orchestrator.md`) が agents-lib への正しい参照
+- 3 役 role-\*.md とも「メインから受け取る前提」セクションが 1 件のみ存在
+- hook 合成テスト: 一時 untracked ファイル backdate → E 警告 fire（1288h 検出）→ cleanup 完了
+- `bash -n` syntax check OK
+- PR #22 draft 作成、pathspec staging で他チャットの dirty（web/ shared/ CLAUDE.md）は除外
+
+#### 設計判断 / Lessons Learned
+
+- **agents-lib は git 外（一元管理設計通り）**: PR には含まれず、履歴管理はユーザー側依存。重要編集は手動バックアップ推奨
+- **subagent ファイル編集は symlink 経由で全プロジェクト即反映**: novel / original-card-battle にも影響。プロジェクト固有変更は `agents-lib/projects/` に分離すべき
+- **hook 検査 E は OLDEST_MTIME 採用が正解**: NEWEST だと「最新の dirty が新しいだけで他は古い」ケースで警告が出ない。「ANY ファイルが 24h+ 放置」を検知するには OLDEST が正解
+- **worktree 削除前の re-verification 重要**: PR / commit / outbox 監査だけでは「ユーザー認識」を捉えきれない。prototype+mobile-ui で 1 度スキップ判断、ユーザー指示で保留
+- **`ls-files -mo --exclude-standard` が `status` と乖離するケース**: tracked / untracked + .gitignore + 別チャットの並行 commit タイミングで結果が変わる。worktree 内状態確認は `status` 併用
+- **PR diff vs 実作業の境界明示**: agents-lib は git 外なので「PR 外で同時実施」を commit message + PR description に明記、後のレビュー混乱を予防
 ### 2026-05-24 - DU-F Step 6-14 完了（WikiTag/Link UI 4 role + wiki_tag_groups CRUD + Notes/Daily Unified bridge fix）
 
 #### 概要

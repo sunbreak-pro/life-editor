@@ -20,7 +20,6 @@ import { ScheduleView } from "./schedule/ScheduleView";
 import { ScheduleItemsView } from "./schedule/ScheduleItemsView";
 import { RoutineScheduleSync } from "./schedule/RoutineScheduleSync";
 import { CalendarView } from "./schedule/CalendarView";
-import { WikiTagsManagementView } from "./wikitag";
 
 /*
  * Phase 2 S1+S2 host shell.
@@ -141,12 +140,13 @@ export function MainScreen({ session }: { session: Session }) {
              * FKs tasks(id) with ON DELETE CASCADE — a free-text id hit
              * a 409 calendars_folder_id_fkey. It sits just inside Sync
              * (only needs DataService + Sync) and OUTSIDE the schedule
-             * pair, so the §6.2 dependency order is unchanged.
+             * trio, so the §6.2 trio dependency order is unchanged.
              *
              * WikiTagsUnifiedProvider sits next to TaskTreeProvider —
              * it only needs DataService + Sync and provides Tag/Link
              * surface for ScheduleItemsView (Event Tag/Link UI, DU-F
-             * Step 7).
+             * Step 7). CalendarTagsProvider was removed in DU-F Step 3-4
+             * (DB DROPped in DU-C+ 0012; UI death-code purged here).
              */}
             <TaskTreeProvider dataService={ds}>
               <WikiTagsUnifiedProvider dataService={ds}>

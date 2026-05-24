@@ -2,12 +2,13 @@
 
 > 各 `chat-*.md` の集約ビュー。SSOT は各 `chat-*.md`。
 
-最終更新: 2026-05-24 15:46:38 (chat-main)
+最終更新: 2026-05-24 17:12:36 (chat-main)
 
 ---
 
 ## 直近エントリ (across all chats, 時系列降順 5 件)
 
+- 2026-05-24 [chat-main] subagent self-contained brief 規約 + worktree integrity 改善（Plan 一気通貫実装、PR #22）
 - 2026-05-24 [chat-main] Anthropic Cloud Routine 2 本セットアップ（朝の歴史学習 + 帰宅時モバイル開発準備）
 - 2026-05-24 [chat-main] DU-D scope-reduced 完了（Notes/Daily shared 2-row mapper + composite FK migration 0014）
 - 2026-05-24 [chat-main] .claude/ 配下整理（vision/plans 精査 + 学習教材削除 + 残骸クリーンアップ）

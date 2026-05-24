@@ -16,6 +16,8 @@
 #      → 不正文字 / パストラバーサル (allowlist 方式)
 #   D. 上記いずれでもないが .session-name の mtime が HEAD commit より 3 日以上古い
 #      → 別チャット作業を引き継いだ可能性（要確認）
+#   E. .claude/worktrees/*/ のいずれかに 24 時間以上 dirty 放置された worktree がある
+#      → 別チャットの未 commit 作業が滞留している可能性（持ち主確認）
 #
 # 起動条件:
 #   .claude/settings.json の hooks.SessionStart に登録される
@@ -58,6 +60,39 @@ else
       fi
     fi
   fi
+fi
+
+# E: .claude/worktrees/*/ に 24h 以上 dirty 放置がないか（A-D の結果に関わらず常に走る）
+if [ -d "${ROOT}/.claude/worktrees" ]; then
+  for wt_dir in "${ROOT}/.claude/worktrees/"*/; do
+    [ -d "${wt_dir}" ] || continue
+    DIRTY_COUNT=$(git -C "${wt_dir}" status --porcelain 2>/dev/null | wc -l | tr -d ' ')
+    if [ "${DIRTY_COUNT}" -eq 0 ]; then
+      continue
+    fi
+    # 最古の変更時刻を取得（modified + untracked）
+    # 「ANY ファイルが 24h 以上放置」を検知（NEWEST だと「全部新しい」ケースで fire しない）
+    OLDEST_MTIME=0
+    while IFS= read -r f; do
+      [ -n "${f}" ] || continue
+      full_path="${wt_dir}${f}"
+      [ -e "${full_path}" ] || continue
+      mt=$(stat -f %m "${full_path}" 2>/dev/null || echo 0)
+      [ "${mt}" -gt 0 ] || continue
+      if [ "${OLDEST_MTIME}" -eq 0 ] || [ "${mt}" -lt "${OLDEST_MTIME}" ]; then
+        OLDEST_MTIME="${mt}"
+      fi
+    done < <(git -C "${wt_dir}" ls-files -mo --exclude-standard 2>/dev/null)
+    if [ "${OLDEST_MTIME}" -gt 0 ]; then
+      NOW_TS=$(date +%s)
+      AGE_SEC=$((NOW_TS - OLDEST_MTIME))
+      ONE_DAY=$((24 * 3600))
+      if [ "${AGE_SEC}" -gt "${ONE_DAY}" ]; then
+        AGE_HOURS=$((AGE_SEC / 3600))
+        WARNINGS+=("E: worktree \`$(basename "${wt_dir}")\` に ${AGE_HOURS}h 以上放置の dirty ファイルあり (${DIRTY_COUNT} files 中、最古は ${AGE_HOURS}h 前) — 持ち主チャット確認推奨")
+      fi
+    fi
+  done
 fi
 
 # 警告がなければ静かに終了
