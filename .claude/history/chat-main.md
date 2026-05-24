@@ -1,6 +1,37 @@
 # HISTORY (chat-main)
 
-### 2026-05-24 - DU-C 全 7 ステップ完了（Routines + RoutineGroups + Assignments + ScheduleItems 全 Service 本実装 + RoutineScheduleSync 復活）
+### 2026-05-24 - DU-C+ scope-reduced 完了（CalendarTag DROP + shared 層 WikiTag mapper/service/Provider 整備）
+
+#### 概要
+
+DU-C+（Events 限定 WikiTag/Link + CalendarTag 吸収）の実装途中で frontend↔shared 統合が Phase 2 完成タスクとして残っていることが判明し、Events UI 実装 / NoteProvider 置き換え等を DU-F に統合する形で scope reduction。DU-C+ は「DB migration 0012_drop_calendar_tags.sql 適用 + shared 層 (mapper 5 / SupabaseWikiTagsUnifiedService / Pattern A Provider) 整備 + 単体テスト 18 緑」のみで完了とした。shared 層は build-clean 状態で温存され、DU-F の frontend↔shared 統合と同時に活性化される設計。
+
+#### 変更点
+
+- **DB migration 0012**: `supabase/migrations/0012_drop_calendar_tags.sql` 新規。`calendar_tag_assignments` + `calendar_tag_definitions` を CASCADE DROP。0007 で truncate のみ済の 2 テーブル構造を完全削除。`calendars` テーブルは保持（Schedule フォルダフィルタマスタとして）。supabase CLI 経由で push 適用（履歴乖離が判明したため migration repair で 0009/0010/0011 を applied として補正後 0012 のみ流す手順）
+- **shared types**: `shared/src/types/wikiTagUnified.ts` 新規。Supabase 0008 設計（items_meta(id) FK / 5 role 共通）に対応する WikiTag / WikiTagGroup / WikiTagAssignment / WikiTagConnection / WikiTagGroupAssignment 5 型。既存 `wikiTag.ts`（Tauri 時代 polymorphic entityType 設計）と並存（DU-F で旧型削除）
+- **shared mapper 5**: `wikiTagMapper.ts` / `wikiTagGroupMapper.ts` / `wikiTagAssignmentMapper.ts` / `wikiTagConnectionMapper.ts` / `wikiTagGroupAssignmentMapper.ts` 新規。Row 型 + INSERT / Patch 型 + SELECT カラムリスト + rowTo... / ...ToRow / updatesToPatch 関数。`updatesToPatch` は ALWAYS `updated_at` を bump（DB-Q2 同型契約）。`wikiTagConnectionToRow` は self-loop を mapper 層で reject（DB CHECK の二重防衛）
+- **shared service**: `SupabaseWikiTagsUnifiedService.ts` 新規（2.8k 行の SupabaseDataService.ts を肥大化させない判断）。11 メソッド: tag master CRUD (4) / item↔tag assignment (3) / item↔item link (4)。`user_id` を insert object に含めず DB default `auth.uid()` に任せる設計（frontend が userId を threading 不要）。`PHASE2_WIKI_TAGS_UNIFIED_METHODS` を export し SupabaseDataService の Proxy route に登録
+- **shared DataService interface**: `DataService.ts` に 11 メソッドを `*Unified` サフィックスで追加。既存 `fetchWikiTags()` 等 (Tauri polymorphic 旧 API、現状 `not implemented in phase 2` を throw) は touched=NO で温存（DU-F で削除）
+- **shared hook + Provider**: `useWikiTagsUnifiedAPI` + `WikiTagsUnifiedContext` (Pattern A 3 ファイル) + `useWikiTagsUnifiedContext` consumer hook。`dataService` injection（CLAUDE.md §6.4）/ `syncVersion` 連動 / generateId は shared util を使用
+- **shared/src/{context,index}.ts**: 新 Provider / Context / 型を re-export
+- **単体テスト**: `wikiTagMapper.test.ts` (8) + `wikiTagAssignmentMapper.test.ts` (6) + `wikiTagConnectionMapper.test.ts` (5) = 18 / 18 緑
+- **frontend 軽修正**: `frontend/src/services/data/scheduleItems.ts` の unused `ScheduleItemUpdate` import 削除（main 由来の既存 build error 解消）
+- **計画書改訂**: DU-C+ 計画書を v2 (SCOPE-REDUCED) に。DU-D 計画書も同じ問題で SCOPE-REDUCED に（frontend NoteProvider 置き換え + UI 動作確認は DU-F へ）。親計画書の DU-C+ / DU-D / DU-F 行を更新（DU-F は **EXPANDED** で frontend↔shared 統合 + 後送り分を吸収）
+
+#### 検証
+
+- shared `npx tsc --noEmit`: exit 0
+- shared `npx vitest run tests/wikiTag*.test.ts`: 18/18 pass
+- frontend `npm run build`: exit 0（vite build 緑）
+- Supabase: `mcp__supabase__list_migrations` で 0012 適用確認 / `calendar_tag_*` 2 テーブル不在 / `wiki_tags` 系 5 テーブル健在 / `calendars` 健在 / advisor lint は既知 WARN (auth_leaked_password_protection) のみ
+
+#### 設計判断 / 残知見
+
+- **frontend↔shared 統合未達の発覚**: frontend は独自 `tauriDataService` のみ参照、shared パッケージ（`@life-editor/shared`）への vite alias / tsconfig path 未設定。Phase 2 (Tauri→Web 移行) が frontend 側で完了していない状態。DU-C+ の Events UI 実装には vite alias + tsconfig 追加 + getDataService 切替が必要 = Phase 2 完成相当のタスク → DU-F に統合の判断
+- **shared SupabaseDataService の WikiTag メソッド未実装の発見**: 既存 DataService.ts は WikiTag メソッド多数宣言（Tauri 時代 polymorphic 設計）だが、SupabaseDataService の Proxy route に WikiTag が登録されておらず、呼ぶと `not implemented in phase 2` を throw する状態だった。新 `*Unified` メソッドを別系統で追加し、旧 API を temporarily 温存する判断
+- **userId injection 設計の単純化**: 当初 `useWikiTagsUnifiedAPI(options: { dataService, userId })` を想定したが、frontend に userId 取得経路がなかった（`getSession()` 等を呼んでいない）。`user_id` を insert object から省略 → DB default `auth.uid()` に任せる設計に変更。RLS policy で `auth.uid() = user_id` を強制しているため正しく動作
+- **Supabase CLI migration repair の必要性**: `supabase db push` 初回実行時に CLI 履歴（`supabase_migrations.schema_migrations`）と実 DB schema の乖離（0009/0010/0011 が MCP `apply_migration` 経由で適用済だが CLI 履歴未登録）が露見し、`0009_rollback.sql` を未適用 migration として実行してエラー。修復手順: rollback ファイルを `supabase/migrations_archive_rollback/` へ退避 + `supabase migration repair --status applied 0009 0010 0011` で履歴補正後 push 成功
 
 #### 概要
 

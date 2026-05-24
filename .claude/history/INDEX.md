@@ -8,11 +8,11 @@
 
 ## 直近エントリ (across all chats, 時系列降順 5 件)
 
+- 2026-05-24 [chat-main] DU-C+ scope-reduced 完了（CalendarTag DROP + shared 層 WikiTag mapper/service/Provider 整備）
+- 2026-05-24 [chat-main] DU-C 全 7 ステップ完了（Routines + RoutineGroups + Assignments + ScheduleItems 本実装）
 - 2026-05-24 [chat-main] 並行作業基盤強化（Stop hook + Plan Gate Convention + 計画書テンプレ）
 - 2026-05-23 [chat-main] Schedule 無限ループ修正（RoutineScheduleSync no-op 化）
 - 2026-05-23 [chat-main] DU-C/D pending stubs（8 services 一時 no-op）
-- 2026-05-23 [chat-main] fix(tasks): TaskTreeView DnD into-folder
-- 2026-05-23 [chat-main] DU-B-6 partial（db-conventions §10 + known-issues 021-024）
 
 ---
 

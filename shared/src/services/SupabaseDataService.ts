@@ -11,6 +11,10 @@ import type {
 import type { NoteConnection } from "../types/wikiTag";
 import type { DataService } from "./DataService";
 import { getSupabaseClient } from "./supabaseClient";
+import {
+  SupabaseWikiTagsUnifiedService,
+  PHASE2_WIKI_TAGS_UNIFIED_METHODS,
+} from "./SupabaseWikiTagsUnifiedService";
 // DU-B-3: full SupabaseTasksService rewrite over items_meta +
 // tasks_payload. Pure mapping lives in taskMapper.ts; this file is the
 // I/O layer only. Re-exports at the bottom of this file keep one stable
@@ -2689,6 +2693,7 @@ export function createSupabaseDataService(): DataService {
   const scheduleItemsService = new SupabaseScheduleItemsService(client);
   const calendarsService = new SupabaseCalendarsService(client);
   const calendarTagsService = new SupabaseCalendarTagsService(client);
+  const wikiTagsUnifiedService = new SupabaseWikiTagsUnifiedService(client);
 
   // Dispatch table: method name -> the instance that implements it. The
   // Proxy's target is arbitrary (an empty object); routing is entirely
@@ -2706,6 +2711,8 @@ export function createSupabaseDataService(): DataService {
     if (PHASE2_SCHEDULE_ITEM_METHODS.has(prop)) return scheduleItemsService;
     if (PHASE2_CALENDAR_METHODS.has(prop)) return calendarsService;
     if (PHASE2_CALENDAR_TAG_METHODS.has(prop)) return calendarTagsService;
+    if (PHASE2_WIKI_TAGS_UNIFIED_METHODS.has(prop))
+      return wikiTagsUnifiedService;
     return null;
   };
 

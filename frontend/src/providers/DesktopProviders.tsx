@@ -16,6 +16,14 @@ import { TimerProvider } from "../context/TimerContext";
 import { UndoRedoProvider } from "../context/UndoRedoContext";
 import { WikiTagProvider } from "../context/WikiTagContext";
 
+// DU-C+ note: shared/WikiTagsUnifiedProvider is intentionally NOT
+// mounted here. The frontend still routes data access through
+// tauriDataService (Tauri IPC), while the shared Provider expects
+// SupabaseDataService. Wiring those together is a Phase 2 completion
+// task — deferred to DU-F (Web/Electron build). Until then the unified
+// shared layer (mapper / service / hook / Provider) is dead code in
+// the Tauri frontend; the legacy WikiTagProvider below remains.
+
 /**
  * Provider tree for the Tauri desktop build.
  *

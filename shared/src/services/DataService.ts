@@ -37,6 +37,11 @@ import type {
   WikiTagGroupMember,
   NoteConnection,
 } from "../types/wikiTag";
+import type {
+  WikiTag as WikiTagUnified,
+  WikiTagAssignment as WikiTagAssignmentUnified,
+  WikiTagConnection as WikiTagConnectionUnified,
+} from "../types/wikiTagUnified";
 import type { TimeMemo } from "../types/timeMemo";
 import type {
   NoteLink,
@@ -505,6 +510,36 @@ export interface DataService {
     sourceTagId: string,
     targetTagId: string,
   ): Promise<void>;
+
+  // Wiki Tags Unified (DU-C+ — items_meta-based tag/link, 5 roles)
+  // Coexists with the legacy polymorphic API above (currently throws
+  // "not implemented in phase 2"); DU-F deletes the legacy block.
+  listAllWikiTagsUnified(): Promise<WikiTagUnified[]>;
+  createWikiTagUnified(
+    id: string,
+    name: string,
+    color: string | null,
+  ): Promise<WikiTagUnified>;
+  updateWikiTagUnified(
+    id: string,
+    updates: Partial<WikiTagUnified>,
+  ): Promise<WikiTagUnified>;
+  softDeleteWikiTagUnified(id: string): Promise<void>;
+  listTagsForItem(itemId: string): Promise<WikiTagAssignmentUnified[]>;
+  assignTagToItem(
+    assignmentId: string,
+    itemId: string,
+    tagId: string,
+  ): Promise<WikiTagAssignmentUnified>;
+  unassignTagFromItem(assignmentId: string): Promise<void>;
+  listLinksFromItem(itemId: string): Promise<WikiTagConnectionUnified[]>;
+  listLinksToItem(itemId: string): Promise<WikiTagConnectionUnified[]>;
+  createItemLink(
+    linkId: string,
+    fromItemId: string,
+    toItemId: string,
+  ): Promise<WikiTagConnectionUnified>;
+  deleteItemLink(linkId: string): Promise<void>;
 
   // Note Connections
   fetchNoteConnections(): Promise<NoteConnection[]>;
