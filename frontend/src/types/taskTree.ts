@@ -41,4 +41,5 @@ export interface TaskNode {
   priority?: Priority | null;
   reminderEnabled?: boolean;
   reminderOffset?: number;
+  reminderTime?: string | null;
 }

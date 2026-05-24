@@ -22,6 +22,7 @@ pub struct RoutineNode {
     pub frequency_start_date: Option<String>,
     pub reminder_enabled: bool,
     pub reminder_offset: Option<i64>,
+    pub reminder_time: Option<String>,
     pub created_at: Option<String>,
     pub updated_at: Option<String>,
 }
@@ -49,6 +50,7 @@ impl FromRow for RoutineNode {
             frequency_start_date: row.get("frequency_start_date")?,
             reminder_enabled: row.get::<_, i64>("reminder_enabled")? != 0,
             reminder_offset: row.get("reminder_offset")?,
+            reminder_time: row.get("reminder_time")?,
             created_at: row.get("created_at")?,
             updated_at: row.get("updated_at")?,
         })
@@ -76,6 +78,7 @@ pub fn create(
     frequency_start_date: Option<&str>,
     reminder_enabled: bool,
     reminder_offset: Option<i64>,
+    reminder_time: Option<&str>,
 ) -> rusqlite::Result<RoutineNode> {
     let max_order: i64 = conn.query_row(
         "SELECT COALESCE(MAX(\"order\"), -1) FROM routines",
@@ -89,8 +92,8 @@ pub fn create(
     conn.execute(
         "INSERT INTO routines (id, title, start_time, end_time, is_archived, is_visible, \
          \"order\", frequency_type, frequency_days, frequency_interval, frequency_start_date, \
-         reminder_enabled, reminder_offset, created_at, updated_at) \
-         VALUES (?1, ?2, ?3, ?4, 0, 1, ?5, ?6, ?7, ?8, ?9, ?10, ?11, \
+         reminder_enabled, reminder_offset, reminder_time, created_at, updated_at) \
+         VALUES (?1, ?2, ?3, ?4, 0, 1, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, \
          datetime('now'), datetime('now'))",
         params![
             id,
@@ -104,6 +107,7 @@ pub fn create(
             frequency_start_date,
             reminder_enabled as i64,
             reminder_offset,
+            reminder_time,
         ],
     )?;
 
@@ -162,6 +166,10 @@ pub fn update(conn: &Connection, id: &str, updates: &Value) -> rusqlite::Result<
     if let Some(v) = updates.get("reminderOffset") {
         sets.push("reminder_offset = ?");
         values.push(Box::new(v.as_i64()));
+    }
+    if let Some(v) = updates.get("reminderTime") {
+        sets.push("reminder_time = ?");
+        values.push(Box::new(v.as_str().map(|s| s.to_string())));
     }
 
     if sets.is_empty() {
@@ -275,6 +283,7 @@ mod tests {
             None,
             false,
             None,
+            None,
         )
         .unwrap();
         // Two future uncompleted schedule_items belonging to this routine.
@@ -290,6 +299,9 @@ mod tests {
             None,
             None,
             None,
+            false,
+            None,
+            None,
         )
         .unwrap();
         schedule_item_repository::create(
@@ -302,6 +314,9 @@ mod tests {
             Some("r-1"),
             None,
             None,
+            None,
+            None,
+            false,
             None,
             None,
         )
@@ -364,6 +379,7 @@ mod tests {
             None,
             false,
             None,
+            None,
         )
         .unwrap();
         schedule_item_repository::create(
@@ -376,6 +392,9 @@ mod tests {
             Some("r-1"),
             None,
             None,
+            None,
+            None,
+            false,
             None,
             None,
         )

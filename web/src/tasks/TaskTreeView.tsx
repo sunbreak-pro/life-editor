@@ -19,6 +19,28 @@ import {
   type TaskStatus,
 } from "@life-editor/shared";
 
+// Folder zone ratios for above / inside / below detection. Mirrors
+// web/src/notes/useNoteTreeDnd.ts so the two trees feel identical at the
+// pointer level — top 25% drops above, bottom 25% drops below (or inside
+// when the folder is expanded), middle 50% drops inside.
+const FOLDER_ZONE_ABOVE = 0.25;
+const FOLDER_ZONE_BELOW = 0.75;
+
+function getPointerY(event: DragEndEvent): number | null {
+  if (!(event.activatorEvent instanceof PointerEvent)) return null;
+  return event.activatorEvent.clientY + event.delta.y;
+}
+
+function computeFolderPosition(
+  pointerY: number,
+  rect: { top: number; height: number },
+): "above" | "below" | "inside" {
+  const ratio = (pointerY - rect.top) / rect.height;
+  if (ratio < FOLDER_ZONE_ABOVE) return "above";
+  if (ratio > FOLDER_ZONE_BELOW) return "below";
+  return "inside";
+}
+
 /*
  * Web TaskTree UI (S1). The heavy Tauri TaskTree (TipTap detail pane,
  * RightSidebar portal, i18n, full UndoRedo) is intentionally NOT ported
@@ -198,10 +220,71 @@ export function TaskTreeView() {
   const handleDragEnd = (e: DragEndEvent) => {
     const { active, over } = e;
     if (!over || active.id === over.id) return;
-    // Sibling reorder only (matches the shared moveNode contract); cross-
-    // parent / into-folder moves are keyboard/explicit actions in the
-    // full app and out of this minimal UI's scope.
-    tree.moveNode(String(active.id), String(over.id), "below");
+
+    const activeId = String(active.id);
+    const overId = String(over.id);
+    const overNode = flat.find((r) => r.node.id === overId)?.node;
+    if (!overNode) return;
+
+    // Dropping ON a folder activates above / inside / below zone
+    // detection (Notes parity). Dropping on a task is always a sibling
+    // reorder against the task's parent — moveNode handles the cross-
+    // parent fall-through when over.parentId !== active.parentId.
+    if (overNode.type === "folder") {
+      const pointerY = getPointerY(e);
+
+      // No pointer (keyboard activator) or no rect — default to
+      // "inside" so the keyboard-driven path can still nest into the
+      // folder. Skip the call if the source is already inside this
+      // folder to avoid a no-op move that still pushes an UndoRedo
+      // entry.
+      const activeNode = flat.find((r) => r.node.id === activeId)?.node;
+      if (!pointerY || !over.rect) {
+        if (activeNode && activeNode.parentId !== overNode.id) {
+          tree.moveNodeInto(activeId, overId);
+        }
+        return;
+      }
+
+      const position = computeFolderPosition(pointerY, over.rect);
+      const folderExpanded = !collapsed.has(overId);
+
+      if (position === "above") {
+        tree.moveNode(activeId, overId, "above");
+      } else if (position === "below") {
+        // Below an EXPANDED folder reads as "drop into the folder's
+        // first slot" (matches Notes), so treat as into-folder. Tasks'
+        // moveNodeInto only appends, so the drop lands at the bottom
+        // rather than position 0 — a small UX diff worth tolerating to
+        // keep moveNodeInto's signature unchanged.
+        if (folderExpanded) {
+          if (activeNode && activeNode.parentId !== overNode.id) {
+            tree.moveNodeInto(activeId, overId);
+          }
+        } else {
+          tree.moveNode(activeId, overId, "below");
+        }
+      } else {
+        // inside
+        if (activeNode && activeNode.parentId !== overNode.id) {
+          tree.moveNodeInto(activeId, overId);
+        }
+      }
+      return;
+    }
+
+    // over is a task — pointer Y picks above vs below half. Fallback to
+    // "below" when there is no pointer info (keyboard sort) so the prior
+    // sibling-reorder behaviour is preserved verbatim.
+    const pointerY = getPointerY(e);
+    if (!pointerY || !over.rect) {
+      tree.moveNode(activeId, overId, "below");
+      return;
+    }
+    const { top, height } = over.rect;
+    const position: "above" | "below" =
+      pointerY - top < height / 2 ? "above" : "below";
+    tree.moveNode(activeId, overId, position);
   };
 
   const addRoot = (type: "task" | "folder") => {

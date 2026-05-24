@@ -438,5 +438,46 @@ pub(super) fn apply(conn: &Connection, current_version: i32) -> rusqlite::Result
         conn.pragma_update(None, "user_version", &69i32)?;
     }
 
+    // V70: normalize note_links.source_daily_date. A renderer bug stored the
+    // DailyNode id ("daily-YYYY-MM-DD") instead of the canonical raw date;
+    // PointGraph then rebuilt it into a double-"daily-" id, so the Daily↔Note
+    // edge never resolved. Strip any leading "daily-" (substr is 1-indexed,
+    // "daily-" is 6 chars → start at 7). Idempotent: no row matches the LIKE
+    // afterwards, and a real YYYY-MM-DD date can never start with "daily-".
+    if current_version < 70 {
+        eprintln!("V70: strip leading 'daily-' from note_links.source_daily_date");
+        exec_ignore(
+            conn,
+            "UPDATE note_links
+                 SET source_daily_date = substr(source_daily_date, 7)
+                 WHERE source_daily_date LIKE 'daily-%';",
+        );
+        conn.pragma_update(None, "user_version", &70i32)?;
+    }
+
+    // V71: per-item reminder absolute time. `reminder_offset` covers "N minutes
+    // before the item's own time", but all-day Events / null-startTime Routines
+    // / dateless Tasks have no anchor clock — `reminder_time` ("HH:MM") is the
+    // explicit fire time the user picks for those. Nullable; the scheduler uses
+    // the inherent time when present and falls back to reminder_time otherwise.
+    // Auto-syncs to D1 (sync_engine is column-driven via SELECT * / table_info;
+    // D1 side gets the column in migration 0008).
+    if current_version < 71 {
+        eprintln!("V71: add reminder_time to tasks / schedule_items / routines");
+        if !has_column(conn, "tasks", "reminder_time") {
+            exec_ignore(conn, "ALTER TABLE tasks ADD COLUMN reminder_time TEXT");
+        }
+        if !has_column(conn, "schedule_items", "reminder_time") {
+            exec_ignore(
+                conn,
+                "ALTER TABLE schedule_items ADD COLUMN reminder_time TEXT",
+            );
+        }
+        if !has_column(conn, "routines", "reminder_time") {
+            exec_ignore(conn, "ALTER TABLE routines ADD COLUMN reminder_time TEXT");
+        }
+        conn.pragma_update(None, "user_version", &71i32)?;
+    }
+
     Ok(())
 }

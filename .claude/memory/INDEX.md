@@ -3,6 +3,9 @@
 > 各 `chat-*.md` の集約ビュー。SSOT は各 `chat-*.md`。
 
 最終更新: 2026-05-24 (chat-prototype-mobile)
+> 各 `chat-*.md` の集約ビュー。task-tracker 実行時に再生成される。**SSOT は各 `chat-*.md` ファイル**。本ファイルは読み手向け要約。
+
+最終更新: 2026-05-24 15:21:03 (chat-main)
 
 ---
 
@@ -20,3 +23,14 @@
 - [chat-prototype-mobile] 👀 残: 6 screens の追加不具合洗い出し
 - [chat-prototype-mobile] 🛑 Phase 3.F PR 作成 (fix-pack 完了後): prototype/mobile-ui → refactor/web-first-v2
 - [chat-prototype-mobile] 別件: Supabase migration items_meta_id_role_uk drop 失敗 (別 worktree スコープ)
+- [chat-main] DU-D Notes role + Daily 移植（scope-reduced）✅ (2026-05-24)
+- [chat-main] .claude/ 配下整理（vision/plans 精査 + 学習教材削除 + 残骸クリーンアップ）✅ (2026-05-24)
+- [chat-main] DU-C+ scope-reduced 完了（CalendarTag DROP + shared 層 WikiTag 整備）✅ (2026-05-24)
+
+## 予定 (across all chats)
+
+- [chat-main] 👀 ユーザー実機確認待ち: DU-C-6 (Routine 作成/削除/復元 + 月またぎ ループ防止 + key duplicate 警告ゼロ)
+- [chat-main] DU-E Calendar 2 ビュー再実装（DU-D 完了後）
+- [chat-main] DU-F WikiTag/WikiLink 残り 4 role UI + wiki_tag_groups UI + frontend↔shared 統合（DU-C+ / DU-D 後送り分を吸収）
+- [chat-main] CLAUDE.md §4.3 一行追記（composite FK pattern。並行チャットの CLAUDE.md 編集完了同期後）
+- [chat-main] DU-B 子計画書 + 詳細計画書の archive 移動（DU-B 全体クローズ時）

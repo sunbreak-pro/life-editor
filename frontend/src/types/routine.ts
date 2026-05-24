@@ -19,6 +19,7 @@ export interface RoutineNode {
   frequencyStartDate: string | null; // "YYYY-MM-DD"
   reminderEnabled?: boolean;
   reminderOffset?: number;
+  reminderTime?: string | null;
   createdAt: string;
   updatedAt: string;
   // V69: Group memberships. Populated by joining routine_group_assignments.

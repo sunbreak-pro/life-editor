@@ -26,6 +26,7 @@ pub struct ScheduleItem {
     pub is_all_day: bool,
     pub reminder_enabled: bool,
     pub reminder_offset: Option<i64>,
+    pub reminder_time: Option<String>,
     pub created_at: String,
     pub updated_at: String,
 }
@@ -51,6 +52,7 @@ impl FromRow for ScheduleItem {
             is_all_day: row.get::<_, i64>("is_all_day")? != 0,
             reminder_enabled: row.get::<_, i64>("reminder_enabled")? != 0,
             reminder_offset: row.get("reminder_offset")?,
+            reminder_time: row.get("reminder_time")?,
             created_at: row.get("created_at")?,
             updated_at: row.get("updated_at")?,
         })
@@ -103,6 +105,9 @@ pub fn create(
     note_id: Option<&str>,
     is_all_day: Option<bool>,
     content: Option<&str>,
+    reminder_enabled: bool,
+    reminder_offset: Option<i64>,
+    reminder_time: Option<&str>,
 ) -> rusqlite::Result<ScheduleItem> {
     let now = helpers::now();
 
@@ -129,8 +134,8 @@ pub fn create(
         "INSERT INTO schedule_items \
          (id, date, title, start_time, end_time, completed, routine_id, \
           template_id, note_id, is_all_day, content, is_deleted, is_dismissed, \
-          reminder_enabled, created_at, updated_at) \
-         VALUES (?1, ?2, ?3, ?4, ?5, 0, ?6, ?7, ?8, ?9, ?10, 0, 0, 0, ?11, ?12)",
+          reminder_enabled, reminder_offset, reminder_time, created_at, updated_at) \
+         VALUES (?1, ?2, ?3, ?4, ?5, 0, ?6, ?7, ?8, ?9, ?10, 0, 0, ?11, ?12, ?13, ?14, ?15)",
         params![
             id,
             date,
@@ -142,6 +147,9 @@ pub fn create(
             note_id,
             is_all_day.map(|b| b as i64).unwrap_or(0),
             content,
+            reminder_enabled as i64,
+            reminder_offset,
+            reminder_time,
             &now,
             &now,
         ],
@@ -192,6 +200,18 @@ pub fn update(
     }
     if let Some(v) = updates.get("date") {
         sets.push("date = ?");
+        values.push(Box::new(v.as_str().map(|s| s.to_string())));
+    }
+    if let Some(v) = updates.get("reminderEnabled") {
+        sets.push("reminder_enabled = ?");
+        values.push(Box::new(v.as_bool().map(|b| b as i64)));
+    }
+    if let Some(v) = updates.get("reminderOffset") {
+        sets.push("reminder_offset = ?");
+        values.push(Box::new(v.as_i64()));
+    }
+    if let Some(v) = updates.get("reminderTime") {
+        sets.push("reminder_time = ?");
         values.push(Box::new(v.as_str().map(|s| s.to_string())));
     }
 
@@ -305,6 +325,12 @@ pub fn bulk_create(conn: &Connection, items: &[Value]) -> rusqlite::Result<()> {
         let note_id = item.get("noteId").and_then(|v| v.as_str());
         let is_all_day = item.get("isAllDay").and_then(|v| v.as_bool()).unwrap_or(false);
         let content = item.get("content").and_then(|v| v.as_str());
+        let reminder_enabled = item
+            .get("reminderEnabled")
+            .and_then(|v| v.as_bool())
+            .unwrap_or(false);
+        let reminder_offset = item.get("reminderOffset").and_then(|v| v.as_i64());
+        let reminder_time = item.get("reminderTime").and_then(|v| v.as_str());
 
         // Skip if an active (non-deleted) item with same routine_id+date
         // already exists. V63 adds a partial UNIQUE index on
@@ -329,8 +355,8 @@ pub fn bulk_create(conn: &Connection, items: &[Value]) -> rusqlite::Result<()> {
             "INSERT INTO schedule_items \
              (id, date, title, start_time, end_time, completed, routine_id, \
               template_id, note_id, is_all_day, content, is_deleted, is_dismissed, \
-              reminder_enabled, created_at, updated_at) \
-             VALUES (?1, ?2, ?3, ?4, ?5, 0, ?6, ?7, ?8, ?9, ?10, 0, 0, 0, ?11, ?12)",
+              reminder_enabled, reminder_offset, reminder_time, created_at, updated_at) \
+             VALUES (?1, ?2, ?3, ?4, ?5, 0, ?6, ?7, ?8, ?9, ?10, 0, 0, ?11, ?12, ?13, ?14, ?15)",
             params![
                 id,
                 date,
@@ -342,6 +368,9 @@ pub fn bulk_create(conn: &Connection, items: &[Value]) -> rusqlite::Result<()> {
                 note_id,
                 is_all_day as i64,
                 content,
+                reminder_enabled as i64,
+                reminder_offset,
+                reminder_time,
                 &now,
                 &now,
             ],

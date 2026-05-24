@@ -140,6 +140,27 @@ export {
   type CalendarTagEntityType,
 } from "./hooks/useCalendarTagsAPI";
 
+// WikiTags Unified domain (DU-C+) — items_meta-based 5-role tag/link.
+// Coexists with the legacy `frontend/src/context/WikiTagContext.tsx`
+// until DU-F removes the legacy frontend tag UI in cohort.
+export {
+  WikiTagsUnifiedProvider,
+  WikiTagsUnifiedContext,
+  type WikiTagsUnifiedContextValue,
+} from "./context";
+export { useWikiTagsUnifiedContext } from "./hooks/useWikiTagsUnifiedContext";
+export {
+  useWikiTagsUnifiedAPI,
+  type UseWikiTagsUnifiedAPIOptions,
+} from "./hooks/useWikiTagsUnifiedAPI";
+export type {
+  WikiTag as WikiTagUnified,
+  WikiTagAssignment as WikiTagAssignmentUnified,
+  WikiTagConnection as WikiTagConnectionUnified,
+  WikiTagGroup as WikiTagGroupUnified,
+  WikiTagGroupAssignment as WikiTagGroupAssignmentUnified,
+} from "./types/wikiTagUnified";
+
 // Tasks domain — tree utilities (host UI builds on these)
 export {
   getDescendantTasks,

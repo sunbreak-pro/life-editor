@@ -319,23 +319,35 @@ export function useRoutinesAPI(options: UseRoutinesAPIOptions) {
 
   const restoreRoutine = useCallback(
     (id: string) => {
-      setDeletedRoutines((prev) => {
-        const target = prev.find((r) => r.id === id);
-        if (target) {
-          const restored: RoutineNode = {
-            ...target,
-            isDeleted: false,
-            deletedAt: null,
-          };
-          setRoutines((r) => [...r, restored]);
-        }
-        return prev.filter((r) => r.id !== id);
+      // DU-C 2026-05-24 hotfix: React 19 StrictMode は dev で setState
+      // updater を double-invoke する。元の実装は
+      //   setDeletedRoutines((prev) => { ...; setRoutines((r) => [...r, restored]); return filter() })
+      // という入れ子 setState で、StrictMode で内側の setRoutines が
+      // 2 回発火し routines に同じ id が 2 件入る → ScheduleView の
+      // `key={r.id}` で duplicate-key warning + UI 上で routine が
+      // 2 つに見える事象を起こす。
+      //
+      // 修正: setRoutines / setDeletedRoutines を独立 setState に分離
+      // し、追加側は `some(id)` ガードで冪等にする。dedup guard は
+      // StrictMode double-invoke だけでなく、UI の連打や非同期競合に
+      // よる重複追加にも保険として効く。
+      setRoutines((r) => {
+        if (r.some((x) => x.id === id)) return r;
+        const target = deletedRoutines.find((d) => d.id === id);
+        if (!target) return r;
+        const restored: RoutineNode = {
+          ...target,
+          isDeleted: false,
+          deletedAt: null,
+        };
+        return [...r, restored];
       });
+      setDeletedRoutines((prev) => prev.filter((r) => r.id !== id));
       ds.restoreRoutine(id).catch((e) =>
         logServiceError("Routines", "restore", e),
       );
     },
-    [ds],
+    [ds, deletedRoutines],
   );
 
   const permanentDeleteRoutine = useCallback(

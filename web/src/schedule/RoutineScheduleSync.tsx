@@ -8,7 +8,7 @@ import {
 } from "@life-editor/shared";
 
 /*
- * Web Routine→schedule_items generator trigger (S4-5).
+ * Web Routine→schedule_items generator trigger (S4-5; restored DU-C-6).
  *
  * Headless: renders nothing. It is the host glue between the shared
  * generator hook and the two Schedule Providers. Mounted INSIDE
@@ -16,6 +16,22 @@ import {
  * so it can read the live routine set and the anchored date. The
  * DataService is the SAME singleton MainScreen injects into every
  * Provider (prop, not a module singleton — CLAUDE.md §6.4 DI).
+ *
+ * History
+ * =======
+ * 2026-05-23 (7fd7100): no-op'd to break an infinite render loop that
+ *   triggered while SupabaseScheduleItemsService was a stub. Loop path:
+ *   createRoutine optimistic → effect → ensure → bulkCreate STUB throws
+ *   → catch swallows → OUTSIDE-try `notifyChanged()` STILL fires →
+ *   loadDate → setItems(new [] ref) → context value new ref → re-render
+ *   → effect re-fires → loop forever. See file header in the 7fd7100
+ *   commit + chat-main HISTORY entry "Schedule 無限ループ修正".
+ *
+ * 2026-05-24 (DU-C-6): SupabaseScheduleItemsService is now real (DU-C-5)
+ *   so the stub-throw landmine is gone. Restored the original effect
+ *   wiring. The matching hardening in `useScheduleItemsRoutineSync.ts`
+ *   moves `notifyChanged()` INSIDE the bulkCreate try so a future
+ *   write-failure cannot re-arm the same loop.
  *
  * Trigger policy (mirrors the Tauri host, which called
  * ensureRoutineItemsForDate on the active day): whenever the anchored
@@ -25,18 +41,12 @@ import {
  * this the generated rows would not surface until a manual reload.
  *
  * Idempotency: rapid date flips can fire many ensure passes. Duplicate
- * (routine_id, date) writes are absorbed by the migration-0006 partial
- * UNIQUE + the S4-2 createScheduleItem live guard (Issue 011) — the
- * generator never accumulates duplicates even under month-flip spam.
- * This is a QA observation point (plan §S4-0: observe generation count
- * under rapid month flips).
- *
- * The generator only WRITES through the DataService and signals a
- * re-read; it never re-implements the is_deleted filter or a second
- * (routine_id,date) guard (Issue 017 (a)/(c) / Issue 020 stay in the
- * S4-2 DataService layer — no hook-level read-then-write is added).
+ * (routine_id, date) writes are absorbed by the 0008 partial UNIQUE
+ * (routine_item_id, source_date) WHERE is_deleted_cache=false + the
+ * DU-C-5 SupabaseScheduleItemsService.bulkCreateScheduleItems upsert
+ * with onConflict ignoreDuplicates (Issue 011) — the generator never
+ * accumulates duplicates even under month-flip spam.
  */
-
 export function RoutineScheduleSync({
   dataService,
 }: {

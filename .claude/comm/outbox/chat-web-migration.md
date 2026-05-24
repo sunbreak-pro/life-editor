@@ -7,6 +7,60 @@
 
 ---
 
+## 2026-05-23 → @all（DU-B-1 完了報告 / DU-B-2 着手判断待ち）
+
+**Data Unification DU-B-1（DB schema + composite FK + policy hardening）が本番 Supabase に apply 済。検証 9 件すべてクリア。次は DU-B-2 (taskMapper 書き換え) 着手判断。**
+
+ブランチ: `data-unification/items-meta-redesign`（HEAD `7d164be`）。
+
+### apply 履歴（最終形）
+
+| migration                                    | 内容                                                                                                                                                                                  | apply 結果 |
+| -------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
+| `0009_tasks_payload_parent_fk.sql` (v3-rev2) | items_meta `(id,role)` UNIQUE + tasks_payload composite FK (`parent_item_role` generated stored + ON DELETE **NO ACTION**) + parent_item_id 側 EXISTS policy 強化 + 旧単独 index drop | ✅         |
+| 0009 差分 (v3-rev3 policy 2 本)              | `tasks_payload_insert_own / update_own` の `auth.uid()` を `(select auth.uid())` でラップ (advisor `auth_rls_initplan` WARN 対策)                                                     | ✅         |
+| `0010_du_b_initplan_cache.sql`               | DU-A 由来 6 policy (items_meta 4 + tasks_payload select/delete 2) を同じく `(select auth.uid())` 化                                                                                   | ✅         |
+| `0009_rollback.sql`                          | （未 apply、巻き戻し用に commit のみ）                                                                                                                                                | —          |
+
+### v2 → v3 transition で実体験した PG 落とし穴
+
+- **v2 (SET NULL) → apply エラー**: `SQLSTATE 42601: invalid ON DELETE action for foreign key constraint containing generated column` — GENERATED ALWAYS STORED 列を含む composite FK に SET NULL は不可。CASCADE / NO ACTION / RESTRICT は OK
+- **v3 (CASCADE 検討) → 廃案**: items_meta 同士に FK がないため、子の tasks_payload は cascade されるが子の items_meta は孤児化 = 1:1 invariant 違反
+- **v3-rev2 (NO ACTION) → apply 成功**: 子がいる親の hard-delete は PG が拒否、アプリ層 (`permanentDeleteTask`) が descendants 再帰削除する責務 (Tauri 同型)
+- **v3-rev3 全体再 apply で `2BP01`**: UNIQUE 制約 drop の瞬間に composite FK が depend していて止まる。再 apply は cascade 指定 or 差分 SQL に限る。R1 Recovery Playbook に追記済
+
+### 検証結果（A-G + RLS gate + advisor）
+
+| #                                                | 検証                                                                     | 結果                                                                                  |
+| ------------------------------------------------ | ------------------------------------------------------------------------ | ------------------------------------------------------------------------------------- |
+| A                                                | items_meta UNIQUE 制約存在                                               | ✅ 1 row                                                                              |
+| B                                                | composite FK 存在 + 単独 FK drop 済                                      | ✅ 2 row（`tasks_payload_item_id_fkey` + `tasks_payload_parent_fk`）                  |
+| C                                                | parent_item_role generated 列 = 'task'                                   | ✅                                                                                    |
+| D                                                | ルート Task INSERT (parent NULL)                                         | ✅（user_id 明示が必要、Supabase SQL Editor は postgres role で `auth.uid() = NULL`） |
+| E                                                | cross-role parent INSERT 拒否                                            | ✅ FK violation 期待通り                                                              |
+| F-1                                              | 子がいる親 hard-delete 拒否                                              | ✅ FK violation 期待通り                                                              |
+| F-2                                              | 子先削除 → 親削除成功                                                    | ✅ count 両 0                                                                         |
+| G                                                | 自分所有 parent 正常 INSERT                                              | ✅                                                                                    |
+| RLS gate (`check-rls.sql` 手動実行)              | ✅ `___RLS_GATE_OK___` sentinel + offender 0                             |
+| Security advisor                                 | ✅ 既知 WARN 1 件 (`auth_leaked_password_protection`、DU-A 申し送り維持) |
+| Performance advisor (items_meta + tasks_payload) | ✅ `auth_rls_initplan` WARN 0                                            |
+
+### Known Issue 候補 (DU-B-6 docs 更新で `docs/known-issues/` に記録予定)
+
+1. **PG: generated stored 列を含む composite FK に SET NULL 不可** (SQLSTATE 42601 / DU-B-1 v2 で実体験)
+2. **Supabase SQL Editor は postgres role で動き `auth.uid() = NULL`**。検証 INSERT で user_id 明示が必要
+3. **`check-rls.sh` wrapper が Supabase CLI v2.101 で `--output csv` 廃止により動作不能**。代替: `check-rls.sql` を SQL Editor で直接実行
+4. **依存制約の連鎖 drop**: 再 apply で UNIQUE drop が composite FK 依存で `2BP01` を返す。差分 SQL or `drop ... cascade` で回避
+
+### 次フェーズ（DU-B-2 着手判断待ち）
+
+子計画書: `.claude/docs/vision/plans/2026-05-23-data-unification-b-tasks.md` (v3-rev3)
+着手内容: `shared/src/services/taskMapper.ts` の 2 行分割書き換え + `taskMapper.roundtrip.ts` 更新。
+
+並行チャット (chat-refactor) との競合は本レーンが `shared/` と `supabase/` のみ触る限り発生しない見込み。
+
+---
+
 ## 2026-05-22 → @parallel-chat（Phase 3 親計画書作者）
 
 **Phase 3 親計画書 (`2026-05-21-data-unification-items-meta.md`, 441 行, untracked) の独立 QA 監査結果。判定 = REVISE-REQUIRED。Blocker 7 + Major 8。ユーザーが本レーンに監査依頼 → 並行チャット (= 計画書作者) への修正委譲を選択。**

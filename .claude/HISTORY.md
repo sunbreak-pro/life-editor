@@ -1,4 +1,106 @@
-# HISTORY.md - 変更履歴
+# HISTORY.md - 変更履歴 (FROZEN since 2026-05-23)
+
+> ⚠️ **このファイルは 2026-05-23 で凍結されました。read-only / 新規書き込み禁止**。
+> 新規エントリは [`history/`](./history/) 配下の `chat-<your-name>.md` へ書き込み、集約ビューは [`history/INDEX.md`](./history/INDEX.md) を参照してください。
+> 本ファイル + [`HISTORY-archive.md`](./HISTORY-archive.md) は履歴として保全。**ローリングアーカイブの移動は本ファイル間では発生しない** (per-chat 化以降は `history/archive/YYYY-MM/chat-<name>.md` を使用)。
+> 並行チャットへの通知は [`comm/outbox/chat-main.md`](./comm/outbox/chat-main.md) (2026-05-23 投稿) で実施済。
+
+---
+
+### 2026-05-23 - Data Unification DU-B-2 完了（taskMapper 2 行分割 + roundtrip 20 アサーション + SupabaseTasksService stub）
+
+#### 概要
+
+Data Unification DU-B-2 (Tasks role mapper 書き換え) を実装完了。role-engineer サブエージェントで `shared/src/services/taskMapper.ts` を items_meta + tasks_payload 2 行分割 API に書き換え、`taskMapper.roundtrip.ts` を新 API 対応 + 必須ケース 5 種に拡充。`SupabaseTasksService` 9 メソッドは DU-B-3 用 stub (`_pendingRewrite` throw) に置換し build 緑保持。role-qa 独立監査で APPROVE (Blocker/Major 0)、Minor 1 件 (将来 startAt/dueAt 追加時の silent loss) を子計画書 R9 として追加。
+
+#### 変更点
+
+- **taskMapper.ts 書き換え (~370 行)**: 新 3 関数 (`rowsToTaskNode` / `taskNodeToRows` / `taskUpdatesToPatches`)。TS `order` ↔ DB `sort_order` 変換 (m1 確定) / TS camelCase ↔ DB snake_case 全列 / items_meta (id/role/title/version/timestamps/soft-delete) と tasks_payload (業務列) の分離。`TasksPayloadWriteRow` から `parent_item_role` を型レベル除外 (`AssertNoParentRole` conditional type + `_PARENT_ROLE_GUARD` で TS コンパイル時に検証) + runtime `hasOwnProperty` 二重防衛。`TASK_COLUMNS` を `ITEMS_META_TASK_COLUMNS` + `TASKS_PAYLOAD_COLUMNS` に分割
+- **DB-Q2 mapper 側 enforcement**: `taskUpdatesToPatches(updates, userId, now)` が **どの updates でも必ず** `metaPatch.updated_at = now` を含める設計。payload 単独更新 (status のみ等) でも metaPatch が空にならず updated_at だけは入る。`now` は呼び出し側から注入 (副作用 0 + テスト可能性)
+- **taskMapper.roundtrip.ts 書き換え (~390 行、20 アサーション全 PASS)**: 5 ステータス roundtrip (NOT_STARTED/IN_PROGRESS/DONE/folder normal/folder complete) + idempotent x5 + bump enforcement (title 更新時 / status 単独更新時) + parent_item_role 型ガード + soft-delete + order rename 3 経路 (write/read/patch)。`node shared/dist/services/taskMapper.roundtrip.js` で自己実行 `taskMapper roundtrip OK`
+- **SupabaseTasksService 9 メソッド stub 化**: `fetchTaskTree` / `fetchDeletedTasks` / `createTask` / `updateTask` / `syncTaskTree` / `softDeleteTask` / `restoreTask` / `permanentDeleteTask` を `_pendingRewrite("methodName")` throw stub に置換 (DU-B-3 で本実装)。`migrateTasksToBackend` の no-op は web 既存挙動維持で温存。`_unused_*` phantom 参照で新 mapper API シンボルを `verbatimModuleSyntax` 下で「使用済み」化 (DU-B-3 で削除)
+- **DataService.ts interface 不変**: 9 メソッド signature / 戻り値型 (Promise<TaskNode[]> 等) すべて維持。DU-F での Provider 改名まで延期
+- **role-qa 独立監査 APPROVE**: Blocker 0 / Major 0 / Minor 4 / Nit 2。Minor-1 (将来予約列 silent loss) を子計画書 R9 として追加、Minor-2/3/4 + Nit は DU-B-3 着手者判断
+- **session-verifier PASS**: types (tsc -b) / tests (vitest 71/71 既存緑) / structural / bug scan すべて緑、coverage は DU-B-4 範囲のため DEFER
+- **R9 子計画書追加**: TaskNode フィールド追加 PR の責務として taskMapper.ts L228-230 / L324-327 同時編集を必須化
+- **DU-B-3 への引き継ぎ**: 新 5 値 + 6 型を SupabaseDataService.ts 末尾で再 export 済、`_pendingRewrite()` throw メッセージに「DU-B-3 SupabaseTasksService rewrite pending; 0008+0009 schema in place, mapper migrated in DU-B-2」とロードマップ明記
+- **次フェーズ**: DU-B-3 (SupabaseTasksService 9 メソッド書き換え、descendants 再帰削除 + try/catch hard delete + bump ヘルパー集約)
+- **DU-B-3 以降の詳細実装計画書策定**: `.claude/docs/vision/plans/2026-05-23-data-unification-b3-onwards-impl.md` (DU-B-3〜B-6 の 4 Step を SQL クエリレベルまで具体化)。次セッション着手時はチェックリスト「DU-B-2 まで完了の確認」を通してから着手。DU-B-3 は 9 メソッドそれぞれの実装方針 (SQL + try/catch + bump) を明示、DU-B-4 は vitest 必須 5 + 補強 1、DU-B-5 は golden path 7 段、DU-B-6 は CLAUDE.md / db-conventions.md / known-issues 4 件の更新案。次フェーズ DU-C/D/E/F 概要 + DU-B 完了時の archive 手順も含む
+
+### 2026-05-23 - Data Unification DU-B-1 完了（0009 v3-rev2 + 差分 v3-rev3 + 0010 本番 apply + 検証 9 件クリア + PG 落とし穴 2 件解消）
+
+#### 概要
+
+Data Unification DU-B-1 (DB schema + composite FK + policy hardening) を本番 Supabase に apply 完了。子計画書 v1 → 3 監査 (migration-validator / role-qa / security-reviewer) で v2 化 (Blocker 1 + Major 5 + High 2 + Medium 1 + Low 1 反映) → v3 apply 試行で **PG 制約に起因する apply エラーを 2 段階で解消**: (a) GENERATED 列 + composite FK に SET NULL 不可 (SQLSTATE 42601) を NO ACTION 化、(b) 全体再 apply で UNIQUE 依存連鎖 (2BP01) を差分 SQL 化。advisor 持ち込み WARN 2 件を v3-rev3 で initplan キャッシュ化 (`(select auth.uid())`)、さらに 0010 で DU-A 由来 6 policy も同型化 → items_meta + tasks_payload 範囲で auth_rls_initplan WARN 0。検証 9 件 (A-G SQL + RLS gate + advisor) すべてクリア。次フェーズ = DU-B-2 (taskMapper 2 行分割書き換え) 着手判断。
+
+#### 変更点
+
+- **DU-B 子計画書 v1 → v3-rev3**: `.claude/docs/vision/plans/2026-05-23-data-unification-b-tasks.md`。v1 で Recovery Playbook R1-R8 + ロールバック SQL 雛形 + 0009_rollback.sql 整合 + Risks 8 件網羅 + DoD 11 項目を確定 → v2 で 3 監査の Blocker-1 (softDelete → hard delete) + Major 1-5 + H1-2 + Medium-1 (parent EXISTS 追加) + Low-A (旧 index drop) を反映 → v3 で apply 試行 → v3-rev2 で ON DELETE NO ACTION 化 + v3-rev3 で initplan キャッシュ化、すべて経緯 SSOT として保存
+- **親計画書 v3 への DU-B 確定事項反映**: `parent_item_id 設計判断`「composite FK + ON DELETE NO ACTION」/ `Sync への影響`「mapper 側で updated_at bump 明示」/ `Migration 戦略`「0009 追加 + クライアント直列 atomicity」3 章を annotation 追記
+- **0009_tasks_payload_parent_fk.sql (260 行、v3-rev3 最終)**: items_meta `(id, role)` UNIQUE 追加 + tasks_payload composite FK (`parent_item_role` text generated always as ('task') stored + `(parent_item_id, parent_item_role) REFERENCES items_meta (id, role) MATCH SIMPLE ON DELETE NO ACTION`) + parent_item_id 側 EXISTS policy 強化 (security Medium-1) + 旧単独 index `idx_tasks_payload_parent` drop (Low-A) + 新規補助 index 2 本 + policy 内 `auth.uid()` を `(select auth.uid())` でラップ (initplan キャッシュ化、Supabase 公式 RLS ベストプラクティス)。POST-APPLY VERIFICATION A-I を末尾コメントに完備、F は NO ACTION 検証 (子がいる親 hard-delete 拒否 + 子先消し後の親消し成功) の 2 段
+- **0009_rollback.sql**: 7 操作対称巻き戻し (policy 復元 / composite FK drop / 列 drop / UNIQUE drop / 単独 FK 復元 / 補助 index drop / 旧単独 index 復元)、再 apply 前の cross-role 違反行確認 SQL を header に
+- **0010_du_b_initplan_cache.sql (94 行)**: DU-A 由来 items_meta 4 + tasks_payload 残 2 (select/delete) = 6 policy を `(select auth.uid())` 化。DU-B-1 ついで修正 + DU-D Notes で初版から踏襲する型を確立。0003-0006 由来 56 件は別 plan「initplan cleanup plan」へ申し送り
+- **check-rls-selftest 拡張**: B11/B12 ケース追加で 0008 payload の owner-eq + EXISTS 二重防衛 qual が gate に緑判定されることを実証 (22/22 緑、DU-A 申し送り④消化)
+- **DB-Q1/Q2/Q3 ユーザー確定**: (Q1) Atomicity = クライアント直列 2 回 invoke、createTask try/catch で **hard delete** (softDelete は Sync TrashView 汚染で v2 改訂) / (Q2) updated_at bump = mapper 側で明示 invoke (DB トリガ不採用) / (Q3) cross-role parent 防止 = composite FK 採択
+- **3 監査並列起動 → 全 APPROVE**: migration-validator (整合性) / role-qa (要件達成 + リスク + DoD) / security-reviewer (composite FK セキュリティ)。v2 改訂後の軽量再監査も APPROVE
+- **本番 apply 4 段階**: (1) 0009 v2 → 42601 で失敗 (transaction rollback で DB 無傷) (2) v3-rev2 (NO ACTION) → apply 成功 + A-G 検証クリア (SQL Editor は postgres role で auth.uid() = NULL のため user_id 明示が必要と判明) (3) v3-rev3 全体再 apply → 2BP01 で失敗 (UNIQUE drop が composite FK 依存で blocking) → 差分 SQL (policy 2 本だけ drop + create) で成功 (4) 0010 apply → 6 policy initplan キャッシュ化成功
+- **検証 9 件 (A-G + RLS gate + advisor) 全クリア**: A 1 row / B 2 row / C 'task' / D-G 全成功 / E と F-1 は期待通り FK violation / RLS gate `___RLS_GATE_OK___` sentinel + offender 0 / Security advisor 既知 WARN 1 件のみ / Performance advisor items_meta + tasks_payload で auth_rls_initplan WARN 0
+- **Known Issue 候補 4 件 (DU-B-6 で `docs/known-issues/` に記録予定)**: ①PG GENERATED 列含む composite FK に SET NULL 不可 (42601) ②Supabase SQL Editor は postgres role で `auth.uid() = NULL`、検証 INSERT は user_id 明示 ③`check-rls.sh` wrapper が Supabase CLI v2.101 `--output csv` 廃止で動作不能、`check-rls.sql` 単独 SQL Editor 実行で代替 ④再 apply で UNIQUE drop が composite FK 依存で 2BP01、差分 SQL or `drop ... cascade` で回避
+- **commit**: `a999489` (DU-B 子計画書 v2 + 0009 v2 + rollback + selftest 拡張) → `1ec2cca` (v3-rev2 NO ACTION) → `ba1b6f1` (v3-rev3 initplan キャッシュ化) → `7d164be` (0010 + child plan v3-rev3 反映)。data-unification ブランチに push 済み
+- **outbox 報告**: `.claude/comm/outbox/chat-web-migration.md` の先頭に DU-B-1 完了 + apply 履歴 + 検証結果 + Known Issue 候補 + DU-B-2 着手判断待ちを記録
+- **次フェーズ**: DU-B-2 (Tasks role mapper 移植) — `shared/src/services/taskMapper.ts` を items_meta + tasks_payload 2 行分割マッピングに書き換え → `taskMapper.roundtrip.ts` 更新 → `npm run -w shared build` 緑確認 → role-qa 監査 → DU-B-3 (SupabaseTasksService 9 メソッド書き換え)
+
+### 2026-05-23 - Data Unification DU-A 完全完了（0007 drop + 0008 schema 本番 apply 成功 + 全 5 検証クリア）（計画書: archive/2026-05-23-data-unification-a-db-schema.md）
+
+#### 概要
+
+Data Unification 第 1 フェーズ (DU-A: DB スキーマ設計 + apply) を完了。子計画書 v2 作成 → 0007/0008 SQL 実装 → 4 ラウンド独立監査 (migration-validator x2 / security-reviewer / role-qa x2) で全 APPROVE → Supabase 本番 SQL Editor で破壊的 apply 成功 (ユーザー実施、二段承認後)。9 テーブル DROP + 13 テーブル CREATE + 52 RLS policy + 6 partial unique + 1 トリガ + calendars FK 再ターゲット。全 5 検証クリアで items_meta 空状態の新スキーマが本番稼働開始。実装層 (mapper/Provider/UI) は未着手 = DU-B 以降。
+
+#### 変更点
+
+- **DU-A 子計画書 v2 作成**: `.claude/docs/vision/plans/2026-05-23-data-unification-a-db-schema.md`。親計画書 v3 の DU-A 章を SQL 直前まで具体化。DD-1/2/3 確定 (folder=task sub-type / calendars データ truncate + FK retarget / note_links 廃止 → wiki_tag_connections 一元化)。1 周目 role-qa が現行スキーマ実態 (calendars.folder_id NOT NULL → tasks ON CASCADE、note_links/note_connections の notes 依存) を発見 → 親計画書「DROP 7」→ **実際は 9 テーブル**に訂正
+- **0007_drop_legacy_item_tables.sql (79 行)**: FK 外し (calendars.folder_id) → truncate (cta + calendars のみ・ctd 不触) → 9 テーブル DROP cascade (schedule_items → rga → routine_groups → routines → note_connections → note_links → notes → dailies → tasks)。冪等性 = DROP は if exists、truncate 対象は維持テーブルゆえ常に存在
+- **0008_data_unification_schema.sql (1033 行)**: 13 テーブル CREATE (items_meta + 5 payload + routine_groups/rga + wiki_tags/groups/group_assignments/assignments/connections) + 52 RLS policy (4 × 13、全 `to authenticated` + owner equality + payload は EXISTS 二重防衛で items_meta.user_id = auth.uid()) + 6 partial UNIQUE (`uq_events_payload_routine_date` 含む) + 1 トリガ (`sync_event_deleted_cache`、SECURITY INVOKER + `set search_path = public, pg_temp`) + calendars.folder_id FK 再張り (items_meta(id) ON CASCADE)
+- **監査 4 ラウンド**: ①migration-validator v1 = Critical/High 0、Medium 2 (DU-B 層) ②security-reviewer = Critical/High 0、Medium 2 ③role-qa v1 = NEEDS REVISION (列移植欠落 Blocker 2 + Major 1 = notes_payload.note_type / events_payload の is_dismissed/completed_at/is_all_day / routines_payload.sort_order) → role-engineer が 5 列追加 + 意図的ドロップ列の根拠コメント追記 (+35 行) ④role-qa v2 + migration-validator v2 再監査 = 副作用なし APPROVE
+- **events_payload 列の意図的簡略化** (要件 4「簡素な ToDo・RichEditor 非搭載」遵守): is_dismissed (Issue 017 防御復活、commit 297ead6 の S4 dismiss-only 設計を保つ) / completed_at / is_all_day を**追加**。content (TipTap rich) / note_id (wiki_tag_connections に一元化) / reminder_enabled+offset (reminder_at 絶対時刻に一本化) / template_id (DU 後続計画) を**ドロップ**、根拠は SQL コメントに明記
+- **破壊的 apply 成功 (二段承認後)**: ユーザーが Supabase SQL Editor で 0007 → 0008 の順で apply。前回の S4 0006 apply で発生した `cloud/db/migrations/` 誤貼り事故を念頭に正本パス (`supabase/migrations/`) を明示案内。apply 後の Supabase MCP read-only 検証で 5 項目クリア: items_meta 行数=0 / 新規 13 テーブル全て作成 + RLS enabled / RLS policy 52 / partial unique 6 + トリガ 1 / calendars.folder_id FK が items_meta(id) を参照 (DD-2 案A 成立)。get_advisors 既知 WARN 1件のみ (auth_leaked_password_protection = 完成後判断、新規問題ゼロ)
+- **ブランチ運用**: `data-unification/items-meta-redesign` で作業。`refactor/web-first-v2` + `phase-2/schedule-migration` への push 漏れも本セッション冒頭で解消。並行チャット (chat-refactor / prototype レーン) が working tree を共有しているため commit は全て pathspec 指定 (`git add -A` 厳禁)
+- **commit/push**: `dcc8484` (親計画書 v3) → `987c79c` (tracker 整理 1st) → `5801341` (DU-A 成果物 = 子計画書 v2 + 0007 + 0008、3 ファイル) → 本 tracker commit。data-unification ブランチに push 済み
+- **HISTORY ローリングアーカイブ**: 13 エントリ蓄積していた HISTORY を最新 5 件保持に再整理 (前回 tracker END の整理が並行チャットの 62ddac0 merge で巻き戻されたため再実行)。S4 移植以前の 9 エントリ (2026-05-17 移行 SSOT 復元以降) を `HISTORY-archive.md` へ移動 (archive 47→58 件)
+- **次フェーズ**: DU-B (Tasks role 移植)。子計画書を code-plan-editor で作成 → TasksProvider が items_meta + tasks_payload 経由で動作 + ツリー DnD + 期限 + 3 ステータス + 現行 frontend tasks 業務列マッパー → 各層監査。順序: DU-B → DU-C (Events + Routine) → DU-D (Notes + Daily) → DU-E (Calendar 2 ビュー) → DU-F (WikiTag/WikiLink グラフ)
+- **申し送り (DU-B 着手前に確定)**: ①is_deleted_cache の INSERT 経路同期 (BEFORE INSERT トリガ or mapper 不変条件) ②payload 単独 mutation 時の items_meta.updated_at bump 責務 (mapper or トリガ) ③check-rls-selftest に payload EXISTS ケース 1 件追加で B1 緑実証 ④wtga の EXISTS 要否 (二重防衛非対称の設計判断) ⑤MCP Server 16 ツール書き換えは凍結継続、後続「MCP catch-up plan」で別計画化
+
+### 2026-05-23 - モバイルUIプロトタイプ環境 計画策定（要件定義書01 + 実装計画書02）+ Artifacts 原本隔離
+
+#### 概要
+
+Claude Artifacts 上で磨いてきた 3 つのモバイル版デモ TSX（Schedule 統合 / Work / Materials）を、本番 `frontend/` のビルド・データ層オーバーヘッドから切り離して実環境確認できるよう、純粋 Web の Vite 単体プロトタイプ環境を設計。ユーザー提供の要件定義書原稿（`~/dev/apps/01_要件定義書_プロトタイプ環境.md`）を `.claude/docs/vision/plans/01_要件定義書_プロトタイプ環境.md` として配置し、続いて Phase 0-4 の実装計画書 `02` を作成。実装（Vite 環境構築）は未着手で、本セッションは「計画策定 + 原本隔離（Phase 0）」がスコープ。
+
+#### 変更点
+
+- **配置判断（本セッションの核）**: ユーザーが当初 3 TSX を `.claude/docs/vision/plans/` に置いていたが、`.claude/` は本番ビルド対象外かつ「完了プランは archive 送り」運用のため動く部品の置き場として不適と指摘。専用ディレクトリは repo root の `prototype/`（要件定義書 §6 が既に指定）が正と判断
+- **要件定義書 01**: ユーザー原稿を逐語配置。UI/UX 工程と CRUD 工程の完全分離 / 独立起動（`/schedule` `/work` `/materials`）+ 統合プレビュー（`/unified` 下タブ）/ 依存最小（react / react-router-dom / lucide-react / vite / tailwind v3 のみ、Tauri・Electron・Capacitor・Supabase 禁止）/ 1ファイルTSX維持 / Catppuccin Mocha 固定 / Provider・Context 不使用 / 永続化なし
+- **実装計画書 02（新規作成）**: Phase 0（原本隔離）〜 Phase 4（README + マージ）を具体コマンド + 完了チェック + 想定工数付きで策定。オープン課題（要件定義 §11）への回答案: ブランチ=`prototype/mobile-ui` / フォルダ=`prototype/` / ルータ=HashRouter / Settings=プレースホルダ / 配色=`const C` JSオブジェクト方式（原本踏襲）
+- **要件定義との差分検出**: 要件定義 §2.3 は Catppuccin を `bg-[#xxxxxx]` arbitrary value 想定だが、原本実物は `const C = {...}` + インライン style 方式。移植差分最小化を優先し原本方式を採用、計画書 §3 / §8 に明記
+- **Phase 0 実行（原本隔離）**: `life editor unified demo.tsx` / `mobile work section demo.tsx` / `materials demo.tsx` の 3 点を `.claude/docs/vision/plans/` から `prototype/_artifacts/` へ移動（凍結原本＝以後改変せず Phase 2 移植元 + 不変要件マニフェスト MV-1〜SIDEBAR-1 の照合基準に）
+- **commit/push（今回のセッション分のみ）**: ユーザー明示の「今回のセッションのみ」に従い pathspec 指定（`git add -A` 厳禁）。対象=`01`/`02` 計画書 + `prototype/` + `.claude/MEMORY.md` / `HISTORY.md` / `HISTORY-archive.md`。ブランチは現状 `data-unification/items-meta-redesign`（計画書は本来 `prototype/mobile-ui` 想定だが、planning docs のため現ブランチに同居・ユーザーへ申し送り）
+- **HISTORY ローリングアーカイブ**: 6 件目追加に伴い最古エントリ（2026-05-17 shared+web セキュリティ監査）を `HISTORY-archive.md` へ移動、HISTORY は最新 5 件保持
+
+### 2026-05-23 - Data Unification 親計画書策定（旧 Phase 3 → 改名）+ Phase 2 完全クローズ + ブランチ準備
+
+#### 概要
+
+Schedule セクション全体の再設計（unified-item モデル）の親計画書を lead-pipeline 重ティアフルチェーンで策定。Calendar/Dayflow/Tasks/Events の 4 タブ + 並立データモデル（tasks/schedule_items/routines/notes/dailies）を、`items_meta`（共通メタ）+ `payload`（種別詳細）のハイブリッド 2 層へ統一する設計。実装は未着手（計画書策定のみがスコープ）。Phase 命名は移行 SSOT の Phase 3（Electron 包装）と衝突するため「Data Unification」へ改名。Phase 2（S0-S4 コア移植）を完全クローズし、`refactor/web-first-v2` へ FF マージ。
+
+#### 変更点
+
+- **要件確定（Q1-Q15）**: ユーザーと 3 ラウンドの対話で確定。スコープ=5 種（task/event/routine/note/daily）統一 / DB=ハイブリッド（items_meta + 5 payload + 7 専用/relation = 13 テーブル）/ 既存データ=破壊的リセット（calendars 系 3 テーブルは Phase 2 のまま維持）/ Calendar=月+3 日の 2 ビュー（Dayflow 廃止）/ role=本質型・変更不可（作り直し UX）/ payload=専用列厚く JSONB 最小（Notes/Daily の content_json のみ）/ RoutineGroup・WikiTag・wiki_tag_groups=専用テーブル独立 / template_event=専用列分解
+- **プロセス（重ティアフルチェーン）**: session-manager(START) → role-pm（要件分解・Phase 分割・リスク R1-R13）→ 親計画書作成 → role-qa **3 周独立監査**（1st: Blocker3+Major7+Minor5=15 項 / 2nd: Blocker2+Major3+Minor2=7 項 / 3rd: 表記 2 項）すべて解消
+- **Phase 分割**: DU-A(DB スキーマ) → DU-B(Tasks)/DU-C(Events+Routine)/DU-D(Notes+Daily) → DU-E(Calendar 2 ビュー) → DU-F(WikiTag/WikiLink グラフ)。子計画書は Phase 進行時に都度作成
+- **成果物**: `.claude/docs/vision/plans/2026-05-21-data-unification-items-meta.md`（v3、commit `dcc8484`）+ HTML ビュー派生 `.claude/reports/2026-05-21-data-unification-items-meta.html`（git 非追跡）
+- **Phase 2 完全クローズ + ブランチ準備**: `phase-2/schedule-migration` を `refactor/web-first-v2` に FF マージ（merge commit なし）→ 新ブランチ `data-unification/items-meta-redesign` 作成 + push。S5 WikiTags 旧計画は本計画に吸収（旧ファイルは commit 8ceae24 で削除済、設計領域は Data Unification が継承）
+- **HISTORY ローリングアーカイブ**: 13 エントリ蓄積していた HISTORY を最新 5 件保持に整理。S3 系以前の 9 エントリ（2026-05-17 PR1 クローズ以前）を HISTORY-archive.md へ移動（archive 47→56 件）
+- **申し送り**: `origin/refactor/web-first-v2` への push は保留（並行チャット chat-refactor の共有ブランチのため要調整）/ DU-A 着手は Supabase 破壊的 apply の最終承認が前提（二段承認）/ Phase 2 S8 申し送り（Realtime/delta sync）は Data Unification でも継承
 
 > **🧊 FROZEN since 2026-05-23 (worktree: prototype/mobile-ui)** — このファイルは read-only。新規エントリは `.claude/history/chat-<name>.md` (per-chat 機構) に書くこと。main worktree で per-chat 化が完了しており、本 worktree でも task-tracker は legacy モードへフォールバックするが、追記すると main マージ時に論理衝突する。
 >
@@ -43,261 +145,3 @@ Phase 2 最大規模ドメイン Schedule を子ブランチ `phase-2/schedule-m
 - **S8 必須申し送り（S4 SSOT 記録）**: ①rga delta は updated_at 直接ページング確定し親 routine bump 削除 ②cta tombstone 化（0006 に soft-delete 列追加 migration）or 親不在推論、task 側も同機構で一括 ③7 テーブルに server_updated_at 相当 or Supabase Realtime ④delta pull は cursor pagination（Issue 012 半実装回避）⑤ctd は full-replicate＝delta 対象外 ⑥Tauri→Supabase data import で schedule_items version 振り直し
 - **commit/push**: S4-0〜S4-6 を 9 commit に分割（`567f860`→`d809f06`）、各 pathspec 指定で `phase-2/schedule-migration` へ push。親計画書 `2026-05-16-phase2-core-migration.md` の S4 を [x] 化（次=S5 WikiTags）、chat-web-migration outbox に S4 完了 + S8 申し送りをブロードキャスト
 - **残課題**: 0006 本番 SQL Editor apply + 実ブラウザ Schedule CRUD/Routine 生成/Calendar 表示確認（次セッション初手、ヘッダ post-verify クエリ実行）→ S4 SSOT Verification クローズ → 子ブランチを `refactor/web-first-v2` へマージ → S5 WikiTags。実ブラウザ観測項目: 月高速連打の生成件数 + 生成直後ちらつき / Calendar inline-edit version+1 連打 / Mobile build で CalendarTags Provider 不在時 CalendarTagsView=null
-
-### 2026-05-17 - 移行 SSOT 復元 + MEMORY/CLAUDE ドキュメント陳腐化一掃 + orphan DB 削除
-
-#### 概要
-
-ユーザー要請「MEMORY.md にすでに解決済み・矛盾があれば調査」→ general-purpose で MEMORY 予定/保留/バグ温床を移行 SSOT・コード実体・git・KI INDEX と突合棚卸し。調査中に**重大事故を発見**: 移行全体 SSOT `.claude/2026-05-04-cross-platform-migration.md`(495行) が commit `60f5f63`「docs: tidy migration Phase 2 planning docs」で*古い Tauri 期 docs 整理のついで*に巻き込まれ削除されており、CLAUDE.md が 5 箇所で参照する SSOT リンクが全てデッド。続くユーザー指示「陳腐化削除・orphan DB 削除・矛盾統一」に基づき復元と一掃を実施。並行 S4 チャットが共有作業ツリーを `phase-2/schedule-migration` へ切替済のため commit はそのブランチに着地（ユーザー判断で据置＝S4 マージ時トランクへ）。
-
-#### 変更点
-
-- **棚卸し（general-purpose・read-only）**: MEMORY 予定14+保留2+バグ温床16 を ✅解決済/🗑️陳腐化/🔄要リスコープ/✔️有効/❓ユーザー判断 で分類。frontend `npm run build`=green(予定[3]TSエラー解決確認)/`npm run lint`=109問題(未解消だが frontend は Phase5 drop)/orphan DB 実在/移行 SSOT デッドリンク を実証
-- **移行 SSOT 復元（事故修復）**: `git show 60f5f63^:.claude/2026-05-04-cross-platform-migration.md`(495行)を逐語復元。Status 行のみ「S0-S3 完了・次 S4・最新は MEMORY/plans 正本・60f5f63 で誤削除→復元」に現状化。内容は陳腐化なし(2026-05-14 方針更新含む)。CLAUDE.md L5/L13/L45/L203 の SSOT リンク復活
-- **MEMORY 予定 一掃**: 陳腐化 11 項目削除（[4]Q2 Cloud Sync検証/[5]リファクタ検証計画(デッドリンク)/[6]Realtime frontend SyncContext/[7]Mobile Re-syncボタン frontend/[8]Desktop cargo tauri build/[9]orphan DB(実施済)/[10]iOS実機受入/[11]iOS4G/[12]Mobile手動検証(新リデザイン計画へ)/[14]frontend lint 一括(Phase5 drop)/[1]Point Graph継続FB frontend）。[13]を「Capacitor Mobile 追加機能要件 backlog」へ統一(実装パスでなく機能要件のみ保持・Tauri-iOS/user-global plan 参照除去)。保留[15]Tauri IPC naming 削除・[16]React Compiler を「アーキ非依存・移行後判断」へ再框組み。[2]Mobile設計明文化は有効で保持。冒頭注記を「2026-05-17 一括削除済」へ更新
-- **バグの温床 一掃**: Cloudflare D1/wrangler/Tauri-Xcode 専用 10 項目削除（c/d/g/h/i/j/m/n/o/p）。整理メモ残置。残置 a/b/e/f/k/l は移行後有効な恒久知見、f/k は【Supabase 文脈へ書換候補・未着手】注記
-- **クロス参照ドリフト修正**: 予定[4]内「Known Issue 016 検討」死参照除去（016 は番号再利用され現 INDEX では別 issue=タスクツリー循環 OOM）/ バグ b「Known Issue 014」→「013(旧 014 統合分)」（014 は 2026-04-25 に 013 へ統合済の不在番号）。[4]自体は今回の陳腐化削除で消滅
-- **CLAUDE.md §8 統一**: `2026-04-26-windows-android-port.md` デッドリンク（同じ 60f5f63 で削除）を「Windows/Android 配布は移行 SSOT Phase 5 に統合済・逐語は git 履歴」へ書換。`requirements/ios-additions.md`(実在)は据置
-- **orphan DB 削除（破壊的・手順遵守）**: 削除前検証 — `com.lifeEditor.app/life-editor.db`(user_version=59, tasks=1/notes=1, 最終更新 2026-04-15＝旧バンドル残骸) を `~/Backups/orphan-life-editor-com.lifeEditor.app-20260517.db` へ単一ファイル退避後 rm（+shm/wal）。`sonic-flow/life-editor.db`(0byte/0table) は退避不要で rm。検証: `find` で `life-editor/life-editor.db`(active, user_version=70, tasks=2)のみ残存、別PJ `sonic-flow/sonic-flow.db` 保持を確認
-- **commit（並行 S4 ブランチ着地・据置判断）**: セッション開始時 `refactor/web-first-v2` だったが並行 S4 チャットが共有作業ツリーを `phase-2/schedule-migration` へ切替済。SSOT 復元+MEMORY 初回整理は `f7738ac` としてそのブランチに着地(push は upstream 無しで未実行＝リモート影響0)。ユーザー判断「S4 ブランチに据置・git 追加手術なし」＝S4 マージ時にトランクへ自然到達。本セッションの追加 docs 編集も同ブランチへ pathspec commit。shared/(S4 並行作業)・frontend/ 不可侵維持、`git add -A` 厳禁
-- **未着手（報告のみ）**: 🔄書換候補=バグ f/k(Supabase 文脈)・保留 React Compiler / ❓ユーザー判断=なし(Point Graph/[13] は今回整理で処置済、orphan DB 実施済) / 残デッドリンク=なし(windows-android-port は §8 統一済、refactoring-verification-plan は予定[5]ごと削除済)
-
-### 2026-05-17 - shared+web セキュリティ監査 → H1 循環ガード退行修正 + 安全網テスト整備（pathspec commit/push 済）
-
-#### 概要
-
-ユーザーから 3 並行タスク（A=shared+web 脆弱性監査 / B=Phase 5 frontend リファクタ / C=未移植ドメイン安全網テスト）+「別チャットが Phase 4 Schedule 実行中なので注意」の要請。multi-session-coordinator 起動で**重要な誤認を是正**: 別チャット chat-refactor が進めるのは「frontend リファクタ計画の Phase 4」であり移行 SSOT の「Phase 4 = Schedule(S4) 移植」ではない（S4 は未着手・着手チャット無し）。chat-refactor は frontend リファクタ Phase 5 を「要承認」で保留中・MEMORY/HISTORY 不可侵宣言済＝本レーンが tracker 単独オーナー（並行 override 不要）。競合判定: A=Read のみ無衝突 / B=`frontend/src` が chat-refactor 専有書込レーン＝衝突確定 / C=`shared/`+`web/` 新規 `*.test.ts` 限定なら無衝突。ユーザー判断: B は chat-refactor レーンに委譲し本レーン非着手 / C は A の監査結果で対象決定（A→C 逐次）/ C スコープ=H1 修正+安全網テスト。lead-pipeline 中チェーン（security-reviewer 監査 → role-engineer 実装 → session-verifier → role-qa 別コンテキスト独立監査 → task-tracker）。
-
-#### 変更点
-
-- **multi-session-coordinator（状況是正）**: `.claude/active-sessions/` + `.claude/comm/outbox/chat-refactor.md` 照合で「Phase 4 Schedule 実行中」がユーザーの誤認（実体=frontend リファクタ Phase 4・commit 済 / Schedule S4 未着手）と判明。chat-refactor の forward-port 監査レポート（`.claude/reports/2026-05-17-shared-forward-port-audit.md`）を A の入力に活用、二重作業回避
-- **タスクA セキュリティ監査（security-reviewer・read-only）**: `shared/src` + `web/src` + `supabase/migrations|scripts` を 7 観点（PostgREST インジェクション/RLS 網羅/秘密情報/認証/XSS/DoS/ソフトデリート）で監査。判定 Critical0 High1 Med3 Low3 + 既知債務1(悪化なし)。レポート `.claude/reports/2026-05-17-shared-web-security-audit.md`。**負の結果を明示**: service_role/PAT 非露出・`.env*` gitignore・全出荷テーブル RLS owner-only 4policy 正・`pgrstQuoteValue` 文法ブレイクアウト遮断・`dangerouslySetInnerHTML` 皆無・Link protocol allowlist 適切・ソフトデリートフィルタ漏れ無し
-- **H1（新規 finding・forward-port 監査の盲点）**: `shared/src/hooks/useNoteTreeMovement.ts` のローカル `isDescendantOf` に循環ガード欠落。FP#1 は `getDescendantTasks.ts` の 3 関数だけ visited 化、forward-port 監査は本ヘルパを「判定対象外」と明記してスルー＝退行が残存。`parent_id` 循環で `moveNode`/`moveNodeInto` ドラッグ毎にメインスレッド凍結/OOM（KI-016 同型・別ファイル別ヘルパ）。0005 が自己参照 FK を許し Cloud Sync LWW で循環永続化しうる自己被害
-- **タスクC H1 修正（role-engineer）**: 正本 `getDescendantTasks.ts:90-124` の `isDescendantOf` と探索構造が完全同一だったため visited Set パターンを構造そのまま忠実移植（target match を guard より前に維持＝2 ノード循環でも直接到達子を即検出、非循環は挙動完全不変）。コメントで KI-016 参照
-- **タスクC 安全網テスト（role-engineer）**: shared に vitest `^4` 配備（`shared/vitest.config.ts`、`include:["tests/**"]`+node 環境）。**テストを `src/` 外の `shared/tests/` に分離**＝composite project（`include:["src"]`/`outDir:dist`）が dist にテストを emit し consumer 出荷する事故を構造回避（dist 非汚染を実確認）。A 監査 Top5 を新規 5 ファイル/30 テストでカバー（useNoteTreeMovement 循環停止+target-before-guard 不変条件 / pgrstQuoteValue 注入境界+M1 `%`/`_` ギャップを「修正でなく現状記録」と明示 / getDescendantTasks 3 関数 visited / noteUpdatesToPatch の password_hash・has_password・version 非混入 / walkAncestors 既存ガード pin）。可視性のみの最小 export 追加（`isDescendantOf` / `pgrstQuoteValue` を named export 化・ロジック不変）
-- **session-verifier**: scope=shared/ のみ（frontend/ 無変更を git status 確認）。Gate1 型=`tsc -b` EXIT0 / Gate2 lint=shared 未配備でスキップ / Gate3 テスト=30/30 PASS / Gate4 カバレッジ=Top5 全カバー新規 export 使用済 / Gate5 構造=コメント有・死コード無 / Gate6 バグスキャン=循環ガード正当性を自己参照/2 ノード/3 ノードで手動トレース確認。PASS
-- **role-qa 独立監査（別コンテキスト）**: APPROVE / Blocker0 Major0 Minor0。正本との 1 行照合・全循環パターン論理トレース・テスト実効性（修正前ハング入力を実投与+戻り値 assert）・バレル非汚染（`shared/src/index.ts` に未追加・テストは相対 import）・dist 非汚染（`find dist -name "*.test.*"` 空）・レーン制約（`git status --porcelain` で shared/ のみ）を実ファイル実証。security/sync/migration/ipc validator 追加起動は不要判定（防御強化+可視性のみ・スキーマ/IPC/sync 機構変更なし）
-- **タスクB（非着手・委譲）**: Phase 5 frontend リファクタは chat-refactor の専有書込レーン＋当人が保留中の当該作業のため本レーンで起動せず。ユーザー判断で chat-refactor レーンに委譲（こちらからの outbox 通知は専有レーン侵害回避で行わない）
-- **commit/push（task-tracker auto-git override）**: 計画書なし finding 起点だが実コード変更ありのため skill の「計画書なし→.claude/ のみ」ヒューリスティックを override。並行 chat-refactor frontend/ 同居のため `git add -A` 厳禁、パス明示指定（`shared/src/hooks/useNoteTreeMovement.ts` `shared/src/services/SupabaseDataService.ts` `shared/package.json` `shared/package-lock.json` `shared/vitest.config.ts` `shared/tests/` `.claude/reports/` 2 監査 `.claude/MEMORY.md` `.claude/HISTORY.md`）→ `refactor/web-first-v2` push（main 直 push 禁止維持）。`03_demo_mobile_redesign.html`（無関係 untracked）・`frontend/`・`.mcp.json` 除外
-- **次/Backlog**: M1（searchNotes LIKE `%`/`_` 非エスケープ）は申し送り④と整合の既知ギャップでテストにより挙動固定（未修正）/ M3 list 系 pagination 欠落は将来課題 / web 側 vitest は対象テストが web に出た時点で配備 / 次セッション S4 Schedule 移植は従前どおり
-
-### 2026-05-17 - Phase 2 S3 Notes PR1 正式クローズ（role-qa 独立監査 PASS）+ forward-port #1#2#3 適用（pathspec commit/push 済）
-
-#### 概要
-
-前セッションで実装・コミット済（02c9045）だが「未監査・計画書未クローズ」で宙吊りだった Notes Web PR1 を正式クローズ。並行チャット chat-refactor の handoff（`.claude/comm/outbox/chat-refactor.md` + `.claude/reports/2026-05-17-shared-forward-port-audit.md`、Critical 1 含む forward-port 5 件）と合流。lead-pipeline 重チェーン（role-pm 分解 → ユーザー判断 4 点 → role-engineer 実装 → role-qa 別コンテキスト統合監査 → 計画書クローズ → task-tracker）。role-pm が「次に進む」候補（PR1 QA / FP#1 / FP#2-5 / PR2 Backlog）を Tier 判定で分解し曖昧点 4 件を抽出。ユーザー判断: Q1=#1 先行→PR1 QA / Q2=FP #1+#2+#3 を今回（#4#5 はスコープ外）/ Q3=PR2 やらない / Q4=④ folder restore 子孫残存は既知制約として受容。FP#1#2#3 を shared/ に適用、PR1 を独立監査でクローズ。両監査とも Blocker0 Major0 PASS。chat-refactor は frontend/ レーンで MEMORY/HISTORY 非編集と handoff 明記、本レーンが tracker 通常管轄。
-
-#### 変更点
-
-- **role-pm 要件分解**: PR1 が 02c9045（前セッション）で①②③④実装済だが role-qa 未実施・計画書 [ ] のまま宙吊りと診断。「次」候補を Tier 化（FP#1=必須最優先・軽 / PR1 QA=必須・中 / FP#2#3=推奨・軽 / FP#4#5=任意 / PR2=任意・大）、曖昧点 4 件を AskUserQuestion で確認可能化。スコープクリープ警告（⑤を同 PR にしない / Q4(b) で PR1 再オープンしない / Critical 修正に UX 相乗りしない / #1 をついでにリファクタしない）
-- **ユーザー判断 4 点**: Q1=#1 先行→PR1 QA（OOM ブロッカー最優先）/ Q2=FP #1+#2+#3 を今回（Critical+High+1行、#4#5 は MEMORY 予定へ）/ Q3=PR2 今回やらない（UX 段階的方針）/ Q4=④ folder restore 単一ノード制約=既知制約受容（Backlog⑧、再オープンしない）
-- **FP#1 Critical（role-engineer）**: `shared/src/utils/getDescendantTasks.ts` の 3 関数（`getDescendantTasks`/`collectDescendantIds`/`isDescendantOf`）に visited ガード追加。`git show d62a2dc -- frontend/src/utils/getDescendantTasks.ts` の 3 hunk をそのまま適用（独自改変なし）。KI-016 同型 OOM（循環 parentId 無限ループ）を有限終了化、非循環入力で挙動完全不変。`shared/src/index.ts:63-67` 公開 export シグネチャ不変＝`useTaskTreeMovement`/`useTaskTreeDeletion` 経由の呼出側無改修
-- **FP#2 High（role-engineer）**: `shared/src/types/wikiTag.ts` の `entityType: "task"|"memo"|"note"` → `WikiTagEntityType`（`"task"|"daily"|"note"`）参照化、型エイリアスを `WikiTagAssignment` の前へ移動。同ファイル :18 との型矛盾解消（daily タグ集計の死にコード化を是正）
-- **FP#3 Mid（role-engineer）**: `shared/src/hooks/createContextHook.ts:9` `if (!value)` → `if (value == null)`（falsy だが non-null な Context value `0`/`""`/`false` の誤判定を排除、シグネチャ不変）
-- **role-qa 統合監査（別コンテキスト・2 監査）**: A=FP#1#2#3 → マージ可（#1 は適用元 d62a2dc とバイト一致・`isDescendantOf` の一致判定がガード前で 2 ノード循環も即検出・非循環不変、#2 は shared 内 `entityType:"memo"` 残存 grep 0、#3 は consumer 4 件すべて非 primitive Context で回帰なし）。B=PR1(02c9045) → クローズ可（Verification ①②③④ 全達成、最重点④は hook 層 post-order DFS 子カスケード+`seen` 循環ガードで孤児化防止・データ層は単一行据置の設計妥当、restore 単一ノード制約は Backlog⑧ 明文化済で受容）。Blocker0 Major0、Minor2/Nit1 はいずれも実害なし設計妥当。security/sync/migration/ipc validator いずれも不要判定（IPC/スキーマ/sync 機構変更なし）
-- **計画書クローズ（メイン）**: `2026-05-17-notes-web-parity.md` の Status を「PR1 COMPLETE（QA PASS）+ FP#1#2#3 適用済」へ、PR1 ①②③④ + Verification 全項目 + 新規 forward-port セクション #1#2#3 を [x] 化。FP#4#5 は [ ] スコープ外明記。Backlog⑤⑥⑦⑧ は据置
-- **commit/push（task-tracker auto-git override）**: 並行チャット chat-refactor の frontend/ レーン同居のため `git add -A` 厳禁、6 パス明示指定（`shared/src/utils/getDescendantTasks.ts` `shared/src/types/wikiTag.ts` `shared/src/hooks/createContextHook.ts` `.claude/docs/vision/plans/2026-05-17-notes-web-parity.md` `.claude/MEMORY.md` `.claude/HISTORY.md`）→ `refactor/web-first-v2` push（main 直 push 禁止維持）。`03_demo_mobile_redesign.html`（無関係 untracked）除外
-- **次/Backlog**: 次セッション S4 Schedule 移植（最大規模・着手前 role-pm 分解）。FP#4#5（型集約 Low・挙動不変）は別フェーズ。PR2 UX（⑤行内アクション収束/⑥drop indicator/⑦chevron 間隔）+⑧subtree restore は計画書 Backlog 記録済。HISTORY-archive ロールは並行チャット衝突回避で見送り継続（prepend のみ、エントリ数許容）
-
-### 2026-05-17 - Phase 2 S3 Notes ステップ2(0005 実DB検証) + PR1 バグ修正 + 406 A-1 修正 + 循環ガード + known-issue 020（pathspec commit/push 済）
-
-#### 概要
-
-S3 申し送り①「0005 本番未apply＝実機未確認」を解消。ユーザーが 0005 を手動 SQL Editor 適用済の前提で、実 Supabase に対し検証を実行: 3テーブル rowsecurity=true + 各4policy / S0 RLS gate `check-rls.sql` 全文を MCP `execute_sql` で実行し offender0(sentinel のみ＝public 全テーブル clean) / PostgREST FK名 `note_links_source_note_id_fkey` ほか3 FK が実DBデフォルト命名と一致 / get_advisors(security) RLS lint0(WARN は無関係の auth_leaked_password_protection のみ)。続いて実ブラウザ評価をユーザーが実施し7問題を報告→方針確認「バグ修正優先・UX 段階的」。旧来 Tauri 版 frontend を Explore 調査し根本原因を file:line で確定、計画書 `2026-05-17-notes-web-parity.md` 作成(PR1 スコープ + PR2/3 Backlog + ⑧)。PR1 を lead-pipeline 重チェーン（role-engineer 実装 → role-qa 別コンテキスト独立監査 PASS-with-fixes Blocker0 → 明文化適用）で完了。未commit・実ブラウザ確認待ち。並行チャット IME refactor が frontend/ に同居継続のためコミットはパス指定必須。
-
-#### 変更点
-
-- **ステップ2 実DB検証(コード変更なし)**: Supabase MCP `execute_sql` で post-apply 検証。`pg_policies`/`pg_class.relrowsecurity`/`pg_constraint` 照会で notes(4)/note_links(4)/note_connections(4) policy + RLS有効 + FK4本(note_links_source/target_note_id_fkey, note_connections_source/target_note_id_fkey)を実証。`check-rls.sql` 全文(allowlist 空)を実行し戻り値が `___RLS_GATE_OK___` 単独＝offender0。`get_advisors(security)` は RLS 系 lint ゼロ
-- **根本原因確定(Explore 調査)**: ①`NotesView.tsx:448` `key={id:title}` で debounce 保存→title 変化→input remount→focus 喪失(folder は prompt rename で無症状) ②`useNotesAPI.ts:486` `loadDeletedNotes()` 未呼出で `deletedNotes` 常時空→Trash `<details>` 非描画 ③unlock 状態管理不在で本文常時 full 描画・blur/overlay 無し ④folder はクリックで toggleExpand のみ→selectedNote 化せず右ペイン Delete 到達不能・行削除も無し
-- **PR1 実装(role-engineer / 2ファイル)**: ①`NoteTitleInput` の key を `selected.id` のみへ(title 除去) ②初回ロード effect(`[ds,syncVersion]`)に `fetchDeletedNotes` IIFE 追加 + `softDeleteNote` で subtree を `setDeletedNotes` ローカル push(`known` Set で二重防止)・undo/redo も subtree 整合 ③`useState<Set>` セッション unlock + `hasPassword && !unlocked` で `RichTextEditor` を `blur-md select-none pointer-events-none`+`aria-hidden`、クリック overlay→verify→成功で unlock 追加 ④`NoteRow` に `group`+ホバー Trash2(stopPropagation)、hook `softDeleteNote` で post-order DFS 子孫収集→subtree 単位 `ds.softDeleteNote` 多重呼び(旧来は単発でカスケード無し＝今回改善)
-- **独立監査(role-qa 別コンテキスト)**: PASS-with-fixes / Blocker0。Major1=② syncVersion 再ロードと楽観 push のレースは総置換 SSOT で最終収束(実害=Trash 件数一瞬チラつきのみ)・現状維持推奨。Minor=folder restore 非対称(子孫 Trash 残存)未明文化。検証 tsc/eslint/build 実出力で追認。security-reviewer/migration-validator/sync-auditor は不要判定(IPC/スキーマ変更なし・認証は既存 verifyNotePassword 委譲)
-- **明文化適用(メイン)**: `useNotesAPI.ts restoreNote` 直前に「restore は単一ノードのみ＝folder 子孫 Trash 残存(PR1 既知制約・Backlog⑧)」コメント追記。計画書 Backlog に「⑧ subtree restore」追加 + Verification④ を実態へ更新
-- **実ブラウザ確認(ユーザー手動)**: ①②③④ いずれも機能 OK。ただし本文編集/アンマウント時に別系統コンソールエラー `notes?select=version&id=eq... 406` → `updateNote failed: Cannot coerce the result to a single JSON object` を報告
-- **406 根本原因(debug-strategy)**: 楽観 create(`useNotesAPI.createNote` ローカル即追加 + fire-and-forget INSERT) × `SupabaseDataService.updateNote` の version read `.single()`(0行 throw)。INSERT 完了前の unmount flush→updateNote→未確定行 select 0行→PostgREST 406。データ破壊なし(ローカル state 保持・次 flush 救済)。MEMORY S8 申し送り「upsert read-then-write LWW」の前倒し顕在化。StrictMode 二重 invoke は増幅要因(一次でない)
-- **406 修正 案 A-1(role-engineer)**: `SupabaseDataService.ts` notes `updateNote` の version read を `.single()`→`.maybeSingle()`、0行は DB write skip + well-formed 合成 node return(戻り値は全呼出 `.catch` 終端で非消費を横断 grep 確認)、真エラー `if(readErr)throw` は維持し 0行と区別。横展開判断: `upsertDaily` は元から `.maybeSingle()`→INSERT 継続で無変更(skip 化すると Daily 保存回帰)、`toggleBoolean`/`nextVersion` は明示操作経路でレース通路でなく戻り値契約上 0行の正解非一意のため意図的現状維持(known-issue 020 残課題で追跡)
-- **循環ガード追加(メイン・軽)**: PR1 ④ の subtree `collect` に `seen: Set<string>` ガード。破損 parentId 循環での無限再帰(known-issues 016 タスクツリー OOM 同型)を有限打ち切り。正常木では発火せず post-order DFS 不変(統合 role-qa が正当性検証)
-- **known-issue 020 起票**: `docs/known-issues/020-supabase-readthenwrite-single-zero-row-race.md`(Root Cause/Impact/Fix/横展開判断/残課題=案B createNote await・案C flush 差分ガード・toggleBoolean/nextVersion 0行確定/Lessons=`.single()` 禁則・upsert vs update-only 分岐則) + INDEX 更新(Bug カテゴリ、Fixed 集計整合、grep キーワード)。Status=Fixed
-- **統合最終監査(role-qa 別コンテキスト)**: PASS / Blocker0 Major0。循環ガード正当(seen.add タイミング・leaf/通常木挙動不変・循環有限打ち切り)、A-1 正当(真エラー/0行区別・upsertDaily 回帰なし)、PR1 既知制約維持。検証 web/shared `tsc -b`+eslint+vite build 実出力 green、frontend/src-tauri/cloud diff0 非破壊、`.mcp.json` 参照プレースホルダ維持、§8 更新不要(Tier1 既存 Notes バグ修正)。security/sync/migration/ipc validator いずれも不要判定
-- **commit/push(メイン・task-tracker auto-git override)**: 並行チャット IME refactor(frontend/)同居のため `git add -A` 厳禁、QA 承認の 8 パス明示指定 commit(`shared/src/hooks/useNotesAPI.ts` `shared/src/services/SupabaseDataService.ts` `web/src/notes/NotesView.tsx` `.claude/docs/known-issues/020-*.md` `INDEX.md` `2026-05-17-notes-web-parity.md` `MEMORY.md` `HISTORY.md`)→ `refactor/web-first-v2` へ push(main 直 push 禁止維持)。`03_demo_mobile_redesign.html`(無関係 untracked)除外
-- **次/Backlog**: 次セッション S4 Schedule 移植(最大規模・着手前 role-pm 分解)。PR2 UX(⑤行内アクション収束/⑥drop indicator/⑦chevron 間隔)+⑧subtree restore は計画書 Backlog 記録済
-
-### 2026-05-17 - クロスプラットフォーム移行 Phase 2 S3(Notes) コード完了（Option A 確定 + 0005 スキーマ + lean TipTap + password/lock UI）
-
-#### 概要
-
-Phase 2 S3（Notes ドメイン Web 移植）をコード完了。lead-pipeline 重ティアのフルチェーン（session-manager START → role-pm 分解 → execution-router 戦略 → role-engineer 実装 → session-verifier → role-qa+security-reviewer+frontend-react-designer 並列独立監査 → 集中修正 → security 再確認 → task-tracker END）。8 サブタスクを Group A(並列: deps+schema) → B(backend) → C(frontend) で実装。**最重要のアーキ決定: Option A 確定**。計画書 SSOT の「`frontend/components/Notes → shared/components/Notes`」記述は S1/S2 実装が既に意図的逸脱しており実態と乖離（shared は UI フリー＝context/hooks/services/types のみ / web/src/<domain>/ に shared データ経路を叩く新規ミニ UI）。role-engineer が矛盾を検出しメイン差し戻し→ユーザー承認で Option A に統一、計画書文言も実態へ補正。Group A が投機的に shared へ追加した TipTap/@dnd-kit を web へ移動。3 監査いずれも Blocker/致命 AntiPattern ゼロ、PASS-with-fixes の安く高価値な指摘を集中修正パスで解消。**0005 本番未apply＝実ブラウザ動作確認は次セッション初手**。working tree に並行チャットの未コミット IME 安全化リファクタ(frontend/ ~30ファイル)が同居、frontend/ 全除外のパス指定ステージで完全分離。
-
-#### 変更点
-
-- **アーキ決定 Option A**: shared UI フリー維持（S1/S2 実態準拠）。`shared/src/context/NoteContext`(Pattern A 3ファイル) + `hooks/{useNoteContext,useNoteTreeMovement,useNotesAPI}.ts` + `utils/generateId.ts` のみ追加。UI は `web/src/notes/` に新規記述（移植でなく目的特化リーン実装）。TipTap/@dnd-kit/lucide-react は frontend lock 同バージョンで `web/package.json` へ（Group A が shared に追加→Option A 確定で web へ移動）。計画書 `2026-05-16-phase2-core-migration.md` の S0-S3 を [x] 化 + S3 に Option A 実態注記を追加（S4 以降も Option A 前提と明記）
-- **0005_notes_full_schema.sql**: `notes`(versioned: 階層 parent_id/order/soft-delete/version/`has_password` generated col `password_hash is not null`/`is_edit_locked`/password_hash 非SELECT) + `note_links`(versioned) + `note_connections`(relation: 最小列・実体削除)。3テーブル全て RLS enable + owner-only 4 policy(`to authenticated`+`auth.uid()=user_id`) + `user_id default auth.uid()`。0003/0004 と byte 一致パターン、S0 ゲートロジック機械シミュレートで 3テーブル CLEAN
-- **shared services**: `noteMapper.ts`/`noteLinkMapper.ts`(SELECT_COLUMNS 素カラム名のみ・password_hash 非選択・SQL 式混入ゼロ＝S2 再発防止知見遵守) + `noteMapper.roundtrip.ts`(10/10 PASS) / `SupabaseDataService.ts` notes/noteLink/noteConnection 系25メソッド本実装（Proxy throw 全置換、version read-then-write、plaintext-equality 踏襲+将来 RPC 化債務コメント3箇所）
-- **web/src/notes/**: `NotesView.tsx`(階層ツリー+DnD+pin/lock/password 配線+Loading/Error 状態) / `RichTextEditor.tsx`(lean TipTap=見出し/リスト/リンク/コード等、debounce 800ms+flush、Link protocols allowlist) / `NotePasswordDialog.tsx`(set/remove/verify、role=dialog+aria-modal+focus 管理+aria-invalid/describedby) / `useNoteTreeDnd.ts`(@dnd-kit→shared move glue)。`MainScreen.tsx` に NoteProvider(§6.2 順 Daily の後・Sync 内)+notes セクション、`index.css` に .note-editor notion トークンスタイル
-- **3監査並列(別コンテキスト)**: role-qa=PASS-with-fixes(Blocker0/要件6項目全達成/移植忠実性 frontend useNotes と制御フロー一致) / security-reviewer=Critical0 High0 Medium2(RLS 3テーブル clean 静的トレース実証・password plaintext 踏襲で悪化なし=0004 と同型・XSS 安全) / frontend-react-designer=致命AntiPattern0(notion トークン/IME/i18n props PASS、要修正は a11y/状態網羅)
-- **集中修正パス**: B1(password set 失敗が「required」と誤表示するバグ修正+NotesView Loading/Error 状態を S1 手本準拠で追加) / A2(dialog input aria-invalid+aria-describedby) / A3(全 interactive 要素 focus-visible リング定数化) / B2(title input を子コンポ+key 再マウントで debounce 化) / B3(submit aria-busy) / A1(focus trap 意図的延期コメント) / security Low-1(Link protocols allowlist) / **security Medium-1+qa Important**: `deleteNoteConnectionByPair` 未エスケープ補間 + `searchNotes` の不正エスケープを共通ヘルパ `pgrstQuoteValue`(PostgREST ダブルクオート囲み+`\`/`"` エスケープ)に統一(DRY)。security 再確認で「修正方式妥当・注入経路遮断・退行なし・Critical/High/Medium なし」
-- **検証**: session-verifier(Group B 後)PASS。全工程後 直接検証: shared `tsc -b`=0 / web `tsc -b`+eslint+vite build green / **frontend `tsc -b`=0(並立非破壊実測)** / noteMapper round-trip 10/10 / password_hash 非SELECT・SQL 式混入ゼロ grep。スコープ封じ込め確認(shared/web/supabase のみ、src-tauri/cloud 無変更)
-- **commit**: パス指定ステージ（shared/src の note 系9ファイル + SupabaseDataService + context/index.ts + index.ts + shared/package*.json / web/src/notes + MainScreen + index.css + web/package*.json / supabase/migrations/0005 + .claude tracker/plan/active-sessions）。**frontend/ 配下(並行チャット IME refactor ~30ファイル) は1ファイルも stage せず**、`.claude/2026-*.md`削除・`.mcp.json`・frontend-refactor plan の M も `git add -A` 不使用で完全分離
-
-#### 残課題
-
-- **[次セッション初手・最重要] 0005 本番未apply**: SQL Editor 手動 apply 後 (a)S0 RLS ゲート実DB実行 (b)PostgREST FK名 `note_links_source_note_id_fkey` デフォルト命名一致確認 (c)カンマ/括弧/`\` 入り検索 sanity (d)実ブラウザ Notes CRUD/階層DnD/lean TipTap/backlink/password・lock 動作確認
-- **[既存債務・悪化なし]** plaintext password の RPC security-invoker 化が将来の正攻法（コード/SQL コメント既設、Medium-2）。Low-A: searchNotes の LIKE メタ %/\_ 非リテラル化は Tauri SQLite LIKE 同挙動＝移植方針上現状維持が正
-- **[インフラ候補]** shared/web に vitest 未配備で Gate3-4 SKIP。Phase 2 横断で一括整備候補（最優先=noteMapper/noteLinkMapper 純粋関数, useNoteTreeMovement 循環ガード）。designer 改善: prefers-reduced-motion 一括無効化 / NotesView 英語直書きの i18n テーブル化(Settings S-step)
-- **[アーキ・S4 前提]** Option A 確定。S4 Schedule も shared UI フリー / web 新規ミニ UI、TipTap/dnd 等は web 側。計画書文言は補正済
-- **[別チャット同居]** working tree に並行チャット IME 安全化リファクタ(frontend/ ~30+imeSafe.ts/test+useSlashCommand.ts)が未コミット同居。S3 commit はパス明示で frontend/ 全除外、`git add -A` 厳禁。HISTORY-archive ロールは衝突回避で見送り継続(prepend のみ、エントリ数許容)
-
-### 2026-05-16 - クロスプラットフォーム移行 Phase 2 S2(Daily) 完了（PostgREST select バグ修正 + generated column 化 + 実機 parity 実証）
-
-#### 概要
-
-S2 は「コードのみ commit 済・実機未確認」だった。手動 parity 確認で本番ブロッカーを発見: `dailyMapper.ts` の `DAILY_SELECT_COLUMNS` に PostgREST 非対応の SQL 式 `password_hash is not null as has_password` が埋め込まれ、`column dailies.password_hashisnotnullashas_password does not exist` の 400 で Daily 全 read/upsert が全滅、本番 `public.dailies` は 0 行（fire-and-forget な upsertDaily がエラーを握り潰し optimistic state のみ生存→リロードで消失）。root cause を実機コンソールで確定後、サブエージェント分担で構造修正（実装=role-engineer / 監査=role-qa=APPROVE W/C + security-reviewer=PASS W/N、いずれも別コンテキスト）。0004 を本番 SQL Editor 再適用（MCP write は前提未達で凍結維持）、MCP read-only で RLS owner-only 4 policy + `has_password` generated column ALWAYS を実証、実機 parity green。password 設定 UI は web DailyView 意図的未実装のため S3 へ申し送り（ユーザー承認）。ブランチ refactor/web-first-v2、別チャット（frontend-refactor + doc 整理）同居でパス指定ステージ。
-
-#### 変更点
-
-- **root cause（PostgREST select の SQL 式不可）**: PostgREST `select=` はカラム名 or DB 側 generated column / computed field のみ受理し任意 SQL 式を評価しない。`password_hash is not null as has_password` がスペース詰めで存在しないカラム名として 400 化。`DAILY_SELECT_COLUMNS` を使う全 read/upsert（fetchAllDailies / fetchDailyByDate / fetchDeletedDailies / upsertDaily の .select / setDailyPassword / removeDailyPassword）が全滅していた。tasks は別 mapper のため無事
-- **修正（generated column 化）**: `0004_dailies_full_schema.sql` の `password_hash text` 直後に `has_password boolean generated always as (password_hash is not null) stored` を追加（raw hash 非投影のセキュリティ要件を維持しつつ PostgREST が素のカラム名で projection 可能に）。`dailyMapper.ts` の `DAILY_SELECT_COLUMNS` を SQL 式 → 素カラム名 `has_password` に修正、`DailyRow`/`DailyWriteRow`/各 docstring を generated column の事実へ整合更新。`dailyMapper.roundtrip.ts` はコメントのみ。0004 の idempotent `drop ... cascade`+create / RLS 4 policy / `enable row level security` / `user_id default auth.uid()` / `date not null unique` は不変
-- **本番再適用 + RLS 実証**: 0004 をユーザーが SQL Editor 再適用（idempotent・現状 0 行で損失なし）。MCP read-only で `rls_enabled=true` / `policy_count=4`（select/insert/update/delete 全 `to authenticated`+`auth.uid()=user_id`、UPDATE は USING+WITH CHECK）/ `has_password_is_generated=ALWAYS` / `generation_expression=(password_hash IS NOT NULL)` / `password_hash` 列存続を確認。`get_advisors(security)` のテーブル RLS lint 0
-- **実機 parity 実証**: pin parity を実機操作 + MCP 客観確認。`daily-2026-05-16` が content 再編集を繰り返し `version=9` まで `is_pinned=true` を保持（DEFAULT 潰れなし＝PostgREST merge-duplicates の partial-payload DO UPDATE が送信列のみ更新）、リロード永続化、`restoreDaily` も機能。`password_hash` は `is_pinned` と同一の upsert payload 非含有列で帰納的に parity 成立（role-qa が PostgREST セマンティクスで論理確認）
-- **監査**: role-qa=APPROVE WITH COMMENTS（Blocker0/Important0、全 write パス精読で generated column write 混入なしを独立再確認、round-trip 8/8 独立再現、frontend `tsc -b`=0 非破壊）/ security-reviewer=PASS WITH NOTES（Critical/High/Medium0、raw `password_hash` 非到達維持・むしろ改善、RLS 不変、インジェクション余地なし、plaintext-equality は既存債務で悪化なし、Low2 は将来提案）
-- **検証**: session-verifier 3 回 PASS（role-engineer / role-qa 独立再現 + メイン最終差分）— web `tsc -b`=0 / frontend(Tauri) `tsc -b`=0 非破壊 / dailyMapper round-trip 8/8
-- **commit**: パス指定ステージ（`shared/src/services/dailyMapper.ts` `dailyMapper.roundtrip.ts` `supabase/migrations/0004_dailies_full_schema.sql` + `.claude/MEMORY.md` `.claude/HISTORY.md`）。別チャット領域（`.claude/2026-*.md` 削除 / `.mcp.json` / `.claude/docs/*` / HISTORY-archive ロール）は `git add -A` 不使用で巻き込まず
-
-#### 残課題
-
-- **[再発防止知見]** PostgREST `select=` に任意 SQL 式不可（カラム名 or generated column / DB 関数のみ）。computed boolean は generated column 化が定石。S3+ の mapper でも厳守。known-issues 起票は別チャット doc 整理(`.claude/docs/known-issues/*`)衝突回避で見送り＝MEMORY が記録正本
-- **[軽微・別途修正候補]** 0004 冒頭コメントが「APPLY VIA SUPABASE MCP apply_migration — NOT manual SQL Editor paste」と実運用（MCP write 凍結＝SQL Editor 手動）に不整合
-- **[要ユーザー判断]** `get_advisors(security)` の `auth_leaked_password_protection` WARN（dailies 無関係の Supabase Auth 設定・HaveIBeenPwned 照合無効）。完成後/友達配布時判断
-- **[S3 申し送り]** password 設定/解除/lock UI は web DailyView 意図的未実装で S3(TipTap + password/lock dialog 横断)に移譲（ユーザー承認済）。upsertDaily payload 付近に partial-payload 意図コメント追記推奨(Suggestion) / plaintext-equality password の docs/known-issues 化は Phase 後段 / password verify の raw hash クライアント転送は既存債務(悪化なし・将来 RPC security invoker 化案)
-- **[未解消・要ユーザー]** PAT 露出インシデント止血継続（MCP write 昇格前提=専用組織/write時のみ token/直後 check-rls/破壊的 DDL 人間目視/版固定 未達のため write 凍結維持）/ upsert read-then-write LWW(S8) / SyncProvider 二重ラップ(S8) / `web/src/TasksScreen.tsx` dead code 要確認
-- **[別チャット同居]** `.claude/HISTORY-archive.md.bak`・frontend-refactor・doc 整理が混在。HISTORY-archive ロールは衝突回避で見送り継続（HISTORY.md は prepend のみ、6 エントリ許容）
-
-### 2026-05-16 - クロスプラットフォーム移行 Phase 2 S2 コード完了 + Supabase MCP 採用 + token インシデント止血（0003 本番適用・RLS 実証）
-
-#### 概要
-
-S1 完了後: 0003 を本番適用（Phase1 同様 SQL Editor 経由＝`supabase db push` は履歴テーブル不在+非タイムスタンプ命名で不発の既知問題判明）、Supabase MCP read-only で **0003 RLS 実証**（advisor lints 0 + owner-only 4 policy 確認、42P05 pooler 問題を MCP で回避）。Supabase 接続の摩擦解消のため **Supabase MCP Server を Phase 2 migration/検証経路に採用**（公式パッケージ・`--read-only`・`--project-ref` スコープ・token は env 間接参照）。S2（Daily 移植）コード実装完了（role-engineer→role-qa=APPROVE W/C）。**セキュリティインシデント**: `.mcp.json` に PAT 平文ベタ書きを security-reviewer が検出（git tracked・未 commit で止血間に合い）、`${SUPABASE_ACCESS_TOKEN}` 間接参照へ修正。token ローテーション等はユーザー対応（下記残課題）。ブランチ refactor/web-first-v2、別チャット（frontend-refactor + doc 整理）と同居でパス指定ステージ。
-
-#### 変更点
-
-- **0003 本番適用 + RLS 実証**: tasks が text id・28列・CHECK(type/status/folder_type/priority)・FK・rows 0 で稼働。Supabase MCP `get_advisors(security)` lints 0 + `pg_policies` 4 owner-only policy（SELECT/INSERT/UPDATE/DELETE すべて `to authenticated` + `auth.uid()=user_id`、UPDATE は USING+WITH CHECK）を確認＝S1-9 の RLS/スキーマ検証完了（実ブラウザ CRUD は残）
-- **Supabase 接続知見**: `supabase db push` 不発（履歴テーブル無し+`0001_`命名）/ Transaction pooler 6543+`pgbouncer=true` は prepared stmt 非互換(`42P05`)/ パスワード percent-encode 必須。memory `project_supabase_migration_gotchas` に記録。解決＝MCP 採用
-- **Supabase MCP 採用**: `.mcp.json` に `@supabase/mcp-server-supabase@latest --read-only --project-ref=mcrfdnjplfmqwnwbcbol`、token は `${SUPABASE_ACCESS_TOKEN}` 間接参照。`supabase/scripts/db-push.sh` 新規（gate→`--db-url` push 1コマンド化、URL 手打ち全角スペース混入回避）+ `package.json db:push` 差し替え。`check-rls.sql` を Postgres compound ORDER BY 準拠に修正（派生テーブルラップ、self-test 20/20）
-- **S2 Daily コード**: `0004_dailies_full_schema.sql`（id text PK=`daily-<date>`/user_id default auth.uid()/soft-delete/version/RLS owner-only 4 policy、0003 と同形、冪等）/ `dailyMapper.ts`+`roundtrip.ts`（ランタイム検証・`Omit<...,"user_id">`・往復8/8）/ `SupabaseDataService` daily 12メソッド（`DAILY_SELECT_COLUMNS` は `password_hash is not null as has_password` 投影で raw hash 非返却）/ `DailyContext`(Pattern A)+`useDailyAPI`+`dateKey` / `web/src/MainScreen.tsx`(旧 TasksScreen rename)+`daily/DailyView.tsx`(plain textarea、TipTap は S3)。バグ3自己修正（App.tsx 参照漏れ/roundtrip コメント`*/`早期終了/DailyView setState-in-effect）
-- **検証**: session-verifier（engineer+QA 独立再現）PASS — shared/web/**frontend `tsc -b`=0 非破壊** / web vite build / eslint / dailyMapper round-trip 8/8 / check-rls self-test 20/20
-
-#### 残課題
-
-- **[Critical・要ユーザー] PAT ローテーション必須**: `sbp_2d4f...` が会話ログ・`~/.zshrc`・監査ログに露出。Supabase Dashboard で Revoke→再発行、新 token は `~/.zshrc`(`chmod 600`) のみ、`~/.zsh_history` の旧 token も削除。完了まで **MCP write(`apply_migration`) 凍結＝0004 本番適用不可＝S2 未完**
-- **[要ユーザー] MCP write 昇格前提（security High）**: 専用 Supabase 組織分離 / write 時のみ token 投入・作業後 unset / `apply_migration` 直後に同セッション check-rls 検証 / 破壊的 DDL は人間が SQL 目視 / `@latest`→バージョン固定
-- **[S2 完了条件] 0004 適用後の手動 upsert parity 確認**（QA High-1）: 新規日作成→pin/password 設定→本文再編集 blur→pin/password 保持を実機確認するまで S2 完了マークしない
-- **[申し送り] password 平文保存・平文比較**（Tauri 1:1 移植 pre-existing、raw hash 非返却は QA 確認済）/ upsert read-then-write LWW(S8) / SyncProvider 二重ラップ(S8 再構成) / upsert payload から id 除外(Suggestion) / `web/src/TasksScreen.tsx` 残存（MainScreen rename 後の dead code 要確認）
-- **[別チャット同居]** `.claude/HISTORY-archive.md.bak`・frontend-refactor の `frontend/**/*.test.*`・known-issues・doc 整理が混在。S2 commit はパス明示で巻き込まず（`git add -A` 禁止）。HISTORY-archive ロールは別チャット圧縮と衝突回避で見送り
-
-#### 概要
-
-`.claude/archive/` 肥大化の解消と、CLAUDE.md / MEMORY.md 等の矛盾調査をサブエージェント3並列で実施。(A) archive 圧縮統合、(B) HISTORY-archive コンパクト化、(C) ドキュメント矛盾調査 を独立ワークストリームで並行。ユーザー判断: archive 個別プランは要約統合後に全削除 / HISTORY-archive は古い部分のみ要点圧縮し最近は温存 / サブディレクトリも対象 / vision-tauri も含め全削除 / 矛盾修正は Top3+#3 / 検出した未起票 known-issues を新規作成。並行して Claude Desktop に life-editor MCP サーバを登録（config はリポジトリ外 `~/Library/.../claude_desktop_config.json`、GUI 起動のため node 絶対パス必須）。ブランチ refactor/web-first-v2、別チャットの pre-existing 変更（shared/ web/ 等 38 ファイル）と分離するためパス指定で `.claude/` のみコミット。
-
-#### 変更点
-
-- **archive 圧縮統合**: `.claude/archive/` の 28 プラン .md + TODO.md + サブディレクトリ docs/dropped/rules/vision-tauri（計 50 tracked ファイル）を `git rm`。`archive/SUMMARY.md`（283 行 / 元 601KB → 約 22KB、96% 削減）に「目的 / 結果採否 / Lessons」をテーマ別5グループで圧縮統合。削除前に vision-tauri の恒久知見（単一データソース原則 / 無料 Apple ID 7日署名制約 / Realtime レイテンシ目標）を SUMMARY.md へ抽出（逐語原文は git 履歴で復元可）
-- **HISTORY-archive コンパクト化**: `HISTORY-archive.md` 1257 行/269KB → 413 行/82KB（69% 減）。実効カットオフ 2026-04-29（指示の 2026-04-01 だと対象ゼロのため調整）、2026-04-29 以降は逐語温存、2026-04-19〜04-27 の Tauri 期 29 エントリを要点圧縮（見出し45件は全保持）。原本を `HISTORY-archive.md.bak` に退避（git 未追跡・コミット対象外）
-- **ドキュメント矛盾修正（Top3+#3）**: ①リンク切れ解消 — CLAUDE.md §8 / MEMORY.md / 移行SSOT の `vision-tauri/`・`docs/vision/realtime-sync.md` 等を `archive/SUMMARY.md` へ張替（残参照0確認）②Phase 表記 — CLAUDE.md §1 + 移行SSOT Status を「Phase 1 着手準備中」→「Phase 2 進行中（Phase 1 完了 / S0・S1 完了 / S2 準備中）」③IPC 同期矛盾 — `coding-principles.md` の「3 点同期」→「4 点同期」+ DataService.ts 追記 + 正本=CLAUDE.md §7.2 明記 ④MCP ツール数 — CLAUDE.md §5.1「30 ツール」→ 実数 32 + Schedule に dismiss/undismiss 追記
-- **known-issues 新規 3 件**: 017（カレンダーに soft-deleted task 残存 + Routine 削除後 schedule_items 再生成）/ 018（macOS WebKit で button クリックが focus を奪わず autoFocus input の blur 先行）/ 019（createPortal 配下 DOM 分離で click-outside 誤発火しパネル即閉じ）。INDEX.md に Fixed 追記 + Category/Status 集計更新（Fixed 11→14、合計 12→15）。mobile-data-parity Provider バイパスは既存 009 で収載済のためスキップ、D1 multi-statement は web-first 移行で廃止予定のため起票せず
-- **Claude Desktop MCP 設定**: `~/Library/Application Support/Claude/claude_desktop_config.json` の mcpServers に `life-editor` 追加（既存 pencil 保持）。GUI アプリは nvm の PATH 非継承のため `command` に node 絶対パス（`/Users/newlife/.nvm/versions/node/v20.20.0/bin/node`）指定。mcp-server を `npm run build` で最新化（dist は gitignore 対象）、起動スモークテストで tools/list 応答確認。リポジトリ外変更のため commit 対象外
-
-#### 残課題
-
-- **`HISTORY-archive.md.bak`（1257 行・git 未追跡）**: 当面保持。`.gitignore` 追加 or 削除はユーザー判断（MEMORY.md S1 申し送り⑤と連動）
-- **Agent C 検出の残 5 件未修正**: 🟡 core.md「Web UI 非対象」自己矛盾 / §7.1 に Web スタックコマンド欠落、🟢 §3.4「全テーブル sync」/ §3.3 Section Routing の Tauri 前提 / MEMORY.md 予定セクション凍結化。今回は Top3+#3 のみ指定のため別タスク
-- **コミット範囲**: 作業ツリーに別チャットの pre-existing 変更（shared/ web/ App.tsx 等 38 ファイル）混在。本コミットはパス指定で `.claude/` のみ、`git add -A` 不使用で完全分離
-
-### 2026-05-16 - クロスプラットフォーム移行 Phase 2 S1 完了（Tasks 移植: 0003 スキーマ + SupabaseDataService + shared TaskTree）
-
-#### 概要
-
-Phase 2 S1（Tasks ドメインの Web 移植）を完了。サブエージェント分担（実装=role-engineer / 監査=role-qa+security-reviewer / 統括=メイン）。tasks を `0001`(uuid id, RLS deny-all) → **`0003`(text id = CLAUDE.md §4.3 準拠, owner-only 4 policy) に破壊的 rebuild**。`SupabaseDataService` の tasks 系を Phase1 最小4メソッドから9メソッド全列実装へ拡張、`row.status as TaskNode["status"]` 型詐称を `taskMapper.ts` のランタイム検証へ撤廃（申し送り④解消）。`frontend/src/components/Tasks/` の Tauri 非依存ロジック（hooks/context/utils）を依存注入化して `shared/src/` へ移植、web に @dnd-kit ベースの機能的 TaskTree UI を新規実装。TipTap(TaskDetail)/i18n/UndoRedo フルチェーンは計画書通り S3/S6 に分離（web は no-op UndoRedo 注入）。監査: role-qa=APPROVE WITH COMMENTS（回帰独立再現 frontend/web/shared `tsc -b`=0）、security-reviewer=SECURE WITH RECOMMENDATIONS（0003 RLS 完全・IDOR 不成立・check-rls ゲート論理通過 offender 0、Critical/High なし）。Important-1（folder_type の DB CHECK 欠落↔validator 乖離）を 0003 push 前に CHECK 追加で解消。ブランチ refactor/web-first-v2、別チャット frontend-refactor 同居のためパス指定ステージ。
-
-#### 変更点
-
-- **0003_tasks_full_schema.sql 新規**: tasks 全27カラムを Postgres 化（`id text primary key` クライアント生成 §4.3 / `type`/`status`/`folder_type`/`priority` を CHECK 制約化 / `parent_id text references tasks(id)` / `"order" integer` / soft-delete `is_deleted`+`deleted_at` §4.4 / `user_id uuid not null default auth.uid()` / `version integer default 1`）。`drop table ... cascade` で 0001/0002 を破壊的 rebuild（Phase1 残骸ユーザー掃除済）。RLS enable + owner-only 4 policy（select USING / insert WITH CHECK / update USING+WITH CHECK / delete USING すべて `to authenticated` + `auth.uid()=user_id`）。1 ファイル完結（README 分割禁止規約準拠）
-- **shared services**: `taskMapper.ts` 新規（純マッパー、`toNodeType/toStatus/toFolderType/toPriority` が不正値で throw = 型詐称撤廃、`TaskWriteRow=Omit<TaskRow,"user_id"|"due_date">` で server-derived 列を書き込みから除外）/ `taskMapper.roundtrip.ts`（往復8ケース、Node 直実行）/ `SupabaseDataService.ts` tasks 9メソッド全列実装（fetch/create/update/permanentDelete/fetchDeleted/syncTaskTree/softDelete/restore + migrateTasksToBackend=no-op）
-- **shared context/hooks/utils 移植**: Pattern A 3ファイル `TaskTreeContext{Value}` + web 用 no-op `SyncContext`（§6.3 例外条項明文化、`syncVersion=0` 固定）+ barrel。`useTaskTree{API,CRUD,Deletion,Movement,History}` を DataService/UndoRedo/config 依存注入化（§6.4 準拠、UndoRedo は `createNoopUndoRedo()` 注入で S6 置換可能）。`walkAncestors/folderTag/getDescendantTasks/sortTaskNodes` 等 tree utils（`SortDirection` を UI 非依存に独立化）
-- **shared React 化**: `shared/package.json` に react を peer(>=19)+dev / `@types/react` dev、`tsconfig.json` に `jsx:react-jsx`+`types:["react"]`。S0(b) composite/project-references 設計維持（web/frontend `tsc -b` 双方0で実証）、peerDependency 化で React 実体重複回避。計画書 Files 表に追記要（S1 達成に不可分の必要変更と QA 判定）
-- **web 配線**: `web/src/tasks/TaskTreeView.tsx` 新規（@dnd-kit core/sortable/utilities、notion トークン、CRUD/階層/soft-delete/restore/trash）、`TasksScreen.tsx` を Provider 配線（§6.2 順 Sync→TaskTree、`createSupabaseDataService` 注入）。`web/package.json` に @dnd-kit 追加
-- **RLS ゲート回帰拡張**: `check-rls-selftest.sh` に B9/B10（0003 qual パリティ）+ C2（0003 静的構造）追加 = 18/18
-- **Important-1 解消**: 0003 L64 `folder_type text` → `check (folder_type is null or folder_type in ('normal','complete'))`。DB CHECK と `taskMapper::toFolderType` 受理集合 `{null,normal,complete}` を完全一致（type/status/priority 3列と設計統一）。ゲートは pg_constraint 非参照のため非回帰、self-test 18/18・round-trip 8/8 維持
-- **検証**: session-verifier コミット前ゲート PASS — shared `tsc -b`=0 / web `tsc -b`=0 / **frontend `tsc -b`=0（非破壊実測）** / web `eslint`=0 / web `vite build` green / self-test 18/18 / round-trip 8/8
-
-#### 残課題
-
-- **[要ユーザー対応] SUPABASE_DB_URL パース失敗**: `supabase/.env` 配置済だが pooler 接続文字列のパスワード部に未エンコード特殊文字（`net/url: invalid userinfo`）。RLS ゲート本番実行は exit 2(INCONCLUSIVE) で正しく fail-safe（誤 PASS せず）。0003 push 前にパスワードを URL エンコード or Session pooler/Direct connection 文字列へ要修正
-- **[S1-9 未実施] 実ブラウザ CRUD/DnD 検証**: SUPABASE_DB_URL 修正 → `npm run db:check-rls` green → `npx supabase db push`(ユーザー確認) → web で実 CRUD/DnD/soft-delete/restore + RLS 実証（別アカウントで他者行不可視）。S8 Realtime 未実装のため他タブ非反映は想定挙動
-- **[S8 へ申し送り] M1 version 非増分**: softDelete/restore/update が `version` を増分せず LWW 同期前提と乖離。複数デバイスで削除復活リスク（自分のデータ範囲）。S8 同期実装で対処
-- **[低優先 申し送り]** M2 mutation 0行サイレント / L1 0003 再適用 runbook / L2 parent_id FK on delete 未指定 / Suggestion(Proxy Symbol ガード, created_at クライアント送信) → S2 以降
-- **[別チャット同居]** 作業ツリーに frontend-refactor-pre-migration（別チャット）の `frontend/src/**/*.test.ts`・`vitest.config.ts`・`known-issues/*`・plan `.md`・`HISTORY-archive.md.bak` が混在。S1 commit はパス明示で `supabase/migrations/0003*` `supabase/scripts/check-rls-selftest.sh` `shared/` `web/{src,package*.json}` + `.claude` tracker のみ、`git add -A` 不使用で完全分離
-
-### 2026-05-16 - クロスプラットフォーム移行 Phase 2 S0 完了（RLS 漏れ検出ゲート + tsconfig project references 化）
-
-#### 概要
-
-Phase 2（コア機能 Web 移植）の申し送り先行対処 S0 を完了。サブエージェント分担（設計=role-pm / 実装=role-engineer / 監査=role-qa+security-reviewer / 統括=メイン）。**S0(a)** Supabase は anon key 公開前提のため RLS 漏れ = 全行流出 Critical。`supabase db push` 前に「RLS 無効 / policy 0件 / 全開 policy（anon・public ロール / 無スコープ述語 / WITH CHECK 欠落 / auth.uid() 非 owner 等値）」を機械検出するゲートを新設。初回監査で security-reviewer が **VULNERABLE（Critical-1: 全開 policy 素通り）** を指摘、engineer 3 ラウンド + 監査 3 ラウンドで Critical-1 / High-1（`auth.uid() is not null` 型すり抜け）/ High-2（migration 分割 deny-all 盲点）/ Medium-1,2 / Low-1 を全 CLOSED、self-test 15/15。番兵行方式で接続失敗を安全側（exit 2）に倒し「未検証なのに push 通過」を構造的に排除。**S0(b)** `shared` を composite project 化 + `web` を project references 化（Phase 1 申し送り②）。`frontend/`(Tauri) `tsc -b`=0 で並立非破壊を維持。ユーザー判断: tasks id 型=text（CLAUDE.md §4.3 準拠）/ S0(b) を S1 前実施 / 検証は本番直 push（S0a ゲートを安全網に）/ Phase1 検証残骸はユーザー手動掃除。ブランチ refactor/web-first-v2、別チャット Point Graph 同居のためパス指定ステージ。
-
-#### 変更点
-
-- **S0(a) RLS ゲート（新規）**: `supabase/scripts/check-rls.sql`（pg_catalog/pg_policies read-only 走査。`relkind in ('r','p')`、5 検出器: rls_disabled / no_policy / anon_or_public / unscoped_true / qual_no_authuid + insert_no_check + owner_table_no_authuid WARN、`(table_name, why_reason)` 複合 allowlist で誤検知のみ WARN 降格・detector は弱めない、末尾番兵行 `___RLS_GATE_OK___`）/ `check-rls.sh`（stdout・stderr 分離、番兵有無で完走判定 → 接続失敗 exit 2 / leak exit 1 / safe exit 0、`source .env` 廃止し `SUPABASE_DB_URL` 1 行のみ安全抽出、DSN パスワードマスク、`tail -n +2` でヘッダ除去）/ `check-rls-selftest.sh`（DB レス 15 ケース、SEC-High-1 B4/B5 含む）/ `supabase/package.json`（`db:check-rls` && `db:push` 直列、`db:check-rls:selftest`、supabase devDependency 固定）/ `supabase/README.md`（1 テーブル 1 migration 分割禁止明文化、ゲート射程外節 = view/SECURITY DEFINER/owner bypass/foreign table は手動レビュー、複合 allowlist 運用手順、WARN/BLOCK 表記是正）
-- **S0(b) tsconfig project references**: `shared/tsconfig.json` を `composite:true`+`declaration`+`declarationMap`+`outDir:dist`、`shared/package.json` に `build`(tsc -b) + `typecheck` が build 兼任の旨注記 + main/types/exports を dist 指す。`web/tsconfig.app.json` の `include` から `../shared/src` 除去 → `references:[{path:"../shared"}]` + `paths` を `dist/index.d.ts`、`web/tsconfig.json` solution に shared 参照追加。`web/package.json` build を `tsc -b --force && vite build`（dist stale 耐性）。`.gitignore` に `shared/dist/` `supabase/node_modules/` + `supabase/.env` 多層防御コメント
-- **計画書追記**: `.claude/docs/vision/plans/2026-05-16-phase2-core-migration.md` の S0(b) 決定（Vite=shared/src 直 import / tsc=shared/dist .d.ts の二経路維持、web `tsc -b` を正、references が cascade build、型定義削除/リネーム時は `rm -rf shared/dist` 後 build）を追記
-- **検証**: session-verifier コミット前ゲート PASS — shared `tsc -b`=0 / web `tsc -b`=0 / **frontend `tsc -b`=0（非破壊実測）** / web `eslint`=0 / web `vite build` green（174ms）/ `bash -n` ×2 OK / self-test 15/15。TS/React ソース変更ゼロ・frontend/src-tauri/cloud 無変更・Point Graph ファイル無変更を構造確認
-- **監査収束**: round1 QA=APPROVE W/C・security=**VULNERABLE** → round2 security=Crit-1/High-2 **CLOSED**・新規 High-1 → round3 security=High-1 **CLOSED / S1 着手可 Yes**。当初の anon-key 公開前提の致命的 RLS 偽陰性を S1 で実 policy を書く前に封鎖
-
-#### 残課題
-
-- **[非ブロッカー] `%true%or%`/`%or%true%` over-report**: Phase 2 で `is_public OR owner` 系の意図的公開 policy を誤 BLOCK しうる。allowlist 1 行（`(table, 'policy_qual_no_authuid')`）で WARN 降格・セキュリティ実害なし。S1 で共有テーブル設計時に「誤 BLOCK → allowlist 登録」フローを事前周知
-- **[要ユーザー対応] 実接続検証ブロック中**: `SUPABASE_DB_URL` 未提供のため pg_catalog 実走査は未実施（self-test で論理担保）。最初の Phase 2 新テーブル push 直前に `supabase/.env` へ接続文字列を置き `npm run db:check-rls` green を 1 回必須（README 運用ルール化済）
-- **[要ユーザー対応] Phase1 検証残骸**: `rls.a@gmail.com` / `rls.b@gmail.com` / テスト行 "A-task" を Supabase ダッシュボードから手動掃除（S1-1 適用前推奨）
-
-### 2026-05-16 - Connect/Node タブを Point Graph (Canvas2D + d3-force) へ全面置換
-
-#### 概要
-
-別チャットで、Connect タブの Node サブタブを React Flow ベース `TagGraphView`（1438 行）から Canvas2D + d3-force の Point Graph に全面置換。添付の `PointGraphView.jsx` デモと `point-view-implementation-plan.md` を基に、life-editor 実コードへ適合させた専用計画書 `2026-05-13-point-graph-connect-node.md`（12 ステップ）を作成→実装。汎用計画の前提（新規 Memo ビュー / Rust `graph_load_snapshot` 新設）は本タスクでは不要と判断し、既存 props からフロントで `GraphSnapshot` を合成（Rust/DB/MCP 完全不変・読取のみ）。実装後、ユーザー追加要望で「フィルタパネルの閉じる手段追加 / Connect モード廃止 / 左 perf HUD 削除」を追補。各ステップ個別コミット、計画書は archive へ。ブランチ refactor/web-first-v2（別セッションのクロスプラットフォーム移行と同居、パス指定ステージで相互非干渉）。
-
-#### 変更点
-
-- **データ合成（S2）**: `usePointGraphModel` が `notes/dailies/tags/assignments/noteConnections/noteLinks` から GraphSnapshot を生成。folder→project / note→note / daily→daily / tag→独立ノード（`tag:` prefix）。エッジ 5 種（hierarchy=parentId / wikilink=noteLinks / manual=noteConnections / tag=assignments / temporal=daily 連鎖）。`sourceMemoDate`→`daily-<date>` で daily id 整合（旧 `memo-` 不整合を是正）、両端非存在エッジ破棄、deleted 除外
-- **テーマ（S3）**: `graph-theme.ts` が `--color-*` CSS 変数を `getComputedStyle` で解決し Canvas 描画色化。`MutationObserver`(data-theme/class) でライト/ダーク + テーマ切替に追従。Catppuccin ハードコード全廃（§6.4 準拠、不透明背景）
-- **Canvas/Sim（S4-S5）**: `usePointGraphSimulation`（d3-force ライフサイクル / 位置キャッシュ / forceX-Y センタリング / リサイズ時リセンタリング / 4s 永続化）+ `usePointGraphInteraction`（d3-zoom / window pointer drag で指が外れても切れない / quadtree hit-test / 選択スムーズパン=interrupt+authoritative zoomTransform+no offsets / ホバー隣接強調 / ズームゲートラベル k≥0.85）。React 19 `react-hooks/refs` 厳格 lint に合わせ ref アクセスを effect 内へ移動、位置キャッシュ復元も sim effect 内へ
-- **UI（S6-S7）**: notion トークン化 primitives（Slider/Toggle/IconButton/Section）、`GraphControlPanel`（キャンバス内フローティング・折りたたみ Section 6）、`SelectedNodeCard`、`GraphTopBar`。`graph-filters.ts` 純粋パイプライン（type/tag/search-1hop/local-graph/orphan）+ `useGraphFilters`。i18n `connect.graph.*`（en/ja）。`set-state-in-effect` 回避のため外部選択同期は「レンダー時 prev 比較で state 調整」公式パターンに
-- **連動・既存機能保全（S8-S9）**: `sidebarSelectedItemId`/`selectedTagId`/`focusedNoteId` ↔ 選択+パン双方向、グラフ tag ノード選択→`onSelectTag`。ダブルクリック遷移 / `UnifiedColorPicker`（onUpdateNoteColor）/ manual エッジ click 削除（線分 hit-test）/ Delete soft-delete / 位置・ビューポート永続化（d3 座標系のため `POINT_GRAPH_*` 専用キー新設、React Flow ストレージと非衝突）
-- **スワップ・整理（S10-S11）**: `ConnectView.tsx::renderContent` の `case "node"` を `<PointGraphView/>` に（ReactFlowProvider ラッパ除去、Board は不変）。props 同一 I/F で無改修。旧 Node 系 9 ファイル削除（`TagGraphView`/Note・DailyNodeComponent/CurvedEdge/forceLayout/layoutTemplates/TagGraphSelectionContext/tagGraphStorage+test、ユーザー確認後）。`reactFlowMerge`/`CanvasControls` は Paper で継続使用のため保持
-- **追補（ユーザー要望）**: `GraphControlPanel` にヘッダ X 閉じるボタン + 外側 `pointerdown` 検知で閉じる（トップバーのトグルは `data-marker="panel-toggle"` で除外し再オープン防止）、`useGraphFilters.closePanel` 追加。Connect モード一式廃止（ボタン/クリック接続フロー/ConnectPanel/pending state/Esc 分岐/onConnectViaTag 配線）。左 perf HUD（稼働ドット/α/fps/Cpu）削除（node/edge 数・clear-filters・zoom% は保持）。連鎖で孤立化した `ConnectPanel.tsx` を削除（session-verifier 検出 + ユーザー指示）
-- **Verification**: `tsc -b` 0 / eslint（PointGraph + ConnectView スコープ）0 / `vite` 本番ビルド成功（7.11s、d3 import エラーなし、チャンク警告は既存大バンドル由来） / 新規 `graph-filters.test.ts` 8 件 + `reactFlowMerge.test.ts` 17 件 pass / session-verifier 2 回 PASS。コードベース他所の eslint 36 件は既存負債（本変更非該当・未修正）
-
-#### 残課題
-
-- **手動 UI 検証未実施**: ライト/ダーク配色・FPS（ノード ~1000）・ドラッグ/ピンチ体感・パネル外クリック閉じ・ConnectSidebar 連動・ノード→エディタ遷移はヘッドレスのため未確認。`cargo tauri dev` で Connect→Node タブ要確認
-- **[INFO] keydown effect が `filters` 全体依存**: 毎レンダー再購読（機能影響なし・性能微）
-- **並行セッション同居**: refactor/web-first-v2 に別セッションのクロスプラットフォーム移行 WIP（Mobile/migration/generateTaskId 等の未コミット変更）が同居。本タスクはパス指定ステージで分離コミット、`git add -A` 不使用
-
-### 2026-05-16 - クロスプラットフォーム移行 Phase 1 完了 — 新スタック土台 + Supabase Auth/RLS（RLS 実証済み）
-
-#### 概要
-
-Tauri+D1 → Electron+Capacitor+Web+Supabase 移行の Phase 1 に実着手。サブエージェント分担（管理=multi-session-coordinator / 設計=role-pm / 実装=role-engineer / 監査=role-qa+security-reviewer、メイン=統括）。2 ラウンド: (R1) Supabase 不要の自走部スキャフォールド commit `d1abd8a`、(R2) ユーザー Supabase 作成後の Auth/RLS/CRUD 配線 commit `ce6a5cb`。両ラウンドとも role-qa=PASS / security=Critical/High0。**コードは Phase 1 着手順序 1-9 完了、migration リモート適用 + RLS runtime 実証のみユーザー操作 2 ブロッカーで保留**。
-
-#### 変更点
-
-- **web/ 新規**: `npm create vite@latest -- --template react-ts` 雛形 + Tailwind 4（`@tailwindcss/vite`）。notion-\* トークンは frontend/src/index.css から最小限 9 トークンのみ移植（1490 行丸ごとコピーしない）。`npm run dev`/`npm run build` 通過確認
-- **shared/ 新規**: `@life-editor/shared`。`frontend/src/services/DataService.ts`（約200メソッド）+ 依存型23ファイルを **byte 一致 verbatim コピー**（`diff -q` 確認）。`SupabaseDataService.ts` は tasks 系4メソッドのみ実装、他は Proxy で `not implemented in phase 1` throw（`value.bind(target)` で this.client 解決バグを実装中に自己検出・修正）
-- **supabase/migrations/0001_initial.sql 新規**: `tasks` テーブル + **RLS enable（policy 無し = deny-all fail-safe）**。security-reviewer の Medium 指摘（anon key 公開前提で RLS が唯一の防御、警告不在）を受け WARNING コメント + 先行 RLS 有効化で安全側に倒した。policy + `user_id default auth.uid()` は Phase 1 step 7（Supabase 作成後）
-- **.gitignore**: `.env*.local` 全変種を root で除外（`git check-ignore` で web/.env.local まで実検証クリーン）。秘密情報非追跡を commit 前に担保
-- **不可侵維持**: `frontend/` `src-tauri/` `cloud/` `desktop/` `mobile/` は一切作成・変更なし（Phase 2/3/4 前借りゼロ、role-qa スコープ監査 PASS）
-- **R2 supabase/migrations/0002_rls_tasks.sql 新規**: `user_id set default auth.uid()`（クライアントは user_id 非送信＝サーバ導出で詐称不能）+ owner-only CRUD 4 policy。security Low 指摘を受け全 policy に `to authenticated` を追加（式評価 + ロール層の二重防御）。idempotent（drop if exists→create）
-- **R2 shared/services 追加**: `supabaseClient.ts`（モジュール単一インスタンス＝Auth と DataService が同一 JWT/セッション共有、RLS 空振りアンチパターン回避、`detectSessionInUrl:false`）/ `SupabaseAuth.ts`（signUp/signIn/signOut/getSession/onAuthStateChange、Email+PW、Confirm email オフ前提）。`SupabaseDataService.ts` を共有クライアント利用に変更
-- **R2 web/ 配線**: `App.tsx` を session ゲート（loading→Auth/Tasks）に rewrite、`AuthScreen.tsx`/`TasksScreen.tsx` 新規（notion-\* 最小 UI、TasksScreen 初回 fetch は active-guard 付き inline effect で StrictMode/unmount stale 回避）。`@supabase/supabase-js` 追加、`@life-editor/shared` alias、`.gitignore` に `supabase/.temp .branches .env`
-- **監査**: 両ラウンド role-qa=PASS（スコープ違反0、frontend `tsc -b`=0 で非破壊実測）/ security=Critical0 High0。Phase2 申し送り＝①新テーブル RLS 漏れの CI 機械検証 ②`tsconfig` project references 化 ③`signOut` scope 堅牢化
-- **並行作業**: 別チャットが Point Graph を並行コミット（f996339 / 7bef5f8 他）。Phase 1 は web/ shared/ supabase/ .gitignore のみパス指定ステージで完全分離（`git add -A` 不使用、別チャット frontend WIP / SSOT doc を巻き込まず）。commit `d1abd8a`（R1）/ `ce6a5cb`（R2）
-- **ブロッカー解消（ユーザー操作）**: ①`web/.env.local` URL をホスト形式へ修正 ②supabase CLI 非対話ログイン不可 + メールレート制限のため、0001/0002 を **Supabase SQL Editor で適用**（CLI 管理は Phase5 へ申し送り）③メール確認 OFF + ダッシュボードで Auto Confirm ユーザー 2 名手動作成し probe を signUp→signInWithPassword 方式へ変更
-- **RLS 実証完了（probe）**: `supabase/.temp/probe.mjs`（gitignore 済）実行で 完了判定 5/5 達成 — 未認証 read 0 行 / USER A signIn→insert(user_id=auth.uid() 既定)→自分の 1 行可視 / USER B は A の行 0 件・delete 0 件 / `frontend/`(Tauri) `tsc -b`=0。実証後 probe 削除（成果物に残さず）。SSOT `2026-05-04-cross-platform-migration.md` の Phase 1 完了判定 5 項目を [x] 化
-- **後始末**: throwaway 検証ユーザー `rls.a@gmail.com`/`rls.b@gmail.com` + テスト行 "A-task" はユーザーが Supabase ダッシュボードから削除（要対応・記載）
-- **commit**: `d1abd8a`(R1) / `ce6a5cb`(R2) / `ec540ec`(tracker) + 本クローズ tracker commit。次フェーズ Phase 2（コア機能 `shared/` 移植）はユーザー指示待ち

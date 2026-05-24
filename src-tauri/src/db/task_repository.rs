@@ -36,6 +36,7 @@ pub struct TaskNode {
     pub priority: Option<i64>,
     pub reminder_enabled: Option<bool>,
     pub reminder_offset: Option<i64>,
+    pub reminder_time: Option<String>,
 }
 
 impl FromRow for TaskNode {
@@ -68,6 +69,7 @@ impl FromRow for TaskNode {
             priority: row.get("priority")?,
             reminder_enabled: row.get::<_, Option<i64>>("reminder_enabled")?.map(|v| v != 0),
             reminder_offset: row.get("reminder_offset")?,
+            reminder_time: row.get("reminder_time")?,
         })
     }
 }
@@ -95,8 +97,8 @@ pub fn create(conn: &Connection, node: &TaskNode) -> rusqlite::Result<TaskNode> 
          is_deleted, created_at, completed_at, scheduled_at, content, \
          work_duration_minutes, color, icon, due_date, scheduled_end_at, is_all_day, \
          time_memo, version, updated_at, folder_type, original_parent_id, priority, \
-         reminder_enabled, reminder_offset) \
-         VALUES (?1,?2,?3,?4,?5,?6,?7,0,?8,?9,?10,?11,?12,?13,?14,?15,?16,?17,?18,1,?19,?20,?21,?22,?23,?24)",
+         reminder_enabled, reminder_offset, reminder_time) \
+         VALUES (?1,?2,?3,?4,?5,?6,?7,0,?8,?9,?10,?11,?12,?13,?14,?15,?16,?17,?18,1,?19,?20,?21,?22,?23,?24,?25)",
         params![
             node.id,
             node.node_type,
@@ -122,6 +124,7 @@ pub fn create(conn: &Connection, node: &TaskNode) -> rusqlite::Result<TaskNode> 
             node.priority,
             node.reminder_enabled.map(|b| b as i64).unwrap_or(0),
             node.reminder_offset,
+            node.reminder_time,
         ],
     )?;
 
@@ -212,6 +215,10 @@ pub fn update(conn: &Connection, id: &str, updates: &Value) -> rusqlite::Result<
         sets.push("reminder_offset = ?");
         values.push(Box::new(v.as_i64()));
     }
+    if let Some(v) = updates.get("reminderTime") {
+        sets.push("reminder_time = ?");
+        values.push(Box::new(v.as_str().map(|s| s.to_string())));
+    }
 
     if sets.is_empty() {
         return query_one(conn, "SELECT * FROM tasks WHERE id = ?1", [id]);
@@ -242,8 +249,8 @@ pub fn sync_tree(conn: &Connection, nodes: &[TaskNode]) -> rusqlite::Result<()> 
              is_deleted, created_at, completed_at, scheduled_at, content, \
              work_duration_minutes, color, icon, due_date, scheduled_end_at, is_all_day, \
              time_memo, version, updated_at, folder_type, original_parent_id, priority, \
-             reminder_enabled, reminder_offset) \
-             VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,?14,?15,?16,?17,?18,?19,?20,?21,?22,?23,?24,?25,?26) \
+             reminder_enabled, reminder_offset, reminder_time) \
+             VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,?14,?15,?16,?17,?18,?19,?20,?21,?22,?23,?24,?25,?26,?27) \
              ON CONFLICT(id) DO UPDATE SET \
              type=excluded.type, title=excluded.title, parent_id=excluded.parent_id, \
              \"order\"=excluded.\"order\", status=excluded.status, is_expanded=excluded.is_expanded, \
@@ -255,7 +262,7 @@ pub fn sync_tree(conn: &Connection, nodes: &[TaskNode]) -> rusqlite::Result<()> 
              version=version+1, updated_at=excluded.updated_at, \
              folder_type=excluded.folder_type, original_parent_id=excluded.original_parent_id, \
              priority=excluded.priority, reminder_enabled=excluded.reminder_enabled, \
-             reminder_offset=excluded.reminder_offset",
+             reminder_offset=excluded.reminder_offset, reminder_time=excluded.reminder_time",
             params![
                 node.id,
                 node.node_type,
@@ -283,6 +290,7 @@ pub fn sync_tree(conn: &Connection, nodes: &[TaskNode]) -> rusqlite::Result<()> 
                 node.priority,
                 node.reminder_enabled.map(|b| b as i64).unwrap_or(0),
                 node.reminder_offset,
+                node.reminder_time,
             ],
         )?;
     }
