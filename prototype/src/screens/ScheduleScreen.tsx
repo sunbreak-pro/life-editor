@@ -16,7 +16,6 @@ import {
 import { useEffect, useMemo, useRef, useState } from "react";
 import { NavLink, useNavigate, useSearchParams } from "react-router-dom";
 import { useMockStore } from "../hooks/useMockStore";
-import { useSwipe } from "../hooks/useSwipe";
 import {
   addScheduleItem,
   addWikiTag,
@@ -604,6 +603,8 @@ export function ScheduleScreen() {
   );
 }
 
+type SwipeMode = "idle" | "drag" | "commit-out" | "commit-in" | "snap-back";
+
 function SwipePane({
   onSwipeLeft,
   onSwipeRight,
@@ -613,10 +614,135 @@ function SwipePane({
   onSwipeRight: () => void;
   children: React.ReactNode;
 }) {
-  const handlers = useSwipe({ onSwipeLeft, onSwipeRight });
+  const containerRef = useRef<HTMLDivElement>(null);
+  const startRef = useRef<{
+    x: number;
+    y: number;
+    pid: number;
+    t: number;
+  } | null>(null);
+  const axisRef = useRef<"horizontal" | "vertical" | null>(null);
+  const [dragX, setDragX] = useState(0);
+  const [mode, setMode] = useState<SwipeMode>("idle");
+
+  const resetStart = () => {
+    startRef.current = null;
+    axisRef.current = null;
+  };
+
+  const handlePointerDown = (e: React.PointerEvent) => {
+    if (e.pointerType === "mouse" && e.button !== 0) return;
+    if (mode === "commit-out" || mode === "commit-in") return;
+    startRef.current = {
+      x: e.clientX,
+      y: e.clientY,
+      pid: e.pointerId,
+      t: Date.now(),
+    };
+    axisRef.current = null;
+    setMode("idle");
+    setDragX(0);
+  };
+
+  const handlePointerMove = (e: React.PointerEvent) => {
+    const s = startRef.current;
+    if (!s || s.pid !== e.pointerId) return;
+    const dx = e.clientX - s.x;
+    const dy = e.clientY - s.y;
+    if (axisRef.current === null) {
+      if (Math.abs(dx) < 8 && Math.abs(dy) < 8) return;
+      axisRef.current = Math.abs(dx) > Math.abs(dy) ? "horizontal" : "vertical";
+    }
+    if (axisRef.current === "vertical") {
+      resetStart();
+      if (mode !== "idle") {
+        setMode("snap-back");
+        setDragX(0);
+        window.setTimeout(() => setMode("idle"), 200);
+      }
+      return;
+    }
+    setMode("drag");
+    setDragX(dx);
+  };
+
+  const handlePointerUp = (e: React.PointerEvent) => {
+    const s = startRef.current;
+    resetStart();
+    if (!s || s.pid !== e.pointerId) return;
+    const dx = e.clientX - s.x;
+    const dt = Date.now() - s.t;
+    const width = containerRef.current?.offsetWidth ?? 320;
+    const distance = Math.abs(dx);
+    const isFastFlick = dt < 250 && distance > 30;
+    const shouldCommit = distance > width / 4 || isFastFlick;
+
+    if (!shouldCommit) {
+      setMode("snap-back");
+      setDragX(0);
+      window.setTimeout(() => setMode("idle"), 200);
+      return;
+    }
+
+    const direction = dx > 0 ? 1 : -1;
+    setMode("commit-out");
+    setDragX(direction * width);
+    window.setTimeout(() => {
+      if (direction > 0) onSwipeRight();
+      else onSwipeLeft();
+      setMode("idle");
+      setDragX(-direction * width);
+      window.requestAnimationFrame(() => {
+        setMode("commit-in");
+        setDragX(0);
+        window.setTimeout(() => setMode("idle"), 250);
+      });
+    }, 200);
+  };
+
+  const handlePointerCancel = (e: React.PointerEvent) => {
+    const s = startRef.current;
+    resetStart();
+    if (!s || s.pid !== e.pointerId) return;
+    setMode("snap-back");
+    setDragX(0);
+    window.setTimeout(() => setMode("idle"), 200);
+  };
+
+  const handleClickCapture = (e: React.MouseEvent) => {
+    if (
+      mode === "drag" ||
+      mode === "commit-out" ||
+      mode === "commit-in" ||
+      mode === "snap-back"
+    ) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+  };
+
+  const transition =
+    mode === "idle" || mode === "drag"
+      ? "none"
+      : "transform 220ms cubic-bezier(0.22, 0.61, 0.36, 1)";
+
   return (
-    <div {...handlers} style={{ touchAction: "pan-y" }}>
-      {children}
+    <div ref={containerRef} className="overflow-hidden">
+      <div
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={handlePointerUp}
+        onPointerCancel={handlePointerCancel}
+        onClickCapture={handleClickCapture}
+        style={{
+          transform: `translateX(${dragX}px)`,
+          transition,
+          touchAction: "pan-y",
+          willChange: mode === "idle" ? "auto" : "transform",
+        }}
+      >
+        {children}
+      </div>
     </div>
   );
 }
