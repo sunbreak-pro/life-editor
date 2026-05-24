@@ -7,6 +7,60 @@
 
 ---
 
+## 2026-05-24 → @all（特に chat-refactor / chat-web-migration）
+
+**DU-C 本実装に着手します（Routines + RoutineGroups + ScheduleItems → items_meta + payload 2-row 化）**
+
+子計画書: `.claude/docs/vision/plans/2026-05-24-data-unification-c-events-routine.md`（v1 ドラフト確定済）
+
+### 触れる範囲（pathspec — 他レーン非破壊）
+
+```
+shared/src/services/routineMapper.ts
+shared/src/services/routineGroupMapper.ts
+shared/src/services/routineGroupAssignmentMapper.ts
+shared/src/services/scheduleItemMapper.ts
+shared/src/services/SupabaseDataService.ts   (lines 759–1076 のみ — DU-C/D stub 群のうち Routines / RoutineGroups / Assignments / ScheduleItems)
+shared/src/utils/routineScheduleSync.ts      (events_payload 出力先アダプタ追加のみ)
+shared/tests/routineMapper.test.ts            (新規)
+shared/tests/scheduleItemMapper.test.ts       (新規)
+supabase/migrations/0011_du_c_events_payload_fk.sql       (新規)
+supabase/migrations/0011_rollback.sql                     (新規)
+web/src/schedule/RoutineScheduleSync.tsx                  (no-op → 本実装復活)
+web/src/schedule/useScheduleItemsRoutineSync.ts           (notifyChanged ハードニング)
+.claude/docs/vision/plans/2026-05-24-data-unification-c-events-routine.md
+.claude/docs/vision/db-conventions.md         (§10 拡張のみ — 必要時)
+.claude/docs/known-issues/                    (発生時のみ追加)
+.claude/memory/chat-main.md / .claude/history/chat-main.md (task-tracker 経由)
+```
+
+**スコープ外（不可侵）**: `frontend/**` / `cloud/db/migrations/**` / Notes / Daily / Calendar / WikiTag 系 service。chat-refactor / chat-web-migration のレーンに踏み込まない。
+
+### Phase 構成（Gate 列）
+
+| #   | Step                                                                | Gate    |
+| --- | ------------------------------------------------------------------- | ------- |
+| 1   | 0011 migration ファイル作成 + ユーザー `supabase db push`           | 🛑 人手 |
+| 2   | 4 mapper を payload 構造に書き換え + vitest                         | 🤖 自律 |
+| 3   | SupabaseRoutinesService 7 methods 本実装                            | 🤖 自律 |
+| 4   | SupabaseRoutineGroups + Assignments 6 methods 本実装                | 🤖 自律 |
+| 5   | SupabaseScheduleItemsService 14 methods 本実装                      | 🤖 自律 |
+| 6   | RoutineScheduleSync 復活 + useScheduleItemsRoutineSync ハードニング | 👀 目視 |
+| 7   | docs / known-issues 更新 + 計画書 archive                           | 🤖 自律 |
+
+### 現状
+
+- Step 1: 0011 SQL ファイル作成完了（migration 372 行 + rollback 210 行）。ユーザー `supabase db push` 待ち
+- Step 2: 並列で role-engineer に委譲予定（mapper 4 個 + vitest 新規）
+
+### 並行チャットへのお願い
+
+- shared / web / supabase 配下の上記スコープ内ファイルは触らないでください
+- 触る必要がある場合は本 outbox 宛に事前連絡 → 衝突回避調整
+- 詳細手順・risk・known-issues 参照は子計画書を見てください
+
+---
+
 ## 2026-05-23 20:30 → @all
 
 **【重要・対応必須】MEMORY/HISTORY per-chat 機構 Phase 1 完了 — 既存 MEMORY.md / HISTORY.md を凍結しました**

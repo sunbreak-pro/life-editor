@@ -8,10 +8,9 @@
 
 ## Active（未解決）
 
-| ID  | Title                                                                                                                              | Category   | Since      |
-| --- | ---------------------------------------------------------------------------------------------------------------------------------- | ---------- | ---------- |
-| 026 | [PostToolUse formatter が隣接する Markdown 見出しを削除する](./026-posttooluse-formatter-deletes-adjacent-heading.md)              | Tooling    | 2026-05-24 |
-| 025 | [prototype+mobile-ui worktree の CLAUDE.md が per-chat 化前のスナップショット](./025-prototype-worktree-claude-md-pre-per-chat.md) | Structural | 2026-05-23 |
+| ID  | Title                                                                                                                 | Category | Since      |
+| --- | --------------------------------------------------------------------------------------------------------------------- | -------- | ---------- |
+| 026 | [PostToolUse formatter が隣接する Markdown 見出しを削除する](./026-posttooluse-formatter-deletes-adjacent-heading.md) | Tooling  | 2026-05-24 |
 
 ## Monitoring（すぐ対処しないが監視）
 
@@ -43,6 +42,7 @@
 | 022 | [Supabase SQL Editor の postgres role で auth.uid() が NULL](./022-supabase-sql-editor-postgres-role-auth-uid-null.md)                     | Tooling/Security    | 2026-05-23 |
 | 023 | [Supabase CLI v2.101 の check-rls 出力が CSV 化され流し直し不能](./023-supabase-cli-v2-101-check-rls-csv-output-rejected.md)               | Tooling             | 2026-05-23 |
 | 024 | [PG 2BP01 依存連鎖で migration 再 drop が止まる](./024-pg-2bp01-dependency-chain-on-redrop.md)                                             | Schema/Tooling      | 2026-05-23 |
+| 025 | [prototype+mobile-ui worktree の CLAUDE.md が per-chat 化前のスナップショット](./025-prototype-worktree-claude-md-pre-per-chat.md)         | Structural          | 2026-05-24 |
 
 ---
 
@@ -58,9 +58,9 @@
 
 ## Status 集計
 
-- Active: 2 件 (025, 026)
+- Active: 1 件 (026)
 - Monitoring: 1 件 (006)
-- Fixed: 19 件
+- Fixed: 20 件
 - 合計: 22 件
 
 ## 統合履歴

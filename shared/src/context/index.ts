@@ -36,8 +36,19 @@ export {
 
 // CalendarTags is a Mobile 省略 Provider (CLAUDE.md §2) — the Optional
 // hook variant lives in hooks/ (vision/coding-principles.md §4).
+// DU-C+ note: CalendarTagsProvider will be removed in DU-C+ Step 7;
+// kept here while frontend callers migrate to WikiTagsUnifiedProvider.
 export { CalendarTagsProvider } from "./CalendarTagsContext";
 export {
   CalendarTagsContext,
   type CalendarTagsContextValue,
 } from "./CalendarTagsContextValue";
+
+// DU-C+ unified WikiTag Provider (items_meta-based tag/link, 5 roles).
+// Coexists with the legacy `frontend/src/context/WikiTagContext.tsx`
+// until DU-F removes the legacy frontend tag UI in cohort.
+export { WikiTagsUnifiedProvider } from "./WikiTagsUnifiedContext";
+export {
+  WikiTagsUnifiedContext,
+  type WikiTagsUnifiedContextValue,
+} from "./WikiTagsUnifiedContextValue";

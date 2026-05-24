@@ -356,28 +356,90 @@ export function ScheduleView() {
                 </div>
               )}
 
-              {r.frequencyType === "group" && routineGroups.length > 0 && (
-                <div className="flex flex-wrap gap-1">
-                  {routineGroups.map((g) => {
-                    const active = getGroupIdsForRoutine(r.id).includes(g.id);
-                    return (
-                      <button
-                        key={g.id}
-                        type="button"
-                        aria-pressed={active}
-                        onClick={() => toggleGroupMembership(r, g.id)}
-                        className={`rounded-md border border-notion-border px-2 py-0.5 text-xs ${
-                          active
-                            ? "bg-notion-hover text-notion-text"
-                            : "text-notion-text-secondary hover:bg-notion-hover"
-                        }`}
-                      >
-                        {g.name}
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
+              {/*
+               * RoutineGroup membership UI — frequencyType に依存せず常時
+               * 表示 (DU-C-6 後 UX 改善 2026-05-24)。所属中のグループは
+               * 色付きバッジ + 「×」で削除、未所属のグループは破線の
+               * 「+ name」で追加できる。
+               *
+               * frequencyType === "group" の時のみ membership が頻度
+               * 判定に効く (frequencySummary "Follows assigned groups")。
+               * それ以外の frequencyType でも membership 自体は記録され、
+               * 後で "group" に切り替えた時にそのまま反映される。
+               */}
+              {routineGroups.length > 0 &&
+                (() => {
+                  const memberIds = getGroupIdsForRoutine(r.id);
+                  const members = routineGroups.filter((g) =>
+                    memberIds.includes(g.id),
+                  );
+                  const nonMembers = routineGroups.filter(
+                    (g) => !memberIds.includes(g.id),
+                  );
+                  return (
+                    <div className="flex flex-wrap items-center gap-1 text-xs">
+                      <span className="text-notion-text-secondary">
+                        Groups:
+                      </span>
+                      {members.length === 0 && (
+                        <span className="italic text-notion-text-secondary">
+                          none
+                        </span>
+                      )}
+                      {members.map((g) => (
+                        <button
+                          key={`m-${g.id}`}
+                          type="button"
+                          onClick={() => toggleGroupMembership(r, g.id)}
+                          aria-label={`Remove ${r.title} from group ${g.name}`}
+                          className="inline-flex items-center gap-1 rounded-md border border-notion-border bg-notion-hover px-2 py-0.5 text-notion-text hover:opacity-80"
+                        >
+                          <span
+                            aria-hidden
+                            className="inline-block h-2 w-2 rounded-full"
+                            style={{ backgroundColor: g.color }}
+                          />
+                          {g.name}
+                          <span
+                            aria-hidden
+                            className="ml-0.5 text-notion-text-secondary"
+                          >
+                            ×
+                          </span>
+                        </button>
+                      ))}
+                      {nonMembers.length > 0 && (
+                        <>
+                          <span
+                            aria-hidden
+                            className="mx-1 text-notion-text-secondary"
+                          >
+                            |
+                          </span>
+                          <span className="text-notion-text-secondary">
+                            Add:
+                          </span>
+                          {nonMembers.map((g) => (
+                            <button
+                              key={`n-${g.id}`}
+                              type="button"
+                              onClick={() => toggleGroupMembership(r, g.id)}
+                              aria-label={`Add ${r.title} to group ${g.name}`}
+                              className="inline-flex items-center gap-1 rounded-md border border-dashed border-notion-border px-2 py-0.5 text-notion-text-secondary hover:bg-notion-hover hover:text-notion-text"
+                            >
+                              <span
+                                aria-hidden
+                                className="inline-block h-2 w-2 rounded-full opacity-40"
+                                style={{ backgroundColor: g.color }}
+                              />
+                              + {g.name}
+                            </button>
+                          ))}
+                        </>
+                      )}
+                    </div>
+                  );
+                })()}
 
               <div className="flex flex-wrap gap-2">
                 <button

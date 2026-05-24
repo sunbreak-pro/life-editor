@@ -21,6 +21,7 @@ export interface RoutineNode {
   reminderOffset?: number;
   createdAt: string;
   updatedAt: string;
+  version?: number;
   // V69: Group memberships. Populated by joining routine_group_assignments.
   // Only meaningful when frequencyType === "group", but kept on every node so
   // the EditRoutine dialog can recover the list when toggling between types.

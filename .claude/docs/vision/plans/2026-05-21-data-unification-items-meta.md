@@ -71,23 +71,24 @@ Related: .claude/docs/vision/coding-principles.md / .claude/docs/vision/db-conve
 
 実装に入る前のブレ防止のため、以下を本計画書の不変前提として固定する。
 
-| #   | 項目                           | 確定                                                                                                                                                          |
-| --- | ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Q1  | 統一スコープ                   | Tasks / Events / Routine / **Notes / Daily も含む** 5 種すべて統一                                                                                            |
-| Q2  | DB 戦略                        | **ハイブリッド** = `items_meta` + 種別 `*_payload` テーブル                                                                                                   |
-| Q3  | 既存データ                     | **破壊的リセット (クリーンスタート)** 許容                                                                                                                    |
-| Q4  | Calendar ビュー数 (改訂)       | **月ビュー + 3 日ビュー の 2 ビュー**。週ビューは本計画で除外、後期計画で復活                                                                                 |
-| Q5  | S5 WikiTags 旧計画             | 廃止 → 本計画に吸収。ファイルは既に削除済 (commit 8ceae24)、本計画書が設計領域を継承                                                                          |
-| Q6  | 既存コード                     | S3/S4 で書いた shared mapper / Provider / web UI は **全捨て**。Provider Pattern A 構造のみ参考                                                               |
-| Q7  | ブランチ                       | Phase 2 を `refactor/web-first-v2` に FF マージ → `data-unification/items-meta-redesign` を切る                                                               |
-| Q8  | 計画書粒度                     | **親計画書のみ今回作成**。子計画書 (DU-A〜DU-F) は進行時に都度                                                                                                |
-| Q9  | payload 物理設計               | **専用列を厚く、JSONB は最小限** (Notes/Daily の content_json のみ JSONB、他はすべて専用列)                                                                   |
-| Q10 | role 変更可否                  | **不可。作り直し UX** (payload テーブル間移行は実装しない)                                                                                                    |
-| Q11 | Routine 詳細仕様               | 子計画書 (DU-C) まで遅延。親計画書は「Events 内で RoutineGroup 作成・割当可能」まで                                                                           |
-| Q12 | WikiLink グラフ範囲            | **データモデル + backlink list のみ**。グラフ可視化 UI は別計画 (Data Unification 後続)                                                                       |
-| Q13 | Phase 命名 (改訂で追加)        | 「Data Unification」へ変更。移行 SSOT の Phase 3 (Electron) との衝突回避                                                                                      |
-| Q14 | role 拡張範囲 (改訂で追加)     | **role は 5 種厳守**。RoutineGroup / WikiTag (タグマスタ) / wiki_tag_groups は **専用テーブルで独立**                                                         |
-| Q15 | template_event 型 (改訂で追加) | **専用列に分解** (template_start_time / template_end_time / template_memo / template_reminder_offset_min)。列名は Phase 2 既存の `reminder_offset_min` と整合 |
+| #   | 項目                               | 確定                                                                                                                                                                                                                                                                                                                                 |
+| --- | ---------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Q1  | 統一スコープ                       | Tasks / Events / Routine / **Notes / Daily も含む** 5 種すべて統一                                                                                                                                                                                                                                                                   |
+| Q2  | DB 戦略                            | **ハイブリッド** = `items_meta` + 種別 `*_payload` テーブル                                                                                                                                                                                                                                                                          |
+| Q3  | 既存データ                         | **破壊的リセット (クリーンスタート)** 許容                                                                                                                                                                                                                                                                                           |
+| Q4  | Calendar ビュー数 (改訂)           | **月ビュー + 3 日ビュー の 2 ビュー**。週ビューは本計画で除外、後期計画で復活                                                                                                                                                                                                                                                        |
+| Q5  | S5 WikiTags 旧計画                 | 廃止 → 本計画に吸収。ファイルは既に削除済 (commit 8ceae24)、本計画書が設計領域を継承                                                                                                                                                                                                                                                 |
+| Q6  | 既存コード                         | S3/S4 で書いた shared mapper / Provider / web UI は **全捨て**。Provider Pattern A 構造のみ参考                                                                                                                                                                                                                                      |
+| Q7  | ブランチ                           | Phase 2 を `refactor/web-first-v2` に FF マージ → `data-unification/items-meta-redesign` を切る                                                                                                                                                                                                                                      |
+| Q8  | 計画書粒度                         | **親計画書のみ今回作成**。子計画書 (DU-A〜DU-F) は進行時に都度                                                                                                                                                                                                                                                                       |
+| Q9  | payload 物理設計                   | **専用列を厚く、JSONB は最小限** (Notes/Daily の content_json のみ JSONB、他はすべて専用列)                                                                                                                                                                                                                                          |
+| Q10 | role 変更可否                      | **不可。作り直し UX** (payload テーブル間移行は実装しない)                                                                                                                                                                                                                                                                           |
+| Q11 | Routine 詳細仕様                   | 子計画書 (DU-C) まで遅延。親計画書は「Events 内で RoutineGroup 作成・割当可能」まで                                                                                                                                                                                                                                                  |
+| Q12 | WikiLink グラフ範囲                | **データモデル + backlink list のみ**。グラフ可視化 UI は別計画 (Data Unification 後続)                                                                                                                                                                                                                                              |
+| Q13 | Phase 命名 (改訂で追加)            | 「Data Unification」へ変更。移行 SSOT の Phase 3 (Electron) との衝突回避                                                                                                                                                                                                                                                             |
+| Q14 | role 拡張範囲 (改訂で追加)         | **role は 5 種厳守**。RoutineGroup / WikiTag (タグマスタ) / wiki_tag_groups は **専用テーブルで独立**                                                                                                                                                                                                                                |
+| Q15 | template_event 型 (改訂で追加)     | **専用列に分解** (template_start_time / template_end_time / template_memo / template_reminder_offset_min)。列名は Phase 2 既存の `reminder_offset_min` と整合                                                                                                                                                                        |
+| Q16 | CalendarTag 廃止 (2026-05-24 追加) | **`calendar_tag_definitions` + `calendar_tag_assignments` を DROP し、wiki_tags に統合**。`calendars` テーブルは保持（フォルダフィルタマスタとして引き続き使用）。Events 限定 UI 先行投入のため DU-C と DU-D の間に **DU-C+ sub-phase** を挟む。詳細は `.claude/docs/vision/plans/2026-05-24-data-unification-c-plus-events-tags.md` |
 
 ## 採用アーキテクチャ
 
@@ -172,7 +173,7 @@ ScreenLock / CalendarTags / Template / FileExplorer / Timer / Audio / ShortcutCo
 
 以下は Phase 2 までの実装を維持する。DU-A の DROP 対象にも新規 13 テーブルにも含めない。
 
-- `calendars` / `calendar_tag_definitions` / `calendar_tag_assignments` (Q-Calendar 確定。folder-type Task 参照先を保持)
+- `calendars` (Q-Calendar 確定。Schedule のフォルダフィルタマスタとして保持)
 - `task_templates` (Tier 2 Templates。Template Provider が引き続き利用)
 - `time_memos` (5 role に該当しない時間メモ。将来 items_meta 統合は別計画で検討)
 - `note_links` (daily↔notes Connect 用の非同期テーブル。wiki_tag_connections とは別物として残す)
@@ -181,6 +182,8 @@ ScreenLock / CalendarTags / Template / FileExplorer / Timer / Audio / ShortcutCo
 - `sidebar_links` (SidebarLinks)
 - `paper_boards` (Tier 3 凍結)
 - `databases` 系 (汎用 DB。移行 SSOT 後期まで凍結)
+
+**Q16 (2026-05-24 追記)**: `calendar_tag_definitions` / `calendar_tag_assignments` は touched=NO リストから外し、**DU-C+ sub-phase で DROP + wiki_tags へ統合**する。`calendars` テーブル本体は引き続き保持。詳細は子計画書 `2026-05-24-data-unification-c-plus-events-tags.md`。
 
 **将来 calendars を items_meta(role=calendar) に統合したい場合は別計画 (Calendar Migration plan) で実施**する。
 
@@ -491,8 +494,9 @@ CREATE POLICY tasks_payload_delete ON tasks_payload FOR DELETE USING (user_id = 
 ### 手順
 
 1. DU-A 着手時点で `refactor/web-first-v2` ブランチの Supabase 既存テーブルのうち **本計画で再設計するもののみ** DROP する SQL を `0007_drop_legacy_item_tables.sql` として用意。
-   - **DROP 対象** (7 テーブル): `tasks` / `notes` / `dailies` / `schedule_items` / `routines` / `routine_groups` / `routine_group_assignments`
-   - **DROP しない** (Phase 2 のまま維持): `calendars` / `calendar_tag_definitions` / `calendar_tag_assignments` (Q-Calendar 確定。calendars は Task の folder-type 参照先も兼ねるため DROP すると現行 Calendar UI が破壊される)
+   - **DROP 対象 (DU-A)** (7 テーブル): `tasks` / `notes` / `dailies` / `schedule_items` / `routines` / `routine_groups` / `routine_group_assignments`
+   - **追加 DROP 対象 (DU-C+ / Q16)**: `calendar_tag_definitions` / `calendar_tag_assignments` (DU-A 時点では残し、DU-C+ 時点で別 migration で DROP + wiki_tags へ統合)
+   - **DROP しない** (Phase 2 のまま維持): `calendars` (Q-Calendar / Q16 確定。Schedule のフォルダフィルタマスタとして引き続き使用)
 2. 直後に `0008_data_unification_schema.sql` で items_meta + 5 payload + 7 専用/relation の計 13 テーブルを作成。
 3. RLS policy はすべて新スキーマに合わせて再定義 (4 policy × 13 テーブル = 52 policy)。calendars 系 3 テーブルの既存 RLS は維持。
 4. 本計画で再設計するドメインの既存データは **作者本人のローカル環境含めすべて消滅** する。これは Q3 で合意済み。calendars 系のデータは保持される。
@@ -507,39 +511,42 @@ CREATE POLICY tasks_payload_delete ON tasks_payload FOR DELETE USING (user_id = 
 
 DU-B 着手時に `supabase/migrations/0009_tasks_payload_parent_fk.sql` (本体) + `0009_rollback.sql` (巻き戻し SQL) を同時 commit する。0009 は items_meta `(id, role)` UNIQUE + tasks_payload composite FK + 補助 index 2 本 (`items_meta_role_isdel_idx` partial / `tasks_payload_parent_idx`)。DU-A の破壊的 reset と異なり 0009 は非破壊 (DDL のみ、データ消失なし)。Atomicity 戦略は **クライアント直列 2 回 invoke + FK 順序強制**（RPC 化は採らず、createTask の try/catch + 失敗時 items_meta softDelete で孤児回避）。詳細は DU-B 子計画書 + Recovery Playbook 参照。
 
-## Phase 分割表 (DU-A 〜 DU-F)
+## Phase 分割表 (DU-A 〜 DU-F、DU-C+ 含む)
 
-| #    | 名前                           | 入口 (前提)                                  | 出口 (検証可能な完了条件)                                                                                                                     | 規模 | 依存             |
-| ---- | ------------------------------ | -------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- | ---- | ---------------- |
-| DU-A | **DB スキーマ設計 + apply**    | Phase 2 マージ + 親計画書承認 + ブランチ作成 | `0007_drop` + `0008_data_unification_schema` 適用済 / 計 13 テーブル / 全 RLS gate offender 0 / advisor lint 0                                | M    | -                |
-| DU-B | **Tasks role 移植**            | DU-A 完了                                    | TasksProvider が items_meta + tasks_payload 経由で動作 / Tasks タブで CRUD + ツリー DnD + 期限 + 3 ステータス確認 OK / vitest green           | L    | DU-A             |
-| DU-C | **Events role 移植 + Routine** | DU-B 完了 (Provider 順序確立)                | EventsProvider + RoutineProvider + RoutineGroup 動作 / Events タブで CRUD + 2 ステータス + リマインダー + Routine 生成 + RoutineGroup 操作 OK | L    | DU-B             |
-| DU-D | **Notes role 移植 + Daily**    | DU-A 完了 (Tasks/Events と並列可)            | NotesProvider + DailyProvider が items_meta 経由で動作 / Notes 階層 DnD / TipTap / Daily UPSERT 動作 / 既存 UX 維持確認 OK                    | M    | DU-A             |
-| DU-E | **Calendar 2 ビュー再実装**    | DU-B + DU-C 完了                             | Calendar タブで 月/3 日 ビュー切替 / items_meta から横断表示 / Tasks/Events 両方が表示 + 編集可                                               | M    | DU-B, DU-C       |
-| DU-F | **WikiTag/WikiLink 統合**      | DU-B + DU-C + DU-D 完了                      | wiki_tags / wiki_tag_groups / wiki_tag_assignments / wiki_tag_connections が動作 / 5 種全アイテムにタグ付け可 / backlink list 表示            | M    | DU-B, DU-C, DU-D |
+| #     | 名前                                                                                     | 入口 (前提)                                  | 出口 (検証可能な完了条件)                                                                                                                                                                                                                                                         | 規模 | 依存        |
+| ----- | ---------------------------------------------------------------------------------------- | -------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---- | ----------- |
+| DU-A  | **DB スキーマ設計 + apply**                                                              | Phase 2 マージ + 親計画書承認 + ブランチ作成 | `0007_drop` + `0008_data_unification_schema` 適用済 / 計 13 テーブル / 全 RLS gate offender 0 / advisor lint 0                                                                                                                                                                    | M    | -           |
+| DU-B  | **Tasks role 移植**                                                                      | DU-A 完了                                    | TasksProvider が items_meta + tasks_payload 経由で動作 / Tasks タブで CRUD + ツリー DnD + 期限 + 3 ステータス確認 OK / vitest green                                                                                                                                               | L    | DU-A        |
+| DU-C  | **Events role 移植 + Routine**                                                           | DU-B 完了 (Provider 順序確立)                | EventsProvider + RoutineProvider + RoutineGroup 動作 / Events タブで CRUD + 2 ステータス + リマインダー + Routine 生成 + RoutineGroup 操作 OK                                                                                                                                     | L    | DU-B        |
+| DU-C+ | **Events 限定 WikiTag/Link + CalendarTag 吸収** (2026-05-24 起票 / **SCOPE-REDUCED**)    | DU-C 完了                                    | `calendar_tag_*` 2 テーブル DROP **済** / shared 層 (mapper / service / hook / Provider) 実装 **済** / Events UI Tag/Link は **DU-F へ後送り**（frontend↔shared 統合未完了問題）                                                                                                  | S    | DU-C        |
+| DU-D  | **Notes role 移植 + Daily** (**SCOPE-REDUCED**)                                          | DU-A 完了 (Tasks/Events と並列可)            | shared 層 (mapper / service / Provider) 実装 **+** composite FK migration (`0014_notes_payload_parent_fk.sql`) 適用済 / frontend NoteProvider/DailyProvider 置き換えは **DU-F へ後送り**（frontend↔shared 統合未完了）                                                            | S    | DU-A        |
+| DU-E  | **Calendar 2 ビュー再実装**                                                              | DU-B + DU-C 完了                             | Calendar タブで 月/3 日 ビュー切替 / items_meta から横断表示 / Tasks/Events 両方が表示 + 編集可                                                                                                                                                                                   | M    | DU-B, DU-C  |
+| DU-F  | **frontend↔shared 統合 + WikiTag/WikiLink 全 role UI + DU-C+/D 後送り分** (**EXPANDED**) | DU-C+ + DU-D 完了                            | Tauri frontend が shared.SupabaseDataService を消費する経路（vite alias + tsconfig + dependency）/ NoteProvider/DailyProvider が shared 版 / Events Tag/Link UI / Notes/Tasks/Routine/Daily 4 role の Tag/Link UI / wiki_tag_groups UI / CalendarTag 死コード削除 / RLS gate 拡張 | XL   | DU-C+, DU-D |
+
+**DU-F の拡大理由 (2026-05-24 / scope reduction)**: DU-C+ と DU-D 実装中に「frontend は独自 `tauriDataService` のみ参照、shared パッケージ未参照」が判明。Events UI / NoteProvider 置き換えなど **frontend が shared.SupabaseDataService を呼ぶ必要のあるタスク** はすべて DU-F に統合し、frontend↔shared 統合（Phase 2 完成相当）と同時実施する。DU-C+ で作成済の shared 層 mapper / service / hook / Provider は DU-F 着手時に活性化される。
 
 ### Phase 間順序グラフ
 
 ```
 DU-A ─┬→ DU-B ─┬→ DU-E (Calendar 2 ビュー)
-      ├→ DU-C ─┘
-      └→ DU-D ─→ DU-F (WikiTag/WikiLink)
-                  ↑
-          DU-B, DU-C, DU-D 全完了が前提
+      ├→ DU-C ─┴→ DU-C+ ─┐
+      └→ DU-D ───────────┴→ DU-F (残り 4 role UI)
 ```
 
 DU-B / DU-C / DU-D は DU-A 完了後に並列可だが、N=1 + 1 role-engineer なので **順序実行を推奨**。
+DU-C+ は DU-C 完了後すぐに着手。DU-D とは並列可だが順序実行を推奨。
 
 ### 各 Phase 完了時のユーザー検証
 
-| Phase | golden path                                                                                             |
-| ----- | ------------------------------------------------------------------------------------------------------- |
-| DU-A  | Supabase SQL Editor で `SELECT count(*) FROM items_meta` が 0 / RLS gate スクリプト 緑 / advisor lint 0 |
-| DU-B  | web/ で Tasks タブ → タスク作成 → 子タスク追加 → ステータス 3 段階切替 → 期限設定                       |
-| DU-C  | Events タブ → イベント作成 → 2 ステータス → リマインダー → Routine 化 → RoutineGroup 作成・割当         |
-| DU-D  | Notes 階層 DnD / TipTap 入力 / Daily UPSERT                                                             |
-| DU-E  | Calendar タブで月/3 日切替 + 各ビューで Tasks/Events 表示・編集                                         |
-| DU-F  | アイテムにタグ付け → タグ検索 → backlink list 表示                                                      |
+| Phase | golden path                                                                                                                            |
+| ----- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| DU-A  | Supabase SQL Editor で `SELECT count(*) FROM items_meta` が 0 / RLS gate スクリプト 緑 / advisor lint 0                                |
+| DU-B  | web/ で Tasks タブ → タスク作成 → 子タスク追加 → ステータス 3 段階切替 → 期限設定                                                      |
+| DU-C  | Events タブ → イベント作成 → 2 ステータス → リマインダー → Routine 化 → RoutineGroup 作成・割当                                        |
+| DU-C+ | Events タブ → Tag 付与・解除 → 別 item への Link 作成 → backlink 逆方向確認 / `calendar_tag_*` テーブル不在 / `calendars` テーブル健在 |
+| DU-D  | Notes 階層 DnD / TipTap 入力 / Daily UPSERT                                                                                            |
+| DU-E  | Calendar タブで月/3 日切替 + 各ビューで Tasks/Events 表示・編集                                                                        |
+| DU-F  | Notes / Tasks / Routine / Daily すべてで Tag 付け → タグ検索 → backlink list 表示 / wiki_tag_groups UI 動作                            |
 
 ## Non-goals (今回やらないこと)
 
@@ -582,6 +589,8 @@ DU-B / DU-C / DU-D は DU-A 完了後に並列可だが、N=1 + 1 role-engineer 
 - [ ] Schedule セクションのタブ構造が Calendar / Tasks / Events の 3 タブに変更済み
 - [ ] Calendar タブで月 + 3 日の 2 ビュー切替が動作
 - [ ] Events タブ内で Routine / RoutineGroup の編集が可能
+- [ ] **CalendarTag (`calendar_tag_definitions` / `calendar_tag_assignments`) が DROP 済み (Q16 / DU-C+)**
+- [ ] **`calendars` テーブルは保持され、Schedule のフォルダフィルタ UI が引き続き動作 (Q16)**
 - [ ] WikiTag/WikiLink が items_meta.id を FK として 5 role すべてで利用可能
 - [ ] backlink list がアイテム詳細から表示可能
 - [ ] vitest 緑 / RLS gate offender 0 / advisor lint 0

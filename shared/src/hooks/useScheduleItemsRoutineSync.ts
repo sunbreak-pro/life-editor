@@ -106,14 +106,23 @@ export function useScheduleItemsRoutineSync(
         }
       }
 
+      // DU-C-6 hardening (chat-main HISTORY 2026-05-23 landmine fix):
+      // notifyChanged() must NOT fire when bulkCreate threw. Pre-DU-C-6
+      // the call lived OUTSIDE the try/catch — on a stub-throw path
+      // (loadDate → fetchScheduleItemsByDateAll returning a fresh []
+      // each call → context value new ref → re-render → effect re-fires)
+      // this rearmed the bulkCreate and produced an infinite render
+      // loop. Now we only signal on at-least-one successful write.
+      let bulkCreateOk = true;
       if (toCreate.length > 0) {
         try {
           await ds.bulkCreateScheduleItems(toCreate);
         } catch (e) {
           logServiceError("ScheduleItems", "bulkCreate", e);
+          bulkCreateOk = false;
         }
       }
-      if (toCreate.length > 0 || toUpdate.length > 0) {
+      if (bulkCreateOk && (toCreate.length > 0 || toUpdate.length > 0)) {
         notifyChanged();
       }
     },
