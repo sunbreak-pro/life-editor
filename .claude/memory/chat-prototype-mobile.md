@@ -6,6 +6,7 @@
 
 ## 直近の完了
 
+- Phase 3.H fix: Schedule swipe を peeking 構造へ + DayDetailSheet タップ復活 ✅（2026-05-24）
 - Phase 3.G fix-pack + Schedule swipe feature ✅（2026-05-24）
 - Phase 3.A〜F: prototype/mobile-ui mock CRUD + 6 screens 一気通貫実装 ✅（2026-05-24）
 

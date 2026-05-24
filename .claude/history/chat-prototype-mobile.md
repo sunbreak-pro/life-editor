@@ -1,5 +1,20 @@
 # HISTORY (chat-prototype-mobile)
 
+### 2026-05-24 - Phase 3.H fix: Schedule swipe を peeking 構造へ + DayDetailSheet タップ復活
+
+#### 概要
+
+ユーザー実機テストで「日付をタップしても DayDetailSheet が出ない」「スワイプの動作が iOS Calendar の流れる感じになっていない」の 2 件が判明。両方とも `SwipePane` 起因のため、ペーン構造そのものを 3 ペーン (前/当/次) 横並びの peeking 型に書き換え、タップ吸収の根本原因も合わせて修正。`prototype/src/screens/ScheduleScreen.tsx` のみの変更で、`npx tsc -b` exit 0 / `npm run build` 380 KB / gzip 109 KB。
+
+#### 変更点
+
+- **[fix] DayDetailSheet が出ないバグ**: 旧実装の `handlePointerUp` が「閾値未達 = スナップバック」を距離 0 のタップでも常に実行し、200ms 間 `mode === "snap-back"` を維持。その間 `handleClickCapture` が `e.stopPropagation()` で子要素 (MonthView の日付セル onClick) を殺していた。`axisRef.current !== "horizontal"` (= 純粋なタップ) なら何もせず idle に戻すように修正。clickCapture も「axisRef = horizontal または animating」のみ吸収するよう厳格化。
+- **[feature] peeking 型 SwipePane**: 3 ペーン (前/当/次) を `width: 300%` の横並びで描画し `translateX(calc(-33.3333% + dragX))` で当ページを常時中央表示。ドラッグ中は隣ページがちらっと見えるので連続感が出る。コミット時は隣ペーンが中央へ来る位置までスライド (220ms ease-out) → 親の `anchorDate` 更新 → `requestAnimationFrame` で `dragX = 0` + transition オフで瞬時切替し新しい 3 ペーンを中央に固定。Month / ThreeDay 両 view で適用。
+- **[API 変更] SwipePane**: `children` を渡す形から `renderPage(offset: -1|0|1)` 関数を受ける形に変更。`onSwipeLeft / onSwipeRight` も `onPrev / onNext` に改名 (意味の明確化)。呼び出し側 (Month / ThreeDay) は `offset` ごとに `buildMonthCells` / `addDays` で別ページを計算。offset !== 0 のページでは `selectedDay = null`, `onCellClick` / `onEventClick` / `onSlotClick` を no-op に。
+- **[整理] useMemo 削除**: `monthCells` / `threeDays` の事前計算 useMemo を廃止 (3 ペーン分必要なため renderPage 内で都度算出に変更、軽量なので問題なし)。
+- **[整理] main の overflow**: SwipePane が 3 倍幅なので `overflow-auto` → `overflow-y-auto overflow-x-hidden` に明示変更し、横スクロールが漏れるリスクを潰す。
+- **検証**: `npx tsc -b` exit 0 / `npm run build` 1.99s で成功 / dev server (PID 93066, 5173 LISTEN) が HMR 経由で iPhone Safari に自動反映。
+
 ### 2026-05-24 - Phase 3.G fix-pack 完了 + Schedule swipe (animated drag + slide-in)
 
 #### 概要

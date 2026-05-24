@@ -13,6 +13,12 @@
 
 ## 直近の完了 (across all chats, 各チャット最大 3 件)
 
+- [chat-prototype-mobile] Phase 3.H fix: peeking SwipePane + DayDetailSheet タップ復活 ✅ (2026-05-24)
+- [chat-prototype-mobile] Phase 3.G fix-pack + Schedule swipe (animated) ✅ (2026-05-24)
+- [chat-prototype-mobile] Phase 3.A〜F: prototype mock CRUD + 6 screens ✅ (2026-05-24)
+- [chat-main] DU-D Notes role + Daily 移植（scope-reduced）✅ (2026-05-24)
+- [chat-main] .claude/ 配下整理（vision/plans 精査 + 学習教材削除 + 残骸クリーンアップ）✅ (2026-05-24)
+- [chat-main] DU-C+ scope-reduced 完了（CalendarTag DROP + shared 層 WikiTag 整備）✅ (2026-05-24)
 - [chat-main] DU-F Step 1-5: WikiTagsUnifiedProvider 配置 + CalendarTag 死削除 ✅ (2026-05-24 commit `074ec53`)
 - [chat-main] subagent self-contained brief 規約 + worktree integrity 改善（PR #22 draft）✅ (2026-05-24)
 - [chat-main] Anthropic Cloud Routine 2 本セットアップ（朝の歴史学習 + 帰宅時モバイル開発準備）✅ (2026-05-24)
