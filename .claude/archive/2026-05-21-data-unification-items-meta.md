@@ -1,5 +1,5 @@
 ---
-Status: PLANNING — 親計画書 v3（2026-05-22、role-qa 2nd 監査の新規 Blocker/Major/Minor を反映）。子計画書 (DU-A〜DU-F) は進行時に都度作成。
+Status: COMPLETED — 2026-05-24 DoD 達成（DU-A〜DU-F 完了、5 role tag/link graph 稼働 + CalendarTag 概念消滅 + wiki_tag_groups CRUD UI）。後続 DU-G (Notes/Daily Unified 完全切替) と DU-E (Calendar 2 view 再実装) は別計画書として独立。元 v3（2026-05-22、role-qa 2nd 監査の新規 Blocker/Major/Minor を反映）。子計画書 (DU-A〜DU-F) は archive/ に集約。
 Created: 2026-05-21
 Revised: 2026-05-22 v2 (role-qa 1st 監査の計 15 項反映、Phase 命名を Data Unification へ変更) → v3 (2nd 監査の Calendar 系維持 / events_payload Routine 識別 / 列名統一 / touched=NO テーブル列挙 を反映)
 Task: Data Unification — Schedule items_meta + payload (旧名: Phase 3)
