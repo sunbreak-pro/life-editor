@@ -1,5 +1,20 @@
 # HISTORY (chat-prototype-mobile)
 
+### 2026-05-24 - Phase 3.G fix-pack 完了 + Schedule swipe (animated drag + slide-in)
+
+#### 概要
+
+ユーザーテストで発見された 3 件 (リンク遷移ずれ / sticky header z-index 衝突 / iOS auto-zoom) を一括修正し、追加で Calendar (月) / ThreeDay (3日) ビューの左右スワイプによる表示範囲切替を **drag 追従 + commit 時スライドアニメーション付き** で実装。`npm run build` exit 0 / session-verifier PASS。本タスクは clean ブランチ `prototype/phase-3g-fixpack` から main へ PR 経由で merge。
+
+#### 変更点
+
+- **[fix #1] リンク遷移先ハンドラ実装**: `ScheduleScreen` が `useSearchParams` で `?focus=<id>` を受信。対象 ScheduleItem を find → `anchorDate` を `due` に合わせて three view に切替 + `AddEventModal` を draft state でオープン (= ハイライト)。`focusHandledRef` で同 id 二重起動を guard。`MaterialsScreen` も `?open=<note-id>` を受信、`setKind` で notes/daily 自動切替 + editor をスライドイン。EditorView 内 `[[link]]` から note/daily へジャンプ時も `setKind` で list 側を整合
+- **[fix #2] modal stacking 整理**: `AddEventModal` に `z-50`、`ConfirmModal` (削除確認) に `z-[60]`、`DayDetailSheet` に `z-30`、`Sidebar` に `z-40` を明示。`ThreeDayView` の sticky 日付ヘッダー (`z-10`) より上に積層されることを保証。main 自身が positioned でないため子要素の z-index が親 stacking context に逃げる問題を、modal 側で正規化
+- **[fix #3] iOS Safari ズーム抑止**: `index.html` viewport meta に `maximum-scale=1.0, user-scalable=no, viewport-fit=cover` を追加。input/textarea フォーカス時の auto-zoom と pinch-zoom を同時に抑止。プロトタイプは「想定外ズームなし」体験優先で OK の方針 (fix-pack notes 通り)
+- **[feature] Schedule swipe ナビゲーション (animated)**: `ScheduleScreen` 内の `SwipePane` が pointermove で translateX を追従、pointerup で commit (>1/4 幅 OR fast flick <250ms+30px) 時に旧コンテンツを指方向へスライド (220ms ease-out)、新コンテンツを反対側からスライドイン (iOS Calendar 風)。snap-back (閾値未達) も同 transition で 0 へ戻す。axis lock 8px で縦スクロール (ThreeDayView の 14 時間タイムライン) と切り分け、`touch-action: pan-y` で native scroll を保持。click-capture でドラッグ中の誤タップ抑止
+- **検証**: 変更ファイル 4 件 (index.html / ScheduleScreen.tsx / MaterialsScreen.tsx / hooks/useSwipe.ts 新規)、`npm run build` 2 度実行で exit 0、379KB (gzip 109KB)。session-verifier 6 Gate PASS (Lint/Tests/Coverage はインフラ不在で skip)
+- **次フェーズ**: Phase 3.F PR (🛑 人手 Gate)。Stop hook によるバックグラウンド build 結果は `.claude/comm/outbox/<chat>/stop-report.md` に追記される設計
+
 ### 2026-05-24 - ユーザーテストで 3 件の発見事項を記録 (次セッション fix-pack 予定)
 
 #### 概要
