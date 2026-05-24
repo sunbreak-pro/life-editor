@@ -1,8 +1,9 @@
 ---
-Status: SKELETON — 2026-05-25 起票（DU-F Step 13 で予約）。実装未着手。`SupabaseNotesUnifiedService` / `SupabaseDailiesUnifiedService` の機能拡張から始める。
+Status: IN-PROGRESS — 2026-05-24 着手。4 PR 直列分割（G1=Notes Service 拡張 / G2=Dailies Service 拡張 / G3=Provider+web 切替 / G4=legacy 死削除）。現在 **G1 進行中**（後追い検証スタイル / role-engineer 委譲）。
 Created: 2026-05-25
-Branch: TBD（`data-unification/g-notes-daily-unified` 等を予定）
-Owner-chat: TBD
+Revised: 2026-05-24 G1 着手 — Branch / Owner-chat 確定、PR 分割戦略確定
+Branch: feat/du-g-notes-daily-unified（worktree `.claude/worktrees/du-g/`）
+Owner-chat: main
 Parent: .claude/docs/vision/plans/2026-05-21-data-unification-items-meta.md（親計画書 DoD「Notes/Daily Unified 経路への切替」相当）
 Previous: .claude/docs/vision/plans/2026-05-24-data-unification-f-wikitag-link-ui.md（DU-F v2、本計画書を後継として明示）
 Successor: 未定（必要なら DU-H Calendar 2 ビュー = DU-E と並走 / 後続）

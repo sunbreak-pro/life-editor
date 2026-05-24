@@ -636,11 +636,13 @@ class SupabaseDailyService {
  * reload AND satisfies wiki_tag_assignments RLS WITH CHECK (items_meta
  * row must exist for the Note id).
  *
- * Trash + password/lock + search stay deferred to DU-G:
- *   - fetchDeletedNotes / searchNotes return [] (empty UI sections)
- *   - restoreNote / permanentDeleteNote / setNotePassword / etc.
- *     keep throwing _pendingDuRewrite, since the corresponding UI
- *     buttons only fire when the user explicitly clicks them
+ * DU-G PR1 (2026-05-24, this PR): the previously-stubbed Trash + password
+ * + lock + search paths now also delegate to the Unified service. Every
+ * legacy DataService method on the Notes block is fully implemented; the
+ * `_pendingDuRewrite` stubs are gone. PHASE2_NOTES_METHODS set is
+ * unchanged so the dispatch table at the bottom of this file still
+ * routes the legacy names here (G3 will remove the legacy names and the
+ * frontend will call *Unified directly).
  */
 class SupabaseNotesService {
   private readonly client: SupabaseClient;
@@ -660,8 +662,7 @@ class SupabaseNotesService {
     return this.unified.listNotesUnified();
   }
   async fetchDeletedNotes(): Promise<NoteNode[]> {
-    // Unified service has no soft-deleted listing yet (DU-G).
-    return [];
+    return this.unified.fetchDeletedNotesUnified();
   }
   async createNote(
     id: string,
@@ -723,39 +724,29 @@ class SupabaseNotesService {
   async softDeleteNote(id: string): Promise<void> {
     await this.unified.softDeleteNoteUnified(id);
   }
-  async restoreNote(_id: string): Promise<void> {
-    void _id;
-    _pendingDuRewrite("restoreNote", "notes");
+  async restoreNote(id: string): Promise<void> {
+    await this.unified.restoreNoteUnified(id);
   }
-  async permanentDeleteNote(_id: string): Promise<void> {
-    void _id;
-    _pendingDuRewrite("permanentDeleteNote", "notes");
+  async permanentDeleteNote(id: string): Promise<void> {
+    await this.unified.permanentDeleteNoteUnified(id);
   }
-  async searchNotes(_query: string): Promise<NoteNode[]> {
-    void _query;
-    return [];
+  async searchNotes(query: string): Promise<NoteNode[]> {
+    return this.unified.searchNotesUnified(query);
   }
-  async setNotePassword(_id: string, _password: string): Promise<NoteNode> {
-    void _id;
-    void _password;
-    _pendingDuRewrite("setNotePassword", "notes");
+  async setNotePassword(id: string, password: string): Promise<NoteNode> {
+    return this.unified.setNotePasswordUnified(id, password);
   }
   async removeNotePassword(
-    _id: string,
-    _currentPassword: string,
+    id: string,
+    currentPassword: string,
   ): Promise<NoteNode> {
-    void _id;
-    void _currentPassword;
-    _pendingDuRewrite("removeNotePassword", "notes");
+    return this.unified.removeNotePasswordUnified(id, currentPassword);
   }
-  async verifyNotePassword(_id: string, _password: string): Promise<boolean> {
-    void _id;
-    void _password;
-    return false;
+  async verifyNotePassword(id: string, password: string): Promise<boolean> {
+    return this.unified.verifyNotePasswordUnified(id, password);
   }
-  async toggleNoteEditLock(_id: string): Promise<NoteNode> {
-    void _id;
-    _pendingDuRewrite("toggleNoteEditLock", "notes");
+  async toggleNoteEditLock(id: string): Promise<NoteNode> {
+    return this.unified.toggleNoteEditLockUnified(id);
   }
 }
 
@@ -2316,6 +2307,7 @@ class SupabaseCalendarsService {
     return ((data as { version: number }).version ?? 0) + 1;
   }
 }
+
 
 const PHASE2_TASKS_METHODS = new Set<string>([
   "fetchTaskTree",
