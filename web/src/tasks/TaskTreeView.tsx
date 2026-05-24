@@ -18,6 +18,7 @@ import {
   type TaskNode,
   type TaskStatus,
 } from "@life-editor/shared";
+import { TagPicker, LinkPanel } from "../wikitag";
 
 // Folder zone ratios for above / inside / below detection. Mirrors
 // web/src/notes/useNoteTreeDnd.ts so the two trees feel identical at the
@@ -82,21 +83,29 @@ function TreeRow({
   depth,
   hasChildren,
   expanded,
+  linkOpen,
   onToggleExpand,
+  onToggleLinks,
   onCycleStatus,
   onRename,
   onAddChild,
   onSoftDelete,
+  resolveTitle,
+  linkableItems,
 }: {
   node: TaskNode;
   depth: number;
   hasChildren: boolean;
   expanded: boolean;
+  linkOpen: boolean;
   onToggleExpand: (id: string) => void;
+  onToggleLinks: (id: string) => void;
   onCycleStatus: (id: string) => void;
   onRename: (id: string, current: string) => void;
   onAddChild: (parentId: string) => void;
   onSoftDelete: (id: string) => void;
+  resolveTitle: (id: string) => string | undefined;
+  linkableItems: Array<{ id: string; label: string }>;
 }) {
   const {
     attributes,
@@ -118,66 +127,86 @@ function TreeRow({
     <li
       ref={setNodeRef}
       style={style}
-      className="flex items-center gap-2 rounded-md border border-notion-border bg-notion-bg-secondary px-2 py-1.5"
+      className="rounded-md border border-notion-border bg-notion-bg-secondary px-2 py-1.5"
     >
-      <button
-        type="button"
-        {...attributes}
-        {...listeners}
-        aria-label="Drag to reorder"
-        className="cursor-grab text-notion-text-secondary hover:text-notion-text"
-      >
-        ⠿
-      </button>
-      {node.type === "folder" ? (
+      <div className="flex items-center gap-2">
         <button
           type="button"
-          onClick={() => onToggleExpand(node.id)}
-          aria-label={expanded ? "Collapse" : "Expand"}
-          className="w-4 text-notion-text-secondary hover:text-notion-text"
+          {...attributes}
+          {...listeners}
+          aria-label="Drag to reorder"
+          className="cursor-grab text-notion-text-secondary hover:text-notion-text"
         >
-          {hasChildren ? (expanded ? "▾" : "▸") : "·"}
+          ⠿
         </button>
-      ) : (
-        <StatusButton node={node} onCycle={onCycleStatus} />
-      )}
-      <span
-        className={
-          node.type === "folder"
-            ? "flex-1 font-medium text-notion-text"
-            : node.status === "DONE"
-              ? "flex-1 text-notion-text-secondary line-through"
-              : "flex-1 text-notion-text"
-        }
-      >
-        {node.type === "folder" ? "📁 " : ""}
-        {node.title || "(untitled)"}
-      </span>
-      <span className="flex gap-2 text-xs">
-        {node.type === "folder" && (
+        {node.type === "folder" ? (
           <button
             type="button"
-            onClick={() => onAddChild(node.id)}
+            onClick={() => onToggleExpand(node.id)}
+            aria-label={expanded ? "Collapse" : "Expand"}
+            className="w-4 text-notion-text-secondary hover:text-notion-text"
+          >
+            {hasChildren ? (expanded ? "▾" : "▸") : "·"}
+          </button>
+        ) : (
+          <StatusButton node={node} onCycle={onCycleStatus} />
+        )}
+        <span
+          className={
+            node.type === "folder"
+              ? "flex-1 font-medium text-notion-text"
+              : node.status === "DONE"
+                ? "flex-1 text-notion-text-secondary line-through"
+                : "flex-1 text-notion-text"
+          }
+        >
+          {node.type === "folder" ? "📁 " : ""}
+          {node.title || "(untitled)"}
+        </span>
+        <TagPicker itemId={node.id} />
+        <span className="flex gap-2 text-xs">
+          <button
+            type="button"
+            onClick={() => onToggleLinks(node.id)}
+            aria-expanded={linkOpen}
             className="text-notion-text-secondary hover:text-notion-accent"
           >
-            + child
+            {linkOpen ? "▴ links" : "▾ links"}
           </button>
-        )}
-        <button
-          type="button"
-          onClick={() => onRename(node.id, node.title)}
-          className="text-notion-text-secondary hover:text-notion-accent"
-        >
-          rename
-        </button>
-        <button
-          type="button"
-          onClick={() => onSoftDelete(node.id)}
-          className="text-notion-danger hover:opacity-80"
-        >
-          delete
-        </button>
-      </span>
+          {node.type === "folder" && (
+            <button
+              type="button"
+              onClick={() => onAddChild(node.id)}
+              className="text-notion-text-secondary hover:text-notion-accent"
+            >
+              + child
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={() => onRename(node.id, node.title)}
+            className="text-notion-text-secondary hover:text-notion-accent"
+          >
+            rename
+          </button>
+          <button
+            type="button"
+            onClick={() => onSoftDelete(node.id)}
+            className="text-notion-danger hover:opacity-80"
+          >
+            delete
+          </button>
+        </span>
+      </div>
+      {linkOpen && (
+        <div className="mt-2">
+          <LinkPanel
+            itemId={node.id}
+            resolveTitle={resolveTitle}
+            linkableItems={linkableItems}
+          />
+        </div>
+      )}
     </li>
   );
 }
@@ -185,6 +214,33 @@ function TreeRow({
 export function TaskTreeView() {
   const tree = useTaskTreeContext();
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
+  // Per-row Links toggle. Local Set rather than a useExpanded hook —
+  // this is single-section state (DU-F Step 8).
+  const [linksOpen, setLinksOpen] = useState<Set<string>>(new Set());
+  const toggleLinks = (id: string) =>
+    setLinksOpen((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+
+  // Linkable candidates pool: the full task tree (active nodes). Cross-
+  // role links (task → note / event / daily) need raw id paste in the
+  // input — DU-G unifies the resolver into items_meta and removes this.
+  const linkableItems = useMemo(
+    () =>
+      tree.nodes.map((n) => ({
+        id: n.id,
+        label: `[${n.type}] ${n.title || "(untitled)"}`,
+      })),
+    [tree.nodes],
+  );
+  const resolveTitle = (id: string): string | undefined => {
+    const n = tree.nodeMap.get(id);
+    if (!n) return undefined;
+    return `[${n.type}] ${n.title || "(untitled)"}`;
+  };
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
@@ -388,11 +444,15 @@ export function TaskTreeView() {
                   depth={r.depth}
                   hasChildren={r.hasChildren}
                   expanded={!collapsed.has(r.node.id)}
+                  linkOpen={linksOpen.has(r.node.id)}
                   onToggleExpand={toggleExpand}
+                  onToggleLinks={toggleLinks}
                   onCycleStatus={tree.toggleTaskStatus}
                   onRename={rename}
                   onAddChild={addChild}
                   onSoftDelete={tree.softDelete}
+                  resolveTitle={resolveTitle}
+                  linkableItems={linkableItems}
                 />
               ))}
             </ul>

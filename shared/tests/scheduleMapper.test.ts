@@ -10,8 +10,6 @@ import { routineGroupUpdatesToPatch } from "../src/services/routineGroupMapper";
 import { routineGroupAssignmentUpdatesToPatch } from "../src/services/routineGroupAssignmentMapper";
 import { scheduleItemUpdatesToPatch } from "../src/services/scheduleItemMapper";
 import { calendarUpdatesToPatch } from "../src/services/calendarMapper";
-import { calendarTagUpdatesToPatch } from "../src/services/calendarTagDefinitionMapper";
-import { calendarTagAssignmentUpdatesToPatch } from "../src/services/calendarTagAssignmentMapper";
 import type { RoutineNode } from "../src/types/routine";
 
 /*
@@ -238,47 +236,7 @@ describe("calendarUpdatesToPatch — whitelist", () => {
   });
 });
 
-describe("calendarTagUpdatesToPatch — whitelist + textColor null", () => {
-  it("emits only touched keys; textColor explicit null maps through", () => {
-    expect(calendarTagUpdatesToPatch({ name: "T" })).toEqual({ name: "T" });
-    expect(calendarTagUpdatesToPatch({ textColor: undefined })).toEqual({
-      text_color: null,
-    });
-    expect(calendarTagUpdatesToPatch({ textColor: "#fff" })).toEqual({
-      text_color: "#fff",
-    });
-  });
-  it("drops smuggled id (integer identity) / version / created_at", () => {
-    const sneaky = {
-      name: "T",
-      id: 999,
-      version: 5,
-      created_at: "1999",
-    } as unknown as Parameters<typeof calendarTagUpdatesToPatch>[0];
-    const patch = calendarTagUpdatesToPatch(sneaky);
-    expect(patch).toEqual({ name: "T" });
-    expect("id" in patch).toBe(false);
-    expect("version" in patch).toBe(false);
-  });
-});
-
-describe("calendarTagAssignmentUpdatesToPatch — re-tag only", () => {
-  it("emits only tag_id (the 1:1 entity pair is immutable)", () => {
-    expect(calendarTagAssignmentUpdatesToPatch({ tagId: 7 })).toEqual({
-      tag_id: 7,
-    });
-  });
-  it("drops smuggled entity_type/entity_id/id", () => {
-    const sneaky = {
-      tagId: 7,
-      entityType: "task",
-      entityId: "evil",
-      id: "cta-evil",
-    } as unknown as Parameters<typeof calendarTagAssignmentUpdatesToPatch>[0];
-    const patch = calendarTagAssignmentUpdatesToPatch(sneaky);
-    expect(patch).toEqual({ tag_id: 7 });
-    expect("entity_type" in patch).toBe(false);
-    expect("entity_id" in patch).toBe(false);
-    expect("id" in patch).toBe(false);
-  });
-});
+// DU-F note: calendarTagUpdatesToPatch + calendarTagAssignmentUpdatesToPatch
+// suites removed in cohort with the CalendarTag DROP (DU-C+ 0012 + DU-F
+// Step 3-5). WikiTags Unified replaces this surface and has its own
+// mapper tests under shared/tests/wikiTag*Mapper.test.ts.

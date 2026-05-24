@@ -2,29 +2,29 @@
 
 > 各 `chat-*.md` の集約ビュー。task-tracker 実行時に再生成される。**SSOT は各 `chat-*.md` ファイル**。本ファイルは読み手向け要約。
 
+最終更新: 2026-05-24 16:11:39 (chat-main)
 最終更新: 2026-05-24 (chat-prototype-mobile)
 
 ---
 
 ## 進行中 (across all chats)
 
-- [chat-main] （なし）
-- [chat-prototype-mobile] （なし）
+- [chat-main] 🔧 DU-F WikiTag/Link UI 4 role + CalendarTag 死削除 + 親 DoD 達成 — 着手: 2026-05-24
 
 ## 直近の完了 (across all chats, 各チャット最大 3 件)
 
+- [chat-main] Anthropic Cloud Routine 2 本セットアップ（朝の歴史学習 + 帰宅時モバイル開発準備）✅ (2026-05-24)
 - [chat-prototype-mobile] Phase 3.G fix-pack + Schedule swipe (animated) ✅ (2026-05-24)
 - [chat-prototype-mobile] Phase 3.A〜F: prototype mock CRUD + 6 screens ✅ (2026-05-24)
 - [chat-main] DU-D Notes role + Daily 移植（scope-reduced）✅ (2026-05-24)
 - [chat-main] .claude/ 配下整理（vision/plans 精査 + 学習教材削除 + 残骸クリーンアップ）✅ (2026-05-24)
-- [chat-main] DU-C+ scope-reduced 完了（CalendarTag DROP + shared 層 WikiTag 整備）✅ (2026-05-24)
 
 ## 予定 (across all chats)
 
 - [chat-prototype-mobile] 👀 残: 6 screens の追加目視確認 (新たに不具合あれば次 fix-pack へ)
 - [chat-prototype-mobile] 別件: Supabase migration items_meta_id_role_uk drop 失敗 (別 worktree スコープ)
 - [chat-main] 👀 ユーザー実機確認待ち: DU-C-6 (Routine 作成/削除/復元 + 月またぎ ループ防止 + key duplicate 警告ゼロ)
-- [chat-main] DU-E Calendar 2 ビュー再実装（DU-D 完了後）
-- [chat-main] DU-F WikiTag/WikiLink 残り 4 role UI + wiki_tag_groups UI + frontend↔shared 統合（DU-C+ / DU-D 後送り分を吸収）
-- [chat-main] CLAUDE.md §4.3 一行追記（composite FK pattern。並行チャットの CLAUDE.md 編集完了同期後）
+- [chat-main] DU-G Notes/Daily Unified 完全切替（SupabaseNotesUnifiedService 機能拡張 + Provider 切替 + UI 動作確認。DU-F Step 13 でスケルトン作成）
+- [chat-main] DU-E Calendar 2 ビュー再実装（DU-F / DU-G 完了後）
+- [chat-main] CLAUDE.md §4.3 一行追記（composite FK pattern + Routine UX 変更。DU-F Step 13 で実施）
 - [chat-main] DU-B 子計画書 + 詳細計画書の archive 移動（DU-B 全体クローズ時）
