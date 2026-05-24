@@ -24,7 +24,6 @@ export type {
 } from "./types/routineGroup";
 export type { ScheduleItem, RoutineStats } from "./types/schedule";
 export type { CalendarNode } from "./types/calendar";
-export type { CalendarTag } from "./types/calendarTag";
 
 // Tasks domain — context (Pattern A) + hooks
 export {
@@ -124,21 +123,9 @@ export {
   type UseCalendarsAPIOptions,
 } from "./hooks/useCalendarsAPI";
 
-// CalendarTags domain (S4-6) — calendar_tag_definitions (full-replicate,
-// integer-identity id) + calendar_tag_assignments (relation, 1:1
-// polymorphic). THIRD/last of the Schedule trio (§6.2), mounted inside
-// ScheduleItemsProvider. CalendarTags is a Mobile 省略 Provider
-// (CLAUDE.md §2) so it ships BOTH the throwing context hook (Desktop)
-// and the Optional variant (Mobile — vision/coding-principles.md §4).
-export { CalendarTagsProvider } from "./context";
-export { CalendarTagsContext, type CalendarTagsContextValue } from "./context";
-export { useCalendarTagsContext } from "./hooks/useCalendarTagsContext";
-export { useCalendarTagsContextOptional } from "./hooks/useCalendarTagsContextOptional";
-export {
-  useCalendarTagsAPI,
-  type UseCalendarTagsAPIOptions,
-  type CalendarTagEntityType,
-} from "./hooks/useCalendarTagsAPI";
+// CalendarTags domain was removed in DU-F Step 3-5 (DB DROPped in DU-C+
+// 0012; UI + shared layer purged in cohort). WikiTags Unified is the
+// successor surface for the 5-role tag/link graph.
 
 // WikiTags Unified domain (DU-C+) — items_meta-based 5-role tag/link.
 // Coexists with the legacy `frontend/src/context/WikiTagContext.tsx`

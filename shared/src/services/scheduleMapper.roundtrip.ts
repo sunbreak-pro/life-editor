@@ -1,8 +1,7 @@
 /*
- * Schedule domain <-> DB row round-trip verification (S4-1). Covers all
- * SEVEN mappers: routine / routineGroup / routineGroupAssignment /
- * scheduleItem / calendar / calendarTagDefinition /
- * calendarTagAssignment.
+ * Schedule domain <-> DB row round-trip verification (S4-1). Covers
+ * FIVE mappers: routine / routineGroup / routineGroupAssignment /
+ * scheduleItem / calendar.
  *
  * Same harness shape as noteMapper.roundtrip.ts: a self-contained,
  * type-checked module that ASSERTS each mapper round-trip at runtime. It
@@ -11,12 +10,17 @@
  * non-zero on any mismatch. It imports the pure mappers (NOT
  * SupabaseDataService) so it carries no @supabase/supabase-js dependency.
  *
+ * DU-F note: calendarTagDefinition / calendarTagAssignment harness legs
+ * were removed in cohort with the CalendarTag DROP (DU-C+ 0012 + DU-F
+ * Step 3-5). WikiTags Unified is the successor surface and has its own
+ * mapper tests under shared/tests/wikiTag*Mapper.test.ts.
+ *
  * Round-trip property: for a row R produced from domain object D,
  *   rowToX( reattachServerColumns(xToRow(D)) )  deep-equals  normalise(D)
  * where reattachServerColumns adds back exactly what the SELECT/DB adds
- * (user_id RLS default, and the calendar_tag_definitions integer
- * identity). The frequency_days JSON array <-> string bijection and the
- * boolean/number coercions are exercised by the cases below.
+ * (user_id RLS default). The frequency_days JSON array <-> string
+ * bijection and the boolean/number coercions are exercised by the cases
+ * below.
  */
 // NOTE: the `.js` extensions are deliberate and ONLY in this harness
 // (identical rationale to noteMapper.roundtrip.ts): bundler resolution
@@ -28,7 +32,6 @@ import type {
 } from "../types/routineGroup.js";
 import type { ScheduleItem } from "../types/schedule.js";
 import type { CalendarNode } from "../types/calendar.js";
-import type { CalendarTag } from "../types/calendarTag.js";
 import {
   rowToRoutine,
   routineToRow,
@@ -54,17 +57,6 @@ import {
   calendarToRow,
   type CalendarRow,
 } from "./calendarMapper.js";
-import {
-  rowToCalendarTag,
-  calendarTagToRow,
-  type CalendarTagDefinitionRow,
-} from "./calendarTagDefinitionMapper.js";
-import {
-  rowToCalendarTagAssignment,
-  calendarTagAssignmentToRow,
-  type CalendarTagAssignment,
-  type CalendarTagAssignmentRow,
-} from "./calendarTagAssignmentMapper.js";
 
 const FAKE_USER = "00000000-0000-0000-0000-000000000000";
 
@@ -84,7 +76,7 @@ function sortKeys(v: unknown): unknown {
   return v;
 }
 
-// --- Re-attach what the SELECT/DB adds back (user_id; cta-def identity) ---
+// --- Re-attach what the SELECT/DB adds back (user_id) ---
 
 function normaliseRoutine(n: RoutineNode): RoutineNode {
   const row: RoutineRow = { ...routineToRow(n), user_id: FAKE_USER };
@@ -116,31 +108,6 @@ function normaliseScheduleItem(i: ScheduleItem): ScheduleItem {
 function normaliseCalendar(c: CalendarNode): CalendarNode {
   const row: CalendarRow = { ...calendarToRow(c), user_id: FAKE_USER };
   return rowToCalendar(row);
-}
-function normaliseTag(t: CalendarTag): CalendarTag {
-  // The identity pk is server-assigned; an existing tag carries it, so
-  // the SELECT row re-attaches the same id + the server-managed sync
-  // columns the domain type does not expose.
-  const w = calendarTagToRow(t, true);
-  const row: CalendarTagDefinitionRow = {
-    id: w.id ?? t.id,
-    user_id: FAKE_USER,
-    name: w.name,
-    color: w.color,
-    text_color: w.text_color,
-    order: w.order,
-    created_at: "2026-05-17T00:00:00.000Z",
-    updated_at: "2026-05-17T00:00:00.000Z",
-    version: 1,
-  };
-  return rowToCalendarTag(row);
-}
-function normaliseCta(a: CalendarTagAssignment): CalendarTagAssignment {
-  const row: CalendarTagAssignmentRow = {
-    ...calendarTagAssignmentToRow(a),
-    user_id: FAKE_USER,
-  };
-  return rowToCalendarTagAssignment(row);
 }
 
 // --- Cases ---
@@ -379,48 +346,6 @@ const CALENDAR_CASES: Array<{ name: string; node: CalendarNode }> = [
   },
 ];
 
-const TAG_CASES: Array<{ name: string; tag: CalendarTag }> = [
-  {
-    name: "tag without textColor",
-    tag: { id: 1, name: "Urgent", color: "#ff0000", order: 0 },
-  },
-  {
-    name: "tag with textColor",
-    tag: {
-      id: 42,
-      name: "Calm",
-      color: "#00aa88",
-      textColor: "#ffffff",
-      order: 3,
-    },
-  },
-];
-
-const CTA_CASES: Array<{ name: string; cta: CalendarTagAssignment }> = [
-  {
-    name: "schedule_item tagged",
-    cta: {
-      id: "cta-1111",
-      entityType: "schedule_item",
-      entityId: "si-2222",
-      tagId: 1,
-      createdAt: "2026-05-17T00:00:00.000Z",
-      updatedAt: "2026-05-17T00:00:00.000Z",
-    },
-  },
-  {
-    name: "task tagged",
-    cta: {
-      id: "cta-2222",
-      entityType: "task",
-      entityId: "task-1710201234566",
-      tagId: 42,
-      createdAt: "2026-05-17T00:00:00.000Z",
-      updatedAt: "2026-05-17T07:00:00.000Z",
-    },
-  },
-];
-
 /*
  * Round-trip invariant (identical contract to noteMapper.roundtrip.ts).
  * For domain objects with OPTIONAL fields backed by NOT-NULL-with-default
@@ -497,16 +422,6 @@ function run(): number {
     CALENDAR_CASES.map((c) => ({ name: c.name, value: c.node })),
     normaliseCalendar,
   );
-  failures += check(
-    "calendarTag",
-    TAG_CASES.map((c) => ({ name: c.name, value: c.tag })),
-    normaliseTag,
-  );
-  failures += check(
-    "cta",
-    CTA_CASES.map((c) => ({ name: c.name, value: c.cta })),
-    normaliseCta,
-  );
 
   // One asserted (fail-able) leg per case: the fixed-point check. The
   // identity leg is INFO-only (a default-materialised optional is not a
@@ -516,9 +431,7 @@ function run(): number {
     GROUP_CASES.length +
     ASSIGNMENT_CASES.length +
     SCHEDULE_ITEM_CASES.length +
-    CALENDAR_CASES.length +
-    TAG_CASES.length +
-    CTA_CASES.length;
+    CALENDAR_CASES.length;
   console.log(
     `\nSchedule round-trip summary: ${total - failures} passed, ` +
       `${failures} failed.`,

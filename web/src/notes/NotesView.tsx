@@ -18,7 +18,6 @@ import {
   ChevronDown,
   GripVertical,
   Lock,
-  LockOpen,
   Pin,
   Trash2,
   RotateCcw,
@@ -30,6 +29,7 @@ import {
   NotePasswordDialog,
   type NotePasswordMode,
 } from "./NotePasswordDialog";
+import { TagPicker, LinkPanel } from "../wikitag";
 
 /*
  * Web Notes UI (S3). New, purpose-built notion-token UI (NOT a port of
@@ -273,6 +273,26 @@ export function NotesView() {
     noteId: string;
   } | null>(null);
   const [moveError, setMoveError] = useState<string | null>(null);
+
+  // Linkable candidates pool for the LinkPanel (DU-F Step 9): active
+  // notes only. Cross-role links (note → task / event / daily) still
+  // need a raw id paste — DU-G removes this per-role wiring once
+  // items_meta resolver is unified.
+  const linkableItems = useMemo(
+    () =>
+      notes.notes
+        .filter((n) => !n.isDeleted)
+        .map((n) => ({
+          id: n.id,
+          label: `[${n.type}] ${n.title || "(untitled)"}`,
+        })),
+    [notes.notes],
+  );
+  const resolveTitle = (id: string): string | undefined => {
+    const n = notes.notes.find((nn) => nn.id === id);
+    if (!n) return undefined;
+    return `[${n.type}] ${n.title || "(untitled)"}`;
+  };
   // Session unlock set (no re-lock for the session — mirrors the legacy
   // ScreenLockContext `unlockedIds: Set`). A correct verify adds the note
   // id; switching notes and coming back keeps it unlocked.
@@ -494,44 +514,16 @@ export function NotesView() {
                   className={selected.isPinned ? "text-notion-accent" : ""}
                 />
               </button>
-              <button
-                type="button"
-                onClick={() => notes.toggleEditLock(selected.id)}
-                aria-pressed={!!selected.isEditLocked}
-                aria-label={
-                  selected.isEditLocked ? "Unlock editing" : "Lock editing"
-                }
-                className={`rounded-md border border-notion-border p-1.5 text-notion-text hover:bg-notion-hover ${FOCUS_RING}`}
-              >
-                {selected.isEditLocked ? (
-                  <Lock size={14} aria-hidden />
-                ) : (
-                  <LockOpen size={14} aria-hidden />
-                )}
-              </button>
-              <button
-                type="button"
-                onClick={() =>
-                  setPwDialog({
-                    mode: selected.hasPassword ? "remove" : "set",
-                    noteId: selected.id,
-                  })
-                }
-                className={`rounded-md border border-notion-border px-2 py-1.5 text-xs text-notion-text hover:bg-notion-hover ${FOCUS_RING}`}
-              >
-                {selected.hasPassword ? "Remove password" : "Set password"}
-              </button>
-              {selected.hasPassword && (
-                <button
-                  type="button"
-                  onClick={() =>
-                    setPwDialog({ mode: "verify", noteId: selected.id })
-                  }
-                  className={`rounded-md border border-notion-border px-2 py-1.5 text-xs text-notion-text hover:bg-notion-hover ${FOCUS_RING}`}
-                >
-                  Unlock
-                </button>
-              )}
+              {/*
+               * DU-F note (2026-05-24): Edit-lock / password / "Unlock"
+               * buttons were removed because their legacy backends
+               * (`toggleNoteEditLock` / `setNotePassword` /
+               * `removeNotePassword` / `verifyNotePassword`) still throw
+               * `_pendingDuRewrite` — the DU-F bridge ports only CRUD +
+               * DnD. DU-G re-adds these once the Unified service grows
+               * the password/lock subsystem. See git history (commit
+               * before this comment) for the original button block.
+               */}
               <button
                 type="button"
                 onClick={() => rename(selected)}
@@ -547,6 +539,15 @@ export function NotesView() {
                 Delete
               </button>
             </div>
+
+            <div className="flex flex-wrap items-center gap-2">
+              <TagPicker itemId={selected.id} showLabel size="sm" />
+            </div>
+            <LinkPanel
+              itemId={selected.id}
+              resolveTitle={resolveTitle}
+              linkableItems={linkableItems}
+            />
 
             {(() => {
               const gated =

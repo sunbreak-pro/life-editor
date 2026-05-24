@@ -29,6 +29,7 @@ prototype/dist/
 
 # Per-chat session identity & runtime state (FileChanged plan + per-chat MEMORY plan で共有)
 .claude/comm/.session-name
+.claude/comm/.session-branch
 .claude/comm/.watch-state/
 .claude/comm/.inbox-pending.md
 .claude/scheduled_tasks.lock

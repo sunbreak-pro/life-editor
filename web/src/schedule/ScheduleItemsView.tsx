@@ -1,5 +1,9 @@
 import { useMemo, useState } from "react";
-import { useScheduleItemsContext } from "@life-editor/shared";
+import {
+  useScheduleItemsContext,
+  useTaskTreeContext,
+} from "@life-editor/shared";
+import { TagPicker, LinkPanel } from "../wikitag";
 
 /*
  * Web Schedule UI — S4-4 ScheduleItems slice.
@@ -58,10 +62,48 @@ export function ScheduleItemsView() {
     restoreScheduleItem,
     permanentDeleteScheduleItem,
   } = useScheduleItemsContext();
+  const taskTree = useTaskTreeContext();
 
   const [newTitle, setNewTitle] = useState("");
   const [newStart, setNewStart] = useState("09:00");
   const [newEnd, setNewEnd] = useState("10:00");
+  // Per-item detail toggle for the Tag/Link panel (DU-F Step 7).
+  // Local Set rather than a useExpanded hook — this is single-section state.
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const toggleExpanded = (id: string) =>
+    setExpanded((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+
+  // Linkable candidates pool: own schedule_items (same date set) + every
+  // task. DU-F MVP wiring — DU-G unifies into items_meta and removes the
+  // per-role plumbing.
+  const linkableItems = useMemo(() => {
+    const out: Array<{ id: string; label: string }> = [];
+    for (const i of items) out.push({ id: i.id, label: `[event] ${i.title}` });
+    const walk = (parentId: string | null) => {
+      for (const node of taskTree.getChildren(parentId)) {
+        out.push({
+          id: node.id,
+          label: `[${node.type}] ${node.title || "(untitled)"}`,
+        });
+        walk(node.id);
+      }
+    };
+    walk(null);
+    return out;
+  }, [items, taskTree]);
+
+  const resolveTitle = (id: string): string | undefined => {
+    const ev = items.find((i) => i.id === id);
+    if (ev) return `[event] ${ev.title}`;
+    const t = taskTree.nodeMap.get(id);
+    if (t) return `[${t.type}] ${t.title || "(untitled)"}`;
+    return undefined;
+  };
 
   const sortedItems = useMemo(
     () => items.slice().sort((a, b) => a.startTime.localeCompare(b.startTime)),
@@ -193,6 +235,15 @@ export function ScheduleItemsView() {
                   from routine
                 </span>
               )}
+              <TagPicker itemId={item.id} />
+              <button
+                type="button"
+                onClick={() => toggleExpanded(item.id)}
+                aria-expanded={expanded.has(item.id)}
+                className="rounded-md border border-notion-border px-2 py-0.5 text-xs text-notion-text hover:bg-notion-hover"
+              >
+                {expanded.has(item.id) ? "Hide links" : "Links"}
+              </button>
               <button
                 type="button"
                 onClick={() =>
@@ -217,6 +268,13 @@ export function ScheduleItemsView() {
                 </button>
               )}
             </div>
+            {expanded.has(item.id) && (
+              <LinkPanel
+                itemId={item.id}
+                resolveTitle={resolveTitle}
+                linkableItems={linkableItems}
+              />
+            )}
           </li>
         ))}
         {sortedItems.length === 0 && (

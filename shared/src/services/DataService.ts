@@ -17,7 +17,6 @@ import type { NoteNode } from "../types/note";
 
 import type { CalendarNode } from "../types/calendar";
 import type { RoutineNode } from "../types/routine";
-import type { CalendarTag } from "../types/calendarTag";
 import type { ScheduleItem } from "../types/schedule";
 import type {
   RoutineGroup,
@@ -41,6 +40,8 @@ import type {
   WikiTag as WikiTagUnified,
   WikiTagAssignment as WikiTagAssignmentUnified,
   WikiTagConnection as WikiTagConnectionUnified,
+  WikiTagGroup as WikiTagGroupUnified,
+  WikiTagGroupAssignment as WikiTagGroupAssignmentUnified,
 } from "../types/wikiTagUnified";
 import type { TimeMemo } from "../types/timeMemo";
 import type {
@@ -258,34 +259,8 @@ export interface DataService {
   ): Promise<CalendarNode>;
   deleteCalendar(id: string): Promise<void>;
 
-  // Calendar Tags
-  fetchCalendarTags(): Promise<CalendarTag[]>;
-  createCalendarTag(name: string, color: string): Promise<CalendarTag>;
-  updateCalendarTag(
-    id: number,
-    updates: Partial<
-      Pick<CalendarTag, "name" | "color" | "textColor" | "order">
-    >,
-  ): Promise<CalendarTag>;
-  deleteCalendarTag(id: number): Promise<void>;
-  fetchAllCalendarTagAssignments(): Promise<
-    Array<{
-      entityType: "task" | "schedule_item";
-      entityId: string;
-      tagId: number;
-    }>
-  >;
-  /** New 1:1 API. Pass `tagId = null` to clear. */
-  setTagForEntity(
-    entityType: "task" | "schedule_item",
-    entityId: string,
-    tagId: number | null,
-  ): Promise<void>;
-  /** @deprecated Use `setTagForEntity`. Multi-tag is no longer supported (CalendarTags are 1:1). */
-  setTagsForScheduleItem(
-    scheduleItemId: string,
-    tagIds: number[],
-  ): Promise<void>;
+  // Calendar Tags domain removed in DU-F Step 3-5 (DB DROPped in DU-C+
+  // 0012; replaced by WikiTags Unified for the 5-role tag/link graph).
 
   // Routines
   fetchAllRoutines(): Promise<RoutineNode[]>;
@@ -540,6 +515,28 @@ export interface DataService {
     toItemId: string,
   ): Promise<WikiTagConnectionUnified>;
   deleteItemLink(linkId: string): Promise<void>;
+
+  // Wiki Tag Groups Unified (DU-F Step 11) — group master + tag↔group
+  // membership for the WikiTagsManagementView CRUD UI. Sibling of the
+  // tag/link block above; the legacy polymorphic group block (above)
+  // stays untouched until DU-G deletes it in cohort.
+  listAllWikiTagGroupsUnified(): Promise<WikiTagGroupUnified[]>;
+  createWikiTagGroupUnified(
+    id: string,
+    name: string,
+  ): Promise<WikiTagGroupUnified>;
+  updateWikiTagGroupUnified(
+    id: string,
+    updates: Partial<WikiTagGroupUnified>,
+  ): Promise<WikiTagGroupUnified>;
+  softDeleteWikiTagGroupUnified(id: string): Promise<void>;
+  listAllWikiTagGroupAssignments(): Promise<WikiTagGroupAssignmentUnified[]>;
+  assignTagToGroup(
+    assignmentId: string,
+    tagId: string,
+    groupId: string,
+  ): Promise<WikiTagGroupAssignmentUnified>;
+  unassignTagFromGroup(assignmentId: string): Promise<void>;
 
   // Notes Unified (DU-D — items_meta + notes_payload 2-row pattern).
   // Coexists with the legacy single-table Notes block above; DU-F retires

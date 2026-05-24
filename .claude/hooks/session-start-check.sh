@@ -16,6 +16,11 @@
 #      → 不正文字 / パストラバーサル (allowlist 方式)
 #   D. 上記いずれでもないが .session-name の mtime が HEAD commit より 3 日以上古い
 #      → 別チャット作業を引き継いだ可能性（要確認）
+#   E. .claude/worktrees/*/ のいずれかに 24 時間以上 dirty 放置された worktree がある
+#      → 別チャットの未 commit 作業が滞留している可能性（持ち主確認）
+#   F. `.session-branch` が宣言されていて、現在の git branch と一致しない
+#      → "1 chat = 1 worktree = 1 branch" ルール違反（CLAUDE.md §7.4）
+#      → 担当 branch と異なる worktree で起動した可能性
 #
 # 起動条件:
 #   .claude/settings.json の hooks.SessionStart に登録される
@@ -23,7 +28,10 @@
 
 set -uo pipefail
 
-ROOT="/Users/newlife/dev/apps/life-editor"
+# ROOT を動的検出（worktree 対応）。git toplevel が取れなければ
+# main repo パスへフォールバック。これにより worktree 配下から
+# Claude 起動された場合に worktree の .session-name / .session-branch を読む
+ROOT=$(git rev-parse --show-toplevel 2>/dev/null || echo "/Users/newlife/dev/apps/life-editor")
 
 # per-chat 機構が有効か判定。無効なら警告対象外なので即終了
 if [ ! -d "${ROOT}/.claude/memory" ] || [ ! -f "${ROOT}/.claude/memory/INDEX.md" ]; then
@@ -57,6 +65,50 @@ else
         WARNINGS+=("D: \`.session-name\` (\`${SESSION_NAME}\`) は最終 commit より 3 日以上古い — 別チャットの作業を引き継いだ可能性。\`cat .claude/comm/.session-name\` で念のため確認してください")
       fi
     fi
+  fi
+fi
+
+# E: .claude/worktrees/*/ に 24h 以上 dirty 放置がないか（A-D の結果に関わらず常に走る）
+if [ -d "${ROOT}/.claude/worktrees" ]; then
+  for wt_dir in "${ROOT}/.claude/worktrees/"*/; do
+    [ -d "${wt_dir}" ] || continue
+    DIRTY_COUNT=$(git -C "${wt_dir}" status --porcelain 2>/dev/null | wc -l | tr -d ' ')
+    if [ "${DIRTY_COUNT}" -eq 0 ]; then
+      continue
+    fi
+    # 最古の変更時刻を取得（modified + untracked）
+    # 「ANY ファイルが 24h 以上放置」を検知（NEWEST だと「全部新しい」ケースで fire しない）
+    OLDEST_MTIME=0
+    while IFS= read -r f; do
+      [ -n "${f}" ] || continue
+      full_path="${wt_dir}${f}"
+      [ -e "${full_path}" ] || continue
+      mt=$(stat -f %m "${full_path}" 2>/dev/null || echo 0)
+      [ "${mt}" -gt 0 ] || continue
+      if [ "${OLDEST_MTIME}" -eq 0 ] || [ "${mt}" -lt "${OLDEST_MTIME}" ]; then
+        OLDEST_MTIME="${mt}"
+      fi
+    done < <(git -C "${wt_dir}" ls-files -mo --exclude-standard 2>/dev/null)
+    if [ "${OLDEST_MTIME}" -gt 0 ]; then
+      NOW_TS=$(date +%s)
+      AGE_SEC=$((NOW_TS - OLDEST_MTIME))
+      ONE_DAY=$((24 * 3600))
+      if [ "${AGE_SEC}" -gt "${ONE_DAY}" ]; then
+        AGE_HOURS=$((AGE_SEC / 3600))
+        WARNINGS+=("E: worktree \`$(basename "${wt_dir}")\` に ${AGE_HOURS}h 以上放置の dirty ファイルあり (${DIRTY_COUNT} files 中、最古は ${AGE_HOURS}h 前) — 持ち主チャット確認推奨")
+      fi
+    fi
+  done
+fi
+
+# F: .session-branch ↔ 現在の git branch 整合（CLAUDE.md §7.4 Multi-chat Worktree Policy）
+# opt-in: `.session-branch` が存在する場合のみ検査。未設置プロジェクト / 未宣言チャットは無音
+SESSION_BRANCH_FILE="${ROOT}/.claude/comm/.session-branch"
+if [ -f "${SESSION_BRANCH_FILE}" ]; then
+  DECLARED_BRANCH=$(cat "${SESSION_BRANCH_FILE}" 2>/dev/null | tr -d '[:space:]' || true)
+  CURRENT_BRANCH=$(git -C "${ROOT}" branch --show-current 2>/dev/null || echo "")
+  if [ -n "${DECLARED_BRANCH}" ] && [ -n "${CURRENT_BRANCH}" ] && [ "${DECLARED_BRANCH}" != "${CURRENT_BRANCH}" ]; then
+    WARNINGS+=("F: \`.session-branch\` (\`${DECLARED_BRANCH}\`) と現在の branch (\`${CURRENT_BRANCH}\`) が不一致 — 1 chat = 1 worktree = 1 branch ルール (CLAUDE.md §7.4) 違反の可能性。担当 worktree から起動し直すか、\`.session-branch\` を現状に合わせて更新してください")
   fi
 fi
 
