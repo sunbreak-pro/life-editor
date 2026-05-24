@@ -80,3 +80,12 @@ Tier 1: 5 件以上 / Tier 2: 3-5 件 / Tier 3: 1-3 件（簡略版）
 
 - 機能を追加 / 削除 / Tier 変更したら、CLAUDE.md §11 Feature Tier Map も同時更新
 - 機能数の差分ゼロを Verification で確認
+
+## Stack 並立期間中の追加ルール (cleanup-and-consolidation Phase 3-5, 2026-05-24)
+
+移行 SSOT (`2026-05-04-cross-platform-migration.md`) に基づく Stack 並立期間中、各 Tier ファイルは以下を追加する:
+
+- **Feature 単位（AC 単位ではない）に `Stack:` 行を持つ**。書式: `Stack: <現行> → <移行先> (<移行 Phase>)`
+- 例: `Stack: Tauri SQLite (frontend/ + src-tauri/) → Supabase Postgres (shared/ + web/, 移行 SSOT Phase 2 進行中)`
+- 移行が完了していない Feature でも記入する（並立期間中の参照透明性）
+- 移行 Phase 5 完了時に Stack 行は廃止し、移行後スタックの単一記述に統合する

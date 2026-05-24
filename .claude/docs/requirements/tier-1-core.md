@@ -14,6 +14,7 @@
 **Owner Provider/Module**: `TaskTreeProvider` / `frontend/src/components/Tasks/` / `src-tauri/src/commands/task_commands.rs` / `src-tauri/src/db/task_repository.rs`
 **MCP Coverage**: `list_tasks` / `get_task` / `create_task` / `update_task` / `delete_task` / `get_task_tree`
 **Supports Value Prop**: V1 / V2 / V3
+**Stack** (2026-05-24 並立期): Tauri SQLite (`frontend/` + `src-tauri/`) → Supabase Postgres (`shared/` + `web/`, 移行 SSOT Phase 2 + DU-B 進行中)
 
 ### Purpose
 
@@ -79,6 +80,7 @@
 **Owner Provider/Module**: `RoutineProvider` / `ScheduleItemsProvider` / `CalendarTagsProvider` / `frontend/src/components/Tasks/Schedule/` / `src-tauri/src/commands/{routine,schedule_item,calendar,calendar_tag,routine_tag,routine_group}_commands.rs`
 **MCP Coverage**: `list_schedule` / `create_schedule_item` / `update_schedule_item` / `delete_schedule_item` / `toggle_schedule_complete`
 **Supports Value Prop**: V1 / V2
+**Stack** (2026-05-24 並立期): Tauri SQLite → Supabase Postgres (Phase 2 S4 完了 / DU-C 着手予定)
 
 ### Purpose
 
@@ -148,6 +150,7 @@
 **Owner Provider/Module**: `NoteProvider` / `frontend/src/components/Materials/Notes/` / `src-tauri/src/commands/{note,note_connection}_commands.rs`
 **MCP Coverage**: `list_notes` / `create_note` / `update_note`
 **Supports Value Prop**: V1 / V3
+**Stack** (2026-05-24 並立期): Tauri SQLite → Supabase Postgres (Phase 2 S3 完了)
 
 ### Purpose
 
@@ -209,6 +212,7 @@
 **Owner Provider/Module**: `MemoProvider` / `frontend/src/components/Materials/Memos/` / `src-tauri/src/commands/{memo,time_memo}_commands.rs`
 **MCP Coverage**: `get_memo` / `upsert_memo`
 **Supports Value Prop**: V1 / V3
+**Stack** (2026-05-24 並立期): Tauri SQLite → Supabase Postgres (Phase 2 S2 完了 / Memo は dailies テーブルとして移行済)
 
 ### Purpose
 
@@ -266,6 +270,7 @@
 **Owner Provider/Module**: `frontend/src/components/Database/` / `src-tauri/src/commands/database_commands.rs`
 **MCP Coverage**: — （Phase 1 で `list_databases` / `query_database` / `add_database_row` / `update_database_cell` 追加予定、ADR-0005 関連）
 **Supports Value Prop**: V3
+**Stack** (2026-05-24 並立期): Tauri SQLite → Supabase Postgres (**移行 Phase 1 で延期**、Phase 5 後に MCP 拡張と合わせて再開予定)
 
 ### Purpose
 
@@ -389,6 +394,7 @@
 **Owner Provider/Module**: `SyncProvider` / `frontend/src/context/SyncContext.tsx` / `src-tauri/src/commands/sync_commands.rs` / `src-tauri/src/sync/{sync_engine,http_client,types}.rs` / Cloudflare Workers + D1（外部）
 **MCP Coverage**: —
 **Supports Value Prop**: V2
+**Stack** (2026-05-24 並立期): Cloudflare Workers + D1 (`cloud/`) → Supabase Realtime + RLS (`shared/` + `supabase/`, 移行 SSOT Phase 2 完了 — `cloud/` は Phase 5 で削除予定)
 
 ### Purpose
 
