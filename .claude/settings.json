@@ -10,6 +10,17 @@
           }
         ]
       }
+    ],
+    "SessionStart": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/Users/newlife/dev/apps/life-editor/.claude/hooks/session-start-check.sh"
+          }
+        ]
+      }
     ]
   }
 }
