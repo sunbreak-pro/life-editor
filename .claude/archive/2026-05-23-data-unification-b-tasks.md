@@ -1,5 +1,5 @@
 ---
-Status: DRAFT — DU-B 子計画書 v3-rev3（2026-05-23 改訂）。v1 → v2 で 3 監査 (Blocker 1 / Major 5 / High 2 / Medium 1 / Low 1) 反映 → v3 で apply 試行 → PG 制約 (generated 列 + composite FK + SET NULL 不可、SQLSTATE 42601) で v3 失敗 → v3-rev2 で ON DELETE NO ACTION に変更 → v3-rev2 apply 成功 → A-G 検証緑 → advisor で `auth_rls_initplan` WARN 2 件検出 → v3-rev3 で policy 内 `auth.uid()` を `(select auth.uid())` でラップ（initplan キャッシュ化、Supabase 公式ベストプラクティス）。本 v3-rev3 はユーザー再 apply 待ち。
+Status: COMPLETED — 2026-05-24 DU-B 全フェーズ完了（B-1 schema + B-2 mapper + B-3〜B-6 service 本実装 + vitest + 動作確認）。元 v3-rev3（2026-05-23 改訂、v1→v2→v3→v3-rev2→v3-rev3 と監査反映 + PG 制約対応 + RLS initplan キャッシュ化）。詳細は親計画書 2026-05-21-data-unification-items-meta.md の DoD 参照。
 Created: 2026-05-23
 Task: Data Unification DU-B — Tasks role 移植（items_meta + tasks_payload 経由）
 Project path: /Users/newlife/dev/apps/life-editor
