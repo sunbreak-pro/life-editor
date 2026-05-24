@@ -12,9 +12,9 @@ import { CalendarContext } from "./CalendarContextValue";
  * Provider (reads `useSyncContext`).
  *
  * Calendar is enabled on Mobile too — frontend MobileProviders keeps
- * CalendarProvider; only CalendarTags from this area is in the Mobile
- * 省略 list (CLAUDE.md §2). So this uses the plain Pattern A with NO
- * Optional variant (cf. CalendarTagsProvider, which DOES ship one).
+ * CalendarProvider. (The historical calendar-tag layer was dropped in
+ * DU-C+/DU-F; WikiTagsUnified is now the tag/link surface for all 5
+ * roles.) So this uses the plain Pattern A with NO Optional variant.
  *
  * Scope (S4-6): calendars CRUD.
  */

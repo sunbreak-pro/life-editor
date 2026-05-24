@@ -3,6 +3,7 @@
 > 各 `chat-*.md` の集約ビュー。task-tracker 実行時に再生成される。**SSOT は各 `chat-*.md` ファイル**。本ファイルは読み手向け要約。
 
 最終更新: 2026-05-24 17:12:36 (chat-main)
+最終更新: 2026-05-24 (chat-prototype-mobile)
 
 ---
 
@@ -23,4 +24,4 @@
 - [chat-main] 🛑 DU-F 完了 commit 時に DU-C+ + DU-F 両計画書を同時 archive（DF-Q8）
 - [chat-main] DU-G Notes/Daily Unified 完全切替（SupabaseNotesUnifiedService 機能拡張 + Provider 切替 + UI 動作確認。スケルトン作成済）
 - [chat-main] DU-E Calendar 2 ビュー再実装（DU-F / DU-G 完了後）
-- [chat-main] DU-B 子計画書 + 詳細計画書の archive 移動（DU-B 全体クローズ時）
+- [chat-main] 🔧 DU-F WikiTag/Link UI 4 role + CalendarTag 死削除 + 親 DoD 達成 — 着手: 2026-05-24

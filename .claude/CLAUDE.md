@@ -80,9 +80,11 @@ React Router なし。`App.tsx::activeSection` で切替: `schedule` / `material
 - **汎用 Database**: 家計簿 / 読書記録 / 習慣 / 連絡先 / 学習進捗 等
 - **判断**: 特化 UI（DnD / カレンダー / ルーチン生成 / リマインダー）が必要 → 特化テーブル。型付きフィールド + フィルタ + 集計で済む → 汎用 Database
 
-### 4.3 ID 戦略
+### 4.3 ID 戦略 + items_meta 規約（DU-A〜DU-F 反映）
 
 - TaskNode: `<type>-<timestamp+counter>`（例 `task-1710201234566`） / DailyNode: `daily-<YYYY-MM-DD>` / その他: `generateId(prefix)` = `<prefix>-<uuid>`。全 String
+- **items_meta + composite FK pattern**: 5 role (task/event/routine/note/daily) は `items_meta(id, role)` を SSOT に持ち、各 payload テーブルは `(id, role)` 複合 FK で `items_meta(id, role)` を参照する（DU-B / DU-D `0014_notes_payload_parent_fk.sql`）。`id` は role を跨いで一意（id 不変式）。WikiTag/Link 系 (`wiki_tag_assignments.item_id` / `wiki_tag_connections.from_item_id` / `to_item_id`) は role 区別なしで items_meta.id を参照する
+- **Routine UX 規約（DU-F DF-Q2/Q3）**: Routine は **Event の生成テンプレート**として再定義。Routine 専用 Tag/Link UI は持たない。Tag/Link が必要な場合は Routine から生成された Event 側に付与（将来テンプレ値継承は別計画）。データモデルは items_meta 経由で Routine への Tag/Link を許容する（UI 追加だけで対応可）
 
 ### 4.4 ソフトデリート
 

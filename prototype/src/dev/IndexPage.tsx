@@ -24,20 +24,38 @@ const ENTRIES: Entry[] = [
   {
     to: "/schedule",
     label: "Schedule",
-    desc: "life-editor unified demo (Schedule タブ単独表示)",
+    desc: "Month/Three/List ビュー + ScheduleItem 統合型 + WikiTag",
     accent: C.mauve,
   },
   {
     to: "/work",
     label: "Work",
-    desc: "mobile work section demo (Timer / History / Settings)",
+    desc: "Pomodoro Timer / History / Preset 設定 (Schedule task と統合)",
     accent: C.blue,
   },
   {
     to: "/materials",
     label: "Materials",
-    desc: "materials demo (Notes / Daily の一覧 + エディタ)",
+    desc: "Notes / Daily + WikiTag + [[link]] + Backlink",
     accent: C.green,
+  },
+  {
+    to: "/settings",
+    label: "Settings",
+    desc: "Theme / FontSize / Language / Notifications / Mock 初期化",
+    accent: C.peach,
+  },
+  {
+    to: "/trash",
+    label: "Trash",
+    desc: "全エンティティのソフト削除 → 復元 / 完全削除",
+    accent: C.subtext0,
+  },
+  {
+    to: "/cross-search",
+    label: "Cross Search",
+    desc: "全エンティティ横断検索 (Tag 起点)",
+    accent: C.mauve,
   },
 ];
 
@@ -53,7 +71,7 @@ export function IndexPage() {
             life-editor prototype
           </h1>
           <p className="text-xs mt-2" style={{ color: C.subtext0 }}>
-            Phase 2 — 3 screens, independent routes
+            Phase 3 — 6 screens, mock CRUD (lifemobile-mock:*)
           </p>
         </header>
 

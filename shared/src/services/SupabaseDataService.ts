@@ -536,36 +536,52 @@ function _pendingDuRewrite(method: string, domain: string): never {
   );
 }
 
+/*
+ * DU-F follow-up (2026-05-24): legacy SupabaseDailyService bridges its
+ * legacy method names to the Unified (items_meta + dailies_payload)
+ * service. This unblocks two things at once:
+ *   (a) Daily edits survive reload — the legacy stubs threw, so nothing
+ *       reached the DB after 0007 dropped public.dailies
+ *   (b) Tag/Link RLS WITH CHECK passes — wiki_tag_assignments.item_id
+ *       must exist in items_meta(id), and the Unified path writes it
+ *
+ * Operations not yet ported to Unified (restore from trash / permanent
+ * delete / password / lock) stay as no-op / stub — DU-G ports them.
+ * fetchDeletedDailies returns [] so the UI Trash section renders empty
+ * (no orphan "Restore" buttons that would throw on click).
+ */
 class SupabaseDailyService {
   private readonly client: SupabaseClient;
+  private readonly unified: SupabaseDailiesUnifiedService;
   // Keep mapper imports statically referenced (verbatimModuleSyntax).
   private static readonly _unused_select = DAILY_SELECT_COLUMNS;
   private static readonly _unused_mapper = rowToDailyNode;
   declare private _unused_row: DailyRow;
 
-  constructor(client: SupabaseClient) {
+  constructor(client: SupabaseClient, unified: SupabaseDailiesUnifiedService) {
     this.client = client;
     void this.client;
+    this.unified = unified;
   }
 
   async fetchAllDailies(): Promise<DailyNode[]> {
-    return [];
+    return this.unified.listDailiesUnified();
   }
-  async fetchDailyByDate(_date: string): Promise<DailyNode | null> {
-    void _date;
-    return null;
+  async fetchDailyByDate(date: string): Promise<DailyNode | null> {
+    return this.unified.getDailyByDateUnified(date);
   }
   async fetchDeletedDailies(): Promise<DailyNode[]> {
+    // Unified service has no soft-deleted listing yet (DU-G). Returning
+    // [] keeps the UI's Trash section empty rather than throwing.
     return [];
   }
-  async upsertDaily(_date: string, _content: string): Promise<DailyNode> {
-    void _date;
-    void _content;
-    _pendingDuRewrite("upsertDaily", "dailies");
+  async upsertDaily(date: string, content: string): Promise<DailyNode> {
+    return this.unified.upsertDailyByDateUnified(date, content);
   }
-  async deleteDaily(_date: string): Promise<void> {
-    void _date;
-    _pendingDuRewrite("deleteDaily", "dailies");
+  async deleteDaily(date: string): Promise<void> {
+    const existing = await this.unified.getDailyByDateUnified(date);
+    if (!existing) return;
+    await this.unified.softDeleteDailyUnified(existing.id);
   }
   async restoreDaily(_date: string): Promise<void> {
     void _date;
@@ -575,9 +591,16 @@ class SupabaseDailyService {
     void _date;
     _pendingDuRewrite("permanentDeleteDaily", "dailies");
   }
-  async toggleDailyPin(_date: string): Promise<DailyNode> {
-    void _date;
-    _pendingDuRewrite("toggleDailyPin", "dailies");
+  async toggleDailyPin(date: string): Promise<DailyNode> {
+    // No atomic Unified toggle — fetch, flip, write. N=1 single-user app
+    // so the read+write race is not a concern.
+    const existing = await this.unified.getDailyByDateUnified(date);
+    if (!existing) {
+      throw new Error(`toggleDailyPin: no daily for date "${date}"`);
+    }
+    return this.unified.updateDailyUnified(existing.id, {
+      isPinned: !existing.isPinned,
+    });
   }
   async setDailyPassword(_date: string, _password: string): Promise<DailyNode> {
     void _date;
@@ -606,63 +629,99 @@ class SupabaseDailyService {
   }
 }
 
+/*
+ * DU-F follow-up (2026-05-24): same bridge pattern as
+ * SupabaseDailyService — legacy method names delegate to the Unified
+ * (items_meta + notes_payload) service. Fixes Notes persistence after
+ * reload AND satisfies wiki_tag_assignments RLS WITH CHECK (items_meta
+ * row must exist for the Note id).
+ *
+ * Trash + password/lock + search stay deferred to DU-G:
+ *   - fetchDeletedNotes / searchNotes return [] (empty UI sections)
+ *   - restoreNote / permanentDeleteNote / setNotePassword / etc.
+ *     keep throwing _pendingDuRewrite, since the corresponding UI
+ *     buttons only fire when the user explicitly clicks them
+ */
 class SupabaseNotesService {
   private readonly client: SupabaseClient;
+  private readonly unified: SupabaseNotesUnifiedService;
   private static readonly _unused_select = NOTE_SELECT_COLUMNS;
   private static readonly _unused_mapper = rowToNoteNode;
   private static readonly _unused_patch = noteUpdatesToPatch;
   declare private _unused_row: NoteRow;
 
-  constructor(client: SupabaseClient) {
+  constructor(client: SupabaseClient, unified: SupabaseNotesUnifiedService) {
     this.client = client;
     void this.client;
+    this.unified = unified;
   }
 
   async fetchAllNotes(): Promise<NoteNode[]> {
-    return [];
+    return this.unified.listNotesUnified();
   }
   async fetchDeletedNotes(): Promise<NoteNode[]> {
+    // Unified service has no soft-deleted listing yet (DU-G).
     return [];
   }
   async createNote(
-    _id: string,
-    _title: string,
-    _parentId?: string | null,
+    id: string,
+    title: string,
+    parentId?: string | null,
   ): Promise<NoteNode> {
-    void _id;
-    void _title;
-    void _parentId;
-    _pendingDuRewrite("createNote", "notes");
+    const now = new Date().toISOString();
+    const node: NoteNode = {
+      id,
+      type: "note",
+      title,
+      content: "",
+      parentId: parentId ?? null,
+      order: 0,
+      isPinned: false,
+      isDeleted: false,
+      createdAt: now,
+      updatedAt: now,
+    };
+    return this.unified.createNoteUnified(node);
   }
   async createNoteFolder(
-    _id: string,
-    _title: string,
-    _parentId: string | null,
+    id: string,
+    title: string,
+    parentId: string | null,
   ): Promise<NoteNode> {
-    void _id;
-    void _title;
-    void _parentId;
-    _pendingDuRewrite("createNoteFolder", "notes");
+    const now = new Date().toISOString();
+    const node: NoteNode = {
+      id,
+      type: "folder",
+      title,
+      content: "",
+      parentId,
+      order: 0,
+      isPinned: false,
+      isDeleted: false,
+      createdAt: now,
+      updatedAt: now,
+    };
+    return this.unified.createNoteUnified(node);
   }
   async updateNote(
-    _id: string,
-    _updates: Partial<
+    id: string,
+    updates: Partial<
       Pick<NoteNode, "title" | "content" | "isPinned" | "color" | "icon">
     >,
   ): Promise<NoteNode> {
-    void _id;
-    void _updates;
-    _pendingDuRewrite("updateNote", "notes");
+    return this.unified.updateNoteUnified(id, updates);
   }
   async syncNoteTree(
-    _items: Array<{ id: string; parentId: string | null; order: number }>,
+    items: Array<{ id: string; parentId: string | null; order: number }>,
   ): Promise<void> {
-    void _items;
-    _pendingDuRewrite("syncNoteTree", "notes");
+    // Unified has no bulk sync — apply moves sequentially. N=1 single-
+    // user app, so the dataset is small enough that this is OK.
+    for (const i of items) {
+      await this.unified.moveNoteUnified(i.id, i.parentId, i.order);
+    }
   }
-  async softDeleteNote(_id: string): Promise<void> {
-    void _id;
-    _pendingDuRewrite("softDeleteNote", "notes");
+  async softDeleteNote(id: string): Promise<void> {
+    await this.unified.softDeleteNoteUnified(id);
   }
   async restoreNote(_id: string): Promise<void> {
     void _id;
@@ -2392,9 +2451,15 @@ const PHASE2_CALENDAR_METHODS = new Set<string>([
  */
 export function createSupabaseDataService(): DataService {
   const client = getSupabaseClient();
+  // Unified services are constructed first because the legacy Daily /
+  // Notes services bridge to them (DU-F follow-up — see the class
+  // headers). Order: Unified → legacy bridge → other singletons.
+  const wikiTagsUnifiedService = new SupabaseWikiTagsUnifiedService(client);
+  const notesUnifiedService = new SupabaseNotesUnifiedService(client);
+  const dailiesUnifiedService = new SupabaseDailiesUnifiedService(client);
   const tasksService = new SupabaseTasksService(client);
-  const dailyService = new SupabaseDailyService(client);
-  const notesService = new SupabaseNotesService(client);
+  const dailyService = new SupabaseDailyService(client, dailiesUnifiedService);
+  const notesService = new SupabaseNotesService(client, notesUnifiedService);
   const noteLinkService = new SupabaseNoteLinkService(client);
   const noteConnectionService = new SupabaseNoteConnectionService(client);
   const routinesService = new SupabaseRoutinesService(client);
