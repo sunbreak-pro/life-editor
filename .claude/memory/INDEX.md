@@ -2,13 +2,13 @@
 
 > 各 `chat-*.md` の集約ビュー。task-tracker 実行時に再生成される。**SSOT は各 `chat-*.md` ファイル**。本ファイルは読み手向け要約。
 
-最終更新: 2026-05-24 15:46:38 (chat-main)
+最終更新: 2026-05-24 16:11:39 (chat-main)
 
 ---
 
 ## 進行中 (across all chats)
 
-（なし）
+- [chat-main] 🔧 DU-F WikiTag/Link UI 4 role + CalendarTag 死削除 + 親 DoD 達成 — 着手: 2026-05-24
 
 ## 直近の完了 (across all chats, 各チャット最大 3 件)
 
@@ -19,7 +19,7 @@
 ## 予定 (across all chats)
 
 - [chat-main] 👀 ユーザー実機確認待ち: DU-C-6 (Routine 作成/削除/復元 + 月またぎ ループ防止 + key duplicate 警告ゼロ)
-- [chat-main] DU-E Calendar 2 ビュー再実装（DU-D 完了後）
-- [chat-main] DU-F WikiTag/WikiLink 残り 4 role UI + wiki_tag_groups UI + frontend↔shared 統合（DU-C+ / DU-D 後送り分を吸収）
-- [chat-main] CLAUDE.md §4.3 一行追記（composite FK pattern。並行チャットの CLAUDE.md 編集完了同期後）
+- [chat-main] DU-G Notes/Daily Unified 完全切替（SupabaseNotesUnifiedService 機能拡張 + Provider 切替 + UI 動作確認。DU-F Step 13 でスケルトン作成）
+- [chat-main] DU-E Calendar 2 ビュー再実装（DU-F / DU-G 完了後）
+- [chat-main] CLAUDE.md §4.3 一行追記（composite FK pattern + Routine UX 変更。DU-F Step 13 で実施）
 - [chat-main] DU-B 子計画書 + 詳細計画書の archive 移動（DU-B 全体クローズ時）
