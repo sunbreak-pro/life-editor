@@ -1891,18 +1891,37 @@ class SupabaseScheduleItemsService {
   }
 
   /**
-   * Bulk INSERT for the RoutineScheduleSync generator. Same R2 logic
-   * as createScheduleItem but in two batched UPSERTs. The events_
-   * payload INSERT uses upsert(..., { onConflict: 'routine_item_id,
-   * source_date', ignoreDuplicates: true }) — the Issue-011 partial
-   * UNIQUE filter means an existing LIVE generated row blocks the new
-   * INSERT silently, which is exactly the idempotency we want (don't
-   * generate "the same routine on the same date" twice).
+   * Bulk INSERT for the RoutineScheduleSync generator with app-layer
+   * dedup against the Issue-011 partial UNIQUE (routine_item_id,
+   * source_date) WHERE routine_item_id IS NOT NULL AND is_deleted_cache
+   * = false.
    *
-   * NOTE: the partial UNIQUE filter only matches WHERE routine_item_id
-   * IS NOT NULL AND is_deleted_cache = false. Manual events (no
-   * routineId) are never deduplicated; bulkCreate of manual events is
-   * an unusual path, but the upsert still works (no constraint to hit).
+   * Why NOT upsert + onConflict
+   * ===========================
+   * PostgreSQL's INSERT ... ON CONFLICT can target a partial unique
+   * index, but it requires the WHERE predicate to be supplied so the
+   * planner can prove the index covers the new row. Supabase JS's
+   * `.upsert({ onConflict: "col1,col2" })` only emits a column list to
+   * PostgREST — there is no surface to pass the predicate. PG therefore
+   * rejects the request with 400 "there is no unique or exclusion
+   * constraint matching the ON CONFLICT specification" because no
+   * NON-partial unique constraint covers (routine_item_id, source_date).
+   *
+   * Adding a non-partial UNIQUE would forbid re-creating a (routine,
+   * date) pair after soft-delete, which contradicts the soft-delete-
+   * aware design. So instead this method:
+   *   1. Pre-SELECTs existing LIVE pairs for the (routine_item_ids,
+   *      source_dates) about to be inserted.
+   *   2. Drops items that would collide (silent idempotent skip).
+   *   3. Issues two plain INSERTs (items_meta, then events_payload).
+   *
+   * Race window: between the SELECT and the INSERT another generator
+   * pass could insert the same pair. If that happens, the partial-
+   * UNIQUE index will raise on the second INSERT and we fall back to
+   * R2 cleanup (hard-delete the meta rows we just wrote). The web
+   * RoutineScheduleSync fires on an effect; concurrent fires within
+   * the same browser tab are serialised by the JS event loop. Multi-
+   * tab race is possible but rare and handled by the fallback.
    */
   async bulkCreateScheduleItems(
     items: Array<{
@@ -1923,7 +1942,7 @@ class SupabaseScheduleItemsService {
     const now = new Date().toISOString();
 
     // Pre-build all 2-row pairs so we can issue two batched writes.
-    const pairs = items.map((it) => {
+    const allPairs = items.map((it) => {
       void it.templateId;
       void it.noteId;
       void it.reminderEnabled;
@@ -1949,8 +1968,56 @@ class SupabaseScheduleItemsService {
         updatedAt: now,
       };
       const { meta, payload } = scheduleItemToRows(item, userId);
-      return { meta, payload };
+      // Patch source_date from start_at for the routine-generated path
+      // (mapper INSERT leaves source_date null — DU-A pre-spec).
+      const patchedPayload = {
+        ...payload,
+        source_date: payload.routine_item_id !== null ? payload.start_at : null,
+      };
+      return { meta, payload: patchedPayload };
     });
+
+    // Pre-check: drop pairs whose (routine_item_id, source_date) already
+    // exists as a LIVE row. Only routine-generated pairs are checked —
+    // manual events (routine_item_id=null) are never deduplicated.
+    const routinePairs = allPairs.filter(
+      (p) =>
+        p.payload.routine_item_id !== null && p.payload.source_date !== null,
+    );
+    const liveSet = new Set<string>();
+    if (routinePairs.length > 0) {
+      const routineIds = Array.from(
+        new Set(routinePairs.map((p) => p.payload.routine_item_id as string)),
+      );
+      const sourceDates = Array.from(
+        new Set(routinePairs.map((p) => p.payload.source_date as string)),
+      );
+      const { data: existing, error: existErr } = await this.client
+        .from("events_payload")
+        .select("routine_item_id, source_date")
+        .in("routine_item_id", routineIds)
+        .in("source_date", sourceDates)
+        .eq("is_deleted_cache", false);
+      if (existErr)
+        throw new Error(
+          `bulkCreateScheduleItems pre-check: ${existErr.message}`,
+        );
+      for (const r of (existing as unknown as {
+        routine_item_id: string;
+        source_date: string;
+      }[]) ?? []) {
+        liveSet.add(`${r.routine_item_id}|${r.source_date}`);
+      }
+    }
+
+    const pairs = allPairs.filter((p) => {
+      if (p.payload.routine_item_id === null) return true;
+      const key = `${p.payload.routine_item_id}|${p.payload.source_date}`;
+      return !liveSet.has(key);
+    });
+
+    // All requested pairs were already live — idempotent no-op.
+    if (pairs.length === 0) return;
 
     // 1. items_meta bulk INSERT. No onConflict — the generator is
     //    expected to mint fresh ids each cycle. If a caller passes a
@@ -1961,37 +2028,20 @@ class SupabaseScheduleItemsService {
     if (metaErr)
       throw new Error(`bulkCreateScheduleItems items_meta: ${metaErr.message}`);
 
-    // 2. events_payload upsert WITH onConflict ignoreDuplicates on the
-    //    partial-UNIQUE filter. Any row that would violate the live
-    //    (routine_item_id, source_date) pair is dropped silently
-    //    (idempotent regenerate).
-    //
-    //    ⚠️ events_payload.source_date is populated from
-    //    `item.date` mirror — scheduleItemToRows leaves source_date as
-    //    null today (the mapper's INSERT path was DU-A pre-spec). We
-    //    PATCH it here so the partial UNIQUE is meaningful for the
-    //    routine-generated path. Manual creates pass routineId=null
-    //    and we leave source_date=null too.
-    const payloadRows = pairs.map((p) => ({
-      ...p.payload,
-      source_date:
-        p.payload.routine_item_id !== null ? p.payload.start_at : null,
-    }));
+    // 2. events_payload plain INSERT. If a concurrent generator pass
+    //    raced us and inserted the same (routine, date) live row
+    //    between our pre-check and here, the partial UNIQUE will raise
+    //    23505 unique_violation. We catch and run R2 cleanup so no
+    //    orphan items_meta survives.
     try {
       const { error: pErr } = await this.client
         .from("events_payload")
-        .upsert(payloadRows, {
-          onConflict: "routine_item_id,source_date",
-          ignoreDuplicates: true,
-        });
+        .insert(pairs.map((p) => p.payload));
       if (pErr)
         throw new Error(
           `bulkCreateScheduleItems events_payload: ${pErr.message}`,
         );
     } catch (err) {
-      // R2 cleanup: hard-delete the meta rows we just inserted. The
-      // partial-UNIQUE collision path goes through ignoreDuplicates so
-      // it does NOT raise — only a real PG/network failure lands here.
       const ids = pairs.map((p) => p.meta.id);
       await this.client.from("items_meta").delete().in("id", ids);
       throw err;
