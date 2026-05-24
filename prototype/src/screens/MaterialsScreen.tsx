@@ -1552,18 +1552,28 @@ function KeyboardAccessoryBar({
     },
   ];
 
+  // iOS Form Assistant Bar (= 左 ↑↓ / 右 ✓ の半透明角丸) は OS が描画する
+  // 領域で Web からは置換不可。そのすぐ上に角丸 + 半透明 blur + 薄いシャドウ
+  // のフローティングバーとして表示し、見た目のトーンを揃える。
   return (
     <div
-      className="absolute left-0 right-0 z-[60] transition-[bottom] duration-150 ease-out"
-      style={{ bottom, height: BAR_HEIGHT }}
+      className="absolute left-0 right-0 z-[60] flex justify-center transition-[bottom] duration-150 ease-out"
+      style={{
+        bottom,
+        paddingBottom: 6,
+        pointerEvents: "none",
+      }}
     >
       <div
-        className="border-t px-2 py-1.5 flex items-center gap-0.5 overflow-x-auto h-full"
+        className="px-1 py-0.5 flex items-center gap-0.5 overflow-x-auto rounded-2xl pointer-events-auto"
         style={{
-          background: "rgba(24, 24, 37, 0.85)",
-          backdropFilter: "saturate(160%) blur(20px)",
-          WebkitBackdropFilter: "saturate(160%) blur(20px)",
-          borderColor: "rgba(255,255,255,0.08)",
+          background: "rgba(48, 48, 70, 0.78)",
+          backdropFilter: "saturate(180%) blur(24px)",
+          WebkitBackdropFilter: "saturate(180%) blur(24px)",
+          border: "1px solid rgba(255,255,255,0.08)",
+          boxShadow: "0 6px 18px rgba(0,0,0,0.32)",
+          maxWidth: "calc(100% - 12px)",
+          height: BAR_HEIGHT,
         }}
       >
         {items.map((b) => (
@@ -1572,19 +1582,32 @@ function KeyboardAccessoryBar({
             type="button"
             onMouseDown={guard}
             onClick={b.onAction}
-            className="p-2 rounded-md transition-colors flex-shrink-0 active:scale-95"
-            style={{ color: C.subtext1 }}
+            className="rounded-lg transition-colors flex-shrink-0 active:scale-95 flex items-center justify-center"
+            style={{
+              width: 36,
+              height: 36,
+              color: C.subtext1,
+            }}
             aria-label={b.label}
           >
             {b.icon}
           </button>
         ))}
+        <div
+          className="mx-1 self-stretch flex-shrink-0"
+          style={{ width: 1, background: "rgba(255,255,255,0.08)" }}
+          aria-hidden="true"
+        />
         <button
           type="button"
           onMouseDown={guard}
           onClick={() => textareaRef.current?.blur()}
-          className="ml-auto p-2 rounded-md transition-colors flex-shrink-0"
-          style={{ color: C.subtext0 }}
+          className="rounded-lg transition-colors flex-shrink-0 flex items-center justify-center"
+          style={{
+            width: 36,
+            height: 36,
+            color: C.subtext0,
+          }}
           aria-label="キーボードを閉じる"
         >
           <X size={17} />

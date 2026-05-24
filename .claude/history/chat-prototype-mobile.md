@@ -1,5 +1,18 @@
 # HISTORY (chat-prototype-mobile)
 
+### 2026-05-25 - Phase 3.J fix: swipe transition 条件再修正 + アクセサリーバー iOS 風リスタイル
+
+#### 概要
+
+Phase 3.I 検証で「右スワイプすると依然として左に戻る」「アクセサリーバーは出るが iOS 標準の半透明角丸バーとは違う」の 2 件。前者は CSS `transition` の条件抜けが原因 (`mode === "idle"` でも transition が効いていて、commit 後の `setDragX(0)` が 220ms かけて逆方向にアニメしていた) → transition を `mode === "animating"` のときのみオンに。後者は iOS Form Assistant Bar (左 ↑↓ / 右 ✓) が OS 領域で置換不可なので、その**真上**にトーンを揃えた半透明角丸フローティングバーとして再デザイン。
+
+#### 変更点
+
+- **[fix] swipe rebound (真因)**: `prototype/src/screens/ScheduleScreen.tsx` の `SwipePane` の transition 計算を `mode === "drag" ? "none" : "transform 220ms ..."` から `mode === "animating" ? "transform 220ms ..." : "none"` に逆転。これまで `idle` でも transition がオンだったため、commit setTimeout 内で `setMode("idle") + setDragX(0)` を呼んでも `dragX = width → 0` の 220ms アニメが走り、視覚的に「逆方向スワイプ」してから着地していた。`animating` の間だけ transition を効かせ、`idle` では transition: none で瞬時切替に。
+- **[style] アクセサリーバー iOS Form Assistant Bar 風**: `prototype/src/screens/MaterialsScreen.tsx` の `KeyboardAccessoryBar` を、横幅いっぱい border-top のベタっとした帯から、左右マージン付きの角丸 (rounded-2xl) フローティングバーに変更。背景を `rgba(48, 48, 70, 0.78)` + `saturate(180%) blur(24px)` + 薄いシャドウ + 細い 1px border に。ボタンサイズも 36×36 に統一して間に細い区切り線 (× ボタン手前) を追加。
+- **[note] iOS Form Assistant Bar (= 左 ↑↓ / 右 ✓) は OS 領域**: Web から内容を上書きする API は存在しない。Capacitor / WKWebView の `inputAccessoryView` をネイティブで上書きする以外に手はないと判明。本プロトタイプは Web のみの範囲で表現できる範囲 (ネイティブバーの真上に同トーンで配置) に留める。
+- **検証**: `npx tsc -b` exit 0 / `npm run build` 386 KB / gzip 111 KB / 2.22s。HMR で iPhone Safari に自動反映。
+
 ### 2026-05-24 - Phase 3.I fix: swipe rebound 解消 + Materials アクセサリーバー追加
 
 #### 概要

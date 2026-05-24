@@ -762,10 +762,13 @@ function SwipePane({
     }
   };
 
+  // transition は "animating" のときだけオン (snap-back / commit のアニメ用)。
+  // "idle" でオンにしてしまうと、commit 完了時の `setDragX(width → 0)` が
+  // 220ms かけて逆方向に流れて、リバウンドして見えてしまう。
   const transition =
-    mode === "drag"
-      ? "none"
-      : "transform 220ms cubic-bezier(0.22, 0.61, 0.36, 1)";
+    mode === "animating"
+      ? "transform 220ms cubic-bezier(0.22, 0.61, 0.36, 1)"
+      : "none";
 
   return (
     <div ref={containerRef} className="overflow-hidden h-full">

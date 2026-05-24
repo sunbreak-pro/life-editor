@@ -2,7 +2,7 @@
 
 > 各 `chat-*.md` の集約ビュー。task-tracker 実行時に再生成される。**SSOT は各 `chat-*.md` ファイル**。本ファイルは読み手向け要約。
 
-最終更新: 2026-05-24 (chat-prototype-mobile)
+最終更新: 2026-05-25 (chat-prototype-mobile)
 
 ---
 
@@ -12,9 +12,9 @@
 
 ## 直近の完了 (across all chats, 各チャット最大 3 件)
 
+- [chat-prototype-mobile] Phase 3.J fix: swipe transition 条件再修正 + アクセサリーバー iOS 風リスタイル ✅ (2026-05-25)
 - [chat-prototype-mobile] Phase 3.I fix: swipe rebound 解消 + Materials アクセサリーバー ✅ (2026-05-24)
 - [chat-prototype-mobile] Phase 3.H fix: peeking SwipePane + DayDetailSheet タップ復活 ✅ (2026-05-24)
-- [chat-prototype-mobile] Phase 3.G fix-pack + Schedule swipe (animated) ✅ (2026-05-24)
 - [chat-main] DU-D Notes role + Daily 移植（scope-reduced）✅ (2026-05-24)
 - [chat-main] .claude/ 配下整理（vision/plans 精査 + 学習教材削除 + 残骸クリーンアップ）✅ (2026-05-24)
 - [chat-main] DU-C+ scope-reduced 完了（CalendarTag DROP + shared 層 WikiTag 整備）✅ (2026-05-24)

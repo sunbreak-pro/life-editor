@@ -6,9 +6,9 @@
 
 ## 直近の完了
 
+- Phase 3.J fix: swipe transition 条件再修正 + アクセサリーバー iOS 風リスタイル ✅（2026-05-25）
 - Phase 3.I fix: swipe rebound 解消 + Materials アクセサリバー追加 ✅（2026-05-24）
 - Phase 3.H fix: Schedule swipe を peeking 構造へ + DayDetailSheet タップ復活 ✅（2026-05-24）
-- Phase 3.G fix-pack + Schedule swipe feature ✅（2026-05-24）
 
 ## 予定
 
