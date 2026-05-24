@@ -18,7 +18,6 @@ import {
   ChevronDown,
   GripVertical,
   Lock,
-  LockOpen,
   Pin,
   Trash2,
   RotateCcw,
@@ -515,44 +514,16 @@ export function NotesView() {
                   className={selected.isPinned ? "text-notion-accent" : ""}
                 />
               </button>
-              <button
-                type="button"
-                onClick={() => notes.toggleEditLock(selected.id)}
-                aria-pressed={!!selected.isEditLocked}
-                aria-label={
-                  selected.isEditLocked ? "Unlock editing" : "Lock editing"
-                }
-                className={`rounded-md border border-notion-border p-1.5 text-notion-text hover:bg-notion-hover ${FOCUS_RING}`}
-              >
-                {selected.isEditLocked ? (
-                  <Lock size={14} aria-hidden />
-                ) : (
-                  <LockOpen size={14} aria-hidden />
-                )}
-              </button>
-              <button
-                type="button"
-                onClick={() =>
-                  setPwDialog({
-                    mode: selected.hasPassword ? "remove" : "set",
-                    noteId: selected.id,
-                  })
-                }
-                className={`rounded-md border border-notion-border px-2 py-1.5 text-xs text-notion-text hover:bg-notion-hover ${FOCUS_RING}`}
-              >
-                {selected.hasPassword ? "Remove password" : "Set password"}
-              </button>
-              {selected.hasPassword && (
-                <button
-                  type="button"
-                  onClick={() =>
-                    setPwDialog({ mode: "verify", noteId: selected.id })
-                  }
-                  className={`rounded-md border border-notion-border px-2 py-1.5 text-xs text-notion-text hover:bg-notion-hover ${FOCUS_RING}`}
-                >
-                  Unlock
-                </button>
-              )}
+              {/*
+               * DU-F note (2026-05-24): Edit-lock / password / "Unlock"
+               * buttons were removed because their legacy backends
+               * (`toggleNoteEditLock` / `setNotePassword` /
+               * `removeNotePassword` / `verifyNotePassword`) still throw
+               * `_pendingDuRewrite` — the DU-F bridge ports only CRUD +
+               * DnD. DU-G re-adds these once the Unified service grows
+               * the password/lock subsystem. See git history (commit
+               * before this comment) for the original button block.
+               */}
               <button
                 type="button"
                 onClick={() => rename(selected)}

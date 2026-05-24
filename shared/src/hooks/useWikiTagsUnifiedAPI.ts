@@ -187,8 +187,9 @@ export function useWikiTagsUnifiedAPI(options: UseWikiTagsUnifiedAPIOptions) {
       await ds.softDeleteWikiTagGroupUnified(id);
       setAllGroups((prev) => prev.filter((g) => g.id !== id));
       // Memberships of the deleted group are no longer reachable; prune
-      // them from the cache so derived selectors stay consistent. The DB
-      // row itself stays alive (RLS-bound delete is async via DU-G).
+      // them from the cache so derived selectors stay consistent. The
+      // membership rows stay alive on the DB side (no cascade soft-
+      // delete wired) — the next Sync round refreshes live state.
       setAllGroupAssignments((prev) => prev.filter((a) => a.groupId !== id));
     },
     [ds],

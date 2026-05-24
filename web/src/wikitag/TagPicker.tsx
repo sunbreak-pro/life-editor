@@ -64,7 +64,10 @@ export function TagPicker({
     return () => {
       cancelled = true;
     };
-  }, [itemId, wiki.allTags, wiki]);
+    // Re-fetch when the item flips OR when the tag master changes (a
+    // Sync round bumps `allTags`). `listTagsForItem` is a stable
+    // useCallback so it never re-triggers on its own.
+  }, [itemId, wiki.allTags, wiki.listTagsForItem]);
 
   // Close picker on click-outside (keeps the picker self-contained — no
   // global click listener registry).
