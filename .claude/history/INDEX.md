@@ -8,6 +8,7 @@
 
 ## 直近エントリ (across all chats, 時系列降順 5 件)
 
+- 2026-05-24 [chat-prototype-mobile] Phase 3.G fix-pack 完了 + Schedule swipe feature 追加
 - 2026-05-24 [chat-prototype-mobile] ユーザーテストで 3 件の発見事項を記録 (次セッション fix-pack 予定)
 - 2026-05-24 [chat-prototype-mobile] Phase 3.A〜F: prototype mock CRUD + 6 screens
 - 2026-05-24 [chat-main] DU-D scope-reduced 完了（Notes/Daily shared 2-row mapper + composite FK migration 0014）

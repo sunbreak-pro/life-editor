@@ -26,7 +26,7 @@ import {
   X,
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { NavLink, useNavigate } from "react-router-dom";
+import { NavLink, useNavigate, useSearchParams } from "react-router-dom";
 import { useMockStore } from "../hooks/useMockStore";
 import {
   addNote,
@@ -151,6 +151,7 @@ const mapTags = (tags: WikiTag[]): Map<string, WikiTag> => {
 
 export function MaterialsScreen() {
   const nav = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const rawNotes = useMockStore((s) => s.notes);
   const wikiTags = useMockStore((s) => s.wikiTags);
   const settings = useMockStore((s) => s.settings);
@@ -172,6 +173,7 @@ export function MaterialsScreen() {
   const [sheet, setSheet] = useState<SheetType>(null);
   const [longPressTarget, setLongPressTarget] = useState<Note | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<Note | null>(null);
+  const openHandledRef = useRef<string | null>(null);
 
   const filtered = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
@@ -215,6 +217,24 @@ export function MaterialsScreen() {
       setEditingId(null);
     }
   }, [view, editing]);
+
+  useEffect(() => {
+    const openId = searchParams.get("open");
+    if (!openId) {
+      openHandledRef.current = null;
+      return;
+    }
+    if (openHandledRef.current === openId) return;
+    const target = allNotes.find((n) => n.id === openId);
+    if (!target) return;
+    openHandledRef.current = openId;
+    setKind(target.kind);
+    setEditingId(openId);
+    setView("editor");
+    const next = new URLSearchParams(searchParams);
+    next.delete("open");
+    setSearchParams(next, { replace: true });
+  }, [searchParams, allNotes, setSearchParams]);
 
   const handleOpenNote = (id: string) => {
     setEditingId(id);
@@ -309,6 +329,7 @@ export function MaterialsScreen() {
           onOpenMoodSheet={() => setSheet("mood")}
           onNavigate={(target) => {
             if (target.kind === "note" || target.kind === "daily") {
+              setKind(target.kind === "daily" ? "daily" : "notes");
               setEditingId(target.id);
             } else {
               nav(`/schedule?focus=${target.id}`);

@@ -14,8 +14,9 @@ import {
   X,
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { NavLink, useNavigate } from "react-router-dom";
+import { NavLink, useNavigate, useSearchParams } from "react-router-dom";
 import { useMockStore } from "../hooks/useMockStore";
+import { useSwipe } from "../hooks/useSwipe";
 import {
   addScheduleItem,
   addWikiTag,
@@ -302,6 +303,7 @@ function WikiTagChip({
 
 export function ScheduleScreen() {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const allScheduleItems = useMockStore((s) => s.scheduleItems);
   const wikiTags = useMockStore((s) => s.wikiTags);
   const scheduleItems = useMemo(
@@ -317,6 +319,8 @@ export function ScheduleScreen() {
     const t = setInterval(() => setToday(new Date()), 60_000);
     return () => clearInterval(t);
   }, []);
+
+  const focusHandledRef = useRef<string | null>(null);
 
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarPanel, setSidebarPanel] = useState<"search" | "filter" | null>(
@@ -382,6 +386,28 @@ export function ScheduleScreen() {
 
   const openEdit = (item: ScheduleItem) => setModalDraft(draftFromItem(item));
 
+  useEffect(() => {
+    const focusId = searchParams.get("focus");
+    if (!focusId) {
+      focusHandledRef.current = null;
+      return;
+    }
+    if (focusHandledRef.current === focusId) return;
+    const target = scheduleItems.find((it) => it.id === focusId);
+    if (!target) return;
+    focusHandledRef.current = focusId;
+    const due = parseYmd(target.due);
+    if (due) {
+      setAnchorDate(due);
+    }
+    setView("three");
+    setSelectedDay(null);
+    setModalDraft(draftFromItem(target));
+    const next = new URLSearchParams(searchParams);
+    next.delete("focus");
+    setSearchParams(next, { replace: true });
+  }, [searchParams, scheduleItems, setSearchParams]);
+
   const handleSave = () => {
     if (!modalDraft) return;
     const title = modalDraft.title.trim();
@@ -446,33 +472,43 @@ export function ScheduleScreen() {
 
       <main className="flex-1 overflow-auto" style={{ background: C.base }}>
         {view === "month" && (
-          <MonthView
-            month={anchorDate}
-            cells={monthCells}
-            itemsByDay={itemsByDay}
-            today={today}
-            selectedDay={selectedDay}
-            onCellClick={(d) => {
-              if (d.getMonth() !== anchorDate.getMonth()) return;
-              setSelectedDay(d);
-            }}
-          />
+          <SwipePane
+            onSwipeLeft={() => setAnchorDate(addMonths(anchorDate, 1))}
+            onSwipeRight={() => setAnchorDate(addMonths(anchorDate, -1))}
+          >
+            <MonthView
+              month={anchorDate}
+              cells={monthCells}
+              itemsByDay={itemsByDay}
+              today={today}
+              selectedDay={selectedDay}
+              onCellClick={(d) => {
+                if (d.getMonth() !== anchorDate.getMonth()) return;
+                setSelectedDay(d);
+              }}
+            />
+          </SwipePane>
         )}
         {view === "three" && (
-          <ThreeDayView
-            days={threeDays}
-            itemsByDay={itemsByDay}
-            today={today}
-            onEventClick={(item) => openEdit(item)}
-            onSlotClick={(day, hour) =>
-              openCreate({
-                due: ymd(day),
-                time: `${String(hour).padStart(2, "0")}:00`,
-                endTime: `${String(Math.min(hour + 1, 23)).padStart(2, "0")}:00`,
-                type: "event",
-              })
-            }
-          />
+          <SwipePane
+            onSwipeLeft={() => setAnchorDate(addDays(anchorDate, 3))}
+            onSwipeRight={() => setAnchorDate(addDays(anchorDate, -3))}
+          >
+            <ThreeDayView
+              days={threeDays}
+              itemsByDay={itemsByDay}
+              today={today}
+              onEventClick={(item) => openEdit(item)}
+              onSlotClick={(day, hour) =>
+                openCreate({
+                  due: ymd(day),
+                  time: `${String(hour).padStart(2, "0")}:00`,
+                  endTime: `${String(Math.min(hour + 1, 23)).padStart(2, "0")}:00`,
+                  type: "event",
+                })
+              }
+            />
+          </SwipePane>
         )}
         {view === "list" && (
           <ListView
@@ -564,6 +600,23 @@ export function ScheduleScreen() {
           )
         }
       />
+    </div>
+  );
+}
+
+function SwipePane({
+  onSwipeLeft,
+  onSwipeRight,
+  children,
+}: {
+  onSwipeLeft: () => void;
+  onSwipeRight: () => void;
+  children: React.ReactNode;
+}) {
+  const handlers = useSwipe({ onSwipeLeft, onSwipeRight });
+  return (
+    <div {...handlers} style={{ touchAction: "pan-y" }}>
+      {children}
     </div>
   );
 }
@@ -1154,11 +1207,11 @@ function DayDetailSheet({
         type="button"
         onClick={onClose}
         aria-label="閉じる"
-        className="absolute inset-0"
+        className="absolute inset-0 z-30"
         style={{ background: C.crust, opacity: 0.5 }}
       />
       <div
-        className="absolute left-0 right-0 bottom-0 h-1/2 flex flex-col rounded-t-xl shadow-2xl"
+        className="absolute left-0 right-0 bottom-0 h-1/2 z-30 flex flex-col rounded-t-xl shadow-2xl"
         style={{ background: C.base }}
       >
         <header
@@ -1275,7 +1328,7 @@ function AddEventModal({
 
   return (
     <div
-      className="absolute inset-0 flex flex-col"
+      className="absolute inset-0 z-50 flex flex-col"
       style={{ background: C.base }}
     >
       <header
@@ -1672,11 +1725,11 @@ function ConfirmModal({
         type="button"
         onClick={onCancel}
         aria-label="閉じる"
-        className="absolute inset-0"
+        className="absolute inset-0 z-[60]"
         style={{ background: C.crust, opacity: 0.7 }}
       />
       <div
-        className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[88%] rounded-xl p-4 flex flex-col gap-3"
+        className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[88%] z-[60] rounded-xl p-4 flex flex-col gap-3"
         style={{
           background: C.base,
           border: `1px solid ${C.surface1}`,
@@ -1751,7 +1804,7 @@ function Sidebar({
         onClick={onClose}
         aria-label="メニューを閉じる"
         aria-hidden={!open}
-        className="absolute inset-0 transition-opacity"
+        className="absolute inset-0 z-40 transition-opacity"
         style={{
           background: C.crust,
           opacity: open ? 0.5 : 0,
@@ -1760,7 +1813,7 @@ function Sidebar({
       />
       <aside
         aria-hidden={!open}
-        className="absolute top-0 bottom-0 left-0 w-[280px] flex flex-col transition-transform duration-300 ease-out"
+        className="absolute top-0 bottom-0 left-0 w-[280px] z-40 flex flex-col transition-transform duration-300 ease-out"
         style={{
           background: C.mantle,
           borderRight: `1px solid ${C.surface1}`,

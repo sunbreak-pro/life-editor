@@ -15,13 +15,13 @@
 
 ## 直近の完了 (across all chats, 各チャット最大 3 件)
 
+- [chat-prototype-mobile] Phase 3.G fix-pack + Schedule swipe feature ✅ (2026-05-24)
 - [chat-prototype-mobile] Phase 3.A〜F: prototype mock CRUD + 6 screens ✅ (2026-05-24)
 
 ## 予定 (across all chats)
 
-- [chat-prototype-mobile] 🐛 Phase 3.G fix-pack (次セッション): リンク遷移先ずれ / ThreeDayView sticky overlap / iOS auto-zoom 抑止
-- [chat-prototype-mobile] 👀 残: 6 screens の追加不具合洗い出し
-- [chat-prototype-mobile] 🛑 Phase 3.F PR 作成 (fix-pack 完了後): prototype/mobile-ui → refactor/web-first-v2
+- [chat-prototype-mobile] 🛑 Phase 3.F PR 作成: prototype/mobile-ui → refactor/web-first-v2 (fix-pack 完了済、PR ready)
+- [chat-prototype-mobile] 👀 残: 6 screens の追加目視確認 (新たに不具合あれば次 fix-pack へ)
 - [chat-prototype-mobile] 別件: Supabase migration items_meta_id_role_uk drop 失敗 (別 worktree スコープ)
 - [chat-main] DU-D Notes role + Daily 移植（scope-reduced）✅ (2026-05-24)
 - [chat-main] .claude/ 配下整理（vision/plans 精査 + 学習教材削除 + 残骸クリーンアップ）✅ (2026-05-24)
