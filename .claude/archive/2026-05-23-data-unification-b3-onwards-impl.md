@@ -1,5 +1,5 @@
 ---
-Status: DRAFT — DU-B-3 〜 DU-B-6 詳細実装計画書 v1（2026-05-23 起票）。次セッション着手用の SSOT。
+Status: COMPLETED — 2026-05-24 DU-B-3〜B-6 完了。SupabaseTasksService 9 メソッド本実装 + vitest + web 動作確認すべて達成。親計画書 2026-05-23-data-unification-b-tasks.md（同時 archive 済）と統合管理。
 Created: 2026-05-23
 Task: Data Unification DU-B-3〜B-6 詳細実装（SupabaseTasksService 9 メソッド本実装 / vitest 追加 / web 動作確認 / docs 更新）
 Project path: /Users/newlife/dev/apps/life-editor

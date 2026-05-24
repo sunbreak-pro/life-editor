@@ -1,5 +1,5 @@
 ---
-Status: SCOPE-REDUCED — v2（2026-05-24）。frontend↔shared 統合（Phase 2 完成）未達のため、Events UI (Step 5-6) は DU-F へ後送り。DB schema + shared 層 mapper / service / hook / Provider のみで本 sub-phase 完了とする。詳細は本書「DU-C+ scope reduction (2026-05-24)」節参照。
+Status: COMPLETED — 2026-05-24 commit `8a45397`（後送り分の Events UI Tag/Link は DU-F Step 6-14 で完了）。DB schema + shared 層 mapper / service / hook / Provider は DU-C+ 単独で完了済（commit `aa114d1`）。
 Created: 2026-05-24
 Branch: data-unification/items-meta-redesign
 Owner-chat: main

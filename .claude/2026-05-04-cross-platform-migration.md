@@ -304,6 +304,25 @@ life-editor/
 - [ ] Supabase Realtime 経由で他タブからの変更が反映される
 - [ ] オフライン時にバナーが表示される
 
+#### Phase 2 ↔ Phase 3 間: Data Unification レーン（2026-05-21〜2026-05-24）
+
+**目的**: 5 role を `items_meta + 5 payload + 7 専用/relation` の計 13 テーブルに統合し、WikiTag/Link を items_meta.id ベースの 5 role 共通グラフへ再定義。親計画書 [`docs/vision/plans/2026-05-21-data-unification-items-meta.md`](./docs/vision/plans/2026-05-21-data-unification-items-meta.md) が SSOT。
+
+**完了済 Phase**:
+
+- DU-A (DB スキーマ) / DU-B (Tasks) / DU-C (Events+Routine) / DU-C+ (CalendarTag DROP + shared WikiTagUnified 層) / DU-D (Notes/Daily 2-row mapper + composite FK) / **DU-F (WikiTag/Link UI 4 role + wiki_tag_groups UI + CalendarTag 死削除)** ✅ 2026-05-24
+
+**残作業**:
+
+- DU-E (Calendar 2 ビュー) / **DU-G** (Notes/Daily Unified write path 完全切替 — DU-F で legacy 維持と判断、別計画分離)
+
+**観測可能な成果** (DU-F 完了時点):
+
+- 4 role (Task / Event / Note / Daily) すべてで Tag 付与・解除・Link 作成・backlink 表示が動作
+- wiki_tag_groups CRUD UI (Tags セクション) 稼働
+- CalendarTag 概念が DB / shared / web/ から完全消滅
+- shared 170/170 vitest 緑 / RLS gate offender 0 / advisor lint 新規 WARN 0
+
 ---
 
 ### Phase 3 — Electron 包装（macOS で起動するまで）

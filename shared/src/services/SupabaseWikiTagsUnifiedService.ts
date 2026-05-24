@@ -15,10 +15,23 @@ import {
   rowToWikiTagConnection,
   type WikiTagConnectionRow,
 } from "./wikiTagConnectionMapper";
+import {
+  WIKI_TAG_GROUPS_COLUMNS,
+  rowToWikiTagGroup,
+  wikiTagGroupUpdatesToPatch,
+  type WikiTagGroupRow,
+} from "./wikiTagGroupMapper";
+import {
+  WIKI_TAG_GROUP_ASSIGNMENTS_COLUMNS,
+  rowToWikiTagGroupAssignment,
+  type WikiTagGroupAssignmentRow,
+} from "./wikiTagGroupAssignmentMapper";
 import type {
   WikiTag,
   WikiTagAssignment,
   WikiTagConnection,
+  WikiTagGroup,
+  WikiTagGroupAssignment,
 } from "../types/wikiTagUnified";
 
 /*
@@ -210,6 +223,118 @@ export class SupabaseWikiTagsUnifiedService {
       .eq("id", linkId);
     if (error) throw new Error(`deleteItemLink failed: ${error.message}`);
   }
+
+  // -------------------------------------------------------------------------
+  // Tag groups (wiki_tag_groups) — DU-F Step 11
+  // -------------------------------------------------------------------------
+
+  async listAllWikiTagGroupsUnified(): Promise<WikiTagGroup[]> {
+    const { data, error } = await this.client
+      .from("wiki_tag_groups")
+      .select(WIKI_TAG_GROUPS_COLUMNS)
+      .eq("is_deleted", false)
+      .order("name", { ascending: true });
+    if (error)
+      throw new Error(`listAllWikiTagGroupsUnified failed: ${error.message}`);
+    return (data ?? []).map((r) =>
+      rowToWikiTagGroup(r as unknown as WikiTagGroupRow),
+    );
+  }
+
+  async createWikiTagGroupUnified(
+    id: string,
+    name: string,
+  ): Promise<WikiTagGroup> {
+    const { data, error } = await this.client
+      .from("wiki_tag_groups")
+      .insert({
+        id,
+        name,
+        is_deleted: false,
+        deleted_at: null,
+        version: 1,
+      })
+      .select(WIKI_TAG_GROUPS_COLUMNS)
+      .single();
+    if (error)
+      throw new Error(`createWikiTagGroupUnified failed: ${error.message}`);
+    return rowToWikiTagGroup(data as unknown as WikiTagGroupRow);
+  }
+
+  async updateWikiTagGroupUnified(
+    id: string,
+    updates: Partial<WikiTagGroup>,
+  ): Promise<WikiTagGroup> {
+    const patch = wikiTagGroupUpdatesToPatch(updates, new Date().toISOString());
+    const { data, error } = await this.client
+      .from("wiki_tag_groups")
+      .update(patch)
+      .eq("id", id)
+      .select(WIKI_TAG_GROUPS_COLUMNS)
+      .single();
+    if (error)
+      throw new Error(`updateWikiTagGroupUnified failed: ${error.message}`);
+    return rowToWikiTagGroup(data as unknown as WikiTagGroupRow);
+  }
+
+  async softDeleteWikiTagGroupUnified(id: string): Promise<void> {
+    const now = new Date().toISOString();
+    const { error } = await this.client
+      .from("wiki_tag_groups")
+      .update({ is_deleted: true, deleted_at: now, updated_at: now })
+      .eq("id", id);
+    if (error)
+      throw new Error(`softDeleteWikiTagGroupUnified failed: ${error.message}`);
+  }
+
+  // -------------------------------------------------------------------------
+  // Tag↔group memberships (wiki_tag_group_assignments)
+  // -------------------------------------------------------------------------
+
+  async listAllWikiTagGroupAssignments(): Promise<WikiTagGroupAssignment[]> {
+    const { data, error } = await this.client
+      .from("wiki_tag_group_assignments")
+      .select(WIKI_TAG_GROUP_ASSIGNMENTS_COLUMNS)
+      .eq("is_deleted", false);
+    if (error)
+      throw new Error(
+        `listAllWikiTagGroupAssignments failed: ${error.message}`,
+      );
+    return (data ?? []).map((r) =>
+      rowToWikiTagGroupAssignment(r as unknown as WikiTagGroupAssignmentRow),
+    );
+  }
+
+  async assignTagToGroup(
+    assignmentId: string,
+    tagId: string,
+    groupId: string,
+  ): Promise<WikiTagGroupAssignment> {
+    const { data, error } = await this.client
+      .from("wiki_tag_group_assignments")
+      .insert({
+        id: assignmentId,
+        tag_id: tagId,
+        group_id: groupId,
+        is_deleted: false,
+        deleted_at: null,
+      })
+      .select(WIKI_TAG_GROUP_ASSIGNMENTS_COLUMNS)
+      .single();
+    if (error) throw new Error(`assignTagToGroup failed: ${error.message}`);
+    return rowToWikiTagGroupAssignment(
+      data as unknown as WikiTagGroupAssignmentRow,
+    );
+  }
+
+  async unassignTagFromGroup(assignmentId: string): Promise<void> {
+    const now = new Date().toISOString();
+    const { error } = await this.client
+      .from("wiki_tag_group_assignments")
+      .update({ is_deleted: true, deleted_at: now, updated_at: now })
+      .eq("id", assignmentId);
+    if (error) throw new Error(`unassignTagFromGroup failed: ${error.message}`);
+  }
 }
 
 export const PHASE2_WIKI_TAGS_UNIFIED_METHODS: ReadonlySet<string> = new Set([
@@ -224,4 +349,11 @@ export const PHASE2_WIKI_TAGS_UNIFIED_METHODS: ReadonlySet<string> = new Set([
   "listLinksToItem",
   "createItemLink",
   "deleteItemLink",
+  "listAllWikiTagGroupsUnified",
+  "createWikiTagGroupUnified",
+  "updateWikiTagGroupUnified",
+  "softDeleteWikiTagGroupUnified",
+  "listAllWikiTagGroupAssignments",
+  "assignTagToGroup",
+  "unassignTagFromGroup",
 ]);
