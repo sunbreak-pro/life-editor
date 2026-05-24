@@ -1,5 +1,5 @@
 ---
-Status: SCOPE-REDUCED — v2（2026-05-24）。DU-C+ と同じ frontend↔shared 統合未完了問題で、frontend Provider 置き換え (Step 3-4) と UI 動作確認 (Step 4) は DU-F へ後送り。本 sub-phase は shared 層 mapper + service + Provider + composite FK migration のみで完了。
+Status: COMPLETED (scope-reduced) — 2026-05-24。shared 層 mapper + service + composite FK migration (0014) 適用済。frontend Provider 置き換え + UI 動作確認は DU-F へ後送り。
 Created: 2026-05-24
 Branch: data-unification/items-meta-redesign
 Owner-chat: main
@@ -297,4 +297,13 @@ DDL 含むため必須記入。**ローカルファイル先行ルール厳守**
 
 実装中に判明した設計判断や、計画から逸脱した部分を時系列で記録。完了後に Known Issue 化すべき知見はここから `docs/known-issues/` へ移送。
 
-- (未着手)
+- **2026-05-24** — scope-reduced 完了。実装内訳:
+  - shared mapper: `notesUnifiedMapper.ts` / `dailiesUnifiedMapper.ts` (2-row pattern, 計画書命名 `notesMapper.ts` 単数形と既存 `noteMapper.ts` (legacy 単独テーブル) との 1 文字差衝突回避のため `*UnifiedMapper.ts` に改名)
+  - shared service: `SupabaseNotesUnifiedService.ts` (6 メソッド) / `SupabaseDailiesUnifiedService.ts` (6 メソッド)。Pattern A Provider/Hook は frontend↔shared 統合 (DU-F) 完了後に新設すれば足りるので scope reduction で省略
+  - DataService interface: 12 Unified メソッド宣言追加（`*Unified` suffix で legacy 共存）
+  - SupabaseDataService.ts: Proxy 配線 2 件 (`PHASE2_NOTES_UNIFIED_METHODS` / `PHASE2_DAILIES_UNIFIED_METHODS`)
+  - 単体テスト: notesUnifiedMapper 18 件 / dailiesUnifiedMapper 11 件 (29/29 緑 / 全 174/174 緑)
+- **2026-05-24** — migration 0014 push 時に「`drop constraint items_meta_id_role_uk` ができない (依存 FK あり)」エラー発生。原因: 0009/0011 で既に `tasks_payload_parent_fk` / `events_payload_routine_fk` がこの UNIQUE を参照しており、SQLSTATE 2BP01。修正: 0014 の冪等再追加ブロックを「DO ブロックでの存在 assert」に置換し、destructive 操作を完全排除。再 push 成功
+- **2026-05-24** — 0014_rollback.sql は事前に `supabase/migrations_archive_rollback/` へ移動（DU-C+ で確立した「rollback ファイルは migrations/ に置かない」運用に従う）
+- **2026-05-24** — push 適用検証: A (UNIQUE 存在) / B (composite FK 設置 + 単独 FK 不在) / C (parent_item_role generated 'note') 全件期待通り。D-G の動的 INSERT 検証は MCP execute_sql が read-only mode のためスキップ — A/B/C の静的証拠が cross-role 物理拒否を論理的に完全に証明 (composite FK + 'note' 固定 generated の組合せ)。advisor lint: 既知 `auth_leaked_password_protection` WARN のみで新規 WARN ゼロ
+- **2026-05-24** — frontend build clean (touched=NO)。Tauri frontend は引き続き tauriDataService のみ参照、shared 層は build-clean で温存 (DU-F で活性化)

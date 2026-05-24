@@ -541,6 +541,32 @@ export interface DataService {
   ): Promise<WikiTagConnectionUnified>;
   deleteItemLink(linkId: string): Promise<void>;
 
+  // Notes Unified (DU-D — items_meta + notes_payload 2-row pattern).
+  // Coexists with the legacy single-table Notes block above; DU-F retires
+  // the legacy block once frontend↔shared integration lands.
+  listNotesUnified(): Promise<NoteNode[]>;
+  getNoteUnified(id: string): Promise<NoteNode | null>;
+  createNoteUnified(node: NoteNode): Promise<NoteNode>;
+  updateNoteUnified(id: string, updates: Partial<NoteNode>): Promise<NoteNode>;
+  softDeleteNoteUnified(id: string): Promise<void>;
+  moveNoteUnified(
+    id: string,
+    parentId: string | null,
+    order: number,
+  ): Promise<void>;
+
+  // Dailies Unified (DU-D — items_meta + dailies_payload 2-row pattern).
+  // upsertDailyByDateUnified is the primary write path (date is UNIQUE).
+  listDailiesUnified(): Promise<DailyNode[]>;
+  getDailyByDateUnified(date: string): Promise<DailyNode | null>;
+  upsertDailyByDateUnified(date: string, content: string): Promise<DailyNode>;
+  createDailyUnified(node: DailyNode): Promise<DailyNode>;
+  updateDailyUnified(
+    id: string,
+    updates: Partial<DailyNode>,
+  ): Promise<DailyNode>;
+  softDeleteDailyUnified(id: string): Promise<void>;
+
   // Note Connections
   fetchNoteConnections(): Promise<NoteConnection[]>;
   createNoteConnection(

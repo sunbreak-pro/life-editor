@@ -2,33 +2,24 @@
 
 > 各 `chat-*.md` の集約ビュー。task-tracker 実行時に再生成される。**SSOT は各 `chat-*.md` ファイル**。本ファイルは読み手向け要約。
 
-最終更新: 2026-05-24 15:15 (chat-main)
+最終更新: 2026-05-24 15:21:03 (chat-main)
 
 ---
 
 ## 進行中 (across all chats)
 
-- [chat-main] 🔧 DU-D Notes role + Daily 移植（SCOPE-REDUCED） — 着手: 2026-05-24 / 現在: shared notes/dailies mapper 着手前
+（なし）
 
 ## 直近の完了 (across all chats, 各チャット最大 3 件)
 
-- [chat-main] .claude/ 配下整理（vision/plans 精査 + 学習教材削除 + 残骸クリーンアップ + instructions archive 移動）✅ (2026-05-24)
-- [chat-main] DU-C+ scope-reduced 完了（DB migration 0012 + shared 層 WikiTag mapper/service/hook/Provider + 単体テスト 18 緑）✅ (2026-05-24)
-- [chat-main] DU-C 全 7 ステップ完了（Routines + RoutineGroups + Assignments + ScheduleItems 本実装 + 0011 migration 本番適用）✅ (2026-05-24)
+- [chat-main] DU-D Notes role + Daily 移植（scope-reduced）✅ (2026-05-24)
+- [chat-main] .claude/ 配下整理（vision/plans 精査 + 学習教材削除 + 残骸クリーンアップ）✅ (2026-05-24)
+- [chat-main] DU-C+ scope-reduced 完了（CalendarTag DROP + shared 層 WikiTag 整備）✅ (2026-05-24)
 
 ## 予定 (across all chats)
 
 - [chat-main] 👀 ユーザー実機確認待ち: DU-C-6 (Routine 作成/削除/復元 + 月またぎ ループ防止 + key duplicate 警告ゼロ)
 - [chat-main] DU-E Calendar 2 ビュー再実装（DU-D 完了後）
-- [chat-main] DU-F EXPANDED: frontend↔shared 統合 + 全 5 role Tag/Link UI + DU-C+/D 後送り分（Events UI / NoteProvider 置き換え / CalendarTag 死コード削除 / RLS gate 拡張）
-- [chat-main] CLAUDE.md §4.3 一行追記（composite FK pattern、並行チャット同期後）
+- [chat-main] DU-F WikiTag/WikiLink 残り 4 role UI + wiki_tag_groups UI + frontend↔shared 統合（DU-C+ / DU-D 後送り分を吸収）
+- [chat-main] CLAUDE.md §4.3 一行追記（composite FK pattern。並行チャットの CLAUDE.md 編集完了同期後）
 - [chat-main] DU-B 子計画書 + 詳細計画書の archive 移動（DU-B 全体クローズ時）
-
----
-
-## 運用メモ
-
-- 各チャットは `.claude/comm/.session-name` で宣言した名前で `chat-<name>.md` に追記
-- 本 INDEX.md は task-tracker が `memory/chat-*.md` を全 scan して再生成
-- 既存 `.claude/MEMORY.md` (凍結) は 2026-05-23 以前の履歴として保存。**read-only / 新規書き込み禁止**。新規エントリは本ディレクトリ配下のみ
-- 関連: [`history/INDEX.md`](../history/INDEX.md) / [`comm/README.md`](../comm/README.md) / [計画書](../docs/vision/plans/2026-05-23-memory-history-per-chat-split.md)

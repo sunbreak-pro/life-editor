@@ -2,20 +2,13 @@
 
 ## 進行中
 
-### 🔧 DU-D Notes role + Daily 移植（着手日: 2026-05-24、SCOPE-REDUCED）
-
-**対象**: `supabase/migrations/0014_notes_payload_parent_fk.sql` / `shared/src/services/{notesMapper,dailiesMapper,SupabaseDataService}.ts`
-**計画書**: `.claude/docs/vision/plans/2026-05-24-data-unification-d-notes-daily.md`
-
-- 前回: DU-C+ scope-reduced 完了（shared 層 + DB migration のみ commit 済）
-- 現在: shared notes/dailies mapper 着手前。frontend↔shared 統合は DU-F 後送り（DU-C+ 同型問題）
-- 次: shared notes/dailies mapper + SupabaseDataService Notes/Daily Unified メソッド + composite FK migration 0014 作成 → ユーザー db push → commit
+（なし）
 
 ## 直近の完了
 
+- DU-D Notes role + Daily 移植（scope-reduced）✅（2026-05-24）
 - .claude/ 配下整理（vision/plans 精査で point-view + phase5 削除 / 学習教材 code-explanation・code-examples 削除 / 残骸 LearningRoadmap・note-summaries・HISTORY-archive.bak・code-inventory 削除 / instructions の単発指示書を archive 移動）✅（2026-05-24）
 - DU-C+ scope-reduced 完了（DB migration 0012 + shared 層 WikiTag mapper/service/hook/Provider + 単体テスト 18 緑。Events UI / NoteProvider 置き換えは frontend↔shared 統合未達のため DU-F に統合）✅（2026-05-24）
-- DU-C 全 7 ステップ完了（Routines + RoutineGroups + Assignments + ScheduleItems 全 Service 本実装 + RoutineScheduleSync 復活 + 0011 migration 本番適用）✅（2026-05-24）
 
 ## 予定
 

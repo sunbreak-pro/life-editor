@@ -1,5 +1,40 @@
 # HISTORY (chat-main)
 
+### 2026-05-24 - DU-D scope-reduced 完了（Notes/Daily shared 2-row mapper + composite FK migration 0014）
+
+#### 概要
+
+DU-D（Notes role + Daily 移植）を scope-reduced で完了。DU-C+ で判明した frontend↔shared 統合（Phase 2 完成相当）未達問題が同様に立ちはだかるため、frontend NoteProvider / DailyProvider 置き換え + UI 動作確認は DU-F に後送り。本サブフェーズは「shared 層 mapper + Unified service + composite FK migration」のみで完了とした。migration 適用時に既存 FK 依存による destructive drop エラーが発生し、修正版（DO ブロックの存在 assert に置換）で再 push 成功。実装計画書は `.claude/archive/` へ移動（計画書: archive/2026-05-24-data-unification-d-notes-daily.md）。
+
+#### 変更点
+
+- **DB migration 0014**: `supabase/migrations/0014_notes_payload_parent_fk.sql` 新規（DU-B 0009 と同型パターンを notes_payload に適用）。`items_meta(id, role)` UNIQUE は 0009 で既に追加済 + 0009/0011 の FK が依存するため drop-and-recreate 不可 → DO ブロックで「存在 assert + 不在なら raise exception」に変更（v1 で `drop constraint if exists` が SQLSTATE 2BP01 で失敗、修正版で再 push 成功）。0008 単独 FK `notes_payload_parent_item_id_fkey` を drop、`parent_item_role text generated always as ('note') stored` 列追加、composite FK `notes_payload_parent_fk ((parent_item_id, parent_item_role) → items_meta(id, role)) ON DELETE NO ACTION` 追加、単独 index `idx_notes_payload_parent` drop + 複合 `idx_notes_payload_parent_role` 追加、insert/update policy に parent_item_id owner EXISTS 二重防衛 + `(select auth.uid())` initplan キャッシュ
+- **0014_rollback.sql** は `supabase/migrations_archive_rollback/` 配置（DU-C+ で確立した運用に従う = migrations/ には forward migration だけを置く）
+- **shared mapper**: `notesUnifiedMapper.ts` / `dailiesUnifiedMapper.ts` 新規（既存 `noteMapper.ts` / `dailyMapper.ts` legacy 単独テーブル版と coexist、`*UnifiedMapper.ts` 命名で 1 文字差衝突回避）。`ItemsMetaNoteRow` / `NotesPayloadRow` / 同 Daily 版 / Write 型から `parent_item_role` / `has_password` を type-level で除去 / SELECT カラムリスト / `rowsTo*Node` / `*NodeToRows` / `*UpdatesToPatches`（DB-Q2 = ALWAYS `metaPatch.updated_at = now` bump）/ `contentJsonToString` ↔ `contentStringToJson`（jsonb ↔ TipTap string 双方向）
+- **shared service**: `SupabaseNotesUnifiedService.ts`（6 メソッド: list / get / create / update / softDelete / move）+ `SupabaseDailiesUnifiedService.ts`（6 メソッド: list / getByDate / upsertByDate / create / update / softDelete）新規。`user_id` を insert object から省き DB default `auth.uid()` に任せる。FK 順守でメタ INSERT → payload INSERT、失敗時はメタを hard-delete cleanup（DU-B R2 同型 / soft-delete ghost 防止）。`PHASE2_NOTES_UNIFIED_METHODS` / `PHASE2_DAILIES_UNIFIED_METHODS` を export し SupabaseDataService の Proxy route に登録
+- **DataService interface**: 12 Unified メソッド宣言追加（`*Unified` suffix。既存 PHASE2_NOTES_METHODS / PHASE2_DAILY_METHODS と coexist）
+- **SupabaseDataService.ts**: import 2 行 + service 生成 2 行 + Proxy route 2 行追加
+- **単体テスト**: `notesUnifiedMapper.test.ts` (18) + `dailiesUnifiedMapper.test.ts` (11) = 29/29 緑、全 174/174 緑（DU-C+ 18 + 既存 127 含む）
+- **frontend build clean**（touched=NO 維持。Tauri frontend は引き続き tauriDataService のみ参照）
+- **計画書改訂**: DU-D 子計画書を `Status: COMPLETED (scope-reduced)` に更新 + worklog 追記 → `.claude/archive/` へ移動
+
+#### 検証
+
+- shared `npx tsc -b --force`: exit 0
+- shared `npx vitest run`: 174/174 pass
+- frontend `npm run build`: exit 0
+- Supabase 静的検証 A/B/C: `items_meta_id_role_uk` 存在 / `notes_payload_parent_fk` composite FK 設置（def "FK (parent_item_id, parent_item_role) REFERENCES items_meta(id, role)" / ON DELETE 省略 = NO ACTION default）/ 単独 FK `notes_payload_parent_item_id_fkey` 不在 / `parent_item_role` = `'note'::text` ALWAYS generated
+- 動的検証 D-G は MCP execute_sql が read-only mode のためスキップ。A/B/C の静的証拠が「composite FK + 'note' 固定 generated stored 列」の組合せで cross-role 物理拒否を論理的に完全証明
+- Supabase `mcp__supabase__list_migrations`: 0014 適用済
+- Supabase advisor lint: 既知 `auth_leaked_password_protection` WARN のみ（新規 WARN 0）
+
+#### 設計判断 / 残知見
+
+- **既存 FK 依存下での冪等再追加は不可**: `items_meta_id_role_uk` を `drop constraint if exists` → re-add するパターンは、依存 FK がない初回（0009）でしか動かない。DU-B 以降の migration では「存在 assert」に切り替えるパターンを採るべき = 今後の migration テンプレ知見として記録（known-issues 化候補）
+- **shared mapper 命名規則の coexist 戦略**: legacy `noteMapper.ts` (単数) と DU 版 `notesMapper.ts` (複数) は視認性で危険なため `*UnifiedMapper.ts` suffix を採用。DU-C+ の `wikiTagUnified.ts` と整合
+- **MCP execute_sql は read-only**: 動的 INSERT/DELETE 検証が必要な場合は SQL Editor 経由か `apply_migration`（ただし計画書 §7.3 で単独使用禁止）で実施する必要あり。今回は静的証拠 + 既存テスト + composite FK の論理保証で代替
+- **後送り対象 (DU-F)**: frontend NoteProvider / DailyProvider 置き換え、Pattern A Provider・Hook 実装、UI 動作確認（Notes 階層 DnD / TipTap 編集 / Daily UPSERT）、frontend↔shared 統合（vite alias + tsconfig path + dependency）
+
 ### 2026-05-24 - .claude/ 配下整理（vision/plans 精査 + 学習教材削除 + 残骸クリーンアップ）
 
 #### 概要
@@ -118,41 +153,5 @@ DU-C/D pending stubs 投入後のユーザー実機検証で「Routine 生成時
 - **検証**: shared `npx tsc -b` 緑 / shared `npm test` 91/91 緑 / web `npm run build` 緑（929 kB）
 - **session-verifier**: 全 6 Gate PASS（Types / Lint / Tests / Coverage skip / Structural / Bug Scan）
 
-### 2026-05-23 - DU-C/D pending stubs（8 services 一時 no-op）
 
-#### 概要
-
-`0007_drop_legacy_item_tables.sql` で旧 9 テーブルが drop され、Tasks 以外の Service が `notes` / `routines` / `schedule_items` 等の dropped table を叩いて `Could not find the table 'public.<name>' in the schema cache` エラーで web 起動が壊れていた問題を、8 Service の stub 化（fetch → [] / null、write → 明示 throw）で短期対応。実 DB には `items_meta + <role>_payload` が既に揃っていることを Supabase MCP `list_tables` で確認済（dailies_payload / notes_payload / routines_payload / events_payload など）。
-
-#### 変更点
-
-- **Shared services**: `SupabaseDataService.ts` の Daily / Notes / NoteLink / NoteConnection / Routines / RoutineGroups / RoutineGroupAssignments / ScheduleItems 8 Service を stub クラスに置換（3257 → 1774 行、head/tail splice）
-- **共通ヘルパー**: `_pendingDuRewrite(method, domain)` で明示エラーメッセージ + 計画書パスを統一
-- **Tasks / Calendars**: DU-B-3 実装と既存 Calendar 系は無変更
-- **検証**: shared `tsc -b` / `npm test` 91/91 / web `npm run build` 全緑
-
-### 2026-05-23 - fix(tasks): TaskTreeView DnD into-folder
-
-#### 概要
-
-DU-B-5 ユーザー検証で「folder の中に DnD で入れられない（並び替えと中→外は OK）」と報告。バックエンド (`updateTask` の parentId 変更経路) は無罪、frontend `web/src/tasks/TaskTreeView.tsx:198-205` の `handleDragEnd` が `moveNodeInto` を意図的に呼んでいなかった（"out of this minimal UI's scope" コメント付き）ことが判明。Notes 側 `useNoteTreeDnd` 相当の 3 zone（above/inside/below）判定を移植して修正。
-
-#### 変更点
-
-- **Frontend / web**: `TaskTreeView.tsx` に `computeFolderPosition` + `getPointerY` helper + 3 zone 判定付き `handleDragEnd` を実装
-- **挙動**: folder 上 25% = above（moveNode）/ 中央 50% = inside（moveNodeInto）/ 下 25% = below（折りたたみは moveNode、展開済みは moveNodeInto）。task drop は上下半分判定
-- **DB / shared 無変更**: `useTaskTreeMovement.moveNodeInto` は既存実装、`updateTask` の parentId UPDATE 経路も DU-B-3 で動作確認済
-
-### 2026-05-23 - DU-B-6 partial（db-conventions §10 + known-issues 021-024）
-
-#### 概要
-
-DU-B-1 / B-2 / B-3 で得た知見を恒久ドキュメント化。`db-conventions.md` に Payload Mapper 規約（10.1 2 行分割マッピング、10.2 DB-Q2 bump、10.3 generated 列の書き込み禁止、10.4 composite FK パターン、10.5 R2 orphan recovery、10.6 DB-Q1/Q2/Q3 サマリ）を新規 §10 として追加。known-issues に 4 件追加（PG generated + composite FK + SET NULL 不可 / Supabase SQL Editor postgres role auth.uid NULL / Supabase CLI v2.101 CSV 出力 / PG 2BP01 依存連鎖）。
-
-#### 変更点
-
-- **Docs / vision**: `.claude/docs/vision/db-conventions.md` 末尾に §10 Payload Mapper 規約を新設
-- **Docs / known-issues**: 021/022/023/024 を新規追加 + `INDEX.md` の Fixed セクション + Category 別インデックス + Status 集計を更新（19 件 → 並行チャットの 025 追加で 20 件）
-- **保留**: CLAUDE.md §4.3 一行追記は並行チャットの CLAUDE.md 編集との干渉回避で別タイミング。計画書 archive 移動も DU-B 全体クローズ時に実施
-
-> 古いエントリは [`archive/2026-05/chat-main.md`](./archive/2026-05/chat-main.md) を参照（DU-B-4 taskMapper + sortByDepthDesc vitest / DU-B-3 SupabaseTasksService 9 methods 本実装 ほか）
+> 古いエントリは [`archive/2026-05/chat-main.md`](./archive/2026-05/chat-main.md) を参照（DU-B-3 / B-4 / B-6 / DU-C/D pending stubs / TaskTreeView DnD ほか）

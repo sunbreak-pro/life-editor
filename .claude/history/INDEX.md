@@ -2,24 +2,16 @@
 
 > 各 `chat-*.md` の集約ビュー。task-tracker 実行時に再生成される。**SSOT は各 `chat-*.md` ファイル**。本ファイルは読み手向け要約。
 
-最終更新: 2026-05-24 15:15 (chat-main)
+最終更新: 2026-05-24 15:21:03 (chat-main)
 
 ---
 
 ## 直近エントリ (across all chats, 時系列降順 5 件)
 
+- 2026-05-24 [chat-main] DU-D scope-reduced 完了（Notes/Daily shared 2-row mapper + composite FK migration 0014）
 - 2026-05-24 [chat-main] .claude/ 配下整理（vision/plans 精査 + 学習教材削除 + 残骸クリーンアップ）
 - 2026-05-24 [chat-main] DU-C+ scope-reduced 完了（CalendarTag DROP + shared 層 WikiTag mapper/service/Provider 整備）
-- 2026-05-24 [chat-main] DU-C 全 7 ステップ完了（Routines + RoutineGroups + Assignments + ScheduleItems 本実装）
 - 2026-05-24 [chat-main] 並行作業基盤強化（Stop hook + Plan Gate Convention + 計画書テンプレ）
 - 2026-05-23 [chat-main] Schedule 無限ループ修正（RoutineScheduleSync no-op 化）
 
----
-
-## 運用メモ
-
-- 各チャットは `.claude/comm/.session-name` で宣言した名前で `chat-<name>.md` の先頭にエントリ追記 (降順)
-- 本 INDEX.md は task-tracker が `history/chat-*.md` を全 scan して最新 5 件抽出
-- 既存 `.claude/HISTORY.md` と `.claude/HISTORY-archive.md` (凍結) は 2026-05-23 以前の履歴として保存。**read-only / 新規書き込み禁止**
-- ローリングアーカイブ規則: 各 `chat-*.md` が 5 件超過時、古いものを `history/archive/YYYY-MM/chat-<name>.md` へ移動 (task-tracker が自動処理)
-- 関連: [`memory/INDEX.md`](../memory/INDEX.md) / [計画書](../docs/vision/plans/2026-05-23-memory-history-per-chat-split.md)
+古いエントリは `.claude/history/archive/2026-05/chat-main.md` 参照。
