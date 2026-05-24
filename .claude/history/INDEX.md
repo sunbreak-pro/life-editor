@@ -2,7 +2,7 @@
 
 > 各 `chat-*.md` の集約ビュー。SSOT は各 `chat-*.md`。
 
-最終更新: 2026-05-24 17:12:36 (chat-main)
+最終更新: 2026-05-24 (chat-prototype-mobile)
 
 ---
 
