@@ -31,6 +31,12 @@ prototype/dist/
 .claude/comm/.session-name
 .claude/comm/.watch-state/
 .claude/comm/.inbox-pending.md
+.claude/scheduled_tasks.lock
+
+# Hook-generated outbox reports (per-session 動的データ; chat-*.md は task-tracker 経由
+# 人手管理なので追跡を維持。session-start-check.sh / stop-check.sh が吐く reports のみ無視)
+.claude/comm/outbox/*/session-start-warnings.md
+.claude/comm/outbox/*/stop-report.md
 
 # Hook-generated outbox reports (per-session 動的データ; chat-*.md は task-tracker 経由
 # 人手管理なので追跡を維持。session-start-check.sh / stop-check.sh が吐く reports のみ無視)
