@@ -1,5 +1,5 @@
 ---
-Status: PLANNING — v2（2026-05-24 / B スコープ縮約）。Notes/Daily の Unified 完全切替（folder / password / lock / syncTree / restore / permanentDelete の Unified 拡張 + Provider 切替 + UI 動作確認）は **後続別計画 DU-G** に分離。本 DU-F は WikiTag/Link UI + CalendarTag 死削除 + wiki_tag_groups UI + 親計画書 DoD 達成宣言に集中。Routine は Event の一形態として Tag/Link 対象外。frontend/（旧 Tauri）は touched=NO 維持。
+Status: COMPLETED — 2026-05-24 commit `8a45397`（Step 6-14 + Notes/Daily 永続化 Unified bridge fix）。Notes/Daily 完全 Unified 切替は DU-G に残置。Link UX 強化（Obsidian 風）は別計画書として起票済（`2026-05-26-link-ux-obsidian-style.md`）。
 Created: 2026-05-24
 Branch: data-unification/items-meta-redesign
 Owner-chat: main

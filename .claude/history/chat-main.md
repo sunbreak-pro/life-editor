@@ -1,5 +1,77 @@
 # HISTORY (chat-main)
 
+### 2026-05-24 - DU-F Step 6-14 完了（WikiTag/Link UI 4 role + wiki_tag_groups CRUD + Notes/Daily Unified bridge fix）
+
+#### 概要
+
+Data Unification の「ユーザーから見える完了」を達成。WikiTag/Link UI を 4 role（Task / Event / Note / Daily）で稼働 + CalendarTag 概念の完全消滅 + wiki_tag_groups CRUD UI 実装 + 親計画書 DoD 達成宣言。実機検証で顕在化した Notes/Daily 永続化問題（legacy stub error + RLS items_meta exists check 失敗）を bridge delegate パターンで同時解決。
+
+#### 変更点（commit `8a45397`、23 files / +1939 / -162）
+
+**Tag/Link UI 新規 (Step 6-10)**:
+
+- `web/src/wikitag/{TagPill,TagPicker,LinkPanel,WikiTagsManagementView,index}.tsx` 新規 — 4 role 共通 + tag/group 管理ビュー
+- TagPicker: pills + 検索 + 既存タグ選択 + Create new affordance（Enter で確定）
+- LinkPanel: outgoing + incoming（backlink）+ datalist autocomplete で linkable items 候補表示
+- WikiTagsManagementView: tag CRUD + group CRUD + tag↔group 双方向 membership 編集
+- 4 role view (TaskTreeView / ScheduleItemsView / NotesView / DailyView) に `<TagPicker itemId>` + `<LinkPanel itemId>` 配置
+- MainScreen に "tags" セクション追加（Tasks / Daily / Notes / Schedule / Tags の 5 タブ）
+
+**wiki_tag_groups CRUD layer (Step 11)**:
+
+- `SupabaseWikiTagsUnifiedService` に group / group_assignment の 7 メソッド追加（list / create / update / softDelete / assignments / assign / unassign）
+- `useWikiTagsUnifiedAPI` を allGroups + allGroupAssignments の bulk cache 戦略に拡張
+- `DataService` interface に新メソッド型追加
+- PHASE2_WIKI_TAGS_UNIFIED_METHODS dispatch set に 7 メソッド追加
+
+**Notes/Daily 永続化 + RLS items_meta exists check fix (Step 14 中)**:
+
+- 問題: migration 0007 で `public.notes` / `public.dailies` が DROP 済 → legacy `SupabaseNotesService` / `SupabaseDailyService` が `_pendingDuRewrite` stub error throw → 書き込み停止 / リロード消失 / Tag/Link 経由の `wiki_tag_assignments` INSERT RLS WITH CHECK (`exists items_meta where id = item_id`) が 403
+- 対応: legacy class のコンストラクタに Unified service 参照を渡して **bridge delegate** に置換
+  - Notes: `fetchAllNotes` / `createNote` / `createNoteFolder` / `updateNote` / `syncNoteTree` / `softDeleteNote`
+  - Daily: `fetchAllDailies` / `fetchDailyByDate` / `upsertDaily` / `deleteDaily` / `toggleDailyPin`
+- 未対応（DU-G 残置）: password / lock / restore / permanentDelete / fetchDeletedNotes / searchNotes は stub or 空配列のまま（UI から触らなければ無害）
+
+**Step 12-13**:
+
+- RLS gate 確認（Supabase MCP advisor + execute*sql で 5 テーブル × RLS + 4 policy 確認 / calendar_tag*\* 不在確認）
+- 親計画書 `2026-05-21-data-unification-items-meta.md` DoD 達成宣言（DU-E / DU-G 残作業として明示分離）
+- CLAUDE.md §4.3 に composite FK pattern + Routine UX 再定義（Routine = Event の生成テンプレ、Tag/Link UI は持たない）一行追記
+- 移行 SSOT `2026-05-04-cross-platform-migration.md` の Phase 2↔3 間に Data Unification レーン完了記録追記
+- DU-G スケルトン `2026-05-25-data-unification-g-notes-daily-unified.md` 作成（Notes/Daily Unified write path 切替）
+- Link UX 強化スケルトン `2026-05-26-link-ux-obsidian-style.md` 作成（Obsidian 風 cross-role link + 遅延実体化 + クリック遷移）
+- CalendarTag stale comment 一掃（CalendarContext.tsx / context/index.ts / MainScreen.tsx）
+- DU-C+ / DU-F 両計画書を `.claude/archive/` に Status=COMPLETED で移動
+
+#### 検証
+
+- shared `tsc -b` exit 0 / shared vitest 170/170 / web `npm run build` exit 0
+- RLS gate offender 0（wiki_tags 系 5 テーブル × 4 policy 確認済）
+- Supabase advisor lint 新規 WARN 0（既知 `auth_leaked_password_protection` のみ）
+- `git grep -E "CalendarTagsProvider|CalendarTagsView|useCalendarTags|useCalendarTagsAPI|calendarTagDefinitionMapper|calendarTagAssignmentMapper" web/src shared/src` ヒット 0
+- `frontend/` touched 0
+- 実機 golden path 確認 OK: Task/Event/Note/Daily の Tag 付与 + Link 作成 + backlink 表示 / Notes/Daily のリロード後永続化
+
+#### 設計判断
+
+- **Bridge delegate 採用**: 既存 `useNotesAPI` / `useDailyAPI` の UI surface (700+ 行) を温存しつつ、内部の DataService 呼び出しだけを Unified に差し替え。完全な hook 書き換え（= DU-G）より遥かに低リスクで「リロードで残る」「Tag/Link が動く」を同時達成
+- **4 role 共通 UI**: Routine は Event の生成テンプレートに UX 再定義したため Tag/Link UI は持たない（4 role に限定）。データモデル上は items_meta 経由で Routine への Tag/Link も許容（UI 追加のみで対応可）
+- **bulk cache 戦略**: WikiTagsUnifiedAPI の `allGroups` / `allGroupAssignments` を mount 時 + syncVersion bump で一括 fetch。各 GroupCard が derived state で表示するため N+1 query を回避
+- **per-item assignments は lazy 取得**: TagPicker / LinkPanel は item_id ごとに on-mount fetch。N=1 ユーザー想定で行数が小さいため bulk vs lazy のトレードオフは lazy を選択
+
+#### Known Issues 候補（DU-G / Link UX 強化計画で消化予定）
+
+- Notes/Daily の Trash UI が常に空（DU-G で `fetchDeletedNotesUnified` 実装）
+- Notes の password / lock が未実装（DU-G）
+- Link 入力欄に存在しない id をペーストすると 403（Link UX 強化計画で stub 実体化を導入）
+- Schedule から Note への link 候補が autocomplete に出ない（Link UX 強化計画で cross-role 集約）
+
+#### 並行チャット干渉メモ
+
+- DU-F Step 6-14 作業中、別チャットが PR #22（`chore/subagent-worktree-tuning`）を進行 → working tree branch が chore に切り替わった状態で実装が進んでいた
+- 解決: stash → checkout data-unification → pop（chat-main.md で conflict → /tmp バックアップから resolve）→ pathspec stage で chore 由来の差分を含めずに commit
+- 教訓: per-chat memory ファイル名（chat-main）が両チャットで衝突。今後は session-id 別の per-chat name を採用するか、conflict 検出時の自動マージ戦略を検討
+
 ### 2026-05-24 - Anthropic Cloud Routine 2 本セットアップ（朝の歴史学習 + 帰宅時モバイル開発準備）
 
 #### 概要
