@@ -13,6 +13,7 @@
 
 ## 直近の完了 (across all chats, 各チャット最大 3 件)
 
+- [chat-prototype-mobile] Phase 3.H fix: peeking SwipePane + DayDetailSheet タップ復活 ✅ (2026-05-24)
 - [chat-prototype-mobile] Phase 3.G fix-pack + Schedule swipe (animated) ✅ (2026-05-24)
 - [chat-prototype-mobile] Phase 3.A〜F: prototype mock CRUD + 6 screens ✅ (2026-05-24)
 - [chat-main] DU-D Notes role + Daily 移植（scope-reduced）✅ (2026-05-24)

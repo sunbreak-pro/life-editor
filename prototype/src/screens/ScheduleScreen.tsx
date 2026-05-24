@@ -370,11 +370,8 @@ export function ScheduleScreen() {
     return m;
   }, [wikiTags]);
 
-  const monthCells = useMemo(() => buildMonthCells(anchorDate), [anchorDate]);
-  const threeDays = useMemo(
-    () => [addDays(anchorDate, -1), anchorDate, addDays(anchorDate, 1)],
-    [anchorDate],
-  );
+  // 月 / 3日 のセル計算は SwipePane の renderPage 内で都度行うので
+  // ここでは事前計算しない (3 ペーン分必要なため)
   const listGroups = useMemo(
     () => buildListGroups(filtered, today),
     [filtered, today],
@@ -469,45 +466,68 @@ export function ScheduleScreen() {
         }}
       />
 
-      <main className="flex-1 overflow-auto" style={{ background: C.base }}>
+      <main
+        className="flex-1 overflow-y-auto overflow-x-hidden"
+        style={{ background: C.base }}
+      >
         {view === "month" && (
           <SwipePane
-            onSwipeLeft={() => setAnchorDate(addMonths(anchorDate, 1))}
-            onSwipeRight={() => setAnchorDate(addMonths(anchorDate, -1))}
-          >
-            <MonthView
-              month={anchorDate}
-              cells={monthCells}
-              itemsByDay={itemsByDay}
-              today={today}
-              selectedDay={selectedDay}
-              onCellClick={(d) => {
-                if (d.getMonth() !== anchorDate.getMonth()) return;
-                setSelectedDay(d);
-              }}
-            />
-          </SwipePane>
+            onPrev={() => setAnchorDate(addMonths(anchorDate, -1))}
+            onNext={() => setAnchorDate(addMonths(anchorDate, 1))}
+            renderPage={(offset) => {
+              const pageDate =
+                offset === 0 ? anchorDate : addMonths(anchorDate, offset);
+              return (
+                <MonthView
+                  month={pageDate}
+                  cells={buildMonthCells(pageDate)}
+                  itemsByDay={itemsByDay}
+                  today={today}
+                  selectedDay={offset === 0 ? selectedDay : null}
+                  onCellClick={(d) => {
+                    if (offset !== 0) return;
+                    if (d.getMonth() !== pageDate.getMonth()) return;
+                    setSelectedDay(d);
+                  }}
+                />
+              );
+            }}
+          />
         )}
         {view === "three" && (
           <SwipePane
-            onSwipeLeft={() => setAnchorDate(addDays(anchorDate, 3))}
-            onSwipeRight={() => setAnchorDate(addDays(anchorDate, -3))}
-          >
-            <ThreeDayView
-              days={threeDays}
-              itemsByDay={itemsByDay}
-              today={today}
-              onEventClick={(item) => openEdit(item)}
-              onSlotClick={(day, hour) =>
-                openCreate({
-                  due: ymd(day),
-                  time: `${String(hour).padStart(2, "0")}:00`,
-                  endTime: `${String(Math.min(hour + 1, 23)).padStart(2, "0")}:00`,
-                  type: "event",
-                })
-              }
-            />
-          </SwipePane>
+            onPrev={() => setAnchorDate(addDays(anchorDate, -3))}
+            onNext={() => setAnchorDate(addDays(anchorDate, 3))}
+            renderPage={(offset) => {
+              const pageAnchor =
+                offset === 0 ? anchorDate : addDays(anchorDate, offset * 3);
+              const days = [
+                addDays(pageAnchor, -1),
+                pageAnchor,
+                addDays(pageAnchor, 1),
+              ];
+              return (
+                <ThreeDayView
+                  days={days}
+                  itemsByDay={itemsByDay}
+                  today={today}
+                  onEventClick={(item) => {
+                    if (offset !== 0) return;
+                    openEdit(item);
+                  }}
+                  onSlotClick={(day, hour) => {
+                    if (offset !== 0) return;
+                    openCreate({
+                      due: ymd(day),
+                      time: `${String(hour).padStart(2, "0")}:00`,
+                      endTime: `${String(Math.min(hour + 1, 23)).padStart(2, "0")}:00`,
+                      type: "event",
+                    });
+                  }}
+                />
+              );
+            }}
+          />
         )}
         {view === "list" && (
           <ListView
@@ -603,16 +623,30 @@ export function ScheduleScreen() {
   );
 }
 
-type SwipeMode = "idle" | "drag" | "commit-out" | "commit-in" | "snap-back";
+/**
+ * Peeking 型 SwipePane。
+ *
+ * 仕様:
+ *  - 3 ペーン (前 / 当 / 次) を `width: 300%` の横並びで描画
+ *  - 常に `translateX(calc(-33.3333% + dragX))` で中央 (当) を表示
+ *  - ドラッグ中は左右の隣接ページが「ちらっと見える」状態
+ *  - 解放時に閾値 (= width/3 もしくは fast flick) 超えなら隣ページが中央に
+ *    来る位置までスライドアニメ → 親が anchorDate を更新 → 同フレームで
+ *    `dragX = 0` に戻して transition オフ。新しい 3 ペーンが瞬時に中央
+ *    位置で描画されるので連続感が出る
+ *  - 純粋なタップ (axis 未確定 = 8px 未満) は何もせず click を通す
+ *    (DayDetailSheet が出ない旧バグの根本原因)
+ */
+type SwipeMode = "idle" | "drag" | "animating";
 
 function SwipePane({
-  onSwipeLeft,
-  onSwipeRight,
-  children,
+  onPrev,
+  onNext,
+  renderPage,
 }: {
-  onSwipeLeft: () => void;
-  onSwipeRight: () => void;
-  children: React.ReactNode;
+  onPrev: () => void;
+  onNext: () => void;
+  renderPage: (offset: -1 | 0 | 1) => React.ReactNode;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const startRef = useRef<{
@@ -625,14 +659,9 @@ function SwipePane({
   const [dragX, setDragX] = useState(0);
   const [mode, setMode] = useState<SwipeMode>("idle");
 
-  const resetStart = () => {
-    startRef.current = null;
-    axisRef.current = null;
-  };
-
   const handlePointerDown = (e: React.PointerEvent) => {
     if (e.pointerType === "mouse" && e.button !== 0) return;
-    if (mode === "commit-out" || mode === "commit-in") return;
+    if (mode === "animating") return;
     startRef.current = {
       x: e.clientX,
       y: e.clientY,
@@ -640,108 +669,141 @@ function SwipePane({
       t: Date.now(),
     };
     axisRef.current = null;
-    setMode("idle");
-    setDragX(0);
   };
 
   const handlePointerMove = (e: React.PointerEvent) => {
     const s = startRef.current;
     if (!s || s.pid !== e.pointerId) return;
+    if (mode === "animating") return;
     const dx = e.clientX - s.x;
     const dy = e.clientY - s.y;
     if (axisRef.current === null) {
       if (Math.abs(dx) < 8 && Math.abs(dy) < 8) return;
       axisRef.current = Math.abs(dx) > Math.abs(dy) ? "horizontal" : "vertical";
+      if (axisRef.current === "horizontal") setMode("drag");
     }
-    if (axisRef.current === "vertical") {
-      resetStart();
-      if (mode !== "idle") {
-        setMode("snap-back");
-        setDragX(0);
-        window.setTimeout(() => setMode("idle"), 200);
-      }
-      return;
-    }
-    setMode("drag");
+    if (axisRef.current === "vertical") return;
     setDragX(dx);
   };
 
   const handlePointerUp = (e: React.PointerEvent) => {
     const s = startRef.current;
-    resetStart();
+    startRef.current = null;
     if (!s || s.pid !== e.pointerId) return;
+
+    // 純粋なタップ (horizontal axis に乗らなかった) は何もしない。
+    // 状態を初期化して click を子要素に通す。
+    if (axisRef.current !== "horizontal") {
+      axisRef.current = null;
+      setMode("idle");
+      setDragX(0);
+      return;
+    }
+
     const dx = e.clientX - s.x;
     const dt = Date.now() - s.t;
     const width = containerRef.current?.offsetWidth ?? 320;
     const distance = Math.abs(dx);
     const isFastFlick = dt < 250 && distance > 30;
-    const shouldCommit = distance > width / 4 || isFastFlick;
+    const shouldCommit = distance > width / 3 || isFastFlick;
+
+    setMode("animating");
 
     if (!shouldCommit) {
-      setMode("snap-back");
+      // スナップバック: 中央へ戻す
       setDragX(0);
-      window.setTimeout(() => setMode("idle"), 200);
+      window.setTimeout(() => {
+        axisRef.current = null;
+        setMode("idle");
+      }, 220);
       return;
     }
 
+    // コミット: 隣ペーンが中央に来る位置まで持っていく → 親が anchorDate
+    // を更新 → 新しい 3 ペーンが描画されるので、同フレームで dragX を 0
+    // に戻すと中央が新しい当月になる
     const direction = dx > 0 ? 1 : -1;
-    setMode("commit-out");
     setDragX(direction * width);
     window.setTimeout(() => {
-      if (direction > 0) onSwipeRight();
-      else onSwipeLeft();
-      setMode("idle");
-      setDragX(-direction * width);
+      if (direction > 0) onPrev();
+      else onNext();
       window.requestAnimationFrame(() => {
-        setMode("commit-in");
         setDragX(0);
-        window.setTimeout(() => setMode("idle"), 250);
+        axisRef.current = null;
+        setMode("idle");
       });
-    }, 200);
+    }, 220);
   };
 
   const handlePointerCancel = (e: React.PointerEvent) => {
     const s = startRef.current;
-    resetStart();
+    startRef.current = null;
     if (!s || s.pid !== e.pointerId) return;
-    setMode("snap-back");
-    setDragX(0);
-    window.setTimeout(() => setMode("idle"), 200);
+    if (axisRef.current === "horizontal") {
+      setMode("animating");
+      setDragX(0);
+      window.setTimeout(() => {
+        axisRef.current = null;
+        setMode("idle");
+      }, 220);
+    } else {
+      axisRef.current = null;
+      setMode("idle");
+      setDragX(0);
+    }
   };
 
   const handleClickCapture = (e: React.MouseEvent) => {
-    if (
-      mode === "drag" ||
-      mode === "commit-out" ||
-      mode === "commit-in" ||
-      mode === "snap-back"
-    ) {
+    // 実ドラッグ済 (axisRef = horizontal) または animation 中のみ click 吸収。
+    // 純粋なタップ (axisRef = null) は通す。
+    if (axisRef.current === "horizontal" || mode === "animating") {
       e.preventDefault();
       e.stopPropagation();
     }
   };
 
   const transition =
-    mode === "idle" || mode === "drag"
+    mode === "drag"
       ? "none"
       : "transform 220ms cubic-bezier(0.22, 0.61, 0.36, 1)";
 
   return (
-    <div ref={containerRef} className="overflow-hidden">
+    <div ref={containerRef} className="overflow-hidden h-full">
       <div
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
         onPointerCancel={handlePointerCancel}
         onClickCapture={handleClickCapture}
+        className="flex h-full"
         style={{
-          transform: `translateX(${dragX}px)`,
+          width: "300%",
+          transform: `translate3d(calc(-33.3333% + ${dragX}px), 0, 0)`,
           transition,
           touchAction: "pan-y",
           willChange: mode === "idle" ? "auto" : "transform",
         }}
       >
-        {children}
+        <div
+          className="h-full overflow-hidden"
+          style={{ flex: "0 0 33.3333%", width: "33.3333%" }}
+          aria-hidden="true"
+        >
+          {renderPage(-1)}
+        </div>
+        <div
+          className="h-full overflow-hidden"
+          style={{ flex: "0 0 33.3333%", width: "33.3333%" }}
+        >
+          {renderPage(0)}
+        </div>
+        <div
+          className="h-full overflow-hidden"
+          style={{ flex: "0 0 33.3333%", width: "33.3333%" }}
+          aria-hidden="true"
+        >
+          {renderPage(1)}
+        </div>
       </div>
     </div>
   );
