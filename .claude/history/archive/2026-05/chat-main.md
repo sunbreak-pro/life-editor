@@ -2,6 +2,19 @@
 
 ローリングアーカイブ: `history/chat-main.md` が 5 件超過した際に最古エントリをここへ移動。時系列降順。
 
+### 2026-05-23 - Schedule 無限ループ修正（RoutineScheduleSync no-op 化）
+
+#### 概要
+
+DU-C/D pending stubs 投入後のユーザー実機検証で「Routine 生成時にコンソールエラーが永遠に吐き出される」バグが顕在化。原因を特定して `web/src/schedule/RoutineScheduleSync.tsx` を DU-C 完了まで no-op 化することで根本撤去。
+
+#### 変更点
+
+- **Frontend / web**: `web/src/schedule/RoutineScheduleSync.tsx` の useEffect + `useScheduleItemsRoutineSync` 呼び出しを全削除して `return null` 化（87 → 70 行）
+- **Root cause 記録**: 無限ループ経路 6 ステップ（createRoutine → setRoutines optimistic → effect 発火 → ensure → bulkCreate stub throw → **catch 外**の `if (toCreate.length > 0) notifyChanged()` 発火 → loadDate → setItems(新空配列) → context 新参照 → 再 render → effect 再発火 → ループ）と DU-C 完了時の復活手順をコンポーネント先頭コメントに保存
+- **検証**: shared `npx tsc -b` 緑 / shared `npm test` 91/91 緑 / web `npm run build` 緑（929 kB）
+- **session-verifier**: 全 6 Gate PASS（Types / Lint / Tests / Coverage skip / Structural / Bug Scan）
+
 ### 2026-05-23 - DU-C/D pending stubs（8 services 一時 no-op）
 
 #### 概要

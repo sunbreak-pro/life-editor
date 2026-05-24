@@ -1,5 +1,34 @@
 # HISTORY (chat-main)
 
+### 2026-05-24 - Anthropic Cloud Routine 2 本セットアップ（朝の歴史学習 + 帰宅時モバイル開発準備）
+
+#### 概要
+
+Claude Code の `/loop` (ローカル・短期ポーリング) と `/schedule` (Anthropic Cloud Routine = cron 永続) の挙動差を hello world で実体験した上で、life-editor 用に永続 Routine を 2 本セットアップ。学習用 (朝 07:03 JST 配信の紀元前歴史マイクロエッセイ・週単位ジャンル深堀り型) と開発支援用 (帰宅 17:55 JST に GitHub 上のリポジトリ健全性チェック → 電車中タスク 3〜5 件抽出 → 高信頼 auto-fix draft PR 最大 2 件作成 → HTML ブリーフィング出力)。
+
+#### 変更点
+
+- **/loop hello world 完走**: `1-59/2 * * * *` (cron) + counter file + 自己 CronDelete で 3 回発火後の自動停止を実装・動作確認。観察: 奇数分指定でも実発火は :38 だった = REPL idle 待ちで jitter (10% / 最大 15 分の仕様内)
+- **Routine 1: weekly-bce-bronze-age-collapse** (`trig_01K2emDH9VwKsFif4MTELcKK`): hello-world-utc-time を update で上書き再利用 (削除 API 不在による累積防止)。cron `3 22 * * *` UTC = 07:03 JST 毎日 / model claude-opus-4-7 / tools Bash のみ。7 日カリキュラム (海の民と青銅器時代の崩壊 BCE 1200 年) を prompt 内 case 文で日付別 dispatch。各日構成: 今日の題材 / 背景 / 情景 / つながり / 一次資料 (5 ブロック / 1500〜3000 字 / セピア紙色 HTML embed)。週末ジャンル変更フロー = チャットで選定 → 新 7 日カリキュラム設計 → 同 Routine を update で上書き
+- **Routine 2: commute-mobile-dev-prep** (`trig_01SPebtYwCLHKMLEZoH5vkiH`): cron `55 8 * * *` UTC = 17:55 JST 毎日 / model claude-opus-4-7 / tools Bash/Read/Edit/Write/Glob/Grep。5 ステップ: 健全性チェック (build/lint/test exit code 収集) → 24h 活動収集 (git log + gh pr/issue list + TODO grep) → 電車中タスク 3〜5 件特定 (type=auto-fix/decide/review × effort × mobile-feasible) → auto-fix draft PR 最大 2 件作成 (`commute/YYYY-MM-DD-N-<slug>` branch) → HTML ブリーフィング出力 (cool blue-grey dev tool テンプレ)
+- **auto-memory 書き残し** (`~/.claude/projects/-Users-newlife-dev-apps-life-editor/memory/` 配下、リポジトリ外): `project_weekly_learning_routine.md` / `user_history_learning_preferences.md` / `project_commute_mobile_dev_routine.md` + MEMORY.md index 3 件追記
+
+#### 検証
+
+- /loop hello world: 3/3 表示 + 自己削除完走確認
+- /schedule hello world: 手動キック投入後、即時 routine 上書きで実行ログは未取得
+- 学習 Routine: Day 1 配信は明朝 07:03 JST (現時点は prompt 設計のみ)
+- commute Routine: 手動キック投入済 (cloud 非同期)。結果は claude.ai routine ページで確認待ち
+- 未検証ポイント: cloud env での gh CLI 認証 / git push 権限 / npm ci 動作 → 初回 run の HTML Notice セクションに自己記録される設計
+
+#### 設計判断
+
+- **Routine 再利用 (累積防止)**: hello-world を学習 Routine に update で転用。削除 API がない (web UI のみ) ため、新規作成は厳禁
+- **状態管理は date case 文に集約**: クラウド Routine 間で状態共有不可なので、Notion DB 等の外部状態は採用せず、prompt 自体に 7 日分の date 直接列挙で stateless dispatch
+- **auto-fix PR 件数上限 2**: 1 日 21 件 PR スパム化を防ぐ。decide / review は briefing 内に留め PR 化しない
+- **MCP 接続性の制約認識**: クラウド Routine は stdio ベース life-editor MCP に触れない (ローカル machine 不在)。学習 Routine は外部状態不要、commute Routine は GitHub 経由のみで完結する設計
+- **HTML 出力 = 唯一の応答**: routine ログに HTML がレンダリングされる前提で、応答全体を 1 個の自己完結 HTML に統一 (前置き・後書き禁止)
+
 ### 2026-05-24 - DU-D scope-reduced 完了（Notes/Daily shared 2-row mapper + composite FK migration 0014）
 
 #### 概要
@@ -139,19 +168,5 @@ DU-C/D pending stubs 投入後の実機検証で顕在化した「Routine 削除
 - **CLAUDE.md §7.3 追加**: 「Plan Gate Convention」小節を新設し、テンプレ・hook・Gate 凡例・DB Migration ルールを SSOT 化。session-verifier との役割分担も明示（verifier = commit 前明示呼び出し / Stop hook = 毎ターン自動スナップショット、重複しない）
 - **設計判断**: 「人手ゲートを減らす」のではなく「人手 1 コマンドで通せる形に圧縮する」方針を採用。`apply_migration` MCP 単独使用は schema drift を確定させるため禁止と明記
 - **検証**: hook dry run（frontend 変更なし → 即 exit 0）成功。本番動作は次回応答終了時から有効化
-
-### 2026-05-23 - Schedule 無限ループ修正（RoutineScheduleSync no-op 化）
-
-#### 概要
-
-DU-C/D pending stubs 投入後のユーザー実機検証で「Routine 生成時にコンソールエラーが永遠に吐き出される」バグが顕在化。原因を特定して `web/src/schedule/RoutineScheduleSync.tsx` を DU-C 完了まで no-op 化することで根本撤去。
-
-#### 変更点
-
-- **Frontend / web**: `web/src/schedule/RoutineScheduleSync.tsx` の useEffect + `useScheduleItemsRoutineSync` 呼び出しを全削除して `return null` 化（87 → 70 行）
-- **Root cause 記録**: 無限ループ経路 6 ステップ（createRoutine → setRoutines optimistic → effect 発火 → ensure → bulkCreate stub throw → **catch 外**の `if (toCreate.length > 0) notifyChanged()` 発火 → loadDate → setItems(新空配列) → context 新参照 → 再 render → effect 再発火 → ループ）と DU-C 完了時の復活手順をコンポーネント先頭コメントに保存
-- **検証**: shared `npx tsc -b` 緑 / shared `npm test` 91/91 緑 / web `npm run build` 緑（929 kB）
-- **session-verifier**: 全 6 Gate PASS（Types / Lint / Tests / Coverage skip / Structural / Bug Scan）
-
 
 > 古いエントリは [`archive/2026-05/chat-main.md`](./archive/2026-05/chat-main.md) を参照（DU-B-3 / B-4 / B-6 / DU-C/D pending stubs / TaskTreeView DnD ほか）
