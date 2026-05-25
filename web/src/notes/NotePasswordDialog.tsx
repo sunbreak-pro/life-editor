@@ -2,7 +2,7 @@ import { useEffect, useId, useRef, useState } from "react";
 
 /*
  * Note password / edit-lock dialog (S3, required incl. UI). Wires the
- * shared DataService-backed actions exposed on `useNoteContext`:
+ * shared DataService-backed actions exposed on `useNotesUnifiedContext`:
  *   - setNotePassword / removeNotePassword / verifyNotePassword
  *   - toggleEditLock
  *

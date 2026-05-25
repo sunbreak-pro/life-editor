@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { useDailyContext } from "@life-editor/shared";
+import { useDailiesUnifiedContext } from "@life-editor/shared";
 import { TagPicker, LinkPanel } from "../wikitag";
 
 /*
@@ -34,7 +34,7 @@ export function DailyView() {
     togglePin,
     restoreDaily,
     loadDeletedDailies,
-  } = useDailyContext();
+  } = useDailiesUnifiedContext();
 
   // The editable draft mirrors the selected daily's stored content. It is
   // resynced when the selection changes OR when the persisted content for

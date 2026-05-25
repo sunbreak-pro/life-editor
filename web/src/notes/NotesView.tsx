@@ -22,7 +22,7 @@ import {
   Trash2,
   RotateCcw,
 } from "lucide-react";
-import { useNoteContext, type NoteNode } from "@life-editor/shared";
+import { useNotesUnifiedContext, type NoteNode } from "@life-editor/shared";
 import { useNoteTreeDnd } from "./useNoteTreeDnd";
 import { RichTextEditor } from "./RichTextEditor";
 import {
@@ -267,7 +267,7 @@ function NoteTitleInput({
 }
 
 export function NotesView() {
-  const notes = useNoteContext();
+  const notes = useNotesUnifiedContext();
   const [pwDialog, setPwDialog] = useState<{
     mode: NotePasswordMode;
     noteId: string;

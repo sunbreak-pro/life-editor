@@ -4,8 +4,8 @@ import {
   signOut,
   SyncProvider,
   TaskTreeProvider,
-  DailyProvider,
-  NoteProvider,
+  DailiesUnifiedProvider,
+  NotesUnifiedProvider,
   RoutineProvider,
   ScheduleItemsProvider,
   CalendarProvider,
@@ -20,6 +20,7 @@ import { ScheduleView } from "./schedule/ScheduleView";
 import { ScheduleItemsView } from "./schedule/ScheduleItemsView";
 import { RoutineScheduleSync } from "./schedule/RoutineScheduleSync";
 import { CalendarView } from "./schedule/CalendarView";
+import { WikiTagsManagementView } from "./wikitag";
 
 /*
  * Phase 2 S1+S2 host shell.
@@ -102,18 +103,18 @@ export function MainScreen({ session }: { session: Session }) {
         {section === "daily" && (
           <SyncProvider>
             <WikiTagsUnifiedProvider dataService={ds}>
-              <DailyProvider dataService={ds}>
+              <DailiesUnifiedProvider dataService={ds}>
                 <DailyView />
-              </DailyProvider>
+              </DailiesUnifiedProvider>
             </WikiTagsUnifiedProvider>
           </SyncProvider>
         )}
         {section === "notes" && (
           <SyncProvider>
             <WikiTagsUnifiedProvider dataService={ds}>
-              <NoteProvider dataService={ds}>
+              <NotesUnifiedProvider dataService={ds}>
                 <NotesView />
-              </NoteProvider>
+              </NotesUnifiedProvider>
             </WikiTagsUnifiedProvider>
           </SyncProvider>
         )}
