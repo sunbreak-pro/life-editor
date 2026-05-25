@@ -17,7 +17,7 @@ import type {
 /*
  * Web-side @dnd-kit glue for the note tree (S3). This is the host UI's
  * pointer→intent translator: it maps drag gestures onto the three pure
- * move operations the shared `useNoteContext` exposes (moveNode /
+ * move operations the shared `useNotesUnifiedContext` exposes (moveNode /
  * moveNodeInto / moveToRoot). It lives in `web/` (not `shared/`) so the
  * shared package stays UI/dnd-free — Option A keeps shared at the same
  * UI-free boundary as S1/S2. 1:1 behaviour port of

@@ -55,6 +55,20 @@ export { DailyContext, type DailyContextValue } from "./context";
 export { useDailyContext } from "./hooks/useDailyContext";
 export { useDailyAPI, type UseDailyAPIOptions } from "./hooks/useDailyAPI";
 
+// DU-G G3: Daily domain in the "Unified naming" surface. Mountable
+// side-by-side with the legacy DailyProvider; web/ MainScreen mounts
+// only the Unified variant. G4 retires the legacy names.
+export { DailiesUnifiedProvider } from "./context";
+export {
+  DailiesUnifiedContext,
+  type DailiesUnifiedContextValue,
+} from "./context";
+export { useDailiesUnifiedContext } from "./hooks/useDailiesUnifiedContext";
+export {
+  useDailiesUnifiedAPI,
+  type UseDailiesUnifiedAPIOptions,
+} from "./hooks/useDailiesUnifiedAPI";
+
 // Note domain — context (Pattern A) + hooks (DI: dataService/undoRedo).
 // Tree-move logic is a pure shared hook; the @dnd-kit pointer glue lives
 // in the host UI (web) so the shared package stays UI/dnd-free.
@@ -67,6 +81,18 @@ export {
   type NoteSortDirection,
 } from "./hooks/useNotesAPI";
 export { useNoteTreeMovement } from "./hooks/useNoteTreeMovement";
+
+// DU-G G3: Note domain in the "Unified naming" surface.
+export { NotesUnifiedProvider } from "./context";
+export {
+  NotesUnifiedContext,
+  type NotesUnifiedContextValue,
+} from "./context";
+export { useNotesUnifiedContext } from "./hooks/useNotesUnifiedContext";
+export {
+  useNotesUnifiedAPI,
+  type UseNotesUnifiedAPIOptions,
+} from "./hooks/useNotesUnifiedAPI";
 
 // Routine domain — context (Pattern A) + hook (DI: dataService/undoRedo).
 // First of the Schedule trio (§6.2). routines + routine_groups +
