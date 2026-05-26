@@ -3,6 +3,7 @@ import {
   ITEMS_META_DAILY_COLUMNS,
   DAILIES_PAYLOAD_COLUMNS,
   assertDailyDate,
+  assertDailyId,
   dailyNodeToRows,
   dailyUpdatesToPatches,
   rowsToDailyNode,
@@ -235,6 +236,327 @@ export class SupabaseDailiesUnifiedService {
     if (error)
       throw new Error(`softDeleteDailyUnified failed: ${error.message}`);
   }
+
+  // -------------------------------------------------------------------------
+  // Trash (DU-G G2)
+  // -------------------------------------------------------------------------
+
+  /**
+   * List soft-deleted dailies (role='daily' AND is_deleted=true). Same 2-query
+   * meta+payload in-memory join as listDailiesUnified — but with the deleted
+   * filter flipped so the Trash view can populate. Ordered by deleted_at DESC
+   * at the items_meta layer ("most-recently trashed first" — parity with the
+   * Notes G1 ordering policy and the legacy `dailies` query).
+   *
+   * Daily has no hierarchy so descendants / cycle-guard are unneeded (unlike
+   * Notes G1 — see SupabaseNotesUnifiedService.permanentDeleteNoteUnified).
+   */
+  async fetchDeletedDailiesUnified(): Promise<DailyNode[]> {
+    const { data: metas, error: metaErr } = await this.client
+      .from("items_meta")
+      .select(ITEMS_META_DAILY_COLUMNS)
+      .eq("role", "daily")
+      .eq("is_deleted", true)
+      .order("deleted_at", { ascending: false });
+    if (metaErr)
+      throw new Error(
+        `fetchDeletedDailiesUnified meta failed: ${metaErr.message}`,
+      );
+
+    const ids = (metas ?? []).map(
+      (m) => (m as unknown as ItemsMetaDailyRow).id,
+    );
+    if (ids.length === 0) return [];
+
+    const { data: payloads, error: payErr } = await this.client
+      .from("dailies_payload")
+      .select(DAILIES_PAYLOAD_COLUMNS)
+      .in("item_id", ids);
+    if (payErr)
+      throw new Error(
+        `fetchDeletedDailiesUnified payload failed: ${payErr.message}`,
+      );
+
+    const payloadById = new Map<string, DailiesPayloadRow>();
+    for (const p of payloads ?? []) {
+      const row = p as unknown as DailiesPayloadRow;
+      payloadById.set(row.item_id, row);
+    }
+
+    const out: DailyNode[] = [];
+    for (const m of metas ?? []) {
+      const meta = m as unknown as ItemsMetaDailyRow;
+      const payload = payloadById.get(meta.id);
+      if (!payload) continue; // orphan meta — skip rather than throw
+      out.push(rowsToDailyNode(meta, payload));
+    }
+    return out;
+  }
+
+  /**
+   * Reverse a soft-delete. Clears items_meta.is_deleted / deleted_at and
+   * bumps updated_at + version so Sync LWW propagates the restore. Mirrors
+   * Notes G1 restoreNoteUnified (single-row); Daily has no descendants so
+   * no subtree consideration.
+   */
+  async restoreDailyUnified(id: string): Promise<void> {
+    assertDailyId(id);
+    const now = new Date().toISOString();
+    const nextVersion = await this.nextVersion(id, "restoreDailyUnified");
+    const { error } = await this.client
+      .from("items_meta")
+      .update({
+        is_deleted: false,
+        deleted_at: null,
+        updated_at: now,
+        version: nextVersion,
+      })
+      .eq("id", id)
+      .eq("role", "daily");
+    if (error) throw new Error(`restoreDailyUnified failed: ${error.message}`);
+  }
+
+  /**
+   * Hard-delete from items_meta. dailies_payload is cleaned up automatically
+   * by the 0008 `ON DELETE CASCADE` FK (`dailies_payload.item_id ->
+   * items_meta(id)`). Daily has no children (1 row per date, no parent
+   * column), so the descendants/cycle-guard loop used by
+   * permanentDeleteNoteUnified is intentionally absent here.
+   */
+  async permanentDeleteDailyUnified(id: string): Promise<void> {
+    assertDailyId(id);
+    const { error } = await this.client
+      .from("items_meta")
+      .delete()
+      .eq("id", id)
+      .eq("role", "daily");
+    if (error)
+      throw new Error(`permanentDeleteDailyUnified failed: ${error.message}`);
+  }
+
+  // -------------------------------------------------------------------------
+  // Password gate (DU-G G2)
+  //
+  // SECURITY DEBT (carried from legacy / Notes G1 parity): the
+  // `password_hash` column stores PLAINTEXT (bcrypt / argon2 not applied).
+  // The DAILIES_PAYLOAD_COLUMNS SELECT list deliberately omits
+  // `password_hash`, so the raw value never crosses the public SELECT path;
+  // only verifyDailyPasswordUnified projects the single column. RLS scopes
+  // every read to auth.uid()'s rows. `has_password` is the generated stored
+  // boolean projected back to the client.
+  //
+  // Tracking: docs/known-issues/027 (Notes/Daily password plaintext debt).
+  // Must be replaced with a real hash before the N>1 Cloud Sync expansion.
+  // -------------------------------------------------------------------------
+
+  /**
+   * Write password_hash into dailies_payload. DailyNode round-trip done via
+   * id-based re-read so the GENERATED `has_password` column reflects on the
+   * returned domain object. Bumps items_meta.updated_at + version so Sync
+   * LWW propagates.
+   *
+   * SECURITY DEBT: plaintext storage. See known-issues 027.
+   */
+  async setDailyPasswordUnified(
+    id: string,
+    password: string,
+  ): Promise<DailyNode> {
+    assertDailyId(id);
+    const now = new Date().toISOString();
+    const nextVersion = await this.nextVersion(id, "setDailyPasswordUnified");
+
+    const { error: metaErr } = await this.client
+      .from("items_meta")
+      .update({ updated_at: now, version: nextVersion })
+      .eq("id", id)
+      .eq("role", "daily");
+    if (metaErr)
+      throw new Error(
+        `setDailyPasswordUnified meta failed: ${metaErr.message}`,
+      );
+
+    const { error: payErr } = await this.client
+      .from("dailies_payload")
+      .update({ password_hash: password })
+      .eq("item_id", id);
+    if (payErr)
+      throw new Error(
+        `setDailyPasswordUnified payload failed: ${payErr.message}`,
+      );
+
+    return this.readBackById(id, "setDailyPasswordUnified");
+  }
+
+  /**
+   * Verify-then-clear. A wrong currentPassword must NOT mutate the row, so
+   * verify is the first step and rejects on mismatch (Notes G1 parity).
+   *
+   * SECURITY DEBT: plaintext eq. See known-issues 027.
+   */
+  async removeDailyPasswordUnified(
+    id: string,
+    currentPassword: string,
+  ): Promise<DailyNode> {
+    assertDailyId(id);
+    const valid = await this.verifyDailyPasswordUnified(id, currentPassword);
+    if (!valid) throw new Error("Invalid password");
+
+    const now = new Date().toISOString();
+    const nextVersion = await this.nextVersion(
+      id,
+      "removeDailyPasswordUnified",
+    );
+
+    const { error: metaErr } = await this.client
+      .from("items_meta")
+      .update({ updated_at: now, version: nextVersion })
+      .eq("id", id)
+      .eq("role", "daily");
+    if (metaErr)
+      throw new Error(
+        `removeDailyPasswordUnified meta failed: ${metaErr.message}`,
+      );
+
+    const { error: payErr } = await this.client
+      .from("dailies_payload")
+      .update({ password_hash: null })
+      .eq("item_id", id);
+    if (payErr)
+      throw new Error(
+        `removeDailyPasswordUnified payload failed: ${payErr.message}`,
+      );
+
+    return this.readBackById(id, "removeDailyPasswordUnified");
+  }
+
+  /**
+   * Plaintext equality. SELECTs password_hash from dailies_payload (RLS
+   * scopes to auth.uid()'s rows). Returns `false` when no hash is set OR
+   * the row does not exist (maybeSingle -> null).
+   *
+   * SECURITY DEBT: plaintext eq. See known-issues 027.
+   */
+  async verifyDailyPasswordUnified(
+    id: string,
+    password: string,
+  ): Promise<boolean> {
+    const { data, error } = await this.client
+      .from("dailies_payload")
+      .select("password_hash")
+      .eq("item_id", id)
+      .maybeSingle();
+    if (error)
+      throw new Error(`verifyDailyPasswordUnified failed: ${error.message}`);
+    const hash = (data as { password_hash: string | null } | null)
+      ?.password_hash;
+    return hash != null && hash === password;
+  }
+
+  // -------------------------------------------------------------------------
+  // Edit lock (DU-G G2)
+  // -------------------------------------------------------------------------
+
+  /**
+   * Flip dailies_payload.is_edit_locked. Read-modify-write because PostgREST
+   * cannot express the SQLite `CASE WHEN ... END` in one statement. Bumps
+   * items_meta.updated_at + version so Sync LWW propagates.
+   */
+  async toggleDailyEditLockUnified(id: string): Promise<DailyNode> {
+    assertDailyId(id);
+    const { data: cur, error: readErr } = await this.client
+      .from("dailies_payload")
+      .select("is_edit_locked")
+      .eq("item_id", id)
+      .single();
+    if (readErr)
+      throw new Error(
+        `toggleDailyEditLockUnified read failed: ${readErr.message}`,
+      );
+    const next = !(cur as { is_edit_locked: boolean }).is_edit_locked;
+
+    const now = new Date().toISOString();
+    const nextVersion = await this.nextVersion(
+      id,
+      "toggleDailyEditLockUnified",
+    );
+
+    const { error: metaErr } = await this.client
+      .from("items_meta")
+      .update({ updated_at: now, version: nextVersion })
+      .eq("id", id)
+      .eq("role", "daily");
+    if (metaErr)
+      throw new Error(
+        `toggleDailyEditLockUnified meta failed: ${metaErr.message}`,
+      );
+
+    const { error: payErr } = await this.client
+      .from("dailies_payload")
+      .update({ is_edit_locked: next })
+      .eq("item_id", id);
+    if (payErr)
+      throw new Error(
+        `toggleDailyEditLockUnified payload failed: ${payErr.message}`,
+      );
+
+    return this.readBackById(id, "toggleDailyEditLockUnified");
+  }
+
+  // -------------------------------------------------------------------------
+  // Helpers
+  // -------------------------------------------------------------------------
+
+  /**
+   * Read items_meta + dailies_payload by id and stitch into DailyNode. Used
+   * by the password / lock paths so the returned domain object reflects the
+   * latest GENERATED `has_password` + flipped flags. getDailyByDateUnified
+   * keys by date — these mutators key by id, so we cannot reuse it directly.
+   */
+  private async readBackById(id: string, label: string): Promise<DailyNode> {
+    const { data: meta, error: metaErr } = await this.client
+      .from("items_meta")
+      .select(ITEMS_META_DAILY_COLUMNS)
+      .eq("id", id)
+      .eq("role", "daily")
+      .maybeSingle();
+    if (metaErr)
+      throw new Error(`${label} re-read meta failed: ${metaErr.message}`);
+    if (!meta)
+      throw new Error(`${label}: row vanished after update (id="${id}")`);
+
+    const { data: payload, error: payErr } = await this.client
+      .from("dailies_payload")
+      .select(DAILIES_PAYLOAD_COLUMNS)
+      .eq("item_id", id)
+      .maybeSingle();
+    if (payErr)
+      throw new Error(`${label} re-read payload failed: ${payErr.message}`);
+    if (!payload)
+      throw new Error(`${label}: payload vanished (id="${id}")`);
+
+    return rowsToDailyNode(
+      meta as unknown as ItemsMetaDailyRow,
+      payload as unknown as DailiesPayloadRow,
+    );
+  }
+
+  /**
+   * Read current items_meta.version and return version + 1. Mirrors the
+   * Notes G1 `nextVersion` helper. A missing row throws (caller invariant:
+   * the row exists; this helper only runs from password/lock/restore paths
+   * where the caller has already located the daily by id).
+   */
+  private async nextVersion(id: string, label: string): Promise<number> {
+    const { data, error } = await this.client
+      .from("items_meta")
+      .select("version")
+      .eq("id", id)
+      .eq("role", "daily")
+      .single();
+    if (error) throw new Error(`${label} version read: ${error.message}`);
+    const row = data as { version: number | null };
+    return (row?.version ?? 0) + 1;
+  }
 }
 
 export const PHASE2_DAILIES_UNIFIED_METHODS: ReadonlySet<string> = new Set([
@@ -244,4 +566,12 @@ export const PHASE2_DAILIES_UNIFIED_METHODS: ReadonlySet<string> = new Set([
   "createDailyUnified",
   "updateDailyUnified",
   "softDeleteDailyUnified",
+  // DU-G G2
+  "fetchDeletedDailiesUnified",
+  "restoreDailyUnified",
+  "permanentDeleteDailyUnified",
+  "setDailyPasswordUnified",
+  "removeDailyPasswordUnified",
+  "verifyDailyPasswordUnified",
+  "toggleDailyEditLockUnified",
 ]);

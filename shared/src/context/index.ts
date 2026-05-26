@@ -13,8 +13,25 @@ export {
 export { DailyProvider } from "./DailyContext";
 export { DailyContext, type DailyContextValue } from "./DailyContextValue";
 
+// DU-G G3: Pattern A Provider in the "Unified naming" surface. Coexists
+// with legacy `DailyProvider` until G4 retires the legacy mapper/Bridge
+// and rewrites the hook body to call *Unified DataService methods directly.
+export { DailiesUnifiedProvider } from "./DailiesUnifiedContext";
+export {
+  DailiesUnifiedContext,
+  type DailiesUnifiedContextValue,
+} from "./DailiesUnifiedContextValue";
+
 export { NoteProvider } from "./NoteContext";
 export { NoteContext, type NoteContextValue } from "./NoteContextValue";
+
+// DU-G G3: same coexistence pattern for Notes — see G3/G4 transition
+// rationale in `NotesUnifiedContextValue.ts`.
+export { NotesUnifiedProvider } from "./NotesUnifiedContext";
+export {
+  NotesUnifiedContext,
+  type NotesUnifiedContextValue,
+} from "./NotesUnifiedContextValue";
 
 export { RoutineProvider } from "./RoutineContext";
 export {
