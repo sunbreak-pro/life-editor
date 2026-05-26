@@ -227,11 +227,11 @@ cd frontend && npm run build                            # 型検証（tsc -b。-
 
 - **メインで `git checkout <feature>` 禁止**。feature 作業は必ず worktree から行う
 - 起動: `claude --worktree <slug>` で Claude Code 公式の自動管理に乗る（[公式 doc](https://code.claude.com/docs/en/worktrees)）。既存 branch を触る場合は `git worktree add .claude/worktrees/<slug>/ <existing-branch>` 後にその path で起動
-- ブランチ宣言: `.claude/comm/.session-branch` に担当 branch を書き出す。SessionStart hook 検査 F が `pwd` の branch と照合し不一致なら outbox 警告
+- ブランチ宣言: worktree 作成手順の 1 ステップとして `echo <branch> > .claude/comm/.session-branch` を打つ（reactive な「未宣言なら促す」ではなく、作成手順に組み込む proactive 運用）。SessionStart hook 検査 F が `pwd` の branch と照合し不一致なら outbox 警告
 - 同一ブランチの二重 checkout は git 仕様で不可（`--force` は破損リスク。Archon #1188）。1 branch = 1 worktree
 - 既知制約（許容前提）: worktree ごとに `npm install` 必要 / `.tsbuildinfo` 共有不可 / VSCode TS LS が N 倍プロセス化 → active worktree は 2-3 本に絞る
 - 古い worktree の prune: 検査 E (PR #22) + 定期 `git worktree prune`
-- 委譲先での明文化: `lead-pipeline` / `session-manager` (START) / `git-orchestrator` (branch 切替) が本規約を引用して誘導する
+- 委譲先での明文化: `lead-pipeline` / `session-manager` (START) / `git-orchestrator` (branch 切替) が本規約を引用して誘導する。**worktree 新規作成は 4 ステップ 1 セット** = `git worktree add` → `cd` → `echo > .session-branch` → `claude`（途中省略禁止 — `.session-branch` 単体抜けで hook 検査 F が無音スキップする）
 
 ---
 
