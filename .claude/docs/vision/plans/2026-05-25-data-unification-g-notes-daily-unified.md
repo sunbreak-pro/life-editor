@@ -183,6 +183,110 @@ Notes G1 の `SupabaseNotesUnifiedService.test.ts` を template に in-memory Su
 - [x] known-issues 027 が Notes+Daily 両対象に拡張済
 - [x] Bridge SupabaseDailyService の全メソッドが Unified delegate（throw する stub 0）
 
+## G4 Scope（legacy Notes/Daily 死削除 — Bridge dispatch 層まで撤去 / A-2）
+
+> **着手**: 2026-05-30（worktree `.claude/worktrees/du-g/` / branch `feat/du-g-notes-daily-unified` / owner-chat `du-g`）。
+> **方針決定**: ユーザーが **A-2（深掃除 = Bridge dispatch 層まで撤去）** を選択（2026-05-30）。`git grep` で legacy シンボル 0 を **method 名レベルまで**徹底する。G3 (PR #31) の Unified ファイルに残された「G4 will rewrite the hook body to call the \*Unified DataService methods directly + retire the Bridge」というコメント宣言を完遂する。
+
+### 現状補正（計画書 L49-63 の記述が一部不正確だった — role-pm 裏取り済み）
+
+1. **`SupabaseNotesService.ts` / `SupabaseDailyService.ts` という独立ファイルは史上存在しない**（`git log --all -- <path>` 空）。実体は `SupabaseDataService.ts` 内の **Bridge クラス**（`class SupabaseDailyService` L553 / `class SupabaseNotesService` L636）+ `PHASE2_DAILY_METHODS`(L2313) / `PHASE2_NOTES_METHODS`(L2328) dispatch。→ G4 は「ファイル rm」ではなく「**クラス + dispatch 削除**」が正。
+2. **G3 (PR #31) は 8 ファイル追加のみ・削除ゼロ**。Unified 系（`NotesUnifiedContext` 等）は legacy hook の薄い alias/ラッパで、`useNotesAPI` / `useDailyAPI` に**型・ランタイム両方で実依存**。よって legacy hook は「単純 rm」できず、**中身ごと Unified 名へ移設**が必須。
+3. **`useNoteTreeMovement.ts` は Notes 専用ヘルパで `useNotesAPI` のみが使用**（`useRoutinesAPI` / `useScheduleItemsAPI` は不参照 — 裏取り済み）。→ 削除せず保持し、移設後の `useNotesUnifiedAPI` 配下に残す。Acceptance の grep gate(L94) に `useNoteTreeMovement` は**含まれない**ので保持と矛盾しない（grep gate 対象外として明示）。
+4. **`web/src/wikitag/TagPicker.tsx` の legacy 参照は JSDoc コメント 1 行のみ**で実依存なし（R5「無影響」は正しい）。
+5. **`frontend/`（旧 Tauri）は shared を import せず自前同名実装を持つ** → shared の legacy 削除で frontend build は壊れない（Non-goals を安全に守れる）。
+
+### A-2 トランスフォーメーション原則（核心）
+
+Bridge クラス `SupabaseDailyService`(L553) / `SupabaseNotesService`(L636) は **legacy メソッド名 → Unified メソッド名の写像仕様そのもの**（G1/G2 で全メソッドが Unified delegate 済み）。よって:
+
+1. Bridge クラスの各委譲（`legacyMethod() → unified.unifiedMethod()`）を **hook 呼び出し点へインライン化**する。すなわち `useNotesAPI` / `useDailyAPI` 内の `dataService.<legacyName>(...)` 呼び出しを、Bridge が示す対応する `dataService.<unifiedName>(...)`（例 `fetchAllNotes`→`fetchAllNotesUnified`）へ全書換。
+2. インライン化後、Bridge クラス 2 つ・`PHASE2_DAILY_METHODS`/`PHASE2_NOTES_METHODS` set・`route()` の該当 2 行（L2457-2458）・bridge 生成 2 行（L2441-2442）・legacy mapper import + `_unused_*` フィールドを削除。
+3. `DataService` interface（`DataService.ts`）から **legacy メソッド署名ブロック**を削除（Unified 署名のみ残す）。削除前に「legacy メソッド名が shared/web の生存コードから呼ばれていないか」を `git grep` で確認（呼び元は legacy hook のみのはず）。
+
+### Scope (Touchable Paths)
+
+```
+# hook 本体の移設（A-2 中核）
+shared/src/hooks/useNotesAPI.ts            → 中身を useNotesUnifiedAPI.ts へ移設後 削除
+shared/src/hooks/useDailyAPI.ts            → 中身を useDailiesUnifiedAPI.ts へ移設後 削除
+shared/src/hooks/useNotesUnifiedAPI.ts     # alias re-export → 実 impl（Unified メソッド直呼び）へ
+shared/src/hooks/useDailiesUnifiedAPI.ts   # 同上
+shared/src/hooks/useNoteTreeMovement.ts    # 保持（Notes 専用 / grep gate 対象外）。移設後 hook から import
+
+# Bridge + dispatch 撤去
+shared/src/services/SupabaseDataService.ts # Bridge クラス2 / PHASE2_DAILY/NOTES_METHODS / route 2行 / 生成2行 / legacy mapper import / _unused_* 削除
+shared/src/services/DataService.ts         # legacy メソッド署名ブロック削除（Unified のみ残す）
+shared/src/services/noteMapper.ts          # 削除
+shared/src/services/dailyMapper.ts         # 削除
+shared/src/services/noteMapper.roundtrip.ts  # 削除（legacy mapper のテスト）
+shared/src/services/dailyMapper.roundtrip.ts # 削除（同上）
+
+# legacy Context/hook 削除
+shared/src/context/NoteContext.tsx / NoteContextValue.ts     # 削除（Unified が import を新名へ切替後）
+shared/src/context/DailyContext.tsx / DailyContextValue.ts   # 削除
+shared/src/hooks/useNoteContext.ts / useDailyContext.ts      # 削除
+shared/src/context/NotesUnifiedContext.tsx / NotesUnifiedContextValue.ts    # import 先を新 impl へ repoint
+shared/src/context/DailiesUnifiedContext.tsx / DailiesUnifiedContextValue.ts # 同上
+
+# barrel re-wire
+shared/src/index.ts            # legacy export 除去（L52-56 Daily / L72-83 Note。useNoteTreeMovement export は web 使用実態で判断）
+shared/src/context/index.ts    # legacy export 除去（L13-14 Daily / L25-26 Note）
+
+# test
+shared/tests/noteMapper.test.ts                  # 削除（道連れ）
+shared/tests/useNoteTreeMovement.cycle.test.ts   # 保持（useNoteTreeMovement を残すため）。import パス追従のみ
+（その他 legacy hook を直接 import するテストがあれば Unified 名へ追従）
+
+# web JSDoc コメントの legacy 名掃除（grep gate を 0 にするため）
+web/src/wikitag/TagPicker.tsx / web/src/notes/NotePasswordDialog.tsx / web/src/notes/useNoteTreeDnd.ts ほか
+```
+
+スコープ外（=触らない）: `frontend/`（旧 Tauri）/ `mcp-server/` / `supabase/migrations/`（追加 DDL なし）/ WikiTag / Routine / Schedule / Calendar / Database 等。
+
+### Steps（Gate 列付き）
+
+| #   | Step                                                                                                                                          | Gate    |
+| --- | --------------------------------------------------------------------------------------------------------------------------------------------- | ------- |
+| 1   | green baseline 取得（`cd shared && npx tsc -b` exit 0 / `npx vitest run` の pass 数記録 / `cd web && npm run build` exit 0）                  | 🤖 自律 |
+| 2   | Bridge クラス 2 つを読み「legacy→Unified メソッド写像表」を確定（インライン化の仕様）                                                         | 🤖 自律 |
+| 3   | `useNotesAPI` の中身を `useNotesUnifiedAPI.ts` へ移設し、DataService 呼び出しを Unified 名へ全書換（写像表に従う）。`useNotesAPI.ts` 削除     | 🤖 自律 |
+| 4   | `useDailyAPI` 同様に `useDailiesUnifiedAPI.ts` へ移設 + 書換 + 削除                                                                           | 🤖 自律 |
+| 5   | `NotesUnifiedContext`/`Value` / `DailiesUnifiedContext`/`Value` の import を新 impl へ repoint                                                | 🤖 自律 |
+| 6   | legacy Context/hook（NoteContext / DailyContext / useNoteContext / useDailyContext）削除                                                      | 🤖 自律 |
+| 7   | `SupabaseDataService.ts` の Bridge クラス 2 / `PHASE2_DAILY/NOTES_METHODS` / route 2 行 / 生成 2 行 / legacy mapper import / `_unused_*` 削除 | 🤖 自律 |
+| 8   | `DataService.ts` interface から legacy メソッド署名削除（事前に呼び元 0 を `git grep` 確認）                                                  | 🤖 自律 |
+| 9   | legacy mapper（noteMapper / dailyMapper）+ roundtrip テスト + noteMapper.test.ts 削除                                                         | 🤖 自律 |
+| 10  | barrel（`index.ts` / `context/index.ts`）から legacy export 除去                                                                              | 🤖 自律 |
+| 11  | web JSDoc コメントの legacy シンボル名を Unified 名へ更新（grep gate 用）                                                                     | 🤖 自律 |
+| 12  | `cd shared && npx tsc -b` exit 0 / `npx vitest run` 全 pass（baseline から減少なし）                                                          | 🤖 自律 |
+| 13  | `cd web && npm run build` exit 0 / `npx vitest run` 全 pass                                                                                   | 🤖 自律 |
+| 14  | grep gate（下記 Acceptance）ヒット 0 を確認                                                                                                   | 🤖 自律 |
+| 15  | Notes/Daily UX 無回帰の目視確認（password / lock / pin / 階層 DnD / TipTap / 削除 / 復元 / 物理削除）                                         | 👀 目視 |
+| 16  | session-verifier → commit → role-qa（別コンテキスト）→ PR                                                                                     | 🛑 人手 |
+
+### G4 Acceptance Criteria（機械検証可能）
+
+- [ ] `cd shared && npx tsc -b` exit 0
+- [ ] `cd shared && npx vitest run` 全 pass（baseline = G2 merge 後 232 から減少なし。mapper roundtrip / noteMapper.test 削除分の純減は許容、Unified へ移設したテストで担保）
+- [ ] `cd web && npm run build` exit 0
+- [ ] `cd web && npx vitest run` 全 pass
+- [ ] `git grep -P "noteMapper|dailyMapper|SupabaseNotesService|SupabaseDailyService|useNotesAPI\b|useDailyAPI\b|useNoteContext\b|useDailyContext\b|NoteProvider\b|DailyProvider\b|NoteContext\b|DailyContext\b|PHASE2_NOTES_METHODS|PHASE2_DAILY_METHODS" shared/src web/src` ヒット 0（**コメント含む真の 0**。`useNoteTreeMovement` / `*Unified*` は対象外 = 保持）
+  - ⚠️ **必ず `-P`（Perl 正規）を使う**。`git grep -E "\b"` は POSIX ERE が `\b` をバックスペース文字と解釈して**常に偽 0 を返す**罠（QA 2026-05-30 検出。本セッションでも序盤に同罠で per-symbol 0 を踏んだ）。`-w` か `-P` か `([^A-Za-z]|$)` を使うこと
+- [ ] `SupabaseDataService.ts` に Bridge クラス（`class SupabaseDailyService` / `class SupabaseNotesService`）と `PHASE2_DAILY_METHODS` / `PHASE2_NOTES_METHODS` が存在しない
+- [ ] `DataService` interface に legacy メソッド署名が存在しない（Unified 系のみ）
+- [ ] frontend build に影響なし（shared 削除が frontend を壊さないことの確認 = frontend は shared を import しない事実の再確認で代替）
+
+### G4 Risks & Mitigations
+
+| ID   | リスク                                                                        | レベル | 緩和策                                                                                                                      |
+| ---- | ----------------------------------------------------------------------------- | ------ | --------------------------------------------------------------------------------------------------------------------------- |
+| G4R1 | legacy hook が呼ぶメソッドに Unified 等価が無く、削除でメソッド欠落           | 中     | Bridge クラスが全メソッドを Unified delegate 済み = 写像は完全。Step 2 で写像表を確定してから書換                           |
+| G4R2 | Bridge dispatch 撤去で Proxy ルーティングが壊れ、別ドメインに波及             | 高     | `route()` は legacy 2 行（L2457-2458）と生成 2 行のみ除去。他ドメインの PHASE2\_\* set は無変更。Step 12-13 で全 build 検証 |
+| G4R3 | `DataService` interface の legacy 署名削除で、shared/web の想定外呼び元が露見 | 中     | Step 8 で削除前に各 legacy メソッド名を `git grep`。呼び元が legacy hook 以外に無いことを確認してから削除                   |
+| G4R4 | hook 移設で password/lock/pin/DnD のロジックが欠落・回帰                      | 中     | 中身を逐語移設（ロジック改変なし、DataService 呼び名のみ置換）。Step 15 で UX 目視                                          |
+| G4R5 | DU-E 等と並走時に中核 `SupabaseDataService.ts` でコンフリクト                 | 中     | G4 を単独 merge してから DU-E 着手（R7 準拠）。本 worktree 専有                                                             |
+
 ## Worklog
 
 実装中に判明した設計判断や、計画から逸脱した部分を時系列で記録。完了後に Known Issue 化すべき知見はここから `docs/known-issues/` へ移送。
@@ -191,3 +295,4 @@ Notes G1 の `SupabaseNotesUnifiedService.test.ts` を template に in-memory Su
 - **2026-05-24/25** — G1 着手 → 実装 → role-qa NEEDS DISCUSSION → 同一ターンで QA1/2/3 + SEC-H1 全件対応 → PR #29 → merge (a977f8d)。
 - **2026-05-25** — G2 着手 (worktree `du-g2` / branch `feat/du-g2-dailies-unified`)。Daily は階層 / search 不要のため Notes G1 より純粋に小さい（cycle guard / descendants delete / ilike join なし）。
 - **2026-05-25** — G2 実装完了 (role-engineer)。`SupabaseDailiesUnifiedService` に 7 メソッド追加 (`fetchDeletedDailiesUnified` / `restoreDailyUnified` / `permanentDeleteDailyUnified` / `setDailyPasswordUnified` / `removeDailyPasswordUnified` / `verifyDailyPasswordUnified` / `toggleDailyEditLockUnified`) + private `nextVersion` / `readBackById` helper。Bridge `SupabaseDailyService` の 7 stub を全て Unified delegate に切替（`_pendingDuRewrite` Daily 関連 5 件 + `verifyDailyPassword` の `return false` + `fetchDeletedDailies` の `return []` 全て消滅）。`DataService` interface に 7 メソッド追加。`PHASE2_DAILIES_UNIFIED_METHODS` 7 件追加。Tests: `SupabaseDailiesUnifiedService.test.ts` 新規 32 ケース。tsc -b exit 0 / vitest 232/232 pass (G1 後 200 → +32)。known-issues 027 を Notes/Daily 両対象に拡張 + INDEX.md タイトル更新。設計判断: G2 仕様書通り `restoreDailyUnified` でも version bump（Notes G1 は updated_at のみ — Daily は Routine 再生成等で content 不変の restore 単独イベントが起こりうるので LWW cursor を明示）。Notes G1 の `verifyNotePasswordUnified` は id validate を省略していたが、Daily 側は payload table が `assertDailyId` を持つので `setDailyPasswordUnified` / `restoreDailyUnified` / `permanentDeleteDailyUnified` / `removeDailyPasswordUnified` / `toggleDailyEditLockUnified` 入口で `assertDailyId` を効かせ「invalid id は DB round-trip 前に reject」を回帰テストで固定（verify は legacy parity で id validate なし — null hash で false を返す方が UX として穏当）。
+- **2026-05-30** — G4 着手 (worktree `du-g` / branch `feat/du-g-notes-daily-unified` / chat `du-g`)。新 Multi-chat Worktree Policy proactive 化（PR #33）後の初 worktree セットアップ = 4 ステップ 1 セットを規約通り実行し SessionStart hook 緑を確認（追従い検証）。role-pm スコープ確定 → ユーザーが **A-2（Bridge dispatch 層まで撤去）** を選択。計画書 L49-63 を補正（独立 Service ファイル不在 = `SupabaseDataService.ts` 内 Bridge クラス削除 / G3 は追加のみで death-removal は G4 / `useNoteTreeMovement` は Notes 専用ヘルパで保持 / frontend は shared 非依存で無影響）。`## G4 Scope` セクション追記。実装は role-engineer 委譲予定。

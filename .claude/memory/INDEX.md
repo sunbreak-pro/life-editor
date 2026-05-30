@@ -2,16 +2,17 @@
 
 > 各 `chat-*.md` の集約ビュー。task-tracker 実行時に再生成される。**SSOT は各 `chat-*.md` ファイル**。本ファイルは読み手向け要約。
 
-最終更新: 2026-05-30 (chat-prototype-mobile)
+最終更新: 2026-05-30 19:09:40 (chat-du-g)
 
 ---
 
 ## 進行中 (across all chats)
 
-（全チャットとも進行中タスクなし）
+- [chat-du-g] Notes Folder DnD UX 改善（根本原因分析完了 → 実装前） — 着手: 2026-05-30
 
 ## 直近の完了 (across all chats, 各チャット最大 3 件)
 
+- [chat-du-g] DU-G G4（legacy Notes/Daily 死削除・A-2 Bridge dispatch 撤去）✅ (2026-05-30、PR #36)
 - [chat-prototype-mobile] fix-pack: M-1 card layout SwipeRow 背景透明化 + 角丸 ✅ (2026-05-30 commit `a85cb0f`)
 - [chat-prototype-mobile] C-2: Calendar フィルタ (タイプ) + 並び順 (DayFlow) (iOS additions) ✅ (2026-05-30 commit `0f8b982`)
 - [chat-prototype-mobile] M-3: 空行ヒント + `/` キーバインド + IME ガード (iOS additions) ✅ (2026-05-30 commit `cbcd743`)
@@ -21,6 +22,7 @@
 
 ## 予定 (across all chats)
 
+- [chat-du-g] Notes DnD UX を別 commit/PR 化（G4 PR #36 の後段）
 - [chat-prototype-mobile] 👀 M-1〜M-3 + C-2 + fix-pack の実機目視確認 → 不具合あれば次 fix-pack
 - [chat-prototype-mobile] C-3 (add item 5 role Mobile 対応、要件は Desktop 完了済 / Mobile 別 PR)
 - [chat-main] 👀 ユーザー実機確認待ち: DU-F Step 7-11 / DU-C-6
