@@ -758,6 +758,7 @@ function NoteList({
     <SwipeRow
       key={n.id}
       note={n}
+      layout={layout}
       open={swipeOpenId === n.id}
       anyOpen={swipeOpenId !== null}
       onRequestOpen={() => setSwipeOpenId(n.id)}
@@ -808,6 +809,7 @@ const SWIPE_OPEN_WIDTH = 192;
 
 function SwipeRow({
   note,
+  layout,
   open,
   anyOpen,
   onRequestOpen,
@@ -818,6 +820,7 @@ function SwipeRow({
   children,
 }: {
   note: Note;
+  layout: Layout;
   open: boolean;
   anyOpen: boolean;
   onRequestOpen: () => void;
@@ -906,11 +909,15 @@ function SwipeRow({
   };
 
   const actionTitle = note.kind === "daily" ? "編集" : "名前変更";
+  const isCard = layout === "card";
 
   return (
     <div
-      className="relative overflow-hidden"
-      style={{ touchAction: "pan-y", background: C.crust }}
+      className={`relative overflow-hidden ${isCard ? "rounded-2xl" : ""}`}
+      style={{
+        touchAction: "pan-y",
+        background: isCard ? "transparent" : C.crust,
+      }}
     >
       <div
         className="absolute inset-y-0 right-0 flex items-stretch"
