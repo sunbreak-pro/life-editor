@@ -1632,6 +1632,73 @@ function KeyboardAccessoryBar({
   const BAR_HEIGHT = 44;
   const [bottom, setBottom] = useState(0);
   const [commandOpen, setCommandOpen] = useState(false);
+  const [composing, setComposing] = useState(false);
+  const [lineEmpty, setLineEmpty] = useState(false);
+
+  // textarea の現在カーソル行が空白だけかを判定。focus 喪失時は false。
+  useEffect(() => {
+    const ta = textareaRef.current;
+    if (!ta || !focused) {
+      setLineEmpty(false);
+      return undefined;
+    }
+    const recalc = () => {
+      const t = textareaRef.current;
+      if (!t || document.activeElement !== t) {
+        setLineEmpty(false);
+        return;
+      }
+      const start = t.selectionStart;
+      const before = bodyDraft.slice(0, start);
+      const lineStart = before.lastIndexOf("\n") + 1;
+      const nextNL = bodyDraft.indexOf("\n", start);
+      const lineEnd = nextNL === -1 ? bodyDraft.length : nextNL;
+      const line = bodyDraft.slice(lineStart, lineEnd);
+      setLineEmpty(line.trim() === "" && t.selectionStart === t.selectionEnd);
+    };
+    recalc();
+    document.addEventListener("selectionchange", recalc);
+    return () => document.removeEventListener("selectionchange", recalc);
+  }, [bodyDraft, focused, textareaRef]);
+
+  // textarea の IME 状態。composition 中はヒント非表示 + `/` 起動を抑止
+  useEffect(() => {
+    const ta = textareaRef.current;
+    if (!ta) return undefined;
+    const onStart = () => setComposing(true);
+    const onEnd = () => setComposing(false);
+    ta.addEventListener("compositionstart", onStart);
+    ta.addEventListener("compositionend", onEnd);
+    return () => {
+      ta.removeEventListener("compositionstart", onStart);
+      ta.removeEventListener("compositionend", onEnd);
+    };
+  }, [textareaRef]);
+
+  // `/` キーで空行時にコマンドメニューを起動 (M-3)。IME 中は無視。
+  useEffect(() => {
+    const ta = textareaRef.current;
+    if (!ta || !focused) return undefined;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key !== "/") return;
+      if (e.isComposing) return;
+      const t = textareaRef.current;
+      if (!t || document.activeElement !== t) return;
+      const start = t.selectionStart;
+      const before = bodyDraft.slice(0, start);
+      const lineStart = before.lastIndexOf("\n") + 1;
+      const nextNL = bodyDraft.indexOf("\n", start);
+      const lineEnd = nextNL === -1 ? bodyDraft.length : nextNL;
+      const line = bodyDraft.slice(lineStart, lineEnd);
+      if (line.trim() !== "" || t.selectionStart !== t.selectionEnd) return;
+      e.preventDefault();
+      setCommandOpen(true);
+    };
+    ta.addEventListener("keydown", onKeyDown);
+    return () => ta.removeEventListener("keydown", onKeyDown);
+  }, [bodyDraft, focused, textareaRef]);
+
+  const hintVisible = focused && !composing && lineEmpty && !commandOpen;
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -1902,6 +1969,31 @@ function KeyboardAccessoryBar({
         pointerEvents: "none",
       }}
     >
+      {hintVisible && (
+        <button
+          type="button"
+          onMouseDown={guard}
+          onClick={() => setCommandOpen(true)}
+          className="mb-2 rounded-full pointer-events-auto flex items-center gap-1.5 px-3 py-1.5"
+          style={{
+            background: "rgba(48, 48, 70, 0.78)",
+            backdropFilter: "saturate(180%) blur(24px)",
+            WebkitBackdropFilter: "saturate(180%) blur(24px)",
+            border: "1px solid rgba(203,166,247,0.30)",
+            boxShadow: "0 4px 12px rgba(0,0,0,0.28)",
+            color: C.subtext1,
+          }}
+          aria-label="スラッシュコマンドを開く"
+        >
+          <span
+            className="font-mono text-[11px] rounded px-1"
+            style={{ background: "rgba(255,255,255,0.08)", color: C.mauve }}
+          >
+            /
+          </span>
+          <span className="text-xs">コマンドを挿入</span>
+        </button>
+      )}
       {commandOpen && (
         <div
           className="mb-2 rounded-2xl pointer-events-auto overflow-hidden"
