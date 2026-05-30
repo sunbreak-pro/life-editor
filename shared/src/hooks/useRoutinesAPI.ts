@@ -11,7 +11,7 @@ import { useSyncContext } from "./useSyncContext";
  * Behaviour-preserving port of the Tauri routine trio
  * (frontend/src/hooks/useRoutines.ts + useRoutineGroups.ts +
  * useRoutineGroupAssignments.ts) consolidated into one shared API hook
- * — same shape as useNotesAPI / useDailyAPI. Host dependencies are
+ * — same shape as the other shared API hooks. Host dependencies are
  * injected, not imported (CLAUDE.md §6.4):
  * - `getDataService()` singleton → `options.dataService`
  * - host UndoRedo Context        → `options.undoRedo` (no-op default;

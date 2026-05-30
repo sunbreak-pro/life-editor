@@ -2,8 +2,8 @@ import type { NoteLink, NoteLinkType } from "../types/noteLink";
 
 /*
  * Pure NoteLink <-> `public.note_links` row mappers (Phase 2 S3-2).
- * Carries NO `@supabase/supabase-js` dependency (same rationale as
- * taskMapper / dailyMapper / noteMapper).
+ * Carries NO `@supabase/supabase-js` dependency (same rationale as the
+ * task / daily / note mappers).
  *
  * SYNC CLASS: VERSIONED. note_links has `version` + `is_deleted` +
  * `deleted_at`; the data layer bumps `version` and uses soft-delete

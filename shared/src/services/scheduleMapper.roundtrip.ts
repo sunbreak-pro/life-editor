@@ -3,8 +3,8 @@
  * FIVE mappers: routine / routineGroup / routineGroupAssignment /
  * scheduleItem / calendar.
  *
- * Same harness shape as noteMapper.roundtrip.ts: a self-contained,
- * type-checked module that ASSERTS each mapper round-trip at runtime. It
+ * Same harness shape as the task mapper round-trip harness: a self-
+ * contained, type-checked module that ASSERTS each mapper round-trip at runtime. It
  * is type-checked by `tsc -b` (part of the shared program) and runnable
  * standalone (`node dist/services/scheduleMapper.roundtrip.js`) — exits
  * non-zero on any mismatch. It imports the pure mappers (NOT
@@ -23,8 +23,8 @@
  * below.
  */
 // NOTE: the `.js` extensions are deliberate and ONLY in this harness
-// (identical rationale to noteMapper.roundtrip.ts): bundler resolution
-// accepts them and the compiled dist file is runnable under Node ESM.
+// (identical rationale to the task mapper round-trip harness): bundler
+// resolution accepts them and the compiled dist file is runnable under Node ESM.
 import type { RoutineNode } from "../types/routine.js";
 import type {
   RoutineGroup,
@@ -347,11 +347,12 @@ const CALENDAR_CASES: Array<{ name: string; node: CalendarNode }> = [
 ];
 
 /*
- * Round-trip invariant (identical contract to noteMapper.roundtrip.ts).
- * For domain objects with OPTIONAL fields backed by NOT-NULL-with-default
- * columns (ScheduleItem.isDeleted/isDismissed/isAllDay/reminderEnabled,
+ * Round-trip invariant (identical contract to the task mapper round-trip
+ * harness). For domain objects with OPTIONAL fields backed by
+ * NOT-NULL-with-default columns
+ * (ScheduleItem.isDeleted/isDismissed/isAllDay/reminderEnabled,
  * RoutineNode.reminderEnabled, ...), `rowToX` deliberately ALWAYS
- * materialises those flags (just like noteMapper materialises
+ * materialises those flags (just like the Notes mapper materialises
  * hasPassword/isEditLocked) — so a freshly-built domain object that
  * OMITS them is NOT byte-equal to its normalised form. That is correct
  * mapper behaviour, not a defect. The meaningful, asserted invariant is

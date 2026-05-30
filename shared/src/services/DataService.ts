@@ -184,53 +184,10 @@ export interface DataService {
   >;
   setWorkscreenSelections(soundIds: string[]): Promise<void>;
 
-  // Daily
-  fetchAllDailies(): Promise<DailyNode[]>;
-  fetchDailyByDate(date: string): Promise<DailyNode | null>;
-  upsertDaily(date: string, content: string): Promise<DailyNode>;
-  deleteDaily(date: string): Promise<void>;
-  fetchDeletedDailies(): Promise<DailyNode[]>;
-  restoreDaily(date: string): Promise<void>;
-  permanentDeleteDaily(date: string): Promise<void>;
-  toggleDailyPin(date: string): Promise<DailyNode>;
-  setDailyPassword(date: string, password: string): Promise<DailyNode>;
-  removeDailyPassword(
-    date: string,
-    currentPassword: string,
-  ): Promise<DailyNode>;
-  verifyDailyPassword(date: string, password: string): Promise<boolean>;
-  toggleDailyEditLock(date: string): Promise<DailyNode>;
-
-  // Notes
-  fetchAllNotes(): Promise<NoteNode[]>;
-  fetchDeletedNotes(): Promise<NoteNode[]>;
-  createNote(
-    id: string,
-    title: string,
-    parentId?: string | null,
-  ): Promise<NoteNode>;
-  updateNote(
-    id: string,
-    updates: Partial<
-      Pick<NoteNode, "title" | "content" | "isPinned" | "color" | "icon">
-    >,
-  ): Promise<NoteNode>;
-  softDeleteNote(id: string): Promise<void>;
-  restoreNote(id: string): Promise<void>;
-  permanentDeleteNote(id: string): Promise<void>;
-  searchNotes(query: string): Promise<NoteNode[]>;
-  setNotePassword(id: string, password: string): Promise<NoteNode>;
-  removeNotePassword(id: string, currentPassword: string): Promise<NoteNode>;
-  verifyNotePassword(id: string, password: string): Promise<boolean>;
-  toggleNoteEditLock(id: string): Promise<NoteNode>;
-  createNoteFolder(
-    id: string,
-    title: string,
-    parentId: string | null,
-  ): Promise<NoteNode>;
-  syncNoteTree(
-    items: Array<{ id: string; parentId: string | null; order: number }>,
-  ): Promise<void>;
+  // Daily / Notes legacy method signatures were removed in DU-G G4.
+  // The Daily + Notes write paths now go through the *Unified blocks below
+  // (items_meta + dailies_payload / notes_payload 2-row pattern); the
+  // legacy Bridge that mapped legacy → Unified names has been retired.
 
   // Custom Sounds
   saveCustomSound(

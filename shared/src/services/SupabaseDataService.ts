@@ -40,17 +40,6 @@ import { collectDescendantIds } from "../utils/getDescendantTasks";
 import { sortByDepthDesc } from "../utils/sortByDepthDesc";
 import { generateId } from "../utils/generateId";
 import {
-  DAILY_SELECT_COLUMNS,
-  rowToDailyNode,
-  type DailyRow,
-} from "./dailyMapper";
-import {
-  NOTE_SELECT_COLUMNS,
-  rowToNoteNode,
-  noteUpdatesToPatch,
-  type NoteRow,
-} from "./noteMapper";
-import {
   NOTE_LINK_SELECT_COLUMNS,
   rowToNoteLink,
   type NoteLinkRow,
@@ -534,209 +523,6 @@ function _pendingDuRewrite(method: string, domain: string): never {
   throw new Error(
     `${method}: ${domain} pending DU-C/D rewrite to items_meta + <role>_payload (legacy public.${domain} was dropped by migration 0007; see .claude/docs/vision/plans/2026-05-21-data-unification-items-meta.md)`,
   );
-}
-
-/*
- * DU-F follow-up (2026-05-24): legacy SupabaseDailyService bridges its
- * legacy method names to the Unified (items_meta + dailies_payload)
- * service. This unblocks two things at once:
- *   (a) Daily edits survive reload — the legacy stubs threw, so nothing
- *       reached the DB after 0007 dropped public.dailies
- *   (b) Tag/Link RLS WITH CHECK passes — wiki_tag_assignments.item_id
- *       must exist in items_meta(id), and the Unified path writes it
- *
- * Operations not yet ported to Unified (restore from trash / permanent
- * delete / password / lock) stay as no-op / stub — DU-G ports them.
- * fetchDeletedDailies returns [] so the UI Trash section renders empty
- * (no orphan "Restore" buttons that would throw on click).
- */
-class SupabaseDailyService {
-  private readonly client: SupabaseClient;
-  private readonly unified: SupabaseDailiesUnifiedService;
-  // Keep mapper imports statically referenced (verbatimModuleSyntax).
-  private static readonly _unused_select = DAILY_SELECT_COLUMNS;
-  private static readonly _unused_mapper = rowToDailyNode;
-  declare private _unused_row: DailyRow;
-
-  constructor(client: SupabaseClient, unified: SupabaseDailiesUnifiedService) {
-    this.client = client;
-    void this.client;
-    this.unified = unified;
-  }
-
-  async fetchAllDailies(): Promise<DailyNode[]> {
-    return this.unified.listDailiesUnified();
-  }
-  async fetchDailyByDate(date: string): Promise<DailyNode | null> {
-    return this.unified.getDailyByDateUnified(date);
-  }
-  async fetchDeletedDailies(): Promise<DailyNode[]> {
-    return this.unified.fetchDeletedDailiesUnified();
-  }
-  async upsertDaily(date: string, content: string): Promise<DailyNode> {
-    return this.unified.upsertDailyByDateUnified(date, content);
-  }
-  async deleteDaily(date: string): Promise<void> {
-    const existing = await this.unified.getDailyByDateUnified(date);
-    if (!existing) return;
-    await this.unified.softDeleteDailyUnified(existing.id);
-  }
-  async restoreDaily(date: string): Promise<void> {
-    await this.unified.restoreDailyUnified(`daily-${date}`);
-  }
-  async permanentDeleteDaily(date: string): Promise<void> {
-    await this.unified.permanentDeleteDailyUnified(`daily-${date}`);
-  }
-  async toggleDailyPin(date: string): Promise<DailyNode> {
-    // No atomic Unified toggle — fetch, flip, write. N=1 single-user app
-    // so the read+write race is not a concern.
-    const existing = await this.unified.getDailyByDateUnified(date);
-    if (!existing) {
-      throw new Error(`toggleDailyPin: no daily for date "${date}"`);
-    }
-    return this.unified.updateDailyUnified(existing.id, {
-      isPinned: !existing.isPinned,
-    });
-  }
-  async setDailyPassword(date: string, password: string): Promise<DailyNode> {
-    return this.unified.setDailyPasswordUnified(`daily-${date}`, password);
-  }
-  async removeDailyPassword(
-    date: string,
-    currentPassword: string,
-  ): Promise<DailyNode> {
-    return this.unified.removeDailyPasswordUnified(
-      `daily-${date}`,
-      currentPassword,
-    );
-  }
-  async verifyDailyPassword(date: string, password: string): Promise<boolean> {
-    return this.unified.verifyDailyPasswordUnified(`daily-${date}`, password);
-  }
-  async toggleDailyEditLock(date: string): Promise<DailyNode> {
-    return this.unified.toggleDailyEditLockUnified(`daily-${date}`);
-  }
-}
-
-/*
- * DU-F follow-up (2026-05-24): same bridge pattern as
- * SupabaseDailyService — legacy method names delegate to the Unified
- * (items_meta + notes_payload) service. Fixes Notes persistence after
- * reload AND satisfies wiki_tag_assignments RLS WITH CHECK (items_meta
- * row must exist for the Note id).
- *
- * DU-G PR1 (2026-05-24, this PR): the previously-stubbed Trash + password
- * + lock + search paths now also delegate to the Unified service. Every
- * legacy DataService method on the Notes block is fully implemented; the
- * `_pendingDuRewrite` stubs are gone. PHASE2_NOTES_METHODS set is
- * unchanged so the dispatch table at the bottom of this file still
- * routes the legacy names here (G3 will remove the legacy names and the
- * frontend will call *Unified directly).
- */
-class SupabaseNotesService {
-  private readonly client: SupabaseClient;
-  private readonly unified: SupabaseNotesUnifiedService;
-  private static readonly _unused_select = NOTE_SELECT_COLUMNS;
-  private static readonly _unused_mapper = rowToNoteNode;
-  private static readonly _unused_patch = noteUpdatesToPatch;
-  declare private _unused_row: NoteRow;
-
-  constructor(client: SupabaseClient, unified: SupabaseNotesUnifiedService) {
-    this.client = client;
-    void this.client;
-    this.unified = unified;
-  }
-
-  async fetchAllNotes(): Promise<NoteNode[]> {
-    return this.unified.listNotesUnified();
-  }
-  async fetchDeletedNotes(): Promise<NoteNode[]> {
-    return this.unified.fetchDeletedNotesUnified();
-  }
-  async createNote(
-    id: string,
-    title: string,
-    parentId?: string | null,
-  ): Promise<NoteNode> {
-    const now = new Date().toISOString();
-    const node: NoteNode = {
-      id,
-      type: "note",
-      title,
-      content: "",
-      parentId: parentId ?? null,
-      order: 0,
-      isPinned: false,
-      isDeleted: false,
-      createdAt: now,
-      updatedAt: now,
-    };
-    return this.unified.createNoteUnified(node);
-  }
-  async createNoteFolder(
-    id: string,
-    title: string,
-    parentId: string | null,
-  ): Promise<NoteNode> {
-    const now = new Date().toISOString();
-    const node: NoteNode = {
-      id,
-      type: "folder",
-      title,
-      content: "",
-      parentId,
-      order: 0,
-      isPinned: false,
-      isDeleted: false,
-      createdAt: now,
-      updatedAt: now,
-    };
-    return this.unified.createNoteUnified(node);
-  }
-  async updateNote(
-    id: string,
-    updates: Partial<
-      Pick<NoteNode, "title" | "content" | "isPinned" | "color" | "icon">
-    >,
-  ): Promise<NoteNode> {
-    return this.unified.updateNoteUnified(id, updates);
-  }
-  async syncNoteTree(
-    items: Array<{ id: string; parentId: string | null; order: number }>,
-  ): Promise<void> {
-    // Unified has no bulk sync — apply moves sequentially. N=1 single-
-    // user app, so the dataset is small enough that this is OK.
-    for (const i of items) {
-      await this.unified.moveNoteUnified(i.id, i.parentId, i.order);
-    }
-  }
-  async softDeleteNote(id: string): Promise<void> {
-    await this.unified.softDeleteNoteUnified(id);
-  }
-  async restoreNote(id: string): Promise<void> {
-    await this.unified.restoreNoteUnified(id);
-  }
-  async permanentDeleteNote(id: string): Promise<void> {
-    await this.unified.permanentDeleteNoteUnified(id);
-  }
-  async searchNotes(query: string): Promise<NoteNode[]> {
-    return this.unified.searchNotesUnified(query);
-  }
-  async setNotePassword(id: string, password: string): Promise<NoteNode> {
-    return this.unified.setNotePasswordUnified(id, password);
-  }
-  async removeNotePassword(
-    id: string,
-    currentPassword: string,
-  ): Promise<NoteNode> {
-    return this.unified.removeNotePasswordUnified(id, currentPassword);
-  }
-  async verifyNotePassword(id: string, password: string): Promise<boolean> {
-    return this.unified.verifyNotePasswordUnified(id, password);
-  }
-  async toggleNoteEditLock(id: string): Promise<NoteNode> {
-    return this.unified.toggleNoteEditLockUnified(id);
-  }
 }
 
 class SupabaseNoteLinkService {
@@ -2297,7 +2083,6 @@ class SupabaseCalendarsService {
   }
 }
 
-
 const PHASE2_TASKS_METHODS = new Set<string>([
   "fetchTaskTree",
   "fetchDeletedTasks",
@@ -2308,38 +2093,6 @@ const PHASE2_TASKS_METHODS = new Set<string>([
   "restoreTask",
   "permanentDeleteTask",
   "migrateTasksToBackend",
-]);
-
-const PHASE2_DAILY_METHODS = new Set<string>([
-  "fetchAllDailies",
-  "fetchDailyByDate",
-  "fetchDeletedDailies",
-  "upsertDaily",
-  "deleteDaily",
-  "restoreDaily",
-  "permanentDeleteDaily",
-  "toggleDailyPin",
-  "toggleDailyEditLock",
-  "setDailyPassword",
-  "removeDailyPassword",
-  "verifyDailyPassword",
-]);
-
-const PHASE2_NOTES_METHODS = new Set<string>([
-  "fetchAllNotes",
-  "fetchDeletedNotes",
-  "createNote",
-  "createNoteFolder",
-  "updateNote",
-  "syncNoteTree",
-  "softDeleteNote",
-  "restoreNote",
-  "permanentDeleteNote",
-  "searchNotes",
-  "setNotePassword",
-  "removeNotePassword",
-  "verifyNotePassword",
-  "toggleNoteEditLock",
 ]);
 
 const PHASE2_NOTE_LINK_METHODS = new Set<string>([
@@ -2438,8 +2191,6 @@ export function createSupabaseDataService(): DataService {
   const notesUnifiedService = new SupabaseNotesUnifiedService(client);
   const dailiesUnifiedService = new SupabaseDailiesUnifiedService(client);
   const tasksService = new SupabaseTasksService(client);
-  const dailyService = new SupabaseDailyService(client, dailiesUnifiedService);
-  const notesService = new SupabaseNotesService(client, notesUnifiedService);
   const noteLinkService = new SupabaseNoteLinkService(client);
   const noteConnectionService = new SupabaseNoteConnectionService(client);
   const routinesService = new SupabaseRoutinesService(client);
@@ -2454,8 +2205,6 @@ export function createSupabaseDataService(): DataService {
   // by this map so adding a domain is one entry, no target juggling.
   const route = (prop: string): object | null => {
     if (PHASE2_TASKS_METHODS.has(prop)) return tasksService;
-    if (PHASE2_DAILY_METHODS.has(prop)) return dailyService;
-    if (PHASE2_NOTES_METHODS.has(prop)) return notesService;
     if (PHASE2_NOTE_LINK_METHODS.has(prop)) return noteLinkService;
     if (PHASE2_NOTE_CONNECTION_METHODS.has(prop)) return noteConnectionService;
     if (PHASE2_ROUTINES_METHODS.has(prop)) return routinesService;
@@ -2516,15 +2265,6 @@ export type {
   ItemsMetaUpdatePatch,
   TasksPayloadUpdatePatch,
 } from "./taskMapper";
-export { rowToDailyNode, dailyNodeToRow } from "./dailyMapper";
-export type { DailyRow, DailyWriteRow } from "./dailyMapper";
-export {
-  rowToNoteNode,
-  noteNodeToRow,
-  noteUpdatesToPatch,
-  toNoteNodeType,
-} from "./noteMapper";
-export type { NoteRow, NoteWriteRow } from "./noteMapper";
 export { rowToNoteLink, noteLinkToRow, toNoteLinkType } from "./noteLinkMapper";
 export type { NoteLinkRow, NoteLinkWriteRow } from "./noteLinkMapper";
 
