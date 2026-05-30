@@ -2,16 +2,16 @@
 
 > 各 `chat-*.md` の集約ビュー。SSOT は各 `chat-*.md`。
 
-最終更新: 2026-05-25 (chat-prototype-mobile)
+最終更新: 2026-05-30 (chat-prototype-mobile)
 
 ---
 
 ## 直近エントリ (across all chats, 時系列降順 5 件)
 
-- 2026-05-25 [chat-prototype-mobile] Phase 3.J fix: swipe transition 条件再修正 + アクセサリーバー iOS 風リスタイル
-- 2026-05-24 [chat-prototype-mobile] Phase 3.I fix: swipe rebound 解消 + Materials アクセサリーバー追加
-- 2026-05-24 [chat-prototype-mobile] Phase 3.H fix: peeking SwipePane + DayDetailSheet タップ復活
-- 2026-05-24 [chat-prototype-mobile] Phase 3.G fix-pack + Schedule swipe (animated drag + slide-in)
-- 2026-05-24 [chat-prototype-mobile] Phase 3.A〜F: prototype mock CRUD + 6 screens
+- 2026-05-30 [chat-prototype-mobile] fix-pack: M-1 card layout 見た目調整 (SwipeRow rounded + transparent)
+- 2026-05-30 [chat-prototype-mobile] C-2: Calendar フィルタ (タイプ) + 並び順切替 (iOS additions)
+- 2026-05-30 [chat-prototype-mobile] M-3: 空行ヒント + `/` キーバインド + IME ガード (iOS additions)
+- 2026-05-30 [chat-prototype-mobile] M-2: スラッシュコマンドメニュー (iOS additions)
+- 2026-05-30 [chat-prototype-mobile] M-1: Materials 行スワイプで edit/pin/delete (iOS additions)
 
-古いエントリは各 `chat-*.md` または `.claude/history/archive/2026-05/chat-main.md` 参照。
+古いエントリは各 `chat-*.md` または `.claude/history/archive/2026-05/chat-prototype-mobile.md` / `.claude/history/archive/2026-05/chat-main.md` 参照。
