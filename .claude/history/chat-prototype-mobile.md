@@ -1,5 +1,33 @@
 # HISTORY (chat-prototype-mobile)
 
+### 2026-05-30 - M-2: スラッシュコマンドメニュー (iOS additions)
+
+#### 概要
+
+iOS additions 要件 M-2 を prototype 環境で実装。アクセサリーバーに `+` ボタンを追加し、タップで 10 種のブロック変換コマンド (見出し 1-3 / 箇条書き / 番号付き / タスク / 引用 / コードブロック / 区切り線 / 画像リンク) をポップオーバーで表示。本番要件は TipTap BubbleMenu 前提だが、prototype は textarea + Markdown 記法方針 (Phase 3.I 判断) のため、既存の `wrapSelection` / `toggleLinePrefix` + 新規 `insertBlock` helper を流用。
+
+#### 変更点
+
+- **[feat] `+` ボタン + ポップオーバー** (`prototype/src/screens/MaterialsScreen.tsx::KeyboardAccessoryBar`)
+  - 左端に Plus アイコンの「ブロックを挿入」ボタン (`aria-haspopup="menu"` / `aria-expanded`)
+  - 上方向に幅 280px のメニューがフロート (`maxHeight: 60vh` でスクロール)
+  - 各項目: 28×28 アイコンチップ + 日本語ラベル + Markdown ヒント (`# 大見出し` 等)
+- **[feat] `insertBlock` helper**: 空行ならその場置換、非空行なら次行に挿入。コードブロック (` ```\n\n``` `) と区切り線 (`---\n`) に使用
+- **[feat] `toggleLinePrefix` の strip 正規表現拡張**: `- [ ] ` / `1. ` も剥がし対象に追加 (リスト系コマンドの相互上書きを可能に)
+- **[a11y] `role="menu"` / `role="menuitem"` / `aria-label`**: スクリーンリーダー対応
+- **検証**: `npx tsc --noEmit` exit 0 / `npm run build` 392.84 kB / gzip 113.30 kB (+3 kB / +0.85 kB)
+
+#### Acceptance Criteria 達成
+
+- [x] AC1: `+` ボタンがバーに表示される
+- [x] AC2: タップで 10 種のブロック変換コマンドがメニュー表示、選択でカーソル位置のノード/挿入が反映
+- [ ] AC3: i18n (ja/en) — **prototype に i18n 機構なし、ja 固定**。本番側 (frontend/) で別途対応
+- [x] AC4: Desktop でも同一バー + メニューが動作 (KeyboardAccessoryBar は focus 連動で両プラットフォーム共通)
+
+#### 残課題 (M-3 後続候補)
+
+- 空行ヒント (M-3): 現在行が空のときヒントチップ表示 + `/` 入力でメニュー起動 + IME ガード — 別タスク
+
 ### 2026-05-30 - M-1: Materials 行スワイプで edit/pin/delete (iOS additions)
 
 #### 概要
