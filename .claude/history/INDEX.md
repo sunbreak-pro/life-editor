@@ -2,16 +2,16 @@
 
 > 各 `chat-*.md` の集約ビュー。SSOT は各 `chat-*.md`。
 
-最終更新: 2026-05-25 (chat-prototype-mobile)
+最終更新: 2026-05-30 21:39:50 (chat-main)
 
 ---
 
 ## 直近エントリ (across all chats, 時系列降順 5 件)
 
+- 2026-05-26 [chat-main] Multi-chat Worktree Policy proactive rollout + cwd drift known-issue（PR #33）
 - 2026-05-25 [chat-prototype-mobile] Phase 3.J fix: swipe transition 条件再修正 + アクセサリーバー iOS 風リスタイル
 - 2026-05-24 [chat-prototype-mobile] Phase 3.I fix: swipe rebound 解消 + Materials アクセサリーバー追加
 - 2026-05-24 [chat-prototype-mobile] Phase 3.H fix: peeking SwipePane + DayDetailSheet タップ復活
-- 2026-05-24 [chat-prototype-mobile] Phase 3.G fix-pack + Schedule swipe (animated drag + slide-in)
-- 2026-05-24 [chat-prototype-mobile] Phase 3.A〜F: prototype mock CRUD + 6 screens
+- 2026-05-24 [chat-main] subagent self-contained brief 規約 + worktree integrity 改善（PR #22）
 
 古いエントリは各 `chat-*.md` または `.claude/history/archive/2026-05/chat-main.md` 参照。

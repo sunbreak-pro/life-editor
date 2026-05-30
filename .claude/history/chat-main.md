@@ -1,5 +1,34 @@
 # HISTORY (chat-main)
 
+### 2026-05-26 - Multi-chat Worktree Policy proactive rollout + cwd drift known-issue（PR #33）
+
+#### 概要
+
+並行チャット運用規約 (CLAUDE.md §7.4 / `2026-05-24-multi-chat-worktree-policy.md`) の検証で見えた「規約はあるが実施されない死角」を解消。`.session-branch` の書き出しを「未宣言なら促す (reactive)」から「worktree 作成手順の必須ステップ (proactive)」へ全委譲先で格上げ。要件①(du-g セットアップ)/②(規約整備)/③(prototype+mobile-ui 退役) を 1 計画書に統合。実作業中に cwd 漂流事故を自己検出し Known Issue 化。
+
+#### 変更点（commit `3c85c2f`、PR #33 merged `15941c1`、4 files / +466 / -6）
+
+- **規約整備（agents-lib / skill-lib は git 外、PR 外で同時実施）**:
+  - `session-manager.md` START フロー 0.5 を「作成 → 宣言 → 起動の 3 ステップ 1 セット」化
+  - `git-orchestrator.md` §2.5 table の「feature 作業の開始要求」「既存 branch を別チャットで触りたい」行に echo を組み込み、「未宣言で起動」は fallback に格下げ
+  - `lead-pipeline/SKILL.md` Worktree Policy 節を「4 ステップ 1 セット」化（echo 省略で検査 F が無音スキップする旨明記）
+  - `CLAUDE.md` §7.4 line 230/234 を proactive 表現へ
+- **計画書（PR 内）**: `2026-05-25-worktree-rollout-and-cleanup.md` 新規。Discoveries 節に要件 vs 実環境のズレ 4 件（du-g worktree 不在 / 既存 reactive 記述 / `+` は自動付与 / prototype 2 worktree の関係）を記録。Annex A=du-g セットアップ手順、Annex B=次セッション用コピペプロンプト
+- **Known Issue 028（PR 内）**: Bash の `cd` が worktree 跨ぎで持続し以降の相対パス操作が別 worktree に着地する問題。対処は `git -C <path>` / サブシェル `( cd ... )`。INDEX Active 表に登録
+- **タスク③ 自然解決**: prototype+mobile-ui worktree + branch が prune 済を確認（ユーザー「対応不要」発言と整合）。固有 commit 2 件は reflog に残存
+
+#### 検証
+
+- grep `session-branch`: session-manager.md 3 / git-orchestrator.md 3 / lead-pipeline/SKILL.md 2（全て 2 hits 以上）
+- 計画書 commit は新 worktree `docs-worktree-rollout-2026-05-26` 経由（main 直接 push 回避、§7.4 遵守）
+- PR #33 merged 後にメイン pull で `15941c1` 反映確認、docs worktree は削除済
+
+#### 設計判断 / Lessons Learned
+
+- **cwd 漂流は絶対パス Write/Edit に救われた**: 調査 `cd` がそのまま持続したが、ファイル操作は絶対パスだったため実害ゼロ。今後は git 状態確認に `pwd` 併記をクセ付け（Known Issue 028）
+- **規約は「促す」より「手順に組み込む」**: reactive な ifガードは実施漏れの温床。worktree 作成 4 ステップを 1 セットで提示する proactive 化が再発防止の本質
+- **要件と実環境のズレは先に潰す**: 冒頭 3 件とも前提崩れ（worktree 不在 / 既存記述 / `+` の経緯）。実装前に Discoveries として明示しユーザー方針を再確認した
+
 ### 2026-05-24 - subagent self-contained brief 規約 + worktree integrity 改善（Plan 一気通貫実装、PR #22）
 
 #### 概要
@@ -31,6 +60,7 @@
 - **worktree 削除前の re-verification 重要**: PR / commit / outbox 監査だけでは「ユーザー認識」を捉えきれない。prototype+mobile-ui で 1 度スキップ判断、ユーザー指示で保留
 - **`ls-files -mo --exclude-standard` が `status` と乖離するケース**: tracked / untracked + .gitignore + 別チャットの並行 commit タイミングで結果が変わる。worktree 内状態確認は `status` 併用
 - **PR diff vs 実作業の境界明示**: agents-lib は git 外なので「PR 外で同時実施」を commit message + PR description に明記、後のレビュー混乱を予防
+
 ### 2026-05-24 - DU-F Step 6-14 完了（WikiTag/Link UI 4 role + wiki_tag_groups CRUD + Notes/Daily Unified bridge fix）
 
 #### 概要

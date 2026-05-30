@@ -2,31 +2,33 @@
 
 > 各 `chat-*.md` の集約ビュー。task-tracker 実行時に再生成される。**SSOT は各 `chat-*.md` ファイル**。本ファイルは読み手向け要約。
 
-最終更新: 2026-05-25 (chat-prototype-mobile)
+最終更新: 2026-05-30 21:39:50 (chat-main)
 
 ---
 
 ## 進行中 (across all chats)
 
-- [chat-main] 🔧 DU-F WikiTag/Link UI 4 role + CalendarTag 死削除 + 親 DoD 達成 — 着手: 2026-05-24（Step 6-13 完了 + 全検証緑、Step 14 commit + role-qa + PR 承認待ち）
+（なし）
 
 ## 直近の完了 (across all chats, 各チャット最大 3 件)
 
+- [chat-main] Multi-chat Worktree Policy proactive rollout ✅ (2026-05-26 PR #33 merged, `15941c1`)
+- [chat-main] DU-G G1-G3（Notes/Dailies Unified Service + Provider+web 切替）✅ (2026-05-26 PR #29/#30/#31 merged)
+- [chat-main] DU archive cleanup ✅ (2026-05-24 chore/du-archive-cleanup)
 - [chat-prototype-mobile] Phase 3.J fix: swipe transition 条件再修正 + アクセサリーバー iOS 風リスタイル ✅ (2026-05-25)
-- [chat-prototype-mobile] Phase 3.I fix: swipe rebound 解消 + Materials アクセサリーバー ✅ (2026-05-24)
+- [chat-prototype-mobile] Phase 3.I fix: swipe rebound 解消 + Materials アクセサリバー追加 ✅ (2026-05-24)
 - [chat-prototype-mobile] Phase 3.H fix: peeking SwipePane + DayDetailSheet タップ復活 ✅ (2026-05-24)
-- [chat-main] DU-D Notes role + Daily 移植（scope-reduced）✅ (2026-05-24)
-- [chat-main] .claude/ 配下整理（vision/plans 精査 + 学習教材削除 + 残骸クリーンアップ）✅ (2026-05-24)
-- [chat-main] DU-C+ scope-reduced 完了（CalendarTag DROP + shared 層 WikiTag 整備）✅ (2026-05-24)
-- [chat-main] DU-F Step 1-5: WikiTagsUnifiedProvider 配置 + CalendarTag 死削除 ✅ (2026-05-24 commit `074ec53`)
-- [chat-main] subagent self-contained brief 規約 + worktree integrity 改善（PR #22 draft）✅ (2026-05-24)
-- [chat-main] Anthropic Cloud Routine 2 本セットアップ（朝の歴史学習 + 帰宅時モバイル開発準備）✅ (2026-05-24)
 
 ## 予定 (across all chats)
 
-- [chat-main] 👀 ユーザー実機確認待ち: DU-F Step 7-11 の golden path (4 role Tag 付与/解除/Link 作成/backlink + wiki_tag_groups CRUD UI)
-- [chat-main] 👀 ユーザー実機確認待ち: DU-C-6 (Routine 作成/削除/復元 + 月またぎ ループ防止 + key duplicate 警告ゼロ)
-- [chat-main] 🛑 DU-F 完了 commit 時に DU-C+ + DU-F 両計画書を同時 archive（DF-Q8）
-- [chat-main] DU-G Notes/Daily Unified 完全切替（SupabaseNotesUnifiedService 機能拡張 + Provider 切替 + UI 動作確認。スケルトン作成済）
-- [chat-main] DU-E Calendar 2 ビュー再実装（DU-F / DU-G 完了後）
-- [chat-main] 🔧 DU-F WikiTag/Link UI 4 role + CalendarTag 死削除 + 親 DoD 達成 — 着手: 2026-05-24
+- [chat-main] **du-g worktree セットアップ → Notes/Daily Unified Service 本作業**（次セッション・別チャット起動、role-pm から要件固め）
+- [chat-main] du-g3 worktree 退役判断（PR #31 で main 着地済、cleanup 基準確認）
+- [chat-main] Known Issue 025 Fixed 化（任意・軽量、prototype+mobile-ui prune 済で実質解決）
+- [chat-main] DU-G G4（legacy 死削除、4 PR 直列分割の最終）
+- [chat-main] Link UX 強化（Obsidian 風）: cross-role link / 遅延実体化 stub / クリック遷移
+- [chat-main] DU-E Calendar 2 ビュー再実装（DU-G 完了後）
+- [chat-main] 🔒 Notes password bcrypt 化（N>1 化前ゲート必須、known-issue 027 が SSOT）
+- [chat-main] 👀 ユーザー実機確認待ち: DU-F Step 7-11 の golden path
+- [chat-main] 👀 ユーザー実機確認待ち: DU-C-6 (Routine 作成/削除/復元 + 月またぎ ループ防止)
+- [chat-prototype-mobile] Phase 3.F PR 作成 (🛑 人手 Gate): `prototype/mobile-ui` → `refactor/web-first-v2`
+- [chat-prototype-mobile] 👀 残: 6 screens 全体の追加目視確認
