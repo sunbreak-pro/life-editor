@@ -266,7 +266,7 @@
 ## Feature: Database (Notion 風汎用 DB)
 
 **Tier**: 1
-**Status**: ○基本完成（PropertyType 5 種、フィルタ/ソート/集計）
+**Status**: ○基本完成（PropertyType 5 種、フィルタ/ソート/集計） — **移行 SSOT: Phase 1 で Supabase 化を延期、Phase 5 完了後に MCP 拡張と合わせて再開予定**
 **Owner Provider/Module**: `frontend/src/components/Database/` / `src-tauri/src/commands/database_commands.rs`
 **MCP Coverage**: — （Phase 1 で `list_databases` / `query_database` / `add_database_row` / `update_database_cell` 追加予定、ADR-0005 関連）
 **Supports Value Prop**: V3
@@ -390,7 +390,7 @@
 ## Feature: Cloud Sync
 
 **Tier**: 1
-**Status**: ○基本完成（10 バージョンドテーブル + 3 リレーションテーブル対応、残り約 30 テーブル未対応）
+**Status**: ○基本完成 (Tauri 時代の実装、Cloudflare Workers + D1 ベース) — **移行 SSOT Phase 5 で `cloud/` 一式削除予定。Supabase Realtime + RLS で再実装（Phase 2 で基盤は完了済、対応テーブル拡張は Phase 5 で全面再設計）**
 **Owner Provider/Module**: `SyncProvider` / `frontend/src/context/SyncContext.tsx` / `src-tauri/src/commands/sync_commands.rs` / `src-tauri/src/sync/{sync_engine,http_client,types}.rs` / Cloudflare Workers + D1（外部）
 **MCP Coverage**: —
 **Supports Value Prop**: V2

@@ -148,7 +148,21 @@ interface ListGroup {
   items: ScheduleItem[];
 }
 
-function buildListGroups(items: ScheduleItem[], today: Date): ListGroup[] {
+type SortKey = "time" | "updatedAt" | "title";
+
+function pickSortFn(
+  sortKey: SortKey,
+): (a: ScheduleItem, b: ScheduleItem) => number {
+  if (sortKey === "title") return (a, b) => a.title.localeCompare(b.title);
+  if (sortKey === "updatedAt") return (a, b) => b.updatedAt - a.updatedAt;
+  return compareTime;
+}
+
+function buildListGroups(
+  items: ScheduleItem[],
+  today: Date,
+  sortKey: SortKey = "time",
+): ListGroup[] {
   const todayStr = ymd(today);
   const tomorrowStr = ymd(addDays(today, 1));
   const weekEnd = addDays(today, 7);
@@ -170,8 +184,14 @@ function buildListGroups(items: ScheduleItem[], today: Date): ListGroup[] {
       }
     }
   }
-  [todayItems, tomorrowItems, weekItems].forEach((g) => g.sort(compareTime));
-  noDue.sort((a, b) => b.updatedAt - a.updatedAt);
+  const sortFn = pickSortFn(sortKey);
+  [todayItems, tomorrowItems, weekItems].forEach((g) => g.sort(sortFn));
+  // noDue は時刻情報がないので sortKey に従う (time のときは fallback で updatedAt)
+  if (sortKey === "time") {
+    noDue.sort((a, b) => b.updatedAt - a.updatedAt);
+  } else {
+    noDue.sort(sortFn);
+  }
   return [
     { label: "今日", items: todayItems },
     { label: "明日", items: tomorrowItems },
@@ -328,6 +348,10 @@ export function ScheduleScreen() {
   const [searchQuery, setSearchQuery] = useState("");
   const [filterTagIds, setFilterTagIds] = useState<string[]>([]);
   const [filterStatuses, setFilterStatuses] = useState<TaskStatus[]>([]);
+  const [filterTypes, setFilterTypes] = useState<ScheduleItemType[]>([]);
+  const [sortKey, setSortKey] = useState<"time" | "updatedAt" | "title">(
+    "time",
+  );
 
   const [selectedDay, setSelectedDay] = useState<Date | null>(null);
   const [modalDraft, setModalDraft] = useState<EditDraft | null>(null);
@@ -348,9 +372,12 @@ export function ScheduleScreen() {
       if (filterStatuses.length > 0) {
         if (!filterStatuses.includes(it.status)) return false;
       }
+      if (filterTypes.length > 0) {
+        if (!filterTypes.includes(it.type)) return false;
+      }
       return true;
     });
-  }, [scheduleItems, searchQuery, filterTagIds, filterStatuses]);
+  }, [scheduleItems, searchQuery, filterTagIds, filterStatuses, filterTypes]);
 
   const itemsByDay = useMemo(() => {
     const map = new Map<string, ScheduleItem[]>();
@@ -373,8 +400,8 @@ export function ScheduleScreen() {
   // 月 / 3日 のセル計算は SwipePane の renderPage 内で都度行うので
   // ここでは事前計算しない (3 ペーン分必要なため)
   const listGroups = useMemo(
-    () => buildListGroups(filtered, today),
-    [filtered, today],
+    () => buildListGroups(filtered, today, sortKey),
+    [filtered, today, sortKey],
   );
 
   const openCreate = (preset?: Partial<EditDraft>) =>
@@ -618,6 +645,14 @@ export function ScheduleScreen() {
             prev.includes(s) ? prev.filter((x) => x !== s) : [...prev, s],
           )
         }
+        filterTypes={filterTypes}
+        onToggleTypeFilter={(t) =>
+          setFilterTypes((prev) =>
+            prev.includes(t) ? prev.filter((x) => x !== t) : [...prev, t],
+          )
+        }
+        sortKey={sortKey}
+        onChangeSortKey={setSortKey}
       />
     </div>
   );
@@ -1975,6 +2010,10 @@ function Sidebar({
   onToggleTagFilter,
   filterStatuses,
   onToggleStatusFilter,
+  filterTypes,
+  onToggleTypeFilter,
+  sortKey,
+  onChangeSortKey,
 }: {
   open: boolean;
   panel: "search" | "filter" | null;
@@ -1987,6 +2026,10 @@ function Sidebar({
   onToggleTagFilter: (id: string) => void;
   filterStatuses: TaskStatus[];
   onToggleStatusFilter: (s: TaskStatus) => void;
+  filterTypes: ScheduleItemType[];
+  onToggleTypeFilter: (t: ScheduleItemType) => void;
+  sortKey: SortKey;
+  onChangeSortKey: (k: SortKey) => void;
 }) {
   return (
     <>
@@ -2091,30 +2134,98 @@ function Sidebar({
           )}
           {panel === "filter" && (
             <div className="flex flex-col">
-              <FilterSection title="タグ">
-                {wikiTags.map((t) => {
-                  const selected = filterTagIds.includes(t.id);
+              <FilterSection title="タイプ">
+                {(
+                  [
+                    { v: "event", label: "イベント", color: C.sky },
+                    { v: "task", label: "タスク", color: C.green },
+                    { v: "birthday", label: "誕生日", color: C.peach },
+                    { v: "holiday", label: "祝日", color: C.red },
+                  ] as { v: ScheduleItemType; label: string; color: string }[]
+                ).map(({ v, label, color }) => {
+                  const selected = filterTypes.includes(v);
                   return (
                     <button
-                      key={t.id}
+                      key={v}
                       type="button"
-                      onClick={() => onToggleTagFilter(t.id)}
+                      onClick={() => onToggleTypeFilter(v)}
                       className="min-h-[44px] px-3 flex items-center gap-2 text-left"
                       style={{
                         background: selected ? C.surface0 : "transparent",
                         color: C.text,
                       }}
+                      aria-pressed={selected}
                     >
                       <span
                         className="w-3 h-3 rounded-full"
-                        style={{ background: t.color }}
+                        style={{ background: color }}
                       />
-                      <span className="text-sm flex-1">#{t.name}</span>
+                      <span className="text-sm flex-1">{label}</span>
                       {selected && <Check size={16} color={C.green} />}
                     </button>
                   );
                 })}
               </FilterSection>
+              <FilterSection title="並び順 (DayFlow)">
+                {(
+                  [
+                    { v: "time", label: "時刻順" },
+                    { v: "updatedAt", label: "更新日時 (新しい順)" },
+                    { v: "title", label: "タイトル順" },
+                  ] as { v: SortKey; label: string }[]
+                ).map(({ v, label }) => {
+                  const selected = sortKey === v;
+                  return (
+                    <button
+                      key={v}
+                      type="button"
+                      onClick={() => onChangeSortKey(v)}
+                      className="min-h-[44px] px-3 flex items-center gap-2 text-left"
+                      style={{
+                        background: selected ? C.surface0 : "transparent",
+                        color: C.text,
+                      }}
+                      role="radio"
+                      aria-checked={selected}
+                    >
+                      <span
+                        className="w-3 h-3 rounded-full"
+                        style={{
+                          background: selected ? C.mauve : "transparent",
+                          border: `1px solid ${selected ? C.mauve : C.overlay0}`,
+                        }}
+                      />
+                      <span className="text-sm flex-1">{label}</span>
+                    </button>
+                  );
+                })}
+              </FilterSection>
+              {wikiTags.length > 0 && (
+                <FilterSection title="タグ">
+                  {wikiTags.map((t) => {
+                    const selected = filterTagIds.includes(t.id);
+                    return (
+                      <button
+                        key={t.id}
+                        type="button"
+                        onClick={() => onToggleTagFilter(t.id)}
+                        className="min-h-[44px] px-3 flex items-center gap-2 text-left"
+                        style={{
+                          background: selected ? C.surface0 : "transparent",
+                          color: C.text,
+                        }}
+                      >
+                        <span
+                          className="w-3 h-3 rounded-full"
+                          style={{ background: t.color }}
+                        />
+                        <span className="text-sm flex-1">#{t.name}</span>
+                        {selected && <Check size={16} color={C.green} />}
+                      </button>
+                    );
+                  })}
+                </FilterSection>
+              )}
               <FilterSection title="ステータス">
                 {(["todo", "doing", "done"] as const).map((s) => {
                   const selected = filterStatuses.includes(s);
