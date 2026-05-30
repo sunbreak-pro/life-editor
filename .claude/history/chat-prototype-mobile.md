@@ -1,5 +1,30 @@
 # HISTORY (chat-prototype-mobile)
 
+### 2026-05-30 - C-2: Calendar フィルタ (タイプ) + 並び順切替 (iOS additions)
+
+#### 概要
+
+iOS additions 要件 C-2 を prototype 環境で実装。Schedule 画面の左 Sidebar (G-3 Drawer 相当) Filter パネルに「タイプ」「並び順 (DayFlow)」セクションを追加。タイプは ScheduleItem の 4 type (event/task/birthday/holiday) を多選択でフィルタ。並び順は DayFlow 側 (listGroups) で `time/updatedAt/title` の 3 種を radio 選択。Calendar (itemsByDay) は時刻順固定 (AC2 準拠)。
+
+#### 変更点
+
+- **[feat] filterTypes state**: `ScheduleItemType[]`。空配列 = 全 ON (デフォルト)
+- **[feat] sortKey state**: `"time" | "updatedAt" | "title"`、デフォルト `"time"`
+- **[feat] filtered ロジック拡張**: filterTypes 絞り込みを追加
+- **[feat] buildListGroups の sortKey 対応**: `pickSortFn` helper でソート関数を切替、noDue グループは time のとき updatedAt fallback
+- **[feat] Sidebar 拡張**:
+  - 「タイプ」セクション: 4 type の多選択チェックリスト (sky/green/peach/red のカラードット + 日本語ラベル + aria-pressed)
+  - 「並び順 (DayFlow)」セクション: 3 sortKey の radio (mauve dot + aria-checked)
+- **[ux] AC3 対応**: タグセクションは `wikiTags.length > 0` のときのみ表示 (Optional Provider 相当の null ガード)
+- **[note] role 範囲**: 要件本文は 5 role (Event/Task/Routine/Note/Daily) 想定だが prototype ScheduleItem は 4 type (Routine/Note/Daily 統合は本番 items_meta 後の話) のため 4 type で代替実装。本番側で 5 role に拡張する想定
+- **検証**: `npx tsc --noEmit` exit 0 / `npm run build` 396.54 kB / gzip 114.51 kB (+1.8 kB / +0.7 kB)
+
+#### Acceptance Criteria 達成
+
+- [x] AC1: 多選択タイプフィルタで Calendar (itemsByDay) と DayFlow (listGroups) が追従 (prototype 4 type 範囲)
+- [x] AC2: 並び順切替で DayFlow の並びが変わる、Calendar は compareTime 固定
+- [x] AC3: WikiTag フィルタは wikiTags 空時に UI 非表示 (Mobile Optional Provider 相当)
+
 ### 2026-05-30 - M-3: 空行ヒント + `/` キーバインド + IME ガード (iOS additions)
 
 #### 概要
