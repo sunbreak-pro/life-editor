@@ -10,6 +10,7 @@
 
 | ID  | Title                                                                                                                 | Category | Since      |
 | --- | --------------------------------------------------------------------------------------------------------------------- | -------- | ---------- |
+| 027 | [Notes/Daily password が plaintext で保存される (N>1 化前に必須)](./027-notes-password-plaintext-debt.md)             | Security | 2026-05-24 |
 | 026 | [PostToolUse formatter が隣接する Markdown 見出しを削除する](./026-posttooluse-formatter-deletes-adjacent-heading.md) | Tooling  | 2026-05-24 |
 
 ## Monitoring（すぐ対処しないが監視）

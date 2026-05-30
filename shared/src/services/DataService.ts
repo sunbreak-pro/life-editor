@@ -540,7 +540,10 @@ export interface DataService {
 
   // Notes Unified (DU-D — items_meta + notes_payload 2-row pattern).
   // Coexists with the legacy single-table Notes block above; DU-F retires
-  // the legacy block once frontend↔shared integration lands.
+  // the legacy block once frontend↔shared integration lands. DU-G PR1 adds
+  // the remaining UX-critical methods (trash / restore / hard-delete /
+  // search / password gate / edit lock) so the legacy bridge can finally
+  // drop its `_pendingDuRewrite` stubs.
   listNotesUnified(): Promise<NoteNode[]>;
   getNoteUnified(id: string): Promise<NoteNode | null>;
   createNoteUnified(node: NoteNode): Promise<NoteNode>;
@@ -551,6 +554,17 @@ export interface DataService {
     parentId: string | null,
     order: number,
   ): Promise<void>;
+  fetchDeletedNotesUnified(): Promise<NoteNode[]>;
+  restoreNoteUnified(id: string): Promise<void>;
+  permanentDeleteNoteUnified(id: string): Promise<void>;
+  searchNotesUnified(query: string): Promise<NoteNode[]>;
+  setNotePasswordUnified(id: string, password: string): Promise<NoteNode>;
+  removeNotePasswordUnified(
+    id: string,
+    currentPassword: string,
+  ): Promise<NoteNode>;
+  verifyNotePasswordUnified(id: string, password: string): Promise<boolean>;
+  toggleNoteEditLockUnified(id: string): Promise<NoteNode>;
 
   // Dailies Unified (DU-D — items_meta + dailies_payload 2-row pattern).
   // upsertDailyByDateUnified is the primary write path (date is UNIQUE).
@@ -563,6 +577,17 @@ export interface DataService {
     updates: Partial<DailyNode>,
   ): Promise<DailyNode>;
   softDeleteDailyUnified(id: string): Promise<void>;
+  // DU-G G2 additions (Trash / password / lock; id-keyed).
+  fetchDeletedDailiesUnified(): Promise<DailyNode[]>;
+  restoreDailyUnified(id: string): Promise<void>;
+  permanentDeleteDailyUnified(id: string): Promise<void>;
+  setDailyPasswordUnified(id: string, password: string): Promise<DailyNode>;
+  removeDailyPasswordUnified(
+    id: string,
+    currentPassword: string,
+  ): Promise<DailyNode>;
+  verifyDailyPasswordUnified(id: string, password: string): Promise<boolean>;
+  toggleDailyEditLockUnified(id: string): Promise<DailyNode>;
 
   // Note Connections
   fetchNoteConnections(): Promise<NoteConnection[]>;
