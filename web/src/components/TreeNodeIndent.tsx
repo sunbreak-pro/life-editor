@@ -10,8 +10,9 @@ import { memo } from "react";
  * than continuing past it.
  *
  * notion tokens only (CLAUDE.md §6.4): `bg-notion-border` for the rule. The
- * `-my-1` cancels the row's `py-1`-ish vertical padding so adjacent rows'
- * rules join into one continuous line.
+ * `-my-1.5` cancels the row's `py-1.5` vertical padding so the rule spans
+ * the row's full height (rows are bordered cards with a `space-y-1` gap, so
+ * the rule reads per-row rather than as one unbroken line across cards).
  */
 
 interface TreeNodeIndentProps {
@@ -26,7 +27,7 @@ export const TreeNodeIndent = memo(function TreeNodeIndent({
   if (depth <= 0) return null;
 
   return (
-    <div className="flex shrink-0 self-stretch -my-1" aria-hidden>
+    <div className="flex shrink-0 self-stretch -my-1.5" aria-hidden>
       {Array.from({ length: depth }, (_, i) => (
         <div key={i} className="flex w-4 justify-center">
           <div
