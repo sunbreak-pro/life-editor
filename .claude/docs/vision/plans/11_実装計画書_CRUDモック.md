@@ -1,8 +1,9 @@
 ---
-Status: Draft
+Status: COMPLETED — Phase 3.A〜F (chat-prototype-mobile, 2026-05-22〜2026-05-25) で全 81 ステップ達成済。後続 fix-pack: Phase 3.G〜3.J (commit `a119f8d` / `8a9c0ae` / `5dbea86` / `edeb224`)。Mobile UI prototype の現行 SSOT は `prototype/README.md` および per-chat history。
 Created: 2026-05-24
+Completed: 2026-05-25
 Branch: prototype/mobile-ui
-Owner-chat: chat-main
+Owner-chat: chat-prototype-mobile
 Parent: .claude/docs/vision/plans/01_要件定義書_プロトタイプ環境.md
 Previous: .claude/docs/vision/plans/10_UIUX設計書_Settings.md
 ---
