@@ -181,6 +181,7 @@ export function MaterialsScreen() {
   const [sheet, setSheet] = useState<SheetType>(null);
   const [longPressTarget, setLongPressTarget] = useState<Note | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<Note | null>(null);
+  const [swipeOpenId, setSwipeOpenId] = useState<string | null>(null);
   const openHandledRef = useRef<string | null>(null);
 
   const filtered = useMemo(() => {
@@ -305,6 +306,20 @@ export function MaterialsScreen() {
           onLongPress={(n) => {
             setLongPressTarget(n);
             setSheet("itemMenu");
+          }}
+          swipeOpenId={swipeOpenId}
+          setSwipeOpenId={setSwipeOpenId}
+          onSwipeEdit={(n) => {
+            setSwipeOpenId(null);
+            handleOpenNote(n.id);
+          }}
+          onSwipePin={(n) => {
+            togglePinNote(n.id);
+            setSwipeOpenId(null);
+          }}
+          onSwipeDelete={(n) => {
+            setConfirmDelete(n);
+            setSwipeOpenId(null);
           }}
         />
       </main>
@@ -629,6 +644,11 @@ function ListBody({
   tagById,
   onOpen,
   onLongPress,
+  swipeOpenId,
+  setSwipeOpenId,
+  onSwipeEdit,
+  onSwipePin,
+  onSwipeDelete,
 }: {
   layout: Layout;
   pinned: Note[];
@@ -636,6 +656,11 @@ function ListBody({
   tagById: Map<string, WikiTag>;
   onOpen: (id: string) => void;
   onLongPress: (n: Note) => void;
+  swipeOpenId: string | null;
+  setSwipeOpenId: (id: string | null) => void;
+  onSwipeEdit: (n: Note) => void;
+  onSwipePin: (n: Note) => void;
+  onSwipeDelete: (n: Note) => void;
 }) {
   if (pinned.length === 0 && unpinned.length === 0) {
     return (
@@ -660,6 +685,11 @@ function ListBody({
             tagById={tagById}
             onOpen={onOpen}
             onLongPress={onLongPress}
+            swipeOpenId={swipeOpenId}
+            setSwipeOpenId={setSwipeOpenId}
+            onSwipeEdit={onSwipeEdit}
+            onSwipePin={onSwipePin}
+            onSwipeDelete={onSwipeDelete}
           />
         </>
       )}
@@ -674,6 +704,11 @@ function ListBody({
             tagById={tagById}
             onOpen={onOpen}
             onLongPress={onLongPress}
+            swipeOpenId={swipeOpenId}
+            setSwipeOpenId={setSwipeOpenId}
+            onSwipeEdit={onSwipeEdit}
+            onSwipePin={onSwipePin}
+            onSwipeDelete={onSwipeDelete}
           />
         </>
       )}
@@ -702,39 +737,231 @@ function NoteList({
   tagById,
   onOpen,
   onLongPress,
+  swipeOpenId,
+  setSwipeOpenId,
+  onSwipeEdit,
+  onSwipePin,
+  onSwipeDelete,
 }: {
   notes: Note[];
   layout: Layout;
   tagById: Map<string, WikiTag>;
   onOpen: (id: string) => void;
   onLongPress: (n: Note) => void;
+  swipeOpenId: string | null;
+  setSwipeOpenId: (id: string | null) => void;
+  onSwipeEdit: (n: Note) => void;
+  onSwipePin: (n: Note) => void;
+  onSwipeDelete: (n: Note) => void;
 }) {
+  const wrap = (n: Note, child: React.ReactNode) => (
+    <SwipeRow
+      key={n.id}
+      note={n}
+      open={swipeOpenId === n.id}
+      anyOpen={swipeOpenId !== null}
+      onRequestOpen={() => setSwipeOpenId(n.id)}
+      onRequestClose={() => setSwipeOpenId(null)}
+      onEdit={() => onSwipeEdit(n)}
+      onPin={() => onSwipePin(n)}
+      onDelete={() => onSwipeDelete(n)}
+    >
+      {child}
+    </SwipeRow>
+  );
   if (layout === "card") {
     return (
       <div className="flex flex-col gap-3 p-4">
-        {notes.map((n) => (
-          <NoteCard
-            key={n.id}
-            note={n}
-            tagById={tagById}
-            onOpen={() => onOpen(n.id)}
-            onLongPress={() => onLongPress(n)}
-          />
-        ))}
+        {notes.map((n) =>
+          wrap(
+            n,
+            <NoteCard
+              note={n}
+              tagById={tagById}
+              onOpen={() => onOpen(n.id)}
+              onLongPress={() => onLongPress(n)}
+            />,
+          ),
+        )}
       </div>
     );
   }
   return (
     <div className="flex flex-col">
-      {notes.map((n) => (
-        <NoteRow
-          key={n.id}
-          note={n}
-          tagById={tagById}
-          onOpen={() => onOpen(n.id)}
-          onLongPress={() => onLongPress(n)}
-        />
-      ))}
+      {notes.map((n) =>
+        wrap(
+          n,
+          <NoteRow
+            note={n}
+            tagById={tagById}
+            onOpen={() => onOpen(n.id)}
+            onLongPress={() => onLongPress(n)}
+          />,
+        ),
+      )}
+    </div>
+  );
+}
+
+const SWIPE_THRESHOLD = 50;
+const SWIPE_OPEN_WIDTH = 192;
+
+function SwipeRow({
+  note,
+  open,
+  anyOpen,
+  onRequestOpen,
+  onRequestClose,
+  onEdit,
+  onPin,
+  onDelete,
+  children,
+}: {
+  note: Note;
+  open: boolean;
+  anyOpen: boolean;
+  onRequestOpen: () => void;
+  onRequestClose: () => void;
+  onEdit: () => void;
+  onPin: () => void;
+  onDelete: () => void;
+  children: React.ReactNode;
+}) {
+  const [dx, setDx] = useState(0);
+  const [dragging, setDragging] = useState(false);
+  const startRef = useRef<{
+    x: number;
+    y: number;
+    locked: "horizontal" | "vertical" | null;
+  } | null>(null);
+
+  useEffect(() => {
+    if (!dragging) setDx(open ? -SWIPE_OPEN_WIDTH : 0);
+  }, [open, dragging]);
+
+  const handlePointerDown = (e: React.PointerEvent) => {
+    if (e.pointerType === "mouse" && e.button !== 0) return;
+    startRef.current = { x: e.clientX, y: e.clientY, locked: null };
+    setDragging(true);
+  };
+
+  const handlePointerMove = (e: React.PointerEvent) => {
+    if (!startRef.current) return;
+    const rawDx = e.clientX - startRef.current.x;
+    const rawDy = e.clientY - startRef.current.y;
+    if (startRef.current.locked === null) {
+      const absX = Math.abs(rawDx);
+      const absY = Math.abs(rawDy);
+      if (absX < 8 && absY < 8) return;
+      startRef.current.locked = absX > absY ? "horizontal" : "vertical";
+    }
+    if (startRef.current.locked !== "horizontal") return;
+    const base = open ? -SWIPE_OPEN_WIDTH : 0;
+    const next = Math.min(0, Math.max(-SWIPE_OPEN_WIDTH * 1.2, base + rawDx));
+    setDx(next);
+  };
+
+  const settle = (commitOpen: boolean) => {
+    setDragging(false);
+    startRef.current = null;
+    if (commitOpen) {
+      setDx(-SWIPE_OPEN_WIDTH);
+      onRequestOpen();
+    } else {
+      setDx(0);
+      if (open) onRequestClose();
+    }
+  };
+
+  const handlePointerUp = () => {
+    if (!startRef.current) {
+      setDragging(false);
+      return;
+    }
+    if (startRef.current.locked !== "horizontal") {
+      setDragging(false);
+      startRef.current = null;
+      return;
+    }
+    const commitOpen = -dx > SWIPE_THRESHOLD;
+    settle(commitOpen);
+  };
+
+  const handlePointerCancel = () => {
+    setDragging(false);
+    startRef.current = null;
+    setDx(open ? -SWIPE_OPEN_WIDTH : 0);
+  };
+
+  const handleContentClickCapture = (e: React.MouseEvent) => {
+    if (open) {
+      e.stopPropagation();
+      e.preventDefault();
+      onRequestClose();
+    } else if (anyOpen) {
+      e.stopPropagation();
+      e.preventDefault();
+      onRequestClose();
+    }
+  };
+
+  const actionTitle = note.kind === "daily" ? "編集" : "名前変更";
+
+  return (
+    <div
+      className="relative overflow-hidden"
+      style={{ touchAction: "pan-y", background: C.crust }}
+    >
+      <div
+        className="absolute inset-y-0 right-0 flex items-stretch"
+        style={{ width: SWIPE_OPEN_WIDTH }}
+        aria-hidden={!open}
+      >
+        <button
+          type="button"
+          onClick={onEdit}
+          className="flex-1 flex flex-col items-center justify-center gap-1 text-xs font-medium"
+          style={{ background: C.surface2, color: C.text }}
+          aria-label={`${actionTitle} ${note.title || "(無題)"}`}
+        >
+          <FileText size={18} />
+          {actionTitle}
+        </button>
+        <button
+          type="button"
+          onClick={onPin}
+          className="flex-1 flex flex-col items-center justify-center gap-1 text-xs font-medium"
+          style={{ background: C.peach, color: C.crust }}
+          aria-label={`${note.pinned ? "ピンを外す" : "ピン留め"} ${note.title || "(無題)"}`}
+        >
+          {note.pinned ? <PinOff size={18} /> : <Pin size={18} />}
+          {note.pinned ? "外す" : "ピン"}
+        </button>
+        <button
+          type="button"
+          onClick={onDelete}
+          className="flex-1 flex flex-col items-center justify-center gap-1 text-xs font-medium"
+          style={{ background: C.red, color: C.crust }}
+          aria-label={`削除 ${note.title || "(無題)"}`}
+        >
+          <Trash2 size={18} />
+          削除
+        </button>
+      </div>
+      <div
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={handlePointerUp}
+        onPointerCancel={handlePointerCancel}
+        onClickCapture={handleContentClickCapture}
+        style={{
+          transform: `translate3d(${dx}px, 0, 0)`,
+          transition: dragging ? "none" : "transform 220ms ease",
+          background: C.base,
+        }}
+      >
+        {children}
+      </div>
     </div>
   );
 }

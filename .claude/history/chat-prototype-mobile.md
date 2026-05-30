@@ -1,5 +1,37 @@
 # HISTORY (chat-prototype-mobile)
 
+### 2026-05-30 - M-1: Materials 行スワイプで edit/pin/delete (iOS additions)
+
+#### 概要
+
+iOS additions 要件 M-1 (`docs/requirements/ios-additions.md`) を prototype 環境で実装。Notes / Daily 一覧の行を右→左にスワイプすると、edit / pin / delete の 3 ボタンが背面から表示される (Apple 標準メモ風)。同時に開ける行は 1 つだけで、他行スワイプ・他行タップで前の行は自動的に閉じる。要件監査 (a) で発覚した「ほぼ完了済とは言えない」状態のうち、未着手 5 件の最初を消化。
+
+#### 変更点
+
+- **[feat] `SwipeRow` ヘルパー追加** (`prototype/src/screens/MaterialsScreen.tsx` 約 +140 行)
+  - PointerEvent ベース、横方向 8px ロック → 50px 超で open commit、最大 1.2 倍まで rubber-band 風に追従
+  - 開いた幅は 192px (3 ボタン × 64px)。`touchAction: pan-y` で縦スクロール優先
+  - controlled state は MaterialsScreen の `swipeOpenId: string | null` (1 行のみ open 制約 = AC2)
+- **[feat] 3 アクション**:
+  - 編集 (FileText / `C.surface2`) → 既存 `handleOpenNote` で editor 起動
+  - ピン (Pin / PinOff / `C.peach`) → 既存 `togglePinNote`
+  - 削除 (Trash2 / `C.red`) → 既存 `confirmDelete` ダイアログ経由 → `deleteNote` (soft delete)
+- **[ux] 開状態のタップで閉じる**: `onClickCapture` で open 中の行・他行 open 中の任意行タップを消費して `setSwipeOpenId(null)`
+- **[非衝突] useLongPress との両立**: 既存 useLongPress は `dx>10` でキャンセル機構を持つので、SwipeRow が horizontal lock を取ると useLongPress は自動 cancel される (AC5)
+- **検証**: `npx tsc --noEmit` exit 0 / `npm run build` 389.72 kB / gzip 112.45 kB / 2.83s
+
+#### 既知の見た目課題 (次 fix-pack 候補)
+
+- layout=card のとき SwipeRow の `background: C.crust` が NoteCard 周りの `gap-3` 隙間に出る (角丸処理が NoteCard 側のみのため)。機能 AC は全て満たすが、ユーザー目視確認 (B) で違和感あれば次回調整
+
+#### Acceptance Criteria 達成
+
+- [x] AC1: 右→左スワイプで 3 ボタン表示
+- [x] AC2: 他行 swipe/タップで前行が閉じる (`swipeOpenId` 単一 state)
+- [x] AC3: 削除はソフトデリート (既存 `deleteNote`)、Trash から復元可
+- [x] AC4: pin はトグル
+- [x] AC5: Long Press → ActionSheet と非衝突
+
 ### 2026-05-25 - Phase 3.J fix: swipe transition 条件再修正 + アクセサリーバー iOS 風リスタイル
 
 #### 概要
