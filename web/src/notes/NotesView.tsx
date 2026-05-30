@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import {
   DndContext,
   DragOverlay,
-  closestCenter,
+  MeasuringStrategy,
   type UniqueIdentifier,
 } from "@dnd-kit/core";
 import {
@@ -10,7 +10,6 @@ import {
   useSortable,
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
-import { CSS } from "@dnd-kit/utilities";
 import {
   FileText,
   Folder,
@@ -30,6 +29,9 @@ import {
   type NotePasswordMode,
 } from "./NotePasswordDialog";
 import { TagPicker, LinkPanel } from "../wikitag";
+import { TreeNodeIndent } from "../components/TreeNodeIndent";
+import { treeCollisionDetection } from "../components/treeCollision";
+import { TreeDragGhost } from "../components/TreeDragGhost";
 
 /*
  * Web Notes UI (S3). New, purpose-built notion-token UI (NOT a port of
@@ -70,12 +72,16 @@ interface FlatRow {
   node: NoteNode;
   depth: number;
   hasChildren: boolean;
+  // True when this row is the last of its parent's visible children. Drives
+  // the TreeNodeIndent "elbow" (deepest guide rule drawn at half height).
+  isLastChild: boolean;
 }
 
 function NoteRow({
   row,
   expanded,
   selected,
+  dropPosition,
   onToggleExpand,
   onSelect,
   onDelete,
@@ -83,89 +89,128 @@ function NoteRow({
   row: FlatRow;
   expanded: boolean;
   selected: boolean;
+  // Drop indicator for THIS row while a drag is over it. null when this
+  // row is not the current drop target (or no drag is active).
+  dropPosition: "above" | "below" | "inside" | null;
   onToggleExpand: (id: string) => void;
   onSelect: (id: string) => void;
   onDelete: (id: string) => void;
 }) {
-  const { node, depth, hasChildren } = row;
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-    isDragging,
-  } = useSortable({ id: node.id });
+  const { node, depth, hasChildren, isLastChild } = row;
+  const { attributes, listeners, setNodeRef } = useSortable({ id: node.id });
 
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-    paddingLeft: `${depth * 18 + 8}px`,
-    opacity: isDragging ? 0.4 : 1,
-  };
+  // The list stays completely static during a drag. @dnd-kit's sortable
+  // strategy still computes per-row shift transforms, but we deliberately
+  // do NOT apply them, and the dragged row keeps full opacity in place —
+  // the list block itself never moves. The "what am I dragging" cue is a
+  // faint floating ghost (DragOverlay, below) that trails the cursor,
+  // while the blue indicator (insertion line / light-blue folder wash)
+  // shows where it will land. The actual reorder/move happens on drop.
+  // Depth is now expressed as TreeNodeIndent guide columns (TaskTree
+  // parity), not a paddingLeft — so no inline style is needed.
+
+  // "Drop inside this folder" — opaque light-blue wash + accent border so
+  // it reads distinctly from the selected row (which uses border + hover
+  // bg). Selected styling is suppressed while showing the inside cue to
+  // avoid a muddled double-treatment.
+  const showInside = dropPosition === "inside";
+  const isFolder = node.type === "folder";
 
   return (
     <li
       ref={setNodeRef}
-      style={style}
-      className={`group flex items-center gap-2 rounded-md border px-2 py-1.5 ${
-        selected
-          ? "border-notion-accent bg-notion-hover"
-          : "border-notion-border bg-notion-bg-secondary"
+      className={`group relative flex items-center gap-1 rounded-md border px-2 py-1.5 ${
+        showInside
+          ? "border-notion-accent bg-notion-accent-subtle"
+          : selected
+            ? "border-notion-accent bg-notion-hover"
+            : "border-notion-border bg-notion-bg-secondary"
       }`}
     >
+      {/* Reorder insertion line — 2px accent bar pinned to the row's top
+          or bottom edge. Purely visual; @dnd-kit announces the move via
+          its own live region, so this is aria-hidden. No transition: it
+          must track the pointer instantly without trailing. */}
+      {dropPosition === "above" && (
+        <span
+          aria-hidden
+          className="pointer-events-none absolute inset-x-1 -top-px h-0.5 rounded-full bg-notion-accent"
+        />
+      )}
+      {dropPosition === "below" && (
+        <span
+          aria-hidden
+          className="pointer-events-none absolute inset-x-1 -bottom-px h-0.5 rounded-full bg-notion-accent"
+        />
+      )}
+      {/* Grip — hover-revealed (TaskTree parity). Stays focusable so a
+          keyboard user can still tab to it; group-hover surfaces it for
+          the mouse. */}
       <button
         type="button"
         {...attributes}
         {...listeners}
         aria-label="Drag to reorder or move"
-        className={`cursor-grab text-notion-text-secondary hover:text-notion-text ${FOCUS_RING}`}
+        className={`shrink-0 cursor-grab text-notion-text-secondary opacity-0 transition-opacity hover:text-notion-text focus-visible:opacity-100 group-hover:opacity-100 ${FOCUS_RING}`}
       >
         <GripVertical size={14} aria-hidden />
       </button>
 
-      {node.type === "folder" ? (
+      <TreeNodeIndent depth={depth} isLastChild={isLastChild} />
+
+      {/* Leading glyph: folders show a Folder icon at rest that swaps to a
+          twisty (chevron) on row hover — one control, one click target —
+          mirroring the Desktop TaskTree. Notes show a static FileText. */}
+      {isFolder ? (
         <button
           type="button"
           onClick={() => onToggleExpand(node.id)}
           aria-label={expanded ? "Collapse folder" : "Expand folder"}
           aria-expanded={expanded}
-          className={`text-notion-text-secondary hover:text-notion-text ${FOCUS_RING}`}
+          className={`relative inline-flex h-[14px] w-[14px] shrink-0 items-center justify-center text-notion-text-secondary hover:text-notion-text ${FOCUS_RING}`}
         >
+          <Folder
+            size={14}
+            aria-hidden
+            className="absolute opacity-100 transition-opacity group-hover:opacity-0"
+          />
           {hasChildren ? (
             expanded ? (
-              <ChevronDown size={14} aria-hidden />
+              <ChevronDown
+                size={14}
+                aria-hidden
+                className="absolute opacity-0 transition-opacity group-hover:opacity-100"
+              />
             ) : (
-              <ChevronRight size={14} aria-hidden />
+              <ChevronRight
+                size={14}
+                aria-hidden
+                className="absolute opacity-0 transition-opacity group-hover:opacity-100"
+              />
             )
           ) : (
-            <span className="inline-block w-[14px]" aria-hidden />
+            // Empty folder: still toggleable (a no-op visually), but show
+            // the Folder→Folder so hover does not flash an empty box.
+            <Folder
+              size={14}
+              aria-hidden
+              className="absolute opacity-0 transition-opacity group-hover:opacity-100"
+            />
           )}
         </button>
       ) : (
-        <span className="inline-block w-[14px]" aria-hidden />
+        <FileText
+          size={14}
+          aria-hidden
+          className="shrink-0 text-notion-text-secondary"
+        />
       )}
 
       <button
         type="button"
-        onClick={() =>
-          node.type === "folder" ? onToggleExpand(node.id) : onSelect(node.id)
-        }
+        onClick={() => (isFolder ? onToggleExpand(node.id) : onSelect(node.id))}
         className={`flex flex-1 items-center gap-1.5 text-left text-sm text-notion-text ${FOCUS_RING}`}
       >
-        {node.type === "folder" ? (
-          <Folder
-            size={14}
-            aria-hidden
-            className="text-notion-text-secondary"
-          />
-        ) : (
-          <FileText
-            size={14}
-            aria-hidden
-            className="text-notion-text-secondary"
-          />
-        )}
         <span className={node.isPinned ? "font-medium" : ""}>
           {node.title || "(untitled)"}
         </span>
@@ -301,6 +346,7 @@ export function NotesView() {
   const dnd = useNoteTreeDnd({
     notes: notes.notes,
     expandedIds: notes.expandedIds,
+    toggleExpanded: notes.toggleExpanded,
     moveNode: notes.moveNode,
     moveNodeInto: notes.moveNodeInto,
     moveToRoot: notes.moveToRoot,
@@ -312,13 +358,18 @@ export function NotesView() {
     const rows: FlatRow[] = [];
     const walk = (parentId: string | null, depth: number) => {
       const children = notes.getChildren(parentId).filter((n) => !n.isDeleted);
-      for (const node of children) {
+      children.forEach((node, index) => {
         const grand = notes.getChildren(node.id).filter((n) => !n.isDeleted);
-        rows.push({ node, depth, hasChildren: grand.length > 0 });
+        rows.push({
+          node,
+          depth,
+          hasChildren: grand.length > 0,
+          isLastChild: index === children.length - 1,
+        });
         if (node.type === "folder" && notes.expandedIds.has(node.id)) {
           walk(node.id, depth + 1);
         }
-      }
+      });
     };
     walk(null, 0);
     return rows;
@@ -421,7 +472,8 @@ export function NotesView() {
         ) : (
           <DndContext
             sensors={dnd.sensors}
-            collisionDetection={closestCenter}
+            collisionDetection={treeCollisionDetection}
+            measuring={{ droppable: { strategy: MeasuringStrategy.Always } }}
             onDragStart={dnd.handleDragStart}
             onDragMove={dnd.handleDragMove}
             onDragEnd={dnd.handleDragEnd}
@@ -435,6 +487,14 @@ export function NotesView() {
                     row={row}
                     expanded={notes.expandedIds.has(row.node.id)}
                     selected={selected?.id === row.node.id}
+                    dropPosition={
+                      // Only the current over-target row (and never the
+                      // row being dragged) shows an indicator.
+                      dnd.overInfo?.overId === row.node.id &&
+                      dnd.activeId !== row.node.id
+                        ? dnd.overInfo.position
+                        : null
+                    }
                     onToggleExpand={notes.toggleExpanded}
                     onSelect={notes.setSelectedNoteId}
                     onDelete={notes.softDeleteNote}
@@ -442,11 +502,14 @@ export function NotesView() {
                 ))}
               </ul>
             </SortableContext>
+            {/* Faint drag ghost — a translucent copy of the grabbed row
+                that trails the cursor for orientation. It renders in a
+                portal, so it never moves the list block itself (the source
+                row stays put in place). Purely a "what am I holding" cue;
+                the blue indicator above is the real drop-target signal. */}
             <DragOverlay>
               {dnd.activeNode ? (
-                <div className="rounded-md border border-notion-accent bg-notion-bg px-2 py-1.5 text-sm text-notion-text shadow-lg">
-                  {dnd.activeNode.title || "(untitled)"}
-                </div>
+                <TreeDragGhost title={dnd.activeNode.title} />
               ) : null}
             </DragOverlay>
           </DndContext>
