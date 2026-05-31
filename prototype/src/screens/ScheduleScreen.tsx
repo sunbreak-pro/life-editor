@@ -8,6 +8,9 @@ import {
   Trash2,
   X,
 } from "lucide-react";
+// NOTE: `Search` (lucide) was removed with the cross-section search UI during the
+// shared-shell refactor; search now lives in AppHeader. react-router's
+// useSearchParams below is unrelated and stays.
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { BottomSheet } from "../components/BottomSheet";

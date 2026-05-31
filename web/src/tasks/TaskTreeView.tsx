@@ -1,54 +1,40 @@
 import { useMemo, useState } from "react";
 import {
   DndContext,
-  PointerSensor,
-  closestCenter,
-  useSensor,
-  useSensors,
-  type DragEndEvent,
+  DragOverlay,
+  MeasuringStrategy,
+  type UniqueIdentifier,
 } from "@dnd-kit/core";
 import {
   SortableContext,
   useSortable,
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
-import { CSS } from "@dnd-kit/utilities";
+import { GripVertical, ChevronRight, ChevronDown, Folder } from "lucide-react";
 import {
   useTaskTreeContext,
   type TaskNode,
   type TaskStatus,
 } from "@life-editor/shared";
 import { TagPicker, LinkPanel } from "../wikitag";
-
-// Folder zone ratios for above / inside / below detection. Mirrors
-// web/src/notes/useNoteTreeDnd.ts so the two trees feel identical at the
-// pointer level — top 25% drops above, bottom 25% drops below (or inside
-// when the folder is expanded), middle 50% drops inside.
-const FOLDER_ZONE_ABOVE = 0.25;
-const FOLDER_ZONE_BELOW = 0.75;
-
-function getPointerY(event: DragEndEvent): number | null {
-  if (!(event.activatorEvent instanceof PointerEvent)) return null;
-  return event.activatorEvent.clientY + event.delta.y;
-}
-
-function computeFolderPosition(
-  pointerY: number,
-  rect: { top: number; height: number },
-): "above" | "below" | "inside" {
-  const ratio = (pointerY - rect.top) / rect.height;
-  if (ratio < FOLDER_ZONE_ABOVE) return "above";
-  if (ratio > FOLDER_ZONE_BELOW) return "below";
-  return "inside";
-}
+import { useTaskTreeDnd } from "./useTaskTreeDnd";
+import { TreeNodeIndent } from "../components/TreeNodeIndent";
+import { treeCollisionDetection } from "../components/treeCollision";
+import { TreeDragGhost } from "../components/TreeDragGhost";
 
 /*
- * Web TaskTree UI (S1). The heavy Tauri TaskTree (TipTap detail pane,
+ * Web TaskTree UI (S1, redesigned in DU-G to match the Desktop TaskTree and
+ * the web Notes tree). The heavy Tauri TaskTree (TipTap detail pane,
  * RightSidebar portal, i18n, full UndoRedo) is intentionally NOT ported
  * here — those are S3/S6 cross-cutting concerns. This is a functional,
  * notion-token-styled tree that exercises every shared tasks data path:
- * hierarchy render, expand/collapse, status cycle, add task/folder,
- * rename, soft-delete + restore, and @dnd-kit sibling reorder.
+ * hierarchy render, expand/collapse, status cycle, add task/folder, rename,
+ * soft-delete + restore, and @dnd-kit reorder + into-folder.
+ *
+ * DnD is now identical to the Notes tree: shared pointer→intent zones
+ * (computeNoteDropIntent via useTaskTreeDnd), shared collision detection, a
+ * static list (no per-row shift transform), a faint floating ghost, accent
+ * insertion lines + an inside-folder wash. See useTaskTreeDnd.ts.
  */
 
 const STATUS_GLYPH: Record<TaskStatus, string> = {
@@ -71,19 +57,27 @@ function StatusButton({
       type="button"
       onClick={() => onCycle(node.id)}
       aria-label={`Toggle status (currently ${status})`}
-      className="w-4 text-notion-text-secondary hover:text-notion-accent"
+      className="w-4 shrink-0 text-notion-text-secondary hover:text-notion-accent"
     >
       {STATUS_GLYPH[status]}
     </button>
   );
 }
 
+interface TaskFlatRow {
+  node: TaskNode;
+  depth: number;
+  hasChildren: boolean;
+  isLastChild: boolean;
+}
+
 function TreeRow({
-  node,
-  depth,
-  hasChildren,
+  row,
   expanded,
   linkOpen,
+  // Drop indicator for THIS row while a drag is over it. null when this row
+  // is not the current drop target (or no drag is active).
+  dropPosition,
   onToggleExpand,
   onToggleLinks,
   onCycleStatus,
@@ -93,11 +87,10 @@ function TreeRow({
   resolveTitle,
   linkableItems,
 }: {
-  node: TaskNode;
-  depth: number;
-  hasChildren: boolean;
+  row: TaskFlatRow;
   expanded: boolean;
   linkOpen: boolean;
+  dropPosition: "above" | "below" | "inside" | null;
   onToggleExpand: (id: string) => void;
   onToggleLinks: (id: string) => void;
   onCycleStatus: (id: string) => void;
@@ -107,64 +100,107 @@ function TreeRow({
   resolveTitle: (id: string) => string | undefined;
   linkableItems: Array<{ id: string; label: string }>;
 }) {
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-    isDragging,
-  } = useSortable({ id: node.id });
+  const { node, depth, hasChildren, isLastChild } = row;
+  // Static list: only attributes/listeners/setNodeRef are used — the
+  // sortable transform/transition are deliberately NOT applied (no reflow),
+  // matching the Notes tree. The "what am I dragging" cue is the floating
+  // ghost; the accent line / inside wash shows where it lands.
+  const { attributes, listeners, setNodeRef } = useSortable({ id: node.id });
 
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-    paddingLeft: `${depth * 20 + 8}px`,
-    opacity: isDragging ? 0.5 : 1,
-  };
+  const isFolder = node.type === "folder";
+  const showInside = dropPosition === "inside";
 
   return (
     <li
       ref={setNodeRef}
-      style={style}
-      className="rounded-md border border-notion-border bg-notion-bg-secondary px-2 py-1.5"
+      className={`group relative rounded-md border px-2 py-1.5 ${
+        showInside
+          ? "border-notion-accent bg-notion-accent-subtle"
+          : "border-notion-border bg-notion-bg-secondary"
+      }`}
     >
-      <div className="flex items-center gap-2">
+      {/* Reorder insertion line — accent bar pinned to the row's top or
+          bottom edge. aria-hidden (@dnd-kit announces moves itself). */}
+      {dropPosition === "above" && (
+        <span
+          aria-hidden
+          className="pointer-events-none absolute inset-x-1 -top-px h-0.5 rounded-full bg-notion-accent"
+        />
+      )}
+      {dropPosition === "below" && (
+        <span
+          aria-hidden
+          className="pointer-events-none absolute inset-x-1 -bottom-px h-0.5 rounded-full bg-notion-accent"
+        />
+      )}
+      <div className="flex items-center gap-1">
+        {/* Grip — hover-revealed (TaskTree parity). */}
         <button
           type="button"
           {...attributes}
           {...listeners}
-          aria-label="Drag to reorder"
-          className="cursor-grab text-notion-text-secondary hover:text-notion-text"
+          aria-label="Drag to reorder or move"
+          className="shrink-0 cursor-grab text-notion-text-secondary opacity-0 transition-opacity hover:text-notion-text focus-visible:opacity-100 group-hover:opacity-100"
         >
-          ⠿
+          <GripVertical size={14} aria-hidden />
         </button>
-        {node.type === "folder" ? (
+
+        <TreeNodeIndent depth={depth} isLastChild={isLastChild} />
+
+        {/* Leading control: folders swap Folder icon → twisty on hover
+            (one click target); tasks keep the status glyph (no toggle). */}
+        {isFolder ? (
           <button
             type="button"
             onClick={() => onToggleExpand(node.id)}
             aria-label={expanded ? "Collapse" : "Expand"}
-            className="w-4 text-notion-text-secondary hover:text-notion-text"
+            aria-expanded={expanded}
+            className="relative inline-flex h-[14px] w-[14px] shrink-0 items-center justify-center text-notion-text-secondary hover:text-notion-text"
           >
-            {hasChildren ? (expanded ? "▾" : "▸") : "·"}
+            <Folder
+              size={14}
+              aria-hidden
+              className="absolute opacity-100 transition-opacity group-hover:opacity-0"
+            />
+            {hasChildren ? (
+              expanded ? (
+                <ChevronDown
+                  size={14}
+                  aria-hidden
+                  className="absolute opacity-0 transition-opacity group-hover:opacity-100"
+                />
+              ) : (
+                <ChevronRight
+                  size={14}
+                  aria-hidden
+                  className="absolute opacity-0 transition-opacity group-hover:opacity-100"
+                />
+              )
+            ) : (
+              <Folder
+                size={14}
+                aria-hidden
+                className="absolute opacity-0 transition-opacity group-hover:opacity-100"
+              />
+            )}
           </button>
         ) : (
           <StatusButton node={node} onCycle={onCycleStatus} />
         )}
+
         <span
           className={
-            node.type === "folder"
+            isFolder
               ? "flex-1 font-medium text-notion-text"
               : node.status === "DONE"
                 ? "flex-1 text-notion-text-secondary line-through"
                 : "flex-1 text-notion-text"
           }
         >
-          {node.type === "folder" ? "📁 " : ""}
           {node.title || "(untitled)"}
         </span>
         <TagPicker itemId={node.id} />
-        <span className="flex gap-2 text-xs">
+        <span className="flex shrink-0 gap-2 text-xs">
           <button
             type="button"
             onClick={() => onToggleLinks(node.id)}
@@ -173,7 +209,7 @@ function TreeRow({
           >
             {linkOpen ? "▴ links" : "▾ links"}
           </button>
-          {node.type === "folder" && (
+          {isFolder && (
             <button
               type="button"
               onClick={() => onAddChild(node.id)}
@@ -213,10 +249,14 @@ function TreeRow({
 
 export function TaskTreeView() {
   const tree = useTaskTreeContext();
+  // View-local expand/collapse: a folder id IN the set = collapsed
+  // (children hidden). DU-G keeps this view-local (not on the context) and
+  // threads collapse/expand into the DnD hook for Rule 1.
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
   // Per-row Links toggle. Local Set rather than a useExpanded hook —
   // this is single-section state (DU-F Step 8).
   const [linksOpen, setLinksOpen] = useState<Set<string>>(new Set());
+  const [moveError, setMoveError] = useState<string | null>(null);
   const toggleLinks = (id: string) =>
     setLinksOpen((prev) => {
       const next = new Set(prev);
@@ -242,106 +282,61 @@ export function TaskTreeView() {
     return `[${n.type}] ${n.title || "(untitled)"}`;
   };
 
-  const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
-  );
-
-  // Flatten the active tree depth-first, honouring local collapse state.
-  const flat = useMemo(() => {
-    const rows: Array<{ node: TaskNode; depth: number; hasChildren: boolean }> =
-      [];
-    const walk = (parentId: string | null, depth: number) => {
-      const children = tree.getChildren(parentId);
-      for (const node of children) {
-        const grand = tree.getChildren(node.id);
-        rows.push({ node, depth, hasChildren: grand.length > 0 });
-        if (node.type === "folder" && !collapsed.has(node.id)) {
-          walk(node.id, depth + 1);
-        }
-      }
-    };
-    walk(null, 0);
-    return rows;
-  }, [tree, collapsed]);
-
-  const toggleExpand = (id: string) => {
+  const collapse = (id: string) =>
+    setCollapsed((prev) => {
+      if (prev.has(id)) return prev;
+      const next = new Set(prev);
+      next.add(id);
+      return next;
+    });
+  const expand = (id: string) =>
+    setCollapsed((prev) => {
+      if (!prev.has(id)) return prev;
+      const next = new Set(prev);
+      next.delete(id);
+      return next;
+    });
+  const toggleExpand = (id: string) =>
     setCollapsed((prev) => {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id);
       else next.add(id);
       return next;
     });
-  };
 
-  const handleDragEnd = (e: DragEndEvent) => {
-    const { active, over } = e;
-    if (!over || active.id === over.id) return;
+  const dnd = useTaskTreeDnd({
+    nodes: tree.nodes,
+    collapsedIds: collapsed,
+    collapse,
+    expand,
+    moveNode: tree.moveNode,
+    moveNodeInto: tree.moveNodeInto,
+    moveToRoot: tree.moveToRoot,
+    onMoveRejected: (reason) =>
+      setMoveError(`Move rejected: ${reason.replace(/_/g, " ")}`),
+  });
 
-    const activeId = String(active.id);
-    const overId = String(over.id);
-    const overNode = flat.find((r) => r.node.id === overId)?.node;
-    if (!overNode) return;
-
-    // Dropping ON a folder activates above / inside / below zone
-    // detection (Notes parity). Dropping on a task is always a sibling
-    // reorder against the task's parent — moveNode handles the cross-
-    // parent fall-through when over.parentId !== active.parentId.
-    if (overNode.type === "folder") {
-      const pointerY = getPointerY(e);
-
-      // No pointer (keyboard activator) or no rect — default to
-      // "inside" so the keyboard-driven path can still nest into the
-      // folder. Skip the call if the source is already inside this
-      // folder to avoid a no-op move that still pushes an UndoRedo
-      // entry.
-      const activeNode = flat.find((r) => r.node.id === activeId)?.node;
-      if (!pointerY || !over.rect) {
-        if (activeNode && activeNode.parentId !== overNode.id) {
-          tree.moveNodeInto(activeId, overId);
+  // Flatten the active tree depth-first, honouring local collapse state.
+  const flat = useMemo<TaskFlatRow[]>(() => {
+    const rows: TaskFlatRow[] = [];
+    const walk = (parentId: string | null, depth: number) => {
+      const children = tree.getChildren(parentId);
+      children.forEach((node, index) => {
+        const grand = tree.getChildren(node.id);
+        rows.push({
+          node,
+          depth,
+          hasChildren: grand.length > 0,
+          isLastChild: index === children.length - 1,
+        });
+        if (node.type === "folder" && !collapsed.has(node.id)) {
+          walk(node.id, depth + 1);
         }
-        return;
-      }
-
-      const position = computeFolderPosition(pointerY, over.rect);
-      const folderExpanded = !collapsed.has(overId);
-
-      if (position === "above") {
-        tree.moveNode(activeId, overId, "above");
-      } else if (position === "below") {
-        // Below an EXPANDED folder reads as "drop into the folder's
-        // first slot" (matches Notes), so treat as into-folder. Tasks'
-        // moveNodeInto only appends, so the drop lands at the bottom
-        // rather than position 0 — a small UX diff worth tolerating to
-        // keep moveNodeInto's signature unchanged.
-        if (folderExpanded) {
-          if (activeNode && activeNode.parentId !== overNode.id) {
-            tree.moveNodeInto(activeId, overId);
-          }
-        } else {
-          tree.moveNode(activeId, overId, "below");
-        }
-      } else {
-        // inside
-        if (activeNode && activeNode.parentId !== overNode.id) {
-          tree.moveNodeInto(activeId, overId);
-        }
-      }
-      return;
-    }
-
-    // over is a task — pointer Y picks above vs below half. Fallback to
-    // "below" when there is no pointer info (keyboard sort) so the prior
-    // sibling-reorder behaviour is preserved verbatim.
-    const pointerY = getPointerY(e);
-    if (!pointerY || !over.rect) {
-      tree.moveNode(activeId, overId, "below");
-      return;
-    }
-    const { top, height } = over.rect;
-    const position: "above" | "below" =
-      pointerY - top < height / 2 ? "above" : "below";
-    tree.moveNode(activeId, overId, position);
-  };
+      });
+    };
+    walk(null, 0);
+    return rows;
+  }, [tree, collapsed]);
 
   const addRoot = (type: "task" | "folder") => {
     const title = window.prompt(`New ${type} title`);
@@ -361,6 +356,8 @@ export function TaskTreeView() {
     const title = next.trim();
     if (title && title !== current) tree.updateNode(id, { title });
   };
+
+  const ids: UniqueIdentifier[] = flat.map((r) => r.node.id);
 
   if (tree.isLoading) {
     return <p className="text-notion-text-secondary">Loading tasks…</p>;
@@ -421,6 +418,14 @@ export function TaskTreeView() {
           Save failed: {tree.persistError}
         </p>
       )}
+      {moveError && (
+        <p
+          role="alert"
+          className="rounded-md border border-notion-danger px-3 py-2 text-sm text-notion-danger"
+        >
+          {moveError}
+        </p>
+      )}
 
       {flat.length === 0 ? (
         <p className="text-notion-text-secondary">
@@ -428,23 +433,30 @@ export function TaskTreeView() {
         </p>
       ) : (
         <DndContext
-          sensors={sensors}
-          collisionDetection={closestCenter}
-          onDragEnd={handleDragEnd}
+          sensors={dnd.sensors}
+          collisionDetection={treeCollisionDetection}
+          measuring={{ droppable: { strategy: MeasuringStrategy.Always } }}
+          onDragStart={dnd.handleDragStart}
+          onDragMove={dnd.handleDragMove}
+          onDragEnd={dnd.handleDragEnd}
+          onDragCancel={dnd.handleDragCancel}
         >
-          <SortableContext
-            items={flat.map((r) => r.node.id)}
-            strategy={verticalListSortingStrategy}
-          >
+          <SortableContext items={ids} strategy={verticalListSortingStrategy}>
             <ul className="space-y-1">
               {flat.map((r) => (
                 <TreeRow
                   key={r.node.id}
-                  node={r.node}
-                  depth={r.depth}
-                  hasChildren={r.hasChildren}
+                  row={r}
                   expanded={!collapsed.has(r.node.id)}
                   linkOpen={linksOpen.has(r.node.id)}
+                  dropPosition={
+                    // Only the current over-target row (and never the row
+                    // being dragged) shows an indicator.
+                    dnd.overInfo?.overId === r.node.id &&
+                    dnd.activeId !== r.node.id
+                      ? dnd.overInfo.position
+                      : null
+                  }
                   onToggleExpand={toggleExpand}
                   onToggleLinks={toggleLinks}
                   onCycleStatus={tree.toggleTaskStatus}
@@ -457,6 +469,13 @@ export function TaskTreeView() {
               ))}
             </ul>
           </SortableContext>
+          {/* Faint drag ghost — trails the cursor for orientation; the list
+              block itself never moves (source row stays in place). */}
+          <DragOverlay>
+            {dnd.activeNode ? (
+              <TreeDragGhost title={dnd.activeNode.title} />
+            ) : null}
+          </DragOverlay>
         </DndContext>
       )}
 

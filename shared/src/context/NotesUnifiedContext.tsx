@@ -1,22 +1,24 @@
 import type { ReactNode } from "react";
-import { useNotesAPI, type UseNotesAPIOptions } from "../hooks/useNotesAPI";
+import {
+  useNotesUnifiedAPI,
+  type UseNotesUnifiedAPIOptions,
+} from "../hooks/useNotesUnifiedAPI";
 import { NotesUnifiedContext } from "./NotesUnifiedContextValue";
 
 /**
- * DU-G G3 Pattern A Provider (CLAUDE.md §6.3). Same DI shape as the
- * legacy `NoteProvider` — host injects DataService / UndoRedo — and the
- * same Provider-order constraint applies: must sit inside a Sync
- * Provider (`useSyncContext`) and follow Daily in the §6.2 chain.
+ * DU-G Pattern A Provider (CLAUDE.md §6.3). The host injects DataService /
+ * UndoRedo; the same Provider-order constraint applies as the retired
+ * legacy Note Provider: must sit inside a Sync Provider (`useSyncContext`)
+ * and follow Daily in the §6.2 chain.
  *
- * G3 keeps the body identical to `NoteProvider` (still calls
- * `useNotesAPI`). G4 will rewrite the hook body to call the *Unified
- * DataService methods directly; this Provider's signature does not change.
+ * G4: the hook body (`useNotesUnifiedAPI`) now calls the *Unified
+ * DataService methods directly; this Provider's signature is unchanged.
  */
 export function NotesUnifiedProvider({
   children,
   ...options
-}: { children: ReactNode } & UseNotesAPIOptions) {
-  const noteState = useNotesAPI(options);
+}: { children: ReactNode } & UseNotesUnifiedAPIOptions) {
+  const noteState = useNotesUnifiedAPI(options);
   return (
     <NotesUnifiedContext.Provider value={noteState}>
       {children}

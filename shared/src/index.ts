@@ -49,15 +49,9 @@ export type {
   AddNodeOptions,
 } from "./hooks/useTaskTreeCRUD";
 
-// Daily domain — context (Pattern A) + hook (DI: dataService/undoRedo)
-export { DailyProvider } from "./context";
-export { DailyContext, type DailyContextValue } from "./context";
-export { useDailyContext } from "./hooks/useDailyContext";
-export { useDailyAPI, type UseDailyAPIOptions } from "./hooks/useDailyAPI";
-
-// DU-G G3: Daily domain in the "Unified naming" surface. Mountable
-// side-by-side with the legacy DailyProvider; web/ MainScreen mounts
-// only the Unified variant. G4 retires the legacy names.
+// Daily domain — context (Pattern A) + hook (DI: dataService/undoRedo).
+// DU-G G4: the legacy Daily Provider / context hook / API hook were
+// retired; the Unified surface below is the only Daily API.
 export { DailiesUnifiedProvider } from "./context";
 export {
   DailiesUnifiedContext,
@@ -70,29 +64,20 @@ export {
 } from "./hooks/useDailiesUnifiedAPI";
 
 // Note domain — context (Pattern A) + hooks (DI: dataService/undoRedo).
-// Tree-move logic is a pure shared hook; the @dnd-kit pointer glue lives
-// in the host UI (web) so the shared package stays UI/dnd-free.
-export { NoteProvider } from "./context";
-export { NoteContext, type NoteContextValue } from "./context";
-export { useNoteContext } from "./hooks/useNoteContext";
-export {
-  useNotesAPI,
-  type UseNotesAPIOptions,
-  type NoteSortDirection,
-} from "./hooks/useNotesAPI";
-export { useNoteTreeMovement } from "./hooks/useNoteTreeMovement";
-
-// DU-G G3: Note domain in the "Unified naming" surface.
+// DU-G G4: the legacy Note Provider / context hook / API hook were
+// retired; the Unified surface below is the only Notes API. The
+// `useNoteTreeMovement` helper (pure tree-move logic, no @dnd-kit) is
+// retained and consumed by `useNotesUnifiedAPI`; it stays exported for
+// host/test use. `NoteSortDirection` now lives on `useNotesUnifiedAPI`.
 export { NotesUnifiedProvider } from "./context";
-export {
-  NotesUnifiedContext,
-  type NotesUnifiedContextValue,
-} from "./context";
+export { NotesUnifiedContext, type NotesUnifiedContextValue } from "./context";
 export { useNotesUnifiedContext } from "./hooks/useNotesUnifiedContext";
 export {
   useNotesUnifiedAPI,
   type UseNotesUnifiedAPIOptions,
+  type NoteSortDirection,
 } from "./hooks/useNotesUnifiedAPI";
+export { useNoteTreeMovement } from "./hooks/useNoteTreeMovement";
 
 // Routine domain — context (Pattern A) + hook (DI: dataService/undoRedo).
 // First of the Schedule trio (§6.2). routines + routine_groups +
@@ -186,3 +171,7 @@ export {
   type SortDirection,
 } from "./utils/sortTaskNodes";
 export { getFolderTag, truncateFolderTag } from "./utils/folderTag";
+export {
+  computeNoteDropIntent,
+  type NoteDropPosition,
+} from "./utils/noteDropIntent";

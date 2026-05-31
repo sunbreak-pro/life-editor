@@ -155,6 +155,27 @@ describe("notesUnifiedMapper", () => {
     expect("parent_item_id" in payloadPatch).toBe(false);
   });
 
+  it("never includes password_hash / has_password / version even if smuggled in", () => {
+    // Password-safety contract (ported from the retired legacy-mapper test, A
+    // audit Top5 #4): noteUpdatesToPatches is a key-explicit whitelist, so an
+    // attacker-controlled object cannot smuggle a sensitive column into a
+    // generic UPDATE. password_hash is written ONLY by the dedicated
+    // setNotePassword path, never via this mapper.
+    const sneaky = {
+      title: "t",
+      password_hash: "$2b$hacked",
+      has_password: false,
+      version: 999,
+    } as unknown as Partial<NoteNode>;
+    const { metaPatch, payloadPatch } = noteUpdatesToPatches(sneaky, USER, NOW);
+    expect(metaPatch).toEqual({ updated_at: NOW, title: "t" });
+    expect(payloadPatch).toEqual({});
+    for (const key of ["password_hash", "has_password", "version"]) {
+      expect(key in metaPatch).toBe(false);
+      expect(key in payloadPatch).toBe(false);
+    }
+  });
+
   it("soft-delete patch flows through meta side", () => {
     const { metaPatch, payloadPatch } = noteUpdatesToPatches(
       { isDeleted: true, deletedAt: NOW },

@@ -11,8 +11,8 @@ import { TagPill } from "./TagPill";
  * TagPicker — reusable Tag UI for a single items_meta row (DU-F Step 6).
  *
  * Pattern: lives next to each row / inside the detail panel of the 4
- * roles (task / event / note / daily). The legacy host context (e.g.
- * NoteContext) is untouched — only the Tag layer talks to
+ * roles (task / event / note / daily). The legacy host context (e.g. the
+ * host note context) is untouched — only the Tag layer talks to
  * WikiTagsUnifiedContext. itemId is `items_meta.id` for any role (id
  * 不変式 — see plan §採用アーキテクチャ).
  *

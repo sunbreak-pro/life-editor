@@ -2,28 +2,33 @@
 
 > 各 `chat-*.md` の集約ビュー。task-tracker 実行時に再生成される。**SSOT は各 `chat-*.md` ファイル**。本ファイルは読み手向け要約。
 
-最終更新: 2026-05-30 (chat-prototype-mobile)
+最終更新: 2026-05-31 (chat-du-g / chat-prototype-mobile merge)
 
 ---
 
 ## 進行中 (across all chats)
 
-（全チャットとも進行中タスクなし）
+- [chat-prototype-mobile] 進行中: Shell 統一リファクタ (Header/BottomTabBar/Drawer/BottomSheet 共通化) + Calendar 月グリッド高さ均等割り
 
 ## 直近の完了 (across all chats, 各チャット最大 3 件)
 
-- [chat-prototype-mobile] fix-pack: M-1 card layout SwipeRow 背景透明化 + 角丸 ✅ (2026-05-30 commit `a85cb0f`)
-- [chat-prototype-mobile] C-2: Calendar フィルタ (タイプ) + 並び順 (DayFlow) (iOS additions) ✅ (2026-05-30 commit `0f8b982`)
-- [chat-prototype-mobile] M-3: 空行ヒント + `/` キーバインド + IME ガード (iOS additions) ✅ (2026-05-30 commit `cbcd743`)
-- [chat-main] DU archive cleanup (DU 親計画書 + DU-B 親+子 3 plans archive、branch retire) ✅ (2026-05-24)
-- [chat-main] Multi-chat Worktree Policy ✅ (2026-05-24 PR #26 merged)
-- [chat-main] DU-F Step 6-14 + Notes/Daily 永続化 Unified bridge fix ✅ (2026-05-24 PR #25 merged)
+- [chat-du-g] Notes/Tasks Tree DnD 統一（TaskTree パターン / 末尾フォルダ下挿入バグ修正 / Notes+Tasks 同一化）✅ (2026-05-31、PR #38)
+- [chat-du-g] DU-G G4（legacy Notes/Daily 死削除・A-2 Bridge dispatch 撤去）✅ (2026-05-30、PR #36)
+- [chat-main] Multi-chat Worktree Policy proactive rollout ✅ (2026-05-26、PR #33)
+- [chat-main] DU-G G1-G3（Notes/Dailies Unified Service + Provider/web 切替）✅ (2026-05-26、PR #29/#30/#31)
+- [chat-main] DU archive cleanup ✅ (2026-05-24)
+- [chat-prototype-mobile] fix-pack: M-1 card layout SwipeRow 背景透明化 + 角丸 ✅ (2026-05-30 `a85cb0f`)
+- [chat-prototype-mobile] C-2: Calendar フィルタ + 並び順 (DayFlow) ✅ (2026-05-30 `0f8b982`)
+- [chat-prototype-mobile] M-3: 空行ヒント + `/` キーバインド + IME ガード ✅ (2026-05-30 `cbcd743`)
 
 ## 予定 (across all chats)
 
-- [chat-prototype-mobile] 👀 M-1〜M-3 + C-2 + fix-pack の実機目視確認 → 不具合あれば次 fix-pack
-- [chat-prototype-mobile] C-3 (add item 5 role Mobile 対応、要件は Desktop 完了済 / Mobile 別 PR)
-- [chat-main] 👀 ユーザー実機確認待ち: DU-F Step 7-11 / DU-C-6
-- [chat-main] DU-G Notes/Daily Unified 完全切替
-- [chat-main] Link UX 強化（Obsidian 風）スケルトン
-- [chat-main] DU-E Calendar 2 ビュー再実装（DU-G 完了後）
+- [chat-du-g] 任意 follow-up（非ブロッキング・別 PR 候補）: Tasks focus-visible リング統一 / root-droppable dead コメント / TreeNodeIndent ピクセル差
+- [chat-main] du-g3 worktree 退役判断 / Known Issue 025 Fixed 化
+- [chat-main] Link UX 強化（Obsidian 風）/ DU-E Calendar 2 ビュー再実装（DU-G 完了後）
+- [chat-main] 🔒 Notes password bcrypt 化（N>1 化の前ゲート）
+- [chat-main] 👀 実機確認待ち: DU-F Step 7-11 / DU-C-6
+- [chat-prototype-mobile] 横断検索の AppHeader 集約、残り画面の Shell 適用
+- [chat-prototype-mobile] 👀 M-1〜M-3 + C-2 + fix-pack 実機目視 → 次 fix-pack
+- [chat-prototype-mobile] C-3 (add item 5 role Mobile 対応) / C-2 5 role 拡張 (items_meta 後)
+- [chat-prototype-mobile] 別件: Supabase migration `items_meta_id_role_uk` drop 失敗
