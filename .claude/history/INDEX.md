@@ -14,4 +14,4 @@
 - 2026-05-24 [chat-prototype-mobile] Phase 3.H fix: peeking SwipePane + DayDetailSheet タップ復活
 - 2026-05-24 [chat-main] subagent self-contained brief 規約 + worktree integrity 改善（PR #22）
 
-古いエントリは各 `chat-*.md` または `.claude/history/archive/2026-05/chat-main.md` 参照。
+古いエントリは各 `chat-*.md` または `.claude/history/archive/2026-05/chat-prototype-mobile.md` / `.claude/history/archive/2026-05/chat-main.md` 参照。

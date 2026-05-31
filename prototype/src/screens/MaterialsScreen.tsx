@@ -181,6 +181,7 @@ export function MaterialsScreen() {
   const [sheet, setSheet] = useState<SheetType>(null);
   const [longPressTarget, setLongPressTarget] = useState<Note | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<Note | null>(null);
+  const [swipeOpenId, setSwipeOpenId] = useState<string | null>(null);
   const openHandledRef = useRef<string | null>(null);
 
   const filtered = useMemo(() => {
@@ -305,6 +306,20 @@ export function MaterialsScreen() {
           onLongPress={(n) => {
             setLongPressTarget(n);
             setSheet("itemMenu");
+          }}
+          swipeOpenId={swipeOpenId}
+          setSwipeOpenId={setSwipeOpenId}
+          onSwipeEdit={(n) => {
+            setSwipeOpenId(null);
+            handleOpenNote(n.id);
+          }}
+          onSwipePin={(n) => {
+            togglePinNote(n.id);
+            setSwipeOpenId(null);
+          }}
+          onSwipeDelete={(n) => {
+            setConfirmDelete(n);
+            setSwipeOpenId(null);
           }}
         />
       </main>
@@ -629,6 +644,11 @@ function ListBody({
   tagById,
   onOpen,
   onLongPress,
+  swipeOpenId,
+  setSwipeOpenId,
+  onSwipeEdit,
+  onSwipePin,
+  onSwipeDelete,
 }: {
   layout: Layout;
   pinned: Note[];
@@ -636,6 +656,11 @@ function ListBody({
   tagById: Map<string, WikiTag>;
   onOpen: (id: string) => void;
   onLongPress: (n: Note) => void;
+  swipeOpenId: string | null;
+  setSwipeOpenId: (id: string | null) => void;
+  onSwipeEdit: (n: Note) => void;
+  onSwipePin: (n: Note) => void;
+  onSwipeDelete: (n: Note) => void;
 }) {
   if (pinned.length === 0 && unpinned.length === 0) {
     return (
@@ -660,6 +685,11 @@ function ListBody({
             tagById={tagById}
             onOpen={onOpen}
             onLongPress={onLongPress}
+            swipeOpenId={swipeOpenId}
+            setSwipeOpenId={setSwipeOpenId}
+            onSwipeEdit={onSwipeEdit}
+            onSwipePin={onSwipePin}
+            onSwipeDelete={onSwipeDelete}
           />
         </>
       )}
@@ -674,6 +704,11 @@ function ListBody({
             tagById={tagById}
             onOpen={onOpen}
             onLongPress={onLongPress}
+            swipeOpenId={swipeOpenId}
+            setSwipeOpenId={setSwipeOpenId}
+            onSwipeEdit={onSwipeEdit}
+            onSwipePin={onSwipePin}
+            onSwipeDelete={onSwipeDelete}
           />
         </>
       )}
@@ -702,39 +737,238 @@ function NoteList({
   tagById,
   onOpen,
   onLongPress,
+  swipeOpenId,
+  setSwipeOpenId,
+  onSwipeEdit,
+  onSwipePin,
+  onSwipeDelete,
 }: {
   notes: Note[];
   layout: Layout;
   tagById: Map<string, WikiTag>;
   onOpen: (id: string) => void;
   onLongPress: (n: Note) => void;
+  swipeOpenId: string | null;
+  setSwipeOpenId: (id: string | null) => void;
+  onSwipeEdit: (n: Note) => void;
+  onSwipePin: (n: Note) => void;
+  onSwipeDelete: (n: Note) => void;
 }) {
+  const wrap = (n: Note, child: React.ReactNode) => (
+    <SwipeRow
+      key={n.id}
+      note={n}
+      layout={layout}
+      open={swipeOpenId === n.id}
+      anyOpen={swipeOpenId !== null}
+      onRequestOpen={() => setSwipeOpenId(n.id)}
+      onRequestClose={() => setSwipeOpenId(null)}
+      onEdit={() => onSwipeEdit(n)}
+      onPin={() => onSwipePin(n)}
+      onDelete={() => onSwipeDelete(n)}
+    >
+      {child}
+    </SwipeRow>
+  );
   if (layout === "card") {
     return (
       <div className="flex flex-col gap-3 p-4">
-        {notes.map((n) => (
-          <NoteCard
-            key={n.id}
-            note={n}
-            tagById={tagById}
-            onOpen={() => onOpen(n.id)}
-            onLongPress={() => onLongPress(n)}
-          />
-        ))}
+        {notes.map((n) =>
+          wrap(
+            n,
+            <NoteCard
+              note={n}
+              tagById={tagById}
+              onOpen={() => onOpen(n.id)}
+              onLongPress={() => onLongPress(n)}
+            />,
+          ),
+        )}
       </div>
     );
   }
   return (
     <div className="flex flex-col">
-      {notes.map((n) => (
-        <NoteRow
-          key={n.id}
-          note={n}
-          tagById={tagById}
-          onOpen={() => onOpen(n.id)}
-          onLongPress={() => onLongPress(n)}
-        />
-      ))}
+      {notes.map((n) =>
+        wrap(
+          n,
+          <NoteRow
+            note={n}
+            tagById={tagById}
+            onOpen={() => onOpen(n.id)}
+            onLongPress={() => onLongPress(n)}
+          />,
+        ),
+      )}
+    </div>
+  );
+}
+
+const SWIPE_THRESHOLD = 50;
+const SWIPE_OPEN_WIDTH = 192;
+
+function SwipeRow({
+  note,
+  layout,
+  open,
+  anyOpen,
+  onRequestOpen,
+  onRequestClose,
+  onEdit,
+  onPin,
+  onDelete,
+  children,
+}: {
+  note: Note;
+  layout: Layout;
+  open: boolean;
+  anyOpen: boolean;
+  onRequestOpen: () => void;
+  onRequestClose: () => void;
+  onEdit: () => void;
+  onPin: () => void;
+  onDelete: () => void;
+  children: React.ReactNode;
+}) {
+  const [dx, setDx] = useState(0);
+  const [dragging, setDragging] = useState(false);
+  const startRef = useRef<{
+    x: number;
+    y: number;
+    locked: "horizontal" | "vertical" | null;
+  } | null>(null);
+
+  useEffect(() => {
+    if (!dragging) setDx(open ? -SWIPE_OPEN_WIDTH : 0);
+  }, [open, dragging]);
+
+  const handlePointerDown = (e: React.PointerEvent) => {
+    if (e.pointerType === "mouse" && e.button !== 0) return;
+    startRef.current = { x: e.clientX, y: e.clientY, locked: null };
+    setDragging(true);
+  };
+
+  const handlePointerMove = (e: React.PointerEvent) => {
+    if (!startRef.current) return;
+    const rawDx = e.clientX - startRef.current.x;
+    const rawDy = e.clientY - startRef.current.y;
+    if (startRef.current.locked === null) {
+      const absX = Math.abs(rawDx);
+      const absY = Math.abs(rawDy);
+      if (absX < 8 && absY < 8) return;
+      startRef.current.locked = absX > absY ? "horizontal" : "vertical";
+    }
+    if (startRef.current.locked !== "horizontal") return;
+    const base = open ? -SWIPE_OPEN_WIDTH : 0;
+    const next = Math.min(0, Math.max(-SWIPE_OPEN_WIDTH * 1.2, base + rawDx));
+    setDx(next);
+  };
+
+  const settle = (commitOpen: boolean) => {
+    setDragging(false);
+    startRef.current = null;
+    if (commitOpen) {
+      setDx(-SWIPE_OPEN_WIDTH);
+      onRequestOpen();
+    } else {
+      setDx(0);
+      if (open) onRequestClose();
+    }
+  };
+
+  const handlePointerUp = () => {
+    if (!startRef.current) {
+      setDragging(false);
+      return;
+    }
+    if (startRef.current.locked !== "horizontal") {
+      setDragging(false);
+      startRef.current = null;
+      return;
+    }
+    const commitOpen = -dx > SWIPE_THRESHOLD;
+    settle(commitOpen);
+  };
+
+  const handlePointerCancel = () => {
+    setDragging(false);
+    startRef.current = null;
+    setDx(open ? -SWIPE_OPEN_WIDTH : 0);
+  };
+
+  const handleContentClickCapture = (e: React.MouseEvent) => {
+    if (open) {
+      e.stopPropagation();
+      e.preventDefault();
+      onRequestClose();
+    } else if (anyOpen) {
+      e.stopPropagation();
+      e.preventDefault();
+      onRequestClose();
+    }
+  };
+
+  const actionTitle = note.kind === "daily" ? "編集" : "名前変更";
+  const isCard = layout === "card";
+
+  return (
+    <div
+      className={`relative overflow-hidden ${isCard ? "rounded-2xl" : ""}`}
+      style={{
+        touchAction: "pan-y",
+        background: isCard ? "transparent" : C.crust,
+      }}
+    >
+      <div
+        className="absolute inset-y-0 right-0 flex items-stretch"
+        style={{ width: SWIPE_OPEN_WIDTH }}
+        aria-hidden={!open}
+      >
+        <button
+          type="button"
+          onClick={onEdit}
+          className="flex-1 flex flex-col items-center justify-center gap-1 text-xs font-medium"
+          style={{ background: C.surface2, color: C.text }}
+          aria-label={`${actionTitle} ${note.title || "(無題)"}`}
+        >
+          <FileText size={18} />
+          {actionTitle}
+        </button>
+        <button
+          type="button"
+          onClick={onPin}
+          className="flex-1 flex flex-col items-center justify-center gap-1 text-xs font-medium"
+          style={{ background: C.peach, color: C.crust }}
+          aria-label={`${note.pinned ? "ピンを外す" : "ピン留め"} ${note.title || "(無題)"}`}
+        >
+          {note.pinned ? <PinOff size={18} /> : <Pin size={18} />}
+          {note.pinned ? "外す" : "ピン"}
+        </button>
+        <button
+          type="button"
+          onClick={onDelete}
+          className="flex-1 flex flex-col items-center justify-center gap-1 text-xs font-medium"
+          style={{ background: C.red, color: C.crust }}
+          aria-label={`削除 ${note.title || "(無題)"}`}
+        >
+          <Trash2 size={18} />
+          削除
+        </button>
+      </div>
+      <div
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={handlePointerUp}
+        onPointerCancel={handlePointerCancel}
+        onClickCapture={handleContentClickCapture}
+        style={{
+          transform: `translate3d(${dx}px, 0, 0)`,
+          transition: dragging ? "none" : "transform 220ms ease",
+          background: C.base,
+        }}
+      >
+        {children}
+      </div>
     </div>
   );
 }
@@ -1404,6 +1638,74 @@ function KeyboardAccessoryBar({
 }) {
   const BAR_HEIGHT = 44;
   const [bottom, setBottom] = useState(0);
+  const [commandOpen, setCommandOpen] = useState(false);
+  const [composing, setComposing] = useState(false);
+  const [lineEmpty, setLineEmpty] = useState(false);
+
+  // textarea の現在カーソル行が空白だけかを判定。focus 喪失時は false。
+  useEffect(() => {
+    const ta = textareaRef.current;
+    if (!ta || !focused) {
+      setLineEmpty(false);
+      return undefined;
+    }
+    const recalc = () => {
+      const t = textareaRef.current;
+      if (!t || document.activeElement !== t) {
+        setLineEmpty(false);
+        return;
+      }
+      const start = t.selectionStart;
+      const before = bodyDraft.slice(0, start);
+      const lineStart = before.lastIndexOf("\n") + 1;
+      const nextNL = bodyDraft.indexOf("\n", start);
+      const lineEnd = nextNL === -1 ? bodyDraft.length : nextNL;
+      const line = bodyDraft.slice(lineStart, lineEnd);
+      setLineEmpty(line.trim() === "" && t.selectionStart === t.selectionEnd);
+    };
+    recalc();
+    document.addEventListener("selectionchange", recalc);
+    return () => document.removeEventListener("selectionchange", recalc);
+  }, [bodyDraft, focused, textareaRef]);
+
+  // textarea の IME 状態。composition 中はヒント非表示 + `/` 起動を抑止
+  useEffect(() => {
+    const ta = textareaRef.current;
+    if (!ta) return undefined;
+    const onStart = () => setComposing(true);
+    const onEnd = () => setComposing(false);
+    ta.addEventListener("compositionstart", onStart);
+    ta.addEventListener("compositionend", onEnd);
+    return () => {
+      ta.removeEventListener("compositionstart", onStart);
+      ta.removeEventListener("compositionend", onEnd);
+    };
+  }, [textareaRef]);
+
+  // `/` キーで空行時にコマンドメニューを起動 (M-3)。IME 中は無視。
+  useEffect(() => {
+    const ta = textareaRef.current;
+    if (!ta || !focused) return undefined;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key !== "/") return;
+      if (e.isComposing) return;
+      const t = textareaRef.current;
+      if (!t || document.activeElement !== t) return;
+      const start = t.selectionStart;
+      const before = bodyDraft.slice(0, start);
+      const lineStart = before.lastIndexOf("\n") + 1;
+      const nextNL = bodyDraft.indexOf("\n", start);
+      const lineEnd = nextNL === -1 ? bodyDraft.length : nextNL;
+      const line = bodyDraft.slice(lineStart, lineEnd);
+      if (line.trim() !== "" || t.selectionStart !== t.selectionEnd) return;
+      e.preventDefault();
+      setCommandOpen(true);
+    };
+    ta.addEventListener("keydown", onKeyDown);
+    return () => ta.removeEventListener("keydown", onKeyDown);
+  }, [bodyDraft, focused, textareaRef]);
+
+  const hintVisible = focused && !composing && lineEmpty && !commandOpen;
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -1465,6 +1767,29 @@ function KeyboardAccessoryBar({
     applySelectionAndCursor(ta, next, cursor);
   };
 
+  // 現在行を block (例: ``` ``` / --- ) に置換 or 挿入する。
+  // 空行ならその場で置換、非空行なら次行に新規挿入する。カーソルは block 内部に移す。
+  const insertBlock = (block: string, innerCursorOffset: number) => {
+    const ta = textareaRef.current;
+    if (!ta) return;
+    const start = ta.selectionStart;
+    const before = bodyDraft.slice(0, start);
+    const lineStart = before.lastIndexOf("\n") + 1;
+    const nextNL = bodyDraft.indexOf("\n", start);
+    const lineEnd = nextNL === -1 ? bodyDraft.length : nextNL;
+    const line = bodyDraft.slice(lineStart, lineEnd);
+    const emptyLine = line.trim() === "";
+    const prefix = emptyLine ? "" : "\n";
+    const insertion = prefix + block;
+    const next =
+      bodyDraft.slice(0, emptyLine ? lineStart : lineEnd) +
+      insertion +
+      bodyDraft.slice(emptyLine ? lineEnd : lineEnd);
+    const insertionStart = emptyLine ? lineStart : lineEnd;
+    const cursor = insertionStart + prefix.length + innerCursorOffset;
+    applySelectionAndCursor(ta, next, cursor);
+  };
+
   // 現在カーソル行の先頭に prefix を付ける。既に同じ prefix がついていれば
   // 取り除く (トグル動作)。他の見出し / 引用 / リスト記号があれば置換。
   const toggleLinePrefix = (prefix: string) => {
@@ -1481,7 +1806,10 @@ function KeyboardAccessoryBar({
       newLine = line.slice(prefix.length);
     } else {
       // 既存の `#`/`##`/`>`/`-` 始まりは剥がしてから上書き
-      const stripped = line.replace(/^(#{1,3}\s|>\s|-\s)/, "");
+      const stripped = line.replace(
+        /^(#{1,3}\s|>\s|-\s\[\s\]\s|-\s|\d+\.\s)/,
+        "",
+      );
       newLine = prefix + stripped;
     }
     const next =
@@ -1489,6 +1817,90 @@ function KeyboardAccessoryBar({
     const cursor = start + (newLine.length - line.length);
     applySelectionAndCursor(ta, next, Math.max(lineStart, cursor));
   };
+
+  const runCommand = (action: () => void) => {
+    setCommandOpen(false);
+    action();
+  };
+
+  const slashCommands: {
+    key: string;
+    icon: React.ReactNode;
+    label: string;
+    hint: string;
+    onAction: () => void;
+  }[] = [
+    {
+      key: "h1",
+      icon: <Heading1 size={18} />,
+      label: "見出し1",
+      hint: "# 大見出し",
+      onAction: () => toggleLinePrefix("# "),
+    },
+    {
+      key: "h2",
+      icon: <Heading2 size={18} />,
+      label: "見出し2",
+      hint: "## 中見出し",
+      onAction: () => toggleLinePrefix("## "),
+    },
+    {
+      key: "h3",
+      icon: <Heading2 size={16} />,
+      label: "見出し3",
+      hint: "### 小見出し",
+      onAction: () => toggleLinePrefix("### "),
+    },
+    {
+      key: "bullet",
+      icon: <ListIcon size={18} />,
+      label: "箇条書き",
+      hint: "- 項目",
+      onAction: () => toggleLinePrefix("- "),
+    },
+    {
+      key: "ordered",
+      icon: <ListIcon size={18} />,
+      label: "番号付きリスト",
+      hint: "1. 項目",
+      onAction: () => toggleLinePrefix("1. "),
+    },
+    {
+      key: "task",
+      icon: <Check size={18} />,
+      label: "タスクリスト",
+      hint: "- [ ] タスク",
+      onAction: () => toggleLinePrefix("- [ ] "),
+    },
+    {
+      key: "quote",
+      icon: <Quote size={18} />,
+      label: "引用",
+      hint: "> 引用文",
+      onAction: () => toggleLinePrefix("> "),
+    },
+    {
+      key: "codeblock",
+      icon: <Code size={18} />,
+      label: "コードブロック",
+      hint: "``` ```",
+      onAction: () => insertBlock("```\n\n```", 4),
+    },
+    {
+      key: "divider",
+      icon: <ChevronDown size={18} />,
+      label: "区切り線",
+      hint: "---",
+      onAction: () => insertBlock("---\n", 4),
+    },
+    {
+      key: "image",
+      icon: <FileText size={18} />,
+      label: "画像リンク",
+      hint: "![](url)",
+      onAction: () => wrapSelection("![", "](url)"),
+    },
+  ];
 
   const items: {
     key: string;
@@ -1557,13 +1969,96 @@ function KeyboardAccessoryBar({
   // のフローティングバーとして表示し、見た目のトーンを揃える。
   return (
     <div
-      className="absolute left-0 right-0 z-[60] flex justify-center transition-[bottom] duration-150 ease-out"
+      className="absolute left-0 right-0 z-[60] flex flex-col items-center transition-[bottom] duration-150 ease-out"
       style={{
         bottom,
         paddingBottom: 6,
         pointerEvents: "none",
       }}
     >
+      {hintVisible && (
+        <button
+          type="button"
+          onMouseDown={guard}
+          onClick={() => setCommandOpen(true)}
+          className="mb-2 rounded-full pointer-events-auto flex items-center gap-1.5 px-3 py-1.5"
+          style={{
+            background: "rgba(48, 48, 70, 0.78)",
+            backdropFilter: "saturate(180%) blur(24px)",
+            WebkitBackdropFilter: "saturate(180%) blur(24px)",
+            border: "1px solid rgba(203,166,247,0.30)",
+            boxShadow: "0 4px 12px rgba(0,0,0,0.28)",
+            color: C.subtext1,
+          }}
+          aria-label="スラッシュコマンドを開く"
+        >
+          <span
+            className="font-mono text-[11px] rounded px-1"
+            style={{ background: "rgba(255,255,255,0.08)", color: C.mauve }}
+          >
+            /
+          </span>
+          <span className="text-xs">コマンドを挿入</span>
+        </button>
+      )}
+      {commandOpen && (
+        <div
+          className="mb-2 rounded-2xl pointer-events-auto overflow-hidden"
+          onMouseDown={guard}
+          style={{
+            background: "rgba(48, 48, 70, 0.92)",
+            backdropFilter: "saturate(180%) blur(24px)",
+            WebkitBackdropFilter: "saturate(180%) blur(24px)",
+            border: "1px solid rgba(255,255,255,0.10)",
+            boxShadow: "0 8px 24px rgba(0,0,0,0.40)",
+            maxWidth: "calc(100% - 12px)",
+            width: 280,
+            maxHeight: "60vh",
+          }}
+          role="menu"
+          aria-label="スラッシュコマンド"
+        >
+          <div
+            className="flex flex-col py-1 overflow-y-auto"
+            style={{ maxHeight: "calc(60vh - 2px)" }}
+          >
+            {slashCommands.map((cmd) => (
+              <button
+                key={cmd.key}
+                type="button"
+                onMouseDown={guard}
+                onClick={() => runCommand(cmd.onAction)}
+                className="flex items-center gap-3 px-3 py-2 text-left active:bg-white/10 transition-colors"
+                role="menuitem"
+                aria-label={cmd.label}
+              >
+                <span
+                  className="flex items-center justify-center shrink-0 rounded-md"
+                  style={{
+                    width: 28,
+                    height: 28,
+                    background: "rgba(255,255,255,0.06)",
+                    color: C.subtext1,
+                  }}
+                >
+                  {cmd.icon}
+                </span>
+                <span className="flex-1 min-w-0 flex flex-col">
+                  <span className="text-sm" style={{ color: C.text }}>
+                    {cmd.label}
+                  </span>
+                  <span
+                    className="text-[11px] truncate"
+                    style={{ color: C.subtext0 }}
+                  >
+                    {cmd.hint}
+                  </span>
+                </span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
       <div
         className="px-1 py-0.5 flex items-center gap-0.5 overflow-x-auto rounded-2xl pointer-events-auto"
         style={{
@@ -1576,6 +2071,28 @@ function KeyboardAccessoryBar({
           height: BAR_HEIGHT,
         }}
       >
+        <button
+          type="button"
+          onMouseDown={guard}
+          onClick={() => setCommandOpen((v) => !v)}
+          className="rounded-lg transition-colors flex-shrink-0 active:scale-95 flex items-center justify-center"
+          style={{
+            width: 36,
+            height: 36,
+            color: commandOpen ? C.mauve : C.subtext1,
+            background: commandOpen ? "rgba(203,166,247,0.12)" : "transparent",
+          }}
+          aria-label="ブロックを挿入"
+          aria-expanded={commandOpen}
+          aria-haspopup="menu"
+        >
+          <Plus size={18} />
+        </button>
+        <div
+          className="mx-0.5 self-stretch flex-shrink-0"
+          style={{ width: 1, background: "rgba(255,255,255,0.08)" }}
+          aria-hidden="true"
+        />
         {items.map((b) => (
           <button
             key={b.key}

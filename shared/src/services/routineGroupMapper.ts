@@ -2,7 +2,7 @@ import type { RoutineGroup } from "../types/routineGroup";
 // `.js` extension is deliberate: this is a RUNTIME (value) import of a
 // sibling mapper, and the compiled dist must resolve under plain Node
 // ESM so scheduleMapper.roundtrip.js runs standalone (same rationale as
-// the roundtrip harness header / dailyMapper.roundtrip.ts). tsc + vitest
+// the roundtrip harness header). tsc + vitest
 // (esbuild) tolerate an extensionless path; Node ESM does not.
 import { toFrequencyType, parseFrequencyDays } from "./routineMapper.js";
 

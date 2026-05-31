@@ -1,6 +1,6 @@
 # 2026-05-23 - MEMORY / HISTORY の per-chat 分割（実装計画書）
 
-> **Status**: DRAFT — Phase 0（現状調査）着手前
+> **Status**: IN_PROGRESS — 中核機構導入済（per-chat memory/history + INDEX 集約 + 旧 MEMORY.md/HISTORY.md 凍結マーカー）。Phase 4 「worktree 跨ぎでの破綻なし」と FileChanged 計画との連動が未完
 > **対象ブランチ**: 未定（小規模なら `data-unification/items-meta-redesign` 上、影響が広いなら専用 branch）
 > **正式置き場**: 確定後 `.claude/docs/vision/plans/2026-05-23-memory-history-per-chat-split.md`（このファイル）
 > **関連計画**: [`2026-05-23-filechanged-comm-watch.md`](./2026-05-23-filechanged-comm-watch.md)（comm への FileChanged 監視レイヤー追加。本計画と worktree 正本パス問題を共有）

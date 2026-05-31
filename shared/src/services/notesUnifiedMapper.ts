@@ -10,11 +10,10 @@ import type { NoteNode, NoteNodeType } from "../types/note";
  * composite FK that blocks cross-role parenting at the DB layer — same
  * pattern as DU-B Step 1 (0009) for tasks.
  *
- * Coexists with the legacy `noteMapper.ts` (single-table). The legacy
- * mapper stays alive while frontend still talks to `tauriDataService`;
- * DU-F will retire it when the frontend↔shared integration lands.
+ * Replaced the legacy single-table Notes mapper, which was retired in
+ * DU-G G4; this 2-row mapper is now the only Notes mapper.
  *
- * PASSWORD CONTRACT (1:1 with legacy noteMapper.ts): the raw
+ * PASSWORD CONTRACT (1:1 with the retired legacy Notes mapper): the raw
  * `password_hash` column is NEVER selected back to the client. The domain
  * `NoteNode` exposes only `hasPassword` — a boolean served by the
  * `has_password` Postgres GENERATED column on `notes_payload`
@@ -112,8 +111,8 @@ export type ItemsMetaNoteInsertRow = Omit<
  * `parent_item_role` is a generated stored column — keep it OFF the
  * write type by construction (type-level guard, not runtime check).
  * `has_password` is also generated — keep it off too. `password_hash` is
- * never set on this path (dedicated set/remove paths only — see
- * legacy noteMapper.ts password contract).
+ * never set on this path (dedicated set/remove paths only — see the
+ * legacy Notes mapper password contract).
  */
 export type NotesPayloadWriteRow = Omit<
   NotesPayloadRow,
@@ -168,8 +167,8 @@ export const NOTES_PAYLOAD_COLUMNS =
 const NOTE_TYPES: ReadonlySet<string> = new Set(["folder", "note"]);
 
 /** Narrow a DB `note_type` value to the `NoteNodeType` union. A NULL
- * note_type defaults to "note" (legacy parity — same as
- * legacy noteMapper.toNoteNodeType). */
+ * note_type defaults to "note" (legacy parity — same as the
+ * retired legacy Notes mapper's toNoteNodeType). */
 export function toNoteNodeType(value: string | null): NoteNodeType {
   if (value === null) return "note";
   if (NOTE_TYPES.has(value)) return value as NoteNodeType;

@@ -19,9 +19,8 @@ import type { NoteNode } from "../types/note";
  * SupabaseDataService.ts.
  *
  * Naming policy: every method here carries the `*Unified` suffix. The
- * legacy single-table SupabaseNotesService (PHASE2_NOTES_METHODS) stays
- * untouched and coexists; DU-F retires it when the frontend↔shared
- * integration lands and Tauri callers stop arriving via tauriDataService.
+ * legacy single-table Notes service + dispatch set were retired in DU-G
+ * G4; this Unified service is now the only Supabase Notes write path.
  *
  * Write ordering: items_meta first, then notes_payload (FK enforces this).
  * If the payload INSERT fails, hard-delete the orphan items_meta row to
@@ -484,7 +483,7 @@ export class SupabaseNotesUnifiedService {
   // -------------------------------------------------------------------------
   // Password gate (DU-G PR1)
   //
-  // PARITY MANDATE: plaintext equality, matching legacy noteMapper.ts
+  // PARITY MANDATE: plaintext equality, matching the legacy Notes mapper
   // header ("kept as-is for parity — Tauri parity mandate, not a crypto
   // redesign; keeping the hash off the wire is the strongest mitigation
   // available here"). RLS scopes every read to auth.uid()'s rows, so the

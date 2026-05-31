@@ -10,10 +10,10 @@ import type { DailyNode } from "../types/daily";
  * (0014_notes_payload_parent_fk.sql) does NOT touch dailies_payload — the
  * 0008 schema is still authoritative here.
  *
- * Coexists with the legacy `dailyMapper.ts` (single-table). DU-F retires
- * the legacy mapper when frontend↔shared integration lands.
+ * Replaced the legacy single-table Daily mapper, which was retired in
+ * DU-G G4; this 2-row mapper is now the only Daily mapper.
  *
- * PASSWORD CONTRACT (1:1 with legacy dailyMapper.ts): the raw
+ * PASSWORD CONTRACT (1:1 with the retired legacy Daily mapper): the raw
  * `password_hash` column is NEVER selected back to the client. The domain
  * `DailyNode` exposes only `hasPassword` — a boolean served by the
  * `has_password` Postgres GENERATED column on `dailies_payload`
