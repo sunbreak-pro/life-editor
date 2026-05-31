@@ -1,36 +1,22 @@
 import {
-  Calendar as CalendarIcon,
   Check,
   ChevronRight,
-  Clock,
   FileText,
   Info,
   Link as LinkIcon,
   Search,
-  Settings as SettingsIcon,
   Trash2,
   X,
 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
-import { NavLink, useNavigate } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { BottomSheet } from "../components/BottomSheet";
+import { Drawer } from "../components/Drawer";
+import { useShell } from "../context/ShellContext";
 import { useMockStore } from "../hooks/useMockStore";
 import { resetAll, setNotification, setSettings } from "../lib/mockStore";
-import type { AppSettings, Language, ThemeMode } from "../lib/types";
-
-const C = {
-  base: "#1e1e2e",
-  mantle: "#181825",
-  crust: "#11111b",
-  surface0: "#313244",
-  surface1: "#45475a",
-  text: "#cdd6f4",
-  subtext1: "#bac2de",
-  subtext0: "#a6adc8",
-  overlay0: "#6c7086",
-  mauve: "#cba6f7",
-  green: "#a6e3a1",
-  red: "#f38ba8",
-} as const;
+import { C } from "../lib/theme";
+import type { Language, ThemeMode } from "../lib/types";
 
 const STR = {
   ja: {
@@ -119,6 +105,7 @@ export function SettingsScreen() {
       s.timerSessions.filter((x) => x.isDeleted).length,
   );
   const nav = useNavigate();
+  const { sidebarOpen, closeSidebar } = useShell();
   const [picker, setPicker] = useState<"theme" | "lang" | null>(null);
   const [showReset, setShowReset] = useState(false);
   const [showLicense, setShowLicense] = useState(false);
@@ -145,17 +132,23 @@ export function SettingsScreen() {
     }
   };
 
+  const jumpTo = (anchorId: string) => {
+    document
+      .getElementById(anchorId)
+      ?.scrollIntoView({ behavior: "smooth", block: "start" });
+    closeSidebar();
+  };
+
   return (
     <div
-      className="mx-auto max-w-md h-screen flex flex-col relative overflow-hidden"
+      className="h-full flex flex-col relative overflow-hidden"
       style={{ background: C.base, color: C.text }}
     >
-      <TopBar title={t.title} />
       <main
-        className="flex-1 overflow-auto py-2"
+        className="flex-1 min-h-0 overflow-y-auto py-2"
         style={{ background: C.base }}
       >
-        <Section header={t.sectionDisplay}>
+        <Section header={t.sectionDisplay} anchorId="settings-display">
           <PickerRow
             label={t.theme}
             value={
@@ -199,7 +192,10 @@ export function SettingsScreen() {
           />
         </Section>
 
-        <Section header={t.sectionNotifications}>
+        <Section
+          header={t.sectionNotifications}
+          anchorId="settings-notifications"
+        >
           <ToggleRow
             label={t.pomodoroEnd}
             value={settings.notifications.pomodoroSessionEnd}
@@ -230,7 +226,7 @@ export function SettingsScreen() {
           {t.notifNote}
         </div>
 
-        <Section header={t.sectionData}>
+        <Section header={t.sectionData} anchorId="settings-data">
           <NavRow
             icon={<Search size={18} />}
             label={t.crossSearch}
@@ -250,7 +246,7 @@ export function SettingsScreen() {
           />
         </Section>
 
-        <Section header={t.sectionAbout}>
+        <Section header={t.sectionAbout} anchorId="settings-about">
           <ValueRow label={t.version} value="prototype-v0.0.1" />
           <NavRow
             icon={<FileText size={18} />}
@@ -271,39 +267,70 @@ export function SettingsScreen() {
           />
         </Section>
       </main>
-      <BottomTabBar />
 
-      {picker === "theme" && (
-        <RadioSheet
-          title={t.theme}
-          options={[
-            { id: "light", label: t.light },
-            { id: "dark", label: t.dark },
-            { id: "system", label: t.system },
-          ]}
-          value={settings.themeMode}
-          onPick={(v) => {
-            setSettings({ themeMode: v as ThemeMode });
-            setPicker(null);
-          }}
-          onClose={() => setPicker(null)}
-        />
-      )}
-      {picker === "lang" && (
-        <RadioSheet
-          title={t.language}
-          options={[
-            { id: "ja", label: t.jaName },
-            { id: "en", label: t.enName },
-          ]}
-          value={settings.language}
-          onPick={(v) => {
-            setSettings({ language: v as Language });
-            setPicker(null);
-          }}
-          onClose={() => setPicker(null)}
-        />
-      )}
+      <Drawer open={sidebarOpen} onClose={closeSidebar} title={t.title}>
+        <div className="flex-1 overflow-y-auto py-2">
+          <SidebarGroup
+            label={t.sectionDisplay}
+            onTap={() => jumpTo("settings-display")}
+          />
+          <SidebarGroup
+            label={t.sectionNotifications}
+            onTap={() => jumpTo("settings-notifications")}
+          />
+          <SidebarGroup
+            label={t.sectionData}
+            onTap={() => jumpTo("settings-data")}
+          />
+          <SidebarGroup
+            label={t.sectionAbout}
+            onTap={() => jumpTo("settings-about")}
+          />
+          <div
+            className="mx-3 my-2"
+            style={{ borderTop: `1px solid ${C.surface1}` }}
+          />
+          <SidebarGroup
+            icon={<Trash2 size={16} />}
+            label={t.trash}
+            badge={trashCount > 0 ? String(trashCount) : undefined}
+            onTap={() => {
+              closeSidebar();
+              nav("/trash");
+            }}
+          />
+        </div>
+      </Drawer>
+
+      <RadioSheet
+        open={picker === "theme"}
+        title={t.theme}
+        options={[
+          { id: "light", label: t.light },
+          { id: "dark", label: t.dark },
+          { id: "system", label: t.system },
+        ]}
+        value={settings.themeMode}
+        onPick={(v) => {
+          setSettings({ themeMode: v as ThemeMode });
+          setPicker(null);
+        }}
+        onClose={() => setPicker(null)}
+      />
+      <RadioSheet
+        open={picker === "lang"}
+        title={t.language}
+        options={[
+          { id: "ja", label: t.jaName },
+          { id: "en", label: t.enName },
+        ]}
+        value={settings.language}
+        onPick={(v) => {
+          setSettings({ language: v as Language });
+          setPicker(null);
+        }}
+        onClose={() => setPicker(null)}
+      />
       {showReset && (
         <ConfirmModal
           title={t.confirmResetTitle}
@@ -345,31 +372,49 @@ export function SettingsScreen() {
   );
 }
 
-function TopBar({ title }: { title: string }) {
+function SidebarGroup({
+  icon,
+  label,
+  badge,
+  onTap,
+}: {
+  icon?: React.ReactNode;
+  label: string;
+  badge?: string;
+  onTap: () => void;
+}) {
   return (
-    <header
-      className="h-12 flex items-center px-3 shrink-0"
-      style={{ background: C.mantle, borderBottom: `1px solid ${C.surface1}` }}
+    <button
+      type="button"
+      onClick={onTap}
+      className="w-full min-h-[44px] px-4 py-2 flex items-center gap-3 text-left active:bg-white/5"
+      style={{ color: C.text }}
     >
-      <h1
-        className="flex-1 text-center text-base font-medium"
-        style={{ color: C.text }}
-      >
-        {title}
-      </h1>
-    </header>
+      {icon && <span style={{ color: C.subtext1 }}>{icon}</span>}
+      <span className="text-sm flex-1">{label}</span>
+      {badge && (
+        <span
+          className="text-[10px] px-2 py-0.5 rounded-full"
+          style={{ background: C.mauve, color: C.base, fontWeight: 600 }}
+        >
+          {badge}
+        </span>
+      )}
+    </button>
   );
 }
 
 function Section({
   header,
+  anchorId,
   children,
 }: {
   header: string;
+  anchorId?: string;
   children: React.ReactNode;
 }) {
   return (
-    <section className="mb-4">
+    <section id={anchorId} className="mb-4 scroll-mt-2">
       <div
         className="px-4 py-2 text-[11px] uppercase tracking-wider"
         style={{ color: C.subtext0 }}
@@ -704,12 +749,14 @@ function PreviewBadge({ label }: { label: string }) {
 }
 
 function RadioSheet({
+  open,
   title,
   options,
   value,
   onPick,
   onClose,
 }: {
+  open: boolean;
   title: string;
   options: { id: string; label: string }[];
   value: string;
@@ -717,58 +764,35 @@ function RadioSheet({
   onClose: () => void;
 }) {
   return (
-    <>
-      <button
-        type="button"
-        onClick={onClose}
-        aria-label="閉じる"
-        className="fixed inset-0"
-        style={{ background: C.crust, opacity: 0.5 }}
-      />
-      <div
-        className="fixed left-1/2 -translate-x-1/2 bottom-0 w-full max-w-md rounded-t-2xl"
-        style={{ background: C.mantle, color: C.text }}
-      >
-        <div className="flex flex-col items-center pt-2 pb-1">
-          <span
-            className="w-10 h-1 rounded-full"
-            style={{ background: C.overlay0 }}
-          />
-        </div>
-        <header
-          className="h-10 flex items-center px-3"
-          style={{ borderBottom: `1px solid ${C.surface1}` }}
-        >
-          <div className="flex-1 text-sm font-medium">{title}</div>
-        </header>
-        <div className="flex flex-col pb-2">
-          {options.map((o) => {
-            const active = o.id === value;
-            return (
-              <button
-                key={o.id}
-                type="button"
-                onClick={() => onPick(o.id)}
-                className="min-h-[48px] px-4 flex items-center gap-3 text-left"
+    <BottomSheet open={open} onClose={onClose} title={title} snapPoints={[0.5]}>
+      <div className="flex flex-col pb-2">
+        {options.map((o) => {
+          const active = o.id === value;
+          return (
+            <button
+              key={o.id}
+              type="button"
+              onClick={() => onPick(o.id)}
+              className="min-h-[48px] px-4 flex items-center gap-3 text-left"
+              style={{
+                borderBottom: `1px solid ${C.surface1}`,
+                color: C.text,
+              }}
+            >
+              <span
+                className="w-3 h-3 rounded-full"
                 style={{
-                  borderBottom: `1px solid ${C.surface1}`,
+                  background: active ? C.mauve : "transparent",
+                  border: `1px solid ${active ? C.mauve : C.overlay0}`,
                 }}
-              >
-                <span
-                  className="w-3 h-3 rounded-full"
-                  style={{
-                    background: active ? C.mauve : "transparent",
-                    border: `1px solid ${active ? C.mauve : C.overlay0}`,
-                  }}
-                />
-                <span className="text-sm flex-1">{o.label}</span>
-                {active && <Check size={14} color={C.green} />}
-              </button>
-            );
-          })}
-        </div>
+              />
+              <span className="text-sm flex-1">{o.label}</span>
+              {active && <Check size={14} color={C.green} />}
+            </button>
+          );
+        })}
       </div>
-    </>
+    </BottomSheet>
   );
 }
 
@@ -889,35 +913,5 @@ function InfoModal({
         </div>
       </div>
     </>
-  );
-}
-
-function BottomTabBar() {
-  const tabs: { to: string; label: string; Icon: typeof CalendarIcon }[] = [
-    { to: "/schedule", label: "Sch", Icon: CalendarIcon },
-    { to: "/work", label: "Wrk", Icon: Clock },
-    { to: "/materials", label: "Mat", Icon: FileText },
-    { to: "/settings", label: "Set", Icon: SettingsIcon },
-  ];
-  return (
-    <nav
-      className="h-14 grid grid-cols-4 shrink-0"
-      style={{ background: C.mantle, borderTop: `1px solid ${C.surface1}` }}
-    >
-      {tabs.map(({ to, label, Icon }) => (
-        <NavLink
-          key={to}
-          to={to}
-          end
-          className="flex flex-col items-center justify-center gap-0.5 active:opacity-70"
-          style={({ isActive }) => ({
-            color: isActive ? C.mauve : C.overlay0,
-          })}
-        >
-          <Icon size={20} />
-          <span className="text-[10px]">{label}</span>
-        </NavLink>
-      ))}
-    </nav>
   );
 }

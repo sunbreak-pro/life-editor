@@ -1,8 +1,7 @@
 import {
-  Calendar as CalendarIcon,
   Check,
   Clock,
-  FileText,
+  History as HistoryIcon,
   Pause,
   Play,
   Plus,
@@ -15,7 +14,9 @@ import {
   X,
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { NavLink } from "react-router-dom";
+import { BottomSheet } from "../components/BottomSheet";
+import { Drawer } from "../components/Drawer";
+import { useShell } from "../context/ShellContext";
 import { useMockStore } from "../hooks/useMockStore";
 import {
   addPreset,
@@ -28,6 +29,7 @@ import {
   updatePreset,
   updateScheduleItem,
 } from "../lib/mockStore";
+import { C } from "../lib/theme";
 import type {
   PomodoroPreset,
   ScheduleItem,
@@ -35,26 +37,6 @@ import type {
   TimerSession,
   WikiTag,
 } from "../lib/types";
-
-const C = {
-  base: "#1e1e2e",
-  mantle: "#181825",
-  crust: "#11111b",
-  surface0: "#313244",
-  surface1: "#45475a",
-  surface2: "#585b70",
-  text: "#cdd6f4",
-  subtext1: "#bac2de",
-  subtext0: "#a6adc8",
-  overlay0: "#6c7086",
-  mauve: "#cba6f7",
-  pink: "#f5c2e7",
-  peach: "#fab387",
-  yellow: "#f9e2af",
-  green: "#a6e3a1",
-  sky: "#89dceb",
-  red: "#f38ba8",
-} as const;
 
 type SubTab = "timer" | "history" | "settings";
 
@@ -103,6 +85,7 @@ const mapTags = (tags: WikiTag[]): Map<string, WikiTag> => {
 };
 
 export function WorkScreen() {
+  const { sidebarOpen, closeSidebar } = useShell();
   const [tab, setTab] = useState<SubTab>("timer");
   const allPresets = useMockStore((s) => s.presets);
   const activePresetId = useMockStore((s) => s.activePresetId);
@@ -130,11 +113,14 @@ export function WorkScreen() {
 
   return (
     <div
-      className="mx-auto max-w-md h-screen flex flex-col relative overflow-hidden"
+      className="h-full flex flex-col relative overflow-hidden"
       style={{ background: C.base, color: C.text }}
     >
       <SubTabBar tab={tab} onChange={setTab} />
-      <main className="flex-1 overflow-auto" style={{ background: C.base }}>
+      <main
+        className="flex-1 min-h-0 overflow-y-auto"
+        style={{ background: C.base }}
+      >
         {tab === "timer" && activePreset && (
           <TimerTab
             preset={activePreset}
@@ -153,7 +139,101 @@ export function WorkScreen() {
           />
         )}
       </main>
-      <BottomTabBar />
+
+      <Drawer open={sidebarOpen} onClose={closeSidebar} title="作業">
+        <WorkSidebarContent
+          presets={presets}
+          activePresetId={activePresetId}
+          onPickPreset={(id) => {
+            setActivePresetId(id);
+            closeSidebar();
+          }}
+          onJump={(t) => {
+            setTab(t);
+            closeSidebar();
+          }}
+        />
+      </Drawer>
+    </div>
+  );
+}
+
+function WorkSidebarContent({
+  presets,
+  activePresetId,
+  onPickPreset,
+  onJump,
+}: {
+  presets: PomodoroPreset[];
+  activePresetId: string | null;
+  onPickPreset: (id: string) => void;
+  onJump: (tab: SubTab) => void;
+}) {
+  return (
+    <div className="flex-1 overflow-y-auto flex flex-col gap-5 p-3">
+      <section className="flex flex-col gap-2">
+        <div className="text-xs" style={{ color: C.subtext0 }}>
+          プリセット切替
+        </div>
+        <div className="flex flex-col gap-1">
+          {presets.map((p) => {
+            const active = p.id === activePresetId;
+            return (
+              <button
+                key={p.id}
+                type="button"
+                onClick={() => onPickPreset(p.id)}
+                className="min-h-[44px] px-3 rounded-md flex items-center gap-2 text-left transition active:scale-[0.99]"
+                style={{
+                  background: active ? C.surface1 : C.surface0,
+                  color: active ? C.text : C.subtext1,
+                }}
+              >
+                <Clock size={16} color={active ? C.mauve : C.subtext0} />
+                <span
+                  className="text-sm flex-1 truncate"
+                  style={{ fontWeight: active ? 600 : 400 }}
+                >
+                  {p.name}
+                </span>
+                <span className="text-[10px]" style={{ color: C.subtext0 }}>
+                  {p.workMin}/{p.breakMin}
+                </span>
+                {active && <Check size={16} color={C.mauve} />}
+              </button>
+            );
+          })}
+          {presets.length === 0 && (
+            <div className="text-xs" style={{ color: C.subtext0 }}>
+              プリセットがありません
+            </div>
+          )}
+        </div>
+      </section>
+
+      <section className="flex flex-col gap-2">
+        <div className="text-xs" style={{ color: C.subtext0 }}>
+          移動
+        </div>
+        <button
+          type="button"
+          onClick={() => onJump("history")}
+          className="min-h-[44px] px-3 rounded-md flex items-center gap-2 text-left"
+          style={{ background: C.surface0, color: C.text }}
+        >
+          <HistoryIcon size={16} color={C.subtext0} />
+          <span className="text-sm">履歴</span>
+        </button>
+        <button
+          type="button"
+          onClick={() => onJump("settings")}
+          className="min-h-[44px] px-3 rounded-md flex items-center gap-2 text-left"
+          style={{ background: C.surface0, color: C.text }}
+        >
+          <SettingsIcon size={16} color={C.subtext0} />
+          <span className="text-sm">設定</span>
+        </button>
+      </section>
     </div>
   );
 }
@@ -383,7 +463,6 @@ function TimerTab({
           plannedRef.current = plannedSecFor(preset, t);
         }}
       />
-
       <div className="flex flex-col items-center py-4">
         <div
           key={pulseKey}
@@ -400,12 +479,10 @@ function TimerTab({
           </div>
         )}
       </div>
-
       <SessionDots
         total={preset.sessionsBeforeLongBreak}
         completed={completedWorks % preset.sessionsBeforeLongBreak}
       />
-
       <div className="flex flex-col gap-2">
         <div className="text-xs" style={{ color: C.subtext0 }}>
           今選んでいるタスク
@@ -432,7 +509,6 @@ function TimerTab({
           </button>
         )}
       </div>
-
       <div className="grid grid-cols-[1fr_2fr_1fr] gap-2 mt-2">
         <button
           type="button"
@@ -463,7 +539,6 @@ function TimerTab({
           <SkipForward size={18} />
         </button>
       </div>
-
       {currentTask && currentTask.status !== "done" && (
         <button
           type="button"
@@ -474,17 +549,14 @@ function TimerTab({
           <Check size={16} /> Task 完了
         </button>
       )}
-
-      {pickerOpen && (
-        <TaskPickerModal
-          tasks={scheduleTasks}
-          wikiTags={wikiTags}
-          selectedId={currentTask?.id ?? null}
-          onClose={() => setPickerOpen(false)}
-          onPick={handlePickTask}
-        />
-      )}
-
+      <TaskPickerModal
+        open={pickerOpen}
+        tasks={scheduleTasks}
+        wikiTags={wikiTags}
+        selectedId={currentTask?.id ?? null}
+        onClose={() => setPickerOpen(false)}
+        onPick={handlePickTask}
+      />
       {completionModal && (
         <SessionCompletionModal
           type={completionModal.type}
@@ -495,7 +567,6 @@ function TimerTab({
           onStop={handleStop}
         />
       )}
-
       {taskDoneAsk && currentTask && (
         <ConfirmModal
           title={`「${currentTask.title}」を完了にしますか?`}
@@ -635,12 +706,14 @@ function CurrentTaskChip({
 }
 
 function TaskPickerModal({
+  open,
   tasks,
   wikiTags,
   selectedId,
   onClose,
   onPick,
 }: {
+  open: boolean;
   tasks: ScheduleItem[];
   wikiTags: WikiTag[];
   selectedId: string | null;
@@ -677,46 +750,19 @@ function TaskPickerModal({
   }, [filtered, tagById]);
 
   return (
-    <>
-      <button
-        type="button"
-        onClick={onClose}
-        aria-label="閉じる"
-        className="fixed inset-0"
-        style={{ background: C.crust, opacity: 0.6 }}
-      />
-      <div
-        className="fixed left-1/2 -translate-x-1/2 bottom-0 w-full max-w-md h-[80%] rounded-t-xl flex flex-col"
-        style={{ background: C.base, color: C.text }}
-      >
-        <header
-          className="h-12 flex items-center px-1 shrink-0"
-          style={{ borderBottom: `1px solid ${C.surface1}` }}
-        >
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="閉じる"
-            className="min-h-[44px] min-w-[44px] flex items-center justify-center"
-          >
-            <X size={20} color={C.text} />
-          </button>
-          <div className="flex-1 text-sm font-medium text-center">
-            タスクを選ぶ
-          </div>
-          <button
-            type="button"
-            onClick={() => setShowDone((v) => !v)}
-            className="text-[11px] px-2 min-h-[44px]"
-            style={{ color: showDone ? C.mauve : C.subtext0 }}
-          >
-            {showDone ? "完了非表示" : "完了表示"}
-          </button>
-        </header>
+    <BottomSheet
+      open={open}
+      onClose={onClose}
+      title="タスクを選択"
+      rightLabel={showDone ? "完了非表示" : "完了表示"}
+      onRightClick={() => setShowDone((v) => !v)}
+      initialSnapIndex={1}
+    >
+      <div className="flex flex-col" style={{ color: C.text }}>
         <div
-          className="px-3 py-2 shrink-0"
+          className="px-3 py-2 shrink-0 sticky top-0 z-10"
           style={{
-            background: C.base,
+            background: C.mantle,
             borderBottom: `1px solid ${C.surface1}`,
           }}
         >
@@ -748,10 +794,10 @@ function TaskPickerModal({
             )}
           </div>
         </div>
-        <div className="flex-1 overflow-auto">
+        <div className="flex-1">
           {groups.length === 0 && (
             <div
-              className="h-full flex items-center justify-center text-sm"
+              className="flex items-center justify-center text-sm py-10"
               style={{ color: C.subtext0 }}
             >
               該当タスクがありません
@@ -811,8 +857,11 @@ function TaskPickerModal({
         </div>
         {selectedId && (
           <div
-            className="p-3 shrink-0"
-            style={{ borderTop: `1px solid ${C.surface1}` }}
+            className="p-3 shrink-0 sticky bottom-0"
+            style={{
+              borderTop: `1px solid ${C.surface1}`,
+              background: C.mantle,
+            }}
           >
             <button
               type="button"
@@ -828,7 +877,7 @@ function TaskPickerModal({
           </div>
         )}
       </div>
-    </>
+    </BottomSheet>
   );
 }
 
@@ -1105,16 +1154,15 @@ function SettingsTab({
         </button>
       )}
 
-      {addOpen && (
-        <AddPresetModal
-          onClose={() => setAddOpen(false)}
-          onSave={(input) => {
-            const p = addPreset(input);
-            setActivePresetId(p.id);
-            setAddOpen(false);
-          }}
-        />
-      )}
+      <AddPresetModal
+        open={addOpen}
+        onClose={() => setAddOpen(false)}
+        onSave={(input) => {
+          const p = addPreset(input);
+          setActivePresetId(p.id);
+          setAddOpen(false);
+        }}
+      />
 
       {confirmDelete && (
         <ConfirmModal
@@ -1244,9 +1292,11 @@ function ToggleRow({
 }
 
 function AddPresetModal({
+  open,
   onClose,
   onSave,
 }: {
+  open: boolean;
   onClose: () => void;
   onSave: (
     input: Omit<PomodoroPreset, "id" | "createdAt" | "updatedAt" | "isDeleted">,
@@ -1259,100 +1309,69 @@ function AddPresetModal({
   const [sessions, setSessions] = useState(4);
   const canSave = name.trim().length > 0;
   return (
-    <>
-      <button
-        type="button"
-        onClick={onClose}
-        aria-label="閉じる"
-        className="fixed inset-0"
-        style={{ background: C.crust, opacity: 0.6 }}
-      />
-      <div
-        className="fixed left-1/2 -translate-x-1/2 bottom-0 w-full max-w-md rounded-t-xl"
-        style={{ background: C.base, color: C.text }}
-      >
-        <header
-          className="h-12 flex items-center px-1"
-          style={{ borderBottom: `1px solid ${C.surface1}` }}
-        >
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="閉じる"
-            className="min-h-[44px] min-w-[44px] flex items-center justify-center"
-          >
-            <X size={20} color={C.text} />
-          </button>
-          <div className="flex-1 text-sm font-medium text-center">
-            プリセット追加
-          </div>
-          <button
-            type="button"
-            onClick={() =>
-              canSave &&
-              onSave({
-                name: name.trim(),
-                workMin,
-                breakMin,
-                longBreakMin,
-                sessionsBeforeLongBreak: sessions,
-              })
-            }
-            disabled={!canSave}
-            className="text-sm px-3 min-h-[44px] rounded-md mr-1 disabled:opacity-50"
-            style={{ background: C.mauve, color: C.base, fontWeight: 600 }}
-          >
-            追加
-          </button>
-        </header>
-        <div className="p-3 flex flex-col gap-3">
-          <label className="flex flex-col gap-1">
-            <span className="text-xs" style={{ color: C.subtext0 }}>
-              名前
-            </span>
-            <input
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="My Focus"
-              className="h-11 rounded-md px-3 text-sm"
-              style={{
-                background: C.surface0,
-                color: C.text,
-                border: `1px solid ${C.surface1}`,
-              }}
-            />
-          </label>
-          <NumberRow
-            label="WORK (分)"
-            value={workMin}
-            min={1}
-            max={180}
-            onChange={setWorkMin}
+    <BottomSheet
+      open={open}
+      onClose={onClose}
+      title="プリセットを追加"
+      rightLabel="追加"
+      onRightClick={() => {
+        if (!canSave) return;
+        onSave({
+          name: name.trim(),
+          workMin,
+          breakMin,
+          longBreakMin,
+          sessionsBeforeLongBreak: sessions,
+        });
+      }}
+    >
+      <div className="p-3 flex flex-col gap-3" style={{ color: C.text }}>
+        <label className="flex flex-col gap-1">
+          <span className="text-xs" style={{ color: C.subtext0 }}>
+            名前
+          </span>
+          <input
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="My Focus"
+            className="h-11 rounded-md px-3 text-sm"
+            style={{
+              background: C.surface0,
+              color: C.text,
+              border: `1px solid ${C.surface1}`,
+            }}
           />
-          <NumberRow
-            label="BREAK (分)"
-            value={breakMin}
-            min={1}
-            max={60}
-            onChange={setBreakMin}
-          />
-          <NumberRow
-            label="LONG BREAK (分)"
-            value={longBreakMin}
-            min={1}
-            max={60}
-            onChange={setLongBreakMin}
-          />
-          <NumberRow
-            label="ロングブレーク間隔 (回)"
-            value={sessions}
-            min={1}
-            max={10}
-            onChange={setSessions}
-          />
-        </div>
+        </label>
+        <NumberRow
+          label="WORK (分)"
+          value={workMin}
+          min={1}
+          max={180}
+          onChange={setWorkMin}
+        />
+        <NumberRow
+          label="BREAK (分)"
+          value={breakMin}
+          min={1}
+          max={60}
+          onChange={setBreakMin}
+        />
+        <NumberRow
+          label="LONG BREAK (分)"
+          value={longBreakMin}
+          min={1}
+          max={60}
+          onChange={setLongBreakMin}
+        />
+        <NumberRow
+          label="ロングブレーク間隔 (回)"
+          value={sessions}
+          min={1}
+          max={10}
+          onChange={setSessions}
+        />
       </div>
-    </>
+    </BottomSheet>
   );
 }
 
@@ -1518,35 +1537,5 @@ function ConfirmModal({
         </div>
       </div>
     </>
-  );
-}
-
-function BottomTabBar() {
-  const tabs: { to: string; label: string; Icon: typeof CalendarIcon }[] = [
-    { to: "/schedule", label: "Sch", Icon: CalendarIcon },
-    { to: "/work", label: "Wrk", Icon: Clock },
-    { to: "/materials", label: "Mat", Icon: FileText },
-    { to: "/settings", label: "Set", Icon: SettingsIcon },
-  ];
-  return (
-    <nav
-      className="h-14 grid grid-cols-4 shrink-0"
-      style={{ background: C.mantle, borderTop: `1px solid ${C.surface1}` }}
-    >
-      {tabs.map(({ to, label, Icon }) => (
-        <NavLink
-          key={to}
-          to={to}
-          end
-          className="flex flex-col items-center justify-center gap-0.5 active:opacity-70"
-          style={({ isActive }) => ({
-            color: isActive ? C.mauve : C.overlay0,
-          })}
-        >
-          <Icon size={20} />
-          <span className="text-[10px]">{label}</span>
-        </NavLink>
-      ))}
-    </nav>
   );
 }
