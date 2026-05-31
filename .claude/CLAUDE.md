@@ -11,7 +11,7 @@
 - **役割**: 現状の実装規約 / 設計判断の参照点（400 行以下目標）。抽象構想は `docs/vision/`（ADR は作らない）
 - **更新規則**: 実装変更はコードと同一 PR で更新。新機能は §8 + `docs/requirements/` に記入
 - **関連**:
-  - 進捗 / 履歴: [`memory/INDEX.md`](./memory/INDEX.md) (タスク集約) / [`history/INDEX.md`](./history/INDEX.md) (履歴集約) — per-chat 機構の集約ビュー
+  - 進捗 / 履歴: [`memory/INDEX.md`](./memory/INDEX.md) (タスク集約) / [`history/INDEX.md`](./history/INDEX.md) (履歴集約) — per-chat 機構の集約ビュー（**git 非追跡の派生物**。SSOT は各 `chat-*.md`。`.claude/hooks/regen-index.sh` が SessionStart hook / task-tracker から決定論的に再生成 — 並行マージ衝突源だったため追跡対象外。§9 参照）
   - 凍結 / 参考保全: 旧 `MEMORY.md` / `HISTORY.md` / `HISTORY-archive.md` (2026-05-23 凍結・read-only)
   - 移行: [移行 SSOT](./2026-05-04-cross-platform-migration.md)
   - 設計: `docs/vision/` (設計原則) / `docs/requirements/` (Tier) / `docs/known-issues/` ([INDEX](./docs/known-issues/INDEX.md))
@@ -246,7 +246,7 @@ cd frontend && npm run build                            # 型検証（tsc -b。-
 
 ## 9. Document System
 
-- **フロー**: Vision（`docs/vision/`、ADR 不使用）→ 実装プラン（`.claude/docs/vision/plans/YYYY-MM-DD-*.md`）→ 完了で `archive/` 移動・規約は本ファイルへ統合。**進捗 / 履歴はチャット別 (per-chat) ファイルに分割** — `.claude/memory/chat-<self>.md` + `.claude/history/chat-<self>.md`（task-tracker 経由）、集約は `memory/INDEX.md` + `history/INDEX.md`（自動再生成）。チャット名は `.claude/comm/.session-name` で宣言（FileChanged 監視レイヤーとも共有）。旧 `.claude/MEMORY.md` / `HISTORY.md` は 2026-05-23 凍結・参考保全。ADR 不使用の理由・却下案は `vision/coding-principles.md §5`
+- **フロー**: Vision（`docs/vision/`、ADR 不使用）→ 実装プラン（`.claude/docs/vision/plans/YYYY-MM-DD-*.md`）→ 完了で `archive/` 移動・規約は本ファイルへ統合。**進捗 / 履歴はチャット別 (per-chat) ファイルに分割** — `.claude/memory/chat-<self>.md` + `.claude/history/chat-<self>.md`（task-tracker 経由・git 追跡・単一書込者なので衝突しない）、集約 `memory/INDEX.md` + `history/INDEX.md` は **git 非追跡の派生ビュー**（`.claude/hooks/regen-index.sh` が SessionStart hook + task-tracker から `chat-*.md` を機械集約して再生成。INDEX を tracked + 全文再生成していたのが #1 マージ衝突源だったため `.gitignore` で追跡対象から除外し、衝突を物理的に排除した）。チャット名は `.claude/comm/.session-name` で宣言（FileChanged 監視レイヤーとも共有）。旧 `.claude/MEMORY.md` / `HISTORY.md` は 2026-05-23 凍結・参考保全。ADR 不使用の理由・却下案は `vision/coding-principles.md §5`
 - **Known Issue**: `docs/known-issues/` に Root Cause + 再発防止を蓄積。発見時 `_TEMPLATE.md` で `NNN-<slug>.md` 作成 + INDEX 更新、解決時 Status=Fixed。**類似バグはまず `INDEX.md` を grep**
 - **並行チャット通信**: `.claude/comm/` 経由（プロトコル → [`comm/README.md`](./comm/README.md)）。自分の Outbox にのみ append、他チャットは読み取り専用
 - **作業時の鉄則**: 機能追加/削除時は §8 更新 ／ 音源ファイルはコミット禁止（`public/sounds/` は `.gitignore`）／ API キーをフロントエンドに直書きしない ／ **`.mcp.json`（git 追跡対象）のトークンは `${SUPABASE_ACCESS_TOKEN}` 等の参照プレースホルダのまま維持。実トークン（`sbp_...` 等）へ平文展開禁止 — 平文化＝即リポジトリ流出。実値は shell 環境変数で供給。commit 前に参照形式か必須確認（2026-05-17 平文展開で GitHub Push Protection ブロック発生）**
