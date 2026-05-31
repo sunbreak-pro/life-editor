@@ -1,5 +1,5 @@
 ---
-Status: IN-PROGRESS — 2026-05-30 着手 / 同日スコープ拡大（Tasks 統一）
+Status: COMPLETED — 2026-05-31（PR #38 merged）／ 2026-05-30 着手・スコープ拡大（Tasks 統一）
 Created: 2026-05-30
 Branch: feat/notes-folder-dnd-ux（worktree `.claude/worktrees/du-g/`、main fa437ad = G4 込み 起点）
 Owner-chat: du-g

@@ -2,16 +2,16 @@
 
 > 各 `chat-*.md` の集約ビュー。SSOT は各 `chat-*.md`。
 
-最終更新: 2026-05-30 21:39:50 (chat-main)
+最終更新: 2026-05-31 (chat-du-g)
 
 ---
 
 ## 直近エントリ (across all chats, 時系列降順 5 件)
 
-- 2026-05-26 [chat-main] Multi-chat Worktree Policy proactive rollout + cwd drift known-issue（PR #33）
-- 2026-05-25 [chat-prototype-mobile] Phase 3.J fix: swipe transition 条件再修正 + アクセサリーバー iOS 風リスタイル
-- 2026-05-24 [chat-prototype-mobile] Phase 3.I fix: swipe rebound 解消 + Materials アクセサリーバー追加
-- 2026-05-24 [chat-prototype-mobile] Phase 3.H fix: peeking SwipePane + DayDetailSheet タップ復活
-- 2026-05-24 [chat-main] subagent self-contained brief 規約 + worktree integrity 改善（PR #22）
+- 2026-05-31 [chat-du-g] Notes/Tasks Tree DnD を Desktop TaskTree パターンに統一（PR #38）
+- 2026-05-30 [chat-du-g] DU-G G4: legacy Notes/Daily 死削除（A-2 Bridge dispatch 撤去）
+- 2026-05-30 [chat-prototype-mobile] fix-pack: M-1 card layout 見た目調整 (SwipeRow rounded + transparent)
+- 2026-05-30 [chat-prototype-mobile] C-2: Calendar フィルタ (タイプ) + 並び順切替 (iOS additions)
+- 2026-05-30 [chat-prototype-mobile] M-3: 空行ヒント + `/` キーバインド + IME ガード (iOS additions)
 
 古いエントリは各 `chat-*.md` または `.claude/history/archive/2026-05/chat-prototype-mobile.md` / `.claude/history/archive/2026-05/chat-main.md` 参照。

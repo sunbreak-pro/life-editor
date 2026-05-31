@@ -1,5 +1,20 @@
 # HISTORY (chat-du-g)
 
+### 2026-05-31 - Notes/Tasks Tree DnD を Desktop TaskTree パターンに統一（PR #38）
+
+#### 概要
+
+Notes の Folder DnD 改善が「末尾にフォルダがあるとその下に項目を置けない」で行き詰まり、自作 `sibling-below`（最後の子の下端で縦ゾーン分割）を撤去して Desktop(frontend) TaskTree の素直なモデル（フォルダ下端 = `moveNode below` = 兄弟化、expanded 特殊ケース無し）へ統一。Web Notes と Web Tasks を同一 DnD ロジック + UI に揃えた。PR #38 merged（計画書: archive/2026-05-30-notes-folder-dnd-ux.md）。
+
+#### 変更点
+
+- **根本修正**: `shared/src/utils/noteDropIntent.ts` を above/below/inside に統一（sibling-below 撤去）。フォルダ `below` = フォルダの兄弟。両ツリーから「expanded folder below → inside（first child）」特殊ケースを削除 → 末尾フォルダ下への兄弟配置が可能に
+- **共有化**: `web/src/components/{TreeNodeIndent, treeCollision, TreeDragGhost}` 新設し Notes/Tasks で共有（depth ガイドライン / pointerWithin+rectIntersection / 薄 ghost）
+- **統一**: 静止リスト（reflow 無し）/ 薄 ghost カーソル追尾 / Rule 1（展開フォルダ掴み→畳む・cancel 復元）/ グリップ hover / Folder↔chevron hover / accent 線 + inside wash。`web/src/tasks/useTaskTreeDnd.ts`（新規, useNoteTreeDnd ミラー）+ TaskTreeView 全面改修
+- **段階**: 薄青ハイライト + 判定緩和 → reflow 撤去 + ghost（「かなり良くなった」）→ sibling-below 試行（脆く失敗）→ TaskTree 統一（最終解）。途中 port 取り違え（メイン worktree 5174=main を見ていた）を lsof cwd 実測で解消
+- **品質**: role-engineer 実装 → session-verifier PASS → role-qa 独立監査 APPROVE WITH NITS（要件7件全達成・回帰なし）。QA nit 2件（stale test コメント / `TreeNodeIndent` の `-my-1`→`-my-1.5`）を修正コミット。shared tsc 0 / vitest 235 / web build 0 / eslint 0
+- **運用**: feature `feat/notes-folder-dnd-ux` で 2 commit（feat `ba5745a` + nit `3a6cca0`）→ PR #38 → ユーザー merge。本 tracking は merge 後に origin/main 起点の `chore/du-g-tracker-dnd` で記録（squash-merge 済 feature ブランチ再利用＝全 commit 再表示を回避）
+
 ### 2026-05-30 - DU-G G4: legacy Notes/Daily 死削除（A-2 Bridge dispatch 撤去）
 
 #### 概要
