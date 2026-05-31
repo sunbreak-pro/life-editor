@@ -14,6 +14,12 @@
   --color-text-secondary: #71717a;
   --color-border: #dbe1ea;
   --color-accent: #2eaadc;
+  /* Opaque light-blue wash for the DnD "drop inside this folder" cue
+     (DU-G). Kept opaque on purpose — §6.4 forbids transparency on
+     primary container backgrounds, and an undefined token would silently
+     fall transparent. Distinct from --color-hover so the drop target
+     reads differently from the selected row. */
+  --color-accent-subtle: #d6eef7;
   --color-hover: #e8edf4;
   --color-success: #0f7b6c;
   --color-danger: #e03e3e;
@@ -26,6 +32,9 @@
   --color-text-secondary: #a1a1aa;
   --color-border: #3f3f46;
   --color-accent: #529cca;
+  /* Dark-theme counterpart: a desaturated blue that sits just above the
+     dark row background instead of glowing. Opaque (see :root note). */
+  --color-accent-subtle: #2b3a44;
   --color-hover: #3f3f46;
   --color-success: #4dab9a;
   --color-danger: #ef4444;
@@ -38,6 +47,7 @@
   --color-notion-text-secondary: var(--color-text-secondary);
   --color-notion-border: var(--color-border);
   --color-notion-accent: var(--color-accent);
+  --color-notion-accent-subtle: var(--color-accent-subtle);
   --color-notion-hover: var(--color-hover);
   --color-notion-success: var(--color-success);
   --color-notion-danger: var(--color-danger);

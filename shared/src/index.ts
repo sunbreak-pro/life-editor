@@ -171,3 +171,7 @@ export {
   type SortDirection,
 } from "./utils/sortTaskNodes";
 export { getFolderTag, truncateFolderTag } from "./utils/folderTag";
+export {
+  computeNoteDropIntent,
+  type NoteDropPosition,
+} from "./utils/noteDropIntent";
