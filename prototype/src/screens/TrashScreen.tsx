@@ -1,13 +1,7 @@
-import {
-  Calendar as CalendarIcon,
-  ChevronLeft,
-  Clock,
-  FileText,
-  Settings as SettingsIcon,
-  Trash2,
-} from "lucide-react";
+import { Trash2 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { NavLink, useNavigate } from "react-router-dom";
+import { Drawer } from "../components/Drawer";
+import { useShell } from "../context/ShellContext";
 import { useMockStore } from "../hooks/useMockStore";
 import {
   getState,
@@ -21,22 +15,11 @@ import {
   restoreScheduleItem,
   restoreTimerSession,
 } from "../lib/mockStore";
-
-const C = {
-  base: "#1e1e2e",
-  mantle: "#181825",
-  crust: "#11111b",
-  surface0: "#313244",
-  surface1: "#45475a",
-  text: "#cdd6f4",
-  subtext1: "#bac2de",
-  subtext0: "#a6adc8",
-  overlay0: "#6c7086",
-  mauve: "#cba6f7",
-  red: "#f38ba8",
-} as const;
+import { C } from "../lib/theme";
 
 type TrashKind = "all" | "schedule" | "note" | "daily" | "preset" | "session";
+
+type TrashSort = "newest" | "oldest";
 
 interface TrashRow {
   id: string;
@@ -75,8 +58,9 @@ const formatDailyTitle = (date: string): string => {
 };
 
 export function TrashScreen() {
-  const nav = useNavigate();
+  const { sidebarOpen, closeSidebar } = useShell();
   const [filter, setFilter] = useState<TrashKind>("all");
+  const [sort, setSort] = useState<TrashSort>("newest");
   const [confirmPurge, setConfirmPurge] = useState<TrashRow | null>(null);
   const [confirmAll, setConfirmAll] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
@@ -127,13 +111,17 @@ export function TrashScreen() {
         deletedAt: s.deletedAt,
       });
     }
-    return out.sort((a, b) => b.deletedAt - a.deletedAt);
+    return out;
   }, [scheduleItems, notes, presets, timerSessions]);
 
   const filtered = useMemo(() => {
-    if (filter === "all") return rows;
-    return rows.filter((r) => r.kind === filter);
-  }, [rows, filter]);
+    const base =
+      filter === "all" ? rows : rows.filter((r) => r.kind === filter);
+    const sorted = [...base].sort((a, b) =>
+      sort === "newest" ? b.deletedAt - a.deletedAt : a.deletedAt - b.deletedAt,
+    );
+    return sorted;
+  }, [rows, filter, sort]);
 
   const counts = useMemo(() => {
     const m: Record<TrashKind, number> = {
@@ -176,44 +164,15 @@ export function TrashScreen() {
 
   return (
     <div
-      className="mx-auto max-w-md h-screen flex flex-col relative overflow-hidden"
+      className="h-full flex flex-col relative overflow-hidden"
       style={{ background: C.base, color: C.text }}
     >
-      <header
-        className="h-12 flex items-center px-1 shrink-0"
-        style={{
-          background: C.mantle,
-          borderBottom: `1px solid ${C.surface1}`,
-        }}
-      >
-        <button
-          type="button"
-          onClick={() => nav("/settings")}
-          aria-label="設定へ戻る"
-          className="min-h-[44px] min-w-[44px] flex items-center justify-center"
-        >
-          <ChevronLeft size={22} color={C.text} />
-        </button>
-        <h1
-          className="flex-1 text-center text-base font-medium"
-          style={{ color: C.text }}
-        >
-          ゴミ箱
-        </h1>
-        <button
-          type="button"
-          onClick={() => rows.length > 0 && setConfirmAll(true)}
-          disabled={rows.length === 0}
-          className="text-sm px-3 min-h-[44px] disabled:opacity-50"
-          style={{ color: C.red }}
-        >
-          全削除
-        </button>
-      </header>
-
       <div
         className="h-10 flex items-center gap-1 px-3 shrink-0 overflow-x-auto"
-        style={{ borderBottom: `1px solid ${C.surface1}` }}
+        style={{
+          background: C.surface0,
+          borderBottom: `1px solid ${C.surface1}`,
+        }}
       >
         {(
           [
@@ -234,7 +193,7 @@ export function TrashScreen() {
               onClick={() => setFilter(k)}
               className="h-8 px-3 rounded-full text-xs shrink-0 transition-transform active:scale-[0.98]"
               style={{
-                background: active ? C.mauve : C.surface0,
+                background: active ? C.mauve : C.surface1,
                 color: active ? C.base : C.subtext1,
                 fontWeight: active ? 600 : 400,
               }}
@@ -245,7 +204,10 @@ export function TrashScreen() {
         })}
       </div>
 
-      <main className="flex-1 overflow-auto p-3" style={{ background: C.base }}>
+      <main
+        className="flex-1 min-h-0 overflow-y-auto p-3"
+        style={{ background: C.base }}
+      >
         {filtered.length === 0 ? (
           <EmptyState />
         ) : (
@@ -262,7 +224,20 @@ export function TrashScreen() {
         )}
       </main>
 
-      <BottomTabBar />
+      <Drawer open={sidebarOpen} onClose={closeSidebar} title="ゴミ箱">
+        <TrashSidebarContent
+          filter={filter}
+          counts={counts}
+          onSetFilter={setFilter}
+          sort={sort}
+          onSetSort={setSort}
+          totalCount={rows.length}
+          onAskEmpty={() => {
+            if (rows.length > 0) setConfirmAll(true);
+            closeSidebar();
+          }}
+        />
+      </Drawer>
 
       {confirmPurge && (
         <ConfirmModal
@@ -397,10 +372,10 @@ function ConfirmModal({
         type="button"
         onClick={onCancel}
         aria-label="閉じる"
-        className="fixed inset-0"
+        className="fixed inset-0 z-[60]"
         style={{ background: C.crust, opacity: 0.7 }}
       />
-      <div className="fixed inset-0 flex items-center justify-center p-4 pointer-events-none">
+      <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 pointer-events-none">
         <div
           className="w-full max-w-xs rounded-2xl p-4 flex flex-col gap-3 pointer-events-auto"
           style={{ background: C.base, border: `1px solid ${C.surface1}` }}
@@ -437,32 +412,103 @@ function ConfirmModal({
   );
 }
 
-function BottomTabBar() {
-  const tabs: { to: string; label: string; Icon: typeof CalendarIcon }[] = [
-    { to: "/schedule", label: "Sch", Icon: CalendarIcon },
-    { to: "/work", label: "Wrk", Icon: Clock },
-    { to: "/materials", label: "Mat", Icon: FileText },
-    { to: "/settings", label: "Set", Icon: SettingsIcon },
+function TrashSidebarContent({
+  filter,
+  counts,
+  onSetFilter,
+  sort,
+  onSetSort,
+  totalCount,
+  onAskEmpty,
+}: {
+  filter: TrashKind;
+  counts: Record<TrashKind, number>;
+  onSetFilter: (k: TrashKind) => void;
+  sort: TrashSort;
+  onSetSort: (s: TrashSort) => void;
+  totalCount: number;
+  onAskEmpty: () => void;
+}) {
+  const kinds: TrashKind[] = [
+    "all",
+    "schedule",
+    "note",
+    "daily",
+    "preset",
+    "session",
+  ];
+  const sortOptions: { v: TrashSort; label: string }[] = [
+    { v: "newest", label: "新しい順" },
+    { v: "oldest", label: "古い順" },
   ];
   return (
-    <nav
-      className="h-14 grid grid-cols-4 shrink-0"
-      style={{ background: C.mantle, borderTop: `1px solid ${C.surface1}` }}
-    >
-      {tabs.map(({ to, label, Icon }) => (
-        <NavLink
-          key={to}
-          to={to}
-          end
-          className="flex flex-col items-center justify-center gap-0.5 active:opacity-70"
-          style={({ isActive }) => ({
-            color: isActive || to === "/settings" ? C.mauve : C.overlay0,
+    <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-6">
+      <section className="flex flex-col gap-2">
+        <h3 className="text-xs font-medium" style={{ color: C.subtext0 }}>
+          タイプ別フィルタ
+        </h3>
+        <div className="flex flex-col gap-1">
+          {kinds.map((k) => {
+            const active = filter === k;
+            return (
+              <button
+                key={k}
+                type="button"
+                onClick={() => onSetFilter(k)}
+                className="h-10 px-3 rounded-md flex items-center justify-between text-sm"
+                style={{
+                  background: active ? C.surface1 : C.surface0,
+                  color: active ? C.text : C.subtext1,
+                  fontWeight: active ? 600 : 400,
+                }}
+              >
+                <span>{KIND_LABEL[k]}</span>
+                <span className="text-xs" style={{ color: C.subtext0 }}>
+                  {counts[k]}
+                </span>
+              </button>
+            );
           })}
+        </div>
+      </section>
+
+      <section className="flex flex-col gap-2">
+        <h3 className="text-xs font-medium" style={{ color: C.subtext0 }}>
+          並び順
+        </h3>
+        <div className="grid grid-cols-2 gap-2">
+          {sortOptions.map((opt) => {
+            const active = sort === opt.v;
+            return (
+              <button
+                key={opt.v}
+                type="button"
+                onClick={() => onSetSort(opt.v)}
+                className="h-10 rounded-md text-sm"
+                style={{
+                  background: active ? C.mauve : C.surface0,
+                  color: active ? C.base : C.subtext1,
+                  fontWeight: active ? 600 : 400,
+                }}
+              >
+                {opt.label}
+              </button>
+            );
+          })}
+        </div>
+      </section>
+
+      <section className="flex flex-col gap-2 mt-auto">
+        <button
+          type="button"
+          onClick={onAskEmpty}
+          disabled={totalCount === 0}
+          className="h-11 rounded-md text-sm font-medium flex items-center justify-center gap-2 disabled:opacity-50"
+          style={{ background: C.red, color: C.base }}
         >
-          <Icon size={20} />
-          <span className="text-[10px]">{label}</span>
-        </NavLink>
-      ))}
-    </nav>
+          <Trash2 size={16} /> ゴミ箱を空にする
+        </button>
+      </section>
+    </div>
   );
 }

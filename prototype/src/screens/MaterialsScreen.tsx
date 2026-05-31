@@ -2,13 +2,11 @@ import {
   ArrowUpDown,
   Bold,
   BookOpen,
-  Calendar as CalendarIcon,
   Check,
   ChevronDown,
   ChevronLeft,
   ChevronRight,
   ChevronUp,
-  Clock,
   Code,
   Copy,
   FileText,
@@ -20,21 +18,22 @@ import {
   LayoutGrid,
   Link2,
   List as ListIcon,
-  Menu,
   MoreHorizontal,
   Pin,
   PinOff,
   Plus,
   Quote,
   Search,
-  Settings as SettingsIcon,
   Share2,
   Timer as TimerIcon,
   Trash2,
   X,
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { NavLink, useNavigate, useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
+import { BottomSheet } from "../components/BottomSheet";
+import { Drawer } from "../components/Drawer";
+import { useShell } from "../context/ShellContext";
 import { useMockStore } from "../hooks/useMockStore";
 import {
   addNote,
@@ -47,29 +46,9 @@ import {
   togglePinNote,
   updateNote,
 } from "../lib/mockStore";
-import type { Mood, Note, ScheduleItem, WikiTag } from "../lib/types";
+import { C } from "../lib/theme";
+import type { Mood, Note, WikiTag } from "../lib/types";
 import { findBacklinks, resolveLink, suggestLinks } from "../lib/wikiLink";
-
-const C = {
-  base: "#1e1e2e",
-  mantle: "#181825",
-  crust: "#11111b",
-  surface0: "#313244",
-  surface1: "#45475a",
-  surface2: "#585b70",
-  text: "#cdd6f4",
-  subtext1: "#bac2de",
-  subtext0: "#a6adc8",
-  overlay0: "#6c7086",
-  mauve: "#cba6f7",
-  pink: "#f5c2e7",
-  peach: "#fab387",
-  yellow: "#f9e2af",
-  green: "#a6e3a1",
-  sky: "#89dceb",
-  blue: "#89b4fa",
-  red: "#f38ba8",
-} as const;
 
 type Kind = "notes" | "daily";
 type Layout = "card" | "row";
@@ -159,6 +138,7 @@ const mapTags = (tags: WikiTag[]): Map<string, WikiTag> => {
 
 export function MaterialsScreen() {
   const nav = useNavigate();
+  const { sidebarOpen, closeSidebar } = useShell();
   const [searchParams, setSearchParams] = useSearchParams();
   const rawNotes = useMockStore((s) => s.notes);
   const wikiTags = useMockStore((s) => s.wikiTags);
@@ -174,10 +154,9 @@ export function MaterialsScreen() {
   );
   const [view, setView] = useState<"list" | "editor">("list");
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [searchOpen, setSearchOpen] = useState(false);
-  const [searchQuery, setSearchQuery] = useState("");
   const [sortKey, setSortKey] = useState<SortKey>("updatedAt");
   const [filterTagIds, setFilterTagIds] = useState<string[]>([]);
+  const [pinnedOnly, setPinnedOnly] = useState(false);
   const [sheet, setSheet] = useState<SheetType>(null);
   const [longPressTarget, setLongPressTarget] = useState<Note | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<Note | null>(null);
@@ -185,29 +164,16 @@ export function MaterialsScreen() {
   const openHandledRef = useRef<string | null>(null);
 
   const filtered = useMemo(() => {
-    const q = searchQuery.trim().toLowerCase();
-    const tagById = mapTags(wikiTags);
     return allNotes.filter((n) => {
       if (n.kind !== kind) return false;
-      if (q) {
-        const hay =
-          n.title.toLowerCase() +
-          " " +
-          n.excerpt.toLowerCase() +
-          " " +
-          n.wikiTagIds
-            .map((id) => tagById.get(id)?.name ?? "")
-            .join(" ")
-            .toLowerCase();
-        if (!hay.includes(q)) return false;
-      }
+      if (pinnedOnly && !n.pinned) return false;
       if (filterTagIds.length > 0) {
         const ok = filterTagIds.some((id) => n.wikiTagIds.includes(id));
         if (!ok) return false;
       }
       return true;
     });
-  }, [allNotes, wikiTags, kind, searchQuery, filterTagIds]);
+  }, [allNotes, kind, filterTagIds, pinnedOnly]);
 
   const sorted = useMemo(
     () => sortNotes(filtered, sortKey),
@@ -279,24 +245,23 @@ export function MaterialsScreen() {
 
   return (
     <div
-      className="mx-auto max-w-md h-screen flex flex-col relative overflow-hidden"
+      className="h-full flex flex-col relative overflow-hidden"
       style={{ background: C.base, color: C.text }}
     >
-      <TopBar
+      <MaterialsToolbar
         kind={kind}
         onKindChange={setKind}
         layout={layout}
         onLayoutChange={setLayout}
-        searchOpen={searchOpen}
-        onToggleSearch={() => setSearchOpen((v) => !v)}
-        searchQuery={searchQuery}
-        onSearchChange={setSearchQuery}
         onOpenSort={() => setSheet("sort")}
         onOpenFilter={() => setSheet("filter")}
         filterActive={filterTagIds.length > 0}
       />
 
-      <main className="flex-1 overflow-auto" style={{ background: C.base }}>
+      <main
+        className="flex-1 min-h-0 overflow-y-auto"
+        style={{ background: C.base }}
+      >
         <ListBody
           layout={layout}
           pinned={pinned}
@@ -336,8 +301,6 @@ export function MaterialsScreen() {
         </button>
       )}
 
-      <BottomTabBar />
-
       {view === "editor" && editing && (
         <EditorView
           note={editing}
@@ -361,111 +324,115 @@ export function MaterialsScreen() {
         />
       )}
 
-      {sheet === "sort" && (
-        <SortSheet
-          sortKey={sortKey}
-          onPick={(k) => {
-            setSortKey(k);
-            setSheet(null);
-          }}
-          onClose={() => setSheet(null)}
-        />
-      )}
+      <SortSheet
+        open={sheet === "sort"}
+        sortKey={sortKey}
+        onPick={(k) => {
+          setSortKey(k);
+          setSheet(null);
+        }}
+        onClose={() => setSheet(null)}
+      />
 
-      {sheet === "filter" && (
-        <FilterSheet
-          tags={wikiTags}
-          allNotes={allNotes}
-          kind={kind}
-          selectedIds={filterTagIds}
-          onToggle={(id) =>
-            setFilterTagIds((prev) =>
-              prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
-            )
+      <FilterSheet
+        open={sheet === "filter"}
+        tags={wikiTags}
+        allNotes={allNotes}
+        kind={kind}
+        selectedIds={filterTagIds}
+        onToggle={(id) =>
+          setFilterTagIds((prev) =>
+            prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
+          )
+        }
+        onClear={() => setFilterTagIds([])}
+        onClose={() => setSheet(null)}
+      />
+
+      <ItemMenuSheet
+        open={sheet === "itemMenu"}
+        note={longPressTarget}
+        onPin={() => {
+          if (!longPressTarget) return;
+          togglePinNote(longPressTarget.id);
+          setSheet(null);
+          setLongPressTarget(null);
+        }}
+        onDuplicate={() => {
+          if (!longPressTarget) return;
+          duplicateNote(longPressTarget.id);
+          setSheet(null);
+          setLongPressTarget(null);
+        }}
+        onDelete={() => {
+          if (!longPressTarget) return;
+          setConfirmDelete(longPressTarget);
+          setSheet(null);
+        }}
+        onClose={() => {
+          setSheet(null);
+          setLongPressTarget(null);
+        }}
+      />
+
+      <EditorMenuSheet
+        open={sheet === "editorMenu"}
+        note={editing}
+        onPin={() => {
+          if (!editing) return;
+          togglePinNote(editing.id);
+          setSheet(null);
+        }}
+        onDuplicate={() => {
+          if (!editing) return;
+          const dup = duplicateNote(editing.id);
+          setSheet(null);
+          if (dup) setEditingId(dup.id);
+        }}
+        onShare={() => {
+          if (!editing) return;
+          console.log("[mock share]", editing.title);
+          setSheet(null);
+          alert(`「${editing.title || "(無題)"}」を共有 (mock)`);
+        }}
+        onDelete={() => {
+          if (!editing) return;
+          setConfirmDelete(editing);
+          setSheet(null);
+        }}
+        onClose={() => setSheet(null)}
+      />
+
+      <MoodSheet
+        open={sheet === "mood" && editing?.kind === "daily"}
+        current={editing?.mood ?? "green"}
+        onPick={(m) => {
+          if (!editing) return;
+          updateNote(editing.id, { mood: m });
+          setSheet(null);
+        }}
+        onClose={() => setSheet(null)}
+      />
+
+      <TagSheet
+        open={sheet === "tag" && !!editing}
+        tags={wikiTags}
+        selectedIds={editing?.wikiTagIds ?? []}
+        onToggle={(id) => {
+          if (!editing) return;
+          if (editing.wikiTagIds.includes(id)) {
+            detachTag(editing.id, id);
+          } else {
+            attachTag(editing.id, id);
           }
-          onClear={() => setFilterTagIds([])}
-          onClose={() => setSheet(null)}
-        />
-      )}
-
-      {sheet === "itemMenu" && longPressTarget && (
-        <ItemMenuSheet
-          note={longPressTarget}
-          onPin={() => {
-            togglePinNote(longPressTarget.id);
-            setSheet(null);
-            setLongPressTarget(null);
-          }}
-          onDuplicate={() => {
-            duplicateNote(longPressTarget.id);
-            setSheet(null);
-            setLongPressTarget(null);
-          }}
-          onDelete={() => {
-            setConfirmDelete(longPressTarget);
-            setSheet(null);
-          }}
-          onClose={() => {
-            setSheet(null);
-            setLongPressTarget(null);
-          }}
-        />
-      )}
-
-      {sheet === "editorMenu" && editing && (
-        <EditorMenuSheet
-          note={editing}
-          onPin={() => {
-            togglePinNote(editing.id);
-            setSheet(null);
-          }}
-          onDuplicate={() => {
-            const dup = duplicateNote(editing.id);
-            setSheet(null);
-            if (dup) setEditingId(dup.id);
-          }}
-          onShare={() => {
-            console.log("[mock share]", editing.title);
-            setSheet(null);
-            alert(`「${editing.title || "(無題)"}」を共有 (mock)`);
-          }}
-          onDelete={() => {
-            setConfirmDelete(editing);
-            setSheet(null);
-          }}
-          onClose={() => setSheet(null)}
-        />
-      )}
-
-      {sheet === "mood" && editing && editing.kind === "daily" && (
-        <MoodSheet
-          current={editing.mood ?? "green"}
-          onPick={(m) => {
-            updateNote(editing.id, { mood: m });
-            setSheet(null);
-          }}
-          onClose={() => setSheet(null)}
-        />
-      )}
-
-      {sheet === "tag" && editing && (
-        <TagSheet
-          tags={wikiTags}
-          selectedIds={editing.wikiTagIds}
-          onToggle={(id) => {
-            if (editing.wikiTagIds.includes(id)) {
-              detachTag(editing.id, id);
-            } else {
-              attachTag(editing.id, id);
-            }
-          }}
-          onCreate={(name, color) => {
-            const created = addWikiTag(name, color);
-            attachTag(editing.id, created.id);
-          }}
-          onClose={() => setSheet(null)}
-        />
-      )}
+        }}
+        onCreate={(name, color) => {
+          if (!editing) return;
+          const created = addWikiTag(name, color);
+          attachTag(editing.id, created.id);
+        }}
+        onClose={() => setSheet(null)}
+      />
 
       {confirmDelete && (
         <ConfirmModal
@@ -480,19 +447,42 @@ export function MaterialsScreen() {
           onConfirm={() => handleDeleteConfirmed(confirmDelete)}
         />
       )}
+
+      <Drawer open={sidebarOpen} onClose={closeSidebar} title="資料">
+        <MaterialsSidebarContent
+          wikiTags={wikiTags}
+          allNotes={allNotes}
+          kind={kind}
+          filterTagIds={filterTagIds}
+          onToggleTagFilter={(id) =>
+            setFilterTagIds((prev) =>
+              prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
+            )
+          }
+          onClearTagFilter={() => setFilterTagIds([])}
+          sortKey={sortKey}
+          onChangeSortKey={setSortKey}
+          pinnedOnly={pinnedOnly}
+          onTogglePinnedOnly={() => setPinnedOnly((v) => !v)}
+        />
+      </Drawer>
     </div>
   );
 }
 
-function TopBar({
+/**
+ * Materials-specific sub-toolbar (IA v3 — under the shared AppHeader).
+ *
+ * The shared AppHeader owns menu / section title / cross-search; this strip keeps
+ * the screen-specific Notes/Daily switch, card/row layout toggle, sort and filter.
+ * The old in-header search bar is removed (the cross-search overlay replaces it);
+ * a section-local title/body/tag search lives in the Drawer.
+ */
+function MaterialsToolbar({
   kind,
   onKindChange,
   layout,
   onLayoutChange,
-  searchOpen,
-  onToggleSearch,
-  searchQuery,
-  onSearchChange,
   onOpenSort,
   onOpenFilter,
   filterActive,
@@ -501,115 +491,204 @@ function TopBar({
   onKindChange: (k: Kind) => void;
   layout: Layout;
   onLayoutChange: (l: Layout) => void;
-  searchOpen: boolean;
-  onToggleSearch: () => void;
-  searchQuery: string;
-  onSearchChange: (q: string) => void;
   onOpenSort: () => void;
   onOpenFilter: () => void;
   filterActive: boolean;
 }) {
   return (
-    <>
-      <header
-        className="h-12 flex items-center px-1 shrink-0"
-        style={{
-          background: C.mantle,
-          borderBottom: `1px solid ${C.surface1}`,
-        }}
+    <header
+      className="h-12 flex items-center px-1 shrink-0"
+      style={{
+        background: C.surface0,
+        borderBottom: `1px solid ${C.surface1}`,
+      }}
+    >
+      <div className="flex-1 grid grid-cols-2 gap-1 mx-1">
+        {(["notes", "daily"] as Kind[]).map((k) => {
+          const active = kind === k;
+          return (
+            <button
+              key={k}
+              type="button"
+              onClick={() => onKindChange(k)}
+              className="h-9 text-sm transition active:opacity-70"
+              style={{
+                color: active ? C.text : C.overlay0,
+                fontWeight: active ? 600 : 400,
+                borderBottom: `2px solid ${active ? C.mauve : "transparent"}`,
+              }}
+            >
+              {k === "notes" ? "Notes" : "Daily"}
+            </button>
+          );
+        })}
+      </div>
+      <IconBtn
+        onClick={() => onLayoutChange(layout === "card" ? "row" : "card")}
+        ariaLabel="レイアウト切替"
+        color={C.mauve}
       >
-        <button
-          type="button"
-          aria-label="メニュー"
-          className="min-h-[44px] min-w-[44px] flex items-center justify-center"
+        {layout === "card" ? <LayoutGrid size={18} /> : <ListIcon size={18} />}
+      </IconBtn>
+      <IconBtn onClick={onOpenSort} ariaLabel="並び替え" color={C.text}>
+        <ArrowUpDown size={18} />
+      </IconBtn>
+      <IconBtn
+        onClick={onOpenFilter}
+        ariaLabel="フィルタ"
+        color={filterActive ? C.mauve : C.text}
+      >
+        <FilterIcon size={18} />
+      </IconBtn>
+    </header>
+  );
+}
+
+/**
+ * Section sidebar contents rendered inside the shared <Drawer>. Reuses the
+ * existing Materials filter state (section-local search, tag filter, sort,
+ * pinned-only). The Drawer's own scroll region is flex-1 overflow-y-auto.
+ */
+function MaterialsSidebarContent({
+  wikiTags,
+  allNotes,
+  kind,
+  filterTagIds,
+  onToggleTagFilter,
+  onClearTagFilter,
+  sortKey,
+  onChangeSortKey,
+  pinnedOnly,
+  onTogglePinnedOnly,
+}: {
+  wikiTags: WikiTag[];
+  allNotes: Note[];
+  kind: Kind;
+  filterTagIds: string[];
+  onToggleTagFilter: (id: string) => void;
+  onClearTagFilter: () => void;
+  sortKey: SortKey;
+  onChangeSortKey: (k: SortKey) => void;
+  pinnedOnly: boolean;
+  onTogglePinnedOnly: () => void;
+}) {
+  const tagCounts = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const n of allNotes) {
+      if (n.kind !== kind) continue;
+      for (const id of n.wikiTagIds) {
+        counts.set(id, (counts.get(id) ?? 0) + 1);
+      }
+    }
+    return counts;
+  }, [allNotes, kind]);
+  const visibleTags = wikiTags.filter((t) => (tagCounts.get(t.id) ?? 0) > 0);
+  const SORT_OPTIONS: { key: SortKey; label: string }[] = [
+    { key: "updatedAt", label: "更新日時" },
+    { key: "createdAt", label: "作成日時" },
+    { key: "title", label: "タイトル" },
+  ];
+
+  return (
+    <div className="flex-1 overflow-y-auto flex flex-col gap-4 p-3">
+      <div className="flex flex-col gap-1.5">
+        <span
+          className="text-[10px] uppercase tracking-wider"
+          style={{ color: C.subtext0 }}
         >
-          <Menu size={20} color={C.text} />
-        </button>
-        <div className="flex-1 grid grid-cols-2 gap-1 mx-1">
-          {(["notes", "daily"] as Kind[]).map((k) => {
-            const active = kind === k;
+          並び替え
+        </span>
+        <div className="flex flex-col gap-1">
+          {SORT_OPTIONS.map((o) => {
+            const active = sortKey === o.key;
             return (
               <button
-                key={k}
+                key={o.key}
                 type="button"
-                onClick={() => onKindChange(k)}
-                className="h-9 text-sm transition active:opacity-70"
+                onClick={() => onChangeSortKey(o.key)}
+                className="min-h-[40px] px-3 rounded-md flex items-center justify-between text-left"
                 style={{
-                  color: active ? C.text : C.overlay0,
-                  fontWeight: active ? 600 : 400,
-                  borderBottom: `2px solid ${active ? C.mauve : "transparent"}`,
+                  background: active ? C.surface1 : C.surface0,
+                  color: C.text,
                 }}
               >
-                {k === "notes" ? "Notes" : "Daily"}
+                <span className="text-sm">{o.label}</span>
+                {active && <Check size={16} color={C.mauve} />}
               </button>
             );
           })}
         </div>
-        <IconBtn
-          onClick={onToggleSearch}
-          ariaLabel="検索"
-          color={searchOpen ? C.mauve : C.text}
-        >
-          <Search size={18} />
-        </IconBtn>
-        <IconBtn
-          onClick={() => onLayoutChange(layout === "card" ? "row" : "card")}
-          ariaLabel="レイアウト切替"
-          color={C.mauve}
-        >
-          {layout === "card" ? (
-            <LayoutGrid size={18} />
-          ) : (
-            <ListIcon size={18} />
-          )}
-        </IconBtn>
-        <IconBtn onClick={onOpenSort} ariaLabel="並び替え" color={C.text}>
-          <ArrowUpDown size={18} />
-        </IconBtn>
-        <IconBtn
-          onClick={onOpenFilter}
-          ariaLabel="フィルタ"
-          color={filterActive ? C.mauve : C.text}
-        >
-          <FilterIcon size={18} />
-        </IconBtn>
-      </header>
-      {searchOpen && (
-        <div
-          className="px-3 py-2 shrink-0"
-          style={{
-            background: C.mantle,
-            borderBottom: `1px solid ${C.surface1}`,
-          }}
-        >
-          <div
-            className="flex items-center h-10 rounded-md px-2 gap-2"
-            style={{
-              background: C.surface0,
-              border: `1px solid ${C.surface1}`,
-            }}
+      </div>
+
+      <button
+        type="button"
+        onClick={onTogglePinnedOnly}
+        className="min-h-[40px] px-3 rounded-md flex items-center gap-2 text-left"
+        style={{
+          background: pinnedOnly ? C.surface1 : C.surface0,
+          color: C.text,
+        }}
+      >
+        <Pin size={16} color={pinnedOnly ? C.peach : C.subtext0} />
+        <span className="text-sm flex-1">ピン留めのみ</span>
+        {pinnedOnly && <Check size={16} color={C.mauve} />}
+      </button>
+
+      <div className="flex flex-col gap-1.5">
+        <div className="flex items-center">
+          <span
+            className="flex-1 text-[10px] uppercase tracking-wider"
+            style={{ color: C.subtext0 }}
           >
-            <Search size={16} color={C.subtext0} />
-            <input
-              value={searchQuery}
-              onChange={(e) => onSearchChange(e.target.value)}
-              placeholder="タイトル / 本文 / タグ"
-              className="flex-1 bg-transparent outline-none text-sm"
-              style={{ color: C.text }}
-            />
-            {searchQuery && (
-              <button
-                type="button"
-                onClick={() => onSearchChange("")}
-                aria-label="クリア"
-              >
-                <X size={14} color={C.subtext0} />
-              </button>
-            )}
-          </div>
+            タグで絞り込み
+          </span>
+          {filterTagIds.length > 0 && (
+            <button
+              type="button"
+              onClick={onClearTagFilter}
+              className="text-xs px-2 h-7"
+              style={{ color: C.mauve }}
+            >
+              クリア
+            </button>
+          )}
         </div>
-      )}
-    </>
+        {visibleTags.length === 0 ? (
+          <div className="px-1 py-2 text-xs" style={{ color: C.subtext0 }}>
+            タグがありません
+          </div>
+        ) : (
+          <div className="flex flex-col gap-1">
+            {visibleTags.map((t) => {
+              const selected = filterTagIds.includes(t.id);
+              return (
+                <button
+                  key={t.id}
+                  type="button"
+                  onClick={() => onToggleTagFilter(t.id)}
+                  className="min-h-[40px] px-3 rounded-md flex items-center gap-2 text-left"
+                  style={{
+                    background: selected ? C.surface1 : C.surface0,
+                  }}
+                >
+                  <span
+                    className="w-3 h-3 rounded-full shrink-0"
+                    style={{ background: t.color }}
+                  />
+                  <span className="text-sm flex-1" style={{ color: C.text }}>
+                    #{t.name}
+                  </span>
+                  <span className="text-xs" style={{ color: C.subtext0 }}>
+                    {tagCounts.get(t.id) ?? 0}
+                  </span>
+                  {selected && <Check size={16} color={C.mauve} />}
+                </button>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    </div>
   );
 }
 
@@ -2156,67 +2235,13 @@ function SaveStatusChip({
   );
 }
 
-function BottomSheetShell({
-  title,
-  height,
-  onClose,
-  rightLabel,
-  onRightClick,
-  children,
-}: {
-  title: string;
-  height: string;
-  onClose: () => void;
-  rightLabel?: string;
-  onRightClick?: () => void;
-  children: React.ReactNode;
-}) {
-  return (
-    <>
-      <button
-        type="button"
-        onClick={onClose}
-        aria-label="閉じる"
-        className="fixed inset-0"
-        style={{ background: C.crust, opacity: 0.5 }}
-      />
-      <div
-        className="fixed left-1/2 -translate-x-1/2 bottom-0 w-full max-w-md rounded-t-2xl flex flex-col"
-        style={{ background: C.mantle, height }}
-      >
-        <div className="flex flex-col items-center pt-2 pb-1 shrink-0">
-          <span
-            className="w-10 h-1 rounded-full"
-            style={{ background: C.overlay0 }}
-          />
-        </div>
-        <header
-          className="h-10 flex items-center px-3 shrink-0"
-          style={{ borderBottom: `1px solid ${C.surface1}` }}
-        >
-          <div className="flex-1 text-sm font-medium">{title}</div>
-          {rightLabel && onRightClick && (
-            <button
-              type="button"
-              onClick={onRightClick}
-              className="text-xs px-2 min-h-[36px]"
-              style={{ color: C.mauve }}
-            >
-              {rightLabel}
-            </button>
-          )}
-        </header>
-        <div className="flex-1 overflow-auto">{children}</div>
-      </div>
-    </>
-  );
-}
-
 function SortSheet({
+  open,
   sortKey,
   onPick,
   onClose,
 }: {
+  open: boolean;
   sortKey: SortKey;
   onPick: (k: SortKey) => void;
   onClose: () => void;
@@ -2227,7 +2252,12 @@ function SortSheet({
     { id: "title", label: "タイトル (五十音順)" },
   ];
   return (
-    <BottomSheetShell title="並び替え" height="40%" onClose={onClose}>
+    <BottomSheet
+      open={open}
+      onClose={onClose}
+      title="並び替え"
+      snapPoints={[0.5]}
+    >
       <div className="flex flex-col">
         {items.map((it) => {
           const active = it.id === sortKey;
@@ -2254,11 +2284,12 @@ function SortSheet({
           );
         })}
       </div>
-    </BottomSheetShell>
+    </BottomSheet>
   );
 }
 
 function FilterSheet({
+  open,
   tags,
   allNotes,
   kind,
@@ -2267,6 +2298,7 @@ function FilterSheet({
   onClear,
   onClose,
 }: {
+  open: boolean;
   tags: WikiTag[];
   allNotes: Note[];
   kind: Kind;
@@ -2284,10 +2316,10 @@ function FilterSheet({
     return m;
   }, [allNotes, kind]);
   return (
-    <BottomSheetShell
-      title="フィルタ"
-      height="60%"
+    <BottomSheet
+      open={open}
       onClose={onClose}
+      title="フィルタ"
       rightLabel={selectedIds.length > 0 ? "すべてクリア" : undefined}
       onRightClick={onClear}
     >
@@ -2327,37 +2359,49 @@ function FilterSheet({
           );
         })}
       </div>
-    </BottomSheetShell>
+    </BottomSheet>
   );
 }
 
 function ItemMenuSheet({
+  open,
   note,
   onPin,
   onDuplicate,
   onDelete,
   onClose,
 }: {
-  note: Note;
+  open: boolean;
+  note: Note | null;
   onPin: () => void;
   onDuplicate: () => void;
   onDelete: () => void;
   onClose: () => void;
 }) {
+  // 閉アニメ中 (open=false → unmount) に note が null になっても中身が
+  // 消えてガクつかないよう、最後に開いた対象を保持して表示する。
+  const lastRef = useRef<Note | null>(note);
+  if (note) lastRef.current = note;
+  const shown = note ?? lastRef.current;
   return (
-    <BottomSheetShell
-      title={
-        note.kind === "daily" ? formatDailyTitle(note) : note.title || "(無題)"
-      }
-      height="40%"
+    <BottomSheet
+      open={open}
       onClose={onClose}
+      title={
+        shown
+          ? shown.kind === "daily"
+            ? formatDailyTitle(shown)
+            : shown.title || "(無題)"
+          : ""
+      }
+      snapPoints={[0.5]}
     >
       <MenuRow
-        icon={note.pinned ? <PinOff size={18} /> : <Pin size={18} />}
-        label={note.pinned ? "ピン留めを解除" : "ピン留め"}
+        icon={shown?.pinned ? <PinOff size={18} /> : <Pin size={18} />}
+        label={shown?.pinned ? "ピン留めを解除" : "ピン留め"}
         onClick={onPin}
       />
-      {note.kind === "notes" && (
+      {shown?.kind === "notes" && (
         <MenuRow icon={<Copy size={18} />} label="複製" onClick={onDuplicate} />
       )}
       <MenuRow
@@ -2366,11 +2410,12 @@ function ItemMenuSheet({
         onClick={onDelete}
         danger
       />
-    </BottomSheetShell>
+    </BottomSheet>
   );
 }
 
 function EditorMenuSheet({
+  open,
   note,
   onPin,
   onDuplicate,
@@ -2378,21 +2423,31 @@ function EditorMenuSheet({
   onDelete,
   onClose,
 }: {
-  note: Note;
+  open: boolean;
+  note: Note | null;
   onPin: () => void;
   onDuplicate: () => void;
   onShare: () => void;
   onDelete: () => void;
   onClose: () => void;
 }) {
+  // 閉アニメ中に note が null へ落ちても表示が崩れないよう最後の対象を保持。
+  const lastRef = useRef<Note | null>(note);
+  if (note) lastRef.current = note;
+  const shown = note ?? lastRef.current;
   return (
-    <BottomSheetShell title="メニュー" height="40%" onClose={onClose}>
+    <BottomSheet
+      open={open}
+      onClose={onClose}
+      title="メニュー"
+      snapPoints={[0.5]}
+    >
       <MenuRow
-        icon={note.pinned ? <PinOff size={18} /> : <Pin size={18} />}
-        label={note.pinned ? "ピン留めを解除" : "ピン留め"}
+        icon={shown?.pinned ? <PinOff size={18} /> : <Pin size={18} />}
+        label={shown?.pinned ? "ピン留めを解除" : "ピン留め"}
         onClick={onPin}
       />
-      {note.kind === "notes" && (
+      {shown?.kind === "notes" && (
         <MenuRow icon={<Copy size={18} />} label="複製" onClick={onDuplicate} />
       )}
       <MenuRow
@@ -2406,7 +2461,7 @@ function EditorMenuSheet({
         onClick={onDelete}
         danger
       />
-    </BottomSheetShell>
+    </BottomSheet>
   );
 }
 
@@ -2438,19 +2493,25 @@ function MenuRow({
 }
 
 function MoodSheet({
+  open,
   current,
   onPick,
   onClose,
 }: {
+  open: boolean;
   current: Mood;
   onPick: (m: Mood) => void;
   onClose: () => void;
 }) {
+  // 閉アニメ中も選択中マークが安定するよう、open 中の値を保持する。
+  const lastRef = useRef<Mood>(current);
+  if (open) lastRef.current = current;
+  const shown = open ? current : lastRef.current;
   const items: Mood[] = ["green", "sky", "yellow", "peach", "red"];
   return (
-    <BottomSheetShell title="気分" height="50%" onClose={onClose}>
+    <BottomSheet open={open} onClose={onClose} title="気分">
       {items.map((m) => {
-        const active = current === m;
+        const active = shown === m;
         return (
           <button
             key={m}
@@ -2473,17 +2534,19 @@ function MoodSheet({
           </button>
         );
       })}
-    </BottomSheetShell>
+    </BottomSheet>
   );
 }
 
 function TagSheet({
+  open,
   tags,
   selectedIds,
   onToggle,
   onCreate,
   onClose,
 }: {
+  open: boolean;
   tags: WikiTag[];
   selectedIds: string[];
   onToggle: (id: string) => void;
@@ -2493,6 +2556,19 @@ function TagSheet({
   const [query, setQuery] = useState("");
   const [composing, setComposing] = useState(false);
   const [newColor, setNewColor] = useState<string>(TAG_COLOR_OPTIONS[0]);
+  // 閉アニメ中 (open=false) に selectedIds が空配列へ落ちても選択マークが
+  // 消えてガクつかないよう、open 中の選択集合を保持する。
+  const lastSelectedRef = useRef<string[]>(selectedIds);
+  if (open) lastSelectedRef.current = selectedIds;
+  const shownSelectedIds = open ? selectedIds : lastSelectedRef.current;
+  // 常時マウント化に伴い、開くたびに検索文字列をリセットして
+  // 前回の入力が残らないようにする (条件描画時は毎回 mount でクリアされていた)。
+  useEffect(() => {
+    if (open) {
+      setQuery("");
+      setComposing(false);
+    }
+  }, [open]);
   const filtered = useMemo(() => {
     const q = (composing ? "" : query).trim().toLowerCase();
     if (!q) return tags;
@@ -2503,7 +2579,12 @@ function TagSheet({
     query.trim().length > 0 &&
     !tags.some((t) => t.name.toLowerCase() === query.trim().toLowerCase());
   return (
-    <BottomSheetShell title="タグを追加" height="70%" onClose={onClose}>
+    <BottomSheet
+      open={open}
+      onClose={onClose}
+      title="タグを追加"
+      initialSnapIndex={1}
+    >
       <div
         className="p-3 sticky top-0"
         style={{
@@ -2582,7 +2663,7 @@ function TagSheet({
           </div>
         )}
         {filtered.map((t) => {
-          const selected = selectedIds.includes(t.id);
+          const selected = shownSelectedIds.includes(t.id);
           return (
             <button
               key={t.id}
@@ -2606,7 +2687,7 @@ function TagSheet({
           );
         })}
       </div>
-    </BottomSheetShell>
+    </BottomSheet>
   );
 }
 
@@ -2666,35 +2747,5 @@ function ConfirmModal({
         </div>
       </div>
     </>
-  );
-}
-
-function BottomTabBar() {
-  const tabs: { to: string; label: string; Icon: typeof CalendarIcon }[] = [
-    { to: "/schedule", label: "Sch", Icon: CalendarIcon },
-    { to: "/work", label: "Wrk", Icon: Clock },
-    { to: "/materials", label: "Mat", Icon: FileText },
-    { to: "/settings", label: "Set", Icon: SettingsIcon },
-  ];
-  return (
-    <nav
-      className="h-14 grid grid-cols-4 shrink-0"
-      style={{ background: C.mantle, borderTop: `1px solid ${C.surface1}` }}
-    >
-      {tabs.map(({ to, label, Icon }) => (
-        <NavLink
-          key={to}
-          to={to}
-          end
-          className="flex flex-col items-center justify-center gap-0.5 active:opacity-70"
-          style={({ isActive }) => ({
-            color: isActive ? C.mauve : C.overlay0,
-          })}
-        >
-          <Icon size={20} />
-          <span className="text-[10px]">{label}</span>
-        </NavLink>
-      ))}
-    </nav>
   );
 }

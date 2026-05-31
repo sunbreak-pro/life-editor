@@ -1,58 +1,33 @@
 import {
-  Calendar as CalendarIcon,
   Check,
   ChevronLeft,
   ChevronRight,
   Clock,
-  FileText,
   Filter as FilterIcon,
-  Menu,
   Plus,
-  Search,
-  Settings as SettingsIcon,
   Trash2,
   X,
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { NavLink, useNavigate, useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
+import { BottomSheet } from "../components/BottomSheet";
+import { Drawer } from "../components/Drawer";
+import { useShell } from "../context/ShellContext";
 import { useMockStore } from "../hooks/useMockStore";
 import {
   addScheduleItem,
   addWikiTag,
-  attachTag,
   deleteScheduleItem,
-  detachTag,
   toggleStatus,
   updateScheduleItem,
 } from "../lib/mockStore";
+import { C } from "../lib/theme";
 import type {
   ScheduleItem,
   ScheduleItemType,
   TaskStatus,
   WikiTag,
 } from "../lib/types";
-
-const C = {
-  base: "#1e1e2e",
-  mantle: "#181825",
-  crust: "#11111b",
-  surface0: "#313244",
-  surface1: "#45475a",
-  surface2: "#585b70",
-  text: "#cdd6f4",
-  subtext1: "#bac2de",
-  subtext0: "#a6adc8",
-  overlay0: "#6c7086",
-  overlay1: "#7f849c",
-  mauve: "#cba6f7",
-  pink: "#f5c2e7",
-  peach: "#fab387",
-  yellow: "#f9e2af",
-  green: "#a6e3a1",
-  sky: "#89dceb",
-  blue: "#89b4fa",
-  red: "#f38ba8",
-} as const;
 
 const TAG_COLOR_OPTIONS = [
   C.mauve,
@@ -322,6 +297,7 @@ function WikiTagChip({
 
 export function ScheduleScreen() {
   const navigate = useNavigate();
+  const { sidebarOpen, closeSidebar } = useShell();
   const [searchParams, setSearchParams] = useSearchParams();
   const allScheduleItems = useMockStore((s) => s.scheduleItems);
   const wikiTags = useMockStore((s) => s.wikiTags);
@@ -341,11 +317,6 @@ export function ScheduleScreen() {
 
   const focusHandledRef = useRef<string | null>(null);
 
-  const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [sidebarPanel, setSidebarPanel] = useState<"search" | "filter" | null>(
-    null,
-  );
-  const [searchQuery, setSearchQuery] = useState("");
   const [filterTagIds, setFilterTagIds] = useState<string[]>([]);
   const [filterStatuses, setFilterStatuses] = useState<TaskStatus[]>([]);
   const [filterTypes, setFilterTypes] = useState<ScheduleItemType[]>([]);
@@ -359,12 +330,7 @@ export function ScheduleScreen() {
   const [tagSheetOpen, setTagSheetOpen] = useState(false);
 
   const filtered = useMemo(() => {
-    const q = searchQuery.trim().toLowerCase();
     return scheduleItems.filter((it) => {
-      if (q) {
-        const hay = (it.title + " " + (it.description ?? "")).toLowerCase();
-        if (!hay.includes(q)) return false;
-      }
       if (filterTagIds.length > 0) {
         const ok = filterTagIds.every((id) => it.wikiTagIds.includes(id));
         if (!ok) return false;
@@ -377,7 +343,7 @@ export function ScheduleScreen() {
       }
       return true;
     });
-  }, [scheduleItems, searchQuery, filterTagIds, filterStatuses, filterTypes]);
+  }, [scheduleItems, filterTagIds, filterStatuses, filterTypes]);
 
   const itemsByDay = useMemo(() => {
     const map = new Map<string, ScheduleItem[]>();
@@ -466,25 +432,21 @@ export function ScheduleScreen() {
 
   return (
     <div
-      className="mx-auto max-w-md h-screen flex flex-col relative overflow-hidden"
+      className="h-full flex flex-col relative overflow-hidden"
       style={{ background: C.base, color: C.text }}
     >
-      <ScreenHeader
-        title={view === "month" ? formatMonthTitle(anchorDate) : "Schedule"}
-        onMenu={() => {
-          setSidebarOpen(true);
-          setSidebarPanel(null);
-        }}
-        onPrev={() => setAnchorDate(addMonths(anchorDate, -1))}
-        onNext={() => setAnchorDate(addMonths(anchorDate, 1))}
-        onToday={() => {
-          const now = new Date();
-          setAnchorDate(now);
-          setToday(now);
-        }}
-        showMonthNav={view === "month"}
-      />
-
+      {view === "month" && (
+        <ScheduleToolbar
+          title={formatMonthTitle(anchorDate)}
+          onPrev={() => setAnchorDate(addMonths(anchorDate, -1))}
+          onNext={() => setAnchorDate(addMonths(anchorDate, 1))}
+          onToday={() => {
+            const now = new Date();
+            setAnchorDate(now);
+            setToday(now);
+          }}
+        />
+      )}
       <SegmentControl
         value={view}
         onChange={(v) => {
@@ -492,9 +454,8 @@ export function ScheduleScreen() {
           setSelectedDay(null);
         }}
       />
-
       <main
-        className="flex-1 overflow-y-auto overflow-x-hidden"
+        className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden"
         style={{ background: C.base }}
       >
         {view === "month" && (
@@ -566,7 +527,6 @@ export function ScheduleScreen() {
           />
         )}
       </main>
-
       <button
         type="button"
         onClick={() => openCreate()}
@@ -576,27 +536,25 @@ export function ScheduleScreen() {
       >
         <Plus size={24} strokeWidth={2.5} />
       </button>
-
-      <BottomTabBar />
-
-      {selectedDay && (
-        <DayDetailSheet
-          date={selectedDay}
-          items={itemsByDay.get(ymd(selectedDay)) ?? []}
-          tagById={tagById}
-          onClose={() => setSelectedDay(null)}
-          onAdd={() => openCreate({ due: ymd(selectedDay) })}
-          onOpenThree={() => {
-            setAnchorDate(selectedDay);
-            setView("three");
-            setSelectedDay(null);
-          }}
-          onRowClick={(item) => openEdit(item)}
-          onToggleStatus={(item) => toggleStatus(item.id)}
-          onTagClick={handleTagChipClick}
-        />
-      )}
-
+      <DayDetailSheet
+        open={!!selectedDay}
+        date={selectedDay}
+        items={selectedDay ? (itemsByDay.get(ymd(selectedDay)) ?? []) : []}
+        tagById={tagById}
+        onClose={() => setSelectedDay(null)}
+        onAdd={() => {
+          if (selectedDay) openCreate({ due: ymd(selectedDay) });
+        }}
+        onOpenThree={() => {
+          if (!selectedDay) return;
+          setAnchorDate(selectedDay);
+          setView("three");
+          setSelectedDay(null);
+        }}
+        onRowClick={(item) => openEdit(item)}
+        onToggleStatus={(item) => toggleStatus(item.id)}
+        onTagClick={handleTagChipClick}
+      />
       {modalDraft && (
         <AddEventModal
           draft={modalDraft}
@@ -614,7 +572,6 @@ export function ScheduleScreen() {
           onCloseTagSheet={() => setTagSheetOpen(false)}
         />
       )}
-
       {confirmDelete && (
         <ConfirmModal
           title="この予定を削除しますか?"
@@ -624,36 +581,32 @@ export function ScheduleScreen() {
           onConfirm={handleDelete}
         />
       )}
-
-      <Sidebar
-        open={sidebarOpen}
-        panel={sidebarPanel}
-        onSetPanel={setSidebarPanel}
-        onClose={() => setSidebarOpen(false)}
-        searchQuery={searchQuery}
-        onSearchChange={setSearchQuery}
-        wikiTags={wikiTags}
-        filterTagIds={filterTagIds}
-        onToggleTagFilter={(id) =>
-          setFilterTagIds((prev) =>
-            prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
-          )
-        }
-        filterStatuses={filterStatuses}
-        onToggleStatusFilter={(s) =>
-          setFilterStatuses((prev) =>
-            prev.includes(s) ? prev.filter((x) => x !== s) : [...prev, s],
-          )
-        }
-        filterTypes={filterTypes}
-        onToggleTypeFilter={(t) =>
-          setFilterTypes((prev) =>
-            prev.includes(t) ? prev.filter((x) => x !== t) : [...prev, t],
-          )
-        }
-        sortKey={sortKey}
-        onChangeSortKey={setSortKey}
-      />
+      <Drawer open={sidebarOpen} onClose={closeSidebar}>
+        <ScheduleSidebarContent
+          onClose={closeSidebar}
+          wikiTags={wikiTags}
+          filterTagIds={filterTagIds}
+          onToggleTagFilter={(id) =>
+            setFilterTagIds((prev) =>
+              prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
+            )
+          }
+          filterStatuses={filterStatuses}
+          onToggleStatusFilter={(s) =>
+            setFilterStatuses((prev) =>
+              prev.includes(s) ? prev.filter((x) => x !== s) : [...prev, s],
+            )
+          }
+          filterTypes={filterTypes}
+          onToggleTypeFilter={(t) =>
+            setFilterTypes((prev) =>
+              prev.includes(t) ? prev.filter((x) => x !== t) : [...prev, t],
+            )
+          }
+          sortKey={sortKey}
+          onChangeSortKey={setSortKey}
+        />
+      </Drawer>
     </div>
   );
 }
@@ -847,72 +800,60 @@ function SwipePane({
   );
 }
 
-function ScreenHeader({
+/**
+ * Schedule-specific sub-toolbar (IA v3 — under the shared AppHeader).
+ *
+ * The shared AppHeader owns menu / section title / search; this strip keeps only
+ * the screen-specific month navigation, shown for the month view. The view
+ * switcher lives in the separate `SegmentControl` rendered right below this.
+ */
+function ScheduleToolbar({
   title,
-  onMenu,
   onPrev,
   onNext,
   onToday,
-  showMonthNav,
 }: {
   title: string;
-  onMenu: () => void;
   onPrev: () => void;
   onNext: () => void;
   onToday: () => void;
-  showMonthNav: boolean;
 }) {
   return (
-    <header
-      className="h-12 flex items-center px-1 shrink-0"
+    <div
+      className="h-12 flex items-center px-2 shrink-0"
       style={{
         background: C.surface0,
         borderBottom: `1px solid ${C.surface1}`,
       }}
     >
+      <h2 className="flex-1 text-base font-medium" style={{ color: C.text }}>
+        {title}
+      </h2>
       <button
         type="button"
-        onClick={onMenu}
-        aria-label="メニューを開く"
+        onClick={onPrev}
+        aria-label="前の月"
         className="min-h-[44px] min-w-[44px] flex items-center justify-center"
       >
-        <Menu size={20} color={C.text} />
+        <ChevronLeft size={20} color={C.text} />
       </button>
-      <h1
-        className="flex-1 text-center text-base font-medium"
-        style={{ color: C.text }}
+      <button
+        type="button"
+        onClick={onNext}
+        aria-label="次の月"
+        className="min-h-[44px] min-w-[44px] flex items-center justify-center"
       >
-        {title}
-      </h1>
-      {showMonthNav && (
-        <>
-          <button
-            type="button"
-            onClick={onPrev}
-            aria-label="前の月"
-            className="min-h-[44px] min-w-[44px] flex items-center justify-center"
-          >
-            <ChevronLeft size={20} color={C.text} />
-          </button>
-          <button
-            type="button"
-            onClick={onNext}
-            aria-label="次の月"
-            className="min-h-[44px] min-w-[44px] flex items-center justify-center"
-          >
-            <ChevronRight size={20} color={C.text} />
-          </button>
-        </>
-      )}
+        <ChevronRight size={20} color={C.text} />
+      </button>
       <button
         type="button"
         onClick={onToday}
-        className="text-sm px-3 min-h-[44px] rounded-md mr-1"
+        className="text-sm px-3 min-h-[44px] rounded-md ml-1"
         style={{ border: `1px solid ${C.mauve}`, color: C.mauve }}
       >
         Today
       </button>
-    </header>
+    </div>
   );
 }
 
@@ -973,8 +914,15 @@ function MonthView({
   selectedDay: Date | null;
   onCellClick: (d: Date) => void;
 }) {
+  const weekRows = cells.length / 7;
   return (
-    <div className="grid grid-cols-7 gap-px" style={{ background: C.surface1 }}>
+    <div
+      className="grid grid-cols-7 gap-px h-full"
+      style={{
+        background: C.surface1,
+        gridTemplateRows: `auto repeat(${weekRows}, minmax(0, 1fr))`,
+      }}
+    >
       {WEEK_DAYS_JA.map((d, i) => (
         <div
           key={d}
@@ -1036,10 +984,9 @@ function MonthCell({
       type="button"
       onClick={inMonth ? onClick : undefined}
       disabled={!inMonth}
-      className="relative text-left"
+      className="relative text-left h-full min-h-0"
       style={{
         background: inMonth ? C.base : C.mantle,
-        paddingBottom: "150%",
         outline: isSelected ? `2px solid ${C.mauve}` : undefined,
         outlineOffset: isSelected ? "-2px" : undefined,
       }}
@@ -1407,6 +1354,7 @@ function ListItemRow({
 }
 
 function DayDetailSheet({
+  open,
   date,
   items,
   tagById,
@@ -1417,7 +1365,8 @@ function DayDetailSheet({
   onToggleStatus,
   onTagClick,
 }: {
-  date: Date;
+  open: boolean;
+  date: Date | null;
   items: ScheduleItem[];
   tagById: Map<string, WikiTag>;
   onClose: () => void;
@@ -1427,75 +1376,46 @@ function DayDetailSheet({
   onToggleStatus: (item: ScheduleItem) => void;
   onTagClick: (id: string) => void;
 }) {
+  const title = date
+    ? `${date.getMonth() + 1}月${date.getDate()}日 (${WEEK_DAYS_JA[date.getDay()]})`
+    : "";
   return (
-    <>
-      <button
-        type="button"
-        onClick={onClose}
-        aria-label="閉じる"
-        className="absolute inset-0 z-30"
-        style={{ background: C.crust, opacity: 0.5 }}
-      />
-      <div
-        className="absolute left-0 right-0 bottom-0 h-1/2 z-30 flex flex-col rounded-t-xl shadow-2xl"
-        style={{ background: C.base }}
-      >
-        <header
-          className="h-12 flex items-center px-1"
-          style={{ borderBottom: `1px solid ${C.surface1}` }}
-        >
-          <div className="flex-1 text-sm font-medium pl-3">
-            {date.getMonth() + 1}月{date.getDate()}日 (
-            {WEEK_DAYS_JA[date.getDay()]})
-          </div>
-          <button
-            type="button"
-            onClick={onAdd}
-            aria-label="この日に予定を追加"
-            className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-md"
-            style={{ color: C.mauve }}
+    <BottomSheet
+      open={open}
+      onClose={onClose}
+      title={title}
+      rightLabel="+ 追加"
+      onRightClick={onAdd}
+    >
+      <div className="flex flex-col">
+        {items.length === 0 ? (
+          <div
+            className="flex flex-col items-center justify-center gap-3 text-sm py-10"
+            style={{ color: C.subtext0 }}
           >
-            <Plus size={22} strokeWidth={2.5} />
-          </button>
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="閉じる"
-            className="min-h-[44px] min-w-[44px] flex items-center justify-center"
-          >
-            <X size={20} color={C.text} />
-          </button>
-        </header>
-        <div className="flex-1 overflow-auto">
-          {items.length === 0 ? (
-            <div
-              className="h-full flex flex-col items-center justify-center gap-3 text-sm"
-              style={{ color: C.subtext0 }}
+            <div>この日に予定はありません</div>
+            <button
+              type="button"
+              onClick={onAdd}
+              className="h-10 px-4 rounded-md text-sm font-medium flex items-center gap-2"
+              style={{ background: C.mauve, color: C.base }}
             >
-              <div>この日に予定はありません</div>
-              <button
-                type="button"
-                onClick={onAdd}
-                className="h-10 px-4 rounded-md text-sm font-medium flex items-center gap-2"
-                style={{ background: C.mauve, color: C.base }}
-              >
-                <Plus size={16} /> 予定を追加
-              </button>
-            </div>
-          ) : (
-            items.map((it) => (
-              <ListItemRow
-                key={it.id}
-                item={it}
-                tagById={tagById}
-                onToggleStatus={() => onToggleStatus(it)}
-                onClick={() => onRowClick(it)}
-                onTagClick={onTagClick}
-              />
-            ))
-          )}
-        </div>
-        <footer
+              <Plus size={16} /> 予定を追加
+            </button>
+          </div>
+        ) : (
+          items.map((it) => (
+            <ListItemRow
+              key={it.id}
+              item={it}
+              tagById={tagById}
+              onToggleStatus={() => onToggleStatus(it)}
+              onClick={() => onRowClick(it)}
+              onTagClick={onTagClick}
+            />
+          ))
+        )}
+        <div
           className="grid grid-cols-2 gap-2 p-3"
           style={{ borderTop: `1px solid ${C.surface1}` }}
         >
@@ -1515,9 +1435,9 @@ function DayDetailSheet({
           >
             <Clock size={16} /> 3日ビューで開く
           </button>
-        </footer>
+        </div>
       </div>
-    </>
+    </BottomSheet>
   );
 }
 
@@ -1781,21 +1701,20 @@ function AddEventModal({
         )}
       </div>
 
-      {tagSheetOpen && (
-        <TagSheet
-          tags={tags}
-          selectedIds={draft.wikiTagIds}
-          onClose={onCloseTagSheet}
-          onPick={(id) =>
-            onChange({
-              ...draft,
-              wikiTagIds: draft.wikiTagIds.includes(id)
-                ? draft.wikiTagIds.filter((x) => x !== id)
-                : [...draft.wikiTagIds, id],
-            })
-          }
-        />
-      )}
+      <TagSheet
+        open={tagSheetOpen}
+        tags={tags}
+        selectedIds={draft.wikiTagIds}
+        onClose={onCloseTagSheet}
+        onPick={(id) =>
+          onChange({
+            ...draft,
+            wikiTagIds: draft.wikiTagIds.includes(id)
+              ? draft.wikiTagIds.filter((x) => x !== id)
+              : [...draft.wikiTagIds, id],
+          })
+        }
+      />
     </div>
   );
 }
@@ -1818,11 +1737,13 @@ function Field({
 }
 
 function TagSheet({
+  open,
   tags,
   selectedIds,
   onClose,
   onPick,
 }: {
+  open: boolean;
   tags: WikiTag[];
   selectedIds: string[];
   onClose: () => void;
@@ -1841,32 +1762,8 @@ function TagSheet({
     setNewName("");
   };
   return (
-    <>
-      <button
-        type="button"
-        onClick={onClose}
-        aria-label="閉じる"
-        className="absolute inset-0"
-        style={{ background: C.crust, opacity: 0.5 }}
-      />
-      <div
-        className="absolute left-0 right-0 bottom-0 max-h-[60%] rounded-t-xl flex flex-col"
-        style={{ background: C.base, borderTop: `1px solid ${C.surface1}` }}
-      >
-        <header
-          className="h-12 flex items-center px-3 shrink-0"
-          style={{ borderBottom: `1px solid ${C.surface1}` }}
-        >
-          <div className="flex-1 text-sm font-medium">タグを選ぶ</div>
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="閉じる"
-            className="min-h-[44px] min-w-[44px] flex items-center justify-center"
-          >
-            <X size={20} color={C.text} />
-          </button>
-        </header>
+    <BottomSheet open={open} onClose={onClose} title="タグ">
+      <div className="flex flex-col h-full">
         <div className="flex-1 overflow-auto p-3 flex flex-col gap-2">
           {tags.map((t) => {
             const selected = selectedIds.includes(t.id);
@@ -1928,7 +1825,7 @@ function TagSheet({
           />
         </div>
       </div>
-    </>
+    </BottomSheet>
   );
 }
 
@@ -1998,13 +1895,16 @@ function ConfirmModal({
   );
 }
 
-function Sidebar({
-  open,
-  panel,
-  onSetPanel,
+/**
+ * Schedule-specific sidebar body, rendered inside the shared <Drawer>.
+ *
+ * The Drawer owns the slide-in panel + backdrop chrome; this component returns
+ * only the filter header + body. Cross-section search now lives in the shared
+ * AppHeader, so this sidebar is filter-only. The X button here closes the whole
+ * drawer via `onClose` (= shell `closeSidebar`).
+ */
+function ScheduleSidebarContent({
   onClose,
-  searchQuery,
-  onSearchChange,
   wikiTags,
   filterTagIds,
   onToggleTagFilter,
@@ -2015,12 +1915,7 @@ function Sidebar({
   sortKey,
   onChangeSortKey,
 }: {
-  open: boolean;
-  panel: "search" | "filter" | null;
-  onSetPanel: (p: "search" | "filter" | null) => void;
   onClose: () => void;
-  searchQuery: string;
-  onSearchChange: (q: string) => void;
   wikiTags: WikiTag[];
   filterTagIds: string[];
   onToggleTagFilter: (id: string) => void;
@@ -2033,234 +1928,153 @@ function Sidebar({
 }) {
   return (
     <>
-      <button
-        type="button"
-        onClick={onClose}
-        aria-label="メニューを閉じる"
-        aria-hidden={!open}
-        className="absolute inset-0 z-40 transition-opacity"
-        style={{
-          background: C.crust,
-          opacity: open ? 0.5 : 0,
-          pointerEvents: open ? "auto" : "none",
-        }}
-      />
-      <aside
-        aria-hidden={!open}
-        className="absolute top-0 bottom-0 left-0 w-[280px] z-40 flex flex-col transition-transform duration-300 ease-out"
-        style={{
-          background: C.mantle,
-          borderRight: `1px solid ${C.surface1}`,
-          transform: open ? "translateX(0)" : "translateX(-100%)",
-        }}
+      <header
+        className="h-12 flex items-center px-1 shrink-0"
+        style={{ borderBottom: `1px solid ${C.surface1}` }}
       >
-        <header
-          className="h-12 flex items-center px-1 shrink-0"
-          style={{ borderBottom: `1px solid ${C.surface1}` }}
+        <div
+          className="min-h-[44px] min-w-[44px] flex items-center justify-center"
+          style={{ color: C.mauve }}
         >
-          <button
-            type="button"
-            onClick={() => onSetPanel(panel === "search" ? null : "search")}
-            aria-label="検索パネル"
-            className="min-h-[44px] min-w-[44px] flex items-center justify-center"
-            style={{
-              color: panel === "search" ? C.mauve : C.text,
-            }}
-          >
-            <Search size={20} />
-          </button>
-          <button
-            type="button"
-            onClick={() => onSetPanel(panel === "filter" ? null : "filter")}
-            aria-label="フィルタパネル"
-            className="min-h-[44px] min-w-[44px] flex items-center justify-center"
-            style={{
-              color: panel === "filter" ? C.mauve : C.text,
-            }}
-          >
-            <FilterIcon size={20} />
-          </button>
-          <div
-            className="flex-1 text-sm font-medium text-center"
-            style={{ color: C.subtext1 }}
-          >
-            {panel === "search"
-              ? "検索"
-              : panel === "filter"
-                ? "フィルタ"
-                : "メニュー"}
-          </div>
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="閉じる"
-            className="min-h-[44px] min-w-[44px] flex items-center justify-center"
-          >
-            <X size={20} color={C.text} />
-          </button>
-        </header>
-        <div className="flex-1 overflow-auto">
-          {panel === "search" && (
-            <div className="p-3 flex flex-col gap-2">
-              <div
-                className="flex items-center h-10 rounded-md px-2 gap-2"
-                style={{
-                  background: C.surface0,
-                  border: `1px solid ${C.surface1}`,
-                }}
-              >
-                <Search size={16} color={C.subtext0} />
-                <input
-                  value={searchQuery}
-                  onChange={(e) => onSearchChange(e.target.value)}
-                  placeholder="タイトル・説明で検索"
-                  className="flex-1 bg-transparent outline-none text-sm"
-                  style={{ color: C.text }}
-                />
-                {searchQuery && (
-                  <button
-                    type="button"
-                    onClick={() => onSearchChange("")}
-                    aria-label="検索クエリを消す"
-                  >
-                    <X size={14} color={C.subtext0} />
-                  </button>
-                )}
-              </div>
-              <div className="text-[11px]" style={{ color: C.subtext0 }}>
-                title / description の部分一致で絞り込みます
-              </div>
-            </div>
-          )}
-          {panel === "filter" && (
-            <div className="flex flex-col">
-              <FilterSection title="タイプ">
-                {(
-                  [
-                    { v: "event", label: "イベント", color: C.sky },
-                    { v: "task", label: "タスク", color: C.green },
-                    { v: "birthday", label: "誕生日", color: C.peach },
-                    { v: "holiday", label: "祝日", color: C.red },
-                  ] as { v: ScheduleItemType; label: string; color: string }[]
-                ).map(({ v, label, color }) => {
-                  const selected = filterTypes.includes(v);
-                  return (
-                    <button
-                      key={v}
-                      type="button"
-                      onClick={() => onToggleTypeFilter(v)}
-                      className="min-h-[44px] px-3 flex items-center gap-2 text-left"
-                      style={{
-                        background: selected ? C.surface0 : "transparent",
-                        color: C.text,
-                      }}
-                      aria-pressed={selected}
-                    >
-                      <span
-                        className="w-3 h-3 rounded-full"
-                        style={{ background: color }}
-                      />
-                      <span className="text-sm flex-1">{label}</span>
-                      {selected && <Check size={16} color={C.green} />}
-                    </button>
-                  );
-                })}
-              </FilterSection>
-              <FilterSection title="並び順 (DayFlow)">
-                {(
-                  [
-                    { v: "time", label: "時刻順" },
-                    { v: "updatedAt", label: "更新日時 (新しい順)" },
-                    { v: "title", label: "タイトル順" },
-                  ] as { v: SortKey; label: string }[]
-                ).map(({ v, label }) => {
-                  const selected = sortKey === v;
-                  return (
-                    <button
-                      key={v}
-                      type="button"
-                      onClick={() => onChangeSortKey(v)}
-                      className="min-h-[44px] px-3 flex items-center gap-2 text-left"
-                      style={{
-                        background: selected ? C.surface0 : "transparent",
-                        color: C.text,
-                      }}
-                      role="radio"
-                      aria-checked={selected}
-                    >
-                      <span
-                        className="w-3 h-3 rounded-full"
-                        style={{
-                          background: selected ? C.mauve : "transparent",
-                          border: `1px solid ${selected ? C.mauve : C.overlay0}`,
-                        }}
-                      />
-                      <span className="text-sm flex-1">{label}</span>
-                    </button>
-                  );
-                })}
-              </FilterSection>
-              {wikiTags.length > 0 && (
-                <FilterSection title="タグ">
-                  {wikiTags.map((t) => {
-                    const selected = filterTagIds.includes(t.id);
-                    return (
-                      <button
-                        key={t.id}
-                        type="button"
-                        onClick={() => onToggleTagFilter(t.id)}
-                        className="min-h-[44px] px-3 flex items-center gap-2 text-left"
-                        style={{
-                          background: selected ? C.surface0 : "transparent",
-                          color: C.text,
-                        }}
-                      >
-                        <span
-                          className="w-3 h-3 rounded-full"
-                          style={{ background: t.color }}
-                        />
-                        <span className="text-sm flex-1">#{t.name}</span>
-                        {selected && <Check size={16} color={C.green} />}
-                      </button>
-                    );
-                  })}
-                </FilterSection>
-              )}
-              <FilterSection title="ステータス">
-                {(["todo", "doing", "done"] as const).map((s) => {
-                  const selected = filterStatuses.includes(s);
-                  const label =
-                    s === "todo" ? "未着手" : s === "doing" ? "進行中" : "完了";
-                  return (
-                    <button
-                      key={s}
-                      type="button"
-                      onClick={() => onToggleStatusFilter(s)}
-                      className="min-h-[44px] px-3 flex items-center gap-2 text-left"
-                      style={{
-                        background: selected ? C.surface0 : "transparent",
-                        color: C.text,
-                      }}
-                    >
-                      <span
-                        className="w-3 h-3 rounded-full"
-                        style={{ background: getStatusColor(s) }}
-                      />
-                      <span className="text-sm flex-1">{label}</span>
-                      {selected && <Check size={16} color={C.green} />}
-                    </button>
-                  );
-                })}
-              </FilterSection>
-            </div>
-          )}
-          {panel === null && (
-            <div className="p-3 text-xs" style={{ color: C.subtext0 }}>
-              上のアイコンから検索 / フィルタを開きます
-            </div>
-          )}
+          <FilterIcon size={20} />
         </div>
-      </aside>
+        <div
+          className="flex-1 text-sm font-medium"
+          style={{ color: C.subtext1 }}
+        >
+          フィルタ
+        </div>
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label="閉じる"
+          className="min-h-[44px] min-w-[44px] flex items-center justify-center"
+        >
+          <X size={20} color={C.text} />
+        </button>
+      </header>
+      <div className="flex-1 overflow-auto">
+        <div className="flex flex-col">
+          <FilterSection title="タイプ">
+            {(
+              [
+                { v: "event", label: "イベント", color: C.sky },
+                { v: "task", label: "タスク", color: C.green },
+                { v: "birthday", label: "誕生日", color: C.peach },
+                { v: "holiday", label: "祝日", color: C.red },
+              ] as { v: ScheduleItemType; label: string; color: string }[]
+            ).map(({ v, label, color }) => {
+              const selected = filterTypes.includes(v);
+              return (
+                <button
+                  key={v}
+                  type="button"
+                  onClick={() => onToggleTypeFilter(v)}
+                  className="min-h-[44px] px-3 flex items-center gap-2 text-left"
+                  style={{
+                    background: selected ? C.surface0 : "transparent",
+                    color: C.text,
+                  }}
+                  aria-pressed={selected}
+                >
+                  <span
+                    className="w-3 h-3 rounded-full"
+                    style={{ background: color }}
+                  />
+                  <span className="text-sm flex-1">{label}</span>
+                  {selected && <Check size={16} color={C.green} />}
+                </button>
+              );
+            })}
+          </FilterSection>
+          <FilterSection title="並び順 (DayFlow)">
+            {(
+              [
+                { v: "time", label: "時刻順" },
+                { v: "updatedAt", label: "更新日時 (新しい順)" },
+                { v: "title", label: "タイトル順" },
+              ] as { v: SortKey; label: string }[]
+            ).map(({ v, label }) => {
+              const selected = sortKey === v;
+              return (
+                <button
+                  key={v}
+                  type="button"
+                  onClick={() => onChangeSortKey(v)}
+                  className="min-h-[44px] px-3 flex items-center gap-2 text-left"
+                  style={{
+                    background: selected ? C.surface0 : "transparent",
+                    color: C.text,
+                  }}
+                  role="radio"
+                  aria-checked={selected}
+                >
+                  <span
+                    className="w-3 h-3 rounded-full"
+                    style={{
+                      background: selected ? C.mauve : "transparent",
+                      border: `1px solid ${selected ? C.mauve : C.overlay0}`,
+                    }}
+                  />
+                  <span className="text-sm flex-1">{label}</span>
+                </button>
+              );
+            })}
+          </FilterSection>
+          {wikiTags.length > 0 && (
+            <FilterSection title="タグ">
+              {wikiTags.map((t) => {
+                const selected = filterTagIds.includes(t.id);
+                return (
+                  <button
+                    key={t.id}
+                    type="button"
+                    onClick={() => onToggleTagFilter(t.id)}
+                    className="min-h-[44px] px-3 flex items-center gap-2 text-left"
+                    style={{
+                      background: selected ? C.surface0 : "transparent",
+                      color: C.text,
+                    }}
+                  >
+                    <span
+                      className="w-3 h-3 rounded-full"
+                      style={{ background: t.color }}
+                    />
+                    <span className="text-sm flex-1">#{t.name}</span>
+                    {selected && <Check size={16} color={C.green} />}
+                  </button>
+                );
+              })}
+            </FilterSection>
+          )}
+          <FilterSection title="ステータス">
+            {(["todo", "doing", "done"] as const).map((s) => {
+              const selected = filterStatuses.includes(s);
+              const label =
+                s === "todo" ? "未着手" : s === "doing" ? "進行中" : "完了";
+              return (
+                <button
+                  key={s}
+                  type="button"
+                  onClick={() => onToggleStatusFilter(s)}
+                  className="min-h-[44px] px-3 flex items-center gap-2 text-left"
+                  style={{
+                    background: selected ? C.surface0 : "transparent",
+                    color: C.text,
+                  }}
+                >
+                  <span
+                    className="w-3 h-3 rounded-full"
+                    style={{ background: getStatusColor(s) }}
+                  />
+                  <span className="text-sm flex-1">{label}</span>
+                  {selected && <Check size={16} color={C.green} />}
+                </button>
+              );
+            })}
+          </FilterSection>
+        </div>
+      </div>
     </>
   );
 }
@@ -2285,38 +2099,5 @@ function FilterSection({
       </header>
       {children}
     </section>
-  );
-}
-
-function BottomTabBar() {
-  const tabs: { to: string; label: string; Icon: typeof CalendarIcon }[] = [
-    { to: "/schedule", label: "Sch", Icon: CalendarIcon },
-    { to: "/work", label: "Wrk", Icon: Clock },
-    { to: "/materials", label: "Mat", Icon: FileText },
-    { to: "/settings", label: "Set", Icon: SettingsIcon },
-  ];
-  return (
-    <nav
-      className="h-14 grid grid-cols-4 shrink-0"
-      style={{
-        background: C.mantle,
-        borderTop: `1px solid ${C.surface1}`,
-      }}
-    >
-      {tabs.map(({ to, label, Icon }) => (
-        <NavLink
-          key={to}
-          to={to}
-          end
-          className="flex flex-col items-center justify-center gap-0.5 active:opacity-70"
-          style={({ isActive }) => ({
-            color: isActive ? C.mauve : C.overlay0,
-          })}
-        >
-          <Icon size={20} />
-          <span className="text-[10px]">{label}</span>
-        </NavLink>
-      ))}
-    </nav>
   );
 }
