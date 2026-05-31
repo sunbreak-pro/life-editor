@@ -2,30 +2,33 @@
 
 > 各 `chat-*.md` の集約ビュー。task-tracker 実行時に再生成される。**SSOT は各 `chat-*.md` ファイル**。本ファイルは読み手向け要約。
 
-最終更新: 2026-05-30 19:09:40 (chat-du-g)
+最終更新: 2026-05-30 21:39:50 (chat-main)
 
 ---
 
 ## 進行中 (across all chats)
 
-- [chat-du-g] Notes Folder DnD UX 改善（根本原因分析完了 → 実装前） — 着手: 2026-05-30
+（なし）
 
 ## 直近の完了 (across all chats, 各チャット最大 3 件)
 
-- [chat-du-g] DU-G G4（legacy Notes/Daily 死削除・A-2 Bridge dispatch 撤去）✅ (2026-05-30、PR #36)
-- [chat-prototype-mobile] fix-pack: M-1 card layout SwipeRow 背景透明化 + 角丸 ✅ (2026-05-30 commit `a85cb0f`)
-- [chat-prototype-mobile] C-2: Calendar フィルタ (タイプ) + 並び順 (DayFlow) (iOS additions) ✅ (2026-05-30 commit `0f8b982`)
-- [chat-prototype-mobile] M-3: 空行ヒント + `/` キーバインド + IME ガード (iOS additions) ✅ (2026-05-30 commit `cbcd743`)
-- [chat-main] DU archive cleanup (DU 親計画書 + DU-B 親+子 3 plans archive、branch retire) ✅ (2026-05-24)
-- [chat-main] Multi-chat Worktree Policy ✅ (2026-05-24 PR #26 merged)
-- [chat-main] DU-F Step 6-14 + Notes/Daily 永続化 Unified bridge fix ✅ (2026-05-24 PR #25 merged)
+- [chat-main] Multi-chat Worktree Policy proactive rollout ✅ (2026-05-26 PR #33 merged, `15941c1`)
+- [chat-main] DU-G G1-G3（Notes/Dailies Unified Service + Provider+web 切替）✅ (2026-05-26 PR #29/#30/#31 merged)
+- [chat-main] DU archive cleanup ✅ (2026-05-24 chore/du-archive-cleanup)
+- [chat-prototype-mobile] Phase 3.J fix: swipe transition 条件再修正 + アクセサリーバー iOS 風リスタイル ✅ (2026-05-25)
+- [chat-prototype-mobile] Phase 3.I fix: swipe rebound 解消 + Materials アクセサリバー追加 ✅ (2026-05-24)
+- [chat-prototype-mobile] Phase 3.H fix: peeking SwipePane + DayDetailSheet タップ復活 ✅ (2026-05-24)
 
 ## 予定 (across all chats)
 
-- [chat-du-g] Notes DnD UX を別 commit/PR 化（G4 PR #36 の後段）
-- [chat-prototype-mobile] 👀 M-1〜M-3 + C-2 + fix-pack の実機目視確認 → 不具合あれば次 fix-pack
-- [chat-prototype-mobile] C-3 (add item 5 role Mobile 対応、要件は Desktop 完了済 / Mobile 別 PR)
-- [chat-main] 👀 ユーザー実機確認待ち: DU-F Step 7-11 / DU-C-6
-- [chat-main] DU-G Notes/Daily Unified 完全切替
-- [chat-main] Link UX 強化（Obsidian 風）スケルトン
+- [chat-main] **du-g worktree セットアップ → Notes/Daily Unified Service 本作業**（次セッション・別チャット起動、role-pm から要件固め）
+- [chat-main] du-g3 worktree 退役判断（PR #31 で main 着地済、cleanup 基準確認）
+- [chat-main] Known Issue 025 Fixed 化（任意・軽量、prototype+mobile-ui prune 済で実質解決）
+- [chat-main] DU-G G4（legacy 死削除、4 PR 直列分割の最終）
+- [chat-main] Link UX 強化（Obsidian 風）: cross-role link / 遅延実体化 stub / クリック遷移
 - [chat-main] DU-E Calendar 2 ビュー再実装（DU-G 完了後）
+- [chat-main] 🔒 Notes password bcrypt 化（N>1 化前ゲート必須、known-issue 027 が SSOT）
+- [chat-main] 👀 ユーザー実機確認待ち: DU-F Step 7-11 の golden path
+- [chat-main] 👀 ユーザー実機確認待ち: DU-C-6 (Routine 作成/削除/復元 + 月またぎ ループ防止)
+- [chat-prototype-mobile] Phase 3.F PR 作成 (🛑 人手 Gate): `prototype/mobile-ui` → `refactor/web-first-v2`
+- [chat-prototype-mobile] 👀 残: 6 screens 全体の追加目視確認

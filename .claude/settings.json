@@ -21,6 +21,38 @@
           }
         ]
       }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PROJECT_DIR}/.claude/hooks/pre-commit-mcp-check.sh"
+          }
+        ]
+      }
+    ]
+  },
+  "permissions": {
+    "deny": [
+      "Bash(git push origin main*)",
+      "Bash(git push origin master*)",
+      "Bash(git push * main*)",
+      "Bash(git push * master*)",
+      "Bash(git push * HEAD:main*)",
+      "Bash(git push * HEAD:master*)",
+      "Bash(git push --force*)",
+      "Bash(git push -f*)",
+      "Bash(git push * --force*)",
+      "Bash(git push * -f *)",
+      "Bash(git push --force-with-lease*)",
+      "Bash(git reset --hard*)",
+      "Bash(git branch -D*)",
+      "Bash(git checkout main)",
+      "Bash(git checkout master)",
+      "Bash(rm -rf .git*)",
+      "Bash(supabase db reset*)"
     ]
   }
 }
