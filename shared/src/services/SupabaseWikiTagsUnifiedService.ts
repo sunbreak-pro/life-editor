@@ -133,6 +133,24 @@ export class SupabaseWikiTagsUnifiedService {
     );
   }
 
+  /**
+   * Bulk-load every active item↔tag assignment in one query. Mirrors
+   * `listAllWikiTagGroupAssignments` (group memberships) so the hook can
+   * bucket assignments by `itemId` on the client instead of issuing one
+   * `listTagsForItem` query per visible row (N+1 elimination).
+   */
+  async listAllTagAssignments(): Promise<WikiTagAssignment[]> {
+    const { data, error } = await this.client
+      .from("wiki_tag_assignments")
+      .select(WIKI_TAG_ASSIGNMENTS_COLUMNS)
+      .eq("is_deleted", false);
+    if (error)
+      throw new Error(`listAllTagAssignments failed: ${error.message}`);
+    return (data ?? []).map((r) =>
+      rowToWikiTagAssignment(r as unknown as WikiTagAssignmentRow),
+    );
+  }
+
   async assignTagToItem(
     assignmentId: string,
     itemId: string,
@@ -185,6 +203,25 @@ export class SupabaseWikiTagsUnifiedService {
       .eq("to_item_id", itemId)
       .eq("is_deleted", false);
     if (error) throw new Error(`listLinksToItem failed: ${error.message}`);
+    return (data ?? []).map((r) =>
+      rowToWikiTagConnection(r as unknown as WikiTagConnectionRow),
+    );
+  }
+
+  /**
+   * Bulk-load every active item↔item link in one query. The caller
+   * buckets by both `fromItemId` (outgoing) and `toItemId` (incoming) on
+   * the client, replacing the per-row `listLinksFromItem` +
+   * `listLinksToItem` pair (×2 N+1 elimination). Same shape as
+   * `listAllTagAssignments` / `listAllWikiTagGroupAssignments`.
+   */
+  async listAllTagConnections(): Promise<WikiTagConnection[]> {
+    const { data, error } = await this.client
+      .from("wiki_tag_connections")
+      .select(WIKI_TAG_CONNECTIONS_COLUMNS)
+      .eq("is_deleted", false);
+    if (error)
+      throw new Error(`listAllTagConnections failed: ${error.message}`);
     return (data ?? []).map((r) =>
       rowToWikiTagConnection(r as unknown as WikiTagConnectionRow),
     );
@@ -343,10 +380,12 @@ export const PHASE2_WIKI_TAGS_UNIFIED_METHODS: ReadonlySet<string> = new Set([
   "updateWikiTagUnified",
   "softDeleteWikiTagUnified",
   "listTagsForItem",
+  "listAllTagAssignments",
   "assignTagToItem",
   "unassignTagFromItem",
   "listLinksFromItem",
   "listLinksToItem",
+  "listAllTagConnections",
   "createItemLink",
   "deleteItemLink",
   "listAllWikiTagGroupsUnified",

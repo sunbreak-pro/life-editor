@@ -3,7 +3,6 @@ import { Plus, Tag as TagIcon } from "lucide-react";
 import {
   useWikiTagsUnifiedContext,
   type WikiTagUnified,
-  type WikiTagAssignmentUnified,
 } from "@life-editor/shared";
 import { TagPill } from "./TagPill";
 
@@ -16,11 +15,12 @@ import { TagPill } from "./TagPill";
  * WikiTagsUnifiedContext. itemId is `items_meta.id` for any role (id
  * 不変式 — see plan §採用アーキテクチャ).
  *
- * State strategy: local cache of assignments + optimistic mutations. The
- * shared hook only exposes the tag master cache (`allTags`) — per-item
- * assignments are loaded on demand. A bulk pre-load would be cleaner but
- * is out of DU-F scope (each row's pill list is small; this is the
- * N=1-friendly MVP).
+ * State strategy: assignments come from the Context's bulk-loaded
+ * `getTagsForItem(itemId)` selector — one `wiki_tag_assignments` query
+ * feeds every row, so a list of N rows no longer issues N fetches
+ * (the former per-item `listTagsForItem` effect is gone). Mutations go
+ * through the Context mutators, which keep the bulk cache in sync, so the
+ * pills here update reactively.
  *
  * UI: pill list + Plus button. The picker dropdown shows existing tags
  * filtered by query + "Create new" affordance when the query has no
@@ -39,35 +39,15 @@ export function TagPicker({
   size = "sm",
 }: TagPickerProps) {
   const wiki = useWikiTagsUnifiedContext();
-  const [assignments, setAssignments] = useState<WikiTagAssignmentUnified[]>(
-    [],
-  );
-  const [loading, setLoading] = useState(true);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [query, setQuery] = useState("");
   const containerRef = useRef<HTMLDivElement | null>(null);
 
-  // Load assignments for this item on mount + when allTags identity flips
-  // (a Sync round bumps it). Empty cleanup is fine — fetch races on
-  // itemId change resolve via React strict mode's double-invoke.
-  useEffect(() => {
-    let cancelled = false;
-    setLoading(true);
-    wiki
-      .listTagsForItem(itemId)
-      .then((rows) => {
-        if (!cancelled) setAssignments(rows);
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-    // Re-fetch when the item flips OR when the tag master changes (a
-    // Sync round bumps `allTags`). `listTagsForItem` is a stable
-    // useCallback so it never re-triggers on its own.
-  }, [itemId, wiki.allTags, wiki.listTagsForItem]);
+  // Assignments for this row come from the Context's bulk cache (one
+  // query for the whole list, bucketed by itemId). `loading` follows the
+  // Context's initial bulk load.
+  const assignments = wiki.getTagsForItem(itemId);
+  const loading = wiki.loading;
 
   // Close picker on click-outside (keeps the picker self-contained — no
   // global click listener registry).
@@ -112,8 +92,9 @@ export function TagPicker({
 
   const handleAssign = async (tagId: string) => {
     try {
-      const created = await wiki.assignTagToItem(itemId, tagId);
-      setAssignments((prev) => [...prev, created]);
+      // The Context mutator updates the bulk cache, so the pills here
+      // re-render without a local copy.
+      await wiki.assignTagToItem(itemId, tagId);
       setQuery("");
     } catch (err) {
       console.error("assignTagToItem failed", err);
@@ -123,7 +104,6 @@ export function TagPicker({
   const handleUnassign = async (assignmentId: string) => {
     try {
       await wiki.unassignTagFromItem(assignmentId);
-      setAssignments((prev) => prev.filter((a) => a.id !== assignmentId));
     } catch (err) {
       console.error("unassignTagFromItem failed", err);
     }

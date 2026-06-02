@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import type { DataService } from "../services/DataService";
 import type {
   WikiTag,
@@ -37,19 +37,28 @@ export function useWikiTagsUnifiedAPI(options: UseWikiTagsUnifiedAPIOptions) {
   const [allGroupAssignments, setAllGroupAssignments] = useState<
     WikiTagGroupAssignment[]
   >([]);
+  // Bulk caches that replace the per-row N+1 fetches in TagPicker /
+  // LinkPanel. Loaded once per refresh and bucketed by item below.
+  const [allAssignments, setAllAssignments] = useState<WikiTagAssignment[]>([]);
+  const [allConnections, setAllConnections] = useState<WikiTagConnection[]>([]);
   const [loading, setLoading] = useState(true);
 
   const refresh = useCallback(async () => {
     setLoading(true);
     try {
-      const [tags, groups, groupAssignments] = await Promise.all([
-        ds.listAllWikiTagsUnified(),
-        ds.listAllWikiTagGroupsUnified(),
-        ds.listAllWikiTagGroupAssignments(),
-      ]);
+      const [tags, groups, groupAssignments, assignments, connections] =
+        await Promise.all([
+          ds.listAllWikiTagsUnified(),
+          ds.listAllWikiTagGroupsUnified(),
+          ds.listAllWikiTagGroupAssignments(),
+          ds.listAllTagAssignments(),
+          ds.listAllTagConnections(),
+        ]);
       setAllTags(tags);
       setAllGroups(groups);
       setAllGroupAssignments(groupAssignments);
+      setAllAssignments(assignments);
+      setAllConnections(connections);
     } finally {
       setLoading(false);
     }
@@ -106,7 +115,9 @@ export function useWikiTagsUnifiedAPI(options: UseWikiTagsUnifiedAPIOptions) {
   const assignTagToItem = useCallback(
     async (itemId: string, tagId: string): Promise<WikiTagAssignment> => {
       const assignmentId = generateId("tag_assign");
-      return ds.assignTagToItem(assignmentId, itemId, tagId);
+      const created = await ds.assignTagToItem(assignmentId, itemId, tagId);
+      setAllAssignments((prev) => [...prev, created]);
+      return created;
     },
     [ds],
   );
@@ -114,6 +125,7 @@ export function useWikiTagsUnifiedAPI(options: UseWikiTagsUnifiedAPIOptions) {
   const unassignTagFromItem = useCallback(
     async (assignmentId: string): Promise<void> => {
       await ds.unassignTagFromItem(assignmentId);
+      setAllAssignments((prev) => prev.filter((a) => a.id !== assignmentId));
     },
     [ds],
   );
@@ -143,7 +155,9 @@ export function useWikiTagsUnifiedAPI(options: UseWikiTagsUnifiedAPIOptions) {
         throw new Error("createItemLink: self-loop rejected");
       }
       const linkId = generateId("link");
-      return ds.createItemLink(linkId, fromItemId, toItemId);
+      const created = await ds.createItemLink(linkId, fromItemId, toItemId);
+      setAllConnections((prev) => [...prev, created]);
+      return created;
     },
     [ds],
   );
@@ -151,6 +165,7 @@ export function useWikiTagsUnifiedAPI(options: UseWikiTagsUnifiedAPIOptions) {
   const deleteItemLink = useCallback(
     async (linkId: string): Promise<void> => {
       await ds.deleteItemLink(linkId);
+      setAllConnections((prev) => prev.filter((l) => l.id !== linkId));
     },
     [ds],
   );
@@ -215,26 +230,116 @@ export function useWikiTagsUnifiedAPI(options: UseWikiTagsUnifiedAPIOptions) {
     [ds],
   );
 
-  return {
-    allTags,
-    allGroups,
-    allGroupAssignments,
-    loading,
-    refresh,
-    createTag,
-    renameTag,
-    deleteTag,
-    listTagsForItem,
-    assignTagToItem,
-    unassignTagFromItem,
-    listLinksFromItem,
-    listLinksToItem,
-    createItemLink,
-    deleteItemLink,
-    createGroup,
-    renameGroup,
-    deleteGroup,
-    assignTagToGroup,
-    unassignTagFromGroup,
-  };
+  // -- bulk-derived buckets (N+1 elimination) ------------------------------
+
+  // itemId → assignments. Built once per `allAssignments` change so each
+  // TagPicker reads its row synchronously instead of fetching.
+  const assignmentsByItem = useMemo(() => {
+    const map = new Map<string, WikiTagAssignment[]>();
+    for (const a of allAssignments) {
+      const arr = map.get(a.itemId);
+      if (arr) arr.push(a);
+      else map.set(a.itemId, [a]);
+    }
+    return map;
+  }, [allAssignments]);
+
+  // itemId → { outgoing, incoming } links. A link is bucketed under its
+  // `fromItemId` (outgoing) and its `toItemId` (incoming) so LinkPanel
+  // reads both directions for a row synchronously.
+  const linksByItem = useMemo(() => {
+    const map = new Map<
+      string,
+      { outgoing: WikiTagConnection[]; incoming: WikiTagConnection[] }
+    >();
+    const bucket = (id: string) => {
+      let entry = map.get(id);
+      if (!entry) {
+        entry = { outgoing: [], incoming: [] };
+        map.set(id, entry);
+      }
+      return entry;
+    };
+    for (const c of allConnections) {
+      bucket(c.fromItemId).outgoing.push(c);
+      bucket(c.toItemId).incoming.push(c);
+    }
+    return map;
+  }, [allConnections]);
+
+  const EMPTY_ASSIGNMENTS: readonly WikiTagAssignment[] = useMemo(() => [], []);
+  const EMPTY_LINKS = useMemo(
+    () => ({
+      outgoing: [] as WikiTagConnection[],
+      incoming: [] as WikiTagConnection[],
+    }),
+    [],
+  );
+
+  const getTagsForItem = useCallback(
+    (itemId: string): readonly WikiTagAssignment[] =>
+      assignmentsByItem.get(itemId) ?? EMPTY_ASSIGNMENTS,
+    [assignmentsByItem, EMPTY_ASSIGNMENTS],
+  );
+
+  const getLinksForItem = useCallback(
+    (
+      itemId: string,
+    ): {
+      outgoing: readonly WikiTagConnection[];
+      incoming: readonly WikiTagConnection[];
+    } => linksByItem.get(itemId) ?? EMPTY_LINKS,
+    [linksByItem, EMPTY_LINKS],
+  );
+
+  return useMemo(
+    () => ({
+      allTags,
+      allGroups,
+      allGroupAssignments,
+      loading,
+      refresh,
+      createTag,
+      renameTag,
+      deleteTag,
+      listTagsForItem,
+      assignTagToItem,
+      unassignTagFromItem,
+      listLinksFromItem,
+      listLinksToItem,
+      createItemLink,
+      deleteItemLink,
+      createGroup,
+      renameGroup,
+      deleteGroup,
+      assignTagToGroup,
+      unassignTagFromGroup,
+      getTagsForItem,
+      getLinksForItem,
+    }),
+    [
+      allTags,
+      allGroups,
+      allGroupAssignments,
+      loading,
+      refresh,
+      createTag,
+      renameTag,
+      deleteTag,
+      listTagsForItem,
+      assignTagToItem,
+      unassignTagFromItem,
+      listLinksFromItem,
+      listLinksToItem,
+      createItemLink,
+      deleteItemLink,
+      createGroup,
+      renameGroup,
+      deleteGroup,
+      assignTagToGroup,
+      unassignTagFromGroup,
+      getTagsForItem,
+      getLinksForItem,
+    ],
+  );
 }
