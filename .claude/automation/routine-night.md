@@ -22,6 +22,8 @@
 
 ### Step 1: Plan Picker
 
+**Idle モード判定（最優先）**: `goals.md` の `Active Goal` セクションが `Current: (idle)` の場合、全 Goal 終端状態。実装は一切走らせず、Step 4 を「plan 起票候補の探索」に置き換えて plan 1 件起票だけで終了する（詳細は `goals.md` の `Terminal State Handling`）。
+
 Current Goal に紐づく未完 plan を 1 件選びます。
 
 優先順位:
@@ -44,7 +46,7 @@ Current Goal に紐づく未完 plan を 1 件選びます。
    gh pr list --search "is:draft author:eires updated:>=$(date -v-1d +%Y-%m-%d)" --json headRefName
    ```
    候補 plan の想定 branch 名と一致したら弾く
-3. **Owner-chat 検査**: plan frontmatter の Owner-chat が `chat-main` で、かつ最終更新が過去 12h 以内なら弾く（ユーザー本人作業中の可能性）
+3. **Owner-chat 検査**: plan frontmatter の Owner-chat が `chat-auto-*` 以外（= 何らかのユーザー / 別チャット）で、かつ最終更新が過去 12h 以内なら弾く（人間 chat の作業中 plan を盗まない。`chat-main` だけでなく `chat-du-*` 等の開発 chat も排他対象）
 
 ### Step 2: Worktree 作成
 
@@ -133,9 +135,27 @@ Plan 実装中に「ユーザー手動介入必須」と判明した場合（例
    - `Last-Updated` を今日の日付に
    - `History` に「<日時> ACTIVE→BLOCKED — 理由: ...」を追記
    - 次の `PENDING` Goal を `ACTIVE` に昇格（朝 Routine を待たない例外措置）
-3. **goals.md の単独 commit**: Routine 自身の worktree から、または別 branch `chore/goal-transition-<YYYYMMDD>` を切って goals.md のみを commit + draft PR。**実装 plan の commit と混ぜない**（人間が状態遷移だけを即座にレビュー / merge できるようにする）
+   - **次の PENDING Goal が存在しない場合**（全 Goal 終端）: Active Goal セクションを `Current: (idle)` に書き換え、`Terminal State Handling` セクション (goals.md 末尾) に従って以降の挙動を切り替える（plan 起票のみ続行 / 実装ループ進入禁止）
+3. **goals.md の単独 commit（別 worktree 経由）**:
+   - Routine が動いている worktree (branch=`auto/<slug>`) は実装の差分を抱えているため、ここに goals.md を混ぜず、**別 worktree を切って goals.md のみを commit する**
+   - 具体手順:
+     ```bash
+     # メイン worktree (/Users/newlife/dev/apps/life-editor) の checkout は deny list でブロックされる前提を継承。
+     # main から派生した別 worktree を一時的に切って goals.md だけを commit。
+     SLUG=$(date -u +%Y%m%d-%H%M)
+     git worktree add ../life-editor-goal-transition-${SLUG}/ -b chore/goal-transition-${SLUG} main
+     cp .claude/automation/goals.md ../life-editor-goal-transition-${SLUG}/.claude/automation/goals.md
+     cd ../life-editor-goal-transition-${SLUG}/
+     git add .claude/automation/goals.md
+     git commit -m "chore: goal transition ($(date +%F))"
+     git push -u origin chore/goal-transition-${SLUG}
+     gh pr create --draft --title "chore: goal transition" --body "..."
+     cd -  # 元の auto/<slug> worktree に戻る
+     git worktree remove ../life-editor-goal-transition-${SLUG} --force
+     ```
+   - **実装 plan の commit と混ぜない**（人間が状態遷移だけを即座にレビュー / merge できるようにする）
 4. `outbox/chat-auto-<YYYYMMDD>-<HHMM>/blockers.md` に詳細レポート（人手必須項目の具体的内容）
-5. 本セッションは終了。次回夜 Routine は新 ACTIVE Goal で再開
+5. 本セッションは終了。次回夜 Routine は新 ACTIVE Goal で再開（idle 化していたら plan 起票モードで起動）
 
 理由: 朝 Routine が MVP では DEFERRED のため、Goal 遷移が長期間止まる事故を防ぐ。
 
@@ -160,7 +180,7 @@ Plan 実装中に「ユーザー手動介入必須」と判明した場合（例
 
 ### Step 6: Outbox 報告
 
-`.claude/comm/outbox/chat-auto-<YYYYMMDD>/night-report.md` に以下を追記:
+`.claude/comm/outbox/chat-auto-<YYYYMMDD>-<HHMM>/night-report.md` に以下を追記:
 
 ```markdown
 ## YYYY-MM-DD HH:MM Night Run Summary
@@ -201,7 +221,7 @@ Blocked 案件があれば `blockers.md` も追記。
 
 - 既定: Opus 系 xhigh
 - Web 検索 / 軽量探索 / 単純テキスト整形: Sonnet 4.6 へ委譲（subagent）
-- 高コスト警戒: 1 回の実行で $3 を超える兆候があれば iteration を打ち切り outbox 報告
+- **コスト**: Anthropic Max plan 枠内で実行され、追加 API 課金は発生しない（$0 維持）。iteration cap (5 / 90 分) は暴走防止が目的であってコスト制限ではない
 
 ---
 

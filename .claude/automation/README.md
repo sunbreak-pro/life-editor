@@ -7,13 +7,13 @@
 
 ## ファイル構成
 
-| ファイル                 | 用途                                                                  | 書込頻度                            |
-| ------------------------ | --------------------------------------------------------------------- | ----------------------------------- |
-| `README.md`              | このファイル。全体構造の入口                                          | 改訂時のみ                          |
-| `goals.md`               | Goal Roadmap（Goal 1〜3）の現在状態 SSOT                              | 朝 Routine が更新、ユーザー手動可   |
-| `routine-night.md`       | 夜 22:00 JST 発火の Engineer プロンプト本文                           | 改訂時のみ                          |
-| `routine-morning.md`     | 朝 06:00 JST 発火の PM プロンプト本文（MVP 後追い登録）               | 改訂時のみ                          |
-| `routine-ids.md`         | 登録済み Cloud Routine の `trig_<id>` 台帳                            | `/schedule` で登録/更新時のみ       |
+| ファイル             | 用途                                                    | 書込頻度                          |
+| -------------------- | ------------------------------------------------------- | --------------------------------- |
+| `README.md`          | このファイル。全体構造の入口                            | 改訂時のみ                        |
+| `goals.md`           | Goal Roadmap（Goal 1〜3）の現在状態 SSOT                | 朝 Routine が更新、ユーザー手動可 |
+| `routine-night.md`   | 夜 22:00 JST 発火の Engineer プロンプト本文             | 改訂時のみ                        |
+| `routine-morning.md` | 朝 06:00 JST 発火の PM プロンプト本文（MVP 後追い登録） | 改訂時のみ                        |
+| `routine-ids.md`     | 登録済み Cloud Routine の `trig_<id>` 台帳              | `/schedule` で登録/更新時のみ     |
 
 ---
 
@@ -40,11 +40,12 @@
 
 ## 安全則
 
-- **deny list**: `.claude/settings.json` の `permissions.deny` に main 直 push / force / hard reset / branch -D / git checkout main 等を構造的に禁止
+- **deny list**: `.claude/settings.json` の `permissions.deny` に main/master 直 push / force / `+main` `:main` refspec / `git switch main` / `git checkout -B main*` / hard reset / branch -D 等を構造的に禁止（計 27 項目）
 - **`.mcp.json` 平文化チェック**: commit 前に `${...}` 参照形式が維持されているかを必須検査
-- **worktree 規約**: `chat-auto-<YYYYMMDD>` 命名、§7.4 準拠（1 chat = 1 worktree = 1 branch）
+- **worktree 規約**: `chat-auto-<YYYYMMDD>-<HHMM>` 命名、§7.4 準拠（1 chat = 1 worktree = 1 branch）
 - **iteration cap**: 暴走防止の上限（5 iter / 90 分）。超過は失敗ではなく「次回継続」として扱う
 - **scope 宣言**: 個別 plan の Scope 外パスへの変更は scope drift として outbox に警告
+- **コスト**: Anthropic Max plan 枠内で実行され、追加 API 課金は発生しない（$0 維持）。iteration cap はコスト制限ではなく暴走防止が目的
 
 ---
 
