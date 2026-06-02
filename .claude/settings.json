@@ -17,6 +17,10 @@
         "hooks": [
           {
             "type": "command",
+            "command": "${CLAUDE_PROJECT_DIR}/.claude/hooks/regen-index.sh || true"
+          },
+          {
+            "type": "command",
             "command": "/Users/newlife/dev/apps/life-editor/.claude/hooks/session-start-check.sh"
           }
         ]
@@ -29,6 +33,10 @@
           {
             "type": "command",
             "command": "${CLAUDE_PROJECT_DIR}/.claude/hooks/pre-commit-mcp-check.sh"
+          },
+          {
+            "type": "command",
+            "command": "${CLAUDE_PROJECT_DIR}/.claude/hooks/pre-commit-index-guard.sh"
           }
         ]
       }

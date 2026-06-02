@@ -33,8 +33,14 @@ set -uo pipefail
 # Claude 起動された場合に worktree の .session-name / .session-branch を読む
 ROOT=$(git rev-parse --show-toplevel 2>/dev/null || echo "/Users/newlife/dev/apps/life-editor")
 
-# per-chat 機構が有効か判定。無効なら警告対象外なので即終了
-if [ ! -d "${ROOT}/.claude/memory" ] || [ ! -f "${ROOT}/.claude/memory/INDEX.md" ]; then
+# per-chat 機構が有効か判定。無効なら警告対象外なので即終了。
+# マーカーは INDEX.md（旧 tracked / 現在は git 非追跡の派生物）または chat-*.md（tracked・SSOT）。
+# INDEX.md は .gitignore 化されたため新規 clone で regen 前に不在のことがある。追跡される
+# chat-*.md も見ることで regen-index.sh の実行順 / 成否に依存せず per-chat を検出する。
+if [ ! -d "${ROOT}/.claude/memory" ]; then
+  exit 0
+fi
+if [ ! -f "${ROOT}/.claude/memory/INDEX.md" ] && ! ls "${ROOT}"/.claude/memory/chat-*.md >/dev/null 2>&1; then
   exit 0
 fi
 

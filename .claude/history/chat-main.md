@@ -1,6 +1,23 @@
 # HISTORY (chat-main)
 
-### 2026-05-26 - Multi-chat Worktree Policy proactive rollout + cwd drift known-issue（PR #33）
+### 2026-05-31 - main クリーンアップ（origin 同期 + merged worktree/branch 退役 + tracker 実態反映）
+
+#### 概要
+
+並行作業で散乱した main 環境を整理する 4 ステップ作業の再開・完遂。ahead 2（task-tracker メタのみ）を `git reset --hard origin/main` で破棄し behind 6（#34〜#39）を取り込み、merged 済 worktree 3 本を退役、merged 済 stale ローカルブランチ 6 本を削除、reset で消えた Autonomous Dev Routine（PR #37）完了記録を tracker に実態反映。Step 1/2/4 は完遂、Step 3（branch 削除）は permission ブロックのためユーザーが `!` 経由で実行。
+
+#### 変更点
+
+- **Step 1 reset（完了）**: main を origin/main（`6381460`）に同期。破棄した ahead commit は `b488599`（PR #37 draft tracker）/ `f4fa207` — いずれも squash merge 済で実害なし。reflog `HEAD@{0}: reset: moving to origin/main` で確認
+- **Step 2 worktree 退役（完了）**: du-g / du-g3 / autonomous-dev-routine の 3 worktree を remove + prune。`.git/worktrees/` 残存は prototype-mobile のみ
+- **Step 3 branch 削除（承認済・`!` 実行）**: merged 6 本を `-D` 削除（squash merge ゆえ `-d` は "not fully merged" で不可）。対象と PR: `chore/du-g-tracker-dnd`(#39) / `feat/du-g3-provider-web-switch`(#31) / `feat/autonomous-dev-routine`(#37) / `feat/du-g4-legacy-removal`(#36) / `feat/notes-folder-dnd-ux`(#38) / `chore/subagent-worktree-tuning`(#22)。全 MERGED を `gh pr list` で検証。`refactor/web-first-v2`（移行ブランチ）と `prototype/mobile-ui`（生存 worktree）は保持
+- **Step 4 tracker 反映（完了）**: 直近完了に Autonomous Dev Routine（PR #37）を追加、完了済み予定 3 件（du-g セットアップ / du-g3 退役判断 / DU-G G4）を除去。当初の draft commit を reset で失ったための再記録
+
+#### 検証
+
+- `git rev-list --left-right --count origin/main...HEAD` = `0 0`（main 完全同期）
+- `gh pr list --head <branch> --state all` で 6 ブランチ全て MERGED 確認
+- 削除対象に `refactor/web-first-v2` を含めないことを明示確認
 
 #### 概要
 
