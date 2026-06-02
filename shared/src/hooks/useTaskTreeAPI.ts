@@ -124,17 +124,33 @@ export function useTaskTreeAPI(options: UseTaskTreeAPIOptions) {
   const deletedNodes = useMemo(() => nodes.filter((n) => n.isDeleted), [nodes]);
   const nodeMap = useMemo(() => new Map(nodes.map((n) => [n.id, n])), [nodes]);
 
+  // childrenByParent is built once per activeNodes change (O(n) group +
+  // sort) so getChildren is an O(1) Map lookup instead of an O(n) filter+
+  // sort per call. TaskTreeView's flatten calls getChildren twice per node
+  // (children + hasChildren probe) -> O(n^2); the Map collapses that to O(n).
+  // Sort order (folder-first, then order) is identical to the old filter.
+  const childrenByParent = useMemo(() => {
+    const map = new Map<string | null, TaskNode[]>();
+    for (const n of activeNodes) {
+      const list = map.get(n.parentId);
+      if (list) list.push(n);
+      else map.set(n.parentId, [n]);
+    }
+    for (const list of map.values()) {
+      list.sort((a, b) => {
+        if (a.type === "folder" && b.type !== "folder") return -1;
+        if (a.type !== "folder" && b.type === "folder") return 1;
+        return a.order - b.order;
+      });
+    }
+    return map;
+  }, [activeNodes]);
+
   const getChildren = useCallback(
-    (parentId: string | null) => {
-      return activeNodes
-        .filter((n) => n.parentId === parentId)
-        .sort((a, b) => {
-          if (a.type === "folder" && b.type !== "folder") return -1;
-          if (a.type !== "folder" && b.type === "folder") return 1;
-          return a.order - b.order;
-        });
+    (parentId: string | null): TaskNode[] => {
+      return childrenByParent.get(parentId) ?? [];
     },
-    [activeNodes],
+    [childrenByParent],
   );
 
   const {
