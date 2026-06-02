@@ -50,6 +50,10 @@
       "Bash(git push * master*)",
       "Bash(git push * HEAD:main*)",
       "Bash(git push * HEAD:master*)",
+      "Bash(git push * :main*)",
+      "Bash(git push * :master*)",
+      "Bash(git push * +*main*)",
+      "Bash(git push * +*master*)",
       "Bash(git push --force*)",
       "Bash(git push -f*)",
       "Bash(git push * --force*)",
@@ -59,6 +63,12 @@
       "Bash(git branch -D*)",
       "Bash(git checkout main)",
       "Bash(git checkout master)",
+      "Bash(git checkout -B main*)",
+      "Bash(git checkout -B master*)",
+      "Bash(git switch main)",
+      "Bash(git switch master)",
+      "Bash(git switch -c main*)",
+      "Bash(git switch -c master*)",
       "Bash(rm -rf .git*)",
       "Bash(supabase db reset*)"
     ]

@@ -251,7 +251,7 @@ else:
 ## Risks / Known Issues 参照
 
 - **暴走リスク**: iteration cap (5 / 90min) と deny list + scope 宣言で 3 重防御
-- **Cost overrun**: Opus xhigh が高単価。Night 1 回 $1〜3 を想定上限、超過時は cap 短縮を検討
+- **Cost overrun**: ~~Opus xhigh が高単価。Night 1 回 $1〜3 を想定上限、超過時は cap 短縮を検討~~ → **2026-05-31 訂正**: Anthropic Max plan 枠内で実行され、追加 API 課金は発生しない（$0 維持）。iteration cap はコスト制限ではなく暴走防止が目的。本項は無効
 - **Plan picker の誤選択**: 当該 Goal に紐づかない plan を拾うリスク → plan frontmatter に `Goal: 1|2|3` を追記する規約を Goal 2 以降で導入検討
 - **並行チャット干渉**: Routine が `chat-main` の作業中に発火する可能性 → Night 22:00 / Morning 06:00 の選択でユーザー稼働時間外を狙う
 - 類似事例: `feedback_destructive_git_confirmation.md` / `feedback_mcp_json_token_placeholder.md` / `feedback_task_tracker_parallel_chat_override.md`
