@@ -6,6 +6,7 @@ import {
 } from "@life-editor/shared";
 import { AuthScreen } from "./AuthScreen";
 import { MainScreen } from "./MainScreen";
+import { OfflineBanner } from "./components/OfflineBanner";
 
 /*
  * Root: session gate.
@@ -32,15 +33,27 @@ function App() {
     };
   }, []);
 
+  // OfflineBanner sits above every state (loading / auth / main) because
+  // connectivity matters before sign-in too — an offline `getSession()`
+  // may never resolve, so the warning must be reachable on the loading
+  // screen as well.
+  let body: React.JSX.Element;
   if (!ready) {
-    return (
+    body = (
       <div className="min-h-screen bg-notion-bg text-notion-text flex items-center justify-center">
         <p className="text-notion-text-secondary">Loading…</p>
       </div>
     );
+  } else {
+    body = session ? <MainScreen session={session} /> : <AuthScreen />;
   }
 
-  return session ? <MainScreen session={session} /> : <AuthScreen />;
+  return (
+    <>
+      <OfflineBanner />
+      {body}
+    </>
+  );
 }
 
 export default App;
