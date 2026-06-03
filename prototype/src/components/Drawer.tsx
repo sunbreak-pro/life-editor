@@ -1,6 +1,7 @@
 import { X } from "lucide-react";
 import type { ReactNode } from "react";
 import { C } from "../lib/theme";
+import { useDismissOnEscape } from "../hooks/useDismissOnEscape";
 
 /**
  * Reusable left slide-in drawer (the per-section sidebar chrome).
@@ -24,6 +25,7 @@ export function Drawer({
   title?: string;
   children: ReactNode;
 }) {
+  useDismissOnEscape(open, onClose);
   return (
     <>
       {/* Backdrop */}
@@ -42,7 +44,10 @@ export function Drawer({
       />
       {/* Panel */}
       <aside
+        role="dialog"
+        aria-modal={open || undefined}
         aria-hidden={!open}
+        aria-label={title}
         className="fixed left-0 top-0 bottom-0 z-50 flex flex-col"
         style={{
           width: 280,

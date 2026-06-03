@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import type { PointerEvent as ReactPointerEvent } from "react";
 import { C } from "../lib/theme";
 import { CrossSearchBody } from "./CrossSearchBody";
+import { useDismissOnEscape } from "../hooks/useDismissOnEscape";
 
 /**
  * Global cross-cutting search modal (2026-05-30 requirements).
@@ -47,6 +48,8 @@ export function SearchOverlay({
     const t = window.setTimeout(() => setMounted(false), ENTER_MS);
     return () => window.clearTimeout(t);
   }, [open]);
+
+  useDismissOnEscape(open, onClose);
 
   const onDown = (e: ReactPointerEvent) => {
     dragRef.current = { startY: e.clientY, startH: heightPx, pid: e.pointerId };

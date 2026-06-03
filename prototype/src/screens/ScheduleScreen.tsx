@@ -15,7 +15,9 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { BottomSheet } from "../components/BottomSheet";
 import { Drawer } from "../components/Drawer";
+import { SessionHistoryList } from "../components/SessionHistoryList";
 import { useShell } from "../context/ShellContext";
+import { useDismissOnEscape } from "../hooks/useDismissOnEscape";
 import { useMockStore } from "../hooks/useMockStore";
 import {
   addScheduleItem,
@@ -43,7 +45,7 @@ const TAG_COLOR_OPTIONS = [
   C.red,
 ] as const;
 
-type ViewMode = "month" | "three" | "list";
+type ViewMode = "month" | "three" | "list" | "history";
 
 const WEEK_DAYS_JA = ["日", "月", "火", "水", "木", "金", "土"] as const;
 const HOUR_PX = 48;
@@ -304,9 +306,14 @@ export function ScheduleScreen() {
   const [searchParams, setSearchParams] = useSearchParams();
   const allScheduleItems = useMockStore((s) => s.scheduleItems);
   const wikiTags = useMockStore((s) => s.wikiTags);
+  const allSessions = useMockStore((s) => s.timerSessions);
   const scheduleItems = useMemo(
     () => allScheduleItems.filter((i) => !i.isDeleted),
     [allScheduleItems],
+  );
+  const sessions = useMemo(
+    () => allSessions.filter((s) => !s.isDeleted),
+    [allSessions],
   );
 
   const [view, setView] = useState<ViewMode>("month");
@@ -529,16 +536,19 @@ export function ScheduleScreen() {
             onTagClick={handleTagChipClick}
           />
         )}
+        {view === "history" && <SessionHistoryList sessions={sessions} />}
       </main>
-      <button
-        type="button"
-        onClick={() => openCreate()}
-        aria-label="新規予定を追加"
-        className="absolute right-4 bottom-20 w-14 h-14 rounded-2xl shadow-lg flex items-center justify-center transition-transform active:scale-95"
-        style={{ background: C.mauve, color: C.base }}
-      >
-        <Plus size={24} strokeWidth={2.5} />
-      </button>
+      {view !== "history" && (
+        <button
+          type="button"
+          onClick={() => openCreate()}
+          aria-label="新規予定を追加"
+          className="absolute right-4 bottom-20 w-14 h-14 rounded-2xl shadow-lg flex items-center justify-center transition-transform active:scale-95"
+          style={{ background: C.mauve, color: C.base }}
+        >
+          <Plus size={24} strokeWidth={2.5} />
+        </button>
+      )}
       <DayDetailSheet
         open={!!selectedDay}
         date={selectedDay}
@@ -871,10 +881,13 @@ function SegmentControl({
     { v: "month", label: "Month" },
     { v: "three", label: "Three" },
     { v: "list", label: "List" },
+    { v: "history", label: "History" },
   ];
   return (
     <div
-      className="h-10 grid grid-cols-3 shrink-0"
+      className="h-10 grid grid-cols-4 shrink-0"
+      role="tablist"
+      aria-label="表示切替"
       style={{
         background: C.mantle,
         borderBottom: `1px solid ${C.surface1}`,
@@ -886,6 +899,8 @@ function SegmentControl({
           <button
             key={it.v}
             type="button"
+            role="tab"
+            aria-selected={active}
             onClick={() => onChange(it.v)}
             className="text-sm transition-transform active:scale-[0.98]"
             style={{
@@ -1475,8 +1490,20 @@ function AddEventModal({
     draft.type === "event" && (!draft.due || !draft.time);
   const canSave = titleValid && !isHoliday && !eventTimeMissing;
 
+  // Esc で閉じる。テキスト入力中の IME 変換キャンセル (Escape) では閉じない。
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent): void => {
+      if (e.key === "Escape" && !e.isComposing) onClose();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
   return (
     <div
+      role="dialog"
+      aria-modal="true"
+      aria-label={isEditing ? "予定の編集" : "予定の追加"}
       className="absolute inset-0 z-50 flex flex-col"
       style={{ background: C.base }}
     >
@@ -1845,6 +1872,7 @@ function ConfirmModal({
   onCancel: () => void;
   onConfirm: () => void;
 }) {
+  useDismissOnEscape(true, onCancel);
   return (
     <>
       <button
@@ -1855,6 +1883,9 @@ function ConfirmModal({
         style={{ background: C.crust, opacity: 0.7 }}
       />
       <div
+        role="dialog"
+        aria-modal="true"
+        aria-label={title}
         className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[88%] z-[60] rounded-xl p-4 flex flex-col gap-3"
         style={{
           background: C.base,

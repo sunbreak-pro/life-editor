@@ -2,6 +2,7 @@ import { Trash2 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Drawer } from "../components/Drawer";
 import { useShell } from "../context/ShellContext";
+import { useDismissOnEscape } from "../hooks/useDismissOnEscape";
 import { useMockStore } from "../hooks/useMockStore";
 import {
   getState,
@@ -190,6 +191,7 @@ export function TrashScreen() {
             <button
               key={k}
               type="button"
+              aria-pressed={active}
               onClick={() => setFilter(k)}
               className="h-8 px-3 rounded-full text-xs shrink-0 transition-transform active:scale-[0.98]"
               style={{
@@ -366,6 +368,7 @@ function ConfirmModal({
   onCancel: () => void;
   onConfirm: () => void;
 }) {
+  useDismissOnEscape(true, onCancel);
   return (
     <>
       <button
@@ -377,6 +380,9 @@ function ConfirmModal({
       />
       <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 pointer-events-none">
         <div
+          role="dialog"
+          aria-modal="true"
+          aria-label={title}
           className="w-full max-w-xs rounded-2xl p-4 flex flex-col gap-3 pointer-events-auto"
           style={{ background: C.base, border: `1px solid ${C.surface1}` }}
         >
@@ -454,6 +460,7 @@ function TrashSidebarContent({
               <button
                 key={k}
                 type="button"
+                aria-pressed={active}
                 onClick={() => onSetFilter(k)}
                 className="h-10 px-3 rounded-md flex items-center justify-between text-sm"
                 style={{

@@ -31,7 +31,7 @@ export function AppHeader({
         onClick={onMenu}
         aria-label="メニューを開く"
         className="grid place-items-center rounded"
-        style={{ width: 36, height: 36, color: C.text }}
+        style={{ width: 44, height: 44, color: C.text }}
       >
         <Menu size={20} />
       </button>
@@ -47,7 +47,7 @@ export function AppHeader({
         onClick={onSearch}
         aria-label="横断検索を開く"
         className="grid place-items-center rounded"
-        style={{ width: 36, height: 36, color: C.text }}
+        style={{ width: 44, height: 44, color: C.text }}
       >
         <Search size={20} />
       </button>

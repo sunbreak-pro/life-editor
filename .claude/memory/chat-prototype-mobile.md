@@ -6,9 +6,9 @@
 
 ## 直近の完了
 
+- Pomodoro 強化: タイマー実時刻化＋セクション間継続 / Settings 再設計＋横断 a11y / HISTORY 削除(スワイプ)・コメント / マルチタイマー最大3並行 ✅（2026-06-03 / branch prototype/mobile-ui・PR 作成予定 / tsc+build green）
 - モバイル共通 Shell 化 + 横断検索強化 + ドラッグ可能 BottomSheet + 表示バグ修正 + main マージ衝突解決 ✅（2026-05-31 commit `566a648`+`fbb35ef` / PR #40 MERGEABLE / 計画書: archive/2026-05-30-mobile-ia-v3-shell-implementation.md）
 - fix-pack: M-1 card layout SwipeRow 背景透明化 + 角丸 ✅（2026-05-30 commit `a85cb0f`）
-- C-2: Calendar フィルタ (タイプ) + 並び順 (DayFlow) (iOS additions, prototype 4 type 範囲) ✅（2026-05-30 commit `0f8b982`）
 
 ## 予定
 
