@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { lazy, Suspense, useMemo, useState } from "react";
 import {
   createSupabaseDataService,
   signOut,
@@ -15,7 +15,15 @@ import {
 } from "@life-editor/shared";
 import { TaskTreeView } from "./tasks/TaskTreeView";
 import { DailyView } from "./daily/DailyView";
-import { NotesView } from "./notes/NotesView";
+// NotesView pulls in the TipTap editor stack (core/react/starter-kit +
+// extensions, ~hundreds of kB). Lazy-load it so that bundle stays out of
+// the initial chunk and only downloads when the Notes section is opened
+// (L1 code-split — MainScreen already conditionally renders sections, so
+// lazy + Suspense slots in cleanly). NotesView is a named export, so map
+// it to the default the lazy() loader expects.
+const NotesView = lazy(() =>
+  import("./notes/NotesView").then((m) => ({ default: m.NotesView })),
+);
 import { ScheduleView } from "./schedule/ScheduleView";
 import { ScheduleItemsView } from "./schedule/ScheduleItemsView";
 import { RoutineScheduleSync } from "./schedule/RoutineScheduleSync";
@@ -113,7 +121,13 @@ export function MainScreen({ session }: { session: Session }) {
           <SyncProvider>
             <WikiTagsUnifiedProvider dataService={ds}>
               <NotesUnifiedProvider dataService={ds}>
-                <NotesView />
+                <Suspense
+                  fallback={
+                    <p className="text-notion-text-secondary">Loading notes…</p>
+                  }
+                >
+                  <NotesView />
+                </Suspense>
               </NotesUnifiedProvider>
             </WikiTagsUnifiedProvider>
           </SyncProvider>

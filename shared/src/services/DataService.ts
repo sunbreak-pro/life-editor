@@ -458,6 +458,8 @@ export interface DataService {
   ): Promise<WikiTagUnified>;
   softDeleteWikiTagUnified(id: string): Promise<void>;
   listTagsForItem(itemId: string): Promise<WikiTagAssignmentUnified[]>;
+  /** Bulk-load all active item↔tag assignments (N+1 elimination). */
+  listAllTagAssignments(): Promise<WikiTagAssignmentUnified[]>;
   assignTagToItem(
     assignmentId: string,
     itemId: string,
@@ -466,6 +468,8 @@ export interface DataService {
   unassignTagFromItem(assignmentId: string): Promise<void>;
   listLinksFromItem(itemId: string): Promise<WikiTagConnectionUnified[]>;
   listLinksToItem(itemId: string): Promise<WikiTagConnectionUnified[]>;
+  /** Bulk-load all active item↔item links (N+1 elimination). */
+  listAllTagConnections(): Promise<WikiTagConnectionUnified[]>;
   createItemLink(
     linkId: string,
     fromItemId: string,

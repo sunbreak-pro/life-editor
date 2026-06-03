@@ -4,6 +4,7 @@ import {
   type RoutineNode,
   type FrequencyType,
 } from "@life-editor/shared";
+import { DebouncedTextInput } from "../components/DebouncedTextInput";
 
 /*
  * Web Schedule UI — S4-3 Routine slice only.
@@ -234,29 +235,27 @@ export function ScheduleView() {
               className="space-y-2 rounded-md border border-notion-border p-3"
             >
               <div className="flex flex-wrap items-center justify-between gap-2">
-                <input
-                  type="text"
+                <DebouncedTextInput
+                  key={`title-${r.id}`}
                   value={r.title}
-                  onChange={(e) =>
-                    updateRoutine(r.id, { title: e.target.value })
-                  }
+                  onCommit={(title) => updateRoutine(r.id, { title })}
                   className="min-w-[10rem] flex-1 rounded-md border border-notion-border bg-notion-bg px-2 py-1 text-sm text-notion-text"
                 />
-                <input
+                <DebouncedTextInput
+                  key={`start-${r.id}`}
                   type="time"
                   value={r.startTime ?? ""}
-                  onChange={(e) =>
-                    updateRoutine(r.id, { startTime: e.target.value || null })
+                  onCommit={(v) =>
+                    updateRoutine(r.id, { startTime: v || null })
                   }
                   aria-label={`Start time for ${r.title}`}
                   className="rounded-md border border-notion-border bg-notion-bg px-2 py-1 text-sm text-notion-text"
                 />
-                <input
+                <DebouncedTextInput
+                  key={`end-${r.id}`}
                   type="time"
                   value={r.endTime ?? ""}
-                  onChange={(e) =>
-                    updateRoutine(r.id, { endTime: e.target.value || null })
-                  }
+                  onCommit={(v) => updateRoutine(r.id, { endTime: v || null })}
                   aria-label={`End time for ${r.title}`}
                   className="rounded-md border border-notion-border bg-notion-bg px-2 py-1 text-sm text-notion-text"
                 />

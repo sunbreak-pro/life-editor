@@ -4,6 +4,7 @@ import {
   useTaskTreeContext,
 } from "@life-editor/shared";
 import { TagPicker, LinkPanel } from "../wikitag";
+import { DebouncedTextInput } from "../components/DebouncedTextInput";
 
 /*
  * Web Schedule UI — S4-4 ScheduleItems slice.
@@ -200,31 +201,29 @@ export function ScheduleItemsView() {
                 onChange={() => toggleComplete(item.id)}
                 aria-label={`Mark ${item.title} complete`}
               />
-              <input
-                type="text"
+              <DebouncedTextInput
+                key={`title-${item.id}`}
                 value={item.title}
-                onChange={(e) =>
-                  updateScheduleItem(item.id, { title: e.target.value })
-                }
+                onCommit={(title) => updateScheduleItem(item.id, { title })}
                 className={`min-w-[8rem] flex-1 rounded-md border border-notion-border bg-notion-bg px-2 py-1 text-sm text-notion-text ${
                   item.completed ? "line-through" : ""
                 }`}
               />
-              <input
+              <DebouncedTextInput
+                key={`start-${item.id}`}
                 type="time"
                 value={item.startTime}
-                onChange={(e) =>
-                  updateScheduleItem(item.id, { startTime: e.target.value })
+                onCommit={(startTime) =>
+                  updateScheduleItem(item.id, { startTime })
                 }
                 aria-label={`Start time for ${item.title}`}
                 className="rounded-md border border-notion-border bg-notion-bg px-2 py-1 text-sm text-notion-text"
               />
-              <input
+              <DebouncedTextInput
+                key={`end-${item.id}`}
                 type="time"
                 value={item.endTime}
-                onChange={(e) =>
-                  updateScheduleItem(item.id, { endTime: e.target.value })
-                }
+                onCommit={(endTime) => updateScheduleItem(item.id, { endTime })}
                 aria-label={`End time for ${item.title}`}
                 className="rounded-md border border-notion-border bg-notion-bg px-2 py-1 text-sm text-notion-text"
               />

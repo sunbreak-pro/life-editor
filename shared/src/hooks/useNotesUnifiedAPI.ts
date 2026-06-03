@@ -157,14 +157,33 @@ export function useNotesUnifiedAPI(options: UseNotesUnifiedAPIOptions) {
     };
   }, [ds, syncVersion]);
 
-  // Tree helpers
+  // Tree helpers. `childrenByParent` is built once per `notes` change (O(n)
+  // group + sort) so `getChildren` is an O(1) Map lookup instead of an
+  // O(n) filter+sort per call. NotesView's flatten previously called
+  // getChildren twice per node (children + grandchildren probe) → O(n²);
+  // the Map collapses that to O(n). Behaviour is identical: same null-vs
+  // -string parent key (root uses the `null` key), same order sort, and
+  // it includes is_deleted rows just like the old filter did (the
+  // NotesView walk applies its own `!isDeleted` filter, and
+  // `flattenedNotes` also sees the full set).
+  const childrenByParent = useMemo(() => {
+    const map = new Map<string | null, NoteNode[]>();
+    for (const n of notes) {
+      const list = map.get(n.parentId);
+      if (list) list.push(n);
+      else map.set(n.parentId, [n]);
+    }
+    for (const list of map.values()) {
+      list.sort((a, b) => a.order - b.order);
+    }
+    return map;
+  }, [notes]);
+
   const getChildren = useCallback(
     (parentId: string | null): NoteNode[] => {
-      return notes
-        .filter((n) => n.parentId === parentId)
-        .sort((a, b) => a.order - b.order);
+      return childrenByParent.get(parentId) ?? [];
     },
-    [notes],
+    [childrenByParent],
   );
 
   const toggleExpanded = useCallback((id: string) => {

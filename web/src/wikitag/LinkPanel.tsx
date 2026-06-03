@@ -1,17 +1,17 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { Link2, Plus, X } from "lucide-react";
-import {
-  useWikiTagsUnifiedContext,
-  type WikiTagConnectionUnified,
-} from "@life-editor/shared";
+import { useWikiTagsUnifiedContext } from "@life-editor/shared";
 
 /*
  * LinkPanel — outgoing + incoming item↔item links for a single item
  * (DU-F Step 6).
  *
- * Self-contained: loads both directions from
- * useWikiTagsUnifiedContext, presents an Obsidian-style backlink list
- * (incoming) and the editable outgoing list with a "+ Link" affordance.
+ * Self-contained: reads both directions from
+ * useWikiTagsUnifiedContext's bulk cache (`getLinksForItem`), presents an
+ * Obsidian-style backlink list (incoming) and the editable outgoing list
+ * with a "+ Link" affordance. The former per-item `listLinksFromItem` +
+ * `listLinksToItem` fetch pair is gone — one query per table feeds every
+ * row instead of two queries per row.
  *
  * Title resolution: each role passes a `resolveTitle(id) → string |
  * undefined` callback (its own context already has the items). When a
@@ -40,28 +40,13 @@ export function LinkPanel({
   linkableItems = [],
 }: LinkPanelProps) {
   const wiki = useWikiTagsUnifiedContext();
-  const [outgoing, setOutgoing] = useState<WikiTagConnectionUnified[]>([]);
-  const [incoming, setIncoming] = useState<WikiTagConnectionUnified[]>([]);
-  const [loading, setLoading] = useState(true);
   const [target, setTarget] = useState("");
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    let cancelled = false;
-    setLoading(true);
-    Promise.all([wiki.listLinksFromItem(itemId), wiki.listLinksToItem(itemId)])
-      .then(([from, to]) => {
-        if (cancelled) return;
-        setOutgoing(from);
-        setIncoming(to);
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [itemId, wiki]);
+  // Both directions come from the Context's bulk cache (one query per
+  // table for the whole list). `loading` follows the initial bulk load.
+  const { outgoing, incoming } = wiki.getLinksForItem(itemId);
+  const loading = wiki.loading;
 
   const datalistId = useMemo(
     () => `link-targets-${itemId.replace(/[^a-zA-Z0-9_-]/g, "-")}`,
@@ -86,8 +71,9 @@ export function LinkPanel({
       return;
     }
     try {
-      const created = await wiki.createItemLink(itemId, targetId);
-      setOutgoing((prev) => [...prev, created]);
+      // The Context mutator updates the bulk cache, so the lists here
+      // re-render without a local copy.
+      await wiki.createItemLink(itemId, targetId);
       setTarget("");
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
@@ -97,7 +83,6 @@ export function LinkPanel({
   const handleDelete = async (linkId: string) => {
     try {
       await wiki.deleteItemLink(linkId);
-      setOutgoing((prev) => prev.filter((l) => l.id !== linkId));
     } catch (err) {
       console.error("deleteItemLink failed", err);
     }
