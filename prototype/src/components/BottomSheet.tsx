@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { PointerEvent as ReactPointerEvent, ReactNode } from "react";
 import { C } from "../lib/theme";
+import { useDismissOnEscape } from "../hooks/useDismissOnEscape";
 
 /**
  * Draggable bottom sheet shared by every section.
@@ -66,6 +67,8 @@ export function BottomSheet({
     return () => window.clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
+
+  useDismissOnEscape(open, onClose);
 
   const handlePointerDown = (e: ReactPointerEvent) => {
     // Claim the gesture before the page's pan-y scroll can pick up the first

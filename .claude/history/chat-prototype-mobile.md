@@ -1,5 +1,20 @@
 # HISTORY (chat-prototype-mobile)
 
+### 2026-06-03 - Pomodoro 強化: タイマー実時刻化＋セクション間継続 / Settings 再設計＋横断 a11y / HISTORY 改善 / マルチタイマー
+
+#### 概要
+
+prototype モバイル UI の Work(Pomodoro) を中心に4波の機能追加。(1) Settings をデスクトップ風のサイドバー8カテゴリ切替へ再設計し、全画面横断の a11y を底上げ。(2) タイマーを `setInterval` デクリメントから `endTime` 絶対時刻ベースへ作り替え、状態をモジュール singleton (`timerEngine`) に持ち上げてセクション間移動でも継続・バックグラウンド復帰追従。(3) HISTORY を共有コンポーネント化しスワイプ削除・セッション別メモ閲覧/編集を追加、Schedule にも History ビューを追加。(4) タスク別の並行ポモドーロ(最大3)を実装。tsc --noEmit + vite build いずれも green。session-verifier PASS。
+
+#### 変更点
+
+- **Settings 再設計 (`SettingsScreen.tsx` 全面書換)**: 左ドロワーの8カテゴリ (一般/アカウント/表示/アクセシビリティ★新設/通知/同期とバックアップ/プライバシー/アプリについて) 切替。新規設定は「見た目だけ動く」ローカル state (リロードでリセット)。プリミティブ群に a11y 内蔵 (`role=switch`/`radiogroup`/`aria-valuetext`/`aria-live`/`dialog`+Esc/`aria-current`)
+- **横断 a11y (新規 `useDismissOnEscape` フック)**: Drawer/BottomSheet/SearchOverlay に Esc クローズ + `role=dialog`/`aria-modal`。AppHeader のボタンを 44px タップ領域へ。Materials/Schedule/Work/Trash のタブ・チップ・スライダー・各モーダルに role/aria。AddEventModal は IME ガード付き Esc
+- **タイマー実時刻化 (`WorkScreen.tsx` TimerTab → 新規 `lib/timerEngine.ts` + `hooks/useTimer.ts`)**: 残り時間を常に `endTime - now` で算出。`setInterval` 間引き/端末ロックに耐え、`visibilitychange` で即追従。状態をモジュール singleton 化しセクション間移動で停止しない問題を解消。`useSyncExternalStore` 購読で remainingSec を読む TimerTab だけ毎秒再描画。pause が実質リセットされるバグ・skip 経過秒の不正確さも修正。プリセット/セッション種別切替を稼働中は確認ダイアログ化
+- **HISTORY 改善 (新規 `components/SessionHistoryList.tsx`)**: 日付グループ + 左スワイプ削除 (ソフトデリート・Trash 復元可) + セッション別メモ。`TimerSession.comment` 追加、`mockStore.updateTimerSession` 新設。Timer 画面に常時メモ欄 (WORK 時、`draftComment`) を置き完了時にセッションへ保存、HISTORY 行のメモアイコンから閲覧/編集 (BottomSheet)。Schedule の表示切替に History を追加 (grid-cols-4) し同コンポーネントを共有
+- **マルチタイマー (`timerEngine.ts` 拡張)**: WORK タイマーをタスク別に最大3並行保持 (`heldTimers[]`、アクティブ含め計3)。tick がアクティブ＋全 held を進め、held 完了は自動ログ。タスク切替時にアクティブが進行中(稼働 or PAUSE)なら保持/破棄/キャンセルの3択ダイアログ (`TaskSwitchModal`)、3つ超は拒否。サイドバーに「進行中タイマー (n/3)」セクション (現在＋held、タップで切替)。`hasStarted` を state へ昇格しプリセット確認も PAUSE 中に表示。セッション種別 (WORK/BREAK/LONG) 切替は現状維持
+- **検証**: `npx tsc --noEmit` exit 0 / `npm run build` exit 0 (≈428 kB / gzip ≈123.6 kB)。session-verifier 全ゲート PASS (lint/test はプロトタイプに機構なしで skip)。`canHoldActive` の不要 export 除去
+
 ### 2026-05-31 - モバイル共通 Shell 化 + 横断検索強化 + ドラッグ BottomSheet + main マージ
 
 #### 概要
@@ -75,63 +90,3 @@ M-2 と同じ KeyboardAccessoryBar 基盤に、現在行が空でフォーカス
 - [x] AC1: 空行にフォーカスがあるときのみヒント表示
 - [x] AC2: ヒントタップ または `/` 入力でメニュー起動
 - [x] AC3: IME 変換中はヒント非表示 + `/` 起動抑止 (composing state + `e.isComposing` 二重ガード)
-
-### 2026-05-30 - M-2: スラッシュコマンドメニュー (iOS additions)
-
-#### 概要
-
-iOS additions 要件 M-2 を prototype 環境で実装。アクセサリーバーに `+` ボタンを追加し、タップで 10 種のブロック変換コマンド (見出し 1-3 / 箇条書き / 番号付き / タスク / 引用 / コードブロック / 区切り線 / 画像リンク) をポップオーバーで表示。本番要件は TipTap BubbleMenu 前提だが、prototype は textarea + Markdown 記法方針 (Phase 3.I 判断) のため、既存の `wrapSelection` / `toggleLinePrefix` + 新規 `insertBlock` helper を流用。
-
-#### 変更点
-
-- **[feat] `+` ボタン + ポップオーバー** (`prototype/src/screens/MaterialsScreen.tsx::KeyboardAccessoryBar`)
-  - 左端に Plus アイコンの「ブロックを挿入」ボタン (`aria-haspopup="menu"` / `aria-expanded`)
-  - 上方向に幅 280px のメニューがフロート (`maxHeight: 60vh` でスクロール)
-  - 各項目: 28×28 アイコンチップ + 日本語ラベル + Markdown ヒント (`# 大見出し` 等)
-- **[feat] `insertBlock` helper**: 空行ならその場置換、非空行なら次行に挿入。コードブロック (` ```\n\n``` `) と区切り線 (`---\n`) に使用
-- **[feat] `toggleLinePrefix` の strip 正規表現拡張**: `- [ ] ` / `1. ` も剥がし対象に追加 (リスト系コマンドの相互上書きを可能に)
-- **[a11y] `role="menu"` / `role="menuitem"` / `aria-label`**: スクリーンリーダー対応
-- **検証**: `npx tsc --noEmit` exit 0 / `npm run build` 392.84 kB / gzip 113.30 kB (+3 kB / +0.85 kB)
-
-#### Acceptance Criteria 達成
-
-- [x] AC1: `+` ボタンがバーに表示される
-- [x] AC2: タップで 10 種のブロック変換コマンドがメニュー表示、選択でカーソル位置のノード/挿入が反映
-- [ ] AC3: i18n (ja/en) — **prototype に i18n 機構なし、ja 固定**。本番側 (frontend/) で別途対応
-- [x] AC4: Desktop でも同一バー + メニューが動作 (KeyboardAccessoryBar は focus 連動で両プラットフォーム共通)
-
-#### 残課題 (M-3 後続候補)
-
-- 空行ヒント (M-3): 現在行が空のときヒントチップ表示 + `/` 入力でメニュー起動 + IME ガード — 別タスク
-
-### 2026-05-30 - M-1: Materials 行スワイプで edit/pin/delete (iOS additions)
-
-#### 概要
-
-iOS additions 要件 M-1 (`docs/requirements/ios-additions.md`) を prototype 環境で実装。Notes / Daily 一覧の行を右→左にスワイプすると、edit / pin / delete の 3 ボタンが背面から表示される (Apple 標準メモ風)。同時に開ける行は 1 つだけで、他行スワイプ・他行タップで前の行は自動的に閉じる。要件監査 (a) で発覚した「ほぼ完了済とは言えない」状態のうち、未着手 5 件の最初を消化。
-
-#### 変更点
-
-- **[feat] `SwipeRow` ヘルパー追加** (`prototype/src/screens/MaterialsScreen.tsx` 約 +140 行)
-  - PointerEvent ベース、横方向 8px ロック → 50px 超で open commit、最大 1.2 倍まで rubber-band 風に追従
-  - 開いた幅は 192px (3 ボタン × 64px)。`touchAction: pan-y` で縦スクロール優先
-  - controlled state は MaterialsScreen の `swipeOpenId: string | null` (1 行のみ open 制約 = AC2)
-- **[feat] 3 アクション**:
-  - 編集 (FileText / `C.surface2`) → 既存 `handleOpenNote` で editor 起動
-  - ピン (Pin / PinOff / `C.peach`) → 既存 `togglePinNote`
-  - 削除 (Trash2 / `C.red`) → 既存 `confirmDelete` ダイアログ経由 → `deleteNote` (soft delete)
-- **[ux] 開状態のタップで閉じる**: `onClickCapture` で open 中の行・他行 open 中の任意行タップを消費して `setSwipeOpenId(null)`
-- **[非衝突] useLongPress との両立**: 既存 useLongPress は `dx>10` でキャンセル機構を持つので、SwipeRow が horizontal lock を取ると useLongPress は自動 cancel される (AC5)
-- **検証**: `npx tsc --noEmit` exit 0 / `npm run build` 389.72 kB / gzip 112.45 kB / 2.83s
-
-#### 既知の見た目課題 (次 fix-pack 候補)
-
-- layout=card のとき SwipeRow の `background: C.crust` が NoteCard 周りの `gap-3` 隙間に出る (角丸処理が NoteCard 側のみのため)。機能 AC は全て満たすが、ユーザー目視確認 (B) で違和感あれば次回調整
-
-#### Acceptance Criteria 達成
-
-- [x] AC1: 右→左スワイプで 3 ボタン表示
-- [x] AC2: 他行 swipe/タップで前行が閉じる (`swipeOpenId` 単一 state)
-- [x] AC3: 削除はソフトデリート (既存 `deleteNote`)、Trash から復元可
-- [x] AC4: pin はトグル
-- [x] AC5: Long Press → ActionSheet と非衝突

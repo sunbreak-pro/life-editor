@@ -349,6 +349,17 @@ export function addTimerSession(
   return session;
 }
 
+export function updateTimerSession(
+  id: EntityId,
+  patch: Partial<Omit<TimerSession, "id">>,
+): void {
+  const next = state.timerSessions.map((s) =>
+    s.id === id ? { ...s, ...patch } : s,
+  );
+  storage.set(KEYS.timerSessions, next);
+  setState({ timerSessions: next });
+}
+
 export function deleteTimerSession(id: EntityId): void {
   const next = state.timerSessions.map((s) =>
     s.id === id ? { ...s, isDeleted: true, deletedAt: Date.now() } : s,

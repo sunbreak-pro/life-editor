@@ -34,6 +34,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { BottomSheet } from "../components/BottomSheet";
 import { Drawer } from "../components/Drawer";
 import { useShell } from "../context/ShellContext";
+import { useDismissOnEscape } from "../hooks/useDismissOnEscape";
 import { useMockStore } from "../hooks/useMockStore";
 import {
   addNote,
@@ -503,13 +504,19 @@ function MaterialsToolbar({
         borderBottom: `1px solid ${C.surface1}`,
       }}
     >
-      <div className="flex-1 grid grid-cols-2 gap-1 mx-1">
+      <div
+        className="flex-1 grid grid-cols-2 gap-1 mx-1"
+        role="tablist"
+        aria-label="資料種別"
+      >
         {(["notes", "daily"] as Kind[]).map((k) => {
           const active = kind === k;
           return (
             <button
               key={k}
               type="button"
+              role="tab"
+              aria-selected={active}
               onClick={() => onKindChange(k)}
               className="h-9 text-sm transition active:opacity-70"
               style={{
@@ -2704,6 +2711,7 @@ function ConfirmModal({
   onCancel: () => void;
   onConfirm: () => void;
 }) {
+  useDismissOnEscape(true, onCancel);
   return (
     <>
       <button
@@ -2715,6 +2723,9 @@ function ConfirmModal({
       />
       <div className="fixed inset-0 flex items-center justify-center p-4 pointer-events-none">
         <div
+          role="dialog"
+          aria-modal="true"
+          aria-label={title}
           className="w-full max-w-xs rounded-2xl p-4 flex flex-col gap-3 pointer-events-auto"
           style={{ background: C.base, border: `1px solid ${C.surface1}` }}
         >

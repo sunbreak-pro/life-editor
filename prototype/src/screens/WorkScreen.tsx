@@ -9,26 +9,41 @@ import {
   Search,
   Settings as SettingsIcon,
   SkipForward,
-  Timer as TimerIcon,
   Trash2,
   X,
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { BottomSheet } from "../components/BottomSheet";
 import { Drawer } from "../components/Drawer";
+import { SessionHistoryList } from "../components/SessionHistoryList";
 import { useShell } from "../context/ShellContext";
+import { useDismissOnEscape } from "../hooks/useDismissOnEscape";
 import { useMockStore } from "../hooks/useMockStore";
+import { useTimer } from "../hooks/useTimer";
 import {
   addPreset,
-  addTimerSession,
   deletePreset,
-  deleteTimerSession,
   setActivePresetId,
   setAutoStartBreaks,
-  setCurrentTaskId,
   updatePreset,
   updateScheduleItem,
 } from "../lib/mockStore";
+import {
+  activateHeldTimer,
+  changePreset,
+  changeSessionType,
+  keepAndSwitchTask,
+  MAX_PARALLEL_TIMERS,
+  nextSession,
+  pauseTimer,
+  resetTimer,
+  setDraftComment,
+  skipTimer,
+  startTimer,
+  stopCompletion,
+  switchTask,
+} from "../lib/timerEngine";
+import type { HeldTimer } from "../lib/timerEngine";
 import { C } from "../lib/theme";
 import type {
   PomodoroPreset,
@@ -53,29 +68,6 @@ const formatCountdown = (sec: number): string => {
   const m = Math.floor(s / 60);
   const ss = s % 60;
   return `${pad2(m)}:${pad2(ss)}`;
-};
-
-const formatDurationMin = (sec: number): string => `${Math.round(sec / 60)}m`;
-
-const ymd = (d: Date): string =>
-  `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
-
-const formatDateLabel = (ts: number, today: Date): string => {
-  const d = new Date(ts);
-  const y = ymd(d);
-  const t = ymd(today);
-  const yesterday = new Date(today);
-  yesterday.setDate(yesterday.getDate() - 1);
-  const yes = ymd(yesterday);
-  if (y === t) return "今日";
-  if (y === yes) return "昨日";
-  return `${d.getMonth() + 1}月${d.getDate()}日`;
-};
-
-const plannedSecFor = (preset: PomodoroPreset, type: SessionType): number => {
-  if (type === "WORK") return preset.workMin * 60;
-  if (type === "BREAK") return preset.breakMin * 60;
-  return preset.longBreakMin * 60;
 };
 
 const mapTags = (tags: WikiTag[]): Map<string, WikiTag> => {
@@ -110,6 +102,13 @@ export function WorkScreen() {
   const activePreset =
     presets.find((p) => p.id === activePresetId) ?? presets[0] ?? null;
   const currentTask = scheduleItems.find((s) => s.id === currentTaskId) ?? null;
+  const isRunning = useTimer((s) => s.isRunning);
+  const hasStarted = useTimer((s) => s.hasStarted);
+  const activeSessionType = useTimer((s) => s.sessionType);
+  const activeRemainingSec = useTimer((s) => s.remainingSec);
+  const heldTimers = useTimer((s) => s.heldTimers);
+  // 稼働中にサイドバーでプリセットを切り替えようとしたときの確認対象 (#4)。
+  const [pendingPreset, setPendingPreset] = useState<string | null>(null);
 
   return (
     <div
@@ -127,7 +126,6 @@ export function WorkScreen() {
             currentTask={currentTask}
             scheduleTasks={scheduleItems}
             wikiTags={wikiTags}
-            autoStartBreaks={autoStartBreaks}
           />
         )}
         {tab === "history" && <HistoryTab sessions={sessions} />}
@@ -144,9 +142,33 @@ export function WorkScreen() {
         <WorkSidebarContent
           presets={presets}
           activePresetId={activePresetId}
-          onPickPreset={(id) => {
-            setActivePresetId(id);
+          heldTimers={heldTimers}
+          activeWork={
+            hasStarted && activeSessionType === "WORK"
+              ? {
+                  title: currentTask?.title ?? "(タスクなし)",
+                  remainingSec: activeRemainingSec,
+                  isRunning,
+                }
+              : null
+          }
+          onActivateHeld={(id) => {
+            activateHeldTimer(id);
             closeSidebar();
+          }}
+          onPickPreset={(id) => {
+            if (id === activePresetId) {
+              closeSidebar();
+              return;
+            }
+            // 進行中(稼働 or PAUSE)はタイマーを破棄する確認を挟む。停止中は即切替。
+            if (hasStarted) {
+              setPendingPreset(id);
+              closeSidebar();
+            } else {
+              changePreset(id);
+              closeSidebar();
+            }
           }}
           onJump={(t) => {
             setTab(t);
@@ -154,6 +176,20 @@ export function WorkScreen() {
           }}
         />
       </Drawer>
+
+      {pendingPreset && (
+        <ConfirmModal
+          title="プリセットを切り替えますか?"
+          message={`進行中のタイマーは破棄され、「${
+            presets.find((p) => p.id === pendingPreset)?.name ?? ""
+          }」の最初から始まります`}
+          onCancel={() => setPendingPreset(null)}
+          onConfirm={() => {
+            changePreset(pendingPreset);
+            setPendingPreset(null);
+          }}
+        />
+      )}
     </div>
   );
 }
@@ -161,16 +197,101 @@ export function WorkScreen() {
 function WorkSidebarContent({
   presets,
   activePresetId,
+  heldTimers,
+  activeWork,
+  onActivateHeld,
   onPickPreset,
   onJump,
 }: {
   presets: PomodoroPreset[];
   activePresetId: string | null;
+  heldTimers: HeldTimer[];
+  activeWork: {
+    title: string;
+    remainingSec: number;
+    isRunning: boolean;
+  } | null;
+  onActivateHeld: (id: string) => void;
   onPickPreset: (id: string) => void;
   onJump: (tab: SubTab) => void;
 }) {
+  const parallelCount = (activeWork ? 1 : 0) + heldTimers.length;
   return (
     <div className="flex-1 overflow-y-auto flex flex-col gap-5 p-3">
+      {parallelCount > 0 && (
+        <section className="flex flex-col gap-2">
+          <div
+            className="text-xs flex items-center gap-1"
+            style={{ color: C.subtext0 }}
+          >
+            <span className="flex-1">進行中タイマー</span>
+            <span>
+              {parallelCount}/{MAX_PARALLEL_TIMERS}
+            </span>
+          </div>
+          <div className="flex flex-col gap-1">
+            {activeWork && (
+              <div
+                className="min-h-[44px] px-3 rounded-md flex items-center gap-2"
+                style={{ background: C.surface1, color: C.text }}
+              >
+                <span
+                  className="w-2 h-2 rounded-full shrink-0"
+                  style={{
+                    background: activeWork.isRunning ? C.green : C.overlay0,
+                  }}
+                />
+                <span className="text-sm flex-1 truncate">
+                  {activeWork.title}
+                </span>
+                <span
+                  className="text-xs font-mono"
+                  style={{ color: C.subtext0 }}
+                >
+                  {formatCountdown(activeWork.remainingSec)}
+                </span>
+                <span
+                  className="text-[10px] px-1.5 py-0.5 rounded shrink-0"
+                  style={{
+                    background: C.mauve,
+                    color: C.base,
+                    fontWeight: 600,
+                  }}
+                >
+                  現在
+                </span>
+              </div>
+            )}
+            {heldTimers.map((t) => (
+              <button
+                key={t.id}
+                type="button"
+                onClick={() => onActivateHeld(t.id)}
+                aria-label={`${t.taskTitle ?? "(タスクなし)"} のタイマーに切替`}
+                className="min-h-[44px] px-3 rounded-md flex items-center gap-2 text-left transition active:scale-[0.99]"
+                style={{ background: C.surface0, color: C.subtext1 }}
+              >
+                <span
+                  className="w-2 h-2 rounded-full shrink-0"
+                  style={{ background: t.isRunning ? C.green : C.overlay0 }}
+                />
+                <span
+                  className="text-sm flex-1 truncate"
+                  style={{ color: C.text }}
+                >
+                  {t.taskTitle ?? "(タスクなし)"}
+                </span>
+                <span
+                  className="text-xs font-mono"
+                  style={{ color: C.subtext0 }}
+                >
+                  {formatCountdown(t.remainingSec)}
+                </span>
+              </button>
+            ))}
+          </div>
+        </section>
+      )}
       <section className="flex flex-col gap-2">
         <div className="text-xs" style={{ color: C.subtext0 }}>
           プリセット切替
@@ -253,6 +374,8 @@ function SubTabBar({
   return (
     <div
       className="h-12 grid grid-cols-3 shrink-0"
+      role="tablist"
+      aria-label="作業"
       style={{ background: C.mantle, borderBottom: `1px solid ${C.surface1}` }}
     >
       {items.map((it) => {
@@ -261,6 +384,8 @@ function SubTabBar({
           <button
             key={it.id}
             type="button"
+            role="tab"
+            aria-selected={active}
             onClick={() => onChange(it.id)}
             className="text-sm transition active:opacity-70 flex items-center justify-center"
             style={{
@@ -282,165 +407,64 @@ function TimerTab({
   currentTask,
   scheduleTasks,
   wikiTags,
-  autoStartBreaks,
 }: {
   preset: PomodoroPreset;
   currentTask: ScheduleItem | null;
   scheduleTasks: ScheduleItem[];
   wikiTags: WikiTag[];
-  autoStartBreaks: boolean;
 }) {
-  const [sessionType, setSessionType] = useState<SessionType>("WORK");
-  const [remainingSec, setRemainingSec] = useState<number>(
-    plannedSecFor(preset, "WORK"),
-  );
-  const [isRunning, setIsRunning] = useState(false);
-  const [completedWorks, setCompletedWorks] = useState(0);
-  const [pulseKey, setPulseKey] = useState(0);
-  const [completionModal, setCompletionModal] = useState<{
-    type: SessionType;
-    durationSec: number;
-    skipped: boolean;
-  } | null>(null);
+  // タイマー実行状態はモジュール singleton (timerEngine) が保持する。セクション間を
+  // 移動して TimerTab が unmount されても動き続け、remainingSec を読むここだけが
+  // 250ms ごとに再描画される。
+  const sessionType = useTimer((s) => s.sessionType);
+  const remainingSec = useTimer((s) => s.remainingSec);
+  const isRunning = useTimer((s) => s.isRunning);
+  const completedWorks = useTimer((s) => s.completedWorks);
+  const pulseKey = useTimer((s) => s.pulseKey);
+  const autoCountdown = useTimer((s) => s.autoCountdown);
+  const completionModal = useTimer((s) => s.completionModal);
+  const draftComment = useTimer((s) => s.draftComment);
+  const hasStarted = useTimer((s) => s.hasStarted);
+
   const [pickerOpen, setPickerOpen] = useState(false);
   const [taskDoneAsk, setTaskDoneAsk] = useState(false);
-  const [autoCountdown, setAutoCountdown] = useState<number | null>(null);
+  // セッション種別を稼働中に切り替えようとしたときの確認対象 (#3)。
+  const [pendingType, setPendingType] = useState<SessionType | null>(null);
+  // タスク切替時の保持/破棄ダイアログ対象 (#multi-timer)。
+  const [pendingTaskSwitch, setPendingTaskSwitch] = useState<{
+    id: string | null;
+  } | null>(null);
+  const [taskLimitNote, setTaskLimitNote] = useState(false);
 
-  const intervalRef = useRef<number | null>(null);
-  const startedAtRef = useRef<number>(0);
-  const plannedRef = useRef<number>(plannedSecFor(preset, "WORK"));
-  const endHandlerRef = useRef<(skipped: boolean) => void>(() => {});
+  // 現在のアクティブタイマーは「保持」できるか (WORK かつ開始済み = 稼働 or PAUSE)。
+  const canHold = sessionType === "WORK" && hasStarted;
 
-  useEffect(() => {
-    if (!isRunning) {
-      setRemainingSec(plannedSecFor(preset, sessionType));
-      plannedRef.current = plannedSecFor(preset, sessionType);
-    }
-  }, [preset, sessionType, isRunning]);
-
-  useEffect(() => {
-    if (!isRunning) {
-      if (intervalRef.current !== null) {
-        clearInterval(intervalRef.current);
-        intervalRef.current = null;
-      }
-      return;
-    }
-    intervalRef.current = window.setInterval(() => {
-      setRemainingSec((prev) => {
-        if (prev <= 1) {
-          window.setTimeout(() => endHandlerRef.current(false), 0);
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
-    return () => {
-      if (intervalRef.current !== null) {
-        clearInterval(intervalRef.current);
-        intervalRef.current = null;
-      }
-    };
-  }, [isRunning]);
-
-  useEffect(() => {
-    if (autoCountdown === null) return;
-    if (autoCountdown <= 0) {
-      setAutoCountdown(null);
-      setSessionType("BREAK");
-      setRemainingSec(plannedSecFor(preset, "BREAK"));
-      plannedRef.current = plannedSecFor(preset, "BREAK");
-      startedAtRef.current = Date.now();
-      setIsRunning(true);
-      return;
-    }
-    const t = window.setTimeout(
-      () => setAutoCountdown((n) => (n === null ? null : n - 1)),
-      1000,
-    );
-    return () => clearTimeout(t);
-  }, [autoCountdown, preset]);
-
-  const handleSessionEnd = (skipped: boolean) => {
-    setIsRunning(false);
-    const planned = plannedRef.current;
-    const elapsed = skipped ? Math.max(0, planned - remainingSec) : planned;
-    setPulseKey((k) => k + 1);
-    if (startedAtRef.current === 0) {
-      startedAtRef.current = Date.now() - elapsed * 1000;
-    }
-    addTimerSession({
-      scheduleItemId: sessionType === "WORK" ? (currentTask?.id ?? null) : null,
-      scheduleItemTitle:
-        sessionType === "WORK" ? (currentTask?.title ?? null) : null,
-      sessionType,
-      plannedSec: planned,
-      durationSec: elapsed,
-      startedAt: startedAtRef.current,
-      completedAt: Date.now(),
-    });
-    if (sessionType === "WORK" && !skipped) {
-      setCompletedWorks((n) => n + 1);
-      if (currentTask && currentTask.status === "todo") {
-        updateScheduleItem(currentTask.id, { status: "doing" });
-      }
-    }
-    setCompletionModal({ type: sessionType, durationSec: elapsed, skipped });
-  };
-  endHandlerRef.current = handleSessionEnd;
-
-  const handleStart = () => {
-    startedAtRef.current = Date.now();
-    plannedRef.current = plannedSecFor(preset, sessionType);
-    setIsRunning(true);
-  };
-
-  const handlePause = () => setIsRunning(false);
-
-  const handleReset = () => {
-    setIsRunning(false);
-    setRemainingSec(plannedSecFor(preset, sessionType));
-    plannedRef.current = plannedSecFor(preset, sessionType);
-  };
-
-  const handleSkip = () => handleSessionEnd(true);
-
-  const handleNextSession = () => {
-    if (!completionModal) return;
-    const justFinished = completionModal.type;
-    setCompletionModal(null);
-    let nextType: SessionType;
-    if (justFinished === "WORK") {
-      const cycle = (completedWorks + 1) % preset.sessionsBeforeLongBreak;
-      nextType = cycle === 0 ? "LONG_BREAK" : "BREAK";
+  const handleSessionTypeTap = (t: SessionType) => {
+    if (t === sessionType) return;
+    if (isRunning) {
+      setPendingType(t); // 稼働中は確認ダイアログを挟む
     } else {
-      nextType = "WORK";
-    }
-    setSessionType(nextType);
-    setRemainingSec(plannedSecFor(preset, nextType));
-    plannedRef.current = plannedSecFor(preset, nextType);
-    if (justFinished === "WORK" && autoStartBreaks && nextType !== "WORK") {
-      setAutoCountdown(5);
-    } else {
-      setIsRunning(false);
+      changeSessionType(t);
     }
   };
 
-  const handleStop = () => {
-    setCompletionModal(null);
-    setRemainingSec(plannedSecFor(preset, sessionType));
-  };
-
-  const handlePickTask = (id: string | null) => {
-    setCurrentTaskId(id);
+  // タスク切替の起点。進行中なら保持/破棄ダイアログ、そうでなければ即切替。
+  const requestSwitchTask = (id: string | null) => {
     setPickerOpen(false);
+    if (id === (currentTask?.id ?? null)) return;
+    if (canHold) {
+      setTaskLimitNote(false);
+      setPendingTaskSwitch({ id });
+    } else {
+      switchTask(id);
+    }
   };
 
   const handleTaskComplete = () => {
     if (!currentTask) return;
     updateScheduleItem(currentTask.id, { status: "done" });
     setTaskDoneAsk(false);
-    setCurrentTaskId(null);
+    switchTask(null); // 完了したタスクのアクティブタイマーは破棄
   };
 
   const remainingColor =
@@ -454,15 +478,7 @@ function TimerTab({
 
   return (
     <div className="flex flex-col gap-4 px-3 py-4 pb-4">
-      <SessionTypeTabs
-        value={sessionType}
-        running={isRunning}
-        onChange={(t) => {
-          setSessionType(t);
-          setRemainingSec(plannedSecFor(preset, t));
-          plannedRef.current = plannedSecFor(preset, t);
-        }}
-      />
+      <SessionTypeTabs value={sessionType} onChange={handleSessionTypeTap} />
       <div className="flex flex-col items-center py-4">
         <div
           key={pulseKey}
@@ -492,7 +508,7 @@ function TimerTab({
             task={currentTask}
             tagById={mapTags(wikiTags)}
             onTap={() => setPickerOpen(true)}
-            onClear={() => setCurrentTaskId(null)}
+            onClear={() => requestSwitchTask(null)}
           />
         ) : (
           <button
@@ -509,10 +525,30 @@ function TimerTab({
           </button>
         )}
       </div>
+      {sessionType === "WORK" && (
+        <div className="flex flex-col gap-1">
+          <div className="text-xs" style={{ color: C.subtext0 }}>
+            このセッションのメモ
+          </div>
+          <textarea
+            value={draftComment}
+            onChange={(e) => setDraftComment(e.target.value)}
+            placeholder="やったこと・気づきをメモ... (完了すると履歴に残ります)"
+            rows={2}
+            className="w-full bg-transparent outline-none text-sm p-2 rounded-md"
+            style={{
+              color: C.text,
+              border: `1px solid ${C.surface1}`,
+              background: C.crust,
+              resize: "none",
+            }}
+          />
+        </div>
+      )}
       <div className="grid grid-cols-[1fr_2fr_1fr] gap-2 mt-2">
         <button
           type="button"
-          onClick={handleReset}
+          onClick={resetTimer}
           aria-label="リセット"
           className="h-14 rounded-md flex items-center justify-center transition-transform active:scale-[0.98]"
           style={{ background: C.surface0, color: C.text }}
@@ -521,7 +557,7 @@ function TimerTab({
         </button>
         <button
           type="button"
-          onClick={isRunning ? handlePause : handleStart}
+          onClick={isRunning ? pauseTimer : startTimer}
           aria-label={isRunning ? "一時停止" : "スタート"}
           className="h-14 rounded-md flex items-center justify-center gap-2 transition-transform active:scale-[0.98] text-base font-semibold"
           style={{ background: C.mauve, color: C.base }}
@@ -531,7 +567,7 @@ function TimerTab({
         </button>
         <button
           type="button"
-          onClick={handleSkip}
+          onClick={skipTimer}
           aria-label="スキップ"
           className="h-14 rounded-md flex items-center justify-center transition-transform active:scale-[0.98]"
           style={{ background: C.surface0, color: C.text }}
@@ -555,7 +591,7 @@ function TimerTab({
         wikiTags={wikiTags}
         selectedId={currentTask?.id ?? null}
         onClose={() => setPickerOpen(false)}
-        onPick={handlePickTask}
+        onPick={requestSwitchTask}
       />
       {completionModal && (
         <SessionCompletionModal
@@ -563,8 +599,8 @@ function TimerTab({
           taskTitle={currentTask?.title ?? null}
           durationSec={completionModal.durationSec}
           skipped={completionModal.skipped}
-          onNext={handleNextSession}
-          onStop={handleStop}
+          onNext={nextSession}
+          onStop={stopCompletion}
         />
       )}
       {taskDoneAsk && currentTask && (
@@ -575,28 +611,142 @@ function TimerTab({
           onConfirm={handleTaskComplete}
         />
       )}
+      {pendingType && (
+        <ConfirmModal
+          title="セッションを切り替えますか?"
+          message="進行中のタイマーは破棄され、選んだセッションの最初から始まります"
+          onCancel={() => setPendingType(null)}
+          onConfirm={() => {
+            changeSessionType(pendingType);
+            setPendingType(null);
+          }}
+        />
+      )}
+      {pendingTaskSwitch && (
+        <TaskSwitchModal
+          fromTitle={currentTask?.title ?? "(タスクなし)"}
+          toTitle={
+            pendingTaskSwitch.id
+              ? (scheduleTasks.find((t) => t.id === pendingTaskSwitch.id)
+                  ?.title ?? "(タスク)")
+              : "(タスクなし)"
+          }
+          limitReached={taskLimitNote}
+          onKeep={() => {
+            const ok = keepAndSwitchTask(pendingTaskSwitch.id);
+            if (!ok) {
+              setTaskLimitNote(true); // 上限。ダイアログは開いたまま
+              return;
+            }
+            setPendingTaskSwitch(null);
+          }}
+          onDiscard={() => {
+            switchTask(pendingTaskSwitch.id);
+            setPendingTaskSwitch(null);
+          }}
+          onCancel={() => setPendingTaskSwitch(null)}
+        />
+      )}
     </div>
+  );
+}
+
+function TaskSwitchModal({
+  fromTitle,
+  toTitle,
+  limitReached,
+  onKeep,
+  onDiscard,
+  onCancel,
+}: {
+  fromTitle: string;
+  toTitle: string;
+  limitReached: boolean;
+  onKeep: () => void;
+  onDiscard: () => void;
+  onCancel: () => void;
+}) {
+  useDismissOnEscape(true, onCancel);
+  return (
+    <>
+      <button
+        type="button"
+        onClick={onCancel}
+        aria-label="閉じる"
+        className="fixed inset-0 z-[60]"
+        style={{ background: C.crust, opacity: 0.7 }}
+      />
+      <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 pointer-events-none">
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label="タスクを切り替えますか?"
+          className="w-full max-w-xs rounded-2xl p-4 flex flex-col gap-3 pointer-events-auto"
+          style={{ background: C.base, border: `1px solid ${C.surface1}` }}
+        >
+          <div className="text-sm font-medium" style={{ color: C.text }}>
+            タスクを切り替えますか?
+          </div>
+          <div className="text-xs" style={{ color: C.subtext0 }}>
+            「{fromTitle}」のタイマーを保持したまま「{toTitle}
+            」へ切り替えられます。
+          </div>
+          {limitReached && (
+            <div
+              className="text-xs rounded-md px-2 py-1.5"
+              style={{ background: `${C.red}22`, color: C.red }}
+            >
+              保持できるタイマーは最大 {MAX_PARALLEL_TIMERS}{" "}
+              つまでです。破棄して切り替えるか、進行中タイマーを整理してください。
+            </div>
+          )}
+          <div className="flex flex-col gap-2 mt-1">
+            <button
+              type="button"
+              onClick={onKeep}
+              className="h-10 rounded-md text-sm font-medium"
+              style={{ background: C.mauve, color: C.base }}
+            >
+              保持して切替
+            </button>
+            <button
+              type="button"
+              onClick={onDiscard}
+              className="h-10 rounded-md text-sm font-medium"
+              style={{ background: C.surface1, color: C.text }}
+            >
+              破棄して切替
+            </button>
+            <button
+              type="button"
+              onClick={onCancel}
+              className="h-10 rounded-md text-sm"
+              style={{ border: `1px solid ${C.surface1}`, color: C.subtext1 }}
+            >
+              キャンセル
+            </button>
+          </div>
+        </div>
+      </div>
+    </>
   );
 }
 
 function SessionTypeTabs({
   value,
-  running,
   onChange,
 }: {
   value: SessionType;
-  running: boolean;
   onChange: (t: SessionType) => void;
 }) {
+  // 稼働中でも押せる。切替の確認は呼び出し側 (handleSessionTypeTap) が担当する。
   const items: SessionType[] = ["WORK", "BREAK", "LONG_BREAK"];
   return (
     <div
       className="h-9 grid grid-cols-3 rounded-md overflow-hidden"
-      style={{
-        background: C.surface0,
-        opacity: running ? 0.5 : 1,
-        pointerEvents: running ? "none" : "auto",
-      }}
+      role="radiogroup"
+      aria-label="セッション種別"
+      style={{ background: C.surface0 }}
     >
       {items.map((it) => {
         const active = it === value;
@@ -605,6 +755,8 @@ function SessionTypeTabs({
           <button
             key={it}
             type="button"
+            role="radio"
+            aria-checked={active}
             onClick={() => onChange(it)}
             className="text-xs font-medium"
             style={{
@@ -882,130 +1034,7 @@ function TaskPickerModal({
 }
 
 function HistoryTab({ sessions }: { sessions: TimerSession[] }) {
-  const today = useMemo(() => new Date(), []);
-  const [longPressTarget, setLongPressTarget] = useState<string | null>(null);
-  const groups = useMemo(() => {
-    const map = new Map<string, TimerSession[]>();
-    for (const s of [...sessions].sort(
-      (a, b) => b.completedAt - a.completedAt,
-    )) {
-      const label = formatDateLabel(s.completedAt, today);
-      const arr = map.get(label) ?? [];
-      arr.push(s);
-      map.set(label, arr);
-    }
-    return Array.from(map.entries());
-  }, [sessions, today]);
-
-  if (groups.length === 0) {
-    return (
-      <div
-        className="h-full flex flex-col items-center justify-center gap-2 px-4 text-center"
-        style={{ color: C.subtext0 }}
-      >
-        <TimerIcon size={32} />
-        <div className="text-sm">セッション履歴はまだありません</div>
-        <div className="text-xs">Timer タブで開始しましょう</div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="flex flex-col pb-4">
-      {groups.map(([label, items]) => (
-        <section key={label}>
-          <header
-            className="px-3 py-2 text-xs font-medium sticky top-0 z-10"
-            style={{
-              color: C.subtext1,
-              background: C.mantle,
-              borderBottom: `1px solid ${C.surface1}`,
-            }}
-          >
-            {label} ({items.length})
-          </header>
-          {items.map((s) => (
-            <SessionRow
-              key={s.id}
-              session={s}
-              onAskDelete={() => setLongPressTarget(s.id)}
-            />
-          ))}
-        </section>
-      ))}
-      {longPressTarget && (
-        <ConfirmModal
-          title="このセッションを削除しますか?"
-          danger
-          onCancel={() => setLongPressTarget(null)}
-          onConfirm={() => {
-            deleteTimerSession(longPressTarget);
-            setLongPressTarget(null);
-          }}
-        />
-      )}
-    </div>
-  );
-}
-
-function SessionRow({
-  session,
-  onAskDelete,
-}: {
-  session: TimerSession;
-  onAskDelete: () => void;
-}) {
-  const timerRef = useRef<number | null>(null);
-  const startPress = () => {
-    timerRef.current = window.setTimeout(onAskDelete, 600);
-  };
-  const cancelPress = () => {
-    if (timerRef.current !== null) {
-      clearTimeout(timerRef.current);
-      timerRef.current = null;
-    }
-  };
-  const c = sessionColor(session.sessionType);
-  const time = new Date(session.completedAt - session.durationSec * 1000);
-  return (
-    <div
-      onPointerDown={startPress}
-      onPointerUp={cancelPress}
-      onPointerLeave={cancelPress}
-      onPointerCancel={cancelPress}
-      className="min-h-[56px] flex items-center px-3 gap-2 select-none"
-      style={{ borderBottom: `1px solid ${C.surface1}` }}
-    >
-      <div
-        className="text-sm font-mono shrink-0 w-12"
-        style={{ color: C.subtext0 }}
-      >
-        {pad2(time.getHours())}:{pad2(time.getMinutes())}
-      </div>
-      <span
-        className="w-2 h-2 rounded-full shrink-0"
-        style={{ background: c }}
-      />
-      <div
-        className="flex-1 text-sm truncate"
-        style={{ color: session.scheduleItemTitle ? C.text : C.subtext0 }}
-      >
-        {session.scheduleItemTitle ?? "(休憩)"}
-      </div>
-      <span
-        className="text-[10px] px-2 py-0.5 rounded-full shrink-0"
-        style={{ background: c, color: C.base, fontWeight: 600 }}
-      >
-        {sessionLabel(session.sessionType)}
-      </span>
-      <div
-        className="text-xs font-mono shrink-0 w-10 text-right"
-        style={{ color: C.subtext0 }}
-      >
-        {formatDurationMin(session.durationSec)}
-      </div>
-    </div>
-  );
+  return <SessionHistoryList sessions={sessions} />;
 }
 
 function SettingsTab({
@@ -1242,6 +1271,8 @@ function SliderRow({
         max={max}
         value={draft}
         onChange={(e) => handleChange(Number(e.target.value))}
+        aria-label={label}
+        aria-valuetext={`${draft}${suffix}`}
         className="w-full"
         style={{ accentColor: C.mauve }}
       />
@@ -1268,6 +1299,9 @@ function ToggleRow({
   return (
     <button
       type="button"
+      role="switch"
+      aria-checked={value}
+      aria-label={label}
       onClick={() => onChange(!value)}
       className="min-h-[44px] rounded-md px-3 flex items-center"
       style={{ background: C.surface0 }}
@@ -1494,6 +1528,7 @@ function ConfirmModal({
   onCancel: () => void;
   onConfirm: () => void;
 }) {
+  useDismissOnEscape(true, onCancel);
   return (
     <>
       <button
@@ -1505,6 +1540,9 @@ function ConfirmModal({
       />
       <div className="fixed inset-0 flex items-center justify-center p-4 pointer-events-none">
         <div
+          role="dialog"
+          aria-modal="true"
+          aria-label={title}
           className="w-full max-w-xs rounded-2xl p-4 flex flex-col gap-3 pointer-events-auto"
           style={{ background: C.base, border: `1px solid ${C.surface1}` }}
         >

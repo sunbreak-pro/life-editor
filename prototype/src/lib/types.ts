@@ -58,6 +58,8 @@ export interface TimerSession {
   durationSec: number;
   startedAt: number;
   completedAt: number;
+  /** Free-form memo about what was done this session (WORK sessions). */
+  comment?: string;
   isDeleted: boolean;
   deletedAt?: number;
 }
