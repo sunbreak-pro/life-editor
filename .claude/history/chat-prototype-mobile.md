@@ -1,5 +1,21 @@
 # HISTORY (chat-prototype-mobile)
 
+### 2026-06-06 - Materials エディタ刷新: 白紙キャンバス化 + 左端 + ハンドルのフォーマットツール
+
+#### 概要
+
+Materials の Note/Daily エディタ本体を Notion/Obsidian 風に再設計。(1) 本文の枠線・暗色背景・等幅フォント・タイトル下線を撤去し地のページに溶け込む「白紙キャンバス」化 (サンセリフ・最低1画面分を占める全面自動拡張・余白タップで末尾にカーソル)。(2) フォーマットツールの方式を 3 段階で試行: 当初のキーボード追従 bottom バー → カーソル行追従ポップアップ (可視性が悪く失敗) → 最終的に「左端の + ハンドル」方式に確定。普段は現在のカーソル行の左端に小さな + のみ表示し、タップで初めてツールバーが開く。改行・別行タップ・フォーカス喪失で自動クローズ。tsc -b + vite build green、session-verifier PASS、実機で + の判定 OK 済み。
+
+#### 変更点
+
+- **[refactor] 本文白紙キャンバス化 (`EditorView`)**: textarea から border/`C.crust` 背景/`font-mono`/固定 rows/resize を撤去、サンセリフ化、タイトル下線も撤去。エディタを「メタヘッダ(タイトル/気分/タグ) / 本文キャンバス / フッタ(リンク/バックリンク)」の3段に再構成。本文ラッパに `flex: 1 0 auto` を与え最低1画面分を占有、余白 onClick で末尾にカーソル
+- **[feat] textarea 自動拡張**: `useLayoutEffect([bodyDraft])` で `height=auto→scrollHeight` 追従、内部スクロールを殺し外側のみスクロール。本文左に gutter (`pl-8`) 確保
+- **[feat] 左端 + ハンドル (`EditorFormatPopup`、旧 `KeyboardAccessoryBar` を改名)**: フォーカス中のみ現在カーソル行の左端に小さな + を表示し行へ縦追従 (`top: handleTop - 3` で視覚中心補正)。タップで `toolbarOpen` をトグルしツールバーを開閉
+- **[feat] カーソル位置の実測 (`measureCaretLine` / `caretLineIndex`)**: textarea に座標 API が無いため、同 font/padding/width の不可視ミラー div に本文を流し込みマーカー span の offsetTop でカーソル行 Y を実測。行番号も算出
+- **[feat] 自動クローズ条件**: 開いた行と異なる行へ移動 (改行/別箇所タップ) / blur で toolbar・command menu を畳む。再フォーカス時に勝手に開かないよう状態リセット。`/` ショートカットは toolbar+menu を開く形へ変更
+- **[refactor] ツールバー配置をスクロールコンテナ内 absolute へ**: 旧 visualViewport bottom 追従ロジックを撤去し本文と同じ器に置いて自然スクロール追従。`pos` はポップアップ高さ実測で above/below フリップ
+- **検証**: `npx tsc -b --force` exit 0 / `npm run build` exit 0 (≈430 kB / gzip ≈124 kB)。`prettier --check` 準拠。session-verifier 全ゲート PASS (lint/test はプロトタイプに機構なしで skip)
+
 ### 2026-06-03 - Pomodoro 強化: タイマー実時刻化＋セクション間継続 / Settings 再設計＋横断 a11y / HISTORY 改善 / マルチタイマー
 
 #### 概要
@@ -69,24 +85,3 @@ iOS additions 要件 C-2 を prototype 環境で実装。Schedule 画面の左 S
 - [x] AC1: 多選択タイプフィルタで Calendar (itemsByDay) と DayFlow (listGroups) が追従 (prototype 4 type 範囲)
 - [x] AC2: 並び順切替で DayFlow の並びが変わる、Calendar は compareTime 固定
 - [x] AC3: WikiTag フィルタは wikiTags 空時に UI 非表示 (Mobile Optional Provider 相当)
-
-### 2026-05-30 - M-3: 空行ヒント + `/` キーバインド + IME ガード (iOS additions)
-
-#### 概要
-
-M-2 と同じ KeyboardAccessoryBar 基盤に、現在行が空でフォーカス + 非 IME のときだけ「/ コマンドを挿入」ヒントチップをバー上にフロート表示。チップタップ or textarea で `/` 入力するとスラッシュコマンドメニュー (M-2) が起動する。IME 変換中はヒントも `/` 起動も抑止 (CLAUDE.md §6.6 IME 規約準拠)。
-
-#### 変更点
-
-- **[feat] 現在行空判定** (`lineEmpty` state): selectionchange + bodyDraft の変化で再計算。`textarea.selectionStart === selectionEnd` かつ現在行 `trim() === ""` のときのみ true。document.activeElement で focus を二重確認
-- **[feat] IME 状態管理** (`composing` state): textareaRef に `compositionstart` / `compositionend` listener を取り付け
-- **[feat] `/` キーバインド**: textarea keydown を listen し、`e.key === "/"` かつ `!e.isComposing` かつ空行 + 単一カーソル時に `e.preventDefault()` + `setCommandOpen(true)`。/ 入力自体は消費される
-- **[feat] hint chip**: バーの上 (`commandOpen` ポップオーバーと同じ位置) に半透明 + mauve border の「/ コマンドを挿入」ピル。`focused && !composing && lineEmpty && !commandOpen` のときのみ可視。タップで setCommandOpen(true)
-- **[a11y] `aria-label="スラッシュコマンドを開く"`**
-- **検証**: `npx tsc --noEmit` exit 0 / `npm run build` 394.73 kB / gzip 113.80 kB (+2 kB / +0.5 kB)
-
-#### Acceptance Criteria 達成
-
-- [x] AC1: 空行にフォーカスがあるときのみヒント表示
-- [x] AC2: ヒントタップ または `/` 入力でメニュー起動
-- [x] AC3: IME 変換中はヒント非表示 + `/` 起動抑止 (composing state + `e.isComposing` 二重ガード)

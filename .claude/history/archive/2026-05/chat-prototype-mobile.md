@@ -2,6 +2,27 @@
 
 > chat-prototype-mobile の `history/chat-*.md` から 5 件超過時に移動された古いエントリ。SSOT は元の `history/chat-prototype-mobile.md`。
 
+### 2026-05-30 - M-3: 空行ヒント + `/` キーバインド + IME ガード (iOS additions)
+
+#### 概要
+
+M-2 と同じ KeyboardAccessoryBar 基盤に、現在行が空でフォーカス + 非 IME のときだけ「/ コマンドを挿入」ヒントチップをバー上にフロート表示。チップタップ or textarea で `/` 入力するとスラッシュコマンドメニュー (M-2) が起動する。IME 変換中はヒントも `/` 起動も抑止 (CLAUDE.md §6.6 IME 規約準拠)。
+
+#### 変更点
+
+- **[feat] 現在行空判定** (`lineEmpty` state): selectionchange + bodyDraft の変化で再計算。`textarea.selectionStart === selectionEnd` かつ現在行 `trim() === ""` のときのみ true。document.activeElement で focus を二重確認
+- **[feat] IME 状態管理** (`composing` state): textareaRef に `compositionstart` / `compositionend` listener を取り付け
+- **[feat] `/` キーバインド**: textarea keydown を listen し、`e.key === "/"` かつ `!e.isComposing` かつ空行 + 単一カーソル時に `e.preventDefault()` + `setCommandOpen(true)`。/ 入力自体は消費される
+- **[feat] hint chip**: バーの上 (`commandOpen` ポップオーバーと同じ位置) に半透明 + mauve border の「/ コマンドを挿入」ピル。`focused && !composing && lineEmpty && !commandOpen` のときのみ可視。タップで setCommandOpen(true)
+- **[a11y] `aria-label="スラッシュコマンドを開く"`**
+- **検証**: `npx tsc --noEmit` exit 0 / `npm run build` 394.73 kB / gzip 113.80 kB (+2 kB / +0.5 kB)
+
+#### Acceptance Criteria 達成
+
+- [x] AC1: 空行にフォーカスがあるときのみヒント表示
+- [x] AC2: ヒントタップ または `/` 入力でメニュー起動
+- [x] AC3: IME 変換中はヒント非表示 + `/` 起動抑止 (composing state + `e.isComposing` 二重ガード)
+
 ### 2026-05-30 - M-2: スラッシュコマンドメニュー (iOS additions)
 
 #### 概要
