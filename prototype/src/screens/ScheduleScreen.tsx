@@ -28,6 +28,7 @@ import {
 } from "../lib/mockStore";
 import { C } from "../lib/theme";
 import type {
+  ItemRole,
   ScheduleItem,
   ScheduleItemType,
   TaskStatus,
@@ -180,10 +181,32 @@ function buildListGroups(
   ].filter((g) => g.items.length > 0);
 }
 
+type RecurrenceKind = "daily" | "weekly" | "monthly";
+
+/** add-item セレクタの 5 role 定義（表示順）。CLAUDE.md §4.3 */
+const ROLE_OPTIONS: { v: ItemRole; label: string }[] = [
+  { v: "task", label: "タスク" },
+  { v: "event", label: "予定" },
+  { v: "routine", label: "ルーチン" },
+  { v: "note", label: "ノート" },
+  { v: "daily", label: "日次" },
+];
+
+const roleLabelJa = (role: ItemRole): string =>
+  ROLE_OPTIONS.find((r) => r.v === role)?.label ?? role;
+
+/** ScheduleItem の type から 5 role を逆引き（編集時の初期 role 決定用） */
+const roleFromType = (type: ScheduleItemType): ItemRole =>
+  type === "event" || type === "birthday" ? "event" : "task";
+
 interface EditDraft {
   id?: string;
   title: string;
   type: ScheduleItemType;
+  /** 作成導線の役割選択（items_meta role）。task/event は type に対応 */
+  role: ItemRole;
+  /** routine 選択時のみ使用 */
+  recurrence: RecurrenceKind;
   status: TaskStatus;
   due: string;
   time: string;
@@ -195,6 +218,8 @@ interface EditDraft {
 const emptyDraft = (preset?: Partial<EditDraft>): EditDraft => ({
   title: "",
   type: "task",
+  role: "task",
+  recurrence: "weekly",
   status: "todo",
   due: "",
   time: "",
@@ -209,6 +234,8 @@ function draftFromItem(item: ScheduleItem): EditDraft {
     id: item.id,
     title: item.title,
     type: item.type,
+    role: roleFromType(item.type),
+    recurrence: "weekly",
     status: item.status,
     due: item.due ?? "",
     time: item.time ?? "",
@@ -338,6 +365,14 @@ export function ScheduleScreen() {
   const [modalDraft, setModalDraft] = useState<EditDraft | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<ScheduleItem | null>(null);
   const [tagSheetOpen, setTagSheetOpen] = useState(false);
+  // routine/note/daily は本プロトタイプに一覧描画導線が無いためモック確定をトースト通知する
+  const [roleToast, setRoleToast] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!roleToast) return;
+    const id = window.setTimeout(() => setRoleToast(null), 2200);
+    return () => window.clearTimeout(id);
+  }, [roleToast]);
 
   const filtered = useMemo(() => {
     return scheduleItems.filter((it) => {
@@ -411,6 +446,17 @@ export function ScheduleScreen() {
     if (!modalDraft) return;
     const title = modalDraft.title.trim();
     if (!title) return;
+    // routine/note/daily は Schedule 画面に描画導線が無い（C-3: セレクタのみ 5 role 化）。
+    // 新規作成時はモック確定としてトースト通知し、schedule item は作らない。
+    const role = modalDraft.role;
+    if (
+      !modalDraft.id &&
+      (role === "routine" || role === "note" || role === "daily")
+    ) {
+      setRoleToast(`（モック）${roleLabelJa(role)}を作成しました`);
+      setModalDraft(null);
+      return;
+    }
     const cleaned = {
       title,
       type: modalDraft.type,
@@ -620,6 +666,16 @@ export function ScheduleScreen() {
           onChangeSortKey={setSortKey}
         />
       </Drawer>
+      {roleToast && (
+        <div
+          role="status"
+          aria-live="polite"
+          className="absolute left-1/2 -translate-x-1/2 bottom-24 z-[60] px-4 py-2 rounded-full text-sm shadow-lg pointer-events-none"
+          style={{ background: C.surface2, color: C.text }}
+        >
+          {roleToast}
+        </div>
+      )}
     </div>
   );
 }
@@ -1485,10 +1541,29 @@ function AddEventModal({
   const isHoliday = draft.type === "holiday";
   const isBirthday = draft.type === "birthday";
   const isEditing = !!draft.id;
+  const role = draft.role;
+  // role 別フォーム出し分け（C-3）
+  const isNoteLike = role === "note" || role === "daily"; // 本文中心・時刻なし
+  const isRoutine = role === "routine";
+  const showDate = role !== "note"; // note は日付を持たない
+  const showTime = !isBirthday && !isNoteLike; // task/event/routine のみ時刻
+  const bodyLabel = isNoteLike ? "本文" : "説明 (任意)";
   const titleValid = draft.title.trim().length > 0;
   const eventTimeMissing =
-    draft.type === "event" && (!draft.due || !draft.time);
-  const canSave = titleValid && !isHoliday && !eventTimeMissing;
+    role === "event" && !isBirthday && (!draft.due || !draft.time);
+  const dailyDateMissing = role === "daily" && !draft.due;
+  const canSave =
+    titleValid && !isHoliday && !eventTimeMissing && !dailyDateMissing;
+  const headerTitle = isEditing ? "予定の編集" : `${roleLabelJa(role)}の追加`;
+
+  // Esc で閉じる。テキスト入力中の IME 変換キャンセル (Escape) では閉じない。
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent): void => {
+      if (e.key === "Escape" && !e.isComposing) onClose();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
 
   // Esc で閉じる。テキスト入力中の IME 変換キャンセル (Escape) では閉じない。
   useEffect(() => {
@@ -1503,7 +1578,7 @@ function AddEventModal({
     <div
       role="dialog"
       aria-modal="true"
-      aria-label={isEditing ? "予定の編集" : "予定の追加"}
+      aria-label={headerTitle}
       className="absolute inset-0 z-50 flex flex-col"
       style={{ background: C.base }}
     >
@@ -1526,7 +1601,7 @@ function AddEventModal({
           className="flex-1 text-center text-base font-medium"
           style={{ color: C.text }}
         >
-          {isEditing ? "予定の編集" : "予定の追加"}
+          {headerTitle}
         </h2>
         <button
           type="button"
@@ -1565,40 +1640,46 @@ function AddEventModal({
         </Field>
 
         {!isEditing && (
-          <Field label="タイプ">
-            <div className="grid grid-cols-3 gap-2">
-              {(["task", "event", "birthday"] as const).map((t) => {
-                const active = draft.type === t;
+          <Field label="種類">
+            <div
+              role="radiogroup"
+              aria-label="作成する項目の種類"
+              className="grid grid-cols-5 gap-1.5"
+            >
+              {ROLE_OPTIONS.map((opt) => {
+                const active = role === opt.v;
                 return (
                   <button
-                    key={t}
+                    key={opt.v}
                     type="button"
+                    role="radio"
+                    aria-checked={active}
                     onClick={() =>
                       onChange({
                         ...draft,
-                        type: t,
-                        wikiTagIds:
-                          t === "birthday"
-                            ? Array.from(
-                                new Set([...draft.wikiTagIds, "tag-birthday"]),
-                              )
-                            : draft.wikiTagIds,
-                        time: t === "birthday" ? "" : draft.time,
-                        endTime: t === "birthday" ? "" : draft.endTime,
+                        role: opt.v,
+                        // schedule item として保存するのは task/event のみ。
+                        // それ以外は有効な ScheduleItemType "task" を維持（保存は分岐で抑止）。
+                        type: opt.v === "event" ? "event" : "task",
+                        // 時刻を持たない role では時刻をクリア
+                        time:
+                          opt.v === "note" || opt.v === "daily"
+                            ? ""
+                            : draft.time,
+                        endTime:
+                          opt.v === "note" || opt.v === "daily"
+                            ? ""
+                            : draft.endTime,
                       })
                     }
-                    className="h-10 rounded-md text-sm"
+                    className="min-h-[44px] rounded-md text-xs px-0.5"
                     style={{
                       background: active ? C.mauve : C.surface0,
                       color: active ? C.base : C.text,
                       fontWeight: active ? 600 : 400,
                     }}
                   >
-                    {t === "task"
-                      ? "タスク"
-                      : t === "event"
-                        ? "予定"
-                        : "誕生日"}
+                    {opt.label}
                   </button>
                 );
               })}
@@ -1606,23 +1687,66 @@ function AddEventModal({
           </Field>
         )}
 
-        <Field label="日付">
-          <input
-            type="date"
-            value={draft.due}
-            onChange={(e) => onChange({ ...draft, due: e.target.value })}
-            disabled={isHoliday}
-            className="w-full h-11 rounded-md px-3 text-sm"
-            style={{
-              background: C.surface0,
-              color: C.text,
-              border: `1px solid ${C.surface1}`,
-            }}
-          />
-        </Field>
+        {!isEditing && isRoutine && (
+          <Field label="繰り返し">
+            <div
+              role="radiogroup"
+              aria-label="繰り返し間隔"
+              className="grid grid-cols-3 gap-2"
+            >
+              {(
+                [
+                  { v: "daily", label: "毎日" },
+                  { v: "weekly", label: "毎週" },
+                  { v: "monthly", label: "毎月" },
+                ] as const
+              ).map((opt) => {
+                const active = draft.recurrence === opt.v;
+                return (
+                  <button
+                    key={opt.v}
+                    type="button"
+                    role="radio"
+                    aria-checked={active}
+                    onClick={() => onChange({ ...draft, recurrence: opt.v })}
+                    className="min-h-[44px] rounded-md text-sm"
+                    style={{
+                      background: active ? C.mauve : C.surface0,
+                      color: active ? C.base : C.text,
+                      fontWeight: active ? 600 : 400,
+                    }}
+                  >
+                    {opt.label}
+                  </button>
+                );
+              })}
+            </div>
+          </Field>
+        )}
 
-        {!isBirthday && (
-          <Field label={draft.type === "event" ? "時刻 (必須)" : "時刻 (任意)"}>
+        {showDate && (
+          <Field
+            label={
+              isRoutine ? "開始日" : role === "daily" ? "日付 (必須)" : "日付"
+            }
+          >
+            <input
+              type="date"
+              value={draft.due}
+              onChange={(e) => onChange({ ...draft, due: e.target.value })}
+              disabled={isHoliday}
+              className="w-full h-11 rounded-md px-3 text-sm"
+              style={{
+                background: C.surface0,
+                color: C.text,
+                border: `1px solid ${C.surface1}`,
+              }}
+            />
+          </Field>
+        )}
+
+        {showTime && (
+          <Field label={role === "event" ? "時刻 (必須)" : "時刻 (任意)"}>
             <div className="grid grid-cols-2 gap-2">
               <input
                 type="time"
@@ -1697,14 +1821,15 @@ function AddEventModal({
           </div>
         </Field>
 
-        <Field label="説明 (任意)">
+        <Field label={bodyLabel}>
           <textarea
             value={draft.description}
             onChange={(e) =>
               onChange({ ...draft, description: e.target.value })
             }
             disabled={isHoliday}
-            rows={4}
+            rows={isNoteLike ? 6 : 4}
+            placeholder={isNoteLike ? "本文を入力..." : undefined}
             className="w-full rounded-md px-3 py-2 text-sm leading-relaxed"
             style={{
               background: C.surface0,

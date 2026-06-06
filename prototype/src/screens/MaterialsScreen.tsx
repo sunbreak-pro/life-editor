@@ -29,7 +29,7 @@ import {
   Trash2,
   X,
 } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { BottomSheet } from "../components/BottomSheet";
 import { Drawer } from "../components/Drawer";
@@ -1295,6 +1295,15 @@ function EditorView({
     };
   }, []);
 
+  // 本文 textarea を内容に合わせて自動拡張する (Notion/Obsidian 風の白紙)。
+  // 内部スクロールを殺し、外側コンテナだけがスクロールする。
+  useLayoutEffect(() => {
+    const ta = textareaRef.current;
+    if (!ta) return;
+    ta.style.height = "auto";
+    ta.style.height = `${ta.scrollHeight}px`;
+  }, [bodyDraft]);
+
   const flushSave = (patch: Partial<Pick<Note, "title" | "body">>) => {
     setSaveStatus("saving");
     updateNote(noteIdRef.current, patch);
@@ -1428,226 +1437,142 @@ function EditorView({
         </IconBtn>
       </header>
 
-      <div className="flex-1 overflow-auto p-3 flex flex-col gap-3 relative">
-        <input
-          value={titleDraft}
-          onChange={(e) => handleTitleChange(e.target.value)}
-          placeholder={note.kind === "daily" ? "日付" : "タイトル"}
-          disabled={note.kind === "daily"}
-          className="text-xl font-semibold bg-transparent outline-none"
-          style={{
-            color: C.text,
-            borderBottom: `2px solid ${C.surface1}`,
-            paddingBottom: 4,
-          }}
-        />
+      <div className="flex-1 overflow-auto flex flex-col relative">
+        <div className="px-4 pt-3 flex flex-col gap-3">
+          <input
+            value={titleDraft}
+            onChange={(e) => handleTitleChange(e.target.value)}
+            placeholder={note.kind === "daily" ? "日付" : "タイトル"}
+            disabled={note.kind === "daily"}
+            className="text-2xl font-bold bg-transparent outline-none"
+            style={{ color: C.text }}
+          />
 
-        {note.kind === "daily" && (
-          <button
-            type="button"
-            onClick={onOpenMoodSheet}
-            className="self-start h-9 px-3 rounded-full flex items-center gap-2 text-xs"
-            style={{
-              background: C.surface0,
-              color: C.text,
-              border: `1px solid ${C.surface1}`,
-            }}
-          >
-            <span
-              className="w-3 h-3 rounded-full"
-              style={{ background: MOOD_COLOR[note.mood ?? "green"] }}
-            />
-            {MOOD_LABEL[note.mood ?? "green"]}
-          </button>
-        )}
-
-        <div className="flex items-center flex-wrap gap-2">
-          {note.wikiTagIds.map((id) => {
-            const t = tagById.get(id);
-            if (!t) return null;
-            return (
-              <span
-                key={id}
-                className="h-7 px-2 rounded-full text-xs flex items-center gap-1"
-                style={{
-                  background: `${t.color}22`,
-                  color: t.color,
-                }}
-              >
-                #{t.name}
-                <button
-                  type="button"
-                  onClick={() => detachTag(note.id, id)}
-                  aria-label={`#${t.name} を外す`}
-                  className="opacity-70 active:opacity-100"
-                >
-                  <X size={12} />
-                </button>
-              </span>
-            );
-          })}
-          <button
-            type="button"
-            onClick={onOpenTagSheet}
-            aria-label="タグを追加"
-            className="h-7 px-2 rounded-full text-xs flex items-center gap-1"
-            style={{
-              background: C.surface0,
-              color: C.subtext0,
-              border: `1px dashed ${C.surface1}`,
-            }}
-          >
-            <Plus size={12} /> 追加
-          </button>
-        </div>
-
-        <textarea
-          ref={textareaRef}
-          value={bodyDraft}
-          onChange={(e) => handleBodyChange(e.target.value)}
-          onFocus={() => setBodyFocused(true)}
-          onBlur={() => setBodyFocused(false)}
-          onCompositionStart={() => setComposing(true)}
-          onCompositionEnd={(e) => {
-            setComposing(false);
-            handleBodyChange(e.currentTarget.value);
-          }}
-          onKeyDown={(e) => {
-            if (e.nativeEvent.isComposing) return;
-            if (e.key === "Escape") setSuggestions([]);
-            if (e.key === "Enter" && suggestions.length > 0 && !e.shiftKey) {
-              e.preventDefault();
-              insertSuggestion(suggestions[0].title);
-            }
-          }}
-          placeholder="ここに書く..."
-          rows={12}
-          className="font-mono text-sm leading-relaxed bg-transparent outline-none p-2 rounded-md"
-          style={{
-            color: C.text,
-            border: `1px solid ${C.surface1}`,
-            background: C.crust,
-            minHeight: 200,
-            paddingBottom: 72, // アクセサリバー高 (≈ 44) + 余白
-            resize: "vertical",
-          }}
-        />
-
-        {suggestions.length > 0 && (
-          <div
-            className="rounded-md overflow-hidden"
-            style={{
-              background: C.surface0,
-              border: `1px solid ${C.surface1}`,
-            }}
-          >
-            <div
-              className="px-3 py-1.5 text-[10px] uppercase tracking-wider"
-              style={{ color: C.subtext0, background: C.mantle }}
-            >
-              [[ リンク候補 (Enter で確定)
-            </div>
-            {suggestions.map((s) => (
-              <button
-                key={s.id}
-                type="button"
-                onClick={() => insertSuggestion(s.title)}
-                className="w-full min-h-[44px] px-3 flex items-center gap-2 text-left"
-                style={{ borderTop: `1px solid ${C.surface1}` }}
-              >
-                <span
-                  className="text-[10px] px-1.5 py-0.5 rounded shrink-0"
-                  style={{
-                    background: C.surface1,
-                    color: C.subtext1,
-                  }}
-                >
-                  {s.kind === "note"
-                    ? "Note"
-                    : s.kind === "daily"
-                      ? "Daily"
-                      : s.kind === "task"
-                        ? "Task"
-                        : "Event"}
-                </span>
-                <span className="text-sm truncate" style={{ color: C.text }}>
-                  {s.title}
-                </span>
-              </button>
-            ))}
-          </div>
-        )}
-
-        {detectedLinks.length > 0 && (
-          <section className="flex flex-col gap-1">
-            <div
-              className="text-[10px] uppercase tracking-wider"
-              style={{ color: C.subtext0 }}
-            >
-              本文中のリンク ({detectedLinks.length})
-            </div>
-            <div className="flex flex-wrap gap-2">
-              {detectedLinks.map((l) => (
-                <button
-                  key={l.title}
-                  type="button"
-                  onClick={() => {
-                    if (l.resolved && l.targetKind && l.targetId) {
-                      onNavigate({
-                        kind: l.targetKind as
-                          | "note"
-                          | "daily"
-                          | "task"
-                          | "event"
-                          | "birthday"
-                          | "holiday",
-                        id: l.targetId,
-                      });
-                    }
-                  }}
-                  disabled={!l.resolved}
-                  className="text-xs px-2 py-1 rounded-md disabled:cursor-not-allowed"
-                  style={{
-                    color: l.resolved ? C.sky : C.red,
-                    background: C.surface0,
-                    border: `1px solid ${l.resolved ? C.sky : C.red}66`,
-                    textDecoration: "underline",
-                  }}
-                >
-                  [[{l.title}]]
-                </button>
-              ))}
-            </div>
-          </section>
-        )}
-
-        {backlinks.length > 0 && (
-          <section className="flex flex-col">
+          {note.kind === "daily" && (
             <button
               type="button"
-              onClick={() => setBacklinkOpen((v) => !v)}
-              className="h-10 flex items-center gap-2 text-xs px-1"
-              style={{ color: C.subtext1 }}
+              onClick={onOpenMoodSheet}
+              className="self-start h-9 px-3 rounded-full flex items-center gap-2 text-xs"
+              style={{
+                background: C.surface0,
+                color: C.text,
+                border: `1px solid ${C.surface1}`,
+              }}
             >
-              {backlinkOpen ? (
-                <ChevronDown size={14} />
-              ) : (
-                <ChevronRight size={14} />
-              )}
-              このノートを参照しているもの ({backlinks.length})
+              <span
+                className="w-3 h-3 rounded-full"
+                style={{ background: MOOD_COLOR[note.mood ?? "green"] }}
+              />
+              {MOOD_LABEL[note.mood ?? "green"]}
             </button>
-            {backlinkOpen &&
-              backlinks.map((b, i) => (
+          )}
+
+          <div className="flex items-center flex-wrap gap-2">
+            {note.wikiTagIds.map((id) => {
+              const t = tagById.get(id);
+              if (!t) return null;
+              return (
+                <span
+                  key={id}
+                  className="h-7 px-2 rounded-full text-xs flex items-center gap-1"
+                  style={{
+                    background: `${t.color}22`,
+                    color: t.color,
+                  }}
+                >
+                  #{t.name}
+                  <button
+                    type="button"
+                    onClick={() => detachTag(note.id, id)}
+                    aria-label={`#${t.name} を外す`}
+                    className="opacity-70 active:opacity-100"
+                  >
+                    <X size={12} />
+                  </button>
+                </span>
+              );
+            })}
+            <button
+              type="button"
+              onClick={onOpenTagSheet}
+              aria-label="タグを追加"
+              className="h-7 px-2 rounded-full text-xs flex items-center gap-1"
+              style={{
+                background: C.surface0,
+                color: C.subtext0,
+                border: `1px dashed ${C.surface1}`,
+              }}
+            >
+              <Plus size={12} /> 追加
+            </button>
+          </div>
+        </div>
+
+        {/* 本文キャンバス: 枠なし・地のページに溶け込む白紙。最低 1 画面分を
+            占め (flex: 1 0 auto)、余白タップで本文末尾にカーソルが入る */}
+        <div
+          className="pl-8 pr-4 pt-2"
+          style={{ flex: "1 0 auto" }}
+          onClick={(e) => {
+            const ta = textareaRef.current;
+            if (ta && e.target !== ta) {
+              ta.focus();
+              const len = ta.value.length;
+              ta.setSelectionRange(len, len);
+            }
+          }}
+        >
+          <textarea
+            ref={textareaRef}
+            value={bodyDraft}
+            onChange={(e) => handleBodyChange(e.target.value)}
+            onFocus={() => setBodyFocused(true)}
+            onBlur={() => setBodyFocused(false)}
+            onCompositionStart={() => setComposing(true)}
+            onCompositionEnd={(e) => {
+              setComposing(false);
+              handleBodyChange(e.currentTarget.value);
+            }}
+            onKeyDown={(e) => {
+              if (e.nativeEvent.isComposing) return;
+              if (e.key === "Escape") setSuggestions([]);
+              if (e.key === "Enter" && suggestions.length > 0 && !e.shiftKey) {
+                e.preventDefault();
+                insertSuggestion(suggestions[0].title);
+              }
+            }}
+            placeholder="ここに書く..."
+            rows={1}
+            className="w-full block text-[15px] leading-relaxed bg-transparent outline-none resize-none"
+            style={{
+              color: C.text,
+              overflow: "hidden",
+              paddingBottom: 48, // 末尾行がキーボード上端に貼り付かない余白
+            }}
+          />
+        </div>
+
+        <div className="px-4 pb-4 flex flex-col gap-3">
+          {suggestions.length > 0 && (
+            <div
+              className="rounded-md overflow-hidden"
+              style={{
+                background: C.surface0,
+                border: `1px solid ${C.surface1}`,
+              }}
+            >
+              <div
+                className="px-3 py-1.5 text-[10px] uppercase tracking-wider"
+                style={{ color: C.subtext0, background: C.mantle }}
+              >
+                [[ リンク候補 (Enter で確定)
+              </div>
+              {suggestions.map((s) => (
                 <button
-                  key={`${b.fromEntityId}-${i}`}
+                  key={s.id}
                   type="button"
-                  onClick={() =>
-                    onNavigate({
-                      kind: b.fromKind,
-                      id: b.fromEntityId,
-                    })
-                  }
-                  className="min-h-[56px] flex items-start gap-2 px-3 py-2 text-left"
+                  onClick={() => insertSuggestion(s.title)}
+                  className="w-full min-h-[44px] px-3 flex items-center gap-2 text-left"
                   style={{ borderTop: `1px solid ${C.surface1}` }}
                 >
                   <span
@@ -1657,59 +1582,227 @@ function EditorView({
                       color: C.subtext1,
                     }}
                   >
-                    {b.fromKind === "note"
+                    {s.kind === "note"
                       ? "Note"
-                      : b.fromKind === "daily"
+                      : s.kind === "daily"
                         ? "Daily"
-                        : b.fromKind === "task"
+                        : s.kind === "task"
                           ? "Task"
                           : "Event"}
                   </span>
-                  <div className="flex-1 min-w-0 flex flex-col gap-0.5">
-                    <span
-                      className="text-sm font-medium truncate"
-                      style={{ color: C.text }}
-                    >
-                      {b.fromTitle || "(無題)"}
-                    </span>
-                    <span
-                      className="text-[10px] truncate"
-                      style={{ color: C.subtext0 }}
-                    >
-                      {b.snippet}
-                    </span>
-                  </div>
+                  <span className="text-sm truncate" style={{ color: C.text }}>
+                    {s.title}
+                  </span>
                 </button>
               ))}
-          </section>
-        )}
-      </div>
+            </div>
+          )}
 
-      {/* iOS 風キーボード追従アクセサリバー
-          Editor 表示中は常時可視、focus 中は visualViewport で
-          キーボード上に追従する */}
-      <KeyboardAccessoryBar
-        textareaRef={textareaRef}
-        focused={bodyFocused}
-        bodyDraft={bodyDraft}
-        onChangeBody={handleBodyChange}
-        onOpenTagSheet={onOpenTagSheet}
-      />
+          {detectedLinks.length > 0 && (
+            <section className="flex flex-col gap-1">
+              <div
+                className="text-[10px] uppercase tracking-wider"
+                style={{ color: C.subtext0 }}
+              >
+                本文中のリンク ({detectedLinks.length})
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {detectedLinks.map((l) => (
+                  <button
+                    key={l.title}
+                    type="button"
+                    onClick={() => {
+                      if (l.resolved && l.targetKind && l.targetId) {
+                        onNavigate({
+                          kind: l.targetKind as
+                            | "note"
+                            | "daily"
+                            | "task"
+                            | "event"
+                            | "birthday"
+                            | "holiday",
+                          id: l.targetId,
+                        });
+                      }
+                    }}
+                    disabled={!l.resolved}
+                    className="text-xs px-2 py-1 rounded-md disabled:cursor-not-allowed"
+                    style={{
+                      color: l.resolved ? C.sky : C.red,
+                      background: C.surface0,
+                      border: `1px solid ${l.resolved ? C.sky : C.red}66`,
+                      textDecoration: "underline",
+                    }}
+                  >
+                    [[{l.title}]]
+                  </button>
+                ))}
+              </div>
+            </section>
+          )}
+
+          {backlinks.length > 0 && (
+            <section className="flex flex-col">
+              <button
+                type="button"
+                onClick={() => setBacklinkOpen((v) => !v)}
+                className="h-10 flex items-center gap-2 text-xs px-1"
+                style={{ color: C.subtext1 }}
+              >
+                {backlinkOpen ? (
+                  <ChevronDown size={14} />
+                ) : (
+                  <ChevronRight size={14} />
+                )}
+                このノートを参照しているもの ({backlinks.length})
+              </button>
+              {backlinkOpen &&
+                backlinks.map((b, i) => (
+                  <button
+                    key={`${b.fromEntityId}-${i}`}
+                    type="button"
+                    onClick={() =>
+                      onNavigate({
+                        kind: b.fromKind,
+                        id: b.fromEntityId,
+                      })
+                    }
+                    className="min-h-[56px] flex items-start gap-2 px-3 py-2 text-left"
+                    style={{ borderTop: `1px solid ${C.surface1}` }}
+                  >
+                    <span
+                      className="text-[10px] px-1.5 py-0.5 rounded shrink-0"
+                      style={{
+                        background: C.surface1,
+                        color: C.subtext1,
+                      }}
+                    >
+                      {b.fromKind === "note"
+                        ? "Note"
+                        : b.fromKind === "daily"
+                          ? "Daily"
+                          : b.fromKind === "task"
+                            ? "Task"
+                            : "Event"}
+                    </span>
+                    <div className="flex-1 min-w-0 flex flex-col gap-0.5">
+                      <span
+                        className="text-sm font-medium truncate"
+                        style={{ color: C.text }}
+                      >
+                        {b.fromTitle || "(無題)"}
+                      </span>
+                      <span
+                        className="text-[10px] truncate"
+                        style={{ color: C.subtext0 }}
+                      >
+                        {b.snippet}
+                      </span>
+                    </div>
+                  </button>
+                ))}
+            </section>
+          )}
+        </div>
+
+        {/* 編集中のみ、カーソル行のすぐ上に出るフォーマットポップアップ。
+            scroll container 内に absolute 配置し、本文と一緒にスクロールする */}
+        <EditorFormatPopup
+          textareaRef={textareaRef}
+          focused={bodyFocused}
+          bodyDraft={bodyDraft}
+          onChangeBody={handleBodyChange}
+          onOpenTagSheet={onOpenTagSheet}
+        />
+      </div>
     </div>
   );
 }
 
 /**
- * Editor 用キーボード追従ツールバー。
+ * textarea のカーソル行の上端 Y (border-box 上端からの px) と行高を測る。
  *
- * - textarea のフォーカス時のみ visualViewport の上に追従。非フォーカス時は
- *   画面下沿いに常時可視 (PC ブラウザでも見える)
+ * textarea はカーソルのピクセル座標 API を持たないため、同じ font / padding /
+ * width を持つ不可視のミラー要素に「カーソルまでの本文」を流し込み、続く位置に
+ * 置いたマーカー span の offsetTop を実測する (定番のミラー方式)。本文を
+ * 自動拡張・内部スクロール無しにしているので、この値がそのまま行位置になる。
+ */
+function measureCaretLine(ta: HTMLTextAreaElement): {
+  top: number;
+  lineHeight: number;
+} {
+  const style = window.getComputedStyle(ta);
+  const mirror = document.createElement("div");
+  const copyProps = [
+    "box-sizing",
+    "width",
+    "padding-top",
+    "padding-right",
+    "padding-bottom",
+    "padding-left",
+    "border-top-width",
+    "border-right-width",
+    "border-bottom-width",
+    "border-left-width",
+    "font-family",
+    "font-size",
+    "font-weight",
+    "font-style",
+    "font-variant",
+    "font-stretch",
+    "line-height",
+    "letter-spacing",
+    "text-transform",
+    "text-indent",
+    "word-spacing",
+    "tab-size",
+  ];
+  for (const p of copyProps) {
+    mirror.style.setProperty(p, style.getPropertyValue(p));
+  }
+  mirror.style.position = "absolute";
+  mirror.style.top = "0";
+  mirror.style.left = "-9999px";
+  mirror.style.visibility = "hidden";
+  mirror.style.whiteSpace = "pre-wrap";
+  mirror.style.wordWrap = "break-word";
+  mirror.style.overflow = "hidden";
+  mirror.style.height = "auto";
+
+  const caret = ta.selectionStart;
+  mirror.textContent = ta.value.slice(0, caret);
+  const marker = document.createElement("span");
+  marker.textContent = ta.value.slice(caret) || ".";
+  mirror.appendChild(marker);
+  document.body.appendChild(mirror);
+  const top = marker.offsetTop;
+  document.body.removeChild(mirror);
+
+  let lineHeight = parseFloat(style.lineHeight);
+  if (Number.isNaN(lineHeight)) {
+    lineHeight = parseFloat(style.fontSize) * 1.4;
+  }
+  return { top, lineHeight };
+}
+
+/** カーソルが何行目にあるか (0-based)。改行 / 別行への移動検出に使う。 */
+function caretLineIndex(ta: HTMLTextAreaElement): number {
+  return ta.value.slice(0, ta.selectionStart).split("\n").length - 1;
+}
+
+/**
+ * Editor 用フォーマットポップアップ。
+ *
+ * - textarea のフォーカス中のみ表示し、カーソル行のすぐ上 (先頭付近では下) に
+ *   追従する。非フォーカス時は何も描画しない (キーボード / AutoFill バーには
+ *   紐付かない)
+ * - scroll container 内に absolute 配置されるので、本文スクロールに自然に
+ *   追従する
  * - 各ボタンは Markdown 記法を選択範囲または現在行に挿入する。`onChangeBody`
- *   経由で既存の handleBodyChange を呼ぶので [[link]] 補完など既存機能を
- *   保ったまま動く
+ *   経由で既存の handleBodyChange を呼ぶので [[link]] 補完など既存機能を保つ
  * - onMouseDown=preventDefault でフォーカスを保持
  */
-function KeyboardAccessoryBar({
+function EditorFormatPopup({
   textareaRef,
   focused,
   bodyDraft,
@@ -1723,52 +1816,80 @@ function KeyboardAccessoryBar({
   onOpenTagSheet: () => void;
 }) {
   const BAR_HEIGHT = 44;
-  const [bottom, setBottom] = useState(0);
+  const GAP = 8;
+  const popupRef = useRef<HTMLDivElement>(null);
   const [commandOpen, setCommandOpen] = useState(false);
-  const [composing, setComposing] = useState(false);
-  const [lineEmpty, setLineEmpty] = useState(false);
+  const [toolbarOpen, setToolbarOpen] = useState(false);
+  // toolbar を開いた行 (0-based)。別行へ移ったら閉じる判定に使う
+  const openLineRef = useRef<number | null>(null);
+  const [anchor, setAnchor] = useState<{
+    caretTop: number;
+    taOffsetTop: number;
+    lineHeight: number;
+  } | null>(null);
+  const [pos, setPos] = useState<{
+    top: number;
+    placement: "above" | "below";
+  } | null>(null);
 
-  // textarea の現在カーソル行が空白だけかを判定。focus 喪失時は false。
+  // カーソル位置を測り直す (選択変更 / リサイズ / ビューポート変化)
   useEffect(() => {
     const ta = textareaRef.current;
     if (!ta || !focused) {
-      setLineEmpty(false);
+      // フォーカスが外れたら全部畳む (再フォーカスで勝手に開かないように)
+      setAnchor(null);
+      setToolbarOpen(false);
+      setCommandOpen(false);
+      openLineRef.current = null;
       return undefined;
     }
     const recalc = () => {
       const t = textareaRef.current;
       if (!t || document.activeElement !== t) {
-        setLineEmpty(false);
+        setAnchor(null);
         return;
       }
-      const start = t.selectionStart;
-      const before = bodyDraft.slice(0, start);
-      const lineStart = before.lastIndexOf("\n") + 1;
-      const nextNL = bodyDraft.indexOf("\n", start);
-      const lineEnd = nextNL === -1 ? bodyDraft.length : nextNL;
-      const line = bodyDraft.slice(lineStart, lineEnd);
-      setLineEmpty(line.trim() === "" && t.selectionStart === t.selectionEnd);
+      const { top, lineHeight } = measureCaretLine(t);
+      setAnchor({ caretTop: top, taOffsetTop: t.offsetTop, lineHeight });
+      // 開いていた行と違う行へ移ったら (改行 / 別箇所タップ) ツールを閉じる
+      if (
+        openLineRef.current !== null &&
+        caretLineIndex(t) !== openLineRef.current
+      ) {
+        openLineRef.current = null;
+        setToolbarOpen(false);
+        setCommandOpen(false);
+      }
     };
     recalc();
     document.addEventListener("selectionchange", recalc);
-    return () => document.removeEventListener("selectionchange", recalc);
+    window.addEventListener("resize", recalc);
+    const vv = window.visualViewport;
+    vv?.addEventListener("resize", recalc);
+    return () => {
+      document.removeEventListener("selectionchange", recalc);
+      window.removeEventListener("resize", recalc);
+      vv?.removeEventListener("resize", recalc);
+    };
+  }, [focused, textareaRef]);
+
+  // 入力 / 折り返し変化でもカーソル位置を測り直す
+  useLayoutEffect(() => {
+    const ta = textareaRef.current;
+    if (!ta || !focused || document.activeElement !== ta) return;
+    const { top, lineHeight } = measureCaretLine(ta);
+    setAnchor({ caretTop: top, taOffsetTop: ta.offsetTop, lineHeight });
+    if (
+      openLineRef.current !== null &&
+      caretLineIndex(ta) !== openLineRef.current
+    ) {
+      openLineRef.current = null;
+      setToolbarOpen(false);
+      setCommandOpen(false);
+    }
   }, [bodyDraft, focused, textareaRef]);
 
-  // textarea の IME 状態。composition 中はヒント非表示 + `/` 起動を抑止
-  useEffect(() => {
-    const ta = textareaRef.current;
-    if (!ta) return undefined;
-    const onStart = () => setComposing(true);
-    const onEnd = () => setComposing(false);
-    ta.addEventListener("compositionstart", onStart);
-    ta.addEventListener("compositionend", onEnd);
-    return () => {
-      ta.removeEventListener("compositionstart", onStart);
-      ta.removeEventListener("compositionend", onEnd);
-    };
-  }, [textareaRef]);
-
-  // `/` キーで空行時にコマンドメニューを起動 (M-3)。IME 中は無視。
+  // `/` キーで空行時にコマンドメニューを起動。IME 中は無視。
   useEffect(() => {
     const ta = textareaRef.current;
     if (!ta || !focused) return undefined;
@@ -1785,41 +1906,32 @@ function KeyboardAccessoryBar({
       const line = bodyDraft.slice(lineStart, lineEnd);
       if (line.trim() !== "" || t.selectionStart !== t.selectionEnd) return;
       e.preventDefault();
+      openLineRef.current = caretLineIndex(t);
+      setToolbarOpen(true);
       setCommandOpen(true);
     };
     ta.addEventListener("keydown", onKeyDown);
     return () => ta.removeEventListener("keydown", onKeyDown);
   }, [bodyDraft, focused, textareaRef]);
 
-  const hintVisible = focused && !composing && lineEmpty && !commandOpen;
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    const update = () => {
-      if (!focused) {
-        setBottom(0);
-        return;
-      }
-      const vv = window.visualViewport;
-      if (!vv) {
-        setBottom(0);
-        return;
-      }
-      const offset = window.innerHeight - vv.height - vv.offsetTop;
-      setBottom(offset > 1 ? offset : 0);
-    };
-    update();
-    const vv = window.visualViewport;
-    if (vv) {
-      vv.addEventListener("resize", update);
-      vv.addEventListener("scroll", update);
-      return () => {
-        vv.removeEventListener("resize", update);
-        vv.removeEventListener("scroll", update);
-      };
+  // アンカー or メニュー開閉が変わったら、ポップアップ高さを実測して top を確定。
+  // カーソルが先頭付近で上に余白が無いときは行の下に出す (フリップ)。
+  useLayoutEffect(() => {
+    if (!anchor || !toolbarOpen || !popupRef.current) {
+      setPos(null);
+      return;
     }
-    return undefined;
-  }, [focused]);
+    const H = popupRef.current.offsetHeight || BAR_HEIGHT;
+    const caretLineTop = anchor.taOffsetTop + anchor.caretTop;
+    const placeBelow = anchor.caretTop < H + GAP;
+    const top = placeBelow
+      ? caretLineTop + anchor.lineHeight + GAP
+      : caretLineTop - H - GAP;
+    setPos({
+      top: Math.max(0, top),
+      placement: placeBelow ? "below" : "above",
+    });
+  }, [anchor, commandOpen, toolbarOpen]);
 
   const guard = (e: React.MouseEvent) => e.preventDefault();
 
@@ -2050,173 +2162,189 @@ function KeyboardAccessoryBar({
     },
   ];
 
-  // iOS Form Assistant Bar (= 左 ↑↓ / 右 ✓ の半透明角丸) は OS が描画する
-  // 領域で Web からは置換不可。そのすぐ上に角丸 + 半透明 blur + 薄いシャドウ
-  // のフローティングバーとして表示し、見た目のトーンを揃える。
+  if (!focused || !anchor) return null;
+
+  const handleTop = anchor.taOffsetTop + anchor.caretTop;
+
   return (
-    <div
-      className="absolute left-0 right-0 z-[60] flex flex-col items-center transition-[bottom] duration-150 ease-out"
-      style={{
-        bottom,
-        paddingBottom: 6,
-        pointerEvents: "none",
-      }}
-    >
-      {hintVisible && (
-        <button
-          type="button"
-          onMouseDown={guard}
-          onClick={() => setCommandOpen(true)}
-          className="mb-2 rounded-full pointer-events-auto flex items-center gap-1.5 px-3 py-1.5"
-          style={{
-            background: "rgba(48, 48, 70, 0.78)",
-            backdropFilter: "saturate(180%) blur(24px)",
-            WebkitBackdropFilter: "saturate(180%) blur(24px)",
-            border: "1px solid rgba(203,166,247,0.30)",
-            boxShadow: "0 4px 12px rgba(0,0,0,0.28)",
-            color: C.subtext1,
-          }}
-          aria-label="スラッシュコマンドを開く"
-        >
-          <span
-            className="font-mono text-[11px] rounded px-1"
-            style={{ background: "rgba(255,255,255,0.08)", color: C.mauve }}
-          >
-            /
-          </span>
-          <span className="text-xs">コマンドを挿入</span>
-        </button>
-      )}
-      {commandOpen && (
+    <>
+      {/* 左端の変換アイコン: 現在のカーソル行に縦位置を合わせて追従し、
+          タップでフォーマットツールを開閉する */}
+      <button
+        type="button"
+        onMouseDown={guard}
+        onClick={() => {
+          if (toolbarOpen) {
+            openLineRef.current = null;
+            setToolbarOpen(false);
+            setCommandOpen(false);
+          } else {
+            const ta = textareaRef.current;
+            openLineRef.current = ta ? caretLineIndex(ta) : null;
+            setToolbarOpen(true);
+          }
+        }}
+        className="absolute z-[55] flex items-center justify-center rounded-md pointer-events-auto active:scale-95 transition-colors"
+        style={{
+          left: 4,
+          top: handleTop - 3, // 行の視覚中心に合わせて少し上へ
+          width: 24,
+          height: anchor.lineHeight,
+          color: toolbarOpen ? C.mauve : C.overlay0,
+          background: toolbarOpen ? "rgba(203,166,247,0.14)" : "transparent",
+        }}
+        aria-label="この行を変換"
+        aria-expanded={toolbarOpen}
+        aria-haspopup="menu"
+      >
+        <Plus size={18} />
+      </button>
+
+      {toolbarOpen && (
         <div
-          className="mb-2 rounded-2xl pointer-events-auto overflow-hidden"
-          onMouseDown={guard}
+          ref={popupRef}
+          className="absolute left-0 right-0 z-[60] flex flex-col items-center px-1.5"
           style={{
-            background: "rgba(48, 48, 70, 0.92)",
-            backdropFilter: "saturate(180%) blur(24px)",
-            WebkitBackdropFilter: "saturate(180%) blur(24px)",
-            border: "1px solid rgba(255,255,255,0.10)",
-            boxShadow: "0 8px 24px rgba(0,0,0,0.40)",
-            maxWidth: "calc(100% - 12px)",
-            width: 280,
-            maxHeight: "60vh",
+            top: pos?.top ?? 0,
+            visibility: pos ? "visible" : "hidden",
+            pointerEvents: "none",
+            transition: "top 90ms ease-out",
           }}
-          role="menu"
-          aria-label="スラッシュコマンド"
         >
+          {commandOpen && (
+            <div
+              className="mb-2 rounded-2xl pointer-events-auto overflow-hidden"
+              onMouseDown={guard}
+              style={{
+                background: "rgba(48, 48, 70, 0.92)",
+                backdropFilter: "saturate(180%) blur(24px)",
+                WebkitBackdropFilter: "saturate(180%) blur(24px)",
+                border: "1px solid rgba(255,255,255,0.10)",
+                boxShadow: "0 8px 24px rgba(0,0,0,0.40)",
+                maxWidth: "calc(100% - 12px)",
+                width: 280,
+                maxHeight: "60vh",
+              }}
+              role="menu"
+              aria-label="スラッシュコマンド"
+            >
+              <div
+                className="flex flex-col py-1 overflow-y-auto"
+                style={{ maxHeight: "calc(60vh - 2px)" }}
+              >
+                {slashCommands.map((cmd) => (
+                  <button
+                    key={cmd.key}
+                    type="button"
+                    onMouseDown={guard}
+                    onClick={() => runCommand(cmd.onAction)}
+                    className="flex items-center gap-3 px-3 py-2 text-left active:bg-white/10 transition-colors"
+                    role="menuitem"
+                    aria-label={cmd.label}
+                  >
+                    <span
+                      className="flex items-center justify-center shrink-0 rounded-md"
+                      style={{
+                        width: 28,
+                        height: 28,
+                        background: "rgba(255,255,255,0.06)",
+                        color: C.subtext1,
+                      }}
+                    >
+                      {cmd.icon}
+                    </span>
+                    <span className="flex-1 min-w-0 flex flex-col">
+                      <span className="text-sm" style={{ color: C.text }}>
+                        {cmd.label}
+                      </span>
+                      <span
+                        className="text-[11px] truncate"
+                        style={{ color: C.subtext0 }}
+                      >
+                        {cmd.hint}
+                      </span>
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
           <div
-            className="flex flex-col py-1 overflow-y-auto"
-            style={{ maxHeight: "calc(60vh - 2px)" }}
+            className="px-1 py-0.5 flex items-center gap-0.5 overflow-x-auto rounded-2xl pointer-events-auto"
+            style={{
+              background: "rgba(48, 48, 70, 0.78)",
+              backdropFilter: "saturate(180%) blur(24px)",
+              WebkitBackdropFilter: "saturate(180%) blur(24px)",
+              border: "1px solid rgba(255,255,255,0.08)",
+              boxShadow: "0 6px 18px rgba(0,0,0,0.32)",
+              maxWidth: "calc(100% - 12px)",
+              height: BAR_HEIGHT,
+            }}
           >
-            {slashCommands.map((cmd) => (
+            <button
+              type="button"
+              onMouseDown={guard}
+              onClick={() => setCommandOpen((v) => !v)}
+              className="rounded-lg transition-colors flex-shrink-0 active:scale-95 flex items-center justify-center"
+              style={{
+                width: 36,
+                height: 36,
+                color: commandOpen ? C.mauve : C.subtext1,
+                background: commandOpen
+                  ? "rgba(203,166,247,0.12)"
+                  : "transparent",
+              }}
+              aria-label="ブロックを挿入"
+              aria-expanded={commandOpen}
+              aria-haspopup="menu"
+            >
+              <Plus size={18} />
+            </button>
+            <div
+              className="mx-0.5 self-stretch flex-shrink-0"
+              style={{ width: 1, background: "rgba(255,255,255,0.08)" }}
+              aria-hidden="true"
+            />
+            {items.map((b) => (
               <button
-                key={cmd.key}
+                key={b.key}
                 type="button"
                 onMouseDown={guard}
-                onClick={() => runCommand(cmd.onAction)}
-                className="flex items-center gap-3 px-3 py-2 text-left active:bg-white/10 transition-colors"
-                role="menuitem"
-                aria-label={cmd.label}
+                onClick={b.onAction}
+                className="rounded-lg transition-colors flex-shrink-0 active:scale-95 flex items-center justify-center"
+                style={{
+                  width: 36,
+                  height: 36,
+                  color: C.subtext1,
+                }}
+                aria-label={b.label}
               >
-                <span
-                  className="flex items-center justify-center shrink-0 rounded-md"
-                  style={{
-                    width: 28,
-                    height: 28,
-                    background: "rgba(255,255,255,0.06)",
-                    color: C.subtext1,
-                  }}
-                >
-                  {cmd.icon}
-                </span>
-                <span className="flex-1 min-w-0 flex flex-col">
-                  <span className="text-sm" style={{ color: C.text }}>
-                    {cmd.label}
-                  </span>
-                  <span
-                    className="text-[11px] truncate"
-                    style={{ color: C.subtext0 }}
-                  >
-                    {cmd.hint}
-                  </span>
-                </span>
+                {b.icon}
               </button>
             ))}
+            <div
+              className="mx-1 self-stretch flex-shrink-0"
+              style={{ width: 1, background: "rgba(255,255,255,0.08)" }}
+              aria-hidden="true"
+            />
+            <button
+              type="button"
+              onMouseDown={guard}
+              onClick={() => textareaRef.current?.blur()}
+              className="rounded-lg transition-colors flex-shrink-0 flex items-center justify-center"
+              style={{
+                width: 36,
+                height: 36,
+                color: C.subtext0,
+              }}
+              aria-label="キーボードを閉じる"
+            >
+              <X size={17} />
+            </button>
           </div>
         </div>
       )}
-      <div
-        className="px-1 py-0.5 flex items-center gap-0.5 overflow-x-auto rounded-2xl pointer-events-auto"
-        style={{
-          background: "rgba(48, 48, 70, 0.78)",
-          backdropFilter: "saturate(180%) blur(24px)",
-          WebkitBackdropFilter: "saturate(180%) blur(24px)",
-          border: "1px solid rgba(255,255,255,0.08)",
-          boxShadow: "0 6px 18px rgba(0,0,0,0.32)",
-          maxWidth: "calc(100% - 12px)",
-          height: BAR_HEIGHT,
-        }}
-      >
-        <button
-          type="button"
-          onMouseDown={guard}
-          onClick={() => setCommandOpen((v) => !v)}
-          className="rounded-lg transition-colors flex-shrink-0 active:scale-95 flex items-center justify-center"
-          style={{
-            width: 36,
-            height: 36,
-            color: commandOpen ? C.mauve : C.subtext1,
-            background: commandOpen ? "rgba(203,166,247,0.12)" : "transparent",
-          }}
-          aria-label="ブロックを挿入"
-          aria-expanded={commandOpen}
-          aria-haspopup="menu"
-        >
-          <Plus size={18} />
-        </button>
-        <div
-          className="mx-0.5 self-stretch flex-shrink-0"
-          style={{ width: 1, background: "rgba(255,255,255,0.08)" }}
-          aria-hidden="true"
-        />
-        {items.map((b) => (
-          <button
-            key={b.key}
-            type="button"
-            onMouseDown={guard}
-            onClick={b.onAction}
-            className="rounded-lg transition-colors flex-shrink-0 active:scale-95 flex items-center justify-center"
-            style={{
-              width: 36,
-              height: 36,
-              color: C.subtext1,
-            }}
-            aria-label={b.label}
-          >
-            {b.icon}
-          </button>
-        ))}
-        <div
-          className="mx-1 self-stretch flex-shrink-0"
-          style={{ width: 1, background: "rgba(255,255,255,0.08)" }}
-          aria-hidden="true"
-        />
-        <button
-          type="button"
-          onMouseDown={guard}
-          onClick={() => textareaRef.current?.blur()}
-          className="rounded-lg transition-colors flex-shrink-0 flex items-center justify-center"
-          style={{
-            width: 36,
-            height: 36,
-            color: C.subtext0,
-          }}
-          aria-label="キーボードを閉じる"
-        >
-          <X size={17} />
-        </button>
-      </div>
-    </div>
+    </>
   );
 }
 
