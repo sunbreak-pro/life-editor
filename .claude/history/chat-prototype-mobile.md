@@ -1,5 +1,18 @@
 # HISTORY (chat-prototype-mobile)
 
+### 2026-06-06 - Esc 重複リスナー修正 + origin/main ベースへブランチ移行 (PR #48)
+
+#### 概要
+
+並行チャットからの「frontend を触る予定はあるか／PR を作って競合回避したい」という確認に答える過程で、PR #45・#46 の squash マージにより prototype 実装（Pomodoro/Materials/5-role）は**既に main へ全取込済み**と判明（新規 PR 不要）。ローカルブランチ prototype/pomodoro-multitimer は squash 前の重複コミットを抱え main と履歴乖離していたため、origin/main 最新ベースの新ブランチへ移行。その過程で main 側 ScheduleScreen に紛れ込んでいた Esc クローズ useEffect の二重登録を発見・修正し PR #48 として提出。frontend は不触で並行 Mobile 統一作業と競合しない。
+
+#### 変更点
+
+- **[調査] マージ状態の確定**: `git cherry` / `git diff 2820ffd origin/main` / コミット時刻比較（65d4172 17:36 → PR #46 merge 17:47）で、prototype 実装が PR #46 squash に全て含まれることを確認。`origin/main` に `ROLE_OPTIONS` 存在も確認。残差分は main 先行の9行（= 重複 Esc useEffect）と web-first 移行（shared/supabase/web、別チャット分）のみ
+- **[fix] Esc 重複リスナー削除 (`ScheduleScreen.tsx::AddEventModal`)**: 完全同一の「Escape で onClose」keydown useEffect が2つ登録されていた（リスナー二重登録 → Esc 1回で onClose 2回）。2つ目を削除（−9行）
+- **[chore] ブランチ移行**: 陳腐化した prototype/pomodoro-multitimer から `prototype/fix-schedule-esc-duplicate`（origin/main 最新ベース）へ。worktree の `.claude/comm/.session-branch` も更新（worktree policy proactive 宣言）。push 時は upstream を新ブランチへ貼り直し（main 直 push 防止）
+- **検証**: `npx tsc -b --force` exit 0 / `npx vite build` exit 0（≈432 kB / gzip ≈125 kB）。リスナーが1つになったことを grep で確認
+
 ### 2026-06-06 - C-3: add item を 5 role 選択化（セレクタのみ）
 
 #### 概要
@@ -62,16 +75,3 @@ prototype モバイル UI の Work(Pomodoro) を中心に4波の機能追加。(
 - **QA**: 独立コンテキストで 2 回監査、条件付き PASS。検出 Major (Trash ConfirmModal z-index / Materials menu sheet 閉アニメ) は修正済
 - **マージ**: origin/main 取り込み。ScheduleScreen + memory/history INDEX.md の衝突を shell 構造維持しつつ意味的に解決し、du-g の Notes/Daily 統合・automation 等を取り込み。commit `566a648`(feature) + `fbb35ef`(merge)
 - **計画書**: `2026-05-30-mobile-ia-v3-shell-implementation.md` (追補節含む) → archive へ
-
-### 2026-05-30 - fix-pack: M-1 card layout 見た目調整 (SwipeRow rounded + transparent)
-
-#### 概要
-
-session-verifier (PASS) 後の小さな見た目修正。M-1 で導入した `SwipeRow` が layout=card のとき外側矩形に `C.crust` 暗色が見えて gap-3 隙間に違和感が出ていた問題を解消。SwipeRow に `layout` prop を追加し、card 時のみ `rounded-2xl` + `background: transparent` に切替 (row 時は従来通り `C.crust` 矩形)。NoteCard 自身の rounded-2xl と二重になるが、外側 overflow-hidden で内側ボタン群を角丸にクリッピング。
-
-#### 変更点
-
-- **[fix] SwipeRow に `layout: Layout` prop 追加** (`prototype/src/screens/MaterialsScreen.tsx`)
-- **[fix] layout=card 時の見た目切替**: 外側 div に `rounded-2xl` クラス + `background: transparent`
-- **[fix] NoteList の wrap 関数で layout を SwipeRow に伝播**
-- **検証**: `npx tsc --noEmit` exit 0 / `npm run build` 396.60 kB / gzip 114.55 kB (M-1 比 ~0 kB)
