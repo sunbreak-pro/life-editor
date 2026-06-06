@@ -36,9 +36,16 @@ import { WikiTagsManagementView } from "./wikitag";
  * One DataService is created once and injected into every domain
  * Provider (the shared hooks never reach a module singleton —
  * CLAUDE.md §6.4). Provider order follows CLAUDE.md §6.2 (outer→inner):
- * Sync → TaskTree → … → Daily. Both domains read `useSyncContext` to
- * know when to refetch, so each section subtree is wrapped in the same
- * provisional no-op SyncProvider (replaced by Supabase Realtime in S8).
+ * Sync → TaskTree → … → Daily. Every domain reads `useSyncContext` to
+ * know when to refetch.
+ *
+ * S8: SyncProvider is now Supabase Realtime backed (one channel, all
+ * tables). It is mounted ONCE at the top of MainScreen — wrapping the
+ * whole shell, OUTSIDE the section switch — rather than per-section. A
+ * per-section mount would tear down and reconnect the Realtime channel on
+ * every section change (chatter + leak risk). Each section keeps its own
+ * inner Provider nesting/order (§6.2); only SyncProvider moved up one
+ * level, so every `useSyncContext` reader still sits inside it.
  *
  * Section routing is a local `useState` switch (no React Router — the
  * Tauri app uses `App.tsx::activeSection`, CLAUDE.md §3.2). Only the
@@ -61,64 +68,60 @@ export function MainScreen({ session }: { session: Session }) {
   const [section, setSection] = useState<Section>("tasks");
 
   return (
-    <div className="min-h-screen bg-notion-bg p-6 text-notion-text">
-      <div className="mx-auto max-w-2xl space-y-4">
-        <header className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <nav className="flex gap-1" aria-label="Sections">
-              {(["tasks", "daily", "notes", "schedule", "tags"] as const).map(
-                (s) => (
-                  <button
-                    key={s}
-                    type="button"
-                    onClick={() => setSection(s)}
-                    aria-current={section === s ? "page" : undefined}
-                    className={`rounded-md px-3 py-1.5 text-sm capitalize ${
-                      section === s
-                        ? "bg-notion-hover text-notion-text"
-                        : "text-notion-text-secondary hover:bg-notion-hover"
-                    }`}
-                  >
-                    {s}
-                  </button>
-                ),
-              )}
-            </nav>
-          </div>
-          <div className="flex items-center gap-3">
-            <span className="text-sm text-notion-text-secondary">
-              {session.user.email}
-            </span>
-            <button
-              type="button"
-              onClick={() => void signOut()}
-              className="rounded-md border border-notion-border px-3 py-1.5 text-sm text-notion-text hover:bg-notion-hover"
-            >
-              Sign out
-            </button>
-          </div>
-        </header>
+    <SyncProvider>
+      <div className="min-h-screen bg-notion-bg p-6 text-notion-text">
+        <div className="mx-auto max-w-2xl space-y-4">
+          <header className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <nav className="flex gap-1" aria-label="Sections">
+                {(["tasks", "daily", "notes", "schedule", "tags"] as const).map(
+                  (s) => (
+                    <button
+                      key={s}
+                      type="button"
+                      onClick={() => setSection(s)}
+                      aria-current={section === s ? "page" : undefined}
+                      className={`rounded-md px-3 py-1.5 text-sm capitalize ${
+                        section === s
+                          ? "bg-notion-hover text-notion-text"
+                          : "text-notion-text-secondary hover:bg-notion-hover"
+                      }`}
+                    >
+                      {s}
+                    </button>
+                  ),
+                )}
+              </nav>
+            </div>
+            <div className="flex items-center gap-3">
+              <span className="text-sm text-notion-text-secondary">
+                {session.user.email}
+              </span>
+              <button
+                type="button"
+                onClick={() => void signOut()}
+                className="rounded-md border border-notion-border px-3 py-1.5 text-sm text-notion-text hover:bg-notion-hover"
+              >
+                Sign out
+              </button>
+            </div>
+          </header>
 
-        {section === "tasks" && (
-          <SyncProvider>
+          {section === "tasks" && (
             <WikiTagsUnifiedProvider dataService={ds}>
               <TaskTreeProvider dataService={ds}>
                 <TaskTreeView />
               </TaskTreeProvider>
             </WikiTagsUnifiedProvider>
-          </SyncProvider>
-        )}
-        {section === "daily" && (
-          <SyncProvider>
+          )}
+          {section === "daily" && (
             <WikiTagsUnifiedProvider dataService={ds}>
               <DailiesUnifiedProvider dataService={ds}>
                 <DailyView />
               </DailiesUnifiedProvider>
             </WikiTagsUnifiedProvider>
-          </SyncProvider>
-        )}
-        {section === "notes" && (
-          <SyncProvider>
+          )}
+          {section === "notes" && (
             <WikiTagsUnifiedProvider dataService={ds}>
               <NotesUnifiedProvider dataService={ds}>
                 <Suspense
@@ -130,26 +133,24 @@ export function MainScreen({ session }: { session: Session }) {
                 </Suspense>
               </NotesUnifiedProvider>
             </WikiTagsUnifiedProvider>
-          </SyncProvider>
-        )}
-        {/*
-         * Schedule pair order (CLAUDE.md §6.2): Routine →
-         * ScheduleItems. Each inner Provider may read the outer one
-         * (ScheduleItems sits INSIDE Routine — §6.2 order, top-down).
-         * The historical calendar-tag layer was dropped in DU-C+/DU-F;
-         * WikiTagsUnified replaces it as the 5-role tag/link surface.
-         *
-         * CalendarProvider is NOT part of the schedule pair — frontend
-         * keeps it higher and enabled on Mobile (CLAUDE.md §2); it is
-         * mounted here just inside Sync (only needs DataService + Sync).
-         *
-         * The Routine→schedule_items generator (S4-5) is the headless
-         * RoutineScheduleSync, mounted inside the Providers so it can
-         * read the live routine set + anchored date.
-         */}
-        {section === "schedule" && (
-          <SyncProvider>
-            {/*
+          )}
+          {/*
+           * Schedule pair order (CLAUDE.md §6.2): Routine →
+           * ScheduleItems. Each inner Provider may read the outer one
+           * (ScheduleItems sits INSIDE Routine — §6.2 order, top-down).
+           * The historical calendar-tag layer was dropped in DU-C+/DU-F;
+           * WikiTagsUnified replaces it as the 5-role tag/link surface.
+           *
+           * CalendarProvider is NOT part of the schedule pair — frontend
+           * keeps it higher and enabled on Mobile (CLAUDE.md §2); it is
+           * mounted here just inside Sync (only needs DataService + Sync).
+           *
+           * The Routine→schedule_items generator (S4-5) is the headless
+           * RoutineScheduleSync, mounted inside the Providers so it can
+           * read the live routine set + anchored date.
+           */}
+          {section === "schedule" && (
+            /*
              * TaskTreeProvider is mounted here so CalendarView can offer
              * a folder-task <select> (bug1 fix): `calendars.folder_id`
              * FKs tasks(id) with ON DELETE CASCADE — a free-text id hit
@@ -162,7 +163,7 @@ export function MainScreen({ session }: { session: Session }) {
              * surface for ScheduleItemsView (Event Tag/Link UI, DU-F
              * Step 7). CalendarTagsProvider was removed in DU-F Step 3-4
              * (DB DROPped in DU-C+ 0012; UI death-code purged here).
-             */}
+             */
             <TaskTreeProvider dataService={ds}>
               <WikiTagsUnifiedProvider dataService={ds}>
                 <CalendarProvider dataService={ds}>
@@ -177,23 +178,21 @@ export function MainScreen({ session }: { session: Session }) {
                 </CalendarProvider>
               </WikiTagsUnifiedProvider>
             </TaskTreeProvider>
-          </SyncProvider>
-        )}
-        {/*
-         * Tags management (DU-F Step 11). Only needs Sync +
-         * WikiTagsUnifiedProvider — no role data, since this view edits
-         * the tag/group master itself. Lives in its own section so the
-         * row-level TagPicker (4 roles) and the master CRUD don't share
-         * UI surface.
-         */}
-        {section === "tags" && (
-          <SyncProvider>
+          )}
+          {/*
+           * Tags management (DU-F Step 11). Only needs Sync +
+           * WikiTagsUnifiedProvider — no role data, since this view edits
+           * the tag/group master itself. Lives in its own section so the
+           * row-level TagPicker (4 roles) and the master CRUD don't share
+           * UI surface.
+           */}
+          {section === "tags" && (
             <WikiTagsUnifiedProvider dataService={ds}>
               <WikiTagsManagementView />
             </WikiTagsUnifiedProvider>
-          </SyncProvider>
-        )}
+          )}
+        </div>
       </div>
-    </div>
+    </SyncProvider>
   );
 }

@@ -1,24 +1,26 @@
 import { createContext } from "react";
 
 /**
- * Web Sync Context (S1 — provisional no-op).
+ * Web Sync Context (S8 — Supabase Realtime backed).
  *
  * The Tauri build had a full Cloudflare-D1 bidirectional sync engine
  * behind this Context. The web build is Supabase-native and assumes
- * always-online; real cross-tab propagation lands in S8 (Supabase
- * Realtime). Until then this Context exists only so TaskTree (which
- * reads `syncVersion` to know when to refetch) does not crash for want
- * of a provider. `triggerSync` is a no-op and `syncVersion` never
- * changes (no polling — user-confirmed).
+ * always-online. As of S8 the Provider (SyncContext.tsx) subscribes to
+ * `postgres_changes` on every owned table and bumps `syncVersion` (debounced)
+ * whenever any row changes; the domain `*API` hooks keep `syncVersion` in
+ * their load-effect deps, so a bump refetches every mounted domain.
  *
  * This is intentionally a thin, single-file Context (CLAUDE.md §6.3
  * exception: self-contained, no other provider depends on it), mirroring
  * the `ToastContext` precedent.
  */
 export interface WebSyncContextValue {
-  /** Bumps when a refetch should occur. Static in the web no-op build. */
+  /** Bumps when a refetch should occur (Realtime change events, debounced). */
   syncVersion: number;
-  /** No-op in web S1; replaced by Supabase Realtime in S8. */
+  /**
+   * Forces a manual refetch bump. Unused by Realtime (the subscription is
+   * passive) but kept for compatibility — never removed.
+   */
   triggerSync: () => Promise<void>;
 }
 
