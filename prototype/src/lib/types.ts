@@ -2,6 +2,8 @@ export type EntityId = string;
 
 export type TaskStatus = "todo" | "doing" | "done";
 export type ScheduleItemType = "task" | "event" | "birthday" | "holiday";
+/** items_meta の 5 role（作成導線の役割選択）。CLAUDE.md §4.3 */
+export type ItemRole = "task" | "event" | "routine" | "note" | "daily";
 export type SessionType = "WORK" | "BREAK" | "LONG_BREAK";
 export type MaterialKind = "notes" | "daily";
 export type Mood = "green" | "sky" | "yellow" | "peach" | "red";

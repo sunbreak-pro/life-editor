@@ -1,5 +1,20 @@
 # HISTORY (chat-prototype-mobile)
 
+### 2026-06-06 - C-3: add item を 5 role 選択化（セレクタのみ）
+
+#### 概要
+
+Schedule の add-item ダイアログの「タイプ」3択（task/event/birthday）を、items_meta の 5 role（task/event/routine/note/daily、CLAUDE.md §4.3）の選択 UI へ拡張。今回はユーザー判断で「セレクタのみ 5 role 化」にスコープを限定（作成後の一覧描画は対象外＝選択 UI の体験確認が目的）。role に応じてダイアログ内フォームを出し分け、Schedule に描画導線を持たない routine/note/daily は保存時にモック確定（トースト通知）で扱う。現ブランチ prototype/pomodoro-multitimer で実装。tsc -b + vite build green、session-verifier PASS。実機目視待ち。
+
+#### 変更点
+
+- **[feat] ItemRole 型追加 (`lib/types.ts`)**: `ItemRole = "task" | "event" | "routine" | "note" | "daily"` を新設（CLAUDE.md §4.3 の items_meta 5 role に対応）
+- **[feat] 5 role セレクタ (`ScheduleScreen.tsx::AddEventModal`)**: 「タイプ」3択を「種類」5択（`ROLE_OPTIONS` 駆動の 5 列グリッド、`role=radiogroup`/`radio`、`min-h-[44px]` の a11y タップ領域）に置換。`EditDraft` に `role` / `recurrence` を追加、`emptyDraft`/`draftFromItem` に既定値を設定（編集時は `roleFromType` で type→role 逆引き）
+- **[feat] role 別フォーム出し分け**: routine=「繰り返し」(毎日/毎週/毎月) + 開始日 + 時刻、note=日付/時刻を隠し「本文」中心、daily=日付(必須)+「本文」・時刻なし、task/event=従来。ヘッダタイトルも `${role}の追加` に追従。role 切替時に時刻を持たない role では time/endTime をクリア
+- **[feat] モック確定トースト (`ScheduleScreen` 本体)**: 新規 routine/note/daily の保存は schedule item を作らず `roleToast`（`role=status`/`aria-live`、2.2s 自動消滅）で「（モック）◯◯を作成しました」を通知。task/event は従来通り `addScheduleItem`
+- **[fix] birthday 編集の保存可否**: 編集時 birthday は `roleFromType` で role=event に逆引きされるが、`eventTimeMissing` に `!isBirthday` を加え時刻必須の誤発火を予防。birthday は creation セレクタから除外し event+tag の既存仕様へ一本化（既存 birthday の編集は従来通り）
+- **検証**: `npx tsc -b --force` exit 0 / `npx vite build` exit 0 (≈432 kB / gzip ≈125 kB)。`prettier --write` 準拠。session-verifier 全ゲート PASS（lint/test はプロトタイプに機構なしで skip）
+
 ### 2026-06-06 - Materials エディタ刷新: 白紙キャンバス化 + 左端 + ハンドルのフォーマットツール
 
 #### 概要
@@ -60,28 +75,3 @@ session-verifier (PASS) 後の小さな見た目修正。M-1 で導入した `Sw
 - **[fix] layout=card 時の見た目切替**: 外側 div に `rounded-2xl` クラス + `background: transparent`
 - **[fix] NoteList の wrap 関数で layout を SwipeRow に伝播**
 - **検証**: `npx tsc --noEmit` exit 0 / `npm run build` 396.60 kB / gzip 114.55 kB (M-1 比 ~0 kB)
-
-### 2026-05-30 - C-2: Calendar フィルタ (タイプ) + 並び順切替 (iOS additions)
-
-#### 概要
-
-iOS additions 要件 C-2 を prototype 環境で実装。Schedule 画面の左 Sidebar (G-3 Drawer 相当) Filter パネルに「タイプ」「並び順 (DayFlow)」セクションを追加。タイプは ScheduleItem の 4 type (event/task/birthday/holiday) を多選択でフィルタ。並び順は DayFlow 側 (listGroups) で `time/updatedAt/title` の 3 種を radio 選択。Calendar (itemsByDay) は時刻順固定 (AC2 準拠)。
-
-#### 変更点
-
-- **[feat] filterTypes state**: `ScheduleItemType[]`。空配列 = 全 ON (デフォルト)
-- **[feat] sortKey state**: `"time" | "updatedAt" | "title"`、デフォルト `"time"`
-- **[feat] filtered ロジック拡張**: filterTypes 絞り込みを追加
-- **[feat] buildListGroups の sortKey 対応**: `pickSortFn` helper でソート関数を切替、noDue グループは time のとき updatedAt fallback
-- **[feat] Sidebar 拡張**:
-  - 「タイプ」セクション: 4 type の多選択チェックリスト (sky/green/peach/red のカラードット + 日本語ラベル + aria-pressed)
-  - 「並び順 (DayFlow)」セクション: 3 sortKey の radio (mauve dot + aria-checked)
-- **[ux] AC3 対応**: タグセクションは `wikiTags.length > 0` のときのみ表示 (Optional Provider 相当の null ガード)
-- **[note] role 範囲**: 要件本文は 5 role (Event/Task/Routine/Note/Daily) 想定だが prototype ScheduleItem は 4 type (Routine/Note/Daily 統合は本番 items_meta 後の話) のため 4 type で代替実装。本番側で 5 role に拡張する想定
-- **検証**: `npx tsc --noEmit` exit 0 / `npm run build` 396.54 kB / gzip 114.51 kB (+1.8 kB / +0.7 kB)
-
-#### Acceptance Criteria 達成
-
-- [x] AC1: 多選択タイプフィルタで Calendar (itemsByDay) と DayFlow (listGroups) が追従 (prototype 4 type 範囲)
-- [x] AC2: 並び順切替で DayFlow の並びが変わる、Calendar は compareTime 固定
-- [x] AC3: WikiTag フィルタは wikiTags 空時に UI 非表示 (Mobile Optional Provider 相当)
