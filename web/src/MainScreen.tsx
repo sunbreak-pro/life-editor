@@ -71,9 +71,9 @@ export function MainScreen({ session }: { session: Session }) {
     <SyncProvider>
       <div className="min-h-screen bg-notion-bg p-6 text-notion-text">
         <div className="mx-auto max-w-2xl space-y-4">
-          <header className="flex items-center justify-between">
+          <header className="flex flex-wrap items-center justify-between gap-2">
             <div className="flex items-center gap-3">
-              <nav className="flex gap-1" aria-label="Sections">
+              <nav className="flex flex-wrap gap-1" aria-label="Sections">
                 {(["tasks", "daily", "notes", "schedule", "tags"] as const).map(
                   (s) => (
                     <button
@@ -94,7 +94,7 @@ export function MainScreen({ session }: { session: Session }) {
               </nav>
             </div>
             <div className="flex items-center gap-3">
-              <span className="text-sm text-notion-text-secondary">
+              <span className="max-w-[45vw] truncate text-sm text-notion-text-secondary sm:max-w-none">
                 {session.user.email}
               </span>
               <button
