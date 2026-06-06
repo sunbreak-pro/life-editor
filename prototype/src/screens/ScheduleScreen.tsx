@@ -1565,15 +1565,6 @@ function AddEventModal({
     return () => window.removeEventListener("keydown", onKey);
   }, [onClose]);
 
-  // Esc で閉じる。テキスト入力中の IME 変換キャンセル (Escape) では閉じない。
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent): void => {
-      if (e.key === "Escape" && !e.isComposing) onClose();
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [onClose]);
-
   return (
     <div
       role="dialog"

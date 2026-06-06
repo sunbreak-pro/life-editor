@@ -2,6 +2,19 @@
 
 > chat-prototype-mobile の `history/chat-*.md` から 5 件超過時に移動された古いエントリ。SSOT は元の `history/chat-prototype-mobile.md`。
 
+### 2026-05-30 - fix-pack: M-1 card layout 見た目調整 (SwipeRow rounded + transparent)
+
+#### 概要
+
+session-verifier (PASS) 後の小さな見た目修正。M-1 で導入した `SwipeRow` が layout=card のとき外側矩形に `C.crust` 暗色が見えて gap-3 隙間に違和感が出ていた問題を解消。SwipeRow に `layout` prop を追加し、card 時のみ `rounded-2xl` + `background: transparent` に切替 (row 時は従来通り `C.crust` 矩形)。NoteCard 自身の rounded-2xl と二重になるが、外側 overflow-hidden で内側ボタン群を角丸にクリッピング。
+
+#### 変更点
+
+- **[fix] SwipeRow に `layout: Layout` prop 追加** (`prototype/src/screens/MaterialsScreen.tsx`)
+- **[fix] layout=card 時の見た目切替**: 外側 div に `rounded-2xl` クラス + `background: transparent`
+- **[fix] NoteList の wrap 関数で layout を SwipeRow に伝播**
+- **検証**: `npx tsc --noEmit` exit 0 / `npm run build` 396.60 kB / gzip 114.55 kB (M-1 比 ~0 kB)
+
 ### 2026-05-30 - C-2: Calendar フィルタ (タイプ) + 並び順切替 (iOS additions)
 
 #### 概要
