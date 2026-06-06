@@ -1,83 +1,68 @@
+import type { ReactNode } from "react";
+import { useTranslation } from "react-i18next";
 import {
   Play,
   Pause,
   RotateCcw,
   SkipForward,
   ClipboardList,
+  Folder,
   X,
 } from "lucide-react";
-import { useTranslation } from "react-i18next";
 import type { SessionType } from "../../../types/timer";
-import { FolderBreadcrumb } from "./MobileTaskSelector";
 
 // --- Session segmented pill ---
 
 interface SessionTabsProps {
   value: SessionType;
   onChange: (v: SessionType) => void;
-  workMinutes: number;
-  breakMinutes: number;
-  longBreakMinutes: number;
 }
 
-export function SessionTabs({
-  value,
-  onChange,
-  workMinutes,
-  breakMinutes,
-  longBreakMinutes,
-}: SessionTabsProps) {
+export function SessionTabs({ value, onChange }: SessionTabsProps) {
   const { t } = useTranslation();
-  const tabs: Array<{ id: SessionType; label: string; sub: string }> = [
-    {
-      id: "WORK",
-      label: t("mobile.work.session.work", "Focus"),
-      sub: t("mobile.work.sessionSub.work", "{{minutes}} min", {
-        minutes: workMinutes,
-      }),
-    },
-    {
-      id: "BREAK",
-      label: t("mobile.work.session.break", "Break"),
-      sub: t("mobile.work.sessionSub.break", "{{minutes}} min", {
-        minutes: breakMinutes,
-      }),
-    },
-    {
-      id: "LONG_BREAK",
-      label: t("mobile.work.session.longBreak", "Long break"),
-      sub: t("mobile.work.sessionSub.longBreak", "{{minutes}} min", {
-        minutes: longBreakMinutes,
-      }),
-    },
+  const tabs: Array<{ id: SessionType; label: string }> = [
+    { id: "WORK", label: t("mobile.work.session.work", "Focus") },
+    { id: "BREAK", label: t("mobile.work.session.break", "Break") },
+    { id: "LONG_BREAK", label: t("mobile.work.session.longBreak", "Long") },
   ];
   return (
-    <div className="mx-auto flex w-fit gap-1 rounded-xl bg-notion-bg-secondary p-1">
+    <div className="flex gap-0.5 rounded-lg bg-notion-bg-secondary p-0.5">
       {tabs.map((tab) => {
         const on = tab.id === value;
         return (
           <button
             key={tab.id}
             onClick={() => onChange(tab.id)}
-            className={`flex min-w-[56px] flex-col items-center gap-px rounded-[9px] px-3.5 py-1.5 ${
+            className={`rounded-[7px] px-2.5 py-1 text-[11px] font-semibold ${
               on
-                ? "bg-notion-bg shadow-[0_1px_2px_rgba(15,23,42,0.06)]"
-                : "bg-transparent"
+                ? "bg-notion-bg text-notion-text shadow-[0_1px_2px_rgba(15,23,42,0.06)]"
+                : "bg-transparent text-notion-text-secondary"
             }`}
           >
-            <span
-              className={`text-xs font-semibold ${
-                on ? "text-notion-text" : "text-notion-text-secondary"
-              }`}
-            >
-              {tab.label}
-            </span>
-            <span className="text-[9.5px] font-medium text-notion-text-secondary opacity-80">
-              {tab.sub}
-            </span>
+            {tab.label}
           </button>
         );
       })}
+    </div>
+  );
+}
+
+// --- Folder breadcrumb ---
+
+export function FolderBreadcrumb({
+  path,
+  className = "",
+}: {
+  path: string[];
+  className?: string;
+}) {
+  if (path.length === 0) return null;
+  return (
+    <div
+      className={`flex items-center gap-1 text-[10px] font-medium text-notion-text-secondary ${className}`}
+    >
+      <Folder size={10} className="shrink-0" />
+      <span className="truncate">{path.join(" › ")}</span>
     </div>
   );
 }
@@ -160,7 +145,7 @@ interface TimerArcProps {
   size?: number;
   strokeColor: string;
   running: boolean;
-  children: React.ReactNode;
+  children: ReactNode;
 }
 
 const ARC_ANGLE = 270;

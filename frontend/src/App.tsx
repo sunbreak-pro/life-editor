@@ -13,8 +13,8 @@ import { MaterialsView } from "./components/Materials/MaterialsView";
 import { CommandPalette } from "./components/CommandPalette/CommandPalette";
 import { UpdateNotification } from "./components/UpdateNotification";
 
-const WorkScreen = lazy(() =>
-  import("./components/Work").then((m) => ({ default: m.WorkScreen })),
+const WorkView = lazy(() =>
+  import("./components/Work").then((m) => ({ default: m.WorkView })),
 );
 const Settings = lazy(() =>
   import("./components/Settings").then((m) => ({ default: m.Settings })),
@@ -207,7 +207,7 @@ function App() {
       case "work":
         return (
           <Suspense fallback={null}>
-            <WorkScreen onCompleteTask={handlers.handleCompleteTask} />
+            <WorkView variant="desktop" />
           </Suspense>
         );
       case "analytics":

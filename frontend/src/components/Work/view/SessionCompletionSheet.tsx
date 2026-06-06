@@ -1,6 +1,6 @@
 import { useTranslation } from "react-i18next";
 
-interface MobileSessionCompletionModalProps {
+interface SessionCompletionSheetProps {
   completedSessionType: "WORK" | "REST";
   onExtend: () => void;
   onStartRest: () => void;
@@ -8,13 +8,19 @@ interface MobileSessionCompletionModalProps {
   onDismiss: () => void;
 }
 
-export function MobileSessionCompletionModal({
+/**
+ * Lightweight bottom-sheet session completion modal for the Work timer view
+ * (mobile variant only). The desktop variant relies on the richer
+ * App-global {@link SessionCompletionModal} instead, so this is never rendered
+ * on desktop (avoids a double modal).
+ */
+export function SessionCompletionSheet({
   completedSessionType,
   onExtend,
   onStartRest,
   onStartWork,
   onDismiss,
-}: MobileSessionCompletionModalProps) {
+}: SessionCompletionSheetProps) {
   const { t } = useTranslation();
   const isWork = completedSessionType === "WORK";
 

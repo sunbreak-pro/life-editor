@@ -1,28 +1,11 @@
-import { useMemo, useState } from "react";
+import { useState, useMemo } from "react";
 import { useTranslation } from "react-i18next";
-import { Zap, Check, Folder } from "lucide-react";
+import { Zap, Check } from "lucide-react";
 import type { TaskNode } from "../../../types/taskTree";
 import { buildFolderPath } from "./folderPath";
+import { FolderBreadcrumb } from "./TimerComponents";
 
-export function FolderBreadcrumb({
-  path,
-  className = "",
-}: {
-  path: string[];
-  className?: string;
-}) {
-  if (path.length === 0) return null;
-  return (
-    <div
-      className={`flex items-center gap-1 text-[10px] font-medium text-notion-text-secondary ${className}`}
-    >
-      <Folder size={10} className="shrink-0" />
-      <span className="truncate">{path.join(" › ")}</span>
-    </div>
-  );
-}
-
-interface MobileTaskSelectorProps {
+interface WorkTaskSelectorProps {
   tree: TaskNode[];
   nodeMap: Map<string, TaskNode>;
   activeTaskId: string | null;
@@ -31,14 +14,17 @@ interface MobileTaskSelectorProps {
   onClose: () => void;
 }
 
-export function MobileTaskSelector({
+/**
+ * Bottom-sheet task picker used by the Work timer view (mobile variant).
+ */
+export function WorkTaskSelector({
   tree,
   nodeMap,
   activeTaskId,
   onSelect,
   onClear,
   onClose,
-}: MobileTaskSelectorProps) {
+}: WorkTaskSelectorProps) {
   const { t } = useTranslation();
   const [search, setSearch] = useState("");
 
