@@ -53,9 +53,9 @@ Mobile 省略 Provider: Audio / ScreenLock / FileExplorer / CalendarTags / Short
 
 フロントエンドは `getDataService()` 経由でのみデータアクセス。**コンポーネントから直接バックエンド呼び出し（`invoke()` 等）を書かない**。実装は `frontend/src/services/`（環境別 DataService + factory）。バックエンド実装が Tauri→Electron/Supabase へ替わってもこの境界は不変。
 
-### 3.2 Section Routing（6 SectionId）
+### 3.2 Section Routing（7 SectionId）
 
-React Router なし。`App.tsx::activeSection` で切替: `schedule` / `materials` / `connect` / `work` / `analytics` / `settings`。`TerminalPanel` は全画面共通の下部パネル（VSCode 方式）。
+React Router なし。`App.tsx::activeSection`（型 `types/taskTree.ts::SectionId`）で切替: `schedule` / `materials` / `connect` / `work` / `analytics` / `settings` / `terminal`。`TerminalPanel` は全画面共通の下部パネル（VSCode 方式）。
 
 ### 3.3 サブシステム（恒久仕様）
 
@@ -83,7 +83,7 @@ React Router なし。`App.tsx::activeSection` で切替: `schedule` / `material
 ### 4.3 ID 戦略 + items_meta 規約（DU-A〜DU-F 反映）
 
 - TaskNode: `<type>-<timestamp+counter>`（例 `task-1710201234566`） / DailyNode: `daily-<YYYY-MM-DD>` / その他: `generateId(prefix)` = `<prefix>-<uuid>`。全 String
-- **items_meta + composite FK pattern**: 5 role (task/event/routine/note/daily) は `items_meta(id, role)` を SSOT に持ち、各 payload テーブルは `(id, role)` 複合 FK で `items_meta(id, role)` を参照する（DU-B / DU-D `0014_notes_payload_parent_fk.sql`）。`id` は role を跨いで一意（id 不変式）。WikiTag/Link 系 (`wiki_tag_assignments.item_id` / `wiki_tag_connections.from_item_id` / `to_item_id`) は role 区別なしで items_meta.id を参照する
+- **items_meta + composite FK pattern**: 5 role (task/event/routine/note/daily) は `items_meta(id, role)` を SSOT に持ち、各 payload テーブルは `(id, role)` 複合 FK で参照（DU-B / DU-D。migration 逐語は git 履歴）。`id` は role を跨いで一意（id 不変式）。WikiTag/Link 系 (`wiki_tag_assignments.item_id` / `wiki_tag_connections.from_item_id` / `to_item_id`) は role 区別なしで items_meta.id を参照
 - **Routine UX 規約（DU-F DF-Q2/Q3）**: Routine は **Event の生成テンプレート**として再定義。Routine 専用 Tag/Link UI は持たない。Tag/Link が必要な場合は Routine から生成された Event 側に付与（将来テンプレ値継承は別計画）。データモデルは items_meta 経由で Routine への Tag/Link を許容する（UI 追加だけで対応可）
 
 ### 4.4 ソフトデリート
@@ -92,7 +92,7 @@ React Router なし。`App.tsx::activeSection` で切替: `schedule` / `material
 
 ### 4.5 PropertyType 拡張方針
 
-実装済み: text / number / select / date / checkbox。優先度: relation(高) / formula(高) / rollup(中) / ビュー切替 Board・Gallery・Calendar(中) / url・email(低)。新型追加時は MCP ツール（`query_database` / `add_database_row` / `update_database_cell`）も同時更新。
+実装済み: text / number / select / date / checkbox。優先度: relation(高) / formula(高) / rollup(中) / ビュー切替 Board・Gallery・Calendar(中) / url・email(低)。新型追加時は汎用 DB 用 MCP ツール（`query_database` / `add_database_row` / `update_database_cell`）も整備（現状の 32 ツールには未含 = 汎用 DB は MCP 未対応）。
 
 ---
 
@@ -214,7 +214,7 @@ cd frontend && npm run build                            # 型検証（tsc -b。-
 
 **Stop hook 連動**: `.claude/hooks/stop-check.sh` が応答終了時に frontend 変更を検知して裏で `npm run build` を走らせ、結果を `.claude/comm/outbox/<chat>/stop-report.md` に追記する。登録は `.claude/settings.json::hooks.Stop`。無効化は同ファイル削除。
 
-**SessionStart hook 連動**: `.claude/hooks/session-start-check.sh` が新規セッション開始時に `.claude/comm/.session-name` を 4 観点 (A 未宣言 / B `chat-` プレフィックス違反 / C allowlist 外文字 (`^[a-zA-Z0-9_-]+$`) / D `.session-name` の mtime が HEAD commit より 3 日以上古い) + worktree 検査 E (24h+ dirty / PR #22) + 検査 F (`pwd` ↔ `.session-branch` 整合 / §7.4) で検査し、警告があれば `.claude/comm/outbox/<chat>/session-start-warnings.md` に追記。**informational only でセッションは止めない**。登録は `.claude/settings.json::hooks.SessionStart`。per-chat 機構 (`.claude/memory/INDEX.md`) 不在の legacy プロジェクトでは無音 (即 exit 0)。
+**SessionStart hook 連動**: `.claude/hooks/session-start-check.sh` が新規セッション開始時に `.session-name` / `.session-branch` / worktree 状態を検査し、警告を `.claude/comm/outbox/<chat>/session-start-warnings.md` に追記（**informational only・セッションは止めない**。検査項目の正本は hook スクリプト）。登録は `.claude/settings.json::hooks.SessionStart`。per-chat 機構不在の legacy プロジェクトでは無音。
 
 ### 7.4 Multi-chat Worktree Policy（並行チャット用 worktree 運用規約）
 
@@ -227,11 +227,9 @@ cd frontend && npm run build                            # 型検証（tsc -b。-
 
 - **メインで `git checkout <feature>` 禁止**。feature 作業は必ず worktree から行う
 - 起動: `claude --worktree <slug>` で Claude Code 公式の自動管理に乗る（[公式 doc](https://code.claude.com/docs/en/worktrees)）。既存 branch を触る場合は `git worktree add .claude/worktrees/<slug>/ <existing-branch>` 後にその path で起動
-- ブランチ宣言: worktree 作成手順の 1 ステップとして `echo <branch> > .claude/comm/.session-branch` を打つ（reactive な「未宣言なら促す」ではなく、作成手順に組み込む proactive 運用）。SessionStart hook 検査 F が `pwd` の branch と照合し不一致なら outbox 警告
-- 同一ブランチの二重 checkout は git 仕様で不可（`--force` は破損リスク。Archon #1188）。1 branch = 1 worktree
-- 既知制約（許容前提）: worktree ごとに `npm install` 必要 / `.tsbuildinfo` 共有不可 / VSCode TS LS が N 倍プロセス化 → active worktree は 2-3 本に絞る
-- 古い worktree の prune: 検査 E (PR #22) + 定期 `git worktree prune`
-- 委譲先での明文化: `lead-pipeline` / `session-manager` (START) / `git-orchestrator` (branch 切替) が本規約を引用して誘導する。**worktree 新規作成は 4 ステップ 1 セット** = `git worktree add` → `cd` → `echo > .session-branch` → `claude`（途中省略禁止 — `.session-branch` 単体抜けで hook 検査 F が無音スキップする）
+- ブランチ宣言: worktree 作成手順に組み込む proactive 運用 `echo <branch> > .claude/comm/.session-branch`（hook 検査 F が `pwd` の branch と照合）
+- **worktree 新規作成は 4 ステップ 1 セット** = `git worktree add` → `cd` → `echo > .session-branch` → `claude`（途中省略禁止 — `.session-branch` 抜けで hook が無音スキップ）。`lead-pipeline` / `session-manager` (START) / `git-orchestrator` が本規約を引用して誘導
+- 既知制約（npm install / .tsbuildinfo 非共有 等）・二重 checkout 不可・prune 手順の詳細 → 計画書 [`2026-05-24-multi-chat-worktree-policy.md`](./docs/vision/plans/2026-05-24-multi-chat-worktree-policy.md)
 
 ---
 
@@ -246,7 +244,7 @@ cd frontend && npm run build                            # 型検証（tsc -b。-
 
 ## 9. Document System
 
-- **フロー**: Vision（`docs/vision/`、ADR 不使用）→ 実装プラン（`.claude/docs/vision/plans/YYYY-MM-DD-*.md`）→ 完了で `archive/` 移動・規約は本ファイルへ統合。**進捗 / 履歴はチャット別 (per-chat) ファイルに分割** — `.claude/memory/chat-<self>.md` + `.claude/history/chat-<self>.md`（task-tracker 経由・git 追跡・単一書込者なので衝突しない）、集約 `memory/INDEX.md` + `history/INDEX.md` は **git 非追跡の派生ビュー**（`.claude/hooks/regen-index.sh` が SessionStart hook + task-tracker から `chat-*.md` を機械集約して再生成。INDEX を tracked + 全文再生成していたのが #1 マージ衝突源だったため `.gitignore` で追跡対象から除外し、衝突を物理的に排除した）。チャット名は `.claude/comm/.session-name` で宣言（FileChanged 監視レイヤーとも共有）。旧 `.claude/MEMORY.md` / `HISTORY.md` は 2026-05-23 凍結・参考保全。ADR 不使用の理由・却下案は `vision/coding-principles.md §5`
+- **フロー**: Vision（`docs/vision/`、ADR 不使用）→ 実装プラン（`.claude/docs/vision/plans/YYYY-MM-DD-*.md`）→ 完了で `archive/` 移動・規約は本ファイルへ統合。**進捗 / 履歴はチャット別 (per-chat) ファイル** — `.claude/memory/chat-<self>.md` + `.claude/history/chat-<self>.md`（task-tracker 経由・git 追跡・単一書込者なので衝突しない）。集約 `memory/INDEX.md` + `history/INDEX.md` は **git 非追跡の派生ビュー**（`regen-index.sh` が `chat-*.md` から再生成。追跡 + 全文再生成がマージ衝突源だったため除外）。チャット名は `.claude/comm/.session-name` で宣言。旧 `.claude/MEMORY.md` / `HISTORY.md` は 2026-05-23 凍結。ADR 不使用の理由は `vision/coding-principles.md §5`
 - **Known Issue**: `docs/known-issues/` に Root Cause + 再発防止を蓄積。発見時 `_TEMPLATE.md` で `NNN-<slug>.md` 作成 + INDEX 更新、解決時 Status=Fixed。**類似バグはまず `INDEX.md` を grep**
 - **並行チャット通信**: `.claude/comm/` 経由（プロトコル → [`comm/README.md`](./comm/README.md)）。自分の Outbox にのみ append、他チャットは読み取り専用
 - **作業時の鉄則**: 機能追加/削除時は §8 更新 ／ 音源ファイルはコミット禁止（`public/sounds/` は `.gitignore`）／ API キーをフロントエンドに直書きしない ／ **`.mcp.json`（git 追跡対象）のトークンは `${SUPABASE_ACCESS_TOKEN}` 等の参照プレースホルダのまま維持。実トークン（`sbp_...` 等）へ平文展開禁止 — 平文化＝即リポジトリ流出。実値は shell 環境変数で供給。commit 前に参照形式か必須確認（2026-05-17 平文展開で GitHub Push Protection ブロック発生）**
