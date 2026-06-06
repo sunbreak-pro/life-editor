@@ -1,7 +1,7 @@
 ---
-Status: ACTIVE — Phase 2 進行中（Phase 1 完了 2026-05-16 / S0・S1・S2・S3 完了 2026-05-17、次 S4 Schedule。最新 Phase 状況は MEMORY.md + docs/vision/plans/2026-05-16-phase2-core-migration.md が正本）。本ファイルは commit 60f5f63 で誤削除→2026-05-17 git 履歴(60f5f63^)から復元（内容は陳腐化なし）。旧 Phase 0 学習スパイクは 2026-05-14 削除
+Status: ACTIVE — Phase 2 完了（2026-06-05 / PR #43・#44 + tracker commit 5b3021c。S0-S7 / perf / RLS 達成）。Phase 2↔3 間 Data Unification レーン進行中（DU-G G2 / 計画書 `2026-05-25-data-unification-g-notes-daily-unified.md`）、Phase 3（Electron 包装）未着手。最新 Phase 状況は `memory/INDEX.md`（per-chat）+ 各 Phase 計画書 + git 履歴が正本（旧 MEMORY.md は 2026-05-23 凍結）。本ファイルは commit 60f5f63 で誤削除→2026-05-17 git 履歴から復元
 Created: 2026-05-04
-Updated: 2026-05-14
+Updated: 2026-06-06
 Task: クロスプラットフォーム移行 — Tauri / Cloudflare 構成 → Vite + React + TS + Supabase + Electron + Capacitor
 Project path: /Users/newlife/dev/apps/life-editor
 Branch: refactor/web-first-v2
