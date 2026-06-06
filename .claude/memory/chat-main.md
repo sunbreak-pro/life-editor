@@ -6,6 +6,10 @@
 
 ## 直近の完了
 
+- [chat-main] web Phase 2 perf改善 + S7オフラインバナー + RLS migration本番適用 ✅（2026-06-03, PR #43/#44
+  merged）— WikiTags N+1解消 / Note・Task tree O(1) / Schedule debounce / TipTap lazy / offline
+  banner(useSyncExternalStore) / 0015 dailies initplan + 0016 events routine owner（SQL
+  Editor適用・pg_policies確認済）
 - **Autonomous Dev Routine（夜間 Cloud Routine + 安全レール）** ✅（2026-05-31 PR #37 merged）
   - 夜間自律開発ルーチン本体 + 安全レール。`git reset --hard origin/main` で破棄された draft tracker commit (`b488599` "PR #37 draft") を実態（MERGED）で再記録
 - **Multi-chat Worktree Policy proactive rollout** ✅（2026-05-26 PR #33 merged, `15941c1`）
@@ -16,6 +20,8 @@
 
 ## 予定
 
+- [chat-main] web Phase 2 残: S8 Supabase Realtime（SyncContext no-op→postgres_changes購読+debounce bump+publication migration 0017）/ S9 モバイルレスポンシブ（本番web/）
+- [chat-main] Perf follow-up: M4（useScheduleItemsRoutineSync の syncScheduleItemsWithRoutines を updateFutureScheduleItemsByRoutine に一括化）/ M1（note一覧content_json除外・遅延取得+検索移行の設計変更要
 - **Known Issue 025 Fixed 化**（任意・軽量）: prototype 系 worktree 関連。`prototype/mobile-ui` worktree は現在も生存中のため要状況再確認の上 INDEX を Active→Fixed 判断
 - **Link UX 強化（Obsidian 風）**: cross-role link / 遅延実体化 stub / クリック遷移。スケルトン `2026-05-26-link-ux-obsidian-style.md`。DU-G と独立
 - DU-E Calendar 2 ビュー再実装（DU-G 完了後）
