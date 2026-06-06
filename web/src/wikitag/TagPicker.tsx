@@ -161,7 +161,7 @@ export function TagPicker({
         <div
           role="dialog"
           aria-label="Tag picker"
-          className="absolute z-20 left-0 top-full mt-1 w-64 rounded-md border border-notion-border bg-notion-bg p-2 shadow-lg"
+          className="absolute z-20 left-0 top-full mt-1 w-64 max-w-[calc(100vw-2rem)] rounded-md border border-notion-border bg-notion-bg p-2 shadow-lg"
         >
           <input
             type="text"
