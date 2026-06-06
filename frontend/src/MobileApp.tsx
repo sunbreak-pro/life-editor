@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import { X, BookOpen, StickyNote } from "lucide-react";
 import { MobileLayout, type MobileTab } from "./components/Layout/MobileLayout";
 import { MobileCalendarView } from "./components/Mobile/MobileCalendarView";
-import { MobileWorkView } from "./components/Mobile/MobileWorkView";
+import { WorkView } from "./components/Work/WorkView";
 import { MobileSettingsView } from "./components/Mobile/MobileSettingsView";
 import { MobileLeftDrawer } from "./components/Mobile/shared/MobileLeftDrawer";
 import { useEdgeSwipeBack } from "./components/Mobile/shared/useEdgeSwipeBack";
@@ -133,7 +133,7 @@ export function MobileApp() {
       case "schedule":
         return <MobileCalendarView />;
       case "work":
-        return <MobileWorkView />;
+        return <WorkView variant="mobile" />;
       case "materials":
         return materialsSubTab === "daily" ? <DailyView /> : <NotesView />;
       case "settings":

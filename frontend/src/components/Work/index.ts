@@ -1,1 +1,1 @@
-export { WorkScreen } from "./WorkScreen";
+export { WorkView } from "./WorkView";

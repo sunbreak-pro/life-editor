@@ -1,5 +1,9 @@
 import type { TaskNode } from "../../../types/taskTree";
 
+/**
+ * Build the folder breadcrumb path (ancestor folder titles, root → leaf) for a task.
+ * Shared by the Work timer view (mobile chip + task selector sheet).
+ */
 export function buildFolderPath(
   taskId: string | null,
   nodeMap: Map<string, TaskNode>,
