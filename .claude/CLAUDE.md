@@ -2,7 +2,7 @@
 
 > 設計判断・実装規約の SSOT。**「変わらない事実」だけを持ち、手順はスキル/エージェントへ委譲**する。抽象構想・設計原則は `docs/vision/`。Claude Code 起動時に auto-load。
 >
-> ⚠️ **Active Migration**: Tauri 2 + D1 + portable-pty → **Electron + Capacitor + Web + Supabase** へ移行中（`refactor/web-first-v2`）。**現行スタック・Phase 状況・移行手順の SSOT は [`2026-05-04-cross-platform-migration.md`](./2026-05-04-cross-platform-migration.md) と `memory/INDEX.md`** (旧 `MEMORY.md` は 2026-05-23 凍結、per-chat 化済 — §9 参照)。本ファイルの実装パス/コマンドはアーキ非依存に一般化済み（具体は移行 SSOT 参照）。方針: 学習ログ廃止 / 完成までコスト $0 厳守。
+> ⚠️ **Active Migration**: Tauri 2 + D1 + portable-pty → **Electron + Capacitor + Web + Supabase** へ移行中（作業ブランチは `main` に集約済み・旧 `refactor/web-first-v2` は PR #3-9 マージ済みで廃止）。**現行スタック・Phase 状況・移行手順の SSOT は [`2026-05-04-cross-platform-migration.md`](./2026-05-04-cross-platform-migration.md) と `memory/INDEX.md`** (旧 `MEMORY.md` は 2026-05-23 凍結、per-chat 化済 — §9 参照)。本ファイルの実装パス/コマンドはアーキ非依存に一般化済み（具体は移行 SSOT 参照）。方針: 学習ログ廃止 / 完成までコスト $0 厳守。
 
 ---
 
@@ -184,7 +184,7 @@ ESLint 設定に従う。コメントは必要最小限。
 | branch / PR / merge                | `git-orchestrator`（→ git-workflow / git-branch-flow / git-conflict-resolver）                                                                                                                                                                                                    |
 | IPC 追加                           | `add-ipc-channel` スキル ／ DB 変更                                                                                                                                                                                                                                               | `db-migration` スキル |
 | デバッグ                           | `debug-strategy` スキル + `docs/known-issues/INDEX.md` を grep                                                                                                                                                                                                                    |
-| ツール実行ハング（応答停止）       | [`~/.claude/rules/bash-tool-stability.md`](file:///Users/newlife/.claude/rules/bash-tool-stability.md)（原因=本体 SSE バグ・ローカルはシロ。ESC 復帰 → jsonl 系統判定 → 混雑帯回避。重い Bash は background/subagent に逃がす。詳細切り分けは memory `bash-tool-hang-diagnosis`） |
+| ツール実行ハング（応答停止）       | [`~/.claude/rules/bash-tool-stability.md`](file:///Users/newlife/.claude/rules/bash-tool-stability.md)（原因=本体 SSE バグ・ローカルはシロ。ESC 復帰 → jsonl 系統判定 → 混雑帯回避。重い Bash は background/subagent に逃がす。**運用既定: 状態変更・複数行系の Bash（git 操作 / build / test / install / コマンド連結）はサブエージェント or background 経由、単発の軽い読み取り（ls / git status / 単発 grep）は直接実行**。詳細切り分けは memory `bash-tool-hang-diagnosis`） |
 | life-editor 整合監査               | `life-editor-ipc-validator` / `-migration-validator` / `-sync-auditor`                                                                                                                                                                                                            |
 
 ### 7.1 開発コマンド
