@@ -156,6 +156,8 @@ ESLint 設定に従う。コメントは必要最小限。
 
 設計規約: `notion-*` トークン使用（ハードコード禁止）/ i18n は props 経由（フック内で `useTranslation()` 禁止）/ ジェネリクスで型外部化 / DataService はコールバック注入（フック内で `getDataService()` 直呼び禁止）/ **主要 UI コンテナ背景に透明度禁止**（不透明トークン使用、未定義クラスは silent fail で透明落ち）— 詳細 → `vision/coding-principles.md §5`。UI デザイン判断は `frontend-react-designer` スキル。
 
+> **移行先の集約方針（W0 2026-06-07 確定 = 案 A）**: 上表は FROZEN な `frontend/`（Tauri）の配置。Web/Electron/Capacitor 共用の新規 UI は **`shared/src/components/` にデザインシステム + `notion-*` トークン + i18n（en/ja catalog）を集約**し、3 配布形態が同じソースを共用する（UI 2 層モデル → `vision/coding-principles.md §6`）。部品の props 経由 i18n 不変式は維持。
+
 ### 6.5 Schedule 3 分割
 
 `RoutineProvider` / `ScheduleItemsProvider` / `CalendarTagsProvider`。`useScheduleContext()` は後方互換ファサード。新コードは個別 hook 直接使用。複数参照されるものは `Schedule/shared/` へ。背景 → `vision/coding-principles.md §3`。
