@@ -6,20 +6,13 @@
 
 ## 直近の完了
 
-- [chat-main] web Phase 2 perf改善 + S7オフラインバナー + RLS migration本番適用 ✅（2026-06-03, PR #43/#44
-  merged）— WikiTags N+1解消 / Note・Task tree O(1) / Schedule debounce / TipTap lazy / offline
-  banner(useSyncExternalStore) / 0015 dailies initplan + 0016 events routine owner（SQL
-  Editor適用・pg_policies確認済）
+- [chat-main] セクション統一 Phase 3 Materials dead code 整理 ✅（2026-06-07, PR #53 merged `9349d12`）— Daily/Notes は既に共有済みのため統一作業不要、未使用 Mobile 6 ファイル削除のみ（Files タブは Desktop 維持）
+- [chat-main] web Phase 2 perf改善 + S7オフラインバナー + RLS migration本番適用 ✅（2026-06-03, PR #43/#44 merged）— WikiTags N+1解消 / Note・Task tree O(1) / Schedule debounce / TipTap lazy / offline banner / 0015 dailies initplan + 0016 events routine owner
 - **Autonomous Dev Routine（夜間 Cloud Routine + 安全レール）** ✅（2026-05-31 PR #37 merged）
-  - 夜間自律開発ルーチン本体 + 安全レール。`git reset --hard origin/main` で破棄された draft tracker commit (`b488599` "PR #37 draft") を実態（MERGED）で再記録
-- **Multi-chat Worktree Policy proactive rollout** ✅（2026-05-26 PR #33 merged, `15941c1`）
-  - `.session-branch` 言及を reactive→proactive 化（session-manager / git-orchestrator / lead-pipeline / CLAUDE.md §7.4 を「worktree 作成 4 ステップ 1 セット」へ）
-  - 統合計画書 `2026-05-25-worktree-rollout-and-cleanup.md`（du-g セットアップ Annex A/B + 規約整備 R2-_ + prototype+mobile-ui 退役 P3-_）
-  - Known Issue 028 作成（Bash `cd` が worktree 跨ぎで持続 → `git -C` / サブシェル推奨）
-- **DU-G G1-G3**（Notes/Dailies Unified Service + Provider+web 切替）✅（2026-05-26 PR #29/#30/#31 merged）
 
 ## 予定
 
+- **Mobile 基準セクション統一（frontend）の Phase 2 Schedule / Phase 4 Settings は FROZEN（取り下げ）** — frontend は移行 Phase 5 で破棄予定・web に伝播しないため。今後の統一は web-desktop-parity-roadmap（W0-W4）側で実施。Phase 2 設計（削除=週ビュー/Dual Column/CalendarTags/検索, Desktop維持=Events/Tasks/高度操作）は web 移植仕様の参照元として保全（master プラン `2026-06-05-mobile-first-section-unification.md`）
 - [chat-main] web Phase 2 残: S8 Supabase Realtime（SyncContext no-op→postgres_changes購読+debounce bump+publication migration 0017）/ S9 モバイルレスポンシブ（本番web/）
 - [chat-main] Perf follow-up: M4（useScheduleItemsRoutineSync の syncScheduleItemsWithRoutines を updateFutureScheduleItemsByRoutine に一括化）/ M1（note一覧content_json除外・遅延取得+検索移行の設計変更要
 - **Known Issue 025 Fixed 化**（任意・軽量）: prototype 系 worktree 関連。`prototype/mobile-ui` worktree は現在も生存中のため要状況再確認の上 INDEX を Active→Fixed 判断
