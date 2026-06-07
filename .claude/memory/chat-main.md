@@ -6,9 +6,9 @@
 
 ## 直近の完了
 
+- [chat-main] web-desktop parity **W0-4/5/6**（i18n 基盤 + 共有 UI mount 検証 + 2層モデル記録）✅（2026-06-07）— react-i18next + en/ja locales（各 1778 key・parity 一致）/ 共有 i18n provider / web mount 検証 / coding-principles §6「2層モデル」記録 + CLAUDE.md/移行SSOT に Option A 記録。**role-qa + security-reviewer 並列独立監査 PASS**（Critical/High 0）。worktree `w0-shared-ui` / branch `feat/w0-shared-design-system` @`e86819e`（**未 merge**）。follow-up: W0 sign-off 時に `web/src/_w0demo/` 削除
 - [chat-main] セクション統一 Phase 3 Materials dead code 整理 ✅（2026-06-07, PR #53 merged `9349d12`）— Daily/Notes は既に共有済みのため統一作業不要、未使用 Mobile 6 ファイル削除のみ（Files タブは Desktop 維持）
 - [chat-main] web Phase 2 perf改善 + S7オフラインバナー + RLS migration本番適用 ✅（2026-06-03, PR #43/#44 merged）— WikiTags N+1解消 / Note・Task tree O(1) / Schedule debounce / TipTap lazy / offline banner / 0015 dailies initplan + 0016 events routine owner
-- **Autonomous Dev Routine（夜間 Cloud Routine + 安全レール）** ✅（2026-05-31 PR #37 merged）
 
 ## 予定
 

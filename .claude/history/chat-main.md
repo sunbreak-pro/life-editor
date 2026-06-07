@@ -1,5 +1,28 @@
 # HISTORY (chat-main)
 
+### 2026-06-07 - web-desktop parity W0-4/5/6 完了 + role-qa/security 並列独立監査 PASS
+
+#### 概要
+
+web-desktop parity ロードマップ W0（共有 UI 基盤）のうち W0-4/5/6（i18n 基盤 + 共有 UI mount 検証 + 2層モデルのドキュメント記録）が worktree `w0-shared-ui`（branch `feat/w0-shared-design-system` @`e86819e`）で完了。メインからは実装せず、**role-qa と security-reviewer を別コンテキストで並列起動して独立監査**し PASS を確認した（コード変更はメイン working tree に無し）。
+
+#### 変更点（監査対象 = `git diff c927b27..e86819e`）
+
+- **W0-4/5（commit `c42f96d`）**: `shared/src/i18n/index.ts`（react-i18next idempotent init / fallback=en / 永続化）+ `locales/{en,ja}.json`（各 ~2650 行）+ 共有 i18n provider + web mount 検証（`web/src/main.tsx` 改修 / `web/src/_w0demo/W0Demo.tsx` デモ）+ `shared/tests/i18n.test.ts`。
+- **W0-6（commit `e86819e`）**: `docs/vision/coding-principles.md` に §6「UI 2層モデル（部品共通/画面分岐）」新設（既存 §6→§7 繰り上げ・連番正常）+ §6.4 props 経由 i18n 不変式維持を明記。`.claude/CLAUDE.md` §6.4 と移行 SSOT §0 に Option A（共有 UI 集約）方針転換を記録。
+
+#### 検証（並列監査の実機ログ）
+
+- **role-qa**（91.6k tok / 22 tool / 186s）: Acceptance Criteria 全達成。`shared tsc -b` exit 0 / `shared vitest` 258 pass / `web vite build` exit 0。**en/ja key parity 完全一致（各 1778 key・欠落0）**＝当初疑った行数差（2651 vs 2649）は整形差で誤検知。`escapeValue:false` は危険シンク（dangerouslySetInnerHTML/Trans/innerHTML）ゼロで実害なし。判定 PASS（merge 可）。
+- **security-reviewer**（73.5k tok / 16 tool / 157s）: Critical/High/Medium 0、Low 1（デモ残留）、Info 3。新規依存 `i18next@25.10.10`/`react-i18next@16.6.6` + transitive 4 件は正規エコシステム・`npm audit` 0 件・integrity 整合。秘密情報・prototype pollution 該当なし。
+- **両者一致の唯一 follow-up（merge 非ブロック）**: `web/src/_w0demo/W0Demo.tsx` が `main.tsx` で静的 import され production バンドル混入・`?w0demo` で認証なし到達可能（ただしデータ/秘密に非接触）。**W0 sign-off 時に削除**（残すなら `import.meta.env.DEV` ガード）。
+
+#### 設計判断 / 申し送り
+
+- **並列監査のコスパ評価**: サブエージェントは各々独立コンテキストのため「並列で 1 本あたりの質が落ちる」は起きない。落ちるのは「追加トークンあたりの新規発見量」で、W0-4/5/6 は面が狭い（i18n/docs）ため 2 本目（security）は大半が再確認だった。独立 2 本の結論収束＝クロス検証で確信度は上昇。指針: 監査本数は固定でなく**差分の面の多様さに合わせる**。`life-editor-*`（IPC/migration/sync）は該当変更ゼロのため非起動（空振りノイズ回避）。
+- **次アクション**: (1) `_w0demo` 削除を W0 sign-off follow-up として実施予定（本セッションで着手）。(2) W0 全体（W0-1〜6）の main への merge（PR）は別途 git-orchestrator 経由。(3) その後 W1（UX 基盤: Settings/Theme/FontSize/Shortcut）着手。
+- focus-trap on Modal/BottomSheet は `e86819e` で「follow-up (QA)」と明示宣言済みで W0 スコープ外（今回監査範囲では越境・未達なし）。
+
 ### 2026-06-07 - セクション統一 Phase1確認 + Phase3 Materials完了 + Phase2/4調査 → FROZEN一本化把握
 
 #### 概要
