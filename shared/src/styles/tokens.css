@@ -1,0 +1,141 @@
+/*
+ * Shared design tokens — single source of truth for the notion-* color
+ * system across web / desktop / mobile (W0-2).
+ *
+ * Ported verbatim (full set) from frontend/src/index.css `:root` /
+ * `[data-theme="dark"]` / `@theme` blocks. frontend is FROZEN (Tauri,
+ * to be discarded) so this file is now the canonical token definition;
+ * frontend stays untouched.
+ *
+ * Hosts import this file from their own entry CSS, e.g. web/src/index.css:
+ *   @import "tailwindcss";
+ *   @import "../../shared/src/styles/tokens.css";
+ *   @source "../../shared/src";   (so Tailwind scans shared tsx classes)
+ *
+ * This file does NOT `@import "tailwindcss"` itself — the host owns that,
+ * and Tailwind v4 only processes one root. We only contribute the token
+ * layer (:root vars + @theme mapping + base scaling utilities).
+ *
+ * Transparency policy (coding-principles §5): primary container
+ * backgrounds use opaque tokens only. Undefined `bg-notion-*` classes
+ * silently fall transparent, so every notion-* color used by shared
+ * components MUST be defined in the @theme block below.
+ */
+
+:root {
+  --color-bg-primary: #ffffff;
+  --color-bg-secondary: #eef2f7;
+  --color-bg-subsidebar: #f5f7fa;
+  --color-text-primary: #18181b;
+  --color-text-secondary: #71717a;
+  --color-border: #dbe1ea;
+  --color-border-strong: #c0c8d2;
+  --color-accent: #2eaadc;
+  /* Opaque light-blue wash for the DnD "drop inside this folder" cue
+     (DU-G). Opaque on purpose (§5). */
+  --color-accent-subtle: #d6eef7;
+  --color-hover: #e8edf4;
+  --color-success: #0f7b6c;
+  --color-danger: #e03e3e;
+  --color-calendar-header: #f87171;
+  --color-schedule-routine-bg: #ebf0fe;
+  --color-schedule-other-bg: #f1f2f4;
+  --color-schedule-event-bg: #f3e8ff;
+  --color-schedule-event-border: #8b5cf6;
+  --color-chip-routine-bg: #ebf0fe;
+  --color-chip-routine-fg: #3b5bdb;
+  --color-chip-routine-dot: #5b6cdb;
+  --color-chip-event-bg: #f3e8ff;
+  --color-chip-event-fg: #6d28d9;
+  --color-chip-event-dot: #8b5cf6;
+  --color-chip-task-bg: #e0f4fb;
+  --color-chip-task-fg: #0e7490;
+  --color-chip-task-dot: #2eaadc;
+  --color-chip-completed-bg: #ecfdf5;
+  --color-chip-completed-fg: #047857;
+  --color-chip-completed-dot: #10b981;
+  --font-size-base: 16px;
+}
+
+[data-theme="dark"] {
+  --color-bg-primary: #18181b;
+  --color-bg-secondary: #27272a;
+  --color-bg-subsidebar: #27272a;
+  --color-text-primary: #f4f4f5;
+  --color-text-secondary: #a1a1aa;
+  --color-border: #3f3f46;
+  --color-border-strong: #52525b;
+  --color-accent: #529cca;
+  /* Dark-theme counterpart: a desaturated blue that sits just above the
+     dark row background instead of glowing. Opaque (see :root note). */
+  --color-accent-subtle: #2b3a44;
+  --color-hover: #3f3f46;
+  --color-success: #4dab9a;
+  --color-danger: #ef4444;
+  --color-calendar-header: #991b1b;
+  --color-schedule-routine-bg: #1e293b;
+  --color-schedule-other-bg: #1f2937;
+  --color-schedule-event-bg: #2e1065;
+  --color-schedule-event-border: #a78bfa;
+  --color-chip-routine-bg: #1e2a48;
+  --color-chip-routine-fg: #93c5fd;
+  --color-chip-routine-dot: #818cf8;
+  --color-chip-event-bg: #2e1065;
+  --color-chip-event-fg: #c4b5fd;
+  --color-chip-event-dot: #a78bfa;
+  --color-chip-task-bg: #0c3a4a;
+  --color-chip-task-fg: #7dd3fc;
+  --color-chip-task-dot: #38bdf8;
+  --color-chip-completed-bg: #052e1f;
+  --color-chip-completed-fg: #6ee7b7;
+  --color-chip-completed-dot: #34d399;
+}
+
+@theme {
+  --color-notion-bg: var(--color-bg-primary);
+  --color-notion-bg-secondary: var(--color-bg-secondary);
+  --color-notion-bg-subsidebar: var(--color-bg-subsidebar);
+  --color-notion-text: var(--color-text-primary);
+  --color-notion-text-secondary: var(--color-text-secondary);
+  --color-notion-border: var(--color-border);
+  --color-notion-border-strong: var(--color-border-strong);
+  --color-notion-accent: var(--color-accent);
+  --color-notion-accent-subtle: var(--color-accent-subtle);
+  --color-notion-primary: var(--color-accent);
+  --color-notion-secondary: var(--color-text-secondary);
+  --color-notion-hover: var(--color-hover);
+  --color-notion-bg-hover: var(--color-hover);
+  --color-notion-hover-strong: var(--color-hover);
+  --color-notion-success: var(--color-success);
+  --color-notion-danger: var(--color-danger);
+  --color-notion-calendar-header: var(--color-calendar-header);
+  --font-sans:
+    ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica,
+    "Apple Color Emoji", Arial, sans-serif, "Segoe UI Emoji", "Segoe UI Symbol";
+}
+
+/* Font-size scaling utilities (10-step theme system, CLAUDE.md §3.3).
+   Relative ems so a single root font-size drives the whole UI. Ported
+   from frontend/src/index.css @layer utilities. */
+@layer utilities {
+  .text-scaling-xs {
+    font-size: 0.75em;
+    line-height: 1.125em;
+  }
+  .text-scaling-sm {
+    font-size: 0.875em;
+    line-height: 1.25em;
+  }
+  .text-scaling-base {
+    font-size: 1em;
+    line-height: 1.5em;
+  }
+  .text-scaling-lg {
+    font-size: 1.125em;
+    line-height: 1.75em;
+  }
+  .text-scaling-xl {
+    font-size: 1.25em;
+    line-height: 1.75em;
+  }
+}
