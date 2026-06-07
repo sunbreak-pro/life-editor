@@ -1,5 +1,5 @@
 ---
-Status: In-Progress
+Status: DONE — PR #47 マージ済（残務なし。2026-06-07 archive 対象）
 Created: 2026-06-06
 Branch: feat/web-phase2-s8-realtime
 Owner-chat: main

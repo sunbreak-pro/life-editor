@@ -1,5 +1,5 @@
 ---
-Status: In-Progress
+Status: In-Progress — 実装は PR #49 マージ済（pass 1 静的修正）。残: モバイル崩れの 👀 目視 fix-pack（移行 SSOT Phase 2 完了判定の最後の 1 項目）
 Created: 2026-06-06
 Branch: feat/web-phase2-s9-mobile-responsive
 Owner-chat: main
