@@ -1,60 +1,17 @@
 @import "tailwindcss";
 
 /*
- * Minimal notion-* token subset for Phase 1.
- * Source: frontend/src/index.css (@theme block).
- * Only the tokens needed to verify the tasks screen are ported here.
- * The full 1490-line theme is intentionally NOT copied (Phase 2 work).
+ * Shared design tokens (W0-2). The full notion-* token set now lives in
+ * shared/src/styles/tokens.css (canonical SSOT, ported from FROZEN
+ * frontend/src/index.css). web imports it from source — same source-
+ * consumption model as the vite `@life-editor/shared` alias.
+ *
+ * `@source` tells Tailwind v4 to also scan shared/src/**\/*.tsx for
+ * class usage, so utilities used only inside shared design-system
+ * components (Button/Input/Card/Modal/...) are generated in web's build.
  */
-
-:root {
-  --color-bg-primary: #ffffff;
-  --color-bg-secondary: #eef2f7;
-  --color-text-primary: #18181b;
-  --color-text-secondary: #71717a;
-  --color-border: #dbe1ea;
-  --color-accent: #2eaadc;
-  /* Opaque light-blue wash for the DnD "drop inside this folder" cue
-     (DU-G). Kept opaque on purpose — §6.4 forbids transparency on
-     primary container backgrounds, and an undefined token would silently
-     fall transparent. Distinct from --color-hover so the drop target
-     reads differently from the selected row. */
-  --color-accent-subtle: #d6eef7;
-  --color-hover: #e8edf4;
-  --color-success: #0f7b6c;
-  --color-danger: #e03e3e;
-}
-
-[data-theme="dark"] {
-  --color-bg-primary: #18181b;
-  --color-bg-secondary: #27272a;
-  --color-text-primary: #f4f4f5;
-  --color-text-secondary: #a1a1aa;
-  --color-border: #3f3f46;
-  --color-accent: #529cca;
-  /* Dark-theme counterpart: a desaturated blue that sits just above the
-     dark row background instead of glowing. Opaque (see :root note). */
-  --color-accent-subtle: #2b3a44;
-  --color-hover: #3f3f46;
-  --color-success: #4dab9a;
-  --color-danger: #ef4444;
-}
-
-@theme {
-  --color-notion-bg: var(--color-bg-primary);
-  --color-notion-bg-secondary: var(--color-bg-secondary);
-  --color-notion-text: var(--color-text-primary);
-  --color-notion-text-secondary: var(--color-text-secondary);
-  --color-notion-border: var(--color-border);
-  --color-notion-accent: var(--color-accent);
-  --color-notion-accent-subtle: var(--color-accent-subtle);
-  --color-notion-hover: var(--color-hover);
-  --color-notion-success: var(--color-success);
-  --color-notion-danger: var(--color-danger);
-  --font-sans:
-    ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica,
-    "Apple Color Emoji", Arial, sans-serif, "Segoe UI Emoji", "Segoe UI Symbol";
-}
+@import "../../shared/src/styles/tokens.css";
+@source "../../shared/src";
 
 body {
   margin: 0;
