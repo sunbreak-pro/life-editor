@@ -175,3 +175,8 @@ export {
   computeNoteDropIntent,
   type NoteDropPosition,
 } from "./utils/noteDropIntent";
+
+// Design system (W0-3) — cross-platform UI primitives. Case A: shared
+// owns the UI layer (lucide-react etc.). notion-* tokens come from
+// ./styles/tokens.css, which hosts @import + @source-scan.
+export * from "./components";
