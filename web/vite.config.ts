@@ -15,4 +15,25 @@ export default defineConfig({
       ),
     },
   },
+  build: {
+    // Establish a regression baseline so chunk bloat surfaces in CI output.
+    chunkSizeWarningLimit: 600,
+    rollupOptions: {
+      output: {
+        // Split heavy vendors out of the index chunk. Only packages that
+        // actually exist in package.json are referenced here.
+        manualChunks(id) {
+          if (!id.includes("node_modules")) return undefined;
+          if (id.includes("/react/") || id.includes("/react-dom/")) {
+            return "react-vendor";
+          }
+          if (id.includes("/@dnd-kit/")) return "dnd";
+          // @tiptap/* bundles ProseMirror (@tiptap/pm), the heaviest group.
+          if (id.includes("/@tiptap/")) return "editor";
+          if (id.includes("/@supabase/")) return "supabase";
+          return undefined;
+        },
+      },
+    },
+  },
 });
