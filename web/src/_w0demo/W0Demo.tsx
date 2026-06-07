@@ -7,6 +7,7 @@ import {
   Card,
   Modal,
   BottomSheet,
+  useTranslation,
 } from "@life-editor/shared";
 
 /*
@@ -21,11 +22,18 @@ export function W0Demo() {
   const [modalOpen, setModalOpen] = useState(false);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [text, setText] = useState("");
+  // Demo screen is APP layer, so useTranslation is allowed here (the ban
+  // is on design-system primitives only — CLAUDE.md §6.4).
+  const { t, i18n } = useTranslation();
 
   const toggleTheme = () => {
     const next = !dark;
     setDark(next);
     document.documentElement.dataset.theme = next ? "dark" : "light";
+  };
+
+  const toggleLang = () => {
+    void i18n.changeLanguage(i18n.language === "ja" ? "en" : "ja");
   };
 
   return (
@@ -52,6 +60,25 @@ export function W0Demo() {
               Danger
             </Button>
             <Button disabled>Disabled</Button>
+          </div>
+        </Card>
+
+        <Card>
+          <div className="mb-3 flex items-center justify-between">
+            <h2 className="text-sm font-medium text-notion-text-secondary">
+              i18n ({i18n.language})
+            </h2>
+            <Button variant="secondary" size="sm" onClick={toggleLang}>
+              {i18n.language === "ja" ? "English" : "日本語"}
+            </Button>
+          </div>
+          {/* Labels swap en<->ja when the language toggles, proving the
+              shared i18n provider + catalog are wired through the host. */}
+          <div className="flex flex-wrap gap-2 text-sm">
+            <span>{t("sidebar.tasks")}</span>
+            <span>{t("sidebar.schedule")}</span>
+            <span>{t("sidebar.memo")}</span>
+            <span>{t("sidebar.settings")}</span>
           </div>
         </Card>
 

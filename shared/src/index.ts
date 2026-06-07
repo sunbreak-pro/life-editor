@@ -180,3 +180,15 @@ export {
 // owns the UI layer (lucide-react etc.). notion-* tokens come from
 // ./styles/tokens.css, which hosts @import + @source-scan.
 export * from "./components";
+
+// i18n (W0-4) — shared en/ja catalog + configured i18next singleton.
+// Hosts import { i18n, I18nProvider } to wrap their tree, then SCREENS
+// call useTranslation (also re-exported here). Primitives never do —
+// copy reaches them via props (CLAUDE.md §6.4).
+export {
+  i18n,
+  I18nProvider,
+  useTranslation,
+  Trans,
+  LANGUAGE_STORAGE_KEY,
+} from "./i18n";
