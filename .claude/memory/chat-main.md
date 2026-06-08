@@ -6,9 +6,11 @@
 
 ## 直近の完了
 
-- [chat-main] コア運用機構グローバル化 主要部 ✅（2026-06-07）— `~/dev/Claude/hooks-lib` 新設+4hook汎用化(ROOT検出 CLAUDE_PROJECT_DIR基準化)+`setup-per-chat.sh`(冪等/settings.json jqマージ)。novel に per-chat機構適用＋動作確認OK(既存inbox-check無傷)。card-battle は dirty作業ブランチで保留→⑦
-- [chat-main] supabase prod バンドル消失疑い → **誤報決着** ✅（2026-06-07）— 原因はworktreeの.env.local欠落でcreateClient tree-shake削除。main(env あり)buildで残存確認・本番正常。memory: project_worktree_supabase_treeshake
-- [chat-main] **PR #61** Batch A（web bundle manualChunks + shared relation mapper 6本 +63テスト 307緑）✅（2026-06-07）— Web移行整合監査(Dynamic Workflows 8並列)で抽出した非競合2レーン。QA PASS。branch `chore/batch-a-bundle-mapper-tests`
+- [chat-main] **PR #62** Batch A 残3レーン（factory集約 + S8 comment正確化 + CLAUDE.md sync §10修正）✅（2026-06-08）— w0/docs マージ後に実施。QA が comment の技術誤り(schedule_items×Realtime因果)をP1検出→修正反映。shared 321緑/web build緑
+- [chat-main] グローバル化 follow-up（#7）✅（2026-06-08）— novel per-chat機構commit(d8f9299) / life-editor hooks 4つを hooks-lib リンク化＋skip-worktreeでgit実体維持(手元DRY・他環境リンク切れ回避) / card-battleはdirtyブランチで適用保留継続
+- [chat-main] コア運用機構グローバル化 主要部 ✅（2026-06-07）— `~/dev/Claude/hooks-lib` 新設+4hook汎用化+`setup-per-chat.sh`(冪等/settings.json jqマージ)。novel適用＋動作確認OK
+- [chat-main] supabase prod バンドル消失疑い → **誤報決着** ✅（2026-06-07）— worktreeの.env.local欠落でcreateClient tree-shake削除。memory: project_worktree_supabase_treeshake
+- [chat-main] **PR #61** Batch A（web bundle manualChunks + shared relation mapper 6本 +63テスト）✅（2026-06-07）— Web移行整合監査(Dynamic Workflows 8並列)で抽出した非競合2レーン。QA PASS
 
 ## 予定
 
