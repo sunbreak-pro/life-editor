@@ -465,7 +465,11 @@
     "routines": "Routines",
     "routine": "routine",
     "daily": "Daily",
+    "dailies": "Dailies",
     "memo": "memo",
+    "loading": "Loading trash...",
+    "error": "Failed to load trash.",
+    "emptyCategoryLine": "No deleted items.",
     "permanentDeleteConfirm": "Permanently delete \"{{name}}\"? This cannot be undone."
   },
   "updates": {
@@ -1955,7 +1959,8 @@
     "reloadApp": "Reload application",
     "create": "Create",
     "edit": "Edit",
-    "openManagement": "Open Management"
+    "openManagement": "Open Management",
+    "untitled": "Untitled"
   },
   "tasks": {
     "title": "Tasks"
@@ -1991,7 +1996,16 @@
   },
   "commandPalette": {
     "placeholder": "Type a command...",
-    "noResults": "No results found"
+    "noResults": "No results found",
+    "goTo": "Go to"
+  },
+  "section": {
+    "tasks": "Tasks",
+    "daily": "Daily",
+    "notes": "Notes",
+    "schedule": "Schedule",
+    "tags": "Tags",
+    "trash": "Trash"
   },
   "music": {
     "title": "Music",
