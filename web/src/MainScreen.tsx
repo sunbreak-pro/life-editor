@@ -10,6 +10,7 @@ import {
   ScheduleItemsProvider,
   CalendarProvider,
   WikiTagsUnifiedProvider,
+  ShortcutConfigProvider,
   type DataService,
   type Session,
 } from "@life-editor/shared";
@@ -29,6 +30,7 @@ import { ScheduleItemsView } from "./schedule/ScheduleItemsView";
 import { RoutineScheduleSync } from "./schedule/RoutineScheduleSync";
 import { CalendarView } from "./schedule/CalendarView";
 import { WikiTagsManagementView } from "./wikitag";
+import { SettingsScreen } from "./settings/SettingsScreen";
 
 /*
  * Phase 2 S1+S2 host shell.
@@ -61,7 +63,7 @@ function getDataService(): DataService {
   return dataServiceSingleton;
 }
 
-type Section = "tasks" | "daily" | "notes" | "schedule" | "tags";
+type Section = "tasks" | "daily" | "notes" | "schedule" | "tags" | "settings";
 
 export function MainScreen({ session }: { session: Session }) {
   const ds = useMemo(() => getDataService(), []);
@@ -69,13 +71,29 @@ export function MainScreen({ session }: { session: Session }) {
 
   return (
     <SyncProvider>
-      <div className="min-h-screen bg-notion-bg p-6 text-notion-text">
-        <div className="mx-auto max-w-2xl space-y-4">
-          <header className="flex flex-wrap items-center justify-between gap-2">
-            <div className="flex items-center gap-3">
-              <nav className="flex flex-wrap gap-1" aria-label="Sections">
-                {(["tasks", "daily", "notes", "schedule", "tags"] as const).map(
-                  (s) => (
+      {/*
+       * ShortcutConfigProvider (W1) is a Mobile 省略 Provider (CLAUDE.md §2),
+       * mounted here on the web host only. Per §6.2 Theme is outer (it lives
+       * in main.tsx); Shortcut sits inner — here just inside Sync and OUTSIDE
+       * the section switch, so the (currently settings-only) consumer reads a
+       * stable Provider regardless of the active section.
+       */}
+      <ShortcutConfigProvider>
+        <div className="min-h-screen bg-notion-bg p-6 text-notion-text">
+          <div className="mx-auto max-w-2xl space-y-4">
+            <header className="flex flex-wrap items-center justify-between gap-2">
+              <div className="flex items-center gap-3">
+                <nav className="flex flex-wrap gap-1" aria-label="Sections">
+                  {(
+                    [
+                      "tasks",
+                      "daily",
+                      "notes",
+                      "schedule",
+                      "tags",
+                      "settings",
+                    ] as const
+                  ).map((s) => (
                     <button
                       key={s}
                       type="button"
@@ -89,11 +107,10 @@ export function MainScreen({ session }: { session: Session }) {
                     >
                       {s}
                     </button>
-                  ),
-                )}
-              </nav>
-            </div>
-            <div className="flex items-center gap-3">
+                  ))}
+                </nav>
+              </div>
+              <div className="flex items-center gap-3">
               <span className="max-w-[45vw] truncate text-sm text-notion-text-secondary sm:max-w-none">
                 {session.user.email}
               </span>
@@ -191,8 +208,16 @@ export function MainScreen({ session }: { session: Session }) {
               <WikiTagsManagementView />
             </WikiTagsUnifiedProvider>
           )}
+          {/*
+           * Settings (W1) — host shell. Reads useThemeContext +
+           * useShortcutConfig (the ShortcutConfigProvider wrapping this whole
+           * shell) and injects values + t() copy into the shared pure
+           * primitives. No extra Provider needed here.
+           */}
+          {section === "settings" && <SettingsScreen />}
         </div>
       </div>
+      </ShortcutConfigProvider>
     </SyncProvider>
   );
 }

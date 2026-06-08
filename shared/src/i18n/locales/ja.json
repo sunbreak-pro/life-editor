@@ -283,7 +283,20 @@
         }
       }
     },
+    "shortcutLabels": {
+      "commandPalette": "コマンドパレットを開く",
+      "openSettings": "設定を開く",
+      "newTask": "新規タスクを作成",
+      "goToTasks": "タスクへ移動",
+      "goToDaily": "デイリーへ移動",
+      "goToNotes": "ノートへ移動",
+      "goToSchedule": "スケジュールへ移動",
+      "goToTags": "タグへ移動",
+      "undo": "元に戻す",
+      "redo": "やり直し"
+    },
     "shortcuts": {
+      "heading": "キーボードショートカット",
       "resetAll": "すべてリセット",
       "reset": "リセット",
       "change": "変更",
@@ -300,6 +313,8 @@
     "appearance": "外観",
     "darkMode": "ダークモード",
     "darkModeDesc": "ライトテーマとダークテーマを切り替え",
+    "light": "ライト",
+    "dark": "ダーク",
     "fontSize": "フォントサイズ",
     "fontSizeSmall": "小",
     "fontSizeLarge": "大",

@@ -283,7 +283,20 @@
         }
       }
     },
+    "shortcutLabels": {
+      "commandPalette": "Open command palette",
+      "openSettings": "Open settings",
+      "newTask": "Create new task",
+      "goToTasks": "Go to Tasks",
+      "goToDaily": "Go to Daily",
+      "goToNotes": "Go to Notes",
+      "goToSchedule": "Go to Schedule",
+      "goToTags": "Go to Tags",
+      "undo": "Undo",
+      "redo": "Redo"
+    },
     "shortcuts": {
+      "heading": "Keyboard Shortcuts",
       "resetAll": "Reset all shortcuts",
       "reset": "Reset",
       "change": "Change",
@@ -300,6 +313,8 @@
     "appearance": "Appearance",
     "darkMode": "Dark Mode",
     "darkModeDesc": "Switch between light and dark themes",
+    "light": "Light",
+    "dark": "Dark",
     "fontSize": "Font Size",
     "fontSizeSmall": "Small",
     "fontSizeLarge": "Large",

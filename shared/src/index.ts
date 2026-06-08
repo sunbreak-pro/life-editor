@@ -36,6 +36,38 @@ export {
 } from "./context";
 export { useTaskTreeContext } from "./hooks/useTaskTreeContext";
 export { useSyncContext } from "./hooks/useSyncContext";
+
+// Theme domain (W1) — Pattern A Provider + context hook. Web-lean (theme /
+// fontSize / language). Persists via useLocalStorage; language forwards to
+// the shared i18next singleton. useLocalStorage is exported for hosts/tests.
+export {
+  ThemeProvider,
+  ThemeContext,
+  type ThemeContextValue,
+  type Theme,
+  type FontSize,
+  type Language,
+} from "./context";
+export { useThemeContext } from "./hooks/useThemeContext";
+export { useLocalStorage } from "./hooks/useLocalStorage";
+
+// Shortcut domain (W1) — types + defaults + Pattern A Provider + OPTIONAL
+// context hook. Web-lean ID set (see types/shortcut.ts). Mobile 省略 Provider
+// (CLAUDE.md §2): mount on web/desktop only, consume via useShortcutConfig.
+export type {
+  ShortcutId,
+  ShortcutCategory,
+  ShortcutDefinition,
+  ShortcutConfig,
+  KeyBinding,
+} from "./types/shortcut";
+export { DEFAULT_SHORTCUTS } from "./constants/defaultShortcuts";
+export { ShortcutConfigProvider } from "./context";
+export {
+  ShortcutConfigContext,
+  type ShortcutConfigContextValue,
+} from "./context";
+export { useShortcutConfig } from "./hooks/useShortcutConfig";
 export {
   useTaskTreeAPI,
   type UseTaskTreeAPIOptions,
