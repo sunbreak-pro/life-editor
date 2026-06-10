@@ -3,6 +3,7 @@ import {
   bindingToDisplayString,
   matchBinding,
   bindingsEqual,
+  eventToBinding,
 } from "../src/utils/shortcutBinding";
 import type { KeyBinding } from "../src/types/shortcut";
 
@@ -96,6 +97,42 @@ describe("matchBinding", () => {
 
   it("matches on key when no code is set", () => {
     expect(matchBinding(evt({ key: "n" }), { key: "n" })).toBe(true);
+  });
+});
+
+describe("eventToBinding", () => {
+  it("captures meta + code (round-trips through matchBinding)", () => {
+    const e = evt({ code: "KeyK", metaKey: true });
+    const b = eventToBinding(e);
+    expect(b).toEqual({ code: "KeyK", meta: true });
+    expect(matchBinding(e, b)).toBe(true);
+  });
+
+  it("maps ctrl to meta (web accelerator equivalence)", () => {
+    expect(eventToBinding(evt({ code: "KeyK", ctrlKey: true }))).toEqual({
+      code: "KeyK",
+      meta: true,
+    });
+  });
+
+  it("captures all held modifiers (meta + shift + alt)", () => {
+    expect(
+      eventToBinding(
+        evt({ code: "KeyZ", metaKey: true, shiftKey: true, altKey: true }),
+      ),
+    ).toEqual({ code: "KeyZ", meta: true, shift: true, alt: true });
+  });
+
+  it("prefers code over key, omits unset modifiers", () => {
+    expect(eventToBinding(evt({ key: "n", code: "KeyN" }))).toEqual({
+      code: "KeyN",
+    });
+  });
+
+  it("falls back to key when code is empty", () => {
+    expect(eventToBinding(evt({ key: "Enter", code: "" }))).toEqual({
+      key: "Enter",
+    });
   });
 });
 

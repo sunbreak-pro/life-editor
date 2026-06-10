@@ -72,6 +72,17 @@ export {
   type ShortcutConfigContextValue,
 } from "./context";
 export { useShortcutConfig } from "./hooks/useShortcutConfig";
+// W3-0: global keydown executor. Headless hook the host mounts inside the
+// ShortcutConfigProvider; reads the live (rebindable) config via matchEvent and
+// fires injected callbacks. Pure helpers exported for unit tests.
+export {
+  useGlobalShortcuts,
+  resolveShortcut,
+  isEditableTarget,
+  hasAccelerator,
+  type GlobalShortcutHandlers,
+  type NavSection,
+} from "./hooks/useGlobalShortcuts";
 export {
   useTaskTreeAPI,
   type UseTaskTreeAPIOptions,

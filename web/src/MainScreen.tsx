@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useMemo, useState } from "react";
+import { lazy, Suspense, useMemo, useState } from "react";
 import {
   CheckSquare,
   CalendarDays,
@@ -44,6 +44,7 @@ import { RoutineScheduleSync } from "./schedule/RoutineScheduleSync";
 import { CalendarView } from "./schedule/CalendarView";
 import { WikiTagsManagementView } from "./wikitag";
 import { SettingsScreen } from "./settings/SettingsScreen";
+import { GlobalShortcuts } from "./GlobalShortcuts";
 
 /*
  * Phase 2 S1+S2 host shell.
@@ -103,21 +104,6 @@ export function MainScreen({ session }: { session: Session }) {
   const [section, setSection] = useState<Section>("tasks");
   const [paletteOpen, setPaletteOpen] = useState(false);
 
-  // Cmd+K (mac) / Ctrl+K — open the command palette. IME guard (§6.6):
-  // ignore the keystroke while composing. Mounted once at the shell level,
-  // outside the section switch.
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.isComposing) return;
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
-        e.preventDefault();
-        setPaletteOpen((v) => !v);
-      }
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, []);
-
   const commands = useMemo<Command[]>(() => {
     const goTo = t("commandPalette.goTo", { defaultValue: "Go to" });
     return SECTIONS.map((s) => ({
@@ -139,6 +125,18 @@ export function MainScreen({ session }: { session: Session }) {
        * stable Provider regardless of the active section.
        */}
       <ShortcutConfigProvider>
+        {/*
+         * Global shortcut executor (W3-0). Headless — sits inside the
+         * ShortcutConfigProvider (MainScreen's own body can't read
+         * useShortcutConfig) and wires keydown to section nav + palette toggle.
+         * Reads the live (rebindable) config, so Settings rebinds apply at
+         * once. new-task / undo / redo have no web surface yet (W3-B / W4).
+         */}
+        <GlobalShortcuts
+          onNavigate={setSection}
+          onOpenSettings={() => setSection("settings")}
+          onTogglePalette={() => setPaletteOpen((v) => !v)}
+        />
         <div className="min-h-screen bg-notion-bg p-6 text-notion-text">
           <div className="mx-auto max-w-2xl space-y-4">
             <header className="flex flex-wrap items-center justify-between gap-2">
