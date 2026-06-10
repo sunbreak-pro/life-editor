@@ -4,6 +4,27 @@
 export { SyncProvider } from "./SyncContext";
 export { SyncContext, type WebSyncContextValue } from "./SyncContextValue";
 
+// Theme (W1): Pattern A. Self-contained (no other Provider depends on it),
+// but kept as 3 files for consistency. Mounts near the top of the host tree
+// inside I18nProvider (§6.2 Theme is outer; it forwards language to i18n).
+export { ThemeProvider } from "./ThemeContext";
+export {
+  ThemeContext,
+  type ThemeContextValue,
+  type Theme,
+  type FontSize,
+  type Language,
+} from "./ThemeContextValue";
+
+// ShortcutConfig (W1): Pattern A + OPTIONAL hook. Mobile 省略 Provider
+// (CLAUDE.md §2) — mounted on web/desktop only; consumers use
+// useShortcutConfig (optional, null-safe). Sits inside Theme (§6.2).
+export { ShortcutConfigProvider } from "./ShortcutConfigContext";
+export {
+  ShortcutConfigContext,
+  type ShortcutConfigContextValue,
+} from "./ShortcutConfigContextValue";
+
 export { TaskTreeProvider } from "./TaskTreeContext";
 export {
   TaskTreeContext,
