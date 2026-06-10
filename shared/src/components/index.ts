@@ -24,15 +24,15 @@ export { Card, type CardProps } from "./Card";
 export { Modal, type ModalProps } from "./Modal";
 export { BottomSheet, type BottomSheetProps } from "./BottomSheet";
 export {
-  SettingsAppearance,
-  type SettingsAppearanceProps,
-} from "./SettingsAppearance";
+  CommandPalette,
+  type CommandPaletteProps,
+  type Command,
+} from "./CommandPalette";
 export {
-  SettingsLanguage,
-  type SettingsLanguageProps,
-} from "./SettingsLanguage";
-export {
-  SettingsShortcuts,
-  type SettingsShortcutsProps,
-  type ShortcutRow,
-} from "./SettingsShortcuts";
+  TrashView,
+  type TrashViewProps,
+  type TrashViewLabels,
+  type TrashGroup,
+  type TrashItem,
+  type TrashCategory,
+} from "./TrashView";

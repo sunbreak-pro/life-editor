@@ -1,7 +1,17 @@
-import { lazy, Suspense, useMemo, useState } from "react";
+import { lazy, Suspense, useEffect, useMemo, useState } from "react";
+import {
+  CheckSquare,
+  CalendarDays,
+  FileText,
+  Clock,
+  Tag,
+  Trash2,
+  type LucideIcon,
+} from "lucide-react";
 import {
   getDataService,
   signOut,
+  CommandPalette,
   SyncProvider,
   TaskTreeProvider,
   DailiesUnifiedProvider,
@@ -10,10 +20,12 @@ import {
   ScheduleItemsProvider,
   CalendarProvider,
   WikiTagsUnifiedProvider,
-  ShortcutConfigProvider,
+  useTranslation,
+  type Command,
   type DataService,
   type Session,
 } from "@life-editor/shared";
+import { TrashScreen } from "./trash/TrashScreen";
 import { TaskTreeView } from "./tasks/TaskTreeView";
 import { DailyView } from "./daily/DailyView";
 // NotesView pulls in the TipTap editor stack (core/react/starter-kit +
@@ -63,54 +75,83 @@ function getDataService(): DataService {
   return dataServiceSingleton;
 }
 
-type Section = "tasks" | "daily" | "notes" | "schedule" | "tags" | "settings";
+type Section = "tasks" | "daily" | "notes" | "schedule" | "tags" | "trash";
+
+const SECTIONS: readonly Section[] = [
+  "tasks",
+  "daily",
+  "notes",
+  "schedule",
+  "tags",
+  "trash",
+];
+
+const SECTION_ICON: Record<Section, LucideIcon> = {
+  tasks: CheckSquare,
+  daily: CalendarDays,
+  notes: FileText,
+  schedule: Clock,
+  tags: Tag,
+  trash: Trash2,
+};
 
 export function MainScreen({ session }: { session: Session }) {
+  const { t } = useTranslation();
   const ds = useMemo(() => getDataService(), []);
   const [section, setSection] = useState<Section>("tasks");
+  const [paletteOpen, setPaletteOpen] = useState(false);
+
+  // Cmd+K (mac) / Ctrl+K — open the command palette. IME guard (§6.6):
+  // ignore the keystroke while composing. Mounted once at the shell level,
+  // outside the section switch.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.isComposing) return;
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        setPaletteOpen((v) => !v);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
+
+  const commands = useMemo<Command[]>(() => {
+    const goTo = t("commandPalette.goTo", { defaultValue: "Go to" });
+    return SECTIONS.map((s) => ({
+      id: `section-${s}`,
+      title: t(`section.${s}`, { defaultValue: s }),
+      category: goTo,
+      icon: SECTION_ICON[s],
+      action: () => setSection(s),
+    }));
+  }, [t]);
 
   return (
     <SyncProvider>
-      {/*
-       * ShortcutConfigProvider (W1) is a Mobile 省略 Provider (CLAUDE.md §2),
-       * mounted here on the web host only. Per §6.2 Theme is outer (it lives
-       * in main.tsx); Shortcut sits inner — here just inside Sync and OUTSIDE
-       * the section switch, so the (currently settings-only) consumer reads a
-       * stable Provider regardless of the active section.
-       */}
-      <ShortcutConfigProvider>
-        <div className="min-h-screen bg-notion-bg p-6 text-notion-text">
-          <div className="mx-auto max-w-2xl space-y-4">
-            <header className="flex flex-wrap items-center justify-between gap-2">
-              <div className="flex items-center gap-3">
-                <nav className="flex flex-wrap gap-1" aria-label="Sections">
-                  {(
-                    [
-                      "tasks",
-                      "daily",
-                      "notes",
-                      "schedule",
-                      "tags",
-                      "settings",
-                    ] as const
-                  ).map((s) => (
-                    <button
-                      key={s}
-                      type="button"
-                      onClick={() => setSection(s)}
-                      aria-current={section === s ? "page" : undefined}
-                      className={`rounded-md px-3 py-1.5 text-sm capitalize ${
-                        section === s
-                          ? "bg-notion-hover text-notion-text"
-                          : "text-notion-text-secondary hover:bg-notion-hover"
-                      }`}
-                    >
-                      {s}
-                    </button>
-                  ))}
-                </nav>
-              </div>
-              <div className="flex items-center gap-3">
+      <div className="min-h-screen bg-notion-bg p-6 text-notion-text">
+        <div className="mx-auto max-w-2xl space-y-4">
+          <header className="flex flex-wrap items-center justify-between gap-2">
+            <div className="flex items-center gap-3">
+              <nav className="flex flex-wrap gap-1" aria-label="Sections">
+                {SECTIONS.map((s) => (
+                  <button
+                    key={s}
+                    type="button"
+                    onClick={() => setSection(s)}
+                    aria-current={section === s ? "page" : undefined}
+                    className={`rounded-md px-3 py-1.5 text-sm capitalize ${
+                      section === s
+                        ? "bg-notion-hover text-notion-text"
+                        : "text-notion-text-secondary hover:bg-notion-hover"
+                    }`}
+                  >
+                    {s}
+                  </button>
+                ))}
+              </nav>
+            </div>
+            <div className="flex items-center gap-3">
               <span className="max-w-[45vw] truncate text-sm text-notion-text-secondary sm:max-w-none">
                 {session.user.email}
               </span>
@@ -209,15 +250,27 @@ export function MainScreen({ session }: { session: Session }) {
             </WikiTagsUnifiedProvider>
           )}
           {/*
-           * Settings (W1) — host shell. Reads useThemeContext +
-           * useShortcutConfig (the ShortcutConfigProvider wrapping this whole
-           * shell) and injects values + t() copy into the shared pure
-           * primitives. No extra Provider needed here.
+           * Trash (W2). Crosses all five soft-delete categories, so it does
+           * NOT use any per-section Provider — the host TrashScreen calls
+           * the injected DataService directly and feeds the pure shared
+           * TrashView (CLAUDE.md §6.4: hosts may call getDataService).
            */}
-          {section === "settings" && <SettingsScreen />}
+          {section === "trash" && <TrashScreen dataService={ds} />}
         </div>
       </div>
-      </ShortcutConfigProvider>
+
+      {/*
+       * Command palette mounted ONCE at the shell level, outside the
+       * section switch (so Cmd+K works from any section). Copy is injected
+       * as props — the primitive never calls useTranslation (§6.4).
+       */}
+      <CommandPalette
+        isOpen={paletteOpen}
+        onClose={() => setPaletteOpen(false)}
+        commands={commands}
+        placeholder={t("commandPalette.placeholder")}
+        noResultsLabel={t("commandPalette.noResults")}
+      />
     </SyncProvider>
   );
 }

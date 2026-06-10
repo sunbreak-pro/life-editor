@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen, fireEvent, within } from "@testing-library/react";
 import {
   Button,
   IconButton,
@@ -7,8 +7,45 @@ import {
   Card,
   Modal,
   BottomSheet,
+  CommandPalette,
+  TrashView,
   cn,
+  type Command,
+  type TrashGroup,
+  type TrashViewLabels,
 } from "../src/components";
+
+const Dot = () => <span>•</span>;
+
+function makeCommands(spy: () => void): Command[] {
+  return [
+    { id: "a", title: "Open Tasks", category: "Go to", icon: Dot, action: spy },
+    {
+      id: "b",
+      title: "Open Notes",
+      category: "Go to",
+      icon: Dot,
+      action: () => {},
+    },
+    {
+      id: "c",
+      title: "Open Trash",
+      category: "Go to",
+      icon: Dot,
+      action: () => {},
+    },
+  ];
+}
+
+const TRASH_LABELS: TrashViewLabels = {
+  title: "Trash",
+  empty: "Trash is empty",
+  emptyCategory: "No deleted items.",
+  restore: "Restore",
+  deletePermanently: "Delete permanently",
+  confirmMessage: 'Permanently delete "{name}"? This cannot be undone.',
+  cancel: "Cancel",
+};
 
 describe("cn", () => {
   it("joins truthy class values and drops falsy ones", () => {
@@ -119,5 +156,136 @@ describe("BottomSheet", () => {
     // clicking the panel itself must NOT close (stopPropagation)
     fireEvent.mouseDown(dialog);
     expect(onClose).not.toHaveBeenCalled();
+  });
+});
+
+describe("CommandPalette", () => {
+  it("renders nothing when closed", () => {
+    render(
+      <CommandPalette
+        isOpen={false}
+        onClose={() => {}}
+        commands={makeCommands(() => {})}
+        placeholder="Type a command..."
+        noResultsLabel="No results"
+      />,
+    );
+    expect(screen.queryByText("Open Tasks")).not.toBeInTheDocument();
+  });
+
+  it("filters commands by query and shows the no-results label", () => {
+    render(
+      <CommandPalette
+        isOpen
+        onClose={() => {}}
+        commands={makeCommands(() => {})}
+        placeholder="Type a command..."
+        noResultsLabel="No results"
+      />,
+    );
+    const input = screen.getByPlaceholderText("Type a command...");
+    fireEvent.change(input, { target: { value: "trash" } });
+    expect(screen.getByText("Open Trash")).toBeInTheDocument();
+    expect(screen.queryByText("Open Tasks")).not.toBeInTheDocument();
+
+    fireEvent.change(input, { target: { value: "zzz" } });
+    expect(screen.getByText("No results")).toBeInTheDocument();
+  });
+
+  it("runs the selected command on Enter and closes", () => {
+    const onClose = vi.fn();
+    const action = vi.fn();
+    render(
+      <CommandPalette
+        isOpen
+        onClose={onClose}
+        commands={makeCommands(action)}
+        placeholder="Type a command..."
+        noResultsLabel="No results"
+      />,
+    );
+    const input = screen.getByPlaceholderText("Type a command...");
+    // first item ("Open Tasks") is selected by default → Enter fires it
+    fireEvent.keyDown(input, { key: "Enter" });
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it("ignores navigation keys while composing (IME guard)", () => {
+    const onClose = vi.fn();
+    render(
+      <CommandPalette
+        isOpen
+        onClose={onClose}
+        commands={makeCommands(() => {})}
+        placeholder="Type a command..."
+        noResultsLabel="No results"
+      />,
+    );
+    const input = screen.getByPlaceholderText("Type a command...");
+    fireEvent.keyDown(input, { key: "Escape", isComposing: true });
+    expect(onClose).not.toHaveBeenCalled();
+  });
+});
+
+describe("TrashView", () => {
+  const groups: TrashGroup[] = [
+    {
+      category: "tasks",
+      title: "Tasks",
+      items: [{ id: "t1", label: "Buy milk" }],
+    },
+    { category: "notes", title: "Notes", items: [] },
+  ];
+
+  it("shows the global empty state when every category is empty", () => {
+    render(
+      <TrashView
+        groups={[{ category: "tasks", title: "Tasks", items: [] }]}
+        onRestore={() => {}}
+        onPermanentDelete={() => {}}
+        labels={TRASH_LABELS}
+      />,
+    );
+    expect(screen.getByText("Trash is empty")).toBeInTheDocument();
+  });
+
+  it("renders items and fires restore", () => {
+    const onRestore = vi.fn();
+    render(
+      <TrashView
+        groups={groups}
+        onRestore={onRestore}
+        onPermanentDelete={() => {}}
+        labels={TRASH_LABELS}
+      />,
+    );
+    expect(screen.getByText("Buy milk")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Restore" }));
+    expect(onRestore).toHaveBeenCalledWith("tasks", "t1");
+  });
+
+  it("requires confirmation before permanent delete", () => {
+    const onPermanentDelete = vi.fn();
+    render(
+      <TrashView
+        groups={groups}
+        onRestore={() => {}}
+        onPermanentDelete={onPermanentDelete}
+        labels={TRASH_LABELS}
+      />,
+    );
+    // The row trash icon opens the confirm modal (does not delete yet).
+    fireEvent.click(screen.getByRole("button", { name: "Delete permanently" }));
+    expect(onPermanentDelete).not.toHaveBeenCalled();
+    expect(
+      screen.getByText('Permanently delete "Buy milk"? This cannot be undone.'),
+    ).toBeInTheDocument();
+
+    // Confirm button inside the dialog actually deletes.
+    const dialog = screen.getByRole("dialog");
+    fireEvent.click(
+      within(dialog).getByRole("button", { name: "Delete permanently" }),
+    );
+    expect(onPermanentDelete).toHaveBeenCalledWith("tasks", "t1");
   });
 });
