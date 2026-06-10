@@ -1,5 +1,50 @@
 # HISTORY (chat-main)
 
+### 2026-06-09 - web-desktop パリティ W1（UX基盤）+ W2（Trash/CommandPalette）
+
+#### 概要
+
+親ロードマップ `2026-06-07-web-desktop-parity-roadmap.md`（W0-W4・web を Desktop 同等へ）の W1・W2 を実装。各々独立 worktree/ブランチ/PR。role-pm 分解 → 子計画書 → role-engineer 実装（W1 は socket hang up 対策で2バッチ分割）→ role-qa 独立監査 → git-orchestrator で commit/PR。merge はユーザー判断（🛑 人手ゲート・未merge）。
+
+#### 変更点
+
+- **W1（PR #63・feat/w1-settings-theme @ 9277644）**: web に Theme 基盤を新設。役割判明=「設定画面移植」でなく「web に Theme/FontSize/Language/Shortcut を機能させる shared 基盤の新設」（web には dark/light も font-size 適用も Provider も無かった）。
+  - shared 新規: useLocalStorage / ThemeContext(Value/Context/hook・Pattern A・theme/fontSize/language の3点・editor系は web 消費者ゼロで除外) / ShortcutConfig(Optional バリアント=Mobile省略Provider) / SettingsAppearance・SettingsLanguage・SettingsShortcuts(props注入の純粋部品) / shortcut 型・defaultShortcuts(web実在10件選別・nav は web section に再キー) / platform・shortcutBinding util + テスト11件。
+  - web: main.tsx に ThemeProvider マウント(documentElement に data-theme/font-size 適用・localStorage 永続化) / MainScreen に settings section + nav + ShortcutConfigProvider(SyncProvider 内側)。
+  - 検証: shared build/web build/shared test 332緑/web lint(0 err)。role-qa=PASS with concerns(C/H=0)。Low#1(`--notion-accent`→`--color-notion-accent` トークン名誤記)修正取込。
+- **W2（PR #64・feat/w2-trash-command-palette @ ebd0d6d）**: web に Trash + CommandPalette。DB変更ゼロ(既存 soft-delete API 利用)。
+  - shared 新規: CommandPalette(frontend 195行を i18n props 化コピー・useTranslation 撤去・Cmd+K/Ctrl+K・IMEガード・検索/↑↓Enter) / TrashView(純粋部品・書き直し=frontend版は DU-G で消えた legacy context 依存で流用不可・5カテゴリ tasks/notes/dailies/routines/events・Modal confirm) + テスト10件。
+  - web: TrashScreen host(getDataService で5カテゴリ fetchDeleted\* 並列取得・restore/permanentDelete 配線・cancelled フラグ+busy ガード) / MainScreen に trash section + nav + Cmd+K window リスナ + コマンド配列。
+  - 検証: shared build/web build/shared test 328緑(新規10)/web lint(0 err)。role-qa=PASS(C/H/M=0・5カテゴリ配線を DataService 実装本体まで遡り取り違えゼロ確認)。Low(untitled フォールバック未定義キー→`common.untitled` 新設)修正取込。
+
+#### 設計判断 / 申し送り
+
+- **2バッチ分割の経緯**: W1 初回 role-engineer が socket hang up(接続切断系・本体SSEバグ)で103分・実装0で落ちた。原因は worktree の node_modules リンク先(本体 shared/web)に W0 deps(i18next/react-i18next/lucide-react/jsdom/@testing-library)が未 install だったこと＋長時間SSE露出。本体で npm install 解消後、Theme コア(Step1-4)/Shortcut+Settings(Step5-8)に分割して稼働短縮。W2 の role-qa も hang したため検証4本を main が background 実測→QA はコード読解専念に切替。
+- **shortcut executor 未配線(W1→W3 申し送り)**: W1 で shortcut の設定/rebind/conflict/reset は動くが、グローバル keydown executor が無く押下実行されない(Step7 でスコープ外と定義・要件違反でない)。W3 で `useGlobalShortcuts(matchEvent, setSection, undo, redo, openPalette)` を MainScreen に配線予定。`global:command-palette` は W2 で UI 実装済のため W3 で結線。
+- **Trash の host 直叩き設計**: web は Provider をセクション別マウントするため、Trash の5カテゴリ横断には section context が使えない。host(TrashScreen)で DataService 直叩きが正解(host が getDataService を呼ぶのは規約OK・禁止はフック/部品内のみ)。
+- **worktree node_modules 非混入**: `shared/node_modules` は検証用シンボリックリンクで gitignore 漏れ(`web/node_modules` は ignore 済)。両 PR とも `git add -A` 禁止・明示 pathspec で stage し非混入確認。
+- **merge 順序**: W1→W2 推奨(両者 `shared/src/components/index.ts` + i18n locales を触る・i18n JSON 軽微競合回避)。
+
+### 2026-06-08 - Batch A 残3レーン PR#62 + グローバル化 follow-up(#7)
+
+#### 概要
+
+前セッションで保留した #6(Batch A 残3レーン)と #7(グローバル化 follow-up)を順に完了。#6 は w0/docs が PR#58/#59 で main マージ済みを確認した上で残3レーンを実装→PR#62。#7 は novel への per-chat 機構 commit と life-editor hooks のリンク化(skip-worktree 方式)を実施。
+
+#### 変更点
+
+- **#6 Batch A 残3レーン → PR#62**: (1)factory= web の getDataService 重複を `shared/src/services/dataServiceFactory.ts` に集約(単一singleton+setDataServiceForTest, lazy init) (2)comment= S8 stale comment 更新 (3)docs= CLAUDE.md §3.3/§4.1 を items_meta.updated_at LWW モデル+db-conventions §10 参照に修正。role-engineer×3並列→role-qa独立監査。
+- **QA P1 検出と修正(重要)**: comment Agent が「schedule_items は REALTIME_TABLES外→Realtime反映されない」と書いたが、QAが実装(SupabaseDataService.ts:1850-1868)を辿り schedule_items は role='event' で items_meta+events_payload に永続化され両テーブルは REALTIME_TABLES 内と判明。「loadDate は Realtime遅延を待たない即時反映の最適化(購読欠落の補償ではない)」へ訂正。stale comment 修正レーンが別の不正確comment生成になる事故をQAが防いだ。
+- **#7(a) novel**: setup-per-chat.sh 適用分(per-chat memory/history/comm + hooks リンク + settings.json + .gitignore)を commit(d8f9299)。hooks は 120000(symlink)記録、INDEX.md は .gitignore 除外、既存 inbox-check.sh 無変更、settings.local.json の inbox SessionStart と共存。
+- **#7(c) life-editor hooks リンク化**: 4 hook(regen-index/session-start-check/pre-commit-mcp-check/pre-commit-index-guard)を hooks-lib リンクに置換。共有リポで他環境リンク切れを避けるため **skip-worktree 方式**採用 = git checkout で index を実体に戻す→`git update-index --skip-worktree`→worktree のみ再リンク。結果「手元はリンク(hooks-lib SSOT で DRY)・git HEAD は実体blob維持(他クローンで切れない)」。stop-check.sh は life-editor固有のため対象外。
+- **#7(b) card-battle**: `chore/claude-harness-and-battle-fixes`(dirty・別チャット作業疑い)のため適用保留継続。
+
+#### 設計判断 / 申し送り
+
+- **並列QAの価値の実証**: P1(schedule_items×Realtime因果)は実装Agentがテーブル名の表層だけ見て誤判断したもの。別コンテキストのQAが実装を辿って訂正。「stale comment を直すレーンが別の不正確comment を生む」皮肉をクロス検証で捕捉。
+- **skip-worktree の運用注意**: life-editor の hooks 4つは skip-worktree フラグ付き。将来 hook 本体を更新したい時はこのフラグの存在を意識する(git で実体が更新されてもworktreeのリンクは無視され続ける)。novel は個人ローカルなので素直に symlink commit。
+- **未了**: `.claude/hooks/.bak-pre-linkify/` がuntracked残存(rm権限制約でユーザー手動削除依頼)。project-setter の per-chat 統合は setup-per-chat.sh が当面兼任。card-battle 適用はブランチ clean 後。
+
 ### 2026-06-07 - Batch A PR#61 + supabase誤報決着 + コア機構グローバル化
 
 #### 概要
