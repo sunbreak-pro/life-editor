@@ -36,9 +36,14 @@ import {
  * Trigger policy (mirrors the Tauri host, which called
  * ensureRoutineItemsForDate on the active day): whenever the anchored
  * date or the routine inputs change, materialise that day's rows.
- * `onChanged` re-reads the date via `loadDate` because the web Sync
- * Context `syncVersion` is static (no-op until S8 Realtime) — without
- * this the generated rows would not surface until a manual reload.
+ * `onChanged` re-reads the date via `loadDate` for immediate same-domain
+ * refresh. Schedule rows persist as role='event' into items_meta +
+ * events_payload, both of which ARE in S8 REALTIME_TABLES — so a generated
+ * row would also surface on its own once Realtime bumps `syncVersion`
+ * (after the ~300ms debounce + round-trip). The explicit `loadDate` is a
+ * local optimisation that reflects the write immediately without waiting
+ * for that Realtime latency; it is not a compensation for a missing
+ * subscription.
  *
  * Idempotency: rapid date flips can fire many ensure passes. Duplicate
  * (routine_id, date) writes are absorbed by the 0008 partial UNIQUE

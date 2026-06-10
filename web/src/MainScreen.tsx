@@ -1,6 +1,6 @@
 import { lazy, Suspense, useMemo, useState } from "react";
 import {
-  createSupabaseDataService,
+  getDataService,
   signOut,
   SyncProvider,
   TaskTreeProvider,

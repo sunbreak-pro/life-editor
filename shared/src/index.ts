@@ -1,6 +1,10 @@
 export type { DataService } from "./services/DataService";
 export { createSupabaseDataService } from "./services/SupabaseDataService";
 export {
+  getDataService,
+  setDataServiceForTest,
+} from "./services/dataServiceFactory";
+export {
   signUp,
   signIn,
   signOut,
@@ -140,8 +144,11 @@ export {
 // Routine→schedule_items generator (S4-5). Verbatim-ported pure
 // functions + DI generator hook. The pure functions are exported so the
 // host (and tests) can exercise the decision logic without React; the
-// hook injects DataService + an onChanged refresh signal (web
-// syncVersion is static — CLAUDE.md §6.4 DI, no module singleton).
+// hook injects DataService + an onChanged refresh signal (schedule rows
+// persist as role='event' into items_meta + events_payload, which DO
+// auto-bump syncVersion via S8 Realtime; onChanged is the immediate
+// same-domain refresh that skips the Realtime latency — CLAUDE.md §6.4
+// DI, no module singleton).
 export { shouldRoutineRunOnDate } from "./utils/routineFrequency";
 export {
   diffRoutineScheduleItems,

@@ -1,10 +1,9 @@
 import { useMemo } from "react";
 import {
-  createSupabaseDataService,
+  getDataService,
   signOut,
   SyncProvider,
   TaskTreeProvider,
-  type DataService,
   type Session,
 } from "@life-editor/shared";
 import { TaskTreeView } from "./tasks/TaskTreeView";
@@ -14,18 +13,12 @@ import { TaskTreeView } from "./tasks/TaskTreeView";
  *
  * Provider order follows CLAUDE.md §6.2 (outer→inner): Sync → TaskTree
  * (TaskTree reads useSyncContext to know when to refetch). The web Sync
- * Provider is a provisional no-op until S8 (Supabase Realtime). The
+ * Provider is now Supabase Realtime backed (S8): a change on an owned
+ * table bumps `syncVersion`, and TaskTree's load-effect deps on it drive
+ * the refetch (items_meta + tasks_payload are in REALTIME_TABLES). The
  * DataService is created once and injected into TaskTreeProvider (the
  * shared hook never reaches for a module singleton — CLAUDE.md §6.4).
  */
-
-let dataServiceSingleton: DataService | null = null;
-function getDataService(): DataService {
-  if (!dataServiceSingleton) {
-    dataServiceSingleton = createSupabaseDataService();
-  }
-  return dataServiceSingleton;
-}
 
 export function TasksScreen({ session }: { session: Session }) {
   const ds = useMemo(() => getDataService(), []);
