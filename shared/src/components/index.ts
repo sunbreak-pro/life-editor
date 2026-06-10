@@ -24,6 +24,19 @@ export { Card, type CardProps } from "./Card";
 export { Modal, type ModalProps } from "./Modal";
 export { BottomSheet, type BottomSheetProps } from "./BottomSheet";
 export {
+  SettingsAppearance,
+  type SettingsAppearanceProps,
+} from "./SettingsAppearance";
+export {
+  SettingsLanguage,
+  type SettingsLanguageProps,
+} from "./SettingsLanguage";
+export {
+  SettingsShortcuts,
+  type SettingsShortcutsProps,
+  type ShortcutRow,
+} from "./SettingsShortcuts";
+export {
   CommandPalette,
   type CommandPaletteProps,
   type Command,
