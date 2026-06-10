@@ -23,3 +23,16 @@ export { Input, type InputProps } from "./Input";
 export { Card, type CardProps } from "./Card";
 export { Modal, type ModalProps } from "./Modal";
 export { BottomSheet, type BottomSheetProps } from "./BottomSheet";
+export {
+  CommandPalette,
+  type CommandPaletteProps,
+  type Command,
+} from "./CommandPalette";
+export {
+  TrashView,
+  type TrashViewProps,
+  type TrashViewLabels,
+  type TrashGroup,
+  type TrashItem,
+  type TrashCategory,
+} from "./TrashView";

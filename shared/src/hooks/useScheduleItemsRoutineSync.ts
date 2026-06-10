@@ -30,12 +30,15 @@ import { shouldRoutineRunOnDate } from "../utils/routineFrequency";
  *   read-then-write and NO duplicate (routine_id,date) guard — a second
  *   guard would diverge from the DataService contract.)
  * - frontend's local `setScheduleItems` / `setMonthlyScheduleItems` /
- *   `scheduleItemsRef` / `bumpVersion()` → `options.onChanged()`. The
- *   web Sync Context `syncVersion` is static (no-op until S8 Realtime),
- *   so the host wires `onChanged` to `useScheduleItemsContext().loadDate`
- *   to re-read the live rows after a generation pass. The persistence
- *   path (the QA-critical Issue 017/011/020 surface) is identical to the
- *   Tauri original; only the UI-refresh signal is injected.
+ *   `scheduleItemsRef` / `bumpVersion()` → `options.onChanged()`. Schedule
+ *   rows persist as role='event' into items_meta + events_payload, both of
+ *   which ARE in S8 REALTIME_TABLES — so a generation pass also propagates
+ *   via Realtime (after the ~300ms debounce + round-trip). The host still
+ *   wires `onChanged` to `useScheduleItemsContext().loadDate` to reflect
+ *   the write immediately without waiting for that Realtime latency (a
+ *   local same-domain optimisation, not a missing-subscription fallback).
+ *   The persistence path (the QA-critical Issue 017/011/020 surface) is
+ *   identical to the Tauri original; only the UI-refresh signal is injected.
  *
  * Issue 017 four-system guard map (SSOT 軸 3):
  *   (a) is_deleted filter on schedule_items/tasks reads → enforced in
@@ -60,9 +63,11 @@ export interface UseScheduleItemsRoutineSyncOptions {
   dataService: DataService;
   /**
    * Replaces the Tauri hook's `bumpVersion()`. Fired once per
-   * generation pass that wrote/deleted at least one row, so the host
-   * can re-read the affected dates (web `syncVersion` is static). Safe
-   * to omit (no-op) — persistence still happens.
+   * generation pass that wrote/deleted at least one row, so the host can
+   * re-read the affected dates immediately rather than waiting for the
+   * Realtime round-trip (the writes land in items_meta + events_payload,
+   * which DO auto-bump `syncVersion` via S8, but with ~300ms debounce +
+   * latency). Safe to omit (no-op) — persistence still happens.
    */
   onChanged?: () => void;
 }

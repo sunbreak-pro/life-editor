@@ -283,7 +283,20 @@
         }
       }
     },
+    "shortcutLabels": {
+      "commandPalette": "Open command palette",
+      "openSettings": "Open settings",
+      "newTask": "Create new task",
+      "goToTasks": "Go to Tasks",
+      "goToDaily": "Go to Daily",
+      "goToNotes": "Go to Notes",
+      "goToSchedule": "Go to Schedule",
+      "goToTags": "Go to Tags",
+      "undo": "Undo",
+      "redo": "Redo"
+    },
     "shortcuts": {
+      "heading": "Keyboard Shortcuts",
       "resetAll": "Reset all shortcuts",
       "reset": "Reset",
       "change": "Change",
@@ -300,6 +313,8 @@
     "appearance": "Appearance",
     "darkMode": "Dark Mode",
     "darkModeDesc": "Switch between light and dark themes",
+    "light": "Light",
+    "dark": "Dark",
     "fontSize": "Font Size",
     "fontSizeSmall": "Small",
     "fontSizeLarge": "Large",
@@ -465,7 +480,11 @@
     "routines": "Routines",
     "routine": "routine",
     "daily": "Daily",
+    "dailies": "Dailies",
     "memo": "memo",
+    "loading": "Loading trash...",
+    "error": "Failed to load trash.",
+    "emptyCategoryLine": "No deleted items.",
     "permanentDeleteConfirm": "Permanently delete \"{{name}}\"? This cannot be undone."
   },
   "updates": {
@@ -1955,7 +1974,8 @@
     "reloadApp": "Reload application",
     "create": "Create",
     "edit": "Edit",
-    "openManagement": "Open Management"
+    "openManagement": "Open Management",
+    "untitled": "Untitled"
   },
   "tasks": {
     "title": "Tasks"
@@ -1991,7 +2011,16 @@
   },
   "commandPalette": {
     "placeholder": "Type a command...",
-    "noResults": "No results found"
+    "noResults": "No results found",
+    "goTo": "Go to"
+  },
+  "section": {
+    "tasks": "Tasks",
+    "daily": "Daily",
+    "notes": "Notes",
+    "schedule": "Schedule",
+    "tags": "Tags",
+    "trash": "Trash"
   },
   "music": {
     "title": "Music",

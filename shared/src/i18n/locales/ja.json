@@ -283,7 +283,20 @@
         }
       }
     },
+    "shortcutLabels": {
+      "commandPalette": "コマンドパレットを開く",
+      "openSettings": "設定を開く",
+      "newTask": "新規タスクを作成",
+      "goToTasks": "タスクへ移動",
+      "goToDaily": "デイリーへ移動",
+      "goToNotes": "ノートへ移動",
+      "goToSchedule": "スケジュールへ移動",
+      "goToTags": "タグへ移動",
+      "undo": "元に戻す",
+      "redo": "やり直し"
+    },
     "shortcuts": {
+      "heading": "キーボードショートカット",
       "resetAll": "すべてリセット",
       "reset": "リセット",
       "change": "変更",
@@ -300,6 +313,8 @@
     "appearance": "外観",
     "darkMode": "ダークモード",
     "darkModeDesc": "ライトテーマとダークテーマを切り替え",
+    "light": "ライト",
+    "dark": "ダーク",
     "fontSize": "フォントサイズ",
     "fontSizeSmall": "小",
     "fontSizeLarge": "大",
@@ -465,7 +480,11 @@
     "routines": "ルーティン",
     "routine": "ルーティン",
     "daily": "デイリー",
+    "dailies": "デイリー",
     "memo": "メモ",
+    "loading": "ゴミ箱を読み込み中...",
+    "error": "ゴミ箱の読み込みに失敗しました。",
+    "emptyCategoryLine": "削除済みの項目はありません。",
     "permanentDeleteConfirm": "「{{name}}」を完全に削除しますか？この操作は元に戻せません。"
   },
   "updates": {
@@ -1955,7 +1974,8 @@
     "reloadApp": "アプリを再読み込み",
     "create": "作成",
     "edit": "編集",
-    "openManagement": "管理画面を開く"
+    "openManagement": "管理画面を開く",
+    "untitled": "無題"
   },
   "tasks": {
     "title": "Tasks"
@@ -1991,7 +2011,16 @@
   },
   "commandPalette": {
     "placeholder": "コマンドを入力...",
-    "noResults": "結果が見つかりません"
+    "noResults": "結果が見つかりません",
+    "goTo": "移動"
+  },
+  "section": {
+    "tasks": "タスク",
+    "daily": "デイリー",
+    "notes": "ノート",
+    "schedule": "スケジュール",
+    "tags": "タグ",
+    "trash": "ゴミ箱"
   },
   "music": {
     "title": "ミュージック",
