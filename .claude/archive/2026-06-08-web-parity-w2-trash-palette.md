@@ -1,6 +1,7 @@
 ---
-Status: In Progress
+Status: COMPLETED
 Created: 2026-06-08
+Completed: 2026-06-10 (PR #64 merged + 統合修復 PR #66)
 Branch: feat/w2-trash-command-palette
 Owner-chat: main
 Parent: ./2026-06-07-web-desktop-parity-roadmap.md
