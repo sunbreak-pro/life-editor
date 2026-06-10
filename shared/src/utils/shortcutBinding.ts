@@ -51,6 +51,33 @@ export function bindingToDisplayString(
   return parts.join(" + ");
 }
 
+/**
+ * Build a KeyBinding from a keyboard event (W3-0). Inverse of matchBinding:
+ * captures the held modifiers + the physical `code`, so the result round-trips
+ * through matchBinding for the same event. `code` is preferred (matchBinding /
+ * bindingToDisplayString both consult `code` first); `key` is left unset so the
+ * binding is layout-independent like the DEFAULT_SHORTCUTS code-based entries.
+ * The web model treats meta/ctrl as one accelerator (matchBinding does too), so
+ * either physical modifier maps to `meta: true`.
+ */
+export function eventToBinding(
+  e: Pick<
+    KeyboardEvent,
+    "key" | "code" | "metaKey" | "ctrlKey" | "shiftKey" | "altKey"
+  >,
+): KeyBinding {
+  const binding: KeyBinding = {};
+  if (e.metaKey || e.ctrlKey) binding.meta = true;
+  if (e.shiftKey) binding.shift = true;
+  if (e.altKey) binding.alt = true;
+  if (e.code) {
+    binding.code = e.code;
+  } else if (e.key) {
+    binding.key = e.key;
+  }
+  return binding;
+}
+
 /** Does a keyboard event satisfy the binding (modifiers + key/code)? */
 export function matchBinding(
   e: Pick<
