@@ -23,6 +23,14 @@ import {
   SupabaseDailiesUnifiedService,
   PHASE2_DAILIES_UNIFIED_METHODS,
 } from "./SupabaseDailiesUnifiedService";
+import {
+  SupabaseTimerService,
+  PHASE2_TIMER_METHODS,
+} from "./SupabaseTimerService";
+import {
+  SupabaseAudioService,
+  PHASE2_AUDIO_METHODS,
+} from "./SupabaseAudioService";
 // DU-B-3: full SupabaseTasksService rewrite over items_meta +
 // tasks_payload. Pure mapping lives in taskMapper.ts; this file is the
 // I/O layer only. Re-exports at the bottom of this file keep one stable
@@ -2199,6 +2207,9 @@ export function createSupabaseDataService(): DataService {
     new SupabaseRoutineGroupAssignmentsService(client);
   const scheduleItemsService = new SupabaseScheduleItemsService(client);
   const calendarsService = new SupabaseCalendarsService(client);
+  // W3-A: independent timer / audio tables (0018). Not items_meta entities.
+  const timerService = new SupabaseTimerService(client);
+  const audioService = new SupabaseAudioService(client);
 
   // Dispatch table: method name -> the instance that implements it. The
   // Proxy's target is arbitrary (an empty object); routing is entirely
@@ -2217,6 +2228,8 @@ export function createSupabaseDataService(): DataService {
       return wikiTagsUnifiedService;
     if (PHASE2_NOTES_UNIFIED_METHODS.has(prop)) return notesUnifiedService;
     if (PHASE2_DAILIES_UNIFIED_METHODS.has(prop)) return dailiesUnifiedService;
+    if (PHASE2_TIMER_METHODS.has(prop)) return timerService;
+    if (PHASE2_AUDIO_METHODS.has(prop)) return audioService;
     return null;
   };
 
