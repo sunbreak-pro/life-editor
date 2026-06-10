@@ -6,17 +6,17 @@
 
 ## 直近の完了
 
+- [chat-main] **PR #64** web-parity **W2**（Trash + CommandPalette）✅（2026-06-09・未merge）— CommandPalette(Cmd+K/Ctrl+K・IMEガード・純粋部品i18n props化) + TrashView(5カテゴリ tasks/notes/dailies/routines/events 復元/完全削除・Modal confirm・書き直し) を shared へ / web TrashScreen host が DataService 直叩き(per-section Provider制約) / DB変更ゼロ。shared build/web build/shared test 328緑(新規10)/web lint緑。role-qa PASS(C/H/M=0・5カテゴリ配線を実装本体まで遡り取り違えゼロ確認)。Low(untitled→common.untitled新設)修正取込。子計画書: 2026-06-08-web-parity-w2-trash-palette.md
+- [chat-main] **PR #63** web-parity **W1**（Theme/FontSize/Language/Settings/ShortcutConfig）✅（2026-06-09・未merge）— web に Theme基盤新設(dark/light+font10段12-25px+language)を shared集約・documentElementに data-theme/font-size適用・localStorage永続化 / ShortcutConfig(Optionalバリアント) / Settings画面(レスポンシブ単一) / Shortcut ID web実在10件選別(nav再キー)。shared build/web build/shared test 332緑/web lint緑。role-qa PASS with concerns(C/H=0)。Low#1(accent token名)修正取込。**申し送り: shortcut押下executor未配線(Step7スコープ外)→W3+で配線**。子計画書: 2026-06-07-web-parity-w1-ux-settings.md
 - [chat-main] **PR #62** Batch A 残3レーン（factory集約 + S8 comment正確化 + CLAUDE.md sync §10修正）✅（2026-06-08）— w0/docs マージ後に実施。QA が comment の技術誤り(schedule_items×Realtime因果)をP1検出→修正反映。shared 321緑/web build緑
-- [chat-main] グローバル化 follow-up（#7）✅（2026-06-08）— novel per-chat機構commit(d8f9299) / life-editor hooks 4つを hooks-lib リンク化＋skip-worktreeでgit実体維持(手元DRY・他環境リンク切れ回避) / card-battleはdirtyブランチで適用保留継続
-- [chat-main] コア運用機構グローバル化 主要部 ✅（2026-06-07）— `~/dev/Claude/hooks-lib` 新設+4hook汎用化+`setup-per-chat.sh`(冪等/settings.json jqマージ)。novel適用＋動作確認OK
-- [chat-main] supabase prod バンドル消失疑い → **誤報決着** ✅（2026-06-07）— worktreeの.env.local欠落でcreateClient tree-shake削除。memory: project_worktree_supabase_treeshake
-- [chat-main] **PR #61** Batch A（web bundle manualChunks + shared relation mapper 6本 +63テスト）✅（2026-06-07）— Web移行整合監査(Dynamic Workflows 8並列)で抽出した非競合2レーン。QA PASS
 
 ## 予定
 
-- ⑥ Batch A 残3レーン(web-dataservice-factory/docs-sync-model-update/stale-comment-cleanup)は w0-shared-ui・docs-cleanup の main merge 後
-- ⑦ グローバル化 follow-up: card-battle適用(clean後)/novel側per-chat分commit/project-setter更新/life-editorのhooks→hooks-libリンク化(任意)
-- W0 全体(W0-1〜6, `feat/w0-shared-design-system`@`e86819e` 未merge)の main merge（git-orchestrator）+ `web/src/_w0demo/` 削除
+- 🛑 **W1 PR #63 / W2 PR #64 の merge**（ユーザー判断）。merge 順序は **W1→W2 推奨**（両者 `shared/src/components/index.ts` + i18n locales を触る・W1 先で W2 マージ時 i18n JSON 軽微競合回避）。merge 後 worktree prune（w1-ux-settings / w2-trash-palette）
+- 👀 **W1/W2 実機目視**: [W1] dark/light発色・font-size追従・en/ja切替・リロード復元・shortcut rebind→conflict→reset / [W2] Cmd+K開閉/絞り込み/ジャンプ・Trash 5カテゴリ一覧・restore/permanentDelete confirm
+- **W3** — Work / Timer / Audio 統合（prototype-mobile チャットと境界調整要・着手前に comm 確認）。**W1 申し送りの shortcut keydown executor 配線をここで**（matchEvent→setSection/undo/redo/openPalette を MainScreen に）
+- **W4** — Analytics + Connect（Tier3・後回し・複雑画面=分割寄り）
+- W1 残 Low（非ブロッキング・別バッチ）: `text-white` の accent オン文字トークン化 / `FONT_SIZE_PX` の ThemeContext↔SettingsAppearance 重複を `constants/` 一元化
 - **Mobile 基準セクション統一（frontend）の Phase 2 Schedule / Phase 4 Settings は FROZEN（取り下げ）** — frontend は移行 Phase 5 で破棄予定・web に伝播しないため。今後の統一は web-desktop-parity-roadmap（W0-W4）側で実施。Phase 2 設計（削除=週ビュー/Dual Column/CalendarTags/検索, Desktop維持=Events/Tasks/高度操作）は web 移植仕様の参照元として保全（master プラン `2026-06-05-mobile-first-section-unification.md`）
 - [chat-main] web Phase 2 残: S8 Supabase Realtime（SyncContext no-op→postgres_changes購読+debounce bump+publication migration 0017）/ S9 モバイルレスポンシブ（本番web/）
 - [chat-main] Perf follow-up: M4（useScheduleItemsRoutineSync の syncScheduleItemsWithRoutines を updateFutureScheduleItemsByRoutine に一括化）/ M1（note一覧content_json除外・遅延取得+検索移行の設計変更要
