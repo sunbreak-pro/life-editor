@@ -6,12 +6,15 @@
 
 ## 直近の完了
 
-- [chat-main] web-desktop parity **W0-4/5/6**（i18n 基盤 + 共有 UI mount 検証 + 2層モデル記録）✅（2026-06-07）— react-i18next + en/ja locales（各 1778 key・parity 一致）/ 共有 i18n provider / web mount 検証 / coding-principles §6「2層モデル」記録 + CLAUDE.md/移行SSOT に Option A 記録。**role-qa + security-reviewer 並列独立監査 PASS**（Critical/High 0）。worktree `w0-shared-ui` / branch `feat/w0-shared-design-system` @`e86819e`（**未 merge**）。follow-up: W0 sign-off 時に `web/src/_w0demo/` 削除
-- [chat-main] セクション統一 Phase 3 Materials dead code 整理 ✅（2026-06-07, PR #53 merged `9349d12`）— Daily/Notes は既に共有済みのため統一作業不要、未使用 Mobile 6 ファイル削除のみ（Files タブは Desktop 維持）
-- [chat-main] web Phase 2 perf改善 + S7オフラインバナー + RLS migration本番適用 ✅（2026-06-03, PR #43/#44 merged）— WikiTags N+1解消 / Note・Task tree O(1) / Schedule debounce / TipTap lazy / offline banner / 0015 dailies initplan + 0016 events routine owner
+- [chat-main] コア運用機構グローバル化 主要部 ✅（2026-06-07）— `~/dev/Claude/hooks-lib` 新設+4hook汎用化(ROOT検出 CLAUDE_PROJECT_DIR基準化)+`setup-per-chat.sh`(冪等/settings.json jqマージ)。novel に per-chat機構適用＋動作確認OK(既存inbox-check無傷)。card-battle は dirty作業ブランチで保留→⑦
+- [chat-main] supabase prod バンドル消失疑い → **誤報決着** ✅（2026-06-07）— 原因はworktreeの.env.local欠落でcreateClient tree-shake削除。main(env あり)buildで残存確認・本番正常。memory: project_worktree_supabase_treeshake
+- [chat-main] **PR #61** Batch A（web bundle manualChunks + shared relation mapper 6本 +63テスト 307緑）✅（2026-06-07）— Web移行整合監査(Dynamic Workflows 8並列)で抽出した非競合2レーン。QA PASS。branch `chore/batch-a-bundle-mapper-tests`
 
 ## 予定
 
+- ⑥ Batch A 残3レーン(web-dataservice-factory/docs-sync-model-update/stale-comment-cleanup)は w0-shared-ui・docs-cleanup の main merge 後
+- ⑦ グローバル化 follow-up: card-battle適用(clean後)/novel側per-chat分commit/project-setter更新/life-editorのhooks→hooks-libリンク化(任意)
+- W0 全体(W0-1〜6, `feat/w0-shared-design-system`@`e86819e` 未merge)の main merge（git-orchestrator）+ `web/src/_w0demo/` 削除
 - **Mobile 基準セクション統一（frontend）の Phase 2 Schedule / Phase 4 Settings は FROZEN（取り下げ）** — frontend は移行 Phase 5 で破棄予定・web に伝播しないため。今後の統一は web-desktop-parity-roadmap（W0-W4）側で実施。Phase 2 設計（削除=週ビュー/Dual Column/CalendarTags/検索, Desktop維持=Events/Tasks/高度操作）は web 移植仕様の参照元として保全（master プラン `2026-06-05-mobile-first-section-unification.md`）
 - [chat-main] web Phase 2 残: S8 Supabase Realtime（SyncContext no-op→postgres_changes購読+debounce bump+publication migration 0017）/ S9 モバイルレスポンシブ（本番web/）
 - [chat-main] Perf follow-up: M4（useScheduleItemsRoutineSync の syncScheduleItemsWithRoutines を updateFutureScheduleItemsByRoutine に一括化）/ M1（note一覧content_json除外・遅延取得+検索移行の設計変更要

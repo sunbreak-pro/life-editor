@@ -9,7 +9,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import {
-  createSupabaseDataService,
+  getDataService,
   signOut,
   CommandPalette,
   SyncProvider,
@@ -42,6 +42,7 @@ import { ScheduleItemsView } from "./schedule/ScheduleItemsView";
 import { RoutineScheduleSync } from "./schedule/RoutineScheduleSync";
 import { CalendarView } from "./schedule/CalendarView";
 import { WikiTagsManagementView } from "./wikitag";
+import { SettingsScreen } from "./settings/SettingsScreen";
 
 /*
  * Phase 2 S1+S2 host shell.
