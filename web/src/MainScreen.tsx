@@ -1,6 +1,6 @@
 import { lazy, Suspense, useMemo, useState } from "react";
 import {
-  createSupabaseDataService,
+  getDataService,
   signOut,
   SyncProvider,
   TaskTreeProvider,
@@ -10,7 +10,6 @@ import {
   ScheduleItemsProvider,
   CalendarProvider,
   WikiTagsUnifiedProvider,
-  type DataService,
   type Session,
 } from "@life-editor/shared";
 import { TaskTreeView } from "./tasks/TaskTreeView";
@@ -52,14 +51,6 @@ import { WikiTagsManagementView } from "./wikitag";
  * Tasks + Daily sections exist in the web build so far; later S-steps
  * add Notes / Schedule / WikiTags.
  */
-
-let dataServiceSingleton: DataService | null = null;
-function getDataService(): DataService {
-  if (!dataServiceSingleton) {
-    dataServiceSingleton = createSupabaseDataService();
-  }
-  return dataServiceSingleton;
-}
 
 type Section = "tasks" | "daily" | "notes" | "schedule" | "tags";
 
