@@ -2,6 +2,31 @@
 
 ローリングアーカイブ: `history/chat-main.md` が 5 件超過した際に最古エントリをここへ移動。時系列降順。
 
+### 2026-06-09 - web-desktop パリティ W1（UX基盤）+ W2（Trash/CommandPalette）
+
+#### 概要
+
+親ロードマップ `2026-06-07-web-desktop-parity-roadmap.md`（W0-W4・web を Desktop 同等へ）の W1・W2 を実装。各々独立 worktree/ブランチ/PR。role-pm 分解 → 子計画書 → role-engineer 実装（W1 は socket hang up 対策で2バッチ分割）→ role-qa 独立監査 → git-orchestrator で commit/PR。merge はユーザー判断（🛑 人手ゲート・未merge）。
+
+#### 変更点
+
+- **W1（PR #63・feat/w1-settings-theme @ 9277644）**: web に Theme 基盤を新設。役割判明=「設定画面移植」でなく「web に Theme/FontSize/Language/Shortcut を機能させる shared 基盤の新設」（web には dark/light も font-size 適用も Provider も無かった）。
+  - shared 新規: useLocalStorage / ThemeContext(Value/Context/hook・Pattern A・theme/fontSize/language の3点・editor系は web 消費者ゼロで除外) / ShortcutConfig(Optional バリアント=Mobile省略Provider) / SettingsAppearance・SettingsLanguage・SettingsShortcuts(props注入の純粋部品) / shortcut 型・defaultShortcuts(web実在10件選別・nav は web section に再キー) / platform・shortcutBinding util + テスト11件。
+  - web: main.tsx に ThemeProvider マウント(documentElement に data-theme/font-size 適用・localStorage 永続化) / MainScreen に settings section + nav + ShortcutConfigProvider(SyncProvider 内側)。
+  - 検証: shared build/web build/shared test 332緑/web lint(0 err)。role-qa=PASS with concerns(C/H=0)。Low#1(`--notion-accent`→`--color-notion-accent` トークン名誤記)修正取込。
+- **W2（PR #64・feat/w2-trash-command-palette @ ebd0d6d）**: web に Trash + CommandPalette。DB変更ゼロ(既存 soft-delete API 利用)。
+  - shared 新規: CommandPalette(frontend 195行を i18n props 化コピー・useTranslation 撤去・Cmd+K/Ctrl+K・IMEガード・検索/↑↓Enter) / TrashView(純粋部品・書き直し=frontend版は DU-G で消えた legacy context 依存で流用不可・5カテゴリ tasks/notes/dailies/routines/events・Modal confirm) + テスト10件。
+  - web: TrashScreen host(getDataService で5カテゴリ fetchDeleted\* 並列取得・restore/permanentDelete 配線・cancelled フラグ+busy ガード) / MainScreen に trash section + nav + Cmd+K window リスナ + コマンド配列。
+  - 検証: shared build/web build/shared test 328緑(新規10)/web lint(0 err)。role-qa=PASS(C/H/M=0・5カテゴリ配線を DataService 実装本体まで遡り取り違えゼロ確認)。Low(untitled フォールバック未定義キー→`common.untitled` 新設)修正取込。
+
+#### 設計判断 / 申し送り
+
+- **2バッチ分割の経緯**: W1 初回 role-engineer が socket hang up(接続切断系・本体SSEバグ)で103分・実装0で落ちた。原因は worktree の node_modules リンク先(本体 shared/web)に W0 deps(i18next/react-i18next/lucide-react/jsdom/@testing-library)が未 install だったこと＋長時間SSE露出。本体で npm install 解消後、Theme コア(Step1-4)/Shortcut+Settings(Step5-8)に分割して稼働短縮。W2 の role-qa も hang したため検証4本を main が background 実測→QA はコード読解専念に切替。
+- **shortcut executor 未配線(W1→W3 申し送り)**: W1 で shortcut の設定/rebind/conflict/reset は動くが、グローバル keydown executor が無く押下実行されない(Step7 でスコープ外と定義・要件違反でない)。W3 で `useGlobalShortcuts(matchEvent, setSection, undo, redo, openPalette)` を MainScreen に配線予定。`global:command-palette` は W2 で UI 実装済のため W3 で結線。
+- **Trash の host 直叩き設計**: web は Provider をセクション別マウントするため、Trash の5カテゴリ横断には section context が使えない。host(TrashScreen)で DataService 直叩きが正解(host が getDataService を呼ぶのは規約OK・禁止はフック/部品内のみ)。
+- **worktree node_modules 非混入**: `shared/node_modules` は検証用シンボリックリンクで gitignore 漏れ(`web/node_modules` は ignore 済)。両 PR とも `git add -A` 禁止・明示 pathspec で stage し非混入確認。
+- **merge 順序**: W1→W2 推奨(両者 `shared/src/components/index.ts` + i18n locales を触る・i18n JSON 軽微競合回避)。
+
 ### 2026-06-08 - Batch A 残3レーン PR#62 + グローバル化 follow-up(#7)
 
 #### 概要
