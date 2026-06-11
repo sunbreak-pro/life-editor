@@ -2,6 +2,25 @@
 
 ローリングアーカイブ: `history/chat-main.md` が 5 件超過した際に最古エントリをここへ移動。時系列降順。
 
+### 2026-06-07 - Batch A PR#61 + supabase誤報決着 + コア機構グローバル化
+
+#### 概要
+
+Web移行整合監査(Dynamic Workflows 8エージェント並列)を起点に、非競合2レーンをBatch A=PR#61化、QAが見つけたsupabase消失疑いを誤報と決着、per-chat運用機構をグローバル化(hooks-lib新設+novel適用)した一連のセッション。
+
+#### 変更点
+
+- **監査(①)**: Dynamic Workflows 8エージェントで並列監査。重要発見=`frontend/`は破棄予定の旧Tauriツリー(磨かない)、現行は`web/`+`shared/`+`supabase/`、SSOTは`2026-06-07-web-desktop-parity-roadmap`(W0-W4)。型/ビルド緑・shared 307テスト緑。
+- **Batch A=PR#61(②③)**: web manualChunks(react-vendor/dnd/editor/supabase+limit600、500KB超警告解消) + shared relation/group系6 Mapper roundtripテスト(+63、244→307緑)。role-engineer×2並列実装(worktree隔離)→role-qa独立PASS→worktreeからpush(main専有hook誤ブロック回避)。残3レーン(factory/docs-sync/comment)はw0/docs競合で保留。
+- **supabase誤報決着(⑤)**: distにcreateClient 0ヒットを本番ログイン不動と疑ったが、原因はworktreeの.env.local欠落→VITE*SUPABASE*\* undefined→getSupabaseClient throw経路→rollupがcreateClient到達不能判定→tree-shake削除。main(env あり)でcreateClient/GoTrueClient/signInWithPassword残存確認=誤報。memory化(project_worktree_supabase_treeshake)。
+- **グローバル化(④)**: `~/dev/Claude/hooks-lib`新設+4hook汎用化(ROOT検出CLAUDE_PROJECT_DIR基準・ハードコード除去)+`setup-per-chat.sh`(冪等/settings.json jqマージ、一時dirで空/マージ/冪等テスト、jq selectスコープバグ修正)。novelに適用し実動確認(regen-index/session-start-check動作・inbox-check無傷)。card-battleは`chore/claude-harness-and-battle-fixes`(dirty,別チャット疑い)で保留。
+
+#### 設計判断 / 申し送り
+
+- 並行worktree(w0-shared-ui/docs-cleanup)競合回避のため、監査の「5レーン並列OK」を実態(2 worktreeがshared/.claudeを押さえ)で2レーンに絞った。残3レーンはマージ後。
+- session-start-checkはgit toplevel優先=CLAUDE_PROJECT_DIRを渡してもcwdのgit優先(テスト時注意・実運用は各プロジェクトで起動するので問題なし)。
+- card-battle/novelは旧MEMORY.md/HISTORY.md方式。setup-per-chatは旧ファイル無変更で共存(凍結)。
+
 ### 2026-06-07 - web-desktop parity W0-4/5/6 完了 + role-qa/security 並列独立監査 PASS
 
 #### 概要
@@ -48,4 +67,3 @@ Mobile 基準セクション統一の master プラン（`2026-06-05-mobile-firs
 
 - 無関係な孤立 worktree 残骸 `.claude/worktrees/du-g/`（git レジストリ未登録・参照先不在）+ マージ済みローカルブランチ複数 + stash 1 件の片付け漏れあり。プラン整合性には影響なし。掃除は別途。
 - 次の主軸は web-desktop-parity-roadmap（W0-W4、web/+shared/ を旧 Desktop 同等へ）。各 Phase は着手時に `2026-06-XX-web-parity-w<N>-*.md` へ子分割予定（現状未生成）。
-
