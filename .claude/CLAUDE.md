@@ -1,193 +1,72 @@
 # CLAUDE.md — Life Editor 統合定義書
 
-> 設計判断・実装規約の SSOT。**「変わらない事実」だけを持ち、手順はスキル/エージェントへ委譲**する。抽象構想・設計原則は `docs/vision/`。Claude Code 起動時に auto-load。
+> 設計判断・実装規約の SSOT。**「変わらない事実」だけを持ち、手順はスキル / エージェント、frontend 詳細規約は [`.claude/rules/`](./rules/) へ委譲**。各行は「消したら Claude が間違うか」基準で維持する（150 行目標）。
 >
-> ⚠️ **Active Migration**: Tauri 2 + D1 + portable-pty → **Electron + Capacitor + Web + Supabase** へ移行中（作業ブランチは `main` に集約済み・旧 `refactor/web-first-v2` は PR #3-9 マージ済みで廃止）。**現行スタック・Phase 状況・移行手順の SSOT は [`2026-05-04-cross-platform-migration.md`](./2026-05-04-cross-platform-migration.md) と `memory/INDEX.md`** (旧 `MEMORY.md` は 2026-05-23 凍結、per-chat 化済 — §9 参照)。本ファイルの実装パス/コマンドはアーキ非依存に一般化済み（具体は移行 SSOT 参照）。方針: 学習ログ廃止 / 完成までコスト $0 厳守。
+> ⚠️ **Active Migration**: Tauri 2 → **Electron + Capacitor + Web + Supabase** へ移行中。現行スタック・Phase 状況・起動 / ビルド手順の正本は [`2026-05-04-cross-platform-migration.md`](./2026-05-04-cross-platform-migration.md)（以下「移行 SSOT」）。方針: 学習ログ廃止 / **完成までコスト $0 厳守**。
 
 ---
 
 ## 0. Meta
 
-- **役割**: 現状の実装規約 / 設計判断の参照点（400 行以下目標）。抽象構想は `docs/vision/`（ADR は作らない）
 - **更新規則**: 実装変更はコードと同一 PR で更新。新機能は §8 + `docs/requirements/` に記入
-- **関連**:
-  - 進捗 / 履歴: [`memory/INDEX.md`](./memory/INDEX.md) (タスク集約) / [`history/INDEX.md`](./history/INDEX.md) (履歴集約) — per-chat 機構の集約ビュー（**git 非追跡の派生物**。SSOT は各 `chat-*.md`。`.claude/hooks/regen-index.sh` が SessionStart hook / task-tracker から決定論的に再生成 — 並行マージ衝突源だったため追跡対象外。§9 参照）
-  - 凍結 / 参考保全: 旧 `MEMORY.md` / `HISTORY.md` / `HISTORY-archive.md` (2026-05-23 凍結・read-only)
-  - 移行: [移行 SSOT](./2026-05-04-cross-platform-migration.md)
-  - 設計: `docs/vision/` (設計原則) / `docs/requirements/` (Tier) / `docs/known-issues/` ([INDEX](./docs/known-issues/INDEX.md))
-  - アーカイブ: `archive/`
+- **関連**: 進捗 / 履歴 = [`memory/INDEX.md`](./memory/INDEX.md) / [`history/INDEX.md`](./history/INDEX.md)（git 非追跡の派生ビュー。SSOT は per-chat `chat-*.md` — §9）・設計 = `docs/vision/`・要件 = `docs/requirements/`・障害知見 = [`docs/known-issues/INDEX.md`](./docs/known-issues/INDEX.md)・完了プラン = `archive/`。旧 `MEMORY.md` / `HISTORY.md` は 2026-05-23 凍結
 
----
+## 1. Vision（詳細 → [`docs/vision/core.md`](./docs/vision/core.md)）
 
-## 1. Vision（要約 → [`docs/vision/core.md`](./docs/vision/core.md)）
-
-- **1-line**: AI と会話しながら生活を設計・記録・運用するパーソナル OS
-- **Primary user**: 作者本人（N=1）、macOS + iOS、Claude Code 日常利用の開発者
-- **Value**: (V1) MCP 経由で AI が全データ操作 $0 / (V2) ローカル SSOT + オフライン完全動作 / (V3) 特化テーブル + Notion 的汎用 DB の両立
+- AI と会話しながら生活を設計・記録・運用するパーソナル OS。ユーザーは作者本人のみ（N=1、macOS + iOS）
 - **Non-Goals**: マルチテナント / 特化専用アプリ / Claude API 直課金 / モバイル単独起動
-
----
 
 ## 2. Platform
 
-Desktop（macOS 主機 / Windows 友達 MVP）= 全機能。Mobile（iOS / Android）= Consumption + Quick capture、省略 Provider 適用。Cloud Sync = 作者本人のみ（友達ビルドは feature flag で無効）。**配布・署名・検証戦略の詳細は移行 SSOT へ集約**。
+- Desktop（macOS / Windows）= 全機能。Mobile（iOS / Android）= Consumption + Quick capture。Terminal + MCP は Desktop 専用
+- **Mobile 省略 Provider（5 種）**: Audio / ScreenLock / FileExplorer / CalendarTags / ShortcutConfig（WikiTag / SidebarLinks は Mobile でも有効）
+- Cloud Sync = 作者本人のみ（友達ビルドは feature flag で無効）。配布・署名 → 移行 SSOT
 
-### 機能差分
+## 3. Architecture（恒久原則のみ。構成図 → 移行 SSOT）
 
-| 機能                                                                         | macOS | Windows | iOS | Android |  Cloud Sync  | 備考                         |
-| ---------------------------------------------------------------------------- | :---: | :-----: | :-: | :-----: | :----------: | ---------------------------- |
-| Tasks / Schedule / Notes / Daily                                             |   ✓   |    ✓    |  ✓  |    ✓    | ✓ (作者のみ) | コア                         |
-| Pomodoro Timer                                                               |   ✓   |    ✓    |  ✓  |    ✓    |      -       |                              |
-| Materials / Calendar Tags / Audio / WikiTags / Shortcut Config / Screen Lock |   ✓   |    ✓    |  -  |    -    |      -       | Mobile 省略 Provider（§6.2） |
-| Terminal + Claude + MCP Server                                               |   ✓   |    ✓    |  -  |    -    |      -       | Desktop 専用                 |
+- **3.1 DataService 境界（不変式）**: フロントは `getDataService()` 経由でのみデータアクセス。**コンポーネントから直接バックエンド呼び出し（`invoke()` 等）禁止**。実装 = `frontend/src/services/`。バックエンドが替わってもこの境界は不変
+- **3.2 Section Routing**: React Router なし。`App.tsx::activeSection`（型 `types/taskTree.ts::SectionId`、7 種: schedule / materials / connect / work / analytics / settings / terminal）で切替。`TerminalPanel` は全画面共通の下部パネル
+- **3.3 Sync**: `items_meta.updated_at` を LWW cursor とする 2 行分割モデル。`<role>_payload` は `updated_at` を持たない（詳細 → [`docs/vision/db-conventions.md`](./docs/vision/db-conventions.md) §10）。「全テーブルに version カラム」は旧 Tauri 時代の遺物で未使用
+- **gotcha**: `AudioContext` は `suspended` 開始 — ユーザー操作後に `resume()` 必須
 
-Mobile 省略 Provider: Audio / ScreenLock / FileExplorer / CalendarTags / ShortcutConfig（iOS / Android 共通。WikiTag / SidebarLinks は Mobile でも有効）
+## 4. Data Model（規約詳細 → `docs/vision/db-conventions.md` / 変更手順 → `db-migration` スキル）
 
----
-
-## 3. Architecture
-
-> 現行スタックの構成図・プロセスモデルは移行に追従するため **[移行 SSOT](./2026-05-04-cross-platform-migration.md) を正本**とする。本章はアーキ非依存の恒久原則のみ。
-
-### 3.1 DataService 抽象化（重要・恒久）
-
-フロントエンドは `getDataService()` 経由でのみデータアクセス。**コンポーネントから直接バックエンド呼び出し（`invoke()` 等）を書かない**。実装は `frontend/src/services/`（環境別 DataService + factory）。バックエンド実装が Tauri→Electron/Supabase へ替わってもこの境界は不変。
-
-### 3.2 Section Routing（7 SectionId）
-
-React Router なし。`App.tsx::activeSection`（型 `types/taskTree.ts::SectionId`）で切替: `schedule` / `materials` / `connect` / `work` / `analytics` / `settings` / `terminal`。`TerminalPanel` は全画面共通の下部パネル（VSCode 方式）。
-
-### 3.3 サブシステム（恒久仕様）
-
-- **Audio Mixer**: 6 種環境音 + カスタム。`AudioContext` は `suspended` → ユーザー操作後 `resume()` 必須
-- **Sync**: `items_meta.updated_at` を LWW（last-write-wins）cursor とする。`<role>_payload` は `updated_at` を持たず items_meta が単一所有で bump（機構詳細 → `docs/vision/db-conventions.md §10` / 移行 SSOT）。※「全テーブルに version カラム」は旧 Tauri SQLite + D1 時代の遺物で現行 Supabase モデルでは未使用
-- **Theme**: ダーク/ライト、フォントサイズ 10 段階（12-25px）、Tailwind `notion-*` トークン
-- **Terminal**: アプリ内ターミナルから `claude` 起動 → MCP Server 自動接続（基盤は移行 SSOT）
-
----
-
-## 4. Data Model
-
-> write / sync / migration 規約詳細 → [`docs/vision/db-conventions.md`](./docs/vision/db-conventions.md)。migration 追加手順 → `db-migration` スキル。バージョン履歴の逐語は git 履歴 / `docs/known-issues/`。
-
-### 4.1 ドメイン
-
-`tasks` / `dailies` / `notes` / `time_memos` / `schedule_items` / `calendars` / `routines` / `routine_groups` / `routine_group_assignments` / `timer_sessions` / `sounds` / `playlists` / `wiki_tags` / `wiki_tag_assignments` / `wiki_tag_connections` / `task_templates` / `paper_boards` / `sidebar_links` / `databases`（汎用 DB: properties / rows / cells）。約 40 テーブル。Sync 規約（`items_meta.updated_at` を LWW cursor とする 2 行分割モデル）は db-conventions §10 と移行 SSOT が正本（旧「versioned / relation / inline」3 区分は Tauri 時代の語彙で v2 では廃止）。
-
-### 4.2 特化 vs 汎用 DB の境界
-
-- **特化テーブル**（スキーマ固定）: `tasks` / `routines` / `routine_groups` / `schedule_items` / `notes` / `dailies` / `pomodoro_presets` / `timer_sessions` / `sidebar_links`
-- **汎用 Database**: 家計簿 / 読書記録 / 習慣 / 連絡先 / 学習進捗 等
-- **判断**: 特化 UI（DnD / カレンダー / ルーチン生成 / リマインダー）が必要 → 特化テーブル。型付きフィールド + フィルタ + 集計で済む → 汎用 Database
-
-### 4.3 ID 戦略 + items_meta 規約（DU-A〜DU-F 反映）
-
-- TaskNode: `<type>-<timestamp+counter>`（例 `task-1710201234566`） / DailyNode: `daily-<YYYY-MM-DD>` / その他: `generateId(prefix)` = `<prefix>-<uuid>`。全 String
-- **items_meta + composite FK pattern**: 5 role (task/event/routine/note/daily) は `items_meta(id, role)` を SSOT に持ち、各 payload テーブルは `(id, role)` 複合 FK で参照（DU-B / DU-D。migration 逐語は git 履歴）。`id` は role を跨いで一意（id 不変式）。WikiTag/Link 系 (`wiki_tag_assignments.item_id` / `wiki_tag_connections.from_item_id` / `to_item_id`) は role 区別なしで items_meta.id を参照
-- **Routine UX 規約（DU-F DF-Q2/Q3）**: Routine は **Event の生成テンプレート**として再定義。Routine 専用 Tag/Link UI は持たない。Tag/Link が必要な場合は Routine から生成された Event 側に付与（将来テンプレ値継承は別計画）。データモデルは items_meta 経由で Routine への Tag/Link を許容する（UI 追加だけで対応可）
-
-### 4.4 ソフトデリート
-
-`is_deleted` + `deleted_at` → TrashView から復元可。対象: Tasks / Notes / Dailies / Routines / Databases / Templates。CustomSounds はファイルベース。
-
-### 4.5 PropertyType 拡張方針
-
-実装済み: text / number / select / date / checkbox。優先度: relation(高) / formula(高) / rollup(中) / ビュー切替 Board・Gallery・Calendar(中) / url・email(低)。新型追加時は汎用 DB 用 MCP ツール（`query_database` / `add_database_row` / `update_database_cell`）も整備（現状の 32 ツールには未含 = 汎用 DB は MCP 未対応）。
-
----
+- 約 40 テーブル（ドメイン一覧はコード / db-conventions が正）
+- **特化 vs 汎用 DB の判断**: 特化 UI（DnD / カレンダー / ルーチン生成 / リマインダー）が必要 → 特化テーブル。型付きフィールド + フィルタ + 集計で済む → 汎用 Database
+- **ID 不変式**: TaskNode `<type>-<timestamp+counter>` / DailyNode `daily-<YYYY-MM-DD>` / 他 `generateId(prefix)`。全 String。`id` は role を跨いで一意
+- **items_meta + composite FK**: 5 role（task / event / routine / note / daily）は `items_meta(id, role)` が SSOT、payload テーブルは `(id, role)` 複合 FK で参照。WikiTag / Link 系は role 区別なしで `items_meta.id` を参照
+- **Routine**: Event の生成テンプレート。Routine 専用 Tag/Link UI は持たない（必要なら生成された Event 側に付与）
+- **ソフトデリート**: `is_deleted` + `deleted_at` → TrashView 復元。対象: Tasks / Notes / Dailies / Routines / Databases / Templates
+- PropertyType 実装済み: text / number / select / date / checkbox。汎用 DB は MCP 未対応（新型追加時に MCP ツールも整備）
 
 ## 5. AI Integration
 
-### 5.1 MCP Server（32 ツール）
-
-独立 Node.js プロセス。Claude Code が stdio 経由で呼び出し、同一 DB を直接操作。ドメイン別:
-
-- **Tasks**: list / get / create / update / delete / get_tree
-- **Dailies**: get / upsert ／ **Notes**: list / create / update
-- **Schedule**: list / create / update / delete / toggle_complete / dismiss / undismiss
-- **Wiki Tags**: list / tag_entity / search_by_tag / get_entity_tags
-- **Content / Search**: generate_content / format_content / search_all
-- **File**: list / read / write / create_directory / rename / delete / search
-
-### 5.2 アプリ内ターミナル + Claude Code
-
-アプリ内ターミナルから `claude` 起動 → MCP Server 自動接続 → 自然言語でデータ操作（基盤は移行 SSOT）。
-
----
+- MCP Server = 独立 Node.js プロセス。Claude Code が stdio 接続し同一 DB を直接操作（32 ツール。一覧はコードが正）
+- アプリ内ターミナルから `claude` 起動 → MCP 自動接続（基盤 → 移行 SSOT）
 
 ## 6. Coding Standards
 
-### 6.1 命名規則
-
-| 種別             | 規則                   | 例                     |
-| ---------------- | ---------------------- | ---------------------- |
-| コンポーネント   | PascalCase             | `TaskList.tsx`         |
-| フック           | camelCase + use 接頭辞 | `useTasks.ts`          |
-| 変数・関数       | camelCase              | `fetchTasks`           |
-| 定数             | SCREAMING_SNAKE_CASE   | `API_BASE_URL`         |
-| Context Value 型 | PascalCase             | `AudioContextValue.ts` |
-
-ESLint 設定に従う。コメントは必要最小限。
-
-### 6.2 Provider 順序（依存制約）
-
-- **Desktop**（外→内）: ErrorBoundary → Theme → Toast → Sync → UndoRedo → ScreenLock → TaskTree → Calendar → Template → Daily → Note → FileExplorer → Routine → ScheduleItems → CalendarTags → Timer → Audio → WikiTag → ShortcutConfig → SidebarLinks
-- **Mobile**: ScreenLock / FileExplorer / CalendarTags / Audio / ShortcutConfig を省く（SidebarLinks / WikiTag は両方有効）
-- 内側 Provider は外側 Context に依存可（逆不可）。例: ScheduleItemsProvider → RoutineProvider、AudioProvider → TimerProvider
-
-### 6.3 Pattern A（Context/Provider 標準 — 3 ファイル）
-
-1. `context/FooContextValue.ts` — interface + `createContext<T | null>(null)`
-2. `context/FooContext.tsx` — Provider（hook 呼び出し + useMemo）
-3. `hooks/useFooContext.ts` — `createContextHook(FooContext, "useFooContext")`
-
-`context/index.ts` に Provider / Context / type を export。**例外**: 他 Provider が依存しない自己完結なら単一ファイル可（例 `ToastContext`）。**Mobile 省略 Provider は Optional バリアント必須**（詳細 → `vision/coding-principles.md §4`）。
-
-### 6.4 共有コンポーネント配置
-
-| 種別          | 配置先                                           |
-| ------------- | ------------------------------------------------ |
-| 共有 UI       | `frontend/src/components/shared/`                |
-| 共有フック    | `frontend/src/hooks/`                            |
-| Context       | `frontend/src/context/`                          |
-| 共有型        | `frontend/src/types/`                            |
-| Schedule 共通 | `frontend/src/components/Tasks/Schedule/shared/` |
-| UndoRedo      | `frontend/src/utils/undoRedo/`                   |
-
-設計規約: `notion-*` トークン使用（ハードコード禁止）/ i18n は props 経由（フック内で `useTranslation()` 禁止）/ ジェネリクスで型外部化 / DataService はコールバック注入（フック内で `getDataService()` 直呼び禁止）/ **主要 UI コンテナ背景に透明度禁止**（不透明トークン使用、未定義クラスは silent fail で透明落ち）— 詳細 → `vision/coding-principles.md §5`。UI デザイン判断は `frontend-react-designer` スキル。
-
-> **移行先の集約方針（W0 2026-06-07 確定 = 案 A）**: 上表は FROZEN な `frontend/`（Tauri）の配置。Web/Electron/Capacitor 共用の新規 UI は **`shared/src/components/` にデザインシステム + `notion-*` トークン + i18n（en/ja catalog）を集約**し、3 配布形態が同じソースを共用する（UI 2 層モデル → `vision/coding-principles.md §6`）。部品の props 経由 i18n 不変式は維持。
-
-### 6.5 Schedule 3 分割
-
-`RoutineProvider` / `ScheduleItemsProvider` / `CalendarTagsProvider`。`useScheduleContext()` は後方互換ファサード。新コードは個別 hook 直接使用。複数参照されるものは `Schedule/shared/` へ。背景 → `vision/coding-principles.md §3`。
-
-### 6.6 その他規約
-
-- **i18n**: `react-i18next`（en / ja 両方に追加）／ **IME**: `e.nativeEvent.isComposing` チェック必須
-- **リッチテキスト**: TipTap ／ **DnD**: `@dnd-kit`（`moveNode`=並び替え と `moveNodeInto`=階層移動 は別操作）
-
----
+- **詳細規約 = [`.claude/rules/frontend.md`](./rules/frontend.md)**（path-scoped: `frontend/src/**` / `shared/src/**` を扱う時のみ自動ロード）: Provider 順序 / Pattern A / 配置表 / デザイン規約 / IME 等の gotcha
+- 不変式の要約: `notion-*` トークン必須（色ハードコード禁止）/ i18n は props 経由・en / ja 両 catalog / DataService はコールバック注入 / 主要 UI 背景に透明度禁止
+- **新規 UI は `shared/src/components/` に集約**（`frontend/` は FROZEN — W0 案 A → `docs/vision/coding-principles.md §6`）
 
 ## 7. Development Workflows
 
-### 7.0 ワークフロー = スキル/エージェント（手順の正本）
+### 7.0 手順の正本 = スキル / エージェント（実装タスクの起点は `lead-pipeline`）
 
-手順は本ファイルに書かず、以下に委譲する。**実装タスクの起点は `lead-pipeline` スキル**（ティア判定 → 必要工程を采配）。
-
-| 局面                               | 委譲先                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
-| ---------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------- |
-| 実装タスク全体の采配               | `lead-pipeline` スキル（軽=直接 / 中=verifier→tracker / 重=フルチェーン）                                                                                                                                                                                                                                                                                                                                                                                                        |
-| 長時間・並列・条件達成型の実行戦略 | `execution-router` スキル（/goal・/batch・/loop・subagent 判断）                                                                                                                                                                                                                                                                                                                                                                                                                 |
-| 要件分解 / 実装 / 独立監査         | `role-pm` → `role-engineer` → `role-qa`（メインが Agent 起動。再帰禁止）                                                                                                                                                                                                                                                                                                                                                                                                         |
-| セッション開始/中断/終了           | `session-manager`（→ session-loader / task-tracker / session-verifier）                                                                                                                                                                                                                                                                                                                                                                                                          |
-| 品質ゲート                         | `session-verifier`（commit 前）                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
-| 進捗記録                           | `task-tracker`（per-chat: `memory/chat-<self>.md` + `history/chat-<self>.md` + INDEX 集約 / legacy fallback あり）                                                                                                                                                                                                                                                                                                                                                               |
-| branch / PR / merge                | `git-orchestrator`（→ git-workflow / git-branch-flow / git-conflict-resolver）                                                                                                                                                                                                                                                                                                                                                                                                   |
-| IPC 追加                           | `add-ipc-channel` スキル ／ DB 変更                                                                                                                                                                                                                                                                                                                                                                                                                                              | `db-migration` スキル |
-| デバッグ                           | `debug-strategy` スキル + `docs/known-issues/INDEX.md` を grep                                                                                                                                                                                                                                                                                                                                                                                                                   |
-| ツール実行ハング（応答停止）       | [`~/.claude/rules/bash-tool-stability.md`](file:///Users/newlife/.claude/rules/bash-tool-stability.md)（原因=本体 SSE バグ・ローカルはシロ。ESC 復帰 → jsonl 系統判定 → 混雑帯回避。重い Bash は background/subagent に逃がす。**運用既定: 状態変更・複数行系の Bash（git 操作 / build / test / install / コマンド連結）はサブエージェント or background 経由、単発の軽い読み取り（ls / git status / 単発 grep）は直接実行**。詳細切り分けは memory `bash-tool-hang-diagnosis`） |
-| life-editor 整合監査               | `life-editor-ipc-validator` / `-migration-validator` / `-sync-auditor`                                                                                                                                                                                                                                                                                                                                                                                                           |
+| 局面                             | 委譲先                                                                                                                        |
+| -------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| 実装タスク采配                   | `lead-pipeline`（軽=直接 / 中=verifier→tracker / 重=フルチェーン）                                                            |
+| 実行戦略（/goal・/batch・/loop） | `execution-router`                                                                                                            |
+| 要件分解 → 実装 → 独立監査       | `role-pm` → `role-engineer` → `role-qa`（メインが Agent 起動・再帰禁止）                                                      |
+| セッション開始 / 中断 / 終了     | `session-manager`                                                                                                             |
+| 品質ゲート（commit 前）          | `session-verifier`                                                                                                            |
+| 進捗記録                         | `task-tracker`（per-chat → §9）                                                                                               |
+| branch / PR / merge              | `git-orchestrator`（→ git-workflow / git-branch-flow / git-conflict-resolver）                                                |
+| IPC 追加 / DB 変更               | `add-ipc-channel` / `db-migration`                                                                                            |
+| デバッグ                         | `debug-strategy` + `docs/known-issues/INDEX.md` を grep                                                                       |
+| ツール実行ハング                 | `~/.claude/rules/bash-tool-stability.md`（グローバル auto-load）。重い Bash は background / subagent 経由、軽い読み取りは直接 |
+| 整合監査                         | `life-editor-ipc-validator` / `-migration-validator` / `-sync-auditor`                                                        |
 
 ### 7.1 開発コマンド
 
@@ -197,57 +76,37 @@ cd frontend && npx vitest run src/path/to/File.test.tsx # 単一テスト
 cd frontend && npm run build                            # 型検証（tsc -b。--noEmit は solution 構成で無効）
 ```
 
-起動・ビルドコマンドは移行に追従するため **移行 SSOT を参照**（Tauri 時代の `cargo tauri dev` 等は廃止）。
+起動・ビルドコマンドは移行 SSOT を参照（Tauri 時代の `cargo tauri dev` 等は廃止）。
 
 ### 7.2 コミット規約
 
 `<type>: <subject>` — type: `feat` / `fix` / `docs` / `style` / `refactor` / `test` / `chore`（詳細・破壊的操作の境界は `git-workflow` スキル）
 
-### 7.3 Plan Gate Convention（計画書ゲート規約）
+### 7.3 Plan Gate Convention
 
-並行作業の認知負荷を構造的に下げるため、新規・大改訂の計画書は [`docs/vision/plans/_TEMPLATE.md`](./docs/vision/plans/_TEMPLATE.md) をベースに作成し、以下を必須とする（既存計画書は触る時に移行、一括書き換えしない）。
+新規・大改訂の計画書は [`docs/vision/plans/_TEMPLATE.md`](./docs/vision/plans/_TEMPLATE.md) ベースで以下を必須とする:
 
-- **Scope 宣言**: 触ってよいパスを計画書冒頭に明示（scope drift 検出の根拠）
-- **Gate 列**: 各 Step を 🤖 自律 / 👀 目視 / 🛑 人手 で分類
-  - 🤖 自律 = Claude 完結。後追い検証で品質担保
-  - 👀 目視 = UI/体感/レイアウトでユーザー目視必須
-  - 🛑 人手 = DDL push / シークレット投入 / PR merge / 本番デプロイ
-- **Acceptance Criteria**: 機械検証可能な基準で完了条件を定義（`npm run build` exit 0 / vitest 緑 / Supabase に該当列存在 等）
-- **DB Migration Notes**: DDL 含む場合は「ローカルファイル先行 → ユーザー `supabase db push`」を明記（`apply_migration` MCP 単独使用禁止）
+- **Scope 宣言**（触ってよいパス）・**Gate 列**（🤖 自律 / 👀 目視 / 🛑 人手 = DDL push・シークレット投入・PR merge・本番デプロイ）・**機械検証可能な Acceptance Criteria**
+- DDL は「ローカルファイル先行 → ユーザー `supabase db push`」（**`apply_migration` MCP 単独使用禁止**）
+- hooks 連動（検査内容の正本 = 各スクリプト。登録 = `.claude/settings.json`）: Stop = `hooks/stop-check.sh`（frontend 変更で build 検証 → outbox 報告）/ SessionStart = `hooks/session-start-check.sh`（informational only）
 
-**Stop hook 連動**: `.claude/hooks/stop-check.sh` が応答終了時に frontend 変更を検知して裏で `npm run build` を走らせ、結果を `.claude/comm/outbox/<chat>/stop-report.md` に追記する。登録は `.claude/settings.json::hooks.Stop`。無効化は同ファイル削除。
+### 7.4 Multi-chat Worktree Policy（**"1 chat = 1 worktree = 1 branch"**）
 
-**SessionStart hook 連動**: `.claude/hooks/session-start-check.sh` が新規セッション開始時に `.session-name` / `.session-branch` / worktree 状態を検査し、警告を `.claude/comm/outbox/<chat>/session-start-warnings.md` に追記（**informational only・セッションは止めない**。検査項目の正本は hook スクリプト）。登録は `.claude/settings.json::hooks.SessionStart`。per-chat 機構不在の legacy プロジェクトでは無音。
-
-### 7.4 Multi-chat Worktree Policy（並行チャット用 worktree 運用規約）
-
-並行 Claude チャット同士のブランチ切替干渉を構造的に防ぐため、**"1 chat = 1 worktree = 1 branch"** を運用規約とする（DU-F Step 14 中の事故 → 計画書 [`2026-05-24-multi-chat-worktree-policy.md`](./docs/vision/plans/2026-05-24-multi-chat-worktree-policy.md)）。
-
-| 場所                                            | 担当                 | 触ってよいブランチ                           |
-| ----------------------------------------------- | -------------------- | -------------------------------------------- |
-| `/Users/newlife/dev/apps/life-editor`（メイン） | chat-main 専有       | **`main` のみ**                              |
-| `.claude/worktrees/<slug>/`（worktree 配下）    | feature 作業チャット | 任意 feature branch（1 worktree = 1 branch） |
-
-- **メインで `git checkout <feature>` 禁止**。feature 作業は必ず worktree から行う
-- 起動: `claude --worktree <slug>` で Claude Code 公式の自動管理に乗る（[公式 doc](https://code.claude.com/docs/en/worktrees)）。既存 branch を触る場合は `git worktree add .claude/worktrees/<slug>/ <existing-branch>` 後にその path で起動
-- ブランチ宣言: worktree 作成手順に組み込む proactive 運用 `echo <branch> > .claude/comm/.session-branch`（hook 検査 F が `pwd` の branch と照合）
-- **worktree 新規作成は 4 ステップ 1 セット** = `git worktree add` → `cd` → `echo > .session-branch` → `claude`（途中省略禁止 — `.session-branch` 抜けで hook が無音スキップ）。`lead-pipeline` / `session-manager` (START) / `git-orchestrator` が本規約を引用して誘導
-- 既知制約（npm install / .tsbuildinfo 非共有 等）・二重 checkout 不可・prune 手順の詳細 → 計画書 [`2026-05-24-multi-chat-worktree-policy.md`](./docs/vision/plans/2026-05-24-multi-chat-worktree-policy.md)
-
----
+- メイン（`/Users/newlife/dev/apps/life-editor`）は chat-main 専有・**`main` のみ**。**メインで `git checkout <feature>` 禁止** — feature 作業は `.claude/worktrees/<slug>/` から
+- **worktree 新規作成は 4 ステップ 1 セット**: `git worktree add` → `cd` → `echo <branch> > .claude/comm/.session-branch` → `claude`（省略禁止 — `.session-branch` 抜けで hook が無音スキップ）
+- 既知制約（npm install / .tsbuildinfo 非共有・二重 checkout 不可）・prune 手順 → [`2026-05-24-multi-chat-worktree-policy.md`](./docs/vision/plans/2026-05-24-multi-chat-worktree-policy.md)
 
 ## 8. Feature Tier Map（詳細 → `docs/requirements/`）
 
-- **Tier 1 コア**: [`tier-1-core.md`](./docs/requirements/tier-1-core.md)（8）— Tasks / Schedule / Notes / Daily / Database / MCP Server / Cloud Sync / Terminal
-- **Tier 2 補助**: [`tier-2-supporting.md`](./docs/requirements/tier-2-supporting.md)（12）— Audio / Playlist / Pomodoro / WikiTags / File Explorer / Templates / UndoRedo / Theme / i18n / Shortcuts / Toast / Trash
-- **Tier 3 実験/凍結**: [`tier-3-experimental.md`](./docs/requirements/tier-3-experimental.md)（6）— Paper Boards / Analytics / NotebookLM / Google Calendar / Google Drive / Cognitive Architecture
-- **次フェーズ**: [移行 SSOT](./2026-05-04-cross-platform-migration.md) が現行計画（Windows/Android 配布も移行 SSOT Phase 5 に統合済。旧 `2026-04-26-windows-android-port.md` は移行 SSOT が完全に置換し 2026-05-16 削除＝逐語は git 履歴）。旧 Tauri 前提 vision も 2026-05-16 削除済（恒久知見は [`archive/SUMMARY.md`](./archive/SUMMARY.md)）。`requirements/ios-additions.md` は Phase 5 で再仕分け
-
----
+- **Tier 1 コア**（8）: [`tier-1-core.md`](./docs/requirements/tier-1-core.md) — Tasks / Schedule / Notes / Daily / Database / MCP Server / Cloud Sync / Terminal
+- **Tier 2 補助**（12）: [`tier-2-supporting.md`](./docs/requirements/tier-2-supporting.md) — Audio / Playlist / Pomodoro / WikiTags / File Explorer / Templates / UndoRedo / Theme / i18n / Shortcuts / Toast / Trash
+- **Tier 3 実験 / 凍結**（6）: [`tier-3-experimental.md`](./docs/requirements/tier-3-experimental.md) — Paper Boards / Analytics / NotebookLM / Google Calendar / Google Drive / Cognitive Architecture
+- 次フェーズ計画は移行 SSOT が正本（恒久知見の保全先 = [`archive/SUMMARY.md`](./archive/SUMMARY.md)）
 
 ## 9. Document System
 
-- **フロー**: Vision（`docs/vision/`、ADR 不使用）→ 実装プラン（`.claude/docs/vision/plans/YYYY-MM-DD-*.md`）→ 完了で `archive/` 移動・規約は本ファイルへ統合。**進捗 / 履歴はチャット別 (per-chat) ファイル** — `.claude/memory/chat-<self>.md` + `.claude/history/chat-<self>.md`（task-tracker 経由・git 追跡・単一書込者なので衝突しない）。集約 `memory/INDEX.md` + `history/INDEX.md` は **git 非追跡の派生ビュー**（`regen-index.sh` が `chat-*.md` から再生成。追跡 + 全文再生成がマージ衝突源だったため除外）。チャット名は `.claude/comm/.session-name` で宣言。旧 `.claude/MEMORY.md` / `HISTORY.md` は 2026-05-23 凍結。ADR 不使用の理由は `vision/coding-principles.md §5`
-- **Known Issue**: `docs/known-issues/` に Root Cause + 再発防止を蓄積。発見時 `_TEMPLATE.md` で `NNN-<slug>.md` 作成 + INDEX 更新、解決時 Status=Fixed。**類似バグはまず `INDEX.md` を grep**
-- **並行チャット通信**: `.claude/comm/` 経由（プロトコル → [`comm/README.md`](./comm/README.md)）。自分の Outbox にのみ append、他チャットは読み取り専用
-- **作業時の鉄則**: 機能追加/削除時は §8 更新 ／ 音源ファイルはコミット禁止（`public/sounds/` は `.gitignore`）／ API キーをフロントエンドに直書きしない ／ **`.mcp.json`（git 追跡対象）のトークンは `${SUPABASE_ACCESS_TOKEN}` 等の参照プレースホルダのまま維持。実トークン（`sbp_...` 等）へ平文展開禁止 — 平文化＝即リポジトリ流出。実値は shell 環境変数で供給。commit 前に参照形式か必須確認（2026-05-17 平文展開で GitHub Push Protection ブロック発生）**
+- **進捗 / 履歴は per-chat**: `.claude/memory/chat-<self>.md` + `.claude/history/chat-<self>.md`（task-tracker 経由・git 追跡・単一書込者）。集約 `memory/INDEX.md` / `history/INDEX.md` は **git 非追跡の派生ビュー**（`hooks/regen-index.sh` が再生成）。チャット名宣言 = `.claude/comm/.session-name`
+- **実装プラン**: `docs/vision/plans/YYYY-MM-DD-<slug>.md` → 完了で `archive/` へ移動。ADR は作らない（理由 → `docs/vision/coding-principles.md §5`）
+- **Known Issue**: 発見時 `docs/known-issues/_TEMPLATE.md` で `NNN-<slug>.md` 作成 + INDEX 更新。**類似バグはまず INDEX.md を grep**
+- **並行チャット通信**: `.claude/comm/`（自分の Outbox にのみ append → [`comm/README.md`](./comm/README.md)）
+- **鉄則**: 機能追加 / 削除時は §8 更新 ／ 音源ファイルはコミット禁止（`public/sounds/` は `.gitignore`）／ API キーをフロントエンドに直書きしない ／ **`.mcp.json` のトークンは `${SUPABASE_ACCESS_TOKEN}` 等の参照のまま維持・平文展開禁止**（2026-05-17 流出未遂。`hooks/pre-commit-mcp-check.sh` が commit 時に機械チェック）
