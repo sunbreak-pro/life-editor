@@ -49,3 +49,22 @@ export {
   type TrashItem,
   type TrashCategory,
 } from "./TrashView";
+// Work / Pomodoro (W3-B) — pure timer face + task selector + settings editor.
+export {
+  PomodoroTimer,
+  type PomodoroTimerProps,
+  type PomodoroTimerLabels,
+  type PomodoroPhase,
+} from "./PomodoroTimer";
+export {
+  PomodoroTaskSelector,
+  type PomodoroTaskSelectorProps,
+  type PomodoroTaskSelectorLabels,
+  type TaskOption,
+} from "./PomodoroTaskSelector";
+export {
+  PomodoroSettings,
+  type PomodoroSettingsProps,
+  type PomodoroSettingsLabels,
+  type PomodoroPresetOption,
+} from "./PomodoroSettings";

@@ -567,7 +567,30 @@
     "confirmSessionTitle": "End Session",
     "confirmSessionMessage": "End this session and start a break?",
     "confirmTaskTitle": "Complete Task",
-    "confirmTaskMessage": "Mark this task as complete?"
+    "confirmTaskMessage": "Mark this task as complete?",
+    "controls": {
+      "start": "Start",
+      "pause": "Pause",
+      "reset": "Reset",
+      "skip": "Skip"
+    },
+    "phase": {
+      "WORK": "Work",
+      "BREAK": "Break",
+      "LONG_BREAK": "Long Break"
+    },
+    "taskSelector": {
+      "heading": "Linked Task",
+      "placeholder": "Select a task…",
+      "none": "No tasks available",
+      "clear": "Clear task"
+    },
+    "settings": {
+      "minutesUnit": "min",
+      "presetNamePlaceholder": "Preset name",
+      "saveAsPreset": "Save",
+      "apply": "Apply"
+    }
   },
   "pomodoro": {
     "title": "Pomodoro Settings",

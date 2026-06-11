@@ -78,3 +78,13 @@ export {
   WikiTagsUnifiedContext,
   type WikiTagsUnifiedContextValue,
 } from "./WikiTagsUnifiedContextValue";
+
+// Timer (W3-B): Pattern A. REQUIRED Provider (Timer is enabled on Mobile —
+// NOT a §2 省略 Provider). Reads useSyncContext, so it sits inside Sync; per
+// §6.2 it nests just inside the Schedule trio (… → Timer → Audio → …).
+export { TimerProvider, type TimerProviderProps } from "./TimerContext";
+export {
+  TimerContext,
+  type TimerContextValue,
+} from "./TimerContextValue";
+export type { TimerPhase, ActiveTask } from "./timerReducer";

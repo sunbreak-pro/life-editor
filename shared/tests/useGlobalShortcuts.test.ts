@@ -3,6 +3,7 @@ import {
   resolveShortcut,
   isEditableTarget,
   hasAccelerator,
+  isActiveInInput,
 } from "../src/hooks/useGlobalShortcuts";
 import { matchBinding } from "../src/utils/shortcutBinding";
 import { DEFAULT_SHORTCUTS } from "../src/constants/defaultShortcuts";
@@ -56,6 +57,24 @@ describe("hasAccelerator", () => {
     expect(hasAccelerator(evt({ ctrlKey: true }))).toBe(true);
     expect(hasAccelerator(evt({ shiftKey: true }))).toBe(false);
     expect(hasAccelerator(evt({}))).toBe(false);
+  });
+});
+
+describe("isActiveInInput (QA #2 — definition-driven flag)", () => {
+  it("reads activeInInput from the matching definition", () => {
+    // command-palette is activeInInput:true; new-task is false (defaults).
+    expect(isActiveInInput("global:command-palette")).toBe(true);
+    expect(isActiveInInput("global:new-task")).toBe(false);
+  });
+
+  it("mirrors every definition's flag exactly (no hardcoded drift)", () => {
+    for (const def of DEFAULT_SHORTCUTS) {
+      expect(isActiveInInput(def.id)).toBe(def.activeInInput);
+    }
+  });
+
+  it("defaults to false for an unknown id", () => {
+    expect(isActiveInInput("does:not-exist" as ShortcutId)).toBe(false);
   });
 });
 
@@ -167,6 +186,34 @@ describe("resolveShortcut", () => {
         defaultMatchEvent,
       ),
     ).toBe("edit:undo");
+  });
+
+  it("input guard is flag-driven (QA #2): suppresses an activeInInput:false match while typing", () => {
+    // Force a custom activeInInput map: pretend nav:tasks is NOT active in
+    // input, even though it's an accelerator. The flag — not hasAccelerator —
+    // now drives the guard, so it must be suppressed inside an input.
+    const id = resolveShortcut(
+      evt({ key: "1", metaKey: true }),
+      document.createElement("input"),
+      ALL_IDS,
+      defaultMatchEvent,
+      (sid) => sid !== "nav:tasks", // nav:tasks → false
+    );
+    expect(id).toBeNull();
+  });
+
+  it("input guard is flag-driven (QA #2): allows an activeInInput:true bare key while typing", () => {
+    // A bare 'n' shortcut that the flag map declares active-in-input now fires
+    // even though it has no accelerator — proving the old accelerator-only
+    // inference was replaced by the definition flag.
+    const id = resolveShortcut(
+      evt({ key: "n" }),
+      document.createElement("input"),
+      ALL_IDS,
+      defaultMatchEvent,
+      (sid) => sid === "global:new-task", // make new-task active-in-input
+    );
+    expect(id).toBe("global:new-task");
   });
 
   it("respects the matcher (rebind: Cmd+J now maps to a custom id)", () => {
