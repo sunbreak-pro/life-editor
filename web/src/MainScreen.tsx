@@ -1,10 +1,11 @@
-import { lazy, Suspense, useMemo, useState } from "react";
+import { lazy, Suspense, useCallback, useMemo, useState } from "react";
 import {
   CheckSquare,
   CalendarDays,
   FileText,
   Clock,
   Tag,
+  Timer as TimerIcon,
   Settings as SettingsIcon,
   Trash2,
   type LucideIcon,
@@ -22,6 +23,7 @@ import {
   CalendarProvider,
   WikiTagsUnifiedProvider,
   ShortcutConfigProvider,
+  TimerProvider,
   useTranslation,
   type Command,
   type Session,
@@ -44,6 +46,7 @@ import { RoutineScheduleSync } from "./schedule/RoutineScheduleSync";
 import { CalendarView } from "./schedule/CalendarView";
 import { WikiTagsManagementView } from "./wikitag";
 import { SettingsScreen } from "./settings/SettingsScreen";
+import { WorkScreen } from "./work/WorkScreen";
 import { GlobalShortcuts } from "./GlobalShortcuts";
 
 /*
@@ -74,6 +77,7 @@ type Section =
   | "daily"
   | "notes"
   | "schedule"
+  | "work"
   | "tags"
   | "settings"
   | "trash";
@@ -83,6 +87,7 @@ const SECTIONS: readonly Section[] = [
   "daily",
   "notes",
   "schedule",
+  "work",
   "tags",
   "settings",
   "trash",
@@ -93,6 +98,7 @@ const SECTION_ICON: Record<Section, LucideIcon> = {
   daily: CalendarDays,
   notes: FileText,
   schedule: Clock,
+  work: TimerIcon,
   tags: Tag,
   settings: SettingsIcon,
   trash: Trash2,
@@ -103,6 +109,14 @@ export function MainScreen({ session }: { session: Session }) {
   const ds = useMemo(() => getDataService(), []);
   const [section, setSection] = useState<Section>("tasks");
   const [paletteOpen, setPaletteOpen] = useState(false);
+
+  // global:new-task executor (W3-B). The web has no shell-level "create task"
+  // entry — task creation lives inside TaskTreeView, which is section-scoped
+  // behind its own Provider, so a true create-and-focus can't be driven from
+  // here without lifting that state. Navigating to the Tasks section is the
+  // honest, clean receiver: it takes the user to the task surface where the
+  // new-task input lives. (Lifting create-task state to the shell is W4.)
+  const handleNewTask = useCallback(() => setSection("tasks"), []);
 
   const commands = useMemo<Command[]>(() => {
     const goTo = t("commandPalette.goTo", { defaultValue: "Go to" });
@@ -126,17 +140,31 @@ export function MainScreen({ session }: { session: Session }) {
        */}
       <ShortcutConfigProvider>
         {/*
-         * Global shortcut executor (W3-0). Headless — sits inside the
+         * Global shortcut executor (W3-0/W3-B). Headless — sits inside the
          * ShortcutConfigProvider (MainScreen's own body can't read
          * useShortcutConfig) and wires keydown to section nav + palette toggle.
          * Reads the live (rebindable) config, so Settings rebinds apply at
-         * once. new-task / undo / redo have no web surface yet (W3-B / W4).
+         * once. new-task is wired (W3-B) → navigate to the Tasks section
+         * (the shell has no create-and-focus surface; that lifts in W4).
+         * undo / redo still have no web surface (no UndoRedo on web yet) →
+         * left unwired = no-op until W4 (see Worklog rationale).
          */}
         <GlobalShortcuts
           onNavigate={setSection}
           onOpenSettings={() => setSection("settings")}
           onTogglePalette={() => setPaletteOpen((v) => !v)}
+          onNewTask={handleNewTask}
         />
+        {/*
+         * TimerProvider (W3-B) — REQUIRED Provider (Timer is enabled on Mobile,
+         * NOT a §2 省略 Provider). Mounted ONCE at the shell level (inside Sync,
+         * which it reads; §6.2 places it after the Schedule trio and OUTSIDE the
+         * section switch) so the Pomodoro keeps running while the user navigates
+         * away from the Work tab. The future W3-C AudioProvider nests INSIDE
+         * this (§6.2: … → Timer → Audio → …), which is why TimerProvider is the
+         * inner-most shell Provider here. DataService is injected (§6.4).
+         */}
+        <TimerProvider dataService={ds}>
         <div className="min-h-screen bg-notion-bg p-6 text-notion-text">
           <div className="mx-auto max-w-2xl space-y-4">
             <header className="flex flex-wrap items-center justify-between gap-2">
@@ -267,6 +295,15 @@ export function MainScreen({ session }: { session: Session }) {
              */}
             {section === "settings" && <SettingsScreen />}
             {/*
+             * Work (W3-B) — Pomodoro timer + TaskSelector + settings/preset
+             * editor. The TimerProvider is mounted at the shell level (above),
+             * so this view only reads useTimerContext + feeds the shared pure
+             * primitives. The view itself fetches the task list via the
+             * injected DataService (hosts may call getDataService — §6.4).
+             * History / Music / FREE were dropped (section-unification 確定).
+             */}
+            {section === "work" && <WorkScreen dataService={ds} />}
+            {/*
              * Trash (W2). Crosses all five soft-delete categories, so it does
              * NOT use any per-section Provider — the host TrashScreen calls
              * the injected DataService directly and feeds the pure shared
@@ -288,6 +325,7 @@ export function MainScreen({ session }: { session: Session }) {
           placeholder={t("commandPalette.placeholder")}
           noResultsLabel={t("commandPalette.noResults")}
         />
+        </TimerProvider>
       </ShortcutConfigProvider>
     </SyncProvider>
   );

@@ -40,24 +40,27 @@ export class SupabaseTimerService {
   // -------------------------------------------------------------------------
 
   async fetchTimerSettings(): Promise<TimerSettings> {
+    // QA-W3A申し送り #1: the old maybeSingle()→insert sequence had a race —
+    // two concurrent first-accesses (e.g. TimerProvider mount + a Settings
+    // open in another tab) could both miss the row and both INSERT, the
+    // second tripping the (user_id, id) PK. Materialise idempotently with a
+    // single upsert (ignoreDuplicates: a concurrent insert is a no-op, never
+    // an error), then SELECT the now-guaranteed row. The upsert sends only
+    // `id` so existing column values are preserved on the duplicate path.
+    const { error: upErr } = await this.client
+      .from("timer_settings")
+      .upsert({ id: 1 }, { onConflict: "user_id,id", ignoreDuplicates: true });
+    if (upErr)
+      throw new Error(`fetchTimerSettings upsert failed: ${upErr.message}`);
+
     const { data, error } = await this.client
       .from("timer_settings")
       .select(TIMER_SETTINGS_COLUMNS)
       .eq("id", 1)
-      .maybeSingle();
+      .single();
     if (error)
       throw new Error(`fetchTimerSettings failed: ${error.message}`);
-    if (data) return rowToTimerSettings(data as unknown as TimerSettingsRow);
-
-    // First access: materialise the singleton from DB column defaults.
-    const { data: inserted, error: insErr } = await this.client
-      .from("timer_settings")
-      .insert({ id: 1 })
-      .select(TIMER_SETTINGS_COLUMNS)
-      .single();
-    if (insErr)
-      throw new Error(`fetchTimerSettings insert failed: ${insErr.message}`);
-    return rowToTimerSettings(inserted as unknown as TimerSettingsRow);
+    return rowToTimerSettings(data as unknown as TimerSettingsRow);
   }
 
   async updateTimerSettings(

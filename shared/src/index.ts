@@ -80,6 +80,7 @@ export {
   resolveShortcut,
   isEditableTarget,
   hasAccelerator,
+  isActiveInInput,
   type GlobalShortcutHandlers,
   type NavSection,
 } from "./hooks/useGlobalShortcuts";
@@ -208,6 +209,36 @@ export type {
   WikiTagGroup as WikiTagGroupUnified,
   WikiTagGroupAssignment as WikiTagGroupAssignmentUnified,
 } from "./types/wikiTagUnified";
+
+// Timer domain (W3-B) — Pomodoro Provider + context hook + pure reducer
+// helpers (start-time based) + domain types. The reducer helpers are
+// exported so hosts/tests can compute elapsed/remaining without the Provider.
+export { TimerProvider, type TimerProviderProps } from "./context";
+export {
+  TimerContext,
+  type TimerContextValue,
+  type TimerPhase,
+  type ActiveTask,
+} from "./context";
+export { useTimerContext } from "./hooks/useTimerContext";
+export {
+  timerReducer,
+  createInitialState,
+  phaseDurationSeconds,
+  remainingSeconds,
+  elapsedSeconds,
+  nextBreakPhase,
+  DEFAULT_CONFIG,
+  type TimerState,
+  type TimerAction,
+  type TimerConfig,
+} from "./context/timerReducer";
+export type {
+  TimerSettings,
+  TimerSession,
+  PomodoroPreset,
+  SessionType,
+} from "./types/timer";
 
 // Tasks domain — tree utilities (host UI builds on these)
 export {

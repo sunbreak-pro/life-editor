@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import type { ShortcutId } from "../types/shortcut";
 import type { ShortcutConfigContextValue } from "../context/ShortcutConfigContextValue";
+import { DEFAULT_SHORTCUTS } from "../constants/defaultShortcuts";
 
 /*
  * Global shortcut executor (W3-0). W1 shipped the ShortcutConfig settings UI
@@ -73,12 +74,35 @@ export function hasAccelerator(
 }
 
 /**
+ * QA-W3A申し送り #2 — single source of truth for the input-focus guard.
+ * The guard used to infer "fires while typing" from `hasAccelerator(e)`,
+ * which DUPLICATED the per-shortcut `activeInInput` flag carried on each
+ * ShortcutDefinition (the flag was effectively dead — nothing read it at
+ * dispatch time). The two could silently drift: rebind an `activeInInput:
+ * true` shortcut onto a bare key and the hardcoded accelerator-inference
+ * would have wrongly suppressed it inside inputs.
+ *
+ * The resolver is now flag-driven: it asks `isActiveInInput(id)` whether the
+ * matched shortcut may fire while a field is focused. For the default set the
+ * behaviour is identical (every accelerator shortcut is activeInInput:true,
+ * every bare-key shortcut is false), so this is a no-op for current bindings
+ * but removes the drift hazard and makes the definition flag load-bearing.
+ */
+export function isActiveInInput(id: ShortcutId): boolean {
+  return DEFAULT_SHORTCUTS.find((s) => s.id === id)?.activeInInput ?? false;
+}
+
+/**
  * Resolve a keyboard event to the first matching ShortcutId, applying the
  * input-focus guard. Pure (besides the injected matcher) so the dispatch logic
  * is unit-testable without a real DOM:
  *  - IME composing → null (caller also guards, defence in depth)
- *  - editable target + no accelerator → null (don't steal "n" while typing)
+ *  - editable target + the matched shortcut is NOT activeInInput → null
+ *    (don't steal "n" while typing)
  *  - otherwise the first id whose binding matches
+ *
+ * `activeInInput` defaults to {@link isActiveInInput} (definition-driven) but
+ * is injectable for tests / non-default configs.
  */
 export function resolveShortcut(
   e: Pick<
@@ -94,11 +118,15 @@ export function resolveShortcut(
   target: EventTarget | null,
   ids: readonly ShortcutId[],
   matchEvent: (e: KeyboardEvent, id: ShortcutId) => boolean,
+  activeInInput: (id: ShortcutId) => boolean = isActiveInInput,
 ): ShortcutId | null {
   if (e.isComposing) return null;
-  if (isEditableTarget(target) && !hasAccelerator(e)) return null;
+  const editable = isEditableTarget(target);
   for (const id of ids) {
-    if (matchEvent(e as KeyboardEvent, id)) return id;
+    if (!matchEvent(e as KeyboardEvent, id)) continue;
+    // Inside a field, only shortcuts declared activeInInput may fire.
+    if (editable && !activeInInput(id)) return null;
+    return id;
   }
   return null;
 }

@@ -567,7 +567,30 @@
     "confirmSessionTitle": "セッション終了",
     "confirmSessionMessage": "セッションを終了して休憩に入りますか？",
     "confirmTaskTitle": "タスク完了",
-    "confirmTaskMessage": "このタスクを完了しますか？"
+    "confirmTaskMessage": "このタスクを完了しますか？",
+    "controls": {
+      "start": "開始",
+      "pause": "一時停止",
+      "reset": "リセット",
+      "skip": "スキップ"
+    },
+    "phase": {
+      "WORK": "ワーク",
+      "BREAK": "休憩",
+      "LONG_BREAK": "長い休憩"
+    },
+    "taskSelector": {
+      "heading": "紐づけるタスク",
+      "placeholder": "タスクを選択…",
+      "none": "タスクがありません",
+      "clear": "タスクを解除"
+    },
+    "settings": {
+      "minutesUnit": "分",
+      "presetNamePlaceholder": "プリセット名",
+      "saveAsPreset": "保存",
+      "apply": "適用"
+    }
   },
   "pomodoro": {
     "title": "ポモドーロ設定",
