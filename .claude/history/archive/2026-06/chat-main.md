@@ -2,6 +2,26 @@
 
 ローリングアーカイブ: `history/chat-main.md` が 5 件超過した際に最古エントリをここへ移動。時系列降順。
 
+### 2026-06-08 - Batch A 残3レーン PR#62 + グローバル化 follow-up(#7)
+
+#### 概要
+
+前セッションで保留した #6(Batch A 残3レーン)と #7(グローバル化 follow-up)を順に完了。#6 は w0/docs が PR#58/#59 で main マージ済みを確認した上で残3レーンを実装→PR#62。#7 は novel への per-chat 機構 commit と life-editor hooks のリンク化(skip-worktree 方式)を実施。
+
+#### 変更点
+
+- **#6 Batch A 残3レーン → PR#62**: (1)factory= web の getDataService 重複を `shared/src/services/dataServiceFactory.ts` に集約(単一singleton+setDataServiceForTest, lazy init) (2)comment= S8 stale comment 更新 (3)docs= CLAUDE.md §3.3/§4.1 を items_meta.updated_at LWW モデル+db-conventions §10 参照に修正。role-engineer×3並列→role-qa独立監査。
+- **QA P1 検出と修正(重要)**: comment Agent が「schedule_items は REALTIME_TABLES外→Realtime反映されない」と書いたが、QAが実装(SupabaseDataService.ts:1850-1868)を辿り schedule_items は role='event' で items_meta+events_payload に永続化され両テーブルは REALTIME_TABLES 内と判明。「loadDate は Realtime遅延を待たない即時反映の最適化(購読欠落の補償ではない)」へ訂正。stale comment 修正レーンが別の不正確comment生成になる事故をQAが防いだ。
+- **#7(a) novel**: setup-per-chat.sh 適用分(per-chat memory/history/comm + hooks リンク + settings.json + .gitignore)を commit(d8f9299)。hooks は 120000(symlink)記録、INDEX.md は .gitignore 除外、既存 inbox-check.sh 無変更、settings.local.json の inbox SessionStart と共存。
+- **#7(c) life-editor hooks リンク化**: 4 hook(regen-index/session-start-check/pre-commit-mcp-check/pre-commit-index-guard)を hooks-lib リンクに置換。共有リポで他環境リンク切れを避けるため **skip-worktree 方式**採用 = git checkout で index を実体に戻す→`git update-index --skip-worktree`→worktree のみ再リンク。結果「手元はリンク(hooks-lib SSOT で DRY)・git HEAD は実体blob維持(他クローンで切れない)」。stop-check.sh は life-editor固有のため対象外。
+- **#7(b) card-battle**: `chore/claude-harness-and-battle-fixes`(dirty・別チャット作業疑い)のため適用保留継続。
+
+#### 設計判断 / 申し送り
+
+- **並列QAの価値の実証**: P1(schedule_items×Realtime因果)は実装Agentがテーブル名の表層だけ見て誤判断したもの。別コンテキストのQAが実装を辿って訂正。「stale comment を直すレーンが別の不正確comment を生む」皮肉をクロス検証で捕捉。
+- **skip-worktree の運用注意**: life-editor の hooks 4つは skip-worktree フラグ付き。将来 hook 本体を更新したい時はこのフラグの存在を意識する(git で実体が更新されてもworktreeのリンクは無視され続ける)。novel は個人ローカルなので素直に symlink commit。
+- **未了**: `.claude/hooks/.bak-pre-linkify/` がuntracked残存(rm権限制約でユーザー手動削除依頼)。project-setter の per-chat 統合は setup-per-chat.sh が当面兼任。card-battle 適用はブランチ clean 後。
+
 ### 2026-06-07 - Batch A PR#61 + supabase誤報決着 + コア機構グローバル化
 
 #### 概要
