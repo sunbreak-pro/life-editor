@@ -2,7 +2,7 @@
 
 > 設計判断・実装規約の SSOT。**「変わらない事実」だけを持ち、手順はスキル / エージェント、frontend 詳細規約は [`.claude/rules/`](./rules/) へ委譲**。各行は「消したら Claude が間違うか」基準で維持する（150 行目標）。
 >
-> ⚠️ **Active Migration**: Tauri 2 → **Electron + Capacitor + Web + Supabase** へ移行中。現行スタック・Phase 状況・起動 / ビルド手順の正本は [`2026-05-04-cross-platform-migration.md`](./2026-05-04-cross-platform-migration.md)（以下「移行 SSOT」）。方針: 学習ログ廃止 / **完成までコスト $0 厳守**。
+> ⚠️ **Active Migration**: Tauri 2 + D1 + portable-pty → **Electron + Capacitor + Web + Supabase** へ移行中（作業ブランチは `main` に集約済み・旧 `refactor/web-first-v2` は PR #3-9 マージ済みで廃止）。**現行スタック・Phase 状況・移行手順の SSOT は [`2026-05-04-cross-platform-migration.md`](./2026-05-04-cross-platform-migration.md) と `memory/INDEX.md`** (旧 `MEMORY.md` は 2026-05-23 凍結、per-chat 化済 — §9 参照)。本ファイルの実装パス/コマンドはアーキ非依存に一般化済み（具体は移行 SSOT 参照）。方針: 学習ログ廃止 / 完成までコスト $0 厳守。
 
 ---
 
@@ -52,21 +52,23 @@
 
 ## 7. Development Workflows
 
-### 7.0 手順の正本 = スキル / エージェント（実装タスクの起点は `lead-pipeline`）
+### 7.0 ワークフロー = スキル/エージェント（手順の正本）
 
-| 局面                             | 委譲先                                                                                                                        |
-| -------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
-| 実装タスク采配                   | `lead-pipeline`（軽=直接 / 中=verifier→tracker / 重=フルチェーン）                                                            |
-| 実行戦略（/goal・/batch・/loop） | `execution-router`                                                                                                            |
-| 要件分解 → 実装 → 独立監査       | `role-pm` → `role-engineer` → `role-qa`（メインが Agent 起動・再帰禁止）                                                      |
-| セッション開始 / 中断 / 終了     | `session-manager`                                                                                                             |
-| 品質ゲート（commit 前）          | `session-verifier`                                                                                                            |
-| 進捗記録                         | `task-tracker`（per-chat → §9）                                                                                               |
-| branch / PR / merge              | `git-orchestrator`（→ git-workflow / git-branch-flow / git-conflict-resolver）                                                |
-| IPC 追加 / DB 変更               | `add-ipc-channel` / `db-migration`                                                                                            |
-| デバッグ                         | `debug-strategy` + `docs/known-issues/INDEX.md` を grep                                                                       |
-| ツール実行ハング                 | `~/.claude/rules/bash-tool-stability.md`（グローバル auto-load）。重い Bash は background / subagent 経由、軽い読み取りは直接 |
-| 整合監査                         | `life-editor-ipc-validator` / `-migration-validator` / `-sync-auditor`                                                        |
+手順は本ファイルに書かず、以下に委譲する。**実装タスクの起点は `lead-pipeline` スキル**（ティア判定 → 必要工程を采配）。
+
+| 局面                               | 委譲先                                                                                                                                                                                                                                                                            |
+| ---------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------- |
+| 実装タスク全体の采配               | `lead-pipeline` スキル（軽=直接 / 中=verifier→tracker / 重=フルチェーン）                                                                                                                                                                                                         |
+| 長時間・並列・条件達成型の実行戦略 | `execution-router` スキル（/goal・/batch・/loop・subagent 判断）                                                                                                                                                                                                                  |
+| 要件分解 / 実装 / 独立監査         | `role-pm` → `role-engineer` → `role-qa`（メインが Agent 起動。再帰禁止）                                                                                                                                                                                                          |
+| セッション開始/中断/終了           | `session-manager`（→ session-loader / task-tracker / session-verifier）                                                                                                                                                                                                           |
+| 品質ゲート                         | `session-verifier`（commit 前）                                                                                                                                                                                                                                                   |
+| 進捗記録                           | `task-tracker`（per-chat: `memory/chat-<self>.md` + `history/chat-<self>.md` + INDEX 集約 / legacy fallback あり）                                                                                                                                                                |
+| branch / PR / merge                | `git-orchestrator`（→ git-workflow / git-branch-flow / git-conflict-resolver）                                                                                                                                                                                                    |
+| IPC 追加                           | `add-ipc-channel` スキル ／ DB 変更                                                                                                                                                                                                                                               | `db-migration` スキル |
+| デバッグ                           | `debug-strategy` スキル + `docs/known-issues/INDEX.md` を grep                                                                                                                                                                                                                    |
+| ツール実行ハング（応答停止）       | [`~/.claude/rules/bash-tool-stability.md`](file:///Users/newlife/.claude/rules/bash-tool-stability.md)（原因=本体 SSE バグ・ローカルはシロ。ESC 復帰 → jsonl 系統判定 → 混雑帯回避。重い Bash は background/subagent に逃がす。**運用既定: 状態変更・複数行系の Bash（git 操作 / build / test / install / コマンド連結）はサブエージェント or background 経由、単発の軽い読み取り（ls / git status / 単発 grep）は直接実行**。詳細切り分けは memory `bash-tool-hang-diagnosis`） |
+| life-editor 整合監査               | `life-editor-ipc-validator` / `-migration-validator` / `-sync-auditor`                                                                                                                                                                                                            |
 
 ### 7.1 開発コマンド
 
