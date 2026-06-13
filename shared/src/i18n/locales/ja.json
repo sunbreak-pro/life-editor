@@ -1,0 +1,2702 @@
+{
+  "sidebar": {
+    "tasks": "タスク",
+    "memo": "メモ",
+    "music": "ミュージック",
+    "work": "ワーク",
+    "schedule": "スケジュール",
+    "analytics": "分析",
+    "settings": "設定",
+    "tips": "ヒント",
+    "materials": "マテリアル",
+    "connect": "コネクト",
+    "trash": "ゴミ箱",
+    "freeSession": "フリーセッション",
+    "launchClaude": "Claude起動",
+    "tipsButton": "Tips"
+  },
+  "sidebarLinks": {
+    "sectionTitle": "リンク",
+    "add": "リンクを追加",
+    "addTitle": "リンクを追加",
+    "editTitle": "リンクを編集",
+    "empty": "リンク未登録",
+    "kindLabel": "種別",
+    "kindUrl": "URL",
+    "kindApp": "アプリ (macOS)",
+    "nameLabel": "表示名",
+    "namePlaceholderUrl": "Anthropic",
+    "namePlaceholderApp": "Slack",
+    "urlLabel": "URL",
+    "appLabel": "アプリケーション",
+    "appSearchPlaceholder": "/Applications を検索...",
+    "appNoResults": "該当するアプリがありません",
+    "emojiLabel": "絵文字（任意）",
+    "iconLabel": "アイコン（任意）",
+    "iconModeEmoji": "絵文字",
+    "iconModeLucide": "Lucide",
+    "iconSearchPlaceholder": "Lucide アイコンを検索...",
+    "iconNoResults": "該当するアイコンがありません",
+    "itemMenu": "メニュー",
+    "iosAppUnsupported": "iOS ではアプリを起動できません",
+    "editOnDesktop": "リンクの編集はデスクトップで行ってください"
+  },
+  "settings": {
+    "title": "設定",
+    "general": "一般",
+    "notificationsTab": "通知",
+    "dataTab": "データ",
+    "advancedTab": "詳細",
+    "shortcutsTab": "ショートカット",
+    "calendarReset": {
+      "title": "カレンダーデータの一括削除",
+      "description": "選択したデータをゴミ箱に移します（ソフト削除）。「ルーティン」を選ぶと、そのルーティンから生成された予定もまとめて削除されます。すべてゴミ箱からいつでも復元できます。",
+      "openButton": "一括削除を開く",
+      "selectAll": "全選択",
+      "deselectAll": "全解除",
+      "confirm": "選択したものを削除",
+      "cancel": "キャンセル",
+      "footnote": "ソフト削除のため、ゴミ箱からいつでも復元できます。",
+      "success": "削除しました — タスク {{tasks}} 件 / イベント {{events}} 件 / ルーティン {{routines}} 件（生成された予定 {{cascaded}} 件を含む）/ デイリー {{dailies}} 件 / ノート {{notes}} 件",
+      "failed": "一括削除に失敗しました: {{error}}",
+      "noSelection": "削除対象を 1 つ以上選択してください。",
+      "kinds": {
+        "tasks": "予定付きタスク",
+        "events": "イベント（単発の予定）",
+        "routines": "ルーティン（生成された予定も削除）",
+        "dailies": "デイリー",
+        "notes": "ノート"
+      }
+    },
+    "claude": {
+      "title": "Claude Code",
+      "description": "MCP Server を登録すると、Claude Code から自然言語でタスク・スケジュール・メモを操作できます。",
+      "register": "MCP Server を登録",
+      "registering": "登録中...",
+      "success": "MCP Server の登録に成功しました。",
+      "failed": "登録に失敗しました: {{error}}",
+      "notInstalled": "Claude Code がインストールされていません。先にインストールしてから再試行してください。",
+      "setup": "セットアップ",
+      "mcpTools": "MCPツール",
+      "claudeMd": "CLAUDE.md",
+      "skills": "スキル",
+      "mcpToolsDescription": "Claude Code がデータ操作に使用できるMCPツール一覧です。",
+      "claudeMdDescription": "~/life-editor/ の CLAUDE.md 指示ファイルを編集します。",
+      "skillsDescription": "~/life-editor/.claude/skills/ にインストールされたClaude Codeスキルを管理します。",
+      "save": "保存",
+      "saveSuccess": "保存しました。",
+      "saveFailed": "保存に失敗しました。",
+      "install": "インストール",
+      "uninstall": "アンインストール",
+      "installed": "インストール済み",
+      "scopeGlobal": "グローバル",
+      "scopeProject": "プロジェクト",
+      "noSkillsFound": "利用可能なスキルが見つかりません。",
+      "toolParameters": "パラメータ",
+      "required": "必須",
+      "optional": "任意",
+      "toolCategories": {
+        "tasks": "タスク",
+        "memos": "メモ",
+        "notes": "ノート",
+        "schedule": "スケジュール",
+        "search": "横断検索",
+        "content": "コンテンツ生成",
+        "wikiTags": "Wikiタグ"
+      },
+      "tools": {
+        "list_tasks": {
+          "description": "タスクの一覧を取得します。ステータスや日付、フォルダで絞り込みも可能です。",
+          "params": {
+            "status": "ステータスで絞り込み（未着手 / 進行中 / 完了）",
+            "date_range": "日付範囲で絞り込み（ISO 8601形式）",
+            "folder_id": "フォルダIDで絞り込み"
+          }
+        },
+        "get_task": {
+          "description": "指定したIDのタスクを1件取得します。",
+          "params": {
+            "id": "タスクID"
+          }
+        },
+        "get_task_tree": {
+          "description": "タスクをフォルダ階層のツリー構造で取得します。全体像の把握に便利です。",
+          "params": {
+            "root_id": "起点にするフォルダ/タスクID（省略で全体ツリー）",
+            "include_done": "完了済みタスクを含めるか（デフォルト: はい）",
+            "max_depth": "取得する階層の深さ（省略で無制限）"
+          }
+        },
+        "create_task": {
+          "description": "新しいタスクを作成します。",
+          "params": {
+            "title": "タスクのタイトル",
+            "parent_id": "配置先のフォルダID",
+            "scheduled_at": "開始予定日時（ISO 8601形式）",
+            "scheduled_end_at": "終了予定日時（ISO 8601形式）",
+            "is_all_day": "終日イベントにするか"
+          }
+        },
+        "update_task": {
+          "description": "既存のタスクを更新します。変更したい項目だけ指定できます。",
+          "params": {
+            "id": "タスクID",
+            "title": "新しいタイトル",
+            "status": "新しいステータス（未着手 / 進行中 / 完了）",
+            "content": "新しい本文（Markdown形式）"
+          }
+        },
+        "delete_task": {
+          "description": "タスクをゴミ箱に移動します（復元可能）。",
+          "params": {
+            "id": "タスクID"
+          }
+        },
+        "get_memo": {
+          "description": "指定した日付のデイリーメモを取得します。",
+          "params": {
+            "date": "日付（YYYY-MM-DD形式）"
+          }
+        },
+        "upsert_memo": {
+          "description": "デイリーメモを作成または更新します。",
+          "params": {
+            "date": "日付（YYYY-MM-DD形式）",
+            "content": "メモの内容（Markdown形式）"
+          }
+        },
+        "list_notes": {
+          "description": "ノートの一覧を取得します。キーワードで検索もできます。",
+          "params": {
+            "query": "検索キーワード（タイトルと本文を検索）"
+          }
+        },
+        "create_note": {
+          "description": "新しいノートを作成します。",
+          "params": {
+            "title": "ノートのタイトル",
+            "content": "ノートの本文（Markdown形式）"
+          }
+        },
+        "update_note": {
+          "description": "既存のノートを更新します。変更したい項目だけ指定できます。",
+          "params": {
+            "id": "ノートID",
+            "title": "新しいタイトル",
+            "content": "新しい本文（Markdown形式）"
+          }
+        },
+        "list_schedule": {
+          "description": "指定した日付のスケジュール（予定とタスク）を取得します。",
+          "params": {
+            "date": "日付（YYYY-MM-DD形式）"
+          }
+        },
+        "create_schedule_item": {
+          "description": "カレンダーに新しい予定を作成します。",
+          "params": {
+            "date": "日付（YYYY-MM-DD形式）",
+            "title": "予定のタイトル",
+            "start_time": "開始時刻（HH:MM形式）",
+            "end_time": "終了時刻（HH:MM形式）",
+            "is_all_day": "終日イベントにするか",
+            "note_id": "関連するノートのID",
+            "content": "補足メモ"
+          }
+        },
+        "update_schedule_item": {
+          "description": "既存のスケジュール予定を更新します。変更したい項目だけ指定できます。",
+          "params": {
+            "id": "予定ID",
+            "title": "新しいタイトル",
+            "start_time": "新しい開始時刻（HH:MM形式）",
+            "end_time": "新しい終了時刻（HH:MM形式）",
+            "memo": "メモ",
+            "is_all_day": "終日イベントにするか",
+            "content": "新しい補足メモ"
+          }
+        },
+        "delete_schedule_item": {
+          "description": "スケジュール予定を完全に削除します。",
+          "params": {
+            "id": "予定ID"
+          }
+        },
+        "toggle_schedule_complete": {
+          "description": "スケジュール予定の完了/未完了を切り替えます。",
+          "params": {
+            "id": "予定ID"
+          }
+        },
+        "search_all": {
+          "description": "タスク・メモ・ノートを横断してキーワード検索します。",
+          "params": {
+            "query": "検索キーワード",
+            "domains": "検索対象（タスク / メモ / ノート、デフォルト: すべて）",
+            "limit": "各カテゴリの最大件数（デフォルト: 10）"
+          }
+        },
+        "generate_content": {
+          "description": "見出し・リスト・テーブルなどのリッチコンテンツを生成してノートやメモに書き込みます。",
+          "params": {
+            "target": "書き込み先（ノート / メモ）",
+            "structure": "コンテンツブロックの配列",
+            "target_id": "更新対象のノート/メモID（省略で新規作成）",
+            "title": "新規ノートのタイトル"
+          }
+        },
+        "format_content": {
+          "description": "既存のノートやメモの内容を整形・再構成します。コールアウトで囲む、見出し追加などが可能です。",
+          "params": {
+            "target": "対象の種類（ノート / メモ）",
+            "operations": "適用する操作の配列",
+            "target_id": "ノートID",
+            "target_date": "メモの日付（YYYY-MM-DD形式）"
+          }
+        },
+        "list_wiki_tags": {
+          "description": "Wikiタグの一覧を取得します。タグはタスク・メモ・ノートを横断してつなげるラベルです。",
+          "params": {
+            "query": "タグ名で絞り込み"
+          }
+        },
+        "tag_entity": {
+          "description": "タスク・メモ・ノートにWikiタグを付けます。タグが存在しない場合は自動作成されます。",
+          "params": {
+            "tag_name": "タグ名",
+            "entity_id": "対象のID",
+            "entity_type": "対象の種類（タスク / メモ / ノート）"
+          }
+        },
+        "search_by_tag": {
+          "description": "指定したWikiタグが付いているタスク・メモ・ノートを検索します。",
+          "params": {
+            "tag_name": "検索するタグ名",
+            "entity_type": "対象を絞る種類（タスク / メモ / ノート、省略で全て）"
+          }
+        },
+        "get_entity_tags": {
+          "description": "指定したタスク・メモ・ノートに付いているWikiタグを全て取得します。",
+          "params": {
+            "entity_id": "対象のID（タスク / メモ / ノート）"
+          }
+        }
+      }
+    },
+    "shortcutLabels": {
+      "commandPalette": "コマンドパレットを開く",
+      "openSettings": "設定を開く",
+      "newTask": "新規タスクを作成",
+      "goToTasks": "タスクへ移動",
+      "goToDaily": "デイリーへ移動",
+      "goToNotes": "ノートへ移動",
+      "goToSchedule": "スケジュールへ移動",
+      "goToTags": "タグへ移動",
+      "undo": "元に戻す",
+      "redo": "やり直し"
+    },
+    "shortcuts": {
+      "heading": "キーボードショートカット",
+      "resetAll": "すべてリセット",
+      "reset": "リセット",
+      "change": "変更",
+      "pressKey": "キーの組み合わせを入力...",
+      "conflict": "「{{action}}」に割り当て済み",
+      "save": "保存",
+      "searchPlaceholder": "ショートカットを検索...",
+      "noResults": "ショートカットが見つかりません",
+      "modified": "変更済み",
+      "cancel": "キャンセル",
+      "osGlobalShortcuts": "OSグローバルショートカット",
+      "osGlobalShortcutsDesc": "アプリが非アクティブでも動作"
+    },
+    "appearance": "外観",
+    "darkMode": "ダークモード",
+    "darkModeDesc": "ライトテーマとダークテーマを切り替え",
+    "light": "ライト",
+    "dark": "ダーク",
+    "fontSize": "フォントサイズ",
+    "fontSizeSmall": "小",
+    "fontSizeLarge": "大",
+    "language": "言語",
+    "languageDesc": "インターフェース言語を選択",
+    "english": "English",
+    "japanese": "日本語",
+    "editorSettings": "エディタ",
+    "editorFontSize": "エディタのフォントサイズ",
+    "editorFontFamily": "フォントファミリー",
+    "editorLineHeight": "行間",
+    "editorPaddingInline": "コンテンツの余白",
+    "developerTools": "開発者ツール",
+    "behaviors": "動作設定",
+    "startupScreen": "起動時の画面",
+    "startupScreenDesc": "アプリ起動時に表示するセクションを選択",
+    "defaultTaskFolder": "デフォルトのタスクフォルダ",
+    "defaultTaskFolderDesc": "親フォルダ未指定の新規タスクをこのフォルダに作成",
+    "noDefaultFolder": "なし（ルートレベル）",
+    "autoArchive": "完了タスクの自動アーカイブ",
+    "autoArchiveDesc": "完了したタスクを一定期間後にゴミ箱へ移動",
+    "autoArchiveDays": "{{days}}日後",
+    "autoArchiveDisabled": "無効",
+    "hideCompletedTasks": "完了タスクを非表示",
+    "hideCompletedTasksDesc": "タスクツリーから完了済みタスクを隠す",
+    "autoCompleteParent": "親タスクの自動完了",
+    "autoCompleteParentDesc": "すべての子タスクが完了したら親フォルダも自動で完了にする",
+    "system": "システム",
+    "autoLaunch": "ログイン時に起動",
+    "autoLaunchDesc": "ログイン時にLife Editorを自動的に起動する",
+    "startMinimized": "最小化で起動",
+    "startMinimizedDesc": "ウィンドウを表示せずバックグラウンドで起動する",
+    "trayIcon": "システムトレイアイコン",
+    "trayIconDesc": "システムトレイにアイコンとタイマー表示を追加",
+    "browser": {
+      "title": "サイドバーリンクのデフォルトブラウザ",
+      "description": "サイドバーから開く URL リンクで使うブラウザ。未選択時はシステムデフォルトを使用します。",
+      "systemDefault": "システムデフォルト",
+      "none": "/Applications に対応ブラウザが検出されませんでした。システムデフォルトを使用します。"
+    },
+    "globalShortcuts": "グローバルショートカット",
+    "globalShortcutsDesc": "アプリが非アクティブでも動作するキーボードショートカット",
+    "toggleTimerShortcut": "タイマー切替",
+    "quickAddTaskShortcut": "クイックタスク追加",
+    "mobileAccess": {
+      "title": "モバイルアクセス",
+      "description": "同じWiFiネットワーク上のiPhone/iPadからLife Editorにアクセスできます。",
+      "enable": "モバイルアクセスを有効化",
+      "disable": "モバイルアクセスを無効化",
+      "scanQr": "スマートフォンのカメラでQRコードをスキャン",
+      "copy": "URLをコピー",
+      "copied": "コピーしました！",
+      "regenerate": "トークンを再生成（現在のセッションは無効化されます）"
+    }
+  },
+  "timerSettings": {
+    "title": "タイマー",
+    "workDuration": "作業時間",
+    "breakDuration": "休憩時間",
+    "longBreakDuration": "ロング休憩時間",
+    "sessionsBeforeLongBreak": "ロング休憩までのセッション数",
+    "autoStartBreaks": "休憩の自動開始",
+    "autoStartBreaksDesc": "作業セッション終了時に自動的に休憩タイマーを開始",
+    "targetSessions": "1日の目標セッション数",
+    "runningWarning": "タイマー実行中です。変更は次のセッションから適用されます。",
+    "minutes": "分"
+  },
+  "notifications": {
+    "title": "通知とサウンド",
+    "timerNotifications": "タイマー通知",
+    "blocked": "通知がブロックされています。ブラウザ設定で有効にしてください。",
+    "description": "作業/休憩セッション終了時に通知を受け取る",
+    "completionSound": "セッション完了サウンド",
+    "preview": "プレビュー"
+  },
+  "reminders": {
+    "title": "リマインダー",
+    "taskReminders": "タスク期日リマインダー",
+    "taskRemindersDesc": "タスクの予定時刻前に通知を受け取る",
+    "defaultOffset": "デフォルトのリマインダー時間",
+    "offset5": "5分前",
+    "offset10": "10分前",
+    "offset15": "15分前",
+    "offset30": "30分前",
+    "offset60": "1時間前",
+    "offset120": "2時間前",
+    "offset1440": "1日前",
+    "dailyReview": "デイリーレビューリマインダー",
+    "dailyReviewDesc": "毎日の振り返りと計画のリマインダーを受け取る",
+    "dailyReviewTime": "リマインダー時刻",
+    "taskDueNotification": "タスク期限: {{title}}",
+    "itemReminderToggle": "リマインダー",
+    "setReminder": "リマインダー設定",
+    "removeReminder": "リマインダー解除",
+    "itemReminderNotification": "まもなく: {{title}}"
+  },
+  "priority": {
+    "p1": "P1 - 緊急",
+    "p2": "P2 - 高",
+    "p3": "P3 - 中",
+    "p4": "P4 - 低",
+    "none": "優先度なし",
+    "setPriority": "優先度を設定"
+  },
+  "data": {
+    "title": "データ管理",
+    "export": "データをエクスポート",
+    "import": "データをインポート",
+    "importWarning": "インポートすると現在のデータがすべて上書きされます。インポート前にバックアップが自動作成されます。",
+    "exportSuccess": "データのエクスポートに成功しました。",
+    "exportFailed": "エクスポート失敗: {{error}}",
+    "importSuccess": "データをインポートしました。再読み込み中...",
+    "importFailed": "インポート失敗: {{error}}",
+    "reset": "すべてのデータをリセット",
+    "resetConfirm": "すべてのデータが削除され、アプリが初期状態に戻ります。この操作は取り消せません。リセット前にバックアップが自動作成されます。本当にリセットしますか？",
+    "resetSuccess": "データをリセットしました。再読み込み中...",
+    "resetFailed": "リセット失敗: {{error}}",
+    "unknownError": "不明なエラー",
+    "openTrash": "ゴミ箱を開く"
+  },
+  "sync": {
+    "title": "クラウド同期",
+    "connected": "接続済み",
+    "cloudUrl": "クラウドURL",
+    "token": "同期トークン",
+    "tokenPlaceholder": "同期トークンを入力",
+    "connect": "接続",
+    "connecting": "接続中...",
+    "connectFailed": "接続に失敗しました",
+    "disconnect": "切断",
+    "syncNow": "今すぐ同期",
+    "syncing": "同期中...",
+    "fullResync": "完全再同期",
+    "lastSynced": "最終同期",
+    "lastResult": "最終結果",
+    "lastError": "最終エラー",
+    "deviceId": "デバイスID"
+  },
+  "trash": {
+    "title": "ゴミ箱",
+    "empty": "ゴミ箱は空です",
+    "emptyCategory": "{{category}}のゴミ箱をからにする",
+    "emptyCategoryConfirm": "「{{category}}」のゴミ箱を完全に空にします。{{count}} 件が完全に削除され、復元できません。実行しますか？",
+    "emptyCategoryDone": "{{category}}のゴミ箱を空にしました（{{count}} 件）",
+    "emptying": "削除中...",
+    "tasks": "タスク",
+    "notes": "ノート",
+    "restore": "復元",
+    "deletePermanently": "完全に削除",
+    "task": "タスク",
+    "note": "ノート",
+    "sounds": "サウンド",
+    "sound": "サウンド",
+    "tabTasks": "タスク",
+    "tabRoutine": "ルーティン",
+    "tabEvents": "イベント",
+    "tabMaterials": "素材",
+    "tabMemo": "メモ",
+    "tabSounds": "サウンド",
+    "event": "イベント",
+    "events": "イベント",
+    "folders": "フォルダ",
+    "routines": "ルーティン",
+    "routine": "ルーティン",
+    "daily": "デイリー",
+    "dailies": "デイリー",
+    "memo": "メモ",
+    "loading": "ゴミ箱を読み込み中...",
+    "error": "ゴミ箱の読み込みに失敗しました。",
+    "emptyCategoryLine": "削除済みの項目はありません。",
+    "permanentDeleteConfirm": "「{{name}}」を完全に削除しますか？この操作は元に戻せません。"
+  },
+  "updates": {
+    "title": "アップデート",
+    "checkForUpdates": "アップデートを確認",
+    "download": "ダウンロード",
+    "restartToUpdate": "再起動して更新",
+    "checking": "アップデートを確認中...",
+    "available": "アップデート v{{version}} が利用可能です。",
+    "upToDate": "最新バージョンを使用しています。",
+    "downloading": "ダウンロード中... {{percent}}%",
+    "downloaded": "v{{version}} ダウンロード完了。再起動して適用します。",
+    "error": "アップデートエラー: {{message}}",
+    "unknown": "不明"
+  },
+  "performance": {
+    "title": "パフォーマンスモニター",
+    "appVersion": "アプリバージョン",
+    "dbSize": "DBサイズ",
+    "memory": "メモリ (RSS)",
+    "refresh": "更新",
+    "resetMetrics": "メトリクスをリセット",
+    "channelsTracked": "{{count}} チャンネルを記録",
+    "noMetrics": "IPCメトリクスはまだ記録されていません。アプリを使用してから更新してください。",
+    "channel": "チャンネル",
+    "calls": "呼び出し",
+    "avg": "平均 (ms)",
+    "max": "最大 (ms)",
+    "total": "合計 (ms)",
+    "dbTables": "データベーステーブル"
+  },
+  "logs": {
+    "title": "アプリケーションログ",
+    "all": "すべて",
+    "error": "エラー",
+    "warn": "警告",
+    "info": "情報",
+    "refresh": "更新",
+    "openFolder": "フォルダを開く",
+    "export": "エクスポート",
+    "loading": "読み込み中...",
+    "noEntries": "ログエントリが見つかりません。"
+  },
+  "work": {
+    "title": "ワーク",
+    "tabTimer": "タイマー",
+    "tabPomodoro": "ポモドーロ",
+    "tabMusic": "ミュージック",
+    "tabHistory": "履歴",
+    "history": {
+      "last7Days": "直近 7 日間",
+      "empty": "セッション記録はまだありません。Pomodoro か Free セッションを開始してください。"
+    },
+    "toast": {
+      "recordedToTask": "✓ {{task}} に {{minutes}}分 を記録",
+      "recordedFreeWork": "✓ {{minutes}}分 を記録"
+    },
+    "setBackgroundSound": "バックグラウンドサウンドを設定する",
+    "noPlaylist": "プレイリスト未選択（無音）",
+    "backgroundPlaylist": "バックグラウンドプレイリスト",
+    "playingPlaylist": "再生中: {{name}}",
+    "sidebar": {
+      "nowPlaying": "再生中",
+      "noPlaylist": "プレイリスト未選択",
+      "pomodoroSettings": "ポモドーロ設定",
+      "todayStats": "今日のセッション",
+      "sessions": "{{count}} セッション",
+      "totalTime": "{{minutes}} 分",
+      "workTime": "ワーク時間",
+      "targetSessions": "目標",
+      "goalTime": "目標時間",
+      "sessionsProgress": "{{completed}} / {{target}} セッション",
+      "timeProgress": "{{actual}}m / {{goal}}m",
+      "selectPlaylist": "プレイリストを選択",
+      "selectNone": "なし"
+    },
+    "freeSession": "フリーセッション",
+    "sessionComplete": "セッション完了",
+    "taskComplete": "タスク完了",
+    "confirmSessionTitle": "セッション終了",
+    "confirmSessionMessage": "セッションを終了して休憩に入りますか？",
+    "confirmTaskTitle": "タスク完了",
+    "confirmTaskMessage": "このタスクを完了しますか？",
+    "controls": {
+      "start": "開始",
+      "pause": "一時停止",
+      "reset": "リセット",
+      "skip": "スキップ"
+    },
+    "phase": {
+      "WORK": "ワーク",
+      "BREAK": "休憩",
+      "LONG_BREAK": "長い休憩"
+    },
+    "taskSelector": {
+      "heading": "紐づけるタスク",
+      "placeholder": "タスクを選択…",
+      "none": "タスクがありません",
+      "clear": "タスクを解除"
+    },
+    "settings": {
+      "minutesUnit": "分",
+      "presetNamePlaceholder": "プリセット名",
+      "saveAsPreset": "保存",
+      "apply": "適用"
+    }
+  },
+  "pomodoro": {
+    "title": "ポモドーロ設定",
+    "workDuration": "1セッションあたりの作業時間",
+    "breakDuration": "セッション間の休憩時間",
+    "longBreakDuration": "セット間の休憩時間",
+    "sessionsPerSet": "1セットあたりのセッション数",
+    "presets": "プリセット",
+    "saveAsPreset": "現在の設定をプリセットとして保存",
+    "presetName": "プリセット名",
+    "deletePreset": "プリセット削除",
+    "currentConfig": "現在の設定",
+    "autoStartBreaks": "休憩を自動開始",
+    "todaySessions": "今日のセッション",
+    "todayWorkTime": "今日の作業時間",
+    "adjustTime": "時間調整"
+  },
+  "timer": {
+    "work": "ワーク",
+    "rest": "レスト",
+    "longRest": "ロングレスト"
+  },
+  "taskTree": {
+    "title": "タスクツリー",
+    "newTask": "新しいタスク...",
+    "newFolder": "新しいプロジェクト...",
+    "completed": "完了済み",
+    "newFolderDefault": "新しいフォルダ",
+    "newTaskDefault": "新しいタスク",
+    "folderCompleteConfirm": "フォルダ内の未完了タスクもすべて完了になります。よろしいですか？",
+    "deleteConfirm": "「{{name}}」を削除しますか？ゴミ箱に移動されます。",
+    "taskComplete": "{{name}} 完了！",
+    "sort": "並べ替え",
+    "sortAscending": "昇順",
+    "sortDescending": "降順",
+    "sortManual": "手動",
+    "sortStatus": "ステータス",
+    "sortSchedule": "スケジュール日",
+    "sortPriority": "優先度",
+    "undo": "元に戻す",
+    "redo": "やり直す",
+    "move": {
+      "circularReference": "フォルダを自身のサブフォルダに移動できません",
+      "deletedNode": "削除済みのアイテムは移動できません。先に復元してください。"
+    },
+    "completeFolder": "完了"
+  },
+  "memo": {
+    "title": "メモ",
+    "daily": "日記",
+    "notes": "ノート"
+  },
+  "materials": {
+    "title": "マテリアル"
+  },
+  "files": {
+    "settingsTitle": "ファイルエクスプローラー",
+    "rootFolder": "ルートフォルダ",
+    "rootFolderDescription": "ファイルタブで閲覧するフォルダを選択します。このフォルダ内のファイルのみアクセス可能です。",
+    "browse": "参照",
+    "notConfigured": "未設定",
+    "resetToDefault": "デフォルトパスにリセット",
+    "noRootPath": "フォルダが未設定です。設定画面で設定してください。",
+    "configureInSettings": "設定 > 詳細 > ファイル から設定できます。",
+    "newFile": "新規ファイル",
+    "newFolder": "新規フォルダ",
+    "refresh": "更新",
+    "emptyFolder": "このフォルダは空です",
+    "rename": "名前変更",
+    "delete": "削除",
+    "openInSystem": "システムアプリで開く",
+    "save": "保存",
+    "unsaved": "未保存",
+    "close": "閉じる",
+    "root": "ルート",
+    "fileNamePlaceholder": "ファイル名...",
+    "folderNamePlaceholder": "フォルダ名...",
+    "open": "開く",
+    "copyPath": "パスをコピー"
+  },
+  "connect": {
+    "title": "コネクト",
+    "toggleConnectMode": "Connectモード: ノード間をドラッグして繋ぐ",
+    "linkEdges": "ノートリンク",
+    "panel": {
+      "title": "2つを繋ぐ",
+      "searchPlaceholder": "タグを検索 / 新規タグ名を入力...",
+      "createNew": "「{{name}}」を新規タグとして作成",
+      "connect": "繋ぐ",
+      "cancel": "キャンセル",
+      "alreadyLinked": "両方に付与済み",
+      "noTags": "タグがまだありません"
+    },
+    "graph": {
+      "search": "ノードを検索...",
+      "nodeTypes": "ノード種別",
+      "tags": "タグ",
+      "localGraph": "ローカルグラフ",
+      "display": "表示",
+      "forces": "物理",
+      "showOrphans": "孤立ノードを表示",
+      "showLabels": "ラベルを表示",
+      "repel": "反発",
+      "linkDistance": "リンク距離",
+      "center": "中心引力",
+      "collide": "衝突半径",
+      "clearFilters": "フィルタ解除",
+      "noMatch": "条件に一致するノードがありません",
+      "reheat": "再配置",
+      "resetView": "ビューをリセット",
+      "togglePanel": "パネル切替",
+      "closePanel": "パネルを閉じる",
+      "depth": "深さ",
+      "off": "オフ",
+      "connections": "接続",
+      "selectNodeHint": "キャンバスでノードを選択するとローカルグラフが有効になります",
+      "tapHint": "ノードをタップで中央へ。ドラッグで移動。ピンチ / スクロールでズーム。",
+      "links": "リンク",
+      "tagsShort": "タグ",
+      "match_one": "{{count}} 件一致",
+      "match_other": "{{count}} 件一致",
+      "typeProject": "プロジェクト",
+      "typeNote": "ノート",
+      "typeDaily": "デイリー",
+      "typeTag": "タグ"
+    }
+  },
+  "ideas": {
+    "title": "コネクト",
+    "daily": "日記",
+    "notes": "ノート",
+    "files": "ファイル",
+    "connect": "コネクト",
+    "materials": "マテリアル",
+    "favorites": "お気に入り",
+    "searchMaterials": "ノートやメモを検索...",
+    "searchTagsAndNotes": "タグやノートを検索...",
+    "createNoteWithTag": "タグ付きノート作成",
+    "noSearchResults": "結果が見つかりません",
+    "selectTagToSearch": "タグを選択して検索",
+    "cooccurrence": "共起",
+    "manualConnection": "手動接続",
+    "graphEmpty": "ノートやメモがまだありません。ノートを作成するとキャンバスに表示されます。",
+    "untagged": "未タグ",
+    "deleteConnection": "接続を削除しますか？",
+    "newNoteButton": "+ ノート作成",
+    "openNote": "ノートを開く",
+    "openMemo": "メモを開く",
+    "noteColor": "ノートの色",
+    "showAllNodes": "全体ノードを表示",
+    "relations": "関連",
+    "linkTags": "タグを関連付け",
+    "deleteNote": "ノートを削除",
+    "deleteMemo": "メモを削除",
+    "tagDots": "タグ",
+    "noteConnection": "ノート接続",
+    "sharedTags": "共通タグ",
+    "editItem": "編集",
+    "editName": "名前",
+    "untaggedLabel": "未タグ(未所属)",
+    "pointView": "ポイント",
+    "paperView": "ペーパー",
+    "boards": "ボード",
+    "newBoard": "新規ボード",
+    "deleteBoard": "ボードを削除",
+    "deleteBoardConfirm": "このボードを削除しますか？この操作は元に戻せません。",
+    "addCard": "カードを追加",
+    "addTextBlock": "テキストを追加",
+    "addFrame": "フレームを追加",
+    "node": "ノード",
+    "board": "ボード",
+    "createBoard": "ボードを作成",
+    "linkToExistingNote": "既存ノートにリンク",
+    "newBlankBoard": "新規空白ボード",
+    "emptyBoardMessage": "ボードがまだありません。作成して始めましょう。",
+    "searchBoards": "ボードを検索..."
+  },
+  "schedule": {
+    "todayFlow": "Today Flow",
+    "noItems": "この日のアイテムはありません",
+    "complete": "完了",
+    "undoComplete": "完了を取り消す",
+    "dayFlow": "Day Flow",
+    "routines": "ルーティン",
+    "newRoutine": "ルーティンを追加",
+    "editRoutine": "ルーティンを編集",
+    "editEvent": "イベントを編集",
+    "editTask": "タスクを編集",
+    "routineTitle": "タイトル",
+    "routineTitlePlaceholder": "ルーティン名",
+    "start": "開始",
+    "end": "終了",
+    "create": "作成",
+    "removeFromDay": "外す",
+    "fullscreen": "全画面",
+    "exitFullscreen": "全画面を終了",
+    "achievement": "実績",
+    "achievementDetails": "実績詳細",
+    "routineFlow": "Routine Flow",
+    "frequency": "頻度",
+    "frequencyDaily": "毎日",
+    "frequencyWeekdays": "曜日指定",
+    "frequencyInterval": "N日ごと",
+    "frequencyGroup": "グループ",
+    "everyNDays": "{{n}}日ごと",
+    "intervalDays": "間隔（日数）",
+    "startDate": "開始日",
+    "sun": "日",
+    "mon": "月",
+    "tue": "火",
+    "wed": "水",
+    "thu": "木",
+    "fri": "金",
+    "sat": "土",
+    "achieved": "達成",
+    "notAchieved": "未達成",
+    "achievementRate": "達成: {{completed}}/{{total}} ({{rate}}%)",
+    "noRoutineItems": "この日のルーティン項目はありません。",
+    "noActiveRoutines": "今日のアクティブなルーティンはありません。",
+    "searchTasks": "タスクを検索...",
+    "searchEvents": "イベントを検索...",
+    "stats": {
+      "title": "統計",
+      "details": "詳細",
+      "dayStreak": "日連続",
+      "currentStreak": "現在",
+      "longestStreak": "最長",
+      "totalAchievedDays": "達成日数",
+      "perRoutine": "ルーティン別",
+      "individual": "個別",
+      "groups": "グループ",
+      "monthlyHeatmap": "90日間ヒートマップ"
+    },
+    "routineDeleteConfirm": {
+      "title": "ルーティンを削除",
+      "description": "「{{title}}」をどのように削除しますか？",
+      "dismissOnly": "今回のみ削除",
+      "dismissOnlyDesc": "今日のスケジュールから非表示にします。明日以降は通常通り表示されます。",
+      "archiveRoutine": "今後のルーティンからも削除",
+      "archiveRoutineDesc": "ルーティンをアーカイブし、今後自動生成されなくなります。ルーティン管理画面から復元できます。",
+      "cancel": "キャンセル"
+    },
+    "routineTimeChange": {
+      "title": "ルーティンの時間を更新しますか？",
+      "description": "「{{title}}」の時間が {{time}} に変更されました。",
+      "thisOnly": "今回のみ変更",
+      "thisOnlyDesc": "今日のスケジュールのみ変更します。ルーティンのテンプレートはそのままです。",
+      "applyToRoutine": "ルーティンテンプレートも更新",
+      "applyToRoutineDesc": "今後のスケジュールにも反映されるよう、ルーティンのデフォルト時間を更新します。"
+    },
+    "routineEditTimeChange": {
+      "title": "既存スケジュールも更新しますか？",
+      "description": "「{{title}}」のテンプレート時間が {{time}} に変更されました。",
+      "templateOnly": "テンプレートのみ更新",
+      "templateOnlyDesc": "ルーティンのデフォルト時間のみ変更します。既存のスケジュールには影響しません。",
+      "applyToAll": "既存スケジュールも更新",
+      "applyToAllDesc": "今日以降のスケジュール済みアイテムの時間も同時に更新します。"
+    },
+    "itemTitlePlaceholder": "スケジュールアイテム名",
+    "allDay": "終日",
+    "materials": "マテリアル",
+    "dailyMemo": "デイリー"
+  },
+  "schedulePanel": {
+    "existingTasks": "既存タスク",
+    "newTask": "新規タスク",
+    "scheduled": "スケジュール済",
+    "searchTasks": "タスクを検索",
+    "allDay": "終日",
+    "endTime": "終了時刻",
+    "noTasksFound": "タスクが見つかりません",
+    "existingNote": "既存ノート",
+    "newNote": "新規ノート",
+    "searchNotes": "ノートを検索...",
+    "noteTitle": "ノートタイトル",
+    "untitledNote": "無題",
+    "noNotes": "ノートが見つかりません",
+    "tabTask": "タスク",
+    "tabEvent": "イベント",
+    "tabRoutine": "ルーティン",
+    "useExisting": "既存を選択"
+  },
+  "analytics": {
+    "title": "分析",
+    "tabs": {
+      "overview": "概要",
+      "time": "時間",
+      "tasks": "タスク",
+      "schedule": "スケジュール",
+      "materials": "マテリアル",
+      "work": "作業",
+      "connect": "コネクト"
+    },
+    "totalTasks": "全タスク",
+    "completed": "完了",
+    "inProgress": "進行中",
+    "folders": "フォルダ",
+    "todayRate": "今日の完了率",
+    "totalRate": "全体の完了率",
+    "comingSoon": "より詳細な分析は近日公開予定です。",
+    "workTime": "作業時間",
+    "taskWorkTime": "タスク別作業時間",
+    "period": {
+      "day": "日",
+      "week": "週",
+      "month": "月"
+    },
+    "totalWorkTime": "総作業時間",
+    "sessions": "セッション数",
+    "avgPerDay": "日平均",
+    "hours": "{{hours}}時間{{minutes}}分",
+    "noSessions": "まだ作業セッションが記録されていません。タイマーを開始して作業時間を追跡しましょう。",
+    "today": {
+      "title": "今日",
+      "workTime": "作業時間",
+      "completedTasks": "完了",
+      "pomodoroCount": "ポモドーロ"
+    },
+    "weekly": {
+      "title": "週間比較",
+      "thisWeek": "今週",
+      "lastWeek": "先週",
+      "change": "変化",
+      "workTimeLabel": "作業時間",
+      "sessionsLabel": "セッション",
+      "completedLabel": "完了タスク"
+    },
+    "streak": {
+      "title": "ストリーク",
+      "current": "現在",
+      "longest": "最長",
+      "days": "日",
+      "noStreak": "作業を開始してストリークを積み上げよう！"
+    },
+    "heatmap": {
+      "title": "アクティビティヒートマップ",
+      "tooltip": "{{minutes}}分",
+      "mon": "月",
+      "tue": "火",
+      "wed": "水",
+      "thu": "木",
+      "fri": "金",
+      "sat": "土",
+      "sun": "日"
+    },
+    "pomodoroRate": {
+      "title": "ポモドーロ達成率",
+      "actual": "実績",
+      "target": "目標"
+    },
+    "workBreak": {
+      "title": "作業・休憩バランス",
+      "work": "作業",
+      "break": "休憩",
+      "longBreak": "長い休憩"
+    },
+    "timeline": {
+      "title": "デイリータイムライン",
+      "noSessions": "この日のセッションはありません"
+    },
+    "taskTrend": {
+      "title": "タスク完了トレンド",
+      "completedCount": "完了数"
+    },
+    "stagnation": {
+      "title": "タスク経過日数分布",
+      "tasks": "件"
+    },
+    "projectTime": {
+      "title": "プロジェクト別作業時間",
+      "noData": "プロジェクトデータがありません"
+    },
+    "sidebar": {
+      "period": "期間",
+      "preset": {
+        "7d": "過去7日間",
+        "30d": "過去30日間",
+        "thisMonth": "今月",
+        "3m": "過去3ヶ月",
+        "all": "全期間"
+      },
+      "dateRange": "日付範囲",
+      "folder": "プロジェクトフィルター",
+      "allFolders": "すべてのプロジェクト",
+      "charts": "表示チャート",
+      "showAll": "すべて表示",
+      "hideAll": "すべて非表示",
+      "chartGroup": {
+        "work": "作業チャート",
+        "tasks": "タスクチャート",
+        "schedule": "スケジュールチャート",
+        "materials": "マテリアルチャート",
+        "connect": "コネクトチャート"
+      }
+    },
+    "overview": {
+      "tasks": "タスク",
+      "events": "イベント",
+      "notes": "ノート",
+      "work": "作業時間",
+      "routines": "ルーティン",
+      "tags": "タグ",
+      "total": "合計",
+      "completed": "完了",
+      "today": "今日",
+      "active": "アクティブ",
+      "rate": "達成率",
+      "thisWeek": "今週",
+      "assigned": "割り当て"
+    },
+    "schedule": {
+      "totalEvents": "イベント総数",
+      "completedEvents": "完了",
+      "completionRate": "完了率",
+      "activeRoutines": "アクティブルーティン",
+      "routineRate": "ルーティン達成率",
+      "eventTrend": {
+        "title": "イベント完了トレンド",
+        "completed": "完了数"
+      },
+      "timeDistribution": {
+        "title": "時間帯別イベント",
+        "count": "イベント数"
+      },
+      "routineCompletion": {
+        "title": "ルーティン別達成率",
+        "rate": "達成率"
+      },
+      "noEvents": "この期間のイベントはありません。"
+    },
+    "materials": {
+      "totalNotes": "ノート数",
+      "noteFolders": "フォルダ数",
+      "pinnedNotes": "ピン留め",
+      "createdPeriod": "作成数(期間)",
+      "totalMemos": "メモ数",
+      "memosPeriod": "メモ数(期間)",
+      "creationTrend": {
+        "title": "ノート作成トレンド",
+        "count": "作成数"
+      },
+      "memoHeatmap": {
+        "title": "メモアクティビティ",
+        "tooltip": "{{count}}件のメモ"
+      },
+      "byFolder": {
+        "title": "フォルダ別ノート数",
+        "count": "ノート数",
+        "noFolder": "フォルダなし"
+      },
+      "noNotes": "ノートはまだありません。"
+    },
+    "connect": {
+      "totalTags": "タグ数",
+      "totalAssignments": "割り当て数",
+      "uniqueEntities": "タグ付きアイテム",
+      "coverageRate": "カバー率",
+      "topTags": {
+        "title": "使用頻度の高いタグ",
+        "count": "割り当て数"
+      },
+      "byEntityType": {
+        "title": "エンティティ種別別タグ",
+        "task": "タスク",
+        "note": "ノート",
+        "daily": "デイリー"
+      },
+      "connections": {
+        "title": "コネクション統計",
+        "tagConnections": "タグコネクション",
+        "noteConnections": "ノートコネクション",
+        "mostConnected": "最多接続",
+        "isolatedTags": "孤立タグ",
+        "avgConnections": "平均接続数",
+        "density": "密度"
+      },
+      "noTags": "タグはまだありません。"
+    }
+  },
+  "tips": {
+    "panel": {
+      "title": "Tips",
+      "showDetails": "詳細を見る",
+      "open": "Tipsを開く",
+      "close": "Tipsを閉じる",
+      "noTips": "このセクションのTipsはまだありません。"
+    },
+    "buttonLabel": "Tips",
+    "schedule": {
+      "header": "スケジュールのヒント",
+      "tabs": {
+        "calendar": {
+          "label": "カレンダー",
+          "items": {
+            "viewSwitch": {
+              "title": "月 / 週ビューを切替",
+              "description": "カレンダー上部のトグルで「月」と「週」を切り替えます。"
+            },
+            "openDay": {
+              "title": "日付をクリック",
+              "description": "日付セルをクリックすると、右サイドバーがその日の表示に切り替わります。"
+            },
+            "rightSidebar": {
+              "title": "右サイドバーで当日表示",
+              "description": "カレンダー表示中は、右サイドバーに選択日のタスク・ルーティン・予定が並びます。"
+            },
+            "folderFilter": {
+              "title": "フォルダで絞り込み",
+              "description": "タスクツリーでフォルダを選択すると、そのフォルダ配下のタスクだけが表示されます。"
+            },
+            "contentFilter": {
+              "title": "種類で絞り込み",
+              "description": "右サイドバーで Routine / Tasks / Events / Daily / Notes をオンオフして表示量を調整します。"
+            },
+            "holidays": {
+              "title": "祝日表示",
+              "description": "祝日設定をオンにすると、国民の祝日が赤色で表示されます。"
+            },
+            "folderColor": {
+              "title": "フォルダの色を継承",
+              "description": "タスクは所属フォルダの色を引き継ぐため、プロジェクトが一目でわかります。"
+            },
+            "addRoutineFromCell": {
+              "title": "日付からルーティン追加",
+              "description": "日付セルにホバーするとリピートアイコンが現れ、その日を起点にルーティン管理画面が開きます。"
+            },
+            "switchTab": {
+              "title": "日ビューは Day Flow タブで",
+              "description": "カレンダーには日ビューがありません。1日単位で見たいときは Day Flow タブに切り替えます。"
+            }
+          }
+        },
+        "routine": {
+          "label": "ルーティン",
+          "items": {
+            "createFromCalendar": {
+              "title": "カレンダーから追加",
+              "description": "カレンダーで日付にホバー → リピートアイコンをクリックするとルーティン管理が開き、+ New Routine から作成できます。"
+            },
+            "createFromSidebar": {
+              "title": "右サイドバーから追加",
+              "description": "右サイドバー下部の Achievement パネルにある + ボタンからもルーティンを追加できます。"
+            },
+            "frequencyDaily": {
+              "title": "毎日",
+              "description": "頻度を「Daily」にすると毎日繰り返します。"
+            },
+            "frequencyWeekdays": {
+              "title": "曜日指定",
+              "description": "「Weekdays」を選び、走らせたい曜日（月〜日）をチェックします。"
+            },
+            "frequencyInterval": {
+              "title": "N 日ごと",
+              "description": "「Interval」では開始日と間隔（2 日以上）を指定して周期を設定します。"
+            },
+            "edit": {
+              "title": "編集",
+              "description": "ルーティン行の鉛筆アイコンからタイトル・時刻・頻度・タグなどを変更できます。"
+            },
+            "dismiss": {
+              "title": "今日はスキップ",
+              "description": "Dismiss でその日の表示だけ非表示にできます。翌日には自動的に再登場します。"
+            },
+            "archive": {
+              "title": "アーカイブ",
+              "description": "削除せず一時的に外したいときは Archive を使用。Archived タブから復帰可能です。"
+            },
+            "delete": {
+              "title": "完全削除",
+              "description": "ゴミ箱アイコンで完全削除。削除確認ダイアログから Archive も選べます。"
+            },
+            "tags": {
+              "title": "タグ付け",
+              "description": "タグを付けると、タグフィルタや Connect ビューに登場するようになります。"
+            }
+          }
+        },
+        "dayflow": {
+          "label": "Day Flow",
+          "items": {
+            "openTab": {
+              "title": "Day Flow タブを開く",
+              "description": "Schedule 内の Day Flow タブで、1日を時間別に並べたタイムラインを表示します。"
+            },
+            "dragTime": {
+              "title": "ドラッグで時刻変更",
+              "description": "ブロックを縦にドラッグすると、開始時刻が変更されます。"
+            },
+            "dualColumn": {
+              "title": "デュアルカラム",
+              "description": "2 日分を並べて見たいときはデュアルカラムをオンにします。"
+            },
+            "contextAdd": {
+              "title": "空き時間をクリック",
+              "description": "空き時間枠をクリックすると Routine / Task / Note を追加できます。"
+            },
+            "rightClickEdit": {
+              "title": "右クリックで編集",
+              "description": "ブロックを右クリックすると、15 分単位の延長 / 短縮、複製、時刻コピーが行えます。"
+            },
+            "todayButton": {
+              "title": "Today ボタン",
+              "description": "ヘッダーの Today を押すと、現在時刻までスクロールが戻ります。"
+            },
+            "syncCalendar": {
+              "title": "カレンダーと同期",
+              "description": "Calendar タブで日付を選ぶと、Day Flow に表示される日も連動します。"
+            },
+            "filterTypes": {
+              "title": "種類フィルタ",
+              "description": "右サイドバーのフィルタで非表示にしたい種類を切り替えられます。"
+            },
+            "addNote": {
+              "title": "メモを時間に紐付ける",
+              "description": "枠から Note を追加すると、その時刻に紐付いた Daily メモエントリが作成されます。"
+            }
+          }
+        },
+        "stats": {
+          "label": "実績",
+          "items": {
+            "achievementPanel": {
+              "title": "右サイドバーの Achievement",
+              "description": "ルーティンの達成状況は右サイドバー下部の Achievement パネルに表示されます。"
+            },
+            "daysCount": {
+              "title": "Days",
+              "description": "ルーティンを 1 つ以上達成した日数をカウントします。"
+            },
+            "currentStreak": {
+              "title": "Current Streak",
+              "description": "現在の連続達成日数。"
+            },
+            "longestStreak": {
+              "title": "Longest Streak",
+              "description": "これまでの最長連続記録。モチベーション維持に役立ちます。"
+            },
+            "details": {
+              "title": "Details で詳細",
+              "description": "Details リンクをクリックすると、ルーティン別の達成率を表示するオーバーレイが開きます。"
+            },
+            "perGroup": {
+              "title": "ルーティン別の内訳",
+              "description": "Details オーバーレイで、各ルーティンの達成率を個別に確認できます。"
+            },
+            "moreInAnalytics": {
+              "title": "チャートは Analytics へ",
+              "description": "トレンドや長期間のチャートは Analytics セクションで確認できます。"
+            }
+          }
+        }
+      }
+    },
+    "work": {
+      "header": "ワークのヒント",
+      "tabs": {
+        "taskSelect": {
+          "label": "タスク",
+          "items": {
+            "openSelector": {
+              "title": "上部のタスクセレクタ",
+              "description": "Work 画面上部のタスクセレクタをクリックして、集中するタスクを選びます。"
+            },
+            "search": {
+              "title": "名前で検索",
+              "description": "入力するとタスク名で絞り込まれます。"
+            },
+            "folderSearch": {
+              "title": "フォルダ/タスク 形式の検索",
+              "description": "「フォルダ名/タスク名」と入力すると、特定フォルダ内に検索を限定できます。"
+            },
+            "freeSession": {
+              "title": "フリーセッション",
+              "description": "タスクを選ばずに自由なフォーカスセッションを実行できます。"
+            },
+            "startFromTree": {
+              "title": "タスクツリーから開始",
+              "description": "タスクツリーで再生ボタン（▶）をクリックすると、そのタスクを選択した状態で Work へ移動します。"
+            },
+            "switchTask": {
+              "title": "途中で切替",
+              "description": "セッション中に別のタスクを選択すると、タイマーをリセットせずにフォーカスが切り替わります。"
+            },
+            "completionPrompt": {
+              "title": "完了モーダル",
+              "description": "セッション終了時にモーダルが開き、タスクを完了にしたり次のセッションを開始できます。"
+            }
+          }
+        },
+        "timer": {
+          "label": "タイマー",
+          "items": {
+            "click": {
+              "title": "円形をクリック",
+              "description": "中央の円形タイマーをクリックして開始 / 一時停止します。"
+            },
+            "spaceShortcut": {
+              "title": "Space で再生 / 停止",
+              "description": "入力中以外は Space キーでどこからでもタイマーをトグルできます。"
+            },
+            "resetR": {
+              "title": "R でリセット",
+              "description": "入力中以外は R キーで現在のセグメントをフル時間にリセットします。"
+            },
+            "modalToggle": {
+              "title": "Cmd / Ctrl + Shift + T",
+              "description": "Cmd / Ctrl + Shift + T で他画面からも Work へジャンプできます。"
+            },
+            "miniWidget": {
+              "title": "サイドバーミニ表示",
+              "description": "稼働中は左サイドバーに実行中タスクと残り時間が表示されます。"
+            },
+            "extend": {
+              "title": "+5 分延長",
+              "description": "一時停止中に表示される +5m ボタンで現在のセグメントを延長します。"
+            },
+            "shorten": {
+              "title": "-5 分短縮",
+              "description": "一時停止中に表示される -5m ボタンで現在のセグメントを短縮します。"
+            },
+            "sessionComplete": {
+              "title": "セッションを終了",
+              "description": "Session Complete を押すと、現在のセグメントを即座に終了して次へ進めます。"
+            }
+          }
+        },
+        "pomodoro": {
+          "label": "ポモドーロ",
+          "items": {
+            "sidebarLocation": {
+              "title": "設定は右サイドバー",
+              "description": "ポモドーロの時間や設定は Work 画面の右サイドバーにあります。"
+            },
+            "durations": {
+              "title": "時間カスタム",
+              "description": "作業 / 短い休憩 / 長い休憩の分数を自由に設定できます。"
+            },
+            "longBreakRule": {
+              "title": "長休憩の頻度",
+              "description": "N セッション後に長休憩が入ります（既定 4）。"
+            },
+            "autoBreak": {
+              "title": "自動開始",
+              "description": "Auto-start をオンにすると、休憩や次の作業ブロックが 3 秒のカウントダウン後に自動で始まります。"
+            },
+            "sessionStructure": {
+              "title": "セッションカウンター",
+              "description": "「1/4」と進捗ドットで現在のサイクルの位置がわかります。"
+            },
+            "completionEffects": {
+              "title": "完了演出",
+              "description": "セッション中にタスクを完了すると、コンフェッティと効果音が再生されます。"
+            }
+          }
+        },
+        "audio": {
+          "label": "オーディオ",
+          "items": {
+            "musicTab": {
+              "title": "Music タブ",
+              "description": "Work 画面には Timer と Music の 2 タブがあり、Music で再生関連を管理します。"
+            },
+            "playlist": {
+              "title": "プレイリスト選択",
+              "description": "ポップオーバーからプレイリストを選択。タイマー稼働中はループ再生されます。"
+            },
+            "nowPlaying": {
+              "title": "右サイドバーの Now Playing",
+              "description": "右サイドバーの Now Playing カードに現在の曲とクイックコントロールが並びます。"
+            },
+            "customSounds": {
+              "title": "カスタム音源を追加",
+              "description": "+ Add Custom Sound から自分の音声ファイルをアップロードできます。"
+            },
+            "soundTags": {
+              "title": "音源にタグ付け",
+              "description": "Sound Tags を開くと、カスタム音源にタグを付けて整理できます。"
+            },
+            "soundFilter": {
+              "title": "タグで音源を絞り込み",
+              "description": "Sound Tag フィルタでムードやジャンル別に音源を絞り込めます。"
+            },
+            "previewVolume": {
+              "title": "プレビュー音量",
+              "description": "各音源行のプレビュースライダーで、登録前に音量を確認できます。"
+            }
+          }
+        }
+      }
+    },
+    "materials": {
+      "header": "マテリアルのヒント",
+      "tabs": {
+        "dailyMemo": {
+          "label": "日記",
+          "items": {
+            "openTab": {
+              "title": "Daily タブを開く",
+              "description": "Materials 内の Daily タブで、日々のジャーナルを書き始めます。"
+            },
+            "pickDate": {
+              "title": "リストから日付選択",
+              "description": "左のリストに月別の日付が並ぶので、クリックでその日を開きます。"
+            },
+            "searchDate": {
+              "title": "日付検索",
+              "description": "リスト上部の検索ボックスから特定の日付に直接ジャンプできます。"
+            },
+            "richEditor": {
+              "title": "リッチエディタ",
+              "description": "見出し・リスト・コード・コールアウトなどに対応。Markdown 記法も入力時に変換されます。"
+            },
+            "autoSave": {
+              "title": "自動保存",
+              "description": "入力と同時に保存されるので、保存ボタンは不要です。"
+            },
+            "templates": {
+              "title": "テンプレート",
+              "description": "Settings で Daily の既定テンプレートを設定すると、新しい日が決まった構成で始まります。"
+            },
+            "linkInline": {
+              "title": "ノートリンク [[",
+              "description": "[[ を入力するとノート選択ポップアップが開き、選んだノートへのリンクが挿入されます。"
+            },
+            "tagInline": {
+              "title": "タグ @",
+              "description": "@ を入力するとタグ候補が出ます。"
+            }
+          }
+        },
+        "notes": {
+          "label": "ノート",
+          "items": {
+            "create": {
+              "title": "ノート作成",
+              "description": "ノートリスト上部の + ボタンから新規ノートを追加します。"
+            },
+            "folders": {
+              "title": "フォルダ整理",
+              "description": "ノートをフォルダに分類できます。フォルダはネスト可能です。"
+            },
+            "drag": {
+              "title": "ドラッグで並び替え",
+              "description": "ツリー内でドラッグすると順序変更やフォルダ移動ができます。"
+            },
+            "search": {
+              "title": "ノート検索",
+              "description": "ツリー上部の検索ボックスでタイトル検索できます。"
+            },
+            "color": {
+              "title": "フォルダの色",
+              "description": "フォルダを右クリック（またはメニュー）→ 色ピッカーで色を設定。"
+            },
+            "iconCustom": {
+              "title": "アイコン設定",
+              "description": "アイコンピッカーから、ノートやフォルダに好みのアイコンを設定できます。"
+            },
+            "softDelete": {
+              "title": "ソフトデリート",
+              "description": "削除したノートはゴミ箱に入り、後から復元できます。"
+            },
+            "restore": {
+              "title": "ゴミ箱から復元",
+              "description": "Settings → Trash で復元または完全削除を行えます。"
+            }
+          }
+        },
+        "linkSyntax": {
+          "label": "リンクとタグ",
+          "items": {
+            "noteLink": {
+              "title": "[[ でノートリンク",
+              "description": "ノート内や Daily で [[ を入力すると、別ノートへのリンクを挿入できます。"
+            },
+            "tag": {
+              "title": "@ でタグ",
+              "description": "@ を入力するとタグ候補が表示。選択するか新規作成できます。"
+            },
+            "completion": {
+              "title": "キーボード補完",
+              "description": "サジェストポップアップ内では ↑ / ↓ + Enter で確定できます。"
+            },
+            "click": {
+              "title": "クリックで開く",
+              "description": "ノートリンクをクリックすると、同じビューに対象ノートが開きます。"
+            },
+            "rename": {
+              "title": "自動リネーム",
+              "description": "ノート名を変更すると、参照元のリンク表示も自動的に更新されます。"
+            },
+            "graphLink": {
+              "title": "グラフに反映",
+              "description": "リンクされたノートとタグは Connect のグラフ上で繋がって表示されます。"
+            }
+          }
+        },
+        "files": {
+          "label": "ファイル",
+          "items": {
+            "rootFolder": {
+              "title": "ルートフォルダ設定",
+              "description": "Settings からルートフォルダを設定するとファイルツリーが使えます。"
+            },
+            "tree": {
+              "title": "ツリー表示",
+              "description": "Finder のように折りたたみ可能なツリーでファイルを参照します。"
+            },
+            "search": {
+              "title": "ファイル名検索",
+              "description": "検索ボックスでツリーをファイル名フィルタできます。"
+            },
+            "openOs": {
+              "title": "OS で開く",
+              "description": "右クリック → Reveal in Finder / Explorer で OS で開けます。"
+            },
+            "createNew": {
+              "title": "ファイル / フォルダ作成",
+              "description": "+ ボタンで選択フォルダ内にファイルやフォルダを作成できます。"
+            },
+            "rename": {
+              "title": "インラインリネーム",
+              "description": "右クリック → Rename でその場で名前変更できます。"
+            },
+            "delete": {
+              "title": "安全な削除",
+              "description": "削除は OS のゴミ箱経由なので、間違えても復元可能です。"
+            }
+          }
+        }
+      }
+    },
+    "connect": {
+      "header": "コネクトのヒント",
+      "tabs": {
+        "graph": {
+          "label": "グラフ",
+          "items": {
+            "view": {
+              "title": "グラフを開く",
+              "description": "Connect 内の Nodes タブで、ノートとタグをグラフ表示します。"
+            },
+            "drag": {
+              "title": "ノードをドラッグ",
+              "description": "ノードはドラッグでキャンバス上の位置を変更できます。"
+            },
+            "zoom": {
+              "title": "ズーム / パン",
+              "description": "ピンチ / スクロールでズーム、空きキャンバスをドラッグでパンします。"
+            },
+            "focusNode": {
+              "title": "ノートにフォーカス",
+              "description": "サイドバーでノートを選ぶと、グラフがそのノートを中心に表示されます。"
+            },
+            "color": {
+              "title": "タグ色を反映",
+              "description": "ノードはタグマネージャで設定した支配的タグの色を採用します。"
+            },
+            "savePosition": {
+              "title": "配置を記憶",
+              "description": "手動で動かした位置は保存され、再読み込み後もリセットされません。"
+            },
+            "fromNote": {
+              "title": "ノートを開く",
+              "description": "ノートのノードをクリックすると Notes ビューでそのノートが開きます。"
+            }
+          }
+        },
+        "tags": {
+          "label": "タグ",
+          "items": {
+            "assign": {
+              "title": "タグを付与",
+              "description": "ノートやメモ内で @タグ名 を入力するとタグが付きます。"
+            },
+            "create": {
+              "title": "新規タグ作成",
+              "description": "未知のタグ名を確定すると、その場で新しいタグが作成されます。"
+            },
+            "rename": {
+              "title": "安全にリネーム",
+              "description": "タグの名前を変更すると、参照しているすべての場所に反映されます。"
+            },
+            "color": {
+              "title": "色を設定",
+              "description": "タグマネージャで色を設定すると、グラフにも反映されます。"
+            },
+            "filter": {
+              "title": "タグでフィルタ",
+              "description": "タグフィルタオーバーレイで、1 つまたは複数のタグに絞り込めます。"
+            },
+            "manageInSettings": {
+              "title": "タグマネージャ",
+              "description": "Settings からすべてのタグを管理（リネーム・色変更・削除）できます。"
+            },
+            "graphCluster": {
+              "title": "タグでクラスタ化",
+              "description": "同じタグを持つノートはグラフで近くに集まります。"
+            }
+          }
+        },
+        "backlinks": {
+          "label": "Backlinks",
+          "items": {
+            "show": {
+              "title": "右ペインに表示",
+              "description": "ノート表示中、右ペインにそのノートを参照している他ノートが並びます。"
+            },
+            "unlinked": {
+              "title": "Unlinked Mentions",
+              "description": "Unlinked タブには、リンクされていないがタイトルで言及されている箇所が並びます。"
+            },
+            "click": {
+              "title": "クリックでジャンプ",
+              "description": "Backlink 行をクリックすると参照元のノートが開きます。"
+            },
+            "context": {
+              "title": "周辺テキスト",
+              "description": "各 Backlink には参照されている段落のスニペットが表示されます。"
+            },
+            "count": {
+              "title": "Backlink 数",
+              "description": "ノートツリーの各ノート横に被リンク数が表示されます。"
+            },
+            "navigate": {
+              "title": "ノート間ナビ",
+              "description": "Backlinks を辿れば、グラフを使わずに関連ノート間を移動できます。"
+            }
+          }
+        },
+        "filter": {
+          "label": "フィルタ",
+          "items": {
+            "search": {
+              "title": "検索バー",
+              "description": "Connect サイドバーの検索バーで、自由テキストでフィルタできます。"
+            },
+            "byTag": {
+              "title": "タグフィルタ",
+              "description": "タグフィルタを適用すると、一致するノート / メモのみ残ります。"
+            },
+            "noteType": {
+              "title": "ノートのみ",
+              "description": "種類フィルタを Notes に切り替えると、メモが非表示になります。"
+            },
+            "memoType": {
+              "title": "メモのみ",
+              "description": "種類フィルタを Memos に切り替えると、ノートが非表示になります。"
+            },
+            "viewMode": {
+              "title": "ビューモード切替",
+              "description": "グラフ表示とリスト表示を切り替えられます。フィルタはどちらでも有効です。"
+            },
+            "persisted": {
+              "title": "フィルタを記憶",
+              "description": "アクティブなタブとビューモードはリロード後も保持されます。"
+            }
+          }
+        }
+      }
+    },
+    "terminal": {
+      "header": "ターミナルのヒント",
+      "tabs": {
+        "claude": {
+          "label": "Claude",
+          "items": {
+            "launchTitleBar": {
+              "title": "タイトルバーから起動",
+              "description": "タイトルバーのターミナルアイコン（Undo / Redo の左隣）をクリックすると、ターミナルセクションを開いて Claude が起動します。"
+            },
+            "shortcut": {
+              "title": "Cmd / Ctrl + J",
+              "description": "Cmd / Ctrl + J でターミナルセクションの開閉ができます。"
+            },
+            "mcpAutoConnect": {
+              "title": "MCP 自動接続",
+              "description": "起動時に life-editor MCP サーバーへ自動接続されます。"
+            },
+            "naturalQuery": {
+              "title": "自然言語で依頼",
+              "description": "「明日のタスクを追加」「今日のメモを要約」のように普通の言葉で依頼できます。"
+            },
+            "exitSession": {
+              "title": "セッションを抜ける",
+              "description": "exit または Ctrl + D で Claude REPL を終了できます。ターミナル自体は残ります。"
+            },
+            "switchSection": {
+              "title": "セクション切替も自由",
+              "description": "他のセクションに切り替えても、ターミナルセッションはバックグラウンドで維持されます。"
+            },
+            "aiSettings": {
+              "title": "設定",
+              "description": "Claude / MCP 関連は Settings → Claude Code から調整できます。"
+            }
+          }
+        },
+        "shortcuts": {
+          "label": "ショートカット",
+          "items": {
+            "newTab": {
+              "title": "新規タブ",
+              "description": "ターミナルにフォーカスがあるとき、Cmd / Ctrl + T で新しいタブを開きます。"
+            },
+            "closePane": {
+              "title": "ペインを閉じる",
+              "description": "Cmd / Ctrl + W でフォーカス中のペインを閉じます。"
+            },
+            "splitVertical": {
+              "title": "縦分割",
+              "description": "Cmd / Ctrl + D で縦に分割（左右に並ぶ）します。"
+            },
+            "splitHorizontal": {
+              "title": "横分割",
+              "description": "Cmd / Ctrl + Shift + D で横に分割（上下に並ぶ）します。"
+            },
+            "togglePanel": {
+              "title": "パネル開閉",
+              "description": "Cmd / Ctrl + J でセッションを保持したままターミナルセクションを開閉できます。"
+            }
+          }
+        },
+        "panes": {
+          "label": "ペイン",
+          "items": {
+            "addTab": {
+              "title": "タブ追加",
+              "description": "ターミナルヘッダの + ボタンでタブを追加できます（最大 4）。"
+            },
+            "splitV": {
+              "title": "縦分割",
+              "description": "1 タブにつき最大 4 ペインまで横並びに置けます。"
+            },
+            "splitH": {
+              "title": "横分割",
+              "description": "ログとコマンドを分けたいときは縦に積みます。"
+            },
+            "maxPanes": {
+              "title": "最大 4 ペイン",
+              "description": "1 タブあたり 4 ペインを超える分割はブロックされます。"
+            },
+            "resizeDrag": {
+              "title": "サイズ変更",
+              "description": "ペイン間のディバイダをドラッグでサイズを変えられます。"
+            },
+            "focus": {
+              "title": "クリックでフォーカス",
+              "description": "ペインをクリックするとアクティブになり、ショートカットの対象になります。"
+            },
+            "closePane": {
+              "title": "ペインを閉じる",
+              "description": "タブの最後のペインを閉じるとタブも閉じます。"
+            },
+            "tabBar": {
+              "title": "タブバー",
+              "description": "タブバーで起動中のタブを切り替えられます。"
+            }
+          }
+        },
+        "mcp": {
+          "label": "MCP",
+          "items": {
+            "registerServer": {
+              "title": "MCP サーバー登録",
+              "description": "Settings → Claude Code → Register MCP Server を開くと、データへのアクセスが有効になります。"
+            },
+            "tools": {
+              "title": "30 以上のツール",
+              "description": "タスク・ノート・スケジュール・タグ・ファイル・検索などをカバーします。"
+            },
+            "createTask": {
+              "title": "タスクを自然言語で作成",
+              "description": "「明日 10 時に銀行へ電話するタスクを作って」のように依頼できます。"
+            },
+            "queryNotes": {
+              "title": "ノート操作",
+              "description": "ノートの一覧化・要約・更新を依頼できます。"
+            },
+            "tagOps": {
+              "title": "タグ操作",
+              "description": "エンティティへのタグ付けやタグ検索が組み込みツールで可能です。"
+            },
+            "fileOps": {
+              "title": "ファイル操作",
+              "description": "設定したルートフォルダ配下のファイル読み書きが可能です。"
+            },
+            "schedule": {
+              "title": "スケジュール",
+              "description": "予定の一覧 / 作成 / 更新 / 完了切替が MCP 経由で行えます。"
+            },
+            "claudeMd": {
+              "title": "CLAUDE.md",
+              "description": "Settings → Claude Code → CLAUDE.md でプロジェクト指示を編集できます。"
+            },
+            "skills": {
+              "title": "Skills",
+              "description": "Claude Code Skills を ~/life-editor/.claude/skills/ にインストールできます。"
+            }
+          }
+        }
+      }
+    },
+    "analytics": {
+      "header": "アナリティクスのヒント",
+      "tabs": {
+        "overview": {
+          "label": "概要",
+          "items": {
+            "openSection": {
+              "title": "Analytics を開く",
+              "description": "Analytics セクションでクロスドメインのダッシュボードを確認できます。"
+            },
+            "todayDashboard": {
+              "title": "今日のダッシュボード",
+              "description": "Overview 上部に本日のフォーカス時間・完了タスク・ポモドーロ数が並びます。"
+            },
+            "periodSelector": {
+              "title": "右サイドバーの期間",
+              "description": "右サイドバーの期間セレクタで Day / Week / Month を選びます。"
+            },
+            "datePresets": {
+              "title": "日付プリセット",
+              "description": "7 日 / 30 日 / 今月 / 3 ヶ月 / 全期間といったクイックプリセットが揃っています。"
+            },
+            "weeklySummary": {
+              "title": "週次サマリ",
+              "description": "週次サマリカードで、今週と前週を ↑ ↓ で比較できます。"
+            },
+            "streak": {
+              "title": "ストリーク（日数）",
+              "description": "現在の連続日数と最長記録を表示します。"
+            },
+            "switchTabs": {
+              "title": "6 つのタブ",
+              "description": "Overview / Tasks / Schedule / Materials / Work / Connect を切り替えて分析を絞れます。"
+            }
+          }
+        },
+        "tasks": {
+          "label": "タスク",
+          "items": {
+            "completionTrend": {
+              "title": "完了トレンド",
+              "description": "選択期間における完了 / 作成タスク数を追えます。"
+            },
+            "stagnation": {
+              "title": "停滞チャート",
+              "description": "進捗のないオープンタスクを長期順に表示します。"
+            },
+            "byProject": {
+              "title": "プロジェクト別作業時間",
+              "description": "フォルダ / プロジェクト別の集中時間を比較できます。"
+            },
+            "workTime": {
+              "title": "タスク別作業時間",
+              "description": "どのタスクに最も時間を使ったかを把握できます。"
+            },
+            "filterPeriod": {
+              "title": "期間フィルタ",
+              "description": "タスク分析は右サイドバーの期間セレクタに従います。"
+            },
+            "tabFocus": {
+              "title": "タスクに集中",
+              "description": "Tasks タブはクロスドメインのノイズを抑え、タスク指標だけを表示します。"
+            }
+          }
+        },
+        "time": {
+          "label": "時間",
+          "items": {
+            "workChart": {
+              "title": "作業時間チャート",
+              "description": "日別フォーカス作業時間の棒グラフ。"
+            },
+            "heatmap": {
+              "title": "作業ヒートマップ",
+              "description": "曜日 × 時間帯のヒートマップで集中している時間が可視化されます。"
+            },
+            "balance": {
+              "title": "作業 / 休憩バランス",
+              "description": "作業時間と休憩時間を一目で比較できます。"
+            },
+            "pomodoroRate": {
+              "title": "ポモドーロ達成率",
+              "description": "計画したポモドーロのうち、どれだけ完了できたかを追えます。"
+            },
+            "dailyTimeline": {
+              "title": "デイリータイムライン",
+              "description": "選択した日のセッションを 24 時間タイムラインで可視化します。"
+            },
+            "scheduleTab": {
+              "title": "Schedule タブ",
+              "description": "Schedule 解析タブはイベントとルーティンの達成にフォーカスしています。"
+            },
+            "eventDistribution": {
+              "title": "イベント分布",
+              "description": "時間帯別のイベント分布を表示します。"
+            }
+          }
+        },
+        "knowledge": {
+          "label": "ナレッジ",
+          "items": {
+            "noteCreation": {
+              "title": "ノート作成トレンド",
+              "description": "日別のノート作成数で執筆ペースを把握できます。"
+            },
+            "memoHeatmap": {
+              "title": "メモヒートマップ",
+              "description": "Daily メモのヒートマップで欠落日を可視化します。"
+            },
+            "byFolder": {
+              "title": "フォルダ別ノート",
+              "description": "フォルダ別の分布を見て、どのプロジェクトが多いかを把握できます。"
+            },
+            "tagUsage": {
+              "title": "タグ使用頻度",
+              "description": "頻出タグをカウント付きで表示します。"
+            },
+            "tagEntityType": {
+              "title": "タグ × 種別",
+              "description": "タグの付与をエンティティ種別（ノート / メモ / タスク）で分類します。"
+            },
+            "connectSummary": {
+              "title": "コネクトサマリ",
+              "description": "Connect ビューから集約されたエンティティ間の接続数を表示します。"
+            }
+          }
+        }
+      }
+    }
+  },
+  "calendar": {
+    "incomplete": "未完了",
+    "completed": "完了",
+    "all": "すべて",
+    "inbox": "インボックス",
+    "memo": "メモ",
+    "taskNamePlaceholder": "タスク名",
+    "noteNamePlaceholder": "ノートタイトル",
+    "openDetail": "詳細を開く",
+    "startTimer": "タイマー開始",
+    "task": "タスク",
+    "note": "ノート",
+    "selectFolder": "フォルダ",
+    "routineIndicator": "{{completed}}/{{total}}",
+    "noteItem": "ノート",
+    "memoPreviewEmpty": "内容なし",
+    "allDay": "終日",
+    "startLabel": "開始",
+    "endLabel": "終了",
+    "clearSchedule": "スケジュールをクリア",
+    "clearTime": "時刻をクリア",
+    "deleteTaskTitle": "タスクを削除",
+    "deleteTaskMessage": "このタスクを削除しますか？",
+    "deleteNoteTitle": "ノートを削除",
+    "deleteNoteMessage": "このノートを削除しますか？",
+    "contentType": "コンテンツ",
+    "filterAll": "すべて",
+    "filterDaily": "デイリー",
+    "filterNotes": "ノート",
+    "filterTasks": "タスク",
+    "daily": "デイリー",
+    "dailyExists": "この日付のデイリーは既に存在します",
+    "filters": "フィルター",
+    "status": "ステータス",
+    "folder": "フォルダ",
+    "createTask": "タスク",
+    "createNote": "ノート",
+    "createDaily": "日記",
+    "createEvent": "予定を作成",
+    "createRoutine": "ルーティン",
+    "newRoutinePlaceholder": "名前なしのルーティン",
+    "eventTitle": "タイトル",
+    "eventMemo": "メモ",
+    "calendarTags": "カレンダータグ",
+    "startTime": "開始",
+    "endTime": "終了",
+    "roleTask": "タスク",
+    "roleEvent": "予定",
+    "roleNote": "ノート",
+    "roleDaily": "デイリー",
+    "conversionSuccess": "{{role}}に変換しました",
+    "goToTarget": "{{role}}へ移動",
+    "searchPlaceholder": "アイテムを検索..."
+  },
+  "search": {
+    "placeholder": "タスクを検索...",
+    "noResults": "一致するタスクはありません",
+    "clear": "検索をクリア",
+    "rootLevel": "ルート直下",
+    "searchSettings": "設定を検索...",
+    "searchTrash": "ゴミ箱を検索..."
+  },
+  "common": {
+    "cancel": "キャンセル",
+    "ok": "OK",
+    "delete": "削除",
+    "confirm": "確認",
+    "save": "保存",
+    "close": "閉じる",
+    "comingSoon": "Coming Soon",
+    "undo": "元に戻す",
+    "redo": "やり直す",
+    "reloadApp": "アプリを再読み込み",
+    "create": "作成",
+    "edit": "編集",
+    "openManagement": "管理画面を開く",
+    "untitled": "無題"
+  },
+  "tasks": {
+    "title": "Tasks"
+  },
+  "memoTree": {
+    "title": "メモツリー",
+    "daily": "デイリー",
+    "notes": "ノート"
+  },
+  "tabs": {
+    "taskTree": "タスクツリー",
+    "memoTree": "メモツリー",
+    "tasks": "タスク",
+    "schedule": "スケジュール",
+    "incomplete": "未完了",
+    "complete": "完了",
+    "calendar": "カレンダー",
+    "dayflow": "デイフロー",
+    "routine": "ルーティン",
+    "events": "予定",
+    "overview": "概要",
+    "detail": "詳細",
+    "tree": "ツリー"
+  },
+  "taskStatus": {
+    "notStarted": "未着手",
+    "inProgress": "進行中",
+    "done": "完了",
+    "all": "すべて",
+    "markDone": "完了にする",
+    "markInProgress": "進行中に戻す",
+    "noCompleted": "完了済みタスクなし"
+  },
+  "commandPalette": {
+    "placeholder": "コマンドを入力...",
+    "noResults": "結果が見つかりません",
+    "goTo": "移動"
+  },
+  "section": {
+    "tasks": "タスク",
+    "daily": "デイリー",
+    "notes": "ノート",
+    "schedule": "スケジュール",
+    "tags": "タグ",
+    "settings": "設定",
+    "trash": "ゴミ箱"
+  },
+  "music": {
+    "title": "ミュージック",
+    "stop": "停止",
+    "play": "再生",
+    "manageTags": "タグ管理",
+    "work": "ワーク",
+    "rest": "レスト",
+    "noSoundsRest": "サウンドが選択されていません。",
+    "addSoundHint": "「サウンドを追加」をクリックして始めましょう。",
+    "addSound": "サウンドを追加",
+    "selectSound": "サウンドを選択",
+    "searchSounds": "サウンドを検索...",
+    "noSoundsAvailable": "利用可能なサウンドはありません",
+    "addCustomSound": "カスタムサウンドを追加",
+    "custom": "カスタム",
+    "allSounds": "すべてのサウンド",
+    "noSoundsAll": "検索に一致するサウンドがありません。",
+    "preview": "プレビュー",
+    "stopPreview": "プレビュー停止",
+    "save": "保存",
+    "saved": "保存済み",
+    "deleteConfirm": "「{{name}}」を削除しますか？この操作は元に戻せません。",
+    "disable": "無効化",
+    "enable": "有効化",
+    "editName": "名前を編集",
+    "removeFromSlot": "削除",
+    "searchByNameOrTag": "名前/タグで検索...",
+    "sortDefault": "デフォルト",
+    "sortName": "名前順",
+    "sortCustomFirst": "カスタム優先",
+    "soundLibrary": "サウンドライブラリ",
+    "searchAll": "名前またはタグで検索...",
+    "addToPlaylist": "プレイリストに追加",
+    "selectedCount": "{{count}}件選択中",
+    "alreadyInPlaylist": "追加済み"
+  },
+  "playlist": {
+    "playlists": "プレイリスト",
+    "back": "戻る",
+    "create": "新規",
+    "defaultName": "無題のプレイリスト",
+    "empty": "プレイリストがありません。作成して始めましょう。",
+    "tracks": "曲",
+    "addTrack": "サウンドを追加",
+    "noTracks": "トラックがありません。サウンドを追加してください。",
+    "noTrack": "トラックなし",
+    "selectPlaylist": "プレイリストを選択してください。",
+    "shuffle": "シャッフル",
+    "repeat": "リピート",
+    "playManual": "再生",
+    "stop": "停止",
+    "stopManual": "停止",
+    "removeFromPlaylist": "プレイリストから除去"
+  },
+  "notes": {
+    "title": "ノート",
+    "newNote": "新しいノート",
+    "newFolder": "新しいフォルダ",
+    "searchNotes": "ノートを検索...",
+    "noMatching": "一致するノートがありません",
+    "noNotes": "ノートはまだありません",
+    "untitled": "無題",
+    "sortUpdated": "更新日順",
+    "sortCreated": "作成日順",
+    "sortTitle": "タイトル順"
+  },
+  "contextMenu": {
+    "rename": "名前を変更",
+    "addTask": "タスクを追加",
+    "addFolder": "プロジェクトを追加",
+    "completeFolder": "フォルダを完了",
+    "markIncomplete": "未完了に戻す",
+    "startTimer": "タイマーを開始",
+    "moveToRoot": "ルートに移動",
+    "delete": "削除",
+    "changeIcon": "アイコンを変更",
+    "removeIcon": "アイコンを削除",
+    "pin": "ピン留め",
+    "unpin": "ピン留め解除",
+    "copyToFiles": "ファイルにコピー"
+  },
+  "copy": {
+    "copyToFiles": "ファイルにコピー",
+    "copyToNote": "ノートにコピー",
+    "copyToMemo": "メモにコピー",
+    "selectDate": "対象日付を選択",
+    "copiedToFile": "ファイルにコピーしました: {{path}}",
+    "copiedToNote": "ノートを作成しました: {{title}}",
+    "copiedToMemo": "メモを更新しました: {{date}}",
+    "copyFailed": "コピーに失敗しました"
+  },
+  "taskActions": {
+    "completeFolder": "フォルダを完了",
+    "markIncomplete": "未完了に戻す"
+  },
+  "taskSelector": {
+    "createNewTask": "新しいタスクを作成...",
+    "newTaskIn": "{{folder}} に新しいタスク...",
+    "taskName": "タスク名...",
+    "noTasks": "タスクがありません"
+  },
+  "sessionModal": {
+    "workComplete": "WORK完了！",
+    "takeBreak": "休憩する",
+    "completeTask": "タスクを完了する",
+    "extend": "延長する",
+    "minutes": "{{min}}分",
+    "restComplete": "REST完了！",
+    "getStarted": "作業を開始する"
+  },
+  "calendarHeader": {
+    "today": "今日",
+    "month": "月表示",
+    "week": "週表示",
+    "day": "日",
+    "holidays": "祝日"
+  },
+  "calendarSidebar": {
+    "title": "スケジュール",
+    "newCalendar": "新しいカレンダー",
+    "allTasks": "すべてのタスク",
+    "rename": "名前を変更",
+    "delete": "削除",
+    "empty": "カレンダーはまだありません。フォルダでタスクをフィルターするために作成しましょう。",
+    "tasksTab": "タスク",
+    "memoTab": "メモ"
+  },
+  "calendarCreate": {
+    "title": "新しいカレンダー",
+    "titleLabel": "タイトル",
+    "placeholder": "カレンダー名",
+    "folderLabel": "フォルダ",
+    "noFolders": "フォルダがありません。先にフォルダを作成してください。",
+    "cancel": "キャンセル",
+    "create": "作成"
+  },
+  "notesView": {
+    "untitled": "無題",
+    "unpin": "ピン解除",
+    "pin": "ピン留め",
+    "favorite": "お気に入りに追加",
+    "unfavorite": "お気に入りから削除",
+    "loadingEditor": "エディタを読み込み中...",
+    "emptyState": "ノートを選択するか、新しく作成してください"
+  },
+  "folderFilter": {
+    "all": "すべて",
+    "filterByFolder": "フォルダでフィルター"
+  },
+  "taskDetail": {
+    "start": "開始",
+    "useGlobalDefault": "デフォルトを使用 ({{min}}分)",
+    "schedule": "スケジュール設定",
+    "allDay": "終日",
+    "startTime": "開始",
+    "endTime": "終了",
+    "showEndTime": "終了時刻",
+    "clearSchedule": "スケジュールをクリア",
+    "emptyState": "タスクを選択して詳細を表示"
+  },
+  "taskDetailPanel": {
+    "selectTask": "タスクを選択して詳細を表示",
+    "totalTasks": "合計: {{count}} タスク",
+    "incomplete": "未完了: {{count}}",
+    "completed": "完了: {{count}}"
+  },
+  "taskDetailSidebar": {
+    "memo": "メモ",
+    "memoPlaceholder": "メモを追加...",
+    "folderColor": "フォルダカラー",
+    "folderIcon": "アイコンを変更",
+    "schedule": "スケジュール",
+    "duration": "作業時間",
+    "noSelection": "タスクまたはフォルダを選択して詳細を表示",
+    "dontShowAgain": "今後表示しない"
+  },
+  "folderContents": {
+    "title": "コンテンツ",
+    "folders": "フォルダ",
+    "tasks": "タスク",
+    "empty": "空"
+  },
+  "taskTreeHeader": {
+    "allTasks": "すべてのタスク",
+    "navigateToFolder": "フォルダへ移動"
+  },
+  "music.saved": "保存しました！",
+  "music.save": "保存",
+  "music.deleteConfirm": "「{{name}}」を削除しますか？",
+  "music.preview": "プレビュー",
+  "music.stopPreview": "プレビュー停止",
+  "dayFlow": {
+    "filterAll": "すべて",
+    "filterRoutine": "ルーティン",
+    "filterTasks": "タスク",
+    "filterEvents": "予定",
+    "filterDaily": "デイリー",
+    "filterNotes": "ノート",
+    "addTask": "タスクを追加",
+    "selectTime": "時間を設定",
+    "noItems": "項目なし",
+    "sidebarProgress": "進捗",
+    "routineManagement": "ルーティン管理",
+    "dualColumn": "2カラム",
+    "singleColumn": "1カラム",
+    "selectRoutine": "ルーティンを選ぶ",
+    "selectTask": "タスクを選ぶ",
+    "selectEvent": "イベントを選ぶ",
+    "selectNote": "ノートを選ぶ",
+    "itemCount": "{{count}}件"
+  },
+  "timeGridContextMenu": {
+    "complete": "完了にする",
+    "uncomplete": "未完了に戻す",
+    "edit": "編集",
+    "delete": "削除",
+    "addMemo": "メモを追加",
+    "extend15": "+15分延長",
+    "shrink15": "-15分短縮",
+    "copyTime": "時間をコピー",
+    "moveToDay": "別の日に移動",
+    "linkToTask": "タスクにリンク",
+    "convertToRoutine": "ルーティンに変換",
+    "duplicate": "複製"
+  },
+  "groupContextMenu": {
+    "edit": "グループを編集",
+    "dismissToday": "今日だけ非表示",
+    "dismissItem": "今日だけ非表示",
+    "deleteGroup": "グループを削除"
+  },
+  "routineGroup": {
+    "groups": "グループ",
+    "create": "グループ作成",
+    "createNew": "グループ追加",
+    "edit": "グループ編集",
+    "untitled": "未設定",
+    "assignToGroup": "所属グループ",
+    "noGroupsHint": "グループがまだありません — 上の「グループ追加」から作成してください。",
+    "name": "グループ名",
+    "namePlaceholder": "例: 朝のルーティン",
+    "color": "カラー",
+    "noGroups": "グループがありません",
+    "members": "ルーティン",
+    "timeRange": "時間帯",
+    "slideHint": "開始時間を変更するとメンバー全ルーティンがシフトします",
+    "memberRoutines": "メンバールーティン",
+    "noTimeSet": "時間未設定"
+  },
+  "statusBar": {
+    "terminal": "ターミナル",
+    "open": "開",
+    "mcpServer": "MCP Server",
+    "claude": {
+      "idle": "Claude: 待機中",
+      "thinking": "Claude: 思考中",
+      "generating": "Claude: 生成中",
+      "tool_use": "Claude: ツール使用中",
+      "error": "Claude: エラー"
+    }
+  },
+  "dateTime": {
+    "justNow": "たった今",
+    "minutesAgo": "{{count}}分前",
+    "hoursAgo": "{{count}}時間前",
+    "yesterday": "昨日",
+    "daysAgo": "{{count}}日前",
+    "created": "作成日",
+    "updated": "更新日",
+    "loadingEditor": "エディタを読み込み中..."
+  },
+  "noteLinks": {
+    "linkToNote": "ノートへのリンク",
+    "embedNote": "ノートを埋め込み",
+    "noResults": "該当するノートがありません"
+  },
+  "backlinks": {
+    "title": "被リンク",
+    "unlinkedMentions": "未リンク言及",
+    "empty": "このノートへのリンクはまだありません。",
+    "noUnlinkedMentions": "未リンクの言及はありません。",
+    "loading": "読み込み中..."
+  },
+  "wikiTags": {
+    "title": "タグ",
+    "description": "タスク・メモ・ノート全体で使用するウィキタグを管理します。エディタで @タグ名 と入力するとインラインタグを作成できます。",
+    "selectOrCreate": "タグを選択または作成",
+    "createNew": "作成",
+    "create": "作成",
+    "addTag": "タグを追加",
+    "searchPlaceholder": "タグを検索...",
+    "tagNamePlaceholder": "タグ名...",
+    "noResults": "タグが見つかりません",
+    "empty": "タグはまだありません。エディタで @タグ名 と入力して作成できます。",
+    "deleteConfirm": "「{{name}}」を削除しますか？",
+    "merge": "統合",
+    "mergeSelectTarget": "統合先のタグをクリックしてください",
+    "mergeInto": "ここに統合",
+    "createTag": "「{{name}}」を作成",
+    "editTag": "タグを編集"
+  },
+  "colorPicker": {
+    "presets": "プリセット",
+    "custom": "カスタム",
+    "hexLabel": "HEX",
+    "backgroundColor": "背景色",
+    "textColor": "文字色",
+    "default": "デフォルト"
+  },
+  "taskDetail.timeMemo": "タイムメモ",
+  "soundEffects": {
+    "title": "効果音",
+    "taskComplete": "タスク完了",
+    "sessionStart": "セッション開始",
+    "sessionComplete": "セッション完了",
+    "pomodoroComplete": "ポモドーロ完了",
+    "confetti": "視覚エフェクト",
+    "confettiLabel": "紙吹雪アニメーション",
+    "confettiDescription": "タスク完了時に紙吹雪を表示する"
+  },
+  "events": {
+    "emptyState": "予定を選択してください",
+    "noEvents": "予定なし",
+    "filterIncomplete": "未完了",
+    "filterCompleted": "完了",
+    "createEvent": "予定を作成",
+    "titlePlaceholder": "予定のタイトル",
+    "untitled": "無題"
+  },
+  "eventDetail": {
+    "timeMemo": "メモ",
+    "memoPlaceholder": "メモを追加...",
+    "delete": "予定を削除",
+    "deleteTitle": "予定の削除",
+    "deleteMessage": "この予定を削除しますか？",
+    "markComplete": "完了にする",
+    "markIncomplete": "未完了に戻す"
+  },
+  "database": {
+    "loading": "読み込み中...",
+    "notFound": "データベースが見つかりません",
+    "empty": "空のデータベース",
+    "addProperty": "プロパティを追加",
+    "newRow": "新規",
+    "filter": "フィルター",
+    "filterValue": "値",
+    "sort": "ソート",
+    "ascending": "昇順",
+    "descending": "降順",
+    "propertyNamePlaceholder": "プロパティ名",
+    "propertyDefaultName": "プロパティ",
+    "typeLabel": "タイプ",
+    "noOptions": "オプションなし",
+    "nameProperty": "名前",
+    "invalidName": "その名前は無効です",
+    "createOption": "作成",
+    "searchOrCreate": "検索または作成...",
+    "types": {
+      "text": "テキスト",
+      "number": "数値",
+      "select": "セレクト",
+      "date": "日付",
+      "checkbox": "チェックボックス"
+    },
+    "operators": {
+      "equals": "等しい",
+      "not_equals": "等しくない",
+      "contains": "を含む",
+      "not_contains": "を含まない",
+      "is_empty": "空",
+      "is_not_empty": "空でない",
+      "greater_than": "より大きい",
+      "less_than": "より小さい",
+      "is_checked": "チェック済み",
+      "is_not_checked": "未チェック",
+      "before": "より前",
+      "after": "より後"
+    },
+    "contextMenu": {
+      "rename": "名前を変更",
+      "changeType": "タイプを変更",
+      "delete": "プロパティを削除",
+      "overflow": {
+        "wrap": "セル内容を折り返す",
+        "truncate": "セル内容を省略する"
+      }
+    },
+    "aggregation": {
+      "label": "集計",
+      "none": "なし",
+      "sum": "合計",
+      "count": "すべてカウント",
+      "countValues": "値をカウント",
+      "countChecked": "チェック済み",
+      "countUnchecked": "未チェック",
+      "avg": "平均",
+      "min": "最小",
+      "max": "最大"
+    }
+  },
+  "screenLock": {
+    "setPassword": "パスワードを設定",
+    "changePassword": "パスワードを変更",
+    "removePassword": "パスワードを解除",
+    "enterPassword": "パスワードを入力",
+    "newPassword": "新しいパスワード",
+    "confirmPassword": "パスワード確認",
+    "currentPassword": "現在のパスワード",
+    "unlock": "解除",
+    "clickToUnlock": "クリックして解除",
+    "passwordSet": "パスワードが設定されました",
+    "passwordRemoved": "パスワードが解除されました",
+    "passwordChanged": "パスワードが変更されました",
+    "incorrectPassword": "パスワードが正しくありません",
+    "passwordsMismatch": "パスワードが一致しません",
+    "passwordTooShort": "パスワードは4文字以上で入力してください",
+    "locked": "ロック中",
+    "moreOptions": "その他のオプション",
+    "lockEditing": "編集をロック",
+    "unlockEditing": "編集ロックを解除",
+    "editLocked": "編集ロック中"
+  },
+  "blockMenu": {
+    "turnInto": "変換",
+    "color": "カラー",
+    "background": "背景",
+    "duplicate": "複製",
+    "delete": "削除",
+    "addIcon": "アイコンを追加",
+    "textColors": {
+      "default": "デフォルト",
+      "red": "赤",
+      "blue": "青",
+      "green": "緑",
+      "yellow": "黄",
+      "gray": "グレー",
+      "purple": "紫",
+      "orange": "オレンジ"
+    },
+    "bgColors": {
+      "default": "デフォルト",
+      "gray": "グレー",
+      "blue": "青",
+      "green": "緑",
+      "yellow": "黄",
+      "red": "赤",
+      "purple": "紫"
+    },
+    "calloutColors": {
+      "default": "デフォルト",
+      "blue": "青",
+      "green": "緑",
+      "yellow": "黄",
+      "red": "赤",
+      "purple": "紫"
+    },
+    "turnIntoItems": {
+      "paragraph": "段落",
+      "heading1": "見出し 1",
+      "heading2": "見出し 2",
+      "heading3": "見出し 3",
+      "blockquote": "引用",
+      "codeBlock": "コードブロック",
+      "bulletList": "箇条書き",
+      "orderedList": "番号付きリスト",
+      "taskList": "タスクリスト",
+      "callout": "コールアウト",
+      "toggleList": "トグルリスト"
+    }
+  },
+  "iconPicker": {
+    "search": "アイコンを検索...",
+    "empty": "アイコンが見つかりません",
+    "remove": "削除"
+  },
+  "mobile": {
+    "header": {
+      "menu": "メニューを開く"
+    },
+    "drawer": {
+      "title": "メニュー",
+      "navigation": "ナビゲーション",
+      "sectionContent": "セクションの内容",
+      "sectionContentEmpty": "このセクションには追加の内容はありません。"
+    },
+    "tabs": {
+      "materials": "マテリアル",
+      "schedule": "スケジュール",
+      "work": "作業",
+      "settings": "設定",
+      "daily": "日記",
+      "notes": "ノート"
+    },
+    "calendar": {
+      "monthly": "月表示",
+      "dayflow": "デイフロー",
+      "today": "今日",
+      "tasks": "タスク",
+      "schedule": "スケジュール",
+      "empty": "この日の予定はありません",
+      "itemCount": "{{count}}件",
+      "moreCount": "+{{count}}件",
+      "search": "検索"
+    },
+    "schedule": {
+      "allDay": "終日",
+      "addFirst": "追加する",
+      "create": "新規追加",
+      "itemCount": "{{count}}件",
+      "empty": "スケジュールはありません",
+      "subTab": {
+        "calendar": "カレンダー",
+        "dayflow": "デイフロー"
+      },
+      "daySheet": {
+        "edit": "編集",
+        "empty": "予定はありません",
+        "todayPrefix": "今日 · "
+      },
+      "dayflow": {
+        "today": "今日",
+        "now": "現在",
+        "todayBadge": "今日"
+      },
+      "form": {
+        "dateLabel": "日付",
+        "startLabel": "開始",
+        "endLabel": "終了"
+      }
+    },
+    "daily": {
+      "today": "今日",
+      "empty": "まだ日記がありません",
+      "placeholder": "自由に書いてください..."
+    },
+    "note": {
+      "new": "新規",
+      "empty": "ノートはまだありません",
+      "untitled": "無題",
+      "titlePlaceholder": "タイトル",
+      "contentPlaceholder": "書き始める..."
+    },
+    "work": {
+      "selectTask": "タスクを選択...",
+      "searchTask": "タスクを検索...",
+      "clearTask": "タスク選択を解除",
+      "noTasks": "タスクが見つかりません",
+      "focusTitle": "フォーカス",
+      "activeTaskLabel": "取り組み中",
+      "sessionLabel": {
+        "work": "集中セッション",
+        "break": "休憩",
+        "longBreak": "長休憩"
+      },
+      "session": {
+        "work": "集中",
+        "break": "休憩",
+        "longBreak": "長休憩"
+      },
+      "sessionSub": {
+        "work": "{{minutes}}分",
+        "break": "{{minutes}}分",
+        "longBreak": "{{minutes}}分"
+      },
+      "remaining": "残り {{minutes}} 分 {{seconds}} 秒",
+      "dotsProgress": "今日 {{done}} / {{total}} セッション完了",
+      "controls": {
+        "reset": "リセット",
+        "skip": "スキップ"
+      }
+    },
+    "settings": {
+      "connection": "接続",
+      "connected": "デスクトップに接続中",
+      "disconnected": "未接続",
+      "disconnect": "切断",
+      "theme": "テーマ",
+      "language": "言語",
+      "fontSize": "フォントサイズ",
+      "notifications": {
+        "title": "通知",
+        "enable": "通知を有効にする",
+        "permissionBlocked": "システムで通知がブロックされています",
+        "unsupported": "この端末では利用できません",
+        "routineReminders": "ルーティンのリマインダー",
+        "taskDeadlineReminders": "タスク期限のリマインダー"
+      },
+      "timer": {
+        "title": "タイマー既定値",
+        "workDuration": "集中",
+        "breakDuration": "休憩",
+        "longBreakDuration": "長休憩",
+        "runningNote": "タイマーを停止すると既定値を変更できます。"
+      },
+      "trash": {
+        "title": "ゴミ箱",
+        "empty": "ゴミ箱は空です",
+        "restore": "復元",
+        "permanentDelete": "完全に削除",
+        "truncatedNote": "最新100件を表示中。残りはデスクトップで管理してください。"
+      }
+    },
+    "connection": {
+      "subtitle": "デスクトップアプリに接続",
+      "howTo": "接続方法",
+      "step1": "デスクトップでLife Editorを開く",
+      "step2": "設定 → 「モバイルアクセス」を開く",
+      "step3": "QRコードをスキャンするか、以下にURLを貼り付け",
+      "connecting": "接続中...",
+      "connect": "接続",
+      "error": "接続に失敗しました。URLを確認してください。",
+      "invalidUrl": "無効なURLです。QRコードを使うか、接続URLを貼り付けてください。"
+    }
+  },
+  "templates": {
+    "title": "テンプレート",
+    "untitled": "無題のテンプレート",
+    "empty": "テンプレートがありません",
+    "defaultNote": "ノートのデフォルトに設定",
+    "defaultDaily": "デイリーのデフォルトに設定",
+    "removeDefault": "デフォルトを解除",
+    "delete": "削除",
+    "deleteConfirm": "このテンプレートを削除しますか？",
+    "deleteDefaultWarning": "デフォルトに設定中のテンプレートです。削除しますか？",
+    "editContent": "テンプレート内容を編集",
+    "rename": "名前を変更",
+    "selectTemplate": "テンプレートを選択してください",
+    "defaultNoteShort": "ノートデフォルト",
+    "defaultDailyShort": "デイリーデフォルト"
+  },
+  "errors": {
+    "timer": {
+      "fetchSettingsFailed": "タイマー設定の読み込みに失敗しました",
+      "sessionStartFailed": "タイマーセッションの開始に失敗しました",
+      "sessionEndFailed": "タイマーセッションの終了に失敗しました",
+      "updateSettingsFailed": "タイマー設定の更新に失敗しました"
+    },
+    "sync": {
+      "loadStatusFailed": "同期ステータスの読み込みに失敗しました",
+      "operationFailed": "同期に失敗しました: {{error}}",
+      "configureFailed": "同期の設定に失敗しました: {{error}}",
+      "disconnectFailed": "切断に失敗しました: {{error}}"
+    },
+    "schedule": {
+      "loadFailed": "スケジュールの読み込みに失敗しました",
+      "loadTasksFailed": "タスクの読み込みに失敗しました",
+      "loadMonthFailed": "月次データの読み込みに失敗しました",
+      "toggleFailed": "スケジュールアイテムの切替に失敗しました",
+      "toggleTaskFailed": "タスクの切替に失敗しました",
+      "saveFailed": "スケジュールアイテムの保存に失敗しました",
+      "deleteFailed": "スケジュールアイテムの削除に失敗しました"
+    }
+  }
+}

@@ -33,10 +33,24 @@ import { getSupabaseClient } from "../services/supabaseClient";
 /**
  * Every owned table whose changes should trigger a refetch. Mirrors the
  * 0008 unified schema (items_meta + 5 payloads + routine groups + the
- * wiki_tag graph) plus `calendars` (0006). Kept in sync with the
- * `supabase_realtime` publication in 0017_realtime_publication.sql — a
- * table missing from EITHER list means that domain will not follow
- * cross-tab edits. Do not drop the wiki_tag_* rows.
+ * wiki_tag graph) plus `calendars` (0006), and the W3 timer/audio tables
+ * (0018). Kept in sync with the `supabase_realtime` publication declared
+ * across 0017_realtime_publication.sql + 0018_timer_audio_tables.sql — a
+ * table missing from EITHER side means that domain will not follow cross-tab
+ * edits. Do not drop the wiki_tag_* rows. The lockstep test
+ * (syncRealtimeTables.test.ts) enforces the union match.
+ *
+ * W3-B note: 0018 publishes all six timer/sound tables to supabase_realtime,
+ * so the lockstep invariant requires subscribing to all six here. Of these
+ * only `timer_settings` / `pomodoro_presets` have a live W3-B consumer (the
+ * TimerProvider refetches settings + presets on a syncVersion bump). The
+ * others are subscribed for invariant parity but currently have no consumer:
+ *  - `timer_sessions` is write-heavy (a row per start/close). The 300 ms
+ *    debounce collapses bursts, and the coarse refetch is cheap for the N=1
+ *    build, so the extra bumps are tolerable; a future optimisation could
+ *    drop it from the publication if it proves noisy.
+ *  - the three sound tables (`sound_settings` / `playlists` /
+ *    `playlist_items`) gain their consumer in W3-C (Audio Mixer).
  */
 export const REALTIME_TABLES = [
   "items_meta",
@@ -53,6 +67,13 @@ export const REALTIME_TABLES = [
   "wiki_tag_assignments",
   "wiki_tag_connections",
   "calendars",
+  // W3 timer/audio (0018)
+  "timer_settings",
+  "pomodoro_presets",
+  "timer_sessions",
+  "sound_settings",
+  "playlists",
+  "playlist_items",
 ] as const;
 
 const DEBOUNCE_MS = 300;

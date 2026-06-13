@@ -1,7 +1,19 @@
-import { lazy, Suspense, useMemo, useState } from "react";
+import { lazy, Suspense, useCallback, useMemo, useState } from "react";
 import {
-  createSupabaseDataService,
+  CheckSquare,
+  CalendarDays,
+  FileText,
+  Clock,
+  Tag,
+  Timer as TimerIcon,
+  Settings as SettingsIcon,
+  Trash2,
+  type LucideIcon,
+} from "lucide-react";
+import {
+  getDataService,
   signOut,
+  CommandPalette,
   SyncProvider,
   TaskTreeProvider,
   DailiesUnifiedProvider,
@@ -10,9 +22,13 @@ import {
   ScheduleItemsProvider,
   CalendarProvider,
   WikiTagsUnifiedProvider,
-  type DataService,
+  ShortcutConfigProvider,
+  TimerProvider,
+  useTranslation,
+  type Command,
   type Session,
 } from "@life-editor/shared";
+import { TrashScreen } from "./trash/TrashScreen";
 import { TaskTreeView } from "./tasks/TaskTreeView";
 import { DailyView } from "./daily/DailyView";
 // NotesView pulls in the TipTap editor stack (core/react/starter-kit +
@@ -29,6 +45,9 @@ import { ScheduleItemsView } from "./schedule/ScheduleItemsView";
 import { RoutineScheduleSync } from "./schedule/RoutineScheduleSync";
 import { CalendarView } from "./schedule/CalendarView";
 import { WikiTagsManagementView } from "./wikitag";
+import { SettingsScreen } from "./settings/SettingsScreen";
+import { WorkScreen } from "./work/WorkScreen";
+import { GlobalShortcuts } from "./GlobalShortcuts";
 
 /*
  * Phase 2 S1+S2 host shell.
@@ -53,29 +72,105 @@ import { WikiTagsManagementView } from "./wikitag";
  * add Notes / Schedule / WikiTags.
  */
 
-let dataServiceSingleton: DataService | null = null;
-function getDataService(): DataService {
-  if (!dataServiceSingleton) {
-    dataServiceSingleton = createSupabaseDataService();
-  }
-  return dataServiceSingleton;
-}
+type Section =
+  | "tasks"
+  | "daily"
+  | "notes"
+  | "schedule"
+  | "work"
+  | "tags"
+  | "settings"
+  | "trash";
 
-type Section = "tasks" | "daily" | "notes" | "schedule" | "tags";
+const SECTIONS: readonly Section[] = [
+  "tasks",
+  "daily",
+  "notes",
+  "schedule",
+  "work",
+  "tags",
+  "settings",
+  "trash",
+];
+
+const SECTION_ICON: Record<Section, LucideIcon> = {
+  tasks: CheckSquare,
+  daily: CalendarDays,
+  notes: FileText,
+  schedule: Clock,
+  work: TimerIcon,
+  tags: Tag,
+  settings: SettingsIcon,
+  trash: Trash2,
+};
 
 export function MainScreen({ session }: { session: Session }) {
+  const { t } = useTranslation();
   const ds = useMemo(() => getDataService(), []);
   const [section, setSection] = useState<Section>("tasks");
+  const [paletteOpen, setPaletteOpen] = useState(false);
+
+  // global:new-task executor (W3-B). The web has no shell-level "create task"
+  // entry — task creation lives inside TaskTreeView, which is section-scoped
+  // behind its own Provider, so a true create-and-focus can't be driven from
+  // here without lifting that state. Navigating to the Tasks section is the
+  // honest, clean receiver: it takes the user to the task surface where the
+  // new-task input lives. (Lifting create-task state to the shell is W4.)
+  const handleNewTask = useCallback(() => setSection("tasks"), []);
+
+  const commands = useMemo<Command[]>(() => {
+    const goTo = t("commandPalette.goTo", { defaultValue: "Go to" });
+    return SECTIONS.map((s) => ({
+      id: `section-${s}`,
+      title: t(`section.${s}`, { defaultValue: s }),
+      category: goTo,
+      icon: SECTION_ICON[s],
+      action: () => setSection(s),
+    }));
+  }, [t]);
 
   return (
     <SyncProvider>
-      <div className="min-h-screen bg-notion-bg p-6 text-notion-text">
-        <div className="mx-auto max-w-2xl space-y-4">
-          <header className="flex flex-wrap items-center justify-between gap-2">
-            <div className="flex items-center gap-3">
-              <nav className="flex flex-wrap gap-1" aria-label="Sections">
-                {(["tasks", "daily", "notes", "schedule", "tags"] as const).map(
-                  (s) => (
+      {/*
+       * ShortcutConfigProvider (W1) is a Mobile 省略 Provider (CLAUDE.md §2),
+       * mounted here on the web host only. Per §6.2 Theme is outer (it lives
+       * in main.tsx); Shortcut sits inner — here just inside Sync and OUTSIDE
+       * the section switch, so the (currently settings-only) consumer reads a
+       * stable Provider regardless of the active section.
+       */}
+      <ShortcutConfigProvider>
+        {/*
+         * Global shortcut executor (W3-0/W3-B). Headless — sits inside the
+         * ShortcutConfigProvider (MainScreen's own body can't read
+         * useShortcutConfig) and wires keydown to section nav + palette toggle.
+         * Reads the live (rebindable) config, so Settings rebinds apply at
+         * once. new-task is wired (W3-B) → navigate to the Tasks section
+         * (the shell has no create-and-focus surface; that lifts in W4).
+         * undo / redo still have no web surface (no UndoRedo on web yet) →
+         * left unwired = no-op until W4 (see Worklog rationale).
+         */}
+        <GlobalShortcuts
+          onNavigate={setSection}
+          onOpenSettings={() => setSection("settings")}
+          onTogglePalette={() => setPaletteOpen((v) => !v)}
+          onNewTask={handleNewTask}
+        />
+        {/*
+         * TimerProvider (W3-B) — REQUIRED Provider (Timer is enabled on Mobile,
+         * NOT a §2 省略 Provider). Mounted ONCE at the shell level (inside Sync,
+         * which it reads; §6.2 places it after the Schedule trio and OUTSIDE the
+         * section switch) so the Pomodoro keeps running while the user navigates
+         * away from the Work tab. The future W3-C AudioProvider nests INSIDE
+         * this (§6.2: … → Timer → Audio → …), which is why TimerProvider is the
+         * inner-most shell Provider here. DataService is injected (§6.4).
+         */}
+        <TimerProvider dataService={ds}>
+        <div className="min-h-screen bg-notion-bg p-6 text-notion-text">
+          <div className="mx-auto max-w-2xl space-y-4">
+            <header className="flex flex-wrap items-center justify-between gap-2">
+              <div className="flex items-center gap-3">
+                <nav className="flex flex-wrap gap-1" aria-label="Sections">
+                  {SECTIONS.map((s) => (
                     <button
                       key={s}
                       type="button"
@@ -89,110 +184,149 @@ export function MainScreen({ session }: { session: Session }) {
                     >
                       {s}
                     </button>
-                  ),
-                )}
-              </nav>
-            </div>
-            <div className="flex items-center gap-3">
-              <span className="max-w-[45vw] truncate text-sm text-notion-text-secondary sm:max-w-none">
-                {session.user.email}
-              </span>
-              <button
-                type="button"
-                onClick={() => void signOut()}
-                className="rounded-md border border-notion-border px-3 py-1.5 text-sm text-notion-text hover:bg-notion-hover"
-              >
-                Sign out
-              </button>
-            </div>
-          </header>
-
-          {section === "tasks" && (
-            <WikiTagsUnifiedProvider dataService={ds}>
-              <TaskTreeProvider dataService={ds}>
-                <TaskTreeView />
-              </TaskTreeProvider>
-            </WikiTagsUnifiedProvider>
-          )}
-          {section === "daily" && (
-            <WikiTagsUnifiedProvider dataService={ds}>
-              <DailiesUnifiedProvider dataService={ds}>
-                <DailyView />
-              </DailiesUnifiedProvider>
-            </WikiTagsUnifiedProvider>
-          )}
-          {section === "notes" && (
-            <WikiTagsUnifiedProvider dataService={ds}>
-              <NotesUnifiedProvider dataService={ds}>
-                <Suspense
-                  fallback={
-                    <p className="text-notion-text-secondary">Loading notes…</p>
-                  }
+                  ))}
+                </nav>
+              </div>
+              <div className="flex items-center gap-3">
+                <span className="max-w-[45vw] truncate text-sm text-notion-text-secondary sm:max-w-none">
+                  {session.user.email}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => void signOut()}
+                  className="rounded-md border border-notion-border px-3 py-1.5 text-sm text-notion-text hover:bg-notion-hover"
                 >
-                  <NotesView />
-                </Suspense>
-              </NotesUnifiedProvider>
-            </WikiTagsUnifiedProvider>
-          )}
-          {/*
-           * Schedule pair order (CLAUDE.md §6.2): Routine →
-           * ScheduleItems. Each inner Provider may read the outer one
-           * (ScheduleItems sits INSIDE Routine — §6.2 order, top-down).
-           * The historical calendar-tag layer was dropped in DU-C+/DU-F;
-           * WikiTagsUnified replaces it as the 5-role tag/link surface.
-           *
-           * CalendarProvider is NOT part of the schedule pair — frontend
-           * keeps it higher and enabled on Mobile (CLAUDE.md §2); it is
-           * mounted here just inside Sync (only needs DataService + Sync).
-           *
-           * The Routine→schedule_items generator (S4-5) is the headless
-           * RoutineScheduleSync, mounted inside the Providers so it can
-           * read the live routine set + anchored date.
-           */}
-          {section === "schedule" && (
-            /*
-             * TaskTreeProvider is mounted here so CalendarView can offer
-             * a folder-task <select> (bug1 fix): `calendars.folder_id`
-             * FKs tasks(id) with ON DELETE CASCADE — a free-text id hit
-             * a 409 calendars_folder_id_fkey. It sits just inside Sync
-             * (only needs DataService + Sync) and OUTSIDE the schedule
-             * trio, so the §6.2 trio dependency order is unchanged.
-             *
-             * WikiTagsUnifiedProvider sits next to TaskTreeProvider —
-             * it only needs DataService + Sync and provides Tag/Link
-             * surface for ScheduleItemsView (Event Tag/Link UI, DU-F
-             * Step 7). CalendarTagsProvider was removed in DU-F Step 3-4
-             * (DB DROPped in DU-C+ 0012; UI death-code purged here).
-             */
-            <TaskTreeProvider dataService={ds}>
+                  Sign out
+                </button>
+              </div>
+            </header>
+
+            {section === "tasks" && (
               <WikiTagsUnifiedProvider dataService={ds}>
-                <CalendarProvider dataService={ds}>
-                  <RoutineProvider dataService={ds}>
-                    <ScheduleItemsProvider dataService={ds}>
-                      <RoutineScheduleSync dataService={ds} />
-                      <ScheduleView />
-                      <ScheduleItemsView />
-                      <CalendarView />
-                    </ScheduleItemsProvider>
-                  </RoutineProvider>
-                </CalendarProvider>
+                <TaskTreeProvider dataService={ds}>
+                  <TaskTreeView />
+                </TaskTreeProvider>
               </WikiTagsUnifiedProvider>
-            </TaskTreeProvider>
-          )}
-          {/*
-           * Tags management (DU-F Step 11). Only needs Sync +
-           * WikiTagsUnifiedProvider — no role data, since this view edits
-           * the tag/group master itself. Lives in its own section so the
-           * row-level TagPicker (4 roles) and the master CRUD don't share
-           * UI surface.
-           */}
-          {section === "tags" && (
-            <WikiTagsUnifiedProvider dataService={ds}>
-              <WikiTagsManagementView />
-            </WikiTagsUnifiedProvider>
-          )}
+            )}
+            {section === "daily" && (
+              <WikiTagsUnifiedProvider dataService={ds}>
+                <DailiesUnifiedProvider dataService={ds}>
+                  <DailyView />
+                </DailiesUnifiedProvider>
+              </WikiTagsUnifiedProvider>
+            )}
+            {section === "notes" && (
+              <WikiTagsUnifiedProvider dataService={ds}>
+                <NotesUnifiedProvider dataService={ds}>
+                  <Suspense
+                    fallback={
+                      <p className="text-notion-text-secondary">
+                        Loading notes…
+                      </p>
+                    }
+                  >
+                    <NotesView />
+                  </Suspense>
+                </NotesUnifiedProvider>
+              </WikiTagsUnifiedProvider>
+            )}
+            {/*
+             * Schedule pair order (CLAUDE.md §6.2): Routine →
+             * ScheduleItems. Each inner Provider may read the outer one
+             * (ScheduleItems sits INSIDE Routine — §6.2 order, top-down).
+             * The historical calendar-tag layer was dropped in DU-C+/DU-F;
+             * WikiTagsUnified replaces it as the 5-role tag/link surface.
+             *
+             * CalendarProvider is NOT part of the schedule pair — frontend
+             * keeps it higher and enabled on Mobile (CLAUDE.md §2); it is
+             * mounted here just inside Sync (only needs DataService + Sync).
+             *
+             * The Routine→schedule_items generator (S4-5) is the headless
+             * RoutineScheduleSync, mounted inside the Providers so it can
+             * read the live routine set + anchored date.
+             */}
+            {section === "schedule" && (
+              /*
+               * TaskTreeProvider is mounted here so CalendarView can offer
+               * a folder-task <select> (bug1 fix): `calendars.folder_id`
+               * FKs tasks(id) with ON DELETE CASCADE — a free-text id hit
+               * a 409 calendars_folder_id_fkey. It sits just inside Sync
+               * (only needs DataService + Sync) and OUTSIDE the schedule
+               * trio, so the §6.2 trio dependency order is unchanged.
+               *
+               * WikiTagsUnifiedProvider sits next to TaskTreeProvider —
+               * it only needs DataService + Sync and provides Tag/Link
+               * surface for ScheduleItemsView (Event Tag/Link UI, DU-F
+               * Step 7). CalendarTagsProvider was removed in DU-F Step 3-4
+               * (DB DROPped in DU-C+ 0012; UI death-code purged here).
+               */
+              <TaskTreeProvider dataService={ds}>
+                <WikiTagsUnifiedProvider dataService={ds}>
+                  <CalendarProvider dataService={ds}>
+                    <RoutineProvider dataService={ds}>
+                      <ScheduleItemsProvider dataService={ds}>
+                        <RoutineScheduleSync dataService={ds} />
+                        <ScheduleView />
+                        <ScheduleItemsView />
+                        <CalendarView />
+                      </ScheduleItemsProvider>
+                    </RoutineProvider>
+                  </CalendarProvider>
+                </WikiTagsUnifiedProvider>
+              </TaskTreeProvider>
+            )}
+            {/*
+             * Tags management (DU-F Step 11). Only needs Sync +
+             * WikiTagsUnifiedProvider — no role data, since this view edits
+             * the tag/group master itself. Lives in its own section so the
+             * row-level TagPicker (4 roles) and the master CRUD don't share
+             * UI surface.
+             */}
+            {section === "tags" && (
+              <WikiTagsUnifiedProvider dataService={ds}>
+                <WikiTagsManagementView />
+              </WikiTagsUnifiedProvider>
+            )}
+            {/*
+             * Settings (W1) — host shell. Reads useThemeContext +
+             * useShortcutConfig (the ShortcutConfigProvider wrapping this whole
+             * shell) and injects values + t() copy into the shared pure
+             * primitives. No extra Provider needed here.
+             */}
+            {section === "settings" && <SettingsScreen />}
+            {/*
+             * Work (W3-B) — Pomodoro timer + TaskSelector + settings/preset
+             * editor. The TimerProvider is mounted at the shell level (above),
+             * so this view only reads useTimerContext + feeds the shared pure
+             * primitives. The view itself fetches the task list via the
+             * injected DataService (hosts may call getDataService — §6.4).
+             * History / Music / FREE were dropped (section-unification 確定).
+             */}
+            {section === "work" && <WorkScreen dataService={ds} />}
+            {/*
+             * Trash (W2). Crosses all five soft-delete categories, so it does
+             * NOT use any per-section Provider — the host TrashScreen calls
+             * the injected DataService directly and feeds the pure shared
+             * TrashView (CLAUDE.md §6.4: hosts may call getDataService).
+             */}
+            {section === "trash" && <TrashScreen dataService={ds} />}
+          </div>
         </div>
-      </div>
+
+        {/*
+         * Command palette mounted ONCE at the shell level, outside the
+         * section switch (so Cmd+K works from any section). Copy is injected
+         * as props — the primitive never calls useTranslation (§6.4).
+         */}
+        <CommandPalette
+          isOpen={paletteOpen}
+          onClose={() => setPaletteOpen(false)}
+          commands={commands}
+          placeholder={t("commandPalette.placeholder")}
+          noResultsLabel={t("commandPalette.noResults")}
+        />
+        </TimerProvider>
+      </ShortcutConfigProvider>
     </SyncProvider>
   );
 }

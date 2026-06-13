@@ -1,6 +1,10 @@
 export type { DataService } from "./services/DataService";
 export { createSupabaseDataService } from "./services/SupabaseDataService";
 export {
+  getDataService,
+  setDataServiceForTest,
+} from "./services/dataServiceFactory";
+export {
   signUp,
   signIn,
   signOut,
@@ -36,6 +40,50 @@ export {
 } from "./context";
 export { useTaskTreeContext } from "./hooks/useTaskTreeContext";
 export { useSyncContext } from "./hooks/useSyncContext";
+
+// Theme domain (W1) — Pattern A Provider + context hook. Web-lean (theme /
+// fontSize / language). Persists via useLocalStorage; language forwards to
+// the shared i18next singleton. useLocalStorage is exported for hosts/tests.
+export {
+  ThemeProvider,
+  ThemeContext,
+  type ThemeContextValue,
+  type Theme,
+  type FontSize,
+  type Language,
+} from "./context";
+export { useThemeContext } from "./hooks/useThemeContext";
+export { useLocalStorage } from "./hooks/useLocalStorage";
+
+// Shortcut domain (W1) — types + defaults + Pattern A Provider + OPTIONAL
+// context hook. Web-lean ID set (see types/shortcut.ts). Mobile 省略 Provider
+// (CLAUDE.md §2): mount on web/desktop only, consume via useShortcutConfig.
+export type {
+  ShortcutId,
+  ShortcutCategory,
+  ShortcutDefinition,
+  ShortcutConfig,
+  KeyBinding,
+} from "./types/shortcut";
+export { DEFAULT_SHORTCUTS } from "./constants/defaultShortcuts";
+export { ShortcutConfigProvider } from "./context";
+export {
+  ShortcutConfigContext,
+  type ShortcutConfigContextValue,
+} from "./context";
+export { useShortcutConfig } from "./hooks/useShortcutConfig";
+// W3-0: global keydown executor. Headless hook the host mounts inside the
+// ShortcutConfigProvider; reads the live (rebindable) config via matchEvent and
+// fires injected callbacks. Pure helpers exported for unit tests.
+export {
+  useGlobalShortcuts,
+  resolveShortcut,
+  isEditableTarget,
+  hasAccelerator,
+  isActiveInInput,
+  type GlobalShortcutHandlers,
+  type NavSection,
+} from "./hooks/useGlobalShortcuts";
 export {
   useTaskTreeAPI,
   type UseTaskTreeAPIOptions,
@@ -108,8 +156,11 @@ export {
 // Routine→schedule_items generator (S4-5). Verbatim-ported pure
 // functions + DI generator hook. The pure functions are exported so the
 // host (and tests) can exercise the decision logic without React; the
-// hook injects DataService + an onChanged refresh signal (web
-// syncVersion is static — CLAUDE.md §6.4 DI, no module singleton).
+// hook injects DataService + an onChanged refresh signal (schedule rows
+// persist as role='event' into items_meta + events_payload, which DO
+// auto-bump syncVersion via S8 Realtime; onChanged is the immediate
+// same-domain refresh that skips the Realtime latency — CLAUDE.md §6.4
+// DI, no module singleton).
 export { shouldRoutineRunOnDate } from "./utils/routineFrequency";
 export {
   diffRoutineScheduleItems,
@@ -159,6 +210,36 @@ export type {
   WikiTagGroupAssignment as WikiTagGroupAssignmentUnified,
 } from "./types/wikiTagUnified";
 
+// Timer domain (W3-B) — Pomodoro Provider + context hook + pure reducer
+// helpers (start-time based) + domain types. The reducer helpers are
+// exported so hosts/tests can compute elapsed/remaining without the Provider.
+export { TimerProvider, type TimerProviderProps } from "./context";
+export {
+  TimerContext,
+  type TimerContextValue,
+  type TimerPhase,
+  type ActiveTask,
+} from "./context";
+export { useTimerContext } from "./hooks/useTimerContext";
+export {
+  timerReducer,
+  createInitialState,
+  phaseDurationSeconds,
+  remainingSeconds,
+  elapsedSeconds,
+  nextBreakPhase,
+  DEFAULT_CONFIG,
+  type TimerState,
+  type TimerAction,
+  type TimerConfig,
+} from "./context/timerReducer";
+export type {
+  TimerSettings,
+  TimerSession,
+  PomodoroPreset,
+  SessionType,
+} from "./types/timer";
+
 // Tasks domain — tree utilities (host UI builds on these)
 export {
   getDescendantTasks,
@@ -175,3 +256,20 @@ export {
   computeNoteDropIntent,
   type NoteDropPosition,
 } from "./utils/noteDropIntent";
+
+// Design system (W0-3) — cross-platform UI primitives. Case A: shared
+// owns the UI layer (lucide-react etc.). notion-* tokens come from
+// ./styles/tokens.css, which hosts @import + @source-scan.
+export * from "./components";
+
+// i18n (W0-4) — shared en/ja catalog + configured i18next singleton.
+// Hosts import { i18n, I18nProvider } to wrap their tree, then SCREENS
+// call useTranslation (also re-exported here). Primitives never do —
+// copy reaches them via props (CLAUDE.md §6.4).
+export {
+  i18n,
+  I18nProvider,
+  useTranslation,
+  Trans,
+  LANGUAGE_STORAGE_KEY,
+} from "./i18n";

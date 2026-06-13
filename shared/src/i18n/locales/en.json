@@ -1,0 +1,2704 @@
+{
+  "sidebar": {
+    "tasks": "Tasks",
+    "memo": "Memo",
+    "music": "Music",
+    "work": "Work",
+    "schedule": "Schedule",
+    "analytics": "Analytics",
+    "settings": "Settings",
+    "tips": "Tips",
+    "materials": "Materials",
+    "connect": "Connect",
+    "trash": "Trash",
+    "freeSession": "Free Session",
+    "launchClaude": "Launch Claude",
+    "tipsButton": "Tips"
+  },
+  "sidebarLinks": {
+    "sectionTitle": "Links",
+    "add": "Add link",
+    "addTitle": "Add Link",
+    "editTitle": "Edit Link",
+    "empty": "No links yet",
+    "kindLabel": "Type",
+    "kindUrl": "URL",
+    "kindApp": "App (macOS)",
+    "nameLabel": "Display name",
+    "namePlaceholderUrl": "Anthropic",
+    "namePlaceholderApp": "Slack",
+    "urlLabel": "URL",
+    "appLabel": "Application",
+    "appSearchPlaceholder": "Search /Applications…",
+    "appNoResults": "No apps found",
+    "emojiLabel": "Emoji (optional)",
+    "iconLabel": "Icon (optional)",
+    "iconModeEmoji": "Emoji",
+    "iconModeLucide": "Lucide",
+    "iconSearchPlaceholder": "Search Lucide icons…",
+    "iconNoResults": "No icons found",
+    "itemMenu": "Options",
+    "iosAppUnsupported": "Apps cannot be launched on iOS",
+    "editOnDesktop": "Edit links from the desktop app"
+  },
+  "settings": {
+    "title": "Settings",
+    "general": "General",
+    "notificationsTab": "Notifications",
+    "dataTab": "Data",
+    "advancedTab": "Advanced",
+    "shortcutsTab": "Shortcuts",
+    "calendarReset": {
+      "title": "Bulk delete calendar data",
+      "description": "Move the selected data to Trash (soft delete). Choosing \"Routines\" also deletes the schedule entries generated from those routines. Everything can be restored from Trash at any time.",
+      "openButton": "Open bulk delete",
+      "selectAll": "Select all",
+      "deselectAll": "Clear selection",
+      "confirm": "Delete selected",
+      "cancel": "Cancel",
+      "footnote": "Soft-deleted items remain in Trash and can be restored later.",
+      "success": "Deleted — tasks {{tasks}} / events {{events}} / routines {{routines}} (incl. {{cascaded}} generated entries) / dailies {{dailies}} / notes {{notes}}",
+      "failed": "Bulk delete failed: {{error}}",
+      "noSelection": "Select at least one kind to delete.",
+      "kinds": {
+        "tasks": "Scheduled tasks",
+        "events": "Events",
+        "routines": "Routines (also deletes generated entries)",
+        "dailies": "Dailies",
+        "notes": "Notes"
+      }
+    },
+    "claude": {
+      "title": "Claude Code",
+      "description": "Register the MCP Server so Claude Code can access your tasks, schedules, and memos via natural language.",
+      "register": "Register MCP Server",
+      "registering": "Registering...",
+      "success": "MCP Server registered successfully.",
+      "failed": "Registration failed: {{error}}",
+      "notInstalled": "Claude Code is not installed. Install it first, then try again.",
+      "setup": "Setup",
+      "mcpTools": "MCP Tools",
+      "claudeMd": "CLAUDE.md",
+      "skills": "Skills",
+      "mcpToolsDescription": "Available MCP tools that Claude Code can use to interact with your data.",
+      "claudeMdDescription": "Edit the CLAUDE.md instructions file used by Claude Code in ~/life-editor/.",
+      "skillsDescription": "Manage Claude Code skills installed in ~/life-editor/.claude/skills/.",
+      "save": "Save",
+      "saveSuccess": "Saved successfully.",
+      "saveFailed": "Failed to save.",
+      "install": "Install",
+      "uninstall": "Uninstall",
+      "installed": "Installed",
+      "scopeGlobal": "Global",
+      "scopeProject": "Project",
+      "noSkillsFound": "No available skills found.",
+      "toolParameters": "Parameters",
+      "required": "required",
+      "optional": "optional",
+      "toolCategories": {
+        "tasks": "Tasks",
+        "memos": "Memos",
+        "notes": "Notes",
+        "schedule": "Schedule",
+        "search": "Search",
+        "content": "Content",
+        "wikiTags": "Wiki Tags"
+      },
+      "tools": {
+        "list_tasks": {
+          "description": "Retrieve a list of tasks. You can filter by status, date range, or folder.",
+          "params": {
+            "status": "Filter by status (not started / in progress / done)",
+            "date_range": "Filter by date range (ISO 8601)",
+            "folder_id": "Filter by folder ID"
+          }
+        },
+        "get_task": {
+          "description": "Get a single task by its ID.",
+          "params": {
+            "id": "Task ID"
+          }
+        },
+        "get_task_tree": {
+          "description": "Get tasks as a folder hierarchy tree. Useful for seeing the big picture.",
+          "params": {
+            "root_id": "Folder/task ID to start from (omit for full tree)",
+            "include_done": "Include completed tasks (default: yes)",
+            "max_depth": "How many levels deep to retrieve (omit for unlimited)"
+          }
+        },
+        "create_task": {
+          "description": "Create a new task.",
+          "params": {
+            "title": "Task title",
+            "parent_id": "Folder to place the task in",
+            "scheduled_at": "Scheduled start (ISO 8601)",
+            "scheduled_end_at": "Scheduled end (ISO 8601)",
+            "is_all_day": "Make it an all-day event"
+          }
+        },
+        "update_task": {
+          "description": "Update an existing task. Only specify the fields you want to change.",
+          "params": {
+            "id": "Task ID",
+            "title": "New title",
+            "status": "New status (not started / in progress / done)",
+            "content": "New body text (Markdown)"
+          }
+        },
+        "delete_task": {
+          "description": "Move a task to the trash (can be restored later).",
+          "params": {
+            "id": "Task ID"
+          }
+        },
+        "get_memo": {
+          "description": "Get the daily memo for a specific date.",
+          "params": {
+            "date": "Date (YYYY-MM-DD)"
+          }
+        },
+        "upsert_memo": {
+          "description": "Create or update a daily memo.",
+          "params": {
+            "date": "Date (YYYY-MM-DD)",
+            "content": "Memo content (Markdown)"
+          }
+        },
+        "list_notes": {
+          "description": "List all notes. You can search by keyword.",
+          "params": {
+            "query": "Search keyword (searches title and content)"
+          }
+        },
+        "create_note": {
+          "description": "Create a new note.",
+          "params": {
+            "title": "Note title",
+            "content": "Note body (Markdown)"
+          }
+        },
+        "update_note": {
+          "description": "Update an existing note. Only specify the fields you want to change.",
+          "params": {
+            "id": "Note ID",
+            "title": "New title",
+            "content": "New body (Markdown)"
+          }
+        },
+        "list_schedule": {
+          "description": "Get the schedule (events and tasks) for a specific date.",
+          "params": {
+            "date": "Date (YYYY-MM-DD)"
+          }
+        },
+        "create_schedule_item": {
+          "description": "Create a new event on the calendar.",
+          "params": {
+            "date": "Date (YYYY-MM-DD)",
+            "title": "Event title",
+            "start_time": "Start time (HH:MM)",
+            "end_time": "End time (HH:MM)",
+            "is_all_day": "Make it an all-day event",
+            "note_id": "Link to an existing note",
+            "content": "Additional notes"
+          }
+        },
+        "update_schedule_item": {
+          "description": "Update an existing schedule event. Only specify the fields you want to change.",
+          "params": {
+            "id": "Event ID",
+            "title": "New title",
+            "start_time": "New start time (HH:MM)",
+            "end_time": "New end time (HH:MM)",
+            "memo": "Memo",
+            "is_all_day": "Make it an all-day event",
+            "content": "New additional notes"
+          }
+        },
+        "delete_schedule_item": {
+          "description": "Permanently delete a schedule event.",
+          "params": {
+            "id": "Event ID"
+          }
+        },
+        "toggle_schedule_complete": {
+          "description": "Toggle completion status of a schedule event.",
+          "params": {
+            "id": "Event ID"
+          }
+        },
+        "search_all": {
+          "description": "Search across tasks, memos, and notes with a keyword.",
+          "params": {
+            "query": "Search keyword",
+            "domains": "Where to search (tasks / memos / notes, default: all)",
+            "limit": "Max results per category (default: 10)"
+          }
+        },
+        "generate_content": {
+          "description": "Generate rich content (headings, lists, tables, etc.) and write it to a note or memo.",
+          "params": {
+            "target": "Where to write (note / memo)",
+            "structure": "Array of content blocks",
+            "target_id": "Existing note/memo ID to update (omit to create new)",
+            "title": "Title for new note"
+          }
+        },
+        "format_content": {
+          "description": "Restructure existing note or memo content. Wrap in callouts, add headings, and more.",
+          "params": {
+            "target": "Target type (note / memo)",
+            "operations": "Array of operations to apply",
+            "target_id": "Note ID",
+            "target_date": "Memo date (YYYY-MM-DD)"
+          }
+        },
+        "list_wiki_tags": {
+          "description": "List all wiki tags. Tags are labels that connect tasks, memos, and notes across domains.",
+          "params": {
+            "query": "Filter by tag name"
+          }
+        },
+        "tag_entity": {
+          "description": "Assign a wiki tag to a task, memo, or note. Creates the tag automatically if it doesn't exist.",
+          "params": {
+            "tag_name": "Tag name",
+            "entity_id": "Target ID",
+            "entity_type": "Target type (task / memo / note)"
+          }
+        },
+        "search_by_tag": {
+          "description": "Find tasks, memos, and notes that have a specific wiki tag.",
+          "params": {
+            "tag_name": "Tag name to search for",
+            "entity_type": "Narrow by type (task / memo / note, omit for all)"
+          }
+        },
+        "get_entity_tags": {
+          "description": "Get all wiki tags assigned to a specific task, memo, or note.",
+          "params": {
+            "entity_id": "Target ID (task, memo, or note)"
+          }
+        }
+      }
+    },
+    "shortcutLabels": {
+      "commandPalette": "Open command palette",
+      "openSettings": "Open settings",
+      "newTask": "Create new task",
+      "goToTasks": "Go to Tasks",
+      "goToDaily": "Go to Daily",
+      "goToNotes": "Go to Notes",
+      "goToSchedule": "Go to Schedule",
+      "goToTags": "Go to Tags",
+      "undo": "Undo",
+      "redo": "Redo"
+    },
+    "shortcuts": {
+      "heading": "Keyboard Shortcuts",
+      "resetAll": "Reset all shortcuts",
+      "reset": "Reset",
+      "change": "Change",
+      "pressKey": "Press a key combination...",
+      "conflict": "Already assigned to \"{{action}}\"",
+      "save": "Save",
+      "searchPlaceholder": "Search shortcuts...",
+      "noResults": "No shortcuts found",
+      "modified": "Modified",
+      "cancel": "Cancel",
+      "osGlobalShortcuts": "OS Global Shortcuts",
+      "osGlobalShortcutsDesc": "Work even when the app is not focused"
+    },
+    "appearance": "Appearance",
+    "darkMode": "Dark Mode",
+    "darkModeDesc": "Switch between light and dark themes",
+    "light": "Light",
+    "dark": "Dark",
+    "fontSize": "Font Size",
+    "fontSizeSmall": "Small",
+    "fontSizeLarge": "Large",
+    "language": "Language",
+    "languageDesc": "Choose interface language",
+    "english": "English",
+    "japanese": "Japanese",
+    "editorSettings": "Editor",
+    "editorFontSize": "Editor Font Size",
+    "editorFontFamily": "Font Family",
+    "editorLineHeight": "Line Height",
+    "editorPaddingInline": "Content Padding",
+    "developerTools": "Developer Tools",
+    "behaviors": "Behaviors",
+    "startupScreen": "Startup Screen",
+    "startupScreenDesc": "Choose which section opens when the app starts",
+    "defaultTaskFolder": "Default Task Folder",
+    "defaultTaskFolderDesc": "New tasks without a parent will be created in this folder",
+    "noDefaultFolder": "None (root level)",
+    "autoArchive": "Auto-archive Completed Tasks",
+    "autoArchiveDesc": "Automatically move completed tasks to trash after a set period",
+    "autoArchiveDays": "After {{days}} days",
+    "autoArchiveDisabled": "Disabled",
+    "hideCompletedTasks": "Hide Completed Tasks",
+    "hideCompletedTasksDesc": "Hide completed tasks from the task tree",
+    "autoCompleteParent": "Auto-complete Parent",
+    "autoCompleteParentDesc": "Automatically complete a folder when all its tasks are done",
+    "system": "System",
+    "autoLaunch": "Launch at Startup",
+    "autoLaunchDesc": "Automatically start Life Editor when you log in",
+    "startMinimized": "Start Minimized",
+    "startMinimizedDesc": "Launch the app in the background without showing the window",
+    "trayIcon": "System Tray Icon",
+    "trayIconDesc": "Show an icon in the system tray with timer display",
+    "browser": {
+      "title": "Default browser for sidebar links",
+      "description": "URL links from the sidebar open in this browser. Falls back to the system default when none is selected.",
+      "systemDefault": "System default",
+      "none": "No supported browsers detected in /Applications. The system default will be used."
+    },
+    "globalShortcuts": "Global Shortcuts",
+    "globalShortcutsDesc": "Keyboard shortcuts that work even when the app is not focused",
+    "toggleTimerShortcut": "Toggle Timer",
+    "quickAddTaskShortcut": "Quick Add Task",
+    "mobileAccess": {
+      "title": "Mobile Access",
+      "description": "Access Life Editor from your iPhone/iPad on the same WiFi network.",
+      "enable": "Enable Mobile Access",
+      "disable": "Disable Mobile Access",
+      "scanQr": "Scan this QR code with your phone's camera",
+      "copy": "Copy URL",
+      "copied": "Copied!",
+      "regenerate": "Regenerate Token (invalidates current sessions)"
+    }
+  },
+  "timerSettings": {
+    "title": "Timer",
+    "workDuration": "Work Duration",
+    "breakDuration": "Break Duration",
+    "longBreakDuration": "Long Break Duration",
+    "sessionsBeforeLongBreak": "Sessions Before Long Break",
+    "autoStartBreaks": "Auto-start Breaks",
+    "autoStartBreaksDesc": "Automatically start break timer when work session ends",
+    "targetSessions": "Daily Target Sessions",
+    "runningWarning": "Timer is running. Changes will apply to the next session.",
+    "minutes": "min"
+  },
+  "notifications": {
+    "title": "Notifications & Sounds",
+    "timerNotifications": "Timer notifications",
+    "blocked": "Notifications are blocked. Please enable them in browser settings.",
+    "description": "Get notified when work/break sessions end",
+    "completionSound": "Session Complete Sound",
+    "preview": "Preview"
+  },
+  "reminders": {
+    "title": "Reminders",
+    "taskReminders": "Task Due Date Reminders",
+    "taskRemindersDesc": "Get notified before a task's scheduled time",
+    "defaultOffset": "Default Reminder Time",
+    "offset5": "5 minutes before",
+    "offset10": "10 minutes before",
+    "offset15": "15 minutes before",
+    "offset30": "30 minutes before",
+    "offset60": "1 hour before",
+    "offset120": "2 hours before",
+    "offset1440": "1 day before",
+    "dailyReview": "Daily Review Reminder",
+    "dailyReviewDesc": "Get a notification to review and plan your day",
+    "dailyReviewTime": "Reminder Time",
+    "taskDueNotification": "Task due: {{title}}",
+    "itemReminderToggle": "Reminder",
+    "setReminder": "Set Reminder",
+    "removeReminder": "Remove Reminder",
+    "itemReminderNotification": "Upcoming: {{title}}"
+  },
+  "priority": {
+    "p1": "P1 - Urgent",
+    "p2": "P2 - High",
+    "p3": "P3 - Medium",
+    "p4": "P4 - Low",
+    "none": "No Priority",
+    "setPriority": "Set Priority"
+  },
+  "data": {
+    "title": "Data Management",
+    "export": "Export Data",
+    "import": "Import Data",
+    "importWarning": "Import will overwrite all current data. A backup is created automatically before importing.",
+    "exportSuccess": "Data exported successfully.",
+    "exportFailed": "Export failed: {{error}}",
+    "importSuccess": "Data imported. Reloading...",
+    "importFailed": "Import failed: {{error}}",
+    "reset": "Reset All Data",
+    "resetConfirm": "All data will be deleted and the app will return to its initial state. This action cannot be undone. A backup is created automatically before resetting. Are you sure?",
+    "resetSuccess": "Data reset. Reloading...",
+    "resetFailed": "Reset failed: {{error}}",
+    "unknownError": "Unknown error",
+    "openTrash": "Open Trash"
+  },
+  "sync": {
+    "title": "Cloud Sync",
+    "connected": "Connected",
+    "cloudUrl": "Cloud URL",
+    "token": "Sync Token",
+    "tokenPlaceholder": "Enter your sync token",
+    "connect": "Connect",
+    "connecting": "Connecting...",
+    "connectFailed": "Connection failed",
+    "disconnect": "Disconnect",
+    "syncNow": "Sync Now",
+    "syncing": "Syncing...",
+    "fullResync": "Full Re-sync",
+    "lastSynced": "Last synced",
+    "lastResult": "Last result",
+    "lastError": "Last error",
+    "deviceId": "Device ID"
+  },
+  "trash": {
+    "title": "Trash",
+    "empty": "Trash is empty",
+    "emptyCategory": "Empty {{category}} trash",
+    "emptyCategoryConfirm": "Permanently empty the {{category}} trash. {{count}} item(s) will be deleted forever and cannot be restored. Proceed?",
+    "emptyCategoryDone": "Emptied {{category}} trash ({{count}} item(s))",
+    "emptying": "Deleting...",
+    "tasks": "Tasks",
+    "notes": "Notes",
+    "restore": "Restore",
+    "deletePermanently": "Delete permanently",
+    "task": "task",
+    "note": "note",
+    "sounds": "Sounds",
+    "sound": "sound",
+    "tabTasks": "Tasks",
+    "tabRoutine": "Routine",
+    "tabEvents": "Events",
+    "tabMaterials": "Materials",
+    "tabMemo": "Memo",
+    "tabSounds": "Sounds",
+    "event": "event",
+    "events": "Events",
+    "folders": "Folders",
+    "routines": "Routines",
+    "routine": "routine",
+    "daily": "Daily",
+    "dailies": "Dailies",
+    "memo": "memo",
+    "loading": "Loading trash...",
+    "error": "Failed to load trash.",
+    "emptyCategoryLine": "No deleted items.",
+    "permanentDeleteConfirm": "Permanently delete \"{{name}}\"? This cannot be undone."
+  },
+  "updates": {
+    "title": "Updates",
+    "checkForUpdates": "Check for Updates",
+    "download": "Download",
+    "restartToUpdate": "Restart to Update",
+    "checking": "Checking for updates...",
+    "available": "Update v{{version}} is available.",
+    "upToDate": "You are running the latest version.",
+    "downloading": "Downloading... {{percent}}%",
+    "downloaded": "v{{version}} downloaded. Restart to apply.",
+    "error": "Update error: {{message}}",
+    "unknown": "Unknown"
+  },
+  "performance": {
+    "title": "Performance Monitor",
+    "appVersion": "App Version",
+    "dbSize": "DB Size",
+    "memory": "Memory (RSS)",
+    "refresh": "Refresh",
+    "resetMetrics": "Reset Metrics",
+    "channelsTracked": "{{count}} channels tracked",
+    "noMetrics": "No IPC metrics recorded yet. Use the app and refresh.",
+    "channel": "Channel",
+    "calls": "Calls",
+    "avg": "Avg (ms)",
+    "max": "Max (ms)",
+    "total": "Total (ms)",
+    "dbTables": "Database Tables"
+  },
+  "logs": {
+    "title": "Application Logs",
+    "all": "All",
+    "error": "Error",
+    "warn": "Warn",
+    "info": "Info",
+    "refresh": "Refresh",
+    "openFolder": "Open Folder",
+    "export": "Export",
+    "loading": "Loading...",
+    "noEntries": "No log entries found."
+  },
+  "work": {
+    "title": "Work",
+    "tabTimer": "Timer",
+    "tabPomodoro": "Pomodoro",
+    "tabMusic": "Music",
+    "tabHistory": "History",
+    "history": {
+      "last7Days": "Last 7 days",
+      "empty": "No recorded sessions yet. Start a Pomodoro or Free session to begin."
+    },
+    "toast": {
+      "recordedToTask": "✓ Recorded {{minutes}}min to {{task}}",
+      "recordedFreeWork": "✓ Recorded {{minutes}}min"
+    },
+    "setBackgroundSound": "Set Background Sound",
+    "noPlaylist": "No playlist (silent)",
+    "backgroundPlaylist": "Background Playlist",
+    "playingPlaylist": "Playing: {{name}}",
+    "sidebar": {
+      "nowPlaying": "Now Playing",
+      "noPlaylist": "No playlist active",
+      "pomodoroSettings": "Pomodoro Settings",
+      "todayStats": "Today's Sessions",
+      "sessions": "{{count}} sessions",
+      "totalTime": "{{minutes}} min",
+      "workTime": "Work Time",
+      "targetSessions": "Target",
+      "goalTime": "Goal Time",
+      "sessionsProgress": "{{completed}} / {{target}} sessions",
+      "timeProgress": "{{actual}}m / {{goal}}m",
+      "selectPlaylist": "Select playlist",
+      "selectNone": "None"
+    },
+    "freeSession": "Free Session",
+    "sessionComplete": "Session Complete",
+    "taskComplete": "Task Complete",
+    "confirmSessionTitle": "End Session",
+    "confirmSessionMessage": "End this session and start a break?",
+    "confirmTaskTitle": "Complete Task",
+    "confirmTaskMessage": "Mark this task as complete?",
+    "controls": {
+      "start": "Start",
+      "pause": "Pause",
+      "reset": "Reset",
+      "skip": "Skip"
+    },
+    "phase": {
+      "WORK": "Work",
+      "BREAK": "Break",
+      "LONG_BREAK": "Long Break"
+    },
+    "taskSelector": {
+      "heading": "Linked Task",
+      "placeholder": "Select a task…",
+      "none": "No tasks available",
+      "clear": "Clear task"
+    },
+    "settings": {
+      "minutesUnit": "min",
+      "presetNamePlaceholder": "Preset name",
+      "saveAsPreset": "Save",
+      "apply": "Apply"
+    }
+  },
+  "pomodoro": {
+    "title": "Pomodoro Settings",
+    "workDuration": "Work duration per session",
+    "breakDuration": "Break duration between sessions",
+    "longBreakDuration": "Long break duration between sets",
+    "sessionsPerSet": "Sessions per set",
+    "presets": "Presets",
+    "saveAsPreset": "Save current as preset",
+    "presetName": "Preset name",
+    "deletePreset": "Delete preset",
+    "currentConfig": "Current Config",
+    "autoStartBreaks": "Auto-start breaks",
+    "todaySessions": "Today's sessions",
+    "todayWorkTime": "Today's work time",
+    "adjustTime": "Adjust time"
+  },
+  "timer": {
+    "work": "WORK",
+    "rest": "REST",
+    "longRest": "LONG REST"
+  },
+  "taskTree": {
+    "title": "Task Tree",
+    "newTask": "New task...",
+    "newFolder": "New project...",
+    "completed": "Completed",
+    "newFolderDefault": "New Folder",
+    "newTaskDefault": "New Task",
+    "folderCompleteConfirm": "All incomplete tasks in the folder will also be marked as completed. Are you sure?",
+    "deleteConfirm": "Delete \"{{name}}\"? It will be moved to Trash.",
+    "taskComplete": "{{name}} Complete!",
+    "sort": "Sort",
+    "sortAscending": "Ascending",
+    "sortDescending": "Descending",
+    "sortManual": "Manual",
+    "sortStatus": "Status",
+    "sortSchedule": "Scheduled date",
+    "sortPriority": "Priority",
+    "undo": "Undo",
+    "redo": "Redo",
+    "move": {
+      "circularReference": "Cannot move a folder into its own subfolder",
+      "deletedNode": "Cannot move a deleted item. Restore it first."
+    },
+    "completeFolder": "Complete"
+  },
+  "memo": {
+    "title": "Memo",
+    "daily": "Daily",
+    "notes": "Notes"
+  },
+  "materials": {
+    "title": "Materials"
+  },
+  "files": {
+    "settingsTitle": "File Explorer",
+    "rootFolder": "Root Folder",
+    "rootFolderDescription": "Select the folder to browse in the Files tab. Only files within this folder will be accessible.",
+    "browse": "Browse",
+    "notConfigured": "Not configured",
+    "resetToDefault": "Reset to default path",
+    "noRootPath": "No folder configured. Set it in Settings.",
+    "configureInSettings": "Go to Settings > Advanced > Files to configure.",
+    "newFile": "New File",
+    "newFolder": "New Folder",
+    "refresh": "Refresh",
+    "emptyFolder": "This folder is empty",
+    "rename": "Rename",
+    "delete": "Delete",
+    "openInSystem": "Open in System App",
+    "save": "Save",
+    "unsaved": "Unsaved",
+    "close": "Close",
+    "root": "Root",
+    "fileNamePlaceholder": "File name...",
+    "folderNamePlaceholder": "Folder name...",
+    "open": "Open",
+    "copyPath": "Copy Path"
+  },
+  "connect": {
+    "title": "Connect",
+    "toggleConnectMode": "Connect mode: drag between nodes to link",
+    "linkEdges": "Note links",
+    "panel": {
+      "title": "Link these two",
+      "searchPlaceholder": "Search tags or type a new name...",
+      "createNew": "Create \"{{name}}\" as a new tag",
+      "connect": "Connect",
+      "cancel": "Cancel",
+      "alreadyLinked": "already on both",
+      "noTags": "No tags yet"
+    },
+    "graph": {
+      "search": "Search nodes...",
+      "nodeTypes": "Node Types",
+      "tags": "Tags",
+      "localGraph": "Local Graph",
+      "display": "Display",
+      "forces": "Forces",
+      "showOrphans": "Show orphans",
+      "showLabels": "Show labels",
+      "repel": "Repel",
+      "linkDistance": "Link distance",
+      "center": "Center",
+      "collide": "Collide",
+      "clearFilters": "Clear filters",
+      "noMatch": "No nodes match the current filters",
+      "reheat": "Reheat",
+      "resetView": "Reset view",
+      "togglePanel": "Toggle panel",
+      "closePanel": "Close panel",
+      "depth": "Depth",
+      "off": "off",
+      "connections": "Connections",
+      "selectNodeHint": "Select a node on the canvas to enable Local Graph",
+      "tapHint": "Tap a node to center it. Drag to move. Pinch / scroll to zoom.",
+      "links": "links",
+      "tagsShort": "tags",
+      "match_one": "{{count}} match",
+      "match_other": "{{count}} matches",
+      "typeProject": "Project",
+      "typeNote": "Note",
+      "typeDaily": "Daily",
+      "typeTag": "Tag"
+    }
+  },
+  "ideas": {
+    "title": "Connect",
+    "daily": "Daily",
+    "notes": "Notes",
+    "files": "Files",
+    "connect": "Connect",
+    "materials": "Materials",
+    "favorites": "Favorites",
+    "searchMaterials": "Search notes and memos...",
+    "searchTagsAndNotes": "Search tags and notes...",
+    "createNoteWithTag": "New note with tag",
+    "noSearchResults": "No results found",
+    "selectTagToSearch": "Select a tag to search",
+    "cooccurrence": "co-occurrence",
+    "manualConnection": "manual connection",
+    "graphEmpty": "No notes or memos yet. Create a note to see the canvas.",
+    "untagged": "Untagged",
+    "deleteConnection": "Delete connection?",
+    "newNoteButton": "+ New Note",
+    "openNote": "Open note",
+    "openMemo": "Open memo",
+    "noteColor": "Note color",
+    "showAllNodes": "Show all nodes",
+    "relations": "Relations",
+    "linkTags": "Link tags",
+    "deleteNote": "Delete note",
+    "deleteMemo": "Delete memo",
+    "tagDots": "Tags",
+    "noteConnection": "Note connection",
+    "sharedTags": "shared tags",
+    "editItem": "Edit",
+    "editName": "Name",
+    "untaggedLabel": "Untagged",
+    "pointView": "Point",
+    "paperView": "Paper",
+    "boards": "Boards",
+    "newBoard": "New Board",
+    "deleteBoard": "Delete board",
+    "deleteBoardConfirm": "Are you sure you want to delete this board? This action cannot be undone.",
+    "addCard": "Add Card",
+    "addTextBlock": "Add Text",
+    "addFrame": "Add Frame",
+    "node": "Node",
+    "board": "Board",
+    "createBoard": "Create Board",
+    "linkToExistingNote": "Link to existing note",
+    "newBlankBoard": "New blank board",
+    "emptyBoardMessage": "No boards yet. Create one to get started.",
+    "searchBoards": "Search boards..."
+  },
+  "schedule": {
+    "todayFlow": "Today Flow",
+    "noItems": "No items for this day",
+    "complete": "Complete",
+    "undoComplete": "Undo Complete",
+    "dayFlow": "Day Flow",
+    "routines": "Routines",
+    "newRoutine": "New Routine",
+    "editRoutine": "Edit Routine",
+    "editEvent": "Edit Event",
+    "editTask": "Edit Task",
+    "routineTitle": "Title",
+    "routineTitlePlaceholder": "Routine name",
+    "start": "Start",
+    "end": "End",
+    "create": "Create",
+    "removeFromDay": "Remove from day",
+    "fullscreen": "Fullscreen",
+    "exitFullscreen": "Exit fullscreen",
+    "achievement": "Achievement",
+    "achievementDetails": "Achievement Details",
+    "routineFlow": "Routine Flow",
+    "frequency": "Frequency",
+    "frequencyDaily": "Daily",
+    "frequencyWeekdays": "Specific days",
+    "frequencyInterval": "Every N days",
+    "frequencyGroup": "Group",
+    "everyNDays": "Every {{n}} days",
+    "intervalDays": "Interval (days)",
+    "startDate": "Start date",
+    "sun": "Sun",
+    "mon": "Mon",
+    "tue": "Tue",
+    "wed": "Wed",
+    "thu": "Thu",
+    "fri": "Fri",
+    "sat": "Sat",
+    "achieved": "Achieved",
+    "notAchieved": "Not Achieved",
+    "achievementRate": "Achieved: {{completed}}/{{total}} ({{rate}}%)",
+    "noRoutineItems": "No routine items for this day.",
+    "noActiveRoutines": "No active routines for today.",
+    "searchTasks": "Search tasks...",
+    "searchEvents": "Search events...",
+    "stats": {
+      "title": "Stats",
+      "details": "Details",
+      "dayStreak": "day streak",
+      "currentStreak": "Current",
+      "longestStreak": "Longest",
+      "totalAchievedDays": "Days",
+      "perRoutine": "Per Routine",
+      "individual": "Individual",
+      "groups": "Groups",
+      "monthlyHeatmap": "90-Day Heatmap"
+    },
+    "routineDeleteConfirm": {
+      "title": "Delete Routine",
+      "description": "How would you like to remove \"{{title}}\"?",
+      "dismissOnly": "Remove for today only",
+      "dismissOnlyDesc": "Hides it from today's schedule. It will appear again tomorrow.",
+      "archiveRoutine": "Remove from future schedules",
+      "archiveRoutineDesc": "Archives the routine so it won't be auto-generated anymore. You can restore it from routine management.",
+      "cancel": "Cancel"
+    },
+    "routineTimeChange": {
+      "title": "Update routine time?",
+      "description": "\"{{title}}\" was changed to {{time}}.",
+      "thisOnly": "This time only",
+      "thisOnlyDesc": "Only change today's schedule. The routine template stays the same.",
+      "applyToRoutine": "Update routine template",
+      "applyToRoutineDesc": "Also update the routine's default time for future schedules."
+    },
+    "routineEditTimeChange": {
+      "title": "Update existing schedules?",
+      "description": "\"{{title}}\" template time was changed to {{time}}.",
+      "templateOnly": "Template only",
+      "templateOnlyDesc": "Only change the routine's default time. Existing schedules are not affected.",
+      "applyToAll": "Update existing schedules",
+      "applyToAllDesc": "Also update all scheduled items from today onward."
+    },
+    "itemTitlePlaceholder": "Schedule item name",
+    "allDay": "All day",
+    "materials": "Materials",
+    "dailyMemo": "Daily"
+  },
+  "schedulePanel": {
+    "existingTasks": "Existing Tasks",
+    "newTask": "New Task",
+    "scheduled": "scheduled",
+    "searchTasks": "Search tasks",
+    "allDay": "All day",
+    "endTime": "End time",
+    "noTasksFound": "No tasks found",
+    "existingNote": "Existing Note",
+    "newNote": "New Note",
+    "searchNotes": "Search notes...",
+    "noteTitle": "Note title",
+    "untitledNote": "Untitled",
+    "noNotes": "No notes found",
+    "tabTask": "Task",
+    "tabEvent": "Event",
+    "tabRoutine": "Routine",
+    "useExisting": "Select existing"
+  },
+  "analytics": {
+    "title": "Analytics",
+    "tabs": {
+      "overview": "Overview",
+      "time": "Time",
+      "tasks": "Tasks",
+      "schedule": "Schedule",
+      "materials": "Materials",
+      "work": "Work",
+      "connect": "Connect"
+    },
+    "totalTasks": "Total Tasks",
+    "completed": "Completed",
+    "inProgress": "In Progress",
+    "folders": "Folders",
+    "todayRate": "Today's Completion Rate",
+    "totalRate": "Total Completion Rate",
+    "comingSoon": "More detailed analytics coming soon.",
+    "workTime": "Work Time",
+    "taskWorkTime": "Work Time by Task",
+    "period": {
+      "day": "Day",
+      "week": "Week",
+      "month": "Month"
+    },
+    "totalWorkTime": "Total Work Time",
+    "sessions": "Sessions",
+    "avgPerDay": "Avg / Day",
+    "hours": "{{hours}}h {{minutes}}m",
+    "noSessions": "No work sessions recorded yet. Start a timer to track your work time.",
+    "today": {
+      "title": "Today",
+      "workTime": "Work Time",
+      "completedTasks": "Completed",
+      "pomodoroCount": "Pomodoros"
+    },
+    "weekly": {
+      "title": "Weekly Comparison",
+      "thisWeek": "This Week",
+      "lastWeek": "Last Week",
+      "change": "Change",
+      "workTimeLabel": "Work Time",
+      "sessionsLabel": "Sessions",
+      "completedLabel": "Completed"
+    },
+    "streak": {
+      "title": "Streaks",
+      "current": "Current",
+      "longest": "Longest",
+      "days": "days",
+      "noStreak": "Start working to build a streak!"
+    },
+    "heatmap": {
+      "title": "Activity Heatmap",
+      "tooltip": "{{minutes}} min",
+      "mon": "Mon",
+      "tue": "Tue",
+      "wed": "Wed",
+      "thu": "Thu",
+      "fri": "Fri",
+      "sat": "Sat",
+      "sun": "Sun"
+    },
+    "pomodoroRate": {
+      "title": "Pomodoro Completion Rate",
+      "actual": "Actual",
+      "target": "Target"
+    },
+    "workBreak": {
+      "title": "Work / Break Balance",
+      "work": "Work",
+      "break": "Break",
+      "longBreak": "Long Break"
+    },
+    "timeline": {
+      "title": "Daily Timeline",
+      "noSessions": "No sessions for this day"
+    },
+    "taskTrend": {
+      "title": "Task Completion Trend",
+      "completedCount": "Completed"
+    },
+    "stagnation": {
+      "title": "Task Age Distribution",
+      "tasks": "tasks"
+    },
+    "projectTime": {
+      "title": "Work Time by Project",
+      "noData": "No project data available"
+    },
+    "sidebar": {
+      "period": "Period",
+      "preset": {
+        "7d": "Last 7 days",
+        "30d": "Last 30 days",
+        "thisMonth": "This month",
+        "3m": "Last 3 months",
+        "all": "All time"
+      },
+      "dateRange": "Date Range",
+      "folder": "Project Filter",
+      "allFolders": "All Projects",
+      "charts": "Visible Charts",
+      "showAll": "Show all",
+      "hideAll": "Hide all",
+      "chartGroup": {
+        "work": "Work Charts",
+        "tasks": "Task Charts",
+        "schedule": "Schedule Charts",
+        "materials": "Materials Charts",
+        "connect": "Connect Charts"
+      }
+    },
+    "overview": {
+      "tasks": "Tasks",
+      "events": "Events",
+      "notes": "Notes",
+      "work": "Work Time",
+      "routines": "Routines",
+      "tags": "Tags",
+      "total": "total",
+      "completed": "completed",
+      "today": "today",
+      "active": "active",
+      "rate": "rate",
+      "thisWeek": "this week",
+      "assigned": "assigned"
+    },
+    "schedule": {
+      "totalEvents": "Total Events",
+      "completedEvents": "Completed",
+      "completionRate": "Completion Rate",
+      "activeRoutines": "Active Routines",
+      "routineRate": "Routine Rate",
+      "eventTrend": {
+        "title": "Event Completion Trend",
+        "completed": "Completed"
+      },
+      "timeDistribution": {
+        "title": "Events by Time of Day",
+        "count": "Events"
+      },
+      "routineCompletion": {
+        "title": "Routine Completion Rates",
+        "rate": "Rate"
+      },
+      "noEvents": "No events in this period."
+    },
+    "materials": {
+      "totalNotes": "Total Notes",
+      "noteFolders": "Folders",
+      "pinnedNotes": "Pinned",
+      "createdPeriod": "Created (Period)",
+      "totalMemos": "Total Memos",
+      "memosPeriod": "Memos (Period)",
+      "creationTrend": {
+        "title": "Note Creation Trend",
+        "count": "Created"
+      },
+      "memoHeatmap": {
+        "title": "Memo Activity",
+        "tooltip": "{{count}} memo(s)"
+      },
+      "byFolder": {
+        "title": "Notes by Folder",
+        "count": "Notes",
+        "noFolder": "No Folder"
+      },
+      "noNotes": "No notes yet."
+    },
+    "connect": {
+      "totalTags": "Total Tags",
+      "totalAssignments": "Assignments",
+      "uniqueEntities": "Tagged Items",
+      "coverageRate": "Coverage",
+      "topTags": {
+        "title": "Top Tags by Usage",
+        "count": "Assignments"
+      },
+      "byEntityType": {
+        "title": "Tags by Entity Type",
+        "task": "Tasks",
+        "note": "Notes",
+        "daily": "Daily"
+      },
+      "connections": {
+        "title": "Connection Statistics",
+        "tagConnections": "Tag Connections",
+        "noteConnections": "Note Connections",
+        "mostConnected": "Most Connected",
+        "isolatedTags": "Isolated Tags",
+        "avgConnections": "Avg Connections",
+        "density": "Density"
+      },
+      "noTags": "No tags yet."
+    }
+  },
+  "tips": {
+    "panel": {
+      "title": "Tips",
+      "showDetails": "View details",
+      "open": "Open tips",
+      "close": "Close tips",
+      "noTips": "No tips for this section yet."
+    },
+    "buttonLabel": "Tips",
+    "schedule": {
+      "header": "Schedule tips",
+      "tabs": {
+        "calendar": {
+          "label": "Calendar",
+          "items": {
+            "viewSwitch": {
+              "title": "Switch month / week",
+              "description": "Use the toggle in the calendar header to switch between the monthly and weekly views."
+            },
+            "openDay": {
+              "title": "Click a date",
+              "description": "Click any date cell to set the focused date for the right sidebar's day view."
+            },
+            "rightSidebar": {
+              "title": "Right sidebar shows the day",
+              "description": "The right sidebar shows that day's tasks, routines, and events while the calendar is open."
+            },
+            "folderFilter": {
+              "title": "Filter by folder",
+              "description": "Pick a folder from the task tree to show only tasks from that folder on the calendar."
+            },
+            "contentFilter": {
+              "title": "Filter content types",
+              "description": "Toggle Routines / Tasks / Events / Daily / Notes from the right sidebar to hide what you don't need."
+            },
+            "holidays": {
+              "title": "Holidays",
+              "description": "National holidays show with a red tint when the holiday option is enabled."
+            },
+            "folderColor": {
+              "title": "Folder color",
+              "description": "Tasks inherit their folder's color so projects are easy to spot at a glance."
+            },
+            "addRoutineFromCell": {
+              "title": "Add a routine from a date",
+              "description": "Hover a date cell and click the repeat icon to open the routine manager for that day."
+            },
+            "switchTab": {
+              "title": "Day view via Day Flow",
+              "description": "There is no day view inside the calendar — switch to the Day Flow tab for a per-hour layout."
+            }
+          }
+        },
+        "routine": {
+          "label": "Routine",
+          "items": {
+            "createFromCalendar": {
+              "title": "Create from a calendar cell",
+              "description": "Hover a date in the calendar and click the repeat icon — the routine manager opens with a + New Routine button."
+            },
+            "createFromSidebar": {
+              "title": "Create from the right sidebar",
+              "description": "In the right sidebar's achievement panel, click the + button to add a routine without leaving the current view."
+            },
+            "frequencyDaily": {
+              "title": "Daily",
+              "description": "Set frequency to Daily to repeat every single day."
+            },
+            "frequencyWeekdays": {
+              "title": "Specific weekdays",
+              "description": "Pick the weekdays (Mon–Sun) the routine should run on."
+            },
+            "frequencyInterval": {
+              "title": "Every N days",
+              "description": "Pick a start date and an interval (≥ 2 days) to space out the routine."
+            },
+            "edit": {
+              "title": "Edit a routine",
+              "description": "Click the pencil icon next to a routine to change title, time, frequency, or tags."
+            },
+            "dismiss": {
+              "title": "Dismiss for today",
+              "description": "Hide a single occurrence with Dismiss — the routine reappears the next day."
+            },
+            "archive": {
+              "title": "Archive",
+              "description": "Archive a routine to hide it from the schedule without deleting; restore later from the Archived list."
+            },
+            "delete": {
+              "title": "Delete permanently",
+              "description": "Use the trash icon to remove a routine; the confirmation dialog also offers archive instead."
+            },
+            "tags": {
+              "title": "Tag routines",
+              "description": "Assign tags so routines appear in tag filters and the Connect view."
+            }
+          }
+        },
+        "dayflow": {
+          "label": "Day Flow",
+          "items": {
+            "openTab": {
+              "title": "Open the Day Flow tab",
+              "description": "Switch to the Day Flow tab inside Schedule for an hourly timeline of one day."
+            },
+            "dragTime": {
+              "title": "Drag to change time",
+              "description": "Grab a task or routine block and drag it vertically to change its start time."
+            },
+            "dualColumn": {
+              "title": "Dual-column layout",
+              "description": "Toggle dual-column to view two days side by side."
+            },
+            "contextAdd": {
+              "title": "Click an empty slot",
+              "description": "Click an empty time slot to add a routine, task, or note at that time."
+            },
+            "rightClickEdit": {
+              "title": "Right-click for actions",
+              "description": "Right-click a block to extend / shorten by 15 minutes, duplicate, or copy its time."
+            },
+            "todayButton": {
+              "title": "Today button",
+              "description": "Press Today in the header to scroll back to the current day and time."
+            },
+            "syncCalendar": {
+              "title": "Stays in sync with the calendar",
+              "description": "Picking a date in the Calendar tab updates the day shown here too."
+            },
+            "filterTypes": {
+              "title": "Type filter",
+              "description": "Use the right sidebar filters to hide event types you don't want to see."
+            },
+            "addNote": {
+              "title": "Add a note inline",
+              "description": "Adding a note from a slot creates a daily memo entry pinned to that time."
+            }
+          }
+        },
+        "stats": {
+          "label": "Achievement",
+          "items": {
+            "achievementPanel": {
+              "title": "Right sidebar panel",
+              "description": "Routine progress lives in the achievement panel at the bottom of the right sidebar."
+            },
+            "daysCount": {
+              "title": "Days completed",
+              "description": "Counts the days you've completed at least one routine."
+            },
+            "currentStreak": {
+              "title": "Current streak",
+              "description": "How many consecutive days you've kept the routine going."
+            },
+            "longestStreak": {
+              "title": "Longest streak",
+              "description": "Your all-time best streak — useful for motivation."
+            },
+            "details": {
+              "title": "Open the details",
+              "description": "Click Details on the panel to open the per-routine breakdown overlay."
+            },
+            "perGroup": {
+              "title": "Per-routine breakdown",
+              "description": "The details overlay shows completion rate for each individual routine."
+            },
+            "moreInAnalytics": {
+              "title": "Charts in Analytics",
+              "description": "For trend charts and longer-range views switch to the Analytics section."
+            }
+          }
+        }
+      }
+    },
+    "work": {
+      "header": "Work tips",
+      "tabs": {
+        "taskSelect": {
+          "label": "Task",
+          "items": {
+            "openSelector": {
+              "title": "Pick a task at the top",
+              "description": "The task selector sits at the top of the Work screen; click to choose what you'll focus on."
+            },
+            "search": {
+              "title": "Search by name",
+              "description": "Start typing to filter tasks by title."
+            },
+            "folderSearch": {
+              "title": "Folder/Task search",
+              "description": "Type FolderName/TaskName to limit the search to a specific folder."
+            },
+            "freeSession": {
+              "title": "Free session",
+              "description": "Skip task selection to run a free, untied focus session."
+            },
+            "startFromTree": {
+              "title": "Start from the task tree",
+              "description": "Click the play button next to any task in the task tree to jump into Work with it selected."
+            },
+            "switchTask": {
+              "title": "Switch mid-session",
+              "description": "Selecting a different task while the timer is running switches focus instantly without resetting it."
+            },
+            "completionPrompt": {
+              "title": "Completion modal",
+              "description": "When a session ends a modal lets you mark the task done or start the next session."
+            }
+          }
+        },
+        "timer": {
+          "label": "Timer",
+          "items": {
+            "click": {
+              "title": "Click the circle",
+              "description": "Click the circular timer to start or pause the current session."
+            },
+            "spaceShortcut": {
+              "title": "Space to play / pause",
+              "description": "Press Space (when not typing) to toggle play / pause from any screen."
+            },
+            "resetR": {
+              "title": "R to reset",
+              "description": "Press R (when not typing) to reset the current segment back to its full duration."
+            },
+            "modalToggle": {
+              "title": "Cmd / Ctrl + Shift + T",
+              "description": "Jump to the Work screen from anywhere with Cmd / Ctrl + Shift + T."
+            },
+            "miniWidget": {
+              "title": "Sidebar mini timer",
+              "description": "While a session is active the left sidebar shows the running task and remaining time."
+            },
+            "extend": {
+              "title": "Add 5 minutes",
+              "description": "Use the +5m button (visible while paused) to extend the current segment."
+            },
+            "shorten": {
+              "title": "Subtract 5 minutes",
+              "description": "Use the -5m button (visible while paused) to shorten the current segment."
+            },
+            "sessionComplete": {
+              "title": "Skip the session",
+              "description": "Press Session Complete to end the current segment immediately and move on."
+            }
+          }
+        },
+        "pomodoro": {
+          "label": "Pomodoro",
+          "items": {
+            "sidebarLocation": {
+              "title": "Settings live in the right sidebar",
+              "description": "Pomodoro durations and settings are in the right sidebar of the Work screen."
+            },
+            "durations": {
+              "title": "Custom durations",
+              "description": "Set your own work / short break / long break minutes."
+            },
+            "longBreakRule": {
+              "title": "Long break cadence",
+              "description": "After N work sessions a long break kicks in (default 4)."
+            },
+            "autoBreak": {
+              "title": "Auto-start breaks",
+              "description": "Enable auto-start so breaks (and the next work block) begin after a 3-second countdown."
+            },
+            "sessionStructure": {
+              "title": "Session counter",
+              "description": "The 1/4 counter and progress dots show where you are in the current cycle."
+            },
+            "completionEffects": {
+              "title": "Completion celebration",
+              "description": "Confetti and a sound effect fire when you finish a task during a session."
+            }
+          }
+        },
+        "audio": {
+          "label": "Audio",
+          "items": {
+            "musicTab": {
+              "title": "Music tab",
+              "description": "Inside Work there are two tabs: Timer and Music. Switch to Music to manage playback."
+            },
+            "playlist": {
+              "title": "Pick a playlist",
+              "description": "Choose a playlist from the popover; tracks loop while the timer runs."
+            },
+            "nowPlaying": {
+              "title": "Now Playing in the right sidebar",
+              "description": "The right sidebar's Now Playing card shows the current track and quick controls."
+            },
+            "customSounds": {
+              "title": "Add a custom sound",
+              "description": "Use + Add Custom Sound to upload your own audio file."
+            },
+            "soundTags": {
+              "title": "Tag your sounds",
+              "description": "Open Sound Tags to label custom sounds so they're easier to find later."
+            },
+            "soundFilter": {
+              "title": "Filter sounds by tag",
+              "description": "Use the sound tag filter to narrow the picker to a single mood or genre."
+            },
+            "previewVolume": {
+              "title": "Preview volume",
+              "description": "Each sound row has a preview slider to check volume without committing."
+            }
+          }
+        }
+      }
+    },
+    "materials": {
+      "header": "Materials tips",
+      "tabs": {
+        "dailyMemo": {
+          "label": "Daily",
+          "items": {
+            "openTab": {
+              "title": "Open the Daily tab",
+              "description": "Inside Materials, switch to the Daily tab to write per-day journal entries."
+            },
+            "pickDate": {
+              "title": "Pick a day from the list",
+              "description": "The left list shows recent days grouped by month — click one to open it."
+            },
+            "searchDate": {
+              "title": "Search by date",
+              "description": "Use the search box at the top of the day list to jump to a specific date."
+            },
+            "richEditor": {
+              "title": "Rich editor",
+              "description": "Headings, lists, code, callouts and more — the editor handles markdown shortcuts as you type."
+            },
+            "autoSave": {
+              "title": "Auto save",
+              "description": "Edits save as soon as you type; there is no save button."
+            },
+            "templates": {
+              "title": "Daily templates",
+              "description": "Set a default daily template in Settings so each new day starts with your structure."
+            },
+            "linkInline": {
+              "title": "Link a note inline",
+              "description": "Type [[ to open a note picker — selecting one inserts a wiki-style link."
+            },
+            "tagInline": {
+              "title": "Tag inline",
+              "description": "Type @ to insert a tag suggestion."
+            }
+          }
+        },
+        "notes": {
+          "label": "Notes",
+          "items": {
+            "create": {
+              "title": "Create a note",
+              "description": "Click the + button at the top of the notes list to add a new note."
+            },
+            "folders": {
+              "title": "Folders",
+              "description": "Group notes into folders, including nested folders."
+            },
+            "drag": {
+              "title": "Drag to reorder",
+              "description": "Drag notes within the tree to reorder or move them into folders."
+            },
+            "search": {
+              "title": "Search notes",
+              "description": "Use the search box above the tree to find notes by title."
+            },
+            "color": {
+              "title": "Color a folder",
+              "description": "Right-click a folder (or use its menu) to pick a color from the color picker."
+            },
+            "iconCustom": {
+              "title": "Custom icon",
+              "description": "Open the icon picker to pick a custom icon for any note or folder."
+            },
+            "softDelete": {
+              "title": "Soft delete",
+              "description": "Deleted notes go to the trash and can be restored later."
+            },
+            "restore": {
+              "title": "Restore from trash",
+              "description": "Open Settings → Trash to restore or permanently delete."
+            }
+          }
+        },
+        "linkSyntax": {
+          "label": "Links & tags",
+          "items": {
+            "noteLink": {
+              "title": "Note link with [[",
+              "description": "Type [[ inside any note or daily entry to insert a link to another note."
+            },
+            "tag": {
+              "title": "Tag with @",
+              "description": "Type @ to assign a tag — pick from the suggestions or create a new one."
+            },
+            "completion": {
+              "title": "Keyboard completion",
+              "description": "Use ↑ / ↓ then Enter inside the suggestion popover to confirm."
+            },
+            "click": {
+              "title": "Click to open",
+              "description": "Clicking a wiki link opens the target note in the same view."
+            },
+            "rename": {
+              "title": "Auto-rename",
+              "description": "Renaming a note updates the visible label of inbound wiki links automatically."
+            },
+            "graphLink": {
+              "title": "Shows up in the graph",
+              "description": "Linked notes and tags appear connected in the Connect graph view."
+            }
+          }
+        },
+        "files": {
+          "label": "Files",
+          "items": {
+            "rootFolder": {
+              "title": "Set a root folder",
+              "description": "Choose a root folder in Settings to make the file tree usable."
+            },
+            "tree": {
+              "title": "Tree view",
+              "description": "Browse files with collapsible folders, just like Finder."
+            },
+            "search": {
+              "title": "Search filenames",
+              "description": "Use the search box to filter the tree by filename."
+            },
+            "openOs": {
+              "title": "Open in your OS",
+              "description": "Right-click a file and choose Reveal in Finder / Explorer to open it natively."
+            },
+            "createNew": {
+              "title": "Create file or folder",
+              "description": "Use the + button to create a new file or folder inside the selected folder."
+            },
+            "rename": {
+              "title": "Rename inline",
+              "description": "Right-click → Rename for inline editing."
+            },
+            "delete": {
+              "title": "Delete safely",
+              "description": "Deletion goes through your OS trash, so files can be recovered if needed."
+            }
+          }
+        }
+      }
+    },
+    "connect": {
+      "header": "Connect tips",
+      "tabs": {
+        "graph": {
+          "label": "Graph",
+          "items": {
+            "view": {
+              "title": "Open the graph",
+              "description": "Switch to the Nodes tab in Connect to see notes and tags as a graph."
+            },
+            "drag": {
+              "title": "Drag nodes",
+              "description": "Drag any node to reposition it on the canvas."
+            },
+            "zoom": {
+              "title": "Zoom & pan",
+              "description": "Pinch / scroll to zoom and drag the empty canvas to pan around."
+            },
+            "focusNode": {
+              "title": "Focus a note",
+              "description": "Selecting a note in the sidebar centers the graph on it."
+            },
+            "color": {
+              "title": "Tag color",
+              "description": "Nodes adopt the color of their dominant tag, set in the tag manager."
+            },
+            "savePosition": {
+              "title": "Layout is remembered",
+              "description": "Your manual placements are saved so the layout doesn't reset on reload."
+            },
+            "fromNote": {
+              "title": "Jump to the source note",
+              "description": "Click a note node to open it in the Notes view."
+            }
+          }
+        },
+        "tags": {
+          "label": "Tags",
+          "items": {
+            "assign": {
+              "title": "Assign a tag",
+              "description": "Type @tagname inside a note or memo to attach a tag."
+            },
+            "create": {
+              "title": "Create new tags",
+              "description": "Confirming a typed tag that doesn't exist creates it on the fly."
+            },
+            "rename": {
+              "title": "Rename safely",
+              "description": "Renaming a tag updates every place it's referenced."
+            },
+            "color": {
+              "title": "Set a color",
+              "description": "Pick a color in the tag manager — it carries through to the graph."
+            },
+            "filter": {
+              "title": "Filter by tag",
+              "description": "Use the tag filter overlay to narrow the view to one or more tags."
+            },
+            "manageInSettings": {
+              "title": "Tag manager",
+              "description": "Open Settings to manage all tags (rename, recolor, delete)."
+            },
+            "graphCluster": {
+              "title": "Tags cluster the graph",
+              "description": "Notes that share tags appear closer together in the graph."
+            }
+          }
+        },
+        "backlinks": {
+          "label": "Backlinks",
+          "items": {
+            "show": {
+              "title": "Right pane lists backlinks",
+              "description": "While viewing a note, the right pane lists which other notes link to it."
+            },
+            "unlinked": {
+              "title": "Unlinked mentions",
+              "description": "The unlinked tab shows places where the note's title is mentioned without a link."
+            },
+            "click": {
+              "title": "Click to jump",
+              "description": "Click any backlink entry to open the source note."
+            },
+            "context": {
+              "title": "Surrounding text",
+              "description": "Each backlink shows a snippet of the paragraph it appeared in."
+            },
+            "count": {
+              "title": "Backlink count",
+              "description": "The note tree shows the number of inbound links next to each note."
+            },
+            "navigate": {
+              "title": "Quick navigation",
+              "description": "Use backlinks to walk between related notes without the graph."
+            }
+          }
+        },
+        "filter": {
+          "label": "Filter",
+          "items": {
+            "search": {
+              "title": "Search bar",
+              "description": "The Connect sidebar's search bar filters the view by free-text query."
+            },
+            "byTag": {
+              "title": "Tag filter",
+              "description": "Apply tag filters to keep only matching notes / memos."
+            },
+            "noteType": {
+              "title": "Notes only",
+              "description": "Switch the type filter to Notes to hide memos."
+            },
+            "memoType": {
+              "title": "Memos only",
+              "description": "Switch the type filter to Memos to hide notes."
+            },
+            "viewMode": {
+              "title": "Switch view mode",
+              "description": "Toggle between graph and list views — both honor the active filter."
+            },
+            "persisted": {
+              "title": "Filters persist",
+              "description": "Your active tab and view mode are remembered across reloads."
+            }
+          }
+        }
+      }
+    },
+    "terminal": {
+      "header": "Terminal tips",
+      "tabs": {
+        "claude": {
+          "label": "Claude",
+          "items": {
+            "launchTitleBar": {
+              "title": "Launch from the title bar",
+              "description": "Click the terminal icon in the title bar (just left of Undo / Redo) to open the terminal section and start Claude."
+            },
+            "shortcut": {
+              "title": "Cmd / Ctrl + J",
+              "description": "Open or close the terminal section with Cmd / Ctrl + J."
+            },
+            "mcpAutoConnect": {
+              "title": "MCP auto-connect",
+              "description": "On launch Claude automatically connects to the life-editor MCP server."
+            },
+            "naturalQuery": {
+              "title": "Natural-language requests",
+              "description": "Ask in plain language: \"add a task for tomorrow\", \"summarise today's memo\"."
+            },
+            "exitSession": {
+              "title": "Exit a session",
+              "description": "Type exit or press Ctrl + D to leave the Claude REPL while keeping the terminal open."
+            },
+            "switchSection": {
+              "title": "Switch sections freely",
+              "description": "Switching to another section keeps the terminal session alive in the background."
+            },
+            "aiSettings": {
+              "title": "Configure",
+              "description": "Tune Claude / MCP options from Settings → Claude Code."
+            }
+          }
+        },
+        "shortcuts": {
+          "label": "Shortcuts",
+          "items": {
+            "newTab": {
+              "title": "New tab",
+              "description": "Cmd / Ctrl + T opens a new terminal tab when the terminal is focused."
+            },
+            "closePane": {
+              "title": "Close pane",
+              "description": "Cmd / Ctrl + W closes the focused pane."
+            },
+            "splitVertical": {
+              "title": "Split vertically",
+              "description": "Cmd / Ctrl + D splits the focused pane vertically (side by side)."
+            },
+            "splitHorizontal": {
+              "title": "Split horizontally",
+              "description": "Cmd / Ctrl + Shift + D splits the focused pane horizontally (stacked)."
+            },
+            "togglePanel": {
+              "title": "Toggle the panel",
+              "description": "Cmd / Ctrl + J toggles the terminal section without losing the session."
+            }
+          }
+        },
+        "panes": {
+          "label": "Panes",
+          "items": {
+            "addTab": {
+              "title": "Add a tab",
+              "description": "Click the + button in the terminal header to add a tab (max 4)."
+            },
+            "splitV": {
+              "title": "Vertical split",
+              "description": "Each tab can hold up to 4 panes side by side."
+            },
+            "splitH": {
+              "title": "Horizontal split",
+              "description": "Stack panes vertically to keep logs and commands separate."
+            },
+            "maxPanes": {
+              "title": "Max 4 panes",
+              "description": "Splits beyond 4 panes per tab are blocked."
+            },
+            "resizeDrag": {
+              "title": "Resize splits",
+              "description": "Drag the divider between panes to change their sizes."
+            },
+            "focus": {
+              "title": "Click to focus",
+              "description": "Click any pane to make it active; shortcuts target the active pane."
+            },
+            "closePane": {
+              "title": "Close a pane",
+              "description": "Closing the last pane in a tab also closes the tab."
+            },
+            "tabBar": {
+              "title": "Tab bar",
+              "description": "The tab bar shows running tabs and lets you switch between them."
+            }
+          }
+        },
+        "mcp": {
+          "label": "MCP",
+          "items": {
+            "registerServer": {
+              "title": "Register MCP server",
+              "description": "Open Settings → Claude Code → Register MCP Server to enable data access."
+            },
+            "tools": {
+              "title": "30+ tools available",
+              "description": "Tools cover tasks, notes, schedule, tags, files, and search."
+            },
+            "createTask": {
+              "title": "Create tasks naturally",
+              "description": "Ask: \"Create a task to call the bank tomorrow at 10am\" — it's wired end-to-end."
+            },
+            "queryNotes": {
+              "title": "Work with notes",
+              "description": "Ask Claude to list, summarise, or update notes."
+            },
+            "tagOps": {
+              "title": "Tag operations",
+              "description": "Tag entities or search by tag with built-in tools."
+            },
+            "fileOps": {
+              "title": "File operations",
+              "description": "Claude can read and write files inside the configured root folder."
+            },
+            "schedule": {
+              "title": "Schedule items",
+              "description": "List, create, update, and toggle schedule items via MCP."
+            },
+            "claudeMd": {
+              "title": "CLAUDE.md",
+              "description": "Edit project instructions in Settings → Claude Code → CLAUDE.md."
+            },
+            "skills": {
+              "title": "Skills",
+              "description": "Install Claude Code skills under ~/life-editor/.claude/skills/."
+            }
+          }
+        }
+      }
+    },
+    "analytics": {
+      "header": "Analytics tips",
+      "tabs": {
+        "overview": {
+          "label": "Overview",
+          "items": {
+            "openSection": {
+              "title": "Open Analytics",
+              "description": "Switch to the Analytics section to see cross-domain dashboards."
+            },
+            "todayDashboard": {
+              "title": "Today dashboard",
+              "description": "The top of Overview shows today's totals: focus time, completed tasks, and pomodoro count."
+            },
+            "periodSelector": {
+              "title": "Right sidebar period",
+              "description": "Pick day / week / month from the period selector in the right sidebar."
+            },
+            "datePresets": {
+              "title": "Date presets",
+              "description": "Quick presets cover 7 / 30 days, this month, 3 months, and all time."
+            },
+            "weeklySummary": {
+              "title": "Weekly summary",
+              "description": "The weekly summary card compares this week against the previous one with up / down arrows."
+            },
+            "streak": {
+              "title": "Streak (days)",
+              "description": "Streak counters show current and longest consecutive days."
+            },
+            "switchTabs": {
+              "title": "Six tabs",
+              "description": "Switch between Overview / Tasks / Schedule / Materials / Work / Connect for focused views."
+            }
+          }
+        },
+        "tasks": {
+          "label": "Tasks",
+          "items": {
+            "completionTrend": {
+              "title": "Completion trend",
+              "description": "Track completed and created tasks across the chosen period."
+            },
+            "stagnation": {
+              "title": "Stagnation chart",
+              "description": "Highlights tasks that have been open the longest without progress."
+            },
+            "byProject": {
+              "title": "Project work time",
+              "description": "Compare focused time across folders / projects."
+            },
+            "workTime": {
+              "title": "Per-task work time",
+              "description": "Spot which individual tasks consumed the most focused time."
+            },
+            "filterPeriod": {
+              "title": "Period filter",
+              "description": "All task analytics respect the period selector in the right sidebar."
+            },
+            "tabFocus": {
+              "title": "Focused view",
+              "description": "The Tasks tab strips away cross-domain noise and focuses on task metrics."
+            }
+          }
+        },
+        "time": {
+          "label": "Time",
+          "items": {
+            "workChart": {
+              "title": "Work time chart",
+              "description": "Daily focused work time as a bar chart."
+            },
+            "heatmap": {
+              "title": "Work heatmap",
+              "description": "Day-of-week × hour-of-day heatmap reveals when you actually focus."
+            },
+            "balance": {
+              "title": "Work / break balance",
+              "description": "Compare work time vs break time at a glance."
+            },
+            "pomodoroRate": {
+              "title": "Pomodoro completion rate",
+              "description": "Track how often planned pomodoros are completed."
+            },
+            "dailyTimeline": {
+              "title": "Daily timeline",
+              "description": "Visualises sessions on a 24-hour timeline for the chosen day."
+            },
+            "scheduleTab": {
+              "title": "Schedule tab",
+              "description": "The Schedule analytics tab focuses on event and routine completion."
+            },
+            "eventDistribution": {
+              "title": "Event distribution",
+              "description": "See how events are distributed across hours of the day."
+            }
+          }
+        },
+        "knowledge": {
+          "label": "Knowledge",
+          "items": {
+            "noteCreation": {
+              "title": "Note creation trend",
+              "description": "Daily note creation chart shows your writing cadence."
+            },
+            "memoHeatmap": {
+              "title": "Memo heatmap",
+              "description": "Surface missed days in your daily memo with the heatmap."
+            },
+            "byFolder": {
+              "title": "Notes by folder",
+              "description": "See note distribution across folders to spot dominant projects."
+            },
+            "tagUsage": {
+              "title": "Tag usage",
+              "description": "Top tags by frequency, with counts."
+            },
+            "tagEntityType": {
+              "title": "Tag × entity type",
+              "description": "Breaks tag assignments down by entity type (note / memo / task)."
+            },
+            "connectSummary": {
+              "title": "Connection summary",
+              "description": "Summary of cross-entity connections drawn from the Connect view."
+            }
+          }
+        }
+      }
+    }
+  },
+  "calendar": {
+    "incomplete": "Incomplete",
+    "completed": "Completed",
+    "all": "All",
+    "inbox": "Inbox",
+    "memo": "Memo",
+    "taskNamePlaceholder": "Task name",
+    "noteNamePlaceholder": "Note title",
+    "openDetail": "Open detail",
+    "startTimer": "Start timer",
+    "task": "Task",
+    "note": "Note",
+    "selectFolder": "Folder",
+    "routineIndicator": "{{completed}}/{{total}}",
+    "noteItem": "Note",
+    "memoPreviewEmpty": "No content",
+    "allDay": "All day",
+    "startLabel": "Start",
+    "endLabel": "End",
+    "clearSchedule": "Clear schedule",
+    "clearTime": "Clear time",
+    "deleteTaskTitle": "Delete Task",
+    "deleteTaskMessage": "Are you sure you want to delete this task?",
+    "deleteNoteTitle": "Delete Note",
+    "deleteNoteMessage": "Are you sure you want to delete this note?",
+    "contentType": "Content",
+    "filterAll": "All",
+    "filterDaily": "Daily",
+    "filterNotes": "Notes",
+    "filterTasks": "Tasks",
+    "daily": "Daily",
+    "dailyExists": "Daily already exists for this date",
+    "filters": "Filters",
+    "status": "Status",
+    "folder": "Folder",
+    "createTask": "Task",
+    "createNote": "Note",
+    "createDaily": "Daily",
+    "createEvent": "Create Event",
+    "createRoutine": "Routine",
+    "newRoutinePlaceholder": "Untitled routine",
+    "eventTitle": "Title",
+    "eventMemo": "Memo",
+    "calendarTags": "Calendar Tags",
+    "startTime": "Start",
+    "endTime": "End",
+    "roleTask": "Task",
+    "roleEvent": "Event",
+    "roleNote": "Note",
+    "roleDaily": "Daily",
+    "conversionSuccess": "Converted to {{role}}",
+    "goToTarget": "Go to {{role}}",
+    "searchPlaceholder": "Search items..."
+  },
+  "search": {
+    "placeholder": "Search tasks...",
+    "noResults": "No matching tasks",
+    "clear": "Clear search",
+    "rootLevel": "Root level",
+    "searchSettings": "Search settings...",
+    "searchTrash": "Search trash..."
+  },
+  "common": {
+    "cancel": "Cancel",
+    "ok": "OK",
+    "delete": "Delete",
+    "confirm": "Confirm",
+    "save": "Save",
+    "close": "Close",
+    "comingSoon": "Coming Soon",
+    "undo": "Undo",
+    "redo": "Redo",
+    "reloadApp": "Reload application",
+    "create": "Create",
+    "edit": "Edit",
+    "openManagement": "Open Management",
+    "untitled": "Untitled"
+  },
+  "tasks": {
+    "title": "Tasks"
+  },
+  "memoTree": {
+    "title": "Memo Tree",
+    "daily": "Daily",
+    "notes": "Notes"
+  },
+  "tabs": {
+    "taskTree": "Task Tree",
+    "memoTree": "Memo Tree",
+    "tasks": "Tasks",
+    "schedule": "Schedule",
+    "incomplete": "Incomplete",
+    "complete": "Complete",
+    "calendar": "Calendar",
+    "dayflow": "Dayflow",
+    "routine": "Routine",
+    "events": "Events",
+    "overview": "Overview",
+    "detail": "Detail",
+    "tree": "Tree"
+  },
+  "taskStatus": {
+    "notStarted": "Not Started",
+    "inProgress": "In Progress",
+    "done": "Done",
+    "all": "All",
+    "markDone": "Mark as done",
+    "markInProgress": "Mark as in progress",
+    "noCompleted": "No completed tasks"
+  },
+  "commandPalette": {
+    "placeholder": "Type a command...",
+    "noResults": "No results found",
+    "goTo": "Go to"
+  },
+  "section": {
+    "tasks": "Tasks",
+    "daily": "Daily",
+    "notes": "Notes",
+    "schedule": "Schedule",
+    "tags": "Tags",
+    "settings": "Settings",
+    "trash": "Trash"
+  },
+  "music": {
+    "title": "Music",
+    "stop": "Stop",
+    "play": "Play",
+    "manageTags": "Manage tags",
+    "work": "Work",
+    "rest": "Rest",
+    "noSoundsRest": "No sounds selected.",
+    "addSoundHint": "Click \"Add Sound\" to get started.",
+    "addSound": "Add Sound",
+    "selectSound": "Select Sound",
+    "searchSounds": "Search sounds...",
+    "noSoundsAvailable": "No sounds available",
+    "addCustomSound": "Add Custom Sound",
+    "custom": "Custom",
+    "allSounds": "All Sounds",
+    "noSoundsAll": "No sounds match your search.",
+    "preview": "Preview",
+    "stopPreview": "Stop Preview",
+    "save": "Save",
+    "saved": "Saved",
+    "deleteConfirm": "Delete \"{{name}}\"? This cannot be undone.",
+    "disable": "Disable",
+    "enable": "Enable",
+    "editName": "Edit Name",
+    "removeFromSlot": "Remove",
+    "searchByNameOrTag": "Search by name or tag...",
+    "sortDefault": "Default",
+    "sortName": "Name",
+    "sortCustomFirst": "Custom First",
+    "soundLibrary": "Sound Library",
+    "searchAll": "Search by name or tag...",
+    "addToPlaylist": "Add to Playlist",
+    "selectedCount": "{{count}} selected",
+    "alreadyInPlaylist": "Already added"
+  },
+  "playlist": {
+    "playlists": "Playlists",
+    "back": "Back",
+    "create": "New",
+    "defaultName": "Untitled Playlist",
+    "empty": "No playlists yet. Create one to get started.",
+    "tracks": "tracks",
+    "addTrack": "Add Sound",
+    "noTracks": "No tracks. Add sounds to this playlist.",
+    "noTrack": "No track",
+    "selectPlaylist": "Select a playlist to start.",
+    "shuffle": "Shuffle",
+    "repeat": "Repeat",
+    "playManual": "Play",
+    "stop": "Stop",
+    "stopManual": "Stop",
+    "removeFromPlaylist": "Remove from playlist"
+  },
+  "notes": {
+    "title": "Notes",
+    "newNote": "New note",
+    "newFolder": "New folder",
+    "searchNotes": "Search notes...",
+    "noMatching": "No matching notes",
+    "noNotes": "No notes yet",
+    "untitled": "Untitled",
+    "sortUpdated": "Updated",
+    "sortCreated": "Created",
+    "sortTitle": "Title"
+  },
+  "contextMenu": {
+    "rename": "Rename",
+    "addTask": "Add Task",
+    "addFolder": "Add Project",
+    "completeFolder": "Complete Folder",
+    "markIncomplete": "Mark Incomplete",
+    "startTimer": "Start Timer",
+    "moveToRoot": "Move to Root",
+    "delete": "Delete",
+    "changeIcon": "Change Icon",
+    "removeIcon": "Remove Icon",
+    "pin": "Pin",
+    "unpin": "Unpin",
+    "copyToFiles": "Copy to Files"
+  },
+  "copy": {
+    "copyToFiles": "Copy to Files",
+    "copyToNote": "Copy to Notes",
+    "copyToMemo": "Copy to Memo",
+    "selectDate": "Select target date",
+    "copiedToFile": "Copied to file: {{path}}",
+    "copiedToNote": "Note created: {{title}}",
+    "copiedToMemo": "Memo updated for {{date}}",
+    "copyFailed": "Copy failed"
+  },
+  "taskActions": {
+    "completeFolder": "Complete Folder",
+    "markIncomplete": "Mark Incomplete"
+  },
+  "taskSelector": {
+    "createNewTask": "Create new task...",
+    "newTaskIn": "New task in {{folder}}...",
+    "taskName": "Task name...",
+    "noTasks": "No tasks available"
+  },
+  "sessionModal": {
+    "workComplete": "WORK Complete!",
+    "takeBreak": "Take a break",
+    "completeTask": "Complete task",
+    "extend": "Extend",
+    "minutes": "{{min}}m",
+    "restComplete": "REST Complete!",
+    "getStarted": "Get started now"
+  },
+  "calendarHeader": {
+    "today": "Today",
+    "month": "Month",
+    "week": "Week",
+    "day": "Day",
+    "holidays": "Holidays"
+  },
+  "calendarSidebar": {
+    "title": "Schedule",
+    "newCalendar": "New calendar",
+    "allTasks": "All Tasks",
+    "rename": "Rename",
+    "delete": "Delete",
+    "empty": "No calendars yet. Create one to filter tasks by folder.",
+    "tasksTab": "Tasks",
+    "memoTab": "Memo"
+  },
+  "calendarCreate": {
+    "title": "New Calendar",
+    "titleLabel": "Title",
+    "placeholder": "Calendar name",
+    "folderLabel": "Folder",
+    "noFolders": "No folders. Create a folder first.",
+    "cancel": "Cancel",
+    "create": "Create"
+  },
+  "notesView": {
+    "untitled": "Untitled",
+    "unpin": "Unpin",
+    "pin": "Pin",
+    "favorite": "Favorite",
+    "unfavorite": "Unfavorite",
+    "loadingEditor": "Loading editor...",
+    "emptyState": "Select a note or create a new one"
+  },
+  "folderFilter": {
+    "all": "All",
+    "filterByFolder": "Filter by folder"
+  },
+  "taskDetail": {
+    "start": "Start",
+    "useGlobalDefault": "Use global default ({{min}}m)",
+    "schedule": "Set schedule",
+    "allDay": "All day",
+    "startTime": "Start",
+    "endTime": "End",
+    "showEndTime": "End time",
+    "clearSchedule": "Clear schedule",
+    "emptyState": "Select a task to view details"
+  },
+  "taskDetailPanel": {
+    "selectTask": "Select a task to view details",
+    "totalTasks": "Total: {{count}} tasks",
+    "incomplete": "Incomplete: {{count}}",
+    "completed": "Completed: {{count}}"
+  },
+  "taskDetailSidebar": {
+    "memo": "Memo",
+    "memoPlaceholder": "Add a memo...",
+    "folderColor": "Folder Color",
+    "folderIcon": "Change icon",
+    "schedule": "Schedule",
+    "duration": "Duration",
+    "noSelection": "Select a task or folder to view details",
+    "dontShowAgain": "Don't show again"
+  },
+  "folderContents": {
+    "title": "Contents",
+    "folders": "Folders",
+    "tasks": "Tasks",
+    "empty": "Empty"
+  },
+  "taskTreeHeader": {
+    "allTasks": "All Tasks",
+    "navigateToFolder": "Navigate to folder"
+  },
+  "music.saved": "Saved!",
+  "music.save": "Save",
+  "music.deleteConfirm": "Delete \"{{name}}\"?",
+  "music.preview": "Preview",
+  "music.stopPreview": "Stop preview",
+  "dayFlow": {
+    "filterAll": "All",
+    "filterRoutine": "Routine",
+    "filterTasks": "Tasks",
+    "filterEvents": "Events",
+    "filterDaily": "Daily",
+    "filterNotes": "Notes",
+    "addTask": "Add task",
+    "selectTime": "Set time",
+    "noItems": "No items",
+    "sidebarProgress": "Progress",
+    "routineManagement": "Routine Management",
+    "dualColumn": "Dual Column",
+    "singleColumn": "Single Column",
+    "selectRoutine": "Select Routine",
+    "selectTask": "Select Task",
+    "selectEvent": "Select Event",
+    "selectNote": "Select Note",
+    "itemCount": "{{count}} items"
+  },
+  "timeGridContextMenu": {
+    "complete": "Complete",
+    "uncomplete": "Mark incomplete",
+    "edit": "Edit",
+    "delete": "Delete",
+    "addMemo": "Add memo",
+    "extend15": "+15 min",
+    "shrink15": "-15 min",
+    "copyTime": "Copy time",
+    "moveToDay": "Move to another day",
+    "linkToTask": "Link to task",
+    "convertToRoutine": "Convert to routine",
+    "duplicate": "Duplicate"
+  },
+  "groupContextMenu": {
+    "edit": "Edit group",
+    "dismissToday": "Dismiss today",
+    "dismissItem": "Dismiss for today",
+    "deleteGroup": "Delete group"
+  },
+  "routineGroup": {
+    "groups": "Groups",
+    "create": "Create Group",
+    "edit": "Edit Group",
+    "create": "Create Group",
+    "createNew": "New Group",
+    "groups": "Groups",
+    "untitled": "Untitled",
+    "assignToGroup": "Assigned Groups",
+    "noGroupsHint": "No groups yet — create one above.",
+    "name": "Group Name",
+    "namePlaceholder": "e.g. Morning Routine",
+    "color": "Color",
+    "noGroups": "No groups yet.",
+    "members": "routines",
+    "timeRange": "Time Range",
+    "slideHint": "Changing start time slides all member routines",
+    "memberRoutines": "Member Routines",
+    "noTimeSet": "no time set"
+  },
+  "statusBar": {
+    "terminal": "Terminal",
+    "open": "open",
+    "mcpServer": "MCP Server",
+    "claude": {
+      "idle": "Claude: Idle",
+      "thinking": "Claude: Thinking",
+      "generating": "Claude: Generating",
+      "tool_use": "Claude: Tool Use",
+      "error": "Claude: Error"
+    }
+  },
+  "dateTime": {
+    "justNow": "just now",
+    "minutesAgo": "{{count}}m ago",
+    "hoursAgo": "{{count}}h ago",
+    "yesterday": "yesterday",
+    "daysAgo": "{{count}}d ago",
+    "created": "Created",
+    "updated": "Updated",
+    "loadingEditor": "Loading editor..."
+  },
+  "noteLinks": {
+    "linkToNote": "Link to note",
+    "embedNote": "Embed note",
+    "noResults": "No matching notes"
+  },
+  "backlinks": {
+    "title": "Backlinks",
+    "unlinkedMentions": "Unlinked mentions",
+    "empty": "No notes link here yet.",
+    "noUnlinkedMentions": "No unlinked mentions.",
+    "loading": "Loading..."
+  },
+  "wikiTags": {
+    "title": "Tags",
+    "description": "Manage wiki tags used across tasks, memos, and notes. Type @tag in any editor to create inline tags.",
+    "selectOrCreate": "Select or create a tag",
+    "createNew": "Create",
+    "create": "Create",
+    "addTag": "Add tag",
+    "searchPlaceholder": "Search tags...",
+    "tagNamePlaceholder": "Tag name...",
+    "noResults": "No tags found",
+    "empty": "No tags yet. Type @tag in an editor to create one.",
+    "deleteConfirm": "Delete \"{{name}}\"?",
+    "merge": "Merge",
+    "mergeSelectTarget": "Click another tag to merge into",
+    "mergeInto": "Merge here",
+    "createTag": "Create \"{{name}}\"",
+    "editTag": "Edit tag"
+  },
+  "colorPicker": {
+    "presets": "Presets",
+    "custom": "Custom",
+    "hexLabel": "HEX",
+    "backgroundColor": "Background",
+    "textColor": "Text",
+    "default": "Default"
+  },
+  "taskDetail.timeMemo": "Time memo",
+  "soundEffects": {
+    "title": "Sound Effects",
+    "taskComplete": "Task Complete",
+    "sessionStart": "Session Start",
+    "sessionComplete": "Session Complete",
+    "pomodoroComplete": "Pomodoro Complete",
+    "confetti": "Visual Effects",
+    "confettiLabel": "Confetti animation",
+    "confettiDescription": "Show confetti when a task is completed"
+  },
+  "events": {
+    "emptyState": "Select an event to view details",
+    "noEvents": "No events",
+    "filterIncomplete": "Upcoming",
+    "filterCompleted": "Completed",
+    "createEvent": "Create Event",
+    "titlePlaceholder": "Event title",
+    "untitled": "Untitled"
+  },
+  "eventDetail": {
+    "timeMemo": "Memo",
+    "memoPlaceholder": "Add a quick memo...",
+    "delete": "Delete event",
+    "deleteTitle": "Delete Event",
+    "deleteMessage": "Are you sure you want to delete this event?",
+    "markComplete": "Mark as complete",
+    "markIncomplete": "Mark as incomplete"
+  },
+  "database": {
+    "loading": "Loading...",
+    "notFound": "Database not found",
+    "empty": "Empty database",
+    "addProperty": "Add a property",
+    "newRow": "New",
+    "filter": "Filter",
+    "filterValue": "value",
+    "sort": "Sort",
+    "ascending": "Ascending",
+    "descending": "Descending",
+    "propertyNamePlaceholder": "Property name",
+    "propertyDefaultName": "Property",
+    "typeLabel": "Type",
+    "noOptions": "No options",
+    "nameProperty": "Name",
+    "invalidName": "This name is invalid",
+    "createOption": "Create",
+    "searchOrCreate": "Search or create...",
+    "types": {
+      "text": "Text",
+      "number": "Number",
+      "select": "Select",
+      "date": "Date",
+      "checkbox": "Checkbox"
+    },
+    "operators": {
+      "equals": "is",
+      "not_equals": "is not",
+      "contains": "contains",
+      "not_contains": "doesn't contain",
+      "is_empty": "is empty",
+      "is_not_empty": "is not empty",
+      "greater_than": ">",
+      "less_than": "<",
+      "is_checked": "is checked",
+      "is_not_checked": "is not checked",
+      "before": "before",
+      "after": "after"
+    },
+    "contextMenu": {
+      "rename": "Rename",
+      "changeType": "Change type",
+      "delete": "Delete property",
+      "overflow": {
+        "wrap": "Wrap cell content",
+        "truncate": "Truncate cell content"
+      }
+    },
+    "aggregation": {
+      "label": "Calculate",
+      "none": "None",
+      "sum": "Sum",
+      "count": "Count all",
+      "countValues": "Count values",
+      "countChecked": "Checked",
+      "countUnchecked": "Unchecked",
+      "avg": "Average",
+      "min": "Min",
+      "max": "Max"
+    }
+  },
+  "screenLock": {
+    "setPassword": "Set Password",
+    "changePassword": "Change Password",
+    "removePassword": "Remove Password",
+    "enterPassword": "Enter Password",
+    "newPassword": "New Password",
+    "confirmPassword": "Confirm Password",
+    "currentPassword": "Current Password",
+    "unlock": "Unlock",
+    "clickToUnlock": "Click to unlock",
+    "passwordSet": "Password has been set",
+    "passwordRemoved": "Password has been removed",
+    "passwordChanged": "Password has been changed",
+    "incorrectPassword": "Incorrect password",
+    "passwordsMismatch": "Passwords do not match",
+    "passwordTooShort": "Password must be at least 4 characters",
+    "locked": "Locked",
+    "moreOptions": "More options",
+    "lockEditing": "Lock Editing",
+    "unlockEditing": "Unlock Editing",
+    "editLocked": "Edit Locked"
+  },
+  "blockMenu": {
+    "turnInto": "Turn Into",
+    "color": "Color",
+    "background": "Background",
+    "duplicate": "Duplicate",
+    "delete": "Delete",
+    "addIcon": "Add Icon",
+    "textColors": {
+      "default": "Default",
+      "red": "Red",
+      "blue": "Blue",
+      "green": "Green",
+      "yellow": "Yellow",
+      "gray": "Gray",
+      "purple": "Purple",
+      "orange": "Orange"
+    },
+    "bgColors": {
+      "default": "Default",
+      "gray": "Gray",
+      "blue": "Blue",
+      "green": "Green",
+      "yellow": "Yellow",
+      "red": "Red",
+      "purple": "Purple"
+    },
+    "calloutColors": {
+      "default": "Default",
+      "blue": "Blue",
+      "green": "Green",
+      "yellow": "Yellow",
+      "red": "Red",
+      "purple": "Purple"
+    },
+    "turnIntoItems": {
+      "paragraph": "Paragraph",
+      "heading1": "Heading 1",
+      "heading2": "Heading 2",
+      "heading3": "Heading 3",
+      "blockquote": "Blockquote",
+      "codeBlock": "Code Block",
+      "bulletList": "Bullet List",
+      "orderedList": "Ordered List",
+      "taskList": "Task List",
+      "callout": "Callout",
+      "toggleList": "Toggle List"
+    }
+  },
+  "iconPicker": {
+    "search": "Search icons...",
+    "empty": "No icons found",
+    "remove": "Remove"
+  },
+  "mobile": {
+    "header": {
+      "menu": "Open menu"
+    },
+    "drawer": {
+      "title": "Menu",
+      "navigation": "Navigation",
+      "sectionContent": "Section content",
+      "sectionContentEmpty": "No additional content for this section."
+    },
+    "tabs": {
+      "materials": "Materials",
+      "schedule": "Schedule",
+      "work": "Work",
+      "settings": "Settings",
+      "daily": "Daily",
+      "notes": "Notes"
+    },
+    "calendar": {
+      "monthly": "Monthly",
+      "dayflow": "Day Flow",
+      "today": "Today",
+      "tasks": "Tasks",
+      "schedule": "Schedule",
+      "empty": "No items for this day",
+      "itemCount": "{{count}} items",
+      "moreCount": "+{{count}} more",
+      "search": "Search"
+    },
+    "schedule": {
+      "allDay": "All day",
+      "addFirst": "Add item",
+      "create": "New Item",
+      "itemCount": "{{count}} items",
+      "empty": "No schedule items",
+      "subTab": {
+        "calendar": "Calendar",
+        "dayflow": "Day Flow"
+      },
+      "daySheet": {
+        "edit": "Edit",
+        "empty": "No events for this day",
+        "todayPrefix": "Today · "
+      },
+      "dayflow": {
+        "today": "Today",
+        "now": "Now",
+        "todayBadge": "TODAY"
+      },
+      "form": {
+        "dateLabel": "Date",
+        "startLabel": "Start",
+        "endLabel": "End"
+      }
+    },
+    "daily": {
+      "today": "Today",
+      "empty": "No entries yet",
+      "placeholder": "Write your thoughts..."
+    },
+    "note": {
+      "new": "New",
+      "empty": "No notes yet",
+      "untitled": "Untitled",
+      "titlePlaceholder": "Title",
+      "contentPlaceholder": "Start writing..."
+    },
+    "work": {
+      "selectTask": "Select a task...",
+      "searchTask": "Search tasks...",
+      "clearTask": "Clear selected task",
+      "noTasks": "No tasks found",
+      "focusTitle": "Focus",
+      "activeTaskLabel": "IN PROGRESS",
+      "sessionLabel": {
+        "work": "FOCUS SESSION",
+        "break": "BREAK",
+        "longBreak": "LONG BREAK"
+      },
+      "session": {
+        "work": "Focus",
+        "break": "Break",
+        "longBreak": "Long break"
+      },
+      "sessionSub": {
+        "work": "{{minutes}} min",
+        "break": "{{minutes}} min",
+        "longBreak": "{{minutes}} min"
+      },
+      "remaining": "{{minutes}} min {{seconds}} sec left",
+      "dotsProgress": "Today {{done}} / {{total}} sessions",
+      "controls": {
+        "reset": "Reset",
+        "skip": "Skip"
+      }
+    },
+    "settings": {
+      "connection": "Connection",
+      "connected": "Connected to desktop",
+      "disconnected": "Not connected",
+      "disconnect": "Disconnect",
+      "theme": "Theme",
+      "language": "Language",
+      "fontSize": "Font size",
+      "notifications": {
+        "title": "Notifications",
+        "enable": "Enable notifications",
+        "permissionBlocked": "Notifications blocked by system",
+        "unsupported": "Not supported on this device",
+        "routineReminders": "Routine reminders",
+        "taskDeadlineReminders": "Task deadline reminders"
+      },
+      "timer": {
+        "title": "Timer defaults",
+        "workDuration": "Work",
+        "breakDuration": "Break",
+        "longBreakDuration": "Long break",
+        "runningNote": "Stop the timer to adjust defaults."
+      },
+      "trash": {
+        "title": "Trash",
+        "empty": "Nothing in trash",
+        "restore": "Restore",
+        "permanentDelete": "Delete permanently",
+        "truncatedNote": "Showing latest 100 — manage more on desktop."
+      }
+    },
+    "connection": {
+      "subtitle": "Connect to your desktop app",
+      "howTo": "How to connect",
+      "step1": "Open Life Editor on your desktop",
+      "step2": "Go to Settings → \"Mobile Access\"",
+      "step3": "Scan the QR code or paste the URL below",
+      "connecting": "Connecting...",
+      "connect": "Connect",
+      "error": "Connection failed. Check the URL and try again.",
+      "invalidUrl": "Invalid URL. Use the QR code or paste the full connection URL."
+    }
+  },
+  "templates": {
+    "title": "Templates",
+    "untitled": "Untitled Template",
+    "empty": "No templates yet",
+    "defaultNote": "Set as Note default",
+    "defaultDaily": "Set as Daily default",
+    "removeDefault": "Remove default",
+    "delete": "Delete",
+    "deleteConfirm": "Delete this template?",
+    "deleteDefaultWarning": "This is the default template. Delete anyway?",
+    "editContent": "Edit template content",
+    "rename": "Rename",
+    "selectTemplate": "Select a template",
+    "defaultNoteShort": "Note default",
+    "defaultDailyShort": "Daily default"
+  },
+  "errors": {
+    "timer": {
+      "fetchSettingsFailed": "Failed to load timer settings",
+      "sessionStartFailed": "Failed to start timer session",
+      "sessionEndFailed": "Failed to end timer session",
+      "updateSettingsFailed": "Failed to update timer settings"
+    },
+    "sync": {
+      "loadStatusFailed": "Failed to load sync status",
+      "operationFailed": "Sync failed: {{error}}",
+      "configureFailed": "Failed to configure sync: {{error}}",
+      "disconnectFailed": "Failed to disconnect: {{error}}"
+    },
+    "schedule": {
+      "loadFailed": "Failed to load schedule",
+      "loadTasksFailed": "Failed to load tasks",
+      "loadMonthFailed": "Failed to load month items",
+      "toggleFailed": "Failed to toggle schedule item",
+      "toggleTaskFailed": "Failed to toggle task",
+      "saveFailed": "Failed to save schedule item",
+      "deleteFailed": "Failed to delete schedule item"
+    }
+  }
+}
