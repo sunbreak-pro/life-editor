@@ -160,6 +160,12 @@ export interface DataService {
     volume: number,
     enabled: boolean,
   ): Promise<SoundSettings>;
+  /**
+   * Public URL of an audio asset in the `sounds` Storage bucket (W3-C).
+   * Pure URL construction — no network round-trip; an un-uploaded object
+   * simply yields a URL that 404s on play.
+   */
+  getSoundAssetUrl(objectName: string): Promise<string>;
   fetchSoundPresets(): Promise<SoundPreset[]>;
   createSoundPreset(name: string, settingsJson: string): Promise<SoundPreset>;
   deleteSoundPreset(id: number): Promise<void>;

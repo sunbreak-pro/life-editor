@@ -1,4 +1,4 @@
-import { lazy, Suspense, useCallback, useMemo, useState } from "react";
+import { lazy, Suspense, useCallback, useMemo, useRef, useState } from "react";
 import {
   CheckSquare,
   CalendarDays,
@@ -24,6 +24,8 @@ import {
   WikiTagsUnifiedProvider,
   ShortcutConfigProvider,
   TimerProvider,
+  AudioProvider,
+  AudioChimeBridge,
   useTranslation,
   type Command,
   type Session,
@@ -110,6 +112,13 @@ export function MainScreen({ session }: { session: Session }) {
   const [section, setSection] = useState<Section>("tasks");
   const [paletteOpen, setPaletteOpen] = useState(false);
 
+  // W3-C completion-chime ref-bridge. TimerProvider sits OUTSIDE AudioProvider
+  // (§6.2 … → Timer → Audio → …), so the Timer's onSessionComplete can't read
+  // useAudioContext directly. The AudioChimeBridge (mounted inside the
+  // AudioProvider) publishes the live playCompletionChime into this ref; the
+  // Timer fires it through the ref on each phase completion.
+  const chimeRef = useRef<(() => void) | null>(null);
+
   // global:new-task executor (W3-B). The web has no shell-level "create task"
   // entry — task creation lives inside TaskTreeView, which is section-scoped
   // behind its own Provider, so a true create-and-focus can't be driven from
@@ -164,7 +173,19 @@ export function MainScreen({ session }: { session: Session }) {
          * this (§6.2: … → Timer → Audio → …), which is why TimerProvider is the
          * inner-most shell Provider here. DataService is injected (§6.4).
          */}
-        <TimerProvider dataService={ds}>
+        <TimerProvider
+          dataService={ds}
+          onSessionComplete={() => chimeRef.current?.()}
+        >
+        {/*
+         * AudioProvider (W3-C) — Mobile 省略 Provider (CLAUDE.md §2), mounted
+         * on the web host only, nested INSIDE TimerProvider (§6.2 … → Timer →
+         * Audio → …). The headless AudioChimeBridge sits inside it and pipes
+         * the live playCompletionChime up to chimeRef so the Timer's
+         * onSessionComplete (declared on the outer Provider) can ring it.
+         */}
+        <AudioProvider dataService={ds}>
+        <AudioChimeBridge targetRef={chimeRef} />
         <div className="min-h-screen bg-notion-bg p-6 text-notion-text">
           <div className="mx-auto max-w-2xl space-y-4">
             <header className="flex flex-wrap items-center justify-between gap-2">
@@ -325,6 +346,7 @@ export function MainScreen({ session }: { session: Session }) {
           placeholder={t("commandPalette.placeholder")}
           noResultsLabel={t("commandPalette.noResults")}
         />
+        </AudioProvider>
         </TimerProvider>
       </ShortcutConfigProvider>
     </SyncProvider>

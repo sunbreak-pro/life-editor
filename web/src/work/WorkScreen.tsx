@@ -3,11 +3,15 @@ import {
   PomodoroTimer,
   PomodoroTaskSelector,
   PomodoroSettings,
+  AudioMixer,
   useTimerContext,
+  useAudioContext,
   useTranslation,
+  SOUND_PRESETS,
   type DataService,
   type TaskOption,
   type TimerPhase,
+  type AudioMixerSound,
 } from "@life-editor/shared";
 
 /*
@@ -26,7 +30,21 @@ import {
 export function WorkScreen({ dataService: ds }: { dataService: DataService }) {
   const { t } = useTranslation();
   const timer = useTimerContext();
+  // Optional (Mobile 省略 Provider) — null when no AudioProvider mounted.
+  const audio = useAudioContext();
   const [tasks, setTasks] = useState<TaskOption[]>([]);
+
+  // Resolve the 5 preset labels via t() (primitive never calls useTranslation
+  // — §6.4 i18n props injection). Icons come from the preset definitions.
+  const mixerSounds = useMemo<AudioMixerSound[]>(
+    () =>
+      SOUND_PRESETS.map((p) => ({
+        id: p.id,
+        label: t(p.labelKey),
+        icon: p.icon,
+      })),
+    [t],
+  );
 
   // Load candidate tasks (leaf, not deleted) for the selector. Re-fetch is
   // left to navigation / Sync — the list is a convenience picker, not live
@@ -111,6 +129,24 @@ export function WorkScreen({ dataService: ds }: { dataService: DataService }) {
           }}
           onSelect={handleSelectTask}
         />
+        {/*
+         * Ambient mixer (W3-C). Only rendered when the AudioProvider is
+         * mounted (web/desktop) — Mobile omits the Provider, so audio is null
+         * and the mixer is skipped (CLAUDE.md §2 + vision §4 null-guard).
+         */}
+        {audio && (
+          <AudioMixer
+            sounds={mixerSounds}
+            settings={audio.settings}
+            labels={{
+              heading: t("audioMixer.heading"),
+              toggle: t("audioMixer.toggle"),
+              volume: t("audioMixer.volume"),
+            }}
+            onToggle={audio.toggleEnabled}
+            onVolumeChange={audio.setVolume}
+          />
+        )}
       </div>
 
       <PomodoroSettings

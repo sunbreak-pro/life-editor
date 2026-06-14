@@ -69,6 +69,22 @@ export class SupabaseAudioService {
   }
 
   // -------------------------------------------------------------------------
+  // Storage assets (W3-C)
+  // -------------------------------------------------------------------------
+
+  /**
+   * Public URL of an object in the `sounds` bucket. `getPublicUrl` is a pure
+   * client-side string build (no network), so this resolves immediately; the
+   * Promise wrapper just satisfies the async DataService contract. An object
+   * that hasn't been uploaded yet still returns a well-formed URL (it 404s
+   * only when actually fetched) — callers must not depend on file existence.
+   */
+  async getSoundAssetUrl(objectName: string): Promise<string> {
+    return this.client.storage.from("sounds").getPublicUrl(objectName).data
+      .publicUrl;
+  }
+
+  // -------------------------------------------------------------------------
   // Playlists
   // -------------------------------------------------------------------------
 
@@ -215,6 +231,7 @@ export class SupabaseAudioService {
 export const PHASE2_AUDIO_METHODS: ReadonlySet<string> = new Set([
   "fetchSoundSettings",
   "updateSoundSetting",
+  "getSoundAssetUrl",
   "fetchPlaylists",
   "createPlaylist",
   "updatePlaylist",

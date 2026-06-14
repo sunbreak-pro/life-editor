@@ -88,3 +88,13 @@ export {
   type TimerContextValue,
 } from "./TimerContextValue";
 export type { TimerPhase, ActiveTask } from "./timerReducer";
+
+// Audio (W3-C): Pattern A + OPTIONAL hook. Mobile 省略 Provider (CLAUDE.md §2)
+// — mounted on web/desktop only; consumers use useAudioContext (null-safe).
+// Per §6.2 it nests INSIDE Timer (… → Timer → Audio → …).
+export { AudioProvider, type AudioProviderProps } from "./AudioContext";
+export {
+  AudioContext,
+  type AudioContextValue,
+  type AudioPresetState,
+} from "./AudioContextValue";
