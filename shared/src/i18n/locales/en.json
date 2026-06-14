@@ -592,6 +592,18 @@
       "apply": "Apply"
     }
   },
+  "audioMixer": {
+    "heading": "Ambient sounds",
+    "toggle": "Toggle sound",
+    "volume": "Volume",
+    "sound": {
+      "rain": "Rain",
+      "wind": "Wind",
+      "ocean": "Ocean",
+      "birds": "Birds",
+      "fire": "Fire"
+    }
+  },
   "pomodoro": {
     "title": "Pomodoro Settings",
     "workDuration": "Work duration per session",

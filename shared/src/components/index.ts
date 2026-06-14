@@ -68,3 +68,14 @@ export {
   type PomodoroSettingsLabels,
   type PomodoroPresetOption,
 } from "./PomodoroSettings";
+// Audio (W3-C) — ambient mixer primitive + headless completion-chime bridge.
+export {
+  AudioMixer,
+  type AudioMixerProps,
+  type AudioMixerSound,
+  type AudioMixerLabels,
+} from "./AudioMixer";
+export {
+  AudioChimeBridge,
+  type AudioChimeBridgeProps,
+} from "./AudioChimeBridge";

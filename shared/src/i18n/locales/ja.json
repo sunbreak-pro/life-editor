@@ -592,6 +592,18 @@
       "apply": "適用"
     }
   },
+  "audioMixer": {
+    "heading": "環境音",
+    "toggle": "音をオン/オフ",
+    "volume": "音量",
+    "sound": {
+      "rain": "雨",
+      "wind": "風",
+      "ocean": "海",
+      "birds": "鳥",
+      "fire": "焚き火"
+    }
+  },
   "pomodoro": {
     "title": "ポモドーロ設定",
     "workDuration": "1セッションあたりの作業時間",

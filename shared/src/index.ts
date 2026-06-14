@@ -240,6 +240,28 @@ export type {
   SessionType,
 } from "./types/timer";
 
+// Audio domain (W3-C) — ambient mixer Provider + OPTIONAL context hook + the
+// 5 preset definitions / helpers. Audio is a §2 Mobile 省略 Provider, so the
+// hook is null-safe (useAudioContext).
+export { AudioProvider, type AudioProviderProps } from "./context";
+export {
+  AudioContext,
+  type AudioContextValue,
+  type AudioPresetState,
+} from "./context";
+export { useAudioContext } from "./hooks/useAudioContext";
+export {
+  SOUND_PRESETS,
+  COMPLETION_SOUND_OBJECT,
+  DEFAULT_SOUND_VOLUME,
+  DEFAULT_SOUND_ENABLED,
+  SOUND_VOLUME_MIN,
+  SOUND_VOLUME_MAX,
+  clampSoundVolume,
+  mergeSoundSettings,
+  type SoundPresetDef,
+} from "./constants/sounds";
+
 // Tasks domain — tree utilities (host UI builds on these)
 export {
   getDescendantTasks,
