@@ -1,5 +1,30 @@
 # HISTORY (chat-main)
 
+### 2026-06-14 - W3-C Web Audio Mixer + 完了音（PR #75）+ main 同期
+
+#### 概要
+
+main の分岐（PR #73 squash + #74 取込後の local3/remote2）を byte 一致検証の上 reset で解消し、W3-C（Web の環境音ミキサー + Pomodoro 完了音）を worktree で実装 → 独立監査3本通過 → PR #75 起票。W3 レーン（W3-0/A/B/C）はこれで実装完了（merge 待ち）。
+
+#### 変更点
+
+- **main 同期**: PR #73（chore/tracker・squash `7a46fbb7`）+ PR #74（`b8bdec2c` docs: web-first-v2 参照修正 + bash subagent run policy・別チャット）の merge 後、local main が分岐（3 ahead / 2 behind）。`git diff origin/main HEAD` で「local 独自コミットの内容は CLAUDE.md 以外すべて origin に取込済み（#73 squash）」「CLAUDE.md 差分 = local が #74 を欠くだけ」を byte 検証 → `git reset --hard origin/main` で同期（損失ゼロ・reset は deny ルールのためユーザー実行）。HEAD=7a46fbb7
+- **W3-C 実装**（worktree `.claude/worktrees/w3-c-audio`・branch `feat/w3c-audio-mixer`・node_modules symlink + env コピーで npm install 回避）:
+  - `shared/src/constants/sounds.ts`（5 preset + `COMPLETION_SOUND_OBJECT` + clamp/merge helper）/ `context/AudioContextValue.ts` + `AudioContext.tsx`（AudioProvider・Optional・ds 注入・autoplay resume・self-echo 回避）/ `hooks/useAudioContext.ts`（createOptionalContextHook）/ `components/AudioMixer.tsx`（pure primitive・i18n props・notion トークン・a11y）/ `components/AudioChimeBridge.tsx`（host ref-bridge）
+  - `services/DataService.ts`（`getSoundAssetUrl` 追加のみ）/ `SupabaseAudioService.ts`（実装 + PHASE2_AUDIO_METHODS 登録）/ i18n en・ja / web `MainScreen.tsx`（AudioProvider mount + onSessionComplete 結線）/ `work/WorkScreen.tsx`（mixer パネル・null 安全）
+  - 完了音 ordering（Timer が Audio の外側）は host `chimeRef` で解決: `<TimerProvider onSessionComplete={()=>chimeRef.current?.()}>` ←→ AudioProvider 内側の AudioChimeBridge が playCompletionChime を publish
+- **検証**: shared `tsc -b` exit 0 / `vitest` 412 passed（35 files・baseline 402 +10）/ web build exit 0 / lint 0 errors（既存 DebouncedTextInput warning 1 のみ・非該当）
+- **独立監査3本並列**: role-qa PASS（Blocking 0・要件6/6達成）/ security-reviewer approve（Critical/High/Medium 0・Low1=chime unmount 停止漏れ）/ life-editor-sync-auditor 整合 OK（REALTIME_TABLES 再追加なし・self-echo TimerProvider と同構造・(user_id,sound_type) UNIQUE で LWW 健全）
+- **polish 2件適用**（複数監査一致）: ① chime 要素を unmount cleanup で停止 ② AudioChimeBridge の ref 解除を自関数限定ガード化。再検証 412 passed / build・lint 緑
+- **commit/PR**: `7ec38747`（17 files +836/−2・worktree でパス明示 stage・node_modules/.env.local 除外）→ push `[new branch]` → **PR #75**（OPEN・base main・未 merge）
+
+#### 設計判断 / 申し送り
+
+- **音源 5 種確定**（ユーザー回答）: thunder 不採用（frontend 旧 enum と一致・調達不要）。Tier-2 要件の 6 種表記は将来追加余地として残すが今回スコープ外
+- **Storage URL は DataService 経由**（`getSoundAssetUrl` = `storage.from("sounds").getPublicUrl`・ネットワーク往復なし）で §3.1 境界維持。objectName は定数のみ = インジェクション経路なし（security 確認済）
+- **🛑 merge 前提（ユーザー作業）**: 公開バケット `sounds` 作成 + 6 音源アップロード（`/tmp/le-sounds/` に enum 名で staged）。バケット未作成でもコードは 404 無音で動作（実在非依存）
+- **本セッションの tracker commit は post-#75-merge の同期時に確定**（main 直接 push 不可のため。reset 後に再記録 → chore/tracker ブランチ PR）。計画書の COMPLETED 化 + archive も merge 後
+
 ### 2026-06-11 - PR #70/#71 merge 後処理（main 同期・build 全数・w3-b prune・W3-C 前提調査）
 
 #### 概要
