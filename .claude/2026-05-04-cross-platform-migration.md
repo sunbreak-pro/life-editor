@@ -4,7 +4,7 @@ Created: 2026-05-04
 Updated: 2026-06-06
 Task: クロスプラットフォーム移行 — Tauri / Cloudflare 構成 → Vite + React + TS + Supabase + Electron + Capacitor
 Project path: /Users/newlife/dev/apps/life-editor
-Branch: refactor/web-first-v2
+Branch: main（2026-05〜集約済み。旧 refactor/web-first-v2 は PR #3-9 merge 済で廃止 — CLAUDE.md ヘッダ参照）
 Supersedes:
   - [.claude/archive/2026-04-29-web-first-migration.md](./archive/2026-04-29-web-first-migration.md) — Web First 単体構成（Electron 不採用）から本プランへ統合
 Related:
@@ -308,7 +308,7 @@ life-editor/
 
 #### Phase 2 ↔ Phase 3 間: Data Unification レーン（2026-05-21〜2026-05-24）
 
-**目的**: 5 role を `items_meta + 5 payload + 7 専用/relation` の計 13 テーブルに統合し、WikiTag/Link を items_meta.id ベースの 5 role 共通グラフへ再定義。親計画書 [`docs/vision/plans/2026-05-21-data-unification-items-meta.md`](./docs/vision/plans/2026-05-21-data-unification-items-meta.md) が SSOT。
+**目的**: 5 role を `items_meta + 5 payload + 7 専用/relation` の計 13 テーブルに統合し、WikiTag/Link を items_meta.id ベースの 5 role 共通グラフへ再定義。親計画書 [`archive/2026-05-21-data-unification-items-meta.md`](./archive/2026-05-21-data-unification-items-meta.md)（完了・archive 済）が SSOT。
 
 **完了済 Phase**:
 
@@ -435,7 +435,7 @@ life-editor/
 
 ## ブランチ運用ルール
 
-- **作業ブランチ**: `refactor/web-first-v2`(本ブランチ)
+- **作業ブランチ**: **`main` に集約済み**（旧 `refactor/web-first-v2` は PR #3-9 で merge・廃止。現行のブランチ / worktree 運用は CLAUDE.md §7.4 が正本）
 - **子ブランチ**: 各 Phase の細分作業は短命の子ブランチ(例: `phase-1/web-skeleton`, `phase-1/supabase-tasks`, `phase-3/electron-skeleton`)
 - **main 直接 push 禁止**: pre-push hook + `git config branch.main.pushRemote=no_push` で物理的にブロック
 - **task-tracker(MEMORY.md / HISTORY.md)は本ブランチで更新**: main に直接 commit しない
