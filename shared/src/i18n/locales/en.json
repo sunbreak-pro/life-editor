@@ -2054,6 +2054,8 @@
     "daily": "Daily",
     "notes": "Notes",
     "schedule": "Schedule",
+    "analytics": "Analytics",
+    "connect": "Connect",
     "tags": "Tags",
     "settings": "Settings",
     "trash": "Trash"
