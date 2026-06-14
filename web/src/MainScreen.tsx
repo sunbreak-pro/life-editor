@@ -6,6 +6,8 @@ import {
   Clock,
   Tag,
   Timer as TimerIcon,
+  BarChart3,
+  Network,
   Settings as SettingsIcon,
   Trash2,
   Network,

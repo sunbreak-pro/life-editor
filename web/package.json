@@ -25,6 +25,7 @@
     "@tiptap/pm": "^3.22.3",
     "@tiptap/react": "^3.19.0",
     "@tiptap/starter-kit": "^3.19.0",
+    "@xyflow/react": "^12.8.0",
     "i18next": "^25.10.10",
     "lucide-react": "^0.563.0",
     "d3-ease": "^3.0.1",
@@ -35,7 +36,8 @@
     "recharts": "3.7.0",
     "react": "^19.2.6",
     "react-dom": "^19.2.6",
-    "react-i18next": "^16.6.6"
+    "react-i18next": "^16.6.6",
+    "recharts": "^3.2.0"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

@@ -24,12 +24,11 @@
 - 任意（W4 後続・W3-B 申し送り未着手）: undo/redo 結線（activeInInput:false で input 内 ⌘Z 抑制になる挙動の意図確認 — OS 標準編集 undo に委ねるなら現状が正）/ Skip の cadence 非対称裁定（SET_PHASE は LONG_BREAK へ飛べず completedSessions 不増 — skip() 追加 or 現仕様の正式化）/ new-task の create-and-focus lift（現状 navigate のみ）
 - 任意（W4 由来・将来）: Analytics ScheduleTab の wide-window fetch（2020-01-01..today 一括）を per-range fetch へ（データ量増大時）/ データ系列ハードコード色（stagnation 5色・PIE palette・LONG_BREAK amber、frontend verbatim）を notion トークン化（light/dark 統一）/ Connect グラフのリンク作成・削除 UI（read-only から書き込み可へ）
 - W1 残 Low（非ブロッキング・別バッチ）: `text-white` の accent オン文字トークン化 / `FONT_SIZE_PX` の ThemeContext↔SettingsAppearance 重複を `constants/` 一元化
-- **Mobile 基準セクション統一（frontend）の Phase 2 Schedule / Phase 4 Settings は FROZEN（取り下げ）** — frontend は移行 Phase 5 で破棄予定・web に伝播しないため。今後の統一は web-desktop-parity-roadmap（W0-W4）側で実施。Phase 2 設計（削除=週ビュー/Dual Column/CalendarTags/検索, Desktop維持=Events/Tasks/高度操作）は web 移植仕様の参照元として保全（master プラン `2026-06-05-mobile-first-section-unification.md`）
-- [chat-main] web Phase 2 残: S8 Supabase Realtime（SyncContext no-op→postgres_changes購読+debounce bump+publication migration 0017）/ S9 モバイルレスポンシブ（本番web/）
-- [chat-main] Perf follow-up: M4（useScheduleItemsRoutineSync の syncScheduleItemsWithRoutines を updateFutureScheduleItemsByRoutine に一括化）/ M1（note一覧content_json除外・遅延取得+検索移行の設計変更要
-- **Known Issue 025 Fixed 化**（任意・軽量）: prototype 系 worktree 関連。`prototype/mobile-ui` worktree は現在も生存中のため要状況再確認の上 INDEX を Active→Fixed 判断
-- **Link UX 強化（Obsidian 風）**: cross-role link / 遅延実体化 stub / クリック遷移。スケルトン `2026-05-26-link-ux-obsidian-style.md`。DU-G と独立
+- **Mobile 基準セクション統一（frontend）の Phase 2 Schedule / Phase 4 Settings は FROZEN（取り下げ）** — frontend は移行 Phase 5 で破棄予定・web に伝播しないため。Phase 2 設計は web 移植仕様の参照元として保全（master プラン `2026-06-05-mobile-first-section-unification.md`）
+- web Phase 2 残: S8 Supabase Realtime（実装済）/ S9 モバイルレスポンシブ（本番 web/）
+- Perf follow-up: M4（useScheduleItemsRoutineSync の一括化）/ M1（note一覧 content_json 除外・遅延取得+検索移行の設計変更要）
+- **Known Issue 025 Fixed 化**（任意・軽量）: `prototype/mobile-ui` worktree 状況再確認の上 INDEX を Active→Fixed 判断
+- **Link UX 強化（Obsidian 風）**: cross-role link / 遅延実体化 stub / クリック遷移。スケルトン `2026-05-26-link-ux-obsidian-style.md`
 - DU-E Calendar 2 ビュー再実装（DU-G 完了後）
 - 🔒 **Notes password bcrypt 化** — N>1 化（友達 MVP）の前ゲート必須。Known-issue `027-notes-password-plaintext-debt.md` が SSOT
-- 👀 ユーザー実機確認待ち: DU-F Step 7-11 の golden path（4 role Tag 付与/解除/Link 作成/backlink + wiki_tag_groups CRUD UI）
-- 👀 ユーザー実機確認待ち: DU-C-6（Routine 作成/削除/復元 + 月またぎ ループ防止 + key duplicate 警告ゼロ）
+- 👀 ユーザー実機確認待ち: DU-F Step 7-11 の golden path（4 role Tag 付与/解除/Link 作成/backlink + wiki_tag_groups CRUD UI）/ DU-C-6（Routine 作成/削除/復元 + 月またぎ ループ防止 + key duplicate 警告ゼロ）
