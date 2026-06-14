@@ -79,3 +79,11 @@ export {
   AudioChimeBridge,
   type AudioChimeBridgeProps,
 } from "./AudioChimeBridge";
+// Analytics (W4) — recharts dashboards (Overview/Tasks/Work/Schedule). Pure
+// presentational: aggregation is pure, data + t are injected by the web host
+// (§6.4). Sub-barrel so the feature can grow exports without touching here.
+export * from "./Analytics";
+// Connect (W4) — Canvas 2D + d3-force node graph + backlink view over the
+// unified item-link model (listAllTagConnections / listLinksToItem). Pure
+// presentational: data + t injected (§6.4). Legacy note_links are NOT used.
+export * from "./Connect";

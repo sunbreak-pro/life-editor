@@ -1,5 +1,22 @@
 # HISTORY (chat-main)
 
+### 2026-06-14 - W4: Analytics + Connect を web/shared へ lean 移植
+
+#### 概要
+
+親ロードマップ最終 Phase W4 を実装。Analytics（4タブ・recharts）と Connect（ノードグラフ + backlink）を `frontend/`(FROZEN) から `shared/` + `web/` へ移植し、1 PR にまとめる方針。重ティアチェーン（recon 2本並列 → 計画書 → Phase A グルー → role-engineer 2本並列 → 中央検証 → role-qa）で実施。機械検証緑・role-qa PASS（Blocker 0）。worktree `feat/w4-analytics-connect`。PR は D2（ユーザー判断）。
+
+#### 変更点
+
+- **設計判断（最重要）**: Connect は frontend の legacy `useNoteConnections`（note_links/note_connections 依存）を移植せず、**DU 完了済の unified item-link モデル**（`listNotesUnified` / `listAllTagConnections` / `listAllTagAssignments` / `listAllWikiTagsUnified`）でグラフを再構築。理由 = SupabaseDataService の note-link/connection サービスは全てスタブ（`return []`）で web ではグラフが空になるため。backlink は fetch 済 connections の client 側フィルタ（`listLinksToItem` と同テーブル・同条件で等価を role-qa が実証）
+- **Analytics**: `analyticsAggregation.ts`(879行・純粋関数)を import 修正のみで shared へコピー（テスト込み）。`AnalyticsFilterContext`(period/dateRange のみ・feature 内部・barrel 非公開) + 17 チャート + 4 タブ(Overview/Tasks/Work/Schedule)。Materials/analytics-Connect タブ + chart-visibility サイドバーは lean で drop。§6.4 厳守（shared 内 `useTranslation`/`getDataService` 0・host が labels/data を props 注入）
+- **Connect**: PointGraph の描画層(Canvas 2D + d3-force + interaction/simulation/filters/primitives)を移植 + `buildGraphModel`(unified→{nodes,edges} 純関数) + `BacklinkView`。Paper Boards / @xyflow / d3-transition(未宣言 transitive dep 回避・pan/reset は instant) は drop。unmount cleanup 完備
+- **Phase A グルー(main)**: deps(recharts + d3 5点 + @types)を web/shared に追加 / web MainScreen に `connect`・`analytics` section 結線(Section 型・SECTIONS・SECTION_ICON・render) / shared components barrel に `export * from "./Analytics" / "./Connect"` / host stub + sub-barrel で並列編集の衝突回避
+- **deps 修正**: `recharts: ^3.7.0` が新 minor 3.8.1 を引き込み Tooltip `Formatter` 型が厳格化→型エラー7件。frontend と同じ **3.7.0 に pin** で解消（コード変更ゼロ）。テスト fixture の TimerSession に必須 `label: null` 追加
+- **検証**: shared `tsc -b` 0 / shared vitest **426 passed**(新規 analyticsAggregation + connectGraphModel/Filters テスト含む) / web `tsc -b --force` 0 errors / web eslint 0 errors(既存 DebouncedTextInput の警告1のみ=fresh install のプラグイン版差・W4 非関与) / `git diff` で frontend/ 変更 0(FROZEN 担保)
+- **インシデント**: 実装中にディスク満杯(ENOSPC)で Bash の出力ファイル生成すら不可に。worktree は node_modules 非共有(§7.4)で web+shared 2 ツリー新規 install した分が逼迫要因。npm cache 削除(ユーザー実施)で復旧 → 以後は vite バンドルを省いた軽い検証(tsc -b + vitest + eslint)で完走
+- **計画書**: `.claude/docs/vision/plans/2026-06-14-web-parity-w4-analytics-connect.md`
+
 ### 2026-06-11 - PR #70/#71 merge 後処理（main 同期・build 全数・w3-b prune・W3-C 前提調査）
 
 #### 概要
