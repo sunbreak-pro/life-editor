@@ -23,6 +23,12 @@ shared/node_modules/
 shared/dist/
 supabase/node_modules/
 
+# Desktop (Electron) — electron-vite + electron-builder outputs
+desktop/node_modules/
+desktop/out/
+desktop/dist/
+desktop/release/
+
 # Mobile UI prototype env (Vite, isolated from frontend/)
 prototype/node_modules/
 prototype/dist/
