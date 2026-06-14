@@ -329,9 +329,9 @@
 ## Feature: MCP Server
 
 **Tier**: 1
-**Status**: ◎完成（30 ツール安定稼働）
+**Status**: ◎完成（32 ツール安定稼働）
 **Owner Provider/Module**: `mcp-server/` (独立 Node.js プロセス、`@modelcontextprotocol/sdk` + `better-sqlite3`)
-**MCP Coverage**: 全 30 ツール（CLAUDE.md §8.1 参照）
+**MCP Coverage**: 全 32 ツール（一覧はコード `mcp-server/src/tools.ts` が正）
 **Supports Value Prop**: V1
 
 ### Purpose
@@ -341,7 +341,7 @@
 ### Boundary
 
 - やる:
-  - 30 ツール安定稼働（Tasks 6 / Memos 2 / Notes 3 / Schedule 5 / Wiki Tags 4 / Content 2 / Search 1 / File Management 7）
+  - 32 ツール安定稼働（Tasks 6 / Memos(Daily) 2 / Notes 3 / Schedule 7 / Wiki Tags 4 / Content 2 / Search 1 / File Management 7）
   - 同一 SQLite を `better-sqlite3` で直接アクセス（WAL モードにより rusqlite と共存）
   - stdio JSON-RPC 通信（Claude Code の `claude` コマンドが自動接続）
   - 引数スキーマの型安全性（各 handler で zod / JSON Schema 検証）
