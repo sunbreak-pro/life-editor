@@ -6,6 +6,8 @@ import {
   Clock,
   Tag,
   Timer as TimerIcon,
+  BarChart3,
+  Network,
   Settings as SettingsIcon,
   Trash2,
   type LucideIcon,
@@ -49,6 +51,8 @@ import { CalendarView } from "./schedule/CalendarView";
 import { WikiTagsManagementView } from "./wikitag";
 import { SettingsScreen } from "./settings/SettingsScreen";
 import { WorkScreen } from "./work/WorkScreen";
+import { AnalyticsScreen } from "./analytics/AnalyticsScreen";
+import { ConnectScreen } from "./connect/ConnectScreen";
 import { GlobalShortcuts } from "./GlobalShortcuts";
 
 /*
@@ -80,6 +84,8 @@ type Section =
   | "notes"
   | "schedule"
   | "work"
+  | "analytics"
+  | "connect"
   | "tags"
   | "settings"
   | "trash";
@@ -90,6 +96,8 @@ const SECTIONS: readonly Section[] = [
   "notes",
   "schedule",
   "work",
+  "analytics",
+  "connect",
   "tags",
   "settings",
   "trash",
@@ -101,6 +109,8 @@ const SECTION_ICON: Record<Section, LucideIcon> = {
   notes: FileText,
   schedule: Clock,
   work: TimerIcon,
+  analytics: BarChart3,
+  connect: Network,
   tags: Tag,
   settings: SettingsIcon,
   trash: Trash2,
@@ -324,6 +334,15 @@ export function MainScreen({ session }: { session: Session }) {
              * History / Music / FREE were dropped (section-unification 確定).
              */}
             {section === "work" && <WorkScreen dataService={ds} />}
+            {/*
+             * Analytics + Connect (W4) — stub mounts wired by the W4 scaffold so
+             * the two parallel lanes (w4-analytics / w4-connect) fill their own
+             * screen dirs without re-touching this shared router. The screens are
+             * prop-less placeholders today; each lane builds out its own view +
+             * any Provider/dataService wiring on its own mount line.
+             */}
+            {section === "analytics" && <AnalyticsScreen />}
+            {section === "connect" && <ConnectScreen />}
             {/*
              * Trash (W2). Crosses all five soft-delete categories, so it does
              * NOT use any per-section Provider — the host TrashScreen calls
