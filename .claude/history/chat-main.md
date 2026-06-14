@@ -1,29 +1,21 @@
 # HISTORY (chat-main)
 
-### 2026-06-14 - W3-C Web Audio Mixer + 完了音（PR #75）+ main 同期
+### 2026-06-14 - W4: Analytics + Connect を web/shared へ lean 移植
 
 #### 概要
 
-main の分岐（PR #73 squash + #74 取込後の local3/remote2）を byte 一致検証の上 reset で解消し、W3-C（Web の環境音ミキサー + Pomodoro 完了音）を worktree で実装 → 独立監査3本通過 → PR #75 起票。W3 レーン（W3-0/A/B/C）はこれで実装完了（merge 待ち）。
+親ロードマップ最終 Phase W4 を実装。Analytics（4タブ・recharts）と Connect（ノードグラフ + backlink）を `frontend/`(FROZEN) から `shared/` + `web/` へ移植し、1 PR にまとめる方針。重ティアチェーン（recon 2本並列 → 計画書 → Phase A グルー → role-engineer 2本並列 → 中央検証 → role-qa）で実施。機械検証緑・role-qa PASS（Blocker 0）。worktree `feat/w4-analytics-connect`。PR は D2（ユーザー判断）。
 
 #### 変更点
 
-- **main 同期**: PR #73（chore/tracker・squash `7a46fbb7`）+ PR #74（`b8bdec2c` docs: web-first-v2 参照修正 + bash subagent run policy・別チャット）の merge 後、local main が分岐（3 ahead / 2 behind）。`git diff origin/main HEAD` で「local 独自コミットの内容は CLAUDE.md 以外すべて origin に取込済み（#73 squash）」「CLAUDE.md 差分 = local が #74 を欠くだけ」を byte 検証 → `git reset --hard origin/main` で同期（損失ゼロ・reset は deny ルールのためユーザー実行）。HEAD=7a46fbb7
-- **W3-C 実装**（worktree `.claude/worktrees/w3-c-audio`・branch `feat/w3c-audio-mixer`・node_modules symlink + env コピーで npm install 回避）:
-  - `shared/src/constants/sounds.ts`（5 preset + `COMPLETION_SOUND_OBJECT` + clamp/merge helper）/ `context/AudioContextValue.ts` + `AudioContext.tsx`（AudioProvider・Optional・ds 注入・autoplay resume・self-echo 回避）/ `hooks/useAudioContext.ts`（createOptionalContextHook）/ `components/AudioMixer.tsx`（pure primitive・i18n props・notion トークン・a11y）/ `components/AudioChimeBridge.tsx`（host ref-bridge）
-  - `services/DataService.ts`（`getSoundAssetUrl` 追加のみ）/ `SupabaseAudioService.ts`（実装 + PHASE2_AUDIO_METHODS 登録）/ i18n en・ja / web `MainScreen.tsx`（AudioProvider mount + onSessionComplete 結線）/ `work/WorkScreen.tsx`（mixer パネル・null 安全）
-  - 完了音 ordering（Timer が Audio の外側）は host `chimeRef` で解決: `<TimerProvider onSessionComplete={()=>chimeRef.current?.()}>` ←→ AudioProvider 内側の AudioChimeBridge が playCompletionChime を publish
-- **検証**: shared `tsc -b` exit 0 / `vitest` 412 passed（35 files・baseline 402 +10）/ web build exit 0 / lint 0 errors（既存 DebouncedTextInput warning 1 のみ・非該当）
-- **独立監査3本並列**: role-qa PASS（Blocking 0・要件6/6達成）/ security-reviewer approve（Critical/High/Medium 0・Low1=chime unmount 停止漏れ）/ life-editor-sync-auditor 整合 OK（REALTIME_TABLES 再追加なし・self-echo TimerProvider と同構造・(user_id,sound_type) UNIQUE で LWW 健全）
-- **polish 2件適用**（複数監査一致）: ① chime 要素を unmount cleanup で停止 ② AudioChimeBridge の ref 解除を自関数限定ガード化。再検証 412 passed / build・lint 緑
-- **commit/PR**: `7ec38747`（17 files +836/−2・worktree でパス明示 stage・node_modules/.env.local 除外）→ push `[new branch]` → **PR #75**（OPEN・base main・未 merge）
-
-#### 設計判断 / 申し送り
-
-- **音源 5 種確定**（ユーザー回答）: thunder 不採用（frontend 旧 enum と一致・調達不要）。Tier-2 要件の 6 種表記は将来追加余地として残すが今回スコープ外
-- **Storage URL は DataService 経由**（`getSoundAssetUrl` = `storage.from("sounds").getPublicUrl`・ネットワーク往復なし）で §3.1 境界維持。objectName は定数のみ = インジェクション経路なし（security 確認済）
-- **🛑 merge 前提（ユーザー作業）**: 公開バケット `sounds` 作成 + 6 音源アップロード（`/tmp/le-sounds/` に enum 名で staged）。バケット未作成でもコードは 404 無音で動作（実在非依存）
-- **本セッションの tracker commit は post-#75-merge の同期時に確定**（main 直接 push 不可のため。reset 後に再記録 → chore/tracker ブランチ PR）。計画書の COMPLETED 化 + archive も merge 後
+- **設計判断（最重要）**: Connect は frontend の legacy `useNoteConnections`（note_links/note_connections 依存）を移植せず、**DU 完了済の unified item-link モデル**（`listNotesUnified` / `listAllTagConnections` / `listAllTagAssignments` / `listAllWikiTagsUnified`）でグラフを再構築。理由 = SupabaseDataService の note-link/connection サービスは全てスタブ（`return []`）で web ではグラフが空になるため。backlink は fetch 済 connections の client 側フィルタ（`listLinksToItem` と同テーブル・同条件で等価を role-qa が実証）
+- **Analytics**: `analyticsAggregation.ts`(879行・純粋関数)を import 修正のみで shared へコピー（テスト込み）。`AnalyticsFilterContext`(period/dateRange のみ・feature 内部・barrel 非公開) + 17 チャート + 4 タブ(Overview/Tasks/Work/Schedule)。Materials/analytics-Connect タブ + chart-visibility サイドバーは lean で drop。§6.4 厳守（shared 内 `useTranslation`/`getDataService` 0・host が labels/data を props 注入）
+- **Connect**: PointGraph の描画層(Canvas 2D + d3-force + interaction/simulation/filters/primitives)を移植 + `buildGraphModel`(unified→{nodes,edges} 純関数) + `BacklinkView`。Paper Boards / @xyflow / d3-transition(未宣言 transitive dep 回避・pan/reset は instant) は drop。unmount cleanup 完備
+- **Phase A グルー(main)**: deps(recharts + d3 5点 + @types)を web/shared に追加 / web MainScreen に `connect`・`analytics` section 結線(Section 型・SECTIONS・SECTION_ICON・render) / shared components barrel に `export * from "./Analytics" / "./Connect"` / host stub + sub-barrel で並列編集の衝突回避
+- **deps 修正**: `recharts: ^3.7.0` が新 minor 3.8.1 を引き込み Tooltip `Formatter` 型が厳格化→型エラー7件。frontend と同じ **3.7.0 に pin** で解消（コード変更ゼロ）。テスト fixture の TimerSession に必須 `label: null` 追加
+- **検証**: shared `tsc -b` 0 / shared vitest **426 passed**(新規 analyticsAggregation + connectGraphModel/Filters テスト含む) / web `tsc -b --force` 0 errors / web eslint 0 errors(既存 DebouncedTextInput の警告1のみ=fresh install のプラグイン版差・W4 非関与) / `git diff` で frontend/ 変更 0(FROZEN 担保)
+- **インシデント**: 実装中にディスク満杯(ENOSPC)で Bash の出力ファイル生成すら不可に。worktree は node_modules 非共有(§7.4)で web+shared 2 ツリー新規 install した分が逼迫要因。npm cache 削除(ユーザー実施)で復旧 → 以後は vite バンドルを省いた軽い検証(tsc -b + vitest + eslint)で完走
+- **計画書**: `.claude/docs/vision/plans/2026-06-14-web-parity-w4-analytics-connect.md`
 
 ### 2026-06-11 - PR #70/#71 merge 後処理（main 同期・build 全数・w3-b prune・W3-C 前提調査）
 
