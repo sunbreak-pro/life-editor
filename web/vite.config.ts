@@ -7,6 +7,17 @@ import tailwindcss from "@tailwindcss/vite";
 export default defineConfig({
   plugins: [react(), tailwindcss()],
   resolve: {
+    // react / react-dom / react-i18next / i18next exist in BOTH
+    // web/node_modules and shared/node_modules (shared keeps its own copies for
+    // its own vitest suite). Because the `@life-editor/shared` alias below pulls
+    // shared in FROM SOURCE, without dedupe vite resolves shared's bare imports
+    // against shared/node_modules and web's against web/node_modules → two React
+    // copies → "Invalid hook call / more than one copy of React" at runtime
+    // (react-i18next's <I18nextProvider> useMemo hits a null dispatcher; the
+    // shared components' useTranslation also miss the Provider's context).
+    // Force a single instance of each — same reason the Electron renderer's
+    // electron-vite config dedupes react/react-dom.
+    dedupe: ["react", "react-dom", "react-i18next", "i18next"],
     alias: {
       // Consume the cross-platform layer from source (Phase 1).
       // Packaged build / publishing is decided in a later phase.
