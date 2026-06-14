@@ -8,8 +8,8 @@
 **計画書**: `.claude/docs/vision/plans/2026-06-14-phase3-electron-packaging.md`（IN-PROGRESS）
 
 - 前回: —
-- 現在: 自律スコープ（Steps 2-8）実装+検証完了。renderer は web アプリを root=web で包む構成。電子シェル（main/preload/electron-vite/electron-builder/store/updater-skeleton）を well-trodden 構成で実装。監査（role-QA / security）反映済
-- 次: 👀 ユーザー実機ゲート（Step 9）= `npm run dev` 起動→ログイン→Tasks CRUD / `npm run build:mac` で DMG 生成。通過後に計画書を COMPLETED→archive。Step 10（CI）は任意
+- 現在: 自律スコープ（Steps 2-8）実装+検証+監査完了 → **PR #79 作成済**（commit d3276b80・feat/phase3-electron）。renderer は web アプリを root=web で包む構成
+- 次: 👀 ユーザー実機ゲート（Step 9）= `npm run dev` 起動→ログイン→Tasks CRUD / `npm run build:mac` で DMG 生成。通過後に計画書を COMPLETED→archive + PR #79 merge（🛑 ユーザー）。Step 10（CI）は任意
 
 ## 直近の完了
 
