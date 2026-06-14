@@ -10,8 +10,6 @@ import {
   Network,
   Settings as SettingsIcon,
   Trash2,
-  Network,
-  BarChart3,
   type LucideIcon,
 } from "lucide-react";
 import {
