@@ -31,6 +31,9 @@
   --color-border: #dbe1ea;
   --color-border-strong: #c0c8d2;
   --color-accent: #2eaadc;
+  /* Foreground for text/icons sitting on a saturated accent or danger fill
+     (buttons, selected pills). White reads on both themes, so it is shared. */
+  --color-on-accent: #ffffff;
   /* Opaque light-blue wash for the DnD "drop inside this folder" cue
      (DU-G). Opaque on purpose (§5). */
   --color-accent-subtle: #d6eef7;
@@ -54,6 +57,26 @@
   --color-chip-completed-bg: #ecfdf5;
   --color-chip-completed-fg: #047857;
   --color-chip-completed-dot: #10b981;
+  /* Analytics data-series colors. These encode DATA (a task-age bucket, a
+     project category, a session phase), not themeable container chrome, so
+     a given series keeps the same hue across light/dark — defined once here
+     and reused by both themes. Ported verbatim from frontend charts. */
+  --color-chart-stagnation-1: #22c55e; /* < 1 week */
+  --color-chart-stagnation-2: #84cc16; /* 1-2 weeks */
+  --color-chart-stagnation-3: #eab308; /* 2-4 weeks */
+  --color-chart-stagnation-4: #f97316; /* 1-3 months */
+  --color-chart-stagnation-5: #ef4444; /* 3+ months */
+  --color-chart-phase-long-break: #f59e0b; /* WORK/BREAK reuse accent/success */
+  --color-chart-cat-1: #2563eb;
+  --color-chart-cat-2: #22c55e;
+  --color-chart-cat-3: #f59e0b;
+  --color-chart-cat-4: #ef4444;
+  --color-chart-cat-5: #8b5cf6;
+  --color-chart-cat-6: #ec4899;
+  --color-chart-cat-7: #06b6d4;
+  --color-chart-cat-8: #84cc16;
+  --color-chart-cat-9: #f97316;
+  --color-chart-cat-10: #6366f1;
   --font-size-base: 16px;
 }
 
@@ -100,6 +123,7 @@
   --color-notion-border: var(--color-border);
   --color-notion-border-strong: var(--color-border-strong);
   --color-notion-accent: var(--color-accent);
+  --color-notion-on-accent: var(--color-on-accent);
   --color-notion-accent-subtle: var(--color-accent-subtle);
   --color-notion-primary: var(--color-accent);
   --color-notion-secondary: var(--color-text-secondary);

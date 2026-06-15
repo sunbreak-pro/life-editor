@@ -96,7 +96,7 @@ export function WorkBreakBalance({
             <Bar
               dataKey={labels.longBreak}
               stackId="a"
-              fill="#f59e0b"
+              fill="var(--color-chart-phase-long-break, #f59e0b)"
               radius={[4, 4, 0, 0]}
             />
           </BarChart>

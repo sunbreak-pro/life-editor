@@ -19,12 +19,12 @@ export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
  */
 const VARIANT_CLASSES: Record<ButtonVariant, string> = {
   primary:
-    "bg-notion-accent text-white hover:opacity-90 disabled:opacity-50",
+    "bg-notion-accent text-notion-on-accent hover:opacity-90 disabled:opacity-50",
   secondary:
     "bg-notion-bg-secondary text-notion-text hover:bg-notion-hover disabled:opacity-50",
   ghost:
     "bg-transparent text-notion-text hover:bg-notion-hover disabled:opacity-50",
-  danger: "bg-notion-danger text-white hover:opacity-90 disabled:opacity-50",
+  danger: "bg-notion-danger text-notion-on-accent hover:opacity-90 disabled:opacity-50",
 };
 
 const SIZE_CLASSES: Record<ButtonSize, string> = {

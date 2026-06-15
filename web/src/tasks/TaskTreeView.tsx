@@ -370,7 +370,7 @@ export function TaskTreeView() {
           <button
             type="button"
             onClick={() => addRoot("task")}
-            className="rounded-md bg-notion-accent px-3 py-1.5 text-sm text-white hover:opacity-90"
+            className="rounded-md bg-notion-accent px-3 py-1.5 text-sm text-notion-on-accent hover:opacity-90"
           >
             + Task
           </button>

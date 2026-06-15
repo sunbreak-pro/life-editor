@@ -60,7 +60,7 @@ export function AudioMixer({
                 className={cn(
                   "flex h-8 w-8 shrink-0 items-center justify-center rounded-md border transition-colors",
                   state.enabled
-                    ? "border-notion-accent bg-notion-accent text-white"
+                    ? "border-notion-accent bg-notion-accent text-notion-on-accent"
                     : "border-notion-border bg-notion-bg text-notion-text-secondary hover:bg-notion-hover",
                 )}
               >

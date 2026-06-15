@@ -390,11 +390,31 @@ export function aggregateTaskCompletionTrend(
 export function aggregateTaskStagnation(nodes: TaskNode[]): StagnationBucket[] {
   const now = new Date();
   const buckets: StagnationBucket[] = [
-    { label: "< 1 week", count: 0, color: "#22c55e" },
-    { label: "1-2 weeks", count: 0, color: "#84cc16" },
-    { label: "2-4 weeks", count: 0, color: "#eab308" },
-    { label: "1-3 months", count: 0, color: "#f97316" },
-    { label: "3+ months", count: 0, color: "#ef4444" },
+    {
+      label: "< 1 week",
+      count: 0,
+      color: "var(--color-chart-stagnation-1, #22c55e)",
+    },
+    {
+      label: "1-2 weeks",
+      count: 0,
+      color: "var(--color-chart-stagnation-2, #84cc16)",
+    },
+    {
+      label: "2-4 weeks",
+      count: 0,
+      color: "var(--color-chart-stagnation-3, #eab308)",
+    },
+    {
+      label: "1-3 months",
+      count: 0,
+      color: "var(--color-chart-stagnation-4, #f97316)",
+    },
+    {
+      label: "3+ months",
+      count: 0,
+      color: "var(--color-chart-stagnation-5, #ef4444)",
+    },
   ];
 
   const DAY = 24 * 60 * 60 * 1000;
