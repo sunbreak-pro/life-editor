@@ -91,7 +91,7 @@ export function AnalyticsView(props: AnalyticsViewProps): React.JSX.Element {
                 onClick={() => setActiveTab(tab)}
                 className={`rounded-md px-3 py-1 text-xs font-medium transition-colors ${
                   activeTab === tab
-                    ? "bg-notion-accent text-white shadow-sm"
+                    ? "bg-notion-accent text-notion-on-accent shadow-sm"
                     : "text-notion-text-secondary hover:bg-notion-hover hover:text-notion-text"
                 }`}
               >

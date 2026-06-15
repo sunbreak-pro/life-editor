@@ -7,22 +7,9 @@ import {
 } from "./ThemeContextValue";
 import { useLocalStorage } from "../hooks/useLocalStorage";
 import { i18n, LANGUAGE_STORAGE_KEY } from "../i18n";
+import { fontSizeToPx } from "../constants/fontSize";
 
 export type { Theme, FontSize, Language };
-
-// 10-step scale → px (CLAUDE.md §3.3: font sizes 12–25px).
-const FONT_SIZE_PX: Record<number, number> = {
-  1: 12,
-  2: 13,
-  3: 14,
-  4: 16,
-  5: 18,
-  6: 19,
-  7: 20,
-  8: 22,
-  9: 23,
-  10: 25,
-};
 
 const THEME_STORAGE_KEY = "life-editor-theme";
 const FONT_SIZE_STORAGE_KEY = "life-editor-font-size";
@@ -84,8 +71,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   }, [theme]);
 
   useEffect(() => {
-    const px = FONT_SIZE_PX[fontSize] ?? 18;
-    document.documentElement.style.fontSize = `${px}px`;
+    document.documentElement.style.fontSize = `${fontSizeToPx(fontSize)}px`;
   }, [fontSize]);
 
   const toggleTheme = useCallback(

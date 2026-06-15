@@ -1,18 +1,6 @@
 import { cn } from "./cn";
 import type { Theme, FontSize } from "../context/ThemeContextValue";
-
-const FONT_SIZE_PX: Record<number, number> = {
-  1: 12,
-  2: 13,
-  3: 14,
-  4: 16,
-  5: 18,
-  6: 19,
-  7: 20,
-  8: 22,
-  9: 23,
-  10: 25,
-};
+import { fontSizeToPx } from "../constants/fontSize";
 
 export interface SettingsAppearanceProps {
   theme: Theme;
@@ -44,7 +32,7 @@ export function SettingsAppearance({
   onFontSizeChange,
   labels,
 }: SettingsAppearanceProps) {
-  const px = FONT_SIZE_PX[fontSize] ?? 18;
+  const px = fontSizeToPx(fontSize);
 
   return (
     <div className="space-y-6" data-section-id="appearance">
@@ -69,7 +57,7 @@ export function SettingsAppearance({
             className={cn(
               "rounded-md px-3 py-1.5 text-xs font-medium transition-colors",
               theme === "light"
-                ? "bg-notion-accent text-white"
+                ? "bg-notion-accent text-notion-on-accent"
                 : "bg-notion-hover text-notion-text",
             )}
           >
@@ -82,7 +70,7 @@ export function SettingsAppearance({
             className={cn(
               "rounded-md px-3 py-1.5 text-xs font-medium transition-colors",
               theme === "dark"
-                ? "bg-notion-accent text-white"
+                ? "bg-notion-accent text-notion-on-accent"
                 : "bg-notion-hover text-notion-text",
             )}
           >

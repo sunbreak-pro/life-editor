@@ -23,20 +23,20 @@ interface ProjectWorkTimeChartProps {
   labels: ProjectWorkTimeChartLabels;
 }
 
-// Categorical palette for the pie slices (one tint per project). Mirrors the
-// frontend chart — these are data-series colours for distinct categories, not
-// themeable container chrome.
+// Categorical palette for the pie slices (one tint per project). Data-series
+// colours for distinct categories, not themeable container chrome — sourced
+// from the centralized --color-chart-cat-* tokens (tokens.css).
 const COLORS = [
-  "#2563eb",
-  "#22c55e",
-  "#f59e0b",
-  "#ef4444",
-  "#8b5cf6",
-  "#ec4899",
-  "#06b6d4",
-  "#84cc16",
-  "#f97316",
-  "#6366f1",
+  "var(--color-chart-cat-1, #2563eb)",
+  "var(--color-chart-cat-2, #22c55e)",
+  "var(--color-chart-cat-3, #f59e0b)",
+  "var(--color-chart-cat-4, #ef4444)",
+  "var(--color-chart-cat-5, #8b5cf6)",
+  "var(--color-chart-cat-6, #ec4899)",
+  "var(--color-chart-cat-7, #06b6d4)",
+  "var(--color-chart-cat-8, #84cc16)",
+  "var(--color-chart-cat-9, #f97316)",
+  "var(--color-chart-cat-10, #6366f1)",
 ];
 
 export function ProjectWorkTimeChart({

@@ -16,13 +16,12 @@ interface DailyTimelineProps {
   labels: DailyTimelineLabels;
 }
 
-// Session-type → block tint. WORK/BREAK use notion tokens; LONG_BREAK has no
-// dedicated token so it keeps the amber accent the frontend uses (data-series
-// colour, not container chrome).
+// Session-type → block tint. WORK/BREAK reuse notion chrome tokens; LONG_BREAK
+// uses the dedicated --color-chart-phase-long-break data-series token.
 const SESSION_COLORS: Record<string, string> = {
   WORK: "var(--color-notion-accent, #2563eb)",
   BREAK: "var(--color-notion-success, #22c55e)",
-  LONG_BREAK: "#f59e0b",
+  LONG_BREAK: "var(--color-chart-phase-long-break, #f59e0b)",
 };
 
 const HOURS = Array.from({ length: 25 }, (_, i) => i);

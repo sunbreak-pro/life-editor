@@ -66,6 +66,11 @@ export type {
   KeyBinding,
 } from "./types/shortcut";
 export { DEFAULT_SHORTCUTS } from "./constants/defaultShortcuts";
+export {
+  FONT_SIZE_PX,
+  DEFAULT_FONT_SIZE_PX,
+  fontSizeToPx,
+} from "./constants/fontSize";
 export { ShortcutConfigProvider } from "./context";
 export {
   ShortcutConfigContext,

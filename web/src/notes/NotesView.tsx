@@ -434,7 +434,7 @@ export function NotesView() {
           <button
             type="button"
             onClick={addNote}
-            className={`rounded-md bg-notion-accent px-3 py-1.5 text-sm text-white hover:opacity-90 ${FOCUS_RING}`}
+            className={`rounded-md bg-notion-accent px-3 py-1.5 text-sm text-notion-on-accent hover:opacity-90 ${FOCUS_RING}`}
           >
             + Note
           </button>

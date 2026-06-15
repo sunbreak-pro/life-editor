@@ -89,7 +89,7 @@ export function AuthScreen() {
         <button
           type="submit"
           disabled={busy}
-          className="w-full rounded-md bg-notion-accent px-4 py-2 text-white hover:opacity-90 disabled:opacity-50"
+          className="w-full rounded-md bg-notion-accent px-4 py-2 text-notion-on-accent hover:opacity-90 disabled:opacity-50"
         >
           {busy ? "Working…" : mode === "signIn" ? "Sign in" : "Sign up"}
         </button>
