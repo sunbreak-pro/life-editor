@@ -165,6 +165,13 @@ CLAUDE.md , 2026-05-04-cross-platform-migration.md  ← 方針転換の記録（
 - Gate: 🤖 実装 → 👀 目視
 - Acceptance: 主要集計が描画 / ノートグラフ表示・遷移
 
+### W5 — アプリシェル刷新（サイドバー + レスポンシブ単一ナビ）★子計画書 `2026-06-15-web-parity-w5-app-shell.md`
+
+- W0〜W4 で揃った各セクションを束ねるシェル（ナビ/レイアウトの殻）を Desktop 同等へ。現状 `MainScreen` は横並びテキストナビ + `max-w-2xl` 単一カラムで貧弱。
+- **単純画面 → レスポンシブ単一**: 広幅=左サイドバー（折りたたみ可）/ 狭幅=ボトムタブ + More シート。shared に `AppShell` / `SidebarNav` / `BottomTabBar` を新設。
+- セクション**内部**の UX 密度（DnD / 詳細パネル / カレンダー充実）は W6+ の子計画書へ送り。
+- Gate: 🤖 実装 → 👀 目視 → 🛑 PR merge
+
 ---
 
 ## 並行チャット境界（2026-06-07 現状）
