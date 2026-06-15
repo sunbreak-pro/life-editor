@@ -15,6 +15,8 @@ import {
 import {
   getDataService,
   signOut,
+  AppShell,
+  type AppShellSection,
   CommandPalette,
   SyncProvider,
   TaskTreeProvider,
@@ -148,6 +150,35 @@ export function MainScreen({ session }: { session: Session }) {
     }));
   }, [t]);
 
+  // W5 app shell: section list (icon node + translated label) and the
+  // chrome labels (collapse / palette / sign-out / More). i18n is resolved
+  // here and injected — the shared shell never calls useTranslation (§6.4).
+  const navSections = useMemo<AppShellSection[]>(
+    () =>
+      SECTIONS.map((s) => {
+        const Icon = SECTION_ICON[s];
+        return {
+          id: s,
+          label: t(`section.${s}`, { defaultValue: s }),
+          icon: <Icon size={18} />,
+        };
+      }),
+    [t],
+  );
+
+  const shellLabels = useMemo(
+    () => ({
+      appName: "Life Editor",
+      collapse: t("nav.collapse"),
+      expand: t("nav.expand"),
+      commandPalette: t("nav.commandPalette"),
+      signOut: t("nav.signOut"),
+      more: t("nav.more"),
+      moreTitle: t("nav.moreTitle"),
+    }),
+    [t],
+  );
+
   return (
     <SyncProvider>
       {/*
@@ -196,42 +227,26 @@ export function MainScreen({ session }: { session: Session }) {
            */}
           <AudioProvider dataService={ds}>
             <AudioChimeBridge targetRef={chimeRef} />
-            <div className="min-h-screen bg-notion-bg p-6 text-notion-text">
-              <div className="mx-auto max-w-2xl space-y-4">
-                <header className="flex flex-wrap items-center justify-between gap-2">
-                  <div className="flex items-center gap-3">
-                    <nav className="flex flex-wrap gap-1" aria-label="Sections">
-                      {SECTIONS.map((s) => (
-                        <button
-                          key={s}
-                          type="button"
-                          onClick={() => setSection(s)}
-                          aria-current={section === s ? "page" : undefined}
-                          className={`rounded-md px-3 py-1.5 text-sm capitalize ${
-                            section === s
-                              ? "bg-notion-hover text-notion-text"
-                              : "text-notion-text-secondary hover:bg-notion-hover"
-                          }`}
-                        >
-                          {s}
-                        </button>
-                      ))}
-                    </nav>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <span className="max-w-[45vw] truncate text-sm text-notion-text-secondary sm:max-w-none">
-                      {session.user.email}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => void signOut()}
-                      className="rounded-md border border-notion-border px-3 py-1.5 text-sm text-notion-text hover:bg-notion-hover"
-                    >
-                      Sign out
-                    </button>
-                  </div>
-                </header>
-
+            {/*
+             * W5 app shell — responsive single shell (wide sidebar ↔ narrow
+             * bottom tabs via useMediaQuery). Section state stays here
+             * (useState switch, no React Router — §3.2); the shell is pure
+             * presentation (DataService-free, §3.1) and receives section
+             * list / labels / callbacks as props (§6.4). The active section
+             * body is slotted into `children`. AppShell sits inside
+             * AudioProvider at the old header+content position so every
+             * Provider consumer stays nested as before (§6.2).
+             */}
+            <AppShell
+              sections={navSections}
+              activeSection={section}
+              onNavigate={(id) => setSection(id as Section)}
+              onTogglePalette={() => setPaletteOpen((v) => !v)}
+              userEmail={session.user.email ?? ""}
+              onSignOut={() => void signOut()}
+              labels={shellLabels}
+            >
+              <div className="space-y-4">
                 {section === "tasks" && (
                   <WikiTagsUnifiedProvider dataService={ds}>
                     <TaskTreeProvider dataService={ds}>
@@ -359,7 +374,7 @@ export function MainScreen({ session }: { session: Session }) {
                  */}
                 {section === "trash" && <TrashScreen dataService={ds} />}
               </div>
-            </div>
+            </AppShell>
 
             {/*
              * Command palette mounted ONCE at the shell level, outside the

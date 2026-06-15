@@ -2054,11 +2054,20 @@
     "daily": "Daily",
     "notes": "Notes",
     "schedule": "Schedule",
+    "work": "Work",
     "analytics": "Analytics",
     "connect": "Connect",
     "tags": "Tags",
     "settings": "Settings",
     "trash": "Trash"
+  },
+  "nav": {
+    "collapse": "Collapse sidebar",
+    "expand": "Expand sidebar",
+    "commandPalette": "Command palette",
+    "signOut": "Sign out",
+    "more": "More",
+    "moreTitle": "More"
   },
   "music": {
     "title": "Music",

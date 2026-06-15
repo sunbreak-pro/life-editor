@@ -54,6 +54,8 @@ export {
 } from "./context";
 export { useThemeContext } from "./hooks/useThemeContext";
 export { useLocalStorage } from "./hooks/useLocalStorage";
+// W5 app shell — matchMedia wrapper powering AppShell's wide↔narrow switch.
+export { useMediaQuery } from "./hooks/useMediaQuery";
 
 // Shortcut domain (W1) — types + defaults + Pattern A Provider + OPTIONAL
 // context hook. Web-lean ID set (see types/shortcut.ts). Mobile 省略 Provider

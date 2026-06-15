@@ -23,6 +23,27 @@ export { Input, type InputProps } from "./Input";
 export { Card, type CardProps } from "./Card";
 export { Modal, type ModalProps } from "./Modal";
 export { BottomSheet, type BottomSheetProps } from "./BottomSheet";
+// App shell (W5) — responsive single shell + its nav pieces. Pure
+// presentation: DataService-free, props-injected i18n (§3.1 / §6.4).
+export { NavItem, type NavItemProps } from "./NavItem";
+export {
+  SidebarNav,
+  type SidebarNavProps,
+  type SidebarNavSection,
+  type SidebarNavLabels,
+} from "./SidebarNav";
+export {
+  BottomTabBar,
+  type BottomTabBarProps,
+  type BottomTabBarLabels,
+  type BottomTabSection,
+} from "./BottomTabBar";
+export {
+  AppShell,
+  type AppShellProps,
+  type AppShellSection,
+  type AppShellLabels,
+} from "./AppShell";
 export {
   SettingsAppearance,
   type SettingsAppearanceProps,

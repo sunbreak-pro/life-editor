@@ -2054,11 +2054,20 @@
     "daily": "デイリー",
     "notes": "ノート",
     "schedule": "スケジュール",
+    "work": "ワーク",
     "analytics": "アナリティクス",
     "connect": "コネクト",
     "tags": "タグ",
     "settings": "設定",
     "trash": "ゴミ箱"
+  },
+  "nav": {
+    "collapse": "サイドバーを折りたたむ",
+    "expand": "サイドバーを展開",
+    "commandPalette": "コマンドパレット",
+    "signOut": "サインアウト",
+    "more": "その他",
+    "moreTitle": "その他"
   },
   "music": {
     "title": "ミュージック",

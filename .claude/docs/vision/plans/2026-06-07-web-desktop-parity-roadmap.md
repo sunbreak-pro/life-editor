@@ -171,6 +171,7 @@ CLAUDE.md , 2026-05-04-cross-platform-migration.md  ← 方針転換の記録（
 - **単純画面 → レスポンシブ単一**: 広幅=左サイドバー（折りたたみ可）/ 狭幅=ボトムタブ + More シート。shared に `AppShell` / `SidebarNav` / `BottomTabBar` を新設。
 - セクション**内部**の UX 密度（DnD / 詳細パネル / カレンダー充実）は W6+ の子計画書へ送り。
 - Gate: 🤖 実装 → 👀 目視 → 🛑 PR merge
+- 2026-06-15: Steps 1–6 実装済（`AppShell` / `SidebarNav` / `BottomTabBar` / `NavItem` / `useMediaQuery` 新設・`MainScreen` 差し替え。shared/web/frontend build + shared test 緑）。残 = Step 7 目視 / Step 8 merge。
 
 ---
 
