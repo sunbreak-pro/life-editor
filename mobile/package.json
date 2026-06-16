@@ -1,0 +1,25 @@
+{
+  "name": "mobile",
+  "version": "0.0.0",
+  "description": "Life Editor — Capacitor mobile shell (thin wrapper around web/ build output)",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build:web": "npm --prefix ../web run build",
+    "sync": "cap sync",
+    "sync:android": "cap sync android",
+    "sync:ios": "cap sync ios",
+    "copy": "cap copy",
+    "open:ios": "cap open ios",
+    "open:android": "cap open android"
+  },
+  "dependencies": {
+    "@capacitor/android": "^8.0.0",
+    "@capacitor/core": "^8.0.0",
+    "@capacitor/ios": "^8.0.0"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^8.0.0",
+    "typescript": "~5.6.0"
+  }
+}

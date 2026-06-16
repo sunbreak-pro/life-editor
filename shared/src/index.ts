@@ -281,6 +281,9 @@ export {
   type SortDirection,
 } from "./utils/sortTaskNodes";
 export { getFolderTag, truncateFolderTag } from "./utils/folderTag";
+// Platform detection. isNativeMobile() (Phase 4) lets the host gate the Mobile
+// 省略 Provider 5 種 (CLAUDE.md §2) on the Capacitor shells — see platform.ts.
+export { isMac, isNativeMobile } from "./utils/platform";
 export {
   computeNoteDropIntent,
   type NoteDropPosition,
