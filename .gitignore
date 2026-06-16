@@ -29,6 +29,11 @@ desktop/out/
 desktop/dist/
 desktop/release/
 
+# Mobile (Capacitor) — node deps only. The ios/ + android/ native projects are
+# committed; their build outputs / copied web assets / Pods are ignored by the
+# Capacitor-generated .gitignore files inside mobile/ios/ and mobile/android/.
+mobile/node_modules/
+
 # Mobile UI prototype env (Vite, isolated from frontend/)
 prototype/node_modules/
 prototype/dist/
