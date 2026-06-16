@@ -173,6 +173,15 @@ CLAUDE.md , 2026-05-04-cross-platform-migration.md  ← 方針転換の記録（
 - Gate: 🤖 実装 → 👀 目視 → 🛑 PR merge
 - 2026-06-15: Steps 1–6 実装済（`AppShell` / `SidebarNav` / `BottomTabBar` / `NavItem` / `useMediaQuery` 新設・`MainScreen` 差し替え。shared/web/frontend build + shared test 緑）。残 = Step 7 目視 / Step 8 merge。
 
+### W6 — セクション内部深化 第1弾（右サイドパネル / Master-Detail 3ペイン）★子計画書 `2026-06-16-web-parity-w6-detail-panel.md`
+
+- W5 シェル（殻）の内側＝セクション本体の情報密度を上げる W6+ の第1スライス。広幅で「サイドバー＋リスト＋詳細」の**3ペイン**を成立させる。
+- **複雑画面 → 最小分割**: 共有 `MasterDetail`（広幅=2カラム / 狭幅=詳細を `BottomSheet` でオーバーレイ・`useMediaQuery` 駆動）を新設。シェル無改変・選択はセクション保持（§3.1）。
+- **パイロット = Notes**（既に `selectedNote` を持つため低リスク）。**Tasks 詳細 = W7**（選択基盤の新設要）/ **Schedule カレンダー充実 = W8** へ送り。
+- DDL ゼロ・新規依存ゼロ（$0）。
+- Gate: 🤖 実装 → 👀 目視 → 🛑 PR merge
+- 2026-06-16: 計画書 起草（実装は次セッション）。
+
 ---
 
 ## 並行チャット境界（2026-06-07 現状）
