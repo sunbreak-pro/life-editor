@@ -21,7 +21,12 @@ import {
   Trash2,
   RotateCcw,
 } from "lucide-react";
-import { useNotesUnifiedContext, type NoteNode } from "@life-editor/shared";
+import {
+  useNotesUnifiedContext,
+  useTranslation,
+  MasterDetail,
+  type NoteNode,
+} from "@life-editor/shared";
 import { useNoteTreeDnd } from "./useNoteTreeDnd";
 import { RichTextEditor } from "./RichTextEditor";
 import {
@@ -313,6 +318,7 @@ function NoteTitleInput({
 
 export function NotesView() {
   const notes = useNotesUnifiedContext();
+  const { t } = useTranslation();
   const [pwDialog, setPwDialog] = useState<{
     mode: NotePasswordMode;
     noteId: string;
@@ -427,10 +433,12 @@ export function NotesView() {
     return <p className="text-notion-text-secondary">Loading notes…</p>;
   }
 
-  return (
-    <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)]">
-      <section className="space-y-3">
-        <div className="flex gap-2">
+  // Master pane — the note tree, create controls, errors and the trash
+  // drawer. Selection stays owned here (notes.selectedNote); MasterDetail is
+  // a pure layout shell that only takes detailOpen + onCloseDetail (§3.1).
+  const master = (
+    <div className="space-y-3">
+      <div className="flex gap-2">
           <button
             type="button"
             onClick={addNote}
@@ -552,11 +560,15 @@ export function NotesView() {
             </ul>
           </details>
         )}
-      </section>
+    </div>
+  );
 
-      <section className="space-y-3">
-        {selected ? (
-          <>
+  // Detail pane — the selected note's editor + metadata. Rendered only when a
+  // note is selected; MasterDetail shows emptyDetail otherwise (wide) or keeps
+  // the sheet closed (narrow). RichTextEditor / NoteTitleInput keep their
+  // key={selected.id} remount strategy (title is NOT keyed — see L254-257).
+  const detail = selected ? (
+    <div className="space-y-3">
             <div className="flex flex-wrap items-center gap-2">
               <NoteTitleInput
                 key={selected.id}
@@ -660,14 +672,20 @@ export function NotesView() {
                 This note is edit-locked. Unlock it to make changes.
               </p>
             )}
-          </>
-        ) : (
-          <p className="text-notion-text-secondary">
-            Select a note to view and edit it.
-          </p>
-        )}
-      </section>
+    </div>
+  ) : null;
 
+  return (
+    <>
+      <MasterDetail
+        master={master}
+        detail={detail}
+        detailOpen={selected != null}
+        onCloseDetail={() => notes.setSelectedNoteId(null)}
+        emptyDetail={t("notesView.detailEmpty")}
+        detailTitle={selected?.title || t("notesView.detailTitle")}
+        closeLabel={t("notesView.closeDetail")}
+      />
       {pwDialog && (
         <NotePasswordDialog
           mode={pwDialog.mode}
@@ -676,6 +694,6 @@ export function NotesView() {
           onClose={() => setPwDialog(null)}
         />
       )}
-    </div>
+    </>
   );
 }

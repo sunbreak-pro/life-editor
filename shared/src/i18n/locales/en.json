@@ -2212,7 +2212,10 @@
     "favorite": "Favorite",
     "unfavorite": "Unfavorite",
     "loadingEditor": "Loading editor...",
-    "emptyState": "Select a note or create a new one"
+    "emptyState": "Select a note or create a new one",
+    "detailEmpty": "Select a note to view and edit it.",
+    "detailTitle": "Note",
+    "closeDetail": "Close note"
   },
   "folderFilter": {
     "all": "All",
