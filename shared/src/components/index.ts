@@ -27,6 +27,13 @@ export { BottomSheet, type BottomSheetProps } from "./BottomSheet";
 // DataService-free, props-injected copy (§3.1 / §6.4). Selection stays with
 // the host section; this primitive only takes detailOpen + onCloseDetail.
 export { MasterDetail, type MasterDetailProps } from "./MasterDetail";
+// Task detail panel (W7) — the right pane for the selected task in the
+// Tasks MasterDetail. Pure presentation: title/status/content with injected
+// callbacks + content editor + props-injected copy (§3.1 / §6.4).
+export {
+  TaskDetailPanel,
+  type TaskDetailPanelProps,
+} from "./TaskDetailPanel";
 // App shell (W5) — responsive single shell + its nav pieces. Pure
 // presentation: DataService-free, props-injected i18n (§3.1 / §6.4).
 export { NavItem, type NavItemProps } from "./NavItem";

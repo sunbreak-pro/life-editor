@@ -11,6 +11,7 @@ import {
 } from "./useTaskTreeHistory";
 import { logServiceError } from "../utils/logError";
 import { getFolderTag } from "../utils/folderTag";
+import { collectDescendantIds } from "../utils/getDescendantTasks";
 import { useSyncContext } from "./useSyncContext";
 
 let idCounter = Date.now();
@@ -40,6 +41,15 @@ export function useTaskTreeAPI(options: UseTaskTreeAPIOptions) {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [persistError, setPersistError] = useState<string | null>(null);
+  // Pure selection state (W7). DataService-independent — mirrors Notes'
+  // `selectedNoteId` (useNotesUnifiedAPI). Drives the Tasks MasterDetail
+  // detail pane; the ref lets the delete wrappers below clear a selection
+  // that falls inside a deleted subtree without re-subscribing.
+  const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
+  const selectedTaskIdRef = useRef(selectedTaskId);
+  useEffect(() => {
+    selectedTaskIdRef.current = selectedTaskId;
+  }, [selectedTaskId]);
   const loadedRef = useRef(false);
   const { syncVersion } = useSyncContext();
 
@@ -168,11 +178,39 @@ export function useTaskTreeAPI(options: UseTaskTreeAPIOptions) {
     generateId,
     config,
   );
-  const { softDelete, restoreNode, permanentDelete } = useTaskTreeDeletion(
+  const {
+    softDelete: rawSoftDelete,
+    restoreNode,
+    permanentDelete: rawPermanentDelete,
+  } = useTaskTreeDeletion(
     nodes,
     guardedPersistWithHistory,
     guardedPersistSilent,
     clearHistory,
+  );
+
+  // Clear the selection when the deleted subtree contains the selected id
+  // (matches Notes' softDeleteNote, which nulls selectedNoteId for the
+  // whole removed subtree). Deletion cascades to descendants, so we test
+  // membership against the full subtree, not just the target id.
+  const softDelete = useCallback(
+    (id: string, options?: { skipUndo?: boolean }) => {
+      const subtree = collectDescendantIds(id, nodes);
+      const current = selectedTaskIdRef.current;
+      if (current !== null && subtree.has(current)) setSelectedTaskId(null);
+      rawSoftDelete(id, options);
+    },
+    [nodes, rawSoftDelete],
+  );
+
+  const permanentDelete = useCallback(
+    (id: string) => {
+      const subtree = collectDescendantIds(id, nodes);
+      const current = selectedTaskIdRef.current;
+      if (current !== null && subtree.has(current)) setSelectedTaskId(null);
+      rawPermanentDelete(id);
+    },
+    [nodes, rawPermanentDelete],
   );
   const { moveNode, moveNodeInto, moveToRoot } = useTaskTreeMovement(
     nodes,
@@ -184,6 +222,13 @@ export function useTaskTreeAPI(options: UseTaskTreeAPIOptions) {
     [nodeMap],
   );
 
+  // Resolve the selected node from the live map (null when nothing is
+  // selected or the id no longer exists). Mirrors Notes' `selectedNote`.
+  const selectedTask = useMemo(
+    () => (selectedTaskId ? (nodeMap.get(selectedTaskId) ?? null) : null),
+    [nodeMap, selectedTaskId],
+  );
+
   return useMemo(
     () => ({
       nodes: activeNodes,
@@ -193,6 +238,9 @@ export function useTaskTreeAPI(options: UseTaskTreeAPIOptions) {
       isLoading,
       error,
       persistError,
+      selectedTaskId,
+      setSelectedTaskId,
+      selectedTask,
       getFolderTagForTask,
       refetch,
       undo,
@@ -221,6 +269,8 @@ export function useTaskTreeAPI(options: UseTaskTreeAPIOptions) {
       isLoading,
       error,
       persistError,
+      selectedTaskId,
+      selectedTask,
       getFolderTagForTask,
       refetch,
       undo,
