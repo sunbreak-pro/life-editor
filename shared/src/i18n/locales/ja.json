@@ -650,6 +650,17 @@
     },
     "completeFolder": "完了"
   },
+  "taskDetail": {
+    "detailEmpty": "タスクを選択すると、ここで表示・編集できます。",
+    "detailTitle": "タスク",
+    "closeDetail": "タスクを閉じる",
+    "titleLabel": "タスクのタイトル",
+    "status": "ステータス",
+    "statusNotStarted": "未着手",
+    "statusInProgress": "進行中",
+    "statusDone": "完了",
+    "content": "メモ"
+  },
   "memo": {
     "title": "メモ",
     "daily": "日記",

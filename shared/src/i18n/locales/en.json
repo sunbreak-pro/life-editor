@@ -650,6 +650,17 @@
     },
     "completeFolder": "Complete"
   },
+  "taskDetail": {
+    "detailEmpty": "Select a task to view and edit it.",
+    "detailTitle": "Task",
+    "closeDetail": "Close task",
+    "titleLabel": "Task title",
+    "status": "Status",
+    "statusNotStarted": "Not started",
+    "statusInProgress": "In progress",
+    "statusDone": "Done",
+    "content": "Notes"
+  },
   "memo": {
     "title": "Memo",
     "daily": "Daily",

@@ -13,11 +13,15 @@ import {
 import { GripVertical, ChevronRight, ChevronDown, Folder } from "lucide-react";
 import {
   useTaskTreeContext,
+  useTranslation,
+  MasterDetail,
+  TaskDetailPanel,
   type TaskNode,
   type TaskStatus,
 } from "@life-editor/shared";
 import { TagPicker, LinkPanel } from "../wikitag";
 import { useTaskTreeDnd } from "./useTaskTreeDnd";
+import { RichTextEditor } from "../notes/RichTextEditor";
 import { TreeNodeIndent } from "../components/TreeNodeIndent";
 import { treeCollisionDetection } from "../components/treeCollision";
 import { TreeDragGhost } from "../components/TreeDragGhost";
@@ -41,6 +45,15 @@ const STATUS_GLYPH: Record<TaskStatus, string> = {
   NOT_STARTED: "○",
   IN_PROGRESS: "◐",
   DONE: "●",
+};
+
+// i18n keys for the detail panel's current-status label (host resolves
+// these with t() and injects the string — shared leaf components never
+// call useTranslation, §6.4).
+const STATUS_TEXT_KEY: Record<TaskStatus, string> = {
+  NOT_STARTED: "taskDetail.statusNotStarted",
+  IN_PROGRESS: "taskDetail.statusInProgress",
+  DONE: "taskDetail.statusDone",
 };
 
 function StatusButton({
@@ -74,11 +87,13 @@ interface TaskFlatRow {
 function TreeRow({
   row,
   expanded,
+  selected,
   linkOpen,
   // Drop indicator for THIS row while a drag is over it. null when this row
   // is not the current drop target (or no drag is active).
   dropPosition,
   onToggleExpand,
+  onSelect,
   onToggleLinks,
   onCycleStatus,
   onRename,
@@ -89,9 +104,11 @@ function TreeRow({
 }: {
   row: TaskFlatRow;
   expanded: boolean;
+  selected: boolean;
   linkOpen: boolean;
   dropPosition: "above" | "below" | "inside" | null;
   onToggleExpand: (id: string) => void;
+  onSelect: (id: string) => void;
   onToggleLinks: (id: string) => void;
   onCycleStatus: (id: string) => void;
   onRename: (id: string, current: string) => void;
@@ -116,7 +133,9 @@ function TreeRow({
       className={`group relative rounded-md border px-2 py-1.5 ${
         showInside
           ? "border-notion-accent bg-notion-accent-subtle"
-          : "border-notion-border bg-notion-bg-secondary"
+          : selected
+            ? "border-notion-accent bg-notion-hover"
+            : "border-notion-border bg-notion-bg-secondary"
       }`}
     >
       {/* Reorder insertion line — accent bar pinned to the row's top or
@@ -188,17 +207,23 @@ function TreeRow({
           <StatusButton node={node} onCycle={onCycleStatus} />
         )}
 
-        <span
+        {/* Title: folders toggle expand on click; tasks select (drive the
+            detail pane). Mirrors the Notes tree's folder-vs-leaf split. */}
+        <button
+          type="button"
+          onClick={() =>
+            isFolder ? onToggleExpand(node.id) : onSelect(node.id)
+          }
           className={
             isFolder
-              ? "flex-1 font-medium text-notion-text"
+              ? "flex-1 text-left font-medium text-notion-text"
               : node.status === "DONE"
-                ? "flex-1 text-notion-text-secondary line-through"
-                : "flex-1 text-notion-text"
+                ? "flex-1 text-left text-notion-text-secondary line-through"
+                : "flex-1 text-left text-notion-text"
           }
         >
           {node.title || "(untitled)"}
-        </span>
+        </button>
         <TagPicker itemId={node.id} />
         <span className="flex shrink-0 gap-2 text-xs">
           <button
@@ -249,6 +274,7 @@ function TreeRow({
 
 export function TaskTreeView() {
   const tree = useTaskTreeContext();
+  const { t } = useTranslation();
   // View-local expand/collapse: a folder id IN the set = collapsed
   // (children hidden). DU-G keeps this view-local (not on the context) and
   // threads collapse/expand into the DnD hook for Rule 1.
@@ -363,7 +389,13 @@ export function TaskTreeView() {
     return <p className="text-notion-text-secondary">Loading tasks…</p>;
   }
 
-  return (
+  const selected = tree.selectedTask;
+
+  // Master pane — the task tree, create controls, undo/redo, errors and the
+  // trash drawer. Selection stays owned by the Tasks API (tree.selectedTask);
+  // MasterDetail is a pure layout shell that only takes detailOpen +
+  // onCloseDetail (§3.1).
+  const master = (
     <div className="space-y-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex gap-2">
@@ -448,6 +480,7 @@ export function TaskTreeView() {
                   key={r.node.id}
                   row={r}
                   expanded={!collapsed.has(r.node.id)}
+                  selected={tree.selectedTaskId === r.node.id}
                   linkOpen={linksOpen.has(r.node.id)}
                   dropPosition={
                     // Only the current over-target row (and never the row
@@ -458,6 +491,7 @@ export function TaskTreeView() {
                       : null
                   }
                   onToggleExpand={toggleExpand}
+                  onSelect={tree.setSelectedTaskId}
                   onToggleLinks={toggleLinks}
                   onCycleStatus={tree.toggleTaskStatus}
                   onRename={rename}
@@ -515,5 +549,49 @@ export function TaskTreeView() {
         </details>
       )}
     </div>
+  );
+
+  // Detail pane — the selected task's title / status / content editor.
+  // Rendered only when a task is selected; MasterDetail shows emptyDetail
+  // otherwise (wide) or keeps the sheet closed (narrow). RichTextEditor
+  // keeps its key={selected.id} remount strategy (content swaps cleanly on a
+  // task switch and never drops mid-typing); the title field is NOT keyed on
+  // its text (TaskDetailPanel keys its TaskTitleInput by id internally).
+  const isFolder = selected?.type === "folder";
+  const detail = selected ? (
+    <TaskDetailPanel
+      taskId={selected.id}
+      title={selected.title}
+      status={selected.status}
+      isFolder={isFolder}
+      onTitleCommit={(id, title) => tree.updateNode(id, { title })}
+      onToggleStatus={tree.toggleTaskStatus}
+      titleLabel={t("taskDetail.titleLabel")}
+      statusLabel={t("taskDetail.status")}
+      statusText={t(STATUS_TEXT_KEY[selected.status ?? "NOT_STARTED"])}
+      contentLabel={t("taskDetail.content")}
+      contentEditor={
+        isFolder ? undefined : (
+          <RichTextEditor
+            key={selected.id}
+            noteId={selected.id}
+            initialContent={selected.content || undefined}
+            onUpdate={(content) => tree.updateNode(selected.id, { content })}
+          />
+        )
+      }
+    />
+  ) : null;
+
+  return (
+    <MasterDetail
+      master={master}
+      detail={detail}
+      detailOpen={selected != null}
+      onCloseDetail={() => tree.setSelectedTaskId(null)}
+      emptyDetail={t("taskDetail.detailEmpty")}
+      detailTitle={selected?.title || t("taskDetail.detailTitle")}
+      closeLabel={t("taskDetail.closeDetail")}
+    />
   );
 }
