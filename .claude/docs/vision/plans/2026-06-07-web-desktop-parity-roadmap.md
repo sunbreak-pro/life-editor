@@ -183,6 +183,11 @@ CLAUDE.md , 2026-05-04-cross-platform-migration.md  ← 方針転換の記録（
 - W6 の共有 `MasterDetail` を **Tasks** に第2採用。Tasks には Notes 相当の選択状態が無いため shared の Tasks API（`useTaskTreeAPI` / `TaskTreeContextValue`）に `selectedTaskId` / `setSelectedTaskId` / `selectedTask` を新設（DataService 非依存・削除で null 化、Notes と同挙動）。新規 `TaskDetailPanel`（shared 集約・純粋表示・props 注入）= title 編集 / status トグル / content リッチテキスト編集。`AppShell`（W5）/ `MasterDetail`（W6）は無改変で再利用。
 - Gate: 🤖 実装 → 👀 目視 → 🛑 PR merge
 
+### W8 — セクション内部深化 第3弾（Schedule カレンダー充実 / 週・日タイムグリッド）★子計画書 `2026-06-19-web-parity-w8-schedule-calendar.md`
+
+- 2層モデルの**複雑画面**代表 = Schedule。`schedule_items`（`date` + `HH:MM` start/end を保持）を**週/日タイムグリッド**で可視化。広幅=マウス操作の週グリッド / 狭幅=タップ前提の日アジェンダ + `BottomSheet` 編集に**割り切って分割**。位置計算は純関数（`scheduleGridLayout.ts`）に外出しして unit test で固める。**DDL ゼロ**（既存フィールド可視化）。イベント DnD は任意の最終ステップ（リスク次第で W8+ へ）。Routine 生成（`RoutineScheduleSync`）/ `ScheduleView` / `CalendarView` は無改変。
+- Gate: 🤖 実装 → 👀 目視 → 🛑 PR merge
+
 ---
 
 ## 並行チャット境界（2026-06-07 現状）
