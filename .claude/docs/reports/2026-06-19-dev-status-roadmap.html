@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Life Editor — 開発状況と優先ロードマップ（2026-06-19）</title>
+<style>
+  :root{
+    --bg:#f7f6f3; --panel:#ffffff; --ink:#37352f; --muted:#787066;
+    --line:#e8e4dc; --accent:#2e7d6b; --accent2:#3b6fb5;
+    --green:#2f9e6f; --amber:#d49a2f; --red:#d4604f; --graychip:#ece9e3;
+    --shadow:0 1px 3px rgba(15,15,15,.08),0 4px 16px rgba(15,15,15,.04);
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Hiragino Kaku Gothic ProN","Noto Sans JP","Segoe UI",sans-serif;
+    line-height:1.7;-webkit-font-smoothing:antialiased;}
+  .wrap{max-width:1040px;margin:0 auto;padding:40px 24px 80px;}
+  header.hero{margin-bottom:8px;}
+  .kicker{font-size:13px;letter-spacing:.08em;color:var(--accent);font-weight:700;text-transform:uppercase;}
+  h1{font-size:30px;line-height:1.3;margin:6px 0 4px;font-weight:800;letter-spacing:-.01em;}
+  .sub{color:var(--muted);font-size:15px;margin-bottom:6px;}
+  .meta{color:var(--muted);font-size:12.5px;border-top:1px solid var(--line);padding-top:10px;margin-top:14px;}
+  h2{font-size:21px;margin:48px 0 4px;font-weight:800;letter-spacing:-.01em;display:flex;align-items:center;gap:10px;}
+  h2 .n{display:inline-flex;width:30px;height:30px;border-radius:8px;background:var(--accent);color:#fff;
+    font-size:15px;align-items:center;justify-content:center;font-weight:800;flex:0 0 auto;}
+  h3{font-size:16px;margin:26px 0 8px;font-weight:700;}
+  p{margin:8px 0;}
+  .lead{color:var(--muted);font-size:14.5px;margin:6px 0 18px;}
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:22px 24px;box-shadow:var(--shadow);margin:16px 0;}
+
+  /* status cards */
+  .cards{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin:18px 0;}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px 18px 16px;box-shadow:var(--shadow);position:relative;overflow:hidden;}
+  .card .bar{position:absolute;left:0;top:0;height:4px;width:100%;}
+  .card.web .bar{background:var(--green)} .card.desk .bar{background:var(--amber)} .card.mob .bar{background:var(--red)}
+  .card h4{margin:6px 0 2px;font-size:16px;font-weight:800;display:flex;align-items:center;gap:8px;}
+  .card .pct{font-size:13px;color:var(--muted);font-weight:600;}
+  .progress{height:8px;border-radius:6px;background:var(--graychip);margin:10px 0 12px;overflow:hidden;}
+  .progress > i{display:block;height:100%;border-radius:6px;}
+  .card.web .progress > i{width:88%;background:var(--green)}
+  .card.desk .progress > i{width:45%;background:var(--amber)}
+  .card.mob .progress > i{width:25%;background:var(--red)}
+  .card ul{margin:6px 0 0;padding-left:18px;font-size:13px;color:var(--muted);}
+  .card ul li{margin:3px 0;}
+  .emoji{font-size:18px;}
+
+  /* chips */
+  .chip{display:inline-block;font-size:11.5px;font-weight:700;padding:2px 9px;border-radius:20px;background:var(--graychip);color:var(--muted);vertical-align:middle;}
+  .chip.done{background:#e2f3ea;color:#1f7a53}
+  .chip.prog{background:#fbf0d8;color:#9a6b15}
+  .chip.todo{background:#fbe4e0;color:#a83b2c}
+  .chip.gate{background:#eaf0fa;color:#2f5aa8}
+
+  table{width:100%;border-collapse:collapse;margin:14px 0;font-size:13.5px;}
+  th,td{text-align:left;padding:10px 12px;border-bottom:1px solid var(--line);vertical-align:top;}
+  th{font-size:12px;letter-spacing:.03em;color:var(--muted);text-transform:uppercase;font-weight:700;}
+  tbody tr:hover{background:#faf9f6;}
+  td.center,th.center{text-align:center;white-space:nowrap;}
+
+  /* roadmap timeline */
+  .road{position:relative;margin:18px 0 6px;padding-left:30px;}
+  .road::before{content:"";position:absolute;left:9px;top:6px;bottom:6px;width:2px;background:var(--line);}
+  .step{position:relative;margin:0 0 20px;}
+  .step::before{content:"";position:absolute;left:-29px;top:4px;width:18px;height:18px;border-radius:50%;
+    background:#fff;border:3px solid var(--accent);}
+  .step.now::before{background:var(--accent);box-shadow:0 0 0 4px rgba(46,125,107,.18);}
+  .step.later::before{border-color:var(--muted);}
+  .step h4{margin:0 0 4px;font-size:15.5px;font-weight:800;display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+  .step .when{font-size:12px;color:var(--muted);font-weight:600;}
+  .step p{margin:4px 0;font-size:13.5px;color:#54504a;}
+  .step ul{margin:6px 0;padding-left:18px;font-size:13px;color:#54504a;}
+  .step ul li{margin:3px 0;}
+
+  .callout{border-left:4px solid var(--accent);background:#eef6f3;border-radius:0 10px 10px 0;padding:14px 18px;margin:16px 0;font-size:14px;}
+  .callout.warn{border-color:var(--amber);background:#fcf6e9;}
+  .callout b{color:var(--ink);}
+  .two{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+  .mini{font-size:13px;}
+  .mini h5{margin:0 0 6px;font-size:13.5px;font-weight:800;}
+  .mini ul{margin:0;padding-left:18px;color:var(--muted);}
+  .mini ul li{margin:4px 0;}
+  .legend{display:flex;gap:16px;flex-wrap:wrap;font-size:12.5px;color:var(--muted);margin:10px 0 0;}
+  .legend span{display:inline-flex;align-items:center;gap:6px;}
+  .dot{width:10px;height:10px;border-radius:50%;display:inline-block;}
+  footer{margin-top:50px;color:var(--muted);font-size:12px;border-top:1px solid var(--line);padding-top:16px;}
+  @media(max-width:780px){.cards{grid-template-columns:1fr}.two{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="hero">
+  <div class="kicker">Life Editor — Development Status</div>
+  <h1>開発状況と優先ロードマップ</h1>
+  <div class="sub">「デスクトップを先に完成 → 日常使い」「スマホとデータ同期」「タスク整理・スケジュール管理をストレスなく」を実現するための作業整理</div>
+  <div class="meta">
+    対象: <b>sunbreak-pro/life-editor</b> ／ 作成日: 2026-06-19 ／
+    根拠: 移行 SSOT（2026-05-04-cross-platform-migration.md）・memory/INDEX・GitHub PR 履歴（〜#91）・リポジトリ実体<br>
+    現行スタック: <b>shared(React 本体) → Electron / Capacitor / Web の 3 包装</b> ＋ <b>Supabase(Postgres + Auth + Realtime)</b>
+  </div>
+</header>
+
+<!-- ============ 1. ひと目で現状 ============ -->
+<h2><span class="n">1</span>ひと目で現状</h2>
+<p class="lead">同じ <b>shared</b>（React UI 本体）を 3 つの殻で包む構成。中身の機能（Web）はほぼ完成、外側の殻（Desktop / Mobile）が残作業。データ同期は Supabase 経由で<b>すでに動く土台がある</b>。</p>
+
+<div class="cards">
+  <div class="card web">
+    <div class="bar"></div>
+    <h4><span class="emoji">🟢</span> Web（ブラウザ）</h4>
+    <div class="pct">約 88% — 最も成熟・中身の本体</div>
+    <div class="progress"><i></i></div>
+    <ul>
+      <li>コア5機能（Tasks/Schedule/Notes/Daily/WikiTags）稼働</li>
+      <li>Settings/テーマ/i18n/Trash/コマンドパレット完了</li>
+      <li>Pomodoro/Audio/Analytics/Connect 移植済</li>
+      <li>AppShell + 詳細パネル(Master-Detail) 整備済</li>
+      <li><b>残:</b> 実機目視 / レスポンシブ詰め / 公開デプロイ</li>
+    </ul>
+  </div>
+  <div class="card desk">
+    <div class="bar"></div>
+    <h4><span class="emoji">🟡</span> Desktop（Electron）</h4>
+    <div class="pct">約 45% — 殻は着地・日常使いには未達</div>
+    <div class="progress"><i></i></div>
+    <ul>
+      <li>scaffold 完了（#79）— web ビルドを包む構成</li>
+      <li>main / preload / builder 設定済</li>
+      <li><b>残:</b> macOS 実機 golden path 検証</li>
+      <li><b>残:</b> Tray / 自動起動 / 配布(.dmg)</li>
+      <li><b>残:</b> 自動更新 / terminal-MCP 連携</li>
+    </ul>
+  </div>
+  <div class="card mob">
+    <div class="bar"></div>
+    <h4><span class="emoji">🔴</span> Mobile（Capacitor）</h4>
+    <div class="pct">約 25% — 殻の枠だけ生成済み</div>
+    <div class="progress"><i></i></div>
+    <ul>
+      <li>scaffold 完了（#88）— ios/ + android/ 生成</li>
+      <li><code>cap sync</code> 両 OS で通過</li>
+      <li><b>残:</b> Provider 配線（Theme/Timer 等）</li>
+      <li><b>残:</b> シミュレータ起動 / 実機署名(7日)</li>
+      <li><b>残:</b> safe-area / アイコン / スプラッシュ</li>
+    </ul>
+  </div>
+</div>
+
+<div class="callout">
+  <b>重要な気づき：</b>「スマホとのデータ同期」は新規開発がほぼ不要です。Web/Desktop/Mobile は全員 <b>同じ <code>shared</code> UI</b> を包み、データは <b>同じ Supabase</b> を見ます。
+  Realtime 購読（他端末の変更が反映される仕組み）は Phase 2 の S8 で<b>すでに実装済み（#47）</b>。
+  つまり <b>Mobile の殻を起動できた瞬間に、タスク／スケジュールはデスクトップと自動同期します</b>。同期は「作る」のではなく「殻を被せて動かす」だけ。
+</div>
+
+<!-- ============ 2. Phase 全体マップ ============ -->
+<h2><span class="n">2</span>移行 Phase の全体マップ</h2>
+<p class="lead">旧スタック（Tauri + Cloudflare D1）→ 新スタック（Electron/Capacitor/Web + Supabase）への移行は Phase 1〜5。Phase 5 完了＝「完成」。ここまで<b>コスト $0 厳守</b>。</p>
+<div class="panel" style="padding:6px 10px">
+<table>
+  <thead><tr><th>Phase</th><th>内容</th><th class="center">状態</th><th>残っていること</th></tr></thead>
+  <tbody>
+    <tr><td><b>1</b></td><td>新スタック土台（Supabase / Auth / RLS）</td><td class="center"><span class="chip done">完了</span></td><td>—</td></tr>
+    <tr><td><b>2</b></td><td>コア機能移植 + Realtime 同期 + レスポンシブ</td><td class="center"><span class="chip done">完了</span></td><td>実機目視・S9 詰めのみ</td></tr>
+    <tr><td><b>+α</b></td><td>Web/Desktop パリティ W0〜W7（計画外スコープ）</td><td class="center"><span class="chip done">ほぼ完了</span></td><td>W7 実装 / W8(Schedule 充実)</td></tr>
+    <tr><td><b>3</b></td><td>Electron 包装（Desktop）</td><td class="center"><span class="chip prog">進行中</span></td><td>実機検証・配布・周辺機能</td></tr>
+    <tr><td><b>4</b></td><td>Capacitor 包装（Mobile）</td><td class="center"><span class="chip prog">scaffold</span></td><td>配線・起動・実機・整備</td></tr>
+    <tr><td><b>5</b></td><td>周辺機能 + terminal 連携 + 旧スタック削除 ＝ <b>完成</b></td><td class="center"><span class="chip todo">未着手</span></td><td>一式</td></tr>
+  </tbody>
+</table>
+</div>
+<div class="legend">
+  <span><i class="dot" style="background:var(--green)"></i> 完了</span>
+  <span><i class="dot" style="background:var(--amber)"></i> 進行中 / 部分</span>
+  <span><i class="dot" style="background:var(--red)"></i> 未着手</span>
+</div>
+
+<!-- ============ 3. 優先ロードマップ ============ -->
+<h2><span class="n">3</span>あなたの優先順位に沿ったロードマップ</h2>
+<p class="lead">ご要望（①デスクトップを先に完成して日常使い ②スマホ同期 ③タスク整理・スケジュール管理をストレスなく）を、最短で「毎日使える」状態にする順番に並べ替えました。</p>
+
+<div class="road">
+
+  <div class="step now">
+    <h4>STEP 1 ｜ デスクトップを「日常使いできる」最小ラインへ <span class="chip prog">最優先・進行中</span></h4>
+    <div class="when">目安: 1〜2 週 ／ Phase 3 残り ＋ Phase 5-A の一部</div>
+    <p>殻（#79）は着地済み。<b>「起動 → ログイン → タスク/スケジュールを毎日触れる」</b>を本物にする工程。ここが終われば、まず自分の Mac で日常運用を開始できます。</p>
+    <ul>
+      <li><b>macOS golden path 実機検証</b> — 起動 → ログイン → 各セクション操作が通ることを実機で確認</li>
+      <li><b>未署名 .dmg をビルド</b>して自分の Mac にインストール（右クリック→開く、$0）</li>
+      <li><b>Tray（常駐）＋ 自動起動</b> — 「閉じても常駐」「ログイン時に立ち上がる」= 日常ツールの必須要件</li>
+      <li>Windows / Linux は当面 CI ビルド成否のみ確認（友達配布は完成後）</li>
+    </ul>
+    <p class="mini" style="color:var(--muted)"><b>到達点:</b> 自分の Mac で Life Editor を毎日起動してタスク・スケジュールを運用できる。</p>
+  </div>
+
+  <div class="step now">
+    <h4>STEP 2 ｜ タスク整理・スケジュール管理を「ストレスなく」詰める <span class="chip prog">並行可</span></h4>
+    <div class="when">目安: 1〜2 週 ／ パリティ W7（進行中）＋ W8 ＋ 実機目視 fix</div>
+    <p>毎日使ううえで体感に直結する操作感の仕上げ。STEP 1 と並行して進められます。</p>
+    <ul>
+      <li><b>Tasks 詳細パネル（W7）</b>を実装 — 一覧＋詳細の 3 ペイン。タイトル/状態/本文をその場編集（計画書 PR #92 / 実装は別セッション）</li>
+      <li><b>Schedule カレンダー充実（W8）</b> — 週ビュー・ドラッグ操作など、スケジュール管理の密度を Desktop 同等へ</li>
+      <li><b>W1〜W6 の実機目視 fix</b> — テーマ/フォント/i18n/Trash/コマンドパレット/Pomodoro/Audio/Analytics/Connect の体感確認と微修正（INDEX に 👀 多数）</li>
+    </ul>
+    <p class="mini" style="color:var(--muted)"><b>到達点:</b> タスクの並べ替え・詳細編集・予定の見通しがストレスなくできる。</p>
+  </div>
+
+  <div class="step">
+    <h4>STEP 3 ｜ スマホ同期 — Mobile の殻を起動可能にする <span class="chip todo">次の山</span></h4>
+    <div class="when">目安: 2〜4 週 ／ Phase 4</div>
+    <p>前述の通り<b>同期ロジックの新規開発は不要</b>。Mobile の殻を起動できれば Supabase 経由で Desktop と自動同期します。残るのは Capacitor の配線と動作確認。</p>
+    <ul>
+      <li><b>Provider 配線</b> — Theme / Timer 等を mobile ルートに接続（scaffold では <code>isNativeMobile()</code> アダプタのみ提供で配線は申し送り）</li>
+      <li><b>iOS シミュレータ起動</b> → <b>無料 Apple ID + 7 日署名</b>で自分の iPhone 実機検証（$0・友達配布は完成後）</li>
+      <li><b>Android AVD 起動</b> ＋ 未署名 .apk を自分の端末へ</li>
+      <li><b>safe-area / スプラッシュ / アイコン</b>整備、Mobile 省略 Provider（Audio 等）の Optional 確認</li>
+    </ul>
+    <p class="mini" style="color:var(--muted)"><b>到達点:</b> 外出先でスマホからタスク・予定を確認/追記 → 帰宅後 Desktop に反映、の往復が成立。</p>
+  </div>
+
+  <div class="step later">
+    <h4>STEP 4 ｜ 完成仕上げ（Phase 5-B / 5-C） <span class="chip todo">完成へ</span></h4>
+    <div class="when">目安: 2〜3 週</div>
+    <p>日常運用が回り始めた後の仕上げ。急がず進めてよい領域。</p>
+    <ul>
+      <li><b>terminal-division 連携</b> — <code>mcp-server</code> を Postgres 版へ書き換え、ターミナルから AI が同一 DB を操作</li>
+      <li><b>自動更新</b>（electron-updater + GitHub Releases）／ <b>Web URL 公開</b>（Cloudflare Pages・$0）</li>
+      <li><b>旧スタック削除</b>（<code>frontend/</code> <code>src-tauri/</code> <code>cloud/</code>）＋ CLAUDE.md / vision / db-conventions を新スタック前提へ全面改訂</li>
+    </ul>
+  </div>
+
+</div>
+
+<!-- ============ 4. データ同期の仕組み ============ -->
+<h2><span class="n">4</span>データ同期はどう成立しているか</h2>
+<p class="lead">「スマホとデスクトップで同じタスク・予定が見える」を支える土台。すでに動く部分と、残る部分を分けて整理します。</p>
+<div class="two">
+  <div class="panel mini">
+    <h5>✅ すでにある（再利用するだけ）</h5>
+    <ul>
+      <li><b>単一データソース</b> — 全端末が同じ Supabase(Postgres) を参照</li>
+      <li><b>DataService 境界</b> — UI は <code>getDataService()</code> 経由のみ。端末差を吸収</li>
+      <li><b>Realtime 購読（S8 / #47）</b> — 他端末の変更が自動反映</li>
+      <li><b>LWW 同期モデル</b> — <code>items_meta.updated_at</code> を基準に最終更新優先で衝突解決</li>
+      <li><b>Auth + RLS</b> — 本人のデータのみアクセス（<code>auth.uid() = user_id</code>）</li>
+      <li><b>Timer/Audio テーブル</b>（migration 0018）も同期対象</li>
+    </ul>
+  </div>
+  <div class="panel mini">
+    <h5>🔧 同期のために残ること</h5>
+    <ul>
+      <li>Mobile の殻を<b>起動状態</b>にする（STEP 3）— これが事実上の唯一の残作業</li>
+      <li>各端末で<b>同一アカウントでログイン</b>する導線確認</li>
+      <li><b>常時オンライン前提</b>の設計 — 圏外時はバナー表示（オフライン編集は Non-goal）</li>
+      <li>実機での同期往復テスト（Desktop ↔ iPhone で同じタスクが見えるか）</li>
+    </ul>
+  </div>
+</div>
+<div class="callout warn">
+  <b>注意（割り切り）：</b> 本設計は <b>オフライン編集を行いません</b>（常時オンライン前提・Service Worker 不採用）。
+  電車内など圏外では「オンライン時にご利用ください」のバナーが出ます。N=1・毎日触る運用では実害が小さいという判断です。
+</div>
+
+<!-- ============ 5. 期間試算 ============ -->
+<h2><span class="n">5</span>期間の見通し</h2>
+<p class="lead">PR 履歴の実測ペース（移行起点 05-11 から実装系 約 11 本/週）と人手ゲート（実機目視・署名・デプロイは並列化不可）を踏まえた試算です。</p>
+<div class="panel" style="padding:6px 10px">
+<table>
+  <thead><tr><th>区分</th><th class="center">残量</th><th>律速・リスク</th><th class="center">期間目安</th></tr></thead>
+  <tbody>
+    <tr><td><b>Desktop（日常使いライン）</b></td><td class="center"><span class="chip prog">中</span></td><td>実機 golden path・Tray/自動起動・配布</td><td class="center"><b>1〜2 週</b></td></tr>
+    <tr><td>タスク/スケジュール仕上げ</td><td class="center"><span class="chip prog">中</span></td><td>W7/W8 実装・目視 fix（Desktop と並行可）</td><td class="center">1〜2 週</td></tr>
+    <tr><td><b>Mobile（同期成立まで）</b></td><td class="center"><span class="chip todo">大</span></td><td>Provider 配線・実機署名・safe-area</td><td class="center"><b>2〜4 週</b></td></tr>
+    <tr><td>完成仕上げ（Phase 5-B/C）</td><td class="center"><span class="chip todo">中</span></td><td>terminal 連携・旧スタック削除・公開</td><td class="center">2〜3 週</td></tr>
+    <tr style="background:#faf9f6"><td><b>完成（Phase 5 まで）</b></td><td class="center">—</td><td>Mobile が最大の不確定要因（Desktop と並行で短縮可）</td><td class="center"><b>約 6〜10 週</b><br><span class="chip">1.5〜2.5ヶ月</span></td></tr>
+  </tbody>
+</table>
+</div>
+<div class="callout">
+  <b>あなたの目的「まず日常使い」に限れば最短ルートは STEP 1 のみ。</b>
+  デスクトップの実機検証＋Tray/自動起動＋未署名 .dmg だけなら <b>1〜2 週で「自分の Mac で毎日使える」</b>状態に到達します。
+  スマホ同期（STEP 3）はその後に並行着手するのが、ストレスを溜めない現実的な順序です。
+</div>
+
+<!-- ============ 6. 次の一手 ============ -->
+<h2><span class="n">6</span>次の一手（推奨アクション）</h2>
+<div class="panel">
+  <ol style="margin:4px 0;padding-left:22px;font-size:14px;">
+    <li style="margin:8px 0"><b>STEP 1 を起票・着手</b> — Phase 3 の「macOS golden path 実機検証 → 未署名 .dmg → Tray/自動起動」を子計画書化して着手（<code>lead-pipeline</code> 起点）。</li>
+    <li style="margin:8px 0"><b>W7 実装を進める</b> — 計画書 PR #92（草案）の Tasks 詳細パネル実装を別セッションで（タスク整理の体感に直結）。</li>
+    <li style="margin:8px 0"><b>STEP 3 の準備だけ先行</b> — Mobile の Provider 配線の境界（stream E 申し送り）を確認し、着手可能な状態にしておく。</li>
+    <li style="margin:8px 0"><b>同期の実機往復テストを定義</b> — 「Desktop で作ったタスクが iPhone で見える」を受け入れ基準として明文化。</li>
+  </ol>
+</div>
+
+<footer>
+  本書は派生・参考レポート。SSOT は移行プラン（<code>.claude/2026-05-04-cross-platform-migration.md</code>）＋ per-chat <code>chat-*.md</code>。
+  数値・状態は 2026-06-19 時点のスナップショット（PR 〜#91 / open #92）。コスト方針: 完成まで $0 厳守。
+</footer>
+
+</div>
+</body>
+</html>
