@@ -10,6 +10,13 @@ files:
   - out/**/*
   - package.json
 
+# Ship the app icon into the packaged app's resources dir so the Tray can load
+# it at runtime (process.resourcesPath/icon.png). In dev it is read from the
+# repo's resources/ instead.
+extraResources:
+  - from: ../resources/icon.png
+    to: icon.png
+
 # Unsigned for Phase 1-5 ($0 policy). Signing/notarization is decided after
 # completion (see migration SSOT §8). identity: null disables macOS code signing.
 mac:
@@ -20,6 +27,7 @@ mac:
         - x64
   category: public.app-category.productivity
   identity: null
+  icon: ../resources/icon.icns
 
 dmg:
   artifactName: ${productName}-${version}-${arch}.${ext}
@@ -41,3 +49,4 @@ linux:
       arch:
         - x64
   category: Utility
+  icon: ../resources/icon.png
