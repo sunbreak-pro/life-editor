@@ -23,7 +23,7 @@
 
 | 日付        | 区分 | 予定タスク (Phase・plan 由来)                          | 予算 | GCal (eventId) | 進捗 |
 | ----------- | ---- | ----------------------------------------------------- | ---- | -------------- | ---- |
-| 06-21 (Sun) | 休日 | Phase 3 Electron — PR #79 レビュー反映 + macOS 起動確認 | 4h+  | ivgcgdeom1sm465dhj72h3dto8 | ☐    |
+| 06-21 (Sun) | 休日 | — 開発なし（ディズニー 07:15–20:00 で終日不在）         | —    | —              | —    |
 | 06-22 (Mon) | 平日 | initplan WARN 48 件 — advisor 再実測 + 原因メモ着手   | 45m  | rjg3hsqi661c8bo15ppj7lodoo | ☐    |
 | 06-23 (Tue) | 平日 | web Phase 2 残 S9 — モバイルレスポンシブ 1 画面       | 45m  | dk4qhvspdkc9fjrk05319gmok8 | ☐    |
 | 06-24 (Wed) | 平日 | Link UX (Obsidian 風) スケルトン精読 + 設計メモ        | 60m  | iqpijoj943vm20q680ir1igbfc | ☐    |
@@ -36,6 +36,7 @@
 
 ## 来週候補 (backlog)
 
+- Phase 3 Electron — PR #79 レビュー反映 + macOS 起動確認（6/21 ディズニーで繰越）
 - W4 (Analytics+Connect) PR 作成 → main merge（🛑 ユーザー判断・要実機目視 D1）
 - Work セクション Mobile 統一 PR 作成 → merge（🛑 ユーザー判断）
 - DU-E Calendar 2 ビュー再実装（DU-G 完了後）
