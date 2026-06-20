@@ -5,6 +5,7 @@ import {
   weekDates,
   addDays,
   todayLocal,
+  timeToMinutes,
   minutesToTime,
   snapMinutes,
   type ScheduleItem,
@@ -22,7 +23,13 @@ import {
  * snapped time; click an event to open the editor panel below the grid (title
  * / start / end / all-day / done / delete-or-dismiss). Mutations update the
  * grid optimistically and call through the ScheduleItems DataService surface;
- * Refresh reconciles with the server. Drag-to-move / resize is W8-3.
+ * Refresh reconciles with the server.
+ *
+ * W8-3 (drag): drag an event body to move it (vertically = time, horizontally
+ * = day) and drag its bottom handle to resize the end time, both snapped to
+ * 30 min. Native pointer events drive a live optimistic re-layout; the final
+ * position is persisted on pointer-up. A pointer-down that doesn't move past a
+ * small threshold is treated as a click (selection).
  *
  * English-only, matching the established web Schedule convention (i18n arrives
  * with the Settings i18n pass, like ScheduleItemsView / CalendarView).
@@ -148,6 +155,101 @@ export function WeekGrid() {
     setSelectedId(null);
   };
 
+  // ── W8-3 drag-to-move / resize (native pointer events) ───────────────────
+  const [dragging, setDragging] = useState(false);
+  const dragRef = useRef<{
+    id: string;
+    mode: "move" | "resize";
+    startX: number;
+    startY: number;
+    colWidth: number;
+    origStartMin: number;
+    durationMin: number;
+    origDate: string;
+    moved: boolean;
+    final: { date: string; startTime: string; endTime: string } | null;
+  } | null>(null);
+
+  const beginDrag = (
+    e: React.PointerEvent,
+    item: ScheduleItem,
+    mode: "move" | "resize",
+  ) => {
+    if (e.button !== 0 || item.isAllDay) return;
+    e.stopPropagation();
+    // offsetParent of a move-grabbed event is its day column (used to map
+    // horizontal drag → day offset); resize ignores width.
+    const col = (e.currentTarget as HTMLElement).offsetParent as HTMLElement | null;
+    const startMin = timeToMinutes(item.startTime);
+    const endMin = Math.max(timeToMinutes(item.endTime), startMin + SNAP_MIN);
+    dragRef.current = {
+      id: item.id,
+      mode,
+      startX: e.clientX,
+      startY: e.clientY,
+      colWidth: col ? col.getBoundingClientRect().width : 0,
+      origStartMin: startMin,
+      durationMin: endMin - startMin,
+      origDate: item.date,
+      moved: false,
+      final: null,
+    };
+    setDragging(true);
+  };
+
+  useEffect(() => {
+    if (!dragging) return;
+    const onMove = (e: PointerEvent) => {
+      const d = dragRef.current;
+      if (!d) return;
+      const dx = e.clientX - d.startX;
+      const dy = e.clientY - d.startY;
+      if (!d.moved && Math.abs(dx) + Math.abs(dy) < 4) return;
+      d.moved = true;
+      const deltaMin = (dy / SLOT_HEIGHT) * 60;
+      let date = d.origDate;
+      let startMin = d.origStartMin;
+      let endMin: number;
+      if (d.mode === "move") {
+        startMin = snapMinutes(d.origStartMin + deltaMin, SNAP_MIN);
+        endMin = startMin + d.durationMin;
+        if (d.colWidth > 0) {
+          const offset = Math.round(dx / d.colWidth);
+          const idx = Math.min(6, Math.max(0, days.indexOf(d.origDate) + offset));
+          date = days[idx];
+        }
+      } else {
+        endMin = Math.max(
+          snapMinutes(d.origStartMin + d.durationMin + deltaMin, SNAP_MIN),
+          d.origStartMin + SNAP_MIN,
+        );
+      }
+      const startTime = minutesToTime(startMin);
+      const endTime = minutesToTime(endMin);
+      d.final = { date, startTime, endTime };
+      setWeekItems((prev) =>
+        prev.map((it) =>
+          it.id === d.id ? { ...it, date, startTime, endTime } : it,
+        ),
+      );
+    };
+    const onUp = () => {
+      const d = dragRef.current;
+      if (d) {
+        if (d.moved && d.final) updateScheduleItem(d.id, d.final);
+        else setSelectedId(d.id);
+      }
+      dragRef.current = null;
+      setDragging(false);
+    };
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp);
+    return () => {
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
+    };
+  }, [dragging, days, updateScheduleItem]);
+
   // Group items by day for both the all-day strip and the timed grid.
   const byDay = useMemo(() => {
     const map = new Map<string, ScheduleItem[]>();
@@ -266,7 +368,10 @@ export function WeekGrid() {
       )}
 
       {/* Time grid */}
-      <div ref={scrollRef} className="max-h-[560px] overflow-y-auto">
+      <div
+        ref={scrollRef}
+        className={`max-h-[560px] overflow-y-auto ${dragging ? "select-none" : ""}`}
+      >
         <div className="flex" style={{ height: GRID_HOURS * SLOT_HEIGHT }}>
           {/* Hour gutter */}
           <div style={{ width: GUTTER_PX }} className="relative shrink-0">
@@ -324,18 +429,16 @@ export function WeekGrid() {
                       key={p.item.id}
                       type="button"
                       title={`${p.item.startTime}–${p.item.endTime} ${p.item.title}`}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setSelectedId(p.item.id);
-                      }}
+                      onPointerDown={(e) => beginDrag(e, p.item, "move")}
                       style={{
                         position: "absolute",
                         top: p.top,
                         height: p.height,
                         left: `calc(${p.column * widthPct}% + 1px)`,
                         width: `calc(${widthPct}% - 2px)`,
+                        touchAction: "none",
                       }}
-                      className={`z-10 overflow-hidden rounded px-1 text-left text-[11px] leading-tight ${
+                      className={`z-10 cursor-move overflow-hidden rounded px-1 text-left text-[11px] leading-tight ${
                         done
                           ? "bg-notion-bg-secondary text-notion-text-secondary line-through"
                           : "bg-notion-accent text-notion-on-accent"
@@ -347,6 +450,12 @@ export function WeekGrid() {
                       <div className="truncate opacity-90">
                         {p.item.startTime}
                       </div>
+                      {/* Resize handle (bottom edge) */}
+                      <div
+                        onPointerDown={(e) => beginDrag(e, p.item, "resize")}
+                        style={{ touchAction: "none" }}
+                        className="absolute inset-x-0 bottom-0 h-1.5 cursor-ns-resize"
+                      />
                     </button>
                   );
                 })}
