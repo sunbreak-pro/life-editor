@@ -877,6 +877,27 @@
     "materials": "マテリアル",
     "dailyMemo": "デイリー"
   },
+  "scheduleCalendar": {
+    "weekdaySun": "日",
+    "weekdayMon": "月",
+    "weekdayTue": "火",
+    "weekdayWed": "水",
+    "weekdayThu": "木",
+    "weekdayFri": "金",
+    "weekdaySat": "土",
+    "allDay": "終日",
+    "today": "今日",
+    "prevWeek": "前の週",
+    "nextWeek": "次の週",
+    "prevDay": "前の日",
+    "nextDay": "次の日",
+    "empty": "予定なし",
+    "selectHint": "編集する予定を選択",
+    "title": "タイトル",
+    "startTime": "開始",
+    "endTime": "終了",
+    "complete": "完了にする"
+  },
   "schedulePanel": {
     "existingTasks": "既存タスク",
     "newTask": "新規タスク",

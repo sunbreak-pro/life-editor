@@ -49,6 +49,7 @@ const NotesView = lazy(() =>
 import { ScheduleView } from "./schedule/ScheduleView";
 import { WeekGrid } from "./schedule/WeekGrid";
 import { ScheduleItemsView } from "./schedule/ScheduleItemsView";
+import { ScheduleCalendarView } from "./schedule/ScheduleCalendarView";
 import { RoutineScheduleSync } from "./schedule/RoutineScheduleSync";
 import { CalendarView } from "./schedule/CalendarView";
 import { WikiTagsManagementView } from "./wikitag";
@@ -313,7 +314,7 @@ export function MainScreen({ session }: { session: Session }) {
                         <RoutineProvider dataService={ds}>
                           <ScheduleItemsProvider dataService={ds}>
                             <RoutineScheduleSync dataService={ds} />
-                            <WeekGrid />
+                            <ScheduleCalendarView />
                             <ScheduleView />
                             <ScheduleItemsView />
                             <CalendarView />
