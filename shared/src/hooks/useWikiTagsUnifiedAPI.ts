@@ -95,6 +95,15 @@ export function useWikiTagsUnifiedAPI(options: UseWikiTagsUnifiedAPIOptions) {
     [ds],
   );
 
+  const setTagColor = useCallback(
+    async (id: string, color: string | null): Promise<WikiTag> => {
+      const updated = await ds.updateWikiTagUnified(id, { color });
+      setAllTags((prev) => prev.map((t) => (t.id === id ? updated : t)));
+      return updated;
+    },
+    [ds],
+  );
+
   const deleteTag = useCallback(
     async (id: string): Promise<void> => {
       await ds.softDeleteWikiTagUnified(id);
@@ -301,6 +310,7 @@ export function useWikiTagsUnifiedAPI(options: UseWikiTagsUnifiedAPIOptions) {
       refresh,
       createTag,
       renameTag,
+      setTagColor,
       deleteTag,
       listTagsForItem,
       assignTagToItem,
@@ -325,6 +335,7 @@ export function useWikiTagsUnifiedAPI(options: UseWikiTagsUnifiedAPIOptions) {
       refresh,
       createTag,
       renameTag,
+      setTagColor,
       deleteTag,
       listTagsForItem,
       assignTagToItem,

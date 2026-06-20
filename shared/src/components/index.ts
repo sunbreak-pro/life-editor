@@ -22,6 +22,10 @@ export {
 export { Input, type InputProps } from "./Input";
 export { Card, type CardProps } from "./Card";
 export { Modal, type ModalProps } from "./Modal";
+// Color picker (W-UX) — shared color-change control (presets + custom hex +
+// clear). Promoted from the Kanban's KanbanColorControl so folder / tag / any
+// future surface reuse one component. Pure presentation (§6.4).
+export { ColorPicker, type ColorPickerProps } from "./ColorPicker";
 export { BottomSheet, type BottomSheetProps } from "./BottomSheet";
 // Master-Detail (W6) — responsive list+detail layout. Pure presentation:
 // DataService-free, props-injected copy (§3.1 / §6.4). Selection stays with
@@ -30,10 +34,21 @@ export { MasterDetail, type MasterDetailProps } from "./MasterDetail";
 // Task detail panel (W7) — the right pane for the selected task in the
 // Tasks MasterDetail. Pure presentation: title/status/content with injected
 // callbacks + content editor + props-injected copy (§3.1 / §6.4).
+export { TaskDetailPanel, type TaskDetailPanelProps } from "./TaskDetailPanel";
+// Task detail modal (K3) — full-screen animated modal shell the Kanban opens
+// on card click. Pure presentation: host injects the detail surface as
+// children + props-injected copy (§3.1 / §6.4).
+export { TaskDetailModal, type TaskDetailModalProps } from "./TaskDetailModal";
+// Task add dialog (W-UX) — small centered overlay to create a task / folder.
+// Pure presentation: host injects folder options + copy, receives create
+// intent via onSubmit (§3.1 / §6.4).
 export {
-  TaskDetailPanel,
-  type TaskDetailPanelProps,
-} from "./TaskDetailPanel";
+  TaskAddDialog,
+  type TaskAddDialogProps,
+  type TaskAddDialogLabels,
+  type TaskAddFolderOption,
+  type TaskAddType,
+} from "./TaskAddDialog";
 // App shell (W5) — responsive single shell + its nav pieces. Pure
 // presentation: DataService-free, props-injected i18n (§3.1 / §6.4).
 export { NavItem, type NavItemProps } from "./NavItem";
@@ -123,3 +138,7 @@ export * from "./Connect";
 // Pure presentation: items + already-translated labels injected by the host
 // (§6.4). The schedule_items CRUD + RoutineScheduleSync stay host-side.
 export * from "./schedule";
+// Kanban (K1) — Tasks board primitives (card / column / board) + pure
+// column builders. Pure presentational: the host maps TaskNode[] →
+// columns and injects copy (§6.4). Folder + Status views; Tag view is K2.
+export * from "./Kanban";

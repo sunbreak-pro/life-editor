@@ -1,0 +1,27 @@
+<!-- @dsCard group="Components" -->
+<!doctype html><html lang='en'><head><meta charset='utf-8'><style>
+:root{--bg:#fafafa;--bg-2:#f1f1f3;--text:#1a1a1f;--text-2:#5c5c66;--border:#e3e3e7;--border-strong:#cfcfd6;--accent:#1f4fff;--success:#0f7b6c;--danger:#d92d20;--font:ui-sans-serif,-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif}
+*{box-sizing:border-box} body{margin:0;padding:28px;background:#f5f5f6;color:var(--text);font-family:var(--font)}
+h1{font-size:15px;font-weight:600;margin:0 0 4px} p.sub{margin:0 0 22px;color:var(--text-2);font-size:12px}
+.stack{display:flex;flex-direction:column;gap:14px;max-width:320px}
+.row{display:flex;flex-direction:column;gap:5px}
+.label{font-size:11px;font-weight:500;color:var(--text-2);letter-spacing:.02em;text-transform:uppercase}
+.toast{position:relative;display:flex;align-items:center;gap:9px;background:#fff;border:1px solid var(--border);border-radius:8px;padding:11px 12px 11px 14px;box-shadow:0 4px 12px rgba(26,26,31,.08),0 1px 2px rgba(26,26,31,.06);overflow:hidden}
+.toast::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;border-radius:8px 0 0 8px}
+.t-success::before{background:var(--success)} .t-danger::before{background:var(--danger)} .t-info::before{background:var(--accent)}
+.dot{flex:0 0 auto;width:8px;height:8px;border-radius:50%}
+.t-success .dot{background:var(--success)} .t-danger .dot{background:var(--danger)} .t-info .dot{background:var(--accent)}
+.msg{flex:1;font-size:13px;line-height:1.35;color:var(--text)}
+.x{flex:0 0 auto;width:20px;height:20px;display:flex;align-items:center;justify-content:center;border:none;background:transparent;border-radius:5px;color:var(--text-2);font-size:13px;line-height:1;cursor:pointer}
+.x:hover{background:var(--bg-2);color:var(--text)}
+</style></head><body>
+<h1>Toast</h1><p class='sub'>Opaque notification cards · 3px accent bar + status dot · success / danger / info · dismissible</p>
+<div class='stack'>
+<div class='row'><span class='label'>Success</span>
+<div class='toast t-success'><span class='dot'></span><span class='msg'>Note saved to Materials.</span><button class='x' aria-label='Dismiss'>✕</button></div></div>
+<div class='row'><span class='label'>Danger</span>
+<div class='toast t-danger'><span class='dot'></span><span class='msg'>Sync failed — changes kept locally.</span><button class='x' aria-label='Dismiss'>✕</button></div></div>
+<div class='row'><span class='label'>Info</span>
+<div class='toast t-info'><span class='dot'></span><span class='msg'>3 tasks moved to today.</span><button class='x' aria-label='Dismiss'>✕</button></div></div>
+</div>
+</body></html>

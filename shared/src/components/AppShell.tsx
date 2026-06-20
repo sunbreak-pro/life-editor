@@ -30,6 +30,14 @@ export interface AppShellProps {
   wideQuery?: string;
   /** How many sections show as fixed tabs on the narrow bottom bar. */
   maxBottomTabs?: number;
+  /**
+   * When true, the active section body fills the main area edge-to-edge —
+   * the centered max-w / padding wrapper is dropped so canvas-like sections
+   * (Connect graph, calendar) can take the full width AND height. The host is
+   * then responsible for giving the section its own h-full layout. Default
+   * false keeps the readable centered column for document-style sections.
+   */
+  fluidContent?: boolean;
 }
 
 const SIDEBAR_COLLAPSED_KEY = "life-editor.shell.sidebar-collapsed";
@@ -56,6 +64,7 @@ export function AppShell({
   children,
   wideQuery = "(min-width: 768px)",
   maxBottomTabs = 4,
+  fluidContent = false,
 }: AppShellProps) {
   const isWide = useMediaQuery(wideQuery, true);
   const [collapsed, setCollapsed] = useLocalStorage<boolean>(
@@ -78,7 +87,11 @@ export function AppShell({
           labels={labels}
         />
         <main className="min-w-0 flex-1 overflow-y-auto">
-          <div className="mx-auto max-w-3xl px-6 py-6">{children}</div>
+          {fluidContent ? (
+            children
+          ) : (
+            <div className="mx-auto max-w-3xl px-6 py-6">{children}</div>
+          )}
         </main>
       </div>
     );
@@ -93,7 +106,7 @@ export function AppShell({
         className="min-h-0 flex-1 overflow-y-auto"
         style={{ overscrollBehavior: "contain" }}
       >
-        <div className="px-4 py-4">{children}</div>
+        {fluidContent ? children : <div className="px-4 py-4">{children}</div>}
       </main>
       <BottomTabBar
         sections={sections}

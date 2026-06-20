@@ -1,0 +1,50 @@
+<!-- @dsCard group="Components" -->
+<!doctype html><html lang='en'><head><meta charset='utf-8'><style>
+:root{
+--page:#f5f5f6;--bg:#fafafa;--text:#1a1a1f;--text-2:#5c5c66;--border:#e3e3e7;
+--font:ui-sans-serif,-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;
+--task-bg:#e3e7ff;--task-fg:#2330b0;--task-dot:#1f4fff;
+--routine-bg:#ebf0fe;--routine-fg:#3b5bdb;--routine-dot:#5b6cdb;
+--event-bg:#f3e8ff;--event-fg:#6d28d9;--event-dot:#8b5cf6;
+--done-bg:#ecfdf5;--done-fg:#047857;--done-dot:#10b981;
+--prog-bg:#fef6e0;--prog-fg:#a06b09;--prog-dot:#eab308;
+--mint-bg:#daf3e7;--mint-fg:#0c6f4e;--mint-dot:#1fa56e;
+--band-todo:#38bdf8;--band-prog:#eab308;--band-done:#10b981;
+}
+*{box-sizing:border-box}
+body{margin:0;padding:28px;background:var(--page);color:var(--text);font-family:var(--font)}
+h1{font-size:15px;font-weight:600;margin:0 0 4px}
+p.sub{margin:0 0 22px;color:var(--text-2);font-size:12px}
+.panel{background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:18px}
+.label{font-size:11px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--text-2);margin:0 0 11px}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{display:inline-flex;align-items:center;gap:6px;height:24px;padding:0 10px 0 8px;border-radius:999px;font-size:12px;font-weight:600}
+.dot{width:7px;height:7px;border-radius:50%}
+.divider{height:1px;background:var(--border);margin:18px 0}
+.bands{display:flex;flex-direction:column;gap:12px;max-width:260px}
+.band{display:flex;align-items:center;gap:10px}
+.bar{width:120px;height:4px;border-radius:2px;flex:none}
+.btext{font-size:12px;color:var(--text-2)}
+.btext b{color:var(--text);font-weight:600}
+</style></head><body>
+<h1>Status Chips &amp; Bands</h1>
+<p class='sub'>Kanban / task tokens — pill chips (dot + label) and 4px status bands.</p>
+<div class='panel'>
+<p class='label'>Chips</p>
+<div class='chips'>
+<span class='chip' style='background:var(--task-bg);color:var(--task-fg)'><span class='dot' style='background:var(--task-dot)'></span>Task</span>
+<span class='chip' style='background:var(--routine-bg);color:var(--routine-fg)'><span class='dot' style='background:var(--routine-dot)'></span>Routine</span>
+<span class='chip' style='background:var(--event-bg);color:var(--event-fg)'><span class='dot' style='background:var(--event-dot)'></span>Event</span>
+<span class='chip' style='background:var(--done-bg);color:var(--done-fg)'><span class='dot' style='background:var(--done-dot)'></span>Completed</span>
+<span class='chip' style='background:var(--prog-bg);color:var(--prog-fg)'><span class='dot' style='background:var(--prog-dot)'></span>Progress</span>
+<span class='chip' style='background:var(--mint-bg);color:var(--mint-fg)'><span class='dot' style='background:var(--mint-dot)'></span>進行中</span>
+</div>
+<div class='divider'></div>
+<p class='label'>Bands</p>
+<div class='bands'>
+<div class='band'><span class='bar' style='background:var(--band-todo)'></span><span class='btext'><b>To-do</b> · #38bdf8</span></div>
+<div class='band'><span class='bar' style='background:var(--band-prog)'></span><span class='btext'><b>In progress</b> · #eab308</span></div>
+<div class='band'><span class='bar' style='background:var(--band-done)'></span><span class='btext'><b>Done</b> · #10b981</span></div>
+</div>
+</div>
+</body></html>

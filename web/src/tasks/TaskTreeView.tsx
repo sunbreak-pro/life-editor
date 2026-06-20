@@ -10,7 +10,17 @@ import {
   useSortable,
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
-import { GripVertical, ChevronRight, ChevronDown, Folder } from "lucide-react";
+import {
+  GripVertical,
+  ChevronRight,
+  ChevronDown,
+  Folder,
+  Link2,
+  Plus,
+  Pencil,
+  Trash2,
+  RotateCcw,
+} from "lucide-react";
 import {
   useTaskTreeContext,
   useTranslation,
@@ -216,46 +226,58 @@ function TreeRow({
           }
           className={
             isFolder
-              ? "flex-1 text-left font-medium text-notion-text"
+              ? "min-w-0 flex-1 truncate text-left font-medium text-notion-text"
               : node.status === "DONE"
-                ? "flex-1 text-left text-notion-text-secondary line-through"
-                : "flex-1 text-left text-notion-text"
+                ? "min-w-0 flex-1 truncate text-left text-notion-text-secondary line-through"
+                : "min-w-0 flex-1 truncate text-left text-notion-text"
           }
         >
           {node.title || "(untitled)"}
         </button>
         <TagPicker itemId={node.id} />
-        <span className="flex shrink-0 gap-2 text-xs">
+        <span className="flex shrink-0 items-center gap-0.5">
           <button
             type="button"
             onClick={() => onToggleLinks(node.id)}
             aria-expanded={linkOpen}
-            className="text-notion-text-secondary hover:text-notion-accent"
+            aria-label={linkOpen ? "Hide links" : "Show links"}
+            title="Links"
+            className={`rounded p-1 hover:bg-notion-hover ${
+              linkOpen
+                ? "text-notion-accent"
+                : "text-notion-text-secondary hover:text-notion-accent"
+            }`}
           >
-            {linkOpen ? "▴ links" : "▾ links"}
+            <Link2 size={14} aria-hidden />
           </button>
           {isFolder && (
             <button
               type="button"
               onClick={() => onAddChild(node.id)}
-              className="text-notion-text-secondary hover:text-notion-accent"
+              aria-label="Add child task"
+              title="Add child task"
+              className="rounded p-1 text-notion-text-secondary hover:bg-notion-hover hover:text-notion-accent"
             >
-              + child
+              <Plus size={14} aria-hidden />
             </button>
           )}
           <button
             type="button"
             onClick={() => onRename(node.id, node.title)}
-            className="text-notion-text-secondary hover:text-notion-accent"
+            aria-label="Rename"
+            title="Rename"
+            className="rounded p-1 text-notion-text-secondary hover:bg-notion-hover hover:text-notion-accent"
           >
-            rename
+            <Pencil size={14} aria-hidden />
           </button>
           <button
             type="button"
             onClick={() => onSoftDelete(node.id)}
-            className="text-notion-danger hover:opacity-80"
+            aria-label="Delete"
+            title="Delete"
+            className="rounded p-1 text-notion-text-secondary hover:bg-notion-hover hover:text-notion-danger"
           >
-            delete
+            <Trash2 size={14} aria-hidden />
           </button>
         </span>
       </div>
@@ -527,20 +549,24 @@ export function TaskTreeView() {
                 <span className="text-notion-text-secondary line-through">
                   {n.title || "(untitled)"}
                 </span>
-                <span className="flex gap-2">
+                <span className="flex items-center gap-0.5">
                   <button
                     type="button"
                     onClick={() => tree.restoreNode(n.id)}
-                    className="text-notion-accent hover:opacity-80"
+                    aria-label="Restore"
+                    title="Restore"
+                    className="rounded p-1 text-notion-text-secondary hover:bg-notion-hover hover:text-notion-accent"
                   >
-                    restore
+                    <RotateCcw size={14} aria-hidden />
                   </button>
                   <button
                     type="button"
                     onClick={() => tree.permanentDelete(n.id)}
-                    className="text-notion-danger hover:opacity-80"
+                    aria-label="Delete permanently"
+                    title="Delete permanently"
+                    className="rounded p-1 text-notion-text-secondary hover:bg-notion-hover hover:text-notion-danger"
                   >
-                    purge
+                    <Trash2 size={14} aria-hidden />
                   </button>
                 </span>
               </li>

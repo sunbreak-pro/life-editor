@@ -1,0 +1,23 @@
+<!-- @dsCard group="Components" -->
+<!doctype html>
+<html lang='en'><head><meta charset='utf-8'><style>
+:root{--bg:#fafafa;--text:#1a1a1f;--text-2:#5c5c66;--border:#e3e3e7;--accent:#1f4fff;--danger:#d92d20;--font:ui-sans-serif,-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif}
+*{box-sizing:border-box}
+body{margin:0;padding:28px;background:#f5f5f6;color:var(--text);font-family:var(--font)}
+h1{font-size:15px;font-weight:600;margin:0 0 4px}
+p.sub{margin:0 0 22px;color:var(--text-2);font-size:12px}
+.row{display:flex;flex-direction:column;gap:6px;max-width:320px;margin-bottom:18px}
+label{font-size:12px;color:var(--text-2)}
+.inp{height:36px;width:100%;border-radius:6px;border:1px solid var(--border);background:var(--bg);padding:0 12px;font-size:14px;color:var(--text);font-family:inherit}
+.inp::placeholder{color:var(--text-2)}
+.focus{outline:none;box-shadow:0 0 0 2px var(--accent);border-color:transparent}
+.invalid{border-color:var(--danger)}
+.disabled{opacity:.5}
+</style></head><body>
+<h1>Input</h1>
+<p class='sub'>Text input - h-36 - rounded-md - states: default / focus / invalid / disabled - focus ring = cobalt</p>
+<div class='row'><label>Default</label><input class='inp' placeholder='Placeholder text'></div>
+<div class='row'><label>Focus (ring-accent)</label><input class='inp focus' value='Focused value'></div>
+<div class='row'><label>Invalid (border-danger)</label><input class='inp invalid' value='bad@value'></div>
+<div class='row'><label>Disabled</label><input class='inp disabled' value='Disabled' disabled></div>
+</body></html>
