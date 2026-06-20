@@ -9,7 +9,3 @@ export function formatDateKey(date: Date): string {
   const d = String(date.getDate()).padStart(2, "0");
   return `${y}-${m}-${d}`;
 }
-
-export function getTodayKey(): string {
-  return formatDateKey(new Date());
-}

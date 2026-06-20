@@ -1,12 +1,12 @@
 import { describe, it, expect } from "vitest";
-import type { TimerSession } from "../types/timer";
-import type { WikiTag, WikiTagAssignment } from "../types/wikiTag";
+import type { TimerSession } from "../src/types/timer";
+import type { WikiTag, WikiTagAssignment } from "../src/types/wikiTag";
 import {
   aggregateByDay,
   aggregateByTask,
   computeSummary,
   aggregateTagByEntityType,
-} from "./analyticsAggregation";
+} from "../src/utils/analyticsAggregation";
 
 function makeAssignment(
   overrides: Partial<WikiTagAssignment> = {},
