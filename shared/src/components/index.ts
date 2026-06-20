@@ -119,3 +119,7 @@ export * from "./Analytics";
 // unified item-link model (listAllTagConnections / listLinksToItem). Pure
 // presentational: data + t injected (§6.4). Legacy note_links are NOT used.
 export * from "./Connect";
+// Schedule (W8) — week/day time grid primitive + pure layout/date helpers.
+// Pure presentation: items + already-translated labels injected by the host
+// (§6.4). The schedule_items CRUD + RoutineScheduleSync stay host-side.
+export * from "./schedule";

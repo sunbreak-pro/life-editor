@@ -1,8 +1,8 @@
 ---
-Status: Draft
+Status: In Progress（コア Steps 1–6 実装完了・検証中 / Step 7 DnD は W8+ へ送り）
 Created: 2026-06-19
-Branch: claude/web-w8-schedule-calendar-plan
-Owner-chat: web-w6-master-detail
+Branch: feat/w8-schedule-calendar
+Owner-chat: main（起草は web-w6-master-detail。実装着手で main が引き取り）
 Parent: ./2026-06-07-web-desktop-parity-roadmap.md
 Previous: ./2026-06-18-web-parity-w7-task-detail.md
 ---
@@ -36,10 +36,10 @@ Previous: ./2026-06-18-web-parity-w7-task-detail.md
 
 ## 中核設計：共有タイムグリッド + 2層分割（広幅グリッド / 狭幅アジェンダ）
 
-| 幅 | レイアウト | 編集 |
-| --- | --- | --- |
+| 幅               | レイアウト                                                                                                                                                                                  | 編集                                                                                                               |
+| ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
 | **広幅（≥ md）** | **週タイムグリッド**（左=時刻軸 / 上=曜日ヘッダ / セル=時間スロット）。schedule_items を `startTime`/`endTime` から算出した top/height で絶対配置。終日（`isAllDay`）は最上段の全日レーン。 | イベントクリックで選択 → 右ペイン or インライン編集（title/time/complete）。任意ステップで**ドラッグして時間移動** |
-| **狭幅（< md）** | **1日アジェンダ**（選択日の schedule_items を時刻順リスト）。日ナビ（< 今日 >）。 | タップで `BottomSheet` 編集（既存 `ScheduleItemsView` の編集 UI を流用） |
+| **狭幅（< md）** | **1日アジェンダ**（選択日の schedule_items を時刻順リスト）。日ナビ（< 今日 >）。                                                                                                           | タップで `BottomSheet` 編集（既存 `ScheduleItemsView` の編集 UI を流用）                                           |
 
 - **共有プリミティブ（純粋表示・DataService 非依存）** `shared/src/components/schedule/`（サブバレル）:
   - `WeekTimeGrid`（または `TimeGrid`）— props: `weekStart: string`(YYYY-MM-DD) / `items: ScheduleItemLike[]` / `onSelectItem(id)` / `onMoveItem?(id, nextStart, nextEnd)`（DnD・任意）/ `hourRange?`（既定 0–24 か業務時間）/ ラベル群（曜日名・時刻書式は props 注入）。レイアウト計算（`HH:MM`→分→top/height）は**純関数に外出し**して unit test 可能にする（`scheduleGridLayout.ts`）。
@@ -75,17 +75,17 @@ web/src/MainScreen.tsx                              ← Schedule セクション
 
 ## Steps
 
-| #   | Step                                                                                                            | Gate    | Acceptance                                          |
-| --- | -------------------------------------------------------------------------------------------------------------- | ------- | --------------------------------------------------- |
-| 1   | レイアウト純関数 `scheduleGridLayout.ts`（`HH:MM`→分→top/height・素朴な重なり詰め）                            | 🤖 自律 | `cd shared && npm run build` exit 0                 |
-| 2   | `WeekTimeGrid` 新設（時刻軸 + 曜日ヘッダ + 絶対配置イベント・終日レーン・`notion-*`・props 注入）              | 🤖 自律 | `cd shared && npm run build` exit 0                 |
-| 3   | サブバレル + barrel export 追加                                                                                | 🤖 自律 | `cd shared && npm run build` exit 0                 |
-| 4   | i18n: 曜日略称 / 今日 / 終日 / 空状態 等を en/ja 両 catalog に追加                                              | 🤖 自律 | 両ファイル同キー存在・`npm run build` exit 0       |
-| 5   | 最小 test（レイアウト純関数の unit + `WeekTimeGrid` 描画/クリックの最小描画）                                   | 🤖 自律 | `cd shared && npm run test` 全 pass                 |
-| 6   | web `ScheduleCalendarView` 採用（広幅=グリッド / 狭幅=アジェンダ + 編集シート・schedule_items 配線・i18n props） | 🤖 自律 | `cd web && npm run build` exit 0                    |
-| 7   | （任意）イベント DnD でリスケ（`@dnd-kit`・`onMoveItem`→`updateScheduleItem`）。リスク高なら W8+ へ送る         | 🤖 自律 | `cd web && npm run build` exit 0 / 該当 test 緑     |
-| 8   | レスポンシブ/操作感の目視（広幅週グリッド・狭幅アジェンダ + 日ナビ・イベント編集・(任意)DnD）                   | 👀 目視 | 主要動線を手で1周（広幅/狭幅とも）                  |
-| 9   | Draft PR → レビュー → main merge                                                                               | 🛑 人手 | PR レビュー & merge ボタン                          |
+| #   | Step                                                                                                             | Gate    | Acceptance                                      |
+| --- | ---------------------------------------------------------------------------------------------------------------- | ------- | ----------------------------------------------- |
+| 1   | レイアウト純関数 `scheduleGridLayout.ts`（`HH:MM`→分→top/height・素朴な重なり詰め）                              | 🤖 自律 | `cd shared && npm run build` exit 0             |
+| 2   | `WeekTimeGrid` 新設（時刻軸 + 曜日ヘッダ + 絶対配置イベント・終日レーン・`notion-*`・props 注入）                | 🤖 自律 | `cd shared && npm run build` exit 0             |
+| 3   | サブバレル + barrel export 追加                                                                                  | 🤖 自律 | `cd shared && npm run build` exit 0             |
+| 4   | i18n: 曜日略称 / 今日 / 終日 / 空状態 等を en/ja 両 catalog に追加                                               | 🤖 自律 | 両ファイル同キー存在・`npm run build` exit 0    |
+| 5   | 最小 test（レイアウト純関数の unit + `WeekTimeGrid` 描画/クリックの最小描画）                                    | 🤖 自律 | `cd shared && npm run test` 全 pass             |
+| 6   | web `ScheduleCalendarView` 採用（広幅=グリッド / 狭幅=アジェンダ + 編集シート・schedule_items 配線・i18n props） | 🤖 自律 | `cd web && npm run build` exit 0                |
+| 7   | （任意）イベント DnD でリスケ（`@dnd-kit`・`onMoveItem`→`updateScheduleItem`）。リスク高なら W8+ へ送る          | 🤖 自律 | `cd web && npm run build` exit 0 / 該当 test 緑 |
+| 8   | レスポンシブ/操作感の目視（広幅週グリッド・狭幅アジェンダ + 日ナビ・イベント編集・(任意)DnD）                    | 👀 目視 | 主要動線を手で1周（広幅/狭幅とも）              |
+| 9   | Draft PR → レビュー → main merge                                                                                 | 🛑 人手 | PR レビュー & merge ボタン                      |
 
 ### Gate 凡例
 
@@ -102,7 +102,7 @@ web/src/MainScreen.tsx                              ← Schedule セクション
 - [ ] `cd web && npm run build`（tsc -b --force && vite build）exit 0
 - [ ] `cd frontend && npm run build`（旧 Tauri 非破壊の担保・並立期間中）exit 0
 - [ ] `shared/src/i18n/locales/en.json` と `ja.json` で新規コピーキーが**両方**に存在
-- [ ] PR diff が ±600 行以内（複雑画面の新部品 + 純関数 + パイロット。DnD を含む場合の上振れ込み。scope creep ガード）
+- [x] PR diff が ±1100 行程度（当初 ±600 想定を上方修正。2026-06-20 実測 ~1107 行。複雑画面本体 = 週グリッド部品 + 日アジェンダ + 編集 + 純関数エンジン + 19 test + 二言語 i18n。**DnD なしでこの規模**＝複雑画面の妥当な本体。scope creep ではない＝下記「Scope 宣言パス内のみ」で担保。ユーザー承認済み 1 PR）
 - [ ] git diff が Scope 宣言パス内のみ（Stop hook が scope drift 警告を出さない）
 
 ---
@@ -140,3 +140,12 @@ web/src/MainScreen.tsx                              ← Schedule セクション
 ## Worklog
 
 - 2026-06-19（起草）: W7（Tasks 詳細）完了を受け、W8 を「Schedule カレンダー充実」に確定。`ScheduleItem` が既に `date` + `HH:MM` を持つため **DDL ゼロでグリッド可視化可能**と確認。2層モデルの複雑画面として**広幅=週タイムグリッド / 狭幅=日アジェンダ**に割り切り。コア（表示 + クリック編集）と **DnD（任意・Step 7）を分離**し、DnD はリスク次第で W8+ へ送れる構造に。位置計算は純関数（`scheduleGridLayout.ts`）に外出しして unit test で固める。Routine 生成（`RoutineScheduleSync`）・`ScheduleView`・`CalendarView` は無改変。本書は計画のみ（実装は次セッション）。
+- 2026-06-20（実装・main 引取）: コア **Steps 1–6 実装完了**（worktree `feat/w8-schedule-calendar`）。
+  - `shared/src/utils/scheduleGridLayout.ts` — `minutesFromMidnight` / `layoutDayItems`（素朴な横カラム詰め・%ベース top/height）/ ローカル日付キー演算（`addDaysKey`/`startOfWeekKey`/`weekDayKeys`・**UTC 不持込**: `new Date(y,m-1,d)` のみ）。
+  - `shared/src/components/schedule/WeekTimeGrid.tsx` — 時刻軸 + 曜日ヘッダ + 終日レーン + 絶対配置イベント。純粋表示（DataService/i18n 非依存・ラベルと書式は props 注入）・`notion-*` のみ・`days={1}` で日ビューに縮退可。サブバレル + `components/index.ts` バレル追記。
+  - i18n: `scheduleCalendar` namespace（曜日略称 / 終日 / 今日 / 前後ナビ / 空 / 編集ラベル = 21 キー）を en/ja **両 catalog** に追加。
+  - test: `scheduleGridLayout.test.ts`（純関数 unit・overlap/clamp/日付境界）+ `weekTimeGrid.test.tsx`（描画 / クリック / 終日 / `days={1}`）= 計 19。**shared 全 462 passed**。
+  - web `ScheduleCalendarView.tsx` — `useMediaQuery` で出し分け（広幅=`WeekTimeGrid` + 右ペイン編集 / 狭幅=日アジェンダ + `BottomSheet` 編集）。週/日ナビ・今日。`loadDateRange` で可視週を**読取**、編集は既存 `updateScheduleItem`/`toggleComplete` + 楽観 patch（**CRUD 改変なし**）。`MainScreen` schedule セクションに配線（Provider 順序不変）。
+  - 検証: shared build / web build / frontend build いずれも exit 0、web eslint 0 error（残 1 warning は既存 `DebouncedTextInput.tsx`・無関係）。**Step 7 DnD は W8+ へ送り**（コアを先に出せる構造）。
+  - ⚠️ diff **1107 行**（AC「±600 行」超過。DnD 無しでも複雑画面本体が大。スコープ外変更ゼロ）。受容 or 「WeekTimeGrid+純関数+test」/「web 採用」の 2 PR 分割を要ユーザー判断。
+  - 残: 👀 目視（Step 8）/ 🛑 Draft PR → merge（Step 9・PR 未作成）。

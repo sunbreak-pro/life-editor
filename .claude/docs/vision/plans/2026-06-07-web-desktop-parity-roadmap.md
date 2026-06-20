@@ -187,6 +187,7 @@ CLAUDE.md , 2026-05-04-cross-platform-migration.md  ← 方針転換の記録（
 
 - 2層モデルの**複雑画面**代表 = Schedule。`schedule_items`（`date` + `HH:MM` start/end を保持）を**週/日タイムグリッド**で可視化。広幅=マウス操作の週グリッド / 狭幅=タップ前提の日アジェンダ + `BottomSheet` 編集に**割り切って分割**。位置計算は純関数（`scheduleGridLayout.ts`）に外出しして unit test で固める。**DDL ゼロ**（既存フィールド可視化）。イベント DnD は任意の最終ステップ（リスク次第で W8+ へ）。Routine 生成（`RoutineScheduleSync`）/ `ScheduleView` / `CalendarView` は無改変。
 - Gate: 🤖 実装 → 👀 目視 → 🛑 PR merge
+- 2026-06-20: コア **Steps 1–6 実装完了**（`feat/w8-schedule-calendar`・PR 未作成）。`WeekTimeGrid`（shared 純粋表示）+ `scheduleGridLayout.ts`（純関数・19 test）+ en/ja i18n + web `ScheduleCalendarView`（広幅=週グリッド / 狭幅=日アジェンダ + シート・既存 CRUD 流用）。DnD=Step 7 は W8+ 送り。shared/web/frontend build + shared test 462 緑・web eslint 0err。残 = 👀 目視 / 🛑 PR。
 
 ---
 

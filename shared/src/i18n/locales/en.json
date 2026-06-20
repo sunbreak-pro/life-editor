@@ -877,6 +877,27 @@
     "materials": "Materials",
     "dailyMemo": "Daily"
   },
+  "scheduleCalendar": {
+    "weekdaySun": "Sun",
+    "weekdayMon": "Mon",
+    "weekdayTue": "Tue",
+    "weekdayWed": "Wed",
+    "weekdayThu": "Thu",
+    "weekdayFri": "Fri",
+    "weekdaySat": "Sat",
+    "allDay": "All-day",
+    "today": "Today",
+    "prevWeek": "Previous week",
+    "nextWeek": "Next week",
+    "prevDay": "Previous day",
+    "nextDay": "Next day",
+    "empty": "No events",
+    "selectHint": "Select an event to edit",
+    "title": "Title",
+    "startTime": "Start",
+    "endTime": "End",
+    "complete": "Mark complete"
+  },
   "schedulePanel": {
     "existingTasks": "Existing Tasks",
     "newTask": "New Task",
