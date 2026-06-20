@@ -31,14 +31,17 @@
 | `supabase/` | Postgres マイグレーション（DB の正本） | — |
 | `mcp-server/` | MCP サーバー（Phase 5 で Postgres 版へ書き換え予定。現状は旧 SQLite 版） | — |
 
-### 死んでいる（読まない・触らない・grep 結果を信じない）
+### 凍結（実行には使わない。が、まだ消せない）
 
-| パス | 何だったか | なぜ死んでいるか |
+| パス | 何だったか | 状態 |
 | --- | --- | --- |
-| `frontend/` | 旧 Tauri モノリス（670 ファイル / 約 93,700 行） | **FROZEN**。`@tauri-apps/api` 依存。生きているシェルから import 数 = **0**（実証済）。Phase 5 で削除予定 |
-| `src-tauri/` | 旧 Rust バックエンド | Tauri 廃止で死亡 |
-| `cloud/` | 旧 Cloudflare Workers + D1 | Supabase へ移行で死亡 |
+| `frontend/` | 旧 Tauri モノリス（670 ファイル / 約 93,700 行） | **FROZEN だが削除不可**。実行されない（生きたシェルからの import = 0）が、(1) 未移植 UI の**移植参照元**として生存（frontend 固有ファイル 529 個・Terminal/Materials/Database 等まだ未移植）、(2) **CI が今も build している**、(3) DB マイグレーション/web が「列定義の正本」として参照。**Phase 5 まで維持**（SSOT 準拠） |
+| `src-tauri/` | 旧 Rust バックエンド | 完全死亡。ただし CI（下記）がまだ build に使う |
+| `cloud/` | 旧 Cloudflare Workers + D1 | 完全死亡（Supabase へ移行） |
 | ルート `package.json` の scripts | `cargo tauri dev` 等 | Tauri 時代の遺物。**使わない** |
+| `.github/workflows/build.yml` | リリース CI | **まだ Tauri を build**（`cd frontend && npm ci` → src-tauri → dmg/exe）。生きている web/shared/electron 用 CI は**未整備**。Phase 5 で要差し替え |
+
+> **削除しない理由（2026-06-20 実測）**: frontend は「死んだ重複」ではなく「凍結中の移植参照元」。529 個の未移植ファイルを抱え、CI・DB スキーマ・web コメントから参照されている。今削除すると移植作業と CI が壊れる。SSOT の「Phase 5 まで維持」は正しい。**削除は Phase 5 まで保留。** 代わりに検索ノイズだけ `.ignore` で抑制（§3 末尾）。
 
 ### 実証した根拠
 
@@ -59,6 +62,8 @@
 | …他 114 ファイル | `shared/src/**` | `frontend/src/**` |
 
 **鉄則**: 同名ファイルが2つ出たら、必ず `shared/src` 側を採用する。`frontend/src` 側はもう動いていない。
+
+> **検索ノイズ抑制（2026-06-20 導入）**: リポジトリ直下の `.ignore`（ripgrep 用。`.gitignore` ではないので git/ビルドに影響なし）で `frontend/` `src-tauri/` `cloud/` を**既定検索から除外**。これで 117 重複ヒットが消える。移植参照で死ツリーを検索したいときは `rg --no-ignore <pattern>` か `rg <pattern> frontend/`（パス明示）。
 
 ### 単一で巨大なファイル（重複ではないが将来の分割候補）
 
@@ -120,8 +125,9 @@ cd desktop && npm run dev       # electron-vite dev
 
 ## 7. やってはいけないこと
 
-1. `frontend/` `src-tauri/` `cloud/` を読んだり編集したりしない（死んでいる。Phase 5 で消す）。
+1. `frontend/` `src-tauri/` `cloud/` を**編集・削除しない**（Phase 5 まで維持）。frontend を**移植の参照元として読むのは可**だが、そこに新規実装はしない（新規は `shared/src`）。
 2. grep / 検索で同名2件出たら `frontend/` 側を採用しない。必ず `shared/src`。
-3. ルート `package.json` の `cargo tauri dev` を実行しない。
-4. DDL（DB 変更）は「ローカルファイル先行 → ユーザーが `supabase db push`」。`apply_migration` MCP の単独使用は禁止。
-5. このファイルを肥大化させない。1 ページを超えそうなら詳細は `.claude/` の SSOT へ逃がし、ここはリンクだけ残す。
+3. **削除衝動に注意**: frontend は「死んだ重複」に見えて移植参照元＋CI 依存。丸ごと削除は Phase 5 まで保留（§2 参照）。
+4. ルート `package.json` の `cargo tauri dev` を実行しない。
+5. DDL（DB 変更）は「ローカルファイル先行 → ユーザーが `supabase db push`」。`apply_migration` MCP の単独使用は禁止。
+6. このファイルを肥大化させない。1 ページを超えそうなら詳細は `.claude/` の SSOT へ逃がし、ここはリンクだけ残す。

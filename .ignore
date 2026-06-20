@@ -1,0 +1,15 @@
+# ripgrep / fd 用の検索除外（.gitignore ではない — git 追跡やビルドには一切影響しない）
+#
+# 目的: 死んでいる/凍結中のツリーを「既定の検索」から外し、
+# frontend↔shared の同名 117 ファイル重複による検索ノイズを消す。
+# これらは disk にも git にも残っており、Phase 5 まで移植の参照元として維持する。
+#
+# これらの中を検索したいとき:
+#   rg --no-ignore <pattern>          # 全ツリーを対象に戻す
+#   rg <pattern> frontend/            # パス明示なら除外を無視して検索できる
+#
+# 生きている本流は web/ + shared/（desktop/ + mobile/ が包む）。詳細は ai-context.md。
+
+frontend/
+src-tauri/
+cloud/
