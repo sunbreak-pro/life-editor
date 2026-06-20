@@ -1,5 +1,24 @@
 # HISTORY (chat-main)
 
+### 2026-06-20 - W8: Schedule カレンダー（週/日タイムグリッド）コア実装
+
+#### 概要
+
+親ロードマップ W8（セクション内部深化 第3弾）の子計画書 `2026-06-19-web-parity-w8-schedule-calendar.md` の Steps 1–6 を実装。2層モデルの「複雑画面」代表 = Schedule を web+shared に新規実装。広幅=マウス操作の週タイムグリッド / 狭幅=タップ前提の日アジェンダ + BottomSheet 編集に割り切って分割。`schedule_items` は既に `date` + `HH:MM` を持つため **DDL ゼロ**で可視化。DnD（Step 7）は計画通り W8+ へ送り。worktree `feat/w8-schedule-calendar`・commit `92112cae`。PR/目視はユーザーゲート。
+
+#### 変更点
+
+- **純関数エンジン（shared/src/utils/scheduleGridLayout.ts・新設）**: `minutesFromMidnight` / `layoutDayItems`（時刻→分→%ベース top/height・終日除外・入力順保持・**素朴な横カラム詰め**=左→右スイープでクラスタ単位に最小列数を割当）/ ローカル日付演算（`addDaysKey` 月年跨ぎ・`startOfWeekKey`・`weekDayKeys`）。**UTC 持込禁止**（`new Date(y,m-1,d)` のみ・`new Date("YYYY-MM-DD")` 不使用）。overnight/inverted（end≤start）は窓末尾まで延伸しスライバー回避
+- **WeekTimeGrid（shared/src/components/schedule/・新設 + サブバレル）**: 時刻軸 + 曜日ヘッダ + 終日レーン + 絶対配置イベント。純粋表示（§3.1/§6.4・DataService/useTranslation 非依存・ラベル/書式は props 注入）・`notion-*` のみ・不透明背景・`days={1}` で日ビューに縮退可。`components/index.ts` に `export * from "./schedule"` 追記
+- **i18n**: `scheduleCalendar` namespace（曜日略称7 + 終日/今日/前後ナビ/空/編集ラベル = 21キー）を en/ja **両 catalog** に追加
+- **web 採用（web/src/schedule/ScheduleCalendarView.tsx・新設）**: `useMediaQuery("(min-width:768px)")` で出し分け。広幅=`WeekTimeGrid` + 右ペイン編集（未選択は selectHint）/ 狭幅=日アジェンダ（時刻順・終日先頭）+ `BottomSheet` 編集。週/日ナビ + 今日。可視週は既存 `loadDateRange` で**読取**、編集は既存 `updateScheduleItem`/`toggleComplete` + 楽観 patch（**CRUD ロジック改変なし**）。i18n は web 側で `t()`/`Intl.DateTimeFormat` 解決し props 注入。`MainScreen` schedule セクションに配線（Provider 順序不変）
+- **無改変**: `RoutineScheduleSync`（生成ロジック）/ `ScheduleView`（routine CRUD）/ `CalendarView` / `frontend/`(FROZEN)。新規依存なし（@dnd-kit/useMediaQuery/BottomSheet 全て既存）
+- **test**: `scheduleGridLayout.test.ts`（純関数 unit・overlap 2-3列/clamp/ゼロ長/終日除外/overnight/日付境界）+ `weekTimeGrid.test.tsx`（描画/クリック/終日/`days={1}`）= 20件。shared 全 **462 passed**
+- **検証**: shared `tsc -b` 0 / web `tsc -b --force && vite build` 0 / frontend `npm run build` 0（非破壊）/ web eslint 0 error（残 1 warning は既存 DebouncedTextInput・W8 非関与）。`git diff` は Scope 宣言パス内のみ
+- **レビュー**: 独立3レンズ（正当性 / 規約・a11y / スコープ）+ 各指摘の敵対的検証ワークフロー。blocker/major **0**、confirmed minor **2件を即修正**（① handleToggle 楽観 patch に `completedAt` 欠落→provider と同じ field set へ ② overnight イベントが start 日スライバー化→窓末尾延伸 + contract コメント + test 追加）
+- **diff 規模**: ~1107 行。当初 AC「±600 行」を超過 → 複雑画面本体（週グリッド+日アジェンダ+編集+純関数+20test+二言語 i18n）として妥当と判断し AC を「~1100 行」へ上方修正（scope creep なし・ユーザー承認で 1 PR 継続）
+- **計画書**: `.claude/docs/vision/plans/2026-06-19-web-parity-w8-schedule-calendar.md`（Status: In Progress・Owner を main へ引取）
+
 ### 2026-06-14 - W4: Analytics + Connect を web/shared へ lean 移植
 
 #### 概要
