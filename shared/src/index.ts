@@ -285,6 +285,8 @@ export { getFolderTag, truncateFolderTag } from "./utils/folderTag";
 // builds the grid on these; testable without a DOM).
 export {
   timeToMinutes,
+  minutesToTime,
+  snapMinutes,
   layoutDayEvents,
   addDays,
   startOfWeek,

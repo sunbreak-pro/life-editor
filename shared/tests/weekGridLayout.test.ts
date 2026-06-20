@@ -2,6 +2,8 @@ import { describe, it, expect } from "vitest";
 import type { ScheduleItem } from "../src/types/schedule";
 import {
   timeToMinutes,
+  minutesToTime,
+  snapMinutes,
   layoutDayEvents,
   addDays,
   startOfWeek,
@@ -42,6 +44,31 @@ describe("timeToMinutes", () => {
   it("tolerates malformed input", () => {
     expect(timeToMinutes("")).toBe(0);
     expect(timeToMinutes("bad")).toBe(0);
+  });
+});
+
+describe("minutesToTime", () => {
+  it("converts minutes since midnight to HH:MM", () => {
+    expect(minutesToTime(0)).toBe("00:00");
+    expect(minutesToTime(570)).toBe("09:30");
+    expect(minutesToTime(1439)).toBe("23:59");
+  });
+  it("rounds and clamps to a valid day", () => {
+    expect(minutesToTime(570.4)).toBe("09:30");
+    expect(minutesToTime(-10)).toBe("00:00");
+    expect(minutesToTime(99999)).toBe("23:59");
+  });
+});
+
+describe("snapMinutes", () => {
+  it("snaps to the nearest 30 by default", () => {
+    expect(snapMinutes(0)).toBe(0);
+    expect(snapMinutes(610)).toBe(600); // 10:10 -> 10:00
+    expect(snapMinutes(625)).toBe(630); // 10:25 -> 10:30
+  });
+  it("honors a custom step and clamps", () => {
+    expect(snapMinutes(607, 15)).toBe(600);
+    expect(snapMinutes(99999)).toBe(23 * 60 + 30);
   });
 });
 

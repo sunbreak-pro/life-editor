@@ -45,6 +45,24 @@ export function timeToMinutes(time: string): number {
   return (Number.isFinite(hours) ? hours : 0) * 60 + (Number.isFinite(mins) ? mins : 0);
 }
 
+/** Minutes since midnight → "HH:MM" (clamped to 00:00–23:59). */
+export function minutesToTime(min: number): string {
+  const clamped = Math.max(0, Math.min(Math.round(min), 23 * 60 + 59));
+  const h = Math.floor(clamped / 60);
+  const m = clamped % 60;
+  return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+}
+
+/**
+ * Round minutes to the nearest `step` (default 30), clamped to the last
+ * step-aligned slot of the day so the result always lands on the grid.
+ */
+export function snapMinutes(min: number, step = 30): number {
+  const lastSlot = Math.floor((23 * 60 + 59) / step) * step;
+  const snapped = Math.round(min / step) * step;
+  return Math.max(0, Math.min(snapped, lastSlot));
+}
+
 interface Timed {
   item: ScheduleItem;
   start: number;
