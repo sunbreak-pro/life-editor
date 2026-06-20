@@ -30,6 +30,7 @@
 | `mobile/` | Capacitor 薄ラッパー（ios/android ネイティブ + capacitor.config.ts） | 設定のみ |
 | `supabase/` | Postgres マイグレーション（DB の正本） | — |
 | `mcp-server/` | MCP サーバー（Phase 5 で Postgres 版へ書き換え予定。現状は旧 SQLite 版） | — |
+| `.github/workflows/ci.yml` | 本流 CI。PR / main push で shared(tsc -b + vitest) → web(tsc -b + vite build) を検証 | 2026-06-20 新設 |
 
 ### 凍結（実行には使わない。が、まだ消せない）
 
@@ -39,7 +40,7 @@
 | `src-tauri/` | 旧 Rust バックエンド | 完全死亡。ただし CI（下記）がまだ build に使う |
 | `cloud/` | 旧 Cloudflare Workers + D1 | 完全死亡（Supabase へ移行） |
 | ルート `package.json` の scripts | `cargo tauri dev` 等 | Tauri 時代の遺物。**使わない** |
-| `.github/workflows/build.yml` | リリース CI | **まだ Tauri を build**（`cd frontend && npm ci` → src-tauri → dmg/exe）。生きている web/shared/electron 用 CI は**未整備**。Phase 5 で要差し替え |
+| `.github/workflows/build.yml` | 旧リリース CI | **まだ Tauri を build**（`cd frontend && npm ci` → src-tauri → dmg/exe）。タグ push でのみ起動。Phase 5 で要差し替え |
 
 > **削除しない理由（2026-06-20 実測）**: frontend は「死んだ重複」ではなく「凍結中の移植参照元」。529 個の未移植ファイルを抱え、CI・DB スキーマ・web コメントから参照されている。今削除すると移植作業と CI が壊れる。SSOT の「Phase 5 まで維持」は正しい。**削除は Phase 5 まで保留。** 代わりに検索ノイズだけ `.ignore` で抑制（§3 末尾）。
 
@@ -120,6 +121,8 @@ cd web && npm run build         # tsc -b --force && vite build
 # Electron（Phase 3 未着手だが雛形はある）
 cd desktop && npm run dev       # electron-vite dev
 ```
+
+> **検証済み（2026-06-20）**: 上記 shared / web のフルシーケンスはローカルで緑（shared 491 tests / web vite build 成功）。同じ手順を `.github/workflows/ci.yml` が PR ごとに自動実行する。
 
 ---
 

@@ -1,0 +1,53 @@
+name: CI — live stack (web + shared)
+
+# 生きている本流（shared → web）の型検査・テスト・ビルドを自動検証する。
+# 旧 Tauri ビルド (.github/workflows/build.yml) とは独立。frozen な frontend/ src-tauri/
+# は対象外。Phase 3 の desktop / Phase 4 の mobile は未着手のため当面ここには含めない。
+#
+# 検証済みの手順をそのまま写したもの（2026-06-20 ローカル実測: shared 491 tests 緑 /
+# web vite build 緑）。手元で再現するには ai-context.md §6 のコマンドを参照。
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+# 同一ブランチで新しい push が来たら古い実行はキャンセル（無駄な並走を防ぐ）
+concurrency:
+  group: ci-live-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    name: typecheck + test + build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+          cache-dependency-path: |
+            shared/package-lock.json
+            web/package-lock.json
+
+      # shared = React コード本体: 型検査(tsc -b) + vitest
+      - name: shared — install
+        run: npm ci
+        working-directory: shared
+      - name: shared — build (tsc -b)
+        run: npm run build
+        working-directory: shared
+      - name: shared — test (vitest)
+        run: npm run test
+        working-directory: shared
+
+      # web = ブラウザ renderer: 型検査(tsc -b --force) + vite build
+      # 上で shared を build 済み・node_modules 導入済みのため web から参照解決できる
+      - name: web — install
+        run: npm ci
+        working-directory: web
+      - name: web — build (tsc -b --force && vite build)
+        run: npm run build
+        working-directory: web
