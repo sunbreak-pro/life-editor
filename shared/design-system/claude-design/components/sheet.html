@@ -1,0 +1,35 @@
+<!-- @dsCard group="Components" -->
+<!doctype html><html lang='en'><head><meta charset='utf-8'><style>
+:root{
+--bg:#fafafa;--page:#f5f5f6;--text:#1a1a1f;--text-2:#5c5c66;
+--border:#e3e3e7;--border-strong:#cfcfd6;
+--accent:#1f4fff;--accent-hover:#1a42d9;--on-accent:#ffffff;
+--font:ui-sans-serif,-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif}
+*{box-sizing:border-box}
+body{margin:0;padding:28px;background:var(--page);color:var(--text);font-family:var(--font)}
+h1{font-size:15px;font-weight:600;margin:0 0 4px}
+p.sub{margin:0 0 22px;color:var(--text-2);font-size:12px}
+.phone{position:relative;width:280px;height:460px;border-radius:20px;border:1px solid var(--border-strong);background:var(--bg);overflow:hidden}
+.dim{position:absolute;inset:0;background:rgba(20,20,30,.42)}
+.sheet{position:absolute;left:0;right:0;bottom:0;background:#fafafa;border-top:1px solid var(--border);border-radius:18px 18px 0 0;box-shadow:0 -8px 24px rgba(20,20,30,.14);padding:10px 16px 18px}
+.grabber{width:38px;height:4px;border-radius:99px;background:var(--border-strong);margin:2px auto 14px}
+.title{font-size:14px;font-weight:600;margin:0 0 12px}
+.row{display:flex;align-items:center;justify-content:space-between;height:42px;border-bottom:1px solid var(--border);font-size:13px;color:var(--text)}
+.row:last-of-type{border-bottom:none}
+.chev{color:var(--text-2);font-size:14px}
+.btn{display:flex;align-items:center;justify-content:center;width:100%;height:42px;margin-top:14px;border:none;border-radius:10px;background:var(--accent);color:var(--on-accent);font-size:14px;font-weight:600;cursor:pointer}
+</style></head><body>
+<h1>Mobile Bottom Sheet</h1>
+<p class='sub'>Opaque sheet over dimmed body · grabber · list rows · full-width cobalt action</p>
+<div class='phone'>
+<div class='dim'></div>
+<div class='sheet'>
+<div class='grabber'></div>
+<p class='title'>Add to schedule</p>
+<div class='row'><span>Set date</span><span class='chev'>›</span></div>
+<div class='row'><span>Add reminder</span><span class='chev'>›</span></div>
+<div class='row'><span>Assign tags</span><span class='chev'>›</span></div>
+<button class='btn'>Create</button>
+</div>
+</div>
+</body></html>

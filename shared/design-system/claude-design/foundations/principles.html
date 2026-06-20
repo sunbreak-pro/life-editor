@@ -1,0 +1,73 @@
+<!-- @dsCard group="Foundations" -->
+<!doctype html>
+<html lang='en'><head><meta charset='utf-8'><style>
+:root{--font:ui-sans-serif,-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;
+--bg:#fafafa;--surface:#ffffff;--text:#1a1a1f;--text2:#5c5c66;--border:#e3e3e7;--accent:#1f4fff;--mint:#1fa56e;--mintbg:#daf3e7;--mintfg:#0c6f4e}
+*{box-sizing:border-box}
+body{margin:0;padding:28px;background:var(--bg);color:var(--text);font-family:var(--font)}
+h1{font-size:15px;font-weight:600;margin:0 0 4px}
+p.sub{margin:0 0 20px;color:var(--text2);font-size:12px}
+.cols{display:grid;grid-template-columns:1fr 1fr;gap:14px;max-width:760px}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:16px}
+.card h2{font-size:11px;font-weight:700;margin:0 0 10px;text-transform:uppercase;letter-spacing:.05em;color:var(--accent)}
+ol,ul{margin:0;padding-left:18px}
+li{font-size:12px;line-height:1.65;margin-bottom:5px}
+li b{font-weight:600}
+code{background:var(--mintbg);color:var(--mintfg);font-family:ui-monospace,monospace;font-size:11px;padding:1px 5px;border-radius:4px}
+.bad{color:#d92d20}
+.full{grid-column:1 / -1}
+.foot{margin-top:14px;font-size:11px;color:var(--text2)}
+.foot b{color:var(--text)}
+</style></head><body>
+<h1>Creation Principles — Life Editor Design System</h1>
+<p class='sub'>作成原則の要約 · 正本 = shared/design-system/PRINCIPLES.md / CLAUDE.md §6-7</p>
+<div class='cols'>
+  <div class='card'>
+    <h2>不変式トップ6</h2>
+    <ol>
+      <li><b>色は必ずトークン経由</b>。<code>notion-*</code> のみ・hex 直書き禁止</li>
+      <li><b>主要コンテナ背景に透明度を使わない</b>（不透明トークン）</li>
+      <li><b>新規 UI は <code>shared/src/components/</code></b> に集約</li>
+      <li><b>i18n は props 経由</b>・en/ja 両 catalog</li>
+      <li><b>DataService はコールバック注入</b></li>
+      <li><b>本文は WCAG AA ≥ 4.5:1</b></li>
+    </ol>
+  </div>
+  <div class='card'>
+    <h2>カラーの 4 役割</h2>
+    <ul>
+      <li><b>Chrome（地）</b> bg/text/border — テーマ可変</li>
+      <li><b>Brand/Accent</b> cobalt 主＋mint 第2 — 可変</li>
+      <li><b>Semantic</b> success/danger — 可変</li>
+      <li><b>Functional/Data</b> status band・chart — <b>テーマ固定</b>（状態/データの符号化）</li>
+    </ul>
+    <div class='foot'>主アクション/主選択 = <b>cobalt</b>。mint は差し色（chip/tag/positive）。</div>
+  </div>
+  <div class='card'>
+    <h2>透明度ポリシー</h2>
+    <ul>
+      <li>本体背景は不透明トークンで塗る</li>
+      <li>許容: hover / backdrop / accent 薄塗り / border・ring / disabled / shadow</li>
+      <li class='bad'>✕ 未定義 bg-notion-* は透明落ち</li>
+      <li class='bad'>✕ ポップオーバー本体に bg-*/70・backdrop-blur</li>
+    </ul>
+  </div>
+  <div class='card'>
+    <h2>ライト / ダーク</h2>
+    <ul>
+      <li>dark は pure #000 を使わない（<code>#16161a</code>）</li>
+      <li>light も pure #fff 回避（<code>#fafafa</code>）</li>
+      <li>accent はダークで明度↑（<code>#5b82ff</code>）</li>
+      <li><b>dark の on-accent は near-black</b> <code>#0a1024</code>（白だと不可読）</li>
+    </ul>
+  </div>
+  <div class='card full'>
+    <h2>新しいトークンを足す手順</h2>
+    <ul>
+      <li><code>:root</code> に light 生値 → <code>[data-theme="dark"]</code> に dark 値 → <code>@theme</code> に <code>--color-notion-*</code> マッピング</li>
+      <li>部品からは <code>bg-notion-*</code> / <code>text-notion-*</code> で参照 · コントラスト検証（本文・on-accent は AA）</li>
+      <li>PR で <code>tokens.css</code> と <code>PRINCIPLES.md §3.3</code> を同時更新（色の SSOT を 2 箇所で食い違わせない）</li>
+    </ul>
+  </div>
+</div>
+</body></html>

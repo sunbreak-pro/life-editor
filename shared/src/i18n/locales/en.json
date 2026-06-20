@@ -659,7 +659,41 @@
     "statusNotStarted": "Not started",
     "statusInProgress": "In progress",
     "statusDone": "Done",
-    "content": "Notes"
+    "content": "Notes",
+    "start": "Start",
+    "useGlobalDefault": "Use global default ({{min}}m)",
+    "schedule": "Set schedule",
+    "allDay": "All day",
+    "startTime": "Start",
+    "endTime": "End",
+    "showEndTime": "End time",
+    "clearSchedule": "Clear schedule",
+    "emptyState": "Select a task to view details"
+  },
+  "kanban": {
+    "viewFolder": "By folder",
+    "viewStatus": "By status",
+    "viewTag": "By tag",
+    "segmentedGroupLabel": "Switch board view",
+    "emptyColumn": "No tasks here yet",
+    "placeholderHint": "Tag view is coming soon",
+    "boardLabel": "Task board",
+    "untagged": "No tag",
+    "colorPickerLabel": "Change color",
+    "colorClearLabel": "Default color",
+    "colorCustomLabel": "Custom",
+    "modalClose": "Close (Esc)",
+    "breadcrumbTask": "Task",
+    "addTask": "Add",
+    "addDialogTitle": "Add task or folder",
+    "addTypeTask": "Task",
+    "addTypeFolder": "Folder",
+    "addTitleLabel": "Title",
+    "addTitlePlaceholder": "Enter a title",
+    "addFolderLabel": "Folder",
+    "addFolderRoot": "No folder",
+    "addSubmit": "Add",
+    "addCancel": "Cancel"
   },
   "memo": {
     "title": "Memo",
@@ -2252,17 +2286,6 @@
   "folderFilter": {
     "all": "All",
     "filterByFolder": "Filter by folder"
-  },
-  "taskDetail": {
-    "start": "Start",
-    "useGlobalDefault": "Use global default ({{min}}m)",
-    "schedule": "Set schedule",
-    "allDay": "All day",
-    "startTime": "Start",
-    "endTime": "End",
-    "showEndTime": "End time",
-    "clearSchedule": "Clear schedule",
-    "emptyState": "Select a task to view details"
   },
   "taskDetailPanel": {
     "selectTask": "Select a task to view details",

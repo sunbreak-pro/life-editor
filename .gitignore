@@ -43,6 +43,7 @@ prototype/dist/
 .claude/comm/.session-branch
 .claude/comm/.watch-state/
 .claude/comm/.inbox-pending.md
+.claude/active-sessions/
 .claude/scheduled_tasks.lock
 
 # Derived aggregate views — NOT tracked (SSOT は各 chat-*.md)。

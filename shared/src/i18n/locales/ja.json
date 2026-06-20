@@ -659,7 +659,41 @@
     "statusNotStarted": "未着手",
     "statusInProgress": "進行中",
     "statusDone": "完了",
-    "content": "メモ"
+    "content": "メモ",
+    "start": "開始",
+    "useGlobalDefault": "デフォルトを使用 ({{min}}分)",
+    "schedule": "スケジュール設定",
+    "allDay": "終日",
+    "startTime": "開始",
+    "endTime": "終了",
+    "showEndTime": "終了時刻",
+    "clearSchedule": "スケジュールをクリア",
+    "emptyState": "タスクを選択して詳細を表示"
+  },
+  "kanban": {
+    "viewFolder": "フォルダ別",
+    "viewStatus": "ステータス別",
+    "viewTag": "タグ別",
+    "segmentedGroupLabel": "ボード表示切替",
+    "emptyColumn": "タスクはまだありません",
+    "placeholderHint": "タグ別ビューは準備中です",
+    "boardLabel": "タスクボード",
+    "untagged": "タグなし",
+    "colorPickerLabel": "色を変更",
+    "colorClearLabel": "デフォルト色",
+    "colorCustomLabel": "カスタム",
+    "modalClose": "閉じる (Esc)",
+    "breadcrumbTask": "タスク",
+    "addTask": "追加",
+    "addDialogTitle": "タスク・フォルダを追加",
+    "addTypeTask": "タスク",
+    "addTypeFolder": "フォルダ",
+    "addTitleLabel": "タイトル",
+    "addTitlePlaceholder": "タイトルを入力",
+    "addFolderLabel": "追加先フォルダ",
+    "addFolderRoot": "フォルダなし",
+    "addSubmit": "追加",
+    "addCancel": "キャンセル"
   },
   "memo": {
     "title": "メモ",
@@ -2252,17 +2286,6 @@
   "folderFilter": {
     "all": "すべて",
     "filterByFolder": "フォルダでフィルター"
-  },
-  "taskDetail": {
-    "start": "開始",
-    "useGlobalDefault": "デフォルトを使用 ({{min}}分)",
-    "schedule": "スケジュール設定",
-    "allDay": "終日",
-    "startTime": "開始",
-    "endTime": "終了",
-    "showEndTime": "終了時刻",
-    "clearSchedule": "スケジュールをクリア",
-    "emptyState": "タスクを選択して詳細を表示"
   },
   "taskDetailPanel": {
     "selectTask": "タスクを選択して詳細を表示",

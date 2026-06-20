@@ -35,7 +35,7 @@ import {
   type Session,
 } from "@life-editor/shared";
 import { TrashScreen } from "./trash/TrashScreen";
-import { TaskTreeView } from "./tasks/TaskTreeView";
+import { KanbanView } from "./tasks/KanbanView";
 import { DailyView } from "./daily/DailyView";
 // NotesView pulls in the TipTap editor stack (core/react/starter-kit +
 // extensions, ~hundreds of kB). Lazy-load it so that bundle stays out of
@@ -180,6 +180,14 @@ export function MainScreen({ session }: { session: Session }) {
     [t],
   );
 
+  // Full-width sections fill the shell edge-to-edge; the rest keep the
+  // centered, readable max-w column. AppShell drops its max-w/padding wrapper
+  // when fluid, and the section body itself goes full-height (h-full).
+  //   - connect: the Canvas node graph fills the viewport.
+  //   - tasks (K1): the Kanban board is a horizontal-scroll full-width strip,
+  //     so it needs the max-w wrapper removed to use the whole width.
+  const fluidSection = section === "connect" || section === "tasks";
+
   return (
     <SyncProvider>
       {/*
@@ -246,12 +254,13 @@ export function MainScreen({ session }: { session: Session }) {
               userEmail={session.user.email ?? ""}
               onSignOut={() => void signOut()}
               labels={shellLabels}
+              fluidContent={fluidSection}
             >
-              <div className="space-y-4">
+              <div className={fluidSection ? "h-full" : "space-y-4"}>
                 {section === "tasks" && (
                   <WikiTagsUnifiedProvider dataService={ds}>
                     <TaskTreeProvider dataService={ds}>
-                      <TaskTreeView />
+                      <KanbanView />
                     </TaskTreeProvider>
                   </WikiTagsUnifiedProvider>
                 )}

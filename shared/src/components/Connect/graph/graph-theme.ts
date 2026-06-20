@@ -39,13 +39,13 @@ function readVar(name: string, fallback: string): string {
 }
 
 export function resolvePalette(): GraphPalette {
-  const bg = readVar(VARS.bg, "#ffffff");
-  const border = readVar(VARS.border, "#dbe1ea");
-  const text = readVar(VARS.text, "#18181b");
-  const textSecondary = readVar(VARS.textSecondary, "#71717a");
-  const accent = readVar(VARS.accent, "#2eaadc");
+  const bg = readVar(VARS.bg, "#fafafa");
+  const border = readVar(VARS.border, "#e3e3e7");
+  const text = readVar(VARS.text, "#1a1a1f");
+  const textSecondary = readVar(VARS.textSecondary, "#5c5c66");
+  const accent = readVar(VARS.accent, "#1f4fff");
   const success = readVar(VARS.success, "#0f7b6c");
-  const danger = readVar(VARS.danger, "#e03e3e");
+  const danger = readVar(VARS.danger, "#d92d20");
   const daily = readVar(VARS.dailyDot, "#5b6cdb");
 
   return {

@@ -23,23 +23,36 @@
  */
 
 :root {
-  --color-bg-primary: #ffffff;
-  --color-bg-secondary: #eef2f7;
-  --color-bg-subsidebar: #f5f7fa;
-  --color-text-primary: #18181b;
-  --color-text-secondary: #71717a;
-  --color-border: #dbe1ea;
-  --color-border-strong: #c0c8d2;
-  --color-accent: #2eaadc;
-  /* Foreground for text/icons sitting on a saturated accent or danger fill
-     (buttons, selected pills). White reads on both themes, so it is shared. */
+  /* Brand: Cobalt Ink + Mint (2026-06-20). Mono cobalt-grey neutrals, an
+     electric cobalt primary accent, and a light-mint secondary accent. The
+     former Notion teal-blue (#2eaadc) is retired. Canonical values +
+     rationale: shared/design-system/PRINCIPLES.md §3.3. */
+  --color-bg-primary: #fafafa;
+  --color-bg-secondary: #f1f1f3;
+  --color-bg-subsidebar: #f5f5f6;
+  --color-text-primary: #1a1a1f;
+  --color-text-secondary: #5c5c66;
+  --color-border: #e3e3e7;
+  --color-border-strong: #cfcfd6;
+  --color-accent: #1f4fff;
+  --color-accent-hover: #1a42d9;
+  /* Foreground for text/icons sitting on the accent fill (buttons, selected
+     pills). Light theme uses white on the deep cobalt; the dark theme
+     overrides this to near-black ink because its accent is a light blue. */
   --color-on-accent: #ffffff;
-  /* Opaque light-blue wash for the DnD "drop inside this folder" cue
+  /* Opaque light-cobalt wash for the DnD "drop inside this folder" cue
      (DU-G). Opaque on purpose (§5). */
-  --color-accent-subtle: #d6eef7;
-  --color-hover: #e8edf4;
+  --color-accent-subtle: #e1e6fb;
+  /* Mint secondary accent — the light-green "touch". Used for positive /
+     secondary states (chips, tags, secondary highlights). Primary actions
+     and primary selection stay cobalt. */
+  --color-accent-secondary: #1fa56e;
+  --color-accent-secondary-hover: #18895b;
+  --color-chip-mint-bg: #daf3e7;
+  --color-chip-mint-fg: #0c6f4e;
+  --color-hover: #e8e8ec;
   --color-success: #0f7b6c;
-  --color-danger: #e03e3e;
+  --color-danger: #d92d20;
   --color-calendar-header: #f87171;
   --color-schedule-routine-bg: #ebf0fe;
   --color-schedule-other-bg: #f1f2f4;
@@ -51,12 +64,26 @@
   --color-chip-event-bg: #f3e8ff;
   --color-chip-event-fg: #6d28d9;
   --color-chip-event-dot: #8b5cf6;
-  --color-chip-task-bg: #e0f4fb;
-  --color-chip-task-fg: #0e7490;
-  --color-chip-task-dot: #2eaadc;
+  /* Task chip mirrors the primary accent (was the old teal). Retuned to the
+     cobalt family so "task" reads as the brand color, not a stray blue. */
+  --color-chip-task-bg: #e3e7ff;
+  --color-chip-task-fg: #2330b0;
+  --color-chip-task-dot: #1f4fff;
   --color-chip-completed-bg: #ecfdf5;
   --color-chip-completed-fg: #047857;
   --color-chip-completed-dot: #10b981;
+  /* Kanban status bands (K1). The 4px card / column accent line for each
+     task status — a slightly stronger, solid tone than the chip-* faces so
+     the status reads at a glance. Status hue is FIXED (todo=blue /
+     progress=amber / done=green), so it stays the same across themes (it
+     encodes state, like the chart series above). The progress chip face
+     (amber) is added alongside the existing task/completed chip faces. */
+  --color-chip-progress-bg: #fef6e0;
+  --color-chip-progress-fg: #a06b09;
+  --color-chip-progress-dot: #eab308;
+  --color-status-todo-band: #38bdf8;
+  --color-status-progress-band: #eab308;
+  --color-status-done-band: #10b981;
   /* Analytics data-series colors. These encode DATA (a task-age bucket, a
      project category, a session phase), not themeable container chrome, so
      a given series keeps the same hue across light/dark — defined once here
@@ -77,22 +104,39 @@
   --color-chart-cat-8: #84cc16;
   --color-chart-cat-9: #f97316;
   --color-chart-cat-10: #6366f1;
+  /* Elevation (W-UX). Soft, layered panel/card shadows so surfaces read as
+     designed depth rather than flat outlined boxes. Tuned for the light
+     surface; the dark counterparts (below) use higher alpha + larger blur so
+     the lift still reads on the near-black background. */
+  --shadow-elevation-sm: 0 1px 2px 0 rgb(15 23 42 / 0.06);
+  --shadow-elevation-md:
+    0 2px 8px -1px rgb(15 23 42 / 0.1), 0 1px 3px -1px rgb(15 23 42 / 0.06);
+  --shadow-elevation-lg:
+    0 14px 34px -10px rgb(15 23 42 / 0.2), 0 4px 10px -4px rgb(15 23 42 / 0.1);
   --font-size-base: 16px;
 }
 
 [data-theme="dark"] {
-  --color-bg-primary: #18181b;
-  --color-bg-secondary: #27272a;
-  --color-bg-subsidebar: #27272a;
-  --color-text-primary: #f4f4f5;
-  --color-text-secondary: #a1a1aa;
-  --color-border: #3f3f46;
-  --color-border-strong: #52525b;
-  --color-accent: #529cca;
-  /* Dark-theme counterpart: a desaturated blue that sits just above the
+  --color-bg-primary: #16161a;
+  --color-bg-secondary: #1e1e23;
+  --color-bg-subsidebar: #1e1e23;
+  --color-text-primary: #f2f2f5;
+  --color-text-secondary: #a0a0ad;
+  --color-border: #2e2e35;
+  --color-border-strong: #44444d;
+  --color-accent: #5b82ff;
+  --color-accent-hover: #7596ff;
+  /* The dark accent is a light cobalt, so on-accent flips to near-black ink
+     (the :root default is white) to keep button labels legible on the fill. */
+  --color-on-accent: #0a1024;
+  /* Dark-theme counterpart: a desaturated cobalt that sits just above the
      dark row background instead of glowing. Opaque (see :root note). */
-  --color-accent-subtle: #2b3a44;
-  --color-hover: #3f3f46;
+  --color-accent-subtle: #21273f;
+  --color-accent-secondary: #5fd1a0;
+  --color-accent-secondary-hover: #74d9af;
+  --color-chip-mint-bg: #133024;
+  --color-chip-mint-fg: #7fe0b3;
+  --color-hover: #2a2a31;
   --color-success: #4dab9a;
   --color-danger: #ef4444;
   --color-calendar-header: #991b1b;
@@ -106,12 +150,26 @@
   --color-chip-event-bg: #2e1065;
   --color-chip-event-fg: #c4b5fd;
   --color-chip-event-dot: #a78bfa;
-  --color-chip-task-bg: #0c3a4a;
-  --color-chip-task-fg: #7dd3fc;
-  --color-chip-task-dot: #38bdf8;
+  --color-chip-task-bg: #1d2348;
+  --color-chip-task-fg: #aebcff;
+  --color-chip-task-dot: #5b82ff;
   --color-chip-completed-bg: #052e1f;
   --color-chip-completed-fg: #6ee7b7;
   --color-chip-completed-dot: #34d399;
+  /* Kanban status (K1) dark counterparts. Bands keep the fixed status hue
+     (state-encoding); the progress chip face darkens like the others. */
+  --color-chip-progress-bg: #3a2e0a;
+  --color-chip-progress-fg: #fcd34d;
+  --color-chip-progress-dot: #eab308;
+  --color-status-todo-band: #38bdf8;
+  --color-status-progress-band: #eab308;
+  --color-status-done-band: #10b981;
+  /* Dark elevation — stronger so panels lift off the #18181b surface. */
+  --shadow-elevation-sm: 0 1px 2px 0 rgb(0 0 0 / 0.45);
+  --shadow-elevation-md:
+    0 4px 12px -2px rgb(0 0 0 / 0.55), 0 2px 6px -2px rgb(0 0 0 / 0.4);
+  --shadow-elevation-lg:
+    0 18px 44px -10px rgb(0 0 0 / 0.7), 0 6px 16px -6px rgb(0 0 0 / 0.5);
 }
 
 @theme {
@@ -123,8 +181,14 @@
   --color-notion-border: var(--color-border);
   --color-notion-border-strong: var(--color-border-strong);
   --color-notion-accent: var(--color-accent);
+  --color-notion-accent-hover: var(--color-accent-hover);
   --color-notion-on-accent: var(--color-on-accent);
   --color-notion-accent-subtle: var(--color-accent-subtle);
+  /* Mint secondary accent + its chip face (light-green "touch"). */
+  --color-notion-accent-secondary: var(--color-accent-secondary);
+  --color-notion-accent-secondary-hover: var(--color-accent-secondary-hover);
+  --color-notion-chip-mint-bg: var(--color-chip-mint-bg);
+  --color-notion-chip-mint-fg: var(--color-chip-mint-fg);
   --color-notion-primary: var(--color-accent);
   --color-notion-secondary: var(--color-text-secondary);
   --color-notion-hover: var(--color-hover);
@@ -133,6 +197,23 @@
   --color-notion-success: var(--color-success);
   --color-notion-danger: var(--color-danger);
   --color-notion-calendar-header: var(--color-calendar-header);
+  /* Kanban status (K1) — chip faces + the 4px status bands. Mapped so
+     shared Kanban primitives can use bg-notion-chip-* / text-notion-chip-* /
+     bg-notion-status-*-band (no hardcoded colors, §6). */
+  --color-notion-chip-task-bg: var(--color-chip-task-bg);
+  --color-notion-chip-task-fg: var(--color-chip-task-fg);
+  --color-notion-chip-progress-bg: var(--color-chip-progress-bg);
+  --color-notion-chip-progress-fg: var(--color-chip-progress-fg);
+  --color-notion-chip-completed-bg: var(--color-chip-completed-bg);
+  --color-notion-chip-completed-fg: var(--color-chip-completed-fg);
+  --color-notion-status-todo-band: var(--color-status-todo-band);
+  --color-notion-status-progress-band: var(--color-status-progress-band);
+  --color-notion-status-done-band: var(--color-status-done-band);
+  /* Elevation tokens → shadow-notion-sm / -md / -lg utilities. Theme-aware
+     (the underlying --shadow-elevation-* vars switch with [data-theme]). */
+  --shadow-notion-sm: var(--shadow-elevation-sm);
+  --shadow-notion-md: var(--shadow-elevation-md);
+  --shadow-notion-lg: var(--shadow-elevation-lg);
   --font-sans:
     ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica,
     "Apple Color Emoji", Arial, sans-serif, "Segoe UI Emoji", "Segoe UI Symbol";
@@ -161,5 +242,46 @@
   .text-scaling-xl {
     font-size: 1.25em;
     line-height: 1.75em;
+  }
+}
+
+/* Kanban detail modal (K3, W-UX). The backdrop fades in; the centered panel
+   scales up (from its center) with a slight rise. Disabled under
+   prefers-reduced-motion. */
+@keyframes kanban-backdrop-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes kanban-modal-in {
+  from {
+    opacity: 0;
+    transform: scale(0.965) translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.kanban-modal-backdrop {
+  animation: kanban-backdrop-in 0.22s ease forwards;
+}
+
+.kanban-modal-panel {
+  animation: kanban-modal-in 0.34s cubic-bezier(0.22, 1, 0.36, 1) 0.04s both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .kanban-modal-backdrop,
+  .kanban-modal-panel {
+    animation-duration: 0.001ms !important;
+  }
+  .kanban-modal-panel {
+    transform: none !important;
   }
 }
