@@ -1,4 +1,5 @@
 import { useEffect, useId, useRef, useState } from "react";
+import { FOCUS_RING } from "../components/focusRing";
 
 /*
  * Note password / edit-lock dialog (S3, required incl. UI). Wires the
@@ -20,12 +21,6 @@ import { useEffect, useId, useRef, useState } from "react";
  *   - Tab-cycle focus trap is intentionally deferred — aria-modal + few
  *     controls make it low-risk for S3
  */
-
-// Shared focus-visible ring (notion tokens only — no hardcoded colors).
-// Kept in sync with the identical constant in NotesView.tsx; promoting it
-// to a shared export is out of this focused pass's scope.
-const FOCUS_RING =
-  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-notion-accent focus-visible:ring-offset-2 focus-visible:ring-offset-notion-bg";
 
 export type NotePasswordMode = "set" | "remove" | "verify";
 

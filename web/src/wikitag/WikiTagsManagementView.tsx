@@ -6,6 +6,7 @@ import {
   type WikiTagGroupUnified,
 } from "@life-editor/shared";
 import { TagPill } from "./TagPill";
+import { FOCUS_RING } from "../components/focusRing";
 
 /*
  * WikiTagsManagementView — DU-F Step 11.
@@ -26,9 +27,6 @@ import { TagPill } from "./TagPill";
  * Mutations are optimistic — the hook updates the local state and the
  * UI re-derives. A Sync round refreshes from the DB on syncVersion bump.
  */
-
-const FOCUS_RING =
-  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-notion-accent focus-visible:ring-offset-1 focus-visible:ring-offset-notion-bg";
 
 function PromptRow({
   placeholder,

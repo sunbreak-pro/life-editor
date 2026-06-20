@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { useDailiesUnifiedContext } from "@life-editor/shared";
+import { useDailiesUnifiedContext, formatDateKey } from "@life-editor/shared";
 import { TagPicker, LinkPanel } from "../wikitag";
 
 /*
@@ -15,11 +15,7 @@ import { TagPicker, LinkPanel } from "../wikitag";
 function isoDay(offsetDays: number): string {
   const d = new Date();
   d.setDate(d.getDate() + offsetDays);
-  return [
-    d.getFullYear(),
-    String(d.getMonth() + 1).padStart(2, "0"),
-    String(d.getDate()).padStart(2, "0"),
-  ].join("-");
+  return formatDateKey(d.getFullYear(), d.getMonth() + 1, d.getDate());
 }
 
 export function DailyView() {

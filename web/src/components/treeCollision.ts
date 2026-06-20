@@ -7,7 +7,7 @@ import {
 /*
  * Shared tree-DnD collision strategy (DU-G): pointer-first. `pointerWithin`
  * picks the row the cursor is literally over, which matches the pointer-Y
- * zone logic in `useNoteTreeDnd` / `useTaskTreeDnd` (so the over-target and
+ * zone logic in the shared `useTreeDnd` hook (so the over-target and
  * the above/inside/below decision agree on one coordinate). The list rows
  * are gapless, but if the pointer ever lands in a seam, `rectIntersection`
  * fills in the nearest overlapping droppable so `over` never flickers to

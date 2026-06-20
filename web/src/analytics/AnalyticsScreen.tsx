@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import {
   AnalyticsView,
   useTranslation,
+  formatDateKey,
   type DataService,
   type AnalyticsLabels,
   type TimerSession,
@@ -60,10 +61,7 @@ const SCHEDULE_WINDOW_START = "2020-01-01";
 
 function todayKey(): string {
   const d = new Date();
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${y}-${m}-${day}`;
+  return formatDateKey(d.getFullYear(), d.getMonth() + 1, d.getDate());
 }
 
 export function AnalyticsScreen({

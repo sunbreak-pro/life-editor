@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useState } from "react";
 import {
   DndContext,
   DragOverlay,
@@ -27,7 +27,7 @@ import {
   MasterDetail,
   type NoteNode,
 } from "@life-editor/shared";
-import { useNoteTreeDnd } from "./useNoteTreeDnd";
+import { useTreeDnd } from "../components/useTreeDnd";
 import { RichTextEditor } from "./RichTextEditor";
 import {
   NotePasswordDialog,
@@ -37,6 +37,9 @@ import { TagPicker, LinkPanel } from "../wikitag";
 import { TreeNodeIndent } from "../components/TreeNodeIndent";
 import { treeCollisionDetection } from "../components/treeCollision";
 import { TreeDragGhost } from "../components/TreeDragGhost";
+import { DebouncedTextInput } from "../components/DebouncedTextInput";
+import { ErrorAlert } from "../components/ErrorAlert";
+import { FOCUS_RING } from "../components/focusRing";
 
 /*
  * Web Notes UI (S3). New, purpose-built notion-token UI (NOT a port of
@@ -66,12 +69,6 @@ const DIALOG_LABELS = {
   required: "Password is required.",
   saveFailed: "Could not save. Please try again.",
 } as const;
-
-// Shared focus-visible ring (notion tokens only — no hardcoded colors).
-// Kept in sync with the identical constant in NotePasswordDialog.tsx;
-// promoting it to a shared export is out of this focused pass's scope.
-const FOCUS_RING =
-  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-notion-accent focus-visible:ring-offset-2 focus-visible:ring-offset-notion-bg";
 
 interface FlatRow {
   node: NoteNode;
@@ -250,72 +247,6 @@ function NoteRow({
   );
 }
 
-/*
- * Note title field (B2). The previous inline <input> called `updateNote`
- * on every keystroke — a DataService write per character, and writes
- * mid-IME-composition. This mirrors RichTextEditor's debounce-and-flush
- * pattern exactly: a local draft, a 300ms debounced persist, an
- * immediate flush on blur, and a final flush on unmount. The parent
- * remounts this via `key={selected.id}` so a note switch (id change)
- * re-seeds the draft cleanly with no setState-in-effect / ref-in-render.
- * The key intentionally excludes `title`: the debounced persist mutates
- * `selected.title`, and keying on it would remount mid-typing and steal
- * focus (single-user app — an external rename re-seed is not needed).
- * The eventually-persisted value is unchanged — only the write cadence
- * differs.
- */
-function NoteTitleInput({
-  noteId,
-  initialTitle,
-  onCommit,
-}: {
-  noteId: string;
-  initialTitle: string;
-  onCommit: (id: string, title: string) => void;
-}) {
-  const [draft, setDraft] = useState(initialTitle);
-  const timerRef = useRef<number | null>(null);
-  const pendingRef = useRef<string | null>(null);
-  const onCommitRef = useRef(onCommit);
-  useEffect(() => {
-    onCommitRef.current = onCommit;
-  });
-
-  const flush = () => {
-    if (timerRef.current) {
-      clearTimeout(timerRef.current);
-      timerRef.current = null;
-    }
-    if (pendingRef.current !== null) {
-      onCommitRef.current(noteId, pendingRef.current);
-      pendingRef.current = null;
-    }
-  };
-
-  useEffect(() => {
-    // flush only touches refs (stable for this component lifetime), so
-    // an empty dep array is correct — same as RichTextEditor.
-    return () => flush();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  return (
-    <input
-      value={draft}
-      onChange={(e) => {
-        const value = e.target.value;
-        setDraft(value);
-        pendingRef.current = value;
-        if (timerRef.current) clearTimeout(timerRef.current);
-        timerRef.current = window.setTimeout(flush, 300);
-      }}
-      onBlur={flush}
-      aria-label="Note title"
-      className={`flex-1 rounded-md border border-notion-border bg-notion-bg px-2 py-1.5 text-sm font-medium text-notion-text ${FOCUS_RING}`}
-    />
-  );
-}
-
 export function NotesView() {
   const notes = useNotesUnifiedContext();
   const { t } = useTranslation();
@@ -349,10 +280,12 @@ export function NotesView() {
   // id; switching notes and coming back keeps it unlocked.
   const [unlocked, setUnlocked] = useState<Set<string>>(new Set());
 
-  const dnd = useNoteTreeDnd({
-    notes: notes.notes,
-    expandedIds: notes.expandedIds,
-    toggleExpanded: notes.toggleExpanded,
+  const dnd = useTreeDnd<NoteNode>({
+    nodes: notes.notes,
+    rootDroppableId: "droppable-note-root",
+    isExpanded: (id) => notes.expandedIds.has(id),
+    collapseForDrag: notes.toggleExpanded,
+    expandAfterCancel: notes.toggleExpanded,
     moveNode: notes.moveNode,
     moveNodeInto: notes.moveNodeInto,
     moveToRoot: notes.moveToRoot,
@@ -455,23 +388,9 @@ export function NotesView() {
           </button>
         </div>
 
-        {notes.error && (
-          <p
-            role="alert"
-            className="rounded-md border border-notion-danger px-3 py-2 text-sm text-notion-danger"
-          >
-            {notes.error}
-          </p>
-        )}
+        {notes.error && <ErrorAlert>{notes.error}</ErrorAlert>}
 
-        {moveError && (
-          <p
-            role="alert"
-            className="rounded-md border border-notion-danger px-3 py-2 text-sm text-notion-danger"
-          >
-            {moveError}
-          </p>
-        )}
+        {moveError && <ErrorAlert>{moveError}</ErrorAlert>}
 
         {flat.length === 0 ? (
           <p className="text-notion-text-secondary">
@@ -565,16 +484,17 @@ export function NotesView() {
 
   // Detail pane — the selected note's editor + metadata. Rendered only when a
   // note is selected; MasterDetail shows emptyDetail otherwise (wide) or keeps
-  // the sheet closed (narrow). RichTextEditor / NoteTitleInput keep their
-  // key={selected.id} remount strategy (title is NOT keyed — see L254-257).
+  // the sheet closed (narrow). RichTextEditor / DebouncedTextInput keep their
+  // key={selected.id} remount strategy so a note switch re-seeds cleanly.
   const detail = selected ? (
     <div className="space-y-3">
             <div className="flex flex-wrap items-center gap-2">
-              <NoteTitleInput
+              <DebouncedTextInput
                 key={selected.id}
-                noteId={selected.id}
-                initialTitle={selected.title}
-                onCommit={(id, title) => notes.updateNote(id, { title })}
+                value={selected.title}
+                onCommit={(title) => notes.updateNote(selected.id, { title })}
+                aria-label="Note title"
+                className={`flex-1 rounded-md border border-notion-border bg-notion-bg px-2 py-1.5 text-sm font-medium text-notion-text ${FOCUS_RING}`}
               />
               <button
                 type="button"

@@ -10,42 +10,55 @@ import {
 } from "@dnd-kit/core";
 import {
   computeNoteDropIntent,
-  type NoteNode,
   type NoteDropPosition,
   type MoveResult,
   type MoveRejectionReason,
 } from "@life-editor/shared";
 
 /*
- * Web-side @dnd-kit glue for the note tree (S3). This is the host UI's
- * pointer→intent translator: it maps drag gestures onto the three pure
- * move operations the shared `useNotesUnifiedContext` exposes (moveNode /
- * moveNodeInto / moveToRoot). It lives in `web/` (not `shared/`) so the
- * shared package stays UI/dnd-free — Option A keeps shared at the same
- * UI-free boundary as S1/S2. 1:1 behaviour port of
- * frontend/src/hooks/useNoteTreeDnd.ts (drag-over store + folder
- * above/inside/below zones).
+ * Web-side @dnd-kit glue shared by the task tree (DU-G) and the note tree
+ * (S3). Both trees map drag gestures onto the same three pure move
+ * operations their shared context exposes (moveNode / moveNodeInto /
+ * moveToRoot) using the same pointer→intent translation (shared
+ * `computeNoteDropIntent` zones, below-folder = sibling reorder, inside =
+ * moveNodeInto). It lives in `web/` (not `shared/`) so the shared package
+ * stays UI/dnd-free.
+ *
+ * The two trees differ only in how they store expand state: Tasks keep a
+ * VIEW-LOCAL `collapsed: Set` (id IN set = collapsed) while Notes keep an
+ * `expandedIds: Set` (id IN set = expanded). That inversion is absorbed by
+ * the three `isExpanded` / `collapseForDrag` / `expandAfterCancel`
+ * callbacks below — Rule 1 (grabbing an expanded folder collapses it for
+ * the duration of the drag) is expressed purely in those terms.
  */
 
-export interface NoteOverInfo {
+export interface TreeOverInfo {
   overId: string;
   position: NoteDropPosition;
 }
 
-interface UseNoteTreeDndParams {
-  notes: NoteNode[];
-  expandedIds: Set<string>;
-  toggleExpanded: (id: string) => void;
+// Minimal node shape both TaskNode and NoteNode satisfy.
+interface TreeDndNode {
+  id: string;
+  type: string;
+  parentId: string | null;
+}
+
+interface UseTreeDndParams<TNode extends TreeDndNode> {
+  nodes: TNode[];
+  // The id the host registers for its root drop zone ("droppable-*-root").
+  rootDroppableId: string;
+  // Expand/collapse seam (absorbs the Tasks collapsed-set vs Notes
+  // expanded-set inversion).
+  isExpanded: (id: string) => boolean;
+  collapseForDrag: (id: string) => void;
+  expandAfterCancel: (id: string) => void;
   moveNode: (
     activeId: string,
     overId: string,
     position?: "above" | "below",
   ) => MoveResult;
-  moveNodeInto: (
-    activeId: string,
-    overId: string,
-    insertIndex?: number,
-  ) => MoveResult;
+  moveNodeInto: (activeId: string, overId: string) => MoveResult;
   moveToRoot: (id: string) => MoveResult;
   onMoveRejected?: (reason: MoveRejectionReason) => void;
 }
@@ -71,23 +84,36 @@ function handleResult(
   }
 }
 
-export function useNoteTreeDnd({
-  notes,
-  expandedIds,
-  toggleExpanded,
+export interface UseTreeDndResult<TNode> {
+  sensors: ReturnType<typeof useSensors>;
+  activeId: string | null;
+  activeNode: TNode | null;
+  overInfo: TreeOverInfo | null;
+  handleDragStart: (event: DragStartEvent) => void;
+  handleDragMove: (event: DragMoveEvent) => void;
+  handleDragEnd: (event: DragEndEvent) => void;
+  handleDragCancel: () => void;
+}
+
+export function useTreeDnd<TNode extends TreeDndNode>({
+  nodes,
+  rootDroppableId,
+  isExpanded,
+  collapseForDrag,
+  expandAfterCancel,
   moveNode,
   moveNodeInto,
   moveToRoot,
   onMoveRejected,
-}: UseNoteTreeDndParams) {
+}: UseTreeDndParams<TNode>): UseTreeDndResult<TNode> {
   const [activeId, setActiveId] = useState<string | null>(null);
-  const [overInfo, setOverInfo] = useState<NoteOverInfo | null>(null);
-  const overInfoRef = useRef<NoteOverInfo | null>(null);
+  const [overInfo, setOverInfo] = useState<TreeOverInfo | null>(null);
+  const overInfoRef = useRef<TreeOverInfo | null>(null);
   // Rule 1: if grabbing an expanded folder collapsed it, remember its id so
   // a cancelled drag can re-expand it (a completed drop leaves it collapsed).
   const collapsedOnDragRef = useRef<string | null>(null);
 
-  const setOver = useCallback((next: NoteOverInfo | null) => {
+  const setOver = useCallback((next: TreeOverInfo | null) => {
     const prev = overInfoRef.current;
     if (
       (prev === null && next === null) ||
@@ -111,19 +137,19 @@ export function useNoteTreeDnd({
     (event: DragStartEvent) => {
       const id = event.active.id as string;
       setActiveId(id);
-      // Rule 1: grabbing an EXPANDED folder collapses it for the duration
-      // of the drag, so it travels as one compact block (and its children
-      // stop being drop targets mid-drag). Restored on cancel; left
-      // collapsed after a completed drop.
-      const node = notes.find((n) => n.id === id);
-      if (node && node.type === "folder" && expandedIds.has(id)) {
+      // Rule 1: grabbing an EXPANDED folder collapses it for the duration of
+      // the drag, so it travels as one compact block (and its children stop
+      // being drop targets mid-drag). Restored on cancel; left collapsed
+      // after a completed drop.
+      const node = nodes.find((n) => n.id === id);
+      if (node && node.type === "folder" && isExpanded(id)) {
         collapsedOnDragRef.current = id;
-        toggleExpanded(id);
+        collapseForDrag(id);
       } else {
         collapsedOnDragRef.current = null;
       }
     },
-    [notes, expandedIds, toggleExpanded],
+    [nodes, isExpanded, collapseForDrag],
   );
 
   const handleDragMove = useCallback(
@@ -135,7 +161,7 @@ export function useNoteTreeDnd({
       }
 
       const overId = over.id as string;
-      const overNode = notes.find((n) => n.id === overId);
+      const overNode = nodes.find((n) => n.id === overId);
       if (!overNode) {
         setOver(null);
         return;
@@ -156,7 +182,7 @@ export function useNoteTreeDnd({
 
       setOver({ overId, position: newPosition });
     },
-    [notes, setOver],
+    [nodes, setOver],
   );
 
   const handleDragEnd = useCallback(
@@ -168,18 +194,18 @@ export function useNoteTreeDnd({
       const { active, over } = event;
       if (!over || active.id === over.id) return;
 
-      const activeNode = notes.find((n) => n.id === active.id);
+      const activeNode = nodes.find((n) => n.id === active.id);
       if (!activeNode) return;
       const overId = over.id as string;
 
-      if (overId === "droppable-note-root") {
+      if (overId === rootDroppableId) {
         if (activeNode.parentId !== null) {
           handleResult(moveToRoot(active.id as string), onMoveRejected);
         }
         return;
       }
 
-      const overNode = notes.find((n) => n.id === overId);
+      const overNode = nodes.find((n) => n.id === overId);
       if (!overNode) return;
 
       if (overNode.type === "folder") {
@@ -205,10 +231,10 @@ export function useNoteTreeDnd({
             onMoveRejected,
           );
         } else if (position === "below") {
-          // TaskTree parity: below a folder (expanded or not) drops as the
-          // folder's sibling, right after it — never "first child". This is
-          // what lets an item land below a folder that itself sits at the
-          // tail of another folder.
+          // Below a folder (expanded or not) drops as the folder's sibling,
+          // right after it — never "first child". This is what lets an item
+          // land below a folder that itself sits at the tail of another
+          // folder.
           handleResult(
             moveNode(active.id as string, over.id as string, "below"),
             onMoveRejected,
@@ -245,7 +271,7 @@ export function useNoteTreeDnd({
         );
       }
     },
-    [notes, moveNode, moveNodeInto, moveToRoot, setOver, onMoveRejected],
+    [nodes, rootDroppableId, moveNode, moveNodeInto, moveToRoot, setOver, onMoveRejected],
   );
 
   const handleDragCancel = useCallback(() => {
@@ -253,14 +279,14 @@ export function useNoteTreeDnd({
     setOver(null);
     // Rule 1: a cancelled drag re-expands the folder we collapsed on grab.
     if (collapsedOnDragRef.current) {
-      toggleExpanded(collapsedOnDragRef.current);
+      expandAfterCancel(collapsedOnDragRef.current);
       collapsedOnDragRef.current = null;
     }
-  }, [setOver, toggleExpanded]);
+  }, [setOver, expandAfterCancel]);
 
   const activeNode = useMemo(
-    () => (activeId ? (notes.find((n) => n.id === activeId) ?? null) : null),
-    [activeId, notes],
+    () => (activeId ? (nodes.find((n) => n.id === activeId) ?? null) : null),
+    [activeId, nodes],
   );
 
   return {

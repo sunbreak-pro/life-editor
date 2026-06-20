@@ -8,6 +8,7 @@ import {
   BottomSheet,
   addDaysKey,
   startOfWeekKey,
+  formatDateKey,
   type WeekTimeGridItem,
   type ScheduleItem,
 } from "@life-editor/shared";
@@ -31,10 +32,7 @@ import { DebouncedTextInput } from "../components/DebouncedTextInput";
 
 function todayLocal(): string {
   const d = new Date();
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${y}-${m}-${day}`;
+  return formatDateKey(d.getFullYear(), d.getMonth() + 1, d.getDate());
 }
 
 interface EditorLabels {

@@ -2,9 +2,11 @@ import { useMemo, useState } from "react";
 import {
   useScheduleItemsContext,
   useTaskTreeContext,
+  formatDateKey,
 } from "@life-editor/shared";
 import { TagPicker, LinkPanel } from "../wikitag";
 import { DebouncedTextInput } from "../components/DebouncedTextInput";
+import { toggleSetMember } from "../utils/setOps";
 
 /*
  * Web Schedule UI — S4-4 ScheduleItems slice.
@@ -41,10 +43,7 @@ import { DebouncedTextInput } from "../components/DebouncedTextInput";
 
 function todayLocal(): string {
   const d = new Date();
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${y}-${m}-${day}`;
+  return formatDateKey(d.getFullYear(), d.getMonth() + 1, d.getDate());
 }
 
 export function ScheduleItemsView() {
@@ -72,12 +71,7 @@ export function ScheduleItemsView() {
   // Local Set rather than a useExpanded hook — this is single-section state.
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const toggleExpanded = (id: string) =>
-    setExpanded((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
+    setExpanded((prev) => toggleSetMember(prev, id));
 
   // Linkable candidates pool: own schedule_items (same date set) + every
   // task. DU-F MVP wiring — DU-G unifies into items_meta and removes the

@@ -20,11 +20,13 @@ import {
   type TaskStatus,
 } from "@life-editor/shared";
 import { TagPicker, LinkPanel } from "../wikitag";
-import { useTaskTreeDnd } from "./useTaskTreeDnd";
+import { useTreeDnd } from "../components/useTreeDnd";
 import { RichTextEditor } from "../notes/RichTextEditor";
 import { TreeNodeIndent } from "../components/TreeNodeIndent";
 import { treeCollisionDetection } from "../components/treeCollision";
 import { TreeDragGhost } from "../components/TreeDragGhost";
+import { ErrorAlert } from "../components/ErrorAlert";
+import { toggleSetMember } from "../utils/setOps";
 
 /*
  * Web TaskTree UI (S1, redesigned in DU-G to match the Desktop TaskTree and
@@ -35,10 +37,11 @@ import { TreeDragGhost } from "../components/TreeDragGhost";
  * hierarchy render, expand/collapse, status cycle, add task/folder, rename,
  * soft-delete + restore, and @dnd-kit reorder + into-folder.
  *
- * DnD is now identical to the Notes tree: shared pointer→intent zones
- * (computeNoteDropIntent via useTaskTreeDnd), shared collision detection, a
- * static list (no per-row shift transform), a faint floating ghost, accent
- * insertion lines + an inside-folder wash. See useTaskTreeDnd.ts.
+ * DnD is identical to the Notes tree: both call the generic
+ * `useTreeDnd` (computeNoteDropIntent zones, shared collision detection, a
+ * static list with no per-row shift transform, a faint floating ghost,
+ * accent insertion lines + an inside-folder wash). See
+ * components/useTreeDnd.ts.
  */
 
 const STATUS_GLYPH: Record<TaskStatus, string> = {
@@ -284,12 +287,7 @@ export function TaskTreeView() {
   const [linksOpen, setLinksOpen] = useState<Set<string>>(new Set());
   const [moveError, setMoveError] = useState<string | null>(null);
   const toggleLinks = (id: string) =>
-    setLinksOpen((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
+    setLinksOpen((prev) => toggleSetMember(prev, id));
 
   // Linkable candidates pool: the full task tree (active nodes). Cross-
   // role links (task → note / event / daily) need raw id paste in the
@@ -323,18 +321,14 @@ export function TaskTreeView() {
       return next;
     });
   const toggleExpand = (id: string) =>
-    setCollapsed((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
+    setCollapsed((prev) => toggleSetMember(prev, id));
 
-  const dnd = useTaskTreeDnd({
+  const dnd = useTreeDnd<TaskNode>({
     nodes: tree.nodes,
-    collapsedIds: collapsed,
-    collapse,
-    expand,
+    rootDroppableId: "droppable-task-root",
+    isExpanded: (id) => !collapsed.has(id),
+    collapseForDrag: collapse,
+    expandAfterCancel: expand,
     moveNode: tree.moveNode,
     moveNodeInto: tree.moveNodeInto,
     moveToRoot: tree.moveToRoot,
@@ -434,30 +428,11 @@ export function TaskTreeView() {
         </div>
       </div>
 
-      {tree.error && (
-        <p
-          role="alert"
-          className="rounded-md border border-notion-danger px-3 py-2 text-sm text-notion-danger"
-        >
-          {tree.error}
-        </p>
-      )}
+      {tree.error && <ErrorAlert>{tree.error}</ErrorAlert>}
       {tree.persistError && (
-        <p
-          role="alert"
-          className="rounded-md border border-notion-danger px-3 py-2 text-sm text-notion-danger"
-        >
-          Save failed: {tree.persistError}
-        </p>
+        <ErrorAlert>Save failed: {tree.persistError}</ErrorAlert>
       )}
-      {moveError && (
-        <p
-          role="alert"
-          className="rounded-md border border-notion-danger px-3 py-2 text-sm text-notion-danger"
-        >
-          {moveError}
-        </p>
-      )}
+      {moveError && <ErrorAlert>{moveError}</ErrorAlert>}
 
       {flat.length === 0 ? (
         <p className="text-notion-text-secondary">
