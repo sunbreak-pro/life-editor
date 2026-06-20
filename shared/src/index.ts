@@ -281,6 +281,18 @@ export {
   type SortDirection,
 } from "./utils/sortTaskNodes";
 export { getFolderTag, truncateFolderTag } from "./utils/folderTag";
+// W8 week-view time-grid layout — pure geometry + week date helpers (host UI
+// builds the grid on these; testable without a DOM).
+export {
+  timeToMinutes,
+  layoutDayEvents,
+  addDays,
+  startOfWeek,
+  weekDates,
+  todayLocal,
+  type PositionedEvent,
+  type WeekGridLayoutOptions,
+} from "./utils/weekGridLayout";
 // Platform detection. isNativeMobile() (Phase 4) lets the host gate the Mobile
 // 省略 Provider 5 種 (CLAUDE.md §2) on the Capacitor shells — see platform.ts.
 export { isMac, isNativeMobile } from "./utils/platform";

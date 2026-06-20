@@ -47,6 +47,7 @@ const NotesView = lazy(() =>
   import("./notes/NotesView").then((m) => ({ default: m.NotesView })),
 );
 import { ScheduleView } from "./schedule/ScheduleView";
+import { WeekGrid } from "./schedule/WeekGrid";
 import { ScheduleItemsView } from "./schedule/ScheduleItemsView";
 import { ScheduleCalendarView } from "./schedule/ScheduleCalendarView";
 import { RoutineScheduleSync } from "./schedule/RoutineScheduleSync";
