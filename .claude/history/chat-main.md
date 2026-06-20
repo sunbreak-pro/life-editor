@@ -1,5 +1,29 @@
 # HISTORY (chat-main)
 
+### 2026-06-20 - W8 二重実装の解消 + main ビルド破壊の緊急修復（#97）
+
+#### 概要
+
+W8 (Schedule 週グリッド) を **2 つの並行チャットが互いを知らず二重実装**し、両方 main へ merge された結果、origin/main の web ビルドが破綻していたのを修復。原因の本質は技術ではなく**並行作業の境界調整不足**。`fix/w8-schedule-dedup`・commit `13e96a8d`・PR #97。
+
+#### 経緯（タイムライン）
+
+1. main=`bda164ec`(#94 W8 plan) を共通 base に、両チャットが W8 着手。
+2. 別チャットが **#95 `c9c93690`「W8-1 Schedule 週グリッド」** を先に merge（`WeekGrid.tsx` / `weekGridLayout.ts` 新設・`<WeekGrid />` 配線）。
+3. main チャット(自分)が **#96 `228ddd8b`「Schedule カレンダー 週/日タイムグリッド」** を後で merge。#96 は #95 を含まない `bda164ec` ベースで作成（着手時 origin/main に #95 がまだ無く `.claude/comm/` でも捕捉できず）。
+4. GitHub 3-way merge が `MainScreen.tsx` を #96 側で解決 → **#95 の `<WeekGrid />` JSX が消え `import { WeekGrid }` だけ残存**。
+5. `web/tsconfig.app.json` の `noUnusedLocals:true` が `error TS6133: 'WeekGrid' is declared but its value is never read.` で web build を恒常破綻。CI 不在で気付かれず。
+
+#### 変更点
+
+- **検証**: 撤去**前**に origin/main 相当を build し `TS6133` を実証（壊れている確証）。
+- **方針**: 機能の広い #96(`ScheduleCalendarView`/`WeekTimeGrid`/`scheduleGridLayout`・週/日分割・編集・i18n・386行) を Schedule の正とし、#95(read+navのみ・267行) の dead 一式を撤去。
+- **撤去(-573行)**: `web/src/schedule/WeekGrid.tsx` / `shared/src/utils/weekGridLayout.ts` / `shared/tests/weekGridLayout.test.ts` 削除 + `MainScreen.tsx` の dead import + `shared/src/index.ts` の `weekGridLayout` export ブロック（`timeToMinutes`/`layoutDayEvents`/`addDays`/`startOfWeek`/`weekDates`/`todayLocal`/型2 — 全て WeekGrid.tsx のみ使用を grep 実証）。
+- **温存**: #95 同梱の Desktop 常駐(STEP1・`desktop/` 配下)は別機能のため無改変。
+- **再発防止**: Known Issue `029-parallel-chats-double-implemented-w8-dead-import-broke-main.md` 追加（着手前に同名機能の進行中 PR/branch 確認・`noUnusedLocals` 環境で host 共有ファイル衝突時は merge 後 build 必須・CI build gate 推奨）。
+- **検証後**: shared build 0 / shared test **463 passed** / web build **0(TS6133 解消)** / web eslint 0err / frontend build 0。
+- **5173 の扱い**: メイン作業ツリー(`/life-editor`)は origin/main 2-behind + Connect/Task/Kanban 未コミット変更あり=別チャット進行中作業の可能性大。ユーザー判断で**触らない**（各自 #97 merge 後に pull 同期）。
+
 ### 2026-06-20 - W8: Schedule カレンダー（週/日タイムグリッド）コア実装
 
 #### 概要
