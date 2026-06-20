@@ -23,14 +23,14 @@
 
 | 日付        | 区分 | 予定タスク (Phase・plan 由来)                          | 予算 | GCal (eventId) | 進捗 |
 | ----------- | ---- | ----------------------------------------------------- | ---- | -------------- | ---- |
-| 06-21 (Sun) | 休日 | Phase 3 Electron — PR #79 レビュー反映 + macOS 起動確認 | 4h+  | —              | ☐    |
-| 06-22 (Mon) | 平日 | initplan WARN 48 件 — advisor 再実測 + 原因メモ着手   | 45m  | —              | ☐    |
-| 06-23 (Tue) | 平日 | web Phase 2 残 S9 — モバイルレスポンシブ 1 画面       | 45m  | —              | ☐    |
-| 06-24 (Wed) | 平日 | Link UX (Obsidian 風) スケルトン精読 + 設計メモ        | 60m  | —              | ☐    |
-| 06-25 (Thu) | 平日 | Notes password bcrypt 化 前調査 (Known-issue 027)     | 45m  | —              | ☐    |
-| 06-26 (Fri) | 平日 | 週次レビュー + 台帳更新 + merged branch 整理メモ       | 30m  | —              | ☐    |
-| 06-27 (Sat) | 休日 | initplan 一括化 migration 作成（ローカルファイル先行） | 4h+  | —              | ☐    |
-| 06-28 (Sun) | 休日 | Link UX 実装 Step 1（cross-role link 基盤）            | 4h+  | —              | ☐    |
+| 06-21 (Sun) | 休日 | Phase 3 Electron — PR #79 レビュー反映 + macOS 起動確認 | 4h+  | ivgcgdeom1sm465dhj72h3dto8 | ☐    |
+| 06-22 (Mon) | 平日 | initplan WARN 48 件 — advisor 再実測 + 原因メモ着手   | 45m  | rjg3hsqi661c8bo15ppj7lodoo | ☐    |
+| 06-23 (Tue) | 平日 | web Phase 2 残 S9 — モバイルレスポンシブ 1 画面       | 45m  | dk4qhvspdkc9fjrk05319gmok8 | ☐    |
+| 06-24 (Wed) | 平日 | Link UX (Obsidian 風) スケルトン精読 + 設計メモ        | 60m  | iqpijoj943vm20q680ir1igbfc | ☐    |
+| 06-25 (Thu) | 平日 | Notes password bcrypt 化 前調査 (Known-issue 027)     | 45m  | 7subd0aglsdkfkt0dhd5e84b60 | ☐    |
+| 06-26 (Fri) | 平日 | 週次レビュー + 台帳更新 + merged branch 整理メモ       | 30m  | 0072u8ucqaa8b60pu59f1vlmco | ☐    |
+| 06-27 (Sat) | 休日 | initplan 一括化 migration 作成（ローカルファイル先行） | 4h+  | kaa8bh0tueucf9m52j4f2kiao8 | ☐    |
+| 06-28 (Sun) | 休日 | Link UX 実装 Step 1（cross-role link 基盤）            | 4h+  | 4n0k9l648kg87l949001hp9hu4 | ☐    |
 
 ---
 
