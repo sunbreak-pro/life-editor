@@ -1,5 +1,22 @@
 # HISTORY (chat-main)
 
+### 2026-06-20 - デザインシステム整備 + ブランド Cobalt+Mint リブランド（PR #102）
+
+#### 概要
+
+Pencil 連携がクラッシュで使用不能（MCP 全ツールがキャンバス開状態を要求・`filePath` 明示でも不可）になったため、**ClaudeDesign（claude.ai/design の DesignSync）**へ切替えてデザインシステムを整備。新ブランドパレット **Cobalt Ink + Mint** を確定し実トークンへ適用、作成原則を成文化。並行 Kanban UI/UX 作業と同梱で **PR #102** にて merge（merge commit `d6103eec`）。
+
+#### 変更点
+
+- **ツール切替**: Pencil（要キャンバス・ローカル・クラッシュでブロック）→ ClaudeDesign（claude.ai ログイン経由の DesignSync）。後者が「今後の正本」の置き場と判明。新規「DesignSystem」project（`962335c3-…`・type `PROJECT_TYPE_DESIGN_SYSTEM`）は既存・空だった（前に「見えない」は索引反映待ち）。
+- **ブランドパレット**: workflow で 6 方向探索→4 厳選（WCAG AA 検証）→ユーザーが **Cobalt Ink** ベースに **Mint 第2アクセント**を足した「Cobalt + Mint」を採用（緑 3 段階 A/B/C のうち B）。
+- **tokens.css**: light/dark の chrome/accent/semantic を Cobalt+Mint へ置換・旧 Notion teal `#2eaadc` 退役。`accent-secondary`(mint)+`chip-mint`+`accent-hover` 追加・**dark の on-accent を near-black `#0a1024` に切替**（dark accent が明るいコバルト＝白文字でコントラスト不足のため）・旧 teal をミラーしていた task チップを cobalt 系へ再調整。Functional/Data（status band・chart・event紫・routine藍）はテーマ固定符号化として現状維持。`graph-theme.ts` の CSS 変数フォールバックも新ブランド値へ。web build 通過。
+- **作成原則**: `shared/design-system/PRINCIPLES.md`（不変式トップ6 / カラー4役割 / 透明度ポリシー / アクセシビリティ / トークン追加手順の SSOT）+ `palette-candidates.md`（4 案＋採用記録）。
+- **ClaudeDesign DesignSystem**: foundations(colors/principles/typography) + components(button/card/input/chips/modal/toast/sheet/nav) の計 **11 カード**（`@dsCard` 付き自己完結 HTML）を投入。コンポーネント 6 枚は workflow で並列生成。ローカルミラー `shared/design-system/claude-design/`（README に projectId 記録）。
+- **旧 project 退役**: 旧「Design System」（`d0c25129-…`）のパイロット4枚（colors/button/card/input）を削除し `_ARCHIVED.html` マーカー設置（project の殻削除/改名は DesignSync に API 無く claude.ai UI 操作）。
+- **PR**: 並行プロセスが working tree を `git stash -u`→`feat/web-kanban-ui-ux` に pop+commit+push 済みで、私の rebrand+design-system も同梱されていた（PR #102）。draft 化＋タイトル/本文に design-system スコープ加筆ののち、ユーザーが merge。
+- **申し送り**: ローカル main が origin より 5 behind で ff-pull が `chore/hooks-symlink-distribution` 由来の `.claude/hooks/*.sh` 衝突でブロック（別作業・本タスク外・触らず）。
+
 ### 2026-06-20 - W8 二重実装の解消 + main ビルド破壊の緊急修復（#97）
 
 #### 概要
