@@ -45,6 +45,11 @@ export interface ConnectGraphLabels {
   tagsShort: string;
   connections: string;
 
+  // ---- link editing (connect.graph.*) ----
+  addLink: string;
+  removeLink: string;
+  linkTargetPlaceholder: string;
+
   // ---- backlinks (backlinks.*) ----
   backlinksTitle: string;
   backlinksEmpty: string;

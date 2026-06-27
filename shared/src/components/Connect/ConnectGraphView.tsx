@@ -13,7 +13,11 @@ import { GraphControlPanel } from "./GraphControlPanel";
 import { SelectedNodeCard } from "./SelectedNodeCard";
 import { BacklinkView, type BacklinkEntry } from "./BacklinkView";
 import { useGraphFilters } from "./graph/useGraphFilters";
-import { buildGraphModel, backlinkSourceIds } from "./graph/buildGraphModel";
+import {
+  buildGraphModel,
+  backlinkSourceIds,
+  resolveLinkId,
+} from "./graph/buildGraphModel";
 import { buildAdjacency } from "./graph/graph-render";
 import { isTagNodeId } from "./graph/graph-types";
 import type { ConnectGraphLabels } from "./labels";
@@ -32,6 +36,10 @@ export interface ConnectGraphViewProps {
   onOpenNote?: (noteId: string) => void;
   /** open a daily by date */
   onOpenDaily?: (date: string) => void;
+  /** create a directed item↔item link (host wires the context mutator) */
+  onCreateLink?: (fromId: string, toId: string) => void;
+  /** delete the link identified by `linkId` (host wires the context mutator) */
+  onDeleteLink?: (linkId: string) => void;
 }
 
 /**
@@ -49,6 +57,8 @@ export function ConnectGraphView({
   labels,
   onOpenNote,
   onOpenDaily,
+  onCreateLink,
+  onDeleteLink,
 }: ConnectGraphViewProps) {
   const snapshot = useMemo(
     () => buildGraphModel({ notes, dailies, tags, assignments, connections }),
@@ -100,6 +110,35 @@ export function ConnectGraphView({
       label: nodeById.get(id)?.label ?? "Untitled",
     }));
   }, [selectedId, connections, nodeById]);
+
+  // Link-edit affordances for the selected node. `neighbors` is the full
+  // (depth-filter-independent) adjacency, so `outgoingLinkIds` covers every
+  // active outgoing link — used both to map a delete row to its link id and
+  // to keep already-linked targets out of the add-candidate list.
+  const outgoingLinkIds = useMemo(() => {
+    const map = new Map<string, string>();
+    if (!selectedId || isTagNodeId(selectedId)) return map;
+    for (const n of neighbors) {
+      if (isTagNodeId(n.id)) continue;
+      const id = resolveLinkId(selectedId, n.id, connections);
+      if (id) map.set(n.id, id);
+    }
+    return map;
+  }, [selectedId, neighbors, connections]);
+
+  // Candidates exclude self, tag nodes (links are item↔item; tag association
+  // is an assignment, not a connection), and targets already linked outgoing.
+  const linkableItems = useMemo(() => {
+    if (!selectedId || isTagNodeId(selectedId)) return [];
+    return snapshot.nodes
+      .filter(
+        (n) =>
+          n.id !== selectedId &&
+          !isTagNodeId(n.id) &&
+          !outgoingLinkIds.has(n.id),
+      )
+      .map((n) => ({ id: n.id, label: n.label }));
+  }, [snapshot.nodes, selectedId, outgoingLinkIds]);
 
   const typeCounts = useMemo(() => {
     const c: Record<string, number> = {};
@@ -218,6 +257,10 @@ export function ConnectGraphView({
             onSelect={handleSelectedIdChange}
             onClose={() => handleSelectedIdChange(null)}
             onActivate={handleActivate}
+            linkableItems={linkableItems}
+            outgoingLinkIds={outgoingLinkIds}
+            onCreateLink={onCreateLink}
+            onDeleteLink={onDeleteLink}
           />
         )}
 

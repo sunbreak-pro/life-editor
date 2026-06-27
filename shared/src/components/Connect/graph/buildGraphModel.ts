@@ -162,3 +162,22 @@ export function backlinkSourceIds(
   }
   return out;
 }
+
+/**
+ * Resolve the id of the active (non-deleted) directed link `fromId → toId`,
+ * or `null` when no such link exists. Direction matters: the reverse pair
+ * `(toId, fromId)` is a different link and yields `null` here. Used by the
+ * SelectedNodeCard delete affordance to map an outgoing neighbour row back to
+ * the `wiki_tag_connections.id` that `deleteItemLink` expects.
+ */
+export function resolveLinkId(
+  fromId: string,
+  toId: string,
+  connections: WikiTagConnection[],
+): string | null {
+  for (const c of connections) {
+    if (c.isDeleted) continue;
+    if (c.fromItemId === fromId && c.toItemId === toId) return c.id;
+  }
+  return null;
+}
