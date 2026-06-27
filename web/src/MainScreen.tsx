@@ -361,11 +361,13 @@ export function MainScreen({ session }: { session: Session }) {
                  */}
                 {section === "work" && <WorkScreen dataService={ds} />}
                 {/*
-                 * Connect (W4) — node graph + backlink over the UNIFIED item-link
-                 * model. Provider-free like Trash/Work: the host ConnectScreen
-                 * fetches notes/tags/links via the injected DataService directly
-                 * (§6.4) and feeds the pure shared <ConnectGraphView>. Legacy
-                 * note_links are stubbed on Supabase and are NOT used.
+                 * Connect (W4; STEP 2 link editing) — node graph + backlink over
+                 * the UNIFIED item-link model. ConnectScreen mounts its own
+                 * WikiTagsUnifiedProvider internally: notes/dailies/tags/
+                 * assignments are fetched via the injected DataService, while the
+                 * item↔item links come from the Provider's bulk cache so the
+                 * create/delete link mutators update the graph without a refetch.
+                 * Legacy note_links are stubbed on Supabase and are NOT used.
                  */}
                 {section === "connect" && <ConnectScreen dataService={ds} />}
                 {/*

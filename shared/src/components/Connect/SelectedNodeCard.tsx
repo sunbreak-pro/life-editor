@@ -1,3 +1,4 @@
+import { useMemo, useState } from "react";
 import {
   Folder,
   FileText,
@@ -5,12 +6,18 @@ import {
   Hash,
   X,
   Link2,
+  Plus,
   Crosshair,
   type LucideIcon,
 } from "lucide-react";
 import type { GraphNode, GraphNodeType } from "./graph/graph-types";
 import { isTagNodeId } from "./graph/graph-types";
 import type { ConnectGraphLabels } from "./labels";
+
+export interface LinkableItem {
+  id: string;
+  label: string;
+}
 
 const TYPE_ICON: Record<GraphNodeType, LucideIcon> = {
   project: Folder,
@@ -29,6 +36,14 @@ interface SelectedNodeCardProps {
   onClose: () => void;
   /** double-click / open intent (note/daily navigation) */
   onActivate?: (id: string) => void;
+  /** datalist candidates for the "add link" input (self/tag nodes excluded) */
+  linkableItems?: LinkableItem[];
+  /** neighbourId → wiki_tag_connections.id for deletable outgoing links */
+  outgoingLinkIds?: Map<string, string>;
+  /** create a directed item↔item link from this node to `toId` */
+  onCreateLink?: (fromId: string, toId: string) => void;
+  /** delete the link identified by `linkId` */
+  onDeleteLink?: (linkId: string) => void;
 }
 
 export function SelectedNodeCard({
@@ -40,10 +55,38 @@ export function SelectedNodeCard({
   onSelect,
   onClose,
   onActivate,
+  linkableItems = [],
+  outgoingLinkIds,
+  onCreateLink,
+  onDeleteLink,
 }: SelectedNodeCardProps) {
   const Icon = TYPE_ICON[node.type];
   const linkCount = neighbors.filter((n) => !isTagNodeId(n.id)).length;
   const tagCount = neighbors.filter((n) => isTagNodeId(n.id)).length;
+
+  // Item↔item links originate from item nodes only — a tag node's id is the
+  // synthetic `tag:<id>`, not an items_meta id, so it can't be a link source.
+  const canEditLinks = !!onCreateLink && !isTagNodeId(node.id);
+  const [target, setTarget] = useState("");
+  const datalistId = useMemo(
+    () => `connect-link-targets-${node.id.replace(/[^a-zA-Z0-9_-]/g, "-")}`,
+    [node.id],
+  );
+
+  const submitLink = () => {
+    if (!onCreateLink) return;
+    const trimmed = target.trim();
+    if (!trimmed) return;
+    // Datalist matches may send the label as value; resolve back to an id,
+    // else treat the raw value as a pasted items_meta.id (cross-role link).
+    const byId = linkableItems.find((i) => i.id === trimmed);
+    const byLabel = linkableItems.find((i) => i.label === trimmed);
+    const targetId = byId?.id ?? byLabel?.id ?? trimmed;
+    if (targetId === node.id) return; // self-loop guard (DB also rejects)
+    if (outgoingLinkIds?.has(targetId)) return; // already linked — no dup row
+    onCreateLink(node.id, targetId);
+    setTarget("");
+  };
 
   return (
     <div className="absolute bottom-3 left-3 w-80 rounded-lg bg-notion-bg border border-notion-border p-3.5 space-y-3 shadow-lg">
@@ -106,6 +149,43 @@ export function SelectedNodeCard({
         ))}
       </div>
 
+      {canEditLinks && (
+        <div className="flex items-center gap-1.5 pt-1 border-t border-notion-border">
+          <input
+            type="text"
+            value={target}
+            onChange={(e) => setTarget(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !e.nativeEvent.isComposing) {
+                e.preventDefault();
+                submitLink();
+              }
+            }}
+            list={linkableItems.length > 0 ? datalistId : undefined}
+            placeholder={labels.linkTargetPlaceholder}
+            aria-label={labels.linkTargetPlaceholder}
+            className="min-w-0 flex-1 rounded-md border border-notion-border bg-notion-bg px-2 py-1 text-[11px] text-notion-text focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-notion-accent"
+          />
+          {linkableItems.length > 0 && (
+            <datalist id={datalistId}>
+              {linkableItems.map((i) => (
+                <option key={i.id} value={i.id}>
+                  {i.label}
+                </option>
+              ))}
+            </datalist>
+          )}
+          <button
+            type="button"
+            onClick={submitLink}
+            aria-label={labels.addLink}
+            className="inline-flex items-center gap-0.5 rounded-md border border-notion-border bg-notion-bg px-2 py-1 text-[11px] text-notion-text hover:bg-notion-hover focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-notion-accent"
+          >
+            <Plus size={11} aria-hidden />
+          </button>
+        </div>
+      )}
+
       {neighbors.length > 0 && (
         <div className="space-y-1">
           <div className="text-[10px] uppercase tracking-wider text-notion-text-secondary">
@@ -114,21 +194,37 @@ export function SelectedNodeCard({
           <div className="max-h-32 overflow-y-auto space-y-0.5 pr-1">
             {neighbors.map((n) => {
               const NIcon = TYPE_ICON[n.type];
+              const linkId = outgoingLinkIds?.get(n.id);
+              const deletable = !!linkId && !!onDeleteLink;
               return (
-                <button
+                <div
                   key={n.id}
-                  type="button"
-                  onClick={() => onSelect(n.id)}
-                  className="w-full flex items-center gap-2 px-2 py-1 rounded hover:bg-notion-hover text-left"
+                  className="group flex items-center gap-1 rounded hover:bg-notion-hover"
                 >
-                  <NIcon
-                    size={11}
-                    className="text-notion-text-secondary shrink-0"
-                  />
-                  <span className="text-[11px] truncate text-notion-text">
-                    {n.label}
-                  </span>
-                </button>
+                  <button
+                    type="button"
+                    onClick={() => onSelect(n.id)}
+                    className="flex-1 min-w-0 flex items-center gap-2 px-2 py-1 text-left"
+                  >
+                    <NIcon
+                      size={11}
+                      className="text-notion-text-secondary shrink-0"
+                    />
+                    <span className="text-[11px] truncate text-notion-text">
+                      {n.label}
+                    </span>
+                  </button>
+                  {deletable && (
+                    <button
+                      type="button"
+                      onClick={() => onDeleteLink?.(linkId)}
+                      aria-label={labels.removeLink}
+                      className="shrink-0 mr-1 w-4 h-4 rounded flex items-center justify-center text-notion-text-secondary hover:text-notion-danger focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-notion-accent"
+                    >
+                      <X size={10} aria-hidden />
+                    </button>
+                  )}
+                </div>
               );
             })}
           </div>

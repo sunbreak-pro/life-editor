@@ -9,6 +9,7 @@ import type {
 import {
   backlinkSourceIds,
   buildGraphModel,
+  resolveLinkId,
 } from "../src/components/Connect/graph/buildGraphModel";
 import { tagNodeId } from "../src/components/Connect/graph/graph-types";
 
@@ -164,5 +165,29 @@ describe("backlinkSourceIds", () => {
       connection("note-4", "note-3", true), // deleted
     ]);
     expect(ids.sort()).toEqual(["note-1", "note-2"]);
+  });
+});
+
+describe("resolveLinkId", () => {
+  const conns = [
+    connection("note-1", "note-2"),
+    connection("note-2", "note-3"),
+    connection("note-4", "note-5", true), // soft-deleted
+  ];
+
+  it("returns the id of the matching active directed link", () => {
+    expect(resolveLinkId("note-1", "note-2", conns)).toBe("lnk-note-1-note-2");
+  });
+
+  it("returns null for the reversed direction", () => {
+    expect(resolveLinkId("note-2", "note-1", conns)).toBeNull();
+  });
+
+  it("returns null for a soft-deleted link", () => {
+    expect(resolveLinkId("note-4", "note-5", conns)).toBeNull();
+  });
+
+  it("returns null when no link matches", () => {
+    expect(resolveLinkId("note-1", "note-9", conns)).toBeNull();
   });
 });
