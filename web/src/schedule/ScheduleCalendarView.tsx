@@ -8,6 +8,7 @@ import {
   BottomSheet,
   addDaysKey,
   startOfWeekKey,
+  minutesToTime,
   type WeekTimeGridItem,
   type ScheduleItem,
 } from "@life-editor/shared";
@@ -113,8 +114,12 @@ function EventEditor({
 
 export function ScheduleCalendarView() {
   const { t, i18n } = useTranslation();
-  const { loadDateRange, updateScheduleItem, toggleComplete } =
-    useScheduleItemsContext();
+  const {
+    loadDateRange,
+    createScheduleItem,
+    updateScheduleItem,
+    toggleComplete,
+  } = useScheduleItemsContext();
   const isWide = useMediaQuery("(min-width: 768px)", true);
 
   const today = useMemo(() => todayLocal(), []);
@@ -179,6 +184,65 @@ export function ScheduleCalendarView() {
       toggleComplete(id);
     },
     [toggleComplete],
+  );
+
+  // Empty-slot click → create a default-duration event at the snapped time.
+  // The provider's createScheduleItem returns the new id synchronously and
+  // persists in the background; we mirror its optimistic row onto our own
+  // weekItems (this view doesn't consume the provider's `items`) and select it
+  // so the editor opens immediately. The grid passes `minutes` already snapped.
+  const CREATE_DURATION_MIN = 60;
+  const handleCreateAt = useCallback(
+    (dateISO: string, minutes: number) => {
+      const startTime = minutesToTime(minutes);
+      const endTime = minutesToTime(minutes + CREATE_DURATION_MIN);
+      const title = t("scheduleCalendar.newEvent");
+      const id = createScheduleItem(dateISO, title, startTime, endTime);
+      const nowIso = new Date().toISOString();
+      const optimistic: ScheduleItem = {
+        id,
+        date: dateISO,
+        title,
+        startTime,
+        endTime,
+        completed: false,
+        completedAt: null,
+        routineId: null,
+        templateId: null,
+        memo: null,
+        noteId: null,
+        content: null,
+        isDeleted: false,
+        deletedAt: null,
+        isDismissed: false,
+        isAllDay: false,
+        createdAt: nowIso,
+        updatedAt: nowIso,
+      };
+      setWeekItems((prev) => [...prev, optimistic]);
+      setSelectedId(id);
+    },
+    [createScheduleItem, t],
+  );
+
+  // Drag-to-move: vertical = new start/end time, horizontal = new day. Patch
+  // locally for an instant re-layout, then persist all three fields at once.
+  const handleMoveItem = useCallback(
+    (id: string, dateISO: string, startISO: string, endISO: string) => {
+      const patch = { date: dateISO, startTime: startISO, endTime: endISO };
+      patchLocal(id, patch);
+      updateScheduleItem(id, patch);
+    },
+    [patchLocal, updateScheduleItem],
+  );
+
+  // Bottom-handle drag-to-resize: only the end time changes.
+  const handleResizeItem = useCallback(
+    (id: string, endISO: string) => {
+      patchLocal(id, { endTime: endISO });
+      updateScheduleItem(id, { endTime: endISO });
+    },
+    [patchLocal, updateScheduleItem],
   );
 
   const weekdayLabels = useMemo(
@@ -311,8 +375,12 @@ export function ScheduleCalendarView() {
             items={gridItems}
             selectedId={selectedId}
             onSelectItem={setSelectedId}
+            onCreateAt={handleCreateAt}
+            onMoveItem={handleMoveItem}
+            onResizeItem={handleResizeItem}
             weekdayLabels={weekdayLabels}
             allDayLabel={t("scheduleCalendar.allDay")}
+            createSlotLabel={t("scheduleCalendar.createSlot")}
             todayKey={today}
             formatDayDate={formatDayDate}
           />

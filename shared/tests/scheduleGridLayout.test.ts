@@ -6,6 +6,10 @@ import {
   startOfWeekKey,
   weekDayKeys,
   dayOfWeek,
+  pxToMinutes,
+  minutesToPx,
+  snapMinutes,
+  minutesToTime,
   type GridLayoutItem,
 } from "../src/utils/scheduleGridLayout";
 
@@ -96,6 +100,62 @@ describe("layoutDayItems — overlap columns", () => {
       item("b", "11:00", "12:00"),
     ]);
     expect(out.map((p) => p.id)).toEqual(["a", "b"]);
+  });
+});
+
+describe("px ↔ minute conversion + snapping (interactive grid)", () => {
+  it("maps a pixel offset to minutes-from-midnight (hourHeight=48)", () => {
+    // 48px = 1h. 144px from the top of a [0,24] body → 03:00 = 180 min.
+    expect(pxToMinutes(144, 48, [0, 24])).toBeCloseTo(180, 5);
+  });
+
+  it("offsets by the window start hour", () => {
+    // In an [8,20] window, 48px down from the top is 09:00 = 540 min.
+    expect(pxToMinutes(48, 48, [8, 20])).toBeCloseTo(540, 5);
+  });
+
+  it("clamps a click below/above the visible window", () => {
+    expect(pxToMinutes(-10, 48, [0, 24])).toBe(0);
+    expect(pxToMinutes(10_000, 48, [0, 24])).toBe(24 * 60);
+    expect(pxToMinutes(0, 48, [8, 20])).toBe(8 * 60);
+  });
+
+  it("is the inverse of minutesToPx", () => {
+    expect(minutesToPx(180, 48, [0, 24])).toBeCloseTo(144, 5);
+    expect(minutesToPx(540, 48, [8, 20])).toBeCloseTo(48, 5);
+    // round-trip
+    expect(pxToMinutes(minutesToPx(630, 48, [8, 20]), 48, [8, 20])).toBeCloseTo(
+      630,
+      5,
+    );
+  });
+
+  it("is defensive against a zero hourHeight", () => {
+    expect(pxToMinutes(100, 0, [0, 24])).toBe(100); // falls back to 1px/hour-min slope
+  });
+
+  it("snaps minutes to a 30-minute grid by default", () => {
+    expect(snapMinutes(0)).toBe(0);
+    expect(snapMinutes(14)).toBe(0);
+    expect(snapMinutes(15)).toBe(30);
+    expect(snapMinutes(44)).toBe(30);
+    expect(snapMinutes(45)).toBe(60);
+  });
+
+  it("snaps to a custom slot and is defensive against a zero slot", () => {
+    expect(snapMinutes(50, 15)).toBe(45);
+    expect(snapMinutes(52, 15)).toBe(45);
+    expect(snapMinutes(53, 15)).toBe(60);
+    expect(snapMinutes(50, 0)).toBe(60); // falls back to default 30
+  });
+
+  it("formats minutes as zero-padded HH:MM and clamps to the day", () => {
+    expect(minutesToTime(0)).toBe("00:00");
+    expect(minutesToTime(540)).toBe("09:00");
+    expect(minutesToTime(570)).toBe("09:30");
+    expect(minutesToTime(1440)).toBe("24:00");
+    expect(minutesToTime(-30)).toBe("00:00");
+    expect(minutesToTime(2000)).toBe("24:00");
   });
 });
 

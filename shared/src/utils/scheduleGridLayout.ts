@@ -57,6 +57,70 @@ export function clamp(value: number, lo: number, hi: number): number {
   return Math.min(Math.max(value, lo), hi);
 }
 
+// ── px ↔ minute conversion + slot snapping (W8 interactive grid) ──────────
+//
+// The scrollable time body is `(endHour - startHour) * hourHeight` px tall and
+// covers the [startHour, endHour] window. These pure helpers translate a pixel
+// offset within that body to a minute-from-midnight value and back, and snap a
+// minute value to a slot grid — the geometry the click-to-create and
+// drag-to-move/resize handlers in WeekTimeGrid rely on. Keeping them here (no
+// React) makes the snap maths unit-testable on its own (Step 1/5 of the W8
+// salvage plan) and mirrors the old web WeekGrid's SLOT_HEIGHT logic, now
+// generalised to the variable `hourHeight`/`hourRange` the primitive exposes.
+
+/** Default slot granularity (minutes) for create/move/resize snapping. */
+export const DEFAULT_SNAP_MINUTES = 30;
+
+/**
+ * Convert a vertical pixel offset within the time body to minutes-from-midnight.
+ * `y` is measured from the top of the body (0 = `startHour:00`). The result is
+ * clamped to the visible [startHour, endHour] window so a click on the very
+ * bottom edge maps to `endHour` rather than overflowing.
+ */
+export function pxToMinutes(
+  y: number,
+  hourHeight: number,
+  hourRange: HourRange = [0, 24],
+): number {
+  const [startHour, endHour] = hourRange;
+  // Minutes per pixel. When hourHeight is unusable (<= 0) fall back to a
+  // 1px-per-minute slope so a click still maps to a sane in-window minute
+  // instead of saturating to the bottom edge.
+  const minutesPerPx = hourHeight > 0 ? 60 / hourHeight : 1;
+  const raw = startHour * 60 + y * minutesPerPx;
+  return clamp(raw, startHour * 60, endHour * 60);
+}
+
+/**
+ * Convert minutes-from-midnight to a vertical pixel offset within the time
+ * body (inverse of `pxToMinutes`, before clamping).
+ */
+export function minutesToPx(
+  minutes: number,
+  hourHeight: number,
+  hourRange: HourRange = [0, 24],
+): number {
+  const [startHour] = hourRange;
+  return ((minutes - startHour * 60) / 60) * hourHeight;
+}
+
+/** Snap a minute value to the nearest `slot`-minute boundary (slot > 0). */
+export function snapMinutes(
+  minutes: number,
+  slot: number = DEFAULT_SNAP_MINUTES,
+): number {
+  const safeSlot = slot > 0 ? slot : DEFAULT_SNAP_MINUTES;
+  return Math.round(minutes / safeSlot) * safeSlot;
+}
+
+/** Format minutes-from-midnight as a zero-padded `HH:MM` (00:00–24:00). */
+export function minutesToTime(minutes: number): string {
+  const clamped = clamp(Math.round(minutes), 0, 24 * 60);
+  const h = Math.floor(clamped / 60);
+  const m = clamped % 60;
+  return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+}
+
 /**
  * Lay out the TIMED items of a single day (all-day items are filtered out —
  * callers render those in a separate lane). Returns positions in the SAME

@@ -930,7 +930,9 @@
     "title": "タイトル",
     "startTime": "開始",
     "endTime": "終了",
-    "complete": "完了にする"
+    "complete": "完了にする",
+    "newEvent": "新規予定",
+    "createSlot": "この時刻に予定を作成"
   },
   "schedulePanel": {
     "existingTasks": "既存タスク",
