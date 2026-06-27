@@ -2,37 +2,53 @@
 
 ## 進行中
 
-（なし）
+### 🔧 W8 対話グリッド救出（クリック作成 / ドラッグ移動 / リサイズ）（着手日: 2026-06-27）
+
+**対象**: `shared/src/components/schedule/WeekTimeGrid.tsx` / `shared/src/utils/scheduleGridLayout.ts` / `web/src/schedule/ScheduleCalendarView.tsx` / `shared/tests/weekTimeGrid.test.tsx`
+**計画書**: `.claude/docs/vision/plans/2026-06-20-w8-salvage-interactive-schedule.md`（Status: In Progress）
+
+- 前回: —
+- 現在: 実装完了・検証緑・**PR #105 open**（`feat/w8-salvage-interactive-grid`・commit `14d9719e`・base main）。放棄ブランチにのみ存在した W8-2/W8-3 対話編集を shared プリミティブ + web ホストへ移植。`pxToMinutes` ゼロ高さフォールバック修正（1px=1分）+ 対話テスト4本（jsdom PointerEvent 非実装の罠をネイティブ MouseEvent で回避）。検証: shared 503 pass / shared tsc -b 0 / web build exit 0
+- 次: 👀 実機目視（作成/移動/リサイズ・スナップ・永続化）→ 🛑 PR #105 merge（ユーザー判断）→ merge 後: 救出元 `origin/claude/app-dev-roadmap-cdhjjz` 削除（Step 8）+ 一時 worktree `.claude/worktrees/w8-salvage` prune + ローカル/remote branch 削除
 
 ## 直近の完了
 
-- [chat-main] **W8 二重実装の解消 + main ビルド破壊の修復** ✅（2026-06-20・branch `fix/w8-schedule-dedup`・commit `13e96a8d`・**PR #97**）— #95(`WeekGrid`) と #96(`ScheduleCalendarView`) が同一 Schedule 週グリッドを**二重実装**し両方 main merge。3-way merge で #95 の `<WeekGrid />` JSX 配線が消え import だけ残り `noUnusedLocals` で web build **TS6133 破綻**（`src/MainScreen.tsx:50`）。機能広い **#96 を正**とし #95 dead 一式撤去(-573行: WeekGrid.tsx/weekGridLayout.ts/test + MainScreen dead import + shared/index.ts export ブロック・全て WeekGrid.tsx のみ使用を grep 実証)。#95 同梱 Desktop 常駐(STEP1)は温存。撤去**前**に TS6133 実証→撤去**後** web build 0/shared test 463/frontend 0/web eslint 0err。**Known Issue 029** 追加。原因=**並行チャット境界調整不足**（着手前に同名機能の進行中 PR/branch 未確認）。再発防止=着手前 `gh pr list --search` + ロードマップ Owner-chat 突合・CI build gate
-- [chat-main] **W8 (Schedule カレンダー・週/日タイムグリッド) コア Steps 1–6** ✅実装完了（2026-06-20・branch `feat/w8-schedule-calendar`・commit `92112cae`・**PR #96 merged**→後に #95 と二重実装発覚→#97 で修復）— 2層モデルの複雑画面。shared: `utils/scheduleGridLayout.ts`(純関数=layoutDayItems 素朴横カラム詰め・%top/height・clamp・終日除外・入力順保持 + ローカル日付演算 addDaysKey/startOfWeekKey/weekDayKeys・**UTC 不持込** new Date(y,m-1,d) のみ・overnight end≤start は窓末尾延伸) + `components/schedule/WeekTimeGrid.tsx`(時刻軸+曜日ヘッダ+終日レーン+絶対配置・純粋表示§6.4・props 注入・notion-\* のみ・days={1} で日ビュー縮退) + サブバレル/barrel。i18n `scheduleCalendar`(21キー)を en/ja 両 catalog。test=layout unit + grid 描画/クリック(20件・shared 全 **462+ passed**)。 web: `schedule/ScheduleCalendarView.tsx`(useMediaQuery 出し分け・広幅=週グリッド+右ペイン編集 / 狭幅=日アジェンダ+BottomSheet 編集・週/日ナビ・今日・可視週は loadDateRange 読取・編集は既存 updateScheduleItem/toggleComplete+楽観 patch=**CRUD 改変なし**・toggle は completedAt 整合) + MainScreen 配線(Provider 順序不変)。RoutineScheduleSync/ScheduleView/CalendarView/frontend 無改変・**DDL ゼロ**。 検証: shared/web/frontend build 全 exit 0・web eslint 0err。**独立3レンズ(正当性/規約a11y/スコープ)+敵対的検証で blocker 0・confirmed minor 2件(toggle completedAt 欠落 / overnight スライバー)を即修正**。DnD=Step 7 は W8+ 送り。diff ~1107 行(AC ±600→~1100 へ上方修正・scope creep なし・ユーザー承認 1 PR)
-- [chat-main] **W4 (Analytics + Connect)** web/shared lean 移植 ✅実装完了（2026-06-14・branch `feat/w4-analytics-connect`・PR 未作成）— Analytics: 集計層(879行純粋関数)を shared へ + AnalyticsFilterContext(period/dateRange・内部) + 17チャート + 4タブ(Overview/Tasks/Work/Schedule)。Materials/analytics-Connectタブ/可視サイドバー drop。host(web/src/analytics/AnalyticsScreen)が9メソfetch→labels/data props注入(§6.4)。 Connect: ノードグラフ(Canvas2D+d3-force)+backlink を **unified item-link モデルで再構築**(listNotesUnified/listAllTagConnections/listAllTagAssignments/listAllWikiTagsUnified)。legacy note_links/note_connections(Supabaseスタブ=空)不使用と明記。backlink は fetch済 connections から client側算出(listLinksToItem 等価をqa実証)。Paper Boards/@xyflow/d3-transition drop。 検証: shared tsc -b 0 / shared vitest 426 passed / web tsc -b 0err / web eslint 0err / frontend 変更0。recharts は `^3.7.0`→3.8.1 が型regression のため **3.7.0 pin** + d3(ease/force/quadtree/selection/zoom)+@types 追加。role-qa **PASS(Blocker 0)**。実装中ディスク満杯(ENOSPC)→npm cache 削除で復旧
-- [chat-main] **PR #75 (W3-C)** web audio mixer + completion chime ✅（2026-06-14・merged）— AudioProvider(Optional バリアント) + ミキサー UI + Storage URL 再生 + onSessionComplete 完了音結線(AudioChimeBridge ref 経由) + sound 3 テーブル realtime consumer
-- [chat-main] **PR #70/#71 merge 後処理** ✅（2026-06-11）— main 同期（rebase・dirty 3 ファイルは origin/main と byte 一致検証後に整理・損失ゼロ）+ build 全数検証（shared/mcp-server/frontend/web 4 build + shared/frontend テスト全 PASS）+ w3-b-timer-work worktree prune + 計画書 three-axis-slimming COMPLETED 化→archive（4aa93482）。tracker 記録は PR #73
+- [chat-main] **進捗整理 + worktree/branch 棚卸し + main 同期** ✅（2026-06-27）— 「タスク全消化」依頼を受け全体監査。判明: tracker メモリが古く「PR 未作成」と記録の W4(#78)/Phase3(#79)/Phase4(#88)/Work-mobile(#51)/Kanban(#102)/W8(#96/#97) は**全て merged**（gh 認証断による偽陰性で一時誤判定 → 再認証で確定）。**唯一の真の未マージ実作業 = w8-salvage のみ**と特定。main を origin/main へ rebase 追従（hooks symlink 化 + CLAUDE.md 衝突=ローカル版が stale だったので origin 採用、旧編集は stash 保全）。merge 済み 6 worktree（hooks-symlink/phase3-electron/w4/w8-dedup/w8-schedule-calendar/web-kanban）を prune。残 worktree = main + w8-salvage のみ
+- [chat-main] **デザインシステム整備 + ブランド Cobalt+Mint リブランド** ✅（2026-06-20・**PR #102 merged**・merge `d6103eec`）— Pencil クラッシュで ClaudeDesign(DesignSync) へ切替。「Cobalt Ink + Mint」採用を `tokens.css` light/dark 適用・旧 teal 退役・dark on-accent near-black 化。`shared/design-system/PRINCIPLES.md` + ClaudeDesign「DesignSystem」project に 11 カード投入。並行 Kanban UI/UX と同梱で PR #102
+- [chat-main] **W8 二重実装の解消 + main ビルド破壊の修復** ✅（2026-06-20・**PR #97 merged**・commit `13e96a8d`）— #95(WeekGrid) と #96(ScheduleCalendarView) の二重実装で web build TS6133 破綻。機能広い #96 を正とし #95 dead 撤去(-573行)。**Known Issue 029** 追加（並行チャット境界調整不足）
+- [chat-main] **W4 (Analytics + Connect)** web/shared lean 移植 ✅（2026-06-14・**PR #78 merged**・後続 #85 で series 色トークン化）— Analytics 集計層(879行純関数)を shared へ + 17チャート4タブ。Connect ノードグラフ(Canvas2D+d3-force)+backlink を unified item-link モデルで再構築。recharts 3.7.0 pin
 
 ## 予定
 
-- 🛑 **W8 PR 作成 → main merge（ユーザー判断）** — branch `feat/w8-schedule-calendar`（commit `92112cae`）。実装+計画書+tracker を 1 PR に。merge 後: 一時 worktree prune（`.claude/worktrees/w8-schedule-calendar`）+ ローカル/remote branch 削除。**push は main 専有チャットの pre-push hook に誤ブロックされる**ので一時 worktree から push（memory `project_push_from_main_chat_hook` 参照・worktree から直接 push 可）
-- 👀 **W8 実機目視（Step 8）**: [広幅] 週グリッドにイベントが時刻位置で並ぶ / 曜日ヘッダ・今日強調 / 終日レーン / イベントクリック→右ペイン編集（title/time/complete）→グリッド即反映 / 重なりイベントの横並び / 週ナビ（< 今日 >）。[狭幅] 日アジェンダ時刻順 / 日ナビ / タップ→BottomSheet 編集 / 空状態。**env あり実機**で（過去 supabase treeshake 誤報前例）
-- 🛑 **PR #73 merge（ユーザー判断）** — tracker/archive 記録 3 commits（dfe4c07b 温存分 + 計画書 archive + 本セッション tracker）。merge 後: main 同期（squash と patch 非等価のため byte 一致検証→origin/main へ揃える）+ chore/tracker-claude-md-slimming branch 削除
-- 🛑 **W4 PR 作成 → main merge（ユーザー判断・D2）** — branch `feat/w4-analytics-connect`。実装+計画書+tracker を 1 PR に。merge 後: 一時 worktree prune + ローカル/remote merged branch 削除
-- 👀 **W4 実機目視（D1・merge 前後）**: テーマ追従 / 4タブのチャート描画 / Connect グラフ表示・ノードクリック遷移 / backlink パネル。**最重要 = Connect グラフが実データで空でないこと**（unified API が実データを返すか。過去 `worktree_supabase_treeshake` の env 欠落誤報前例ありなので **env あり実機**で確認）
-- 👀 **W3-B 実機目視**（merge 済）: Pomodoro 計測→timer_sessions 保存 / WORK→BREAK→LONG_BREAK 遷移（auto-start 含む）/ preset 作成・適用・削除 / TaskSelector タスク紐付け / new-task shortcut で tasks へ navigate
-- 👀 **W3-C 実機目視**（PR #75 merged）: 環境音ミックス再生（Storage URL）/ 完了音（onSessionComplete chime）/ AudioContext resume()
-- **既存テーブルの initplan WARN 48 件**（任意・別タスク候補）: 2026-06-11 advisor 実測で calendars/items*meta/payload 系/wiki*\_/routine\_\_ に auth_rls_initplan 警告。0018 新テーブルは 0 件。0010 適用済みのはずの既存テーブルに残存 — 原因調査 + 一括 initplan 化 migration を検討
-- 👀 **W1/W2 実機目視**: [W1] dark/light発色・font-size追従・en/ja切替・リロード復元・shortcut rebind→conflict→reset / [W2] Cmd+K開閉/絞り込み/ジャンプ・Trash 5カテゴリ一覧・restore/permanentDelete confirm（+ 統合修復後: settings タブ表示・palette「Go to 設定」）
-- 👀 **W3-0 実機目視**（merge 後）: ⌘K パレット / ⌘1-5 section 切替 / ⌘, settings / rebind 即反映 / input 入力中 "n" 非発火 / palette 表示中の ⌘2 裏切替の体感評価（QA Medium・気になれば抑制を別タスク化）
-- ローカル merged branch 13本の削除（`git branch -D` は deny ルールのためユーザー実行: chore/batch-a-_ ×2 / docs/web-first-v2-and-bash-rule / feat/w0-_ / feat/w1-_ / feat/w2-_ / fix/w1-w2-merge-integration / chore/tracker-w1-w2 / chore/tracker-w3b / docs/claude-md-three-axis-slimming / feat/w3-shortcut-executor / feat/w3a-timer-audio-foundation / **feat/w3b-timer-work**。remote 側の merged branch 削除も任意: `git push origin --delete feat/w3b-timer-work` 等）
-- 任意（W4 後続・W3-B 申し送り未着手）: undo/redo 結線（activeInInput:false で input 内 ⌘Z 抑制になる挙動の意図確認 — OS 標準編集 undo に委ねるなら現状が正）/ Skip の cadence 非対称裁定（SET_PHASE は LONG_BREAK へ飛べず completedSessions 不増 — skip() 追加 or 現仕様の正式化）/ new-task の create-and-focus lift（現状 navigate のみ）
-- 任意（W4 由来・将来）: Analytics ScheduleTab の wide-window fetch（2020-01-01..today 一括）を per-range fetch へ（データ量増大時）/ データ系列ハードコード色（stagnation 5色・PIE palette・LONG_BREAK amber、frontend verbatim）を notion トークン化（light/dark 統一）/ Connect グラフのリンク作成・削除 UI（read-only から書き込み可へ）
-- W1 残 Low（非ブロッキング・別バッチ）: `text-white` の accent オン文字トークン化 / `FONT_SIZE_PX` の ThemeContext↔SettingsAppearance 重複を `constants/` 一元化
-- **Mobile 基準セクション統一（frontend）の Phase 2 Schedule / Phase 4 Settings は FROZEN（取り下げ）** — frontend は移行 Phase 5 で破棄予定・web に伝播しないため。Phase 2 設計は web 移植仕様の参照元として保全（master プラン `2026-06-05-mobile-first-section-unification.md`）
-- web Phase 2 残: S8 Supabase Realtime（実装済）/ S9 モバイルレスポンシブ（本番 web/）
-- Perf follow-up: M4（useScheduleItemsRoutineSync の一括化）/ M1（note一覧 content_json 除外・遅延取得+検索移行の設計変更要）
-- **Known Issue 025 Fixed 化**（任意・軽量）: `prototype/mobile-ui` worktree 状況再確認の上 INDEX を Active→Fixed 判断
-- **Link UX 強化（Obsidian 風）**: cross-role link / 遅延実体化 stub / クリック遷移。スケルトン `2026-05-26-link-ux-obsidian-style.md`
-- DU-E Calendar 2 ビュー再実装（DU-G 完了後）
-- 🔒 **Notes password bcrypt 化** — N>1 化（友達 MVP）の前ゲート必須。Known-issue `027-notes-password-plaintext-debt.md` が SSOT
-- 👀 ユーザー実機確認待ち: DU-F Step 7-11 の golden path（4 role Tag 付与/解除/Link 作成/backlink + wiki_tag_groups CRUD UI）/ DU-C-6（Routine 作成/削除/復元 + 月またぎ ループ防止 + key duplicate 警告ゼロ）
+### 👀 ユーザー実機目視待ち（merge 済み機能・未確認のもの）
+
+- **W8 カレンダーコア**（#96/#97 merged）: [広幅] 週グリッド時刻配置 / 曜日ヘッダ・今日強調 / 終日レーン / イベントクリック→右ペイン編集→即反映 / 重なり横並び / 週ナビ。[狭幅] 日アジェンダ / 日ナビ / タップ→BottomSheet 編集。**env あり実機**で
+- **W4**（#78 merged）: テーマ追従 / 4タブのチャート描画 / Connect グラフ表示・ノードクリック遷移 / backlink。**最重要 = Connect グラフが実データで空でない**こと（env あり実機で・過去 treeshake 誤報前例）
+- **Phase 3 Electron**（#79 merged）: `npm run dev` 起動→ログイン→Tasks CRUD / `build:mac` で DMG（実機ゲート）
+- **Phase 4 Capacitor**（#88 merged）: iOS Simulator / Android AVD / 実機署名で起動→ログイン→Tasks golden path（Mac ハンドオフ）
+- **W3-B**（merged）: Pomodoro 計測→timer_sessions 保存 / phase 遷移 / preset CRUD / TaskSelector
+- **W3-C**（#75 merged）: 環境音ミックス再生(Storage URL) / 完了音(onSessionComplete) / AudioContext resume()
+- **W1/W2**（merged）: dark/light・font-size・en/ja・リロード復元・shortcut rebind→conflict→reset / Cmd+K・Trash 5カテゴリ restore/permanentDelete
+- **W3-0**（merged）: ⌘K パレット / ⌘1-5 section / ⌘, settings / rebind 即反映 / input 中 "n" 非発火
+- DU-F Step 7-11 golden path（4 role Tag/Link/backlink + wiki_tag_groups CRUD）/ DU-C-6（Routine 作成/削除/復元 + 月またぎ）
+
+### 🧹 クリーンアップ（ユーザー実行 — `git branch -D` は deny ルール）
+
+- **ローカル merged branch 削除**: prune した 6 worktree のブランチ（chore/hooks-symlink-distribution / feat/phase3-electron / feat/w4-analytics-connect / fix/w8-schedule-dedup / feat/w8-schedule-calendar / feat/web-kanban-ui-ux）+ 旧 merged branch 群（chore/batch-a-_ ×2 / feat/w0-_ / feat/w1-_ / feat/w2-_ / feat/w3\* など）。`git branch -D <名>` でユーザー実行
+- **remote merged branch 削除**（任意）: `git push origin --delete <名>`。特に多数の `claude/*` 自動生成ブランチ
+- main の未 push tracker commit（`883247e3` 他）: main 専有チャットの pre-push hook 誤ブロックのため一時 worktree から push（memory `project_push_from_main_chat_hook`）。または次の feature PR に同梱
+
+### 任意・将来タスク
+
+- デザインシステム follow-up: badge/tabs/tooltip 等を ClaudeDesign へ incremental 追加 / 旧「Design System」project 殻削除は claude.ai UI 操作 / Functional色の notion トークン統一
+- **既存テーブルの initplan WARN**（2026-06-11 advisor）: calendars/items_meta/payload 系等に auth_rls_initplan 警告残存 — 原因調査 + 一括 initplan 化 migration
+- W4 由来: Analytics ScheduleTab の per-range fetch 化 / データ系列ハードコード色の notion トークン化 / Connect リンク作成・削除 UI
+- W3-B 申し送り: undo/redo 結線意図確認 / Skip cadence 非対称裁定 / new-task の create-and-focus lift
+- W1 残 Low: `text-white` の accent オン文字トークン化 / `FONT_SIZE_PX` 重複の constants 一元化
+- web Phase 2 残: S8 Supabase Realtime（実装済）/ S9 モバイルレスポンシブ
+- Perf: M4（useScheduleItemsRoutineSync 一括化）/ M1（note 一覧 content_json 除外）
+- **Link UX 強化（Obsidian 風）**: cross-role link / 遅延実体化 stub / クリック遷移（`2026-05-26-link-ux-obsidian-style.md`）
+- DU-E Calendar 2 ビュー再実装
+- 🔒 **Notes password bcrypt 化** — N>1 化の前ゲート必須（known-issue `027-notes-password-plaintext-debt.md`）
+- **Known Issue 025 Fixed 化**（任意）: `prototype/mobile-ui` worktree 状況再確認の上判断
+- **Mobile 基準統一 frontend Phase 2/4 は FROZEN**（frontend は Phase 5 破棄予定）
