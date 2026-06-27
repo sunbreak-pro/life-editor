@@ -2,21 +2,21 @@
 
 ## 進行中
 
-### 🔧 W8 対話グリッド救出（クリック作成 / ドラッグ移動 / リサイズ）（着手日: 2026-06-27）
+### 🔧 Loop Engineering 自動検証ループ（scripts/loop-engine/）（着手日: 2026-06-27）
 
-**対象**: `shared/src/components/schedule/WeekTimeGrid.tsx` / `shared/src/utils/scheduleGridLayout.ts` / `web/src/schedule/ScheduleCalendarView.tsx` / `shared/tests/weekTimeGrid.test.tsx`
-**計画書**: `.claude/docs/vision/plans/2026-06-20-w8-salvage-interactive-schedule.md`（Status: In Progress）
+**対象**: `scripts/loop-engine/`（check.sh / run-once.sh / loop.sh / PROMPT.md / TODO.md）・`.claude/CLAUDE.md`（§7.4 Orca 例外1行）
+**worktree/branch**: `.claude/worktrees/loop-engine` @ `feat/loop-engine`
+**提案レポート(SSOT)**: `.claude/reports/2026-06-27-loop-engineering-orca-proposal.md`（git 非追跡）
 
-- 前回: —
-- 現在: 実装完了・検証緑・**PR #105 open**（`feat/w8-salvage-interactive-grid`・commit `14d9719e`・base main）。放棄ブランチにのみ存在した W8-2/W8-3 対話編集を shared プリミティブ + web ホストへ移植。`pxToMinutes` ゼロ高さフォールバック修正（1px=1分）+ 対話テスト4本（jsdom PointerEvent 非実装の罠をネイティブ MouseEvent で回避）。検証: shared 503 pass / shared tsc -b 0 / web build exit 0
-- 次: 👀 実機目視（作成/移動/リサイズ・スナップ・永続化）→ 🛑 PR #105 merge（ユーザー判断）→ merge 後: 救出元 `origin/claude/app-dev-roadmap-cdhjjz` 削除（Step 8）+ 一時 worktree `.claude/worktrees/w8-salvage` prune + ローカル/remote branch 削除
+- 前回: Step 1-2（check.sh = 型+テスト合否 / run-once.sh = Observe→Act→Check 1周 / PROMPT / TODO）完成
+- 現在: **Step 3 完成・PR #106 open**（commit `c72e61d7`）。loop.sh = run-once を PASS/上限まで反復（4停止条件: PASS&全完了 / 空TODO→子起動せず$0 / 連続無進捗 / 上限回数 + 課金同意ゲート）。check/run-once のハードコード絶対パスを script 相対化。count_todo をコメント無視に修正（バグ1件）。スタブ harness で 5/5 合格（トークン/npm 不使用）
+- 次: 🛑 PR #106 merge（ユーザー）/ 実ループ本走はトークン課金ゲート（node_modules 要・main か worktree install 後）/ check.sh の検証対象を frontend(FROZEN)→shared+web に切替は別 PR 候補 / `stash@{0}`（Orca バックアップ）は #106 着地で不要→drop 可
 
 ## 直近の完了
 
-- [chat-main] **進捗整理 + worktree/branch 棚卸し + main 同期** ✅（2026-06-27）— 「タスク全消化」依頼を受け全体監査。判明: tracker メモリが古く「PR 未作成」と記録の W4(#78)/Phase3(#79)/Phase4(#88)/Work-mobile(#51)/Kanban(#102)/W8(#96/#97) は**全て merged**（gh 認証断による偽陰性で一時誤判定 → 再認証で確定）。**唯一の真の未マージ実作業 = w8-salvage のみ**と特定。main を origin/main へ rebase 追従（hooks symlink 化 + CLAUDE.md 衝突=ローカル版が stale だったので origin 採用、旧編集は stash 保全）。merge 済み 6 worktree（hooks-symlink/phase3-electron/w4/w8-dedup/w8-schedule-calendar/web-kanban）を prune。残 worktree = main + w8-salvage のみ
-- [chat-main] **デザインシステム整備 + ブランド Cobalt+Mint リブランド** ✅（2026-06-20・**PR #102 merged**・merge `d6103eec`）— Pencil クラッシュで ClaudeDesign(DesignSync) へ切替。「Cobalt Ink + Mint」採用を `tokens.css` light/dark 適用・旧 teal 退役・dark on-accent near-black 化。`shared/design-system/PRINCIPLES.md` + ClaudeDesign「DesignSystem」project に 11 カード投入。並行 Kanban UI/UX と同梱で PR #102
-- [chat-main] **W8 二重実装の解消 + main ビルド破壊の修復** ✅（2026-06-20・**PR #97 merged**・commit `13e96a8d`）— #95(WeekGrid) と #96(ScheduleCalendarView) の二重実装で web build TS6133 破綻。機能広い #96 を正とし #95 dead 撤去(-573行)。**Known Issue 029** 追加（並行チャット境界調整不足）
-- [chat-main] **W4 (Analytics + Connect)** web/shared lean 移植 ✅（2026-06-14・**PR #78 merged**・後続 #85 で series 色トークン化）— Analytics 集計層(879行純関数)を shared へ + 17チャート4タブ。Connect ノードグラフ(Canvas2D+d3-force)+backlink を unified item-link モデルで再構築。recharts 3.7.0 pin
+- [chat-main] **W8 対話グリッド救出** ✅（2026-06-27・**PR #105 merged**・merge commit `9b633068`）— 放棄ブランチにのみ存在した W8-2/W8-3 対話編集（クリック作成/ドラッグ移動/リサイズ）を shared プリミティブ + web ホストへ移植。`pxToMinutes` ゼロ高さ修正 + 対話テスト4本（jsdom PointerEvent 非実装の罠を回避）。検証緑
+- [chat-main] **並行レーン棚卸し（cross-lane reconciliation）** ✅（2026-06-27）— 全 per-chat memory を git/gh 実態照合。phase3 #79 / phase4 #88 / work-mobile #51 / prototype #40・#46・#48 を MERGED 済と gh 確認し各 memory を完了化（ユーザー認可で単一書込者を override）。**connect-link-ui = 台帳外の生きたレーン**（Connect リンク UI・独自 commit `8711acfe`・`.session-name`/memory 無し・PR 未作成・MainScreen.tsx 編集中）検出。`stash@{1}`=DU-F 未コミット宙吊り
+- [chat-main] **デザインシステム整備 + Cobalt+Mint リブランド** ✅（2026-06-20・**PR #102 merged**・merge `d6103eec`）— Pencil クラッシュで ClaudeDesign(DesignSync) へ切替、「Cobalt Ink + Mint」を `tokens.css` light/dark 適用・旧 teal 退役。`shared/design-system/PRINCIPLES.md` + 11 カード投入
 
 ## 予定
 
