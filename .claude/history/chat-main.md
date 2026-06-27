@@ -1,5 +1,19 @@
 # HISTORY (chat-main)
 
+### 2026-06-27 - 進捗整理 + worktree 棚卸し + W8 対話グリッド救出（PR #105）
+
+#### 概要
+
+「現在のタスク進捗を整理 + 全タスクを終わらせたい」依頼を受け、全体監査 → main 同期 → 唯一の未マージ実作業 w8-salvage の仕上げ → PR 化 → merge 済み worktree のお掃除を一気通貫で実施。tracker メモリが古く多数の「PR 未作成」が実は merged だったことを突き止め、現実に再同期した。
+
+#### 変更点
+
+- **全体監査**: gh 認証断による偽陰性（PR 0件・branch 1本）に一度誤誘導されたが再認証で確定。「未マージ実作業」と記録されていた W4(#78)/Phase3(#79)/Phase4(#88)/Work-mobile(#51)/Kanban(#102)/W8(#96/#97) は**全て merged**。真の未マージは **w8-salvage 1件のみ**と特定。
+- **main 同期**: origin/main へ rebase（behind 7→0）。詰まりの原因 2 件を解消 = (1) PR #98 の hooks symlink 化とローカル実ファイルの型不一致 → working tree を一旦実ファイルへ戻して rebase、着地で symlink 復帰。(2) CLAUDE.md 衝突 → ローカル版が stale（`shared/src/services` を `frontend` へ逆戻り・schedule-management 行欠落）と判明し origin 版採用、旧編集は `stash@{0}` に保全。
+- **w8-salvage 仕上げ**（PR #105・commit `14d9719e`）: サブエージェント監査で完成度 85–90%・3 機能とも実データ結線済みと確認。残作業を実施 — `pxToMinutes` ゼロ高さフォールバックを「1px=1分」傾きへ修正（失敗していた layout 単体テスト緑化）/ `weekTimeGrid.test.tsx` に対話テスト4本追加（jsdom が PointerEvent 非実装で RTL fireEvent.pointerDown が button を落とす罠を、ネイティブ `MouseEvent("pointerdown")` 発火で回避）/ origin/main へ rebase（merge-tree クリーン）/ 計画書 Draft→In Progress。検証: shared 503 pass・shared tsc -b 0・web build exit 0。
+- **検証の工夫**: worktree は node_modules 非共有のため、メイン worktree の `node_modules` / `shared/node_modules` / `web/node_modules` を symlink で借用（package.json 同一）→ ENOSPC リスク（残 2.9Gi）を回避して install なしで全テスト/build 実行。
+- **お掃除**: merge 済み 6 worktree（hooks-symlink / phase3-electron / w4-analytics-connect / w8-dedup / w8-schedule-calendar / web-kanban-ui-ux）を `git worktree remove` で prune。残 worktree = main + w8-salvage のみ。ローカル/remote の merged branch 削除は `git branch -D` deny ルールのためユーザー実行（tracker 予定に列挙）。
+
 ### 2026-06-20 - デザインシステム整備 + ブランド Cobalt+Mint リブランド（PR #102）
 
 #### 概要
