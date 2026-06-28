@@ -7,8 +7,8 @@
 **対象**: `shared/src/services/`, `cloud/`, `supabase/migrations/`
 
 - 前回: RLS 本番チェック (58043703)・relation-mapper dedup (256d0ad4)
-- 現在: V1 mapper cohort 撤去 + getUserId 集約 完了 (e1e1a730)。512 tests 緑・tsc -b 緑
-- 次: 本ブランチを push → PR（#1）／ cloud(D1) 退役は判断保留（Phase 5 + docs SSOT 改訂事項）
+- 現在: data 層 hardening 一式を **PR #109 で push 済**（relation/V1 mapper dedup + getUserId + RLS 検証記録・🛑 merge はユーザー）
+- 次: cloud(D1) 退役は判断保留（Phase 5 + docs SSOT 改訂事項）／ Auth 漏洩PW保護 ON は要明示承認
 
 ## 直近の完了
 
