@@ -1,5 +1,19 @@
 # HISTORY (chat-db-hardening)
 
+### 2026-06-28 - V1 mapper cohort 撤去 + getUserId 集約
+
+#### 概要
+
+DU-C-4 で削除予定だった routineGroup / routineGroupAssignment の dead な V1 back-compat shim 群（`_unused_` 駐車でのみ生存）を撤去し、3クラス重複の getUserId を module-level helper に集約。role-engineer 実装 + メイン検証で commit (e1e1a730)。
+
+#### 変更点
+
+- **refactor(dead-code)**: V1 シンボル12個（RoutineGroupRow / rowToRoutineGroup / routineGroupToRow / routineGroupUpdatesToPatch / ROUTINE_GROUP_SELECT_COLUMNS + assignment 側6個）を mapper から削除。SupabaseDataService.ts の import / `_unused_*` 駐車 / re-export も除去。残存参照ゼロを repo 全体 grep で確認
+- **refactor(dedup)**: 3クラス同一の private `getUserId` を `getAuthedUserId(client)` に集約・8呼び出し置換（エラー文字列バイト一致）
+- **test**: `shared/tests/scheduleMapper.test.ts` の V1 テスト2ブロックを V2 へ移行（now 引数 + updated_at）。当初 grep が `shared/tests/` を見落としていた穴を修正
+- **判断**: nextVersion は統合見送り（Calendars=calendars テーブル / NotesUnified=items_meta + role フィルタ + nullable version で本質的に別物）。cloud(D1) 退役は Phase 5 + docs SSOT 改訂事項のため db レーンでは着手せず保留
+- **検証**: 512 tests pass / tsc -b 緑（-287/+54, 4 files）
+
 ### 2026-06-28 - RLS 本番実適用チェック（Critical 解消）
 
 #### 概要

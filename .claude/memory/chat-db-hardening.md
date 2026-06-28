@@ -6,19 +6,19 @@
 
 **対象**: `shared/src/services/`, `cloud/`, `supabase/migrations/`
 
-- 前回: relation-mapper dedup (256d0ad4)
-- 現在: RLS 本番実適用チェック完了 — 全 20 public テーブルで RLS ON + 4 ポリシー、無効/0 ポリシー 0 件。Critical 解消
-- 次: cleanup 着手判断待ち（V1 cohort 撤去は要承認）
+- 前回: RLS 本番チェック (58043703)・relation-mapper dedup (256d0ad4)
+- 現在: V1 mapper cohort 撤去 + getUserId 集約 完了 (e1e1a730)。512 tests 緑・tsc -b 緑
+- 次: 本ブランチを push → PR（#1）／ cloud(D1) 退役は判断保留（Phase 5 + docs SSOT 改訂事項）
 
 ## 直近の完了
 
+- V1 mapper cohort 撤去 + getUserId 集約 ✅（2026-06-28, e1e1a730, -287/+54）
 - RLS 本番実適用チェック ✅（2026-06-28, 全20テーブル RLS ON+4policy / advisor ERROR 0・WARN 1）
 - relation-mapper soft-delete dedup + コメント訂正 ✅（2026-06-28, 256d0ad4）
-- data 層 3観点監査（security / 可読性 / 重複）✅（2026-06-28）
 
 ## 予定
 
-- dead code 撤去: 旧 V1 mapper cohort（多ファイル協調・要承認）
-- 重複集約: meta+payload join / getUserId / nextVersion（任意）
-- cloud/(D1) 退役判断（Phase 5・SSOT 改訂事項）
-- Auth: 漏洩パスワード保護 ON（ダッシュボード・軽微・任意）
+- 本ブランチ push → PR（4 commit: relation-mapper / RLS tracker / V1-cohort）
+- cloud/(D1) 退役判断（Phase 5・docs SSOT 改訂事項。db レーン単独では着手しない）
+- nextVersion 集約は見送り済（Calendars/NotesUnified で table/filter/nullability が異なる）
+- Auth: 漏洩パスワード保護 ON（本番設定変更・要明示承認 or ダッシュボード手動）
