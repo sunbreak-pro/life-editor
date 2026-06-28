@@ -1,4 +1,5 @@
 import type { WikiTagConnection } from "../types/wikiTagUnified";
+import { relationSoftDeleteUpdatesToPatch } from "./softDeleteMapper";
 
 /*
  * Pure WikiTagConnection <-> wiki_tag_connections row mapper (DU-C+).
@@ -72,8 +73,5 @@ export function wikiTagConnectionUpdatesToPatch(
   updates: Partial<WikiTagConnection>,
   now: string,
 ): WikiTagConnectionUpdatePatch {
-  const patch: WikiTagConnectionUpdatePatch = { updated_at: now };
-  if ("isDeleted" in updates) patch.is_deleted = updates.isDeleted ?? false;
-  if ("deletedAt" in updates) patch.deleted_at = updates.deletedAt ?? null;
-  return patch;
+  return relationSoftDeleteUpdatesToPatch(updates, now);
 }

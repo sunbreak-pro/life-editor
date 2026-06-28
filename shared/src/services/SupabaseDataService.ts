@@ -74,10 +74,6 @@ import {
   type RoutinesPayloadRow,
 } from "./routineMapper";
 import {
-  ROUTINE_GROUP_SELECT_COLUMNS,
-  rowToRoutineGroup,
-  routineGroupUpdatesToPatch,
-  type RoutineGroupRow,
   // DU-C-4: V2 dedicated-table API (0008 sort_order + soft-delete columns)
   ROUTINE_GROUPS_COLUMNS,
   rowToRoutineGroupV2,
@@ -86,9 +82,6 @@ import {
   type RoutineGroupRowV2,
 } from "./routineGroupMapper";
 import {
-  ROUTINE_GROUP_ASSIGNMENT_SELECT_COLUMNS,
-  rowToRoutineGroupAssignment,
-  type RoutineGroupAssignmentRow,
   // DU-C-4: V2 (routine_item_id rename + no created_at)
   ROUTINE_GROUP_ASSIGNMENTS_COLUMNS,
   rowToRoutineGroupAssignmentV2,
@@ -120,9 +113,10 @@ import {
  * The `tasks` domain is fully implemented (full-column round-trip against
  * the 0003_tasks_full_schema.sql shape: hierarchy / soft-delete /
  * scheduling / versioning). Pure mapping lives in `taskMapper.ts`; this
- * file is the I/O layer only. Every other DataService method is still
- * unimplemented and throws at call time ("not implemented in phase 2");
- * later S-steps port the remaining domains.
+ * file is the I/O layer only. Several other domains are now ported as
+ * well (daily / notes / wiki-tags / routines / schedule / calendars /
+ * timer / audio); only methods on the remaining un-ported domains throw
+ * at call time ("not implemented in phase 2"). Later S-steps port the rest.
  *
  * The full `DataService` interface has ~200 members; enumerating throwing
  * stubs by hand for all of them is noise. The implemented tasks methods
@@ -145,6 +139,20 @@ import {
  */
 export function pgrstQuoteValue(value: string): string {
   return `"${value.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`;
+}
+
+/**
+ * Resolve the authenticated user id. Shared by SupabaseTasksService,
+ * SupabaseRoutinesService, and SupabaseScheduleItemsService — every
+ * write path that needs the caller's uid passes its client here rather
+ * than duplicating the identical three-liner.
+ */
+async function getAuthedUserId(client: SupabaseClient): Promise<string> {
+  const { data, error } = await client.auth.getUser();
+  if (error) throw new Error(`getUserId failed: ${error.message}`);
+  const uid = data.user?.id;
+  if (!uid) throw new Error("getUserId failed: not authenticated");
+  return uid;
 }
 
 /*
@@ -189,21 +197,6 @@ class SupabaseTasksService {
 
   constructor(client: SupabaseClient) {
     this.client = client;
-  }
-
-  /**
-   * Resolve the authenticated user id for INSERT paths. RLS would
-   * default user_id to auth.uid() on its own, but writing it explicitly
-   * mirrors the Tauri contract and keeps cross-device payloads
-   * deterministic. Throws if the caller is not signed in — every Tasks
-   * write path is auth-gated upstream.
-   */
-  private async getUserId(): Promise<string> {
-    const { data, error } = await this.client.auth.getUser();
-    if (error) throw new Error(`getUserId failed: ${error.message}`);
-    const uid = data.user?.id;
-    if (!uid) throw new Error("getUserId failed: not authenticated");
-    return uid;
   }
 
   /**
@@ -307,7 +300,7 @@ class SupabaseTasksService {
    * (Recovery Playbook) sweeps the orphan up later.
    */
   async createTask(node: TaskNode): Promise<TaskNode> {
-    const userId = await this.getUserId();
+    const userId = await getAuthedUserId(this.client);
     const { meta, payload } = taskNodeToRows(node, userId);
 
     const { data: metaRow, error: metaErr } = await this.client
@@ -347,7 +340,7 @@ class SupabaseTasksService {
    * cannot wrap the two writes in a transaction.
    */
   async updateTask(id: string, updates: Partial<TaskNode>): Promise<TaskNode> {
-    const userId = await this.getUserId();
+    const userId = await getAuthedUserId(this.client);
     const now = new Date().toISOString();
     const { metaPatch, payloadPatch } = taskUpdatesToPatches(
       updates,
@@ -409,7 +402,7 @@ class SupabaseTasksService {
    */
   async syncTaskTree(nodes: TaskNode[]): Promise<void> {
     if (nodes.length === 0) return;
-    const userId = await this.getUserId();
+    const userId = await getAuthedUserId(this.client);
     const now = new Date().toISOString();
     const rowsPairs = nodes.map((n) => taskNodeToRows(n, userId));
 
@@ -646,14 +639,6 @@ class SupabaseRoutinesService {
     this.client = client;
   }
 
-  private async getUserId(): Promise<string> {
-    const { data, error } = await this.client.auth.getUser();
-    if (error) throw new Error(`getUserId failed: ${error.message}`);
-    const uid = data.user?.id;
-    if (!uid) throw new Error("getUserId failed: not authenticated");
-    return uid;
-  }
-
   /**
    * Live routines. Two SELECTs (items_meta WHERE role='routine' +
    * routines_payload) joined in-app. Missing payload (R2 orphan) skipped.
@@ -742,7 +727,7 @@ class SupabaseRoutinesService {
     reminderEnabled?: boolean,
     reminderOffset?: number,
   ): Promise<RoutineNode> {
-    const userId = await this.getUserId();
+    const userId = await getAuthedUserId(this.client);
     const now = new Date().toISOString();
     // Build a RoutineNode shape so the mapper handles the 2-row split.
     const node: RoutineNode = {
@@ -819,7 +804,7 @@ class SupabaseRoutinesService {
       >
     >,
   ): Promise<RoutineNode> {
-    const userId = await this.getUserId();
+    const userId = await getAuthedUserId(this.client);
     const now = new Date().toISOString();
     const { metaPatch, payloadPatch } = routineUpdatesToPatches(
       updates,
@@ -1021,11 +1006,6 @@ class SupabaseRoutinesService {
  */
 class SupabaseRoutineGroupsService {
   private readonly client: SupabaseClient;
-  // Keep legacy mapper imports statically referenced.
-  private static readonly _unused_select = ROUTINE_GROUP_SELECT_COLUMNS;
-  private static readonly _unused_mapper = rowToRoutineGroup;
-  private static readonly _unused_patch = routineGroupUpdatesToPatch;
-  declare private _unused_row: RoutineGroupRow;
 
   constructor(client: SupabaseClient) {
     this.client = client;
@@ -1160,11 +1140,6 @@ class SupabaseRoutineGroupsService {
  */
 class SupabaseRoutineGroupAssignmentsService {
   private readonly client: SupabaseClient;
-  // Keep legacy mapper imports statically referenced.
-  private static readonly _unused_select =
-    ROUTINE_GROUP_ASSIGNMENT_SELECT_COLUMNS;
-  private static readonly _unused_mapper = rowToRoutineGroupAssignment;
-  declare private _unused_row: RoutineGroupAssignmentRow;
 
   constructor(client: SupabaseClient) {
     this.client = client;
@@ -1296,14 +1271,6 @@ class SupabaseScheduleItemsService {
 
   constructor(client: SupabaseClient) {
     this.client = client;
-  }
-
-  private async getUserId(): Promise<string> {
-    const { data, error } = await this.client.auth.getUser();
-    if (error) throw new Error(`getUserId failed: ${error.message}`);
-    const uid = data.user?.id;
-    if (!uid) throw new Error("getUserId failed: not authenticated");
-    return uid;
   }
 
   /**
@@ -1451,7 +1418,7 @@ class SupabaseScheduleItemsService {
     void templateId; // dropped — no events_payload column
     void noteId; // dropped — events<->notes use wiki_tag_connections
     void content; // dropped — no events_payload column
-    const userId = await this.getUserId();
+    const userId = await getAuthedUserId(this.client);
     const now = new Date().toISOString();
     const item: ScheduleItem = {
       id,
@@ -1522,7 +1489,7 @@ class SupabaseScheduleItemsService {
       >
     >,
   ): Promise<ScheduleItem> {
-    const userId = await this.getUserId();
+    const userId = await getAuthedUserId(this.client);
     const now = new Date().toISOString();
     const { metaPatch, payloadPatch } = scheduleItemUpdatesToPatches(
       updates,
@@ -1771,7 +1738,7 @@ class SupabaseScheduleItemsService {
     }>,
   ): Promise<void> {
     if (items.length === 0) return;
-    const userId = await this.getUserId();
+    const userId = await getAuthedUserId(this.client);
     const now = new Date().toISOString();
 
     // Pre-build all 2-row pairs so we can issue two batched writes.
@@ -2179,8 +2146,9 @@ const PHASE2_CALENDAR_METHODS = new Set<string>([
  * (12 methods) + the notes domain (S3: 14 note methods + 7 note-link
  * methods + 4 note-connection methods — full CRUD / hierarchy / search /
  * soft-delete / versioning / password gate, plus versioned note links and
- * the relation-table note connections). Everything else throws "not
- * implemented in phase 2".
+ * the relation-table note connections), plus the routines, schedule and
+ * calendar domains and the timer / audio settings. Methods on domains not
+ * yet ported throw "not implemented in phase 2".
  *
  * Each domain is its own class; a single Proxy routes a property to the
  * service that owns it (allow-set lookup) and binds the call to that
@@ -2290,24 +2258,6 @@ export {
   parseFrequencyDays,
 } from "./routineMapper";
 export type { RoutineRow, RoutineWriteRow } from "./routineMapper";
-export {
-  rowToRoutineGroup,
-  routineGroupToRow,
-  routineGroupUpdatesToPatch,
-} from "./routineGroupMapper";
-export type {
-  RoutineGroupRow,
-  RoutineGroupWriteRow,
-} from "./routineGroupMapper";
-export {
-  rowToRoutineGroupAssignment,
-  routineGroupAssignmentToRow,
-  routineGroupAssignmentUpdatesToPatch,
-} from "./routineGroupAssignmentMapper";
-export type {
-  RoutineGroupAssignmentRow,
-  RoutineGroupAssignmentWriteRow,
-} from "./routineGroupAssignmentMapper";
 export {
   rowToScheduleItem,
   scheduleItemToRow,
