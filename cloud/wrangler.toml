@@ -1,8 +1,0 @@
-name = "life-editor-sync"
-main = "src/index.ts"
-compatibility_date = "2024-12-01"
-
-[[d1_databases]]
-binding = "DB"
-database_name = "life-editor-sync"
-database_id = "faef94cb-5dee-4f32-a355-a4b58915c699"
