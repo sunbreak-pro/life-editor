@@ -1,5 +1,18 @@
 # HISTORY (chat-db-hardening)
 
+### 2026-06-28 - RLS 本番実適用チェック（Critical 解消）
+
+#### 概要
+
+失効していた `SUPABASE_ACCESS_TOKEN` を再発行後、Management API 経由（curl）で本番 DB の RLS 実適用を検証。当初 Critical だった「RLS が本番で効いているか未確認」を解消。
+
+#### 変更点
+
+- **verify**: `pg_class.relrowsecurity` + `pg_policies` を本番 DB に直接問い合わせ。public 20 テーブル全てで RLS ON + ポリシー 4 件。RLS 無効・ポリシー 0 件のテーブルはゼロ
+- **verify**: security advisor は ERROR 0 / WARN 1（`auth_leaked_password_protection` のみ。RLS 非関連の Auth 設定、軽微）
+- **infra**: 起動中 claude は旧トークンを env 継承したままのため、Bash で `source ~/.zshrc` して新トークンを取得する方式で実行（claude 再起動不要・コンテキスト維持）
+- **結論**: anon/publishable キーのクライアント同梱は RLS 強制前提で安全。Critical finding クローズ
+
 ### 2026-06-28 - data 層監査 + relation-mapper dedup
 
 #### 概要
