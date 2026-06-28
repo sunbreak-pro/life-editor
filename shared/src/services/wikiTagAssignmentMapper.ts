@@ -1,4 +1,5 @@
 import type { WikiTagAssignment } from "../types/wikiTagUnified";
+import { relationSoftDeleteUpdatesToPatch } from "./softDeleteMapper";
 
 /*
  * Pure WikiTagAssignment <-> wiki_tag_assignments row mapper (DU-C+).
@@ -66,8 +67,5 @@ export function wikiTagAssignmentUpdatesToPatch(
   updates: Partial<WikiTagAssignment>,
   now: string,
 ): WikiTagAssignmentUpdatePatch {
-  const patch: WikiTagAssignmentUpdatePatch = { updated_at: now };
-  if ("isDeleted" in updates) patch.is_deleted = updates.isDeleted ?? false;
-  if ("deletedAt" in updates) patch.deleted_at = updates.deletedAt ?? null;
-  return patch;
+  return relationSoftDeleteUpdatesToPatch(updates, now);
 }

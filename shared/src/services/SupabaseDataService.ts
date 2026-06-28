@@ -120,9 +120,10 @@ import {
  * The `tasks` domain is fully implemented (full-column round-trip against
  * the 0003_tasks_full_schema.sql shape: hierarchy / soft-delete /
  * scheduling / versioning). Pure mapping lives in `taskMapper.ts`; this
- * file is the I/O layer only. Every other DataService method is still
- * unimplemented and throws at call time ("not implemented in phase 2");
- * later S-steps port the remaining domains.
+ * file is the I/O layer only. Several other domains are now ported as
+ * well (daily / notes / wiki-tags / routines / schedule / calendars /
+ * timer / audio); only methods on the remaining un-ported domains throw
+ * at call time ("not implemented in phase 2"). Later S-steps port the rest.
  *
  * The full `DataService` interface has ~200 members; enumerating throwing
  * stubs by hand for all of them is noise. The implemented tasks methods
@@ -2179,8 +2180,9 @@ const PHASE2_CALENDAR_METHODS = new Set<string>([
  * (12 methods) + the notes domain (S3: 14 note methods + 7 note-link
  * methods + 4 note-connection methods — full CRUD / hierarchy / search /
  * soft-delete / versioning / password gate, plus versioned note links and
- * the relation-table note connections). Everything else throws "not
- * implemented in phase 2".
+ * the relation-table note connections), plus the routines, schedule and
+ * calendar domains and the timer / audio settings. Methods on domains not
+ * yet ported throw "not implemented in phase 2".
  *
  * Each domain is its own class; a single Proxy routes a property to the
  * service that owns it (allow-set lookup) and binds the call to that
