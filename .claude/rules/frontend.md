@@ -11,7 +11,7 @@ paths:
 
 ## UI 2 層モデル（W0 2026-06-07 確定 = 案 A）
 
-- `frontend/`（Tauri 時代）は **FROZEN**。新規 UI は `shared/src/components/` に集約し、Web / Electron / Capacitor の 3 配布形態が同一ソースを共用する（デザインシステム + `notion-*` トークン + i18n en/ja catalog も `shared/` 側）。詳細 → `docs/vision/coding-principles.md §6`
+- `frontend/`（Tauri 時代）は **FROZEN**。新規 UI は `shared/src/components/` に集約し、Web / Electron / Capacitor の 3 配布形態が同一ソースを共用する（デザインシステム + `ink-*` トークン + i18n en/ja catalog も `shared/` 側）。詳細 → `docs/vision/coding-principles.md §6`
 
 ## 命名（プロジェクト固有のみ）
 
@@ -45,7 +45,7 @@ paths:
 
 ## デザイン規約（不変式）
 
-- `notion-*` トークン使用（色のハードコード禁止）
+- `ink-*` トークン使用（色のハードコード禁止）
 - **主要 UI コンテナ背景に透明度禁止**（不透明トークン使用。未定義クラスは silent fail で透明落ち）
 - i18n は props 経由（部品フック内で `useTranslation()` 禁止）。文言は `react-i18next` の en / ja 両 catalog に追加
 - DataService はコールバック注入（フック内で `getDataService()` 直呼び禁止）

@@ -15,7 +15,7 @@ export function TreeDragGhost({
   title: string;
 }): React.ReactElement {
   return (
-    <div className="pointer-events-none rounded-md border border-notion-accent bg-notion-bg px-2 py-1.5 text-sm text-notion-text opacity-60 shadow-lg">
+    <div className="pointer-events-none rounded-md border border-ink-accent bg-ink-bg px-2 py-1.5 text-sm text-ink-text opacity-60 shadow-lg">
       {title || "(untitled)"}
     </div>
   );

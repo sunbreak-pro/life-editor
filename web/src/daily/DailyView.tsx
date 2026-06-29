@@ -6,7 +6,7 @@ import { TagPicker, LinkPanel } from "../wikitag";
  * Web Daily UI (S2). The heavy Tauri Daily (TipTap rich editor,
  * password/lock dialogs, sidebar grouping, i18n) is intentionally NOT
  * ported here — TipTap is an S3 cross-cutting concern (Phase 2 plan S3:
- * "TipTap 依存確認"). This is a functional, notion-token-styled view
+ * "TipTap 依存確認"). This is a functional, ink-token-styled view
  * that exercises every shared daily data path: date select, load,
  * UPSERT-on-edit (the S2 acceptance criterion), pin toggle, soft-delete
  * + restore. Content is a plain <textarea> (rich text deferred to S3).
@@ -82,7 +82,7 @@ export function DailyView() {
       <div className="flex flex-wrap items-center gap-2">
         <label
           htmlFor="daily-date"
-          className="text-sm text-notion-text-secondary"
+          className="text-sm text-ink-text-secondary"
         >
           Date
         </label>
@@ -91,19 +91,19 @@ export function DailyView() {
           type="date"
           value={selectedDate}
           onChange={(e) => setSelectedDate(e.target.value)}
-          className="rounded-md border border-notion-border bg-notion-bg px-2 py-1 text-sm text-notion-text"
+          className="rounded-md border border-ink-border bg-ink-bg px-2 py-1 text-sm text-ink-text"
         />
         <button
           type="button"
           onClick={() => setSelectedDate(isoDay(0))}
-          className="rounded-md border border-notion-border px-2 py-1 text-sm text-notion-text hover:bg-notion-hover"
+          className="rounded-md border border-ink-border px-2 py-1 text-sm text-ink-text hover:bg-ink-hover"
         >
           Today
         </button>
         <button
           type="button"
           onClick={() => setSelectedDate(isoDay(-1))}
-          className="rounded-md border border-notion-border px-2 py-1 text-sm text-notion-text hover:bg-notion-hover"
+          className="rounded-md border border-ink-border px-2 py-1 text-sm text-ink-text hover:bg-ink-hover"
         >
           Yesterday
         </button>
@@ -115,35 +115,35 @@ export function DailyView() {
         onBlur={() => upsertDaily(selectedDate, draft)}
         rows={8}
         placeholder="Write the day… (saved on blur — plain text; rich editor is S3)"
-        className="w-full resize-y rounded-md border border-notion-border bg-notion-bg p-3 text-sm text-notion-text"
+        className="w-full resize-y rounded-md border border-ink-border bg-ink-bg p-3 text-sm text-ink-text"
       />
 
       <div className="flex flex-wrap gap-2">
         <button
           type="button"
           onClick={() => upsertDaily(selectedDate, draft)}
-          className="rounded-md border border-notion-border px-3 py-1.5 text-sm text-notion-text hover:bg-notion-hover"
+          className="rounded-md border border-ink-border px-3 py-1.5 text-sm text-ink-text hover:bg-ink-hover"
         >
           Save
         </button>
         <button
           type="button"
           onClick={() => togglePin(selectedDate)}
-          className="rounded-md border border-notion-border px-3 py-1.5 text-sm text-notion-text hover:bg-notion-hover"
+          className="rounded-md border border-ink-border px-3 py-1.5 text-sm text-ink-text hover:bg-ink-hover"
         >
           {selectedDaily?.isPinned ? "Unpin" : "Pin"}
         </button>
         <button
           type="button"
           onClick={() => deleteDaily(selectedDate)}
-          className="rounded-md border border-notion-border px-3 py-1.5 text-sm text-notion-text hover:bg-notion-hover"
+          className="rounded-md border border-ink-border px-3 py-1.5 text-sm text-ink-text hover:bg-ink-hover"
         >
           Delete
         </button>
       </div>
 
       {selectedDaily ? (
-        <div className="space-y-2 rounded-md border border-notion-border p-2">
+        <div className="space-y-2 rounded-md border border-ink-border p-2">
           <div className="flex flex-wrap items-center gap-2">
             <TagPicker itemId={selectedDaily.id} showLabel size="sm" />
           </div>
@@ -154,13 +154,13 @@ export function DailyView() {
           />
         </div>
       ) : (
-        <p className="text-xs text-notion-text-secondary">
+        <p className="text-xs text-ink-text-secondary">
           Save the daily first to add tags or links.
         </p>
       )}
 
       <section>
-        <h2 className="mb-2 text-sm font-semibold text-notion-text">
+        <h2 className="mb-2 text-sm font-semibold text-ink-text">
           Dailies ({dailies.length})
         </h2>
         <ul className="space-y-1">
@@ -169,10 +169,10 @@ export function DailyView() {
               <button
                 type="button"
                 onClick={() => setSelectedDate(d.date)}
-                className={`w-full rounded-md px-2 py-1 text-left text-sm hover:bg-notion-hover ${
+                className={`w-full rounded-md px-2 py-1 text-left text-sm hover:bg-ink-hover ${
                   d.date === selectedDate
-                    ? "bg-notion-hover text-notion-text"
-                    : "text-notion-text-secondary"
+                    ? "bg-ink-hover text-ink-text"
+                    : "text-ink-text-secondary"
                 }`}
               >
                 {d.isPinned ? "★ " : ""}
@@ -186,20 +186,20 @@ export function DailyView() {
 
       {deletedDailies.length > 0 && (
         <section>
-          <h2 className="mb-2 text-sm font-semibold text-notion-text">
+          <h2 className="mb-2 text-sm font-semibold text-ink-text">
             Trash ({deletedDailies.length})
           </h2>
           <ul className="space-y-1">
             {deletedDailies.map((d) => (
               <li
                 key={d.id}
-                className="flex items-center justify-between text-sm text-notion-text-secondary"
+                className="flex items-center justify-between text-sm text-ink-text-secondary"
               >
                 <span>{d.date}</span>
                 <button
                   type="button"
                   onClick={() => restoreDaily(d.date)}
-                  className="rounded-md border border-notion-border px-2 py-0.5 text-xs text-notion-text hover:bg-notion-hover"
+                  className="rounded-md border border-ink-border px-2 py-0.5 text-xs text-ink-text hover:bg-ink-hover"
                 >
                   Restore
                 </button>

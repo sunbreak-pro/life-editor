@@ -127,7 +127,7 @@ export function KanbanBoard({
         <div
           role="tablist"
           aria-label={labels.segmentedGroupLabel}
-          className="inline-flex gap-0.5 rounded-xl border border-notion-border bg-notion-bg-secondary p-0.5"
+          className="inline-flex gap-0.5 rounded-xl border border-ink-border bg-ink-bg-secondary p-0.5"
         >
           {VIEW_ORDER.map((mode) => {
             const Icon = VIEW_ICON[mode];
@@ -142,10 +142,10 @@ export function KanbanBoard({
                 className={cn(
                   "inline-flex items-center gap-1.5 whitespace-nowrap rounded-lg px-3.5 py-1.5",
                   "text-[0.8125rem] font-semibold transition-colors",
-                  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-notion-accent",
+                  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink-accent",
                   selected
-                    ? "bg-notion-bg text-notion-text shadow-notion-sm"
-                    : "text-notion-text-secondary hover:text-notion-text",
+                    ? "bg-ink-bg text-ink-text shadow-ink-sm"
+                    : "text-ink-text-secondary hover:text-ink-text",
                 )}
               >
                 <Icon size={15} aria-hidden />

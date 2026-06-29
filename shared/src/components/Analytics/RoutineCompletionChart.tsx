@@ -46,7 +46,7 @@ export function RoutineCompletionChart({
 
   return (
     <div>
-      <h3 className="text-sm font-semibold text-notion-text mb-3">
+      <h3 className="text-sm font-semibold text-ink-text mb-3">
         {labels.title}
       </h3>
       <div style={{ height: Math.max(160, data.length * 32 + 40) }}>
@@ -58,14 +58,14 @@ export function RoutineCompletionChart({
           >
             <CartesianGrid
               strokeDasharray="3 3"
-              stroke="var(--color-notion-border, #e5e5e5)"
+              stroke="var(--color-ink-border, #e5e5e5)"
             />
             <XAxis
               type="number"
               domain={[0, 100]}
               tick={{
                 fontSize: 10,
-                fill: "var(--color-notion-text-secondary, #999)",
+                fill: "var(--color-ink-text-secondary, #999)",
               }}
               tickFormatter={(v) => `${v}%`}
             />
@@ -74,14 +74,14 @@ export function RoutineCompletionChart({
               dataKey="name"
               tick={{
                 fontSize: 10,
-                fill: "var(--color-notion-text-secondary, #999)",
+                fill: "var(--color-ink-text-secondary, #999)",
               }}
               width={100}
             />
             <Tooltip
               contentStyle={{
-                background: "var(--color-notion-bg, #fff)",
-                border: "1px solid var(--color-notion-border, #e5e5e5)",
+                background: "var(--color-ink-bg, #fff)",
+                border: "1px solid var(--color-ink-border, #e5e5e5)",
                 borderRadius: 8,
                 fontSize: 12,
               }}
@@ -92,7 +92,7 @@ export function RoutineCompletionChart({
             />
             <Bar
               dataKey="rate"
-              fill="var(--color-notion-success, #22c55e)"
+              fill="var(--color-ink-success, #22c55e)"
               radius={[0, 4, 4, 0]}
             />
           </BarChart>

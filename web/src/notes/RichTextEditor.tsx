@@ -174,7 +174,7 @@ export function RichTextEditor({
   }, [editor, editable]);
 
   return (
-    <div className="note-editor rounded-md border border-notion-border bg-notion-bg p-3">
+    <div className="note-editor rounded-md border border-ink-border bg-ink-bg p-3">
       <EditorContent editor={editor} />
     </div>
   );

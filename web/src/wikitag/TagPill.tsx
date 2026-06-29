@@ -5,8 +5,8 @@ import { X } from "lucide-react";
  *
  * Color handling: each tag carries an optional hex color (`color`). When
  * present we render a tinted background + matching border; when absent we
- * fall back to `notion-bg-secondary` (neutral pill). The text color stays
- * notion-text — Tailwind's content tokens already meet contrast against
+ * fall back to `ink-bg-secondary` (neutral pill). The text color stays
+ * ink-text — Tailwind's content tokens already meet contrast against
  * both light and dark surfaces.
  *
  * The remove handler is optional so the pill is reusable in read-only
@@ -33,8 +33,8 @@ export function TagPill({ name, color, onRemove, size = "sm" }: TagPillProps) {
 
   return (
     <span
-      className={`inline-flex items-center gap-1 rounded-md border ${padding} ${fontSize} text-notion-text ${
-        color ? "" : "border-notion-border bg-notion-bg-secondary"
+      className={`inline-flex items-center gap-1 rounded-md border ${padding} ${fontSize} text-ink-text ${
+        color ? "" : "border-ink-border bg-ink-bg-secondary"
       }`}
       style={style}
     >
@@ -51,7 +51,7 @@ export function TagPill({ name, color, onRemove, size = "sm" }: TagPillProps) {
           type="button"
           onClick={onRemove}
           aria-label={`Remove tag ${name}`}
-          className="text-notion-text-secondary hover:text-notion-danger focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-notion-accent rounded"
+          className="text-ink-text-secondary hover:text-ink-danger focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ink-accent rounded"
         >
           <X size={iconSize} aria-hidden />
         </button>

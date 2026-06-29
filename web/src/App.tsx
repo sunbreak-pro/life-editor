@@ -40,8 +40,8 @@ function App() {
   let body: React.JSX.Element;
   if (!ready) {
     body = (
-      <div className="min-h-screen bg-notion-bg text-notion-text flex items-center justify-center">
-        <p className="text-notion-text-secondary">Loading…</p>
+      <div className="min-h-screen bg-ink-bg text-ink-text flex items-center justify-center">
+        <p className="text-ink-text-secondary">Loading…</p>
       </div>
     );
   } else {

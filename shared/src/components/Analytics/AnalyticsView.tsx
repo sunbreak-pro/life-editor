@@ -81,18 +81,18 @@ export function AnalyticsView(props: AnalyticsViewProps): React.JSX.Element {
     <AnalyticsFilterProvider>
       <div className="flex h-full flex-col gap-4 px-4 py-4">
         <div className="flex items-center justify-between gap-4">
-          <h2 className="text-lg font-semibold text-notion-text">
+          <h2 className="text-lg font-semibold text-ink-text">
             {labels.title}
           </h2>
-          <div className="flex gap-1 rounded-lg border border-notion-border bg-notion-bg-secondary p-1">
+          <div className="flex gap-1 rounded-lg border border-ink-border bg-ink-bg-secondary p-1">
             {TAB_ORDER.map((tab) => (
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}
                 className={`rounded-md px-3 py-1 text-xs font-medium transition-colors ${
                   activeTab === tab
-                    ? "bg-notion-accent text-notion-on-accent shadow-sm"
-                    : "text-notion-text-secondary hover:bg-notion-hover hover:text-notion-text"
+                    ? "bg-ink-accent text-ink-on-accent shadow-sm"
+                    : "text-ink-text-secondary hover:bg-ink-hover hover:text-ink-text"
                 }`}
               >
                 {tabLabel[tab]}

@@ -146,10 +146,10 @@ export function TrashScreen({ dataService: ds }: TrashScreenProps) {
   );
 
   if (loading) {
-    return <p className="text-notion-text-secondary">{t("trash.loading")}</p>;
+    return <p className="text-ink-text-secondary">{t("trash.loading")}</p>;
   }
   if (error) {
-    return <p className="text-notion-danger">{t("trash.error")}</p>;
+    return <p className="text-ink-danger">{t("trash.error")}</p>;
   }
 
   return (
