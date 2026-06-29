@@ -41,12 +41,12 @@ export function PomodoroTaskSelector({
 
   return (
     <Card padding="md" className="flex flex-col gap-2">
-      <h3 className="text-xs font-semibold uppercase tracking-wide text-notion-text-secondary">
+      <h3 className="text-xs font-semibold uppercase tracking-wide text-ink-text-secondary">
         {labels.heading}
       </h3>
       {selected ? (
-        <div className="flex items-center justify-between gap-2 rounded-md bg-notion-bg-secondary px-3 py-2">
-          <span className="truncate text-sm text-notion-text">
+        <div className="flex items-center justify-between gap-2 rounded-md bg-ink-bg-secondary px-3 py-2">
+          <span className="truncate text-sm text-ink-text">
             {selected.title}
           </span>
           <IconButton
@@ -65,9 +65,9 @@ export function PomodoroTaskSelector({
             onSelect(next);
           }}
           className={cn(
-            "h-9 w-full rounded-md border border-notion-border bg-notion-bg px-3",
-            "text-sm text-notion-text focus-visible:outline-none",
-            "focus-visible:ring-2 focus-visible:ring-notion-accent",
+            "h-9 w-full rounded-md border border-ink-border bg-ink-bg px-3",
+            "text-sm text-ink-text focus-visible:outline-none",
+            "focus-visible:ring-2 focus-visible:ring-ink-accent",
           )}
         >
           <option value="" disabled>

@@ -34,7 +34,7 @@ import {
  *
  * Pure presentation (CLAUDE.md §3.1 / §6.4): no DataService, no
  * useTranslation. All copy (weekday labels, "all-day", hour/date formatting)
- * is injected by the host already translated. notion-* tokens only; the grid
+ * is injected by the host already translated. ink-* tokens only; the grid
  * surfaces and event blocks use opaque backgrounds (§5). `days={1}` collapses
  * it to a single-day column so the same primitive can back a day view.
  */
@@ -330,31 +330,31 @@ export function WeekTimeGrid({
   return (
     <div
       className={cn(
-        "overflow-hidden rounded-md border border-notion-border bg-notion-bg",
+        "overflow-hidden rounded-md border border-ink-border bg-ink-bg",
         dragging && "select-none",
         className,
       )}
     >
       {/* Day-of-week header */}
       <div
-        className="grid border-b border-notion-border bg-notion-bg"
+        className="grid border-b border-ink-border bg-ink-bg"
         style={columnsTemplate}
       >
-        <div aria-hidden className="border-r border-notion-border" />
+        <div aria-hidden className="border-r border-ink-border" />
         {dayKeys.map((key) => {
           const isToday = !!todayKey && key === todayKey;
           return (
             <div
               key={key}
               className={cn(
-                "border-r border-notion-border px-1 py-1.5 text-center last:border-r-0",
-                isToday && "bg-notion-hover",
+                "border-r border-ink-border px-1 py-1.5 text-center last:border-r-0",
+                isToday && "bg-ink-hover",
               )}
             >
               <div
                 className={cn(
                   "text-[11px] font-medium uppercase tracking-wide",
-                  isToday ? "text-notion-accent" : "text-notion-text-secondary",
+                  isToday ? "text-ink-accent" : "text-ink-text-secondary",
                 )}
               >
                 {weekdayLabels[dayOfWeek(key)] ?? ""}
@@ -363,8 +363,8 @@ export function WeekTimeGrid({
                 className={cn(
                   "text-xs",
                   isToday
-                    ? "font-semibold text-notion-accent"
-                    : "text-notion-text",
+                    ? "font-semibold text-ink-accent"
+                    : "text-ink-text",
                 )}
               >
                 {formatDayDate(key)}
@@ -376,10 +376,10 @@ export function WeekTimeGrid({
 
       {/* All-day lane */}
       <div
-        className="grid border-b border-notion-border bg-notion-bg"
+        className="grid border-b border-ink-border bg-ink-bg"
         style={columnsTemplate}
       >
-        <div className="flex items-center justify-end border-r border-notion-border px-1 py-1 text-[10px] text-notion-text-secondary">
+        <div className="flex items-center justify-end border-r border-ink-border px-1 py-1 text-[10px] text-ink-text-secondary">
           {allDayLabel}
         </div>
         {dayKeys.map((key) => {
@@ -387,7 +387,7 @@ export function WeekTimeGrid({
           return (
             <div
               key={key}
-              className="min-h-[1.75rem] space-y-1 border-r border-notion-border p-1 last:border-r-0"
+              className="min-h-[1.75rem] space-y-1 border-r border-ink-border p-1 last:border-r-0"
             >
               {allDay.map((it) => {
                 const selected = it.id === selectedId;
@@ -398,9 +398,9 @@ export function WeekTimeGrid({
                     onClick={() => onSelectItem?.(it.id)}
                     title={it.title}
                     className={cn(
-                      "block w-full truncate rounded border-l-2 border-notion-accent bg-notion-bg-secondary px-1 py-0.5 text-left text-[11px] text-notion-text hover:bg-notion-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-notion-accent",
-                      selected && "ring-2 ring-notion-accent",
-                      it.completed && "text-notion-text-secondary line-through",
+                      "block w-full truncate rounded border-l-2 border-ink-accent bg-ink-bg-secondary px-1 py-0.5 text-left text-[11px] text-ink-text hover:bg-ink-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink-accent",
+                      selected && "ring-2 ring-ink-accent",
+                      it.completed && "text-ink-text-secondary line-through",
                     )}
                   >
                     {it.title || " "}
@@ -416,14 +416,14 @@ export function WeekTimeGrid({
       <div className="max-h-[60vh] overflow-y-auto">
         <div className="grid" style={columnsTemplate}>
           {/* Hour axis */}
-          <div className="border-r border-notion-border">
+          <div className="border-r border-ink-border">
             {hours.map((h) => (
               <div
                 key={h}
                 style={{ height: hourHeight }}
                 className="relative"
               >
-                <span className="absolute -top-1.5 right-1 text-[10px] tabular-nums text-notion-text-secondary">
+                <span className="absolute -top-1.5 right-1 text-[10px] tabular-nums text-ink-text-secondary">
                   {formatHour(h)}
                 </span>
               </div>
@@ -438,7 +438,7 @@ export function WeekTimeGrid({
             return (
               <div
                 key={key}
-                className="relative border-r border-notion-border last:border-r-0"
+                className="relative border-r border-ink-border last:border-r-0"
                 style={{ height: bodyHeight }}
               >
                 {/* Hour gridlines */}
@@ -446,7 +446,7 @@ export function WeekTimeGrid({
                   <div
                     key={h}
                     aria-hidden
-                    className="absolute inset-x-0 border-t border-notion-border"
+                    className="absolute inset-x-0 border-t border-ink-border"
                     style={{ top: i * hourHeight }}
                   />
                 ))}
@@ -483,11 +483,11 @@ export function WeekTimeGrid({
                       }
                       title={`${it.startTime}–${it.endTime} ${it.title}`}
                       className={cn(
-                        "absolute overflow-hidden rounded border-l-2 border-notion-accent bg-notion-bg-secondary px-1 py-0.5 text-left text-[11px] leading-tight text-notion-text hover:z-10 hover:bg-notion-hover focus-visible:z-10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-notion-accent",
+                        "absolute overflow-hidden rounded border-l-2 border-ink-accent bg-ink-bg-secondary px-1 py-0.5 text-left text-[11px] leading-tight text-ink-text hover:z-10 hover:bg-ink-hover focus-visible:z-10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink-accent",
                         movable && "z-10 cursor-move",
-                        selected && "z-10 ring-2 ring-notion-accent",
+                        selected && "z-10 ring-2 ring-ink-accent",
                         it.completed &&
-                          "text-notion-text-secondary line-through",
+                          "text-ink-text-secondary line-through",
                       )}
                       style={{
                         top: `${p.topPct}%`,
@@ -500,7 +500,7 @@ export function WeekTimeGrid({
                       <span className="block truncate font-medium">
                         {it.title || " "}
                       </span>
-                      <span className="block truncate text-[10px] text-notion-text-secondary">
+                      <span className="block truncate text-[10px] text-ink-text-secondary">
                         {it.startTime}
                       </span>
                       {/* Resize handle (bottom edge) — only when host opts in */}

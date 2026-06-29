@@ -29,9 +29,9 @@ import type { TaskStatus } from "../types/taskTree";
 import { cn } from "./cn";
 
 const STATUS_BAND_CLASS: Record<TaskStatus, string> = {
-  NOT_STARTED: "bg-notion-status-todo-band",
-  IN_PROGRESS: "bg-notion-status-progress-band",
-  DONE: "bg-notion-status-done-band",
+  NOT_STARTED: "bg-ink-status-todo-band",
+  IN_PROGRESS: "bg-ink-status-progress-band",
+  DONE: "bg-ink-status-done-band",
 };
 
 const FOCUSABLE =
@@ -121,7 +121,7 @@ export function TaskDetailModal({
 
   const bandClass = status
     ? STATUS_BAND_CLASS[status]
-    : "bg-notion-border-strong";
+    : "bg-ink-border-strong";
 
   return createPortal(
     <div
@@ -135,21 +135,21 @@ export function TaskDetailModal({
         aria-modal="true"
         aria-labelledby="task-detail-modal-title"
         onMouseDown={(e) => e.stopPropagation()}
-        className="kanban-modal-panel relative flex max-h-[88vh] w-full max-w-[820px] flex-col overflow-hidden rounded-2xl border border-notion-border bg-notion-bg shadow-notion-lg"
+        className="kanban-modal-panel relative flex max-h-[88vh] w-full max-w-[820px] flex-col overflow-hidden rounded-2xl border border-ink-border bg-ink-bg shadow-ink-lg"
       >
         {/* Top status band — status-forward, even full-screen. */}
         <div aria-hidden className={cn("h-[5px] w-full shrink-0", bandClass)} />
 
         {/* Header: breadcrumb + close */}
-        <div className="flex items-center gap-3.5 border-b border-notion-border px-6 py-3.5">
-          <div className="flex min-w-0 flex-1 items-center gap-1.5 text-[0.8125rem] text-notion-text-secondary">
+        <div className="flex items-center gap-3.5 border-b border-ink-border px-6 py-3.5">
+          <div className="flex min-w-0 flex-1 items-center gap-1.5 text-[0.8125rem] text-ink-text-secondary">
             {folderName && (
               <>
                 <span
                   aria-hidden
                   className={cn(
                     "h-2.5 w-2.5 shrink-0 rounded-[3px]",
-                    folderColor ? "" : "bg-notion-border-strong",
+                    folderColor ? "" : "bg-ink-border-strong",
                   )}
                   style={
                     folderColor ? { backgroundColor: folderColor } : undefined
@@ -165,7 +165,7 @@ export function TaskDetailModal({
             )}
             <span
               id="task-detail-modal-title"
-              className="font-semibold text-notion-text"
+              className="font-semibold text-ink-text"
             >
               {breadcrumbTaskLabel}
             </span>
@@ -176,9 +176,9 @@ export function TaskDetailModal({
             aria-label={closeLabel}
             title={closeLabel}
             className={cn(
-              "grid h-9 w-9 shrink-0 place-items-center rounded-md border border-notion-border",
-              "text-notion-text-secondary transition-colors hover:bg-notion-hover hover:text-notion-text",
-              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-notion-accent",
+              "grid h-9 w-9 shrink-0 place-items-center rounded-md border border-ink-border",
+              "text-ink-text-secondary transition-colors hover:bg-ink-hover hover:text-ink-text",
+              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink-accent",
             )}
           >
             <X size={18} aria-hidden />

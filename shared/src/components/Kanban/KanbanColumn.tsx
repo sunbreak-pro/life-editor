@@ -73,7 +73,7 @@ export function KanbanColumn({
   // Folder view tints the whole column PANEL with the folder's color (the
   // user-requested "the folder panel's background is the folder color") — NOT
   // the cards inside it. A theme-aware color-mix wash: a soft body tint + a
-  // slightly stronger header, while the cards stay opaque (bg-notion-bg) so
+  // slightly stronger header, while the cards stay opaque (bg-ink-bg) so
   // they read clearly on top. color-mix against --color-bg-primary keeps it
   // subtle + dark-mode aware. accent here is the folder color (user data — §6
   // permits inline styles / CSS vars for user colors).
@@ -104,18 +104,18 @@ export function KanbanColumn({
       style={sectionStyle}
       className={cn(
         "flex max-h-[560px] w-[316px] shrink-0 flex-col overflow-hidden",
-        "rounded-2xl border bg-notion-bg shadow-notion-md transition-[box-shadow,border-color]",
+        "rounded-2xl border bg-ink-bg shadow-ink-md transition-[box-shadow,border-color]",
         // Highlight the drop target while a card hovers over it. Ring +
         // accent border only (bg stays opaque — §6.4).
         dnd?.isOver
-          ? "border-notion-accent ring-2 ring-notion-accent"
-          : "border-notion-border",
+          ? "border-ink-accent ring-2 ring-ink-accent"
+          : "border-ink-border",
       )}
     >
       {/* Column header — top 4px accent band + dot/status-icon + name + count */}
       <div
         style={headerStyle}
-        className="relative border-b border-notion-border bg-notion-bg-secondary px-3.5 pb-2.5 pt-3.5"
+        className="relative border-b border-ink-border bg-ink-bg-secondary px-3.5 pb-2.5 pt-3.5"
       >
         <span
           aria-hidden
@@ -140,7 +140,7 @@ export function KanbanColumn({
               style={{ backgroundColor: "var(--kanban-col-accent)" }}
             />
           )}
-          <span className="min-w-0 flex-1 truncate text-[0.9375rem] font-bold text-notion-text">
+          <span className="min-w-0 flex-1 truncate text-[0.9375rem] font-bold text-ink-text">
             {column.title}
           </span>
           {!column.isPlaceholder && (
@@ -148,7 +148,7 @@ export function KanbanColumn({
               aria-label={labels.countAriaLabel(column.cards.length)}
               className={cn(
                 "min-w-6 rounded-full px-2 py-0.5 text-center text-xs font-bold",
-                "bg-notion-bg text-notion-text-secondary",
+                "bg-ink-bg text-ink-text-secondary",
               )}
               style={{ color: "var(--kanban-col-accent)" }}
             >
@@ -172,11 +172,11 @@ export function KanbanColumn({
       {/* Column body — scrollable card stack */}
       <div className="flex flex-1 flex-col gap-2.5 overflow-y-auto p-2.5">
         {column.isPlaceholder ? (
-          <div className="px-3 py-7 text-center text-sm leading-relaxed text-notion-text-secondary">
+          <div className="px-3 py-7 text-center text-sm leading-relaxed text-ink-text-secondary">
             {labels.placeholderHint}
           </div>
         ) : column.cards.length === 0 ? (
-          <div className="px-3 py-7 text-center text-sm leading-relaxed text-notion-text-secondary">
+          <div className="px-3 py-7 text-center text-sm leading-relaxed text-ink-text-secondary">
             {labels.emptyColumn}
           </div>
         ) : (

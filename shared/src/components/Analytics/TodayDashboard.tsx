@@ -51,7 +51,7 @@ export function TodayDashboard({
 
   return (
     <div>
-      <h3 className="text-sm font-semibold text-notion-text mb-3">
+      <h3 className="text-sm font-semibold text-ink-text mb-3">
         {labels.title}
       </h3>
       <div className="grid grid-cols-3 gap-3">
@@ -65,7 +65,7 @@ export function TodayDashboard({
           icon={<CheckCircle2 size={16} />}
           label={labels.completedTasks}
           value={String(stats.completedToday)}
-          color="text-notion-success"
+          color="text-ink-success"
         />
         <MiniCard
           icon={<Timer size={16} />}
@@ -90,11 +90,11 @@ function MiniCard({
   color: string;
 }): React.JSX.Element {
   return (
-    <div className="bg-notion-bg-secondary rounded-lg p-3 flex items-center gap-2">
+    <div className="bg-ink-bg-secondary rounded-lg p-3 flex items-center gap-2">
       <div className={color}>{icon}</div>
       <div className="min-w-0">
-        <p className="text-lg font-bold text-notion-text truncate">{value}</p>
-        <p className="text-xs text-notion-text-secondary truncate">{label}</p>
+        <p className="text-lg font-bold text-ink-text truncate">{value}</p>
+        <p className="text-xs text-ink-text-secondary truncate">{label}</p>
       </div>
     </div>
   );

@@ -75,7 +75,7 @@ function fillConflict(template: string, action: string): string {
  * list + rebind (key capture) + conflict display + reset. The ShortcutConfig
  * context (rebind/conflict/reset logic) is owned by the HOST and reaches this
  * primitive only through callbacks + the `rows` view-model (CLAUDE.md §6.4).
- * notion-* tokens, opaque rows.
+ * ink-* tokens, opaque rows.
  */
 export function SettingsShortcuts({
   rows,
@@ -129,7 +129,7 @@ export function SettingsShortcuts({
   return (
     <div className="space-y-4" data-section-id="shortcuts">
       <div className="flex items-center justify-between">
-        <h3 className="text-lg font-semibold text-notion-text">
+        <h3 className="text-lg font-semibold text-ink-text">
           {labels.heading}
         </h3>
         <Button
@@ -142,7 +142,7 @@ export function SettingsShortcuts({
         </Button>
       </div>
 
-      <ul className="divide-y divide-notion-border rounded-lg border border-notion-border bg-notion-bg">
+      <ul className="divide-y divide-ink-border rounded-lg border border-ink-border bg-ink-bg">
         {rows.map((row) => {
           const capturing = capturingId === row.id;
           return (
@@ -151,9 +151,9 @@ export function SettingsShortcuts({
               className="flex items-center justify-between gap-3 px-3 py-2.5"
             >
               <div className="min-w-0">
-                <p className="truncate text-sm text-notion-text">{row.label}</p>
+                <p className="truncate text-sm text-ink-text">{row.label}</p>
                 {row.isModified && (
-                  <span className="text-xs text-notion-text-secondary">
+                  <span className="text-xs text-ink-text-secondary">
                     {labels.modified}
                   </span>
                 )}
@@ -167,16 +167,16 @@ export function SettingsShortcuts({
                       autoFocus
                       onKeyDown={(e) => handleCapture(row.id, e)}
                       className={cn(
-                        "rounded-md border border-notion-accent bg-notion-bg-secondary",
-                        "px-2.5 py-1 text-xs text-notion-accent",
+                        "rounded-md border border-ink-accent bg-ink-bg-secondary",
+                        "px-2.5 py-1 text-xs text-ink-accent",
                         "focus-visible:outline-none focus-visible:ring-2",
-                        "focus-visible:ring-notion-accent",
+                        "focus-visible:ring-ink-accent",
                       )}
                     >
                       {labels.pressKey}
                     </button>
                     {conflict && (
-                      <span className="text-xs text-notion-danger">
+                      <span className="text-xs text-ink-danger">
                         {conflict}
                       </span>
                     )}
@@ -193,7 +193,7 @@ export function SettingsShortcuts({
                   </div>
                 ) : (
                   <>
-                    <kbd className="rounded border border-notion-border bg-notion-bg-secondary px-2 py-0.5 text-xs tabular-nums text-notion-text">
+                    <kbd className="rounded border border-ink-border bg-ink-bg-secondary px-2 py-0.5 text-xs tabular-nums text-ink-text">
                       {row.displayString || "—"}
                     </kbd>
                     <Button

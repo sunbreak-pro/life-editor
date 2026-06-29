@@ -33,16 +33,16 @@ export function AuthScreen() {
   };
 
   return (
-    <div className="min-h-screen bg-notion-bg text-notion-text flex items-center justify-center p-6">
+    <div className="min-h-screen bg-ink-bg text-ink-text flex items-center justify-center p-6">
       <form
         onSubmit={submit}
-        className="w-full max-w-sm space-y-4 rounded-md border border-notion-border bg-notion-bg-secondary p-6"
+        className="w-full max-w-sm space-y-4 rounded-md border border-ink-border bg-ink-bg-secondary p-6"
       >
         <div className="space-y-1">
-          <h1 className="text-xl font-semibold text-notion-text">
+          <h1 className="text-xl font-semibold text-ink-text">
             Life Editor — Web
           </h1>
-          <p className="text-sm text-notion-text-secondary">
+          <p className="text-sm text-ink-text-secondary">
             {mode === "signIn"
               ? "Sign in to your account"
               : "Create a new account"}
@@ -50,7 +50,7 @@ export function AuthScreen() {
         </div>
 
         <div className="space-y-2">
-          <label className="block text-sm text-notion-text-secondary">
+          <label className="block text-sm text-ink-text-secondary">
             Email
             <input
               type="email"
@@ -58,10 +58,10 @@ export function AuthScreen() {
               autoComplete="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="mt-1 w-full rounded-md border border-notion-border bg-notion-bg px-3 py-2 text-notion-text outline-none focus:border-notion-accent"
+              className="mt-1 w-full rounded-md border border-ink-border bg-ink-bg px-3 py-2 text-ink-text outline-none focus:border-ink-accent"
             />
           </label>
-          <label className="block text-sm text-notion-text-secondary">
+          <label className="block text-sm text-ink-text-secondary">
             Password
             <input
               type="password"
@@ -72,7 +72,7 @@ export function AuthScreen() {
               }
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="mt-1 w-full rounded-md border border-notion-border bg-notion-bg px-3 py-2 text-notion-text outline-none focus:border-notion-accent"
+              className="mt-1 w-full rounded-md border border-ink-border bg-ink-bg px-3 py-2 text-ink-text outline-none focus:border-ink-accent"
             />
           </label>
         </div>
@@ -80,7 +80,7 @@ export function AuthScreen() {
         {error && (
           <p
             role="alert"
-            className="rounded-md border border-notion-danger px-3 py-2 text-sm text-notion-danger"
+            className="rounded-md border border-ink-danger px-3 py-2 text-sm text-ink-danger"
           >
             {error}
           </p>
@@ -89,7 +89,7 @@ export function AuthScreen() {
         <button
           type="submit"
           disabled={busy}
-          className="w-full rounded-md bg-notion-accent px-4 py-2 text-notion-on-accent hover:opacity-90 disabled:opacity-50"
+          className="w-full rounded-md bg-ink-accent px-4 py-2 text-ink-on-accent hover:opacity-90 disabled:opacity-50"
         >
           {busy ? "Working…" : mode === "signIn" ? "Sign in" : "Sign up"}
         </button>
@@ -100,7 +100,7 @@ export function AuthScreen() {
             setMode(mode === "signIn" ? "signUp" : "signIn");
             setError(null);
           }}
-          className="w-full text-sm text-notion-text-secondary hover:text-notion-accent"
+          className="w-full text-sm text-ink-text-secondary hover:text-ink-accent"
         >
           {mode === "signIn"
             ? "Need an account? Sign up"

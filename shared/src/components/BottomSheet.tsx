@@ -18,7 +18,7 @@ export interface BottomSheetProps {
  * the 2-layer model's "complex screen / Mobile split" path. Slides up
  * from the bottom edge, portal-rendered to <body>.
  *
- * §5: sheet PANEL is opaque (bg-notion-bg); backdrop bg-black/40 is the
+ * §5: sheet PANEL is opaque (bg-ink-bg); backdrop bg-black/40 is the
  * allowed overlay exception. A grab-handle bar communicates draggability
  * visually (gesture wiring is the host's concern). Escape closes for a11y
  * / desktop testing.
@@ -52,18 +52,18 @@ export function BottomSheet({
         aria-modal="true"
         aria-label={title}
         className={cn(
-          "w-full max-w-lg rounded-t-2xl border-t border-notion-border",
-          "bg-notion-bg px-5 pb-6 pt-3 shadow-xl",
+          "w-full max-w-lg rounded-t-2xl border-t border-ink-border",
+          "bg-ink-bg px-5 pb-6 pt-3 shadow-xl",
           className,
         )}
         onMouseDown={(e) => e.stopPropagation()}
       >
         <div
           aria-hidden="true"
-          className="mx-auto mb-3 h-1.5 w-10 rounded-full bg-notion-border"
+          className="mx-auto mb-3 h-1.5 w-10 rounded-full bg-ink-border"
         />
         {title ? (
-          <h2 className="mb-3 text-base font-semibold text-notion-text">
+          <h2 className="mb-3 text-base font-semibold text-ink-text">
             {title}
           </h2>
         ) : null}

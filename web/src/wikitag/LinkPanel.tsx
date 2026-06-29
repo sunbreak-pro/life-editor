@@ -101,9 +101,9 @@ export function LinkPanel({
   return (
     <section
       aria-label="Links"
-      className="space-y-2 rounded-md border border-notion-border bg-notion-bg-secondary p-2"
+      className="space-y-2 rounded-md border border-ink-border bg-ink-bg-secondary p-2"
     >
-      <header className="flex items-center gap-1 text-xs font-semibold text-notion-text-secondary">
+      <header className="flex items-center gap-1 text-xs font-semibold text-ink-text-secondary">
         <Link2 size={12} aria-hidden />
         Links
       </header>
@@ -122,7 +122,7 @@ export function LinkPanel({
           list={linkableItems.length > 0 ? datalistId : undefined}
           placeholder="Link to id…"
           aria-label="Link target"
-          className="min-w-[8rem] flex-1 rounded-md border border-notion-border bg-notion-bg px-2 py-1 text-xs text-notion-text focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-notion-accent"
+          className="min-w-[8rem] flex-1 rounded-md border border-ink-border bg-ink-bg px-2 py-1 text-xs text-ink-text focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ink-accent"
         />
         {linkableItems.length > 0 && (
           <datalist id={datalistId}>
@@ -137,7 +137,7 @@ export function LinkPanel({
           type="button"
           onClick={() => void handleAdd()}
           aria-label="Add link"
-          className="inline-flex items-center gap-0.5 rounded-md border border-notion-border bg-notion-bg px-2 py-1 text-xs text-notion-text hover:bg-notion-hover focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-notion-accent"
+          className="inline-flex items-center gap-0.5 rounded-md border border-ink-border bg-ink-bg px-2 py-1 text-xs text-ink-text hover:bg-ink-hover focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ink-accent"
         >
           <Plus size={12} aria-hidden />
           Add
@@ -147,32 +147,32 @@ export function LinkPanel({
       {error && (
         <p
           role="alert"
-          className="rounded-md border border-notion-danger px-2 py-1 text-xs text-notion-danger"
+          className="rounded-md border border-ink-danger px-2 py-1 text-xs text-ink-danger"
         >
           {error}
         </p>
       )}
 
       {loading ? (
-        <p className="text-xs text-notion-text-secondary">Loading links…</p>
+        <p className="text-xs text-ink-text-secondary">Loading links…</p>
       ) : (
         <div className="grid gap-2 md:grid-cols-2">
           <div>
-            <h4 className="mb-1 text-xs font-medium text-notion-text-secondary">
+            <h4 className="mb-1 text-xs font-medium text-ink-text-secondary">
               Outgoing ({outgoing.length})
             </h4>
             {outgoing.length === 0 ? (
-              <p className="text-xs text-notion-text-secondary">No links.</p>
+              <p className="text-xs text-ink-text-secondary">No links.</p>
             ) : (
               <ul className="space-y-0.5">
                 {outgoing.map((link) => (
                   <li
                     key={link.id}
-                    className="flex items-center justify-between gap-1 rounded-md border border-notion-border bg-notion-bg px-1.5 py-0.5 text-xs text-notion-text"
+                    className="flex items-center justify-between gap-1 rounded-md border border-ink-border bg-ink-bg px-1.5 py-0.5 text-xs text-ink-text"
                   >
                     <span
                       title={link.toItemId}
-                      className="truncate text-notion-text"
+                      className="truncate text-ink-text"
                     >
                       → {renderItemLabel(link.toItemId)}
                     </span>
@@ -180,7 +180,7 @@ export function LinkPanel({
                       type="button"
                       onClick={() => void handleDelete(link.id)}
                       aria-label="Remove link"
-                      className="text-notion-text-secondary hover:text-notion-danger focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-notion-accent rounded"
+                      className="text-ink-text-secondary hover:text-ink-danger focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ink-accent rounded"
                     >
                       <X size={10} aria-hidden />
                     </button>
@@ -190,11 +190,11 @@ export function LinkPanel({
             )}
           </div>
           <div>
-            <h4 className="mb-1 text-xs font-medium text-notion-text-secondary">
+            <h4 className="mb-1 text-xs font-medium text-ink-text-secondary">
               Backlinks ({incoming.length})
             </h4>
             {incoming.length === 0 ? (
-              <p className="text-xs text-notion-text-secondary">
+              <p className="text-xs text-ink-text-secondary">
                 No backlinks.
               </p>
             ) : (
@@ -202,7 +202,7 @@ export function LinkPanel({
                 {incoming.map((link) => (
                   <li
                     key={link.id}
-                    className="rounded-md border border-notion-border bg-notion-bg px-1.5 py-0.5 text-xs text-notion-text"
+                    className="rounded-md border border-ink-border bg-ink-bg px-1.5 py-0.5 text-xs text-ink-text"
                     title={link.fromItemId}
                   >
                     ← {renderItemLabel(link.fromItemId)}

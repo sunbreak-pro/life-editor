@@ -41,7 +41,7 @@ import { TreeDragGhost } from "../components/TreeDragGhost";
  * the web Notes tree). The heavy Tauri TaskTree (TipTap detail pane,
  * RightSidebar portal, i18n, full UndoRedo) is intentionally NOT ported
  * here — those are S3/S6 cross-cutting concerns. This is a functional,
- * notion-token-styled tree that exercises every shared tasks data path:
+ * ink-token-styled tree that exercises every shared tasks data path:
  * hierarchy render, expand/collapse, status cycle, add task/folder, rename,
  * soft-delete + restore, and @dnd-kit reorder + into-folder.
  *
@@ -80,7 +80,7 @@ function StatusButton({
       type="button"
       onClick={() => onCycle(node.id)}
       aria-label={`Toggle status (currently ${status})`}
-      className="w-4 shrink-0 text-notion-text-secondary hover:text-notion-accent"
+      className="w-4 shrink-0 text-ink-text-secondary hover:text-ink-accent"
     >
       {STATUS_GLYPH[status]}
     </button>
@@ -142,10 +142,10 @@ function TreeRow({
       ref={setNodeRef}
       className={`group relative rounded-md border px-2 py-1.5 ${
         showInside
-          ? "border-notion-accent bg-notion-accent-subtle"
+          ? "border-ink-accent bg-ink-accent-subtle"
           : selected
-            ? "border-notion-accent bg-notion-hover"
-            : "border-notion-border bg-notion-bg-secondary"
+            ? "border-ink-accent bg-ink-hover"
+            : "border-ink-border bg-ink-bg-secondary"
       }`}
     >
       {/* Reorder insertion line — accent bar pinned to the row's top or
@@ -153,13 +153,13 @@ function TreeRow({
       {dropPosition === "above" && (
         <span
           aria-hidden
-          className="pointer-events-none absolute inset-x-1 -top-px h-0.5 rounded-full bg-notion-accent"
+          className="pointer-events-none absolute inset-x-1 -top-px h-0.5 rounded-full bg-ink-accent"
         />
       )}
       {dropPosition === "below" && (
         <span
           aria-hidden
-          className="pointer-events-none absolute inset-x-1 -bottom-px h-0.5 rounded-full bg-notion-accent"
+          className="pointer-events-none absolute inset-x-1 -bottom-px h-0.5 rounded-full bg-ink-accent"
         />
       )}
       <div className="flex items-center gap-1">
@@ -169,7 +169,7 @@ function TreeRow({
           {...attributes}
           {...listeners}
           aria-label="Drag to reorder or move"
-          className="shrink-0 cursor-grab text-notion-text-secondary opacity-0 transition-opacity hover:text-notion-text focus-visible:opacity-100 group-hover:opacity-100"
+          className="shrink-0 cursor-grab text-ink-text-secondary opacity-0 transition-opacity hover:text-ink-text focus-visible:opacity-100 group-hover:opacity-100"
         >
           <GripVertical size={14} aria-hidden />
         </button>
@@ -184,7 +184,7 @@ function TreeRow({
             onClick={() => onToggleExpand(node.id)}
             aria-label={expanded ? "Collapse" : "Expand"}
             aria-expanded={expanded}
-            className="relative inline-flex h-[14px] w-[14px] shrink-0 items-center justify-center text-notion-text-secondary hover:text-notion-text"
+            className="relative inline-flex h-[14px] w-[14px] shrink-0 items-center justify-center text-ink-text-secondary hover:text-ink-text"
           >
             <Folder
               size={14}
@@ -226,10 +226,10 @@ function TreeRow({
           }
           className={
             isFolder
-              ? "min-w-0 flex-1 truncate text-left font-medium text-notion-text"
+              ? "min-w-0 flex-1 truncate text-left font-medium text-ink-text"
               : node.status === "DONE"
-                ? "min-w-0 flex-1 truncate text-left text-notion-text-secondary line-through"
-                : "min-w-0 flex-1 truncate text-left text-notion-text"
+                ? "min-w-0 flex-1 truncate text-left text-ink-text-secondary line-through"
+                : "min-w-0 flex-1 truncate text-left text-ink-text"
           }
         >
           {node.title || "(untitled)"}
@@ -242,10 +242,10 @@ function TreeRow({
             aria-expanded={linkOpen}
             aria-label={linkOpen ? "Hide links" : "Show links"}
             title="Links"
-            className={`rounded p-1 hover:bg-notion-hover ${
+            className={`rounded p-1 hover:bg-ink-hover ${
               linkOpen
-                ? "text-notion-accent"
-                : "text-notion-text-secondary hover:text-notion-accent"
+                ? "text-ink-accent"
+                : "text-ink-text-secondary hover:text-ink-accent"
             }`}
           >
             <Link2 size={14} aria-hidden />
@@ -256,7 +256,7 @@ function TreeRow({
               onClick={() => onAddChild(node.id)}
               aria-label="Add child task"
               title="Add child task"
-              className="rounded p-1 text-notion-text-secondary hover:bg-notion-hover hover:text-notion-accent"
+              className="rounded p-1 text-ink-text-secondary hover:bg-ink-hover hover:text-ink-accent"
             >
               <Plus size={14} aria-hidden />
             </button>
@@ -266,7 +266,7 @@ function TreeRow({
             onClick={() => onRename(node.id, node.title)}
             aria-label="Rename"
             title="Rename"
-            className="rounded p-1 text-notion-text-secondary hover:bg-notion-hover hover:text-notion-accent"
+            className="rounded p-1 text-ink-text-secondary hover:bg-ink-hover hover:text-ink-accent"
           >
             <Pencil size={14} aria-hidden />
           </button>
@@ -275,7 +275,7 @@ function TreeRow({
             onClick={() => onSoftDelete(node.id)}
             aria-label="Delete"
             title="Delete"
-            className="rounded p-1 text-notion-text-secondary hover:bg-notion-hover hover:text-notion-danger"
+            className="rounded p-1 text-ink-text-secondary hover:bg-ink-hover hover:text-ink-danger"
           >
             <Trash2 size={14} aria-hidden />
           </button>
@@ -408,7 +408,7 @@ export function TaskTreeView() {
   const ids: UniqueIdentifier[] = flat.map((r) => r.node.id);
 
   if (tree.isLoading) {
-    return <p className="text-notion-text-secondary">Loading tasks…</p>;
+    return <p className="text-ink-text-secondary">Loading tasks…</p>;
   }
 
   const selected = tree.selectedTask;
@@ -424,14 +424,14 @@ export function TaskTreeView() {
           <button
             type="button"
             onClick={() => addRoot("task")}
-            className="rounded-md bg-notion-accent px-3 py-1.5 text-sm text-notion-on-accent hover:opacity-90"
+            className="rounded-md bg-ink-accent px-3 py-1.5 text-sm text-ink-on-accent hover:opacity-90"
           >
             + Task
           </button>
           <button
             type="button"
             onClick={() => addRoot("folder")}
-            className="rounded-md border border-notion-border px-3 py-1.5 text-sm text-notion-text hover:bg-notion-hover"
+            className="rounded-md border border-ink-border px-3 py-1.5 text-sm text-ink-text hover:bg-ink-hover"
           >
             + Folder
           </button>
@@ -441,7 +441,7 @@ export function TaskTreeView() {
             type="button"
             disabled={!tree.canUndo}
             onClick={tree.undo}
-            className="text-notion-text-secondary disabled:opacity-40"
+            className="text-ink-text-secondary disabled:opacity-40"
           >
             Undo
           </button>
@@ -449,7 +449,7 @@ export function TaskTreeView() {
             type="button"
             disabled={!tree.canRedo}
             onClick={tree.redo}
-            className="text-notion-text-secondary disabled:opacity-40"
+            className="text-ink-text-secondary disabled:opacity-40"
           >
             Redo
           </button>
@@ -459,7 +459,7 @@ export function TaskTreeView() {
       {tree.error && (
         <p
           role="alert"
-          className="rounded-md border border-notion-danger px-3 py-2 text-sm text-notion-danger"
+          className="rounded-md border border-ink-danger px-3 py-2 text-sm text-ink-danger"
         >
           {tree.error}
         </p>
@@ -467,7 +467,7 @@ export function TaskTreeView() {
       {tree.persistError && (
         <p
           role="alert"
-          className="rounded-md border border-notion-danger px-3 py-2 text-sm text-notion-danger"
+          className="rounded-md border border-ink-danger px-3 py-2 text-sm text-ink-danger"
         >
           Save failed: {tree.persistError}
         </p>
@@ -475,14 +475,14 @@ export function TaskTreeView() {
       {moveError && (
         <p
           role="alert"
-          className="rounded-md border border-notion-danger px-3 py-2 text-sm text-notion-danger"
+          className="rounded-md border border-ink-danger px-3 py-2 text-sm text-ink-danger"
         >
           {moveError}
         </p>
       )}
 
       {flat.length === 0 ? (
-        <p className="text-notion-text-secondary">
+        <p className="text-ink-text-secondary">
           No tasks yet. Add one above.
         </p>
       ) : (
@@ -536,8 +536,8 @@ export function TaskTreeView() {
       )}
 
       {tree.deletedNodes.length > 0 && (
-        <details className="rounded-md border border-notion-border px-3 py-2">
-          <summary className="cursor-pointer text-sm text-notion-text-secondary">
+        <details className="rounded-md border border-ink-border px-3 py-2">
+          <summary className="cursor-pointer text-sm text-ink-text-secondary">
             Trash ({tree.deletedNodes.length})
           </summary>
           <ul className="mt-2 space-y-1">
@@ -546,7 +546,7 @@ export function TaskTreeView() {
                 key={n.id}
                 className="flex items-center justify-between text-sm"
               >
-                <span className="text-notion-text-secondary line-through">
+                <span className="text-ink-text-secondary line-through">
                   {n.title || "(untitled)"}
                 </span>
                 <span className="flex items-center gap-0.5">
@@ -555,7 +555,7 @@ export function TaskTreeView() {
                     onClick={() => tree.restoreNode(n.id)}
                     aria-label="Restore"
                     title="Restore"
-                    className="rounded p-1 text-notion-text-secondary hover:bg-notion-hover hover:text-notion-accent"
+                    className="rounded p-1 text-ink-text-secondary hover:bg-ink-hover hover:text-ink-accent"
                   >
                     <RotateCcw size={14} aria-hidden />
                   </button>
@@ -564,7 +564,7 @@ export function TaskTreeView() {
                     onClick={() => tree.permanentDelete(n.id)}
                     aria-label="Delete permanently"
                     title="Delete permanently"
-                    className="rounded p-1 text-notion-text-secondary hover:bg-notion-hover hover:text-notion-danger"
+                    className="rounded p-1 text-ink-text-secondary hover:bg-ink-hover hover:text-ink-danger"
                   >
                     <Trash2 size={14} aria-hidden />
                   </button>

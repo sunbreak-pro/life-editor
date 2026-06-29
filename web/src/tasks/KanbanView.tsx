@@ -223,7 +223,7 @@ export function KanbanView(): React.JSX.Element {
   }, [dnd.activeCardId, columns]);
 
   if (tree.isLoading) {
-    return <p className="text-notion-text-secondary">Loading tasks…</p>;
+    return <p className="text-ink-text-secondary">Loading tasks…</p>;
   }
 
   // "+ Add" entry point in the board toolbar — opens the add dialog.
@@ -231,7 +231,7 @@ export function KanbanView(): React.JSX.Element {
     <button
       type="button"
       onClick={() => setAddOpen(true)}
-      className="inline-flex shrink-0 items-center gap-1 rounded-md bg-notion-accent px-3 py-1.5 text-sm font-semibold text-notion-on-accent transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-notion-accent"
+      className="inline-flex shrink-0 items-center gap-1 rounded-md bg-ink-accent px-3 py-1.5 text-sm font-semibold text-ink-on-accent transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink-accent"
     >
       <Plus size={15} aria-hidden />
       {t("kanban.addTask")}
@@ -313,7 +313,7 @@ export function KanbanView(): React.JSX.Element {
       {moveError && (
         <p
           role="alert"
-          className="mb-2 rounded-md border border-notion-danger px-3 py-2 text-sm text-notion-danger"
+          className="mb-2 rounded-md border border-ink-danger px-3 py-2 text-sm text-ink-danger"
         >
           {moveError}
         </p>

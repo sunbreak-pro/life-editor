@@ -39,7 +39,7 @@ export interface MasterDetailProps {
  * Pure presentation: DataService-free (§3.1), no useTranslation — copy
  * (emptyDetail / detailTitle / closeLabel) is injected by the host (§6.4).
  * Selection lives with the host section (NOT lifted to the shell): this
- * primitive only takes `detailOpen` + `onCloseDetail`. notion-* tokens
+ * primitive only takes `detailOpen` + `onCloseDetail`. ink-* tokens
  * only; the sheet panel is opaque (§5, backdrop bg-black/40 is BottomSheet's
  * allowed overlay exception).
  */
@@ -69,7 +69,7 @@ export function MasterDetail({
           {detailOpen ? (
             detail
           ) : (
-            <div className="rounded-md border border-notion-border bg-notion-bg-secondary px-4 py-6 text-sm text-notion-text-secondary">
+            <div className="rounded-md border border-ink-border bg-ink-bg-secondary px-4 py-6 text-sm text-ink-text-secondary">
               {emptyDetail}
             </div>
           )}
@@ -94,7 +94,7 @@ export function MasterDetail({
             type="button"
             onClick={onCloseDetail}
             aria-label={closeLabel}
-            className="rounded-md p-1 text-notion-text-secondary hover:bg-notion-hover hover:text-notion-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-notion-accent focus-visible:ring-offset-2 focus-visible:ring-offset-notion-bg"
+            className="rounded-md p-1 text-ink-text-secondary hover:bg-ink-hover hover:text-ink-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink-accent focus-visible:ring-offset-2 focus-visible:ring-offset-ink-bg"
           >
             <X size={16} aria-hidden />
           </button>

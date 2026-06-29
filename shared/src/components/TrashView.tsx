@@ -11,7 +11,7 @@ import { Modal } from "./Modal";
  * DU-G + called getDataService directly). This rewrite takes all data +
  * actions via props (CLAUDE.md §6.4): the host (web TrashScreen) fetches
  * the soft-deleted rows for every category and resolves i18n, this part
- * only renders + emits restore / permanentDelete intents. notion-* tokens
+ * only renders + emits restore / permanentDelete intents. ink-* tokens
  * only; Card/Modal panels are opaque (§5).
  */
 
@@ -87,33 +87,33 @@ export function TrashView({
 
   return (
     <div className="space-y-4">
-      <h2 className="text-base font-semibold text-notion-text">
+      <h2 className="text-base font-semibold text-ink-text">
         {labels.title}
       </h2>
 
       {totalCount === 0 ? (
-        <Card className="text-center text-sm text-notion-text-secondary">
+        <Card className="text-center text-sm text-ink-text-secondary">
           {labels.empty}
         </Card>
       ) : (
         groups.map((group) => (
           <section key={group.category} className="space-y-2">
-            <h3 className="text-xs font-medium uppercase tracking-wider text-notion-text-secondary">
+            <h3 className="text-xs font-medium uppercase tracking-wider text-ink-text-secondary">
               {group.title}
             </h3>
             {group.items.length === 0 ? (
-              <p className="px-1 text-sm text-notion-text-secondary">
+              <p className="px-1 text-sm text-ink-text-secondary">
                 {labels.emptyCategory}
               </p>
             ) : (
               <Card padding="none">
-                <ul className="divide-y divide-notion-border">
+                <ul className="divide-y divide-ink-border">
                   {group.items.map((item) => (
                     <li
                       key={item.id}
                       className="flex items-center gap-2 px-3 py-2"
                     >
-                      <span className="flex-1 truncate text-sm text-notion-text">
+                      <span className="flex-1 truncate text-sm text-ink-text">
                         {item.label}
                       </span>
                       <IconButton
@@ -148,7 +148,7 @@ export function TrashView({
         onClose={() => setPending(null)}
         title={labels.deletePermanently}
       >
-        <p className="mb-4 text-sm text-notion-text">
+        <p className="mb-4 text-sm text-ink-text">
           {pending
             ? labels.confirmMessage.replace("{name}", pending.item.label)
             : ""}

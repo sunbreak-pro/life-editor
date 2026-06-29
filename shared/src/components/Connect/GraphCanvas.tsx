@@ -156,7 +156,7 @@ export function GraphCanvas({
   }, [onApiReady, reheat, resetView]);
 
   return (
-    <div ref={wrapRef} className="relative h-full w-full bg-notion-bg">
+    <div ref={wrapRef} className="relative h-full w-full bg-ink-bg">
       <canvas
         ref={canvasRef}
         style={{

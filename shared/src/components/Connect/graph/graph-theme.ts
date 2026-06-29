@@ -1,7 +1,7 @@
 import type { GraphLinkKind, GraphNode, GraphNodeType } from "./graph-types";
 
 // Canvas 2D cannot use Tailwind classes, so graph colors are resolved from
-// the live CSS custom properties (the same `--color-*` vars `notion-*`
+// the live CSS custom properties (the same `--color-*` vars `ink-*`
 // tokens reference). This keeps the graph in sync with light/dark and any
 // runtime theme change. No hard-coded colors — CLAUDE.md §6.4.
 

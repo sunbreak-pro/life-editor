@@ -20,15 +20,15 @@ export function PeriodSelector({
   labels,
 }: PeriodSelectorProps): React.JSX.Element {
   return (
-    <div className="flex gap-1 bg-notion-bg-secondary rounded-lg p-1 border border-notion-border">
+    <div className="flex gap-1 bg-ink-bg-secondary rounded-lg p-1 border border-ink-border">
       {PERIODS.map((p) => (
         <button
           key={p}
           onClick={() => onChange(p)}
           className={`px-3 py-1 rounded-md text-xs font-medium transition-colors ${
             value === p
-              ? "bg-notion-accent text-notion-on-accent shadow-sm"
-              : "text-notion-text-secondary hover:text-notion-text hover:bg-notion-hover"
+              ? "bg-ink-accent text-ink-on-accent shadow-sm"
+              : "text-ink-text-secondary hover:text-ink-text hover:bg-ink-hover"
           }`}
         >
           {labels[p]}
