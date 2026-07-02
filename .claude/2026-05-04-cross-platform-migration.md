@@ -188,7 +188,7 @@ life-editor/
     └── migrations/
 ```
 
-並立期間中の `frontend/` + `src-tauri/` + `cloud/` は触らず維持。Phase 5 で削除。
+並立期間中の `frontend/` + `src-tauri/` は触らず維持。Phase 5 で削除（`cloud/` は 2026-06-28 に先行撤去済 — Supabase 直結で実行経路外の dead stack だったため）。
 
 ### 8. 配布・署名の現実（Mac App Store / Microsoft Store スコープ外）
 
@@ -249,16 +249,16 @@ life-editor/
 
 #### 影響ファイル
 
-| File                                         | Operation | Notes                                       |
-| -------------------------------------------- | --------- | ------------------------------------------- |
-| `web/`                                       | 新規      | Vite + React + TS + Tailwind 雛形           |
-| `shared/`                                    | 新規      | React 本体（最初は services/ のみ）         |
-| `shared/src/services/DataService.ts`         | コピー    | frontend/ から interface のみ               |
-| `shared/src/services/SupabaseDataService.ts` | 新規      | Postgres 実装                               |
-| `supabase/migrations/0001_initial.sql`       | 新規      | tasks のみ                                  |
-| `supabase/migrations/0002_full_schema.sql`   | 新規      | Tasks / Schedule / Notes / Daily / WikiTags |
-| `scripts/migrate-sqlite-to-supabase.ts`      | 任意      | データ移行（不要なら作らない）              |
-| `frontend/`, `src-tauri/`, `cloud/`          | 触らない  | 並立期間は維持                              |
+| File                                         | Operation | Notes                                           |
+| -------------------------------------------- | --------- | ----------------------------------------------- |
+| `web/`                                       | 新規      | Vite + React + TS + Tailwind 雛形               |
+| `shared/`                                    | 新規      | React 本体（最初は services/ のみ）             |
+| `shared/src/services/DataService.ts`         | コピー    | frontend/ から interface のみ                   |
+| `shared/src/services/SupabaseDataService.ts` | 新規      | Postgres 実装                                   |
+| `supabase/migrations/0001_initial.sql`       | 新規      | tasks のみ                                      |
+| `supabase/migrations/0002_full_schema.sql`   | 新規      | Tasks / Schedule / Notes / Daily / WikiTags     |
+| `scripts/migrate-sqlite-to-supabase.ts`      | 任意      | データ移行（不要なら作らない）                  |
+| `frontend/`, `src-tauri/`                    | 触らない  | 並立期間は維持（`cloud/` は 2026-06-28 撤去済） |
 
 #### Phase 1 完了判定 — ✅ 全達成（2026-05-16）
 
@@ -397,7 +397,7 @@ life-editor/
 
 - [ ] `frontend/` を `archive/frontend-tauri/` に移動 or 削除
 - [ ] `src-tauri/` 削除
-- [ ] `cloud/`(Cloudflare Workers + D1)削除
+- [x] `cloud/`(Cloudflare Workers + D1)削除（2026-06-28 先行撤去 — dead stack）
 - [ ] **CLAUDE.md 全面改訂**(アーキテクチャ章を新スタック前提に書き換え)
 - [ ] **`docs/vision/core.md` 全面改訂**(Web UI 否定 / Desktop ネイティブのみ を反転、移行警告ヘッダ削除)
 - [ ] **`docs/vision/db-conventions.md` を Postgres + RLS 版に書き換え**
