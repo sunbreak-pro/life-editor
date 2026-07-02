@@ -766,6 +766,8 @@
       "addLink": "リンクを追加",
       "removeLink": "リンクを削除",
       "linkTargetPlaceholder": "リンク先 id…",
+      "linkCreateFailed": "リンクの追加に失敗しました",
+      "linkDeleteFailed": "リンクの削除に失敗しました",
       "selectNodeHint": "キャンバスでノードを選択するとローカルグラフが有効になります",
       "tapHint": "ノードをタップで中央へ。ドラッグで移動。ピンチ / スクロールでズーム。",
       "links": "リンク",

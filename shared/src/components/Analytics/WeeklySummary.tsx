@@ -130,7 +130,7 @@ function ComparisonCard({
         {isUp ? (
           <TrendingUp size={12} className="text-ink-success" />
         ) : isDown ? (
-          <TrendingDown size={12} className="text-red-500" />
+          <TrendingDown size={12} className="text-ink-danger" />
         ) : (
           <Minus size={12} className="text-ink-text-secondary" />
         )}
@@ -139,7 +139,7 @@ function ComparisonCard({
             isUp
               ? "text-ink-success"
               : isDown
-                ? "text-red-500"
+                ? "text-ink-danger"
                 : "text-ink-text-secondary"
           }`}
         >

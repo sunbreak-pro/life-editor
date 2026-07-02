@@ -766,6 +766,8 @@
       "addLink": "Add link",
       "removeLink": "Remove link",
       "linkTargetPlaceholder": "Link to id…",
+      "linkCreateFailed": "Failed to add link",
+      "linkDeleteFailed": "Failed to remove link",
       "selectNodeHint": "Select a node on the canvas to enable Local Graph",
       "tapHint": "Tap a node to center it. Drag to move. Pinch / scroll to zoom.",
       "links": "links",

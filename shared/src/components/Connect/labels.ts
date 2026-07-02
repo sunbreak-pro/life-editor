@@ -49,6 +49,17 @@ export interface ConnectGraphLabels {
   addLink: string;
   removeLink: string;
   linkTargetPlaceholder: string;
+  /**
+   * connect.graph.linkCreateFailed — inline error shown when the wired
+   * onCreateLink rejects (e.g. a pasted id that fails the DB write). Resolved
+   * by the web host (ConnectScreen) from the en/ja catalog leaves. Kept
+   * OPTIONAL so other hosts (Electron / Capacitor) that have not wired it yet
+   * stay compile-compatible; the card falls back to an English default when a
+   * host leaves it unset.
+   */
+  linkCreateFailed?: string;
+  /** connect.graph.linkDeleteFailed — inline error when onDeleteLink rejects (see linkCreateFailed). */
+  linkDeleteFailed?: string;
 
   // ---- backlinks (backlinks.*) ----
   backlinksTitle: string;

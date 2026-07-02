@@ -36,10 +36,13 @@ export interface ConnectGraphViewProps {
   onOpenNote?: (noteId: string) => void;
   /** open a daily by date */
   onOpenDaily?: (date: string) => void;
-  /** create a directed item↔item link (host wires the context mutator) */
-  onCreateLink?: (fromId: string, toId: string) => void;
-  /** delete the link identified by `linkId` (host wires the context mutator) */
-  onDeleteLink?: (linkId: string) => void;
+  /**
+   * create a directed item↔item link (host wires the context mutator). May
+   * return a promise; a rejection surfaces an inline notice on the node card.
+   */
+  onCreateLink?: (fromId: string, toId: string) => void | Promise<void>;
+  /** delete the link identified by `linkId` (host wires the context mutator). Rejection → inline notice. */
+  onDeleteLink?: (linkId: string) => void | Promise<void>;
 }
 
 /**

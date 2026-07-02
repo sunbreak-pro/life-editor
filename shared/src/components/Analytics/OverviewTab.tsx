@@ -149,7 +149,7 @@ export function OverviewTab({
           icon={<CalendarCheck2 size={20} />}
           label={labels.events}
           value={stats.todayEvents}
-          color="text-blue-500"
+          color="text-ink-accent"
           subtitle={`${stats.todayEventsCompleted} ${labels.completed} ${labels.today}`}
         />
         <AnalyticsStatCard
