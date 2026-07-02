@@ -51,11 +51,11 @@ export interface ConnectGraphLabels {
   linkTargetPlaceholder: string;
   /**
    * connect.graph.linkCreateFailed — inline error shown when the wired
-   * onCreateLink rejects (e.g. a pasted id that fails the DB write). OPTIONAL
-   * for now: the host (web ConnectScreen) does not yet resolve this key and no
-   * `connect.graph.linkCreateFailed` catalog leaf exists, so the card falls
-   * back to an English default until both are wired. Make required once the
-   * catalog + host provide it.
+   * onCreateLink rejects (e.g. a pasted id that fails the DB write). Resolved
+   * by the web host (ConnectScreen) from the en/ja catalog leaves. Kept
+   * OPTIONAL so other hosts (Electron / Capacitor) that have not wired it yet
+   * stay compile-compatible; the card falls back to an English default when a
+   * host leaves it unset.
    */
   linkCreateFailed?: string;
   /** connect.graph.linkDeleteFailed — inline error when onDeleteLink rejects (see linkCreateFailed). */
