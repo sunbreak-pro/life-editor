@@ -140,6 +140,10 @@ export function Menu({
  * A single menu row. tabIndex=-1 (roving focus is driven by <Menu>); the
  * focused row lights up via focus:bg-ink-hover. "danger" tints the label with
  * the danger token. Disabled rows are inert + tertiary-toned. ink-* only.
+ *
+ * onSelect does NOT close the menu — that stays the host's responsibility
+ * (flip `open` to false inside your onSelect, or keep the menu open for a
+ * multi-pick surface). This mirrors the controlled-open contract of <Menu>.
  */
 export function MenuItem({
   icon,

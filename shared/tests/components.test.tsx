@@ -482,4 +482,23 @@ describe("Menu / MenuItem", () => {
     fireEvent.keyDown(menu, { key: "Tab" });
     expect(onClose).toHaveBeenCalledTimes(1);
   });
+
+  it("wraps to the last item on ArrowUp when no item is focused (idx=-1)", () => {
+    render(
+      <Menu open onClose={() => {}} label="Actions">
+        <MenuItem onSelect={() => {}}>Rename</MenuItem>
+        <MenuItem onSelect={() => {}}>Duplicate</MenuItem>
+      </Menu>,
+    );
+    const menu = screen.getByRole("menu", { name: "Actions" });
+    const items = screen.getAllByRole("menuitem");
+    // Force the idx=-1 branch: focus is on nothing in the item list.
+    (document.activeElement as HTMLElement | null)?.blur?.();
+    fireEvent.keyDown(menu, { key: "ArrowUp" });
+    expect(items[items.length - 1]).toHaveFocus();
+    // ArrowDown from idx=-1 goes to the first item deterministically.
+    (document.activeElement as HTMLElement | null)?.blur?.();
+    fireEvent.keyDown(menu, { key: "ArrowDown" });
+    expect(items[0]).toHaveFocus();
+  });
 });
