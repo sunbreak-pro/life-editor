@@ -32,7 +32,7 @@ export interface BottomTabBarProps {
  * `maxVisible` sections as fixed tabs; the rest overflow into a "More"
  * tab that opens the shared BottomSheet. `env(safe-area-inset-bottom)`
  * keeps the bar clear of the iOS home indicator. Pure presentation:
- * sections + labels injected (§3.1 / §6.4), notion-* tokens, opaque bar
+ * sections + labels injected (§3.1 / §6.4), ink-* tokens, opaque bar
  * background (§5).
  */
 export function BottomTabBar({
@@ -52,17 +52,17 @@ export function BottomTabBar({
   const tabClass = (isActive: boolean) =>
     cn(
       "flex flex-1 flex-col items-center gap-0.5 py-2 text-xs transition-colors",
-      "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-notion-accent",
+      "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink-accent",
       isActive
-        ? "text-notion-accent"
-        : "text-notion-text-secondary hover:text-notion-text",
+        ? "text-ink-accent"
+        : "text-ink-text-secondary hover:text-ink-text",
     );
 
   return (
     <>
       <nav
         aria-label={labels.moreTitle}
-        className="flex shrink-0 border-t border-notion-border bg-notion-bg pb-[env(safe-area-inset-bottom)]"
+        className="flex shrink-0 border-t border-ink-border bg-ink-bg pb-[env(safe-area-inset-bottom)]"
       >
         {visible.map((s) => {
           const isActive = activeSection === s.id;
@@ -117,15 +117,15 @@ export function BottomTabBar({
                     className={cn(
                       "flex w-full items-center gap-2.5 rounded-md px-2.5 py-2.5 text-sm",
                       "transition-colors focus-visible:outline-none",
-                      "focus-visible:ring-2 focus-visible:ring-notion-accent",
+                      "focus-visible:ring-2 focus-visible:ring-ink-accent",
                       isActive
-                        ? "bg-notion-hover font-medium text-notion-text"
-                        : "text-notion-text-secondary hover:bg-notion-hover hover:text-notion-text",
+                        ? "bg-ink-hover font-medium text-ink-text"
+                        : "text-ink-text-secondary hover:bg-ink-hover hover:text-ink-text",
                     )}
                   >
                     <span
                       aria-hidden="true"
-                      className={cn("shrink-0", isActive && "text-notion-accent")}
+                      className={cn("shrink-0", isActive && "text-ink-accent")}
                     >
                       {s.icon}
                     </span>

@@ -26,20 +26,20 @@ export function Section({
         className="w-full flex items-center justify-between"
       >
         <span className="flex items-center gap-2">
-          {Icon && <Icon size={12} className="text-notion-accent" />}
-          <span className="text-[10px] uppercase tracking-[0.18em] font-medium text-notion-text-secondary">
+          {Icon && <Icon size={12} className="text-ink-accent" />}
+          <span className="text-[10px] uppercase tracking-[0.18em] font-medium text-ink-text-secondary">
             {title}
           </span>
           {count != null && (
-            <span className="font-mono text-[9px] px-1 rounded bg-notion-hover text-notion-text-secondary">
+            <span className="font-mono text-[9px] px-1 rounded bg-ink-hover text-ink-text-secondary">
               {count}
             </span>
           )}
         </span>
         {open ? (
-          <ChevronDown size={12} className="text-notion-text-secondary" />
+          <ChevronDown size={12} className="text-ink-text-secondary" />
         ) : (
-          <ChevronRight size={12} className="text-notion-text-secondary" />
+          <ChevronRight size={12} className="text-ink-text-secondary" />
         )}
       </button>
       {open && <div className="space-y-2">{children}</div>}

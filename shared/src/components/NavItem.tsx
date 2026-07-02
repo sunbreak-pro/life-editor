@@ -15,7 +15,7 @@ export interface NavItemProps {
 
 /*
  * Sidebar navigation row primitive (W5 app shell). Icon + label, with a
- * collapsed (icon-only) variant for the narrow sidebar. notion-* tokens
+ * collapsed (icon-only) variant for the narrow sidebar. ink-* tokens
  * only (§6.4); the active row uses the opaque hover token + accent icon
  * (no transparency on the container, §5). Copy is injected as `label`
  * (no useTranslation here).
@@ -38,17 +38,17 @@ export function NavItem({
       className={cn(
         "flex w-full items-center gap-2.5 rounded-md px-2.5 py-1.5 text-sm",
         "transition-colors focus-visible:outline-none focus-visible:ring-2",
-        "focus-visible:ring-notion-accent",
+        "focus-visible:ring-ink-accent",
         collapsed && "justify-center px-0",
         active
-          ? "bg-notion-hover font-medium text-notion-text"
-          : "text-notion-text-secondary hover:bg-notion-hover hover:text-notion-text",
+          ? "bg-ink-hover font-medium text-ink-text"
+          : "text-ink-text-secondary hover:bg-ink-hover hover:text-ink-text",
         className,
       )}
     >
       <span
         aria-hidden="true"
-        className={cn("shrink-0", active && "text-notion-accent")}
+        className={cn("shrink-0", active && "text-ink-accent")}
       >
         {icon}
       </span>

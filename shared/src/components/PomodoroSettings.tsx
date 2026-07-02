@@ -6,7 +6,7 @@ import { Input } from "./Input";
 import { IconButton } from "./IconButton";
 
 /*
- * Pomodoro settings + preset editor (W3-B). Pure primitive — notion-* tokens,
+ * Pomodoro settings + preset editor (W3-B). Pure primitive — ink-* tokens,
  * opaque container (§5), all copy injected (§6.4). Durations are edited in
  * MINUTES (matching the 0018 columns + domain TimerSettings). The host (which
  * reads useTimerContext) supplies the current values + the mutators; this
@@ -113,27 +113,27 @@ export function PomodoroSettings(props: PomodoroSettingsProps) {
         />
       </div>
 
-      <label className="flex items-center justify-between gap-2 text-sm text-notion-text">
+      <label className="flex items-center justify-between gap-2 text-sm text-ink-text">
         <span>{labels.autoStartBreaks}</span>
         <input
           type="checkbox"
           checked={props.autoStartBreaks}
           onChange={(e) => props.onAutoStartBreaksChange(e.target.checked)}
-          className="h-4 w-4 accent-notion-accent"
+          className="h-4 w-4 accent-ink-accent"
         />
       </label>
 
-      <div className="flex flex-col gap-2 border-t border-notion-border pt-3">
-        <h3 className="text-xs font-semibold uppercase tracking-wide text-notion-text-secondary">
+      <div className="flex flex-col gap-2 border-t border-ink-border pt-3">
+        <h3 className="text-xs font-semibold uppercase tracking-wide text-ink-text-secondary">
           {labels.presets}
         </h3>
         <ul className="flex flex-col gap-1">
           {presets.map((p) => (
             <li
               key={p.id}
-              className="flex items-center justify-between gap-2 rounded-md bg-notion-bg-secondary px-3 py-1.5"
+              className="flex items-center justify-between gap-2 rounded-md bg-ink-bg-secondary px-3 py-1.5"
             >
-              <span className="truncate text-sm text-notion-text">
+              <span className="truncate text-sm text-ink-text">
                 {p.name}
               </span>
               <div className="flex items-center gap-1">
@@ -192,8 +192,8 @@ function NumberField({
   onChange: (v: number) => void;
 }) {
   return (
-    <label className="flex flex-col gap-1 text-sm text-notion-text">
-      <span className="text-xs text-notion-text-secondary">
+    <label className="flex flex-col gap-1 text-sm text-ink-text">
+      <span className="text-xs text-ink-text-secondary">
         {label}
         {unit ? ` (${unit})` : ""}
       </span>

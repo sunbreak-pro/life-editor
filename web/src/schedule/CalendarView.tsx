@@ -4,7 +4,7 @@ import { useCalendarContext, useTaskTreeContext } from "@life-editor/shared";
 /*
  * Web Schedule UI — S4-6 Calendars slice.
  *
- * Lean, purpose-built notion-token view (NOT a port of the Tauri
+ * Lean, purpose-built ink-token view (NOT a port of the Tauri
  * calendar grid — intentionally out of scope, plan §スコープ外). It
  * exercises every shared `calendars` data path S4-6 exposes: create
  * (title + folderId — a calendar is a folder-scoped view, folder_id FKs
@@ -68,26 +68,26 @@ export function CalendarView() {
 
   if (isLoading) {
     return (
-      <p className="text-sm text-notion-text-secondary">Loading calendars…</p>
+      <p className="text-sm text-ink-text-secondary">Loading calendars…</p>
     );
   }
 
   if (error) {
     return (
-      <p className="text-sm text-notion-text-secondary">
+      <p className="text-sm text-ink-text-secondary">
         Could not load calendars: {error}
       </p>
     );
   }
 
   return (
-    <section className="space-y-3 rounded-md border border-notion-border p-3">
-      <h2 className="text-sm font-semibold text-notion-text">
+    <section className="space-y-3 rounded-md border border-ink-border p-3">
+      <h2 className="text-sm font-semibold text-ink-text">
         Calendars ({calendars.length})
       </h2>
 
       {folderTasks.length === 0 ? (
-        <p className="text-sm text-notion-text-secondary">
+        <p className="text-sm text-ink-text-secondary">
           フォルダタスクを先に作成してください。カレンダーは既存のフォルダ
           タスクに紐づくビューです (folder-type task が 0 件のため作成不可)。
         </p>
@@ -103,13 +103,13 @@ export function CalendarView() {
               }
             }}
             placeholder="Calendar title"
-            className="min-w-[10rem] flex-1 rounded-md border border-notion-border bg-notion-bg px-2 py-1 text-sm text-notion-text"
+            className="min-w-[10rem] flex-1 rounded-md border border-ink-border bg-ink-bg px-2 py-1 text-sm text-ink-text"
           />
           <select
             value={newFolderId}
             onChange={(e) => setNewFolderId(e.target.value)}
             aria-label="Folder task"
-            className="min-w-[8rem] flex-1 rounded-md border border-notion-border bg-notion-bg px-2 py-1 text-sm text-notion-text"
+            className="min-w-[8rem] flex-1 rounded-md border border-ink-border bg-ink-bg px-2 py-1 text-sm text-ink-text"
           >
             <option value="">Select a folder…</option>
             {folderTasks.map((f) => (
@@ -122,7 +122,7 @@ export function CalendarView() {
             type="button"
             onClick={handleCreate}
             disabled={!newTitle.trim() || !newFolderId}
-            className="rounded-md border border-notion-border px-3 py-1 text-sm text-notion-text hover:bg-notion-hover disabled:cursor-not-allowed disabled:opacity-50"
+            className="rounded-md border border-ink-border px-3 py-1 text-sm text-ink-text hover:bg-ink-hover disabled:cursor-not-allowed disabled:opacity-50"
           >
             Add
           </button>
@@ -133,7 +133,7 @@ export function CalendarView() {
         {calendars.map((cal) => (
           <li
             key={cal.id}
-            className="flex flex-wrap items-center gap-2 rounded-md border border-notion-border p-2"
+            className="flex flex-wrap items-center gap-2 rounded-md border border-ink-border p-2"
           >
             <input
               type="text"
@@ -142,22 +142,22 @@ export function CalendarView() {
                 updateCalendar(cal.id, { title: e.target.value })
               }
               aria-label={`Title for ${cal.title}`}
-              className="min-w-[8rem] flex-1 rounded-md border border-notion-border bg-notion-bg px-2 py-1 text-sm text-notion-text"
+              className="min-w-[8rem] flex-1 rounded-md border border-ink-border bg-ink-bg px-2 py-1 text-sm text-ink-text"
             />
-            <span className="text-xs text-notion-text-secondary">
+            <span className="text-xs text-ink-text-secondary">
               folder: {folderTitleById.get(cal.folderId) ?? cal.folderId}
             </span>
             <button
               type="button"
               onClick={() => deleteCalendar(cal.id)}
-              className="rounded-md border border-notion-border px-2 py-0.5 text-xs text-notion-text hover:bg-notion-hover"
+              className="rounded-md border border-ink-border px-2 py-0.5 text-xs text-ink-text hover:bg-ink-hover"
             >
               Delete
             </button>
           </li>
         ))}
         {calendars.length === 0 && (
-          <li className="text-sm text-notion-text-secondary">
+          <li className="text-sm text-ink-text-secondary">
             No calendars yet.
           </li>
         )}

@@ -36,7 +36,7 @@ Related:
 
 旧 Phase 0（学習スパイク 2.5 週）は本改訂で削除。Phase 番号は繰り上げない（旧 Phase 1 → 新 Phase 1）。
 
-**2026-06-07 追補（UI 集約方針 = W0 確定）**: Web/Desktop 機能差を埋める作業（計画書 `plans/2026-06-07-web-desktop-parity-roadmap.md`）で UI 共通化を **「2 層モデル」**＝部品層は `shared/src/components/` に完全共通集約・画面層は機能別に単一/分割、と確定（案 A）。デザインシステム + `notion-*` トークン + **i18n（en/ja catalog + i18next）** を `shared/` に集約し、3 配布形態（Electron/Capacitor/Web）が共用する。詳細原則は `docs/vision/coding-principles.md §6`。本書 Phase 2 の `frontend/src/i18n/ → shared/src/i18n/` は W0 で先行移植済（catalog を `frontend` から全量コピー、frontend は FROZEN のまま不変）。
+**2026-06-07 追補（UI 集約方針 = W0 確定）**: Web/Desktop 機能差を埋める作業（計画書 `plans/2026-06-07-web-desktop-parity-roadmap.md`）で UI 共通化を **「2 層モデル」**＝部品層は `shared/src/components/` に完全共通集約・画面層は機能別に単一/分割、と確定（案 A）。デザインシステム + `ink-*` トークン + **i18n（en/ja catalog + i18next）** を `shared/` に集約し、3 配布形態（Electron/Capacitor/Web）が共用する。詳細原則は `docs/vision/coding-principles.md §6`。本書 Phase 2 の `frontend/src/i18n/ → shared/src/i18n/` は W0 で先行移植済（catalog を `frontend` から全量コピー、frontend は FROZEN のまま不変）。
 
 ---
 
@@ -236,7 +236,7 @@ life-editor/
 #### 着手順序
 
 1. **web/ の最小起動**: `npm create vite@latest web -- --template react-ts` で雛形、`npm run dev` で localhost:5173 が立ち上がるところまで
-2. **Tailwind 4 セットアップ**: `@tailwindcss/vite` plugin、`notion-*` トークンの一部をコピー
+2. **Tailwind 4 セットアップ**: `@tailwindcss/vite` plugin、`ink-*` トークンの一部をコピー
 3. **Supabase 無料プロジェクト作成**: `supabase.com` で 1 個。credentials を `.env.local` に格納（コミットしない）
 4. **最小スキーマ**: `supabase/migrations/0001_initial.sql` で `tasks` テーブル 1 個（id uuid / user_id uuid / title text / status text / created_at timestamptz）
 5. **`@supabase/supabase-js` 接続**: web/ から CRUD 動作確認

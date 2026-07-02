@@ -63,9 +63,9 @@ describe("Button", () => {
 
   it("applies the primary accent token by default and danger when set", () => {
     const { rerender } = render(<Button>X</Button>);
-    expect(screen.getByRole("button")).toHaveClass("bg-notion-accent");
+    expect(screen.getByRole("button")).toHaveClass("bg-ink-accent");
     rerender(<Button variant="danger">X</Button>);
-    expect(screen.getByRole("button")).toHaveClass("bg-notion-danger");
+    expect(screen.getByRole("button")).toHaveClass("bg-ink-danger");
   });
 
   it("fires onClick and respects disabled", () => {
@@ -106,7 +106,7 @@ describe("Input", () => {
     render(<Input invalid placeholder="email" />);
     const input = screen.getByPlaceholderText("email");
     expect(input).toHaveAttribute("aria-invalid", "true");
-    expect(input).toHaveClass("border-notion-danger");
+    expect(input).toHaveClass("border-ink-danger");
   });
 });
 
@@ -114,7 +114,7 @@ describe("Card", () => {
   it("renders children inside an opaque token surface", () => {
     render(<Card>content</Card>);
     const el = screen.getByText("content");
-    expect(el).toHaveClass("bg-notion-bg");
+    expect(el).toHaveClass("bg-ink-bg");
   });
 });
 

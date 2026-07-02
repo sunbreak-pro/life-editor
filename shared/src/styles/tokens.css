@@ -1,5 +1,5 @@
 /*
- * Shared design tokens — single source of truth for the notion-* color
+ * Shared design tokens — single source of truth for the ink-* color
  * system across web / desktop / mobile (W0-2).
  *
  * Ported verbatim (full set) from frontend/src/index.css `:root` /
@@ -17,8 +17,8 @@
  * layer (:root vars + @theme mapping + base scaling utilities).
  *
  * Transparency policy (coding-principles §5): primary container
- * backgrounds use opaque tokens only. Undefined `bg-notion-*` classes
- * silently fall transparent, so every notion-* color used by shared
+ * backgrounds use opaque tokens only. Undefined `bg-ink-*` classes
+ * silently fall transparent, so every ink-* color used by shared
  * components MUST be defined in the @theme block below.
  */
 
@@ -173,47 +173,47 @@
 }
 
 @theme {
-  --color-notion-bg: var(--color-bg-primary);
-  --color-notion-bg-secondary: var(--color-bg-secondary);
-  --color-notion-bg-subsidebar: var(--color-bg-subsidebar);
-  --color-notion-text: var(--color-text-primary);
-  --color-notion-text-secondary: var(--color-text-secondary);
-  --color-notion-border: var(--color-border);
-  --color-notion-border-strong: var(--color-border-strong);
-  --color-notion-accent: var(--color-accent);
-  --color-notion-accent-hover: var(--color-accent-hover);
-  --color-notion-on-accent: var(--color-on-accent);
-  --color-notion-accent-subtle: var(--color-accent-subtle);
+  --color-ink-bg: var(--color-bg-primary);
+  --color-ink-bg-secondary: var(--color-bg-secondary);
+  --color-ink-bg-subsidebar: var(--color-bg-subsidebar);
+  --color-ink-text: var(--color-text-primary);
+  --color-ink-text-secondary: var(--color-text-secondary);
+  --color-ink-border: var(--color-border);
+  --color-ink-border-strong: var(--color-border-strong);
+  --color-ink-accent: var(--color-accent);
+  --color-ink-accent-hover: var(--color-accent-hover);
+  --color-ink-on-accent: var(--color-on-accent);
+  --color-ink-accent-subtle: var(--color-accent-subtle);
   /* Mint secondary accent + its chip face (light-green "touch"). */
-  --color-notion-accent-secondary: var(--color-accent-secondary);
-  --color-notion-accent-secondary-hover: var(--color-accent-secondary-hover);
-  --color-notion-chip-mint-bg: var(--color-chip-mint-bg);
-  --color-notion-chip-mint-fg: var(--color-chip-mint-fg);
-  --color-notion-primary: var(--color-accent);
-  --color-notion-secondary: var(--color-text-secondary);
-  --color-notion-hover: var(--color-hover);
-  --color-notion-bg-hover: var(--color-hover);
-  --color-notion-hover-strong: var(--color-hover);
-  --color-notion-success: var(--color-success);
-  --color-notion-danger: var(--color-danger);
-  --color-notion-calendar-header: var(--color-calendar-header);
+  --color-ink-accent-secondary: var(--color-accent-secondary);
+  --color-ink-accent-secondary-hover: var(--color-accent-secondary-hover);
+  --color-ink-chip-mint-bg: var(--color-chip-mint-bg);
+  --color-ink-chip-mint-fg: var(--color-chip-mint-fg);
+  --color-ink-primary: var(--color-accent);
+  --color-ink-secondary: var(--color-text-secondary);
+  --color-ink-hover: var(--color-hover);
+  --color-ink-bg-hover: var(--color-hover);
+  --color-ink-hover-strong: var(--color-hover);
+  --color-ink-success: var(--color-success);
+  --color-ink-danger: var(--color-danger);
+  --color-ink-calendar-header: var(--color-calendar-header);
   /* Kanban status (K1) — chip faces + the 4px status bands. Mapped so
-     shared Kanban primitives can use bg-notion-chip-* / text-notion-chip-* /
-     bg-notion-status-*-band (no hardcoded colors, §6). */
-  --color-notion-chip-task-bg: var(--color-chip-task-bg);
-  --color-notion-chip-task-fg: var(--color-chip-task-fg);
-  --color-notion-chip-progress-bg: var(--color-chip-progress-bg);
-  --color-notion-chip-progress-fg: var(--color-chip-progress-fg);
-  --color-notion-chip-completed-bg: var(--color-chip-completed-bg);
-  --color-notion-chip-completed-fg: var(--color-chip-completed-fg);
-  --color-notion-status-todo-band: var(--color-status-todo-band);
-  --color-notion-status-progress-band: var(--color-status-progress-band);
-  --color-notion-status-done-band: var(--color-status-done-band);
-  /* Elevation tokens → shadow-notion-sm / -md / -lg utilities. Theme-aware
+     shared Kanban primitives can use bg-ink-chip-* / text-ink-chip-* /
+     bg-ink-status-*-band (no hardcoded colors, §6). */
+  --color-ink-chip-task-bg: var(--color-chip-task-bg);
+  --color-ink-chip-task-fg: var(--color-chip-task-fg);
+  --color-ink-chip-progress-bg: var(--color-chip-progress-bg);
+  --color-ink-chip-progress-fg: var(--color-chip-progress-fg);
+  --color-ink-chip-completed-bg: var(--color-chip-completed-bg);
+  --color-ink-chip-completed-fg: var(--color-chip-completed-fg);
+  --color-ink-status-todo-band: var(--color-status-todo-band);
+  --color-ink-status-progress-band: var(--color-status-progress-band);
+  --color-ink-status-done-band: var(--color-status-done-band);
+  /* Elevation tokens → shadow-ink-sm / -md / -lg utilities. Theme-aware
      (the underlying --shadow-elevation-* vars switch with [data-theme]). */
-  --shadow-notion-sm: var(--shadow-elevation-sm);
-  --shadow-notion-md: var(--shadow-elevation-md);
-  --shadow-notion-lg: var(--shadow-elevation-lg);
+  --shadow-ink-sm: var(--shadow-elevation-sm);
+  --shadow-ink-md: var(--shadow-elevation-md);
+  --shadow-ink-lg: var(--shadow-elevation-lg);
   --font-sans:
     ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica,
     "Apple Color Emoji", Arial, sans-serif, "Segoe UI Emoji", "Segoe UI Symbol";

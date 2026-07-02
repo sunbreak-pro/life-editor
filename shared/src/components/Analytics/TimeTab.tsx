@@ -69,7 +69,7 @@ export function TimeTab({
   if (sessions.length === 0) {
     return (
       <div className="max-w-3xl mx-auto w-full">
-        <p className="text-sm text-notion-text-secondary mt-4 text-center">
+        <p className="text-sm text-ink-text-secondary mt-4 text-center">
           {labels.noSessions}
         </p>
       </div>
@@ -103,7 +103,7 @@ export function TimeTab({
       {/* Period selector + Work time chart */}
       <div>
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-semibold text-notion-text">
+          <h3 className="text-lg font-semibold text-ink-text">
             {labels.workTime}
           </h3>
           <PeriodSelector

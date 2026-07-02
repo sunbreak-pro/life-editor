@@ -79,7 +79,7 @@ export function WeeklySummary({
 
   return (
     <div>
-      <h3 className="text-sm font-semibold text-notion-text mb-3">
+      <h3 className="text-sm font-semibold text-ink-text mb-3">
         {labels.title}
       </h3>
       <div className="grid grid-cols-3 gap-3">
@@ -123,24 +123,24 @@ function ComparisonCard({
   const isDown = diff < 0;
 
   return (
-    <div className="bg-notion-bg-secondary rounded-lg p-3">
-      <p className="text-xs text-notion-text-secondary mb-1">{label}</p>
-      <p className="text-lg font-bold text-notion-text">{current}</p>
+    <div className="bg-ink-bg-secondary rounded-lg p-3">
+      <p className="text-xs text-ink-text-secondary mb-1">{label}</p>
+      <p className="text-lg font-bold text-ink-text">{current}</p>
       <div className="flex items-center gap-1 mt-1">
         {isUp ? (
-          <TrendingUp size={12} className="text-notion-success" />
+          <TrendingUp size={12} className="text-ink-success" />
         ) : isDown ? (
           <TrendingDown size={12} className="text-red-500" />
         ) : (
-          <Minus size={12} className="text-notion-text-secondary" />
+          <Minus size={12} className="text-ink-text-secondary" />
         )}
         <span
           className={`text-xs font-medium ${
             isUp
-              ? "text-notion-success"
+              ? "text-ink-success"
               : isDown
                 ? "text-red-500"
-                : "text-notion-text-secondary"
+                : "text-ink-text-secondary"
           }`}
         >
           {previousRaw > 0 ? `${Math.abs(Math.round(diff))}%` : "—"}
