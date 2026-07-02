@@ -1,6 +1,17 @@
 # HISTORY (chat-lumen-shared)
 
-### 2026-07-02 - Lumen UI 出荷部品移植 + デザイントークン橋渡し
+### 2026-07-03 - Lumen 移植: 2回目独立 QA + polish
+
+#### 概要
+
+確定コミット差分（PR #113）に対し 2 回目の独立 QA（role-qa・別コンテキスト）を実施し PASS（Blocking 0・AC①〜④実測再検証）。指摘のうち安価で価値の高い 2 点を反映した。
+
+#### 変更点
+
+- **Menu.tsx**: MenuItem の doc に「onSelect は自動 close しない＝close はホスト責務」を明記（footgun 対策）
+- **components.test.tsx**: 今回の Menu 修正本体である idx=-1 経路（item 未フォーカスで ArrowUp→末尾 / ArrowDown→先頭）を直接テストで固定（test 525→526）
+- **見送り**: onClose 依存の listener 再登録（軽微 perf）/ Sheet の offsetParent 判定（実害低）は挙動バグでないため未対応
+- **検証**: shared build 0 / test 526 passed / web build 0
 
 #### 概要
 

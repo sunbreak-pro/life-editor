@@ -4,6 +4,13 @@
 
 ---
 
+## 2026-07-03 — Lumen 移植: 2回目独立 QA PASS + polish（PR #113 更新済み）
+
+- 確定コミット差分に対し role-qa（別コンテキスト）で 2 回目監査 → **PASS / Blocking 0**。AC①〜④を実測再検証（shared build 0・test 526・web build 0）、越境なし（frontend/ と connect/analytics/perf-data/schedule 未変更）
+- QA 指摘のうち 2 点を反映: (1) MenuItem doc に「選択後の close はホスト責務」を明記、(2) Menu の idx=-1 経路（未フォーカス ArrowUp→末尾）を直接テスト化
+- 見送り（挙動バグでなく merge 非ブロック）: keydown effect の onClose 依存での再登録（軽微 perf）／ Sheet focus-trap の offsetParent 判定
+- 🛑 draft PR #113 の merge はユーザー判断のまま
+
 ## 2026-07-02 — Lumen UI 出荷部品を shared に移植 + デザイントークン橋渡し（draft PR 済み）
 
 **ブランチ**: `feat/lumen-shared-port`（origin/main 基点） / **QA**: role-qa 独立レビュー PASS（Blocking 0）
