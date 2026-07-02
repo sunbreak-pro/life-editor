@@ -59,7 +59,7 @@ export function TodayDashboard({
           icon={<Clock size={16} />}
           label={labels.workTime}
           value={labels.formatHours(stats.workMinutes)}
-          color="text-blue-500"
+          color="text-ink-accent"
         />
         <MiniCard
           icon={<CheckCircle2 size={16} />}
@@ -71,7 +71,7 @@ export function TodayDashboard({
           icon={<Timer size={16} />}
           label={labels.pomodoroCount}
           value={String(stats.pomodoroCount)}
-          color="text-red-500"
+          color="text-ink-danger"
         />
       </div>
     </div>

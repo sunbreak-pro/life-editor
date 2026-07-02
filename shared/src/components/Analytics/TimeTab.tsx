@@ -84,7 +84,7 @@ export function TimeTab({
           icon={<Clock size={20} />}
           label={labels.totalWorkTime}
           value={labels.formatHours(summary.totalMinutes)}
-          color="text-blue-500"
+          color="text-ink-accent"
         />
         <AnalyticsStatCard
           icon={<Hash size={20} />}

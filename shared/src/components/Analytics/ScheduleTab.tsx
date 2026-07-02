@@ -111,7 +111,7 @@ export function ScheduleTab({
           icon={<CalendarCheck2 size={20} />}
           label={labels.totalEvents}
           value={stats.totalEvents}
-          color="text-blue-500"
+          color="text-ink-accent"
         />
         <AnalyticsStatCard
           icon={<CheckCircle2 size={20} />}
