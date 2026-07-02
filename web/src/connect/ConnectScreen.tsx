@@ -117,6 +117,8 @@ function ConnectGraphHost({ dataService }: ConnectScreenProps) {
       addLink: t("connect.graph.addLink"),
       removeLink: t("connect.graph.removeLink"),
       linkTargetPlaceholder: t("connect.graph.linkTargetPlaceholder"),
+      linkCreateFailed: t("connect.graph.linkCreateFailed"),
+      linkDeleteFailed: t("connect.graph.linkDeleteFailed"),
       backlinksTitle: t("backlinks.title"),
       backlinksEmpty: t("backlinks.empty"),
     }),
@@ -131,15 +133,14 @@ function ConnectGraphHost({ dataService }: ConnectScreenProps) {
       assignments={data.assignments}
       connections={wiki.allConnections}
       labels={labels}
-      onCreateLink={(fromId, toId) => {
-        void wiki
-          .createItemLink(fromId, toId)
-          .catch((err) => console.error("createItemLink failed", err));
+      // Propagate rejection so SelectedNodeCard's runLinkMutation can surface
+      // the inline error (it awaits the returned promise). Swallowing here with
+      // .catch would make every mutation look successful.
+      onCreateLink={async (fromId, toId) => {
+        await wiki.createItemLink(fromId, toId);
       }}
-      onDeleteLink={(linkId) => {
-        void wiki
-          .deleteItemLink(linkId)
-          .catch((err) => console.error("deleteItemLink failed", err));
+      onDeleteLink={async (linkId) => {
+        await wiki.deleteItemLink(linkId);
       }}
     />
   );

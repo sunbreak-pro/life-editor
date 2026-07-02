@@ -123,6 +123,136 @@ describe("SelectedNodeCard link editing", () => {
     expect(onDeleteLink).toHaveBeenCalledWith("lnk-1");
   });
 
+  it("resolves a datalist label to its id (byLabel path)", () => {
+    // The user types/selects the visible label; the card must resolve it back
+    // to the underlying items_meta id before calling onCreateLink.
+    const onCreateLink = vi.fn();
+    render(
+      <SelectedNodeCard
+        labels={labels}
+        node={noteNode("note-1")}
+        neighbors={[]}
+        localDepth={0}
+        onLocalDepthChange={vi.fn()}
+        onSelect={vi.fn()}
+        onClose={vi.fn()}
+        linkableItems={[{ id: "note-2", label: "Second" }]}
+        onCreateLink={onCreateLink}
+      />,
+    );
+
+    const input = screen.getByLabelText(
+      "linkTargetPlaceholder",
+    ) as HTMLInputElement;
+    fireEvent.change(input, { target: { value: "Second" } });
+    fireEvent.keyDown(input, { key: "Enter" });
+
+    expect(onCreateLink).toHaveBeenCalledWith("note-1", "note-2");
+  });
+
+  it("passes a raw pasted id straight through (raw path)", () => {
+    // A value that matches neither an id nor a label is treated as a pasted
+    // cross-role items_meta id and forwarded verbatim.
+    const onCreateLink = vi.fn();
+    render(
+      <SelectedNodeCard
+        labels={labels}
+        node={noteNode("note-1")}
+        neighbors={[]}
+        localDepth={0}
+        onLocalDepthChange={vi.fn()}
+        onSelect={vi.fn()}
+        onClose={vi.fn()}
+        linkableItems={[{ id: "note-2", label: "Second" }]}
+        onCreateLink={onCreateLink}
+      />,
+    );
+
+    const input = screen.getByLabelText(
+      "linkTargetPlaceholder",
+    ) as HTMLInputElement;
+    fireEvent.change(input, { target: { value: "daily-2026-06-30" } });
+    fireEvent.keyDown(input, { key: "Enter" });
+
+    expect(onCreateLink).toHaveBeenCalledWith("note-1", "daily-2026-06-30");
+  });
+
+  it("shows an inline error when onCreateLink rejects", async () => {
+    const onCreateLink = vi.fn().mockRejectedValue(new Error("boom"));
+    render(
+      <SelectedNodeCard
+        labels={labels}
+        node={noteNode("note-1")}
+        neighbors={[]}
+        localDepth={0}
+        onLocalDepthChange={vi.fn()}
+        onSelect={vi.fn()}
+        onClose={vi.fn()}
+        linkableItems={[{ id: "note-2", label: "Second" }]}
+        onCreateLink={onCreateLink}
+      />,
+    );
+
+    const input = screen.getByLabelText(
+      "linkTargetPlaceholder",
+    ) as HTMLInputElement;
+    fireEvent.change(input, { target: { value: "note-2" } });
+    fireEvent.keyDown(input, { key: "Enter" });
+
+    const alert = await screen.findByRole("alert");
+    expect(alert).toHaveTextContent("linkCreateFailed");
+  });
+
+  it("shows an inline error when onDeleteLink rejects", async () => {
+    const onDeleteLink = vi.fn().mockRejectedValue(new Error("boom"));
+    render(
+      <SelectedNodeCard
+        labels={labels}
+        node={noteNode("note-1")}
+        neighbors={[noteNode("note-2")]}
+        localDepth={0}
+        onLocalDepthChange={vi.fn()}
+        onSelect={vi.fn()}
+        onClose={vi.fn()}
+        outgoingLinkIds={new Map([["note-2", "lnk-1"]])}
+        onCreateLink={vi.fn()}
+        onDeleteLink={onDeleteLink}
+      />,
+    );
+
+    fireEvent.click(screen.getByLabelText("removeLink"));
+
+    const alert = await screen.findByRole("alert");
+    expect(alert).toHaveTextContent("linkDeleteFailed");
+  });
+
+  it("clears a stale error when the input is edited again", async () => {
+    const onCreateLink = vi.fn().mockRejectedValue(new Error("boom"));
+    render(
+      <SelectedNodeCard
+        labels={labels}
+        node={noteNode("note-1")}
+        neighbors={[]}
+        localDepth={0}
+        onLocalDepthChange={vi.fn()}
+        onSelect={vi.fn()}
+        onClose={vi.fn()}
+        linkableItems={[{ id: "note-2", label: "Second" }]}
+        onCreateLink={onCreateLink}
+      />,
+    );
+
+    const input = screen.getByLabelText(
+      "linkTargetPlaceholder",
+    ) as HTMLInputElement;
+    fireEvent.change(input, { target: { value: "note-2" } });
+    fireEvent.keyDown(input, { key: "Enter" });
+    await screen.findByRole("alert");
+
+    fireEvent.change(input, { target: { value: "n" } });
+    expect(screen.queryByRole("alert")).toBeNull();
+  });
+
   it("hides the add-link input for a tag node", () => {
     render(
       <SelectedNodeCard

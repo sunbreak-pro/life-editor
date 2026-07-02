@@ -19,6 +19,13 @@ export interface LinkableItem {
   label: string;
 }
 
+// Fallback copy for the inline mutation-failure notice, used only until the
+// host resolves `labels.linkCreateFailed` / `labels.linkDeleteFailed` (see
+// ConnectGraphLabels). Kept in English to match the shared catalog's base
+// locale.
+const LINK_CREATE_ERROR_FALLBACK = "Failed to add link";
+const LINK_DELETE_ERROR_FALLBACK = "Failed to remove link";
+
 const TYPE_ICON: Record<GraphNodeType, LucideIcon> = {
   project: Folder,
   note: FileText,
@@ -40,10 +47,13 @@ interface SelectedNodeCardProps {
   linkableItems?: LinkableItem[];
   /** neighbourId → wiki_tag_connections.id for deletable outgoing links */
   outgoingLinkIds?: Map<string, string>;
-  /** create a directed item↔item link from this node to `toId` */
-  onCreateLink?: (fromId: string, toId: string) => void;
-  /** delete the link identified by `linkId` */
-  onDeleteLink?: (linkId: string) => void;
+  /**
+   * Create a directed item↔item link from this node to `toId`. May return a
+   * promise; a rejection surfaces an inline failure notice on the card.
+   */
+  onCreateLink?: (fromId: string, toId: string) => void | Promise<void>;
+  /** Delete the link identified by `linkId`. Rejection → inline failure notice. */
+  onDeleteLink?: (linkId: string) => void | Promise<void>;
 }
 
 export function SelectedNodeCard({
@@ -68,10 +78,30 @@ export function SelectedNodeCard({
   // synthetic `tag:<id>`, not an items_meta id, so it can't be a link source.
   const canEditLinks = !!onCreateLink && !isTagNodeId(node.id);
   const [target, setTarget] = useState("");
+  // Inline notice for a rejected create/delete. The card is presentational and
+  // has no toast context (that lives host-side), so a failure is shown locally
+  // instead of silently swallowed. Cleared on the next successful mutation and
+  // when the user edits the input.
+  const [error, setError] = useState<string | null>(null);
   const datalistId = useMemo(
     () => `connect-link-targets-${node.id.replace(/[^a-zA-Z0-9_-]/g, "-")}`,
     [node.id],
   );
+
+  // Await the wired mutator and surface a rejection as the inline notice. A
+  // void return resolves immediately (no-op), so fire-and-forget hosts still
+  // clear any stale error on success.
+  const runLinkMutation = async (
+    op: () => void | Promise<void>,
+    failMessage: string,
+  ) => {
+    try {
+      await op();
+      setError(null);
+    } catch {
+      setError(failMessage);
+    }
+  };
 
   const submitLink = () => {
     if (!onCreateLink) return;
@@ -84,8 +114,12 @@ export function SelectedNodeCard({
     const targetId = byId?.id ?? byLabel?.id ?? trimmed;
     if (targetId === node.id) return; // self-loop guard (DB also rejects)
     if (outgoingLinkIds?.has(targetId)) return; // already linked — no dup row
-    onCreateLink(node.id, targetId);
+    const create = onCreateLink;
     setTarget("");
+    void runLinkMutation(
+      () => create(node.id, targetId),
+      labels.linkCreateFailed ?? LINK_CREATE_ERROR_FALLBACK,
+    );
   };
 
   return (
@@ -154,7 +188,10 @@ export function SelectedNodeCard({
           <input
             type="text"
             value={target}
-            onChange={(e) => setTarget(e.target.value)}
+            onChange={(e) => {
+              setTarget(e.target.value);
+              if (error) setError(null);
+            }}
             onKeyDown={(e) => {
               if (e.key === "Enter" && !e.nativeEvent.isComposing) {
                 e.preventDefault();
@@ -186,6 +223,12 @@ export function SelectedNodeCard({
         </div>
       )}
 
+      {error && (
+        <p role="alert" className="text-[10px] text-ink-danger">
+          {error}
+        </p>
+      )}
+
       {neighbors.length > 0 && (
         <div className="space-y-1">
           <div className="text-[10px] uppercase tracking-wider text-ink-text-secondary">
@@ -195,7 +238,17 @@ export function SelectedNodeCard({
             {neighbors.map((n) => {
               const NIcon = TYPE_ICON[n.type];
               const linkId = outgoingLinkIds?.get(n.id);
-              const deletable = !!linkId && !!onDeleteLink;
+              // Only rows with a resolved outgoing link id AND a wired deleter
+              // are removable; capturing both here narrows away the optional
+              // callback so the click handler needs no `?.` guard.
+              const removeLink =
+                linkId && onDeleteLink
+                  ? () =>
+                      void runLinkMutation(
+                        () => onDeleteLink(linkId),
+                        labels.linkDeleteFailed ?? LINK_DELETE_ERROR_FALLBACK,
+                      )
+                  : null;
               return (
                 <div
                   key={n.id}
@@ -214,10 +267,10 @@ export function SelectedNodeCard({
                       {n.label}
                     </span>
                   </button>
-                  {deletable && (
+                  {removeLink && (
                     <button
                       type="button"
-                      onClick={() => onDeleteLink?.(linkId)}
+                      onClick={removeLink}
                       aria-label={labels.removeLink}
                       className="shrink-0 mr-1 w-4 h-4 rounded flex items-center justify-center text-ink-text-secondary hover:text-ink-danger focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ink-accent"
                     >
