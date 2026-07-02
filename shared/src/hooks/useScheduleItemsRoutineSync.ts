@@ -1,4 +1,4 @@
-import { useCallback } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 import type { ScheduleItem } from "../types/schedule";
 import type { RoutineNode } from "../types/routine";
 import type { RoutineGroup } from "../types/routineGroup";
@@ -83,9 +83,29 @@ export function useScheduleItemsRoutineSync(
   const ds = options.dataService;
   const onChanged = options.onChanged;
 
-  const notifyChanged = useCallback(() => {
-    onChanged?.();
+  // M4 (perf): stabilise the change signal so every returned callback keeps
+  // a CONSTANT identity across renders even when the host passes a fresh
+  // `onChanged` closure on each render. The live web host does exactly that
+  // — RoutineScheduleSync mounts us with `onChanged: () => { if (date) void
+  // loadDate(date); }`, an inline arrow that is a new function every render.
+  //
+  // Before this ref indirection `notifyChanged` had dep `[onChanged]`, so it
+  // changed every render → each returned useCallback (dep `[ds,
+  // notifyChanged]`) changed every render → the host effect
+  // `[date, routines, groupForRoutine, ensure]` re-fired on EVERY render →
+  // one `fetchScheduleItemsByDate` per render (a re-fetch on every unrelated
+  // re-render, e.g. hover/typing/sync ticks). The ref holds the latest
+  // `onChanged` without feeding it into any dep array, so `notifyChanged`
+  // (empty deps) and all six generators become referentially stable and the
+  // host effect only re-fires on a genuine `date`/`routines`/`groups` change.
+  const onChangedRef = useRef(onChanged);
+  useEffect(() => {
+    onChangedRef.current = onChanged;
   }, [onChanged]);
+
+  const notifyChanged = useCallback(() => {
+    onChangedRef.current?.();
+  }, []);
 
   const ensureRoutineItemsForDate = useCallback(
     async (
@@ -443,12 +463,28 @@ export function useScheduleItemsRoutineSync(
     [ds, notifyChanged],
   );
 
-  return {
-    ensureRoutineItemsForDate,
-    ensureRoutineItemsForWeek,
-    ensureRoutineItemsForDateRange,
-    backfillMissedRoutineItems,
-    syncScheduleItemsWithRoutines,
-    reconcileRoutineScheduleItems,
-  } as const;
+  // M4 (perf): memoise the returned container so the object identity is also
+  // stable across renders (all six members are now referentially stable —
+  // deps are `[ds, notifyChanged]`, both constant). A consumer that depends
+  // on the whole object (rather than a destructured member) therefore does
+  // not re-fire its effects every render either.
+  return useMemo(
+    () =>
+      ({
+        ensureRoutineItemsForDate,
+        ensureRoutineItemsForWeek,
+        ensureRoutineItemsForDateRange,
+        backfillMissedRoutineItems,
+        syncScheduleItemsWithRoutines,
+        reconcileRoutineScheduleItems,
+      }) as const,
+    [
+      ensureRoutineItemsForDate,
+      ensureRoutineItemsForWeek,
+      ensureRoutineItemsForDateRange,
+      backfillMissedRoutineItems,
+      syncScheduleItemsWithRoutines,
+      reconcileRoutineScheduleItems,
+    ],
+  );
 }

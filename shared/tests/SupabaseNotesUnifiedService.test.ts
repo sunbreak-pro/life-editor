@@ -191,7 +191,11 @@ describe("SupabaseNotesUnifiedService — DU-G PR1 additions", () => {
 
   describe("fetchDeletedNotesUnified", () => {
     it("returns trashed notes joined from items_meta + notes_payload", async () => {
-      const meta = makeMetaRow({ id: "note-T1", is_deleted: true, deleted_at: "2026-05-24T09:00:00.000Z" });
+      const meta = makeMetaRow({
+        id: "note-T1",
+        is_deleted: true,
+        deleted_at: "2026-05-24T09:00:00.000Z",
+      });
       const payload = makePayloadRow({ item_id: "note-T1" });
       stub.stage("items_meta", "select", { data: [meta], error: null });
       stub.stage("notes_payload", "select", { data: [payload], error: null });
@@ -332,7 +336,10 @@ describe("SupabaseNotesUnifiedService — DU-G PR1 additions", () => {
       const liveMeta = makeMetaRow({ id: "note-L1", is_deleted: false });
       const livePayload = makePayloadRow({ item_id: "note-L1" });
       stub.stage("items_meta", "select", { data: [liveMeta], error: null });
-      stub.stage("notes_payload", "select", { data: [livePayload], error: null });
+      stub.stage("notes_payload", "select", {
+        data: [livePayload],
+        error: null,
+      });
       // fetchDeletedNotesUnified
       stub.stage("items_meta", "select", { data: [], error: null });
       // delete
@@ -543,12 +550,24 @@ describe("SupabaseNotesUnifiedService — DU-G PR1 additions", () => {
       const ins = stub.calls.filter(
         (c) => c.table === "items_meta" && c.op === "in",
       );
-      expect(ins.some((c) => Array.isArray(c.args[1]) && (c.args[1] as string[]).includes("note-C1"))).toBe(true);
+      expect(
+        ins.some(
+          (c) =>
+            Array.isArray(c.args[1]) &&
+            (c.args[1] as string[]).includes("note-C1"),
+        ),
+      ).toBe(true);
     });
 
     it("orders results updatedAt DESC (legacy parity)", async () => {
-      const m1 = makeMetaRow({ id: "n-old", updated_at: "2026-05-20T00:00:00.000Z" });
-      const m2 = makeMetaRow({ id: "n-new", updated_at: "2026-05-23T00:00:00.000Z" });
+      const m1 = makeMetaRow({
+        id: "n-old",
+        updated_at: "2026-05-20T00:00:00.000Z",
+      });
+      const m2 = makeMetaRow({
+        id: "n-new",
+        updated_at: "2026-05-23T00:00:00.000Z",
+      });
       stub.stage("items_meta", "select", { data: [m1, m2], error: null });
       stub.stage("notes_payload", "select", { data: [], error: null });
       stub.stage("notes_payload", "select", {
@@ -641,9 +660,7 @@ describe("SupabaseNotesUnifiedService — DU-G PR1 additions", () => {
 
       // No items_meta UPDATE was issued (verify-first invariant).
       expect(
-        stub.calls.find(
-          (c) => c.table === "items_meta" && c.op === "update",
-        ),
+        stub.calls.find((c) => c.table === "items_meta" && c.op === "update"),
       ).toBeUndefined();
     });
 
@@ -822,10 +839,82 @@ describe("SupabaseNotesUnifiedService — DU-G PR1 additions", () => {
       ).rejects.toThrow(/toggleNoteEditLockUnified read failed: read-err/);
       // No UPDATE was issued.
       expect(
-        stub.calls.find(
-          (c) => c.table === "items_meta" && c.op === "update",
-        ),
+        stub.calls.find((c) => c.table === "items_meta" && c.op === "update"),
       ).toBeUndefined();
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // M1 (perf): the note LIST queries omit content_json; only the per-note
+  // detail read (getNoteUnified) loads the body.
+  // -------------------------------------------------------------------------
+
+  describe("M1 light list body handling", () => {
+    function payloadSelectCols(
+      s: ReturnType<typeof makeStub>,
+      nth = 0,
+    ): string {
+      const selects = s.calls.filter(
+        (c) => c.table === "notes_payload" && c.op === "select",
+      );
+      return selects[nth]?.args[0] as string;
+    }
+
+    it("listNotesUnified does NOT select content_json and returns content=''", async () => {
+      stub.stage("items_meta", "select", {
+        data: [makeMetaRow({ id: "note-L" })],
+        error: null,
+      });
+      // Even if the server row carried a body, the light path must drop it.
+      stub.stage("notes_payload", "select", {
+        data: [
+          makePayloadRow({
+            item_id: "note-L",
+            content_json: { type: "doc", content: [{ type: "paragraph" }] },
+          }),
+        ],
+        error: null,
+      });
+
+      const out = await service.listNotesUnified();
+
+      expect(payloadSelectCols(stub)).not.toContain("content_json");
+      expect(out).toHaveLength(1);
+      expect(out[0].content).toBe("");
+    });
+
+    it("fetchDeletedNotesUnified (Trash list) also omits content_json", async () => {
+      stub.stage("items_meta", "select", {
+        data: [makeMetaRow({ id: "note-T", is_deleted: true })],
+        error: null,
+      });
+      stub.stage("notes_payload", "select", {
+        data: [makePayloadRow({ item_id: "note-T" })],
+        error: null,
+      });
+
+      const out = await service.fetchDeletedNotesUnified();
+
+      expect(payloadSelectCols(stub)).not.toContain("content_json");
+      expect(out[0].content).toBe("");
+    });
+
+    it("getNoteUnified DOES select content_json and returns the real body (detail load)", async () => {
+      const body = { type: "doc", content: [{ type: "paragraph" }] };
+      stub.stage("items_meta", "select", {
+        data: makeMetaRow({ id: "note-D" }),
+        error: null,
+      });
+      stub.stage("notes_payload", "select", {
+        data: makePayloadRow({ item_id: "note-D", content_json: body }),
+        error: null,
+      });
+
+      const out = await service.getNoteUnified("note-D");
+
+      expect(payloadSelectCols(stub)).toContain("content_json");
+      expect(out).not.toBeNull();
+      expect(out!.content).toBe(JSON.stringify(body));
     });
   });
 });

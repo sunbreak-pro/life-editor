@@ -116,6 +116,70 @@ export function useNotesUnifiedAPI(options: UseNotesUnifiedAPIOptions) {
     selectedNoteIdRef.current = selectedNoteId;
   }, [selectedNoteId]);
 
+  // M1 (perf): the note LIST is fetched WITHOUT the body (content_json) —
+  // list NoteNodes carry `content = ""`. The body is loaded on demand when
+  // a note is opened. `contentLoadedIds` tracks which notes have had their
+  // real body hydrated into the `notes` array (via getNoteUnified), so a
+  // re-select doesn't re-fetch. It is CLEARED on every list (re)load
+  // because a fresh light list has no bodies again — see the load effect.
+  const contentLoadedIdsRef = useRef<Set<string>>(new Set());
+  // "Latest select wins": if two selects race (fast clicks), only the most
+  // recent one is allowed to commit its `setSelectedNoteId`, so a slow
+  // earlier fetch can't clobber a newer selection.
+  const selectTokenRef = useRef(0);
+
+  // Hydrate a note's real body into the `notes` array. No-op if already
+  // hydrated. Returns true when the note's body is present afterwards.
+  const hydrateContent = useCallback(
+    async (id: string): Promise<boolean> => {
+      if (contentLoadedIdsRef.current.has(id)) return true;
+      try {
+        const full = await ds.getNoteUnified(id);
+        if (!full) return false;
+        contentLoadedIdsRef.current.add(id);
+        setNotes((prev) =>
+          prev.map((n) => (n.id === id ? { ...n, content: full.content } : n)),
+        );
+        return true;
+      } catch (e) {
+        logServiceError("Notes", "hydrateContent", e);
+        return false;
+      }
+    },
+    [ds],
+  );
+
+  // Select a note, loading its body FIRST (M1). The web editor initialises
+  // its content once at mount from `selectedNote.content` and never
+  // re-syncs while its note id is unchanged (useEditor dep `[noteId]`), so
+  // the body MUST be present in the `notes` array before selection flips —
+  // otherwise the editor would open empty and a subsequent edit would
+  // overwrite the real body. Folders carry no editable body, so they skip
+  // the round-trip and select immediately. On a hydrate failure the
+  // selection is left unchanged (safer than opening an empty editor over a
+  // note that has content).
+  const selectNote = useCallback(
+    (id: string | null): void => {
+      const token = ++selectTokenRef.current;
+      if (id === null) {
+        setSelectedNoteId(null);
+        return;
+      }
+      const node = notesRef.current.find((n) => n.id === id);
+      if (node?.type === "folder" || contentLoadedIdsRef.current.has(id)) {
+        if (node?.type === "folder") contentLoadedIdsRef.current.add(id);
+        setSelectedNoteId(id);
+        return;
+      }
+      void (async () => {
+        const ok = await hydrateContent(id);
+        if (selectTokenRef.current !== token) return; // superseded
+        if (ok) setSelectedNoteId(id);
+      })();
+    },
+    [hydrateContent],
+  );
+
   const setSortDirection = useCallback((dir: NoteSortDirection) => {
     setSortDirectionState(dir);
     try {
@@ -130,7 +194,18 @@ export function useNotesUnifiedAPI(options: UseNotesUnifiedAPIOptions) {
     (async () => {
       try {
         const loaded = await ds.listNotesUnified();
-        if (!cancelled) setNotes(loaded);
+        if (!cancelled) {
+          // M1: the fresh list is body-free again, so any previously
+          // hydrated bodies are stale/absent — invalidate the cache.
+          contentLoadedIdsRef.current = new Set();
+          setNotes(loaded);
+          // Keep the currently-open note's body correct after a
+          // sync-triggered reload (the editor is keyed by note id so it
+          // won't remount; this just refills `notes[id].content` so a later
+          // read of `selectedNote.content` is accurate).
+          const openId = selectedNoteIdRef.current;
+          if (openId) void hydrateContent(openId);
+        }
       } catch (e) {
         logServiceError("Notes", "fetch", e);
         if (!cancelled) {
@@ -155,7 +230,7 @@ export function useNotesUnifiedAPI(options: UseNotesUnifiedAPIOptions) {
     return () => {
       cancelled = true;
     };
-  }, [ds, syncVersion]);
+  }, [ds, syncVersion, hydrateContent]);
 
   // Tree helpers. `childrenByParent` is built once per `notes` change (O(n)
   // group + sort) so `getChildren` is an O(1) Map lookup instead of an
@@ -220,7 +295,13 @@ export function useNotesUnifiedAPI(options: UseNotesUnifiedAPIOptions) {
   const sortedFilteredNotes = useMemo(() => {
     let result = notes;
 
-    // Search filter (client-side)
+    // Search filter (client-side).
+    // M1 caveat: since the list is body-free, `n.content` is only populated
+    // for notes whose body has been hydrated (opened at least once). Title
+    // always matches; body matching is best-effort on hydrated notes. Full
+    // body search is the server-side ds.searchNotesUnified path — wire that
+    // in if/when the search UI is built (currently no live consumer uses
+    // this client filter).
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
       result = result.filter(
@@ -315,6 +396,10 @@ export function useNotesUnifiedAPI(options: UseNotesUnifiedAPIOptions) {
         content: resolvedContent,
       };
       setNotes((prev) => [newNote, ...prev]);
+      // M1: the body is known locally; mark loaded so a re-select does NOT
+      // re-fetch (which could race the still-in-flight content write and
+      // clobber the local body with an empty server row).
+      contentLoadedIdsRef.current.add(id);
       setSelectedNoteId(id);
       ds.createNoteUnified(
         buildNoteNode(id, "note", newNote.title, resolvedParentId, now),
@@ -338,6 +423,7 @@ export function useNotesUnifiedAPI(options: UseNotesUnifiedAPIOptions) {
           },
           redo: () => {
             setNotes((p) => [newNote, ...p]);
+            contentLoadedIdsRef.current.add(id);
             setSelectedNoteId(id);
             ds.createNoteUnified(
               buildNoteNode(id, "note", newNote.title, resolvedParentId, now),
@@ -447,6 +533,9 @@ export function useNotesUnifiedAPI(options: UseNotesUnifiedAPIOptions) {
       }
 
       const now = new Date().toISOString();
+      // M1: an edited body is authoritative locally — keep it marked loaded
+      // so a later reselect/reload doesn't drop back to the light "".
+      if ("content" in updates) contentLoadedIdsRef.current.add(id);
       setNotes((prev) =>
         prev.map((n) =>
           n.id === id ? { ...n, ...updates, updatedAt: now } : n,
@@ -702,7 +791,10 @@ export function useNotesUnifiedAPI(options: UseNotesUnifiedAPIOptions) {
       error,
       deletedNotes,
       selectedNoteId,
-      setSelectedNoteId,
+      // M1: expose the hydrate-then-select wrapper under the same name so
+      // consumers (e.g. web NotesView `onSelect`) load the body before the
+      // editor mounts — the light list carries no body.
+      setSelectedNoteId: selectNote,
       selectedNote,
       searchQuery,
       setSearchQuery,
@@ -738,6 +830,7 @@ export function useNotesUnifiedAPI(options: UseNotesUnifiedAPIOptions) {
       error,
       deletedNotes,
       selectedNoteId,
+      selectNote,
       selectedNote,
       searchQuery,
       sortMode,
