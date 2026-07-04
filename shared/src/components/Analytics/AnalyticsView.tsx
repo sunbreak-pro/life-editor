@@ -4,7 +4,10 @@ import type { TaskNode } from "../../types/taskTree";
 import type { ScheduleItem } from "../../types/schedule";
 import type { NoteNode } from "../../types/note";
 import type { RoutineNode } from "../../types/routine";
-import { AnalyticsFilterProvider } from "./AnalyticsFilterContext";
+import {
+  AnalyticsFilterProvider,
+  type DateRange,
+} from "./AnalyticsFilterContext";
 import { OverviewTab } from "./OverviewTab";
 import { TasksTab } from "./TasksTab";
 import { TimeTab } from "./TimeTab";
@@ -35,8 +38,22 @@ export interface AnalyticsViewProps {
   nodes: TaskNode[];
   /** Schedule items for today only (Overview stat cards). */
   todayItems: ScheduleItem[];
-  /** Schedule items across the analytics window (Schedule tab filters in-memory). */
+  /**
+   * Schedule items for the currently selected date range. The host fetches
+   * exactly this window (see `onScheduleRangeChange`); the Schedule tab still
+   * filters in-memory as a safety net so the selected range stays the single
+   * source of truth.
+   */
   scheduleItems: ScheduleItem[];
+  /**
+   * Called whenever the selected analytics date range changes (incl. initial
+   * mount). Hosts use it to (re)fetch schedule items for exactly that window
+   * (per-range fetch). Optional so hosts that pre-load a wide window keep
+   * compiling and working unchanged.
+   */
+  onScheduleRangeChange?: (range: DateRange) => void;
+  /** True while the host is (re)fetching schedule items for the range. */
+  scheduleLoading?: boolean;
   notes: NoteNode[];
   routines: RoutineNode[];
   /** Pre-built taskId → display name map (Work tab task chart). */
@@ -56,6 +73,8 @@ export function AnalyticsView(props: AnalyticsViewProps): React.JSX.Element {
     nodes,
     todayItems,
     scheduleItems,
+    onScheduleRangeChange,
+    scheduleLoading,
     notes,
     routines,
     taskNameMap,
@@ -78,7 +97,7 @@ export function AnalyticsView(props: AnalyticsViewProps): React.JSX.Element {
   );
 
   return (
-    <AnalyticsFilterProvider>
+    <AnalyticsFilterProvider onDateRangeChange={onScheduleRangeChange}>
       <div className="flex h-full flex-col gap-4 px-4 py-4">
         <div className="flex items-center justify-between gap-4">
           <h2 className="text-lg font-semibold text-ink-text">
@@ -195,6 +214,7 @@ export function AnalyticsView(props: AnalyticsViewProps): React.JSX.Element {
             <ScheduleTab
               scheduleItems={scheduleItems}
               routines={routines}
+              loading={scheduleLoading}
               labels={labels.schedule}
             />
           )}

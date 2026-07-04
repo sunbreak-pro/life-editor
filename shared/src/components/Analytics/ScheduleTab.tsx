@@ -38,19 +38,23 @@ export interface ScheduleTabLabels {
 
 interface ScheduleTabProps {
   /**
-   * All schedule items the host loaded for the analytics window (host:
-   * fetchScheduleItemsByDateRange over a wide range). The tab filters to the
-   * active date-range preset from AnalyticsFilterContext in-memory so data
-   * fetching stays in the host (§6.4) while the range UI stays in shared.
+   * Schedule items for the active date-range preset. The host fetches exactly
+   * this window (fetchScheduleItemsByDateRange for the selected range — see
+   * AnalyticsView.onScheduleRangeChange), so data fetching stays in the host
+   * (§6.4). The tab still filters by the same range in-memory as a safety net,
+   * which keeps AnalyticsFilterContext the single source of truth for the range.
    */
   scheduleItems: ScheduleItem[];
   routines: RoutineNode[];
+  /** True while the host is (re)fetching items for the selected range. */
+  loading?: boolean;
   labels: ScheduleTabLabels;
 }
 
 export function ScheduleTab({
   scheduleItems,
   routines,
+  loading = false,
   labels,
 }: ScheduleTabProps): React.JSX.Element {
   const { dateRange } = useAnalyticsFilter();
@@ -86,6 +90,23 @@ export function ScheduleTab({
     };
   }, [items, routines]);
 
+  // Initial (or empty) fetch in flight: show a skeleton instead of flashing the
+  // "no events" copy. No text → no new i18n key needed.
+  if (loading && items.length === 0) {
+    return (
+      <div className="max-w-3xl mx-auto w-full" aria-busy="true">
+        <div className="grid grid-cols-3 gap-4">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <div
+              key={i}
+              className="h-20 rounded-lg bg-ink-bg-secondary animate-pulse"
+            />
+          ))}
+        </div>
+      </div>
+    );
+  }
+
   if (items.length === 0) {
     return (
       <div className="max-w-3xl mx-auto w-full">
@@ -105,7 +126,7 @@ export function ScheduleTab({
   );
 
   return (
-    <div className="max-w-3xl mx-auto w-full space-y-6">
+    <div className="max-w-3xl mx-auto w-full space-y-6" aria-busy={loading}>
       <div className="grid grid-cols-3 gap-4">
         <AnalyticsStatCard
           icon={<CalendarCheck2 size={20} />}
