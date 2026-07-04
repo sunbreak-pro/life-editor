@@ -1,5 +1,5 @@
 ---
-Status: EXECUTED（Phase 5 のみ保留） — 2026-07-04 フェーズB 実施済（labels / templates / Issues #117–#131 / バックリンク / CLAUDE.md）。Phase 5 Project 作成は `gh auth refresh -s project` 後に実施
+Status: EXECUTED — 2026-07-04 全 Phase 完了（labels / templates / Issues #117–#131 / Project #1 / バックリンク / CLAUDE.md）。残 = Project の UI 手動 2 点（Status 選択肢・ビュー 3 種）+ Orca 目視
 Created: 2026-07-04
 Owner-chat: main
 Type: 要件定義 + 実装計画（移行計画書）
@@ -166,7 +166,7 @@ GitHub 側の道具立ては「label（属性）/ state（open-closed）/ sub-is
 
 ## 12. 工数見積り
 
-合計 約3.0–3.5h 見積 → 実績: フェーズA（dry-run + 実測検証）+ フェーズB（Phase 1–4, 6–7）を 2026-07-04 の 1 セッションで完了。Phase 5 のみ scope 取得待ち。
+合計 約3.0–3.5h 見積 → 実績: フェーズA（dry-run + 実測検証）+ フェーズB（Phase 1–7）を 2026-07-04 の 1 セッションで完了（Phase 5 は scope 取得後に同日実施）。
 
 ## 13. 検証（Definition of Done）
 
@@ -174,7 +174,7 @@ GitHub 側の道具立ては「label（属性）/ state（open-closed）/ sub-is
 - [x] Active/Monitoring 4件が Issue 化され、正しい label が付与（#117–#120。028 は status:workaround）
 - [x] 各移行元 .md 末尾に対応 Issue 番号が追記されている
 - [x] 生きている親ロードマップが Epic Issue + sub-issue で表現され、.md へリンク（Epic #121 + #122–#131）
-- [ ] Project にビュー（Table/Roadmap/Board）が作成され、全 Issue が登録（**Phase 5 = project scope 取得後**。ビューと Status 選択肢は UI 手動）
+- [x] Project に全 Issue が登録（[users/sunbreak-pro/projects/1](https://github.com/users/sunbreak-pro/projects/1)・14 items・Area/Target フィールド・repo リンク済み。**ビュー 3 種と Status 選択肢のみ UI 手動残**）
 - [x] `INDEX.md` 冒頭に凍結注記、親計画書 .md に `Issue:` frontmatter
 - [x] CLAUDE.md に `gh` 運用ルールが追記（§7.0 / §9 書き換え）
 - [ ] Orca の Issue ドロワーに本 repo の Issue が表示される（**ユーザー目視確認**）
@@ -193,4 +193,5 @@ GitHub 側の道具立ては「label（属性）/ state（open-closed）/ sub-is
 - **Branch**: `chore/github-issues-migration`（worktree `.claude/worktrees/issues-migration`・base = origin/main fcbc1fb8）
 - **Issue 対応表**: 028→[#117](https://github.com/sunbreak-pro/life-editor/issues/117) / 027→[#118](https://github.com/sunbreak-pro/life-editor/issues/118) / 026→[#119](https://github.com/sunbreak-pro/life-editor/issues/119) / 006→[#120](https://github.com/sunbreak-pro/life-editor/issues/120)
 - **Epic**: [#121](https://github.com/sunbreak-pro/life-editor/issues/121) ／ sub: W0=#122 W1=#123 W2=#124 W3=#126 **W4=#127(open)** W5=#128 W6=#129 W7=#130 W8=#131
-- **残作業**: Phase 5（Project 作成・item 登録 → その後 UI でビュー 3 種 + Status 選択肢 + Target 日付）／ Orca ドロワー目視確認
+- **Project**: [users/sunbreak-pro/projects/1](https://github.com/users/sunbreak-pro/projects/1)（"life-editor roadmap"・14 items・Area/Target フィールド・repo リンク済み）
+- **残作業**: UI 手動 = Status 選択肢（Planned / In Progress / Done / Frozen）+ ビュー 3 種（Table / Roadmap / Board）+ Target 日付付与 ／ Orca ドロワー目視確認
