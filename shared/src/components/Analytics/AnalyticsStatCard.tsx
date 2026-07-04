@@ -16,13 +16,13 @@ export function AnalyticsStatCard({
   subtitle,
 }: AnalyticsStatCardProps): React.JSX.Element {
   return (
-    <div className="bg-ink-bg-secondary rounded-lg p-4 flex items-center gap-3">
+    <div className="bg-lumen-bg-secondary rounded-lg p-4 flex items-center gap-3">
       <div className={color}>{icon}</div>
       <div className="min-w-0">
-        <p className="text-2xl font-bold text-ink-text truncate">{value}</p>
-        <p className="text-xs text-ink-text-secondary truncate">{label}</p>
+        <p className="text-2xl font-bold text-lumen-text truncate">{value}</p>
+        <p className="text-xs text-lumen-text-secondary truncate">{label}</p>
         {subtitle && (
-          <p className="text-[10px] text-ink-text-secondary truncate">
+          <p className="text-[10px] text-lumen-text-secondary truncate">
             {subtitle}
           </p>
         )}

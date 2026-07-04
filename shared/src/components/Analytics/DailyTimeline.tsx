@@ -16,11 +16,11 @@ interface DailyTimelineProps {
   labels: DailyTimelineLabels;
 }
 
-// Session-type → block tint. WORK/BREAK reuse notion chrome tokens; LONG_BREAK
+// Session-type → block tint. WORK/BREAK reuse lumen chrome tokens; LONG_BREAK
 // uses the dedicated --color-chart-phase-long-break data-series token.
 const SESSION_COLORS: Record<string, string> = {
-  WORK: "var(--color-ink-accent, #2563eb)",
-  BREAK: "var(--color-ink-success, #22c55e)",
+  WORK: "var(--color-lumen-accent, #1d4ed8)",
+  BREAK: "var(--color-lumen-success, #22c55e)",
   LONG_BREAK: "var(--color-chart-phase-long-break, #f59e0b)",
 };
 
@@ -50,19 +50,19 @@ export function DailyTimeline({
   return (
     <div>
       <div className="flex items-center justify-between mb-3">
-        <h3 className="text-sm font-semibold text-ink-text">
+        <h3 className="text-sm font-semibold text-lumen-text">
           {labels.title}
         </h3>
         <input
           type="date"
           value={selectedDate}
           onChange={(e) => setSelectedDate(e.target.value)}
-          className="px-2 py-1 text-xs rounded-md border border-ink-border bg-ink-bg text-ink-text focus:outline-none focus:border-ink-accent"
+          className="px-2 py-1 text-xs rounded-md border border-lumen-border bg-lumen-bg text-lumen-text focus:outline-none focus:border-lumen-accent"
         />
       </div>
 
       {blocks.length === 0 ? (
-        <p className="text-xs text-ink-text-secondary text-center py-4">
+        <p className="text-xs text-lumen-text-secondary text-center py-4">
           {labels.noSessions}
         </p>
       ) : (
@@ -72,7 +72,7 @@ export function DailyTimeline({
             {DISPLAY_HOURS.map((h) => (
               <span
                 key={h}
-                className="text-[9px] text-ink-text-secondary"
+                className="text-[9px] text-lumen-text-secondary"
                 style={{
                   position: "absolute",
                   left: `${(h / 24) * 100}%`,
@@ -88,7 +88,7 @@ export function DailyTimeline({
           <div
             className="relative h-8 rounded-md overflow-hidden mt-5"
             style={{
-              backgroundColor: "var(--color-ink-hover, #f3f4f6)",
+              backgroundColor: "var(--color-lumen-hover, #f3f4f6)",
             }}
           >
             {/* Hour grid lines */}
@@ -100,7 +100,7 @@ export function DailyTimeline({
                   left: `${(h / 24) * 100}%`,
                   borderColor:
                     h % 6 === 0
-                      ? "var(--color-ink-border, #e5e5e5)"
+                      ? "var(--color-lumen-border, #e5e5e5)"
                       : "transparent",
                 }}
               />
@@ -135,7 +135,7 @@ export function DailyTimeline({
                   className="w-2.5 h-2.5 rounded-sm"
                   style={{ backgroundColor: color }}
                 />
-                <span className="text-[10px] text-ink-text-secondary">
+                <span className="text-[10px] text-lumen-text-secondary">
                   {sessionLabel(type)}
                 </span>
               </div>

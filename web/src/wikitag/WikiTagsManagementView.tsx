@@ -28,7 +28,7 @@ import { TagPill } from "./TagPill";
  */
 
 const FOCUS_RING =
-  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink-accent focus-visible:ring-offset-1 focus-visible:ring-offset-ink-bg";
+  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent focus-visible:ring-offset-1 focus-visible:ring-offset-lumen-bg";
 
 function PromptRow({
   placeholder,
@@ -54,11 +54,11 @@ function PromptRow({
         value={value}
         onChange={(e) => setValue(e.target.value)}
         placeholder={placeholder}
-        className={`min-w-[8rem] flex-1 rounded-md border border-ink-border bg-ink-bg px-2 py-1 text-sm text-ink-text ${FOCUS_RING}`}
+        className={`min-w-[8rem] flex-1 rounded-md border border-lumen-border bg-lumen-bg px-2 py-1 text-sm text-lumen-text ${FOCUS_RING}`}
       />
       <button
         type="submit"
-        className={`inline-flex items-center gap-0.5 rounded-md border border-ink-border bg-ink-bg px-2 py-1 text-xs text-ink-text hover:bg-ink-hover ${FOCUS_RING}`}
+        className={`inline-flex items-center gap-0.5 rounded-md border border-lumen-border bg-lumen-bg px-2 py-1 text-xs text-lumen-text hover:bg-lumen-hover ${FOCUS_RING}`}
         aria-label="Create"
       >
         <Plus size={12} aria-hidden />
@@ -80,7 +80,7 @@ function TagRow({
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(tag.name);
   return (
-    <li className="flex items-center justify-between gap-2 rounded-md border border-ink-border bg-ink-bg-secondary px-2 py-1">
+    <li className="flex items-center justify-between gap-2 rounded-md border border-lumen-border bg-lumen-bg-secondary px-2 py-1">
       {editing ? (
         <form
           className="flex flex-1 gap-1"
@@ -100,7 +100,7 @@ function TagRow({
               if (next && next !== tag.name) onRename(tag.id, next);
               setEditing(false);
             }}
-            className={`flex-1 rounded-md border border-ink-border bg-ink-bg px-2 py-0.5 text-sm text-ink-text ${FOCUS_RING}`}
+            className={`flex-1 rounded-md border border-lumen-border bg-lumen-bg px-2 py-0.5 text-sm text-lumen-text ${FOCUS_RING}`}
           />
         </form>
       ) : (
@@ -116,7 +116,7 @@ function TagRow({
             setEditing((v) => !v);
           }}
           aria-label={`Rename tag ${tag.name}`}
-          className={`text-ink-text-secondary hover:text-ink-text ${FOCUS_RING} rounded p-1`}
+          className={`text-lumen-text-secondary hover:text-lumen-text ${FOCUS_RING} rounded p-1`}
         >
           <Pencil size={12} aria-hidden />
         </button>
@@ -124,7 +124,7 @@ function TagRow({
           type="button"
           onClick={() => onDelete(tag.id)}
           aria-label={`Delete tag ${tag.name}`}
-          className={`text-ink-text-secondary hover:text-ink-danger ${FOCUS_RING} rounded p-1`}
+          className={`text-lumen-text-secondary hover:text-lumen-danger ${FOCUS_RING} rounded p-1`}
         >
           <Trash2 size={12} aria-hidden />
         </button>
@@ -165,7 +165,7 @@ function GroupCard({
   }, [addQuery, candidateTags]);
 
   return (
-    <article className="space-y-2 rounded-md border border-ink-border bg-ink-bg-secondary p-2">
+    <article className="space-y-2 rounded-md border border-lumen-border bg-lumen-bg-secondary p-2">
       <header className="flex items-center justify-between gap-2">
         {editing ? (
           <form
@@ -186,11 +186,11 @@ function GroupCard({
                 if (next && next !== group.name) onRename(group.id, next);
                 setEditing(false);
               }}
-              className={`flex-1 rounded-md border border-ink-border bg-ink-bg px-2 py-0.5 text-sm text-ink-text ${FOCUS_RING}`}
+              className={`flex-1 rounded-md border border-lumen-border bg-lumen-bg px-2 py-0.5 text-sm text-lumen-text ${FOCUS_RING}`}
             />
           </form>
         ) : (
-          <h3 className="flex-1 text-sm font-semibold text-ink-text">
+          <h3 className="flex-1 text-sm font-semibold text-lumen-text">
             {group.name}
           </h3>
         )}
@@ -201,7 +201,7 @@ function GroupCard({
             setEditing((v) => !v);
           }}
           aria-label={`Rename group ${group.name}`}
-          className={`text-ink-text-secondary hover:text-ink-text ${FOCUS_RING} rounded p-1`}
+          className={`text-lumen-text-secondary hover:text-lumen-text ${FOCUS_RING} rounded p-1`}
         >
           <Pencil size={12} aria-hidden />
         </button>
@@ -209,7 +209,7 @@ function GroupCard({
           type="button"
           onClick={() => onDelete(group.id)}
           aria-label={`Delete group ${group.name}`}
-          className={`text-ink-text-secondary hover:text-ink-danger ${FOCUS_RING} rounded p-1`}
+          className={`text-lumen-text-secondary hover:text-lumen-danger ${FOCUS_RING} rounded p-1`}
         >
           <Trash2 size={12} aria-hidden />
         </button>
@@ -217,7 +217,7 @@ function GroupCard({
 
       <div className="flex flex-wrap gap-1">
         {memberTagIds.length === 0 && (
-          <span className="text-xs text-ink-text-secondary">
+          <span className="text-xs text-lumen-text-secondary">
             No tags assigned.
           </span>
         )}
@@ -227,14 +227,14 @@ function GroupCard({
           return (
             <span
               key={tagId}
-              className="inline-flex items-center gap-1 rounded-md border border-ink-border bg-ink-bg px-1.5 py-0.5 text-xs text-ink-text"
+              className="inline-flex items-center gap-1 rounded-md border border-lumen-border bg-lumen-bg px-1.5 py-0.5 text-xs text-lumen-text"
             >
               <TagPill name={tag.name} color={tag.color} size="sm" />
               <button
                 type="button"
                 onClick={() => onRemoveTag(group.id, tagId)}
                 aria-label={`Remove ${tag.name} from group ${group.name}`}
-                className={`text-ink-text-secondary hover:text-ink-danger ${FOCUS_RING} rounded`}
+                className={`text-lumen-text-secondary hover:text-lumen-danger ${FOCUS_RING} rounded`}
               >
                 <X size={10} aria-hidden />
               </button>
@@ -248,11 +248,11 @@ function GroupCard({
           value={addQuery}
           onChange={(e) => setAddQuery(e.target.value)}
           placeholder="Search tag to add…"
-          className={`w-full rounded-md border border-ink-border bg-ink-bg px-2 py-1 text-xs text-ink-text ${FOCUS_RING}`}
+          className={`w-full rounded-md border border-lumen-border bg-lumen-bg px-2 py-1 text-xs text-lumen-text ${FOCUS_RING}`}
         />
         <ul className="max-h-32 space-y-0.5 overflow-y-auto">
           {filteredCandidates.length === 0 ? (
-            <li className="px-2 py-1 text-xs text-ink-text-secondary">
+            <li className="px-2 py-1 text-xs text-lumen-text-secondary">
               No more tags to add.
             </li>
           ) : (
@@ -264,7 +264,7 @@ function GroupCard({
                     onAddTag(group.id, tag.id);
                     setAddQuery("");
                   }}
-                  className={`flex w-full items-center gap-1.5 rounded-md px-2 py-1 text-left text-xs text-ink-text hover:bg-ink-hover ${FOCUS_RING}`}
+                  className={`flex w-full items-center gap-1.5 rounded-md px-2 py-1 text-left text-xs text-lumen-text hover:bg-lumen-hover ${FOCUS_RING}`}
                 >
                   {tag.color && (
                     <span
@@ -351,18 +351,18 @@ export function WikiTagsManagementView() {
   };
 
   if (wiki.loading) {
-    return <p className="text-sm text-ink-text-secondary">Loading…</p>;
+    return <p className="text-sm text-lumen-text-secondary">Loading…</p>;
   }
 
   return (
     <div className="grid gap-4 md:grid-cols-2">
       <section className="space-y-2">
-        <h2 className="text-sm font-semibold text-ink-text">
+        <h2 className="text-sm font-semibold text-lumen-text">
           Tags ({wiki.allTags.length})
         </h2>
         <PromptRow placeholder="New tag name" onSubmit={handleCreateTag} />
         {wiki.allTags.length === 0 ? (
-          <p className="text-xs text-ink-text-secondary">
+          <p className="text-xs text-lumen-text-secondary">
             No tags yet. Create one above.
           </p>
         ) : (
@@ -380,12 +380,12 @@ export function WikiTagsManagementView() {
       </section>
 
       <section className="space-y-2">
-        <h2 className="text-sm font-semibold text-ink-text">
+        <h2 className="text-sm font-semibold text-lumen-text">
           Groups ({wiki.allGroups.length})
         </h2>
         <PromptRow placeholder="New group name" onSubmit={handleCreateGroup} />
         {wiki.allGroups.length === 0 ? (
-          <p className="text-xs text-ink-text-secondary">
+          <p className="text-xs text-lumen-text-secondary">
             No groups yet. Create one above.
           </p>
         ) : (

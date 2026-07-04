@@ -3,7 +3,7 @@
  * shown in the column-header color picker. These are user-data colors
  * (they tint folder/tag chrome), so they are applied via inline styles /
  * CSS vars — the §6 "no hardcoded color" rule targets THEME chrome
- * (ink-* tokens), not user-chosen data colors (mirrors the existing
+ * (lumen-* tokens), not user-chosen data colors (mirrors the existing
  * KanbanColumn accent + KanbanCard folder-dot inline styles).
  *
  * 12 hues, laid out as 2 rows of 6 in the picker. Tuned to read on both

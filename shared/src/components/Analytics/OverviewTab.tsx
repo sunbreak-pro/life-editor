@@ -142,14 +142,14 @@ export function OverviewTab({
           icon={<BarChart3 size={20} />}
           label={labels.tasks}
           value={stats.totalTasks}
-          color="text-ink-accent"
+          color="text-lumen-accent"
           subtitle={`${stats.completedTasks} ${labels.completed} (${stats.taskRate}%)`}
         />
         <AnalyticsStatCard
           icon={<CalendarCheck2 size={20} />}
           label={labels.events}
           value={stats.todayEvents}
-          color="text-ink-accent"
+          color="text-lumen-accent"
           subtitle={`${stats.todayEventsCompleted} ${labels.completed} ${labels.today}`}
         />
         <AnalyticsStatCard
@@ -170,7 +170,7 @@ export function OverviewTab({
           icon={<RefreshCw size={20} />}
           label={labels.routines}
           value={stats.activeRoutines}
-          color="text-ink-success"
+          color="text-lumen-success"
           subtitle={`${stats.routineRate}% ${labels.rate}`}
         />
         <AnalyticsStatCard

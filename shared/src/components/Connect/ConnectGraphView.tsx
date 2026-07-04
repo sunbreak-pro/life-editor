@@ -236,13 +236,13 @@ export function ConnectGraphView({
 
         {snapshot.nodes.length > 0 && filters.filtered.nodes.length === 0 && (
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-            <div className="text-center space-y-2 text-ink-text-secondary">
+            <div className="text-center space-y-2 text-lumen-text-secondary">
               <Filter size={32} className="mx-auto opacity-50" />
               <div className="text-[13px]">{labels.noMatch}</div>
               <button
                 type="button"
                 onClick={filters.clearAll}
-                className="mt-2 px-3 py-1 rounded text-[11px] pointer-events-auto bg-ink-bg border border-ink-border text-ink-text hover:bg-ink-hover"
+                className="mt-2 px-3 py-1 rounded text-[11px] pointer-events-auto bg-lumen-bg border border-lumen-border text-lumen-text hover:bg-lumen-hover"
               >
                 {labels.clearFilters}
               </button>
@@ -251,7 +251,7 @@ export function ConnectGraphView({
         )}
 
         {snapshot.nodes.length === 0 && (
-          <div className="absolute inset-0 flex items-center justify-center text-sm text-ink-text-secondary">
+          <div className="absolute inset-0 flex items-center justify-center text-sm text-lumen-text-secondary">
             {labels.graphEmpty}
           </div>
         )}

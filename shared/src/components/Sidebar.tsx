@@ -25,9 +25,9 @@ export interface SidebarItemProps {
 
 /*
  * Lumen sidebar container (ClaudeDesign catalog: components/nav.html). An
- * OPAQUE grouped nav surface (bg-ink-bg-secondary, §3.5) holding SidebarItem
+ * OPAQUE grouped nav surface (bg-lumen-bg-secondary, §3.5) holding SidebarItem
  * rows. Distinct from the app-shell SidebarNav (which is the full collapsible
- * chrome rail): this is the reusable Lumen nav grouping primitive. ink-*
+ * chrome rail): this is the reusable Lumen nav grouping primitive. lumen-*
  * tokens only (§3.1); the a11y label is injected (§6).
  */
 export function Sidebar({ label, className, children, ...rest }: SidebarProps) {
@@ -35,8 +35,8 @@ export function Sidebar({ label, className, children, ...rest }: SidebarProps) {
     <nav
       aria-label={label}
       className={cn(
-        "flex flex-col gap-0.5 rounded-ink-lg border border-ink-border",
-        "bg-ink-bg-secondary p-1.5",
+        "flex flex-col gap-0.5 rounded-lumen-lg border border-lumen-border",
+        "bg-lumen-bg-secondary p-1.5",
         className,
       )}
       {...rest}
@@ -67,39 +67,39 @@ export function SidebarItem({
       onClick={onClick}
       aria-current={active ? "page" : undefined}
       className={cn(
-        "relative flex h-9 w-full items-center gap-2.5 rounded-ink-md px-2.5",
+        "relative flex h-9 w-full items-center gap-2.5 rounded-lumen-md px-2.5",
         "text-sm font-medium transition-colors",
-        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink-accent",
+        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent",
         active
-          ? "bg-ink-accent-subtle font-semibold text-ink-accent"
+          ? "bg-lumen-accent-subtle font-semibold text-lumen-accent"
           : tone === "mint"
-            ? "text-ink-chip-mint-fg hover:bg-ink-hover"
-            : "text-ink-text-secondary hover:bg-ink-hover hover:text-ink-text",
+            ? "text-lumen-chip-mint-fg hover:bg-lumen-hover"
+            : "text-lumen-text-secondary hover:bg-lumen-hover hover:text-lumen-text",
         className,
       )}
     >
       {active ? (
         <span
           aria-hidden="true"
-          className="absolute inset-y-1.5 left-0 w-[3px] rounded-r-ink-full bg-ink-accent"
+          className="absolute inset-y-1.5 left-0 w-[3px] rounded-r-lumen-full bg-lumen-accent"
         />
       ) : null}
       {tone === "mint" && !active ? (
         <span
           aria-hidden="true"
-          className="ml-0.5 h-2 w-2 shrink-0 rounded-full bg-ink-accent-secondary"
+          className="ml-0.5 h-2 w-2 shrink-0 rounded-full bg-lumen-accent-secondary"
         />
       ) : icon ? (
         <span
           aria-hidden="true"
-          className={cn("shrink-0", active && "text-ink-accent")}
+          className={cn("shrink-0", active && "text-lumen-accent")}
         >
           {icon}
         </span>
       ) : null}
       <span className="min-w-0 flex-1 truncate text-left">{label}</span>
       {trailing ? (
-        <span className="ml-auto shrink-0 text-xs text-ink-text-tertiary">
+        <span className="ml-auto shrink-0 text-xs text-lumen-text-tertiary">
           {trailing}
         </span>
       ) : null}

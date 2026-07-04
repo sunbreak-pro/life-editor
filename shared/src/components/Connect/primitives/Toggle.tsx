@@ -17,14 +17,14 @@ export function Toggle({ label, value, onChange, icon: Icon }: ToggleProps) {
       className={
         "w-full flex items-center justify-between px-2.5 py-2 rounded-md border transition-colors " +
         (value
-          ? "bg-ink-hover border-ink-border"
-          : "border-transparent hover:bg-ink-hover")
+          ? "bg-lumen-hover border-lumen-border"
+          : "border-transparent hover:bg-lumen-hover")
       }
     >
       <span
         className={
           "flex items-center gap-2 text-[12px] " +
-          (value ? "text-ink-text" : "text-ink-text-secondary")
+          (value ? "text-lumen-text" : "text-lumen-text-secondary")
         }
       >
         {Icon && <Icon size={13} />}
@@ -33,11 +33,11 @@ export function Toggle({ label, value, onChange, icon: Icon }: ToggleProps) {
       <span
         className={
           "w-7 h-4 rounded-full relative transition-colors " +
-          (value ? "bg-ink-accent" : "bg-ink-border")
+          (value ? "bg-lumen-accent" : "bg-lumen-border")
         }
       >
         <span
-          className="absolute top-0.5 w-3 h-3 rounded-full bg-ink-bg transition-all"
+          className="absolute top-0.5 w-3 h-3 rounded-full bg-lumen-bg transition-all"
           style={{ left: value ? "calc(100% - 14px)" : "2px" }}
         />
       </span>

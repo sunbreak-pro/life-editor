@@ -60,10 +60,10 @@ function EventEditor({
   onToggle: (id: string) => void;
 }) {
   const inputCls =
-    "mt-1 w-full rounded-md border border-ink-border bg-ink-bg px-2 py-1 text-sm text-ink-text";
+    "mt-1 w-full rounded-md border border-lumen-border bg-lumen-bg px-2 py-1 text-sm text-lumen-text";
   return (
-    <div className="space-y-3 rounded-md border border-ink-border bg-ink-bg-secondary p-3">
-      <label className="flex items-center gap-2 text-sm text-ink-text">
+    <div className="space-y-3 rounded-md border border-lumen-border bg-lumen-bg-secondary p-3">
+      <label className="flex items-center gap-2 text-sm text-lumen-text">
         <input
           type="checkbox"
           checked={item.completed}
@@ -75,7 +75,7 @@ function EventEditor({
         </span>
       </label>
       <div>
-        <span className="mb-1 block text-xs text-ink-text-secondary">
+        <span className="mb-1 block text-xs text-lumen-text-secondary">
           {labels.title}
         </span>
         <DebouncedTextInput
@@ -83,11 +83,11 @@ function EventEditor({
           value={item.title}
           onCommit={(title) => onUpdate(item.id, { title })}
           aria-label={labels.title}
-          className="w-full rounded-md border border-ink-border bg-ink-bg px-2 py-1 text-sm text-ink-text"
+          className="w-full rounded-md border border-lumen-border bg-lumen-bg px-2 py-1 text-sm text-lumen-text"
         />
       </div>
       <div className="flex gap-3">
-        <label className="flex-1 text-xs text-ink-text-secondary">
+        <label className="flex-1 text-xs text-lumen-text-secondary">
           {labels.startTime}
           <input
             type="time"
@@ -97,7 +97,7 @@ function EventEditor({
             className={inputCls}
           />
         </label>
-        <label className="flex-1 text-xs text-ink-text-secondary">
+        <label className="flex-1 text-xs text-lumen-text-secondary">
           {labels.endTime}
           <input
             type="time"
@@ -321,7 +321,7 @@ export function ScheduleCalendarView() {
   };
 
   const navBtn =
-    "rounded-md border border-ink-border p-1 text-ink-text hover:bg-ink-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink-accent";
+    "rounded-md border border-lumen-border p-1 text-lumen-text hover:bg-lumen-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent";
   const stepBy = (delta: number) => setAnchorDate((a) => addDaysKey(a, delta));
 
   const header = (
@@ -330,11 +330,11 @@ export function ScheduleCalendarView() {
         <button
           type="button"
           onClick={() => setAnchorDate(today)}
-          className="rounded-md border border-ink-border px-2 py-1 text-sm text-ink-text hover:bg-ink-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink-accent"
+          className="rounded-md border border-lumen-border px-2 py-1 text-sm text-lumen-text hover:bg-lumen-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent"
         >
           {t("scheduleCalendar.today")}
         </button>
-        <span className="text-sm font-medium text-ink-text">
+        <span className="text-sm font-medium text-lumen-text">
           {isWide
             ? `${formatDayDate(weekStart)} – ${formatDayDate(weekEnd)}`
             : anchorLabel}
@@ -393,7 +393,7 @@ export function ScheduleCalendarView() {
                 onToggle={handleToggle}
               />
             ) : (
-              <p className="rounded-md border border-ink-border bg-ink-bg-secondary px-4 py-6 text-sm text-ink-text-secondary">
+              <p className="rounded-md border border-lumen-border bg-lumen-bg-secondary px-4 py-6 text-sm text-lumen-text-secondary">
                 {t("scheduleCalendar.selectHint")}
               </p>
             )}
@@ -412,15 +412,15 @@ export function ScheduleCalendarView() {
             <button
               type="button"
               onClick={() => setSelectedId(item.id)}
-              className="flex w-full items-center gap-3 rounded-md border border-ink-border bg-ink-bg px-3 py-2 text-left hover:bg-ink-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink-accent"
+              className="flex w-full items-center gap-3 rounded-md border border-lumen-border bg-lumen-bg px-3 py-2 text-left hover:bg-lumen-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent"
             >
-              <span className="w-20 shrink-0 text-xs tabular-nums text-ink-text-secondary">
+              <span className="w-20 shrink-0 text-xs tabular-nums text-lumen-text-secondary">
                 {item.isAllDay
                   ? t("scheduleCalendar.allDay")
                   : `${item.startTime}–${item.endTime}`}
               </span>
               <span
-                className={`min-w-0 flex-1 truncate text-sm text-ink-text ${
+                className={`min-w-0 flex-1 truncate text-sm text-lumen-text ${
                   item.completed ? "line-through" : ""
                 }`}
               >
@@ -430,7 +430,7 @@ export function ScheduleCalendarView() {
           </li>
         ))}
         {dayAgenda.length === 0 && (
-          <li className="rounded-md border border-ink-border bg-ink-bg-secondary px-3 py-6 text-center text-sm text-ink-text-secondary">
+          <li className="rounded-md border border-lumen-border bg-lumen-bg-secondary px-3 py-6 text-center text-sm text-lumen-text-secondary">
             {t("scheduleCalendar.empty")}
           </li>
         )}

@@ -99,7 +99,7 @@ export function ScheduleTab({
           {Array.from({ length: 3 }).map((_, i) => (
             <div
               key={i}
-              className="h-20 rounded-lg bg-ink-bg-secondary animate-pulse"
+              className="h-20 rounded-lg bg-lumen-bg-secondary animate-pulse"
             />
           ))}
         </div>
@@ -110,7 +110,7 @@ export function ScheduleTab({
   if (items.length === 0) {
     return (
       <div className="max-w-3xl mx-auto w-full">
-        <p className="text-sm text-ink-text-secondary mt-4 text-center">
+        <p className="text-sm text-lumen-text-secondary mt-4 text-center">
           {labels.noEvents}
         </p>
       </div>
@@ -132,13 +132,13 @@ export function ScheduleTab({
           icon={<CalendarCheck2 size={20} />}
           label={labels.totalEvents}
           value={stats.totalEvents}
-          color="text-ink-accent"
+          color="text-lumen-accent"
         />
         <AnalyticsStatCard
           icon={<CheckCircle2 size={20} />}
           label={labels.completedEvents}
           value={stats.completedEvents}
-          color="text-ink-success"
+          color="text-lumen-success"
         />
         <AnalyticsStatCard
           icon={<Percent size={20} />}
@@ -156,7 +156,7 @@ export function ScheduleTab({
           icon={<Activity size={20} />}
           label={labels.routineRate}
           value={`${stats.routineRate}%`}
-          color="text-ink-accent"
+          color="text-lumen-accent"
         />
       </div>
 

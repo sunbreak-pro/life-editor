@@ -70,9 +70,9 @@ describe("Button", () => {
 
   it("applies the primary accent token by default and danger when set", () => {
     const { rerender } = render(<Button>X</Button>);
-    expect(screen.getByRole("button")).toHaveClass("bg-ink-accent");
+    expect(screen.getByRole("button")).toHaveClass("bg-lumen-accent");
     rerender(<Button variant="danger">X</Button>);
-    expect(screen.getByRole("button")).toHaveClass("bg-ink-danger");
+    expect(screen.getByRole("button")).toHaveClass("bg-lumen-danger");
   });
 
   it("fires onClick and respects disabled", () => {
@@ -113,7 +113,7 @@ describe("Input", () => {
     render(<Input invalid placeholder="email" />);
     const input = screen.getByPlaceholderText("email");
     expect(input).toHaveAttribute("aria-invalid", "true");
-    expect(input).toHaveClass("border-ink-danger");
+    expect(input).toHaveClass("border-lumen-danger");
   });
 });
 
@@ -121,7 +121,7 @@ describe("Card", () => {
   it("renders children inside an opaque token surface", () => {
     render(<Card>content</Card>);
     const el = screen.getByText("content");
-    expect(el).toHaveClass("bg-ink-bg");
+    expect(el).toHaveClass("bg-lumen-bg");
   });
 });
 
@@ -301,13 +301,13 @@ describe("Toast", () => {
   it("renders the message and maps the variant to its ink tone", () => {
     const { rerender } = render(<Toast variant="success">Saved.</Toast>);
     const el = screen.getByText("Saved.").parentElement as HTMLElement;
-    expect(el).toHaveClass("bg-ink-bg");
+    expect(el).toHaveClass("bg-lumen-bg");
     // the accent bar + dot carry the semantic tone token
-    expect(el.querySelector(".bg-ink-success")).not.toBeNull();
+    expect(el.querySelector(".bg-lumen-success")).not.toBeNull();
 
     rerender(<Toast variant="danger">Failed.</Toast>);
     const danger = screen.getByText("Failed.").parentElement as HTMLElement;
-    expect(danger.querySelector(".bg-ink-danger")).not.toBeNull();
+    expect(danger.querySelector(".bg-lumen-danger")).not.toBeNull();
   });
 
   it("exposes an alert role for danger and status for info", () => {
@@ -392,8 +392,8 @@ describe("Sidebar / SidebarItem", () => {
       </Sidebar>,
     );
     const active = screen.getByRole("button", { name: "Work" });
-    expect(active).toHaveClass("bg-ink-accent-subtle");
-    expect(active).toHaveClass("text-ink-accent");
+    expect(active).toHaveClass("bg-lumen-accent-subtle");
+    expect(active).toHaveClass("text-lumen-accent");
     expect(active).toHaveAttribute("aria-current", "page");
   });
 
@@ -405,7 +405,7 @@ describe("Sidebar / SidebarItem", () => {
       </Sidebar>,
     );
     const row = screen.getByRole("button", { name: "Habits" });
-    expect(row).toHaveClass("text-ink-chip-mint-fg");
+    expect(row).toHaveClass("text-lumen-chip-mint-fg");
     fireEvent.click(row);
     expect(onClick).toHaveBeenCalledTimes(1);
   });
@@ -435,7 +435,7 @@ describe("Menu / MenuItem", () => {
     expect(screen.getByRole("menu", { name: "Actions" })).toBeInTheDocument();
     const items = screen.getAllByRole("menuitem");
     expect(items).toHaveLength(2);
-    expect(items[1]).toHaveClass("text-ink-danger");
+    expect(items[1]).toHaveClass("text-lumen-danger");
 
     fireEvent.click(screen.getByRole("menuitem", { name: "Rename" }));
     expect(onSelect).toHaveBeenCalledTimes(1);

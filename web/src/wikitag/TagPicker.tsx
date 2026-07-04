@@ -126,12 +126,12 @@ export function TagPicker({
       className="relative inline-flex flex-wrap items-center gap-1"
     >
       {showLabel && (
-        <span className="inline-flex items-center gap-1 text-xs text-ink-text-secondary">
+        <span className="inline-flex items-center gap-1 text-xs text-lumen-text-secondary">
           <TagIcon size={12} aria-hidden />
           Tags
         </span>
       )}
-      {loading && <span className="text-xs text-ink-text-secondary">…</span>}
+      {loading && <span className="text-xs text-lumen-text-secondary">…</span>}
       {!loading &&
         assignments.map((a) => {
           const tag = tagsById.get(a.tagId);
@@ -151,7 +151,7 @@ export function TagPicker({
         onClick={() => setPickerOpen((v) => !v)}
         aria-label="Add tag"
         aria-expanded={pickerOpen}
-        className="inline-flex items-center gap-0.5 rounded-md border border-dashed border-ink-border px-1.5 py-0.5 text-xs text-ink-text-secondary hover:bg-ink-hover focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ink-accent"
+        className="inline-flex items-center gap-0.5 rounded-md border border-dashed border-lumen-border px-1.5 py-0.5 text-xs text-lumen-text-secondary hover:bg-lumen-hover focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-lumen-accent"
       >
         <Plus size={12} aria-hidden />
         {assignments.length === 0 && !loading && <span>Tag</span>}
@@ -161,7 +161,7 @@ export function TagPicker({
         <div
           role="dialog"
           aria-label="Tag picker"
-          className="absolute z-20 left-0 top-full mt-1 w-64 max-w-[calc(100vw-2rem)] rounded-md border border-ink-border bg-ink-bg p-2 shadow-lg"
+          className="absolute z-20 left-0 top-full mt-1 w-64 max-w-[calc(100vw-2rem)] rounded-md border border-lumen-border bg-lumen-bg p-2 shadow-lg"
         >
           <input
             type="text"
@@ -181,11 +181,11 @@ export function TagPicker({
               }
             }}
             placeholder="Search or create tag…"
-            className="w-full rounded-md border border-ink-border bg-ink-bg-secondary px-2 py-1 text-sm text-ink-text focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ink-accent"
+            className="w-full rounded-md border border-lumen-border bg-lumen-bg-secondary px-2 py-1 text-sm text-lumen-text focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-lumen-accent"
           />
           <ul className="mt-2 max-h-48 space-y-0.5 overflow-y-auto">
             {candidates.length === 0 && !query.trim() && (
-              <li className="px-2 py-1 text-xs text-ink-text-secondary">
+              <li className="px-2 py-1 text-xs text-lumen-text-secondary">
                 No more tags to assign.
               </li>
             )}
@@ -194,7 +194,7 @@ export function TagPicker({
                 <button
                   type="button"
                   onClick={() => void handleAssign(tag.id)}
-                  className="flex w-full items-center gap-1.5 rounded-md px-2 py-1 text-left text-sm text-ink-text hover:bg-ink-hover focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ink-accent"
+                  className="flex w-full items-center gap-1.5 rounded-md px-2 py-1 text-left text-sm text-lumen-text hover:bg-lumen-hover focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-lumen-accent"
                 >
                   {tag.color && (
                     <span
@@ -212,7 +212,7 @@ export function TagPicker({
                 <button
                   type="button"
                   onClick={() => void handleCreateAndAssign()}
-                  className="flex w-full items-center gap-1.5 rounded-md px-2 py-1 text-left text-sm text-ink-accent hover:bg-ink-hover focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ink-accent"
+                  className="flex w-full items-center gap-1.5 rounded-md px-2 py-1 text-left text-sm text-lumen-accent hover:bg-lumen-hover focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-lumen-accent"
                 >
                   <Plus size={12} aria-hidden />
                   <span>Create &ldquo;{query.trim()}&rdquo;</span>

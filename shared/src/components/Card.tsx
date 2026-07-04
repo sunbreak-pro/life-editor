@@ -15,8 +15,8 @@ const PADDING_CLASSES: Record<NonNullable<CardProps["padding"]>, string> = {
 };
 
 /*
- * Surface container. Opaque bg-ink-bg per §5 (primary container — no
- * transparency / no backdrop-blur). ink-* tokens only.
+ * Surface container. Opaque bg-lumen-bg per §5 (primary container — no
+ * transparency / no backdrop-blur). lumen-* tokens only.
  */
 export const Card = forwardRef<HTMLDivElement, CardProps>(function Card(
   { padding = "md", className, children, ...rest },
@@ -26,7 +26,7 @@ export const Card = forwardRef<HTMLDivElement, CardProps>(function Card(
     <div
       ref={ref}
       className={cn(
-        "rounded-lg border border-ink-border bg-ink-bg",
+        "rounded-lg border border-lumen-border bg-lumen-bg",
         PADDING_CLASSES[padding],
         className,
       )}

@@ -36,7 +36,7 @@ const ENABLED_ITEMS = '[role="menuitem"]:not([aria-disabled="true"])';
  * Dropdown menu popover. No ClaudeDesign catalog card exists for a menu, so
  * this follows the Modal / CommandPalette patterns (per the port brief). NOT
  * portalled: the caller wraps the trigger + <Menu> in a `relative` box and the
- * menu positions itself just below (top-full). OPAQUE panel (bg-ink-bg, §3.5)
+ * menu positions itself just below (top-full). OPAQUE panel (bg-lumen-bg, §3.5)
  * — never a translucent popover. a11y: role=menu with roving focus (Arrow /
  * Home / End), Tab-to-close, Esc-to-close (IME-guarded, §7), and
  * outside-pointerdown close. First enabled item is focused on open. Copy is
@@ -125,8 +125,8 @@ export function Menu({
       aria-label={label}
       onKeyDown={onKeyDown}
       className={cn(
-        "absolute top-full z-50 mt-1 min-w-44 rounded-ink-md border border-ink-border",
-        "bg-ink-bg py-1 shadow-ink-lg",
+        "absolute top-full z-50 mt-1 min-w-44 rounded-lumen-md border border-lumen-border",
+        "bg-lumen-bg py-1 shadow-lumen-lg",
         align === "end" ? "right-0" : "left-0",
         className,
       )}
@@ -138,8 +138,8 @@ export function Menu({
 
 /*
  * A single menu row. tabIndex=-1 (roving focus is driven by <Menu>); the
- * focused row lights up via focus:bg-ink-hover. "danger" tints the label with
- * the danger token. Disabled rows are inert + tertiary-toned. ink-* only.
+ * focused row lights up via focus:bg-lumen-hover. "danger" tints the label with
+ * the danger token. Disabled rows are inert + tertiary-toned. lumen-* only.
  *
  * onSelect does NOT close the menu — that stays the host's responsibility
  * (flip `open` to false inside your onSelect, or keep the menu open for a
@@ -168,10 +168,10 @@ export function MenuItem({
         "flex w-full items-center gap-2.5 px-3 py-1.5 text-left text-sm",
         "transition-colors focus:outline-none",
         disabled
-          ? "cursor-not-allowed text-ink-text-tertiary"
+          ? "cursor-not-allowed text-lumen-text-tertiary"
           : variant === "danger"
-            ? "text-ink-danger hover:bg-ink-hover focus:bg-ink-hover"
-            : "text-ink-text hover:bg-ink-hover focus:bg-ink-hover",
+            ? "text-lumen-danger hover:bg-lumen-hover focus:bg-lumen-hover"
+            : "text-lumen-text hover:bg-lumen-hover focus:bg-lumen-hover",
         className,
       )}
     >
@@ -182,7 +182,7 @@ export function MenuItem({
       ) : null}
       <span className="min-w-0 flex-1 truncate">{children}</span>
       {shortcut ? (
-        <span className="ml-auto shrink-0 text-xs text-ink-text-tertiary">
+        <span className="ml-auto shrink-0 text-xs text-lumen-text-tertiary">
           {shortcut}
         </span>
       ) : null}

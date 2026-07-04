@@ -23,7 +23,7 @@ export interface SettingsAppearanceProps {
 /*
  * Appearance settings part (W1). Pure / props-injected: theme + fontSize
  * value + setters come from the host (it owns useThemeContext), copy comes
- * via `labels`. ink-* tokens only, no hardcoded colors (CLAUDE.md §6.4).
+ * via `labels`. lumen-* tokens only, no hardcoded colors (CLAUDE.md §6.4).
  */
 export function SettingsAppearance({
   theme,
@@ -36,16 +36,16 @@ export function SettingsAppearance({
 
   return (
     <div className="space-y-6" data-section-id="appearance">
-      <h3 className="text-lg font-semibold text-ink-text">
+      <h3 className="text-lg font-semibold text-lumen-text">
         {labels.heading}
       </h3>
 
       <div className="flex items-center justify-between py-3">
         <div>
-          <p className="text-sm font-medium text-ink-text">
+          <p className="text-sm font-medium text-lumen-text">
             {labels.darkMode}
           </p>
-          <p className="text-xs text-ink-text-secondary">
+          <p className="text-xs text-lumen-text-secondary">
             {labels.darkModeDesc}
           </p>
         </div>
@@ -57,8 +57,8 @@ export function SettingsAppearance({
             className={cn(
               "rounded-md px-3 py-1.5 text-xs font-medium transition-colors",
               theme === "light"
-                ? "bg-ink-accent text-ink-on-accent"
-                : "bg-ink-hover text-ink-text",
+                ? "bg-lumen-accent text-lumen-on-accent"
+                : "bg-lumen-hover text-lumen-text",
             )}
           >
             {labels.light}
@@ -70,8 +70,8 @@ export function SettingsAppearance({
             className={cn(
               "rounded-md px-3 py-1.5 text-xs font-medium transition-colors",
               theme === "dark"
-                ? "bg-ink-accent text-ink-on-accent"
-                : "bg-ink-hover text-ink-text",
+                ? "bg-lumen-accent text-lumen-on-accent"
+                : "bg-lumen-hover text-lumen-text",
             )}
           >
             {labels.dark}
@@ -81,10 +81,10 @@ export function SettingsAppearance({
 
       <div className="py-3">
         <div className="mb-2 flex items-center justify-between">
-          <p className="text-sm font-medium text-ink-text">
+          <p className="text-sm font-medium text-lumen-text">
             {labels.fontSize}
           </p>
-          <span className="text-xs tabular-nums text-ink-text-secondary">
+          <span className="text-xs tabular-nums text-lumen-text-secondary">
             {px}px
           </span>
         </div>
@@ -96,9 +96,9 @@ export function SettingsAppearance({
           value={fontSize}
           onChange={(e) => onFontSizeChange(Number(e.target.value))}
           aria-label={labels.fontSize}
-          className="w-full accent-[var(--color-ink-accent)]"
+          className="w-full accent-[var(--color-lumen-accent)]"
         />
-        <div className="mt-1 flex justify-between text-xs text-ink-text-secondary">
+        <div className="mt-1 flex justify-between text-xs text-lumen-text-secondary">
           <span>{labels.fontSizeSmall}</span>
           <span>{labels.fontSizeLarge}</span>
         </div>

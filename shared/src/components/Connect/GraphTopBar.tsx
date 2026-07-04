@@ -31,11 +31,11 @@ export function GraphTopBar({
 }: GraphTopBarProps) {
   return (
     <div className="absolute top-3 left-3 right-3 flex items-center justify-between pointer-events-none">
-      <div className="pointer-events-auto flex items-center gap-3 px-3 py-1.5 rounded-lg bg-ink-bg border border-ink-border">
-        <span className="text-[12px] text-ink-text-secondary">
+      <div className="pointer-events-auto flex items-center gap-3 px-3 py-1.5 rounded-lg bg-lumen-bg border border-lumen-border">
+        <span className="text-[12px] text-lumen-text-secondary">
           {labels.title}
         </span>
-        <span className="text-[11px] font-mono text-ink-text-secondary">
+        <span className="text-[11px] font-mono text-lumen-text-secondary">
           {nodeCount}/{totalCount}n · {edgeCount}e
         </span>
         {activeFilterCount > 0 && (
@@ -43,14 +43,14 @@ export function GraphTopBar({
             type="button"
             onClick={onClearFilters}
             title={labels.clearFilters}
-            className="text-[10px] font-mono px-1.5 py-0.5 rounded flex items-center gap-1 border border-ink-border text-ink-accent hover:bg-ink-hover"
+            className="text-[10px] font-mono px-1.5 py-0.5 rounded flex items-center gap-1 border border-lumen-border text-lumen-accent hover:bg-lumen-hover"
           >
             <Filter size={9} />
             {activeFilterCount}
             <X size={9} />
           </button>
         )}
-        <span className="text-[10px] font-mono text-ink-text-secondary">
+        <span className="text-[10px] font-mono text-lumen-text-secondary">
           {zoomPct}%
         </span>
       </div>

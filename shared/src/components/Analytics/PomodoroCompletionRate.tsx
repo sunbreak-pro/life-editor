@@ -47,7 +47,7 @@ export function PomodoroCompletionRate({
 
   return (
     <div>
-      <h3 className="text-sm font-semibold text-ink-text mb-3">
+      <h3 className="text-sm font-semibold text-lumen-text mb-3">
         {labels.title}
       </h3>
       <div className="h-48">
@@ -58,27 +58,27 @@ export function PomodoroCompletionRate({
           >
             <CartesianGrid
               strokeDasharray="3 3"
-              stroke="var(--color-ink-border, #e5e5e5)"
+              stroke="var(--color-lumen-border, #e5e5e5)"
             />
             <XAxis
               dataKey="date"
               tick={{
                 fontSize: 10,
-                fill: "var(--color-ink-text-secondary, #999)",
+                fill: "var(--color-lumen-text-secondary, #999)",
               }}
               interval="preserveStartEnd"
             />
             <YAxis
               tick={{
                 fontSize: 10,
-                fill: "var(--color-ink-text-secondary, #999)",
+                fill: "var(--color-lumen-text-secondary, #999)",
               }}
               allowDecimals={false}
             />
             <Tooltip
               contentStyle={{
-                background: "var(--color-ink-bg, #fff)",
-                border: "1px solid var(--color-ink-border, #e5e5e5)",
+                background: "var(--color-lumen-bg, #fff)",
+                border: "1px solid var(--color-lumen-border, #e5e5e5)",
                 borderRadius: 8,
                 fontSize: 12,
               }}
@@ -92,19 +92,19 @@ export function PomodoroCompletionRate({
             />
             <ReferenceLine
               y={targetPerDay}
-              stroke="var(--color-ink-text-secondary, #999)"
+              stroke="var(--color-lumen-text-secondary, #999)"
               strokeDasharray="5 5"
               label={{
                 value: labels.target,
                 fontSize: 10,
-                fill: "var(--color-ink-text-secondary, #999)",
+                fill: "var(--color-lumen-text-secondary, #999)",
               }}
             />
             <Area
               type="monotone"
               dataKey="actual"
-              stroke="var(--color-ink-accent, #2563eb)"
-              fill="var(--color-ink-accent, #2563eb)"
+              stroke="var(--color-lumen-accent, #1d4ed8)"
+              fill="var(--color-lumen-accent, #1d4ed8)"
               fillOpacity={0.15}
               strokeWidth={2}
             />
