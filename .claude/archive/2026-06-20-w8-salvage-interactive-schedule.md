@@ -1,5 +1,5 @@
 ---
-Status: In Progress (自律スコープ Steps 1–5 完了・検証緑 / 残=👀 実機目視 + 🛑 PR merge)
+Status: COMPLETED — W8 対話機能救出 merged（#105）・自律スコープ Steps 1–5 検証緑（archive 2026-07-04）。残 👀 実機目視のみ
 Created: 2026-06-20
 Updated: 2026-06-27
 Branch: feat/w8-salvage-interactive-grid # 新規 worktree で実装（main worktree では不可）

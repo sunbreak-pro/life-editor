@@ -1,5 +1,5 @@
 ---
-Status: IN-PROGRESS — 自律スコープ（scaffold）実装中。ネイティブ検証（iOS Simulator / Android AVD / 実機）は 🛑 ユーザー Mac へハンドオフ（2026-06-15 phase4-capacitor レーン）
+Status: COMPLETED — Capacitor 包装 scaffold merged（#88）（archive 2026-07-04）。ネイティブ検証（iOS Simulator / Android AVD / 実機）は 🛑 ユーザー Mac ハンドオフ
 Created: 2026-06-15
 Branch: claude/phase4-capacitor-scaffold-p93dex
 Owner-chat: chat-phase4-capacitor
@@ -51,17 +51,17 @@ shared/src/utils/platform.ts                ← isNativeMobile() 追加（公認
 
 ## Steps
 
-| #   | Step                                                              | Gate    | Acceptance                                                          |
-| --- | ---------------------------------------------------------------- | ------- | ------------------------------------------------------------------ |
-| 0   | 本計画書作成（Plan Gate）                                         | 🤖 自律 | `_TEMPLATE.md` ベースで Scope / Gate / AC 記載                     |
-| 1   | `web` ビルドで `web/dist` 生成（Capacitor が包む成果物）          | 🤖 自律 | `cd web && npm run build` exit 0                                    |
-| 2   | `mobile/` 作成 + Capacitor 8 install + `npx cap init`             | 🤖 自律 | `mobile/package.json` に @capacitor/{core,cli,ios,android}         |
-| 3   | `capacitor.config.ts`（webDir=`../web/dist` / appId / appName）   | 🤖 自律 | config が web ビルド出力を指す・appId=com.lifeeditor.app           |
-| 4   | `npx cap add ios` / `npx cap add android`（生成物コミット）       | 🤖 自律 | `mobile/ios/` `mobile/android/` 生成                               |
-| 5   | `npx cap sync`（copy + update パイプライン整備）                  | 🤖 自律 | `cap sync android` 完走（iOS は pod install を Mac へ skip 申し送り）|
-| 6   | `isNativeMobile()` 小アダプタを `shared/utils/platform.ts` に追加 | 🤖 自律 | `cd shared && npm run build` exit 0・mobile 固有 import 0           |
-| 7   | Android safe-area inset / iOS スプラッシュ・アイコン（placeholder）| 🤖 自律 | 生成テンプレの inset 対応確認・プレースホルダ整備                  |
-| 8   | 🛑 ネイティブ検証（iOS Simulator / Android AVD / 実機 7日署名）   | 🛑 人手 | ユーザー Mac で起動 → ログイン → Tasks golden path                 |
+| #   | Step                                                                | Gate    | Acceptance                                                            |
+| --- | ------------------------------------------------------------------- | ------- | --------------------------------------------------------------------- |
+| 0   | 本計画書作成（Plan Gate）                                           | 🤖 自律 | `_TEMPLATE.md` ベースで Scope / Gate / AC 記載                        |
+| 1   | `web` ビルドで `web/dist` 生成（Capacitor が包む成果物）            | 🤖 自律 | `cd web && npm run build` exit 0                                      |
+| 2   | `mobile/` 作成 + Capacitor 8 install + `npx cap init`               | 🤖 自律 | `mobile/package.json` に @capacitor/{core,cli,ios,android}            |
+| 3   | `capacitor.config.ts`（webDir=`../web/dist` / appId / appName）     | 🤖 自律 | config が web ビルド出力を指す・appId=com.lifeeditor.app              |
+| 4   | `npx cap add ios` / `npx cap add android`（生成物コミット）         | 🤖 自律 | `mobile/ios/` `mobile/android/` 生成                                  |
+| 5   | `npx cap sync`（copy + update パイプライン整備）                    | 🤖 自律 | `cap sync android` 完走（iOS は pod install を Mac へ skip 申し送り） |
+| 6   | `isNativeMobile()` 小アダプタを `shared/utils/platform.ts` に追加   | 🤖 自律 | `cd shared && npm run build` exit 0・mobile 固有 import 0             |
+| 7   | Android safe-area inset / iOS スプラッシュ・アイコン（placeholder） | 🤖 自律 | 生成テンプレの inset 対応確認・プレースホルダ整備                     |
+| 8   | 🛑 ネイティブ検証（iOS Simulator / Android AVD / 実機 7日署名）     | 🛑 人手 | ユーザー Mac で起動 → ログイン → Tasks golden path                    |
 
 ### Gate 凡例
 
@@ -123,4 +123,5 @@ DDL なし（本 Phase は包装のみ）。
 
 - 2026-06-15（chat-phase4-capacitor 起草・lead-pipeline）: origin/main(056c506 = AppShell #87 merged) から `claude/phase4-capacitor-scaffold-p93dex` で着手。偵察で Phase 3 が renderer=web 戦略（web/dist を包む）と判明 → Capacitor も同型に `webDir=../web/dist`。Provider 配線は stream E 衝突回避のためユーザー判断で「アダプタのみ・配線は申し送り」確定。
 </content>
+
 </invoke>
