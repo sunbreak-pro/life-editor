@@ -3,6 +3,7 @@ import {
   ConnectGraphView,
   WikiTagsUnifiedProvider,
   useWikiTagsUnifiedContext,
+  useToast,
   useTranslation,
   type ConnectGraphLabels,
   type DataService,
@@ -62,6 +63,7 @@ const EMPTY_STATIC: ConnectStaticData = {
 
 function ConnectGraphHost({ dataService }: ConnectScreenProps) {
   const { t } = useTranslation();
+  const { showToast } = useToast();
   const wiki = useWikiTagsUnifiedContext();
   const [data, setData] = useState<ConnectStaticData>(EMPTY_STATIC);
 
@@ -133,15 +135,18 @@ function ConnectGraphHost({ dataService }: ConnectScreenProps) {
       assignments={data.assignments}
       connections={wiki.allConnections}
       labels={labels}
-      // Propagate rejection so SelectedNodeCard's runLinkMutation can surface
-      // the inline error (it awaits the returned promise). Swallowing here with
-      // .catch would make every mutation look successful.
+      // Propagate rejection so SelectedNodeCard's runLinkMutation can catch it
+      // (it awaits the returned promise) and report via onLinkError. Swallowing
+      // here with .catch would make every mutation look successful.
       onCreateLink={async (fromId, toId) => {
         await wiki.createItemLink(fromId, toId);
       }}
       onDeleteLink={async (linkId) => {
         await wiki.deleteItemLink(linkId);
       }}
+      // The card reports a create/delete failure with already-translated copy;
+      // raise it as a danger toast (mounted app-wide by ToastProvider).
+      onLinkError={(message) => showToast("danger", message)}
     />
   );
 }

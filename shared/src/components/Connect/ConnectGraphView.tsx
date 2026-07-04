@@ -38,11 +38,16 @@ export interface ConnectGraphViewProps {
   onOpenDaily?: (date: string) => void;
   /**
    * create a directed item↔item link (host wires the context mutator). May
-   * return a promise; a rejection surfaces an inline notice on the node card.
+   * return a promise; a rejection is reported through `onLinkError`.
    */
   onCreateLink?: (fromId: string, toId: string) => void | Promise<void>;
-  /** delete the link identified by `linkId` (host wires the context mutator). Rejection → inline notice. */
+  /** delete the link identified by `linkId` (host wires the context mutator). Rejection → `onLinkError`. */
   onDeleteLink?: (linkId: string) => void | Promise<void>;
+  /**
+   * Report a link create/delete failure with already-translated copy. The host
+   * (ConnectScreen) wires this to its toast; threaded down to SelectedNodeCard.
+   */
+  onLinkError?: (message: string) => void;
 }
 
 /**
@@ -62,6 +67,7 @@ export function ConnectGraphView({
   onOpenDaily,
   onCreateLink,
   onDeleteLink,
+  onLinkError,
 }: ConnectGraphViewProps) {
   const snapshot = useMemo(
     () => buildGraphModel({ notes, dailies, tags, assignments, connections }),
@@ -264,6 +270,7 @@ export function ConnectGraphView({
             outgoingLinkIds={outgoingLinkIds}
             onCreateLink={onCreateLink}
             onDeleteLink={onDeleteLink}
+            onLinkError={onLinkError}
           />
         )}
 
