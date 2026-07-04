@@ -19,7 +19,7 @@ Previous: (W3 — PR #75 merged)
 - **動機**: web は Desktop 同等化（roadmap W4）の最後の一歩。Analytics（旧 Tauri 31f/3200行）は
   Tauri 依存ゼロ → 集計ロジックを共有層、描画を recharts で web に新規実装。
 - **制約**: コスト $0（新テーブル不要見込み・既存 items_meta/payload を集計）。**画面層 = 複雑→分割寄り**
-  （複数タブ。PC 中心。Mobile は後続）。notion-\* トークン厳守・i18n-first（namespace `analytics.*`）。
+  （複数タブ。PC 中心。Mobile は後続）。ink-\* トークン厳守・i18n-first（namespace `analytics.*`）。
 - **Non-goals**: Connect（別レーン）/ 既存 5 機能の改変 / 汎用 Database（凍結）/ 新規 DDL（必要なら
   coord に先連絡）。
 

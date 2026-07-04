@@ -23,7 +23,7 @@ Previous: ./2026-06-18-web-parity-w7-task-detail.md
 - **到達基準**: 広幅で**週（7日）タイムグリッド**に schedule_items が時刻位置で並び、クリックで選択・編集できる。狭幅は**1日アジェンダ**（時刻順リスト）+ タップで編集シート。曜日/日のナビ（前後移動・今日へ）。**ピクセル一致は求めない**（親書 Context 方針 2）。
 - **制約**:
   - コスト $0 厳守（**DDL なし**・新規依存なし。`@dnd-kit` は既存依存・`useMediaQuery`/`BottomSheet`/`MasterDetail` も既存）。
-  - 既存の不変式を維持: DataService 境界（§3.1/§6.4・`createScheduleItem`/`updateScheduleItem` はコールバック注入）、Provider ネスト順（§6.2・Schedule trio = Routine→ScheduleItems→CalendarTags）、section ルーティングは `useState`（§3.2）、新規 UI は `shared/src/components/` 集約（§6）、`notion-*` 厳守・主要 UI 背景に透明度禁止、i18n は props 注入（shared 内 `useTranslation()` 直呼び禁止）。
+  - 既存の不変式を維持: DataService 境界（§3.1/§6.4・`createScheduleItem`/`updateScheduleItem` はコールバック注入）、Provider ネスト順（§6.2・Schedule trio = Routine→ScheduleItems→CalendarTags）、section ルーティングは `useState`（§3.2）、新規 UI は `shared/src/components/` 集約（§6）、`ink-*` 厳守・主要 UI 背景に透明度禁止、i18n は props 注入（shared 内 `useTranslation()` 直呼び禁止）。
   - **2層モデルの「複雑画面 → 分割」**: 全幅1コンポーネントで完全レスポンシブ化はしない。広幅グリッドと狭幅アジェンダは別レイアウトに割り切る（親書 §中核設計）。
 - **Non-goals**:
   - **Routine 生成ロジック / `RoutineScheduleSync` の作り替え**（W8 は生成済 schedule_items の*可視化*に徹する。生成は S4-5 の既存実装をそのまま使う）。
@@ -78,7 +78,7 @@ web/src/MainScreen.tsx                              ← Schedule セクション
 | #   | Step                                                                                                             | Gate    | Acceptance                                      |
 | --- | ---------------------------------------------------------------------------------------------------------------- | ------- | ----------------------------------------------- |
 | 1   | レイアウト純関数 `scheduleGridLayout.ts`（`HH:MM`→分→top/height・素朴な重なり詰め）                              | 🤖 自律 | `cd shared && npm run build` exit 0             |
-| 2   | `WeekTimeGrid` 新設（時刻軸 + 曜日ヘッダ + 絶対配置イベント・終日レーン・`notion-*`・props 注入）                | 🤖 自律 | `cd shared && npm run build` exit 0             |
+| 2   | `WeekTimeGrid` 新設（時刻軸 + 曜日ヘッダ + 絶対配置イベント・終日レーン・`ink-*`・props 注入）                | 🤖 自律 | `cd shared && npm run build` exit 0             |
 | 3   | サブバレル + barrel export 追加                                                                                  | 🤖 自律 | `cd shared && npm run build` exit 0             |
 | 4   | i18n: 曜日略称 / 今日 / 終日 / 空状態 等を en/ja 両 catalog に追加                                               | 🤖 自律 | 両ファイル同キー存在・`npm run build` exit 0    |
 | 5   | 最小 test（レイアウト純関数の unit + `WeekTimeGrid` 描画/クリックの最小描画）                                    | 🤖 自律 | `cd shared && npm run test` 全 pass             |
@@ -129,7 +129,7 @@ web/src/MainScreen.tsx                              ← Schedule セクション
 - 親ロードマップ: `./2026-06-07-web-desktop-parity-roadmap.md`（W0〜W7・2層モデル・棚卸し。Schedule=週ビュー等の "何を作り何を作らないか" は section-unification の棚卸し結論を参照）
 - 直前: `./2026-06-18-web-parity-w7-task-detail.md`（Tasks 詳細・`MasterDetail` 第2採用）/ `./2026-06-16-web-parity-w6-detail-panel.md`（`MasterDetail` プリミティブ）
 - 移行 SSOT: `../../../2026-05-04-cross-platform-migration.md`
-- frontend 規約: `../../../rules/frontend.md`（Schedule 3分割 / Provider 順序 / `notion-*` / i18n / IME）
+- frontend 規約: `../../../rules/frontend.md`（Schedule 3分割 / Provider 順序 / `ink-*` / i18n / IME）
 - 設計原則: `../coding-principles.md`（部品共通 / 画面分岐の2層モデル — 複雑画面は分割）
 - 参照実装（FROZEN・読むだけ）: `frontend/` の旧 Schedule 週グリッド / 時間グリッド（Tauri 依存・移植しない・仕様参照のみ）
 - 既存 web: `web/src/schedule/ScheduleItemsView.tsx`（狭幅アジェンダ + 編集 UI の流用元）/ `shared/src/types/schedule.ts`（`ScheduleItem`）
@@ -139,11 +139,11 @@ web/src/MainScreen.tsx                              ← Schedule セクション
 
 ## Worklog
 
-- 2026-06-20（app-dev-roadmap チャット・W8-1 web-first 実装 + 重複 doc 統合）: 本書（web-w6-master-detail チャット起草・#94 で main 入り）と並行して、app-dev-roadmap チャットが別 doc `web-parity-w8-week-calendar.md` を起こし **W8-1 を web-first で実装**していた（PR #93 が HTML レポートのみで早期 squash マージされ、後続コミットが main へ未反映だったのを本セッションで発見・回収）。重複 doc は本書へ統合し削除。**実装の実体**: `shared/src/utils/weekGridLayout.ts`（純関数 = `timeToMinutes` / `layoutDayEvents` interval-partitioning 重なり列分割 / 週日付 helper・13 tests）+ `web/src/schedule/WeekGrid.tsx`（7日×24h 時間グリッド・絶対配置・all-day strip・週ナビ・今日列ハイライト・notion-* 不透明・English-only）+ MainScreen 配線。検証 = shared build / 13 tests / web build(4383 modules) / web eslint いずれも exit 0。**本計画との差分（要追認）**: ① 純関数名は計画の `scheduleGridLayout.ts` ではなく `weekGridLayout.ts`、② グリッドは計画の shared `WeekTimeGrid` ではなく **web 限定 `WeekGrid`**（既存 web schedule views と同位置）で 2層モデルの shared 集約は未達、③ 狭幅アジェンダ + `useMediaQuery` 出し分け未実装（広幅グリッドのみ）、④ DnD（Step 7）未着手。→ **W8-2（クリック作成/編集）→ W8-3（DnD 移動/リサイズ）** を続行予定。shared `WeekTimeGrid` 化（2層 responsive）は W8 内のリファクタ候補として残す。
+- 2026-06-20（app-dev-roadmap チャット・W8-1 web-first 実装 + 重複 doc 統合）: 本書（web-w6-master-detail チャット起草・#94 で main 入り）と並行して、app-dev-roadmap チャットが別 doc `web-parity-w8-week-calendar.md` を起こし **W8-1 を web-first で実装**していた（PR #93 が HTML レポートのみで早期 squash マージされ、後続コミットが main へ未反映だったのを本セッションで発見・回収）。重複 doc は本書へ統合し削除。**実装の実体**: `shared/src/utils/weekGridLayout.ts`（純関数 = `timeToMinutes` / `layoutDayEvents` interval-partitioning 重なり列分割 / 週日付 helper・13 tests）+ `web/src/schedule/WeekGrid.tsx`（7日×24h 時間グリッド・絶対配置・all-day strip・週ナビ・今日列ハイライト・ink-* 不透明・English-only）+ MainScreen 配線。検証 = shared build / 13 tests / web build(4383 modules) / web eslint いずれも exit 0。**本計画との差分（要追認）**: ① 純関数名は計画の `scheduleGridLayout.ts` ではなく `weekGridLayout.ts`、② グリッドは計画の shared `WeekTimeGrid` ではなく **web 限定 `WeekGrid`**（既存 web schedule views と同位置）で 2層モデルの shared 集約は未達、③ 狭幅アジェンダ + `useMediaQuery` 出し分け未実装（広幅グリッドのみ）、④ DnD（Step 7）未着手。→ **W8-2（クリック作成/編集）→ W8-3（DnD 移動/リサイズ）** を続行予定。shared `WeekTimeGrid` 化（2層 responsive）は W8 内のリファクタ候補として残す。
 - 2026-06-19（起草）: W7（Tasks 詳細）完了を受け、W8 を「Schedule カレンダー充実」に確定。`ScheduleItem` が既に `date` + `HH:MM` を持つため **DDL ゼロでグリッド可視化可能**と確認。2層モデルの複雑画面として**広幅=週タイムグリッド / 狭幅=日アジェンダ**に割り切り。コア（表示 + クリック編集）と **DnD（任意・Step 7）を分離**し、DnD はリスク次第で W8+ へ送れる構造に。位置計算は純関数（`scheduleGridLayout.ts`）に外出しして unit test で固める。Routine 生成（`RoutineScheduleSync`）・`ScheduleView`・`CalendarView` は無改変。本書は計画のみ（実装は次セッション）。
 - 2026-06-20（実装・main 引取）: コア **Steps 1–6 実装完了**（worktree `feat/w8-schedule-calendar`）。
   - `shared/src/utils/scheduleGridLayout.ts` — `minutesFromMidnight` / `layoutDayItems`（素朴な横カラム詰め・%ベース top/height）/ ローカル日付キー演算（`addDaysKey`/`startOfWeekKey`/`weekDayKeys`・**UTC 不持込**: `new Date(y,m-1,d)` のみ）。
-  - `shared/src/components/schedule/WeekTimeGrid.tsx` — 時刻軸 + 曜日ヘッダ + 終日レーン + 絶対配置イベント。純粋表示（DataService/i18n 非依存・ラベルと書式は props 注入）・`notion-*` のみ・`days={1}` で日ビューに縮退可。サブバレル + `components/index.ts` バレル追記。
+  - `shared/src/components/schedule/WeekTimeGrid.tsx` — 時刻軸 + 曜日ヘッダ + 終日レーン + 絶対配置イベント。純粋表示（DataService/i18n 非依存・ラベルと書式は props 注入）・`ink-*` のみ・`days={1}` で日ビューに縮退可。サブバレル + `components/index.ts` バレル追記。
   - i18n: `scheduleCalendar` namespace（曜日略称 / 終日 / 今日 / 前後ナビ / 空 / 編集ラベル = 21 キー）を en/ja **両 catalog** に追加。
   - test: `scheduleGridLayout.test.ts`（純関数 unit・overlap/clamp/日付境界）+ `weekTimeGrid.test.tsx`（描画 / クリック / 終日 / `days={1}`）= 計 19。**shared 全 462 passed**。
   - web `ScheduleCalendarView.tsx` — `useMediaQuery` で出し分け（広幅=`WeekTimeGrid` + 右ペイン編集 / 狭幅=日アジェンダ + `BottomSheet` 編集）。週/日ナビ・今日。`loadDateRange` で可視週を**読取**、編集は既存 `updateScheduleItem`/`toggleComplete` + 楽観 patch（**CRUD 改変なし**）。`MainScreen` schedule セクションに配線（Provider 順序不変）。

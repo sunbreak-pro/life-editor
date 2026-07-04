@@ -19,7 +19,7 @@ Previous: (W3 — PR #75 merged)
 - **動機**: roadmap W4。Connect（旧 Tauri 32f/7500行・一部 Tauri 依存）= ノートグラフ + backlink。
   Notes/Daily は web 移植済 → items_meta + link 系から graph を構築し `@xyflow/react` で描画。
 - **制約**: コスト $0（新テーブル不要見込み・既存 link/items_meta を参照）。**画面層 = 複雑→分割**
-  （PC=node graph ドラッグ / Mobile=後続）。一部 Tauri 依存は web では落として再実装。notion-\* / i18n
+  （PC=node graph ドラッグ / Mobile=後続）。一部 Tauri 依存は web では落として再実装。ink-\* / i18n
   namespace `connect.*`。
 - **Non-goals**: Analytics（別レーン）/ 既存 5 機能の改変 / 汎用 Database（凍結）/ 新規 DDL（必要なら
   coord に先連絡）。
