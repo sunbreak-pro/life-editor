@@ -1,5 +1,18 @@
 # HISTORY (chat-frontend)
 
+### 2026-07-04 - Connect→shared Toast + Analytics per-range fetch（follow-up #6/#7 集約・PR #116）
+
+#### 概要
+
+並行オーケストレーションの follow-up 2本（#6 Connect エラー表示の Toast 化 / #7 Analytics の per-range 取得）を1ブランチ `feat/connect-toast-analytics-perrange` に集約し、role-qa（判定 MERGE 可）を通して PR #116 として squash merge。これで fan-out（A/B/C/D/doc-sync/#6/#7 = #112〜#116）が完了した。
+
+#### 変更点
+
+- **#6 Connect Toast 化**: SelectedNodeCard の inline `role=alert` を廃止し `onLinkError` コールバックで通知するだけの presentational に戻す。shared に ToastProvider/useToast の consumption 層（`shared/src/context/ToastContext.tsx`）を新設し、web MainScreen が Theme→Toast→Sync 順でマウント。ConnectScreen が reject を握り潰さず伝播 → danger トースト表示。`ConnectGraphLabels.linkCreateFailed/linkDeleteFailed` を必須化（英語フォールバック廃止）。commit `9ef47fd8`。
+- **#7 Analytics per-range fetch**: AnalyticsScreen の全履歴一括取得（`2020-01-01`〜today）を廃止し、選択 DateRange 単位のみ取得。AnalyticsFilterContext に `onDateRangeChange`（latest-ref）追加、AnalyticsView が `onScheduleRangeChange`/`scheduleLoading` を任意受領、ScheduleTab にロードスケルトン。DateRange 型のみ Analytics バレルから公開（provider/hook は internal 維持）。commit `72c0ef26`。
+- **検証**: 集約ゲート全段 PASS（shared tsc -b / vitest 49 files 547 tests / web build）。role-qa 判定 MERGE 可（ブロッカーなし・任意 nit 4件）。merge 後リモートブランチ `feat/connect-toast-analytics-perrange` 削除。
+- **orchestration**: parallel-orchestrator の fan-out 完了。A/B/C/D/doc-sync/#6/#7 が #112/#113/#114/#115/#116 として全て main（`ce73f06d`）に着地。
+
 ### 2026-06-30 - カラートークン rename (notion-* → ink-*) + ClaudeDesign Lumen UI 新4部品
 
 #### 概要
