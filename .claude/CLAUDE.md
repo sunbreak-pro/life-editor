@@ -67,7 +67,7 @@
 | 週次開発スケジュール | `schedule-management` スキル（平日30–60分/休日4h+ を Phase・plans から週次ブロック化 → Google Calendar(MCP) ミラー・台帳 `automation/dev-schedule.md` で進捗追跡） |
 | branch / PR / merge | `git-orchestrator`（→ git-workflow / git-branch-flow / git-conflict-resolver） |
 | IPC 追加 | `add-ipc-channel` スキル ／ DB 変更 | `db-migration` スキル |
-| デバッグ | `debug-strategy` スキル + `docs/known-issues/INDEX.md` を grep |
+| デバッグ | `debug-strategy` スキル + open bug は `gh issue list -R sunbreak-pro/life-editor --label type:bug`（過去知見は `--state closed --search` と `docs/known-issues/` grep） |
 | ツール実行ハング（応答停止） | [`~/.claude/rules/bash-tool-stability.md`](file:///Users/newlife/.claude/rules/bash-tool-stability.md)（原因=本体 SSE バグ・ローカルはシロ。ESC 復帰 → jsonl 系統判定 → 混雑帯回避。重い Bash は background/subagent に逃がす。**運用既定: 状態変更・複数行系の Bash（git 操作 / build / test / install / コマンド連結）はサブエージェント or background 経由、単発の軽い読み取り（ls / git status / 単発 grep）は直接実行**。詳細切り分けは memory `bash-tool-hang-diagnosis`） |
 | life-editor 整合監査 | `life-editor-ipc-validator` / `-migration-validator` / `-sync-auditor` |
 
@@ -114,6 +114,6 @@ cd web && npm run dev           # ローカル起動（vite）
 
 - **進捗 / 履歴は per-chat**: `.claude/memory/chat-<self>.md` + `.claude/history/chat-<self>.md`（task-tracker 経由・git 追跡・単一書込者）。集約 `memory/INDEX.md` / `history/INDEX.md` は **git 非追跡の派生ビュー**（`hooks/regen-index.sh` が再生成）。チャット名宣言 = `.claude/comm/.session-name`
 - **実装プラン**: `docs/vision/plans/YYYY-MM-DD-<slug>.md` → 完了で `archive/` へ移動。ADR は作らない（理由 → `docs/vision/coding-principles.md §5`）
-- **Known Issue**: 発見時 `docs/known-issues/_TEMPLATE.md` で `NNN-<slug>.md` 作成 + INDEX 更新。**類似バグはまず INDEX.md を grep**
+- **Known Issue / 課題管理（2026-07-04〜）**: 追跡の正 = **GitHub Issues + Projects**（`gh -R sunbreak-pro/life-editor` で読み書き・種別 = label `type:*`）。新規バグは Issue で起票（`.github/ISSUE_TEMPLATE/known-issue.yml`）。`docs/known-issues/` は Fixed の凍結アーカイブ（参照専用）。**類似バグは `gh issue list --search` + INDEX.md grep の両輪**。計画書 .md 更新時は対応 Issue の DoD も更新（.md=詳細 / Issue=追跡）
 - **並行チャット通信**: `.claude/comm/`（自分の Outbox にのみ append → [`comm/README.md`](./comm/README.md)）
 - **鉄則**: 機能追加 / 削除時は §8 更新 ／ 音源ファイルはコミット禁止（`public/sounds/` は `.gitignore`）／ API キーをフロントエンドに直書きしない ／ **`.mcp.json` のトークンは `${SUPABASE_ACCESS_TOKEN}` 等の参照のまま維持・平文展開禁止**（2026-05-17 流出未遂。`hooks/pre-commit-mcp-check.sh` が commit 時に機械チェック）
