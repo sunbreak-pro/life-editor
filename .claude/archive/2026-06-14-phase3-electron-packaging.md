@@ -1,5 +1,5 @@
 ---
-Status: IN-PROGRESS — 自律スコープ（Steps 2-8）実装+検証完了。Step 9（👀 実機 golden path）はユーザーゲート待ち / Step 10（CI）は任意・後回し（2026-06-14 phase3-electron レーン）
+Status: COMPLETED — Electron 包装 scaffold merged（#79）・自律スコープ Steps 2-8 検証済（archive 2026-07-04）。残 Step 9（👀 実機 golden path）はユーザーゲート / Step 10（CI）任意
 Created: 2026-06-14
 Owner-chat: phase3-electron
 Task: 移行 SSOT Phase 3 — Electron 包装（macOS .app 起動まで）

@@ -1,19 +1,19 @@
 ---
-Status: ACTIVE — Phase 2 完了（2026-06-05 / PR #43・#44 + tracker commit 5b3021c。S0-S7 / perf / RLS 達成）。Phase 2↔3 間 Data Unification レーン進行中（DU-G G2 / 計画書 `2026-05-25-data-unification-g-notes-daily-unified.md`）、Phase 3（Electron 包装）未着手。最新 Phase 状況は `memory/INDEX.md`（per-chat）+ 各 Phase 計画書 + git 履歴が正本（旧 MEMORY.md は 2026-05-23 凍結）。本ファイルは commit 60f5f63 で誤削除→2026-05-17 git 履歴から復元
+Status: ACTIVE — Phase 2 完了（2026-06-05 / PR #43・#44 + tracker commit 5b3021c。S0-S7 / perf / RLS 達成）。Phase 2↔3 間 Data Unification レーン進行中（DU-G G2 / 計画書 `2026-05-25-data-unification-g-notes-daily-unified.md`）。Phase 3（Electron 包装 #79）/ Phase 4（Capacitor 包装 #88）は scaffold merged（`desktop/` `mobile/` 実在）、残は実機 golden path の目視ゲート。最新 Phase 状況は `memory/INDEX.md`（per-chat）+ 各 Phase 計画書 + git 履歴が正本（旧 MEMORY.md は 2026-05-23 凍結）。本ファイルは commit 60f5f63 で誤削除→2026-05-17 git 履歴から復元
 Created: 2026-05-04
 Updated: 2026-06-06
 Task: クロスプラットフォーム移行 — Tauri / Cloudflare 構成 → Vite + React + TS + Supabase + Electron + Capacitor
 Project path: /Users/newlife/dev/apps/life-editor
 Branch: main（2026-05〜集約済み。旧 refactor/web-first-v2 は PR #3-9 merge 済で廃止 — CLAUDE.md ヘッダ参照）
 Supersedes:
-  - [.claude/archive/2026-04-29-web-first-migration.md](./archive/2026-04-29-web-first-migration.md) — Web First 単体構成（Electron 不採用）から本プランへ統合
+  - `2026-04-29-web-first-migration.md`（archive から削除済・逐語は git 履歴参照）— Web First 単体構成（Electron 不採用）から本プランへ統合
 Related:
   - [CLAUDE.md](./CLAUDE.md) — 移行完了後に全面改訂(Tauri / SQLite / Cloud D1 / Cloud Sync 章を削除)
   - [docs/vision/core.md](./docs/vision/core.md) — 失効中の章あり、Phase 5 で全面改訂
   - [docs/vision/db-conventions.md](./docs/vision/db-conventions.md) — 並立期間は現行規約として有効、Phase 5 で Postgres + RLS 規約に置換
   - [archive/SUMMARY.md](./archive/SUMMARY.md) — Tauri 前提で失効した旧 vision/ 4 ファイル（vision-tauri/）は 2026-05-16 削除、恒久知見のみ本ファイルに圧縮（逐語原文は git 履歴）
-  - [.claude/archive/2026-04-29-claude-desktop-style-chat-ui.md](./archive/2026-04-29-claude-desktop-style-chat-ui.md) — 旧 Vision 前提のため archive 済
-  - [.claude/2026-04-26-windows-android-port.md](./2026-04-26-windows-android-port.md) — Tauri ベースの Windows/Android 配布計画。本プランで完全に置換される
+  - `2026-04-29-claude-desktop-style-chat-ui.md`（archive から削除済・逐語は git 履歴参照）— 旧 Vision 前提のため archive 済
+  - `2026-04-26-windows-android-port.md`（削除済・逐語は git 履歴参照）— Tauri ベースの Windows/Android 配布計画。本プランで完全に置換される
 ---
 
 # Plan: クロスプラットフォーム移行（Electron / Capacitor / Web）

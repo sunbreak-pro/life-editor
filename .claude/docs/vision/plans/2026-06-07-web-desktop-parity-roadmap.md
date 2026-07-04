@@ -38,7 +38,7 @@ Related:
 - ユーザー要望: **Web の UI/UX を旧 Desktop 同等に**。さらに **3 配布形態（Electron Desktop / Web ブラウザ / Capacitor Mobile）が同じ shared の UI/UX を共用する**方向へ寄せる（移行 SSOT の「shared が React 本体、3 包装は薄い殻」思想の具体化）。
 - **確定した方針（合意済み）**:
   1. スコープ = **未移植機能の追加を優先**（既存5機能の見た目磨きは後回し）
-  2. 到達基準 = **操作感・情報密度の同等**（notion-\* で再構成。ピクセル一致は求めない）
+  2. 到達基準 = **操作感・情報密度の同等**（ink-\* で再構成。ピクセル一致は求めない）
   3. **UI 共通化は「2層モデル」**（下記）。部品とロジックは全環境共通、画面レイアウトは機能別判断。
   4. **データ / サービスは環境別のまま維持**（DataService 抽象の境界は不変。統一しない）
   5. 汎用 **Database は凍結継続**（今回ロードマップから除外。Phase 5-A 方針維持）
@@ -53,7 +53,7 @@ UI を 2 層に分けて、共通化の度合いを層ごとに変える:
 
 | 層                             | 内容                                                                                      | 共通化方針                                                                    |
 | ------------------------------ | ----------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------- |
-| **部品層（デザインシステム）** | ボタン / 入力欄 / カード / モーダル / シート / 色・余白・文字サイズ（notion-\* トークン） | **全環境で完全共通**（shared に集約。直す場所 1 箇所）                        |
+| **部品層（デザインシステム）** | ボタン / 入力欄 / カード / モーダル / シート / 色・余白・文字サイズ（ink-\* トークン） | **全環境で完全共通**（shared に集約。直す場所 1 箇所）                        |
 | **画面層（レイアウト）**       | 各機能画面の組み立て方                                                                    | **機能特性で判断**：単純画面=レスポンシブ単一 / 複雑画面=Desktop・Mobile 分割 |
 
 - **単純画面（レスポンシブ単一でよい）**: 縦に並ぶリスト系。Settings / Trash / Notes / Daily 等。1 コンポーネントが画面幅で伸縮。
@@ -113,7 +113,7 @@ CLAUDE.md , 2026-05-04-cross-platform-migration.md  ← 方針転換の記録（
 2. **UI 集約先の確定（W0 の主題・要承認）**: 現状 `shared` は UI 依存ゼロの純粋データ層（deps は supabase-js のみ）。UI を入れるには `shared/package.json` に `lucide-react` 等を追加し tsx を emit する構成へ拡張が要る。2 案を W0 で確定:
    - **案 A（推奨・ユーザー選択）**: `shared/src/components/` を新設し UI（デザインシステム + 共通画面）を集約。shared が UI 依存を持つ。Electron/Capacitor が即共用できる。
    - **案 B（代案）**: 別パッケージ `ui/` を新設し shared(データ層) と分離。shared の純粋性を保つ。構成は綺麗だがパッケージが 1 つ増える。
-3. **notion-\* トークン厳守**（ハードコード禁止 / 不透明背景。CLAUDE.md §6.4）。デザインシステムの色・余白はトークンに集約。
+3. **ink-\* トークン厳守**（ハードコード禁止 / 不透明背景。CLAUDE.md §6.4）。デザインシステムの色・余白はトークンに集約。
 4. **i18n 基盤の新規導入（W0）**: 現状 web/shared に react-i18next が無い（ハードコード）。en/ja を `frontend/src/i18n/locales` から移植し共有層に provider を据える。以後の移植機能は i18n-first。
 5. **DataService はコールバック注入 / Pattern A / Mobile 省略 Provider は Optional バリアント**（CLAUDE.md §6.2-6.4）。
 6. **Provider 順序**: web ルートに Theme / ShortcutConfig / Timer / Audio を §6.2 順で追加（Mobile 省略分を除く）。
@@ -126,7 +126,7 @@ CLAUDE.md , 2026-05-04-cross-platform-migration.md  ← 方針転換の記録（
 
 - [ ] UI 集約先を案A/案Bで確定
 - [ ] 共有層を tsx 対応に（package.json に UI 依存追加 / tsconfig JSX / Tailwind クラス解決確認 / vitest）
-- [ ] **デザインシステム層**を shared に新設：notion-\* トークン整理 + 共通部品（Button / Input / Card / Modal / BottomSheet / IconButton 等）。web の既存 lean UI も段階的にこれへ寄せられるが、移設は無理にやらない。
+- [ ] **デザインシステム層**を shared に新設：ink-\* トークン整理 + 共通部品（Button / Input / Card / Modal / BottomSheet / IconButton 等）。web の既存 lean UI も段階的にこれへ寄せられるが、移設は無理にやらない。
 - [ ] react-i18next 導入 + en/ja locales 移植 + 共有 i18n provider
 - [ ] **2層モデルを `docs/vision/coding-principles.md` に恒久原則として追記**
 - [ ] Option A → 共有 UI 集約への**方針転換を CLAUDE.md / 移行 SSOT に記録**
