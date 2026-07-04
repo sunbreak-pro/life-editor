@@ -9,6 +9,13 @@ import {
   BottomSheet,
   CommandPalette,
   TrashView,
+  Toast,
+  ToastViewport,
+  Sheet,
+  Sidebar,
+  SidebarItem,
+  Menu,
+  MenuItem,
   cn,
   type Command,
   type TrashGroup,
@@ -287,5 +294,211 @@ describe("TrashView", () => {
       within(dialog).getByRole("button", { name: "Delete permanently" }),
     );
     expect(onPermanentDelete).toHaveBeenCalledWith("tasks", "t1");
+  });
+});
+
+describe("Toast", () => {
+  it("renders the message and maps the variant to its ink tone", () => {
+    const { rerender } = render(<Toast variant="success">Saved.</Toast>);
+    const el = screen.getByText("Saved.").parentElement as HTMLElement;
+    expect(el).toHaveClass("bg-ink-bg");
+    // the accent bar + dot carry the semantic tone token
+    expect(el.querySelector(".bg-ink-success")).not.toBeNull();
+
+    rerender(<Toast variant="danger">Failed.</Toast>);
+    const danger = screen.getByText("Failed.").parentElement as HTMLElement;
+    expect(danger.querySelector(".bg-ink-danger")).not.toBeNull();
+  });
+
+  it("exposes an alert role for danger and status for info", () => {
+    const { rerender } = render(<Toast>Heads up.</Toast>);
+    expect(screen.getByRole("status")).toBeInTheDocument();
+    rerender(<Toast variant="danger">Boom.</Toast>);
+    expect(screen.getByRole("alert")).toBeInTheDocument();
+  });
+
+  it("renders a dismiss button only when onDismiss is provided", () => {
+    const onDismiss = vi.fn();
+    const { rerender } = render(<Toast>No button</Toast>);
+    expect(screen.queryByRole("button")).not.toBeInTheDocument();
+
+    rerender(
+      <Toast onDismiss={onDismiss} dismissLabel="Close">
+        With button
+      </Toast>,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Close" }));
+    expect(onDismiss).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("ToastViewport", () => {
+  it("positions the stack and keeps toasts clickable through the layer", () => {
+    render(
+      <ToastViewport position="top-center">
+        <Toast>hi</Toast>
+      </ToastViewport>,
+    );
+    const region = screen.getByText("hi").closest(".fixed") as HTMLElement;
+    expect(region).toHaveClass("pointer-events-none");
+    expect(region).toHaveClass("[&>*]:pointer-events-auto");
+  });
+});
+
+describe("Sheet", () => {
+  it("renders nothing when closed", () => {
+    render(
+      <Sheet open={false} onClose={() => {}} title="S">
+        body
+      </Sheet>,
+    );
+    expect(screen.queryByText("body")).not.toBeInTheDocument();
+  });
+
+  it("renders a dialog when open and closes on Escape, not on panel click", () => {
+    const onClose = vi.fn();
+    render(
+      <Sheet open onClose={onClose} side="right" title="Drawer">
+        drawer body
+      </Sheet>,
+    );
+    const dialog = screen.getByRole("dialog", { name: "Drawer" });
+    expect(dialog).toBeInTheDocument();
+    // clicking the panel itself must NOT close (stopPropagation)
+    fireEvent.mouseDown(dialog);
+    expect(onClose).not.toHaveBeenCalled();
+    fireEvent.keyDown(document, { key: "Escape" });
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it("ignores Escape while composing (IME guard)", () => {
+    const onClose = vi.fn();
+    render(
+      <Sheet open onClose={onClose} title="Drawer">
+        body
+      </Sheet>,
+    );
+    fireEvent.keyDown(document, { key: "Escape", isComposing: true });
+    expect(onClose).not.toHaveBeenCalled();
+  });
+});
+
+describe("Sidebar / SidebarItem", () => {
+  it("marks the active row with the accent token and aria-current", () => {
+    render(
+      <Sidebar label="Sections">
+        <SidebarItem label="Schedule" onClick={() => {}} />
+        <SidebarItem label="Work" active onClick={() => {}} />
+      </Sidebar>,
+    );
+    const active = screen.getByRole("button", { name: "Work" });
+    expect(active).toHaveClass("bg-ink-accent-subtle");
+    expect(active).toHaveClass("text-ink-accent");
+    expect(active).toHaveAttribute("aria-current", "page");
+  });
+
+  it("fires onClick and tints mint rows with the secondary accent", () => {
+    const onClick = vi.fn();
+    render(
+      <Sidebar>
+        <SidebarItem label="Habits" tone="mint" onClick={onClick} />
+      </Sidebar>,
+    );
+    const row = screen.getByRole("button", { name: "Habits" });
+    expect(row).toHaveClass("text-ink-chip-mint-fg");
+    fireEvent.click(row);
+    expect(onClick).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("Menu / MenuItem", () => {
+  it("renders nothing when closed", () => {
+    render(
+      <Menu open={false} onClose={() => {}} label="Actions">
+        <MenuItem onSelect={() => {}}>Rename</MenuItem>
+      </Menu>,
+    );
+    expect(screen.queryByText("Rename")).not.toBeInTheDocument();
+  });
+
+  it("renders menu items, fires onSelect, and closes on Escape", () => {
+    const onClose = vi.fn();
+    const onSelect = vi.fn();
+    render(
+      <Menu open onClose={onClose} label="Actions">
+        <MenuItem onSelect={onSelect}>Rename</MenuItem>
+        <MenuItem onSelect={() => {}} variant="danger">
+          Delete
+        </MenuItem>
+      </Menu>,
+    );
+    expect(screen.getByRole("menu", { name: "Actions" })).toBeInTheDocument();
+    const items = screen.getAllByRole("menuitem");
+    expect(items).toHaveLength(2);
+    expect(items[1]).toHaveClass("text-ink-danger");
+
+    fireEvent.click(screen.getByRole("menuitem", { name: "Rename" }));
+    expect(onSelect).toHaveBeenCalledTimes(1);
+
+    fireEvent.keyDown(document, { key: "Escape" });
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not fire onSelect for a disabled item", () => {
+    const onSelect = vi.fn();
+    render(
+      <Menu open onClose={() => {}}>
+        <MenuItem onSelect={onSelect} disabled>
+          Archive
+        </MenuItem>
+      </Menu>,
+    );
+    const item = screen.getByRole("menuitem", { name: "Archive" });
+    expect(item).toHaveAttribute("aria-disabled", "true");
+    fireEvent.click(item);
+    expect(onSelect).not.toHaveBeenCalled();
+  });
+
+  it("closes on Tab and moves roving focus with arrow keys", () => {
+    const onClose = vi.fn();
+    render(
+      <Menu open onClose={onClose} label="Actions">
+        <MenuItem onSelect={() => {}}>Rename</MenuItem>
+        <MenuItem onSelect={() => {}}>Duplicate</MenuItem>
+      </Menu>,
+    );
+    const menu = screen.getByRole("menu", { name: "Actions" });
+    const [first, second] = screen.getAllByRole("menuitem");
+
+    // ArrowDown from the first item advances roving focus to the second.
+    first.focus();
+    fireEvent.keyDown(menu, { key: "ArrowDown" });
+    expect(second).toHaveFocus();
+    // ArrowUp wraps back to the first.
+    fireEvent.keyDown(menu, { key: "ArrowUp" });
+    expect(first).toHaveFocus();
+
+    // Tab exits the menu (WAI-ARIA menu pattern).
+    fireEvent.keyDown(menu, { key: "Tab" });
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it("wraps to the last item on ArrowUp when no item is focused (idx=-1)", () => {
+    render(
+      <Menu open onClose={() => {}} label="Actions">
+        <MenuItem onSelect={() => {}}>Rename</MenuItem>
+        <MenuItem onSelect={() => {}}>Duplicate</MenuItem>
+      </Menu>,
+    );
+    const menu = screen.getByRole("menu", { name: "Actions" });
+    const items = screen.getAllByRole("menuitem");
+    // Force the idx=-1 branch: focus is on nothing in the item list.
+    (document.activeElement as HTMLElement | null)?.blur?.();
+    fireEvent.keyDown(menu, { key: "ArrowUp" });
+    expect(items[items.length - 1]).toHaveFocus();
+    // ArrowDown from idx=-1 goes to the first item deterministically.
+    (document.activeElement as HTMLElement | null)?.blur?.();
+    fireEvent.keyDown(menu, { key: "ArrowDown" });
+    expect(items[0]).toHaveFocus();
   });
 });

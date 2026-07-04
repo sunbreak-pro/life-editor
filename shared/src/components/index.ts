@@ -27,6 +27,33 @@ export { Modal, type ModalProps } from "./Modal";
 // future surface reuse one component. Pure presentation (§6.4).
 export { ColorPicker, type ColorPickerProps } from "./ColorPicker";
 export { BottomSheet, type BottomSheetProps } from "./BottomSheet";
+// Lumen shipping primitives (ClaudeDesign port). Pure presentation: ink-*
+// tokens only (§3.1), opaque container surfaces (§3.5), props-injected copy
+// (§6). Toast = notification card + fixed stack; Sheet = any-edge drawer;
+// Sidebar = grouped nav rows (Lumen selected/mint states); Menu = dropdown.
+export {
+  Toast,
+  ToastViewport,
+  type ToastProps,
+  type ToastVariant,
+  type ToastViewportProps,
+  type ToastViewportPosition,
+} from "./Toast";
+export { Sheet, type SheetProps, type SheetSide } from "./Sheet";
+export {
+  Sidebar,
+  SidebarItem,
+  type SidebarProps,
+  type SidebarItemProps,
+  type SidebarItemTone,
+} from "./Sidebar";
+export {
+  Menu,
+  MenuItem,
+  type MenuProps,
+  type MenuItemProps,
+  type MenuItemVariant,
+} from "./Menu";
 // Master-Detail (W6) — responsive list+detail layout. Pure presentation:
 // DataService-free, props-injected copy (§3.1 / §6.4). Selection stays with
 // the host section; this primitive only takes detailOpen + onCloseDetail.

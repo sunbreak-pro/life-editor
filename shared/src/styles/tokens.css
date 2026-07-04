@@ -30,8 +30,17 @@
   --color-bg-primary: #fafafa;
   --color-bg-secondary: #f1f1f3;
   --color-bg-subsidebar: #f5f5f6;
+  /* Recessed surface — an inset "well" that sits *below* the base bg
+     (search fields, code blocks, sunken list areas, sheet body wells).
+     Opaque per §3.5. Slightly darker than bg-secondary so the recess
+     reads without a border. */
+  --color-surface-sunken: #ececef;
   --color-text-primary: #1a1a1f;
   --color-text-secondary: #5c5c66;
+  /* Third text tier — de-emphasized meta / hints, one step quieter than
+     text-secondary (row tags, counts, timestamps). Kept ≥ 3:1 on bg per
+     PRINCIPLES §3.6 (do not use for body copy). */
+  --color-text-tertiary: #767680;
   --color-border: #e3e3e7;
   --color-border-strong: #cfcfd6;
   --color-accent: #1f4fff;
@@ -53,6 +62,12 @@
   --color-hover: #e8e8ec;
   --color-success: #0f7b6c;
   --color-danger: #d92d20;
+  /* Semantic info / warning — complete the functional-color set (was just
+     success + danger). Theme-variable like the other semantics (§3.2):
+     info leans the cobalt/azure family, warning an amber. Used for the
+     accent bar + status dot on Toast and any inline status affordance. */
+  --color-info: #2563eb;
+  --color-warning: #b45309;
   --color-calendar-header: #f87171;
   --color-schedule-routine-bg: #ebf0fe;
   --color-schedule-other-bg: #f1f2f4;
@@ -120,8 +135,10 @@
   --color-bg-primary: #16161a;
   --color-bg-secondary: #1e1e23;
   --color-bg-subsidebar: #1e1e23;
+  --color-surface-sunken: #101013;
   --color-text-primary: #f2f2f5;
   --color-text-secondary: #a0a0ad;
+  --color-text-tertiary: #74747e;
   --color-border: #2e2e35;
   --color-border-strong: #44444d;
   --color-accent: #5b82ff;
@@ -139,6 +156,8 @@
   --color-hover: #2a2a31;
   --color-success: #4dab9a;
   --color-danger: #ef4444;
+  --color-info: #60a5fa;
+  --color-warning: #fbbf24;
   --color-calendar-header: #991b1b;
   --color-schedule-routine-bg: #1e293b;
   --color-schedule-other-bg: #1f2937;
@@ -196,6 +215,12 @@
   --color-ink-hover-strong: var(--color-hover);
   --color-ink-success: var(--color-success);
   --color-ink-danger: var(--color-danger);
+  /* Info / warning semantics + the recessed surface + the third text tier.
+     bg-ink-info / bg-ink-warning / bg-ink-surface-sunken / text-ink-* etc. */
+  --color-ink-info: var(--color-info);
+  --color-ink-warning: var(--color-warning);
+  --color-ink-surface-sunken: var(--color-surface-sunken);
+  --color-ink-text-tertiary: var(--color-text-tertiary);
   --color-ink-calendar-header: var(--color-calendar-header);
   /* Kanban status (K1) — chip faces + the 4px status bands. Mapped so
      shared Kanban primitives can use bg-ink-chip-* / text-ink-chip-* /
@@ -214,6 +239,26 @@
   --shadow-ink-sm: var(--shadow-elevation-sm);
   --shadow-ink-md: var(--shadow-elevation-md);
   --shadow-ink-lg: var(--shadow-elevation-lg);
+  /* Radius scale (ink-*) → rounded-ink-sm / -md / -lg / -xl / -full.
+     Theme-INVARIANT (shape, not color), so it lives once here in @theme —
+     Tailwind's home for constants — rather than being duplicated into the
+     [data-theme] blocks (only colors flip per theme). 6/8/12/16 px + pill. */
+  --radius-ink-sm: 6px;
+  --radius-ink-md: 8px;
+  --radius-ink-lg: 12px;
+  --radius-ink-xl: 16px;
+  --radius-ink-full: 9999px;
+  /* Spacing scale (ink-*) — named spacing keys → p-ink-* / px-ink-* /
+     gap-ink-* / m-ink-* etc. Theme-invariant (same reasoning as radius).
+     4-px base rhythm (1=4 … 6=24); complements Tailwind's numeric scale for
+     design-system inner spacing. Shadow's scale is the theme-aware
+     --shadow-ink-* trio above (it flips via --shadow-elevation-*). */
+  --spacing-ink-1: 4px;
+  --spacing-ink-2: 8px;
+  --spacing-ink-3: 12px;
+  --spacing-ink-4: 16px;
+  --spacing-ink-5: 20px;
+  --spacing-ink-6: 24px;
   --font-sans:
     ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica,
     "Apple Color Emoji", Arial, sans-serif, "Segoe UI Emoji", "Segoe UI Symbol";
