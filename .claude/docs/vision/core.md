@@ -65,7 +65,7 @@
 
 ### V1: AI が自然言語で全データを操作できる（追加コスト $0）
 
-- **根拠**: MCP Server（30 ツール）+ アプリ内ターミナル（portable-pty）+ Claude Code Max サブスクのラッピング方式（ADR-0005）
+- **根拠**: MCP Server（32 ツール）+ アプリ内ターミナル（portable-pty）+ Claude Code Max サブスクのラッピング方式（ADR-0005）
 - **比較**: Notion AI は UI 経由のみで内製 AI、Obsidian の AI プラグインは外部 API キー必須、Apple Reminders には AI なし
 
 ### V2: ローカル SQLite が SSOT — オフライン完全動作 + マルチデバイス同期

@@ -31,7 +31,7 @@
 
 ## 4. Data Model（規約詳細 → `docs/vision/db-conventions.md` / 変更手順 → `db-migration` スキル）
 
-- 約 40 テーブル（ドメイン一覧はコード / db-conventions が正）
+- 約 20 テーブル（`items_meta` + `<role>_payload` モデル・移行済みドメインのみ。ドメイン一覧はコード / db-conventions が正）
 - **特化 vs 汎用 DB の判断**: 特化 UI（DnD / カレンダー / ルーチン生成 / リマインダー）が必要 → 特化テーブル。型付きフィールド + フィルタ + 集計で済む → 汎用 Database
 - **ID 不変式**: TaskNode `<type>-<timestamp+counter>` / DailyNode `daily-<YYYY-MM-DD>` / 他 `generateId(prefix)`。全 String。`id` は role を跨いで一意
 - **items_meta + composite FK**: 5 role（task / event / routine / note / daily）は `items_meta(id, role)` が SSOT、payload テーブルは `(id, role)` 複合 FK で参照。WikiTag / Link 系は role 区別なしで `items_meta.id` を参照
@@ -56,20 +56,20 @@
 
 手順は本ファイルに書かず、以下に委譲する。**実装タスクの起点は `lead-pipeline` スキル**（ティア判定 → 必要工程を采配）。
 
-| 局面                               | 委譲先                                                                                                                                                                                                                                                                            |
+| 局面 | 委譲先 |
 | ---------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------- |
-| 実装タスク全体の采配               | `lead-pipeline` スキル（軽=直接 / 中=verifier→tracker / 重=フルチェーン）                                                                                                                                                                                                         |
-| 長時間・並列・条件達成型の実行戦略 | `execution-router` スキル（/goal・/batch・/loop・subagent 判断）                                                                                                                                                                                                                  |
-| 要件分解 / 実装 / 独立監査         | `role-pm` → `role-engineer` → `role-qa`（メインが Agent 起動。再帰禁止）                                                                                                                                                                                                          |
-| セッション開始/中断/終了           | `session-manager`（→ session-loader / task-tracker / session-verifier）                                                                                                                                                                                                           |
-| 品質ゲート                         | `session-verifier`（commit 前）                                                                                                                                                                                                                                                   |
-| 進捗記録                           | `task-tracker`（per-chat: `memory/chat-<self>.md` + `history/chat-<self>.md` + INDEX 集約 / legacy fallback あり）                                                                                                                                                                |
-| 週次開発スケジュール               | `schedule-management` スキル（平日30–60分/休日4h+ を Phase・plans から週次ブロック化 → Google Calendar(MCP) ミラー・台帳 `automation/dev-schedule.md` で進捗追跡）                                                                                                                  |
-| branch / PR / merge                | `git-orchestrator`（→ git-workflow / git-branch-flow / git-conflict-resolver）                                                                                                                                                                                                    |
-| IPC 追加                           | `add-ipc-channel` スキル ／ DB 変更                                                                                                                                                                                                                                               | `db-migration` スキル |
-| デバッグ                           | `debug-strategy` スキル + `docs/known-issues/INDEX.md` を grep                                                                                                                                                                                                                    |
-| ツール実行ハング（応答停止）       | [`~/.claude/rules/bash-tool-stability.md`](file:///Users/newlife/.claude/rules/bash-tool-stability.md)（原因=本体 SSE バグ・ローカルはシロ。ESC 復帰 → jsonl 系統判定 → 混雑帯回避。重い Bash は background/subagent に逃がす。**運用既定: 状態変更・複数行系の Bash（git 操作 / build / test / install / コマンド連結）はサブエージェント or background 経由、単発の軽い読み取り（ls / git status / 単発 grep）は直接実行**。詳細切り分けは memory `bash-tool-hang-diagnosis`） |
-| life-editor 整合監査               | `life-editor-ipc-validator` / `-migration-validator` / `-sync-auditor`                                                                                                                                                                                                            |
+| 実装タスク全体の采配 | `lead-pipeline` スキル（軽=直接 / 中=verifier→tracker / 重=フルチェーン） |
+| 長時間・並列・条件達成型の実行戦略 | `execution-router` スキル（/goal・/batch・/loop・subagent 判断） |
+| 要件分解 / 実装 / 独立監査 | `role-pm` → `role-engineer` → `role-qa`（メインが Agent 起動。再帰禁止） |
+| セッション開始/中断/終了 | `session-manager`（→ session-loader / task-tracker / session-verifier） |
+| 品質ゲート | `session-verifier`（commit 前） |
+| 進捗記録 | `task-tracker`（per-chat: `memory/chat-<self>.md` + `history/chat-<self>.md` + INDEX 集約 / legacy fallback あり） |
+| 週次開発スケジュール | `schedule-management` スキル（平日30–60分/休日4h+ を Phase・plans から週次ブロック化 → Google Calendar(MCP) ミラー・台帳 `automation/dev-schedule.md` で進捗追跡） |
+| branch / PR / merge | `git-orchestrator`（→ git-workflow / git-branch-flow / git-conflict-resolver） |
+| IPC 追加 | `add-ipc-channel` スキル ／ DB 変更 | `db-migration` スキル |
+| デバッグ | `debug-strategy` スキル + `docs/known-issues/INDEX.md` を grep |
+| ツール実行ハング（応答停止） | [`~/.claude/rules/bash-tool-stability.md`](file:///Users/newlife/.claude/rules/bash-tool-stability.md)（原因=本体 SSE バグ・ローカルはシロ。ESC 復帰 → jsonl 系統判定 → 混雑帯回避。重い Bash は background/subagent に逃がす。**運用既定: 状態変更・複数行系の Bash（git 操作 / build / test / install / コマンド連結）はサブエージェント or background 経由、単発の軽い読み取り（ls / git status / 単発 grep）は直接実行**。詳細切り分けは memory `bash-tool-hang-diagnosis`） |
+| life-editor 整合監査 | `life-editor-ipc-validator` / `-migration-validator` / `-sync-auditor` |
 
 ### 7.1 開発コマンド
 
@@ -105,8 +105,8 @@ cd web && npm run dev           # ローカル起動（vite）
 
 ## 8. Feature Tier Map（詳細 → `docs/requirements/`）
 
-- **Tier 1 コア**（8）: [`tier-1-core.md`](./docs/requirements/tier-1-core.md) — Tasks / Schedule / Notes / Daily / Database / MCP Server / Cloud Sync / Terminal
-- **Tier 2 補助**（12）: [`tier-2-supporting.md`](./docs/requirements/tier-2-supporting.md) — Audio / Playlist / Pomodoro / WikiTags / File Explorer / Templates / UndoRedo / Theme / i18n / Shortcuts / Toast / Trash
+- **Tier 1 コア**（7）: [`tier-1-core.md`](./docs/requirements/tier-1-core.md) — Tasks / Schedule / Notes / Daily / MCP Server / Cloud Sync / Terminal（汎用 Database は一旦凍結 = 移行 SSOT Phase 5-A 決定・requirements 本体は保持）
+- **Tier 2 補助**（11）: [`tier-2-supporting.md`](./docs/requirements/tier-2-supporting.md) — Audio / Playlist / Pomodoro / WikiTags / Templates / UndoRedo / Theme / i18n / Shortcuts / Toast / Trash（File Explorer は退役 = 移行 SSOT Phase 5-A 決定・requirements 本体は保持）
 - **Tier 3 実験 / 凍結**（6）: [`tier-3-experimental.md`](./docs/requirements/tier-3-experimental.md) — Paper Boards / Analytics / NotebookLM / Google Calendar / Google Drive / Cognitive Architecture
 - 次フェーズ計画は移行 SSOT が正本（恒久知見の保全先 = [`archive/SUMMARY.md`](./archive/SUMMARY.md)）
 
