@@ -97,3 +97,7 @@ echo "=== pwd ==="; pwd; echo "=== HEAD ==="; git rev-parse --abbrev-ref HEAD; e
 - **ファイル操作は絶対パス**を徹底する (Write / Edit / Read で絶対パスを使えば cwd 漂流の被害が最小化される)
 - セッション中、無名の git コマンドを使う前に **`pwd` を 1 行併記**するクセを付ける (検出パターン参照)
 - 検索キーワード: `bash cwd persistence worktree`, `wrong branch after cd`, `git status shows other branch`, `worktree drift`, `cd persistent claude code`
+
+---
+
+→ **GitHub Issue #117 に移行**（2026-07-04）。以後の状態更新・議論は Issue 側が正（https://github.com/sunbreak-pro/life-editor/issues/117）。本ファイルは移行時点のスナップショット。

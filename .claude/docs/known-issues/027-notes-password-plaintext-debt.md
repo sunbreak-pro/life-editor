@@ -82,3 +82,7 @@ Legacy `useNotesAPI.ts` / `useDailyAPI.ts` (Tauri 時代) が plaintext を `pas
 - **N>1 化の前ゲートに必須**: 友達 MVP / マルチユーザ化を実装する前に本 Issue を Fixed にする。docs/requirements/ への Tier 1 prerequisite として連動
 - **password 経路の防御層列挙**: SELECT shape 除外 (mapper) / RLS scope / 単一列 SELECT (verify only) / 回帰テスト固定 — 4 層あれば plaintext でも漏洩経路は塞げる（ただし backup / log の問題は残る）
 - 検索キーワード: `password_hash` `plaintext` `bcrypt` `argon2` `notes_payload` `SECURITY DEBT` `N=1 mandate`
+
+---
+
+→ **GitHub Issue #118 に移行**（2026-07-04）。以後の状態更新・議論は Issue 側が正（https://github.com/sunbreak-pro/life-editor/issues/118）。本ファイルは移行時点のスナップショット。

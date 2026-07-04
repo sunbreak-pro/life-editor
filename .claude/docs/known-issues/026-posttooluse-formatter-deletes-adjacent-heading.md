@@ -81,3 +81,7 @@ grep -c "^### 2026" .claude/history/chat-main.md
 - **Edit 後の数値バリデーション**: Markdown の見出し追加・削除を伴う Edit は、件数を grep で測って想定と照合する習慣をつける
 - **連続見出しの危険性**: `### A` の直上に `### B` を挿入するパターンは formatter の誤動作を誘発しやすい。空行を 2 行入れる / 区切り線（`---`）を挟む等で物理的に隔離する選択肢もある
 - **検索キーワード**: formatter, PostToolUse, Edit, 見出し消失, heading deleted, chat-main.md, ローリングアーカイブ件数ズレ
+
+---
+
+→ **GitHub Issue #119 に移行**（2026-07-04）。以後の状態更新・議論は Issue 側が正（https://github.com/sunbreak-pro/life-editor/issues/119）。本ファイルは移行時点のスナップショット。
