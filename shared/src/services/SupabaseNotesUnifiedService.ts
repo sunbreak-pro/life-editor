@@ -2,10 +2,13 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import {
   ITEMS_META_NOTE_COLUMNS,
   NOTES_PAYLOAD_COLUMNS,
+  NOTES_PAYLOAD_LIST_COLUMNS,
   noteNodeToRows,
   noteUpdatesToPatches,
   rowsToNoteNode,
+  rowsToNoteNodeLite,
   type ItemsMetaNoteRow,
+  type NotesPayloadListRow,
   type NotesPayloadRow,
 } from "./notesUnifiedMapper";
 import type { NoteNode } from "../types/note";
@@ -37,6 +40,13 @@ export class SupabaseNotesUnifiedService {
     // Fetch all role='note' items_meta + their matching payloads. Done as
     // two queries + an in-memory join (one network round-trip each); the
     // dataset is per-user so cardinality is bounded.
+    //
+    // M1 (perf): the payload query uses NOTES_PAYLOAD_LIST_COLUMNS, which
+    // OMITS the heavy `content_json` body. List NoteNodes therefore carry
+    // `content = ""` (a "not yet loaded" sentinel); the body is loaded on
+    // demand by getNoteUnified when a note is opened. Consumers must not
+    // treat the empty list `content` as authoritative (see
+    // useNotesUnifiedAPI's hydrate-on-select).
     const { data: metas, error: metaErr } = await this.client
       .from("items_meta")
       .select(ITEMS_META_NOTE_COLUMNS)
@@ -50,14 +60,14 @@ export class SupabaseNotesUnifiedService {
 
     const { data: payloads, error: payErr } = await this.client
       .from("notes_payload")
-      .select(NOTES_PAYLOAD_COLUMNS)
+      .select(NOTES_PAYLOAD_LIST_COLUMNS)
       .in("item_id", ids);
     if (payErr)
       throw new Error(`listNotesUnified payload failed: ${payErr.message}`);
 
-    const payloadById = new Map<string, NotesPayloadRow>();
+    const payloadById = new Map<string, NotesPayloadListRow>();
     for (const p of payloads ?? []) {
-      const row = p as unknown as NotesPayloadRow;
+      const row = p as unknown as NotesPayloadListRow;
       payloadById.set(row.item_id, row);
     }
 
@@ -66,7 +76,7 @@ export class SupabaseNotesUnifiedService {
       const meta = m as unknown as ItemsMetaNoteRow;
       const payload = payloadById.get(meta.id);
       if (!payload) continue; // orphan meta — skip rather than throw
-      out.push(rowsToNoteNode(meta, payload));
+      out.push(rowsToNoteNodeLite(meta, payload));
     }
     return out;
   }
@@ -253,18 +263,20 @@ export class SupabaseNotesUnifiedService {
     const ids = (metas ?? []).map((m) => (m as unknown as ItemsMetaNoteRow).id);
     if (ids.length === 0) return [];
 
+    // M1 (perf): Trash likewise never renders the body (restore /
+    // permanentDelete only need id/parentId), so it uses the light query.
     const { data: payloads, error: payErr } = await this.client
       .from("notes_payload")
-      .select(NOTES_PAYLOAD_COLUMNS)
+      .select(NOTES_PAYLOAD_LIST_COLUMNS)
       .in("item_id", ids);
     if (payErr)
       throw new Error(
         `fetchDeletedNotesUnified payload failed: ${payErr.message}`,
       );
 
-    const payloadById = new Map<string, NotesPayloadRow>();
+    const payloadById = new Map<string, NotesPayloadListRow>();
     for (const p of payloads ?? []) {
-      const row = p as unknown as NotesPayloadRow;
+      const row = p as unknown as NotesPayloadListRow;
       payloadById.set(row.item_id, row);
     }
 
@@ -273,7 +285,7 @@ export class SupabaseNotesUnifiedService {
       const meta = m as unknown as ItemsMetaNoteRow;
       const payload = payloadById.get(meta.id);
       if (!payload) continue; // orphan meta — skip rather than throw
-      out.push(rowsToNoteNode(meta, payload));
+      out.push(rowsToNoteNodeLite(meta, payload));
     }
     return out;
   }

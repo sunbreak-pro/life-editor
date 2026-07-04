@@ -96,6 +96,13 @@ export interface NotesPayloadRow {
 }
 
 /**
+ * LIST-shape payload row (M1 perf): `NotesPayloadRow` without the heavy
+ * `content_json` body. Materialised by the light list query
+ * (`NOTES_PAYLOAD_LIST_COLUMNS`) and fed to `rowsToNoteNodeLite`.
+ */
+export type NotesPayloadListRow = Omit<NotesPayloadRow, "content_json">;
+
+/**
  * Writable subset for INSERT on items_meta. `user_id` is the only
  * items_meta column the client supplies (RLS default would fill it, but
  * explicit is safer for cross-device parity); `created_at` / `updated_at`
@@ -158,6 +165,21 @@ export const NOTES_PAYLOAD_COLUMNS =
   "item_id, user_id, parent_item_id, parent_item_role, note_type, " +
   "content_json, sort_order, is_pinned, is_edit_locked, color, icon, " +
   "has_password";
+
+/**
+ * SELECT column list for `notes_payload` in LIST contexts (M1 perf). Same
+ * columns as NOTES_PAYLOAD_COLUMNS MINUS the heavy `content_json` jsonb
+ * body. The note LIST (listNotesUnified / fetchDeletedNotesUnified) never
+ * renders the body — it is loaded on demand via getNoteUnified (which uses
+ * the full NOTES_PAYLOAD_COLUMNS). Dropping content_json from the list
+ * query keeps the initial per-user notes payload small no matter how large
+ * individual TipTap documents grow. Callers pairing this column list with
+ * `rowsToNoteNodeLite` materialise a NoteNode whose `content` is the empty
+ * string (a "body not yet loaded" sentinel — NOT "the note is empty").
+ */
+export const NOTES_PAYLOAD_LIST_COLUMNS =
+  "item_id, user_id, parent_item_id, parent_item_role, note_type, " +
+  "sort_order, is_pinned, is_edit_locked, color, icon, has_password";
 
 // ---------------------------------------------------------------------------
 // 3. Runtime validators (defence-in-depth; CHECK constraints already enforce
@@ -273,6 +295,24 @@ export function rowsToNoteNode(
   if (payload.icon !== null) node.icon = payload.icon;
 
   return node;
+}
+
+/**
+ * LIST variant of `rowsToNoteNode` (M1 perf): materialise a NoteNode from a
+ * light payload row that omits `content_json`. Every field maps identically
+ * to `rowsToNoteNode`; the only difference is `content`, which is forced to
+ * the empty string because the body was intentionally NOT selected by the
+ * list query. Consumers MUST treat this `content` as "not yet loaded" and
+ * hydrate via `getNoteUnified` before opening/editing the note — otherwise
+ * an editor initialised from the empty body would overwrite the real one.
+ */
+export function rowsToNoteNodeLite(
+  meta: ItemsMetaNoteRow,
+  payload: NotesPayloadListRow,
+): NoteNode {
+  // Reuse the full mapper (id/role guard + all field mapping) by supplying a
+  // null body, which `contentJsonToString` renders as the empty string.
+  return rowsToNoteNode(meta, { ...payload, content_json: null });
 }
 
 // ---------------------------------------------------------------------------

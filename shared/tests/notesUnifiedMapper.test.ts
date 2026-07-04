@@ -1,12 +1,16 @@
 import { describe, it, expect } from "vitest";
 import {
   rowsToNoteNode,
+  rowsToNoteNodeLite,
   noteNodeToRows,
   noteUpdatesToPatches,
   contentJsonToString,
   contentStringToJson,
+  NOTES_PAYLOAD_COLUMNS,
+  NOTES_PAYLOAD_LIST_COLUMNS,
   type ItemsMetaNoteRow,
   type NotesPayloadRow,
+  type NotesPayloadListRow,
 } from "../src/services/notesUnifiedMapper";
 import type { NoteNode } from "../src/types/note";
 
@@ -270,5 +274,67 @@ describe("notesUnifiedMapper — content helpers", () => {
       updatedAt: NOW,
     };
     expect(node.type).toBe("note");
+  });
+
+  // -------------------------------------------------------------------------
+  // M1 (perf): light LIST column list + rowsToNoteNodeLite
+  // -------------------------------------------------------------------------
+
+  describe("M1 light list mapping", () => {
+    it("NOTES_PAYLOAD_LIST_COLUMNS omits content_json but keeps every other column", () => {
+      const full = NOTES_PAYLOAD_COLUMNS.split(",").map((c) => c.trim());
+      const light = NOTES_PAYLOAD_LIST_COLUMNS.split(",").map((c) => c.trim());
+      expect(light).not.toContain("content_json");
+      expect(full).toContain("content_json");
+      // Light is exactly full minus content_json — no other column dropped.
+      expect(light).toEqual(full.filter((c) => c !== "content_json"));
+    });
+
+    it("rowsToNoteNodeLite materialises content='' from a body-free row", () => {
+      const meta = freshMeta({ id: "note-lite" });
+      // A light payload row has no content_json key at all.
+      const lite: NotesPayloadListRow = {
+        item_id: "note-lite",
+        user_id: USER,
+        parent_item_id: null,
+        parent_item_role: "note",
+        note_type: "note",
+        sort_order: 2,
+        is_pinned: true,
+        is_edit_locked: false,
+        color: "red",
+        icon: null,
+        has_password: false,
+      };
+      const node = rowsToNoteNodeLite(meta, lite);
+      expect(node.content).toBe(""); // body sentinel, not the real body
+      // All non-body fields still map exactly like the full mapper.
+      expect(node.id).toBe("note-lite");
+      expect(node.order).toBe(2);
+      expect(node.isPinned).toBe(true);
+      expect(node.color).toBe("red");
+      expect(node.hasPassword).toBe(false);
+    });
+
+    it("lite mapper agrees with the full mapper on every field except content", () => {
+      const meta = freshMeta({ id: "note-cmp" });
+      const fullPayload = freshPayload({
+        item_id: "note-cmp",
+        content_json: { type: "doc", content: [{ type: "paragraph" }] },
+        sort_order: 5,
+        icon: "star",
+      });
+      const fromFull = rowsToNoteNode(meta, fullPayload);
+      const { content_json: _drop, ...litePayload } = fullPayload;
+      void _drop;
+      const fromLite = rowsToNoteNodeLite(meta, litePayload);
+      expect(fromFull.content).not.toBe(""); // full carries the real body
+      expect(fromLite.content).toBe(""); // lite drops it
+      // Everything else is identical.
+      expect({ ...fromLite, content: "X" }).toEqual({
+        ...fromFull,
+        content: "X",
+      });
+    });
   });
 });
