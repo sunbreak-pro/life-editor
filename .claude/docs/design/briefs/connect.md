@@ -164,7 +164,7 @@ Branch: claude/design-brief-connect
 
 ### ノードとエッジの色（共通パレットの役割参照。テーマに追随）
 
-- ノード: プロジェクト（フォルダ）= text-primary / ノート = accent / デイリー = 藍 `#5b6cdb`（エンティティ別チップ routine 系のドット色。テーマ固定）/ タグ = text-secondary
+- ノード: プロジェクト（フォルダ）= text-primary / ノート = accent / デイリー = 藍（light `#5b6cdb` / dark `#818cf8`。既存の routine 系ドットトークンの実値で、テーマに追随する）/ タグ = text-secondary
 - エッジ: 階層（フォルダ→ノート）= border / 手動リンク（本命の item↔item）= accent / タグ紐付け = text-secondary / デイリー連鎖 = デイリーと同じ藍
 - ノート・タグに個別色が設定されている場合はそれを優先（サンプルでは 2〜3 個だけカテゴリ 10 色から使ってよい）
 
@@ -285,7 +285,7 @@ Branch: claude/design-brief-connect
 - 本文リスト: ノード一覧（検索・フィルタ結果）。各行 = 種別アイコン（種別色）+ タイトル + 右端に「リンク 4 · ← 2」の小さなメタ（つながり数とバックリンク数）。行高はタップしやすい 44px 以上
 - 行タップ → **ノード詳細のボトムシート**（画面の 7〜8 割の高さ、上端に取っ手、背景は完全不透明の bg-primary、背後は黒 30% バックドロップ）:
   - ヘッダ: 種別アイコン + タイトル（例「Supabase 移行の設計メモ」）+ 種別チップ（例「ノート」）+ 「開く」ボタン（accent。ノート/デイリー本文へ遷移）
-  - 簡易ローカルグラフ（任意・静的）: 選択ノードを中心に 1-hop の隣接ノードだけを円形配置した小さな図（高さ 180px 程度、操作不可の読み取り専用。ノード色は Desktop と同じ種別色: プロジェクト = text-primary / ノート = accent / デイリー = 藍 #5b6cdb / タグ = text-secondary）
+  - 簡易ローカルグラフ（任意・静的）: 選択ノードを中心に 1-hop の隣接ノードだけを円形配置した小さな図（高さ 180px 程度、操作不可の読み取り専用。ノード色は Desktop と同じ種別色: プロジェクト = text-primary / ノート = accent / デイリー = 藍（light `#5b6cdb` / dark `#818cf8`、既存 routine 系ドットトークンの実値）/ タグ = text-secondary）
   - セクション「つながり」: リンク先の行リスト（アイコン + 名前。タップでそのノードの詳細に差し替わる）
   - セクション「バックリンク」: 「← ノート名」の行リスト（このノードに向かってリンクしている元。タップで同様に遷移）
   - 編集ボタンは置かない（閲覧のみ。Desktop で編集する）
@@ -325,4 +325,5 @@ Branch: claude/design-brief-connect
 - 分業: 生成 = claude.ai/design 側（ユーザーがプロンプト投入）/ Claude Code 側 DesignSync は同期専用 / 出荷 UI 化は `shared/src/components/` への移植（別計画）
 - 移植先候補: `shared/src/components/Connect/`（既存）+ 新規部品候補 `GraphLegend` / `NodeDetailSheet` / `GraphSkeleton`（生成結果を見てから確定）
 - 生成デザインへのフィードバックで本 brief の §4 を更新した場合、Status と履歴を追記する
-- **既知ドリフト（brief 作成時に発見・本ファイルでは触らない）**: `_COMMON-CONTEXT.md` のパレット表の accent 系 4 値（`#1f4fff` / `#1a42d9` / `#e1e6fb` / dark `#5b82ff` / `#7596ff`）が、正本 `shared/src/styles/tokens.css`（accent `#1d4ed8` / hover `#1e40af` / subtle `#dbeafe` / dark `#5b8cff` / `#7aa2ff`、2026-07-05 の lumen 化 PR #135 で更新）より古い。共通ブロックは「改変禁止」ルールに従いそのまま埋め込んだ。`_COMMON-CONTEXT.md` 側の追随更新は別 PR で要対応（tokens.css → COMMON → 各 brief の同期順）
+- **既知ドリフト（brief 作成時に発見・本ファイルでは触らない）**: `_COMMON-CONTEXT.md` のパレット表の accent 系 5 値（`#1f4fff` / `#1a42d9` / `#e1e6fb` / dark `#5b82ff` / `#7596ff`）が、正本 `shared/src/styles/tokens.css`（accent `#1d4ed8` / hover `#1e40af` / subtle `#dbeafe` / dark `#5b8cff` / `#7aa2ff`、2026-07-05 の lumen 化 PR #135 で更新）より古い。共通ブロックは「改変禁止」ルールに従いそのまま埋め込んだ。`_COMMON-CONTEXT.md` 側の追随更新は別 PR で要対応（tokens.css → COMMON → 各 brief の同期順）
+- **共通表の未収載色**: Connect のデイリーノード / デイリー連鎖エッジが使う routine 系ドット色（light `#5b6cdb` / dark `#818cf8` = `--color-chip-routine-dot` の実値）は `_COMMON-CONTEXT.md` のパレット表に載っていない（表にあるのは routine チップの bg/fg のみ）。本 brief では §4 プロンプト内に light/dark 実値を直接明記して自己完結させた。COMMON 追随更新の際にドット色 3 種（routine / event / task）を表へ足すことを推奨
