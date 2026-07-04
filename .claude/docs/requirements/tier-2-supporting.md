@@ -5,6 +5,8 @@
 
 **Tier 2 機能数**: 12（暫定、Phase B-2 で確定）
 
+> ⚠️ **退役スタック注記 (2026-07-04 doc-sync)**: 本ファイルの一部 Owner 記述は退役スタック（旧 Tauri `src-tauri/` / `portable-pty` / Cloudflare D1）を指す。`cloud/` は #110 で退役済・`frontend/` は FROZEN・現行本流は `shared/` + `web/`。Owner 行の全面改訂は Phase 5。
+
 > **Stack 一括注記 (cleanup-and-consolidation Phase 3-2, 2026-05-24)**: Tier 2 機能の大半は **Frontend 完結** であり、移行は「`frontend/src/components/<Feature>/` → `web/src/<feature>/` への UI コピー」が中心。Provider が DB に書き込む場合のみ DataService 層を差し替える（移行 SSOT Phase 2-5 の web/ 横展開で実施）。例外:
 >
 > - **Audio Mixer / File Explorer / Shortcuts**: Desktop 専用 + Mobile 省略 Provider。Capacitor 移行 (Phase 4) で iOS / Android 向けに省略バリアントを再評価。

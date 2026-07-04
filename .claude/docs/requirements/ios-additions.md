@@ -7,6 +7,8 @@
 > ユーザー note「iOS追加機能要件」の SSOT 化。Mobile (iOS Tauri) 専用に追加で必要な機能要件を記録する。
 > 元 note: life-editor → ノート → iOS追加機能要件（2026-04-22 取得）
 > 関連: [`vision/mobile-porting.md`](../vision/mobile-porting.md) / [`vision/mobile-data-parity.md`](../vision/mobile-data-parity.md) / CLAUDE.md §2 Platform / §6.2 Provider 順序
+>
+> ⚠️ **退役スタック注記 (2026-07-04 doc-sync)**: 本ファイルの Owner 記述は退役スタック（旧 Tauri `src-tauri/` / iOS Tauri / `portable-pty`）を指す。現行本流は `shared/` + `web/`（Mobile は Capacitor 包装・`mobile/` 実在）。Owner 行の全面改訂は Phase 5。
 
 iOS は Desktop の **Consumption + Quick capture** 役割（CLAUDE.md §2）に位置付けられているが、
 実機運用で「Desktop と同等まで揃えたい挙動」がいくつか抽出されたため、機能要件として固定する。
