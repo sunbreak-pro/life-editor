@@ -32,7 +32,7 @@ export interface BottomTabBarProps {
  * `maxVisible` sections as fixed tabs; the rest overflow into a "More"
  * tab that opens the shared BottomSheet. `env(safe-area-inset-bottom)`
  * keeps the bar clear of the iOS home indicator. Pure presentation:
- * sections + labels injected (§3.1 / §6.4), ink-* tokens, opaque bar
+ * sections + labels injected (§3.1 / §6.4), lumen-* tokens, opaque bar
  * background (§5).
  */
 export function BottomTabBar({
@@ -52,17 +52,17 @@ export function BottomTabBar({
   const tabClass = (isActive: boolean) =>
     cn(
       "flex flex-1 flex-col items-center gap-0.5 py-2 text-xs transition-colors",
-      "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink-accent",
+      "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent",
       isActive
-        ? "text-ink-accent"
-        : "text-ink-text-secondary hover:text-ink-text",
+        ? "text-lumen-accent"
+        : "text-lumen-text-secondary hover:text-lumen-text",
     );
 
   return (
     <>
       <nav
         aria-label={labels.moreTitle}
-        className="flex shrink-0 border-t border-ink-border bg-ink-bg pb-[env(safe-area-inset-bottom)]"
+        className="flex shrink-0 border-t border-lumen-border bg-lumen-bg pb-[env(safe-area-inset-bottom)]"
       >
         {visible.map((s) => {
           const isActive = activeSection === s.id;
@@ -117,15 +117,15 @@ export function BottomTabBar({
                     className={cn(
                       "flex w-full items-center gap-2.5 rounded-md px-2.5 py-2.5 text-sm",
                       "transition-colors focus-visible:outline-none",
-                      "focus-visible:ring-2 focus-visible:ring-ink-accent",
+                      "focus-visible:ring-2 focus-visible:ring-lumen-accent",
                       isActive
-                        ? "bg-ink-hover font-medium text-ink-text"
-                        : "text-ink-text-secondary hover:bg-ink-hover hover:text-ink-text",
+                        ? "bg-lumen-hover font-medium text-lumen-text"
+                        : "text-lumen-text-secondary hover:bg-lumen-hover hover:text-lumen-text",
                     )}
                   >
                     <span
                       aria-hidden="true"
-                      className={cn("shrink-0", isActive && "text-ink-accent")}
+                      className={cn("shrink-0", isActive && "text-lumen-accent")}
                     >
                       {s.icon}
                     </span>

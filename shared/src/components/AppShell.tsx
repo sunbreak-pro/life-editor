@@ -74,7 +74,7 @@ export function AppShell({
 
   if (isWide) {
     return (
-      <div className="flex h-screen bg-ink-bg text-ink-text">
+      <div className="flex h-screen bg-lumen-bg text-lumen-text">
         <SidebarNav
           sections={sections}
           activeSection={activeSection}
@@ -99,7 +99,7 @@ export function AppShell({
 
   return (
     <div
-      className="flex h-[100svh] flex-col bg-ink-bg text-ink-text pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)]"
+      className="flex h-[100svh] flex-col bg-lumen-bg text-lumen-text pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)]"
       style={{ overscrollBehavior: "none" }}
     >
       <main

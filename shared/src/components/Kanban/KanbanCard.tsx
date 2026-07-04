@@ -7,7 +7,7 @@
  *   - folder pill (status/tag views only)
  *
  * Status hue is fixed (todo=blue / progress=amber / done=green) via the
- * notion status-band + chip tokens (bg-ink-status-*-band / -chip-*).
+ * lumen status-band + chip tokens (bg-lumen-status-*-band / -chip-*).
  */
 
 import {
@@ -31,18 +31,18 @@ const STATUS_ICON: Record<TaskStatus, LucideIcon> = {
   DONE: CheckCircle2,
 };
 
-// Left 4px band per status (notion tokens — no hardcoded color, §6).
+// Left 4px band per status (lumen tokens — no hardcoded color, §6).
 const STATUS_BAND_CLASS: Record<TaskStatus, string> = {
-  NOT_STARTED: "bg-ink-status-todo-band",
-  IN_PROGRESS: "bg-ink-status-progress-band",
-  DONE: "bg-ink-status-done-band",
+  NOT_STARTED: "bg-lumen-status-todo-band",
+  IN_PROGRESS: "bg-lumen-status-progress-band",
+  DONE: "bg-lumen-status-done-band",
 };
 
-// Chip face classes per status (notion tokens — no hardcoded color, §6).
+// Chip face classes per status (lumen tokens — no hardcoded color, §6).
 const STATUS_CHIP_CLASS: Record<TaskStatus, string> = {
-  NOT_STARTED: "bg-ink-chip-task-bg text-ink-chip-task-fg",
-  IN_PROGRESS: "bg-ink-chip-progress-bg text-ink-chip-progress-fg",
-  DONE: "bg-ink-chip-completed-bg text-ink-chip-completed-fg",
+  NOT_STARTED: "bg-lumen-chip-task-bg text-lumen-chip-task-fg",
+  IN_PROGRESS: "bg-lumen-chip-progress-bg text-lumen-chip-progress-fg",
+  DONE: "bg-lumen-chip-completed-bg text-lumen-chip-completed-fg",
 };
 
 function statusText(status: TaskStatus, labels: KanbanLabels): string {
@@ -112,11 +112,11 @@ export function KanbanCard({
       {...dnd?.attributes}
       {...dnd?.listeners}
       className={cn(
-        "group relative block w-full overflow-hidden rounded-lg border border-ink-border",
-        "bg-ink-bg pl-[15px] pr-3 py-[11px] text-left shadow-ink-sm",
+        "group relative block w-full overflow-hidden rounded-lg border border-lumen-border",
+        "bg-lumen-bg pl-[15px] pr-3 py-[11px] text-left shadow-lumen-sm",
         "transition-[box-shadow,transform,border-color] duration-150",
-        "hover:-translate-y-0.5 hover:border-ink-border-strong hover:shadow-ink-md",
-        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink-accent",
+        "hover:-translate-y-0.5 hover:border-lumen-border-strong hover:shadow-lumen-md",
+        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent",
         // Source row dims while its DragOverlay ghost trails the cursor. The
         // overlay (not this primary container) carries the moving visual, so
         // dimming the source here is exempt from the §6.4 opacity rule.
@@ -139,8 +139,8 @@ export function KanbanCard({
           className={cn(
             "min-w-0 flex-1 text-sm font-semibold leading-snug",
             isDone
-              ? "text-ink-text-secondary line-through"
-              : "text-ink-text",
+              ? "text-lumen-text-secondary line-through"
+              : "text-lumen-text",
           )}
         >
           {card.title || "(untitled)"}
@@ -160,12 +160,12 @@ export function KanbanCard({
       {hasMeta && (
         <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5">
           {hasFolderPill && (
-            <span className="inline-flex items-center gap-1.5 text-[0.6875rem] font-semibold text-ink-text-secondary">
+            <span className="inline-flex items-center gap-1.5 text-[0.6875rem] font-semibold text-lumen-text-secondary">
               <span
                 aria-hidden
                 className={cn(
                   "h-2 w-2 shrink-0 rounded-[3px]",
-                  folderDotStyle ? "" : "bg-ink-border-strong",
+                  folderDotStyle ? "" : "bg-lumen-border-strong",
                 )}
                 style={folderDotStyle}
               />
@@ -190,11 +190,11 @@ export function KanbanCard({
             ) : (
               <span
                 key={tag.id}
-                className="inline-flex items-center gap-1 rounded-full border border-ink-border px-2 py-0.5 text-[0.6875rem] font-semibold text-ink-text-secondary"
+                className="inline-flex items-center gap-1 rounded-full border border-lumen-border px-2 py-0.5 text-[0.6875rem] font-semibold text-lumen-text-secondary"
               >
                 <span
                   aria-hidden
-                  className="h-1.5 w-1.5 shrink-0 rounded-full bg-ink-border-strong"
+                  className="h-1.5 w-1.5 shrink-0 rounded-full bg-lumen-border-strong"
                 />
                 {tag.name}
               </span>
@@ -202,7 +202,7 @@ export function KanbanCard({
           )}
 
           {overflowCount > 0 && (
-            <span className="inline-flex items-center rounded-full border border-ink-border px-1.5 py-0.5 text-[0.6875rem] font-semibold text-ink-text-secondary">
+            <span className="inline-flex items-center rounded-full border border-lumen-border px-1.5 py-0.5 text-[0.6875rem] font-semibold text-lumen-text-secondary">
               +{overflowCount}
             </span>
           )}

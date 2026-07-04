@@ -16,7 +16,7 @@ export interface SettingsLanguageProps {
 
 /*
  * Language settings part (W1). Pure / props-injected: language + setter from
- * the host (useThemeContext), copy via `labels`. ink-* tokens only.
+ * the host (useThemeContext), copy via `labels`. lumen-* tokens only.
  */
 export function SettingsLanguage({
   language,
@@ -31,12 +31,12 @@ export function SettingsLanguage({
   return (
     <div className="space-y-4" data-section-id="language">
       <div className="flex items-center gap-2">
-        <Globe size={18} className="text-ink-text-secondary" />
-        <h3 className="text-lg font-semibold text-ink-text">
+        <Globe size={18} className="text-lumen-text-secondary" />
+        <h3 className="text-lg font-semibold text-lumen-text">
           {labels.heading}
         </h3>
       </div>
-      <p className="text-xs text-ink-text-secondary">{labels.description}</p>
+      <p className="text-xs text-lumen-text-secondary">{labels.description}</p>
       <div className="flex gap-2">
         {options.map(({ value, label }) => (
           <button
@@ -47,8 +47,8 @@ export function SettingsLanguage({
             className={cn(
               "rounded-md border px-4 py-2 text-sm transition-colors",
               language === value
-                ? "border-ink-accent bg-ink-bg-secondary text-ink-accent"
-                : "border-ink-border text-ink-text-secondary hover:border-ink-text-secondary",
+                ? "border-lumen-accent bg-lumen-bg-secondary text-lumen-accent"
+                : "border-lumen-border text-lumen-text-secondary hover:border-lumen-text-secondary",
             )}
           >
             {label}

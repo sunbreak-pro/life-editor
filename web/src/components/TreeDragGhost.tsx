@@ -6,7 +6,7 @@
  * accent insertion line / inside-folder wash is the real drop-target signal.
  *
  * The opacity-60 here is on the floating overlay (not a primary container
- * background), so it is exempt from the §6.4 transparency rule. notion
+ * background), so it is exempt from the §6.4 transparency rule. lumen
  * tokens only.
  */
 export function TreeDragGhost({
@@ -15,7 +15,7 @@ export function TreeDragGhost({
   title: string;
 }): React.ReactElement {
   return (
-    <div className="pointer-events-none rounded-md border border-ink-accent bg-ink-bg px-2 py-1.5 text-sm text-ink-text opacity-60 shadow-lg">
+    <div className="pointer-events-none rounded-md border border-lumen-accent bg-lumen-bg px-2 py-1.5 text-sm text-lumen-text opacity-60 shadow-lg">
       {title || "(untitled)"}
     </div>
   );

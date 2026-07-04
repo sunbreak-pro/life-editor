@@ -8,7 +8,7 @@ import { cn } from "./cn";
  * mutation is a callback the host injects (onTitleCommit / onToggleStatus),
  * the rich-text editor is injected as `contentEditor` (TipTap is a web
  * dependency and must not be pulled into shared), and all copy arrives as
- * already-translated props (§6.4 — no useTranslation here). ink-* tokens
+ * already-translated props (§6.4 — no useTranslation here). lumen-* tokens
  * only; the panel container is opaque (§5).
  *
  * Minimal scope (W7): title edit, status toggle, content edit. Heavier task
@@ -24,7 +24,7 @@ const STATUS_GLYPH: Record<TaskStatus, string> = {
 };
 
 const FOCUS_RING =
-  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink-accent focus-visible:ring-offset-2 focus-visible:ring-offset-ink-bg";
+  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent focus-visible:ring-offset-2 focus-visible:ring-offset-lumen-bg";
 
 /*
  * Title field. Mirrors NotesView's NoteTitleInput debounce-and-flush
@@ -85,7 +85,7 @@ function TaskTitleInput({
       onBlur={flush}
       aria-label={label}
       className={cn(
-        "w-full rounded-md border border-ink-border bg-ink-bg px-2 py-1.5 text-sm font-medium text-ink-text",
+        "w-full rounded-md border border-lumen-border bg-lumen-bg px-2 py-1.5 text-sm font-medium text-lumen-text",
         FOCUS_RING,
       )}
     />
@@ -136,7 +136,7 @@ export function TaskDetailPanel({
   return (
     <div
       className={cn(
-        "space-y-3 rounded-md border border-ink-border bg-ink-bg-secondary p-3",
+        "space-y-3 rounded-md border border-lumen-border bg-lumen-bg-secondary p-3",
         className,
       )}
     >
@@ -150,7 +150,7 @@ export function TaskDetailPanel({
 
       {!isFolder && (
         <div className="flex items-center gap-2">
-          <span className="text-xs uppercase tracking-wide text-ink-text-secondary">
+          <span className="text-xs uppercase tracking-wide text-lumen-text-secondary">
             {statusLabel}
           </span>
           <button
@@ -158,11 +158,11 @@ export function TaskDetailPanel({
             onClick={() => onToggleStatus?.(taskId)}
             aria-label={statusLabel}
             className={cn(
-              "inline-flex items-center gap-1.5 rounded-md border border-ink-border px-2 py-1 text-sm text-ink-text hover:bg-ink-hover",
+              "inline-flex items-center gap-1.5 rounded-md border border-lumen-border px-2 py-1 text-sm text-lumen-text hover:bg-lumen-hover",
               FOCUS_RING,
             )}
           >
-            <span aria-hidden className="text-ink-text-secondary">
+            <span aria-hidden className="text-lumen-text-secondary">
               {STATUS_GLYPH[resolvedStatus]}
             </span>
             <span>{statusText}</span>
@@ -173,7 +173,7 @@ export function TaskDetailPanel({
       {!isFolder && contentEditor && (
         <div className="space-y-1">
           {contentLabel && (
-            <span className="text-xs uppercase tracking-wide text-ink-text-secondary">
+            <span className="text-xs uppercase tracking-wide text-lumen-text-secondary">
               {contentLabel}
             </span>
           )}

@@ -1,7 +1,7 @@
 @import "tailwindcss";
 
 /*
- * Shared design tokens (W0-2). The full ink-* token set now lives in
+ * Shared design tokens (W0-2). The full lumen-* token set now lives in
  * shared/src/styles/tokens.css (canonical SSOT, ported from FROZEN
  * frontend/src/index.css). web imports it from source — same source-
  * consumption model as the vite `@life-editor/shared` alias.

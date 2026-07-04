@@ -7,7 +7,7 @@ import type { ComponentType } from "react";
  * frontend/src/components/CommandPalette/CommandPalette.tsx, with the
  * `useTranslation()` call removed: copy reaches this primitive via props
  * (CLAUDE.md §6.4 — shared primitives never call useTranslation /
- * getDataService). ink-* tokens only; the panel is opaque (bg-ink-bg
+ * getDataService). lumen-* tokens only; the panel is opaque (bg-lumen-bg
  * §5), the backdrop is an allowed overlay exception (bg-black/30).
  */
 export interface Command {
@@ -141,13 +141,13 @@ export function CommandPalette({
 
       {/* Panel */}
       <div
-        className="relative w-full max-w-[680px] overflow-hidden rounded-xl border border-ink-border bg-ink-bg shadow-2xl"
+        className="relative w-full max-w-[680px] overflow-hidden rounded-xl border border-lumen-border bg-lumen-bg shadow-2xl"
         onMouseDown={(e) => e.stopPropagation()}
         onKeyDown={handleKeyDown}
       >
         {/* Search input */}
-        <div className="flex items-center gap-3 border-b border-ink-border px-4 py-3">
-          <Search size={16} className="shrink-0 text-ink-text-secondary" />
+        <div className="flex items-center gap-3 border-b border-lumen-border px-4 py-3">
+          <Search size={16} className="shrink-0 text-lumen-text-secondary" />
           <input
             ref={inputRef}
             type="text"
@@ -157,20 +157,20 @@ export function CommandPalette({
               setQuery(e.target.value);
               setSelectedIndex(0);
             }}
-            className="flex-1 border-none bg-transparent text-sm text-ink-text outline-none"
+            className="flex-1 border-none bg-transparent text-sm text-lumen-text outline-none"
           />
         </div>
 
         {/* Command list */}
         <div ref={listRef} className="max-h-[480px] overflow-y-auto py-2">
           {filtered.length === 0 && (
-            <div className="px-4 py-6 text-center text-sm text-ink-text-secondary">
+            <div className="px-4 py-6 text-center text-sm text-lumen-text-secondary">
               {noResultsLabel}
             </div>
           )}
           {groups.map((group) => (
             <div key={group.category}>
-              <div className="px-4 py-1 text-xs font-medium uppercase tracking-wider text-ink-text-secondary">
+              <div className="px-4 py-1 text-xs font-medium uppercase tracking-wider text-lumen-text-secondary">
                 {group.category}
               </div>
               {group.items.map((cmd) => {
@@ -182,9 +182,9 @@ export function CommandPalette({
                     key={cmd.id}
                     type="button"
                     data-command-index={idx}
-                    className={`flex w-full items-center gap-3 px-4 py-2 text-sm text-ink-text transition-colors ${
+                    className={`flex w-full items-center gap-3 px-4 py-2 text-sm text-lumen-text transition-colors ${
                       idx === selectedIndex
-                        ? "bg-ink-hover"
+                        ? "bg-lumen-hover"
                         : "bg-transparent"
                     }`}
                     onMouseEnter={() => setSelectedIndex(idx)}
@@ -196,7 +196,7 @@ export function CommandPalette({
                     <Icon size={16} />
                     <span className="flex-1 text-left">{cmd.title}</span>
                     {cmd.shortcut && (
-                      <kbd className="rounded border border-ink-border bg-ink-hover px-1.5 py-0.5 text-xs text-ink-text-secondary">
+                      <kbd className="rounded border border-lumen-border bg-lumen-hover px-1.5 py-0.5 text-xs text-lumen-text-secondary">
                         {cmd.shortcut}
                       </kbd>
                     )}

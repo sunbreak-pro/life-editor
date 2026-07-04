@@ -13,18 +13,18 @@ export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 }
 
 /*
- * Design-system button. ink-* tokens only (§6.4) — opaque container
+ * Design-system button. lumen-* tokens only (§6.4) — opaque container
  * backgrounds (§5). Label text comes from `children` so the host injects
  * already-translated strings (no useTranslation inside shared, §6.4).
  */
 const VARIANT_CLASSES: Record<ButtonVariant, string> = {
   primary:
-    "bg-ink-accent text-ink-on-accent hover:opacity-90 disabled:opacity-50",
+    "bg-lumen-accent text-lumen-on-accent hover:opacity-90 disabled:opacity-50",
   secondary:
-    "bg-ink-bg-secondary text-ink-text hover:bg-ink-hover disabled:opacity-50",
+    "bg-lumen-bg-secondary text-lumen-text hover:bg-lumen-hover disabled:opacity-50",
   ghost:
-    "bg-transparent text-ink-text hover:bg-ink-hover disabled:opacity-50",
-  danger: "bg-ink-danger text-ink-on-accent hover:opacity-90 disabled:opacity-50",
+    "bg-transparent text-lumen-text hover:bg-lumen-hover disabled:opacity-50",
+  danger: "bg-lumen-danger text-lumen-on-accent hover:opacity-90 disabled:opacity-50",
 };
 
 const SIZE_CLASSES: Record<ButtonSize, string> = {
@@ -53,7 +53,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
         className={cn(
           "inline-flex items-center justify-center rounded-md font-medium",
           "transition-colors focus-visible:outline-none focus-visible:ring-2",
-          "focus-visible:ring-ink-accent disabled:cursor-not-allowed",
+          "focus-visible:ring-lumen-accent disabled:cursor-not-allowed",
           VARIANT_CLASSES[variant],
           SIZE_CLASSES[size],
           className,

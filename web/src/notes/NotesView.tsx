@@ -39,7 +39,7 @@ import { treeCollisionDetection } from "../components/treeCollision";
 import { TreeDragGhost } from "../components/TreeDragGhost";
 
 /*
- * Web Notes UI (S3). New, purpose-built ink-token UI (NOT a port of
+ * Web Notes UI (S3). New, purpose-built lumen-token UI (NOT a port of
  * the Tauri Notes screen) that exercises every shared Note data path:
  * hierarchical tree, expand/collapse, @dnd-kit reorder + into-folder +
  * to-root, create note/folder, rename, pin, soft-delete + restore +
@@ -67,11 +67,11 @@ const DIALOG_LABELS = {
   saveFailed: "Could not save. Please try again.",
 } as const;
 
-// Shared focus-visible ring (notion tokens only — no hardcoded colors).
+// Shared focus-visible ring (lumen tokens only — no hardcoded colors).
 // Kept in sync with the identical constant in NotePasswordDialog.tsx;
 // promoting it to a shared export is out of this focused pass's scope.
 const FOCUS_RING =
-  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink-accent focus-visible:ring-offset-2 focus-visible:ring-offset-ink-bg";
+  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent focus-visible:ring-offset-2 focus-visible:ring-offset-lumen-bg";
 
 interface FlatRow {
   node: NoteNode;
@@ -126,10 +126,10 @@ function NoteRow({
       ref={setNodeRef}
       className={`group relative flex items-center gap-1 rounded-md border px-2 py-1.5 ${
         showInside
-          ? "border-ink-accent bg-ink-accent-subtle"
+          ? "border-lumen-accent bg-lumen-accent-subtle"
           : selected
-            ? "border-ink-accent bg-ink-hover"
-            : "border-ink-border bg-ink-bg-secondary"
+            ? "border-lumen-accent bg-lumen-hover"
+            : "border-lumen-border bg-lumen-bg-secondary"
       }`}
     >
       {/* Reorder insertion line — 2px accent bar pinned to the row's top
@@ -139,13 +139,13 @@ function NoteRow({
       {dropPosition === "above" && (
         <span
           aria-hidden
-          className="pointer-events-none absolute inset-x-1 -top-px h-0.5 rounded-full bg-ink-accent"
+          className="pointer-events-none absolute inset-x-1 -top-px h-0.5 rounded-full bg-lumen-accent"
         />
       )}
       {dropPosition === "below" && (
         <span
           aria-hidden
-          className="pointer-events-none absolute inset-x-1 -bottom-px h-0.5 rounded-full bg-ink-accent"
+          className="pointer-events-none absolute inset-x-1 -bottom-px h-0.5 rounded-full bg-lumen-accent"
         />
       )}
       {/* Grip — hover-revealed (TaskTree parity). Stays focusable so a
@@ -156,7 +156,7 @@ function NoteRow({
         {...attributes}
         {...listeners}
         aria-label="Drag to reorder or move"
-        className={`shrink-0 cursor-grab text-ink-text-secondary opacity-0 transition-opacity hover:text-ink-text focus-visible:opacity-100 group-hover:opacity-100 ${FOCUS_RING}`}
+        className={`shrink-0 cursor-grab text-lumen-text-secondary opacity-0 transition-opacity hover:text-lumen-text focus-visible:opacity-100 group-hover:opacity-100 ${FOCUS_RING}`}
       >
         <GripVertical size={14} aria-hidden />
       </button>
@@ -172,7 +172,7 @@ function NoteRow({
           onClick={() => onToggleExpand(node.id)}
           aria-label={expanded ? "Collapse folder" : "Expand folder"}
           aria-expanded={expanded}
-          className={`relative inline-flex h-[14px] w-[14px] shrink-0 items-center justify-center text-ink-text-secondary hover:text-ink-text ${FOCUS_RING}`}
+          className={`relative inline-flex h-[14px] w-[14px] shrink-0 items-center justify-center text-lumen-text-secondary hover:text-lumen-text ${FOCUS_RING}`}
         >
           <Folder
             size={14}
@@ -207,26 +207,26 @@ function NoteRow({
         <FileText
           size={14}
           aria-hidden
-          className="shrink-0 text-ink-text-secondary"
+          className="shrink-0 text-lumen-text-secondary"
         />
       )}
 
       <button
         type="button"
         onClick={() => (isFolder ? onToggleExpand(node.id) : onSelect(node.id))}
-        className={`flex flex-1 items-center gap-1.5 text-left text-sm text-ink-text ${FOCUS_RING}`}
+        className={`flex flex-1 items-center gap-1.5 text-left text-sm text-lumen-text ${FOCUS_RING}`}
       >
         <span className={node.isPinned ? "font-medium" : ""}>
           {node.title || "(untitled)"}
         </span>
         {node.isPinned && (
-          <Pin size={11} aria-label="Pinned" className="text-ink-accent" />
+          <Pin size={11} aria-label="Pinned" className="text-lumen-accent" />
         )}
         {node.hasPassword && (
           <Lock
             size={11}
             aria-label="Password protected"
-            className="text-ink-text-secondary"
+            className="text-lumen-text-secondary"
           />
         )}
       </button>
@@ -242,7 +242,7 @@ function NoteRow({
         aria-label={`Delete ${
           node.type === "folder" ? "folder" : "note"
         } ${node.title || "untitled"}`}
-        className={`text-ink-text-secondary opacity-0 transition-opacity hover:text-ink-danger focus-visible:opacity-100 group-hover:opacity-100 ${FOCUS_RING}`}
+        className={`text-lumen-text-secondary opacity-0 transition-opacity hover:text-lumen-danger focus-visible:opacity-100 group-hover:opacity-100 ${FOCUS_RING}`}
       >
         <Trash2 size={14} aria-hidden />
       </button>
@@ -311,7 +311,7 @@ function NoteTitleInput({
       }}
       onBlur={flush}
       aria-label="Note title"
-      className={`flex-1 rounded-md border border-ink-border bg-ink-bg px-2 py-1.5 text-sm font-medium text-ink-text ${FOCUS_RING}`}
+      className={`flex-1 rounded-md border border-lumen-border bg-lumen-bg px-2 py-1.5 text-sm font-medium text-lumen-text ${FOCUS_RING}`}
     />
   );
 }
@@ -430,7 +430,7 @@ export function NotesView() {
   const ids: UniqueIdentifier[] = flat.map((r) => r.node.id);
 
   if (notes.isLoading) {
-    return <p className="text-ink-text-secondary">Loading notes…</p>;
+    return <p className="text-lumen-text-secondary">Loading notes…</p>;
   }
 
   // Master pane — the note tree, create controls, errors and the trash
@@ -442,14 +442,14 @@ export function NotesView() {
           <button
             type="button"
             onClick={addNote}
-            className={`rounded-md bg-ink-accent px-3 py-1.5 text-sm text-ink-on-accent hover:opacity-90 ${FOCUS_RING}`}
+            className={`rounded-md bg-lumen-accent px-3 py-1.5 text-sm text-lumen-on-accent hover:opacity-90 ${FOCUS_RING}`}
           >
             + Note
           </button>
           <button
             type="button"
             onClick={addFolder}
-            className={`rounded-md border border-ink-border px-3 py-1.5 text-sm text-ink-text hover:bg-ink-hover ${FOCUS_RING}`}
+            className={`rounded-md border border-lumen-border px-3 py-1.5 text-sm text-lumen-text hover:bg-lumen-hover ${FOCUS_RING}`}
           >
             + Folder
           </button>
@@ -458,7 +458,7 @@ export function NotesView() {
         {notes.error && (
           <p
             role="alert"
-            className="rounded-md border border-ink-danger px-3 py-2 text-sm text-ink-danger"
+            className="rounded-md border border-lumen-danger px-3 py-2 text-sm text-lumen-danger"
           >
             {notes.error}
           </p>
@@ -467,14 +467,14 @@ export function NotesView() {
         {moveError && (
           <p
             role="alert"
-            className="rounded-md border border-ink-danger px-3 py-2 text-sm text-ink-danger"
+            className="rounded-md border border-lumen-danger px-3 py-2 text-sm text-lumen-danger"
           >
             {moveError}
           </p>
         )}
 
         {flat.length === 0 ? (
-          <p className="text-ink-text-secondary">
+          <p className="text-lumen-text-secondary">
             No notes yet. Create one above.
           </p>
         ) : (
@@ -524,8 +524,8 @@ export function NotesView() {
         )}
 
         {notes.deletedNotes.length > 0 && (
-          <details className="rounded-md border border-ink-border px-3 py-2">
-            <summary className="cursor-pointer text-sm text-ink-text-secondary">
+          <details className="rounded-md border border-lumen-border px-3 py-2">
+            <summary className="cursor-pointer text-sm text-lumen-text-secondary">
               Trash ({notes.deletedNotes.length})
             </summary>
             <ul className="mt-2 space-y-1">
@@ -534,7 +534,7 @@ export function NotesView() {
                   key={n.id}
                   className="flex items-center justify-between text-sm"
                 >
-                  <span className="text-ink-text-secondary line-through">
+                  <span className="text-lumen-text-secondary line-through">
                     {n.title || "(untitled)"}
                   </span>
                   <span className="flex gap-2">
@@ -542,7 +542,7 @@ export function NotesView() {
                       type="button"
                       onClick={() => notes.restoreNote(n.id)}
                       aria-label={`Restore ${n.title || "untitled"}`}
-                      className={`text-ink-accent hover:opacity-80 ${FOCUS_RING}`}
+                      className={`text-lumen-accent hover:opacity-80 ${FOCUS_RING}`}
                     >
                       <RotateCcw size={14} aria-hidden />
                     </button>
@@ -550,7 +550,7 @@ export function NotesView() {
                       type="button"
                       onClick={() => notes.permanentDeleteNote(n.id)}
                       aria-label={`Permanently delete ${n.title || "untitled"}`}
-                      className={`text-ink-danger hover:opacity-80 ${FOCUS_RING}`}
+                      className={`text-lumen-danger hover:opacity-80 ${FOCUS_RING}`}
                     >
                       <Trash2 size={14} aria-hidden />
                     </button>
@@ -581,12 +581,12 @@ export function NotesView() {
                 onClick={() => notes.togglePin(selected.id)}
                 aria-pressed={selected.isPinned}
                 aria-label={selected.isPinned ? "Unpin note" : "Pin note"}
-                className={`rounded-md border border-ink-border p-1.5 text-ink-text hover:bg-ink-hover ${FOCUS_RING}`}
+                className={`rounded-md border border-lumen-border p-1.5 text-lumen-text hover:bg-lumen-hover ${FOCUS_RING}`}
               >
                 <Pin
                   size={14}
                   aria-hidden
-                  className={selected.isPinned ? "text-ink-accent" : ""}
+                  className={selected.isPinned ? "text-lumen-accent" : ""}
                 />
               </button>
               {/*
@@ -602,14 +602,14 @@ export function NotesView() {
               <button
                 type="button"
                 onClick={() => rename(selected)}
-                className={`rounded-md border border-ink-border px-2 py-1.5 text-xs text-ink-text hover:bg-ink-hover ${FOCUS_RING}`}
+                className={`rounded-md border border-lumen-border px-2 py-1.5 text-xs text-lumen-text hover:bg-lumen-hover ${FOCUS_RING}`}
               >
                 Rename
               </button>
               <button
                 type="button"
                 onClick={() => notes.softDeleteNote(selected.id)}
-                className={`rounded-md border border-ink-border px-2 py-1.5 text-xs text-ink-danger hover:bg-ink-hover ${FOCUS_RING}`}
+                className={`rounded-md border border-lumen-border px-2 py-1.5 text-xs text-lumen-danger hover:bg-lumen-hover ${FOCUS_RING}`}
               >
                 Delete
               </button>
@@ -653,13 +653,13 @@ export function NotesView() {
                       onClick={() =>
                         setPwDialog({ mode: "verify", noteId: selected.id })
                       }
-                      className={`absolute inset-0 flex flex-col items-center justify-center gap-2 rounded-md border border-ink-border bg-ink-bg-secondary text-ink-text ${FOCUS_RING}`}
+                      className={`absolute inset-0 flex flex-col items-center justify-center gap-2 rounded-md border border-lumen-border bg-lumen-bg-secondary text-lumen-text ${FOCUS_RING}`}
                     >
                       <Lock size={20} aria-hidden />
                       <span className="text-sm">
                         This note is password protected
                       </span>
-                      <span className="text-xs text-ink-text-secondary">
+                      <span className="text-xs text-lumen-text-secondary">
                         Click to unlock
                       </span>
                     </button>
@@ -668,7 +668,7 @@ export function NotesView() {
               );
             })()}
             {selected.isEditLocked && (
-              <p className="text-xs text-ink-text-secondary">
+              <p className="text-xs text-lumen-text-secondary">
                 This note is edit-locked. Unlock it to make changes.
               </p>
             )}

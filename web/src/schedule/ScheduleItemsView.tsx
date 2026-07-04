@@ -9,7 +9,7 @@ import { DebouncedTextInput } from "../components/DebouncedTextInput";
 /*
  * Web Schedule UI — S4-4 ScheduleItems slice.
  *
- * Lean, purpose-built ink-token view (NOT a port of the Tauri
+ * Lean, purpose-built lumen-token view (NOT a port of the Tauri
  * Schedule calendar grid / DnD / Achievement UI — intentionally out of
  * scope, plan §スコープ外). It exercises every shared schedule_items
  * data path the S4-4 surface exposes for the anchored date: manual
@@ -128,7 +128,7 @@ export function ScheduleItemsView() {
 
   if (isLoading) {
     return (
-      <p className="text-sm text-ink-text-secondary">
+      <p className="text-sm text-lumen-text-secondary">
         Loading schedule items…
       </p>
     );
@@ -136,15 +136,15 @@ export function ScheduleItemsView() {
 
   if (error) {
     return (
-      <p className="text-sm text-ink-text-secondary">
+      <p className="text-sm text-lumen-text-secondary">
         Could not load schedule items: {error}
       </p>
     );
   }
 
   return (
-    <section className="space-y-3 rounded-md border border-ink-border p-3">
-      <h2 className="text-sm font-semibold text-ink-text">
+    <section className="space-y-3 rounded-md border border-lumen-border p-3">
+      <h2 className="text-sm font-semibold text-lumen-text">
         Schedule items — {date} ({sortedItems.length})
       </h2>
 
@@ -160,26 +160,26 @@ export function ScheduleItemsView() {
             }
           }}
           placeholder="Item title"
-          className="min-w-[10rem] flex-1 rounded-md border border-ink-border bg-ink-bg px-2 py-1 text-sm text-ink-text"
+          className="min-w-[10rem] flex-1 rounded-md border border-lumen-border bg-lumen-bg px-2 py-1 text-sm text-lumen-text"
         />
         <input
           type="time"
           value={newStart}
           onChange={(e) => setNewStart(e.target.value)}
           aria-label="Start time"
-          className="rounded-md border border-ink-border bg-ink-bg px-2 py-1 text-sm text-ink-text"
+          className="rounded-md border border-lumen-border bg-lumen-bg px-2 py-1 text-sm text-lumen-text"
         />
         <input
           type="time"
           value={newEnd}
           onChange={(e) => setNewEnd(e.target.value)}
           aria-label="End time"
-          className="rounded-md border border-ink-border bg-ink-bg px-2 py-1 text-sm text-ink-text"
+          className="rounded-md border border-lumen-border bg-lumen-bg px-2 py-1 text-sm text-lumen-text"
         />
         <button
           type="button"
           onClick={handleCreate}
-          className="rounded-md border border-ink-border px-3 py-1 text-sm text-ink-text hover:bg-ink-hover"
+          className="rounded-md border border-lumen-border px-3 py-1 text-sm text-lumen-text hover:bg-lumen-hover"
         >
           Add
         </button>
@@ -190,7 +190,7 @@ export function ScheduleItemsView() {
         {sortedItems.map((item) => (
           <li
             key={item.id}
-            className={`space-y-2 rounded-md border border-ink-border p-2 ${
+            className={`space-y-2 rounded-md border border-lumen-border p-2 ${
               item.isDismissed ? "opacity-60" : ""
             }`}
           >
@@ -205,7 +205,7 @@ export function ScheduleItemsView() {
                 key={`title-${item.id}`}
                 value={item.title}
                 onCommit={(title) => updateScheduleItem(item.id, { title })}
-                className={`min-w-[8rem] flex-1 rounded-md border border-ink-border bg-ink-bg px-2 py-1 text-sm text-ink-text ${
+                className={`min-w-[8rem] flex-1 rounded-md border border-lumen-border bg-lumen-bg px-2 py-1 text-sm text-lumen-text ${
                   item.completed ? "line-through" : ""
                 }`}
               />
@@ -217,7 +217,7 @@ export function ScheduleItemsView() {
                   updateScheduleItem(item.id, { startTime })
                 }
                 aria-label={`Start time for ${item.title}`}
-                className="rounded-md border border-ink-border bg-ink-bg px-2 py-1 text-sm text-ink-text"
+                className="rounded-md border border-lumen-border bg-lumen-bg px-2 py-1 text-sm text-lumen-text"
               />
               <DebouncedTextInput
                 key={`end-${item.id}`}
@@ -225,12 +225,12 @@ export function ScheduleItemsView() {
                 value={item.endTime}
                 onCommit={(endTime) => updateScheduleItem(item.id, { endTime })}
                 aria-label={`End time for ${item.title}`}
-                className="rounded-md border border-ink-border bg-ink-bg px-2 py-1 text-sm text-ink-text"
+                className="rounded-md border border-lumen-border bg-lumen-bg px-2 py-1 text-sm text-lumen-text"
               />
             </div>
             <div className="flex flex-wrap items-center gap-2">
               {item.routineId && (
-                <span className="text-xs text-ink-text-secondary">
+                <span className="text-xs text-lumen-text-secondary">
                   from routine
                 </span>
               )}
@@ -239,7 +239,7 @@ export function ScheduleItemsView() {
                 type="button"
                 onClick={() => toggleExpanded(item.id)}
                 aria-expanded={expanded.has(item.id)}
-                className="rounded-md border border-ink-border px-2 py-0.5 text-xs text-ink-text hover:bg-ink-hover"
+                className="rounded-md border border-lumen-border px-2 py-0.5 text-xs text-lumen-text hover:bg-lumen-hover"
               >
                 {expanded.has(item.id) ? "Hide links" : "Links"}
               </button>
@@ -248,7 +248,7 @@ export function ScheduleItemsView() {
                 onClick={() =>
                   item.isDismissed ? undismiss(item.id) : dismiss(item.id)
                 }
-                className="rounded-md border border-ink-border px-2 py-0.5 text-xs text-ink-text hover:bg-ink-hover"
+                className="rounded-md border border-lumen-border px-2 py-0.5 text-xs text-lumen-text hover:bg-lumen-hover"
               >
                 {item.isDismissed ? "Undismiss" : "Dismiss"}
               </button>
@@ -261,7 +261,7 @@ export function ScheduleItemsView() {
                 <button
                   type="button"
                   onClick={() => deleteScheduleItem(item.id)}
-                  className="rounded-md border border-ink-border px-2 py-0.5 text-xs text-ink-text hover:bg-ink-hover"
+                  className="rounded-md border border-lumen-border px-2 py-0.5 text-xs text-lumen-text hover:bg-lumen-hover"
                 >
                   Delete
                 </button>
@@ -277,7 +277,7 @@ export function ScheduleItemsView() {
           </li>
         ))}
         {sortedItems.length === 0 && (
-          <li className="text-sm text-ink-text-secondary">
+          <li className="text-sm text-lumen-text-secondary">
             No schedule items for this date.
           </li>
         )}
@@ -285,14 +285,14 @@ export function ScheduleItemsView() {
 
       {deletedManualItems.length > 0 && (
         <div className="space-y-1">
-          <h3 className="text-sm font-semibold text-ink-text">
+          <h3 className="text-sm font-semibold text-lumen-text">
             Trash ({deletedManualItems.length})
           </h3>
           <ul className="space-y-1">
             {deletedManualItems.map((item) => (
               <li
                 key={item.id}
-                className="flex items-center justify-between text-sm text-ink-text-secondary"
+                className="flex items-center justify-between text-sm text-lumen-text-secondary"
               >
                 <span>
                   {item.date} · {item.title}
@@ -301,14 +301,14 @@ export function ScheduleItemsView() {
                   <button
                     type="button"
                     onClick={() => restoreScheduleItem(item.id)}
-                    className="rounded-md border border-ink-border px-2 py-0.5 text-xs text-ink-text hover:bg-ink-hover"
+                    className="rounded-md border border-lumen-border px-2 py-0.5 text-xs text-lumen-text hover:bg-lumen-hover"
                   >
                     Restore
                   </button>
                   <button
                     type="button"
                     onClick={() => permanentDeleteScheduleItem(item.id)}
-                    className="rounded-md border border-ink-border px-2 py-0.5 text-xs text-ink-text hover:bg-ink-hover"
+                    className="rounded-md border border-lumen-border px-2 py-0.5 text-xs text-lumen-text hover:bg-lumen-hover"
                   >
                     Delete forever
                   </button>

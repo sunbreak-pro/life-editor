@@ -27,13 +27,13 @@ export interface SheetProps {
  * generalized, any-edge counterpart to the mobile-tuned BottomSheet — slides
  * in from bottom / top / left / right, portal-rendered to <body>.
  *
- * §3.5 transparency: the PANEL is opaque (bg-ink-bg); the BACKDROP uses
+ * §3.5 transparency: the PANEL is opaque (bg-lumen-bg); the BACKDROP uses
  * bg-black/40, the allowed overlay exception. A11y mirrors Modal: role=dialog
  * + aria-modal, Esc-to-close (IME-guarded so a Japanese conversion-cancel
  * never tears the sheet down — §7 gotcha), a Tab focus-trap, first-focusable
  * focused on open, body scroll locked while open, focus restored on close.
  * The bottom variant shows a grab-handle to signal draggability (gesture
- * wiring stays the host's concern). ink-* tokens only (§3.1).
+ * wiring stays the host's concern). lumen-* tokens only (§3.1).
  */
 const BACKDROP_ALIGN: Record<SheetSide, string> = {
   bottom: "items-end justify-center",
@@ -44,10 +44,10 @@ const BACKDROP_ALIGN: Record<SheetSide, string> = {
 
 const PANEL_CLASSES: Record<SheetSide, string> = {
   bottom:
-    "w-full max-w-lg max-h-[85vh] rounded-t-ink-xl border-t px-5 pb-6 pt-3",
-  top: "w-full max-w-lg max-h-[85vh] rounded-b-ink-xl border-b p-5",
-  left: "h-full w-80 max-w-[85vw] rounded-r-ink-xl border-r p-5",
-  right: "h-full w-80 max-w-[85vw] rounded-l-ink-xl border-l p-5",
+    "w-full max-w-lg max-h-[85vh] rounded-t-lumen-xl border-t px-5 pb-6 pt-3",
+  top: "w-full max-w-lg max-h-[85vh] rounded-b-lumen-xl border-b p-5",
+  left: "h-full w-80 max-w-[85vw] rounded-r-lumen-xl border-r p-5",
+  right: "h-full w-80 max-w-[85vw] rounded-l-lumen-xl border-l p-5",
 };
 
 export function Sheet({
@@ -125,7 +125,7 @@ export function Sheet({
         aria-modal="true"
         aria-label={title}
         className={cn(
-          "flex flex-col overflow-y-auto border-ink-border bg-ink-bg shadow-ink-lg",
+          "flex flex-col overflow-y-auto border-lumen-border bg-lumen-bg shadow-lumen-lg",
           PANEL_CLASSES[side],
           className,
         )}
@@ -134,11 +134,11 @@ export function Sheet({
         {side === "bottom" ? (
           <div
             aria-hidden="true"
-            className="mx-auto mb-3 h-1.5 w-10 shrink-0 rounded-ink-full bg-ink-border"
+            className="mx-auto mb-3 h-1.5 w-10 shrink-0 rounded-lumen-full bg-lumen-border"
           />
         ) : null}
         {title ? (
-          <h2 className="mb-3 shrink-0 text-base font-semibold text-ink-text">
+          <h2 className="mb-3 shrink-0 text-base font-semibold text-lumen-text">
             {title}
           </h2>
         ) : null}

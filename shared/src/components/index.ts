@@ -2,7 +2,7 @@
  * Design-system component barrel (W0-3). All cross-platform UI primitives
  * are re-exported from here, and surfaced to hosts via shared/src/index.ts.
  *
- * Conventions (CLAUDE.md §6): ink-* tokens only, opaque container
+ * Conventions (CLAUDE.md §6): lumen-* tokens only, opaque container
  * backgrounds (§5), props-injected i18n + DataService (no useTranslation
  * / getDataService inside these primitives, §6.4).
  */
@@ -27,7 +27,7 @@ export { Modal, type ModalProps } from "./Modal";
 // future surface reuse one component. Pure presentation (§6.4).
 export { ColorPicker, type ColorPickerProps } from "./ColorPicker";
 export { BottomSheet, type BottomSheetProps } from "./BottomSheet";
-// Lumen shipping primitives (ClaudeDesign port). Pure presentation: ink-*
+// Lumen shipping primitives (ClaudeDesign port). Pure presentation: lumen-*
 // tokens only (§3.1), opaque container surfaces (§3.5), props-injected copy
 // (§6). Toast = notification card + fixed stack; Sheet = any-edge drawer;
 // Sidebar = grouped nav rows (Lumen selected/mint states); Menu = dropdown.

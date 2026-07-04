@@ -120,10 +120,10 @@ export function ColorPicker({
         title={label}
         onClick={() => setOpen((v) => !v)}
         className={cn(
-          "inline-flex items-center gap-1.5 rounded-full border border-dashed border-ink-border-strong",
-          "px-2 py-0.5 text-[0.6875rem] font-semibold text-ink-text-secondary",
-          "transition-colors hover:bg-ink-hover hover:text-ink-text",
-          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink-accent",
+          "inline-flex items-center gap-1.5 rounded-full border border-dashed border-lumen-border-strong",
+          "px-2 py-0.5 text-[0.6875rem] font-semibold text-lumen-text-secondary",
+          "transition-colors hover:bg-lumen-hover hover:text-lumen-text",
+          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent",
         )}
       >
         <span aria-hidden className="inline-flex items-center gap-0.5">
@@ -143,7 +143,7 @@ export function ColorPicker({
           role="group"
           aria-label={label}
           className={cn(
-            "mt-2 rounded-lg border border-ink-border bg-ink-bg p-2 shadow-ink-md",
+            "mt-2 rounded-lg border border-lumen-border bg-lumen-bg p-2 shadow-lumen-md",
           )}
         >
           <div className="grid grid-cols-6 gap-1.5">
@@ -160,9 +160,9 @@ export function ColorPicker({
                   className={cn(
                     "flex h-6 w-6 items-center justify-center rounded-md",
                     "transition-transform hover:scale-110",
-                    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink-accent",
+                    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent",
                     active &&
-                      "ring-2 ring-ink-text ring-offset-1 ring-offset-ink-bg",
+                      "ring-2 ring-lumen-text ring-offset-1 ring-offset-lumen-bg",
                   )}
                   style={{ backgroundColor: color }}
                 >
@@ -170,7 +170,7 @@ export function ColorPicker({
                     <Check
                       size={13}
                       aria-hidden
-                      className="text-ink-on-accent"
+                      className="text-lumen-on-accent"
                     />
                   )}
                 </button>
@@ -182,8 +182,8 @@ export function ColorPicker({
           <label
             className={cn(
               "mt-2 flex w-full cursor-pointer items-center gap-1.5 rounded-md px-2 py-1",
-              "text-[0.75rem] font-medium text-ink-text-secondary",
-              "transition-colors hover:bg-ink-hover hover:text-ink-text",
+              "text-[0.75rem] font-medium text-lumen-text-secondary",
+              "transition-colors hover:bg-lumen-hover hover:text-lumen-text",
             )}
           >
             <input
@@ -191,7 +191,7 @@ export function ColorPicker({
               value={customValue}
               onChange={(e) => onCustomInput(e.target.value)}
               aria-label={customLabel}
-              className="h-5 w-5 shrink-0 cursor-pointer rounded border border-ink-border bg-transparent p-0"
+              className="h-5 w-5 shrink-0 cursor-pointer rounded border border-lumen-border bg-transparent p-0"
             />
             {customLabel}
           </label>
@@ -201,9 +201,9 @@ export function ColorPicker({
             onClick={() => pickPreset(null)}
             className={cn(
               "mt-1 flex w-full items-center gap-1.5 rounded-md px-2 py-1",
-              "text-[0.75rem] font-medium text-ink-text-secondary",
-              "transition-colors hover:bg-ink-hover hover:text-ink-text",
-              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink-accent",
+              "text-[0.75rem] font-medium text-lumen-text-secondary",
+              "transition-colors hover:bg-lumen-hover hover:text-lumen-text",
+              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent",
             )}
           >
             <Palette size={13} aria-hidden />

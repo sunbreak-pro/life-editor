@@ -101,7 +101,7 @@ export function TaskAddDialog({
         <div
           role="radiogroup"
           aria-label={labels.title}
-          className="inline-flex gap-0.5 rounded-lg border border-ink-border bg-ink-bg-secondary p-0.5"
+          className="inline-flex gap-0.5 rounded-lg border border-lumen-border bg-lumen-bg-secondary p-0.5"
         >
           {TYPES.map((t) => {
             const selected = t === type;
@@ -114,10 +114,10 @@ export function TaskAddDialog({
                 onClick={() => setType(t)}
                 className={cn(
                   "rounded-md px-3 py-1 text-sm font-semibold transition-colors",
-                  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink-accent",
+                  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent",
                   selected
-                    ? "bg-ink-bg text-ink-text shadow-ink-sm"
-                    : "text-ink-text-secondary hover:text-ink-text",
+                    ? "bg-lumen-bg text-lumen-text shadow-lumen-sm"
+                    : "text-lumen-text-secondary hover:text-lumen-text",
                 )}
               >
                 {typeLabel(t)}
@@ -128,7 +128,7 @@ export function TaskAddDialog({
 
         {/* Title */}
         <label className="block space-y-1">
-          <span className="text-xs font-medium text-ink-text-secondary">
+          <span className="text-xs font-medium text-lumen-text-secondary">
             {labels.titleLabel}
           </span>
           <input
@@ -146,9 +146,9 @@ export function TaskAddDialog({
               }
             }}
             className={cn(
-              "w-full rounded-md border border-ink-border bg-ink-bg px-3 py-1.5 text-sm text-ink-text",
-              "placeholder:text-ink-text-secondary",
-              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink-accent",
+              "w-full rounded-md border border-lumen-border bg-lumen-bg px-3 py-1.5 text-sm text-lumen-text",
+              "placeholder:text-lumen-text-secondary",
+              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent",
             )}
           />
         </label>
@@ -156,15 +156,15 @@ export function TaskAddDialog({
         {/* Folder target — tasks only */}
         {type === "task" && (
           <label className="block space-y-1">
-            <span className="text-xs font-medium text-ink-text-secondary">
+            <span className="text-xs font-medium text-lumen-text-secondary">
               {labels.folderLabel}
             </span>
             <select
               value={parentId ?? ""}
               onChange={(e) => setParentId(e.target.value || null)}
               className={cn(
-                "w-full rounded-md border border-ink-border bg-ink-bg px-3 py-1.5 text-sm text-ink-text",
-                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink-accent",
+                "w-full rounded-md border border-lumen-border bg-lumen-bg px-3 py-1.5 text-sm text-lumen-text",
+                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent",
               )}
             >
               <option value="">{labels.rootOption}</option>
@@ -183,9 +183,9 @@ export function TaskAddDialog({
             type="button"
             onClick={onClose}
             className={cn(
-              "rounded-md border border-ink-border px-3 py-1.5 text-sm text-ink-text",
-              "transition-colors hover:bg-ink-hover",
-              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink-accent",
+              "rounded-md border border-lumen-border px-3 py-1.5 text-sm text-lumen-text",
+              "transition-colors hover:bg-lumen-hover",
+              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent",
             )}
           >
             {labels.cancel}
@@ -194,9 +194,9 @@ export function TaskAddDialog({
             type="submit"
             disabled={!canSubmit}
             className={cn(
-              "rounded-md bg-ink-accent px-3 py-1.5 text-sm text-ink-on-accent",
+              "rounded-md bg-lumen-accent px-3 py-1.5 text-sm text-lumen-on-accent",
               "transition-opacity hover:opacity-90 disabled:opacity-40",
-              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink-accent",
+              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent",
             )}
           >
             {labels.submit}

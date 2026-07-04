@@ -79,7 +79,7 @@ export function WeeklySummary({
 
   return (
     <div>
-      <h3 className="text-sm font-semibold text-ink-text mb-3">
+      <h3 className="text-sm font-semibold text-lumen-text mb-3">
         {labels.title}
       </h3>
       <div className="grid grid-cols-3 gap-3">
@@ -123,24 +123,24 @@ function ComparisonCard({
   const isDown = diff < 0;
 
   return (
-    <div className="bg-ink-bg-secondary rounded-lg p-3">
-      <p className="text-xs text-ink-text-secondary mb-1">{label}</p>
-      <p className="text-lg font-bold text-ink-text">{current}</p>
+    <div className="bg-lumen-bg-secondary rounded-lg p-3">
+      <p className="text-xs text-lumen-text-secondary mb-1">{label}</p>
+      <p className="text-lg font-bold text-lumen-text">{current}</p>
       <div className="flex items-center gap-1 mt-1">
         {isUp ? (
-          <TrendingUp size={12} className="text-ink-success" />
+          <TrendingUp size={12} className="text-lumen-success" />
         ) : isDown ? (
-          <TrendingDown size={12} className="text-ink-danger" />
+          <TrendingDown size={12} className="text-lumen-danger" />
         ) : (
-          <Minus size={12} className="text-ink-text-secondary" />
+          <Minus size={12} className="text-lumen-text-secondary" />
         )}
         <span
           className={`text-xs font-medium ${
             isUp
-              ? "text-ink-success"
+              ? "text-lumen-success"
               : isDown
-                ? "text-ink-danger"
-                : "text-ink-text-secondary"
+                ? "text-lumen-danger"
+                : "text-lumen-text-secondary"
           }`}
         >
           {previousRaw > 0 ? `${Math.abs(Math.round(diff))}%` : "—"}

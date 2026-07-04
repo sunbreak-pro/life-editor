@@ -35,18 +35,18 @@ export interface ToastViewportProps extends HTMLAttributes<HTMLDivElement> {
 
 /*
  * Lumen toast card (ClaudeDesign catalog: components/toast.html). An OPAQUE
- * notification card (bg-ink-bg, §3.5) with a 3px semantic accent bar, a
+ * notification card (bg-lumen-bg, §3.5) with a 3px semantic accent bar, a
  * status dot, the message, and an optional dismiss button. The tone class is
  * looked up from a static map (never string-built) so Tailwind's scanner
- * keeps the bg-ink-* utility — a dynamic `bg-ink-${variant}` would silently
- * fall transparent (§7 silent-transparent-fail). ink-* tokens only (§3.1);
+ * keeps the bg-lumen-* utility — a dynamic `bg-lumen-${variant}` would silently
+ * fall transparent (§7 silent-transparent-fail). lumen-* tokens only (§3.1);
  * copy is injected (no useTranslation here, §6).
  */
 const TONE_BG: Record<ToastVariant, string> = {
-  info: "bg-ink-info",
-  success: "bg-ink-success",
-  warning: "bg-ink-warning",
-  danger: "bg-ink-danger",
+  info: "bg-lumen-info",
+  success: "bg-lumen-success",
+  warning: "bg-lumen-warning",
+  danger: "bg-lumen-danger",
 };
 
 export const Toast = forwardRef<HTMLDivElement, ToastProps>(function Toast(
@@ -70,8 +70,8 @@ export const Toast = forwardRef<HTMLDivElement, ToastProps>(function Toast(
       ref={ref}
       role={resolvedRole}
       className={cn(
-        "relative flex items-center gap-2.5 overflow-hidden rounded-ink-lg",
-        "border border-ink-border bg-ink-bg py-2.5 pl-3.5 pr-3 shadow-ink-md",
+        "relative flex items-center gap-2.5 overflow-hidden rounded-lumen-lg",
+        "border border-lumen-border bg-lumen-bg py-2.5 pl-3.5 pr-3 shadow-lumen-md",
         className,
       )}
       {...rest}
@@ -84,7 +84,7 @@ export const Toast = forwardRef<HTMLDivElement, ToastProps>(function Toast(
         aria-hidden="true"
         className={cn("h-2 w-2 shrink-0 rounded-full", TONE_BG[variant])}
       />
-      <span className="min-w-0 flex-1 text-sm leading-snug text-ink-text">
+      <span className="min-w-0 flex-1 text-sm leading-snug text-lumen-text">
         {children}
       </span>
       {onDismiss ? (
@@ -93,10 +93,10 @@ export const Toast = forwardRef<HTMLDivElement, ToastProps>(function Toast(
           onClick={onDismiss}
           aria-label={dismissLabel}
           className={cn(
-            "grid h-5 w-5 shrink-0 place-items-center rounded-ink-sm",
-            "text-ink-text-secondary transition-colors",
-            "hover:bg-ink-hover hover:text-ink-text",
-            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink-accent",
+            "grid h-5 w-5 shrink-0 place-items-center rounded-lumen-sm",
+            "text-lumen-text-secondary transition-colors",
+            "hover:bg-lumen-hover hover:text-lumen-text",
+            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent",
           )}
         >
           <X size={13} />

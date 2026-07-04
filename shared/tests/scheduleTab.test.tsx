@@ -100,13 +100,13 @@ describe("ScheduleTab date-range filtering (per-range presentation)", () => {
     expect(screen.getByText(LABELS.noEvents)).toBeInTheDocument();
   });
 
-  it("tints the totalEvents stat icon with an ink-* token, not a raw literal", () => {
+  it("tints the totalEvents stat icon with an lumen-* token, not a raw literal", () => {
     const { container } = renderTab([
       makeItem({ id: "g", date: dayKey(0), completed: true }),
     ]);
 
-    // Tokenized (text-blue-500 → text-ink-accent).
-    expect(container.querySelector(".text-ink-accent")).not.toBeNull();
+    // Tokenized (text-blue-500 → text-lumen-accent).
+    expect(container.querySelector(".text-lumen-accent")).not.toBeNull();
     expect(container.querySelector(".text-blue-500")).toBeNull();
   });
 });
