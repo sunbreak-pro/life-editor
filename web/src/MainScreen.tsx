@@ -18,6 +18,7 @@ import {
   AppShell,
   type AppShellSection,
   CommandPalette,
+  ToastProvider,
   SyncProvider,
   TaskTreeProvider,
   DailiesUnifiedProvider,
@@ -189,221 +190,230 @@ export function MainScreen({ session }: { session: Session }) {
   const fluidSection = section === "connect" || section === "tasks";
 
   return (
-    <SyncProvider>
-      {/*
-       * ShortcutConfigProvider (W1) is a Mobile 省略 Provider (CLAUDE.md §2),
-       * mounted here on the web host only. Per §6.2 Theme is outer (it lives
-       * in main.tsx); Shortcut sits inner — here just inside Sync and OUTSIDE
-       * the section switch, so the (currently settings-only) consumer reads a
-       * stable Provider regardless of the active section.
-       */}
-      <ShortcutConfigProvider>
+    /*
+     * ToastProvider (follow-up #6) — host mount for the shared toast stack.
+     * Per CLAUDE.md §6.2 Toast sits between Theme (main.tsx) and Sync, OUTSIDE
+     * the section switch, so any section (currently Connect's link-edit
+     * failures) can raise a toast via useToast(). dismissLabel is injected
+     * already-translated (§6.4); the card copy itself is host-resolved too.
+     */
+    <ToastProvider dismissLabel={t("common.close")}>
+      <SyncProvider>
         {/*
-         * Global shortcut executor (W3-0/W3-B). Headless — sits inside the
-         * ShortcutConfigProvider (MainScreen's own body can't read
-         * useShortcutConfig) and wires keydown to section nav + palette toggle.
-         * Reads the live (rebindable) config, so Settings rebinds apply at
-         * once. new-task is wired (W3-B) → navigate to the Tasks section
-         * (the shell has no create-and-focus surface; that lifts in W4).
-         * undo / redo still have no web surface (no UndoRedo on web yet) →
-         * left unwired = no-op until W4 (see Worklog rationale).
+         * ShortcutConfigProvider (W1) is a Mobile 省略 Provider (CLAUDE.md §2),
+         * mounted here on the web host only. Per §6.2 Theme is outer (it lives
+         * in main.tsx); Shortcut sits inner — here just inside Sync and OUTSIDE
+         * the section switch, so the (currently settings-only) consumer reads a
+         * stable Provider regardless of the active section.
          */}
-        <GlobalShortcuts
-          onNavigate={setSection}
-          onOpenSettings={() => setSection("settings")}
-          onTogglePalette={() => setPaletteOpen((v) => !v)}
-          onNewTask={handleNewTask}
-        />
-        {/*
-         * TimerProvider (W3-B) — REQUIRED Provider (Timer is enabled on Mobile,
-         * NOT a §2 省略 Provider). Mounted ONCE at the shell level (inside Sync,
-         * which it reads; §6.2 places it after the Schedule trio and OUTSIDE the
-         * section switch) so the Pomodoro keeps running while the user navigates
-         * away from the Work tab. The future W3-C AudioProvider nests INSIDE
-         * this (§6.2: … → Timer → Audio → …), which is why TimerProvider is the
-         * inner-most shell Provider here. DataService is injected (§6.4).
-         */}
-        <TimerProvider
-          dataService={ds}
-          onSessionComplete={() => chimeRef.current?.()}
-        >
+        <ShortcutConfigProvider>
           {/*
-           * AudioProvider (W3-C) — Mobile 省略 Provider (CLAUDE.md §2), mounted
-           * on the web host only, nested INSIDE TimerProvider (§6.2 … → Timer →
-           * Audio → …). The headless AudioChimeBridge sits inside it and pipes
-           * the live playCompletionChime up to chimeRef so the Timer's
-           * onSessionComplete (declared on the outer Provider) can ring it.
+           * Global shortcut executor (W3-0/W3-B). Headless — sits inside the
+           * ShortcutConfigProvider (MainScreen's own body can't read
+           * useShortcutConfig) and wires keydown to section nav + palette toggle.
+           * Reads the live (rebindable) config, so Settings rebinds apply at
+           * once. new-task is wired (W3-B) → navigate to the Tasks section
+           * (the shell has no create-and-focus surface; that lifts in W4).
+           * undo / redo still have no web surface (no UndoRedo on web yet) →
+           * left unwired = no-op until W4 (see Worklog rationale).
            */}
-          <AudioProvider dataService={ds}>
-            <AudioChimeBridge targetRef={chimeRef} />
+          <GlobalShortcuts
+            onNavigate={setSection}
+            onOpenSettings={() => setSection("settings")}
+            onTogglePalette={() => setPaletteOpen((v) => !v)}
+            onNewTask={handleNewTask}
+          />
+          {/*
+           * TimerProvider (W3-B) — REQUIRED Provider (Timer is enabled on Mobile,
+           * NOT a §2 省略 Provider). Mounted ONCE at the shell level (inside Sync,
+           * which it reads; §6.2 places it after the Schedule trio and OUTSIDE the
+           * section switch) so the Pomodoro keeps running while the user navigates
+           * away from the Work tab. The future W3-C AudioProvider nests INSIDE
+           * this (§6.2: … → Timer → Audio → …), which is why TimerProvider is the
+           * inner-most shell Provider here. DataService is injected (§6.4).
+           */}
+          <TimerProvider
+            dataService={ds}
+            onSessionComplete={() => chimeRef.current?.()}
+          >
             {/*
-             * W5 app shell — responsive single shell (wide sidebar ↔ narrow
-             * bottom tabs via useMediaQuery). Section state stays here
-             * (useState switch, no React Router — §3.2); the shell is pure
-             * presentation (DataService-free, §3.1) and receives section
-             * list / labels / callbacks as props (§6.4). The active section
-             * body is slotted into `children`. AppShell sits inside
-             * AudioProvider at the old header+content position so every
-             * Provider consumer stays nested as before (§6.2).
+             * AudioProvider (W3-C) — Mobile 省略 Provider (CLAUDE.md §2), mounted
+             * on the web host only, nested INSIDE TimerProvider (§6.2 … → Timer →
+             * Audio → …). The headless AudioChimeBridge sits inside it and pipes
+             * the live playCompletionChime up to chimeRef so the Timer's
+             * onSessionComplete (declared on the outer Provider) can ring it.
              */}
-            <AppShell
-              sections={navSections}
-              activeSection={section}
-              onNavigate={(id) => setSection(id as Section)}
-              onTogglePalette={() => setPaletteOpen((v) => !v)}
-              userEmail={session.user.email ?? ""}
-              onSignOut={() => void signOut()}
-              labels={shellLabels}
-              fluidContent={fluidSection}
-            >
-              <div className={fluidSection ? "h-full" : "space-y-4"}>
-                {section === "tasks" && (
-                  <WikiTagsUnifiedProvider dataService={ds}>
-                    <TaskTreeProvider dataService={ds}>
-                      <KanbanView />
-                    </TaskTreeProvider>
-                  </WikiTagsUnifiedProvider>
-                )}
-                {section === "daily" && (
-                  <WikiTagsUnifiedProvider dataService={ds}>
-                    <DailiesUnifiedProvider dataService={ds}>
-                      <DailyView />
-                    </DailiesUnifiedProvider>
-                  </WikiTagsUnifiedProvider>
-                )}
-                {section === "notes" && (
-                  <WikiTagsUnifiedProvider dataService={ds}>
-                    <NotesUnifiedProvider dataService={ds}>
-                      <Suspense
-                        fallback={
-                          <p className="text-ink-text-secondary">
-                            Loading notes…
-                          </p>
-                        }
-                      >
-                        <NotesView />
-                      </Suspense>
-                    </NotesUnifiedProvider>
-                  </WikiTagsUnifiedProvider>
-                )}
-                {/*
-                 * Schedule pair order (CLAUDE.md §6.2): Routine →
-                 * ScheduleItems. Each inner Provider may read the outer one
-                 * (ScheduleItems sits INSIDE Routine — §6.2 order, top-down).
-                 * The historical calendar-tag layer was dropped in DU-C+/DU-F;
-                 * WikiTagsUnified replaces it as the 5-role tag/link surface.
-                 *
-                 * CalendarProvider is NOT part of the schedule pair — frontend
-                 * keeps it higher and enabled on Mobile (CLAUDE.md §2); it is
-                 * mounted here just inside Sync (only needs DataService + Sync).
-                 *
-                 * The Routine→schedule_items generator (S4-5) is the headless
-                 * RoutineScheduleSync, mounted inside the Providers so it can
-                 * read the live routine set + anchored date.
-                 */}
-                {section === "schedule" && (
-                  /*
-                   * TaskTreeProvider is mounted here so CalendarView can offer
-                   * a folder-task <select> (bug1 fix): `calendars.folder_id`
-                   * FKs tasks(id) with ON DELETE CASCADE — a free-text id hit
-                   * a 409 calendars_folder_id_fkey. It sits just inside Sync
-                   * (only needs DataService + Sync) and OUTSIDE the schedule
-                   * trio, so the §6.2 trio dependency order is unchanged.
-                   *
-                   * WikiTagsUnifiedProvider sits next to TaskTreeProvider —
-                   * it only needs DataService + Sync and provides Tag/Link
-                   * surface for ScheduleItemsView (Event Tag/Link UI, DU-F
-                   * Step 7). CalendarTagsProvider was removed in DU-F Step 3-4
-                   * (DB DROPped in DU-C+ 0012; UI death-code purged here).
-                   */
-                  <TaskTreeProvider dataService={ds}>
+            <AudioProvider dataService={ds}>
+              <AudioChimeBridge targetRef={chimeRef} />
+              {/*
+               * W5 app shell — responsive single shell (wide sidebar ↔ narrow
+               * bottom tabs via useMediaQuery). Section state stays here
+               * (useState switch, no React Router — §3.2); the shell is pure
+               * presentation (DataService-free, §3.1) and receives section
+               * list / labels / callbacks as props (§6.4). The active section
+               * body is slotted into `children`. AppShell sits inside
+               * AudioProvider at the old header+content position so every
+               * Provider consumer stays nested as before (§6.2).
+               */}
+              <AppShell
+                sections={navSections}
+                activeSection={section}
+                onNavigate={(id) => setSection(id as Section)}
+                onTogglePalette={() => setPaletteOpen((v) => !v)}
+                userEmail={session.user.email ?? ""}
+                onSignOut={() => void signOut()}
+                labels={shellLabels}
+                fluidContent={fluidSection}
+              >
+                <div className={fluidSection ? "h-full" : "space-y-4"}>
+                  {section === "tasks" && (
                     <WikiTagsUnifiedProvider dataService={ds}>
-                      <CalendarProvider dataService={ds}>
-                        <RoutineProvider dataService={ds}>
-                          <ScheduleItemsProvider dataService={ds}>
-                            <RoutineScheduleSync dataService={ds} />
-                            <ScheduleCalendarView />
-                            <ScheduleView />
-                            <ScheduleItemsView />
-                            <CalendarView />
-                          </ScheduleItemsProvider>
-                        </RoutineProvider>
-                      </CalendarProvider>
+                      <TaskTreeProvider dataService={ds}>
+                        <KanbanView />
+                      </TaskTreeProvider>
                     </WikiTagsUnifiedProvider>
-                  </TaskTreeProvider>
-                )}
-                {/*
-                 * Tags management (DU-F Step 11). Only needs Sync +
-                 * WikiTagsUnifiedProvider — no role data, since this view edits
-                 * the tag/group master itself. Lives in its own section so the
-                 * row-level TagPicker (4 roles) and the master CRUD don't share
-                 * UI surface.
-                 */}
-                {section === "tags" && (
-                  <WikiTagsUnifiedProvider dataService={ds}>
-                    <WikiTagsManagementView />
-                  </WikiTagsUnifiedProvider>
-                )}
-                {/*
-                 * Settings (W1) — host shell. Reads useThemeContext +
-                 * useShortcutConfig (the ShortcutConfigProvider wrapping this whole
-                 * shell) and injects values + t() copy into the shared pure
-                 * primitives. No extra Provider needed here.
-                 */}
-                {section === "settings" && <SettingsScreen />}
-                {/*
-                 * Work (W3-B) — Pomodoro timer + TaskSelector + settings/preset
-                 * editor. The TimerProvider is mounted at the shell level (above),
-                 * so this view only reads useTimerContext + feeds the shared pure
-                 * primitives. The view itself fetches the task list via the
-                 * injected DataService (hosts may call getDataService — §6.4).
-                 * History / Music / FREE were dropped (section-unification 確定).
-                 */}
-                {section === "work" && <WorkScreen dataService={ds} />}
-                {/*
-                 * Connect (W4; STEP 2 link editing) — node graph + backlink over
-                 * the UNIFIED item-link model. ConnectScreen mounts its own
-                 * WikiTagsUnifiedProvider internally: notes/dailies/tags/
-                 * assignments are fetched via the injected DataService, while the
-                 * item↔item links come from the Provider's bulk cache so the
-                 * create/delete link mutators update the graph without a refetch.
-                 * Legacy note_links are stubbed on Supabase and are NOT used.
-                 */}
-                {section === "connect" && <ConnectScreen dataService={ds} />}
-                {/*
-                 * Analytics (W4) — recharts dashboards (Overview/Tasks/Work/
-                 * Schedule; Materials/Connect tabs dropped — lean scope). Host
-                 * fetches sessions/tasks/schedule/routines via DataService and
-                 * injects data + t into the pure shared <AnalyticsView>.
-                 */}
-                {section === "analytics" && (
-                  <AnalyticsScreen dataService={ds} />
-                )}
-                {/*
-                 * Trash (W2). Crosses all five soft-delete categories, so it does
-                 * NOT use any per-section Provider — the host TrashScreen calls
-                 * the injected DataService directly and feeds the pure shared
-                 * TrashView (CLAUDE.md §6.4: hosts may call getDataService).
-                 */}
-                {section === "trash" && <TrashScreen dataService={ds} />}
-              </div>
-            </AppShell>
+                  )}
+                  {section === "daily" && (
+                    <WikiTagsUnifiedProvider dataService={ds}>
+                      <DailiesUnifiedProvider dataService={ds}>
+                        <DailyView />
+                      </DailiesUnifiedProvider>
+                    </WikiTagsUnifiedProvider>
+                  )}
+                  {section === "notes" && (
+                    <WikiTagsUnifiedProvider dataService={ds}>
+                      <NotesUnifiedProvider dataService={ds}>
+                        <Suspense
+                          fallback={
+                            <p className="text-ink-text-secondary">
+                              Loading notes…
+                            </p>
+                          }
+                        >
+                          <NotesView />
+                        </Suspense>
+                      </NotesUnifiedProvider>
+                    </WikiTagsUnifiedProvider>
+                  )}
+                  {/*
+                   * Schedule pair order (CLAUDE.md §6.2): Routine →
+                   * ScheduleItems. Each inner Provider may read the outer one
+                   * (ScheduleItems sits INSIDE Routine — §6.2 order, top-down).
+                   * The historical calendar-tag layer was dropped in DU-C+/DU-F;
+                   * WikiTagsUnified replaces it as the 5-role tag/link surface.
+                   *
+                   * CalendarProvider is NOT part of the schedule pair — frontend
+                   * keeps it higher and enabled on Mobile (CLAUDE.md §2); it is
+                   * mounted here just inside Sync (only needs DataService + Sync).
+                   *
+                   * The Routine→schedule_items generator (S4-5) is the headless
+                   * RoutineScheduleSync, mounted inside the Providers so it can
+                   * read the live routine set + anchored date.
+                   */}
+                  {section === "schedule" && (
+                    /*
+                     * TaskTreeProvider is mounted here so CalendarView can offer
+                     * a folder-task <select> (bug1 fix): `calendars.folder_id`
+                     * FKs tasks(id) with ON DELETE CASCADE — a free-text id hit
+                     * a 409 calendars_folder_id_fkey. It sits just inside Sync
+                     * (only needs DataService + Sync) and OUTSIDE the schedule
+                     * trio, so the §6.2 trio dependency order is unchanged.
+                     *
+                     * WikiTagsUnifiedProvider sits next to TaskTreeProvider —
+                     * it only needs DataService + Sync and provides Tag/Link
+                     * surface for ScheduleItemsView (Event Tag/Link UI, DU-F
+                     * Step 7). CalendarTagsProvider was removed in DU-F Step 3-4
+                     * (DB DROPped in DU-C+ 0012; UI death-code purged here).
+                     */
+                    <TaskTreeProvider dataService={ds}>
+                      <WikiTagsUnifiedProvider dataService={ds}>
+                        <CalendarProvider dataService={ds}>
+                          <RoutineProvider dataService={ds}>
+                            <ScheduleItemsProvider dataService={ds}>
+                              <RoutineScheduleSync dataService={ds} />
+                              <ScheduleCalendarView />
+                              <ScheduleView />
+                              <ScheduleItemsView />
+                              <CalendarView />
+                            </ScheduleItemsProvider>
+                          </RoutineProvider>
+                        </CalendarProvider>
+                      </WikiTagsUnifiedProvider>
+                    </TaskTreeProvider>
+                  )}
+                  {/*
+                   * Tags management (DU-F Step 11). Only needs Sync +
+                   * WikiTagsUnifiedProvider — no role data, since this view edits
+                   * the tag/group master itself. Lives in its own section so the
+                   * row-level TagPicker (4 roles) and the master CRUD don't share
+                   * UI surface.
+                   */}
+                  {section === "tags" && (
+                    <WikiTagsUnifiedProvider dataService={ds}>
+                      <WikiTagsManagementView />
+                    </WikiTagsUnifiedProvider>
+                  )}
+                  {/*
+                   * Settings (W1) — host shell. Reads useThemeContext +
+                   * useShortcutConfig (the ShortcutConfigProvider wrapping this whole
+                   * shell) and injects values + t() copy into the shared pure
+                   * primitives. No extra Provider needed here.
+                   */}
+                  {section === "settings" && <SettingsScreen />}
+                  {/*
+                   * Work (W3-B) — Pomodoro timer + TaskSelector + settings/preset
+                   * editor. The TimerProvider is mounted at the shell level (above),
+                   * so this view only reads useTimerContext + feeds the shared pure
+                   * primitives. The view itself fetches the task list via the
+                   * injected DataService (hosts may call getDataService — §6.4).
+                   * History / Music / FREE were dropped (section-unification 確定).
+                   */}
+                  {section === "work" && <WorkScreen dataService={ds} />}
+                  {/*
+                   * Connect (W4; STEP 2 link editing) — node graph + backlink over
+                   * the UNIFIED item-link model. ConnectScreen mounts its own
+                   * WikiTagsUnifiedProvider internally: notes/dailies/tags/
+                   * assignments are fetched via the injected DataService, while the
+                   * item↔item links come from the Provider's bulk cache so the
+                   * create/delete link mutators update the graph without a refetch.
+                   * Legacy note_links are stubbed on Supabase and are NOT used.
+                   */}
+                  {section === "connect" && <ConnectScreen dataService={ds} />}
+                  {/*
+                   * Analytics (W4) — recharts dashboards (Overview/Tasks/Work/
+                   * Schedule; Materials/Connect tabs dropped — lean scope). Host
+                   * fetches sessions/tasks/schedule/routines via DataService and
+                   * injects data + t into the pure shared <AnalyticsView>.
+                   */}
+                  {section === "analytics" && (
+                    <AnalyticsScreen dataService={ds} />
+                  )}
+                  {/*
+                   * Trash (W2). Crosses all five soft-delete categories, so it does
+                   * NOT use any per-section Provider — the host TrashScreen calls
+                   * the injected DataService directly and feeds the pure shared
+                   * TrashView (CLAUDE.md §6.4: hosts may call getDataService).
+                   */}
+                  {section === "trash" && <TrashScreen dataService={ds} />}
+                </div>
+              </AppShell>
 
-            {/*
-             * Command palette mounted ONCE at the shell level, outside the
-             * section switch (so Cmd+K works from any section). Copy is injected
-             * as props — the primitive never calls useTranslation (§6.4).
-             */}
-            <CommandPalette
-              isOpen={paletteOpen}
-              onClose={() => setPaletteOpen(false)}
-              commands={commands}
-              placeholder={t("commandPalette.placeholder")}
-              noResultsLabel={t("commandPalette.noResults")}
-            />
-          </AudioProvider>
-        </TimerProvider>
-      </ShortcutConfigProvider>
-    </SyncProvider>
+              {/*
+               * Command palette mounted ONCE at the shell level, outside the
+               * section switch (so Cmd+K works from any section). Copy is injected
+               * as props — the primitive never calls useTranslation (§6.4).
+               */}
+              <CommandPalette
+                isOpen={paletteOpen}
+                onClose={() => setPaletteOpen(false)}
+                commands={commands}
+                placeholder={t("commandPalette.placeholder")}
+                noResultsLabel={t("commandPalette.noResults")}
+              />
+            </AudioProvider>
+          </TimerProvider>
+        </ShortcutConfigProvider>
+      </SyncProvider>
+    </ToastProvider>
   );
 }

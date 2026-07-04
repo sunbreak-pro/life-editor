@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { SelectedNodeCard } from "../src/components/Connect/SelectedNodeCard";
 import type { GraphNode } from "../src/components/Connect/graph/graph-types";
 import { tagNodeId } from "../src/components/Connect/graph/graph-types";
@@ -177,8 +177,12 @@ describe("SelectedNodeCard link editing", () => {
     expect(onCreateLink).toHaveBeenCalledWith("note-1", "daily-2026-06-30");
   });
 
-  it("shows an inline error when onCreateLink rejects", async () => {
+  it("reports the create-failure copy via onLinkError when onCreateLink rejects", async () => {
+    // The card is presentational — on a rejected create it no longer renders an
+    // inline alert; it hands the already-translated failure copy to onLinkError
+    // (the host turns it into a toast).
     const onCreateLink = vi.fn().mockRejectedValue(new Error("boom"));
+    const onLinkError = vi.fn();
     render(
       <SelectedNodeCard
         labels={labels}
@@ -190,6 +194,7 @@ describe("SelectedNodeCard link editing", () => {
         onClose={vi.fn()}
         linkableItems={[{ id: "note-2", label: "Second" }]}
         onCreateLink={onCreateLink}
+        onLinkError={onLinkError}
       />,
     );
 
@@ -199,12 +204,16 @@ describe("SelectedNodeCard link editing", () => {
     fireEvent.change(input, { target: { value: "note-2" } });
     fireEvent.keyDown(input, { key: "Enter" });
 
-    const alert = await screen.findByRole("alert");
-    expect(alert).toHaveTextContent("linkCreateFailed");
+    await waitFor(() =>
+      expect(onLinkError).toHaveBeenCalledWith("linkCreateFailed"),
+    );
+    // No inline alert is rendered anymore — the toast is the host's job.
+    expect(screen.queryByRole("alert")).toBeNull();
   });
 
-  it("shows an inline error when onDeleteLink rejects", async () => {
+  it("reports the delete-failure copy via onLinkError when onDeleteLink rejects", async () => {
     const onDeleteLink = vi.fn().mockRejectedValue(new Error("boom"));
+    const onLinkError = vi.fn();
     render(
       <SelectedNodeCard
         labels={labels}
@@ -217,39 +226,15 @@ describe("SelectedNodeCard link editing", () => {
         outgoingLinkIds={new Map([["note-2", "lnk-1"]])}
         onCreateLink={vi.fn()}
         onDeleteLink={onDeleteLink}
+        onLinkError={onLinkError}
       />,
     );
 
     fireEvent.click(screen.getByLabelText("removeLink"));
 
-    const alert = await screen.findByRole("alert");
-    expect(alert).toHaveTextContent("linkDeleteFailed");
-  });
-
-  it("clears a stale error when the input is edited again", async () => {
-    const onCreateLink = vi.fn().mockRejectedValue(new Error("boom"));
-    render(
-      <SelectedNodeCard
-        labels={labels}
-        node={noteNode("note-1")}
-        neighbors={[]}
-        localDepth={0}
-        onLocalDepthChange={vi.fn()}
-        onSelect={vi.fn()}
-        onClose={vi.fn()}
-        linkableItems={[{ id: "note-2", label: "Second" }]}
-        onCreateLink={onCreateLink}
-      />,
+    await waitFor(() =>
+      expect(onLinkError).toHaveBeenCalledWith("linkDeleteFailed"),
     );
-
-    const input = screen.getByLabelText(
-      "linkTargetPlaceholder",
-    ) as HTMLInputElement;
-    fireEvent.change(input, { target: { value: "note-2" } });
-    fireEvent.keyDown(input, { key: "Enter" });
-    await screen.findByRole("alert");
-
-    fireEvent.change(input, { target: { value: "n" } });
     expect(screen.queryByRole("alert")).toBeNull();
   });
 

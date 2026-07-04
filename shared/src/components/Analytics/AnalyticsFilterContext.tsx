@@ -3,6 +3,8 @@ import {
   useContext,
   useState,
   useMemo,
+  useEffect,
+  useRef,
   type ReactNode,
 } from "react";
 import type { Period } from "./PeriodSelector";
@@ -65,13 +67,33 @@ const AnalyticsFilterContext =
 
 export function AnalyticsFilterProvider({
   children,
+  onDateRangeChange,
 }: {
   children: ReactNode;
+  /**
+   * Fired whenever the selected date range changes, including the initial
+   * mount (with the default preset). Hosts use this to fetch schedule items
+   * for exactly this window (per-range fetch) instead of loading all history.
+   * The range stays owned HERE (single source of truth); the host only mirrors
+   * it into a fetch, so the in-memory filter in ScheduleTab still holds.
+   */
+  onDateRangeChange?: (range: DateRange) => void;
 }): React.JSX.Element {
   const [dateRange, setDateRange] = useState<DateRange>(() =>
     getPresetRange("30d"),
   );
   const [period, setPeriod] = useState<Period>("day");
+
+  // Latest-callback ref so an unmemoized host callback never causes a spurious
+  // re-fire: the notify effect depends only on `dateRange`, but always calls
+  // the current callback.
+  const onDateRangeChangeRef = useRef(onDateRangeChange);
+  useEffect(() => {
+    onDateRangeChangeRef.current = onDateRangeChange;
+  });
+  useEffect(() => {
+    onDateRangeChangeRef.current?.(dateRange);
+  }, [dateRange]);
 
   const applyPreset = (preset: DatePreset): void => {
     setDateRange(getPresetRange(preset));

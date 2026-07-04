@@ -1,9 +1,10 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   AnalyticsView,
   useTranslation,
   type DataService,
   type AnalyticsLabels,
+  type DateRange,
   type TimerSession,
   type TaskNode,
   type ScheduleItem,
@@ -18,8 +19,11 @@ import {
  * <AnalyticsView>. The shared tree never calls useTranslation / getDataService.
  *
  * Data surface (only what the 4 kept tabs need): timer sessions, task tree,
- * schedule items (today + full window), routines, notes, tag/assignment counts
- * (unified API), and the pomodoro daily target from timer settings.
+ * today's schedule items (Overview), routines, notes, tag/assignment counts
+ * (unified API), and the pomodoro daily target from timer settings. The
+ * Schedule tab's items are fetched separately, per selected date range (see the
+ * scheduleRange effect + AnalyticsView.onScheduleRangeChange), so we no longer
+ * load all history up front.
  *
  * Keep the call site `<AnalyticsScreen dataService={ds} />` stable (MainScreen
  * depends on it).
@@ -29,11 +33,11 @@ interface AnalyticsScreenProps {
   dataService: DataService;
 }
 
+// Data fetched once on mount (independent of the selected analytics range).
 interface AnalyticsData {
   sessions: TimerSession[];
   nodes: TaskNode[];
   todayItems: ScheduleItem[];
-  scheduleItems: ScheduleItem[];
   notes: NoteNode[];
   routines: RoutineNode[];
   tagCount: number;
@@ -45,7 +49,6 @@ const EMPTY: AnalyticsData = {
   sessions: [],
   nodes: [],
   todayItems: [],
-  scheduleItems: [],
   notes: [],
   routines: [],
   tagCount: 0,
@@ -53,17 +56,15 @@ const EMPTY: AnalyticsData = {
   targetPerDay: 4,
 };
 
-// Lower bound for the schedule window. Matches the AnalyticsFilterContext "all"
-// preset (start = 2020-01-01); the Schedule tab filters this window in-memory
-// by the active date-range preset.
-const SCHEDULE_WINDOW_START = "2020-01-01";
-
-function todayKey(): string {
-  const d = new Date();
+function dateKey(d: Date): string {
   const y = d.getFullYear();
   const m = String(d.getMonth() + 1).padStart(2, "0");
   const day = String(d.getDate()).padStart(2, "0");
   return `${y}-${m}-${day}`;
+}
+
+function todayKey(): string {
+  return dateKey(new Date());
 }
 
 export function AnalyticsScreen({
@@ -71,6 +72,11 @@ export function AnalyticsScreen({
 }: AnalyticsScreenProps): React.JSX.Element {
   const { t } = useTranslation();
   const [data, setData] = useState<AnalyticsData>(EMPTY);
+
+  // Schedule tab data — fetched per selected range, not up front.
+  const [scheduleItems, setScheduleItems] = useState<ScheduleItem[]>([]);
+  const [scheduleRange, setScheduleRange] = useState<DateRange | null>(null);
+  const [scheduleLoading, setScheduleLoading] = useState(true);
 
   useEffect(() => {
     let cancelled = false;
@@ -80,7 +86,6 @@ export function AnalyticsScreen({
       ds.fetchTimerSessions(),
       ds.fetchTaskTree(),
       ds.fetchScheduleItemsByDateRange(today, today),
-      ds.fetchScheduleItemsByDateRange(SCHEDULE_WINDOW_START, today),
       ds.fetchAllRoutines(),
       ds.listNotesUnified(),
       ds.listAllWikiTagsUnified(),
@@ -92,7 +97,6 @@ export function AnalyticsScreen({
           sessions,
           nodes,
           todayItems,
-          scheduleItems,
           routines,
           notes,
           tags,
@@ -104,7 +108,6 @@ export function AnalyticsScreen({
             sessions,
             nodes,
             todayItems,
-            scheduleItems,
             routines,
             notes,
             tagCount: tags.length,
@@ -121,6 +124,39 @@ export function AnalyticsScreen({
       cancelled = true;
     };
   }, [ds]);
+
+  // Fetch schedule items for exactly the selected range. AnalyticsView reports
+  // the range (incl. its initial default) via onScheduleRangeChange below, so
+  // this runs once on mount and again whenever the user changes the range.
+  useEffect(() => {
+    if (!scheduleRange) return;
+    let cancelled = false;
+    setScheduleLoading(true);
+
+    const from = dateKey(scheduleRange.start);
+    const to = dateKey(scheduleRange.end);
+
+    void ds
+      .fetchScheduleItemsByDateRange(from, to)
+      .then((items) => {
+        if (cancelled) return;
+        setScheduleItems(items);
+        setScheduleLoading(false);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setScheduleItems([]);
+        setScheduleLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [ds, scheduleRange]);
+
+  const handleScheduleRangeChange = useCallback((range: DateRange) => {
+    setScheduleRange(range);
+  }, []);
 
   const taskNameMap = useMemo(() => {
     const map = new Map<string, string>();
@@ -257,7 +293,9 @@ export function AnalyticsScreen({
       sessions={data.sessions}
       nodes={data.nodes}
       todayItems={data.todayItems}
-      scheduleItems={data.scheduleItems}
+      scheduleItems={scheduleItems}
+      onScheduleRangeChange={handleScheduleRangeChange}
+      scheduleLoading={scheduleLoading}
       notes={data.notes}
       routines={data.routines}
       taskNameMap={taskNameMap}

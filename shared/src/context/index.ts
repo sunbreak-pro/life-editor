@@ -4,6 +4,20 @@
 export { SyncProvider } from "./SyncContext";
 export { SyncContext, type WebSyncContextValue } from "./SyncContextValue";
 
+// Toast (follow-up #6): host-mounted consumption layer for the shared
+// <Toast>/<ToastViewport> primitives (§6). Self-contained single file (the
+// frontend `ToastContext` precedent) — no other Provider depends on it, so it
+// keeps the Provider + hook + type together. Per §6.2 it mounts Theme → Toast
+// → Sync, OUTSIDE the section switch.
+export {
+  ToastProvider,
+  ToastContext,
+  useToast,
+  type ToastContextValue,
+  type ToastProviderProps,
+  type ShowToastOptions,
+} from "./ToastContext";
+
 // Theme (W1): Pattern A. Self-contained (no other Provider depends on it),
 // but kept as 3 files for consistency. Mounts near the top of the host tree
 // inside I18nProvider (§6.2 Theme is outer; it forwards language to i18n).
@@ -83,10 +97,7 @@ export {
 // NOT a §2 省略 Provider). Reads useSyncContext, so it sits inside Sync; per
 // §6.2 it nests just inside the Schedule trio (… → Timer → Audio → …).
 export { TimerProvider, type TimerProviderProps } from "./TimerContext";
-export {
-  TimerContext,
-  type TimerContextValue,
-} from "./TimerContextValue";
+export { TimerContext, type TimerContextValue } from "./TimerContextValue";
 export type { TimerPhase, ActiveTask } from "./timerReducer";
 
 // Audio (W3-C): Pattern A + OPTIONAL hook. Mobile 省略 Provider (CLAUDE.md §2)

@@ -41,6 +41,20 @@ export {
 export { useTaskTreeContext } from "./hooks/useTaskTreeContext";
 export { useSyncContext } from "./hooks/useSyncContext";
 
+// Toast domain (follow-up #6) — host-mounted Provider + imperative hook over
+// the shared <Toast>/<ToastViewport> primitives. Hosts mount ToastProvider
+// (Theme → Toast → Sync, §6.2) and screens raise notifications via
+// useToast().showToast(variant, message). Copy is injected already-translated
+// (§6.4).
+export {
+  ToastProvider,
+  ToastContext,
+  useToast,
+  type ToastContextValue,
+  type ToastProviderProps,
+  type ShowToastOptions,
+} from "./context";
+
 // Theme domain (W1) — Pattern A Provider + context hook. Web-lean (theme /
 // fontSize / language). Persists via useLocalStorage; language forwards to
 // the shared i18next singleton. useLocalStorage is exported for hosts/tests.

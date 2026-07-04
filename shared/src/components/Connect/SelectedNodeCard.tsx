@@ -19,13 +19,6 @@ export interface LinkableItem {
   label: string;
 }
 
-// Fallback copy for the inline mutation-failure notice, used only until the
-// host resolves `labels.linkCreateFailed` / `labels.linkDeleteFailed` (see
-// ConnectGraphLabels). Kept in English to match the shared catalog's base
-// locale.
-const LINK_CREATE_ERROR_FALLBACK = "Failed to add link";
-const LINK_DELETE_ERROR_FALLBACK = "Failed to remove link";
-
 const TYPE_ICON: Record<GraphNodeType, LucideIcon> = {
   project: Folder,
   note: FileText,
@@ -49,11 +42,18 @@ interface SelectedNodeCardProps {
   outgoingLinkIds?: Map<string, string>;
   /**
    * Create a directed item↔item link from this node to `toId`. May return a
-   * promise; a rejection surfaces an inline failure notice on the card.
+   * promise; a rejection is reported through `onLinkError` (host toast).
    */
   onCreateLink?: (fromId: string, toId: string) => void | Promise<void>;
-  /** Delete the link identified by `linkId`. Rejection → inline failure notice. */
+  /** Delete the link identified by `linkId`. Rejection → `onLinkError`. */
   onDeleteLink?: (linkId: string) => void | Promise<void>;
+  /**
+   * Report a create/delete failure with already-translated copy
+   * (labels.linkCreateFailed / linkDeleteFailed). The card is presentational
+   * and has no toast context of its own, so the host wires this to its toast
+   * (ConnectScreen → useToast().showToast). Unwired = failures are swallowed.
+   */
+  onLinkError?: (message: string) => void;
 }
 
 export function SelectedNodeCard({
@@ -69,6 +69,7 @@ export function SelectedNodeCard({
   outgoingLinkIds,
   onCreateLink,
   onDeleteLink,
+  onLinkError,
 }: SelectedNodeCardProps) {
   const Icon = TYPE_ICON[node.type];
   const linkCount = neighbors.filter((n) => !isTagNodeId(n.id)).length;
@@ -78,28 +79,22 @@ export function SelectedNodeCard({
   // synthetic `tag:<id>`, not an items_meta id, so it can't be a link source.
   const canEditLinks = !!onCreateLink && !isTagNodeId(node.id);
   const [target, setTarget] = useState("");
-  // Inline notice for a rejected create/delete. The card is presentational and
-  // has no toast context (that lives host-side), so a failure is shown locally
-  // instead of silently swallowed. Cleared on the next successful mutation and
-  // when the user edits the input.
-  const [error, setError] = useState<string | null>(null);
   const datalistId = useMemo(
     () => `connect-link-targets-${node.id.replace(/[^a-zA-Z0-9_-]/g, "-")}`,
     [node.id],
   );
 
-  // Await the wired mutator and surface a rejection as the inline notice. A
-  // void return resolves immediately (no-op), so fire-and-forget hosts still
-  // clear any stale error on success.
+  // Await the wired mutator and report a rejection through onLinkError (the
+  // host turns it into a toast). A void return resolves immediately (no-op),
+  // so fire-and-forget hosts simply never hit the failure path.
   const runLinkMutation = async (
     op: () => void | Promise<void>,
     failMessage: string,
   ) => {
     try {
       await op();
-      setError(null);
     } catch {
-      setError(failMessage);
+      onLinkError?.(failMessage);
     }
   };
 
@@ -118,7 +113,7 @@ export function SelectedNodeCard({
     setTarget("");
     void runLinkMutation(
       () => create(node.id, targetId),
-      labels.linkCreateFailed ?? LINK_CREATE_ERROR_FALLBACK,
+      labels.linkCreateFailed,
     );
   };
 
@@ -188,10 +183,7 @@ export function SelectedNodeCard({
           <input
             type="text"
             value={target}
-            onChange={(e) => {
-              setTarget(e.target.value);
-              if (error) setError(null);
-            }}
+            onChange={(e) => setTarget(e.target.value)}
             onKeyDown={(e) => {
               if (e.key === "Enter" && !e.nativeEvent.isComposing) {
                 e.preventDefault();
@@ -223,12 +215,6 @@ export function SelectedNodeCard({
         </div>
       )}
 
-      {error && (
-        <p role="alert" className="text-[10px] text-ink-danger">
-          {error}
-        </p>
-      )}
-
       {neighbors.length > 0 && (
         <div className="space-y-1">
           <div className="text-[10px] uppercase tracking-wider text-ink-text-secondary">
@@ -246,7 +232,7 @@ export function SelectedNodeCard({
                   ? () =>
                       void runLinkMutation(
                         () => onDeleteLink(linkId),
-                        labels.linkDeleteFailed ?? LINK_DELETE_ERROR_FALLBACK,
+                        labels.linkDeleteFailed,
                       )
                   : null;
               return (
