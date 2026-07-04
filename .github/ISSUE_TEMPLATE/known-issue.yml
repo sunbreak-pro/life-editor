@@ -1,0 +1,26 @@
+name: Known Issue
+description: バグ / 構造的問題の記録
+labels: ["type:bug"]
+body:
+  - type: input
+    id: discovered
+    attributes: { label: Discovered (YYYY-MM-DD) }
+  - type: textarea
+    id: symptom
+    attributes: { label: Symptom, description: 症状。エラーは原文引用 }
+    validations: { required: true }
+  - type: textarea
+    id: root_cause
+    attributes: { label: Root Cause, description: 原因の本質（file:line） }
+  - type: textarea
+    id: impact
+    attributes: { label: Impact }
+  - type: textarea
+    id: fix
+    attributes: { label: Fix / Workaround }
+  - type: textarea
+    id: references
+    attributes: { label: References }
+  - type: textarea
+    id: lessons
+    attributes: { label: Lessons Learned }

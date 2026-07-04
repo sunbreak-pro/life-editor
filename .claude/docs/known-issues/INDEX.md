@@ -2,7 +2,8 @@
 
 未解決 Issue + 解決済みバグの Root Cause を一覧管理するインデックス。Claude / 開発者が再発時に最短で過去知見に辿り着くための入口。
 
-**運用**: Issue を追加・更新したら本 INDEX も必ず更新する。詳細は各 Issue ファイルへ。
+> ⚠️ **2026-07-04 以降、Active/Monitoring の課題は GitHub Issues に移行**（追跡の正 = Issues。`gh issue list -R sunbreak-pro/life-editor`）。
+> 本ディレクトリは **Fixed の Root Cause 凍結アーカイブ（参照専用・grep 資産）**。新規バグは GitHub Issue で起票し、本 INDEX には追加しない。
 
 ---
 
@@ -14,11 +15,15 @@
 | 027 | [Notes/Daily password が plaintext で保存される (N>1 化前に必須)](./027-notes-password-plaintext-debt.md)                       | Security | 2026-05-24 |
 | 026 | [PostToolUse formatter が隣接する Markdown 見出しを削除する](./026-posttooluse-formatter-deletes-adjacent-heading.md)           | Tooling  | 2026-05-24 |
 
+> ↑ GitHub Issues へ移行済み: 028→[#117](https://github.com/sunbreak-pro/life-editor/issues/117) / 027→[#118](https://github.com/sunbreak-pro/life-editor/issues/118) / 026→[#119](https://github.com/sunbreak-pro/life-editor/issues/119)
+
 ## Monitoring（すぐ対処しないが監視）
 
 | ID  | Title                                                                                     | Category   | Since      |
 | --- | ----------------------------------------------------------------------------------------- | ---------- | ---------- |
 | 006 | [Desktop app_data_dir が bundle ID で分裂](./006-desktop-data-dir-bundle-id-migration.md) | Structural | 2026-04-18 |
+
+> ↑ GitHub Issues へ移行済み: 006→[#120](https://github.com/sunbreak-pro/life-editor/issues/120)
 
 ## Fixed（Root Cause 参考、再発防止用）
 
