@@ -99,10 +99,10 @@ export function GraphControlPanel({
   return (
     <aside
       ref={panelRef}
-      className="absolute top-3 bottom-3 right-3 w-72 flex flex-col gap-5 p-4 overflow-y-auto rounded-lg bg-notion-bg border border-notion-border shadow-lg"
+      className="absolute top-3 bottom-3 right-3 w-72 flex flex-col gap-5 p-4 overflow-y-auto rounded-lg bg-lumen-bg border border-lumen-border shadow-lg"
     >
       <div className="flex items-center justify-between -mb-1">
-        <span className="text-[10px] uppercase tracking-[0.18em] font-medium text-notion-text-secondary">
+        <span className="text-[10px] uppercase tracking-[0.18em] font-medium text-lumen-text-secondary">
           {labels.togglePanel}
         </span>
         <button
@@ -110,7 +110,7 @@ export function GraphControlPanel({
           onClick={onClose}
           title={labels.closePanel}
           aria-label={labels.closePanel}
-          className="w-6 h-6 rounded flex items-center justify-center text-notion-text-secondary hover:bg-notion-hover hover:text-notion-text"
+          className="w-6 h-6 rounded flex items-center justify-center text-lumen-text-secondary hover:bg-lumen-hover hover:text-lumen-text"
         >
           <X size={14} />
         </button>
@@ -120,7 +120,7 @@ export function GraphControlPanel({
         <div className="relative">
           <Search
             size={12}
-            className="absolute left-2.5 top-1/2 -translate-y-1/2 text-notion-text-secondary"
+            className="absolute left-2.5 top-1/2 -translate-y-1/2 text-lumen-text-secondary"
           />
           <input
             ref={searchInputRef}
@@ -128,13 +128,13 @@ export function GraphControlPanel({
             value={filter.search}
             onChange={(e) => onSearchChange(e.target.value)}
             placeholder={labels.search}
-            className="w-full pl-7 pr-7 py-1.5 rounded-md text-[12px] bg-notion-bg border border-notion-border text-notion-text outline-none focus:border-notion-accent"
+            className="w-full pl-7 pr-7 py-1.5 rounded-md text-[12px] bg-lumen-bg border border-lumen-border text-lumen-text outline-none focus:border-lumen-accent"
           />
           {filter.search && (
             <button
               type="button"
               onClick={() => onSearchChange("")}
-              className="absolute right-1.5 top-1/2 -translate-y-1/2 w-5 h-5 rounded flex items-center justify-center text-notion-text-secondary hover:bg-notion-hover"
+              className="absolute right-1.5 top-1/2 -translate-y-1/2 w-5 h-5 rounded flex items-center justify-center text-lumen-text-secondary hover:bg-lumen-hover"
             >
               <X size={11} />
             </button>
@@ -156,29 +156,29 @@ export function GraphControlPanel({
                 className={
                   "w-full flex items-center justify-between px-2 py-1.5 rounded border transition-colors " +
                   (active
-                    ? "bg-notion-hover border-notion-border"
-                    : "border-transparent opacity-50 hover:bg-notion-hover")
+                    ? "bg-lumen-hover border-lumen-border"
+                    : "border-transparent opacity-50 hover:bg-lumen-hover")
                 }
               >
                 <span className="flex items-center gap-2">
                   <Icon
                     size={11}
                     className={
-                      active ? "text-notion-text" : "text-notion-text-secondary"
+                      active ? "text-lumen-text" : "text-lumen-text-secondary"
                     }
                   />
                   <span
                     className={
                       "text-[11px] " +
                       (active
-                        ? "text-notion-text"
-                        : "text-notion-text-secondary")
+                        ? "text-lumen-text"
+                        : "text-lumen-text-secondary")
                     }
                   >
                     {typeLabel[key]}
                   </span>
                 </span>
-                <span className="font-mono text-[10px] text-notion-text-secondary">
+                <span className="font-mono text-[10px] text-lumen-text-secondary">
                   {typeCounts[key] || 0}/{totalTypeCounts[key] || 0}
                 </span>
               </button>
@@ -200,7 +200,7 @@ export function GraphControlPanel({
           <button
             type="button"
             onClick={onClearTags}
-            className="text-[10px] underline text-notion-accent"
+            className="text-[10px] underline text-lumen-accent"
           >
             {labels.clearFilters}
           </button>
@@ -218,8 +218,8 @@ export function GraphControlPanel({
                 className={
                   "px-1.5 py-0.5 rounded text-[10px] font-mono border transition-colors " +
                   (active
-                    ? "border-notion-accent text-notion-accent bg-notion-hover"
-                    : "border-notion-border text-notion-text-secondary hover:bg-notion-hover")
+                    ? "border-lumen-accent text-lumen-accent bg-lumen-hover"
+                    : "border-lumen-border text-lumen-text-secondary hover:bg-lumen-hover")
                 }
               >
                 #{tag.name}
@@ -232,7 +232,7 @@ export function GraphControlPanel({
       <Section title={labels.localGraph} icon={Crosshair}>
         {selectedLabel ? (
           <>
-            <div className="text-[10px] text-notion-text-secondary">
+            <div className="text-[10px] text-lumen-text-secondary">
               {selectedLabel}
             </div>
             <Slider
@@ -245,7 +245,7 @@ export function GraphControlPanel({
             />
           </>
         ) : (
-          <div className="text-[10px] px-2 py-2 rounded bg-notion-hover text-notion-text-secondary">
+          <div className="text-[10px] px-2 py-2 rounded bg-lumen-hover text-lumen-text-secondary">
             {labels.selectNodeHint}
           </div>
         )}

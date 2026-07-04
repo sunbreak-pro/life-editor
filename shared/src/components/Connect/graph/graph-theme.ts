@@ -1,7 +1,7 @@
 import type { GraphLinkKind, GraphNode, GraphNodeType } from "./graph-types";
 
 // Canvas 2D cannot use Tailwind classes, so graph colors are resolved from
-// the live CSS custom properties (the same `--color-*` vars `notion-*`
+// the live CSS custom properties (the same `--color-*` vars `lumen-*`
 // tokens reference). This keeps the graph in sync with light/dark and any
 // runtime theme change. No hard-coded colors — CLAUDE.md §6.4.
 
@@ -43,7 +43,7 @@ export function resolvePalette(): GraphPalette {
   const border = readVar(VARS.border, "#e3e3e7");
   const text = readVar(VARS.text, "#1a1a1f");
   const textSecondary = readVar(VARS.textSecondary, "#5c5c66");
-  const accent = readVar(VARS.accent, "#1f4fff");
+  const accent = readVar(VARS.accent, "#1d4ed8");
   const success = readVar(VARS.success, "#0f7b6c");
   const danger = readVar(VARS.danger, "#d92d20");
   const daily = readVar(VARS.dailyDot, "#5b6cdb");

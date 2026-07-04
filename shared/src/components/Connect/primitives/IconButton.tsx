@@ -25,10 +25,10 @@ export function IconButton({
       aria-pressed={active}
       data-marker={marker}
       className={
-        "w-8 h-8 rounded-md flex items-center justify-center border border-notion-border transition-colors " +
+        "w-8 h-8 rounded-md flex items-center justify-center border border-lumen-border transition-colors " +
         (active
-          ? "bg-notion-hover text-notion-text"
-          : "bg-notion-bg text-notion-text-secondary hover:bg-notion-hover hover:text-notion-text")
+          ? "bg-lumen-hover text-lumen-text"
+          : "bg-lumen-bg text-lumen-text-secondary hover:bg-lumen-hover hover:text-lumen-text")
       }
     >
       {children}

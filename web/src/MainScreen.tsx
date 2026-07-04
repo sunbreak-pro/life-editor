@@ -276,7 +276,7 @@ export function MainScreen({ session }: { session: Session }) {
                     <NotesUnifiedProvider dataService={ds}>
                       <Suspense
                         fallback={
-                          <p className="text-notion-text-secondary">
+                          <p className="text-lumen-text-secondary">
                             Loading notes…
                           </p>
                         }

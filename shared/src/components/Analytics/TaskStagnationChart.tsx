@@ -33,7 +33,7 @@ export function TaskStagnationChart({
 
   return (
     <div>
-      <h3 className="text-sm font-semibold text-notion-text mb-3">
+      <h3 className="text-sm font-semibold text-lumen-text mb-3">
         {labels.title}
       </h3>
       <div className="h-40">
@@ -45,14 +45,14 @@ export function TaskStagnationChart({
           >
             <CartesianGrid
               strokeDasharray="3 3"
-              stroke="var(--color-notion-border, #e5e5e5)"
+              stroke="var(--color-lumen-border, #e5e5e5)"
               horizontal={false}
             />
             <XAxis
               type="number"
               tick={{
                 fontSize: 10,
-                fill: "var(--color-notion-text-secondary, #999)",
+                fill: "var(--color-lumen-text-secondary, #999)",
               }}
               allowDecimals={false}
             />
@@ -61,14 +61,14 @@ export function TaskStagnationChart({
               type="category"
               tick={{
                 fontSize: 10,
-                fill: "var(--color-notion-text-secondary, #999)",
+                fill: "var(--color-lumen-text-secondary, #999)",
               }}
               width={80}
             />
             <Tooltip
               contentStyle={{
-                background: "var(--color-notion-bg, #fff)",
-                border: "1px solid var(--color-notion-border, #e5e5e5)",
+                background: "var(--color-lumen-bg, #fff)",
+                border: "1px solid var(--color-lumen-border, #e5e5e5)",
                 borderRadius: 8,
                 fontSize: 12,
               }}

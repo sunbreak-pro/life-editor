@@ -8,7 +8,7 @@ import { useEffect, useId, useRef, useState } from "react";
  *
  * Accessibility (CLAUDE.md §6 / coding-principles):
  *   - role="dialog" + aria-modal + labelled by the heading
- *   - opaque surface (notion-bg, no transparency on the panel — only the
+ *   - opaque surface (lumen-bg, no transparency on the panel — only the
  *     scrim is dimmed) so nothing silently falls transparent
  *   - Escape closes; focus moves to the first field on open and is
  *     restored to the opener on close
@@ -21,11 +21,11 @@ import { useEffect, useId, useRef, useState } from "react";
  *     controls make it low-risk for S3
  */
 
-// Shared focus-visible ring (notion tokens only — no hardcoded colors).
+// Shared focus-visible ring (lumen tokens only — no hardcoded colors).
 // Kept in sync with the identical constant in NotesView.tsx; promoting it
 // to a shared export is out of this focused pass's scope.
 const FOCUS_RING =
-  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-notion-accent focus-visible:ring-offset-2 focus-visible:ring-offset-notion-bg";
+  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent focus-visible:ring-offset-2 focus-visible:ring-offset-lumen-bg";
 
 export type NotePasswordMode = "set" | "remove" | "verify";
 
@@ -127,17 +127,17 @@ export function NotePasswordDialog({
         role="dialog"
         aria-modal="true"
         aria-labelledby={headingId}
-        className="w-full max-w-sm rounded-lg border border-notion-border bg-notion-bg p-5 shadow-xl"
+        className="w-full max-w-sm rounded-lg border border-lumen-border bg-lumen-bg p-5 shadow-xl"
       >
         <h2
           id={headingId}
-          className="mb-4 text-base font-semibold text-notion-text"
+          className="mb-4 text-base font-semibold text-lumen-text"
         >
           {title}
         </h2>
 
         <form onSubmit={handleSubmit} className="space-y-3">
-          <label className="block text-sm text-notion-text-secondary">
+          <label className="block text-sm text-lumen-text-secondary">
             {mode === "verify" || mode === "remove"
               ? labels.currentPasswordLabel
               : labels.passwordLabel}
@@ -151,12 +151,12 @@ export function NotePasswordDialog({
               }
               aria-invalid={!!error || undefined}
               aria-describedby={error ? errId : undefined}
-              className={`mt-1 w-full rounded-md border border-notion-border bg-notion-bg px-2 py-1.5 text-sm text-notion-text ${FOCUS_RING}`}
+              className={`mt-1 w-full rounded-md border border-lumen-border bg-lumen-bg px-2 py-1.5 text-sm text-lumen-text ${FOCUS_RING}`}
             />
           </label>
 
           {mode === "set" && (
-            <label className="block text-sm text-notion-text-secondary">
+            <label className="block text-sm text-lumen-text-secondary">
               {labels.confirmPasswordLabel}
               <input
                 type="password"
@@ -165,13 +165,13 @@ export function NotePasswordDialog({
                 autoComplete="new-password"
                 aria-invalid={!!error || undefined}
                 aria-describedby={error ? errId : undefined}
-                className={`mt-1 w-full rounded-md border border-notion-border bg-notion-bg px-2 py-1.5 text-sm text-notion-text ${FOCUS_RING}`}
+                className={`mt-1 w-full rounded-md border border-lumen-border bg-lumen-bg px-2 py-1.5 text-sm text-lumen-text ${FOCUS_RING}`}
               />
             </label>
           )}
 
           {error && (
-            <p id={errId} role="alert" className="text-sm text-notion-danger">
+            <p id={errId} role="alert" className="text-sm text-lumen-danger">
               {error}
             </p>
           )}
@@ -181,7 +181,7 @@ export function NotePasswordDialog({
               type="button"
               onClick={onClose}
               disabled={busy}
-              className={`rounded-md border border-notion-border px-3 py-1.5 text-sm text-notion-text hover:bg-notion-hover disabled:opacity-40 ${FOCUS_RING}`}
+              className={`rounded-md border border-lumen-border px-3 py-1.5 text-sm text-lumen-text hover:bg-lumen-hover disabled:opacity-40 ${FOCUS_RING}`}
             >
               {labels.cancel}
             </button>
@@ -189,7 +189,7 @@ export function NotePasswordDialog({
               type="submit"
               disabled={busy}
               aria-busy={busy}
-              className={`rounded-md bg-notion-accent px-3 py-1.5 text-sm text-notion-on-accent hover:opacity-90 disabled:opacity-40 ${FOCUS_RING}`}
+              className={`rounded-md bg-lumen-accent px-3 py-1.5 text-sm text-lumen-on-accent hover:opacity-90 disabled:opacity-40 ${FOCUS_RING}`}
             >
               {labels.submit}
             </button>

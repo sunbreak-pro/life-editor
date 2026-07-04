@@ -87,44 +87,44 @@ iOS クライアントは Desktop の Provider の一部（Audio / ScreenLock / 
 
 以下は方針例外として継続使用する:
 
-- **ホバーフィードバック**: `hover:bg-notion-hover` 等の薄い feedback（インタラクション認知のため）
+- **ホバーフィードバック**: `hover:bg-lumen-hover` 等の薄い feedback（インタラクション認知のため）
 - **モーダル背後のバックドロップ**: `bg-black/30` 等のオーバーレイ層（フォーカス誘導のため）
-- **アクセントカラーの薄塗り**: `bg-notion-accent/10` 等のチップ選択状態 / 強調（カラー意匠）
-- **ボーダー / リング**: `border-notion-border/60`、`ring-notion-accent/40` 等の装飾線
+- **アクセントカラーの薄塗り**: `bg-lumen-accent/10` 等のチップ選択状態 / 強調（カラー意匠）
+- **ボーダー / リング**: `border-lumen-border/60`、`ring-lumen-accent/40` 等の装飾線
 - **disabled / dragging**: `opacity-50`、`opacity-30`（状態表現のため）
 - **影**: `shadow-*`（透明度ベースだが視認性に貢献するため許容）
 
 ### 禁止例
 
-- ❌ `bg-notion-bg-popover`（CSS 変数未定義 → 透明落ち）
+- ❌ `bg-lumen-bg-popover`（CSS 変数未定義 → 透明落ち）
 - ❌ ポップオーバー本体に `bg-*\/70` `bg-*\/80`（コントラスト不足）
 - ❌ メインコンテナの `backdrop-blur-*`（OS 半透過効果は不採用）
 
 ### 背景
 
 - ガラス風 UI は macOS ネイティブ App でも使い分けが難しい。多用すると下地依存で可読性が低下
-- Tailwind の未定義カラークラスは silent fail で透明落ちする → `bg-notion-bg` 等の **定義済み変数のみ** を使う
+- Tailwind の未定義カラークラスは silent fail で透明落ちする → `bg-lumen-bg` 等の **定義済み変数のみ** を使う
 - ホバー / オーバーレイ / アクセント等、**意味のある透明** は意匠として残す（全廃ではない）
 
 ### 修正パターン
 
-| Before                                       | After                                    | 場面                                |
-| -------------------------------------------- | ---------------------------------------- | ----------------------------------- |
-| `bg-notion-bg-popover`                       | `bg-notion-bg`                           | ポップオーバー / ドロップダウン本体 |
-| `bg-notion-bg-secondary/70 backdrop-blur-sm` | `bg-notion-bg-secondary`                 | パネル本体                          |
-| `bg-white/20 hover:bg-white/30`              | `bg-notion-hover hover:bg-notion-active` | ホバー feedback（white ベース廃止） |
+| Before                                      | After                                  | 場面                                |
+| ------------------------------------------- | -------------------------------------- | ----------------------------------- |
+| `bg-lumen-bg-popover`                       | `bg-lumen-bg`                          | ポップオーバー / ドロップダウン本体 |
+| `bg-lumen-bg-secondary/70 backdrop-blur-sm` | `bg-lumen-bg-secondary`                | パネル本体                          |
+| `bg-white/20 hover:bg-white/30`             | `bg-lumen-hover hover:bg-lumen-active` | ホバー feedback（white ベース廃止） |
 
 ### 検出コマンド
 
 ```bash
 # ポップオーバー / メニューで透明背景になりうる箇所
-grep -rn "bg-notion-bg-popover\|bg-.*\/[0-9]\+ backdrop-blur" frontend/src --include='*.tsx'
+grep -rn "bg-lumen-bg-popover\|bg-.*\/[0-9]\+ backdrop-blur" shared/src web/src --include='*.tsx'
 
 # 未定義 Tailwind カラー（CSS 変数を確認）
-grep -rn "bg-notion-bg-[a-z]" frontend/src --include='*.tsx' | sort -u
+grep -rn "bg-lumen-bg-[a-z]" shared/src web/src --include='*.tsx' | sort -u
 ```
 
-新しく未定義の `bg-notion-bg-*` を導入する場合は `frontend/src/index.css` で必ず CSS 変数を定義する。
+新しく未定義の `bg-lumen-bg-*` を導入する場合は `shared/src/styles/tokens.css` で必ず CSS 変数を定義する。
 
 ---
 
@@ -134,21 +134,21 @@ grep -rn "bg-notion-bg-[a-z]" frontend/src --include='*.tsx' | sort -u
 
 UI を 2 層に分け、共通化の度合いを層ごとに変える:
 
-| 層                         | 内容                                                         | 共通化方針                                                                 |
-| -------------------------- | ------------------------------------------------------------ | ------------------------------------------------------------------------- |
-| **部品層（デザインシステム）** | ボタン / 入力欄 / カード / モーダル / シート / `notion-*` トークン | **全環境で完全共通**。`shared/src/components/` に集約（直す場所は 1 箇所） |
-| **画面層（レイアウト）**       | 各機能画面の組み立て方                                         | **機能特性で判断**：単純画面 = レスポンシブ単一 / 複雑画面 = 環境別分割    |
+| 層                             | 内容                                                              | 共通化方針                                                                 |
+| ------------------------------ | ----------------------------------------------------------------- | -------------------------------------------------------------------------- |
+| **部品層（デザインシステム）** | ボタン / 入力欄 / カード / モーダル / シート / `lumen-*` トークン | **全環境で完全共通**。`shared/src/components/` に集約（直す場所は 1 箇所） |
+| **画面層（レイアウト）**       | 各機能画面の組み立て方                                            | **機能特性で判断**：単純画面 = レスポンシブ単一 / 複雑画面 = 環境別分割    |
 
 - **単純画面**（縦並びリスト系: Settings / Trash / Notes / Daily 等）は 1 コンポーネントを画面幅で伸縮させるレスポンシブ単一にする。
 - **複雑画面**（PC とスマホで操作モデルが別物: Schedule カレンダー / Tasks DnD ツリー / Work タイマー = マウスドラッグ vs タップ + BottomSheet）は割り切って環境別に分割する。無理に単一化すると分岐だらけで破綻する。
 - **やりすぎ回避**: 全画面を 1 コンポーネントで完全レスポンシブ化はしない。迷ったら単一で始め、必要になってから分割する。
 
-**集約先（W0 で確定 = 案 A）**: 部品（デザインシステム）・`notion-*` トークン・**i18n（en/ja catalog + 設定済み i18next singleton）** はすべて `shared/` に集約し、3 配布形態（Web / Electron / Capacitor）が同じソースを共用する。
+**集約先（W0 で確定 = 案 A）**: 部品（デザインシステム）・`lumen-*` トークン・**i18n（en/ja catalog + 設定済み i18next singleton）** はすべて `shared/` に集約し、3 配布形態（Web / Electron / Capacitor）が同じソースを共用する。
 
 - 部品: `shared/src/components/`（barrel `index.ts` → `shared/src/index.ts`）
 - トークン: `shared/src/styles/tokens.css`（host が `@import` + `@source` でスキャン）
 - i18n: `shared/src/i18n/`（catalog + init）。host は `i18n` / `I18nProvider` を import して木を包み、**画面層**が `useTranslation` を呼ぶ
-- **§6.4 の不変式は維持**: 共有 *部品* のフック内で `useTranslation` を呼ばない。文言は props 経由。`useTranslation` を使ってよいのはアプリ・画面層のみ（shared は singleton 解決のため再エクスポートするだけ）
+- **§6.4 の不変式は維持**: 共有 _部品_ のフック内で `useTranslation` を呼ばない。文言は props 経由。`useTranslation` を使ってよいのはアプリ・画面層のみ（shared は singleton 解決のため再エクスポートするだけ）
 
 ---
 

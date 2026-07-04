@@ -9,7 +9,7 @@ import { memo } from "react";
  * at half height so it reads as an "elbow" terminating at the row rather
  * than continuing past it.
  *
- * notion tokens only (CLAUDE.md §6.4): `bg-notion-border` for the rule. The
+ * lumen tokens only (CLAUDE.md §6.4): `bg-lumen-border` for the rule. The
  * `-my-1.5` cancels the row's `py-1.5` vertical padding so the rule spans
  * the row's full height (rows are bordered cards with a `space-y-1` gap, so
  * the rule reads per-row rather than as one unbroken line across cards).
@@ -31,7 +31,7 @@ export const TreeNodeIndent = memo(function TreeNodeIndent({
       {Array.from({ length: depth }, (_, i) => (
         <div key={i} className="flex w-4 justify-center">
           <div
-            className={`w-px bg-notion-border ${
+            className={`w-px bg-lumen-border ${
               i === depth - 1 && isLastChild ? "h-1/2 self-start" : "h-full"
             }`}
           />

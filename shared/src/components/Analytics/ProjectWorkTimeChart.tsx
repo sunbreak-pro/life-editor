@@ -57,10 +57,10 @@ export function ProjectWorkTimeChart({
   if (data.length === 0) {
     return (
       <div>
-        <h3 className="text-sm font-semibold text-notion-text mb-3">
+        <h3 className="text-sm font-semibold text-lumen-text mb-3">
           {labels.title}
         </h3>
-        <p className="text-xs text-notion-text-secondary text-center py-4">
+        <p className="text-xs text-lumen-text-secondary text-center py-4">
           {labels.noData}
         </p>
       </div>
@@ -69,7 +69,7 @@ export function ProjectWorkTimeChart({
 
   return (
     <div>
-      <h3 className="text-sm font-semibold text-notion-text mb-3">
+      <h3 className="text-sm font-semibold text-lumen-text mb-3">
         {labels.title}
       </h3>
       <div className="h-64">
@@ -95,8 +95,8 @@ export function ProjectWorkTimeChart({
             </Pie>
             <Tooltip
               contentStyle={{
-                background: "var(--color-notion-bg, #fff)",
-                border: "1px solid var(--color-notion-border, #e5e5e5)",
+                background: "var(--color-lumen-bg, #fff)",
+                border: "1px solid var(--color-lumen-border, #e5e5e5)",
                 borderRadius: 8,
                 fontSize: 12,
               }}

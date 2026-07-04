@@ -21,8 +21,8 @@ export function Slider({
   return (
     <div className="space-y-1.5">
       <div className="flex items-center justify-between text-[11px]">
-        <span className="text-notion-text-secondary">{label}</span>
-        <span className="font-mono text-notion-text">
+        <span className="text-lumen-text-secondary">{label}</span>
+        <span className="font-mono text-lumen-text">
           {step < 1 ? value.toFixed(2) : Math.round(value)}
           {suffix}
         </span>

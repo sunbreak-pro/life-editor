@@ -20,11 +20,11 @@ export interface IconButtonProps
 
 const VARIANT_CLASSES: Record<IconButtonVariant, string> = {
   ghost:
-    "bg-transparent text-notion-text-secondary hover:bg-notion-hover hover:text-notion-text",
+    "bg-transparent text-lumen-text-secondary hover:bg-lumen-hover hover:text-lumen-text",
   solid:
-    "bg-notion-bg-secondary text-notion-text hover:bg-notion-hover",
+    "bg-lumen-bg-secondary text-lumen-text hover:bg-lumen-hover",
   danger:
-    "bg-transparent text-notion-danger hover:bg-notion-hover",
+    "bg-transparent text-lumen-danger hover:bg-lumen-hover",
 };
 
 const SIZE_CLASSES: Record<IconButtonSize, string> = {
@@ -34,7 +34,7 @@ const SIZE_CLASSES: Record<IconButtonSize, string> = {
 };
 
 /*
- * Icon-only button. aria-label is mandatory (a11y). notion-* tokens
+ * Icon-only button. aria-label is mandatory (a11y). lumen-* tokens
  * only; opaque/ghost backgrounds per §5 (ghost = transparent base is an
  * allowed interaction surface, not a primary container).
  */
@@ -60,7 +60,7 @@ export const IconButton = forwardRef<HTMLButtonElement, IconButtonProps>(
         className={cn(
           "inline-flex items-center justify-center rounded-md",
           "transition-colors focus-visible:outline-none focus-visible:ring-2",
-          "focus-visible:ring-notion-accent disabled:cursor-not-allowed",
+          "focus-visible:ring-lumen-accent disabled:cursor-not-allowed",
           "disabled:opacity-50",
           VARIANT_CLASSES[variant],
           SIZE_CLASSES[size],

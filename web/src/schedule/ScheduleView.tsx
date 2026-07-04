@@ -9,7 +9,7 @@ import { DebouncedTextInput } from "../components/DebouncedTextInput";
 /*
  * Web Schedule UI — S4-3 Routine slice only.
  *
- * Lean, purpose-built notion-token view (NOT a port of the Tauri
+ * Lean, purpose-built lumen-token view (NOT a port of the Tauri
  * Schedule screen — the heavy calendar grid / DnD / Achievement UI is
  * intentionally out of scope, plan §スコープ外). It exercises every
  * shared Routine data path the S4-3 surface exposes: routine CRUD +
@@ -117,13 +117,13 @@ export function ScheduleView() {
 
   if (isLoading) {
     return (
-      <p className="text-sm text-notion-text-secondary">Loading routines…</p>
+      <p className="text-sm text-lumen-text-secondary">Loading routines…</p>
     );
   }
 
   if (error) {
     return (
-      <p className="text-sm text-notion-text-secondary">
+      <p className="text-sm text-lumen-text-secondary">
         Could not load routines: {error}
       </p>
     );
@@ -133,7 +133,7 @@ export function ScheduleView() {
     <div className="space-y-6">
       {/* Create routine */}
       <section className="space-y-2">
-        <h2 className="text-sm font-semibold text-notion-text">New routine</h2>
+        <h2 className="text-sm font-semibold text-lumen-text">New routine</h2>
         <div className="flex flex-wrap items-center gap-2">
           <input
             type="text"
@@ -145,26 +145,26 @@ export function ScheduleView() {
               }
             }}
             placeholder="Routine title"
-            className="min-w-[12rem] flex-1 rounded-md border border-notion-border bg-notion-bg px-2 py-1 text-sm text-notion-text"
+            className="min-w-[12rem] flex-1 rounded-md border border-lumen-border bg-lumen-bg px-2 py-1 text-sm text-lumen-text"
           />
           <input
             type="time"
             value={newStart}
             onChange={(e) => setNewStart(e.target.value)}
             aria-label="Start time"
-            className="rounded-md border border-notion-border bg-notion-bg px-2 py-1 text-sm text-notion-text"
+            className="rounded-md border border-lumen-border bg-lumen-bg px-2 py-1 text-sm text-lumen-text"
           />
           <input
             type="time"
             value={newEnd}
             onChange={(e) => setNewEnd(e.target.value)}
             aria-label="End time"
-            className="rounded-md border border-notion-border bg-notion-bg px-2 py-1 text-sm text-notion-text"
+            className="rounded-md border border-lumen-border bg-lumen-bg px-2 py-1 text-sm text-lumen-text"
           />
           <button
             type="button"
             onClick={handleCreateRoutine}
-            className="rounded-md border border-notion-border px-3 py-1 text-sm text-notion-text hover:bg-notion-hover"
+            className="rounded-md border border-lumen-border px-3 py-1 text-sm text-lumen-text hover:bg-lumen-hover"
           >
             Add
           </button>
@@ -173,7 +173,7 @@ export function ScheduleView() {
 
       {/* Routine groups */}
       <section className="space-y-2">
-        <h2 className="text-sm font-semibold text-notion-text">
+        <h2 className="text-sm font-semibold text-lumen-text">
           Routine groups ({routineGroups.length})
         </h2>
         <div className="flex flex-wrap items-center gap-2">
@@ -187,12 +187,12 @@ export function ScheduleView() {
               }
             }}
             placeholder="Group name"
-            className="min-w-[10rem] flex-1 rounded-md border border-notion-border bg-notion-bg px-2 py-1 text-sm text-notion-text"
+            className="min-w-[10rem] flex-1 rounded-md border border-lumen-border bg-lumen-bg px-2 py-1 text-sm text-lumen-text"
           />
           <button
             type="button"
             onClick={handleCreateGroup}
-            className="rounded-md border border-notion-border px-3 py-1 text-sm text-notion-text hover:bg-notion-hover"
+            className="rounded-md border border-lumen-border px-3 py-1 text-sm text-lumen-text hover:bg-lumen-hover"
           >
             Add group
           </button>
@@ -201,7 +201,7 @@ export function ScheduleView() {
           {routineGroups.map((g) => (
             <li
               key={g.id}
-              className="flex items-center justify-between rounded-md border border-notion-border px-2 py-1 text-sm text-notion-text"
+              className="flex items-center justify-between rounded-md border border-lumen-border px-2 py-1 text-sm text-lumen-text"
             >
               <span className="flex items-center gap-2">
                 <span
@@ -214,7 +214,7 @@ export function ScheduleView() {
               <button
                 type="button"
                 onClick={() => void deleteRoutineGroup(g.id)}
-                className="rounded-md border border-notion-border px-2 py-0.5 text-xs text-notion-text hover:bg-notion-hover"
+                className="rounded-md border border-lumen-border px-2 py-0.5 text-xs text-lumen-text hover:bg-lumen-hover"
               >
                 Delete
               </button>
@@ -225,21 +225,21 @@ export function ScheduleView() {
 
       {/* Routines */}
       <section className="space-y-2">
-        <h2 className="text-sm font-semibold text-notion-text">
+        <h2 className="text-sm font-semibold text-lumen-text">
           Routines ({sortedRoutines.length})
         </h2>
         <ul className="space-y-2">
           {sortedRoutines.map((r) => (
             <li
               key={r.id}
-              className="space-y-2 rounded-md border border-notion-border p-3"
+              className="space-y-2 rounded-md border border-lumen-border p-3"
             >
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <DebouncedTextInput
                   key={`title-${r.id}`}
                   value={r.title}
                   onCommit={(title) => updateRoutine(r.id, { title })}
-                  className="min-w-[10rem] flex-1 rounded-md border border-notion-border bg-notion-bg px-2 py-1 text-sm text-notion-text"
+                  className="min-w-[10rem] flex-1 rounded-md border border-lumen-border bg-lumen-bg px-2 py-1 text-sm text-lumen-text"
                 />
                 <DebouncedTextInput
                   key={`start-${r.id}`}
@@ -249,7 +249,7 @@ export function ScheduleView() {
                     updateRoutine(r.id, { startTime: v || null })
                   }
                   aria-label={`Start time for ${r.title}`}
-                  className="rounded-md border border-notion-border bg-notion-bg px-2 py-1 text-sm text-notion-text"
+                  className="rounded-md border border-lumen-border bg-lumen-bg px-2 py-1 text-sm text-lumen-text"
                 />
                 <DebouncedTextInput
                   key={`end-${r.id}`}
@@ -257,12 +257,12 @@ export function ScheduleView() {
                   value={r.endTime ?? ""}
                   onCommit={(v) => updateRoutine(r.id, { endTime: v || null })}
                   aria-label={`End time for ${r.title}`}
-                  className="rounded-md border border-notion-border bg-notion-bg px-2 py-1 text-sm text-notion-text"
+                  className="rounded-md border border-lumen-border bg-lumen-bg px-2 py-1 text-sm text-lumen-text"
                 />
               </div>
 
               <div className="flex flex-wrap items-center gap-2 text-sm">
-                <label className="flex items-center gap-1 text-notion-text-secondary">
+                <label className="flex items-center gap-1 text-lumen-text-secondary">
                   Frequency
                   <select
                     value={r.frequencyType}
@@ -271,7 +271,7 @@ export function ScheduleView() {
                         frequencyType: e.target.value as FrequencyType,
                       })
                     }
-                    className="rounded-md border border-notion-border bg-notion-bg px-2 py-1 text-notion-text"
+                    className="rounded-md border border-lumen-border bg-lumen-bg px-2 py-1 text-lumen-text"
                   >
                     {FREQUENCY_TYPES.map((t) => (
                       <option key={t} value={t}>
@@ -280,7 +280,7 @@ export function ScheduleView() {
                     ))}
                   </select>
                 </label>
-                <span className="text-notion-text-secondary">
+                <span className="text-lumen-text-secondary">
                   {frequencySummary(r)}
                 </span>
               </div>
@@ -300,10 +300,10 @@ export function ScheduleView() {
                             : [...r.frequencyDays, dayIdx];
                           updateRoutine(r.id, { frequencyDays: next });
                         }}
-                        className={`rounded-md border border-notion-border px-2 py-0.5 text-xs ${
+                        className={`rounded-md border border-lumen-border px-2 py-0.5 text-xs ${
                           active
-                            ? "bg-notion-hover text-notion-text"
-                            : "text-notion-text-secondary hover:bg-notion-hover"
+                            ? "bg-lumen-hover text-lumen-text"
+                            : "text-lumen-text-secondary hover:bg-lumen-hover"
                         }`}
                       >
                         {label}
@@ -315,7 +315,7 @@ export function ScheduleView() {
 
               {r.frequencyType === "interval" && (
                 <div className="flex flex-wrap items-center gap-3">
-                  <label className="flex items-center gap-1 text-sm text-notion-text-secondary">
+                  <label className="flex items-center gap-1 text-sm text-lumen-text-secondary">
                     Every
                     <input
                       type="number"
@@ -326,7 +326,7 @@ export function ScheduleView() {
                           frequencyInterval: Number(e.target.value) || 1,
                         })
                       }
-                      className="w-16 rounded-md border border-notion-border bg-notion-bg px-2 py-1 text-notion-text"
+                      className="w-16 rounded-md border border-lumen-border bg-lumen-bg px-2 py-1 text-lumen-text"
                     />
                     day(s)
                   </label>
@@ -338,7 +338,7 @@ export function ScheduleView() {
                    * meaningful interval routine (SSOT 申し送り③ / S4-3
                    * Nit2). Stored as a local `YYYY-MM-DD` key (no UTC).
                    */}
-                  <label className="flex items-center gap-1 text-sm text-notion-text-secondary">
+                  <label className="flex items-center gap-1 text-sm text-lumen-text-secondary">
                     From
                     <input
                       type="date"
@@ -349,7 +349,7 @@ export function ScheduleView() {
                         })
                       }
                       aria-label={`Interval start date for ${r.title}`}
-                      className="rounded-md border border-notion-border bg-notion-bg px-2 py-1 text-notion-text"
+                      className="rounded-md border border-lumen-border bg-lumen-bg px-2 py-1 text-lumen-text"
                     />
                   </label>
                 </div>
@@ -377,11 +377,11 @@ export function ScheduleView() {
                   );
                   return (
                     <div className="flex flex-wrap items-center gap-1 text-xs">
-                      <span className="text-notion-text-secondary">
+                      <span className="text-lumen-text-secondary">
                         Groups:
                       </span>
                       {members.length === 0 && (
-                        <span className="italic text-notion-text-secondary">
+                        <span className="italic text-lumen-text-secondary">
                           none
                         </span>
                       )}
@@ -391,7 +391,7 @@ export function ScheduleView() {
                           type="button"
                           onClick={() => toggleGroupMembership(r, g.id)}
                           aria-label={`Remove ${r.title} from group ${g.name}`}
-                          className="inline-flex items-center gap-1 rounded-md border border-notion-border bg-notion-hover px-2 py-0.5 text-notion-text hover:opacity-80"
+                          className="inline-flex items-center gap-1 rounded-md border border-lumen-border bg-lumen-hover px-2 py-0.5 text-lumen-text hover:opacity-80"
                         >
                           <span
                             aria-hidden
@@ -401,7 +401,7 @@ export function ScheduleView() {
                           {g.name}
                           <span
                             aria-hidden
-                            className="ml-0.5 text-notion-text-secondary"
+                            className="ml-0.5 text-lumen-text-secondary"
                           >
                             ×
                           </span>
@@ -411,11 +411,11 @@ export function ScheduleView() {
                         <>
                           <span
                             aria-hidden
-                            className="mx-1 text-notion-text-secondary"
+                            className="mx-1 text-lumen-text-secondary"
                           >
                             |
                           </span>
-                          <span className="text-notion-text-secondary">
+                          <span className="text-lumen-text-secondary">
                             Add:
                           </span>
                           {nonMembers.map((g) => (
@@ -424,7 +424,7 @@ export function ScheduleView() {
                               type="button"
                               onClick={() => toggleGroupMembership(r, g.id)}
                               aria-label={`Add ${r.title} to group ${g.name}`}
-                              className="inline-flex items-center gap-1 rounded-md border border-dashed border-notion-border px-2 py-0.5 text-notion-text-secondary hover:bg-notion-hover hover:text-notion-text"
+                              className="inline-flex items-center gap-1 rounded-md border border-dashed border-lumen-border px-2 py-0.5 text-lumen-text-secondary hover:bg-lumen-hover hover:text-lumen-text"
                             >
                               <span
                                 aria-hidden
@@ -446,7 +446,7 @@ export function ScheduleView() {
                   onClick={() =>
                     updateRoutine(r.id, { isArchived: !r.isArchived })
                   }
-                  className="rounded-md border border-notion-border px-2 py-0.5 text-xs text-notion-text hover:bg-notion-hover"
+                  className="rounded-md border border-lumen-border px-2 py-0.5 text-xs text-lumen-text hover:bg-lumen-hover"
                 >
                   {r.isArchived ? "Unarchive" : "Archive"}
                 </button>
@@ -455,14 +455,14 @@ export function ScheduleView() {
                   onClick={() =>
                     updateRoutine(r.id, { isVisible: !r.isVisible })
                   }
-                  className="rounded-md border border-notion-border px-2 py-0.5 text-xs text-notion-text hover:bg-notion-hover"
+                  className="rounded-md border border-lumen-border px-2 py-0.5 text-xs text-lumen-text hover:bg-lumen-hover"
                 >
                   {r.isVisible ? "Hide" : "Show"}
                 </button>
                 <button
                   type="button"
                   onClick={() => void deleteRoutine(r.id)}
-                  className="rounded-md border border-notion-border px-2 py-0.5 text-xs text-notion-text hover:bg-notion-hover"
+                  className="rounded-md border border-lumen-border px-2 py-0.5 text-xs text-lumen-text hover:bg-lumen-hover"
                 >
                   Delete
                 </button>
@@ -474,28 +474,28 @@ export function ScheduleView() {
 
       {deletedRoutines.length > 0 && (
         <section className="space-y-2">
-          <h2 className="text-sm font-semibold text-notion-text">
+          <h2 className="text-sm font-semibold text-lumen-text">
             Trash ({deletedRoutines.length})
           </h2>
           <ul className="space-y-1">
             {deletedRoutines.map((r) => (
               <li
                 key={r.id}
-                className="flex items-center justify-between text-sm text-notion-text-secondary"
+                className="flex items-center justify-between text-sm text-lumen-text-secondary"
               >
                 <span>{r.title}</span>
                 <span className="flex gap-2">
                   <button
                     type="button"
                     onClick={() => restoreRoutine(r.id)}
-                    className="rounded-md border border-notion-border px-2 py-0.5 text-xs text-notion-text hover:bg-notion-hover"
+                    className="rounded-md border border-lumen-border px-2 py-0.5 text-xs text-lumen-text hover:bg-lumen-hover"
                   >
                     Restore
                   </button>
                   <button
                     type="button"
                     onClick={() => permanentDeleteRoutine(r.id)}
-                    className="rounded-md border border-notion-border px-2 py-0.5 text-xs text-notion-text hover:bg-notion-hover"
+                    className="rounded-md border border-lumen-border px-2 py-0.5 text-xs text-lumen-text hover:bg-lumen-hover"
                   >
                     Delete forever
                   </button>

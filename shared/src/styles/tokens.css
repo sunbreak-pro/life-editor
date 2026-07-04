@@ -1,5 +1,5 @@
 /*
- * Shared design tokens — single source of truth for the notion-* color
+ * Shared design tokens — single source of truth for the lumen-* color
  * system across web / desktop / mobile (W0-2).
  *
  * Ported verbatim (full set) from frontend/src/index.css `:root` /
@@ -17,15 +17,18 @@
  * layer (:root vars + @theme mapping + base scaling utilities).
  *
  * Transparency policy (coding-principles §5): primary container
- * backgrounds use opaque tokens only. Undefined `bg-notion-*` classes
- * silently fall transparent, so every notion-* color used by shared
+ * backgrounds use opaque tokens only. Undefined `bg-lumen-*` classes
+ * silently fall transparent, so every lumen-* color used by shared
  * components MUST be defined in the @theme block below.
  */
 
 :root {
-  /* Brand: Cobalt Ink + Mint (2026-06-20). Mono cobalt-grey neutrals, an
-     electric cobalt primary accent, and a light-mint secondary accent. The
-     former Notion teal-blue (#2eaadc) is retired. Canonical values +
+  /* Brand: Lumen (Cobalt Ink + Mint lineage, 2026-06-20; primary accent
+     aligned to Lumen blue on 2026-07-04). Mono cobalt-grey neutrals, a
+     Lumen-blue primary accent deepened to blue-700 (#1d4ed8) so accent-colored
+     text/icons clear WCAG AA 4.5:1 even on the hover background; a light-mint
+     secondary accent.
+     The former Notion teal-blue (#2eaadc) is retired. Canonical values +
      rationale: shared/design-system/PRINCIPLES.md §3.3. */
   --color-bg-primary: #fafafa;
   --color-bg-secondary: #f1f1f3;
@@ -34,15 +37,15 @@
   --color-text-secondary: #5c5c66;
   --color-border: #e3e3e7;
   --color-border-strong: #cfcfd6;
-  --color-accent: #1f4fff;
-  --color-accent-hover: #1a42d9;
+  --color-accent: #1d4ed8;
+  --color-accent-hover: #1e40af;
   /* Foreground for text/icons sitting on the accent fill (buttons, selected
      pills). Light theme uses white on the deep cobalt; the dark theme
      overrides this to near-black ink because its accent is a light blue. */
   --color-on-accent: #ffffff;
   /* Opaque light-cobalt wash for the DnD "drop inside this folder" cue
      (DU-G). Opaque on purpose (§5). */
-  --color-accent-subtle: #e1e6fb;
+  --color-accent-subtle: #dbeafe;
   /* Mint secondary accent — the light-green "touch". Used for positive /
      secondary states (chips, tags, secondary highlights). Primary actions
      and primary selection stay cobalt. */
@@ -66,9 +69,9 @@
   --color-chip-event-dot: #8b5cf6;
   /* Task chip mirrors the primary accent (was the old teal). Retuned to the
      cobalt family so "task" reads as the brand color, not a stray blue. */
-  --color-chip-task-bg: #e3e7ff;
-  --color-chip-task-fg: #2330b0;
-  --color-chip-task-dot: #1f4fff;
+  --color-chip-task-bg: #dbeafe;
+  --color-chip-task-fg: #1e40af;
+  --color-chip-task-dot: #1d4ed8;
   --color-chip-completed-bg: #ecfdf5;
   --color-chip-completed-fg: #047857;
   --color-chip-completed-dot: #10b981;
@@ -124,8 +127,8 @@
   --color-text-secondary: #a0a0ad;
   --color-border: #2e2e35;
   --color-border-strong: #44444d;
-  --color-accent: #5b82ff;
-  --color-accent-hover: #7596ff;
+  --color-accent: #5b8cff;
+  --color-accent-hover: #7aa2ff;
   /* The dark accent is a light cobalt, so on-accent flips to near-black ink
      (the :root default is white) to keep button labels legible on the fill. */
   --color-on-accent: #0a1024;
@@ -152,7 +155,7 @@
   --color-chip-event-dot: #a78bfa;
   --color-chip-task-bg: #1d2348;
   --color-chip-task-fg: #aebcff;
-  --color-chip-task-dot: #5b82ff;
+  --color-chip-task-dot: #5b8cff;
   --color-chip-completed-bg: #052e1f;
   --color-chip-completed-fg: #6ee7b7;
   --color-chip-completed-dot: #34d399;
@@ -173,47 +176,47 @@
 }
 
 @theme {
-  --color-notion-bg: var(--color-bg-primary);
-  --color-notion-bg-secondary: var(--color-bg-secondary);
-  --color-notion-bg-subsidebar: var(--color-bg-subsidebar);
-  --color-notion-text: var(--color-text-primary);
-  --color-notion-text-secondary: var(--color-text-secondary);
-  --color-notion-border: var(--color-border);
-  --color-notion-border-strong: var(--color-border-strong);
-  --color-notion-accent: var(--color-accent);
-  --color-notion-accent-hover: var(--color-accent-hover);
-  --color-notion-on-accent: var(--color-on-accent);
-  --color-notion-accent-subtle: var(--color-accent-subtle);
+  --color-lumen-bg: var(--color-bg-primary);
+  --color-lumen-bg-secondary: var(--color-bg-secondary);
+  --color-lumen-bg-subsidebar: var(--color-bg-subsidebar);
+  --color-lumen-text: var(--color-text-primary);
+  --color-lumen-text-secondary: var(--color-text-secondary);
+  --color-lumen-border: var(--color-border);
+  --color-lumen-border-strong: var(--color-border-strong);
+  --color-lumen-accent: var(--color-accent);
+  --color-lumen-accent-hover: var(--color-accent-hover);
+  --color-lumen-on-accent: var(--color-on-accent);
+  --color-lumen-accent-subtle: var(--color-accent-subtle);
   /* Mint secondary accent + its chip face (light-green "touch"). */
-  --color-notion-accent-secondary: var(--color-accent-secondary);
-  --color-notion-accent-secondary-hover: var(--color-accent-secondary-hover);
-  --color-notion-chip-mint-bg: var(--color-chip-mint-bg);
-  --color-notion-chip-mint-fg: var(--color-chip-mint-fg);
-  --color-notion-primary: var(--color-accent);
-  --color-notion-secondary: var(--color-text-secondary);
-  --color-notion-hover: var(--color-hover);
-  --color-notion-bg-hover: var(--color-hover);
-  --color-notion-hover-strong: var(--color-hover);
-  --color-notion-success: var(--color-success);
-  --color-notion-danger: var(--color-danger);
-  --color-notion-calendar-header: var(--color-calendar-header);
+  --color-lumen-accent-secondary: var(--color-accent-secondary);
+  --color-lumen-accent-secondary-hover: var(--color-accent-secondary-hover);
+  --color-lumen-chip-mint-bg: var(--color-chip-mint-bg);
+  --color-lumen-chip-mint-fg: var(--color-chip-mint-fg);
+  --color-lumen-primary: var(--color-accent);
+  --color-lumen-secondary: var(--color-text-secondary);
+  --color-lumen-hover: var(--color-hover);
+  --color-lumen-bg-hover: var(--color-hover);
+  --color-lumen-hover-strong: var(--color-hover);
+  --color-lumen-success: var(--color-success);
+  --color-lumen-danger: var(--color-danger);
+  --color-lumen-calendar-header: var(--color-calendar-header);
   /* Kanban status (K1) — chip faces + the 4px status bands. Mapped so
-     shared Kanban primitives can use bg-notion-chip-* / text-notion-chip-* /
-     bg-notion-status-*-band (no hardcoded colors, §6). */
-  --color-notion-chip-task-bg: var(--color-chip-task-bg);
-  --color-notion-chip-task-fg: var(--color-chip-task-fg);
-  --color-notion-chip-progress-bg: var(--color-chip-progress-bg);
-  --color-notion-chip-progress-fg: var(--color-chip-progress-fg);
-  --color-notion-chip-completed-bg: var(--color-chip-completed-bg);
-  --color-notion-chip-completed-fg: var(--color-chip-completed-fg);
-  --color-notion-status-todo-band: var(--color-status-todo-band);
-  --color-notion-status-progress-band: var(--color-status-progress-band);
-  --color-notion-status-done-band: var(--color-status-done-band);
-  /* Elevation tokens → shadow-notion-sm / -md / -lg utilities. Theme-aware
+     shared Kanban primitives can use bg-lumen-chip-* / text-lumen-chip-* /
+     bg-lumen-status-*-band (no hardcoded colors, §6). */
+  --color-lumen-chip-task-bg: var(--color-chip-task-bg);
+  --color-lumen-chip-task-fg: var(--color-chip-task-fg);
+  --color-lumen-chip-progress-bg: var(--color-chip-progress-bg);
+  --color-lumen-chip-progress-fg: var(--color-chip-progress-fg);
+  --color-lumen-chip-completed-bg: var(--color-chip-completed-bg);
+  --color-lumen-chip-completed-fg: var(--color-chip-completed-fg);
+  --color-lumen-status-todo-band: var(--color-status-todo-band);
+  --color-lumen-status-progress-band: var(--color-status-progress-band);
+  --color-lumen-status-done-band: var(--color-status-done-band);
+  /* Elevation tokens → shadow-lumen-sm / -md / -lg utilities. Theme-aware
      (the underlying --shadow-elevation-* vars switch with [data-theme]). */
-  --shadow-notion-sm: var(--shadow-elevation-sm);
-  --shadow-notion-md: var(--shadow-elevation-md);
-  --shadow-notion-lg: var(--shadow-elevation-lg);
+  --shadow-lumen-sm: var(--shadow-elevation-sm);
+  --shadow-lumen-md: var(--shadow-elevation-md);
+  --shadow-lumen-lg: var(--shadow-elevation-lg);
   --font-sans:
     ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica,
     "Apple Color Emoji", Arial, sans-serif, "Segoe UI Emoji", "Segoe UI Symbol";

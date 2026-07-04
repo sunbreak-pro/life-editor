@@ -4,7 +4,7 @@ import { Button } from "./Button";
 import { cn } from "./cn";
 
 /*
- * Pomodoro timer face (W3-B). Pure design-system primitive — notion-* tokens
+ * Pomodoro timer face (W3-B). Pure design-system primitive — lumen-* tokens
  * only, opaque container (§5), all copy injected via `labels` (no
  * useTranslation, §6.4). It renders the phase chip, an SVG ring driven by
  * `progress`, the MM:SS readout, the session counter, and the transport
@@ -42,11 +42,11 @@ const RING_RADIUS = 86;
 const RING_CIRCUMFERENCE = 2 * Math.PI * RING_RADIUS;
 
 // Phase → accent class for the ring + chip. WORK uses the accent; breaks use a
-// calmer success tone. All notion-* tokens (no hardcoded colour, §6.4).
+// calmer success tone. All lumen-* tokens (no hardcoded colour, §6.4).
 const PHASE_RING: Record<PomodoroPhase, string> = {
-  WORK: "text-notion-accent",
-  BREAK: "text-notion-success",
-  LONG_BREAK: "text-notion-success",
+  WORK: "text-lumen-accent",
+  BREAK: "text-lumen-success",
+  LONG_BREAK: "text-lumen-success",
 };
 
 export function PomodoroTimer({
@@ -68,7 +68,7 @@ export function PomodoroTimer({
       <span
         className={cn(
           "rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-wide",
-          "bg-notion-bg-secondary",
+          "bg-lumen-bg-secondary",
           PHASE_RING[phase],
         )}
       >
@@ -89,7 +89,7 @@ export function PomodoroTimer({
             r={RING_RADIUS}
             fill="none"
             strokeWidth={10}
-            className="stroke-notion-border"
+            className="stroke-lumen-border"
           />
           <circle
             cx={100}
@@ -109,12 +109,12 @@ export function PomodoroTimer({
         </svg>
         <div className="absolute flex flex-col items-center">
           <span
-            className="font-mono text-4xl font-semibold tabular-nums text-notion-text"
+            className="font-mono text-4xl font-semibold tabular-nums text-lumen-text"
             aria-live="polite"
           >
             {formatted}
           </span>
-          <span className="mt-1 text-xs text-notion-text-secondary">
+          <span className="mt-1 text-xs text-lumen-text-secondary">
             {labels.sessionsProgress}
           </span>
         </div>

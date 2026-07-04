@@ -142,7 +142,7 @@ export function OverviewTab({
           icon={<BarChart3 size={20} />}
           label={labels.tasks}
           value={stats.totalTasks}
-          color="text-notion-accent"
+          color="text-lumen-accent"
           subtitle={`${stats.completedTasks} ${labels.completed} (${stats.taskRate}%)`}
         />
         <AnalyticsStatCard
@@ -170,7 +170,7 @@ export function OverviewTab({
           icon={<RefreshCw size={20} />}
           label={labels.routines}
           value={stats.activeRoutines}
-          color="text-notion-success"
+          color="text-lumen-success"
           subtitle={`${stats.routineRate}% ${labels.rate}`}
         />
         <AnalyticsStatCard

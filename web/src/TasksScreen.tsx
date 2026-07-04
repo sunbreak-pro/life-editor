@@ -24,19 +24,19 @@ export function TasksScreen({ session }: { session: Session }) {
   const ds = useMemo(() => getDataService(), []);
 
   return (
-    <div className="min-h-screen bg-notion-bg p-6 text-notion-text">
+    <div className="min-h-screen bg-lumen-bg p-6 text-lumen-text">
       <div className="mx-auto max-w-2xl space-y-4">
         <header className="flex items-center justify-between">
           <div>
-            <h1 className="text-xl font-semibold text-notion-text">Tasks</h1>
-            <p className="text-sm text-notion-text-secondary">
+            <h1 className="text-xl font-semibold text-lumen-text">Tasks</h1>
+            <p className="text-sm text-lumen-text-secondary">
               {session.user.email}
             </p>
           </div>
           <button
             type="button"
             onClick={() => void signOut()}
-            className="rounded-md border border-notion-border px-3 py-1.5 text-sm text-notion-text hover:bg-notion-hover"
+            className="rounded-md border border-lumen-border px-3 py-1.5 text-sm text-lumen-text hover:bg-lumen-hover"
           >
             Sign out
           </button>

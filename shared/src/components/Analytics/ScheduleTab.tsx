@@ -89,7 +89,7 @@ export function ScheduleTab({
   if (items.length === 0) {
     return (
       <div className="max-w-3xl mx-auto w-full">
-        <p className="text-sm text-notion-text-secondary mt-4 text-center">
+        <p className="text-sm text-lumen-text-secondary mt-4 text-center">
           {labels.noEvents}
         </p>
       </div>
@@ -117,7 +117,7 @@ export function ScheduleTab({
           icon={<CheckCircle2 size={20} />}
           label={labels.completedEvents}
           value={stats.completedEvents}
-          color="text-notion-success"
+          color="text-lumen-success"
         />
         <AnalyticsStatCard
           icon={<Percent size={20} />}
@@ -135,7 +135,7 @@ export function ScheduleTab({
           icon={<Activity size={20} />}
           label={labels.routineRate}
           value={`${stats.routineRate}%`}
-          color="text-notion-accent"
+          color="text-lumen-accent"
         />
       </div>
 

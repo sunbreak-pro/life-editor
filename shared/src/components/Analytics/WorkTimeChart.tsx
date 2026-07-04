@@ -65,8 +65,8 @@ export function WorkTimeChart({
   }, [sessions, period]);
 
   return (
-    <div className="bg-notion-bg-secondary rounded-lg p-4 border border-notion-border">
-      <h3 className="text-sm font-semibold text-notion-text mb-3">
+    <div className="bg-lumen-bg-secondary rounded-lg p-4 border border-lumen-border">
+      <h3 className="text-sm font-semibold text-lumen-text mb-3">
         {labels.workTime}
       </h3>
       <div className="h-48">
@@ -77,13 +77,13 @@ export function WorkTimeChart({
           >
             <CartesianGrid
               strokeDasharray="3 3"
-              stroke="var(--color-notion-text-secondary, #e5e5e5)"
+              stroke="var(--color-lumen-text-secondary, #e5e5e5)"
             />
             <XAxis
               dataKey="label"
               tick={{
                 fontSize: 11,
-                fill: "var(--color-notion-text-secondary, #999)",
+                fill: "var(--color-lumen-text-secondary, #999)",
               }}
               tickLine={false}
               axisLine={false}
@@ -91,17 +91,17 @@ export function WorkTimeChart({
             <YAxis
               tick={{
                 fontSize: 11,
-                fill: "var(--color-notion-text-secondary, #999)",
+                fill: "var(--color-lumen-text-secondary, #999)",
               }}
               tickLine={false}
               axisLine={false}
               unit="h"
             />
             <Tooltip
-              cursor={{ fill: "var(--color-notion-hover)" }}
+              cursor={{ fill: "var(--color-lumen-hover)" }}
               contentStyle={{
-                background: "var(--color-notion-bg, #fff)",
-                border: "1px solid var(--color-notion-border, #e5e5e5)",
+                background: "var(--color-lumen-bg, #fff)",
+                border: "1px solid var(--color-lumen-border, #e5e5e5)",
                 borderRadius: 8,
                 fontSize: 12,
               }}
@@ -112,7 +112,7 @@ export function WorkTimeChart({
             />
             <Bar
               dataKey="hours"
-              fill="var(--color-notion-accent, #2563eb)"
+              fill="var(--color-lumen-accent, #1d4ed8)"
               radius={[4, 4, 0, 0]}
             />
           </BarChart>

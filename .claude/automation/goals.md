@@ -53,7 +53,7 @@
 - **完了条件**:
   - Desktop / Mobile 各プラットフォームの UI 課題 issue/plan 化
   - 段階的 UI 改善 PR の積み上げ（1 plan = 1 PR 単位）
-  - `frontend-react-designer` スキル準拠（`notion-*` トークン / Pattern A / WAI-ARIA）
+  - `frontend-react-designer` スキル準拠（`lumen-*` トークン / Pattern A / WAI-ARIA）
 - **BLOCKED 遷移条件**: 設計判断が割れた箇所はユーザー承認待ちで一時 BLOCKED → 次 Goal が存在しないため `Terminal State Handling` に従って idle 化
 - **完了後の遷移**: Goal 3 が最後の Goal。DONE / BLOCKED 時は `Terminal State Handling` に従う
 - **History**:

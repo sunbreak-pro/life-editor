@@ -3,7 +3,7 @@ import { Card } from "./Card";
 import { cn } from "./cn";
 
 /*
- * Ambient sound mixer (W3-C). Pure primitive — notion-* tokens, opaque
+ * Ambient sound mixer (W3-C). Pure primitive — lumen-* tokens, opaque
  * container (§5), all copy injected (§6.4 — never calls useTranslation). The
  * host (which reads useAudioContext) supplies the resolved labels + state and
  * the mutators. Each row is a toggle (enabled) + a 0–100 volume slider.
@@ -44,7 +44,7 @@ export function AudioMixer({
 }: AudioMixerProps) {
   return (
     <Card padding="md" className="space-y-3">
-      <h3 className="text-sm font-medium text-notion-text">{labels.heading}</h3>
+      <h3 className="text-sm font-medium text-lumen-text">{labels.heading}</h3>
       <ul className="space-y-2">
         {sounds.map((sound) => {
           const state = settings[sound.id] ?? { volume: 0, enabled: false };
@@ -60,13 +60,13 @@ export function AudioMixer({
                 className={cn(
                   "flex h-8 w-8 shrink-0 items-center justify-center rounded-md border transition-colors",
                   state.enabled
-                    ? "border-notion-accent bg-notion-accent text-notion-on-accent"
-                    : "border-notion-border bg-notion-bg text-notion-text-secondary hover:bg-notion-hover",
+                    ? "border-lumen-accent bg-lumen-accent text-lumen-on-accent"
+                    : "border-lumen-border bg-lumen-bg text-lumen-text-secondary hover:bg-lumen-hover",
                 )}
               >
                 <Icon size={16} aria-hidden="true" />
               </button>
-              <span className="w-16 shrink-0 truncate text-sm text-notion-text">
+              <span className="w-16 shrink-0 truncate text-sm text-lumen-text">
                 {sound.label}
               </span>
               <input
@@ -80,9 +80,9 @@ export function AudioMixer({
                 onChange={(e) =>
                   onVolumeChange(sound.id, Number(e.target.value))
                 }
-                className="h-1.5 flex-1 cursor-pointer accent-notion-accent disabled:cursor-not-allowed disabled:opacity-50"
+                className="h-1.5 flex-1 cursor-pointer accent-lumen-accent disabled:cursor-not-allowed disabled:opacity-50"
               />
-              <span className="w-9 shrink-0 text-right text-xs tabular-nums text-notion-text-secondary">
+              <span className="w-9 shrink-0 text-right text-xs tabular-nums text-lumen-text-secondary">
                 {state.volume}
               </span>
             </li>

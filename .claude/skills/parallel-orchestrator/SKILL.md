@@ -87,7 +87,7 @@ judgement). Apply fixes only under the granted authority.
 【ゴール】<one-sentence outcome>
 【Scope（触ってよいパス）】<paths>。それ以外（frontend/ は FROZEN 等）は触らない。
   - DataService 境界厳守（getDataService 経由 / コンポーネントから直接 invoke 禁止）
-  - 新規 UI は shared/src/components/ に集約・notion-* トークン必須・主要背景に透明度禁止
+  - 新規 UI は shared/src/components/ に集約・lumen-* トークン必須・主要背景に透明度禁止
 【base ブランチ】origin/main 基点で `claude/<slug>` を切る（最新を fetch してから）
 【Gate】🤖 <autonomous parts> / 🛑 <human: DDL push / merge / secrets>
 【参照】<SSOT / plan / known-issue を必読>

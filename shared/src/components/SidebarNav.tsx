@@ -42,7 +42,7 @@ export interface SidebarNavProps {
  * Wide-layout sidebar (W5 app shell). Header (brand + collapse toggle),
  * a scrollable section list, and a footer with Cmd+K / user email /
  * sign-out. Collapsible to an icon-only rail. Pure presentation: section
- * state + labels are injected (§3.1 / §6.4), notion-* tokens only with an
+ * state + labels are injected (§3.1 / §6.4), lumen-* tokens only with an
  * opaque container background (§5).
  */
 export function SidebarNav({
@@ -59,8 +59,8 @@ export function SidebarNav({
   return (
     <aside
       className={cn(
-        "flex h-full shrink-0 flex-col border-r border-notion-border",
-        "bg-notion-bg-subsidebar transition-[width] duration-200",
+        "flex h-full shrink-0 flex-col border-r border-lumen-border",
+        "bg-lumen-bg-subsidebar transition-[width] duration-200",
         collapsed ? "w-16" : "w-60",
       )}
       aria-label={labels.appName}
@@ -68,12 +68,12 @@ export function SidebarNav({
       {/* Header: brand + collapse toggle */}
       <div
         className={cn(
-          "flex h-12 shrink-0 items-center border-b border-notion-border px-2",
+          "flex h-12 shrink-0 items-center border-b border-lumen-border px-2",
           collapsed ? "justify-center" : "justify-between",
         )}
       >
         {!collapsed && (
-          <span className="truncate px-1.5 text-sm font-semibold text-notion-text">
+          <span className="truncate px-1.5 text-sm font-semibold text-lumen-text">
             {labels.appName}
           </span>
         )}
@@ -102,7 +102,7 @@ export function SidebarNav({
       </nav>
 
       {/* Footer: command palette + user + sign out */}
-      <div className="shrink-0 space-y-1 border-t border-notion-border p-2">
+      <div className="shrink-0 space-y-1 border-t border-lumen-border p-2">
         <NavItem
           icon={<CommandIcon size={18} />}
           label={labels.commandPalette}
@@ -119,7 +119,7 @@ export function SidebarNav({
         ) : (
           <div className="flex items-center gap-1.5 px-1">
             <span
-              className="min-w-0 flex-1 truncate text-xs text-notion-text-secondary"
+              className="min-w-0 flex-1 truncate text-xs text-lumen-text-secondary"
               title={userEmail}
             >
               {userEmail}
