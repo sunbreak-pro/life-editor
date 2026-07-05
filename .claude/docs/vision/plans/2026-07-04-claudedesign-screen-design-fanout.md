@@ -46,7 +46,7 @@ Owner-chat: frontend
 
 全ストリームの成果物は同一形式（`_TEMPLATE.md` 準拠・`_COMMON-CONTEXT.md` **v2** 埋め込み・`IA.md` の目標構成準拠）。ファイルが互いに素なので全並列可。~~D10 terminal~~ は機能廃止決定（2026-07-05）のため作らない。
 
-> 進行状況メモ（2026-07-05 時点）: D1〜D6 は **v1 プロンプト（IA 決定前・旧 accent hex）で起動済み**。生成済み / 作成中の brief は Step 4 の監査で v2 準拠（IA 構成 + 新 accent hex + \_COMMON-CONTEXT v2 全文）へ改訂指示する。
+> 進行状況メモ（2026-07-05 更新）: **v1 brief 5 本が main に merge 済み**（connect #136 / materials #137 / analytics #138 / work #140 / schedule #141）。機械チェックの結果 **5 本すべて v1**（v2 マーカー 0・旧 accent hex 残存・旧 10 セクション記述あり）→ **v2 改訂セッション（D1'〜D5'）を発行済み**。settings は成果物が未 commit だったため本ブランチで salvage（v1 のまま・§6 に resync 自己注記あり）→ D6' で v2 改訂。D7〜D9 は IA merge（#139）により起動可能。
 
 ---
 
@@ -237,3 +237,4 @@ Owner-chat: frontend
 - 2026-07-05: PR #134 merge（`53ae40fc`）。直後に PR #135（`ink-*` → `lumen-*` rename + **accent を Lumen blue `#1d4ed8` へ変更**）が merge され、\_COMMON-CONTEXT v1 の accent 系 hex（`#1f4fff` 等）と「ink-\*」記述が旧化。
 - 2026-07-05: ユーザー決定で **IA ファースト**化（①サイドバー 6 セクション集約 ②Trash はユーティリティ枠 ③Mobile 固定 4 タブ = Schedule / Materials / Work / Analytics）→ `IA.md` 正本化。D7 shell / D8 auth / D9 trash を追加。**D10 terminal は機能廃止決定のため対象外**（一時 D10 として起案した 2f7b3c8e は破棄）。\_COMMON-CONTEXT を v2 化（accent 同期 + 目標シェル構成）。D1〜D6 は v1 プロンプトで起動済みのため Step 4 監査で v2 準拠へ改訂指示する。
 - 2026-07-05: 教訓: 同一 worktree での複数 design セッション運用により、brief の他ブランチ混入・計画 commit の迷子が発生（Risks に追記）。以後の起動は 1 chat = 1 worktree = 1 branch を推奨。
+- 2026-07-05（続）: fan-out 第 1 波の全 PR merge 完了（#136〜#141）。機械チェックで v1 brief 5 本の v2 改訂要を確認し、改訂プロンプト D1'〜D6' + terminal 廃止 docs 整理プロンプトを発行。settings brief（305 行・完成品だが未 commit）と design セッション 4 本ぶんの tracker 記録（memory / history / outbox 計 12 ファイル）を本ブランチに salvage。frontend worktree の迷子複製（schedule / work / materials = main と同一）は掃除。
