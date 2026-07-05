@@ -78,13 +78,21 @@ export {
 } from "./TaskAddDialog";
 // App shell (W5) — responsive single shell + its nav pieces. Pure
 // presentation: DataService-free, props-injected i18n (§3.1 / §6.4).
-export { NavItem, type NavItemProps } from "./NavItem";
+export { NavItem, type NavItemProps, type NavItemTone } from "./NavItem";
 export {
   SidebarNav,
   type SidebarNavProps,
   type SidebarNavSection,
   type SidebarNavLabels,
 } from "./SidebarNav";
+// Header tabs (target-IA Desktop standard) + segmented control (its Mobile
+// echo). Pure presentation: props-injected copy, lumen-* tokens (§3.1 / §5).
+export { HeaderTabs, type HeaderTabsProps, type HeaderTab } from "./HeaderTabs";
+export {
+  SegmentedControl,
+  type SegmentedControlProps,
+  type SegmentedOption,
+} from "./SegmentedControl";
 export {
   BottomTabBar,
   type BottomTabBarProps,
