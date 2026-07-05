@@ -18,14 +18,14 @@
 
 ## 2. Platform
 
-- Desktop（macOS / Windows）= 全機能。Mobile（iOS / Android）= Consumption + Quick capture。Terminal + MCP は Desktop 専用
+- Desktop（macOS / Windows）= 全機能。Mobile（iOS / Android）= Consumption + Quick capture。MCP は Desktop 専用（Terminal は 2026-07-05 に機能ごと退役決定 → §8。MCP Server 自体は存続）
 - **Mobile 省略 Provider（5 種）**: Audio / ScreenLock / FileExplorer / CalendarTags / ShortcutConfig（WikiTag / SidebarLinks は Mobile でも有効）
 - Cloud Sync = 作者本人のみ（友達ビルドは feature flag で無効）。配布・署名 → 移行 SSOT
 
 ## 3. Architecture（恒久原則のみ。構成図 → 移行 SSOT）
 
 - **3.1 DataService 境界（不変式）**: フロントは `getDataService()` 経由でのみデータアクセス。**コンポーネントから直接バックエンド呼び出し（`invoke()` 等）禁止**。実装 = `shared/src/services/`（旧 `frontend/src/services/` は FROZEN）。バックエンドが替わってもこの境界は不変
-- **3.2 Section Routing**: React Router なし。`App.tsx::activeSection`（型 `types/taskTree.ts::SectionId`、7 種: schedule / materials / connect / work / analytics / settings / terminal）で切替。`TerminalPanel` は全画面共通の下部パネル
+- **3.2 Section Routing**: React Router なし。`App.tsx::activeSection`（型 `types/taskTree.ts::SectionId`）で切替。現行型は 7 種（schedule / materials / connect / work / analytics / settings / terminal）だが `terminal` は退役決定済み（§8）で実効 6 種。`SectionId` からの `terminal` 除去と旧 `TerminalPanel`（かつて全画面共通だった下部パネル）撤去はコード整理 Issue で追跡
 - **3.3 Sync**: `items_meta.updated_at` を LWW cursor とする 2 行分割モデル。`<role>_payload` は `updated_at` を持たない（詳細 → [`docs/vision/db-conventions.md`](./docs/vision/db-conventions.md) §10）。「全テーブルに version カラム」は旧 Tauri 時代の遺物で未使用
 - **gotcha**: `AudioContext` は `suspended` 開始 — ユーザー操作後に `resume()` 必須
 
@@ -42,7 +42,7 @@
 ## 5. AI Integration
 
 - MCP Server = 独立 Node.js プロセス。Claude Code が stdio 接続し同一 DB を直接操作（32 ツール。一覧はコードが正）
-- アプリ内ターミナルから `claude` 起動 → MCP 自動接続（基盤 → 移行 SSOT）
+- `claude`（Claude Code）起動で MCP 自動接続（MCP Server は存続。起動導線だったアプリ内ターミナルは 2026-07-05 退役決定 → §8。退役後の常設起動導線は生成デザイン確定後に再設計）
 
 ## 6. Coding Standards
 
@@ -105,7 +105,7 @@ cd web && npm run dev           # ローカル起動（vite）
 
 ## 8. Feature Tier Map（詳細 → `docs/requirements/`）
 
-- **Tier 1 コア**（7）: [`tier-1-core.md`](./docs/requirements/tier-1-core.md) — Tasks / Schedule / Notes / Daily / MCP Server / Cloud Sync / Terminal（汎用 Database は一旦凍結 = 移行 SSOT Phase 5-A 決定・requirements 本体は保持）
+- **Tier 1 コア**（6）: [`tier-1-core.md`](./docs/requirements/tier-1-core.md) — Tasks / Schedule / Notes / Daily / MCP Server / Cloud Sync（Terminal は 2026-07-05 に機能ごと退役 = ユーザー決定・tier-1-core は本文を履歴として保持 / 汎用 Database は一旦凍結 = 移行 SSOT Phase 5-A 決定・requirements 本体は保持）
 - **Tier 2 補助**（11）: [`tier-2-supporting.md`](./docs/requirements/tier-2-supporting.md) — Audio / Playlist / Pomodoro / WikiTags / Templates / UndoRedo / Theme / i18n / Shortcuts / Toast / Trash（File Explorer は退役 = 移行 SSOT Phase 5-A 決定・requirements 本体は保持）
 - **Tier 3 実験 / 凍結**（6）: [`tier-3-experimental.md`](./docs/requirements/tier-3-experimental.md) — Paper Boards / Analytics / NotebookLM / Google Calendar / Google Drive / Cognitive Architecture
 - 次フェーズ計画は移行 SSOT が正本（恒久知見の保全先 = [`archive/SUMMARY.md`](./archive/SUMMARY.md)）
