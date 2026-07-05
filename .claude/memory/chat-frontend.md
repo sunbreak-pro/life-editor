@@ -7,9 +7,9 @@
 **対象**: `.claude/docs/design/`（README / briefs/\_TEMPLATE / briefs/\_COMMON-CONTEXT）
 **計画書**: `.claude/docs/vision/plans/2026-07-04-claudedesign-screen-design-fanout.md`
 
-- 前回: work-order 方式へ改定（#142 merge）→ 全 10 オーダー並列起動 → 第 2 波 9 本 merge（#144〜#153・Terminal code 除去 Issue #146）
-- 現在: 最終整合監査完了（C1: connect-v2 未実行 → ユーザー再走中）。監査 fix（M1 タブ標準統一 / M2 Status 昇格 / m1 両論併記解消 / m3 計画書同期）を `claude/design-audit-fixes` で draft PR 化。受け渡し調査済み（本命 = GitHub デザインシステムインポート / DesignSync は要 /design-login / .md 添付は要実測）。監査レポート = `.claude/reports/2026-07-05-fanout-final-audit.md`
-- 次: connect-v2 PR merge 確認 → m2（settings ショートカット例の語彙）ユーザー判断 → 受け渡しルート実測（.md 添付 → DesignSync）→ Step 6 ClaudeDesign 投入
+- 前回: 第 2 波 9 本 merge（#144〜#153）→ 最終整合監査 → 監査 fix 3 連（#156 audit-fixes / #157 connect v2 / #158 drift 注記）全 merge — **9 brief 全機械チェック合格**
+- 現在: 受け渡し経路の実証完了（DesignSync push `briefs/shell.md` → ClaudeDesign がプロジェクト内 brief を読んで App Shell 生成成功）。**実装 fan-out を work-order 化** — 計画書 `2026-07-05-design-implementation-fanout.md`（レジストリ 9 slug・shell-impl に import URL 登録済み）+ 起動スクリプト `impl-work.sh`（whitelist = レジストリ grep・二重管理なし）を draft PR 化
+- 次: 実装 fan-out PR merge → `shell-impl` 起動（最優先・他は shell merge 後）→ 画面のデザイン生成のたびに `<section>-impl` を起動。m2（settings ショートカット語彙）は settings-impl 実装時に確認。残り 8 brief の DesignSync push は必要時に実施
 
 ## 直近の完了
 
