@@ -1,5 +1,7 @@
 # HISTORY (chat-frontend)
 
+- 2026-07-05: [途中] ClaudeDesign brief fan-out — 第 2 波 9/10 merge（#144〜#153）。最終整合監査で connect-v2 未実行を検出（→ユーザー再走）、M1/M2/m1/m3 を audit-fixes PR で修正（m2 は保留）。ClaudeDesign 受け渡し調査（GitHub インポート本命 / DesignSync 要ログイン / .md 添付要実測）
+
 ### 2026-07-04 - Connect→shared Toast + Analytics per-range fetch（follow-up #6/#7 集約・PR #116）
 
 #### 概要

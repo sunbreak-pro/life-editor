@@ -2,7 +2,14 @@
 
 ## 進行中
 
-（なし）
+### 🔧 ClaudeDesign 全画面デザイン brief fan-out（着手日: 2026-07-04）
+
+**対象**: `.claude/docs/design/`（README / briefs/\_TEMPLATE / briefs/\_COMMON-CONTEXT）
+**計画書**: `.claude/docs/vision/plans/2026-07-04-claudedesign-screen-design-fanout.md`
+
+- 前回: work-order 方式へ改定（#142 merge）→ 全 10 オーダー並列起動 → 第 2 波 9 本 merge（#144〜#153・Terminal code 除去 Issue #146）
+- 現在: 最終整合監査完了（C1: connect-v2 未実行 → ユーザー再走中）。監査 fix（M1 タブ標準統一 / M2 Status 昇格 / m1 両論併記解消 / m3 計画書同期）を `claude/design-audit-fixes` で draft PR 化。受け渡し調査済み（本命 = GitHub デザインシステムインポート / DesignSync は要 /design-login / .md 添付は要実測）。監査レポート = `.claude/reports/2026-07-05-fanout-final-audit.md`
+- 次: connect-v2 PR merge 確認 → m2（settings ショートカット例の語彙）ユーザー判断 → 受け渡しルート実測（.md 添付 → DesignSync）→ Step 6 ClaudeDesign 投入
 
 ## 直近の完了
 
@@ -12,6 +19,4 @@
 
 ## 予定
 
-- **PR #111 merge**（🛑 人手ゲート・ユーザー判断）。merge 後: 残 worktree/branch 整理
-- **Lumen → `shared/` 移植**（当初本命の出荷UI化）。token ギャップ橋渡しが必要: `info`/`warning`（現状 success/danger のみ）・`surface-sunken`・text 3段階（現状 2段階）・`space`/`radius`/`shadow` スケール（現状 Tailwind 既定）
 - **semi-live ドキュメントの `notion-` 残**（`requirements/` `automation/` `skills/` 計19ファイル）を揃えるか判断（`archive/` `history/` `known-issues/` の履歴系は据え置き推奨）
