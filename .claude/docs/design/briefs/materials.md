@@ -217,7 +217,7 @@ Button / Card / Menu / Toast / Sidebar / BottomTabBar / **Kanban（Board / Colum
 
 ## この画面: Materials —「Tasks」タブ（Kanban ボード。Desktop 1440×900・light / dark 両方）
 
-サイドバーは本流 5 セクションのうち **Materials** がアクティブ（Library アイコン）。コンテンツ最上部に Materials の header タブ行「Tasks / Notes / Daily / Tags」があり、現在は **Tasks** タブがアクティブ。この画面はその Tasks タブの中身（タスクをカンバンで運用）をデザインする。header タブ行の下は中央寄せ max-width を使わず全幅を使う（カラム群が収まるときは中央寄せ、あふれたら横スクロール）。header タブ自体の形状・アクティブ表現は共通シェルの標準に従う（水平タブ・アクティブは下線または塗りで表現）。
+サイドバーは本流 5 セクションのうち **Materials** がアクティブ（Library アイコン）。コンテンツ最上部に Materials の header タブ行「Tasks / Notes / Daily / Tags」があり、現在は **Tasks** タブがアクティブ。この画面はその Tasks タブの中身（タスクをカンバンで運用）をデザインする。header タブ行の下は中央寄せ max-width を使わず全幅を使う（カラム群が収まるときは中央寄せ、あふれたら横スクロール）。header タブ自体の形状・アクティブ表現は共通シェルの標準に従う（左寄せの水平タブ列・下端に border の薄い区切り線を全幅で引く。アクティブ = accent 色の 2px 下線 + ラベル text-primary + font-medium、非アクティブ = ラベル text-secondary・下線なし）。
 
 ### Materials 4 タブ共通の意匠（Tasks / Notes / Daily / Tags で統一・header タブ切替で行き来する）
 
@@ -1065,3 +1065,4 @@ Button / Card / Menu / Toast / Sidebar / BottomTabBar / **Kanban（Board / Colum
 - 移植先候補: shared 部品層（生成結果を見てから確定）
 - 生成デザインへのフィードバックで本 brief の §4 を更新した場合、Status と履歴を追記する
 - **v2 改訂履歴（2026-07-05）**: accent 系 hex を Lumen blue（accent `#1d4ed8` / dark `#5b8cff`・hover `#1e40af` / `#7aa2ff`・subtle `#dbeafe`・task チップ `#dbeafe` / `#1e40af`）へ同期し、共通前提を `_COMMON-CONTEXT.md` v2 へ全文差し替え。シェル構成を目標 IA（サイドバー本流 5 + ユーティリティ枠 Settings / Trash・Mobile 固定 4 タブ）へ更新。4 サブ画面を Materials セクションの header タブ 4 つとして再フレーム。旧「10 フラットセクション」前提を除去。header タブ意匠は shell brief に委譲
+- **整合監査 fix（2026-07-05・chat-frontend）**: §4.1.1 の header タブ表現を「下線または塗り」の両論併記から shell brief 定義の標準（2px accent 下線式）へ確定

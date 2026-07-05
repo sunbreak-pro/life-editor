@@ -46,23 +46,23 @@ Owner-chat: frontend
 
 全ストリームの成果物は同一形式（`_TEMPLATE.md` 準拠・`_COMMON-CONTEXT.md` **v2** 埋め込み・`IA.md` の目標構成準拠）。ファイルが互いに素なので全並列可。~~D10 terminal~~ は機能廃止決定（2026-07-05）のため作らない。
 
-> 進行状況メモ（2026-07-05 更新）: **v1 brief 5 本が main に merge 済み**（connect #136 / materials #137 / analytics #138 / work #140 / schedule #141）。機械チェックの結果 **5 本すべて v1**（v2 マーカー 0・旧 accent hex 残存・旧 10 セクション記述あり）→ v2 改訂が必要。settings は成果物が未 commit だったため本ブランチで salvage（v1 のまま・§6 に resync 自己注記あり）。**残作業 10 本（v2 改訂 ×6 / 新規 D7〜D9 / terminal docs 整理）は work-order 方式へ移行**（§Work Orders 参照 — 計画書 + 作業 slug の指定だけでセッションがゴールまで自律実行）。**本 PR（#142）merge 後に全オーダー起動可**。
+> 進行状況メモ（2026-07-05 再更新・第 2 波後）: work-order **10 オーダー中 9 本が merge 済み**（schedule #144 / auth #145 / terminal-docs #147 / trash #148 / materials #149 / settings #150 / analytics #151 / work #152 / shell #153。Terminal code 除去 Issue #146 起票済み）。**design-connect-v2 のみ第 2 波で未実行**（最終整合監査 C1: connect.md が v1 のまま = 旧 hex 9 行 + 旧 10 セクション指示）→ ユーザーが再起動済み・PR 待ち。監査の残指摘（M1: analytics タブピルが shell 下線標準と矛盾 / M2: analytics Status 昇格漏れ / m1: schedule・materials の「下線 or 塗り」両論併記）は audit-fixes ブランチで修正済み。監査レポート = `.claude/reports/2026-07-05-fanout-final-audit.md`（git 非追跡・md 正本）。
 
 ---
 
 ## Steps
 
-| #   | Step                                                                                             | Gate    | Acceptance                                        |
-| --- | ------------------------------------------------------------------------------------------------ | ------- | ------------------------------------------------- |
-| 0   | 統一基盤作成（README + \_TEMPLATE + \_COMMON-CONTEXT + 本計画）                                  | 🤖 自律 | ✅ PR #134 merged（`53ae40fc`）                   |
-| 1   | **IA 決定**（サイドバー 6+2 / header タブ / Mobile 固定 4 タブ）→ `IA.md` 正本化                 | 👀 目視 | ✅ 2026-07-05 ユーザー 3 決定・本 PR に収載       |
-| 2   | \_COMMON-CONTEXT **v2** 化（accent を PR #135 に同期 + シェル構成を目標 IA へ差し替え）          | 🤖 自律 | ✅ 本 PR に収載                                   |
-| 3   | work-order fan-out（v2 改訂 ×6 + 新規 ×3 + terminal docs ×1 — §Work Orders の方式）              | 🤖 自律 | 各 brief が \_TEMPLATE §5 の AC 全充足            |
-| 4   | orchestrator 整合監査 + **v1 埋め込み brief の v2 改訂指示**（旧 hex・旧 10 セクション記述検出） | 🤖 自律 | 監査レポート Critical 0・全 brief が v2 / IA 準拠 |
-| 5   | brief PR merge ×9                                                                                | 🛑 人手 | 9 PR merged                                       |
-| 6   | ユーザーが ClaudeDesign へプロンプト投入・デザイン生成                                           | 🛑 人手 | 9 brief × desktop/mobile × light/dark 生成        |
-| 7   | 生成デザインの目視レビュー → brief §4 を iterate                                                 | 👀 目視 | ユーザー OK                                       |
-| 8   | （別計画）DesignSync 同期 → `shared/` 移植・IA 実装リファクタ                                    | —       | out of scope                                      |
+| #   | Step                                                                                             | Gate    | Acceptance                                                                                             |
+| --- | ------------------------------------------------------------------------------------------------ | ------- | ------------------------------------------------------------------------------------------------------ |
+| 0   | 統一基盤作成（README + \_TEMPLATE + \_COMMON-CONTEXT + 本計画）                                  | 🤖 自律 | ✅ PR #134 merged（`53ae40fc`）                                                                        |
+| 1   | **IA 決定**（サイドバー 6+2 / header タブ / Mobile 固定 4 タブ）→ `IA.md` 正本化                 | 👀 目視 | ✅ 2026-07-05 ユーザー 3 決定・本 PR に収載                                                            |
+| 2   | \_COMMON-CONTEXT **v2** 化（accent を PR #135 に同期 + シェル構成を目標 IA へ差し替え）          | 🤖 自律 | ✅ 本 PR に収載                                                                                        |
+| 3   | work-order fan-out（v2 改訂 ×6 + 新規 ×3 + terminal docs ×1 — §Work Orders の方式）              | 🤖 自律 | 🔄 9/10 完走（connect-v2 のみ未実行 → 再走中）                                                         |
+| 4   | orchestrator 整合監査 + **v1 埋め込み brief の v2 改訂指示**（旧 hex・旧 10 セクション記述検出） | 🤖 自律 | ✅ 2026-07-05 監査済（C1 = connect 再走 / M1・M2・m1 = audit-fixes PR で修正 / m2 = ユーザー判断待ち） |
+| 5   | brief PR merge ×9                                                                                | 🛑 人手 | 🔄 8/9 merged（connect-v2 待ち）+ terminal-docs #147                                                   |
+| 6   | ユーザーが ClaudeDesign へプロンプト投入・デザイン生成                                           | 🛑 人手 | 9 brief × desktop/mobile × light/dark 生成                                                             |
+| 7   | 生成デザインの目視レビュー → brief §4 を iterate                                                 | 👀 目視 | ユーザー OK                                                                                            |
+| 8   | （別計画）DesignSync 同期 → `shared/` 移植・IA 実装リファクタ                                    | —       | out of scope                                                                                           |
 
 ---
 
@@ -224,3 +224,4 @@ grep -icE "#1f4fff|#1a42d9|#e1e6fb|#5b82ff|#7596ff|#e3e7ff|#2330b0" .claude/docs
 - 2026-07-05: 教訓: 同一 worktree での複数 design セッション運用により、brief の他ブランチ混入・計画 commit の迷子が発生（Risks に追記）。以後の起動は 1 chat = 1 worktree = 1 branch を推奨。
 - 2026-07-05（続）: fan-out 第 1 波の全 PR merge 完了（#136〜#141）。機械チェックで v1 brief 5 本の v2 改訂要を確認し、改訂プロンプト D1'〜D6' + terminal 廃止 docs 整理プロンプトを発行。settings brief（305 行・完成品だが未 commit）と design セッション 4 本ぶんの tracker 記録（memory / history / outbox 計 12 ファイル）を本ブランチに salvage。frontend worktree の迷子複製（schedule / work / materials = main と同一）は掃除。
 - 2026-07-05（続 2）: ユーザー要望「計画書 + 作業名の指定だけでセッションがゴールまで働く形」を受け、**work-order 方式へ改定**。Appendix の貼り付けプロンプト群を廃し、§Work Orders（共通プロトコル + v2 改訂共通手順 + 作業レジストリ 10 slug + オーダー詳細）に集約。worktree / ブランチ / セッション標識を 1 コマンドで用意する起動スクリプト `.claude/scripts/design-work.sh` を追加（slug 規約: worktree = `.claude/worktrees/<slug>`・branch = `claude/<slug>`・session-name = `<slug>`）。全オーダーは PR #142 merge 後に起動可。
+- 2026-07-05（続 3）: 第 2 波完了 — work-order 9 本が完走・merge（#144〜#153。Terminal code 除去 Issue #146 起票込み）。orchestrator 最終整合監査で **design-connect-v2 の未実行**（C1・PR もブランチも不存在）を検出 → ユーザーが再起動。残指摘 M1（analytics のタブピルが shell 下線標準と矛盾）/ M2（analytics Status=Draft 昇格漏れ）/ m1（schedule・materials の「下線 or 塗り」両論併記）を audit-fixes ブランチで一括修正。m2（settings のショートカット例が旧ナビ語彙 = 現行実装準拠）はユーザー判断待ちで保留。あわせて ClaudeDesign へのファイル受け渡し調査を実施（本命 = GitHub リポジトリのデザインシステムインポート / 次点 = DesignSync 直接アップロード・要 /design-login / .md チャット添付は要実測）。
