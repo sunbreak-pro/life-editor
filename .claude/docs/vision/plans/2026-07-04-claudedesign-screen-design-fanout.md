@@ -46,7 +46,7 @@ Owner-chat: frontend
 
 全ストリームの成果物は同一形式（`_TEMPLATE.md` 準拠・`_COMMON-CONTEXT.md` **v2** 埋め込み・`IA.md` の目標構成準拠）。ファイルが互いに素なので全並列可。~~D10 terminal~~ は機能廃止決定（2026-07-05）のため作らない。
 
-> 進行状況メモ（2026-07-05 時点）: D1〜D6 は **v1 プロンプト（IA 決定前・旧 accent hex）で起動済み**。生成済み / 作成中の brief は Step 4 の監査で v2 準拠（IA 構成 + 新 accent hex + \_COMMON-CONTEXT v2 全文）へ改訂指示する。
+> 進行状況メモ（2026-07-05 更新）: **v1 brief 5 本が main に merge 済み**（connect #136 / materials #137 / analytics #138 / work #140 / schedule #141）。機械チェックの結果 **5 本すべて v1**（v2 マーカー 0・旧 accent hex 残存・旧 10 セクション記述あり）→ v2 改訂が必要。settings は成果物が未 commit だったため本ブランチで salvage（v1 のまま・§6 に resync 自己注記あり）。**残作業 10 本（v2 改訂 ×6 / 新規 D7〜D9 / terminal docs 整理）は work-order 方式へ移行**（§Work Orders 参照 — 計画書 + 作業 slug の指定だけでセッションがゴールまで自律実行）。**本 PR（#142）merge 後に全オーダー起動可**。
 
 ---
 
@@ -57,7 +57,7 @@ Owner-chat: frontend
 | 0   | 統一基盤作成（README + \_TEMPLATE + \_COMMON-CONTEXT + 本計画）                                  | 🤖 自律 | ✅ PR #134 merged（`53ae40fc`）                   |
 | 1   | **IA 決定**（サイドバー 6+2 / header タブ / Mobile 固定 4 タブ）→ `IA.md` 正本化                 | 👀 目視 | ✅ 2026-07-05 ユーザー 3 決定・本 PR に収載       |
 | 2   | \_COMMON-CONTEXT **v2** 化（accent を PR #135 に同期 + シェル構成を目標 IA へ差し替え）          | 🤖 自律 | ✅ 本 PR に収載                                   |
-| 3   | 9 セッション fan-out（D1〜D6 = v1 起動済み / D7〜D9 = 本 PR merge 後に起動）                     | 🤖 自律 | 各 brief が \_TEMPLATE §5 の AC 全充足            |
+| 3   | work-order fan-out（v2 改訂 ×6 + 新規 ×3 + terminal docs ×1 — §Work Orders の方式）              | 🤖 自律 | 各 brief が \_TEMPLATE §5 の AC 全充足            |
 | 4   | orchestrator 整合監査 + **v1 埋め込み brief の v2 改訂指示**（旧 hex・旧 10 セクション記述検出） | 🤖 自律 | 監査レポート Critical 0・全 brief が v2 / IA 準拠 |
 | 5   | brief PR merge ×9                                                                                | 🛑 人手 | 9 PR merged                                       |
 | 6   | ユーザーが ClaudeDesign へプロンプト投入・デザイン生成                                           | 🛑 人手 | 9 brief × desktop/mobile × light/dark 生成        |
@@ -100,134 +100,119 @@ Owner-chat: frontend
 
 ---
 
-## Appendix: 各セッション起動プロンプト（貼り付け用）
+## Work Orders（作業オーダー — 計画書 + slug 指定で起動）
 
-> 共通ルール: 各セッションはドキュメント作成のみ（コード変更なし）。**1 セッション = 1 worktree = 1 ブランチ**で開始し（`git worktree add` → `cd` → `echo <branch> > .claude/comm/.session-branch` → `claude`）、`.claude/comm/.session-name` に `design-<section>` を宣言する。
-> **v2 共通必読**: 全セッションは `_COMMON-CONTEXT.md`（v2）に加えて **`.claude/docs/design/IA.md`（目標ナビ構成の正本）** を必読とし、現行実装ではなく IA の目標構成に向けてデザインする。
-> 並行ストリームは D1〜D9 の全 brief。**briefs/ 配下の自分以外のファイルに触れない**ルールは全セッション共通。
-> ⚠️ D1〜D6 の下記プロンプトは初版（v1・IA 決定前）の記録。**未起動 / 再起動時は「v2 共通必読」を必ず追加**し、\_COMMON-CONTEXT は v2 を埋め込むこと。
+> 2026-07-05 改定: 長大な貼り付けプロンプト方式を廃止。各セッションは**本節の共通プロトコル + 自分のオーダー**を読んでゴール（draft PR）まで自律実行する。v1 起動時の初版プロンプトは git 履歴（PR #134 / #139 時点の本ファイル）参照。
 
-### D1: schedule（v1 で起動済み）
+### 起動手順（ユーザー）
 
-```text
-あなたは sunbreak-pro/life-editor の新規セッションです。ドキュメント作成タスク（コード変更なし）。
-最初に `.claude/comm/.session-name` に `design-schedule` を宣言してください。
+1. メインリポジトリで起動スクリプトを実行する（worktree / ブランチ / セッション標識を規約どおり自動作成）:
 
-【ゴール】Schedule 画面（desktop + mobile）の ClaudeDesign 用デザイン brief を 1 ファイル完成させる
-【成果物】`.claude/docs/design/briefs/schedule.md`（作成・編集してよいのはこのファイルのみ）
-【base ブランチ】最新 origin/main を fetch して `claude/design-brief-schedule` を切る
-【必読（この順）】
- 1. `.claude/docs/design/briefs/_TEMPLATE.md`（この形式に完全準拠）
- 2. `.claude/docs/design/briefs/_COMMON-CONTEXT.md`（§4 の全プロンプト冒頭に全文埋め込み。要約禁止）
- 3. `.claude/docs/design/IA.md`（目標ナビ構成: Schedule は Calendar / Routines の header タブ）
- 4. `shared/design-system/PRINCIPLES.md` / `shared/src/styles/tokens.css`
- 5. 要件: `.claude/docs/requirements/tier-1-core.md` の「## Feature: Schedule」(L78〜)
- 6. 実装: `web/src/schedule/`（ScheduleView / ScheduleCalendarView / CalendarView）と `shared/src/components/schedule/WeekTimeGrid.tsx`
-【画面固有の押さえどころ】
- - Desktop の主役は週タイムグリッド（空スロットクリック作成・ドラッグ移動・リサイズ）
- - Routine（daily / weekdays / interval / group の頻度型）と、そこから生成される Event の関係が視覚的に分かること
- - Mobile は Consumption + Quick capture: 今日のアジェンダ表示 + 最短手数の予定追加に絞る（週グリッドは移植しない）
-【Gate】🤖 brief 作成 + draft PR まで ／ 🛑 merge・ClaudeDesign への投入はユーザー
-【禁止】他の briefs/*.md・コード・トークン・要件ドキュメントの変更。ClaudeDesign プロンプト本文にリポジトリパスを書かない（自己完結）
-【Acceptance Criteria】_TEMPLATE.md §5 のチェックリスト全充足
-【完了時】task-tracker で記録 → draft PR 作成（タイトル: docs: design brief — schedule）→ `.claude/comm/outbox/` に要約 append
-並行ストリーム（他の design-brief セッション）が走行中。briefs/ 配下の自分以外のファイルには触れない。
+```bash
+cd /Users/newlife/dev/apps/life-editor
+bash .claude/scripts/design-work.sh <slug>    # 例: design-materials-v2
 ```
 
-### D2: materials（v1 で起動済み）
+2. スクリプトの表示どおり `cd .claude/worktrees/<slug> && claude` で新規セッションを開始し、最初のメッセージに次の 1 行だけ貼る:
 
 ```text
-（初版プロンプトは PR #134 時点の本ファイル履歴を参照。再起動時は D1 と同形式で
- IA.md 必読 + _COMMON-CONTEXT v2 を前提に、Tasks(Kanban) / Notes / Daily / Tags の
- 4 header タブを 1 セクション "Materials" として統一意匠でデザインする）
+計画書 .claude/docs/vision/plans/2026-07-04-claudedesign-screen-design-fanout.md の作業オーダー <slug> をゴールまで実行してください。
 ```
 
-### D3: connect（v1 で起動済み・PR あり）／ D4: work・D5: analytics・D6: settings（v1 で起動済み）
+スクリプトを使わない場合は CLAUDE.md §7.4 の 4 ステップを手動実行する（worktree = `.claude/worktrees/<slug>`・branch = `claude/<slug>`・`.session-name` = `<slug>`）。
 
-```text
-（同上 — 初版は git 履歴参照。改訂は Step 4 監査の指示に従う）
+### セッション共通プロトコル（全オーダー必読）
+
+1. **自己確認**: SessionStart hook の identity 表示で worktree = `.claude/worktrees/<slug>` / branch = `claude/<slug>` を確認する。不一致なら作業せずユーザーに報告して停止
+2. **必読順**: 本計画書全体 → 自分のオーダー → オーダーの【必読】列挙ファイル
+3. **単一書込者**: 編集してよいのは自分のオーダーの【成果物】のみ。他の briefs/\*.md・コード・トークン・要件ドキュメントは read-only。並行セッションが多数走行中
+4. **ClaudeDesign プロンプト不変式**（design-\* オーダー共通）: brief §4 のプロンプトは自己完結（リポジトリパスを書かない）/ 冒頭に `_COMMON-CONTEXT.md` **v2** を全文埋め込み（要約禁止・見出しに「v2 / 2026-07-05」）/ ナビ前提は `IA.md` / 色は hex 直書き
+5. **完了プロトコル**: `_TEMPLATE.md` §5 AC 自己チェック（v2 改訂は下記の機械チェックも）→ task-tracker 記録 → draft PR 作成（タイトルはレジストリ記載のもの）→ 自分の outbox（`.claude/comm/outbox/chat-<slug>.md`）へ要約 append → ユーザーへ報告。**self-merge 禁止・main 直接 push 禁止**。PR diff は【成果物】+ 自分の tracker ファイルのみに保つ
+
+### v2 改訂の共通手順（design-\*-v2 オーダー共通）
+
+1. brief §4 の全プロンプト冒頭の共通前提ブロックを `_COMMON-CONTEXT.md` の **v2** に全文差し替え（要約禁止）
+2. 旧 accent 系 hex を一掃（§1〜§4 全体が対象）: `#1f4fff`→`#1d4ed8` / `#1a42d9`→`#1e40af` / `#e1e6fb`→`#dbeafe` / dark `#5b82ff`→`#5b8cff` / `#7596ff`→`#7aa2ff` / task チップ bg `#e3e7ff`→`#dbeafe`・fg `#2330b0`→`#1e40af`
+3. ナビ・タブ前提を `IA.md` の目標構成へ揃える（各オーダーの【IA 固有】参照）。旧「10 フラットセクション」前提の記述を残さない
+4. `_TEMPLATE.md` §5 の AC を再充足（自己完結 / Desktop + Mobile / light + dark / 状態網羅）
+
+完了前の機械チェック（両方 pass するまで PR を出さない）:
+
+```bash
+grep -c "v2 / 2026-07-05" .claude/docs/design/briefs/<section>.md        # 期待: 1 以上
+grep -icE "#1f4fff|#1a42d9|#e1e6fb|#5b82ff|#7596ff|#e3e7ff|#2330b0" .claude/docs/design/briefs/<section>.md || echo OK   # 期待: OK（旧 hex 0 件）
 ```
 
-### D7: shell（アプリの枠 = IA の視覚化。本 PR merge 後に起動）
+### 作業レジストリ（10 オーダー・互いに素・全並列可）
 
-```text
-あなたは sunbreak-pro/life-editor の新規セッションです。ドキュメント作成タスク（コード変更なし）。
-最初に `.claude/comm/.session-name` に `design-shell` を宣言してください。
+| slug                   | 旧 ID | 内容                                             | 成果物（これのみ編集可）      | PR タイトル                                           |
+| ---------------------- | ----- | ------------------------------------------------ | ----------------------------- | ----------------------------------------------------- |
+| `design-schedule-v2`   | D1'   | schedule brief v2 改訂                           | `briefs/schedule.md`          | docs: design brief schedule — v2 (IA + Lumen accent)  |
+| `design-materials-v2`  | D2'   | materials brief v2 改訂（改訂幅最大）            | `briefs/materials.md`         | docs: design brief materials — v2 (IA + Lumen accent) |
+| `design-connect-v2`    | D3'   | connect brief v2 改訂                            | `briefs/connect.md`           | docs: design brief connect — v2 (IA + Lumen accent)   |
+| `design-work-v2`       | D4'   | work brief v2 改訂                               | `briefs/work.md`              | docs: design brief work — v2 (IA + Lumen accent)      |
+| `design-analytics-v2`  | D5'   | analytics brief v2 改訂                          | `briefs/analytics.md`         | docs: design brief analytics — v2 (IA + Lumen accent) |
+| `design-settings-v2`   | D6'   | settings brief v2 改訂（salvage 済み v1 が前提） | `briefs/settings.md`          | docs: design brief settings — v2 (IA + Lumen accent)  |
+| `design-shell`         | D7    | シェル brief 新規（IA 視覚化 + タブ標準）        | `briefs/shell.md`             | docs: design brief — shell                            |
+| `design-auth`          | D8    | auth brief 新規                                  | `briefs/auth.md`              | docs: design brief — auth                             |
+| `design-trash`         | D9    | trash brief 新規                                 | `briefs/trash.md`             | docs: design brief — trash                            |
+| `docs-terminal-retire` | T1    | Terminal 廃止の docs 反映 + code 除去 Issue 起票 | `CLAUDE.md`・`tier-1-core.md` | docs: retire Terminal feature per 2026-07-05 decision |
 
-【ゴール】アプリシェル（全画面共通の枠。desktop + mobile）の ClaudeDesign 用デザイン brief を 1 ファイル完成させる。
-このシェルは 2026-07-05 決定の目標 IA（ナビ構成）を初めて視覚化するもので、他の全 brief が参照する基準になる
-【成果物】`.claude/docs/design/briefs/shell.md`（作成・編集してよいのはこのファイルのみ）
-【base ブランチ】最新 origin/main を fetch して `claude/design-brief-shell` を切る
-【必読（この順）】
- 1. `.claude/docs/design/IA.md`（**最重要**: サイドバー本流 5 = Schedule / Materials / Connect / Work / Analytics + 下部ユーティリティ枠 = Settings / Trash + フッター ⌘K / user / SignOut。Mobile 固定 4 タブ + More）
- 2. `.claude/docs/design/briefs/_TEMPLATE.md` / 3. `_COMMON-CONTEXT.md`（v2。全プロンプト冒頭に全文埋め込み。要約禁止）
- 4. `shared/design-system/PRINCIPLES.md` / `shared/src/styles/tokens.css`
- 5. 実装: `shared/src/components/` の AppShell.tsx（wideQuery 768px・fluidContent）/ SidebarNav.tsx（展開 240px・折畳 64px）/ NavItem.tsx / BottomTabBar.tsx / BottomSheet.tsx / CommandPalette.tsx / Toast.tsx と、`web/src/MainScreen.tsx`・`web/src/components/OfflineBanner.tsx`
-【画面固有の押さえどころ】
- - Desktop: IA どおりの 6+2 サイドバー（本流とユーティリティ枠の視覚分離・折畳 64px 時のアイコンのみ表示・ブランドヘッダ）
- - **header タブの標準意匠を定義する**（タブ形状・アクティブ表現・件数バッジ有無）。例として Materials の 4 タブを載せる。他 brief はこの定義を参照する
- - Mobile: 下部タブバー = Schedule / Materials / Work / Analytics + More（ボトムシートに Connect / Settings / Trash。safe-area 対応）
- - 横断オーバーレイ: CommandPalette（⌘K・セクション移動）/ Toast スタック位置 / OfflineBanner（オフライン時の帯）
- - 中身（各セクション画面）はダミーのプレースホルダで良い。**この brief の主役は枠と header タブの標準**
-【Gate】🤖 brief 作成 + draft PR まで ／ 🛑 merge・ClaudeDesign への投入はユーザー
-【禁止】他の briefs/*.md・コード・トークン・要件ドキュメントの変更。プロンプト本文にリポジトリパスを書かない（自己完結）
-【Acceptance Criteria】_TEMPLATE.md §5 全充足 + IA.md との完全一致
-【完了時】task-tracker で記録 → draft PR 作成（タイトル: docs: design brief — shell）→ `.claude/comm/outbox/` に要約 append
-並行ストリーム（他の design-brief セッション）が走行中。briefs/ 配下の自分以外のファイルには触れない。
-```
+（briefs のパスは `.claude/docs/design/briefs/`。全オーダーはドキュメントのみ・コード変更なし。Gate: 🤖 = draft PR まで ／ 🛑 merge・ClaudeDesign 投入はユーザー）
 
-### D8: auth（ログイン画面。本 PR merge 後に起動）
+### オーダー詳細
 
-```text
-あなたは sunbreak-pro/life-editor の新規セッションです。ドキュメント作成タスク（コード変更なし）。
-最初に `.claude/comm/.session-name` に `design-auth` を宣言してください。
+#### design-schedule-v2 / design-connect-v2 / design-work-v2 / design-analytics-v2（v2 改訂・軽量 4 本）
 
-【ゴール】ログイン / サインアップ画面（desktop + mobile）の ClaudeDesign 用デザイン brief を 1 ファイル完成させる
-【成果物】`.claude/docs/design/briefs/auth.md`（作成・編集してよいのはこのファイルのみ）
-【base ブランチ】最新 origin/main を fetch して `claude/design-brief-auth` を切る
-【必読（この順）】
- 1. `.claude/docs/design/briefs/_TEMPLATE.md` / 2. `_COMMON-CONTEXT.md`（v2。全プロンプト冒頭に全文埋め込み。要約禁止）
- 3. `.claude/docs/design/IA.md`（auth はシェル外の全画面である位置づけを確認）
- 4. `shared/design-system/PRINCIPLES.md` / `shared/src/styles/tokens.css`
- 5. 要件: `.claude/docs/requirements/tier-1-core.md` の「## Feature: Cloud Sync」(L392〜)
- 6. 実装: `web/src/AuthScreen.tsx`（Phase 1 minimal: Email + Password・signIn/signUp トグル・busy/error 状態・中央寄せカード）
-【画面固有の押さえどころ】
- - アプリの第一印象を決める画面。Lumen blue + ミント差し色のブランドを最初に見せる場だが、N=1 個人ツールなのでマーケ的な装飾は不要（ヒーロー画像・お客様の声などは入れない）
- - signIn ⇔ signUp のモード切替、入力エラー / busy（送信中）状態、パスワードマネージャ前提の autocomplete
- - Desktop / Mobile とも中央寄せカードのレスポンシブ単一で成立する画面（構造分岐は不要。その判断を brief に明記）
-【Gate】🤖 brief 作成 + draft PR まで ／ 🛑 merge・ClaudeDesign への投入はユーザー
-【禁止】他の briefs/*.md・コード・トークン・要件ドキュメントの変更。プロンプト本文にリポジトリパスを書かない
-【Acceptance Criteria】_TEMPLATE.md §5 全充足
-【完了時】task-tracker で記録 → draft PR 作成（タイトル: docs: design brief — auth）→ `.claude/comm/outbox/` に要約 append
-並行ストリーム（他の design-brief セッション）が走行中。briefs/ 配下の自分以外のファイルには触れない。
-```
+【手順】= 上記「v2 改訂の共通手順」のみ。差分は【IA 固有】:
 
-### D9: trash（ゴミ箱。本 PR merge 後に起動）
+- **schedule**: Schedule = Calendar（週グリッド）/ Routines の header タブ構成。カレンダー台帳管理（現 CalendarView）の置き場（第 3 タブ or Routines 内）の提案を §3 に含める
+- **connect**: Connect は本流 5 セクションの一つ。Graph 主タブ + Backlinks（独立タブ or 選択ノード時サイドパネルの提案は維持可）
+- **work**: Work はタブなし単画面。シェル記述はサイドバー本流 5 + ユーティリティ枠の目標構成で書く
+- **analytics**: 4 タブ（Overview / Tasks / Work / Schedule）は維持。シェル記述のみ目標 IA へ。グラフのカテゴリ 10 色（テーマ固定）は変更なし
 
-```text
-あなたは sunbreak-pro/life-editor の新規セッションです。ドキュメント作成タスク（コード変更なし）。
-最初に `.claude/comm/.session-name` に `design-trash` を宣言してください。
+#### design-materials-v2（v2 改訂・最重量）
 
-【ゴール】Trash 画面（ソフトデリート復元。desktop + mobile）の ClaudeDesign 用デザイン brief を 1 ファイル完成させる
-【成果物】`.claude/docs/design/briefs/trash.md`（作成・編集してよいのはこのファイルのみ）
-【base ブランチ】最新 origin/main を fetch して `claude/design-brief-trash` を切る
-【必読（この順）】
- 1. `.claude/docs/design/briefs/_TEMPLATE.md` / 2. `_COMMON-CONTEXT.md`（v2。全プロンプト冒頭に全文埋め込み。要約禁止）
- 3. `.claude/docs/design/IA.md`（Trash はサイドバー最下部のユーティリティ枠 — 2026-07-05 決定）
- 4. `shared/design-system/PRINCIPLES.md` / `shared/src/styles/tokens.css`
- 5. 要件: `.claude/docs/requirements/tier-2-supporting.md` の「## Feature: Trash (ソフトデリート復元)」(L477〜)
- 6. 実装: `web/src/trash/TrashScreen.tsx`（5 カテゴリを並列 fetch・restore/permanentDelete 後に再取得）と `shared/src/components/TrashView.tsx`
-【画面固有の押さえどころ】
- - 5 カテゴリ（tasks / notes / dailies / routines / events）のグループ表示。カテゴリごとの件数と空状態
- - 「復元」と「完全削除」の非対称な危険度: 完全削除は danger 色 + 確認ステップ、復元は主導線。busy（連打防止）状態あり
- - ユーティリティ枠の画面として控えめ・実務的なトーン（本流セクションほどの visual weight を持たせない）
- - Mobile は Consumption + 復元操作のみで成立する単純リスト（レスポンシブ単一で良い判断を明記）
-【Gate】🤖 brief 作成 + draft PR まで ／ 🛑 merge・ClaudeDesign への投入はユーザー
-【禁止】他の briefs/*.md・コード・トークン・要件ドキュメントの変更。プロンプト本文にリポジトリパスを書かない
-【Acceptance Criteria】_TEMPLATE.md §5 全充足
-【完了時】task-tracker で記録 → draft PR 作成（タイトル: docs: design brief — trash）→ `.claude/comm/outbox/` に要約 append
-並行ストリーム（他の design-brief セッション）が走行中。briefs/ 配下の自分以外のファイルには触れない。
-```
+【手順】= v2 改訂の共通手順 + 構成の再編:
+
+- Tasks / Notes / Daily / Tags は独立 4 セクションではなく **Materials 1 セクションの header タブ 4 つ**（IA 決定①）。タブ切替を前提に §4 各プロンプトの画面説明を再構成する
+- 4 タブ間の統一意匠（新規作成導線・リスト密度・空状態の扱い）を §3 に明記する
+
+#### design-settings-v2（v2 改訂・salvage 前提）
+
+- 前提: v1 brief は PR #142 で salvage 済み。§6 に「accent hex が旧く resync 要」の自己注記あり
+- 【手順】= v2 改訂の共通手順（§6 の注記どおり）
+- 【IA 固有】Settings はサイドバー最下部のユーティリティ枠（Trash と並置）・タブなし縦一列
+- 完了後、§6 の resync 注記を「対応済み（v2）」へ更新し Status を Ready にする
+
+#### design-shell（新規・他 brief の基準）
+
+- 【ゴール】アプリシェル（全画面共通の枠。desktop + mobile）の brief を `_TEMPLATE.md` 準拠で新規作成する。2026-07-05 決定の目標 IA を初めて視覚化し、**header タブの標準意匠（タブ形状・アクティブ表現・件数バッジ有無）を定義**する — 他の全 brief が参照する基準になる
+- 【必読（共通 + 追加）】`IA.md`（**最重要**: サイドバー本流 5 + ユーティリティ枠 Settings / Trash + フッター ⌘K / user / SignOut。Mobile 固定 4 タブ + More）/ 実装: `shared/src/components/` の AppShell.tsx（wideQuery 768px・fluidContent）・SidebarNav.tsx（展開 240px・折畳 64px）・NavItem.tsx・BottomTabBar.tsx・BottomSheet.tsx・CommandPalette.tsx・Toast.tsx、`web/src/MainScreen.tsx`・`web/src/components/OfflineBanner.tsx`
+- 【押さえどころ】Desktop = IA どおりの 6+2 サイドバー（本流とユーティリティ枠の視覚分離・折畳 64px のアイコンのみ表示・ブランドヘッダ）／ header タブ標準の例として Materials の 4 タブを載せる ／ Mobile = 下部タブ 4 + More（ボトムシートに Connect / Settings / Trash・safe-area 対応）／ 横断オーバーレイ = CommandPalette（⌘K）・Toast スタック位置・OfflineBanner ／ 中身（各セクション画面）はダミーで良い — **主役は枠と header タブの標準**
+- 【AC 追加】`IA.md` との完全一致
+
+#### design-auth（新規）
+
+- 【ゴール】ログイン / サインアップ画面（シェル外・未ログイン時の入口。desktop + mobile）の brief を `_TEMPLATE.md` 準拠で新規作成する
+- 【必読（共通 + 追加）】`IA.md`（auth はシェル外の位置づけ）/ 要件: `tier-1-core.md` の「## Feature: Cloud Sync」/ 実装: `web/src/AuthScreen.tsx`（Phase 1 minimal: Email + Password・signIn/signUp トグル・busy/error 状態・中央寄せカード）
+- 【押さえどころ】アプリの第一印象を決める画面。Lumen blue + ミント差し色を最初に見せる場だが、N=1 個人ツールなのでマーケ的装飾（ヒーロー画像等)は不要 ／ signIn ⇔ signUp 切替・入力エラー・busy 状態・パスワードマネージャ前提の autocomplete ／ Desktop / Mobile とも中央寄せカードのレスポンシブ単一で成立（構造分岐不要の判断を brief に明記）
+
+#### design-trash（新規）
+
+- 【ゴール】Trash 画面（ソフトデリート復元。desktop + mobile）の brief を `_TEMPLATE.md` 準拠で新規作成する
+- 【必読（共通 + 追加）】`IA.md`（Trash はサイドバー最下部のユーティリティ枠）/ 要件: `tier-2-supporting.md` の「## Feature: Trash (ソフトデリート復元)」/ 実装: `web/src/trash/TrashScreen.tsx`（5 カテゴリを並列 fetch・restore/permanentDelete 後に再取得）・`shared/src/components/TrashView.tsx`
+- 【押さえどころ】5 カテゴリ（tasks / notes / dailies / routines / events）のグループ表示・件数・空状態 ／「復元」= 主導線・「完全削除」= danger 色 + 確認ステップの非対称な危険度・busy（連打防止）／ ユーティリティ枠らしく控えめ・実務的なトーン（本流セクションほどの visual weight を持たせない）／ Mobile はレスポンシブ単一の単純リストで良い判断を明記
+
+#### docs-terminal-retire（docs 整理・brief ではない）
+
+- 【ゴール】Terminal 機能廃止（2026-07-05 ユーザー決定）をドキュメントへ反映する。コード変更なし
+- 【成果物】`.claude/CLAUDE.md` と `.claude/docs/requirements/tier-1-core.md` の 2 ファイルのみ
+  - CLAUDE.md: §2（Terminal 記述の除去。**MCP Server は存続** — 接続経路の記述を調整）/ §5（アプリ内ターミナル起動の記述を削除 or 置換）/ §8 Tier-1 の Terminal（機能数 7→6・退役注記）
+  - tier-1-core.md: 「## Feature: Terminal + Claude Code 起動」に Status: RETIRED (2026-07-05) を付す（本文は履歴として保持）
+  - `IA.md` との整合を確認（廃止記述が既にあるため変更不要のはず）
+- 【あわせて】コード側の除去（`SectionId` の "terminal"・shortcut 除外リスト・i18n の terminal 文言。FROZEN の frontend/ は対象外）は本オーダーでは実施せず、`gh issue create -R sunbreak-pro/life-editor` で起票する（対象ファイル一覧と DoD を明記・label は既存 `type:*` から選択）
+- 【注意】「MCP も廃止」と誤読される記述にしないこと
 
 ---
 
@@ -237,3 +222,5 @@ Owner-chat: frontend
 - 2026-07-05: PR #134 merge（`53ae40fc`）。直後に PR #135（`ink-*` → `lumen-*` rename + **accent を Lumen blue `#1d4ed8` へ変更**）が merge され、\_COMMON-CONTEXT v1 の accent 系 hex（`#1f4fff` 等）と「ink-\*」記述が旧化。
 - 2026-07-05: ユーザー決定で **IA ファースト**化（①サイドバー 6 セクション集約 ②Trash はユーティリティ枠 ③Mobile 固定 4 タブ = Schedule / Materials / Work / Analytics）→ `IA.md` 正本化。D7 shell / D8 auth / D9 trash を追加。**D10 terminal は機能廃止決定のため対象外**（一時 D10 として起案した 2f7b3c8e は破棄）。\_COMMON-CONTEXT を v2 化（accent 同期 + 目標シェル構成）。D1〜D6 は v1 プロンプトで起動済みのため Step 4 監査で v2 準拠へ改訂指示する。
 - 2026-07-05: 教訓: 同一 worktree での複数 design セッション運用により、brief の他ブランチ混入・計画 commit の迷子が発生（Risks に追記）。以後の起動は 1 chat = 1 worktree = 1 branch を推奨。
+- 2026-07-05（続）: fan-out 第 1 波の全 PR merge 完了（#136〜#141）。機械チェックで v1 brief 5 本の v2 改訂要を確認し、改訂プロンプト D1'〜D6' + terminal 廃止 docs 整理プロンプトを発行。settings brief（305 行・完成品だが未 commit）と design セッション 4 本ぶんの tracker 記録（memory / history / outbox 計 12 ファイル）を本ブランチに salvage。frontend worktree の迷子複製（schedule / work / materials = main と同一）は掃除。
+- 2026-07-05（続 2）: ユーザー要望「計画書 + 作業名の指定だけでセッションがゴールまで働く形」を受け、**work-order 方式へ改定**。Appendix の貼り付けプロンプト群を廃し、§Work Orders（共通プロトコル + v2 改訂共通手順 + 作業レジストリ 10 slug + オーダー詳細）に集約。worktree / ブランチ / セッション標識を 1 コマンドで用意する起動スクリプト `.claude/scripts/design-work.sh` を追加（slug 規約: worktree = `.claude/worktrees/<slug>`・branch = `claude/<slug>`・session-name = `<slug>`）。全オーダーは PR #142 merge 後に起動可。
