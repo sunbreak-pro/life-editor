@@ -1,5 +1,18 @@
 # HISTORY (chat-design-shell)
 
+### 2026-07-05 - shell brief QA 反映（Minor 3 件）
+
+#### 概要
+
+独立 QA（role-qa）が PASS（Critical/Major 0）。指摘された Minor 3 件をプロンプト外の散文に反映。埋め込み v2 ブロックは正本とバイト一致のまま維持。
+
+#### 変更点
+
+- **Minor-1**: 冒頭ブラーブの「サイドバー 6+2」→「本流 5 + ユーティリティ枠 2」に統一（本文・IA.md と整合）
+- **Minor-2**: §3 件数バッジの例から Trash を除去（Trash はタブなし単画面のため header タブのバッジ対象外と明記）
+- **Minor-3**: loading 状態の裏付けを両デバイスに明記（Desktop 状態バリエーションに loading フレーム追加・Mobile を任意→必須に格上げ・AC 文言を実体に整合）
+- 再チェック pass: 旧 hex 0 / プロンプト内パス 0 / §4.1・§4.2 の v2 埋め込みが正本と IDENTICAL
+
 ### 2026-07-05 - design-shell brief (shell.md) 新規作成
 
 #### 概要
