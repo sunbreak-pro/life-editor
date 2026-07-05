@@ -282,12 +282,14 @@ export function MainScreen({ session }: { session: Session }) {
       tabs={materialsTabDefs}
       activeTab={materialsTab}
       onSelect={(id) => setMaterialsTab(id as MaterialsTab)}
+      label={t("section.materials")}
     />
   ) : (
     <SegmentedControl
       options={materialsTabDefs}
       value={materialsTab}
       onChange={(id) => setMaterialsTab(id as MaterialsTab)}
+      label={t("section.materials")}
     />
   );
 

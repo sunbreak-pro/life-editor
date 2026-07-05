@@ -18,6 +18,8 @@ export interface HeaderTabsProps {
   tabs: HeaderTab[];
   activeTab: string;
   onSelect: (id: string) => void;
+  /** Already-translated accessible name for the tablist (§6.4). */
+  label?: string;
   className?: string;
 }
 
@@ -33,9 +35,13 @@ export function HeaderTabs({
   tabs,
   activeTab,
   onSelect,
+  label,
   className,
 }: HeaderTabsProps) {
   const refs = useRef<(HTMLButtonElement | null)[]>([]);
+  // Keeps the tablist keyboard-reachable when activeTab matches no tab:
+  // the first tab falls back to tabindex 0 (roving-tabindex invariant).
+  const activeIndex = tabs.findIndex((t) => t.id === activeTab);
 
   const handleKeyDown = (
     e: KeyboardEvent<HTMLButtonElement>,
@@ -43,15 +49,19 @@ export function HeaderTabs({
   ) => {
     if (e.key !== "ArrowRight" && e.key !== "ArrowLeft") return;
     e.preventDefault();
+    if (tabs.length === 0) return;
     const dir = e.key === "ArrowRight" ? 1 : -1;
     const next = (index + dir + tabs.length) % tabs.length;
+    const nextTab = tabs[next];
+    if (!nextTab) return;
     refs.current[next]?.focus();
-    onSelect(tabs[next].id);
+    onSelect(nextTab.id);
   };
 
   return (
     <div
       role="tablist"
+      aria-label={label}
       className={cn("flex gap-2 border-b border-lumen-border", className)}
     >
       {tabs.map((tab, i) => {
@@ -65,7 +75,7 @@ export function HeaderTabs({
             type="button"
             role="tab"
             aria-selected={active}
-            tabIndex={active ? 0 : -1}
+            tabIndex={active || (activeIndex === -1 && i === 0) ? 0 : -1}
             onClick={() => onSelect(tab.id)}
             onKeyDown={(e) => handleKeyDown(e, i)}
             className={cn(

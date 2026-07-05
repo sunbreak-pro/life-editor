@@ -12,6 +12,8 @@ export interface SegmentedControlProps {
   options: SegmentedOption[];
   value: string;
   onChange: (id: string) => void;
+  /** Already-translated accessible name for the tablist (§6.4). */
+  label?: string;
   className?: string;
 }
 
@@ -27,9 +29,13 @@ export function SegmentedControl({
   options,
   value,
   onChange,
+  label,
   className,
 }: SegmentedControlProps) {
   const refs = useRef<(HTMLButtonElement | null)[]>([]);
+  // Keeps the tablist keyboard-reachable when value matches no option:
+  // the first segment falls back to tabindex 0 (roving-tabindex invariant).
+  const activeIndex = options.findIndex((o) => o.id === value);
 
   const handleKeyDown = (
     e: KeyboardEvent<HTMLButtonElement>,
@@ -37,15 +43,19 @@ export function SegmentedControl({
   ) => {
     if (e.key !== "ArrowRight" && e.key !== "ArrowLeft") return;
     e.preventDefault();
+    if (options.length === 0) return;
     const dir = e.key === "ArrowRight" ? 1 : -1;
     const next = (index + dir + options.length) % options.length;
+    const nextOption = options[next];
+    if (!nextOption) return;
     refs.current[next]?.focus();
-    onChange(options[next].id);
+    onChange(nextOption.id);
   };
 
   return (
     <div
       role="tablist"
+      aria-label={label}
       className={cn(
         "flex rounded-lumen-md bg-lumen-bg-secondary p-0.5",
         className,
@@ -62,7 +72,7 @@ export function SegmentedControl({
             type="button"
             role="tab"
             aria-selected={active}
-            tabIndex={active ? 0 : -1}
+            tabIndex={active || (activeIndex === -1 && i === 0) ? 0 : -1}
             onClick={() => onChange(option.id)}
             onKeyDown={(e) => handleKeyDown(e, i)}
             className={cn(
