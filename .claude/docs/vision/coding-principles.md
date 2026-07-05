@@ -130,7 +130,7 @@ grep -rn "bg-lumen-bg-[a-z]" shared/src web/src --include='*.tsx' | sort -u
 
 ## 6. UI 2 層モデル（部品層 = 全環境共通 / 画面層 = 機能別判断）
 
-クロスプラットフォーム移行（Web / Electron / Capacitor）で UI をどこまで共通化するかの恒久原則。出典: 計画書 `plans/2026-06-07-web-desktop-parity-roadmap.md`「中核設計思想」（W0 で確定）。
+クロスプラットフォーム移行（Web / Electron / Capacitor）で UI をどこまで共通化するかの恒久原則。出典: 計画書 `../../archive/2026-06-07-web-desktop-parity-roadmap.md`「中核設計思想」（W0 で確定・#154 で archive へ移動）。
 
 UI を 2 層に分け、共通化の度合いを層ごとに変える:
 
