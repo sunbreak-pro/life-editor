@@ -52,7 +52,7 @@ Branch: claude/design-schedule-v2
   - 残す: クリック作成 → 即編集の操作モデル（30 分スナップ / 60 分デフォルト）、ドラッグ移動 + 下端リサイズ、Today ボタン + 週送りシェブロン、右ペーンエディタ、日曜始まり、終日レーン、完了 = 取り消し線 + 減光、フラット寄りの密度感
   - 変える: (a) スケジュールを**全幅レイアウト**に昇格 (b) **routine = 藍 / 単発 event = 紫の色符号 + 繰り返しアイコン**で由来を可視化（色だけに頼らない） (c) now line + 今日列の薄い地色 (d) エディタに由来表示 /「この日はスキップ」/ 削除 / メモを追加 (e) **Routine 管理を縦積みから header タブ「Routines」へ昇格**（現状の 1 スクロール縦積みを解体） (f) 空・ローディング・エラー状態の設計 (g) Mobile に FAB + 最小入力シートの Quick capture
 - **使う既存部品**: Button / Card / BottomSheet（Mobile エディタ・Quick capture）/ Sheet / Menu（イベント操作・calendars モーダル）/ Toast(操作フィードバック) / Sidebar / CommandPalette / MasterDetail（Routines タブの一覧 + 編集）/ header タブの標準意匠（形状・アクティブ表現は shell brief が定義するものを参照）
-- **新規に必要な部品候補**（部品層への追加候補として列挙のみ。実装しない）: ScheduleEventBlock（routine / event / 完了の色符号 + バッジ内蔵ブロック）、NowIndicator(現在時刻ライン)、RoutineFrequencyChip（「毎日」「月・水・金」「3 日ごと」「グループ: 平日夜」表示チップ）、ScheduleQuickAddSheet（タイトル + 時刻だけの最小作成シート）、FloatingActionButton、SegmentedControl（Mobile での header タブ継承表現）
+- **新規に必要な部品候補**（部品層への追加候補として列挙のみ。実装しない）: ScheduleEventBlock（routine / event / 完了の色符号 + バッジ内蔵ブロック）、NowIndicator(現在時刻ライン)、RoutineFrequencyChip（「毎日」「月・水・金」「3 日ごと」「グループ: 平日夜」表示チップ）、ScheduleQuickAddSheet（タイトル + 時刻だけの最小作成シート）、FloatingActionButton、SegmentedControl（他セクションの Mobile header タブ継承に使う横断候補。schedule 自体は Mobile で Routines を落とすため未使用）
 
 ## 4. ClaudeDesign プロンプト
 
