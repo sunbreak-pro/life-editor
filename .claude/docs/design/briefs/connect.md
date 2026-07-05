@@ -46,7 +46,7 @@ Branch: claude/design-brief-connect
 - **現状の課題**（デザイン観点で改善したい点。これがプロンプトの「良くしたい方向」になる）:
   1. loading 状態が無く、データ到着前に「グラフが空です」が誤表示される
   2. ノード色の凡例が画面のどこにも無く、**色だけで種別を伝えている**（PRINCIPLES §3.6 の「色だけで状態を伝えない」に反する）
-  3. バックリンクが常設の右サイドバーで、未選択時はほぼ空の帯が幅 256px を占有する
+  3. （現物確認で解決済み）バックリンクは実装上すでに選択ノードがある時だけ表示される（`ConnectGraphView.tsx:77` の `backlinks.length > 0 && selectedNode` 条件）。未選択時はパネルを出さずキャンバスを広く使えている。デザインでもこの「選択時のみ表示」を踏襲する（常設サイドバーには戻さない）
   4. HUD（TopBar / 右パネル / 左下カード）が Canvas 上で衝突しがちで、階層感（影・角丸・余白）の統一が弱い
   5. 文字が 10〜13px + mono 多用で「開発者ツール」寄りの密度。閲覧の心地よさが不足
   6. リンク作成が生 ID も受ける datalist 入力頼みで、発見性が低い（玄人向け UI）
@@ -56,7 +56,7 @@ Branch: claude/design-brief-connect
 
 - **残す意匠 / 変える意匠**:
   - 残す: フルスクリーン Canvas + 浮遊 HUD という基本構造 / ノード 4 種の色符号（project = text / note = accent / daily = 藍 / tag = text-secondary）/ 左上ステータスピル + 右上アイコン群という配置 / バックリンクの「← 誰からリンクされているか」リスト
-  - 変える: loading（skeleton またはグラフ枠 + スピナー）を新設 / **種別凡例チップ（色 + アイコン + ラベル）を常設**して色依存を解消 / バックリンクは選択時に現れるパネルへ（未選択時は非表示 or 折畳）/ HUD の elevation・角丸・余白を部品語彙（Card / shadow 3 段）に統一 / リンク追加はコマンドパレット風の候補リスト表示に
+  - 変える: loading（skeleton またはグラフ枠 + スピナー）を新設 / **種別凡例チップ（色 + アイコン + ラベル）を常設**して色依存を解消 / HUD の elevation・角丸・余白を部品語彙（Card / shadow 3 段）に統一 / リンク追加はコマンドパレット風の候補リスト表示に
 - **使う既存部品**（Button / Card / Sheet / BottomSheet / Menu / Toast / Sidebar / Kanban / MasterDetail / CommandPalette 等）: Card（HUD パネル類）/ Toast（リンク編集失敗）/ BottomSheet（Mobile のノード詳細）/ CommandPalette の意匠（リンク先候補・Mobile 検索結果）/ Sidebar・下部タブはアプリシェル側
 - **新規に必要な部品候補**（部品層 `shared/src/components/` への追加候補として列挙するだけ。実装しない）:
   - `GraphLegend`（種別凡例チップ列。色 + lucide アイコン + ラベル）
@@ -72,7 +72,7 @@ Branch: claude/design-brief-connect
 ### 4.1 Desktop 用
 
 ```text
-## Life Editor — デザイン共通前提（全画面共通）
+## Life Editor — デザイン共通前提（全画面共通・v2 / 2026-07-05）
 
 ### プロダクト
 
@@ -80,45 +80,47 @@ Branch: claude/design-brief-connect
 - Web アプリ（React + Tailwind）。**Desktop（幅 768px 以上・サイドバーシェル）と Mobile（768px 未満・ボトムタブシェル）で構造ごと分岐**する
 - Desktop = 全機能。**Mobile = 閲覧（Consumption）+ 素早い記録（Quick capture）に限定**（フル機能の縮小版ではなく、責務を絞る）
 
-### アプリシェル（画面の外枠。各画面はこの内側にデザインする）
+### アプリシェル（画面の外枠。各画面はこの内側にデザインする — 2026-07-05 決定の目標構成）
 
 - Desktop: 左サイドバー（展開 240px / 折畳 64px。背景はやや沈んだ subsidebar 色）+ メインコンテンツ。メインは通常、中央寄せ max-width 768px（Connect グラフや Kanban など全幅の画面もある）
-- Mobile: 下部タブバー（先頭 4 タブ + "More" タブでボトムシート展開。safe-area inset 対応）
-- セクション構成: Tasks / Daily / Notes / Schedule / Connect / Work / Analytics / Tags / Settings / Trash（アイコンは lucide 系統: CheckSquare, CalendarDays, FileText, Clock, Network, Timer, BarChart3, Tag, Settings, Trash2）
+- サイドバー本流 5 セクション: Schedule / Materials / Connect / Work / Analytics（アイコンは lucide 系統: Clock, Library, Network, Timer, BarChart3）
+- サイドバー最下部のユーティリティ枠（本流から視覚分離）: Settings / Trash + フッター（コマンドパレット起動 ⌘K / ユーザー表示 / サインアウト）
+- 画面上部の header タブ: Materials = Tasks / Notes / Daily / Tags、Schedule = Calendar / Routines、Analytics = Overview / Tasks / Work / Schedule、Connect = Graph / Backlinks。Work / Settings / Trash はタブなし単画面
+- Mobile: 下部タブバー = **Schedule / Materials / Work / Analytics + "More"**（More はボトムシートで Connect / Settings / Trash。safe-area inset 対応）。header タブは Mobile ではセグメントコントロール等の小型表現で継承
 
-### ブランドパレット — Cobalt Ink + Mint
+### ブランドパレット — Lumen（Cobalt Ink + Mint 系譜）
 
-ほぼモノクロのコバルトグレー neutrals + 電撃コバルトの主アクセント + ライトミントの差し色。
+ほぼモノクロのコバルトグレー neutrals + Lumen blue の主アクセント + ライトミントの差し色。
 
 **Chrome / Accent / Semantic（light / dark でテーマ可変）**
 
-| 役割                                           | Light                 | Dark                  |
-| ---------------------------------------------- | --------------------- | --------------------- |
-| bg-primary（アプリ地色）                       | `#fafafa`             | `#16161a`             |
-| bg-secondary                                   | `#f1f1f3`             | `#1e1e23`             |
-| bg-subsidebar（サイドバー地）                  | `#f5f5f6`             | `#1e1e23`             |
-| surface-sunken（沈んだ面）                     | `#ececef`             | `#101013`             |
-| text-primary                                   | `#1a1a1f`             | `#f2f2f5`             |
-| text-secondary                                 | `#5c5c66`             | `#a0a0ad`             |
-| text-tertiary                                  | `#767680`             | `#74747e`             |
-| border                                         | `#e3e3e7`             | `#2e2e35`             |
-| border-strong                                  | `#cfcfd6`             | `#44444d`             |
-| accent（電撃コバルト。主ボタン・選択・リンク） | `#1f4fff`             | `#5b82ff`             |
-| accent-hover                                   | `#1a42d9`             | `#7596ff`             |
-| on-accent（accent 上の文字）                   | `#ffffff`             | `#0a1024`             |
-| accent-subtle（accent の薄塗り）               | `#e1e6fb`             | `#21273f`             |
-| hover（行ホバー等）                            | `#e8e8ec`             | `#2a2a31`             |
-| accent-secondary（ミント差し色）               | `#1fa56e`             | `#5fd1a0`             |
-| chip-mint bg / fg                              | `#daf3e7` / `#0c6f4e` | `#133024` / `#7fe0b3` |
-| success                                        | `#0f7b6c`             | `#4dab9a`             |
-| danger                                         | `#d92d20`             | `#ef4444`             |
-| info                                           | `#2563eb`             | `#60a5fa`             |
-| warning                                        | `#b45309`             | `#fbbf24`             |
+| 役割                                         | Light                 | Dark                  |
+| -------------------------------------------- | --------------------- | --------------------- |
+| bg-primary（アプリ地色）                     | `#fafafa`             | `#16161a`             |
+| bg-secondary                                 | `#f1f1f3`             | `#1e1e23`             |
+| bg-subsidebar（サイドバー地）                | `#f5f5f6`             | `#1e1e23`             |
+| surface-sunken（沈んだ面）                   | `#ececef`             | `#101013`             |
+| text-primary                                 | `#1a1a1f`             | `#f2f2f5`             |
+| text-secondary                               | `#5c5c66`             | `#a0a0ad`             |
+| text-tertiary                                | `#767680`             | `#74747e`             |
+| border                                       | `#e3e3e7`             | `#2e2e35`             |
+| border-strong                                | `#cfcfd6`             | `#44444d`             |
+| accent（Lumen blue。主ボタン・選択・リンク） | `#1d4ed8`             | `#5b8cff`             |
+| accent-hover                                 | `#1e40af`             | `#7aa2ff`             |
+| on-accent（accent 上の文字）                 | `#ffffff`             | `#0a1024`             |
+| accent-subtle（accent の薄塗り）             | `#dbeafe`             | `#21273f`             |
+| hover（行ホバー等）                          | `#e8e8ec`             | `#2a2a31`             |
+| accent-secondary（ミント差し色）             | `#1fa56e`             | `#5fd1a0`             |
+| chip-mint bg / fg                            | `#daf3e7` / `#0c6f4e` | `#133024` / `#7fe0b3` |
+| success                                      | `#0f7b6c`             | `#4dab9a`             |
+| danger                                       | `#d92d20`             | `#ef4444`             |
+| info                                         | `#2563eb`             | `#60a5fa`             |
+| warning                                      | `#b45309`             | `#fbbf24`             |
 
 **データ / 状態の符号色（light / dark 共通・テーマ固定）**
 
 - ステータスバンド: todo `#38bdf8` / progress `#eab308` / done `#10b981`（カード左端 4px バンド等）
-- エンティティ別チップ: task = コバルト系（bg `#e3e7ff` fg `#2330b0`）/ routine = 藍（bg `#ebf0fe` fg `#3b5bdb`）/ event = 紫（bg `#f3e8ff` fg `#6d28d9`）/ completed = 緑（bg `#ecfdf5` fg `#047857`）/ progress = 琥珀（bg `#fef6e0` fg `#a06b09`）
+- エンティティ別チップ: task = Lumen blue 系（bg `#dbeafe` fg `#1e40af`）/ routine = 藍（bg `#ebf0fe` fg `#3b5bdb`）/ event = 紫（bg `#f3e8ff` fg `#6d28d9`）/ completed = 緑（bg `#ecfdf5` fg `#047857`）/ progress = 琥珀（bg `#fef6e0` fg `#a06b09`）
 - グラフ カテゴリ 10 色: `#2563eb` `#22c55e` `#f59e0b` `#ef4444` `#8b5cf6` `#ec4899` `#06b6d4` `#84cc16` `#f97316` `#6366f1`
 - スケジュールブロック地: routine `#ebf0fe` / event `#f3e8ff`（border `#8b5cf6`）/ その他 `#f1f2f4`
 
@@ -193,7 +195,7 @@ Branch: claude/design-brief-connect
 ### 4.2 Mobile 用
 
 ```text
-## Life Editor — デザイン共通前提（全画面共通）
+## Life Editor — デザイン共通前提（全画面共通・v2 / 2026-07-05）
 
 ### プロダクト
 
@@ -201,45 +203,47 @@ Branch: claude/design-brief-connect
 - Web アプリ（React + Tailwind）。**Desktop（幅 768px 以上・サイドバーシェル）と Mobile（768px 未満・ボトムタブシェル）で構造ごと分岐**する
 - Desktop = 全機能。**Mobile = 閲覧（Consumption）+ 素早い記録（Quick capture）に限定**（フル機能の縮小版ではなく、責務を絞る）
 
-### アプリシェル（画面の外枠。各画面はこの内側にデザインする）
+### アプリシェル（画面の外枠。各画面はこの内側にデザインする — 2026-07-05 決定の目標構成）
 
 - Desktop: 左サイドバー（展開 240px / 折畳 64px。背景はやや沈んだ subsidebar 色）+ メインコンテンツ。メインは通常、中央寄せ max-width 768px（Connect グラフや Kanban など全幅の画面もある）
-- Mobile: 下部タブバー（先頭 4 タブ + "More" タブでボトムシート展開。safe-area inset 対応）
-- セクション構成: Tasks / Daily / Notes / Schedule / Connect / Work / Analytics / Tags / Settings / Trash（アイコンは lucide 系統: CheckSquare, CalendarDays, FileText, Clock, Network, Timer, BarChart3, Tag, Settings, Trash2）
+- サイドバー本流 5 セクション: Schedule / Materials / Connect / Work / Analytics（アイコンは lucide 系統: Clock, Library, Network, Timer, BarChart3）
+- サイドバー最下部のユーティリティ枠（本流から視覚分離）: Settings / Trash + フッター（コマンドパレット起動 ⌘K / ユーザー表示 / サインアウト）
+- 画面上部の header タブ: Materials = Tasks / Notes / Daily / Tags、Schedule = Calendar / Routines、Analytics = Overview / Tasks / Work / Schedule、Connect = Graph / Backlinks。Work / Settings / Trash はタブなし単画面
+- Mobile: 下部タブバー = **Schedule / Materials / Work / Analytics + "More"**（More はボトムシートで Connect / Settings / Trash。safe-area inset 対応）。header タブは Mobile ではセグメントコントロール等の小型表現で継承
 
-### ブランドパレット — Cobalt Ink + Mint
+### ブランドパレット — Lumen（Cobalt Ink + Mint 系譜）
 
-ほぼモノクロのコバルトグレー neutrals + 電撃コバルトの主アクセント + ライトミントの差し色。
+ほぼモノクロのコバルトグレー neutrals + Lumen blue の主アクセント + ライトミントの差し色。
 
 **Chrome / Accent / Semantic（light / dark でテーマ可変）**
 
-| 役割                                           | Light                 | Dark                  |
-| ---------------------------------------------- | --------------------- | --------------------- |
-| bg-primary（アプリ地色）                       | `#fafafa`             | `#16161a`             |
-| bg-secondary                                   | `#f1f1f3`             | `#1e1e23`             |
-| bg-subsidebar（サイドバー地）                  | `#f5f5f6`             | `#1e1e23`             |
-| surface-sunken（沈んだ面）                     | `#ececef`             | `#101013`             |
-| text-primary                                   | `#1a1a1f`             | `#f2f2f5`             |
-| text-secondary                                 | `#5c5c66`             | `#a0a0ad`             |
-| text-tertiary                                  | `#767680`             | `#74747e`             |
-| border                                         | `#e3e3e7`             | `#2e2e35`             |
-| border-strong                                  | `#cfcfd6`             | `#44444d`             |
-| accent（電撃コバルト。主ボタン・選択・リンク） | `#1f4fff`             | `#5b82ff`             |
-| accent-hover                                   | `#1a42d9`             | `#7596ff`             |
-| on-accent（accent 上の文字）                   | `#ffffff`             | `#0a1024`             |
-| accent-subtle（accent の薄塗り）               | `#e1e6fb`             | `#21273f`             |
-| hover（行ホバー等）                            | `#e8e8ec`             | `#2a2a31`             |
-| accent-secondary（ミント差し色）               | `#1fa56e`             | `#5fd1a0`             |
-| chip-mint bg / fg                              | `#daf3e7` / `#0c6f4e` | `#133024` / `#7fe0b3` |
-| success                                        | `#0f7b6c`             | `#4dab9a`             |
-| danger                                         | `#d92d20`             | `#ef4444`             |
-| info                                           | `#2563eb`             | `#60a5fa`             |
-| warning                                        | `#b45309`             | `#fbbf24`             |
+| 役割                                         | Light                 | Dark                  |
+| -------------------------------------------- | --------------------- | --------------------- |
+| bg-primary（アプリ地色）                     | `#fafafa`             | `#16161a`             |
+| bg-secondary                                 | `#f1f1f3`             | `#1e1e23`             |
+| bg-subsidebar（サイドバー地）                | `#f5f5f6`             | `#1e1e23`             |
+| surface-sunken（沈んだ面）                   | `#ececef`             | `#101013`             |
+| text-primary                                 | `#1a1a1f`             | `#f2f2f5`             |
+| text-secondary                               | `#5c5c66`             | `#a0a0ad`             |
+| text-tertiary                                | `#767680`             | `#74747e`             |
+| border                                       | `#e3e3e7`             | `#2e2e35`             |
+| border-strong                                | `#cfcfd6`             | `#44444d`             |
+| accent（Lumen blue。主ボタン・選択・リンク） | `#1d4ed8`             | `#5b8cff`             |
+| accent-hover                                 | `#1e40af`             | `#7aa2ff`             |
+| on-accent（accent 上の文字）                 | `#ffffff`             | `#0a1024`             |
+| accent-subtle（accent の薄塗り）             | `#dbeafe`             | `#21273f`             |
+| hover（行ホバー等）                          | `#e8e8ec`             | `#2a2a31`             |
+| accent-secondary（ミント差し色）             | `#1fa56e`             | `#5fd1a0`             |
+| chip-mint bg / fg                            | `#daf3e7` / `#0c6f4e` | `#133024` / `#7fe0b3` |
+| success                                      | `#0f7b6c`             | `#4dab9a`             |
+| danger                                       | `#d92d20`             | `#ef4444`             |
+| info                                         | `#2563eb`             | `#60a5fa`             |
+| warning                                      | `#b45309`             | `#fbbf24`             |
 
 **データ / 状態の符号色（light / dark 共通・テーマ固定）**
 
 - ステータスバンド: todo `#38bdf8` / progress `#eab308` / done `#10b981`（カード左端 4px バンド等）
-- エンティティ別チップ: task = コバルト系（bg `#e3e7ff` fg `#2330b0`）/ routine = 藍（bg `#ebf0fe` fg `#3b5bdb`）/ event = 紫（bg `#f3e8ff` fg `#6d28d9`）/ completed = 緑（bg `#ecfdf5` fg `#047857`）/ progress = 琥珀（bg `#fef6e0` fg `#a06b09`）
+- エンティティ別チップ: task = Lumen blue 系（bg `#dbeafe` fg `#1e40af`）/ routine = 藍（bg `#ebf0fe` fg `#3b5bdb`）/ event = 紫（bg `#f3e8ff` fg `#6d28d9`）/ completed = 緑（bg `#ecfdf5` fg `#047857`）/ progress = 琥珀（bg `#fef6e0` fg `#a06b09`）
 - グラフ カテゴリ 10 色: `#2563eb` `#22c55e` `#f59e0b` `#ef4444` `#8b5cf6` `#ec4899` `#06b6d4` `#84cc16` `#f97316` `#6366f1`
 - スケジュールブロック地: routine `#ebf0fe` / event `#f3e8ff`（border `#8b5cf6`）/ その他 `#f1f2f4`
 
