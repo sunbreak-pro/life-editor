@@ -1,9 +1,9 @@
 ---
-Status: Draft # Draft → Ready（ClaudeDesign 投入可）→ Generated（デザイン生成済み）
+Status: Ready # Draft → Ready（ClaudeDesign 投入可）→ Generated（デザイン生成済み）
 Created: 2026-07-05
 Section: work
-Owner-chat: design-work
-Branch: claude/design-brief-work
+Owner-chat: design-work-v2
+Branch: claude/design-work-v2
 ---
 
 # Design Brief: Work（ポモドーロタイマー）
@@ -54,7 +54,7 @@ Branch: claude/design-brief-work
 
 - **残す意匠**: 円形進捗リング + 中央 MM:SS の等幅大数字 / フェーズチップ / 左メイン + 右 320px の 2 カラム / Card ベースの区画 / 環境音行の「アイコントグル + スライダー + 数値」構造
 - **変える意匠**:
-  - フェーズ 3 色符号化: WORK = accent（コバルト）/ BREAK = accent-secondary（ミント）/ LONG_BREAK = 琥珀 `#f59e0b`（グラフ カテゴリ色。Analytics の長休憩符号 `--color-chart-phase-long-break` と同一で画面間一貫）
+  - フェーズ 3 色符号化: WORK = accent（Lumen blue）/ BREAK = accent-secondary（ミント）/ LONG_BREAK = 琥珀 `#f59e0b`（グラフ カテゴリ色。Analytics の長休憩符号 `--color-chart-phase-long-break` と同一で画面間一貫）
   - セッションドットインジケーター（セット内位置）+ 数値の併記
   - 一時停止中のみの ±5 分ボタン復活
   - 右パネルを「タイマー設定」「プリセット」の 2 ブロックに階層化し、稼働中は減光して主役（タイマー）を立てる
@@ -69,7 +69,7 @@ Branch: claude/design-brief-work
 ### 4.1 Desktop 用
 
 ```text
-## Life Editor — デザイン共通前提（全画面共通）
+## Life Editor — デザイン共通前提（全画面共通・v2 / 2026-07-05）
 
 ### プロダクト
 
@@ -77,15 +77,17 @@ Branch: claude/design-brief-work
 - Web アプリ（React + Tailwind）。**Desktop（幅 768px 以上・サイドバーシェル）と Mobile（768px 未満・ボトムタブシェル）で構造ごと分岐**する
 - Desktop = 全機能。**Mobile = 閲覧（Consumption）+ 素早い記録（Quick capture）に限定**（フル機能の縮小版ではなく、責務を絞る）
 
-### アプリシェル（画面の外枠。各画面はこの内側にデザインする）
+### アプリシェル（画面の外枠。各画面はこの内側にデザインする — 2026-07-05 決定の目標構成）
 
 - Desktop: 左サイドバー（展開 240px / 折畳 64px。背景はやや沈んだ subsidebar 色）+ メインコンテンツ。メインは通常、中央寄せ max-width 768px（Connect グラフや Kanban など全幅の画面もある）
-- Mobile: 下部タブバー（先頭 4 タブ + "More" タブでボトムシート展開。safe-area inset 対応）
-- セクション構成: Tasks / Daily / Notes / Schedule / Connect / Work / Analytics / Tags / Settings / Trash（アイコンは lucide 系統: CheckSquare, CalendarDays, FileText, Clock, Network, Timer, BarChart3, Tag, Settings, Trash2）
+- サイドバー本流 5 セクション: Schedule / Materials / Connect / Work / Analytics（アイコンは lucide 系統: Clock, Library, Network, Timer, BarChart3）
+- サイドバー最下部のユーティリティ枠（本流から視覚分離）: Settings / Trash + フッター（コマンドパレット起動 ⌘K / ユーザー表示 / サインアウト）
+- 画面上部の header タブ: Materials = Tasks / Notes / Daily / Tags、Schedule = Calendar / Routines、Analytics = Overview / Tasks / Work / Schedule、Connect = Graph / Backlinks。Work / Settings / Trash はタブなし単画面
+- Mobile: 下部タブバー = **Schedule / Materials / Work / Analytics + "More"**（More はボトムシートで Connect / Settings / Trash。safe-area inset 対応）。header タブは Mobile ではセグメントコントロール等の小型表現で継承
 
-### ブランドパレット — Cobalt Ink + Mint
+### ブランドパレット — Lumen（Cobalt Ink + Mint 系譜）
 
-ほぼモノクロのコバルトグレー neutrals + 電撃コバルトの主アクセント + ライトミントの差し色。
+ほぼモノクロのコバルトグレー neutrals + Lumen blue の主アクセント + ライトミントの差し色。
 
 **Chrome / Accent / Semantic（light / dark でテーマ可変）**
 
@@ -100,10 +102,10 @@ Branch: claude/design-brief-work
 | text-tertiary                                  | `#767680`             | `#74747e`             |
 | border                                         | `#e3e3e7`             | `#2e2e35`             |
 | border-strong                                  | `#cfcfd6`             | `#44444d`             |
-| accent（電撃コバルト。主ボタン・選択・リンク） | `#1f4fff`             | `#5b82ff`             |
-| accent-hover                                   | `#1a42d9`             | `#7596ff`             |
+| accent（Lumen blue。主ボタン・選択・リンク） | `#1d4ed8`             | `#5b8cff`             |
+| accent-hover                                   | `#1e40af`             | `#7aa2ff`             |
 | on-accent（accent 上の文字）                   | `#ffffff`             | `#0a1024`             |
-| accent-subtle（accent の薄塗り）               | `#e1e6fb`             | `#21273f`             |
+| accent-subtle（accent の薄塗り）               | `#dbeafe`             | `#21273f`             |
 | hover（行ホバー等）                            | `#e8e8ec`             | `#2a2a31`             |
 | accent-secondary（ミント差し色）               | `#1fa56e`             | `#5fd1a0`             |
 | chip-mint bg / fg                              | `#daf3e7` / `#0c6f4e` | `#133024` / `#7fe0b3` |
@@ -115,7 +117,7 @@ Branch: claude/design-brief-work
 **データ / 状態の符号色（light / dark 共通・テーマ固定）**
 
 - ステータスバンド: todo `#38bdf8` / progress `#eab308` / done `#10b981`（カード左端 4px バンド等）
-- エンティティ別チップ: task = コバルト系（bg `#e3e7ff` fg `#2330b0`）/ routine = 藍（bg `#ebf0fe` fg `#3b5bdb`）/ event = 紫（bg `#f3e8ff` fg `#6d28d9`）/ completed = 緑（bg `#ecfdf5` fg `#047857`）/ progress = 琥珀（bg `#fef6e0` fg `#a06b09`）
+- エンティティ別チップ: task = Lumen blue 系（bg `#dbeafe` fg `#1e40af`）/ routine = 藍（bg `#ebf0fe` fg `#3b5bdb`）/ event = 紫（bg `#f3e8ff` fg `#6d28d9`）/ completed = 緑（bg `#ecfdf5` fg `#047857`）/ progress = 琥珀（bg `#fef6e0` fg `#a06b09`）
 - グラフ カテゴリ 10 色: `#2563eb` `#22c55e` `#f59e0b` `#ef4444` `#8b5cf6` `#ec4899` `#06b6d4` `#84cc16` `#f97316` `#6366f1`
 - スケジュールブロック地: routine `#ebf0fe` / event `#f3e8ff`（border `#8b5cf6`）/ その他 `#f1f2f4`
 
@@ -158,7 +160,7 @@ Branch: claude/design-brief-work
 
 ### フェーズの視覚区別（この画面の最重要ポイント）
 
-- WORK = accent（電撃コバルト）/ BREAK = accent-secondary（ミント）/ LONG_BREAK = 琥珀 `#f59e0b`（グラフ カテゴリ 10 色の 3 番目。分析画面が長休憩をこの琥珀で符号化しており、画面間で色の意味を揃える）
+- WORK = accent（Lumen blue）/ BREAK = accent-secondary（ミント）/ LONG_BREAK = 琥珀 `#f59e0b`（グラフ カテゴリ 10 色の 3 番目。分析画面が長休憩をこの琥珀で符号化しており、画面間で色の意味を揃える）
 - 進捗リング・フェーズチップ・主ボタンの色相をフェーズに追従させ、一目で「作業中か・休憩中か・長い休憩か」が分かるようにする。ただし色だけに頼らず、フェーズチップには必ずラベル（作業 / 休憩 / 長い休憩）を書く
 - セッション進捗は 2 段構え: セット内位置のドットインジケーター（例: 4 個中 2 個塗り ●●○○）+ 「今日 2 / 4 セッション」の数値表記
 
@@ -194,7 +196,7 @@ Branch: claude/design-brief-work
 ### 4.2 Mobile 用
 
 ```text
-## Life Editor — デザイン共通前提（全画面共通）
+## Life Editor — デザイン共通前提（全画面共通・v2 / 2026-07-05）
 
 ### プロダクト
 
@@ -202,15 +204,17 @@ Branch: claude/design-brief-work
 - Web アプリ（React + Tailwind）。**Desktop（幅 768px 以上・サイドバーシェル）と Mobile（768px 未満・ボトムタブシェル）で構造ごと分岐**する
 - Desktop = 全機能。**Mobile = 閲覧（Consumption）+ 素早い記録（Quick capture）に限定**（フル機能の縮小版ではなく、責務を絞る）
 
-### アプリシェル（画面の外枠。各画面はこの内側にデザインする）
+### アプリシェル（画面の外枠。各画面はこの内側にデザインする — 2026-07-05 決定の目標構成）
 
 - Desktop: 左サイドバー（展開 240px / 折畳 64px。背景はやや沈んだ subsidebar 色）+ メインコンテンツ。メインは通常、中央寄せ max-width 768px（Connect グラフや Kanban など全幅の画面もある）
-- Mobile: 下部タブバー（先頭 4 タブ + "More" タブでボトムシート展開。safe-area inset 対応）
-- セクション構成: Tasks / Daily / Notes / Schedule / Connect / Work / Analytics / Tags / Settings / Trash（アイコンは lucide 系統: CheckSquare, CalendarDays, FileText, Clock, Network, Timer, BarChart3, Tag, Settings, Trash2）
+- サイドバー本流 5 セクション: Schedule / Materials / Connect / Work / Analytics（アイコンは lucide 系統: Clock, Library, Network, Timer, BarChart3）
+- サイドバー最下部のユーティリティ枠（本流から視覚分離）: Settings / Trash + フッター（コマンドパレット起動 ⌘K / ユーザー表示 / サインアウト）
+- 画面上部の header タブ: Materials = Tasks / Notes / Daily / Tags、Schedule = Calendar / Routines、Analytics = Overview / Tasks / Work / Schedule、Connect = Graph / Backlinks。Work / Settings / Trash はタブなし単画面
+- Mobile: 下部タブバー = **Schedule / Materials / Work / Analytics + "More"**（More はボトムシートで Connect / Settings / Trash。safe-area inset 対応）。header タブは Mobile ではセグメントコントロール等の小型表現で継承
 
-### ブランドパレット — Cobalt Ink + Mint
+### ブランドパレット — Lumen（Cobalt Ink + Mint 系譜）
 
-ほぼモノクロのコバルトグレー neutrals + 電撃コバルトの主アクセント + ライトミントの差し色。
+ほぼモノクロのコバルトグレー neutrals + Lumen blue の主アクセント + ライトミントの差し色。
 
 **Chrome / Accent / Semantic（light / dark でテーマ可変）**
 
@@ -225,10 +229,10 @@ Branch: claude/design-brief-work
 | text-tertiary                                  | `#767680`             | `#74747e`             |
 | border                                         | `#e3e3e7`             | `#2e2e35`             |
 | border-strong                                  | `#cfcfd6`             | `#44444d`             |
-| accent（電撃コバルト。主ボタン・選択・リンク） | `#1f4fff`             | `#5b82ff`             |
-| accent-hover                                   | `#1a42d9`             | `#7596ff`             |
+| accent（Lumen blue。主ボタン・選択・リンク） | `#1d4ed8`             | `#5b8cff`             |
+| accent-hover                                   | `#1e40af`             | `#7aa2ff`             |
 | on-accent（accent 上の文字）                   | `#ffffff`             | `#0a1024`             |
-| accent-subtle（accent の薄塗り）               | `#e1e6fb`             | `#21273f`             |
+| accent-subtle（accent の薄塗り）               | `#dbeafe`             | `#21273f`             |
 | hover（行ホバー等）                            | `#e8e8ec`             | `#2a2a31`             |
 | accent-secondary（ミント差し色）               | `#1fa56e`             | `#5fd1a0`             |
 | chip-mint bg / fg                              | `#daf3e7` / `#0c6f4e` | `#133024` / `#7fe0b3` |
@@ -240,7 +244,7 @@ Branch: claude/design-brief-work
 **データ / 状態の符号色（light / dark 共通・テーマ固定）**
 
 - ステータスバンド: todo `#38bdf8` / progress `#eab308` / done `#10b981`（カード左端 4px バンド等）
-- エンティティ別チップ: task = コバルト系（bg `#e3e7ff` fg `#2330b0`）/ routine = 藍（bg `#ebf0fe` fg `#3b5bdb`）/ event = 紫（bg `#f3e8ff` fg `#6d28d9`）/ completed = 緑（bg `#ecfdf5` fg `#047857`）/ progress = 琥珀（bg `#fef6e0` fg `#a06b09`）
+- エンティティ別チップ: task = Lumen blue 系（bg `#dbeafe` fg `#1e40af`）/ routine = 藍（bg `#ebf0fe` fg `#3b5bdb`）/ event = 紫（bg `#f3e8ff` fg `#6d28d9`）/ completed = 緑（bg `#ecfdf5` fg `#047857`）/ progress = 琥珀（bg `#fef6e0` fg `#a06b09`）
 - グラフ カテゴリ 10 色: `#2563eb` `#22c55e` `#f59e0b` `#ef4444` `#8b5cf6` `#ec4899` `#06b6d4` `#84cc16` `#f97316` `#6366f1`
 - スケジュールブロック地: routine `#ebf0fe` / event `#f3e8ff`（border `#8b5cf6`）/ その他 `#f1f2f4`
 
@@ -289,7 +293,7 @@ Desktop 版と同じポモドーロタイマーの Mobile 版。Mobile は「閲
 
 ### フェーズの視覚区別
 
-- WORK = accent（電撃コバルト）/ BREAK = accent-secondary（ミント）/ LONG_BREAK = 琥珀 `#f59e0b`（グラフ カテゴリ 10 色の 3 番目。分析画面の長休憩の符号色と同じ）
+- WORK = accent（Lumen blue）/ BREAK = accent-secondary（ミント）/ LONG_BREAK = 琥珀 `#f59e0b`（グラフ カテゴリ 10 色の 3 番目。分析画面の長休憩の符号色と同じ）
 - リング・フェーズチップ・主ボタンの色相をフェーズに追従させる。色だけに頼らず、チップのラベル（作業 / 休憩 / 長い休憩）で必ず明示する
 
 ### 表示データ（このサンプル値で組む）
@@ -326,4 +330,4 @@ Desktop 版と同じポモドーロタイマーの Mobile 版。Mobile は「閲
 - 分業: 生成 = claude.ai/design 側（ユーザーがプロンプト投入）/ Claude Code 側 DesignSync は同期専用 / 出荷 UI 化は `shared/src/components/` への移植（別計画）
 - 移植先候補: `shared/src/components/`（SessionDots / PhaseBadge / SessionCompletionModal の新意匠は生成結果を見てから確定）
 - 生成デザインへのフィードバックで本 brief の §4 を更新した場合、Status と履歴を追記する
-- ⚠️ **投入前の同期待ち事項（Status を Draft に留めている理由）**: `_COMMON-CONTEXT.md` のパレットが `shared/src/styles/tokens.css`（正本）の #135 Lumen blue 化（2026-07-05）より古い。ズレは 2 系統 — ① accent 系 3 値: light `#1f4fff` / `#1a42d9` / `#e1e6fb` → `#1d4ed8` / `#1e40af` / `#dbeafe`・dark `#5b82ff` / `#7596ff` → `#5b8cff` / `#7aa2ff`（dark の accent-subtle `#21273f` は不変）② task エンティティチップ: bg `#e3e7ff` fg `#2330b0` → bg `#dbeafe` fg `#1e40af`（task チップは accent ミラーのため #135 で同時更新済み）。本 brief は規約（要約・改変禁止）どおり _COMMON-CONTEXT を無改変で埋め込んでいるため、同じ旧値を含む。**ClaudeDesign 投入前に tokens.css → \_COMMON-CONTEXT.md → 各 brief の順で同期**（_COMMON-CONTEXT.md 冒頭の同期規約）してから Ready 化すること
+- ✅ **v2 同期済み（2026-07-05）**: §4 の共通前提ブロックを `_COMMON-CONTEXT.md` v2（見出し `v2 / 2026-07-05`）へ全文差し替え。accent 系 hex を PR #135 の Lumen blue 化（`tokens.css` 正本）に同期し（light accent `#1d4ed8` / hover `#1e40af` / subtle `#dbeafe`、dark accent `#5b8cff` / hover `#7aa2ff`、task チップ bg `#dbeafe` fg `#1e40af`）、旧 accent 系 hex を全廃。シェル記述を旧フラットセクション列挙から目標 IA（サイドバー本流 5 + ユーティリティ枠 Settings / Trash・Mobile 固定 4 タブ + More）へ差し替え。Status を Ready 化
