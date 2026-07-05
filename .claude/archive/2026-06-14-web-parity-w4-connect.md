@@ -1,5 +1,5 @@
 ---
-Status: Draft
+Status: COMPLETED（Superseded — w4-analytics-connect に統合実装。#154 closeout・2026-07-05）
 Created: 2026-06-14
 Branch: claude/w4-connect
 Owner-chat: w4-connect

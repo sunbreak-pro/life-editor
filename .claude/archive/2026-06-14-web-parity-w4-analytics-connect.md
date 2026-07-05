@@ -1,5 +1,5 @@
 ---
-Status: IN_PROGRESS
+Status: COMPLETED — W4 実装マージ済。UI 追跡は ClaudeDesign fan-out へ移管し archive（#154・2026-07-05）
 Created: 2026-06-14
 Branch: feat/w4-analytics-connect
 Owner-chat: main

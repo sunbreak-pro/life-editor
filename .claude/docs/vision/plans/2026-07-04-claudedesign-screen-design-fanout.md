@@ -1,5 +1,5 @@
 ---
-Status: IN_PROGRESS
+Status: IN_PROGRESS — **Web/Mobile UI の追跡正本**（旧 W-parity ロードマップ #121/#127 完了・archive 済でここへ一本化。#154・2026-07-05）
 Created: 2026-07-04
 Branch: claude/design-ia
 Owner-chat: frontend

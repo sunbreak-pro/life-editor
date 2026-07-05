@@ -1,5 +1,5 @@
 ---
-Status: In Review — Steps 1–6 完了（実装 + 機械検証 green）/ 残 Step 7 👀 目視・Step 8 🛑 merge
+Status: COMPLETED — W7 Tasks 詳細パネル実装マージ済。UI 追跡は ClaudeDesign fan-out へ移管し archive（#154・2026-07-05）
 Created: 2026-06-18
 Branch: claude/tasks-detail-panel-w7-orbhh9
 Owner-chat: tasks-detail-panel-w7

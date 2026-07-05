@@ -49,6 +49,7 @@
 - **詳細規約 = [`.claude/rules/frontend.md`](./rules/frontend.md)**（path-scoped: `frontend/src/**` / `shared/src/**` を扱う時のみ自動ロード）: Provider 順序 / Pattern A / 配置表 / デザイン規約 / IME 等の gotcha
 - 不変式の要約: `lumen-*` トークン必須（色ハードコード禁止）/ i18n は props 経由・en / ja 両 catalog / DataService はコールバック注入 / 主要 UI 背景に透明度禁止
 - **新規 UI は `shared/src/components/` に集約**（`frontend/` は FROZEN — W0 案 A → `docs/vision/coding-principles.md §6`）
+- **Web/Mobile UI デザインの追跡正本 = ClaudeDesign fan-out 計画書**（[`docs/vision/plans/2026-07-04-claudedesign-screen-design-fanout.md`](./docs/vision/plans/2026-07-04-claudedesign-screen-design-fanout.md)）。旧 W-parity ロードマップ（#121/#127）は完了・`archive/` 済でこれに一本化
 
 ## 7. Development Workflows
 
