@@ -13,4 +13,5 @@
 - **CLAUDE.md §5**: MCP 自動接続の起動導線記述を調整（起動導線だったアプリ内ターミナルは退役・再設計、MCP Server 存続を明示）
 - **CLAUDE.md §8**: Tier 1 コア 7→6、Terminal を列挙から除去し退役注記
 - **tier-1-core.md**: Feature: Terminal に `Status: ✗RETIRED (2026-07-05)` 付与（本文は履歴として保持）+ MCP Server（別 Feature・存続）ではないと明示。MCP Server Feature の依存行「Terminal（起動経路）」にも退役波及・存続注記
-- **未完（承認待ち）**: コード側 terminal 除去 Issue 起票（本文用意済み — `SectionId` / i18n en・ja / shortcut コメントが対象。FROZEN frontend/ は対象外）+ draft PR 作成。いずれも外部書き込みが auto-mode classifier にブロックされユーザー承認待ち
+- **完了**: ユーザー承認後に draft PR #147 提出・コード側 terminal 除去は Issue #146 で起票（`SectionId` / i18n en・ja / shortcut コメント対象・FROZEN frontend/ は対象外）
+- **QA フォロー（role-qa PASS）**: tier-1-core:6 の機能数に退役注記を追加（CLAUDE.md §8 の 6 との橋渡し）/ outbox の commit ハッシュ参照を PR #147 参照へ訂正 / tier-2（Theme・Shortcuts）・tier-3 の Terminal stale 参照は成果物スコープ外のため #146 の追跡へ委譲
