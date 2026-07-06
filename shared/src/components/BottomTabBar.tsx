@@ -76,7 +76,14 @@ export function BottomTabBar({
               className={tabClass(isActive)}
             >
               <span aria-hidden="true">{s.icon}</span>
-              <span className="max-w-full truncate px-1">{s.label}</span>
+              <span
+                className={cn(
+                  "max-w-full truncate px-1",
+                  isActive && "font-medium",
+                )}
+              >
+                {s.label}
+              </span>
             </button>
           );
         })}
@@ -125,7 +132,10 @@ export function BottomTabBar({
                   >
                     <span
                       aria-hidden="true"
-                      className={cn("shrink-0", isActive && "text-lumen-accent")}
+                      className={cn(
+                        "shrink-0",
+                        isActive && "text-lumen-accent",
+                      )}
                     >
                       {s.icon}
                     </span>
