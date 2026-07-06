@@ -8,11 +8,12 @@ Owner-chat: frontend (orchestrator)
 
 > 全 design brief（`briefs/*.md`）はこの**目標構成**を前提にデザインする。現行実装（web の 10 フラットセクション）とは意図的に異なる。変更時は本ファイル → `_COMMON-CONTEXT.md` → 各 brief の順で同期する。
 
-## 決定事項（2026-07-05・ユーザー承認済み 3 点）
+## 決定事項（2026-07-05・ユーザー承認済み 4 点）
 
 1. **サイドバーは 6 セクションに集約**（本流 5 + ユーティリティの Settings。Materials 内は header タブ）
 2. **Trash はサイドバー最下部のユーティリティ枠**（Settings と並置・ナビ本流から視覚分離）
 3. **Mobile の下部固定 4 タブ = Schedule / Materials / Work / Analytics**（5 個目は More → ボトムシート）
+4. **rightSidebar（詳細パネル）を全画面標準に追加**（2026-07-05 App Shell デザイン Turn 2 でユーザー指示: Desktop 全パネルに開閉アイコン / Mobile は左上ハンバーガー → drawer に同一内容。詳細 → 下記「rightSidebar」節）
 
 ## Desktop サイドバー
 
@@ -43,6 +44,15 @@ Owner-chat: frontend (orchestrator)
 - header タブは Mobile ではセグメントコントロール等の小型表現で継承（例: Materials 上部に Tasks|Notes|Daily|Tags）
 - safe-area inset 対応・タブバー込みで 390×844
 
+## rightSidebar（詳細パネル・2026-07-05 追加承認）
+
+意匠の正 = ClaudeDesign project `c73cdbf4` / `App Shell.dc.html` Turn 2（フレーム 2a-2c）。旧 frontend の `RightSidebar.tsx` + `RightSidebarContext`（portal 方式）と `ios-additions.md` G-3（Mobile ハンバーガー → 左 Drawer に同一内容）が先行事例。
+
+- **Desktop**: 全セクション画面の header タブ行右端に開閉トグル（lucide: PanelRight・28×28。open 中 = accent 文字 + accent-subtle 地）。パネル = 右端 **幅 320px（min 240px・左端 6px リサイズハンドル）** の押し込み式（overlay ではない）。背景は subsidebar 色 + 左 border、上部 48px に「詳細」ヘッダー + 閉じる X
+- **中身**: セクション文脈の詳細・補助 UI を portal する枠。生成デザインの例 = タスク選択中の `TaskDetailPanel`（タイトル / ステータス / 内容）。**セクションごとの中身の設計は各画面 brief / 実装の将来 iterate に委ねる**（本 IA はトグル・枠の標準のみ固定）
+- **Mobile**: セグメントコントロール行の左端にハンバーガー（lucide: Menu・36×36 border 付き）→ **左から幅 320px の drawer** に Desktop rightSidebar と同一内容 + 黒 30% スクリム。ナビ用 More ボトムシートとは役割分離（More = ナビ / ハンバーガー = 詳細パネル）
+- **生成デザイン未定義の補完（実装・brief 側で解決する）**: ①タブなし単画面（Work / Settings / Trash）のトグル置き場 = 画面最上部の右端（orchestrator 補完標準・v3 共通ブロックに記載）②タスク未選択などの空状態 ③drawer の safe-area 処理 ④aria 属性（生成 HTML に一切無いため実装で必須補完）⑤パレット外 hex 2 色（`#bfdbfe` スケルトンバー / `#25252b` dark カード地）は実装では既存 lumen トークンへ丸める
+
 ## セクション外の画面
 
 - **auth（ログイン / サインアップ）**: 未ログイン時の全画面。シェル外・中央寄せカード（D8）
@@ -60,5 +70,6 @@ Owner-chat: frontend (orchestrator)
 | schedule 内で 3 view が同居                   | Calendar / Routines の header タブ        |
 | trash が通常セクション                        | サイドバー下部ユーティリティ枠            |
 | terminal（SectionId のみ・web 未実装）        | 廃止                                      |
+| RightSidebar は旧 frontend のみ（web 未実装） | 全画面標準の詳細パネル + Mobile drawer    |
 
 - 実装の再編（`MainScreen.tsx` のセクション再構成・`SectionId` 整理）は**生成デザイン確定後の別計画**。本ファイルはデザイン用 SSOT であり、コード変更を伴わない

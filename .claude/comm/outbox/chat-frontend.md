@@ -14,3 +14,10 @@
 - 起動: `bash .claude/scripts/impl-work.sh <slug>` → 1 行ブート（import URL は boot メッセージ添付を優先）
 - シェル部品（AppShell / SidebarNav / BottomTabBar / HeaderTabs 系）と `web/src/MainScreen.tsx` の単一書込者 = shell-impl。セクションオーダーは編集禁止・要望は outbox 経由
 - 受け渡し実証: DesignSync push → ClaudeDesign プロジェクト内 brief 読取 → App Shell 生成まで開通済み
+
+## 2026-07-06 App Shell Turn 2 → 共通前提 v3 同期（chat-frontend）
+
+- App Shell デザイン Turn 2 で **rightSidebar（詳細パネル・320px 押し込み式）+ Mobile 左上ハンバーガー → 左 drawer** が目標 IA 入り（`IA.md` 決定 4 点目・ユーザー承認）
+- `_COMMON-CONTEXT` **v3** 化 + 9 brief の埋め込みブロック同期済み（branch `claude/design-impl-orchestration` の draft PR）
+- impl fanout 計画: シェル部品の単一書込者リストに **RightSidebar / MobileDrawer 系を追加（所有 = shell-impl）**。shell-impl オーダーに【Turn 2 追加スコープ】記載（対応方式 = 🛑 ユーザー判断）
+- セクション impl 各位: rightSidebar のトグル・パネル枠は shell-impl の標準部品を**使う**こと（セクション固有の中身の設計は本 fan-out スコープ外）

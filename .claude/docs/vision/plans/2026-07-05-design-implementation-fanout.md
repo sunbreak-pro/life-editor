@@ -57,7 +57,7 @@ bash .claude/scripts/impl-work.sh <slug>
    ```
 4. **必読順**: 本計画書全体 → 自分のオーダー詳細 → `.claude/docs/design/IA.md` → 自分の brief（`briefs/<section>.md` §3 デザイン方針・§4 意図）→ `.claude/rules/frontend.md` → オーダー記載の既存実装
 5. **実装規約（不変式）**: `lumen-*` トークン必須・**新規コンポーネントに hex 直書き禁止** / 主要コンテナ背景は完全不透明 / i18n は props 経由・en / ja 両 catalog / DataService 境界厳守（コンポーネントから直接バックエンド呼び出し禁止）/ **import したデザインとリポジトリ規約が矛盾したら規約を優先**し、差分を報告に含める
-6. **単一書込者**: シェル部品（AppShell / SidebarNav / NavItem / BottomTabBar / BottomSheet / HeaderTabs 系）と `web/src/MainScreen.tsx` の所有者は `shell-impl`。**セクションオーダーはシェル部品を編集しない** — 変更が必要なら自分の outbox に要望を append して報告
+6. **単一書込者**: シェル部品（AppShell / SidebarNav / NavItem / BottomTabBar / BottomSheet / HeaderTabs 系 / RightSidebar・MobileDrawer 系 = 2026-07-05 Turn 2 追加）と `web/src/MainScreen.tsx` の所有者は `shell-impl`。**セクションオーダーはシェル部品を編集しない** — 変更が必要なら自分の outbox に要望を append して報告
 7. **重さの采配**: lead-pipeline のティア判定に従う。重い画面（materials 等）は実装前に mini-plan（`docs/vision/plans/2026-07-05-<slug>.md`・_TEMPLATE 準拠）を作ってから着手
 8. **検証**: `cd shared && npm run build && npm run test` ／ `cd web && npm run build` が全て pass
 9. **完了プロトコル**: AC 自己チェック → task-tracker 記録 → **draft PR**（タイトルはレジストリで固定）→ 自分の outbox（`.claude/comm/outbox/chat-<slug>.md`）に要約 append → 報告。**self-merge 禁止・main 直接 push 禁止**
@@ -85,10 +85,11 @@ bash .claude/scripts/impl-work.sh <slug>
 - 【既存実装】`shared/src/components/AppShell.tsx`（wideQuery 768px）・`SidebarNav.tsx`（240px / 64px）・`NavItem.tsx`・`BottomTabBar.tsx`・`BottomSheet.tsx`・`CommandPalette.tsx`・`Toast.tsx`・`web/src/MainScreen.tsx`・`OfflineBanner.tsx`
 - 【注意】`SectionId` に terminal が残っていても触らない（Issue #146）。ナビから出さないだけに留める。サイドバー行のアクティブ表現（左端 3px accent バー + accent-subtle 地）は brief §3 の定義どおり
 - 【AC 追加】brief `briefs/shell.md` §3 の header タブ標準（2px accent 下線・件数バッジ規約）と IA.md に完全一致 / 新設部品に hex 直書きなし（`grep -E "#[0-9a-fA-F]{3,8}"` = 0）
+- 【Turn 2 追加スコープ（2026-07-05 デザイン更新・PR #160 は Turn 1 版で実装済み）】追加分 = **RightSidebar（詳細パネル。幅 320px / min 240px・左端リサイズハンドル・上部 48px「詳細」ヘッダー + 閉じる X・押し込み式）+ 開閉トグル（header タブ行右端・PanelRight。タブなし単画面は画面最上部右端）+ Mobile ハンバーガー（セグメント行左端・Menu）→ 左 drawer 320px（Desktop と同一内容 + 黒 30% スクリム）**。意匠の正 = brief §3「rightSidebar 標準」+ `App Shell.dc.html` Turn 2（フレーム 2a-2c）。実装時の必須補完: aria 付与 / タスク未選択の空状態 / drawer の safe-area / パレット外 hex 2 色（`#bfdbfe`・`#25252b`）は lumen トークンへ丸める。**対応方式（#160 に追加してから merge or #160 merge 後の follow-up）は 🛑 ユーザー判断**
 
 ### schedule-impl / connect-impl / work-impl / analytics-impl / settings-impl / trash-impl
 
-- 【ゴール】各 brief §3-§4 の意図 + import したデザインに沿って画面を実装。header タブは shell-impl が新設した HeaderTabs / SegmentedControl を**使う**（再実装しない）
+- 【ゴール】各 brief §3-§4 の意図 + import したデザインに沿って画面を実装。header タブは shell-impl が新設した HeaderTabs / SegmentedControl を**使う**（再実装しない）。rightSidebar のトグル・パネル枠・ハンバーガー drawer も shell-impl の標準部品を**使う**（セクション固有の中身の設計は本 fan-out のスコープ外 — 枠の配線まで）
 - 【既存実装】brief §2「現状 UI インベントリ」に file:line 付きで列挙済み — それを正とする
 - 【注意】analytics は ChartCard / EmptyState / DateRangePresetSelector の新設候補（brief §3）。settings のショートカット表示語彙は保留中の監査指摘 m2 — 実装時にユーザーへ 1 回確認
 
@@ -114,3 +115,4 @@ bash .claude/scripts/impl-work.sh <slug>
 ## Worklog
 
 - 2026-07-05: 計画作成（chat-frontend）。受け渡し経路の実証（DesignSync push → ClaudeDesign がプロジェクト内 brief を読んで生成）を受け、App Shell 生成物の import URL をレジストリに登録。起動スクリプト `.claude/scripts/impl-work.sh` を追加（slug の whitelist は本レジストリを grep — 二重管理なし）。
+- 2026-07-06: App Shell デザイン Turn 2（rightSidebar + Mobile ハンバーガー・2026-07-05 ユーザーフィードバック）を受け、shell-impl オーダーに【Turn 2 追加スコープ】を記載（対応方式 = 🛑 ユーザー判断）。単一書込者リストへ RightSidebar / MobileDrawer 系を追加。セクションオーダーには「rightSidebar は shell 標準部品を使う（中身はスコープ外）」を明記。brief 側の同期は design fan-out 計画 Worklog（2026-07-06）参照。

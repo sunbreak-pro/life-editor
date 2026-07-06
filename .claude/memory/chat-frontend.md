@@ -7,9 +7,9 @@
 **対象**: `.claude/docs/design/`（README / briefs/\_TEMPLATE / briefs/\_COMMON-CONTEXT）
 **計画書**: `.claude/docs/vision/plans/2026-07-04-claudedesign-screen-design-fanout.md`
 
-- 前回: 第 2 波 9 本 merge（#144〜#153）→ 最終整合監査 → 監査 fix 3 連（#156 audit-fixes / #157 connect v2 / #158 drift 注記）全 merge — **9 brief 全機械チェック合格**
-- 現在: 受け渡し経路の実証完了（DesignSync push `briefs/shell.md` → ClaudeDesign がプロジェクト内 brief を読んで App Shell 生成成功）。**実装 fan-out を work-order 化** — 計画書 `2026-07-05-design-implementation-fanout.md`（レジストリ 9 slug・shell-impl に import URL 登録済み）+ 起動スクリプト `impl-work.sh`（whitelist = レジストリ grep・二重管理なし）を draft PR 化
-- 次: 実装 fan-out PR merge → `shell-impl` 起動（最優先・他は shell merge 後）→ 画面のデザイン生成のたびに `<section>-impl` を起動。m2（settings ショートカット語彙）は settings-impl 実装時に確認。残り 8 brief の DesignSync push は必要時に実施
+- 前回: 実装 fan-out work-order 化（#159 merge）→ shell-impl 起動 → **draft PR #160**（Turn 1 版シェル実装）
+- 現在: ①PR #160 整合監査 — 静的監査は全 pass（brief §3 / IA.md 一致・hex 0・純表示・i18n 両 catalog・スコープ越境なし）。ビルド独立検証は結果回収中。②**App Shell デザイン Turn 2**（rightSidebar 詳細パネル + Mobile ハンバーガー・ユーザーフィードバック）**のドキュメント同期完了** — IA.md 決定 4 点目 / `_COMMON-CONTEXT` **v3** 化 / 9 brief 埋め込み同期（機械チェック pass: v3 = 各 2・materials 8 / v2 残 0）/ shell brief §3 rightSidebar 標準 + Status: Generated / 計画書 2 本に Turn 2 スコープ + Worklog 追記。draft PR 準備中
+- 次: v3 同期 draft PR 作成 → PR #160 監査結果 + shell-impl の Turn 2 対応方式（#160 に追加 or merge 後 follow-up = 🛑）をユーザー報告 → 残り 8 画面の生成のたびに `<section>-impl` 起動。m2（settings ショートカット語彙）は settings-impl 実装時に確認
 
 ## 直近の完了
 
