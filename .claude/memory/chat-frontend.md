@@ -7,9 +7,9 @@
 **対象**: `.claude/docs/design/`（README / briefs/\_TEMPLATE / briefs/\_COMMON-CONTEXT）
 **計画書**: `.claude/docs/vision/plans/2026-07-04-claudedesign-screen-design-fanout.md`
 
-- 前回: 実装 fan-out work-order 化（#159 merge）→ shell-impl 起動 → **draft PR #160**（Turn 1 版シェル実装）
-- 現在: ①PR #160 整合監査 — 静的監査は全 pass（brief §3 / IA.md 一致・hex 0・純表示・i18n 両 catalog・スコープ越境なし）。ビルド独立検証は結果回収中。②**App Shell デザイン Turn 2**（rightSidebar 詳細パネル + Mobile ハンバーガー・ユーザーフィードバック）**のドキュメント同期完了** — IA.md 決定 4 点目 / `_COMMON-CONTEXT` **v3** 化 / 9 brief 埋め込み同期（機械チェック pass: v3 = 各 2・materials 8 / v2 残 0）/ shell brief §3 rightSidebar 標準 + Status: Generated / 計画書 2 本に Turn 2 スコープ + Worklog 追記。draft PR 準備中
-- 次: v3 同期 draft PR 作成 → PR #160 監査結果 + shell-impl の Turn 2 対応方式（#160 に追加 or merge 後 follow-up = 🛑）をユーザー報告 → 残り 8 画面の生成のたびに `<section>-impl` 起動。m2（settings ショートカット語彙）は settings-impl 実装時に確認
+- 前回: PR #160 監査（静的 + 独立ビルド検証 全 pass）→ v3 ドキュメント同期 draft PR #161 → **両方 2026-07-06 に merge 済み**（origin/main `50db5e90`）
+- 現在: 完成版 `App Shell.dc.html` を再取得し前回 Turn 2 分析と**バイト同一**を確認（= v3 ドキュメントは完成版と一致）→ Turn 2 対応方式が follow-up に確定 → **`shell-turn2-impl` オーダー新設**（impl fanout 計画書にレジストリ行 + 詳細 + 依存更新 + 「開始時 fetch+rebase」共通プロトコル化）+ worktree `.claude/worktrees/shell-turn2-impl`（branch `claude/shell-turn2-impl`・origin/main 起点）作成 → 登録 docs の draft PR 作成中
+- 次: ユーザーが docs PR merge → shell-turn2-impl セッション起動（boot 1 行は提示済み）→ 残り 8 画面はデザイン生成のたびに `<section>-impl` 起動（セクションの依存 = shell-turn2-impl merge 後）。m2（settings ショートカット語彙）は settings-impl 実装時に確認
 
 ## 直近の完了
 

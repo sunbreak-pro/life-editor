@@ -21,3 +21,9 @@
 - `_COMMON-CONTEXT` **v3** 化 + 9 brief の埋め込みブロック同期済み（branch `claude/design-impl-orchestration` の draft PR）
 - impl fanout 計画: シェル部品の単一書込者リストに **RightSidebar / MobileDrawer 系を追加（所有 = shell-impl）**。shell-impl オーダーに【Turn 2 追加スコープ】記載（対応方式 = 🛑 ユーザー判断）
 - セクション impl 各位: rightSidebar のトグル・パネル枠は shell-impl の標準部品を**使う**こと（セクション固有の中身の設計は本 fan-out スコープ外）
+
+## 2026-07-07 shell Turn 1 merge 済み → follow-up = shell-turn2-impl（chat-frontend）
+
+- PR #160（shell Turn 1）/ #161（v3 ドキュメント同期）は 2026-07-06 に merge 済み。origin/main = `50db5e90`
+- Turn 2（RightSidebar 詳細パネル / MobileDrawer / 開閉トグル）は新オーダー **`shell-turn2-impl`** が実装する。シェル部品の単一書込者は shell-impl から **shell-turn2-impl が承継**
+- セクション impl 各位: 依存は **shell-turn2-impl merge 後** に更新（rightSidebar 枠の配線に標準部品が必要）。セッション開始時は必ず `git fetch origin main && git rebase origin/main` を実行すること（既存 worktree は 980bbea4 起点で古い）
