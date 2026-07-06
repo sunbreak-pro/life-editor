@@ -130,7 +130,7 @@ Button / Card / Menu / Toast / Sidebar / BottomTabBar / **Kanban（Board / Colum
 
 ## 4. ClaudeDesign プロンプト
 
-> 各プロンプトの冒頭に `_COMMON-CONTEXT.md`（v2）の水平線以降を全文コピー済み（要約・改変なし）。
+> 各プロンプトの冒頭に `_COMMON-CONTEXT.md`（v3）の水平線以降を全文コピー済み（要約・改変なし）。
 > プロンプトは日本語（コンポーネント名・色値は英語 / hex のまま）。本文にリポジトリパスは書かない。
 > Materials は 1 セクション・header タブ 4 つ（Tasks / Notes / Daily / Tags）。各プロンプトはサイドバー Materials アクティブ + コンテンツ最上部の 4 タブ行を含めて指示する。header タブそのものの意匠は shell brief 準拠。
 
@@ -1058,7 +1058,7 @@ Button / Card / Menu / Toast / Sidebar / BottomTabBar / **Kanban（Board / Colum
 ## 5. Acceptance Criteria（brief 自体の完成条件）
 
 - [x] §4 の全プロンプトが自己完結している（リポジトリのパス・内部参照・「上記参照」が本文に無い）
-- [x] `_COMMON-CONTEXT.md` の共通前提ブロック（**v2**）が全プロンプトの冒頭に全文埋まっている（要約・改変なし）
+- [x] `_COMMON-CONTEXT.md` の共通前提ブロック（**v3**）が全プロンプトの冒頭に全文埋まっている（要約・改変なし）
 - [x] Desktop / Mobile 両方のプロンプトがあり、フレーム仕様（1440×900 / 390×844・light / dark）が明記されている
 - [x] 通常（データあり）/ 空 / ローディング状態の指示がある（該当すればエラーも）
 - [x] 表示データが日本語の現実的なサンプルで指定されている

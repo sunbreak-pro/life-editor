@@ -126,7 +126,7 @@ bash .claude/scripts/design-work.sh <slug>    # 例: design-materials-v2
 1. **自己確認**: SessionStart hook の identity 表示で worktree = `.claude/worktrees/<slug>` / branch = `claude/<slug>` を確認する。不一致なら作業せずユーザーに報告して停止
 2. **必読順**: 本計画書全体 → 自分のオーダー → オーダーの【必読】列挙ファイル
 3. **単一書込者**: 編集してよいのは自分のオーダーの【成果物】のみ。他の briefs/\*.md・コード・トークン・要件ドキュメントは read-only。並行セッションが多数走行中
-4. **ClaudeDesign プロンプト不変式**（design-\* オーダー共通）: brief §4 のプロンプトは自己完結（リポジトリパスを書かない）/ 冒頭に `_COMMON-CONTEXT.md` **v2** を全文埋め込み（要約禁止・見出しに「v2 / 2026-07-05」）/ ナビ前提は `IA.md` / 色は hex 直書き
+4. **ClaudeDesign プロンプト不変式**（design-\* オーダー共通）: brief §4 のプロンプトは自己完結（リポジトリパスを書かない）/ 冒頭に `_COMMON-CONTEXT.md` **v3** を全文埋め込み（要約禁止・見出しに「v3 / 2026-07-05」。v2 → v3 = rightSidebar + ハンバーガー追加）/ ナビ前提は `IA.md` / 色は hex 直書き
 5. **完了プロトコル**: `_TEMPLATE.md` §5 AC 自己チェック（v2 改訂は下記の機械チェックも）→ task-tracker 記録 → draft PR 作成（タイトルはレジストリ記載のもの）→ 自分の outbox（`.claude/comm/outbox/chat-<slug>.md`）へ要約 append → ユーザーへ報告。**self-merge 禁止・main 直接 push 禁止**。PR diff は【成果物】+ 自分の tracker ファイルのみに保つ
 
 ### v2 改訂の共通手順（design-\*-v2 オーダー共通）
