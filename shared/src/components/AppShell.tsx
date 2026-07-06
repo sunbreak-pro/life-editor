@@ -14,10 +14,26 @@ export interface AppShellLabels {
   signOut: string;
   more: string;
   moreTitle: string;
+  /** Keycap hint on the sidebar ⌘K footer row (wide layout only). */
+  shortcutHint?: string;
 }
 
 export interface AppShellProps {
   sections: AppShellSection[];
+  /**
+   * Utility group (Settings / Trash). Forwarded to the wide sidebar as its
+   * bottom-pinned muted group. On the narrow layout these fold into the
+   * bottom bar's "More" overflow via `mobileSections` (default appends them
+   * after the mainline sections).
+   */
+  utilitySections?: AppShellSection[];
+  /**
+   * Explicit ordering for the narrow bottom bar (fixed tabs first, the rest
+   * overflow into "More"). Defaults to `[...sections, ...utilitySections]`
+   * so hosts that don't care get the natural order; hosts that want a
+   * different Mobile priority (e.g. surface Work before Connect) pass it.
+   */
+  mobileSections?: AppShellSection[];
   activeSection: string;
   onNavigate: (id: string) => void;
   onTogglePalette: () => void;
@@ -55,6 +71,8 @@ const SIDEBAR_COLLAPSED_KEY = "life-editor.shell.sidebar-collapsed";
  */
 export function AppShell({
   sections,
+  utilitySections,
+  mobileSections,
   activeSection,
   onNavigate,
   onTogglePalette,
@@ -72,11 +90,19 @@ export function AppShell({
     false,
   );
 
+  // Narrow bottom bar list: explicit `mobileSections` wins; otherwise the
+  // mainline sections followed by the utility group (Settings / Trash).
+  const bottomSections = mobileSections ?? [
+    ...sections,
+    ...(utilitySections ?? []),
+  ];
+
   if (isWide) {
     return (
       <div className="flex h-screen bg-lumen-bg text-lumen-text">
         <SidebarNav
           sections={sections}
+          utilitySections={utilitySections}
           activeSection={activeSection}
           onNavigate={onNavigate}
           collapsed={collapsed}
@@ -109,7 +135,7 @@ export function AppShell({
         {fluidContent ? children : <div className="px-4 py-4">{children}</div>}
       </main>
       <BottomTabBar
-        sections={sections}
+        sections={bottomSections}
         activeSection={activeSection}
         onNavigate={onNavigate}
         maxVisible={maxBottomTabs}

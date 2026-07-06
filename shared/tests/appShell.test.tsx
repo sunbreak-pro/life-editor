@@ -110,4 +110,61 @@ describe("AppShell (narrow)", () => {
     fireEvent.click(within(sheet).getByRole("button", { name: /Trash/ }));
     expect(onNavigate).toHaveBeenCalledWith("trash");
   });
+
+  it("honours an explicit mobileSections order for the fixed tabs vs More overflow", () => {
+    mockMatchMedia(false);
+    // Wide sidebar order = mainline 5 + utility 2; Mobile promotes Work /
+    // Analytics ahead of Connect (target-IA: fixed 4 = schedule/materials/
+    // work/analytics, More = connect/settings/trash).
+    const MAIN: AppShellSection[] = [
+      { id: "schedule", label: "Schedule", icon: <Dot /> },
+      { id: "materials", label: "Materials", icon: <Dot /> },
+      { id: "connect", label: "Connect", icon: <Dot /> },
+      { id: "work", label: "Work", icon: <Dot /> },
+      { id: "analytics", label: "Analytics", icon: <Dot /> },
+    ];
+    const UTILITY: AppShellSection[] = [
+      { id: "settings", label: "Settings", icon: <Dot /> },
+      { id: "trash", label: "Trash", icon: <Dot /> },
+    ];
+    const MOBILE: AppShellSection[] = [
+      MAIN[0], // schedule
+      MAIN[1], // materials
+      MAIN[3], // work
+      MAIN[4], // analytics
+      MAIN[2], // connect
+      UTILITY[0], // settings
+      UTILITY[1], // trash
+    ];
+    const onNavigate = vi.fn();
+    render(
+      <AppShell
+        sections={MAIN}
+        utilitySections={UTILITY}
+        mobileSections={MOBILE}
+        activeSection="schedule"
+        onNavigate={onNavigate}
+        onTogglePalette={vi.fn()}
+        userEmail="user@example.com"
+        onSignOut={vi.fn()}
+        labels={LABELS}
+      >
+        <p>section body</p>
+      </AppShell>,
+    );
+
+    // Fixed tabs = first 4 of mobileSections → Work is a top-level tab...
+    expect(
+      screen.getByRole("button", { name: "Analytics" }),
+    ).toBeInTheDocument();
+    // ...and Connect sank into More (not a fixed tab).
+    expect(
+      screen.queryByRole("button", { name: "Connect" }),
+    ).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "More" }));
+    const sheet = screen.getByRole("dialog", { name: "More" });
+    fireEvent.click(within(sheet).getByRole("button", { name: "Connect" }));
+    expect(onNavigate).toHaveBeenCalledWith("connect");
+  });
 });
