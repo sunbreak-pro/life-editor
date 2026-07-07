@@ -146,6 +146,8 @@ export {
   type TrashGroup,
   type TrashItem,
   type TrashCategory,
+  type TrashBusy,
+  type TrashBusyAction,
 } from "./TrashView";
 // Work / Pomodoro (W3-B) — pure timer face + task selector + settings editor.
 export {

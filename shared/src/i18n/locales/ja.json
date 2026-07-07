@@ -455,7 +455,10 @@
   },
   "trash": {
     "title": "ゴミ箱",
+    "description": "削除した項目はここから元に戻せます。自動では消えないので、不要なものは完全に削除してください。",
+    "totalCount": "全 {{count}} 件",
     "empty": "ゴミ箱は空です",
+    "emptyDescription": "削除した項目がここに表示されます。",
     "emptyCategory": "{{category}}のゴミ箱をからにする",
     "emptyCategoryConfirm": "「{{category}}」のゴミ箱を完全に空にします。{{count}} 件が完全に削除され、復元できません。実行しますか？",
     "emptyCategoryDone": "{{category}}のゴミ箱を空にしました（{{count}} 件）",
@@ -484,8 +487,14 @@
     "memo": "メモ",
     "loading": "ゴミ箱を読み込み中...",
     "error": "ゴミ箱の読み込みに失敗しました。",
+    "errorTitle": "ゴミ箱を読み込めませんでした",
+    "errorDescription": "通信に問題が発生した可能性があります。時間をおいて再度お試しください。",
+    "reload": "再読み込み",
+    "restoring": "復元中…",
+    "deleting": "削除中…",
+    "cascadeWarning": "関連する子項目やタグの割り当ても一緒に削除されます。",
     "emptyCategoryLine": "削除済みの項目はありません。",
-    "permanentDeleteConfirm": "「{{name}}」を完全に削除しますか？この操作は元に戻せません。"
+    "permanentDeleteConfirm": "「{{name}}」を完全に削除します。この操作は取り消せません。"
   },
   "updates": {
     "title": "アップデート",

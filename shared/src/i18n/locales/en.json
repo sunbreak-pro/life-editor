@@ -455,7 +455,10 @@
   },
   "trash": {
     "title": "Trash",
+    "description": "Deleted items can be restored from here. Nothing is removed automatically, so permanently delete anything you no longer need.",
+    "totalCount": "{{count}} total",
     "empty": "Trash is empty",
+    "emptyDescription": "Deleted items will appear here.",
     "emptyCategory": "Empty {{category}} trash",
     "emptyCategoryConfirm": "Permanently empty the {{category}} trash. {{count}} item(s) will be deleted forever and cannot be restored. Proceed?",
     "emptyCategoryDone": "Emptied {{category}} trash ({{count}} item(s))",
@@ -484,8 +487,14 @@
     "memo": "memo",
     "loading": "Loading trash...",
     "error": "Failed to load trash.",
+    "errorTitle": "Couldn't load the trash",
+    "errorDescription": "There may be a connection problem. Please try again in a moment.",
+    "reload": "Reload",
+    "restoring": "Restoring…",
+    "deleting": "Deleting…",
+    "cascadeWarning": "Related sub-items and tag assignments are deleted together.",
     "emptyCategoryLine": "No deleted items.",
-    "permanentDeleteConfirm": "Permanently delete \"{{name}}\"? This cannot be undone."
+    "permanentDeleteConfirm": "\"{{name}}\" will be permanently deleted. This cannot be undone."
   },
   "updates": {
     "title": "Updates",
