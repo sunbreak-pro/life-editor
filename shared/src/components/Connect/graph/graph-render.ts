@@ -32,6 +32,13 @@ export interface RenderState {
   /** search-matched ids (null = no active search) */
   searchMatchSet: Set<string> | null;
   showLabels: boolean;
+  /**
+   * Base node-radius multiplier (default 1). Injected by the host to enlarge
+   * nodes for touch on Mobile — a pure draw-scale knob; the physics/model are
+   * untouched (collision radius still uses UNIFORM_NODE_SIZE). Desktop omits it
+   * → 1 → byte-identical to the pre-Mobile render.
+   */
+  nodeSizeScale?: number;
 }
 
 export function draw(ctx: CanvasRenderingContext2D, state: RenderState): void {
@@ -46,8 +53,10 @@ export function draw(ctx: CanvasRenderingContext2D, state: RenderState): void {
     adjacency,
     searchMatchSet,
     showLabels,
+    nodeSizeScale,
   } = state;
 
+  const baseSize = UNIFORM_NODE_SIZE * (nodeSizeScale ?? 1);
   const focusId = hoveredId || selectedId;
   const highlightSet = focusId ? adjacency.get(focusId) : null;
 
@@ -93,7 +102,7 @@ export function draw(ctx: CanvasRenderingContext2D, state: RenderState): void {
     const dimmed = !!focusId && !highlighted;
     const isMatch = !!searchMatchSet?.has(n.id);
     const scale = isH || isS ? 1.5 : highlighted || isMatch ? 1.15 : 1;
-    const r = UNIFORM_NODE_SIZE * scale;
+    const r = baseSize * scale;
     const fill = nodeFill(n, palette);
 
     ctx.globalAlpha = dimmed ? 0.15 : 1;
@@ -167,8 +176,7 @@ export function draw(ctx: CanvasRenderingContext2D, state: RenderState): void {
               ? palette.text
               : palette.textSecondary;
       const r =
-        UNIFORM_NODE_SIZE *
-        (isH || isS ? 1.5 : highlighted || isMatch ? 1.15 : 1);
+        baseSize * (isH || isS ? 1.5 : highlighted || isMatch ? 1.15 : 1);
       ctx.fillText(n.label, n.x, n.y + r + 3 / k);
     }
   }

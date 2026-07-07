@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Network, Maximize2, SlidersHorizontal } from "lucide-react";
 import type { NoteNode } from "../../types/note";
 import type { DailyNode } from "../../types/daily";
 import type {
@@ -7,6 +8,7 @@ import type {
   WikiTagConnection,
 } from "../../types/wikiTagUnified";
 import { useRightSidebarOptional } from "../../hooks/useRightSidebarContext";
+import { useMediaQuery } from "../../hooks/useMediaQuery";
 import { RightSidebarPortal } from "../RightSidebarPortal";
 import { GraphCanvas } from "./GraphCanvas";
 import { ConnectHeader } from "./ConnectHeader";
@@ -15,6 +17,8 @@ import { GraphStates } from "./GraphStates";
 import { GraphControlPanel } from "./GraphControlPanel";
 import { SelectedNodeCard } from "./SelectedNodeCard";
 import { BacklinkView, type BacklinkEntry } from "./BacklinkView";
+import { NodeDetailSheet } from "./mobile/NodeDetailSheet";
+import { GraphSettingsSheet } from "./mobile/GraphSettingsSheet";
 import {
   ConnectSidebarPanel,
   type ConnectSidebarTab,
@@ -97,6 +101,12 @@ export function ConnectGraphView({
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [zoomK, setZoomK] = useState(1);
   const [sidebarTab, setSidebarTab] = useState<ConnectSidebarTab>("settings");
+  // Mobile-only: the graph-settings modal bottom sheet (shell rightSidebar is
+  // not used on Mobile — the peek sheet / settings sheet are Connect-local).
+  const [mobileSettingsOpen, setMobileSettingsOpen] = useState(false);
+  // Match the shell's wide↔narrow switch (MainScreen useMediaQuery). Fallback
+  // true (wide) so jsdom tests keep the Desktop tree.
+  const isWide = useMediaQuery("(min-width: 768px)", true);
   const apiRef = useRef<{ reheat: () => void; resetView: () => void } | null>(
     null,
   );
@@ -225,9 +235,13 @@ export function ConnectGraphView({
       }
       if ((e.metaKey || e.ctrlKey) && (e.key === "f" || e.key === "F")) {
         e.preventDefault();
-        openSidebarTab("settings");
-        // The search input mounts once the panel opens; wait two frames for
-        // the portal to attach before focusing it.
+        // Narrow: the search input lives in the Mobile settings sheet; wide:
+        // in the shell rightSidebar's settings tab. Both host the SAME
+        // GraphControlPanel (searchInputRef), so one focus call serves both.
+        if (isWide) openSidebarTab("settings");
+        else setMobileSettingsOpen(true);
+        // The search input mounts once the panel/sheet opens; wait two frames
+        // for the portal to attach before focusing it.
         requestAnimationFrame(() =>
           requestAnimationFrame(() => searchInputRef.current?.focus()),
         );
@@ -240,7 +254,7 @@ export function ConnectGraphView({
     }
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [handleSelectedIdChange, openSidebarTab]);
+  }, [handleSelectedIdChange, openSidebarTab, isWide]);
 
   // Which "no graph" overlay (if any) to show over the canvas.
   const hasNodes = snapshot.nodes.length > 0;
@@ -288,6 +302,109 @@ export function ConnectGraphView({
     />
   );
 
+  // ---- Mobile (touch) layout ----------------------------------------------
+  // No shell rightSidebar portal / zoom pill / floating card: a compact header
+  // row + horizontal legend strip + touch-sized canvas, with a non-modal peek
+  // sheet for the selected node and a modal bottom sheet for graph settings.
+  if (!isWide) {
+    const showLegend = hasNodes && !isLoading && graphState !== "nomatch";
+    return (
+      <div className="flex h-full w-full flex-col">
+        <div className="flex shrink-0 items-center gap-2 px-4 pt-1">
+          <Network size={16} className="shrink-0 text-lumen-accent" />
+          <span className="text-[16px] font-semibold text-lumen-text">
+            {labels.title}
+          </span>
+          <span className="rounded-lumen-sm bg-lumen-surface-sunken px-1.5 py-0.5 font-mono text-[10px] tabular-nums text-lumen-text-secondary">
+            {filters.filtered.nodes.length}n · {filters.filtered.links.length}e
+          </span>
+          <button
+            type="button"
+            onClick={() => apiRef.current?.resetView()}
+            aria-label={labels.fitView}
+            className="ml-auto grid h-9 w-9 shrink-0 place-items-center rounded-lumen-md border border-lumen-border bg-lumen-bg text-lumen-text-secondary hover:bg-lumen-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent"
+          >
+            <Maximize2 size={16} />
+          </button>
+          <button
+            type="button"
+            onClick={() => setMobileSettingsOpen(true)}
+            aria-label={labels.settingsTab}
+            aria-pressed={mobileSettingsOpen}
+            className={
+              "grid h-9 w-9 shrink-0 place-items-center rounded-lumen-md border focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent " +
+              (mobileSettingsOpen
+                ? "border-lumen-accent bg-lumen-accent-subtle text-lumen-accent"
+                : "border-lumen-border bg-lumen-bg text-lumen-text-secondary hover:bg-lumen-hover")
+            }
+          >
+            <SlidersHorizontal size={16} />
+          </button>
+        </div>
+
+        {showLegend && (
+          <div className="shrink-0 overflow-x-auto px-4 pt-2.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            <GraphLegend labels={labels} className="w-max" />
+          </div>
+        )}
+
+        <div className="relative min-h-0 min-w-0 flex-1">
+          <GraphCanvas
+            snapshot={filters.filtered}
+            forces={filters.forces}
+            showLabels={filters.showLabels}
+            searchMatchSet={filters.searchMatchSet}
+            selectedId={selectedId}
+            onSelectedIdChange={handleSelectedIdChange}
+            onActivate={handleActivate}
+            onApiReady={(api) => {
+              apiRef.current = api;
+            }}
+            onZoomChange={setZoomK}
+            nodeSizeScale={1.7}
+          />
+
+          {graphState && (
+            <GraphStates
+              state={graphState}
+              labels={labels}
+              query={filters.filter.search}
+              onClear={filters.clearAll}
+            />
+          )}
+
+          {selectedNode && (
+            <NodeDetailSheet
+              labels={labels}
+              node={selectedNode}
+              neighbors={neighbors}
+              backlinks={backlinks}
+              localDepth={filters.filter.localDepth}
+              onLocalDepthChange={filters.setLocalDepth}
+              onSelect={handleSelectedIdChange}
+              onClose={() => handleSelectedIdChange(null)}
+              onActivate={handleActivate}
+              linkableItems={linkableItems}
+              outgoingLinkIds={outgoingLinkIds}
+              onCreateLink={onCreateLink}
+              onDeleteLink={onDeleteLink}
+              onLinkError={onLinkError}
+            />
+          )}
+        </div>
+
+        <GraphSettingsSheet
+          open={mobileSettingsOpen}
+          onClose={() => setMobileSettingsOpen(false)}
+          title={labels.mobileSettingsTitle}
+        >
+          {settingsContent}
+        </GraphSettingsSheet>
+      </div>
+    );
+  }
+
+  // ---- Desktop layout ------------------------------------------------------
   return (
     <div className="flex h-full w-full flex-col">
       <ConnectHeader

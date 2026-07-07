@@ -16,8 +16,11 @@ export type { ConnectGraphLabels } from "./labels";
 export { buildGraphModel, backlinkSourceIds } from "./graph/buildGraphModel";
 export type { GraphModelInput } from "./graph/buildGraphModel";
 export type { BacklinkEntry, BacklinkViewLabels } from "./BacklinkView";
-// Reusable presentational parts (shared by the Desktop root above and the
-// upcoming Mobile surfaces — peek sheet / settings sheet).
+// Reusable presentational parts (shared by the Desktop root and the Mobile
+// surfaces below). The Mobile peek sheet (NodeDetailSheet) + settings sheet
+// (GraphSettingsSheet) are wired INTERNALLY by ConnectGraphView's narrow-
+// viewport branch, so they are intentionally not re-exported here — hosts only
+// ever mount <ConnectGraphView>, which picks Desktop/Mobile via useMediaQuery.
 export { GraphLegend } from "./GraphLegend";
 export { GraphStates } from "./GraphStates";
 export { ConnectSidebarPanel } from "./ConnectSidebarPanel";

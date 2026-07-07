@@ -31,6 +31,8 @@ interface GraphCanvasProps {
   /** exposes imperative actions once the canvas is ready */
   onApiReady?: (api: { reheat: () => void; resetView: () => void }) => void;
   onZoomChange?: (k: number) => void;
+  /** base node-radius multiplier (Mobile passes >1 for touch); default 1 */
+  nodeSizeScale?: number;
 }
 
 export function GraphCanvas({
@@ -43,6 +45,7 @@ export function GraphCanvas({
   onActivate,
   onApiReady,
   onZoomChange,
+  nodeSizeScale,
 }: GraphCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const wrapRef = useRef<HTMLDivElement | null>(null);
@@ -103,6 +106,7 @@ export function GraphCanvas({
     adjacency,
     searchMatchSet,
     showLabels,
+    nodeSizeScale,
   });
   useEffect(() => {
     renderStateRef.current = {
@@ -112,8 +116,17 @@ export function GraphCanvas({
       adjacency,
       searchMatchSet,
       showLabels,
+      nodeSizeScale,
     };
-  }, [palette, hoveredId, selectedId, adjacency, searchMatchSet, showLabels]);
+  }, [
+    palette,
+    hoveredId,
+    selectedId,
+    adjacency,
+    searchMatchSet,
+    showLabels,
+    nodeSizeScale,
+  ]);
 
   const { reheat } = useGraphSimulation({
     graph: workingGraph,
@@ -134,7 +147,14 @@ export function GraphCanvas({
     if (drawRef.current && (simRef.current?.alpha() ?? 0) < 0.01) {
       drawRef.current();
     }
-  }, [hoveredId, selectedId, showLabels, searchMatchSet, palette]);
+  }, [
+    hoveredId,
+    selectedId,
+    showLabels,
+    searchMatchSet,
+    palette,
+    nodeSizeScale,
+  ]);
 
   const { resetView } = useGraphInteraction({
     canvasRef,
