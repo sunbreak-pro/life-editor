@@ -3,6 +3,20 @@ import { useMediaQuery } from "../hooks/useMediaQuery";
 import { useLocalStorage } from "../hooks/useLocalStorage";
 import { SidebarNav, type SidebarNavSection } from "./SidebarNav";
 import { BottomTabBar } from "./BottomTabBar";
+import { RightSidebar } from "./RightSidebar";
+import { MobileDrawer } from "./MobileDrawer";
+
+/** Already-translated copy for the target-IA detail panel (App Shell Turn 2). */
+export interface DetailPanelLabels {
+  /** Panel title ("詳細" / "Details"). */
+  title: string;
+  /** aria-label for the close (X) button. */
+  close: string;
+  /** Empty-state copy shown while nothing is registered. */
+  empty: string;
+  /** aria-label for the wide panel's resize handle. */
+  resize: string;
+}
 
 export interface AppShellSection extends SidebarNavSection {}
 
@@ -54,6 +68,15 @@ export interface AppShellProps {
    * false keeps the readable centered column for document-style sections.
    */
   fluidContent?: boolean;
+  /**
+   * When set, the target-IA detail panel is mounted (App Shell Turn 2): a
+   * push-in <RightSidebar> as a flex sibling of <main> on the wide layout, and
+   * a left <MobileDrawer> on the narrow layout. Both read open/width/portal
+   * state from a RightSidebarContext, so the HOST MUST wrap this AppShell in a
+   * <RightSidebarProvider> when passing these labels. Omit for the legacy
+   * (no-panel) shell — behavior is then byte-identical to before.
+   */
+  detailPanelLabels?: DetailPanelLabels;
 }
 
 const SIDEBAR_COLLAPSED_KEY = "life-editor.shell.sidebar-collapsed";
@@ -83,6 +106,7 @@ export function AppShell({
   wideQuery = "(min-width: 768px)",
   maxBottomTabs = 4,
   fluidContent = false,
+  detailPanelLabels,
 }: AppShellProps) {
   const isWide = useMediaQuery(wideQuery, true);
   const [collapsed, setCollapsed] = useLocalStorage<boolean>(
@@ -119,6 +143,14 @@ export function AppShell({
             <div className="mx-auto max-w-3xl px-6 py-6">{children}</div>
           )}
         </main>
+        {detailPanelLabels && (
+          <RightSidebar
+            title={detailPanelLabels.title}
+            closeLabel={detailPanelLabels.close}
+            emptyLabel={detailPanelLabels.empty}
+            resizeLabel={detailPanelLabels.resize}
+          />
+        )}
       </div>
     );
   }
@@ -141,6 +173,13 @@ export function AppShell({
         maxVisible={maxBottomTabs}
         labels={{ more: labels.more, moreTitle: labels.moreTitle }}
       />
+      {detailPanelLabels && (
+        <MobileDrawer
+          title={detailPanelLabels.title}
+          closeLabel={detailPanelLabels.close}
+          emptyLabel={detailPanelLabels.empty}
+        />
+      )}
     </div>
   );
 }

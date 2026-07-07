@@ -55,6 +55,22 @@ export {
   type ShowToastOptions,
 } from "./context";
 
+// RightSidebar detail panel (App Shell Turn 2) — Pattern A Provider + context
+// hooks. Host mounts RightSidebarProvider OUTSIDE the section switch; the shell
+// parts (RightSidebar / MobileDrawer / RightSidebarToggle) + section bodies
+// (RightSidebarPortal) read it. useRightSidebarOptional is the null-safe hook
+// for RightSidebarPortal (renders nothing when no Provider is present).
+export {
+  RightSidebarProvider,
+  type RightSidebarProviderProps,
+  RightSidebarContext,
+  type RightSidebarContextValue,
+} from "./context";
+export {
+  useRightSidebarContext,
+  useRightSidebarOptional,
+} from "./hooks/useRightSidebarContext";
+
 // Theme domain (W1) — Pattern A Provider + context hook. Web-lean (theme /
 // fontSize / language). Persists via useLocalStorage; language forwards to
 // the shared i18next singleton. useLocalStorage is exported for hosts/tests.

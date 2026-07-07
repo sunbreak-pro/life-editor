@@ -4,6 +4,19 @@
 export { SyncProvider } from "./SyncContext";
 export { SyncContext, type WebSyncContextValue } from "./SyncContextValue";
 
+// RightSidebar detail panel (App Shell Turn 2): Pattern A. Self-contained
+// host-mounted UI state (no other Provider depends on it) — mounts OUTSIDE the
+// section switch (like ToastProvider) so the detail panel survives navigation
+// and every section can portal into it. Pure UI state (§3.1).
+export {
+  RightSidebarProvider,
+  type RightSidebarProviderProps,
+} from "./RightSidebarContext";
+export {
+  RightSidebarContext,
+  type RightSidebarContextValue,
+} from "./RightSidebarContextValue";
+
 // Toast (follow-up #6): host-mounted consumption layer for the shared
 // <Toast>/<ToastViewport> primitives (§6). Self-contained single file (the
 // frontend `ToastContext` precedent) — no other Provider depends on it, so it

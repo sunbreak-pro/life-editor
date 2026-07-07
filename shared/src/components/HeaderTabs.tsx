@@ -1,5 +1,5 @@
 import { useRef } from "react";
-import type { KeyboardEvent } from "react";
+import type { KeyboardEvent, ReactNode } from "react";
 import { cn } from "./cn";
 
 export interface HeaderTab {
@@ -20,6 +20,13 @@ export interface HeaderTabsProps {
   onSelect: (id: string) => void;
   /** Already-translated accessible name for the tablist (§6.4). */
   label?: string;
+  /**
+   * Optional trailing node pinned to the right end of the tab row (target-IA:
+   * the rightSidebar open/close toggle, App Shell Turn 2). Kept OUTSIDE the
+   * role="tablist" element (a11y: a tablist should contain only tabs), so the
+   * row is wrapped: outer border-b flex row > inner tablist + trailing.
+   */
+  trailing?: ReactNode;
   className?: string;
 }
 
@@ -36,6 +43,7 @@ export function HeaderTabs({
   activeTab,
   onSelect,
   label,
+  trailing,
   className,
 }: HeaderTabsProps) {
   const refs = useRef<(HTMLButtonElement | null)[]>([]);
@@ -59,43 +67,44 @@ export function HeaderTabs({
   };
 
   return (
-    <div
-      role="tablist"
-      aria-label={label}
-      className={cn("flex gap-2 border-b border-lumen-border", className)}
-    >
-      {tabs.map((tab, i) => {
-        const active = tab.id === activeTab;
-        return (
-          <button
-            key={tab.id}
-            ref={(el) => {
-              refs.current[i] = el;
-            }}
-            type="button"
-            role="tab"
-            aria-selected={active}
-            tabIndex={active || (activeIndex === -1 && i === 0) ? 0 : -1}
-            onClick={() => onSelect(tab.id)}
-            onKeyDown={(e) => handleKeyDown(e, i)}
-            className={cn(
-              "-mb-px flex items-center gap-1.5 px-3 py-2 text-sm",
-              "transition-colors focus-visible:outline-none",
-              "focus-visible:ring-2 focus-visible:ring-lumen-accent",
-              active
-                ? "border-b-2 border-lumen-accent font-medium text-lumen-text"
-                : "rounded-t-[6px] border-b-2 border-transparent text-lumen-text-secondary hover:bg-lumen-hover hover:text-lumen-text",
-            )}
-          >
-            <span>{tab.label}</span>
-            {tab.badge != null && (
-              <span className="inline-flex h-[18px] items-center rounded-lumen-sm bg-lumen-accent-subtle px-1.5 text-xs font-medium tabular-nums text-lumen-accent">
-                {tab.badge}
-              </span>
-            )}
-          </button>
-        );
-      })}
+    <div className={cn("flex border-b border-lumen-border", className)}>
+      <div role="tablist" aria-label={label} className="flex gap-2">
+        {tabs.map((tab, i) => {
+          const active = tab.id === activeTab;
+          return (
+            <button
+              key={tab.id}
+              ref={(el) => {
+                refs.current[i] = el;
+              }}
+              type="button"
+              role="tab"
+              aria-selected={active}
+              tabIndex={active || (activeIndex === -1 && i === 0) ? 0 : -1}
+              onClick={() => onSelect(tab.id)}
+              onKeyDown={(e) => handleKeyDown(e, i)}
+              className={cn(
+                "-mb-px flex items-center gap-1.5 px-3 py-2 text-sm",
+                "transition-colors focus-visible:outline-none",
+                "focus-visible:ring-2 focus-visible:ring-lumen-accent",
+                active
+                  ? "border-b-2 border-lumen-accent font-medium text-lumen-text"
+                  : "rounded-t-[6px] border-b-2 border-transparent text-lumen-text-secondary hover:bg-lumen-hover hover:text-lumen-text",
+              )}
+            >
+              <span>{tab.label}</span>
+              {tab.badge != null && (
+                <span className="inline-flex h-[18px] items-center rounded-lumen-sm bg-lumen-accent-subtle px-1.5 text-xs font-medium tabular-nums text-lumen-accent">
+                  {tab.badge}
+                </span>
+              )}
+            </button>
+          );
+        })}
+      </div>
+      {trailing != null && (
+        <div className="ml-auto self-center pl-2">{trailing}</div>
+      )}
     </div>
   );
 }

@@ -2143,6 +2143,13 @@
     "more": "その他",
     "moreTitle": "その他"
   },
+  "detailPanel": {
+    "title": "詳細",
+    "open": "詳細を開く",
+    "close": "詳細を閉じる",
+    "empty": "表示する詳細はありません",
+    "resize": "詳細パネルの幅を変更"
+  },
   "music": {
     "title": "ミュージック",
     "stop": "停止",

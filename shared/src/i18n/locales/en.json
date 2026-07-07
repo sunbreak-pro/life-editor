@@ -2143,6 +2143,13 @@
     "more": "More",
     "moreTitle": "More"
   },
+  "detailPanel": {
+    "title": "Details",
+    "open": "Open details",
+    "close": "Close details",
+    "empty": "Nothing selected yet",
+    "resize": "Resize details panel"
+  },
   "music": {
     "title": "Music",
     "stop": "Stop",

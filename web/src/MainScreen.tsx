@@ -20,6 +20,8 @@ import {
   type AppShellSection,
   HeaderTabs,
   SegmentedControl,
+  RightSidebarProvider,
+  RightSidebarToggle,
   useMediaQuery,
   isMac,
   CommandPalette,
@@ -277,21 +279,73 @@ export function MainScreen({ session }: { session: Session }) {
     section === "connect" ||
     (section === "materials" && materialsTab === "tasks");
 
+  // Detail-panel (rightSidebar) toggle, injected already-translated (§6.4).
+  // Desktop = PanelRight at the header-tab row's right end; Mobile = a bordered
+  // hamburger at the left of the segment row that opens the left drawer. The
+  // toggle flips its own aria-label between the two (open ↔ close action).
+  const detailOpenLabel = t("detailPanel.open");
+  const detailCloseLabel = t("detailPanel.close");
+
   const materialsTabSwitcher = isWide ? (
     <HeaderTabs
       tabs={materialsTabDefs}
       activeTab={materialsTab}
       onSelect={(id) => setMaterialsTab(id as MaterialsTab)}
       label={t("section.materials")}
+      trailing={
+        <RightSidebarToggle
+          variant="panel"
+          openLabel={detailOpenLabel}
+          closeLabel={detailCloseLabel}
+        />
+      }
     />
   ) : (
-    <SegmentedControl
-      options={materialsTabDefs}
-      value={materialsTab}
-      onChange={(id) => setMaterialsTab(id as MaterialsTab)}
-      label={t("section.materials")}
-    />
+    <div className="flex items-center gap-2">
+      <RightSidebarToggle
+        variant="hamburger"
+        openLabel={detailOpenLabel}
+        closeLabel={detailCloseLabel}
+      />
+      <SegmentedControl
+        className="flex-1"
+        options={materialsTabDefs}
+        value={materialsTab}
+        onChange={(id) => setMaterialsTab(id as MaterialsTab)}
+        label={t("section.materials")}
+      />
+    </div>
   );
+
+  // Toolbar row for the six non-Materials sections (Schedule / Connect / Work /
+  // Analytics / Settings / Trash). Desktop pins the panel toggle to the right;
+  // Mobile shows the hamburger at the left. Materials carries its own toggle in
+  // the tab switcher above.
+  const sectionToolbar = isWide ? (
+    <div className="flex items-center">
+      <RightSidebarToggle
+        variant="panel"
+        openLabel={detailOpenLabel}
+        closeLabel={detailCloseLabel}
+        className="ml-auto"
+      />
+    </div>
+  ) : (
+    <div className="flex items-center">
+      <RightSidebarToggle
+        variant="hamburger"
+        openLabel={detailOpenLabel}
+        closeLabel={detailCloseLabel}
+      />
+    </div>
+  );
+
+  const detailPanelLabels = {
+    title: t("detailPanel.title"),
+    close: t("detailPanel.close"),
+    empty: t("detailPanel.empty"),
+    resize: t("detailPanel.resize"),
+  };
 
   // The four Materials document surfaces. Provider nesting is verbatim from
   // the old flat sections (§6.2) — only the addressing changed (section+tab).
@@ -329,6 +383,72 @@ export function MainScreen({ session }: { session: Session }) {
           <WikiTagsManagementView />
         </WikiTagsUnifiedProvider>
       )}
+    </>
+  );
+
+  // The six non-Materials section bodies. Provider nesting is verbatim from the
+  // flat layout (§6.2) — only wrapped below with a detail-panel toolbar row.
+  const nonMaterialsBody = (
+    <>
+      {/*
+       * Schedule pair order (CLAUDE.md §6.2): Routine → ScheduleItems. Each
+       * inner Provider may read the outer one (ScheduleItems sits INSIDE
+       * Routine). CalendarProvider is NOT part of the pair — kept higher and
+       * enabled on Mobile (§2). The Routine→schedule_items generator (S4-5) is
+       * the headless RoutineScheduleSync, mounted inside the Providers.
+       *
+       * TaskTreeProvider is mounted here so CalendarView can offer a
+       * folder-task <select> (bug1 fix: calendars.folder_id FKs tasks(id) ON
+       * DELETE CASCADE). WikiTagsUnifiedProvider provides the Event Tag/Link
+       * surface for ScheduleItemsView (DU-F Step 7).
+       */}
+      {section === "schedule" && (
+        <TaskTreeProvider dataService={ds}>
+          <WikiTagsUnifiedProvider dataService={ds}>
+            <CalendarProvider dataService={ds}>
+              <RoutineProvider dataService={ds}>
+                <ScheduleItemsProvider dataService={ds}>
+                  <RoutineScheduleSync dataService={ds} />
+                  <ScheduleCalendarView />
+                  <ScheduleView />
+                  <ScheduleItemsView />
+                  <CalendarView />
+                </ScheduleItemsProvider>
+              </RoutineProvider>
+            </CalendarProvider>
+          </WikiTagsUnifiedProvider>
+        </TaskTreeProvider>
+      )}
+      {/*
+       * Settings (W1) — reads useThemeContext + useShortcutConfig (the
+       * ShortcutConfigProvider wrapping the whole shell) and injects values +
+       * t() copy into the shared pure primitives. No extra Provider needed.
+       */}
+      {section === "settings" && <SettingsScreen />}
+      {/*
+       * Work (W3-B) — Pomodoro timer + TaskSelector + settings/preset editor.
+       * TimerProvider is mounted at the shell level (above); this view reads
+       * useTimerContext + fetches the task list via the injected DataService.
+       */}
+      {section === "work" && <WorkScreen dataService={ds} />}
+      {/*
+       * Connect (W4; STEP 2 link editing) — node graph + backlink over the
+       * UNIFIED item-link model. ConnectScreen mounts its own
+       * WikiTagsUnifiedProvider internally. Legacy note_links are NOT used.
+       */}
+      {section === "connect" && <ConnectScreen dataService={ds} />}
+      {/*
+       * Analytics (W4) — recharts dashboards (Overview/Tasks/Work/Schedule).
+       * Host fetches sessions/tasks/schedule/routines via DataService and
+       * injects data + t into the pure shared <AnalyticsView>.
+       */}
+      {section === "analytics" && <AnalyticsScreen dataService={ds} />}
+      {/*
+       * Trash (W2). Crosses all five soft-delete categories, so it uses no
+       * per-section Provider — TrashScreen calls the injected DataService
+       * directly and feeds the pure shared TrashView (§6.4).
+       */}
+      {section === "trash" && <TrashScreen dataService={ds} />}
     </>
   );
 
@@ -388,37 +508,44 @@ export function MainScreen({ session }: { session: Session }) {
             <AudioProvider dataService={ds}>
               <AudioChimeBridge targetRef={chimeRef} />
               {/*
-               * W5 app shell — responsive single shell (wide sidebar ↔ narrow
-               * bottom tabs via useMediaQuery). Section state stays here
-               * (useState switch, no React Router — §3.2); the shell is pure
-               * presentation (DataService-free, §3.1) and receives section
-               * list / labels / callbacks as props (§6.4). The active section
-               * body is slotted into `children`. AppShell sits inside
-               * AudioProvider at the old header+content position so every
-               * Provider consumer stays nested as before (§6.2).
+               * RightSidebarProvider (App Shell Turn 2) — host mount for the
+               * target-IA detail panel. Sits OUTSIDE the section switch (like
+               * ToastProvider), wrapping the shell + CommandPalette so the panel
+               * survives navigation and every section body can portal into it.
+               * Pure UI state (DataService-free, §3.1).
                */}
-              <AppShell
-                sections={navSections}
-                utilitySections={utilitySections}
-                mobileSections={mobileSections}
-                activeSection={section}
-                onNavigate={(id) => setSection(id as Section)}
-                onTogglePalette={() => setPaletteOpen((v) => !v)}
-                userEmail={session.user.email ?? ""}
-                onSignOut={() => void signOut()}
-                labels={shellLabels}
-                fluidContent={fluidSection}
-              >
-                <div className={fluidSection ? "h-full" : "space-y-4"}>
+              <RightSidebarProvider>
+                {/*
+                 * W5 app shell — responsive single shell (wide sidebar ↔ narrow
+                 * bottom tabs via useMediaQuery). Section state stays here
+                 * (useState switch, no React Router — §3.2); the shell is pure
+                 * presentation (DataService-free, §3.1) and receives section
+                 * list / labels / callbacks as props (§6.4). detailPanelLabels
+                 * mounts the Turn 2 push-in panel (Desktop) / left drawer
+                 * (Mobile) — valid because we wrap in RightSidebarProvider above.
+                 */}
+                <AppShell
+                  sections={navSections}
+                  utilitySections={utilitySections}
+                  mobileSections={mobileSections}
+                  activeSection={section}
+                  onNavigate={(id) => setSection(id as Section)}
+                  onTogglePalette={() => setPaletteOpen((v) => !v)}
+                  userEmail={session.user.email ?? ""}
+                  onSignOut={() => void signOut()}
+                  labels={shellLabels}
+                  fluidContent={fluidSection}
+                  detailPanelLabels={detailPanelLabels}
+                >
                   {/*
-                   * Materials (target IA) — the four document surfaces under one
-                   * section, addressed by an in-section tab. Wide = HeaderTabs;
-                   * narrow = SegmentedControl. When the Tasks (Kanban) tab is
-                   * active the section is fluid: tab strip shrink-0 above a
-                   * flex-1 min-h-0 body so the board owns the remaining height.
+                   * Materials carries its detail toggle in the tab switcher; the
+                   * six other sections get a thin toolbar row above the body. In
+                   * both cases a fluid section (Connect / Materials→Tasks) wraps
+                   * as "toolbar shrink-0 + body flex-1 min-h-0" so canvas views
+                   * keep their h-full layout.
                    */}
-                  {section === "materials" &&
-                    (fluidSection ? (
+                  {section === "materials" ? (
+                    fluidSection ? (
                       <div className="flex h-full flex-col">
                         <div className="shrink-0 px-4 pt-3 md:px-6 md:pt-4">
                           {materialsTabSwitcher}
@@ -426,114 +553,39 @@ export function MainScreen({ session }: { session: Session }) {
                         <div className="min-h-0 flex-1">{materialsView}</div>
                       </div>
                     ) : (
-                      <>
+                      <div className="space-y-4">
                         {materialsTabSwitcher}
                         {materialsView}
-                      </>
-                    ))}
-                  {/*
-                   * Schedule pair order (CLAUDE.md §6.2): Routine →
-                   * ScheduleItems. Each inner Provider may read the outer one
-                   * (ScheduleItems sits INSIDE Routine — §6.2 order, top-down).
-                   * The historical calendar-tag layer was dropped in DU-C+/DU-F;
-                   * WikiTagsUnified replaces it as the 5-role tag/link surface.
-                   *
-                   * CalendarProvider is NOT part of the schedule pair — frontend
-                   * keeps it higher and enabled on Mobile (CLAUDE.md §2); it is
-                   * mounted here just inside Sync (only needs DataService + Sync).
-                   *
-                   * The Routine→schedule_items generator (S4-5) is the headless
-                   * RoutineScheduleSync, mounted inside the Providers so it can
-                   * read the live routine set + anchored date.
-                   */}
-                  {section === "schedule" && (
-                    /*
-                     * TaskTreeProvider is mounted here so CalendarView can offer
-                     * a folder-task <select> (bug1 fix): `calendars.folder_id`
-                     * FKs tasks(id) with ON DELETE CASCADE — a free-text id hit
-                     * a 409 calendars_folder_id_fkey. It sits just inside Sync
-                     * (only needs DataService + Sync) and OUTSIDE the schedule
-                     * trio, so the §6.2 trio dependency order is unchanged.
-                     *
-                     * WikiTagsUnifiedProvider sits next to TaskTreeProvider —
-                     * it only needs DataService + Sync and provides Tag/Link
-                     * surface for ScheduleItemsView (Event Tag/Link UI, DU-F
-                     * Step 7). CalendarTagsProvider was removed in DU-F Step 3-4
-                     * (DB DROPped in DU-C+ 0012; UI death-code purged here).
-                     */
-                    <TaskTreeProvider dataService={ds}>
-                      <WikiTagsUnifiedProvider dataService={ds}>
-                        <CalendarProvider dataService={ds}>
-                          <RoutineProvider dataService={ds}>
-                            <ScheduleItemsProvider dataService={ds}>
-                              <RoutineScheduleSync dataService={ds} />
-                              <ScheduleCalendarView />
-                              <ScheduleView />
-                              <ScheduleItemsView />
-                              <CalendarView />
-                            </ScheduleItemsProvider>
-                          </RoutineProvider>
-                        </CalendarProvider>
-                      </WikiTagsUnifiedProvider>
-                    </TaskTreeProvider>
+                      </div>
+                    )
+                  ) : fluidSection ? (
+                    <div className="flex h-full flex-col">
+                      <div className="shrink-0 px-4 pt-3 md:px-6 md:pt-4">
+                        {sectionToolbar}
+                      </div>
+                      <div className="min-h-0 flex-1">{nonMaterialsBody}</div>
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      {sectionToolbar}
+                      {nonMaterialsBody}
+                    </div>
                   )}
-                  {/*
-                   * Settings (W1) — host shell. Reads useThemeContext +
-                   * useShortcutConfig (the ShortcutConfigProvider wrapping this whole
-                   * shell) and injects values + t() copy into the shared pure
-                   * primitives. No extra Provider needed here.
-                   */}
-                  {section === "settings" && <SettingsScreen />}
-                  {/*
-                   * Work (W3-B) — Pomodoro timer + TaskSelector + settings/preset
-                   * editor. The TimerProvider is mounted at the shell level (above),
-                   * so this view only reads useTimerContext + feeds the shared pure
-                   * primitives. The view itself fetches the task list via the
-                   * injected DataService (hosts may call getDataService — §6.4).
-                   * History / Music / FREE were dropped (section-unification 確定).
-                   */}
-                  {section === "work" && <WorkScreen dataService={ds} />}
-                  {/*
-                   * Connect (W4; STEP 2 link editing) — node graph + backlink over
-                   * the UNIFIED item-link model. ConnectScreen mounts its own
-                   * WikiTagsUnifiedProvider internally: notes/dailies/tags/
-                   * assignments are fetched via the injected DataService, while the
-                   * item↔item links come from the Provider's bulk cache so the
-                   * create/delete link mutators update the graph without a refetch.
-                   * Legacy note_links are stubbed on Supabase and are NOT used.
-                   */}
-                  {section === "connect" && <ConnectScreen dataService={ds} />}
-                  {/*
-                   * Analytics (W4) — recharts dashboards (Overview/Tasks/Work/
-                   * Schedule; Materials/Connect tabs dropped — lean scope). Host
-                   * fetches sessions/tasks/schedule/routines via DataService and
-                   * injects data + t into the pure shared <AnalyticsView>.
-                   */}
-                  {section === "analytics" && (
-                    <AnalyticsScreen dataService={ds} />
-                  )}
-                  {/*
-                   * Trash (W2). Crosses all five soft-delete categories, so it does
-                   * NOT use any per-section Provider — the host TrashScreen calls
-                   * the injected DataService directly and feeds the pure shared
-                   * TrashView (CLAUDE.md §6.4: hosts may call getDataService).
-                   */}
-                  {section === "trash" && <TrashScreen dataService={ds} />}
-                </div>
-              </AppShell>
+                </AppShell>
 
-              {/*
-               * Command palette mounted ONCE at the shell level, outside the
-               * section switch (so Cmd+K works from any section). Copy is injected
-               * as props — the primitive never calls useTranslation (§6.4).
-               */}
-              <CommandPalette
-                isOpen={paletteOpen}
-                onClose={() => setPaletteOpen(false)}
-                commands={commands}
-                placeholder={t("commandPalette.placeholder")}
-                noResultsLabel={t("commandPalette.noResults")}
-              />
+                {/*
+                 * Command palette mounted ONCE at the shell level, outside the
+                 * section switch (so Cmd+K works from any section). Copy is
+                 * injected as props — the primitive never calls useTranslation.
+                 */}
+                <CommandPalette
+                  isOpen={paletteOpen}
+                  onClose={() => setPaletteOpen(false)}
+                  commands={commands}
+                  placeholder={t("commandPalette.placeholder")}
+                  noResultsLabel={t("commandPalette.noResults")}
+                />
+              </RightSidebarProvider>
             </AudioProvider>
           </TimerProvider>
         </ShortcutConfigProvider>
