@@ -8,13 +8,9 @@
 export interface ConnectGraphLabels {
   /** connect.title — top bar heading */
   title: string;
-  /** ideas.graphEmpty — shown when the graph has no nodes at all */
-  graphEmpty: string;
 
   // ---- top bar (connect.graph.*) ----
   reheat: string;
-  resetView: string;
-  togglePanel: string;
   closePanel: string;
   clearFilters: string;
   noMatch: string;
@@ -92,16 +88,13 @@ export interface ConnectGraphLabels {
   linkDeleteFailed: string;
 
   // ---- backlinks (backlinks.*) ----
-  backlinksTitle: string;
   backlinksEmpty: string;
 
-  // ---- Mobile (catalog + type added now; UI wired by the Mobile pass) ----
+  // ---- Mobile (connect.mobile.*) ----
   /** connect.mobile.linksTab — "Connections" tab on the mobile peek sheet */
   mobileLinksTab: string;
   /** connect.mobile.backlinksTab — "Backlinks" tab on the mobile peek sheet */
   mobileBacklinksTab: string;
   /** connect.mobile.settingsTitle — title of the mobile settings bottom sheet */
   mobileSettingsTitle: string;
-  /** connect.mobile.searchPlaceholder — mobile settings search input placeholder */
-  mobileSearchPlaceholder: string;
 }

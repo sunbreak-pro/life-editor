@@ -286,6 +286,9 @@ export function ConnectGraphView({
       totalTypeCounts={totalTypeCounts}
       selectedLabel={selectedNode ? selectedNode.label : null}
       searchInputRef={searchInputRef}
+      // Mobile sheet drops the Local Graph section (peek sheet has depth chips)
+      // and the keyboard-hints footer. Desktop rightSidebar keeps the full panel.
+      compact={!isWide}
     />
   );
 

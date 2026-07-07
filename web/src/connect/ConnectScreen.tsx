@@ -92,10 +92,7 @@ function ConnectGraphHost({ dataService }: ConnectScreenProps) {
   const labels = useMemo<ConnectGraphLabels>(
     () => ({
       title: t("connect.title"),
-      graphEmpty: t("ideas.graphEmpty"),
       reheat: t("connect.graph.reheat"),
-      resetView: t("connect.graph.resetView"),
-      togglePanel: t("connect.graph.togglePanel"),
       closePanel: t("connect.graph.closePanel"),
       clearFilters: t("connect.graph.clearFilters"),
       noMatch: t("connect.graph.noMatch"),
@@ -126,7 +123,6 @@ function ConnectGraphHost({ dataService }: ConnectScreenProps) {
       linkTargetPlaceholder: t("connect.graph.linkTargetPlaceholder"),
       linkCreateFailed: t("connect.graph.linkCreateFailed"),
       linkDeleteFailed: t("connect.graph.linkDeleteFailed"),
-      backlinksTitle: t("backlinks.title"),
       backlinksEmpty: t("backlinks.empty"),
       // Target-IA additions (states / rightSidebar tabs / zoom / mobile).
       graphLoading: t("connect.graph.loading"),
@@ -147,7 +143,6 @@ function ConnectGraphHost({ dataService }: ConnectScreenProps) {
       mobileLinksTab: t("connect.mobile.linksTab"),
       mobileBacklinksTab: t("connect.mobile.backlinksTab"),
       mobileSettingsTitle: t("connect.mobile.settingsTitle"),
-      mobileSearchPlaceholder: t("connect.mobile.searchPlaceholder"),
     }),
     [t],
   );

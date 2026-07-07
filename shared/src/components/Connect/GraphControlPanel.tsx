@@ -48,6 +48,13 @@ interface GraphControlPanelProps {
   totalTypeCounts: Record<string, number>;
   selectedLabel: string | null;
   searchInputRef?: React.RefObject<HTMLInputElement | null>;
+  /**
+   * Mobile settings-sheet mode: drop the Desktop-only Local Graph section
+   * (the peek sheet already carries a depth chip row) and the keyboard-shortcut
+   * hints footer (no physical keyboard on touch). Desktop omits it → false →
+   * the full panel, unchanged.
+   */
+  compact?: boolean;
 }
 
 export function GraphControlPanel({
@@ -68,6 +75,7 @@ export function GraphControlPanel({
   totalTypeCounts,
   selectedLabel,
   searchInputRef,
+  compact = false,
 }: GraphControlPanelProps) {
   const typeLabel: Record<GraphNodeType, string> = {
     project: labels.typeProject,
@@ -193,27 +201,29 @@ export function GraphControlPanel({
         </div>
       </Section>
 
-      <Section title={labels.localGraph} icon={Crosshair}>
-        {selectedLabel ? (
-          <>
-            <div className="text-[10px] text-lumen-text-secondary">
-              {selectedLabel}
+      {!compact && (
+        <Section title={labels.localGraph} icon={Crosshair}>
+          {selectedLabel ? (
+            <>
+              <div className="text-[10px] text-lumen-text-secondary">
+                {selectedLabel}
+              </div>
+              <Slider
+                label={labels.depth}
+                value={filter.localDepth}
+                onChange={onLocalDepthChange}
+                min={0}
+                max={2}
+                suffix={filter.localDepth === 0 ? ` (${labels.off})` : "-hop"}
+              />
+            </>
+          ) : (
+            <div className="text-[10px] px-2 py-2 rounded bg-lumen-hover text-lumen-text-secondary">
+              {labels.selectNodeHint}
             </div>
-            <Slider
-              label={labels.depth}
-              value={filter.localDepth}
-              onChange={onLocalDepthChange}
-              min={0}
-              max={2}
-              suffix={filter.localDepth === 0 ? ` (${labels.off})` : "-hop"}
-            />
-          </>
-        ) : (
-          <div className="text-[10px] px-2 py-2 rounded bg-lumen-hover text-lumen-text-secondary">
-            {labels.selectNodeHint}
-          </div>
-        )}
-      </Section>
+          )}
+        </Section>
+      )}
 
       <Section title={labels.display} icon={Eye}>
         <Toggle
@@ -264,9 +274,11 @@ export function GraphControlPanel({
         />
       </Section>
 
-      <div className="border-t border-lumen-border pt-2.5 text-[11px] text-lumen-text-tertiary">
-        {labels.hintKeys}
-      </div>
+      {!compact && (
+        <div className="border-t border-lumen-border pt-2.5 text-[11px] text-lumen-text-tertiary">
+          {labels.hintKeys}
+        </div>
+      )}
     </div>
   );
 }
