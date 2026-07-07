@@ -24,7 +24,7 @@ Previous: 2026-07-04-github-issues-migration-plan.md（Issue 運用移行）
 ### 本ブランチの前提状態（重要）
 
 - この枝には **#154/#155 対応の docs コミット 3 つが PR 未作成のまま**載っている（43dc04eb / 8d22b6c0 / ef8e1990）。Issue #154/#155 が open なのは close 漏れではなく「修正が main 未着」のため。本計画の PR に相乗りさせて一括で届ける。
-- origin/main は 6 コミット先行（#157-#162）。**connect brief の v1 残置（監査 high）は main で解消済み**。briefs / IA / fan-out 系プランは #161 で v3 同期されているため、該当 findings は merge 後に再検証してから直す。
+- origin/main は 6 コミット先行（#157-#162。**2026-07-07 監査時点のスナップショット** — 以後も main は先行し続けるため、実装セッションでは Phase 0 冒頭で ahead/behind を再計測する）。**connect brief の v1 残置（監査 high）は main で解消済み**。briefs / IA / fan-out 系プランは #161 で v3 同期されているため、該当 findings は merge 後に再検証してから直す。
 
 ---
 
@@ -35,7 +35,7 @@ Previous: 2026-07-04-github-issues-migration-plan.md（Issue 運用移行）
 .claude/2026-05-04-cross-platform-migration.md
 .claude/docs/**
 .claude/archive/**
-.claude/agents/**
+.claude/agents/**                 # symlink の削除・付替えのみ（実体は agents-lib — 下記）
 .claude/skills/parallel-orchestrator/**
 .claude/comm/README.md
 .claude/automation/dev-schedule.md
@@ -47,8 +47,9 @@ Previous: 2026-07-04-github-issues-migration-plan.md（Issue 運用移行）
 **Scope 外だが本計画が指示する別作業**（repo 外・別コミット）:
 
 ```
-~/dev/Claude/skill-lib/projects/life-editor/frontend-react-designer/**   # notion-* → lumen-* 全面改訂
+~/dev/Claude/skill-lib/projects/life-editor/frontend-react-designer/**   # notion-* → lumen-* 全面改訂（計 53 箇所）
 ~/dev/Claude/skill-lib/projects/life-editor/session-loader/**            # 参照切れ 3 件修正
+~/dev/Claude/agents-lib/projects/life-editor/*.md                        # 監査 agents 3 本の実体（M-01〜M-03。書き換えはこちら側）
 ```
 
 ---
@@ -77,7 +78,7 @@ Previous: 2026-07-04-github-issues-migration-plan.md（Issue 運用移行）
 
 | ID   | ファイル:行                        | 問題                                                                                                                                          | 修正                                                                                                                                    | sev  |
 | ---- | ---------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- | ---- |
-| A-01 | SSOT:39, :239                      | W0 記述がトークンを `ink-*` と記載（正は `lumen-*`、実測 lumen 63 ファイル / ink 0）                                                          | `lumen-*` に修正（:239 は「当時の仮称」注記でも可）                                                                                     | high |
+| A-01 | SSOT:39, :239                      | W0 記述がトークンを `ink-*` と記載（正は `lumen-*`、実測 lumen 68 ファイル in shared/src・web 込み 91 / ink 0）                               | `lumen-*` に修正（:239 は「当時の仮称」注記でも可）                                                                                     | high |
 | A-02 | coding-principles.md:69-76         | Mobile 省略 Provider「6 種（WikiTag 含む）」+ 配置先 `frontend/src/hooks/`（FROZEN 违反誘発）                                                 | 5 種に修正・配置先を `shared/src/hooks/` へ                                                                                             | high |
 | A-03 | core.md:28, :68, :108, :111        | アプリ内ターミナル（portable-pty）を現役根拠として記述・Provider 列に CalendarTags/WikiTag 残存・SQLite SSOT 前提                             | 失効ヘッダの反転点一覧に「Terminal 退役 2026-07-05 / WikiTag は Mobile 有効 / CalendarTags は DU-F で撤去 / データ層は Supabase」を追記 | med  |
 | A-04 | coding-principles.md:19, :47, :151 | 「正本は CLAUDE.md §7.2」（現 §7.2 はコミット規約）「詳細は §6.3/§6.4」（小節不存在）                                                         | 参照先を add-ipc-channel スキル / rules/frontend.md に差し替え                                                                          | med  |
@@ -167,15 +168,17 @@ Previous: 2026-07-04-github-issues-migration-plan.md（Issue 運用移行）
 
 | ID   | 対象                                      | 問題                                                                                                                  | 修正                                                | 状態 |
 | ---- | ----------------------------------------- | --------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------- | ---- |
-| M-01 | agents/life-editor-ipc-validator.md       | Tauri IPC（src-tauri / FROZEN の frontend/src/services）前提・「CLAUDE.md §7.2 の 4 点同期」参照も現存しない          | retire を推奨（判断待ち D-1）                       | ✅   |
-| M-02 | agents/life-editor-migration-validator.md | 監査対象の cloud/db/migrations が退役済みで不存在                                                                     | supabase/migrations 基準へ書き換え or retire（D-1） | ✅   |
-| M-03 | agents/life-editor-sync-auditor.md        | §3.2/§4.1 参照が現構成と不一致・「version カラム期待値 11」が §3.3「遺物・未使用」と直接矛盾                          | items_meta LWW 基準へ全面改訂 or retire（D-1）      | ✅   |
+| M-01 | agents/life-editor-ipc-validator.md       | Tauri IPC（src-tauri / FROZEN の frontend/src/services）前提・「CLAUDE.md §7.2 の 4 点同期」参照も現存しない          | retire を推奨（判断待ち D-1）                       | 📦   |
+| M-02 | agents/life-editor-migration-validator.md | 監査対象の cloud/db/migrations が退役済みで不存在                                                                     | supabase/migrations 基準へ書き換え or retire（D-1） | 📦   |
+| M-03 | agents/life-editor-sync-auditor.md        | §3.2/§4.1 参照が現構成と不一致・「version カラム期待値 11」が §3.3「遺物・未使用」と直接矛盾                          | items_meta LWW 基準へ全面改訂 or retire（D-1）      | 📦   |
 | M-04 | skills/parallel-orchestrator/SKILL.md:90  | `notion-*` トークン必須と記載（正は lumen-*）                                                                         | lumen-* へ修正（repo 内・本 PR）                    | ✅   |
-| M-05 | skill-lib: frontend-react-designer        | 全編 notion-*（10 箇所）+ frontend/src 前提。symlink 経由で自動ロードされ誤誘導                                       | lumen-* / shared/src 前提へ全面改訂                 | 📦   |
+| M-05 | skill-lib: frontend-react-designer        | 全編 notion-*（**計 53 箇所** = SKILL.md 10 + references/ 43）+ frontend/src 前提。symlink 経由で自動ロードされ誤誘導 | lumen-* / shared/src 前提へ全面改訂                 | 📦   |
 | M-06 | skill-lib: session-loader                 | 不存在のグローバル skill 参照・ai-integration.md 参照切れ・known-issues Active 確認が旧ポリシー                       | 3 箇所修正（Active 確認は `gh issue list` へ）      | 📦   |
 | M-07 | CLAUDE.md §7.3                            | settings.json 登録済みの pre-commit-index-guard.sh が docs 上どこにも言及なし                                         | hooks 連動行に追記                                  | ✅   |
 | M-08 | settings.json:9                           | Stop/SessionStart hook だけ main への絶対パスで `${CLAUDE_PROJECT_DIR}` と混在（worktree 側 hook が無音で使われない） | 意図確認のうえ統一 or 注記（判断待ち D-6）          | ✅   |
 | M-09 | comm/README.md                            | 必須ファイル `.session-branch` の説明が皆無（`.session-name` のみ）                                                   | 一節追加                                            | ✅   |
+
+> ⚠️ M-01〜M-03 の `.claude/agents/*.md` は **3 本とも実体が `~/dev/Claude/agents-lib/` への symlink**（skill-lib と同じ repo 外構造）。retire = repo 内の symlink 削除（本 PR に入る）、書き換え = agents-lib 側の編集（本 PR の diff には現れない・別コミット）。原因分析 #3 と同根のため取り違えないこと。
 
 ### Phase 6 — memory / 台帳の実態同期（🛑 ユーザー認可後に実施）
 
@@ -193,7 +196,7 @@ merge 済み PR を「open・merge 待ち」と主張し続ける per-chat memor
 ### Phase 7 — 再発防止（ルール化 + 機械化候補）
 
 - [ ] **数値の非複製原則**を CLAUDE.md §0 か coding-principles に 1 行追加: 「個数・列挙はコード or 単一 SSOT のみに書き、他文書は参照にする（『一覧はコードが正』と書くなら数字を併記しない）」
-- [ ] **改名・退役 sweep チェックリスト**を rules/ に新設: 対象 grep = `.claude/**` + `~/dev/Claude/skill-lib/projects/life-editor/**` + agents/。ink→lumen で 3 世代（notion→ink→lumen）が併存した実例を記録
+- [ ] **改名・退役 sweep チェックリスト**を rules/ に新設: 対象 grep = `.claude/**` + `~/dev/Claude/skill-lib/projects/life-editor/**` + `~/dev/Claude/agents-lib/projects/life-editor/**`（symlink 先の実体まで含める）。ink→lumen で 3 世代（notion→ink→lumen）が併存した実例を記録
 - [ ] **plans/ Status 語彙の enum 化**: Draft / IN PROGRESS / BLOCKED / COMPLETED / SUPERSEDED / DEFERRED / REFERENCE / ACTIVE (adopted policy)。表記ゆれ（In-progress / IN-PROGRESS / EXECUTED / READY FOR PR / SKELETON / FROZEN 等の自由語彙）を禁止し、grep 可能にする
 - [ ] **PR merge 時の docs 追随を DoD 化**: known-issue テンプレ / plans テンプレに「対応 plan・memory の Status 更新」チェック行を追加
 - [ ] **docs-lint 機械化候補を Issue 起票**（実装は別セッション）: (a) 相対リンク実在 (b) 旧トークン名残存 (c) plans frontmatter enum (d) COMPLETED の plans/ 残置検出 — stop-check か CI に載せる
@@ -207,7 +210,7 @@ merge 済み PR を「open・merge 待ち」と主張し続ける per-chat memor
 
 1. **事実の多層複製**: 同じ事実（トークン名・機能数・Provider 一覧）が SSOT → CLAUDE.md 要約 → vision → requirements → briefs → skills の最大 6 層に転記される。1 つの決定に対し更新箇所が N 箇所になり、どこかが必ず漏れる。「一覧はコードが正」と書きながら数字も併記する自己矛盾パターンが典型（→ Phase 7 非複製原則）。
 2. **改名・退役イベントに波及手順が無い**: ink→lumen 改名（#135）は rules/frontend.md を直したが、SSOT・tier-2・skill-lib へは波及しなかった。結果 notion→ink→lumen の 3 世代が現存（→ sweep チェックリスト）。
-3. **リポジトリ境界をまたぐ参照**: skills/ の実体は symlink 先の skill-lib（別リポジトリ）にあり、life-editor の PR レビューや docs 監査から構造的に漏れる。しかもスキルは自動ロードされ「強い指示」として古い規範を注入する。これはハーネスの仕様（スキル＝システム指示に近い優先度）× 運用（symlink 分離）の掛け算で生じる。
+3. **リポジトリ境界をまたぐ参照**: skills/ と agents/ の実体は symlink 先の skill-lib / agents-lib（別リポジトリ）にあり、life-editor の PR レビューや docs 監査から構造的に漏れる。しかもスキルは自動ロードされ「強い指示」として古い規範を注入する。これはハーネスの仕様（スキル＝システム指示に近い優先度）× 運用（symlink 分離）の掛け算で生じる。実際、本計画書の初稿自体が agents 3 本を「repo 内」と誤分類しており、QA レビューで是正された（死角の実証例）。
 4. **完了イベントが docs 更新をトリガーしない**: PR merge / Issue close と plans Status・memory・SSOT チェックボックスが非連動。特に per-chat memory は単一書込者原則のため、**チャットが役目を終えると更新者が構造的に消滅する**（merged 済み PR を「open」と主張する memory 5 件、実質完了プラン 11 件の残置、6/21 で止まった台帳が実例）。さらに悪い派生形として「**相互参照が整合したまま両方 stale**」がある: 移行 SSOT と DU-G 計画書は互いに「G2 進行中」で一致していたが、実態は G1-G4 全 merge 済みだった。文書同士の突き合わせでは検出できず、git/コードとの突き合わせが必須。
 5. **並行チャット × 合流ラグ**: 14 worktree 体制では docs 修正がブランチに滞留し（本ブランチの未 PR 3 コミットが実例）、各チャットは古いスナップショット上で docs を編集する。known-issue 029（二重実装）と同型の問題が docs でも起こる。
 6. **状態語彙の非標準化**: Status に SHIPPED / PARTIAL / ACTIVE(policy) / Mitigated / Workaround 等の自由語彙が混在し、hook や grep で「完了なのに残置」を機械検出できない。
@@ -220,7 +223,7 @@ merge 済み PR を「open・merge 待ち」と主張し続ける per-chat memor
 
 | ID   | 論点                                          | 推奨                                                                                                                                                     |
 | ---- | --------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| D-1  | 監査 agents 3 本の処遇                        | ipc-validator は retire、migration-validator / sync-auditor は現行アーキ基準に書き換え                                                                   |
+| D-1  | 監査 agents 3 本の処遇                        | ipc-validator は retire（repo 内 symlink 削除）、migration-validator / sync-auditor は現行アーキ基準に書き換え（実体は agents-lib 側・📦）               |
 | D-2  | worktree-policy の置き場                      | plans/ 残置 + Status「ACTIVE (adopted policy)」正規化（低コスト）。vision/ 直下改組は代替案                                                              |
 | D-3  | 要判断プラン 3 本 + github-issues 残 2 点     | mobile-first = ポインタ更新後 archive／autonomous-routine = 登録実施 or BLOCKED 化／filechanged = DEFERRED 化／Project UI 残 2 点 = 手動実施 or Issue 化 |
 | D-4  | archive/SUMMARY.md（約 30 ファイル欠落）      | 「2026-05-23 以前の索引」への役割再定義 + HISTORY-archive 参照修正が低コスト                                                                             |
@@ -239,8 +242,8 @@ merge 済み PR を「open・merge 待ち」と主張し続ける per-chat memor
 - [ ] `grep -rln 'Status: *\(COMPLETED\|SHIPPED\)' .claude/docs/vision/plans/` → 0 件
 - [ ] `grep -rn 'session-manager\|git-orchestrator' .claude/CLAUDE.md .claude/automation` → 0 件
 - [ ] `grep -rn '§11\|§10\.[0-9]\|§6\.3\|§6\.4\|§7\.2 抜粋' .claude/docs/requirements .claude/docs/vision/coding-principles.md .claude/agents` → 0 件
-- [ ] CLAUDE.md 内の全相対リンクの実在チェックスクリプト → exit 0
-- [ ] known-issues/INDEX.md の Status 集計 = 個別ファイル frontmatter の集計（手動 1 周）
+- [ ] CLAUDE.md 内の全相対リンク実在チェック → exit 0。ワンライナー: `grep -o '](\./[^)]*)' .claude/CLAUDE.md | sed 's/](\.\///;s/)//' | while read f; do [ -e ".claude/$f" ] || { echo "MISSING: $f"; exit 1; }; done`
+- [ ] ※手動: known-issues/INDEX.md の Status 集計 = 個別ファイル frontmatter の集計（1 周照合。docs-lint 実装後に自動化）
 - [ ] PR diff が `.claude/**` のみ（コード変更 0）
 - [ ] #154 / #155 の DoD 全項目チェック → 両 Issue close
 
@@ -248,25 +251,25 @@ merge 済み PR を「open・merge 待ち」と主張し続ける per-chat memor
 
 ## Files（主要変更対象の要約）
 
-| File                                                           | Operation         | Notes                                                    |
-| -------------------------------------------------------------- | ----------------- | -------------------------------------------------------- |
-| .claude/CLAUDE.md                                              | edit              | A-05/07/09/10/12/15・M-07・K-01・SSOT 例外明文化（D-10） |
-| .claude/2026-05-04-cross-platform-migration.md                 | edit              | A-01/06/07/08                                            |
-| .claude/docs/vision/{core,coding-principles,db-conventions}.md | edit              | A-02/03/04/11/13/14                                      |
-| .claude/docs/vision/plans/*（11 本）                           | move→archive      | Phase 2・Status 正規化                                   |
-| .claude/docs/vision/plans/*（3 本）                            | 改組              | D-2 の決定に従う                                         |
-| .claude/archive/SUMMARY.md                                     | edit              | D-4                                                      |
-| .claude/docs/known-issues/INDEX.md ほか                        | edit              | K-01〜K-08                                               |
-| .claude/docs/requirements/*（4 本 + README）                   | edit              | R-01〜R-12                                               |
-| .claude/docs/design/*（README/_TEMPLATE/settings）             | edit              | R-13〜R-15（merge 後再検証）                             |
-| .claude/agents/*（3 本）                                       | rewrite or delete | D-1                                                      |
-| .claude/skills/parallel-orchestrator/SKILL.md                  | edit              | M-04                                                     |
-| .claude/comm/README.md                                         | edit              | M-09 + filechanged プランの archive リンク               |
-| .claude/memory/chat-*.md（5 本）                               | edit              | Phase 6・🛑 認可後                                       |
-| .claude/automation/dev-schedule.md                             | edit              | D-8                                                      |
-| .claude/settings.json                                          | edit(条件付)      | D-6                                                      |
-| ~/dev/Claude/skill-lib/...（2 スキル）                         | edit              | 📦 repo 外・別コミット                                   |
-| rules/（sweep チェックリスト等）                               | add               | Phase 7                                                  |
+| File                                                           | Operation              | Notes                                                    |
+| -------------------------------------------------------------- | ---------------------- | -------------------------------------------------------- |
+| .claude/CLAUDE.md                                              | edit                   | A-05/07/09/10/12/15・M-07・K-01・SSOT 例外明文化（D-10） |
+| .claude/2026-05-04-cross-platform-migration.md                 | edit                   | A-01/06/07/08                                            |
+| .claude/docs/vision/{core,coding-principles,db-conventions}.md | edit                   | A-02/03/04/11/13/14                                      |
+| .claude/docs/vision/plans/*（11 本）                           | move→archive           | Phase 2・Status 正規化                                   |
+| .claude/docs/vision/plans/*（3 本）                            | 改組                   | D-2 の決定に従う                                         |
+| .claude/archive/SUMMARY.md                                     | edit                   | D-4                                                      |
+| .claude/docs/known-issues/INDEX.md ほか                        | edit                   | K-01〜K-08                                               |
+| .claude/docs/requirements/*（4 本 + README）                   | edit                   | R-01〜R-12                                               |
+| .claude/docs/design/*（README/_TEMPLATE/settings）             | edit                   | R-13〜R-15（merge 後再検証）                             |
+| .claude/agents/*（3 本）                                       | symlink 削除 or 付替え | D-1。書き換えの実体は agents-lib 側（📦 別コミット）     |
+| .claude/skills/parallel-orchestrator/SKILL.md                  | edit                   | M-04                                                     |
+| .claude/comm/README.md                                         | edit                   | M-09 + filechanged プランの archive リンク               |
+| .claude/memory/chat-*.md（5 本）                               | edit                   | Phase 6・🛑 認可後                                       |
+| .claude/automation/dev-schedule.md                             | edit                   | D-8                                                      |
+| .claude/settings.json                                          | edit(条件付)           | D-6                                                      |
+| ~/dev/Claude/skill-lib/...（2 スキル）                         | edit                   | 📦 repo 外・別コミット                                   |
+| rules/（sweep チェックリスト等）                               | add                    | Phase 7                                                  |
 
 ---
 

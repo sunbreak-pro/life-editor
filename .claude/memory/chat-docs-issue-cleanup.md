@@ -10,6 +10,5 @@
 
 ## 予定
 
-- 計画書 `docs/vision/plans/2026-07-07-docs-consistency-cleanup.md` のコミット（現在 untracked）
-- Phase 0: origin/main merge（この枝は #154/#155 対応 3 コミット未 PR・main は #157-#162 で 6 コミット先行）→ briefs 系 findings 再検証
+- Phase 0: origin/main merge（この枝は #154/#155 対応 3 コミット未 PR・main は監査時点で 6 コミット先行 — 実装時に ahead/behind 再計測）→ briefs 系 findings 再検証
 - 判断待ち D-1〜D-10 をユーザー確認 → Phase 1-8 実装 → PR（#154/#155 close 込み）
