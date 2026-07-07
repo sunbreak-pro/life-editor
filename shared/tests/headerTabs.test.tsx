@@ -69,4 +69,13 @@ describe("HeaderTabs", () => {
     });
     expect(onSelect).toHaveBeenCalledWith("daily");
   });
+
+  it("renders a trailing node outside the tablist (Turn 2 rightSidebar toggle slot)", () => {
+    renderTabs({ trailing: <button type="button">panel</button> });
+    // The tablist still exposes exactly the declared tabs (trailing is NOT a tab).
+    expect(screen.getAllByRole("tab")).toHaveLength(TABS.length);
+    const trailing = screen.getByRole("button", { name: "panel" });
+    expect(trailing).toBeInTheDocument();
+    expect(trailing).not.toHaveAttribute("role", "tab");
+  });
 });

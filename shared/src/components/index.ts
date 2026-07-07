@@ -88,6 +88,21 @@ export {
 // Header tabs (target-IA Desktop standard) + segmented control (its Mobile
 // echo). Pure presentation: props-injected copy, lumen-* tokens (§3.1 / §5).
 export { HeaderTabs, type HeaderTabsProps, type HeaderTab } from "./HeaderTabs";
+// RightSidebar detail panel (App Shell Turn 2) — push-in Desktop panel +
+// left Mobile drawer + open/close toggle + the portal a section uses to push
+// its detail UI into the panel. Pure presentation: props-injected copy,
+// lumen-* tokens (§3.1 / §5). Requires a RightSidebarProvider (context barrel).
+export { RightSidebar, type RightSidebarProps } from "./RightSidebar";
+export { MobileDrawer, type MobileDrawerProps } from "./MobileDrawer";
+export {
+  RightSidebarToggle,
+  type RightSidebarToggleProps,
+  type RightSidebarToggleVariant,
+} from "./RightSidebarToggle";
+export {
+  RightSidebarPortal,
+  type RightSidebarPortalProps,
+} from "./RightSidebarPortal";
 export {
   SegmentedControl,
   type SegmentedControlProps,
@@ -104,6 +119,7 @@ export {
   type AppShellProps,
   type AppShellSection,
   type AppShellLabels,
+  type DetailPanelLabels,
 } from "./AppShell";
 export {
   SettingsAppearance,
