@@ -75,17 +75,22 @@ export function RightSidebar({
 
   if (!isOpen) return null;
 
+  // Persisted width can be out of range (hand-edited storage, or MIN/MAX
+  // changed across versions) — re-clamp at render so a stale value can never
+  // squeeze <main> below its minimum.
+  const renderWidth = clampWidth(width);
+
   return (
     <aside
       ref={asideRef}
-      style={{ width }}
+      style={{ width: renderWidth }}
       className="relative flex flex-shrink-0 flex-col border-l border-lumen-border bg-lumen-bg-subsidebar"
     >
       {/* Left-edge resize handle. role=separator + arrow keys for a11y. */}
       <div
         role="separator"
         aria-orientation="vertical"
-        aria-valuenow={width}
+        aria-valuenow={renderWidth}
         aria-valuemin={MIN_WIDTH}
         aria-valuemax={MAX_WIDTH}
         aria-label={resizeLabel}

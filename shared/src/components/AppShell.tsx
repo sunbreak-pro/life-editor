@@ -123,7 +123,7 @@ export function AppShell({
 
   if (isWide) {
     return (
-      <div className="flex h-screen bg-lumen-bg text-lumen-text">
+      <div className="flex h-screen overflow-hidden bg-lumen-bg text-lumen-text">
         <SidebarNav
           sections={sections}
           utilitySections={utilitySections}
