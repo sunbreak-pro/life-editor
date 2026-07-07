@@ -64,6 +64,11 @@
   --color-hover: #e8e8ec;
   --color-success: #0f7b6c;
   --color-danger: #d92d20;
+  /* Subtle danger wash — the flat face behind inline error/alert bands
+     (Auth error band, ClaudeDesign Auth proposal). Opaque per §5: the
+     design's "danger 6% over the card" is pre-flattened against
+     bg-secondary here instead of using an rgba() overlay. */
+  --color-danger-subtle: #f0e5e6;
   /* Semantic info / warning — complete the functional-color set (was just
      success + danger). Theme-variable like the other semantics (§3.2):
      info leans the cobalt/azure family, warning an amber. Used for the
@@ -158,6 +163,8 @@
   --color-hover: #2a2a31;
   --color-success: #4dab9a;
   --color-danger: #ef4444;
+  /* Dark counterpart: danger 8% flattened against the dark bg-secondary. */
+  --color-danger-subtle: #2f2126;
   --color-info: #60a5fa;
   --color-warning: #fbbf24;
   --color-calendar-header: #991b1b;
@@ -217,6 +224,7 @@
   --color-lumen-hover-strong: var(--color-hover);
   --color-lumen-success: var(--color-success);
   --color-lumen-danger: var(--color-danger);
+  --color-lumen-danger-subtle: var(--color-danger-subtle);
   /* Info / warning semantics + the recessed surface + the third text tier.
      bg-lumen-info / bg-lumen-warning / bg-lumen-surface-sunken / text-lumen-* etc. */
   --color-lumen-info: var(--color-info);

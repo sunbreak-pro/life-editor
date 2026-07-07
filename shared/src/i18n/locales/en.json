@@ -2796,5 +2796,27 @@
       "saveFailed": "Failed to save schedule item",
       "deleteFailed": "Failed to delete schedule item"
     }
+  },
+  "auth": {
+    "productName": "Life Editor",
+    "tagline": "Your workspace for designing and recording your life",
+    "modeToggle": "Authentication mode",
+    "signIn": "Sign in",
+    "signUp": "Sign up",
+    "email": "Email address",
+    "emailPlaceholder": "you@example.com",
+    "password": "Password",
+    "passwordHelper": "At least 6 characters",
+    "showPassword": "Show password",
+    "hidePassword": "Hide password",
+    "busy": "Working…",
+    "footerSignIn": "No account yet? Create one from \"Sign up\" above.",
+    "footerSignUp": "Already have an account? Switch to \"Sign in\" above.",
+    "errors": {
+      "invalidCredentials": "Email or password is incorrect",
+      "alreadyRegistered": "This email address is already registered",
+      "noSession": "Signed up, but no session was started. Check that confirm-email is disabled (Phase 1).",
+      "generic": "Authentication failed. Please wait a moment and try again."
+    }
   }
 }

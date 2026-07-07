@@ -121,6 +121,27 @@ export {
   type AppShellLabels,
   type DetailPanelLabels,
 } from "./AppShell";
+// Auth (target-IA D8) — shell-independent pre-login entry card + its two
+// field-level parts. SegmentedToggle is the *form-mode* sibling of the
+// shell-owned SegmentedControl (radiogroup vs tablist — see each file's
+// header comment). Pure presentation: copy + submit intent injected by the
+// host (§3.1 / §6.4); the host owns the signIn/signUp calls.
+export {
+  AuthCard,
+  type AuthCardProps,
+  type AuthCardLabels,
+  type AuthMode,
+} from "./AuthCard";
+export {
+  PasswordField,
+  type PasswordFieldProps,
+  type PasswordFieldLabels,
+} from "./PasswordField";
+export {
+  SegmentedToggle,
+  type SegmentedToggleProps,
+  type SegmentedToggleOption,
+} from "./SegmentedToggle";
 export {
   SettingsAppearance,
   type SettingsAppearanceProps,

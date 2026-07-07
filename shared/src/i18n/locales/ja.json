@@ -2794,5 +2794,27 @@
       "saveFailed": "スケジュールアイテムの保存に失敗しました",
       "deleteFailed": "スケジュールアイテムの削除に失敗しました"
     }
+  },
+  "auth": {
+    "productName": "Life Editor",
+    "tagline": "生活を設計・記録するあなたのワークスペース",
+    "modeToggle": "認証モード",
+    "signIn": "ログイン",
+    "signUp": "新規登録",
+    "email": "メールアドレス",
+    "emailPlaceholder": "you@example.com",
+    "password": "パスワード",
+    "passwordHelper": "6 文字以上",
+    "showPassword": "パスワードを表示",
+    "hidePassword": "パスワードを隠す",
+    "busy": "処理中…",
+    "footerSignIn": "アカウントが無い場合は上部の「新規登録」から作成できます",
+    "footerSignUp": "既にアカウントがある場合は上部の「ログイン」へ",
+    "errors": {
+      "invalidCredentials": "メールアドレスまたはパスワードが正しくありません",
+      "alreadyRegistered": "このメールアドレスは既に登録されています",
+      "noSession": "登録は完了しましたが、セッションを開始できませんでした。confirm-email 設定（Phase 1 では無効）を確認してください。",
+      "generic": "認証に失敗しました。時間をおいて再度お試しください。"
+    }
   }
 }
