@@ -51,6 +51,10 @@
      pills). Light theme uses white on the deep cobalt; the dark theme
      overrides this to near-black ink because its accent is a light blue. */
   --color-on-accent: #ffffff;
+  /* Ink for text/icons on the vivid mint/amber phase fills (Pomodoro BREAK /
+     LONG_BREAK primary buttons). Those fills are mid-tone in both themes, so
+     white fails WCAG AA in light mode — this stays near-black in both. */
+  --color-on-vivid: #0a1024;
   /* Opaque light-cobalt wash for the DnD "drop inside this folder" cue
      (DU-G). Opaque on purpose (§5). */
   --color-accent-subtle: #dbeafe;
@@ -231,6 +235,11 @@
   --color-lumen-chip-task-fg: var(--color-chip-task-fg);
   --color-lumen-chip-progress-bg: var(--color-chip-progress-bg);
   --color-lumen-chip-progress-fg: var(--color-chip-progress-fg);
+  /* Pomodoro LONG_BREAK phase accent (amber). Reuses the theme-invariant
+     chart phase hue so the ring / main button read as a distinct third phase
+     (WORK reuses accent, BREAK reuses the mint secondary). Additive only. */
+  --color-lumen-phase-long-break: var(--color-chart-phase-long-break);
+  --color-lumen-on-vivid: var(--color-on-vivid);
   --color-lumen-chip-completed-bg: var(--color-chip-completed-bg);
   --color-lumen-chip-completed-fg: var(--color-chip-completed-fg);
   --color-lumen-status-todo-band: var(--color-status-todo-band);

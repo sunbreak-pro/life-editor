@@ -204,7 +204,13 @@ export function TimerProvider({
     }
     dispatch({ type: "START", now });
     setTickNow(now);
-  }, [state.isRunning, state.accumulatedMs, state.phase, state.activeTask, startSession]);
+  }, [
+    state.isRunning,
+    state.accumulatedMs,
+    state.phase,
+    state.activeTask,
+    startSession,
+  ]);
 
   const pause = useCallback(() => {
     if (!state.isRunning) return;
@@ -238,6 +244,17 @@ export function TimerProvider({
   const setActiveTask = useCallback((task: ActiveTask | null) => {
     dispatch({ type: "SET_ACTIVE_TASK", task });
   }, []);
+
+  const adjustRemainingMinutes = useCallback(
+    (delta: number) => {
+      // Guard here too (the reducer no-ops while running, but this avoids a
+      // redundant dispatch + tick bump). The reducer keeps remaining >= 1 min.
+      if (state.isRunning) return;
+      dispatch({ type: "ADJUST_REMAINING", deltaMinutes: delta });
+      setTickNow(Date.now());
+    },
+    [state.isRunning],
+  );
 
   // --- settings mutators (optimistic dispatch + persist) ---
   const persistSettings = useCallback(
@@ -378,6 +395,7 @@ export function TimerProvider({
       reset,
       setPhase,
       setActiveTask,
+      adjustRemainingMinutes,
       setWorkDurationMinutes,
       setBreakDurationMinutes,
       setLongBreakDurationMinutes,
@@ -409,6 +427,7 @@ export function TimerProvider({
       reset,
       setPhase,
       setActiveTask,
+      adjustRemainingMinutes,
       setWorkDurationMinutes,
       setBreakDurationMinutes,
       setLongBreakDurationMinutes,

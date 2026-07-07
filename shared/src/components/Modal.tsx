@@ -11,6 +11,9 @@ export interface ModalProps {
   onClose: () => void;
   /** Already-translated accessible title (props-injected i18n, §6.4). */
   title?: string;
+  /** id of a heading inside `children` that names the dialog — for consumers
+      that render their own layout instead of the default `title` heading. */
+  labelledBy?: string;
   children: ReactNode;
   /** Extra classes for the dialog panel. */
   className?: string;
@@ -35,6 +38,7 @@ export function Modal({
   open,
   onClose,
   title,
+  labelledBy,
   children,
   className,
   closeOnBackdrop = true,
@@ -102,7 +106,8 @@ export function Modal({
         ref={panelRef}
         role="dialog"
         aria-modal="true"
-        aria-label={title}
+        aria-label={labelledBy ? undefined : title}
+        aria-labelledby={labelledBy}
         className={cn(
           "w-full max-w-md rounded-lg border border-lumen-border",
           "bg-lumen-bg p-5 shadow-lumen-lg",

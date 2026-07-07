@@ -568,11 +568,17 @@
     "confirmSessionMessage": "セッションを終了して休憩に入りますか？",
     "confirmTaskTitle": "タスク完了",
     "confirmTaskMessage": "このタスクを完了しますか？",
+    "status": {
+      "paused": "一時停止中"
+    },
     "controls": {
       "start": "開始",
       "pause": "一時停止",
+      "resume": "再開",
       "reset": "リセット",
-      "skip": "スキップ"
+      "skip": "スキップ",
+      "subtractFive": "−5 分",
+      "addFive": "＋5 分"
     },
     "phase": {
       "WORK": "ワーク",
@@ -583,13 +589,25 @@
       "heading": "紐づけるタスク",
       "placeholder": "タスクを選択…",
       "none": "タスクがありません",
-      "clear": "タスクを解除"
+      "clear": "タスクを解除",
+      "select": "タスクを選ぶ",
+      "clearSelection": "選択を外す",
+      "emptyHint": "紐付けられるタスクがありません。Materials でタスクを作成すると選べるようになります。"
+    },
+    "completion": {
+      "title": "セッション {{index}} が完了しました",
+      "body": "「{{task}}」に {{minutes}} 分を記録しました。{{breakMinutes}} 分の休憩を挟みましょう。",
+      "bodyNoTask": "{{minutes}} 分を記録しました。{{breakMinutes}} 分の休憩を挟みましょう。",
+      "startBreak": "休憩を開始",
+      "oneMore": "もう 1 セッション",
+      "close": "閉じる"
     },
     "settings": {
       "minutesUnit": "分",
       "presetNamePlaceholder": "プリセット名",
       "saveAsPreset": "保存",
-      "apply": "適用"
+      "apply": "適用",
+      "presetsEmpty": "プリセットはまだありません"
     }
   },
   "audioMixer": {

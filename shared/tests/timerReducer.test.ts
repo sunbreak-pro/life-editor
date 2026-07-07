@@ -224,3 +224,38 @@ describe("SET_ACTIVE_TASK", () => {
     expect(s.activeTask).toBeNull();
   });
 });
+
+describe("ADJUST_REMAINING (±5 pills, paused only)", () => {
+  it("adds minutes to durationSeconds while idle (elapsed 0)", () => {
+    let s = initial(); // 25:00 idle, elapsed 0
+    s = timerReducer(s, { type: "ADJUST_REMAINING", deltaMinutes: 5 });
+    expect(s.durationSeconds).toBe(30 * 60);
+    expect(remainingSeconds(s, T0)).toBe(30 * 60);
+  });
+
+  it("subtracts minutes but never drops remaining below 1 minute", () => {
+    let s = initial({ workDuration: 3 }); // 3:00 idle
+    s = timerReducer(s, { type: "ADJUST_REMAINING", deltaMinutes: -5 });
+    // 180 - 300 clamps to a 60 s floor
+    expect(s.durationSeconds).toBe(60);
+    expect(remainingSeconds(s, T0)).toBe(60);
+  });
+
+  it("adjusts remaining relative to elapsed while paused", () => {
+    let s = initial(); // 25:00
+    s = timerReducer(s, { type: "START", now: T0 });
+    // run 10 min then pause → elapsed 600 s, remaining 900 s
+    s = timerReducer(s, { type: "PAUSE", now: T0 + 10 * 60_000 });
+    s = timerReducer(s, { type: "ADJUST_REMAINING", deltaMinutes: 5 });
+    // remaining 900 + 300 = 1200; duration = elapsed 600 + 1200 = 1800
+    expect(s.durationSeconds).toBe(1800);
+    expect(remainingSeconds(s, T0 + 10 * 60_000)).toBe(20 * 60);
+  });
+
+  it("is a no-op while running", () => {
+    let s = initial();
+    s = timerReducer(s, { type: "START", now: T0 });
+    const r = timerReducer(s, { type: "ADJUST_REMAINING", deltaMinutes: 5 });
+    expect(r).toBe(s); // identical reference
+  });
+});
