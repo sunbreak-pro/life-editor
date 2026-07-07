@@ -16,3 +16,9 @@ export type { ConnectGraphLabels } from "./labels";
 export { buildGraphModel, backlinkSourceIds } from "./graph/buildGraphModel";
 export type { GraphModelInput } from "./graph/buildGraphModel";
 export type { BacklinkEntry, BacklinkViewLabels } from "./BacklinkView";
+// Reusable presentational parts (shared by the Desktop root above and the
+// upcoming Mobile surfaces — peek sheet / settings sheet).
+export { GraphLegend } from "./GraphLegend";
+export { GraphStates } from "./GraphStates";
+export { ConnectSidebarPanel } from "./ConnectSidebarPanel";
+export type { ConnectSidebarTab } from "./ConnectSidebarPanel";

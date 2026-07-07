@@ -777,7 +777,30 @@
       "typeProject": "Project",
       "typeNote": "Note",
       "typeDaily": "Daily",
-      "typeTag": "Tag"
+      "typeTag": "Tag",
+      "loading": "Preparing the graph…",
+      "zoom": "Zoom",
+      "viewBacklinks": "Backlinks {{count}}",
+      "hintKeys": "Esc clear · ⌘F search · R reheat"
+    },
+    "empty": {
+      "title": "No connections yet",
+      "hint": "Add tags or links to your notes and they'll spread out here."
+    },
+    "search": {
+      "noMatch": "Nothing matches \"{{query}}\"",
+      "clear": "Clear search"
+    },
+    "sidebar": {
+      "settingsTab": "Graph settings",
+      "backlinksTab": "Backlinks",
+      "incomingLinks": "Links to this note"
+    },
+    "mobile": {
+      "linksTab": "Connections",
+      "backlinksTab": "Backlinks",
+      "settingsTitle": "Graph settings",
+      "searchPlaceholder": "Search notes, dailies, tags"
     }
   },
   "ideas": {

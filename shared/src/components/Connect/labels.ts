@@ -19,6 +19,37 @@ export interface ConnectGraphLabels {
   clearFilters: string;
   noMatch: string;
 
+  // ---- graph states (connect.graph.* / connect.empty.* / connect.search.*) ----
+  /** connect.graph.loading — spinner copy shown until the first fetch resolves */
+  graphLoading: string;
+  /** connect.empty.title — the graph has no nodes at all */
+  emptyTitle: string;
+  /** connect.empty.hint — how to make connections appear */
+  emptyHint: string;
+  /** connect.search.noMatch — template with a {{query}} placeholder */
+  noMatchQuery: string;
+  /** connect.search.clear — clear the active search */
+  clearSearch: string;
+  /** connect.graph.zoom — aria-label for the zoom read-out pill */
+  zoom: string;
+  /** connect.graph.fitView — reused resetView (fit graph to viewport) */
+  fitView: string;
+
+  // ---- rightSidebar tabs (connect.sidebar.* / connect.graph.viewBacklinks) ----
+  /** connect.sidebar.settingsTab — "Graph settings" tab */
+  settingsTab: string;
+  /** connect.sidebar.backlinksTab — "Backlinks" tab */
+  backlinksTab: string;
+  /** connect.sidebar.incomingLinks — "Links to this note" section header */
+  incomingLinks: string;
+  /**
+   * connect.graph.viewBacklinks — template "Backlinks {{count}}" for the
+   * SelectedNodeCard meta-row link that jumps to the backlinks tab.
+   */
+  viewBacklinks: string;
+  /** connect.graph.hintKeys — keyboard-shortcut footer in the settings tab */
+  hintKeys: string;
+
   // ---- control panel (connect.graph.*) ----
   search: string;
   nodeTypes: string;
@@ -63,4 +94,14 @@ export interface ConnectGraphLabels {
   // ---- backlinks (backlinks.*) ----
   backlinksTitle: string;
   backlinksEmpty: string;
+
+  // ---- Mobile (catalog + type added now; UI wired by the Mobile pass) ----
+  /** connect.mobile.linksTab — "Connections" tab on the mobile peek sheet */
+  mobileLinksTab: string;
+  /** connect.mobile.backlinksTab — "Backlinks" tab on the mobile peek sheet */
+  mobileBacklinksTab: string;
+  /** connect.mobile.settingsTitle — title of the mobile settings bottom sheet */
+  mobileSettingsTitle: string;
+  /** connect.mobile.searchPlaceholder — mobile settings search input placeholder */
+  mobileSearchPlaceholder: string;
 }

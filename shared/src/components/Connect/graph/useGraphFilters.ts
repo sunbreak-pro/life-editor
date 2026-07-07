@@ -15,9 +15,6 @@ export interface UseGraphFiltersResult {
   setForces: (f: ForceParams) => void;
   showLabels: boolean;
   setShowLabels: (v: boolean) => void;
-  panelOpen: boolean;
-  togglePanel: () => void;
-  closePanel: () => void;
   setSearch: (q: string) => void;
   toggleType: (type: GraphNodeType) => void;
   toggleTag: (tagNodeIdValue: string) => void;
@@ -42,7 +39,6 @@ export function useGraphFilters(
   const [showOrphans, setShowOrphansRaw] = useState(true);
   const [showLabels, setShowLabels] = useState(true);
   const [forces, setForces] = useState<ForceParams>(DEFAULT_FORCES);
-  const [panelOpen, setPanelOpen] = useState(false);
 
   // Local graph only kicks in when a node is selected AND depth > 0.
   const localFocusId = localDepth > 0 ? selectedId : null;
@@ -87,9 +83,6 @@ export function useGraphFilters(
     setShowOrphansRaw(true);
   }, []);
 
-  const togglePanel = useCallback(() => setPanelOpen((v) => !v), []);
-  const closePanel = useCallback(() => setPanelOpen(false), []);
-
   const activeFilterCount = useMemo(
     () => countActive({ ...filter, localFocusId: selectedId }),
     [filter, selectedId],
@@ -101,9 +94,6 @@ export function useGraphFilters(
     setForces,
     showLabels,
     setShowLabels,
-    panelOpen,
-    togglePanel,
-    closePanel,
     setSearch: setSearchRaw,
     toggleType,
     toggleTag,

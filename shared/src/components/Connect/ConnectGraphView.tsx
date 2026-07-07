@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Filter } from "lucide-react";
 import type { NoteNode } from "../../types/note";
 import type { DailyNode } from "../../types/daily";
 import type {
@@ -7,11 +6,19 @@ import type {
   WikiTagAssignment,
   WikiTagConnection,
 } from "../../types/wikiTagUnified";
+import { useRightSidebarOptional } from "../../hooks/useRightSidebarContext";
+import { RightSidebarPortal } from "../RightSidebarPortal";
 import { GraphCanvas } from "./GraphCanvas";
-import { GraphTopBar } from "./GraphTopBar";
+import { ConnectHeader } from "./ConnectHeader";
+import { GraphLegend } from "./GraphLegend";
+import { GraphStates } from "./GraphStates";
 import { GraphControlPanel } from "./GraphControlPanel";
 import { SelectedNodeCard } from "./SelectedNodeCard";
 import { BacklinkView, type BacklinkEntry } from "./BacklinkView";
+import {
+  ConnectSidebarPanel,
+  type ConnectSidebarTab,
+} from "./ConnectSidebarPanel";
 import { useGraphFilters } from "./graph/useGraphFilters";
 import {
   buildGraphModel,
@@ -32,6 +39,11 @@ export interface ConnectGraphViewProps {
   connections: WikiTagConnection[];
   /** all copy, resolved by the host (§6.4 — no useTranslation here) */
   labels: ConnectGraphLabels;
+  /**
+   * True until the host's first fetch resolves. Drives the loading overlay so
+   * the empty state can't flash before any data has arrived.
+   */
+  isLoading?: boolean;
   /** open a note ("activate" / double-click intent) */
   onOpenNote?: (noteId: string) => void;
   /** open a daily by date */
@@ -55,6 +67,13 @@ export interface ConnectGraphViewProps {
  * presentational root. The graph model is built from the UNIFIED item-link
  * data (notes / dailies / tags / assignments / connections), NOT the legacy
  * note_links/note_connections (which are Supabase stubs returning []).
+ *
+ * Layout (target IA / App Shell Turn 2): a section header row on top, the
+ * canvas area below (legend top-left, zoom pill bottom-right, selected-node
+ * card bottom-left, state overlays), and a "Graph settings / Backlinks" 2-tab
+ * body portalled into the shell's push-in rightSidebar. Open/close of that
+ * panel is owned by the shell (RightSidebarProvider) — this view only calls
+ * open() and picks the tab.
  */
 export function ConnectGraphView({
   notes,
@@ -63,6 +82,7 @@ export function ConnectGraphView({
   assignments,
   connections,
   labels,
+  isLoading = false,
   onOpenNote,
   onOpenDaily,
   onCreateLink,
@@ -76,10 +96,15 @@ export function ConnectGraphView({
 
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [zoomK, setZoomK] = useState(1);
+  const [sidebarTab, setSidebarTab] = useState<ConnectSidebarTab>("settings");
   const apiRef = useRef<{ reheat: () => void; resetView: () => void } | null>(
     null,
   );
   const searchInputRef = useRef<HTMLInputElement | null>(null);
+
+  // Shell rightSidebar (App Shell Turn 2). Optional so a standalone / test
+  // render without the Provider degrades gracefully (open() becomes a no-op).
+  const sidebar = useRightSidebarOptional();
 
   const filters = useGraphFilters(snapshot, selectedId);
 
@@ -114,10 +139,10 @@ export function ConnectGraphView({
   // client-side from the already-fetched connections (no per-select fetch).
   const backlinks = useMemo<BacklinkEntry[]>(() => {
     if (!selectedId || isTagNodeId(selectedId)) return [];
-    return backlinkSourceIds(selectedId, connections).map((id) => ({
-      id,
-      label: nodeById.get(id)?.label ?? "Untitled",
-    }));
+    return backlinkSourceIds(selectedId, connections).map((id) => {
+      const n = nodeById.get(id);
+      return { id, label: n?.label ?? "Untitled", type: n?.type };
+    });
   }, [selectedId, connections, nodeById]);
 
   // Link-edit affordances for the selected node. `neighbors` is the full
@@ -171,6 +196,16 @@ export function ConnectGraphView({
     [nodeById, onOpenNote, onOpenDaily],
   );
 
+  // Open the rightSidebar and jump to a tab (used by Cmd+F → settings and the
+  // card's "Backlinks N" link → backlinks). open() is a no-op without a shell.
+  const openSidebarTab = useCallback(
+    (tab: ConnectSidebarTab) => {
+      setSidebarTab(tab);
+      sidebar?.open();
+    },
+    [sidebar],
+  );
+
   // Keyboard shortcuts: Esc clears selection; Cmd/Ctrl+F opens search;
   // R reheats the simulation.
   useEffect(() => {
@@ -190,8 +225,12 @@ export function ConnectGraphView({
       }
       if ((e.metaKey || e.ctrlKey) && (e.key === "f" || e.key === "F")) {
         e.preventDefault();
-        if (!filters.panelOpen) filters.togglePanel();
-        requestAnimationFrame(() => searchInputRef.current?.focus());
+        openSidebarTab("settings");
+        // The search input mounts once the panel opens; wait two frames for
+        // the portal to attach before focusing it.
+        requestAnimationFrame(() =>
+          requestAnimationFrame(() => searchInputRef.current?.focus()),
+        );
         return;
       }
       if (isTypingTarget(e.target)) return;
@@ -201,11 +240,68 @@ export function ConnectGraphView({
     }
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [handleSelectedIdChange, filters]);
+  }, [handleSelectedIdChange, openSidebarTab]);
+
+  // Which "no graph" overlay (if any) to show over the canvas.
+  const hasNodes = snapshot.nodes.length > 0;
+  const graphState: "loading" | "empty" | "nomatch" | null = isLoading
+    ? "loading"
+    : !hasNodes
+      ? "empty"
+      : filters.filtered.nodes.length === 0
+        ? "nomatch"
+        : null;
+  const showCanvasChrome = !isLoading && hasNodes && graphState !== "nomatch";
+
+  const settingsContent = (
+    <GraphControlPanel
+      labels={labels}
+      filter={filters.filter}
+      onSearchChange={filters.setSearch}
+      onToggleType={filters.toggleType}
+      onToggleTag={filters.toggleTag}
+      onClearTags={filters.clearTags}
+      onLocalDepthChange={filters.setLocalDepth}
+      showLabels={filters.showLabels}
+      onShowLabelsChange={filters.setShowLabels}
+      onShowOrphansChange={filters.setShowOrphans}
+      forces={filters.forces}
+      onForcesChange={filters.setForces}
+      tags={tags}
+      typeCounts={typeCounts}
+      totalTypeCounts={totalTypeCounts}
+      selectedLabel={selectedNode ? selectedNode.label : null}
+      searchInputRef={searchInputRef}
+    />
+  );
+
+  const backlinksContent = (
+    <BacklinkView
+      node={selectedNode && !isTagNodeId(selectedNode.id) ? selectedNode : null}
+      entries={backlinks}
+      labels={{
+        incomingLinks: labels.incomingLinks,
+        empty: labels.backlinksEmpty,
+        selectHint: labels.selectNodeHint,
+      }}
+      onSelect={handleSelectedIdChange}
+    />
+  );
 
   return (
-    <div className="flex h-full w-full">
-      <div className="relative flex-1 min-w-0">
+    <div className="flex h-full w-full flex-col">
+      <ConnectHeader
+        labels={labels}
+        nodeCount={filters.filtered.nodes.length}
+        totalCount={snapshot.nodes.length}
+        edgeCount={filters.filtered.links.length}
+        activeFilterCount={filters.activeFilterCount}
+        onClearFilters={filters.clearAll}
+        onReheat={() => apiRef.current?.reheat()}
+        onResetView={() => apiRef.current?.resetView()}
+      />
+
+      <div className="relative min-h-0 flex-1 min-w-0">
         <GraphCanvas
           snapshot={filters.filtered}
           forces={filters.forces}
@@ -220,40 +316,26 @@ export function ConnectGraphView({
           onZoomChange={setZoomK}
         />
 
-        <GraphTopBar
-          labels={labels}
-          zoomPct={Math.round(zoomK * 100)}
-          nodeCount={filters.filtered.nodes.length}
-          totalCount={snapshot.nodes.length}
-          edgeCount={filters.filtered.links.length}
-          activeFilterCount={filters.activeFilterCount}
-          panelOpen={filters.panelOpen}
-          onClearFilters={filters.clearAll}
-          onReheat={() => apiRef.current?.reheat()}
-          onResetView={() => apiRef.current?.resetView()}
-          onTogglePanel={filters.togglePanel}
-        />
+        {hasNodes && !isLoading && (
+          <GraphLegend labels={labels} className="absolute left-4 top-3" />
+        )}
 
-        {snapshot.nodes.length > 0 && filters.filtered.nodes.length === 0 && (
-          <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-            <div className="text-center space-y-2 text-lumen-text-secondary">
-              <Filter size={32} className="mx-auto opacity-50" />
-              <div className="text-[13px]">{labels.noMatch}</div>
-              <button
-                type="button"
-                onClick={filters.clearAll}
-                className="mt-2 px-3 py-1 rounded text-[11px] pointer-events-auto bg-lumen-bg border border-lumen-border text-lumen-text hover:bg-lumen-hover"
-              >
-                {labels.clearFilters}
-              </button>
-            </div>
+        {showCanvasChrome && (
+          <div
+            className="absolute bottom-3 right-3 flex items-center rounded-lumen-full bg-lumen-bg border border-lumen-border px-3 py-1 font-mono text-[10px] text-lumen-text-tertiary shadow-lumen-sm"
+            aria-label={labels.zoom}
+          >
+            {Math.round(zoomK * 100)}%
           </div>
         )}
 
-        {snapshot.nodes.length === 0 && (
-          <div className="absolute inset-0 flex items-center justify-center text-sm text-lumen-text-secondary">
-            {labels.graphEmpty}
-          </div>
+        {graphState && (
+          <GraphStates
+            state={graphState}
+            labels={labels}
+            query={filters.filter.search}
+            onClear={filters.clearAll}
+          />
         )}
 
         {selectedNode && (
@@ -266,6 +348,12 @@ export function ConnectGraphView({
             onSelect={handleSelectedIdChange}
             onClose={() => handleSelectedIdChange(null)}
             onActivate={handleActivate}
+            backlinkCount={backlinks.length}
+            onViewBacklinks={
+              isTagNodeId(selectedNode.id)
+                ? undefined
+                : () => openSidebarTab("backlinks")
+            }
             linkableItems={linkableItems}
             outgoingLinkIds={outgoingLinkIds}
             onCreateLink={onCreateLink}
@@ -273,37 +361,18 @@ export function ConnectGraphView({
             onLinkError={onLinkError}
           />
         )}
-
-        {filters.panelOpen && (
-          <GraphControlPanel
-            labels={labels}
-            filter={filters.filter}
-            onSearchChange={filters.setSearch}
-            onToggleType={filters.toggleType}
-            onToggleTag={filters.toggleTag}
-            onClearTags={filters.clearTags}
-            onLocalDepthChange={filters.setLocalDepth}
-            showLabels={filters.showLabels}
-            onShowLabelsChange={filters.setShowLabels}
-            onShowOrphansChange={filters.setShowOrphans}
-            forces={filters.forces}
-            onForcesChange={filters.setForces}
-            tags={tags}
-            typeCounts={typeCounts}
-            totalTypeCounts={totalTypeCounts}
-            selectedLabel={selectedNode ? selectedNode.label : null}
-            searchInputRef={searchInputRef}
-            onClose={filters.closePanel}
-          />
-        )}
       </div>
 
-      <BacklinkView
-        targetLabel={selectedNode ? selectedNode.label : null}
-        entries={backlinks}
-        labels={{ title: labels.backlinksTitle, empty: labels.backlinksEmpty }}
-        onSelect={handleSelectedIdChange}
-      />
+      <RightSidebarPortal>
+        <ConnectSidebarPanel
+          labels={labels}
+          activeTab={sidebarTab}
+          onTabChange={setSidebarTab}
+          backlinkCount={backlinks.length}
+          settingsContent={settingsContent}
+          backlinksContent={backlinksContent}
+        />
+      </RightSidebarPortal>
     </div>
   );
 }

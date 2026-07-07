@@ -777,7 +777,30 @@
       "typeProject": "プロジェクト",
       "typeNote": "ノート",
       "typeDaily": "デイリー",
-      "typeTag": "タグ"
+      "typeTag": "タグ",
+      "loading": "グラフを準備しています…",
+      "zoom": "ズーム",
+      "viewBacklinks": "バックリンク {{count}}",
+      "hintKeys": "Esc 選択解除 · ⌘F 検索 · R 再配置"
+    },
+    "empty": {
+      "title": "まだつながりがありません",
+      "hint": "ノートにタグやリンクを付けると、ここに広がっていきます"
+    },
+    "search": {
+      "noMatch": "「{{query}}」に一致するものがありません",
+      "clear": "検索をクリア"
+    },
+    "sidebar": {
+      "settingsTab": "グラフ設定",
+      "backlinksTab": "バックリンク",
+      "incomingLinks": "このノートへのリンク"
+    },
+    "mobile": {
+      "linksTab": "つながり",
+      "backlinksTab": "バックリンク",
+      "settingsTitle": "グラフ設定",
+      "searchPlaceholder": "ノート・デイリー・タグを検索"
     }
   },
   "ideas": {
