@@ -153,8 +153,30 @@ export {
 export {
   SettingsShortcuts,
   type SettingsShortcutsProps,
+  type SettingsShortcutsLabels,
   type ShortcutRow,
 } from "./SettingsShortcuts";
+// Settings building blocks (ClaudeDesign port). Pure presentation, lumen-*
+// tokens, props-injected copy (§3.1 / §6.4).
+export {
+  ThemePreviewCard,
+  type ThemePreviewCardProps,
+} from "./ThemePreviewCard";
+export {
+  SteppedSlider,
+  type SteppedSliderProps,
+} from "./SteppedSlider";
+export {
+  ShortcutEditModal,
+  type ShortcutEditModalProps,
+  type ShortcutEditModalLabels,
+} from "./ShortcutEditModal";
+export {
+  SettingsDetailPanel,
+  type SettingsDetailPanelProps,
+  type SettingsDetailTip,
+  type SettingsDetailTask,
+} from "./SettingsDetailPanel";
 export {
   CommandPalette,
   type CommandPaletteProps,

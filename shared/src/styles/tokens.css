@@ -22,7 +22,13 @@
  * components MUST be defined in the @theme block below.
  */
 
-:root {
+/* The light-theme values live on both `:root` (the default, matching the
+   document root) AND an explicit `[data-theme="light"]` scope. The extra
+   scope lets a nested subtree opt back into light even while the app root is
+   `[data-theme="dark"]` — used by ThemePreviewCard to render a fixed-light
+   miniature inside a dark app. Same declaration block, so no value can drift. */
+:root,
+[data-theme="light"] {
   /* Brand: Lumen (Cobalt Ink + Mint lineage, 2026-06-20; primary accent
      aligned to Lumen blue, deepened to blue-700 on 2026-07-05 so accent-
      colored text/icons clear WCAG AA 4.5:1 even on the hover background).
