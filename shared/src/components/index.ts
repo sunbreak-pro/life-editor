@@ -170,12 +170,18 @@ export {
   type TrashBusy,
   type TrashBusyAction,
 } from "./TrashView";
-// Work / Pomodoro (W3-B) — pure timer face + task selector + settings editor.
+// Work / Pomodoro (target-IA import) — pure timer face + phase badge + session
+// dots + task selector/sheet + settings editor + completion modal.
+export {
+  PhaseBadge,
+  type PhaseBadgeProps,
+  type PomodoroPhase,
+} from "./PhaseBadge";
+export { SessionDots, type SessionDotsProps } from "./SessionDots";
 export {
   PomodoroTimer,
   type PomodoroTimerProps,
   type PomodoroTimerLabels,
-  type PomodoroPhase,
 } from "./PomodoroTimer";
 export {
   PomodoroTaskSelector,
@@ -184,11 +190,21 @@ export {
   type TaskOption,
 } from "./PomodoroTaskSelector";
 export {
+  PomodoroTaskSheet,
+  type PomodoroTaskSheetProps,
+  type PomodoroTaskSheetLabels,
+} from "./PomodoroTaskSheet";
+export {
   PomodoroSettings,
   type PomodoroSettingsProps,
   type PomodoroSettingsLabels,
   type PomodoroPresetOption,
 } from "./PomodoroSettings";
+export {
+  SessionCompletionModal,
+  type SessionCompletionModalProps,
+  type SessionCompletionModalLabels,
+} from "./SessionCompletionModal";
 // Audio (W3-C) — ambient mixer primitive + headless completion-chime bridge.
 export {
   AudioMixer,

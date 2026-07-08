@@ -68,7 +68,8 @@ export type TimerAction =
   | { type: "ADVANCE"; now: number }
   | { type: "SET_PHASE"; phase: TimerPhase }
   | { type: "SET_CONFIG"; config: Partial<TimerConfig> }
-  | { type: "SET_ACTIVE_TASK"; task: ActiveTask | null };
+  | { type: "SET_ACTIVE_TASK"; task: ActiveTask | null }
+  | { type: "ADJUST_REMAINING"; deltaMinutes: number };
 
 export const DEFAULT_CONFIG: TimerConfig = {
   workDuration: 25,
@@ -225,6 +226,19 @@ export function timerReducer(
 
     case "SET_ACTIVE_TASK":
       return { ...state, activeTask: action.task };
+
+    case "ADJUST_REMAINING": {
+      // Nudge the current phase length by ±deltaMinutes while paused/idle so
+      // the ring + MM:SS reflect the new remaining time. No-op while running
+      // (mid-run the in-flight target must stay fixed). Elapsed is read from
+      // accumulatedMs alone (no live segment when !isRunning), so this stays
+      // pure (no `now` needed). Remaining never drops below 1 minute.
+      if (state.isRunning) return state;
+      const elapsed = Math.floor(state.accumulatedMs / 1000);
+      const remaining = Math.max(0, state.durationSeconds - elapsed);
+      const remainingAfter = Math.max(60, remaining + action.deltaMinutes * 60);
+      return { ...state, durationSeconds: elapsed + remainingAfter };
+    }
 
     default:
       return state;

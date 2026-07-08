@@ -577,11 +577,17 @@
     "confirmSessionMessage": "End this session and start a break?",
     "confirmTaskTitle": "Complete Task",
     "confirmTaskMessage": "Mark this task as complete?",
+    "status": {
+      "paused": "Paused"
+    },
     "controls": {
       "start": "Start",
       "pause": "Pause",
+      "resume": "Resume",
       "reset": "Reset",
-      "skip": "Skip"
+      "skip": "Skip",
+      "subtractFive": "−5 min",
+      "addFive": "+5 min"
     },
     "phase": {
       "WORK": "Work",
@@ -592,13 +598,25 @@
       "heading": "Linked Task",
       "placeholder": "Select a task…",
       "none": "No tasks available",
-      "clear": "Clear task"
+      "clear": "Clear task",
+      "select": "Choose a task",
+      "clearSelection": "Clear selection",
+      "emptyHint": "No tasks to link. Create a task in Materials to select one."
+    },
+    "completion": {
+      "title": "Session {{index}} complete",
+      "body": "Logged {{minutes}} min to “{{task}}”. Take a {{breakMinutes}}-minute break.",
+      "bodyNoTask": "Logged {{minutes}} min. Take a {{breakMinutes}}-minute break.",
+      "startBreak": "Start break",
+      "oneMore": "One more session",
+      "close": "Close"
     },
     "settings": {
       "minutesUnit": "min",
       "presetNamePlaceholder": "Preset name",
       "saveAsPreset": "Save",
-      "apply": "Apply"
+      "apply": "Apply",
+      "presetsEmpty": "No presets yet"
     }
   },
   "audioMixer": {
