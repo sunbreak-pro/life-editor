@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, type ReactNode } from "react";
 import {
   BarChart,
   Bar,
@@ -16,6 +16,7 @@ import {
   aggregateByMonth,
   type DayBucket,
 } from "../../utils/analyticsAggregation";
+import { ChartCard } from "./ChartCard";
 
 export interface WorkTimeChartLabels {
   /** Chart heading + tooltip series name. */
@@ -26,6 +27,8 @@ interface WorkTimeChartProps {
   sessions: TimerSession[];
   period: Period;
   labels: WorkTimeChartLabels;
+  /** Optional right-aligned control slot (the day/week/month period pills). */
+  control?: ReactNode;
 }
 
 function formatDateLabel(dateStr: string, period: Period): string {
@@ -43,6 +46,7 @@ export function WorkTimeChart({
   sessions,
   period,
   labels,
+  control,
 }: WorkTimeChartProps): React.JSX.Element {
   const data = useMemo(() => {
     let buckets: DayBucket[];
@@ -65,10 +69,7 @@ export function WorkTimeChart({
   }, [sessions, period]);
 
   return (
-    <div className="bg-lumen-bg-secondary rounded-lg p-4 border border-lumen-border">
-      <h3 className="text-sm font-semibold text-lumen-text mb-3">
-        {labels.workTime}
-      </h3>
+    <ChartCard title={labels.workTime} control={control}>
       <div className="h-48">
         <ResponsiveContainer width="100%" height="100%" minWidth={0}>
           <BarChart
@@ -77,22 +78,16 @@ export function WorkTimeChart({
           >
             <CartesianGrid
               strokeDasharray="3 3"
-              stroke="var(--color-lumen-text-secondary, #e5e5e5)"
+              stroke="var(--color-lumen-border)"
             />
             <XAxis
               dataKey="label"
-              tick={{
-                fontSize: 11,
-                fill: "var(--color-lumen-text-secondary, #999)",
-              }}
+              tick={{ fontSize: 11, fill: "var(--color-lumen-text-secondary)" }}
               tickLine={false}
               axisLine={false}
             />
             <YAxis
-              tick={{
-                fontSize: 11,
-                fill: "var(--color-lumen-text-secondary, #999)",
-              }}
+              tick={{ fontSize: 11, fill: "var(--color-lumen-text-secondary)" }}
               tickLine={false}
               axisLine={false}
               unit="h"
@@ -100,8 +95,8 @@ export function WorkTimeChart({
             <Tooltip
               cursor={{ fill: "var(--color-lumen-hover)" }}
               contentStyle={{
-                background: "var(--color-lumen-bg, #fff)",
-                border: "1px solid var(--color-lumen-border, #e5e5e5)",
+                background: "var(--color-lumen-bg)",
+                border: "1px solid var(--color-lumen-border)",
                 borderRadius: 8,
                 fontSize: 12,
               }}
@@ -112,12 +107,12 @@ export function WorkTimeChart({
             />
             <Bar
               dataKey="hours"
-              fill="var(--color-lumen-accent, #1d4ed8)"
+              fill="var(--color-lumen-accent)"
               radius={[4, 4, 0, 0]}
             />
           </BarChart>
         </ResponsiveContainer>
       </div>
-    </div>
+    </ChartCard>
   );
 }

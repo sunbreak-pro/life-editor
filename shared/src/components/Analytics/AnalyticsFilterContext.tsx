@@ -29,11 +29,15 @@ export type DatePreset = "7d" | "30d" | "thisMonth" | "3m" | "all";
 
 interface AnalyticsFilterContextValue {
   dateRange: DateRange;
+  /** The active preset (drives the header pill group's checked state). */
+  preset: DatePreset;
   period: Period;
   setPeriod: (period: Period) => void;
   setDateRange: (range: DateRange) => void;
   applyPreset: (preset: DatePreset) => void;
 }
+
+const DEFAULT_PRESET: DatePreset = "30d";
 
 function getPresetRange(preset: DatePreset): DateRange {
   const end = new Date();
@@ -80,8 +84,9 @@ export function AnalyticsFilterProvider({
   onDateRangeChange?: (range: DateRange) => void;
 }): React.JSX.Element {
   const [dateRange, setDateRange] = useState<DateRange>(() =>
-    getPresetRange("30d"),
+    getPresetRange(DEFAULT_PRESET),
   );
+  const [preset, setPreset] = useState<DatePreset>(DEFAULT_PRESET);
   const [period, setPeriod] = useState<Period>("day");
 
   // Latest-callback ref so an unmemoized host callback never causes a spurious
@@ -95,19 +100,21 @@ export function AnalyticsFilterProvider({
     onDateRangeChangeRef.current?.(dateRange);
   }, [dateRange]);
 
-  const applyPreset = (preset: DatePreset): void => {
-    setDateRange(getPresetRange(preset));
+  const applyPreset = (next: DatePreset): void => {
+    setPreset(next);
+    setDateRange(getPresetRange(next));
   };
 
   const value = useMemo<AnalyticsFilterContextValue>(
     () => ({
       dateRange,
+      preset,
       period,
       setPeriod,
       setDateRange,
       applyPreset,
     }),
-    [dateRange, period],
+    [dateRange, preset, period],
   );
 
   return (

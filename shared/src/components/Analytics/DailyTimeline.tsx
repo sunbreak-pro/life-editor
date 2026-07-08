@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import type { TimerSession } from "../../types/timer";
 import { aggregateDailyTimeline } from "../../utils/analyticsAggregation";
 import { formatDateKey } from "../../utils/dateKey";
+import { ChartCard } from "./ChartCard";
 
 export interface DailyTimelineLabels {
   title: string;
@@ -17,11 +18,11 @@ interface DailyTimelineProps {
 }
 
 // Session-type → block tint. WORK/BREAK reuse lumen chrome tokens; LONG_BREAK
-// uses the dedicated --color-chart-phase-long-break data-series token.
+// uses a distinct categorical token so the three phases stay separable.
 const SESSION_COLORS: Record<string, string> = {
-  WORK: "var(--color-lumen-accent, #1d4ed8)",
-  BREAK: "var(--color-lumen-success, #22c55e)",
-  LONG_BREAK: "var(--color-chart-phase-long-break, #f59e0b)",
+  WORK: "var(--color-lumen-accent)",
+  BREAK: "var(--color-lumen-accent-secondary)",
+  LONG_BREAK: "var(--color-chart-cat-7)",
 };
 
 const HOURS = Array.from({ length: 25 }, (_, i) => i);
@@ -47,32 +48,29 @@ export function DailyTimeline({
         ? labels.break
         : labels.longBreak;
 
-  return (
-    <div>
-      <div className="flex items-center justify-between mb-3">
-        <h3 className="text-sm font-semibold text-lumen-text">
-          {labels.title}
-        </h3>
-        <input
-          type="date"
-          value={selectedDate}
-          onChange={(e) => setSelectedDate(e.target.value)}
-          className="px-2 py-1 text-xs rounded-md border border-lumen-border bg-lumen-bg text-lumen-text focus:outline-none focus:border-lumen-accent"
-        />
-      </div>
+  const dateControl = (
+    <input
+      type="date"
+      value={selectedDate}
+      onChange={(e) => setSelectedDate(e.target.value)}
+      className="rounded-md border border-lumen-border bg-lumen-bg px-2 py-1 text-xs text-lumen-text focus:border-lumen-accent focus:outline-none"
+    />
+  );
 
+  return (
+    <ChartCard title={labels.title} control={dateControl}>
       {blocks.length === 0 ? (
-        <p className="text-xs text-lumen-text-secondary text-center py-4">
+        <p className="py-4 text-center text-xs text-lumen-text-secondary">
           {labels.noSessions}
         </p>
       ) : (
         <div className="relative">
           {/* Hour labels */}
-          <div className="flex justify-between mb-1">
+          <div className="mb-1 flex justify-between">
             {DISPLAY_HOURS.map((h) => (
               <span
                 key={h}
-                className="text-[9px] text-lumen-text-secondary"
+                className="text-[9px] text-lumen-text-tertiary"
                 style={{
                   position: "absolute",
                   left: `${(h / 24) * 100}%`,
@@ -85,23 +83,16 @@ export function DailyTimeline({
           </div>
 
           {/* Timeline bar */}
-          <div
-            className="relative h-8 rounded-md overflow-hidden mt-5"
-            style={{
-              backgroundColor: "var(--color-lumen-hover, #f3f4f6)",
-            }}
-          >
+          <div className="relative mt-5 h-8 overflow-hidden rounded-md bg-lumen-surface-sunken">
             {/* Hour grid lines */}
             {HOURS.map((h) => (
               <div
                 key={h}
-                className="absolute top-0 bottom-0 border-l"
+                className="absolute bottom-0 top-0 border-l"
                 style={{
                   left: `${(h / 24) * 100}%`,
                   borderColor:
-                    h % 6 === 0
-                      ? "var(--color-lumen-border, #e5e5e5)"
-                      : "transparent",
+                    h % 6 === 0 ? "var(--color-lumen-border)" : "transparent",
                 }}
               />
             ))}
@@ -114,7 +105,7 @@ export function DailyTimeline({
               return (
                 <div
                   key={i}
-                  className="absolute top-1 bottom-1 rounded-sm opacity-85 hover:opacity-100 transition-opacity"
+                  className="absolute bottom-1 top-1 rounded-sm opacity-85 transition-opacity hover:opacity-100"
                   style={{
                     left: `${startPercent}%`,
                     width: `${Math.max(widthPercent, 0.3)}%`,
@@ -128,11 +119,11 @@ export function DailyTimeline({
           </div>
 
           {/* Legend */}
-          <div className="flex gap-4 mt-2 justify-center">
+          <div className="mt-2 flex justify-center gap-4">
             {Object.entries(SESSION_COLORS).map(([type, color]) => (
               <div key={type} className="flex items-center gap-1">
                 <div
-                  className="w-2.5 h-2.5 rounded-sm"
+                  className="h-2.5 w-2.5 rounded-sm"
                   style={{ backgroundColor: color }}
                 />
                 <span className="text-[10px] text-lumen-text-secondary">
@@ -143,6 +134,6 @@ export function DailyTimeline({
           </div>
         </div>
       )}
-    </div>
+    </ChartCard>
   );
 }

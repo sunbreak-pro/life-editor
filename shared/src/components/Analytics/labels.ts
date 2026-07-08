@@ -1,3 +1,5 @@
+import type { DatePreset } from "./AnalyticsFilterContext";
+
 /*
  * Typed i18n labels for the Analytics feature (W4 · lean).
  *
@@ -13,14 +15,21 @@ export interface AnalyticsLabels {
   title: string;
   /** "{hours}h {minutes}m" — host interpolates via t("analytics.hours", ...). */
   formatHours: (minutes: number) => string;
-  /** Empty-state copy shared by the Work tab. */
-  noSessions: string;
+
+  /** Accessible name for the shell HeaderTabs tablist. */
+  tabsLabel: string;
 
   tabs: {
     overview: string;
     tasks: string;
     schedule: string;
     work: string;
+  };
+
+  /** Header date-range preset pills (7d / 30d / thisMonth / 3m / all). */
+  datePreset: {
+    label: string;
+    options: Record<DatePreset, string>;
   };
 
   period: {
@@ -35,6 +44,11 @@ export interface AnalyticsLabels {
   totalWorkTime: string;
   sessions: string;
   avgPerDay: string;
+
+  /** Designed empty states (icon + title + guidance sentence). */
+  emptyWork: { title: string; description: string };
+  emptySchedule: { title: string; description: string };
+  emptyMobile: { title: string; description: string };
 
   overview: {
     tasks: string;
@@ -74,6 +88,11 @@ export interface AnalyticsLabels {
 
   heatmap: {
     title: string;
+    /** Right-aligned meta text (e.g. "時間帯 × 曜日"). */
+    meta: string;
+    /** Legend endpoints: low → high intensity. */
+    less: string;
+    more: string;
     /** Day-of-week short labels keyed mon..sun. */
     days: Record<"mon" | "tue" | "wed" | "thu" | "fri" | "sat" | "sun", string>;
     /** "{minutes} min" — host interpolates. */
@@ -113,13 +132,19 @@ export interface AnalyticsLabels {
     noData: string;
   };
 
+  /** Mobile-only single-scroll labels. */
+  mobile: {
+    weekTitle: string;
+    routineTitle: string;
+    top3: string;
+  };
+
   schedule: {
     totalEvents: string;
     completedEvents: string;
     completionRate: string;
     activeRoutines: string;
     routineRate: string;
-    noEvents: string;
     eventTrend: {
       title: string;
       completed: string;

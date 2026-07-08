@@ -1,9 +1,9 @@
-import { useMemo, type ReactNode } from "react";
-import { Clock, CheckCircle2, Timer } from "lucide-react";
+import { useMemo } from "react";
 import type { TimerSession } from "../../types/timer";
 import type { TaskNode } from "../../types/taskTree";
 import { formatDateKey } from "../../utils/dateKey";
 import { getWorkSessions } from "../../utils/analyticsAggregation";
+import { ChartCard } from "./ChartCard";
 
 export interface TodayDashboardLabels {
   title: string;
@@ -50,52 +50,48 @@ export function TodayDashboard({
   }, [sessions, nodes]);
 
   return (
-    <div>
-      <h3 className="text-sm font-semibold text-lumen-text mb-3">
-        {labels.title}
-      </h3>
+    <ChartCard title={labels.title}>
       <div className="grid grid-cols-3 gap-3">
-        <MiniCard
-          icon={<Clock size={16} />}
+        <MiniStat
           label={labels.workTime}
           value={labels.formatHours(stats.workMinutes)}
-          color="text-lumen-accent"
         />
-        <MiniCard
-          icon={<CheckCircle2 size={16} />}
+        <MiniStat
           label={labels.completedTasks}
           value={String(stats.completedToday)}
-          color="text-lumen-success"
+          divider
         />
-        <MiniCard
-          icon={<Timer size={16} />}
+        <MiniStat
           label={labels.pomodoroCount}
           value={String(stats.pomodoroCount)}
-          color="text-lumen-danger"
+          divider
         />
       </div>
-    </div>
+    </ChartCard>
   );
 }
 
-function MiniCard({
-  icon,
+function MiniStat({
   label,
   value,
-  color,
+  divider,
 }: {
-  icon: ReactNode;
   label: string;
   value: string;
-  color: string;
+  divider?: boolean;
 }): React.JSX.Element {
   return (
-    <div className="bg-lumen-bg-secondary rounded-lg p-3 flex items-center gap-2">
-      <div className={color}>{icon}</div>
-      <div className="min-w-0">
-        <p className="text-lg font-bold text-lumen-text truncate">{value}</p>
-        <p className="text-xs text-lumen-text-secondary truncate">{label}</p>
-      </div>
+    <div
+      className={
+        divider
+          ? "flex flex-col gap-0.5 border-l border-lumen-border pl-3"
+          : "flex flex-col gap-0.5"
+      }
+    >
+      <span className="text-lg font-semibold tabular-nums text-lumen-text">
+        {value}
+      </span>
+      <span className="text-xs text-lumen-text-secondary">{label}</span>
     </div>
   );
 }
