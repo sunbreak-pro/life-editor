@@ -1,5 +1,5 @@
 ---
-Status: In Progress（コア Steps 1–6 実装完了・検証中 / Step 7 DnD は W8+ へ送り）
+Status: COMPLETED — W8 Schedule 週・日タイムグリッド実装マージ済（DnD は後継計画送り）。UI 追跡は ClaudeDesign fan-out へ移管し archive（#154・2026-07-05）
 Created: 2026-06-19
 Branch: feat/w8-schedule-calendar
 Owner-chat: main（起草は web-w6-master-detail。実装着手で main が引き取り）

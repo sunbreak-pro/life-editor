@@ -36,7 +36,7 @@ Related:
 
 旧 Phase 0（学習スパイク 2.5 週）は本改訂で削除。Phase 番号は繰り上げない（旧 Phase 1 → 新 Phase 1）。
 
-**2026-06-07 追補（UI 集約方針 = W0 確定）**: Web/Desktop 機能差を埋める作業（計画書 `plans/2026-06-07-web-desktop-parity-roadmap.md`）で UI 共通化を **「2 層モデル」**＝部品層は `shared/src/components/` に完全共通集約・画面層は機能別に単一/分割、と確定（案 A）。デザインシステム + `ink-*` トークン + **i18n（en/ja catalog + i18next）** を `shared/` に集約し、3 配布形態（Electron/Capacitor/Web）が共用する。詳細原則は `docs/vision/coding-principles.md §6`。本書 Phase 2 の `frontend/src/i18n/ → shared/src/i18n/` は W0 で先行移植済（catalog を `frontend` から全量コピー、frontend は FROZEN のまま不変）。
+**2026-06-07 追補（UI 集約方針 = W0 確定）**: Web/Desktop 機能差を埋める作業（計画書 `archive/2026-06-07-web-desktop-parity-roadmap.md`・#154 で完了 archive）で UI 共通化を **「2 層モデル」**＝部品層は `shared/src/components/` に完全共通集約・画面層は機能別に単一/分割、と確定（案 A）。デザインシステム + `ink-*` トークン + **i18n（en/ja catalog + i18next）** を `shared/` に集約し、3 配布形態（Electron/Capacitor/Web）が共用する。詳細原則は `docs/vision/coding-principles.md §6`。本書 Phase 2 の `frontend/src/i18n/ → shared/src/i18n/` は W0 で先行移植済（catalog を `frontend` から全量コピー、frontend は FROZEN のまま不変）。
 
 ---
 

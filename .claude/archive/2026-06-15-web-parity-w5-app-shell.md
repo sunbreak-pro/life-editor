@@ -1,5 +1,5 @@
 ---
-Status: Draft
+Status: COMPLETED — W5 アプリシェル実装マージ済。UI 追跡は ClaudeDesign fan-out へ移管し archive（#154・2026-07-05）
 Created: 2026-06-15
 Branch: claude/web-app-ui-ux-plan-t7wa12
 Owner-chat: web-app-ui-ux

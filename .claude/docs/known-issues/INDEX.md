@@ -4,6 +4,10 @@
 
 > ⚠️ **2026-07-04 以降、Active/Monitoring の課題は GitHub Issues に移行**（追跡の正 = Issues。`gh issue list -R sunbreak-pro/life-editor`）。
 > 本ディレクトリは **Fixed の Root Cause 凍結アーカイブ（参照専用・grep 資産）**。新規バグは GitHub Issue で起票し、本 INDEX には追加しない。
+>
+> 🧭 **種別の区別（2026-07-05・#155）**: 下記のうち一部は「プロダクト課題」ではない。
+> - **環境系（Claude Code 作業環境・Issue 化対象外）**: `026`（PostToolUse formatter 挙動）/ `028`（Bash cwd 漂流）。life-editor のコードを直しても直らないため、追跡は本ディレクトリ + `rules/` で行い GitHub Issue には積まない（起票済みの #117/#119 は整理のため close 済み）。
+> - **移行で解消**: `006`（Desktop app_data_dir 分裂）は Tauri → Web/Electron 移行で問題自体が消滅する見込み（#120 は close 済み）。
 
 ---
 
@@ -63,6 +67,8 @@
 - **Tooling**: 007, 022, 023, 024, 026, 028, 029
 - **Security**: 022, 027
 - **Styling**: 015
+- **環境系（Claude Code 作業環境・GitHub Issue 化対象外 → #155）**: 026, 028
+- **移行で解消（Tauri→Web で消滅見込み）**: 006
 
 ## Status 集計
 

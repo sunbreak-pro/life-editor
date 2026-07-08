@@ -1,5 +1,5 @@
 ---
-Status: ACTIVE — W0–W8 実装マージ済 / 残 = W4 follow-up + 目視ゲート（追跡 = Issue #121）
+Status: COMPLETED — W0–W8 実装マージ済。UI 追跡正本は ClaudeDesign fan-out へ一本化し archive 済（#154・2026-07-05）
 Issue: sunbreak-pro/life-editor#121
 Created: 2026-06-07
 Owner-chat: main
@@ -18,6 +18,12 @@ Related:
 
 > 移行 SSOT(`2026-05-04-cross-platform-migration.md`) の Phase 2 末〜Phase 5-A をまたぐ横断レーン。
 > 本書は**全体ロードマップ（親）**。各 Phase の詳細実装計画は着手時に子計画書（`2026-06-XX-web-parity-w<N>-*.md`）へ分割する。
+
+---
+
+## 完了総括（2026-07-05・#154 closeout）
+
+本ロードマップ（親）と全子計画（W0–W8）は実装マージ済で完了。W0 で shared に UI 基盤（デザインシステム + i18n + 2 層モデル原則）を敷き、W1 Settings/Theme/Font/Shortcut・W2 Trash/CommandPalette・W3 Work/Timer/Audio・W4 Analytics/Connect でコア未移植機能を web/shared へ移植、W5 でアプリシェル（サイドバー + レスポンシブナビ）を Desktop 同等へ刷新、W6–W8 でセクション内部を深化（W6 Notes 3 ペイン / W7 Tasks 詳細パネル / W8 Schedule 週・日タイムグリッド）した。残っていた W4 follow-up と各 Phase の目視/merge ゲートは後継の ClaudeDesign fan-out 計画（`2026-07-04-claudedesign-screen-design-fanout.md`）へ引き継ぎ、**Web/Mobile UI の追跡正本は fan-out 計画へ一本化**した。parity Epic（#121 / W4 #127）は本 closeout で決着（二重管理の解消）。以下は完了時点の設計・経緯記録として保全する。
 
 ---
 

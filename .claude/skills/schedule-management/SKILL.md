@@ -143,7 +143,7 @@ glance. You do **not** invent tasks and you do **not** touch app code.
   "endTime":   "2026-06-22T21:45:00",
   "timeZone":  "Asia/Tokyo",
   "colorId":   "7",                       // Peacock = 開発色（固定）
-  "description": "Phase/plan: docs/vision/plans/2026-06-19-web-parity-w8-schedule-calendar.md\n台帳: .claude/automation/dev-schedule.md"
+  "description": "Phase/plan: .claude/archive/2026-06-19-web-parity-w8-schedule-calendar.md\n台帳: .claude/automation/dev-schedule.md"
 }
 ```
 
