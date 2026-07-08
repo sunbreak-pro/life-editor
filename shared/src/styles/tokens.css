@@ -253,6 +253,21 @@
   --color-lumen-status-todo-band: var(--color-status-todo-band);
   --color-lumen-status-progress-band: var(--color-status-progress-band);
   --color-lumen-status-done-band: var(--color-status-done-band);
+  /* Schedule (W8 target-IA) — routine=藍 / single event=紫 block faces +
+     their chip faces/dots. Mapped so the schedule primitives can use
+     bg-lumen-schedule-* / bg-lumen-chip-routine-* / bg-lumen-chip-event-*
+     (no hardcoded colors, §6). The :root / [data-theme] values already
+     exist; only these @theme mappings were missing. */
+  --color-lumen-schedule-routine-bg: var(--color-schedule-routine-bg);
+  --color-lumen-schedule-other-bg: var(--color-schedule-other-bg);
+  --color-lumen-schedule-event-bg: var(--color-schedule-event-bg);
+  --color-lumen-schedule-event-border: var(--color-schedule-event-border);
+  --color-lumen-chip-routine-bg: var(--color-chip-routine-bg);
+  --color-lumen-chip-routine-fg: var(--color-chip-routine-fg);
+  --color-lumen-chip-routine-dot: var(--color-chip-routine-dot);
+  --color-lumen-chip-event-bg: var(--color-chip-event-bg);
+  --color-lumen-chip-event-fg: var(--color-chip-event-fg);
+  --color-lumen-chip-event-dot: var(--color-chip-event-dot);
   /* Elevation tokens → shadow-lumen-sm / -md / -lg utilities. Theme-aware
      (the underlying --shadow-elevation-* vars switch with [data-theme]). */
   --shadow-lumen-sm: var(--shadow-elevation-sm);

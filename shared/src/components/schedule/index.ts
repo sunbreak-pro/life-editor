@@ -6,6 +6,39 @@
  */
 export { WeekTimeGrid } from "./WeekTimeGrid";
 export type { WeekTimeGridProps, WeekTimeGridItem } from "./WeekTimeGrid";
+// Target-IA presentational parts (W8): month grid + day agenda + toolbar +
+// event editor + routine summary/editor. Pure presentation (§3.1 / §6.4).
+export { MonthGrid, type MonthGridProps, type MonthGridItem } from "./MonthGrid";
+export {
+  AgendaList,
+  type AgendaListProps,
+  type AgendaListLabels,
+  type AgendaItem,
+} from "./AgendaList";
+export {
+  ScheduleToolbar,
+  type ScheduleToolbarProps,
+  type ScheduleToolbarLabels,
+} from "./ScheduleToolbar";
+export {
+  EventEditorPane,
+  type EventEditorPaneProps,
+  type EventEditorItem,
+  type EventEditorLabels,
+} from "./EventEditorPane";
+export {
+  RoutineSummaryCard,
+  type RoutineSummaryCardProps,
+  type RoutineSummaryCardLabels,
+  type RoutineSummaryRow,
+} from "./RoutineSummaryCard";
+export {
+  RoutineEditorForm,
+  type RoutineEditorFormProps,
+  type RoutineEditorFormLabels,
+  type RoutineEditorRoutine,
+  type RoutineEditorGroup,
+} from "./RoutineEditorForm";
 export {
   layoutDayItems,
   minutesFromMidnight,
@@ -19,6 +52,9 @@ export {
   minutesToPx,
   snapMinutes,
   minutesToTime,
+  startOfMonthKey,
+  addMonthsKey,
+  monthGridKeys,
   DEFAULT_SNAP_MINUTES,
   type GridLayoutItem,
   type PositionedItem,

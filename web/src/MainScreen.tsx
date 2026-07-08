@@ -55,11 +55,7 @@ import { DailyView } from "./daily/DailyView";
 const NotesView = lazy(() =>
   import("./notes/NotesView").then((m) => ({ default: m.NotesView })),
 );
-import { ScheduleView } from "./schedule/ScheduleView";
-import { ScheduleItemsView } from "./schedule/ScheduleItemsView";
-import { ScheduleCalendarView } from "./schedule/ScheduleCalendarView";
-import { RoutineScheduleSync } from "./schedule/RoutineScheduleSync";
-import { CalendarView } from "./schedule/CalendarView";
+import { ScheduleScreen } from "./schedule/ScheduleScreen";
 import { WikiTagsManagementView } from "./wikitag";
 import { SettingsScreen } from "./settings/SettingsScreen";
 import { WorkScreen } from "./work/WorkScreen";
@@ -277,6 +273,7 @@ export function MainScreen({ session }: { session: Session }) {
   //     it needs the max-w wrapper removed to use the whole width.
   const fluidSection =
     section === "connect" ||
+    section === "schedule" ||
     (section === "materials" && materialsTab === "tasks");
 
   // Detail-panel (rightSidebar) toggle, injected already-translated (§6.4).
@@ -408,11 +405,7 @@ export function MainScreen({ session }: { session: Session }) {
             <CalendarProvider dataService={ds}>
               <RoutineProvider dataService={ds}>
                 <ScheduleItemsProvider dataService={ds}>
-                  <RoutineScheduleSync dataService={ds} />
-                  <ScheduleCalendarView />
-                  <ScheduleView />
-                  <ScheduleItemsView />
-                  <CalendarView />
+                  <ScheduleScreen dataService={ds} />
                 </ScheduleItemsProvider>
               </RoutineProvider>
             </CalendarProvider>
@@ -558,6 +551,17 @@ export function MainScreen({ session }: { session: Session }) {
                         {materialsView}
                       </div>
                     )
+                  ) : section === "schedule" ? (
+                    /*
+                     * Schedule owns its own chrome (Calendar/Routines tab row +
+                     * detail-panel toggle live inside ScheduleScreen, like
+                     * Materials), so it gets the full-height frame WITHOUT the
+                     * generic sectionToolbar — otherwise the panel toggle would
+                     * render twice.
+                     */
+                    <div className="flex h-full flex-col">
+                      {nonMaterialsBody}
+                    </div>
                   ) : fluidSection ? (
                     <div className="flex h-full flex-col">
                       <div className="shrink-0 px-4 pt-3 md:px-6 md:pt-4">

@@ -256,3 +256,59 @@ export function startOfWeekKey(key: string, weekStartsOn: 0 | 1 = 0): string {
 export function weekDayKeys(weekStartKey: string, days = 7): string[] {
   return Array.from({ length: days }, (_, i) => addDaysKey(weekStartKey, i));
 }
+
+// ── Month-grid date math (W8 month view) ─────────────────────────────────
+//
+// Same "no UTC" discipline as the week helpers: all arithmetic goes through
+// `new Date(y, m-1, d)` (LOCAL parts) so a YYYY-MM-DD key never drifts a day
+// in a negative timezone. The month grid backs MonthGrid (Desktop cells +
+// Mobile dots).
+
+/** Snap a date key to the first day of its month (YYYY-MM-01). */
+export function startOfMonthKey(key: string): string {
+  const { y, m } = parseDateKey(key);
+  return formatDateKey(y, m, 1);
+}
+
+/**
+ * Add `delta` months to a date key, landing on the FIRST of the resulting
+ * month (the day is dropped — the only use is month navigation, where a
+ * clamped day would be ambiguous across 28–31-day months). Handles year
+ * rollover via the local Date constructor's normalization.
+ */
+export function addMonthsKey(key: string, delta: number): string {
+  const { y, m } = parseDateKey(key);
+  const dt = new Date(y, m - 1 + delta, 1);
+  return formatDateKey(dt.getFullYear(), dt.getMonth() + 1, 1);
+}
+
+/**
+ * Build the calendar grid for the month containing `key`: a 7-column × N-row
+ * (N = 4–6) matrix of date keys, aligned so each row starts on `weekStartsOn`
+ * (0 = Sunday default, 1 = Monday). The grid is padded with the trailing days
+ * of the previous month and the leading days of the next month so every cell
+ * is filled (callers dim the out-of-month cells). Rows are added until the
+ * whole month is covered AND the last row completes its week.
+ */
+export function monthGridKeys(
+  key: string,
+  weekStartsOn: 0 | 1 = 0,
+): string[][] {
+  const first = startOfMonthKey(key);
+  const { y, m } = parseDateKey(first);
+  // Last day of this month = day 0 of the next month.
+  const lastDay = new Date(y, m, 0).getDate();
+  const gridStart = startOfWeekKey(first, weekStartsOn);
+  // Days from gridStart to the last of the month, then round up to a full week.
+  const lastKey = formatDateKey(y, m, lastDay);
+  let cursor = gridStart;
+  const flat: string[] = [];
+  // Emit at least until we pass the month's last day, then finish the week.
+  do {
+    flat.push(cursor);
+    cursor = addDaysKey(cursor, 1);
+  } while (cursor <= lastKey || flat.length % 7 !== 0);
+  const rows: string[][] = [];
+  for (let i = 0; i < flat.length; i += 7) rows.push(flat.slice(i, i + 7));
+  return rows;
+}
