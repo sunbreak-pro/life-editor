@@ -14,3 +14,8 @@ export { ExcerptListItem, type ExcerptListItemProps } from "./ExcerptListItem";
 export { DateStrip, type DateStripProps, type DateStripDay } from "./DateStrip";
 export { QuickAddSheet, type QuickAddSheetProps } from "./QuickAddSheet";
 export { NoteDetailPanel, type NoteDetailPanelProps } from "./NoteDetailPanel";
+export {
+  DailyEntriesPanel,
+  type DailyEntriesPanelProps,
+  type DailyEntriesPanelEntry,
+} from "./DailyEntriesPanel";

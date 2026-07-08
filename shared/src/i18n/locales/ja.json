@@ -728,6 +728,22 @@
       "quickAddSubmit": "追加",
       "newFolderPrompt": "新しいフォルダ名",
       "lockedHint": "このノートはロックされています"
+    },
+    "daily": {
+      "toToday": "今日へ",
+      "saved": "保存済み",
+      "unsaved": "未保存",
+      "pin": "ピン留めする",
+      "unpin": "ピン留めを解除",
+      "pinned": "ピン留め済み",
+      "delete": "エントリを削除",
+      "placeholder": "今日のことを書く…",
+      "today": "今日",
+      "yesterday": "昨日",
+      "datePicker": "日付を選択",
+      "dateStripLabel": "日付を選ぶ",
+      "entriesCount": "エントリ（{{count}}）",
+      "pastEntries": "過去のエントリ"
     }
   },
   "files": {

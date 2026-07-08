@@ -728,6 +728,22 @@
       "quickAddSubmit": "Add",
       "newFolderPrompt": "New folder name",
       "lockedHint": "This note is locked"
+    },
+    "daily": {
+      "toToday": "Today",
+      "saved": "Saved",
+      "unsaved": "Unsaved",
+      "pin": "Pin entry",
+      "unpin": "Unpin entry",
+      "pinned": "Pinned",
+      "delete": "Delete entry",
+      "placeholder": "Write about your day…",
+      "today": "Today",
+      "yesterday": "Yesterday",
+      "datePicker": "Pick a date",
+      "dateStripLabel": "Select a date",
+      "entriesCount": "Entries ({{count}})",
+      "pastEntries": "Past entries"
     }
   },
   "files": {
