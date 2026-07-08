@@ -46,11 +46,16 @@ function makeCommands(spy: () => void): Command[] {
 
 const TRASH_LABELS: TrashViewLabels = {
   title: "Trash",
+  description: "Deleted items can be restored from here.",
+  totalCount: "{count} total",
   empty: "Trash is empty",
-  emptyCategory: "No deleted items.",
+  emptyDescription: "Deleted items will appear here.",
   restore: "Restore",
+  restoring: "Restoring…",
+  deleting: "Deleting…",
   deletePermanently: "Delete permanently",
   confirmMessage: 'Permanently delete "{name}"? This cannot be undone.',
+  cascadeWarning: "Related sub-items and tag assignments are deleted together.",
   cancel: "Cancel",
 };
 
