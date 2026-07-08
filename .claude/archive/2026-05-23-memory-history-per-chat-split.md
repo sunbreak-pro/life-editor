@@ -1,10 +1,16 @@
 # 2026-05-23 - MEMORY / HISTORY の per-chat 分割（実装計画書）
 
-> **Status**: IN_PROGRESS — 中核機構導入済（per-chat memory/history + INDEX 集約 + 旧 MEMORY.md/HISTORY.md 凍結マーカー）。Phase 4 「worktree 跨ぎでの破綻なし」と FileChanged 計画との連動が未完
+> **Status**: COMPLETED — per-chat memory/history 機構は確立・運用中。当初計画から 3 点逸脱あり（下記「計画からの逸脱」参照）。
 > **対象ブランチ**: 未定（小規模なら `data-unification/items-meta-redesign` 上、影響が広いなら専用 branch）
 > **正式置き場**: 確定後 `.claude/docs/vision/plans/2026-05-23-memory-history-per-chat-split.md`（このファイル）
 > **関連計画**: [`2026-05-23-filechanged-comm-watch.md`](./2026-05-23-filechanged-comm-watch.md)（comm への FileChanged 監視レイヤー追加。本計画と worktree 正本パス問題を共有）
 > **前提ドキュメント**: [`.claude/comm/README.md`](../../comm/README.md) / [`.claude/CLAUDE.md` §0,§9](../../CLAUDE.md)
+
+> **計画からの逸脱（2026-07-08 close 時点で固定）**:
+>
+> 1. **INDEX は git 追跡でなく非追跡の regen 方式**: `memory/INDEX.md` / `history/INDEX.md` は git 追跡せず `hooks/regen-index.sh` が再生成する派生ビューとした（当初は追跡想定）。
+> 2. **旧 `MEMORY.md` / `HISTORY.md` は凍結でなく削除**: 凍結マーカー運用ではなく実ファイル削除に切替（per-chat へ完全移行済み）。
+> 3. **Phase 4「worktree 跨ぎでの破綻なし」は §7.4 worktree 運用規約で不要化**: "1 chat = 1 worktree = 1 branch" の確立により本計画 Phase 4 の課題自体が構造的に消滅。FileChanged 計画（`2026-05-23-filechanged-comm-watch.md`）との連動も DEFERRED。
 
 ---
 

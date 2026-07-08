@@ -1,6 +1,6 @@
 # 2026-05-23 - comm プロトコルへの FileChanged 監視レイヤー追加（実装計画書）
 
-> **Status**: DRAFT — Phase 0（仕様検証）着手前
+> **Status**: DEFERRED — Phase 0（仕様検証）着手前のまま未着手。FileChanged hook は settings.json 未登録。`.session-name` 等の共有部品は per-chat 機構側で実装済み。本レーンは保留（DEFERRED）として archive
 > **対象ブランチ**: 未定（`refactor/web-first-v2` 上の小規模変更 or 専用 branch）
 > **正式置き場**: 確定後 `.claude/docs/vision/plans/2026-05-23-filechanged-comm-watch.md` へ
 > **前提ドキュメント**: [`.claude/comm/README.md`](../../comm/README.md)（comm プロトコル SSOT）

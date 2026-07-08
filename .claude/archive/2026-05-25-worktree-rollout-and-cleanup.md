@@ -1,5 +1,5 @@
 ---
-Status: Draft
+Status: COMPLETED — 全タスク決着（① du-g worktree セットアップ ② .session-branch フロー規約化 ③ 死蔵 worktree 整理）。PR #33 merge 済
 Created: 2026-05-25
 Branch: main (本計画書 commit は main 直接 push 禁止 — 軽量 doc PR ブランチを別途切る)
 Owner-chat: main

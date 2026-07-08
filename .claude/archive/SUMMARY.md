@@ -1,8 +1,10 @@
 # Archive SUMMARY — 圧縮統合インデックス
 
-> このファイルは `.claude/archive/` 配下の完了済み実装プラン群を 1 ファイルに圧縮統合したもの。
+> **役割（2026-07-08 再定義）**: このファイルは **2026-05-23 以前に `.claude/archive/` 入りした完了済み実装プラン群の索引**。
+> 2026-05-24 以降に archive 入りしたファイル（約 30 本）はここには index しない — 各ファイル冒頭の Status 行と git 履歴が正本であり、
+> 新規 archive 入りのたびに本索引へ追記する運用は採らない（末尾の「2026-07-05 追加分」等の限定的な追記のみ例外）。
 > 各プランの「なぜやったか・どうなったか・恒久知見」のみを残し、実装手順・コードブロック・ファイル表は破棄。
-> 詳細な作業履歴は `.claude/HISTORY-archive.md`（集積先）が担う。
+> 詳細な作業履歴は per-chat history（`.claude/history/`）+ git 履歴が担う（旧 `.claude/HISTORY-archive.md` は削除済み）。
 > 生成日: 2026-05-16 / 対象: 直下 28 .md + TODO.md + サブディレクトリ (docs/ dropped/ rules/ vision-tauri/)。
 
 凡例: 結果/採否 = `採用` / `却下(Drop)` / `部分採用` / `上書きされた(Superseded)` / `統合済み(Merged/Consumed)`。
@@ -227,7 +229,7 @@
 ### `docs/life-editor-v2/`（5 ファイル: 00-vision / 01-terminal / 02-mcp-server / 03-claude-setup / 04-ui-adjustment）
 
 - 中身: life-editor v2 化の Phase A 計画書群（Wails v1 の教訓、Terminal/MCP/Claude セットアップ/UI 調整の設計案）。
-- 推奨アクション: **SUMMARY に統合済みで削除可**（要点は integrated-design-roadmap 経由で CLAUDE.md §6.5/§8.1 に吸収済み、本 SUMMARY グループ A で経緯記録済み）。歴史的価値はあるが現役参照不要、HISTORY-archive.md でカバー可能。
+- 推奨アクション: **SUMMARY に統合済みで削除可**（要点は integrated-design-roadmap 経由で CLAUDE.md §6.5/§8.1 に吸収済み、本 SUMMARY グループ A で経緯記録済み）。歴史的価値はあるが現役参照不要、git 履歴でカバー可能。
 
 ### `dropped/`（7 ファイル: 019〜022 / capacitor-ios-standalone / folder-progress-batch-memo / tasks-fetch-by-range）
 

@@ -1,5 +1,5 @@
 ---
-Status: Draft
+Status: IN PROGRESS — 全 Phase 実装完了（2026-07-08）。残 = Phase 8 の PR merge（🛑 人手）。merge 後に COMPLETED 化して archive へ移動する
 Created: 2026-07-07
 Branch: claude/docs-issue-cleanup
 Owner-chat: docs-issue-cleanup
@@ -70,9 +70,9 @@ Previous: 2026-07-04-github-issues-migration-plan.md（Issue 運用移行）
 
 ### Phase 0 — main 合流と再検証（最初に必ず）
 
-- [ ] `git merge origin/main`（conflict は plans/fan-out 系・comm/memory の可能性大。docs のみなので両取り基本）
-- [ ] 🔁印の findings（R-13〜R-16 と P 系の fan-out 隣接分）を merge 後ツリーで再検証し、解消済みは表から消し込む
-- [ ] main で新規追加された `2026-07-05-design-implementation-fanout.md` / `2026-07-05-shell-implementation.md` は**現役プラン**として棚卸し対象から除外
+- [x] `git merge origin/main`（conflict は plans/fan-out 系・comm/memory の可能性大。docs のみなので両取り基本）
+- [x] 🔁印の findings（R-13〜R-16 と P 系の fan-out 隣接分）を merge 後ツリーで再検証し、解消済みは表から消し込む
+- [x] main で新規追加された `2026-07-05-design-implementation-fanout.md` / `2026-07-05-shell-implementation.md` は**現役プラン**として棚卸し対象から除外
 
 ### Phase 1 — 正本系の矛盾修正
 
@@ -98,37 +98,37 @@ Previous: 2026-07-04-github-issues-migration-plan.md（Issue 運用移行）
 
 **archive/ へ移動（Status 正規化込み・11 件）** — 🤖:
 
-- [ ] 2026-05-16-phase2-core-migration（IN PROGRESS→COMPLETED/superseded。SSOT が Phase 2 完了宣言済み・S5 は DU レーンへ吸収）
-- [ ] 2026-06-06-web-phase2-s9-mobile-responsive（In-Progress→COMPLETED。pass1 = PR #49 merge 済。目視残は fan-out 後の実装レーンへ委ねる旨を SSOT 側と 1 行整合）
-- [ ] 2026-05-25-data-unification-g-notes-daily-unified（「G2 進行中」→COMPLETED。実態は G1-G4 = PR #29/#30/#31/#36 全 merge 済。**SSOT L2 の「DU-G G2 進行中」も追随修正**・Parent/Previous の archive パス切れも修正）
-- [ ] 2026-05-16-frontend-refactor-pre-migration（In-progress→COMPLETED。全 Phase 消化・3-3/3-4 取り下げ済み。:96 の phase5-giant 参照は「PR #17 で廃案・削除」注記へ）
-- [ ] 2026-05-16-reminders-rich-editor-connect（→SUPERSEDED。Tauri/D1 前提で残作業は実行不能。完了分 = PR #7 データ層・残 UI は web/shared 側で要再起票）
-- [ ] 2026-05-17-ui-ux-quality-remediation（→CLOSED。M0/M1 done・M2-M4 は frontend FROZEN で対象消滅。a11y 知見は fan-out 側へ引き継ぎ注記。phase5-giant 参照切れも修正）
-- [ ] 2026-05-23-cleanup-and-consolidation（READY FOR PR→COMPLETED。PR #13/#15 merge 済）
-- [ ] 2026-05-25-worktree-rollout-and-cleanup（Draft→COMPLETED。全タスク決着・PR #33）
-- [ ] 2026-05-31-autonomous-routine-fixes（Active→COMPLETED。PR #42 merge 済）
-- [ ] 2026-07-04-github-issues-migration-plan（EXECUTED→COMPLETED。残 = Project UI 手動 2 点 + Orca 目視 → D-3 で処遇決定）
-- [ ] 2026-05-23-memory-history-per-chat-split（IN_PROGRESS→COMPLETED (with deviations)。運用は確立済みだが計画から 3 点逸脱: INDEX は git 非追跡 regen 方式・旧 MEMORY/HISTORY は凍結でなく削除・Phase 4 は §7.4 で不要化。逸脱を Worklog に固定し、CLAUDE.md §9 / comm/README のリンクを archive パスへ更新）
+- [x] 2026-05-16-phase2-core-migration（IN PROGRESS→COMPLETED/superseded。SSOT が Phase 2 完了宣言済み・S5 は DU レーンへ吸収）
+- [x] 2026-06-06-web-phase2-s9-mobile-responsive（In-Progress→COMPLETED。pass1 = PR #49 merge 済。目視残は fan-out 後の実装レーンへ委ねる旨を SSOT 側と 1 行整合）
+- [x] 2026-05-25-data-unification-g-notes-daily-unified（「G2 進行中」→COMPLETED。実態は G1-G4 = PR #29/#30/#31/#36 全 merge 済。**SSOT L2 の「DU-G G2 進行中」も追随修正**・Parent/Previous の archive パス切れも修正）
+- [x] 2026-05-16-frontend-refactor-pre-migration（In-progress→COMPLETED。全 Phase 消化・3-3/3-4 取り下げ済み。:96 の phase5-giant 参照は「PR #17 で廃案・削除」注記へ）
+- [x] 2026-05-16-reminders-rich-editor-connect（→SUPERSEDED。Tauri/D1 前提で残作業は実行不能。完了分 = PR #7 データ層・残 UI は web/shared 側で要再起票）
+- [x] 2026-05-17-ui-ux-quality-remediation（→CLOSED。M0/M1 done・M2-M4 は frontend FROZEN で対象消滅。a11y 知見は fan-out 側へ引き継ぎ注記。phase5-giant 参照切れも修正）
+- [x] 2026-05-23-cleanup-and-consolidation（READY FOR PR→COMPLETED。PR #13/#15 merge 済）
+- [x] 2026-05-25-worktree-rollout-and-cleanup（Draft→COMPLETED。全タスク決着・PR #33）
+- [x] 2026-05-31-autonomous-routine-fixes（Active→COMPLETED。PR #42 merge 済）
+- [x] 2026-07-04-github-issues-migration-plan（EXECUTED→COMPLETED。残 = Project UI 手動 2 点 + Orca 目視 → D-3 で処遇決定）
+- [x] 2026-05-23-memory-history-per-chat-split（IN_PROGRESS→COMPLETED (with deviations)。運用は確立済みだが計画から 3 点逸脱: INDEX は git 非追跡 regen 方式・旧 MEMORY/HISTORY は凍結でなく削除・Phase 4 は §7.4 で不要化。逸脱を Worklog に固定し、CLAUDE.md §9 / comm/README のリンクを archive パスへ更新）
 
 **plans/ 残置のまま修正（5 件）** — 🤖:
 
-- [ ] 2026-05-24-multi-chat-worktree-policy: Status Draft→**ACTIVE (adopted policy)** へ正規化・充足済み AC をチェック（CLAUDE.md §7.4 から現役参照のため残置が低コスト。vision/ 直下への改組は代替案 → D-2）
-- [ ] 2026-05-23-cleanup-and-consolidation-deletion-targets: REFERENCE として残置妥当。cloud/ 行にのみ「✅ 2026-06-28 先行撤去済」を記入
-- [ ] 2026-05-26-link-ux-obsidian-style: SKELETON 残置妥当。Parent/Previous の archive パス切れ修正 + 「fan-out で前提 UI が変わるため fan-out 後に再評価」注記
-- [ ] 2026-06-19-step1-desktop-daily-driver: active 維持妥当（コード merge 済 #95・Mac 実機ゲート待ち）。リンク切れ 2 本（phase3 の archive 移動先 / reports HTML への相対パス誤り — 実体は `docs/reports/` に現存し `../../reports/` が正）と Project path `/home/user/...` の残骸を修正
-- [ ] 2026-07-04-claudedesign-screen-design-fanout: Scope 記述の `_TEMPLATE` / `_COMMON-CONTEXT` を実パス（`briefs/` 配下）表記に修正
+- [x] 2026-05-24-multi-chat-worktree-policy: Status Draft→**ACTIVE (adopted policy)** へ正規化・充足済み AC をチェック（CLAUDE.md §7.4 から現役参照のため残置が低コスト。vision/ 直下への改組は代替案 → D-2）
+- [x] 2026-05-23-cleanup-and-consolidation-deletion-targets: REFERENCE として残置妥当。cloud/ 行にのみ「✅ 2026-06-28 先行撤去済」を記入
+- [x] 2026-05-26-link-ux-obsidian-style: SKELETON 残置妥当。Parent/Previous の archive パス切れ修正 + 「fan-out で前提 UI が変わるため fan-out 後に再評価」注記
+- [x] 2026-06-19-step1-desktop-daily-driver: active 維持妥当（コード merge 済 #95・Mac 実機ゲート待ち）。リンク切れ 2 本（phase3 の archive 移動先 / reports HTML への相対パス誤り — 実体は `docs/reports/` に現存し `../../reports/` が正）と Project path `/home/user/...` の残骸を修正
+- [x] 2026-07-04-claudedesign-screen-design-fanout: Scope 記述の `_TEMPLATE` / `_COMMON-CONTEXT` を実パス（`briefs/` 配下）表記に修正
 
 **要判断（判断待ち D-3）** — 👀:
 
-- [ ] 2026-06-05-mobile-first-section-unification（FROZEN・正本ポインタが archive 済みの旧 W-parity SSOT を指す）: ポインタを fan-out 計画へ更新のうえ archive 推奨
-- [ ] 2026-05-26-autonomous-dev-routine（Status Active だが核心の Night Routine 登録が `trig_PENDING` のまま 5 週間）: 登録を実施するか、BLOCKED (registration pending) へ更新して実態明示
-- [ ] 2026-05-23-filechanged-comm-watch（DRAFT・6 週間未着手。FileChanged hook は settings.json 未登録）: 継続なら「.session-name 等の部品は per-chat 側で実装済み」を反映、やらないなら DEFERRED 明記で archive
+- [x] 2026-06-05-mobile-first-section-unification（FROZEN・正本ポインタが archive 済みの旧 W-parity SSOT を指す）: ポインタを fan-out 計画へ更新のうえ archive 推奨
+- [x] 2026-05-26-autonomous-dev-routine（Status Active だが核心の Night Routine 登録が `trig_PENDING` のまま 5 週間）: 登録を実施するか、BLOCKED (registration pending) へ更新して実態明示
+- [x] 2026-05-23-filechanged-comm-watch（DRAFT・6 週間未着手。FileChanged hook は settings.json 未登録）: 継続なら「.session-name 等の部品は per-chat 側で実装済み」を反映、やらないなら DEFERRED 明記で archive
 
 **その他**:
 
-- [ ] archive/SUMMARY.md: 2026-05-24 以降の archive 入り約 30 ファイルが索引欠落 + :5 の参照先 `.claude/HISTORY-archive.md` が削除済み。追記 or 「以前の索引」への役割再定義（判断待ち D-4）+ 参照を per-chat history/ + git 履歴へ書き換え
-- [ ] plans/_TEMPLATE.md:13: stop-check.sh の scope-drift 照合は未実装のため「(将来)」と弱めるか hook 側 Issue 化
-- [ ] data-unification-g 内の known-issues/014 参照に「013 へ統合済み」注記
+- [x] archive/SUMMARY.md: 2026-05-24 以降の archive 入り約 30 ファイルが索引欠落 + :5 の参照先 `.claude/HISTORY-archive.md` が削除済み。追記 or 「以前の索引」への役割再定義（判断待ち D-4）+ 参照を per-chat history/ + git 履歴へ書き換え
+- [x] plans/_TEMPLATE.md:13: stop-check.sh の scope-drift 照合は未実装のため「(将来)」と弱めるか hook 側 Issue 化
+- [x] data-unification-g 内の known-issues/014 参照に「013 へ統合済み」注記
 
 ### Phase 3 — known-issues / Issue 運用整備
 
@@ -185,22 +185,22 @@ Previous: 2026-07-04-github-issues-migration-plan.md（Issue 運用移行）
 merge 済み PR を「open・merge 待ち」と主張し続ける per-chat memory 5 件。単一書込者原則に反するため、
 **cross-lane reconciliation としてユーザー認可を得てから**一括更新 → `hooks/regen-index.sh` 実行。
 
-- [ ] chat-main.md（PR #106 → MERGED）
-- [ ] chat-connect.md（PR #107 → MERGED・worktree connect-link-ui は prune 済み）
-- [ ] chat-db-hardening.md（PR #109 → MERGED）
-- [ ] chat-frontend.md（PR #111 → MERGED・ink→lumen 再改名も未反映）
-- [ ] chat-lumen-shared.md（PR #113 → MERGED）
-- [ ] automation/dev-schedule.md: 「今週」が 2026-06-21 週のまま停止 → schedule-management で再生成 or 休止注記（判断待ち D-8）
-- [ ] worktree `docs`（branch docs/structure-notes）が台帳外レーン → `.session-name` 宣言 or prune（判断待ち D-8）
+- [x] chat-main.md（PR #106 → MERGED）
+- [x] chat-connect.md（PR #107 → MERGED・worktree connect-link-ui は prune 済み）
+- [x] chat-db-hardening.md（PR #109 → MERGED）
+- [x] chat-frontend.md（PR #111 → MERGED・ink→lumen 再改名も未反映）
+- [x] chat-lumen-shared.md（PR #113 → MERGED）
+- [x] automation/dev-schedule.md: 「今週」が 2026-06-21 週のまま停止 → schedule-management で再生成 or 休止注記（判断待ち D-8）
+- [x] worktree `docs`（branch docs/structure-notes）が台帳外レーン → `.session-name` 宣言 or prune（判断待ち D-8）
 
 ### Phase 7 — 再発防止（ルール化 + 機械化候補）
 
-- [ ] **数値の非複製原則**を CLAUDE.md §0 か coding-principles に 1 行追加: 「個数・列挙はコード or 単一 SSOT のみに書き、他文書は参照にする（『一覧はコードが正』と書くなら数字を併記しない）」
-- [ ] **改名・退役 sweep チェックリスト**を rules/ に新設: 対象 grep = `.claude/**` + `~/dev/Claude/skill-lib/projects/life-editor/**` + `~/dev/Claude/agents-lib/projects/life-editor/**`（symlink 先の実体まで含める）。ink→lumen で 3 世代（notion→ink→lumen）が併存した実例を記録
-- [ ] **plans/ Status 語彙の enum 化**: Draft / IN PROGRESS / BLOCKED / COMPLETED / SUPERSEDED / DEFERRED / REFERENCE / ACTIVE (adopted policy)。表記ゆれ（In-progress / IN-PROGRESS / EXECUTED / READY FOR PR / SKELETON / FROZEN 等の自由語彙）を禁止し、grep 可能にする
-- [ ] **PR merge 時の docs 追随を DoD 化**: known-issue テンプレ / plans テンプレに「対応 plan・memory の Status 更新」チェック行を追加
-- [ ] **docs-lint 機械化候補を Issue 起票**（実装は別セッション）: (a) 相対リンク実在 (b) 旧トークン名残存 (c) plans frontmatter enum (d) COMPLETED の plans/ 残置検出 — stop-check か CI に載せる
-- [ ] **サブエージェント監査の検証必須則**を rules/ に固定: 監査報告の file:line は必ず実測で spot check（今回の監査でも同一エージェントが SectionId「除去済み」等の偽 findings を混入させた実例あり）
+- [x] **数値の非複製原則**を CLAUDE.md §0 か coding-principles に 1 行追加: 「個数・列挙はコード or 単一 SSOT のみに書き、他文書は参照にする（『一覧はコードが正』と書くなら数字を併記しない）」
+- [x] **改名・退役 sweep チェックリスト**を rules/ に新設: 対象 grep = `.claude/**` + `~/dev/Claude/skill-lib/projects/life-editor/**` + `~/dev/Claude/agents-lib/projects/life-editor/**`（symlink 先の実体まで含める）。ink→lumen で 3 世代（notion→ink→lumen）が併存した実例を記録
+- [x] **plans/ Status 語彙の enum 化**: Draft / IN PROGRESS / BLOCKED / COMPLETED / SUPERSEDED / DEFERRED / REFERENCE / ACTIVE (adopted policy)。表記ゆれ（In-progress / IN-PROGRESS / EXECUTED / READY FOR PR / SKELETON / FROZEN 等の自由語彙）を禁止し、grep 可能にする
+- [x] **PR merge 時の docs 追随を DoD 化**: known-issue テンプレ / plans テンプレに「対応 plan・memory の Status 更新」チェック行を追加
+- [x] **docs-lint 機械化候補を Issue 起票**（実装は別セッション）: (a) 相対リンク実在 (b) 旧トークン名残存 (c) plans frontmatter enum (d) COMPLETED の plans/ 残置検出 — stop-check か CI に載せる
+- [x] **サブエージェント監査の検証必須則**を rules/ に固定: 監査報告の file:line は必ず実測で spot check（今回の監査でも同一エージェントが SectionId「除去済み」等の偽 findings を混入させた実例あり）
 
 ---
 
@@ -238,14 +238,14 @@ merge 済み PR を「open・merge 待ち」と主張し続ける per-chat memor
 
 ## Acceptance Criteria (機械検証可能)
 
-- [ ] `grep -rn 'ink-\*\|notion-' .claude/CLAUDE.md .claude/2026-05-04*.md .claude/docs .claude/skills/parallel-orchestrator .claude/agents` → 歴史注記行（「旧称」「retired」を含む行）以外 0 件
-- [ ] `grep -rln 'Status: *\(COMPLETED\|SHIPPED\)' .claude/docs/vision/plans/` → 0 件
-- [ ] `grep -rn 'session-manager\|git-orchestrator' .claude/CLAUDE.md .claude/automation` → 0 件
-- [ ] `grep -rn '§11\|§10\.[0-9]\|§6\.3\|§6\.4\|§7\.2 抜粋' .claude/docs/requirements .claude/docs/vision/coding-principles.md .claude/agents` → 0 件
-- [ ] CLAUDE.md 内の全相対リンク実在チェック → exit 0。ワンライナー: `grep -o '](\./[^)]*)' .claude/CLAUDE.md | sed 's/](\.\///;s/)//' | while read f; do [ -e ".claude/$f" ] || { echo "MISSING: $f"; exit 1; }; done`
-- [ ] ※手動: known-issues/INDEX.md の Status 集計 = 個別ファイル frontmatter の集計（1 周照合。docs-lint 実装後に自動化）
-- [ ] PR diff が `.claude/**` のみ（コード変更 0）
-- [ ] #154 / #155 の DoD 全項目チェック → 両 Issue close
+- [x] `grep -rn 'ink-\*\|notion-' .claude/CLAUDE.md .claude/2026-05-04*.md .claude/docs .claude/skills/parallel-orchestrator .claude/agents` → 歴史注記行（「旧称」「retired」を含む行）以外 0 件
+- [x] `grep -rln 'Status: *\(COMPLETED\|SHIPPED\)' .claude/docs/vision/plans/` → 0 件
+- [x] `grep -rn 'session-manager\|git-orchestrator' .claude/CLAUDE.md .claude/automation` → 0 件
+- [x] `grep -rn '§11\|§10\.[0-9]\|§6\.3\|§6\.4\|§7\.2 抜粋' .claude/docs/requirements .claude/docs/vision/coding-principles.md .claude/agents` → 0 件
+- [x] CLAUDE.md 内の全相対リンク実在チェック → exit 0。ワンライナー: `grep -o '](\./[^)]*)' .claude/CLAUDE.md | sed 's/](\.\///;s/)//' | while read f; do [ -e ".claude/$f" ] || { echo "MISSING: $f"; exit 1; }; done`
+- [x] ※手動: known-issues/INDEX.md の Status 集計 = 個別ファイル frontmatter の集計（1 周照合。docs-lint 実装後に自動化）
+- [x] PR diff が `.claude/**` のみ（コード変更 0）
+- [ ] #154 / #155 の DoD 全項目チェック（実測済み・充足）→ 両 Issue close は PR merge で自動（PR body に Closes 記載）
 
 ---
 
@@ -290,3 +290,5 @@ merge 済み PR を「open・merge 待ち」と主張し続ける per-chat memor
 ## Worklog
 
 - 2026-07-07: 計画書作成。監査サブエージェント 5 体（延べ 7 報告）・findings 約 60 件を統合。一次報告の偽 findings 約 10 件は plans 全 19 本の Status 一括実測・SectionId/MCP ツール数/CalendarTags のコード実測で裁定・棄却済み。実装は次セッション。
+- 2026-07-08: 実装セッション（chat docs-issue-cleanup）。**前提変化**: 本計画書 + #154/#155 対応 3 コミットは PR #169 として既に main へ merge 済みと判明（相乗り前提は消滅・#154/#155 は Phase 8 待ちで open のまま = 意図どおり）。Phase 0: origin/main 13 コミットを conflict 0 で merge・🔁 findings 再検証（R-16 = #157/#158 で解消済み確認 / R-13〜R-15 = 残存につき修正 / main 追加の現役プラン 4 本〔design-implementation-fanout / shell / work / connect impl〕を棚卸し除外に追加）。D-1〜D-10 は全件ユーザー確認済み（全推奨案採用 + Phase 6 認可 + D-9 = Linux 含める + D-6 = `${CLAUDE_PROJECT_DIR}` 統一）。Phase 1〜7 実装完了（メイン + サブエージェント 4 レーン。全レーンの成果物をメイン実測 grep で検収）。Issue 起票: #171（Project UI 残 2 点・D-3）/ #172（012 client pagination・D-5）/ #173（docs-lint 機械化・Phase 7）。
+- 2026-07-08 逸脱記録: (1) du-g 内の known-issues/014 参照は実在せず skip（監査 stale finding）。(2) ui-ux-quality-remediation は「CLOSED」指定 → enum 準拠で SUPERSEDED に読み替え。(3) link-ux は SKELETON → Draft へ正規化（残置は計画どおり）。(4) A-02/R-08 の「5 種」は A-09 のコード実測（CalendarTags 全撤去済み）を優先し **4 種** で統一。(5) skill-lib / agents-lib は git リポジトリではなくコミット不能 → ファイル直接反映のみ（版管理方針は別途要検討）。(6) 現役プラン 3 本（shell / work / connect impl）に enum 外 Status（IN_PROGRESS / Implemented）が残存 — owner レーン送り（docs-lint #173 が検出予定）。(7) known-issues 015 は凍結アーカイブのため旧トークン本文を保持し冒頭に旧称注記のみ追加 — **docs-lint #173 は known-issues/ を旧トークン検査の除外対象にすること**。(8) Scope 宣言に無かった `.claude/rules/` へ Phase 7 指示に従い `docs-consistency.md` を新設。(9) AC4 で hit する agents-lib の「§10.2」は db-conventions §10.2 への正当参照（PASS 扱い）。
