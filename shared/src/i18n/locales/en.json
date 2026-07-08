@@ -455,7 +455,10 @@
   },
   "trash": {
     "title": "Trash",
+    "description": "Deleted items can be restored from here. Nothing is removed automatically, so permanently delete anything you no longer need.",
+    "totalCount": "{{count}} total",
     "empty": "Trash is empty",
+    "emptyDescription": "Deleted items will appear here.",
     "emptyCategory": "Empty {{category}} trash",
     "emptyCategoryConfirm": "Permanently empty the {{category}} trash. {{count}} item(s) will be deleted forever and cannot be restored. Proceed?",
     "emptyCategoryDone": "Emptied {{category}} trash ({{count}} item(s))",
@@ -484,8 +487,14 @@
     "memo": "memo",
     "loading": "Loading trash...",
     "error": "Failed to load trash.",
+    "errorTitle": "Couldn't load the trash",
+    "errorDescription": "There may be a connection problem. Please try again in a moment.",
+    "reload": "Reload",
+    "restoring": "Restoring…",
+    "deleting": "Deleting…",
+    "cascadeWarning": "Related sub-items and tag assignments are deleted together.",
     "emptyCategoryLine": "No deleted items.",
-    "permanentDeleteConfirm": "Permanently delete \"{{name}}\"? This cannot be undone."
+    "permanentDeleteConfirm": "\"{{name}}\" will be permanently deleted. This cannot be undone."
   },
   "updates": {
     "title": "Updates",
@@ -568,11 +577,17 @@
     "confirmSessionMessage": "End this session and start a break?",
     "confirmTaskTitle": "Complete Task",
     "confirmTaskMessage": "Mark this task as complete?",
+    "status": {
+      "paused": "Paused"
+    },
     "controls": {
       "start": "Start",
       "pause": "Pause",
+      "resume": "Resume",
       "reset": "Reset",
-      "skip": "Skip"
+      "skip": "Skip",
+      "subtractFive": "−5 min",
+      "addFive": "+5 min"
     },
     "phase": {
       "WORK": "Work",
@@ -583,13 +598,25 @@
       "heading": "Linked Task",
       "placeholder": "Select a task…",
       "none": "No tasks available",
-      "clear": "Clear task"
+      "clear": "Clear task",
+      "select": "Choose a task",
+      "clearSelection": "Clear selection",
+      "emptyHint": "No tasks to link. Create a task in Materials to select one."
+    },
+    "completion": {
+      "title": "Session {{index}} complete",
+      "body": "Logged {{minutes}} min to “{{task}}”. Take a {{breakMinutes}}-minute break.",
+      "bodyNoTask": "Logged {{minutes}} min. Take a {{breakMinutes}}-minute break.",
+      "startBreak": "Start break",
+      "oneMore": "One more session",
+      "close": "Close"
     },
     "settings": {
       "minutesUnit": "min",
       "presetNamePlaceholder": "Preset name",
       "saveAsPreset": "Save",
-      "apply": "Apply"
+      "apply": "Apply",
+      "presetsEmpty": "No presets yet"
     }
   },
   "audioMixer": {
@@ -777,7 +804,30 @@
       "typeProject": "Project",
       "typeNote": "Note",
       "typeDaily": "Daily",
-      "typeTag": "Tag"
+      "typeTag": "Tag",
+      "loading": "Preparing the graph…",
+      "zoom": "Zoom",
+      "viewBacklinks": "Backlinks {{count}}",
+      "hintKeys": "Esc clear · ⌘F search · R reheat"
+    },
+    "empty": {
+      "title": "No connections yet",
+      "hint": "Add tags or links to your notes and they'll spread out here."
+    },
+    "search": {
+      "noMatch": "Nothing matches \"{{query}}\"",
+      "clear": "Clear search"
+    },
+    "sidebar": {
+      "settingsTab": "Graph settings",
+      "backlinksTab": "Backlinks",
+      "incomingLinks": "Links to this note"
+    },
+    "mobile": {
+      "linksTab": "Connections",
+      "backlinksTab": "Backlinks",
+      "settingsTitle": "Graph settings",
+      "searchPlaceholder": "Search notes, dailies, tags"
     }
   },
   "ideas": {
@@ -938,6 +988,66 @@
     "complete": "Mark complete",
     "newEvent": "New event",
     "createSlot": "Create event at this time"
+  },
+  "scheduleScreen": {
+    "calendar": "Calendar",
+    "routines": "Routines",
+    "viewDay": "Day",
+    "viewWeek": "Week",
+    "viewMonth": "Month",
+    "viewList": "List",
+    "viewTime": "Timeline",
+    "today": "Today",
+    "prev": "Previous",
+    "next": "Next",
+    "addEvent": "Add event",
+    "openSettings": "Manage calendars",
+    "calendarsTitle": "Calendars",
+    "title": "Title",
+    "startTime": "Start",
+    "endTime": "End",
+    "complete": "Mark complete",
+    "memo": "Memo",
+    "originRoutine": "Generated from routine",
+    "originEvent": "Event",
+    "skipThisDay": "Skip this day",
+    "delete": "Delete",
+    "selectHint": "Select an event to edit",
+    "todayFlow": "Today's flow",
+    "allDay": "All-day",
+    "done": "Done",
+    "doneSummary": "{{done}} of {{total}} done",
+    "emptyToday": "Nothing scheduled for today",
+    "now": "Now",
+    "routineListTitle": "My routines",
+    "newRoutine": "New routine",
+    "frequency": "Frequency",
+    "viewLabel": "View",
+    "frequencyDaily": "Daily",
+    "frequencyWeekdays": "Weekdays",
+    "frequencyInterval": "Every N days",
+    "frequencyGroup": "Group",
+    "intervalEvery": "Every",
+    "intervalDays": "days",
+    "startDate": "Start date",
+    "groupsLabel": "Groups",
+    "deleteRoutine": "Delete routine",
+    "summaryTitle": "My routines",
+    "openRoutinesCta": "Open the Routines tab",
+    "summaryEmpty": "No routines yet",
+    "loading": "Loading…",
+    "loadError": "Could not load your schedule",
+    "retry": "Retry",
+    "emptyTitle": "No events this week",
+    "emptyBody": "Click an empty slot to create one.",
+    "moreCount": "+{{count}} more",
+    "quickAddTitle": "Add event",
+    "quickAddPlaceholder": "Enter an event…",
+    "detailTitle": "Event details",
+    "openMenu": "Open menu",
+    "closeMenu": "Close menu",
+    "openPanel": "Open detail panel",
+    "closePanel": "Close detail panel"
   },
   "schedulePanel": {
     "existingTasks": "Existing Tasks",
@@ -2126,6 +2236,7 @@
     "tasks": "Tasks",
     "daily": "Daily",
     "notes": "Notes",
+    "materials": "Materials",
     "schedule": "Schedule",
     "work": "Work",
     "analytics": "Analytics",
@@ -2141,6 +2252,13 @@
     "signOut": "Sign out",
     "more": "More",
     "moreTitle": "More"
+  },
+  "detailPanel": {
+    "title": "Details",
+    "open": "Open details",
+    "close": "Close details",
+    "empty": "Nothing selected yet",
+    "resize": "Resize details panel"
   },
   "music": {
     "title": "Music",
@@ -2787,6 +2905,28 @@
       "toggleTaskFailed": "Failed to toggle task",
       "saveFailed": "Failed to save schedule item",
       "deleteFailed": "Failed to delete schedule item"
+    }
+  },
+  "auth": {
+    "productName": "Life Editor",
+    "tagline": "Your workspace for designing and recording your life",
+    "modeToggle": "Authentication mode",
+    "signIn": "Sign in",
+    "signUp": "Sign up",
+    "email": "Email address",
+    "emailPlaceholder": "you@example.com",
+    "password": "Password",
+    "passwordHelper": "At least 6 characters",
+    "showPassword": "Show password",
+    "hidePassword": "Hide password",
+    "busy": "Working…",
+    "footerSignIn": "No account yet? Create one from \"Sign up\" above.",
+    "footerSignUp": "Already have an account? Switch to \"Sign in\" above.",
+    "errors": {
+      "invalidCredentials": "Email or password is incorrect",
+      "alreadyRegistered": "This email address is already registered",
+      "noSession": "Signed up, but no session was started. Check that confirm-email is disabled (Phase 1).",
+      "generic": "Authentication failed. Please wait a moment and try again."
     }
   }
 }

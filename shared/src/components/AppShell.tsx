@@ -3,6 +3,20 @@ import { useMediaQuery } from "../hooks/useMediaQuery";
 import { useLocalStorage } from "../hooks/useLocalStorage";
 import { SidebarNav, type SidebarNavSection } from "./SidebarNav";
 import { BottomTabBar } from "./BottomTabBar";
+import { RightSidebar } from "./RightSidebar";
+import { MobileDrawer } from "./MobileDrawer";
+
+/** Already-translated copy for the target-IA detail panel (App Shell Turn 2). */
+export interface DetailPanelLabels {
+  /** Panel title ("詳細" / "Details"). */
+  title: string;
+  /** aria-label for the close (X) button. */
+  close: string;
+  /** Empty-state copy shown while nothing is registered. */
+  empty: string;
+  /** aria-label for the wide panel's resize handle. */
+  resize: string;
+}
 
 export interface AppShellSection extends SidebarNavSection {}
 
@@ -14,10 +28,26 @@ export interface AppShellLabels {
   signOut: string;
   more: string;
   moreTitle: string;
+  /** Keycap hint on the sidebar ⌘K footer row (wide layout only). */
+  shortcutHint?: string;
 }
 
 export interface AppShellProps {
   sections: AppShellSection[];
+  /**
+   * Utility group (Settings / Trash). Forwarded to the wide sidebar as its
+   * bottom-pinned muted group. On the narrow layout these fold into the
+   * bottom bar's "More" overflow via `mobileSections` (default appends them
+   * after the mainline sections).
+   */
+  utilitySections?: AppShellSection[];
+  /**
+   * Explicit ordering for the narrow bottom bar (fixed tabs first, the rest
+   * overflow into "More"). Defaults to `[...sections, ...utilitySections]`
+   * so hosts that don't care get the natural order; hosts that want a
+   * different Mobile priority (e.g. surface Work before Connect) pass it.
+   */
+  mobileSections?: AppShellSection[];
   activeSection: string;
   onNavigate: (id: string) => void;
   onTogglePalette: () => void;
@@ -38,6 +68,15 @@ export interface AppShellProps {
    * false keeps the readable centered column for document-style sections.
    */
   fluidContent?: boolean;
+  /**
+   * When set, the target-IA detail panel is mounted (App Shell Turn 2): a
+   * push-in <RightSidebar> as a flex sibling of <main> on the wide layout, and
+   * a left <MobileDrawer> on the narrow layout. Both read open/width/portal
+   * state from a RightSidebarContext, so the HOST MUST wrap this AppShell in a
+   * <RightSidebarProvider> when passing these labels. Omit for the legacy
+   * (no-panel) shell — behavior is then byte-identical to before.
+   */
+  detailPanelLabels?: DetailPanelLabels;
 }
 
 const SIDEBAR_COLLAPSED_KEY = "life-editor.shell.sidebar-collapsed";
@@ -55,6 +94,8 @@ const SIDEBAR_COLLAPSED_KEY = "life-editor.shell.sidebar-collapsed";
  */
 export function AppShell({
   sections,
+  utilitySections,
+  mobileSections,
   activeSection,
   onNavigate,
   onTogglePalette,
@@ -65,6 +106,7 @@ export function AppShell({
   wideQuery = "(min-width: 768px)",
   maxBottomTabs = 4,
   fluidContent = false,
+  detailPanelLabels,
 }: AppShellProps) {
   const isWide = useMediaQuery(wideQuery, true);
   const [collapsed, setCollapsed] = useLocalStorage<boolean>(
@@ -72,11 +114,19 @@ export function AppShell({
     false,
   );
 
+  // Narrow bottom bar list: explicit `mobileSections` wins; otherwise the
+  // mainline sections followed by the utility group (Settings / Trash).
+  const bottomSections = mobileSections ?? [
+    ...sections,
+    ...(utilitySections ?? []),
+  ];
+
   if (isWide) {
     return (
-      <div className="flex h-screen bg-lumen-bg text-lumen-text">
+      <div className="flex h-screen overflow-hidden bg-lumen-bg text-lumen-text">
         <SidebarNav
           sections={sections}
+          utilitySections={utilitySections}
           activeSection={activeSection}
           onNavigate={onNavigate}
           collapsed={collapsed}
@@ -93,6 +143,14 @@ export function AppShell({
             <div className="mx-auto max-w-3xl px-6 py-6">{children}</div>
           )}
         </main>
+        {detailPanelLabels && (
+          <RightSidebar
+            title={detailPanelLabels.title}
+            closeLabel={detailPanelLabels.close}
+            emptyLabel={detailPanelLabels.empty}
+            resizeLabel={detailPanelLabels.resize}
+          />
+        )}
       </div>
     );
   }
@@ -109,12 +167,19 @@ export function AppShell({
         {fluidContent ? children : <div className="px-4 py-4">{children}</div>}
       </main>
       <BottomTabBar
-        sections={sections}
+        sections={bottomSections}
         activeSection={activeSection}
         onNavigate={onNavigate}
         maxVisible={maxBottomTabs}
         labels={{ more: labels.more, moreTitle: labels.moreTitle }}
       />
+      {detailPanelLabels && (
+        <MobileDrawer
+          title={detailPanelLabels.title}
+          closeLabel={detailPanelLabels.close}
+          emptyLabel={detailPanelLabels.empty}
+        />
+      )}
     </div>
   );
 }

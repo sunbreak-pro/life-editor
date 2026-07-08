@@ -3,12 +3,14 @@ import { Card } from "./Card";
 import { cn } from "./cn";
 
 /*
- * Ambient sound mixer (W3-C). Pure primitive — lumen-* tokens, opaque
- * container (§5), all copy injected (§6.4 — never calls useTranslation). The
- * host (which reads useAudioContext) supplies the resolved labels + state and
- * the mutators. Each row is a toggle (enabled) + a 0–100 volume slider.
+ * Ambient sound mixer (target-IA import, design 325-357). Pure primitive —
+ * lumen-* tokens, opaque container (§5), all copy injected (§6.4 — never calls
+ * useTranslation). The host (which reads useAudioContext) supplies the resolved
+ * labels + state and the mutators. Each row is a 36px icon toggle + a name +
+ * a 0–100 volume slider + a mono readout. OFF rows dim the name/slider/readout
+ * (opacity-45) and disable the slider.
  *
- * a11y: the toggle is a <button role="switch" aria-pressed> with an
+ * a11y: the toggle is a <button role="switch" aria-checked> with an
  * aria-label; the slider is a native range input with an aria-label. Both are
  * keyboard-operable by default (button = Space/Enter, range = arrows). No
  * keydown handling → no IME guard needed.
@@ -43,30 +45,37 @@ export function AudioMixer({
   onVolumeChange,
 }: AudioMixerProps) {
   return (
-    <Card padding="md" className="space-y-3">
-      <h3 className="text-sm font-medium text-lumen-text">{labels.heading}</h3>
-      <ul className="space-y-2">
+    <Card padding="none" className="flex flex-col px-5 pb-3 pt-4">
+      <h3 className="pb-1.5 text-[13px] font-semibold text-lumen-text-secondary">
+        {labels.heading}
+      </h3>
+      <ul>
         {sounds.map((sound) => {
           const state = settings[sound.id] ?? { volume: 0, enabled: false };
           const Icon = sound.icon;
           return (
-            <li key={sound.id} className="flex items-center gap-3">
+            <li key={sound.id} className="flex items-center gap-3 py-1.5">
               <button
                 type="button"
                 role="switch"
-                aria-pressed={state.enabled}
+                aria-checked={state.enabled}
                 aria-label={`${labels.toggle}: ${sound.label}`}
                 onClick={() => onToggle(sound.id, !state.enabled)}
                 className={cn(
-                  "flex h-8 w-8 shrink-0 items-center justify-center rounded-md border transition-colors",
+                  "flex h-9 w-9 shrink-0 items-center justify-center rounded-lumen-md border transition-colors",
                   state.enabled
                     ? "border-lumen-accent bg-lumen-accent text-lumen-on-accent"
-                    : "border-lumen-border bg-lumen-bg text-lumen-text-secondary hover:bg-lumen-hover",
+                    : "border-lumen-border-strong bg-lumen-bg text-lumen-text-secondary hover:bg-lumen-hover",
                 )}
               >
-                <Icon size={16} aria-hidden="true" />
+                <Icon size={18} aria-hidden="true" />
               </button>
-              <span className="w-16 shrink-0 truncate text-sm text-lumen-text">
+              <span
+                className={cn(
+                  "w-14 shrink-0 truncate text-sm text-lumen-text",
+                  !state.enabled && "opacity-45",
+                )}
+              >
                 {sound.label}
               </span>
               <input
@@ -80,9 +89,17 @@ export function AudioMixer({
                 onChange={(e) =>
                   onVolumeChange(sound.id, Number(e.target.value))
                 }
-                className="h-1.5 flex-1 cursor-pointer accent-lumen-accent disabled:cursor-not-allowed disabled:opacity-50"
+                className={cn(
+                  "h-1 flex-1 cursor-pointer accent-lumen-accent",
+                  "disabled:cursor-not-allowed disabled:opacity-45",
+                )}
               />
-              <span className="w-9 shrink-0 text-right text-xs tabular-nums text-lumen-text-secondary">
+              <span
+                className={cn(
+                  "w-8 shrink-0 text-right font-mono text-[13px] tabular-nums text-lumen-text-tertiary",
+                  !state.enabled && "opacity-45",
+                )}
+              >
                 {state.volume}
               </span>
             </li>

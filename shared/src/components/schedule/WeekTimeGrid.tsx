@@ -1,4 +1,11 @@
-import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type CSSProperties,
+} from "react";
+import { Repeat } from "lucide-react";
 import { cn } from "../cn";
 import {
   dayOfWeek,
@@ -6,6 +13,7 @@ import {
   weekDayKeys,
   minutesFromMidnight,
   pxToMinutes,
+  minutesToPx,
   snapMinutes,
   minutesToTime,
   DEFAULT_SNAP_MINUTES,
@@ -47,6 +55,12 @@ export interface WeekTimeGridItem {
   endTime: string; // HH:MM
   isAllDay?: boolean;
   completed?: boolean;
+  /**
+   * Provenance color code (W8 target-IA): "routine" = 藍 face + left band +
+   * Repeat glyph, "event" (default) = 紫 face + border. Distinguishes
+   * Routine-generated items from single events without relying on color alone.
+   */
+  variant?: "routine" | "event";
 }
 
 export interface WeekTimeGridProps {
@@ -68,7 +82,12 @@ export interface WeekTimeGridProps {
    * `dateISO` may differ from the original (horizontal drag = day change). When
    * omitted, event bodies are not draggable.
    */
-  onMoveItem?: (id: string, dateISO: string, startISO: string, endISO: string) => void;
+  onMoveItem?: (
+    id: string,
+    dateISO: string,
+    startISO: string,
+    endISO: string,
+  ) => void;
   /**
    * Event bottom-handle drag (resize) committed on pointer-up. Only the end
    * time changes. When omitted, no resize handle is rendered.
@@ -90,6 +109,22 @@ export interface WeekTimeGridProps {
   createSlotLabel?: string;
   /** Date key (YYYY-MM-DD) to highlight as "today", or null. */
   todayKey?: string | null;
+  /**
+   * Current time as minutes-from-midnight. When set and inside the visible
+   * hourRange, a now-line (2px accent rule + left dot + gutter time label) is
+   * drawn in the `todayKey` column, and the body auto-scrolls near it on mount.
+   * null / out-of-range → no now-line. Also seeds the mount auto-scroll target
+   * (falls back to 08:00 when null).
+   */
+  nowMinutes?: number | null;
+  /** Host-supplied formatter for the now-line gutter label. Default `HH:MM`. */
+  formatNowLabel?: (minutes: number) => string;
+  /**
+   * When true the scrollable time body follows the parent's height
+   * (`flex-1 min-h-0`) instead of the default `max-h-[60vh]`, so the grid can
+   * fill a full-height Calendar tab. Default false (legacy behavior).
+   */
+  fillHeight?: boolean;
   /** Host-supplied hour-axis formatter. Default zero-padded `HH:00`. */
   formatHour?: (hour: number) => string;
   /** Host-supplied day-heading date formatter. Default `M/D`. */
@@ -107,6 +142,23 @@ function defaultFormatHour(hour: number): string {
 function defaultFormatDayDate(dateKey: string): string {
   const [, m, d] = dateKey.split("-").map(Number);
   return `${m}/${d}`;
+}
+
+function defaultFormatNowLabel(minutes: number): string {
+  const h = Math.floor(minutes / 60);
+  const m = minutes % 60;
+  return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+}
+
+/**
+ * Face classes for a timed block by provenance (W8). Routine = 藍 face (an
+ * inner left band is rendered separately); event (default) = 紫 face + border.
+ * Color-coded AND badge/border-differentiated so it never relies on hue alone.
+ */
+function variantBlockClasses(variant: "routine" | "event"): string {
+  return variant === "routine"
+    ? "bg-lumen-schedule-routine-bg text-lumen-chip-routine-fg"
+    : "border border-lumen-schedule-event-border bg-lumen-schedule-event-bg text-lumen-chip-event-fg";
 }
 
 /** Live drag state held in a ref so the window listeners read fresh values. */
@@ -151,6 +203,9 @@ export function WeekTimeGrid({
   allDayLabel,
   createSlotLabel,
   todayKey,
+  nowMinutes,
+  formatNowLabel = defaultFormatNowLabel,
+  fillHeight = false,
   formatHour = defaultFormatHour,
   formatDayDate = defaultFormatDayDate,
   className,
@@ -166,6 +221,34 @@ export function WeekTimeGrid({
     return out;
   }, [startHour, endHour]);
   const bodyHeight = (endHour - startHour) * hourHeight;
+
+  // Now-line geometry. Only drawn when nowMinutes is inside the visible window.
+  const nowVisible =
+    nowMinutes != null &&
+    nowMinutes >= startHour * 60 &&
+    nowMinutes <= endHour * 60;
+  const nowPx = nowVisible
+    ? minutesToPx(nowMinutes as number, hourHeight, hourRange)
+    : 0;
+
+  // Mount auto-scroll: bring the now-line (or 08:00 when absent) into view.
+  // scrollIntoView would also nudge horizontal scroll, so we set scrollTop
+  // directly on the body ref (once, on mount).
+  const scrollBodyRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    const el = scrollBodyRef.current;
+    if (!el) return;
+    const target = nowMinutes ?? 8 * 60;
+    const clampedTarget = Math.min(
+      Math.max(target, startHour * 60),
+      endHour * 60,
+    );
+    const px = minutesToPx(clampedTarget, hourHeight, hourRange);
+    // Center-ish: pull the target up by one hour so context above stays visible.
+    el.scrollTop = Math.max(0, px - hourHeight);
+    // Mount-only (initial focus); later nowMinutes ticks must not yank scroll.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // ── Drag-to-move / resize (native pointer events) ─────────────────────────
   const dragRef = useRef<DragState | null>(null);
@@ -256,7 +339,10 @@ export function WeekTimeGrid({
         }
       } else {
         endMin = Math.max(
-          snapMinutes(d.origStartMin + d.durationMin + deltaMin, snapMinutesStep),
+          snapMinutes(
+            d.origStartMin + d.durationMin + deltaMin,
+            snapMinutesStep,
+          ),
           d.origStartMin + snapMinutesStep,
         );
       }
@@ -331,6 +417,7 @@ export function WeekTimeGrid({
     <div
       className={cn(
         "overflow-hidden rounded-md border border-lumen-border bg-lumen-bg",
+        fillHeight && "flex h-full min-h-0 flex-col",
         dragging && "select-none",
         className,
       )}
@@ -413,21 +500,33 @@ export function WeekTimeGrid({
       </div>
 
       {/* Scrollable time body */}
-      <div className="max-h-[60vh] overflow-y-auto">
+      <div
+        ref={scrollBodyRef}
+        className={cn(
+          "overflow-y-auto",
+          fillHeight ? "min-h-0 flex-1" : "max-h-[60vh]",
+        )}
+      >
         <div className="grid" style={columnsTemplate}>
           {/* Hour axis */}
-          <div className="border-r border-lumen-border">
+          <div className="relative border-r border-lumen-border">
             {hours.map((h) => (
-              <div
-                key={h}
-                style={{ height: hourHeight }}
-                className="relative"
-              >
+              <div key={h} style={{ height: hourHeight }} className="relative">
                 <span className="absolute -top-1.5 right-1 text-[10px] tabular-nums text-lumen-text-secondary">
                   {formatHour(h)}
                 </span>
               </div>
             ))}
+            {/* Now-line time label, aligned to the accent rule in the today column */}
+            {nowVisible && (
+              <span
+                aria-hidden
+                className="absolute right-1 z-20 -translate-y-1/2 rounded-sm bg-lumen-bg px-0.5 text-[10px] font-bold tabular-nums text-lumen-accent"
+                style={{ top: nowPx }}
+              >
+                {formatNowLabel(nowMinutes as number)}
+              </span>
+            )}
           </div>
 
           {/* Day columns */}
@@ -435,10 +534,14 @@ export function WeekTimeGrid({
             const dayItems = byDay.get(key) ?? [];
             const positioned = layoutDayItems(dayItems, hourRange);
             const posById = new Map(positioned.map((p) => [p.id, p]));
+            const isToday = !!todayKey && key === todayKey;
             return (
               <div
                 key={key}
-                className="relative border-r border-lumen-border last:border-r-0"
+                className={cn(
+                  "relative border-r border-lumen-border last:border-r-0",
+                  isToday && "bg-lumen-accent-subtle",
+                )}
                 style={{ height: bodyHeight }}
               >
                 {/* Hour gridlines */}
@@ -450,13 +553,15 @@ export function WeekTimeGrid({
                     style={{ top: i * hourHeight }}
                   />
                 ))}
-                {/* Empty-slot click catcher (create) — only when host opts in */}
+                {/* Empty-slot click catcher (create) — only when host opts in.
+                    Hover paints a faint dashed ghost so the click-to-create
+                    affordance reads. */}
                 {onCreateAt && (
                   <button
                     type="button"
                     aria-label={createSlotLabel ?? `Create on ${key}`}
                     onClick={(e) => handleSlotClick(e, key)}
-                    className="absolute inset-0 z-0 cursor-pointer"
+                    className="absolute inset-0 z-0 cursor-pointer rounded-sm border border-transparent transition-colors hover:border-dashed hover:border-lumen-border-strong hover:bg-lumen-hover"
                   />
                 )}
                 {/* Timed events */}
@@ -466,6 +571,7 @@ export function WeekTimeGrid({
                   const selected = it.id === selectedId;
                   const widthPct = 100 / p.columns;
                   const movable = !!onMoveItem;
+                  const variant = it.variant ?? "event";
                   return (
                     <button
                       key={it.id}
@@ -477,17 +583,16 @@ export function WeekTimeGrid({
                         if (!movable) onSelectItem?.(it.id);
                       }}
                       onPointerDown={
-                        movable
-                          ? (e) => beginDrag(e, it, "move")
-                          : undefined
+                        movable ? (e) => beginDrag(e, it, "move") : undefined
                       }
                       title={`${it.startTime}–${it.endTime} ${it.title}`}
                       className={cn(
-                        "absolute overflow-hidden rounded border-l-2 border-lumen-accent bg-lumen-bg-secondary px-1 py-0.5 text-left text-[11px] leading-tight text-lumen-text hover:z-10 hover:bg-lumen-hover focus-visible:z-10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent",
+                        "absolute overflow-hidden rounded px-1 py-0.5 text-left text-[11px] leading-tight hover:z-10 focus-visible:z-10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent",
+                        variantBlockClasses(variant),
+                        variant === "routine" && "pl-1.5",
                         movable && "z-10 cursor-move",
                         selected && "z-10 ring-2 ring-lumen-accent",
-                        it.completed &&
-                          "text-lumen-text-secondary line-through",
+                        it.completed && "line-through opacity-55",
                       )}
                       style={{
                         top: `${p.topPct}%`,
@@ -497,10 +602,26 @@ export function WeekTimeGrid({
                         touchAction: dragInteractive ? "none" : undefined,
                       }}
                     >
-                      <span className="block truncate font-medium">
-                        {it.title || " "}
+                      {/* Routine provenance: inner left band (藍) */}
+                      {variant === "routine" && (
+                        <span
+                          aria-hidden
+                          className="absolute inset-y-0 left-0 w-[3px] bg-lumen-chip-routine-dot"
+                        />
+                      )}
+                      <span className="flex items-center gap-1 font-medium">
+                        {variant === "routine" && (
+                          <Repeat
+                            aria-hidden
+                            className="size-3 shrink-0"
+                            strokeWidth={2.5}
+                          />
+                        )}
+                        <span className="block truncate">
+                          {it.title || " "}
+                        </span>
                       </span>
-                      <span className="block truncate text-[10px] text-lumen-text-secondary">
+                      <span className="block truncate text-[10px] opacity-80">
                         {it.startTime}
                       </span>
                       {/* Resize handle (bottom edge) — only when host opts in */}
@@ -515,6 +636,21 @@ export function WeekTimeGrid({
                     </button>
                   );
                 })}
+                {/* Now-line: accent rule + left dot in the today column */}
+                {isToday && nowVisible && (
+                  <>
+                    <div
+                      aria-hidden
+                      className="pointer-events-none absolute inset-x-0 z-30 border-t-2 border-lumen-accent"
+                      style={{ top: nowPx }}
+                    />
+                    <div
+                      aria-hidden
+                      className="pointer-events-none absolute z-30 size-2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-lumen-accent"
+                      style={{ top: nowPx, left: 0 }}
+                    />
+                  </>
+                )}
               </div>
             );
           })}

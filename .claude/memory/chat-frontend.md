@@ -7,9 +7,9 @@
 **対象**: `.claude/docs/design/`（README / briefs/\_TEMPLATE / briefs/\_COMMON-CONTEXT）
 **計画書**: `.claude/docs/vision/plans/2026-07-04-claudedesign-screen-design-fanout.md`
 
-- 前回: work-order 方式へ改定（#142 merge）→ 全 10 オーダー並列起動 → 第 2 波 9 本 merge（#144〜#153・Terminal code 除去 Issue #146）
-- 現在: 最終整合監査完了（C1: connect-v2 未実行 → ユーザー再走中）。監査 fix（M1 タブ標準統一 / M2 Status 昇格 / m1 両論併記解消 / m3 計画書同期）を `claude/design-audit-fixes` で draft PR 化。受け渡し調査済み（本命 = GitHub デザインシステムインポート / DesignSync は要 /design-login / .md 添付は要実測）。監査レポート = `.claude/reports/2026-07-05-fanout-final-audit.md`
-- 次: connect-v2 PR merge 確認 → m2（settings ショートカット例の語彙）ユーザー判断 → 受け渡しルート実測（.md 添付 → DesignSync）→ Step 6 ClaudeDesign 投入
+- 前回: PR #160 監査（静的 + 独立ビルド検証 全 pass）→ v3 ドキュメント同期 draft PR #161 → **両方 2026-07-06 に merge 済み**（origin/main `50db5e90`）
+- 現在: 完成版 `App Shell.dc.html` を再取得し前回 Turn 2 分析と**バイト同一**を確認（= v3 ドキュメントは完成版と一致）→ Turn 2 対応方式が follow-up に確定 → **`shell-turn2-impl` オーダー新設**（impl fanout 計画書にレジストリ行 + 詳細 + 依存更新 + 「開始時 fetch+rebase」共通プロトコル化）+ worktree `.claude/worktrees/shell-turn2-impl`（branch `claude/shell-turn2-impl`・origin/main 起点）作成 → 登録 docs の draft PR 作成中
+- 次: ユーザーが docs PR merge → shell-turn2-impl セッション起動（boot 1 行は提示済み）→ 残り 8 画面はデザイン生成のたびに `<section>-impl` 起動（セクションの依存 = shell-turn2-impl merge 後）。m2（settings ショートカット語彙）は settings-impl 実装時に確認
 
 ## 直近の完了
 

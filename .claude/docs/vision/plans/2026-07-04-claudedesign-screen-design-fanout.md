@@ -71,7 +71,7 @@ Owner-chat: frontend
 - [ ] `briefs/{schedule,materials,connect,work,analytics,settings,shell,auth,trash}.md` が存在し、`_TEMPLATE.md` の §1〜§6 見出しを全て含む
 - [ ] 各 brief の §4 に「Desktop 用」「Mobile 用」の両プロンプトがある
 - [ ] 各 brief の §4 プロンプト本文（code fence 内）に `shared/src` / `web/src` / `.claude/` などのリポジトリパスが出現しない（自己完結の機械チェック）
-- [ ] 全 brief のプロンプト冒頭に `_COMMON-CONTEXT.md` **v2** の見出し（`v2 / 2026-07-05`）が含まれ、hex が v2 と一致する（旧 accent `#1f4fff` `#1a42d9` `#e1e6fb` が残っていない）
+- [ ] 全 brief のプロンプト冒頭に `_COMMON-CONTEXT.md` **v3** の見出し（`v3 / 2026-07-05`）が含まれ、hex が v3 と一致する（旧 accent `#1f4fff` `#1a42d9` `#e1e6fb` が残っていない。v2 → v3 = rightSidebar（詳細パネル）+ Mobile ハンバーガーのシェル構成追加・2026-07-05 Turn 2）
 - [ ] 全 brief のナビ・タブ前提が `IA.md`（サイドバー 6+2 / header タブ / Mobile 4+More）と矛盾しない
 - [ ] 各 fan-out PR の diff が `briefs/<自分の section>.md` 1 ファイルのみ
 - [ ] 本計画の全 PR を通じてコード変更 0（diff は `.claude/docs/**` のみ）
@@ -126,7 +126,7 @@ bash .claude/scripts/design-work.sh <slug>    # 例: design-materials-v2
 1. **自己確認**: SessionStart hook の identity 表示で worktree = `.claude/worktrees/<slug>` / branch = `claude/<slug>` を確認する。不一致なら作業せずユーザーに報告して停止
 2. **必読順**: 本計画書全体 → 自分のオーダー → オーダーの【必読】列挙ファイル
 3. **単一書込者**: 編集してよいのは自分のオーダーの【成果物】のみ。他の briefs/\*.md・コード・トークン・要件ドキュメントは read-only。並行セッションが多数走行中
-4. **ClaudeDesign プロンプト不変式**（design-\* オーダー共通）: brief §4 のプロンプトは自己完結（リポジトリパスを書かない）/ 冒頭に `_COMMON-CONTEXT.md` **v2** を全文埋め込み（要約禁止・見出しに「v2 / 2026-07-05」）/ ナビ前提は `IA.md` / 色は hex 直書き
+4. **ClaudeDesign プロンプト不変式**（design-\* オーダー共通）: brief §4 のプロンプトは自己完結（リポジトリパスを書かない）/ 冒頭に `_COMMON-CONTEXT.md` **v3** を全文埋め込み（要約禁止・見出しに「v3 / 2026-07-05」。v2 → v3 = rightSidebar + ハンバーガー追加）/ ナビ前提は `IA.md` / 色は hex 直書き
 5. **完了プロトコル**: `_TEMPLATE.md` §5 AC 自己チェック（v2 改訂は下記の機械チェックも）→ task-tracker 記録 → draft PR 作成（タイトルはレジストリ記載のもの）→ 自分の outbox（`.claude/comm/outbox/chat-<slug>.md`）へ要約 append → ユーザーへ報告。**self-merge 禁止・main 直接 push 禁止**。PR diff は【成果物】+ 自分の tracker ファイルのみに保つ
 
 ### v2 改訂の共通手順（design-\*-v2 オーダー共通）
@@ -225,3 +225,4 @@ grep -icE "#1f4fff|#1a42d9|#e1e6fb|#5b82ff|#7596ff|#e3e7ff|#2330b0" .claude/docs
 - 2026-07-05（続）: fan-out 第 1 波の全 PR merge 完了（#136〜#141）。機械チェックで v1 brief 5 本の v2 改訂要を確認し、改訂プロンプト D1'〜D6' + terminal 廃止 docs 整理プロンプトを発行。settings brief（305 行・完成品だが未 commit）と design セッション 4 本ぶんの tracker 記録（memory / history / outbox 計 12 ファイル）を本ブランチに salvage。frontend worktree の迷子複製（schedule / work / materials = main と同一）は掃除。
 - 2026-07-05（続 2）: ユーザー要望「計画書 + 作業名の指定だけでセッションがゴールまで働く形」を受け、**work-order 方式へ改定**。Appendix の貼り付けプロンプト群を廃し、§Work Orders（共通プロトコル + v2 改訂共通手順 + 作業レジストリ 10 slug + オーダー詳細）に集約。worktree / ブランチ / セッション標識を 1 コマンドで用意する起動スクリプト `.claude/scripts/design-work.sh` を追加（slug 規約: worktree = `.claude/worktrees/<slug>`・branch = `claude/<slug>`・session-name = `<slug>`）。全オーダーは PR #142 merge 後に起動可。
 - 2026-07-05（続 3）: 第 2 波完了 — work-order 9 本が完走・merge（#144〜#153。Terminal code 除去 Issue #146 起票込み）。orchestrator 最終整合監査で **design-connect-v2 の未実行**（C1・PR もブランチも不存在）を検出 → ユーザーが再起動。残指摘 M1（analytics のタブピルが shell 下線標準と矛盾）/ M2（analytics Status=Draft 昇格漏れ）/ m1（schedule・materials の「下線 or 塗り」両論併記）を audit-fixes ブランチで一括修正。m2（settings のショートカット例が旧ナビ語彙 = 現行実装準拠）はユーザー判断待ちで保留。あわせて ClaudeDesign へのファイル受け渡し調査を実施（本命 = GitHub リポジトリのデザインシステムインポート / 次点 = DesignSync 直接アップロード・要 /design-login / .md チャット添付は要実測）。
+- 2026-07-06: Step 6/7 進行 — App Shell 生成（Turn 1・フレーム 1a-1l）に対しユーザーが ClaudeDesign へフィードバック（Turn 2）: **rightSidebar（詳細パネル・320px 押し込み式・例 = TaskDetailPanel）+ Desktop 全パネルのタブ行右端トグル（PanelRight）+ Mobile 左上ハンバーガー → 左 drawer** が追加され、目標 IA へ昇格（`IA.md` 決定 4 点目・旧 frontend `RightSidebarContext` / `ios-additions.md` G-3 パターンの復活）。orchestrator が `_COMMON-CONTEXT` を **v3** 化し 9 brief 全ての埋め込みブロックを同期（機械チェック: v3 見出し = 各 2・materials 8 / v2 残 0）。shell brief は §3 に rightSidebar 標準を追記し Status: Generated へ。実装向け残課題（aria 全面欠落 / 未選択空状態未デザイン / タブなし画面のトグル置き場 = 補完標準「画面最上部右端」/ drawer safe-area / パレット外 hex 2 色）は shell.md §6 履歴 + IA.md に記録。

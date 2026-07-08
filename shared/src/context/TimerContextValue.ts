@@ -49,6 +49,12 @@ export interface TimerContextValue {
   setPhase: (phase: TimerPhase) => void;
   /** Attribute future sessions to this task (or clear with null). */
   setActiveTask: (task: ActiveTask | null) => void;
+  /**
+   * Nudge the current phase's remaining time by ±`delta` minutes. Only takes
+   * effect while paused/idle (no-op while running); remaining never drops
+   * below 1 minute. Powers the −5/+5 pills on the paused timer face.
+   */
+  adjustRemainingMinutes: (delta: number) => void;
 
   // --- settings mutators (persist via DataService) ---
   setWorkDurationMinutes: (min: number) => void;

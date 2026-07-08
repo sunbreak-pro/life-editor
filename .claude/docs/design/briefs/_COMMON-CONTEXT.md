@@ -4,11 +4,11 @@
 > ClaudeDesign はリポジトリを読めないため、この前提が唯一の共有知識になる。**改変・要約・省略禁止**（統一性が崩れる）。
 > palette 表の正本は `shared/src/styles/tokens.css`、ナビ構成の正本は `../IA.md`。値を変えるときは正本 → 本ファイル → 各 brief の順で同期する。
 >
-> **Version: 2（2026-07-05）** — v1 からの変更: ①accent 系 hex を PR #135（Lumen blue 化）に同期 ②シェル構成を目標 IA（サイドバー 6+2・Mobile 固定 4 タブ）に差し替え。**v1 を埋め込んだ brief は要更新**（見出しの版数で判別可能）。
+> **Version: 3（2026-07-05）** — v2 からの変更: ③シェル構成に **rightSidebar（詳細パネル）+ Mobile ハンバーガー → 左 drawer** を追加（App Shell デザイン Turn 2・ユーザーフィードバック起点。意匠の正 = ClaudeDesign project `c73cdbf4` / App Shell.dc.html）。v1 → v2 の変更: ①accent 系 hex を PR #135（Lumen blue 化）に同期 ②シェル構成を目標 IA（サイドバー 6+2・Mobile 固定 4 タブ）に差し替え。**旧版を埋め込んだ brief は要更新**（見出しの版数で判別可能）。
 
 ---
 
-## Life Editor — デザイン共通前提（全画面共通・v2 / 2026-07-05）
+## Life Editor — デザイン共通前提（全画面共通・v3 / 2026-07-05）
 
 ### プロダクト
 
@@ -22,7 +22,8 @@
 - サイドバー本流 5 セクション: Schedule / Materials / Connect / Work / Analytics（アイコンは lucide 系統: Clock, Library, Network, Timer, BarChart3）
 - サイドバー最下部のユーティリティ枠（本流から視覚分離）: Settings / Trash + フッター（コマンドパレット起動 ⌘K / ユーザー表示 / サインアウト）
 - 画面上部の header タブ: Materials = Tasks / Notes / Daily / Tags、Schedule = Calendar / Routines、Analytics = Overview / Tasks / Work / Schedule、Connect = Graph / Backlinks。Work / Settings / Trash はタブなし単画面
-- Mobile: 下部タブバー = **Schedule / Materials / Work / Analytics + "More"**（More はボトムシートで Connect / Settings / Trash。safe-area inset 対応）。header タブは Mobile ではセグメントコントロール等の小型表現で継承
+- 各画面の header タブ行の右端に **rightSidebar（詳細パネル）の開閉トグルアイコン**（lucide: PanelRight。open 中は accent 文字 + accent-subtle 地の活性表示、closed 時はニュートラル）を置く。rightSidebar = 右端の幅 320px（min 240px・左端リサイズハンドル）・押し込み式パネル（overlay ではなくメイン領域が縮む。背景はサイドバーと同じ subsidebar 色 + 左 border、上部 48px に「詳細」ヘッダー + 閉じる X）。中身はセクション文脈の詳細・補助 UI（例: 選択中タスクの詳細 = タイトル / ステータス / 内容）。**Desktop 全画面に付ける**（タブなし単画面では画面最上部の右端に同アイコン）
+- Mobile: 下部タブバー = **Schedule / Materials / Work / Analytics + "More"**（More はボトムシートで Connect / Settings / Trash。safe-area inset 対応）。header タブは Mobile ではセグメントコントロール等の小型表現で継承。**画面上部・セグメントコントロール行の左端にハンバーガー（lucide: Menu・36×36 の border 付きボタン）**を置き、タップで左から幅 320px の drawer（黒 30% スクリム）が開いて Desktop の rightSidebar と同一内容を表示する。ナビ用の More ボトムシートとは役割分離（More = ナビ / ハンバーガー = 詳細パネル）
 
 ### ブランドパレット — Lumen（Cobalt Ink + Mint 系譜）
 

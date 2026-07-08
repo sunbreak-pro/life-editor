@@ -78,13 +78,36 @@ export {
 } from "./TaskAddDialog";
 // App shell (W5) — responsive single shell + its nav pieces. Pure
 // presentation: DataService-free, props-injected i18n (§3.1 / §6.4).
-export { NavItem, type NavItemProps } from "./NavItem";
+export { NavItem, type NavItemProps, type NavItemTone } from "./NavItem";
 export {
   SidebarNav,
   type SidebarNavProps,
   type SidebarNavSection,
   type SidebarNavLabels,
 } from "./SidebarNav";
+// Header tabs (target-IA Desktop standard) + segmented control (its Mobile
+// echo). Pure presentation: props-injected copy, lumen-* tokens (§3.1 / §5).
+export { HeaderTabs, type HeaderTabsProps, type HeaderTab } from "./HeaderTabs";
+// RightSidebar detail panel (App Shell Turn 2) — push-in Desktop panel +
+// left Mobile drawer + open/close toggle + the portal a section uses to push
+// its detail UI into the panel. Pure presentation: props-injected copy,
+// lumen-* tokens (§3.1 / §5). Requires a RightSidebarProvider (context barrel).
+export { RightSidebar, type RightSidebarProps } from "./RightSidebar";
+export { MobileDrawer, type MobileDrawerProps } from "./MobileDrawer";
+export {
+  RightSidebarToggle,
+  type RightSidebarToggleProps,
+  type RightSidebarToggleVariant,
+} from "./RightSidebarToggle";
+export {
+  RightSidebarPortal,
+  type RightSidebarPortalProps,
+} from "./RightSidebarPortal";
+export {
+  SegmentedControl,
+  type SegmentedControlProps,
+  type SegmentedOption,
+} from "./SegmentedControl";
 export {
   BottomTabBar,
   type BottomTabBarProps,
@@ -96,7 +119,29 @@ export {
   type AppShellProps,
   type AppShellSection,
   type AppShellLabels,
+  type DetailPanelLabels,
 } from "./AppShell";
+// Auth (target-IA D8) — shell-independent pre-login entry card + its two
+// field-level parts. SegmentedToggle is the *form-mode* sibling of the
+// shell-owned SegmentedControl (radiogroup vs tablist — see each file's
+// header comment). Pure presentation: copy + submit intent injected by the
+// host (§3.1 / §6.4); the host owns the signIn/signUp calls.
+export {
+  AuthCard,
+  type AuthCardProps,
+  type AuthCardLabels,
+  type AuthMode,
+} from "./AuthCard";
+export {
+  PasswordField,
+  type PasswordFieldProps,
+  type PasswordFieldLabels,
+} from "./PasswordField";
+export {
+  SegmentedToggle,
+  type SegmentedToggleProps,
+  type SegmentedToggleOption,
+} from "./SegmentedToggle";
 export {
   SettingsAppearance,
   type SettingsAppearanceProps,
@@ -122,13 +167,21 @@ export {
   type TrashGroup,
   type TrashItem,
   type TrashCategory,
+  type TrashBusy,
+  type TrashBusyAction,
 } from "./TrashView";
-// Work / Pomodoro (W3-B) — pure timer face + task selector + settings editor.
+// Work / Pomodoro (target-IA import) — pure timer face + phase badge + session
+// dots + task selector/sheet + settings editor + completion modal.
+export {
+  PhaseBadge,
+  type PhaseBadgeProps,
+  type PomodoroPhase,
+} from "./PhaseBadge";
+export { SessionDots, type SessionDotsProps } from "./SessionDots";
 export {
   PomodoroTimer,
   type PomodoroTimerProps,
   type PomodoroTimerLabels,
-  type PomodoroPhase,
 } from "./PomodoroTimer";
 export {
   PomodoroTaskSelector,
@@ -137,11 +190,21 @@ export {
   type TaskOption,
 } from "./PomodoroTaskSelector";
 export {
+  PomodoroTaskSheet,
+  type PomodoroTaskSheetProps,
+  type PomodoroTaskSheetLabels,
+} from "./PomodoroTaskSheet";
+export {
   PomodoroSettings,
   type PomodoroSettingsProps,
   type PomodoroSettingsLabels,
   type PomodoroPresetOption,
 } from "./PomodoroSettings";
+export {
+  SessionCompletionModal,
+  type SessionCompletionModalProps,
+  type SessionCompletionModalLabels,
+} from "./SessionCompletionModal";
 // Audio (W3-C) — ambient mixer primitive + headless completion-chime bridge.
 export {
   AudioMixer,

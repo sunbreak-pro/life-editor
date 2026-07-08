@@ -455,7 +455,10 @@
   },
   "trash": {
     "title": "ゴミ箱",
+    "description": "削除した項目はここから元に戻せます。自動では消えないので、不要なものは完全に削除してください。",
+    "totalCount": "全 {{count}} 件",
     "empty": "ゴミ箱は空です",
+    "emptyDescription": "削除した項目がここに表示されます。",
     "emptyCategory": "{{category}}のゴミ箱をからにする",
     "emptyCategoryConfirm": "「{{category}}」のゴミ箱を完全に空にします。{{count}} 件が完全に削除され、復元できません。実行しますか？",
     "emptyCategoryDone": "{{category}}のゴミ箱を空にしました（{{count}} 件）",
@@ -484,8 +487,14 @@
     "memo": "メモ",
     "loading": "ゴミ箱を読み込み中...",
     "error": "ゴミ箱の読み込みに失敗しました。",
+    "errorTitle": "ゴミ箱を読み込めませんでした",
+    "errorDescription": "通信に問題が発生した可能性があります。時間をおいて再度お試しください。",
+    "reload": "再読み込み",
+    "restoring": "復元中…",
+    "deleting": "削除中…",
+    "cascadeWarning": "関連する子項目やタグの割り当ても一緒に削除されます。",
     "emptyCategoryLine": "削除済みの項目はありません。",
-    "permanentDeleteConfirm": "「{{name}}」を完全に削除しますか？この操作は元に戻せません。"
+    "permanentDeleteConfirm": "「{{name}}」を完全に削除します。この操作は取り消せません。"
   },
   "updates": {
     "title": "アップデート",
@@ -568,11 +577,17 @@
     "confirmSessionMessage": "セッションを終了して休憩に入りますか？",
     "confirmTaskTitle": "タスク完了",
     "confirmTaskMessage": "このタスクを完了しますか？",
+    "status": {
+      "paused": "一時停止中"
+    },
     "controls": {
       "start": "開始",
       "pause": "一時停止",
+      "resume": "再開",
       "reset": "リセット",
-      "skip": "スキップ"
+      "skip": "スキップ",
+      "subtractFive": "−5 分",
+      "addFive": "＋5 分"
     },
     "phase": {
       "WORK": "ワーク",
@@ -583,13 +598,25 @@
       "heading": "紐づけるタスク",
       "placeholder": "タスクを選択…",
       "none": "タスクがありません",
-      "clear": "タスクを解除"
+      "clear": "タスクを解除",
+      "select": "タスクを選ぶ",
+      "clearSelection": "選択を外す",
+      "emptyHint": "紐付けられるタスクがありません。Materials でタスクを作成すると選べるようになります。"
+    },
+    "completion": {
+      "title": "セッション {{index}} が完了しました",
+      "body": "「{{task}}」に {{minutes}} 分を記録しました。{{breakMinutes}} 分の休憩を挟みましょう。",
+      "bodyNoTask": "{{minutes}} 分を記録しました。{{breakMinutes}} 分の休憩を挟みましょう。",
+      "startBreak": "休憩を開始",
+      "oneMore": "もう 1 セッション",
+      "close": "閉じる"
     },
     "settings": {
       "minutesUnit": "分",
       "presetNamePlaceholder": "プリセット名",
       "saveAsPreset": "保存",
-      "apply": "適用"
+      "apply": "適用",
+      "presetsEmpty": "プリセットはまだありません"
     }
   },
   "audioMixer": {
@@ -777,7 +804,30 @@
       "typeProject": "プロジェクト",
       "typeNote": "ノート",
       "typeDaily": "デイリー",
-      "typeTag": "タグ"
+      "typeTag": "タグ",
+      "loading": "グラフを準備しています…",
+      "zoom": "ズーム",
+      "viewBacklinks": "バックリンク {{count}}",
+      "hintKeys": "Esc 選択解除 · ⌘F 検索 · R 再配置"
+    },
+    "empty": {
+      "title": "まだつながりがありません",
+      "hint": "ノートにタグやリンクを付けると、ここに広がっていきます"
+    },
+    "search": {
+      "noMatch": "「{{query}}」に一致するものがありません",
+      "clear": "検索をクリア"
+    },
+    "sidebar": {
+      "settingsTab": "グラフ設定",
+      "backlinksTab": "バックリンク",
+      "incomingLinks": "このノートへのリンク"
+    },
+    "mobile": {
+      "linksTab": "つながり",
+      "backlinksTab": "バックリンク",
+      "settingsTitle": "グラフ設定",
+      "searchPlaceholder": "ノート・デイリー・タグを検索"
     }
   },
   "ideas": {
@@ -938,6 +988,66 @@
     "complete": "完了にする",
     "newEvent": "新規予定",
     "createSlot": "この時刻に予定を作成"
+  },
+  "scheduleScreen": {
+    "calendar": "カレンダー",
+    "routines": "ルーチン",
+    "viewDay": "日",
+    "viewWeek": "週",
+    "viewMonth": "月",
+    "viewList": "リスト",
+    "viewTime": "時間",
+    "today": "今日",
+    "prev": "前へ",
+    "next": "次へ",
+    "addEvent": "予定を追加",
+    "openSettings": "カレンダーを管理",
+    "calendarsTitle": "カレンダー",
+    "title": "タイトル",
+    "startTime": "開始",
+    "endTime": "終了",
+    "complete": "完了にする",
+    "memo": "メモ",
+    "originRoutine": "ルーチンから生成",
+    "originEvent": "予定",
+    "skipThisDay": "この日はスキップ",
+    "delete": "削除",
+    "selectHint": "編集する予定を選択",
+    "todayFlow": "今日の流れ",
+    "allDay": "終日",
+    "done": "完了",
+    "doneSummary": "{{total}}件中{{done}}件完了",
+    "emptyToday": "今日の予定はありません",
+    "now": "現在",
+    "routineListTitle": "マイルーチン",
+    "newRoutine": "新規ルーチン",
+    "frequency": "頻度",
+    "viewLabel": "表示",
+    "frequencyDaily": "毎日",
+    "frequencyWeekdays": "曜日",
+    "frequencyInterval": "N日ごと",
+    "frequencyGroup": "グループ",
+    "intervalEvery": "",
+    "intervalDays": "日ごと",
+    "startDate": "開始日",
+    "groupsLabel": "所属グループ",
+    "deleteRoutine": "ルーチンを削除",
+    "summaryTitle": "マイルーチン",
+    "openRoutinesCta": "Routines タブを開く",
+    "summaryEmpty": "ルーチンはまだありません",
+    "loading": "読み込み中…",
+    "loadError": "予定を読み込めませんでした",
+    "retry": "再試行",
+    "emptyTitle": "この週の予定はありません",
+    "emptyBody": "空いた時間をクリックして作成できます。",
+    "moreCount": "他 {{count}} 件",
+    "quickAddTitle": "予定を追加",
+    "quickAddPlaceholder": "予定を入力…",
+    "detailTitle": "予定の詳細",
+    "openMenu": "メニューを開く",
+    "closeMenu": "メニューを閉じる",
+    "openPanel": "詳細パネルを開く",
+    "closePanel": "詳細パネルを閉じる"
   },
   "schedulePanel": {
     "existingTasks": "既存タスク",
@@ -2126,10 +2236,11 @@
     "tasks": "タスク",
     "daily": "デイリー",
     "notes": "ノート",
-    "schedule": "スケジュール",
-    "work": "ワーク",
-    "analytics": "アナリティクス",
-    "connect": "コネクト",
+    "materials": "資料",
+    "schedule": "予定",
+    "work": "集中",
+    "analytics": "分析",
+    "connect": "つながり",
     "tags": "タグ",
     "settings": "設定",
     "trash": "ゴミ箱"
@@ -2141,6 +2252,13 @@
     "signOut": "サインアウト",
     "more": "その他",
     "moreTitle": "その他"
+  },
+  "detailPanel": {
+    "title": "詳細",
+    "open": "詳細を開く",
+    "close": "詳細を閉じる",
+    "empty": "表示する詳細はありません",
+    "resize": "詳細パネルの幅を変更"
   },
   "music": {
     "title": "ミュージック",
@@ -2785,6 +2903,28 @@
       "toggleTaskFailed": "タスクの切替に失敗しました",
       "saveFailed": "スケジュールアイテムの保存に失敗しました",
       "deleteFailed": "スケジュールアイテムの削除に失敗しました"
+    }
+  },
+  "auth": {
+    "productName": "Life Editor",
+    "tagline": "生活を設計・記録するあなたのワークスペース",
+    "modeToggle": "認証モード",
+    "signIn": "ログイン",
+    "signUp": "新規登録",
+    "email": "メールアドレス",
+    "emailPlaceholder": "you@example.com",
+    "password": "パスワード",
+    "passwordHelper": "6 文字以上",
+    "showPassword": "パスワードを表示",
+    "hidePassword": "パスワードを隠す",
+    "busy": "処理中…",
+    "footerSignIn": "アカウントが無い場合は上部の「新規登録」から作成できます",
+    "footerSignUp": "既にアカウントがある場合は上部の「ログイン」へ",
+    "errors": {
+      "invalidCredentials": "メールアドレスまたはパスワードが正しくありません",
+      "alreadyRegistered": "このメールアドレスは既に登録されています",
+      "noSession": "登録は完了しましたが、セッションを開始できませんでした。confirm-email 設定（Phase 1 では無効）を確認してください。",
+      "generic": "認証に失敗しました。時間をおいて再度お試しください。"
     }
   }
 }

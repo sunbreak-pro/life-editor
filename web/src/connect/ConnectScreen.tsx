@@ -66,6 +66,10 @@ function ConnectGraphHost({ dataService }: ConnectScreenProps) {
   const { showToast } = useToast();
   const wiki = useWikiTagsUnifiedContext();
   const [data, setData] = useState<ConnectStaticData>(EMPTY_STATIC);
+  // First-fetch gate: start in a loading state so the empty-graph message can't
+  // flash before any data arrives (EMPTY_STATIC would otherwise read as "empty"
+  // for one paint). Flipped to false once the initial reads resolve.
+  const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -78,6 +82,7 @@ function ConnectGraphHost({ dataService }: ConnectScreenProps) {
       ]);
       if (cancelled) return;
       setData({ notes, dailies, tags, assignments });
+      setLoaded(true);
     })();
     return () => {
       cancelled = true;
@@ -87,10 +92,7 @@ function ConnectGraphHost({ dataService }: ConnectScreenProps) {
   const labels = useMemo<ConnectGraphLabels>(
     () => ({
       title: t("connect.title"),
-      graphEmpty: t("ideas.graphEmpty"),
       reheat: t("connect.graph.reheat"),
-      resetView: t("connect.graph.resetView"),
-      togglePanel: t("connect.graph.togglePanel"),
       closePanel: t("connect.graph.closePanel"),
       clearFilters: t("connect.graph.clearFilters"),
       noMatch: t("connect.graph.noMatch"),
@@ -121,8 +123,26 @@ function ConnectGraphHost({ dataService }: ConnectScreenProps) {
       linkTargetPlaceholder: t("connect.graph.linkTargetPlaceholder"),
       linkCreateFailed: t("connect.graph.linkCreateFailed"),
       linkDeleteFailed: t("connect.graph.linkDeleteFailed"),
-      backlinksTitle: t("backlinks.title"),
       backlinksEmpty: t("backlinks.empty"),
+      // Target-IA additions (states / rightSidebar tabs / zoom / mobile).
+      graphLoading: t("connect.graph.loading"),
+      emptyTitle: t("connect.empty.title"),
+      emptyHint: t("connect.empty.hint"),
+      // The {{query}} / {{count}} placeholders must survive into the shared
+      // component (which does the final .replace with the live value). Feeding
+      // the literal placeholder back through i18next round-trips it unchanged.
+      noMatchQuery: t("connect.search.noMatch", { query: "{{query}}" }),
+      clearSearch: t("connect.search.clear"),
+      zoom: t("connect.graph.zoom"),
+      fitView: t("connect.graph.resetView"),
+      settingsTab: t("connect.sidebar.settingsTab"),
+      backlinksTab: t("connect.sidebar.backlinksTab"),
+      incomingLinks: t("connect.sidebar.incomingLinks"),
+      viewBacklinks: t("connect.graph.viewBacklinks", { count: "{{count}}" }),
+      hintKeys: t("connect.graph.hintKeys"),
+      mobileLinksTab: t("connect.mobile.linksTab"),
+      mobileBacklinksTab: t("connect.mobile.backlinksTab"),
+      mobileSettingsTitle: t("connect.mobile.settingsTitle"),
     }),
     [t],
   );
@@ -135,6 +155,7 @@ function ConnectGraphHost({ dataService }: ConnectScreenProps) {
       assignments={data.assignments}
       connections={wiki.allConnections}
       labels={labels}
+      isLoading={!loaded}
       // Propagate rejection so SelectedNodeCard's runLinkMutation can catch it
       // (it awaits the returned promise) and report via onLinkError. Swallowing
       // here with .catch would make every mutation look successful.
