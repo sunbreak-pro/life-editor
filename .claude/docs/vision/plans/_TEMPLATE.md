@@ -1,5 +1,5 @@
 ---
-Status: Draft
+Status: Draft # enum のみ使用: Draft / IN PROGRESS / BLOCKED / COMPLETED / SUPERSEDED / DEFERRED / REFERENCE / ACTIVE (adopted policy)
 Created: YYYY-MM-DD
 Branch: <branch-name>
 Owner-chat: <chat-name> # .claude/comm/.session-name の値
@@ -25,8 +25,8 @@ Previous: (任意) 前フェーズ完了計画書パス
 
 ## Scope (Touchable Paths)
 
-このプランで変更してよいパスを宣言する。Stop hook は git diff の範囲と照合し、宣言外のパスに
-変更が出たら scope drift として警告を outbox に記録する。
+このプランで変更してよいパスを宣言する。git diff の範囲と照合して宣言外パスへの変更を scope drift
+として警告する仕組みは **未実装（将来・#173 で機械化予定）**。現状は人手で Scope を守る前提で使う。
 
 ```
 frontend/src/services/tasks/**
@@ -70,6 +70,7 @@ PR/タスク完了の必要条件。すべて自動で yes/no が判定できる
 - [ ] PR diff が ±<N> 行以内（scope creep ガード。目安: 機能追加 500 / 修正 200 / リファクタ 1000）
 - [ ] (該当する場合) Supabase の `<table>` に `<column>` が存在
 - [ ] (該当する場合) `supabase db diff` で local↔remote 差分 0
+- [ ] 完了・退役・supersede 時: 対応 plan・per-chat memory の Status を更新した（DoD。PR merge / Issue close と docs Status の非連動を防ぐ）
 
 ---
 

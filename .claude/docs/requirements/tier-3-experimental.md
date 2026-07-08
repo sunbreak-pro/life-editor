@@ -6,6 +6,8 @@
 
 **Tier 3 機能数**: 6（暫定、Phase B-3 で確定）
 
+> ⚠️ **旧構成の歴史参照注記 (2026-07-07 consistency-cleanup)**: 本ファイル中の `.claude/docs/adr/` / `.claude/archive/adr/` などのパス参照や ADR-0005 参照は旧ディレクトリ構成時点のもので、現存しないパスを含む（ADR は作らない方針へ移行済 → `docs/vision/coding-principles.md §5`）。個別リンクは追わず歴史参照として残す。
+
 ---
 
 ## Feature: Paper Boards
@@ -99,7 +101,7 @@
 ### Boundary
 
 - やる（構想）: Google Calendar の予定を life-editor のスケジュールに参照表示
-- やらない（現状）: 予定編集（外部サービス代替を Non-Goal とする — CLAUDE.md §4 NG-6）
+- やらない（現状）: 予定編集（外部サービス代替を Non-Goal とする — CLAUDE.md §1 Non-Goals）
 
 ### 凍結 or 削除判断の根拠
 
@@ -148,7 +150,7 @@
 
 **Tier**: 3 (Reference)
 **Status**: ×未着手（PROPOSED ADR）
-**Verdict**: PROPOSED のまま継続（CLAUDE.md §8.3 で要約参照）
+**Verdict**: PROPOSED のまま継続（CLAUDE.md §8 Feature Tier Map で要約参照）
 **Owner Provider/Module**: 未実装（将来 `mcp-server-cognitive/` + SQLite `claude_*` テーブル）
 
 ### Boundary

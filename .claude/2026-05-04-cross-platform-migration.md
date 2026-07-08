@@ -1,7 +1,7 @@
 ---
-Status: ACTIVE — Phase 2 完了（2026-06-05 / PR #43・#44 + tracker commit 5b3021c。S0-S7 / perf / RLS 達成）。Phase 2↔3 間 Data Unification レーン進行中（DU-G G2 / 計画書 `2026-05-25-data-unification-g-notes-daily-unified.md`）。Phase 3（Electron 包装 #79）/ Phase 4（Capacitor 包装 #88）は scaffold merged（`desktop/` `mobile/` 実在）、残は実機 golden path の目視ゲート。最新 Phase 状況は `memory/INDEX.md`（per-chat）+ 各 Phase 計画書 + git 履歴が正本（旧 MEMORY.md は 2026-05-23 凍結）。本ファイルは commit 60f5f63 で誤削除→2026-05-17 git 履歴から復元
+Status: ACTIVE — Phase 2 完了（2026-06-05 / PR #43・#44 + tracker commit 5b3021c。S0-S7 / perf / RLS 達成）。Phase 2↔3 間 Data Unification レーンは完了（DU-G G1-G4 = PR #29/#30/#31/#36 全 merge・計画書は archive 済）。Phase 3（Electron 包装 #79）/ Phase 4（Capacitor 包装 #88）は scaffold merged（`desktop/` `mobile/` 実在）、残は実機 golden path の目視ゲート。最新 Phase 状況は `memory/INDEX.md`（per-chat）+ 各 Phase 計画書 + git 履歴が正本（旧 MEMORY.md は 2026-05-23 凍結）。本ファイルは commit 60f5f63 で誤削除→2026-05-17 git 履歴から復元
 Created: 2026-05-04
-Updated: 2026-06-06
+Updated: 2026-07-08
 Task: クロスプラットフォーム移行 — Tauri / Cloudflare 構成 → Vite + React + TS + Supabase + Electron + Capacitor
 Project path: /Users/newlife/dev/apps/life-editor
 Branch: main（2026-05〜集約済み。旧 refactor/web-first-v2 は PR #3-9 merge 済で廃止 — CLAUDE.md ヘッダ参照）
@@ -36,7 +36,7 @@ Related:
 
 旧 Phase 0（学習スパイク 2.5 週）は本改訂で削除。Phase 番号は繰り上げない（旧 Phase 1 → 新 Phase 1）。
 
-**2026-06-07 追補（UI 集約方針 = W0 確定）**: Web/Desktop 機能差を埋める作業（計画書 `archive/2026-06-07-web-desktop-parity-roadmap.md`・#154 で完了 archive）で UI 共通化を **「2 層モデル」**＝部品層は `shared/src/components/` に完全共通集約・画面層は機能別に単一/分割、と確定（案 A）。デザインシステム + `ink-*` トークン + **i18n（en/ja catalog + i18next）** を `shared/` に集約し、3 配布形態（Electron/Capacitor/Web）が共用する。詳細原則は `docs/vision/coding-principles.md §6`。本書 Phase 2 の `frontend/src/i18n/ → shared/src/i18n/` は W0 で先行移植済（catalog を `frontend` から全量コピー、frontend は FROZEN のまま不変）。
+**2026-06-07 追補（UI 集約方針 = W0 確定）**: Web/Desktop 機能差を埋める作業（計画書 `archive/2026-06-07-web-desktop-parity-roadmap.md`・#154 で完了 archive）で UI 共通化を **「2 層モデル」**＝部品層は `shared/src/components/` に完全共通集約・画面層は機能別に単一/分割、と確定（案 A）。デザインシステム + `lumen-*` トークン（#135 で `ink-*` から改名） + **i18n（en/ja catalog + i18next）** を `shared/` に集約し、3 配布形態（Electron/Capacitor/Web）が共用する。詳細原則は `docs/vision/coding-principles.md §6`。本書 Phase 2 の `frontend/src/i18n/ → shared/src/i18n/` は W0 で先行移植済（catalog を `frontend` から全量コピー、frontend は FROZEN のまま不変）。
 
 ---
 
@@ -231,12 +231,12 @@ life-editor/
 
 ### Phase 1 — life-editor リポジトリでの新スタック土台構築
 
-ゴール: `refactor/web-first-v2` ブランチ上に `shared/` `desktop/` `mobile/` `web/` `supabase/` の 5 ディレクトリ構造を設置。`frontend/` (Tauri) と並立させる。動かしながら必要技術を体得していく。
+ゴール: `shared/` `desktop/` `mobile/` `web/` `supabase/` の 5 ディレクトリ構造を設置し、`frontend/` (Tauri) と並立させる（当時の作業ブランチ `refactor/web-first-v2` は merge 済み・廃止 — 現行のブランチ / worktree 運用は CLAUDE.md §7.4）。動かしながら必要技術を体得していく。
 
 #### 着手順序
 
 1. **web/ の最小起動**: `npm create vite@latest web -- --template react-ts` で雛形、`npm run dev` で localhost:5173 が立ち上がるところまで
-2. **Tailwind 4 セットアップ**: `@tailwindcss/vite` plugin、`ink-*` トークンの一部をコピー
+2. **Tailwind 4 セットアップ**: `@tailwindcss/vite` plugin、`ink-*`（当時の仮称・現 `lumen-*`）トークンの一部をコピー
 3. **Supabase 無料プロジェクト作成**: `supabase.com` で 1 個。credentials を `.env.local` に格納（コミットしない）
 4. **最小スキーマ**: `supabase/migrations/0001_initial.sql` で `tasks` テーブル 1 個（id uuid / user_id uuid / title text / status text / created_at timestamptz）
 5. **`@supabase/supabase-js` 接続**: web/ から CRUD 動作確認
@@ -286,25 +286,27 @@ life-editor/
 
 #### 移植単位
 
-- [ ] `frontend/src/components/Tasks/` → `shared/src/components/Tasks/`
-- [ ] `frontend/src/components/Tasks/Schedule/` → `shared/src/components/Schedule/`
-- [ ] `frontend/src/components/Notes/` → `shared/src/components/Notes/`
-- [ ] `frontend/src/components/Daily/` → `shared/src/components/Daily/`
-- [ ] `frontend/src/components/WikiTags/` → `shared/src/components/WikiTags/`
-- [ ] `frontend/src/context/` → `shared/src/context/`（Tauri 依存除く）
-- [ ] `frontend/src/hooks/` → `shared/src/hooks/`
-- [ ] `frontend/src/types/` → `shared/src/types/`
-- [ ] `frontend/src/i18n/` → `shared/src/i18n/`
-- [ ] Tauri 依存ファイル 4 個(TitleBar / Settings 3 個)の Web 版を新規実装 or 除外
-- [ ] **オフライン警告バナー** 実装（`navigator.onLine` 監視 + 全画面共通）
-- [ ] Mobile レスポンシブ確認(Chrome DevTools)
+> ✅ 本節は Phase 2 完了（2026-06-05 / PR #43・#44 — Status 行参照）で消化済み。
+
+- [x] `frontend/src/components/Tasks/` → `shared/src/components/Tasks/`
+- [x] `frontend/src/components/Tasks/Schedule/` → `shared/src/components/Schedule/`
+- [x] `frontend/src/components/Notes/` → `shared/src/components/Notes/`
+- [x] `frontend/src/components/Daily/` → `shared/src/components/Daily/`
+- [x] `frontend/src/components/WikiTags/` → `shared/src/components/WikiTags/`
+- [x] `frontend/src/context/` → `shared/src/context/`（Tauri 依存除く）
+- [x] `frontend/src/hooks/` → `shared/src/hooks/`
+- [x] `frontend/src/types/` → `shared/src/types/`
+- [x] `frontend/src/i18n/` → `shared/src/i18n/`（W0 で先行移植 — §0 追補参照）
+- [x] Tauri 依存ファイル 4 個(TitleBar / Settings 3 個)の Web 版を新規実装 or 除外
+- [x] **オフライン警告バナー** 実装（`navigator.onLine` 監視 + 全画面共通）
+- [x] Mobile レスポンシブ確認(Chrome DevTools)（pass 1 = PR #49。残る目視 fix は design fan-out 実装レーンで消化 — s9 計画書は archive）
 
 #### Phase 2 完了判定
 
-- [ ] Tasks / Schedule / Notes / Daily / WikiTags の CRUD が `web/` で動く
-- [ ] PC + Mobile の両方でレイアウトが崩れない
-- [ ] Supabase Realtime 経由で他タブからの変更が反映される
-- [ ] オフライン時にバナーが表示される
+- [x] Tasks / Schedule / Notes / Daily / WikiTags の CRUD が `web/` で動く
+- [x] PC + Mobile の両方でレイアウトが崩れない（モバイル目視の残りは design fan-out 実装レーンへ）
+- [x] Supabase Realtime 経由で他タブからの変更が反映される
+- [x] オフライン時にバナーが表示される
 
 #### Phase 2 ↔ Phase 3 間: Data Unification レーン（2026-05-21〜2026-05-24）
 
@@ -383,10 +385,12 @@ life-editor/
 - [ ] **Electron 自動起動**（electron-auto-launch）
 - [ ] **Electron グローバルショートカット**（globalShortcut API、最小限）
 - [ ] FileExplorer: 削除(Web では用途なし、materials は Supabase Storage へ)
-- [ ] Database(汎用 DB): 一旦凍結、CLAUDE.md §8 から外す
+- [x] Database(汎用 DB): 一旦凍結、CLAUDE.md §8 に凍結注記済み（Phase 5-A 決定）
 - [ ] Trash / UndoRedo: Supabase row レベルで実装
 
 #### 5-B: terminal-division + 自動更新
+
+> ⚠️ アプリ内 Terminal 機能は **2026-07-05 に退役決定**（MCP Server 自体は存続）。Claude Code の常設起動導線は生成デザイン確定後に再設計するため、本節のブリッジ項目と Phase 5 完了判定の該当 1 項は導線再設計後に再定義する。
 
 - [ ] `mcp-server/` を Postgres 接続版に書き換え(better-sqlite3 → @supabase/supabase-js)
 - [ ] terminal-division の Main process から life-editor MCP を起動するブリッジ追加
@@ -402,12 +406,12 @@ life-editor/
 - [ ] **`docs/vision/core.md` 全面改訂**(Web UI 否定 / Desktop ネイティブのみ を反転、移行警告ヘッダ削除)
 - [ ] **`docs/vision/db-conventions.md` を Postgres + RLS 版に書き換え**
 - [ ] `docs/known-issues/` の Tauri 関連項目を archive
-- [ ] `.claude/2026-04-26-windows-android-port.md` を archive（本プランで完全に置換）
+- [x] `.claude/2026-04-26-windows-android-port.md` は削除済み・逐語は git 履歴（本プランで完全に置換）
 - [ ] README.md 更新
 
 #### Phase 5 完了判定 = **完成**
 
-- [ ] terminal-division から Life Editor MCP 経由で Tasks 操作可能
+- [ ] terminal-division から Life Editor MCP 経由で Tasks 操作可能（⚠️ Terminal 退役 2026-07-05 — 導線再設計後に再定義）
 - [ ] electron-updater で auto-update が GitHub Releases から流れる
 - [ ] Web URL が公開されている
 - [ ] `frontend/` + `src-tauri/` + `cloud/` が依存に残っていない
@@ -438,7 +442,7 @@ life-editor/
 - **作業ブランチ**: **`main` に集約済み**（旧 `refactor/web-first-v2` は PR #3-9 で merge・廃止。現行のブランチ / worktree 運用は CLAUDE.md §7.4 が正本）
 - **子ブランチ**: 各 Phase の細分作業は短命の子ブランチ(例: `phase-1/web-skeleton`, `phase-1/supabase-tasks`, `phase-3/electron-skeleton`)
 - **main 直接 push 禁止**: pre-push hook + `git config branch.main.pushRemote=no_push` で物理的にブロック
-- **task-tracker(MEMORY.md / HISTORY.md)は本ブランチで更新**: main に直接 commit しない
+- **task-tracker は per-chat ファイル（`memory/chat-<self>.md` + `history/chat-<self>.md`）を作業ブランチで更新**（CLAUDE.md §9 が正本）: main に直接 commit しない
 
 ---
 

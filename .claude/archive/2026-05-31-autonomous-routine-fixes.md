@@ -1,5 +1,5 @@
 ---
-Status: Active
+Status: COMPLETED — 起動前パッチ 6 件を全適用。PR #42 merge 済
 Created: 2026-05-31
 Branch: fix/autonomous-routine-fixes
 Owner-chat: chat-main

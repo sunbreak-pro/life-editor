@@ -1,5 +1,7 @@
 # 015: Mobile で `notion-*-primary` サフィックス誤用、27 箇所で背景透明化
 
+> 注: 本文の `notion-*` は旧称トークン（#111 で `ink-*`、#135 で `lumen-*` へ改名）。Fixed 凍結アーカイブのため本文は当時の記録のまま保持する。
+
 **Status**: Fixed
 **Category**: Bug / Styling / Structural
 **Severity**: Important（UI 可読性の致命的劣化）

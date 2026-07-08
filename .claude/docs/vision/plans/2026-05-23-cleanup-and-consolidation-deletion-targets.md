@@ -17,12 +17,12 @@ CLAUDE.md §7 と移行 SSOT §7 で「Phase 5 まで `frontend/` + `src-tauri/`
 
 ## 削除対象 Tier A — Backend 全体（移行 SSOT Phase 5）
 
-| 対象                                  | サイズ                                          | 理由                                        | Phase             |
-| ------------------------------------- | ----------------------------------------------- | ------------------------------------------- | ----------------- |
-| `src-tauri/` 全体                     | 2.6 MB (`.rs` × 90)                             | Tauri → Electron 置換完了で全体不要         | 移行 SSOT Phase 5 |
-| `cloud/` 全体                         | 164 KB (migration × 7, `src/`, `wrangler.toml`) | Cloudflare Workers + D1 → Supabase に置換済 | 移行 SSOT Phase 5 |
-| `src-tauri/tauri.conf.json`           | (上記内)                                        | Tauri 設定                                  | 移行 SSOT Phase 5 |
-| `src-tauri/Cargo.toml` / `Cargo.lock` | (上記内)                                        | Rust 依存                                   | 移行 SSOT Phase 5 |
+| 対象                                  | サイズ                                          | 理由                                        | Phase                    |
+| ------------------------------------- | ----------------------------------------------- | ------------------------------------------- | ------------------------ |
+| `src-tauri/` 全体                     | 2.6 MB (`.rs` × 90)                             | Tauri → Electron 置換完了で全体不要         | 移行 SSOT Phase 5        |
+| `cloud/` 全体                         | 164 KB (migration × 7, `src/`, `wrangler.toml`) | Cloudflare Workers + D1 → Supabase に置換済 | ✅ 2026-06-28 先行撤去済 |
+| `src-tauri/tauri.conf.json`           | (上記内)                                        | Tauri 設定                                  | 移行 SSOT Phase 5        |
+| `src-tauri/Cargo.toml` / `Cargo.lock` | (上記内)                                        | Rust 依存                                   | 移行 SSOT Phase 5        |
 
 ## 削除対象 Tier B — Frontend Tauri 依存層（DataService factory 差し替えで対応）
 

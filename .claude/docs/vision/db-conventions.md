@@ -5,12 +5,14 @@
 
 > 📦 **旧 Tauri SQLite + Cloud D1 時代の §1-§9 規約は [`.claude/archive/db-conventions-tauri-era.md`](../../archive/db-conventions-tauri-era.md) に移管済（main `1cfdc62`）**。Tauri ランタイムは Phase 2 で停止済で、現行 `shared/` + `supabase/` コードに対しては適用されない。歴史的経緯の参照のみに留める。
 >
-> 本ファイル (v2) は Data Unification (DU-A 〜 DU-F) 進行中に発見された規約を蓄積する位置づけ。DU-C/D/E/F 着手時に §11 以降を追記していく。章番号 §10 は DU-B-6 で確立済の知見を維持するため温存（plan / known-issues から `§10.X` でリンクされている）。
+> 本ファイル (v2) は Data Unification (DU-A 〜 DU-F) で発見された規約を蓄積する位置づけ（DU 系レーンは完了済み。新規約は §11 以降に追記する）。章番号 §10 は DU-B-6 で確立済の知見を維持するため温存（plan / known-issues から `§10.X` でリンクされている）。
 
 ---
 
 ## 10. Payload Mapper 規約（Data Unification 後 / Postgres + RLS 系）
 
+> 注: 旧 Tauri 時代の「全テーブルに version カラム」は遺物で未使用。LWW cursor は `items_meta.updated_at` が正（CLAUDE.md §3.3）。
+>
 > 適用対象: `shared/src/services/*Mapper.ts` + `supabase/migrations/0008+` で導入された `items_meta + <role>_payload` 2 行分割モデル。DU-B (Tasks) で確立した規約を、DU-C/D/E/F に向けて先に固定する。
 
 ### 10.1 2 行分割マッピング（5 role 共通）

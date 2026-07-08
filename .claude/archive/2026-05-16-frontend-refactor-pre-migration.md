@@ -1,6 +1,6 @@
 # Plan: Frontend 脆弱性リファクタ（移行前安全網 + コンパクト化）
 
-- **Status**: In-progress（Phase 0/0+/1/2 COMPLETE & committed c25a7d3/5e67b77/d62a2dc・origin 取込済 / Phase 3-1・3-2 着手 / 3-3・3-4 取り下げ）
+- **Status**: COMPLETED — Phase 0/0+/1/2 完了 & committed（c25a7d3/5e67b77/d62a2dc・origin 取込済）/ Phase 3-1・3-2 完了 / Phase 3-3・3-4 は取り下げ。全 Phase 消化済みでクローズ
 - **Created**: 2026-05-16
 - **Task**: MEMORY.md `project_web_first_migration.md` 関連（移行前の負債清算レーン）
 - **Project path**: /Users/newlife/dev/apps/life-editor
@@ -93,7 +93,7 @@
 
 ### Phase 5 — 巨大コンポーネント整理（要ユーザー承認・複雑性トレードオフあり）
 
-> **次回チャットへ持ち越し（2026-05-16）**。独立計画書に分離: [`2026-05-16-phase5-giant-component-decomposition.md`](./2026-05-16-phase5-giant-component-decomposition.md)。5-1 共有 ModalShell は要ユーザー承認ゲート。詳細 Steps / Files / Verification / 開始手順は当該ファイル参照。
+> **次回チャットへ持ち越し（2026-05-16）**。独立計画書に分離していた `2026-05-16-phase5-giant-component-decomposition.md` は **PR #17 で廃案・削除済み**（frontend/ FROZEN 化で対象消滅）。以下の 5-1 共有 ModalShell 等の記述は歴史参照。
 
 ---
 

@@ -2,13 +2,14 @@
 
 > 設計判断・実装規約の SSOT。**「変わらない事実」だけを持ち、手順はスキル / エージェント、frontend 詳細規約は [`.claude/rules/`](./rules/) へ委譲**。各行は「消したら Claude が間違うか」基準で維持する（150 行目標）。
 >
-> ⚠️ **Active Migration**: Tauri 2 + D1 + portable-pty → **Electron + Capacitor + Web + Supabase** へ移行中（作業ブランチは `main` に集約済み・旧 `refactor/web-first-v2` は PR #3-9 マージ済みで廃止）。**現行スタック・Phase 状況・移行手順の SSOT は [`2026-05-04-cross-platform-migration.md`](./2026-05-04-cross-platform-migration.md) と `memory/INDEX.md`** (進捗 / 履歴は per-chat — §9 参照)。本ファイルの実装パス/コマンドはアーキ非依存に一般化済み（具体は移行 SSOT 参照）。方針: 学習ログ廃止 / 完成までコスト $0 厳守。
+> ⚠️ **Active Migration**: Tauri 2 + D1 + portable-pty → **Electron + Capacitor + Web + Supabase** へ移行中。**現行スタック・Phase 状況・移行手順の SSOT は [`2026-05-04-cross-platform-migration.md`](./2026-05-04-cross-platform-migration.md) と `memory/INDEX.md`** (進捗 / 履歴は per-chat — §9 参照)。本ファイルの実装パス/コマンドはアーキ非依存に一般化済み（具体は移行 SSOT 参照）。方針: 学習ログ廃止 / 完成までコスト $0 厳守。
 
 ---
 
 ## 0. Meta
 
 - **更新規則**: 実装変更はコードと同一 PR で更新。新機能は §8 + `docs/requirements/` に記入
+- **数値の非複製原則**: 個数・列挙は単一の正本（コード or SSOT）だけに書き、他文書は参照にする。「一覧はコードが正」と書くなら数字を併記しない。改名・退役時の波及手順は [`rules/docs-consistency.md`](./rules/docs-consistency.md)
 - **関連**: 進捗 / 履歴 = [`memory/INDEX.md`](./memory/INDEX.md) / [`history/INDEX.md`](./history/INDEX.md)（git 非追跡の派生ビュー。SSOT は per-chat `chat-*.md` — §9）・設計 = `docs/vision/`・要件 = `docs/requirements/`・障害知見 = [`docs/known-issues/INDEX.md`](./docs/known-issues/INDEX.md)・完了プラン = `archive/`
 
 ## 1. Vision（詳細 → [`docs/vision/core.md`](./docs/vision/core.md)）
@@ -18,8 +19,8 @@
 
 ## 2. Platform
 
-- Desktop（macOS / Windows）= 全機能。Mobile（iOS / Android）= Consumption + Quick capture。MCP は Desktop 専用（Terminal は 2026-07-05 に機能ごと退役決定 → §8。MCP Server 自体は存続）
-- **Mobile 省略 Provider（5 種）**: Audio / ScreenLock / FileExplorer / CalendarTags / ShortcutConfig（WikiTag / SidebarLinks は Mobile でも有効）
+- Desktop（macOS / Windows / Linux）= 全機能。Mobile（iOS / Android）= Consumption + Quick capture。MCP は Desktop 専用（Terminal は 2026-07-05 に機能ごと退役決定 → §8。MCP Server 自体は存続）
+- **Mobile 省略 Provider（4 種）**: Audio / ScreenLock / FileExplorer / ShortcutConfig（CalendarTags は DU-F で全プラットフォーム撤去済み。WikiTag / SidebarLinks は Mobile でも有効）
 - Cloud Sync = 作者本人のみ（友達ビルドは feature flag で無効）。配布・署名 → 移行 SSOT
 
 ## 3. Architecture（恒久原則のみ。構成図 → 移行 SSOT）
@@ -41,7 +42,7 @@
 
 ## 5. AI Integration
 
-- MCP Server = 独立 Node.js プロセス。Claude Code が stdio 接続し同一 DB を直接操作（32 ツール。一覧はコードが正）
+- MCP Server = 独立 Node.js プロセス。Claude Code が stdio 接続し同一 DB を直接操作（ツール一覧はコードが正）
 - `claude`（Claude Code）起動で MCP 自動接続（MCP Server は存続。起動導線だったアプリ内ターミナルは 2026-07-05 退役決定 → §8。退役後の常設起動導線は生成デザイン確定後に再設計）
 
 ## 6. Coding Standards
@@ -62,15 +63,15 @@
 | 実装タスク全体の采配 | `lead-pipeline` スキル（軽=直接 / 中=verifier→tracker / 重=フルチェーン） |
 | 長時間・並列・条件達成型の実行戦略 | `execution-router` スキル（/goal・/batch・/loop・subagent 判断） |
 | 要件分解 / 実装 / 独立監査 | `role-pm` → `role-engineer` → `role-qa`（メインが Agent 起動。再帰禁止） |
-| セッション開始/中断/終了 | `session-manager`（→ session-loader / task-tracker / session-verifier） |
+| セッション開始/中断/終了 | `session-loader` / `task-tracker` / `session-verifier` |
 | 品質ゲート | `session-verifier`（commit 前） |
 | 進捗記録 | `task-tracker`（per-chat: `memory/chat-<self>.md` + `history/chat-<self>.md` + INDEX 集約 / legacy fallback あり） |
 | 週次開発スケジュール | `schedule-management` スキル（平日30–60分/休日4h+ を Phase・plans から週次ブロック化 → Google Calendar(MCP) ミラー・台帳 `automation/dev-schedule.md` で進捗追跡） |
-| branch / PR / merge | `git-orchestrator`（→ git-workflow / git-branch-flow / git-conflict-resolver） |
+| branch / PR / merge | `git-workflow` / `git-branch-flow` / `git-conflict-resolver` |
 | IPC 追加 | `add-ipc-channel` スキル ／ DB 変更 | `db-migration` スキル |
 | デバッグ | `debug-strategy` スキル + open bug は `gh issue list -R sunbreak-pro/life-editor --label type:bug`（過去知見は `--state closed --search` と `docs/known-issues/` grep） |
 | ツール実行ハング（応答停止） | [`~/.claude/rules/bash-tool-stability.md`](file:///Users/newlife/.claude/rules/bash-tool-stability.md)（原因=本体 SSE バグ・ローカルはシロ。ESC 復帰 → jsonl 系統判定 → 混雑帯回避。重い Bash は background/subagent に逃がす。**運用既定: 状態変更・複数行系の Bash（git 操作 / build / test / install / コマンド連結）はサブエージェント or background 経由、単発の軽い読み取り（ls / git status / 単発 grep）は直接実行**。詳細切り分けは memory `bash-tool-hang-diagnosis`） |
-| life-editor 整合監査 | `life-editor-ipc-validator` / `-migration-validator` / `-sync-auditor` |
+| life-editor 整合監査 | `life-editor-migration-validator` / `life-editor-sync-auditor`（`-ipc-validator` は Tauri IPC 前提のため 2026-07-08 retire） |
 
 ### 7.1 開発コマンド
 
@@ -95,7 +96,7 @@ cd web && npm run dev           # ローカル起動（vite）
 
 - **Scope 宣言**（触ってよいパス）・**Gate 列**（🤖 自律 / 👀 目視 / 🛑 人手 = DDL push・シークレット投入・PR merge・本番デプロイ）・**機械検証可能な Acceptance Criteria**
 - DDL は「ローカルファイル先行 → ユーザー `supabase db push`」（**`apply_migration` MCP 単独使用禁止**）
-- hooks 連動（検査内容の正本 = 各スクリプト。登録 = `.claude/settings.json`）: Stop = `hooks/stop-check.sh`（frontend 変更で build 検証 → outbox 報告）/ SessionStart = `hooks/session-start-check.sh`（informational only）
+- hooks 連動（検査内容の正本 = 各スクリプト。登録 = `.claude/settings.json`・全 hook `${CLAUDE_PROJECT_DIR}` 相対で worktree 側の実体が走る）: Stop = `hooks/stop-check.sh`（frontend 変更で build 検証 → outbox 報告）/ SessionStart = `hooks/regen-index.sh`（INDEX 派生ビュー再生成）+ `hooks/session-start-check.sh`（informational only）/ PreToolUse(Bash) = `hooks/pre-commit-mcp-check.sh`（トークン平文検知）+ `hooks/pre-commit-index-guard.sh`（derived INDEX の commit 混入を自動除外）
 
 ### 7.4 Multi-chat Worktree Policy（**"1 chat = 1 worktree = 1 branch"**）
 
@@ -114,8 +115,8 @@ cd web && npm run dev           # ローカル起動（vite）
 ## 9. Document System
 
 - **進捗 / 履歴は per-chat**: `.claude/memory/chat-<self>.md` + `.claude/history/chat-<self>.md`（task-tracker 経由・git 追跡・単一書込者）。集約 `memory/INDEX.md` / `history/INDEX.md` は **git 非追跡の派生ビュー**（`hooks/regen-index.sh` が再生成）。チャット名宣言 = `.claude/comm/.session-name`
-- **実装プラン**: `docs/vision/plans/YYYY-MM-DD-<slug>.md` → 完了で `archive/` へ移動。ADR は作らない（理由 → `docs/vision/coding-principles.md §5`）
-- **Known Issue / 課題管理（2026-07-04〜）**: 追跡の正 = **GitHub Issues + Projects**（`gh -R sunbreak-pro/life-editor` で読み書き・種別 = label `type:*`）。新規バグは Issue で起票（`.github/ISSUE_TEMPLATE/known-issue.yml`）。`docs/known-issues/` は Fixed の凍結アーカイブ（参照専用）。**類似バグは `gh issue list --search` + INDEX.md grep の両輪**。計画書 .md 更新時は対応 Issue の DoD も更新（.md=詳細 / Issue=追跡）
+- **実装プラン**: `docs/vision/plans/YYYY-MM-DD-<slug>.md` → 完了で `archive/` へ移動。Status 語彙は enum のみ: Draft / IN PROGRESS / BLOCKED / COMPLETED / SUPERSEDED / DEFERRED / REFERENCE / ACTIVE (adopted policy)。移行 SSOT（`2026-05-04-cross-platform-migration.md`）のみ歴史的経緯で `.claude/` 直下に置く例外。ADR は作らない（理由 → `docs/vision/coding-principles.md` 冒頭）
+- **Known Issue / 課題管理（2026-07-04〜）**: 追跡の正 = **GitHub Issues + Projects**（`gh -R sunbreak-pro/life-editor` で読み書き・種別 = label `type:*`）。新規バグは Issue で起票（`.github/ISSUE_TEMPLATE/known-issue.yml`）。`docs/known-issues/` は Fixed の凍結アーカイブ ＋ 環境系知見（Issue 化対象外 — 例 026/028）の管理台帳。**類似バグは `gh issue list --search` + INDEX.md grep の両輪**。計画書 .md 更新時は対応 Issue の DoD も更新（.md=詳細 / Issue=追跡）
 - **GitHub Issues のスコープ境界**: Issue はプロダクト課題（life-editor のコードを直せば直るもの）専用。**Claude Code の作業環境・hook・ツール挙動に関する知見は Issue 化せず `docs/known-issues/` + `rules/` で管理する**。判定 = 「life-editor のコードを直せば直るか？」— No なら環境系として Issue 化しない（例: cwd 漂流 028 / formatter 挙動 026）
 - **並行チャット通信**: `.claude/comm/`（自分の Outbox にのみ append → [`comm/README.md`](./comm/README.md)）
 - **鉄則**: 機能追加 / 削除時は §8 更新 ／ 音源ファイルはコミット禁止（`public/sounds/` は `.gitignore`）／ API キーをフロントエンドに直書きしない ／ **`.mcp.json` のトークンは `${SUPABASE_ACCESS_TOKEN}` 等の参照のまま維持・平文展開禁止**（2026-05-17 流出未遂。`hooks/pre-commit-mcp-check.sh` が commit 時に機械チェック）

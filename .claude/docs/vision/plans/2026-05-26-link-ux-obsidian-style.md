@@ -1,11 +1,11 @@
 ---
-Status: SKELETON — 2026-05-26 起票（DU-F 実機確認時に発生したユーザー要件）。実装未着手。DU-G (Notes/Daily Unified write path 切替) と独立に進められる。
+Status: Draft — スケルトン起票（旧表記 SKELETON）・2026-05-26 起票（DU-F 実機確認時に発生したユーザー要件）。実装未着手。DU-G (Notes/Daily Unified write path 切替) と独立に進められる。**ClaudeDesign fan-out で前提 UI（リンク/タグの表示・遷移）が変わるため、着手前に fan-out 後の設計で再評価すること。**
 Created: 2026-05-26
 Branch: TBD（`enhance/link-ux-obsidian-style` 等を予定）
 Owner-chat: TBD
-Parent: .claude/docs/vision/plans/2026-05-21-data-unification-items-meta.md（親計画書「WikiTag/WikiLink」DoD の UX 拡張）
+Parent: .claude/archive/2026-05-21-data-unification-items-meta.md（親計画書「WikiTag/WikiLink」DoD の UX 拡張・archive 済）
 Previous:
-  - .claude/docs/vision/plans/2026-05-24-data-unification-f-wikitag-link-ui.md（DU-F、本要件の起点）
+  - .claude/archive/2026-05-24-data-unification-f-wikitag-link-ui.md（DU-F、本要件の起点・archive 済）
 Successor: 未定
 継承する親章: 「採用アーキテクチャ」「DB 設計詳細」（wiki_tag_connections / items_meta）
 ---

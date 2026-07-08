@@ -1,5 +1,5 @@
 ---
-Status: EXECUTED — 2026-07-04 全 Phase 完了（labels / templates / Issues #117–#131 / Project #1 / バックリンク / CLAUDE.md）。残 = Project の UI 手動 2 点（Status 選択肢・ビュー 3 種）+ Orca 目視
+Status: COMPLETED — 2026-07-04 全 Phase 完了（labels / templates / Issues #117–#131 / Project #1 / バックリンク / CLAUDE.md）。残っていた Project UI 手動 2 点（Status 選択肢・ビュー 3 種）+ Orca 目視は Issue #171 へ移管
 Created: 2026-07-04
 Owner-chat: main
 Type: 要件定義 + 実装計画（移行計画書）

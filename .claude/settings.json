@@ -6,7 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "/Users/newlife/dev/apps/life-editor/.claude/hooks/stop-check.sh"
+            "command": "${CLAUDE_PROJECT_DIR}/.claude/hooks/stop-check.sh"
           }
         ]
       }
@@ -21,7 +21,7 @@
           },
           {
             "type": "command",
-            "command": "/Users/newlife/dev/apps/life-editor/.claude/hooks/session-start-check.sh"
+            "command": "${CLAUDE_PROJECT_DIR}/.claude/hooks/session-start-check.sh"
           }
         ]
       }
