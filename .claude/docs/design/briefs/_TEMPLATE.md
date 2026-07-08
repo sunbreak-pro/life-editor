@@ -1,7 +1,7 @@
 ---
 Status: Draft # Draft → Ready（ClaudeDesign 投入可）→ Generated（デザイン生成済み）
 Created: YYYY-MM-DD
-Section: <section-id> # schedule / materials / connect / work / analytics / settings
+Section: <section-id> # schedule / materials / connect / work / analytics / settings / shell / auth / trash
 Owner-chat: design-<section>
 Branch: claude/design-brief-<section>
 ---

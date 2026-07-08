@@ -1,10 +1,10 @@
 # 012: `/sync/changes` の LIMIT=500 + client hasMore 未処理で初回 pull が途切れる
 
-**Status**: Mitigated（Worker 側 LIMIT 引き上げで暫定対応、本命は client pagination）
+**Status**: Fixed（server 側 LIMIT 引き上げによる暫定対応をもって Fixed 確定・2026-07-08。恒久対応 = client pagination は #172 で追跡）
 **Category**: Bug / Sync
 **Severity**: Important
 **Discovered**: 2026-04-22
-**Resolved (partial)**: 2026-04-22
+**Resolved**: 2026-04-22（server 側暫定）/ 2026-07-08（Fixed 確定・恒久対応は #172 へ分離）
 
 ## Symptom
 
@@ -32,11 +32,13 @@
 
 ## Fix / Workaround
 
+> 恒久対応（client 側 pagination）は Issue [#172](https://github.com/sunbreak-pro/life-editor/issues/172) で追跡。本 known-issue は server 側暫定対応をもって **Fixed 確定（2026-07-08）**。
+
 ### 即時（適用済）
 
 `cloud/src/routes/sync.ts` で `LIMIT = 500 → 5000` に引き上げ + redeploy。現行データ量（各テーブル 1,000 行以下）で全件カバー。CF Workers 100MB / D1 メモリ余裕あり。
 
-### 本命（後日、別セッション）
+### 本命（#172 で追跡）
 
 **Worker 側**: `/sync/changes` レスポンスに `nextSince`（最後に返した行の updated_at）を含める。
 

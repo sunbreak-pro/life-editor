@@ -1,5 +1,5 @@
 ---
-Status: FROZEN — Web 移行に一本化（2026-06-07）。Work(#50/#51)/Materials(#53) 完了で温存、Schedule/Settings は着手しない。統合 SSOT: 2026-06-07-web-desktop-parity-roadmap.md
+Status: SUPERSEDED — Web 移行に一本化（2026-06-07）で凍結後、UI/デザインの追跡正本は ClaudeDesign fan-out 計画（2026-07-04-claudedesign-screen-design-fanout.md）へ一本化。Work(#50/#51)/Materials(#53) 完了分は温存、Schedule/Settings は着手せず。archive 済
 Created: 2026-06-05
 Branch: (section ごとに分割。例 feat/work-section-mobile-unify)
 Owner-chat: main
@@ -9,7 +9,7 @@ Previous: (none)
 
 # Plan: Mobile 基準のセクション横断デザイン統一（段階実装）
 
-> ⚠️ **FROZEN（2026-06-07）**: Web 移行に一本化したため本レーンは凍結。`frontend/` は移行 Phase 5 で破棄予定で、本計画の統一成果（Work/Materials）は `web/`+`shared/` に伝播しない。**Work(#50/#51) / Materials(#53) は完了として温存、Schedule / Settings は着手しない**。Schedule 節（§Phase 2）の設計は破棄せず「web 移植時の "何を作り何を作らないか" 仕様の参照元」として保全。横断ロードマップ・次アクションは統合 SSOT [`2026-06-07-web-desktop-parity-roadmap.md`](../../../archive/2026-06-07-web-desktop-parity-roadmap.md) を正本とする。
+> ⚠️ **FROZEN（2026-06-07）**: Web 移行に一本化したため本レーンは凍結。`frontend/` は移行 Phase 5 で破棄予定で、本計画の統一成果（Work/Materials）は `web/`+`shared/` に伝播しない。**Work(#50/#51) / Materials(#53) は完了として温存、Schedule / Settings は着手しない**。Schedule 節（§Phase 2）の設計は破棄せず「web 移植時の "何を作り何を作らないか" 仕様の参照元」として保全。横断ロードマップ・次アクションの追跡正本は ClaudeDesign fan-out 計画 [`2026-07-04-claudedesign-screen-design-fanout.md`](../docs/vision/plans/2026-07-04-claudedesign-screen-design-fanout.md) へ一本化した（旧 `2026-06-07-web-desktop-parity-roadmap.md` は archive 済で参照専用）。
 
 > 本計画書は **master プラン**。Mobile / Desktop の UI/UX を「Mobile を正」として統一する作業を、
 > **セクション単位（1 section = 1 phase = 1 PR）で段階的に**進めるための全体設計と各フェーズの枠を定義する。
@@ -64,12 +64,12 @@ Section は §3.2 の 6 つ（schedule / materials / connect / work / analytics 
 1. **棚卸し**: 対象セクションの Mobile 実装（正）と Desktop 実装を読み、機能差分を表化。Desktop 専用機能の「削除 / Desktop 維持 / 共通化」をユーザーと合意。
 2. **共有部品抽出**: Mobile 実装中のインライン表示部品を、プラットフォーム非依存な共有ディレクトリ（例 `<Section>/view/`）へ切り出す（props 駆動・context 非依存なものから）。
 3. **統一 View 新設**: `<SectionView variant="mobile" | "desktop">` を作成。`variant` で吸収する差は最小限に保つ:
-   | 観点 | mobile | desktop |
-   |---|---|---|
-   | ルート余白 | 現状の className を変えない（デグレ0） | `mx-auto max-w-*` で中央寄せ・hover 追加 |
-   | モーダル/シート host | View 内（現状維持） or 各 host | App グローバル等、二重表示を避ける配置 |
-   | サイドバー/設定 | Mobile は drawer（現状維持） | `RightSidebarContext.portalTarget` へ portal |
-   | プラットフォーム専用機能 | （Mobile 仕様） | variant 分岐で維持 or 撤去（棚卸し結果に従う） |
+   | 観点                     | mobile                                 | desktop                                        |
+   | ------------------------ | -------------------------------------- | ---------------------------------------------- |
+   | ルート余白               | 現状の className を変えない（デグレ0） | `mx-auto max-w-*` で中央寄せ・hover 追加       |
+   | モーダル/シート host     | View 内（現状維持） or 各 host         | App グローバル等、二重表示を避ける配置         |
+   | サイドバー/設定          | Mobile は drawer（現状維持）           | `RightSidebarContext.portalTarget` へ portal   |
+   | プラットフォーム専用機能 | （Mobile 仕様）                        | variant 分岐で維持 or 撤去（棚卸し結果に従う） |
 4. **配線**: `App.tsx`（desktop）と `MobileApp.tsx`（mobile）の該当 `case` を統一 View に差し替え。
 5. **撤去**: 棚卸しで「削除」と決めた Desktop 専用コンポーネント / 機能を除去。barrel（`index.ts`）整合を同一 PR で完結。
 6. **i18n**: 共有 View が使うキーを en/ja 両方に追補（fallback 依存の解消）。

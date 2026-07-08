@@ -1,5 +1,5 @@
 ---
-Status: IN PROGRESS — 要件3完了 / 要件1バックエンド完了 / UI 系は designer スキル待ちで保留
+Status: SUPERSEDED — 要件3完了 / 要件1バックエンド完了（PR #7 データ層）。Tauri/D1 前提のため残 UI 作業は現行スタック（Web/Supabase）で実行不能。残 UI は web/shared 側で要再起票
 Created: 2026-05-16
 Updated: 2026-05-16（実装セッション。Progress 節参照）
 Task: ①Task/Event/Routine 個別リマインダー + アプリ通知 ②RichEditor リンク/タグ UX 改善 + リンク一覧を RightSidebar へ移設 ③RichEditor 由来の Daily↔Notes Connect 不具合修正
@@ -101,27 +101,27 @@ CLAUDE.md 冒頭の通り Tauri → Electron/Capacitor/Web/Supabase 移行が進
 
 ## Files
 
-| File / Dir | Op | Notes |
-| --- | --- | --- |
-| `frontend/src/components/shared/RichTextEditor.tsx` | Edit | R3-1 daily id 正規化（`noteLinkSource`） |
-| `frontend/src/hooks/useRoleConversion.ts` | Edit | R3-3 Daily→Note 変換時の関連作成（undo/redo 含む） |
-| `frontend/src/services/data/notes.ts` / `useNoteLinkSync.ts` | Edit | R3 保存形式統一・読み取り正規化 |
-| `frontend/src/services/data/scheduleItems.ts` | Edit | R1-1 reminder 引数追加 |
-| `frontend/src/services/{DataService.ts,TauriDataService.ts}` | Edit | R1-1 §7.2 4 点同期 |
-| `src-tauri/src/commands/schedule_item_commands.rs` | Edit | R1-1 reminder 引数 |
-| `src-tauri/src/db/schedule_item_repository.rs` | Edit | R1-1 SQL 反映 |
-| `src-tauri/src/reminder_scheduler.rs` | Add | R1-3 バックグラウンド tick |
-| `src-tauri/src/{main.rs,lib.rs}` | Edit | R1-3 scheduler 起動・command 登録 |
-| `src-tauri/src/commands/notification_commands.rs`（or 既存に追加） | Add/Edit | R1-5 `tauri-plugin-notification` invoke ラッパ |
-| `frontend/src/components/.../{Task,ScheduleItem,Routine}` 編集 UI | Edit | R1-2 個別 reminder コントロール |
-| `frontend/src/components/Settings/NotificationSettings.tsx` | Edit | R1-6 既定 offset/手段選択 |
-| `frontend/src/components/Layout/RightSidebar.tsx` | Edit | R2-2 下部 Connections セクション |
-| `frontend/src/components/Ideas/ConnectionsPanel.tsx`（新） | Add | R2-2 移設先パネル |
-| `frontend/src/components/Ideas/NotesView.tsx` | Edit | R2-2 BacklinksPane 除去 |
-| `frontend/src/components/Ideas/BacklinksPane.tsx` | Edit/Move | ロジックを ConnectionsPanel へ再利用、不要なら削除 |
-| `frontend/src/i18n/locales/{en,ja}/*` | Edit | 文言追加 |
-| `.claude/CLAUDE.md` | Edit | §8 追記（同一 PR） |
-| D1 `cloud/db/migrations/*` / `sync_engine.rs` | 不変更 | R1-4 設計により reminder 同期カラム不要（変更しない判断） |
+| File / Dir                                                         | Op        | Notes                                                     |
+| ------------------------------------------------------------------ | --------- | --------------------------------------------------------- |
+| `frontend/src/components/shared/RichTextEditor.tsx`                | Edit      | R3-1 daily id 正規化（`noteLinkSource`）                  |
+| `frontend/src/hooks/useRoleConversion.ts`                          | Edit      | R3-3 Daily→Note 変換時の関連作成（undo/redo 含む）        |
+| `frontend/src/services/data/notes.ts` / `useNoteLinkSync.ts`       | Edit      | R3 保存形式統一・読み取り正規化                           |
+| `frontend/src/services/data/scheduleItems.ts`                      | Edit      | R1-1 reminder 引数追加                                    |
+| `frontend/src/services/{DataService.ts,TauriDataService.ts}`       | Edit      | R1-1 §7.2 4 点同期                                        |
+| `src-tauri/src/commands/schedule_item_commands.rs`                 | Edit      | R1-1 reminder 引数                                        |
+| `src-tauri/src/db/schedule_item_repository.rs`                     | Edit      | R1-1 SQL 反映                                             |
+| `src-tauri/src/reminder_scheduler.rs`                              | Add       | R1-3 バックグラウンド tick                                |
+| `src-tauri/src/{main.rs,lib.rs}`                                   | Edit      | R1-3 scheduler 起動・command 登録                         |
+| `src-tauri/src/commands/notification_commands.rs`（or 既存に追加） | Add/Edit  | R1-5 `tauri-plugin-notification` invoke ラッパ            |
+| `frontend/src/components/.../{Task,ScheduleItem,Routine}` 編集 UI  | Edit      | R1-2 個別 reminder コントロール                           |
+| `frontend/src/components/Settings/NotificationSettings.tsx`        | Edit      | R1-6 既定 offset/手段選択                                 |
+| `frontend/src/components/Layout/RightSidebar.tsx`                  | Edit      | R2-2 下部 Connections セクション                          |
+| `frontend/src/components/Ideas/ConnectionsPanel.tsx`（新）         | Add       | R2-2 移設先パネル                                         |
+| `frontend/src/components/Ideas/NotesView.tsx`                      | Edit      | R2-2 BacklinksPane 除去                                   |
+| `frontend/src/components/Ideas/BacklinksPane.tsx`                  | Edit/Move | ロジックを ConnectionsPanel へ再利用、不要なら削除        |
+| `frontend/src/i18n/locales/{en,ja}/*`                              | Edit      | 文言追加                                                  |
+| `.claude/CLAUDE.md`                                                | Edit      | §8 追記（同一 PR）                                        |
+| D1 `cloud/db/migrations/*` / `sync_engine.rs`                      | 不変更    | R1-4 設計により reminder 同期カラム不要（変更しない判断） |
 
 ## Verification（完了判定）
 

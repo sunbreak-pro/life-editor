@@ -1,6 +1,6 @@
 # Plan: UI/UX 品質 remediation（a11y / IME / motion 系統清算）
 
-- **Status**: In-progress（M0 完了 / M1 進行中 / M2-M4 未着手）
+- **Status**: SUPERSEDED — M0/M1 done・M2-M4 は frontend FROZEN で対象消滅（2026-07-08 close）。a11y 知見は ClaudeDesign fan-out 側へ引き継ぎ
 - **Created**: 2026-05-17
 - **Task**: MEMORY.md `project_web_first_migration.md` 関連レーン。`frontend-react-designer` スキル基準への既存 UI 整合
 - **Project path**: /Users/newlife/dev/apps/life-editor
@@ -17,7 +17,7 @@
 本計画は以下と **競合せず補完** する。スコープ境界を明示する：
 
 - `2026-05-16-frontend-refactor-pre-migration.md`（親・制約 SSOT）: 「テスト追加が唯一許可された新規要素／それ以外は削減方向／新抽象レイヤー禁止」。本計画もこの制約に従う。
-- `2026-05-16-phase5-giant-component-decomposition.md`: 巨大コンポーネント分割（監査 #6/#7 = `OneDaySchedule` / `CalendarView` / `ScheduleTimeGrid` / `RichTextEditor`）は **phase5 が所有**。本計画は扱わない。
+- `2026-05-16-phase5-giant-component-decomposition.md`（**PR #17 で廃案・削除済み** — frontend/ FROZEN 化で対象消滅）: 巨大コンポーネント分割（監査 #6/#7 = `OneDaySchedule` / `CalendarView` / `ScheduleTimeGrid` / `RichTextEditor`）を所有していた。歴史参照。
 - 共有 Dialog シェル / Spinner / EmptyState 新設（監査 #3/#4/#8）= phase5 **5-1 と同じ承認ゲート対象**（新抽象レイヤーのグレーゾーン）。本計画では実装せず、承認待ち項目として記録のみ。
 - Platform 判定の脱 `isTauriMobile()`（監査 #5）= 親プラン A4/A5 同様 **移行作業そのもの**。本計画スコープ外、移行 Phase で対応。
 

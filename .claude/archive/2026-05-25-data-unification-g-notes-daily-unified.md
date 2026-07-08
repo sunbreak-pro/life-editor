@@ -1,11 +1,11 @@
 ---
-Status: IN-PROGRESS — 2026-05-24 着手。4 PR 直列分割（G1=Notes Service 拡張 ✅ / G2=Dailies Service 拡張 / G3=Provider+web 切替 / G4=legacy 死削除）。**G1 PR #29 merged (a977f8d, 2026-05-25)。現在 G2 進行中**（後追い検証スタイル / role-engineer 委譲）。
+Status: COMPLETED — 4 PR 直列分割（G1=Notes Service 拡張 / G2=Dailies Service 拡張 / G3=Provider+web 切替 / G4=legacy 死削除）を全完了。G1-G4 = PR #29 / #30 / #31 / #36 全 merge 済（2026-05-25〜）。旧 Status「G2 進行中」は実績未反映だったため訂正（移行 SSOT L2 の「DU-G G2 進行中」も同様に追随修正が必要 — SSOT は本 PR スコープ外）。
 Created: 2026-05-25
 Revised: 2026-05-25 G2 着手 — Branch 切替、scope 詳細化（Daily 7 methods）
 Branch: feat/du-g2-dailies-unified（worktree `.claude/worktrees/du-g2/`）
 Owner-chat: main
-Parent: .claude/docs/vision/plans/2026-05-21-data-unification-items-meta.md（親計画書 DoD「Notes/Daily Unified 経路への切替」相当）
-Previous: .claude/docs/vision/plans/2026-05-24-data-unification-f-wikitag-link-ui.md（DU-F v2、本計画書を後継として明示）
+Parent: .claude/archive/2026-05-21-data-unification-items-meta.md（親計画書 DoD「Notes/Daily Unified 経路への切替」相当・archive 済）
+Previous: .claude/archive/2026-05-24-data-unification-f-wikitag-link-ui.md（DU-F v2、本計画書を後継として明示・archive 済）
 Successor: 未定（必要なら DU-H Calendar 2 ビュー = DU-E と並走 / 後続）
 継承する親章: 「採用アーキテクチャ」「DB 設計詳細」（notes_payload / dailies_payload composite FK）「Pattern A Provider 設計」「列化判定マトリクス」/ DU-D scope reduction worklog / DU-F worklog
 ---
@@ -115,9 +115,9 @@ shared/src/hooks/useNoteTreeMovement.ts                  # 削除 or Unified 経
 ## References
 
 - vision: `.claude/docs/vision/db-conventions.md` (payload mapper 規約 / composite FK パターン) / `.claude/docs/vision/coding-principles.md` (Pattern A / Provider 順序)
-- 親計画書: `.claude/docs/vision/plans/2026-05-21-data-unification-items-meta.md` (DoD)
+- 親計画書: `.claude/archive/2026-05-21-data-unification-items-meta.md` (DoD・archive 済)
 - 前フェーズ:
-  - `.claude/docs/vision/plans/2026-05-24-data-unification-f-wikitag-link-ui.md` (DU-F、本計画書の起点)
+  - `.claude/archive/2026-05-24-data-unification-f-wikitag-link-ui.md` (DU-F、本計画書の起点・archive 済)
   - `.claude/archive/2026-05-24-data-unification-d-notes-daily.md` (DU-D scope-reduced、本計画書が完成版)
 - related skills: `add-component` (Provider 追加パターン) / `life-editor-migration-validator` / `life-editor-sync-auditor` / `frontend-react-designer`
 

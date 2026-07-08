@@ -1,5 +1,5 @@
 ---
-Status: Active
+Status: BLOCKED — Night Routine 登録が trig_PENDING のまま（registration pending）。機構は実装済みだが夜 Routine の Anthropic Cloud 登録が未実施のため発火しない
 Created: 2026-05-26
 Branch: feat/autonomous-dev-routine
 Owner-chat: chat-main

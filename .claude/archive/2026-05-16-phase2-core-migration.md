@@ -1,5 +1,5 @@
 ---
-Status: IN PROGRESS — S0/S1/S2/S3/S4 コード完了（2026-05-17 時点。S4 詳細・S8 申し送りは `2026-05-17-s4-schedule-migration.md`）。次は S5 WikiTags。アーキ実態は Option A（下記 S3 注記参照）
+Status: COMPLETED — S0/S1/S2/S3/S4 コード完了。移行 SSOT が Phase 2 完了を宣言済みのため本計画書はクローズ。S5 WikiTags は後続 Data Unification レーンへ吸収（superseded）。S4 詳細・S8 申し送りは `2026-05-17-s4-schedule-migration.md`。アーキ実態は Option A（下記 S3 注記参照）
 Created: 2026-05-16
 Task: クロスプラットフォーム移行 Phase 2 — コア機能のフロントエンド移植
 Project path: /Users/newlife/dev/apps/life-editor

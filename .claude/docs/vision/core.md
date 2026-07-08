@@ -11,6 +11,11 @@
 > - §4 NG-5「モバイル単独起動サポートしない」 → **撤回**（Capacitor で Mobile 単独も配布）
 > - §5 Platform Strategy「Tauri 2.0」「Cloudflare Workers + D1」 → **新スタックへ全置換予定**
 >
+> **2026-07-08 追記の反転点**:
+>
+> - §1 / §3 V1 の「アプリ内ターミナル（portable-pty）」 → **2026-07-05 に機能ごと退役決定**（MCP Server は存続・Claude Code の常設起動導線は再設計中）
+> - §5 Provider セット差分の「CalendarTags」 → **DU-F で全プラットフォーム撤去済み**、「WikiTag」 → **Mobile でも有効化済み**（現行の省略リストは CLAUDE.md §2 が正）
+>
 > 現行 SSOT は [`.claude/2026-05-04-cross-platform-migration.md`](../../2026-05-04-cross-platform-migration.md)。本ファイルは移行 Phase 5 完了時に全面改訂する。それまでは SSOT を優先参照すること。
 
 ---
@@ -65,7 +70,7 @@
 
 ### V1: AI が自然言語で全データを操作できる（追加コスト $0）
 
-- **根拠**: MCP Server（32 ツール）+ アプリ内ターミナル（portable-pty）+ Claude Code Max サブスクのラッピング方式（ADR-0005）
+- **根拠**: MCP Server（ツール一覧はコードが正）+ Claude Code Max サブスクのラッピング方式（要旨 = coding-principles §7）。旧根拠のアプリ内ターミナル（portable-pty）は 2026-07-05 退役決定
 - **比較**: Notion AI は UI 経由のみで内製 AI、Obsidian の AI プラグインは外部 API キー必須、Apple Reminders には AI なし
 
 ### V2: ローカル SQLite が SSOT — オフライン完全動作 + マルチデバイス同期

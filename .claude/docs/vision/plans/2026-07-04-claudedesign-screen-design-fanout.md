@@ -1,5 +1,5 @@
 ---
-Status: IN_PROGRESS — **Web/Mobile UI の追跡正本**（旧 W-parity ロードマップ #121/#127 完了・archive 済でここへ一本化。#154・2026-07-05）
+Status: IN PROGRESS — **Web/Mobile UI の追跡正本**（旧 W-parity ロードマップ #121/#127 完了・archive 済でここへ一本化。#154・2026-07-05）
 Created: 2026-07-04
 Branch: claude/design-ia
 Owner-chat: frontend
@@ -22,7 +22,7 @@ Owner-chat: frontend
 ## Scope (Touchable Paths)
 
 ```
-.claude/docs/design/**                     ← 基盤: README + _TEMPLATE + _COMMON-CONTEXT + IA.md / 各セッション: briefs/<section>.md のみ
+.claude/docs/design/**                     ← 基盤: README.md + IA.md + briefs/_TEMPLATE.md + briefs/_COMMON-CONTEXT.md / 各セッション: briefs/<section>.md のみ
 .claude/docs/vision/plans/2026-07-04-claudedesign-screen-design-fanout.md
 ```
 

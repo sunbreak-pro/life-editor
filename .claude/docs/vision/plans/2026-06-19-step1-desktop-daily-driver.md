@@ -1,14 +1,14 @@
 ---
-Status: IN-PROGRESS — 自律スコープ（Tray 常駐 / 自動起動 / 画面外クランプ）実装中。実機 golden path・.dmg は 👀/🛑 ゲート（Mac 必須）
+Status: IN PROGRESS — 自律スコープ（Tray 常駐 / 自動起動 / 画面外クランプ）実装中。実機 golden path・.dmg は 👀/🛑 ゲート（Mac 必須）
 Created: 2026-06-19
 Owner-chat: app-dev-roadmap
 Task: STEP 1 — Electron Desktop を「日常使いできる常駐アプリ」ラインへ
-Project path: /home/user/life-editor
+Project path: /Users/newlife/dev/apps/life-editor
 Branch: claude/app-dev-roadmap-cdhjjz
 Parent: ../../../2026-05-04-cross-platform-migration.md（Phase 3 + Phase 5-A の一部を前倒し）
 Related:
-  - Phase 3 scaffold（完了・#79）: ./2026-06-14-phase3-electron-packaging.md
-  - 優先ロードマップ（HTML）: ../reports/2026-06-19-dev-status-roadmap.html（STEP 1）
+  - Phase 3 scaffold（完了・#79）: ../../../archive/2026-06-14-phase3-electron-packaging.md
+  - 優先ロードマップ（HTML）: ../../reports/2026-06-19-dev-status-roadmap.html（STEP 1）
 ---
 
 # Plan: STEP 1 — Desktop を毎日使える常駐アプリにする

@@ -10,7 +10,7 @@ Owner-chat: frontend (orchestrator)
 
 ## 決定事項（2026-07-05・ユーザー承認済み 4 点）
 
-1. **サイドバーは 6 セクションに集約**（本流 5 + ユーティリティの Settings。Materials 内は header タブ）
+1. **サイドバーは本流 5 + ユーティリティ枠 2（Settings / Trash）の計 7 セクションに集約**（Materials 内は header タブ）
 2. **Trash はサイドバー最下部のユーティリティ枠**（Settings と並置・ナビ本流から視覚分離）
 3. **Mobile の下部固定 4 タブ = Schedule / Materials / Work / Analytics**（5 個目は More → ボトムシート）
 4. **rightSidebar（詳細パネル）を全画面標準に追加**（2026-07-05 App Shell デザイン Turn 2 でユーザー指示: Desktop 全パネルに開閉アイコン / Mobile は左上ハンバーガー → drawer に同一内容。詳細 → 下記「rightSidebar」節）
