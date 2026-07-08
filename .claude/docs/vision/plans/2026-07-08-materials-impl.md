@@ -1,5 +1,5 @@
 ---
-Status: In Progress
+Status: Review
 Created: 2026-07-08
 Branch: claude/materials-impl
 Owner-chat: materials-impl
@@ -65,35 +65,35 @@ web/src/wikitag/**
 
 ### 新規 shared 部品（純プレゼンテーション・copy/props 注入・テスト付き）
 
-| 部品 | 置き場 | 用途 |
-| --- | --- | --- |
-| `EmptyState` | components/（汎用） | 空状態標準（アイコン+1行+CTA） |
-| `SkeletonList` | components/（汎用） | 同形スケルトン行（スピナー禁止） |
-| `StatusFilterChips` | components/materials/ | Mobile Tasks の丸ピル 3 択フィルタ（件数付き） |
-| `ExcerptListItem` | components/materials/ | タイトル+抜粋 2 行リスト行（Notes Mobile / Daily 過去） |
-| `DateStrip` | components/materials/ | Daily Mobile の日付チップ行（エントリ有無ドット） |
-| `QuickAddSheet` | components/materials/ | BottomSheet + Input + 送信の最短追加シート |
-| `TagRow` | components/materials/ | タグ行 36px（色ドット+#名前+件数+hover アクション） |
-| `TagGroupCard` | components/materials/ | グループカード（Desktop 編集可 / Mobile 折りたたみ閲覧） |
-| `NoteDetailPanel` | components/materials/ | Notes 詳細（rightSidebar 用） |
-| `DailyEntriesPanel` | components/materials/ | Daily 過去エントリ（rightSidebar 用） |
-| `TagGroupsPanel` | components/materials/ | Tags グループ管理（rightSidebar 用） |
+| 部品                | 置き場                | 用途                                                     |
+| ------------------- | --------------------- | -------------------------------------------------------- |
+| `EmptyState`        | components/（汎用）   | 空状態標準（アイコン+1行+CTA）                           |
+| `SkeletonList`      | components/（汎用）   | 同形スケルトン行（スピナー禁止）                         |
+| `StatusFilterChips` | components/materials/ | Mobile Tasks の丸ピル 3 択フィルタ（件数付き）           |
+| `ExcerptListItem`   | components/materials/ | タイトル+抜粋 2 行リスト行（Notes Mobile / Daily 過去）  |
+| `DateStrip`         | components/materials/ | Daily Mobile の日付チップ行（エントリ有無ドット）        |
+| `QuickAddSheet`     | components/materials/ | BottomSheet + Input + 送信の最短追加シート               |
+| `TagRow`            | components/materials/ | タグ行 36px（色ドット+#名前+件数+hover アクション）      |
+| `TagGroupCard`      | components/materials/ | グループカード（Desktop 編集可 / Mobile 折りたたみ閲覧） |
+| `NoteDetailPanel`   | components/materials/ | Notes 詳細（rightSidebar 用）                            |
+| `DailyEntriesPanel` | components/materials/ | Daily 過去エントリ（rightSidebar 用）                    |
+| `TagGroupsPanel`    | components/materials/ | Tags グループ管理（rightSidebar 用）                     |
 
 ---
 
 ## Steps
 
-| # | Step | Gate | Acceptance |
-| --- | --- | --- | --- |
-| 1 | 共有プリミティブ batch（EmptyState / SkeletonList / StatusFilterChips / ExcerptListItem / DateStrip / QuickAddSheet + barrel + tests） | 🤖 | `cd shared && npm run build && npm run test` 緑 |
-| 2 | Tasks タブ（Desktop: Kanban 意匠合わせ + CTA 行 + portal 詳細（TaskDetailPanel+タグ slot）/ Mobile: チップフィルタ+縦リスト+ステータス Sheet+QuickAdd / 空・スケルトン） | 🤖 | shared+web build 緑・kanban 系 test 緑 |
-| 3 | Notes タブ（Desktop: 中央 800px ツリーカード+検索+ゴミ箱行+NoteDetailPanel portal / Mobile: ピン留め+グループ一覧+92% 閲覧 Sheet+QuickAdd） | 🤖 | build 緑・notes 系 test 緑 |
-| 4 | Daily タブ（Desktop: 中央エディタカード+DailyEntriesPanel portal+「今日へ」/ Mobile: DateStrip+エディタ+過去抜粋 / i18n 全面追い付き） | 🤖 | build 緑・daily 系 test 緑 |
-| 5 | Tags タブ（Desktop: 中央タグ一覧カード+TagRow+TagGroupsPanel portal+ColorPicker / Mobile: 閲覧リスト+折りたたみグループ+QuickAdd / i18n 追い付き） | 🤖 | build 緑・tags 系 test 緑 |
-| 6 | 仕上げ検証（en/ja キー同数・hex grep 0・全 build/test・session-verifier）→ role-qa（別コンテキスト監査） | 🤖 | 下記 AC 全て yes |
-| 7 | tracker END → draft PR `feat: materials — target IA implementation (ClaudeDesign import)` → outbox 報告 | 🤖（作成まで） | PR URL 取得 |
-| 8 | 目視確認（4 タブ × wide/narrow、light/dark） | 👀 | ユーザー確認 |
-| 9 | PR merge | 🛑 | ユーザー操作（self-merge 禁止） |
+| #   | Step                                                                                                                                                                     | Gate           | Acceptance                                      |
+| --- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------------- | ----------------------------------------------- |
+| 1   | 共有プリミティブ batch（EmptyState / SkeletonList / StatusFilterChips / ExcerptListItem / DateStrip / QuickAddSheet + barrel + tests）                                   | 🤖             | `cd shared && npm run build && npm run test` 緑 |
+| 2   | Tasks タブ（Desktop: Kanban 意匠合わせ + CTA 行 + portal 詳細（TaskDetailPanel+タグ slot）/ Mobile: チップフィルタ+縦リスト+ステータス Sheet+QuickAdd / 空・スケルトン） | 🤖             | shared+web build 緑・kanban 系 test 緑          |
+| 3   | Notes タブ（Desktop: 中央 800px ツリーカード+検索+ゴミ箱行+NoteDetailPanel portal / Mobile: ピン留め+グループ一覧+92% 閲覧 Sheet+QuickAdd）                              | 🤖             | build 緑・notes 系 test 緑                      |
+| 4   | Daily タブ（Desktop: 中央エディタカード+DailyEntriesPanel portal+「今日へ」/ Mobile: DateStrip+エディタ+過去抜粋 / i18n 全面追い付き）                                   | 🤖             | build 緑・daily 系 test 緑                      |
+| 5   | Tags タブ（Desktop: 中央タグ一覧カード+TagRow+TagGroupsPanel portal+ColorPicker / Mobile: 閲覧リスト+折りたたみグループ+QuickAdd / i18n 追い付き）                       | 🤖             | build 緑・tags 系 test 緑                       |
+| 6   | 仕上げ検証（en/ja キー同数・hex grep 0・全 build/test・session-verifier）→ role-qa（別コンテキスト監査）                                                                 | 🤖             | 下記 AC 全て yes                                |
+| 7   | tracker END → draft PR `feat: materials — target IA implementation (ClaudeDesign import)` → outbox 報告                                                                  | 🤖（作成まで） | PR URL 取得                                     |
+| 8   | 目視確認（4 タブ × wide/narrow、light/dark）                                                                                                                             | 👀             | ユーザー確認                                    |
+| 9   | PR merge                                                                                                                                                                 | 🛑             | ユーザー操作（self-merge 禁止）                 |
 
 コミットはタブ単位（Step 単位）で分割。`git add` は pathspec 明示（`-A` 禁止）。
 
@@ -131,3 +131,6 @@ web/src/wikitag/**
 ## Worklog
 
 - 2026-07-08: プラン作成。デザイン 8 ファイル import 完了（DesignSync 経由・claude_design MCP 不在のため代替）。既存 API マップ調査完了（4 ビューは web/src 側・RightSidebarPortal 未使用・Daily/Tags は i18n 未対応と判明）。CTA タブ行配置はシェル凍結のためビュー内アクション行へ（差分宣言 #1）。
+- 2026-07-08: Step 1-5 実装完了（role-engineer 逐次 5 体・タブ単位 commit: 38731693 / 914e6562 / 699ada28 / 1b59a7ad / 3ac5dbcf）。新規 shared 部品 9 種 + Kanban 意匠合わせ + 4 ビュー再構成 + i18n 追い付き（en/ja 各 1961 キーで parity 維持）。
+- 2026-07-08: 実装中の追加判断 — Daily はデザイン準拠でタグ/リンク UI・Trash 復元 UI・Save ボタンを撤去（blur 保存 + 保存済み表示へ。データは残置・復元は Trash セクション経由）/ Notes Mobile の抜粋は LIST が body 抜きのため省略（タイトルのみ・タップで hydrate 後に閲覧シート）/ Tags の per-tag 使用件数は unified context に tag→item 集約が無く N+1 になるため省略（フックへの `allAssignments` 追加は別タスク候補）/ TagGroupsPanel にグループ rename/delete は未実装（デザイン非掲載・要ユーザー確認）。
+- 2026-07-08: role-qa 独立監査 → FAIL（Blocking 1: Mobile Notes 閲覧が hydrate 前に空 mount / Major 1: Daily blur 保存の空エントリ量産 / Minor 3）。修正 commit 2eacc47c で B-1/M-1/Mi-2/Mi-3/Mi-4 対応。Mi-1（TaskDetailModal デッドコード撤去）は barrel export 削除 = API 破壊のため見送り・フォローアップ Issue 化予定。機械 AC は全て緑（hex 0 / getDataService 直呼び 0 / parity 0 差分 / shared build+test 627 pass / web build 成功。「シェル所有ファイルが diff に出る」件はローカル main ref が stale なだけで実ベース f04e7f08 比では 0 件）。
